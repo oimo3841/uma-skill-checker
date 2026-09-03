@@ -222,36 +222,6 @@
 		let uploadedFiles = [];
 		let detectedSkills = new Set();
 
-		// レーベンシュタイン距離の計算
-		function levenshteinDistance(a, b) {
-			const matrix = [];
-			for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-			for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-
-			for (let i = 1; i <= b.length; i++) {
-				for (let j = 1; j <= a.length; j++) {
-					if (b.charAt(i - 1) === a.charAt(j - 1)) {
-						matrix[i][j] = matrix[i - 1][j - 1];
-					} else {
-						matrix[i][j] = Math.min(
-							matrix[i - 1][j - 1] + 1,
-							matrix[i][j - 1] + 1,
-							matrix[i - 1][j] + 1
-						);
-					}
-				}
-			}
-			return matrix[b.length][a.length];
-		}
-
-		// 類似度（0.0〜1.0）の算出
-		function getSimilarity(str1, str2) {
-			const maxLen = Math.max(str1.length, str2.length);
-			if (maxLen === 0) return 1.0;
-			const distance = levenshteinDistance(str1, str2);
-			return 1.0 - distance / maxLen;
-		}
-
 		// 2倍拡大による画像解像度調整
 		function preprocessImage(file) {
 			return new Promise((resolve) => {
@@ -381,14 +351,16 @@
 			document.getElementById('progress-label').textContent = label;
 		}
 
-		// テキストの記号・表記統一化関数
+		// テキストの記号・誤認識の標準化（厳格版）
 		function normalizeText(text) {
 			return text
 				.replace(/[\s★☆|:;.\-\n]/g, '')
-				.replace(/[〇◯○O0]/g, '○'); // 丸記号の表記揺れを統一
+				.replace(/[〇◯○O0◎]/g, '○')  // 各種丸記号・英数ゼロを統一
+				.replace(/船相|船船/g, '船橋') // OCRで誤読しやすい漢字の事前変換
+				.replace(/匹狼/g, '一匹狼');
 		}
 
-		// 判定処理
+		// 判定処理（誤検知・水増し防止のため完全一致＋ピンポイント置換に特化）
 		function matchSkills(ocrText) {
 			const normalizedOcrText = normalizeText(ocrText);
 
@@ -396,33 +368,18 @@
 				const targetSkill = normalizeText(skill);
 				if (!targetSkill) return;
 
-				// 1. 完全部分一致（記号の正規化済み）
+				// 1. 完全部分一致判定
 				if (normalizedOcrText.includes(targetSkill)) {
 					detectedSkills.add(skill);
 					return;
 				}
 
-				// 2. 認識誤り補正（エイリアス判定）
-				if (targetSkill === '一匹狼' && (normalizedOcrText.includes('匹狼') || normalizedOcrText.includes('一匹'))) {
-					detectedSkills.add(skill);
-					return;
-				}
-				if (targetSkill.includes('船橋') && (normalizedOcrText.includes('船相') || normalizedOcrText.includes('船船'))) {
-					detectedSkills.add(skill);
-					return;
-				}
-
-				// 3. 類似度判定（閾値 0.72 に緩和し高検出率を優先）
-				const skillLen = targetSkill.length;
-				if (skillLen === 0) return;
-
-				for (let i = 0; i <= normalizedOcrText.length - skillLen; i++) {
-					const chunk = normalizedOcrText.substr(i, skillLen);
-					const similarity = getSimilarity(chunk, targetSkill);
-
-					if (similarity >= 0.72) {
+				// 2. 「◎」スキルを所有している場合に「○」側も自動検出とみなす処置
+				if (targetSkill.endsWith('○')) {
+					const doubleCircleVariant = targetSkill.slice(0, -1) + '◎';
+					if (normalizedOcrText.includes(doubleCircleVariant)) {
 						detectedSkills.add(skill);
-						break;
+						return;
 					}
 				}
 			});
