@@ -1,52 +1,459 @@
-// ========== 前処理: 画像拡大のみ（過度な二値化は削除） ==========
-function preprocessImage(file) {
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
+<!doctype html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>ウマ娘スキル管理ツール</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
+	<style>
+		body {
+			background-color: #F2F4F5;
+			background-image: radial-gradient(circle at 1px 1px, rgba(30,41,59,0.05) 1px, transparent 0);
+			background-size: 20px 20px;
+		}
+		.heading-divider {
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+		}
+		.heading-divider::before, .heading-divider::after {
+			content: "";
+			flex: 1;
+			height: 1px;
+			background: #CBD3D8;
+		}
+		.result-table {
+			border-collapse: collapse;
+			width: 100%;
+		}
+		.result-table th,
+		.result-table td {
+			border: 1px solid #E2E8F0;
+			padding: 0.5rem;
+			text-align: left;
+		}
+		@media (min-width: 768px) {
+			.result-table th,
+			.result-table td {
+				padding: 0.75rem;
+			}
+		}
+		.result-table th {
+			background-color: #F8FAFC;
+			font-weight: 600;
+			font-size: 0.75rem;
+			color: #475569;
+		}
+		@media (min-width: 768px) {
+			.result-table th {
+				font-size: 0.875rem;
+			}
+		}
+		.result-table td {
+			font-size: 0.75rem;
+		}
+		@media (min-width: 768px) {
+			.result-table td {
+				font-size: 0.875rem;
+			}
+		}
+		.result-table tr:nth-child(even) {
+			background-color: #F8FAFC;
+		}
+		.found {
+			color: #10B981;
+			font-weight: 600;
+		}
+		.not-found {
+			color: #94A3B8;
+		}
+	</style>
+</head>
+<body class="min-h-screen text-slate-800">
+	<div class="w-full max-w-6xl mx-auto px-4 md:px-5 py-6 md:py-10">
 
-            // 解像度を上げて読み取りやすくする（拡大のみ行う）
-            const scale = 2;
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
+		<!-- ヘッダー -->
+		<header class="mb-6 md:mb-8">
+			<div class="inline-block px-3 py-1 rounded-full bg-[#1E3A5F] text-white text-xs font-medium mb-2 md:mb-3">
+				スキル管理ツール
+			</div>
+			<h1 class="text-xl md:text-2xl font-bold text-slate-900">ウマ娘スキル管理</h1>
+			<p class="mt-1 md:mt-1.5 text-xs md:text-sm text-slate-500">スキルリストを照合して、複数の画像から自動抽出します</p>
+		</header>
 
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            resolve(canvas.toDataURL('image/png'));
-        };
-        img.src = URL.createObjectURL(file);
-    });
-}
+		<!-- 使用方法 -->
+		<div class="rounded-2xl border border-blue-200 bg-blue-50 p-4 md:p-6 mb-6 md:mb-8">
+			<p class="text-xs md:text-sm font-medium text-blue-900 mb-3 md:mb-4">📋 使用方法</p>
+			<div class="space-y-2 md:space-y-3 text-xs md:text-sm text-blue-800">
+				<div class="flex gap-2 md:gap-3">
+					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">1</span>
+					<div>
+						<p class="font-medium">スキルリストを準備</p>
+						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スプレッドシートやCSVの1列分をコピーして貼り付けます</p>
+					</div>
+				</div>
+				<div class="flex gap-2 md:gap-3">
+					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">2</span>
+					<div>
+						<p class="font-medium">リストを解析</p>
+						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スキル個数を確認してから次に進みます</p>
+					</div>
+				</div>
+				<div class="flex gap-2 md:gap-3">
+					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">3</span>
+					<div>
+						<p class="font-medium">複数の画像をアップロード</p>
+						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スキル表示の画像を複数枚ドラッグ＆ドロップ</p>
+					</div>
+				</div>
+				<div class="flex gap-2 md:gap-3">
+					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">4</span>
+					<div>
+						<p class="font-medium">OCR処理を実行</p>
+						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スキルを自動検出・照合します</p>
+					</div>
+				</div>
+				<div class="flex gap-2 md:gap-3">
+					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">5</span>
+					<div>
+						<p class="font-medium">結果をコピー</p>
+						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">「○」と空白の列をコピーしてスプレッドシートに貼り付け</p>
+					</div>
+				</div>
+			</div>
+		</div>
 
-// ========== レーベンシュタイン距離を用いた曖昧マッチング（部分文字列スライド判定） ==========
-function matchSkillsFuzzy(ocrText) {
-    // 改行・スペース・記号を全て取り除いた1つの連続文字列にする
-    const normalizedOcrText = ocrText.replace(/[\s★☆|:;.\-\n]/g, '');
+		<!-- ステップ1: スキルリスト入力 -->
+		<div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-4 md:p-6 mb-6 md:mb-8">
+			<div class="heading-divider text-xs font-medium text-slate-400 mb-3 md:mb-4">
+				<span>ステップ1: スキルリストを入力</span>
+			</div>
+			<p class="text-xs md:text-sm text-slate-600 mb-2 md:mb-3">CSVから1列をコピーするか、1行に1スキル（改行区切り）で入力してください：</p>
+			<textarea id="skill-list" class="w-full h-24 md:h-32 text-xs md:text-sm p-2 md:p-3 rounded-xl border border-slate-200 bg-slate-50 font-mono mb-2 md:mb-3" placeholder="例：スキルA&#10;スキルB&#10;スキルC"></textarea>
+			<button onclick="parseSkillList()" class="w-full md:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors">
+				リストを解析
+			</button>
+			<div id="skill-count" class="text-xs text-slate-500 mt-1 md:mt-2"></div>
+		</div>
 
-    skillList.forEach(skill => {
-        const targetSkill = skill.replace(/\s+/g, '');
-        if (!targetSkill) return;
+		<!-- ステップ2: 画像アップロード -->
+		<div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-4 md:p-6 mb-6 md:mb-8">
+			<div class="heading-divider text-xs font-medium text-slate-400 mb-3 md:mb-4">
+				<span>ステップ2: 画像をアップロード</span>
+			</div>
+			<label class="block cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 bg-white hover:border-emerald-400 hover:bg-emerald-50/30 transition-colors p-6 md:p-8 text-center mb-3 md:mb-4">
+				<input id="file-input" type="file" accept="image/*" multiple class="hidden" />
+				<span class="text-slate-500 text-xs md:text-sm" id="drop-label">複数の画像をドラッグして配置、またはクリック</span>
+			</label>
+			<div id="image-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 mb-3 md:mb-4"></div>
 
-        // 1. 完全部分一致チェック
-        if (normalizedOcrText.includes(targetSkill)) {
-            detectedSkills.add(skill);
-            return;
-        }
+			<!-- 処理状況 -->
+			<div id="progress-wrap" class="hidden mb-3 md:mb-4">
+				<div class="flex justify-between text-xs text-slate-500 mb-1 md:mb-1.5">
+					<span id="progress-label">処理中…</span>
+					<span id="progress-pct">0%</span>
+				</div>
+				<div class="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+					<div id="progress-bar" class="h-full bg-emerald-600 rounded-full transition-all" style="width:0%"></div>
+				</div>
+			</div>
 
-        // 2. 部分文字列のスライド比較（N-gram的にスキル名長＋前後1文字で切り出して比較）
-        const skillLen = targetSkill.length;
-        if (skillLen === 0) return;
+			<div id="error-wrap" class="hidden mb-3 md:mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 md:p-4 text-xs md:text-sm text-red-700 whitespace-pre-line"></div>
 
-        for (let i = 0; i <= normalizedOcrText.length - skillLen; i++) {
-            // スキル名とほぼ同じ長さの区間を切り出す
-            const chunk = normalizedOcrText.substr(i, skillLen);
-            const similarity = getSimilarity(chunk, targetSkill);
+			<button id="process-btn" onclick="processImages()" class="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs md:text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+				画像をOCR処理
+			</button>
+		</div>
 
-            // 70%以上の類似度があれば検出判定
-            if (similarity >= 0.70) {
-                detectedSkills.add(skill);
-                break;
-            }
-        }
-    });
-}
+		<!-- ステップ3: 結果 -->
+		<div id="result-wrap" class="hidden rounded-2xl border border-slate-200 bg-white shadow-sm p-4 md:p-6">
+			<div class="heading-divider text-xs font-medium text-slate-400 mb-3 md:mb-4">
+				<span>ステップ3: 照合結果</span>
+			</div>
+
+			<!-- マッチング統計 -->
+			<div id="match-stats" class="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-6">
+				<div class="rounded-lg border border-slate-200 bg-slate-50 p-3 md:p-4 text-center">
+					<p class="text-xs text-slate-500 mb-1">処理対象</p>
+					<p class="text-xl md:text-2xl font-bold text-slate-900" id="stat-total">0</p>
+				</div>
+				<div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 md:p-4 text-center">
+					<p class="text-xs text-emerald-600 mb-1">検出されたスキル</p>
+					<p class="text-xl md:text-2xl font-bold text-emerald-600" id="stat-found">0</p>
+				</div>
+				<div class="rounded-lg border border-slate-200 bg-slate-50 p-3 md:p-4 text-center">
+					<p class="text-xs text-slate-500 mb-1">未検出</p>
+					<p class="text-xl md:text-2xl font-bold text-slate-600" id="stat-not-found">0</p>
+				</div>
+			</div>
+
+			<!-- 結果テーブル -->
+			<div class="overflow-x-auto mb-4 md:mb-6">
+				<table class="result-table">
+					<thead>
+						<tr>
+							<th>スキル名（リスト順）</th>
+							<th>検出結果</th>
+						</tr>
+					</thead>
+					<tbody id="result-tbody"></tbody>
+				</table>
+			</div>
+
+			<!-- コピー用データ -->
+			<div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 md:p-4 mb-3 md:mb-4">
+				<p class="text-xs font-medium text-slate-600 mb-2">クリップボードコピー用（新しい列）：</p>
+				<div class="flex flex-col md:flex-row gap-2">
+					<textarea id="copy-data" readonly class="w-full md:flex-1 h-20 text-xs md:text-sm p-2 rounded-lg border border-slate-200 bg-white font-mono"></textarea>
+					<button onclick="copyToClipboard()" class="w-full md:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors whitespace-nowrap">
+						コピー
+					</button>
+				</div>
+			</div>
+
+			<p class="text-xs text-slate-500">💡 このテキストをスプレッドシートの新しい列にペーストしてください</p>
+		</div>
+
+	</div>
+
+	<script>
+		let skillList = [];
+		let uploadedFiles = [];
+		let detectedSkills = new Set();
+
+		// レーベンシュタイン距離の計算
+		function levenshteinDistance(a, b) {
+			const matrix = [];
+			for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+			for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+			for (let i = 1; i <= b.length; i++) {
+				for (let j = 1; j <= a.length; j++) {
+					if (b.charAt(i - 1) === a.charAt(j - 1)) {
+						matrix[i][j] = matrix[i - 1][j - 1];
+					} else {
+						matrix[i][j] = Math.min(
+							matrix[i - 1][j - 1] + 1,
+							matrix[i][j - 1] + 1,
+							matrix[i - 1][j] + 1
+						);
+					}
+				}
+			}
+			return matrix[b.length][a.length];
+		}
+
+		// 類似度（0.0〜1.0）の算出
+		function getSimilarity(str1, str2) {
+			const maxLen = Math.max(str1.length, str2.length);
+			if (maxLen === 0) return 1.0;
+			const distance = levenshteinDistance(str1, str2);
+			return 1.0 - distance / maxLen;
+		}
+
+		// 2倍拡大による画像解像度調整
+		function preprocessImage(file) {
+			return new Promise((resolve) => {
+				const img = new Image();
+				img.onload = () => {
+					const canvas = document.createElement('canvas');
+					const ctx = canvas.getContext('2d');
+
+					const scale = 2;
+					canvas.width = img.width * scale;
+					canvas.height = img.height * scale;
+
+					ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+					resolve(canvas.toDataURL('image/png'));
+				};
+				img.src = URL.createObjectURL(file);
+			});
+		}
+
+		// ステップ1: スキルリスト解析
+		function parseSkillList() {
+			const input = document.getElementById('skill-list').value.trim();
+			if (!input) {
+				alert('スキルリストを入力してください');
+				return;
+			}
+
+			skillList = input.split(/[\n,]/).map(s => s.trim()).filter(s => s.length > 0);
+			
+			if (skillList.length === 0) {
+				alert('有効なスキルが見つかりません');
+				return;
+			}
+
+			document.getElementById('skill-count').textContent = `✓ ${skillList.length}個のスキルを解析しました`;
+			alert(`${skillList.length}個のスキルを読み込みました`);
+		}
+
+		// ステップ2: 画像アップロード
+		const fileInput = document.getElementById('file-input');
+		const imageList = document.getElementById('image-list');
+		const processBtn = document.getElementById('process-btn');
+
+		fileInput.addEventListener('change', (e) => {
+			uploadedFiles = Array.from(e.target.files);
+			renderImageList();
+			processBtn.disabled = skillList.length === 0 || uploadedFiles.length === 0;
+		});
+
+		function renderImageList() {
+			imageList.innerHTML = uploadedFiles.map((file, idx) => `
+				<div class="relative rounded-lg border border-slate-200 overflow-hidden bg-slate-50">
+					<img src="${URL.createObjectURL(file)}" class="w-full h-24 md:h-32 object-cover" />
+					<div class="absolute top-1 right-1">
+						<button onclick="removeImage(${idx})" class="px-2 py-1 rounded bg-red-500 text-white text-xs font-medium hover:bg-red-600">削除</button>
+					</div>
+					<p class="text-xs text-slate-600 p-1 md:p-2 truncate">${file.name}</p>
+				</div>
+			`).join('');
+		}
+
+		function removeImage(idx) {
+			uploadedFiles.splice(idx, 1);
+			renderImageList();
+			processBtn.disabled = skillList.length === 0 || uploadedFiles.length === 0;
+		}
+
+		// ステップ3: OCR処理と照合
+		async function processImages() {
+			if (skillList.length === 0) {
+				alert('先にスキルリストを解析してください');
+				return;
+			}
+			if (uploadedFiles.length === 0) {
+				alert('画像をアップロードしてください');
+				return;
+			}
+
+			detectedSkills.clear();
+			const progressWrap = document.getElementById('progress-wrap');
+			const errorWrap = document.getElementById('error-wrap');
+			errorWrap.classList.add('hidden');
+			progressWrap.classList.remove('hidden');
+			processBtn.disabled = true;
+
+			let successCount = 0;
+			const totalFiles = uploadedFiles.length;
+
+			for (let i = 0; i < uploadedFiles.length; i++) {
+				const file = uploadedFiles[i];
+				updateProgress(i, totalFiles, `処理中: ${file.name}`);
+
+				try {
+					const processedImageData = await preprocessImage(file);
+
+					const { data } = await Tesseract.recognize(processedImageData, 'jpn', {
+						logger: (m) => {
+							if (m.status) {
+								document.getElementById('progress-label').textContent = `${file.name}: ${m.status}`;
+							}
+						}
+					});
+
+					matchSkills(data.text);
+					successCount++;
+				} catch (err) {
+					console.error(`Error processing ${file.name}:`, err);
+				}
+			}
+
+			progressWrap.classList.add('hidden');
+			processBtn.disabled = false;
+
+			if (successCount === 0) {
+				errorWrap.classList.remove('hidden');
+				errorWrap.textContent = 'OCR処理に失敗しました。別の形式の画像を試してください。';
+				return;
+			}
+
+			renderResults();
+		}
+
+		function updateProgress(current, total, label) {
+			const pct = Math.round(((current + 1) / total) * 100);
+			document.getElementById('progress-bar').style.width = pct + '%';
+			document.getElementById('progress-pct').textContent = pct + '%';
+			document.getElementById('progress-label').textContent = label;
+		}
+
+		// 判定処理（完全一致 ＋ スライド窓でのレーベンシュタイン判定）
+		function matchSkills(ocrText) {
+			const normalizedOcrText = ocrText.replace(/[\s★☆|:;.\-\n]/g, '');
+
+			skillList.forEach(skill => {
+				const targetSkill = skill.replace(/\s+/g, '');
+				if (!targetSkill) return;
+
+				// 1. 完全部分一致
+				if (normalizedOcrText.includes(targetSkill)) {
+					detectedSkills.add(skill);
+					return;
+				}
+
+				// 2. 曖昧判定（スライド窓で文字長さを合わせて比較）
+				const skillLen = targetSkill.length;
+				if (skillLen === 0) return;
+
+				for (let i = 0; i <= normalizedOcrText.length - skillLen; i++) {
+					const chunk = normalizedOcrText.substr(i, skillLen);
+					const similarity = getSimilarity(chunk, targetSkill);
+
+					// 1文字程度の誤字・誤認識（類似度75%以上）を許容
+					if (similarity >= 0.75) {
+						detectedSkills.add(skill);
+						break;
+					}
+				}
+			});
+		}
+
+		function renderResults() {
+			const tbody = document.getElementById('result-tbody');
+			const copyData = document.getElementById('copy-data');
+			const resultWrap = document.getElementById('result-wrap');
+
+			let tableHtml = '';
+			let copyText = '';
+			let foundCount = 0;
+
+			skillList.forEach((skill, idx) => {
+				const found = detectedSkills.has(skill);
+				const status = found ? '○' : '';
+				const statusClass = found ? 'found' : 'not-found';
+
+				tableHtml += `
+					<tr>
+						<td>${skill}</td>
+						<td class="${statusClass}">${status}</td>
+					</tr>
+				`;
+
+				copyText += (found ? '○' : '') + (idx < skillList.length - 1 ? '\n' : '');
+				if (found) foundCount++;
+			});
+
+			const totalCount = skillList.length;
+			const notFoundCount = totalCount - foundCount;
+			document.getElementById('stat-total').textContent = totalCount;
+			document.getElementById('stat-found').textContent = foundCount;
+			document.getElementById('stat-not-found').textContent = notFoundCount;
+
+			tbody.innerHTML = tableHtml;
+			copyData.value = copyText;
+			resultWrap.classList.remove('hidden');
+		}
+
+		function copyToClipboard() {
+			const copyData = document.getElementById('copy-data');
+			copyData.select();
+			document.execCommand('copy');
+			alert('クリップボードにコピーしました');
+		}
+	</script>
+</body>
+</html>
