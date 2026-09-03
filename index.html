@@ -222,40 +222,7 @@
 		let uploadedFiles = [];
 		let detectedSkills = new Set();
 
-		// 画像を左右2分割＋高画質化してOCR処理の精度を極限まで高める処理
-		function splitAndPreprocessImage(file) {
-			return new Promise((resolve) => {
-				const img = new Image();
-				img.onload = () => {
-					const leftCanvas = document.createElement('canvas');
-					const rightCanvas = document.createElement('canvas');
-					const scale = 2.5; // 高解像度化
-
-					const halfWidth = img.width / 2;
-					
-					leftCanvas.width = halfWidth * scale;
-					leftCanvas.height = img.height * scale;
-					rightCanvas.width = halfWidth * scale;
-					rightCanvas.height = img.height * scale;
-
-					const lCtx = leftCanvas.getContext('2d');
-					const rCtx = rightCanvas.getContext('2d');
-
-					// 左半分の描画
-					lCtx.drawImage(img, 0, 0, halfWidth, img.height, 0, 0, leftCanvas.width, leftCanvas.height);
-					// 右半分の描画
-					rCtx.drawImage(img, halfWidth, 0, halfWidth, img.height, 0, 0, rightCanvas.width, rightCanvas.height);
-
-					resolve([
-						leftCanvas.toDataURL('image/png'),
-						rightCanvas.toDataURL('image/png')
-					]);
-				};
-				img.src = URL.createObjectURL(file);
-			});
-		}
-
-		// ステップ1: スキルリスト解析
+		// ========== ステップ1: スキルリスト解析 ==========
 		function parseSkillList() {
 			const input = document.getElementById('skill-list').value.trim();
 			if (!input) {
@@ -263,6 +230,7 @@
 				return;
 			}
 
+			// 改行またはカンマで分割
 			skillList = input.split(/[\n,]/).map(s => s.trim()).filter(s => s.length > 0);
 			
 			if (skillList.length === 0) {
@@ -274,7 +242,7 @@
 			alert(`${skillList.length}個のスキルを読み込みました`);
 		}
 
-		// ステップ2: 画像アップロード
+		// ========== ステップ2: 画像アップロード ==========
 		const fileInput = document.getElementById('file-input');
 		const imageList = document.getElementById('image-list');
 		const processBtn = document.getElementById('process-btn');
@@ -303,7 +271,7 @@
 			processBtn.disabled = skillList.length === 0 || uploadedFiles.length === 0;
 		}
 
-		// ステップ3: OCR処理と照合
+		// ========== ステップ3: OCR処理と照合 ==========
 		async function processImages() {
 			if (skillList.length === 0) {
 				alert('先にスキルリストを解析してください');
@@ -326,17 +294,20 @@
 
 			for (let i = 0; i < uploadedFiles.length; i++) {
 				const file = uploadedFiles[i];
-				updateProgress(i, totalFiles, `解析中: ${file.name}`);
+				updateProgress(i, totalFiles, `処理中: ${file.name}`);
 
 				try {
-					const [leftImg, rightImg] = await splitAndPreprocessImage(file);
+					const { data } = await Tesseract.recognize(file, 'jpn+eng', {
+						logger: (m) => {
+							if (m.status) {
+								document.getElementById('progress-label').textContent = `${file.name}: ${m.status}`;
+							}
+						}
+					});
 
-					// 左右それぞれを独立してOCR解析
-					const resLeft = await Tesseract.recognize(leftImg, 'jpn');
-					const resRight = await Tesseract.recognize(rightImg, 'jpn');
-
-					matchSkills(resLeft.data.text);
-					matchSkills(resRight.data.text);
+					// OCRテキストからスキル名をマッチング
+					const ocrText = data.text;
+					matchSkills(ocrText);
 					successCount++;
 				} catch (err) {
 					console.error(`Error processing ${file.name}:`, err);
@@ -362,28 +333,14 @@
 			document.getElementById('progress-label').textContent = label;
 		}
 
-		// スキル本体の文字列のみ抽出（末尾の「○」「◎」やノイズを除去）
-		function getCoreSkillName(name) {
-			return name
-				.replace(/[\s★☆|:;.\-\n]/g, '')
-				.replace(/[〇◯○O0◎o.]+$|[*]+$/g, '') // 末尾の〇記号や文字化けノイズを除去
-				.replace(/船相|船船/g, '船橋')       // OCR特有の漢字誤読補正
-				.replace(/匹狼/g, '一匹狼');
-		}
-
-		// 判定ロジック
 		function matchSkills(ocrText) {
-			// OCR抽出テキストのノイズ除去
-			const cleanedOcrText = ocrText
-				.replace(/[\s★☆|:;.\-\n]/g, '')
-				.replace(/船相|船船/g, '船橋');
+			// OCRテキストを正規化（空白を削除）
+			const normalized = ocrText.replace(/\s+/g, '');
 
+			// スキルリストの各スキルと照合
 			skillList.forEach(skill => {
-				const coreName = getCoreSkillName(skill);
-				if (!coreName || coreName.length === 0) return;
-
-				// コア名（例: 「交流重賞」「マイルコーナー」など）で検索
-				if (cleanedOcrText.includes(coreName)) {
+				const normalizedSkill = skill.replace(/\s+/g, '');
+				if (normalized.includes(normalizedSkill)) {
 					detectedSkills.add(skill);
 				}
 			});
@@ -394,6 +351,7 @@
 			const copyData = document.getElementById('copy-data');
 			const resultWrap = document.getElementById('result-wrap');
 
+			// テーブル行を生成
 			let tableHtml = '';
 			let copyText = '';
 			let foundCount = 0;
@@ -414,6 +372,7 @@
 				if (found) foundCount++;
 			});
 
+			// 統計情報を更新
 			const totalCount = skillList.length;
 			const notFoundCount = totalCount - foundCount;
 			document.getElementById('stat-total').textContent = totalCount;
