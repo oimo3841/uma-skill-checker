@@ -381,43 +381,38 @@
 			document.getElementById('progress-label').textContent = label;
 		}
 
-		// 判定処理（対義語ガード・誤読辞書・厳格化されたスライド窓判定）
+		// テキストの記号・表記統一化関数
+		function normalizeText(text) {
+			return text
+				.replace(/[\s★☆|:;.\-\n]/g, '')
+				.replace(/[〇◯○O0]/g, '○'); // 丸記号の表記揺れを統一
+		}
+
+		// 判定処理
 		function matchSkills(ocrText) {
-			const normalizedOcrText = ocrText.replace(/[\s★☆|:;.\-\n]/g, '');
+			const normalizedOcrText = normalizeText(ocrText);
 
 			skillList.forEach(skill => {
-				const targetSkill = skill.replace(/\s+/g, '');
+				const targetSkill = normalizeText(skill);
 				if (!targetSkill) return;
 
-				// 1. 直線とコーナーの誤検出ガード
-				if (targetSkill.includes('直線') && normalizedOcrText.includes('コーナー') && !normalizedOcrText.includes('直線')) {
-					return;
-				}
-				if (targetSkill.includes('コーナー') && normalizedOcrText.includes('直線') && !normalizedOcrText.includes('コーナー')) {
-					return;
-				}
-
-				// 2. 完全部分一致
+				// 1. 完全部分一致（記号の正規化済み）
 				if (normalizedOcrText.includes(targetSkill)) {
 					detectedSkills.add(skill);
 					return;
 				}
 
-				// 3. 特有の漢字誤読・短文補正辞書（エイリアス判定）
+				// 2. 認識誤り補正（エイリアス判定）
 				if (targetSkill === '一匹狼' && (normalizedOcrText.includes('匹狼') || normalizedOcrText.includes('一匹'))) {
 					detectedSkills.add(skill);
 					return;
 				}
-				if (targetSkill === '急発進' && (normalizedOcrText.includes('急発') || normalizedOcrText.includes('発進'))) {
-					detectedSkills.add(skill);
-					return;
-				}
-				if (targetSkill.includes('船橋') && (normalizedOcrText.includes('船相') || normalizedOcrText.includes('船船') || normalizedOcrText.includes('橋レース場'))) {
+				if (targetSkill.includes('船橋') && (normalizedOcrText.includes('船相') || normalizedOcrText.includes('船船'))) {
 					detectedSkills.add(skill);
 					return;
 				}
 
-				// 4. 厳格化した類似度判定（閾値を0.82以上に引き上げ）
+				// 3. 類似度判定（閾値 0.72 に緩和し高検出率を優先）
 				const skillLen = targetSkill.length;
 				if (skillLen === 0) return;
 
@@ -425,7 +420,7 @@
 					const chunk = normalizedOcrText.substr(i, skillLen);
 					const similarity = getSimilarity(chunk, targetSkill);
 
-					if (similarity >= 0.82) {
+					if (similarity >= 0.72) {
 						detectedSkills.add(skill);
 						break;
 					}
