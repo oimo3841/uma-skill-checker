@@ -69,13 +69,9 @@
 		.not-found {
 			color: #94A3B8;
 		}
-		.warning-box {
-			background-color: #FEF3C7;
-			border: 1px solid #FCD34D;
-			border-radius: 0.5rem;
-			padding: 0.75rem;
-			margin-top: 0.5rem;
-			font-size: 0.75rem;
+		.upload-area.dragover {
+			background-color: #DBEAFE !important;
+			border-color: #3B82F6 !important;
 		}
 	</style>
 </head>
@@ -133,7 +129,7 @@
 			</div>
 			<p class="text-xs md:text-sm text-slate-600 mb-2 md:mb-3">スプレッドシートやCSVから1列をコピーするか、1行に1スキル（改行区切り）で入力してください（任意の順番に対応）：</p>
 			<textarea id="skill-list" class="w-full h-24 md:h-32 text-xs md:text-sm p-2 md:p-3 rounded-xl border border-slate-200 bg-slate-50 font-mono mb-2 md:mb-3" placeholder="例：スキルA&#10;スキルB&#10;スキルC"></textarea>
-			<button onclick="parseSkillList()" class="w-full md:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors">
+			<button id="parse-btn" class="w-full md:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors">
 				リストを解析
 			</button>
 			<div id="skill-count" class="text-xs text-slate-500 mt-1 md:mt-2"></div>
@@ -144,10 +140,10 @@
 			<div class="heading-divider text-xs font-medium text-slate-400 mb-3 md:mb-4">
 				<span>ステップ2: 画像をアップロード</span>
 			</div>
-			<label class="block cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 bg-white hover:border-emerald-400 hover:bg-emerald-50/30 transition-colors p-6 md:p-8 text-center mb-3 md:mb-4">
+			<div id="upload-area" class="upload-area block cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 bg-white hover:border-emerald-400 hover:bg-emerald-50/30 transition-colors p-6 md:p-8 text-center mb-3 md:mb-4">
 				<input id="file-input" type="file" accept="image/*" multiple class="hidden" />
-				<span class="text-slate-500 text-xs md:text-sm" id="drop-label">複数の画像をドラッグして配置、またはクリック</span>
-			</label>
+				<span class="text-slate-500 text-xs md:text-sm">複数の画像をドラッグして配置、またはクリック</span>
+			</div>
 			<div id="image-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 mb-3 md:mb-4"></div>
 
 			<!-- 処理状況 -->
@@ -163,7 +159,7 @@
 
 			<div id="error-wrap" class="hidden mb-3 md:mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 md:p-4 text-xs md:text-sm text-red-700 whitespace-pre-line"></div>
 
-			<button id="process-btn" onclick="processImages()" class="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs md:text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+			<button id="process-btn" class="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs md:text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
 				画像をOCR処理
 			</button>
 		</div>
@@ -208,7 +204,7 @@
 				<p class="text-xs font-medium text-slate-600 mb-2">クリップボードコピー用（新しい列）：</p>
 				<div class="flex flex-col md:flex-row gap-2">
 					<textarea id="copy-data" readonly class="w-full md:flex-1 h-20 text-xs md:text-sm p-2 rounded-lg border border-slate-200 bg-white font-mono"></textarea>
-					<button onclick="copyToClipboard()" class="w-full md:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors whitespace-nowrap">
+					<button id="copy-btn" class="w-full md:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors whitespace-nowrap">
 						コピー
 					</button>
 				</div>
@@ -222,7 +218,7 @@
 					<span>⚠️ 開発用：マッチング失敗テキスト</span>
 				</div>
 				<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 md:p-4">
-					<p class="text-xs text-yellow-800 mb-2 font-mono" id="unmatched-list"></p>
+					<p class="text-xs text-yellow-800 mb-2 font-mono whitespace-pre-wrap" id="unmatched-list"></p>
 					<p class="text-xs text-yellow-700">💡 これらのテキストをレーベンシュタイン距離で検証し、誤認識辞書に追加してください。</p>
 				</div>
 			</div>
@@ -231,8 +227,11 @@
 	</div>
 
 	<script>
-		// ========== スキルリスト（ユーザ入力によって動的に生成） ==========
+		// ========== グローバル変数 ==========
 		let skillList = [];
+		let uploadedFiles = [];
+		let detectedSkills = new Set();
+		let unmatchedTexts = [];
 
 		// ========== 誤認識辞書（段階的に追加） ==========
 		const ocrErrorDictionary = {
@@ -240,9 +239,66 @@
 			// "ー番乗り": "一番乗り",
 		};
 
-		let uploadedFiles = [];
-		let detectedSkills = new Set();
-		let unmatchedTexts = [];
+		// ========== DOM要素の取得 ==========
+		let fileInput, imageList, processBtn, uploadArea, parseBtn;
+
+		// ========== 初期化 ==========
+		document.addEventListener('DOMContentLoaded', () => {
+			fileInput = document.getElementById('file-input');
+			imageList = document.getElementById('image-list');
+			processBtn = document.getElementById('process-btn');
+			uploadArea = document.getElementById('upload-area');
+			parseBtn = document.getElementById('parse-btn');
+
+			// ========== イベントリスナー登録 ==========
+			// ファイル選択
+			fileInput.addEventListener('change', (e) => {
+				uploadedFiles = Array.from(e.target.files);
+				renderImageList();
+				updateProcessBtnStatus();
+			});
+
+			// リスト解析ボタン
+			parseBtn.addEventListener('click', parseSkillList);
+
+			// OCR処理ボタン
+			processBtn.addEventListener('click', processImages);
+
+			// コピーボタン
+			document.getElementById('copy-btn').addEventListener('click', copyToClipboard);
+
+			// ========== ドラッグ＆ドロップ ==========
+			uploadArea.addEventListener('dragover', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				uploadArea.classList.add('dragover');
+			});
+
+			uploadArea.addEventListener('dragleave', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				uploadArea.classList.remove('dragover');
+			});
+
+			uploadArea.addEventListener('drop', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				uploadArea.classList.remove('dragover');
+				const files = e.dataTransfer.files;
+				if (files.length > 0) {
+					uploadedFiles = Array.from(files);
+					renderImageList();
+					updateProcessBtnStatus();
+				}
+			});
+
+			// クリック時のファイル選択
+			uploadArea.addEventListener('click', () => {
+				fileInput.click();
+			});
+
+			console.log('初期化完了');
+		});
 
 		// ========== ステップ1: スキルリスト解析 ==========
 		function parseSkillList() {
@@ -252,7 +308,6 @@
 				return;
 			}
 
-			// 改行またはカンマで分割
 			skillList = input.split(/[\n,]/).map(s => s.trim()).filter(s => s.length > 0);
 			
 			if (skillList.length === 0) {
@@ -261,6 +316,38 @@
 			}
 
 			document.getElementById('skill-count').textContent = `✓ ${skillList.length}個のスキルを解析しました`;
+			updateProcessBtnStatus();
+			console.log('スキルリスト解析完了:', skillList);
+		}
+
+		function updateProcessBtnStatus() {
+			processBtn.disabled = skillList.length === 0 || uploadedFiles.length === 0;
+			if (skillList.length === 0) {
+				processBtn.title = 'スキルリストを先に解析してください';
+			} else if (uploadedFiles.length === 0) {
+				processBtn.title = '画像をアップロードしてください';
+			} else {
+				processBtn.title = '';
+			}
+		}
+
+		function renderImageList() {
+			imageList.innerHTML = uploadedFiles.map((file, idx) => `
+				<div class="relative rounded-lg border border-slate-200 overflow-hidden bg-slate-50">
+					<img src="${URL.createObjectURL(file)}" class="w-full h-24 md:h-32 object-cover" />
+					<div class="absolute top-1 right-1">
+						<button type="button" onclick="removeImage(${idx})" class="px-2 py-1 rounded bg-red-500 text-white text-xs font-medium hover:bg-red-600">削除</button>
+					</div>
+					<p class="text-xs text-slate-600 p-1 md:p-2 truncate">${file.name}</p>
+				</div>
+			`).join('');
+			console.log('画像リスト更新:', uploadedFiles.length, '個のファイル');
+		}
+
+		function removeImage(idx) {
+			uploadedFiles.splice(idx, 1);
+			renderImageList();
+			updateProcessBtnStatus();
 		}
 
 		// ========== レーベンシュタイン距離の計算 ==========
@@ -285,73 +372,55 @@
 			return matrix[lenA][lenB];
 		}
 
-		// ========== 画像アップロード ==========
-		const fileInput = document.getElementById('file-input');
-		const imageList = document.getElementById('image-list');
-		const processBtn = document.getElementById('process-btn');
+		// ========== マッチング（レーベンシュタイン距離対応） ==========
+		function matchSkillsWithFeedback(ocrText) {
+			const normalized = ocrText.replace(/\s+/g, '');
+			const threshold = 2;
 
-		fileInput.addEventListener('change', (e) => {
-			uploadedFiles = Array.from(e.target.files);
-			renderImageList();
-			updateProcessBtnStatus();
-		});
-
-		function updateProcessBtnStatus() {
-			processBtn.disabled = skillList.length === 0 || uploadedFiles.length === 0;
-			if (skillList.length === 0) {
-				processBtn.title = 'スキルリストを先に解析してください';
-			} else {
-				processBtn.title = '';
+			const detectedTokens = new Set();
+			const tokenPattern = /[\u4E00-\u9FFF\u30A0-\u309F\u3040-\u309F○◎〇a-zA-Z0-9]+/g;
+			let match;
+			while ((match = tokenPattern.exec(normalized)) !== null) {
+				detectedTokens.add(match[0]);
 			}
-		}
 
-		function renderImageList() {
-			imageList.innerHTML = uploadedFiles.map((file, idx) => `
-				<div class="relative rounded-lg border border-slate-200 overflow-hidden bg-slate-50">
-					<img src="${URL.createObjectURL(file)}" class="w-full h-24 md:h-32 object-cover" />
-					<div class="absolute top-1 right-1">
-						<button onclick="removeImage(${idx})" class="px-2 py-1 rounded bg-red-500 text-white text-xs font-medium hover:bg-red-600">削除</button>
-					</div>
-					<p class="text-xs text-slate-600 p-1 md:p-2 truncate">${file.name}</p>
-				</div>
-			`).join('');
-		}
+			skillList.forEach(skill => {
+				const normalizedSkill = skill.replace(/\s+/g, '');
 
-		function removeImage(idx) {
-			uploadedFiles.splice(idx, 1);
-			renderImageList();
-			updateProcessBtnStatus();
-		}
+				// ① 直接一致
+				if (normalized.includes(normalizedSkill)) {
+					detectedSkills.add(skill);
+					return;
+				}
 
-		// ========== OCR前処理（OpenCV.js） ==========
-		async function preprocessImage(canvas) {
-			return new Promise((resolve) => {
-				const img = new Image();
-				img.onload = () => {
-					const src = cv.imread(img);
-					let dst = new cv.Mat();
+				// ② 誤認識辞書を試行
+				for (const [ocrPattern, correctSkill] of Object.entries(ocrErrorDictionary)) {
+					const normalizedPattern = ocrPattern.replace(/\s+/g, '');
+					if (normalized.includes(normalizedPattern)) {
+						detectedSkills.add(correctSkill);
+						return;
+					}
+				}
 
-					// グレースケール変換
-					cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
+				// ③ レーベンシュタイン距離による曖昧マッチング
+				for (const token of detectedTokens) {
+					const distance = levenshteinDistance(normalizedSkill, token);
+					if (distance <= threshold && distance > 0) {
+						detectedSkills.add(skill);
+						return;
+					}
+				}
 
-					// 二値化（自動閾値：OTSU）
-					cv.threshold(dst, dst, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
-
-					// 正規化
-					cv.normalize(dst, dst, 0, 255, cv.NORM_MINMAX);
-
-					// キャンバスに描画
-					cv.imshow(canvas, dst);
-					src.delete();
-					dst.delete();
-
-					resolve();
-				};
-				img.src = canvas.toDataURL('image/png');
+				// ④ マッチング失敗したトークンを記録
+				for (const token of detectedTokens) {
+					if (!unmatchedTexts.includes(token)) {
+						unmatchedTexts.push(token);
+					}
+				}
 			});
 		}
 
-		// ========== ステップ3: OCR処理と照合 ==========
+		// ========== OCR処理 ==========
 		async function processImages() {
 			if (skillList.length === 0) {
 				alert('先にスキルリストを解析してください');
@@ -413,55 +482,6 @@
 			document.getElementById('progress-label').textContent = label;
 		}
 
-		// ========== マッチング（レーベンシュタイン距離対応） ==========
-		function matchSkillsWithFeedback(ocrText) {
-			const normalized = ocrText.replace(/\s+/g, '');
-			const threshold = 2; // レーベンシュタイン距離の許容値
-
-			// 検出されたすべての「単語らしき」文字列を抽出（簡易版）
-			const detectedTokens = new Set();
-			const tokenPattern = /[\u4E00-\u9FFF\u30A0-\u309F\u3040-\u309F○◎〇a-zA-Z0-9]+/g;
-			let match;
-			while ((match = tokenPattern.exec(normalized)) !== null) {
-				detectedTokens.add(match[0]);
-			}
-
-			skillList.forEach(skill => {
-				const normalizedSkill = skill.replace(/\s+/g, '');
-
-				// ① 直接一致
-				if (normalized.includes(normalizedSkill)) {
-					detectedSkills.add(skill);
-					return;
-				}
-
-				// ② 誤認識辞書を試行
-				for (const [ocrPattern, correctSkill] of Object.entries(ocrErrorDictionary)) {
-					const normalizedPattern = ocrPattern.replace(/\s+/g, '');
-					if (normalized.includes(normalizedPattern)) {
-						detectedSkills.add(correctSkill);
-						return;
-					}
-				}
-
-				// ③ レーベンシュタイン距離による曖昧マッチング
-				for (const token of detectedTokens) {
-					const distance = levenshteinDistance(normalizedSkill, token);
-					if (distance <= threshold && distance > 0) {
-						detectedSkills.add(skill);
-						return;
-					}
-				}
-
-				// ④ マッチング失敗したトークンを記録
-				for (const token of detectedTokens) {
-					if (!unmatchedTexts.includes(token)) {
-						unmatchedTexts.push(token);
-					}
-				}
-			});
-		}
-
 		function renderResults() {
 			const tbody = document.getElementById('result-tbody');
 			const copyData = document.getElementById('copy-data');
@@ -488,7 +508,6 @@
 				if (found) foundCount++;
 			});
 
-			// 統計情報を更新
 			const totalCount = skillList.length;
 			const notFoundCount = totalCount - foundCount;
 			document.getElementById('stat-total').textContent = totalCount;
@@ -499,7 +518,6 @@
 			copyData.value = copyText;
 			resultWrap.classList.remove('hidden');
 
-			// マッチング失敗のテキストを表示（開発者用）
 			if (unmatchedTexts.length > 0) {
 				unmatchedWrap.classList.remove('hidden');
 				document.getElementById('unmatched-list').textContent = unmatchedTexts.join('\n');
@@ -514,39 +532,6 @@
 			document.execCommand('copy');
 			alert('クリップボードにコピーしました');
 		}
-
-		// ========== ドラッグアンドドロップ機能 ==========
-		const uploadArea = document.querySelector('label');
-		if (uploadArea) {
-			uploadArea.addEventListener('dragover', (e) => {
-				e.preventDefault();
-				e.stopPropagation();
-				uploadArea.classList.add('bg-emerald-100');
-			});
-
-			uploadArea.addEventListener('dragleave', (e) => {
-				e.preventDefault();
-				e.stopPropagation();
-				uploadArea.classList.remove('bg-emerald-100');
-			});
-
-			uploadArea.addEventListener('drop', (e) => {
-				e.preventDefault();
-				e.stopPropagation();
-				uploadArea.classList.remove('bg-emerald-100');
-				const files = e.dataTransfer.files;
-				if (files.length > 0) {
-					fileInput.files = files;
-					const event = new Event('change', { bubbles: true });
-					fileInput.dispatchEvent(event);
-				}
-			});
-		}
-
-		// ========== ウィンドウロード時の初期化 ==========
-		window.addEventListener('load', () => {
-			updateProcessBtnStatus();
-		});
 	</script>
 </body>
 </html>
