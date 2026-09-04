@@ -14,6 +14,11 @@
 /* ============================================================
  * 定数
  * ============================================================ */
+// このファイルの版。ツールの開発用ログの先頭に表示される。
+// 「どの版の common.js がブラウザで実際に動いているか」を確認するための目印。
+// 中身を変更したらこの日付も更新すること。
+const COMMON_JS_VERSION = '2026-09-04e';
+
 const MAX_SIDE_PX = 3000;
 const CONF_THRESHOLD = 55;
 const ROW_TARGET_HEIGHT = 56;
@@ -66,7 +71,10 @@ function levenshtein(a, b) {
 }
 
 function allowedDistance(len) {
-	if (len <= 3) return 0;
+	// 3文字ちょうどのスキル名（例：「急降下」）はこれまで距離0（完全一致必須）
+	// だったため、字形の近い1文字誤読（隆⇔降 など）だけで確定できないケースがあった。
+	// 2文字以下はまだ誤爆リスクが高いので0のまま、3文字から緩和する。
+	if (len <= 2) return 0;
 	if (len <= 5) return 1;
 	if (len <= 9) return 2;
 	return 3;
@@ -306,6 +314,36 @@ function detectSkillRows(baseCanvas, diag) {
 	diag.push('高さフィルタ（中央値 ' + medH + 'px）: ' + before + ' → ' + bands.length + '本');
 	if (bands.length < 3) { diag.push('フィルタ後の文字帯が少なすぎるため中止'); return null; }
 
+	// ★アイコン（special.html の因子継承画面などで、スキル名の下に表示される★★★）は
+	// 明るい金色だが、輪郭線部分がまれに「暗い文字」として誤検出され、
+	// 本来1行のはずのスキル名の下にもう1本、実体のない「文字帯」が紛れ込むことがある。
+	// これを放置すると行数が本来の約2倍に膨らみ、テキスト認識にもノイズが混入するため、
+	// 「帯の中の金色ピクセル比率が高い」帯を ★アイコンの誤検出とみなして除外する。
+	// 実測では、正規の文字帯は金色比率がほぼ0%、★の誤検出帯は4〜8%程度だったため、
+	// 余裕を持って1.5%を閾値とする。
+	// 注: 当初は「背が低い（medH比85%以下）」帯だけをこの判定対象にしていたが、
+	// ★の誤検出帯の数が実文字帯と同程度〜それ以上になる画像では中央値自体が
+	// ★帯側に引っ張られてしまい、高さによる事前選別が機能しないケースがあった。
+	// 金色比率は実文字帯とほぼ完全に分離できる指標（0% 対 4〜8%）なので、
+	// 高さに関わらず全ての帯に対して直接判定する。
+	// index.html（★の出ない画面）ではそもそも金色ピクセルがほぼ存在しないため、
+	// この処理は実質的に影響しない。
+	const beforeStarFilter = bands.length;
+	const gold = goldMaskOf(imageData);
+	const goldRowCounts = rowCountsOf(gold, W, H);
+	bands = bands.filter(b => {
+		const h = b.b - b.a + 1;
+		let goldCount = 0;
+		for (let y = b.a; y <= b.b; y++) goldCount += goldRowCounts[y];
+		const totalCount = h * W;
+		const goldFrac = totalCount > 0 ? goldCount / totalCount : 0;
+		return goldFrac <= 0.015;
+	});
+	if (bands.length !== beforeStarFilter) {
+		diag.push('★アイコンの誤検出帯を除外: ' + beforeStarFilter + ' → ' + bands.length + '本');
+	}
+	if (bands.length < 3) { diag.push('フィルタ後の文字帯が少なすぎるため中止'); return null; }
+
 	const gapThreshold = Math.max(18, Math.round(W * 0.03));
 	const minBlockW = Math.max(10, Math.round(W * 0.02));
 	const allBlocks = [];
@@ -445,10 +483,15 @@ function windowDistance(line, skill) {
 /**
  * 1つのOCR行（正規化済み文字列）に対し、skillIndexの中から最良候補を選ぶ。
  * skillIndex: [{ raw: '元のスキル名', norm: '正規化済み文字列' }, ...]
+ *
+ * 同着タイ（複数のスキルが同じ距離・同じ長さで並ぶ）の場合はここでは決めず、
+ * 並んだ候補を tied に入れて ok:false で返す。どう decide するかは呼び出し側
+ * （matchAllSkills）が、行の位置情報など文字列以外の手がかりを使って判断する。
+ *
  * 戻り値:
  *   null … 候補となるスキルが一つもない（skillIndexが空 等）
  *   { raw, dist, limit, ok: true }  … 確定採用できる候補が見つかった
- *   { raw, dist, limit, ok: false, reason } … 候補はあるが確定できない（しきい値超過 or 同点タイ）
+ *   { raw, dist, limit, ok: false, reason, tied? } … 候補はあるが確定できない（しきい値超過 or 同点タイ）
  */
 function bestCandidate(normLine, skillIndex) {
 	const passing = [];
@@ -469,9 +512,55 @@ function bestCandidate(normLine, skillIndex) {
 	const top = passing[0];
 	const tied = passing.filter(p => p.dist === top.dist && p.norm.length === top.norm.length);
 	if (tied.length > 1) {
-		return { raw: top.raw, dist: top.dist, limit: top.limit, ok: false, reason: '曖昧' };
+		return { raw: top.raw, dist: top.dist, limit: top.limit, ok: false, reason: '曖昧', tied: tied.map(t => t.raw) };
 	}
 	return { raw: top.raw, dist: top.dist, limit: top.limit, ok: true };
+}
+
+/**
+ * 2つのOCR行が「元画像の別々の行（別の項目）から来た」と断定できるかを判定する。
+ *
+ * rowKey は "画像番号:行番号" の形式で、同じ画像・同じ行から読まれた行（前処理違いの
+ * 読み取り結果など）は同じ値になる。断定できないときは false を返す（＝安全側）。
+ */
+function isDifferentRow(a, b) {
+	if (!a || !b || !a.rowKey || !b.rowKey) return false; // 位置情報がなければ断定しない
+	if (a.rowKey === b.rowKey) return false;              // 同じ行の別の読み取り結果
+	const imgA = String(a.rowKey).split(':')[0];
+	const imgB = String(b.rowKey).split(':')[0];
+	if (imgA === imgB) return true;                       // 同じ画像内の別の行 → 確実に別の項目
+	// 別々の画像の場合、スクロールしながら撮ったスクショは重なっているため、
+	// 同じ項目が両方に写っている可能性がある＝別物と断定できない。
+	// ただし★の数が両方わかっていて食い違うなら、別の項目だと言える。
+	// このとき、信用できない計測（画像最下段の行や、ありえない0個）は根拠に使わない。
+	if (trustworthyStars(a) && trustworthyStars(b) && a.stars !== b.stars) return true;
+	return false;
+}
+
+function trustworthyStars(line) {
+	if (!line || line.stars === null || line.stars === undefined) return false;
+	if (line.stars === 0) return false;           // ★0はありえない＝計測に失敗している
+	return line.starsReliable !== false;
+}
+
+/**
+ * 同着タイになった候補を、文字列以外の手がかりで1つに絞り込む（絞れなければ null）。
+ *
+ * 考え方：タイに含まれるスキルのうち「既に別の行で見つかっていると断定できる」ものは、
+ * この行の正体ではありえないので候補から外す。残りが1つならそれを採用する。
+ * 逆に、既に見つかっていても『この行自体の別の読み取り結果かもしれない』場合
+ * （＝同じ行、または重なった別画像で★の数も一致する）は外さない。
+ * これを外してしまうと、同じ項目を読み直しただけの行が、
+ * 字面の近い別スキルとして過剰に検出されてしまう。
+ */
+function resolveTiedCandidates(tiedRaws, line, detectedSkills, skillSources, lines) {
+	const survivors = tiedRaws.filter(raw => {
+		if (!detectedSkills.has(raw)) return true;
+		const sources = skillSources[raw] || [];
+		const provablyOther = sources.some(i => isDifferentRow(lines[i], line));
+		return !provablyOther;
+	});
+	return survivors.length === 1 ? survivors[0] : null;
 }
 
 /**
@@ -488,12 +577,16 @@ function bestCandidate(normLine, skillIndex) {
  *   {
  *     detectedSkills: Set<string>,   // 検出済みスキル名（raw表記）の集合
  *     matchReasons:   { [rawSkillName]: string },  // 判定根拠の説明文
+ *     skillSources:   { [rawSkillName]: [行index, ...] },  // 検出根拠になった行
  *     devTypo:    [...], devLowConf: [...], devOther: [...], devFuzzy: [...]  // デバッグ用の内訳
  *   }
  */
 function matchAllSkills(lines, skillList, skillIndex, ocrErrorDictionary) {
 	const detectedSkills = new Set();
 	const matchReasons = {};
+	// スキル名 → そのスキルを検出した根拠となった行のindex配列。
+	// 「そのスキルの★はどの行のものか」を後から正確に引くために必ず記録する。
+	const skillSources = {};
 	const devTypo = [], devLowConf = [], devOther = [], devFuzzy = [];
 
 	const normDictionary = {};
@@ -501,43 +594,90 @@ function matchAllSkills(lines, skillList, skillIndex, ocrErrorDictionary) {
 		normDictionary[normalizeText(k)] = ocrErrorDictionary[k];
 	});
 
-	const seen = new Set();
+	function addDetection(skill, lineIndex, reason) {
+		if (!detectedSkills.has(skill)) matchReasons[skill] = reason;
+		detectedSkills.add(skill);
+		if (!skillSources[skill]) skillSources[skill] = [];
+		skillSources[skill].push(lineIndex);
+	}
 
-	lines.forEach(line => {
+	const seen = new Set();
+	// 辞書・完全一致で確定できなかった行は、いったんここに貯めておく。
+	// 曖昧タイの絞り込みが行の並び順に関係なく全行の確定結果を使えるようにするため、
+	// あいまい判定は全行の辞書・完全一致が出揃った後に第2パスとしてまとめて行う。
+	const pendingFuzzy = [];
+	// rowKey → その行の正体が完全一致・辞書で確定済みかどうか
+	const rowAssigned = {};
+
+	lines.forEach((line, index) => {
 		const norm = normalizeText(line.text);
 		if (!norm || norm.length < 2) return;
-		if (seen.has(norm)) return;
-		seen.add(norm);
+		// 同じ文字列でも「元画像の別の行」から来たものは別々に扱う（★の計測値が異なるため）。
+		// rowKey を持たない場合（index.html 側）は、これまで通り文字列だけで重複排除する。
+		const seenKey = norm + ' ' + (line.rowKey || '');
+		if (seen.has(seenKey)) return;
+		seen.add(seenKey);
 
 		if (normDictionary[norm]) {
 			const target = normDictionary[norm];
 			if (skillList.indexOf(target) !== -1) {
-				if (!detectedSkills.has(target)) matchReasons[target] = '辞書';
-				detectedSkills.add(target);
+				addDetection(target, index, '辞書');
+				if (line.rowKey) rowAssigned[line.rowKey] = true;
 			}
 			return;
 		}
 
-		let exactHit = false;
+		// 部分一致（indexOf）で候補を集める。
+		// 例えば「根幹距離○」と「非根幹距離○」のように、片方がもう片方の部分文字列に
+		// なっているスキル名が同じスキルリストに存在すると、OCR行「非根幹距離○」に対して
+		// 「根幹距離○」も誤って一致してしまう。これを避けるため、一致した候補同士を比較し、
+		// 他の候補の正規化文字列に完全に含まれてしまう（＝より具体的な候補が別にある）ものは
+		// 誤検出とみなして除外し、最も具体的な（長い）候補だけを採用する。
+		const exactCandidates = [];
 		for (let i = 0; i < skillIndex.length; i++) {
 			const s = skillIndex[i];
-			if (s.norm && norm.indexOf(s.norm) !== -1) {
-				if (!detectedSkills.has(s.raw)) matchReasons[s.raw] = '完全一致';
-				detectedSkills.add(s.raw);
-				exactHit = true;
-			}
+			if (s.norm && norm.indexOf(s.norm) !== -1) exactCandidates.push(s);
 		}
-		if (exactHit) return;
+		if (exactCandidates.length > 0) {
+			const exactHits = exactCandidates.filter(cand =>
+				!exactCandidates.some(other => other !== cand && other.norm !== cand.norm && other.norm.indexOf(cand.norm) !== -1)
+			);
+			exactHits.forEach(s => addDetection(s.raw, index, '完全一致'));
+			if (line.rowKey && exactHits.length > 0) rowAssigned[line.rowKey] = true;
+			return;
+		}
 
 		if (line.conf !== null && line.conf !== undefined && line.conf < CONF_THRESHOLD) {
 			devLowConf.push({ text: line.text, norm: norm, conf: line.conf });
 			return;
 		}
 
-		const cand = bestCandidate(norm, skillIndex);
+		pendingFuzzy.push({ line: line, norm: norm, index: index });
+	});
+
+	// 第2パス：あいまい一致（distance判定・曖昧タイの絞り込み）。
+	// この時点で detectedSkills には全行の辞書・完全一致の結果が反映済み。
+	const resolvedByText = {}; // 正規化文字列 → 曖昧タイから絞り込めたスキル名
+	pendingFuzzy.forEach(({ line, norm, index }) => {
+		// 元画像の同じ行が既に完全一致で確定している場合、この行はその行の
+		// 「別の読み取り結果（誤読版）」にすぎない。別のスキルとして数えると
+		// 字面の近い無関係なスキルを過剰検出してしまうため、ここで捨てる。
+		if (line.rowKey && rowAssigned[line.rowKey]) return;
+
+		let cand = bestCandidate(norm, skillIndex);
+		if (cand && !cand.ok && cand.tied && cand.tied.length > 1) {
+			// 同じ誤読文字列は同じスキルを指すはずなので、一度絞り込めた結果を使い回す。
+			// （重なったスクショで同じ項目が何度も同じように誤読されるため）
+			let picked = (resolvedByText[norm] && cand.tied.indexOf(resolvedByText[norm]) !== -1) ? resolvedByText[norm] : null;
+			if (!picked) picked = resolveTiedCandidates(cand.tied, line, detectedSkills, skillSources, lines);
+			if (picked) {
+				resolvedByText[norm] = picked;
+				cand = { raw: picked, dist: cand.dist, limit: cand.limit, ok: true, reason: '曖昧→絞り込み' };
+			}
+		}
+
 		if (cand && cand.ok) {
-			if (!detectedSkills.has(cand.raw)) matchReasons[cand.raw] = '推定（距離' + cand.dist + '）';
-			detectedSkills.add(cand.raw);
+			addDetection(cand.raw, index, '推定（距離' + cand.dist + (cand.reason ? ' / ' + cand.reason : '') + '）');
 			if (cand.dist > 0) {
 				devFuzzy.push({ text: line.text, norm: norm, conf: line.conf, matched: cand.raw, dist: cand.dist });
 			}
@@ -554,7 +694,7 @@ function matchAllSkills(lines, skillList, skillIndex, ocrErrorDictionary) {
 		else devOther.push(entry);
 	});
 
-	return { detectedSkills, matchReasons, devTypo, devLowConf, devOther, devFuzzy };
+	return { detectedSkills, matchReasons, skillSources, devTypo, devLowConf, devOther, devFuzzy };
 }
 
 /* ============================================================
@@ -633,7 +773,13 @@ function countGoldBlobs(mask, W, x0, x1, y0, y1) {
  * 各行の直下（次の文字帯が始まる直前まで）を星の探索エリアとして、
  * 行ごとの★の数（0〜3）を計算する。
  *
- * 戻り値: rows と同じ順序・同じ長さの配列。要素は { stars: number }
+ * 戻り値: rows と同じ順序・同じ長さの配列。要素は { stars: number, reliable: boolean }
+ *
+ * reliable=false は「★の領域を正しく囲えていない可能性がある計測」を意味する。
+ * 画像の一番下の行は次の文字帯が存在しないため探索範囲の下端を決められず、
+ * ★が画面外で切れていれば少なく、次の項目まで拾えば多く数えてしまう。
+ * スクショは重ねて撮られており同じ項目が別画像にも写っているので、
+ * 呼び出し側は reliable な計測を優先して採用する。
  */
 function computeRowStarCounts(baseCanvas, detection) {
 	const W = baseCanvas.width, H = baseCanvas.height;
@@ -642,14 +788,32 @@ function computeRowStarCounts(baseCanvas, detection) {
 	const bands = detection.bands || [];
 	const columnXs = detection.columnXs || [];
 
+	// 文字帯どうしの隙間（＝★が描かれる帯）の標準的な高さを実測から求める。
+	const gaps = [];
+	for (let i = 0; i + 1 < bands.length; i++) gaps.push(bands[i + 1].a - bands[i].b);
+	const medGap = gaps.length ? median(gaps) : 0;
+
 	return detection.rows.map(row => {
 		const band = bands[row.band];
-		if (!band) return { stars: 0 };
+		if (!band) return { stars: 0, reliable: false };
 		const nextBand = bands[row.band + 1];
 		const rowH = band.b - band.a + 1;
 		const y0 = band.b + 1;
-		let y1 = nextBand ? (nextBand.a - 1) : Math.min(H, band.b + rowH * 4);
-		y1 = Math.max(y1, y0 + Math.round(rowH * 0.6)); // 最低限の探索高さを確保
+		let y1, reliable;
+		if (nextBand) {
+			y1 = nextBand.a - 1;
+			reliable = true;
+		} else {
+			// 次の文字帯がない＝画像の最下段。標準的な隙間の高さで代用する
+			// （従来は行高の4倍まで見ていたため、次の項目の★まで数えてしまうことがあった）。
+			y1 = band.b + (medGap > 0 ? medGap : Math.round(rowH * 2));
+			// 画像の高さには収まっていても、リスト表示枠の下端で★が切れていることがある
+			// （実測でも最下段は★が1つも写らず0個と数えられた）。枠の下端は判別できないため、
+			// 最下段は一律「不確か」とし、重ねて撮られた別スクショの計測を優先させる。
+			reliable = false;
+			if (y1 > H) y1 = H;
+		}
+		if (y1 <= y0) return { stars: 0, reliable: false };
 
 		const colX = columnXs[row.col];
 		const nextColX = columnXs[row.col + 1];
@@ -658,7 +822,7 @@ function computeRowStarCounts(baseCanvas, detection) {
 		const x1 = (nextColX !== undefined) ? (nextColX - marginRight) : W;
 
 		const stars = countGoldBlobs(gold, W, x0, x1, y0, y1);
-		return { stars: stars };
+		return { stars: stars, reliable: reliable };
 	});
 }
 
@@ -726,12 +890,18 @@ function extractLinesWithBBox(data) {
  * 「そのOCR行が何個の★を持つ行だったか」を求める。
  * bboxの中心yに最も近い placement を採用する（多少のズレに対してロバストにするため）。
  *
- * 戻り値: lines と同じ順序・同じ長さの配列。要素は { ...元のline, stars: number|null }
+ * imageKey: 画像ごとに一意な文字列（":" を含めないこと）。
+ *   これと行番号から rowKey（"画像:行"）を作り、「どのOCR行が元画像のどの行から
+ *   来たか」を判定ロジック側でも使えるようにする。前処理を変えて同じ画像を
+ *   読み直した結果は同じ rowKey になる。
+ *
+ * 戻り値: lines と同じ順序・同じ長さの配列。
+ *   要素は { ...元のline, stars: number|null, starsReliable: boolean, rowKey: string|null }
  */
-function attachStarsToLines(lines, placements, rowStarCounts) {
+function attachStarsToLines(lines, placements, rowStarCounts, imageKey) {
 	return lines.map(line => {
 		if (line.y0 === null || line.y1 === null || !placements.length) {
-			return Object.assign({}, line, { stars: null });
+			return Object.assign({}, line, { stars: null, starsReliable: false, rowKey: null });
 		}
 		const centerY = (line.y0 + line.y1) / 2;
 		let best = null, bestDist = Infinity;
@@ -740,9 +910,43 @@ function attachStarsToLines(lines, placements, rowStarCounts) {
 			const dist = Math.abs(centerY - pCenter);
 			if (dist < bestDist) { bestDist = dist; best = p; }
 		});
-		const stars = (best && rowStarCounts[best.rowIndex]) ? rowStarCounts[best.rowIndex].stars : null;
-		return Object.assign({}, line, { stars: stars });
+		const info = (best && rowStarCounts[best.rowIndex]) ? rowStarCounts[best.rowIndex] : null;
+		return Object.assign({}, line, {
+			stars: info ? info.stars : null,
+			starsReliable: info ? (info.reliable !== false) : false,
+			rowKey: best ? (String(imageKey === undefined ? '' : imageKey) + ':' + best.rowIndex) : null
+		});
 	});
+}
+
+/**
+ * あるスキルを検出した根拠の行（複数ありうる）から、★の数を1つに決める。
+ *
+ * 同じ項目はスクショの重なりや前処理違いで何度も読まれるため、計測値も複数得られる。
+ * 探索範囲を正しく囲えた計測（reliable）を優先し、その中の最頻値を採用する。
+ * 同数で並んだ場合は、次の項目の★まで数えてしまう方向の誤りを避けるため小さい方を採る。
+ */
+function pickStarsFromSources(sourceIndexes, lines) {
+	const obs = [];
+	(sourceIndexes || []).forEach(i => {
+		const l = lines[i];
+		if (!l || l.stars === null || l.stars === undefined) return;
+		// ★0 はゲーム上ありえない（★が0個の因子はスキル名自体が表示されない）。
+		// 0と出た計測は、★が画面外で切れている等の失敗なので採用しない。
+		if (l.stars === 0) return;
+		obs.push(l);
+	});
+	if (obs.length === 0) return null;
+	const reliable = obs.filter(o => o.starsReliable !== false);
+	const pool = reliable.length > 0 ? reliable : obs;
+
+	const counts = {};
+	pool.forEach(o => { counts[o.stars] = (counts[o.stars] || 0) + 1; });
+	let bestValue = null, bestCount = -1;
+	Object.keys(counts).map(Number).sort((a, b) => a - b).forEach(v => {
+		if (counts[v] > bestCount) { bestCount = counts[v]; bestValue = v; }
+	});
+	return bestValue;
 }
 
 /**
@@ -758,37 +962,13 @@ function matchAllSkillsWithStars(lines, skillList, skillIndex, ocrErrorDictionar
 	const base = matchAllSkills(lines, skillList, skillIndex, ocrErrorDictionary);
 	const skillStars = {};
 
-	// matchAllSkills と同じ正規化・突き合わせルールを再度なぞり、
-	// 検出済みスキルに対応する行の★を拾う（ロジックの二重管理を避けるため、
-	// 「検出済みスキル集合」に対して該当行を探す、というシンプルな後段処理にする）。
-	const normDictionary = {};
-	Object.keys(ocrErrorDictionary || {}).forEach(k => {
-		normDictionary[normalizeText(k)] = ocrErrorDictionary[k];
-	});
-
+	// ★は「そのスキルを検出した根拠の行」から取る。
+	// 以前はここで行を距離計算により探し直していたが、それでは
+	// 例えば「中距離コーナー○」の★を、字面が1文字違いの
+	//「短距離コーナー○」の行から取ってしまうことがあった。
+	// 判定時に記録済みの skillSources を使えば、その取り違えは起こらない。
 	base.detectedSkills.forEach(skillName => {
-		const skillNorm = normalizeText(skillName);
-		let found = null;
-		for (let i = 0; i < lines.length; i++) {
-			const line = lines[i];
-			const norm = normalizeText(line.text);
-			if (!norm) continue;
-			if (normDictionary[norm] === skillName) { found = line; break; }
-			if (norm.indexOf(skillNorm) !== -1) { found = line; break; }
-		}
-		if (!found) {
-			// 完全一致で見つからない場合（あいまい一致で採用されたケース）は
-			// 距離が最も近い行を採用する
-			let bestLine = null, bestDist = Infinity;
-			for (let i = 0; i < lines.length; i++) {
-				const norm = normalizeText(lines[i].text);
-				if (!norm || norm.length < 2) continue;
-				const d = levenshtein(norm, skillNorm);
-				if (d < bestDist) { bestDist = d; bestLine = lines[i]; }
-			}
-			found = bestLine;
-		}
-		skillStars[skillName] = found ? found.stars : null;
+		skillStars[skillName] = pickStarsFromSources(base.skillSources[skillName], lines);
 	});
 
 	return Object.assign({}, base, { skillStars: skillStars });
