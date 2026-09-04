@@ -196,6 +196,30 @@
 				</div>
 				<div id="skill-count" class="text-xs font-medium text-slate-500"></div>
 			</div>
+
+			<!-- 誤認識の読み替え辞書（任意） -->
+			<details class="group mt-4 rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden">
+				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+					<span class="flex items-center gap-2">
+						<i data-lucide="book-marked" class="w-4 h-4 text-slate-500"></i>
+						<span>誤認識の読み替え辞書（任意）</span>
+						<span id="dict-count-badge" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800"></span>
+					</span>
+					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
+				</summary>
+				<div class="p-4 pt-1 border-t border-slate-200/60">
+					<p class="text-[11px] text-slate-500 leading-relaxed mb-2">
+						どうしても正しく読み取れないスキルがある場合、<strong>OCRが実際に出した文字列</strong>と<strong>本来のスキル名</strong>の対応をここに書くと、その文字列を必ずそのスキルとして扱います。
+						1行に1組、<code class="px-1 rounded bg-slate-200 text-slate-700">誤った文字列 = 正しいスキル名</code> の形式です（<code class="px-1 rounded bg-slate-200 text-slate-700">→</code> や <code class="px-1 rounded bg-slate-200 text-slate-700">タブ</code> 区切りも可）。
+						OCRが出した文字列は、下の開発用ログの「誤字候補」「その他未一致」に表示されているものをそのままコピーしてください。内容はこのブラウザに保存され、次回も使われます。
+					</p>
+					<textarea id="ocr-dict" oninput="parseOcrDictionary()" class="w-full h-24 text-xs p-3 rounded-xl border border-slate-200 bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200 font-mono transition-all outline-none resize-y" placeholder="例：&#10;を回り〇 = 左回り○&#10;急隆下 = 急降下"></textarea>
+					<div class="mt-2 flex items-center justify-between">
+						<span id="dict-status" class="text-[11px] text-slate-500"></span>
+						<button type="button" onclick="clearOcrDictionary()" class="text-[11px] text-slate-500 hover:text-red-600 underline underline-offset-2 cursor-pointer">辞書をクリア</button>
+					</div>
+				</div>
+			</details>
 		</div>
 
 		<!-- ステップ2：3人分の画像アップロード -->
@@ -386,8 +410,10 @@
 		let previewCanvases = [];
 		let devGeometry = [];
 
-		// OCR誤認識の補正辞書。汎用版と特化型で内容が異なりうるため、ツールごとに個別管理する。
-		const ocrErrorDictionary = {};
+		// OCR誤認識の補正辞書。ソースには特定のスキル名を一切書かず、
+		// 利用者が画面から入力した内容だけを反映する（ツール自体は汎用のまま保つ）。
+		let ocrErrorDictionary = {};
+		const DICT_STORAGE_KEY = 'uma-special-ocr-dict';
 
 		// 1〜3人目それぞれのアップロード済みファイルと、解析結果（skillStars: {スキル名: 星の数}）
 		const PERSON_LABELS = ['1人目', '2人目', '3人目'];
@@ -401,8 +427,61 @@
 
 		document.addEventListener('DOMContentLoaded', () => {
 			renderPersonUploadGrid();
+			restoreOcrDictionary();
 			if (window.lucide) lucide.createIcons();
 		});
+
+		/* ============================================================
+		 * 誤認識の読み替え辞書
+		 * 「OCRが出した文字列 = 本来のスキル名」を1行ずつ受け取る。
+		 * ============================================================ */
+		function parseOcrDictionary() {
+			const raw = document.getElementById('ocr-dict').value;
+			const dict = {};
+			let invalid = 0;
+			raw.split(/\r?\n/).forEach(line => {
+				const t = line.trim();
+				if (!t) return;
+				const parts = t.split(/\s*(?:=|→|=>|\t)\s*/);
+				if (parts.length < 2 || !parts[0] || !parts[1]) { invalid++; return; }
+				dict[parts[0].trim()] = parts.slice(1).join('').trim();
+			});
+			ocrErrorDictionary = dict;
+
+			const count = Object.keys(dict).length;
+			const badge = document.getElementById('dict-count-badge');
+			badge.textContent = count + '件';
+			badge.classList.toggle('hidden', count === 0);
+
+			// スキルリスト解析済みなら、書かれた「本来のスキル名」がリストに存在するか照合して知らせる
+			const status = document.getElementById('dict-status');
+			const unknown = [];
+			if (skillList.length > 0) {
+				Object.keys(dict).forEach(k => { if (skillList.indexOf(dict[k]) === -1) unknown.push(dict[k]); });
+			}
+			let msg = count + '件の読み替えを設定';
+			if (invalid > 0) msg += ' / 形式が正しくない行が' + invalid + '件（無視されます）';
+			if (unknown.length > 0) msg += ' / スキルリストに無い名前: ' + unknown.join('、');
+			status.textContent = count === 0 && invalid === 0 ? '' : msg;
+			status.className = 'text-[11px] ' + ((invalid > 0 || unknown.length > 0) ? 'text-red-600' : 'text-slate-500');
+
+			try { localStorage.setItem(DICT_STORAGE_KEY, raw); } catch (e) {}
+		}
+
+		function restoreOcrDictionary() {
+			let saved = '';
+			try { saved = localStorage.getItem(DICT_STORAGE_KEY) || ''; } catch (e) { saved = ''; }
+			if (saved) {
+				document.getElementById('ocr-dict').value = saved;
+				parseOcrDictionary();
+			}
+		}
+
+		function clearOcrDictionary() {
+			document.getElementById('ocr-dict').value = '';
+			parseOcrDictionary();
+			showToast('読み替え辞書をクリアしました');
+		}
 
 		/* ドロップダウンメニューの制御 */
 		function toggleToolDropdown() {
@@ -442,6 +521,7 @@
 			badge.textContent = skillList.length + ' 個のスキル';
 			badge.classList.remove('hidden');
 			showToast(skillList.length + '個のスキルをセットしました');
+			parseOcrDictionary(); // 辞書に書かれたスキル名がリストに存在するか再確認する
 			updateProcessBtn();
 		}
 
@@ -676,10 +756,11 @@
 		/* ============================================================
 		 * 結果表示
 		 * ============================================================ */
+		// 戻り値: 数値=★の数 / null=検出できたが★を計測できなかった / undefined=未検出
 		function starsFor(personIdx, skill) {
 			const res = personResults[personIdx];
-			if (!res) return null;
-			if (!res.detectedSkills.has(skill)) return null;
+			if (!res) return undefined;
+			if (!res.detectedSkills.has(skill)) return undefined;
 			const s = res.skillStars[skill];
 			return (s === null || s === undefined) ? null : s;
 		}
@@ -692,8 +773,10 @@
 
 			skillList.forEach(skill => {
 				const rowVals = [0, 1, 2].map(p => starsFor(p, skill));
-				rowVals.forEach((v, i) => { if (v !== null) foundCounts[i]++; });
-				copyRows.push(rowVals.map(v => v === null ? '' : String(v)).join('\t'));
+				rowVals.forEach((v, i) => { if (v !== undefined) foundCounts[i]++; });
+				// ★を計測できなかった場合（null）は、誤った数字を貼らないよう空欄にする。
+				// 表側には「?」を出して、手で補う必要があることが分かるようにしている。
+				copyRows.push(rowVals.map(v => (v === null || v === undefined) ? '' : String(v)).join('\t'));
 			});
 
 			document.getElementById('stat-total').textContent = skillList.length;
@@ -710,8 +793,12 @@
 		}
 
 		function starBadge(stars) {
-			if (stars === null) {
+			if (stars === undefined) {
 				return '<span class="text-slate-300 text-xs">−</span>';
+			}
+			if (stars === null) {
+				// スキルは見つかったが★の数を確定できなかった（要手入力）
+				return '<span class="text-amber-600 text-xs font-bold" title="スキルは検出できましたが★の数を確定できませんでした">?</span>';
 			}
 			return '<span class="star-cell text-amber-500">' + '★'.repeat(stars) + '</span>' +
 				'<span class="star-cell text-slate-300">' + '★'.repeat(3 - stars) + '</span>';
@@ -724,7 +811,7 @@
 
 			skillList.forEach(skill => {
 				const vals = [0, 1, 2].map(p => starsFor(p, skill));
-				const anyFound = vals.some(v => v !== null);
+				const anyFound = vals.some(v => v !== undefined);
 
 				if (currentFilter === 'found' && !anyFound) return;
 				if (currentFilter === 'not-found' && anyFound) return;
@@ -786,6 +873,10 @@
 			if (!document.getElementById('opt-devlog').checked) { devWrap.classList.add('hidden'); return; }
 
 			const parts = [];
+			// 実際にブラウザで読み込まれている common.js の版を明示する。
+			// 更新したはずの内容が反映されていない（キャッシュ・貼り忘れ等）ことを切り分けるため。
+			parts.push('■ 実行環境\n  common.js 版: ' + (typeof COMMON_JS_VERSION !== 'undefined' ? COMMON_JS_VERSION : '(不明・古い版です)') +
+				'\n  読み替え辞書: ' + Object.keys(ocrErrorDictionary).length + '件');
 			if (devGeometry.length) parts.push('■ 行検出・★判定の内訳\n' + devGeometry.join('\n'));
 
 			// デバッグしやすいよう、件数だけでなく実際のOCRテキスト・正規化結果・
