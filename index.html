@@ -98,19 +98,26 @@
 				<div class="flex gap-2 md:gap-3">
 					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">1</span>
 					<div>
+						<p class="font-medium">スキルリストを入力</p>
+						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スプレッドシートやCSVから任意の順番のスキルリストをコピー＆ペースト</p>
+					</div>
+				</div>
+				<div class="flex gap-2 md:gap-3">
+					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">2</span>
+					<div>
 						<p class="font-medium">複数の画像をアップロード</p>
 						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スキル表示の画像を複数枚ドラッグ＆ドロップ</p>
 					</div>
 				</div>
 				<div class="flex gap-2 md:gap-3">
-					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">2</span>
+					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">3</span>
 					<div>
 						<p class="font-medium">OCR処理を実行</p>
 						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スキルを自動検出・照合します</p>
 					</div>
 				</div>
 				<div class="flex gap-2 md:gap-3">
-					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">3</span>
+					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">4</span>
 					<div>
 						<p class="font-medium">結果をコピー</p>
 						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">「○」と空白の列をコピーしてスプレッドシートに貼り付け</p>
@@ -119,10 +126,23 @@
 			</div>
 		</div>
 
-		<!-- ステップ: 画像アップロード -->
+		<!-- ステップ1: スキルリスト入力 -->
 		<div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-4 md:p-6 mb-6 md:mb-8">
 			<div class="heading-divider text-xs font-medium text-slate-400 mb-3 md:mb-4">
-				<span>ステップ1: 画像をアップロード</span>
+				<span>ステップ1: スキルリストを入力</span>
+			</div>
+			<p class="text-xs md:text-sm text-slate-600 mb-2 md:mb-3">スプレッドシートやCSVから1列をコピーするか、1行に1スキル（改行区切り）で入力してください（任意の順番に対応）：</p>
+			<textarea id="skill-list" class="w-full h-24 md:h-32 text-xs md:text-sm p-2 md:p-3 rounded-xl border border-slate-200 bg-slate-50 font-mono mb-2 md:mb-3" placeholder="例：スキルA&#10;スキルB&#10;スキルC"></textarea>
+			<button onclick="parseSkillList()" class="w-full md:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors">
+				リストを解析
+			</button>
+			<div id="skill-count" class="text-xs text-slate-500 mt-1 md:mt-2"></div>
+		</div>
+
+		<!-- ステップ2: 画像アップロード -->
+		<div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-4 md:p-6 mb-6 md:mb-8">
+			<div class="heading-divider text-xs font-medium text-slate-400 mb-3 md:mb-4">
+				<span>ステップ2: 画像をアップロード</span>
 			</div>
 			<label class="block cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 bg-white hover:border-emerald-400 hover:bg-emerald-50/30 transition-colors p-6 md:p-8 text-center mb-3 md:mb-4">
 				<input id="file-input" type="file" accept="image/*" multiple class="hidden" />
@@ -148,10 +168,10 @@
 			</button>
 		</div>
 
-		<!-- ステップ2: 結果 -->
+		<!-- ステップ3: 結果 -->
 		<div id="result-wrap" class="hidden rounded-2xl border border-slate-200 bg-white shadow-sm p-4 md:p-6">
 			<div class="heading-divider text-xs font-medium text-slate-400 mb-3 md:mb-4">
-				<span>ステップ2: 照合結果</span>
+				<span>ステップ3: 照合結果</span>
 			</div>
 
 			<!-- マッチング統計 -->
@@ -211,33 +231,8 @@
 	</div>
 
 	<script>
-		// ========== スキルリスト（C8:C136） ==========
-		const skillList = [
-			"一匹狼", "ナイター○", "交流重賞○", "シンパシー", "川崎レース場○", "小倉レース場○",
-			"札幌レース場○", "新潟レース場○", "函館レース場○", "福島レース場○", "ロンシャンレース場○",
-			"サンタアニタパークレース場○", "デルマーレース場○", "船橋レース場○", "盛岡レース場○",
-			"小回り○", "直線コース○", "大井レース場○", "京都レース場○", "中京レース場○",
-			"東京レース場○", "中山レース場○", "阪神レース場○", "おひとり様○", "泥遊び○",
-			"春ウマ娘○", "夏ウマ娘○", "秋ウマ娘○", "冬ウマ娘○", "右回り○", "左回り○",
-			"伏兵○", "根幹距離○", "非根幹距離○", "対抗意識○", "道悪○", "良バ場○",
-			"晴れの日○", "雨の日○", "曇りの日○", "雪の日○", "徹底マーク○", "内枠得意○",
-			"外枠得意○", "逃げのコツ○", "先行のコツ○", "差しのコツ○", "追込のコツ○",
-			"ラッキーセブン", "探求心", "精神力", "踏み込み上手", "短距離コーナー○",
-			"短距離直線○", "マイルコーナー○", "マイル直線○", "中距離コーナー○", "中距離直線○",
-			"長距離コーナー○", "長距離直線○", "ダート直線○", "ダートコーナー○", "尻尾上がり",
-			"地固め", "ふり絞り", "十万バリキ", "負けん気", "一番乗り", "がんばり屋",
-			"先駆け", "巧みなステップ", "直滑降", "まき直し", "急発進", "無二", "無三",
-			"駆け降り", "登竜門", "急降下", "弾ける足取り", "余勢を駆って", "華麗な足取り",
-			"逃げ直線○", "逃げコーナー○", "先行直線○", "先行コーナー○", "差し直線○",
-			"差しコーナー○", "追込直線○", "追込コーナー○", "逃げためらい", "逃げ焦り",
-			"逃げけん制", "先行ためらい", "先行焦り", "先行けん制", "差しためらい",
-			"差し焦り", "差しけん制", "追込ためらい", "追込焦り", "追込けん制",
-			"瞬発力", "風切り", "熱狂的", "光差す方へ", "影を追って", "危険回避",
-			"ホークアイ", "目くらまし", "砂煙", "リスタート", "お見通し", "策士",
-			"かく乱", "逃げ駆け引き", "先行駆け引き", "差し駆け引き", "追込駆け引き",
-			"あやしげな作戦", "ポジションセンス", "臨機応変", "トリック（後）", "トリック（前）",
-			"イナズマステップ", "仕掛け準備", "読解力", "前列狙い", "集中力"
-		];
+		// ========== スキルリスト（ユーザ入力によって動的に生成） ==========
+		let skillList = [];
 
 		// ========== 誤認識辞書（段階的に追加） ==========
 		const ocrErrorDictionary = {
@@ -248,6 +243,25 @@
 		let uploadedFiles = [];
 		let detectedSkills = new Set();
 		let unmatchedTexts = [];
+
+		// ========== ステップ1: スキルリスト解析 ==========
+		function parseSkillList() {
+			const input = document.getElementById('skill-list').value.trim();
+			if (!input) {
+				alert('スキルリストを入力してください');
+				return;
+			}
+
+			// 改行またはカンマで分割
+			skillList = input.split(/[\n,]/).map(s => s.trim()).filter(s => s.length > 0);
+			
+			if (skillList.length === 0) {
+				alert('有効なスキルが見つかりません');
+				return;
+			}
+
+			document.getElementById('skill-count').textContent = `✓ ${skillList.length}個のスキルを解析しました`;
+		}
 
 		// ========== レーベンシュタイン距離の計算 ==========
 		function levenshteinDistance(a, b) {
@@ -279,8 +293,17 @@
 		fileInput.addEventListener('change', (e) => {
 			uploadedFiles = Array.from(e.target.files);
 			renderImageList();
-			processBtn.disabled = uploadedFiles.length === 0;
+			updateProcessBtnStatus();
 		});
+
+		function updateProcessBtnStatus() {
+			processBtn.disabled = skillList.length === 0 || uploadedFiles.length === 0;
+			if (skillList.length === 0) {
+				processBtn.title = 'スキルリストを先に解析してください';
+			} else {
+				processBtn.title = '';
+			}
+		}
 
 		function renderImageList() {
 			imageList.innerHTML = uploadedFiles.map((file, idx) => `
@@ -297,7 +320,7 @@
 		function removeImage(idx) {
 			uploadedFiles.splice(idx, 1);
 			renderImageList();
-			processBtn.disabled = uploadedFiles.length === 0;
+			updateProcessBtnStatus();
 		}
 
 		// ========== OCR前処理（OpenCV.js） ==========
@@ -328,8 +351,12 @@
 			});
 		}
 
-		// ========== OCR処理と照合 ==========
+		// ========== ステップ3: OCR処理と照合 ==========
 		async function processImages() {
+			if (skillList.length === 0) {
+				alert('先にスキルリストを解析してください');
+				return;
+			}
 			if (uploadedFiles.length === 0) {
 				alert('画像をアップロードしてください');
 				return;
@@ -487,6 +514,39 @@
 			document.execCommand('copy');
 			alert('クリップボードにコピーしました');
 		}
+
+		// ========== ドラッグアンドドロップ機能 ==========
+		const uploadArea = document.querySelector('label');
+		if (uploadArea) {
+			uploadArea.addEventListener('dragover', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				uploadArea.classList.add('bg-emerald-100');
+			});
+
+			uploadArea.addEventListener('dragleave', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				uploadArea.classList.remove('bg-emerald-100');
+			});
+
+			uploadArea.addEventListener('drop', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				uploadArea.classList.remove('bg-emerald-100');
+				const files = e.dataTransfer.files;
+				if (files.length > 0) {
+					fileInput.files = files;
+					const event = new Event('change', { bubbles: true });
+					fileInput.dispatchEvent(event);
+				}
+			});
+		}
+
+		// ========== ウィンドウロード時の初期化 ==========
+		window.addEventListener('load', () => {
+			updateProcessBtnStatus();
+		});
 	</script>
 </body>
 </html>
