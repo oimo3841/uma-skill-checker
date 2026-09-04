@@ -6,7 +6,7 @@
 	<title>ウマ娘スキル管理ツール</title>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
-	<script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvLoaded()"></script>
+	<script id="opencv-script" async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvLoaded()" onerror="onOpenCvError()"></script>
 	<style>
 		body {
 			background-color: #F2F4F5;
@@ -112,7 +112,7 @@
 				<label class="flex items-start gap-2 cursor-pointer">
 					<input id="opt-rowdetect" type="checkbox" checked class="mt-0.5" />
 					<span class="text-xs md:text-sm text-slate-700">スキル行の自動切り出し
-					<span class="block text-xs text-slate-500">タブの緑帯を基準にリスト領域を絞り、文字の射影から1行ずつ切り出します（<span id="cv-status" class="font-medium">OpenCV読込中…</span>）</span></span>
+					<span class="block text-xs text-slate-500">タブの緑帯を基準にリスト領域を絞り、文字の射影から1行ずつ切り出します（<span id="cv-status" class="font-medium">OpenCV読込中…</span> <button type="button" id="cv-retry" onclick="retryLoadOpenCv()" class="hidden underline text-blue-600">再読み込み</button>）</span></span>
 				</label>
 				<label class="flex items-start gap-2 cursor-pointer">
 					<input id="opt-preprocess" type="checkbox" checked class="mt-0.5" />
@@ -226,7 +226,7 @@
 		let uploadedFiles = [];
 		let detectedSkills = new Set();
 		let matchReasons = {};
-		let devTypo = [], devLowConf = [], devOther = [], devGeometry = [];
+		let devTypo = [], devLowConf = [], devOther = [], devGeometry = [], devFuzzy = [];
 		let previewCanvases = [];
 		let cvReady = false;
 
@@ -253,29 +253,111 @@
 		};
 
 		/* =========================================================
-		   OpenCV
+		   OpenCV の読み込み
+		   onload / onRuntimeInitialized のイベントだけに頼らず、
+		   「実際に cv.Mat が動くか」を定期的にテストして判定する。
+		   イベントが発火しない・発火が早すぎる等のタイミング問題を
+		   イベントに依存せず回避するための保険。
 		   ========================================================= */
+		let cvPollTimer = null;
+		let cvLoadAttempt = 0;
+
 		function onOpenCvLoaded() {
-			if (typeof cv === 'undefined') return;
-			if (cv instanceof Promise) {
-				cv.then(function (mod) { window.cv = mod; markCvReady(); });
-			} else if (typeof cv.getBuildInformation === 'function') {
-				markCvReady();
-			} else {
-				cv['onRuntimeInitialized'] = markCvReady;
-			}
+			try {
+				if (typeof cv !== 'undefined') {
+					if (cv instanceof Promise) {
+						cv.then(function (mod) { window.cv = mod; confirmCvReady(); });
+					} else {
+						cv['onRuntimeInitialized'] = confirmCvReady;
+					}
+				}
+			} catch (e) { /* 失敗してもポーリングが拾う */ }
+			startCvPolling();
 		}
+
+		function onOpenCvError() {
+			const el = document.getElementById('cv-status');
+			if (el) el.textContent = 'OpenCVの読み込みに失敗しました（ネットワークを確認してください）';
+			showCvRetry();
+		}
+
+		function startCvPolling() {
+			if (cvPollTimer) return;
+			const start = Date.now();
+			cvPollTimer = setInterval(function () {
+				if (cvReady) { clearInterval(cvPollTimer); cvPollTimer = null; return; }
+				confirmCvReady();
+				if (!cvReady && Date.now() - start > 25000) {
+					clearInterval(cvPollTimer); cvPollTimer = null;
+					const el = document.getElementById('cv-status');
+					if (el) el.textContent = 'OpenCV未読込（行切り出しは無効）';
+					showCvRetry();
+				}
+			}, 500);
+		}
+
+		// プロパティの有無ではなく、実際に Mat を1個作れるかで判定する
+		function confirmCvReady() {
+			if (cvReady) return;
+			try {
+				if (typeof cv === 'undefined' || !cv.Mat) return;
+				const m = new cv.Mat();
+				m.delete();
+				markCvReady();
+			} catch (e) { /* まだ準備できていない */ }
+		}
+
 		function markCvReady() {
 			cvReady = true;
+			if (cvPollTimer) { clearInterval(cvPollTimer); cvPollTimer = null; }
 			const el = document.getElementById('cv-status');
 			if (el) { el.textContent = 'OpenCV利用可能'; el.className = 'font-medium text-emerald-600'; }
+			const btn = document.getElementById('cv-retry');
+			if (btn) btn.classList.add('hidden');
 		}
-		setTimeout(function () {
-			if (!cvReady) {
-				const el = document.getElementById('cv-status');
-				if (el) el.textContent = 'OpenCV未読込（行切り出しは無効）';
-			}
-		}, 20000);
+
+		function showCvRetry() {
+			const btn = document.getElementById('cv-retry');
+			if (btn) btn.classList.remove('hidden');
+		}
+
+		// 手動再読み込み。2回目は別CDN（jsDelivrミラー）を試す
+		function retryLoadOpenCv() {
+			cvLoadAttempt++;
+			const el = document.getElementById('cv-status');
+			if (el) el.textContent = 'OpenCV読込中…';
+			const btn = document.getElementById('cv-retry');
+			if (btn) btn.classList.add('hidden');
+
+			const old = document.getElementById('opencv-script');
+			if (old) old.remove();
+
+			const s = document.createElement('script');
+			s.id = 'opencv-script';
+			s.async = true;
+			s.src = (cvLoadAttempt % 2 === 1)
+				? 'https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.8.0-release.1/dist/opencv.js'
+				: 'https://docs.opencv.org/4.8.0/opencv.js';
+			s.onload = onOpenCvLoaded;
+			s.onerror = onOpenCvError;
+			document.head.appendChild(s);
+		}
+
+		// OCR開始前にOpenCVの準備を待つ（最大 timeoutMs）
+		function waitForCv(timeoutMs) {
+			return new Promise(function (resolve) {
+				if (cvReady) { resolve(true); return; }
+				const start = Date.now();
+				const iv = setInterval(function () {
+					confirmCvReady();
+					if (cvReady) { clearInterval(iv); resolve(true); return; }
+					if (Date.now() - start > timeoutMs) { clearInterval(iv); resolve(false); }
+				}, 300);
+			});
+		}
+
+		// ページ読み込み直後からポーリングも並走させておく
+		startCvPolling();
 
 		/* =========================================================
 		   文字正規化
@@ -715,7 +797,7 @@
 
 			detectedSkills.clear();
 			matchReasons = {};
-			devTypo = []; devLowConf = []; devOther = []; devGeometry = [];
+			devTypo = []; devLowConf = []; devOther = []; devGeometry = []; devFuzzy = [];
 			previewCanvases = [];
 
 			const progressWrap = document.getElementById('progress-wrap');
@@ -733,6 +815,14 @@
 			const collectedLines = [];
 
 			try {
+				if (useRowDetect && !cvReady) {
+					setProgress(0, 'OpenCVの読み込みを待っています…');
+					const ok = await waitForCv(45000);
+					if (!ok) {
+						devGeometry.push('OpenCVが45秒以内に準備できませんでした。行検出をオフにするか、「再読み込み」ボタンを試してください。今回は画像全体OCRにフォールバックします。');
+					}
+				}
+
 				setProgress(0, 'OCRエンジンを初期化中…');
 				worker = await Tesseract.createWorker();
 				await worker.loadLanguage('jpn');
@@ -886,6 +976,10 @@
 				if (cand && cand.ok) {
 					if (!detectedSkills.has(cand.raw)) matchReasons[cand.raw] = '推定（距離' + cand.dist + '）';
 					detectedSkills.add(cand.raw);
+					// 距離0（完全一致）以外は誤マッチの可能性があるため監査ログに残す
+					if (cand.dist > 0) {
+						devFuzzy.push({ text: line.text, norm: norm, conf: line.conf, matched: cand.raw, dist: cand.dist });
+					}
 					return;
 				}
 
@@ -997,6 +1091,13 @@
 
 			const parts = [];
 			if (devGeometry.length) parts.push('■ 行検出の内訳\n' + devGeometry.join('\n'));
+			if (devFuzzy.length) {
+				parts.push('■ 推定一致（要確認） ' + devFuzzy.length + '件（距離0以外でスキルと確定した行。誤検出の疑いがあればここを見る）\n\n'
+					+ devFuzzy.map(function (u) {
+						const confStr = (u.conf !== null && u.conf !== undefined) ? ' conf=' + Math.round(u.conf) : '';
+						return '"' + u.text + '"' + confStr + '\n  正規化: ' + u.norm + '\n  → 確定: ' + u.matched + '（距離' + u.dist + '）';
+					}).join('\n\n'));
+			}
 			if (devTypo.length) {
 				parts.push('■ 誤字候補 ' + devTypo.length + '件（辞書に追加する価値が高い）\n\n' + devTypo.map(formatEntry).join('\n\n'));
 			}
