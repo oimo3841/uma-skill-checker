@@ -612,8 +612,13 @@
 			const dark = darkMaskOf(gray, DARK_LEVEL);
 			const dRows = rowCountsOf(dark, W, H);
 			const rowThreshold = Math.max(5, Math.round(W * 0.01));
-			let bands = findRuns(dRows, rowThreshold, 2, listTop, H);
-			diag.push('文字帯の候補 ' + bands.length + '本（しきい値 ' + rowThreshold + 'px）');
+			// 漢字は画数の間に数px単位の隙間ができるため、隙間吸収用のgapが小さすぎると
+			// 1行の文字が何本もの細切れバンドに分裂し、高さの中央値が実際の行高より
+			// 大幅に小さく算出されてしまう（→ 次の高さフィルタで全行が誤って弾かれる）。
+			// 実データ検証の結果、この値は6〜15pxの範囲で結果が安定することを確認済み。
+			const rowMergeGap = Math.max(6, Math.round(H * 0.004));
+			let bands = findRuns(dRows, rowThreshold, rowMergeGap, listTop, H);
+			diag.push('文字帯の候補 ' + bands.length + '本（しきい値 ' + rowThreshold + 'px / 結合gap ' + rowMergeGap + 'px）');
 
 			if (bands.length < 3) { diag.push('文字帯が少なすぎるため中止'); return null; }
 
