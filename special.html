@@ -771,6 +771,12 @@
 			wrap.classList.remove('hidden');
 		}
 
+		function formatEntry(u) {
+			const confStr = (u.conf !== null && u.conf !== undefined) ? ' conf=' + Math.round(u.conf) : '';
+			const bestStr = u.best ? '  → 候補: ' + u.best + '（距離' + u.dist + ' / ' + u.reason + '）' : '  → ' + u.reason;
+			return '    "' + u.text + '"' + confStr + '\n      正規化: ' + u.norm + '\n     ' + bestStr;
+		}
+
 		function renderDevLog() {
 			const devWrap = document.getElementById('dev-wrap');
 			const devLog = document.getElementById('dev-log');
@@ -779,6 +785,8 @@
 			const parts = [];
 			if (devGeometry.length) parts.push('■ 行検出・★判定の内訳\n' + devGeometry.join('\n'));
 
+			// デバッグしやすいよう、件数だけでなく実際のOCRテキスト・正規化結果・
+			// 候補との距離まで出す（見つからなかったスキルの原因調査のため）。
 			PERSON_LABELS.forEach((label, idx) => {
 				const res = personResults[idx];
 				if (!res) return;
@@ -787,9 +795,18 @@
 					lines.push('  推定一致 ' + res.devFuzzy.length + '件:');
 					res.devFuzzy.forEach(u => lines.push('    "' + u.text + '" → ' + u.matched + '（距離' + u.dist + '）'));
 				}
-				if (res.devTypo.length) lines.push('  誤字候補 ' + res.devTypo.length + '件');
-				if (res.devLowConf.length) lines.push('  低信頼度 ' + res.devLowConf.length + '件');
-				if (res.devOther.length) lines.push('  その他未一致 ' + res.devOther.length + '件');
+				if (res.devTypo.length) {
+					lines.push('  誤字候補（惜しい）' + res.devTypo.length + '件:');
+					res.devTypo.forEach(u => lines.push(formatEntry(u)));
+				}
+				if (res.devLowConf.length) {
+					lines.push('  低信頼度（confしきい値未満のため判定スキップ）' + res.devLowConf.length + '件:');
+					res.devLowConf.forEach(u => lines.push('    "' + u.text + '" conf=' + Math.round(u.conf) + ' / 正規化: ' + u.norm));
+				}
+				if (res.devOther.length) {
+					lines.push('  その他未一致（候補から遠すぎる）' + res.devOther.length + '件:');
+					res.devOther.forEach(u => lines.push(formatEntry(u)));
+				}
 				if (lines.length) parts.push('■ ' + label + '\n' + lines.join('\n'));
 			});
 
