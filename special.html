@@ -584,10 +584,13 @@
 						const res = await worker.recognize(variants[v]);
 						if (detection) {
 							const rawLines = extractLinesWithBBox(res.data);
-							const withStars = attachStarsToLines(rawLines, placements, rowStars);
+							// 第2引数以降で「どの画像のどの行から来たOCR行か」を持たせる。
+							// 同じ画像を前処理違いで読み直した結果は同じ rowKey になり、
+							// 判定側が「同じ項目の読み直し」と「別の項目」を区別できる。
+							const withStars = attachStarsToLines(rawLines, placements, rowStars, i);
 							lines.push.apply(lines, withStars);
 						} else {
-							const rawLines = extractLines(res.data).map(l => Object.assign({}, l, { stars: null }));
+							const rawLines = extractLines(res.data).map(l => Object.assign({}, l, { stars: null, starsReliable: false, rowKey: null }));
 							lines.push.apply(lines, rawLines);
 						}
 					} catch (err) {
