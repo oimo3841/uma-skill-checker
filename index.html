@@ -940,38 +940,52 @@
 			});
 		}
 
+		// 「距離が一番近いスキル1つ」だけを見て、そのスキル自身の許容範囲と比較すると、
+		// 「無二」「無三」のような短い名前のスキルが、たまたま1〜2文字だけ拾えた
+		// ノイズ行に対して見かけ上の最短距離を叩き出し、他の候補を締め出してしまう
+		// （そのスキル自身の許容距離は0のため、結局ok:falseで捨てられ、本来検出できた
+		// はずの長いスキル名がテストすらされない）。
+		// これを防ぐため、まず「各スキルごとに、そのスキル自身の許容距離以内か」を
+		// 個別に判定し、合格した候補の中だけで一番近いものを選ぶ方式に変更する。
 		function bestCandidate(normLine) {
-			let best = null, second = null;
+			const passing = [];
+			let fallback = null; // 全滅時の診断表示用（従来通り一番近い候補を出す）
 			for (let i = 0; i < skillIndex.length; i++) {
 				const raw = skillIndex[i].raw, norm = skillIndex[i].norm;
 				if (!norm) continue;
 				const d = windowDistance(normLine, norm);
-				if (best === null || d < best.dist) { second = best; best = { raw: raw, norm: norm, dist: d }; }
-				else if (second === null || d < second.dist) { second = { raw: raw, norm: norm, dist: d }; }
+				const limit = allowedDistance(norm.length);
+				if (!fallback || d < fallback.dist) fallback = { raw: raw, dist: d, limit: limit };
+				if (d <= limit) passing.push({ raw: raw, norm: norm, dist: d, limit: limit });
 			}
-			if (!best) return null;
-			const limit = allowedDistance(best.norm.length);
-			if (best.dist > limit) {
-				return { raw: best.raw, dist: best.dist, limit: limit, ok: false, reason: '距離' + best.dist + ' > 許容' + limit };
+			if (passing.length === 0) {
+				if (!fallback) return null;
+				return { raw: fallback.raw, dist: fallback.dist, limit: fallback.limit, ok: false,
+					reason: '距離' + fallback.dist + ' > 許容' + fallback.limit };
 			}
-			if (second && second.dist === best.dist) {
-				return { raw: best.raw, dist: best.dist, limit: limit, ok: false, reason: '曖昧（' + best.raw + ' と ' + second.raw + ' が同点）' };
+			// 合格した候補の中では、距離が小さいものを優先。同距離なら、より長い
+			// （＝より具体的で偶然一致しにくい）スキル名を優先する。
+			passing.sort(function (a, b) { return (a.dist - b.dist) || (b.norm.length - a.norm.length); });
+			const top = passing[0];
+			const tied = passing.filter(function (p) { return p.dist === top.dist && p.norm.length === top.norm.length; });
+			if (tied.length > 1) {
+				return { raw: top.raw, dist: top.dist, limit: top.limit, ok: false,
+					reason: '曖昧（' + tied.map(function (t) { return t.raw; }).join(' と ') + ' が同点）' };
 			}
-			return { raw: best.raw, dist: best.dist, limit: limit, ok: true };
+			return { raw: top.raw, dist: top.dist, limit: top.limit, ok: true };
 		}
 
+		// 以前は、行がスキル名よりかなり長い場合に部分文字列を総当たりで
+		// 探して距離を計算していた（2列分のテキストが1行に混在した場合の
+		// 救済用）。しかし行検出の精度改善後、この救済が実際に必要になる
+		// ケースは検証上ゼロだった一方、「右回りの目覚め」のような無関係な
+		// 実在テキストが、たまたま短いスキル名（例：右回り○）を先頭に
+		// 含んでいるだけで誤って一致してしまう副作用の方が大きかった。
+		// 完全一致の部分文字列は前段の indexOf チェックで別途拾われるため、
+		// あいまい一致（距離>0）については行全体とスキル名全体をそのまま
+		// 比較する方式に統一する。
 		function windowDistance(line, skill) {
-			if (line.length <= skill.length + 1) return levenshtein(line, skill);
-			const w = skill.length;
-			let min = Infinity;
-			for (let len = Math.max(1, w - 1); len <= w + 1; len++) {
-				for (let i = 0; i + len <= line.length; i++) {
-					const d = levenshtein(line.substr(i, len), skill);
-					if (d < min) min = d;
-					if (min === 0) return 0;
-				}
-			}
-			return min;
+			return levenshtein(line, skill);
 		}
 
 		/* =========================================================
