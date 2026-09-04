@@ -3,10 +3,10 @@
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>ウマ娘スキル管理ツール v2</title>
+	<title>ウマ娘スキル管理ツール</title>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
-	<script async src="https://docs.opencv.org/4.5.2/opencv.js"></script>
+	<script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvLoaded()"></script>
 	<style>
 		body {
 			background-color: #F2F4F5;
@@ -69,9 +69,16 @@
 		.not-found {
 			color: #94A3B8;
 		}
-		.upload-area.dragover {
-			background-color: #DBEAFE !important;
-			border-color: #3B82F6 !important;
+		.drop-active {
+			border-color: #10B981 !important;
+			background-color: #ECFDF5 !important;
+		}
+		.dev-log {
+			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+			font-size: 0.7rem;
+			line-height: 1.6;
+			white-space: pre-wrap;
+			word-break: break-all;
 		}
 	</style>
 </head>
@@ -81,10 +88,10 @@
 		<!-- ヘッダー -->
 		<header class="mb-6 md:mb-8">
 			<div class="inline-block px-3 py-1 rounded-full bg-[#1E3A5F] text-white text-xs font-medium mb-2 md:mb-3">
-				スキル管理ツール v2
+				スキル管理ツール
 			</div>
-			<h1 class="text-xl md:text-2xl font-bold text-slate-900">ウマ娘スキル管理（OCR精度向上版）</h1>
-			<p class="mt-1 md:mt-1.5 text-xs md:text-sm text-slate-500">OpenCV前処理＆レーベンシュタイン距離マッチング対応</p>
+			<h1 class="text-xl md:text-2xl font-bold text-slate-900">ウマ娘スキル管理</h1>
+			<p class="mt-1 md:mt-1.5 text-xs md:text-sm text-slate-500">スキルリストを照合して、複数の画像から自動抽出します</p>
 		</header>
 
 		<!-- 使用方法 -->
@@ -94,26 +101,33 @@
 				<div class="flex gap-2 md:gap-3">
 					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">1</span>
 					<div>
-						<p class="font-medium">スキルリストを入力</p>
-						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スプレッドシートやCSVから任意の順番のスキルリストをコピー＆ペースト</p>
+						<p class="font-medium">スキルリストを準備</p>
+						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スプレッドシートやCSVの1列分をコピーして貼り付けます</p>
 					</div>
 				</div>
 				<div class="flex gap-2 md:gap-3">
 					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">2</span>
+					<div>
+						<p class="font-medium">リストを解析</p>
+						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スキル個数を確認してから次に進みます</p>
+					</div>
+				</div>
+				<div class="flex gap-2 md:gap-3">
+					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">3</span>
 					<div>
 						<p class="font-medium">複数の画像をアップロード</p>
 						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スキル表示の画像を複数枚ドラッグ＆ドロップ</p>
 					</div>
 				</div>
 				<div class="flex gap-2 md:gap-3">
-					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">3</span>
+					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">4</span>
 					<div>
 						<p class="font-medium">OCR処理を実行</p>
 						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スキルを自動検出・照合します</p>
 					</div>
 				</div>
 				<div class="flex gap-2 md:gap-3">
-					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">4</span>
+					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">5</span>
 					<div>
 						<p class="font-medium">結果をコピー</p>
 						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">「○」と空白の列をコピーしてスプレッドシートに貼り付け</p>
@@ -127,9 +141,9 @@
 			<div class="heading-divider text-xs font-medium text-slate-400 mb-3 md:mb-4">
 				<span>ステップ1: スキルリストを入力</span>
 			</div>
-			<p class="text-xs md:text-sm text-slate-600 mb-2 md:mb-3">スプレッドシートやCSVから1列をコピーするか、1行に1スキル（改行区切り）で入力してください（任意の順番に対応）：</p>
+			<p class="text-xs md:text-sm text-slate-600 mb-2 md:mb-3">CSVから1列をコピーするか、1行に1スキル（改行区切り）で入力してください：</p>
 			<textarea id="skill-list" class="w-full h-24 md:h-32 text-xs md:text-sm p-2 md:p-3 rounded-xl border border-slate-200 bg-slate-50 font-mono mb-2 md:mb-3" placeholder="例：スキルA&#10;スキルB&#10;スキルC"></textarea>
-			<button id="parse-btn" class="w-full md:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors">
+			<button onclick="parseSkillList()" class="w-full md:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors">
 				リストを解析
 			</button>
 			<div id="skill-count" class="text-xs text-slate-500 mt-1 md:mt-2"></div>
@@ -140,11 +154,36 @@
 			<div class="heading-divider text-xs font-medium text-slate-400 mb-3 md:mb-4">
 				<span>ステップ2: 画像をアップロード</span>
 			</div>
-			<div id="upload-area" class="upload-area block cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 bg-white hover:border-emerald-400 hover:bg-emerald-50/30 transition-colors p-6 md:p-8 text-center mb-3 md:mb-4">
+			<label id="drop-zone" class="block cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 bg-white hover:border-emerald-400 hover:bg-emerald-50/30 transition-colors p-6 md:p-8 text-center mb-3 md:mb-4">
 				<input id="file-input" type="file" accept="image/*" multiple class="hidden" />
-				<span class="text-slate-500 text-xs md:text-sm">複数の画像をドラッグして配置、またはクリック</span>
-			</div>
+				<span class="text-slate-500 text-xs md:text-sm" id="drop-label">複数の画像をドラッグして配置、またはクリック</span>
+			</label>
 			<div id="image-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 mb-3 md:mb-4"></div>
+
+			<!-- OCRオプション -->
+			<div class="rounded-xl border border-slate-200 bg-slate-50 p-3 md:p-4 mb-3 md:mb-4 space-y-2">
+				<label class="flex items-start gap-2 cursor-pointer">
+					<input id="opt-preprocess" type="checkbox" checked class="mt-0.5" />
+					<span class="text-xs md:text-sm text-slate-700">
+						画像前処理を有効にする
+						<span class="block text-xs text-slate-500">拡大・局所コントラスト補正・適応的二値化を行います（<span id="cv-status" class="font-medium">OpenCV読込中…</span>）</span>
+					</span>
+				</label>
+				<label class="flex items-start gap-2 cursor-pointer">
+					<input id="opt-multipass" type="checkbox" checked class="mt-0.5" />
+					<span class="text-xs md:text-sm text-slate-700">
+						高精度モード（多重パス）
+						<span class="block text-xs text-slate-500">二値化版・反転版・原画像の3通りでOCRし、結果を統合します（処理時間が約3倍）</span>
+					</span>
+				</label>
+				<label class="flex items-start gap-2 cursor-pointer">
+					<input id="opt-devlog" type="checkbox" checked class="mt-0.5" />
+					<span class="text-xs md:text-sm text-slate-700">
+						開発用ログを表示
+						<span class="block text-xs text-slate-500">マッチングに失敗した文字列を画面下部に出力します</span>
+					</span>
+				</label>
+			</div>
 
 			<!-- 処理状況 -->
 			<div id="progress-wrap" class="hidden mb-3 md:mb-4">
@@ -159,7 +198,7 @@
 
 			<div id="error-wrap" class="hidden mb-3 md:mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 md:p-4 text-xs md:text-sm text-red-700 whitespace-pre-line"></div>
 
-			<button id="process-btn" class="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs md:text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+			<button id="process-btn" onclick="processImages()" class="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs md:text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
 				画像をOCR処理
 			</button>
 		</div>
@@ -193,6 +232,7 @@
 						<tr>
 							<th>スキル名（リスト順）</th>
 							<th>検出結果</th>
+							<th>判定根拠</th>
 						</tr>
 					</thead>
 					<tbody id="result-tbody"></tbody>
@@ -204,7 +244,7 @@
 				<p class="text-xs font-medium text-slate-600 mb-2">クリップボードコピー用（新しい列）：</p>
 				<div class="flex flex-col md:flex-row gap-2">
 					<textarea id="copy-data" readonly class="w-full md:flex-1 h-20 text-xs md:text-sm p-2 rounded-lg border border-slate-200 bg-white font-mono"></textarea>
-					<button id="copy-btn" class="w-full md:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors whitespace-nowrap">
+					<button onclick="copyToClipboard()" class="w-full md:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors whitespace-nowrap">
 						コピー
 					</button>
 				</div>
@@ -212,95 +252,156 @@
 
 			<p class="text-xs text-slate-500">💡 このテキストをスプレッドシートの新しい列にペーストしてください</p>
 
-			<!-- マッチング失敗の可視化（開発者用） -->
-			<div id="unmatched-wrap" class="hidden mt-6 pt-6 border-t border-slate-200">
-				<div class="heading-divider text-xs font-medium text-orange-600 mb-3">
-					<span>⚠️ 開発用：マッチング失敗テキスト</span>
+			<!-- 開発用: マッチング失敗テキスト -->
+			<div id="dev-wrap" class="hidden mt-6 pt-6 border-t border-slate-200">
+				<div class="heading-divider text-xs font-medium text-amber-600 mb-3">
+					<span>開発用: マッチング失敗テキスト</span>
 				</div>
-				<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 md:p-4">
-					<p class="text-xs text-yellow-800 mb-2 font-mono whitespace-pre-wrap" id="unmatched-list"></p>
-					<p class="text-xs text-yellow-700">💡 これらのテキストをレーベンシュタイン距離で検証し、誤認識辞書に追加してください。</p>
-				</div>
+				<p class="text-xs text-slate-500 mb-2">OCRで文字列は取れたものの、どのスキルにも確定できなかった行です。誤認識辞書に追加する候補として使ってください。</p>
+				<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50 p-3 md:p-4 text-amber-900 max-h-96 overflow-y-auto"></div>
+				<button onclick="copyDevLog()" class="w-full md:w-auto px-4 py-2 mt-2 rounded-lg bg-amber-600 text-white text-xs font-medium hover:bg-amber-700 transition-colors">
+					失敗テキストをコピー
+				</button>
 			</div>
 		</div>
 
 	</div>
 
 	<script>
-		// ========== グローバル変数 ==========
-		let skillList = [];
+		/* =========================================================
+		   状態
+		   ========================================================= */
+		let skillList = [];       // 出力用の原文リスト（ユーザー入力順）
+		let skillIndex = [];      // { raw, norm } の索引
 		let uploadedFiles = [];
 		let detectedSkills = new Set();
-		let unmatchedTexts = [];
+		let matchReasons = {};    // raw -> 判定根拠
+		let unmatchedLines = [];  // 開発用ログ
+		let cvReady = false;
 
-		// ========== 誤認識辞書（段階的に追加） ==========
+		/* =========================================================
+		   誤認識辞書
+		   キー : OCRが出力した文字列（生のままでOK。内部で正規化して比較）
+		   値   : 正しいスキル名（スキルリストの表記と一致させること）
+		   運用で見つかったパターンをここに追記していきます
+		   ========================================================= */
 		const ocrErrorDictionary = {
-			// 例：OCRの出力 → 正しいスキル名
-			// "ー番乗り": "一番乗り",
+			// "逃げのコッ○": "逃げのコツ○",
 		};
 
-		// ========== DOM要素の取得 ==========
-		let fileInput, imageList, processBtn, uploadArea, parseBtn;
+		/* =========================================================
+		   OpenCV の読み込み状態
+		   ========================================================= */
+		function onOpenCvLoaded() {
+			if (typeof cv === 'undefined') return;
+			if (cv instanceof Promise) {
+				cv.then((mod) => { window.cv = mod; markCvReady(); });
+			} else if (typeof cv.getBuildInformation === 'function') {
+				markCvReady();
+			} else {
+				cv['onRuntimeInitialized'] = markCvReady;
+			}
+		}
+		function markCvReady() {
+			cvReady = true;
+			const el = document.getElementById('cv-status');
+			if (el) { el.textContent = 'OpenCV利用可能'; el.className = 'font-medium text-emerald-600'; }
+		}
+		setTimeout(() => {
+			if (!cvReady) {
+				const el = document.getElementById('cv-status');
+				if (el) el.textContent = 'OpenCV未読込（拡大処理のみ適用）';
+			}
+		}, 20000);
 
-		// ========== 初期化 ==========
-		document.addEventListener('DOMContentLoaded', () => {
-			fileInput = document.getElementById('file-input');
-			imageList = document.getElementById('image-list');
-			processBtn = document.getElementById('process-btn');
-			uploadArea = document.getElementById('upload-area');
-			parseBtn = document.getElementById('parse-btn');
+		/* =========================================================
+		   文字正規化
+		   OCRが混同しやすい字形を統一する。
+		   スキル名側にも同じ処理を適用するので、辞書に頼らず
+		   典型的な誤認識をここで吸収できる。
+		   ========================================================= */
+		const HOMOGLYPH_MAP = {
+			// 丸記号のゆれ（○ ◯ 〇 ◎ ● 0 O o Q D）
+			'◯': '○', '〇': '○', '◎': '○', '●': '○', '◉': '○',
+			'0': '○', 'O': '○', 'o': '○', 'Q': '○', 'D': '○', '°': '○',
+			// 長音・ハイフン・漢数字の一（「一番乗り」と「ー番乗り」を同一視）
+			'一': 'ー', '-': 'ー', '‐': 'ー', '–': 'ー', '—': 'ー', '−': 'ー',
+			'~': 'ー', '_': 'ー', '|': 'ー', '丨': 'ー', 'l': 'ー', 'I': 'ー',
+			// カタカナ / 漢字 の同形異字
+			'カ': '力',   // 精神カ → 精神力
+			'ニ': '二',   // 無ニ   → 無二
+			'口': 'ロ',   // 口ンシャン → ロンシャン
+			'卜': 'ト',   // ダー卜 → ダート
+			'夕': 'タ',   // ス夕ート → スタート
+			'工': 'エ',
+			'才': 'オ',
+			'八': 'ハ',
+			'ヘ': 'へ',
+			'ベ': 'べ',
+			'ペ': 'ぺ',
+			'刀': '力',
+			'儿': 'ル',
+			'厶': 'ム',
+			'又': 'ス'
+		};
 
-			// ========== イベントリスナー登録 ==========
-			// ファイル選択
-			fileInput.addEventListener('change', (e) => {
-				uploadedFiles = Array.from(e.target.files);
-				renderImageList();
-				updateProcessBtnStatus();
-			});
+		function normalizeText(input) {
+			if (!input) return '';
+			let s = String(input);
 
-			// リスト解析ボタン
-			parseBtn.addEventListener('click', parseSkillList);
+			// 全角英数記号 → 半角、半角カナ → 全角カナ
+			s = s.normalize('NFKC');
 
-			// OCR処理ボタン
-			processBtn.addEventListener('click', processImages);
+			// 空白・句読点・装飾記号を除去
+			s = s.replace(/[\s\u3000]/g, '');
+			s = s.replace(/[★☆✦✧♪♫※・,.。、:：;；!！?？"'`()（）\[\]{}<>«»\\\/@#$%^&*+=]/g, '');
 
-			// コピーボタン
-			document.getElementById('copy-btn').addEventListener('click', copyToClipboard);
+			// 同形異字の統一
+			let out = '';
+			for (const ch of s) {
+				out += (HOMOGLYPH_MAP[ch] !== undefined) ? HOMOGLYPH_MAP[ch] : ch;
+			}
 
-			// ========== ドラッグ＆ドロップ ==========
-			uploadArea.addEventListener('dragover', (e) => {
-				e.preventDefault();
-				e.stopPropagation();
-				uploadArea.classList.add('dragover');
-			});
+			// 長音の連続は1つに畳む
+			out = out.replace(/ー{2,}/g, 'ー');
 
-			uploadArea.addEventListener('dragleave', (e) => {
-				e.preventDefault();
-				e.stopPropagation();
-				uploadArea.classList.remove('dragover');
-			});
+			return out;
+		}
 
-			uploadArea.addEventListener('drop', (e) => {
-				e.preventDefault();
-				e.stopPropagation();
-				uploadArea.classList.remove('dragover');
-				const files = e.dataTransfer.files;
-				if (files.length > 0) {
-					uploadedFiles = Array.from(files);
-					renderImageList();
-					updateProcessBtnStatus();
+		/* =========================================================
+		   レーベンシュタイン距離
+		   ========================================================= */
+		function levenshtein(a, b) {
+			const la = a.length, lb = b.length;
+			if (la === 0) return lb;
+			if (lb === 0) return la;
+			let prev = new Array(lb + 1);
+			let cur = new Array(lb + 1);
+			for (let j = 0; j <= lb; j++) prev[j] = j;
+			for (let i = 1; i <= la; i++) {
+				cur[0] = i;
+				const ca = a[i - 1];
+				for (let j = 1; j <= lb; j++) {
+					const cost = ca === b[j - 1] ? 0 : 1;
+					cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
 				}
-			});
+				const tmp = prev; prev = cur; cur = tmp;
+			}
+			return prev[lb];
+		}
 
-			// クリック時のファイル選択
-			uploadArea.addEventListener('click', () => {
-				fileInput.click();
-			});
+		// スキル名の長さに応じた許容距離
+		// 「無二 / 無三」のような短い名前は誤爆が致命的なので完全一致を要求する
+		function allowedDistance(len) {
+			if (len <= 3) return 0;
+			if (len <= 5) return 1;
+			if (len <= 9) return 2;
+			return 3;
+		}
 
-			console.log('初期化完了');
-		});
-
-		// ========== ステップ1: スキルリスト解析 ==========
+		/* =========================================================
+		   ステップ1: スキルリスト解析
+		   ========================================================= */
 		function parseSkillList() {
 			const input = document.getElementById('skill-list').value.trim();
 			if (!input) {
@@ -308,27 +409,57 @@
 				return;
 			}
 
-			skillList = input.split(/[\n,]/).map(s => s.trim()).filter(s => s.length > 0);
-			
+			skillList = input.split(/[\n,\t]/).map(s => s.trim()).filter(s => s.length > 0);
+
 			if (skillList.length === 0) {
 				alert('有効なスキルが見つかりません');
 				return;
 			}
 
-			document.getElementById('skill-count').textContent = `✓ ${skillList.length}個のスキルを解析しました`;
-			updateProcessBtnStatus();
-			console.log('スキルリスト解析完了:', skillList);
+			skillIndex = skillList.map(raw => ({ raw, norm: normalizeText(raw) }));
+
+			document.getElementById('skill-count').textContent =
+				'✓ ' + skillList.length + '個のスキルを解析しました';
+			updateProcessBtn();
 		}
 
-		function updateProcessBtnStatus() {
-			processBtn.disabled = skillList.length === 0 || uploadedFiles.length === 0;
-			if (skillList.length === 0) {
-				processBtn.title = 'スキルリストを先に解析してください';
-			} else if (uploadedFiles.length === 0) {
-				processBtn.title = '画像をアップロードしてください';
-			} else {
-				processBtn.title = '';
-			}
+		/* =========================================================
+		   ステップ2: 画像アップロード
+		   クリックは <label> の標準動作に任せる（JSで介入しない）
+		   ========================================================= */
+		const fileInput = document.getElementById('file-input');
+		const imageList = document.getElementById('image-list');
+		const processBtn = document.getElementById('process-btn');
+		const dropZone = document.getElementById('drop-zone');
+
+		fileInput.addEventListener('change', (e) => {
+			addFiles(Array.from(e.target.files));
+			e.target.value = '';
+		});
+
+		['dragenter', 'dragover'].forEach((ev) => {
+			dropZone.addEventListener(ev, (e) => {
+				e.preventDefault();
+				dropZone.classList.add('drop-active');
+			});
+		});
+		['dragleave', 'dragend'].forEach((ev) => {
+			dropZone.addEventListener(ev, () => dropZone.classList.remove('drop-active'));
+		});
+		dropZone.addEventListener('drop', (e) => {
+			e.preventDefault();
+			dropZone.classList.remove('drop-active');
+			const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+			if (files.length) addFiles(files);
+		});
+
+		function addFiles(files) {
+			files.forEach((f) => {
+				const dup = uploadedFiles.some(u => u.name === f.name && u.size === f.size);
+				if (!dup) uploadedFiles.push(f);
+			});
+			renderImageList();
+			updateProcessBtn();
 		}
 
 		function renderImageList() {
@@ -338,131 +469,173 @@
 					<div class="absolute top-1 right-1">
 						<button type="button" onclick="removeImage(${idx})" class="px-2 py-1 rounded bg-red-500 text-white text-xs font-medium hover:bg-red-600">削除</button>
 					</div>
-					<p class="text-xs text-slate-600 p-1 md:p-2 truncate">${file.name}</p>
+					<p class="text-xs text-slate-600 p-1 md:p-2 truncate">${escapeHtml(file.name)}</p>
 				</div>
 			`).join('');
-			console.log('画像リスト更新:', uploadedFiles.length, '個のファイル');
 		}
 
 		function removeImage(idx) {
 			uploadedFiles.splice(idx, 1);
 			renderImageList();
-			updateProcessBtnStatus();
+			updateProcessBtn();
 		}
 
-		// ========== レーベンシュタイン距離の計算 ==========
-		function levenshteinDistance(a, b) {
-			const lenA = a.length;
-			const lenB = b.length;
-			const matrix = Array(lenA + 1).fill(null).map(() => Array(lenB + 1).fill(0));
-
-			for (let i = 0; i <= lenA; i++) matrix[i][0] = i;
-			for (let j = 0; j <= lenB; j++) matrix[0][j] = j;
-
-			for (let i = 1; i <= lenA; i++) {
-				for (let j = 1; j <= lenB; j++) {
-					const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-					matrix[i][j] = Math.min(
-						matrix[i - 1][j] + 1,
-						matrix[i][j - 1] + 1,
-						matrix[i - 1][j - 1] + cost
-					);
-				}
-			}
-			return matrix[lenA][lenB];
+		function updateProcessBtn() {
+			processBtn.disabled = (skillList.length === 0 || uploadedFiles.length === 0);
 		}
 
-		// ========== マッチング（レーベンシュタイン距離対応） ==========
-		function matchSkillsWithFeedback(ocrText) {
-			const normalized = ocrText.replace(/\s+/g, '');
-			const threshold = 2;
-
-			const detectedTokens = new Set();
-			const tokenPattern = /[\u4E00-\u9FFF\u30A0-\u309F\u3040-\u309F○◎〇a-zA-Z0-9]+/g;
-			let match;
-			while ((match = tokenPattern.exec(normalized)) !== null) {
-				detectedTokens.add(match[0]);
-			}
-
-			skillList.forEach(skill => {
-				const normalizedSkill = skill.replace(/\s+/g, '');
-
-				// ① 直接一致
-				if (normalized.includes(normalizedSkill)) {
-					detectedSkills.add(skill);
-					return;
-				}
-
-				// ② 誤認識辞書を試行
-				for (const [ocrPattern, correctSkill] of Object.entries(ocrErrorDictionary)) {
-					const normalizedPattern = ocrPattern.replace(/\s+/g, '');
-					if (normalized.includes(normalizedPattern)) {
-						detectedSkills.add(correctSkill);
-						return;
-					}
-				}
-
-				// ③ レーベンシュタイン距離による曖昧マッチング
-				for (const token of detectedTokens) {
-					const distance = levenshteinDistance(normalizedSkill, token);
-					if (distance <= threshold && distance > 0) {
-						detectedSkills.add(skill);
-						return;
-					}
-				}
-
-				// ④ マッチング失敗したトークンを記録
-				for (const token of detectedTokens) {
-					if (!unmatchedTexts.includes(token)) {
-						unmatchedTexts.push(token);
-					}
-				}
+		/* =========================================================
+		   画像前処理
+		   ========================================================= */
+		function loadImage(file) {
+			return new Promise((resolve, reject) => {
+				const img = new Image();
+				const url = URL.createObjectURL(file);
+				img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+				img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+				img.src = url;
 			});
 		}
 
-		// ========== OCR処理 ==========
+		// 小さい文字はTesseractが最も苦手とするため、まず解像度を稼ぐ
+		function toScaledCanvas(img, targetWidth) {
+			const scale = Math.max(1, Math.min(3, targetWidth / img.naturalWidth));
+			const canvas = document.createElement('canvas');
+			canvas.width = Math.round(img.naturalWidth * scale);
+			canvas.height = Math.round(img.naturalHeight * scale);
+			const ctx = canvas.getContext('2d');
+			ctx.imageSmoothingEnabled = true;
+			ctx.imageSmoothingQuality = 'high';
+			ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+			return canvas;
+		}
+
+		// OCRに掛ける画像バリエーションを返す
+		async function buildVariants(file) {
+			const img = await loadImage(file);
+			const base = toScaledCanvas(img, 1800);
+
+			const usePre = document.getElementById('opt-preprocess').checked;
+			const multi = document.getElementById('opt-multipass').checked;
+
+			if (!usePre || !cvReady) return [base];
+
+			const variants = [];
+			let src = null, gray = null, eq = null, clahe = null, bin = null, inv = null;
+			try {
+				src = cv.imread(base);
+				gray = new cv.Mat();
+				cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+				// 局所コントラスト補正（CLAHE）
+				// 背景の明暗差が大きいゲームUIでは、単純な正規化より安定する
+				eq = new cv.Mat();
+				clahe = new cv.CLAHE(2.0, new cv.Size(8, 8));
+				clahe.apply(gray, eq);
+
+				// 適応的二値化
+				// 画面全体に単一閾値を当てるOtsuと違い、背景色が場所ごとに
+				// 変わるUIでも文字だけを残せる
+				bin = new cv.Mat();
+				cv.adaptiveThreshold(eq, bin, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 31, 12);
+
+				const c1 = document.createElement('canvas');
+				cv.imshow(c1, bin);
+				variants.push(c1);
+
+				if (multi) {
+					// 反転版: 白抜き文字を拾うため
+					inv = new cv.Mat();
+					cv.bitwise_not(bin, inv);
+					const c2 = document.createElement('canvas');
+					cv.imshow(c2, inv);
+					variants.push(c2);
+					// 原画像（拡大のみ）: 前処理が裏目に出た場合の保険
+					variants.push(base);
+				}
+			} catch (err) {
+				console.error('preprocess failed', err);
+				return [base];
+			} finally {
+				[src, gray, eq, bin, inv].forEach((m) => {
+					try { if (m && !m.isDeleted()) m.delete(); } catch (e) {}
+				});
+				try { if (clahe && clahe.delete) clahe.delete(); } catch (e) {}
+			}
+			return variants.length ? variants : [base];
+		}
+
+		/* =========================================================
+		   ステップ3: OCR処理と照合
+		   ========================================================= */
 		async function processImages() {
-			if (skillList.length === 0) {
-				alert('先にスキルリストを解析してください');
-				return;
-			}
-			if (uploadedFiles.length === 0) {
-				alert('画像をアップロードしてください');
-				return;
-			}
+			if (skillList.length === 0) { alert('先にスキルリストを解析してください'); return; }
+			if (uploadedFiles.length === 0) { alert('画像をアップロードしてください'); return; }
 
 			detectedSkills.clear();
-			unmatchedTexts = [];
+			matchReasons = {};
+			unmatchedLines = [];
+
 			const progressWrap = document.getElementById('progress-wrap');
 			const errorWrap = document.getElementById('error-wrap');
 			errorWrap.classList.add('hidden');
 			progressWrap.classList.remove('hidden');
 			processBtn.disabled = true;
 
+			let worker = null;
 			let successCount = 0;
-			const totalFiles = uploadedFiles.length;
+			const collectedLines = [];
 
-			for (let i = 0; i < uploadedFiles.length; i++) {
-				const file = uploadedFiles[i];
-				updateProgress(i, totalFiles, `処理中: ${file.name}`);
+			try {
+				setProgress(0, 'OCRエンジンを初期化中…');
+				worker = await Tesseract.createWorker();
+				await worker.loadLanguage('jpn');
+				await worker.initialize('jpn');
+				await worker.setParameters({
+					// スキル名は箱の中に整列しているので「均一なブロック」として扱う
+					tessedit_pageseg_mode: '6',
+					preserve_interword_spaces: '1',
+					user_defined_dpi: '300'
+				});
 
-				try {
-					const { data } = await Tesseract.recognize(file, 'jpn+eng', {
-						logger: (m) => {
-							if (m.status) {
-								document.getElementById('progress-label').textContent = `${file.name}: ${m.status}`;
-							}
+				const totalSteps = uploadedFiles.length;
+
+				for (let i = 0; i < uploadedFiles.length; i++) {
+					const file = uploadedFiles[i];
+					setProgress(i / totalSteps, '前処理中: ' + file.name);
+
+					let variants;
+					try {
+						variants = await buildVariants(file);
+					} catch (err) {
+						console.error(err);
+						continue;
+					}
+
+					for (let v = 0; v < variants.length; v++) {
+						setProgress((i + v / variants.length) / totalSteps,
+							'OCR中: ' + file.name + '（' + (v + 1) + '/' + variants.length + '）');
+						try {
+							const res = await worker.recognize(variants[v]);
+							collectedLines.push.apply(collectedLines, extractLines(res.data));
+							successCount++;
+						} catch (err) {
+							console.error('OCR failed: ' + file.name, err);
 						}
-					});
-
-					const ocrText = data.text;
-					matchSkillsWithFeedback(ocrText);
-					successCount++;
-				} catch (err) {
-					console.error(`Error processing ${file.name}:`, err);
+					}
 				}
+			} catch (err) {
+				console.error(err);
+				errorWrap.classList.remove('hidden');
+				errorWrap.textContent = 'OCRエンジンの初期化に失敗しました。ネットワーク接続を確認して再度お試しください。\n' + err;
+				progressWrap.classList.add('hidden');
+				processBtn.disabled = false;
+				return;
+			} finally {
+				if (worker) { try { await worker.terminate(); } catch (e) {} }
 			}
 
+			setProgress(1, '照合中…');
 			progressWrap.classList.add('hidden');
 			processBtn.disabled = false;
 
@@ -472,21 +645,157 @@
 				return;
 			}
 
+			matchAll(collectedLines);
 			renderResults();
 		}
 
-		function updateProgress(current, total, label) {
-			const pct = Math.round(((current + 1) / total) * 100);
+		function setProgress(ratio, label) {
+			const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
 			document.getElementById('progress-bar').style.width = pct + '%';
 			document.getElementById('progress-pct').textContent = pct + '%';
 			document.getElementById('progress-label').textContent = label;
 		}
 
+		// OCR結果から行テキストを取り出す
+		function extractLines(data) {
+			const lines = [];
+			if (data && Array.isArray(data.lines) && data.lines.length) {
+				data.lines.forEach((l) => {
+					if (l.text && l.text.trim()) lines.push({ text: l.text.trim(), conf: l.confidence });
+				});
+			} else if (data && data.text) {
+				data.text.split(/\r?\n/).forEach((t) => {
+					if (t.trim()) lines.push({ text: t.trim(), conf: null });
+				});
+			}
+			return lines;
+		}
+
+		/* =========================================================
+		   マッチング
+		   1) 全文の部分一致（正規化後）
+		   2) 誤認識辞書
+		   3) 行単位のファジーマッチ（最良候補＋次点との差で確定）
+		   ========================================================= */
+		function matchAll(lines) {
+			const normDictionary = {};
+			Object.keys(ocrErrorDictionary).forEach((k) => {
+				normDictionary[normalizeText(k)] = ocrErrorDictionary[k];
+			});
+
+			// --- 1) 全文の部分一致 ---
+			const fullText = normalizeText(lines.map(l => l.text).join('\n'));
+			skillIndex.forEach(({ raw, norm }) => {
+				if (norm && fullText.indexOf(norm) !== -1) {
+					detectedSkills.add(raw);
+					matchReasons[raw] = '完全一致';
+				}
+			});
+
+			// --- 2) 3) 行単位 ---
+			const seenLines = new Set();
+
+			lines.forEach((line) => {
+				const norm = normalizeText(line.text);
+				if (!norm || norm.length < 2) return;
+				if (seenLines.has(norm)) return;
+				seenLines.add(norm);
+
+				// 誤認識辞書
+				if (normDictionary[norm]) {
+					const target = normDictionary[norm];
+					if (skillList.indexOf(target) !== -1) {
+						if (!detectedSkills.has(target)) matchReasons[target] = '辞書';
+						detectedSkills.add(target);
+					}
+					return;
+				}
+
+				// すでに確定したスキル名を含む行は失敗ログに出さない
+				let containsKnown = false;
+				for (let i = 0; i < skillIndex.length; i++) {
+					const sn = skillIndex[i].norm;
+					if (sn && norm.indexOf(sn) !== -1) { containsKnown = true; break; }
+				}
+				if (containsKnown) return;
+
+				// ファジーマッチ
+				const cand = bestCandidate(norm);
+
+				if (cand && cand.ok) {
+					if (!detectedSkills.has(cand.raw)) {
+						matchReasons[cand.raw] = '推定（距離' + cand.dist + '）';
+					}
+					detectedSkills.add(cand.raw);
+				} else {
+					unmatchedLines.push({
+						text: line.text,
+						norm: norm,
+						conf: line.conf,
+						best: cand ? cand.raw : null,
+						dist: cand ? cand.dist : null,
+						reason: cand ? cand.reason : '候補なし'
+					});
+				}
+			});
+		}
+
+		// 1行に対する最良のスキル候補を求める
+		function bestCandidate(normLine) {
+			let best = null, second = null;
+
+			for (let i = 0; i < skillIndex.length; i++) {
+				const raw = skillIndex[i].raw;
+				const norm = skillIndex[i].norm;
+				if (!norm) continue;
+				const d = windowDistance(normLine, norm);
+				if (best === null || d < best.dist) {
+					second = best;
+					best = { raw: raw, norm: norm, dist: d };
+				} else if (second === null || d < second.dist) {
+					second = { raw: raw, norm: norm, dist: d };
+				}
+			}
+
+			if (!best) return null;
+
+			const limit = allowedDistance(best.norm.length);
+
+			if (best.dist > limit) {
+				return { raw: best.raw, dist: best.dist, ok: false,
+					reason: '距離' + best.dist + ' > 許容' + limit };
+			}
+			// 次点と同距離なら曖昧（例: 無二/無三、右回り○/左回り○）
+			if (second && second.dist === best.dist) {
+				return { raw: best.raw, dist: best.dist, ok: false,
+					reason: '曖昧（' + best.raw + ' と ' + second.raw + ' が同点）' };
+			}
+			return { raw: best.raw, dist: best.dist, ok: true };
+		}
+
+		// 行の中に埋もれたスキル名も拾えるよう、
+		// スキル名と同じ長さのウィンドウをずらしながら最小距離を取る
+		function windowDistance(line, skill) {
+			if (line.length <= skill.length + 1) return levenshtein(line, skill);
+			const w = skill.length;
+			let min = Infinity;
+			for (let len = Math.max(1, w - 1); len <= w + 1; len++) {
+				for (let i = 0; i + len <= line.length; i++) {
+					const d = levenshtein(line.substr(i, len), skill);
+					if (d < min) min = d;
+					if (min === 0) return 0;
+				}
+			}
+			return min;
+		}
+
+		/* =========================================================
+		   結果描画
+		   ========================================================= */
 		function renderResults() {
 			const tbody = document.getElementById('result-tbody');
 			const copyData = document.getElementById('copy-data');
 			const resultWrap = document.getElementById('result-wrap');
-			const unmatchedWrap = document.getElementById('unmatched-wrap');
 
 			let tableHtml = '';
 			let copyText = '';
@@ -496,34 +805,56 @@
 				const found = detectedSkills.has(skill);
 				const status = found ? '○' : '';
 				const statusClass = found ? 'found' : 'not-found';
+				const reason = found ? (matchReasons[skill] || '') : '';
 
-				tableHtml += `
-					<tr>
-						<td>${skill}</td>
-						<td class="${statusClass}">${status}</td>
-					</tr>
-				`;
+				tableHtml += '<tr>' +
+					'<td>' + escapeHtml(skill) + '</td>' +
+					'<td class="' + statusClass + '">' + status + '</td>' +
+					'<td class="text-slate-400">' + escapeHtml(reason) + '</td>' +
+					'</tr>';
 
 				copyText += (found ? '○' : '') + (idx < skillList.length - 1 ? '\n' : '');
 				if (found) foundCount++;
 			});
 
 			const totalCount = skillList.length;
-			const notFoundCount = totalCount - foundCount;
 			document.getElementById('stat-total').textContent = totalCount;
 			document.getElementById('stat-found').textContent = foundCount;
-			document.getElementById('stat-not-found').textContent = notFoundCount;
+			document.getElementById('stat-not-found').textContent = totalCount - foundCount;
 
 			tbody.innerHTML = tableHtml;
 			copyData.value = copyText;
 			resultWrap.classList.remove('hidden');
 
-			if (unmatchedTexts.length > 0) {
-				unmatchedWrap.classList.remove('hidden');
-				document.getElementById('unmatched-list').textContent = unmatchedTexts.join('\n');
-			} else {
-				unmatchedWrap.classList.add('hidden');
+			renderDevLog();
+		}
+
+		function renderDevLog() {
+			const devWrap = document.getElementById('dev-wrap');
+			const devLog = document.getElementById('dev-log');
+			const show = document.getElementById('opt-devlog').checked;
+
+			if (!show || unmatchedLines.length === 0) {
+				devWrap.classList.add('hidden');
+				return;
 			}
+
+			const body = unmatchedLines.map((u) => {
+				const confStr = (u.conf !== null && u.conf !== undefined) ? ' conf=' + Math.round(u.conf) : '';
+				const bestStr = u.best
+					? '  → 候補: ' + u.best + '（距離' + u.dist + ' / ' + u.reason + '）'
+					: '  → ' + u.reason;
+				return '"' + u.text + '"' + confStr + '\n  正規化: ' + u.norm + '\n' + bestStr;
+			}).join('\n\n');
+
+			devLog.textContent = unmatchedLines.length + '件\n\n' + body;
+			devWrap.classList.remove('hidden');
+		}
+
+		function escapeHtml(s) {
+			return String(s).replace(/[&<>"']/g, (c) => ({
+				'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+			}[c]));
 		}
 
 		function copyToClipboard() {
@@ -531,6 +862,16 @@
 			copyData.select();
 			document.execCommand('copy');
 			alert('クリップボードにコピーしました');
+		}
+
+		function copyDevLog() {
+			const text = document.getElementById('dev-log').textContent;
+			if (navigator.clipboard && navigator.clipboard.writeText) {
+				navigator.clipboard.writeText(text).then(
+					() => alert('失敗テキストをコピーしました'),
+					() => alert('コピーに失敗しました')
+				);
+			}
 		}
 	</script>
 </body>
