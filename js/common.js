@@ -306,6 +306,36 @@ function detectSkillRows(baseCanvas, diag) {
 	diag.push('高さフィルタ（中央値 ' + medH + 'px）: ' + before + ' → ' + bands.length + '本');
 	if (bands.length < 3) { diag.push('フィルタ後の文字帯が少なすぎるため中止'); return null; }
 
+	// ★アイコン（special.html の因子継承画面などで、スキル名の下に表示される★★★）は
+	// 明るい金色だが、輪郭線部分がまれに「暗い文字」として誤検出され、
+	// 本来1行のはずのスキル名の下にもう1本、実体のない「文字帯」が紛れ込むことがある。
+	// これを放置すると行数が本来の約2倍に膨らみ、テキスト認識にもノイズが混入するため、
+	// 「帯の中の金色ピクセル比率が高い」帯を ★アイコンの誤検出とみなして除外する。
+	// 実測では、正規の文字帯は金色比率がほぼ0%、★の誤検出帯は4〜8%程度だったため、
+	// 余裕を持って1.5%を閾値とする。
+	// 注: 当初は「背が低い（medH比85%以下）」帯だけをこの判定対象にしていたが、
+	// ★の誤検出帯の数が実文字帯と同程度〜それ以上になる画像では中央値自体が
+	// ★帯側に引っ張られてしまい、高さによる事前選別が機能しないケースがあった。
+	// 金色比率は実文字帯とほぼ完全に分離できる指標（0% 対 4〜8%）なので、
+	// 高さに関わらず全ての帯に対して直接判定する。
+	// index.html（★の出ない画面）ではそもそも金色ピクセルがほぼ存在しないため、
+	// この処理は実質的に影響しない。
+	const beforeStarFilter = bands.length;
+	const gold = goldMaskOf(imageData);
+	const goldRowCounts = rowCountsOf(gold, W, H);
+	bands = bands.filter(b => {
+		const h = b.b - b.a + 1;
+		let goldCount = 0;
+		for (let y = b.a; y <= b.b; y++) goldCount += goldRowCounts[y];
+		const totalCount = h * W;
+		const goldFrac = totalCount > 0 ? goldCount / totalCount : 0;
+		return goldFrac <= 0.015;
+	});
+	if (bands.length !== beforeStarFilter) {
+		diag.push('★アイコンの誤検出帯を除外: ' + beforeStarFilter + ' → ' + bands.length + '本');
+	}
+	if (bands.length < 3) { diag.push('フィルタ後の文字帯が少なすぎるため中止'); return null; }
+
 	const gapThreshold = Math.max(18, Math.round(W * 0.03));
 	const minBlockW = Math.max(10, Math.round(W * 0.02));
 	const allBlocks = [];
@@ -518,16 +548,27 @@ function matchAllSkills(lines, skillList, skillIndex, ocrErrorDictionary) {
 			return;
 		}
 
-		let exactHit = false;
+		// 部分一致（indexOf）で候補を集める。
+		// 例えば「根幹距離○」と「非根幹距離○」のように、片方がもう片方の部分文字列に
+		// なっているスキル名が同じスキルリストに存在すると、OCR行「非根幹距離○」に対して
+		// 「根幹距離○」も誤って一致してしまう。これを避けるため、一致した候補同士を比較し、
+		// 他の候補の正規化文字列に完全に含まれてしまう（＝より具体的な候補が別にある）ものは
+		// 誤検出とみなして除外し、最も具体的な（長い）候補だけを採用する。
+		const exactCandidates = [];
 		for (let i = 0; i < skillIndex.length; i++) {
 			const s = skillIndex[i];
-			if (s.norm && norm.indexOf(s.norm) !== -1) {
+			if (s.norm && norm.indexOf(s.norm) !== -1) exactCandidates.push(s);
+		}
+		if (exactCandidates.length > 0) {
+			const exactHits = exactCandidates.filter(cand =>
+				!exactCandidates.some(other => other !== cand && other.norm !== cand.norm && other.norm.indexOf(cand.norm) !== -1)
+			);
+			exactHits.forEach(s => {
 				if (!detectedSkills.has(s.raw)) matchReasons[s.raw] = '完全一致';
 				detectedSkills.add(s.raw);
-				exactHit = true;
-			}
+			});
+			return;
 		}
-		if (exactHit) return;
 
 		if (line.conf !== null && line.conf !== undefined && line.conf < CONF_THRESHOLD) {
 			devLowConf.push({ text: line.text, norm: norm, conf: line.conf });
