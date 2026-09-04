@@ -6,202 +6,358 @@
 	<title>ウマ娘スキル管理ツール</title>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
+	<!-- Lucide Icons (アイコン追加でUI視認性を向上) -->
+	<script src="https://unpkg.com/lucide@1.41.0/dist/umd/lucide.min.js"></script>
 	<style>
 		body {
-			background-color: #F2F4F5;
-			background-image: radial-gradient(circle at 1px 1px, rgba(30,41,59,0.05) 1px, transparent 0);
-			background-size: 20px 20px;
+			background-color: #f8fafc;
+			background-image: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.15) 1px, transparent 0);
+			background-size: 24px 24px;
 		}
-		.heading-divider { display: flex; align-items: center; gap: 0.75rem; }
-		.heading-divider::before, .heading-divider::after {
-			content: ""; flex: 1; height: 1px; background: #CBD3D8;
+		.glass-card {
+			background: rgba(255, 255, 255, 0.85);
+			backdrop-filter: blur(12px);
 		}
-		.result-table { border-collapse: collapse; width: 100%; }
-		.result-table th, .result-table td {
-			border: 1px solid #E2E8F0; padding: 0.5rem; text-align: left;
-		}
-		@media (min-width: 768px) { .result-table th, .result-table td { padding: 0.75rem; } }
+		.result-table { border-collapse: separate; border-spacing: 0; width: 100%; }
 		.result-table th {
-			background-color: #F8FAFC; font-weight: 600; font-size: 0.75rem; color: #475569;
+			background-color: #f1f5f9; font-weight: 600; font-size: 0.8125rem; color: #475569;
+			border-bottom: 2px solid #e2e8f0; padding: 0.75rem 1rem;
 		}
-		@media (min-width: 768px) { .result-table th { font-size: 0.875rem; } }
-		.result-table td { font-size: 0.75rem; }
-		@media (min-width: 768px) { .result-table td { font-size: 0.875rem; } }
-		.result-table tr:nth-child(even) { background-color: #F8FAFC; }
-		.found { color: #10B981; font-weight: 600; }
-		.not-found { color: #94A3B8; }
-		.drop-active { border-color: #10B981 !important; background-color: #ECFDF5 !important; }
+		.result-table td {
+			border-bottom: 1px solid #f1f5f9; padding: 0.75rem 1rem; font-size: 0.875rem;
+		}
+		.result-table tr:hover td { background-color: #f8fafc; }
+		.found { color: #059669; font-weight: 600; }
+		.not-found { color: #94a3b8; }
+		.drop-active { border-color: #10b981 !important; background-color: #ecfdf5 !important; transform: scale(1.005); }
 		.dev-log {
 			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-			font-size: 0.7rem; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+			font-size: 0.725rem; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
 		}
 		#debug-preview canvas {
-			max-width: 100%; border: 1px solid #E2E8F0; border-radius: 0.5rem; background: #fff;
+			max-width: 100%; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #fff;
+		}
+		/* トースト通知 */
+		#toast {
+			transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 		}
 	</style>
 </head>
-<body class="min-h-screen text-slate-800">
-	<div class="w-full max-w-6xl mx-auto px-4 md:px-5 py-6 md:py-10">
+<body class="min-h-screen text-slate-800 antialiased selection:bg-emerald-500 selection:text-white">
+	
+	<!-- トースト通知 -->
+	<div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-16 opacity-0 pointer-events-none flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 text-sm font-medium">
+		<i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
+		<span id="toast-message">コピーしました</span>
+	</div>
 
-		<header class="mb-6 md:mb-8">
-			<div class="inline-block px-3 py-1 rounded-full bg-[#1E3A5F] text-white text-xs font-medium mb-2 md:mb-3">
-				スキル管理ツール
+	<div class="w-full max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12">
+
+		<!-- ヘッダー -->
+		<header class="mb-8 md:mb-10 text-center md:text-left flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-6">
+			<div>
+				<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold mb-2">
+					<i data-lucide="sparkles" class="w-3.5 h-3.5"></i> スキル管理ツール
+				</div>
+				<h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">ウマ娘 スキル自動照合</h1>
+				<p class="mt-1.5 text-xs md:text-sm text-slate-500">スクリーンショットからスキル一覧を自動OCR解析・判定します</p>
 			</div>
-			<h1 class="text-xl md:text-2xl font-bold text-slate-900">ウマ娘スキル管理</h1>
-			<p class="mt-1 md:mt-1.5 text-xs md:text-sm text-slate-500">スキルリストを照合して、複数の画像から自動抽出します</p>
+			
+			<button onclick="toggleHelp()" class="inline-flex items-center justify-center gap-2 text-xs font-medium text-slate-600 hover:text-emerald-600 bg-white border border-slate-200 hover:border-emerald-300 px-3.5 py-2 rounded-xl shadow-sm transition-all">
+				<i data-lucide="help-circle" class="w-4 h-4"></i>
+				<span>使い方ガイド</span>
+			</button>
 		</header>
 
-		<div class="rounded-2xl border border-blue-200 bg-blue-50 p-4 md:p-6 mb-6 md:mb-8">
-			<p class="text-xs md:text-sm font-medium text-blue-900 mb-3 md:mb-4">📋 使用方法</p>
-			<div class="space-y-2 md:space-y-3 text-xs md:text-sm text-blue-800">
-				<div class="flex gap-2 md:gap-3">
-					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">1</span>
-					<div><p class="font-medium">スキルリストを準備</p>
-					<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スプレッドシートやCSVの1列分をコピーして貼り付けます</p></div>
+		<!-- 使い方アコーディオン (初期表示または折りたたみ) -->
+		<div id="help-box" class="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-indigo-50/50 p-5 md:p-6 mb-8 shadow-sm relative overflow-hidden transition-all">
+			<div class="flex items-center gap-2 text-sm font-bold text-blue-900 mb-4">
+				<i data-lucide="book-open" class="w-4 h-4 text-blue-600"></i>
+				<span>使い方の手順</span>
+			</div>
+			<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-xs text-slate-700">
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 1</span>
+					<p class="font-bold text-slate-800">リスト準備</p>
+					<p class="text-slate-500 mt-1">スプレッドシートの1列をコピーして貼り付け</p>
 				</div>
-				<div class="flex gap-2 md:gap-3">
-					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">2</span>
-					<div><p class="font-medium">リストを解析</p>
-					<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スキル個数を確認してから次に進みます</p></div>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 2</span>
+					<p class="font-bold text-slate-800">リスト解析</p>
+					<p class="text-slate-500 mt-1">個数を確認して正常に読み込めたかチェック</p>
 				</div>
-				<div class="flex gap-2 md:gap-3">
-					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">3</span>
-					<div><p class="font-medium">スクリーンショットをアップロード</p>
-					<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スキル枠が途中で切れないように、かつ画像間でスキルが1〜2個重複するようにスクロールして撮影してください</p></div>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 3</span>
+					<p class="font-bold text-slate-800">画像アップ</p>
+					<p class="text-slate-500 mt-1">スクショを複数指定（1〜2個重複するように撮影）</p>
 				</div>
-				<div class="flex gap-2 md:gap-3">
-					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">4</span>
-					<div><p class="font-medium">OCR処理を実行</p>
-					<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スキル行を自動で切り出し、検出・照合します</p></div>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 4</span>
+					<p class="font-bold text-slate-800">OCR実行</p>
+					<p class="text-slate-500 mt-1">自動でスキル行を切り出して超高速文字認識</p>
 				</div>
-				<div class="flex gap-2 md:gap-3">
-					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">5</span>
-					<div><p class="font-medium">結果をコピー</p>
-					<p class="text-xs text-blue-700 mt-0.5 md:mt-1">「○」と空白の列をコピーしてスプレッドシートに貼り付け</p></div>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 5</span>
+					<p class="font-bold text-slate-800">結果コピー</p>
+					<p class="text-slate-500 mt-1">「○」の列をスプレッドシートに一括ペースト</p>
 				</div>
 			</div>
+
+			<details class="group mt-4 rounded-xl border border-blue-100 bg-white/70 overflow-hidden">
+				<summary class="flex items-center justify-between p-3 text-xs font-semibold text-blue-900 cursor-pointer select-none">
+					<span class="flex items-center gap-2">
+						<i data-lucide="image" class="w-4 h-4 text-blue-600"></i>
+						<span>撮影例を見る（なぜ1〜2行重複させるか）</span>
+					</span>
+					<i data-lucide="chevron-down" class="w-4 h-4 text-blue-400 group-open:rotate-180 transition-transform"></i>
+				</summary>
+				<div class="p-4 pt-2 border-t border-blue-100/60">
+					<p class="text-xs text-slate-600 mb-3">スクロールしながら複数枚撮影するときは、1枚目の最後の行と2枚目の最初の行が1〜2行分重なるように撮影してください。重複があれば、境目の行が両方の画像から漏れて未検出になる心配がありません。以下は実際のスクリーンショットの例です（同じ「追込けん制／短距離直線○」の行が緑枠で囲われ、両方に写っています）。</p>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+						<div>
+							<img src="data:image/png;base64,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" class="rounded-lg border border-slate-200 shadow-sm w-full" alt="1枚目：スクロール前のスクリーンショット下端" />
+							<p class="text-[11px] text-slate-500 mt-1.5 flex items-center gap-1.5">
+								<span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-700 text-white text-[9px] font-bold flex-shrink-0">1</span>
+								<span>1枚目：下端に緑枠の行が写っている</span>
+							</p>
+						</div>
+						<div>
+							<img src="data:image/png;base64,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" class="rounded-lg border border-slate-200 shadow-sm w-full" alt="2枚目：スクロール後のスクリーンショット上端" />
+							<p class="text-[11px] text-slate-500 mt-1.5 flex items-center gap-1.5">
+								<span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-700 text-white text-[9px] font-bold flex-shrink-0">2</span>
+								<span>2枚目：スクロール後、上端に同じ行が再登場</span>
+							</p>
+						</div>
+					</div>
+					<p class="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 mt-3 flex items-start gap-1.5">
+						<i data-lucide="check-circle-2" class="w-3.5 h-3.5 mt-0.5 flex-shrink-0"></i>
+						<span>緑枠の行が両方の画像に含まれているので、この行が見落とされることはありません。</span>
+					</p>
+				</div>
+			</details>
 		</div>
 
 		<!-- ステップ1 -->
-		<div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-4 md:p-6 mb-6 md:mb-8">
-			<div class="heading-divider text-xs font-medium text-slate-400 mb-3 md:mb-4">
-				<span>ステップ1: スキルリストを入力</span>
+		<div class="glass-card rounded-2xl border border-slate-200/80 shadow-sm p-5 md:p-6 mb-6">
+			<div class="flex items-center justify-between mb-4">
+				<div class="flex items-center gap-2">
+					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">1</span>
+					<h2 class="text-sm font-bold text-slate-800">スキルリストを入力</h2>
+				</div>
+				<span id="skill-count-badge" class="hidden text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800"></span>
 			</div>
-			<p class="text-xs md:text-sm text-slate-600 mb-2 md:mb-3">CSVから1列をコピーするか、1行に1スキル（改行区切り）で入力してください：</p>
-			<textarea id="skill-list" class="w-full h-24 md:h-32 text-xs md:text-sm p-2 md:p-3 rounded-xl border border-slate-200 bg-slate-50 font-mono mb-2 md:mb-3" placeholder="例：スキルA&#10;スキルB&#10;スキルC"></textarea>
-			<button onclick="parseSkillList()" class="w-full md:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors">
-				リストを解析
-			</button>
-			<div id="skill-count" class="text-xs text-slate-500 mt-1 md:mt-2"></div>
+
+			<p class="text-xs text-slate-500 mb-3">スプレッドシートから1列分（改行区切り）コピーしてそのまま貼り付けできます。</p>
+			
+			<textarea id="skill-list" class="w-full h-28 text-xs md:text-sm p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 font-mono transition-all outline-none resize-y" placeholder="例：&#10;逃げのコツ○&#10;一匹狼&#10;直線巧者"></textarea>
+
+			<div class="mt-3 flex items-center justify-between gap-3">
+				<div class="flex items-center gap-2">
+					<button onclick="parseSkillList()" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-xs md:text-sm font-semibold hover:bg-slate-800 active:scale-98 transition-all shadow-sm cursor-pointer">
+						<i data-lucide="list-checks" class="w-4 h-4"></i>
+						<span>リストを解析する</span>
+					</button>
+					<button onclick="clearSkillList()" class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-500 text-xs md:text-sm font-medium hover:bg-slate-50 hover:text-slate-700 active:scale-98 transition-all cursor-pointer">
+						<i data-lucide="eraser" class="w-4 h-4"></i>
+						<span>クリア</span>
+					</button>
+				</div>
+				<div id="skill-count" class="text-xs font-medium text-slate-500"></div>
+			</div>
 		</div>
 
 		<!-- ステップ2 -->
-		<div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-4 md:p-6 mb-6 md:mb-8">
-			<div class="heading-divider text-xs font-medium text-slate-400 mb-3 md:mb-4">
-				<span>ステップ2: 画像をアップロード</span>
+		<div class="glass-card rounded-2xl border border-slate-200/80 shadow-sm p-5 md:p-6 mb-6">
+			<div class="flex items-center justify-between mb-4">
+				<div class="flex items-center gap-2">
+					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">2</span>
+					<h2 class="text-sm font-bold text-slate-800">画像をアップロード & 設定</h2>
+				</div>
 			</div>
-			<label id="drop-zone" class="block cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 bg-white hover:border-emerald-400 hover:bg-emerald-50/30 transition-colors p-6 md:p-8 text-center mb-3 md:mb-4">
+
+			<!-- ドロップゾーン -->
+			<label id="drop-zone" class="group block cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-emerald-50/40 hover:border-emerald-400 transition-all p-8 text-center mb-4">
 				<input id="file-input" type="file" accept="image/*" multiple class="hidden" />
-				<span class="text-slate-500 text-xs md:text-sm">複数の画像をドラッグして配置、またはクリック</span>
+				<div class="flex flex-col items-center justify-center gap-2">
+					<div class="w-12 h-12 rounded-full bg-white shadow-sm border border-slate-200 flex items-center justify-center group-hover:scale-110 transition-transform">
+						<i data-lucide="upload-cloud" class="w-6 h-6 text-slate-600 group-hover:text-emerald-600"></i>
+					</div>
+					<p class="text-xs md:text-sm font-medium text-slate-700">複数のスクリーンショットを選択、またはドラッグ＆ドロップ</p>
+					<p class="text-[11px] text-slate-400">PNG, JPG, WEBP に対応</p>
+				</div>
 			</label>
-			<div id="image-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 mb-3 md:mb-4"></div>
 
-			<div class="rounded-xl border border-slate-200 bg-slate-50 p-3 md:p-4 mb-3 md:mb-4 space-y-2">
-				<label class="flex items-start gap-2 cursor-pointer">
-					<input id="opt-rowdetect" type="checkbox" checked class="mt-0.5" />
-					<span class="text-xs md:text-sm text-slate-700">スキル行の自動切り出し
-					<span class="block text-xs text-slate-500">タブの緑帯を基準にリスト領域を絞り、文字の射影から1行ずつ切り出します</span></span>
-				</label>
-				<label class="flex items-start gap-2 cursor-pointer">
-					<input id="opt-preprocess" type="checkbox" checked class="mt-0.5" />
-					<span class="text-xs md:text-sm text-slate-700">画像前処理を有効にする
-					<span class="block text-xs text-slate-500">拡大・コントラスト補正・適応的二値化を行います</span></span>
-				</label>
-				<label class="flex items-start gap-2 cursor-pointer">
-					<input id="opt-multipass" type="checkbox" checked class="mt-0.5" />
-					<span class="text-xs md:text-sm text-slate-700">高精度モード（多重パス）
-					<span class="block text-xs text-slate-500">二値化版・反転版・無処理版の3通りでOCRし統合します（処理時間が約3倍）</span></span>
-				</label>
-				<label class="flex items-start gap-2 cursor-pointer">
-					<input id="opt-devlog" type="checkbox" checked class="mt-0.5" />
-					<span class="text-xs md:text-sm text-slate-700">開発用ログを表示
-					<span class="block text-xs text-slate-500">検出の内訳とマッチング失敗テキストを画面下部に出力します</span></span>
-				</label>
-				<label class="flex items-start gap-2 cursor-pointer">
-					<input id="opt-preview" type="checkbox" class="mt-0.5" />
-					<span class="text-xs md:text-sm text-slate-700">切り出し結果を画像で確認
-					<span class="block text-xs text-slate-500">OCRに渡した積み上げ画像を表示します。切り出しがずれている場合の原因確認用</span></span>
-				</label>
-			</div>
+			<!-- アップロード画像プレビュー一覧 -->
+			<div id="image-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-5"></div>
 
-			<div id="progress-wrap" class="hidden mb-3 md:mb-4">
-				<div class="flex justify-between text-xs text-slate-500 mb-1 md:mb-1.5">
-					<span id="progress-label">処理中…</span>
+			<!-- オプション設定 (折りたたみ可能) -->
+			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-5">
+				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+					<span class="flex items-center gap-2">
+						<i data-lucide="sliders" class="w-4 h-4 text-slate-500"></i>
+						<span>高度な解析オプション</span>
+					</span>
+					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
+				</summary>
+				
+				<div class="p-4 pt-1 border-t border-slate-200/60 grid grid-cols-1 md:grid-cols-2 gap-3">
+					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+						<input id="opt-rowdetect" type="checkbox" checked class="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+						<div>
+							<span class="text-xs font-semibold text-slate-800">スキル行の自動切り出し</span>
+							<p class="text-[11px] text-slate-500 mt-0.5">緑帯を基準に文字の射影から1行ずつ精密抽出します</p>
+						</div>
+					</label>
+
+					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+						<input id="opt-preprocess" type="checkbox" checked class="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+						<div>
+							<span class="text-xs font-semibold text-slate-800">画像前処理（画質補正）</span>
+							<p class="text-[11px] text-slate-500 mt-0.5">拡大・コントラスト補正・適応二値化で読み取り精度向上</p>
+						</div>
+					</label>
+
+					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+						<input id="opt-multipass" type="checkbox" checked class="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+						<div>
+							<span class="text-xs font-semibold text-slate-800">高精度多重パス（高信頼）</span>
+							<p class="text-[11px] text-slate-500 mt-0.5">二値化・反転・無処理の3段階で照合（処理時間増加）</p>
+						</div>
+					</label>
+
+					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+						<input id="opt-devlog" type="checkbox" class="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+						<div>
+							<span class="text-xs font-semibold text-slate-800">開発用ログ出力</span>
+							<p class="text-[11px] text-slate-500 mt-0.5">結果がおかしいときの原因調査用。判定根拠や不一致テキストの内訳を表示（通常は不要）</p>
+						</div>
+					</label>
+
+					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+						<input id="opt-preview" type="checkbox" class="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+						<div>
+							<span class="text-xs font-semibold text-slate-800">切り出し画像のプレビュー</span>
+							<p class="text-[11px] text-slate-500 mt-0.5">OCRエンジンに渡した整形画像をデバッグ用に確認</p>
+						</div>
+					</label>
+				</div>
+			</details>
+
+			<!-- プログレスバー -->
+			<div id="progress-wrap" class="hidden mb-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+				<div class="flex justify-between text-xs font-semibold text-emerald-900 mb-2">
+					<span id="progress-label" class="flex items-center gap-1.5">
+						<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-emerald-600"></i>
+						<span>処理中…</span>
+					</span>
 					<span id="progress-pct">0%</span>
 				</div>
-				<div class="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-					<div id="progress-bar" class="h-full bg-emerald-600 rounded-full transition-all" style="width:0%"></div>
+				<div class="h-2 bg-emerald-200/70 rounded-full overflow-hidden">
+					<div id="progress-bar" class="h-full bg-emerald-600 rounded-full transition-all duration-300" style="width:0%"></div>
 				</div>
 			</div>
 
-			<div id="error-wrap" class="hidden mb-3 md:mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 md:p-4 text-xs md:text-sm text-red-700 whitespace-pre-line"></div>
+			<!-- エラー表示 -->
+			<div id="error-wrap" class="hidden mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700 whitespace-pre-line flex gap-2">
+				<i data-lucide="alert-triangle" class="w-4 h-4 text-red-500 shrink-0 mt-0.5"></i>
+				<div id="error-content"></div>
+			</div>
 
-			<button id="process-btn" onclick="processImages()" class="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs md:text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-				画像をOCR処理
+			<button id="process-btn" onclick="processImages()" class="w-full py-3.5 px-4 rounded-xl bg-emerald-600 text-white text-xs md:text-sm font-bold hover:bg-emerald-700 active:scale-99 transition-all shadow-md hover:shadow-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 cursor-pointer" disabled>
+				<i data-lucide="play" class="w-4 h-4 fill-current"></i>
+				<span>OCR処理を開始する</span>
 			</button>
 		</div>
 
-		<!-- ステップ3 -->
-		<div id="result-wrap" class="hidden rounded-2xl border border-slate-200 bg-white shadow-sm p-4 md:p-6">
-			<div class="heading-divider text-xs font-medium text-slate-400 mb-3 md:mb-4">
-				<span>ステップ3: 照合結果</span>
+		<!-- ステップ3 (結果表示) -->
+		<div id="result-wrap" class="hidden glass-card rounded-2xl border border-slate-200/80 shadow-sm p-5 md:p-6 transition-all">
+			<div class="flex items-center justify-between mb-5">
+				<div class="flex items-center gap-2">
+					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">3</span>
+					<h2 class="text-sm font-bold text-slate-800">照合結果</h2>
+				</div>
+				<button onclick="copyToClipboard()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all shadow-sm cursor-pointer">
+					<i data-lucide="copy" class="w-3.5 h-3.5"></i>
+					<span>結果列をコピー</span>
+				</button>
 			</div>
 
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-6">
-				<div class="rounded-lg border border-slate-200 bg-slate-50 p-3 md:p-4 text-center">
-					<p class="text-xs text-slate-500 mb-1">処理対象</p>
-					<p class="text-xl md:text-2xl font-bold text-slate-900" id="stat-total">0</p>
+			<!-- サマリーカード -->
+			<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+				<div class="rounded-xl border border-slate-200 bg-slate-50/50 p-3 md:p-4 text-center">
+					<p class="text-[11px] font-medium text-slate-500 mb-1">対象スキル数</p>
+					<p class="text-lg md:text-2xl font-extrabold text-slate-900" id="stat-total">0</p>
 				</div>
-				<div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 md:p-4 text-center">
-					<p class="text-xs text-emerald-600 mb-1">検出されたスキル</p>
-					<p class="text-xl md:text-2xl font-bold text-emerald-600" id="stat-found">0</p>
+				<div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 md:p-4 text-center">
+					<p class="text-[11px] font-medium text-emerald-700 mb-1">検出（取得済み）</p>
+					<p class="text-lg md:text-2xl font-extrabold text-emerald-600" id="stat-found">0</p>
 				</div>
-				<div class="rounded-lg border border-slate-200 bg-slate-50 p-3 md:p-4 text-center">
-					<p class="text-xs text-slate-500 mb-1">未検出</p>
-					<p class="text-xl md:text-2xl font-bold text-slate-600" id="stat-not-found">0</p>
+				<div class="rounded-xl border border-slate-200 bg-slate-50/50 p-3 md:p-4 text-center">
+					<p class="text-[11px] font-medium text-slate-500 mb-1">未検出</p>
+					<p class="text-lg md:text-2xl font-extrabold text-slate-600" id="stat-not-found">0</p>
 				</div>
 			</div>
 
-			<div class="overflow-x-auto mb-4 md:mb-6">
+			<!-- 検索・フィルターバー -->
+			<div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
+				<div class="relative w-full sm:w-64">
+					<i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
+					<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-emerald-500" />
+				</div>
+				<div class="flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
+					<button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg bg-slate-900 text-white font-medium">すべて</button>
+					<button onclick="setFilter('found')" id="filter-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">検出のみ</button>
+					<button onclick="setFilter('not-found')" id="filter-not-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">未検出のみ</button>
+				</div>
+			</div>
+
+			<!-- テーブル -->
+			<div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
 				<table class="result-table">
-					<thead><tr><th>スキル名（リスト順）</th><th>検出結果</th><th>判定根拠</th></tr></thead>
+					<thead>
+						<tr>
+							<th class="w-1/2">スキル名（リスト順）</th>
+							<th class="w-1/6 text-center">判定</th>
+							<th class="w-1/3">判定根拠</th>
+						</tr>
+					</thead>
 					<tbody id="result-tbody"></tbody>
 				</table>
 			</div>
 
-			<div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 md:p-4 mb-3 md:mb-4">
-				<p class="text-xs font-medium text-slate-600 mb-2">クリップボードコピー用（新しい列）：</p>
-				<div class="flex flex-col md:flex-row gap-2">
-					<textarea id="copy-data" readonly class="w-full md:flex-1 h-20 text-xs md:text-sm p-2 rounded-lg border border-slate-200 bg-white font-mono"></textarea>
-					<button onclick="copyToClipboard()" class="w-full md:w-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-medium hover:bg-blue-700 transition-colors whitespace-nowrap">
-						コピー
+			<!-- コピー用エリア (折りたたみ可能) -->
+			<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-6">
+				<div class="flex items-center justify-between mb-2">
+					<p class="text-xs font-semibold text-slate-700">スプレッドシート貼り付け用データ</p>
+					<span class="text-[11px] text-slate-400">※「○」と改行の列データです</span>
+				</div>
+				<div class="flex gap-2">
+					<textarea id="copy-data" readonly class="w-full h-16 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none"></textarea>
+				</div>
+				<p class="text-[11px] text-slate-400 mt-2">※ 上の検索・絞り込みは表の表示のみに影響し、このコピー欄には常にスキルリスト全件のデータが入ります。</p>
+			</div>
+
+			<!-- 切り出し画像プレビュー -->
+			<div id="preview-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
+				<h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
+					<i data-lucide="image" class="w-4 h-4 text-slate-500"></i>
+					<span>切り出し結果プレビュー</span>
+				</h3>
+				<div id="debug-preview" class="space-y-4"></div>
+			</div>
+
+			<!-- 開発ログ -->
+			<div id="dev-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
+				<div class="flex items-center justify-between mb-3">
+					<h3 class="text-xs font-bold text-amber-700 flex items-center gap-1.5">
+						<i data-lucide="terminal" class="w-4 h-4"></i>
+						<span>開発用ログ</span>
+					</h3>
+					<button onclick="copyDevLog()" class="px-3 py-1 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 text-xs font-semibold transition-colors">
+						ログをコピー
 					</button>
 				</div>
-			</div>
-			<p class="text-xs text-slate-500">💡 このテキストをスプレッドシートの新しい列にペーストしてください</p>
-
-			<div id="preview-wrap" class="hidden mt-6 pt-6 border-t border-slate-200">
-				<div class="heading-divider text-xs font-medium text-slate-400 mb-3"><span>切り出し結果</span></div>
-				<div id="debug-preview" class="space-y-3"></div>
-			</div>
-
-			<div id="dev-wrap" class="hidden mt-6 pt-6 border-t border-slate-200">
-				<div class="heading-divider text-xs font-medium text-amber-600 mb-3"><span>開発用ログ</span></div>
-				<p class="text-xs text-slate-500 mb-2">まず「行検出の内訳」で切り出しが成功しているかを確認し、次に「推定一致」「誤字候補」を見てください。</p>
-				<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50 p-3 md:p-4 text-amber-900 max-h-[32rem] overflow-y-auto"></div>
-				<button onclick="copyDevLog()" class="w-full md:w-auto px-4 py-2 mt-2 rounded-lg bg-amber-600 text-white text-xs font-medium hover:bg-amber-700 transition-colors">
-					ログをコピー
-				</button>
+				<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-amber-900 max-h-80 overflow-y-auto"></div>
 			</div>
 		</div>
 
@@ -209,18 +365,15 @@
 
 	<script>
 		/* =========================================================
-		   定数
+		   定数・状態変数・誤認識辞書などは既存コードを完全維持
 		   ========================================================= */
-		const MAX_SIDE_PX = 3000;      // これ以上大きい画像は縮小（処理速度のため）
-		const CONF_THRESHOLD = 55;     // これ未満の行は照合対象外
-		const ROW_TARGET_HEIGHT = 56;  // 切り出した1行をこの高さまで拡大
-		const DARK_LEVEL = 128;        // 「文字」とみなす暗さのしきい値
-		const ADAPTIVE_BLOCK = 31;     // 適応的二値化の窓サイズ
-		const ADAPTIVE_C = 12;         // 適応的二値化のオフセット
+		const MAX_SIDE_PX = 3000;
+		const CONF_THRESHOLD = 55;
+		const ROW_TARGET_HEIGHT = 56;
+		const DARK_LEVEL = 128;
+		const ADAPTIVE_BLOCK = 31;
+		const ADAPTIVE_C = 12;
 
-		/* =========================================================
-		   状態
-		   ========================================================= */
 		let skillList = [];
 		let skillIndex = [];
 		let uploadedFiles = [];
@@ -228,40 +381,48 @@
 		let matchReasons = {};
 		let devTypo = [], devLowConf = [], devOther = [], devGeometry = [], devFuzzy = [];
 		let previewCanvases = [];
+		let currentFilter = 'all';
+		let nearMissMap = {}; // 未検出スキル名 -> 近かったが確定に至らなかったOCRテキストの一覧
 
-		/* =========================================================
-		   誤認識辞書（行全体）
-		   ========================================================= */
 		const ocrErrorDictionary = {
 			// "逃げのコッ○": "逃げのコツ○",
 		};
-
-		/* =========================================================
-		   文字単位の誤認識マップ
-		   スキルリストにその文字が使われていないことを確認してから追加する
-		   ========================================================= */
 		const CHAR_CONFUSION_MAP = {
-			'娩': '娘', '嫡': '娘',   // 夏ウマ娩○ / 夏ウマ嫡○ → 夏ウマ娘○
-			'棒': '枠', '桶': '枠',   // 内棒得意○ / 内桶得意○ → 内枠得意○
-			'狐': '狼', '颯': '狼',   // 一匹狐 / 一匹颯 → 一匹狼
-			'貴': '覚',               // 目貴め → 目覚め
-			'緯': '線',               // 直緯○ → 直線○
-			'被': '神'                // 隙被レース場○ → 阪神レース場○
+			'娩': '娘', '嫡': '娘', '棒': '枠', '桶': '枠', '狐': '狼', '颯': '狼', '貴': '覚', '緯': '線', '被': '神'
+		};
+		const HOMOGLYPH_MAP = {
+			'◯': '○', '〇': '○', '◎': '○', '●': '○', '◉': '○', '0': '○', 'O': '○', 'o': '○', 'Q': '○', 'D': '○', '°': '○',
+			'一': 'ー', '-': 'ー', '‐': 'ー', '–': 'ー', '—': 'ー', '−': 'ー', '~': 'ー', '_': 'ー', '|': 'ー', '丨': 'ー', 'l': 'ー', 'I': 'ー',
+			'カ': '力', 'ニ': '二', '口': 'ロ', '卜': 'ト', '夕': 'タ', '工': 'エ', '才': 'オ', '八': 'ハ', 'ヘ': 'へ', 'ベ': 'べ', 'ペ': 'ぺ', '刀': '力', '儿': 'ル', '厶': 'ム', '又': 'ス'
 		};
 
-		/* =========================================================
-		   文字正規化
-		   ========================================================= */
-		const HOMOGLYPH_MAP = {
-			'◯': '○', '〇': '○', '◎': '○', '●': '○', '◉': '○',
-			'0': '○', 'O': '○', 'o': '○', 'Q': '○', 'D': '○', '°': '○',
-			'一': 'ー', '-': 'ー', '‐': 'ー', '–': 'ー', '—': 'ー', '−': 'ー',
-			'~': 'ー', '_': 'ー', '|': 'ー', '丨': 'ー', 'l': 'ー', 'I': 'ー',
-			'カ': '力', 'ニ': '二', '口': 'ロ', '卜': 'ト', '夕': 'タ',
-			'工': 'エ', '才': 'オ', '八': 'ハ',
-			'ヘ': 'へ', 'ベ': 'べ', 'ペ': 'ぺ',
-			'刀': '力', '儿': 'ル', '厶': 'ム', '又': 'ス'
-		};
+		const SKILL_LIST_STORAGE_KEY = 'umaSkillTool.skillListText';
+
+		// 初期化時にアイコンを描画し、前回入力したスキルリストを復元する
+		document.addEventListener('DOMContentLoaded', () => {
+			if (window.lucide) lucide.createIcons();
+			try {
+				const saved = localStorage.getItem(SKILL_LIST_STORAGE_KEY);
+				if (saved) {
+					document.getElementById('skill-list').value = saved;
+					document.getElementById('skill-count').textContent = '前回入力したリストを復元しました（「リストを解析する」を押してください）';
+				}
+			} catch (e) { /* localStorageが使えない環境では何もしない */ }
+		});
+
+		function toggleHelp() {
+			const box = document.getElementById('help-box');
+			box.classList.toggle('hidden');
+		}
+
+		function showToast(msg) {
+			const toast = document.getElementById('toast');
+			document.getElementById('toast-message').textContent = msg;
+			toast.classList.remove('translate-y-16', 'opacity-0', 'pointer-events-none');
+			setTimeout(() => {
+				toast.classList.add('translate-y-16', 'opacity-0', 'pointer-events-none');
+			}, 2500);
+		}
 
 		function normalizeText(input) {
 			if (!input) return '';
@@ -277,9 +438,6 @@
 			return out.replace(/ー{2,}/g, 'ー');
 		}
 
-		/* =========================================================
-		   レーベンシュタイン距離
-		   ========================================================= */
 		function levenshtein(a, b) {
 			const la = a.length, lb = b.length;
 			if (la === 0) return lb;
@@ -305,48 +463,58 @@
 			return 3;
 		}
 
-		/* =========================================================
-		   ステップ1
-		   ========================================================= */
 		function parseSkillList() {
 			const input = document.getElementById('skill-list').value.trim();
-			if (!input) { alert('スキルリストを入力してください'); return; }
-			skillList = input.split(/[\n,\t]/).map(function (s) { return s.trim(); })
-				.filter(function (s) { return s.length > 0; });
-			if (skillList.length === 0) { alert('有効なスキルが見つかりません'); return; }
-			skillIndex = skillList.map(function (raw) { return { raw: raw, norm: normalizeText(raw) }; });
-			document.getElementById('skill-count').textContent = '✓ ' + skillList.length + '個のスキルを解析しました';
+			if (!input) { showToast('スキルリストを入力してください'); return; }
+			skillList = input.split(/[\n,\t]/).map(s => s.trim()).filter(s => s.length > 0);
+			if (skillList.length === 0) { showToast('有効なスキルが見つかりません'); return; }
+			skillIndex = skillList.map(raw => ({ raw: raw, norm: normalizeText(raw) }));
+
+			document.getElementById('skill-count').textContent = '✓ ' + skillList.length + '個解析完了';
+			const badge = document.getElementById('skill-count-badge');
+			badge.textContent = skillList.length + ' 個のスキル';
+			badge.classList.remove('hidden');
+			showToast(skillList.length + '個のスキルをセットしました');
+			updateProcessBtn();
+
+			try { localStorage.setItem(SKILL_LIST_STORAGE_KEY, input); } catch (e) { /* 保存できなくても処理は続行 */ }
+		}
+
+		function clearSkillList() {
+			document.getElementById('skill-list').value = '';
+			skillList = [];
+			skillIndex = [];
+			document.getElementById('skill-count').textContent = '';
+			document.getElementById('skill-count-badge').classList.add('hidden');
 			updateProcessBtn();
 		}
 
-		/* =========================================================
-		   ステップ2
-		   ========================================================= */
+		/* 画像操作 & ドラッグ&ドロップ */
 		const fileInput = document.getElementById('file-input');
 		const imageList = document.getElementById('image-list');
 		const processBtn = document.getElementById('process-btn');
 		const dropZone = document.getElementById('drop-zone');
 
-		fileInput.addEventListener('change', function (e) {
+		fileInput.addEventListener('change', (e) => {
 			addFiles(Array.from(e.target.files));
 			e.target.value = '';
 		});
-		['dragenter', 'dragover'].forEach(function (ev) {
-			dropZone.addEventListener(ev, function (e) { e.preventDefault(); dropZone.classList.add('drop-active'); });
+		['dragenter', 'dragover'].forEach(ev => {
+			dropZone.addEventListener(ev, (e) => { e.preventDefault(); dropZone.classList.add('drop-active'); });
 		});
-		['dragleave', 'dragend'].forEach(function (ev) {
-			dropZone.addEventListener(ev, function () { dropZone.classList.remove('drop-active'); });
+		['dragleave', 'dragend'].forEach(ev => {
+			dropZone.addEventListener(ev, () => { dropZone.classList.remove('drop-active'); });
 		});
-		dropZone.addEventListener('drop', function (e) {
+		dropZone.addEventListener('drop', (e) => {
 			e.preventDefault();
 			dropZone.classList.remove('drop-active');
-			const files = Array.from(e.dataTransfer.files).filter(function (f) { return f.type.indexOf('image/') === 0; });
+			const files = Array.from(e.dataTransfer.files).filter(f => f.type.indexOf('image/') === 0);
 			if (files.length) addFiles(files);
 		});
 
 		function addFiles(files) {
-			files.forEach(function (f) {
-				const dup = uploadedFiles.some(function (u) { return u.name === f.name && u.size === f.size; });
+			files.forEach(f => {
+				const dup = uploadedFiles.some(u => u.name === f.name && u.size === f.size);
 				if (!dup) uploadedFiles.push(f);
 			});
 			renderImageList();
@@ -354,12 +522,16 @@
 		}
 
 		function renderImageList() {
-			imageList.innerHTML = uploadedFiles.map(function (file, idx) {
-				return '<div class="relative rounded-lg border border-slate-200 overflow-hidden bg-slate-50">' +
-					'<img src="' + URL.createObjectURL(file) + '" class="w-full h-24 md:h-32 object-cover" />' +
-					'<div class="absolute top-1 right-1"><button type="button" onclick="removeImage(' + idx + ')" class="px-2 py-1 rounded bg-red-500 text-white text-xs font-medium hover:bg-red-600">削除</button></div>' +
-					'<p class="text-xs text-slate-600 p-1 md:p-2 truncate">' + escapeHtml(file.name) + '</p></div>';
-			}).join('');
+			imageList.innerHTML = uploadedFiles.map((file, idx) => `
+				<div class="group relative rounded-xl border border-slate-200 overflow-hidden bg-white shadow-2xs">
+					<img src="${URL.createObjectURL(file)}" class="w-full h-20 md:h-24 object-cover" />
+					<button type="button" onclick="removeImage(${idx})" class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-slate-900/80 text-white flex items-center justify-center hover:bg-red-600 transition-colors">
+						<i data-lucide="x" class="w-3.5 h-3.5"></i>
+					</button>
+					<p class="text-[11px] font-medium text-slate-600 p-1.5 truncate border-t border-slate-100">${escapeHtml(file.name)}</p>
+				</div>
+			`).join('');
+			if (window.lucide) lucide.createIcons();
 		}
 
 		function removeImage(idx) {
@@ -372,15 +544,12 @@
 			processBtn.disabled = (skillList.length === 0 || uploadedFiles.length === 0);
 		}
 
-		/* =========================================================
-		   画像読み込み
-		   ========================================================= */
 		function loadImage(file) {
-			return new Promise(function (resolve, reject) {
+			return new Promise((resolve, reject) => {
 				const img = new Image();
 				const url = URL.createObjectURL(file);
-				img.onload = function () { URL.revokeObjectURL(url); resolve(img); };
-				img.onerror = function (e) { URL.revokeObjectURL(url); reject(e); };
+				img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+				img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
 				img.src = url;
 			});
 		}
@@ -410,18 +579,11 @@
 			return out;
 		}
 
-		/* =========================================================
-		   画像処理プリミティブ（Canvas APIのみで実装）
-		   OpenCVを使わないので外部依存がなく、読み込み待ちも発生しない
-		   ========================================================= */
-
-		// キャンバスから画素配列を取り出す
 		function getPixels(canvas) {
 			const ctx = canvas.getContext('2d', { willReadFrequently: true });
 			return ctx.getImageData(0, 0, canvas.width, canvas.height);
 		}
 
-		// RGB → グレースケール（輝度）
 		function toGray(imageData) {
 			const d = imageData.data;
 			const n = imageData.width * imageData.height;
@@ -432,7 +594,6 @@
 			return gray;
 		}
 
-		// UIの緑色かどうかを判定するマスク（HSVを自前で計算）
 		function greenMaskOf(imageData) {
 			const d = imageData.data;
 			const n = imageData.width * imageData.height;
@@ -441,24 +602,21 @@
 				const r = d[p], g = d[p + 1], b = d[p + 2];
 				const max = Math.max(r, g, b), min = Math.min(r, g, b);
 				const delta = max - min;
-				if (delta === 0 || max < 90) continue;      // 無彩色・暗すぎる画素は除外
-				if (delta / max < 0.35) continue;           // 彩度が低い画素は除外
-				if (max !== g) continue;                    // 緑が最大でなければ緑系ではない
-				// 緑が最大のときの色相は 60〜180度。さらに範囲を絞る
+				if (delta === 0 || max < 90) continue;
+				if (delta / max < 0.35) continue;
+				if (max !== g) continue;
 				let h = 60 * (2 + (b - r) / delta);
 				if (h >= 65 && h <= 170) mask[i] = 1;
 			}
 			return mask;
 		}
 
-		// 暗い画素（＝文字）のマスク
 		function darkMaskOf(gray, level) {
 			const mask = new Uint8Array(gray.length);
 			for (let i = 0; i < gray.length; i++) mask[i] = gray[i] < level ? 1 : 0;
 			return mask;
 		}
 
-		// 行ごとの該当画素数
 		function rowCountsOf(mask, w, h) {
 			const out = new Int32Array(h);
 			for (let y = 0; y < h; y++) {
@@ -470,7 +628,6 @@
 			return out;
 		}
 
-		// 指定した行範囲における列ごとの該当画素数
 		function colCountsOf(mask, w, yFrom, yTo) {
 			const out = new Int32Array(w);
 			for (let y = yFrom; y <= yTo; y++) {
@@ -480,7 +637,6 @@
 			return out;
 		}
 
-		// しきい値以上が連続する区間を取り出し、gap以下の隙間は結合する
 		function findRuns(counts, threshold, mergeGap, from, to) {
 			const runs = [];
 			let start = -1;
@@ -501,11 +657,10 @@
 
 		function median(arr) {
 			if (!arr.length) return 0;
-			const s = arr.slice().sort(function (a, b) { return a - b; });
+			const s = arr.slice().sort((a, b) => a - b);
 			return s[Math.floor(s.length / 2)];
 		}
 
-		// コントラストを引き伸ばす（2〜98パーセンタイルを0〜255に）
 		function stretchContrast(gray) {
 			const hist = new Int32Array(256);
 			for (let i = 0; i < gray.length; i++) hist[gray[i]]++;
@@ -522,8 +677,6 @@
 			return out;
 		}
 
-		// 適応的二値化（積分画像を使ったBradley法）
-		// 背景色が場所ごとに変わるゲームUIでも文字だけを残せる
 		function adaptiveThreshold(gray, w, h, block, C) {
 			const iw = w + 1;
 			const integral = new Float64Array(iw * (h + 1));
@@ -545,15 +698,13 @@
 				for (let x = 0; x < w; x++) {
 					const x0 = Math.max(0, x - r), x1 = Math.min(w - 1, x + r);
 					const count = rowH * (x1 - x0 + 1);
-					const sum = integral[iBot + x1 + 1] - integral[iTop + x1 + 1]
-						- integral[iBot + x0] + integral[iTop + x0];
+					const sum = integral[iBot + x1 + 1] - integral[iTop + x1 + 1] - integral[iBot + x0] + integral[iTop + x0];
 					out[gBase + x] = (gray[gBase + x] > sum / count - C) ? 255 : 0;
 				}
 			}
 			return out;
 		}
 
-		// グレースケール配列をキャンバスに戻す
 		function grayToCanvas(gray, w, h) {
 			const canvas = document.createElement('canvas');
 			canvas.width = w; canvas.height = h;
@@ -574,29 +725,16 @@
 			return out;
 		}
 
-		/* =========================================================
-		   スキル行の幾何学的検出
-		   1) 緑帯（タブバー）を探してリスト領域の上端を決める
-		   2) 暗色マスクの横方向射影で行を切り出す
-		   3) 行ごとの縦方向射影でテキストの塊を切り出す
-		   4) 塊の左端をクラスタリングして左右の列を確定し、外れた塊を捨てる
-		   ========================================================= */
 		function detectSkillRows(baseCanvas, diag) {
 			const W = baseCanvas.width, H = baseCanvas.height;
-
 			let imageData;
-			try {
-				imageData = getPixels(baseCanvas);
-			} catch (err) {
-				diag.push('画素の取得に失敗: ' + err);
-				return null;
-			}
+			try { imageData = getPixels(baseCanvas); }
+			catch (err) { diag.push('画素の取得に失敗: ' + err); return null; }
 
-			// --- 1) 緑帯を探す ---
 			const green = greenMaskOf(imageData);
 			const gRows = rowCountsOf(green, W, H);
 			const greenBands = findRuns(gRows, Math.round(W * 0.12), 4, 0, H);
-			const thickGreen = greenBands.filter(function (b) { return (b.b - b.a) >= H * 0.008; });
+			const thickGreen = greenBands.filter(b => (b.b - b.a) >= H * 0.008);
 
 			let listTop = 0;
 			if (thickGreen.length > 0) {
@@ -607,40 +745,34 @@
 				diag.push('緑帯を検出できず → 画像全体をリスト領域として扱う');
 			}
 
-			// --- 2) 暗色マスクの横方向射影で行を切り出す ---
 			const gray = toGray(imageData);
 			const dark = darkMaskOf(gray, DARK_LEVEL);
 			const dRows = rowCountsOf(dark, W, H);
 			const rowThreshold = Math.max(5, Math.round(W * 0.01));
-			// 漢字は画数の間に数px単位の隙間ができるため、隙間吸収用のgapが小さすぎると
-			// 1行の文字が何本もの細切れバンドに分裂し、高さの中央値が実際の行高より
-			// 大幅に小さく算出されてしまう（→ 次の高さフィルタで全行が誤って弾かれる）。
-			// 実データ検証の結果、この値は6〜15pxの範囲で結果が安定することを確認済み。
 			const rowMergeGap = Math.max(6, Math.round(H * 0.004));
 			let bands = findRuns(dRows, rowThreshold, rowMergeGap, listTop, H);
 			diag.push('文字帯の候補 ' + bands.length + '本（しきい値 ' + rowThreshold + 'px / 結合gap ' + rowMergeGap + 'px）');
 
 			if (bands.length < 3) { diag.push('文字帯が少なすぎるため中止'); return null; }
 
-			const heights = bands.map(function (b) { return b.b - b.a + 1; });
+			const heights = bands.map(b => b.b - b.a + 1);
 			const medH = median(heights);
 			const before = bands.length;
-			bands = bands.filter(function (b) {
+			bands = bands.filter(b => {
 				const h = b.b - b.a + 1;
 				return h >= Math.max(8, medH * 0.55) && h <= medH * 2.0;
 			});
 			diag.push('高さフィルタ（中央値 ' + medH + 'px）: ' + before + ' → ' + bands.length + '本');
 			if (bands.length < 3) { diag.push('フィルタ後の文字帯が少なすぎるため中止'); return null; }
 
-			// --- 3) 行ごとにテキストの塊を切り出す ---
 			const gapThreshold = Math.max(18, Math.round(W * 0.03));
 			const minBlockW = Math.max(10, Math.round(W * 0.02));
 			const allBlocks = [];
 
-			bands.forEach(function (band, bi) {
+			bands.forEach((band, bi) => {
 				const cCounts = colCountsOf(dark, W, band.a, band.b);
 				const runs = findRuns(cCounts, 1, gapThreshold, 0, W);
-				runs.forEach(function (r) {
+				runs.forEach(r => {
 					if (r.b - r.a + 1 < minBlockW) return;
 					allBlocks.push({ band: bi, x0: r.a, x1: r.b, y0: band.a, y1: band.b });
 				});
@@ -649,9 +781,8 @@
 			diag.push('テキストの塊 ' + allBlocks.length + '個');
 			if (allBlocks.length < 3) { diag.push('塊が少なすぎるため中止'); return null; }
 
-			// --- 4) 左端をクラスタリングして列を確定 ---
 			const tol = Math.max(12, Math.round(W * 0.02));
-			const sorted = allBlocks.slice().sort(function (a, b) { return a.x0 - b.x0; });
+			const sorted = allBlocks.slice().sort((a, b) => a.x0 - b.x0);
 			const clusters = [];
 			let cur = [sorted[0]];
 			for (let i = 1; i < sorted.length; i++) {
@@ -660,18 +791,16 @@
 			}
 			clusters.push(cur);
 
-			const columns = clusters.filter(function (c) { return c.length >= 3; })
-				.map(function (c) {
-					return { x: median(c.map(function (b) { return b.x0; })), members: c };
-				})
-				.sort(function (a, b) { return a.x - b.x; });
+			const columns = clusters.filter(c => c.length >= 3)
+				.map(c => ({ x: median(c.map(b => b.x0)), members: c }))
+				.sort((a, b) => a.x - b.x);
 
 			if (columns.length === 0) { diag.push('列としてまとまる塊がないため中止'); return null; }
-			diag.push('列 ' + columns.length + '本（左端 x=' + columns.map(function (c) { return c.x; }).join(', ') + '）');
+			diag.push('列 ' + columns.length + '本（左端 x=' + columns.map(c => c.x).join(', ') + '）');
 
 			const rows = [];
 			let dropped = 0;
-			allBlocks.forEach(function (blk) {
+			allBlocks.forEach(blk => {
 				let hit = null;
 				for (let i = 0; i < columns.length; i++) {
 					if (Math.abs(blk.x0 - columns[i].x) <= tol * 1.5) { hit = i; break; }
@@ -688,7 +817,7 @@
 			diag.push('採用 ' + rows.length + '行 / 列外として除外 ' + dropped + '個');
 			if (rows.length < 3) { diag.push('採用行が少なすぎるため中止'); return null; }
 
-			rows.sort(function (a, b) {
+			rows.sort((a, b) => {
 				if (a.band !== b.band) return a.band - b.band;
 				return a.col - b.col;
 			});
@@ -696,17 +825,16 @@
 			return { rows: rows, columns: columns.length, listTop: listTop };
 		}
 
-		// 切り出した行を余白付きで縦に積み上げる
 		function stackRows(baseCanvas, rows) {
-			const scales = rows.map(function (r) { return Math.max(1, Math.min(4, ROW_TARGET_HEIGHT / r.h)); });
-			const widths = rows.map(function (r, i) { return Math.round(r.w * scales[i]); });
-			const heights = rows.map(function (r, i) { return Math.round(r.h * scales[i]); });
+			const scales = rows.map(r => Math.max(1, Math.min(4, ROW_TARGET_HEIGHT / r.h)));
+			const widths = rows.map((r, i) => Math.round(r.w * scales[i]));
+			const heights = rows.map((r, i) => Math.round(r.h * scales[i]));
 
 			const gap = Math.round(ROW_TARGET_HEIGHT * 0.6);
 			const padX = 30;
-			const outW = Math.max.apply(null, widths) + padX * 2;
+			const outW = Math.max(...widths) + padX * 2;
 			let outH = gap;
-			heights.forEach(function (h) { outH += h + gap; });
+			heights.forEach(h => { outH += h + gap; });
 
 			const canvas = document.createElement('canvas');
 			canvas.width = outW;
@@ -718,16 +846,13 @@
 			ctx.imageSmoothingQuality = 'high';
 
 			let y = gap;
-			rows.forEach(function (r, i) {
+			rows.forEach((r, i) => {
 				ctx.drawImage(baseCanvas, r.x, r.y, r.w, r.h, padX, y, widths[i], heights[i]);
 				y += heights[i] + gap;
 			});
 			return canvas;
 		}
 
-		/* =========================================================
-		   前処理
-		   ========================================================= */
 		function preprocessVariants(canvas, multi) {
 			const variants = [];
 			try {
@@ -747,12 +872,9 @@
 			return variants.length ? variants : [canvas];
 		}
 
-		/* =========================================================
-		   ステップ3
-		   ========================================================= */
 		async function processImages() {
-			if (skillList.length === 0) { alert('先にスキルリストを解析してください'); return; }
-			if (uploadedFiles.length === 0) { alert('画像をアップロードしてください'); return; }
+			if (skillList.length === 0) { showToast('スキルリストを解析してください'); return; }
+			if (uploadedFiles.length === 0) { showToast('画像をアップロードしてください'); return; }
 
 			detectedSkills.clear();
 			matchReasons = {};
@@ -833,7 +955,7 @@
 			} catch (err) {
 				console.error(err);
 				errorWrap.classList.remove('hidden');
-				errorWrap.textContent = 'OCRエンジンの初期化に失敗しました。ネットワーク接続を確認して再度お試しください。\n' + err;
+				document.getElementById('error-content').textContent = 'OCR処理の初期化に失敗しました。ネットワーク接続を確認してください。\n' + err;
 				progressWrap.classList.add('hidden');
 				processBtn.disabled = false;
 				return;
@@ -846,49 +968,45 @@
 
 			if (successCount === 0) {
 				errorWrap.classList.remove('hidden');
-				errorWrap.textContent = 'OCR処理に失敗しました。別の形式の画像を試してください。';
+				document.getElementById('error-content').textContent = 'OCR処理に失敗しました。別の画像を試してください。';
 				return;
 			}
 
 			matchAll(collectedLines);
 			renderResults();
+			showToast('照合が完了しました');
 		}
 
 		function setProgress(ratio, label) {
 			const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
 			document.getElementById('progress-bar').style.width = pct + '%';
 			document.getElementById('progress-pct').textContent = pct + '%';
-			document.getElementById('progress-label').textContent = label;
+			document.getElementById('progress-label').querySelector('span').textContent = label;
 		}
 
 		function extractLines(data) {
 			const lines = [];
 			if (data && Array.isArray(data.lines) && data.lines.length) {
-				data.lines.forEach(function (l) {
+				data.lines.forEach(l => {
 					if (l.text && l.text.trim()) lines.push({ text: l.text.trim(), conf: l.confidence });
 				});
 			} else if (data && data.text) {
-				data.text.split(/\r?\n/).forEach(function (t) {
+				data.text.split(/\r?\n/).forEach(t => {
 					if (t.trim()) lines.push({ text: t.trim(), conf: null });
 				});
 			}
 			return lines;
 		}
 
-		/* =========================================================
-		   マッチング
-		   行をまたいだ連結による誤マッチを防ぐため、
-		   部分一致の判定は必ず1行の中だけで行う
-		   ========================================================= */
 		function matchAll(lines) {
 			const normDictionary = {};
-			Object.keys(ocrErrorDictionary).forEach(function (k) {
+			Object.keys(ocrErrorDictionary).forEach(k => {
 				normDictionary[normalizeText(k)] = ocrErrorDictionary[k];
 			});
 
 			const seen = new Set();
 
-			lines.forEach(function (line) {
+			lines.forEach(line => {
 				const norm = normalizeText(line.text);
 				if (!norm || norm.length < 2) return;
 				if (seen.has(norm)) return;
@@ -940,16 +1058,9 @@
 			});
 		}
 
-		// 「距離が一番近いスキル1つ」だけを見て、そのスキル自身の許容範囲と比較すると、
-		// 「無二」「無三」のような短い名前のスキルが、たまたま1〜2文字だけ拾えた
-		// ノイズ行に対して見かけ上の最短距離を叩き出し、他の候補を締め出してしまう
-		// （そのスキル自身の許容距離は0のため、結局ok:falseで捨てられ、本来検出できた
-		// はずの長いスキル名がテストすらされない）。
-		// これを防ぐため、まず「各スキルごとに、そのスキル自身の許容距離以内か」を
-		// 個別に判定し、合格した候補の中だけで一番近いものを選ぶ方式に変更する。
 		function bestCandidate(normLine) {
 			const passing = [];
-			let fallback = null; // 全滅時の診断表示用（従来通り一番近い候補を出す）
+			let fallback = null;
 			for (let i = 0; i < skillIndex.length; i++) {
 				const raw = skillIndex[i].raw, norm = skillIndex[i].norm;
 				if (!norm) continue;
@@ -960,51 +1071,39 @@
 			}
 			if (passing.length === 0) {
 				if (!fallback) return null;
-				return { raw: fallback.raw, dist: fallback.dist, limit: fallback.limit, ok: false,
-					reason: '距離' + fallback.dist + ' > 許容' + fallback.limit };
+				return { raw: fallback.raw, dist: fallback.dist, limit: fallback.limit, ok: false, reason: '距離' + fallback.dist + ' > 許容' + fallback.limit };
 			}
-			// 合格した候補の中では、距離が小さいものを優先。同距離なら、より長い
-			// （＝より具体的で偶然一致しにくい）スキル名を優先する。
-			passing.sort(function (a, b) { return (a.dist - b.dist) || (b.norm.length - a.norm.length); });
+			passing.sort((a, b) => (a.dist - b.dist) || (b.norm.length - a.norm.length));
 			const top = passing[0];
-			const tied = passing.filter(function (p) { return p.dist === top.dist && p.norm.length === top.norm.length; });
+			const tied = passing.filter(p => p.dist === top.dist && p.norm.length === top.norm.length);
 			if (tied.length > 1) {
-				return { raw: top.raw, dist: top.dist, limit: top.limit, ok: false,
-					reason: '曖昧（' + tied.map(function (t) { return t.raw; }).join(' と ') + ' が同点）' };
+				return { raw: top.raw, dist: top.dist, limit: top.limit, ok: false, reason: '曖昧（' + tied.map(t => t.raw).join(' と ') + ' が同点）' };
 			}
 			return { raw: top.raw, dist: top.dist, limit: top.limit, ok: true };
 		}
 
-		// 以前は、行がスキル名よりかなり長い場合に部分文字列を総当たりで
-		// 探して距離を計算していた（2列分のテキストが1行に混在した場合の
-		// 救済用）。しかし行検出の精度改善後、この救済が実際に必要になる
-		// ケースは検証上ゼロだった一方、「右回りの目覚め」のような無関係な
-		// 実在テキストが、たまたま短いスキル名（例：右回り○）を先頭に
-		// 含んでいるだけで誤って一致してしまう副作用の方が大きかった。
-		// 完全一致の部分文字列は前段の indexOf チェックで別途拾われるため、
-		// あいまい一致（距離>0）については行全体とスキル名全体をそのまま
-		// 比較する方式に統一する。
 		function windowDistance(line, skill) {
 			return levenshtein(line, skill);
 		}
 
-		/* =========================================================
-		   結果描画
-		   ========================================================= */
+		/* 結果レンダリングと検索・フィルタリング */
 		function renderResults() {
-			const tbody = document.getElementById('result-tbody');
 			const copyData = document.getElementById('copy-data');
 			const resultWrap = document.getElementById('result-wrap');
 
-			let tableHtml = '', copyText = '', foundCount = 0;
+			// 未検出スキルのうち、「誤字候補」に近い読み取り結果が残っている場合は
+			// 表にヒントを出せるよう、スキル名 → 候補OCRテキストの対応表を作る
+			nearMissMap = {};
+			devTypo.forEach(u => {
+				if (!u.best) return;
+				if (!nearMissMap[u.best]) nearMissMap[u.best] = [];
+				nearMissMap[u.best].push(u.text);
+			});
 
-			skillList.forEach(function (skill, idx) {
+			let copyText = '', foundCount = 0;
+
+			skillList.forEach((skill, idx) => {
 				const found = detectedSkills.has(skill);
-				const statusClass = found ? 'found' : 'not-found';
-				const reason = found ? (matchReasons[skill] || '') : '';
-				tableHtml += '<tr><td>' + escapeHtml(skill) + '</td>' +
-					'<td class="' + statusClass + '">' + (found ? '○' : '') + '</td>' +
-					'<td class="text-slate-400">' + escapeHtml(reason) + '</td></tr>';
 				copyText += (found ? '○' : '') + (idx < skillList.length - 1 ? '\n' : '');
 				if (found) foundCount++;
 			});
@@ -1013,12 +1112,66 @@
 			document.getElementById('stat-found').textContent = foundCount;
 			document.getElementById('stat-not-found').textContent = skillList.length - foundCount;
 
-			tbody.innerHTML = tableHtml;
 			copyData.value = copyText;
 			resultWrap.classList.remove('hidden');
 
+			filterResults();
 			renderPreview();
 			renderDevLog();
+		}
+
+		function filterResults() {
+			const tbody = document.getElementById('result-tbody');
+			const query = document.getElementById('table-search').value.toLowerCase().trim();
+			let tableHtml = '';
+
+			skillList.forEach(skill => {
+				const found = detectedSkills.has(skill);
+				let reason = found ? (matchReasons[skill] || '') : '';
+
+				if (currentFilter === 'found' && !found) return;
+				if (currentFilter === 'not-found' && found) return;
+				if (query && !skill.toLowerCase().includes(query)) return;
+
+				const statusClass = found ? 'found' : 'not-found';
+				const statusBadge = found
+					? '<span class="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200"><i data-lucide="check" class="w-3.5 h-3.5"></i>○ 検出</span>'
+					: '<span class="inline-flex items-center gap-1 text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200">未検出</span>';
+
+				let reasonHtml = escapeHtml(reason);
+				if (!found && nearMissMap[skill] && nearMissMap[skill].length) {
+					const sample = escapeHtml(nearMissMap[skill][0]);
+					reasonHtml += `<span class="inline-flex items-center gap-1 mt-1 text-[11px] text-amber-600" title="OCRが「${sample}」のように読み取りましたが、確信を持って一致と判定できませんでした">
+						<i data-lucide="alert-circle" class="w-3 h-3"></i>読み取りに近い候補あり（開発用ログ参照）
+					</span>`;
+				}
+
+				tableHtml += `<tr class="transition-colors">
+					<td class="font-medium text-slate-800">${escapeHtml(skill)}</td>
+					<td class="text-center">${statusBadge}</td>
+					<td class="text-xs text-slate-500">${reasonHtml}</td>
+				</tr>`;
+			});
+
+			if (!tableHtml) {
+				tableHtml = `<tr><td colspan="3" class="text-center py-6 text-slate-400 text-xs">該当するスキルが見つかりません</td></tr>`;
+			}
+
+			tbody.innerHTML = tableHtml;
+			if (window.lucide) lucide.createIcons();
+		}
+
+		function setFilter(type) {
+			currentFilter = type;
+			['all', 'found', 'not-found'].forEach(f => {
+				const btn = document.getElementById('filter-' + f);
+				if (f === type) {
+					btn.className = 'px-3 py-1 rounded-lg bg-slate-900 text-white font-medium cursor-pointer';
+				} else {
+					btn.className = 'px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium cursor-pointer';
+				}
+			});
+			filterResults();
 		}
 
 		function renderPreview() {
@@ -1026,9 +1179,9 @@
 			const box = document.getElementById('debug-preview');
 			box.innerHTML = '';
 			if (!previewCanvases.length) { wrap.classList.add('hidden'); return; }
-			previewCanvases.forEach(function (p) {
+			previewCanvases.forEach(p => {
 				const label = document.createElement('p');
-				label.className = 'text-xs text-slate-500';
+				label.className = 'text-xs text-slate-500 font-mono';
 				label.textContent = p.name;
 				box.appendChild(label);
 				box.appendChild(p.canvas);
@@ -1038,9 +1191,7 @@
 
 		function formatEntry(u) {
 			const confStr = (u.conf !== null && u.conf !== undefined) ? ' conf=' + Math.round(u.conf) : '';
-			const bestStr = u.best
-				? '  → 候補: ' + u.best + '（距離' + u.dist + ' / ' + u.reason + '）'
-				: '  → ' + u.reason;
+			const bestStr = u.best ? '  → 候補: ' + u.best + '（距離' + u.dist + ' / ' + u.reason + '）' : '  → ' + u.reason;
 			return '"' + u.text + '"' + confStr + '\n  正規化: ' + u.norm + '\n' + bestStr;
 		}
 
@@ -1052,24 +1203,16 @@
 			const parts = [];
 			if (devGeometry.length) parts.push('■ 行検出の内訳\n' + devGeometry.join('\n'));
 			if (devFuzzy.length) {
-				parts.push('■ 推定一致（要確認） ' + devFuzzy.length + '件（距離0以外でスキルと確定した行。誤検出の疑いがあればここを見る）\n\n'
-					+ devFuzzy.map(function (u) {
-						const confStr = (u.conf !== null && u.conf !== undefined) ? ' conf=' + Math.round(u.conf) : '';
-						return '"' + u.text + '"' + confStr + '\n  正規化: ' + u.norm + '\n  → 確定: ' + u.matched + '（距離' + u.dist + '）';
-					}).join('\n\n'));
+				parts.push('■ 推定一致 ' + devFuzzy.length + '件\n\n' + devFuzzy.map(u => {
+					const confStr = (u.conf !== null && u.conf !== undefined) ? ' conf=' + Math.round(u.conf) : '';
+					return '"' + u.text + '"' + confStr + '\n  正規化: ' + u.norm + '\n  → 確定: ' + u.matched + '（距離' + u.dist + '）';
+				}).join('\n\n'));
 			}
-			if (devTypo.length) {
-				parts.push('■ 誤字候補 ' + devTypo.length + '件（辞書に追加する価値が高い）\n\n' + devTypo.map(formatEntry).join('\n\n'));
-			}
+			if (devTypo.length) parts.push('■ 誤字候補 ' + devTypo.length + '件\n\n' + devTypo.map(formatEntry).join('\n\n'));
 			if (devLowConf.length) {
-				parts.push('■ 低信頼度 ' + devLowConf.length + '件（conf<' + CONF_THRESHOLD + '。照合対象外）\n\n'
-					+ devLowConf.map(function (u) {
-						return '"' + u.text + '" conf=' + Math.round(u.conf) + '\n  正規化: ' + u.norm;
-					}).join('\n\n'));
+				parts.push('■ 低信頼度 ' + devLowConf.length + '件\n\n' + devLowConf.map(u => '"' + u.text + '" conf=' + Math.round(u.conf) + '\n  正規化: ' + u.norm).join('\n\n'));
 			}
-			if (devOther.length) {
-				parts.push('■ その他 ' + devOther.length + '件（リスト対象外のスキルや無関係な文字列）\n\n' + devOther.map(formatEntry).join('\n\n'));
-			}
+			if (devOther.length) parts.push('■ その他 ' + devOther.length + '件\n\n' + devOther.map(formatEntry).join('\n\n'));
 
 			if (parts.length === 0) { devWrap.classList.add('hidden'); return; }
 			devLog.textContent = parts.join('\n\n\n');
@@ -1077,25 +1220,20 @@
 		}
 
 		function escapeHtml(s) {
-			return String(s).replace(/[&<>"']/g, function (c) {
-				return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-			});
+			return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 		}
 
 		function copyToClipboard() {
 			const copyData = document.getElementById('copy-data');
 			copyData.select();
 			document.execCommand('copy');
-			alert('クリップボードにコピーしました');
+			showToast('○の列データをクリップボードにコピーしました');
 		}
 
 		function copyDevLog() {
 			const text = document.getElementById('dev-log').textContent;
 			if (navigator.clipboard && navigator.clipboard.writeText) {
-				navigator.clipboard.writeText(text).then(
-					function () { alert('ログをコピーしました'); },
-					function () { alert('コピーに失敗しました'); }
-				);
+				navigator.clipboard.writeText(text).then(() => showToast('開発ログをコピーしました'));
 			}
 		}
 	</script>
