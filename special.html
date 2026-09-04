@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>ウマ娘スキル管理ツール - 因子継承特化版</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
+	<!-- Lucide Icons -->
+	<script src="https://unpkg.com/lucide@latest"></script>
+	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html で共有） -->
+	<script src="js/common.js"></script>
+	<style>
+		body {
+			background-color: #f8fafc;
+			background-image: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.15) 1px, transparent 0);
+			background-size: 24px 24px;
+		}
+		.glass-card {
+			background: rgba(255, 255, 255, 0.85);
+			backdrop-filter: blur(12px);
+		}
+		.result-table { border-collapse: separate; border-spacing: 0; width: 100%; }
+		.result-table th {
+			background-color: #f1f5f9; font-weight: 600; font-size: 0.8125rem; color: #475569;
+			border-bottom: 2px solid #e2e8f0; padding: 0.75rem 1rem;
+		}
+		.result-table td {
+			border-bottom: 1px solid #f1f5f9; padding: 0.75rem 1rem; font-size: 0.875rem;
+		}
+		.result-table tr:hover td { background-color: #f8fafc; }
+		.found { color: #059669; font-weight: 600; }
+		.not-found { color: #94a3b8; }
+		.drop-active { border-color: #f59e0b !important; background-color: #fffbeb !important; transform: scale(1.005); }
+		.dev-log {
+			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+			font-size: 0.725rem; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+		}
+		#debug-preview canvas {
+			max-width: 100%; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #fff;
+		}
+		#toast {
+			transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+		}
+		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
+	</style>
+</head>
+<body class="min-h-screen text-slate-800 antialiased selection:bg-amber-500 selection:text-white">
+
+	<!-- トースト通知 -->
+	<div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-16 opacity-0 pointer-events-none flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 text-sm font-medium">
+		<i data-lucide="check-circle-2" class="w-5 h-5 text-amber-400"></i>
+		<span id="toast-message">コピーしました</span>
+	</div>
+
+	<div class="w-full max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12">
+
+		<!-- ヘッダー -->
+		<header class="mb-8 md:mb-10 border-b border-slate-200 pb-6">
+			<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+				<!-- 左側：タイトルエリア -->
+				<div>
+					<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold mb-2">
+						<i data-lucide="zap" class="w-3.5 h-3.5"></i> 因子継承 特化ツール
+					</div>
+					<h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">ウマ娘 因子継承 ★判定</h1>
+					<p class="mt-1.5 text-xs md:text-sm text-slate-500">1〜3人目の因子スクリーンショットから、スキルごとの★の数を自動判定します</p>
+				</div>
+
+				<!-- 右側：アクションボタン群 -->
+				<div class="flex items-center gap-2 shrink-0">
+
+					<!-- ツール切り替えドロップダウン -->
+					<div class="relative" id="tool-dropdown-wrap">
+						<button id="tool-dropdown-btn" type="button" onclick="toggleToolDropdown()" class="inline-flex items-center justify-center gap-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
+							<i data-lucide="layout-grid" class="w-4 h-4 text-amber-600"></i>
+							<span>ツール切替</span>
+							<i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+						</button>
+
+						<!-- ドロップダウン本体 -->
+						<div id="tool-dropdown-menu" class="hidden absolute right-0 mt-2 w-72 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-xl z-50 p-1.5 transition-all">
+							<div class="px-3 py-2 border-b border-slate-100 mb-1">
+								<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ツール切り替え</p>
+							</div>
+
+							<!-- 汎用ツールへ -->
+							<a href="index.html" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-100/80 transition-colors group cursor-pointer mb-1">
+								<div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-emerald-500 group-hover:text-white flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+									<i data-lucide="layers" class="w-4 h-4"></i>
+								</div>
+								<div class="flex-1 min-w-0">
+									<p class="text-xs font-bold text-slate-800 group-hover:text-emerald-600 transition-colors">汎用スキル照合</p>
+									<p class="text-[11px] text-slate-500 mt-0.5 truncate">標準的なスキルの自動読み取り</p>
+								</div>
+							</a>
+
+							<!-- 現在のツール -->
+							<div class="flex items-start gap-3 p-2.5 rounded-xl bg-amber-50/80 border border-amber-100 text-amber-950">
+								<div class="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+									<i data-lucide="zap" class="w-4 h-4"></i>
+								</div>
+								<div class="flex-1 min-w-0">
+									<div class="flex items-center justify-between">
+										<p class="text-xs font-bold text-amber-900">因子継承 ★判定</p>
+										<span class="text-[10px] font-semibold text-amber-700 bg-amber-200/60 px-1.5 py-0.5 rounded">選択中</span>
+									</div>
+									<p class="text-[11px] text-amber-700/80 mt-0.5 truncate">1〜3人目の★の数を個別判定</p>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- 使い方ガイドボタン -->
+					<button type="button" onclick="toggleHelp()" class="inline-flex items-center justify-center gap-2 text-xs font-medium text-slate-600 hover:text-amber-600 bg-white border border-slate-200 hover:border-amber-300 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
+						<i data-lucide="help-circle" class="w-4 h-4"></i>
+						<span>使い方ガイド</span>
+					</button>
+				</div>
+			</div>
+		</header>
+
+		<!-- 使い方アコーディオン -->
+		<div id="help-box" class="hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-indigo-50/50 p-5 md:p-6 mb-8 shadow-xs relative overflow-hidden transition-all">
+			<div class="flex items-center gap-2 text-sm font-bold text-blue-900 mb-4">
+				<i data-lucide="book-open" class="w-4 h-4 text-blue-600"></i>
+				<span>使い方の手順</span>
+			</div>
+			<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-xs text-slate-700 mb-5">
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 1</span>
+					<p class="font-bold text-slate-800">リスト準備</p>
+					<p class="text-slate-500 mt-1">スプレッドシートの1列をコピーして貼り付け</p>
+				</div>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 2</span>
+					<p class="font-bold text-slate-800">3人分を撮影</p>
+					<p class="text-slate-500 mt-1">1人目・2人目・3人目の因子画面を、境界を含めず個別に撮影</p>
+				</div>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 3</span>
+					<p class="font-bold text-slate-800">各欄にアップロード</p>
+					<p class="text-slate-500 mt-1">1人目・2人目・3人目それぞれの欄にスクショを追加</p>
+				</div>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 4</span>
+					<p class="font-bold text-slate-800">OCR実行</p>
+					<p class="text-slate-500 mt-1">スキル名の判定と、★の数の判定を同時に行います</p>
+				</div>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 5</span>
+					<p class="font-bold text-slate-800">結果コピー</p>
+					<p class="text-slate-500 mt-1">1〜3人目の★の数を3列まとめてスプレッドシートに貼り付け</p>
+				</div>
+			</div>
+
+			<!-- 撮影の注意点 -->
+			<div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+				<div class="flex items-center gap-1.5 text-xs font-bold text-amber-800 mb-2">
+					<i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+					<span>撮影時の注意点（重要）</span>
+				</div>
+				<p class="text-xs text-amber-800 leading-relaxed">
+					ゲーム内の「因子」画面は、本人 → 継承元1 → 継承元2 と連続してスクロールする1つの画面です。
+					各キャラクターの境界には「継承元」という見出しと小さなキャラアイコンが挟まります。
+					<strong>スクリーンショットは、この見出しを含まないように、各キャラクターのスキルリスト部分だけが写るように撮影してください。</strong>
+					見出しや前後のキャラクターの行が混ざると、誤判定の原因になることがあります。
+				</p>
+			</div>
+		</div>
+
+		<!-- ステップ1：スキルリスト -->
+		<div class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6">
+			<div class="flex items-center justify-between mb-4">
+				<div class="flex items-center gap-2">
+					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">1</span>
+					<h2 class="text-sm font-bold text-slate-800">スキルリストを入力（1〜3人目共通）</h2>
+				</div>
+				<span id="skill-count-badge" class="hidden text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800"></span>
+			</div>
+
+			<p class="text-xs text-slate-500 mb-3">スプレッドシートから1列分（改行区切り）コピーしてそのまま貼り付けできます。1〜3人目すべてに対して同じリストで照合します。</p>
+
+			<textarea id="skill-list" class="w-full h-28 text-xs md:text-sm p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200 font-mono transition-all outline-none resize-y" placeholder="例：&#10;根幹距離○&#10;右回り○&#10;直線コース○"></textarea>
+
+			<div class="mt-3 flex items-center justify-between gap-3">
+				<div class="flex items-center gap-2">
+					<button type="button" onclick="parseSkillList()" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-xs md:text-sm font-semibold hover:bg-slate-800 active:scale-98 transition-all shadow-xs cursor-pointer">
+						<i data-lucide="list-checks" class="w-4 h-4"></i>
+						<span>リストを解析する</span>
+					</button>
+					<button type="button" onclick="clearSkillList()" class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs md:text-sm font-medium hover:bg-slate-50 transition-all cursor-pointer">
+						<i data-lucide="eraser" class="w-4 h-4"></i>
+						<span>クリア</span>
+					</button>
+				</div>
+				<div id="skill-count" class="text-xs font-medium text-slate-500"></div>
+			</div>
+		</div>
+
+		<!-- ステップ2：3人分の画像アップロード -->
+		<div class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6">
+			<div class="flex items-center justify-between mb-4">
+				<div class="flex items-center gap-2">
+					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">2</span>
+					<h2 class="text-sm font-bold text-slate-800">1〜3人目の画像をアップロード</h2>
+				</div>
+			</div>
+
+			<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5" id="person-upload-grid"></div>
+
+			<!-- オプション設定（デフォルトで折りたたみ） -->
+			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-5">
+				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+					<span class="flex items-center gap-2">
+						<i data-lucide="sliders" class="w-4 h-4 text-slate-500"></i>
+						<span>高度な解析オプション</span>
+					</span>
+					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
+				</summary>
+
+				<div class="p-4 pt-1 border-t border-slate-200/60 grid grid-cols-1 md:grid-cols-2 gap-3">
+					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+						<input id="opt-preprocess" type="checkbox" checked class="mt-0.5 rounded text-amber-600 focus:ring-amber-500 w-4 h-4" />
+						<div>
+							<span class="text-xs font-semibold text-slate-800">画像前処理（画質補正）</span>
+							<p class="text-[11px] text-slate-500 mt-0.5">拡大・コントラスト補正・適応二値化で読み取り精度向上</p>
+						</div>
+					</label>
+
+					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+						<input id="opt-multipass" type="checkbox" checked class="mt-0.5 rounded text-amber-600 focus:ring-amber-500 w-4 h-4" />
+						<div>
+							<span class="text-xs font-semibold text-slate-800">高精度多重パス（高信頼）</span>
+							<p class="text-[11px] text-slate-500 mt-0.5">二値化・反転・無処理の3段階で照合（処理時間増加）</p>
+						</div>
+					</label>
+
+					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+						<input id="opt-devlog" type="checkbox" class="mt-0.5 rounded text-amber-600 focus:ring-amber-500 w-4 h-4" />
+						<div>
+							<span class="text-xs font-semibold text-slate-800">開発用ログ出力</span>
+							<p class="text-[11px] text-slate-500 mt-0.5">判定根拠や不一致テキストの内訳を結果エリアに表示</p>
+						</div>
+					</label>
+
+					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+						<input id="opt-preview" type="checkbox" class="mt-0.5 rounded text-amber-600 focus:ring-amber-500 w-4 h-4" />
+						<div>
+							<span class="text-xs font-semibold text-slate-800">切り出し画像のプレビュー</span>
+							<p class="text-[11px] text-slate-500 mt-0.5">OCRエンジンに渡した整形画像をデバッグ用に確認</p>
+						</div>
+					</label>
+				</div>
+			</details>
+
+			<!-- プログレスバー -->
+			<div id="progress-wrap" class="hidden mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
+				<div class="flex justify-between text-xs font-semibold text-amber-900 mb-2">
+					<span id="progress-label" class="flex items-center gap-1.5">
+						<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-amber-600"></i>
+						<span>処理中…</span>
+					</span>
+					<span id="progress-pct">0%</span>
+				</div>
+				<div class="h-2 bg-amber-200/70 rounded-full overflow-hidden">
+					<div id="progress-bar" class="h-full bg-amber-600 rounded-full transition-all duration-300" style="width:0%"></div>
+				</div>
+			</div>
+
+			<!-- エラー表示 -->
+			<div id="error-wrap" class="hidden mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700 whitespace-pre-line flex gap-2">
+				<i data-lucide="alert-triangle" class="w-4 h-4 text-red-500 shrink-0 mt-0.5"></i>
+				<div id="error-content"></div>
+			</div>
+
+			<button id="process-btn" type="button" onclick="processImages()" class="w-full py-3.5 px-4 rounded-xl bg-amber-600 text-white text-xs md:text-sm font-bold hover:bg-amber-700 active:scale-99 transition-all shadow-md hover:shadow-amber-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 cursor-pointer" disabled>
+				<i data-lucide="play" class="w-4 h-4 fill-current"></i>
+				<span>OCR処理を開始する</span>
+			</button>
+		</div>
+
+		<!-- ステップ3 (結果表示) -->
+		<div id="result-wrap" class="hidden glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 transition-all">
+			<div class="flex items-center justify-between mb-5">
+				<div class="flex items-center gap-2">
+					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">3</span>
+					<h2 class="text-sm font-bold text-slate-800">照合結果（★の数）</h2>
+				</div>
+				<button type="button" onclick="copyToClipboard()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all shadow-xs cursor-pointer">
+					<i data-lucide="copy" class="w-3.5 h-3.5"></i>
+					<span>3列まとめてコピー</span>
+				</button>
+			</div>
+
+			<!-- サマリーカード -->
+			<div class="grid grid-cols-4 gap-3 mb-6">
+				<div class="rounded-xl border border-slate-200 bg-slate-50/50 p-3 md:p-4 text-center">
+					<p class="text-[11px] font-medium text-slate-500 mb-1">対象スキル数</p>
+					<p class="text-lg md:text-2xl font-extrabold text-slate-900" id="stat-total">0</p>
+				</div>
+				<div class="rounded-xl border border-blue-200 bg-blue-50/50 p-3 md:p-4 text-center">
+					<p class="text-[11px] font-medium text-blue-700 mb-1">1人目 検出</p>
+					<p class="text-lg md:text-2xl font-extrabold text-blue-600" id="stat-found-1">0</p>
+				</div>
+				<div class="rounded-xl border border-pink-200 bg-pink-50/50 p-3 md:p-4 text-center">
+					<p class="text-[11px] font-medium text-pink-700 mb-1">2人目 検出</p>
+					<p class="text-lg md:text-2xl font-extrabold text-pink-600" id="stat-found-2">0</p>
+				</div>
+				<div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 md:p-4 text-center">
+					<p class="text-[11px] font-medium text-emerald-700 mb-1">3人目 検出</p>
+					<p class="text-lg md:text-2xl font-extrabold text-emerald-600" id="stat-found-3">0</p>
+				</div>
+			</div>
+
+			<!-- 検索・フィルターバー -->
+			<div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
+				<div class="relative w-full sm:w-64">
+					<i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
+					<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-amber-500" />
+				</div>
+				<div class="flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
+					<button type="button" onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg bg-slate-900 text-white font-medium">すべて</button>
+					<button type="button" onclick="setFilter('found')" id="filter-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">誰かが検出</button>
+					<button type="button" onclick="setFilter('not-found')" id="filter-not-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">全員未検出</button>
+				</div>
+			</div>
+
+			<!-- テーブル -->
+			<div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
+				<table class="result-table">
+					<thead>
+						<tr>
+							<th class="w-2/5">スキル名（リスト順）</th>
+							<th class="text-center">1人目</th>
+							<th class="text-center">2人目</th>
+							<th class="text-center">3人目</th>
+						</tr>
+					</thead>
+					<tbody id="result-tbody"></tbody>
+				</table>
+			</div>
+
+			<!-- コピー用エリア -->
+			<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-6">
+				<div class="flex items-center justify-between mb-2">
+					<p class="text-xs font-semibold text-slate-700">スプレッドシート貼り付け用データ（3列）</p>
+					<span class="text-[11px] text-slate-400">※1人目・2人目・3人目の★の数（タブ区切り）。スキル名は含みません</span>
+				</div>
+				<div class="flex gap-2">
+					<textarea id="copy-data" readonly class="w-full h-24 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none"></textarea>
+				</div>
+			</div>
+
+			<!-- 切り出し画像プレビュー -->
+			<div id="preview-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
+				<h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
+					<i data-lucide="image" class="w-4 h-4 text-slate-500"></i>
+					<span>切り出し結果プレビュー</span>
+				</h3>
+				<div id="debug-preview" class="space-y-4"></div>
+			</div>
+
+			<!-- 開発ログ -->
+			<div id="dev-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
+				<div class="flex items-center justify-between mb-3">
+					<h3 class="text-xs font-bold text-amber-700 flex items-center gap-1.5">
+						<i data-lucide="terminal" class="w-4 h-4"></i>
+						<span>開発用ログ</span>
+					</h3>
+					<button type="button" onclick="copyDevLog()" class="px-3 py-1 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 text-xs font-semibold transition-colors">
+						ログをコピー
+					</button>
+				</div>
+				<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-amber-900 max-h-80 overflow-y-auto"></div>
+			</div>
+		</div>
+
+	</div>
+
+	<script>
+		/* 状態変数（このツール固有。共通ロジック・共通定数は js/common.js を参照） */
+		let skillList = [];
+		let skillIndex = [];
+		let currentFilter = 'all';
+		let previewCanvases = [];
+		let devGeometry = [];
+
+		// OCR誤認識の補正辞書。汎用版と特化型で内容が異なりうるため、ツールごとに個別管理する。
+		const ocrErrorDictionary = {};
+
+		// 1〜3人目それぞれのアップロード済みファイルと、解析結果（skillStars: {スキル名: 星の数}）
+		const PERSON_LABELS = ['1人目', '2人目', '3人目'];
+		const PERSON_COLORS = ['blue', 'pink', 'emerald'];
+		const persons = [
+			{ files: [] },
+			{ files: [] },
+			{ files: [] }
+		];
+		let personResults = [null, null, null]; // matchAllSkillsWithStars() の戻り値を格納
+
+		document.addEventListener('DOMContentLoaded', () => {
+			renderPersonUploadGrid();
+			if (window.lucide) lucide.createIcons();
+		});
+
+		/* ドロップダウンメニューの制御 */
+		function toggleToolDropdown() {
+			const menu = document.getElementById('tool-dropdown-menu');
+			menu.classList.toggle('hidden');
+		}
+		document.addEventListener('click', (e) => {
+			const wrap = document.getElementById('tool-dropdown-wrap');
+			const menu = document.getElementById('tool-dropdown-menu');
+			if (wrap && !wrap.contains(e.target) && menu && !menu.classList.contains('hidden')) {
+				menu.classList.add('hidden');
+			}
+		});
+
+		function toggleHelp() {
+			document.getElementById('help-box').classList.toggle('hidden');
+		}
+
+		function showToast(msg) {
+			const toast = document.getElementById('toast');
+			document.getElementById('toast-message').textContent = msg;
+			toast.classList.remove('translate-y-16', 'opacity-0', 'pointer-events-none');
+			setTimeout(() => {
+				toast.classList.add('translate-y-16', 'opacity-0', 'pointer-events-none');
+			}, 2500);
+		}
+
+		function parseSkillList() {
+			const input = document.getElementById('skill-list').value.trim();
+			if (!input) { showToast('スキルリストを入力してください'); return; }
+			skillList = input.split(/[\n,\t]/).map(s => s.trim()).filter(s => s.length > 0);
+			if (skillList.length === 0) { showToast('有効なスキルが見つかりません'); return; }
+			skillIndex = skillList.map(raw => ({ raw: raw, norm: normalizeText(raw) }));
+
+			document.getElementById('skill-count').textContent = '✓ ' + skillList.length + '個解析完了';
+			const badge = document.getElementById('skill-count-badge');
+			badge.textContent = skillList.length + ' 個のスキル';
+			badge.classList.remove('hidden');
+			showToast(skillList.length + '個のスキルをセットしました');
+			updateProcessBtn();
+		}
+
+		function clearSkillList() {
+			document.getElementById('skill-list').value = '';
+			skillList = [];
+			skillIndex = [];
+			document.getElementById('skill-count').textContent = '';
+			const badge = document.getElementById('skill-count-badge');
+			badge.textContent = '';
+			badge.classList.add('hidden');
+			updateProcessBtn();
+			showToast('入力したスキルリストをクリアしました');
+		}
+
+		/* ============================================================
+		 * 1〜3人目 それぞれのアップロード欄
+		 * ============================================================ */
+		function renderPersonUploadGrid() {
+			const grid = document.getElementById('person-upload-grid');
+			grid.innerHTML = PERSON_LABELS.map((label, idx) => `
+				<div class="rounded-xl border border-slate-200 bg-slate-50/40 p-3">
+					<p class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+						<span class="w-5 h-5 rounded-full bg-${PERSON_COLORS[idx]}-500 text-white text-[10px] font-bold flex items-center justify-center">${idx + 1}</span>
+						${label}
+					</p>
+					<label class="person-drop-zone group block cursor-pointer rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-amber-50/40 hover:border-amber-400 transition-all p-4 text-center mb-2" data-person="${idx}">
+						<input type="file" accept="image/*" multiple class="hidden person-file-input" data-person="${idx}" />
+						<div class="flex flex-col items-center justify-center gap-1">
+							<i data-lucide="upload-cloud" class="w-5 h-5 text-slate-500 group-hover:text-amber-600"></i>
+							<p class="text-[11px] font-medium text-slate-600">${label}のスクショを選択</p>
+						</div>
+					</label>
+					<div class="person-image-list grid grid-cols-2 gap-2" data-person="${idx}"></div>
+				</div>
+			`).join('');
+
+			if (window.lucide) lucide.createIcons();
+
+			grid.querySelectorAll('.person-file-input').forEach(input => {
+				input.addEventListener('change', (e) => {
+					const idx = Number(e.target.dataset.person);
+					addPersonFiles(idx, Array.from(e.target.files));
+					e.target.value = '';
+				});
+			});
+			grid.querySelectorAll('.person-drop-zone').forEach(zone => {
+				const idx = Number(zone.dataset.person);
+				['dragenter', 'dragover'].forEach(ev => {
+					zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('drop-active'); });
+				});
+				['dragleave', 'dragend'].forEach(ev => {
+					zone.addEventListener(ev, () => { zone.classList.remove('drop-active'); });
+				});
+				zone.addEventListener('drop', (e) => {
+					e.preventDefault();
+					zone.classList.remove('drop-active');
+					const files = Array.from(e.dataTransfer.files).filter(f => f.type.indexOf('image/') === 0);
+					if (files.length) addPersonFiles(idx, files);
+				});
+			});
+		}
+
+		function addPersonFiles(personIdx, files) {
+			const list = persons[personIdx].files;
+			files.forEach(f => {
+				const dup = list.some(u => u.name === f.name && u.size === f.size);
+				if (!dup) list.push(f);
+			});
+			renderPersonImageList(personIdx);
+			updateProcessBtn();
+		}
+
+		function removePersonImage(personIdx, fileIdx) {
+			persons[personIdx].files.splice(fileIdx, 1);
+			renderPersonImageList(personIdx);
+			updateProcessBtn();
+		}
+
+		function renderPersonImageList(personIdx) {
+			const container = document.querySelector('.person-image-list[data-person="' + personIdx + '"]');
+			container.innerHTML = persons[personIdx].files.map((file, idx) => `
+				<div class="group relative rounded-lg border border-slate-200 overflow-hidden bg-white shadow-2xs">
+					<img src="${URL.createObjectURL(file)}" class="w-full h-14 object-cover" />
+					<button type="button" onclick="removePersonImage(${personIdx}, ${idx})" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/80 text-white flex items-center justify-center hover:bg-red-600 transition-colors">
+						<i data-lucide="x" class="w-3 h-3"></i>
+					</button>
+				</div>
+			`).join('');
+			if (window.lucide) lucide.createIcons();
+		}
+
+		const processBtn = document.getElementById('process-btn');
+
+		function updateProcessBtn() {
+			const anyFiles = persons.some(p => p.files.length > 0);
+			processBtn.disabled = (skillList.length === 0 || !anyFiles);
+		}
+
+		/* ============================================================
+		 * OCR処理本体
+		 * ============================================================ */
+
+		// 1人分の画像群を処理し、★情報つきのOCR行配列を返す
+		async function processPersonImages(worker, files, labelPrefix, usePre, multi, wantPreview) {
+			const lines = [];
+			for (let i = 0; i < files.length; i++) {
+				const file = files[i];
+				const diag = [];
+				let base = null, detection = null;
+				try {
+					const img = await loadImage(file);
+					base = toBaseCanvas(img);
+					diag.push('画像サイズ ' + base.width + '×' + base.height);
+					detection = detectSkillRows(base, diag);
+				} catch (err) {
+					console.error(err);
+					diag.push('画像の読み込みに失敗: ' + err);
+					devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
+					continue;
+				}
+
+				let target, placements = [], rowStars = [];
+				if (detection) {
+					rowStars = computeRowStarCounts(base, detection);
+					const stacked = stackRowsWithMeta(base, detection.rows);
+					target = stacked.canvas;
+					placements = stacked.placements;
+					diag.push('→ ' + detection.rows.length + '行を切り出し、★を判定してOCRへ');
+				} else {
+					target = scaleCanvas(base, 1800);
+					diag.push('→ 行検出に失敗。画像全体をOCRへ（この画像の★は判定できません）');
+				}
+				if (wantPreview) previewCanvases.push({ name: labelPrefix + ': ' + file.name, canvas: target });
+				devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
+
+				const variants = usePre ? preprocessVariants(target, multi) : [target];
+				for (let v = 0; v < variants.length; v++) {
+					try {
+						const res = await worker.recognize(variants[v]);
+						if (detection) {
+							const rawLines = extractLinesWithBBox(res.data);
+							const withStars = attachStarsToLines(rawLines, placements, rowStars);
+							lines.push.apply(lines, withStars);
+						} else {
+							const rawLines = extractLines(res.data).map(l => Object.assign({}, l, { stars: null }));
+							lines.push.apply(lines, rawLines);
+						}
+					} catch (err) {
+						console.error('OCR failed: ' + file.name, err);
+					}
+				}
+			}
+			return lines;
+		}
+
+		async function processImages() {
+			if (skillList.length === 0) { showToast('スキルリストを解析してください'); return; }
+			const anyFiles = persons.some(p => p.files.length > 0);
+			if (!anyFiles) { showToast('少なくとも1人分の画像をアップロードしてください'); return; }
+
+			devGeometry = [];
+			previewCanvases = [];
+			personResults = [null, null, null];
+
+			const progressWrap = document.getElementById('progress-wrap');
+			const errorWrap = document.getElementById('error-wrap');
+			errorWrap.classList.add('hidden');
+			progressWrap.classList.remove('hidden');
+			processBtn.disabled = true;
+
+			const usePre = document.getElementById('opt-preprocess').checked;
+			const multi = document.getElementById('opt-multipass').checked;
+			const wantPreview = document.getElementById('opt-preview').checked;
+
+			let worker = null;
+			let anySuccess = false;
+
+			try {
+				setProgress(0, 'OCRエンジンを初期化中…');
+				worker = await Tesseract.createWorker();
+				await worker.loadLanguage('jpn');
+				await worker.initialize('jpn');
+				await worker.setParameters({
+					tessedit_pageseg_mode: '6',
+					preserve_interword_spaces: '1',
+					user_defined_dpi: '300'
+				});
+
+				for (let p = 0; p < persons.length; p++) {
+					const files = persons[p].files;
+					if (files.length === 0) continue;
+					setProgress(p / persons.length, PERSON_LABELS[p] + 'を処理中…');
+					const lines = await processPersonImages(worker, files, PERSON_LABELS[p], usePre, multi, wantPreview);
+					if (lines.length > 0) anySuccess = true;
+					personResults[p] = matchAllSkillsWithStars(lines, skillList, skillIndex, ocrErrorDictionary);
+				}
+			} catch (err) {
+				console.error(err);
+				errorWrap.classList.remove('hidden');
+				document.getElementById('error-content').textContent = 'OCR処理の初期化に失敗しました。ネットワーク接続を確認してください。\n' + err;
+				progressWrap.classList.add('hidden');
+				processBtn.disabled = false;
+				return;
+			} finally {
+				if (worker) { try { await worker.terminate(); } catch (e) {} }
+			}
+
+			progressWrap.classList.add('hidden');
+			processBtn.disabled = false;
+
+			if (!anySuccess) {
+				errorWrap.classList.remove('hidden');
+				document.getElementById('error-content').textContent = 'OCR処理に失敗しました。別の画像を試してください。';
+				return;
+			}
+
+			renderResults();
+			showToast('照合が完了しました');
+		}
+
+		function setProgress(ratio, label) {
+			const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
+			document.getElementById('progress-bar').style.width = pct + '%';
+			document.getElementById('progress-pct').textContent = pct + '%';
+			document.getElementById('progress-label').querySelector('span').textContent = label;
+		}
+
+		/* ============================================================
+		 * 結果表示
+		 * ============================================================ */
+		function starsFor(personIdx, skill) {
+			const res = personResults[personIdx];
+			if (!res) return null;
+			if (!res.detectedSkills.has(skill)) return null;
+			const s = res.skillStars[skill];
+			return (s === null || s === undefined) ? null : s;
+		}
+
+		function renderResults() {
+			const resultWrap = document.getElementById('result-wrap');
+
+			let foundCounts = [0, 0, 0];
+			const copyRows = [];
+
+			skillList.forEach(skill => {
+				const rowVals = [0, 1, 2].map(p => starsFor(p, skill));
+				rowVals.forEach((v, i) => { if (v !== null) foundCounts[i]++; });
+				copyRows.push(rowVals.map(v => v === null ? '' : String(v)).join('\t'));
+			});
+
+			document.getElementById('stat-total').textContent = skillList.length;
+			document.getElementById('stat-found-1').textContent = foundCounts[0];
+			document.getElementById('stat-found-2').textContent = foundCounts[1];
+			document.getElementById('stat-found-3').textContent = foundCounts[2];
+
+			document.getElementById('copy-data').value = copyRows.join('\n');
+			resultWrap.classList.remove('hidden');
+
+			filterResults();
+			renderPreview();
+			renderDevLog();
+		}
+
+		function starBadge(stars) {
+			if (stars === null) {
+				return '<span class="text-slate-300 text-xs">−</span>';
+			}
+			return '<span class="star-cell text-amber-500">' + '★'.repeat(stars) + '</span>' +
+				'<span class="star-cell text-slate-300">' + '★'.repeat(3 - stars) + '</span>';
+		}
+
+		function filterResults() {
+			const tbody = document.getElementById('result-tbody');
+			const query = document.getElementById('table-search').value.toLowerCase().trim();
+			let tableHtml = '';
+
+			skillList.forEach(skill => {
+				const vals = [0, 1, 2].map(p => starsFor(p, skill));
+				const anyFound = vals.some(v => v !== null);
+
+				if (currentFilter === 'found' && !anyFound) return;
+				if (currentFilter === 'not-found' && anyFound) return;
+				if (query && !skill.toLowerCase().includes(query)) return;
+
+				tableHtml += `<tr class="transition-colors">
+					<td class="font-medium text-slate-800">${escapeHtml(skill)}</td>
+					<td class="text-center">${starBadge(vals[0])}</td>
+					<td class="text-center">${starBadge(vals[1])}</td>
+					<td class="text-center">${starBadge(vals[2])}</td>
+				</tr>`;
+			});
+
+			if (!tableHtml) {
+				tableHtml = `<tr><td colspan="4" class="text-center py-6 text-slate-400 text-xs">該当するスキルが見つかりません</td></tr>`;
+			}
+
+			tbody.innerHTML = tableHtml;
+			if (window.lucide) lucide.createIcons();
+		}
+
+		function setFilter(type) {
+			currentFilter = type;
+			['all', 'found', 'not-found'].forEach(f => {
+				const btn = document.getElementById('filter-' + f);
+				if (f === type) {
+					btn.className = 'px-3 py-1 rounded-lg bg-slate-900 text-white font-medium cursor-pointer';
+				} else {
+					btn.className = 'px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium cursor-pointer';
+				}
+			});
+			filterResults();
+		}
+
+		function renderPreview() {
+			const wrap = document.getElementById('preview-wrap');
+			const box = document.getElementById('debug-preview');
+			box.innerHTML = '';
+			if (!previewCanvases.length) { wrap.classList.add('hidden'); return; }
+			previewCanvases.forEach(p => {
+				const label = document.createElement('p');
+				label.className = 'text-xs text-slate-500 font-mono';
+				label.textContent = p.name;
+				box.appendChild(label);
+				box.appendChild(p.canvas);
+			});
+			wrap.classList.remove('hidden');
+		}
+
+		function renderDevLog() {
+			const devWrap = document.getElementById('dev-wrap');
+			const devLog = document.getElementById('dev-log');
+			if (!document.getElementById('opt-devlog').checked) { devWrap.classList.add('hidden'); return; }
+
+			const parts = [];
+			if (devGeometry.length) parts.push('■ 行検出・★判定の内訳\n' + devGeometry.join('\n'));
+
+			PERSON_LABELS.forEach((label, idx) => {
+				const res = personResults[idx];
+				if (!res) return;
+				const lines = [];
+				if (res.devFuzzy.length) {
+					lines.push('  推定一致 ' + res.devFuzzy.length + '件:');
+					res.devFuzzy.forEach(u => lines.push('    "' + u.text + '" → ' + u.matched + '（距離' + u.dist + '）'));
+				}
+				if (res.devTypo.length) lines.push('  誤字候補 ' + res.devTypo.length + '件');
+				if (res.devLowConf.length) lines.push('  低信頼度 ' + res.devLowConf.length + '件');
+				if (res.devOther.length) lines.push('  その他未一致 ' + res.devOther.length + '件');
+				if (lines.length) parts.push('■ ' + label + '\n' + lines.join('\n'));
+			});
+
+			if (parts.length === 0) { devWrap.classList.add('hidden'); return; }
+			devLog.textContent = parts.join('\n\n\n');
+			devWrap.classList.remove('hidden');
+		}
+
+		function copyToClipboard() {
+			const copyData = document.getElementById('copy-data');
+			copyData.select();
+			document.execCommand('copy');
+			showToast('1〜3人目の★データをクリップボードにコピーしました');
+		}
+
+		function copyDevLog() {
+			const text = document.getElementById('dev-log').textContent;
+			if (navigator.clipboard && navigator.clipboard.writeText) {
+				navigator.clipboard.writeText(text).then(() => showToast('開発ログをコピーしました'));
+			}
+		}
+	</script>
+</body>
+</html>
