@@ -36,9 +36,7 @@
 		}
 		@media (min-width: 768px) {
 			.result-table th,
-			.result-table td {
-				padding: 0.75rem;
-			}
+			.result-table td { padding: 0.75rem; }
 		}
 		.result-table th {
 			background-color: #F8FAFC;
@@ -47,28 +45,15 @@
 			color: #475569;
 		}
 		@media (min-width: 768px) {
-			.result-table th {
-				font-size: 0.875rem;
-			}
+			.result-table th { font-size: 0.875rem; }
 		}
-		.result-table td {
-			font-size: 0.75rem;
-		}
+		.result-table td { font-size: 0.75rem; }
 		@media (min-width: 768px) {
-			.result-table td {
-				font-size: 0.875rem;
-			}
+			.result-table td { font-size: 0.875rem; }
 		}
-		.result-table tr:nth-child(even) {
-			background-color: #F8FAFC;
-		}
-		.found {
-			color: #10B981;
-			font-weight: 600;
-		}
-		.not-found {
-			color: #94A3B8;
-		}
+		.result-table tr:nth-child(even) { background-color: #F8FAFC; }
+		.found { color: #10B981; font-weight: 600; }
+		.not-found { color: #94A3B8; }
 		.drop-active {
 			border-color: #10B981 !important;
 			background-color: #ECFDF5 !important;
@@ -123,7 +108,7 @@
 					<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex-shrink-0">4</span>
 					<div>
 						<p class="font-medium">OCR処理を実行</p>
-						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スキルを自動検出・照合します</p>
+						<p class="text-xs text-blue-700 mt-0.5 md:mt-1">スキル行を自動で切り出し、検出・照合します</p>
 					</div>
 				</div>
 				<div class="flex gap-2 md:gap-3">
@@ -163,6 +148,13 @@
 			<!-- OCRオプション -->
 			<div class="rounded-xl border border-slate-200 bg-slate-50 p-3 md:p-4 mb-3 md:mb-4 space-y-2">
 				<label class="flex items-start gap-2 cursor-pointer">
+					<input id="opt-rowdetect" type="checkbox" checked class="mt-0.5" />
+					<span class="text-xs md:text-sm text-slate-700">
+						スキル行の自動切り出し
+						<span class="block text-xs text-slate-500">行頭の丸アイコンを円検出で見つけ、1行ずつ切り出してからOCRします。左右2列の混線とヘッダー部のノイズを防ぎます</span>
+					</span>
+				</label>
+				<label class="flex items-start gap-2 cursor-pointer">
 					<input id="opt-preprocess" type="checkbox" checked class="mt-0.5" />
 					<span class="text-xs md:text-sm text-slate-700">
 						画像前処理を有効にする
@@ -173,14 +165,14 @@
 					<input id="opt-multipass" type="checkbox" checked class="mt-0.5" />
 					<span class="text-xs md:text-sm text-slate-700">
 						高精度モード（多重パス）
-						<span class="block text-xs text-slate-500">二値化版・反転版・原画像の3通りでOCRし、結果を統合します（処理時間が約3倍）</span>
+						<span class="block text-xs text-slate-500">二値化版・反転版・無処理版の3通りでOCRし、結果を統合します（処理時間が約3倍）</span>
 					</span>
 				</label>
 				<label class="flex items-start gap-2 cursor-pointer">
 					<input id="opt-devlog" type="checkbox" checked class="mt-0.5" />
 					<span class="text-xs md:text-sm text-slate-700">
 						開発用ログを表示
-						<span class="block text-xs text-slate-500">マッチングに失敗した文字列を画面下部に出力します</span>
+						<span class="block text-xs text-slate-500">マッチングに失敗した文字列を分類して画面下部に出力します</span>
 					</span>
 				</label>
 			</div>
@@ -209,7 +201,6 @@
 				<span>ステップ3: 照合結果</span>
 			</div>
 
-			<!-- マッチング統計 -->
 			<div id="match-stats" class="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-6">
 				<div class="rounded-lg border border-slate-200 bg-slate-50 p-3 md:p-4 text-center">
 					<p class="text-xs text-slate-500 mb-1">処理対象</p>
@@ -225,7 +216,6 @@
 				</div>
 			</div>
 
-			<!-- 結果テーブル -->
 			<div class="overflow-x-auto mb-4 md:mb-6">
 				<table class="result-table">
 					<thead>
@@ -239,7 +229,6 @@
 				</table>
 			</div>
 
-			<!-- コピー用データ -->
 			<div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 md:p-4 mb-3 md:mb-4">
 				<p class="text-xs font-medium text-slate-600 mb-2">クリップボードコピー用（新しい列）：</p>
 				<div class="flex flex-col md:flex-row gap-2">
@@ -252,15 +241,15 @@
 
 			<p class="text-xs text-slate-500">💡 このテキストをスプレッドシートの新しい列にペーストしてください</p>
 
-			<!-- 開発用: マッチング失敗テキスト -->
+			<!-- 開発用ログ -->
 			<div id="dev-wrap" class="hidden mt-6 pt-6 border-t border-slate-200">
 				<div class="heading-divider text-xs font-medium text-amber-600 mb-3">
-					<span>開発用: マッチング失敗テキスト</span>
+					<span>開発用ログ</span>
 				</div>
-				<p class="text-xs text-slate-500 mb-2">OCRで文字列は取れたものの、どのスキルにも確定できなかった行です。誤認識辞書に追加する候補として使ってください。</p>
-				<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50 p-3 md:p-4 text-amber-900 max-h-96 overflow-y-auto"></div>
+				<p class="text-xs text-slate-500 mb-2">誤認識辞書に追加する候補を探すための出力です。「誤字候補」から順に見てください。</p>
+				<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50 p-3 md:p-4 text-amber-900 max-h-[32rem] overflow-y-auto"></div>
 				<button onclick="copyDevLog()" class="w-full md:w-auto px-4 py-2 mt-2 rounded-lg bg-amber-600 text-white text-xs font-medium hover:bg-amber-700 transition-colors">
-					失敗テキストをコピー
+					ログをコピー
 				</button>
 			</div>
 		</div>
@@ -269,24 +258,47 @@
 
 	<script>
 		/* =========================================================
+		   定数
+		   ========================================================= */
+		// base.js の知見: 長辺が大きすぎると OpenCV の形状系処理が不安定になる
+		const MAX_SIDE_PX = 2175;
+		// 行の信頼度がこれ未満なら「低信頼度」として照合対象から外す
+		const CONF_THRESHOLD = 55;
+		// 切り出した1行をこの高さまで拡大してからOCRに渡す
+		const ROW_TARGET_HEIGHT = 56;
+
+		/* =========================================================
 		   状態
 		   ========================================================= */
-		let skillList = [];       // 出力用の原文リスト（ユーザー入力順）
-		let skillIndex = [];      // { raw, norm } の索引
+		let skillList = [];
+		let skillIndex = [];
 		let uploadedFiles = [];
 		let detectedSkills = new Set();
-		let matchReasons = {};    // raw -> 判定根拠
-		let unmatchedLines = [];  // 開発用ログ
+		let matchReasons = {};
+		let devTypo = [];      // 誤字候補（惜しい距離で外れた行）
+		let devLowConf = [];   // 低信頼度
+		let devOther = [];     // その他
+		let devGeometry = [];  // 行検出の結果サマリ
 		let cvReady = false;
 
 		/* =========================================================
-		   誤認識辞書
-		   キー : OCRが出力した文字列（生のままでOK。内部で正規化して比較）
-		   値   : 正しいスキル名（スキルリストの表記と一致させること）
-		   運用で見つかったパターンをここに追記していきます
+		   誤認識辞書（行全体）
+		   キー: OCRが出力した1行の文字列   値: 正しいスキル名
 		   ========================================================= */
 		const ocrErrorDictionary = {
 			// "逃げのコッ○": "逃げのコツ○",
+		};
+
+		/* =========================================================
+		   文字単位の誤認識マップ
+		   運用ログから見つかった「1文字だけの取り違え」をここに追加する。
+		   スキルリストにその文字が使われていないことを確認してから足すこと。
+		   ========================================================= */
+		const CHAR_CONFUSION_MAP = {
+			'娩': '娘',   // 夏ウマ娩○ → 夏ウマ娘○
+			'棒': '枠',   // 内棒得意○ → 内枠得意○
+			'狐': '狼',   // 一匹狐     → 一匹狼
+			'貴': '覚'    // 目貴め     → 目覚め
 		};
 
 		/* =========================================================
@@ -295,7 +307,7 @@
 		function onOpenCvLoaded() {
 			if (typeof cv === 'undefined') return;
 			if (cv instanceof Promise) {
-				cv.then((mod) => { window.cv = mod; markCvReady(); });
+				cv.then(function (mod) { window.cv = mod; markCvReady(); });
 			} else if (typeof cv.getBuildInformation === 'function') {
 				markCvReady();
 			} else {
@@ -307,65 +319,41 @@
 			const el = document.getElementById('cv-status');
 			if (el) { el.textContent = 'OpenCV利用可能'; el.className = 'font-medium text-emerald-600'; }
 		}
-		setTimeout(() => {
+		setTimeout(function () {
 			if (!cvReady) {
 				const el = document.getElementById('cv-status');
-				if (el) el.textContent = 'OpenCV未読込（拡大処理のみ適用）';
+				if (el) el.textContent = 'OpenCV未読込（行切り出し・二値化は無効）';
 			}
 		}, 20000);
 
 		/* =========================================================
 		   文字正規化
-		   OCRが混同しやすい字形を統一する。
-		   スキル名側にも同じ処理を適用するので、辞書に頼らず
-		   典型的な誤認識をここで吸収できる。
 		   ========================================================= */
 		const HOMOGLYPH_MAP = {
-			// 丸記号のゆれ（○ ◯ 〇 ◎ ● 0 O o Q D）
 			'◯': '○', '〇': '○', '◎': '○', '●': '○', '◉': '○',
 			'0': '○', 'O': '○', 'o': '○', 'Q': '○', 'D': '○', '°': '○',
-			// 長音・ハイフン・漢数字の一（「一番乗り」と「ー番乗り」を同一視）
 			'一': 'ー', '-': 'ー', '‐': 'ー', '–': 'ー', '—': 'ー', '−': 'ー',
 			'~': 'ー', '_': 'ー', '|': 'ー', '丨': 'ー', 'l': 'ー', 'I': 'ー',
-			// カタカナ / 漢字 の同形異字
-			'カ': '力',   // 精神カ → 精神力
-			'ニ': '二',   // 無ニ   → 無二
-			'口': 'ロ',   // 口ンシャン → ロンシャン
-			'卜': 'ト',   // ダー卜 → ダート
-			'夕': 'タ',   // ス夕ート → スタート
-			'工': 'エ',
-			'才': 'オ',
-			'八': 'ハ',
-			'ヘ': 'へ',
-			'ベ': 'べ',
-			'ペ': 'ぺ',
-			'刀': '力',
-			'儿': 'ル',
-			'厶': 'ム',
-			'又': 'ス'
+			'カ': '力', 'ニ': '二', '口': 'ロ', '卜': 'ト', '夕': 'タ',
+			'工': 'エ', '才': 'オ', '八': 'ハ',
+			'ヘ': 'へ', 'ベ': 'べ', 'ペ': 'ぺ',
+			'刀': '力', '儿': 'ル', '厶': 'ム', '又': 'ス'
 		};
 
 		function normalizeText(input) {
 			if (!input) return '';
-			let s = String(input);
+			let s = String(input).normalize('NFKC');
 
-			// 全角英数記号 → 半角、半角カナ → 全角カナ
-			s = s.normalize('NFKC');
-
-			// 空白・句読点・装飾記号を除去
 			s = s.replace(/[\s\u3000]/g, '');
 			s = s.replace(/[★☆✦✧♪♫※・,.。、:：;；!！?？"'`()（）\[\]{}<>«»\\\/@#$%^&*+=]/g, '');
 
-			// 同形異字の統一
 			let out = '';
 			for (const ch of s) {
-				out += (HOMOGLYPH_MAP[ch] !== undefined) ? HOMOGLYPH_MAP[ch] : ch;
+				let c = (CHAR_CONFUSION_MAP[ch] !== undefined) ? CHAR_CONFUSION_MAP[ch] : ch;
+				c = (HOMOGLYPH_MAP[c] !== undefined) ? HOMOGLYPH_MAP[c] : c;
+				out += c;
 			}
-
-			// 長音の連続は1つに畳む
-			out = out.replace(/ー{2,}/g, 'ー');
-
-			return out;
+			return out.replace(/ー{2,}/g, 'ー');
 		}
 
 		/* =========================================================
@@ -390,8 +378,7 @@
 			return prev[lb];
 		}
 
-		// スキル名の長さに応じた許容距離
-		// 「無二 / 無三」のような短い名前は誤爆が致命的なので完全一致を要求する
+		// 「無二 / 無三」のような1文字違いの短いスキルで誤爆させない
 		function allowedDistance(len) {
 			if (len <= 3) return 0;
 			if (len <= 5) return 1;
@@ -404,19 +391,16 @@
 		   ========================================================= */
 		function parseSkillList() {
 			const input = document.getElementById('skill-list').value.trim();
-			if (!input) {
-				alert('スキルリストを入力してください');
-				return;
-			}
+			if (!input) { alert('スキルリストを入力してください'); return; }
 
-			skillList = input.split(/[\n,\t]/).map(s => s.trim()).filter(s => s.length > 0);
+			skillList = input.split(/[\n,\t]/).map(function (s) { return s.trim(); })
+				.filter(function (s) { return s.length > 0; });
 
-			if (skillList.length === 0) {
-				alert('有効なスキルが見つかりません');
-				return;
-			}
+			if (skillList.length === 0) { alert('有効なスキルが見つかりません'); return; }
 
-			skillIndex = skillList.map(raw => ({ raw, norm: normalizeText(raw) }));
+			skillIndex = skillList.map(function (raw) {
+				return { raw: raw, norm: normalizeText(raw) };
+			});
 
 			document.getElementById('skill-count').textContent =
 				'✓ ' + skillList.length + '個のスキルを解析しました';
@@ -425,37 +409,38 @@
 
 		/* =========================================================
 		   ステップ2: 画像アップロード
-		   クリックは <label> の標準動作に任せる（JSで介入しない）
 		   ========================================================= */
 		const fileInput = document.getElementById('file-input');
 		const imageList = document.getElementById('image-list');
 		const processBtn = document.getElementById('process-btn');
 		const dropZone = document.getElementById('drop-zone');
 
-		fileInput.addEventListener('change', (e) => {
+		fileInput.addEventListener('change', function (e) {
 			addFiles(Array.from(e.target.files));
 			e.target.value = '';
 		});
 
-		['dragenter', 'dragover'].forEach((ev) => {
-			dropZone.addEventListener(ev, (e) => {
+		['dragenter', 'dragover'].forEach(function (ev) {
+			dropZone.addEventListener(ev, function (e) {
 				e.preventDefault();
 				dropZone.classList.add('drop-active');
 			});
 		});
-		['dragleave', 'dragend'].forEach((ev) => {
-			dropZone.addEventListener(ev, () => dropZone.classList.remove('drop-active'));
+		['dragleave', 'dragend'].forEach(function (ev) {
+			dropZone.addEventListener(ev, function () { dropZone.classList.remove('drop-active'); });
 		});
-		dropZone.addEventListener('drop', (e) => {
+		dropZone.addEventListener('drop', function (e) {
 			e.preventDefault();
 			dropZone.classList.remove('drop-active');
-			const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+			const files = Array.from(e.dataTransfer.files).filter(function (f) {
+				return f.type.indexOf('image/') === 0;
+			});
 			if (files.length) addFiles(files);
 		});
 
 		function addFiles(files) {
-			files.forEach((f) => {
-				const dup = uploadedFiles.some(u => u.name === f.name && u.size === f.size);
+			files.forEach(function (f) {
+				const dup = uploadedFiles.some(function (u) { return u.name === f.name && u.size === f.size; });
 				if (!dup) uploadedFiles.push(f);
 			});
 			renderImageList();
@@ -463,15 +448,15 @@
 		}
 
 		function renderImageList() {
-			imageList.innerHTML = uploadedFiles.map((file, idx) => `
-				<div class="relative rounded-lg border border-slate-200 overflow-hidden bg-slate-50">
-					<img src="${URL.createObjectURL(file)}" class="w-full h-24 md:h-32 object-cover" />
-					<div class="absolute top-1 right-1">
-						<button type="button" onclick="removeImage(${idx})" class="px-2 py-1 rounded bg-red-500 text-white text-xs font-medium hover:bg-red-600">削除</button>
-					</div>
-					<p class="text-xs text-slate-600 p-1 md:p-2 truncate">${escapeHtml(file.name)}</p>
-				</div>
-			`).join('');
+			imageList.innerHTML = uploadedFiles.map(function (file, idx) {
+				return '<div class="relative rounded-lg border border-slate-200 overflow-hidden bg-slate-50">' +
+					'<img src="' + URL.createObjectURL(file) + '" class="w-full h-24 md:h-32 object-cover" />' +
+					'<div class="absolute top-1 right-1">' +
+					'<button type="button" onclick="removeImage(' + idx + ')" class="px-2 py-1 rounded bg-red-500 text-white text-xs font-medium hover:bg-red-600">削除</button>' +
+					'</div>' +
+					'<p class="text-xs text-slate-600 p-1 md:p-2 truncate">' + escapeHtml(file.name) + '</p>' +
+					'</div>';
+			}).join('');
 		}
 
 		function removeImage(idx) {
@@ -485,21 +470,22 @@
 		}
 
 		/* =========================================================
-		   画像前処理
+		   画像読み込み
 		   ========================================================= */
 		function loadImage(file) {
-			return new Promise((resolve, reject) => {
+			return new Promise(function (resolve, reject) {
 				const img = new Image();
 				const url = URL.createObjectURL(file);
-				img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-				img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+				img.onload = function () { URL.revokeObjectURL(url); resolve(img); };
+				img.onerror = function (e) { URL.revokeObjectURL(url); reject(e); };
 				img.src = url;
 			});
 		}
 
-		// 小さい文字はTesseractが最も苦手とするため、まず解像度を稼ぐ
-		function toScaledCanvas(img, targetWidth) {
-			const scale = Math.max(1, Math.min(3, targetWidth / img.naturalWidth));
+		// 長辺が MAX_SIDE_PX を超えないよう縮小した等倍キャンバスを返す
+		function toBaseCanvas(img) {
+			const longSide = Math.max(img.naturalWidth, img.naturalHeight);
+			const scale = longSide > MAX_SIDE_PX ? (MAX_SIDE_PX / longSide) : 1;
 			const canvas = document.createElement('canvas');
 			canvas.width = Math.round(img.naturalWidth * scale);
 			canvas.height = Math.round(img.naturalHeight * scale);
@@ -510,32 +496,207 @@
 			return canvas;
 		}
 
-		// OCRに掛ける画像バリエーションを返す
-		async function buildVariants(file) {
-			const img = await loadImage(file);
-			const base = toScaledCanvas(img, 1800);
+		function scaleCanvas(canvas, targetWidth) {
+			const scale = Math.max(1, Math.min(3, targetWidth / canvas.width));
+			const out = document.createElement('canvas');
+			out.width = Math.round(canvas.width * scale);
+			out.height = Math.round(canvas.height * scale);
+			const ctx = out.getContext('2d');
+			ctx.imageSmoothingEnabled = true;
+			ctx.imageSmoothingQuality = 'high';
+			ctx.drawImage(canvas, 0, 0, out.width, out.height);
+			return out;
+		}
 
-			const usePre = document.getElementById('opt-preprocess').checked;
-			const multi = document.getElementById('opt-multipass').checked;
+		/* =========================================================
+		   スキル行の幾何学的検出
+		   行頭の丸アイコンを HoughCircles で検出し、
+		   半径・X座標のクラスタリングで列と行を確定させる。
+		   テンプレート画像を持たないので解像度に自動追従する。
+		   ========================================================= */
+		function detectSkillRows(baseCanvas) {
+			if (!cvReady) return null;
 
-			if (!usePre || !cvReady) return [base];
+			const W = baseCanvas.width;
+			const H = baseCanvas.height;
+
+			let src = null, gray = null, blur = null, circles = null;
+			let raw = [];
+
+			try {
+				src = cv.imread(baseCanvas);
+				gray = new cv.Mat();
+				cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+				blur = new cv.Mat();
+				cv.medianBlur(gray, blur, 5);
+
+				// アイコン半径は画面幅に対しておおよそ 1/120 〜 1/40 の範囲
+				const minR = Math.max(3, Math.round(W / 120));
+				const maxR = Math.max(minR + 2, Math.round(W / 40));
+				const minDist = Math.max(6, Math.round(W / 60));
+
+				circles = new cv.Mat();
+				cv.HoughCircles(blur, circles, cv.HOUGH_GRADIENT, 1, minDist, 100, 18, minR, maxR);
+
+				for (let i = 0; i < circles.cols; i++) {
+					raw.push({
+						x: circles.data32F[i * 3],
+						y: circles.data32F[i * 3 + 1],
+						r: circles.data32F[i * 3 + 2]
+					});
+				}
+			} catch (err) {
+				console.error('HoughCircles failed', err);
+				return null;
+			} finally {
+				[src, gray, blur, circles].forEach(function (m) {
+					try { if (m && !m.isDeleted()) m.delete(); } catch (e) {}
+				});
+			}
+
+			if (raw.length < 4) return null;
+
+			// --- 支配的な半径を求める（スキルアイコンは全て同じ大きさ） ---
+			let bestR = null, bestCount = 0;
+			raw.forEach(function (c) {
+				const tol = Math.max(1.5, c.r * 0.2);
+				let n = 0;
+				raw.forEach(function (d) { if (Math.abs(d.r - c.r) <= tol) n++; });
+				if (n > bestCount) { bestCount = n; bestR = c.r; }
+			});
+			if (bestR === null || bestCount < 4) return null;
+
+			const rTol = Math.max(1.5, bestR * 0.25);
+			const kept = raw.filter(function (c) { return Math.abs(c.r - bestR) <= rTol; });
+			if (kept.length < 4) return null;
+
+			// --- X座標で列にまとめる ---
+			kept.sort(function (a, b) { return a.x - b.x; });
+			const colGap = bestR * 3;
+			const clusters = [];
+			let cur = [kept[0]];
+			for (let i = 1; i < kept.length; i++) {
+				if (kept[i].x - cur[cur.length - 1].x <= colGap) {
+					cur.push(kept[i]);
+				} else {
+					clusters.push(cur);
+					cur = [kept[i]];
+				}
+			}
+			clusters.push(cur);
+
+			// 3個以上並んでいるものだけを「列」とみなす（単発のアイコンを除外）
+			let columns = clusters.filter(function (c) { return c.length >= 3; });
+			if (columns.length === 0) return null;
+
+			columns = columns.map(function (members) {
+				members.sort(function (a, b) { return a.y - b.y; });
+				// 近接しすぎたY（同一アイコンの重複検出）を統合
+				const dedup = [];
+				members.forEach(function (m) {
+					if (dedup.length === 0 || (m.y - dedup[dedup.length - 1].y) > bestR) dedup.push(m);
+				});
+				const xs = dedup.map(function (m) { return m.x; }).sort(function (a, b) { return a - b; });
+				return { x: xs[Math.floor(xs.length / 2)], members: dedup };
+			}).sort(function (a, b) { return a.x - b.x; });
+
+			// --- 行の間隔（ピッチ）を求める ---
+			const diffs = [];
+			columns.forEach(function (col) {
+				for (let i = 1; i < col.members.length; i++) {
+					diffs.push(col.members[i].y - col.members[i - 1].y);
+				}
+			});
+			if (diffs.length === 0) return null;
+			diffs.sort(function (a, b) { return a - b; });
+			const pitch = diffs[Math.floor(diffs.length / 2)];
+			if (!pitch || pitch < bestR * 2) return null;
+
+			// --- 各アイコンの右側を1行として切り出す ---
+			const rows = [];
+			columns.forEach(function (col, ci) {
+				const rightLimit = (ci + 1 < columns.length)
+					? (columns[ci + 1].x - bestR * 2.2)
+					: (W - bestR);
+
+				col.members.forEach(function (m) {
+					const x0 = Math.round(m.x + bestR * 1.7);
+					const x1 = Math.round(rightLimit);
+					// スキル名は star 行の上にあるので、ピッチの6割を上下対称に取る
+					const h = Math.min(pitch * 0.62, bestR * 5.5);
+					const y0 = Math.round(m.y - h / 2);
+					const y1 = Math.round(m.y + h / 2);
+
+					if (x1 - x0 < bestR * 4) return;
+					if (y0 < 0 || y1 > H) return;
+
+					rows.push({ x: x0, y: y0, w: x1 - x0, h: y1 - y0, col: ci });
+				});
+			});
+
+			if (rows.length < 4) return null;
+
+			return {
+				rows: rows,
+				radius: bestR,
+				pitch: pitch,
+				columns: columns.length,
+				iconCount: kept.length
+			};
+		}
+
+		// 切り出した行を1枚のキャンバスに縦に積み上げる
+		// 行間に十分な余白を入れることで、OCRが行を取り違えないようにする
+		function stackRows(baseCanvas, rows) {
+			const scales = rows.map(function (r) {
+				return Math.max(1, Math.min(4, ROW_TARGET_HEIGHT / r.h));
+			});
+			const widths = rows.map(function (r, i) { return Math.round(r.w * scales[i]); });
+			const heights = rows.map(function (r, i) { return Math.round(r.h * scales[i]); });
+
+			const gap = Math.round(ROW_TARGET_HEIGHT * 0.5);
+			const padX = 24;
+			const outW = Math.max.apply(null, widths) + padX * 2;
+			let outH = gap;
+			heights.forEach(function (h) { outH += h + gap; });
+
+			const canvas = document.createElement('canvas');
+			canvas.width = outW;
+			canvas.height = outH;
+			const ctx = canvas.getContext('2d');
+			ctx.fillStyle = '#FFFFFF';
+			ctx.fillRect(0, 0, outW, outH);
+			ctx.imageSmoothingEnabled = true;
+			ctx.imageSmoothingQuality = 'high';
+
+			let y = gap;
+			rows.forEach(function (r, i) {
+				ctx.drawImage(baseCanvas, r.x, r.y, r.w, r.h, padX, y, widths[i], heights[i]);
+				y += heights[i] + gap;
+			});
+
+			return canvas;
+		}
+
+		/* =========================================================
+		   前処理（二値化）
+		   ========================================================= */
+		function preprocessVariants(canvas, multi) {
+			if (!cvReady) return [canvas];
 
 			const variants = [];
 			let src = null, gray = null, eq = null, clahe = null, bin = null, inv = null;
 			try {
-				src = cv.imread(base);
+				src = cv.imread(canvas);
 				gray = new cv.Mat();
 				cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
-				// 局所コントラスト補正（CLAHE）
-				// 背景の明暗差が大きいゲームUIでは、単純な正規化より安定する
+				// 局所コントラスト補正
 				eq = new cv.Mat();
 				clahe = new cv.CLAHE(2.0, new cv.Size(8, 8));
 				clahe.apply(gray, eq);
 
-				// 適応的二値化
-				// 画面全体に単一閾値を当てるOtsuと違い、背景色が場所ごとに
-				// 変わるUIでも文字だけを残せる
+				// 適応的二値化（背景色が場所ごとに変わるUIに強い）
 				bin = new cv.Mat();
 				cv.adaptiveThreshold(eq, bin, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 31, 12);
 
@@ -544,25 +705,23 @@
 				variants.push(c1);
 
 				if (multi) {
-					// 反転版: 白抜き文字を拾うため
 					inv = new cv.Mat();
 					cv.bitwise_not(bin, inv);
 					const c2 = document.createElement('canvas');
 					cv.imshow(c2, inv);
 					variants.push(c2);
-					// 原画像（拡大のみ）: 前処理が裏目に出た場合の保険
-					variants.push(base);
+					variants.push(canvas);
 				}
 			} catch (err) {
 				console.error('preprocess failed', err);
-				return [base];
+				return [canvas];
 			} finally {
-				[src, gray, eq, bin, inv].forEach((m) => {
+				[src, gray, eq, bin, inv].forEach(function (m) {
 					try { if (m && !m.isDeleted()) m.delete(); } catch (e) {}
 				});
 				try { if (clahe && clahe.delete) clahe.delete(); } catch (e) {}
 			}
-			return variants.length ? variants : [base];
+			return variants.length ? variants : [canvas];
 		}
 
 		/* =========================================================
@@ -574,13 +733,17 @@
 
 			detectedSkills.clear();
 			matchReasons = {};
-			unmatchedLines = [];
+			devTypo = []; devLowConf = []; devOther = []; devGeometry = [];
 
 			const progressWrap = document.getElementById('progress-wrap');
 			const errorWrap = document.getElementById('error-wrap');
 			errorWrap.classList.add('hidden');
 			progressWrap.classList.remove('hidden');
 			processBtn.disabled = true;
+
+			const useRowDetect = document.getElementById('opt-rowdetect').checked;
+			const usePre = document.getElementById('opt-preprocess').checked;
+			const multi = document.getElementById('opt-multipass').checked;
 
 			let worker = null;
 			let successCount = 0;
@@ -592,28 +755,46 @@
 				await worker.loadLanguage('jpn');
 				await worker.initialize('jpn');
 				await worker.setParameters({
-					// スキル名は箱の中に整列しているので「均一なブロック」として扱う
 					tessedit_pageseg_mode: '6',
 					preserve_interword_spaces: '1',
 					user_defined_dpi: '300'
 				});
 
-				const totalSteps = uploadedFiles.length;
+				const total = uploadedFiles.length;
 
-				for (let i = 0; i < uploadedFiles.length; i++) {
+				for (let i = 0; i < total; i++) {
 					const file = uploadedFiles[i];
-					setProgress(i / totalSteps, '前処理中: ' + file.name);
+					setProgress(i / total, '行を検出中: ' + file.name);
 
-					let variants;
+					let target = null;
 					try {
-						variants = await buildVariants(file);
+						const img = await loadImage(file);
+						const base = toBaseCanvas(img);
+
+						// 幾何学的な行検出を先に済ませ、その後で拡大する
+						// （拡大後の巨大画像に形状処理をかけると不安定になるため）
+						let detection = null;
+						if (useRowDetect) detection = detectSkillRows(base);
+
+						if (detection) {
+							devGeometry.push(file.name + ': ' + detection.rows.length + '行 / '
+								+ detection.columns + '列 / アイコン半径' + Math.round(detection.radius)
+								+ 'px / 行間隔' + Math.round(detection.pitch) + 'px');
+							target = stackRows(base, detection.rows);
+						} else {
+							devGeometry.push(file.name + ': 行検出に失敗 → 画像全体をOCR');
+							target = scaleCanvas(base, 1800);
+						}
 					} catch (err) {
 						console.error(err);
+						devGeometry.push(file.name + ': 画像の読み込みに失敗');
 						continue;
 					}
 
+					const variants = usePre ? preprocessVariants(target, multi) : [target];
+
 					for (let v = 0; v < variants.length; v++) {
-						setProgress((i + v / variants.length) / totalSteps,
+						setProgress((i + v / variants.length) / total,
 							'OCR中: ' + file.name + '（' + (v + 1) + '/' + variants.length + '）');
 						try {
 							const res = await worker.recognize(variants[v]);
@@ -635,7 +816,6 @@
 				if (worker) { try { await worker.terminate(); } catch (e) {} }
 			}
 
-			setProgress(1, '照合中…');
 			progressWrap.classList.add('hidden');
 			processBtn.disabled = false;
 
@@ -656,15 +836,14 @@
 			document.getElementById('progress-label').textContent = label;
 		}
 
-		// OCR結果から行テキストを取り出す
 		function extractLines(data) {
 			const lines = [];
 			if (data && Array.isArray(data.lines) && data.lines.length) {
-				data.lines.forEach((l) => {
+				data.lines.forEach(function (l) {
 					if (l.text && l.text.trim()) lines.push({ text: l.text.trim(), conf: l.confidence });
 				});
 			} else if (data && data.text) {
-				data.text.split(/\r?\n/).forEach((t) => {
+				data.text.split(/\r?\n/).forEach(function (t) {
 					if (t.trim()) lines.push({ text: t.trim(), conf: null });
 				});
 			}
@@ -673,35 +852,32 @@
 
 		/* =========================================================
 		   マッチング
-		   1) 全文の部分一致（正規化後）
-		   2) 誤認識辞書
-		   3) 行単位のファジーマッチ（最良候補＋次点との差で確定）
 		   ========================================================= */
 		function matchAll(lines) {
 			const normDictionary = {};
-			Object.keys(ocrErrorDictionary).forEach((k) => {
+			Object.keys(ocrErrorDictionary).forEach(function (k) {
 				normDictionary[normalizeText(k)] = ocrErrorDictionary[k];
 			});
 
-			// --- 1) 全文の部分一致 ---
-			const fullText = normalizeText(lines.map(l => l.text).join('\n'));
-			skillIndex.forEach(({ raw, norm }) => {
-				if (norm && fullText.indexOf(norm) !== -1) {
-					detectedSkills.add(raw);
-					matchReasons[raw] = '完全一致';
+			// 1) 全文の部分一致
+			const fullText = normalizeText(lines.map(function (l) { return l.text; }).join('\n'));
+			skillIndex.forEach(function (s) {
+				if (s.norm && fullText.indexOf(s.norm) !== -1) {
+					detectedSkills.add(s.raw);
+					matchReasons[s.raw] = '完全一致';
 				}
 			});
 
-			// --- 2) 3) 行単位 ---
-			const seenLines = new Set();
+			// 2) 3) 行単位
+			const seen = new Set();
 
-			lines.forEach((line) => {
+			lines.forEach(function (line) {
 				const norm = normalizeText(line.text);
 				if (!norm || norm.length < 2) return;
-				if (seenLines.has(norm)) return;
-				seenLines.add(norm);
+				if (seen.has(norm)) return;
+				seen.add(norm);
 
-				// 誤認識辞書
+				// 辞書
 				if (normDictionary[norm]) {
 					const target = normDictionary[norm];
 					if (skillList.indexOf(target) !== -1) {
@@ -711,15 +887,18 @@
 					return;
 				}
 
-				// すでに確定したスキル名を含む行は失敗ログに出さない
-				let containsKnown = false;
+				// 確定済みスキル名を含む行はログに出さない
 				for (let i = 0; i < skillIndex.length; i++) {
 					const sn = skillIndex[i].norm;
-					if (sn && norm.indexOf(sn) !== -1) { containsKnown = true; break; }
+					if (sn && norm.indexOf(sn) !== -1) return;
 				}
-				if (containsKnown) return;
 
-				// ファジーマッチ
+				// 低信頼度は照合対象から外す（アイコンや装飾を無理に読んだ行）
+				if (line.conf !== null && line.conf !== undefined && line.conf < CONF_THRESHOLD) {
+					devLowConf.push({ text: line.text, norm: norm, conf: line.conf });
+					return;
+				}
+
 				const cand = bestCandidate(norm);
 
 				if (cand && cand.ok) {
@@ -727,20 +906,27 @@
 						matchReasons[cand.raw] = '推定（距離' + cand.dist + '）';
 					}
 					detectedSkills.add(cand.raw);
+					return;
+				}
+
+				const entry = {
+					text: line.text,
+					norm: norm,
+					conf: line.conf,
+					best: cand ? cand.raw : null,
+					dist: cand ? cand.dist : null,
+					reason: cand ? cand.reason : '候補なし'
+				};
+
+				// 惜しい距離で外れたものは「誤字候補」として先頭に集める
+				if (cand && cand.dist !== null && cand.dist <= cand.limit + 2) {
+					devTypo.push(entry);
 				} else {
-					unmatchedLines.push({
-						text: line.text,
-						norm: norm,
-						conf: line.conf,
-						best: cand ? cand.raw : null,
-						dist: cand ? cand.dist : null,
-						reason: cand ? cand.reason : '候補なし'
-					});
+					devOther.push(entry);
 				}
 			});
 		}
 
-		// 1行に対する最良のスキル候補を求める
 		function bestCandidate(normLine) {
 			let best = null, second = null;
 
@@ -756,25 +942,21 @@
 					second = { raw: raw, norm: norm, dist: d };
 				}
 			}
-
 			if (!best) return null;
 
 			const limit = allowedDistance(best.norm.length);
 
 			if (best.dist > limit) {
-				return { raw: best.raw, dist: best.dist, ok: false,
+				return { raw: best.raw, dist: best.dist, limit: limit, ok: false,
 					reason: '距離' + best.dist + ' > 許容' + limit };
 			}
-			// 次点と同距離なら曖昧（例: 無二/無三、右回り○/左回り○）
 			if (second && second.dist === best.dist) {
-				return { raw: best.raw, dist: best.dist, ok: false,
+				return { raw: best.raw, dist: best.dist, limit: limit, ok: false,
 					reason: '曖昧（' + best.raw + ' と ' + second.raw + ' が同点）' };
 			}
-			return { raw: best.raw, dist: best.dist, ok: true };
+			return { raw: best.raw, dist: best.dist, limit: limit, ok: true };
 		}
 
-		// 行の中に埋もれたスキル名も拾えるよう、
-		// スキル名と同じ長さのウィンドウをずらしながら最小距離を取る
 		function windowDistance(line, skill) {
 			if (line.length <= skill.length + 1) return levenshtein(line, skill);
 			const w = skill.length;
@@ -801,15 +983,14 @@
 			let copyText = '';
 			let foundCount = 0;
 
-			skillList.forEach((skill, idx) => {
+			skillList.forEach(function (skill, idx) {
 				const found = detectedSkills.has(skill);
-				const status = found ? '○' : '';
 				const statusClass = found ? 'found' : 'not-found';
 				const reason = found ? (matchReasons[skill] || '') : '';
 
 				tableHtml += '<tr>' +
 					'<td>' + escapeHtml(skill) + '</td>' +
-					'<td class="' + statusClass + '">' + status + '</td>' +
+					'<td class="' + statusClass + '">' + (found ? '○' : '') + '</td>' +
 					'<td class="text-slate-400">' + escapeHtml(reason) + '</td>' +
 					'</tr>';
 
@@ -817,10 +998,9 @@
 				if (found) foundCount++;
 			});
 
-			const totalCount = skillList.length;
-			document.getElementById('stat-total').textContent = totalCount;
+			document.getElementById('stat-total').textContent = skillList.length;
 			document.getElementById('stat-found').textContent = foundCount;
-			document.getElementById('stat-not-found').textContent = totalCount - foundCount;
+			document.getElementById('stat-not-found').textContent = skillList.length - foundCount;
 
 			tbody.innerHTML = tableHtml;
 			copyData.value = copyText;
@@ -829,32 +1009,55 @@
 			renderDevLog();
 		}
 
+		function formatEntry(u) {
+			const confStr = (u.conf !== null && u.conf !== undefined) ? ' conf=' + Math.round(u.conf) : '';
+			const bestStr = u.best
+				? '  → 候補: ' + u.best + '（距離' + u.dist + ' / ' + u.reason + '）'
+				: '  → ' + u.reason;
+			return '"' + u.text + '"' + confStr + '\n  正規化: ' + u.norm + '\n' + bestStr;
+		}
+
 		function renderDevLog() {
 			const devWrap = document.getElementById('dev-wrap');
 			const devLog = document.getElementById('dev-log');
-			const show = document.getElementById('opt-devlog').checked;
-
-			if (!show || unmatchedLines.length === 0) {
+			if (!document.getElementById('opt-devlog').checked) {
 				devWrap.classList.add('hidden');
 				return;
 			}
 
-			const body = unmatchedLines.map((u) => {
-				const confStr = (u.conf !== null && u.conf !== undefined) ? ' conf=' + Math.round(u.conf) : '';
-				const bestStr = u.best
-					? '  → 候補: ' + u.best + '（距離' + u.dist + ' / ' + u.reason + '）'
-					: '  → ' + u.reason;
-				return '"' + u.text + '"' + confStr + '\n  正規化: ' + u.norm + '\n' + bestStr;
-			}).join('\n\n');
+			const parts = [];
 
-			devLog.textContent = unmatchedLines.length + '件\n\n' + body;
+			if (devGeometry.length) {
+				parts.push('■ 行検出の結果\n' + devGeometry.join('\n'));
+			}
+			if (devTypo.length) {
+				parts.push('■ 誤字候補 ' + devTypo.length + '件（辞書に追加する価値が高い）\n\n'
+					+ devTypo.map(formatEntry).join('\n\n'));
+			}
+			if (devLowConf.length) {
+				parts.push('■ 低信頼度 ' + devLowConf.length + '件（conf<' + CONF_THRESHOLD + '。照合対象外）\n\n'
+					+ devLowConf.map(function (u) {
+						return '"' + u.text + '" conf=' + Math.round(u.conf) + '\n  正規化: ' + u.norm;
+					}).join('\n\n'));
+			}
+			if (devOther.length) {
+				parts.push('■ その他 ' + devOther.length + '件（リスト対象外のスキルや無関係な文字列）\n\n'
+					+ devOther.map(formatEntry).join('\n\n'));
+			}
+
+			if (parts.length === 0) {
+				devWrap.classList.add('hidden');
+				return;
+			}
+
+			devLog.textContent = parts.join('\n\n\n');
 			devWrap.classList.remove('hidden');
 		}
 
 		function escapeHtml(s) {
-			return String(s).replace(/[&<>"']/g, (c) => ({
-				'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-			}[c]));
+			return String(s).replace(/[&<>"']/g, function (c) {
+				return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+			});
 		}
 
 		function copyToClipboard() {
@@ -868,8 +1071,8 @@
 			const text = document.getElementById('dev-log').textContent;
 			if (navigator.clipboard && navigator.clipboard.writeText) {
 				navigator.clipboard.writeText(text).then(
-					() => alert('失敗テキストをコピーしました'),
-					() => alert('コピーに失敗しました')
+					function () { alert('ログをコピーしました'); },
+					function () { alert('コピーに失敗しました'); }
 				);
 			}
 		}
