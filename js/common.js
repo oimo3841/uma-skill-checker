@@ -66,7 +66,10 @@ function levenshtein(a, b) {
 }
 
 function allowedDistance(len) {
-	if (len <= 3) return 0;
+	// 3文字ちょうどのスキル名（例：「急降下」）はこれまで距離0（完全一致必須）
+	// だったため、字形の近い1文字誤読（隆⇔降 など）だけで確定できないケースがあった。
+	// 2文字以下はまだ誤爆リスクが高いので0のまま、3文字から緩和する。
+	if (len <= 2) return 0;
 	if (len <= 5) return 1;
 	if (len <= 9) return 2;
 	return 3;
@@ -475,12 +478,20 @@ function windowDistance(line, skill) {
 /**
  * 1つのOCR行（正規化済み文字列）に対し、skillIndexの中から最良候補を選ぶ。
  * skillIndex: [{ raw: '元のスキル名', norm: '正規化済み文字列' }, ...]
+ *
+ * alreadyDetected（省略可）: これまでに他の行から確定済みのスキル名（raw）の Set。
+ * 同着タイになった場合、その中に既に確定済みのスキルが含まれていれば「そのスキルは
+ * 既に別の行で見つかっているはずなので、このタイからは除外してよい」とみなし、
+ * 残りが1つに絞れればそれを採用する（消去法）。
+ * 例：「左回り○」の行をOCRが誤読して「小回り○」「右回り○」「左回り○」の3つと
+ * 同着になっても、「小回り○」「右回り○」が別の行で既に確定していれば「左回り○」に絞れる。
+ *
  * 戻り値:
  *   null … 候補となるスキルが一つもない（skillIndexが空 等）
- *   { raw, dist, limit, ok: true }  … 確定採用できる候補が見つかった
+ *   { raw, dist, limit, ok: true, reason? }  … 確定採用できる候補が見つかった
  *   { raw, dist, limit, ok: false, reason } … 候補はあるが確定できない（しきい値超過 or 同点タイ）
  */
-function bestCandidate(normLine, skillIndex) {
+function bestCandidate(normLine, skillIndex, alreadyDetected) {
 	const passing = [];
 	let fallback = null;
 	for (let i = 0; i < skillIndex.length; i++) {
@@ -499,6 +510,13 @@ function bestCandidate(normLine, skillIndex) {
 	const top = passing[0];
 	const tied = passing.filter(p => p.dist === top.dist && p.norm.length === top.norm.length);
 	if (tied.length > 1) {
+		if (alreadyDetected) {
+			const remaining = tied.filter(p => !alreadyDetected.has(p.raw));
+			if (remaining.length === 1) {
+				const only = remaining[0];
+				return { raw: only.raw, dist: only.dist, limit: only.limit, ok: true, reason: '曖昧→消去法' };
+			}
+		}
 		return { raw: top.raw, dist: top.dist, limit: top.limit, ok: false, reason: '曖昧' };
 	}
 	return { raw: top.raw, dist: top.dist, limit: top.limit, ok: true };
@@ -532,6 +550,11 @@ function matchAllSkills(lines, skillList, skillIndex, ocrErrorDictionary) {
 	});
 
 	const seen = new Set();
+	// 辞書・完全一致で確定できなかった行は、いったんここに貯めておく。
+	// 「曖昧」タイの消去法（bestCandidateのalreadyDetected）が、行の並び順に関係なく
+	// 全行の辞書・完全一致の結果を使えるようにするため、あいまい判定は
+	// 全行の辞書・完全一致が出揃った後に第2パスとしてまとめて行う。
+	const pendingFuzzy = [];
 
 	lines.forEach(line => {
 		const norm = normalizeText(line.text);
@@ -575,9 +598,17 @@ function matchAllSkills(lines, skillList, skillIndex, ocrErrorDictionary) {
 			return;
 		}
 
-		const cand = bestCandidate(norm, skillIndex);
+		pendingFuzzy.push({ line: line, norm: norm });
+	});
+
+	// 第2パス：あいまい一致（distance判定・曖昧タイの消去法）。
+	// この時点で detectedSkills には全行の辞書・完全一致の結果が反映済み。
+	pendingFuzzy.forEach(({ line, norm }) => {
+		const cand = bestCandidate(norm, skillIndex, detectedSkills);
 		if (cand && cand.ok) {
-			if (!detectedSkills.has(cand.raw)) matchReasons[cand.raw] = '推定（距離' + cand.dist + '）';
+			if (!detectedSkills.has(cand.raw)) {
+				matchReasons[cand.raw] = '推定（距離' + cand.dist + (cand.reason ? ' / ' + cand.reason : '') + '）';
+			}
 			detectedSkills.add(cand.raw);
 			if (cand.dist > 0) {
 				devFuzzy.push({ text: line.text, norm: norm, conf: line.conf, matched: cand.raw, dist: cand.dist });
