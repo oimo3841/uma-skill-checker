@@ -17,7 +17,7 @@
 // このファイルの版。ツールの開発用ログの先頭に表示される。
 // 「どの版の common.js がブラウザで実際に動いているか」を確認するための目印。
 // 中身を変更したらこの日付も更新すること。
-const COMMON_JS_VERSION = '2026-09-05a';
+const COMMON_JS_VERSION = '2026-09-06a';
 
 const MAX_SIDE_PX = 3000;
 const CONF_THRESHOLD = 55;
@@ -28,11 +28,11 @@ const ADAPTIVE_C = 12;
 
 const CHAR_CONFUSION_MAP = {
 	'娩': '娘', '嫡': '娘', '棒': '枠', '桶': '枠', '狐': '狼', '颯': '狼', '貴': '覚', '緯': '線', '被': '神',
-	// 「左」の誤読対策（2026-09-05追加）。「左回り〇」「左回りの目覚め」等で
-	// OCRが「左」を「を」と読むケースが繰り返し確認されたため追加。
-	// 「右回り〇」等が同じ画像内に存在しない場合、あいまい一致の消去法だけでは
-	// 「右」か「左」か確定できず未検出になっていたため、文字レベルで矯正する。
-	'を': '左'
+	// 2026-09-06 追加: 実機ログ「HRcRQWvbMAAE0Yc.jpg」の解析で見つかった誤読パターン。
+	// 「時」⇔「春」は共に「日」を含み字形が近い。「量」⇔「重」「貸」⇔「賞」は
+	// 「交流重賞〇」で確認された誤読で、いずれも他のスキル名にも登場しうる字のため
+	// 個別の辞書登録ではなく汎用の文字混同マップ側に追加する。
+	'時': '春', '量': '重', '貸': '賞'
 };
 const HOMOGLYPH_MAP = {
 	'◯': '○', '〇': '○', '◎': '○', '●': '○', '◉': '○', '0': '○', 'O': '○', 'o': '○', 'Q': '○', 'D': '○', '°': '○',
@@ -557,15 +557,48 @@ function trustworthyStars(line) {
  * （＝同じ行、または重なった別画像で★の数も一致する）は外さない。
  * これを外してしまうと、同じ項目を読み直しただけの行が、
  * 字面の近い別スキルとして過剰に検出されてしまう。
+ *
+ * diagEntries（配列）を渡すと、判定の途中経過を1件のオブジェクトとして追記する。
+ * 「なぜ解決できた／できなかったか」を開発ログで確認できるようにするための引数で、
+ * 判定結果そのものには一切影響しない（省略しても従来通り動作する）。
+ *   { text, norm, rowKey, tied, source: 'resolveTiedCandidates',
+ *     candidates: [{ raw, alreadyDetected, provablyOther, checks: [{ otherRowKey, thisRowKey, result }] }],
+ *     survivors, resolved }
  */
-function resolveTiedCandidates(tiedRaws, line, detectedSkills, skillSources, lines) {
+function resolveTiedCandidates(tiedRaws, line, detectedSkills, skillSources, lines, diagEntries, norm) {
+	const candidateDiags = [];
 	const survivors = tiedRaws.filter(raw => {
-		if (!detectedSkills.has(raw)) return true;
+		if (!detectedSkills.has(raw)) {
+			candidateDiags.push({ raw: raw, alreadyDetected: false, provablyOther: false, checks: [] });
+			return true;
+		}
 		const sources = skillSources[raw] || [];
-		const provablyOther = sources.some(i => isDifferentRow(lines[i], line));
+		const checks = sources.map(i => {
+			const other = lines[i];
+			return {
+				otherRowKey: other ? (other.rowKey || null) : null,
+				thisRowKey: line ? (line.rowKey || null) : null,
+				result: isDifferentRow(other, line)
+			};
+		});
+		const provablyOther = checks.some(c => c.result);
+		candidateDiags.push({ raw: raw, alreadyDetected: true, provablyOther: provablyOther, checks: checks });
 		return !provablyOther;
 	});
-	return survivors.length === 1 ? survivors[0] : null;
+	const resolved = survivors.length === 1 ? survivors[0] : null;
+	if (diagEntries) {
+		diagEntries.push({
+			text: line ? line.text : null,
+			norm: norm || null,
+			rowKey: line ? (line.rowKey || null) : null,
+			tied: tiedRaws.slice(),
+			source: 'resolveTiedCandidates',
+			candidates: candidateDiags,
+			survivors: survivors.slice(),
+			resolved: resolved
+		});
+	}
+	return resolved;
 }
 
 /**
@@ -593,6 +626,8 @@ function matchAllSkills(lines, skillList, skillIndex, ocrErrorDictionary) {
 	// 「そのスキルの★はどの行のものか」を後から正確に引くために必ず記録する。
 	const skillSources = {};
 	const devTypo = [], devLowConf = [], devOther = [], devFuzzy = [];
+	// 曖昧タイ（同着候補）の絞り込み過程を記録する。resolveTiedCandidates() 参照。
+	const devAmbiguous = [];
 
 	const normDictionary = {};
 	Object.keys(ocrErrorDictionary || {}).forEach(k => {
@@ -674,7 +709,14 @@ function matchAllSkills(lines, skillList, skillIndex, ocrErrorDictionary) {
 			// 同じ誤読文字列は同じスキルを指すはずなので、一度絞り込めた結果を使い回す。
 			// （重なったスクショで同じ項目が何度も同じように誤読されるため）
 			let picked = (resolvedByText[norm] && cand.tied.indexOf(resolvedByText[norm]) !== -1) ? resolvedByText[norm] : null;
-			if (!picked) picked = resolveTiedCandidates(cand.tied, line, detectedSkills, skillSources, lines);
+			if (picked) {
+				devAmbiguous.push({
+					text: line.text, norm: norm, rowKey: line.rowKey || null,
+					tied: cand.tied.slice(), source: 'キャッシュ再利用', candidates: [], survivors: [picked], resolved: picked
+				});
+			} else {
+				picked = resolveTiedCandidates(cand.tied, line, detectedSkills, skillSources, lines, devAmbiguous, norm);
+			}
 			if (picked) {
 				resolvedByText[norm] = picked;
 				cand = { raw: picked, dist: cand.dist, limit: cand.limit, ok: true, reason: '曖昧→絞り込み' };
@@ -699,7 +741,7 @@ function matchAllSkills(lines, skillList, skillIndex, ocrErrorDictionary) {
 		else devOther.push(entry);
 	});
 
-	return { detectedSkills, matchReasons, skillSources, devTypo, devLowConf, devOther, devFuzzy };
+	return { detectedSkills, matchReasons, skillSources, devTypo, devLowConf, devOther, devFuzzy, devAmbiguous };
 }
 
 /* ============================================================
