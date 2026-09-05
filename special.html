@@ -70,8 +70,10 @@
 	<div class="w-full max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12">
 
 		<!-- ヘッダー -->
-		<header class="mb-8 md:mb-10 border-b border-green-100 pb-6">
-			<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+		<header class="relative overflow-hidden mb-8 md:mb-10 rounded-3xl border border-green-100 bg-gradient-to-br from-green-50/90 via-white/70 to-white p-5 md:p-8 shadow-sm">
+			<div aria-hidden="true" class="pointer-events-none absolute -top-16 -right-10 w-56 h-56 rounded-full bg-green-200/40 blur-3xl"></div>
+			<div aria-hidden="true" class="pointer-events-none absolute -bottom-20 -left-10 w-48 h-48 rounded-full bg-amber-200/30 blur-3xl"></div>
+			<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
 				<!-- 左側：タイトルエリア -->
 				<div>
 					<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 border border-green-200 text-green-700 text-xs font-semibold mb-2">
@@ -467,6 +469,7 @@
 			badge.textContent = count + '件';
 			badge.classList.toggle('hidden', count === 0);
 
+			// スキルリスト解析済みなら、書かれた「本来のスキル名」がリストに存在するか照合して知らせる
 			const status = document.getElementById('dict-status');
 			const unknown = [];
 			if (skillList.length > 0) {
@@ -534,7 +537,7 @@
 			badge.textContent = skillList.length + ' 個のスキル';
 			badge.classList.remove('hidden');
 			showToast(skillList.length + '個のスキルをセットしました');
-			parseOcrDictionary();
+			parseOcrDictionary(); // 辞書に書かれたスキル名がリストに存在するか再確認する
 			updateProcessBtn();
 		}
 
@@ -638,6 +641,7 @@
 		 * OCR処理本体
 		 * ============================================================ */
 
+		// 1人分の画像群を処理し、★情報つきのOCR行配列を返す
 		async function processPersonImages(worker, files, labelPrefix, usePre, multi, wantPreview) {
 			const lines = [];
 			for (let i = 0; i < files.length; i++) {
@@ -676,6 +680,9 @@
 						const res = await worker.recognize(variants[v]);
 						if (detection) {
 							const rawLines = extractLinesWithBBox(res.data);
+							// 第2引数以降で「どの画像のどの行から来たOCR行か」を持たせる。
+							// 同じ画像を前処理違いで読み直した結果は同じ rowKey になり、
+							// 判定側が「同じ項目の読み直し」と「別の項目」を区別できる。
 							const withStars = attachStarsToLines(rawLines, placements, rowStars, i);
 							lines.push.apply(lines, withStars);
 						} else {
@@ -765,6 +772,7 @@
 		/* ============================================================
 		 * 結果表示
 		 * ============================================================ */
+		// 戻り値: 数値=★の数 / null=検出できたが★を計測できなかった / undefined=未検出
 		function starsFor(personIdx, skill) {
 			const res = personResults[personIdx];
 			if (!res) return undefined;
@@ -782,6 +790,8 @@
 			skillList.forEach(skill => {
 				const rowVals = [0, 1, 2].map(p => starsFor(p, skill));
 				rowVals.forEach((v, i) => { if (v !== undefined) foundCounts[i]++; });
+				// ★を計測できなかった場合（null）は、誤った数字を貼らないよう空欄にする。
+				// 表側には「?」を出して、手で補う必要があることが分かるようにしている。
 				copyRows.push(rowVals.map(v => (v === null || v === undefined) ? '' : String(v)).join('\t'));
 			});
 
@@ -803,6 +813,7 @@
 				return '<span class="text-slate-300 text-xs">−</span>';
 			}
 			if (stars === null) {
+				// スキルは見つかったが★の数を確定できなかった（要手入力）
 				return '<span class="text-amber-600 text-xs font-bold" title="スキルは検出できましたが★の数を確定できませんでした">?</span>';
 			}
 			return '<span class="star-cell text-amber-500">' + '★'.repeat(stars) + '</span>' +
@@ -878,10 +889,14 @@
 			if (!document.getElementById('opt-devlog').checked) { devWrap.classList.add('hidden'); return; }
 
 			const parts = [];
+			// 実際にブラウザで読み込まれている common.js の版を明示する。
+			// 更新したはずの内容が反映されていない（キャッシュ・貼り忘れ等）ことを切り分けるため。
 			parts.push('■ 実行環境\n  common.js 版: ' + (typeof COMMON_JS_VERSION !== 'undefined' ? COMMON_JS_VERSION : '(不明・古い版です)') +
 				'\n  読み替え辞書: ' + Object.keys(ocrErrorDictionary).length + '件');
 			if (devGeometry.length) parts.push('■ 行検出・★判定の内訳\n' + devGeometry.join('\n'));
 
+			// デバッグしやすいよう、件数だけでなく実際のOCRテキスト・正規化結果・
+			// 候補との距離まで出す（見つからなかったスキルの原因調査のため）。
 			PERSON_LABELS.forEach((label, idx) => {
 				const res = personResults[idx];
 				if (!res) return;
