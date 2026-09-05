@@ -12,13 +12,29 @@
 	<script src="js/common.js"></script>
 	<style>
 		body {
-			background-color: #f8fafc;
-			background-image: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.15) 1px, transparent 0);
-			background-size: 24px 24px;
+			background-color: #f0f9ff;
+			background-image:
+				radial-gradient(circle at 1px 1px, rgba(56, 138, 221, 0.08) 1px, transparent 0),
+				radial-gradient(ellipse 620px 280px at 12% -6%, rgba(255, 255, 255, 0.95), transparent 60%),
+				radial-gradient(ellipse 520px 260px at 88% 4%, rgba(255, 255, 255, 0.9), transparent 60%),
+				radial-gradient(ellipse 760px 320px at 50% 108%, rgba(191, 227, 253, 0.35), transparent 70%),
+				linear-gradient(180deg, #eaf6ff 0%, #f5fbff 40%, #ffffff 100%);
+			background-size: 24px 24px, auto, auto, auto, auto;
+			background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+			background-attachment: fixed, fixed, fixed, fixed, fixed;
 		}
 		.glass-card {
-			background: rgba(255, 255, 255, 0.85);
-			backdrop-filter: blur(12px);
+			background: rgba(255, 255, 255, 0.88);
+			backdrop-filter: blur(14px);
+			border-color: rgba(186, 224, 253, 0.6) !important;
+		}
+		:focus-visible {
+			outline: 2px solid #0284c7;
+			outline-offset: 2px;
+			border-radius: 4px;
+		}
+		@media (prefers-reduced-motion: reduce) {
+			* { scroll-behavior: auto !important; }
 		}
 		.result-table { border-collapse: separate; border-spacing: 0; width: 100%; }
 		.result-table th {
@@ -31,7 +47,7 @@
 		.result-table tr:hover td { background-color: #f8fafc; }
 		.found { color: #059669; font-weight: 600; }
 		.not-found { color: #94a3b8; }
-		.drop-active { border-color: #10b981 !important; background-color: #ecfdf5 !important; transform: scale(1.005); }
+		.drop-active { border-color: #0ea5e9 !important; background-color: #f0f9ff !important; transform: scale(1.005); }
 		.dev-log {
 			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 			font-size: 0.725rem; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
@@ -44,7 +60,7 @@
 		}
 	</style>
 </head>
-<body class="min-h-screen text-slate-800 antialiased selection:bg-emerald-500 selection:text-white">
+<body class="min-h-screen text-slate-800 antialiased selection:bg-sky-500 selection:text-white">
 	
 	<!-- トースト通知 -->
 	<div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-16 opacity-0 pointer-events-none flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 text-sm font-medium">
@@ -55,14 +71,14 @@
 	<div class="w-full max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12">
 
 		<!-- ヘッダー（レイアウト修正版） -->
-		<header class="mb-8 md:mb-10 border-b border-slate-200 pb-6">
+		<header class="mb-8 md:mb-10 border-b border-sky-100 pb-6">
 			<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
 				<!-- 左側：タイトルエリア -->
 				<div>
-					<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold mb-2">
+					<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold mb-2">
 						<i data-lucide="sparkles" class="w-3.5 h-3.5"></i> スキル管理ツール
 					</div>
-					<h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">ウマ娘 スキル自動照合</h1>
+					<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-sky-700 via-sky-600 to-blue-500 bg-clip-text text-transparent">ウマ娘 スキル自動照合</h1>
 					<p class="mt-1.5 text-xs md:text-sm text-slate-500">スクリーンショットからスキル一覧を自動OCR解析・判定します</p>
 				</div>
 				
@@ -72,7 +88,7 @@
 					<!-- ツール切り替えドロップダウン -->
 					<div class="relative" id="tool-dropdown-wrap">
 						<button id="tool-dropdown-btn" type="button" onclick="toggleToolDropdown()" class="inline-flex items-center justify-center gap-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
-							<i data-lucide="layout-grid" class="w-4 h-4 text-emerald-600"></i>
+							<i data-lucide="layout-grid" class="w-4 h-4 text-sky-600"></i>
 							<span>ツール切替</span>
 							<i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
 						</button>
@@ -84,27 +100,27 @@
 							</div>
 
 							<!-- 現在のツール -->
-							<div class="flex items-start gap-3 p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-100 text-emerald-950 mb-1">
-								<div class="w-7 h-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+							<div class="flex items-start gap-3 p-2.5 rounded-xl bg-sky-50/80 border border-sky-100 text-sky-950 mb-1">
+								<div class="w-7 h-7 rounded-lg bg-sky-500 text-white flex items-center justify-center shrink-0 mt-0.5">
 									<i data-lucide="layers" class="w-4 h-4"></i>
 								</div>
 								<div class="flex-1 min-w-0">
 									<div class="flex items-center justify-between">
-										<p class="text-xs font-bold text-emerald-900">汎用スキル照合</p>
-										<span class="text-[10px] font-semibold text-emerald-700 bg-emerald-200/60 px-1.5 py-0.5 rounded">選択中</span>
+										<p class="text-xs font-bold text-sky-900">汎用スキル照合</p>
+										<span class="text-[10px] font-semibold text-sky-700 bg-sky-200/60 px-1.5 py-0.5 rounded">選択中</span>
 									</div>
-									<p class="text-[11px] text-emerald-700/80 mt-0.5 truncate">標準的なスキルの自動読み取り</p>
+									<p class="text-[11px] text-sky-700/80 mt-0.5 truncate">標準的なスキルの自動読み取り</p>
 								</div>
 							</div>
 
 							<!-- 特化ツール -->
 							<a href="special.html" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-100/80 transition-colors group cursor-pointer">
-								<div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-amber-500 group-hover:text-white flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+								<div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-green-600 group-hover:text-white flex items-center justify-center shrink-0 mt-0.5 transition-colors">
 									<i data-lucide="zap" class="w-4 h-4"></i>
 								</div>
 								<div class="flex-1 min-w-0">
 									<div class="flex items-center gap-1.5">
-										<p class="text-xs font-bold text-slate-800 group-hover:text-amber-600 transition-colors">〇〇特化ツール</p>
+										<p class="text-xs font-bold text-slate-800 group-hover:text-green-700 transition-colors">〇〇特化ツール</p>
 										<span class="text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded">+機能付き</span>
 									</div>
 									<p class="text-[11px] text-slate-500 mt-0.5 truncate">特定コンテキスト向け機能搭載</p>
@@ -114,7 +130,7 @@
 					</div>
 
 					<!-- 使い方ガイドボタン -->
-					<button type="button" onclick="toggleHelp()" class="inline-flex items-center justify-center gap-2 text-xs font-medium text-slate-600 hover:text-emerald-600 bg-white border border-slate-200 hover:border-emerald-300 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
+					<button type="button" onclick="toggleHelp()" class="inline-flex items-center justify-center gap-2 text-xs font-medium text-slate-600 hover:text-sky-600 bg-white border border-slate-200 hover:border-sky-300 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
 						<i data-lucide="help-circle" class="w-4 h-4"></i>
 						<span>使い方ガイド</span>
 					</button>
@@ -164,12 +180,12 @@
 					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">1</span>
 					<h2 class="text-sm font-bold text-slate-800">スキルリストを入力</h2>
 				</div>
-				<span id="skill-count-badge" class="hidden text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800"></span>
+				<span id="skill-count-badge" class="hidden text-xs font-semibold px-2.5 py-1 rounded-full bg-sky-100 text-sky-800"></span>
 			</div>
 
 			<p class="text-xs text-slate-500 mb-3">スプレッドシートから1列分（改行区切り）コピーしてそのまま貼り付けできます。</p>
 			
-			<textarea id="skill-list" class="w-full h-28 text-xs md:text-sm p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 font-mono transition-all outline-none resize-y" placeholder="例：&#10;逃げのコツ○&#10;一匹狼&#10;直線巧者"></textarea>
+			<textarea id="skill-list" class="w-full h-28 text-xs md:text-sm p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 font-mono transition-all outline-none resize-y" placeholder="例：&#10;逃げのコツ○&#10;一匹狼&#10;直線巧者"></textarea>
 
 			<div class="mt-3 flex items-center justify-between gap-3">
 				<div class="flex items-center gap-2">
@@ -196,11 +212,11 @@
 			</div>
 
 			<!-- ドロップゾーン -->
-			<label id="drop-zone" class="group block cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-emerald-50/40 hover:border-emerald-400 transition-all p-8 text-center mb-4">
+			<label id="drop-zone" class="group block cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-sky-50/40 hover:border-sky-400 transition-all p-8 text-center mb-4">
 				<input id="file-input" type="file" accept="image/*" multiple class="hidden" />
 				<div class="flex flex-col items-center justify-center gap-2">
 					<div class="w-12 h-12 rounded-full bg-white shadow-xs border border-slate-200 flex items-center justify-center group-hover:scale-110 transition-transform">
-						<i data-lucide="upload-cloud" class="w-6 h-6 text-slate-600 group-hover:text-emerald-600"></i>
+						<i data-lucide="upload-cloud" class="w-6 h-6 text-slate-600 group-hover:text-sky-600"></i>
 					</div>
 					<p class="text-xs md:text-sm font-medium text-slate-700">複数のスクリーンショットを選択、またはドラッグ＆ドロップ</p>
 					<p class="text-[11px] text-slate-400">PNG, JPG, WEBP に対応</p>
@@ -222,7 +238,7 @@
 				
 				<div class="p-4 pt-1 border-t border-slate-200/60 grid grid-cols-1 md:grid-cols-2 gap-3">
 					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-						<input id="opt-rowdetect" type="checkbox" checked class="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+						<input id="opt-rowdetect" type="checkbox" checked class="mt-0.5 rounded text-sky-600 focus:ring-sky-500 w-4 h-4" />
 						<div>
 							<span class="text-xs font-semibold text-slate-800">スキル行の自動切り出し</span>
 							<p class="text-[11px] text-slate-500 mt-0.5">緑帯を基準に文字の射影から1行ずつ精密抽出します</p>
@@ -230,7 +246,7 @@
 					</label>
 
 					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-						<input id="opt-preprocess" type="checkbox" checked class="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+						<input id="opt-preprocess" type="checkbox" checked class="mt-0.5 rounded text-sky-600 focus:ring-sky-500 w-4 h-4" />
 						<div>
 							<span class="text-xs font-semibold text-slate-800">画像前処理（画質補正）</span>
 							<p class="text-[11px] text-slate-500 mt-0.5">拡大・コントラスト補正・適応二値化で読み取り精度向上</p>
@@ -238,7 +254,7 @@
 					</label>
 
 					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-						<input id="opt-multipass" type="checkbox" checked class="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+						<input id="opt-multipass" type="checkbox" checked class="mt-0.5 rounded text-sky-600 focus:ring-sky-500 w-4 h-4" />
 						<div>
 							<span class="text-xs font-semibold text-slate-800">高精度多重パス（高信頼）</span>
 							<p class="text-[11px] text-slate-500 mt-0.5">二値化・反転・無処理の3段階で照合（処理時間増加）</p>
@@ -246,7 +262,7 @@
 					</label>
 
 					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-						<input id="opt-devlog" type="checkbox" class="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+						<input id="opt-devlog" type="checkbox" class="mt-0.5 rounded text-sky-600 focus:ring-sky-500 w-4 h-4" />
 						<div>
 							<span class="text-xs font-semibold text-slate-800">開発用ログ出力</span>
 							<p class="text-[11px] text-slate-500 mt-0.5">判定根拠や不一致テキストの内訳を結果エリアに表示</p>
@@ -254,7 +270,7 @@
 					</label>
 
 					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-						<input id="opt-preview" type="checkbox" class="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+						<input id="opt-preview" type="checkbox" class="mt-0.5 rounded text-sky-600 focus:ring-sky-500 w-4 h-4" />
 						<div>
 							<span class="text-xs font-semibold text-slate-800">切り出し画像のプレビュー</span>
 							<p class="text-[11px] text-slate-500 mt-0.5">OCRエンジンに渡した整形画像をデバッグ用に確認</p>
@@ -264,16 +280,16 @@
 			</details>
 
 			<!-- プログレスバー -->
-			<div id="progress-wrap" class="hidden mb-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
-				<div class="flex justify-between text-xs font-semibold text-emerald-900 mb-2">
+			<div id="progress-wrap" class="hidden mb-4 p-4 rounded-xl bg-sky-50 border border-sky-200">
+				<div class="flex justify-between text-xs font-semibold text-sky-900 mb-2">
 					<span id="progress-label" class="flex items-center gap-1.5">
-						<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-emerald-600"></i>
+						<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-sky-600"></i>
 						<span>処理中…</span>
 					</span>
 					<span id="progress-pct">0%</span>
 				</div>
-				<div class="h-2 bg-emerald-200/70 rounded-full overflow-hidden">
-					<div id="progress-bar" class="h-full bg-emerald-600 rounded-full transition-all duration-300" style="width:0%"></div>
+				<div class="h-2 bg-sky-200/70 rounded-full overflow-hidden">
+					<div id="progress-bar" class="h-full bg-sky-600 rounded-full transition-all duration-300" style="width:0%"></div>
 				</div>
 			</div>
 
@@ -283,7 +299,7 @@
 				<div id="error-content"></div>
 			</div>
 
-			<button id="process-btn" type="button" onclick="processImages()" class="w-full py-3.5 px-4 rounded-xl bg-emerald-600 text-white text-xs md:text-sm font-bold hover:bg-emerald-700 active:scale-99 transition-all shadow-md hover:shadow-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 cursor-pointer" disabled>
+			<button id="process-btn" type="button" onclick="processImages()" class="w-full py-3.5 px-4 rounded-xl bg-sky-600 text-white text-xs md:text-sm font-bold hover:bg-sky-700 active:scale-99 transition-all shadow-md hover:shadow-sky-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 cursor-pointer" disabled>
 				<i data-lucide="play" class="w-4 h-4 fill-current"></i>
 				<span>OCR処理を開始する</span>
 			</button>
@@ -322,7 +338,7 @@
 			<div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
 				<div class="relative w-full sm:w-64">
 					<i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
-					<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-emerald-500" />
+					<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-sky-500" />
 				</div>
 				<div class="flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
 					<button type="button" onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg bg-slate-900 text-white font-medium">すべて</button>
