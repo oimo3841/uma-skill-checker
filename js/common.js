@@ -17,7 +17,7 @@
 // このファイルの版。ツールの開発用ログの先頭に表示される。
 // 「どの版の common.js がブラウザで実際に動いているか」を確認するための目印。
 // 中身を変更したらこの日付も更新すること。
-const COMMON_JS_VERSION = '2026-09-06a';
+const COMMON_JS_VERSION = '2026-09-06b';
 
 const MAX_SIDE_PX = 3000;
 const CONF_THRESHOLD = 55;
@@ -25,6 +25,16 @@ const ROW_TARGET_HEIGHT = 56;
 const DARK_LEVEL = 128;
 const ADAPTIVE_BLOCK = 31;
 const ADAPTIVE_C = 12;
+
+// 2026-09-06b 追加: 画質による事前足切り（下記「画質判定」セクション参照）のしきい値。
+// X(旧Twitter)経由で再共有された画像や、「レシート因子メーカー」等で複数画像を
+// 結合したうえで再圧縮された画像は、文字のストロークが画素として失われており、
+// CHAR_CONFUSION_MAP や allowedDistance をどれだけ調整しても構造的に精度が出ないことを
+// 実機画像（HLCQGwlbYAAqGcD.jpg, 730×1931）で確認済み。
+// これらは「精度が悪い」のではなく「そもそも対象外の入力」として、OCRを試みる前に弾く。
+// 値は実測1件からの暫定値。他の劣化画像で誤って弾く/弾けないケースが出たら調整すること。
+const MIN_BASE_WIDTH_PX = 900;
+const MIN_SHARPNESS_SCORE = 120;
 
 const CHAR_CONFUSION_MAP = {
 	'娩': '娘', '嫡': '娘', '棒': '枠', '桶': '枠', '狐': '狼', '颯': '狼', '貴': '覚', '緯': '線', '被': '神',
@@ -143,6 +153,72 @@ function toGray(imageData) {
 		gray[i] = (d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114) | 0;
 	}
 	return gray;
+}
+
+/* ============================================================
+ * 画質判定（低解像度・再圧縮画像の足切り）
+ * ============================================================ */
+
+/**
+ * 簡易ラプラシアン分散によるシャープネス（鮮明度）スコア。
+ * 値が小さいほど画像がぼやけている＝文字のストロークが潰れていることを示す。
+ * 一般的な「ラプラシアンの分散でボケを検出する」手法の簡易実装で、
+ * 3x3の代わりに上下左右4近傍のみを使う軽量版（画像全体を毎回舐めるため）。
+ */
+function sharpnessScore(gray, w, h) {
+	if (w < 3 || h < 3) return 0;
+	let sum = 0, sumSq = 0, n = 0;
+	for (let y = 1; y < h - 1; y++) {
+		const row = y * w, up = row - w, down = row + w;
+		for (let x = 1; x < w - 1; x++) {
+			const lap = 4 * gray[row + x] - gray[row + x - 1] - gray[row + x + 1] - gray[up + x] - gray[down + x];
+			sum += lap;
+			sumSq += lap * lap;
+			n++;
+		}
+	}
+	if (n === 0) return 0;
+	const mean = sum / n;
+	return sumSq / n - mean * mean;
+}
+
+/**
+ * 画像がOCR対象として十分な品質かどうかを判定する。
+ *
+ * 背景: X(旧Twitter)での再共有や「レシート因子メーカー」等での複数画像結合を経た画像は、
+ * 縮小・再圧縮により文字のストロークが画素として失われる。この劣化は行検出やOCRの
+ * 前処理を工夫しても復元できない（＝情報自体が失われている）ため、辞書やしきい値の
+ * チューニング対象ではなく、事前に弾くべき「対象外の入力」として扱う。
+ *
+ * 呼び出し側（special.html/index.html）は、ok:false の場合はOCRを試みずスキップし、
+ * reasons を利用者に見える形で表示すること。
+ *
+ * 戻り値: { ok: boolean, width: number, height: number, sharpness: number|null, reasons: string[] }
+ */
+function assessImageQuality(baseCanvas) {
+	const w = baseCanvas.width, h = baseCanvas.height;
+	const reasons = [];
+	let sharpness = null;
+	try {
+		const imageData = getPixels(baseCanvas);
+		const gray = toGray(imageData);
+		sharpness = sharpnessScore(gray, w, h);
+	} catch (err) {
+		reasons.push('鮮明度の計測に失敗しました: ' + err);
+	}
+	if (w < MIN_BASE_WIDTH_PX) {
+		reasons.push(
+			'画像の横幅が ' + w + 'px しかありません（目安 ' + MIN_BASE_WIDTH_PX + 'px 以上）。' +
+			'SNSへの投稿・再共有や、複数画像を結合するツールを経由すると縮小されがちです。'
+		);
+	}
+	if (sharpness !== null && sharpness < MIN_SHARPNESS_SCORE) {
+		reasons.push(
+			'画像の鮮明度が低い状態です（スコア ' + Math.round(sharpness) + ' / 目安 ' + MIN_SHARPNESS_SCORE + ' 以上）。' +
+			'文字のストロークが潰れている可能性が高く、再圧縮や過度な縮小が繰り返された画像で起こりやすい現象です。'
+		);
+	}
+	return { ok: reasons.length === 0, width: w, height: h, sharpness: sharpness, reasons: reasons };
 }
 
 function greenMaskOf(imageData) {
