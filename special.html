@@ -150,13 +150,13 @@
 				</div>
 				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
 					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 2</span>
-					<p class="font-bold text-slate-800">3人分を撮影</p>
-					<p class="text-slate-500 mt-1">1人目・2人目・3人目の因子画面を、境界を含めず個別に撮影</p>
+					<p class="font-bold text-slate-800">対象を撮影</p>
+					<p class="text-slate-500 mt-1">1〜3人分のうち、必要な人数分の因子画面を、境界を含めず個別に撮影</p>
 				</div>
 				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
 					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 3</span>
-					<p class="font-bold text-slate-800">各欄にアップロード</p>
-					<p class="text-slate-500 mt-1">1人目・2人目・3人目それぞれの欄にスクショを追加</p>
+					<p class="font-bold text-slate-800">使う欄にアップロード</p>
+					<p class="text-slate-500 mt-1">1〜3人目のうち、使う欄にだけスクショを追加（残りは空欄でOK）</p>
 				</div>
 				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
 					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 4</span>
@@ -166,7 +166,7 @@
 				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
 					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 5</span>
 					<p class="font-bold text-slate-800">結果コピー</p>
-					<p class="text-slate-500 mt-1">1〜3人目の★の数を3列まとめてスプレッドシートに貼り付け</p>
+					<p class="text-slate-500 mt-1">使った人数分の★の数をまとめてスプレッドシートに貼り付け</p>
 				</div>
 			</div>
 
@@ -241,7 +241,7 @@
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
 					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">2</span>
-					<h2 class="text-sm font-bold text-slate-800">1〜3人目の画像をアップロード</h2>
+					<h2 class="text-sm font-bold text-slate-800">1〜3人目の画像をアップロード（1人分だけでもOK）</h2>
 				</div>
 			</div>
 
@@ -311,29 +311,12 @@
 				</div>
 				<button type="button" onclick="copyToClipboard()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all shadow-xs cursor-pointer">
 					<i data-lucide="copy" class="w-3.5 h-3.5"></i>
-					<span>3列まとめてコピー</span>
+					<span id="copy-btn-label">まとめてコピー</span>
 				</button>
 			</div>
 
-			<!-- サマリーカード -->
-			<div class="grid grid-cols-4 gap-3 mb-6">
-				<div class="rounded-xl border border-slate-200 bg-slate-50/50 p-3 md:p-4 text-center">
-					<p class="text-[11px] font-medium text-slate-500 mb-1">対象スキル数</p>
-					<p class="text-lg md:text-2xl font-extrabold text-slate-900" id="stat-total">0</p>
-				</div>
-				<div class="rounded-xl border border-blue-200 bg-blue-50/50 p-3 md:p-4 text-center">
-					<p class="text-[11px] font-medium text-blue-700 mb-1">1人目 検出</p>
-					<p class="text-lg md:text-2xl font-extrabold text-blue-600" id="stat-found-1">0</p>
-				</div>
-				<div class="rounded-xl border border-pink-200 bg-pink-50/50 p-3 md:p-4 text-center">
-					<p class="text-[11px] font-medium text-pink-700 mb-1">2人目 検出</p>
-					<p class="text-lg md:text-2xl font-extrabold text-pink-600" id="stat-found-2">0</p>
-				</div>
-				<div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 md:p-4 text-center">
-					<p class="text-[11px] font-medium text-emerald-700 mb-1">3人目 検出</p>
-					<p class="text-lg md:text-2xl font-extrabold text-emerald-600" id="stat-found-3">0</p>
-				</div>
-			</div>
+			<!-- サマリーカード（アップロード人数に応じてJSで生成） -->
+			<div id="stat-grid" class="grid grid-cols-4 gap-3 mb-6"></div>
 
 			<!-- 検索・フィルターバー -->
 			<div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
@@ -351,14 +334,7 @@
 			<!-- テーブル -->
 			<div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
 				<table class="result-table">
-					<thead>
-						<tr>
-							<th class="w-2/5">スキル名（リスト順）</th>
-							<th class="text-center">1人目</th>
-							<th class="text-center">2人目</th>
-							<th class="text-center">3人目</th>
-						</tr>
-					</thead>
+					<thead id="result-thead"></thead>
 					<tbody id="result-tbody"></tbody>
 				</table>
 			</div>
@@ -366,8 +342,8 @@
 			<!-- コピー用エリア -->
 			<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-6">
 				<div class="flex items-center justify-between mb-2">
-					<p class="text-xs font-semibold text-slate-700">スプレッドシート貼り付け用データ（3列）</p>
-					<span class="text-[11px] text-slate-400">※1人目・2人目・3人目の★の数（タブ区切り）。スキル名は含みません</span>
+					<p class="text-xs font-semibold text-slate-700" id="copy-title">スプレッドシート貼り付け用データ</p>
+					<span class="text-[11px] text-slate-400" id="copy-hint"></span>
 				</div>
 				<div class="flex gap-2">
 					<textarea id="copy-data" readonly class="w-full h-24 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none"></textarea>
@@ -764,24 +740,100 @@
 			return (s === null || s === undefined) ? null : s;
 		}
 
+		function activePersonIndexes() {
+			return [0, 1, 2].filter(i => personResults[i]);
+		}
+
+		const PERSON_STAT_META = {
+			0: ['blue', '1人目'],
+			1: ['pink', '2人目'],
+			2: ['emerald', '3人目']
+		};
+
+		function renderStatGrid(used) {
+			const grid = document.getElementById('stat-grid');
+			const cols = used.length + 1;
+			grid.className = 'grid gap-3 mb-6 ' + (cols <= 2 ? 'grid-cols-2' : cols === 3 ? 'grid-cols-3' : 'grid-cols-4');
+
+			let html = `
+				<div class="rounded-xl border border-slate-200 bg-slate-50/50 p-3 md:p-4 text-center">
+					<p class="text-[11px] font-medium text-slate-500 mb-1">対象スキル数</p>
+					<p class="text-lg md:text-2xl font-extrabold text-slate-900" id="stat-total">0</p>
+				</div>`;
+			used.forEach(i => {
+				const [color, label] = PERSON_STAT_META[i];
+				html += `
+				<div class="rounded-xl border border-${color}-200 bg-${color}-50/50 p-3 md:p-4 text-center">
+					<p class="text-[11px] font-medium text-${color}-700 mb-1">${label} 検出</p>
+					<p class="text-lg md:text-2xl font-extrabold text-${color}-600" id="stat-found-${i + 1}">0</p>
+				</div>`;
+			});
+			grid.innerHTML = html;
+		}
+
+		function renderTableHeader(used) {
+			const thead = document.getElementById('result-thead');
+			const nameWidth = used.length <= 1 ? 'w-3/5' : used.length === 2 ? 'w-1/2' : 'w-2/5';
+			let html = `<tr><th class="${nameWidth}">スキル名（リスト順）</th>`;
+			used.forEach(i => { html += `<th class="text-center">${PERSON_LABELS[i]}</th>`; });
+			html += '</tr>';
+			thead.innerHTML = html;
+		}
+
+		function updateCopyLabels(used) {
+			const btnLabel = document.getElementById('copy-btn-label');
+			const title = document.getElementById('copy-title');
+			const hint = document.getElementById('copy-hint');
+			if (used.length <= 1) {
+				btnLabel.textContent = '★の数をコピー';
+				title.textContent = 'スプレッドシート貼り付け用データ';
+			} else {
+				btnLabel.textContent = used.length + '列まとめてコピー';
+				title.textContent = 'スプレッドシート貼り付け用データ（' + used.length + '列）';
+			}
+			const names = used.map(i => PERSON_LABELS[i]).join('・');
+			hint.textContent = used.length <= 1
+				? '※' + names + 'の★の数です。スキル名は含みません'
+				: '※' + names + 'の★の数（タブ区切り）。スキル名は含みません';
+		}
+
+		function updateFilterLabels(used) {
+			const foundBtn = document.getElementById('filter-found');
+			const notFoundBtn = document.getElementById('filter-not-found');
+			if (used.length <= 1) {
+				foundBtn.textContent = '検出のみ';
+				notFoundBtn.textContent = '未検出のみ';
+			} else {
+				foundBtn.textContent = '誰かが検出';
+				notFoundBtn.textContent = '全員未検出';
+			}
+		}
+
 		function renderResults() {
 			const resultWrap = document.getElementById('result-wrap');
+			const used = activePersonIndexes();
 
-			let foundCounts = [0, 0, 0];
+			renderStatGrid(used);
+			renderTableHeader(used);
+			updateCopyLabels(used);
+			updateFilterLabels(used);
+
+			const foundCounts = {};
+			used.forEach(i => { foundCounts[i] = 0; });
 			const copyRows = [];
 
 			skillList.forEach(skill => {
-				const rowVals = [0, 1, 2].map(p => starsFor(p, skill));
-				rowVals.forEach((v, i) => { if (v !== undefined) foundCounts[i]++; });
+				const rowVals = used.map(p => starsFor(p, skill));
+				rowVals.forEach((v, idx) => { if (v !== undefined) foundCounts[used[idx]]++; });
 				// ★を計測できなかった場合（null）は、誤った数字を貼らないよう空欄にする。
 				// 表側には「?」を出して、手で補う必要があることが分かるようにしている。
 				copyRows.push(rowVals.map(v => (v === null || v === undefined) ? '' : String(v)).join('\t'));
 			});
 
 			document.getElementById('stat-total').textContent = skillList.length;
-			document.getElementById('stat-found-1').textContent = foundCounts[0];
-			document.getElementById('stat-found-2').textContent = foundCounts[1];
-			document.getElementById('stat-found-3').textContent = foundCounts[2];
+			used.forEach(i => {
+				document.getElementById('stat-found-' + (i + 1)).textContent = foundCounts[i];
+			});
 
 			document.getElementById('copy-data').value = copyRows.join('\n');
 			resultWrap.classList.remove('hidden');
@@ -806,10 +858,11 @@
 		function filterResults() {
 			const tbody = document.getElementById('result-tbody');
 			const query = document.getElementById('table-search').value.toLowerCase().trim();
+			const used = activePersonIndexes();
 			let tableHtml = '';
 
 			skillList.forEach(skill => {
-				const vals = [0, 1, 2].map(p => starsFor(p, skill));
+				const vals = used.map(p => starsFor(p, skill));
 				const anyFound = vals.some(v => v !== undefined);
 
 				if (currentFilter === 'found' && !anyFound) return;
@@ -818,14 +871,12 @@
 
 				tableHtml += `<tr class="transition-colors">
 					<td class="font-medium text-slate-800">${escapeHtml(skill)}</td>
-					<td class="text-center">${starBadge(vals[0])}</td>
-					<td class="text-center">${starBadge(vals[1])}</td>
-					<td class="text-center">${starBadge(vals[2])}</td>
+					${vals.map(v => `<td class="text-center">${starBadge(v)}</td>`).join('')}
 				</tr>`;
 			});
 
 			if (!tableHtml) {
-				tableHtml = `<tr><td colspan="4" class="text-center py-6 text-slate-400 text-xs">該当するスキルが見つかりません</td></tr>`;
+				tableHtml = `<tr><td colspan="${used.length + 1}" class="text-center py-6 text-slate-400 text-xs">該当するスキルが見つかりません</td></tr>`;
 			}
 
 			tbody.innerHTML = tableHtml;
@@ -912,7 +963,7 @@
 			const copyData = document.getElementById('copy-data');
 			copyData.select();
 			document.execCommand('copy');
-			showToast('1〜3人目の★データをクリップボードにコピーしました');
+			showToast('★データをクリップボードにコピーしました');
 		}
 
 		function copyDevLog() {
