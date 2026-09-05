@@ -3,7 +3,7 @@
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>ウマ娘スキル管理ツール - 因子継承特化版</title>
+	<title>UmaStar OCR</title>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -78,7 +78,7 @@
 			<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
 				<!-- 左側：タイトルエリア -->
 				<div>
-					<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">ウマ娘 因子継承 <span class="text-amber-400">★</span>判定</h1>
+					<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR</h1>
 					<p class="mt-1.5 text-xs md:text-sm text-slate-500">1〜3人目の因子スクリーンショットから、スキルごとの★の数を自動判定します</p>
 				</div>
 
@@ -105,7 +105,7 @@
 									<i data-lucide="layers" class="w-4 h-4"></i>
 								</div>
 								<div class="flex-1 min-w-0">
-									<p class="text-xs font-bold text-slate-800 group-hover:text-sky-600 transition-colors">汎用スキル照合</p>
+									<p class="text-xs font-bold text-slate-800 group-hover:text-sky-600 transition-colors">UmaSimple OCR</p>
 									<p class="text-[11px] text-slate-500 mt-0.5 truncate">標準的なスキルの自動読み取り</p>
 								</div>
 							</a>
@@ -117,7 +117,7 @@
 								</div>
 								<div class="flex-1 min-w-0">
 									<div class="flex items-center justify-between">
-										<p class="text-xs font-bold text-green-900">因子継承 ★判定</p>
+										<p class="text-xs font-bold text-green-900">UmaStar OCR</p>
 										<span class="text-[10px] font-semibold text-green-700 bg-green-200/60 px-1.5 py-0.5 rounded">選択中</span>
 									</div>
 									<p class="text-[11px] text-green-700/80 mt-0.5 truncate">1〜3人目の★の数を個別判定</p>
@@ -136,34 +136,34 @@
 		</header>
 
 		<!-- 使い方アコーディオン -->
-		<div id="help-box" class="hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-indigo-50/50 p-5 md:p-6 mb-8 shadow-xs relative overflow-hidden transition-all">
-			<div class="flex items-center gap-2 text-sm font-bold text-blue-900 mb-4">
-				<i data-lucide="book-open" class="w-4 h-4 text-blue-600"></i>
+		<div id="help-box" class="hidden rounded-2xl border border-green-100 bg-gradient-to-br from-green-50/80 to-emerald-50/50 p-5 md:p-6 mb-8 shadow-xs relative overflow-hidden transition-all">
+			<div class="flex items-center gap-2 text-sm font-bold text-green-900 mb-4">
+				<i data-lucide="book-open" class="w-4 h-4 text-green-600"></i>
 				<span>使い方の手順</span>
 			</div>
 			<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-xs text-slate-700 mb-5">
-				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
-					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 1</span>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 1</span>
 					<p class="font-bold text-slate-800">リスト準備</p>
 					<p class="text-slate-500 mt-1">スプレッドシートの1列をコピーして貼り付け</p>
 				</div>
-				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
-					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 2</span>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 2</span>
 					<p class="font-bold text-slate-800">3人分を撮影</p>
 					<p class="text-slate-500 mt-1">1人目・2人目・3人目の因子画面を、境界を含めず個別に撮影</p>
 				</div>
-				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
-					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 3</span>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 3</span>
 					<p class="font-bold text-slate-800">各欄にアップロード</p>
 					<p class="text-slate-500 mt-1">1人目・2人目・3人目それぞれの欄にスクショを追加</p>
 				</div>
-				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
-					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 4</span>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 4</span>
 					<p class="font-bold text-slate-800">OCR実行</p>
 					<p class="text-slate-500 mt-1">スキル名の判定と、★の数の判定を同時に行います</p>
 				</div>
-				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-blue-100 shadow-2xs">
-					<span class="inline-block px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[10px] mb-1.5">STEP 5</span>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 5</span>
 					<p class="font-bold text-slate-800">結果コピー</p>
 					<p class="text-slate-500 mt-1">1〜3人目の★の数を3列まとめてスプレッドシートに貼り付け</p>
 				</div>
@@ -175,9 +175,10 @@
 					<i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
 					<span>スクリーンショットのポイント</span>
 				</div>
-				<p class="text-xs text-amber-800 leading-relaxed">
-					各キャラクターのスキルリスト部分だけが写るように撮影してください。見出しや前後のキャラクターの行が混ざると、誤判定の原因になることがあります。
-				</p>
+				<ul class="text-xs text-amber-800 leading-relaxed list-disc list-outside pl-4 space-y-1.5">
+					<li>各キャラクターのスキルリスト部分だけが写るように撮影してください。見出しや前後のキャラクターの行が混ざると、誤判定の原因になることがあります。</li>
+					<li>各スキルについて、スキル名と★が両方とも同じ画像内に収まっているカットが少なくとも1枚は含まれるように撮影してください（複数枚で範囲が重なっていても問題ありません）。特に一番下の行は★が途切れて写りやすいため、1枚多めに、少し範囲をずらして撮っておくと安心です。</li>
+				</ul>
 			</div>
 		</div>
 
