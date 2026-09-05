@@ -917,6 +917,31 @@
 			return '    "' + u.text + '"' + confStr + '\n      正規化: ' + u.norm + '\n     ' + bestStr;
 		}
 
+		// resolveTiedCandidates() が記録した診断情報（common.js参照）を人間が読める形に整形する。
+		// 「曖昧タイがなぜ解決した/しなかったか」を、rowKeyの有無まで含めて確認できるようにする。
+		function formatAmbiguousEntry(u) {
+			const rowKeyStr = u.rowKey ? ('rowKey=' + u.rowKey) : 'rowKey=なし（bbox取得失敗の可能性）';
+			const lines = ['    "' + u.text + '"' + (u.norm ? ' / 正規化: ' + u.norm : '') + ' / ' + rowKeyStr];
+			lines.push('      タイ候補: ' + u.tied.join(' / '));
+			if (u.source === 'キャッシュ再利用') {
+				lines.push('      判定: 同じ誤読文字列の絞り込み結果を再利用 → ' + (u.resolved || '(解決できず)'));
+			} else {
+				(u.candidates || []).forEach(c => {
+					if (!c.alreadyDetected) {
+						lines.push('      候補「' + c.raw + '」: 未検出のため生存');
+						return;
+					}
+					const checkStr = (c.checks || []).map(ck =>
+						'this=' + (ck.thisRowKey || 'null') + ' / other=' + (ck.otherRowKey || 'null') + ' → ' + (ck.result ? '別行と断定' : '断定できず')
+					).join(' , ');
+					lines.push('      候補「' + c.raw + '」: 検出済み（' + (c.provablyOther ? '別行と断定→除外' : '別行と断定できず→残存') + '） [' + checkStr + ']');
+				});
+				lines.push('      生存候補: ' + (u.survivors && u.survivors.length ? u.survivors.join(' / ') : 'なし'));
+				lines.push('      結果: ' + (u.resolved ? '「' + u.resolved + '」に確定' : '解決できず（曖昧のまま）'));
+			}
+			return lines.join('\n');
+		}
+
 		function renderDevLog() {
 			const devWrap = document.getElementById('dev-wrap');
 			const devLog = document.getElementById('dev-log');
@@ -950,6 +975,10 @@
 				if (res.devOther.length) {
 					lines.push('  その他未一致（候補から遠すぎる）' + res.devOther.length + '件:');
 					res.devOther.forEach(u => lines.push(formatEntry(u)));
+				}
+				if (res.devAmbiguous && res.devAmbiguous.length) {
+					lines.push('  曖昧タイの解決内訳 ' + res.devAmbiguous.length + '件:');
+					res.devAmbiguous.forEach(u => lines.push(formatAmbiguousEntry(u)));
 				}
 				if (lines.length) parts.push('■ ' + label + '\n' + lines.join('\n'));
 			});
