@@ -71,15 +71,14 @@
 	<div class="w-full max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12">
 
 		<!-- ヘッダー（レイアウト修正版） -->
-		<header class="relative overflow-hidden mb-8 md:mb-10 rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50/90 via-white/70 to-white p-5 md:p-8 shadow-sm">
-			<div aria-hidden="true" class="pointer-events-none absolute -top-16 -right-10 w-56 h-56 rounded-full bg-sky-200/40 blur-3xl"></div>
-			<div aria-hidden="true" class="pointer-events-none absolute -bottom-20 -left-10 w-48 h-48 rounded-full bg-white/80 blur-3xl"></div>
+		<header class="relative mb-8 md:mb-10 rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50/90 via-white/70 to-white p-5 md:p-8 shadow-sm">
+			<div aria-hidden="true" class="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
+				<div class="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-sky-200/40 blur-3xl"></div>
+				<div class="absolute -bottom-20 -left-10 w-48 h-48 rounded-full bg-white/80 blur-3xl"></div>
+			</div>
 			<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
 				<!-- 左側：タイトルエリア -->
 				<div>
-					<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold mb-2">
-						<i data-lucide="sparkles" class="w-3.5 h-3.5"></i> スキル管理ツール
-					</div>
 					<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-sky-700 via-sky-600 to-blue-500 bg-clip-text text-transparent">ウマ娘 スキル自動照合</h1>
 					<p class="mt-1.5 text-xs md:text-sm text-slate-500">スクリーンショットからスキル一覧を自動OCR解析・判定します</p>
 				</div>
@@ -96,7 +95,7 @@
 						</button>
 
 						<!-- ドロップダウン本体 -->
-						<div id="tool-dropdown-menu" class="hidden absolute right-0 mt-2 w-72 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-xl z-50 p-1.5 transition-all">
+						<div id="tool-dropdown-menu" class="hidden absolute left-0 md:left-auto md:right-0 mt-2 w-72 max-w-[calc(100vw-2.5rem)] bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-xl z-50 p-1.5 transition-all">
 							<div class="px-3 py-2 border-b border-slate-100 mb-1">
 								<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ツール切り替え</p>
 							</div>
@@ -239,30 +238,6 @@
 				</summary>
 				
 				<div class="p-4 pt-1 border-t border-slate-200/60 grid grid-cols-1 md:grid-cols-2 gap-3">
-					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-						<input id="opt-rowdetect" type="checkbox" checked class="mt-0.5 rounded text-sky-600 focus:ring-sky-500 w-4 h-4" />
-						<div>
-							<span class="text-xs font-semibold text-slate-800">スキル行の自動切り出し</span>
-							<p class="text-[11px] text-slate-500 mt-0.5">緑帯を基準に文字の射影から1行ずつ精密抽出します</p>
-						</div>
-					</label>
-
-					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-						<input id="opt-preprocess" type="checkbox" checked class="mt-0.5 rounded text-sky-600 focus:ring-sky-500 w-4 h-4" />
-						<div>
-							<span class="text-xs font-semibold text-slate-800">画像前処理（画質補正）</span>
-							<p class="text-[11px] text-slate-500 mt-0.5">拡大・コントラスト補正・適応二値化で読み取り精度向上</p>
-						</div>
-					</label>
-
-					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-						<input id="opt-multipass" type="checkbox" checked class="mt-0.5 rounded text-sky-600 focus:ring-sky-500 w-4 h-4" />
-						<div>
-							<span class="text-xs font-semibold text-slate-800">高精度多重パス（高信頼）</span>
-							<p class="text-[11px] text-slate-500 mt-0.5">二値化・反転・無処理の3段階で照合（処理時間増加）</p>
-						</div>
-					</label>
-
 					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
 						<input id="opt-devlog" type="checkbox" class="mt-0.5 rounded text-sky-600 focus:ring-sky-500 w-4 h-4" />
 						<div>
@@ -543,9 +518,10 @@
 			progressWrap.classList.remove('hidden');
 			processBtn.disabled = true;
 
-			const useRowDetect = document.getElementById('opt-rowdetect').checked;
-			const usePre = document.getElementById('opt-preprocess').checked;
-			const multi = document.getElementById('opt-multipass').checked;
+			// スキル行の自動切り出し・画像前処理・高精度多重パスは常時有効（デフォルトのまま固定）
+			const useRowDetect = true;
+			const usePre = true;
+			const multi = true;
 			const wantPreview = document.getElementById('opt-preview').checked;
 
 			let worker = null, successCount = 0;
