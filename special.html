@@ -9,7 +9,7 @@
 	<!-- Lucide Icons -->
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html で共有） -->
-	<script src="js/common.js"></script>
+	<script src="js/common.js?v=2026-09-06b"></script>
 	<style>
 		body {
 			background-color: #f4faf0;
@@ -81,6 +81,7 @@
 					<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR<span class="ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">β版</span></h1>
 					<p class="mt-1.5 text-xs md:text-sm text-slate-500">1〜3人目の因子スクリーンショットから、スキルごとの★の数を自動判定します</p>
 					<p class="mt-1 text-[11px] text-amber-700">※ OCR・★判定の精度は完全ではありません。結果は念のため目視でもご確認ください。</p>
+					<p class="mt-0.5 text-[11px] text-amber-700">※ SNSへの再投稿や複数画像結合ツールを経由した画像は、解像度不足のため対象外となる場合があります。ゲーム画面から直接撮ったスクリーンショットをご利用ください。</p>
 				</div>
 
 				<!-- 右側：アクションボタン群 -->
@@ -288,6 +289,12 @@
 				<div class="h-2 bg-green-200/70 rounded-full overflow-hidden">
 					<div id="progress-bar" class="h-full bg-green-600 rounded-full transition-all duration-300" style="width:0%"></div>
 				</div>
+			</div>
+
+			<!-- 画質警告表示（対象外として除外した画像がある場合） -->
+			<div id="quality-warn-wrap" class="hidden mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 whitespace-pre-line flex gap-2">
+				<i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500 shrink-0 mt-0.5"></i>
+				<div id="quality-warn-content"></div>
 			</div>
 
 			<!-- エラー表示 -->
@@ -602,6 +609,7 @@
 		// 1人分の画像群を処理し、★情報つきのOCR行配列を返す
 		async function processPersonImages(worker, files, labelPrefix, usePre, multi, wantPreview) {
 			const lines = [];
+			const skipped = [];
 			for (let i = 0; i < files.length; i++) {
 				const file = files[i];
 				const diag = [];
@@ -610,6 +618,22 @@
 					const img = await loadImage(file);
 					base = toBaseCanvas(img);
 					diag.push('画像サイズ ' + base.width + '×' + base.height);
+
+					// 画質による事前足切り（common.js参照）。SNS再共有や画像結合ツールを経由した
+					// 画像は、辞書やしきい値を調整しても構造的に精度が出ないことを確認済みのため、
+					// OCRを試みる前にここで弾き、利用者に理由が分かる形でスキップする。
+					const quality = assessImageQuality(base);
+					if (quality.sharpness !== null) {
+						diag.push('鮮明度スコア ' + Math.round(quality.sharpness) + '（目安 ' + MIN_SHARPNESS_SCORE + ' 以上）');
+					}
+					if (!quality.ok) {
+						diag.push('→ 画質が基準未満のため対象外と判定し、OCRをスキップします');
+						quality.reasons.forEach(r => diag.push('  ・' + r));
+						devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
+						skipped.push({ label: labelPrefix, name: file.name, reasons: quality.reasons });
+						continue;
+					}
+
 					detection = detectSkillRows(base, diag);
 				} catch (err) {
 					console.error(err);
@@ -652,7 +676,7 @@
 					}
 				}
 			}
-			return lines;
+			return { lines: lines, skipped: skipped };
 		}
 
 		async function processImages() {
@@ -666,7 +690,9 @@
 
 			const progressWrap = document.getElementById('progress-wrap');
 			const errorWrap = document.getElementById('error-wrap');
+			const qualityWarnWrap = document.getElementById('quality-warn-wrap');
 			errorWrap.classList.add('hidden');
+			qualityWarnWrap.classList.add('hidden');
 			progressWrap.classList.remove('hidden');
 			processBtn.disabled = true;
 
@@ -677,6 +703,7 @@
 
 			let worker = null;
 			let anySuccess = false;
+			const skippedAll = [];
 
 			try {
 				setProgress(0, 'OCRエンジンを初期化中…');
@@ -693,9 +720,10 @@
 					const files = persons[p].files;
 					if (files.length === 0) continue;
 					setProgress(p / persons.length, PERSON_LABELS[p] + 'を処理中…');
-					const lines = await processPersonImages(worker, files, PERSON_LABELS[p], usePre, multi, wantPreview);
-					if (lines.length > 0) anySuccess = true;
-					personResults[p] = matchAllSkillsWithStars(lines, skillList, skillIndex, ocrErrorDictionary);
+					const result = await processPersonImages(worker, files, PERSON_LABELS[p], usePre, multi, wantPreview);
+					if (result.lines.length > 0) anySuccess = true;
+					if (result.skipped.length > 0) skippedAll.push.apply(skippedAll, result.skipped);
+					personResults[p] = matchAllSkillsWithStars(result.lines, skillList, skillIndex, ocrErrorDictionary);
 				}
 			} catch (err) {
 				console.error(err);
@@ -711,9 +739,22 @@
 			progressWrap.classList.add('hidden');
 			processBtn.disabled = false;
 
+			if (skippedAll.length > 0) {
+				qualityWarnWrap.classList.remove('hidden');
+				const detail = skippedAll.map(s => '・' + s.label + ': ' + s.name).join('\n');
+				document.getElementById('quality-warn-content').textContent =
+					skippedAll.length + '件の画像を、解像度/鮮明度不足のため対象外としてOCRをスキップしました。\n' + detail +
+					'\nSNSへの再投稿や複数画像結合ツールを経由すると起こりやすい現象です。ゲーム画面から直接撮ったスクリーンショットの利用を推奨します。';
+			}
+
 			if (!anySuccess) {
 				errorWrap.classList.remove('hidden');
-				document.getElementById('error-content').textContent = 'OCR処理に失敗しました。別の画像を試してください。';
+				const totalFiles = persons.reduce((s, p) => s + p.files.length, 0);
+				if (skippedAll.length > 0 && skippedAll.length === totalFiles) {
+					document.getElementById('error-content').textContent = 'アップロードされた画像はすべて解像度/鮮明度不足のため対象外と判定されました。ゲーム画面から直接撮影したスクリーンショットをご利用ください。';
+				} else {
+					document.getElementById('error-content').textContent = 'OCR処理に失敗しました。別の画像を試してください。';
+				}
 				return;
 			}
 
@@ -951,7 +992,8 @@
 			// 実際にブラウザで読み込まれている common.js の版を明示する。
 			// 更新したはずの内容が反映されていない（キャッシュ・貼り忘れ等）ことを切り分けるため。
 			parts.push('■ 実行環境\n  common.js 版: ' + (typeof COMMON_JS_VERSION !== 'undefined' ? COMMON_JS_VERSION : '(不明・古い版です)') +
-				'\n  読み替え辞書: ' + Object.keys(ocrErrorDictionary).length + '件');
+				'\n  読み替え辞書: ' + Object.keys(ocrErrorDictionary).length + '件' +
+				'\n  画質しきい値: 横幅' + MIN_BASE_WIDTH_PX + 'px以上 / 鮮明度スコア' + MIN_SHARPNESS_SCORE + '以上');
 			if (devGeometry.length) parts.push('■ 行検出・★判定の内訳\n' + devGeometry.join('\n'));
 
 			// デバッグしやすいよう、件数だけでなく実際のOCRテキスト・正規化結果・
