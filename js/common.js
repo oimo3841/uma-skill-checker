@@ -17,7 +17,7 @@
 // このファイルの版。ツールの開発用ログの先頭に表示される。
 // 「どの版の common.js がブラウザで実際に動いているか」を確認するための目印。
 // 中身を変更したらこの日付も更新すること。
-const COMMON_JS_VERSION = '2026-09-06d';
+const COMMON_JS_VERSION = '2026-09-06e';
 
 const MAX_SIDE_PX = 3000;
 const CONF_THRESHOLD = 55;
@@ -413,10 +413,28 @@ function detectSkillRows(baseCanvas, diag) {
 		.filter(b => (b.b - b.a) >= H * 0.008);
 
 	const gapLimit = Math.round(H * 0.02); // 実測16〜24px相当、余裕を見て2%
+
+	// 固有スキル／因子のチップは左右いずれか1カラムのみを占める帯（実測: 幅カバー率 約37〜50%）。
+	// 一方、ステータス表ヘッダー（スピード/スタミナ/パワー/根性/賢さ）のような全幅バナーは
+	// UD RANKバッジ（青丸アイコン）のすぐ下に来ることがあり、「青帯の直後の緑帯」という
+	// 条件だけでは固有スキル帯と誤検出されてしまう（実測: 幅カバー率 約93%）。
+	// 全幅に近い帯は候補から除外し、この誤検出を防ぐ。
+	const WIDE_BAND_COVERAGE_RATIO = 0.7;
+	let wideBandExcluded = 0;
 	const uniqueSkillBands = [];
 	for (const bb of blueBands) {
-		const hit = thickGreen.find(g => g.a - bb.b >= 0 && g.a - bb.b <= gapLimit);
+		const hit = thickGreen.find(g => {
+			if (g.a - bb.b < 0 || g.a - bb.b > gapLimit) return false;
+			const colCounts = colCountsOf(green, W, g.a, g.b);
+			let covered = 0;
+			for (let x = 0; x < W; x++) { if (colCounts[x] > 0) covered++; }
+			if (covered / W > WIDE_BAND_COVERAGE_RATIO) { wideBandExcluded++; return false; }
+			return true;
+		});
 		if (hit) uniqueSkillBands.push(hit);
+	}
+	if (wideBandExcluded > 0) {
+		diag.push('全幅帯（ステータス表ヘッダー等）を固有スキル帯候補から除外: ' + wideBandExcluded + '件');
 	}
 
 	let listTop = 0, listBottom = H;
