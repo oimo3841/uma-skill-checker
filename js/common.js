@@ -17,7 +17,7 @@
 // このファイルの版。ツールの開発用ログの先頭に表示される。
 // 「どの版の common.js がブラウザで実際に動いているか」を確認するための目印。
 // 中身を変更したらこの日付も更新すること。
-const COMMON_JS_VERSION = '2026-09-06e';
+const COMMON_JS_VERSION = '2026-09-06f';
 
 const MAX_SIDE_PX = 3000;
 const CONF_THRESHOLD = 55;
@@ -414,21 +414,26 @@ function detectSkillRows(baseCanvas, diag) {
 
 	const gapLimit = Math.round(H * 0.02); // 実測16〜24px相当、余裕を見て2%
 
-	// 固有スキル／因子のチップは左右いずれか1カラムのみを占める帯（実測: 幅カバー率 約37〜50%）。
-	// 一方、ステータス表ヘッダー（スピード/スタミナ/パワー/根性/賢さ）のような全幅バナーは
-	// UD RANKバッジ（青丸アイコン）のすぐ下に来ることがあり、「青帯の直後の緑帯」という
-	// 条件だけでは固有スキル帯と誤検出されてしまう（実測: 幅カバー率 約93%）。
+	// 固有スキル／因子のチップ、「継承」タブpillは左右いずれか1カラムや
+	// 部分幅のみを占める帯（実測: 幅カバー率 約32〜50%）。
+	// 一方、ステータス表ヘッダーや「継承履歴」区切りバーのような全幅バナーは
+	// 幅カバー率が約91〜93%と際立って高く、青帯の直後や緑帯の末尾に来ることがあるため、
+	// 位置関係だけを条件にすると誤って固有スキル帯・タブ境界と認識してしまう。
 	// 全幅に近い帯は候補から除外し、この誤検出を防ぐ。
 	const WIDE_BAND_COVERAGE_RATIO = 0.7;
+	function isWideBand(g) {
+		const colCounts = colCountsOf(green, W, g.a, g.b);
+		let covered = 0;
+		for (let x = 0; x < W; x++) { if (colCounts[x] > 0) covered++; }
+		return (covered / W) > WIDE_BAND_COVERAGE_RATIO;
+	}
+
 	let wideBandExcluded = 0;
 	const uniqueSkillBands = [];
 	for (const bb of blueBands) {
 		const hit = thickGreen.find(g => {
 			if (g.a - bb.b < 0 || g.a - bb.b > gapLimit) return false;
-			const colCounts = colCountsOf(green, W, g.a, g.b);
-			let covered = 0;
-			for (let x = 0; x < W; x++) { if (colCounts[x] > 0) covered++; }
-			if (covered / W > WIDE_BAND_COVERAGE_RATIO) { wideBandExcluded++; return false; }
+			if (isWideBand(g)) { wideBandExcluded++; return false; }
 			return true;
 		});
 		if (hit) uniqueSkillBands.push(hit);
@@ -449,8 +454,17 @@ function detectSkillRows(baseCanvas, diag) {
 			diag.push('継承元の固有スキル帯を検出 → リスト下端 y=' + listBottom + ' で打ち切り');
 		}
 	} else if (thickGreen.length > 0) {
-		// フォールバック: 従来ロジック（最後の緑帯をタブ/境界とみなす）
-		const tab = thickGreen[thickGreen.length - 1];
+		// フォールバック: 従来ロジック（最後の緑帯をタブ/境界とみなす）。
+		// ただし「継承履歴」区切りバーのような全幅バナーがリスト末尾に写り込むと、
+		// それが「最後の緑帯」として拾われ、タブpill（横幅カバー率 実測約32%）ではなく
+		// 全幅バナー（同 約91%）を境界と誤認してしまう。固有スキル帯判定と同じ
+		// 横幅カバー率フィルタで全幅バナーを除外し、残った中の最後の帯を使う。
+		const narrowGreen = thickGreen.filter(g => !isWideBand(g));
+		const candidates = narrowGreen.length > 0 ? narrowGreen : thickGreen;
+		if (narrowGreen.length < thickGreen.length) {
+			diag.push('全幅帯（継承履歴バー等）をタブ境界候補から除外: ' + (thickGreen.length - narrowGreen.length) + '件');
+		}
+		const tab = candidates[candidates.length - 1];
 		listTop = Math.min(H - 1, tab.b + Math.round(H * 0.004));
 		diag.push('固有スキル帯を検出できず → 従来ロジックにフォールバック');
 		diag.push('緑帯 ' + thickGreen.length + '本 / タブ下端 y=' + tab.b + ' → リスト上端 y=' + listTop);
