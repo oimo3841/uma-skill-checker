@@ -86,7 +86,7 @@
 				<!-- 左側：タイトルエリア -->
 				<div>
 					<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-800 via-indigo-700 to-indigo-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Exam</span> OCR<span class="ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">β版</span></h1>
-					<p class="mt-1.5 text-xs md:text-sm text-slate-500">技能試験で有利な対象133スキルの★の数を自動判定</p>
+					<p class="mt-1.5 text-xs md:text-sm text-slate-500">技能試験で有利な対象スキル（<span id="header-skill-count">133</span>種・登録済み）に絞って★の数を自動判定します。親Aセット（+祖A1+祖A2）に加えて、親Bセットもオプションで判定・比較できます。</p>
 					<p class="mt-1 text-[11px] text-amber-700">※ OCR・★判定の精度は完全ではありません。結果は念のため目視でもご確認ください。</p>
 					<p class="mt-0.5 text-[11px] text-amber-700">※ SNSの投稿画像等は解像度不足のため対象外となる場合があります。また、加工された画像は適切に判定できない場合があります。ゲーム画面から直接撮ったスクリーンショットをご利用ください。</p>
 				</div>
@@ -165,12 +165,12 @@
 				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-indigo-100 shadow-2xs">
 					<span class="inline-block px-2 py-0.5 rounded-md bg-indigo-600 text-white font-bold text-[10px] mb-1.5">STEP 1</span>
 					<p class="font-bold text-slate-800">対象を撮影</p>
-					<p class="text-slate-500 mt-1">1〜3人分のうち、必要な人数分の因子画面を、境界を含めず個別に撮影（対象スキルは登録済みのため準備不要）</p>
+					<p class="text-slate-500 mt-1">親A（＋祖A1＋祖A2）、必要なら親B（＋祖B1＋祖B2）の因子画面を、境界を含めず個別に撮影（対象スキルは登録済みのため準備不要）</p>
 				</div>
 				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-indigo-100 shadow-2xs">
 					<span class="inline-block px-2 py-0.5 rounded-md bg-indigo-600 text-white font-bold text-[10px] mb-1.5">STEP 2</span>
 					<p class="font-bold text-slate-800">使う欄にアップロード</p>
-					<p class="text-slate-500 mt-1">1〜3人目のうち、使う欄にだけスクショを追加（残りは空欄でOK）</p>
+					<p class="text-slate-500 mt-1">親Aセットの使う欄にスクショを追加。親Bセットが必要な場合は「＋ 親Bセットも追加する」で表示してから追加（残りは空欄でOK）</p>
 				</div>
 				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-indigo-100 shadow-2xs">
 					<span class="inline-block px-2 py-0.5 rounded-md bg-indigo-600 text-white font-bold text-[10px] mb-1.5">STEP 3</span>
@@ -204,19 +204,19 @@
 					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">1</span>
 					<h2 class="text-sm font-bold text-slate-800">技能試験 対象スキル（登録済み・入力不要）</h2>
 				</div>
-				<span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800">133種 登録済み</span>
+				<span id="step1-skill-badge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800">133種 登録済み</span>
 			</div>
 
-			<p class="text-xs text-slate-500 mb-3">技能試験で有利な対象133スキルをあらかじめ登録しています。1〜3人目すべてに対して、このリストで照合します。スキルリストの入力操作は不要です。</p>
+			<p class="text-xs text-slate-500 mb-3">技能試験で有利な対象スキルをあらかじめ<span id="step1-skill-count-inline">133</span>種登録しています。アップロードした因子すべてに対して、このリストで照合します。追加・除外は下の「対象スキルのカスタム設定」から行えます。</p>
 
 			<div class="flex flex-wrap gap-2 mb-4">
 				<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
 					<i data-lucide="star" class="w-3 h-3"></i>
-					<span>sp70緑：17種</span>
+					<span id="badge-sp70-count">sp70緑：17種</span>
 				</span>
 				<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">
 					<i data-lucide="leaf" class="w-3 h-3"></i>
-					<span>緑59種（実質53種）</span>
+					<span id="badge-green59-count">緑59種（実質53種）</span>
 				</span>
 			</div>
 
@@ -225,48 +225,99 @@
 				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
 					<span class="flex items-center gap-2">
 						<i data-lucide="list" class="w-4 h-4 text-slate-500"></i>
-						<span>対象スキル133種の一覧を確認する</span>
+						<span>対象スキル<span id="registry-skill-count">133</span>種の一覧を確認する</span>
 					</span>
 					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
 				</summary>
 				<div class="p-4 pt-2 border-t border-slate-200/60">
 					<p class="text-[11px] text-slate-500 mb-2">
 						<span class="text-amber-500 font-bold">★</span> = sp70緑（17種） ／
-						<span class="text-emerald-500 font-bold">●</span> = 緑59種（sp70緑を含む）
+						<span class="text-emerald-500 font-bold">●</span> = 緑59種（sp70緑を含む） ／
+						<span class="text-indigo-500 font-bold">＋</span> = カスタム追加スキル
 					</p>
 					<div id="skill-registry-list" class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-xs text-slate-600 max-h-72 overflow-y-auto"></div>
 				</div>
 			</details>
 
-			<!-- スキル名のコピー（各ユーザーが自分のスプレッドシートで管理するための書き出し） -->
-			<div class="rounded-xl border border-slate-200 bg-slate-50/50 p-4 mb-4">
-				<p class="text-xs font-semibold text-slate-700 flex items-center gap-1.5 mb-1.5">
-					<i data-lucide="clipboard-list" class="w-3.5 h-3.5 text-slate-500"></i>
-					<span>スキル名のコピー（スプレッドシート管理用）</span>
-				</p>
-				<p class="text-[11px] text-slate-500 mb-3">ご自身のスプレッドシートにスキル名の列を作る際にお使いください。1行に1スキル名で出力します。</p>
+			<!-- スキル名のコピー（各ユーザーが自分のスプレッドシートで管理するための書き出し・デフォルト折りたたみ） -->
+			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-4">
+				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+					<span class="flex items-center gap-2">
+						<i data-lucide="clipboard-list" class="w-4 h-4 text-slate-500"></i>
+						<span>スキル名のコピー（スプレッドシート管理用）</span>
+					</span>
+					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
+				</summary>
+				<div class="p-4 pt-2 border-t border-slate-200/60">
+					<p class="text-[11px] text-slate-500 mb-3">ご自身のスプレッドシートにスキル名の列を作る際にお使いください。1行に1スキル名で出力します。</p>
 
-				<div class="flex flex-wrap items-center gap-2 mb-2">
-					<button type="button" onclick="selectCopyList('all133')" id="copylist-all133" class="copylist-btn">全133種</button>
-					<button type="button" onclick="selectCopyList('sp70')" id="copylist-sp70" class="copylist-btn">sp70緑17種</button>
-					<button type="button" onclick="selectCopyList('green59')" id="copylist-green59" class="copylist-btn">緑59種</button>
-					<!-- 緑59種を選んだ時だけ表示。「技能試験ハイライト」と同じcountModeを共有し、既定/個別のどちらで書き出すか切り替える -->
-					<div id="copylist-green59-mode" class="hidden items-center gap-1 text-xs bg-white rounded-lg border border-slate-200 p-0.5 ml-1">
-						<button type="button" onclick="setCountMode('equivalence')" class="mode-btn" id="mode-equivalence-list">実質53種</button>
-						<button type="button" onclick="setCountMode('individual')" class="mode-btn" id="mode-individual-list">59種個別</button>
+					<div class="flex flex-wrap items-center gap-2 mb-2">
+						<button type="button" onclick="selectCopyList('all133')" id="copylist-all133" class="copylist-btn">全<span id="copylist-all133-count">133</span>種</button>
+						<button type="button" onclick="selectCopyList('sp70')" id="copylist-sp70" class="copylist-btn">sp70緑<span id="copylist-sp70-count">17</span>種</button>
+						<button type="button" onclick="selectCopyList('green59')" id="copylist-green59" class="copylist-btn">緑59種</button>
+						<!-- 緑59種を選んだ時だけ表示。「技能試験ハイライト」と同じcountModeを共有し、既定/個別のどちらで書き出すか切り替える -->
+						<div id="copylist-green59-mode" class="hidden items-center gap-1 text-xs bg-white rounded-lg border border-slate-200 p-0.5 ml-1">
+							<button type="button" onclick="setCountMode('equivalence')" class="mode-btn" id="mode-equivalence-list">実質53種</button>
+							<button type="button" onclick="setCountMode('individual')" class="mode-btn" id="mode-individual-list">59種個別</button>
+						</div>
+					</div>
+
+					<textarea id="skill-copy-textarea" readonly class="w-full h-28 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none resize-y"></textarea>
+
+					<div class="flex items-center justify-between mt-2">
+						<span id="skill-copy-hint" class="text-[11px] text-slate-400"></span>
+						<button type="button" onclick="copySkillList()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all cursor-pointer">
+							<i data-lucide="copy" class="w-3.5 h-3.5"></i>
+							<span>コピー</span>
+						</button>
 					</div>
 				</div>
+			</details>
 
-				<textarea id="skill-copy-textarea" readonly class="w-full h-28 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none resize-y"></textarea>
+			<!-- 対象スキルのカスタム設定（追加・除外）（任意・デフォルト折りたたみ） -->
+			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-4">
+				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+					<span class="flex items-center gap-2">
+						<i data-lucide="list-plus" class="w-4 h-4 text-slate-500"></i>
+						<span>対象スキルのカスタム設定（追加・除外）</span>
+						<span id="custom-skills-badge" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800"></span>
+					</span>
+					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
+				</summary>
+				<div class="p-4 pt-1 border-t border-slate-200/60">
+					<p class="text-[11px] text-slate-500 leading-relaxed mb-3">
+						通常は登録済みの133種で判定しますが、独自に追跡したいスキルを追加したり、不要なスキルを対象から除外したりできます。
+						内容はこのブラウザに保存され、次回も使われます。
+					</p>
 
-				<div class="flex items-center justify-between mt-2">
-					<span id="skill-copy-hint" class="text-[11px] text-slate-400"></span>
-					<button type="button" onclick="copySkillList()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all cursor-pointer">
-						<i data-lucide="copy" class="w-3.5 h-3.5"></i>
-						<span>コピー</span>
-					</button>
+					<!-- 追加 -->
+					<div class="mb-4">
+						<p class="text-xs font-semibold text-slate-700 mb-1.5">スキルを追加する</p>
+						<div class="flex gap-2 mb-2">
+							<input type="text" id="custom-add-input" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomSkill();}" placeholder="追加するスキル名を入力してEnterまたは追加ボタン" class="flex-1 min-w-0 text-xs p-2 rounded-lg border border-slate-200 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all" />
+							<button type="button" onclick="addCustomSkill()" class="shrink-0 px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all cursor-pointer">追加</button>
+						</div>
+						<div id="custom-added-list" class="flex flex-wrap gap-1.5"></div>
+					</div>
+
+					<!-- 除外 -->
+					<div>
+						<p class="text-xs font-semibold text-slate-700 mb-1.5">対象から除外する</p>
+						<div class="flex gap-2 mb-2">
+							<select id="custom-remove-select" class="flex-1 min-w-0 text-xs p-2 rounded-lg border border-slate-200 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all">
+								<option value="">除外するスキルを選択…</option>
+							</select>
+							<button type="button" onclick="addRemovedSkill()" class="shrink-0 px-3.5 py-1.5 rounded-lg bg-slate-700 text-white text-xs font-semibold hover:bg-slate-800 transition-all cursor-pointer">除外</button>
+						</div>
+						<div id="custom-removed-list" class="flex flex-wrap gap-1.5"></div>
+					</div>
+
+					<div class="mt-3 flex items-center justify-between">
+						<span id="custom-skills-status" class="text-[11px] text-slate-500"></span>
+						<button type="button" onclick="resetCustomSkills()" class="text-[11px] text-slate-500 hover:text-red-600 underline underline-offset-2 cursor-pointer">カスタム設定をリセット</button>
+					</div>
 				</div>
-			</div>
+			</details>
 
 			<!-- 誤認識の読み替え辞書（任意） -->
 			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden">
@@ -293,16 +344,25 @@
 			</details>
 		</div>
 
-		<!-- ステップ2：3人分の画像アップロード -->
+		<!-- ステップ2：因子セットの画像アップロード -->
 		<div class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6">
-			<div class="flex items-center justify-between mb-4">
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
 				<div class="flex items-center gap-2">
 					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">2</span>
-					<h2 class="text-sm font-bold text-slate-800">1〜3人目の画像をアップロード（1人分だけでもOK）</h2>
+					<h2 class="text-sm font-bold text-slate-800">因子セットの画像をアップロード（親Aセットのみでも判定可）</h2>
 				</div>
+				<button type="button" id="setb-toggle-btn" onclick="toggleSetB()" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0">
+					<i data-lucide="git-branch" class="w-3.5 h-3.5"></i>
+					<span id="setb-toggle-label">＋ 親Bセットも追加する</span>
+				</button>
 			</div>
+			<p class="text-[11px] text-slate-500 mb-4">ウマ娘の因子継承は「親＋祖父母2体」のセットを2つ（親A・親B）組み合わせる仕様です。親Aセットだけでも判定できます。親Bセットを追加すると、両方をまとめて照合・比較できます。</p>
 
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5" id="person-upload-grid"></div>
+			<!-- 親Aセット（常時表示） -->
+			<div id="personset-A-wrap" class="mb-4"></div>
+
+			<!-- 親Bセット（任意・デフォルト非表示） -->
+			<div id="personset-B-wrap" class="hidden mb-4"></div>
 
 			<!-- オプション設定（デフォルトで折りたたみ） -->
 			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-5">
@@ -736,19 +796,67 @@
 		let ocrErrorDictionary = {};
 		const DICT_STORAGE_KEY = 'uma-exam-ocr-dict';
 
-		// 1〜3人目それぞれのアップロード済みファイルと、解析結果（skillStars: {スキル名: 星の数}）
-		const PERSON_LABELS = ['1人目', '2人目', '3人目'];
-		const PERSON_COLORS = ['blue', 'pink', 'emerald'];
-		const persons = [
-			{ files: [] },
-			{ files: [] },
-			{ files: [] }
+		/* ------------------------------------------------------------
+		 * 対象スキルのカスタム設定（追加・除外）
+		 * EXAM_SKILL_LIST（登録済み133種）はこのファイル内の固定値のまま変更せず、
+		 * 「除外リスト」でEXAM_SKILL_LISTから取り除く分を、「追加リスト」で
+		 * ユーザー独自のスキルを足す分を管理する。実際にOCR照合・結果表示・
+		 * コピー機能等が参照する skillList / skillIndex は、この2つを反映して
+		 * rebuildSkillList() が都度再構築する（＝既存ロジックへの影響を skillList
+		 * の中身の差し替えだけに閉じ込める設計）。
+		 * ------------------------------------------------------------ */
+		let customAddedSkills = [];           // ユーザーが追加したスキル名（EXAM_SKILL_LIST外）
+		let removedSkillsSet = new Set();     // EXAM_SKILL_LISTのうち対象から外したスキル名
+		const CUSTOM_ADDED_STORAGE_KEY = 'uma-exam-custom-added';
+		const CUSTOM_REMOVED_STORAGE_KEY = 'uma-exam-custom-removed';
+
+		// 除外を反映した基準リスト（sp70緑・緑59種の集計母数もこれで動的に縮む）
+		function effectiveBaseList(list) {
+			return list.filter(s => !removedSkillsSet.has(s));
+		}
+		function effectiveGreen59EquivalenceMax() {
+			const canonical = new Set();
+			effectiveBaseList(GREEN_59).forEach(s => canonical.add(AWAKENING_PAIR_MAP[s] || s));
+			return canonical.size;
+		}
+
+		function rebuildSkillList() {
+			skillList = effectiveBaseList(EXAM_SKILL_LIST).concat(customAddedSkills);
+			skillIndex = skillList.map(raw => ({ raw: raw, norm: normalizeText(raw) }));
+		}
+
+		/* ------------------------------------------------------------
+		 * 親A（親A・祖A1・祖A2）／親B（親B・祖B1・祖B2）の2セット・計6枠。
+		 * ウマ娘の因子継承画面の構成（親のセットを2つ組み合わせる）を再現するための
+		 * オプション機能。親Bセットは既定では非表示（setBVisible=false）で、
+		 * 有効化するまでは従来どおり親Aセット（3枠）のみで完結する。
+		 * インデックス 0-2 = 親Aセット（親A/祖A1/祖A2）、3-5 = 親Bセット（親B/祖B1/祖B2）。
+		 * ------------------------------------------------------------ */
+		const PERSON_SETS = [
+			{ id: 'A', label: '親Aセット', colorBase: 'blue' },
+			{ id: 'B', label: '親Bセット', colorBase: 'violet' }
 		];
-		let personResults = [null, null, null]; // matchAllSkillsWithStars() の戻り値を格納
+		const PERSON_LABELS = [];
+		const PERSON_COLORS = ['blue', 'pink', 'emerald', 'violet', 'fuchsia', 'teal'];
+		PERSON_SETS.forEach(set => {
+			PERSON_LABELS.push('親' + set.id);
+			PERSON_LABELS.push('祖' + set.id + '1');
+			PERSON_LABELS.push('祖' + set.id + '2');
+		});
+		const persons = PERSON_LABELS.map(() => ({ files: [] }));
+		let personResults = PERSON_LABELS.map(() => null); // matchAllSkillsWithStars() の戻り値を格納
+		let setBVisible = false;
 
 		document.addEventListener('DOMContentLoaded', () => {
-			skillIndex = skillList.map(raw => ({ raw: raw, norm: normalizeText(raw) }));
+			restoreCustomSkills();
+			rebuildSkillList();
 			renderSkillRegistryList();
+			renderCustomAddedList();
+			renderCustomRemoveSelect();
+			renderCustomRemovedList();
+			updateCustomSkillsBadge();
+			updateSkillCountDisplays();
+			updateCategoryBadges();
 			renderPersonUploadGrid();
 			restoreOcrDictionary();
 			restoreCountMode();
@@ -762,15 +870,186 @@
 		 * ============================================================ */
 		function renderSkillRegistryList() {
 			const box = document.getElementById('skill-registry-list');
-			box.innerHTML = EXAM_SKILL_LIST.map(skill => {
+			// 除外設定を反映した基本133種＋カスタム追加分を、現在の対象スキル一覧として表示する。
+			box.innerHTML = skillList.map(skill => {
 				let mark = '<span class="inline-block w-3"></span>';
 				if (SP70_GREEN_17_SET.has(skill)) {
 					mark = '<span class="text-amber-500 font-bold" title="sp70緑">★</span>';
 				} else if (GREEN_59_SET.has(skill)) {
 					mark = '<span class="text-emerald-500 font-bold" title="緑59種">●</span>';
+				} else if (customAddedSkills.indexOf(skill) !== -1) {
+					mark = '<span class="text-indigo-500 font-bold" title="カスタム追加スキル">＋</span>';
 				}
 				return '<div class="flex items-center gap-1.5 py-0.5"><span class="w-3.5 text-center">' + mark + '</span><span>' + escapeHtml(skill) + '</span></div>';
 			}).join('');
+		}
+
+		/* ============================================================
+		 * ヘッダー・バッジ類の件数表示を、現在のskillList（除外・追加反映後）に同期する
+		 * ============================================================ */
+		function updateSkillCountDisplays() {
+			const total = skillList.length;
+			['header-skill-count', 'step1-skill-count-inline', 'registry-skill-count', 'copylist-all133-count'].forEach(id => {
+				const el = document.getElementById(id);
+				if (el) el.textContent = String(total);
+			});
+			const badge = document.getElementById('step1-skill-badge');
+			if (badge) badge.textContent = total + '種 登録済み';
+		}
+
+		function updateCategoryBadges() {
+			const sp70Count = effectiveBaseList(SP70_GREEN_17).length;
+			const greenMax = effectiveGreen59EquivalenceMax();
+			const sp70Badge = document.getElementById('badge-sp70-count');
+			if (sp70Badge) sp70Badge.textContent = 'sp70緑：' + sp70Count + '種';
+			const greenBadge = document.getElementById('badge-green59-count');
+			if (greenBadge) greenBadge.textContent = '緑59種（実質' + greenMax + '種）';
+			const sp70CopyCount = document.getElementById('copylist-sp70-count');
+			if (sp70CopyCount) sp70CopyCount.textContent = String(sp70Count);
+		}
+
+		/* ============================================================
+		 * 対象スキルのカスタム設定（追加・除外）
+		 * ============================================================ */
+		function saveCustomSkills() {
+			try {
+				localStorage.setItem(CUSTOM_ADDED_STORAGE_KEY, JSON.stringify(customAddedSkills));
+				localStorage.setItem(CUSTOM_REMOVED_STORAGE_KEY, JSON.stringify(Array.from(removedSkillsSet)));
+			} catch (e) {}
+		}
+
+		function restoreCustomSkills() {
+			try {
+				const addedRaw = localStorage.getItem(CUSTOM_ADDED_STORAGE_KEY);
+				if (addedRaw) customAddedSkills = JSON.parse(addedRaw).filter(s => typeof s === 'string' && s);
+			} catch (e) { customAddedSkills = []; }
+			try {
+				const removedRaw = localStorage.getItem(CUSTOM_REMOVED_STORAGE_KEY);
+				if (removedRaw) removedSkillsSet = new Set(JSON.parse(removedRaw).filter(s => EXAM_SKILL_LIST.indexOf(s) !== -1));
+			} catch (e) { removedSkillsSet = new Set(); }
+		}
+
+		// カスタム設定に変更があった際、影響するすべての表示をまとめて更新する。
+		function refreshAfterCustomSkillsChange() {
+			rebuildSkillList();
+			saveCustomSkills();
+			renderSkillRegistryList();
+			renderCustomAddedList();
+			renderCustomRemoveSelect();
+			renderCustomRemovedList();
+			updateCustomSkillsBadge();
+			updateSkillCountDisplays();
+			updateCategoryBadges();
+			// 「スキル名のコピー」が開いている場合に備え、表示中のリストも再計算する
+			renderSkillCopyTextarea();
+			// 誤認識辞書は「対象133種に無い名前」を照合しているため、除外・追加後の状態で再判定する
+			parseOcrDictionary();
+			updateProcessBtn();
+			if (window.lucide) lucide.createIcons();
+		}
+
+		function updateCustomSkillsBadge() {
+			const badge = document.getElementById('custom-skills-badge');
+			const count = customAddedSkills.length + removedSkillsSet.size;
+			if (count > 0) {
+				badge.textContent = '追加' + customAddedSkills.length + '・除外' + removedSkillsSet.size;
+				badge.classList.remove('hidden');
+			} else {
+				badge.classList.add('hidden');
+			}
+		}
+
+		function addCustomSkill() {
+			const input = document.getElementById('custom-add-input');
+			const name = input.value.trim();
+			const status = document.getElementById('custom-skills-status');
+			if (!name) return;
+			if (skillList.indexOf(name) !== -1) {
+				status.textContent = '「' + name + '」は既に対象に含まれています';
+				status.className = 'text-[11px] text-amber-600';
+				return;
+			}
+			customAddedSkills.push(name);
+			input.value = '';
+			status.textContent = '「' + name + '」を追加しました';
+			status.className = 'text-[11px] text-slate-500';
+			refreshAfterCustomSkillsChange();
+		}
+
+		function removeCustomSkill(name) {
+			const idx = customAddedSkills.indexOf(name);
+			if (idx === -1) return;
+			customAddedSkills.splice(idx, 1);
+			refreshAfterCustomSkillsChange();
+		}
+
+		function addRemovedSkill() {
+			const select = document.getElementById('custom-remove-select');
+			const name = select.value;
+			if (!name) return;
+			removedSkillsSet.add(name);
+			select.value = '';
+			refreshAfterCustomSkillsChange();
+		}
+
+		function restoreRemovedSkill(name) {
+			if (!removedSkillsSet.has(name)) return;
+			removedSkillsSet.delete(name);
+			refreshAfterCustomSkillsChange();
+		}
+
+		function resetCustomSkills() {
+			if (customAddedSkills.length === 0 && removedSkillsSet.size === 0) return;
+			customAddedSkills = [];
+			removedSkillsSet = new Set();
+			try {
+				localStorage.removeItem(CUSTOM_ADDED_STORAGE_KEY);
+				localStorage.removeItem(CUSTOM_REMOVED_STORAGE_KEY);
+			} catch (e) {}
+			document.getElementById('custom-skills-status').textContent = '';
+			refreshAfterCustomSkillsChange();
+			showToast('カスタム設定をリセットしました');
+		}
+
+		function renderCustomAddedList() {
+			const box = document.getElementById('custom-added-list');
+			if (customAddedSkills.length === 0) {
+				box.innerHTML = '<span class="text-[11px] text-slate-400">追加済みのスキルはありません</span>';
+				return;
+			}
+			box.innerHTML = customAddedSkills.map(name => `
+				<span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-indigo-100 text-indigo-800 text-[11px] font-medium">
+					${escapeHtml(name)}
+					<button type="button" onclick="removeCustomSkill('${escapeHtml(name).replace(/'/g, "\\'")}')" class="w-4 h-4 rounded-full hover:bg-indigo-200 flex items-center justify-center cursor-pointer">
+						<i data-lucide="x" class="w-3 h-3"></i>
+					</button>
+				</span>`).join('');
+			if (window.lucide) lucide.createIcons();
+		}
+
+		function renderCustomRemoveSelect() {
+			const select = document.getElementById('custom-remove-select');
+			const current = select.value;
+			const options = ['<option value="">除外するスキルを選択…</option>']
+				.concat(effectiveBaseList(EXAM_SKILL_LIST).map(s => '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'));
+			select.innerHTML = options.join('');
+			select.value = current && effectiveBaseList(EXAM_SKILL_LIST).indexOf(current) !== -1 ? current : '';
+		}
+
+		function renderCustomRemovedList() {
+			const box = document.getElementById('custom-removed-list');
+			if (removedSkillsSet.size === 0) {
+				box.innerHTML = '<span class="text-[11px] text-slate-400">除外中のスキルはありません</span>';
+				return;
+			}
+			box.innerHTML = Array.from(removedSkillsSet).map(name => `
+				<span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-slate-200 text-slate-700 text-[11px] font-medium">
+					${escapeHtml(name)}
+					<button type="button" onclick="restoreRemovedSkill('${escapeHtml(name).replace(/'/g, "\\'")}')" title="対象に戻す" class="w-4 h-4 rounded-full hover:bg-slate-300 flex items-center justify-center cursor-pointer">
+						<i data-lucide="rotate-ccw" class="w-3 h-3"></i>
+					</button>
+				</span>`).join('');
+			if (window.lucide) lucide.createIcons();
 		}
 
 		/* ============================================================
@@ -783,10 +1062,11 @@
 		// まとめられ、GREEN_59内で先に登場している基本スキル名の側だけが残る
 		// （＝目覚め系の6件を除いた53件になる）。
 		function canonicalGreen59List(equivalence) {
-			if (!equivalence) return GREEN_59.slice();
+			const base = effectiveBaseList(GREEN_59);
+			if (!equivalence) return base;
 			const seen = new Set();
 			const out = [];
-			GREEN_59.forEach(s => {
+			base.forEach(s => {
 				const canonical = AWAKENING_PAIR_MAP[s] || s;
 				if (!seen.has(canonical)) {
 					seen.add(canonical);
@@ -815,17 +1095,17 @@
 		function renderSkillCopyTextarea() {
 			let list, hint;
 			if (copyListMode === 'sp70') {
-				list = SP70_GREEN_17;
-				hint = 'sp70緑（17種）';
+				list = effectiveBaseList(SP70_GREEN_17);
+				hint = 'sp70緑（' + list.length + '種）';
 			} else if (copyListMode === 'green59') {
 				const equivalence = (countMode === 'equivalence');
 				list = canonicalGreen59List(equivalence);
 				hint = equivalence
-					? '緑59種・実質' + GREEN_59_EQUIVALENCE_MAX + '種（目覚め系は対応スキルにまとめています）'
-					: '緑59種（59種個別・目覚め系も独立して含みます）';
+					? '緑59種・実質' + effectiveGreen59EquivalenceMax() + '種（目覚め系は対応スキルにまとめています）'
+					: '緑59種（除外反映後' + list.length + '種・目覚め系も独立して含みます）';
 			} else {
-				list = EXAM_SKILL_LIST;
-				hint = '対象スキル全133種（登録順）';
+				list = skillList;
+				hint = '対象スキル全' + skillList.length + '種（登録順・カスタム設定反映）';
 			}
 			document.getElementById('skill-copy-textarea').value = list.join('\n');
 			document.getElementById('skill-copy-hint').textContent = hint + ' ・ ' + list.length + '行';
@@ -937,14 +1217,22 @@
 		}
 
 		/* ============================================================
-		 * 1〜3人目 それぞれのアップロード欄
+		 * 親A・親B（各:親＋祖1＋祖2の3枠）のアップロード欄
+		 * インデックス0-2=親Aセット、3-5=親Bセット。親Bセットはtoggle表示。
 		 * ============================================================ */
-		function renderPersonUploadGrid() {
-			const grid = document.getElementById('person-upload-grid');
-			grid.innerHTML = PERSON_LABELS.map((label, idx) => `
-				<div class="rounded-xl border border-slate-200 bg-slate-50/40 p-3">
+		// idx（0-5）から役割を判定：0=親／1=祖1／2=祖2（3で割った余り）
+		function personRoleGlyph(idx) {
+			const r = idx % 3;
+			return r === 0 ? '親' : '祖' + r;
+		}
+
+		function buildPersonUploadCard(idx) {
+			const label = PERSON_LABELS[idx];
+			const color = PERSON_COLORS[idx];
+			return `
+				<div class="rounded-xl border border-slate-200 bg-white/70 p-3">
 					<p class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-						<span class="w-5 h-5 rounded-full bg-${PERSON_COLORS[idx]}-500 text-white text-[10px] font-bold flex items-center justify-center">${idx + 1}</span>
+						<span class="w-6 h-6 rounded-full bg-${color}-500 text-white text-[9px] font-bold flex items-center justify-center shrink-0">${personRoleGlyph(idx)}</span>
 						${label}
 					</p>
 					<label class="person-drop-zone group block cursor-pointer rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-indigo-50/40 hover:border-indigo-400 transition-all p-4 text-center mb-2" data-person="${idx}">
@@ -955,19 +1243,60 @@
 						</div>
 					</label>
 					<div class="person-image-list grid grid-cols-2 gap-2" data-person="${idx}"></div>
-				</div>
-			`).join('');
+				</div>`;
+		}
+
+		// 親1体＋祖父母2体の系譜を、簡易的なツリー図（装飾・アップロード機能とは独立）で表現する。
+		// 参考UI（ウマ娘因子継承シミュレーター系ツール）の「1セット=系譜」という考え方を、
+		// 実際のアップロード欄と組み合わせて再現するための表示のみの要素。
+		function buildSetTreeDiagram(setIdx) {
+			const set = PERSON_SETS[setIdx];
+			const color = set.colorBase;
+			return `
+				<div class="flex items-center justify-center gap-2 mb-3 select-none" aria-hidden="true">
+					<div class="w-9 h-9 rounded-full bg-${color}-500 text-white text-[11px] font-bold flex items-center justify-center shadow-sm">親${set.id}</div>
+					<svg width="28" height="44" viewBox="0 0 28 44" class="shrink-0">
+						<path d="M2 22 H12 M12 22 V8 H26 M12 22 V36 H26" fill="none" stroke="#cbd5e1" stroke-width="2" />
+					</svg>
+					<div class="flex flex-col gap-3">
+						<div class="w-7 h-7 rounded-full bg-${color}-300 text-white text-[9px] font-bold flex items-center justify-center">祖${set.id}1</div>
+						<div class="w-7 h-7 rounded-full bg-${color}-300 text-white text-[9px] font-bold flex items-center justify-center">祖${set.id}2</div>
+					</div>
+				</div>`;
+		}
+
+		function buildSetPanel(setIdx) {
+			const set = PERSON_SETS[setIdx];
+			const baseIdx = setIdx * 3;
+			const cards = [0, 1, 2].map(r => buildPersonUploadCard(baseIdx + r)).join('');
+			return `
+				<div class="rounded-2xl border border-${set.colorBase}-200 bg-${set.colorBase}-50/20 p-4">
+					<div class="flex items-center justify-between mb-1">
+						<p class="text-xs font-bold text-${set.colorBase}-800 flex items-center gap-1.5">
+							<i data-lucide="workflow" class="w-3.5 h-3.5"></i>
+							<span>${set.label}（親${set.id}＋祖${set.id}1＋祖${set.id}2）</span>
+						</p>
+						<button type="button" onclick="clearPersonSet(${setIdx})" class="text-[11px] text-slate-400 hover:text-red-600 underline underline-offset-2 cursor-pointer">セットをクリア</button>
+					</div>
+					${buildSetTreeDiagram(setIdx)}
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-3">${cards}</div>
+				</div>`;
+		}
+
+		function renderPersonUploadGrid() {
+			document.getElementById('personset-A-wrap').innerHTML = buildSetPanel(0);
+			document.getElementById('personset-B-wrap').innerHTML = buildSetPanel(1);
 
 			if (window.lucide) lucide.createIcons();
 
-			grid.querySelectorAll('.person-file-input').forEach(input => {
+			document.querySelectorAll('.person-file-input').forEach(input => {
 				input.addEventListener('change', (e) => {
 					const idx = Number(e.target.dataset.person);
 					addPersonFiles(idx, Array.from(e.target.files));
 					e.target.value = '';
 				});
 			});
-			grid.querySelectorAll('.person-drop-zone').forEach(zone => {
+			document.querySelectorAll('.person-drop-zone').forEach(zone => {
 				const idx = Number(zone.dataset.person);
 				['dragenter', 'dragover'].forEach(ev => {
 					zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('drop-active'); });
@@ -982,6 +1311,27 @@
 					if (files.length) addPersonFiles(idx, files);
 				});
 			});
+
+			// フルリビルド直後でも、既にアップロード済みのファイルがあればサムネイルを復元する
+			persons.forEach((_, idx) => renderPersonImageList(idx));
+		}
+
+		// 親Bセット（4-6枠目）の表示/非表示を切り替える。非表示にしてもアップロード済みの
+		// ファイル自体は保持される（再表示すれば残っている）。
+		function toggleSetB() {
+			setBVisible = !setBVisible;
+			const wrap = document.getElementById('personset-B-wrap');
+			wrap.classList.toggle('hidden', !setBVisible);
+			document.getElementById('setb-toggle-label').textContent = setBVisible ? '− 親Bセットを閉じる' : '＋ 親Bセットも追加する';
+			document.getElementById('setb-toggle-btn').classList.toggle('bg-violet-100', setBVisible);
+		}
+
+		// 指定セット（0=親A, 1=親B）の3枠すべてのアップロード済み画像をクリアする
+		function clearPersonSet(setIdx) {
+			const baseIdx = setIdx * 3;
+			[0, 1, 2].forEach(r => { persons[baseIdx + r].files = []; });
+			[0, 1, 2].forEach(r => renderPersonImageList(baseIdx + r));
+			updateProcessBtn();
 		}
 
 		function addPersonFiles(personIdx, files) {
@@ -1104,7 +1454,7 @@
 
 			devGeometry = [];
 			previewCanvases = [];
-			personResults = [null, null, null];
+			personResults = PERSON_LABELS.map(() => null);
 
 			const progressWrap = document.getElementById('progress-wrap');
 			const errorWrap = document.getElementById('error-wrap');
@@ -1200,19 +1550,17 @@
 		}
 
 		function activePersonIndexes() {
-			return [0, 1, 2].filter(i => personResults[i]);
+			return PERSON_LABELS.map((_, i) => i).filter(i => personResults[i]);
 		}
 
-		const PERSON_STAT_META = {
-			0: ['blue', '1人目'],
-			1: ['pink', '2人目'],
-			2: ['emerald', '3人目']
-		};
+		// PERSON_LABELS / PERSON_COLORS（親A・親Bの計6枠分）から動的に生成する。
+		const PERSON_STAT_META = {};
+		PERSON_LABELS.forEach((label, i) => { PERSON_STAT_META[i] = [PERSON_COLORS[i], label]; });
 
 		function renderStatGrid(used) {
 			const grid = document.getElementById('stat-grid');
 			const cols = used.length + 1;
-			grid.className = 'grid gap-3 mb-6 ' + (cols <= 2 ? 'grid-cols-2' : cols === 3 ? 'grid-cols-3' : 'grid-cols-4');
+			grid.className = 'grid gap-3 mb-6 ' + (cols <= 2 ? 'grid-cols-2' : cols === 3 ? 'grid-cols-3' : cols === 4 ? 'grid-cols-4' : 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-' + cols);
 
 			let html = `
 				<div class="rounded-xl border border-slate-200 bg-slate-50/50 p-3 md:p-4 text-center">
@@ -1251,21 +1599,25 @@
 			wrap.classList.remove('hidden');
 
 			const equivalence = (countMode === 'equivalence');
-			const green59Max = equivalence ? GREEN_59_EQUIVALENCE_MAX : GREEN_59.length;
+			const sp70List = effectiveBaseList(SP70_GREEN_17);
+			const greenList = effectiveBaseList(GREEN_59);
+			const green59Max = equivalence ? effectiveGreen59EquivalenceMax() : greenList.length;
 
 			const grid = document.getElementById('exam-highlight-grid');
-			grid.className = 'grid gap-3 ' + (used.length === 1 ? 'grid-cols-2' : used.length === 2 ? 'grid-cols-4' : 'grid-cols-6');
+			// 最大6人（親A・親Bの2セット×3枠）まで想定。1行あたり最大6カード（=3人分）で自動的に折り返す。
+			const cardsCount = used.length * 2;
+			grid.className = 'grid gap-3 grid-cols-2 sm:grid-cols-' + Math.min(cardsCount, 4) + ' lg:grid-cols-' + Math.min(cardsCount, 6);
 
 			let html = '';
 			used.forEach(i => {
 				const [, label] = PERSON_STAT_META[i];
 				// sp70緑には「目覚め」系の対応スキルが含まれないため、モードに関わらず単純カウント。
-				const sp70Count = countCategory(i, SP70_GREEN_17, false);
-				const greenCount = countCategory(i, GREEN_59, equivalence);
+				const sp70Count = countCategory(i, sp70List, false);
+				const greenCount = countCategory(i, greenList, equivalence);
 				html += `
 					<div class="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-center">
 						<p class="text-[11px] font-medium text-amber-700 mb-1">${label} sp70緑</p>
-						<p class="text-base md:text-xl font-extrabold text-amber-600">${sp70Count}<span class="text-xs font-medium text-amber-400">/${SP70_GREEN_17.length}</span></p>
+						<p class="text-base md:text-xl font-extrabold text-amber-600">${sp70Count}<span class="text-xs font-medium text-amber-400">/${sp70List.length}</span></p>
 					</div>
 					<div class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-center">
 						<p class="text-[11px] font-medium text-emerald-700 mb-1">${label} 緑59種</p>
@@ -1360,10 +1712,11 @@
 				'<span class="star-cell text-slate-300">' + '★'.repeat(3 - stars) + '</span>';
 		}
 
-		// スキル名の前に付けるカテゴリバッジ（sp70緑=★ / 緑59種=●）。
+		// スキル名の前に付けるカテゴリバッジ（sp70緑=★ / 緑59種=● / カスタム追加=＋）。
 		function categoryBadge(skill) {
 			if (SP70_GREEN_17_SET.has(skill)) return '<span class="text-amber-500 mr-1" title="sp70緑（高コスパ17種）">★</span>';
 			if (GREEN_59_SET.has(skill)) return '<span class="text-emerald-500 mr-1" title="緑59種">●</span>';
+			if (customAddedSkills.indexOf(skill) !== -1) return '<span class="text-indigo-500 mr-1" title="カスタム追加スキル">＋</span>';
 			return '';
 		}
 
@@ -1464,7 +1817,7 @@
 			// 更新したはずの内容が反映されていない（キャッシュ・貼り忘れ等）ことを切り分けるため。
 			parts.push('■ 実行環境\n  common.js 版: ' + (typeof COMMON_JS_VERSION !== 'undefined' ? COMMON_JS_VERSION : '(不明・古い版です)') +
 				'\n  読み替え辞書: ' + Object.keys(ocrErrorDictionary).length + '件' +
-				'\n  緑59種カウントモード: ' + (countMode === 'equivalence' ? '実質' + GREEN_59_EQUIVALENCE_MAX + '種（既定）' : '59種個別') +
+				'\n  緑59種カウントモード: ' + (countMode === 'equivalence' ? '実質' + effectiveGreen59EquivalenceMax() + '種（既定）' : '59種個別') +
 				'\n  画質しきい値: 横幅' + MIN_BASE_WIDTH_PX + 'px以上 / 鮮明度スコア' + MIN_SHARPNESS_SCORE + '以上');
 			if (devGeometry.length) parts.push('■ 行検出・★判定の内訳\n' + devGeometry.join('\n'));
 
