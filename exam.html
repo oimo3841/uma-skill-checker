@@ -61,6 +61,9 @@
 		.mode-btn.active { background-color: #4f46e5; color: #fff; }
 		.mode-btn:not(.active) { color: #64748b; }
 		.mode-btn:not(.active):hover { background-color: #f1f5f9; }
+		.copylist-btn { padding: 0.375rem 0.875rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid #e2e8f0; background: #fff; color: #64748b; }
+		.copylist-btn:hover { background-color: #f1f5f9; }
+		.copylist-btn.active { background-color: #4f46e5; color: #fff; border-color: #4f46e5; }
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-indigo-600 selection:text-white">
@@ -234,6 +237,36 @@
 					<div id="skill-registry-list" class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-xs text-slate-600 max-h-72 overflow-y-auto"></div>
 				</div>
 			</details>
+
+			<!-- スキル名のコピー（各ユーザーが自分のスプレッドシートで管理するための書き出し） -->
+			<div class="rounded-xl border border-slate-200 bg-slate-50/50 p-4 mb-4">
+				<p class="text-xs font-semibold text-slate-700 flex items-center gap-1.5 mb-1.5">
+					<i data-lucide="clipboard-list" class="w-3.5 h-3.5 text-slate-500"></i>
+					<span>スキル名のコピー（スプレッドシート管理用）</span>
+				</p>
+				<p class="text-[11px] text-slate-500 mb-3">ご自身のスプレッドシートにスキル名の列を作る際にお使いください。1行に1スキル名で出力します。</p>
+
+				<div class="flex flex-wrap items-center gap-2 mb-2">
+					<button type="button" onclick="selectCopyList('all133')" id="copylist-all133" class="copylist-btn">全133種</button>
+					<button type="button" onclick="selectCopyList('sp70')" id="copylist-sp70" class="copylist-btn">sp70緑17種</button>
+					<button type="button" onclick="selectCopyList('green59')" id="copylist-green59" class="copylist-btn">緑59種</button>
+					<!-- 緑59種を選んだ時だけ表示。「技能試験ハイライト」と同じcountModeを共有し、既定/個別のどちらで書き出すか切り替える -->
+					<div id="copylist-green59-mode" class="hidden items-center gap-1 text-xs bg-white rounded-lg border border-slate-200 p-0.5 ml-1">
+						<button type="button" onclick="setCountMode('equivalence')" class="mode-btn" id="mode-equivalence-list">実質53種</button>
+						<button type="button" onclick="setCountMode('individual')" class="mode-btn" id="mode-individual-list">59種個別</button>
+					</div>
+				</div>
+
+				<textarea id="skill-copy-textarea" readonly class="w-full h-28 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none resize-y"></textarea>
+
+				<div class="flex items-center justify-between mt-2">
+					<span id="skill-copy-hint" class="text-[11px] text-slate-400"></span>
+					<button type="button" onclick="copySkillList()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all cursor-pointer">
+						<i data-lucide="copy" class="w-3.5 h-3.5"></i>
+						<span>コピー</span>
+					</button>
+				</div>
+			</div>
 
 			<!-- 誤認識の読み替え辞書（任意） -->
 			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden">
@@ -695,6 +728,10 @@
 		let countMode = 'equivalence';
 		const COUNT_MODE_STORAGE_KEY = 'uma-exam-count-mode';
 
+		// ステップ1「スキル名のコピー」で、現在どのリストを表示中か。
+		// 'all133' | 'sp70' | 'green59'
+		let copyListMode = 'all133';
+
 		// OCR誤認識の補正辞書。special.html / index.html とは別のブラウザ保存領域を使う。
 		let ocrErrorDictionary = {};
 		const DICT_STORAGE_KEY = 'uma-exam-ocr-dict';
@@ -715,6 +752,7 @@
 			renderPersonUploadGrid();
 			restoreOcrDictionary();
 			restoreCountMode();
+			selectCopyList('all133');
 			updateProcessBtn();
 			if (window.lucide) lucide.createIcons();
 		});
@@ -733,6 +771,71 @@
 				}
 				return '<div class="flex items-center gap-1.5 py-0.5"><span class="w-3.5 text-center">' + mark + '</span><span>' + escapeHtml(skill) + '</span></div>';
 			}).join('');
+		}
+
+		/* ============================================================
+		 * スキル名のコピー（各ユーザーが自分のスプレッドシートで管理するための書き出し）
+		 * 「緑59種」を選んでいる間は、技能試験ハイライトと同じcountMode
+		 * （実質53種 / 59種個別）と連動して出力内容を切り替える。
+		 * ============================================================ */
+		// 緑59種を、現在のモードに応じた名前リストに変換する。
+		// equivalence=true の場合、「〇〇の目覚め」は対応する基本スキルに
+		// まとめられ、GREEN_59内で先に登場している基本スキル名の側だけが残る
+		// （＝目覚め系の6件を除いた53件になる）。
+		function canonicalGreen59List(equivalence) {
+			if (!equivalence) return GREEN_59.slice();
+			const seen = new Set();
+			const out = [];
+			GREEN_59.forEach(s => {
+				const canonical = AWAKENING_PAIR_MAP[s] || s;
+				if (!seen.has(canonical)) {
+					seen.add(canonical);
+					out.push(canonical);
+				}
+			});
+			return out;
+		}
+
+		function selectCopyList(mode) {
+			copyListMode = mode;
+			['all133', 'sp70', 'green59'].forEach(m => {
+				document.getElementById('copylist-' + m).classList.toggle('active', m === mode);
+			});
+			const modeWrap = document.getElementById('copylist-green59-mode');
+			if (mode === 'green59') {
+				modeWrap.classList.remove('hidden');
+				modeWrap.classList.add('flex');
+			} else {
+				modeWrap.classList.add('hidden');
+				modeWrap.classList.remove('flex');
+			}
+			renderSkillCopyTextarea();
+		}
+
+		function renderSkillCopyTextarea() {
+			let list, hint;
+			if (copyListMode === 'sp70') {
+				list = SP70_GREEN_17;
+				hint = 'sp70緑（17種）';
+			} else if (copyListMode === 'green59') {
+				const equivalence = (countMode === 'equivalence');
+				list = canonicalGreen59List(equivalence);
+				hint = equivalence
+					? '緑59種・実質' + GREEN_59_EQUIVALENCE_MAX + '種（目覚め系は対応スキルにまとめています）'
+					: '緑59種（59種個別・目覚め系も独立して含みます）';
+			} else {
+				list = EXAM_SKILL_LIST;
+				hint = '対象スキル全133種（登録順）';
+			}
+			document.getElementById('skill-copy-textarea').value = list.join('\n');
+			document.getElementById('skill-copy-hint').textContent = hint + ' ・ ' + list.length + '行';
+		}
+
+		function copySkillList() {
+			const ta = document.getElementById('skill-copy-textarea');
+			ta.select();
+			document.execCommand('copy');
+			showToast('スキル名をコピーしました');
 		}
 
 		/* ============================================================
@@ -790,10 +893,15 @@
 		 * ============================================================ */
 		function setCountMode(mode) {
 			countMode = (mode === 'individual') ? 'individual' : 'equivalence';
+			// 「技能試験ハイライト」（結果エリア）と「スキル名のコピー」（ステップ1）の
+			// 2箇所にモード切替ボタンがあるが、実体は同じcountModeを共有する。
 			document.getElementById('mode-equivalence').classList.toggle('active', countMode === 'equivalence');
 			document.getElementById('mode-individual').classList.toggle('active', countMode === 'individual');
+			document.getElementById('mode-equivalence-list').classList.toggle('active', countMode === 'equivalence');
+			document.getElementById('mode-individual-list').classList.toggle('active', countMode === 'individual');
 			try { localStorage.setItem(COUNT_MODE_STORAGE_KEY, countMode); } catch (e) {}
 			renderExamHighlight(activePersonIndexes());
+			if (copyListMode === 'green59') renderSkillCopyTextarea();
 		}
 
 		function restoreCountMode() {
