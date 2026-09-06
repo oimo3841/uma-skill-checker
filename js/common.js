@@ -17,7 +17,7 @@
 // このファイルの版。ツールの開発用ログの先頭に表示される。
 // 「どの版の common.js がブラウザで実際に動いているか」を確認するための目印。
 // 中身を変更したらこの日付も更新すること。
-const COMMON_JS_VERSION = '2026-09-06c';
+const COMMON_JS_VERSION = '2026-09-06d';
 
 const MAX_SIDE_PX = 3000;
 const CONF_THRESHOLD = 55;
