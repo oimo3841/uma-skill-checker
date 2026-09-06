@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- exam.html 2026-09-07更新: 画像結合(親A/祖A1/祖A2・親B/祖B1/祖B2の縦横結合)、緑スキルハイライトバナー、コピー機能を統合。common.js?v=2026-09-06d の版不一致(実体は2026-09-06f)も修正。 -->
 <html lang="ja">
 <head>
 	<meta charset="UTF-8" />
@@ -9,7 +10,7 @@
 	<!-- Lucide Icons -->
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html / exam.html で共有） -->
-	<script src="js/common.js?v=2026-09-06d"></script>
+	<script src="js/common.js?v=2026-09-06f"></script>
 	<style>
 		body {
 			background-color: #f5f4fb;
@@ -412,6 +413,20 @@
 				<i data-lucide="play" class="w-4 h-4 fill-current"></i>
 				<span>OCR処理を開始する</span>
 			</button>
+			<button id="process-stitch-btn" type="button" onclick="processImagesAndStitch()" class="w-full mt-2 py-3.5 px-4 rounded-xl bg-white text-indigo-700 text-xs md:text-sm font-bold border-2 border-indigo-200 hover:bg-indigo-50 active:scale-99 transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer" disabled>
+				<i data-lucide="layers" class="w-4 h-4"></i>
+				<span>OCR処理＋画像結合を開始する（高負荷）</span>
+			</button>
+			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、親A（＋祖A1＋祖A2）・親B（＋祖B1＋祖B2）それぞれのスクリーンショットを1枚の画像にまとめ、SNS投稿用に使える形で出力します。画像枚数が多いほど処理に時間がかかります。</p>
+		</div>
+
+		<!-- 画像結合結果（①）：親A/親Bセットごとに、スキルパネルのみを縦横に結合した画像とコピー用コメントを表示 -->
+		<div id="stitch-result-wrap" class="hidden glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-8 transition-all">
+			<div class="flex items-center gap-2 mb-4">
+				<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">4</span>
+				<h2 class="text-sm font-bold text-slate-800">画像結合プレビュー（β・SNS投稿用）</h2>
+			</div>
+			<div id="stitch-result-content" class="space-y-4"></div>
 		</div>
 
 		<!-- ステップ3 (結果表示) -->
@@ -1354,6 +1369,8 @@
 			// 対象スキルは常に133種登録済みのため、画像の有無だけで判定する。
 			const anyFiles = persons.some(p => p.files.length > 0);
 			processBtn.disabled = !anyFiles;
+			const stitchBtn = document.getElementById('process-stitch-btn');
+			if (stitchBtn) stitchBtn.disabled = !anyFiles;
 		}
 
 		/* ============================================================
@@ -1994,6 +2011,626 @@
 			if (navigator.clipboard && navigator.clipboard.writeText) {
 				navigator.clipboard.writeText(text).then(() => showToast('開発ログをコピーしました'));
 			}
+		}
+
+		/* ============================================================
+		 * ①画像結合機能（親A/祖A1/祖A2、および親B/祖B1/祖B2セットの縦結合＋横結合）
+		 * ------------------------------------------------------------
+		 * exam.html専用のロジックとして本ファイル内に完結させる（common.js非改変の原則）。
+		 * OCRマッチング用の loadImage() は js/common.js のものをそのまま利用する
+		 * （同名関数の重複定義を避けるため、ここでは再定義しない）。
+		 * ============================================================ */
+
+		// 画像結合用の簡易ログ。既存の開発ログ（devGeometry）に相乗りさせることで、
+		// 「開発ログを表示」チェックを入れれば結合処理の詳細も確認できるようにする。
+		function stitchLog(msg) {
+			devGeometry.push('[画像結合] ' + msg);
+		}
+
+		function stitchImgToCanvas(img) {
+			const c = document.createElement('canvas');
+			c.width = img.naturalWidth;
+			c.height = img.naturalHeight;
+			const ctx = c.getContext('2d', { willReadFrequently: true });
+			ctx.drawImage(img, 0, 0);
+			return c;
+		}
+
+		function stitchRowDiffSignal(canvasA, canvasB, sampleStep = 4) {
+			const h = Math.min(canvasA.height, canvasB.height);
+			const w = Math.min(canvasA.width, canvasB.width);
+			const ctxA = canvasA.getContext('2d', { willReadFrequently: true });
+			const ctxB = canvasB.getContext('2d', { willReadFrequently: true });
+			const dataA = ctxA.getImageData(0, 0, w, h).data;
+			const dataB = ctxB.getImageData(0, 0, w, h).data;
+			const diff = new Float64Array(h);
+			for (let y = 0; y < h; y++) {
+				let sum = 0, cnt = 0;
+				const rowOffset = y * w * 4;
+				for (let x = 0; x < w; x += sampleStep) {
+					const idx = rowOffset + x * 4;
+					sum += Math.abs(dataA[idx] - dataB[idx]) + Math.abs(dataA[idx + 1] - dataB[idx + 1]) + Math.abs(dataA[idx + 2] - dataB[idx + 2]);
+					cnt++;
+				}
+				diff[y] = sum / (cnt * 3);
+			}
+			return diff;
+		}
+
+		// ①-2：ヘッダー（ウマ娘詳細・ステータス・タブ）／フッター（継承元の帯グラフ・
+		// 閉じるボタン）の境界を、アップロードされた画像同士のピクセル差分から検出する。
+		// 解像度に依存せず、DMM版・スマホ版のどちらでも同じロジックで機能する。
+		function stitchDetectHeaderFooter(canvases, groupLabel, threshold = 5) {
+			let headerEnd = Infinity;
+			let footerStart = -Infinity;
+			for (let i = 0; i < canvases.length - 1; i++) {
+				const diff = stitchRowDiffSignal(canvases[i], canvases[i + 1]);
+				let first = -1, last = -1;
+				for (let y = 0; y < diff.length; y++) {
+					if (diff[y] > threshold) { if (first === -1) first = y; last = y; }
+				}
+				if (first === -1) {
+					stitchLog(groupLabel + ': 警告: 画像' + i + 'と画像' + (i + 1) + 'で差分が検出できませんでした（同一画像の可能性）');
+					continue;
+				}
+				headerEnd = Math.min(headerEnd, first);
+				footerStart = Math.max(footerStart, last + 1);
+				stitchLog(groupLabel + ': 画像' + i + '-' + (i + 1) + '間の差分範囲: 行' + first + ' 〜 行' + last);
+			}
+			if (!isFinite(headerEnd) || !isFinite(footerStart)) {
+				throw new Error('[' + groupLabel + '] 全画像が同一、またはヘッダー/フッター境界を検出できませんでした。');
+			}
+			return { headerEnd: headerEnd, footerStart: footerStart };
+		}
+
+		// ①-1：スクロールバーのつまみ位置を検出して、順不同アップロードでも正しい順序に
+		// 並び替える。つまみが見つからない/長さが不一致の場合はnullを返し、
+		// 呼び出し側でアップロード順にフォールバックする。
+		function stitchDetectScrollbarOrder(canvases, headerEnd, footerStart, groupLabel, darkThreshold = 200) {
+			const w = canvases[0].width;
+			const contentH = footerStart - headerEnd;
+			const xStart = Math.floor(w * 0.75);
+
+			function darkRun(canvas, x) {
+				const ctx = canvas.getContext('2d', { willReadFrequently: true });
+				const data = ctx.getImageData(x, headerEnd, 1, contentH).data;
+				let first = -1, last = -1, cnt = 0;
+				for (let y = 0; y < contentH; y++) {
+					const idx = y * 4;
+					const v = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+					if (v < darkThreshold) { if (first === -1) first = y; last = y; cnt++; }
+				}
+				if (first === -1) return null;
+				const span = last - first + 1;
+				if (cnt / span < 0.6) return null;
+				if (span > contentH * 0.6 || span < 3) return null;
+				return { first: first, last: last, span: span };
+			}
+
+			let candidateX = -1;
+			for (let x = xStart; x < w; x++) {
+				if (darkRun(canvases[0], x)) { candidateX = x; break; }
+			}
+			if (candidateX === -1) {
+				stitchLog(groupLabel + ': スクロールバー検出: 該当する列が見つかりませんでした。');
+				return null;
+			}
+
+			const runs = [];
+			for (let i = 0; i < canvases.length; i++) {
+				const run = darkRun(canvases[i], candidateX);
+				if (!run) {
+					stitchLog(groupLabel + ': スクロールバー検出: 画像' + i + 'でつまみが検出できませんでした。並び替えを断念します。');
+					return null;
+				}
+				runs.push(run);
+			}
+			const spans = runs.map(r => r.span);
+			const minSpan = Math.min.apply(null, spans), maxSpan = Math.max.apply(null, spans);
+			if (minSpan / maxSpan < 0.85) {
+				stitchLog(groupLabel + ': スクロールバー検出: つまみ長さが不一致(' + minSpan + '〜' + maxSpan + ')のため並び替えを断念します。');
+				return null;
+			}
+			const order = runs.map((r, i) => ({ i: i, y: r.first })).sort((a, b) => a.y - b.y).map(o => o.i);
+			stitchLog(groupLabel + ': スクロールバー検出成功(x=' + candidateX + '): 並び順 = [' + order.join(', ') + ']');
+			return order;
+		}
+
+		// オーバーラップ（重複範囲）を、実ピクセルの平均絶対差分(MAD)に基づき推定する。
+		// 大きい候補から順に見て、閾値を下回る最初の(最大の)候補を採用することで、
+		// 小さい窓幅で偶然低スコアになる誤検出を避ける。
+		function stitchEstimateOverlapByPixelMAD(canvasTop, canvasBottom, yStart, yEnd, xStart, xEnd, opts) {
+			opts = opts || {};
+			const minOverlap = opts.minOverlap || 60;
+			const madThreshold = opts.madThreshold || 6.0;
+			const sampleStepX = opts.sampleStepX || 3;
+
+			const ctxTop = canvasTop.getContext('2d', { willReadFrequently: true });
+			const ctxBottom = canvasBottom.getContext('2d', { willReadFrequently: true });
+			const w = xEnd - xStart;
+			const h = yEnd - yStart;
+			const dataTop = ctxTop.getImageData(xStart, yStart, w, h).data;
+			const dataBottom = ctxBottom.getImageData(xStart, yStart, w, h).data;
+
+			function madForOverlap(s) {
+				let sum = 0, cnt = 0;
+				const topOffsetRows = h - s;
+				for (let y = 0; y < s; y++) {
+					const rowTop = (topOffsetRows + y) * w * 4;
+					const rowBot = y * w * 4;
+					for (let x = 0; x < w; x += sampleStepX) {
+						const idxT = rowTop + x * 4;
+						const idxB = rowBot + x * 4;
+						sum += Math.abs(dataTop[idxT] - dataBottom[idxB]);
+						sum += Math.abs(dataTop[idxT + 1] - dataBottom[idxB + 1]);
+						sum += Math.abs(dataTop[idxT + 2] - dataBottom[idxB + 2]);
+						cnt += 3;
+					}
+				}
+				return sum / cnt;
+			}
+
+			for (let s = h; s >= minOverlap; s--) {
+				const mad = madForOverlap(s);
+				if (mad < madThreshold) return { overlap: s, mad: mad, confident: true };
+			}
+			let bestS = minOverlap, bestMad = Infinity;
+			for (let s = minOverlap; s <= h; s += Math.max(1, Math.floor(h / 100))) {
+				const mad = madForOverlap(s);
+				if (mad < bestMad) { bestMad = mad; bestS = s; }
+			}
+			return { overlap: bestS, mad: bestMad, confident: false };
+		}
+
+		// ①-6：標準的なスクリーンショットかどうかの簡易判定（実測済みDMM版・スマホ版の
+		// 解像度/アスペクト比のホワイトリスト方式）。結合済み画像や加工済み画像など、
+		// レンジ外の画像がアップロードされた場合は結合処理そのものを中止する。
+		const STITCH_KNOWN_SCREENSHOT_PROFILES = [
+			{ label: 'DMM版(ブラウザ)相当', minWidth: 700, maxWidth: 1300, minAspect: 1.55, maxAspect: 1.95 },
+			{ label: 'スマホ版相当', minWidth: 700, maxWidth: 1500, minAspect: 1.9, maxAspect: 2.5 }
+		];
+
+		function stitchCheckStandardScreenshot(canvas) {
+			const w = canvas.width, h = canvas.height;
+			const aspect = h / w;
+			for (const p of STITCH_KNOWN_SCREENSHOT_PROFILES) {
+				if (w >= p.minWidth && w <= p.maxWidth && aspect >= p.minAspect && aspect <= p.maxAspect) {
+					return { ok: true, profile: p.label };
+				}
+			}
+			return { ok: false, profile: null, w: w, h: h, aspect: aspect };
+		}
+
+		// 「因子」バーや「継承元」ラベルなど、直前に何があっても関係なく、最初の
+		// 青いスキルパネル（スピード/根性等のカテゴリタグ）が実際に始まる行を直接
+		// 検出する。1枚目の画像にのみ適用する（②枚目以降は既に本文中のため不要）。
+		function stitchDetectFirstSkillPanelTop(canvas, headerEnd) {
+			const ctx = canvas.getContext('2d', { willReadFrequently: true });
+			const w = canvas.width;
+			const xSample = Math.floor(w * 0.3);
+			const maxScan = Math.floor(w * 0.25);
+			const data = ctx.getImageData(xSample, headerEnd, 1, maxScan).data;
+
+			function isBluePanel(r, g, b) { return b > 200 && g > 140 && g < 220 && r < 120; }
+
+			for (let y = 0; y < maxScan; y++) {
+				const idx = y * 4;
+				if (isBluePanel(data[idx], data[idx + 1], data[idx + 2])) {
+					return headerEnd + y;
+				}
+			}
+			return headerEnd;
+		}
+
+		// スキル一覧本体が終わった後に続く不要な領域（次のキャラクターの青枠、
+		// 「継承履歴」等の緑バー、「継承元」テキストのみの余白など）を検出し、
+		// その直前で打ち切るための行番号を返す。
+		function stitchFindTrailingCutY(canvas, searchStartY) {
+			const ctx = canvas.getContext('2d', { willReadFrequently: true });
+			const w = canvas.width;
+			const h = canvas.height;
+			if (searchStartY >= h) return h;
+			const xLeft = Math.floor(w * 0.3);
+			const data = ctx.getImageData(xLeft, searchStartY, 1, h - searchStartY).data;
+
+			function isBluePanel(r, g, b) { return b > 200 && g > 140 && g < 220 && r < 120; }
+			function isGreenBar(r, g, b) { return g > 160 && r > 80 && r < 170 && b < 70; }
+			function isBlankish(r, g, b) { return r > 244 && g > 244 && b > 244; }
+
+			const blankThreshold = Math.round(w * 0.035);
+			let blankRun = 0;
+			const rows = data.length / 4;
+			for (let y = 0; y < rows; y++) {
+				const idx = y * 4;
+				const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+				if (isBluePanel(r, g, b) || isGreenBar(r, g, b)) {
+					return searchStartY + y;
+				}
+				if (isBlankish(r, g, b)) {
+					blankRun++;
+					if (blankRun >= blankThreshold) {
+						return searchStartY + y - blankRun + 1;
+					}
+				} else {
+					blankRun = 0;
+				}
+			}
+			return h;
+		}
+
+		// 1人分（親A/祖A1/祖A2 等）の画像配列を縦結合し、結果Canvasを返す。
+		// ヘッダー/フッターは完全除外し、スキルパネル自体のみを出力する。
+		async function stitchOnePerson(files, groupLabel) {
+			if (files.length === 0) return null;
+			if (files.length === 1) {
+				throw new Error('[' + groupLabel + '] 画像が1枚のみです。結合には2枚以上が必要なため処理を中止します。');
+			}
+			stitchLog(groupLabel + ': ' + files.length + '枚を読み込みます...');
+			const imgs = [];
+			for (const f of files) imgs.push(await loadImage(f));
+			const canvases = imgs.map(stitchImgToCanvas);
+
+			for (let i = 0; i < canvases.length; i++) {
+				const check = stitchCheckStandardScreenshot(canvases[i]);
+				if (!check.ok) {
+					throw new Error('[' + groupLabel + '] 画像' + i + '(' + check.w + 'x' + check.h + ', 縦横比' + check.aspect.toFixed(2) + ')が標準的なスクリーンショットのサイズ範囲外です。結合済み画像や加工済み画像がアップロードされた可能性があるため処理を中止します。');
+				}
+			}
+
+			const w0 = canvases[0].width;
+			for (let i = 1; i < canvases.length; i++) {
+				if (canvases[i].width !== w0) {
+					throw new Error('[' + groupLabel + '] 画像の幅が一致していません（画像0: ' + w0 + 'px, 画像' + i + ': ' + canvases[i].width + 'px）。標準的なスクロールキャプチャではない可能性があるため中止します。');
+				}
+			}
+
+			const hf = stitchDetectHeaderFooter(canvases, groupLabel);
+			const headerEnd = hf.headerEnd, footerStart = hf.footerStart;
+			stitchLog(groupLabel + ': ヘッダー=行0〜' + (headerEnd - 1) + '(除外), スクロール領域=行' + headerEnd + '〜' + (footerStart - 1) + ', フッター=行' + footerStart + '〜' + (canvases[0].height - 1) + '(除外)');
+
+			let canvasesForStitch = canvases;
+			const order = stitchDetectScrollbarOrder(canvases, headerEnd, footerStart, groupLabel);
+			if (order) {
+				canvasesForStitch = order.map(i => canvases[i]);
+			} else {
+				stitchLog(groupLabel + ': 並び替えできなかったためアップロード順を使用します。');
+			}
+
+			const marginX = Math.floor(w0 * 0.1);
+			const overlaps = [];
+			for (let i = 0; i < canvasesForStitch.length - 1; i++) {
+				const r = stitchEstimateOverlapByPixelMAD(canvasesForStitch[i], canvasesForStitch[i + 1], headerEnd, footerStart, marginX, w0 - marginX);
+				stitchLog(groupLabel + ': 画像' + i + '→' + (i + 1) + ': オーバーラップ=' + r.overlap + '行 (MAD=' + r.mad.toFixed(2) + ', 信頼度' + (r.confident ? '高' : '低') + ')');
+				overlaps.push(r.overlap);
+			}
+
+			const contentHeight = footerStart - headerEnd;
+			let totalContentHeight = contentHeight;
+			for (const ov of overlaps) totalContentHeight += (contentHeight - ov);
+
+			const firstPanelTop = stitchDetectFirstSkillPanelTop(canvasesForStitch[0], headerEnd);
+			const skipFirst = Math.max(0, firstPanelTop - headerEnd);
+
+			const totalHeight = totalContentHeight - skipFirst;
+
+			const out = document.createElement('canvas');
+			out.width = w0;
+			out.height = totalHeight;
+			const octx = out.getContext('2d');
+
+			let cursorY = 0;
+			octx.drawImage(canvasesForStitch[0], 0, headerEnd + skipFirst, w0, contentHeight - skipFirst, 0, cursorY, w0, contentHeight - skipFirst);
+			cursorY += (contentHeight - skipFirst);
+			for (let i = 1; i < canvasesForStitch.length; i++) {
+				const ov = overlaps[i - 1];
+				const srcY = headerEnd + ov;
+				const drawH = contentHeight - ov;
+				octx.drawImage(canvasesForStitch[i], 0, srcY, w0, drawH, 0, cursorY, w0, drawH);
+				cursorY += drawH;
+			}
+
+			const searchStartY = Math.round(w0 * 0.15);
+			const cutY = stitchFindTrailingCutY(out, searchStartY);
+			if (cutY < out.height) {
+				const trimmed = document.createElement('canvas');
+				trimmed.width = w0;
+				trimmed.height = cutY;
+				trimmed.getContext('2d').drawImage(out, 0, 0, w0, cutY, 0, 0, w0, cutY);
+				stitchLog(groupLabel + ': 縦結合完了(末尾トリミング後): ' + w0 + ' x ' + cutY);
+				return trimmed;
+			}
+
+			stitchLog(groupLabel + ': 縦結合完了: ' + w0 + ' x ' + totalHeight);
+			return out;
+		}
+
+		// 複数人分のCanvasを上端揃え・スケーリングなしで横結合する（①-3）
+		function stitchConcatHorizontallyTopAligned(canvasList, gap) {
+			gap = gap || 8;
+			const totalWidth = canvasList.reduce((sum, c) => sum + c.width, 0) + gap * (canvasList.length - 1);
+			const maxHeight = Math.max.apply(null, canvasList.map(c => c.height));
+			const out = document.createElement('canvas');
+			out.width = totalWidth;
+			out.height = maxHeight;
+			const ctx = out.getContext('2d');
+			ctx.fillStyle = '#ffffff';
+			ctx.fillRect(0, 0, totalWidth, maxHeight);
+			let cursorX = 0;
+			for (const c of canvasList) {
+				ctx.drawImage(c, cursorX, 0);
+				cursorX += c.width + gap;
+			}
+			return out;
+		}
+
+		// ①-7：緑スキルハイライトバナー（検出数・sp70緑のみのシンプルな表示。
+		// 現行UIの「照合結果」カードと同じ配色：検出＝青系、sp70緑＝黄色/オレンジ系）
+		function stitchDrawPersonBanner(width, groupLabel, totalDetected, sp70Count) {
+			const pad = Math.round(width * 0.03);
+			const titleH = Math.round(width * 0.065);
+			const cardH = Math.round(width * 0.185);
+			const gapY = Math.round(width * 0.02);
+			const barHeight = pad * 2 + titleH + gapY + cardH;
+
+			const c = document.createElement('canvas');
+			c.width = width;
+			c.height = barHeight;
+			const ctx = c.getContext('2d');
+
+			ctx.fillStyle = '#ffffff';
+			ctx.fillRect(0, 0, width, barHeight);
+			ctx.strokeStyle = '#e2e2e2';
+			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.moveTo(0, barHeight - 1);
+			ctx.lineTo(width, barHeight - 1);
+			ctx.stroke();
+
+			let y = pad;
+
+			ctx.fillStyle = '#1a1a1a';
+			ctx.font = 'bold ' + titleH + 'px sans-serif';
+			ctx.textBaseline = 'top';
+			ctx.fillText(groupLabel, pad, y);
+			y += titleH + gapY;
+
+			function roundRect(x, yy, w, h, r) {
+				ctx.beginPath();
+				ctx.moveTo(x + r, yy);
+				ctx.arcTo(x + w, yy, x + w, yy + h, r);
+				ctx.arcTo(x + w, yy + h, x, yy + h, r);
+				ctx.arcTo(x, yy + h, x, yy, r);
+				ctx.arcTo(x, yy, x + w, yy, r);
+				ctx.closePath();
+			}
+
+			const cardGap = Math.round(width * 0.03);
+			const cardW = (width - pad * 2 - cardGap) / 2;
+			const radius = Math.round(width * 0.02);
+
+			const x1 = pad;
+			roundRect(x1, y, cardW, cardH, radius);
+			ctx.fillStyle = '#f5f8ff';
+			ctx.fill();
+			ctx.strokeStyle = '#cfe0fb';
+			ctx.lineWidth = 2;
+			ctx.stroke();
+
+			ctx.fillStyle = '#3c5a99';
+			ctx.font = 'bold ' + Math.round(cardH * 0.28) + 'px sans-serif';
+			ctx.textBaseline = 'top';
+			ctx.fillText('検出', x1 + cardW * 0.08, y + cardH * 0.10);
+
+			ctx.fillStyle = '#0f3fc9';
+			ctx.font = 'bold ' + Math.round(cardH * 0.56) + 'px sans-serif';
+			ctx.fillText(String(totalDetected), x1 + cardW * 0.08, y + cardH * 0.36);
+
+			const x2 = x1 + cardW + cardGap;
+			roundRect(x2, y, cardW, cardH, radius);
+			ctx.fillStyle = '#fffaf0';
+			ctx.fill();
+			ctx.strokeStyle = '#f5dfae';
+			ctx.lineWidth = 2;
+			ctx.stroke();
+
+			ctx.fillStyle = '#a9720b';
+			ctx.font = 'bold ' + Math.round(cardH * 0.28) + 'px sans-serif';
+			ctx.textBaseline = 'top';
+			ctx.fillText('sp70緑', x2 + cardW * 0.08, y + cardH * 0.10);
+
+			ctx.fillStyle = '#c96a00';
+			ctx.font = 'bold ' + Math.round(cardH * 0.56) + 'px sans-serif';
+			ctx.fillText(String(sp70Count), x2 + cardW * 0.08, y + cardH * 0.36);
+
+			return c;
+		}
+
+		// 共有の注意書きバー（セット内の全員分の横幅を使い、1行・右揃えで表示）
+		function stitchDrawSharedNoteBar(totalWidth, referenceWidth) {
+			const cardH = Math.round(referenceWidth * 0.185);
+			const targetFontSize = Math.round(cardH * 0.28);
+			const pad = Math.round(referenceWidth * 0.03);
+			const noteText = '※「〇〇の目覚め」は対応する基本スキルと個別にカウントしています。';
+
+			const c = document.createElement('canvas');
+			const ctx = c.getContext('2d');
+
+			let fontSize = targetFontSize;
+			const maxTextWidth = totalWidth - pad * 2;
+			ctx.font = 'bold ' + fontSize + 'px sans-serif';
+			while (fontSize > 10 && ctx.measureText(noteText).width > maxTextWidth) {
+				fontSize -= 1;
+				ctx.font = 'bold ' + fontSize + 'px sans-serif';
+			}
+
+			const barHeight = Math.round(fontSize * 1.8);
+			c.width = totalWidth;
+			c.height = barHeight;
+			ctx.font = 'bold ' + fontSize + 'px sans-serif';
+			ctx.fillStyle = '#ffffff';
+			ctx.fillRect(0, 0, totalWidth, barHeight);
+
+			ctx.fillStyle = '#555555';
+			ctx.textBaseline = 'top';
+			ctx.textAlign = 'right';
+			ctx.fillText(noteText, totalWidth - pad, Math.round(barHeight * 0.15));
+			ctx.textAlign = 'left';
+
+			return c;
+		}
+
+		/* ============================================================
+		 * ②コピー用コメント生成（親A/祖A1/祖A2等それぞれ個別）
+		 * 例: "sp70緑：10種、緑18種（目覚め重複除外）"（実質53種モード時）
+		 *     "sp70緑：10種、緑18種（目覚め含む）"（59種個別モード時）
+		 * 分母は含めない。スキル名の列挙も行わない。
+		 * ============================================================ */
+		function buildExamCopyComment(sp70Count, greenCount, mode) {
+			const note = mode === 'individual' ? '目覚め含む' : '目覚め重複除外';
+			return 'sp70緑：' + sp70Count + '種、緑' + greenCount + '種（' + note + '）';
+		}
+
+		/* ============================================================
+		 * セット単位（親A+祖A1+祖A2 / 親B+祖B1+祖B2）のオーケストレーション
+		 * ============================================================ */
+
+		// 指定セット(0=親Aセット, 1=親Bセット)について、アップロード済みの人（1〜3人）
+		// それぞれを縦結合し、バナー・注意書きバーとともに横結合した最終Canvasを返す。
+		// アップロードが1人分のみの場合は横結合をスキップしてその1人分を返す（①-5）。
+		// セット内の誰もアップロードしていない場合はnullを返す。
+		async function buildStitchedSetImage(setIdx) {
+			const baseIdx = setIdx * 3;
+			const activeIndexes = [0, 1, 2].map(r => baseIdx + r).filter(i => persons[i].files.length > 0);
+			if (activeIndexes.length === 0) return null;
+
+			const equivalence = (countMode === 'equivalence');
+			const sp70List = effectiveBaseList(SP70_GREEN_17);
+			const greenList = effectiveBaseList(GREEN_59);
+
+			const bannerCanvases = [];
+			const contentCanvases = [];
+			const personMeta = []; // コピー機能用に、personIdx・sp70・green・labelを保持
+
+			for (const idx of activeIndexes) {
+				const label = PERSON_LABELS[idx];
+				const contentCanvas = await stitchOnePerson(persons[idx].files, label);
+				if (!contentCanvas) continue;
+				const detected = countCategory(idx, skillList, false);
+				const sp70Count = countCategory(idx, sp70List, false);
+				const greenCount = countCategory(idx, greenList, equivalence);
+				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count);
+				bannerCanvases.push(banner);
+				contentCanvases.push(contentCanvas);
+				personMeta.push({ idx: idx, label: label, sp70Count: sp70Count, greenCount: greenCount });
+			}
+
+			if (contentCanvases.length === 0) return null;
+
+			const bannerRow = bannerCanvases.length === 1 ? bannerCanvases[0] : stitchConcatHorizontallyTopAligned(bannerCanvases);
+			const contentRow = contentCanvases.length === 1 ? contentCanvases[0] : stitchConcatHorizontallyTopAligned(contentCanvases);
+			const noteBar = stitchDrawSharedNoteBar(bannerRow.width, contentCanvases[0].width);
+
+			const totalWidth = Math.max(bannerRow.width, noteBar.width, contentRow.width);
+			const totalHeight = bannerRow.height + noteBar.height + contentRow.height;
+			const finalCanvas = document.createElement('canvas');
+			finalCanvas.width = totalWidth;
+			finalCanvas.height = totalHeight;
+			const fctx = finalCanvas.getContext('2d');
+			fctx.fillStyle = '#ffffff';
+			fctx.fillRect(0, 0, totalWidth, totalHeight);
+			fctx.drawImage(bannerRow, 0, 0);
+			fctx.drawImage(noteBar, 0, bannerRow.height);
+			fctx.drawImage(contentRow, 0, bannerRow.height + noteBar.height);
+
+			finalCanvas._personMeta = personMeta; // コピーボタン描画用に一時保持
+			return finalCanvas;
+		}
+
+		// 「OCR処理＋画像結合を開始する」ボタンから呼ばれるエントリーポイント。
+		// 既存のOCR処理(processImages)を先に実行し、その後に画像結合を行う。
+		async function processImagesAndStitch() {
+			await processImages();
+			await runImageStitching();
+		}
+
+		async function runImageStitching() {
+			const wrap = document.getElementById('stitch-result-wrap');
+			const container = document.getElementById('stitch-result-content');
+			container.innerHTML = '';
+			let anyOutput = false;
+
+			for (let setIdx = 0; setIdx < PERSON_SETS.length; setIdx++) {
+				if (setIdx === 1 && !setBVisible) continue; // 親Bセットが非表示なら結合もスキップ
+				const baseIdx = setIdx * 3;
+				const hasFiles = [0, 1, 2].some(r => persons[baseIdx + r].files.length > 0);
+				if (!hasFiles) continue;
+
+				try {
+					const canvas = await buildStitchedSetImage(setIdx);
+					if (canvas) {
+						anyOutput = true;
+						appendStitchResultBlock(container, PERSON_SETS[setIdx], canvas);
+					}
+				} catch (e) {
+					console.error(e);
+					anyOutput = true;
+					appendStitchErrorBlock(container, PERSON_SETS[setIdx], e.message);
+				}
+			}
+
+			wrap.classList.toggle('hidden', !anyOutput);
+		}
+
+		function appendStitchErrorBlock(container, set, message) {
+			const div = document.createElement('div');
+			div.className = 'rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700';
+			div.textContent = set.label + 'の画像結合に失敗しました: ' + message;
+			container.appendChild(div);
+		}
+
+		function appendStitchResultBlock(container, set, canvas) {
+			const dataUrl = canvas.toDataURL('image/png');
+			const personMeta = canvas._personMeta || [];
+
+			const block = document.createElement('div');
+			block.className = 'rounded-xl border border-slate-200 bg-white/70 p-3 md:p-4';
+
+			const header = document.createElement('div');
+			header.className = 'flex items-center justify-between mb-3';
+			header.innerHTML = '<p class="text-xs font-bold text-slate-700">' + escapeHtml(set.label) + '</p>';
+			const downloadLink = document.createElement('a');
+			downloadLink.href = dataUrl;
+			downloadLink.download = 'uma-exam-' + set.id + '.png';
+			downloadLink.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[11px] font-semibold hover:bg-indigo-700 transition-all cursor-pointer';
+			downloadLink.textContent = 'PNGをダウンロード';
+			header.appendChild(downloadLink);
+			block.appendChild(header);
+
+			const img = document.createElement('img');
+			img.src = dataUrl;
+			img.className = 'w-full rounded-lg border border-slate-200 mb-3';
+			block.appendChild(img);
+
+			if (personMeta.length > 0) {
+				const copyWrap = document.createElement('div');
+				copyWrap.className = 'flex flex-wrap gap-2';
+				personMeta.forEach(m => {
+					const btn = document.createElement('button');
+					btn.type = 'button';
+					btn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-[11px] font-semibold hover:bg-slate-50 transition-all cursor-pointer';
+					btn.textContent = m.label + 'のコメントをコピー';
+					btn.onclick = () => {
+						const text = buildExamCopyComment(m.sp70Count, m.greenCount, countMode);
+						if (navigator.clipboard && navigator.clipboard.writeText) {
+							navigator.clipboard.writeText(text).then(() => showToast(m.label + 'のコメントをコピーしました'));
+						}
+					};
+					copyWrap.appendChild(btn);
+				});
+				block.appendChild(copyWrap);
+			}
+
+			container.appendChild(block);
 		}
 	</script>
 </body>
