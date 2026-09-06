@@ -43,6 +43,19 @@
 			border-bottom: 1px solid #f1f5f9; padding: 0.75rem 1rem; font-size: 0.875rem;
 		}
 		.result-table tr:hover td { background-color: #f8fafc; }
+		/* スマホ等の狭い画面でも、スキル名列を左端に固定表示したまま
+		   親A〜祖B2の列を横スクロールで確認できるようにする。
+		   （テーブル全体をwidth:100%で縮めず、JS側でmin-widthを与えて
+		   横スクロールを発生させる方式と組み合わせて使う） */
+		.result-table th:first-child, .result-table td:first-child {
+			position: sticky; left: 0; z-index: 1;
+			box-shadow: 2px 0 4px -2px rgba(15, 23, 42, 0.12);
+		}
+		.result-table td:first-child { background-color: #fff; }
+		.result-table th:first-child { z-index: 2; }
+		@media (max-width: 640px) {
+			.result-table th, .result-table td { padding: 0.5rem 0.5rem; font-size: 0.75rem; }
+		}
 		.found { color: #059669; font-weight: 600; }
 		.not-found { color: #94a3b8; }
 		.drop-active { border-color: #4f46e5 !important; background-color: #eef2ff !important; transform: scale(1.005); }
@@ -421,7 +434,7 @@
 				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
 					<h3 class="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
 						<i data-lucide="target" class="w-4 h-4"></i>
-						<span>技能試験ハイライト</span>
+						<span>緑スキルハイライト</span>
 					</h3>
 					<div class="flex items-center gap-1 text-xs bg-white rounded-lg border border-indigo-200 p-0.5 shrink-0">
 						<button type="button" onclick="setCountMode('equivalence')" id="mode-equivalence" class="mode-btn">実質53種（既定）</button>
@@ -446,11 +459,19 @@
 			</div>
 			<!-- 現在の絞り込み条件に該当するスキル数。「全員未検出」件数から因子セット全体の
 			     充足度（あとどれだけ足りていないか）を把握できるようにするための表示。 -->
-			<p id="filter-result-count" class="text-[11px] text-slate-400 mb-3"></p>
+			<p id="filter-result-count" class="text-[11px] text-slate-400 mb-1"></p>
+			<p class="text-[11px] text-slate-400 mb-3">※ スマホ等の狭い画面では、スキル名列を固定したまま横スクロールで確認できます。</p>
+
+			<!-- 親A/親B列の表示切替（両方の結果がある時だけ表示・スマホで片方ずつ見たい場合向け） -->
+			<div id="table-set-toggle-wrap" class="hidden flex flex-wrap items-center gap-2 mb-3">
+				<span class="text-[11px] text-slate-500">表示する列：</span>
+				<button type="button" id="table-toggle-A" onclick="toggleTableSet(0)" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer">親Aセット</button>
+				<button type="button" id="table-toggle-B" onclick="toggleTableSet(1)" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer">親Bセット</button>
+			</div>
 
 			<!-- テーブル -->
 			<div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
-				<table class="result-table">
+				<table id="result-table-el" class="result-table">
 					<thead id="result-thead"></thead>
 					<tbody id="result-tbody"></tbody>
 				</table>
@@ -836,6 +857,10 @@
 		const persons = PERSON_LABELS.map(() => ({ files: [] }));
 		let personResults = PERSON_LABELS.map(() => null); // matchAllSkillsWithStars() の戻り値を格納
 		let setBVisible = false;
+
+		// 結果テーブルに限り、親A/親B列のどちらかを一時的に隠せるようにする（スマホ対策）。
+		// コピー用データ・統計カード・緑スキルハイライトには影響しない（常に全アップロード分を含む）。
+		let tableSetVisible = [true, true];
 
 		document.addEventListener('DOMContentLoaded', () => {
 			restoreCustomSkills();
@@ -1512,6 +1537,44 @@
 			return PERSON_LABELS.map((_, i) => i).filter(i => personResults[i]);
 		}
 
+		// 結果テーブル表示専用：activePersonIndexes()のうち、tableSetVisibleでON
+		// になっているセット（親A=0-2 / 親B=3-5）の分だけに絞り込む。
+		function tableVisiblePersonIndexes(used) {
+			return used.filter(i => tableSetVisible[Math.floor(i / 3)]);
+		}
+
+		// 親A/親Bの両方に結果がある時だけトグルUIを表示する。
+		function renderTableSetToggle(used) {
+			const wrap = document.getElementById('table-set-toggle-wrap');
+			const bySet = [[], []];
+			used.forEach(i => bySet[Math.floor(i / 3)].push(i));
+			const bothPresent = bySet[0].length > 0 && bySet[1].length > 0;
+			if (!bothPresent) { wrap.classList.add('hidden'); return; }
+			wrap.classList.remove('hidden');
+
+			PERSON_SETS.forEach((set, setIdx) => {
+				const btn = document.getElementById('table-toggle-' + set.id);
+				if (!btn) return;
+				const colors = HUE_HEX[set.hue];
+				const on = tableSetVisible[setIdx];
+				btn.textContent = (on ? '✓ ' : '') + set.label;
+				btn.style.backgroundColor = on ? colors.borderStrong : '#fff';
+				btn.style.color = on ? '#fff' : '#94a3b8';
+				btn.style.borderColor = on ? colors.borderStrong : '#e2e8f0';
+			});
+		}
+
+		// 親A/親B列の表示・非表示を切り替える。両方隠すことはできない（最低1セットは表示）。
+		function toggleTableSet(setIdx) {
+			const other = setIdx === 0 ? 1 : 0;
+			if (tableSetVisible[setIdx] && !tableSetVisible[other]) {
+				showToast('少なくとも一方のセットは表示してください');
+				return;
+			}
+			tableSetVisible[setIdx] = !tableSetVisible[setIdx];
+			renderResults();
+		}
+
 		// PERSON_LABELS / PERSON_COLORS（親A・親Bの計6枠分）から動的に生成する。
 		const PERSON_STAT_META = {};
 		PERSON_LABELS.forEach((label, i) => { PERSON_STAT_META[i] = [PERSON_COLORS[i], label]; });
@@ -1641,16 +1704,26 @@
 			// スキル名列は最小限の幅に留め、親A〜祖B2の各列に幅を配分する。
 			const nameWidth = used.length <= 1 ? 'w-2/5' : used.length === 2 ? 'w-1/3' : used.length <= 4 ? 'w-1/4' : 'w-1/5';
 			const meta = buildColumnMeta(used);
+			const showTotal = shouldShowTotalColumn(used);
 			let html = `<tr><th class="${nameWidth}">スキル名（リスト順）</th>`;
 			meta.forEach(m => {
 				const borderStyle = m.boundary ? 'border-left:2px solid ' + m.colors.borderStrong + ';' : '';
 				html += `<th class="text-center" style="background-color:${m.colors.bg};color:${m.colors.text};${borderStyle}">${PERSON_LABELS[m.idx]}</th>`;
 			});
-			if (shouldShowTotalColumn(used)) {
+			if (showTotal) {
 				html += '<th class="text-center" style="background-color:#f1f5f9;color:#334155;border-left:2px solid #cbd5e1;">★合計</th>';
 			}
 			html += '</tr>';
 			thead.innerHTML = html;
+
+			// テーブルに最低限の幅を与え、コンテナより狭くなりそうな場合に
+			// スキル名を1文字ずつ折り返すのではなく、横スクロールが発生するようにする。
+			const table = document.getElementById('result-table-el');
+			if (table) {
+				const nameMinPx = 112, personColMinPx = 56, totalColMinPx = 56;
+				const minWidthPx = nameMinPx + used.length * personColMinPx + (showTotal ? totalColMinPx : 0);
+				table.style.minWidth = minWidthPx + 'px';
+			}
 		}
 
 		function updateCopyLabels(used) {
@@ -1685,12 +1758,16 @@
 		function renderResults() {
 			const resultWrap = document.getElementById('result-wrap');
 			const used = activePersonIndexes();
+			// 結果テーブルの表示列だけ、親A/親B列トグルの状態を反映する
+			// （統計カード・緑スキルハイライト・コピー用データは常に全アップロード分を対象にする）。
+			const tableUsed = tableVisiblePersonIndexes(used);
 
 			renderStatGrid(used);
 			renderExamHighlight(used);
-			renderTableHeader(used);
+			renderTableSetToggle(used);
+			renderTableHeader(tableUsed);
 			updateCopyLabels(used);
-			updateFilterLabels(used);
+			updateFilterLabels(tableUsed);
 
 			const foundCounts = {};
 			used.forEach(i => { foundCounts[i] = 0; });
@@ -1740,7 +1817,9 @@
 		function filterResults() {
 			const tbody = document.getElementById('result-tbody');
 			const query = document.getElementById('table-search').value.toLowerCase().trim();
-			const used = activePersonIndexes();
+			// 「誰かが検出」「全員未検出」の判定・件数は、現在テーブルに表示している
+			// 列（親A/親B表示トグルを反映）を基準にする。隠している側の検出結果は含めない。
+			const used = tableVisiblePersonIndexes(activePersonIndexes());
 			const meta = buildColumnMeta(used);
 			const showTotal = shouldShowTotalColumn(used);
 			let tableHtml = '';
