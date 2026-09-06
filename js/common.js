@@ -17,7 +17,7 @@
 // このファイルの版。ツールの開発用ログの先頭に表示される。
 // 「どの版の common.js がブラウザで実際に動いているか」を確認するための目印。
 // 中身を変更したらこの日付も更新すること。
-const COMMON_JS_VERSION = '2026-09-06b';
+const COMMON_JS_VERSION = '2026-09-06c';
 
 const MAX_SIDE_PX = 3000;
 const CONF_THRESHOLD = 55;
@@ -42,7 +42,14 @@ const CHAR_CONFUSION_MAP = {
 	// 「時」⇔「春」は共に「日」を含み字形が近い。「量」⇔「重」「貸」⇔「賞」は
 	// 「交流重賞〇」で確認された誤読で、いずれも他のスキル名にも登場しうる字のため
 	// 個別の辞書登録ではなく汎用の文字混同マップ側に追加する。
-	'時': '春', '量': '重', '貸': '賞'
+	'時': '春', '量': '重', '貸': '賞',
+	// 2026-09-06 追加: 実機ログ「ユニコン3-2.png」で「冬ウマ娘〇」が
+	// 「キウマ娩〇」「きウマ媚〇」と誤読され、春/夏/秋/冬の4候補との
+	// 距離1タイが解消できず判定漏れになっていたパターン。
+	// 「冬」の字（夂の斜め線＋下の点2つ）がこのUIフォントの太字・丸ゴシックで
+	// 潰れると「キ」「き」に寄って誤認識される。「媚」は「娘」と女偏＋
+	// 右側の画数が近く誤認識されやすい（「娩」は既存エントリで対応済み）。
+	'キ': '冬', 'き': '冬', '媚': '娘'
 };
 const HOMOGLYPH_MAP = {
 	'◯': '○', '〇': '○', '◎': '○', '●': '○', '◉': '○', '0': '○', 'O': '○', 'o': '○', 'Q': '○', 'D': '○', '°': '○',
@@ -238,6 +245,27 @@ function greenMaskOf(imageData) {
 	return mask;
 }
 
+// スピード/根性/スタミナ等、継承元カテゴリ色として使われる「青」を検出するマスク。
+// 固有スキル帯（緑）は必ずこの青帯の直後（1行分の隙間を挟んですぐ下）に来るため、
+// 「青帯の直後に続く緑帯」という組み合わせを固有スキル帯の識別に利用する
+// （detectSkillRows 内の固有スキル帯検出ロジックを参照）。
+function blueMaskOf(imageData) {
+	const d = imageData.data;
+	const n = imageData.width * imageData.height;
+	const mask = new Uint8Array(n);
+	for (let i = 0, p = 0; i < n; i++, p += 4) {
+		const r = d[p], g = d[p + 1], b = d[p + 2];
+		const max = Math.max(r, g, b), min = Math.min(r, g, b);
+		const delta = max - min;
+		if (delta === 0 || max < 90) continue;
+		if (delta / max < 0.35) continue;
+		if (max !== b) continue;
+		let h = 60 * (4 + (r - g) / delta);
+		if (h >= 180 && h <= 250) mask[i] = 1;
+	}
+	return mask;
+}
+
 function darkMaskOf(gray, level) {
 	const mask = new Uint8Array(gray.length);
 	for (let i = 0; i < gray.length; i++) mask[i] = gray[i] < level ? 1 : 0;
@@ -366,10 +394,39 @@ function detectSkillRows(baseCanvas, diag) {
 	const greenBands = findRuns(gRows, Math.round(W * 0.12), 4, 0, H);
 	const thickGreen = greenBands.filter(b => (b.b - b.a) >= H * 0.008);
 
-	let listTop = 0;
-	if (thickGreen.length > 0) {
+	// --- 固有スキル帯（青帯の直後に続く緑帯）を基準にリスト範囲を決定 ---
+	// 継承タブの有無、継承履歴バーの混入、キャラごとに異なる固有スキル名、
+	// 3世代連結スクリーンショット等、画面バリエーションに関わらず、
+	// 「スピード/根性等の青帯」→「固有スキル帯（緑）」という並びだけは
+	// 継承UIである限り必ず1行分の隙間ですぐ下に続くという構造を利用する。
+	const blue = blueMaskOf(imageData);
+	const bRows = rowCountsOf(blue, W, H);
+	const blueBands = findRuns(bRows, Math.round(W * 0.08), 4, 0, H)
+		.filter(b => (b.b - b.a) >= H * 0.008);
+
+	const gapLimit = Math.round(H * 0.02); // 実測16〜24px相当、余裕を見て2%
+	const uniqueSkillBands = [];
+	for (const bb of blueBands) {
+		const hit = thickGreen.find(g => g.a - bb.b >= 0 && g.a - bb.b <= gapLimit);
+		if (hit) uniqueSkillBands.push(hit);
+	}
+
+	let listTop = 0, listBottom = H;
+	if (uniqueSkillBands.length > 0) {
+		const first = uniqueSkillBands[0];
+		listTop = Math.min(H - 1, first.b + Math.round(H * 0.004));
+		diag.push('固有スキル帯 ' + uniqueSkillBands.length + '件検出 / リスト上端 y=' + listTop);
+		if (uniqueSkillBands.length > 1) {
+			// 2件目以降は継承元（親・祖先）の固有スキル帯とみなし、
+			// その手前でリストを打ち切ることで継承元の行が混入するのを防ぐ。
+			listBottom = uniqueSkillBands[1].a - Math.round(H * 0.01);
+			diag.push('継承元の固有スキル帯を検出 → リスト下端 y=' + listBottom + ' で打ち切り');
+		}
+	} else if (thickGreen.length > 0) {
+		// フォールバック: 従来ロジック（最後の緑帯をタブ/境界とみなす）
 		const tab = thickGreen[thickGreen.length - 1];
 		listTop = Math.min(H - 1, tab.b + Math.round(H * 0.004));
+		diag.push('固有スキル帯を検出できず → 従来ロジックにフォールバック');
 		diag.push('緑帯 ' + thickGreen.length + '本 / タブ下端 y=' + tab.b + ' → リスト上端 y=' + listTop);
 	} else {
 		diag.push('緑帯を検出できず → 画像全体をリスト領域として扱う');
@@ -380,7 +437,7 @@ function detectSkillRows(baseCanvas, diag) {
 	const dRows = rowCountsOf(dark, W, H);
 	const rowThreshold = Math.max(5, Math.round(W * 0.01));
 	const rowMergeGap = Math.max(6, Math.round(H * 0.004));
-	let bands = findRuns(dRows, rowThreshold, rowMergeGap, listTop, H);
+	let bands = findRuns(dRows, rowThreshold, rowMergeGap, listTop, listBottom);
 	diag.push('文字帯の候補 ' + bands.length + '本（しきい値 ' + rowThreshold + 'px / 結合gap ' + rowMergeGap + 'px）');
 
 	if (bands.length < 3) { diag.push('文字帯が少なすぎるため中止'); return null; }
