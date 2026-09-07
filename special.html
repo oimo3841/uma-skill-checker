@@ -1381,13 +1381,16 @@
 			const minOverlap = opts.minOverlap || 60;
 			const madThreshold = opts.madThreshold || 6.0;
 			const sampleStepX = opts.sampleStepX || 3;
-
+			const maxOverlapRatio = opts.maxOverlapRatio || 0.6;
+			const maxOverlap = Math.max(minOverlap, Math.floor((yEnd - yStart) * maxOverlapRatio));
 			const ctxTop = canvasTop.getContext('2d', { willReadFrequently: true });
 			const ctxBottom = canvasBottom.getContext('2d', { willReadFrequently: true });
 			const w = xEnd - xStart;
 			const h = yEnd - yStart;
 			const dataTop = ctxTop.getImageData(xStart, yStart, w, h).data;
 			const dataBottom = ctxBottom.getImageData(xStart, yStart, w, h).data;
+
+			function isBlankish(r, g, b) { return r > 244 && g > 244 && b > 244; }
 
 			function madForOverlap(s) {
 				let sum = 0, cnt = 0;
@@ -1398,12 +1401,15 @@
 					for (let x = 0; x < w; x += sampleStepX) {
 						const idxT = rowTop + x * 4;
 						const idxB = rowBot + x * 4;
-						sum += Math.abs(dataTop[idxT] - dataBottom[idxB]);
-						sum += Math.abs(dataTop[idxT + 1] - dataBottom[idxB + 1]);
-						sum += Math.abs(dataTop[idxT + 2] - dataBottom[idxB + 2]);
+						const rT = dataTop[idxT], gT = dataTop[idxT + 1], bT = dataTop[idxT + 2];
+						const rB = dataBottom[idxB], gB = dataBottom[idxB + 1], bB = dataBottom[idxB + 2];
+						if (isBlankish(rT, gT, bT) && isBlankish(rB, gB, bB)) continue;
+						sum += Math.abs(rT - rB) + Math.abs(gT - gB) + Math.abs(bT - bB);
 						cnt += 3;
 					}
 				}
+				const totalPairs = s * Math.ceil(w / sampleStepX);
+				if (cnt < totalPairs * 3 * 0.05) return Infinity;
 				return sum / cnt;
 			}
 
@@ -1421,11 +1427,11 @@
 			// 潰れて見える、という不具合の原因になっていた。
 			// 全候補を見てグローバルに最良の一致を探すことで、これを防ぐ。
 			let bestS = minOverlap, bestMad = Infinity;
-			for (let s = minOverlap; s <= h; s++) {
+			for (let s = minOverlap; s <= maxOverlap; s++) {
 				const mad = madForOverlap(s);
 				if (mad < bestMad) { bestMad = mad; bestS = s; }
 			}
-			return { overlap: bestS, mad: bestMad, confident: bestMad < madThreshold };
+			return { overlap: bestS, mad: bestMad, confident: bestMad < madThreshold, maxOverlap: maxOverlap };
 		}
 
 		// 標準的なスクリーンショットかどうかの簡易判定（実測済みDMM版・スマホ版の
@@ -1544,9 +1550,15 @@
 
 			const marginX = Math.floor(w0 * 0.1);
 			const overlaps = [];
+			const warnings = [];
 			for (let i = 0; i < canvasesForStitch.length - 1; i++) {
 				const r = stitchEstimateOverlapByPixelMAD(canvasesForStitch[i], canvasesForStitch[i + 1], headerEnd, footerStart, marginX, w0 - marginX);
-				stitchLog(groupLabel + ': 画像' + i + '→' + (i + 1) + ': オーバーラップ=' + r.overlap + '行 (MAD=' + r.mad.toFixed(2) + ', 信頼度' + (r.confident ? '高' : '低') + ')');
+				stitchLog(groupLabel + ': 画像' + i + '→' + (i + 1) + ': オーバーラップ=' + r.overlap + '行/上限' + r.maxOverlap + '行 (MAD=' + r.mad.toFixed(2) + ', 信頼度' + (r.confident ? '高' : '低') + ')');
+				if (!r.confident) {
+					const warnMsg = groupLabel + ': 画像' + i + '→' + (i + 1) + 'の継ぎ目は一致度が低く(MAD=' + r.mad.toFixed(1) + ')、結合位置がズレている可能性があります。';
+					stitchLog('⚠ ' + warnMsg);
+					warnings.push(warnMsg);
+				}
 				overlaps.push(r.overlap);
 			}
 
@@ -1582,10 +1594,12 @@
 				trimmed.width = w0;
 				trimmed.height = cutY;
 				trimmed.getContext('2d').drawImage(out, 0, 0, w0, cutY, 0, 0, w0, cutY);
+				trimmed._stitchWarnings = warnings;
 				stitchLog(groupLabel + ': 縦結合完了(末尾トリミング後): ' + w0 + ' x ' + cutY);
 				return trimmed;
 			}
 
+			out._stitchWarnings = warnings;
 			stitchLog(groupLabel + ': 縦結合完了: ' + w0 + ' x ' + totalHeight);
 			return out;
 		}
@@ -1620,6 +1634,7 @@
 			if (activeIndexes.length === 0) return null;
 
 			const contentCanvases = [];
+			const allWarnings = [];
 
 			for (const idx of activeIndexes) {
 				const label = PERSON_LABELS[idx];
@@ -1627,11 +1642,16 @@
 				const contentCanvas = await stitchOnePerson(persons[idx].files, label);
 				if (!contentCanvas) continue;
 				contentCanvases.push(contentCanvas);
+				if (contentCanvas._stitchWarnings && contentCanvas._stitchWarnings.length) {
+					allWarnings.push(...contentCanvas._stitchWarnings);
+				}
 			}
 
 			if (contentCanvases.length === 0) return null;
 
-			return contentCanvases.length === 1 ? contentCanvases[0] : stitchConcatHorizontallyTopAligned(contentCanvases);
+			const result = contentCanvases.length === 1 ? contentCanvases[0] : stitchConcatHorizontallyTopAligned(contentCanvases);
+			result._stitchWarnings = allWarnings;
+			return result;
 		}
 
 		function setStitchProgress(ratio, label) {
@@ -1725,6 +1745,14 @@
 
 			const block = document.createElement('div');
 			block.className = 'rounded-xl border border-slate-200 bg-white/70 p-3 md:p-4';
+
+			if (canvas._stitchWarnings && canvas._stitchWarnings.length) {
+				const warnBox = document.createElement('div');
+				warnBox.className = 'mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-800 leading-relaxed';
+				warnBox.innerHTML = '<p class="font-bold mb-1">⚠ 一部の継ぎ目の一致度が低いため、ズレていないか目視確認してください</p>' +
+					canvas._stitchWarnings.map(w => '<p>' + escapeHtml(w) + '</p>').join('');
+				block.appendChild(warnBox);
+			}
 
 			const header = document.createElement('div');
 			header.className = 'flex items-center justify-between mb-3';
