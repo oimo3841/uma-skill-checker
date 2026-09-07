@@ -1,1195 +1,2637 @@
-/**
- * common.js
- * ウマ娘スキル管理ツール群（index.html / special.html）で共有する共通ロジック。
- *
- * 設計方針:
- * - このファイルはグローバル状態を持たない（副作用のない関数の集合）。
- * - 各ツール（index.html, special.html）は自分自身の状態変数
- *   （skillList, detectedSkills, matchReasons など）を保持し、
- *   ここに定義された関数へ引数として渡し、戻り値を受け取って自分の状態に反映する。
- * - スキルリストの内容（特定の技名など）に関する決め打ち・ハードコードは行わない。
- *   どんなスキルリストが来ても汎用的に正しく動くことを前提に設計する。
- */
-
-/* ============================================================
- * 定数
- * ============================================================ */
-// このファイルの版。ツールの開発用ログの先頭に表示される。
-// 「どの版の common.js がブラウザで実際に動いているか」を確認するための目印。
-// 中身を変更したらこの日付も更新すること。
-const COMMON_JS_VERSION = '2026-09-06f';
-
-const MAX_SIDE_PX = 3000;
-const CONF_THRESHOLD = 55;
-const ROW_TARGET_HEIGHT = 56;
-const DARK_LEVEL = 128;
-const ADAPTIVE_BLOCK = 31;
-const ADAPTIVE_C = 12;
-
-// 2026-09-06b 追加: 画質による事前足切り（下記「画質判定」セクション参照）のしきい値。
-// X(旧Twitter)経由で再共有された画像や、「レシート因子メーカー」等で複数画像を
-// 結合したうえで再圧縮された画像は、文字のストロークが画素として失われており、
-// CHAR_CONFUSION_MAP や allowedDistance をどれだけ調整しても構造的に精度が出ないことを
-// 実機画像（HLCQGwlbYAAqGcD.jpg, 730×1931）で確認済み。
-// これらは「精度が悪い」のではなく「そもそも対象外の入力」として、OCRを試みる前に弾く。
-// 値は実測1件からの暫定値。他の劣化画像で誤って弾く/弾けないケースが出たら調整すること。
-const MIN_BASE_WIDTH_PX = 900;
-const MIN_SHARPNESS_SCORE = 120;
-
-const CHAR_CONFUSION_MAP = {
-	'娩': '娘', '嫡': '娘', '棒': '枠', '桶': '枠', '狐': '狼', '颯': '狼', '貴': '覚', '緯': '線', '被': '神',
-	// 2026-09-06 追加: 実機ログ「HRcRQWvbMAAE0Yc.jpg」の解析で見つかった誤読パターン。
-	// 「時」⇔「春」は共に「日」を含み字形が近い。「量」⇔「重」「貸」⇔「賞」は
-	// 「交流重賞〇」で確認された誤読で、いずれも他のスキル名にも登場しうる字のため
-	// 個別の辞書登録ではなく汎用の文字混同マップ側に追加する。
-	'時': '春', '量': '重', '貸': '賞',
-	// 2026-09-06 追加: 実機ログ「ユニコン3-2.png」で「冬ウマ娘〇」が
-	// 「キウマ娩〇」「きウマ媚〇」と誤読され、春/夏/秋/冬の4候補との
-	// 距離1タイが解消できず判定漏れになっていたパターン。
-	// 「冬」の字（夂の斜め線＋下の点2つ）がこのUIフォントの太字・丸ゴシックで
-	// 潰れると「キ」「き」に寄って誤認識される。「媚」は「娘」と女偏＋
-	// 右側の画数が近く誤認識されやすい（「娩」は既存エントリで対応済み）。
-	'キ': '冬', 'き': '冬', '媚': '娘',
-	// 2026-09-06 追加: 実機ログ（親結合画像.png）で「左回り○」「左回りの目覚め」が
-	// いずれも「を回り〇」「を回りの目貴め」と誤読され、右/左（/小回り）との
-	// 距離1タイが解消できず判定漏れ・曖昧未決になっていたパターン。同一画像内で
-	// 2件とも「を」始まりの誤読が実際には「左」由来だったことを確認済み。
-	// 「左」の縦棒＋横画の字形がこのUIフォントで潰れると「を」に寄って誤認識される。
-	// リスク: 「右回り〇」側が逆に「を」に誤読された場合、本マッピングにより
-	// 左に誤判定される可能性がある。右回り系の実機ログで悪影響が出ていないか要確認。
-	'を': '左'
-};
-const HOMOGLYPH_MAP = {
-	'◯': '○', '〇': '○', '◎': '○', '●': '○', '◉': '○', '0': '○', 'O': '○', 'o': '○', 'Q': '○', 'D': '○', '°': '○',
-	'一': 'ー', '-': 'ー', '‐': 'ー', '–': 'ー', '—': 'ー', '−': 'ー', '~': 'ー', '_': 'ー', '|': 'ー', 'l': 'ー', 'I': 'ー',
-	'カ': '力', 'ニ': '二', '口': 'ロ', '卜': 'ト', '夕': 'タ', '工': 'エ', '才': 'オ', '八': 'ハ', 'ヘ': 'へ', 'ベ': 'べ', 'ペ': 'ぺ', '刀': '力', '儿': 'ル', '厶': 'ム', '又': 'ス'
-};
-
-/* ============================================================
- * 文字正規化・距離判定
- * ============================================================ */
-function normalizeText(input) {
-	if (!input) return '';
-	let s = String(input).normalize('NFKC');
-	s = s.replace(/[\s　]/g, '');
-	s = s.replace(/[★☆✦✧♪♫※・,.。、:：;；!！?？"'`()（）\[\]{}<>«»\\\/@#$%^&*+=]/g, '');
-	let out = '';
-	for (const ch of s) {
-		let c = (CHAR_CONFUSION_MAP[ch] !== undefined) ? CHAR_CONFUSION_MAP[ch] : ch;
-		c = (HOMOGLYPH_MAP[c] !== undefined) ? HOMOGLYPH_MAP[c] : c;
-		out += c;
-	}
-	return out.replace(/ー{2,}/g, 'ー');
-}
-
-function levenshtein(a, b) {
-	const la = a.length, lb = b.length;
-	if (la === 0) return lb;
-	if (lb === 0) return la;
-	let prev = new Array(lb + 1), cur = new Array(lb + 1);
-	for (let j = 0; j <= lb; j++) prev[j] = j;
-	for (let i = 1; i <= la; i++) {
-		cur[0] = i;
-		const ca = a[i - 1];
-		for (let j = 1; j <= lb; j++) {
-			const cost = ca === b[j - 1] ? 0 : 1;
-			cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+<!doctype html>
+<!-- exam.html 2026-09-07更新: 画像結合(親A/祖A1/祖A2・親B/祖B1/祖B2の縦横結合)、緑スキルハイライトバナー、コピー機能を統合。common.js?v=2026-09-06d の版不一致(実体は2026-09-06f)も修正。 -->
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>UmaExam OCR（β版）</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
+	<!-- Lucide Icons -->
+	<script src="https://unpkg.com/lucide@latest"></script>
+	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html / exam.html で共有） -->
+	<script src="js/common.js?v=2026-09-07a"></script>
+	<style>
+		body {
+			background-color: #f5f4fb;
+			background-image:
+				repeating-linear-gradient(115deg, rgba(79, 70, 229, 0.05) 0px, rgba(79, 70, 229, 0.05) 40px, transparent 40px, transparent 80px),
+				radial-gradient(ellipse 720px 300px at 50% -4%, rgba(199, 210, 254, 0.65), transparent 70%),
+				radial-gradient(ellipse 600px 260px at 90% 100%, rgba(250, 231, 175, 0.3), transparent 70%),
+				linear-gradient(180deg, #f2f1fb 0%, #f8f7fc 42%, #ffffff 100%);
+			background-repeat: repeat, no-repeat, no-repeat, no-repeat;
+			background-attachment: fixed, fixed, fixed, fixed;
 		}
-		const tmp = prev; prev = cur; cur = tmp;
-	}
-	return prev[lb];
-}
-
-function allowedDistance(len) {
-	// 3文字ちょうどのスキル名（例：「急降下」）はこれまで距離0（完全一致必須）
-	// だったため、字形の近い1文字誤読（隆⇔降 など）だけで確定できないケースがあった。
-	// 2文字以下はまだ誤爆リスクが高いので0のまま、3文字から緩和する。
-	if (len <= 2) return 0;
-	if (len <= 5) return 1;
-	if (len <= 9) return 2;
-	return 3;
-}
-
-function escapeHtml(s) {
-	return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-/* ============================================================
- * 画像読み込み・キャンバス変換
- * ============================================================ */
-function loadImage(file) {
-	return new Promise((resolve, reject) => {
-		const img = new Image();
-		const url = URL.createObjectURL(file);
-		img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-		img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
-		img.src = url;
-	});
-}
-
-function toBaseCanvas(img) {
-	const longSide = Math.max(img.naturalWidth, img.naturalHeight);
-	const scale = longSide > MAX_SIDE_PX ? (MAX_SIDE_PX / longSide) : 1;
-	const canvas = document.createElement('canvas');
-	canvas.width = Math.round(img.naturalWidth * scale);
-	canvas.height = Math.round(img.naturalHeight * scale);
-	const ctx = canvas.getContext('2d');
-	ctx.imageSmoothingEnabled = true;
-	ctx.imageSmoothingQuality = 'high';
-	ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-	return canvas;
-}
-
-function scaleCanvas(canvas, targetWidth) {
-	const scale = Math.max(1, Math.min(3, targetWidth / canvas.width));
-	const out = document.createElement('canvas');
-	out.width = Math.round(canvas.width * scale);
-	out.height = Math.round(canvas.height * scale);
-	const ctx = out.getContext('2d');
-	ctx.imageSmoothingEnabled = true;
-	ctx.imageSmoothingQuality = 'high';
-	ctx.drawImage(canvas, 0, 0, out.width, out.height);
-	return out;
-}
-
-function getPixels(canvas) {
-	const ctx = canvas.getContext('2d', { willReadFrequently: true });
-	return ctx.getImageData(0, 0, canvas.width, canvas.height);
-}
-
-/* ============================================================
- * 画像処理（グレースケール化・二値化・マスク処理）
- * ============================================================ */
-function toGray(imageData) {
-	const d = imageData.data;
-	const n = imageData.width * imageData.height;
-	const gray = new Uint8ClampedArray(n);
-	for (let i = 0, p = 0; i < n; i++, p += 4) {
-		gray[i] = (d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114) | 0;
-	}
-	return gray;
-}
-
-/* ============================================================
- * 画質判定（低解像度・再圧縮画像の足切り）
- * ============================================================ */
-
-/**
- * 簡易ラプラシアン分散によるシャープネス（鮮明度）スコア。
- * 値が小さいほど画像がぼやけている＝文字のストロークが潰れていることを示す。
- * 一般的な「ラプラシアンの分散でボケを検出する」手法の簡易実装で、
- * 3x3の代わりに上下左右4近傍のみを使う軽量版（画像全体を毎回舐めるため）。
- */
-function sharpnessScore(gray, w, h) {
-	if (w < 3 || h < 3) return 0;
-	let sum = 0, sumSq = 0, n = 0;
-	for (let y = 1; y < h - 1; y++) {
-		const row = y * w, up = row - w, down = row + w;
-		for (let x = 1; x < w - 1; x++) {
-			const lap = 4 * gray[row + x] - gray[row + x - 1] - gray[row + x + 1] - gray[up + x] - gray[down + x];
-			sum += lap;
-			sumSq += lap * lap;
-			n++;
+		.glass-card {
+			background: rgba(255, 255, 255, 0.88);
+			backdrop-filter: blur(14px);
+			border-color: rgba(199, 193, 246, 0.55) !important;
 		}
-	}
-	if (n === 0) return 0;
-	const mean = sum / n;
-	return sumSq / n - mean * mean;
-}
-
-/**
- * 画像がOCR対象として十分な品質かどうかを判定する。
- *
- * 背景: X(旧Twitter)での再共有や「レシート因子メーカー」等での複数画像結合を経た画像は、
- * 縮小・再圧縮により文字のストロークが画素として失われる。この劣化は行検出やOCRの
- * 前処理を工夫しても復元できない（＝情報自体が失われている）ため、辞書やしきい値の
- * チューニング対象ではなく、事前に弾くべき「対象外の入力」として扱う。
- *
- * 呼び出し側（special.html/index.html）は、ok:false の場合はOCRを試みずスキップし、
- * reasons を利用者に見える形で表示すること。
- *
- * 戻り値: { ok: boolean, width: number, height: number, sharpness: number|null, reasons: string[] }
- */
-function assessImageQuality(baseCanvas) {
-	const w = baseCanvas.width, h = baseCanvas.height;
-	const reasons = [];
-	let sharpness = null;
-	try {
-		const imageData = getPixels(baseCanvas);
-		const gray = toGray(imageData);
-		sharpness = sharpnessScore(gray, w, h);
-	} catch (err) {
-		reasons.push('鮮明度の計測に失敗しました: ' + err);
-	}
-	if (w < MIN_BASE_WIDTH_PX) {
-		reasons.push(
-			'画像の横幅が ' + w + 'px しかありません（目安 ' + MIN_BASE_WIDTH_PX + 'px 以上）。' +
-			'SNSへの投稿・再共有や、複数画像を結合するツールを経由すると縮小されがちです。'
-		);
-	}
-	if (sharpness !== null && sharpness < MIN_SHARPNESS_SCORE) {
-		reasons.push(
-			'画像の鮮明度が低い状態です（スコア ' + Math.round(sharpness) + ' / 目安 ' + MIN_SHARPNESS_SCORE + ' 以上）。' +
-			'文字のストロークが潰れている可能性が高く、再圧縮や過度な縮小が繰り返された画像で起こりやすい現象です。'
-		);
-	}
-	return { ok: reasons.length === 0, width: w, height: h, sharpness: sharpness, reasons: reasons };
-}
-
-function greenMaskOf(imageData) {
-	const d = imageData.data;
-	const n = imageData.width * imageData.height;
-	const mask = new Uint8Array(n);
-	for (let i = 0, p = 0; i < n; i++, p += 4) {
-		const r = d[p], g = d[p + 1], b = d[p + 2];
-		const max = Math.max(r, g, b), min = Math.min(r, g, b);
-		const delta = max - min;
-		if (delta === 0 || max < 90) continue;
-		if (delta / max < 0.35) continue;
-		if (max !== g) continue;
-		let h = 60 * (2 + (b - r) / delta);
-		if (h >= 65 && h <= 170) mask[i] = 1;
-	}
-	return mask;
-}
-
-// スピード/根性/スタミナ等、継承元カテゴリ色として使われる「青」を検出するマスク。
-// 固有スキル帯（緑）は必ずこの青帯の直後（1行分の隙間を挟んですぐ下）に来るため、
-// 「青帯の直後に続く緑帯」という組み合わせを固有スキル帯の識別に利用する
-// （detectSkillRows 内の固有スキル帯検出ロジックを参照）。
-function blueMaskOf(imageData) {
-	const d = imageData.data;
-	const n = imageData.width * imageData.height;
-	const mask = new Uint8Array(n);
-	for (let i = 0, p = 0; i < n; i++, p += 4) {
-		const r = d[p], g = d[p + 1], b = d[p + 2];
-		const max = Math.max(r, g, b), min = Math.min(r, g, b);
-		const delta = max - min;
-		if (delta === 0 || max < 90) continue;
-		if (delta / max < 0.35) continue;
-		if (max !== b) continue;
-		let h = 60 * (4 + (r - g) / delta);
-		if (h >= 180 && h <= 250) mask[i] = 1;
-	}
-	return mask;
-}
-
-function darkMaskOf(gray, level) {
-	const mask = new Uint8Array(gray.length);
-	for (let i = 0; i < gray.length; i++) mask[i] = gray[i] < level ? 1 : 0;
-	return mask;
-}
-
-function rowCountsOf(mask, w, h) {
-	const out = new Int32Array(h);
-	for (let y = 0; y < h; y++) {
-		let c = 0;
-		const base = y * w;
-		for (let x = 0; x < w; x++) c += mask[base + x];
-		out[y] = c;
-	}
-	return out;
-}
-
-function colCountsOf(mask, w, yFrom, yTo) {
-	const out = new Int32Array(w);
-	for (let y = yFrom; y <= yTo; y++) {
-		const base = y * w;
-		for (let x = 0; x < w; x++) out[x] += mask[base + x];
-	}
-	return out;
-}
-
-function findRuns(counts, threshold, mergeGap, from, to) {
-	const runs = [];
-	let start = -1;
-	for (let i = from; i < to; i++) {
-		if (counts[i] >= threshold) { if (start < 0) start = i; }
-		else if (start >= 0) { runs.push({ a: start, b: i - 1 }); start = -1; }
-	}
-	if (start >= 0) runs.push({ a: start, b: to - 1 });
-	if (runs.length === 0) return runs;
-	const merged = [runs[0]];
-	for (let i = 1; i < runs.length; i++) {
-		const last = merged[merged.length - 1];
-		if (runs[i].a - last.b - 1 <= mergeGap) last.b = runs[i].b;
-		else merged.push(runs[i]);
-	}
-	return merged;
-}
-
-function median(arr) {
-	if (!arr.length) return 0;
-	const s = arr.slice().sort((a, b) => a - b);
-	return s[Math.floor(s.length / 2)];
-}
-
-function stretchContrast(gray) {
-	const hist = new Int32Array(256);
-	for (let i = 0; i < gray.length; i++) hist[gray[i]]++;
-	const total = gray.length;
-	const lowCut = total * 0.02, highCut = total * 0.98;
-	let acc = 0, lo = 0, hi = 255;
-	for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= lowCut) { lo = v; break; } }
-	acc = 0;
-	for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= highCut) { hi = v; break; } }
-	if (hi <= lo) return gray;
-	const scale = 255 / (hi - lo);
-	const out = new Uint8ClampedArray(gray.length);
-	for (let i = 0; i < gray.length; i++) out[i] = (gray[i] - lo) * scale;
-	return out;
-}
-
-function adaptiveThreshold(gray, w, h, block, C) {
-	const iw = w + 1;
-	const integral = new Float64Array(iw * (h + 1));
-	for (let y = 0; y < h; y++) {
-		let rowSum = 0;
-		const gBase = y * w, iBase = (y + 1) * iw, iPrev = y * iw;
-		for (let x = 0; x < w; x++) {
-			rowSum += gray[gBase + x];
-			integral[iBase + x + 1] = integral[iPrev + x + 1] + rowSum;
+		:focus-visible {
+			outline: 2px solid #4338ca;
+			outline-offset: 2px;
+			border-radius: 4px;
 		}
-	}
-	const out = new Uint8ClampedArray(w * h);
-	const r = block >> 1;
-	for (let y = 0; y < h; y++) {
-		const y0 = Math.max(0, y - r), y1 = Math.min(h - 1, y + r);
-		const rowH = y1 - y0 + 1;
-		const iTop = y0 * iw, iBot = (y1 + 1) * iw;
-		const gBase = y * w;
-		for (let x = 0; x < w; x++) {
-			const x0 = Math.max(0, x - r), x1 = Math.min(w - 1, x + r);
-			const count = rowH * (x1 - x0 + 1);
-			const sum = integral[iBot + x1 + 1] - integral[iTop + x1 + 1] - integral[iBot + x0] + integral[iTop + x0];
-			out[gBase + x] = (gray[gBase + x] > sum / count - C) ? 255 : 0;
+		@media (prefers-reduced-motion: reduce) {
+			* { scroll-behavior: auto !important; }
 		}
-	}
-	return out;
-}
-
-function grayToCanvas(gray, w, h) {
-	const canvas = document.createElement('canvas');
-	canvas.width = w; canvas.height = h;
-	const ctx = canvas.getContext('2d');
-	const img = ctx.createImageData(w, h);
-	const d = img.data;
-	for (let i = 0, p = 0; i < gray.length; i++, p += 4) {
-		d[p] = d[p + 1] = d[p + 2] = gray[i];
-		d[p + 3] = 255;
-	}
-	ctx.putImageData(img, 0, 0);
-	return canvas;
-}
-
-function invertGray(gray) {
-	const out = new Uint8ClampedArray(gray.length);
-	for (let i = 0; i < gray.length; i++) out[i] = 255 - gray[i];
-	return out;
-}
-
-/* ============================================================
- * スキル行検出・切り出し
- * ============================================================ */
-function detectSkillRows(baseCanvas, diag) {
-	const W = baseCanvas.width, H = baseCanvas.height;
-	let imageData;
-	try { imageData = getPixels(baseCanvas); }
-	catch (err) { diag.push('画素の取得に失敗: ' + err); return null; }
-
-	const green = greenMaskOf(imageData);
-	const gRows = rowCountsOf(green, W, H);
-	const greenBands = findRuns(gRows, Math.round(W * 0.12), 4, 0, H);
-	const thickGreen = greenBands.filter(b => (b.b - b.a) >= H * 0.008);
-
-	// --- 固有スキル帯（青帯の直後に続く緑帯）を基準にリスト範囲を決定 ---
-	// 継承タブの有無、継承履歴バーの混入、キャラごとに異なる固有スキル名、
-	// 3世代連結スクリーンショット等、画面バリエーションに関わらず、
-	// 「スピード/根性等の青帯」→「固有スキル帯（緑）」という並びだけは
-	// 継承UIである限り必ず1行分の隙間ですぐ下に続くという構造を利用する。
-	const blue = blueMaskOf(imageData);
-	const bRows = rowCountsOf(blue, W, H);
-	const blueBands = findRuns(bRows, Math.round(W * 0.08), 4, 0, H)
-		.filter(b => (b.b - b.a) >= H * 0.008);
-
-	const gapLimit = Math.round(H * 0.02); // 実測16〜24px相当、余裕を見て2%
-
-	// 固有スキル／因子のチップ、「継承」タブpillは左右いずれか1カラムや
-	// 部分幅のみを占める帯（実測: 幅カバー率 約32〜50%）。
-	// 一方、ステータス表ヘッダーや「継承履歴」区切りバーのような全幅バナーは
-	// 幅カバー率が約91〜93%と際立って高く、青帯の直後や緑帯の末尾に来ることがあるため、
-	// 位置関係だけを条件にすると誤って固有スキル帯・タブ境界と認識してしまう。
-	// 全幅に近い帯は候補から除外し、この誤検出を防ぐ。
-	const WIDE_BAND_COVERAGE_RATIO = 0.7;
-	function isWideBand(g) {
-		const colCounts = colCountsOf(green, W, g.a, g.b);
-		let covered = 0;
-		for (let x = 0; x < W; x++) { if (colCounts[x] > 0) covered++; }
-		return (covered / W) > WIDE_BAND_COVERAGE_RATIO;
-	}
-
-	let wideBandExcluded = 0;
-	const uniqueSkillBands = [];
-	for (const bb of blueBands) {
-		const hit = thickGreen.find(g => {
-			if (g.a - bb.b < 0 || g.a - bb.b > gapLimit) return false;
-			if (isWideBand(g)) { wideBandExcluded++; return false; }
-			return true;
-		});
-		if (hit) uniqueSkillBands.push(hit);
-	}
-	if (wideBandExcluded > 0) {
-		diag.push('全幅帯（ステータス表ヘッダー等）を固有スキル帯候補から除外: ' + wideBandExcluded + '件');
-	}
-
-	let listTop = 0, listBottom = H;
-	if (uniqueSkillBands.length > 0) {
-		const first = uniqueSkillBands[0];
-		listTop = Math.min(H - 1, first.b + Math.round(H * 0.004));
-		diag.push('固有スキル帯 ' + uniqueSkillBands.length + '件検出 / リスト上端 y=' + listTop);
-		if (uniqueSkillBands.length > 1) {
-			// 2件目以降は継承元（親・祖先）の固有スキル帯とみなし、
-			// その手前でリストを打ち切ることで継承元の行が混入するのを防ぐ。
-			listBottom = uniqueSkillBands[1].a - Math.round(H * 0.01);
-			diag.push('継承元の固有スキル帯を検出 → リスト下端 y=' + listBottom + ' で打ち切り');
+		.result-table { border-collapse: separate; border-spacing: 0; width: 100%; }
+		.result-table th {
+			background-color: #f1f5f9; font-weight: 600; font-size: 0.8125rem; color: #475569;
+			border-bottom: 2px solid #e2e8f0; padding: 0.75rem 1rem;
 		}
-	} else if (thickGreen.length > 0) {
-		// フォールバック: 従来ロジック（最後の緑帯をタブ/境界とみなす）。
-		// ただし「継承履歴」区切りバーのような全幅バナーがリスト末尾に写り込むと、
-		// それが「最後の緑帯」として拾われ、タブpill（横幅カバー率 実測約32%）ではなく
-		// 全幅バナー（同 約91%）を境界と誤認してしまう。固有スキル帯判定と同じ
-		// 横幅カバー率フィルタで全幅バナーを除外し、残った中の最後の帯を使う。
-		const narrowGreen = thickGreen.filter(g => !isWideBand(g));
-		const candidates = narrowGreen.length > 0 ? narrowGreen : thickGreen;
-		if (narrowGreen.length < thickGreen.length) {
-			diag.push('全幅帯（継承履歴バー等）をタブ境界候補から除外: ' + (thickGreen.length - narrowGreen.length) + '件');
+		.result-table td {
+			border-bottom: 1px solid #f1f5f9; padding: 0.75rem 1rem; font-size: 0.875rem;
 		}
-		const tab = candidates[candidates.length - 1];
-		listTop = Math.min(H - 1, tab.b + Math.round(H * 0.004));
-		diag.push('固有スキル帯を検出できず → 従来ロジックにフォールバック');
-		diag.push('緑帯 ' + thickGreen.length + '本 / タブ下端 y=' + tab.b + ' → リスト上端 y=' + listTop);
-	} else {
-		diag.push('緑帯を検出できず → 画像全体をリスト領域として扱う');
-	}
-
-	const gray = toGray(imageData);
-	const dark = darkMaskOf(gray, DARK_LEVEL);
-	const dRows = rowCountsOf(dark, W, H);
-	const rowThreshold = Math.max(5, Math.round(W * 0.01));
-	const rowMergeGap = Math.max(6, Math.round(H * 0.004));
-	let bands = findRuns(dRows, rowThreshold, rowMergeGap, listTop, listBottom);
-	diag.push('文字帯の候補 ' + bands.length + '本（しきい値 ' + rowThreshold + 'px / 結合gap ' + rowMergeGap + 'px）');
-
-	if (bands.length < 3) { diag.push('文字帯が少なすぎるため中止'); return null; }
-
-	const heights = bands.map(b => b.b - b.a + 1);
-	const medH = median(heights);
-	const before = bands.length;
-	bands = bands.filter(b => {
-		const h = b.b - b.a + 1;
-		return h >= Math.max(8, medH * 0.55) && h <= medH * 2.0;
-	});
-	diag.push('高さフィルタ（中央値 ' + medH + 'px）: ' + before + ' → ' + bands.length + '本');
-	if (bands.length < 3) { diag.push('フィルタ後の文字帯が少なすぎるため中止'); return null; }
-
-	// ★アイコン（special.html の因子継承画面などで、スキル名の下に表示される★★★）は
-	// 明るい金色だが、輪郭線部分がまれに「暗い文字」として誤検出され、
-	// 本来1行のはずのスキル名の下にもう1本、実体のない「文字帯」が紛れ込むことがある。
-	// これを放置すると行数が本来の約2倍に膨らみ、テキスト認識にもノイズが混入するため、
-	// 「帯の中の金色ピクセル比率が高い」帯を ★アイコンの誤検出とみなして除外する。
-	// 実測では、正規の文字帯は金色比率がほぼ0%、★の誤検出帯は4〜8%程度だったため、
-	// 余裕を持って1.5%を閾値とする。
-	// 注: 当初は「背が低い（medH比85%以下）」帯だけをこの判定対象にしていたが、
-	// ★の誤検出帯の数が実文字帯と同程度〜それ以上になる画像では中央値自体が
-	// ★帯側に引っ張られてしまい、高さによる事前選別が機能しないケースがあった。
-	// 金色比率は実文字帯とほぼ完全に分離できる指標（0% 対 4〜8%）なので、
-	// 高さに関わらず全ての帯に対して直接判定する。
-	// index.html（★の出ない画面）ではそもそも金色ピクセルがほぼ存在しないため、
-	// この処理は実質的に影響しない。
-	const beforeStarFilter = bands.length;
-	const gold = goldMaskOf(imageData);
-	const goldRowCounts = rowCountsOf(gold, W, H);
-	bands = bands.filter(b => {
-		const h = b.b - b.a + 1;
-		let goldCount = 0;
-		for (let y = b.a; y <= b.b; y++) goldCount += goldRowCounts[y];
-		const totalCount = h * W;
-		const goldFrac = totalCount > 0 ? goldCount / totalCount : 0;
-		return goldFrac <= 0.015;
-	});
-	if (bands.length !== beforeStarFilter) {
-		diag.push('★アイコンの誤検出帯を除外: ' + beforeStarFilter + ' → ' + bands.length + '本');
-	}
-	if (bands.length < 3) { diag.push('フィルタ後の文字帯が少なすぎるため中止'); return null; }
-
-	const gapThreshold = Math.max(18, Math.round(W * 0.03));
-	const minBlockW = Math.max(10, Math.round(W * 0.02));
-	const allBlocks = [];
-
-	bands.forEach((band, bi) => {
-		const cCounts = colCountsOf(dark, W, band.a, band.b);
-		const runs = findRuns(cCounts, 1, gapThreshold, 0, W);
-		runs.forEach(r => {
-			if (r.b - r.a + 1 < minBlockW) return;
-			allBlocks.push({ band: bi, x0: r.a, x1: r.b, y0: band.a, y1: band.b });
-		});
-	});
-
-	diag.push('テキストの塊 ' + allBlocks.length + '個');
-	if (allBlocks.length < 3) { diag.push('塊が少なすぎるため中止'); return null; }
-
-	const tol = Math.max(12, Math.round(W * 0.02));
-	const sorted = allBlocks.slice().sort((a, b) => a.x0 - b.x0);
-	const clusters = [];
-	let cur = [sorted[0]];
-	for (let i = 1; i < sorted.length; i++) {
-		if (sorted[i].x0 - cur[cur.length - 1].x0 <= tol) cur.push(sorted[i]);
-		else { clusters.push(cur); cur = [sorted[i]]; }
-	}
-	clusters.push(cur);
-
-	const columns = clusters.filter(c => c.length >= 3)
-		.map(c => ({ x: median(c.map(b => b.x0)), members: c }))
-		.sort((a, b) => a.x - b.x);
-
-	if (columns.length === 0) { diag.push('列としてまとまる塊がないため中止'); return null; }
-	diag.push('列 ' + columns.length + '本（左端 x=' + columns.map(c => c.x).join(', ') + '）');
-
-	const rows = [];
-	let dropped = 0;
-	allBlocks.forEach(blk => {
-		let hit = null;
-		for (let i = 0; i < columns.length; i++) {
-			if (Math.abs(blk.x0 - columns[i].x) <= tol * 1.5) { hit = i; break; }
+		.result-table tr:hover td { background-color: #f8fafc; }
+		/* スマホ等の狭い画面でも、スキル名列を左端に固定表示したまま
+		   親A〜祖B2の列を横スクロールで確認できるようにする。
+		   （テーブル全体をwidth:100%で縮めず、JS側でmin-widthを与えて
+		   横スクロールを発生させる方式と組み合わせて使う） */
+		.result-table th:first-child, .result-table td:first-child {
+			position: sticky; left: 0; z-index: 1;
+			box-shadow: 2px 0 4px -2px rgba(15, 23, 42, 0.12);
 		}
-		if (hit === null) { dropped++; return; }
-		const pad = 4;
-		const x = Math.max(0, blk.x0 - pad);
-		const y = Math.max(0, blk.y0 - pad);
-		const w = Math.min(W - x, blk.x1 - blk.x0 + 1 + pad * 2);
-		const h = Math.min(H - y, blk.y1 - blk.y0 + 1 + pad * 2);
-		rows.push({ x: x, y: y, w: w, h: h, col: hit, band: blk.band });
-	});
-
-	diag.push('採用 ' + rows.length + '行 / 列外として除外 ' + dropped + '個');
-	if (rows.length < 3) { diag.push('採用行が少なすぎるため中止'); return null; }
-
-	rows.sort((a, b) => {
-		if (a.band !== b.band) return a.band - b.band;
-		return a.col - b.col;
-	});
-
-	return {
-		rows: rows,
-		columns: columns.length,
-		listTop: listTop,
-		// 以下2つは special.html の星カウント（★の数を数える処理）のために追加した情報。
-		// index.html 側は参照しないため、既存動作には影響しない。
-		bands: bands.map(b => ({ a: b.a, b: b.b })),
-		columnXs: columns.map(c => c.x)
-	};
-}
-
-function stackRows(baseCanvas, rows) {
-	const scales = rows.map(r => Math.max(1, Math.min(4, ROW_TARGET_HEIGHT / r.h)));
-	const widths = rows.map((r, i) => Math.round(r.w * scales[i]));
-	const heights = rows.map((r, i) => Math.round(r.h * scales[i]));
-
-	const gap = Math.round(ROW_TARGET_HEIGHT * 0.6);
-	const padX = 30;
-	const outW = Math.max(...widths) + padX * 2;
-	let outH = gap;
-	heights.forEach(h => { outH += h + gap; });
-
-	const canvas = document.createElement('canvas');
-	canvas.width = outW;
-	canvas.height = outH;
-	const ctx = canvas.getContext('2d');
-	ctx.fillStyle = '#FFFFFF';
-	ctx.fillRect(0, 0, outW, outH);
-	ctx.imageSmoothingEnabled = true;
-	ctx.imageSmoothingQuality = 'high';
-
-	let y = gap;
-	rows.forEach((r, i) => {
-		ctx.drawImage(baseCanvas, r.x, r.y, r.w, r.h, padX, y, widths[i], heights[i]);
-		y += heights[i] + gap;
-	});
-	return canvas;
-}
-
-function preprocessVariants(canvas, multi) {
-	const variants = [];
-	try {
-		const imageData = getPixels(canvas);
-		const w = canvas.width, h = canvas.height;
-		const gray = stretchContrast(toGray(imageData));
-		const bin = adaptiveThreshold(gray, w, h, ADAPTIVE_BLOCK, ADAPTIVE_C);
-		variants.push(grayToCanvas(bin, w, h));
-		if (multi) {
-			variants.push(grayToCanvas(invertGray(bin), w, h));
-			variants.push(canvas);
+		.result-table td:first-child { background-color: #fff; }
+		.result-table th:first-child { z-index: 2; }
+		@media (max-width: 640px) {
+			.result-table th, .result-table td { padding: 0.5rem 0.5rem; font-size: 0.75rem; }
 		}
-	} catch (err) {
-		console.error('preprocess failed', err);
-		return [canvas];
-	}
-	return variants.length ? variants : [canvas];
-}
-
-function extractLines(data) {
-	const lines = [];
-	if (data && Array.isArray(data.lines) && data.lines.length) {
-		data.lines.forEach(l => {
-			if (l.text && l.text.trim()) lines.push({ text: l.text.trim(), conf: l.confidence });
-		});
-	} else if (data && data.text) {
-		data.text.split(/\r?\n/).forEach(t => {
-			if (t.trim()) lines.push({ text: t.trim(), conf: null });
-		});
-	}
-	return lines;
-}
-
-/* ============================================================
- * 判定ロジック
- * ============================================================ */
-function windowDistance(line, skill) {
-	return levenshtein(line, skill);
-}
-
-/**
- * 1つのOCR行（正規化済み文字列）に対し、skillIndexの中から最良候補を選ぶ。
- * skillIndex: [{ raw: '元のスキル名', norm: '正規化済み文字列' }, ...]
- *
- * 同着タイ（複数のスキルが同じ距離・同じ長さで並ぶ）の場合はここでは決めず、
- * 並んだ候補を tied に入れて ok:false で返す。どう decide するかは呼び出し側
- * （matchAllSkills）が、行の位置情報など文字列以外の手がかりを使って判断する。
- *
- * 戻り値:
- *   null … 候補となるスキルが一つもない（skillIndexが空 等）
- *   { raw, dist, limit, ok: true }  … 確定採用できる候補が見つかった
- *   { raw, dist, limit, ok: false, reason, tied? } … 候補はあるが確定できない（しきい値超過 or 同点タイ）
- */
-function bestCandidate(normLine, skillIndex) {
-	const passing = [];
-	let fallback = null;
-	for (let i = 0; i < skillIndex.length; i++) {
-		const raw = skillIndex[i].raw, norm = skillIndex[i].norm;
-		if (!norm) continue;
-		const d = windowDistance(normLine, norm);
-		const limit = allowedDistance(norm.length);
-		if (!fallback || d < fallback.dist) fallback = { raw: raw, dist: d, limit: limit };
-		if (d <= limit) passing.push({ raw: raw, norm: norm, dist: d, limit: limit });
-	}
-	if (passing.length === 0) {
-		if (!fallback) return null;
-		return { raw: fallback.raw, dist: fallback.dist, limit: fallback.limit, ok: false, reason: '距離' + fallback.dist + ' > 許容' + fallback.limit };
-	}
-	passing.sort((a, b) => (a.dist - b.dist) || (b.norm.length - a.norm.length));
-	const top = passing[0];
-	const tied = passing.filter(p => p.dist === top.dist && p.norm.length === top.norm.length);
-	if (tied.length > 1) {
-		return { raw: top.raw, dist: top.dist, limit: top.limit, ok: false, reason: '曖昧', tied: tied.map(t => t.raw) };
-	}
-	return { raw: top.raw, dist: top.dist, limit: top.limit, ok: true };
-}
-
-/**
- * 2つのOCR行が「元画像の別々の行（別の項目）から来た」と断定できるかを判定する。
- *
- * rowKey は "画像番号:行番号" の形式で、同じ画像・同じ行から読まれた行（前処理違いの
- * 読み取り結果など）は同じ値になる。断定できないときは false を返す（＝安全側）。
- */
-function isDifferentRow(a, b) {
-	if (!a || !b || !a.rowKey || !b.rowKey) return false; // 位置情報がなければ断定しない
-	if (a.rowKey === b.rowKey) return false;              // 同じ行の別の読み取り結果
-	const imgA = String(a.rowKey).split(':')[0];
-	const imgB = String(b.rowKey).split(':')[0];
-	if (imgA === imgB) return true;                       // 同じ画像内の別の行 → 確実に別の項目
-	// 別々の画像の場合、スクロールしながら撮ったスクショは重なっているため、
-	// 同じ項目が両方に写っている可能性がある＝別物と断定できない。
-	// ただし★の数が両方わかっていて食い違うなら、別の項目だと言える。
-	// このとき、信用できない計測（画像最下段の行や、ありえない0個）は根拠に使わない。
-	if (trustworthyStars(a) && trustworthyStars(b) && a.stars !== b.stars) return true;
-	return false;
-}
-
-function trustworthyStars(line) {
-	if (!line || line.stars === null || line.stars === undefined) return false;
-	if (line.stars === 0) return false;           // ★0はありえない＝計測に失敗している
-	return line.starsReliable !== false;
-}
-
-/**
- * 同着タイになった候補を、文字列以外の手がかりで1つに絞り込む（絞れなければ null）。
- *
- * 考え方：タイに含まれるスキルのうち「既に別の行で見つかっていると断定できる」ものは、
- * この行の正体ではありえないので候補から外す。残りが1つならそれを採用する。
- * 逆に、既に見つかっていても『この行自体の別の読み取り結果かもしれない』場合
- * （＝同じ行、または重なった別画像で★の数も一致する）は外さない。
- * これを外してしまうと、同じ項目を読み直しただけの行が、
- * 字面の近い別スキルとして過剰に検出されてしまう。
- *
- * diagEntries（配列）を渡すと、判定の途中経過を1件のオブジェクトとして追記する。
- * 「なぜ解決できた／できなかったか」を開発ログで確認できるようにするための引数で、
- * 判定結果そのものには一切影響しない（省略しても従来通り動作する）。
- *   { text, norm, rowKey, tied, source: 'resolveTiedCandidates',
- *     candidates: [{ raw, alreadyDetected, provablyOther, checks: [{ otherRowKey, thisRowKey, result }] }],
- *     survivors, resolved }
- */
-function resolveTiedCandidates(tiedRaws, line, detectedSkills, skillSources, lines, diagEntries, norm) {
-	const candidateDiags = [];
-	const survivors = tiedRaws.filter(raw => {
-		if (!detectedSkills.has(raw)) {
-			candidateDiags.push({ raw: raw, alreadyDetected: false, provablyOther: false, checks: [] });
-			return true;
+		.found { color: #059669; font-weight: 600; }
+		.not-found { color: #94a3b8; }
+		.drop-active { border-color: #4f46e5 !important; background-color: #eef2ff !important; transform: scale(1.005); }
+		.dev-log {
+			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+			font-size: 0.725rem; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
 		}
-		const sources = skillSources[raw] || [];
-		const checks = sources.map(i => {
-			const other = lines[i];
-			return {
-				otherRowKey: other ? (other.rowKey || null) : null,
-				thisRowKey: line ? (line.rowKey || null) : null,
-				result: isDifferentRow(other, line)
-			};
-		});
-		const provablyOther = checks.some(c => c.result);
-		candidateDiags.push({ raw: raw, alreadyDetected: true, provablyOther: provablyOther, checks: checks });
-		return !provablyOther;
-	});
-	const resolved = survivors.length === 1 ? survivors[0] : null;
-	if (diagEntries) {
-		diagEntries.push({
-			text: line ? line.text : null,
-			norm: norm || null,
-			rowKey: line ? (line.rowKey || null) : null,
-			tied: tiedRaws.slice(),
-			source: 'resolveTiedCandidates',
-			candidates: candidateDiags,
-			survivors: survivors.slice(),
-			resolved: resolved
-		});
-	}
-	return resolved;
-}
-
-/**
- * OCRで得られた全行(lines)を、スキルリスト(skillIndex)と照合する。
- * グローバル変数には一切触れず、結果をまとめたオブジェクトを返す（純粋関数）。
- *
- * 引数:
- *   lines               … [{ text, conf }, ...]  extractLines() の出力を集約したもの
- *   skillList           … ['スキル名1', 'スキル名2', ...]  元の表記のリスト
- *   skillIndex          … [{ raw, norm }, ...]  skillList を正規化して付与したもの
- *   ocrErrorDictionary  … { '誤認識文字列': '正しいスキル名', ... }（空オブジェクトでも可）
- *
- * 戻り値:
- *   {
- *     detectedSkills: Set<string>,   // 検出済みスキル名（raw表記）の集合
- *     matchReasons:   { [rawSkillName]: string },  // 判定根拠の説明文
- *     skillSources:   { [rawSkillName]: [行index, ...] },  // 検出根拠になった行
- *     devTypo:    [...], devLowConf: [...], devOther: [...], devFuzzy: [...]  // デバッグ用の内訳
- *   }
- */
-function matchAllSkills(lines, skillList, skillIndex, ocrErrorDictionary) {
-	const detectedSkills = new Set();
-	const matchReasons = {};
-	// スキル名 → そのスキルを検出した根拠となった行のindex配列。
-	// 「そのスキルの★はどの行のものか」を後から正確に引くために必ず記録する。
-	const skillSources = {};
-	const devTypo = [], devLowConf = [], devOther = [], devFuzzy = [];
-	// 曖昧タイ（同着候補）の絞り込み過程を記録する。resolveTiedCandidates() 参照。
-	const devAmbiguous = [];
-
-	const normDictionary = {};
-	Object.keys(ocrErrorDictionary || {}).forEach(k => {
-		normDictionary[normalizeText(k)] = ocrErrorDictionary[k];
-	});
-
-	function addDetection(skill, lineIndex, reason) {
-		if (!detectedSkills.has(skill)) matchReasons[skill] = reason;
-		detectedSkills.add(skill);
-		if (!skillSources[skill]) skillSources[skill] = [];
-		skillSources[skill].push(lineIndex);
-	}
-
-	const seen = new Set();
-	// 辞書・完全一致で確定できなかった行は、いったんここに貯めておく。
-	// 曖昧タイの絞り込みが行の並び順に関係なく全行の確定結果を使えるようにするため、
-	// あいまい判定は全行の辞書・完全一致が出揃った後に第2パスとしてまとめて行う。
-	const pendingFuzzy = [];
-	// rowKey → その行の正体が完全一致・辞書で確定済みかどうか
-	const rowAssigned = {};
-
-	lines.forEach((line, index) => {
-		const norm = normalizeText(line.text);
-		if (!norm || norm.length < 2) return;
-		// 同じ文字列でも「元画像の別の行」から来たものは別々に扱う（★の計測値が異なるため）。
-		// rowKey を持たない場合（index.html 側）は、これまで通り文字列だけで重複排除する。
-		const seenKey = norm + ' ' + (line.rowKey || '');
-		if (seen.has(seenKey)) return;
-		seen.add(seenKey);
-
-		if (normDictionary[norm]) {
-			const target = normDictionary[norm];
-			if (skillList.indexOf(target) !== -1) {
-				addDetection(target, index, '辞書');
-				if (line.rowKey) rowAssigned[line.rowKey] = true;
-			}
-			return;
+		#debug-preview canvas {
+			max-width: 100%; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #fff;
 		}
-
-		// 部分一致（indexOf）で候補を集める。
-		// 例えば「根幹距離○」と「非根幹距離○」のように、片方がもう片方の部分文字列に
-		// なっているスキル名が同じスキルリストに存在すると、OCR行「非根幹距離○」に対して
-		// 「根幹距離○」も誤って一致してしまう。これを避けるため、一致した候補同士を比較し、
-		// 他の候補の正規化文字列に完全に含まれてしまう（＝より具体的な候補が別にある）ものは
-		// 誤検出とみなして除外し、最も具体的な（長い）候補だけを採用する。
-		const exactCandidates = [];
-		for (let i = 0; i < skillIndex.length; i++) {
-			const s = skillIndex[i];
-			if (s.norm && norm.indexOf(s.norm) !== -1) exactCandidates.push(s);
+		#toast {
+			transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 		}
-		if (exactCandidates.length > 0) {
-			const exactHits = exactCandidates.filter(cand =>
-				!exactCandidates.some(other => other !== cand && other.norm !== cand.norm && other.norm.indexOf(cand.norm) !== -1)
-			);
-			exactHits.forEach(s => addDetection(s.raw, index, '完全一致'));
-			if (line.rowKey && exactHits.length > 0) rowAssigned[line.rowKey] = true;
-			return;
-		}
+		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
+		.mode-btn { padding: 0.25rem 0.75rem; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+		.mode-btn.active { background-color: #4f46e5; color: #fff; }
+		.mode-btn:not(.active) { color: #64748b; }
+		.mode-btn:not(.active):hover { background-color: #f1f5f9; }
+		.copylist-btn { padding: 0.375rem 0.875rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid #e2e8f0; background: #fff; color: #64748b; }
+		.copylist-btn:hover { background-color: #f1f5f9; }
+		.copylist-btn.active { background-color: #4f46e5; color: #fff; border-color: #4f46e5; }
+	</style>
+</head>
+<body class="min-h-screen text-slate-800 antialiased selection:bg-indigo-600 selection:text-white">
 
-		if (line.conf !== null && line.conf !== undefined && line.conf < CONF_THRESHOLD) {
-			devLowConf.push({ text: line.text, norm: norm, conf: line.conf });
-			return;
-		}
+	<!-- トースト通知 -->
+	<div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-16 opacity-0 pointer-events-none flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 text-sm font-medium">
+		<i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
+		<span id="toast-message">コピーしました</span>
+	</div>
 
-		pendingFuzzy.push({ line: line, norm: norm, index: index });
-	});
+	<div class="w-full max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12">
 
-	// 第2パス：あいまい一致（distance判定・曖昧タイの絞り込み）。
-	// この時点で detectedSkills には全行の辞書・完全一致の結果が反映済み。
-	const resolvedByText = {}; // 正規化文字列 → 曖昧タイから絞り込めたスキル名
-	pendingFuzzy.forEach(({ line, norm, index }) => {
-		// 元画像の同じ行が既に完全一致で確定している場合、この行はその行の
-		// 「別の読み取り結果（誤読版）」にすぎない。別のスキルとして数えると
-		// 字面の近い無関係なスキルを過剰検出してしまうため、ここで捨てる。
-		if (line.rowKey && rowAssigned[line.rowKey]) return;
+		<!-- ヘッダー -->
+		<header class="relative mb-8 md:mb-10 rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/90 via-white/70 to-white p-5 md:p-8 shadow-sm">
+			<div aria-hidden="true" class="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
+				<div class="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-indigo-200/40 blur-3xl"></div>
+				<div class="absolute -bottom-20 -left-10 w-48 h-48 rounded-full bg-amber-200/30 blur-3xl"></div>
+			</div>
+			<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+				<!-- 左側：タイトルエリア -->
+				<div>
+					<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-800 via-indigo-700 to-indigo-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Exam</span> OCR<span class="ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">β版</span></h1>
+					<p class="mt-1.5 text-xs md:text-sm text-slate-500">技能試験で有利な対象スキル（<span id="header-skill-count">133</span>種・登録済み）に絞って★の数を自動判定します。親Aセット（+祖A1+祖A2）に加えて、親Bセットもオプションで判定・比較できます。</p>
+					<p class="mt-1 text-[11px] text-amber-700">※ OCR・★判定の精度は完全ではありません。結果は念のため目視でもご確認ください。</p>
+					<p class="mt-0.5 text-[11px] text-amber-700">※ SNSの投稿画像等は解像度不足のため対象外となる場合があります。また、加工された画像は適切に判定できない場合があります。ゲーム画面から直接撮ったスクリーンショットをご利用ください。</p>
+				</div>
 
-		let cand = bestCandidate(norm, skillIndex);
-		if (cand && !cand.ok && cand.tied && cand.tied.length > 1) {
-			// 同じ誤読文字列は同じスキルを指すはずなので、一度絞り込めた結果を使い回す。
-			// （重なったスクショで同じ項目が何度も同じように誤読されるため）
-			let picked = (resolvedByText[norm] && cand.tied.indexOf(resolvedByText[norm]) !== -1) ? resolvedByText[norm] : null;
-			if (picked) {
-				devAmbiguous.push({
-					text: line.text, norm: norm, rowKey: line.rowKey || null,
-					tied: cand.tied.slice(), source: 'キャッシュ再利用', candidates: [], survivors: [picked], resolved: picked
-				});
-			} else {
-				picked = resolveTiedCandidates(cand.tied, line, detectedSkills, skillSources, lines, devAmbiguous, norm);
-			}
-			if (picked) {
-				resolvedByText[norm] = picked;
-				cand = { raw: picked, dist: cand.dist, limit: cand.limit, ok: true, reason: '曖昧→絞り込み' };
-			}
-		}
+				<!-- 右側：アクションボタン群 -->
+				<div class="flex items-center gap-2 shrink-0">
 
-		if (cand && cand.ok) {
-			addDetection(cand.raw, index, '推定（距離' + cand.dist + (cand.reason ? ' / ' + cand.reason : '') + '）');
-			if (cand.dist > 0) {
-				devFuzzy.push({ text: line.text, norm: norm, conf: line.conf, matched: cand.raw, dist: cand.dist });
-			}
-			return;
-		}
+					<!-- ツール切り替えドロップダウン -->
+					<div class="relative" id="tool-dropdown-wrap">
+						<button id="tool-dropdown-btn" type="button" onclick="toggleToolDropdown()" class="inline-flex items-center justify-center gap-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
+							<i data-lucide="layout-grid" class="w-4 h-4 text-indigo-600"></i>
+							<span>ツール切替</span>
+							<i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+						</button>
 
-		const entry = {
-			text: line.text, norm: norm, conf: line.conf,
-			best: cand ? cand.raw : null,
-			dist: cand ? cand.dist : null,
-			reason: cand ? cand.reason : '候補なし'
+						<!-- ドロップダウン本体 -->
+						<div id="tool-dropdown-menu" class="hidden absolute left-0 md:left-auto md:right-0 mt-2 w-72 max-w-[calc(100vw-2.5rem)] bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-xl z-50 p-1.5 transition-all">
+							<div class="px-3 py-2 border-b border-slate-100 mb-1">
+								<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ツール切り替え</p>
+							</div>
+
+							<!-- 汎用ツールへ -->
+							<a href="index.html" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-100/80 transition-colors group cursor-pointer mb-1">
+								<div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-sky-500 group-hover:text-white flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+									<i data-lucide="layers" class="w-4 h-4"></i>
+								</div>
+								<div class="flex-1 min-w-0">
+									<p class="text-xs font-bold text-slate-800 group-hover:text-sky-600 transition-colors">UmaSimple OCR</p>
+									<p class="text-[11px] text-slate-500 mt-0.5 truncate">標準的なスキルの自動読み取り</p>
+								</div>
+							</a>
+
+							<!-- 因子継承特化ツールへ -->
+							<a href="special.html" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-100/80 transition-colors group cursor-pointer mb-1">
+								<div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-green-500 group-hover:text-white flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+									<i data-lucide="zap" class="w-4 h-4"></i>
+								</div>
+								<div class="flex-1 min-w-0">
+									<p class="text-xs font-bold text-slate-800 group-hover:text-green-600 transition-colors">UmaStar OCR</p>
+									<p class="text-[11px] text-slate-500 mt-0.5 truncate">1〜3人目の★の数を個別判定</p>
+								</div>
+							</a>
+
+							<!-- 現在のツール -->
+							<div class="flex items-start gap-3 p-2.5 rounded-xl bg-indigo-50/80 border border-indigo-100 text-indigo-950">
+								<div class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+									<i data-lucide="graduation-cap" class="w-4 h-4"></i>
+								</div>
+								<div class="flex-1 min-w-0">
+									<div class="flex items-center justify-between">
+										<p class="text-xs font-bold text-indigo-900">UmaExam OCR</p>
+										<span class="text-[10px] font-semibold text-indigo-700 bg-indigo-200/60 px-1.5 py-0.5 rounded">選択中</span>
+									</div>
+									<p class="text-[11px] text-indigo-700/80 mt-0.5 truncate">技能試験133スキルに特化した判定</p>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- 使い方ガイドボタン -->
+					<button type="button" onclick="toggleHelp()" class="inline-flex items-center justify-center gap-2 text-xs font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
+						<i data-lucide="help-circle" class="w-4 h-4"></i>
+						<span>使い方ガイド</span>
+					</button>
+				</div>
+			</div>
+		</header>
+
+		<!-- 使い方アコーディオン -->
+		<div id="help-box" class="hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 to-violet-50/50 p-5 md:p-6 mb-8 shadow-xs relative overflow-hidden transition-all">
+			<div class="flex items-center gap-2 text-sm font-bold text-indigo-900 mb-4">
+				<i data-lucide="book-open" class="w-4 h-4 text-indigo-600"></i>
+				<span>使い方の手順</span>
+			</div>
+			<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs text-slate-700 mb-5">
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-indigo-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-indigo-600 text-white font-bold text-[10px] mb-1.5">STEP 1</span>
+					<p class="font-bold text-slate-800">対象を撮影</p>
+					<p class="text-slate-500 mt-1">親A（＋祖A1＋祖A2）、必要なら親B（＋祖B1＋祖B2）の因子画面を、境界を含めず個別に撮影（対象スキルは登録済みのため準備不要）</p>
+				</div>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-indigo-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-indigo-600 text-white font-bold text-[10px] mb-1.5">STEP 2</span>
+					<p class="font-bold text-slate-800">使う欄にアップロード</p>
+					<p class="text-slate-500 mt-1">親Aセットの使う欄にスクショを追加。親Bセットが必要な場合は「＋ 親Bセットも追加する」で表示してから追加（残りは空欄でOK）</p>
+				</div>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-indigo-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-indigo-600 text-white font-bold text-[10px] mb-1.5">STEP 3</span>
+					<p class="font-bold text-slate-800">OCR実行</p>
+					<p class="text-slate-500 mt-1">スキル名の判定と、★の数の判定を同時に行います</p>
+				</div>
+				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-indigo-100 shadow-2xs">
+					<span class="inline-block px-2 py-0.5 rounded-md bg-indigo-600 text-white font-bold text-[10px] mb-1.5">STEP 4</span>
+					<p class="font-bold text-slate-800">結果コピー</p>
+					<p class="text-slate-500 mt-1">使った人数分の★の数をまとめてスプレッドシートに貼り付け</p>
+				</div>
+			</div>
+
+			<!-- 撮影の注意点 -->
+			<div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+				<div class="flex items-center gap-1.5 text-xs font-bold text-amber-800 mb-2">
+					<i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+					<span>スクリーンショットのポイント</span>
+				</div>
+				<ul class="text-xs text-amber-800 leading-relaxed list-disc list-outside pl-4 space-y-1.5">
+					<li>各キャラクターのスキルリスト部分だけが写るように撮影してください。見出しや前後のキャラクターの行が混ざると、誤判定の原因になることがあります。</li>
+					<li>各スキルについて、スキル名と★が両方とも同じ画像内に収まっているカットが少なくとも1枚は含まれるように撮影してください（複数枚で範囲が重なっていても問題ありません）。特に一番下の行は★が途切れて写りやすいため、1枚多めに、少し範囲をずらして撮っておくと安心です。</li>
+				</ul>
+			</div>
+		</div>
+
+		<!-- ステップ1：技能試験 対象スキル（登録済み・入力不要） -->
+		<div class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6">
+			<div class="flex items-center justify-between mb-4">
+				<div class="flex items-center gap-2">
+					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">1</span>
+					<h2 class="text-sm font-bold text-slate-800">技能試験 対象スキル（登録済み・入力不要）</h2>
+				</div>
+				<span id="step1-skill-badge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800">133種 登録済み</span>
+			</div>
+
+			<p class="text-xs text-slate-500 mb-3">技能試験で有利な対象スキルをあらかじめ<span id="step1-skill-count-inline">133</span>種登録しています。アップロードした因子すべてに対して、このリストで照合します。追加・除外は下の「対象スキルのカスタム設定」から行えます。</p>
+
+			<div class="flex flex-wrap gap-2 mb-4">
+				<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
+					<i data-lucide="star" class="w-3 h-3"></i>
+					<span id="badge-sp70-count">sp70緑：17種</span>
+				</span>
+				<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">
+					<i data-lucide="leaf" class="w-3 h-3"></i>
+					<span id="badge-green59-count">緑59種（実質53種）</span>
+				</span>
+			</div>
+
+			<!-- 133種の一覧（確認用・折りたたみ） -->
+			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-4">
+				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+					<span class="flex items-center gap-2">
+						<i data-lucide="list" class="w-4 h-4 text-slate-500"></i>
+						<span>対象スキル<span id="registry-skill-count">133</span>種の一覧を確認する</span>
+					</span>
+					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
+				</summary>
+				<div class="p-4 pt-2 border-t border-slate-200/60">
+					<p class="text-[11px] text-slate-500 mb-2">
+						<span class="text-amber-500 font-bold">★</span> = sp70緑（17種） ／
+						<span class="text-emerald-500 font-bold">●</span> = 緑59種（sp70緑を含む） ／
+						<span class="text-indigo-500 font-bold">＋</span> = カスタム追加スキル
+					</p>
+					<div id="skill-registry-list" class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-xs text-slate-600 max-h-72 overflow-y-auto"></div>
+				</div>
+			</details>
+
+			<!-- スキル名のコピー（各ユーザーが自分のスプレッドシートで管理するための書き出し・デフォルト折りたたみ） -->
+			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-4">
+				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+					<span class="flex items-center gap-2">
+						<i data-lucide="clipboard-list" class="w-4 h-4 text-slate-500"></i>
+						<span>スキル名のコピー（スプレッドシート管理用）</span>
+					</span>
+					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
+				</summary>
+				<div class="p-4 pt-2 border-t border-slate-200/60">
+					<p class="text-[11px] text-slate-500 mb-3">ご自身のスプレッドシートにスキル名の列を作る際にお使いください。1行に1スキル名で出力します。</p>
+
+					<div class="flex flex-wrap items-center gap-2 mb-2">
+						<button type="button" onclick="selectCopyList('all133')" id="copylist-all133" class="copylist-btn">全<span id="copylist-all133-count">133</span>種</button>
+						<button type="button" onclick="selectCopyList('sp70')" id="copylist-sp70" class="copylist-btn">sp70緑<span id="copylist-sp70-count">17</span>種</button>
+						<button type="button" onclick="selectCopyList('green59')" id="copylist-green59" class="copylist-btn">緑59種</button>
+						<!-- 緑59種を選んだ時だけ表示。「技能試験ハイライト」と同じcountModeを共有し、既定/個別のどちらで書き出すか切り替える -->
+						<div id="copylist-green59-mode" class="hidden items-center gap-1 text-xs bg-white rounded-lg border border-slate-200 p-0.5 ml-1">
+							<button type="button" onclick="setCountMode('equivalence')" class="mode-btn" id="mode-equivalence-list">実質53種</button>
+							<button type="button" onclick="setCountMode('individual')" class="mode-btn" id="mode-individual-list">59種個別</button>
+						</div>
+					</div>
+
+					<textarea id="skill-copy-textarea" readonly class="w-full h-28 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none resize-y"></textarea>
+
+					<div class="flex items-center justify-between mt-2">
+						<span id="skill-copy-hint" class="text-[11px] text-slate-400"></span>
+						<button type="button" onclick="copySkillList()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all cursor-pointer">
+							<i data-lucide="copy" class="w-3.5 h-3.5"></i>
+							<span>コピー</span>
+						</button>
+					</div>
+				</div>
+			</details>
+
+			<!-- 対象スキルのカスタム設定（追加・除外）（任意・デフォルト折りたたみ） -->
+			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-4">
+				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+					<span class="flex items-center gap-2">
+						<i data-lucide="list-plus" class="w-4 h-4 text-slate-500"></i>
+						<span>対象スキルのカスタム設定（追加・除外）</span>
+						<span id="custom-skills-badge" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800"></span>
+					</span>
+					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
+				</summary>
+				<div class="p-4 pt-1 border-t border-slate-200/60">
+					<p class="text-[11px] text-slate-500 leading-relaxed mb-3">
+						通常は登録済みの133種で判定しますが、独自に追跡したいスキルを追加したり、不要なスキルを対象から除外したりできます。
+						どちらも1行に1つ、まとめて入力できます。内容はこのブラウザに保存され、次回も使われます。
+						既定の133種以外のスキルはOCRの精度が不十分で、検出できない場合があります。
+					</p>
+
+					<!-- 追加 -->
+					<div class="mb-4">
+						<p class="text-xs font-semibold text-slate-700 mb-1.5">スキルを追加する</p>
+						<textarea id="custom-add-textarea" class="w-full h-20 text-xs p-2.5 rounded-lg border border-slate-200 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-mono resize-y" placeholder="1行に1つ、追加したいスキル名を入力（複数行まとめて可）&#10;例：&#10;スキルA&#10;スキルB"></textarea>
+						<div class="flex items-center justify-between mt-2">
+							<span id="custom-add-status" class="text-[11px] text-slate-500"></span>
+							<button type="button" onclick="addCustomSkillsBatch()" class="shrink-0 px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all cursor-pointer">まとめて追加</button>
+						</div>
+						<div id="custom-added-list" class="flex flex-wrap gap-1.5 mt-2"></div>
+					</div>
+
+					<!-- 除外 -->
+					<div>
+						<p class="text-xs font-semibold text-slate-700 mb-1.5">対象から除外する</p>
+						<textarea id="custom-remove-textarea" class="w-full h-20 text-xs p-2.5 rounded-lg border border-slate-200 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-mono resize-y" placeholder="1行に1つ、除外したいスキル名を登録済み表記のまま入力（複数行まとめて可）&#10;例：&#10;逃げのコツ〇&#10;右回りの目覚め"></textarea>
+						<div class="flex items-center justify-between mt-2">
+							<span id="custom-remove-status" class="text-[11px] text-slate-500"></span>
+							<button type="button" onclick="addRemovedSkillsBatch()" class="shrink-0 px-3.5 py-1.5 rounded-lg bg-slate-700 text-white text-xs font-semibold hover:bg-slate-800 transition-all cursor-pointer">まとめて除外</button>
+						</div>
+						<div id="custom-removed-list" class="flex flex-wrap gap-1.5 mt-2"></div>
+					</div>
+
+					<div class="mt-3 flex items-center justify-end">
+						<button type="button" onclick="resetCustomSkills()" class="text-[11px] text-slate-500 hover:text-red-600 underline underline-offset-2 cursor-pointer">カスタム設定をリセット</button>
+					</div>
+				</div>
+			</details>
+		</div>
+
+		<!-- ステップ2：因子セットの画像アップロード -->
+		<div class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6">
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+				<div class="flex items-center gap-2">
+					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">2</span>
+					<h2 class="text-sm font-bold text-slate-800">因子セットの画像をアップロード（親Aセットのみでも判定可）</h2>
+				</div>
+				<button type="button" id="setb-toggle-btn" onclick="toggleSetB()" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0">
+					<i data-lucide="git-branch" class="w-3.5 h-3.5"></i>
+					<span id="setb-toggle-label">＋ 親Bセットも追加する</span>
+				</button>
+			</div>
+			<p class="text-[11px] text-slate-500 mb-4">親Bセットを追加すると、親Aセットとまとめて照合・比較できます。</p>
+
+			<!-- 親Aセット（常時表示） -->
+			<div id="personset-A-wrap" class="mb-4"></div>
+
+			<!-- 親Bセット（任意・デフォルト非表示） -->
+			<div id="personset-B-wrap" class="hidden mb-4"></div>
+
+			<!-- オプション設定（デフォルトで折りたたみ） -->
+			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-5">
+				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+					<span class="flex items-center gap-2">
+						<i data-lucide="sliders" class="w-4 h-4 text-slate-500"></i>
+						<span>高度な解析オプション</span>
+					</span>
+					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
+				</summary>
+
+				<div class="p-4 pt-1 border-t border-slate-200/60 grid grid-cols-1 md:grid-cols-2 gap-3">
+					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+						<input id="opt-devlog" type="checkbox" class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
+						<div>
+							<span class="text-xs font-semibold text-slate-800">開発用ログ出力</span>
+							<p class="text-[11px] text-slate-500 mt-0.5">判定根拠や不一致テキストの内訳を結果エリアに表示</p>
+						</div>
+					</label>
+
+					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+						<input id="opt-preview" type="checkbox" class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
+						<div>
+							<span class="text-xs font-semibold text-slate-800">切り出し画像のプレビュー</span>
+							<p class="text-[11px] text-slate-500 mt-0.5">OCRエンジンに渡した整形画像をデバッグ用に確認</p>
+						</div>
+					</label>
+				</div>
+			</details>
+
+			<!-- プログレスバー -->
+			<div id="progress-wrap" class="hidden mb-4 p-4 rounded-xl bg-indigo-50 border border-indigo-200">
+				<div class="flex justify-between text-xs font-semibold text-indigo-900 mb-2">
+					<span id="progress-label" class="flex items-center gap-1.5">
+						<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-indigo-600"></i>
+						<span>処理中…</span>
+					</span>
+					<span id="progress-pct">0%</span>
+				</div>
+				<div class="h-2 bg-indigo-200/70 rounded-full overflow-hidden">
+					<div id="progress-bar" class="h-full bg-indigo-600 rounded-full transition-all duration-300" style="width:0%"></div>
+				</div>
+			</div>
+
+			<!-- 画質警告表示（対象外として除外した画像がある場合） -->
+			<div id="quality-warn-wrap" class="hidden mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 whitespace-pre-line flex gap-2">
+				<i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500 shrink-0 mt-0.5"></i>
+				<div id="quality-warn-content"></div>
+			</div>
+
+			<!-- エラー表示 -->
+			<div id="error-wrap" class="hidden mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700 whitespace-pre-line flex gap-2">
+				<i data-lucide="alert-triangle" class="w-4 h-4 text-red-500 shrink-0 mt-0.5"></i>
+				<div id="error-content"></div>
+			</div>
+
+			<button id="process-btn" type="button" onclick="processImages()" class="w-full py-3.5 px-4 rounded-xl bg-indigo-600 text-white text-xs md:text-sm font-bold hover:bg-indigo-700 active:scale-99 transition-all shadow-md hover:shadow-indigo-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 cursor-pointer" disabled>
+				<i data-lucide="play" class="w-4 h-4 fill-current"></i>
+				<span>OCR処理を開始する</span>
+			</button>
+			<button id="process-stitch-btn" type="button" onclick="processImagesAndStitch()" class="w-full mt-2 py-3.5 px-4 rounded-xl bg-white text-indigo-700 text-xs md:text-sm font-bold border-2 border-indigo-200 hover:bg-indigo-50 active:scale-99 transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer" disabled>
+				<i data-lucide="layers" class="w-4 h-4"></i>
+				<span>OCR処理＋画像結合を開始する（高負荷）</span>
+			</button>
+			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、親A（＋祖A1＋祖A2）・親B（＋祖B1＋祖B2）それぞれのスクリーンショットを1枚の画像にまとめ、SNS投稿用に使える形で出力します。画像枚数が多いほど処理に時間がかかります。</p>
+		</div>
+
+		<!-- 画像結合結果（①）：親A/親Bセットごとに、スキルパネルのみを縦横に結合した画像とコピー用コメントを表示 -->
+		<div id="stitch-result-wrap" class="hidden glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-8 transition-all">
+			<div class="flex items-center gap-2 mb-4">
+				<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">4</span>
+				<h2 class="text-sm font-bold text-slate-800">画像結合プレビュー（β・SNS投稿用）</h2>
+			</div>
+			<div id="stitch-result-content" class="space-y-4"></div>
+		</div>
+
+		<!-- ステップ3 (結果表示) -->
+		<div id="result-wrap" class="hidden glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 transition-all">
+			<div class="flex items-center justify-between mb-5">
+				<div class="flex items-center gap-2">
+					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">3</span>
+					<h2 class="text-sm font-bold text-slate-800">照合結果（★の数）</h2>
+				</div>
+				<button type="button" onclick="copyToClipboard()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all shadow-xs cursor-pointer">
+					<i data-lucide="copy" class="w-3.5 h-3.5"></i>
+					<span id="copy-btn-label">まとめてコピー</span>
+				</button>
+			</div>
+
+			<!-- サマリーカード（アップロード人数に応じてJSで生成） -->
+			<div id="stat-grid" class="grid grid-cols-4 gap-3 mb-6"></div>
+
+			<!-- 技能試験ハイライト（sp70緑・緑59種） -->
+			<div id="exam-highlight" class="hidden rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 md:p-5 mb-6">
+				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+					<h3 class="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
+						<i data-lucide="target" class="w-4 h-4"></i>
+						<span>緑スキルハイライト</span>
+					</h3>
+					<div class="flex items-center gap-1 text-xs bg-white rounded-lg border border-indigo-200 p-0.5 shrink-0">
+						<button type="button" onclick="setCountMode('equivalence')" id="mode-equivalence" class="mode-btn">実質53種（既定）</button>
+						<button type="button" onclick="setCountMode('individual')" id="mode-individual" class="mode-btn">59種個別</button>
+					</div>
+				</div>
+				<div id="exam-highlight-grid" class="grid gap-3"></div>
+				<p class="text-[11px] text-indigo-700/70 mt-3">※「〇〇の目覚め」系スキルは、実質53種モードでは対応する基本スキルとペアで1カウントします（本体テーブルの表示・★の判定そのものには影響しません）。</p>
+			</div>
+
+			<!-- 検索・フィルターバー -->
+			<div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-2">
+				<div class="relative w-full sm:w-64">
+					<i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
+					<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-indigo-500" />
+				</div>
+				<div class="flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
+					<button type="button" onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg bg-slate-900 text-white font-medium">すべて</button>
+					<button type="button" onclick="setFilter('found')" id="filter-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">誰かが検出</button>
+					<button type="button" onclick="setFilter('not-found')" id="filter-not-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">全員未検出</button>
+				</div>
+			</div>
+			<!-- 現在の絞り込み条件に該当するスキル数。「全員未検出」件数から因子セット全体の
+			     充足度（あとどれだけ足りていないか）を把握できるようにするための表示。 -->
+			<p id="filter-result-count" class="text-[11px] text-slate-400 mb-1"></p>
+			<p class="text-[11px] text-slate-400 mb-3">※ スマホ等の狭い画面では、スキル名列を固定したまま横スクロールで確認できます。</p>
+
+			<!-- 親A/親B列の表示切替（両方の結果がある時だけ表示・スマホで片方ずつ見たい場合向け） -->
+			<div id="table-set-toggle-wrap" class="hidden flex flex-wrap items-center gap-2 mb-3">
+				<span class="text-[11px] text-slate-500">表示する列：</span>
+				<button type="button" id="table-toggle-A" onclick="toggleTableSet(0)" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer">親Aセット</button>
+				<button type="button" id="table-toggle-B" onclick="toggleTableSet(1)" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer">親Bセット</button>
+			</div>
+
+			<!-- テーブル -->
+			<div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
+				<table id="result-table-el" class="result-table">
+					<thead id="result-thead"></thead>
+					<tbody id="result-tbody"></tbody>
+				</table>
+			</div>
+
+			<!-- コピー用エリア -->
+			<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-6">
+				<div class="flex items-center justify-between mb-2">
+					<p class="text-xs font-semibold text-slate-700" id="copy-title">スプレッドシート貼り付け用データ</p>
+					<span class="text-[11px] text-slate-400" id="copy-hint"></span>
+				</div>
+				<div class="flex gap-2">
+					<textarea id="copy-data" readonly class="w-full h-24 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none"></textarea>
+				</div>
+			</div>
+
+			<!-- 切り出し画像プレビュー -->
+			<div id="preview-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
+				<h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
+					<i data-lucide="image" class="w-4 h-4 text-slate-500"></i>
+					<span>切り出し結果プレビュー</span>
+				</h3>
+				<div id="debug-preview" class="space-y-4"></div>
+			</div>
+
+			<!-- 開発ログ -->
+			<div id="dev-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
+				<div class="flex items-center justify-between mb-3">
+					<h3 class="text-xs font-bold text-amber-700 flex items-center gap-1.5">
+						<i data-lucide="terminal" class="w-4 h-4"></i>
+						<span>開発用ログ</span>
+					</h3>
+					<button type="button" onclick="copyDevLog()" class="px-3 py-1 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 text-xs font-semibold transition-colors">
+						ログをコピー
+					</button>
+				</div>
+				<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-amber-900 max-h-80 overflow-y-auto"></div>
+			</div>
+		</div>
+
+	</div>
+
+	<script>
+		/* ============================================================
+		 * 技能試験 対象スキル（固定データ・このツール専用）
+		 *
+		 * 【恒久ルールの例外について】
+		 * common.js / index.html / special.html は「スキルリストの内容に関する
+		 * 決め打ち・ハードコードは禁止」という恒久ルールを持つ（汎用ツールとして
+		 * 任意のスキルリストに対応するため）。
+		 * 本ツール(exam.html)は「技能試験」という対象スキルが固定された用途に
+		 * 特化するものであり、133種を事前登録することがユーザーの明示的な要望・
+		 * 承認事項である。よってこのファイルに限り、上記恒久ルールの意図的な
+		 * 例外として、スキル名をハードコードしている。
+		 * （このような例外を伴う特殊ツールを新設する際は、その都度ユーザーに
+		 * 　例外扱いとしてよいか確認すること。）
+		 * ============================================================ */
+		const EXAM_SKILL_LIST = [
+		'右回り〇',
+		'左回り〇',
+		'東京レース場〇',
+		'中山レース場〇',
+		'阪神レース場〇',
+		'京都レース場〇',
+		'中京レース場〇',
+		'札幌レース場〇',
+		'函館レース場〇',
+		'福島レース場〇',
+		'新潟レース場〇',
+		'小倉レース場〇',
+		'根幹距離〇',
+		'非根幹距離〇',
+		'良バ場〇',
+		'道悪〇',
+		'春ウマ娘〇',
+		'夏ウマ娘〇',
+		'秋ウマ娘〇',
+		'冬ウマ娘〇',
+		'晴れの日〇',
+		'曇りの日〇',
+		'雨の日〇',
+		'雪の日〇',
+		'内枠得意〇',
+		'外枠得意〇',
+		'おひとり様〇',
+		'対抗意識〇',
+		'徹底マーク〇',
+		'伏兵〇',
+		'ポジションセンス',
+		'臨機応変',
+		'先駆け',
+		'トリック(前)',
+		'トリック(後)',
+		'逃げ駆け引き',
+		'先行駆け引き',
+		'差し駆け引き',
+		'追込駆け引き',
+		'逃げけん制',
+		'逃げ焦り',
+		'逃げためらい',
+		'先行けん制',
+		'先行焦り',
+		'先行ためらい',
+		'差しけん制',
+		'差し焦り',
+		'差しためらい',
+		'追込けん制',
+		'追込焦り',
+		'追込ためらい',
+		'大井レース場〇',
+		'短距離直線〇',
+		'短距離コーナー〇',
+		'マイル直線〇',
+		'マイルコーナー〇',
+		'負けん気',
+		'中距離直線〇',
+		'中距離コーナー〇',
+		'ホークアイ',
+		'長距離直線〇',
+		'長距離コーナー〇',
+		'目くらまし',
+		'逃げ直線〇',
+		'逃げコーナー〇',
+		'危険回避',
+		'リスタート',
+		'先行直線〇',
+		'先行コーナー〇',
+		'巧みなステップ',
+		'直滑降',
+		'まき直し',
+		'かく乱',
+		'差し直線〇',
+		'差しコーナー〇',
+		'がんばり屋',
+		'十万バリキ',
+		'追込直線〇',
+		'追込コーナー〇',
+		'お見通し',
+		'策士',
+		'逃げのコツ〇',
+		'先行のコツ〇',
+		'差しのコツ〇',
+		'追込のコツ〇',
+		'ラッキーセブン',
+		'地固め',
+		'尻尾上がり',
+		'ふり絞り',
+		'シンパシー',
+		'一匹狼',
+		'あやしげな作戦',
+		'川崎レース場〇',
+		'船橋レース場〇',
+		'盛岡レース場〇',
+		'ナイター〇',
+		'小回り〇',
+		'交流重賞〇',
+		'踏み込み上手',
+		'泥遊び〇',
+		'土煙',
+		'一番乗り',
+		'探求心',
+		'ロンシャンレース場〇',
+		'急発進',
+		'直線コース〇',
+		'瞬発力',
+		'風切り',
+		'無二',
+		'無三',
+		'ダート直線〇',
+		'ダートコーナー〇',
+		'熱狂的',
+		'光差す方へ',
+		'駆け降り',
+		'登竜門',
+		'影を追って',
+		'精神力',
+		'弾ける足取り',
+		'急降下',
+		'華麗な足取り',
+		'余勢を駆って',
+		'サンタアニタパークレース場〇',
+		'デルマーレース場〇',
+		'実直な走り',
+		'ポイントマン',
+		'勝負勘',
+		'右回りの目覚め',
+		'左回りの目覚め',
+		'春の目覚め',
+		'夏の目覚め',
+		'秋の目覚め',
+		'冬の目覚め'
+		];
+
+		// 高コスパ17種（通称「sp70緑」）。EXAM_SKILL_LISTの部分集合。
+		const SP70_GREEN_17 = [
+		'札幌レース場〇',
+		'函館レース場〇',
+		'福島レース場〇',
+		'新潟レース場〇',
+		'小倉レース場〇',
+		'シンパシー',
+		'一匹狼',
+		'川崎レース場〇',
+		'船橋レース場〇',
+		'盛岡レース場〇',
+		'ナイター〇',
+		'小回り〇',
+		'交流重賞〇',
+		'ロンシャンレース場〇',
+		'直線コース〇',
+		'サンタアニタパークレース場〇',
+		'デルマーレース場〇'
+		];
+
+		// 緑59種（適性証明系）。sp70緑17種をすべて含む上位集合。EXAM_SKILL_LISTの部分集合。
+		const GREEN_59 = [
+		'右回り〇',
+		'左回り〇',
+		'東京レース場〇',
+		'中山レース場〇',
+		'阪神レース場〇',
+		'京都レース場〇',
+		'中京レース場〇',
+		'札幌レース場〇',
+		'函館レース場〇',
+		'福島レース場〇',
+		'新潟レース場〇',
+		'小倉レース場〇',
+		'根幹距離〇',
+		'非根幹距離〇',
+		'良バ場〇',
+		'道悪〇',
+		'春ウマ娘〇',
+		'夏ウマ娘〇',
+		'秋ウマ娘〇',
+		'冬ウマ娘〇',
+		'晴れの日〇',
+		'曇りの日〇',
+		'雨の日〇',
+		'雪の日〇',
+		'内枠得意〇',
+		'外枠得意〇',
+		'おひとり様〇',
+		'対抗意識〇',
+		'徹底マーク〇',
+		'伏兵〇',
+		'大井レース場〇',
+		'逃げのコツ〇',
+		'先行のコツ〇',
+		'差しのコツ〇',
+		'追込のコツ〇',
+		'ラッキーセブン',
+		'シンパシー',
+		'一匹狼',
+		'川崎レース場〇',
+		'船橋レース場〇',
+		'盛岡レース場〇',
+		'ナイター〇',
+		'小回り〇',
+		'交流重賞〇',
+		'踏み込み上手',
+		'泥遊び〇',
+		'探求心',
+		'ロンシャンレース場〇',
+		'直線コース〇',
+		'精神力',
+		'サンタアニタパークレース場〇',
+		'デルマーレース場〇',
+		'勝負勘',
+		'右回りの目覚め',
+		'左回りの目覚め',
+		'春の目覚め',
+		'夏の目覚め',
+		'秋の目覚め',
+		'冬の目覚め'
+		];
+
+		// 「〇〇の目覚め」系スキルは、ゲーム仕様上「対応する基本スキルを発動できる」
+		// スキルであり、集計上は対応スキルと機能的に等価とみなせる。
+		// この対応表は「緑59種（実質53種）」カードの集計にのみ使用し、
+		// OCR照合ロジック（common.js側）や本体テーブルの★表示には一切影響しない。
+		// ※ 将来「〇〇の目覚め」と対応スキルそれぞれの発動確率を可視化する機能を
+		//   追加する予定があるため、照合自体は独立したまま維持している。
+		const AWAKENING_PAIR_MAP = {
+			'右回りの目覚め': '右回り〇',
+			'左回りの目覚め': '左回り〇',
+			'春の目覚め': '春ウマ娘〇',
+			'夏の目覚め': '夏ウマ娘〇',
+			'秋の目覚め': '秋ウマ娘〇',
+			'冬の目覚め': '冬ウマ娘〇'
 		};
-		if (cand && cand.dist !== null && cand.dist <= cand.limit + 2) devTypo.push(entry);
-		else devOther.push(entry);
-	});
 
-	return { detectedSkills, matchReasons, skillSources, devTypo, devLowConf, devOther, devFuzzy, devAmbiguous };
-}
+		const SP70_GREEN_17_SET = new Set(SP70_GREEN_17);
+		const GREEN_59_SET = new Set(GREEN_59);
 
-/* ============================================================
- * 星（★）検出 — special.html（因子継承の特化型ツール）専用
- *
- * ゲーム画面では、各スキル行の直下に「★★★」（0〜3個、達成分だけ金色）が
- * 表示される。星は明るい色（金色 or 背景とほぼ同化したグレー）のため、
- * 文字検出用の darkMaskOf には一切引っかからない。
- * そのため「金色ピクセルの検出」専用のマスクと、行と行の間（隙間）を
- * 星の探索エリアとして扱うロジックをここに追加する。
- *
- * これらの関数は index.html からは一切参照されない（追加のみ・既存動作に影響なし）。
- * ============================================================ */
+		// 緑59種を等価カウントした場合の最大値（＝実質何種になるか）を自動計算する。
+		// 59種・対応表の中身が今後変わっても、この値は再計算されるため保守しやすい。
+		const GREEN_59_EQUIVALENCE_MAX = (function () {
+			const canonical = new Set();
+			GREEN_59.forEach(s => canonical.add(AWAKENING_PAIR_MAP[s] || s));
+			return canonical.size;
+		})();
 
-function goldMaskOf(imageData) {
-	const d = imageData.data;
-	const n = imageData.width * imageData.height;
-	const mask = new Uint8Array(n);
-	for (let i = 0, p = 0; i < n; i++, p += 4) {
-		const r = d[p], g = d[p + 1], b = d[p + 2];
-		// 実機スクリーンショットで実測した金色★の色（おおよそ R255 G207-240 B37-125）に基づく判定。
-		// 未達成の★（グレー、背景とほぼ同色）や他のUI装飾色（青・ピンク・緑のタブ等）は
-		// R-B の差が小さいためここでは弾かれる。
-		if (r > 200 && g > 140 && (r - b) > 60) mask[i] = 1;
-	}
-	return mask;
-}
+		/* 状態変数（このツール固有。共通ロジック・共通定数は js/common.js を参照） */
+		let skillList = EXAM_SKILL_LIST.slice();
+		let skillIndex = [];
+		let currentFilter = 'all';
+		let previewCanvases = [];
+		let devGeometry = [];
 
-/**
- * 星の探索エリア（x0..x1, y0..y1）内にある「金色の塊」の個数を数える。
- * 星3つは横に並んで配置されており、間に隙間があるため、
- * 列方向（x軸）に金色ピクセルが存在するかどうかの真偽配列を作り、
- * 連続する true の区間（=1つの星）の数を数える。
- * アンチエイリアスによる小さな穴は mergeGap で埋めて1つの星として扱う。
- * 星は最大3個までなので、念のため3で頭打ちにする。
- */
-function countGoldBlobs(mask, W, x0, x1, y0, y1) {
-	x0 = Math.max(0, x0); x1 = Math.min(W, x1);
-	if (x1 <= x0 || y1 <= y0) return 0;
-	const colHas = new Uint8Array(x1 - x0);
-	for (let y = y0; y < y1; y++) {
-		const base = y * W;
-		for (let x = x0; x < x1; x++) {
-			if (mask[base + x]) colHas[x - x0] = 1;
+		// 緑59種の集計モード。'equivalence' = 実質53種（既定・目覚め系をペアで1カウント）
+		// 'individual' = 59種個別カウント。本体テーブルの★表示には影響しない。
+		let countMode = 'equivalence';
+		const COUNT_MODE_STORAGE_KEY = 'uma-exam-count-mode';
+
+		// ステップ1「スキル名のコピー」で、現在どのリストを表示中か。
+		// 'all133' | 'sp70' | 'green59'
+		let copyListMode = 'all133';
+
+		/* ------------------------------------------------------------
+		 * 対象スキルのカスタム設定（追加・除外）
+		 * EXAM_SKILL_LIST（登録済み133種）はこのファイル内の固定値のまま変更せず、
+		 * 「除外リスト」でEXAM_SKILL_LISTから取り除く分を、「追加リスト」で
+		 * ユーザー独自のスキルを足す分を管理する。実際にOCR照合・結果表示・
+		 * コピー機能等が参照する skillList / skillIndex は、この2つを反映して
+		 * rebuildSkillList() が都度再構築する（＝既存ロジックへの影響を skillList
+		 * の中身の差し替えだけに閉じ込める設計）。
+		 * ------------------------------------------------------------ */
+		let customAddedSkills = [];           // ユーザーが追加したスキル名（EXAM_SKILL_LIST外）
+		let removedSkillsSet = new Set();     // EXAM_SKILL_LISTのうち対象から外したスキル名
+		const CUSTOM_ADDED_STORAGE_KEY = 'uma-exam-custom-added';
+		const CUSTOM_REMOVED_STORAGE_KEY = 'uma-exam-custom-removed';
+
+		// 除外を反映した基準リスト（sp70緑・緑59種の集計母数もこれで動的に縮む）
+		function effectiveBaseList(list) {
+			return list.filter(s => !removedSkillsSet.has(s));
 		}
-	}
-	// 星と星の実際の間隔は実測で2px程度（≒falseが2列連続）であるのに対し、
-	// 星1個の中のアンチエイリアシングによる穴は1px程度で収まることを実データで確認済み。
-	// そのため、ここでは「falseが1列だけなら同じ星の続き」とみなし、2列以上は別の星として扱う。
-	const mergeGap = 1;
-	let count = 0;
-	let inRun = false;
-	let gapSinceRun = 0;
-	for (let i = 0; i < colHas.length; i++) {
-		if (colHas[i]) {
-			if (!inRun) {
-				// 直前の区間からの隙間が小さければ同じ星の続きとみなす
-				if (gapSinceRun > 0 && gapSinceRun <= mergeGap && count > 0) {
-					// 継続扱い（新しい星としてカウントしない）
-				} else {
-					count++;
+		function effectiveGreen59EquivalenceMax() {
+			const canonical = new Set();
+			effectiveBaseList(GREEN_59).forEach(s => canonical.add(AWAKENING_PAIR_MAP[s] || s));
+			return canonical.size;
+		}
+
+		function rebuildSkillList() {
+			skillList = effectiveBaseList(EXAM_SKILL_LIST).concat(customAddedSkills);
+			skillIndex = skillList.map(raw => ({ raw: raw, norm: normalizeText(raw) }));
+		}
+
+		/* ------------------------------------------------------------
+		 * 親A（親A・祖A1・祖A2）／親B（親B・祖B1・祖B2）の2セット・計6枠。
+		 * ウマ娘の因子継承画面の構成（親のセットを2つ組み合わせる）を再現するための
+		 * オプション機能。親Bセットは既定では非表示（setBVisible=false）で、
+		 * 有効化するまでは従来どおり親Aセット（3枠）のみで完結する。
+		 * インデックス 0-2 = 親Aセット（親A/祖A1/祖A2）、3-5 = 親Bセット（親B/祖B1/祖B2）。
+		 *
+		 * 配色は「セット単位で色相を分け（親A=青／親B=赤）、世代で濃淡を分ける
+		 * （親＝濃い色・祖父母＝薄い色）」という一貫したルールにする。
+		 * 青と赤は多くの色覚特性でも区別しやすい組み合わせだが、色だけに頼らず
+		 * 「親A」「祖A1」等のラベル文字を必ず併記し、色が識別できなくても
+		 * セット・世代が分かるようにしている（PERSON_LABELS参照）。
+		 * ------------------------------------------------------------ */
+		const PERSON_SETS = [
+			{ id: 'A', label: '親Aセット', hue: 'blue' },
+			{ id: 'B', label: '親Bセット', hue: 'red' }
+		];
+		const PERSON_LABELS = [];
+		const PERSON_COLORS = []; // 各枠（0-5）が属するセットの色相（hue）。PERSON_SETSから自動生成。
+		PERSON_SETS.forEach(set => {
+			PERSON_LABELS.push('親' + set.id);
+			PERSON_LABELS.push('祖' + set.id + '1');
+			PERSON_LABELS.push('祖' + set.id + '2');
+			PERSON_COLORS.push(set.hue, set.hue, set.hue);
+		});
+
+		// 親（濃い色・白文字）／祖父母（薄い色・濃い文字）の配色クラスを返す。
+		// どちらも実地で十分なコントラスト比になる組み合わせを選んでいる。
+		function personBadgeClasses(idx) {
+			const hue = PERSON_COLORS[idx];
+			const isParent = (idx % 3 === 0);
+			return isParent ? ('bg-' + hue + '-600 text-white') : ('bg-' + hue + '-100 text-' + hue + '-800');
+		}
+
+		const persons = PERSON_LABELS.map(() => ({ files: [] }));
+		let personResults = PERSON_LABELS.map(() => null); // matchAllSkillsWithStars() の戻り値を格納
+		let setBVisible = false;
+
+		// 結果テーブルに限り、親A/親B列のどちらかを一時的に隠せるようにする（スマホ対策）。
+		// コピー用データ・統計カード・緑スキルハイライトには影響しない（常に全アップロード分を含む）。
+		let tableSetVisible = [true, true];
+
+		document.addEventListener('DOMContentLoaded', () => {
+			restoreCustomSkills();
+			rebuildSkillList();
+			renderSkillRegistryList();
+			renderCustomAddedList();
+			renderCustomRemovedList();
+			updateCustomSkillsBadge();
+			updateSkillCountDisplays();
+			updateCategoryBadges();
+			renderPersonUploadGrid();
+			restoreCountMode();
+			selectCopyList('all133');
+			updateProcessBtn();
+			if (window.lucide) lucide.createIcons();
+		});
+
+		/* ============================================================
+		 * 対象スキル一覧の表示（確認用・読み取り専用）
+		 * ============================================================ */
+		function renderSkillRegistryList() {
+			const box = document.getElementById('skill-registry-list');
+			// 除外設定を反映した基本133種＋カスタム追加分を、現在の対象スキル一覧として表示する。
+			box.innerHTML = skillList.map(skill => {
+				let mark = '<span class="inline-block w-3"></span>';
+				if (SP70_GREEN_17_SET.has(skill)) {
+					mark = '<span class="text-amber-500 font-bold" title="sp70緑">★</span>';
+				} else if (GREEN_59_SET.has(skill)) {
+					mark = '<span class="text-emerald-500 font-bold" title="緑59種">●</span>';
+				} else if (customAddedSkills.indexOf(skill) !== -1) {
+					mark = '<span class="text-indigo-500 font-bold" title="カスタム追加スキル">＋</span>';
 				}
-				inRun = true;
+				return '<div class="flex items-center gap-1.5 py-0.5"><span class="w-3.5 text-center">' + mark + '</span><span>' + escapeHtml(skill) + '</span></div>';
+			}).join('');
+		}
+
+		/* ============================================================
+		 * ヘッダー・バッジ類の件数表示を、現在のskillList（除外・追加反映後）に同期する
+		 * ============================================================ */
+		function updateSkillCountDisplays() {
+			const total = skillList.length;
+			['header-skill-count', 'step1-skill-count-inline', 'registry-skill-count', 'copylist-all133-count'].forEach(id => {
+				const el = document.getElementById(id);
+				if (el) el.textContent = String(total);
+			});
+			const badge = document.getElementById('step1-skill-badge');
+			if (badge) badge.textContent = total + '種 登録済み';
+		}
+
+		function updateCategoryBadges() {
+			const sp70Count = effectiveBaseList(SP70_GREEN_17).length;
+			const greenMax = effectiveGreen59EquivalenceMax();
+			const sp70Badge = document.getElementById('badge-sp70-count');
+			if (sp70Badge) sp70Badge.textContent = 'sp70緑：' + sp70Count + '種';
+			const greenBadge = document.getElementById('badge-green59-count');
+			if (greenBadge) greenBadge.textContent = '緑59種（実質' + greenMax + '種）';
+			const sp70CopyCount = document.getElementById('copylist-sp70-count');
+			if (sp70CopyCount) sp70CopyCount.textContent = String(sp70Count);
+		}
+
+		/* ============================================================
+		 * 対象スキルのカスタム設定（追加・除外）
+		 * ============================================================ */
+		function saveCustomSkills() {
+			try {
+				localStorage.setItem(CUSTOM_ADDED_STORAGE_KEY, JSON.stringify(customAddedSkills));
+				localStorage.setItem(CUSTOM_REMOVED_STORAGE_KEY, JSON.stringify(Array.from(removedSkillsSet)));
+			} catch (e) {}
+		}
+
+		function restoreCustomSkills() {
+			try {
+				const addedRaw = localStorage.getItem(CUSTOM_ADDED_STORAGE_KEY);
+				if (addedRaw) customAddedSkills = JSON.parse(addedRaw).filter(s => typeof s === 'string' && s);
+			} catch (e) { customAddedSkills = []; }
+			try {
+				const removedRaw = localStorage.getItem(CUSTOM_REMOVED_STORAGE_KEY);
+				if (removedRaw) removedSkillsSet = new Set(JSON.parse(removedRaw).filter(s => EXAM_SKILL_LIST.indexOf(s) !== -1));
+			} catch (e) { removedSkillsSet = new Set(); }
+		}
+
+		// カスタム設定に変更があった際、影響するすべての表示をまとめて更新する。
+		function refreshAfterCustomSkillsChange() {
+			rebuildSkillList();
+			saveCustomSkills();
+			renderSkillRegistryList();
+			renderCustomAddedList();
+			renderCustomRemovedList();
+			updateCustomSkillsBadge();
+			updateSkillCountDisplays();
+			updateCategoryBadges();
+			// 「スキル名のコピー」が開いている場合に備え、表示中のリストも再計算する
+			renderSkillCopyTextarea();
+			updateProcessBtn();
+			if (window.lucide) lucide.createIcons();
+		}
+
+		function updateCustomSkillsBadge() {
+			const badge = document.getElementById('custom-skills-badge');
+			const count = customAddedSkills.length + removedSkillsSet.size;
+			if (count > 0) {
+				badge.textContent = '追加' + customAddedSkills.length + '・除外' + removedSkillsSet.size;
+				badge.classList.remove('hidden');
+			} else {
+				badge.classList.add('hidden');
 			}
-			gapSinceRun = 0;
-		} else {
-			if (inRun) { inRun = false; gapSinceRun = 1; }
-			else if (gapSinceRun > 0) gapSinceRun++;
 		}
-	}
-	return Math.min(3, count);
-}
 
-/**
- * detectSkillRows() の結果（rows / bands / columnXs）をもとに、
- * 各行の直下（次の文字帯が始まる直前まで）を星の探索エリアとして、
- * 行ごとの★の数（0〜3）を計算する。
- *
- * 戻り値: rows と同じ順序・同じ長さの配列。要素は { stars: number, reliable: boolean }
- *
- * reliable=false は「★の領域を正しく囲えていない可能性がある計測」を意味する。
- * 画像の一番下の行は次の文字帯が存在しないため探索範囲の下端を決められず、
- * ★が画面外で切れていれば少なく、次の項目まで拾えば多く数えてしまう。
- * スクショは重ねて撮られており同じ項目が別画像にも写っているので、
- * 呼び出し側は reliable な計測を優先して採用する。
- */
-function computeRowStarCounts(baseCanvas, detection) {
-	const W = baseCanvas.width, H = baseCanvas.height;
-	const imageData = getPixels(baseCanvas);
-	const gold = goldMaskOf(imageData);
-	const bands = detection.bands || [];
-	const columnXs = detection.columnXs || [];
-
-	// 文字帯どうしの隙間（＝★が描かれる帯）の標準的な高さを実測から求める。
-	const gaps = [];
-	for (let i = 0; i + 1 < bands.length; i++) gaps.push(bands[i + 1].a - bands[i].b);
-	const medGap = gaps.length ? median(gaps) : 0;
-
-	return detection.rows.map(row => {
-		const band = bands[row.band];
-		if (!band) return { stars: 0, reliable: false };
-		const nextBand = bands[row.band + 1];
-		const rowH = band.b - band.a + 1;
-		const y0 = band.b + 1;
-		let y1, reliable;
-		if (nextBand) {
-			y1 = nextBand.a - 1;
-			reliable = true;
-		} else {
-			// 次の文字帯がない＝画像の最下段。標準的な隙間の高さで代用する
-			// （従来は行高の4倍まで見ていたため、次の項目の★まで数えてしまうことがあった）。
-			y1 = band.b + (medGap > 0 ? medGap : Math.round(rowH * 2));
-			// 画像の高さには収まっていても、リスト表示枠の下端で★が切れていることがある
-			// （実測でも最下段は★が1つも写らず0個と数えられた）。枠の下端は判別できないため、
-			// 最下段は一律「不確か」とし、重ねて撮られた別スクショの計測を優先させる。
-			reliable = false;
-			if (y1 > H) y1 = H;
+		// テキストエリアの入力を「1行1スキル名」として分割し、空行・前後の空白を除去する。
+		function splitSkillLines(raw) {
+			return raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
 		}
-		if (y1 <= y0) return { stars: 0, reliable: false };
 
-		const colX = columnXs[row.col];
-		const nextColX = columnXs[row.col + 1];
-		const marginRight = Math.round(W * 0.03);
-		const x0 = (colX !== undefined) ? colX : row.x;
-		const x1 = (nextColX !== undefined) ? (nextColX - marginRight) : W;
+		// 追加：1行1スキル名で複数行まとめて入力できる。既に対象に含まれる名前・
+		// バッチ内の重複はスキップし、件数を要約して知らせる。
+		function addCustomSkillsBatch() {
+			const textarea = document.getElementById('custom-add-textarea');
+			const status = document.getElementById('custom-add-status');
+			const names = splitSkillLines(textarea.value);
+			if (names.length === 0) return;
 
-		const stars = countGoldBlobs(gold, W, x0, x1, y0, y1);
-		return { stars: stars, reliable: reliable };
-	});
-}
+			let added = 0, skipped = 0;
+			const seenThisBatch = new Set();
+			names.forEach(name => {
+				if (seenThisBatch.has(name) || skillList.indexOf(name) !== -1) { skipped++; return; }
+				seenThisBatch.add(name);
+				customAddedSkills.push(name);
+				added++;
+			});
 
-/**
- * stackRows() と同様に複数行を1枚の画像へ縦に積み重ねるが、
- * 積み重ね後の画像内で「どの行が縦方向のどの範囲(y0〜y1)にあるか」を
- * あわせて返す。OCR結果（行ごとのbbox）を、元のどの行（＝どの★カウント）に
- * 対応するかを後から突き合わせるために必要な情報。
- */
-function stackRowsWithMeta(baseCanvas, rows) {
-	const scales = rows.map(r => Math.max(1, Math.min(4, ROW_TARGET_HEIGHT / r.h)));
-	const widths = rows.map((r, i) => Math.round(r.w * scales[i]));
-	const heights = rows.map((r, i) => Math.round(r.h * scales[i]));
+			textarea.value = '';
+			let msg = added + '件追加しました';
+			if (skipped > 0) msg += '（' + skipped + '件は既に対象のため無視）';
+			status.textContent = msg;
+			status.className = 'text-[11px] ' + (added > 0 ? 'text-slate-500' : 'text-amber-600');
+			refreshAfterCustomSkillsChange();
+		}
 
-	const gap = Math.round(ROW_TARGET_HEIGHT * 0.6);
-	const padX = 30;
-	const outW = Math.max(...widths) + padX * 2;
-	let outH = gap;
-	heights.forEach(h => { outH += h + gap; });
+		function removeCustomSkill(name) {
+			const idx = customAddedSkills.indexOf(name);
+			if (idx === -1) return;
+			customAddedSkills.splice(idx, 1);
+			refreshAfterCustomSkillsChange();
+		}
 
-	const canvas = document.createElement('canvas');
-	canvas.width = outW;
-	canvas.height = outH;
-	const ctx = canvas.getContext('2d');
-	ctx.fillStyle = '#FFFFFF';
-	ctx.fillRect(0, 0, outW, outH);
-	ctx.imageSmoothingEnabled = true;
-	ctx.imageSmoothingQuality = 'high';
+		// 除外：1行1スキル名で複数行まとめて入力できる。登録済み133種に無い表記は
+		// 除外できないため、無視した名前を知らせる（誤字・別ツール向けの表記違いに気付けるように）。
+		function addRemovedSkillsBatch() {
+			const textarea = document.getElementById('custom-remove-textarea');
+			const status = document.getElementById('custom-remove-status');
+			const names = splitSkillLines(textarea.value);
+			if (names.length === 0) return;
 
-	const placements = [];
-	let y = gap;
-	rows.forEach((r, i) => {
-		ctx.drawImage(baseCanvas, r.x, r.y, r.w, r.h, padX, y, widths[i], heights[i]);
-		placements.push({ rowIndex: i, y0: y, y1: y + heights[i] });
-		y += heights[i] + gap;
-	});
-	return { canvas: canvas, placements: placements };
-}
+			let removed = 0;
+			const unknown = [];
+			names.forEach(name => {
+				if (EXAM_SKILL_LIST.indexOf(name) === -1) { unknown.push(name); return; }
+				if (!removedSkillsSet.has(name)) removed++;
+				removedSkillsSet.add(name);
+			});
 
-/**
- * Tesseract.js の recognize() 結果から、行テキストと行のbbox（縦方向の位置）を抽出する。
- * bboxが取得できない行は y0=y1=null とし、星カウントとの突き合わせができないものとして扱う。
- */
-function extractLinesWithBBox(data) {
-	const lines = [];
-	if (data && Array.isArray(data.lines) && data.lines.length) {
-		data.lines.forEach(l => {
-			if (l.text && l.text.trim()) {
-				const bbox = l.bbox || null;
-				lines.push({
-					text: l.text.trim(),
-					conf: l.confidence,
-					y0: bbox ? bbox.y0 : null,
-					y1: bbox ? bbox.y1 : null
+			textarea.value = '';
+			let msg = removed + '件除外しました';
+			if (unknown.length > 0) msg += '（対象133種に無い名前のため無視: ' + unknown.join('、') + '）';
+			status.textContent = msg;
+			status.className = 'text-[11px] ' + (unknown.length > 0 ? 'text-red-600' : 'text-slate-500');
+			refreshAfterCustomSkillsChange();
+		}
+
+		function restoreRemovedSkill(name) {
+			if (!removedSkillsSet.has(name)) return;
+			removedSkillsSet.delete(name);
+			refreshAfterCustomSkillsChange();
+		}
+
+		function resetCustomSkills() {
+			if (customAddedSkills.length === 0 && removedSkillsSet.size === 0) return;
+			customAddedSkills = [];
+			removedSkillsSet = new Set();
+			try {
+				localStorage.removeItem(CUSTOM_ADDED_STORAGE_KEY);
+				localStorage.removeItem(CUSTOM_REMOVED_STORAGE_KEY);
+			} catch (e) {}
+			document.getElementById('custom-add-status').textContent = '';
+			document.getElementById('custom-remove-status').textContent = '';
+			refreshAfterCustomSkillsChange();
+			showToast('カスタム設定をリセットしました');
+		}
+
+		function renderCustomAddedList() {
+			const box = document.getElementById('custom-added-list');
+			if (customAddedSkills.length === 0) {
+				box.innerHTML = '<span class="text-[11px] text-slate-400">追加済みのスキルはありません</span>';
+				return;
+			}
+			box.innerHTML = customAddedSkills.map(name => `
+				<span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-indigo-100 text-indigo-800 text-[11px] font-medium">
+					${escapeHtml(name)}
+					<button type="button" onclick="removeCustomSkill('${escapeHtml(name).replace(/'/g, "\\'")}')" class="w-4 h-4 rounded-full hover:bg-indigo-200 flex items-center justify-center cursor-pointer">
+						<i data-lucide="x" class="w-3 h-3"></i>
+					</button>
+				</span>`).join('');
+			if (window.lucide) lucide.createIcons();
+		}
+
+		function renderCustomRemovedList() {
+			const box = document.getElementById('custom-removed-list');
+			if (removedSkillsSet.size === 0) {
+				box.innerHTML = '<span class="text-[11px] text-slate-400">除外中のスキルはありません</span>';
+				return;
+			}
+			box.innerHTML = Array.from(removedSkillsSet).map(name => `
+				<span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-slate-200 text-slate-700 text-[11px] font-medium">
+					${escapeHtml(name)}
+					<button type="button" onclick="restoreRemovedSkill('${escapeHtml(name).replace(/'/g, "\\'")}')" title="対象に戻す" class="w-4 h-4 rounded-full hover:bg-slate-300 flex items-center justify-center cursor-pointer">
+						<i data-lucide="rotate-ccw" class="w-3 h-3"></i>
+					</button>
+				</span>`).join('');
+			if (window.lucide) lucide.createIcons();
+		}
+
+		/* ============================================================
+		 * スキル名のコピー（各ユーザーが自分のスプレッドシートで管理するための書き出し）
+		 * 「緑59種」を選んでいる間は、技能試験ハイライトと同じcountMode
+		 * （実質53種 / 59種個別）と連動して出力内容を切り替える。
+		 * ============================================================ */
+		// 緑59種を、現在のモードに応じた名前リストに変換する。
+		// equivalence=true の場合、「〇〇の目覚め」は対応する基本スキルに
+		// まとめられ、GREEN_59内で先に登場している基本スキル名の側だけが残る
+		// （＝目覚め系の6件を除いた53件になる）。
+		function canonicalGreen59List(equivalence) {
+			const base = effectiveBaseList(GREEN_59);
+			if (!equivalence) return base;
+			const seen = new Set();
+			const out = [];
+			base.forEach(s => {
+				const canonical = AWAKENING_PAIR_MAP[s] || s;
+				if (!seen.has(canonical)) {
+					seen.add(canonical);
+					out.push(canonical);
+				}
+			});
+			return out;
+		}
+
+		function selectCopyList(mode) {
+			copyListMode = mode;
+			['all133', 'sp70', 'green59'].forEach(m => {
+				document.getElementById('copylist-' + m).classList.toggle('active', m === mode);
+			});
+			const modeWrap = document.getElementById('copylist-green59-mode');
+			if (mode === 'green59') {
+				modeWrap.classList.remove('hidden');
+				modeWrap.classList.add('flex');
+			} else {
+				modeWrap.classList.add('hidden');
+				modeWrap.classList.remove('flex');
+			}
+			renderSkillCopyTextarea();
+		}
+
+		function renderSkillCopyTextarea() {
+			let list, hint;
+			if (copyListMode === 'sp70') {
+				list = effectiveBaseList(SP70_GREEN_17);
+				hint = 'sp70緑（' + list.length + '種）';
+			} else if (copyListMode === 'green59') {
+				const equivalence = (countMode === 'equivalence');
+				list = canonicalGreen59List(equivalence);
+				hint = equivalence
+					? '緑59種・実質' + effectiveGreen59EquivalenceMax() + '種（目覚め系は対応スキルにまとめています）'
+					: '緑59種（除外反映後' + list.length + '種・目覚め系も独立して含みます）';
+			} else {
+				list = skillList;
+				hint = '対象スキル全' + skillList.length + '種（登録順・カスタム設定反映）';
+			}
+			document.getElementById('skill-copy-textarea').value = list.join('\n');
+			document.getElementById('skill-copy-hint').textContent = hint + ' ・ ' + list.length + '行';
+		}
+
+		function copySkillList() {
+			const ta = document.getElementById('skill-copy-textarea');
+			ta.select();
+			document.execCommand('copy');
+			showToast('スキル名をコピーしました');
+		}
+
+		/* ============================================================
+		 * 緑59種の集計モード（実質53種 / 59種個別）
+		 * ============================================================ */
+		function setCountMode(mode) {
+			countMode = (mode === 'individual') ? 'individual' : 'equivalence';
+			// 「技能試験ハイライト」（結果エリア）と「スキル名のコピー」（ステップ1）の
+			// 2箇所にモード切替ボタンがあるが、実体は同じcountModeを共有する。
+			document.getElementById('mode-equivalence').classList.toggle('active', countMode === 'equivalence');
+			document.getElementById('mode-individual').classList.toggle('active', countMode === 'individual');
+			document.getElementById('mode-equivalence-list').classList.toggle('active', countMode === 'equivalence');
+			document.getElementById('mode-individual-list').classList.toggle('active', countMode === 'individual');
+			try { localStorage.setItem(COUNT_MODE_STORAGE_KEY, countMode); } catch (e) {}
+			renderExamHighlight(activePersonIndexes());
+			if (copyListMode === 'green59') renderSkillCopyTextarea();
+		}
+
+		function restoreCountMode() {
+			let saved = 'equivalence';
+			try { saved = localStorage.getItem(COUNT_MODE_STORAGE_KEY) || 'equivalence'; } catch (e) {}
+			setCountMode(saved);
+		}
+
+		/* ドロップダウンメニューの制御 */
+		function toggleToolDropdown() {
+			const menu = document.getElementById('tool-dropdown-menu');
+			menu.classList.toggle('hidden');
+		}
+		document.addEventListener('click', (e) => {
+			const wrap = document.getElementById('tool-dropdown-wrap');
+			const menu = document.getElementById('tool-dropdown-menu');
+			if (wrap && !wrap.contains(e.target) && menu && !menu.classList.contains('hidden')) {
+				menu.classList.add('hidden');
+			}
+		});
+
+		function toggleHelp() {
+			document.getElementById('help-box').classList.toggle('hidden');
+		}
+
+		function showToast(msg) {
+			const toast = document.getElementById('toast');
+			document.getElementById('toast-message').textContent = msg;
+			toast.classList.remove('translate-y-16', 'opacity-0', 'pointer-events-none');
+			setTimeout(() => {
+				toast.classList.add('translate-y-16', 'opacity-0', 'pointer-events-none');
+			}, 2500);
+		}
+
+		/* ============================================================
+		 * 親A・親B（各:親＋祖1＋祖2の3枠）のアップロード欄
+		 * インデックス0-2=親Aセット、3-5=親Bセット。親Bセットはtoggle表示。
+		 * ============================================================ */
+		// idx（0-5）から役割を判定：0=親／1=祖1／2=祖2（3で割った余り）
+		function personRoleGlyph(idx) {
+			const r = idx % 3;
+			return r === 0 ? '親' : '祖' + r;
+		}
+
+		function buildPersonUploadCard(idx) {
+			const label = PERSON_LABELS[idx];
+			const badgeCls = personBadgeClasses(idx);
+			return `
+				<div class="rounded-xl border border-slate-200 bg-white/70 p-3">
+					<p class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+						<span class="w-6 h-6 rounded-full ${badgeCls} text-[9px] font-bold flex items-center justify-center shrink-0">${personRoleGlyph(idx)}</span>
+						${label}
+					</p>
+					<label class="person-drop-zone group block cursor-pointer rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-indigo-50/40 hover:border-indigo-400 transition-all p-4 text-center mb-2" data-person="${idx}">
+						<input type="file" accept="image/*" multiple class="hidden person-file-input" data-person="${idx}" />
+						<div class="flex flex-col items-center justify-center gap-1">
+							<i data-lucide="upload-cloud" class="w-5 h-5 text-slate-500 group-hover:text-indigo-600"></i>
+							<p class="text-[11px] font-medium text-slate-600">${label}のスクショを選択</p>
+						</div>
+					</label>
+					<div class="person-image-list grid grid-cols-2 gap-2" data-person="${idx}"></div>
+				</div>`;
+		}
+
+		// 親1体＋祖父母2体の系譜を、簡易的なツリー図（装飾・アップロード機能とは独立）で表現する。
+		// 参考UI（ウマ娘因子継承シミュレーター系ツール）の「1セット=系譜」という考え方を、
+		// 実際のアップロード欄と組み合わせて再現するための表示のみの要素。
+		// 親＝濃い色・白文字／祖父母＝薄い色・濃い文字で、同じ色相の中の世代差を表す。
+		function buildSetTreeDiagram(setIdx) {
+			const set = PERSON_SETS[setIdx];
+			const baseIdx = setIdx * 3;
+			const parentCls = personBadgeClasses(baseIdx);
+			const gp1Cls = personBadgeClasses(baseIdx + 1);
+			const gp2Cls = personBadgeClasses(baseIdx + 2);
+			return `
+				<div class="flex items-center justify-center gap-2 mb-3 select-none" aria-hidden="true">
+					<div class="w-9 h-9 rounded-full ${parentCls} text-[11px] font-bold flex items-center justify-center shadow-sm">親${set.id}</div>
+					<svg width="28" height="44" viewBox="0 0 28 44" class="shrink-0">
+						<path d="M2 22 H12 M12 22 V8 H26 M12 22 V36 H26" fill="none" stroke="#cbd5e1" stroke-width="2" />
+					</svg>
+					<div class="flex flex-col gap-3">
+						<div class="w-7 h-7 rounded-full ${gp1Cls} text-[9px] font-bold flex items-center justify-center">祖${set.id}1</div>
+						<div class="w-7 h-7 rounded-full ${gp2Cls} text-[9px] font-bold flex items-center justify-center">祖${set.id}2</div>
+					</div>
+				</div>`;
+		}
+
+		function buildSetPanel(setIdx) {
+			const set = PERSON_SETS[setIdx];
+			const baseIdx = setIdx * 3;
+			const cards = [0, 1, 2].map(r => buildPersonUploadCard(baseIdx + r)).join('');
+			return `
+				<div class="rounded-2xl border border-${set.hue}-200 bg-${set.hue}-50/20 p-4">
+					<div class="flex items-center justify-between mb-1">
+						<p class="text-xs font-bold text-${set.hue}-800 flex items-center gap-1.5">
+							<i data-lucide="workflow" class="w-3.5 h-3.5"></i>
+							<span>${set.label}（親${set.id}＋祖${set.id}1＋祖${set.id}2）</span>
+						</p>
+						<button type="button" onclick="clearPersonSet(${setIdx})" class="text-[11px] text-slate-400 hover:text-red-600 underline underline-offset-2 cursor-pointer">セットをクリア</button>
+					</div>
+					${buildSetTreeDiagram(setIdx)}
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-3">${cards}</div>
+				</div>`;
+		}
+
+		function renderPersonUploadGrid() {
+			document.getElementById('personset-A-wrap').innerHTML = buildSetPanel(0);
+			document.getElementById('personset-B-wrap').innerHTML = buildSetPanel(1);
+
+			if (window.lucide) lucide.createIcons();
+
+			document.querySelectorAll('.person-file-input').forEach(input => {
+				input.addEventListener('change', (e) => {
+					const idx = Number(e.target.dataset.person);
+					addPersonFiles(idx, Array.from(e.target.files));
+					e.target.value = '';
 				});
-			}
-		});
-	}
-	return lines;
-}
+			});
+			document.querySelectorAll('.person-drop-zone').forEach(zone => {
+				const idx = Number(zone.dataset.person);
+				['dragenter', 'dragover'].forEach(ev => {
+					zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('drop-active'); });
+				});
+				['dragleave', 'dragend'].forEach(ev => {
+					zone.addEventListener(ev, () => { zone.classList.remove('drop-active'); });
+				});
+				zone.addEventListener('drop', (e) => {
+					e.preventDefault();
+					zone.classList.remove('drop-active');
+					const files = Array.from(e.dataTransfer.files).filter(f => f.type.indexOf('image/') === 0);
+					if (files.length) addPersonFiles(idx, files);
+				});
+			});
 
-/**
- * stackRowsWithMeta() で作った合成画像をOCRした結果（extractLinesWithBBoxの出力）を、
- * 各行の placements（=どの元行がどのy範囲に配置されたか）と突き合わせ、
- * 「そのOCR行が何個の★を持つ行だったか」を求める。
- * bboxの中心yに最も近い placement を採用する（多少のズレに対してロバストにするため）。
- *
- * imageKey: 画像ごとに一意な文字列（":" を含めないこと）。
- *   これと行番号から rowKey（"画像:行"）を作り、「どのOCR行が元画像のどの行から
- *   来たか」を判定ロジック側でも使えるようにする。前処理を変えて同じ画像を
- *   読み直した結果は同じ rowKey になる。
- *
- * 戻り値: lines と同じ順序・同じ長さの配列。
- *   要素は { ...元のline, stars: number|null, starsReliable: boolean, rowKey: string|null }
- */
-function attachStarsToLines(lines, placements, rowStarCounts, imageKey) {
-	return lines.map(line => {
-		if (line.y0 === null || line.y1 === null || !placements.length) {
-			return Object.assign({}, line, { stars: null, starsReliable: false, rowKey: null });
+			// フルリビルド直後でも、既にアップロード済みのファイルがあればサムネイルを復元する
+			persons.forEach((_, idx) => renderPersonImageList(idx));
 		}
-		const centerY = (line.y0 + line.y1) / 2;
-		let best = null, bestDist = Infinity;
-		placements.forEach(p => {
-			const pCenter = (p.y0 + p.y1) / 2;
-			const dist = Math.abs(centerY - pCenter);
-			if (dist < bestDist) { bestDist = dist; best = p; }
-		});
-		const info = (best && rowStarCounts[best.rowIndex]) ? rowStarCounts[best.rowIndex] : null;
-		return Object.assign({}, line, {
-			stars: info ? info.stars : null,
-			starsReliable: info ? (info.reliable !== false) : false,
-			rowKey: best ? (String(imageKey === undefined ? '' : imageKey) + ':' + best.rowIndex) : null
-		});
-	});
-}
 
-/**
- * あるスキルを検出した根拠の行（複数ありうる）から、★の数を1つに決める。
- *
- * 同じ項目はスクショの重なりや前処理違いで何度も読まれるため、計測値も複数得られる。
- * 探索範囲を正しく囲えた計測（reliable）を優先し、その中の最頻値を採用する。
- * 同数で並んだ場合は、次の項目の★まで数えてしまう方向の誤りを避けるため小さい方を採る。
- */
-function pickStarsFromSources(sourceIndexes, lines) {
-	const obs = [];
-	(sourceIndexes || []).forEach(i => {
-		const l = lines[i];
-		if (!l || l.stars === null || l.stars === undefined) return;
-		// ★0 はゲーム上ありえない（★が0個の因子はスキル名自体が表示されない）。
-		// 0と出た計測は、★が画面外で切れている等の失敗なので採用しない。
-		if (l.stars === 0) return;
-		obs.push(l);
-	});
-	if (obs.length === 0) return null;
-	const reliable = obs.filter(o => o.starsReliable !== false);
-	const pool = reliable.length > 0 ? reliable : obs;
+		// 親Bセット（4-6枠目）の表示/非表示を切り替える。非表示にしてもアップロード済みの
+		// ファイル自体は保持される（再表示すれば残っている）。
+		function toggleSetB() {
+			setBVisible = !setBVisible;
+			const wrap = document.getElementById('personset-B-wrap');
+			wrap.classList.toggle('hidden', !setBVisible);
+			document.getElementById('setb-toggle-label').textContent = setBVisible ? '− 親Bセットを閉じる' : '＋ 親Bセットも追加する';
+			document.getElementById('setb-toggle-btn').classList.toggle('bg-red-100', setBVisible);
+		}
 
-	const counts = {};
-	pool.forEach(o => { counts[o.stars] = (counts[o.stars] || 0) + 1; });
-	let bestValue = null, bestCount = -1;
-	Object.keys(counts).map(Number).sort((a, b) => a - b).forEach(v => {
-		if (counts[v] > bestCount) { bestCount = counts[v]; bestValue = v; }
-	});
-	return bestValue;
-}
+		// 指定セット（0=親A, 1=親B）の3枠すべてのアップロード済み画像をクリアする
+		function clearPersonSet(setIdx) {
+			const baseIdx = setIdx * 3;
+			[0, 1, 2].forEach(r => { persons[baseIdx + r].files = []; });
+			[0, 1, 2].forEach(r => renderPersonImageList(baseIdx + r));
+			updateProcessBtn();
+		}
 
-/**
- * matchAllSkills() の★対応版。ロジックの大枠（正規化・辞書・完全一致・あいまい一致）は
- * matchAllSkills と同一だが、マッチしたスキルに対して「そのOCR行に紐づく★の数」も記録する。
- *
- * 引数の lines は attachStarsToLines() の出力（各要素が { text, conf, stars } を持つ）。
- *
- * 戻り値: matchAllSkills の戻り値に加えて、
- *   skillStars: { [rawSkillName]: number|null }  … 検出できたスキルの★の数
- */
-function matchAllSkillsWithStars(lines, skillList, skillIndex, ocrErrorDictionary) {
-	const base = matchAllSkills(lines, skillList, skillIndex, ocrErrorDictionary);
-	const skillStars = {};
+		function addPersonFiles(personIdx, files) {
+			const list = persons[personIdx].files;
+			files.forEach(f => {
+				const dup = list.some(u => u.name === f.name && u.size === f.size);
+				if (!dup) list.push(f);
+			});
+			renderPersonImageList(personIdx);
+			updateProcessBtn();
+		}
 
-	// ★は「そのスキルを検出した根拠の行」から取る。
-	// 以前はここで行を距離計算により探し直していたが、それでは
-	// 例えば「中距離コーナー○」の★を、字面が1文字違いの
-	//「短距離コーナー○」の行から取ってしまうことがあった。
-	// 判定時に記録済みの skillSources を使えば、その取り違えは起こらない。
-	base.detectedSkills.forEach(skillName => {
-		skillStars[skillName] = pickStarsFromSources(base.skillSources[skillName], lines);
-	});
+		function removePersonImage(personIdx, fileIdx) {
+			persons[personIdx].files.splice(fileIdx, 1);
+			renderPersonImageList(personIdx);
+			updateProcessBtn();
+		}
 
-	return Object.assign({}, base, { skillStars: skillStars });
-}
+		function renderPersonImageList(personIdx) {
+			const container = document.querySelector('.person-image-list[data-person="' + personIdx + '"]');
+			container.innerHTML = persons[personIdx].files.map((file, idx) => `
+				<div class="group relative rounded-lg border border-slate-200 overflow-hidden bg-white shadow-2xs">
+					<img src="${URL.createObjectURL(file)}" class="w-full h-14 object-cover" />
+					<button type="button" onclick="removePersonImage(${personIdx}, ${idx})" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/80 text-white flex items-center justify-center hover:bg-red-600 transition-colors">
+						<i data-lucide="x" class="w-3 h-3"></i>
+					</button>
+				</div>
+			`).join('');
+			if (window.lucide) lucide.createIcons();
+		}
+
+		const processBtn = document.getElementById('process-btn');
+
+		function updateProcessBtn() {
+			// 対象スキルは常に133種登録済みのため、画像の有無だけで判定する。
+			const anyFiles = persons.some(p => p.files.length > 0);
+			processBtn.disabled = !anyFiles;
+			const stitchBtn = document.getElementById('process-stitch-btn');
+			if (stitchBtn) stitchBtn.disabled = !anyFiles;
+		}
+
+		/* ============================================================
+		 * OCR処理本体
+		 * ============================================================ */
+
+		// 1人分の画像群を処理し、★情報つきのOCR行配列を返す
+		async function processPersonImages(worker, files, labelPrefix, usePre, multi, wantPreview) {
+			const lines = [];
+			const skipped = [];
+			for (let i = 0; i < files.length; i++) {
+				const file = files[i];
+				const diag = [];
+				let base = null, detection = null;
+				try {
+					const img = await loadImage(file);
+					base = toBaseCanvas(img);
+					diag.push('画像サイズ ' + base.width + '×' + base.height);
+
+					// 画質による事前足切り（common.js参照）。SNS再共有や画像結合ツールを経由した
+					// 画像は、辞書やしきい値を調整しても構造的に精度が出ないことを確認済みのため、
+					// OCRを試みる前にここで弾き、利用者に理由が分かる形でスキップする。
+					const quality = assessImageQuality(base);
+					if (quality.sharpness !== null) {
+						diag.push('鮮明度スコア ' + Math.round(quality.sharpness) + '（目安 ' + MIN_SHARPNESS_SCORE + ' 以上）');
+					}
+					if (!quality.ok) {
+						diag.push('→ 画質が基準未満のため対象外と判定し、OCRをスキップします');
+						quality.reasons.forEach(r => diag.push('  ・' + r));
+						devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
+						skipped.push({ label: labelPrefix, name: file.name, reasons: quality.reasons });
+						continue;
+					}
+
+					detection = detectSkillRows(base, diag);
+				} catch (err) {
+					console.error(err);
+					diag.push('画像の読み込みに失敗: ' + err);
+					devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
+					continue;
+				}
+
+				let target, placements = [], rowStars = [];
+				if (detection) {
+					rowStars = computeRowStarCounts(base, detection);
+					const stacked = stackRowsWithMeta(base, detection.rows);
+					target = stacked.canvas;
+					placements = stacked.placements;
+					diag.push('→ ' + detection.rows.length + '行を切り出し、★を判定してOCRへ');
+				} else {
+					target = scaleCanvas(base, 1800);
+					diag.push('→ 行検出に失敗。画像全体をOCRへ（この画像の★は判定できません）');
+				}
+				if (wantPreview) previewCanvases.push({ name: labelPrefix + ': ' + file.name, canvas: target });
+				devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
+
+				const variants = usePre ? preprocessVariants(target, multi) : [target];
+				for (let v = 0; v < variants.length; v++) {
+					try {
+						const res = await worker.recognize(variants[v]);
+						if (detection) {
+							const rawLines = extractLinesWithBBox(res.data);
+							// 第2引数以降で「どの画像のどの行から来たOCR行か」を持たせる。
+							// 同じ画像を前処理違いで読み直した結果は同じ rowKey になり、
+							// 判定側が「同じ項目の読み直し」と「別の項目」を区別できる。
+							const withStars = attachStarsToLines(rawLines, placements, rowStars, i);
+							lines.push.apply(lines, withStars);
+						} else {
+							const rawLines = extractLines(res.data).map(l => Object.assign({}, l, { stars: null, starsReliable: false, rowKey: null }));
+							lines.push.apply(lines, rawLines);
+						}
+					} catch (err) {
+						console.error('OCR failed: ' + file.name, err);
+					}
+				}
+			}
+			return { lines: lines, skipped: skipped };
+		}
+
+		async function processImages() {
+			const anyFiles = persons.some(p => p.files.length > 0);
+			if (!anyFiles) { showToast('少なくとも1人分の画像をアップロードしてください'); return; }
+
+			devGeometry = [];
+			previewCanvases = [];
+			personResults = PERSON_LABELS.map(() => null);
+
+			const progressWrap = document.getElementById('progress-wrap');
+			const errorWrap = document.getElementById('error-wrap');
+			const qualityWarnWrap = document.getElementById('quality-warn-wrap');
+			errorWrap.classList.add('hidden');
+			qualityWarnWrap.classList.add('hidden');
+			progressWrap.classList.remove('hidden');
+			processBtn.disabled = true;
+
+			// 画像前処理・高精度多重パスは常時有効（デフォルトのまま固定）
+			const usePre = true;
+			const multi = true;
+			const wantPreview = document.getElementById('opt-preview').checked;
+
+			let worker = null;
+			let anySuccess = false;
+			const skippedAll = [];
+
+			try {
+				setProgress(0, 'OCRエンジンを初期化中…');
+				worker = await Tesseract.createWorker();
+				await worker.loadLanguage('jpn');
+				await worker.initialize('jpn');
+				await worker.setParameters({
+					tessedit_pageseg_mode: '6',
+					preserve_interword_spaces: '1',
+					user_defined_dpi: '300'
+				});
+
+				for (let p = 0; p < persons.length; p++) {
+					const files = persons[p].files;
+					if (files.length === 0) continue;
+					setProgress(p / persons.length, PERSON_LABELS[p] + 'を処理中…');
+					const result = await processPersonImages(worker, files, PERSON_LABELS[p], usePre, multi, wantPreview);
+					if (result.lines.length > 0) anySuccess = true;
+					if (result.skipped.length > 0) skippedAll.push.apply(skippedAll, result.skipped);
+					personResults[p] = matchAllSkillsWithStars(result.lines, skillList, skillIndex, {});
+				}
+			} catch (err) {
+				console.error(err);
+				errorWrap.classList.remove('hidden');
+				document.getElementById('error-content').textContent = 'OCR処理の初期化に失敗しました。ネットワーク接続を確認してください。\n' + err;
+				progressWrap.classList.add('hidden');
+				processBtn.disabled = false;
+				return;
+			} finally {
+				if (worker) { try { await worker.terminate(); } catch (e) {} }
+			}
+
+			progressWrap.classList.add('hidden');
+			processBtn.disabled = false;
+
+			if (skippedAll.length > 0) {
+				qualityWarnWrap.classList.remove('hidden');
+				const detail = skippedAll.map(s => '・' + s.label + ': ' + s.name).join('\n');
+				document.getElementById('quality-warn-content').textContent =
+					skippedAll.length + '件の画像を、解像度/鮮明度不足のため対象外としてOCRをスキップしました。\n' + detail +
+					'\nSNSへの再投稿や複数画像結合ツールを経由すると起こりやすい現象です。ゲーム画面から直接撮ったスクリーンショットの利用を推奨します。';
+			}
+
+			if (!anySuccess) {
+				errorWrap.classList.remove('hidden');
+				const totalFiles = persons.reduce((s, p) => s + p.files.length, 0);
+				if (skippedAll.length > 0 && skippedAll.length === totalFiles) {
+					document.getElementById('error-content').textContent = 'アップロードされた画像はすべて解像度/鮮明度不足のため対象外と判定されました。ゲーム画面から直接撮影したスクリーンショットをご利用ください。';
+				} else {
+					document.getElementById('error-content').textContent = 'OCR処理に失敗しました。別の画像を試してください。';
+				}
+				return;
+			}
+
+			renderResults();
+			showToast('照合が完了しました');
+		}
+
+		function setProgress(ratio, label) {
+			const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
+			document.getElementById('progress-bar').style.width = pct + '%';
+			document.getElementById('progress-pct').textContent = pct + '%';
+			document.getElementById('progress-label').querySelector('span').textContent = label;
+		}
+
+		/* ============================================================
+		 * 結果表示
+		 * ============================================================ */
+		// 戻り値: 数値=★の数 / null=検出できたが★を計測できなかった / undefined=未検出
+		function starsFor(personIdx, skill) {
+			const res = personResults[personIdx];
+			if (!res) return undefined;
+			if (!res.detectedSkills.has(skill)) return undefined;
+			const s = res.skillStars[skill];
+			return (s === null || s === undefined) ? null : s;
+		}
+
+		function activePersonIndexes() {
+			return PERSON_LABELS.map((_, i) => i).filter(i => personResults[i]);
+		}
+
+		// 結果テーブル表示専用：activePersonIndexes()のうち、tableSetVisibleでON
+		// になっているセット（親A=0-2 / 親B=3-5）の分だけに絞り込む。
+		function tableVisiblePersonIndexes(used) {
+			return used.filter(i => tableSetVisible[Math.floor(i / 3)]);
+		}
+
+		// 親A/親Bの両方に結果がある時だけトグルUIを表示する。
+		function renderTableSetToggle(used) {
+			const wrap = document.getElementById('table-set-toggle-wrap');
+			const bySet = [[], []];
+			used.forEach(i => bySet[Math.floor(i / 3)].push(i));
+			const bothPresent = bySet[0].length > 0 && bySet[1].length > 0;
+			if (!bothPresent) { wrap.classList.add('hidden'); return; }
+			wrap.classList.remove('hidden');
+
+			PERSON_SETS.forEach((set, setIdx) => {
+				const btn = document.getElementById('table-toggle-' + set.id);
+				if (!btn) return;
+				const colors = HUE_HEX[set.hue];
+				const on = tableSetVisible[setIdx];
+				btn.textContent = (on ? '✓ ' : '') + set.label;
+				btn.style.backgroundColor = on ? colors.borderStrong : '#fff';
+				btn.style.color = on ? '#fff' : '#94a3b8';
+				btn.style.borderColor = on ? colors.borderStrong : '#e2e8f0';
+			});
+		}
+
+		// 親A/親B列の表示・非表示を切り替える。両方隠すことはできない（最低1セットは表示）。
+		function toggleTableSet(setIdx) {
+			const other = setIdx === 0 ? 1 : 0;
+			if (tableSetVisible[setIdx] && !tableSetVisible[other]) {
+				showToast('少なくとも一方のセットは表示してください');
+				return;
+			}
+			tableSetVisible[setIdx] = !tableSetVisible[setIdx];
+			renderResults();
+		}
+
+		// PERSON_LABELS / PERSON_COLORS（親A・親Bの計6枠分）から動的に生成する。
+		const PERSON_STAT_META = {};
+		PERSON_LABELS.forEach((label, i) => { PERSON_STAT_META[i] = [PERSON_COLORS[i], label]; });
+
+		function renderStatGrid(used) {
+			const grid = document.getElementById('stat-grid');
+			const cols = used.length + 1;
+			grid.className = 'grid gap-3 mb-6 ' + (cols <= 2 ? 'grid-cols-2' : cols === 3 ? 'grid-cols-3' : cols === 4 ? 'grid-cols-4' : 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-' + cols);
+
+			let html = `
+				<div class="rounded-xl border border-slate-200 bg-slate-50/50 p-3 md:p-4 text-center">
+					<p class="text-[11px] font-medium text-slate-500 mb-1">対象スキル数</p>
+					<p class="text-lg md:text-2xl font-extrabold text-slate-900" id="stat-total">0</p>
+				</div>`;
+			used.forEach(i => {
+				const [color, label] = PERSON_STAT_META[i];
+				html += `
+				<div class="rounded-xl border border-${color}-200 bg-${color}-50/50 p-3 md:p-4 text-center">
+					<p class="text-[11px] font-medium text-${color}-700 mb-1">${label} 検出</p>
+					<p class="text-lg md:text-2xl font-extrabold text-${color}-600" id="stat-found-${i + 1}">0</p>
+				</div>`;
+			});
+			grid.innerHTML = html;
+		}
+
+		// 指定リストのうち、そのpersonが検出できた数を数える。
+		// equivalence=true の場合、AWAKENING_PAIR_MAP で対応づけられるスキル同士は1カウントに畳み込む。
+		function countCategory(personIdx, list, equivalence) {
+			const res = personResults[personIdx];
+			if (!res) return 0;
+			if (!equivalence) {
+				return list.filter(s => res.detectedSkills.has(s)).length;
+			}
+			const counted = new Set();
+			list.forEach(s => {
+				if (res.detectedSkills.has(s)) counted.add(AWAKENING_PAIR_MAP[s] || s);
+			});
+			return counted.size;
+		}
+
+		function renderExamHighlight(used) {
+			const wrap = document.getElementById('exam-highlight');
+			if (used.length === 0) { wrap.classList.add('hidden'); return; }
+			wrap.classList.remove('hidden');
+
+			const equivalence = (countMode === 'equivalence');
+			const sp70List = effectiveBaseList(SP70_GREEN_17);
+			const greenList = effectiveBaseList(GREEN_59);
+			const green59Max = equivalence ? effectiveGreen59EquivalenceMax() : greenList.length;
+
+			const grid = document.getElementById('exam-highlight-grid');
+			// セット単位（親A/親B）で縦に並べ、それぞれのセット内で最大6カード（=3人分）まで自動折り返す。
+			grid.className = 'flex flex-col gap-3';
+
+			// usedをセット単位（0=親Aセット, 1=親Bセット）にグループ化し、
+			// セットごとに色付きの枠で囲んで境界を分かりやすくする。
+			// sp70緑=amber、緑59種=emeraldの配色はそのまま維持しつつ、
+			// 枠自体は結果テーブルと同じ青(親A)/赤(親B)を使い、UI全体で色のルールを揃える。
+			const bySet = [[], []];
+			used.forEach(i => bySet[Math.floor(i / 3)].push(i));
+
+			let html = '';
+			bySet.forEach((indices, setIdx) => {
+				if (indices.length === 0) return;
+				const set = PERSON_SETS[setIdx];
+				const colors = HUE_HEX[set.hue];
+				const cardsCount = indices.length * 2;
+				const colsClass = 'grid-cols-2 sm:grid-cols-' + Math.min(cardsCount, 4) + ' lg:grid-cols-' + Math.min(cardsCount, 6);
+
+				let cardsHtml = '';
+				indices.forEach(i => {
+					const label = PERSON_LABELS[i];
+					// sp70緑には「目覚め」系の対応スキルが含まれないため、モードに関わらず単純カウント。
+					const sp70Count = countCategory(i, sp70List, false);
+					const greenCount = countCategory(i, greenList, equivalence);
+					cardsHtml += `
+						<div class="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-center">
+							<p class="text-[11px] font-medium text-amber-700 mb-1">${label} sp70緑</p>
+							<p class="text-base md:text-xl font-extrabold text-amber-600">${sp70Count}<span class="text-xs font-medium text-amber-400">/${sp70List.length}</span></p>
+						</div>
+						<div class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-center">
+							<p class="text-[11px] font-medium text-emerald-700 mb-1">${label} 緑59種</p>
+							<p class="text-base md:text-xl font-extrabold text-emerald-600">${greenCount}<span class="text-xs font-medium text-emerald-400">/${green59Max}</span></p>
+						</div>`;
+				});
+
+				html += `
+					<div class="rounded-2xl p-3" style="border:2px solid ${colors.borderStrong};background-color:${colors.bg};">
+						<p class="text-[11px] font-bold mb-2" style="color:${colors.text}">${set.label}</p>
+						<div class="grid gap-3 ${colsClass}">${cardsHtml}</div>
+					</div>`;
+			});
+			grid.innerHTML = html;
+		}
+
+		// 親Aセット(青)・親Bセット(赤)の色分けに使う実際の色値。
+		// .result-table th には既に background-color を指定するCSSルールがあり、
+		// クラスの指定だけでは優先度で負けて反映されないことがあるため、
+		// ここではインラインstyleで確実に上書きする。
+		const HUE_HEX = {
+			blue: { bg: '#eff6ff', text: '#1e40af', borderStrong: '#93c5fd', borderSoft: '#bfdbfe', tint: 'rgba(59,130,246,0.07)' },
+			red: { bg: '#fef2f2', text: '#991b1b', borderStrong: '#fca5a5', borderSoft: '#fecaca', tint: 'rgba(239,68,68,0.07)' }
+		};
+
+		// 表示中の列(used内の各personIdx)について、色と「セットの境目に区切り線を
+		// 入れるか」を計算する。ヘッダー・本体テーブルの両方で同じルールを使い、
+		// 親Aセット＝青系統／親Bセット＝赤系統の帯として視覚的に区別できるようにする。
+		function buildColumnMeta(used) {
+			let prevSetIdx = null;
+			return used.map(i => {
+				const hue = PERSON_COLORS[i];
+				const setIdx = Math.floor(i / 3);
+				const boundary = prevSetIdx !== null && setIdx !== prevSetIdx;
+				prevSetIdx = setIdx;
+				return { idx: i, hue: hue, colors: HUE_HEX[hue], boundary: boundary };
+			});
+		}
+
+		// 2人分以上の結果が並ぶ場合にのみ「★合計」列を出す（1人だけならその人の★数と同じになり冗長なため）。
+		// ヘッダー・本体テーブル・「該当なし」時のcolspan計算で共通して使う。
+		function shouldShowTotalColumn(used) {
+			return used.length >= 2;
+		}
+
+		function renderTableHeader(used) {
+			const thead = document.getElementById('result-thead');
+			// スキル名列は最小限の幅に留め、親A〜祖B2の各列に幅を配分する。
+			const nameWidth = used.length <= 1 ? 'w-2/5' : used.length === 2 ? 'w-1/3' : used.length <= 4 ? 'w-1/4' : 'w-1/5';
+			const meta = buildColumnMeta(used);
+			const showTotal = shouldShowTotalColumn(used);
+			let html = `<tr><th class="${nameWidth}">スキル名（リスト順）</th>`;
+			meta.forEach(m => {
+				const borderStyle = m.boundary ? 'border-left:2px solid ' + m.colors.borderStrong + ';' : '';
+				html += `<th class="text-center" style="background-color:${m.colors.bg};color:${m.colors.text};${borderStyle}">${PERSON_LABELS[m.idx]}</th>`;
+			});
+			if (showTotal) {
+				html += '<th class="text-center" style="background-color:#f1f5f9;color:#334155;border-left:2px solid #cbd5e1;">★合計</th>';
+			}
+			html += '</tr>';
+			thead.innerHTML = html;
+
+			// テーブルに最低限の幅を与え、コンテナより狭くなりそうな場合に
+			// スキル名を1文字ずつ折り返すのではなく、横スクロールが発生するようにする。
+			const table = document.getElementById('result-table-el');
+			if (table) {
+				const nameMinPx = 112, personColMinPx = 56, totalColMinPx = 56;
+				const minWidthPx = nameMinPx + used.length * personColMinPx + (showTotal ? totalColMinPx : 0);
+				table.style.minWidth = minWidthPx + 'px';
+			}
+		}
+
+		function updateCopyLabels(used) {
+			const btnLabel = document.getElementById('copy-btn-label');
+			const title = document.getElementById('copy-title');
+			const hint = document.getElementById('copy-hint');
+			if (used.length <= 1) {
+				btnLabel.textContent = '★の数をコピー';
+				title.textContent = 'スプレッドシート貼り付け用データ';
+			} else {
+				btnLabel.textContent = used.length + '列まとめてコピー';
+				title.textContent = 'スプレッドシート貼り付け用データ（' + used.length + '列）';
+			}
+			const names = used.map(i => PERSON_LABELS[i]).join('・');
+			hint.textContent = used.length <= 1
+				? '※' + names + 'の★の数です。スキル名は含みません'
+				: '※' + names + 'の★の数（タブ区切り）。スキル名は含みません';
+		}
+
+		function updateFilterLabels(used) {
+			const foundBtn = document.getElementById('filter-found');
+			const notFoundBtn = document.getElementById('filter-not-found');
+			if (used.length <= 1) {
+				foundBtn.textContent = '検出のみ';
+				notFoundBtn.textContent = '未検出のみ';
+			} else {
+				foundBtn.textContent = '誰かが検出';
+				notFoundBtn.textContent = '全員未検出';
+			}
+		}
+
+		function renderResults() {
+			const resultWrap = document.getElementById('result-wrap');
+			const used = activePersonIndexes();
+			// 結果テーブルの表示列だけ、親A/親B列トグルの状態を反映する
+			// （統計カード・緑スキルハイライト・コピー用データは常に全アップロード分を対象にする）。
+			const tableUsed = tableVisiblePersonIndexes(used);
+
+			renderStatGrid(used);
+			renderExamHighlight(used);
+			renderTableSetToggle(used);
+			renderTableHeader(tableUsed);
+			updateCopyLabels(used);
+			updateFilterLabels(tableUsed);
+
+			const foundCounts = {};
+			used.forEach(i => { foundCounts[i] = 0; });
+			const copyRows = [];
+
+			skillList.forEach(skill => {
+				const rowVals = used.map(p => starsFor(p, skill));
+				rowVals.forEach((v, idx) => { if (v !== undefined) foundCounts[used[idx]]++; });
+				// ★を計測できなかった場合（null）は、誤った数字を貼らないよう空欄にする。
+				// 表側には「?」を出して、手で補う必要があることが分かるようにしている。
+				copyRows.push(rowVals.map(v => (v === null || v === undefined) ? '' : String(v)).join('\t'));
+			});
+
+			document.getElementById('stat-total').textContent = skillList.length;
+			used.forEach(i => {
+				document.getElementById('stat-found-' + (i + 1)).textContent = foundCounts[i];
+			});
+
+			document.getElementById('copy-data').value = copyRows.join('\n');
+			resultWrap.classList.remove('hidden');
+
+			filterResults();
+			renderPreview();
+			renderDevLog();
+		}
+
+		function starBadge(stars) {
+			if (stars === undefined) {
+				return '<span class="text-slate-300 text-xs">−</span>';
+			}
+			if (stars === null) {
+				// スキルは見つかったが★の数を確定できなかった（要手入力）
+				return '<span class="text-amber-600 text-xs font-bold" title="スキルは検出できましたが★の数を確定できませんでした">?</span>';
+			}
+			return '<span class="star-cell text-amber-500">' + '★'.repeat(stars) + '</span>' +
+				'<span class="star-cell text-slate-300">' + '★'.repeat(3 - stars) + '</span>';
+		}
+
+		// スキル名の前に付けるカテゴリバッジ（sp70緑=★ / 緑59種=● / カスタム追加=＋）。
+		function categoryBadge(skill) {
+			if (SP70_GREEN_17_SET.has(skill)) return '<span class="text-amber-500 mr-1" title="sp70緑（高コスパ17種）">★</span>';
+			if (GREEN_59_SET.has(skill)) return '<span class="text-emerald-500 mr-1" title="緑59種">●</span>';
+			if (customAddedSkills.indexOf(skill) !== -1) return '<span class="text-indigo-500 mr-1" title="カスタム追加スキル">＋</span>';
+			return '';
+		}
+
+		function filterResults() {
+			const tbody = document.getElementById('result-tbody');
+			const query = document.getElementById('table-search').value.toLowerCase().trim();
+			// 「誰かが検出」「全員未検出」の判定・件数は、現在テーブルに表示している
+			// 列（親A/親B表示トグルを反映）を基準にする。隠している側の検出結果は含めない。
+			const used = tableVisiblePersonIndexes(activePersonIndexes());
+			const meta = buildColumnMeta(used);
+			const showTotal = shouldShowTotalColumn(used);
+			let tableHtml = '';
+			let matchCount = 0;
+
+			skillList.forEach(skill => {
+				const vals = used.map(p => starsFor(p, skill));
+				const anyFound = vals.some(v => v !== undefined);
+
+				if (currentFilter === 'found' && !anyFound) return;
+				if (currentFilter === 'not-found' && anyFound) return;
+				if (query && !skill.toLowerCase().includes(query)) return;
+
+				matchCount++;
+
+				const cells = meta.map((m, idx) => {
+					const borderStyle = m.boundary ? 'border-left:2px solid ' + m.colors.borderSoft + ';' : '';
+					return `<td class="text-center" style="background-color:${m.colors.tint};${borderStyle}">${starBadge(vals[idx])}</td>`;
+				}).join('');
+
+				// ★合計はコピー用データには含めない（表示のみ・集計の目安）。
+				// 未検出/未計測(undefined・null)は0扱いで加算する。
+				let totalCell = '';
+				if (showTotal) {
+					const total = vals.reduce((sum, v) => sum + (typeof v === 'number' ? v : 0), 0);
+					totalCell = `<td class="text-center font-bold text-slate-700" style="background-color:#f8fafc;border-left:2px solid #e2e8f0;">${total}</td>`;
+				}
+
+				tableHtml += `<tr class="transition-colors">
+					<td class="font-medium text-slate-800">${categoryBadge(skill)}${escapeHtml(skill)}</td>
+					${cells}
+					${totalCell}
+				</tr>`;
+			});
+
+			const colCount = used.length + (showTotal ? 2 : 1);
+			if (!tableHtml) {
+				tableHtml = `<tr><td colspan="${colCount}" class="text-center py-6 text-slate-400 text-xs">該当するスキルが見つかりません</td></tr>`;
+			}
+
+			tbody.innerHTML = tableHtml;
+
+			// 現在のフィルター・検索条件に該当する件数を表示する。
+			// 特に「全員未検出」を選んだ際の件数は、因子セット全体としてまだ
+			// 埋まっていないスキルの目安になる。ボタンの表記（1人のみの時は
+			// 「検出のみ」「未検出のみ」）とラベルを揃える。
+			const countLabel = document.getElementById('filter-result-count');
+			const filterNames = used.length <= 1
+				? { all: 'すべて', found: '検出のみ', 'not-found': '未検出のみ' }
+				: { all: 'すべて', found: '誰かが検出', 'not-found': '全員未検出' };
+			countLabel.textContent = '「' + filterNames[currentFilter] + '」に該当: ' + matchCount + '件' + (query ? '（絞り込みキーワード適用後）' : '') + ' / 全' + skillList.length + '件中';
+
+			if (window.lucide) lucide.createIcons();
+		}
+
+		function setFilter(type) {
+			currentFilter = type;
+			['all', 'found', 'not-found'].forEach(f => {
+				const btn = document.getElementById('filter-' + f);
+				if (f === type) {
+					btn.className = 'px-3 py-1 rounded-lg bg-slate-900 text-white font-medium cursor-pointer';
+				} else {
+					btn.className = 'px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium cursor-pointer';
+				}
+			});
+			filterResults();
+		}
+
+		function renderPreview() {
+			const wrap = document.getElementById('preview-wrap');
+			const box = document.getElementById('debug-preview');
+			box.innerHTML = '';
+			if (!previewCanvases.length) { wrap.classList.add('hidden'); return; }
+			previewCanvases.forEach(p => {
+				const label = document.createElement('p');
+				label.className = 'text-xs text-slate-500 font-mono';
+				label.textContent = p.name;
+				box.appendChild(label);
+				box.appendChild(p.canvas);
+			});
+			wrap.classList.remove('hidden');
+		}
+
+		function formatEntry(u) {
+			const confStr = (u.conf !== null && u.conf !== undefined) ? ' conf=' + Math.round(u.conf) : '';
+			const bestStr = u.best ? '  → 候補: ' + u.best + '（距離' + u.dist + ' / ' + u.reason + '）' : '  → ' + u.reason;
+			return '    "' + u.text + '"' + confStr + '\n      正規化: ' + u.norm + '\n     ' + bestStr;
+		}
+
+		// resolveTiedCandidates() が記録した診断情報（common.js参照）を人間が読める形に整形する。
+		// 「曖昧タイがなぜ解決した/しなかったか」を、rowKeyの有無まで含めて確認できるようにする。
+		function formatAmbiguousEntry(u) {
+			const rowKeyStr = u.rowKey ? ('rowKey=' + u.rowKey) : 'rowKey=なし（bbox取得失敗の可能性）';
+			const lines = ['    "' + u.text + '"' + (u.norm ? ' / 正規化: ' + u.norm : '') + ' / ' + rowKeyStr];
+			lines.push('      タイ候補: ' + u.tied.join(' / '));
+			if (u.source === 'キャッシュ再利用') {
+				lines.push('      判定: 同じ誤読文字列の絞り込み結果を再利用 → ' + (u.resolved || '(解決できず)'));
+			} else {
+				(u.candidates || []).forEach(c => {
+					if (!c.alreadyDetected) {
+						lines.push('      候補「' + c.raw + '」: 未検出のため生存');
+						return;
+					}
+					const checkStr = (c.checks || []).map(ck =>
+						'this=' + (ck.thisRowKey || 'null') + ' / other=' + (ck.otherRowKey || 'null') + ' → ' + (ck.result ? '別行と断定' : '断定できず')
+					).join(' , ');
+					lines.push('      候補「' + c.raw + '」: 検出済み（' + (c.provablyOther ? '別行と断定→除外' : '別行と断定できず→残存') + '） [' + checkStr + ']');
+				});
+				lines.push('      生存候補: ' + (u.survivors && u.survivors.length ? u.survivors.join(' / ') : 'なし'));
+				lines.push('      結果: ' + (u.resolved ? '「' + u.resolved + '」に確定' : '解決できず（曖昧のまま）'));
+			}
+			return lines.join('\n');
+		}
+
+		function renderDevLog() {
+			const devWrap = document.getElementById('dev-wrap');
+			const devLog = document.getElementById('dev-log');
+			if (!document.getElementById('opt-devlog').checked) { devWrap.classList.add('hidden'); return; }
+
+			const parts = [];
+			// 実際にブラウザで読み込まれている common.js の版を明示する。
+			// 更新したはずの内容が反映されていない（キャッシュ・貼り忘れ等）ことを切り分けるため。
+			parts.push('■ 実行環境\n  common.js 版: ' + (typeof COMMON_JS_VERSION !== 'undefined' ? COMMON_JS_VERSION : '(不明・古い版です)') +
+				'\n  緑59種カウントモード: ' + (countMode === 'equivalence' ? '実質' + effectiveGreen59EquivalenceMax() + '種（既定）' : '59種個別') +
+				'\n  画質しきい値: 横幅' + MIN_BASE_WIDTH_PX + 'px以上 / 鮮明度スコア' + MIN_SHARPNESS_SCORE + '以上');
+			if (devGeometry.length) parts.push('■ 行検出・★判定の内訳\n' + devGeometry.join('\n'));
+
+			// デバッグしやすいよう、件数だけでなく実際のOCRテキスト・正規化結果・
+			// 候補との距離まで出す（見つからなかったスキルの原因調査のため）。
+			PERSON_LABELS.forEach((label, idx) => {
+				const res = personResults[idx];
+				if (!res) return;
+				const lines = [];
+				if (res.devFuzzy.length) {
+					lines.push('  推定一致 ' + res.devFuzzy.length + '件:');
+					res.devFuzzy.forEach(u => lines.push('    "' + u.text + '" → ' + u.matched + '（距離' + u.dist + '）'));
+				}
+				if (res.devTypo.length) {
+					lines.push('  誤字候補（惜しい）' + res.devTypo.length + '件:');
+					res.devTypo.forEach(u => lines.push(formatEntry(u)));
+				}
+				if (res.devLowConf.length) {
+					lines.push('  低信頼度（confしきい値未満のため判定スキップ）' + res.devLowConf.length + '件:');
+					res.devLowConf.forEach(u => lines.push('    "' + u.text + '" conf=' + Math.round(u.conf) + ' / 正規化: ' + u.norm));
+				}
+				if (res.devOther.length) {
+					lines.push('  その他未一致（候補から遠すぎる）' + res.devOther.length + '件:');
+					res.devOther.forEach(u => lines.push(formatEntry(u)));
+				}
+				if (res.devAmbiguous && res.devAmbiguous.length) {
+					lines.push('  曖昧タイの解決内訳 ' + res.devAmbiguous.length + '件:');
+					res.devAmbiguous.forEach(u => lines.push(formatAmbiguousEntry(u)));
+				}
+				if (lines.length) parts.push('■ ' + label + '\n' + lines.join('\n'));
+			});
+
+			if (parts.length === 0) { devWrap.classList.add('hidden'); return; }
+			devLog.textContent = parts.join('\n\n\n');
+			devWrap.classList.remove('hidden');
+		}
+
+		function copyToClipboard() {
+			const copyData = document.getElementById('copy-data');
+			copyData.select();
+			document.execCommand('copy');
+			showToast('★データをクリップボードにコピーしました');
+		}
+
+		function copyDevLog() {
+			const text = document.getElementById('dev-log').textContent;
+			if (navigator.clipboard && navigator.clipboard.writeText) {
+				navigator.clipboard.writeText(text).then(() => showToast('開発ログをコピーしました'));
+			}
+		}
+
+		/* ============================================================
+		 * ①画像結合機能（親A/祖A1/祖A2、および親B/祖B1/祖B2セットの縦結合＋横結合）
+		 * ------------------------------------------------------------
+		 * exam.html専用のロジックとして本ファイル内に完結させる（common.js非改変の原則）。
+		 * OCRマッチング用の loadImage() は js/common.js のものをそのまま利用する
+		 * （同名関数の重複定義を避けるため、ここでは再定義しない）。
+		 * ============================================================ */
+
+		// 画像結合用の簡易ログ。既存の開発ログ（devGeometry）に相乗りさせることで、
+		// 「開発ログを表示」チェックを入れれば結合処理の詳細も確認できるようにする。
+		function stitchLog(msg) {
+			devGeometry.push('[画像結合] ' + msg);
+		}
+
+		function stitchImgToCanvas(img) {
+			const c = document.createElement('canvas');
+			c.width = img.naturalWidth;
+			c.height = img.naturalHeight;
+			const ctx = c.getContext('2d', { willReadFrequently: true });
+			ctx.drawImage(img, 0, 0);
+			return c;
+		}
+
+		function stitchRowDiffSignal(canvasA, canvasB, sampleStep = 4) {
+			const h = Math.min(canvasA.height, canvasB.height);
+			const w = Math.min(canvasA.width, canvasB.width);
+			const ctxA = canvasA.getContext('2d', { willReadFrequently: true });
+			const ctxB = canvasB.getContext('2d', { willReadFrequently: true });
+			const dataA = ctxA.getImageData(0, 0, w, h).data;
+			const dataB = ctxB.getImageData(0, 0, w, h).data;
+			const diff = new Float64Array(h);
+			for (let y = 0; y < h; y++) {
+				let sum = 0, cnt = 0;
+				const rowOffset = y * w * 4;
+				for (let x = 0; x < w; x += sampleStep) {
+					const idx = rowOffset + x * 4;
+					sum += Math.abs(dataA[idx] - dataB[idx]) + Math.abs(dataA[idx + 1] - dataB[idx + 1]) + Math.abs(dataA[idx + 2] - dataB[idx + 2]);
+					cnt++;
+				}
+				diff[y] = sum / (cnt * 3);
+			}
+			return diff;
+		}
+
+		// ①-2：ヘッダー（ウマ娘詳細・ステータス・タブ）／フッター（継承元の帯グラフ・
+		// 閉じるボタン）の境界を、アップロードされた画像同士のピクセル差分から検出する。
+		// 解像度に依存せず、DMM版・スマホ版のどちらでも同じロジックで機能する。
+		function stitchDetectHeaderFooter(canvases, groupLabel, threshold = 5) {
+			let headerEnd = Infinity;
+			let footerStart = -Infinity;
+			for (let i = 0; i < canvases.length - 1; i++) {
+				const diff = stitchRowDiffSignal(canvases[i], canvases[i + 1]);
+				let first = -1, last = -1;
+				for (let y = 0; y < diff.length; y++) {
+					if (diff[y] > threshold) { if (first === -1) first = y; last = y; }
+				}
+				if (first === -1) {
+					stitchLog(groupLabel + ': 警告: 画像' + i + 'と画像' + (i + 1) + 'で差分が検出できませんでした（同一画像の可能性）');
+					continue;
+				}
+				headerEnd = Math.min(headerEnd, first);
+				footerStart = Math.max(footerStart, last + 1);
+				stitchLog(groupLabel + ': 画像' + i + '-' + (i + 1) + '間の差分範囲: 行' + first + ' 〜 行' + last);
+			}
+			if (!isFinite(headerEnd) || !isFinite(footerStart)) {
+				throw new Error('[' + groupLabel + '] 全画像が同一、またはヘッダー/フッター境界を検出できませんでした。');
+			}
+			return { headerEnd: headerEnd, footerStart: footerStart };
+		}
+
+		// ①-1：スクロールバーのつまみ位置を検出して、順不同アップロードでも正しい順序に
+		// 並び替える。つまみが見つからない/長さが不一致の場合はnullを返し、
+		// 呼び出し側でアップロード順にフォールバックする。
+		function stitchDetectScrollbarOrder(canvases, headerEnd, footerStart, groupLabel, darkThreshold = 200) {
+			const w = canvases[0].width;
+			const contentH = footerStart - headerEnd;
+			const xStart = Math.floor(w * 0.75);
+
+			function darkRun(canvas, x) {
+				const ctx = canvas.getContext('2d', { willReadFrequently: true });
+				const data = ctx.getImageData(x, headerEnd, 1, contentH).data;
+				let first = -1, last = -1, cnt = 0;
+				for (let y = 0; y < contentH; y++) {
+					const idx = y * 4;
+					const v = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+					if (v < darkThreshold) { if (first === -1) first = y; last = y; cnt++; }
+				}
+				if (first === -1) return null;
+				const span = last - first + 1;
+				if (cnt / span < 0.6) return null;
+				if (span > contentH * 0.6 || span < 3) return null;
+				return { first: first, last: last, span: span };
+			}
+
+			let candidateX = -1;
+			for (let x = xStart; x < w; x++) {
+				if (darkRun(canvases[0], x)) { candidateX = x; break; }
+			}
+			if (candidateX === -1) {
+				stitchLog(groupLabel + ': スクロールバー検出: 該当する列が見つかりませんでした。');
+				return null;
+			}
+
+			const runs = [];
+			for (let i = 0; i < canvases.length; i++) {
+				const run = darkRun(canvases[i], candidateX);
+				if (!run) {
+					stitchLog(groupLabel + ': スクロールバー検出: 画像' + i + 'でつまみが検出できませんでした。並び替えを断念します。');
+					return null;
+				}
+				runs.push(run);
+			}
+			const spans = runs.map(r => r.span);
+			const minSpan = Math.min.apply(null, spans), maxSpan = Math.max.apply(null, spans);
+			if (minSpan / maxSpan < 0.85) {
+				stitchLog(groupLabel + ': スクロールバー検出: つまみ長さが不一致(' + minSpan + '〜' + maxSpan + ')のため並び替えを断念します。');
+				return null;
+			}
+			const order = runs.map((r, i) => ({ i: i, y: r.first })).sort((a, b) => a.y - b.y).map(o => o.i);
+			stitchLog(groupLabel + ': スクロールバー検出成功(x=' + candidateX + '): 並び順 = [' + order.join(', ') + ']');
+			return order;
+		}
+
+		// オーバーラップ（重複範囲）を、実ピクセルの平均絶対差分(MAD)に基づき推定する。
+		// 大きい候補から順に見て、閾値を下回る最初の(最大の)候補を採用することで、
+		// 小さい窓幅で偶然低スコアになる誤検出を避ける。
+		function stitchEstimateOverlapByPixelMAD(canvasTop, canvasBottom, yStart, yEnd, xStart, xEnd, opts) {
+			opts = opts || {};
+			const minOverlap = opts.minOverlap || 60;
+			const madThreshold = opts.madThreshold || 6.0;
+			const sampleStepX = opts.sampleStepX || 3;
+
+			const ctxTop = canvasTop.getContext('2d', { willReadFrequently: true });
+			const ctxBottom = canvasBottom.getContext('2d', { willReadFrequently: true });
+			const w = xEnd - xStart;
+			const h = yEnd - yStart;
+			const dataTop = ctxTop.getImageData(xStart, yStart, w, h).data;
+			const dataBottom = ctxBottom.getImageData(xStart, yStart, w, h).data;
+
+			function madForOverlap(s) {
+				let sum = 0, cnt = 0;
+				const topOffsetRows = h - s;
+				for (let y = 0; y < s; y++) {
+					const rowTop = (topOffsetRows + y) * w * 4;
+					const rowBot = y * w * 4;
+					for (let x = 0; x < w; x += sampleStepX) {
+						const idxT = rowTop + x * 4;
+						const idxB = rowBot + x * 4;
+						sum += Math.abs(dataTop[idxT] - dataBottom[idxB]);
+						sum += Math.abs(dataTop[idxT + 1] - dataBottom[idxB + 1]);
+						sum += Math.abs(dataTop[idxT + 2] - dataBottom[idxB + 2]);
+						cnt += 3;
+					}
+				}
+				return sum / cnt;
+			}
+
+			for (let s = h; s >= minOverlap; s--) {
+				const mad = madForOverlap(s);
+				if (mad < madThreshold) return { overlap: s, mad: mad, confident: true };
+			}
+			let bestS = minOverlap, bestMad = Infinity;
+			for (let s = minOverlap; s <= h; s += Math.max(1, Math.floor(h / 100))) {
+				const mad = madForOverlap(s);
+				if (mad < bestMad) { bestMad = mad; bestS = s; }
+			}
+			return { overlap: bestS, mad: bestMad, confident: false };
+		}
+
+		// ①-6：標準的なスクリーンショットかどうかの簡易判定（実測済みDMM版・スマホ版の
+		// 解像度/アスペクト比のホワイトリスト方式）。結合済み画像や加工済み画像など、
+		// レンジ外の画像がアップロードされた場合は結合処理そのものを中止する。
+		const STITCH_KNOWN_SCREENSHOT_PROFILES = [
+			{ label: 'DMM版(ブラウザ)相当', minWidth: 700, maxWidth: 1300, minAspect: 1.55, maxAspect: 1.95 },
+			{ label: 'スマホ版相当', minWidth: 700, maxWidth: 1500, minAspect: 1.9, maxAspect: 2.5 }
+		];
+
+		function stitchCheckStandardScreenshot(canvas) {
+			const w = canvas.width, h = canvas.height;
+			const aspect = h / w;
+			for (const p of STITCH_KNOWN_SCREENSHOT_PROFILES) {
+				if (w >= p.minWidth && w <= p.maxWidth && aspect >= p.minAspect && aspect <= p.maxAspect) {
+					return { ok: true, profile: p.label };
+				}
+			}
+			return { ok: false, profile: null, w: w, h: h, aspect: aspect };
+		}
+
+		// 「因子」バーや「継承元」ラベルなど、直前に何があっても関係なく、最初の
+		// 青いスキルパネル（スピード/根性等のカテゴリタグ）が実際に始まる行を直接
+		// 検出する。1枚目の画像にのみ適用する（②枚目以降は既に本文中のため不要）。
+		function stitchDetectFirstSkillPanelTop(canvas, headerEnd) {
+			const ctx = canvas.getContext('2d', { willReadFrequently: true });
+			const w = canvas.width;
+			const xSample = Math.floor(w * 0.3);
+			const maxScan = Math.floor(w * 0.25);
+			const data = ctx.getImageData(xSample, headerEnd, 1, maxScan).data;
+
+			function isBluePanel(r, g, b) { return b > 200 && g > 140 && g < 220 && r < 120; }
+
+			for (let y = 0; y < maxScan; y++) {
+				const idx = y * 4;
+				if (isBluePanel(data[idx], data[idx + 1], data[idx + 2])) {
+					return headerEnd + y;
+				}
+			}
+			return headerEnd;
+		}
+
+		// スキル一覧本体が終わった後に続く不要な領域（次のキャラクターの青枠、
+		// 「継承履歴」等の緑バー、「継承元」テキストのみの余白など）を検出し、
+		// その直前で打ち切るための行番号を返す。
+		function stitchFindTrailingCutY(canvas, searchStartY) {
+			const ctx = canvas.getContext('2d', { willReadFrequently: true });
+			const w = canvas.width;
+			const h = canvas.height;
+			if (searchStartY >= h) return h;
+			const xLeft = Math.floor(w * 0.3);
+			const data = ctx.getImageData(xLeft, searchStartY, 1, h - searchStartY).data;
+
+			function isBluePanel(r, g, b) { return b > 200 && g > 140 && g < 220 && r < 120; }
+			function isGreenBar(r, g, b) { return g > 160 && r > 80 && r < 170 && b < 70; }
+			function isBlankish(r, g, b) { return r > 244 && g > 244 && b > 244; }
+
+			const blankThreshold = Math.round(w * 0.035);
+			let blankRun = 0;
+			const rows = data.length / 4;
+			for (let y = 0; y < rows; y++) {
+				const idx = y * 4;
+				const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+				if (isBluePanel(r, g, b) || isGreenBar(r, g, b)) {
+					return searchStartY + y;
+				}
+				if (isBlankish(r, g, b)) {
+					blankRun++;
+					if (blankRun >= blankThreshold) {
+						return searchStartY + y - blankRun + 1;
+					}
+				} else {
+					blankRun = 0;
+				}
+			}
+			return h;
+		}
+
+		// 1人分（親A/祖A1/祖A2 等）の画像配列を縦結合し、結果Canvasを返す。
+		// ヘッダー/フッターは完全除外し、スキルパネル自体のみを出力する。
+		async function stitchOnePerson(files, groupLabel) {
+			if (files.length === 0) return null;
+			if (files.length === 1) {
+				throw new Error('[' + groupLabel + '] 画像が1枚のみです。結合には2枚以上が必要なため処理を中止します。');
+			}
+			stitchLog(groupLabel + ': ' + files.length + '枚を読み込みます...');
+			const imgs = [];
+			for (const f of files) imgs.push(await loadImage(f));
+			const canvases = imgs.map(stitchImgToCanvas);
+
+			for (let i = 0; i < canvases.length; i++) {
+				const check = stitchCheckStandardScreenshot(canvases[i]);
+				if (!check.ok) {
+					throw new Error('[' + groupLabel + '] 画像' + i + '(' + check.w + 'x' + check.h + ', 縦横比' + check.aspect.toFixed(2) + ')が標準的なスクリーンショットのサイズ範囲外です。結合済み画像や加工済み画像がアップロードされた可能性があるため処理を中止します。');
+				}
+			}
+
+			const w0 = canvases[0].width;
+			for (let i = 1; i < canvases.length; i++) {
+				if (canvases[i].width !== w0) {
+					throw new Error('[' + groupLabel + '] 画像の幅が一致していません（画像0: ' + w0 + 'px, 画像' + i + ': ' + canvases[i].width + 'px）。標準的なスクロールキャプチャではない可能性があるため中止します。');
+				}
+			}
+
+			const hf = stitchDetectHeaderFooter(canvases, groupLabel);
+			const headerEnd = hf.headerEnd, footerStart = hf.footerStart;
+			stitchLog(groupLabel + ': ヘッダー=行0〜' + (headerEnd - 1) + '(除外), スクロール領域=行' + headerEnd + '〜' + (footerStart - 1) + ', フッター=行' + footerStart + '〜' + (canvases[0].height - 1) + '(除外)');
+
+			let canvasesForStitch = canvases;
+			const order = stitchDetectScrollbarOrder(canvases, headerEnd, footerStart, groupLabel);
+			if (order) {
+				canvasesForStitch = order.map(i => canvases[i]);
+			} else {
+				stitchLog(groupLabel + ': 並び替えできなかったためアップロード順を使用します。');
+			}
+
+			const marginX = Math.floor(w0 * 0.1);
+			const overlaps = [];
+			for (let i = 0; i < canvasesForStitch.length - 1; i++) {
+				const r = stitchEstimateOverlapByPixelMAD(canvasesForStitch[i], canvasesForStitch[i + 1], headerEnd, footerStart, marginX, w0 - marginX);
+				stitchLog(groupLabel + ': 画像' + i + '→' + (i + 1) + ': オーバーラップ=' + r.overlap + '行 (MAD=' + r.mad.toFixed(2) + ', 信頼度' + (r.confident ? '高' : '低') + ')');
+				overlaps.push(r.overlap);
+			}
+
+			const contentHeight = footerStart - headerEnd;
+			let totalContentHeight = contentHeight;
+			for (const ov of overlaps) totalContentHeight += (contentHeight - ov);
+
+			const firstPanelTop = stitchDetectFirstSkillPanelTop(canvasesForStitch[0], headerEnd);
+			const skipFirst = Math.max(0, firstPanelTop - headerEnd);
+
+			const totalHeight = totalContentHeight - skipFirst;
+
+			const out = document.createElement('canvas');
+			out.width = w0;
+			out.height = totalHeight;
+			const octx = out.getContext('2d');
+
+			let cursorY = 0;
+			octx.drawImage(canvasesForStitch[0], 0, headerEnd + skipFirst, w0, contentHeight - skipFirst, 0, cursorY, w0, contentHeight - skipFirst);
+			cursorY += (contentHeight - skipFirst);
+			for (let i = 1; i < canvasesForStitch.length; i++) {
+				const ov = overlaps[i - 1];
+				const srcY = headerEnd + ov;
+				const drawH = contentHeight - ov;
+				octx.drawImage(canvasesForStitch[i], 0, srcY, w0, drawH, 0, cursorY, w0, drawH);
+				cursorY += drawH;
+			}
+
+			const searchStartY = Math.round(w0 * 0.15);
+			const cutY = stitchFindTrailingCutY(out, searchStartY);
+			if (cutY < out.height) {
+				const trimmed = document.createElement('canvas');
+				trimmed.width = w0;
+				trimmed.height = cutY;
+				trimmed.getContext('2d').drawImage(out, 0, 0, w0, cutY, 0, 0, w0, cutY);
+				stitchLog(groupLabel + ': 縦結合完了(末尾トリミング後): ' + w0 + ' x ' + cutY);
+				return trimmed;
+			}
+
+			stitchLog(groupLabel + ': 縦結合完了: ' + w0 + ' x ' + totalHeight);
+			return out;
+		}
+
+		// 複数人分のCanvasを上端揃え・スケーリングなしで横結合する（①-3）
+		function stitchConcatHorizontallyTopAligned(canvasList, gap) {
+			gap = gap || 8;
+			const totalWidth = canvasList.reduce((sum, c) => sum + c.width, 0) + gap * (canvasList.length - 1);
+			const maxHeight = Math.max.apply(null, canvasList.map(c => c.height));
+			const out = document.createElement('canvas');
+			out.width = totalWidth;
+			out.height = maxHeight;
+			const ctx = out.getContext('2d');
+			ctx.fillStyle = '#ffffff';
+			ctx.fillRect(0, 0, totalWidth, maxHeight);
+			let cursorX = 0;
+			for (const c of canvasList) {
+				ctx.drawImage(c, cursorX, 0);
+				cursorX += c.width + gap;
+			}
+			return out;
+		}
+
+		// ①-7：緑スキルハイライトバナー（検出数・sp70緑のみのシンプルな表示。
+		// 現行UIの「照合結果」カードと同じ配色：検出＝青系、sp70緑＝黄色/オレンジ系）
+		function stitchDrawPersonBanner(width, groupLabel, totalDetected, sp70Count) {
+			const pad = Math.round(width * 0.03);
+			const titleH = Math.round(width * 0.065);
+			const cardH = Math.round(width * 0.185);
+			const gapY = Math.round(width * 0.02);
+			const barHeight = pad * 2 + titleH + gapY + cardH;
+
+			const c = document.createElement('canvas');
+			c.width = width;
+			c.height = barHeight;
+			const ctx = c.getContext('2d');
+
+			ctx.fillStyle = '#ffffff';
+			ctx.fillRect(0, 0, width, barHeight);
+			ctx.strokeStyle = '#e2e2e2';
+			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.moveTo(0, barHeight - 1);
+			ctx.lineTo(width, barHeight - 1);
+			ctx.stroke();
+
+			let y = pad;
+
+			ctx.fillStyle = '#1a1a1a';
+			ctx.font = 'bold ' + titleH + 'px sans-serif';
+			ctx.textBaseline = 'top';
+			ctx.fillText(groupLabel, pad, y);
+			y += titleH + gapY;
+
+			function roundRect(x, yy, w, h, r) {
+				ctx.beginPath();
+				ctx.moveTo(x + r, yy);
+				ctx.arcTo(x + w, yy, x + w, yy + h, r);
+				ctx.arcTo(x + w, yy + h, x, yy + h, r);
+				ctx.arcTo(x, yy + h, x, yy, r);
+				ctx.arcTo(x, yy, x + w, yy, r);
+				ctx.closePath();
+			}
+
+			const cardGap = Math.round(width * 0.03);
+			const cardW = (width - pad * 2 - cardGap) / 2;
+			const radius = Math.round(width * 0.02);
+
+			const x1 = pad;
+			roundRect(x1, y, cardW, cardH, radius);
+			ctx.fillStyle = '#f5f8ff';
+			ctx.fill();
+			ctx.strokeStyle = '#cfe0fb';
+			ctx.lineWidth = 2;
+			ctx.stroke();
+
+			ctx.fillStyle = '#3c5a99';
+			ctx.font = 'bold ' + Math.round(cardH * 0.28) + 'px sans-serif';
+			ctx.textBaseline = 'top';
+			ctx.fillText('検出', x1 + cardW * 0.08, y + cardH * 0.10);
+
+			ctx.fillStyle = '#0f3fc9';
+			ctx.font = 'bold ' + Math.round(cardH * 0.56) + 'px sans-serif';
+			ctx.fillText(String(totalDetected), x1 + cardW * 0.08, y + cardH * 0.36);
+
+			const x2 = x1 + cardW + cardGap;
+			roundRect(x2, y, cardW, cardH, radius);
+			ctx.fillStyle = '#fffaf0';
+			ctx.fill();
+			ctx.strokeStyle = '#f5dfae';
+			ctx.lineWidth = 2;
+			ctx.stroke();
+
+			ctx.fillStyle = '#a9720b';
+			ctx.font = 'bold ' + Math.round(cardH * 0.28) + 'px sans-serif';
+			ctx.textBaseline = 'top';
+			ctx.fillText('sp70緑', x2 + cardW * 0.08, y + cardH * 0.10);
+
+			ctx.fillStyle = '#c96a00';
+			ctx.font = 'bold ' + Math.round(cardH * 0.56) + 'px sans-serif';
+			ctx.fillText(String(sp70Count), x2 + cardW * 0.08, y + cardH * 0.36);
+
+			return c;
+		}
+
+		// 共有の注意書きバー（セット内の全員分の横幅を使い、1行・右揃えで表示）
+		function stitchDrawSharedNoteBar(totalWidth, referenceWidth) {
+			const cardH = Math.round(referenceWidth * 0.185);
+			const targetFontSize = Math.round(cardH * 0.28);
+			const pad = Math.round(referenceWidth * 0.03);
+			const noteText = '※「〇〇の目覚め」は対応する基本スキルと個別にカウントしています。';
+
+			const c = document.createElement('canvas');
+			const ctx = c.getContext('2d');
+
+			let fontSize = targetFontSize;
+			const maxTextWidth = totalWidth - pad * 2;
+			ctx.font = 'bold ' + fontSize + 'px sans-serif';
+			while (fontSize > 10 && ctx.measureText(noteText).width > maxTextWidth) {
+				fontSize -= 1;
+				ctx.font = 'bold ' + fontSize + 'px sans-serif';
+			}
+
+			const barHeight = Math.round(fontSize * 1.8);
+			c.width = totalWidth;
+			c.height = barHeight;
+			ctx.font = 'bold ' + fontSize + 'px sans-serif';
+			ctx.fillStyle = '#ffffff';
+			ctx.fillRect(0, 0, totalWidth, barHeight);
+
+			ctx.fillStyle = '#555555';
+			ctx.textBaseline = 'top';
+			ctx.textAlign = 'right';
+			ctx.fillText(noteText, totalWidth - pad, Math.round(barHeight * 0.15));
+			ctx.textAlign = 'left';
+
+			return c;
+		}
+
+		/* ============================================================
+		 * ②コピー用コメント生成（親A/祖A1/祖A2等それぞれ個別）
+		 * 例: "sp70緑：10種、緑18種（目覚め重複除外）"（実質53種モード時）
+		 *     "sp70緑：10種、緑18種（目覚め含む）"（59種個別モード時）
+		 * 分母は含めない。スキル名の列挙も行わない。
+		 * ============================================================ */
+		function buildExamCopyComment(sp70Count, greenCount, mode) {
+			const note = mode === 'individual' ? '目覚め含む' : '目覚め重複除外';
+			return 'sp70緑：' + sp70Count + '種、緑' + greenCount + '種（' + note + '）';
+		}
+
+		/* ============================================================
+		 * セット単位（親A+祖A1+祖A2 / 親B+祖B1+祖B2）のオーケストレーション
+		 * ============================================================ */
+
+		// 指定セット(0=親Aセット, 1=親Bセット)について、アップロード済みの人（1〜3人）
+		// それぞれを縦結合し、バナー・注意書きバーとともに横結合した最終Canvasを返す。
+		// アップロードが1人分のみの場合は横結合をスキップしてその1人分を返す（①-5）。
+		// セット内の誰もアップロードしていない場合はnullを返す。
+		async function buildStitchedSetImage(setIdx) {
+			const baseIdx = setIdx * 3;
+			const activeIndexes = [0, 1, 2].map(r => baseIdx + r).filter(i => persons[i].files.length > 0);
+			if (activeIndexes.length === 0) return null;
+
+			const equivalence = (countMode === 'equivalence');
+			const sp70List = effectiveBaseList(SP70_GREEN_17);
+			const greenList = effectiveBaseList(GREEN_59);
+
+			const bannerCanvases = [];
+			const contentCanvases = [];
+			const personMeta = []; // コピー機能用に、personIdx・sp70・green・labelを保持
+
+			for (const idx of activeIndexes) {
+				const label = PERSON_LABELS[idx];
+				const contentCanvas = await stitchOnePerson(persons[idx].files, label);
+				if (!contentCanvas) continue;
+				const detected = countCategory(idx, skillList, false);
+				const sp70Count = countCategory(idx, sp70List, false);
+				const greenCount = countCategory(idx, greenList, equivalence);
+				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count);
+				bannerCanvases.push(banner);
+				contentCanvases.push(contentCanvas);
+				personMeta.push({ idx: idx, label: label, sp70Count: sp70Count, greenCount: greenCount });
+			}
+
+			if (contentCanvases.length === 0) return null;
+
+			const bannerRow = bannerCanvases.length === 1 ? bannerCanvases[0] : stitchConcatHorizontallyTopAligned(bannerCanvases);
+			const contentRow = contentCanvases.length === 1 ? contentCanvases[0] : stitchConcatHorizontallyTopAligned(contentCanvases);
+			const noteBar = stitchDrawSharedNoteBar(bannerRow.width, contentCanvases[0].width);
+
+			const totalWidth = Math.max(bannerRow.width, noteBar.width, contentRow.width);
+			const totalHeight = bannerRow.height + noteBar.height + contentRow.height;
+			const finalCanvas = document.createElement('canvas');
+			finalCanvas.width = totalWidth;
+			finalCanvas.height = totalHeight;
+			const fctx = finalCanvas.getContext('2d');
+			fctx.fillStyle = '#ffffff';
+			fctx.fillRect(0, 0, totalWidth, totalHeight);
+			fctx.drawImage(bannerRow, 0, 0);
+			fctx.drawImage(noteBar, 0, bannerRow.height);
+			fctx.drawImage(contentRow, 0, bannerRow.height + noteBar.height);
+
+			finalCanvas._personMeta = personMeta; // コピーボタン描画用に一時保持
+			return finalCanvas;
+		}
+
+		// 「OCR処理＋画像結合を開始する」ボタンから呼ばれるエントリーポイント。
+		// 既存のOCR処理(processImages)を先に実行し、その後に画像結合を行う。
+		async function processImagesAndStitch() {
+			await processImages();
+			await runImageStitching();
+		}
+
+		async function runImageStitching() {
+			const wrap = document.getElementById('stitch-result-wrap');
+			const container = document.getElementById('stitch-result-content');
+			container.innerHTML = '';
+			let anyOutput = false;
+
+			for (let setIdx = 0; setIdx < PERSON_SETS.length; setIdx++) {
+				if (setIdx === 1 && !setBVisible) continue; // 親Bセットが非表示なら結合もスキップ
+				const baseIdx = setIdx * 3;
+				const hasFiles = [0, 1, 2].some(r => persons[baseIdx + r].files.length > 0);
+				if (!hasFiles) continue;
+
+				try {
+					const canvas = await buildStitchedSetImage(setIdx);
+					if (canvas) {
+						anyOutput = true;
+						appendStitchResultBlock(container, PERSON_SETS[setIdx], canvas);
+					}
+				} catch (e) {
+					console.error(e);
+					anyOutput = true;
+					appendStitchErrorBlock(container, PERSON_SETS[setIdx], e.message);
+				}
+			}
+
+			wrap.classList.toggle('hidden', !anyOutput);
+		}
+
+		function appendStitchErrorBlock(container, set, message) {
+			const div = document.createElement('div');
+			div.className = 'rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700';
+			div.textContent = set.label + 'の画像結合に失敗しました: ' + message;
+			container.appendChild(div);
+		}
+
+		function appendStitchResultBlock(container, set, canvas) {
+			const dataUrl = canvas.toDataURL('image/png');
+			const personMeta = canvas._personMeta || [];
+
+			const block = document.createElement('div');
+			block.className = 'rounded-xl border border-slate-200 bg-white/70 p-3 md:p-4';
+
+			const header = document.createElement('div');
+			header.className = 'flex items-center justify-between mb-3';
+			header.innerHTML = '<p class="text-xs font-bold text-slate-700">' + escapeHtml(set.label) + '</p>';
+			const downloadLink = document.createElement('a');
+			downloadLink.href = dataUrl;
+			downloadLink.download = 'uma-exam-' + set.id + '.png';
+			downloadLink.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[11px] font-semibold hover:bg-indigo-700 transition-all cursor-pointer';
+			downloadLink.textContent = 'PNGをダウンロード';
+			header.appendChild(downloadLink);
+			block.appendChild(header);
+
+			const img = document.createElement('img');
+			img.src = dataUrl;
+			img.className = 'w-full rounded-lg border border-slate-200 mb-3';
+			block.appendChild(img);
+
+			if (personMeta.length > 0) {
+				const copyWrap = document.createElement('div');
+				copyWrap.className = 'flex flex-wrap gap-2';
+				personMeta.forEach(m => {
+					const btn = document.createElement('button');
+					btn.type = 'button';
+					btn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-[11px] font-semibold hover:bg-slate-50 transition-all cursor-pointer';
+					btn.textContent = m.label + 'のコメントをコピー';
+					btn.onclick = () => {
+						const text = buildExamCopyComment(m.sp70Count, m.greenCount, countMode);
+						if (navigator.clipboard && navigator.clipboard.writeText) {
+							navigator.clipboard.writeText(text).then(() => showToast(m.label + 'のコメントをコピーしました'));
+						}
+					};
+					copyWrap.appendChild(btn);
+				});
+				block.appendChild(copyWrap);
+			}
+
+			container.appendChild(block);
+		}
+	</script>
+</body>
+</html>
