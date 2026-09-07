@@ -1594,10 +1594,10 @@
 
 			let topRes, bottomRes;
 			try {
-				[topRes, bottomRes] = await Promise.all([
-					worker.recognize(topStrip),
-					worker.recognize(bottomStrip)
-				]);
+				// 単一のTesseractワーカーに対してrecognize()を並列実行すると
+				// 無応答になることが実機で確認されたため、直列実行に変更する。
+				topRes = await worker.recognize(topStrip);
+				bottomRes = await worker.recognize(bottomStrip);
 			} catch (err) {
 				stitchLog(groupLabel + ': OCRによる継ぎ目検出でエラー(' + err + ')。ピクセル比較にフォールバックします。');
 				return { overlap: null, confident: false, matchCount: 0 };
