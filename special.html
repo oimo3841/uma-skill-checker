@@ -1309,17 +1309,34 @@
 			let footerStart = -Infinity;
 			for (let i = 0; i < canvases.length - 1; i++) {
 				const diff = stitchRowDiffSignal(canvases[i], canvases[i + 1]);
-				let first = -1, last = -1;
+				let first = -1;
 				for (let y = 0; y < diff.length; y++) {
-					if (diff[y] > threshold) { if (first === -1) first = y; last = y; }
+					if (diff[y] > threshold) { first = y; break; }
 				}
 				if (first === -1) {
 					stitchLog(groupLabel + ': 警告: 画像' + i + 'と画像' + (i + 1) + 'で差分が検出できませんでした（同一画像の可能性）');
 					continue;
 				}
+				// 【修正】「一番下の差分行」をfooterStartにすると、本文より下にある
+				// 固定UI（閉じるボタン等）を挟んだ先の、ぼやけた背景バナーの
+				// わずかな変化（本文のスクロールとは無関係）まで拾ってしまうことが
+				// 実データで確認された。本文は差分が途切れずに連続するはずなので、
+				// headerEnd相当の位置から、一定長（100行）以上差分が途切れた
+				// 最初の地点を「本文の終わり」とみなす。
+				const quietRunLen = 100;
+				let run = 0, quietStart = -1;
+				for (let y = first; y < diff.length; y++) {
+					if (diff[y] <= threshold) {
+						run++;
+						if (run >= quietRunLen) { quietStart = y - run + 1; break; }
+					} else {
+						run = 0;
+					}
+				}
+				const last = (quietStart !== -1) ? quietStart - 1 : diff.length - 1;
 				headerEnd = Math.min(headerEnd, first);
 				footerStart = Math.max(footerStart, last + 1);
-				stitchLog(groupLabel + ': 画像' + i + '-' + (i + 1) + '間の差分範囲: 行' + first + ' 〜 行' + last);
+				stitchLog(groupLabel + ': 画像' + i + '-' + (i + 1) + '間の差分範囲: 行' + first + ' 〜 行' + last + (quietStart !== -1 ? '（以降は静止区間として除外）' : ''));
 			}
 			if (!isFinite(headerEnd) || !isFinite(footerStart)) {
 				throw new Error('[' + groupLabel + '] 全画像が同一、またはヘッダー/フッター境界を検出できませんでした。');
