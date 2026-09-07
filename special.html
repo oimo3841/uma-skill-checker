@@ -1276,9 +1276,16 @@
 			return c;
 		}
 
+		// 【2026-09-07d修正】左右端（キャラ切り替え用のナビ矢印など、DMM版で
+		// 明滅アニメーションする装飾）だけの差分を「本文がスクロールしている」と
+		// 誤検出しないよう、比較対象を中央部（左右20%を除いた範囲）に限定する。
+		// 実データで確認したところ、本文のスクロールは中央部を含む全幅で差分が
+		// 出るのに対し、ナビ矢印の明滅は左右端だけで中央部の差分はゼロだった。
 		function stitchRowDiffSignal(canvasA, canvasB, sampleStep = 4) {
 			const h = Math.min(canvasA.height, canvasB.height);
 			const w = Math.min(canvasA.width, canvasB.width);
+			const xStart = Math.floor(w * 0.2);
+			const xEnd = Math.ceil(w * 0.8);
 			const ctxA = canvasA.getContext('2d', { willReadFrequently: true });
 			const ctxB = canvasB.getContext('2d', { willReadFrequently: true });
 			const dataA = ctxA.getImageData(0, 0, w, h).data;
@@ -1287,7 +1294,7 @@
 			for (let y = 0; y < h; y++) {
 				let sum = 0, cnt = 0;
 				const rowOffset = y * w * 4;
-				for (let x = 0; x < w; x += sampleStep) {
+				for (let x = xStart; x < xEnd; x += sampleStep) {
 					const idx = rowOffset + x * 4;
 					sum += Math.abs(dataA[idx] - dataB[idx]) + Math.abs(dataA[idx + 1] - dataB[idx + 1]) + Math.abs(dataA[idx + 2] - dataB[idx + 2]);
 					cnt++;
@@ -1603,20 +1610,26 @@
 				return { overlap: null, confident: false, matchCount: 0 };
 			}
 
-			// extractLinesWithBBoxはcommon.js側の既存関数（{text, conf, y0, y1}の配列を返す）
+			// 【2026-09-07d修正】完全一致(===)だと、OCRの誤読（例：「遊びはおしまいっ！」
+			// が「遵びはおしまいっ丿」「遽びはおしまいっ丿」等、読むたびに微妙に違う
+			// 文字列になる）で一致が1件も成立しないことが実データで確認された。
+			// スキル判定側（common.js）と同じ正規化＋編集距離による曖昧一致に揃える。
 			const topLines = extractLinesWithBBox(topRes.data)
-				.map(l => ({ text: stitchNormalizeOcrText(l.text), Y: (h - stripH) + (l.y0 + l.y1) / 2 }))
+				.map(l => ({ text: normalizeText(l.text), Y: (h - stripH) + (l.y0 + l.y1) / 2 }))
 				.filter(l => l.text.length >= 2 && l.y0 !== null);
 			const bottomLines = extractLinesWithBBox(bottomRes.data)
-				.map(l => ({ text: stitchNormalizeOcrText(l.text), Y: (l.y0 + l.y1) / 2 }))
+				.map(l => ({ text: normalizeText(l.text), Y: (l.y0 + l.y1) / 2 }))
 				.filter(l => l.text.length >= 2 && l.y0 !== null);
 
-			// 同一テキストの行同士から、オーバーラップ候補 s = h - Y_top + Y_bottom を計算する。
-			// （top側のY座標がheaderEndからの絶対位置、bottom側も同様という前提の導出）
+			// 同一テキスト（曖昧一致）の行同士から、オーバーラップ候補
+			// s = h - Y_top + Y_bottom を計算する。
 			const candidates = [];
 			for (const tl of topLines) {
 				for (const bl of bottomLines) {
-					if (tl.text === bl.text) candidates.push(h - tl.Y + bl.Y);
+					if (Math.abs(tl.text.length - bl.text.length) > allowedDistance(Math.max(tl.text.length, bl.text.length)) + 1) continue;
+					if (levenshtein(tl.text, bl.text) <= allowedDistance(Math.max(tl.text.length, bl.text.length))) {
+						candidates.push(h - tl.Y + bl.Y);
+					}
 				}
 			}
 
