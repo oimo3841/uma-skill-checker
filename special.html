@@ -1478,17 +1478,13 @@
 				return sum / cnt;
 			}
 
+			// 【修正】粗い間隔で走査してから周辺だけ再探索する二段探索だと、
+			// 真の最良位置がわずか数px幅の狭い谷にしかない場合に飛び越して
+			// 見逃し、たまたま粗い格子に乗った劣った候補を採用してしまう
+			// ことが実データで確認された。1px刻みの全探索に変更する。
 			const maxY0 = h - effTemplateH;
-			const coarseStep = 4;
 			let bestY0 = 0, bestMad = Infinity, secondMad = Infinity;
-			for (let y0 = 0; y0 <= maxY0; y0 += coarseStep) {
-				const mad = madAt(y0);
-				if (mad < bestMad) { secondMad = bestMad; bestMad = mad; bestY0 = y0; }
-				else if (mad < secondMad) secondMad = mad;
-			}
-			const refineLo = Math.max(0, bestY0 - coarseStep), refineHi = Math.min(maxY0, bestY0 + coarseStep);
-			for (let y0 = refineLo; y0 <= refineHi; y0++) {
-				if (y0 % coarseStep === 0) continue;
+			for (let y0 = 0; y0 <= maxY0; y0++) {
 				const mad = madAt(y0);
 				if (mad < bestMad) { secondMad = bestMad; bestMad = mad; bestY0 = y0; }
 				else if (mad < secondMad) secondMad = mad;
