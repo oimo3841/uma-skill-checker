@@ -79,7 +79,7 @@
 				<!-- 左側：タイトルエリア -->
 				<div>
 					<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR<span class="ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">β版</span></h1>
-					<p class="mt-1.5 text-xs md:text-sm text-slate-500">1〜3人目の因子スクリーンショットから、スキルごとの★の数を自動判定します</p>
+					<p class="mt-1.5 text-xs md:text-sm text-slate-500">1〜3人目（必要に応じて4〜6人目セットも追加可能）の因子スクリーンショットから、スキルごとの★の数を自動判定します</p>
 					<p class="mt-1 text-[11px] text-amber-700">※ OCR・★判定の精度は完全ではありません。結果は念のため目視でもご確認ください。</p>
 					<p class="mt-0.5 text-[11px] text-amber-700">※ SNSの投稿画像等は解像度不足のため対象外となる場合があります。また、加工された画像は適切に判定できない場合があります。ゲーム画面から直接撮ったスクリーンショットをご利用ください。</p>
 				</div>
@@ -164,12 +164,12 @@
 				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
 					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 2</span>
 					<p class="font-bold text-slate-800">対象を撮影</p>
-					<p class="text-slate-500 mt-1">1〜3人分のうち、必要な人数分の因子画面を、境界を含めず個別に撮影</p>
+					<p class="text-slate-500 mt-1">1〜3人分（＋任意で4〜6人分）のうち、必要な人数分の因子画面を、境界を含めず個別に撮影</p>
 				</div>
 				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
 					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 3</span>
 					<p class="font-bold text-slate-800">使う欄にアップロード</p>
-					<p class="text-slate-500 mt-1">1〜3人目のうち、使う欄にだけスクショを追加（残りは空欄でOK）</p>
+					<p class="text-slate-500 mt-1">1〜3人目（＋4〜6人目）のうち、使う欄にだけスクショを追加（残りは空欄でOK）</p>
 				</div>
 				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
 					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 4</span>
@@ -201,12 +201,12 @@
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
 					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">1</span>
-					<h2 class="text-sm font-bold text-slate-800">スキルリストを入力（1〜3人目共通）</h2>
+					<h2 class="text-sm font-bold text-slate-800">スキルリストを入力（1〜6人目共通）</h2>
 				</div>
 				<span id="skill-count-badge" class="hidden text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-800"></span>
 			</div>
 
-			<p class="text-xs text-slate-500 mb-3">スプレッドシートから1列分（改行区切り）コピーしてそのまま貼り付けできます。1〜3人目すべてに対して同じリストで照合します。</p>
+			<p class="text-xs text-slate-500 mb-3">スプレッドシートから1列分（改行区切り）コピーしてそのまま貼り付けできます。1〜6人目すべてに対して同じリストで照合します。</p>
 
 			<textarea id="skill-list" class="w-full h-28 text-xs md:text-sm p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-green-500 focus:ring-2 focus:ring-green-200 font-mono transition-all outline-none resize-y" placeholder="例：&#10;根幹距離○&#10;右回り○&#10;直線コース○"></textarea>
 
@@ -249,16 +249,24 @@
 			</details>
 		</div>
 
-		<!-- ステップ2：3人分の画像アップロード -->
+		<!-- ステップ2：1〜3人目（＋任意で4〜6人目）の画像アップロード -->
 		<div class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6">
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
 					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">2</span>
-					<h2 class="text-sm font-bold text-slate-800">1〜3人目の画像をアップロード（1人分だけでもOK）</h2>
+					<h2 class="text-sm font-bold text-slate-800">画像をアップロード（1人分だけでもOK）</h2>
 				</div>
 			</div>
 
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5" id="person-upload-grid"></div>
+			<!-- 1〜3人目セット -->
+			<div id="personset-A-wrap" class="mb-3"></div>
+
+			<!-- 4〜6人目セット（因子元の系統が複数ある場合に追加）。デフォルト非表示。
+			     非表示にしてもアップロード済みのファイル自体は保持される。 -->
+			<button id="setb-toggle-btn" type="button" onclick="toggleSetB()" class="w-full mb-3 py-2 px-3 rounded-xl border border-dashed border-slate-300 text-xs font-semibold text-slate-500 hover:border-red-300 hover:text-red-600 hover:bg-red-50/40 transition-all cursor-pointer">
+				<span id="setb-toggle-label">＋ 4〜6人目セットも追加する</span>
+			</button>
+			<div id="personset-B-wrap" class="hidden mb-3"></div>
 
 			<!-- オプション設定（デフォルトで折りたたみ） -->
 			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-5">
@@ -320,16 +328,17 @@
 				<span>OCR処理を開始する</span>
 			</button>
 
-			<!-- OCR処理＋画像結合（SNS投稿用）。各人ごとに複数枚のスクショを1枚に縦結合し、
-			     さらに1〜3人目を横結合して1枚の比較画像として出力する。 -->
-			<button id="process-stitch-btn" type="button" onclick="processImagesAndStitch()" class="w-full mt-2 py-3.5 px-4 rounded-xl bg-white text-green-700 text-xs md:text-sm font-bold border-2 border-green-200 hover:bg-green-50 active:scale-99 transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer" disabled>
+			<!-- 画像結合（SNS投稿用）。OCR処理とは独立した機能で、スキルリスト未入力でも
+			     アップロード済み画像だけで実行できる。各人ごとに複数枚のスクショを1枚に
+			     縦結合し、さらに1〜3人目を横結合して1枚の比較画像として出力する。 -->
+			<button id="stitch-btn" type="button" onclick="runImageStitching()" class="w-full mt-2 py-3.5 px-4 rounded-xl bg-white text-green-700 text-xs md:text-sm font-bold border-2 border-green-200 hover:bg-green-50 active:scale-99 transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer" disabled>
 				<i data-lucide="images" class="w-4 h-4"></i>
-				<span>OCR処理＋画像結合を開始する（SNS投稿用・高負荷）</span>
+				<span>画像を結合する（SNS投稿用）</span>
 			</button>
-			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、1人につき2枚以上のスクリーンショットを縦結合し、使用中の1〜3人目を1枚の比較画像にまとめて出力します。1人分が1枚のみの場合はエラーになります。</p>
+			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※1人につき2枚以上のスクリーンショットを縦結合し、1〜3人目セット・4〜6人目セットそれぞれで、使用中の人を1枚の画像にまとめて個別に出力します。1人分が1枚のみの場合はエラーになります。</p>
 		</div>
 
-		<!-- 画像結合結果（SNS投稿用・β）：スキルパネルのみを縦横に結合した画像とコピー用コメントを表示 -->
+		<!-- 画像結合結果（SNS投稿用・β）：スキルパネルのみを縦横に結合した画像を表示 -->
 		<div id="stitch-result-wrap" class="hidden glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-8 transition-all">
 			<div class="flex items-center gap-2 mb-4">
 				<i data-lucide="images" class="w-4 h-4 text-green-600"></i>
@@ -425,15 +434,22 @@
 		let ocrErrorDictionary = {};
 		const DICT_STORAGE_KEY = 'uma-special-ocr-dict';
 
-		// 1〜3人目それぞれのアップロード済みファイルと、解析結果（skillStars: {スキル名: 星の数}）
-		const PERSON_LABELS = ['1人目', '2人目', '3人目'];
-		const PERSON_COLORS = ['blue', 'pink', 'emerald'];
-		const persons = [
-			{ files: [] },
-			{ files: [] },
-			{ files: [] }
+		// 「1〜3人目セット」「4〜6人目セット」の2セット構成。
+		// Examの親A/親Bのような「因子元の系統」を表す区分だが、家系ツリーの概念は
+		// special.html本来の用途にそぐわないため持ち込まず、単純に3人×2セットとする。
+		// セットBはデフォルト非表示（toggleSetB()で表示切替）。スキルリストは
+		// 2セットで共通（1つのリストで1〜6人目全員を照合する）。
+		const PERSON_SETS = [
+			{ id: 'A', label: '1〜3人目セット', hue: 'blue' },
+			{ id: 'B', label: '4〜6人目セット', hue: 'red' }
 		];
-		let personResults = [null, null, null]; // matchAllSkillsWithStars() の戻り値を格納
+		const PERSON_LABELS = ['1人目', '2人目', '3人目', '4人目', '5人目', '6人目'];
+		// バッジ・統計カードの配色。セットAは既存の青/桃/翠、セットBは同系統の
+		// 別色（空色/薔薇/青緑）を割り当て、両セット表示時にも列を判別しやすくする。
+		const PERSON_COLORS = ['blue', 'pink', 'emerald', 'sky', 'rose', 'teal'];
+		const persons = PERSON_LABELS.map(() => ({ files: [] }));
+		let personResults = PERSON_LABELS.map(() => null); // matchAllSkillsWithStars() の戻り値を格納
+		let setBVisible = false;
 
 		document.addEventListener('DOMContentLoaded', () => {
 			renderPersonUploadGrid();
@@ -548,11 +564,11 @@
 		}
 
 		/* ============================================================
-		 * 1〜3人目 それぞれのアップロード欄
+		 * 1〜6人目（1〜3人目セット・4〜6人目セット）のアップロード欄
 		 * ============================================================ */
-		function renderPersonUploadGrid() {
-			const grid = document.getElementById('person-upload-grid');
-			grid.innerHTML = PERSON_LABELS.map((label, idx) => `
+		function buildPersonUploadCard(idx) {
+			const label = PERSON_LABELS[idx];
+			return `
 				<div class="rounded-xl border border-slate-200 bg-slate-50/40 p-3">
 					<p class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
 						<span class="w-5 h-5 rounded-full bg-${PERSON_COLORS[idx]}-500 text-white text-[10px] font-bold flex items-center justify-center">${idx + 1}</span>
@@ -566,19 +582,37 @@
 						</div>
 					</label>
 					<div class="person-image-list grid grid-cols-2 gap-2" data-person="${idx}"></div>
-				</div>
-			`).join('');
+				</div>`;
+		}
+
+		function buildSetPanel(setIdx) {
+			const set = PERSON_SETS[setIdx];
+			const baseIdx = setIdx * 3;
+			const cards = [0, 1, 2].map(r => buildPersonUploadCard(baseIdx + r)).join('');
+			return `
+				<div class="rounded-2xl border border-${set.hue}-200 bg-${set.hue}-50/20 p-4">
+					<div class="flex items-center justify-between mb-3">
+						<p class="text-xs font-bold text-${set.hue}-800">${set.label}</p>
+						<button type="button" onclick="clearPersonSet(${setIdx})" class="text-[11px] text-slate-400 hover:text-red-600 underline underline-offset-2 cursor-pointer">セットをクリア</button>
+					</div>
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-3">${cards}</div>
+				</div>`;
+		}
+
+		function renderPersonUploadGrid() {
+			document.getElementById('personset-A-wrap').innerHTML = buildSetPanel(0);
+			document.getElementById('personset-B-wrap').innerHTML = buildSetPanel(1);
 
 			if (window.lucide) lucide.createIcons();
 
-			grid.querySelectorAll('.person-file-input').forEach(input => {
+			document.querySelectorAll('.person-file-input').forEach(input => {
 				input.addEventListener('change', (e) => {
 					const idx = Number(e.target.dataset.person);
 					addPersonFiles(idx, Array.from(e.target.files));
 					e.target.value = '';
 				});
 			});
-			grid.querySelectorAll('.person-drop-zone').forEach(zone => {
+			document.querySelectorAll('.person-drop-zone').forEach(zone => {
 				const idx = Number(zone.dataset.person);
 				['dragenter', 'dragover'].forEach(ev => {
 					zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('drop-active'); });
@@ -593,6 +627,28 @@
 					if (files.length) addPersonFiles(idx, files);
 				});
 			});
+
+			// フルリビルド直後でも、既にアップロード済みのファイルがあればサムネイルを復元する
+			persons.forEach((_, idx) => renderPersonImageList(idx));
+		}
+
+		// 4〜6人目セットの表示/非表示を切り替える。非表示にしてもアップロード済みの
+		// ファイル自体は保持される（再表示すれば残っている。OCR結果にも引き続き含まれる）。
+		function toggleSetB() {
+			setBVisible = !setBVisible;
+			const wrap = document.getElementById('personset-B-wrap');
+			wrap.classList.toggle('hidden', !setBVisible);
+			document.getElementById('setb-toggle-label').textContent = setBVisible ? '− 4〜6人目セットを閉じる' : '＋ 4〜6人目セットも追加する';
+			document.getElementById('setb-toggle-btn').classList.toggle('bg-red-50', setBVisible);
+			document.getElementById('setb-toggle-btn').classList.toggle('border-red-300', setBVisible);
+		}
+
+		// 指定セット（0=1〜3人目, 1=4〜6人目）の3枠すべてのアップロード済み画像をクリアする
+		function clearPersonSet(setIdx) {
+			const baseIdx = setIdx * 3;
+			[0, 1, 2].forEach(r => { persons[baseIdx + r].files = []; });
+			[0, 1, 2].forEach(r => renderPersonImageList(baseIdx + r));
+			updateProcessBtn();
 		}
 
 		function addPersonFiles(personIdx, files) {
@@ -628,10 +684,9 @@
 
 		function updateProcessBtn() {
 			const anyFiles = persons.some(p => p.files.length > 0);
-			const disabled = (skillList.length === 0 || !anyFiles);
-			processBtn.disabled = disabled;
-			const stitchBtn = document.getElementById('process-stitch-btn');
-			if (stitchBtn) stitchBtn.disabled = disabled;
+			processBtn.disabled = (skillList.length === 0 || !anyFiles);
+			const stitchBtn = document.getElementById('stitch-btn');
+			if (stitchBtn) stitchBtn.disabled = !anyFiles;
 		}
 
 		/* ============================================================
@@ -718,7 +773,7 @@
 
 			devGeometry = [];
 			previewCanvases = [];
-			personResults = [null, null, null];
+			personResults = persons.map(() => null);
 
 			const progressWrap = document.getElementById('progress-wrap');
 			const errorWrap = document.getElementById('error-wrap');
@@ -727,7 +782,6 @@
 			qualityWarnWrap.classList.add('hidden');
 			progressWrap.classList.remove('hidden');
 			processBtn.disabled = true;
-			document.getElementById('process-stitch-btn').disabled = true;
 
 			// 画像前処理・高精度多重パスは常時有効（デフォルトのまま固定）
 			const usePre = true;
@@ -764,7 +818,6 @@
 				document.getElementById('error-content').textContent = 'OCR処理の初期化に失敗しました。ネットワーク接続を確認してください。\n' + err;
 				progressWrap.classList.add('hidden');
 				processBtn.disabled = false;
-				document.getElementById('process-stitch-btn').disabled = false;
 				return;
 			} finally {
 				if (worker) { try { await worker.terminate(); } catch (e) {} }
@@ -772,7 +825,6 @@
 
 			progressWrap.classList.add('hidden');
 			processBtn.disabled = false;
-			document.getElementById('process-stitch-btn').disabled = false;
 
 			if (skippedAll.length > 0) {
 				qualityWarnWrap.classList.remove('hidden');
@@ -817,19 +869,30 @@
 		}
 
 		function activePersonIndexes() {
-			return [0, 1, 2].filter(i => personResults[i]);
+			return [0, 1, 2, 3, 4, 5].filter(i => personResults[i]);
 		}
 
+		// PERSON_COLORS・PERSON_LABELSと対応する統計カードの配色・ラベル定義
 		const PERSON_STAT_META = {
-			0: ['blue', '1人目'],
-			1: ['pink', '2人目'],
-			2: ['emerald', '3人目']
+			0: [PERSON_COLORS[0], PERSON_LABELS[0]],
+			1: [PERSON_COLORS[1], PERSON_LABELS[1]],
+			2: [PERSON_COLORS[2], PERSON_LABELS[2]],
+			3: [PERSON_COLORS[3], PERSON_LABELS[3]],
+			4: [PERSON_COLORS[4], PERSON_LABELS[4]],
+			5: [PERSON_COLORS[5], PERSON_LABELS[5]]
 		};
 
 		function renderStatGrid(used) {
 			const grid = document.getElementById('stat-grid');
 			const cols = used.length + 1;
-			grid.className = 'grid gap-3 mb-6 ' + (cols <= 2 ? 'grid-cols-2' : cols === 3 ? 'grid-cols-3' : 'grid-cols-4');
+			// 1〜3人目セットのみ（cols最大4）なら従来通りのシンプルな列数、
+			// 4〜6人目セットも表示中（cols最大7）ならレスポンシブに折り返す。
+			let colsClass;
+			if (cols <= 2) colsClass = 'grid-cols-2';
+			else if (cols === 3) colsClass = 'grid-cols-3';
+			else if (cols === 4) colsClass = 'grid-cols-2 sm:grid-cols-4';
+			else colsClass = 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-' + cols;
+			grid.className = 'grid gap-3 mb-6 ' + colsClass;
 
 			let html = `
 				<div class="rounded-xl border border-slate-200 bg-slate-50/50 p-3 md:p-4 text-center">
@@ -849,7 +912,7 @@
 
 		function renderTableHeader(used) {
 			const thead = document.getElementById('result-thead');
-			const nameWidth = used.length <= 1 ? 'w-3/5' : used.length === 2 ? 'w-1/2' : 'w-2/5';
+			const nameWidth = used.length <= 1 ? 'w-3/5' : used.length === 2 ? 'w-1/2' : used.length <= 3 ? 'w-2/5' : 'w-1/4';
 			let html = `<tr><th class="${nameWidth}">スキル名（リスト順）</th>`;
 			used.forEach(i => { html += `<th class="text-center">${PERSON_LABELS[i]}</th>`; });
 			html += '</tr>';
@@ -1080,12 +1143,13 @@
 		}
 
 		/* ============================================================
-		 * 画像結合機能（1〜3人目の縦横結合・SNS投稿用）
+		 * 画像結合機能（1〜3人目セット・4〜6人目セットそれぞれの縦横結合・SNS投稿用）
 		 * ------------------------------------------------------------
 		 * exam.htmlで開発された画像結合ロジックをspecial.html向けに移植したもの。
 		 * exam.html専有だった「親A/祖A1/祖A2」等の家系セット概念・sp70緑/緑59種
-		 * といった技能試験固有のスキル分類は一切含めず、Special本来の指標
-		 * （検出数・★3の数）のみをバナーに表示する汎用実装とする。
+		 * といった技能試験固有のスキル分類・バナー表示は一切含めず、スキルパネルの
+		 * 画像そのものを結合するだけのシンプルな実装とする。1〜3人目セット・
+		 * 4〜6人目セットはそれぞれ個別に結合し、別々の画像として出力する。
 		 * special.html専用のロジックとして本ファイル内に完結させる（common.js非改変の原則）。
 		 * OCRマッチング用の loadImage() は js/common.js のものをそのまま利用する
 		 * （同名関数の重複定義を避けるため、ここでは再定義しない）。
@@ -1433,202 +1497,84 @@
 			return out;
 		}
 
-		// 各人ごとの検出数・★3の数を集計する（Special本来の指標のみ。
-		// exam.htmlのsp70緑/緑59種のような技能試験固有のカテゴリは持ち込まない）。
-		function countFoundSkillsFor(personIdx) {
-			let n = 0;
-			skillList.forEach(skill => { if (starsFor(personIdx, skill) !== undefined) n++; });
-			return n;
-		}
-		function countStar3SkillsFor(personIdx) {
-			let n = 0;
-			skillList.forEach(skill => { if (starsFor(personIdx, skill) === 3) n++; });
-			return n;
-		}
-
-		// 人物ごとのバナー（検出数・★3の数を表示。現行UIの「照合結果」カードと
-		// 同じ配色：検出＝青系、★3＝黄色/オレンジ系）
-		function stitchDrawPersonBanner(width, groupLabel, foundCount, star3Count) {
-			const pad = Math.round(width * 0.03);
-			const titleH = Math.round(width * 0.065);
-			const cardH = Math.round(width * 0.185);
-			const gapY = Math.round(width * 0.02);
-			const barHeight = pad * 2 + titleH + gapY + cardH;
-
-			const c = document.createElement('canvas');
-			c.width = width;
-			c.height = barHeight;
-			const ctx = c.getContext('2d');
-
-			ctx.fillStyle = '#ffffff';
-			ctx.fillRect(0, 0, width, barHeight);
-			ctx.strokeStyle = '#e2e2e2';
-			ctx.lineWidth = 2;
-			ctx.beginPath();
-			ctx.moveTo(0, barHeight - 1);
-			ctx.lineTo(width, barHeight - 1);
-			ctx.stroke();
-
-			let y = pad;
-
-			ctx.fillStyle = '#1a1a1a';
-			ctx.font = 'bold ' + titleH + 'px sans-serif';
-			ctx.textBaseline = 'top';
-			ctx.fillText(groupLabel, pad, y);
-			y += titleH + gapY;
-
-			function roundRect(x, yy, w, h, r) {
-				ctx.beginPath();
-				ctx.moveTo(x + r, yy);
-				ctx.arcTo(x + w, yy, x + w, yy + h, r);
-				ctx.arcTo(x + w, yy + h, x, yy + h, r);
-				ctx.arcTo(x, yy + h, x, yy, r);
-				ctx.arcTo(x, yy, x + w, yy, r);
-				ctx.closePath();
-			}
-
-			const cardGap = Math.round(width * 0.03);
-			const cardW = (width - pad * 2 - cardGap) / 2;
-			const radius = Math.round(width * 0.02);
-
-			const x1 = pad;
-			roundRect(x1, y, cardW, cardH, radius);
-			ctx.fillStyle = '#f5f8ff';
-			ctx.fill();
-			ctx.strokeStyle = '#cfe0fb';
-			ctx.lineWidth = 2;
-			ctx.stroke();
-
-			ctx.fillStyle = '#3c5a99';
-			ctx.font = 'bold ' + Math.round(cardH * 0.28) + 'px sans-serif';
-			ctx.textBaseline = 'top';
-			ctx.fillText('検出', x1 + cardW * 0.08, y + cardH * 0.10);
-
-			ctx.fillStyle = '#0f3fc9';
-			ctx.font = 'bold ' + Math.round(cardH * 0.56) + 'px sans-serif';
-			ctx.fillText(String(foundCount), x1 + cardW * 0.08, y + cardH * 0.36);
-
-			const x2 = x1 + cardW + cardGap;
-			roundRect(x2, y, cardW, cardH, radius);
-			ctx.fillStyle = '#fffaf0';
-			ctx.fill();
-			ctx.strokeStyle = '#f5dfae';
-			ctx.lineWidth = 2;
-			ctx.stroke();
-
-			ctx.fillStyle = '#a9720b';
-			ctx.font = 'bold ' + Math.round(cardH * 0.28) + 'px sans-serif';
-			ctx.textBaseline = 'top';
-			ctx.fillText('★3', x2 + cardW * 0.08, y + cardH * 0.10);
-
-			ctx.fillStyle = '#c96a00';
-			ctx.font = 'bold ' + Math.round(cardH * 0.56) + 'px sans-serif';
-			ctx.fillText(String(star3Count), x2 + cardW * 0.08, y + cardH * 0.36);
-
-			return c;
-		}
-
-		/* コピー用コメント生成（1人分）。例: "検出：18種（★3：7種）" */
-		function buildStitchCopyComment(foundCount, star3Count) {
-			return '検出：' + foundCount + '種（★3：' + star3Count + '種）';
-		}
-
-		// 1〜3人目のうち、アップロード済みの人（1〜3人）それぞれを縦結合し、
-		// バナーとともに横結合した最終Canvasを返す。
-		// アップロードが1人分のみの場合は横結合をスキップしてその1人分を返す。
-		// 誰もアップロードしていない場合はnullを返す。
-		async function buildStitchedImage() {
-			const activeIndexes = [0, 1, 2].filter(i => persons[i].files.length > 0);
+		// 指定セット（0=1〜3人目, 1=4〜6人目）のうち、アップロード済みの人（1〜3人）
+		// それぞれを縦結合し、横結合したCanvasを返す（バナー等は付けず、スキルパネルの
+		// 結合のみ）。アップロードが1人分のみの場合は横結合をスキップしてその1人分を返す。
+		// セット内の誰もアップロードしていない場合はnullを返す。
+		async function buildStitchedSetImage(setIdx) {
+			const baseIdx = setIdx * 3;
+			const activeIndexes = [0, 1, 2].map(r => baseIdx + r).filter(i => persons[i].files.length > 0);
 			if (activeIndexes.length === 0) return null;
 
-			const bannerCanvases = [];
 			const contentCanvases = [];
-			const personMeta = []; // コピーボタン描画用に、personIdx・foundCount・star3Count・labelを保持
 
 			for (const idx of activeIndexes) {
 				const label = PERSON_LABELS[idx];
 				const contentCanvas = await stitchOnePerson(persons[idx].files, label);
 				if (!contentCanvas) continue;
-				const foundCount = countFoundSkillsFor(idx);
-				const star3Count = countStar3SkillsFor(idx);
-				const banner = stitchDrawPersonBanner(contentCanvas.width, label, foundCount, star3Count);
-				bannerCanvases.push(banner);
 				contentCanvases.push(contentCanvas);
-				personMeta.push({ idx: idx, label: label, foundCount: foundCount, star3Count: star3Count });
 			}
 
 			if (contentCanvases.length === 0) return null;
 
-			const bannerRow = bannerCanvases.length === 1 ? bannerCanvases[0] : stitchConcatHorizontallyTopAligned(bannerCanvases);
-			const contentRow = contentCanvases.length === 1 ? contentCanvases[0] : stitchConcatHorizontallyTopAligned(contentCanvases);
-
-			const totalWidth = Math.max(bannerRow.width, contentRow.width);
-			const totalHeight = bannerRow.height + contentRow.height;
-			const finalCanvas = document.createElement('canvas');
-			finalCanvas.width = totalWidth;
-			finalCanvas.height = totalHeight;
-			const fctx = finalCanvas.getContext('2d');
-			fctx.fillStyle = '#ffffff';
-			fctx.fillRect(0, 0, totalWidth, totalHeight);
-			fctx.drawImage(bannerRow, 0, 0);
-			fctx.drawImage(contentRow, 0, bannerRow.height);
-
-			finalCanvas._personMeta = personMeta; // コピーボタン描画用に一時保持
-			return finalCanvas;
+			return contentCanvases.length === 1 ? contentCanvases[0] : stitchConcatHorizontallyTopAligned(contentCanvases);
 		}
 
-		// 「OCR処理＋画像結合を開始する」ボタンから呼ばれるエントリーポイント。
-		// 既存のOCR処理(processImages)を先に実行し、その後に画像結合を行う。
-		async function processImagesAndStitch() {
-			await processImages();
-			await runImageStitching();
-		}
-
+		// 「画像を結合する」ボタンから直接呼ばれるエントリーポイント。
+		// OCR処理（スキル照合）とは独立しており、スキルリスト未入力でも
+		// アップロード済みの画像だけで結合できる。1〜3人目セット・4〜6人目セットは
+		// それぞれ個別に結合し、別々の画像として出力する（4〜6人目セットが非表示の
+		// 場合は、画像が入っていても結合をスキップする）。
 		async function runImageStitching() {
 			const wrap = document.getElementById('stitch-result-wrap');
 			const container = document.getElementById('stitch-result-content');
 			container.innerHTML = '';
+			let anyOutput = false;
 
-			const hasFiles = [0, 1, 2].some(i => persons[i].files.length > 0);
-			if (!hasFiles) { wrap.classList.add('hidden'); return; }
+			for (let setIdx = 0; setIdx < PERSON_SETS.length; setIdx++) {
+				if (setIdx === 1 && !setBVisible) continue; // 4〜6人目セットが非表示なら結合もスキップ
+				const baseIdx = setIdx * 3;
+				const hasFiles = [0, 1, 2].some(r => persons[baseIdx + r].files.length > 0);
+				if (!hasFiles) continue;
 
-			try {
-				const canvas = await buildStitchedImage();
-				if (canvas) {
-					appendStitchResultBlock(container, canvas);
-					wrap.classList.remove('hidden');
-				} else {
-					wrap.classList.add('hidden');
+				try {
+					const canvas = await buildStitchedSetImage(setIdx);
+					if (canvas) {
+						anyOutput = true;
+						appendStitchResultBlock(container, PERSON_SETS[setIdx], canvas);
+					}
+				} catch (e) {
+					console.error(e);
+					anyOutput = true;
+					appendStitchErrorBlock(container, PERSON_SETS[setIdx], e.message);
 				}
-			} catch (e) {
-				console.error(e);
-				appendStitchErrorBlock(container, e.message);
-				wrap.classList.remove('hidden');
 			}
+
+			wrap.classList.toggle('hidden', !anyOutput);
+			if (anyOutput) showToast('画像を結合しました');
 
 			if (document.getElementById('opt-devlog').checked) renderDevLog();
 		}
 
-		function appendStitchErrorBlock(container, message) {
+		function appendStitchErrorBlock(container, set, message) {
 			const div = document.createElement('div');
 			div.className = 'rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700';
-			div.textContent = '画像結合に失敗しました: ' + message;
+			div.textContent = set.label + 'の画像結合に失敗しました: ' + message;
 			container.appendChild(div);
 		}
 
-		function appendStitchResultBlock(container, canvas) {
+		function appendStitchResultBlock(container, set, canvas) {
 			const dataUrl = canvas.toDataURL('image/png');
-			const personMeta = canvas._personMeta || [];
 
 			const block = document.createElement('div');
 			block.className = 'rounded-xl border border-slate-200 bg-white/70 p-3 md:p-4';
 
 			const header = document.createElement('div');
 			header.className = 'flex items-center justify-between mb-3';
-			header.innerHTML = '<p class="text-xs font-bold text-slate-700">1〜3人目 比較画像</p>';
+			header.innerHTML = '<p class="text-xs font-bold text-slate-700">' + escapeHtml(set.label) + ' 結合画像</p>';
 			const downloadLink = document.createElement('a');
 			downloadLink.href = dataUrl;
-			downloadLink.download = 'uma-star-stitched.png';
+			downloadLink.download = 'uma-star-stitched-' + set.id + '.png';
 			downloadLink.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-[11px] font-semibold hover:bg-green-700 transition-all cursor-pointer';
 			downloadLink.textContent = 'PNGをダウンロード';
 			header.appendChild(downloadLink);
@@ -1636,27 +1582,8 @@
 
 			const img = document.createElement('img');
 			img.src = dataUrl;
-			img.className = 'w-full rounded-lg border border-slate-200 mb-3';
+			img.className = 'w-full rounded-lg border border-slate-200';
 			block.appendChild(img);
-
-			if (personMeta.length > 0) {
-				const copyWrap = document.createElement('div');
-				copyWrap.className = 'flex flex-wrap gap-2';
-				personMeta.forEach(m => {
-					const btn = document.createElement('button');
-					btn.type = 'button';
-					btn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-[11px] font-semibold hover:bg-slate-50 transition-all cursor-pointer';
-					btn.textContent = m.label + 'のコメントをコピー';
-					btn.onclick = () => {
-						const text = buildStitchCopyComment(m.foundCount, m.star3Count);
-						if (navigator.clipboard && navigator.clipboard.writeText) {
-							navigator.clipboard.writeText(text).then(() => showToast(m.label + 'のコメントをコピーしました'));
-						}
-					};
-					copyWrap.appendChild(btn);
-				});
-				block.appendChild(copyWrap);
-			}
 
 			container.appendChild(block);
 		}
