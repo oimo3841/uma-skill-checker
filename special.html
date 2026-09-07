@@ -328,14 +328,17 @@
 				<span>OCR処理を開始する</span>
 			</button>
 
-			<!-- 画像結合（SNS投稿用）。OCR処理とは独立した機能で、スキルリスト未入力でも
-			     アップロード済み画像だけで実行できる。各人ごとに複数枚のスクショを1枚に
-			     縦結合し、さらに親A・祖A1・祖A2を横結合して1枚の比較画像として出力する。 -->
+			<!-- 画像結合（SNS投稿用）。スキルリスト未入力でもアップロード済み画像だけで
+			     実行できる点は従来通りだが、2026-09-07c以降は継ぎ目位置の検出に
+			     Tesseract.js(OCR)のテキスト照合を使うため、内部的にはOCR処理を開始する
+			     ボタンと同様の初期化（jpn言語モデル読み込み）が走り、多少時間がかかる。
+			     各人ごとに複数枚のスクショを1枚に縦結合し、さらに親A・祖A1・祖A2を
+			     横結合して1枚の比較画像として出力する。 -->
 			<button id="stitch-btn" type="button" onclick="runImageStitching()" class="w-full mt-2 py-3.5 px-4 rounded-xl bg-white text-green-700 text-xs md:text-sm font-bold border-2 border-green-200 hover:bg-green-50 active:scale-99 transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer" disabled>
 				<i data-lucide="images" class="w-4 h-4"></i>
 				<span>画像を結合する（SNS投稿用）</span>
 			</button>
-			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※1人につき2枚以上のスクリーンショットを縦結合し、親Aセット・親Bセットそれぞれで、使用中の人を1枚の画像にまとめて個別に出力します。1人分が1枚のみの場合はエラーになります。</p>
+			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※1人につき2枚以上のスクリーンショットを縦結合し、親Aセット・親Bセットそれぞれで、使用中の人を1枚の画像にまとめて個別に出力します。1人分が1枚のみの場合はエラーになります。継ぎ目の位置検出にOCRを使うため、スキル判定と同程度の初期化時間がかかります。</p>
 
 			<!-- 画像結合の進捗バー（OCR処理と同じ見た目。処理中はstitch-btnを無効化して
 			     多重クリックを防ぐ。詳細はrunImageStitching()参照） -->
@@ -1381,8 +1384,17 @@
 			const minOverlap = opts.minOverlap || 60;
 			const madThreshold = opts.madThreshold || 6.0;
 			const sampleStepX = opts.sampleStepX || 3;
+			// 【2026-09-07b追加】sの探索上限。h(コンテンツ全体)まで許すと「上下の
+			// スクショ全体同士を無関係に比較しているだけ」の状態（＝オーバーラップ
+			// 判定として無意味）まで候補に含めてしまう。スキル一覧は白背景＋
+			// 丸角パネルという同じUIテンプレートの繰り返しのため、そこまで比較幅を
+			// 広げると背景の類似さだけでMADが下がり続け、本来あり得ない
+			// 「ほぼ全体が重複＝新規行がほぼ0」という解にグローバル最小が
+			// 引き寄せられる不具合が実データで確認された。1回のスクロールで
+			// 最低限これくらいは新しい内容が出るはず、という前提でhの割合上限を設ける。
 			const maxOverlapRatio = opts.maxOverlapRatio || 0.6;
 			const maxOverlap = Math.max(minOverlap, Math.floor((yEnd - yStart) * maxOverlapRatio));
+
 			const ctxTop = canvasTop.getContext('2d', { willReadFrequently: true });
 			const ctxBottom = canvasBottom.getContext('2d', { willReadFrequently: true });
 			const w = xEnd - xStart;
@@ -1390,6 +1402,9 @@
 			const dataTop = ctxTop.getImageData(xStart, yStart, w, h).data;
 			const dataBottom = ctxBottom.getImageData(xStart, yStart, w, h).data;
 
+			// 「ほぼ白」判定。背景の白同士を比較しても情報量がなく、縮退解
+			// （過大オーバーラップ）に偏る主因になるため、両方が白っぽい画素同士の
+			// 比較はMAD計算から除外する（=分母にも分子にも入れない）。
 			function isBlankish(r, g, b) { return r > 244 && g > 244 && b > 244; }
 
 			function madForOverlap(s) {
@@ -1408,6 +1423,8 @@
 						cnt += 3;
 					}
 				}
+				// 有効サンプル（どちらかが白ではない画素）が少なすぎる候補は、
+				// 実質ほぼ白背景同士を比較しただけで判定不能なので採用しない。
 				const totalPairs = s * Math.ceil(w / sampleStepX);
 				if (cnt < totalPairs * 3 * 0.05) return Infinity;
 				return sum / cnt;
@@ -1416,7 +1433,7 @@
 			// s（重なり行数）の候補をすべて評価し、その中でMADが最小＝最も一致度が
 			// 高い候補を採用する。
 			//
-			// 【修正前の問題点】以前は s を大きい方（h）から小さくしていき、MADが
+			// 【修正前の問題点1】以前は s を大きい方（h）から小さくしていき、MADが
 			// 閾値を下回った「最初の」候補をその場で採用していた。しかしスキル一覧は
 			// どの行も背景パネルの形（丸角・星の配置）がほぼ同じであるため、本来
 			// 正しい重なり位置より手前（＝重なりが多すぎる＝スキップする範囲が
@@ -1425,7 +1442,16 @@
 			// （より小さい）重なり位置には到達しないまま確定してしまい、実際の
 			// 画面より1行分ズレて合成される→行が丸ごと消える／文字が二重に
 			// 潰れて見える、という不具合の原因になっていた。
-			// 全候補を見てグローバルに最良の一致を探すことで、これを防ぐ。
+			// 全候補を見てグローバルに最良の一致を探すことで、これを防いだ。
+			//
+			// 【修正前の問題点2・2026-09-07b】上記の「全候補を見る」対応だけでは、
+			// 今度は逆に s→h（画像ほぼ全体）に近づくほどMADがなだらかに下がり続け、
+			// 本来の正しい重なりとは無関係な「ほぼ全体重複」がグローバル最小として
+			// 選ばれてしまう別の不具合が、実際のスマホスクショで確認された
+			// （white-background同士の比較が大半を占めることで、位置ズレとは無関係に
+			// 平均差分が下がってしまうため）。上のmaxOverlapで探索範囲そのものを
+			// 現実的な範囲に制限し、madForOverlap内で白背景同士の比較を除外する
+			// ことで、この縮退解を構造的に排除する。
 			let bestS = minOverlap, bestMad = Infinity;
 			for (let s = minOverlap; s <= maxOverlap; s++) {
 				const mad = madForOverlap(s);
@@ -1510,9 +1536,109 @@
 			return h;
 		}
 
+		// 【2026-09-07c追加】stitchDetectHeaderFooterが算出するfooterStartに、
+		// スクロールしない固定UI（「閉じる」ボタン等）が紛れ込むことが実データで
+		// 確認された。footerStart付近から遡って、全画像で完全に同一な行が
+		// 続く範囲を検出し、footerStartをその手前まで引き上げる。
+		// 「閉じる」ボタンはスクロール位置に関わらず全画像で1px単位まで同一に
+		// 描画されるため、この「全画像で完全一致」という性質を検出の手がかりにする。
+		function stitchTrimFixedFooterChrome(canvases, headerEnd, footerStart, groupLabel) {
+			if (canvases.length < 2) return footerStart;
+			const w = canvases[0].width;
+			const ctxs = canvases.map(c => c.getContext('2d', { willReadFrequently: true }));
+			const minContent = headerEnd + 100; // 内容が全く残らないほど縮めすぎない安全弁
+			let y = footerStart - 1;
+			outer:
+			while (y > minContent) {
+				const rows = ctxs.map(ctx => ctx.getImageData(0, y, w, 1).data);
+				for (let i = 1; i < rows.length; i++) {
+					for (let x = 0; x < rows[0].length; x += 12) {
+						if (Math.abs(rows[0][x] - rows[i][x]) > 4) break outer;
+					}
+				}
+				y--;
+			}
+			if (y < footerStart - 1) {
+				stitchLog(groupLabel + ': footerStart内に全画像で同一の固定UI領域を検出。footerStartを' + footerStart + '→' + (y + 1) + 'に補正します。');
+				return y + 1;
+			}
+			return footerStart;
+		}
+
+		// OCRテキストの比較用正規化（空白除去のみ。誤読の吸収まではしない）
+		function stitchNormalizeOcrText(t) {
+			return (t || '').replace(/[\s　]+/g, '').trim();
+		}
+
+		// 【2026-09-07c追加】ピクセルMADによるオーバーラップ推定は、丸角パネルの枠線や
+		// 星アイコンの並びが行によらずほぼ同じ形であるため、実データで検証した結果
+		// 誤った位置に「自信ありげに」一致してしまうことが分かった。
+		// スキル名のテキストは行ごとに（ほぼ）一意なので、OCRで読み取った文字列が
+		// 完全一致する行同士の位置を突き合わせる方が原理的に信頼できる。
+		// 上画像の末尾ストリップと下画像の先頭ストリップをそれぞれOCRし、
+		// 同一テキストの行を探して、そのY座標の差からオーバーラップ行数を逆算する。
+		// 一致が見つからない場合は overlap: null を返し、呼び出し側でピクセル比較に
+		// フォールバックする。
+		async function stitchEstimateOverlapByOcr(worker, canvasTop, canvasBottom, headerEnd, footerStart, groupLabel) {
+			const h = footerStart - headerEnd;
+			const stripH = Math.min(700, h);
+			const w = canvasTop.width;
+
+			const topStrip = document.createElement('canvas');
+			topStrip.width = w; topStrip.height = stripH;
+			topStrip.getContext('2d').drawImage(canvasTop, 0, footerStart - stripH, w, stripH, 0, 0, w, stripH);
+
+			const bottomStrip = document.createElement('canvas');
+			bottomStrip.width = w; bottomStrip.height = stripH;
+			bottomStrip.getContext('2d').drawImage(canvasBottom, 0, headerEnd, w, stripH, 0, 0, w, stripH);
+
+			let topRes, bottomRes;
+			try {
+				[topRes, bottomRes] = await Promise.all([
+					worker.recognize(topStrip),
+					worker.recognize(bottomStrip)
+				]);
+			} catch (err) {
+				stitchLog(groupLabel + ': OCRによる継ぎ目検出でエラー(' + err + ')。ピクセル比較にフォールバックします。');
+				return { overlap: null, confident: false, matchCount: 0 };
+			}
+
+			// extractLinesWithBBoxはcommon.js側の既存関数（{text, conf, y0, y1}の配列を返す）
+			const topLines = extractLinesWithBBox(topRes.data)
+				.map(l => ({ text: stitchNormalizeOcrText(l.text), Y: (h - stripH) + (l.y0 + l.y1) / 2 }))
+				.filter(l => l.text.length >= 2 && l.y0 !== null);
+			const bottomLines = extractLinesWithBBox(bottomRes.data)
+				.map(l => ({ text: stitchNormalizeOcrText(l.text), Y: (l.y0 + l.y1) / 2 }))
+				.filter(l => l.text.length >= 2 && l.y0 !== null);
+
+			// 同一テキストの行同士から、オーバーラップ候補 s = h - Y_top + Y_bottom を計算する。
+			// （top側のY座標がheaderEndからの絶対位置、bottom側も同様という前提の導出）
+			const candidates = [];
+			for (const tl of topLines) {
+				for (const bl of bottomLines) {
+					if (tl.text === bl.text) candidates.push(h - tl.Y + bl.Y);
+				}
+			}
+
+			if (candidates.length === 0) {
+				stitchLog(groupLabel + ': OCRで一致するテキスト行が見つかりませんでした。ピクセル比較にフォールバックします。');
+				return { overlap: null, confident: false, matchCount: 0 };
+			}
+
+			// 複数候補がある場合、中央値付近に集まったものだけを採用し外れ値を除く
+			candidates.sort((a, b) => a - b);
+			const median = candidates[Math.floor(candidates.length / 2)];
+			const inliers = candidates.filter(c => Math.abs(c - median) < 30);
+			const overlap = Math.round(inliers.reduce((s, c) => s + c, 0) / inliers.length);
+
+			stitchLog(groupLabel + ': OCR一致候補' + candidates.length + '件中' + inliers.length + '件が近い値(中央値' + Math.round(median) + '行)に集約 → オーバーラップ=' + overlap + '行');
+
+			return { overlap: overlap, confident: inliers.length >= 2, matchCount: candidates.length, inlierCount: inliers.length };
+		}
+
 		// 1人分の画像配列を縦結合し、結果Canvasを返す。
 		// ヘッダー/フッターは完全除外し、スキルパネル自体のみを出力する。
-		async function stitchOnePerson(files, groupLabel) {
+		async function stitchOnePerson(files, groupLabel, worker) {
 			if (files.length === 0) return null;
 			if (files.length === 1) {
 				throw new Error('[' + groupLabel + '] 画像が1枚のみです。結合には2枚以上が必要なため処理を中止します。');
@@ -1537,7 +1663,8 @@
 			}
 
 			const hf = stitchDetectHeaderFooter(canvases, groupLabel);
-			const headerEnd = hf.headerEnd, footerStart = hf.footerStart;
+			const headerEnd = hf.headerEnd;
+			const footerStart = stitchTrimFixedFooterChrome(canvases, headerEnd, hf.footerStart, groupLabel);
 			stitchLog(groupLabel + ': ヘッダー=行0〜' + (headerEnd - 1) + '(除外), スクロール領域=行' + headerEnd + '〜' + (footerStart - 1) + ', フッター=行' + footerStart + '〜' + (canvases[0].height - 1) + '(除外)');
 
 			let canvasesForStitch = canvases;
@@ -1550,16 +1677,36 @@
 
 			const marginX = Math.floor(w0 * 0.1);
 			const overlaps = [];
+			// 【2026-09-07c変更】OCRテキスト照合を優先し、一致が取れない場合のみ
+			// ピクセルMAD（confidentは今まで算出されているのにログ表示のみに使われ、
+			// 低信頼度でも黙ってそのまま結合していた）にフォールバックする。
+			// いずれの方式でも低信頼度の継ぎ目はwarningsに集約し、結合結果に
+			// 警告として持たせることで、ユーザーが目視で継ぎ目を確認すべき箇所を
+			// 判別できるようにする。
+			const contentSpan = footerStart - headerEnd;
 			const warnings = [];
 			for (let i = 0; i < canvasesForStitch.length - 1; i++) {
-				const r = stitchEstimateOverlapByPixelMAD(canvasesForStitch[i], canvasesForStitch[i + 1], headerEnd, footerStart, marginX, w0 - marginX);
-				stitchLog(groupLabel + ': 画像' + i + '→' + (i + 1) + ': オーバーラップ=' + r.overlap + '行/上限' + r.maxOverlap + '行 (MAD=' + r.mad.toFixed(2) + ', 信頼度' + (r.confident ? '高' : '低') + ')');
-				if (!r.confident) {
-					const warnMsg = groupLabel + ': 画像' + i + '→' + (i + 1) + 'の継ぎ目は一致度が低く(MAD=' + r.mad.toFixed(1) + ')、結合位置がズレている可能性があります。';
+				let overlap, confident, methodNote;
+				const ocrResult = worker
+					? await stitchEstimateOverlapByOcr(worker, canvasesForStitch[i], canvasesForStitch[i + 1], headerEnd, footerStart, groupLabel)
+					: { overlap: null };
+				if (ocrResult.overlap !== null && ocrResult.overlap >= 30 && ocrResult.overlap <= contentSpan - 30) {
+					overlap = ocrResult.overlap;
+					confident = ocrResult.confident;
+					methodNote = 'OCR照合(一致' + ocrResult.inlierCount + '/' + ocrResult.matchCount + '件)';
+				} else {
+					const r = stitchEstimateOverlapByPixelMAD(canvasesForStitch[i], canvasesForStitch[i + 1], headerEnd, footerStart, marginX, w0 - marginX);
+					overlap = r.overlap;
+					confident = r.confident;
+					methodNote = 'ピクセル比較(MAD=' + r.mad.toFixed(1) + ')にフォールバック';
+				}
+				stitchLog(groupLabel + ': 画像' + i + '→' + (i + 1) + ': オーバーラップ=' + overlap + '行 [' + methodNote + '] 信頼度' + (confident ? '高' : '低'));
+				if (!confident) {
+					const warnMsg = groupLabel + ': 画像' + i + '→' + (i + 1) + 'の継ぎ目は一致度が低く(' + methodNote + ')、結合位置がズレている可能性があります。';
 					stitchLog('⚠ ' + warnMsg);
 					warnings.push(warnMsg);
 				}
-				overlaps.push(r.overlap);
+				overlaps.push(overlap);
 			}
 
 			const contentHeight = footerStart - headerEnd;
@@ -1628,7 +1775,8 @@
 		// 結合のみ）。アップロードが1人分のみの場合は横結合をスキップしてその1人分を返す。
 		// セット内の誰もアップロードしていない場合はnullを返す。
 		// onPersonStart(label)：1人分の結合に着手する直前に呼ばれる進捗通知コールバック（任意）。
-		async function buildStitchedSetImage(setIdx, onPersonStart) {
+		// worker: OCRベースの継ぎ目検出に使うTesseract.jsワーカー（未指定ならピクセル比較のみ）。
+		async function buildStitchedSetImage(setIdx, onPersonStart, worker) {
 			const baseIdx = setIdx * 3;
 			const activeIndexes = [0, 1, 2].map(r => baseIdx + r).filter(i => persons[i].files.length > 0);
 			if (activeIndexes.length === 0) return null;
@@ -1639,7 +1787,7 @@
 			for (const idx of activeIndexes) {
 				const label = PERSON_LABELS[idx];
 				if (onPersonStart) onPersonStart(label);
-				const contentCanvas = await stitchOnePerson(persons[idx].files, label);
+				const contentCanvas = await stitchOnePerson(persons[idx].files, label, worker);
 				if (!contentCanvas) continue;
 				contentCanvases.push(contentCanvas);
 				if (contentCanvas._stitchWarnings && contentCanvas._stitchWarnings.length) {
@@ -1697,28 +1845,52 @@
 
 				container.innerHTML = ''; // 前回の結果を消してから作り直す＝実質的な上書き
 				progressWrap.classList.remove('hidden');
-				setStitchProgress(0, '画像結合を準備中…');
+				setStitchProgress(0, 'OCRエンジンを初期化中…');
+
+				// 【2026-09-07c追加】継ぎ目検出をOCRテキスト照合ベースにするため、
+				// ここでTesseract.jsワーカーを1つ用意し、全セット・全継ぎ目で使い回す。
+				// 初期化に失敗した場合（オフライン等）は機能自体を止めず、
+				// worker=nullのままピクセル比較のみにフォールバックする。
+				let worker = null;
+				try {
+					worker = await Tesseract.createWorker();
+					await worker.loadLanguage('jpn');
+					await worker.initialize('jpn');
+					await worker.setParameters({
+						tessedit_pageseg_mode: '6',
+						preserve_interword_spaces: '1',
+						user_defined_dpi: '300'
+					});
+				} catch (err) {
+					console.error(err);
+					stitchLog('OCRエンジンの初期化に失敗しました(' + err + ')。継ぎ目検出はピクセル比較のみで行います。');
+					worker = null;
+				}
 
 				let done = 0;
 				let anyOutput = false;
 
-				for (const target of targets) {
-					const set = PERSON_SETS[target.setIdx];
-					try {
-						const canvas = await buildStitchedSetImage(target.setIdx, (label) => {
-							setStitchProgress(done / totalPersons, set.label + ' ' + label + 'を結合中…');
-							done++;
-						});
-						if (canvas) {
+				try {
+					for (const target of targets) {
+						const set = PERSON_SETS[target.setIdx];
+						try {
+							const canvas = await buildStitchedSetImage(target.setIdx, (label) => {
+								setStitchProgress(done / totalPersons, set.label + ' ' + label + 'を結合中…');
+								done++;
+							}, worker);
+							if (canvas) {
+								anyOutput = true;
+								appendStitchResultBlock(container, set, canvas);
+							}
+						} catch (e) {
+							console.error(e);
 							anyOutput = true;
-							appendStitchResultBlock(container, set, canvas);
+							appendStitchErrorBlock(container, set, e.message);
+							done += target.count; // 失敗したセット分だけ進捗を進めて次に備える
 						}
-					} catch (e) {
-						console.error(e);
-						anyOutput = true;
-						appendStitchErrorBlock(container, set, e.message);
-						done += target.count; // 失敗したセット分だけ進捗を進めて次に備える
 					}
+				} finally {
+					if (worker) { try { await worker.terminate(); } catch (e) {} }
 				}
 
 				setStitchProgress(1, '完了');
@@ -1746,6 +1918,8 @@
 			const block = document.createElement('div');
 			block.className = 'rounded-xl border border-slate-200 bg-white/70 p-3 md:p-4';
 
+			// 【2026-09-07b追加】低信頼度の継ぎ目があれば、devlogを見なくても
+			// 気付けるようここに警告バナーを出す。
 			if (canvas._stitchWarnings && canvas._stitchWarnings.length) {
 				const warnBox = document.createElement('div');
 				warnBox.className = 'mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-800 leading-relaxed';
