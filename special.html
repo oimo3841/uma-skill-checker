@@ -79,7 +79,7 @@
 				<!-- 左側：タイトルエリア -->
 				<div>
 					<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR<span class="ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">β版</span></h1>
-					<p class="mt-1.5 text-xs md:text-sm text-slate-500">1〜3人目（必要に応じて4〜6人目セットも追加可能）の因子スクリーンショットから、スキルごとの★の数を自動判定します</p>
+					<p class="mt-1.5 text-xs md:text-sm text-slate-500">親Aセット（親A+祖A1+祖A2）の因子スクリーンショットから、スキルごとの★の数を自動判定します。親Bセットもオプションで判定・比較できます。</p>
 					<p class="mt-1 text-[11px] text-amber-700">※ OCR・★判定の精度は完全ではありません。結果は念のため目視でもご確認ください。</p>
 					<p class="mt-0.5 text-[11px] text-amber-700">※ SNSの投稿画像等は解像度不足のため対象外となる場合があります。また、加工された画像は適切に判定できない場合があります。ゲーム画面から直接撮ったスクリーンショットをご利用ください。</p>
 				</div>
@@ -122,7 +122,7 @@
 										<p class="text-xs font-bold text-green-900">UmaStar OCR</p>
 										<span class="text-[10px] font-semibold text-green-700 bg-green-200/60 px-1.5 py-0.5 rounded">選択中</span>
 									</div>
-									<p class="text-[11px] text-green-700/80 mt-0.5 truncate">1〜3人目の★の数を個別判定</p>
+									<p class="text-[11px] text-green-700/80 mt-0.5 truncate">親A・祖A1・祖A2の★の数を個別判定</p>
 								</div>
 							</div>
 
@@ -164,12 +164,12 @@
 				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
 					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 2</span>
 					<p class="font-bold text-slate-800">対象を撮影</p>
-					<p class="text-slate-500 mt-1">1〜3人分（＋任意で4〜6人分）のうち、必要な人数分の因子画面を、境界を含めず個別に撮影</p>
+					<p class="text-slate-500 mt-1">親A・祖A1・祖A2（必要に応じて親B・祖B1・祖B2も）のうち、必要な人数分の因子画面を、境界を含めず個別に撮影</p>
 				</div>
 				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
 					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 3</span>
 					<p class="font-bold text-slate-800">使う欄にアップロード</p>
-					<p class="text-slate-500 mt-1">1〜3人目（＋4〜6人目）のうち、使う欄にだけスクショを追加（残りは空欄でOK）</p>
+					<p class="text-slate-500 mt-1">親A・祖A1・祖A2（＋親B・祖B1・祖B2）のうち、使う欄にだけスクショを追加（残りは空欄でOK）</p>
 				</div>
 				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
 					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 4</span>
@@ -201,12 +201,12 @@
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
 					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">1</span>
-					<h2 class="text-sm font-bold text-slate-800">スキルリストを入力（1〜6人目共通）</h2>
+					<h2 class="text-sm font-bold text-slate-800">スキルリストを入力（親A〜祖B2まで共通）</h2>
 				</div>
 				<span id="skill-count-badge" class="hidden text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-800"></span>
 			</div>
 
-			<p class="text-xs text-slate-500 mb-3">スプレッドシートから1列分（改行区切り）コピーしてそのまま貼り付けできます。1〜6人目すべてに対して同じリストで照合します。</p>
+			<p class="text-xs text-slate-500 mb-3">スプレッドシートから1列分（改行区切り）コピーしてそのまま貼り付けできます。親A〜祖B2まで、すべてに対して同じリストで照合します。</p>
 
 			<textarea id="skill-list" class="w-full h-28 text-xs md:text-sm p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-green-500 focus:ring-2 focus:ring-green-200 font-mono transition-all outline-none resize-y" placeholder="例：&#10;根幹距離○&#10;右回り○&#10;直線コース○"></textarea>
 
@@ -249,7 +249,7 @@
 			</details>
 		</div>
 
-		<!-- ステップ2：1〜3人目（＋任意で4〜6人目）の画像アップロード -->
+		<!-- ステップ2：親A・祖A1・祖A2（＋任意で親B・祖B1・祖B2）の画像アップロード -->
 		<div class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6">
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
@@ -258,13 +258,13 @@
 				</div>
 			</div>
 
-			<!-- 1〜3人目セット -->
+			<!-- 親Aセット -->
 			<div id="personset-A-wrap" class="mb-3"></div>
 
-			<!-- 4〜6人目セット（因子元の系統が複数ある場合に追加）。デフォルト非表示。
+			<!-- 親Bセット（因子元の系統が複数ある場合に追加）。デフォルト非表示。
 			     非表示にしてもアップロード済みのファイル自体は保持される。 -->
 			<button id="setb-toggle-btn" type="button" onclick="toggleSetB()" class="w-full mb-3 py-2 px-3 rounded-xl border border-dashed border-slate-300 text-xs font-semibold text-slate-500 hover:border-red-300 hover:text-red-600 hover:bg-red-50/40 transition-all cursor-pointer">
-				<span id="setb-toggle-label">＋ 4〜6人目セットも追加する</span>
+				<span id="setb-toggle-label">＋ 親Bセットも追加する</span>
 			</button>
 			<div id="personset-B-wrap" class="hidden mb-3"></div>
 
@@ -330,12 +330,12 @@
 
 			<!-- 画像結合（SNS投稿用）。OCR処理とは独立した機能で、スキルリスト未入力でも
 			     アップロード済み画像だけで実行できる。各人ごとに複数枚のスクショを1枚に
-			     縦結合し、さらに1〜3人目を横結合して1枚の比較画像として出力する。 -->
+			     縦結合し、さらに親A・祖A1・祖A2を横結合して1枚の比較画像として出力する。 -->
 			<button id="stitch-btn" type="button" onclick="runImageStitching()" class="w-full mt-2 py-3.5 px-4 rounded-xl bg-white text-green-700 text-xs md:text-sm font-bold border-2 border-green-200 hover:bg-green-50 active:scale-99 transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer" disabled>
 				<i data-lucide="images" class="w-4 h-4"></i>
 				<span>画像を結合する（SNS投稿用）</span>
 			</button>
-			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※1人につき2枚以上のスクリーンショットを縦結合し、1〜3人目セット・4〜6人目セットそれぞれで、使用中の人を1枚の画像にまとめて個別に出力します。1人分が1枚のみの場合はエラーになります。</p>
+			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※1人につき2枚以上のスクリーンショットを縦結合し、親Aセット・親Bセットそれぞれで、使用中の人を1枚の画像にまとめて個別に出力します。1人分が1枚のみの場合はエラーになります。</p>
 
 			<!-- 画像結合の進捗バー（OCR処理と同じ見た目。処理中はstitch-btnを無効化して
 			     多重クリックを防ぐ。詳細はrunImageStitching()参照） -->
@@ -449,16 +449,17 @@
 		let ocrErrorDictionary = {};
 		const DICT_STORAGE_KEY = 'uma-special-ocr-dict';
 
-		// 「1〜3人目セット」「4〜6人目セット」の2セット構成。
-		// Examの親A/親Bのような「因子元の系統」を表す区分だが、家系ツリーの概念は
-		// special.html本来の用途にそぐわないため持ち込まず、単純に3人×2セットとする。
+		// 「親Aセット（親A+祖A1+祖A2）」「親Bセット（親B+祖B1+祖B2）」の2セット構成。
+		// Examと同じ「因子元の系統」の考え方・命名・親-祖-祖のツリー図デザインを
+		// そのままSpecialにも適用する（当初は単純な3人×2セットとして実装したが、
+		// デザインの一貫性のためExamと同一の家系ラベル・ビジュアルに統一した）。
 		// セットBはデフォルト非表示（toggleSetB()で表示切替）。スキルリストは
-		// 2セットで共通（1つのリストで1〜6人目全員を照合する）。
+		// 2セットで共通（1つのリストで親A〜祖B2まで全員を照合する）。
 		const PERSON_SETS = [
-			{ id: 'A', label: '1〜3人目セット', hue: 'blue' },
-			{ id: 'B', label: '4〜6人目セット', hue: 'red' }
+			{ id: 'A', label: '親Aセット', hue: 'blue' },
+			{ id: 'B', label: '親Bセット', hue: 'red' }
 		];
-		const PERSON_LABELS = ['1人目', '2人目', '3人目', '4人目', '5人目', '6人目'];
+		const PERSON_LABELS = ['親A', '祖A1', '祖A2', '親B', '祖B1', '祖B2'];
 		// バッジ・統計カードの配色。Examと同様に、セット単位の色相（青系統/赤系統）を
 		// そのセット内の3人全員に適用する（PERSON_SETSのhueから自動生成）。
 		const PERSON_COLORS = [];
@@ -580,14 +581,28 @@
 		}
 
 		/* ============================================================
-		 * 1〜6人目（1〜3人目セット・4〜6人目セット）のアップロード欄
+		 * 親A/祖A1/祖A2（親Bセットも同様）のアップロード欄
 		 * ============================================================ */
+		// idx%3===0が親、それ以外が祖1/祖2（Examと同じ役割グリフ）
+		function personRoleGlyph(idx) {
+			const r = idx % 3;
+			return r === 0 ? '親' : '祖' + r;
+		}
+
+		// 親＝濃い色・白文字／祖父母＝薄い色・濃い文字で世代差を表す（Examと同じ配色ルール）
+		function personBadgeClasses(idx) {
+			const hue = PERSON_COLORS[idx];
+			const isParent = (idx % 3 === 0);
+			return isParent ? ('bg-' + hue + '-600 text-white') : ('bg-' + hue + '-100 text-' + hue + '-800');
+		}
+
 		function buildPersonUploadCard(idx) {
 			const label = PERSON_LABELS[idx];
+			const badgeCls = personBadgeClasses(idx);
 			return `
 				<div class="rounded-xl border border-slate-200 bg-slate-50/40 p-3">
 					<p class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-						<span class="w-5 h-5 rounded-full bg-${PERSON_COLORS[idx]}-500 text-white text-[10px] font-bold flex items-center justify-center">${idx + 1}</span>
+						<span class="w-6 h-6 rounded-full ${badgeCls} text-[9px] font-bold flex items-center justify-center shrink-0">${personRoleGlyph(idx)}</span>
 						${label}
 					</p>
 					<label class="person-drop-zone group block cursor-pointer rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-green-50/40 hover:border-green-400 transition-all p-4 text-center mb-2" data-person="${idx}">
@@ -601,16 +616,41 @@
 				</div>`;
 		}
 
+		// 親1体＋祖父母2体の系譜を、簡易的なツリー図（装飾・アップロード機能とは独立）で
+		// 表現する（Examのbuild SetTreeDiagramと同一デザイン）。
+		function buildSetTreeDiagram(setIdx) {
+			const set = PERSON_SETS[setIdx];
+			const baseIdx = setIdx * 3;
+			const parentCls = personBadgeClasses(baseIdx);
+			const gp1Cls = personBadgeClasses(baseIdx + 1);
+			const gp2Cls = personBadgeClasses(baseIdx + 2);
+			return `
+				<div class="flex items-center justify-center gap-2 mb-3 select-none" aria-hidden="true">
+					<div class="w-9 h-9 rounded-full ${parentCls} text-[11px] font-bold flex items-center justify-center shadow-sm">親${set.id}</div>
+					<svg width="28" height="44" viewBox="0 0 28 44" class="shrink-0">
+						<path d="M2 22 H12 M12 22 V8 H26 M12 22 V36 H26" fill="none" stroke="#cbd5e1" stroke-width="2" />
+					</svg>
+					<div class="flex flex-col gap-3">
+						<div class="w-7 h-7 rounded-full ${gp1Cls} text-[9px] font-bold flex items-center justify-center">祖${set.id}1</div>
+						<div class="w-7 h-7 rounded-full ${gp2Cls} text-[9px] font-bold flex items-center justify-center">祖${set.id}2</div>
+					</div>
+				</div>`;
+		}
+
 		function buildSetPanel(setIdx) {
 			const set = PERSON_SETS[setIdx];
 			const baseIdx = setIdx * 3;
 			const cards = [0, 1, 2].map(r => buildPersonUploadCard(baseIdx + r)).join('');
 			return `
 				<div class="rounded-2xl border border-${set.hue}-200 bg-${set.hue}-50/20 p-4">
-					<div class="flex items-center justify-between mb-3">
-						<p class="text-xs font-bold text-${set.hue}-800">${set.label}</p>
+					<div class="flex items-center justify-between mb-1">
+						<p class="text-xs font-bold text-${set.hue}-800 flex items-center gap-1.5">
+							<i data-lucide="workflow" class="w-3.5 h-3.5"></i>
+							<span>${set.label}（親${set.id}＋祖${set.id}1＋祖${set.id}2）</span>
+						</p>
 						<button type="button" onclick="clearPersonSet(${setIdx})" class="text-[11px] text-slate-400 hover:text-red-600 underline underline-offset-2 cursor-pointer">セットをクリア</button>
 					</div>
+					${buildSetTreeDiagram(setIdx)}
 					<div class="grid grid-cols-1 md:grid-cols-3 gap-3">${cards}</div>
 				</div>`;
 		}
@@ -648,18 +688,18 @@
 			persons.forEach((_, idx) => renderPersonImageList(idx));
 		}
 
-		// 4〜6人目セットの表示/非表示を切り替える。非表示にしてもアップロード済みの
+		// 親Bセットの表示/非表示を切り替える。非表示にしてもアップロード済みの
 		// ファイル自体は保持される（再表示すれば残っている。OCR結果にも引き続き含まれる）。
 		function toggleSetB() {
 			setBVisible = !setBVisible;
 			const wrap = document.getElementById('personset-B-wrap');
 			wrap.classList.toggle('hidden', !setBVisible);
-			document.getElementById('setb-toggle-label').textContent = setBVisible ? '− 4〜6人目セットを閉じる' : '＋ 4〜6人目セットも追加する';
+			document.getElementById('setb-toggle-label').textContent = setBVisible ? '− 親Bセットを閉じる' : '＋ 親Bセットも追加する';
 			document.getElementById('setb-toggle-btn').classList.toggle('bg-red-50', setBVisible);
 			document.getElementById('setb-toggle-btn').classList.toggle('border-red-300', setBVisible);
 		}
 
-		// 指定セット（0=1〜3人目, 1=4〜6人目）の3枠すべてのアップロード済み画像をクリアする
+		// 指定セット（0=親A, 1=親B）の3枠すべてのアップロード済み画像をクリアする
 		function clearPersonSet(setIdx) {
 			const baseIdx = setIdx * 3;
 			[0, 1, 2].forEach(r => { persons[baseIdx + r].files = []; });
@@ -895,8 +935,8 @@
 		function renderStatGrid(used) {
 			const grid = document.getElementById('stat-grid');
 			const cols = used.length + 1;
-			// 1〜3人目セットのみ（cols最大4）なら従来通りのシンプルな列数、
-			// 4〜6人目セットも表示中（cols最大7）ならレスポンシブに折り返す。
+			// 親Aセットのみ（cols最大4）なら従来通りのシンプルな列数、
+			// 親Bセットも表示中（cols最大7）ならレスポンシブに折り返す。
 			let colsClass;
 			if (cols <= 2) colsClass = 'grid-cols-2';
 			else if (cols === 3) colsClass = 'grid-cols-3';
@@ -920,11 +960,47 @@
 			grid.innerHTML = html;
 		}
 
+		// 親Aセット(青)・親Bセット(赤)の色分けに使う実際の色値（Examと同一）。
+		// .result-table th には既に background-color を指定するCSSルールがあり、
+		// クラスの指定だけでは優先度で負けて反映されないことがあるため、
+		// ここではインラインstyleで確実に上書きする。
+		const HUE_HEX = {
+			blue: { bg: '#eff6ff', text: '#1e40af', borderStrong: '#93c5fd', borderSoft: '#bfdbfe', tint: 'rgba(59,130,246,0.07)' },
+			red: { bg: '#fef2f2', text: '#991b1b', borderStrong: '#fca5a5', borderSoft: '#fecaca', tint: 'rgba(239,68,68,0.07)' }
+		};
+
+		// 表示中の列(used内の各personIdx)について、色と「セットの境目に区切り線を
+		// 入れるか」を計算する。ヘッダー・本体テーブルの両方で同じルールを使い、
+		// 親Aセット＝青系統／親Bセット＝赤系統の帯として視覚的に区別できるようにする。
+		function buildColumnMeta(used) {
+			let prevSetIdx = null;
+			return used.map(i => {
+				const hue = PERSON_COLORS[i];
+				const setIdx = Math.floor(i / 3);
+				const boundary = prevSetIdx !== null && setIdx !== prevSetIdx;
+				prevSetIdx = setIdx;
+				return { idx: i, hue: hue, colors: HUE_HEX[hue], boundary: boundary };
+			});
+		}
+
+		// 2人分以上の結果が並ぶ場合にのみ「★合計」列を出す（1人だけならその人の★数と同じになり冗長なため）。
+		function shouldShowTotalColumn(used) {
+			return used.length >= 2;
+		}
+
 		function renderTableHeader(used) {
 			const thead = document.getElementById('result-thead');
-			const nameWidth = used.length <= 1 ? 'w-3/5' : used.length === 2 ? 'w-1/2' : used.length <= 3 ? 'w-2/5' : 'w-1/4';
+			const nameWidth = used.length <= 1 ? 'w-2/5' : used.length === 2 ? 'w-1/3' : used.length <= 4 ? 'w-1/4' : 'w-1/5';
+			const meta = buildColumnMeta(used);
+			const showTotal = shouldShowTotalColumn(used);
 			let html = `<tr><th class="${nameWidth}">スキル名（リスト順）</th>`;
-			used.forEach(i => { html += `<th class="text-center">${PERSON_LABELS[i]}</th>`; });
+			meta.forEach(m => {
+				const borderStyle = m.boundary ? 'border-left:2px solid ' + m.colors.borderStrong + ';' : '';
+				html += `<th class="text-center" style="background-color:${m.colors.bg};color:${m.colors.text};${borderStyle}">${PERSON_LABELS[m.idx]}</th>`;
+			});
+			if (showTotal) {
+				html += '<th class="text-center" style="background-color:#f1f5f9;color:#334155;border-left:2px solid #cbd5e1;">★合計</th>';
+			}
 			html += '</tr>';
 			thead.innerHTML = html;
 		}
@@ -1008,6 +1084,8 @@
 			const tbody = document.getElementById('result-tbody');
 			const query = document.getElementById('table-search').value.toLowerCase().trim();
 			const used = activePersonIndexes();
+			const meta = buildColumnMeta(used);
+			const showTotal = shouldShowTotalColumn(used);
 			let tableHtml = '';
 
 			skillList.forEach(skill => {
@@ -1018,14 +1096,29 @@
 				if (currentFilter === 'not-found' && anyFound) return;
 				if (query && !skill.toLowerCase().includes(query)) return;
 
+				const cells = meta.map((m, idx) => {
+					const borderStyle = m.boundary ? 'border-left:2px solid ' + m.colors.borderSoft + ';' : '';
+					return `<td class="text-center" style="background-color:${m.colors.tint};${borderStyle}">${starBadge(vals[idx])}</td>`;
+				}).join('');
+
+				// ★合計はコピー用データには含めない（表示のみ・集計の目安）。
+				// 未検出/未計測(undefined・null)は0扱いで加算する。
+				let totalCell = '';
+				if (showTotal) {
+					const total = vals.reduce((sum, v) => sum + (typeof v === 'number' ? v : 0), 0);
+					totalCell = `<td class="text-center font-bold text-slate-700" style="background-color:#f8fafc;border-left:2px solid #e2e8f0;">${total}</td>`;
+				}
+
 				tableHtml += `<tr class="transition-colors">
 					<td class="font-medium text-slate-800">${escapeHtml(skill)}</td>
-					${vals.map(v => `<td class="text-center">${starBadge(v)}</td>`).join('')}
+					${cells}
+					${totalCell}
 				</tr>`;
 			});
 
+			const colCount = used.length + (showTotal ? 2 : 1);
 			if (!tableHtml) {
-				tableHtml = `<tr><td colspan="${used.length + 1}" class="text-center py-6 text-slate-400 text-xs">該当するスキルが見つかりません</td></tr>`;
+				tableHtml = `<tr><td colspan="${colCount}" class="text-center py-6 text-slate-400 text-xs">該当するスキルが見つかりません</td></tr>`;
 			}
 
 			tbody.innerHTML = tableHtml;
@@ -1153,13 +1246,13 @@
 		}
 
 		/* ============================================================
-		 * 画像結合機能（1〜3人目セット・4〜6人目セットそれぞれの縦横結合・SNS投稿用）
+		 * 画像結合機能（親Aセット・親Bセットそれぞれの縦横結合・SNS投稿用）
 		 * ------------------------------------------------------------
 		 * exam.htmlで開発された画像結合ロジックをspecial.html向けに移植したもの。
 		 * exam.html専有だった「親A/祖A1/祖A2」等の家系セット概念・sp70緑/緑59種
 		 * といった技能試験固有のスキル分類・バナー表示は一切含めず、スキルパネルの
-		 * 画像そのものを結合するだけのシンプルな実装とする。1〜3人目セット・
-		 * 4〜6人目セットはそれぞれ個別に結合し、別々の画像として出力する。
+		 * 画像そのものを結合するだけのシンプルな実装とする。親Aセット・
+		 * 親Bセットはそれぞれ個別に結合し、別々の画像として出力する。
 		 * special.html専用のロジックとして本ファイル内に完結させる（common.js非改変の原則）。
 		 * OCRマッチング用の loadImage() は js/common.js のものをそのまま利用する
 		 * （同名関数の重複定義を避けるため、ここでは再定義しない）。
@@ -1516,7 +1609,7 @@
 			return out;
 		}
 
-		// 指定セット（0=1〜3人目, 1=4〜6人目）のうち、アップロード済みの人（1〜3人）
+		// 指定セット（0=親A, 1=親B）のうち、アップロード済みの人（1〜3人）
 		// それぞれを縦結合し、横結合したCanvasを返す（バナー等は付けず、スキルパネルの
 		// 結合のみ）。アップロードが1人分のみの場合は横結合をスキップしてその1人分を返す。
 		// セット内の誰もアップロードしていない場合はnullを返す。
@@ -1554,8 +1647,8 @@
 
 		// 「画像を結合する」ボタンから直接呼ばれるエントリーポイント。
 		// OCR処理（スキル照合）とは独立しており、スキルリスト未入力でも
-		// アップロード済みの画像だけで結合できる。1〜3人目セット・4〜6人目セットは
-		// それぞれ個別に結合し、別々の画像として出力する（4〜6人目セットが非表示の
+		// アップロード済みの画像だけで結合できる。親Aセット・親Bセットは
+		// それぞれ個別に結合し、別々の画像として出力する（親Bセットが非表示の
 		// 場合は、画像が入っていても結合をスキップする）。
 		// 処理中はボタンを無効化し、完了後の再クリックでは（container.innerHTMLを
 		// 都度クリアするため）前回の結合結果が新しい結果で上書きされる。
@@ -1573,7 +1666,7 @@
 				// 対象セット・合計人数を先に数えて進捗バーの分母にする
 				const targets = [];
 				for (let setIdx = 0; setIdx < PERSON_SETS.length; setIdx++) {
-					if (setIdx === 1 && !setBVisible) continue; // 4〜6人目セットが非表示なら結合もスキップ
+					if (setIdx === 1 && !setBVisible) continue; // 親Bセットが非表示なら結合もスキップ
 					const baseIdx = setIdx * 3;
 					const count = [0, 1, 2].filter(r => persons[baseIdx + r].files.length > 0).length;
 					if (count > 0) targets.push({ setIdx: setIdx, count: count });
