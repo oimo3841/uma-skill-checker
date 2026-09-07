@@ -2170,16 +2170,26 @@
 				return sum / cnt;
 			}
 
-			for (let s = h; s >= minOverlap; s--) {
-				const mad = madForOverlap(s);
-				if (mad < madThreshold) return { overlap: s, mad: mad, confident: true };
-			}
+			// s（重なり行数）の候補をすべて評価し、その中でMADが最小＝最も一致度が
+			// 高い候補を採用する。
+			//
+			// 【修正前の問題点】以前は s を大きい方（h）から小さくしていき、MADが
+			// 閾値を下回った「最初の」候補をその場で採用していた。しかしスキル一覧は
+			// どの行も背景パネルの形（丸角・星の配置）がほぼ同じであるため、本来
+			// 正しい重なり位置より手前（＝重なりが多すぎる＝スキップする範囲が
+			// 大きすぎる）の位置でも、パネルの形だけが偶然一致して閾値を下回って
+			// しまうことがあった。その場合、そこで探索が打ち切られ、本来の正しい
+			// （より小さい）重なり位置には到達しないまま確定してしまい、実際の
+			// 画面より1行分ズレて合成される→行が丸ごと消える／文字が二重に
+			// 潰れて見える、という不具合の原因になっていた（special.htmlで実データ
+			// により確認・修正済み。同一ロジックのためexam.htmlにも適用）。
+			// 全候補を見てグローバルに最良の一致を探すことで、これを防ぐ。
 			let bestS = minOverlap, bestMad = Infinity;
-			for (let s = minOverlap; s <= h; s += Math.max(1, Math.floor(h / 100))) {
+			for (let s = minOverlap; s <= h; s++) {
 				const mad = madForOverlap(s);
 				if (mad < bestMad) { bestMad = mad; bestS = s; }
 			}
-			return { overlap: bestS, mad: bestMad, confident: false };
+			return { overlap: bestS, mad: bestMad, confident: bestMad < madThreshold };
 		}
 
 		// ①-6：標準的なスクリーンショットかどうかの簡易判定（実測済みDMM版・スマホ版の
@@ -2546,11 +2556,28 @@
 			return finalCanvas;
 		}
 
+		// 処理中の多重実行を防ぐためのフラグ。「OCR処理＋画像結合」ボタンは処理中
+		// disabledになるが、連打でイベントが取りこぼされるケースに備えて二重の
+		// 安全策とする（special.htmlで確認された「3連打で結合画像が3枚並ぶ」
+		// 不具合と同一原因のため、同じ設計で対処）。
+		let stitchInProgress = false;
+
 		// 「OCR処理＋画像結合を開始する」ボタンから呼ばれるエントリーポイント。
 		// 既存のOCR処理(processImages)を先に実行し、その後に画像結合を行う。
+		// 処理中はボタンを無効化し、完了後の再クリックでは（runImageStitching側で
+		// container.innerHTMLを都度クリアするため）前回の結合結果が上書きされる。
 		async function processImagesAndStitch() {
-			await processImages();
-			await runImageStitching();
+			if (stitchInProgress) return; // 多重クリック防止
+			stitchInProgress = true;
+			const stitchBtn = document.getElementById('process-stitch-btn');
+			if (stitchBtn) stitchBtn.disabled = true;
+			try {
+				await processImages();
+				await runImageStitching();
+			} finally {
+				stitchInProgress = false;
+				updateProcessBtn(); // ファイルの有無に応じて正しいdisabled状態に戻す
+			}
 		}
 
 		async function runImageStitching() {
