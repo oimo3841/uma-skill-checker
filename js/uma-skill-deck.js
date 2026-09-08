@@ -77,8 +77,8 @@ let draftTemplate = null; // { templateId, name, skillIds } / null = 一覧表�
 let draftRecord = null;   // { recordId, name, sourceTemplateId, skillIds, candidates, cells } / null = 一覧表示中
 
 // スキル選択パネル（テンプレート編集・レコードへのスキル追加で共有する）の一時状態。
-let picker = { filters: {}, checked: new Set(), onAdd: null, excludeIds: [] };
-TAG_AXES.forEach(axis => { picker.filters[axis.key] = []; });
+let picker = { filters: {}, checked: new Set(), onAdd: null, excludeIds: [], axisOpen: {} };
+TAG_AXES.forEach(axis => { picker.filters[axis.key] = []; picker.axisOpen[axis.key] = axis.defaultOpen; });
 
 /* ============================================================
  * ユーティリティ
@@ -215,25 +215,39 @@ function showToast(msg) {
 }
 
 // 破壊的な操作（削除・切り替え等）は確認ダイアログではなく「即実行＋元に戻す」で統一する。
-// テンプレート・比較シートとも自動保存のため、確認ダイアログよりUndoの方が体験として一貫する。
-let lastUndo = null;
-let undoToastTimer = null;
+// 複数回さかのぼれるよう、スタック形式で保持する。
+//
+// 上限は20件とする。理由:
+// - このUndoスタックはページ内メモリのみに保持し、localStorageには保存しない
+//   （リロードすれば消える、セッション限定の安全網という位置づけ）。
+// - 1件あたりのデータ量はスキルID・候補情報・★の一覧程度で、テンプレート/比較シート
+//   の保存上限（各10件・候補や★は数十件程度）を踏まえても数十KB規模に収まらないため、
+//   件数上限はメモリ容量ではなくUX上の目安として設定している。
+// - 20件あれば「まとめて削除しすぎた／切り替えを何度か試した」程度の作業を十分さかのぼれる。
+const UNDO_STACK_LIMIT = 20;
+let undoStack = [];
 
 function pushUndo(label, restoreFn) {
-	lastUndo = { restore: restoreFn };
-	const toast = document.getElementById('undo-toast');
-	document.getElementById('undo-toast-label').textContent = label;
-	toast.classList.remove('hidden');
-	clearTimeout(undoToastTimer);
-	undoToastTimer = setTimeout(() => { toast.classList.add('hidden'); lastUndo = null; }, 8000);
+	undoStack.push({ label, restore: restoreFn });
+	if (undoStack.length > UNDO_STACK_LIMIT) undoStack.shift();
+	showToast(label);
+	renderUndoButton();
 }
 
 function performUndo() {
-	if (!lastUndo) return;
-	lastUndo.restore();
-	lastUndo = null;
-	document.getElementById('undo-toast').classList.add('hidden');
-	clearTimeout(undoToastTimer);
+	const entry = undoStack.pop();
+	if (!entry) return;
+	entry.restore();
+	showToast('元に戻しました：' + entry.label);
+	renderUndoButton();
+}
+
+function renderUndoButton() {
+	const btn = document.getElementById('undo-button');
+	if (!btn) return;
+	if (undoStack.length === 0) { btn.classList.add('hidden'); return; }
+	btn.classList.remove('hidden');
+	document.getElementById('undo-count-badge').textContent = undoStack.length;
 }
 
 /* ============================================================
@@ -258,9 +272,9 @@ function renderPickerFilterAxes(containerId) {
 	const el = document.getElementById(containerId);
 	el.innerHTML = TAG_AXES.map(axis => {
 		const activeCount = picker.filters[axis.key].length;
-		const isOpen = activeCount > 0 || axis.defaultOpen;
+		const isOpen = picker.axisOpen[axis.key];
 		return `
-		<details class="bg-slate-50 rounded-xl border border-slate-200" ${isOpen ? 'open' : ''}>
+		<details class="bg-slate-50 rounded-xl border border-slate-200" ${isOpen ? 'open' : ''} ontoggle="picker.axisOpen['${axis.key}']=this.open">
 			<summary class="text-[11px] text-slate-500 px-3 py-2 cursor-pointer select-none flex items-center justify-between">
 				<span>${axis.label}${activeCount > 0 ? ' <span class="text-indigo-600 font-semibold">(' + activeCount + ')</span>' : ''}</span>
 				<i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
@@ -333,7 +347,7 @@ function addCheckedSkillsToTarget() {
 }
 
 function openPicker(existingSkillIds, onAdd) {
-	picker.filters = {}; TAG_AXES.forEach(a => { picker.filters[a.key] = []; });
+	picker.filters = {}; TAG_AXES.forEach(a => { picker.filters[a.key] = []; picker.axisOpen[a.key] = a.defaultOpen; });
 	picker.checked = new Set();
 	picker.excludeIds = existingSkillIds.slice();
 	picker.onAdd = onAdd;
@@ -496,16 +510,17 @@ function removeSkillFromTemplate(skillId) {
 	const idx = draftTemplate.skillIds.indexOf(skillId);
 	if (idx === -1) return;
 	const name = getSkillName(skillId);
-	draftTemplate.skillIds.splice(idx, 1);
-	draftTemplate.updatedAt = nowIso();
+	const targetTemplate = draftTemplate;
+	targetTemplate.skillIds.splice(idx, 1);
+	targetTemplate.updatedAt = nowIso();
 	saveUserData();
 	picker.excludeIds = picker.excludeIds.filter(id => id !== skillId);
 	renderTemplateSelectedList();
 	renderPickerResults();
 	pushUndo('スキル「' + name + '」を削除しました', () => {
-		draftTemplate.skillIds.splice(idx, 0, skillId);
+		targetTemplate.skillIds.splice(idx, 0, skillId);
 		saveUserData();
-		renderTemplateSelectedList();
+		renderAll();
 	});
 }
 
@@ -528,7 +543,7 @@ function deleteTemplate(templateId) {
 	pushUndo('テンプレート「' + removed.name + '」を削除しました', () => {
 		userData.templates.splice(idx, 0, removed);
 		saveUserData();
-		renderTemplateList();
+		renderAll();
 	});
 }
 
@@ -611,21 +626,22 @@ function switchRecordTemplate(newTemplateId) {
 	if (newTemplateId === draftRecord.sourceTemplateId) return;
 	const t = userData.templates.find(x => x.templateId === newTemplateId);
 	if (!t) return;
-	const prevTemplateId = draftRecord.sourceTemplateId;
-	const prevSkillIds = draftRecord.skillIds.slice();
-	const prevCells = JSON.parse(JSON.stringify(draftRecord.cells));
-	draftRecord.sourceTemplateId = t.templateId;
-	draftRecord.skillIds = t.skillIds.slice();
-	const keep = new Set(draftRecord.skillIds);
-	Object.keys(draftRecord.cells).forEach(sid => { if (!keep.has(sid)) delete draftRecord.cells[sid]; });
-	persistDraftRecord();
+	const targetRecord = draftRecord;
+	const prevTemplateId = targetRecord.sourceTemplateId;
+	const prevSkillIds = targetRecord.skillIds.slice();
+	const prevCells = JSON.parse(JSON.stringify(targetRecord.cells));
+	targetRecord.sourceTemplateId = t.templateId;
+	targetRecord.skillIds = t.skillIds.slice();
+	const keep = new Set(targetRecord.skillIds);
+	Object.keys(targetRecord.cells).forEach(sid => { if (!keep.has(sid)) delete targetRecord.cells[sid]; });
+	saveUserData();
 	renderRecordEditor();
 	pushUndo('テンプレートを「' + t.name + '」に切り替えました', () => {
-		draftRecord.sourceTemplateId = prevTemplateId;
-		draftRecord.skillIds = prevSkillIds;
-		draftRecord.cells = prevCells;
-		persistDraftRecord();
-		renderRecordEditor();
+		targetRecord.sourceTemplateId = prevTemplateId;
+		targetRecord.skillIds = prevSkillIds;
+		targetRecord.cells = prevCells;
+		saveUserData();
+		renderAll();
 	});
 }
 
@@ -663,40 +679,44 @@ function addCandidate() {
 function removeCandidate(candidateId) {
 	const idx = draftRecord.candidates.findIndex(c => c.candidateId === candidateId);
 	if (idx === -1) return;
-	const removed = draftRecord.candidates[idx];
+	const targetRecord = draftRecord;
+	const removed = targetRecord.candidates[idx];
 	const cellBackups = {};
-	Object.keys(draftRecord.cells).forEach(skillId => {
-		if (draftRecord.cells[skillId][candidateId] !== undefined) cellBackups[skillId] = draftRecord.cells[skillId][candidateId];
-		delete draftRecord.cells[skillId][candidateId];
+	Object.keys(targetRecord.cells).forEach(skillId => {
+		if (targetRecord.cells[skillId][candidateId] !== undefined) cellBackups[skillId] = targetRecord.cells[skillId][candidateId];
+		delete targetRecord.cells[skillId][candidateId];
 	});
-	draftRecord.candidates.splice(idx, 1);
-	persistDraftRecord();
+	targetRecord.candidates.splice(idx, 1);
+	targetRecord.updatedAt = nowIso();
+	saveUserData();
 	renderRecordGrid();
 	pushUndo('候補「' + removed.label + '」を削除しました', () => {
-		draftRecord.candidates.splice(idx, 0, removed);
+		targetRecord.candidates.splice(idx, 0, removed);
 		Object.keys(cellBackups).forEach(skillId => {
-			if (!draftRecord.cells[skillId]) draftRecord.cells[skillId] = {};
-			draftRecord.cells[skillId][candidateId] = cellBackups[skillId];
+			if (!targetRecord.cells[skillId]) targetRecord.cells[skillId] = {};
+			targetRecord.cells[skillId][candidateId] = cellBackups[skillId];
 		});
-		persistDraftRecord();
-		renderRecordGrid();
+		saveUserData();
+		renderAll();
 	});
 }
 
 function removeSkillFromRecord(skillId) {
 	const idx = draftRecord.skillIds.indexOf(skillId);
 	if (idx === -1) return;
+	const targetRecord = draftRecord;
 	const name = getSkillName(skillId);
-	const cellsBackup = draftRecord.cells[skillId];
-	draftRecord.skillIds.splice(idx, 1);
-	delete draftRecord.cells[skillId];
-	persistDraftRecord();
+	const cellsBackup = targetRecord.cells[skillId];
+	targetRecord.skillIds.splice(idx, 1);
+	delete targetRecord.cells[skillId];
+	targetRecord.updatedAt = nowIso();
+	saveUserData();
 	renderRecordGrid();
 	pushUndo('スキル「' + name + '」を削除しました', () => {
-		draftRecord.skillIds.splice(idx, 0, skillId);
-		if (cellsBackup) draftRecord.cells[skillId] = cellsBackup;
-		persistDraftRecord();
-		renderRecordGrid();
+		targetRecord.skillIds.splice(idx, 0, skillId);
+		if (cellsBackup) targetRecord.cells[skillId] = cellsBackup;
+		saveUserData();
+		renderAll();
 	});
 }
 
@@ -778,7 +798,7 @@ function deleteRecord(recordId) {
 	pushUndo('比較シート「' + removed.name + '」を削除しました', () => {
 		userData.records.splice(idx, 0, removed);
 		saveUserData();
-		renderRecordList();
+		renderAll();
 	});
 }
 
