@@ -50,10 +50,11 @@ const TAG_AXES = [
 		{ v: 'track_tokyo', t: '東京レース場' }, { v: 'distance_basis', t: '根幹距離' }, { v: 'distance_nonbasis', t: '非根幹距離' }
 	]},
 	{ key: 'effect', label: '⑥効果タイプ', options: [
+		{ v: 'target_speed_up', t: '速度アップ' }, { v: 'accel_up', t: '加速度アップ' }, { v: 'move_forward', t: '前に出る' }, { v: 'extend', t: '伸び' },
+		{ v: 'stamina', t: '持久力' }, { v: 'speed_down', t: '速度ダウン' }, { v: 'start_good', t: 'スタート得意' }, { v: 'course_sense', t: 'コース取り' },
+		{ v: 'lane_change', t: 'レーン移動' }, { v: 'temptation_time', t: '掛かり時間' }, { v: 'vision', t: '視野' },
 		{ v: 'speed_up', t: 'スピードアップ' }, { v: 'stamina_up', t: 'スタミナアップ' }, { v: 'power_up', t: 'パワーアップ' },
-		{ v: 'guts_up', t: '根性アップ' }, { v: 'wisdom_up', t: '賢さアップ' }, { v: 'vision', t: '視野' },
-		{ v: 'stamina_recover', t: '持久力回復' }, { v: 'start_good', t: 'スタート得意' }, { v: 'speed_down', t: '速度ダウン' },
-		{ v: 'move_forward', t: '前に出る' }, { v: 'accel_up', t: '加速アップ' }, { v: 'course_sense', t: 'コース取り' }, { v: 'lane_change', t: 'レーン移動' }
+		{ v: 'guts_up', t: '根性アップ' }, { v: 'wisdom_up', t: '賢さアップ' }, { v: 'all_up', t: '全てアップ' }
 	]}
 ];
 
@@ -61,7 +62,7 @@ const TAG_AXES = [
 // まだ未公開/未配置の環境でも動作確認できるようにするための最終フォールバック）。
 const SAMPLE_MASTER_SKILLS = { masterVersion: 'embedded-sample', skills: [
 	{ id: '1', name: '右回り○', tags: { distance: [], style: [], phase: [], coursePos: [], environment: ['right_turn'], effect: ['speed_up'] } },
-	{ id: '21', name: '積極策', tags: { distance: ['mile'], style: [], phase: ['mid'], coursePos: [], environment: [], effect: ['speed_up'] } },
+	{ id: '21', name: '積極策', tags: { distance: ['mile'], style: [], phase: ['mid'], coursePos: [], environment: [], effect: ['target_speed_up'] } },
 	{ id: '26', name: '集中力', tags: { distance: [], style: [], phase: [], coursePos: [], environment: [], effect: ['start_good'] } }
 ]};
 
@@ -233,10 +234,15 @@ function switchTab(name) {
  * ============================================================ */
 function renderPickerFilterAxes(containerId) {
 	const el = document.getElementById(containerId);
-	el.innerHTML = TAG_AXES.map(axis => `
-		<div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
-			<p class="text-[11px] text-slate-500 mb-2">${axis.label}</p>
-			<div class="flex flex-wrap gap-1.5">
+	el.innerHTML = TAG_AXES.map(axis => {
+		const activeCount = picker.filters[axis.key].length;
+		return `
+		<details class="bg-slate-50 rounded-xl border border-slate-200" ${activeCount > 0 ? 'open' : ''}>
+			<summary class="text-[11px] text-slate-500 px-3 py-2 cursor-pointer select-none flex items-center justify-between">
+				<span>${axis.label}${activeCount > 0 ? ' <span class="text-indigo-600 font-semibold">(' + activeCount + ')</span>' : ''}</span>
+				<i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+			</summary>
+			<div class="flex flex-wrap gap-1.5 px-3 pb-3">
 				${axis.options.map(o => `
 					<label class="picker-pill">
 						<input type="checkbox" data-axis="${axis.key}" data-value="${o.v}" onchange="onPickerFilterChange(this)" ${picker.filters[axis.key].includes(o.v) ? 'checked' : ''}/>
@@ -244,8 +250,10 @@ function renderPickerFilterAxes(containerId) {
 					</label>
 				`).join('')}
 			</div>
-		</div>
-	`).join('');
+		</details>
+	`;
+	}).join('');
+	refreshIcons();
 }
 
 function onPickerFilterChange(input) {
@@ -254,15 +262,22 @@ function onPickerFilterChange(input) {
 	const idx = arr.indexOf(value);
 	if (input.checked && idx === -1) arr.push(value);
 	if (!input.checked && idx !== -1) arr.splice(idx, 1);
+	renderPickerFilterAxes('picker-filter-axes');
 	renderPickerResults();
+}
+
+function getFilteredPickerPool() {
+	const pool = masterSkills.concat((userData.customSkills || []).map(c => ({ id: c.customId, name: c.name, tags: c.tags })));
+	return pool.filter(s => !picker.excludeIds.includes(s.id) && matchesFilters(s, picker.filters));
 }
 
 function renderPickerResults() {
 	const el = document.getElementById('picker-results');
 	if (!el) return;
-	const pool = masterSkills.concat((userData.customSkills || []).map(c => ({ id: c.customId, name: c.name, tags: c.tags })));
-	const filtered = pool.filter(s => !picker.excludeIds.includes(s.id) && matchesFilters(s, picker.filters));
+	const filtered = getFilteredPickerPool();
 	document.getElementById('picker-result-count').textContent = filtered.length + '件';
+	const selectAllBox = document.getElementById('picker-select-all');
+	if (selectAllBox) selectAllBox.checked = filtered.length > 0 && filtered.every(s => picker.checked.has(s.id));
 	if (filtered.length === 0) {
 		el.innerHTML = '<p class="text-xs text-slate-400 p-3">条件に一致するスキルがありません。</p>';
 		return;
@@ -273,6 +288,12 @@ function renderPickerResults() {
 			<span>${escapeHtml(s.name)}</span>
 		</label>
 	`).join('');
+}
+
+function togglePickerSelectAll(checked) {
+	const filtered = getFilteredPickerPool();
+	filtered.forEach(s => { if (checked) picker.checked.add(s.id); else picker.checked.delete(s.id); });
+	renderPickerResults();
 }
 
 function onPickerCheck(skillId, checked) {
@@ -500,6 +521,7 @@ function renderRecordList() {
 		<div class="list-card">
 			<div class="flex-1 min-w-0">
 				<p class="font-semibold text-sm text-slate-800 truncate">${escapeHtml(r.name)}</p>
+				<p class="text-xs text-slate-500">元テンプレート：${escapeHtml(getTemplateName(r.sourceTemplateId))}</p>
 				<p class="text-xs text-slate-500">候補${r.candidates.length}人・スキル${r.skillIds.length}件・更新 ${escapeHtml((r.updatedAt || '').slice(0, 10))}</p>
 			</div>
 			<div class="flex gap-1.5 shrink-0">
@@ -539,6 +561,28 @@ function closeRecordEditor() {
 	renderRecordTab();
 }
 
+function getTemplateName(templateId) {
+	const t = userData.templates.find(x => x.templateId === templateId);
+	return t ? t.name : '（削除済みテンプレート）';
+}
+
+function switchRecordTemplate(newTemplateId) {
+	if (newTemplateId === draftRecord.sourceTemplateId) return;
+	const t = userData.templates.find(x => x.templateId === newTemplateId);
+	if (!t) return;
+	if (!confirm('テンプレートを「' + t.name + '」に切り替えます。スキル一覧が新しいテンプレートの内容で置き換わります（残るスキルの★はそのまま引き継がれます）。よろしいですか？')) {
+		renderRecordEditor();
+		return;
+	}
+	draftRecord.sourceTemplateId = t.templateId;
+	draftRecord.skillIds = t.skillIds.slice();
+	const keep = new Set(draftRecord.skillIds);
+	Object.keys(draftRecord.cells).forEach(sid => { if (!keep.has(sid)) delete draftRecord.cells[sid]; });
+	persistDraftRecord();
+	renderRecordEditor();
+	showToast('テンプレートを切り替えました');
+}
+
 function persistDraftRecord() {
 	draftRecord.updatedAt = nowIso();
 	saveUserData();
@@ -546,6 +590,12 @@ function persistDraftRecord() {
 
 function renderRecordEditor() {
 	document.getElementById('record-name-input').value = draftRecord.name;
+	const sel = document.getElementById('record-template-select');
+	const options = userData.templates.map(t => `<option value="${t.templateId}">${escapeHtml(t.name)}</option>`);
+	const hasCurrent = userData.templates.some(t => t.templateId === draftRecord.sourceTemplateId);
+	if (!hasCurrent) options.unshift(`<option value="${draftRecord.sourceTemplateId || ''}" disabled selected>（削除済みテンプレート）</option>`);
+	sel.innerHTML = options.join('');
+	sel.value = draftRecord.sourceTemplateId || '';
 	renderRecordGrid();
 }
 
