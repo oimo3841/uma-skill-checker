@@ -42,7 +42,12 @@
 		.cand-header input[type=checkbox] { width: 11px; height: 11px; margin: 0; }
 		.cand-name-btn { font-size: 11px; font-weight: 600; background: none; border: none; padding: 1px 2px; cursor: pointer; color: #334155; }
 		.cand-del-btn { padding: 0; }
-		.col-disabled { opacity: .38; background: #f8fafc; }
+		/* 注意: position:sticky を使うテーブル内では opacity<1 を使わないこと。
+		   opacity は新しいスタッキングコンテキストを生成し、sticky要素間の
+		   z-index順序を壊すため、スクロール時に別セルが手前に描画される
+		   不具合の原因になる。無効状態の表現は色の変更のみで行う。 */
+		.col-disabled { background: #f1f5f9; }
+		.col-disabled, .col-disabled * { color: #cbd5e1; }
 		.sum-badge { background: #eef2ff; color: #4338ca; border-radius: 999px; padding: 1px 7px; font-size: 11px; font-weight: 600; flex-shrink: 0; }
 		.row-filter-btn { padding: 4px 10px; border-radius: 999px; font-size: 11px; border: 1px solid #e2e8f0; background: #fff; color: #64748b; cursor: pointer; }
 		.row-filter-btn.active { background: #eef2ff; color: #4338ca; border-color: #c7d2fe; font-weight: 600; }
