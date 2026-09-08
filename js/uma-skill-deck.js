@@ -75,6 +75,7 @@ let masterMeta = { version: '', fetchedAt: '' };
 
 let draftTemplate = null; // { templateId, name, skillIds } / null = 一覧表示中
 let draftRecord = null;   // { recordId, name, sourceTemplateId, skillIds, candidates, cells } / null = 一覧表示中
+let recordRowFilter = 'all'; // 比較シート編集画面の行フィルター（'all' | 'zero' | 'nonzero'）
 
 // スキル選択パネル（テンプレート編集・レコードへのスキル追加で共有する）の一時状態。
 let picker = { filters: {}, checked: new Set(), onAdd: null, excludeIds: [], axisOpen: {} };
@@ -610,7 +611,13 @@ function createRecordFromTemplate() {
 function openRecordEditor(recordId) {
 	draftRecord = userData.records.find(x => x.recordId === recordId);
 	normalizeCandidateEnabled(draftRecord);
+	recordRowFilter = 'all';
 	renderRecordTab();
+}
+
+function setRecordRowFilter(mode) {
+	recordRowFilter = mode;
+	renderRecordGrid();
 }
 
 function closeRecordEditor() {
@@ -773,21 +780,37 @@ function adjustStar(skillId, candidateId, delta) {
 	draftRecord.cells[skillId][candidateId] = next;
 	persistDraftRecord();
 	document.getElementById('star-' + skillId + '-' + candidateId).textContent = next;
+	const newSum = computeRowSum(skillId);
 	const sumEl = document.getElementById('sum-' + skillId);
-	if (sumEl) sumEl.textContent = computeRowSum(skillId);
+	if (sumEl) sumEl.textContent = newSum;
+	const rowEl = document.getElementById('row-' + skillId);
+	if (rowEl) rowEl.classList.toggle('row-zero', newSum === 0);
+	// 行フィルターが「不足のみ」「充足あり」の場合、値の増減でその行が
+	// 表示条件から外れることがあるため、その時だけグリッド全体を再描画する。
+	if ((recordRowFilter === 'zero' && newSum !== 0) || (recordRowFilter === 'nonzero' && newSum === 0)) {
+		renderRecordGrid();
+	}
 }
 
 function renderRecordGrid() {
 	const wrap = document.getElementById('record-grid-wrap');
 	const enabledCountEl = document.getElementById('record-enabled-count');
 	if (enabledCountEl) enabledCountEl.textContent = '有効な候補：' + countEnabledCandidates() + '/' + MAX_ENABLED_CANDIDATES + '人（候補は' + draftRecord.candidates.length + '人登録中）';
+	document.querySelectorAll('.row-filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === recordRowFilter));
 	if (draftRecord.skillIds.length === 0) {
 		wrap.innerHTML = '<p class="text-xs text-slate-400 p-4">「スキルを追加」からスキルを選んでください。</p>';
 		return;
 	}
 	const candidates = draftRecord.candidates;
+	const skillIdsToShow = draftRecord.skillIds.filter(skillId => {
+		const sum = computeRowSum(skillId);
+		if (recordRowFilter === 'zero') return sum === 0;
+		if (recordRowFilter === 'nonzero') return sum > 0;
+		return true;
+	});
 	let html = '<table class="deck-table"><thead><tr>';
 	html += '<th class="sticky-col sticky-header">スキル</th>';
+	html += '<th class="sticky-col2 sticky-header" title="有効な候補の★合計">計</th>';
 	candidates.forEach(c => {
 		html += `<th class="sticky-header ${c.enabled ? '' : 'col-disabled'}">
 			<div class="flex items-center justify-center gap-1">
@@ -798,11 +821,18 @@ function renderRecordGrid() {
 		</th>`;
 	});
 	html += '</tr></thead><tbody>';
-	draftRecord.skillIds.forEach(skillId => {
-		html += '<tr><td class="sticky-col"><div class="flex items-center justify-between gap-1.5">' +
-			'<span class="truncate">' + escapeHtml(getSkillName(skillId)) + '</span>' +
-			'<span id="sum-' + escapeHtml(skillId) + '" class="sum-badge" title="有効な候補の★合計">' + computeRowSum(skillId) + '</span>' +
-			'<button onclick="removeSkillFromRecord(\'' + escapeHtml(skillId) + '\')" aria-label="この行を削除"><i data-lucide="x" class="w-3 h-3 text-slate-400"></i></button></div></td>';
+	if (skillIdsToShow.length === 0) {
+		html += '</tbody></table>';
+		html += '<p class="text-xs text-slate-400 p-3">条件に一致する行がありません。</p>';
+		wrap.innerHTML = html;
+		return;
+	}
+	skillIdsToShow.forEach(skillId => {
+		const sum = computeRowSum(skillId);
+		html += '<tr id="row-' + escapeHtml(skillId) + '" class="' + (sum === 0 ? 'row-zero' : '') + '">' +
+			'<td class="sticky-col"><div class="flex items-center justify-between gap-1"><span class="truncate">' + escapeHtml(getSkillName(skillId)) + '</span>' +
+			'<button onclick="removeSkillFromRecord(\'' + escapeHtml(skillId) + '\')" aria-label="この行を削除"><i data-lucide="x" class="w-3 h-3 text-slate-400"></i></button></div></td>' +
+			'<td class="sticky-col2"><span id="sum-' + escapeHtml(skillId) + '" class="sum-badge" title="有効な候補の★合計">' + sum + '</span></td>';
 		candidates.forEach(c => {
 			const v = (draftRecord.cells[skillId] && draftRecord.cells[skillId][c.candidateId]) || 0;
 			html += `<td class="${c.enabled ? '' : 'col-disabled'}"><div class="star-cell">
