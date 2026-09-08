@@ -63,14 +63,14 @@
 			<div id="template-editor-view" class="hidden glass-card rounded-2xl border border-slate-200 p-4">
 				<div class="flex items-center gap-2 mb-3">
 					<button onclick="closeTemplateEditor()" class="icon-btn"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
-					<input id="template-name-input" placeholder="テンプレート名（例：マイルCS想定）" class="flex-1"/>
+					<input id="template-name-input" onchange="onTemplateNameChange()" placeholder="テンプレート名（例：マイルCS想定）" class="flex-1"/>
 				</div>
 				<button onclick="openTemplateSkillPicker()" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold mb-3">
 					<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> スキルを追加
 				</button>
 				<p class="text-xs text-slate-500 mb-1">選択済みスキル（<span id="template-selected-count">0</span>）</p>
-				<div id="template-selected-list" class="flex flex-wrap gap-2 mb-4"></div>
-				<button onclick="saveTemplate()" class="w-full px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold">保存</button>
+				<div id="template-selected-list" class="flex flex-wrap gap-2"></div>
+				<p class="text-[11px] text-slate-400 mt-4">変更は自動的に保存されます。</p>
 			</div>
 		</section>
 
@@ -143,7 +143,7 @@
 				<button onclick="closeSkillPickerModal()" class="icon-btn"><i data-lucide="x" class="w-4 h-4"></i></button>
 			</div>
 			<div class="p-4" style="overflow:auto;">
-				<div id="picker-filter-axes" class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3"></div>
+				<div id="picker-filter-axes" class="grid grid-cols-1 gap-2 mb-3"></div>
 				<div class="flex items-center justify-between mb-1">
 					<label class="flex items-center gap-1.5 text-xs text-slate-600">
 						<input type="checkbox" id="picker-select-all" onchange="togglePickerSelectAll(this.checked)"/> 表示中を全て選択
@@ -163,6 +163,12 @@
 				</details>
 			</div>
 		</div>
+	</div>
+
+	<!-- ============ Undo通知 ============ -->
+	<div id="undo-toast" class="hidden fixed bottom-20 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-full shadow-lg z-[60] flex items-center gap-3">
+		<span id="undo-toast-label"></span>
+		<button onclick="performUndo()" class="font-semibold text-indigo-300">元に戻す</button>
 	</div>
 
 	<!-- ============ トースト通知 ============ -->
