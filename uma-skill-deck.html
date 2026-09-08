@@ -85,9 +85,13 @@
 				<div id="record-list"></div>
 			</div>
 			<div id="record-editor-view" class="hidden glass-card rounded-2xl border border-slate-200 p-4">
-				<div class="flex items-center gap-2 mb-3">
+				<div class="flex items-center gap-2 mb-2">
 					<button onclick="closeRecordEditor()" class="icon-btn"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
 					<input id="record-name-input" onchange="onRecordNameChange()" class="flex-1"/>
+				</div>
+				<div class="flex items-center gap-2 mb-3 text-xs">
+					<span class="text-slate-500 whitespace-nowrap">テンプレート：</span>
+					<select id="record-template-select" onchange="switchRecordTemplate(this.value)" style="font-size:12px;padding:4px 8px;width:auto;"></select>
 				</div>
 				<div class="flex flex-wrap gap-2 mb-3">
 					<button onclick="openRecordSkillPicker()" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold">
@@ -133,24 +137,31 @@
 
 	<!-- ============ スキル選択モーダル（テンプレート編集・比較シートへのスキル追加で共有） ============ -->
 	<div id="skill-picker-modal" class="hidden" style="position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:50;display:flex;align-items:flex-end;justify-content:center;">
-		<div class="glass-card w-full max-w-2xl rounded-t-2xl md:rounded-2xl md:mb-6 p-4" style="max-height:85vh;overflow:auto;">
-			<div class="flex items-center justify-between mb-3">
+		<div class="glass-card w-full max-w-2xl rounded-t-2xl md:rounded-2xl md:mb-6" style="max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+			<div class="flex items-center justify-between p-4 border-b border-slate-200" style="flex-shrink:0;">
 				<p class="text-sm font-semibold text-slate-700">スキルを選ぶ（軸間はAND・軸内はOR）</p>
 				<button onclick="closeSkillPickerModal()" class="icon-btn"><i data-lucide="x" class="w-4 h-4"></i></button>
 			</div>
-			<div id="picker-filter-axes" class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3"></div>
-			<p class="text-xs text-slate-500 mb-1">絞り込み結果（<span id="picker-result-count">0件</span>）</p>
-			<div id="picker-results" style="border:1px solid #e2e8f0;border-radius:.75rem;max-height:160px;overflow:auto;margin-bottom:10px;"></div>
-			<button onclick="addCheckedSkillsToTarget()" class="w-full px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold mb-4">チェックしたスキルを追加</button>
-
-			<details class="border-t border-slate-200 pt-3">
-				<summary class="text-xs font-semibold text-slate-600 cursor-pointer">マスターにないスキルを手入力で追加</summary>
-				<div class="mt-3">
-					<input id="custom-skill-name" placeholder="スキル名" class="mb-2"/>
-					<div id="custom-skill-tags"></div>
-					<button onclick="addCustomSkillFromPicker()" class="mt-2 px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold">カスタムスキルとして追加</button>
+			<div class="p-4" style="overflow:auto;">
+				<div id="picker-filter-axes" class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3"></div>
+				<div class="flex items-center justify-between mb-1">
+					<label class="flex items-center gap-1.5 text-xs text-slate-600">
+						<input type="checkbox" id="picker-select-all" onchange="togglePickerSelectAll(this.checked)"/> 表示中を全て選択
+					</label>
+					<p class="text-xs text-slate-500">絞り込み結果（<span id="picker-result-count">0件</span>）</p>
 				</div>
-			</details>
+				<div id="picker-results" style="border:1px solid #e2e8f0;border-radius:.75rem;max-height:280px;overflow:auto;margin-bottom:10px;"></div>
+				<button onclick="addCheckedSkillsToTarget()" class="w-full px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold mb-4">チェックしたスキルを追加</button>
+
+				<details class="border-t border-slate-200 pt-3">
+					<summary class="text-xs font-semibold text-slate-600 cursor-pointer">マスターにないスキルを手入力で追加</summary>
+					<div class="mt-3">
+						<input id="custom-skill-name" placeholder="スキル名" class="mb-2"/>
+						<div id="custom-skill-tags"></div>
+						<button onclick="addCustomSkillFromPicker()" class="mt-2 px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold">カスタムスキルとして追加</button>
+					</div>
+				</details>
+			</div>
 		</div>
 	</div>
 
