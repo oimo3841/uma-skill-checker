@@ -29,32 +29,32 @@ const STAR_MAX = 3;
 
 // 6軸のタグ辞書。フィルターパネル・タグ表示・カスタムスキル入力で共有する。
 const TAG_AXES = [
-	{ key: 'distance', label: '①距離', options: [
+	{ key: 'distance', label: '①距離', defaultOpen: true, options: [
 		{ v: 'short', t: '短距離' }, { v: 'mile', t: 'マイル' }, { v: 'medium', t: '中距離' }, { v: 'long', t: '長距離' }
 	]},
-	{ key: 'style', label: '②脚質', options: [
+	{ key: 'style', label: '②脚質', defaultOpen: true, options: [
 		{ v: 'nige', t: '逃げ' }, { v: 'senko', t: '先行' }, { v: 'sashi', t: '差し' }, { v: 'oikomi', t: '追込' }
 	]},
-	{ key: 'phase', label: '③フェーズ', options: [
+	{ key: 'effect', label: '③効果タイプ', defaultOpen: true, options: [
+		{ v: 'target_speed_up', t: '速度アップ' }, { v: 'accel_up', t: '加速度アップ' }, { v: 'move_forward', t: '前に出る' }, { v: 'extend', t: '伸び' },
+		{ v: 'stamina', t: '持久力' }, { v: 'speed_down', t: '速度ダウン' }, { v: 'start_good', t: 'スタート得意' }, { v: 'course_sense', t: 'コース取り' },
+		{ v: 'lane_change', t: 'レーン移動' }, { v: 'temptation_time', t: '掛かり時間' }, { v: 'vision', t: '視野' },
+		{ v: 'speed_up', t: 'スピードアップ' }, { v: 'stamina_up', t: 'スタミナアップ' }, { v: 'power_up', t: 'パワーアップ' },
+		{ v: 'guts_up', t: '根性アップ' }, { v: 'wisdom_up', t: '賢さアップ' }, { v: 'all_up', t: '全てアップ' }
+	]},
+	{ key: 'phase', label: '④フェーズ', defaultOpen: false, options: [
 		{ v: 'early', t: '序盤' }, { v: 'mid', t: '中盤' }, { v: 'late', t: '終盤' }, { v: 'lastspurt', t: 'ラストスパート' }
 	]},
-	{ key: 'coursePos', label: '④コース位置', options: [
+	{ key: 'coursePos', label: '⑤コース位置', defaultOpen: false, options: [
 		{ v: 'corner', t: 'コーナー' }, { v: 'straight', t: '直線' }, { v: 'uphill', t: '上り坂' }, { v: 'downhill', t: '下り坂' }
 	]},
-	{ key: 'environment', label: '⑤その他（レース環境）', options: [
+	{ key: 'environment', label: '⑥その他（レース環境）', defaultOpen: false, options: [
 		{ v: 'ground_good', t: '良バ場' }, { v: 'ground_bad', t: '道悪' },
 		{ v: 'right_turn', t: '右回り' }, { v: 'left_turn', t: '左回り' }, { v: 'small_track', t: '小回り' }, { v: 'straight_course', t: '直線コース' },
 		{ v: 'weather_sunny', t: '晴れ' }, { v: 'weather_cloudy', t: '曇り' }, { v: 'weather_rain', t: '雨' }, { v: 'weather_snow', t: '雪' },
 		{ v: 'season_spring', t: '春' }, { v: 'season_summer', t: '夏' }, { v: 'season_autumn', t: '秋' }, { v: 'season_winter', t: '冬' },
 		{ v: 'time_day', t: '昼' }, { v: 'time_evening', t: '夕方' }, { v: 'time_night', t: 'ナイター' },
 		{ v: 'track_tokyo', t: '東京レース場' }, { v: 'distance_basis', t: '根幹距離' }, { v: 'distance_nonbasis', t: '非根幹距離' }
-	]},
-	{ key: 'effect', label: '⑥効果タイプ', options: [
-		{ v: 'target_speed_up', t: '速度アップ' }, { v: 'accel_up', t: '加速度アップ' }, { v: 'move_forward', t: '前に出る' }, { v: 'extend', t: '伸び' },
-		{ v: 'stamina', t: '持久力' }, { v: 'speed_down', t: '速度ダウン' }, { v: 'start_good', t: 'スタート得意' }, { v: 'course_sense', t: 'コース取り' },
-		{ v: 'lane_change', t: 'レーン移動' }, { v: 'temptation_time', t: '掛かり時間' }, { v: 'vision', t: '視野' },
-		{ v: 'speed_up', t: 'スピードアップ' }, { v: 'stamina_up', t: 'スタミナアップ' }, { v: 'power_up', t: 'パワーアップ' },
-		{ v: 'guts_up', t: '根性アップ' }, { v: 'wisdom_up', t: '賢さアップ' }, { v: 'all_up', t: '全てアップ' }
 	]}
 ];
 
@@ -203,7 +203,7 @@ function tagLabel(axisKey, value) {
 }
 
 /* ============================================================
- * トースト通知
+ * トースト通知／Undo
  * ============================================================ */
 function showToast(msg) {
 	const toast = document.getElementById('toast');
@@ -212,6 +212,28 @@ function showToast(msg) {
 	msgEl.textContent = msg;
 	toast.classList.remove('translate-y-16', 'opacity-0', 'pointer-events-none');
 	setTimeout(() => { toast.classList.add('translate-y-16', 'opacity-0', 'pointer-events-none'); }, 2500);
+}
+
+// 破壊的な操作（削除・切り替え等）は確認ダイアログではなく「即実行＋元に戻す」で統一する。
+// テンプレート・比較シートとも自動保存のため、確認ダイアログよりUndoの方が体験として一貫する。
+let lastUndo = null;
+let undoToastTimer = null;
+
+function pushUndo(label, restoreFn) {
+	lastUndo = { restore: restoreFn };
+	const toast = document.getElementById('undo-toast');
+	document.getElementById('undo-toast-label').textContent = label;
+	toast.classList.remove('hidden');
+	clearTimeout(undoToastTimer);
+	undoToastTimer = setTimeout(() => { toast.classList.add('hidden'); lastUndo = null; }, 8000);
+}
+
+function performUndo() {
+	if (!lastUndo) return;
+	lastUndo.restore();
+	lastUndo = null;
+	document.getElementById('undo-toast').classList.add('hidden');
+	clearTimeout(undoToastTimer);
 }
 
 /* ============================================================
@@ -236,8 +258,9 @@ function renderPickerFilterAxes(containerId) {
 	const el = document.getElementById(containerId);
 	el.innerHTML = TAG_AXES.map(axis => {
 		const activeCount = picker.filters[axis.key].length;
+		const isOpen = activeCount > 0 || axis.defaultOpen;
 		return `
-		<details class="bg-slate-50 rounded-xl border border-slate-200" ${activeCount > 0 ? 'open' : ''}>
+		<details class="bg-slate-50 rounded-xl border border-slate-200" ${isOpen ? 'open' : ''}>
 			<summary class="text-[11px] text-slate-500 px-3 py-2 cursor-pointer select-none flex items-center justify-between">
 				<span>${axis.label}${activeCount > 0 ? ' <span class="text-indigo-600 font-semibold">(' + activeCount + ')</span>' : ''}</span>
 				<i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
@@ -407,19 +430,27 @@ function renderTemplateList() {
 
 function openTemplateEditor(templateId) {
 	if (templateId) {
-		const t = userData.templates.find(x => x.templateId === templateId);
-		draftTemplate = { templateId: t.templateId, name: t.name, skillIds: t.skillIds.slice() };
+		draftTemplate = userData.templates.find(x => x.templateId === templateId);
 	} else {
 		if (userData.templates.length >= TEMPLATE_LIMIT) {
 			showToast('テンプレートは最大' + TEMPLATE_LIMIT + '件までです。不要なものを削除してください');
 			return;
 		}
-		draftTemplate = { templateId: null, name: '', skillIds: [] };
+		// 新規テンプレートはこの時点で即座に配列へ追加し、以降は全操作を自動保存する。
+		// 名前もスキルも入力されないまま閉じられた場合のみ、closeTemplateEditor側で破棄する。
+		draftTemplate = { templateId: uid('tpl'), name: '', skillIds: [], createdAt: nowIso(), updatedAt: nowIso() };
+		userData.templates.push(draftTemplate);
+		saveUserData();
 	}
 	renderTemplateTab();
 }
 
 function closeTemplateEditor() {
+	// スキルが1件も選ばれていない未完成の下書きは、一覧を汚さないよう自動で破棄する。
+	if (draftTemplate && draftTemplate.skillIds.length === 0) {
+		userData.templates = userData.templates.filter(t => t.templateId !== draftTemplate.templateId);
+		saveUserData();
+	}
 	draftTemplate = null;
 	renderTemplateTab();
 }
@@ -429,10 +460,19 @@ function renderTemplateEditor() {
 	renderTemplateSelectedList();
 }
 
+function onTemplateNameChange() {
+	draftTemplate.name = document.getElementById('template-name-input').value;
+	draftTemplate.updatedAt = nowIso();
+	saveUserData();
+	renderTemplateList();
+}
+
 function openTemplateSkillPicker() {
 	document.getElementById('skill-picker-modal').classList.remove('hidden');
 	openPicker(draftTemplate.skillIds, (ids) => {
 		ids.forEach(id => { if (!draftTemplate.skillIds.includes(id)) draftTemplate.skillIds.push(id); });
+		draftTemplate.updatedAt = nowIso();
+		saveUserData();
 		renderTemplateSelectedList();
 	});
 }
@@ -453,26 +493,20 @@ function renderTemplateSelectedList() {
 }
 
 function removeSkillFromTemplate(skillId) {
-	draftTemplate.skillIds = draftTemplate.skillIds.filter(id => id !== skillId);
+	const idx = draftTemplate.skillIds.indexOf(skillId);
+	if (idx === -1) return;
+	const name = getSkillName(skillId);
+	draftTemplate.skillIds.splice(idx, 1);
+	draftTemplate.updatedAt = nowIso();
+	saveUserData();
 	picker.excludeIds = picker.excludeIds.filter(id => id !== skillId);
 	renderTemplateSelectedList();
 	renderPickerResults();
-}
-
-function saveTemplate() {
-	const name = document.getElementById('template-name-input').value.trim();
-	if (!name) { showToast('テンプレート名を入力してください'); return; }
-	if (draftTemplate.skillIds.length === 0) { showToast('スキルを1件以上選択してください'); return; }
-	if (draftTemplate.templateId) {
-		const t = userData.templates.find(x => x.templateId === draftTemplate.templateId);
-		t.name = name; t.skillIds = draftTemplate.skillIds.slice(); t.updatedAt = nowIso();
-	} else {
-		if (userData.templates.length >= TEMPLATE_LIMIT) { showToast('テンプレートは最大' + TEMPLATE_LIMIT + '件までです'); return; }
-		userData.templates.push({ templateId: uid('tpl'), name, skillIds: draftTemplate.skillIds.slice(), createdAt: nowIso(), updatedAt: nowIso() });
-	}
-	saveUserData();
-	showToast('テンプレートを保存しました');
-	closeTemplateEditor();
+	pushUndo('スキル「' + name + '」を削除しました', () => {
+		draftTemplate.skillIds.splice(idx, 0, skillId);
+		saveUserData();
+		renderTemplateSelectedList();
+	});
 }
 
 function duplicateTemplate(templateId) {
@@ -485,10 +519,17 @@ function duplicateTemplate(templateId) {
 }
 
 function deleteTemplate(templateId) {
-	if (!confirm('このテンプレートを削除します。よろしいですか？')) return;
-	userData.templates = userData.templates.filter(x => x.templateId !== templateId);
+	const idx = userData.templates.findIndex(x => x.templateId === templateId);
+	if (idx === -1) return;
+	const removed = userData.templates[idx];
+	userData.templates.splice(idx, 1);
 	saveUserData();
 	renderTemplateList();
+	pushUndo('テンプレート「' + removed.name + '」を削除しました', () => {
+		userData.templates.splice(idx, 0, removed);
+		saveUserData();
+		renderTemplateList();
+	});
 }
 
 /* ============================================================
@@ -570,17 +611,22 @@ function switchRecordTemplate(newTemplateId) {
 	if (newTemplateId === draftRecord.sourceTemplateId) return;
 	const t = userData.templates.find(x => x.templateId === newTemplateId);
 	if (!t) return;
-	if (!confirm('テンプレートを「' + t.name + '」に切り替えます。スキル一覧が新しいテンプレートの内容で置き換わります（残るスキルの★はそのまま引き継がれます）。よろしいですか？')) {
-		renderRecordEditor();
-		return;
-	}
+	const prevTemplateId = draftRecord.sourceTemplateId;
+	const prevSkillIds = draftRecord.skillIds.slice();
+	const prevCells = JSON.parse(JSON.stringify(draftRecord.cells));
 	draftRecord.sourceTemplateId = t.templateId;
 	draftRecord.skillIds = t.skillIds.slice();
 	const keep = new Set(draftRecord.skillIds);
 	Object.keys(draftRecord.cells).forEach(sid => { if (!keep.has(sid)) delete draftRecord.cells[sid]; });
 	persistDraftRecord();
 	renderRecordEditor();
-	showToast('テンプレートを切り替えました');
+	pushUndo('テンプレートを「' + t.name + '」に切り替えました', () => {
+		draftRecord.sourceTemplateId = prevTemplateId;
+		draftRecord.skillIds = prevSkillIds;
+		draftRecord.cells = prevCells;
+		persistDraftRecord();
+		renderRecordEditor();
+	});
 }
 
 function persistDraftRecord() {
@@ -615,19 +661,43 @@ function addCandidate() {
 }
 
 function removeCandidate(candidateId) {
-	if (!confirm('この候補列を削除します。よろしいですか？')) return;
-	draftRecord.candidates = draftRecord.candidates.filter(c => c.candidateId !== candidateId);
-	Object.keys(draftRecord.cells).forEach(skillId => { delete draftRecord.cells[skillId][candidateId]; });
+	const idx = draftRecord.candidates.findIndex(c => c.candidateId === candidateId);
+	if (idx === -1) return;
+	const removed = draftRecord.candidates[idx];
+	const cellBackups = {};
+	Object.keys(draftRecord.cells).forEach(skillId => {
+		if (draftRecord.cells[skillId][candidateId] !== undefined) cellBackups[skillId] = draftRecord.cells[skillId][candidateId];
+		delete draftRecord.cells[skillId][candidateId];
+	});
+	draftRecord.candidates.splice(idx, 1);
 	persistDraftRecord();
 	renderRecordGrid();
+	pushUndo('候補「' + removed.label + '」を削除しました', () => {
+		draftRecord.candidates.splice(idx, 0, removed);
+		Object.keys(cellBackups).forEach(skillId => {
+			if (!draftRecord.cells[skillId]) draftRecord.cells[skillId] = {};
+			draftRecord.cells[skillId][candidateId] = cellBackups[skillId];
+		});
+		persistDraftRecord();
+		renderRecordGrid();
+	});
 }
 
 function removeSkillFromRecord(skillId) {
-	if (!confirm('この行（スキル）を削除します。よろしいですか？')) return;
-	draftRecord.skillIds = draftRecord.skillIds.filter(id => id !== skillId);
+	const idx = draftRecord.skillIds.indexOf(skillId);
+	if (idx === -1) return;
+	const name = getSkillName(skillId);
+	const cellsBackup = draftRecord.cells[skillId];
+	draftRecord.skillIds.splice(idx, 1);
 	delete draftRecord.cells[skillId];
 	persistDraftRecord();
 	renderRecordGrid();
+	pushUndo('スキル「' + name + '」を削除しました', () => {
+		draftRecord.skillIds.splice(idx, 0, skillId);
+		if (cellsBackup) draftRecord.cells[skillId] = cellsBackup;
+		persistDraftRecord();
+		renderRecordGrid();
+	});
 }
 
 function adjustStar(skillId, candidateId, delta) {
@@ -699,10 +769,17 @@ function duplicateRecord(recordId) {
 }
 
 function deleteRecord(recordId) {
-	if (!confirm('この比較シートを削除します。よろしいですか？')) return;
-	userData.records = userData.records.filter(x => x.recordId !== recordId);
+	const idx = userData.records.findIndex(x => x.recordId === recordId);
+	if (idx === -1) return;
+	const removed = userData.records[idx];
+	userData.records.splice(idx, 1);
 	saveUserData();
 	renderRecordList();
+	pushUndo('比較シート「' + removed.name + '」を削除しました', () => {
+		userData.records.splice(idx, 0, removed);
+		saveUserData();
+		renderRecordList();
+	});
 }
 
 /* ============================================================
