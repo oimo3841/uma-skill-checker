@@ -609,6 +609,7 @@ function createRecordFromTemplate() {
 
 function openRecordEditor(recordId) {
 	draftRecord = userData.records.find(x => x.recordId === recordId);
+	normalizeCandidateEnabled(draftRecord);
 	renderRecordTab();
 }
 
@@ -666,12 +667,49 @@ function onRecordNameChange() {
 	persistDraftRecord();
 }
 
+const MAX_ENABLED_CANDIDATES = 6;
+
+function countEnabledCandidates() {
+	return draftRecord.candidates.filter(c => c.enabled).length;
+}
+
+// 既存データ（enabledフィールド導入前に作られた比較シート）を開いた際、
+// 7人目以降が全員「有効」扱いにならないよう、先頭から6人までを有効とみなして正規化する。
+function normalizeCandidateEnabled(record) {
+	let enabledSeen = 0;
+	let changed = false;
+	record.candidates.forEach(c => {
+		if (c.enabled === undefined) { c.enabled = true; changed = true; }
+		if (c.enabled) {
+			enabledSeen++;
+			if (enabledSeen > MAX_ENABLED_CANDIDATES) { c.enabled = false; changed = true; }
+		}
+	});
+	if (changed) saveUserData();
+}
+
 function addCandidate() {
 	const input = document.getElementById('candidate-label-input');
 	const label = (input.value || '').trim();
 	if (!label) { showToast('候補の名前を入力してください'); return; }
-	draftRecord.candidates.push({ candidateId: uid('c'), label });
+	// 有効枠に空きがあればデフォルトで有効、埋まっていれば無効で追加する
+	// （候補自体は6人を超えて何人でも追加できる。「有効」は比較対象の6人分のみ）。
+	const enabled = countEnabledCandidates() < MAX_ENABLED_CANDIDATES;
+	draftRecord.candidates.push({ candidateId: uid('c'), label, enabled });
 	input.value = '';
+	persistDraftRecord();
+	renderRecordGrid();
+}
+
+function toggleCandidateEnabled(candidateId) {
+	const c = draftRecord.candidates.find(x => x.candidateId === candidateId);
+	if (!c) return;
+	if (!c.enabled && countEnabledCandidates() >= MAX_ENABLED_CANDIDATES) {
+		showToast('有効にできるのは最大' + MAX_ENABLED_CANDIDATES + '人までです。他の候補を無効にしてください');
+		renderRecordGrid();
+		return;
+	}
+	c.enabled = !c.enabled;
 	persistDraftRecord();
 	renderRecordGrid();
 }
@@ -720,6 +758,14 @@ function removeSkillFromRecord(skillId) {
 	});
 }
 
+// 有効な候補だけを対象にした、そのスキル行の★合計。
+function computeRowSum(skillId) {
+	return draftRecord.candidates.filter(c => c.enabled).reduce((acc, c) => {
+		const v = (draftRecord.cells[skillId] && draftRecord.cells[skillId][c.candidateId]) || 0;
+		return acc + v;
+	}, 0);
+}
+
 function adjustStar(skillId, candidateId, delta) {
 	if (!draftRecord.cells[skillId]) draftRecord.cells[skillId] = {};
 	const current = draftRecord.cells[skillId][candidateId] || 0;
@@ -727,10 +773,14 @@ function adjustStar(skillId, candidateId, delta) {
 	draftRecord.cells[skillId][candidateId] = next;
 	persistDraftRecord();
 	document.getElementById('star-' + skillId + '-' + candidateId).textContent = next;
+	const sumEl = document.getElementById('sum-' + skillId);
+	if (sumEl) sumEl.textContent = computeRowSum(skillId);
 }
 
 function renderRecordGrid() {
 	const wrap = document.getElementById('record-grid-wrap');
+	const enabledCountEl = document.getElementById('record-enabled-count');
+	if (enabledCountEl) enabledCountEl.textContent = '有効な候補：' + countEnabledCandidates() + '/' + MAX_ENABLED_CANDIDATES + '人（候補は' + draftRecord.candidates.length + '人登録中）';
 	if (draftRecord.skillIds.length === 0) {
 		wrap.innerHTML = '<p class="text-xs text-slate-400 p-4">「スキルを追加」からスキルを選んでください。</p>';
 		return;
@@ -739,16 +789,23 @@ function renderRecordGrid() {
 	let html = '<table class="deck-table"><thead><tr>';
 	html += '<th class="sticky-col sticky-header">スキル</th>';
 	candidates.forEach(c => {
-		html += `<th class="sticky-header"><div class="flex items-center justify-center gap-1"><span class="truncate">${escapeHtml(c.label)}</span>
-			<button onclick="removeCandidate('${c.candidateId}')" aria-label="この候補を削除"><i data-lucide="x" class="w-3 h-3"></i></button></div></th>`;
+		html += `<th class="sticky-header ${c.enabled ? '' : 'col-disabled'}">
+			<div class="flex items-center justify-center gap-1">
+				<input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="toggleCandidateEnabled('${c.candidateId}')" title="比較対象（有効）にする"/>
+				<span class="truncate">${escapeHtml(c.label)}</span>
+				<button onclick="removeCandidate('${c.candidateId}')" aria-label="この候補を削除"><i data-lucide="x" class="w-3 h-3"></i></button>
+			</div>
+		</th>`;
 	});
 	html += '</tr></thead><tbody>';
 	draftRecord.skillIds.forEach(skillId => {
-		html += '<tr><td class="sticky-col"><div class="flex items-center justify-between gap-1"><span class="truncate">' + escapeHtml(getSkillName(skillId)) + '</span>' +
+		html += '<tr><td class="sticky-col"><div class="flex items-center justify-between gap-1.5">' +
+			'<span class="truncate">' + escapeHtml(getSkillName(skillId)) + '</span>' +
+			'<span id="sum-' + escapeHtml(skillId) + '" class="sum-badge" title="有効な候補の★合計">' + computeRowSum(skillId) + '</span>' +
 			'<button onclick="removeSkillFromRecord(\'' + escapeHtml(skillId) + '\')" aria-label="この行を削除"><i data-lucide="x" class="w-3 h-3 text-slate-400"></i></button></div></td>';
 		candidates.forEach(c => {
 			const v = (draftRecord.cells[skillId] && draftRecord.cells[skillId][c.candidateId]) || 0;
-			html += `<td><div class="star-cell">
+			html += `<td class="${c.enabled ? '' : 'col-disabled'}"><div class="star-cell">
 				<button onclick="adjustStar('${escapeHtml(skillId)}','${c.candidateId}',-1)" aria-label="星を減らす">-</button>
 				<span id="star-${escapeHtml(skillId)}-${c.candidateId}">${v}</span>
 				<button onclick="adjustStar('${escapeHtml(skillId)}','${c.candidateId}',1)" aria-label="星を増やす">+</button>
@@ -782,6 +839,7 @@ function duplicateRecord(recordId) {
 	const r = userData.records.find(x => x.recordId === recordId);
 	const copy = JSON.parse(JSON.stringify(r));
 	copy.recordId = uid('rec'); copy.name = r.name + '（コピー）'; copy.createdAt = nowIso(); copy.updatedAt = nowIso();
+	normalizeCandidateEnabled(copy);
 	userData.records.push(copy);
 	saveUserData();
 	renderRecordList();
