@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>UmaSkill Deck</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
+	<script src="https://unpkg.com/lucide@latest"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-08a"></script>
+	<style>
+		.hidden { display: none !important; }
+		body {
+			background-color: #f5f6fb;
+			background-image:
+				radial-gradient(ellipse 720px 300px at 50% -4%, rgba(199, 210, 250, 0.55), transparent 70%),
+				linear-gradient(180deg, #f1f3fc 0%, #f8f9fd 42%, #ffffff 100%);
+			background-repeat: no-repeat;
+			background-attachment: fixed;
+		}
+		.glass-card { background: rgba(255,255,255,0.9); backdrop-filter: blur(14px); }
+		.tab-btn { padding: .5rem .25rem; border-radius: .75rem; font-size: .75rem; text-align: center; color: #64748b; border: 1px solid #e2e8f0; cursor: pointer; }
+		.tab-active { background: #eef2ff; color: #4338ca; border-color: #c7d2fe; font-weight: 600; }
+		.list-card { display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem; border: 1px solid #e2e8f0; border-radius: .75rem; background: #fff; margin-bottom: .5rem; }
+		.icon-btn { padding: .375rem; border-radius: .5rem; color: #64748b; cursor: pointer; }
+		.icon-btn:hover { background: #f1f5f9; }
+		.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; background: #eef2ff; color: #4338ca; border-radius: 999px; font-size: 12px; }
+		.picker-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border: 1px solid #e2e8f0; border-radius: 999px; font-size: 11px; cursor: pointer; background: #fff; }
+		.picker-row { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 13px; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
+		.deck-table { border-collapse: collapse; font-size: 12px; width: max-content; min-width: 100%; }
+		.deck-table th, .deck-table td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: center; }
+		.sticky-header { position: sticky; top: 0; background: #f8fafc; z-index: 2; min-width: 90px; }
+		.sticky-col { position: sticky; left: 0; background: #f8fafc; z-index: 3; text-align: left; min-width: 130px; max-width: 160px; }
+		.star-cell { display: flex; align-items: center; justify-content: center; gap: 6px; }
+		.star-cell button { width: 26px; height: 26px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; }
+		.star-cell span { min-width: 14px; font-weight: 600; }
+		input[type=text], input:not([type]) { border: 1px solid #e2e8f0; border-radius: .5rem; padding: .5rem .75rem; font-size: .875rem; width: 100%; }
+	</style>
+</head>
+<body class="min-h-screen">
+	<div class="max-w-3xl mx-auto p-4 md:p-6">
+		<header class="flex items-center justify-between mb-4">
+			<div>
+				<h1 class="text-lg font-bold text-slate-800">UmaSkill Deck</h1>
+				<p class="text-xs text-slate-400" id="js-version-note"></p>
+			</div>
+		</header>
+
+		<nav class="grid grid-cols-3 gap-2 mb-5">
+			<button id="tab-btn-template" class="tab-btn tab-active" onclick="switchTab('template')">テンプレート</button>
+			<button id="tab-btn-record" class="tab-btn" onclick="switchTab('record')">比較シート</button>
+			<button id="tab-btn-data" class="tab-btn" onclick="switchTab('data')">データ管理</button>
+		</nav>
+
+		<!-- ============ テンプレートタブ ============ -->
+		<section id="tab-panel-template">
+			<div id="template-list-view">
+				<div class="flex items-center justify-between mb-3">
+					<button onclick="openTemplateEditor(null)" class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold">＋ 新規作成</button>
+					<span id="template-count-badge" class="text-xs text-slate-500"></span>
+				</div>
+				<div id="template-list"></div>
+			</div>
+			<div id="template-editor-view" class="hidden glass-card rounded-2xl border border-slate-200 p-4">
+				<div class="flex items-center gap-2 mb-3">
+					<button onclick="closeTemplateEditor()" class="icon-btn"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
+					<input id="template-name-input" placeholder="テンプレート名（例：マイルCS想定）" class="flex-1"/>
+				</div>
+				<button onclick="openTemplateSkillPicker()" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold mb-3">
+					<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> スキルを追加
+				</button>
+				<p class="text-xs text-slate-500 mb-1">選択済みスキル（<span id="template-selected-count">0</span>）</p>
+				<div id="template-selected-list" class="flex flex-wrap gap-2 mb-4"></div>
+				<button onclick="saveTemplate()" class="w-full px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold">保存</button>
+			</div>
+		</section>
+
+		<!-- ============ 比較シートタブ ============ -->
+		<section id="tab-panel-record" class="hidden">
+			<div id="record-list-view">
+				<div class="flex items-center gap-2 mb-3">
+					<select id="record-new-template-select" class="flex-1"></select>
+					<button id="record-new-btn" onclick="createRecordFromTemplate()" class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold whitespace-nowrap">＋ 新規作成</button>
+				</div>
+				<p class="text-xs text-slate-500 mb-2" id="record-count-badge"></p>
+				<div id="record-list"></div>
+			</div>
+			<div id="record-editor-view" class="hidden glass-card rounded-2xl border border-slate-200 p-4">
+				<div class="flex items-center gap-2 mb-3">
+					<button onclick="closeRecordEditor()" class="icon-btn"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
+					<input id="record-name-input" onchange="onRecordNameChange()" class="flex-1"/>
+				</div>
+				<div class="flex flex-wrap gap-2 mb-3">
+					<button onclick="openRecordSkillPicker()" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold">
+						<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> スキルを追加
+					</button>
+					<div class="flex items-center gap-1.5 flex-1 min-w-[160px]">
+						<input id="candidate-label-input" placeholder="候補の名前（例：親A）" class="flex-1"/>
+						<button onclick="addCandidate()" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold whitespace-nowrap">＋ 候補</button>
+					</div>
+				</div>
+				<div id="record-grid-wrap" style="overflow:auto;max-height:60vh;border:1px solid #e2e8f0;border-radius:.75rem;"></div>
+			</div>
+		</section>
+
+		<!-- ============ データ管理タブ ============ -->
+		<section id="tab-panel-data" class="hidden">
+			<div class="glass-card rounded-2xl border border-slate-200 p-4 mb-4">
+				<p class="text-sm font-semibold text-slate-700 mb-2">保存件数</p>
+				<p class="text-xs text-slate-500">テンプレート：<span id="data-template-count"></span>／比較シート：<span id="data-record-count"></span>／カスタムスキル：<span id="data-custom-count"></span></p>
+			</div>
+			<div class="glass-card rounded-2xl border border-slate-200 p-4 mb-4">
+				<p class="text-sm font-semibold text-slate-700 mb-2">マスタースキルデータ</p>
+				<p class="text-xs text-slate-500 mb-2">版：<span id="data-master-version"></span>／取得日時：<span id="data-master-fetched"></span></p>
+				<button onclick="refreshMasterData()" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold">
+					<i data-lucide="refresh-cw" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 再取得
+				</button>
+			</div>
+			<div class="glass-card rounded-2xl border border-slate-200 p-4 mb-4">
+				<p class="text-sm font-semibold text-slate-700 mb-2">エクスポート</p>
+				<textarea id="export-textarea" class="w-full h-28 text-xs font-mono p-3 rounded-xl border border-slate-200" readonly></textarea>
+				<div class="flex gap-2 mt-2">
+					<button onclick="exportData()" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold">表示する</button>
+					<button onclick="copyExportData()" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold">コピー</button>
+				</div>
+			</div>
+			<div class="glass-card rounded-2xl border border-slate-200 p-4">
+				<p class="text-sm font-semibold text-slate-700 mb-2">インポート</p>
+				<textarea id="import-textarea" placeholder="エクスポートしたJSON文字列を貼り付け" class="w-full h-28 text-xs font-mono p-3 rounded-xl border border-slate-200"></textarea>
+				<button onclick="importData()" class="mt-2 px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold">読み込む（現在のデータを置き換える）</button>
+			</div>
+		</section>
+	</div>
+
+	<!-- ============ スキル選択モーダル（テンプレート編集・比較シートへのスキル追加で共有） ============ -->
+	<div id="skill-picker-modal" class="hidden" style="position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:50;display:flex;align-items:flex-end;justify-content:center;">
+		<div class="glass-card w-full max-w-2xl rounded-t-2xl md:rounded-2xl md:mb-6 p-4" style="max-height:85vh;overflow:auto;">
+			<div class="flex items-center justify-between mb-3">
+				<p class="text-sm font-semibold text-slate-700">スキルを選ぶ（軸間はAND・軸内はOR）</p>
+				<button onclick="closeSkillPickerModal()" class="icon-btn"><i data-lucide="x" class="w-4 h-4"></i></button>
+			</div>
+			<div id="picker-filter-axes" class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3"></div>
+			<p class="text-xs text-slate-500 mb-1">絞り込み結果（<span id="picker-result-count">0件</span>）</p>
+			<div id="picker-results" style="border:1px solid #e2e8f0;border-radius:.75rem;max-height:160px;overflow:auto;margin-bottom:10px;"></div>
+			<button onclick="addCheckedSkillsToTarget()" class="w-full px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold mb-4">チェックしたスキルを追加</button>
+
+			<details class="border-t border-slate-200 pt-3">
+				<summary class="text-xs font-semibold text-slate-600 cursor-pointer">マスターにないスキルを手入力で追加</summary>
+				<div class="mt-3">
+					<input id="custom-skill-name" placeholder="スキル名" class="mb-2"/>
+					<div id="custom-skill-tags"></div>
+					<button onclick="addCustomSkillFromPicker()" class="mt-2 px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold">カスタムスキルとして追加</button>
+				</div>
+			</details>
+		</div>
+	</div>
+
+	<!-- ============ トースト通知 ============ -->
+	<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 translate-y-16 opacity-0 pointer-events-none transition-all bg-slate-900 text-white text-xs px-4 py-2.5 rounded-full shadow-lg z-[60]">
+		<span id="toast-message"></span>
+	</div>
+</body>
+</html>
