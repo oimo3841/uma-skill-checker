@@ -29,10 +29,12 @@
 		.deck-table { border-collapse: collapse; font-size: 12px; width: max-content; min-width: 100%; }
 		.deck-table th, .deck-table td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: center; }
 		.sticky-header { position: sticky; top: 0; background: #f8fafc; z-index: 2; min-width: 90px; }
-		.sticky-col { position: sticky; left: 0; background: #f8fafc; z-index: 3; text-align: left; min-width: 130px; max-width: 160px; }
+		.sticky-col { position: sticky; left: 0; background: #f8fafc; z-index: 3; text-align: left; min-width: 170px; max-width: 200px; }
 		.star-cell { display: flex; align-items: center; justify-content: center; gap: 6px; }
 		.star-cell button { width: 26px; height: 26px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; }
 		.star-cell span { min-width: 14px; font-weight: 600; }
+		.col-disabled { opacity: .38; background: #f8fafc; }
+		.sum-badge { background: #eef2ff; color: #4338ca; border-radius: 999px; padding: 1px 7px; font-size: 11px; font-weight: 600; flex-shrink: 0; }
 		input[type=text], input:not([type]) { border: 1px solid #e2e8f0; border-radius: .5rem; padding: .5rem .75rem; font-size: .875rem; width: 100%; }
 	</style>
 </head>
@@ -93,7 +95,7 @@
 					<span class="text-slate-500 whitespace-nowrap">テンプレート：</span>
 					<select id="record-template-select" onchange="switchRecordTemplate(this.value)" style="font-size:12px;padding:4px 8px;width:auto;"></select>
 				</div>
-				<div class="flex flex-wrap gap-2 mb-3">
+				<div class="flex flex-wrap gap-2 mb-2">
 					<button onclick="openRecordSkillPicker()" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold">
 						<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> スキルを追加
 					</button>
@@ -102,6 +104,7 @@
 						<button onclick="addCandidate()" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold whitespace-nowrap">＋ 候補</button>
 					</div>
 				</div>
+				<p id="record-enabled-count" class="text-xs text-slate-500 mb-3"></p>
 				<div id="record-grid-wrap" style="overflow:auto;max-height:60vh;border:1px solid #e2e8f0;border-radius:.75rem;"></div>
 			</div>
 		</section>
