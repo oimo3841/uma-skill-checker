@@ -708,6 +708,24 @@ function addCandidate() {
 	renderRecordGrid();
 }
 
+function toggleCandidateNameReveal(btn, candidateId) {
+	const tip = document.getElementById('name-reveal-tip');
+	const c = draftRecord.candidates.find(x => x.candidateId === candidateId);
+	if (!c) return;
+	if (!tip.classList.contains('hidden') && tip.dataset.forCand === candidateId) {
+		tip.classList.add('hidden');
+		return;
+	}
+	const rect = btn.getBoundingClientRect();
+	tip.textContent = c.label;
+	tip.style.left = Math.max(4, rect.left - 4) + 'px';
+	tip.style.top = Math.max(4, rect.top - 30) + 'px';
+	tip.dataset.forCand = candidateId;
+	tip.classList.remove('hidden');
+	clearTimeout(toggleCandidateNameReveal._timer);
+	toggleCandidateNameReveal._timer = setTimeout(() => tip.classList.add('hidden'), 3000);
+}
+
 function toggleCandidateEnabled(candidateId) {
 	const c = draftRecord.candidates.find(x => x.candidateId === candidateId);
 	if (!c) return;
@@ -812,11 +830,11 @@ function renderRecordGrid() {
 	html += '<th class="sticky-col sticky-header">スキル</th>';
 	html += '<th class="sticky-col2 sticky-header" title="有効な候補の★合計">計</th>';
 	candidates.forEach(c => {
-		html += `<th class="sticky-header ${c.enabled ? '' : 'col-disabled'}">
-			<div class="flex items-center justify-center gap-1">
+		html += `<th class="sticky-header candidate-col ${c.enabled ? '' : 'col-disabled'}">
+			<div class="cand-header">
 				<input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="toggleCandidateEnabled('${c.candidateId}')" title="比較対象（有効）にする"/>
-				<span class="truncate">${escapeHtml(c.label)}</span>
-				<button onclick="removeCandidate('${c.candidateId}')" aria-label="この候補を削除"><i data-lucide="x" class="w-3 h-3"></i></button>
+				<button type="button" class="cand-name-btn" data-cand-id="${c.candidateId}" onclick="toggleCandidateNameReveal(this, '${c.candidateId}')">${escapeHtml(c.label.slice(0, 2))}</button>
+				<button class="cand-del-btn" onclick="removeCandidate('${c.candidateId}')" aria-label="この候補を削除"><i data-lucide="x" class="w-2.5 h-2.5"></i></button>
 			</div>
 		</th>`;
 	});
@@ -830,15 +848,17 @@ function renderRecordGrid() {
 	skillIdsToShow.forEach(skillId => {
 		const sum = computeRowSum(skillId);
 		html += '<tr id="row-' + escapeHtml(skillId) + '" class="' + (sum === 0 ? 'row-zero' : '') + '">' +
-			'<td class="sticky-col"><div class="flex items-center justify-between gap-1"><span class="truncate">' + escapeHtml(getSkillName(skillId)) + '</span>' +
+			'<td class="sticky-col" title="' + escapeHtml(getSkillName(skillId)) + '"><div class="flex items-center justify-between gap-1"><span class="truncate">' + escapeHtml(getSkillName(skillId)) + '</span>' +
 			'<button onclick="removeSkillFromRecord(\'' + escapeHtml(skillId) + '\')" aria-label="この行を削除"><i data-lucide="x" class="w-3 h-3 text-slate-400"></i></button></div></td>' +
 			'<td class="sticky-col2"><span id="sum-' + escapeHtml(skillId) + '" class="sum-badge" title="有効な候補の★合計">' + sum + '</span></td>';
 		candidates.forEach(c => {
 			const v = (draftRecord.cells[skillId] && draftRecord.cells[skillId][c.candidateId]) || 0;
-			html += `<td class="${c.enabled ? '' : 'col-disabled'}"><div class="star-cell">
-				<button onclick="adjustStar('${escapeHtml(skillId)}','${c.candidateId}',-1)" aria-label="星を減らす">-</button>
-				<span id="star-${escapeHtml(skillId)}-${c.candidateId}">${v}</span>
-				<button onclick="adjustStar('${escapeHtml(skillId)}','${c.candidateId}',1)" aria-label="星を増やす">+</button>
+			html += `<td class="candidate-col ${c.enabled ? '' : 'col-disabled'}"><div class="star-cell">
+				<span class="star-value" id="star-${escapeHtml(skillId)}-${c.candidateId}">${v}</span>
+				<div class="star-stepper">
+					<button onclick="adjustStar('${escapeHtml(skillId)}','${c.candidateId}',1)" aria-label="星を増やす">▲</button>
+					<button onclick="adjustStar('${escapeHtml(skillId)}','${c.candidateId}',-1)" aria-label="星を減らす">▼</button>
+				</div>
 			</div></td>`;
 		});
 		html += '</tr>';
