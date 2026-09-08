@@ -165,11 +165,12 @@
 		</div>
 	</div>
 
-	<!-- ============ Undo通知 ============ -->
-	<div id="undo-toast" class="hidden fixed bottom-20 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-full shadow-lg z-[60] flex items-center gap-3">
-		<span id="undo-toast-label"></span>
-		<button onclick="performUndo()" class="font-semibold text-indigo-300">元に戻す</button>
-	</div>
+	<!-- ============ Undoボタン（履歴がある間、常時表示） ============ -->
+	<button id="undo-button" onclick="performUndo()" class="hidden fixed bottom-6 left-6 z-[60] flex items-center gap-2 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-full shadow-lg">
+		<i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
+		<span>元に戻す</span>
+		<span id="undo-count-badge" class="bg-white/20 rounded-full px-1.5 text-[10px]"></span>
+	</button>
 
 	<!-- ============ トースト通知 ============ -->
 	<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 translate-y-16 opacity-0 pointer-events-none transition-all bg-slate-900 text-white text-xs px-4 py-2.5 rounded-full shadow-lg z-[60]">
