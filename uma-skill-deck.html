@@ -26,14 +26,21 @@
 		.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; background: #eef2ff; color: #4338ca; border-radius: 999px; font-size: 12px; }
 		.picker-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border: 1px solid #e2e8f0; border-radius: 999px; font-size: 11px; cursor: pointer; background: #fff; }
 		.picker-row { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 13px; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
-		.deck-table { border-collapse: collapse; font-size: 12px; width: max-content; min-width: 100%; }
-		.deck-table th, .deck-table td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: center; }
-		.sticky-header { position: sticky; top: 0; background: #f8fafc; z-index: 2; min-width: 90px; }
-		.sticky-col { position: sticky; left: 0; background: #f8fafc; z-index: 3; text-align: left; width: 170px; }
-		.sticky-col2 { position: sticky; left: 170px; background: #f8fafc; z-index: 3; text-align: center; width: 56px; }
-		.star-cell { display: flex; align-items: center; justify-content: center; gap: 6px; }
-		.star-cell button { width: 26px; height: 26px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; }
-		.star-cell span { min-width: 14px; font-weight: 600; }
+		.deck-table { border-collapse: collapse; font-size: 11px; table-layout: fixed; }
+		.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.deck-table th, .deck-table td { border: 1px solid #e2e8f0; padding: 3px 4px; text-align: center; }
+		.sticky-header { position: sticky; top: 0; background: #f8fafc; z-index: 2; }
+		.sticky-col { position: sticky; left: 0; background: #f8fafc; z-index: 3; text-align: left; width: 84px; min-width: 84px; max-width: 84px; }
+		.sticky-col2 { position: sticky; left: 84px; background: #f8fafc; z-index: 3; text-align: center; width: 30px; min-width: 30px; max-width: 30px; }
+		.candidate-col { width: 58px; min-width: 58px; max-width: 58px; }
+		.star-cell { display: flex; align-items: center; justify-content: center; gap: 3px; }
+		.star-value { font-weight: 600; min-width: 12px; text-align: center; font-size: 12px; }
+		.star-stepper { display: flex; flex-direction: column; gap: 1px; }
+		.star-stepper button { width: 15px; height: 12px; font-size: 8px; line-height: 1; border: 1px solid #e2e8f0; background: #fff; padding: 0; border-radius: 3px; cursor: pointer; }
+		.cand-header { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+		.cand-header input[type=checkbox] { width: 11px; height: 11px; margin: 0; }
+		.cand-name-btn { font-size: 11px; font-weight: 600; background: none; border: none; padding: 1px 2px; cursor: pointer; color: #334155; }
+		.cand-del-btn { padding: 0; }
 		.col-disabled { opacity: .38; background: #f8fafc; }
 		.sum-badge { background: #eef2ff; color: #4338ca; border-radius: 999px; padding: 1px 7px; font-size: 11px; font-weight: 600; flex-shrink: 0; }
 		.row-filter-btn { padding: 4px 10px; border-radius: 999px; font-size: 11px; border: 1px solid #e2e8f0; background: #fff; color: #64748b; cursor: pointer; }
@@ -175,6 +182,9 @@
 			</div>
 		</div>
 	</div>
+
+	<!-- ============ 候補フルネーム表示（タップで一時的に表示） ============ -->
+	<div id="name-reveal-tip" class="hidden" style="position:fixed;z-index:70;background:#0f172a;color:#fff;font-size:11px;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;"></div>
 
 	<!-- ============ Undoボタン（履歴がある間、常時表示） ============ -->
 	<button id="undo-button" onclick="performUndo()" class="hidden fixed bottom-6 left-6 z-[60] flex items-center gap-2 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-full shadow-lg">
