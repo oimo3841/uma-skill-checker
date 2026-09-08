@@ -1,6 +1,5 @@
 {
 	"masterVersion": "2026-09-08-sample",
-	"note": "これはUmaSkill Deckの動作確認用サンプルです。全スキルの本番データはスキルリストfor Claude.xlsxから別途生成します。idは公式内部IDとは無関係の独自連番です。",
 	"skills": [
 		{
 			"id": "1",
