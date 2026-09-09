@@ -3,12 +3,16 @@
  * ウマ娘スキル管理ツール群（index.html / special.html）で共有する共通ロジック。
  *
  * 設計方針:
- * - このファイルはグローバル状態を持たない（副作用のない関数の集合）。
- * - 各ツール（index.html, special.html）は自分自身の状態変数
+ * - OCR照合のコアロジックは副作用のない関数の集合として保つ。
+ * - 各ツール（index.html, special.html, exam.html）は自分自身の状態変数
  *   （skillList, detectedSkills, matchReasons など）を保持し、
  *   ここに定義された関数へ引数として渡し、戻り値を受け取って自分の状態に反映する。
  * - スキルリストの内容（特定の技名など）に関する決め打ち・ハードコードは行わない。
  *   どんなスキルリストが来ても汎用的に正しく動くことを前提に設計する。
+ * - 唯一の例外として「照合対象スキル辞書」だけはこのファイルに置ける
+ *   （末尾の「照合対象スキル辞書の注入」セクション参照）。ここに置くのは
+ *   呼び出し元から渡された任意のスキル名リストであり、スキル名そのものは
+ *   一切ソースに書かない。
  */
 
 /* ============================================================
@@ -17,7 +21,7 @@
 // このファイルの版。ツールの開発用ログの先頭に表示される。
 // 「どの版の common.js がブラウザで実際に動いているか」を確認するための目印。
 // 中身を変更したらこの日付も更新すること。
-const COMMON_JS_VERSION = '2026-09-09a';
+const COMMON_JS_VERSION = '2026-09-10a';
 
 const MAX_SIDE_PX = 3000;
 const CONF_THRESHOLD = 55;
@@ -1211,4 +1215,92 @@ function matchAllSkillsWithStars(lines, skillList, skillIndex, ocrErrorDictionar
 	});
 
 	return Object.assign({}, base, { skillStars: skillStars });
+}
+
+
+/* ============================================================
+ * 照合対象スキル辞書の注入（ツール非依存の汎用インターフェース）
+ *
+ * 従来、照合対象のスキルは各ツールが画面のテキストエリアから作って
+ * matchAllSkills() に毎回渡していた。ここではそれに加えて、
+ * 「外部（別ツール・外部JSON）で用意したスキル名リストを辞書として注入する」
+ * 経路を用意する。
+ *
+ * 重要:
+ * - このAPIは特定のツール・特定のデータソース専用にしない。受け取るのは
+ *   あくまで「スキル名の配列」で、それがどこから来たか（UmaSkill Deckの
+ *   テンプレート／技能試験の固定リスト／手入力）をこのファイルは知らない。
+ * - スキル名そのものはこのファイルに一切書かない（B節ルール1）。
+ * ============================================================ */
+
+/**
+ * 任意のスキルマスターJSONを取得する（汎用）。
+ *
+ * URLも中身もこのファイルに決め打ちしない。呼び出し元がURLを渡す。
+ * 期待するのは `{ masterVersion, skills: [{ id, name, ... }] }` 形式だが、
+ * 検証はせずそのまま返す（スキーマの解釈は呼び出し元の責任）。
+ *
+ * options.cacheBust … true なら ?t=<現在時刻> を付けてキャッシュを回避する
+ */
+async function fetchSkillMasterJson(url, options) {
+	const opts = options || {};
+	const finalUrl = opts.cacheBust ? (url + (url.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now()) : url;
+	const res = await fetch(finalUrl);
+	if (!res.ok) throw new Error('HTTP ' + res.status);
+	return await res.json();
+}
+
+/**
+ * スキル名の配列から、照合に使う辞書 { list, index } を作る。
+ *
+ * list  … matchAllSkills() の skillList 引数に渡すもの（元の表記のまま）
+ * index … 同じく skillIndex 引数に渡すもの（[{ raw, norm }]）
+ *
+ * 正規化後に同じ文字列になるスキル名は、あいまい一致で不必要な「同着タイ」を
+ * 生むだけなので、最初の1件だけを残して取り除く。
+ */
+function buildSkillDictionary(skillNames) {
+	const list = [];
+	const index = [];
+	const seenNorm = new Set();
+	(skillNames || []).forEach(name => {
+		const raw = String(name == null ? '' : name).trim();
+		if (!raw) return;
+		const norm = normalizeText(raw);
+		if (!norm || seenNorm.has(norm)) return;
+		seenNorm.add(norm);
+		list.push(raw);
+		index.push({ raw: raw, norm: norm });
+	});
+	return { list: list, index: index };
+}
+
+// 現在注入されている照合対象辞書。null なら「注入されていない」。
+// 呼び出し元が明示的に渡してくる場合はそちらが常に優先されるため、
+// この変数がツールの既定動作を書き換えてしまうことはない。
+let activeSkillDictionary = null;
+
+function setActiveSkillDictionary(dictionary) {
+	activeSkillDictionary = dictionary || null;
+	return activeSkillDictionary;
+}
+
+function getActiveSkillDictionary() {
+	return activeSkillDictionary;
+}
+
+function clearActiveSkillDictionary() {
+	activeSkillDictionary = null;
+}
+
+/**
+ * 注入された（あるいは引数で渡された）辞書を使って★付き照合を行う入口。
+ *
+ * matchAllSkillsWithStars() の薄いラッパーで、照合ロジック自体は一切変えない。
+ * dictionary を省略すると setActiveSkillDictionary() で注入済みの辞書を使う。
+ */
+function matchAllSkillsWithStarsUsingDictionary(lines, ocrErrorDictionary, dictionary) {
+	const dict = dictionary || activeSkillDictionary;
+	if (!dict) throw new Error('照合対象のスキル辞書が設定されていません');
+	return matchAllSkillsWithStars(lines, dict.list, dict.index, ocrErrorDictionary);
 }

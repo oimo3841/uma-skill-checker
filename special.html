@@ -9,7 +9,10 @@
 	<!-- Lucide Icons -->
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html で共有） -->
-	<script src="js/common.js?v=2026-09-09a"></script>
+	<script src="js/common.js?v=2026-09-10a"></script>
+	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
+	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
+	<script src="js/uma-skill-deck-core.js?v=2026-09-10a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-09a"></script>
 	<style>
@@ -131,6 +134,13 @@
 								</div>
 							</a>
 						</div>
+					<!-- UmaSkill Deck連携モードの切り替え。既定はOFFで、押して初めて有効になる
+					     （既存の使い方には一切影響させない） -->
+					<button id="deck-mode-btn" type="button" onclick="toggleDeckMode()" class="inline-flex items-center justify-center gap-2 text-xs font-semibold text-slate-600 hover:text-indigo-700 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
+						<i data-lucide="layers" class="w-4 h-4 text-indigo-500"></i>
+						<span id="deck-mode-btn-label">UmaSkill Deck連携</span>
+					</button>
+
 					<!-- 使い方ガイドボタン -->
 					<button type="button" onclick="toggleHelp()" class="inline-flex items-center justify-center gap-2 text-xs font-medium text-slate-600 hover:text-green-600 bg-white border border-slate-200 hover:border-green-300 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
 						<i data-lucide="help-circle" class="w-4 h-4"></i>
@@ -192,11 +202,12 @@
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
 					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">1</span>
-					<h2 class="text-sm font-bold text-slate-800">スキルリストを入力（親A〜祖B2まで共通）</h2>
+					<h2 id="step1-title" class="text-sm font-bold text-slate-800">スキルリストを入力（親A〜祖B2まで共通）</h2>
 				</div>
 				<span id="skill-count-badge" class="hidden text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-800"></span>
 			</div>
 
+			<div id="manual-skill-body">
 			<p class="text-xs text-slate-500 mb-3">スプレッドシートから1列分（改行区切り）コピーしてそのまま貼り付けできます。親A〜祖B2まで、すべてに対して同じリストで照合します。</p>
 
 			<textarea id="skill-list" class="w-full h-28 text-xs md:text-sm p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-green-500 focus:ring-2 focus:ring-green-200 font-mono transition-all outline-none resize-y" placeholder="例：&#10;根幹距離○&#10;右回り○&#10;直線コース○"></textarea>
@@ -213,6 +224,27 @@
 					</button>
 				</div>
 				<div id="skill-count" class="text-xs font-medium text-slate-500"></div>
+			</div>
+			</div><!-- /#manual-skill-body -->
+
+			<!-- ===== UmaSkill Deck連携モードのテンプレート選択 =====
+			     中身（一覧・編集・スキル選択モーダル）は js/uma-skill-deck-core.js が描画する。
+			     uma-skill-deck.html と同じコンポーネント・同じlocalStorageを共有するため、
+			     ここで作成・編集したテンプレートはUmaSkill Deck側にもそのまま反映される。 -->
+			<div id="deck-skill-body" class="hidden">
+				<p class="text-xs text-slate-500 mb-3">UmaSkill Deckで作った「対象スキルセット」（テンプレート）を1つ選ぶと、そのスキルだけを照合対象にします。この画面からテンプレートの新規作成・編集もできます（UmaSkill Deck側にもそのまま反映されます）。</p>
+				<div id="deck-loading-note" class="text-xs text-slate-500 mb-3">テンプレートを読み込んでいます…</div>
+				<div id="deck-template-panel"></div>
+				<div class="mt-3 flex items-center justify-between gap-3 flex-wrap">
+					<!-- 表示/非表示は style.display で切り替える。Tailwindでは .inline-flex が .hidden より後に
+					     出力されるため、hiddenクラスの付け外しでは隠れないことを実測で確認済み。 -->
+					<button id="deck-undo-btn" type="button" onclick="UmaSkillDeckCore.performUndo()" style="display:none;" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-[11px] font-semibold cursor-pointer">
+						<i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
+						<span>元に戻す</span>
+						<span id="deck-undo-count" class="bg-white/20 rounded-full px-1.5"></span>
+					</button>
+					<div id="deck-selected-note" class="text-xs font-medium text-slate-500 ml-auto"></div>
+				</div>
 			</div>
 
 			<!-- 誤認識の読み替え辞書（任意） -->
@@ -399,6 +431,31 @@
 				<div class="flex gap-2">
 					<textarea id="copy-data" readonly class="w-full h-24 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none"></textarea>
 				</div>
+			</div>
+
+			<!-- ===== UmaSkill Deck連携モードの保存パネル =====
+			     OCR結果に納得した場合だけ、保存先を選んでUmaSkill Deckのレコードへ書き込む。
+			     書き込みは「1人＝1候補まるごと」で、部分保存はしない。 -->
+			<div id="deck-save-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
+				<div class="flex items-center gap-2 mb-2">
+					<i data-lucide="layers" class="w-4 h-4 text-indigo-500"></i>
+					<p class="text-sm font-bold text-slate-800">UmaSkill Deckに保存</p>
+				</div>
+				<p class="text-xs text-slate-500 mb-4">上の結果でよければ、保存先を選んで書き込みます。保存は<strong>1人＝1候補まるごと</strong>です（選んだ候補の★は、このテンプレートの全スキルぶん置き換わります）。</p>
+
+				<label class="block text-xs font-semibold text-slate-700 mb-1.5">保存先の比較シート</label>
+				<select id="deck-record-select" onchange="renderDeckAssignRows()" class="w-full text-xs p-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-indigo-500 mb-2"></select>
+				<input type="text" id="deck-new-record-name" class="hidden w-full text-xs p-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-indigo-500 mb-2" placeholder="新しい比較シートの名前" />
+
+				<label class="block text-xs font-semibold text-slate-700 mt-4 mb-1.5">それぞれの保存先の候補</label>
+				<div id="deck-assign-rows" class="space-y-2"></div>
+
+				<div id="deck-save-note" class="hidden mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-800 whitespace-pre-line"></div>
+
+				<button id="deck-save-btn" type="button" onclick="saveDeckResults()" class="w-full mt-4 py-3 px-4 rounded-xl bg-indigo-600 text-white text-xs md:text-sm font-bold hover:bg-indigo-700 active:scale-99 transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer">
+					<i data-lucide="save" class="w-4 h-4"></i>
+					<span>この内容でUmaSkill Deckに保存</span>
+				</button>
 			</div>
 
 			<!-- 切り出し画像プレビュー -->
@@ -814,7 +871,11 @@
 		}
 
 		async function processImages() {
-			if (skillList.length === 0) { showToast('スキルリストを解析してください'); return; }
+			if (skillList.length === 0) {
+				showToast(deckMode ? 'テンプレートを選択してください' : 'スキルリストを解析してください');
+				return;
+			}
+			document.getElementById('deck-save-wrap').classList.add('hidden');
 			const anyFiles = persons.some(p => p.files.length > 0);
 			if (!anyFiles) { showToast('少なくとも1人分の画像をアップロードしてください'); return; }
 
@@ -1057,6 +1118,7 @@
 			filterResults();
 			renderPreview();
 			renderDevLog();
+			renderDeckSavePanel();
 		}
 
 		function starBadge(stars) {
@@ -1392,6 +1454,329 @@
 			block.appendChild(img);
 
 			container.appendChild(block);
+		}
+
+		/* ============================================================
+		 * UmaSkill Deck 連携モード
+		 *
+		 * 既定はOFF。ヘッダーの「UmaSkill Deck連携」を押して初めて有効になり、
+		 * OFFのときは既存の動作（手入力リストでの照合）に一切影響しない。
+		 *
+		 * 流れ:
+		 *   1. UmaSkill Deckのテンプレート（対象スキルセット）を選ぶ
+		 *   2. 通常どおり画像をアップロードしてOCRを実行
+		 *      （照合辞書は選んだテンプレートのスキルだけ。common.jsの注入APIで渡す）
+		 *   3. 既存の結果テーブルで内容を確認
+		 *   4. 納得したら保存先（比較シート＋人物ごとの候補）を選んで書き込む
+		 *      （1人＝1候補まるごと。部分保存はしない）
+		 * ============================================================ */
+		let deckMode = false;
+		let deckTemplateManager = null;
+		let deckTemplateId = null;
+		let deckMasterLoaded = false;
+		// テンプレートのスキル [{ id, name, raw }]。raw は照合辞書に実際に載った表記で、
+		// OCR結果（スキル名がキー）から★を引くために使う。
+		let deckSkillEntries = [];
+		// Deckモードに入る前の手入力リストの状態。モードを抜けたらそのまま復元する。
+		let manualSkillState = null;
+
+		function toggleDeckMode() {
+			if (deckMode) exitDeckMode(); else enterDeckMode();
+		}
+
+		async function enterDeckMode() {
+			deckMode = true;
+			manualSkillState = {
+				skillList: skillList.slice(),
+				skillIndex: skillIndex.slice(),
+				countText: document.getElementById('skill-count').textContent,
+				badgeText: document.getElementById('skill-count-badge').textContent,
+				badgeHidden: document.getElementById('skill-count-badge').classList.contains('hidden')
+			};
+
+			document.getElementById('manual-skill-body').classList.add('hidden');
+			document.getElementById('deck-skill-body').classList.remove('hidden');
+			document.getElementById('step1-title').textContent = '対象スキルセットを選ぶ（UmaSkill Deck連携）';
+			const btn = document.getElementById('deck-mode-btn');
+			btn.classList.add('border-indigo-300', 'bg-indigo-50', 'text-indigo-700');
+			document.getElementById('deck-mode-btn-label').textContent = 'Deck連携モード（ON）';
+
+			// 選択が済むまでは照合対象が無い状態にする
+			deckTemplateId = null;
+			deckSkillEntries = [];
+			skillList = [];
+			skillIndex = [];
+			clearActiveSkillDictionary();
+			document.getElementById('skill-count-badge').classList.add('hidden');
+			updateProcessBtn();
+
+			if (!deckMasterLoaded) {
+				UmaSkillDeckCore.configure({ toast: showToast });
+				UmaSkillDeckCore.onUndoChanged(renderDeckUndoButton);
+				// マスタースキルデータ（439件）は、このモードに入ったときだけ取りに行く。
+				// 既定の動作では読み込まないため、通常利用の初期表示は今までどおり。
+				await UmaSkillDeckCore.loadMasterSkills(false);
+				deckMasterLoaded = true;
+				deckTemplateManager = UmaSkillDeckCore.createTemplateManager(
+					document.getElementById('deck-template-panel'),
+					{
+						selectable: true,
+						onSelectionChange: onDeckTemplateSelected,
+						// テンプレートの中身が変わったら、選択中のものなら照合辞書を作り直す
+						onChange: () => {
+							if (deckTemplateId) onDeckTemplateSelected(deckTemplateId);
+						}
+					}
+				);
+			} else {
+				deckTemplateManager.render();
+			}
+			document.getElementById('deck-loading-note').classList.add('hidden');
+			updateDeckSelectedNote();
+			renderDeckSavePanel();
+			if (window.lucide) lucide.createIcons();
+		}
+
+		function exitDeckMode() {
+			deckMode = false;
+			UmaSkillDeckCore.closeSkillPicker();
+			document.getElementById('deck-skill-body').classList.add('hidden');
+			document.getElementById('manual-skill-body').classList.remove('hidden');
+			document.getElementById('step1-title').textContent = 'スキルリストを入力（親A〜祖B2まで共通）';
+			const btn = document.getElementById('deck-mode-btn');
+			btn.classList.remove('border-indigo-300', 'bg-indigo-50', 'text-indigo-700');
+			document.getElementById('deck-mode-btn-label').textContent = 'UmaSkill Deck連携';
+			document.getElementById('deck-save-wrap').classList.add('hidden');
+
+			clearActiveSkillDictionary();
+			if (manualSkillState) {
+				skillList = manualSkillState.skillList;
+				skillIndex = manualSkillState.skillIndex;
+				document.getElementById('skill-count').textContent = manualSkillState.countText;
+				const badge = document.getElementById('skill-count-badge');
+				badge.textContent = manualSkillState.badgeText;
+				badge.classList.toggle('hidden', manualSkillState.badgeHidden);
+			}
+			updateProcessBtn();
+		}
+
+		function renderDeckUndoButton(count) {
+			const btn = document.getElementById('deck-undo-btn');
+			if (!btn) return;
+			btn.style.display = count === 0 ? 'none' : 'inline-flex';
+			document.getElementById('deck-undo-count').textContent = count;
+		}
+
+		// テンプレートが選ばれた（または中身が変わった）とき、そのスキルだけを
+		// 照合辞書としてcommon.jsに注入する。
+		function onDeckTemplateSelected(templateId) {
+			deckTemplateId = templateId || null;
+			const badge = document.getElementById('skill-count-badge');
+			if (!deckTemplateId) {
+				deckSkillEntries = [];
+				skillList = [];
+				skillIndex = [];
+				clearActiveSkillDictionary();
+				badge.classList.add('hidden');
+				updateDeckSelectedNote();
+				updateProcessBtn();
+				renderDeckSavePanel();
+				return;
+			}
+			const template = UmaSkillDeckCore.findTemplate(deckTemplateId);
+			const entries = UmaSkillDeckCore.getSkillEntries(template ? template.skillIds : []);
+			const dict = buildSkillDictionary(entries.map(e => e.name));
+			setActiveSkillDictionary(dict);
+			skillList = dict.list;
+			skillIndex = dict.index;
+			// 正規化後に同じになる表記は辞書側で1本化されるため、各スキルIDが
+			// 実際にどの表記で載ったかを引けるようにしておく。
+			const rawByNorm = {};
+			dict.index.forEach(x => { rawByNorm[x.norm] = x.raw; });
+			deckSkillEntries = entries.map(e => ({ id: e.id, name: e.name, raw: rawByNorm[normalizeText(e.name)] || e.name }));
+
+			badge.textContent = skillList.length + ' 個のスキル';
+			badge.classList.remove('hidden');
+			// 新規シート名の既定値は選んだテンプレート名から作るので、切り替えたら作り直す
+			document.getElementById('deck-new-record-name').value = '';
+			parseOcrDictionary(); // 辞書に書かれたスキル名がリストに存在するか再確認する
+			updateDeckSelectedNote();
+			updateProcessBtn();
+			renderDeckSavePanel();
+		}
+
+		function updateDeckSelectedNote() {
+			const note = document.getElementById('deck-selected-note');
+			if (!note) return;
+			if (!deckTemplateId) { note.textContent = 'テンプレートを1つ選んでください'; return; }
+			const t = UmaSkillDeckCore.findTemplate(deckTemplateId);
+			note.textContent = '✓ 「' + (t && t.name ? t.name : '（名称未設定）') + '」の' + skillList.length + '件を照合します';
+		}
+
+		/* ============================================================
+		 * 保存パネル
+		 * ============================================================ */
+		// 指定した人物の、そのスキルの★。starsFor と同じ意味（数値／null＝★不明／undefined＝未検出）。
+		function deckStarsFor(personIdx, entry) {
+			return starsFor(personIdx, entry.raw);
+		}
+
+		function deckPersonStats(personIdx) {
+			let detected = 0, unknown = 0;
+			deckSkillEntries.forEach(e => {
+				const v = deckStarsFor(personIdx, e);
+				if (v === undefined) return;
+				detected++;
+				if (v === null) unknown++;
+			});
+			return { detected: detected, unknown: unknown };
+		}
+
+		function renderDeckSavePanel() {
+			const wrap = document.getElementById('deck-save-wrap');
+			if (!wrap) return;
+			const used = activePersonIndexes();
+			if (!deckMode || !deckTemplateId || used.length === 0) { wrap.classList.add('hidden'); return; }
+
+			const sel = document.getElementById('deck-record-select');
+			const prev = sel.value;
+			const summaries = UmaSkillDeckCore.listRecordSummaries();
+			const options = ['<option value="__new__">＋ 新しい比較シートを作成する</option>'];
+			summaries.forEach(r => {
+				const same = r.sourceTemplateId === deckTemplateId;
+				const label = (same ? '✓ ' : '') + r.name + '（候補' + r.candidateCount + '人・スキル' + r.skillCount + '件'
+					+ (same ? '' : '・元テンプレートが違います') + '）';
+				options.push('<option value="' + escapeHtml(r.recordId) + '">' + escapeHtml(label) + '</option>');
+			});
+			sel.innerHTML = options.join('');
+			// 既定は「同じテンプレートから作られた既存シート」。無ければ新規作成。
+			const sameOne = summaries.find(r => r.sourceTemplateId === deckTemplateId);
+			const keep = prev && Array.from(sel.options).some(o => o.value === prev);
+			sel.value = keep ? prev : (sameOne ? sameOne.recordId : '__new__');
+
+			wrap.classList.remove('hidden');
+			renderDeckAssignRows();
+			if (window.lucide) lucide.createIcons();
+		}
+
+		function renderDeckAssignRows() {
+			const recordId = document.getElementById('deck-record-select').value;
+			const isNewRecord = recordId === '__new__';
+			const nameInput = document.getElementById('deck-new-record-name');
+			nameInput.classList.toggle('hidden', !isNewRecord);
+			if (isNewRecord && !nameInput.value) {
+				const t = UmaSkillDeckCore.findTemplate(deckTemplateId);
+				nameInput.value = (t && t.name ? t.name : 'テンプレート') + ' 候補比較';
+			}
+
+			const candidates = isNewRecord ? [] : UmaSkillDeckCore.listCandidateSummaries(recordId);
+			const rows = document.getElementById('deck-assign-rows');
+			const used = activePersonIndexes();
+			let unknownTotal = 0;
+
+			rows.innerHTML = used.map(i => {
+				const stats = deckPersonStats(i);
+				unknownTotal += stats.unknown;
+				// 同じ名前の候補が既にあればそこへ上書き、無ければ新規候補を既定にする。
+				const match = candidates.find(c => c.label === PERSON_LABELS[i]);
+				const defaultValue = match ? match.candidateId : '__new__';
+				const opts = ['<option value="__skip__">保存しない</option>',
+					'<option value="__new__"' + (defaultValue === '__new__' ? ' selected' : '') + '>＋ 新しい候補として追加</option>']
+					.concat(candidates.map(c =>
+						'<option value="' + escapeHtml(c.candidateId) + '"' + (defaultValue === c.candidateId ? ' selected' : '') + '>'
+						+ escapeHtml(c.label + '（現在★' + c.filledCount + '件）に上書き') + '</option>'));
+				const hue = PERSON_COLORS[i];
+				return '' +
+				'<div class="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white">' +
+					'<span class="text-[11px] font-bold px-2 py-1 rounded-lg bg-' + hue + '-100 text-' + hue + '-800 shrink-0">' + PERSON_LABELS[i] + '</span>' +
+					'<span class="text-[11px] text-slate-500 shrink-0">検出' + stats.detected + '件'
+						+ (stats.unknown > 0 ? ' / <span class="text-amber-600 font-semibold">★不明' + stats.unknown + '件</span>' : '') + '</span>' +
+					'<select data-person="' + i + '" onchange="onDeckAssignChange(this)" class="flex-1 min-w-[180px] text-xs p-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-indigo-500">'
+						+ opts.join('') + '</select>' +
+					'<input type="text" data-person="' + i + '" value="' + escapeHtml(PERSON_LABELS[i]) + '" placeholder="候補名"'
+						+ ' class="w-28 text-xs p-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-indigo-500'
+						+ (defaultValue === '__new__' ? '' : ' hidden') + '" />' +
+				'</div>';
+			}).join('');
+
+			const note = document.getElementById('deck-save-note');
+			const messages = [];
+			if (unknownTotal > 0) {
+				messages.push('★の数を確定できなかったスキルが' + unknownTotal + '件あります。これらは★0として保存されるため、保存後にUmaSkill Deck側で手入力してください（結果表では「?」と表示されている行です）。');
+			}
+			if (!isNewRecord) {
+				const rec = UmaSkillDeckCore.findRecord(recordId);
+				if (rec && rec.sourceTemplateId !== deckTemplateId) {
+					messages.push('選んだ比較シートは別のテンプレートから作られています。シートに無いスキルは保存されません。');
+				}
+			}
+			note.textContent = messages.join('\n');
+			note.classList.toggle('hidden', messages.length === 0);
+		}
+
+		function onDeckAssignChange(sel) {
+			const input = document.querySelector('#deck-assign-rows input[data-person="' + sel.dataset.person + '"]');
+			if (input) input.classList.toggle('hidden', sel.value !== '__new__');
+		}
+
+		function saveDeckResults() {
+			if (!deckMode || !deckTemplateId) return;
+
+			// 先に「何を書くか」を作る。保存対象が0人なら、比較シートを新規作成する前に止める。
+			const specs = [];
+			activePersonIndexes().forEach(i => {
+				const sel = document.querySelector('#deck-assign-rows select[data-person="' + i + '"]');
+				if (!sel || sel.value === '__skip__') return;
+				const stars = {};
+				deckSkillEntries.forEach(e => {
+					const v = deckStarsFor(i, e);
+					// 未検出は0。検出できたが★を確定できなかった場合（null）も0で保存し、
+					// 手入力が必要な件数は保存パネルの注意書きで知らせている。
+					stars[e.id] = (v === null || v === undefined) ? 0 : v;
+				});
+				if (sel.value === '__new__') {
+					const input = document.querySelector('#deck-assign-rows input[data-person="' + i + '"]');
+					const label = ((input && input.value) || '').trim() || PERSON_LABELS[i];
+					specs.push({ newLabel: label, stars: stars });
+				} else {
+					specs.push({ candidateId: sel.value, stars: stars });
+				}
+			});
+			if (specs.length === 0) { showToast('保存する人を1人以上選んでください'); return; }
+			// 同じ候補を2人に割り当てると、後の人の★で先の人の★が黙って消えてしまう。
+			// 気づきにくい取り違えなので、保存せずに知らせる。
+			const usedCandidateIds = specs.map(x => x.candidateId).filter(Boolean);
+			if (new Set(usedCandidateIds).size !== usedCandidateIds.length) {
+				showToast('同じ候補が複数の人に指定されています。別々の候補を選んでください');
+				return;
+			}
+
+			let recordId = document.getElementById('deck-record-select').value;
+			if (recordId === '__new__') {
+				if (!UmaSkillDeckCore.canCreateRecord()) {
+					showToast('比較シートは最大' + UmaSkillDeckCore.RECORD_LIMIT + '件までです。UmaSkill Deck側で不要なものを削除してください');
+					return;
+				}
+				const rec = UmaSkillDeckCore.createRecordFromTemplate(deckTemplateId, document.getElementById('deck-new-record-name').value);
+				if (!rec) return;
+				recordId = rec.recordId;
+			}
+
+			const res = UmaSkillDeckCore.applyStarAssignments(recordId, specs);
+			if (!res.ok) {
+				showToast(res.cancelled ? '保存を中止しました（データは変更していません）' : '保存できませんでした');
+				renderDeckSavePanel();
+				return;
+			}
+
+			const parts = [res.written + '人分をUmaSkill Deckに保存しました'];
+			if (res.skippedSkillIds.length > 0) parts.push('（' + res.skippedSkillIds.length + '件はシートに無いスキルのため対象外）');
+			showToast(parts.join(''));
+
+			// 追加された候補が次回の選択肢に出るよう、保存先を保ったまま作り直す。
+			renderDeckSavePanel();
+			document.getElementById('deck-record-select').value = recordId;
+			renderDeckAssignRows();
 		}
 	</script>
 </body>
