@@ -1,0 +1,12 @@
+{
+  "name": "uma-skill-checker-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:stitch": "node tests/stitch/run-stitch-tests.mjs",
+    "test:stitch:gen-samples": "node tests/stitch/generate-sample-images.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.47.0"
+  }
+}
