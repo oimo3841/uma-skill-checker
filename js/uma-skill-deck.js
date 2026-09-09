@@ -13,7 +13,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-08a';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-09b';
 
 /* ============================================================
  * 定数
@@ -48,22 +48,30 @@ const TAG_AXES = [
 	{ key: 'coursePos', label: '⑤コース位置', defaultOpen: false, options: [
 		{ v: 'corner', t: 'コーナー' }, { v: 'straight', t: '直線' }, { v: 'uphill', t: '上り坂' }, { v: 'downhill', t: '下り坂' }
 	]},
-	{ key: 'environment', label: '⑥その他（レース環境）', defaultOpen: false, options: [
+	{ key: 'environment', label: '⑥その他1（レース環境）', defaultOpen: false, options: [
 		{ v: 'ground_good', t: '良バ場' }, { v: 'ground_bad', t: '道悪' },
+		{ v: 'surface_turf', t: '芝' }, { v: 'surface_dirt', t: 'ダート' },
 		{ v: 'right_turn', t: '右回り' }, { v: 'left_turn', t: '左回り' }, { v: 'small_track', t: '小回り' }, { v: 'straight_course', t: '直線コース' },
 		{ v: 'weather_sunny', t: '晴れ' }, { v: 'weather_cloudy', t: '曇り' }, { v: 'weather_rain', t: '雨' }, { v: 'weather_snow', t: '雪' },
 		{ v: 'season_spring', t: '春' }, { v: 'season_summer', t: '夏' }, { v: 'season_autumn', t: '秋' }, { v: 'season_winter', t: '冬' },
 		{ v: 'time_day', t: '昼' }, { v: 'time_evening', t: '夕方' }, { v: 'time_night', t: 'ナイター' },
-		{ v: 'track_tokyo', t: '東京レース場' }, { v: 'distance_basis', t: '根幹距離' }, { v: 'distance_nonbasis', t: '非根幹距離' }
+		{ v: 'distance_basis', t: '根幹距離' }, { v: 'distance_nonbasis', t: '非根幹距離' }
+	]},
+	{ key: 'trackVenue', label: '⑦その他2（レース場）', defaultOpen: false, options: [
+		{ v: 'track_sapporo', t: '札幌' }, { v: 'track_hakodate', t: '函館' }, { v: 'track_fukushima', t: '福島' }, { v: 'track_niigata', t: '新潟' },
+		{ v: 'track_nakayama', t: '中山' }, { v: 'track_tokyo', t: '東京' }, { v: 'track_chukyo', t: '中京' }, { v: 'track_kyoto', t: '京都' },
+		{ v: 'track_hanshin', t: '阪神' }, { v: 'track_kokura', t: '小倉' },
+		{ v: 'track_oi', t: '大井' }, { v: 'track_kawasaki', t: '川崎' }, { v: 'track_funabashi', t: '船橋' }, { v: 'track_morioka', t: '盛岡' },
+		{ v: 'track_longchamp', t: 'ロンシャン' }, { v: 'track_santaanita', t: 'サンタアニタパーク' }, { v: 'track_delmar', t: 'デルマー' }
 	]}
 ];
 
 // フェッチに失敗した場合のみ使うサンプルデータ（uma-skill-deck-skills.json が
 // まだ未公開/未配置の環境でも動作確認できるようにするための最終フォールバック）。
 const SAMPLE_MASTER_SKILLS = { masterVersion: 'embedded-sample', skills: [
-	{ id: '1', name: '右回り○', tags: { distance: [], style: [], phase: [], coursePos: [], environment: ['right_turn'], effect: ['speed_up'] } },
-	{ id: '21', name: '積極策', tags: { distance: ['mile'], style: [], phase: ['mid'], coursePos: [], environment: [], effect: ['target_speed_up'] } },
-	{ id: '26', name: '集中力', tags: { distance: [], style: [], phase: [], coursePos: [], environment: [], effect: ['start_good'] } }
+	{ id: '1', name: '右回り○', tags: { distance: [], style: [], phase: [], coursePos: [], environment: ['right_turn'], trackVenue: [], effect: ['speed_up'] } },
+	{ id: '21', name: '積極策', tags: { distance: ['mile'], style: [], phase: ['mid'], coursePos: [], environment: [], trackVenue: [], effect: ['target_speed_up'] } },
+	{ id: '26', name: '集中力', tags: { distance: [], style: [], phase: [], coursePos: [], environment: [], trackVenue: [], effect: ['start_good'] } }
 ]};
 
 /* ============================================================
@@ -181,7 +189,7 @@ function getSkillName(skillId) {
 
 function getSkillTags(skillId) {
 	const s = findSkill(skillId);
-	return s ? s.tags : { distance: [], style: [], phase: [], coursePos: [], environment: [], effect: [] };
+	return s ? s.tags : { distance: [], style: [], phase: [], coursePos: [], environment: [], trackVenue: [], effect: [] };
 }
 
 // フィルター一致判定。軸間はAND、軸内はOR。
