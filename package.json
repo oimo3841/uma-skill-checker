@@ -7,7 +7,8 @@
     "test:stitch:gen-samples": "node tests/stitch/generate-sample-images.mjs",
     "test:visual": "node tests/visual/run-smoke.mjs",
     "test:visual:capture": "node tests/visual/run-capture.mjs",
-    "test:verify": "node tests/visual/run-verify.mjs"
+    "test:verify": "node tests/visual/run-verify.mjs",
+    "test:ocr": "node tests/ocr/run-ocr-tests.mjs"
   },
   "devDependencies": {
     "playwright": "^1.47.0"
