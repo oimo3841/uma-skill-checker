@@ -31,8 +31,19 @@ const browser = await chromium.launch();
 	// スキルリストの解析（hidden の付け外し・件数バッジ）
 	await seedSpecialResults(page);
 	assert(await page.isVisible('#skill-count-badge'), 'special: スキル件数バッジが出る');
-	assert(await page.isVisible('#result-wrap'), 'special: 結果セクションが出る');
+	// 結果は引き出しの中にあるので、見えているかではなく「結果があるか」を見る。
+	// #result-wrap の hidden が「結果があるか」の印、引き出しの開閉はそれとは別。
+	assert(!(await page.evaluate(() => document.getElementById('result-wrap').classList.contains('hidden'))),
+		'special: 照合結果が「あり」になる');
+	assert(await page.evaluate(() => document.getElementById('result-empty').hidden),
+		'special: 結果があるので「まだありません」の案内は消える');
 	assert((await page.$$('#result-tbody tr')).length === PICK.length, 'special: 表の行数', (await page.$$('#result-tbody tr')).length);
+
+	// 以降の絞り込み・検索は引き出しの中の要素を触るので、先に開けておく。
+	await page.evaluate(() => openDrawer('result'));
+	await page.waitForTimeout(500);
+	assert(await page.isVisible('#result-drawer'), 'special: 照合結果の引き出しが開く');
+	assert(await page.isVisible('#result-tbody'), 'special: 引き出しの中に結果表が見えている');
 
 	// 人物列の色がクラスで当たっているか（インラインstyleから移行済みであることの確認）
 	const th = await page.evaluate(() => {
@@ -60,6 +71,9 @@ const browser = await chromium.launch();
 	const shown = await page.evaluate(() => [...document.querySelectorAll('#result-tbody tr')].filter((r) => r.style.display !== 'none').length);
 	assert(shown === 1, 'special: スキル名で絞り込める', shown);
 	await page.fill('#table-search', '');
+	await page.evaluate(() => closeDrawer());
+	await page.waitForTimeout(600);
+	assert(!(await page.isVisible('#result-drawer')), 'special: 照合結果の引き出しが閉じる');
 
 	// 右下の固定ナビ（FAB）。畳んだ状態ではサブボタンが押せないことまで見る。
 	assert(await page.isVisible('#fab-toggle'), 'special: 右下ナビのメインボタンが出る');
@@ -74,15 +88,61 @@ const browser = await chromium.launch();
 	assert(await page.evaluate(() => document.getElementById('fab-nav').classList.contains('open')),
 		'special: 右下ナビが開く');
 
-	// 引き出しパネル（open / closing クラス）— FAB経由で開く
+	// Deckの引き出し（iframe）— FAB経由で開く
 	await page.click('#deck-drawer-trigger');
 	await page.waitForTimeout(1200);
-	assert(await page.isVisible('#deck-drawer'), 'special: 引き出しが開く');
+	assert(await page.isVisible('#deck-drawer'), 'special: Deckの引き出しが開く');
 	assert(!(await page.evaluate(() => document.getElementById('fab-nav').classList.contains('open'))),
 		'special: 遷移すると右下ナビが畳まれる');
-	await page.click('#deck-drawer-close');
-	await page.waitForTimeout(900);
-	assert(!(await page.isVisible('#deck-drawer')), 'special: 引き出しが閉じる');
+	assert(await page.evaluate(() => document.body.style.overflow) === 'hidden',
+		'special: 引き出しを開くと本文のスクロールが止まる');
+	assert(!(await page.isVisible('#fab-nav')), 'special: 引き出しを開くとFABは隠れる');
+
+	// OCR結果のDeckへの受け渡し。special側の保存パネルは廃止し、
+	// Deck側の「読み込む」に一本化した（12セッション目）。バナーが出ることを確かめる。
+	const deckFrame = page.frameLocator('#deck-drawer-frame');
+	await deckFrame.locator('#ocr-handoff-banner').waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
+	assert(await deckFrame.locator('#ocr-handoff-banner').isVisible(),
+		'special: Deck側にOCR結果の取り込みバナーが出る');
+	await deckFrame.locator('[data-ocr-act="import"]').click();
+	await page.waitForTimeout(700);
+	assert(await deckFrame.locator('[data-ocr-el="record-select"]').isVisible(),
+		'special: 取り込みダイアログ（保存先の選択）が開く');
+	await deckFrame.locator('[data-ocr-act="close"]').click();
+	await page.waitForTimeout(300);
+
+	// 別の引き出しへ乗り換えても、同時に2枚開かない
+	await page.evaluate(() => openDrawer('stitch'));
+	await page.waitForTimeout(700);
+	assert(await page.isVisible('#stitch-drawer'), 'special: 画像結合レビューの引き出しが開く');
+	assert(!(await page.evaluate(() => document.getElementById('deck-drawer').classList.contains('open'))),
+		'special: 乗り換えると前の引き出しが畳まれる');
+	// 結合結果はまだ無いので、行き止まりにせず案内を出す
+	assert(await page.isVisible('#stitch-empty'), 'special: 結果が無いときは案内が出る');
+	assert(!(await page.isVisible('#stitch-result-content')), 'special: 結果が無いので中身は出ない');
+
+	// 結合結果ができたときの切り替わり（runImageStitching と同じ経路を直接呼ぶ）
+	await page.evaluate(() => {
+		document.getElementById('stitch-result-content').innerHTML = '<p id="stitch-dummy">結合結果</p>';
+		setSectionReady('stitch', true);
+		markFabUnseen('stitch');
+	});
+	await page.waitForTimeout(300);
+	assert(!(await page.isVisible('#stitch-empty')), 'special: 結果ができると案内が消える');
+	assert(await page.isVisible('#stitch-dummy'), 'special: 結果ができると中身が出る');
+	// 元に戻して、案内側の導線を確かめる
+	await page.evaluate(() => {
+		document.getElementById('stitch-result-content').innerHTML = '';
+		setSectionReady('stitch', false);
+	});
+	await page.waitForTimeout(300);
+
+	// 「入力画面に戻る」で引き出しが閉じる
+	await page.click('#stitch-empty button');
+	await page.waitForTimeout(700);
+	assert(!(await page.isVisible('#stitch-drawer')), 'special: 案内から入力画面に戻れる');
+	assert(await page.evaluate(() => document.body.style.overflow) === '',
+		'special: 引き出しを閉じると本文のスクロールが戻る');
 
 	// 照合結果へ飛ぶと新着バッジが消える
 	await page.click('#fab-toggle');
@@ -90,6 +150,10 @@ const browser = await chromium.launch();
 	await page.click('#fab-item-result');
 	await page.waitForTimeout(600);
 	assert(!(await page.isVisible('#fab-dot-result')), 'special: 見に行くと新着バッジが消える');
+	// Esc は開いているものを1つ閉じる
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(600);
+	assert(!(await page.isVisible('#result-drawer')), 'special: Escで引き出しが閉じる');
 
 	// 本文の下端余白がFAB展開時の高さを吸収できているか（余白はインラインstyleで指定）
 	await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));

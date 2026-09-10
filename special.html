@@ -145,6 +145,10 @@
 			z-index: 70;
 			display: flex; flex-direction: column; align-items: flex-end; gap: var(--uma-fab-gap);
 		}
+		/* 引き出しを開いている間は隠す。暗転の下に見えていると押せそうに見えるが、
+		   実際には暗転がクリックを受け取って閉じるだけで、紛らわしいため。
+		   display:flex を上で指定しているので [hidden] は !important で押す。 */
+		.uma-fab-nav[hidden] { display: none !important; }
 		/* PCでは本文カラムの右端に揃える。fixed 要素の % は
 		   ビューポート（スクロールバーを除いた幅）基準なので、
 		   100vw で計算するよりスクロールバーぶんのズレが出ない。
@@ -227,15 +231,22 @@
 			.uma-fab-dot { animation: none !important; }
 		}
 
-		.deck-drawer-backdrop {
+		/* ===== 引き出しパネル（スライドオーバー） =====
+		   FABの3つの行き先（照合結果 / 画像結合レビュー / UmaSkill Deck）が
+		   同じ骨格を共有する。同時に開くのは1つだけで、背景の暗転は1枚を使い回す。
+
+		   注意: 背景の暗転に opacity は使わない。opacity<1 は新しいスタッキング
+		   コンテキストを生成し、他要素の z-index 制御を壊す（F-7の実績）。
+		   半透明の背景色を持つ不透明な要素として実装する。 */
+		.uma-drawer-backdrop {
 			position: fixed; inset: 0; z-index: 90;
 			background: rgba(15, 23, 42, .45);
 			transition: background-color .3s ease;
 		}
-		.deck-drawer-backdrop[hidden] { display: none !important; }
-		.deck-drawer-backdrop.closing { background: rgba(15, 23, 42, 0); }
+		.uma-drawer-backdrop[hidden] { display: none !important; }
+		.uma-drawer-backdrop.closing { background: rgba(15, 23, 42, 0); }
 
-		.deck-drawer {
+		.uma-drawer {
 			position: fixed; top: 0; right: 0; z-index: 100;
 			width: min(92vw, 820px); height: 100%;
 			display: flex; flex-direction: column;
@@ -243,17 +254,34 @@
 			transform: translateX(100%);
 			transition: transform .3s cubic-bezier(0.16, 1, 0.3, 1);
 		}
-		.deck-drawer[hidden] { display: none !important; }
-		.deck-drawer.open { transform: translateX(0); }
-		.deck-drawer-header {
+		/* 照合結果の表は人物ぶん列が増える（最大7列）ので、この引き出しだけ広く取る。 */
+		.uma-drawer--wide { width: min(96vw, 1100px); }
+		.uma-drawer[hidden] { display: none !important; }
+		.uma-drawer.open { transform: translateX(0); }
+		.uma-drawer-header {
 			flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
 			gap: var(--uma-sp-3); padding: var(--uma-sp-3) var(--uma-sp-4);
 			background: var(--uma-surface); border-bottom: 1px solid var(--uma-border);
 		}
-		.deck-drawer-body { flex: 1; min-height: 0; background: #f5f6fb; }
-		.deck-drawer-body iframe { width: 100%; height: 100%; border: 0; display: block; }
+		/* 中身は引き出しの中でスクロールする（本文側は body ごとスクロールを止める）。
+		   iframe の引き出しだけは中の文書が自前でスクロールするので、外側は固定。 */
+		.uma-drawer-body { flex: 1; min-height: 0; overflow-y: auto; background: #f5f6fb; }
+		.uma-drawer-body--frame { overflow: hidden; }
+		.uma-drawer-body iframe { width: 100%; height: 100%; border: 0; display: block; }
+		.uma-drawer-content { padding: var(--uma-sp-4); }
+
+		/* 結果がまだ無いときの案内。行き止まりにせず、作るためのボタンへ戻す。 */
+		.uma-drawer-empty {
+			display: flex; flex-direction: column; align-items: center; justify-content: center;
+			gap: var(--uma-sp-3); text-align: center;
+			min-height: 60vh; padding: var(--uma-sp-6);
+			color: var(--uma-text-subtle);
+		}
+		.uma-drawer-empty[hidden] { display: none !important; }
+		.uma-drawer-empty svg { width: 40px; height: 40px; color: var(--uma-text-faint); }
+
 		@media (prefers-reduced-motion: reduce) {
-			.deck-drawer, .deck-drawer-backdrop { transition: none !important; }
+			.uma-drawer, .uma-drawer-backdrop { transition: none !important; }
 		}
 	</style>
 </head>
@@ -574,112 +602,6 @@
 				<div class="h-2 bg-green-200/70 rounded-full overflow-hidden">
 					<div id="stitch-progress-bar" class="h-full bg-green-600 rounded-full transition-all duration-300" style="width:0%"></div>
 				</div>
-			</div>
-		</div>
-
-		<!-- 画像結合結果（SNS投稿用・β）：スキルパネルのみを縦横に結合した画像を表示 -->
-		<div id="stitch-result-wrap" class="hidden glass-card shadow-xs mb-8 transition-all">
-			<div class="flex items-center gap-2 mb-4">
-				<i data-lucide="images" class="w-4 h-4 text-green-600"></i>
-				<h2 class="text-sm font-bold text-slate-800">画像結合プレビュー（β・SNS投稿用）</h2>
-			</div>
-			<div id="stitch-result-content" class="space-y-4"></div>
-		</div>
-
-		<!-- ステップ3 (結果表示) -->
-		<div id="result-wrap" class="hidden glass-card shadow-xs transition-all">
-			<div class="flex items-center justify-between mb-5">
-				<div class="flex items-center gap-2">
-					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">3</span>
-					<h2 class="text-sm font-bold text-slate-800">照合結果（★の数）</h2>
-				</div>
-				<button type="button" onclick="copyToClipboard()" class="uma-btn uma-btn--neutral">
-					<i data-lucide="copy" class="w-3.5 h-3.5"></i>
-					<span id="copy-btn-label">まとめてコピー</span>
-				</button>
-			</div>
-
-			<!-- サマリーカード（アップロード人数に応じてJSで生成） -->
-			<div id="stat-grid" class="grid grid-cols-4 gap-3 mb-6"></div>
-
-			<!-- 検索・フィルターバー -->
-			<div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
-				<div class="relative w-full sm:w-64">
-					<i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
-					<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-green-500" />
-				</div>
-				<div class="flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
-					<button type="button" onclick="setFilter('all')" id="filter-all" class="uma-pill active">すべて</button>
-					<button type="button" onclick="setFilter('found')" id="filter-found" class="uma-pill">誰かが検出</button>
-					<button type="button" onclick="setFilter('not-found')" id="filter-not-found" class="uma-pill">全員未検出</button>
-				</div>
-			</div>
-
-			<!-- テーブル -->
-			<div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
-				<table class="result-table">
-					<thead id="result-thead"></thead>
-					<tbody id="result-tbody"></tbody>
-				</table>
-			</div>
-
-			<!-- コピー用エリア -->
-			<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-6">
-				<div class="flex items-center justify-between mb-2">
-					<p class="text-xs font-semibold text-slate-700" id="copy-title">スプレッドシート貼り付け用データ</p>
-					<span class="text-[11px] text-slate-400" id="copy-hint"></span>
-				</div>
-				<div class="flex gap-2">
-					<textarea id="copy-data" readonly class="w-full h-24 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none"></textarea>
-				</div>
-			</div>
-
-			<!-- ===== UmaSkill Deck連携モードの保存パネル =====
-			     OCR結果に納得した場合だけ、保存先を選んでUmaSkill Deckのレコードへ書き込む。
-			     書き込みは「1人＝1候補まるごと」で、部分保存はしない。 -->
-			<div id="deck-save-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
-				<div class="flex items-center gap-2 mb-2">
-					<i data-lucide="layers" class="w-4 h-4 text-indigo-500"></i>
-					<p class="text-sm font-bold text-slate-800">UmaSkill Deckに保存</p>
-				</div>
-				<p class="text-xs text-slate-500 mb-4">上の結果でよければ、保存先を選んで書き込みます。保存は<strong>1人＝1候補まるごと</strong>です（選んだ候補の★は、このテンプレートの全スキルぶん置き換わります）。</p>
-
-				<label class="block text-xs font-semibold text-slate-700 mb-1.5">保存先の比較シート</label>
-				<select id="deck-record-select" onchange="renderDeckAssignRows()" class="w-full text-xs p-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-indigo-500 mb-2"></select>
-				<input type="text" id="deck-new-record-name" class="hidden w-full text-xs p-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-indigo-500 mb-2" placeholder="新しい比較シートの名前" />
-
-				<label class="block text-xs font-semibold text-slate-700 mt-4 mb-1.5">それぞれの保存先の候補</label>
-				<div id="deck-assign-rows" class="space-y-2"></div>
-
-				<div id="deck-save-note" class="hidden mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-800 whitespace-pre-line"></div>
-
-				<button id="deck-save-btn" type="button" onclick="saveDeckResults()" class="uma-btn uma-btn--primary uma-btn--lg btn-deck-accent w-full mt-4">
-					<i data-lucide="save" class="w-4 h-4"></i>
-					<span>この内容でUmaSkill Deckに保存</span>
-				</button>
-			</div>
-
-			<!-- 切り出し画像プレビュー -->
-			<div id="preview-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
-				<h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
-					<i data-lucide="image" class="w-4 h-4 text-slate-500"></i>
-					<span>切り出し結果プレビュー</span>
-				</h3>
-				<div id="debug-preview" class="space-y-4"></div>
-			</div>
-
-			<!-- 開発ログ -->
-			<div id="dev-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
-				<div class="flex items-center justify-between mb-3">
-					<h3 class="text-xs font-bold text-amber-700 flex items-center gap-1.5">
-						<i data-lucide="terminal" class="w-4 h-4"></i>
-						<span>開発用ログ</span>
-					</h3>
-					<button type="button" onclick="copyDevLog()" class="px-3 py-1 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 text-xs font-semibold transition-colors">
-						ログをコピー
-					</button>
-				</div>
-				<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-amber-900 max-h-80 overflow-y-auto"></div>
 			</div>
 		</div>
 
@@ -1138,7 +1060,6 @@
 				showToast(deckMode ? 'テンプレートを選択してください' : 'スキルリストを解析してください');
 				return;
 			}
-			document.getElementById('deck-save-wrap').classList.add('hidden');
 			const anyFiles = persons.some(p => p.files.length > 0);
 			if (!anyFiles) { showToast('少なくとも1人分の画像をアップロードしてください'); return; }
 
@@ -1218,6 +1139,9 @@
 
 			renderResults();
 			showToast('照合が完了しました');
+			// 結果は引き出しの中にあるので、判定が終わったらそのまま開いて見せる。
+			// （renderResults() 自体は描画だけを担当し、開く判断はこちらに置く）
+			openDrawer('result');
 		}
 
 		function setProgress(ratio, label) {
@@ -1349,7 +1273,6 @@
 		}
 
 		function renderResults() {
-			const resultWrap = document.getElementById('result-wrap');
 			const used = activePersonIndexes();
 
 			renderStatGrid(used);
@@ -1375,13 +1298,12 @@
 			});
 
 			document.getElementById('copy-data').value = copyRows.join('\n');
-			resultWrap.classList.remove('hidden');
+			setSectionReady('result', true);
 			markFabUnseen('result'); // 右下ナビに新着バッジを出す
 
 			filterResults();
 			renderPreview();
 			renderDevLog();
-			renderDeckSavePanel();
 			writeOcrHandoff();
 		}
 
@@ -1624,7 +1546,6 @@
 			const stitchBtn = document.getElementById('stitch-btn');
 			stitchBtn.disabled = true;
 
-			const wrap = document.getElementById('stitch-result-wrap');
 			const container = document.getElementById('stitch-result-content');
 			const progressWrap = document.getElementById('stitch-progress-wrap');
 
@@ -1639,7 +1560,7 @@
 				}
 				const totalPersons = targets.reduce((s, t) => s + t.count, 0);
 
-				if (totalPersons === 0) { wrap.classList.add('hidden'); return; }
+				if (totalPersons === 0) { setSectionReady('stitch', false); return; }
 
 				container.innerHTML = ''; // 前回の結果を消してから作り直す＝実質的な上書き
 				progressWrap.classList.remove('hidden');
@@ -1668,10 +1589,11 @@
 				}
 
 				setStitchProgress(1, '完了');
-				wrap.classList.toggle('hidden', !anyOutput);
+				setSectionReady('stitch', anyOutput);
 				if (anyOutput) {
 					showToast('画像を結合しました');
 					markFabUnseen('stitch'); // 右下ナビに新着バッジを出す
+					openDrawer('stitch');   // 結果は引き出しの中なので、そのまま開いて見せる
 				}
 
 				if (document.getElementById('opt-devlog').checked) renderDevLog();
@@ -1744,9 +1666,6 @@
 		// このファイル側で区別せずに済むよう、選択結果はこの1つにまとめて持つ。
 		let deckScope = null;
 		let deckMasterLoaded = false;
-		// 対象スキル [{ id, name, raw }]。raw は照合辞書に実際に載った表記で、
-		// OCR結果（スキル名がキー）から★を引くために使う。
-		let deckSkillEntries = [];
 		// 「今回だけの対象スキルセット」の保存先。userData とは別の名前空間。
 		const DECK_DRAFT_SCOPE_KEY = 'special';
 		// Deckモードに入る前の手入力リストの状態。モードを抜けたらそのまま復元する。
@@ -1775,7 +1694,6 @@
 
 			// 選択が済むまでは照合対象が無い状態にする
 			deckScope = null;
-			deckSkillEntries = [];
 			skillList = [];
 			skillIndex = [];
 			clearActiveSkillDictionary();
@@ -1819,7 +1737,6 @@
 			const btn = document.getElementById('deck-mode-btn');
 			btn.classList.remove('border-indigo-300', 'bg-indigo-50', 'text-indigo-700');
 			document.getElementById('deck-mode-btn-label').textContent = 'UmaSkill Deck連携';
-			document.getElementById('deck-save-wrap').classList.add('hidden');
 
 			clearActiveSkillDictionary();
 			if (manualSkillState) {
@@ -1845,18 +1762,15 @@
 		// 引数は共有モジュールの getSelection() の戻り値。テンプレートかドラフトかは
 		// ここでは区別せず、skillIds と name だけを見る。
 		function onDeckScopeSelected(selection) {
-			const prevId = deckScope ? deckScope.id : null;
 			deckScope = selection || null;
 			const badge = document.getElementById('skill-count-badge');
 			if (!deckScope) {
-				deckSkillEntries = [];
 				skillList = [];
 				skillIndex = [];
 				clearActiveSkillDictionary();
 				badge.classList.add('hidden');
 				updateDeckSelectedNote();
 				updateProcessBtn();
-				renderDeckSavePanel();
 				return;
 			}
 			const entries = UmaSkillDeckCore.getSkillEntries(deckScope.skillIds);
@@ -1864,21 +1778,12 @@
 			setActiveSkillDictionary(dict);
 			skillList = dict.list;
 			skillIndex = dict.index;
-			// 正規化後に同じになる表記は辞書側で1本化されるため、各スキルIDが
-			// 実際にどの表記で載ったかを引けるようにしておく。
-			const rawByNorm = {};
-			dict.index.forEach(x => { rawByNorm[x.norm] = x.raw; });
-			deckSkillEntries = entries.map(e => ({ id: e.id, name: e.name, raw: rawByNorm[normalizeText(e.name)] || e.name }));
 
 			badge.textContent = skillList.length + ' 個のスキル';
 			badge.classList.remove('hidden');
-			// 新規シート名の既定値は選んだ対象スキルセットの名前から作るので、
-			// 別のものに切り替わったら作り直す
-			if (prevId !== deckScope.id) document.getElementById('deck-new-record-name').value = '';
 			parseOcrDictionary(); // 辞書に書かれたスキル名がリストに存在するか再確認する
 			updateDeckSelectedNote();
 			updateProcessBtn();
-			renderDeckSavePanel();
 		}
 
 		function updateDeckSelectedNote() {
@@ -1889,216 +1794,41 @@
 		}
 
 		/* ============================================================
-		 * 保存パネル
-		 * ============================================================ */
-		// 指定した人物の、そのスキルの★。starsFor と同じ意味（数値／null＝★不明／undefined＝未検出）。
-		function deckStarsFor(personIdx, entry) {
-			return starsFor(personIdx, entry.raw);
-		}
-
-		function deckPersonStats(personIdx) {
-			let detected = 0, unknown = 0;
-			deckSkillEntries.forEach(e => {
-				const v = deckStarsFor(personIdx, e);
-				if (v === undefined) return;
-				detected++;
-				if (v === null) unknown++;
-			});
-			return { detected: detected, unknown: unknown };
-		}
-
-		// そのシートが、いま選んでいる対象スキルセットから作られたものかどうか。
-		// テンプレートなら元テンプレートIDで、保存していないドラフトなら
-		// 「テンプレートを持たない」ことと対象スキルが一致することで判定する。
-		function isSameScopeRecord(summary) {
-			if (!deckScope) return false;
-			if (deckScope.kind === 'template') return summary.sourceTemplateId === deckScope.id;
-			if (summary.sourceTemplateId) return false;
-			const rec = UmaSkillDeckCore.findRecord(summary.recordId);
-			if (!rec || rec.skillIds.length !== deckScope.skillIds.length) return false;
-			const want = new Set(deckScope.skillIds);
-			return rec.skillIds.every(id => want.has(id));
-		}
-
-		function renderDeckSavePanel() {
-			const wrap = document.getElementById('deck-save-wrap');
-			if (!wrap) return;
-			const used = activePersonIndexes();
-			if (!deckMode || !deckScope || used.length === 0) { wrap.classList.add('hidden'); return; }
-
-			const sel = document.getElementById('deck-record-select');
-			const prev = sel.value;
-			const summaries = UmaSkillDeckCore.listRecordSummaries();
-			const options = ['<option value="__new__">＋ 新しい比較シートを作成する</option>'];
-			summaries.forEach(r => {
-				const same = isSameScopeRecord(r);
-				const label = (same ? '✓ ' : '') + r.name + '（候補' + r.candidateCount + '人・スキル' + r.skillCount + '件'
-					+ (same ? '' : '・対象スキルセットが違います') + '）';
-				options.push('<option value="' + escapeHtml(r.recordId) + '">' + escapeHtml(label) + '</option>');
-			});
-			sel.innerHTML = options.join('');
-			// 既定は「同じ対象スキルセットから作られた既存シート」。無ければ新規作成。
-			const sameOne = summaries.find(isSameScopeRecord);
-			const keep = prev && Array.from(sel.options).some(o => o.value === prev);
-			sel.value = keep ? prev : (sameOne ? sameOne.recordId : '__new__');
-
-			wrap.classList.remove('hidden');
-			renderDeckAssignRows();
-			if (window.lucide) lucide.createIcons();
-		}
-
-		function renderDeckAssignRows() {
-			const recordId = document.getElementById('deck-record-select').value;
-			const isNewRecord = recordId === '__new__';
-			const nameInput = document.getElementById('deck-new-record-name');
-			nameInput.classList.toggle('hidden', !isNewRecord);
-			if (isNewRecord && !nameInput.value) {
-				nameInput.value = (deckScope ? deckScope.name : '対象スキルセット') + ' 候補比較';
-			}
-
-			const candidates = isNewRecord ? [] : UmaSkillDeckCore.listCandidateSummaries(recordId);
-			const rows = document.getElementById('deck-assign-rows');
-			const used = activePersonIndexes();
-			let unknownTotal = 0;
-
-			rows.innerHTML = used.map(i => {
-				const stats = deckPersonStats(i);
-				unknownTotal += stats.unknown;
-				// 同じ名前の候補が既にあればそこへ上書き、無ければ新規候補を既定にする。
-				const match = candidates.find(c => c.label === PERSON_LABELS[i]);
-				const defaultValue = match ? match.candidateId : '__new__';
-				const opts = ['<option value="__skip__">保存しない</option>',
-					'<option value="__new__"' + (defaultValue === '__new__' ? ' selected' : '') + '>＋ 新しい候補として追加</option>']
-					.concat(candidates.map(c =>
-						'<option value="' + escapeHtml(c.candidateId) + '"' + (defaultValue === c.candidateId ? ' selected' : '') + '>'
-						+ escapeHtml(c.label + '（現在★' + c.filledCount + '件）に上書き') + '</option>'));
-				const hue = PERSON_COLORS[i];
-				return '' +
-				'<div class="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white">' +
-					'<span class="text-[11px] font-bold px-2 py-1 rounded-lg bg-' + hue + '-100 text-' + hue + '-800 shrink-0">' + PERSON_LABELS[i] + '</span>' +
-					'<span class="text-[11px] text-slate-500 shrink-0">検出' + stats.detected + '件'
-						+ (stats.unknown > 0 ? ' / <span class="text-amber-600 font-semibold">★不明' + stats.unknown + '件</span>' : '') + '</span>' +
-					'<select data-person="' + i + '" onchange="onDeckAssignChange(this)" class="flex-1 min-w-[180px] text-xs p-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-indigo-500">'
-						+ opts.join('') + '</select>' +
-					'<input type="text" data-person="' + i + '" value="' + escapeHtml(PERSON_LABELS[i]) + '" placeholder="候補名"'
-						+ ' class="w-28 text-xs p-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-indigo-500'
-						+ (defaultValue === '__new__' ? '' : ' hidden') + '" />' +
-				'</div>';
-			}).join('');
-
-			const note = document.getElementById('deck-save-note');
-			const messages = [];
-			if (unknownTotal > 0) {
-				messages.push('★の数を確定できなかったスキルが' + unknownTotal + '件あります。これらは★0として保存されるため、保存後にUmaSkill Deck側で手入力してください（結果表では「?」と表示されている行です）。');
-			}
-			if (!isNewRecord) {
-				const summary = UmaSkillDeckCore.listRecordSummaries().find(r => r.recordId === recordId);
-				if (summary && !isSameScopeRecord(summary)) {
-					messages.push('選んだ比較シートは別の対象スキルセットから作られています。シートに無いスキルは保存されません。');
-				}
-			}
-			note.textContent = messages.join('\n');
-			note.classList.toggle('hidden', messages.length === 0);
-		}
-
-		function onDeckAssignChange(sel) {
-			const input = document.querySelector('#deck-assign-rows input[data-person="' + sel.dataset.person + '"]');
-			if (input) input.classList.toggle('hidden', sel.value !== '__new__');
-		}
-
-		function saveDeckResults() {
-			if (!deckMode || !deckScope) return;
-
-			// 先に「何を書くか」を作る。保存対象が0人なら、比較シートを新規作成する前に止める。
-			const specs = [];
-			activePersonIndexes().forEach(i => {
-				const sel = document.querySelector('#deck-assign-rows select[data-person="' + i + '"]');
-				if (!sel || sel.value === '__skip__') return;
-				const stars = {};
-				deckSkillEntries.forEach(e => {
-					const v = deckStarsFor(i, e);
-					// 未検出は0。検出できたが★を確定できなかった場合（null）も0で保存し、
-					// 手入力が必要な件数は保存パネルの注意書きで知らせている。
-					stars[e.id] = (v === null || v === undefined) ? 0 : v;
-				});
-				if (sel.value === '__new__') {
-					const input = document.querySelector('#deck-assign-rows input[data-person="' + i + '"]');
-					const label = ((input && input.value) || '').trim() || PERSON_LABELS[i];
-					specs.push({ newLabel: label, stars: stars });
-				} else {
-					specs.push({ candidateId: sel.value, stars: stars });
-				}
-			});
-			if (specs.length === 0) { showToast('保存する人を1人以上選んでください'); return; }
-			// 同じ候補を2人に割り当てると、後の人の★で先の人の★が黙って消えてしまう。
-			// 気づきにくい取り違えなので、保存せずに知らせる。
-			const usedCandidateIds = specs.map(x => x.candidateId).filter(Boolean);
-			if (new Set(usedCandidateIds).size !== usedCandidateIds.length) {
-				showToast('同じ候補が複数の人に指定されています。別々の候補を選んでください');
-				return;
-			}
-
-			let recordId = document.getElementById('deck-record-select').value;
-			if (recordId === '__new__') {
-				if (!UmaSkillDeckCore.canCreateRecord()) {
-					showToast('比較シートは最大' + UmaSkillDeckCore.RECORD_LIMIT + '件までです。UmaSkill Deck側で不要なものを削除してください');
-					return;
-				}
-				// ドラフト（保存していない対象スキルセット）から作る場合、
-				// 紐づくテンプレートが無いので sourceTemplateId は空になる。
-				const rec = UmaSkillDeckCore.createRecord({
-					name: document.getElementById('deck-new-record-name').value,
-					skillIds: deckScope.skillIds,
-					sourceTemplateId: deckScope.kind === 'template' ? deckScope.id : ''
-				});
-				if (!rec) return;
-				recordId = rec.recordId;
-			}
-
-			const res = UmaSkillDeckCore.applyStarAssignments(recordId, specs);
-			if (!res.ok) {
-				showToast(res.cancelled ? '保存を中止しました（データは変更していません）' : '保存できませんでした');
-				renderDeckSavePanel();
-				return;
-			}
-
-			const parts = [res.written + '人分をUmaSkill Deckに保存しました'];
-			if (res.skippedSkillIds.length > 0) parts.push('（' + res.skippedSkillIds.length + '件はシートに無いスキルのため対象外）');
-			showToast(parts.join(''));
-
-			// 追加された候補が次回の選択肢に出るよう、保存先を保ったまま作り直す。
-			renderDeckSavePanel();
-			document.getElementById('deck-record-select').value = recordId;
-			renderDeckAssignRows();
-		}
-
-		/* ============================================================
-		 * UmaSkill Deck 引き出しパネル（スライドオーバー）
+		 * 引き出しパネル（スライドオーバー）
 		 *
-		 * uma-skill-deck.html を iframe で読み込むだけで、あちらのファイルは変更していない。
-		 * 同一オリジンのため localStorage はそのまま共有され、パネル内で編集した
-		 * テンプレート・比較シートは、この画面のDeck連携モードにも反映される。
+		 * 行き先3つ（照合結果 / 画像結合レビュー / UmaSkill Deck）で
+		 * 同じ骨格を使う。同時に開くのは1つだけで、背景の暗転は1枚を共有する。
+		 *
+		 * UmaSkill Deck だけ中身が iframe（uma-skill-deck.html をそのまま読む）で、
+		 * あちらのファイルは変更していない。同一オリジンのため localStorage は
+		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
+		 * Deck連携モードにも反映される。
 		 * ============================================================ */
 		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-10n';
-		let deckDrawerOpen = false;
+
+		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
+		const DRAWERS = {
+			result: { el: 'result-drawer', close: 'result-drawer-close', trigger: 'fab-item-result' },
+			stitch: { el: 'stitch-drawer', close: 'stitch-drawer-close', trigger: 'fab-item-stitch' },
+			deck: {
+				el: 'deck-drawer', close: 'deck-drawer-close', trigger: 'deck-drawer-trigger',
+				onOpen: prepareDeckFrame, onClose: refreshDeckStateAfterDrawer
+			}
+		};
+
+		let openDrawerKey = null;
+		let drawerBackdropTimer = null;
+
 		// iframeを読み込んだ時点の保存データ。パネルを開き直したときに
 		// 中身が古くなっていないかを判定するために使う。
 		let deckDrawerDataSnapshot = null;
-		let deckDrawerCloseTimer = null;
 
 		function currentDeckDataSnapshot() {
 			try { return localStorage.getItem('umaSkillDeck:userData') || ''; } catch (e) { return ''; }
 		}
 
-		function openDeckDrawer() {
-			if (deckDrawerOpen) return;
-			deckDrawerOpen = true;
-			clearTimeout(deckDrawerCloseTimer);
-
-			const drawer = document.getElementById('deck-drawer');
-			const backdrop = document.getElementById('deck-drawer-backdrop');
+		function prepareDeckFrame() {
 			const frame = document.getElementById('deck-drawer-frame');
-
 			if (!frame.getAttribute('src')) {
 				// 初回だけ読み込む（既定の利用では余計な通信を発生させない）
 				frame.addEventListener('load', () => { deckDrawerDataSnapshot = currentDeckDataSnapshot(); });
@@ -2107,46 +1837,6 @@
 				// 閉じている間にこちら側でデータが変わっていたら、開くときに読み直す
 				try { frame.contentWindow.location.reload(); } catch (e) { frame.setAttribute('src', DECK_DRAWER_FRAME_SRC); }
 			}
-
-			backdrop.hidden = false;
-			drawer.hidden = false;
-			// hidden を外した直後に .open を付けてもトランジションが走らないため、
-			// 一度レイアウトを確定させてからクラスを付ける。
-			void drawer.offsetWidth;
-			drawer.classList.add('open');
-			backdrop.classList.remove('closing');
-			document.body.style.overflow = 'hidden';
-			document.getElementById('deck-drawer-trigger').setAttribute('aria-expanded', 'true');
-			document.getElementById('deck-drawer-close').focus();
-			if (window.lucide) lucide.createIcons();
-		}
-
-		function closeDeckDrawer() {
-			if (!deckDrawerOpen) return;
-			deckDrawerOpen = false;
-
-			const drawer = document.getElementById('deck-drawer');
-			const backdrop = document.getElementById('deck-drawer-backdrop');
-			drawer.classList.remove('open');
-			backdrop.classList.add('closing');
-			document.body.style.overflow = '';
-			// 戻り先のフォーカスは、閉じている間も押せるメインFABに返す。
-			// Deckのサブボタンは畳まれると pointer-events:none になるため戻り先にできない。
-			document.getElementById('deck-drawer-trigger').setAttribute('aria-expanded', 'false');
-			document.getElementById('fab-toggle').focus();
-
-			// 閉じるアニメーションが終わってから非表示にする。
-			// transitionend が来ないことがあるので、保険のタイマーも置く。
-			const finish = () => {
-				if (deckDrawerOpen) return; // 閉じ切る前に開き直された
-				drawer.hidden = true;
-				backdrop.hidden = true;
-			};
-			drawer.addEventListener('transitionend', finish, { once: true });
-			clearTimeout(deckDrawerCloseTimer);
-			deckDrawerCloseTimer = setTimeout(finish, 400);
-
-			refreshDeckStateAfterDrawer();
 		}
 
 		// パネル内で編集された内容を、この画面側の状態に取り込み直す。
@@ -2160,33 +1850,99 @@
 			onDeckScopeSelected(deckTemplateManager.getSelection());
 		}
 
-		document.addEventListener('keydown', (e) => {
-			if (e.key === 'Escape' && deckDrawerOpen) closeDeckDrawer();
-		});
+		// 引き出しを1枚たたむ。閉じるアニメーションが終わってから hidden にする
+		// （transitionend が来ないことがあるので、保険のタイマーも置く）。
+		function collapseDrawer(key) {
+			const def = DRAWERS[key];
+			const el = document.getElementById(def.el);
+			el.classList.remove('open');
+			document.getElementById(def.trigger).setAttribute('aria-expanded', 'false');
+			const finish = () => { if (openDrawerKey !== key) el.hidden = true; };
+			el.addEventListener('transitionend', finish, { once: true });
+			setTimeout(finish, 400);
+			if (def.onClose) def.onClose();
+		}
+
+		function openDrawer(key) {
+			if (openDrawerKey === key) return;
+			if (openDrawerKey) collapseDrawer(openDrawerKey); // 開いていた別の引き出しを畳む
+			clearTimeout(drawerBackdropTimer);
+
+			const def = DRAWERS[key];
+			const el = document.getElementById(def.el);
+			const backdrop = document.getElementById('drawer-backdrop');
+			if (def.onOpen) def.onOpen();
+
+			backdrop.hidden = false;
+			el.hidden = false;
+			document.getElementById('fab-nav').hidden = true;
+			// hidden を外した直後に .open を付けてもトランジションが走らないため、
+			// 一度レイアウトを確定させてからクラスを付ける。
+			void el.offsetWidth;
+			el.classList.add('open');
+			backdrop.classList.remove('closing');
+			document.body.style.overflow = 'hidden';
+			openDrawerKey = key;
+			document.getElementById(def.trigger).setAttribute('aria-expanded', 'true');
+			document.getElementById(def.close).focus();
+			if (window.lucide) lucide.createIcons();
+		}
+
+		function closeDrawer() {
+			if (!openDrawerKey) return;
+			const key = openDrawerKey;
+			openDrawerKey = null;
+			collapseDrawer(key);
+
+			const backdrop = document.getElementById('drawer-backdrop');
+			backdrop.classList.add('closing');
+			document.body.style.overflow = '';
+			document.getElementById('fab-nav').hidden = false;
+			clearTimeout(drawerBackdropTimer);
+			drawerBackdropTimer = setTimeout(() => { if (!openDrawerKey) backdrop.hidden = true; }, 400);
+
+			// 戻り先のフォーカスは、閉じている間も押せるメインFABに返す。
+			// サブボタンは畳まれると pointer-events:none になるため戻り先にできない。
+			document.getElementById('fab-toggle').focus();
+		}
+
+		// 「入力画面に戻る」。引き出しを閉じて、その結果を作るためのボタンまで連れて行く。
+		function backToInput(buttonId) {
+			closeDrawer();
+			const el = document.getElementById(buttonId);
+			el.scrollIntoView({ behavior: fabReduceMotion() ? 'auto' : 'smooth', block: 'center' });
+		}
 
 		/* ============================================================
 		 * 画面固定ナビ（右下・折りたたみFAB）
 		 *
-		 * 行き先は3つ。UmaSkill Deck は引き出しパネルを開き、残り2つは
-		 * ページ内の該当セクションへスクロールする。
+		 * 行き先は3つとも引き出しパネル。ここは「どれを開くか」を決めるだけで、
+		 * 開閉そのものは openDrawer() / closeDrawer() が持つ。
 		 *
 		 * 「新着」の判定は専用のフラグを増やさず、既にある完了の印をそのまま使う:
 		 *   - 画像結合の完了 … runImageStitching() が #stitch-result-wrap の hidden を外す
 		 *   - 照合結果の完了 … renderResults() が #result-wrap の hidden を外す
+		 * hidden は「結果があるか」の印であって、引き出しが開いているかとは別物。
 		 * ここで持つのは「その結果をFABから見に行ったか」という未読状態だけ。
 		 * ============================================================ */
 		let fabOpen = false;
 		let fabUnseen = { stitch: false, result: false };
 
-		// 対象セクションがまだ無いときの逃がし先。押しても何も起きない行き止まりを作らず、
-		// 「その結果を作るためのボタン」まで連れて行く。
-		const FAB_TARGETS = {
-			stitch: { wrap: 'stitch-result-wrap', fallback: 'stitch-btn', emptyMsg: 'まだ画像結合の結果がありません' },
-			result: { wrap: 'result-wrap', fallback: 'process-btn', emptyMsg: 'まだ照合結果がありません' }
+		// 結果の実体と、まだ無いときに出す案内。両者は排他で切り替える。
+		const RESULT_SECTIONS = {
+			stitch: { wrap: 'stitch-result-wrap', empty: 'stitch-empty' },
+			result: { wrap: 'result-wrap', empty: 'result-empty' }
 		};
 
 		function fabReduceMotion() {
 			return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		}
+
+		// 結果ができた／まだ無い、を引き出しの中身に反映する。
+		function setSectionReady(key, ready) {
+			const sec = RESULT_SECTIONS[key];
+			document.getElementById(sec.wrap).classList.toggle('hidden', !ready);
+			document.getElementById(sec.empty).hidden = ready;
 		}
 
 		function setFabOpen(open) {
@@ -2214,24 +1970,8 @@
 
 		function fabGoTo(key) {
 			setFabOpen(false);
-			const target = FAB_TARGETS[key];
-			const wrap = document.getElementById(target.wrap);
-			const ready = !wrap.classList.contains('hidden');
-			if (!ready) showToast(target.emptyMsg);
-
-			fabUnseen[key] = false;
-			updateFabBadges();
-
-			const el = ready ? wrap : document.getElementById(target.fallback);
-			el.scrollIntoView({
-				behavior: fabReduceMotion() ? 'auto' : 'smooth',
-				block: ready ? 'start' : 'center'
-			});
-		}
-
-		function fabOpenDeck() {
-			setFabOpen(false);
-			openDeckDrawer();
+			if (fabUnseen[key]) { fabUnseen[key] = false; updateFabBadges(); }
+			openDrawer(key);
 		}
 
 		// メニュー外タップで閉じる（開いたままスクロールして誤爆するのを防ぐ）
@@ -2240,9 +1980,11 @@
 			if (!document.getElementById('fab-nav').contains(e.target)) setFabOpen(false);
 		});
 
-		// Escでも閉じる。引き出しパネルが開いているときはそちらの処理を優先する。
+		// Esc は「開いているものを1つ閉じる」。引き出しの方を先に閉じる。
 		document.addEventListener('keydown', (e) => {
-			if (e.key === 'Escape' && fabOpen && !deckDrawerOpen) setFabOpen(false);
+			if (e.key !== 'Escape') return;
+			if (openDrawerKey) closeDrawer();
+			else if (fabOpen) setFabOpen(false);
 		});
 
 		/* ============================================================
@@ -2295,9 +2037,150 @@
 			}
 		}
 	</script>
-	<!-- ===== UmaSkill Deck 引き出しパネル =====
-	     uma-skill-deck.html を iframe で読み込むだけで、あちらのファイルには手を入れていない。
-	     同一オリジンなので localStorage はそのまま共有される。 -->
+
+	<!-- ===== 引き出しパネル =====
+	     行き先は3つとも同じ骨格（.uma-drawer）。背景の暗転は1枚を共有し、
+	     同時に開くのは1つだけ。開閉は openDrawer() / closeDrawer() が管理する。 -->
+	<div id="drawer-backdrop" class="uma-drawer-backdrop" hidden onclick="closeDrawer()"></div>
+
+	<!-- 照合結果（★の数）。表の列が人数ぶん増えるので、他より広い引き出しにする。 -->
+	<aside id="result-drawer" class="uma-drawer uma-drawer--wide" hidden role="dialog" aria-modal="true" aria-label="照合結果">
+		<div class="uma-drawer-header">
+			<div class="flex items-center gap-2 min-w-0">
+				<i data-lucide="list-checks" class="w-4 h-4 text-green-600 shrink-0"></i>
+				<p class="text-sm font-bold text-slate-800 truncate">照合結果（★の数）</p>
+			</div>
+			<div class="flex items-center gap-2 shrink-0">
+				<button type="button" onclick="copyToClipboard()" class="uma-btn uma-btn--neutral">
+					<i data-lucide="copy" class="w-3.5 h-3.5"></i>
+					<span id="copy-btn-label">まとめてコピー</span>
+				</button>
+				<button id="result-drawer-close" type="button" onclick="closeDrawer()" class="uma-btn uma-btn--secondary">
+					<i data-lucide="x" class="w-3.5 h-3.5"></i>
+					<span>閉じる</span>
+				</button>
+			</div>
+		</div>
+		<div class="uma-drawer-body">
+			<div id="result-empty" class="uma-drawer-empty">
+				<i data-lucide="list-checks"></i>
+				<p class="text-sm font-bold text-slate-600">まだ照合結果がありません</p>
+				<p class="text-xs">スキルリストと画像を用意して「OCR処理を開始する」を押すと、ここに結果が出ます。</p>
+				<button type="button" onclick="backToInput('process-btn')" class="uma-btn uma-btn--secondary">
+					<i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+					<span>入力画面に戻る</span>
+				</button>
+			</div>
+			<div class="uma-drawer-content">
+				<div id="result-wrap" class="hidden">
+
+					<!-- サマリーカード（アップロード人数に応じてJSで生成） -->
+					<div id="stat-grid" class="grid grid-cols-4 gap-3 mb-6"></div>
+
+					<!-- 検索・フィルターバー -->
+					<div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
+						<div class="relative w-full sm:w-64">
+							<i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
+							<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-green-500" />
+						</div>
+						<div class="flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
+							<button type="button" onclick="setFilter('all')" id="filter-all" class="uma-pill active">すべて</button>
+							<button type="button" onclick="setFilter('found')" id="filter-found" class="uma-pill">誰かが検出</button>
+							<button type="button" onclick="setFilter('not-found')" id="filter-not-found" class="uma-pill">全員未検出</button>
+						</div>
+					</div>
+
+					<!-- テーブル -->
+					<div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
+						<table class="result-table">
+							<thead id="result-thead"></thead>
+							<tbody id="result-tbody"></tbody>
+						</table>
+					</div>
+
+					<!-- コピー用エリア -->
+					<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-6">
+						<div class="flex items-center justify-between mb-2">
+							<p class="text-xs font-semibold text-slate-700" id="copy-title">スプレッドシート貼り付け用データ</p>
+							<span class="text-[11px] text-slate-400" id="copy-hint"></span>
+						</div>
+						<div class="flex gap-2">
+							<textarea id="copy-data" readonly class="w-full h-24 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none"></textarea>
+						</div>
+					</div>
+
+					<!-- ===== UmaSkill Deckへの保存について =====
+					     以前はここに保存パネルを持っていたが、UmaSkill Deck側に同等の
+					     取り込みダイアログ（「UmaStar OCRの判定結果があります → 読み込む」）が
+					     あり、入口が二重になっていたため、Deck側に一本化して削除した。
+					     判定のたびに writeOcrHandoff() が localStorage へ書き出し、
+					     Deckの引き出しを開くとバナーが出る、という流れは変えていない。 -->
+					<div class="border-t border-slate-200 pt-5 mt-6">
+						<button type="button" onclick="fabGoTo('deck')" class="uma-btn uma-btn--secondary btn-deck-accent w-full">
+							<i data-lucide="layers" class="w-4 h-4 text-indigo-500"></i>
+							<span>UmaSkill Deckに保存する</span>
+						</button>
+						<p class="mt-2 text-[11px] text-slate-400 text-center">UmaSkill Deckを開き、「読み込む」から保存先の比較シートと候補を選びます。</p>
+					</div>
+
+					<!-- 切り出し画像プレビュー -->
+					<div id="preview-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
+						<h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
+							<i data-lucide="image" class="w-4 h-4 text-slate-500"></i>
+							<span>切り出し結果プレビュー</span>
+						</h3>
+						<div id="debug-preview" class="space-y-4"></div>
+					</div>
+
+					<!-- 開発ログ -->
+					<div id="dev-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
+						<div class="flex items-center justify-between mb-3">
+							<h3 class="text-xs font-bold text-amber-700 flex items-center gap-1.5">
+								<i data-lucide="terminal" class="w-4 h-4"></i>
+								<span>開発用ログ</span>
+							</h3>
+							<button type="button" onclick="copyDevLog()" class="px-3 py-1 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 text-xs font-semibold transition-colors">
+								ログをコピー
+							</button>
+						</div>
+						<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-amber-900 max-h-80 overflow-y-auto"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</aside>
+
+	<!-- 画像結合レビュー（SNS投稿用・β）。中身は画像なのでDeckと同じ幅でよい。 -->
+	<aside id="stitch-drawer" class="uma-drawer" hidden role="dialog" aria-modal="true" aria-label="画像結合レビュー">
+		<div class="uma-drawer-header">
+			<div class="flex items-center gap-2 min-w-0">
+				<i data-lucide="images" class="w-4 h-4 text-amber-600 shrink-0"></i>
+				<p class="text-sm font-bold text-slate-800 truncate">画像結合レビュー</p>
+				<span class="text-[11px] text-slate-400 truncate hidden sm:inline">β・SNS投稿用</span>
+			</div>
+			<button id="stitch-drawer-close" type="button" onclick="closeDrawer()" class="uma-btn uma-btn--secondary">
+				<i data-lucide="x" class="w-3.5 h-3.5"></i>
+				<span>閉じる</span>
+			</button>
+		</div>
+		<div class="uma-drawer-body">
+			<div id="stitch-empty" class="uma-drawer-empty">
+				<i data-lucide="images"></i>
+				<p class="text-sm font-bold text-slate-600">まだ画像結合の結果がありません</p>
+				<p class="text-xs">1人につき2枚以上のスクリーンショットを入れて「画像を結合する」を押すと、ここに結果が出ます。</p>
+				<button type="button" onclick="backToInput('stitch-btn')" class="uma-btn uma-btn--secondary">
+					<i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+					<span>入力画面に戻る</span>
+				</button>
+			</div>
+			<div class="uma-drawer-content">
+				<div id="stitch-result-wrap" class="hidden">
+					<div id="stitch-result-content" class="space-y-4"></div>
+				</div>
+			</div>
+		</div>
+	</aside>
+
 	<!-- ===== 画面固定ナビ（右下・折りたたみFAB） =====
 	     子要素の並び順は「上→下」＝「使用頻度の低い→高い」。メインボタンに一番近い
 	     UmaSkill Deck が最頻用。バッジの出し入れは JS の updateFabBadges() が担当する。 -->
@@ -2319,7 +2202,7 @@
 		</button>
 
 		<!-- Deck へ向かうボタンだけは Deck 側のアクセント（藍）で塗り、行き先を色で示す。 -->
-		<button id="deck-drawer-trigger" type="button" class="uma-fab-item" onclick="fabOpenDeck()"
+		<button id="deck-drawer-trigger" type="button" class="uma-fab-item" onclick="fabGoTo('deck')"
 			aria-controls="deck-drawer" aria-expanded="false">
 			<span>UmaSkill Deck</span>
 			<span class="uma-fab-icon" style="background: #eef2ff; color: #432dd7;">
@@ -2333,21 +2216,22 @@
 		</button>
 	</div>
 
-	<div id="deck-drawer-backdrop" class="deck-drawer-backdrop" hidden onclick="closeDeckDrawer()"></div>
-
-	<aside id="deck-drawer" class="deck-drawer" hidden role="dialog" aria-modal="true" aria-label="UmaSkill Deck">
-		<div class="deck-drawer-header">
+	<!-- UmaSkill Deck。ここだけ中身が iframe（uma-skill-deck.html をそのまま読む）で、
+	     あちらのファイルには手を入れていない。同一オリジンなので localStorage は共有される。
+	     OCR結果の保存もこの中の「読み込む」から行う（C-9c / F-27 参照）。 -->
+	<aside id="deck-drawer" class="uma-drawer" hidden role="dialog" aria-modal="true" aria-label="UmaSkill Deck">
+		<div class="uma-drawer-header">
 			<div class="flex items-center gap-2 min-w-0">
 				<i data-lucide="layers" class="w-4 h-4 text-indigo-600 shrink-0"></i>
 				<p class="text-sm font-bold text-slate-800 truncate">UmaSkill Deck</p>
 				<span class="text-[11px] text-slate-400 truncate hidden sm:inline">テンプレートと比較シートをここで編集できます</span>
 			</div>
-			<button id="deck-drawer-close" type="button" onclick="closeDeckDrawer()" class="uma-btn uma-btn--secondary">
+			<button id="deck-drawer-close" type="button" onclick="closeDrawer()" class="uma-btn uma-btn--secondary">
 				<i data-lucide="x" class="w-3.5 h-3.5"></i>
 				<span>閉じる</span>
 			</button>
 		</div>
-		<div class="deck-drawer-body">
+		<div class="uma-drawer-body uma-drawer-body--frame">
 			<iframe id="deck-drawer-frame" title="UmaSkill Deck" loading="lazy"></iframe>
 		</div>
 	</aside>

@@ -100,11 +100,29 @@ for (const p of ['index.html', 'exam.html', 'js/common.js', 'js/stitch.js']) {
 	check(r.status === 0, p + ' が未変更');
 }
 
+/* 意図して消したセレクタ。ここに書いたものだけ「失われていない」検査を免除する。
+   この検査は「事故で消した」を捕まえるためのものなので、意図的な削除は
+   免除ではなく記録として1行ずつ残す（なぜ消えたのかを後から追えるようにする）。
+   免除したものは実行のたびに [免除] として表示されるので、放置に気付ける。 */
+const INTENTIONALLY_REMOVED = {
+	'special.html': [
+		// 12セッション目: Deck保存パネルをDeck側の「読み込む」導線に一本化して削除（F-27）
+		'deck-save-wrap', 'deck-record-select', 'deck-new-record-name',
+		'deck-assign-rows', 'deck-save-note', 'deck-save-btn',
+		// 12セッション目: 引き出しが3つになり、背景の暗転を1枚（#drawer-backdrop）に集約した
+		'deck-drawer-backdrop',
+	],
+};
+
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
 for (const p of TARGETS) {
 	const b = head(p), a = read(p);
-	const lostId = [...ids(b)].filter((x) => !ids(a).has(x));
+	const allow = new Set(INTENTIONALLY_REMOVED[p] || []);
+	const gone = [...ids(b)].filter((x) => !ids(a).has(x));
+	const lostId = gone.filter((x) => !allow.has(x));
+	const excused = gone.filter((x) => allow.has(x));
 	const lostData = [...datas(b)].filter((x) => !datas(a).has(x));
+	if (excused.length > 0) console.log('     [免除] ' + p + ' の意図的に消したid(' + excused.length + '): ' + excused.join(' '));
 	check(lostId.length === 0, p + ' の id が1つも失われていない', lostId);
 	check(lostData.length === 0, p + ' の data-* が1つも失われていない', lostData);
 }

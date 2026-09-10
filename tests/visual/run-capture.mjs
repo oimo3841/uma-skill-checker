@@ -43,21 +43,32 @@ async function shot(page, name, opts = {}) {
 	const { ctx, page } = await openPage(browser, base, 'special.html');
 	await shot(page, 'special-01-top');
 	await seedSpecialResults(page);
-	await shot(page, 'special-02-results');
-	const el = await page.$('#result-wrap');
-	if (el) { await el.screenshot({ path: path.join(OUT, 'special-03-result-table.png') }); console.log('  special-03-result-table'); }
+	await shot(page, 'special-02-input-only');
 	await page.click('#fab-toggle');
-	await shot(page, 'special-04-fab-open', { fullPage: false, wait: 500 });
-	await page.click('#deck-drawer-trigger');
-	await shot(page, 'special-05-deck-drawer', { fullPage: false, wait: 1500 });
+	await shot(page, 'special-03-fab-open', { fullPage: false, wait: 500 });
+	// 結果は引き出しの中。開いた状態を撮る。
+	await page.click('#fab-item-result');
+	await shot(page, 'special-04-result-drawer', { fullPage: false, wait: 900 });
+	// 引き出しの中は独立してスクロールするので、下端（Deckへの導線）も撮る
+	await page.evaluate(() => { const b = document.querySelector('#result-drawer .uma-drawer-body'); b.scrollTop = b.scrollHeight; });
+	await shot(page, 'special-05-result-drawer-bottom', { fullPage: false, wait: 500 });
+	await page.evaluate(() => { document.querySelector('#result-drawer .uma-drawer-body').scrollTop = 0; });
+	// 結果がまだ無い引き出しの案内
+	await page.evaluate(() => openDrawer('stitch'));
+	await shot(page, 'special-06-stitch-empty', { fullPage: false, wait: 700 });
+	await page.evaluate(() => openDrawer('deck'));
+	await shot(page, 'special-07-deck-drawer', { fullPage: false, wait: 1500 });
 	await page.click('#deck-drawer-close');
 	await page.waitForTimeout(800);
+
 	await page.setViewportSize({ width: 375, height: 812 });
-	await shot(page, 'special-06-mobile375', { wait: 600 });
+	await shot(page, 'special-08-mobile375', { wait: 600 });
 	await page.click('#fab-toggle');
-	await shot(page, 'special-07-mobile375-fab-open', { fullPage: false, wait: 500 });
-	await page.click('#fab-toggle');
-	await page.waitForTimeout(300);
+	await shot(page, 'special-09-mobile375-fab-open', { fullPage: false, wait: 500 });
+	await page.click('#fab-item-result');
+	await shot(page, 'special-10-mobile375-result-drawer', { fullPage: false, wait: 900 });
+	await page.evaluate(() => closeDrawer());
+	await page.waitForTimeout(600);
 	await ctx.close();
 }
 
