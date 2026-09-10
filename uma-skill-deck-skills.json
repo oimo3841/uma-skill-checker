@@ -1,5 +1,5 @@
 {
- "masterVersion": "2026-09-11a",
+ "masterVersion": "2026-09-11b",
  "skills": [
   {
    "id": "1",
@@ -2288,8 +2288,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "accel_up",
-     "stamina"
+     "accel_up"
     ],
     "scenario": []
    }
@@ -3154,7 +3153,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina",
      "target_speed_up"
     ],
     "scenario": []
@@ -3337,7 +3335,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina",
      "target_speed_up"
     ],
     "scenario": []
@@ -3774,7 +3771,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina",
      "target_speed_up"
     ],
     "scenario": []
@@ -3836,8 +3832,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "accel_up",
-     "stamina"
+     "accel_up"
     ],
     "scenario": []
    }
@@ -4768,7 +4763,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina",
      "target_speed_up"
     ],
     "scenario": []
@@ -5253,7 +5247,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina",
      "target_speed_up"
     ],
     "scenario": []
@@ -5358,7 +5351,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina",
      "target_speed_up"
     ],
     "scenario": []
@@ -5585,7 +5577,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina",
      "target_speed_up"
     ],
     "scenario": []
@@ -6820,7 +6811,6 @@
     ],
     "trackVenue": [],
     "effect": [
-     "stamina",
      "target_speed_up"
     ],
     "scenario": []
@@ -7407,7 +7397,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina",
      "target_speed_up"
     ],
     "scenario": []
@@ -7566,7 +7555,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina",
      "target_speed_up"
     ],
     "scenario": []
@@ -8050,7 +8038,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina",
      "target_speed_up"
     ],
     "scenario": []
@@ -8268,7 +8255,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina",
      "target_speed_up"
     ],
     "scenario": [

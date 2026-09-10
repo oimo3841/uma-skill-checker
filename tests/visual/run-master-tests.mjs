@@ -32,6 +32,21 @@ const STAMINA_DOWN = [
 	'抜け駆け禁止', 'ささやき', 'スタミナイーター', '鋭い眼光',
 ];
 
+/**
+ * サブ効果が持久力消費のため、効果タイプから持久力を外した14件。
+ * 「サブ効果の持久力消費は無視され、サブ効果の持久力回復は重要視される」という
+ * ゲーム側の暗黙知に合わせている（2026-09-11）。ここが再び stamina を持ったら退行。
+ */
+const SUB_CONSUME_NO_STAMINA = [
+	'二の矢', 'あやしげな作戦', 'フルスロットル', 'しゃかりき', 'がむしゃら', '惜しみなし', '後先恐れず',
+	'アグレッシブ', 'ハイピッチ', 'なりふり構わず', '猛プッシュ', '大立ち回り', '元気バクハツ', 'レースの真髄・体',
+];
+
+/** サブ効果が持久力回復のため、持久力回復のまま残す9件（スタミナイーターはメインが減少なので別扱い） */
+const SUB_RECOVER_KEEP = [
+	'闘争心', '快速', 'バイブス上昇', '克己心', '裏腹なキモチ', '覇気十分', '張り切り', '存在感', '綺羅星',
+];
+
 /** ③でシナリオスキルのフラグを立てた27件（公式ID 210xxx 番台に対応） */
 const SCENARIO = [
 	'アオハル点火・速', 'アオハル点火・体', 'アオハル点火・力', 'アオハル点火・根', 'アオハル点火・賢',
@@ -77,7 +92,13 @@ console.log('=== 1. マスターデータ（uma-skill-deck-skills.json） ===');
 	assert(dec.length === 14, '①持久力減少(stamina_down)が14件', dec.length);
 	assert(eq(dec.map((s) => s.name).sort(), STAMINA_DOWN.slice().sort()),
 		'①持久力減少の内訳が指定の14件と一致', dec.map((s) => s.name));
-	assert(rec.length === 56, '①持久力回復(stamina)が56件', rec.length);
+	assert(rec.length === 42, '①持久力回復(stamina)が42件（メイン回復33＋サブ回復9）', rec.length);
+	const stillStamina = SUB_CONSUME_NO_STAMINA.filter((n) => byName.get(n).tags.effect.includes('stamina'));
+	assert(stillStamina.length === 0, '①サブ効果が持久力消費の14件は持久力を持たない', stillStamina);
+	const emptied = SUB_CONSUME_NO_STAMINA.filter((n) => byName.get(n).tags.effect.length === 0);
+	assert(emptied.length === 0, '①持久力を外しても効果タイプが空にならない', emptied);
+	const lostRecover = SUB_RECOVER_KEEP.filter((n) => !byName.get(n).tags.effect.includes('stamina'));
+	assert(lostRecover.length === 0, '①サブ効果が持久力回復の9件は持久力回復のまま', lostRecover);
 	assert(!master.skills.some((s) => s.tags.effect.includes('stamina') && s.tags.effect.includes('stamina_down')),
 		'①回復と減少を同時に持つスキルはない');
 
@@ -160,7 +181,7 @@ const browser = await chromium.launch();
 	// ① 持久力回復 / 持久力減少 が別カテゴリとして効く
 	await tick('effect', 'stamina');
 	const recCount = await readCount();
-	assert(recCount === 56, '「持久力回復」で絞ると56件', recCount);
+	assert(recCount === 42, '「持久力回復」で絞ると42件', recCount);
 	await tick('effect', 'stamina');
 
 	await tick('effect', 'stamina_down');
@@ -172,7 +193,7 @@ const browser = await chromium.launch();
 	// 回復側と減少側が排他（同じスキルが両方に出ない）
 	await tick('effect', 'stamina');
 	const bothCount = await readCount();
-	assert(bothCount === 70, '両方チェックすると軸内ORで70件（56+14で重複なし）', bothCount);
+	assert(bothCount === 56, '両方チェックすると軸内ORで56件（42+14で重複なし）', bothCount);
 	await tick('effect', 'stamina');
 	await tick('effect', 'stamina_down');
 	assert(await readCount() === 445, 'チェックを外すと445件に戻る', await readCount());
@@ -188,9 +209,9 @@ const browser = await chromium.launch();
 	await tick('effect', 'stamina');
 	const andCount = await readCount();
 	const andNames = await listedNames();
-	assert(eq(andNames.slice().sort(), ['アオハル点火・体', 'レースの真髄・体', '綺羅星'].sort()),
+	assert(eq(andNames.slice().sort(), ['アオハル点火・体', '綺羅星'].sort()),
 		'⑧×③のAND絞り込みが効く', andNames);
-	assert(andCount === 3, '⑧シナリオ × 持久力回復 は3件', andCount);
+	assert(andCount === 2, '⑧シナリオ × 持久力回復 は2件（レースの真髄・体はサブ消費で外れた）', andCount);
 	await tick('effect', 'stamina');
 	await tick('scenario', 'scenario');
 
