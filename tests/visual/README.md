@@ -8,11 +8,16 @@
 ```
 npm run test:visual          # 機能スモークテスト（63項目）
 npm run test:verify          # 納品前チェック（版数・セレクタ資産・構文）
+npm run test:master          # マスターデータ・8軸タグの検証（件数・フィルター・タグのコピー）
 npm run test:visual:capture -- before            # 変更前のスクリーンショット
 npm run test:visual:capture -- after --compare   # 変更後＋前後比較画像
 ```
 
 スクリーンショットの出力先は `output/visual/` で、`.gitignore` 済み。
+
+`test:master` は `uma-skill-deck-skills.json` そのものと、それを読み込んだ画面の両方を見る。
+**必ずHTTP経由で開く**こと（`startServer` が面倒を見る）。`file://` では fetch が禁止されていて
+マスターデータの取得に黙って失敗し、組み込みサンプル3件へフォールバックする（F-16）。
 
 ## なぜ必要か
 

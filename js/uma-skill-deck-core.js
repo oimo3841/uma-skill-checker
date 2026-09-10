@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-10i';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11a';
 
 	/* ============================================================
 	 * 定数
@@ -53,7 +53,7 @@
 	// テンプレート一覧の中でドラフトを指すための番号（テンプレートIDと衝突しない形）。
 	const DRAFT_SELECTION_ID = '__draft__';
 
-	// 7軸のタグ辞書。フィルターパネル・タグ表示・カスタムスキル入力で共有する。
+	// 8軸のタグ辞書。フィルターパネル・タグ表示・カスタムスキル入力で共有する。
 	const TAG_AXES = [
 		{ key: 'distance', label: '①距離', defaultOpen: true, options: [
 			{ v: 'short', t: '短距離' }, { v: 'mile', t: 'マイル' }, { v: 'medium', t: '中距離' }, { v: 'long', t: '長距離' }
@@ -63,7 +63,7 @@
 		]},
 		{ key: 'effect', label: '③効果タイプ', defaultOpen: true, options: [
 			{ v: 'target_speed_up', t: '速度アップ' }, { v: 'accel_up', t: '加速度アップ' }, { v: 'move_forward', t: '前に出る' }, { v: 'extend', t: '伸び' },
-			{ v: 'stamina', t: '持久力' }, { v: 'speed_down', t: '速度ダウン' }, { v: 'start_good', t: 'スタート得意' }, { v: 'course_sense', t: 'コース取り' },
+			{ v: 'stamina', t: '持久力回復' }, { v: 'stamina_down', t: '持久力減少' }, { v: 'speed_down', t: '速度ダウン' }, { v: 'start_good', t: 'スタート得意' }, { v: 'course_sense', t: 'コース取り' },
 			{ v: 'lane_change', t: 'レーン移動' }, { v: 'temptation_time', t: '掛かり時間' }, { v: 'vision', t: '視野' },
 			{ v: 'speed_up', t: 'スピードアップ' }, { v: 'stamina_up', t: 'スタミナアップ' }, { v: 'power_up', t: 'パワーアップ' },
 			{ v: 'guts_up', t: '根性アップ' }, { v: 'wisdom_up', t: '賢さアップ' }, { v: 'all_up', t: '全てアップ' }
@@ -89,15 +89,20 @@
 			{ v: 'track_hanshin', t: '阪神' }, { v: 'track_kokura', t: '小倉' },
 			{ v: 'track_oi', t: '大井' }, { v: 'track_kawasaki', t: '川崎' }, { v: 'track_funabashi', t: '船橋' }, { v: 'track_morioka', t: '盛岡' },
 			{ v: 'track_longchamp', t: 'ロンシャン' }, { v: 'track_santaanita', t: 'サンタアニタパーク' }, { v: 'track_delmar', t: 'デルマー' }
+		]},
+		// 該当/非該当だけの単一フラグ軸。選択肢は1つしかないので、
+		// 「条件を持たない＝万能スキル」という他の軸の扱いは当てはめない（flagAxis）。
+		{ key: 'scenario', label: '⑧その他3（シナリオスキル）', defaultOpen: false, flagAxis: true, options: [
+			{ v: 'scenario', t: 'シナリオスキル' }
 		]}
 	];
 
 	// フェッチに失敗した場合のみ使うサンプルデータ（uma-skill-deck-skills.json が
 	// まだ未公開/未配置の環境でも動作確認できるようにするための最終フォールバック）。
 	const SAMPLE_MASTER_SKILLS = { masterVersion: 'embedded-sample', skills: [
-		{ id: '1', name: '右回り○', tags: { distance: [], style: [], phase: [], coursePos: [], environment: ['right_turn'], trackVenue: [], effect: ['speed_up'] } },
-		{ id: '21', name: '積極策', tags: { distance: ['mile'], style: [], phase: ['mid'], coursePos: [], environment: [], trackVenue: [], effect: ['target_speed_up'] } },
-		{ id: '26', name: '集中力', tags: { distance: [], style: [], phase: [], coursePos: [], environment: [], trackVenue: [], effect: ['start_good'] } }
+		{ id: '1', name: '右回り○', tags: { distance: [], style: [], phase: [], coursePos: [], environment: ['right_turn'], trackVenue: [], effect: ['speed_up'], scenario: [] } },
+		{ id: '21', name: '積極策', tags: { distance: ['mile'], style: [], phase: ['mid'], coursePos: [], environment: [], trackVenue: [], effect: ['target_speed_up'], scenario: [] } },
+		{ id: '26', name: '集中力', tags: { distance: [], style: [], phase: [], coursePos: [], environment: [], trackVenue: [], effect: ['start_good'], scenario: [] } }
 	]};
 
 	/* ============================================================
@@ -290,7 +295,7 @@
 
 	function getSkillTags(skillId) {
 		const s = findSkill(skillId);
-		return s ? s.tags : { distance: [], style: [], phase: [], coursePos: [], environment: [], trackVenue: [], effect: [] };
+		return s ? s.tags : emptyTagSet();
 	}
 
 	// スキルID配列 → [{ id, name }]（順序はID配列のまま）。
@@ -302,12 +307,14 @@
 
 	// フィルター一致判定。軸間はAND、軸内はOR。
 	// スキルがその軸に条件を持たない（空配列）場合は、その軸のどの選択肢にも一致する扱い（万能スキル）。
+	// ただし flagAxis の軸（⑧シナリオスキル）は該当/非該当のフラグなので、
+	// 空配列は「非該当」であって「万能」ではない。ここだけ扱いを分ける。
 	function matchesFilters(skill, filters) {
 		return TAG_AXES.every(axis => {
 			const selected = filters[axis.key] || [];
 			if (selected.length === 0) return true; // その軸で絞り込みしていない
 			const skillValues = (skill.tags && skill.tags[axis.key]) || [];
-			if (skillValues.length === 0) return true; // 万能スキル
+			if (skillValues.length === 0) return !axis.flagAxis; // 万能スキル（フラグ軸だけは非該当）
 			return skillValues.some(v => selected.includes(v));
 		});
 	}
@@ -615,7 +622,7 @@
 					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="picker-close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>' +
 				'</div>' +
 				'<div class="p-4" style="overflow:auto;">' +
-					// 一括貼り付け。7軸フィルターより上に置く（スプレッドシートからの
+					// 一括貼り付け。8軸フィルターより上に置く（スプレッドシートからの
 					// 移行が主な入口になる想定のため）。既存の絞り込みはそのまま下に残す。
 					'<details class="mb-3 rounded-xl border border-slate-200 bg-slate-50" data-usd-el="paste-box" open>' +
 						'<summary class="text-xs font-semibold text-slate-600 px-3 py-2 cursor-pointer select-none">スプレッドシートから貼り付けて一括選択</summary>' +
@@ -890,7 +897,7 @@
 	function createCustomFromPasteRow(rowIndex) {
 		const row = pasteRows[rowIndex];
 		if (!row) return;
-		// 7軸タグは未設定のまま作る（後から埋める運用）。
+		// 8軸タグは未設定のまま作る（後から埋める運用）。
 		const id = createCustomSkill(row.norm, emptyTagSet());
 		if (!id) return;
 		row.chosenId = id;

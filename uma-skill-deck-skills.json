@@ -1,5 +1,5 @@
 {
- "masterVersion": "2026-09-09a",
+ "masterVersion": "2026-09-11a",
  "skills": [
   {
    "id": "1",
@@ -15,7 +15,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -32,7 +33,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -49,7 +51,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -66,7 +69,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -83,7 +87,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -100,7 +105,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -117,7 +123,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -134,7 +141,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -151,7 +159,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -168,7 +177,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -185,7 +195,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -202,7 +213,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -219,7 +231,8 @@
     "trackVenue": [],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -236,7 +249,8 @@
     "trackVenue": [],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -253,7 +267,8 @@
     "trackVenue": [],
     "effect": [
      "power_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -270,7 +285,8 @@
     "trackVenue": [],
     "effect": [
      "power_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -287,7 +303,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -304,7 +321,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -321,7 +339,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -338,7 +357,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -355,7 +375,8 @@
     "trackVenue": [],
     "effect": [
      "guts_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -372,7 +393,8 @@
     "trackVenue": [],
     "effect": [
      "guts_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -389,7 +411,8 @@
     "trackVenue": [],
     "effect": [
      "guts_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -406,7 +429,8 @@
     "trackVenue": [],
     "effect": [
      "guts_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -421,7 +445,8 @@
     "trackVenue": [],
     "effect": [
      "wisdom_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -436,7 +461,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -451,7 +477,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -466,7 +493,8 @@
     "trackVenue": [],
     "effect": [
      "power_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -481,7 +509,8 @@
     "trackVenue": [],
     "effect": [
      "guts_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -496,7 +525,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -513,7 +543,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -530,7 +561,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -549,7 +581,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -566,7 +599,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -583,7 +617,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -602,7 +637,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -617,7 +653,8 @@
     "trackVenue": [],
     "effect": [
      "start_good"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -633,7 +670,8 @@
     "effect": [
      "course_sense",
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -650,7 +688,8 @@
     "trackVenue": [],
     "effect": [
      "course_sense"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -667,7 +706,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -684,7 +724,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -701,7 +742,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -719,7 +761,8 @@
     "effect": [
      "accel_up",
      "course_sense"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -736,7 +779,8 @@
     "trackVenue": [],
     "effect": [
      "course_sense"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -753,7 +797,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -770,7 +815,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -789,7 +835,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -808,7 +855,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -827,7 +875,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -846,7 +895,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -865,7 +915,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -884,7 +935,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -903,7 +955,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -922,7 +975,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -941,7 +995,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -960,7 +1015,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -981,7 +1037,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1000,7 +1057,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1020,7 +1078,8 @@
     "effect": [
      "accel_up",
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1040,7 +1099,8 @@
     "effect": [
      "accel_up",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1059,7 +1119,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1079,7 +1140,8 @@
     "effect": [
      "speed_down",
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1098,7 +1160,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1117,7 +1180,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1136,7 +1200,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1156,7 +1221,8 @@
     "effect": [
      "accel_up",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1175,7 +1241,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1194,7 +1261,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1211,7 +1279,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1227,8 +1296,9 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina"
-    ]
+     "stamina_down"
+    ],
+    "scenario": []
    }
   },
   {
@@ -1244,8 +1314,9 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina"
-    ]
+     "stamina_down"
+    ],
+    "scenario": []
    }
   },
   {
@@ -1260,7 +1331,8 @@
     "trackVenue": [],
     "effect": [
      "temptation_time"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1275,7 +1347,8 @@
     "trackVenue": [],
     "effect": [
      "temptation_time"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1290,7 +1363,8 @@
     "trackVenue": [],
     "effect": [
      "temptation_time"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1305,7 +1379,8 @@
     "trackVenue": [],
     "effect": [
      "temptation_time"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1321,8 +1396,9 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina"
-    ]
+     "stamina_down"
+    ],
+    "scenario": []
    }
   },
   {
@@ -1338,8 +1414,9 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina"
-    ]
+     "stamina_down"
+    ],
+    "scenario": []
    }
   },
   {
@@ -1356,7 +1433,8 @@
     "trackVenue": [],
     "effect": [
      "speed_down"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1372,8 +1450,9 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina"
-    ]
+     "stamina_down"
+    ],
+    "scenario": []
    }
   },
   {
@@ -1389,8 +1468,9 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina"
-    ]
+     "stamina_down"
+    ],
+    "scenario": []
    }
   },
   {
@@ -1407,7 +1487,8 @@
     "trackVenue": [],
     "effect": [
      "speed_down"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1423,8 +1504,9 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina"
-    ]
+     "stamina_down"
+    ],
+    "scenario": []
    }
   },
   {
@@ -1440,8 +1522,9 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina"
-    ]
+     "stamina_down"
+    ],
+    "scenario": []
    }
   },
   {
@@ -1458,7 +1541,8 @@
     "trackVenue": [],
     "effect": [
      "speed_down"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1474,8 +1558,9 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina"
-    ]
+     "stamina_down"
+    ],
+    "scenario": []
    }
   },
   {
@@ -1491,8 +1576,9 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina"
-    ]
+     "stamina_down"
+    ],
+    "scenario": []
    }
   },
   {
@@ -1509,7 +1595,8 @@
     "trackVenue": [],
     "effect": [
      "speed_down"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1526,7 +1613,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1545,7 +1633,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1564,7 +1653,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1583,7 +1673,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1602,7 +1693,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1622,7 +1714,8 @@
     "effect": [
      "accel_up",
      "course_sense"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1641,7 +1734,8 @@
     "trackVenue": [],
     "effect": [
      "speed_down"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1660,8 +1754,9 @@
     "trackVenue": [],
     "effect": [
      "accel_up",
-     "stamina"
-    ]
+     "stamina_down"
+    ],
+    "scenario": []
    }
   },
   {
@@ -1680,7 +1775,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1699,7 +1795,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1718,7 +1815,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1735,7 +1833,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1752,7 +1851,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1772,7 +1872,8 @@
     "effect": [
      "speed_down",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1791,7 +1892,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1810,7 +1912,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1829,7 +1932,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1848,7 +1952,8 @@
     "trackVenue": [],
     "effect": [
      "vision"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1868,7 +1973,8 @@
     "effect": [
      "accel_up",
      "course_sense"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1885,7 +1991,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1904,7 +2011,8 @@
     "trackVenue": [],
     "effect": [
      "speed_down"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1922,8 +2030,9 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina"
-    ]
+     "stamina_down"
+    ],
+    "scenario": []
    }
   },
   {
@@ -1942,7 +2051,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1961,7 +2071,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1980,7 +2091,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -1997,7 +2109,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2017,7 +2130,8 @@
     "effect": [
      "accel_up",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2035,8 +2149,9 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina"
-    ]
+     "stamina_down"
+    ],
+    "scenario": []
    }
   },
   {
@@ -2055,7 +2170,8 @@
     "trackVenue": [],
     "effect": [
      "vision"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2074,7 +2190,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2093,7 +2210,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2113,7 +2231,8 @@
     "effect": [
      "course_sense",
      "lane_change"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2130,7 +2249,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2149,7 +2269,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2169,7 +2290,8 @@
     "effect": [
      "accel_up",
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2188,7 +2310,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2207,7 +2330,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2226,7 +2350,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2243,7 +2368,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2262,7 +2388,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2281,7 +2408,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2300,7 +2428,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2319,7 +2448,8 @@
     "trackVenue": [],
     "effect": [
      "vision"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2338,7 +2468,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2357,7 +2488,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2374,7 +2506,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2393,7 +2526,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2412,7 +2546,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2431,7 +2566,8 @@
     "trackVenue": [],
     "effect": [
      "vision"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2449,8 +2585,9 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina"
-    ]
+     "stamina_down"
+    ],
+    "scenario": []
    }
   },
   {
@@ -2469,7 +2606,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2488,7 +2626,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2505,7 +2644,8 @@
     "trackVenue": [],
     "effect": [
      "vision"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2524,7 +2664,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2541,7 +2682,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2560,7 +2702,8 @@
     "trackVenue": [],
     "effect": [
      "vision"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2579,7 +2722,8 @@
     "trackVenue": [],
     "effect": [
      "speed_down"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2597,7 +2741,8 @@
     "effect": [
      "vision",
      "wisdom_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2615,7 +2760,8 @@
     "effect": [
      "vision",
      "wisdom_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2633,7 +2779,8 @@
     "effect": [
      "vision",
      "wisdom_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2651,7 +2798,8 @@
     "effect": [
      "vision",
      "wisdom_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2668,7 +2816,8 @@
      "power_up",
      "speed_up",
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2683,7 +2832,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2700,7 +2850,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2715,7 +2866,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2730,7 +2882,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2745,7 +2898,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2760,7 +2914,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2775,7 +2930,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2790,7 +2946,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2805,7 +2962,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2820,7 +2978,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2839,7 +2998,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2859,7 +3019,8 @@
     "effect": [
      "accel_up",
      "course_sense"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2878,7 +3039,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2897,7 +3059,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2916,7 +3079,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2935,7 +3099,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2954,7 +3119,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2973,7 +3139,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -2989,7 +3156,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3008,7 +3176,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3028,7 +3197,8 @@
     "effect": [
      "speed_down",
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3047,7 +3217,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3067,7 +3238,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3086,7 +3258,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3105,7 +3278,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3123,7 +3297,8 @@
     "effect": [
      "accel_up",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3143,7 +3318,8 @@
     "effect": [
      "speed_down",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3163,7 +3339,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3178,7 +3355,8 @@
     "trackVenue": [],
     "effect": [
      "wisdom_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3195,7 +3373,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3216,7 +3395,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3233,7 +3413,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3250,7 +3431,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3267,7 +3449,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3284,7 +3467,8 @@
     "trackVenue": [],
     "effect": [
      "wisdom_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3301,7 +3485,8 @@
     "trackVenue": [],
     "effect": [
      "wisdom_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3316,7 +3501,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3335,7 +3521,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3354,7 +3541,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3373,7 +3561,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3392,7 +3581,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3409,7 +3599,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3428,7 +3619,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3447,7 +3639,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3464,7 +3657,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3482,7 +3676,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3501,7 +3696,8 @@
     "trackVenue": [],
     "effect": [
      "speed_down"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3518,7 +3714,8 @@
     "trackVenue": [],
     "effect": [
      "speed_down"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3537,7 +3734,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3557,7 +3755,8 @@
     "effect": [
      "course_sense",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3577,7 +3776,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3595,7 +3795,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3614,7 +3815,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3636,7 +3838,8 @@
     "effect": [
      "accel_up",
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3658,7 +3861,8 @@
     "effect": [
      "accel_up",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3675,7 +3879,8 @@
      "guts_up",
      "power_up",
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3694,7 +3899,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3713,7 +3919,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3731,7 +3938,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3752,7 +3960,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3771,7 +3980,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3790,7 +4000,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3810,7 +4021,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3830,7 +4042,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3850,7 +4063,8 @@
     "effect": [
      "speed_down",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3866,7 +4080,8 @@
     "effect": [
      "move_forward",
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3885,7 +4100,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3905,7 +4121,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3926,7 +4143,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3943,7 +4161,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3962,7 +4181,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -3981,7 +4201,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4000,7 +4221,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4019,7 +4241,8 @@
     "effect": [
      "power_up",
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4039,7 +4262,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4058,7 +4282,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4078,7 +4303,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4095,7 +4321,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4114,7 +4341,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4134,7 +4362,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4153,7 +4382,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4170,7 +4400,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4190,7 +4421,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4209,7 +4441,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4228,7 +4461,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4249,7 +4483,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4266,7 +4501,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4283,7 +4519,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4304,7 +4541,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4327,7 +4565,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4347,7 +4586,8 @@
     "effect": [
      "move_forward",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4366,7 +4606,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4387,7 +4628,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4404,7 +4646,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4425,7 +4668,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4444,7 +4688,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4463,7 +4708,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4482,7 +4728,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4502,7 +4749,8 @@
     "effect": [
      "speed_down",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4522,7 +4770,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4539,7 +4788,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4561,7 +4811,8 @@
     "effect": [
      "speed_down",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4580,7 +4831,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4599,7 +4851,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4620,7 +4873,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4639,7 +4893,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4656,7 +4911,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4675,7 +4931,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4694,7 +4951,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4713,7 +4971,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4730,7 +4989,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4750,7 +5010,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4769,7 +5030,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4788,7 +5050,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4807,7 +5070,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4828,7 +5092,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4847,7 +5112,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4866,7 +5132,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4885,7 +5152,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4906,7 +5174,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4925,7 +5194,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4945,7 +5215,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4963,7 +5234,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -4983,7 +5255,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5003,7 +5276,8 @@
     "effect": [
      "move_forward",
      "speed_down"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5023,7 +5297,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5042,7 +5317,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5063,7 +5339,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5083,7 +5360,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5102,7 +5380,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5122,7 +5401,8 @@
     "effect": [
      "move_forward",
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5142,7 +5422,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5163,7 +5444,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5182,7 +5464,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5201,7 +5484,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5220,7 +5504,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5239,7 +5524,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5258,7 +5544,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5279,7 +5566,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5299,7 +5587,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5316,7 +5605,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5336,7 +5626,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5357,7 +5648,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5378,7 +5670,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5399,7 +5692,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5420,7 +5714,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5439,7 +5734,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5458,7 +5754,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5479,7 +5776,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5500,7 +5798,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5517,7 +5816,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5535,7 +5835,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5556,7 +5857,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5577,7 +5879,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5594,7 +5897,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5615,7 +5919,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5636,7 +5941,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5655,7 +5961,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5674,7 +5981,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5693,7 +6001,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5712,7 +6021,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5731,7 +6041,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5750,7 +6061,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5769,7 +6081,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5786,7 +6099,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5805,7 +6119,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5828,7 +6143,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5845,7 +6161,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5865,7 +6182,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5885,7 +6203,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5905,7 +6224,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5925,7 +6245,8 @@
     "effect": [
      "move_forward",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5946,7 +6267,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5967,7 +6289,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -5988,7 +6311,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6008,7 +6332,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6029,7 +6354,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6048,7 +6374,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6067,7 +6394,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6086,7 +6414,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6105,7 +6434,8 @@
     "trackVenue": [],
     "effect": [
      "all_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6125,7 +6455,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6146,7 +6477,8 @@
     "effect": [
      "move_forward",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6165,7 +6497,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6186,7 +6519,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6207,7 +6541,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6226,7 +6561,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6243,7 +6579,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6260,7 +6597,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6277,7 +6615,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6296,7 +6635,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6317,7 +6657,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6336,7 +6677,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6357,7 +6699,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6376,7 +6719,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6395,7 +6739,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6415,7 +6760,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6433,7 +6779,8 @@
     "trackVenue": [],
     "effect": [
      "wisdom_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6454,7 +6801,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6474,7 +6822,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6493,7 +6842,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6513,7 +6863,8 @@
     "effect": [
      "move_forward",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6530,7 +6881,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6549,7 +6901,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6570,7 +6923,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6591,7 +6945,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6608,7 +6963,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6628,7 +6984,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6649,7 +7006,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6666,7 +7024,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6685,7 +7044,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6704,7 +7064,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6723,7 +7084,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6743,7 +7105,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6762,7 +7125,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6781,7 +7145,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6796,7 +7161,8 @@
     "trackVenue": [],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6817,7 +7183,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6832,7 +7199,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6851,7 +7219,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6868,7 +7237,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6887,7 +7257,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6906,7 +7277,8 @@
     "effect": [
      "power_up",
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6925,7 +7297,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6942,7 +7315,8 @@
     "trackVenue": [],
     "effect": [
      "extend"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6959,7 +7333,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6976,7 +7351,8 @@
     ],
     "effect": [
      "stamina_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -6992,7 +7368,8 @@
     "effect": [
      "extend",
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7011,7 +7388,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7031,7 +7409,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7046,7 +7425,8 @@
     "trackVenue": [],
     "effect": [
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7069,7 +7449,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7088,7 +7469,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7105,7 +7487,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7124,7 +7507,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7143,7 +7527,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7164,7 +7549,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7182,7 +7568,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7199,7 +7586,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7216,7 +7604,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7234,7 +7623,8 @@
     "effect": [
      "move_forward",
      "stamina"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7253,7 +7643,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7274,7 +7665,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7293,7 +7685,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7312,7 +7705,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7332,7 +7726,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7353,7 +7748,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7372,7 +7768,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7392,7 +7789,8 @@
     "effect": [
      "move_forward",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7413,7 +7811,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7432,7 +7831,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7451,7 +7851,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7472,7 +7873,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7491,7 +7893,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7510,7 +7913,8 @@
     "trackVenue": [],
     "effect": [
      "speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7527,7 +7931,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7544,7 +7949,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7565,7 +7971,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7584,7 +7991,8 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7603,7 +8011,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7622,7 +8031,8 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7642,7 +8052,8 @@
     "effect": [
      "stamina",
      "target_speed_up"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7659,7 +8070,8 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
-    ]
+    ],
+    "scenario": []
    }
   },
   {
@@ -7676,6 +8088,9 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7693,6 +8108,9 @@
     "trackVenue": [],
     "effect": [
      "stamina"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7710,6 +8128,9 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7728,6 +8149,9 @@
     "effect": [
      "accel_up",
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7746,6 +8170,9 @@
     "effect": [
      "course_sense",
      "vision"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7763,6 +8190,9 @@
      "accel_up",
      "stamina",
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7779,6 +8209,9 @@
     "effect": [
      "accel_up",
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7796,6 +8229,9 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7813,6 +8249,9 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7831,6 +8270,9 @@
     "effect": [
      "stamina",
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7848,6 +8290,9 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7863,6 +8308,9 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7878,6 +8326,9 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7895,6 +8346,9 @@
      "guts_up",
      "stamina_up",
      "wisdom_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7912,6 +8366,9 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7929,6 +8386,9 @@
     "trackVenue": [],
     "effect": [
      "accel_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7946,6 +8406,9 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7963,6 +8426,9 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -7983,6 +8449,9 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -8003,6 +8472,9 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -8023,6 +8495,9 @@
     "trackVenue": [],
     "effect": [
      "move_forward"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -8043,6 +8518,9 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -8060,6 +8538,9 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -8080,6 +8561,9 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -8097,6 +8581,9 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -8114,6 +8601,9 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
    }
   },
@@ -8131,7 +8621,118 @@
     "trackVenue": [],
     "effect": [
      "target_speed_up"
+    ],
+    "scenario": [
+     "scenario"
     ]
+   }
+  },
+  {
+   "id": "440",
+   "name": "左回りの目覚め",
+   "tags": {
+    "distance": [],
+    "style": [],
+    "phase": [],
+    "coursePos": [],
+    "environment": [
+     "left_turn"
+    ],
+    "trackVenue": [],
+    "effect": [
+     "speed_up"
+    ],
+    "scenario": []
+   }
+  },
+  {
+   "id": "441",
+   "name": "右回りの目覚め",
+   "tags": {
+    "distance": [],
+    "style": [],
+    "phase": [],
+    "coursePos": [],
+    "environment": [
+     "right_turn"
+    ],
+    "trackVenue": [],
+    "effect": [
+     "speed_up"
+    ],
+    "scenario": []
+   }
+  },
+  {
+   "id": "442",
+   "name": "春の目覚め",
+   "tags": {
+    "distance": [],
+    "style": [],
+    "phase": [],
+    "coursePos": [],
+    "environment": [
+     "season_spring"
+    ],
+    "trackVenue": [],
+    "effect": [
+     "speed_up"
+    ],
+    "scenario": []
+   }
+  },
+  {
+   "id": "443",
+   "name": "夏の目覚め",
+   "tags": {
+    "distance": [],
+    "style": [],
+    "phase": [],
+    "coursePos": [],
+    "environment": [
+     "season_summer"
+    ],
+    "trackVenue": [],
+    "effect": [
+     "speed_up"
+    ],
+    "scenario": []
+   }
+  },
+  {
+   "id": "444",
+   "name": "秋の目覚め",
+   "tags": {
+    "distance": [],
+    "style": [],
+    "phase": [],
+    "coursePos": [],
+    "environment": [
+     "season_autumn"
+    ],
+    "trackVenue": [],
+    "effect": [
+     "speed_up"
+    ],
+    "scenario": []
+   }
+  },
+  {
+   "id": "445",
+   "name": "冬の目覚め",
+   "tags": {
+    "distance": [],
+    "style": [],
+    "phase": [],
+    "coursePos": [],
+    "environment": [
+     "season_winter"
+    ],
+    "trackVenue": [],
+    "effect": [
+     "speed_up"
+    ],
+    "scenario": []
    }
   }
  ]

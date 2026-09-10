@@ -8,6 +8,7 @@
     "test:visual": "node tests/visual/run-smoke.mjs",
     "test:visual:capture": "node tests/visual/run-capture.mjs",
     "test:verify": "node tests/visual/run-verify.mjs",
+    "test:master": "node tests/visual/run-master-tests.mjs",
     "test:ocr": "node tests/ocr/run-ocr-tests.mjs",
     "test:norm": "node tests/ocr/check-normalization.mjs"
   },
