@@ -112,6 +112,10 @@
 		}
 		#toast {
 			transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+			/* 引き出し（z-index:100）より前に出す。引き出しの中の操作
+			   （「まとめてコピー」など）もトーストで結果を知らせるため、
+			   Tailwindの z-50 のままだと引き出しの裏に隠れて見えない。 */
+			z-index: 110;
 		}
 		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
 
@@ -1844,6 +1848,9 @@
 		// 閉じたタイミングで読み直さないと古い内容を掴んだままになる。
 		function refreshDeckStateAfterDrawer() {
 			deckDrawerDataSnapshot = currentDeckDataSnapshot();
+			// 取り込みの有無を取り直す。通常は storage イベントで届くが、
+			// 取りこぼした場合でもここで必ず追いつくようにしておく。
+			refreshDeckHandoffState();
 			if (!deckMasterLoaded || !deckTemplateManager) return;
 			UmaSkillDeckCore.reloadUserData();
 			deckTemplateManager.closeEditor();
@@ -1883,6 +1890,9 @@
 			backdrop.classList.remove('closing');
 			document.body.style.overflow = 'hidden';
 			openDrawerKey = key;
+			// 見に行った時点で未読は消す（自動で開いた場合も同じ）。
+			// Deckだけは「未取り込み」の印なので、開いただけでは消さない。
+			if (key !== 'deck' && fabUnseen[key]) { fabUnseen[key] = false; updateFabBadges(); }
 			document.getElementById(def.trigger).setAttribute('aria-expanded', 'true');
 			document.getElementById(def.close).focus();
 			if (window.lucide) lucide.createIcons();
@@ -1926,7 +1936,11 @@
 		 * ここで持つのは「その結果をFABから見に行ったか」という未読状態だけ。
 		 * ============================================================ */
 		let fabOpen = false;
-		let fabUnseen = { stitch: false, result: false };
+		// バッジの意味は行き先ごとに違う。
+		//   result / stitch … 未読（その引き出しを開いたら消える）
+		//   deck            … 未取り込み（Deck側で取り込むまで消えない。開くだけでは消さない）
+		// 「開いたら消える」に揃えないのは、Deckは開いてから取り込む操作が別にあるため。
+		let fabUnseen = { stitch: false, result: false, deck: false };
 
 		// 結果の実体と、まだ無いときに出す案内。両者は排他で切り替える。
 		const RESULT_SECTIONS = {
@@ -1960,6 +1974,7 @@
 		function updateFabBadges() {
 			document.getElementById('fab-dot-stitch').hidden = !fabUnseen.stitch;
 			document.getElementById('fab-dot-result').hidden = !fabUnseen.result;
+			document.getElementById('fab-dot-deck').hidden = !fabUnseen.deck;
 		}
 
 		// 結果が新しく出たときに呼ぶ。結果を作り直した場合も「新着」に戻す。
@@ -1970,7 +1985,6 @@
 
 		function fabGoTo(key) {
 			setFabOpen(false);
-			if (fabUnseen[key]) { fabUnseen[key] = false; updateFabBadges(); }
 			openDrawer(key);
 		}
 
@@ -2034,8 +2048,63 @@
 				localStorage.setItem(OCR_HANDOFF_STORAGE_KEY, JSON.stringify(payload));
 			} catch (e) {
 				// 容量超過など。連携は諦めるが、画面上の結果表示は通常どおり続ける。
+				return;
 			}
+			refreshDeckHandoffState();
 		}
+
+		function readOcrHandoff() {
+			try {
+				const raw = localStorage.getItem(OCR_HANDOFF_STORAGE_KEY);
+				return raw ? JSON.parse(raw) : null;
+			} catch (e) { return null; }
+		}
+
+		/**
+		 * 受け渡しの状態を、結果画面の案内とFABのバッジの両方へ反映する。
+		 *
+		 * 「渡した」だけでは画面に何も出ないため、判定が終わったことと
+		 * Deck側に取り込めるようになったことを、結果の下で知らせる。
+		 * 取り込みが済んだかどうかは Deck側が payload.imported を立てるので、
+		 * localStorage を読み直せば分かる（下の storage リスナで自動更新される）。
+		 */
+		function refreshDeckHandoffState() {
+			const note = document.getElementById('deck-handoff-note');
+			if (!note) return;
+			const payload = readOcrHandoff();
+			if (!payload || !payload.persons) {
+				note.classList.add('hidden');
+				fabUnseen.deck = false;
+				updateFabBadges();
+				return;
+			}
+
+			const done = !!payload.imported;
+			const who = payload.persons.map(p => p.label).join('・');
+			document.getElementById('deck-handoff-box').className =
+				'rounded-xl border p-4 ' + (done ? 'border-green-200 bg-green-50' : 'border-indigo-200 bg-indigo-50');
+			document.getElementById('deck-handoff-dot').hidden = done;
+			const title = document.getElementById('deck-handoff-title');
+			title.textContent = done ? 'この結果はUmaSkill Deckに取り込み済みです' : 'この結果をUmaSkill Deckに取り込めます';
+			title.className = 'text-xs font-bold ' + (done ? 'text-green-900' : 'text-indigo-900');
+			const detail = document.getElementById('deck-handoff-detail');
+			detail.textContent = who + ' の' + payload.persons.length + '人分・スキル' + payload.skillNames.length + '件を渡しました。'
+				+ (done ? '' : 'UmaSkill Deckを開き、「読み込む」から保存先の比較シートと候補を選んでください。');
+			detail.className = 'text-[11px] mt-0.5 leading-relaxed ' + (done ? 'text-green-800/80' : 'text-indigo-800/80');
+			document.getElementById('deck-handoff-btn-label').textContent = done ? 'UmaSkill Deckを開く' : 'UmaSkill Deckを開いて取り込む';
+			note.classList.remove('hidden');
+
+			fabUnseen.deck = !done;
+			updateFabBadges();
+			if (window.lucide) lucide.createIcons();
+		}
+
+		// Deck側（引き出しの中のiframe）が取り込むと imported が立つ。
+		// storage イベントは書いた文書自身には飛ばず、同一オリジンの別の文書に飛ぶので、
+		// iframe側の書き込みはこちらで受け取れる。ポーリングは不要。
+		window.addEventListener('storage', (e) => {
+			if (e.key === OCR_HANDOFF_STORAGE_KEY) refreshDeckHandoffState();
+		});
 	</script>
 
 	<!-- ===== 引き出しパネル =====
@@ -2074,6 +2143,34 @@
 			<div class="uma-drawer-content">
 				<div id="result-wrap" class="hidden">
 
+					<!-- ===== UmaSkill Deckへの受け渡しの案内 =====
+					     以前はここに保存パネルを持っていたが、UmaSkill Deck側に同等の
+					     取り込みダイアログ（「UmaStar OCRの判定結果があります → 読み込む」）が
+					     あり、入口が二重になっていたため、Deck側に一本化して削除した。
+
+					     判定が終わると writeOcrHandoff() が localStorage へ書き出す。
+					     「Deck側に渡し終わった」ことは画面に出ないと分からないので、
+					     ここで知らせる。取り込みが済んだかどうかは refreshDeckHandoffState()
+					     が localStorage を見て切り替える（Deck側の取り込みは storage イベントで届く）。 -->
+					<div id="deck-handoff-note" class="hidden mb-6">
+						<div id="deck-handoff-box" class="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+							<div class="flex items-start gap-2.5">
+								<span class="relative shrink-0 mt-0.5">
+									<i data-lucide="layers" class="w-4 h-4 text-indigo-600"></i>
+									<span id="deck-handoff-dot" class="uma-fab-dot" style="top:-5px; right:-5px;"></span>
+								</span>
+								<div class="min-w-0">
+									<p id="deck-handoff-title" class="text-xs font-bold text-indigo-900">この結果をUmaSkill Deckに取り込めます</p>
+									<p id="deck-handoff-detail" class="text-[11px] text-indigo-800/80 mt-0.5 leading-relaxed"></p>
+								</div>
+							</div>
+							<button type="button" onclick="fabGoTo('deck')" class="uma-btn uma-btn--primary uma-btn--lg btn-deck-accent w-full mt-3">
+								<i data-lucide="layers" class="w-4 h-4"></i>
+								<span id="deck-handoff-btn-label">UmaSkill Deckを開いて取り込む</span>
+							</button>
+						</div>
+					</div>
+
 					<!-- サマリーカード（アップロード人数に応じてJSで生成） -->
 					<div id="stat-grid" class="grid grid-cols-4 gap-3 mb-6"></div>
 
@@ -2107,20 +2204,6 @@
 						<div class="flex gap-2">
 							<textarea id="copy-data" readonly class="w-full h-24 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none"></textarea>
 						</div>
-					</div>
-
-					<!-- ===== UmaSkill Deckへの保存について =====
-					     以前はここに保存パネルを持っていたが、UmaSkill Deck側に同等の
-					     取り込みダイアログ（「UmaStar OCRの判定結果があります → 読み込む」）が
-					     あり、入口が二重になっていたため、Deck側に一本化して削除した。
-					     判定のたびに writeOcrHandoff() が localStorage へ書き出し、
-					     Deckの引き出しを開くとバナーが出る、という流れは変えていない。 -->
-					<div class="border-t border-slate-200 pt-5 mt-6">
-						<button type="button" onclick="fabGoTo('deck')" class="uma-btn uma-btn--secondary btn-deck-accent w-full">
-							<i data-lucide="layers" class="w-4 h-4 text-indigo-500"></i>
-							<span>UmaSkill Deckに保存する</span>
-						</button>
-						<p class="mt-2 text-[11px] text-slate-400 text-center">UmaSkill Deckを開き、「読み込む」から保存先の比較シートと候補を選びます。</p>
 					</div>
 
 					<!-- 切り出し画像プレビュー -->
@@ -2207,6 +2290,7 @@
 			<span>UmaSkill Deck</span>
 			<span class="uma-fab-icon" style="background: #eef2ff; color: #432dd7;">
 				<i data-lucide="layers" class="w-4 h-4"></i>
+				<span id="fab-dot-deck" class="uma-fab-dot" hidden></span>
 			</span>
 		</button>
 

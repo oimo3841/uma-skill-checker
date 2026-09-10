@@ -44,6 +44,8 @@ async function shot(page, name, opts = {}) {
 	await shot(page, 'special-01-top');
 	await seedSpecialResults(page);
 	await shot(page, 'special-02-input-only');
+	// トーストが消えるまで待つ（消える前だとFABのバッジに重なる）
+	await page.waitForTimeout(2600);
 	await page.click('#fab-toggle');
 	await shot(page, 'special-03-fab-open', { fullPage: false, wait: 500 });
 	// 結果は引き出しの中。開いた状態を撮る。

@@ -39,6 +39,16 @@ const browser = await chromium.launch();
 		'special: 結果があるので「まだありません」の案内は消える');
 	assert((await page.$$('#result-tbody tr')).length === PICK.length, 'special: 表の行数', (await page.$$('#result-tbody tr')).length);
 
+	// 照合結果が出た直後。まだ引き出しを開いていないので未読、
+	// Deck側にも渡し終わっているので「未取り込み」のバッジが立っている。
+	assert(await page.isVisible('#fab-dot-result'), 'special: 照合結果に新着バッジが出る');
+	assert(!(await page.isVisible('#fab-dot-stitch')), 'special: 画像結合には新着バッジが出ない');
+	assert(await page.isVisible('#fab-dot-deck'), 'special: Deckに未取り込みバッジが出る');
+	assert(await page.evaluate(() => !document.getElementById('deck-handoff-note').classList.contains('hidden')),
+		'special: 結果画面にDeckへの受け渡しの案内が出る');
+	assert((await page.textContent('#deck-handoff-title')).includes('取り込めます'),
+		'special: 案内が「未取り込み」の文面になる');
+
 	// 以降の絞り込み・検索は引き出しの中の要素を触るので、先に開けておく。
 	await page.evaluate(() => openDrawer('result'));
 	await page.waitForTimeout(500);
@@ -79,9 +89,9 @@ const browser = await chromium.launch();
 	assert(await page.isVisible('#fab-toggle'), 'special: 右下ナビのメインボタンが出る');
 	assert(await page.evaluate(() => getComputedStyle(document.getElementById('deck-drawer-trigger')).pointerEvents) === 'none',
 		'special: 畳んだ状態ではサブボタンが押せない');
-	// 照合結果が出た直後なので、その行き先にだけ新着バッジが立っている
-	assert(await page.isVisible('#fab-dot-result'), 'special: 照合結果に新着バッジが出る');
-	assert(!(await page.isVisible('#fab-dot-stitch')), 'special: 画像結合には新着バッジが出ない');
+	// 一度開いたので照合結果の未読は下りている。Deckは取り込むまで下りない。
+	assert(!(await page.isVisible('#fab-dot-result')), 'special: 一度開くと未読バッジが下りる');
+	assert(await page.isVisible('#fab-dot-deck'), 'special: Deckのバッジは開くだけでは下りない');
 
 	await page.click('#fab-toggle');
 	await page.waitForTimeout(400);
@@ -108,8 +118,14 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(700);
 	assert(await deckFrame.locator('[data-ocr-el="record-select"]').isVisible(),
 		'special: 取り込みダイアログ（保存先の選択）が開く');
-	await deckFrame.locator('[data-ocr-act="close"]').click();
-	await page.waitForTimeout(300);
+
+	// 実際に取り込むと、Deck側が imported を立てる。それが storage イベントで
+	// 親（この画面）に届き、バッジと案内が「取り込み済み」に変わるところまで見る。
+	await deckFrame.locator('[data-ocr-act="apply"]').click();
+	await page.waitForTimeout(1200);
+	assert(!(await page.isVisible('#fab-dot-deck')), 'special: 取り込むとDeckのバッジが下りる');
+	assert((await page.textContent('#deck-handoff-title')).includes('取り込み済み'),
+		'special: 案内が「取り込み済み」に変わる');
 
 	// 別の引き出しへ乗り換えても、同時に2枚開かない
 	await page.evaluate(() => openDrawer('stitch'));
@@ -144,16 +160,17 @@ const browser = await chromium.launch();
 	assert(await page.evaluate(() => document.body.style.overflow) === '',
 		'special: 引き出しを閉じると本文のスクロールが戻る');
 
-	// 照合結果へ飛ぶと新着バッジが消える
+	// 見に行くと未読バッジが消える（上で markFabUnseen('stitch') を立ててある）
+	assert(await page.isVisible('#fab-dot-stitch'), 'special: 画像結合に新着バッジが立っている');
 	await page.click('#fab-toggle');
 	await page.waitForTimeout(300);
-	await page.click('#fab-item-result');
+	await page.click('#fab-item-stitch');
 	await page.waitForTimeout(600);
-	assert(!(await page.isVisible('#fab-dot-result')), 'special: 見に行くと新着バッジが消える');
+	assert(!(await page.isVisible('#fab-dot-stitch')), 'special: 見に行くと新着バッジが消える');
 	// Esc は開いているものを1つ閉じる
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(600);
-	assert(!(await page.isVisible('#result-drawer')), 'special: Escで引き出しが閉じる');
+	assert(!(await page.isVisible('#stitch-drawer')), 'special: Escで引き出しが閉じる');
 
 	// 本文の下端余白がFAB展開時の高さを吸収できているか（余白はインラインstyleで指定）
 	await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
