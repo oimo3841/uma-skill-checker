@@ -13,7 +13,7 @@
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-10h"></script>
-	<script src="js/uma-skill-deck.js?v=2026-09-10j"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-10k"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -75,108 +75,228 @@
 		/* ============================================================
 		 * 比較シートのグリッド
 		 *
-		 * 方針: 罫線は引かず、余白と交互の背景色（ゼブラ）で行を区切る。
-		 * 行の地色は tr の --row-bg 1変数に集約してあり、固定列・通常列とも
-		 * これを参照する。後から「効果タイプで行を色分け」を足すときは、
-		 * tr 側に --row-bg を上書きするだけで済む（セル側は無改修）。
+		 * 構造: <table> ではなく div + CSS Grid。
+		 *   <tr> への角丸指定はブラウザに無視されるため、行全体を1枚のカードで
+		 *   囲む見せ方ができない。加えて sticky 列と「行を囲む枠」は相性が悪く、
+		 *   横スクロールすると枠が途中で千切れて見える。そこで「行を囲む」のを
+		 *   やめ、情報セルと値タイルをそれぞれ独立した角丸要素にしてカード感を出す。
+		 *
+		 * 行の地色: tr が無いので、行の全セルに --row-bg を直接付ける。
+		 *   sticky セルにも同じ変数が効くので、下を通過する要素が透けない。
+		 *   後から「効果タイプで行を色分け」を足すときは、この --row-bg の
+		 *   付け方を変えるだけで済む（セル側の規則は無改修）。
+		 *
+		 * 色: 生のhexは書かない。すべて css/common.css のトークン経由で参照する
+		 *   （F-19: Tailwind v4 と v3 でパレット実値が違い、直書きは静かにズレる）。
+		 *   ★の色 --uma-star / --uma-star-empty は common.css に既にある。
 		 * ============================================================ */
-		:root {
-			--deck-row-bg: var(--uma-surface);            /* 行の地（白） */
-			--deck-row-alt-bg: #f4f6f9;                   /* 交互の行 */
-			--deck-head-bg: #e9edf3;                      /* ヘッダー行 */
-			--deck-col-disabled-bg: #dfe4ec;              /* 無効にした候補列 */
-			--deck-star-off-bg: #e3e8ef;                  /* 値0のバッジ */
-			--deck-star-off-text: var(--uma-text-subtle);
-			--deck-star-off-hover-bg: #d5dce6;
-			--deck-star-on-bg: #312c85;                   /* indigo-900: 値1以上のバッジ */
-			--deck-star-on-hover-bg: #432dd7;             /* indigo-700 */
-			--deck-star-on-text: var(--uma-text-inverse);
-			--deck-star-disabled-on-bg: #aab4c4;          /* 無効列の「1以上」 */
-		}
-
-		/* グリッドを載せる面。薄い外枠と影で背景から分離する。
-		   （以前は #record-grid-wrap のインラインstyleで指定していた） */
 		.deck-grid-wrap {
 			overflow: auto;
 			max-height: 60vh;
 			border: 1px solid var(--uma-border);
 			border-radius: var(--uma-r-lg);
 			box-shadow: var(--uma-shadow-1);
-			background: var(--deck-row-bg);
+			background: var(--uma-surface);
 		}
-		.deck-table { border-collapse: separate; border-spacing: 0; font-size: var(--uma-fs-xs); table-layout: fixed; width: 100%; }
-		.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-		.deck-table th, .deck-table td {
-			padding: var(--uma-sp-1) var(--uma-sp-1-5);
-			text-align: center;
-			background: var(--row-bg, var(--deck-row-bg));
+		/* 列幅: 情報セル192px ＋ 候補列76px×人数 ＋ 余りを埋める列。
+		   列数はJSが --deck-cand-count に入れる。
+		   モックアップの情報セルは168pxだが、実物には「行（スキル）の削除」ボタンが
+		   あるぶん幅が要る。末尾の 1fr は、候補が少ないときに行の地色（ゼブラ）を
+		   右端まで届かせるためのもので、JS側が空セルを1つ出す。 */
+		.deck-grid {
+			display: grid;
+			grid-template-columns: 192px repeat(var(--deck-cand-count, 1), 76px) minmax(0, 1fr);
+			width: 100%;
+			min-width: min-content;
 		}
-		.deck-table tbody tr { --row-bg: var(--deck-row-bg); }
-		.deck-table tbody tr:nth-child(even) { --row-bg: var(--deck-row-alt-bg); }
-		.deck-table thead tr { --row-bg: var(--deck-head-bg); }
-		/* ヘッダーと本文の境目だけは1本引く。行間の罫線とは役割が違う（面の分離）。 */
-		.sticky-header {
-			position: sticky; top: 0; z-index: 3;
-			padding-top: var(--uma-sp-1-5); padding-bottom: var(--uma-sp-1-5);
-			border-bottom: 1px solid var(--uma-border-strong);
+		.deck-cell {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			/* グリッド項目の既定は min-width:auto で、中身の最小幅までしか縮まない。
+			   これがあると情報セルがトラック幅(168px)を超えて広がり、
+			   スキル名のクリップ（6文字ぶん）が一切効かなくなる。 */
+			min-width: 0;
+			padding: var(--uma-sp-2) var(--uma-sp-1);
+			background: var(--row-bg, var(--uma-surface));
+			/* 横のヘアラインのみ。縦の罫線は引かない（v7準拠） */
+			border-bottom: 1px solid var(--uma-border);
 		}
-		.sticky-col { position: sticky; left: 0; z-index: 2; text-align: left; width: 84px; min-width: 84px; max-width: 84px; }
-		.sticky-col2 {
-			position: sticky; left: 84px; z-index: 2; text-align: center;
-			width: 30px; min-width: 30px; max-width: 30px;
-			/* 横スクロール時の境目。罫線を消したぶん、固定列の右端が分かるようにする。
-			   box-shadow はスタッキングコンテキストを作らないので sticky を壊さない
-			   （opacity や filter は作るので、ここでは使えない）。 */
-			box-shadow: 6px 0 6px -6px rgba(15, 23, 42, .18);
-		}
-		.sticky-col.sticky-header, .sticky-col2.sticky-header { z-index: 4; }
-		.candidate-col { width: 58px; min-width: 58px; max-width: 58px; }
+		.deck-row-a { --row-bg: var(--uma-surface); }
+		.deck-row-b { --row-bg: var(--uma-surface-sunken); }
 
-		/* 値バッジ。セル幅いっぱいの <button> にして、スマホでも押しやすくする
-		   （58×30px。以前の▲▼は 16×14px だった）。
-		   1タップで 0→1→2→3→0 と巡回する（js/uma-skill-deck.js の cycleStar）。
-		   <button> なので Tab移動・Enter・Space は素で効く。 */
-		.star-badge {
-			/* max-width は、候補が少なく表が横に伸びたときにバッジが帯にならないようにする上限。
-			   スマホ幅では列がこれより狭いので効かず、セル幅いっぱいのまま。 */
-			display: block; width: 100%; max-width: 72px; min-height: 30px; margin-inline: auto;
-			border: none; border-radius: var(--uma-r-md);
-			font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600;
-			background: var(--deck-star-off-bg); color: var(--deck-star-off-text);
+		/* ---- ヘッダー行（候補名）: 上端固定 ---- */
+		.deck-head {
+			position: sticky; top: 0; z-index: 3;
+			--row-bg: var(--uma-surface-muted);
+			padding-top: var(--uma-sp-3);
+			font-size: var(--uma-fs-sm); font-weight: 700;
+			color: var(--uma-text-subtle);
+		}
+		/* 左上の角。top と left の両方で固定されるので、他より1段高くして最優先にする。 */
+		.deck-corner {
+			position: sticky; top: 0; left: 0; z-index: 4;
+			justify-content: flex-start;
+			padding-left: var(--uma-sp-3);
+		}
+
+		/* ---- 情報セル（スキル名＋計）: 左端固定 ---- */
+		.deck-info {
+			position: sticky; left: 0; z-index: 2;
+			justify-content: space-between;
+			gap: var(--uma-sp-2);
+			padding: var(--uma-sp-2-5) var(--uma-sp-3);
+		}
+		.deck-name {
+			display: flex; align-items: center; gap: var(--uma-sp-2);
+			flex: 1 1 auto; min-width: 0;
+			font-size: var(--uma-fs-md); font-weight: 500;
+		}
+		/* 行（スキル）の削除。情報セルの右端に小さく添える。 */
+		.deck-name-del {
+			flex: 0 0 auto; padding: 0; background: none; border: none;
+			color: var(--uma-text-faint); cursor: pointer; line-height: 0;
+		}
+		.deck-name-del:hover { color: var(--uma-text-muted); }
+		/* 効果タイプのドット。色分けは別フェーズなので、今はプレースホルダーの1色。 */
+		.deck-cat-dot {
+			width: 8px; height: 8px; border-radius: var(--uma-r-full);
+			flex: 0 0 auto;
+			background: var(--uma-border-strong);
+		}
+
+		/* ---- スキル名のフェード表示 ----
+		   約6文字ぶんの幅でクリップし、実際にはみ出しているものだけ右端をフェードさせる。
+		   .is-truncated は JS が scrollWidth/clientWidth の実測で付ける（文字数の決め打ちはしない）。 */
+		.deck-name-wrap { position: relative; min-width: 0; }
+		/* 6em = 全角6文字ぶん。実フォント（14px）での実測値で決めている:
+		   漢字6文字=84px(=6em) / 東京レース場○(7文字)=86px / 漢字7文字=98px。
+		   6.4em(89.6px)だと7文字の「東京レース場○」まで収まってしまい、
+		   フェードが一度も効かなかった。 */
+		.deck-name-clip {
+			display: block; max-width: 6em;
+			overflow: hidden; white-space: nowrap;
+			background: none; border: none; padding: 0;
+			font: inherit; color: inherit; text-align: left;
+			cursor: default;
+		}
+		.deck-name-wrap.is-truncated .deck-name-clip {
+			-webkit-mask-image: linear-gradient(to right, black 72%, transparent 100%);
+			mask-image: linear-gradient(to right, black 72%, transparent 100%);
 			cursor: pointer;
+		}
+
+		/* ---- 計バッジ ----
+		   0=控えめなグレー / 1以上=薄い藍。値タイル（彩度の高い★）より弱いトーンに留め、
+		   「値タイルが主役・計は補助」という序列を保つ。切り替えは実色のみ（opacity不使用）。 */
+		.deck-total {
+			flex: 0 0 auto;
+			min-width: 22px; text-align: center;
+			padding: var(--uma-sp-1) var(--uma-sp-2);
+			border-radius: var(--uma-r-md);
+			font-size: var(--uma-fs-md); font-weight: 700;
+			background: var(--uma-surface-muted); color: var(--uma-text-subtle);
 			transition: background-color var(--uma-transition), color var(--uma-transition);
 		}
-		.star-badge--on { background: var(--deck-star-on-bg); color: var(--deck-star-on-text); }
-		/* :not() で相互排他にしておく。同じ詳細度の2本を並べると、記述順に依存して
-		   「0のhover色」が「1以上のhover色」に勝ってしまうことがある。 */
-		.star-badge:hover:not(.star-badge--on) { background: var(--deck-star-off-hover-bg); }
-		.star-badge--on:hover { background: var(--deck-star-on-hover-bg); }
-		.star-badge:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: 1px; }
+		.deck-total--on { background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
 
-		.cand-header { display: flex; flex-direction: column; align-items: center; gap: var(--uma-sp-0-5); }
-		.cand-header input[type=checkbox] { width: 11px; height: 11px; margin: 0; accent-color: var(--uma-accent); }
-		.cand-name-btn {
-			font-size: var(--uma-fs-xs); font-weight: 600; background: none; border: none;
-			padding: 1px var(--uma-sp-0-5); cursor: pointer; color: var(--uma-text-heading);
+		/* ---- 候補名チップ ----
+		   ヘッダーの地色（--uma-surface-muted）から明確に浮かせるため、
+		   Deckのアクセント（藍）の淡い面と枠線を当てる。 */
+		.deck-cand-pill {
+			position: relative;
+			display: inline-flex; align-items: center; gap: var(--uma-sp-1);
+			max-width: 100%;
+			padding: var(--uma-sp-1) var(--uma-sp-2-5);
+			border: 1px solid var(--uma-accent-border);
+			border-radius: var(--uma-r-full);
+			background: var(--uma-accent-soft);
+			font-size: var(--uma-fs-xs); font-weight: 700;
+			color: var(--uma-text);
 		}
-		.cand-del-btn { padding: 0; }
-		/* 注意: position:sticky を使うテーブル内では opacity<1 を使わないこと。
+		.deck-cand-pill input[type=checkbox] {
+			width: 11px; height: 11px; margin: 0; flex: 0 0 auto;
+			accent-color: var(--uma-accent);
+		}
+		.deck-cand-name {
+			background: none; border: none; padding: 0;
+			font: inherit; color: inherit; cursor: pointer;
+			overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+		}
+		.deck-cand-x {
+			position: absolute; top: -6px; right: -6px;
+			width: 15px; height: 15px; padding: 0;
+			border: 1px solid var(--uma-accent-border);
+			border-radius: var(--uma-r-full);
+			background: var(--uma-surface);
+			color: var(--uma-text-subtle);
+			font-size: var(--uma-fs-2xs); line-height: 1;
+			display: flex; align-items: center; justify-content: center;
+			cursor: pointer;
+		}
+		.deck-cand-x:hover { border-color: var(--uma-border-strong); color: var(--uma-text); }
+
+		/* ---- 値タイル（★） ----
+		   1タップで 0→1→2→3→0 と巡回する（js/uma-skill-deck.js の cycleStar）。
+		   <button> なので Tab移動・Enter・Space が素で効く。 */
+		.star-tile {
+			width: 42px; height: 38px;
+			border: none; border-radius: var(--uma-r-md);
+			padding: 0;
+			display: flex; align-items: center; justify-content: center;
+			background: var(--uma-surface-muted);
+			cursor: pointer; user-select: none;
+			transition: transform 80ms ease, background-color var(--uma-transition);
+		}
+		.star-tile:hover { background: var(--uma-border); }
+		.star-tile:active { transform: scale(.92); }
+		.star-tile:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: 1px; }
+		/* Lv0 は控えめな☆1個、Lv1〜3 は★。Lv3 だけ「上1・下2」のピラミッド配置。 */
+		.star-off { font-size: 14px; line-height: 1; color: var(--uma-star-empty); }
+		.star-on { color: var(--uma-star); }
+		.star-single { font-size: 17px; line-height: 1; }
+		.star-pair { display: flex; gap: 3px; line-height: 1; }
+		.star-pair span { font-size: 14px; }
+		.star-pyramid { display: flex; flex-direction: column; align-items: center; }
+		.star-pyramid .star-top { font-size: 12px; line-height: 1; }
+		.star-pyramid .star-bottom { display: flex; gap: 2px; line-height: 1; margin-top: -2px; }
+		.star-pyramid .star-bottom span { font-size: 12px; }
+
+		/* ---- 無効にした候補の列 ----
+		   注意: sticky を使うグリッド内では opacity<1 を使わないこと。
 		   opacity は新しいスタッキングコンテキストを生成し、sticky要素間の
 		   z-index順序を壊すため、スクロール時に別セルが手前に描画される
-		   不具合の原因になる。無効状態の表現は色の変更のみで行う。
-		   （値バッジの「値0＝薄いグレー」も同じ理由で実色の変更で行っている） */
-		.deck-table th.col-disabled, .deck-table td.col-disabled { --row-bg: var(--deck-col-disabled-bg); }
+		   不具合の原因になる。無効状態の表現は実色の変更のみで行う。 */
+		.deck-cell.col-disabled { --row-bg: var(--uma-surface-muted); }
 		.col-disabled, .col-disabled * { color: var(--uma-text-faint); }
-		/* 無効列の値バッジ。0と1以上の区別は残しつつ、彩度を落として前に出させない。
-		   詳細度(0,2,0)なので .star-badge--on(0,1,0) に必ず勝つ。 */
-		.col-disabled .star-badge { background: var(--deck-star-off-bg); color: var(--uma-text-faint); }
-		.col-disabled .star-badge--on { background: var(--deck-star-disabled-on-bg); color: var(--deck-star-on-text); }
-		.sum-badge {
-			background: var(--uma-accent-soft); color: var(--uma-accent-soft-text);
+		.col-disabled .deck-cand-pill { background: var(--uma-surface); border-color: var(--uma-border); }
+		/* 無効列の★も、0/1以上の区別は残しつつ彩度を落として前に出させない。
+		   詳細度(0,2,0)なので .star-on(0,1,0) に必ず勝つ。 */
+		.col-disabled .star-on { color: var(--uma-border-strong); }
+		.col-disabled .star-tile { background: var(--uma-surface-muted); }
+
+		/* ---- スマホ幅 ----
+		   デスクトップの目安値（情報192px・候補76px）のままだと 375px で候補が
+		   1列強しか見えず、「複数候補を並べて見比べる」という用途を満たさない。
+		   タップ領域そのもの（タイル42×38px）は縮めず、その周りの余白と
+		   情報セルだけを詰めて、候補が2列見えるようにする。 */
+		@media (max-width: 480px) {
+			.deck-grid {
+				grid-template-columns: 148px repeat(var(--deck-cand-count, 1), 64px) minmax(0, 1fr);
+			}
+			.deck-info { padding-left: var(--uma-sp-2); padding-right: var(--uma-sp-2); }
+			.deck-corner { padding-left: var(--uma-sp-2); }
+			/* 4em = 全角4文字ぶん。狭い幅では名前より候補の見比べを優先し、
+			   はみ出しはフェード＋タップでの全文表示に任せる。 */
+			.deck-name-clip { max-width: 4em; }
+		}
+
+		/* ---- コントロールエリア ----
+		   .uma-pill / .uma-btn は special.html と共有する共通部品なので本体は触らず、
+		   Deck側のクラスにだけ「丸く・影あり」を上書きする。 */
+		.row-filter-btn, .deck-pill-btn {
 			border-radius: var(--uma-r-full);
-			padding: var(--uma-sp-0-5) var(--uma-sp-2);
-			font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);
-			font-weight: 600; flex-shrink: 0;
+			box-shadow: var(--uma-shadow-1);
 		}
 		/* 行の絞り込みは .uma-pill（UmaStar OCR の結果表と同じ形）を併記して使う。
 		   選択状態は .active（js/uma-skill-deck.js が付け外しする）。 */
@@ -225,7 +345,7 @@
 					<select id="record-template-select" onchange="switchRecordTemplate(this.value)" class="uma-input" style="width:auto;"></select>
 				</div>
 				<div class="flex flex-wrap gap-2 mb-2">
-					<button onclick="openRecordSkillPicker()" class="uma-btn uma-btn--secondary">
+					<button onclick="openRecordSkillPicker()" class="uma-btn uma-btn--secondary deck-pill-btn">
 						<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> スキルを追加
 					</button>
 					<div class="flex items-center gap-1.5 flex-1 min-w-[160px]">

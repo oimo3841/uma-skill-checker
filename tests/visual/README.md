@@ -6,7 +6,7 @@
 ## 使い方
 
 ```
-npm run test:visual          # 機能スモークテスト（42項目）
+npm run test:visual          # 機能スモークテスト（51項目）
 npm run test:verify          # 納品前チェック（版数・セレクタ資産・構文）
 npm run test:visual:capture -- before            # 変更前のスクリーンショット
 npm run test:visual:capture -- after --compare   # 変更後＋前後比較画像
@@ -21,16 +21,23 @@ npm run test:visual:capture -- after --compare   # 変更後＋前後比較画�
   `lib/fixtures.mjs` が代表データ（テンプレート2件・比較シート1件・候補3人・★入力済み）を仕込む。
 - **UmaStar OCR は画像を通さないと結果表が出ない。** OCRを回さずに済むよう、
   合成した「OCRの行」を**本物の照合関数**に通して結果を作る。表示だけの張りぼてにはしない。
-- **比較シートの値バッジは「見た目そのものが操作」**なので、色を機械で見張っている。
-  値0＝薄いグレー／値1以上＝濃紺＋白文字を実色で確認し、`opacity` が 1 のままであることも
-  併せて見る（`position: sticky` の表の中で `opacity<1` を使うと重なり順が壊れるため）。
-  バッジは `background-color` に transition を掛けているので、値を変えた直後に
-  `getComputedStyle` すると遷移前の色が返る。**設定と読み取りは分けて待つこと。**
-  同じ理由で、`page.click` の直後はカーソルがバッジ上に残るため hover 色を測ってしまう。
+- **比較シートの値タイルは「見た目そのものが操作」**なので、色と★の個数を機械で見張っている。
+  ★の色は `css/common.css` の `--uma-star` / `--uma-star-empty` を参照していることまで確認する。
+  生のhexを書き足すと値がズレても目視では気付けないため（F-19）。
+  `opacity` が 1 のままであることも併せて見る（`position: sticky` を使うグリッド内で
+  `opacity<1` を使うと重なり順が壊れるため）。
+  なおタイルは `background-color` に transition を掛けている。値を変えた直後に
+  `getComputedStyle` すると遷移前の色が返るので、**設定と読み取りは分けて待つこと。**
+  同じ理由で、`page.click` の直後はカーソルが残るため hover 色を測ってしまう。
   平常時の色を測る前に `page.mouse.move(0, 0)` でカーソルを外す。
 
+- **スキル名のフェードは文字数で決めていない**（フォントで実幅が変わるため）。
+  `scrollWidth > clientWidth` の実測で `.is-truncated` を付けている。
+  テストは「はみ出す名前だけに付いていること」を全行について突き合わせる。
+  実測なので、フォントや `max-width` を変えると自動的に結果が変わる。
+
 - **★の増減は Undo スタックに積んでいない**（仕様。`js/uma-skill-deck.js` の `setStar` のコメント参照）。
-  スモークテストは「候補削除→Undoで戻る」ことと「★のタップでは `undoCount()` が増えない」ことの
+  スモークテストは「列削除→Undoで戻る」ことと「★のタップでは `undoCount()` が増えない」ことの
   両方を見ている。後者は、うっかり `pushUndo` を足すと削除のUndoが押し出される事故を防ぐため。
 
 - **外観の変更で壊れるのは、たいてい JS がクラスを付け外ししている箇所**。

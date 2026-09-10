@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-10j';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-10k';
 
 // 読み込むべき css/common.css の版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -292,6 +292,8 @@ function toggleCandidateNameReveal(btn, candidateId) {
 	tip.style.left = Math.max(4, rect.left - 4) + 'px';
 	tip.style.top = Math.max(4, rect.top - 30) + 'px';
 	tip.dataset.forCand = candidateId;
+	// 同じ吹き出しをスキル名の全文表示とも共有しているので、相手の印は消しておく。
+	delete tip.dataset.forSkill;
 	tip.classList.remove('hidden');
 	clearTimeout(toggleCandidateNameReveal._timer);
 	toggleCandidateNameReveal._timer = setTimeout(() => tip.classList.add('hidden'), 3000);
@@ -378,29 +380,45 @@ function cycleStar(skillId, candidateId) {
 	setStar(skillId, candidateId, nextStarValue(getStar(skillId, candidateId)));
 }
 
+// 値タイルの中身。値は0〜3の整数のままで、表示だけを★に変える。
+// Lv0=控えめな☆1個 / Lv1=★1個 / Lv2=★2個の横並び / Lv3=上1・下2のピラミッド。
+function starsMarkup(v) {
+	if (v <= 0) return '<span class="star-off">☆</span>';
+	if (v === 1) return '<span class="star-single star-on">★</span>';
+	if (v === 2) return '<span class="star-pair"><span class="star-on">★</span><span class="star-on">★</span></span>';
+	return '<span class="star-pyramid">'
+		+ '<span class="star-top star-on">★</span>'
+		+ '<span class="star-bottom"><span class="star-on">★</span><span class="star-on">★</span></span>'
+		+ '</span>';
+}
+
 // ★の書き込みと、それに連動する表示更新。
 //
 // Undoについて: ★の増減は以前から Undo スタックに積んでいない（取り消し対象外）。
 // 理由は Core.pushUndo() が必ずトーストを出すこと、スタック上限20件を★の連打で
-// 埋めると「候補を誤って削除した」のUndoが押し出されること。▲▼のステッパーから
-// タップ巡回に変えても「1操作＝1回の値変更」という粒度は変わっていない。
+// 埋めると「候補を誤って削除した」のUndoが押し出されること。タップ巡回にしても
+// 「1操作＝1回の値変更」という粒度は変わっていない。
 function setStar(skillId, candidateId, next) {
 	if (!draftRecord.cells[skillId]) draftRecord.cells[skillId] = {};
 	draftRecord.cells[skillId][candidateId] = next;
 	persistDraftRecord();
-	const badge = document.getElementById('star-' + skillId + '-' + candidateId);
-	if (badge) {
-		badge.textContent = next;
-		// 値0と1以上の差は実色（背景色・文字色）で付ける。opacity は使わない
-		// （sticky を使う表の中では新しいスタッキングコンテキストが順序を壊すため）。
-		badge.classList.toggle('star-badge--on', next > 0);
-		// スクリーンリーダー向け。セル単体では意味が伝わらないので、
-		// 「スキル名／候補名」を data-star-label に持たせておいて毎回組み直す。
-		badge.setAttribute('aria-label', badge.dataset.starLabel + ' ★' + next);
+	const tile = document.getElementById('star-' + skillId + '-' + candidateId);
+	if (tile) {
+		tile.innerHTML = starsMarkup(next);
+		tile.dataset.value = next;
+		// スクリーンリーダー向け。★は見た目でしか値を伝えないので、
+		// 「スキル名／候補名 Lv2」の形で読み上げられるようにする。
+		// 文脈部分は data-star-label に持たせておいて毎回組み直す。
+		tile.setAttribute('aria-label', tile.dataset.starLabel + ' Lv' + next);
 	}
 	const newSum = computeRowSum(skillId);
 	const sumEl = document.getElementById('sum-' + skillId);
-	if (sumEl) sumEl.textContent = newSum;
+	if (sumEl) {
+		sumEl.textContent = newSum;
+		// 0=控えめなグレー / 1以上=薄い藍。切り替えは実色のみで行う
+		// （sticky を使うグリッド内で opacity を使うと重なり順が壊れるため）。
+		sumEl.classList.toggle('deck-total--on', newSum > 0);
+	}
 	const rowEl = document.getElementById('row-' + skillId);
 	if (rowEl) rowEl.classList.toggle('row-zero', newSum === 0);
 	// 行フィルターが「不足のみ」「充足あり」の場合、値の増減でその行が
@@ -410,11 +428,64 @@ function setStar(skillId, candidateId, next) {
 	}
 }
 
+/* ------------------------------------------------------------
+ * スキル名のフェード表示と全文ツールチップ
+ *
+ * 表示幅は約6文字ぶんに固定してあるが、はみ出しているかどうかは
+ * 文字数では決めない（フォントや文字種で実幅が変わるため）。
+ * 描画のたびに scrollWidth と clientWidth を実測して .is-truncated を付ける。
+ *
+ * ツールチップは position:fixed の共有要素 #name-reveal-tip を使い回す。
+ * グリッドは overflow:auto なので、セル内に absolute で置くと
+ * 最上行のツールチップが枠に切られてしまう。
+ * ------------------------------------------------------------ */
+function markTruncatedSkillNames() {
+	document.querySelectorAll('#record-grid-wrap .deck-name-wrap').forEach(wrap => {
+		const clip = wrap.querySelector('.deck-name-clip');
+		if (!clip) return;
+		const truncated = clip.scrollWidth > clip.clientWidth + 1;
+		wrap.classList.toggle('is-truncated', truncated);
+		// はみ出していない名前は押しても何も起きない（ツールチップも出さない）。
+		clip.disabled = !truncated;
+	});
+}
+
+// スキル名のツールチップを開閉する。値タイルの巡回を誤爆させないよう、
+// 呼び出し元の onclick 側で event.stopPropagation() してから呼ぶ。
+function toggleSkillNameTip(btn, skillId) {
+	const tip = document.getElementById('name-reveal-tip');
+	if (!tip) return;
+	const name = getSkillName(skillId);
+	if (!tip.classList.contains('hidden') && tip.dataset.forSkill === skillId) {
+		hideNameRevealTip();
+		return;
+	}
+	const rect = btn.getBoundingClientRect();
+	tip.textContent = name;
+	tip.style.left = Math.max(4, rect.left - 4) + 'px';
+	tip.style.top = Math.max(4, rect.top - 30) + 'px';
+	tip.dataset.forSkill = skillId;
+	delete tip.dataset.forCand;
+	tip.classList.remove('hidden');
+}
+
+function hideNameRevealTip() {
+	const tip = document.getElementById('name-reveal-tip');
+	if (!tip) return;
+	tip.classList.add('hidden');
+	delete tip.dataset.forSkill;
+	delete tip.dataset.forCand;
+}
+
+// 他の場所をタップしたら閉じる。描画のたびに増やさないよう、1回だけ登録する。
+document.addEventListener('click', hideNameRevealTip);
+
 function renderRecordGrid() {
 	const wrap = document.getElementById('record-grid-wrap');
 	const enabledCountEl = document.getElementById('record-enabled-count');
 	if (enabledCountEl) enabledCountEl.textContent = '有効な候補：' + countEnabledCandidates() + '/' + MAX_ENABLED_CANDIDATES + '人（候補は' + draftRecord.candidates.length + '人登録中）';
 	document.querySelectorAll('.row-filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === recordRowFilter));
+	hideNameRevealTip();
 	if (draftRecord.skillIds.length === 0) {
 		wrap.innerHTML = '<p class="text-xs text-slate-400 p-4">「スキルを追加」からスキルを選んでください。</p>';
 		return;
@@ -426,53 +497,70 @@ function renderRecordGrid() {
 		if (recordRowFilter === 'nonzero') return sum > 0;
 		return true;
 	});
-	let html = '<table class="deck-table"><thead><tr>';
-	html += '<th class="sticky-col sticky-header">スキル</th>';
-	html += '<th class="sticky-col2 sticky-header" title="有効な候補の★合計">計</th>';
+
+	// 列数はCSSの grid-template-columns が読む。候補0人でも列定義が壊れないよう最低1にする。
+	let html = '<div class="deck-grid" style="--deck-cand-count:' + Math.max(1, candidates.length) + '">';
+	html += '<div class="deck-cell deck-head deck-corner">スキル / 計</div>';
 	candidates.forEach(c => {
-		html += `<th class="sticky-header candidate-col ${c.enabled ? '' : 'col-disabled'}">
-			<div class="cand-header">
-				<input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="toggleCandidateEnabled('${c.candidateId}')" title="比較対象（有効）にする"/>
-				<button type="button" class="cand-name-btn" data-cand-id="${c.candidateId}" onclick="toggleCandidateNameReveal(this, '${c.candidateId}')">${escapeHtml(c.label.slice(0, 2))}</button>
-				<button class="cand-del-btn" onclick="removeCandidate('${c.candidateId}')" aria-label="この候補を削除"><i data-lucide="x" class="w-2.5 h-2.5"></i></button>
-			</div>
-		</th>`;
+		html += '<div class="deck-cell deck-head' + (c.enabled ? '' : ' col-disabled') + '">'
+			+ '<span class="deck-cand-pill">'
+			+ '<input type="checkbox" ' + (c.enabled ? 'checked' : '') + ' onchange="toggleCandidateEnabled(\'' + c.candidateId + '\')" title="比較対象（有効）にする" aria-label="' + escapeHtml(c.label) + ' を比較対象にする"/>'
+			// 候補名の全文表示も同じ #name-reveal-tip を使う。document のクリックで
+			// 閉じる仕掛けを入れたので、開いた直後に自分で閉じないよう伝播を止める。
+			+ `<button type="button" class="deck-cand-name" data-cand-id="${c.candidateId}" onclick="event.stopPropagation(); toggleCandidateNameReveal(this, '${c.candidateId}')">${escapeHtml(c.label.slice(0, 2))}</button>`
+			+ '<button type="button" class="deck-cand-x" onclick="removeCandidate(\'' + c.candidateId + '\')" aria-label="候補「' + escapeHtml(c.label) + '」を削除">×</button>'
+			+ '</span></div>';
 	});
-	html += '</tr></thead><tbody>';
+	// 末尾の余り列（grid-template-columns の 1fr）。候補が少ないときに
+	// 行の地色を右端まで届かせるためだけの空セル。
+	html += '<div class="deck-cell deck-head"></div>';
+
 	if (skillIdsToShow.length === 0) {
-		html += '</tbody></table>';
-		html += '<p class="text-xs text-slate-400 p-3">条件に一致する行がありません。</p>';
+		html += '</div><p class="text-xs text-slate-400 p-3">条件に一致する行がありません。</p>';
 		wrap.innerHTML = html;
 		return;
 	}
-	skillIdsToShow.forEach(skillId => {
+
+	skillIdsToShow.forEach((skillId, idx) => {
 		const sum = computeRowSum(skillId);
-		html += '<tr id="row-' + escapeHtml(skillId) + '" class="' + (sum === 0 ? 'row-zero' : '') + '">' +
-			'<td class="sticky-col" title="' + escapeHtml(getSkillName(skillId)) + '"><div class="flex items-center justify-between gap-1"><span class="truncate">' + escapeHtml(getSkillName(skillId)) + '</span>' +
-			'<button onclick="removeSkillFromRecord(\'' + escapeHtml(skillId) + '\')" aria-label="この行を削除"><i data-lucide="x" class="w-3 h-3 text-slate-400"></i></button></div></td>' +
-			'<td class="sticky-col2"><span id="sum-' + escapeHtml(skillId) + '" class="sum-badge" title="有効な候補の★合計">' + sum + '</span></td>';
+		// tr が無いので、行の地色（ゼブラ）は行の全セルに同じクラスで付ける。
+		const zebra = idx % 2 === 0 ? 'deck-row-a' : 'deck-row-b';
+		const name = escapeHtml(getSkillName(skillId));
+		html += '<div class="deck-cell deck-info ' + zebra + ' ' + (sum === 0 ? 'row-zero' : '') + '" id="row-' + escapeHtml(skillId) + '">'
+			+ '<span class="deck-name">'
+			// 効果タイプのドット。色分けは別フェーズなので今は1色のプレースホルダー。
+			+ '<span class="deck-cat-dot"></span>'
+			+ '<span class="deck-name-wrap">'
+			+ '<button type="button" class="deck-name-clip" title="' + name + '"'
+			+ ' onclick="event.stopPropagation(); toggleSkillNameTip(this, \'' + escapeHtml(skillId) + '\')">' + name + '</button>'
+			+ '</span></span>'
+			+ '<span id="sum-' + escapeHtml(skillId) + '" class="deck-total' + (sum > 0 ? ' deck-total--on' : '') + '" title="有効な候補の★合計">' + sum + '</span>'
+			+ '<button type="button" class="deck-name-del" onclick="removeSkillFromRecord(\'' + escapeHtml(skillId) + '\')" aria-label="この行を削除"><i data-lucide="x" class="w-3 h-3"></i></button>'
+			+ '</div>';
 		candidates.forEach(c => {
 			const v = getStar(skillId, c.candidateId);
-			// 値バッジはセル幅いっぱいの <button>。<div onclick> にしないのは、
-			// Tab移動と Enter/Space での操作を素で効かせるため。
-			// aria-label はセル単体だと意味が伝わらないので「スキル名／候補名 ★N」を組む。
-			// data-star-label は setStar() が値変更のたびに aria-label を組み直すのに使う。
+			// タイルは <button>。<div onclick> にしないのは、Tab移動と
+			// Enter/Space での操作を素で効かせるため。
 			const starLabel = escapeHtml(getSkillName(skillId) + '／' + c.label);
-			html += `<td class="candidate-col ${c.enabled ? '' : 'col-disabled'}">` +
-				`<button type="button" class="star-badge${v > 0 ? ' star-badge--on' : ''}"` +
-				` id="star-${escapeHtml(skillId)}-${c.candidateId}"` +
-				` data-star-label="${starLabel}"` +
-				` aria-label="${starLabel} ★${v}"` +
-				` title="${starLabel}：押すたびに 0→1→2→3→0 と変わります"` +
-				` onclick="cycleStar('${escapeHtml(skillId)}','${c.candidateId}')">${v}</button></td>`;
+			html += '<div class="deck-cell ' + zebra + (c.enabled ? '' : ' col-disabled') + '">'
+				+ '<button type="button" class="star-tile"'
+				+ ` id="star-${escapeHtml(skillId)}-${c.candidateId}"`
+				+ ' data-value="' + v + '"'
+				+ ' data-star-label="' + starLabel + '"'
+				+ ' aria-label="' + starLabel + ' Lv' + v + '"'
+				+ ' title="' + starLabel + '：押すたびに 0→1→2→3→0 と変わります"'
+				+ ' onclick="cycleStar(\'' + escapeHtml(skillId) + '\',\'' + c.candidateId + '\')">'
+				+ starsMarkup(v) + '</button></div>';
 		});
-		html += '</tr>';
+		html += '<div class="deck-cell ' + zebra + '"></div>';
 	});
-	html += '</tbody></table>';
+	html += '</div>';
 	if (candidates.length === 0) {
 		html += '<p class="text-xs text-slate-400 p-3">「候補を追加」からまず候補を1人以上追加してください。</p>';
 	}
 	wrap.innerHTML = html;
+	// はみ出し判定は描画後にしかできない（実測が要るため）。
+	markTruncatedSkillNames();
 	refreshIcons();
 }
 
