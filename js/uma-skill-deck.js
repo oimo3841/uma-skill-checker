@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-10i';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-10j';
 
 // 読み込むべき css/common.css の版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -362,13 +362,42 @@ function computeRowSum(skillId) {
 	}, 0);
 }
 
-function adjustStar(skillId, candidateId, delta) {
+// そのセルの現在値。未設定は0。
+function getStar(skillId, candidateId) {
+	return (draftRecord.cells[skillId] && draftRecord.cells[skillId][candidateId]) || 0;
+}
+
+// 値バッジ1タップ分の巡回先。0→1→2→3→0 の一方向で、逆回転は仕様として持たない
+// （3から下げたいときは0を経由する、というのが確定した仕様）。
+function nextStarValue(current) {
+	return current >= STAR_MAX ? STAR_MIN : current + 1;
+}
+
+// 値バッジのクリック／Enter／Space から呼ばれる入口。1回の呼び出し＝1回の値変更。
+function cycleStar(skillId, candidateId) {
+	setStar(skillId, candidateId, nextStarValue(getStar(skillId, candidateId)));
+}
+
+// ★の書き込みと、それに連動する表示更新。
+//
+// Undoについて: ★の増減は以前から Undo スタックに積んでいない（取り消し対象外）。
+// 理由は Core.pushUndo() が必ずトーストを出すこと、スタック上限20件を★の連打で
+// 埋めると「候補を誤って削除した」のUndoが押し出されること。▲▼のステッパーから
+// タップ巡回に変えても「1操作＝1回の値変更」という粒度は変わっていない。
+function setStar(skillId, candidateId, next) {
 	if (!draftRecord.cells[skillId]) draftRecord.cells[skillId] = {};
-	const current = draftRecord.cells[skillId][candidateId] || 0;
-	const next = Math.max(STAR_MIN, Math.min(STAR_MAX, current + delta));
 	draftRecord.cells[skillId][candidateId] = next;
 	persistDraftRecord();
-	document.getElementById('star-' + skillId + '-' + candidateId).textContent = next;
+	const badge = document.getElementById('star-' + skillId + '-' + candidateId);
+	if (badge) {
+		badge.textContent = next;
+		// 値0と1以上の差は実色（背景色・文字色）で付ける。opacity は使わない
+		// （sticky を使う表の中では新しいスタッキングコンテキストが順序を壊すため）。
+		badge.classList.toggle('star-badge--on', next > 0);
+		// スクリーンリーダー向け。セル単体では意味が伝わらないので、
+		// 「スキル名／候補名」を data-star-label に持たせておいて毎回組み直す。
+		badge.setAttribute('aria-label', badge.dataset.starLabel + ' ★' + next);
+	}
 	const newSum = computeRowSum(skillId);
 	const sumEl = document.getElementById('sum-' + skillId);
 	if (sumEl) sumEl.textContent = newSum;
@@ -423,14 +452,19 @@ function renderRecordGrid() {
 			'<button onclick="removeSkillFromRecord(\'' + escapeHtml(skillId) + '\')" aria-label="この行を削除"><i data-lucide="x" class="w-3 h-3 text-slate-400"></i></button></div></td>' +
 			'<td class="sticky-col2"><span id="sum-' + escapeHtml(skillId) + '" class="sum-badge" title="有効な候補の★合計">' + sum + '</span></td>';
 		candidates.forEach(c => {
-			const v = (draftRecord.cells[skillId] && draftRecord.cells[skillId][c.candidateId]) || 0;
-			html += `<td class="candidate-col ${c.enabled ? '' : 'col-disabled'}"><div class="star-cell">
-				<span class="star-value" id="star-${escapeHtml(skillId)}-${c.candidateId}">${v}</span>
-				<div class="star-stepper">
-					<button onclick="adjustStar('${escapeHtml(skillId)}','${c.candidateId}',1)" aria-label="星を増やす">▲</button>
-					<button onclick="adjustStar('${escapeHtml(skillId)}','${c.candidateId}',-1)" aria-label="星を減らす">▼</button>
-				</div>
-			</div></td>`;
+			const v = getStar(skillId, c.candidateId);
+			// 値バッジはセル幅いっぱいの <button>。<div onclick> にしないのは、
+			// Tab移動と Enter/Space での操作を素で効かせるため。
+			// aria-label はセル単体だと意味が伝わらないので「スキル名／候補名 ★N」を組む。
+			// data-star-label は setStar() が値変更のたびに aria-label を組み直すのに使う。
+			const starLabel = escapeHtml(getSkillName(skillId) + '／' + c.label);
+			html += `<td class="candidate-col ${c.enabled ? '' : 'col-disabled'}">` +
+				`<button type="button" class="star-badge${v > 0 ? ' star-badge--on' : ''}"` +
+				` id="star-${escapeHtml(skillId)}-${c.candidateId}"` +
+				` data-star-label="${starLabel}"` +
+				` aria-label="${starLabel} ★${v}"` +
+				` title="${starLabel}：押すたびに 0→1→2→3→0 と変わります"` +
+				` onclick="cycleStar('${escapeHtml(skillId)}','${c.candidateId}')">${v}</button></td>`;
 		});
 		html += '</tr>';
 	});

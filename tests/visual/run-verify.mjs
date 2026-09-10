@@ -86,6 +86,9 @@ for (const [p, pat, ver, name] of [
 	['special.html', /js\/common\.js\?v=([0-9a-z-]+)/g, commonVer, 'common.js'],
 	['uma-skill-deck.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
 	['uma-skill-deck.html', /js\/uma-skill-deck\.js\?v=([0-9a-z-]+)/g, deckVer, 'deck.js'],
+	// special.html の引き出しパネルが読む iframe。deck.js の版に合わせている値だが、
+	// HTMLの <script src> と違って目に付きにくく、実際に取り残されたことがある。
+	['special.html', /uma-skill-deck\.html\?v=([0-9a-z-]+)/g, deckVer, '引き出しiframe'],
 ]) {
 	const q = [...read(p).matchAll(pat)].map((m) => m[1]);
 	check(q.length === 1 && q[0] === ver, `${p} の ${name} の ?v= が ${ver}`, q);

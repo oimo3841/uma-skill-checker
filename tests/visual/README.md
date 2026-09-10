@@ -6,7 +6,7 @@
 ## 使い方
 
 ```
-npm run test:visual          # 機能スモークテスト（33項目）
+npm run test:visual          # 機能スモークテスト（42項目）
 npm run test:verify          # 納品前チェック（版数・セレクタ資産・構文）
 npm run test:visual:capture -- before            # 変更前のスクリーンショット
 npm run test:visual:capture -- after --compare   # 変更後＋前後比較画像
@@ -21,6 +21,18 @@ npm run test:visual:capture -- after --compare   # 変更後＋前後比較画�
   `lib/fixtures.mjs` が代表データ（テンプレート2件・比較シート1件・候補3人・★入力済み）を仕込む。
 - **UmaStar OCR は画像を通さないと結果表が出ない。** OCRを回さずに済むよう、
   合成した「OCRの行」を**本物の照合関数**に通して結果を作る。表示だけの張りぼてにはしない。
+- **比較シートの値バッジは「見た目そのものが操作」**なので、色を機械で見張っている。
+  値0＝薄いグレー／値1以上＝濃紺＋白文字を実色で確認し、`opacity` が 1 のままであることも
+  併せて見る（`position: sticky` の表の中で `opacity<1` を使うと重なり順が壊れるため）。
+  バッジは `background-color` に transition を掛けているので、値を変えた直後に
+  `getComputedStyle` すると遷移前の色が返る。**設定と読み取りは分けて待つこと。**
+  同じ理由で、`page.click` の直後はカーソルがバッジ上に残るため hover 色を測ってしまう。
+  平常時の色を測る前に `page.mouse.move(0, 0)` でカーソルを外す。
+
+- **★の増減は Undo スタックに積んでいない**（仕様。`js/uma-skill-deck.js` の `setStar` のコメント参照）。
+  スモークテストは「候補削除→Undoで戻る」ことと「★のタップでは `undoCount()` が増えない」ことの
+  両方を見ている。後者は、うっかり `pushUndo` を足すと削除のUndoが押し出される事故を防ぐため。
+
 - **外観の変更で壊れるのは、たいてい JS がクラスを付け外ししている箇所**。
   絞り込みボタン・タブ・無効列・hidden の付け外しを重点的に通している。
 
@@ -36,7 +48,9 @@ npm run test:visual:capture -- after --compare   # 変更後＋前後比較画�
 
 ## run-verify.mjs が見ているもの
 
-1. 版数の3点一致（`--common-css-version` / 各HTMLの `?v=` / `EXPECTED_COMMON_CSS_VERSION`）
+1. 版数の一致（`--common-css-version` / 各HTMLの `?v=` / `EXPECTED_COMMON_CSS_VERSION`）。
+   special.html の**引き出しパネルの iframe `uma-skill-deck.html?v=`** も含む（deck.js の版に合わせる決まりだが、
+   <script src> と違って目に付きにくく、実際に取り残されたことがある）
 2. 変更してはいけないファイル（`index.html` / `exam.html` / `js/common.js` / `js/stitch.js`）が未変更か
 3. `id` と `data-*` が1つも失われていないか（HEAD と比較）
 4. 消した class を JS が名前で掴んでいないか

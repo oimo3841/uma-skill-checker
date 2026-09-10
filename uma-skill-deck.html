@@ -13,7 +13,7 @@
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-10h"></script>
-	<script src="js/uma-skill-deck.js?v=2026-09-10i"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-10j"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -72,35 +72,87 @@
 		/* 一覧の行の見た目は css/common.css の .uma-list-row が持つ。
 		   （core.js の .usd-list-card と同じ定義が二重にあったため一本化した） */
 
-		/* 比較シートのグリッド */
-		.deck-table { border-collapse: separate; border-spacing: 0; font-size: var(--uma-fs-xs); table-layout: fixed; }
+		/* ============================================================
+		 * 比較シートのグリッド
+		 *
+		 * 方針: 罫線は引かず、余白と交互の背景色（ゼブラ）で行を区切る。
+		 * 行の地色は tr の --row-bg 1変数に集約してあり、固定列・通常列とも
+		 * これを参照する。後から「効果タイプで行を色分け」を足すときは、
+		 * tr 側に --row-bg を上書きするだけで済む（セル側は無改修）。
+		 * ============================================================ */
+		:root {
+			--deck-row-bg: var(--uma-surface);            /* 行の地（白） */
+			--deck-row-alt-bg: #f4f6f9;                   /* 交互の行 */
+			--deck-head-bg: #e9edf3;                      /* ヘッダー行 */
+			--deck-col-disabled-bg: #dfe4ec;              /* 無効にした候補列 */
+			--deck-star-off-bg: #e3e8ef;                  /* 値0のバッジ */
+			--deck-star-off-text: var(--uma-text-subtle);
+			--deck-star-off-hover-bg: #d5dce6;
+			--deck-star-on-bg: #312c85;                   /* indigo-900: 値1以上のバッジ */
+			--deck-star-on-hover-bg: #432dd7;             /* indigo-700 */
+			--deck-star-on-text: var(--uma-text-inverse);
+			--deck-star-disabled-on-bg: #aab4c4;          /* 無効列の「1以上」 */
+		}
+
+		/* グリッドを載せる面。薄い外枠と影で背景から分離する。
+		   （以前は #record-grid-wrap のインラインstyleで指定していた） */
+		.deck-grid-wrap {
+			overflow: auto;
+			max-height: 60vh;
+			border: 1px solid var(--uma-border);
+			border-radius: var(--uma-r-lg);
+			box-shadow: var(--uma-shadow-1);
+			background: var(--deck-row-bg);
+		}
+		.deck-table { border-collapse: separate; border-spacing: 0; font-size: var(--uma-fs-xs); table-layout: fixed; width: 100%; }
 		.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 		.deck-table th, .deck-table td {
-			border-right: 1px solid var(--uma-border);
-			border-bottom: 1px solid var(--uma-border);
-			padding: var(--uma-sp-0-5) var(--uma-sp-1);
+			padding: var(--uma-sp-1) var(--uma-sp-1-5);
 			text-align: center;
+			background: var(--row-bg, var(--deck-row-bg));
 		}
-		.sticky-header { position: sticky; top: 0; background: var(--uma-surface-sunken); z-index: 3; }
-		.sticky-col { position: sticky; left: 0; background: var(--uma-surface-sunken); z-index: 2; text-align: left; width: 84px; min-width: 84px; max-width: 84px; }
-		.sticky-col2 { position: sticky; left: 84px; background: var(--uma-surface-sunken); z-index: 2; text-align: center; width: 30px; min-width: 30px; max-width: 30px; }
+		.deck-table tbody tr { --row-bg: var(--deck-row-bg); }
+		.deck-table tbody tr:nth-child(even) { --row-bg: var(--deck-row-alt-bg); }
+		.deck-table thead tr { --row-bg: var(--deck-head-bg); }
+		/* ヘッダーと本文の境目だけは1本引く。行間の罫線とは役割が違う（面の分離）。 */
+		.sticky-header {
+			position: sticky; top: 0; z-index: 3;
+			padding-top: var(--uma-sp-1-5); padding-bottom: var(--uma-sp-1-5);
+			border-bottom: 1px solid var(--uma-border-strong);
+		}
+		.sticky-col { position: sticky; left: 0; z-index: 2; text-align: left; width: 84px; min-width: 84px; max-width: 84px; }
+		.sticky-col2 {
+			position: sticky; left: 84px; z-index: 2; text-align: center;
+			width: 30px; min-width: 30px; max-width: 30px;
+			/* 横スクロール時の境目。罫線を消したぶん、固定列の右端が分かるようにする。
+			   box-shadow はスタッキングコンテキストを作らないので sticky を壊さない
+			   （opacity や filter は作るので、ここでは使えない）。 */
+			box-shadow: 6px 0 6px -6px rgba(15, 23, 42, .18);
+		}
 		.sticky-col.sticky-header, .sticky-col2.sticky-header { z-index: 4; }
 		.candidate-col { width: 58px; min-width: 58px; max-width: 58px; }
-		.star-cell { display: flex; align-items: center; justify-content: center; gap: var(--uma-sp-0-5); }
-		.star-value { font-weight: 600; min-width: 12px; text-align: center; font-size: var(--uma-fs-sm); }
-		.star-stepper { display: flex; flex-direction: column; gap: var(--uma-sp-0-5); }
-		/* 以前は 8px の文字を 15×12px のボタンに入れていたが、8px は全体で最小の
-		   外れ値だった。文字を最小段（10px）に上げ、収まるようにボタンを広げる。 */
-		.star-stepper button {
-			width: 16px; height: 14px;
-			font-size: var(--uma-fs-2xs); line-height: 1;
-			border: 1px solid var(--uma-border); background: var(--uma-surface);
-			/* 文字色はあえて指定しない。指定すると詳細度(0,1,1)が .col-disabled *(0,1,0) を
-			   上回り、無効にした候補列の▲▼だけが有効列と同じ濃さで残ってしまう。 */
-			padding: 0; border-radius: var(--uma-r-sm); cursor: pointer;
-			transition: background-color var(--uma-transition), border-color var(--uma-transition);
+
+		/* 値バッジ。セル幅いっぱいの <button> にして、スマホでも押しやすくする
+		   （58×30px。以前の▲▼は 16×14px だった）。
+		   1タップで 0→1→2→3→0 と巡回する（js/uma-skill-deck.js の cycleStar）。
+		   <button> なので Tab移動・Enter・Space は素で効く。 */
+		.star-badge {
+			/* max-width は、候補が少なく表が横に伸びたときにバッジが帯にならないようにする上限。
+			   スマホ幅では列がこれより狭いので効かず、セル幅いっぱいのまま。 */
+			display: block; width: 100%; max-width: 72px; min-height: 30px; margin-inline: auto;
+			border: none; border-radius: var(--uma-r-md);
+			font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600;
+			background: var(--deck-star-off-bg); color: var(--deck-star-off-text);
+			cursor: pointer;
+			transition: background-color var(--uma-transition), color var(--uma-transition);
 		}
-		.star-stepper button:hover { background: var(--uma-surface-muted); border-color: var(--uma-border-strong); }
+		.star-badge--on { background: var(--deck-star-on-bg); color: var(--deck-star-on-text); }
+		/* :not() で相互排他にしておく。同じ詳細度の2本を並べると、記述順に依存して
+		   「0のhover色」が「1以上のhover色」に勝ってしまうことがある。 */
+		.star-badge:hover:not(.star-badge--on) { background: var(--deck-star-off-hover-bg); }
+		.star-badge--on:hover { background: var(--deck-star-on-hover-bg); }
+		.star-badge:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: 1px; }
+
 		.cand-header { display: flex; flex-direction: column; align-items: center; gap: var(--uma-sp-0-5); }
 		.cand-header input[type=checkbox] { width: 11px; height: 11px; margin: 0; accent-color: var(--uma-accent); }
 		.cand-name-btn {
@@ -111,9 +163,14 @@
 		/* 注意: position:sticky を使うテーブル内では opacity<1 を使わないこと。
 		   opacity は新しいスタッキングコンテキストを生成し、sticky要素間の
 		   z-index順序を壊すため、スクロール時に別セルが手前に描画される
-		   不具合の原因になる。無効状態の表現は色の変更のみで行う。 */
-		.col-disabled { background: var(--uma-surface-muted); }
+		   不具合の原因になる。無効状態の表現は色の変更のみで行う。
+		   （値バッジの「値0＝薄いグレー」も同じ理由で実色の変更で行っている） */
+		.deck-table th.col-disabled, .deck-table td.col-disabled { --row-bg: var(--deck-col-disabled-bg); }
 		.col-disabled, .col-disabled * { color: var(--uma-text-faint); }
+		/* 無効列の値バッジ。0と1以上の区別は残しつつ、彩度を落として前に出させない。
+		   詳細度(0,2,0)なので .star-badge--on(0,1,0) に必ず勝つ。 */
+		.col-disabled .star-badge { background: var(--deck-star-off-bg); color: var(--uma-text-faint); }
+		.col-disabled .star-badge--on { background: var(--deck-star-disabled-on-bg); color: var(--deck-star-on-text); }
 		.sum-badge {
 			background: var(--uma-accent-soft); color: var(--uma-accent-soft-text);
 			border-radius: var(--uma-r-full);
@@ -182,7 +239,7 @@
 					<button onclick="setRecordRowFilter('zero')" class="row-filter-btn uma-pill" data-mode="zero">不足のみ（計0）</button>
 					<button onclick="setRecordRowFilter('nonzero')" class="row-filter-btn uma-pill" data-mode="nonzero">充足あり（計1+）</button>
 				</div>
-				<div id="record-grid-wrap" style="overflow:auto;max-height:60vh;border:1px solid var(--uma-border);border-radius:var(--uma-r-lg);"></div>
+				<div id="record-grid-wrap" class="deck-grid-wrap"></div>
 			</div>
 		</section>
 
