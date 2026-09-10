@@ -2,7 +2,10 @@
 <html lang="ja">
 <head>
 	<meta charset="UTF-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<!-- viewport-fit=cover は右下固定ナビ（FAB）が env(safe-area-inset-bottom) を
+	     読めるようにするために必要。これが無いと env() は常に 0 を返し、
+	     ノッチ端末のホームバーにFABが潜り込む。 -->
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 	<title>UmaStar OCR（β版）</title>
 	<!-- 共通スタイル（デザイントークン・共通部品）。Tailwindより先に読み込む。
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
@@ -103,20 +106,93 @@
 			--uma-accent-border: #c6d2ff;     /* indigo-200 */
 		}
 
-		/* 引き出しの取っ手は「UmaSkill Deckへ行ける」ことを示すものなので、
-		   このページのアクセント（緑）ではなく Deck 側のアクセント（藍）で塗る。
-		   値は Tailwind v4 の indigo-600 / indigo-700 実測値。 */
-		.deck-drawer-trigger {
-			position: fixed; right: 0; top: 50%; transform: translateY(-50%);
-			z-index: 70; display: flex; flex-direction: column; align-items: center; gap: var(--uma-sp-1-5);
-			padding: var(--uma-sp-3-5) var(--uma-sp-2); border: none; border-radius: var(--uma-r-lg) 0 0 var(--uma-r-lg);
-			background: #4f39f6; color: var(--uma-text-inverse);
-			font-size: var(--uma-fs-xs); font-weight: 700; line-height: 1.4;
-			cursor: pointer; box-shadow: -2px 0 12px rgba(15, 23, 42, .18);
-			transition: background-color var(--uma-transition), padding-right var(--uma-transition);
+		/* ===== 画面固定ナビ（右下・折りたたみFAB） =====
+		   画面右端に取っ手を常時出しておく方式をやめ、右下のメインボタン1つに畳んだ。
+		   行き先は「UmaSkill Deck（引き出し）」「画像結合レビュー」「OCRの照合結果」の3つで、
+		   メインボタンに近い順＝押す頻度の高い順に並べる。
+
+		   ・.uma-fab-nav が fixed のクラスタ本体。子は「サブ3つ → メインボタン」の順。
+		   ・展開状態は .open クラス1つで表す（JS側は setFabOpen() だけを触ればよい）。
+		   ・スマホの片手操作を基準に、右下 16px・タッチ領域 44px・間隔 12px を最低線にした。 */
+		.uma-fab-nav {
+			position: fixed;
+			right: var(--uma-sp-4);
+			bottom: calc(var(--uma-sp-4) + env(safe-area-inset-bottom, 0px));
+			z-index: 70;
+			display: flex; flex-direction: column; align-items: flex-end; gap: var(--uma-sp-3);
 		}
-		.deck-drawer-trigger:hover { background: #432dd7; padding-right: var(--uma-sp-3); }
-		.deck-drawer-trigger .label { writing-mode: vertical-rl; letter-spacing: .08em; }
+		/* PCでも同じ右下固定パターン。位置だけ少し内側に寄せる（構造は共通）。 */
+		@media (min-width: 768px) {
+			.uma-fab-nav {
+				right: var(--uma-sp-6);
+				bottom: calc(var(--uma-sp-6) + env(safe-area-inset-bottom, 0px));
+			}
+		}
+
+		/* サブボタン（ピル型）。閉じている間は pointer-events:none で完全に無効化する。
+		   display:none にしないのは、開閉のトランジションを効かせるため。 */
+		.uma-fab-item {
+			display: flex; align-items: center; gap: var(--uma-sp-2);
+			min-height: 44px;
+			padding: var(--uma-sp-1-5) var(--uma-sp-1-5) var(--uma-sp-1-5) var(--uma-sp-4);
+			border: 1px solid var(--uma-border); border-radius: var(--uma-r-full);
+			background: var(--uma-surface); color: var(--uma-text-heading);
+			font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; white-space: nowrap;
+			box-shadow: var(--uma-shadow-2); cursor: pointer;
+			opacity: 0; transform: translateY(8px) scale(.96); pointer-events: none;
+			transition: opacity .18s ease, transform .18s ease, background-color var(--uma-transition);
+		}
+		.uma-fab-item:hover { background: var(--uma-surface-sunken); }
+		.uma-fab-nav.open .uma-fab-item { opacity: 1; transform: none; pointer-events: auto; }
+		/* 下（メインボタンに近い側）から順に現れる。nth-child(3) が最下段＝最初。 */
+		.uma-fab-nav.open .uma-fab-item:nth-child(1) { transition-delay: .06s; }
+		.uma-fab-nav.open .uma-fab-item:nth-child(2) { transition-delay: .03s; }
+		.uma-fab-nav.open .uma-fab-item:nth-child(3) { transition-delay: 0s; }
+
+		.uma-fab-icon {
+			position: relative; flex-shrink: 0;
+			width: 36px; height: 36px; border-radius: var(--uma-r-full);
+			display: flex; align-items: center; justify-content: center;
+		}
+
+		/* 新着バッジ。行き先に「まだ見ていない結果」があるときだけ出す。
+		   数を出さないドットにしているのは、結果が1件か複数かに意味がないため。 */
+		.uma-fab-dot {
+			position: absolute; top: -2px; right: -2px;
+			width: 12px; height: 12px; border-radius: var(--uma-r-full);
+			background: #f54900;                       /* orange-600 */
+			border: 2px solid var(--uma-surface);
+			animation: uma-fab-pulse 1.8s ease-out infinite;
+		}
+		.uma-fab-dot[hidden] { display: none !important; }
+		@keyframes uma-fab-pulse {
+			0%   { box-shadow: 0 0 0 0 rgba(245, 73, 0, .55); }
+			70%  { box-shadow: 0 0 0 8px rgba(245, 73, 0, 0); }
+			100% { box-shadow: 0 0 0 0 rgba(245, 73, 0, 0); }
+		}
+
+		/* メインボタン。このページのアクセント（緑）で塗る。
+		   開いている間は＋アイコンを135度回して×にする。 */
+		.uma-fab-toggle {
+			width: 56px; height: 56px; flex-shrink: 0;
+			border: none; border-radius: var(--uma-r-full);
+			background: var(--uma-accent); color: var(--uma-text-inverse);
+			display: flex; align-items: center; justify-content: center;
+			box-shadow: 0 10px 20px -6px rgba(1, 102, 48, .45), var(--uma-shadow-2);
+			cursor: pointer;
+			transition: background-color var(--uma-transition), transform var(--uma-transition);
+		}
+		.uma-fab-toggle:hover { background: var(--uma-accent-hover); }
+		.uma-fab-toggle:active { transform: scale(.95); }
+		/* lucide は <i data-lucide> を <svg> に差し替えるので、回転はsvgに掛ける。 */
+		.uma-fab-toggle svg { transition: transform .25s ease; }
+		.uma-fab-nav.open .uma-fab-toggle svg { transform: rotate(135deg); }
+
+		@media (prefers-reduced-motion: reduce) {
+			.uma-fab-item, .uma-fab-toggle, .uma-fab-toggle svg { transition: none !important; }
+			.uma-fab-nav.open .uma-fab-item { transition-delay: 0s !important; }
+			.uma-fab-dot { animation: none !important; }
+		}
 
 		.deck-drawer-backdrop {
 			position: fixed; inset: 0; z-index: 90;
@@ -151,12 +227,20 @@
 <body class="min-h-screen text-slate-800 antialiased selection:bg-green-600 selection:text-white">
 
 	<!-- トースト通知 -->
-	<div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-16 opacity-0 pointer-events-none flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 text-sm font-medium">
+	<!-- 右下は固定ナビ（FAB）が占めるので、トーストはその1段上に出す。
+	     5.5rem = FABの下端16px + 高さ56px + 余白16px。 -->
+	<div id="toast" class="fixed right-5 z-50 transform translate-y-16 opacity-0 pointer-events-none flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 text-sm font-medium"
+		style="bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));">
 		<i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
 		<span id="toast-message">コピーしました</span>
 	</div>
 
-	<div class="w-full max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12">
+	<!-- 下端の余白は右下固定ナビ（FAB）のぶん。展開しても本文の最後が隠れないようにする。
+	     18rem = 展開時のクラスタ高さ242px（サブ50px×3 + 間隔12px×3 + メイン56px）
+	     + 下端24px（PC時。スマホは16px）+ 余白22px。実測値は tests/visual の
+	     「最下部で本文がFABに被らない」チェックで担保している。 -->
+	<div class="w-full max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12"
+		style="padding-bottom: calc(18rem + env(safe-area-inset-bottom, 0px));">
 
 		<!-- ヘッダー -->
 		<header class="relative mb-8 md:mb-10 rounded-3xl border border-green-100 bg-gradient-to-br from-green-50/90 via-white/70 to-white p-5 md:p-8 shadow-sm">
@@ -1259,6 +1343,7 @@
 
 			document.getElementById('copy-data').value = copyRows.join('\n');
 			resultWrap.classList.remove('hidden');
+			markFabUnseen('result'); // 右下ナビに新着バッジを出す
 
 			filterResults();
 			renderPreview();
@@ -1551,7 +1636,10 @@
 
 				setStitchProgress(1, '完了');
 				wrap.classList.toggle('hidden', !anyOutput);
-				if (anyOutput) showToast('画像を結合しました');
+				if (anyOutput) {
+					showToast('画像を結合しました');
+					markFabUnseen('stitch'); // 右下ナビに新着バッジを出す
+				}
 
 				if (document.getElementById('opt-devlog').checked) renderDevLog();
 			} finally {
@@ -2009,9 +2097,10 @@
 			drawer.classList.remove('open');
 			backdrop.classList.add('closing');
 			document.body.style.overflow = '';
-			const trigger = document.getElementById('deck-drawer-trigger');
-			trigger.setAttribute('aria-expanded', 'false');
-			trigger.focus();
+			// 戻り先のフォーカスは、閉じている間も押せるメインFABに返す。
+			// Deckのサブボタンは畳まれると pointer-events:none になるため戻り先にできない。
+			document.getElementById('deck-drawer-trigger').setAttribute('aria-expanded', 'false');
+			document.getElementById('fab-toggle').focus();
 
 			// 閉じるアニメーションが終わってから非表示にする。
 			// transitionend が来ないことがあるので、保険のタイマーも置く。
@@ -2040,6 +2129,87 @@
 
 		document.addEventListener('keydown', (e) => {
 			if (e.key === 'Escape' && deckDrawerOpen) closeDeckDrawer();
+		});
+
+		/* ============================================================
+		 * 画面固定ナビ（右下・折りたたみFAB）
+		 *
+		 * 行き先は3つ。UmaSkill Deck は引き出しパネルを開き、残り2つは
+		 * ページ内の該当セクションへスクロールする。
+		 *
+		 * 「新着」の判定は専用のフラグを増やさず、既にある完了の印をそのまま使う:
+		 *   - 画像結合の完了 … runImageStitching() が #stitch-result-wrap の hidden を外す
+		 *   - 照合結果の完了 … renderResults() が #result-wrap の hidden を外す
+		 * ここで持つのは「その結果をFABから見に行ったか」という未読状態だけ。
+		 * ============================================================ */
+		let fabOpen = false;
+		let fabUnseen = { stitch: false, result: false };
+
+		// 対象セクションがまだ無いときの逃がし先。押しても何も起きない行き止まりを作らず、
+		// 「その結果を作るためのボタン」まで連れて行く。
+		const FAB_TARGETS = {
+			stitch: { wrap: 'stitch-result-wrap', fallback: 'stitch-btn', emptyMsg: 'まだ画像結合の結果がありません' },
+			result: { wrap: 'result-wrap', fallback: 'process-btn', emptyMsg: 'まだ照合結果がありません' }
+		};
+
+		function fabReduceMotion() {
+			return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		}
+
+		function setFabOpen(open) {
+			fabOpen = open;
+			document.getElementById('fab-nav').classList.toggle('open', open);
+			document.getElementById('fab-toggle').setAttribute('aria-expanded', String(open));
+		}
+
+		function toggleFab(e) {
+			// 直後の document クリック（外側タップ判定）で開いた瞬間に閉じないようにする
+			if (e) e.stopPropagation();
+			setFabOpen(!fabOpen);
+		}
+
+		function updateFabBadges() {
+			document.getElementById('fab-dot-stitch').hidden = !fabUnseen.stitch;
+			document.getElementById('fab-dot-result').hidden = !fabUnseen.result;
+		}
+
+		// 結果が新しく出たときに呼ぶ。結果を作り直した場合も「新着」に戻す。
+		function markFabUnseen(key) {
+			fabUnseen[key] = true;
+			updateFabBadges();
+		}
+
+		function fabGoTo(key) {
+			setFabOpen(false);
+			const target = FAB_TARGETS[key];
+			const wrap = document.getElementById(target.wrap);
+			const ready = !wrap.classList.contains('hidden');
+			if (!ready) showToast(target.emptyMsg);
+
+			fabUnseen[key] = false;
+			updateFabBadges();
+
+			const el = ready ? wrap : document.getElementById(target.fallback);
+			el.scrollIntoView({
+				behavior: fabReduceMotion() ? 'auto' : 'smooth',
+				block: ready ? 'start' : 'center'
+			});
+		}
+
+		function fabOpenDeck() {
+			setFabOpen(false);
+			openDeckDrawer();
+		}
+
+		// メニュー外タップで閉じる（開いたままスクロールして誤爆するのを防ぐ）
+		document.addEventListener('click', (e) => {
+			if (!fabOpen) return;
+			if (!document.getElementById('fab-nav').contains(e.target)) setFabOpen(false);
+		});
+
+		// Escでも閉じる。引き出しパネルが開いているときはそちらの処理を優先する。
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape' && fabOpen && !deckDrawerOpen) setFabOpen(false);
 		});
 
 		/* ============================================================
@@ -2095,10 +2265,40 @@
 	<!-- ===== UmaSkill Deck 引き出しパネル =====
 	     uma-skill-deck.html を iframe で読み込むだけで、あちらのファイルには手を入れていない。
 	     同一オリジンなので localStorage はそのまま共有される。 -->
-	<button id="deck-drawer-trigger" type="button" class="deck-drawer-trigger" onclick="openDeckDrawer()" aria-controls="deck-drawer" aria-expanded="false">
-		<i data-lucide="layers" class="w-4 h-4"></i>
-		<span class="label">UmaSkill Deck</span>
-	</button>
+	<!-- ===== 画面固定ナビ（右下・折りたたみFAB） =====
+	     子要素の並び順は「上→下」＝「使用頻度の低い→高い」。メインボタンに一番近い
+	     UmaSkill Deck が最頻用。バッジの出し入れは JS の updateFabBadges() が担当する。 -->
+	<div id="fab-nav" class="uma-fab-nav">
+		<button id="fab-item-result" type="button" class="uma-fab-item" onclick="fabGoTo('result')">
+			<span>OCRの照合結果</span>
+			<span class="uma-fab-icon" style="background: var(--uma-accent-soft); color: var(--uma-accent-soft-text);">
+				<i data-lucide="list-checks" class="w-4 h-4"></i>
+				<span id="fab-dot-result" class="uma-fab-dot" hidden></span>
+			</span>
+		</button>
+
+		<button id="fab-item-stitch" type="button" class="uma-fab-item" onclick="fabGoTo('stitch')">
+			<span>画像結合レビュー</span>
+			<span class="uma-fab-icon" style="background: #fef3c6; color: var(--uma-warn-text);">
+				<i data-lucide="images" class="w-4 h-4"></i>
+				<span id="fab-dot-stitch" class="uma-fab-dot" hidden></span>
+			</span>
+		</button>
+
+		<!-- Deck へ向かうボタンだけは Deck 側のアクセント（藍）で塗り、行き先を色で示す。 -->
+		<button id="deck-drawer-trigger" type="button" class="uma-fab-item" onclick="fabOpenDeck()"
+			aria-controls="deck-drawer" aria-expanded="false">
+			<span>UmaSkill Deck</span>
+			<span class="uma-fab-icon" style="background: #eef2ff; color: #432dd7;">
+				<i data-lucide="layers" class="w-4 h-4"></i>
+			</span>
+		</button>
+
+		<button id="fab-toggle" type="button" class="uma-fab-toggle" onclick="toggleFab(event)"
+			aria-controls="fab-nav" aria-expanded="false" aria-label="ページ内ナビゲーションを開く">
+			<i data-lucide="plus" class="w-6 h-6"></i>
+		</button>
+	</div>
 
 	<div id="deck-drawer-backdrop" class="deck-drawer-backdrop" hidden onclick="closeDeckDrawer()"></div>
 

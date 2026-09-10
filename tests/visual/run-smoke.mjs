@@ -61,13 +61,54 @@ const browser = await chromium.launch();
 	assert(shown === 1, 'special: スキル名で絞り込める', shown);
 	await page.fill('#table-search', '');
 
-	// 引き出しパネル（open / closing クラス）
-	await page.click('.deck-drawer-trigger');
+	// 右下の固定ナビ（FAB）。畳んだ状態ではサブボタンが押せないことまで見る。
+	assert(await page.isVisible('#fab-toggle'), 'special: 右下ナビのメインボタンが出る');
+	assert(await page.evaluate(() => getComputedStyle(document.getElementById('deck-drawer-trigger')).pointerEvents) === 'none',
+		'special: 畳んだ状態ではサブボタンが押せない');
+	// 照合結果が出た直後なので、その行き先にだけ新着バッジが立っている
+	assert(await page.isVisible('#fab-dot-result'), 'special: 照合結果に新着バッジが出る');
+	assert(!(await page.isVisible('#fab-dot-stitch')), 'special: 画像結合には新着バッジが出ない');
+
+	await page.click('#fab-toggle');
+	await page.waitForTimeout(400);
+	assert(await page.evaluate(() => document.getElementById('fab-nav').classList.contains('open')),
+		'special: 右下ナビが開く');
+
+	// 引き出しパネル（open / closing クラス）— FAB経由で開く
+	await page.click('#deck-drawer-trigger');
 	await page.waitForTimeout(1200);
 	assert(await page.isVisible('#deck-drawer'), 'special: 引き出しが開く');
+	assert(!(await page.evaluate(() => document.getElementById('fab-nav').classList.contains('open'))),
+		'special: 遷移すると右下ナビが畳まれる');
 	await page.click('#deck-drawer-close');
 	await page.waitForTimeout(900);
 	assert(!(await page.isVisible('#deck-drawer')), 'special: 引き出しが閉じる');
+
+	// 照合結果へ飛ぶと新着バッジが消える
+	await page.click('#fab-toggle');
+	await page.waitForTimeout(300);
+	await page.click('#fab-item-result');
+	await page.waitForTimeout(600);
+	assert(!(await page.isVisible('#fab-dot-result')), 'special: 見に行くと新着バッジが消える');
+
+	// 本文の下端余白がFAB展開時の高さを吸収できているか（余白はインラインstyleで指定）
+	await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+	await page.waitForTimeout(400);
+	await page.click('#fab-toggle');
+	await page.waitForTimeout(400);
+	const bottomFit = await page.evaluate(() => {
+		const nav = document.getElementById('fab-nav').getBoundingClientRect();
+		const cards = [...document.querySelectorAll('.glass-card')];
+		return {
+			navTop: Math.round(nav.top),
+			lastBottom: Math.round(cards[cards.length - 1].getBoundingClientRect().bottom),
+		};
+	});
+	assert(bottomFit.lastBottom <= bottomFit.navTop, 'special: 最下部で本文がFABに被らない', bottomFit);
+	await page.click('#fab-toggle');
+	await page.waitForTimeout(300);
+	await page.evaluate(() => window.scrollTo(0, 0));
+	await page.waitForTimeout(300);
 
 	// 使い方ガイド・親Bセット（hidden の付け外し）
 	await page.click('button[onclick="toggleHelp()"]');

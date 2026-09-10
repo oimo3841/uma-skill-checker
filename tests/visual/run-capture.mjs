@@ -46,12 +46,18 @@ async function shot(page, name, opts = {}) {
 	await shot(page, 'special-02-results');
 	const el = await page.$('#result-wrap');
 	if (el) { await el.screenshot({ path: path.join(OUT, 'special-03-result-table.png') }); console.log('  special-03-result-table'); }
-	await page.click('.deck-drawer-trigger');
-	await shot(page, 'special-04-deck-drawer', { fullPage: false, wait: 1500 });
+	await page.click('#fab-toggle');
+	await shot(page, 'special-04-fab-open', { fullPage: false, wait: 500 });
+	await page.click('#deck-drawer-trigger');
+	await shot(page, 'special-05-deck-drawer', { fullPage: false, wait: 1500 });
 	await page.click('#deck-drawer-close');
 	await page.waitForTimeout(800);
 	await page.setViewportSize({ width: 375, height: 812 });
-	await shot(page, 'special-05-mobile375', { wait: 600 });
+	await shot(page, 'special-06-mobile375', { wait: 600 });
+	await page.click('#fab-toggle');
+	await shot(page, 'special-07-mobile375-fab-open', { fullPage: false, wait: 500 });
+	await page.click('#fab-toggle');
+	await page.waitForTimeout(300);
 	await ctx.close();
 }
 
