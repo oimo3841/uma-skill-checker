@@ -62,6 +62,49 @@
 			transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 		}
 		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
+
+		/* ===== UmaSkill Deck 引き出しパネル =====
+		   注意: 背景の暗転に opacity は使わない。opacity<1 は新しいスタッキング
+		   コンテキストを生成し、他要素の z-index 制御を壊す（F-7の実績）。
+		   半透明の背景色を持つ不透明な要素として実装する。 */
+		.deck-drawer-trigger {
+			position: fixed; right: 0; top: 50%; transform: translateY(-50%);
+			z-index: 70; display: flex; flex-direction: column; align-items: center; gap: 6px;
+			padding: 14px 8px; border: none; border-radius: 12px 0 0 12px;
+			background: #4f46e5; color: #fff; font-size: 11px; font-weight: 700; line-height: 1.4;
+			cursor: pointer; box-shadow: -2px 0 12px rgba(15, 23, 42, .18);
+			transition: background-color .2s, padding-right .2s;
+		}
+		.deck-drawer-trigger:hover { background: #4338ca; padding-right: 12px; }
+		.deck-drawer-trigger .label { writing-mode: vertical-rl; letter-spacing: .08em; }
+
+		.deck-drawer-backdrop {
+			position: fixed; inset: 0; z-index: 90;
+			background: rgba(15, 23, 42, .45);
+			transition: background-color .3s ease;
+		}
+		.deck-drawer-backdrop[hidden] { display: none !important; }
+		.deck-drawer-backdrop.closing { background: rgba(15, 23, 42, 0); }
+
+		.deck-drawer {
+			position: fixed; top: 0; right: 0; z-index: 100;
+			width: min(92vw, 820px); height: 100%;
+			display: flex; flex-direction: column;
+			background: #f5f6fb; box-shadow: -8px 0 32px rgba(15, 23, 42, .25);
+			transform: translateX(100%);
+			transition: transform .3s cubic-bezier(0.16, 1, 0.3, 1);
+		}
+		.deck-drawer[hidden] { display: none !important; }
+		.deck-drawer.open { transform: translateX(0); }
+		.deck-drawer-header {
+			flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+			gap: 12px; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;
+		}
+		.deck-drawer-body { flex: 1; min-height: 0; background: #f5f6fb; }
+		.deck-drawer-body iframe { width: 100%; height: 100%; border: 0; display: block; }
+		@media (prefers-reduced-motion: reduce) {
+			.deck-drawer, .deck-drawer-backdrop { transition: none !important; }
+		}
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-green-600 selection:text-white">
@@ -1119,6 +1162,7 @@
 			renderPreview();
 			renderDevLog();
 			renderDeckSavePanel();
+			writeOcrHandoff();
 		}
 
 		function starBadge(stars) {
@@ -1805,6 +1849,174 @@
 			document.getElementById('deck-record-select').value = recordId;
 			renderDeckAssignRows();
 		}
+
+		/* ============================================================
+		 * UmaSkill Deck 引き出しパネル（スライドオーバー）
+		 *
+		 * uma-skill-deck.html を iframe で読み込むだけで、あちらのファイルは変更していない。
+		 * 同一オリジンのため localStorage はそのまま共有され、パネル内で編集した
+		 * テンプレート・比較シートは、この画面のDeck連携モードにも反映される。
+		 * ============================================================ */
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-10c';
+		let deckDrawerOpen = false;
+		// iframeを読み込んだ時点の保存データ。パネルを開き直したときに
+		// 中身が古くなっていないかを判定するために使う。
+		let deckDrawerDataSnapshot = null;
+		let deckDrawerCloseTimer = null;
+
+		function currentDeckDataSnapshot() {
+			try { return localStorage.getItem('umaSkillDeck:userData') || ''; } catch (e) { return ''; }
+		}
+
+		function openDeckDrawer() {
+			if (deckDrawerOpen) return;
+			deckDrawerOpen = true;
+			clearTimeout(deckDrawerCloseTimer);
+
+			const drawer = document.getElementById('deck-drawer');
+			const backdrop = document.getElementById('deck-drawer-backdrop');
+			const frame = document.getElementById('deck-drawer-frame');
+
+			if (!frame.getAttribute('src')) {
+				// 初回だけ読み込む（既定の利用では余計な通信を発生させない）
+				frame.addEventListener('load', () => { deckDrawerDataSnapshot = currentDeckDataSnapshot(); });
+				frame.setAttribute('src', DECK_DRAWER_FRAME_SRC);
+			} else if (deckDrawerDataSnapshot !== currentDeckDataSnapshot()) {
+				// 閉じている間にこちら側でデータが変わっていたら、開くときに読み直す
+				try { frame.contentWindow.location.reload(); } catch (e) { frame.setAttribute('src', DECK_DRAWER_FRAME_SRC); }
+			}
+
+			backdrop.hidden = false;
+			drawer.hidden = false;
+			// hidden を外した直後に .open を付けてもトランジションが走らないため、
+			// 一度レイアウトを確定させてからクラスを付ける。
+			void drawer.offsetWidth;
+			drawer.classList.add('open');
+			backdrop.classList.remove('closing');
+			document.body.style.overflow = 'hidden';
+			document.getElementById('deck-drawer-trigger').setAttribute('aria-expanded', 'true');
+			document.getElementById('deck-drawer-close').focus();
+			if (window.lucide) lucide.createIcons();
+		}
+
+		function closeDeckDrawer() {
+			if (!deckDrawerOpen) return;
+			deckDrawerOpen = false;
+
+			const drawer = document.getElementById('deck-drawer');
+			const backdrop = document.getElementById('deck-drawer-backdrop');
+			drawer.classList.remove('open');
+			backdrop.classList.add('closing');
+			document.body.style.overflow = '';
+			const trigger = document.getElementById('deck-drawer-trigger');
+			trigger.setAttribute('aria-expanded', 'false');
+			trigger.focus();
+
+			// 閉じるアニメーションが終わってから非表示にする。
+			// transitionend が来ないことがあるので、保険のタイマーも置く。
+			const finish = () => {
+				if (deckDrawerOpen) return; // 閉じ切る前に開き直された
+				drawer.hidden = true;
+				backdrop.hidden = true;
+			};
+			drawer.addEventListener('transitionend', finish, { once: true });
+			clearTimeout(deckDrawerCloseTimer);
+			deckDrawerCloseTimer = setTimeout(finish, 400);
+
+			refreshDeckStateAfterDrawer();
+		}
+
+		// パネル内で編集された内容を、この画面側の状態に取り込み直す。
+		// 親とiframeはそれぞれ独立してデータを読み込んでいるため、
+		// 閉じたタイミングで読み直さないと古い内容を掴んだままになる。
+		function refreshDeckStateAfterDrawer() {
+			deckDrawerDataSnapshot = currentDeckDataSnapshot();
+			if (!deckMasterLoaded || !deckTemplateManager) return;
+			UmaSkillDeckCore.reloadUserData();
+			deckTemplateManager.closeEditor();
+			onDeckScopeSelected(deckTemplateManager.getSelection());
+		}
+
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape' && deckDrawerOpen) closeDeckDrawer();
+		});
+
+		/* ============================================================
+		 * OCR結果の受け渡し（UmaSkill Deck側で取り込む）
+		 *
+		 * 判定が終わるたびに、スキル名と★の数を専用のlocalStorageキーへ書き出す。
+		 * 反映は自動では行わず、Deck側が「読み込む」ボタンを出して利用者が
+		 * 選んだときだけ取り込む（取り込み口は js/uma-skill-deck.js 側）。
+		 *
+		 * スキルIDではなく名前で渡しているのは、Deck連携モードを使わずに
+		 * 手入力リストで判定した結果も持ち込めるようにするため。
+		 * ============================================================ */
+		// ※ 同じキー名が js/uma-skill-deck.js の受け取り側にもある。
+		//    片方を変えるときは必ず両方を直すこと。
+		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:special';
+
+		function writeOcrHandoff() {
+			const used = activePersonIndexes();
+			if (used.length === 0 || skillList.length === 0) return;
+
+			const persons = used.map(i => {
+				const stars = {};
+				const unknownStars = [];
+				skillList.forEach(name => {
+					const v = starsFor(i, name);
+					if (v === undefined) return;              // 未検出
+					if (v === null) { unknownStars.push(name); return; } // 検出したが★不明
+					stars[name] = v;
+				});
+				return { index: i, label: PERSON_LABELS[i], stars: stars, unknownStars: unknownStars };
+			});
+
+			const scope = (deckMode && deckScope)
+				? { kind: deckScope.kind, id: deckScope.kind === 'template' ? deckScope.id : '', name: deckScope.name }
+				: { kind: 'manual', id: '', name: '手入力のスキルリスト' };
+
+			const payload = {
+				schemaVersion: 1,
+				handoffId: 'ho_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
+				createdAt: new Date().toISOString(),
+				source: 'special',
+				scope: scope,
+				skillNames: skillList.slice(),
+				persons: persons
+			};
+			try {
+				localStorage.setItem(OCR_HANDOFF_STORAGE_KEY, JSON.stringify(payload));
+			} catch (e) {
+				// 容量超過など。連携は諦めるが、画面上の結果表示は通常どおり続ける。
+			}
+		}
 	</script>
+	<!-- ===== UmaSkill Deck 引き出しパネル =====
+	     uma-skill-deck.html を iframe で読み込むだけで、あちらのファイルには手を入れていない。
+	     同一オリジンなので localStorage はそのまま共有される。 -->
+	<button id="deck-drawer-trigger" type="button" class="deck-drawer-trigger" onclick="openDeckDrawer()" aria-controls="deck-drawer" aria-expanded="false">
+		<i data-lucide="layers" class="w-4 h-4"></i>
+		<span class="label">UmaSkill Deck</span>
+	</button>
+
+	<div id="deck-drawer-backdrop" class="deck-drawer-backdrop" hidden onclick="closeDeckDrawer()"></div>
+
+	<aside id="deck-drawer" class="deck-drawer" hidden role="dialog" aria-modal="true" aria-label="UmaSkill Deck">
+		<div class="deck-drawer-header">
+			<div class="flex items-center gap-2 min-w-0">
+				<i data-lucide="layers" class="w-4 h-4 text-indigo-600 shrink-0"></i>
+				<p class="text-sm font-bold text-slate-800 truncate">UmaSkill Deck</p>
+				<span class="text-[11px] text-slate-400 truncate hidden sm:inline">テンプレートと比較シートをここで編集できます</span>
+			</div>
+			<button id="deck-drawer-close" type="button" onclick="closeDeckDrawer()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">
+				<i data-lucide="x" class="w-3.5 h-3.5"></i>
+				<span>閉じる</span>
+			</button>
+		</div>
+		<div class="deck-drawer-body">
+			<iframe id="deck-drawer-frame" title="UmaSkill Deck" loading="lazy"></iframe>
+		</div>
+	</aside>
+
 </body>
 </html>

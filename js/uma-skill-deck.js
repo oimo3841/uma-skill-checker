@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-10b';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-10c';
 
 /* ============================================================
  * 共有モジュールへの参照・そこから借りる定数
@@ -475,6 +475,334 @@ async function refreshMasterData() {
 }
 
 /* ============================================================
+ * UmaStar OCR からの受け取り口（付加機能）
+ *
+ * special.html が判定結果を専用のlocalStorageキーへ書き出す。ここではそれを
+ * 見つけたらバナーを出し、利用者が「読み込む」を押したときだけ取り込む。
+ * 自動では反映しない。
+ *
+ * 設計上の約束:
+ * - この節は既存のテンプレート／比較シート／インポート・エクスポートのロジックに
+ *   一切手を入れない。書き込みは共有モジュールの applyStarAssignments() を
+ *   そのまま呼ぶだけで、新しい書き込み処理は作らない（上書き確認もそちらに任せる）。
+ * - uma-skill-deck.html は変更しないため、バナーとダイアログのDOMは
+ *   このファイルが実行時に生成して差し込む。
+ * - special.html の引き出しパネル（iframe）越しでも、このページを単独で
+ *   開いたときでも、同じように動く。
+ * ============================================================ */
+
+// ※ 同じキー名が special.html の書き出し側にもある。
+//    片方を変えるときは必ず両方を直すこと。
+const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:special';
+
+// 「今回は読まない」と閉じられた受け渡しデータのID（メモリのみ。再読込で戻る）
+let dismissedHandoffId = null;
+let ocrImportModal = null;
+
+function readOcrHandoff() {
+	try {
+		const raw = localStorage.getItem(OCR_HANDOFF_STORAGE_KEY);
+		if (!raw) return null;
+		const parsed = JSON.parse(raw);
+		if (!parsed || !Array.isArray(parsed.persons) || !Array.isArray(parsed.skillNames)) return null;
+		return parsed;
+	} catch (e) {
+		return null;
+	}
+}
+
+function markOcrHandoffImported(payload) {
+	payload.imported = true;
+	payload.importedAt = nowIso();
+	try { localStorage.setItem(OCR_HANDOFF_STORAGE_KEY, JSON.stringify(payload)); } catch (e) {}
+}
+
+function injectOcrHandoffStyles() {
+	if (document.getElementById('ocr-handoff-styles')) return;
+	const style = document.createElement('style');
+	style.id = 'ocr-handoff-styles';
+	style.textContent = [
+		'.ocr-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;',
+		'  border: 1px solid #c7d2fe; background: #eef2ff; border-radius: .75rem; padding: 10px 14px; margin-bottom: 1rem; }',
+		'.ocr-banner[hidden] { display: none !important; }',
+		'.ocr-banner-title { font-size: 13px; font-weight: 700; color: #3730a3; }',
+		'.ocr-banner-sub { font-size: 11px; color: #6366f1; }',
+		'.ocr-banner-actions { display: flex; gap: 6px; flex-shrink: 0; }',
+		'.ocr-btn-primary { padding: 6px 14px; border-radius: .625rem; background: #4f46e5; color: #fff; font-size: 12px; font-weight: 600; border: none; cursor: pointer; }',
+		'.ocr-btn-ghost { padding: 6px 12px; border-radius: .625rem; background: #fff; color: #475569; font-size: 12px; font-weight: 600; border: 1px solid #e2e8f0; cursor: pointer; }',
+		'.ocr-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: .625rem; background: #fff; margin-bottom: 6px; }',
+		'.ocr-row-label { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: .5rem; background: #e0e7ff; color: #3730a3; flex-shrink: 0; }',
+		'.ocr-row-note { font-size: 11px; color: #64748b; flex-shrink: 0; }',
+		'.ocr-select { flex: 1; min-width: 180px; font-size: 12px; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: .5rem; background: #fff; }',
+		'.ocr-label-input { width: 110px; font-size: 12px; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: .5rem; background: #fff; }',
+		'.ocr-warn { border: 1px solid #fcd34d; background: #fffbeb; color: #92400e; font-size: 11px; border-radius: .625rem; padding: 8px 10px; margin-top: 10px; white-space: pre-line; }'
+	].join('\n');
+	document.head.appendChild(style);
+}
+
+function ensureOcrHandoffBanner() {
+	let el = document.getElementById('ocr-handoff-banner');
+	if (el) return el;
+	injectOcrHandoffStyles();
+	el = document.createElement('div');
+	el.id = 'ocr-handoff-banner';
+	el.className = 'ocr-banner';
+	el.hidden = true;
+	el.innerHTML = '' +
+		'<div class="flex items-center gap-2.5 min-w-0">' +
+			'<i data-lucide="download" class="w-4 h-4 text-indigo-600 shrink-0"></i>' +
+			'<div class="min-w-0">' +
+				'<p class="ocr-banner-title">UmaStar OCRの判定結果があります</p>' +
+				'<p class="ocr-banner-sub" data-ocr-el="summary"></p>' +
+			'</div>' +
+		'</div>' +
+		'<div class="ocr-banner-actions">' +
+			'<button type="button" class="ocr-btn-primary" data-ocr-act="import">読み込む</button>' +
+			'<button type="button" class="ocr-btn-ghost" data-ocr-act="dismiss">閉じる</button>' +
+		'</div>';
+	// タブ切り替えの直下（どのタブを開いていても見える位置）に差し込む
+	const nav = document.getElementById('tab-btn-template').closest('nav');
+	nav.insertAdjacentElement('afterend', el);
+	el.addEventListener('click', (e) => {
+		const btn = e.target.closest('[data-ocr-act]');
+		if (!btn) return;
+		if (btn.dataset.ocrAct === 'import') openOcrImportDialog();
+		else if (btn.dataset.ocrAct === 'dismiss') {
+			const p = readOcrHandoff();
+			dismissedHandoffId = p ? p.handoffId : null;
+			renderOcrHandoffBanner();
+		}
+	});
+	return el;
+}
+
+function renderOcrHandoffBanner() {
+	const el = ensureOcrHandoffBanner();
+	const p = readOcrHandoff();
+	if (!p || p.imported || p.handoffId === dismissedHandoffId) { el.hidden = true; return; }
+	const when = String(p.createdAt || '').replace('T', ' ').slice(0, 16);
+	const who = p.persons.map(x => x.label).join('・');
+	const scopeName = (p.scope && p.scope.name) ? p.scope.name : '';
+	el.querySelector('[data-ocr-el="summary"]').textContent =
+		who + ' の' + p.persons.length + '人分・' + when + (scopeName ? '（対象：' + scopeName + '）' : '');
+	el.hidden = false;
+	refreshIcons();
+}
+
+/**
+ * 受け渡しデータのスキル名を、このツールのスキルIDへ解決する。
+ * 共有モジュールの一括貼り付け用マッチングをそのまま使い、
+ * **完全一致したものだけ**を採用する（曖昧なものを黙って当てはめない）。
+ */
+function resolveHandoffSkills(payload) {
+	const res = Core.matchPastedSkillText(payload.skillNames.join('\n'));
+	const idByNorm = {};
+	res.rows.forEach(r => {
+		if (r.kind === 'exact') idByNorm[Core.normalizeSkillText(r.raw)] = r.matchedId;
+	});
+	const resolved = [];
+	const unresolved = [];
+	payload.skillNames.forEach(name => {
+		const id = idByNorm[Core.normalizeSkillText(name)];
+		if (id) resolved.push({ name: name, id: id });
+		else unresolved.push(name);
+	});
+	return { resolved: resolved, unresolved: unresolved };
+}
+
+function openOcrImportDialog() {
+	const payload = readOcrHandoff();
+	if (!payload) { showToast('読み込めるデータがありません'); return; }
+	const skills = resolveHandoffSkills(payload);
+	if (skills.resolved.length === 0) {
+		showToast('このツールに登録されているスキルと一致しませんでした');
+		return;
+	}
+
+	injectOcrHandoffStyles();
+	if (!ocrImportModal) {
+		ocrImportModal = document.createElement('div');
+		ocrImportModal.className = 'usd-modal';
+		ocrImportModal.hidden = true;
+		document.body.appendChild(ocrImportModal);
+		ocrImportModal.addEventListener('click', (e) => {
+			if (e.target === ocrImportModal) { closeOcrImportDialog(); return; }
+			const btn = e.target.closest('[data-ocr-act]');
+			if (!btn) return;
+			if (btn.dataset.ocrAct === 'close') closeOcrImportDialog();
+			else if (btn.dataset.ocrAct === 'apply') applyOcrImport();
+		});
+		ocrImportModal.addEventListener('change', (e) => {
+			if (e.target.dataset.ocrEl === 'record-select') renderOcrImportRows();
+			else if (e.target.dataset.ocrEl === 'person-select') {
+				const input = ocrImportModal.querySelector('[data-ocr-el="person-label"][data-person="' + e.target.dataset.person + '"]');
+				if (input) input.hidden = e.target.value !== '__new__';
+			}
+		});
+	}
+	ocrImportModal._payload = payload;
+	ocrImportModal._skills = skills;
+
+	const warn = skills.unresolved.length > 0
+		? '<div class="ocr-warn">次の' + skills.unresolved.length + '件は、このツールのスキル一覧に見つからなかったため取り込みません。\n・'
+			+ skills.unresolved.map(escapeHtml).join('\n・') + '</div>'
+		: '';
+
+	ocrImportModal.innerHTML = '' +
+		'<div class="usd-modal-panel">' +
+			'<div class="flex items-center justify-between p-4 border-b border-slate-200" style="flex-shrink:0;">' +
+				'<p class="text-sm font-semibold text-slate-700">UmaStar OCRの結果を読み込む</p>' +
+				'<button type="button" class="usd-icon-btn" data-ocr-act="close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>' +
+			'</div>' +
+			'<div class="p-4" style="overflow:auto;">' +
+				'<p class="text-xs text-slate-500 mb-3">' + escapeHtml(payload.persons.map(x => x.label).join('・')) +
+					' の' + payload.persons.length + '人分・スキル' + skills.resolved.length + '件を取り込みます。' +
+					'保存は1人＝1候補まるごとです（選んだ候補の★は、対象スキルぶん置き換わります）。</p>' +
+				'<label class="block text-xs font-semibold text-slate-700 mb-1.5">取り込み先の比較シート</label>' +
+				'<select class="ocr-select" style="width:100%;" data-ocr-el="record-select"></select>' +
+				'<input type="text" class="ocr-label-input" style="width:100%;margin-top:6px;" data-ocr-el="record-name" placeholder="新しい比較シートの名前" hidden />' +
+				'<label class="block text-xs font-semibold text-slate-700 mt-4 mb-1.5">それぞれの取り込み先の候補</label>' +
+				'<div data-ocr-el="rows"></div>' +
+				warn +
+				'<button type="button" class="ocr-btn-primary" style="width:100%;margin-top:14px;padding:10px;" data-ocr-act="apply">この内容で取り込む</button>' +
+			'</div>' +
+		'</div>';
+
+	// 取り込み先シートの選択肢
+	const sel = ocrImportModal.querySelector('[data-ocr-el="record-select"]');
+	const summaries = Core.listRecordSummaries();
+	const opts = ['<option value="__new__">＋ 新しい比較シートを作成する</option>'];
+	summaries.forEach(r => {
+		opts.push('<option value="' + escapeHtml(r.recordId) + '">' + escapeHtml(r.name + '（候補' + r.candidateCount + '人・スキル' + r.skillCount + '件）') + '</option>');
+	});
+	sel.innerHTML = opts.join('');
+	// 送り元がテンプレートなら、そこから作られたシートを既定にする
+	const same = (payload.scope && payload.scope.id)
+		? summaries.find(r => r.sourceTemplateId === payload.scope.id) : null;
+	sel.value = same ? same.recordId : '__new__';
+
+	renderOcrImportRows();
+	ocrImportModal.hidden = false;
+	refreshIcons();
+}
+
+function renderOcrImportRows() {
+	const payload = ocrImportModal._payload;
+	const recordId = ocrImportModal.querySelector('[data-ocr-el="record-select"]').value;
+	const isNew = recordId === '__new__';
+
+	const nameInput = ocrImportModal.querySelector('[data-ocr-el="record-name"]');
+	nameInput.hidden = !isNew;
+	if (isNew && !nameInput.value) {
+		nameInput.value = ((payload.scope && payload.scope.name) ? payload.scope.name : 'OCR結果') + ' 候補比較';
+	}
+
+	const candidates = isNew ? [] : Core.listCandidateSummaries(recordId);
+	const rows = ocrImportModal.querySelector('[data-ocr-el="rows"]');
+	rows.innerHTML = payload.persons.map(p => {
+		const match = candidates.find(c => c.label === p.label);
+		const def = match ? match.candidateId : '__new__';
+		const opts = ['<option value="__skip__">取り込まない</option>',
+			'<option value="__new__"' + (def === '__new__' ? ' selected' : '') + '>＋ 新しい候補として追加</option>']
+			.concat(candidates.map(c =>
+				'<option value="' + escapeHtml(c.candidateId) + '"' + (def === c.candidateId ? ' selected' : '') + '>'
+				+ escapeHtml(c.label + '（現在★' + c.filledCount + '件）に上書き') + '</option>'));
+		const detected = Object.keys(p.stars || {}).length;
+		const unknown = (p.unknownStars || []).length;
+		return '' +
+		'<div class="ocr-row">' +
+			'<span class="ocr-row-label">' + escapeHtml(p.label) + '</span>' +
+			'<span class="ocr-row-note">検出' + (detected + unknown) + '件'
+				+ (unknown > 0 ? ' / <span style="color:#b45309;font-weight:600;">★不明' + unknown + '件</span>' : '') + '</span>' +
+			'<select class="ocr-select" data-ocr-el="person-select" data-person="' + p.index + '">' + opts.join('') + '</select>' +
+			'<input type="text" class="ocr-label-input" data-ocr-el="person-label" data-person="' + p.index + '" value="' + escapeHtml(p.label) + '" placeholder="候補名"' + (def === '__new__' ? '' : ' hidden') + ' />' +
+		'</div>';
+	}).join('');
+}
+
+function closeOcrImportDialog() {
+	if (ocrImportModal) ocrImportModal.hidden = true;
+}
+
+function applyOcrImport() {
+	const payload = ocrImportModal._payload;
+	const skills = ocrImportModal._skills;
+
+	// 先に「何を書くか」を作る。取り込む人が0人なら、比較シートを作る前に止める。
+	const specs = [];
+	payload.persons.forEach(p => {
+		const sel = ocrImportModal.querySelector('[data-ocr-el="person-select"][data-person="' + p.index + '"]');
+		if (!sel || sel.value === '__skip__') return;
+		const stars = {};
+		skills.resolved.forEach(x => {
+			const v = (p.stars || {})[x.name];
+			// ★を確定できなかったスキル（unknownStars）と未検出はどちらも0。
+			// 0で保存されることは取り込み画面の注意書きで知らせている。
+			stars[x.id] = (typeof v === 'number') ? v : 0;
+		});
+		if (sel.value === '__new__') {
+			const input = ocrImportModal.querySelector('[data-ocr-el="person-label"][data-person="' + p.index + '"]');
+			const label = ((input && input.value) || '').trim() || p.label;
+			specs.push({ newLabel: label, stars: stars });
+		} else {
+			specs.push({ candidateId: sel.value, stars: stars });
+		}
+	});
+	if (specs.length === 0) { showToast('取り込む人を1人以上選んでください'); return; }
+	// 同じ候補を2人に割り当てると先の人の★が黙って消えるため、保存せずに知らせる。
+	const usedIds = specs.map(x => x.candidateId).filter(Boolean);
+	if (new Set(usedIds).size !== usedIds.length) {
+		showToast('同じ候補が複数の人に指定されています。別々の候補を選んでください');
+		return;
+	}
+
+	let recordId = ocrImportModal.querySelector('[data-ocr-el="record-select"]').value;
+	if (recordId === '__new__') {
+		if (!Core.canCreateRecord()) {
+			showToast('比較シートは最大' + RECORD_LIMIT + '件までです。不要なものを削除してください');
+			return;
+		}
+		const rec = Core.createRecord({
+			name: ocrImportModal.querySelector('[data-ocr-el="record-name"]').value,
+			skillIds: skills.resolved.map(x => x.id),
+			sourceTemplateId: (payload.scope && payload.scope.kind === 'template') ? payload.scope.id : ''
+		});
+		if (!rec) return;
+		recordId = rec.recordId;
+	}
+
+	const res = Core.applyStarAssignments(recordId, specs);
+	if (!res.ok) {
+		showToast(res.cancelled ? '取り込みを中止しました（データは変更していません）' : '取り込めませんでした');
+		return;
+	}
+
+	markOcrHandoffImported(payload);
+	closeOcrImportDialog();
+	userData = Core.getUserData();
+	draftRecord = null;
+	renderAll();
+	renderOcrHandoffBanner();
+	switchTab('record');
+	const parts = [res.written + '人分を取り込みました'];
+	if (res.skippedSkillIds.length > 0) parts.push('（' + res.skippedSkillIds.length + '件はシートに無いスキルのため対象外）');
+	showToast(parts.join(''));
+}
+
+function initOcrHandoff() {
+	renderOcrHandoffBanner();
+	// 同一オリジンの別ウィンドウ（special.htmlの引き出しパネルの親側）で
+	// 書き込みがあると、このイベントが飛んでくる。ポーリングは不要。
+	window.addEventListener('storage', (e) => {
+		if (e.key && e.key !== OCR_HANDOFF_STORAGE_KEY) return;
+		renderOcrHandoffBanner();
+	});
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape' && ocrImportModal && !ocrImportModal.hidden) closeOcrImportDialog();
+	});
+}
+
+/* ============================================================
  * 初期化
  * ============================================================ */
 function renderAll() {
@@ -495,6 +823,7 @@ async function initApp() {
 		onChange: () => { renderRecordTab(); renderDataTab(); }
 	});
 	renderAll();
+	initOcrHandoff();
 	refreshIcons();
 }
 
