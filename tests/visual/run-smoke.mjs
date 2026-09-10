@@ -6,7 +6,7 @@
 // 見た目の統一作業で最も壊れやすいのがここで、目視では気付きにくい。
 import { chromium } from 'playwright';
 import { startServer } from './lib/serve.mjs';
-import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, PICK } from './lib/fixtures.mjs';
+import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, PICK, EDITED_CELLS, USER_DATA } from './lib/fixtures.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -207,7 +207,9 @@ const browser = await chromium.launch();
 
 	// aria-label が「スキル名／候補名 Lv2」の形で現在値に追従する。
 	const label = await page.getAttribute(TILE, 'aria-label');
-	assert(/Lv2$/.test(label) && label.includes('／'), 'deck: aria-label が Lv付きで現在値に追従する', label);
+	// 末尾には「（手動修正済み）」が付くことがあるので、Lv の直後までを見る。
+	assert(/Lv2(（手動修正済み）)?$/.test(label) && label.includes('／'),
+		'deck: aria-label が Lv付きで現在値に追従する', label);
 	await page.evaluate(() => setStar('1', 'c_a', 1));
 
 	// div/Grid 構造であること（<table> をやめた）。縦の罫線は引かない。
@@ -331,6 +333,209 @@ const browser = await chromium.launch();
 	assert(dis.count > 0 && dis.cellOpacity === '1' && dis.tileOpacity === '1'
 		&& dis.cellColor === 'rgb(144, 161, 185)',
 		'deck: 無効列は実色だけで薄くなる（opacity不使用）', dis);
+
+	// ---- 手動修正の可視化 ----
+	// 判定は「OCRの原本値(ocrCells)と現在値(cells)が食い違うか」だけ。
+	// フィクスチャは候補 c_a だけをOCRに通した想定で、そのうち2セルを食い違わせてある。
+	// ここまでのテストで値を動かしているので、フィクスチャの状態に戻してから見る。
+	await page.evaluate((r) => {
+		draftRecord.cells = JSON.parse(JSON.stringify(r.cells));
+		draftRecord.ocrCells = JSON.parse(JSON.stringify(r.ocrCells));
+		renderRecordGrid();
+	}, { cells: USER_DATA.records[0].cells, ocrCells: USER_DATA.records[0].ocrCells });
+	await page.waitForTimeout(300);
+	const editedState = await page.evaluate((expected) => {
+		const marked = [...document.querySelectorAll('.star-tile.is-edited')].map((t) => t.id);
+		return {
+			marked,
+			expected: expected.map((e) => `star-${e.skillId}-${e.candidateId}`),
+			// OCRを通していない列（c_b / c_c）には1つも付かないこと
+			onUnscanned: marked.filter((id) => id.endsWith('-c_b') || id.endsWith('-c_c')).length,
+		};
+	}, EDITED_CELLS);
+	assert(editedState.marked.slice().sort().join() === editedState.expected.slice().sort().join()
+		&& editedState.onUnscanned === 0,
+		'deck: 原本値と食い違うセルだけに赤枠が付く', editedState);
+
+	// 値0でも、原本値と違えば枠が付く（依頼の要件）。
+	const zeroEdited = await page.evaluate((e) => {
+		const t = document.getElementById(`star-${e.skillId}-${e.candidateId}`);
+		return { value: t.dataset.value, edited: t.classList.contains('is-edited'), label: t.getAttribute('aria-label') };
+	}, EDITED_CELLS[1]);
+	assert(zeroEdited.value === '0' && zeroEdited.edited && /手動修正済み/.test(zeroEdited.label),
+		'deck: 値0でも原本値と違えば枠が付き、読み上げにも出る', zeroEdited);
+
+	// 枠は色相だけに頼らず「形の違い」で分かること。inset の box-shadow で描き、
+	// border ではないこと（borderだとタイルの内寸が変わり★の位置がずれる）。
+	const ring = await page.evaluate((e) => {
+		const t = document.getElementById(`star-${e.skillId}-${e.candidateId}`);
+		const s = getComputedStyle(t);
+		return { shadow: s.boxShadow, borderWidth: s.borderTopWidth, w: t.offsetWidth, h: t.offsetHeight };
+	}, EDITED_CELLS[0]);
+	const plainSize = await page.evaluate(() => {
+		const t = document.querySelector('.star-tile:not(.is-edited)');
+		return { w: t.offsetWidth, h: t.offsetHeight };
+	});
+	assert(ring.shadow.includes('inset') && ring.borderWidth === '0px'
+		&& ring.w === plainSize.w && ring.h === plainSize.h,
+		'deck: 赤枠はinsetの影で描かれ、タイルの寸法を変えない', { ring, plainSize });
+
+	// 元のOCR値に戻すと枠が消え、もう一度動かすと復活する。
+	const roundTrip = await page.evaluate((e) => {
+		const id = `star-${e.skillId}-${e.candidateId}`;
+		const orig = draftRecord.ocrCells[e.skillId][e.candidateId];
+		setStar(e.skillId, e.candidateId, orig);
+		const backToOrig = document.getElementById(id).classList.contains('is-edited');
+		setStar(e.skillId, e.candidateId, (orig + 1) % 4);
+		const movedAgain = document.getElementById(id).classList.contains('is-edited');
+		return { orig, backToOrig, movedAgain };
+	}, EDITED_CELLS[0]);
+	assert(roundTrip.backToOrig === false && roundTrip.movedAgain === true,
+		'deck: 元のOCR値に戻すと枠が消え、動かすと復活する', roundTrip);
+
+	// ★書き込み（OCR取り込み）が原本値も一緒に記録すること。
+	// 手入力（setStar）は原本値に触らない＝ズレが検出できる、という前提の確認でもある。
+	const ocrWrite = await page.evaluate((recordId) => {
+		const rec = UmaSkillDeckCore.getUserData().records.find((r) => r.recordId === recordId);
+		const sid = rec.skillIds[0];
+		// 既に値の入っている候補への上書きは確認ダイアログが出る。
+		// Playwright は既定でダイアログを打ち消す（=キャンセル扱い）ので、ここだけ通す。
+		const realConfirm = window.confirm;
+		window.confirm = () => true;
+		UmaSkillDeckCore.applyStarAssignments(recordId, [{ candidateId: 'c_b', stars: { [sid]: 3 } }]);
+		window.confirm = realConfirm;
+		const afterOcr = {
+			cur: rec.cells[sid].c_b, orig: rec.ocrCells[sid].c_b,
+			edited: UmaSkillDeckCore.isEditedCell(rec, sid, 'c_b'),
+			// OCR結果に含まれなかったスキルも0で原本値が入る（列まるごと置き換えのため）
+			otherOrig: rec.ocrCells[rec.skillIds[1]].c_b,
+		};
+		// 手で動かすと原本値はそのまま、現在値だけ変わる
+		rec.cells[sid].c_b = 1;
+		return { afterOcr, afterManual: { cur: rec.cells[sid].c_b, orig: rec.ocrCells[sid].c_b, edited: UmaSkillDeckCore.isEditedCell(rec, sid, 'c_b') } };
+	}, RECORD_ID);
+	assert(ocrWrite.afterOcr.cur === 3 && ocrWrite.afterOcr.orig === 3 && ocrWrite.afterOcr.edited === false
+		&& ocrWrite.afterOcr.otherOrig === 0,
+		'deck: OCR取り込みが原本値も記録し、直後は枠が付かない', ocrWrite.afterOcr);
+	assert(ocrWrite.afterManual.orig === 3 && ocrWrite.afterManual.cur === 1 && ocrWrite.afterManual.edited === true,
+		'deck: 手入力は原本値に触らないのでズレが検出できる', ocrWrite.afterManual);
+
+	// 原本値を持たない古いデータ（ocrCells なし）でも枠が付かず、落ちないこと。
+	const legacy = await page.evaluate(() => {
+		const rec = { cells: { s1: { c1: 2 } } };  // ocrCells が無い＝schemaVersion 1 相当
+		return {
+			noOcr: UmaSkillDeckCore.isEditedCell(rec, 's1', 'c1'),
+			unknownCell: UmaSkillDeckCore.isEditedCell({ cells: {}, ocrCells: { s1: {} } }, 's1', 'c1'),
+		};
+	});
+	assert(legacy.noOcr === false && legacy.unknownCell === false,
+		'deck: 原本値が無い既存データでも枠が付かない（移行処理が要らない）', legacy);
+
+	// Undo。列を消して戻したとき、現在値だけでなく原本値も一緒に戻ること。
+	// 片方だけ戻すと「手動修正済み」の判定だけが壊れる。
+	await page.evaluate(() => { UmaSkillDeckCore.clearUndo(); openRecordEditor(draftRecord.recordId); });
+	await page.waitForTimeout(300);
+	const undoOcr = await page.evaluate((e) => {
+		// 復元は元のキー順を保たない（消して足し直すため）ので、順序を正規化して比べる。
+		const norm = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, Object.keys(o[k]).sort().map((c) => [c, o[k][c]])]));
+		const before = norm(draftRecord.ocrCells);
+		removeCandidate(e.candidateId);
+		const afterDelete = norm(draftRecord.ocrCells);
+		performUndo();
+		return { restored: norm(draftRecord.ocrCells) === before, changed: afterDelete !== before };
+	}, EDITED_CELLS[0]);
+	assert(undoOcr.changed && undoOcr.restored,
+		'deck: 列削除→Undoで原本値も一緒に戻る', undoOcr);
+	await page.waitForTimeout(300);
+
+	// 候補を全員消して0人にしても表示が崩れないこと。
+	// repeat() は0を受け付けないので、候補0人のときは列定義を差し替えている。
+	// 列の数と、行ごとに出すセルの数が食い違うと、セルが隣の列へずれて重なる。
+	const noCand = await page.evaluate(() => {
+		draftRecord.candidates.slice().forEach((c) => removeCandidate(c.candidateId));
+		const grid = document.querySelector('.deck-grid');
+		const cols = getComputedStyle(grid).gridTemplateColumns.split(' ').length;
+		// 1行ぶんのセル数（情報セル ＋ 余り列）
+		const perRow = [...grid.children].filter((el) => el.classList.contains('deck-info')
+			|| (!el.classList.contains('deck-head') && !el.querySelector('.star-tile'))).length
+			/ Math.max(1, document.querySelectorAll('.deck-info').length);
+		const infos = [...document.querySelectorAll('.deck-info')];
+		return {
+			candidates: draftRecord.candidates.length,
+			cols,
+			perRow,
+			noCandClass: grid.classList.contains('deck-grid--no-cand'),
+			// 情報セルが全部そろって左端に並んでいること（ずれると x がばらつく）
+			distinctLeft: new Set(infos.map((el) => Math.round(el.getBoundingClientRect().left))).size,
+			rows: infos.length,
+			// 行が重なっていないこと（隣り合う行の上端が単調増加）
+			overlapped: infos.slice(1).filter((el, i) =>
+				el.getBoundingClientRect().top <= infos[i].getBoundingClientRect().top).length,
+		};
+	});
+	assert(noCand.candidates === 0 && noCand.noCandClass && noCand.cols === 2
+		&& noCand.perRow === 2 && noCand.distinctLeft === 1 && noCand.overlapped === 0,
+		'deck: 候補0人でも列がずれず、行が重ならない', noCand);
+
+	// 候補を戻すと元の列数に復帰すること。
+	await page.evaluate(() => {
+		document.getElementById('candidate-label-input').value = '親A';
+		addCandidate();
+	});
+	await page.waitForTimeout(300);
+	const backAgain = await page.evaluate(() => {
+		const grid = document.querySelector('.deck-grid');
+		return {
+			cols: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
+			noCandClass: grid.classList.contains('deck-grid--no-cand'),
+			tiles: document.querySelectorAll('.star-tile').length,
+			rows: document.querySelectorAll('.deck-info').length,
+		};
+	});
+	assert(!backAgain.noCandClass && backAgain.cols === 3 && backAgain.tiles === backAgain.rows,
+		'deck: 候補を追加し直すと列が戻る', backAgain);
+
+	// グリッドについての案内は、スクロールボックスの外・上に出ること。
+	// 中に置くとスキルが多いときに下へ流れて画面外になり、読まれない。
+	const noteWhenEmpty = await page.evaluate(() => {
+		draftRecord.candidates.slice().forEach((c) => removeCandidate(c.candidateId));
+		const note = document.getElementById('record-grid-note');
+		const box = document.getElementById('record-grid-wrap');
+		return {
+			text: note.textContent,
+			visible: !note.classList.contains('hidden') && note.offsetParent !== null,
+			insideBox: box.contains(note),
+			// 枠より上にあること
+			aboveBox: note.getBoundingClientRect().bottom <= box.getBoundingClientRect().top + 1,
+			// 枠の中に案内文が残っていないこと
+			strayInBox: box.querySelectorAll('p').length,
+		};
+	});
+	assert(noteWhenEmpty.visible && /候補を1人以上/.test(noteWhenEmpty.text)
+		&& !noteWhenEmpty.insideBox && noteWhenEmpty.aboveBox && noteWhenEmpty.strayInBox === 0,
+		'deck: 候補0人の案内が枠の外・上に出る', noteWhenEmpty);
+
+	// 絞り込みで0件になったときも同じ場所に出て、解除で消えること。
+	await page.evaluate(() => {
+		document.getElementById('candidate-label-input').value = '親A';
+		addCandidate();
+	});
+	await page.waitForTimeout(300);
+	await page.click('button[data-mode="nonzero"]');
+	await page.waitForTimeout(400);
+	const noteWhenFiltered = await page.evaluate(() => {
+		const note = document.getElementById('record-grid-note');
+		return { text: note.textContent, visible: !note.classList.contains('hidden') };
+	});
+	await page.click('button[data-mode="all"]');
+	await page.waitForTimeout(400);
+	const noteCleared = await page.evaluate(() => {
+		const note = document.getElementById('record-grid-note');
+		return { text: note.textContent, hidden: note.classList.contains('hidden') };
+	});
+	assert(noteWhenFiltered.visible && /一致する行がありません/.test(noteWhenFiltered.text)
+		&& noteCleared.hidden && noteCleared.text === '',
+		'deck: 絞り込み0件の案内が出て、解除すると消える', { noteWhenFiltered, noteCleared });
 
 	// スキル選択モーダル
 	await page.click('button[onclick="openRecordSkillPicker()"]');

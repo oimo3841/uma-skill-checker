@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-10k';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-10n';
 
 // 読み込むべき css/common.css の版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -90,7 +90,11 @@ const MAX_ENABLED_CANDIDATES = Core.MAX_ENABLED_CANDIDATES;
 let userData = null;
 let templateManager = null;
 
-let draftRecord = null;   // { recordId, name, sourceTemplateId, skillIds, candidates, cells } / null = 一覧表示中
+// { recordId, name, sourceTemplateId, skillIds, candidates, cells, ocrCells } / null = 一覧表示中
+// cells が現在値、ocrCells が「OCRが書いた原本値」。この2つのズレが
+// 「人が手で直した」の判定になる（Core.isEditedCell）。ocrCells が無い
+// 古いデータもそのまま動く（原本値が無い＝判定対象外として扱われる）。
+let draftRecord = null;
 let recordRowFilter = 'all'; // 比較シート編集画面の行フィルター（'all' | 'zero' | 'nonzero'）
 
 /* ============================================================
@@ -226,16 +230,23 @@ function switchRecordTemplate(newTemplateId) {
 	const prevTemplateId = targetRecord.sourceTemplateId;
 	const prevSkillIds = targetRecord.skillIds.slice();
 	const prevCells = JSON.parse(JSON.stringify(targetRecord.cells));
+	// 原本値（ocrCells）も現在値と対で退避・剪定する。片方だけ戻すと
+	// Undoした瞬間に「手動修正済み」の判定だけが壊れるため。
+	const prevOcrCells = JSON.parse(JSON.stringify(targetRecord.ocrCells || {}));
 	targetRecord.sourceTemplateId = t.templateId;
 	targetRecord.skillIds = t.skillIds.slice();
 	const keep = new Set(targetRecord.skillIds);
 	Object.keys(targetRecord.cells).forEach(sid => { if (!keep.has(sid)) delete targetRecord.cells[sid]; });
+	if (targetRecord.ocrCells) {
+		Object.keys(targetRecord.ocrCells).forEach(sid => { if (!keep.has(sid)) delete targetRecord.ocrCells[sid]; });
+	}
 	saveUserData();
 	renderRecordEditor();
 	pushUndo('テンプレートを「' + t.name + '」に切り替えました', () => {
 		targetRecord.sourceTemplateId = prevTemplateId;
 		targetRecord.skillIds = prevSkillIds;
 		targetRecord.cells = prevCells;
+		targetRecord.ocrCells = prevOcrCells;
 		saveUserData();
 		renderAll();
 	});
@@ -322,6 +333,12 @@ function removeCandidate(candidateId) {
 		if (targetRecord.cells[skillId][candidateId] !== undefined) cellBackups[skillId] = targetRecord.cells[skillId][candidateId];
 		delete targetRecord.cells[skillId][candidateId];
 	});
+	// 原本値も対で退避する（片方だけ戻すと手動修正済みの判定が壊れる）。
+	const ocrBackups = {};
+	Object.keys(targetRecord.ocrCells || {}).forEach(skillId => {
+		if (targetRecord.ocrCells[skillId][candidateId] !== undefined) ocrBackups[skillId] = targetRecord.ocrCells[skillId][candidateId];
+		delete targetRecord.ocrCells[skillId][candidateId];
+	});
 	targetRecord.candidates.splice(idx, 1);
 	targetRecord.updatedAt = nowIso();
 	saveUserData();
@@ -331,6 +348,11 @@ function removeCandidate(candidateId) {
 		Object.keys(cellBackups).forEach(skillId => {
 			if (!targetRecord.cells[skillId]) targetRecord.cells[skillId] = {};
 			targetRecord.cells[skillId][candidateId] = cellBackups[skillId];
+		});
+		if (!targetRecord.ocrCells) targetRecord.ocrCells = {};
+		Object.keys(ocrBackups).forEach(skillId => {
+			if (!targetRecord.ocrCells[skillId]) targetRecord.ocrCells[skillId] = {};
+			targetRecord.ocrCells[skillId][candidateId] = ocrBackups[skillId];
 		});
 		saveUserData();
 		renderAll();
@@ -343,14 +365,21 @@ function removeSkillFromRecord(skillId) {
 	const targetRecord = draftRecord;
 	const name = getSkillName(skillId);
 	const cellsBackup = targetRecord.cells[skillId];
+	// 原本値も対で退避する（片方だけ戻すと手動修正済みの判定が壊れる）。
+	const ocrBackup = targetRecord.ocrCells && targetRecord.ocrCells[skillId];
 	targetRecord.skillIds.splice(idx, 1);
 	delete targetRecord.cells[skillId];
+	if (targetRecord.ocrCells) delete targetRecord.ocrCells[skillId];
 	targetRecord.updatedAt = nowIso();
 	saveUserData();
 	renderRecordGrid();
 	pushUndo('スキル「' + name + '」を削除しました', () => {
 		targetRecord.skillIds.splice(idx, 0, skillId);
 		if (cellsBackup) targetRecord.cells[skillId] = cellsBackup;
+		if (ocrBackup) {
+			if (!targetRecord.ocrCells) targetRecord.ocrCells = {};
+			targetRecord.ocrCells[skillId] = ocrBackup;
+		}
 		saveUserData();
 		renderAll();
 	});
@@ -406,10 +435,13 @@ function setStar(skillId, candidateId, next) {
 	if (tile) {
 		tile.innerHTML = starsMarkup(next);
 		tile.dataset.value = next;
-		// スクリーンリーダー向け。★は見た目でしか値を伝えないので、
-		// 「スキル名／候補名 Lv2」の形で読み上げられるようにする。
+		// OCRの読み取り結果から動かしたかどうか。元の値に戻せば自動的に外れる。
+		const edited = Core.isEditedCell(draftRecord, skillId, candidateId);
+		tile.classList.toggle('is-edited', edited);
+		// スクリーンリーダー向け。★も赤いリングも見た目でしか情報を伝えないので、
+		// 「スキル名／候補名 Lv2（手動修正済み）」の形で読み上げられるようにする。
 		// 文脈部分は data-star-label に持たせておいて毎回組み直す。
-		tile.setAttribute('aria-label', tile.dataset.starLabel + ' Lv' + next);
+		tile.setAttribute('aria-label', tile.dataset.starLabel + ' Lv' + next + (edited ? '（手動修正済み）' : ''));
 	}
 	const newSum = computeRowSum(skillId);
 	const sumEl = document.getElementById('sum-' + skillId);
@@ -480,12 +512,25 @@ function hideNameRevealTip() {
 // 他の場所をタップしたら閉じる。描画のたびに増やさないよう、1回だけ登録する。
 document.addEventListener('click', hideNameRevealTip);
 
+// グリッドについての案内文。スクロールボックスの外・上に出す
+// （中に置くとスキルが多いときに下へ流れて画面外になり、読まれない）。
+// 表示の切り替えは .hidden の付け外しで行う。このページの .hidden は
+// Tailwind の有無によらず常に効く定義を持っており（先頭の <style> 参照）、
+// この要素は hidden と併記されるユーティリティを持たないため事故が起きない。
+function setRecordGridNote(msg) {
+	const el = document.getElementById('record-grid-note');
+	if (!el) return;
+	el.textContent = msg || '';
+	el.classList.toggle('hidden', !msg);
+}
+
 function renderRecordGrid() {
 	const wrap = document.getElementById('record-grid-wrap');
 	const enabledCountEl = document.getElementById('record-enabled-count');
 	if (enabledCountEl) enabledCountEl.textContent = '有効な候補：' + countEnabledCandidates() + '/' + MAX_ENABLED_CANDIDATES + '人（候補は' + draftRecord.candidates.length + '人登録中）';
 	document.querySelectorAll('.row-filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === recordRowFilter));
 	hideNameRevealTip();
+	setRecordGridNote('');
 	if (draftRecord.skillIds.length === 0) {
 		wrap.innerHTML = '<p class="text-xs text-slate-400 p-4">「スキルを追加」からスキルを選んでください。</p>';
 		return;
@@ -498,8 +543,13 @@ function renderRecordGrid() {
 		return true;
 	});
 
-	// 列数はCSSの grid-template-columns が読む。候補0人でも列定義が壊れないよう最低1にする。
-	let html = '<div class="deck-grid" style="--deck-cand-count:' + Math.max(1, candidates.length) + '">';
+	// 列数はCSSの grid-template-columns が読む。
+	// 候補0人のときは repeat(0, ...) が無効になるため、専用クラスで列定義ごと差し替える。
+	// 変数側も最低1にしておかないと基本の宣言まで無効になる。
+	// このとき各行が出すセルも「情報セル＋余り列」の2つになる。列とセルの数が
+	// 食い違うと、セルが1つずつ隣の列へずれて重なって見える。
+	let html = '<div class="deck-grid' + (candidates.length === 0 ? ' deck-grid--no-cand' : '')
+		+ '" style="--deck-cand-count:' + Math.max(1, candidates.length) + '">';
 	html += '<div class="deck-cell deck-head deck-corner">スキル / 計</div>';
 	candidates.forEach(c => {
 		html += '<div class="deck-cell deck-head' + (c.enabled ? '' : ' col-disabled') + '">'
@@ -516,8 +566,9 @@ function renderRecordGrid() {
 	html += '<div class="deck-cell deck-head"></div>';
 
 	if (skillIdsToShow.length === 0) {
-		html += '</div><p class="text-xs text-slate-400 p-3">条件に一致する行がありません。</p>';
+		html += '</div>';
 		wrap.innerHTML = html;
+		setRecordGridNote('条件に一致する行がありません。');
 		return;
 	}
 
@@ -542,13 +593,17 @@ function renderRecordGrid() {
 			// タイルは <button>。<div onclick> にしないのは、Tab移動と
 			// Enter/Space での操作を素で効かせるため。
 			const starLabel = escapeHtml(getSkillName(skillId) + '／' + c.label);
+			// OCRが読んだ値から人が動かしたセルは、★の色ではなくタイルの枠線で示す。
+			// 色相の変化（黄→赤）だけに頼ると判別しづらい人がいるため、
+			// 「枠があるか無いか」という形の違いで分かるようにしている。
+			const edited = Core.isEditedCell(draftRecord, skillId, c.candidateId);
 			html += '<div class="deck-cell ' + zebra + (c.enabled ? '' : ' col-disabled') + '">'
-				+ '<button type="button" class="star-tile"'
+				+ '<button type="button" class="star-tile' + (edited ? ' is-edited' : '') + '"'
 				+ ` id="star-${escapeHtml(skillId)}-${c.candidateId}"`
 				+ ' data-value="' + v + '"'
 				+ ' data-star-label="' + starLabel + '"'
-				+ ' aria-label="' + starLabel + ' Lv' + v + '"'
-				+ ' title="' + starLabel + '：押すたびに 0→1→2→3→0 と変わります"'
+				+ ' aria-label="' + starLabel + ' Lv' + v + (edited ? '（手動修正済み）' : '') + '"'
+				+ ' title="' + starLabel + (edited ? '（手動修正済み）' : '') + '：押すたびに 0→1→2→3→0 と変わります"'
 				+ ' onclick="cycleStar(\'' + escapeHtml(skillId) + '\',\'' + c.candidateId + '\')">'
 				+ starsMarkup(v) + '</button></div>';
 		});
@@ -556,7 +611,7 @@ function renderRecordGrid() {
 	});
 	html += '</div>';
 	if (candidates.length === 0) {
-		html += '<p class="text-xs text-slate-400 p-3">「候補を追加」からまず候補を1人以上追加してください。</p>';
+		setRecordGridNote('「候補を追加」からまず候補を1人以上追加してください。');
 	}
 	wrap.innerHTML = html;
 	// はみ出し判定は描画後にしかできない（実測が要るため）。

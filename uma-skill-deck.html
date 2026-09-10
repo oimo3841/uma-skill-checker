@@ -12,8 +12,8 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-10h"></script>
-	<script src="js/uma-skill-deck.js?v=2026-09-10k"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-10i"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-10n"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -109,6 +109,11 @@
 			width: 100%;
 			min-width: min-content;
 		}
+		/* 候補0人のとき。repeat() は0を受け付けない（宣言ごと無効になる）ので、
+		   候補列を持たない定義に差し替える。JS側も行ごとに
+		   「情報セル＋余り列」の2つしか出さないため、両者の数が合っていないと
+		   セルが1つずつ隣の列へずれて重なって見える。 */
+		.deck-grid--no-cand { grid-template-columns: 192px minmax(0, 1fr); }
 		.deck-cell {
 			display: flex;
 			align-items: center;
@@ -240,6 +245,7 @@
 		   1タップで 0→1→2→3→0 と巡回する（js/uma-skill-deck.js の cycleStar）。
 		   <button> なので Tab移動・Enter・Space が素で効く。 */
 		.star-tile {
+			position: relative;
 			width: 42px; height: 38px;
 			border: none; border-radius: var(--uma-r-md);
 			padding: 0;
@@ -261,6 +267,26 @@
 		.star-pyramid .star-top { font-size: 12px; line-height: 1; }
 		.star-pyramid .star-bottom { display: flex; gap: 2px; line-height: 1; margin-top: -2px; }
 		.star-pyramid .star-bottom span { font-size: 12px; }
+
+		/* ---- 手動修正の可視化 ----
+		   OCRが読んだ値から人が動かしたセルを示す。★の色を変えるのではなく
+		   タイルの枠線（リング）で示している。色相の変化（黄→赤）だけに頼ると
+		   判別しづらい人がいるため、「枠があるか無いか」という形の違いで分かるようにする。
+		   右上の点は、離れた位置からでも「直したセルがある」と気づくための補助。
+		   枠は inset の box-shadow で描く。border だと 42×38px の内寸が変わり、
+		   ★の位置が修正の有無でずれてしまうため。 */
+		.star-tile.is-edited { box-shadow: inset 0 0 0 2px var(--uma-danger-text); }
+		.star-tile.is-edited::after {
+			content: "";
+			position: absolute; top: -3px; right: -3px;
+			width: 7px; height: 7px; border-radius: var(--uma-r-full);
+			background: var(--uma-danger-text);
+			border: 1.5px solid var(--uma-surface);
+		}
+		/* 無効にした候補の列では、修正の印も他と同じく彩度を落とす
+		   （比較対象から外した列が視線を集めないようにする）。 */
+		.col-disabled .star-tile.is-edited { box-shadow: inset 0 0 0 2px var(--uma-danger-border); }
+		.col-disabled .star-tile.is-edited::after { background: var(--uma-danger-border); }
 
 		/* ---- 無効にした候補の列 ----
 		   注意: sticky を使うグリッド内では opacity<1 を使わないこと。
@@ -284,6 +310,7 @@
 			.deck-grid {
 				grid-template-columns: 148px repeat(var(--deck-cand-count, 1), 64px) minmax(0, 1fr);
 			}
+			.deck-grid--no-cand { grid-template-columns: 148px minmax(0, 1fr); }
 			.deck-info { padding-left: var(--uma-sp-2); padding-right: var(--uma-sp-2); }
 			.deck-corner { padding-left: var(--uma-sp-2); }
 			/* 4em = 全角4文字ぶん。狭い幅では名前より候補の見比べを優先し、
@@ -359,6 +386,10 @@
 					<button onclick="setRecordRowFilter('zero')" class="row-filter-btn uma-pill" data-mode="zero">不足のみ（計0）</button>
 					<button onclick="setRecordRowFilter('nonzero')" class="row-filter-btn uma-pill" data-mode="nonzero">充足あり（計1+）</button>
 				</div>
+				<!-- グリッドについての案内（候補が0人、絞り込みで0件など）。
+				     スクロールボックスの中に置くと、スキルが多いときに下へ流れて
+				     画面外になり読まれない。枠の外・上に出す。 -->
+				<p id="record-grid-note" class="hidden text-xs text-slate-500 mb-2"></p>
 				<div id="record-grid-wrap" class="deck-grid-wrap"></div>
 			</div>
 		</section>

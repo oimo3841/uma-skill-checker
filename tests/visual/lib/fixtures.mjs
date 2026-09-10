@@ -33,9 +33,34 @@ function buildCells() {
 	return cells;
 }
 
+/**
+ * OCRが書いた原本値。現在値（cells）とのズレが「手動修正済み」の判定になる。
+ *
+ * 候補 c_a だけをOCRに通した想定にする。applyStarAssignments は列の全スキルへ
+ * 書き込むので、0も含めて全行に原本値が入る。そのうえで2行だけ食い違わせる:
+ *   - PICK[1]: 原本1 → 現在2（手で上げた）
+ *   - PICK[2]: 原本2 → 現在0（手で0に落とした。値が0でも枠は付く）
+ * c_b / c_c は原本値を持たない＝OCR未実施の列で、枠は1つも付かない。
+ */
+function buildOcrCells() {
+	const ocr = {};
+	PICK.forEach((s, i) => {
+		ocr[s.id] = { c_a: (i % 3 !== 2) ? (i % 3) + 1 : 0 };
+	});
+	ocr[PICK[1].id].c_a = 1;
+	ocr[PICK[2].id].c_a = 2;
+	return ocr;
+}
+
+/** 上の仕込みで枠が付くはずのセル（テスト側から参照する） */
+export const EDITED_CELLS = [
+	{ skillId: PICK[1].id, candidateId: 'c_a' },
+	{ skillId: PICK[2].id, candidateId: 'c_a' },
+];
+
 /** localStorage の umaSkillDeck:userData に入れる中身 */
 export const USER_DATA = {
-	schemaVersion: 1,
+	schemaVersion: 2,
 	templates: [
 		{ templateId: TEMPLATE_ID, name: '中距離・差し 想定', skillIds: PICK.map((s) => s.id), createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' },
 		{ templateId: 'tpl_demo02', name: 'ダート短距離 想定', skillIds: PICK.slice(0, 5).map((s) => s.id), createdAt: '2026-09-02T00:00:00.000Z', updatedAt: '2026-09-05T00:00:00.000Z' },
@@ -50,6 +75,7 @@ export const USER_DATA = {
 				{ candidateId: 'c_c', label: '祖A1', enabled: false },
 			],
 			cells: buildCells(),
+			ocrCells: buildOcrCells(),
 			createdAt: '2026-09-08T00:00:00.000Z', updatedAt: '2026-09-09T00:00:00.000Z',
 		},
 	],

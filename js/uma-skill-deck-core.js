@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-10h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-10i';
 
 	/* ============================================================
 	 * 定数
@@ -149,7 +149,10 @@
 	 * userData（保存データ）の読み書き
 	 * ============================================================ */
 	function createEmptyUserData() {
-		return { schemaVersion: 1, templates: [], records: [], customSkills: [] };
+		// schemaVersion 2 で record.ocrCells（OCRが書いた原本値）が加わった。
+		// ただし読み込み側は分岐しない。ocrCells が無いデータは
+		// 「原本値が記録されていない」として扱えば正しく動くため、変換処理は不要。
+		return { schemaVersion: 2, templates: [], records: [], customSkills: [] };
 	}
 
 	function loadUserData() {
@@ -1505,7 +1508,7 @@
 			recordId: uid('rec'),
 			name: (spec.name && spec.name.trim()) ? spec.name.trim() : '候補比較',
 			sourceTemplateId: spec.sourceTemplateId || '',
-			skillIds: skillIds, candidates: [], cells: {},
+			skillIds: skillIds, candidates: [], cells: {}, ocrCells: {},
 			createdAt: nowIso(), updatedAt: nowIso()
 		};
 		data.records.push(record);
@@ -1611,9 +1614,16 @@
 			const stars = a.stars || {};
 			Object.keys(stars).forEach(sid => { if (!skillIdSet.has(sid) && skippedSkillIds.indexOf(sid) === -1) skippedSkillIds.push(sid); });
 			// 候補の列をレコードの全スキルについて置き換える（部分保存はしない）。
+			// 現在値と同時に「OCRが書いた原本値」も ocrCells に控える。
+			// この2つのズレが「人が手で直した」の判定になる（isEditedCell 参照）。
+			// ここが ocrCells に書き込む唯一の場所で、手入力側（setStar）は絶対に触らない。
+			if (!record.ocrCells) record.ocrCells = {};
 			record.skillIds.forEach(sid => {
 				if (!record.cells[sid]) record.cells[sid] = {};
-				record.cells[sid][candidateId] = clampStar(stars[sid]);
+				if (!record.ocrCells[sid]) record.ocrCells[sid] = {};
+				const v = clampStar(stars[sid]);
+				record.cells[sid][candidateId] = v;
+				record.ocrCells[sid][candidateId] = v;
 			});
 			written++;
 		});
@@ -1621,6 +1631,33 @@
 		record.updatedAt = nowIso();
 		saveUserData();
 		return { ok: true, cancelled: false, written: written, addedLabels: addedLabels, overwrittenLabels: overwrittenLabels, skippedSkillIds: skippedSkillIds };
+	}
+
+	/**
+	 * そのセルが「OCRの読み取り結果から人が手で変えたもの」かどうか。
+	 *
+	 * 判定は「原本値（ocrCells）と現在値（cells）が食い違うか」だけ。
+	 * 原本値が無いセルは false を返す。これがこの設計の要で、
+	 * 次のすべてが特別扱い無しで正しく決まる:
+	 *
+	 * - 新規シート・手で追加した候補 … 原本値が無いので枠が付かない（真っ赤にならない）
+	 * - OCRを通した列           … applyStarAssignments が列の全スキルに書くので、
+	 *                              0も含めて原本値が揃う。以後のズレは全部拾える
+	 * - 値を0に直した場合        … 原本値2 ≠ 現在値0 なので枠が付く
+	 * - 元のOCR値に戻した場合    … 一致するので枠が消える
+	 * - OCR後に足したスキル行    … そのセルだけ原本値が無いので誤検知しない
+	 * - カスタムスキル           … OCRの照合辞書は対象スキルセットの名前から作られ、
+	 *                              マスター由来かカスタムかを区別しない。つまり
+	 *                              カスタムスキルもOCRで読まれる。特別扱いはしない
+	 *                              （常に手動扱いにすると、OCRが正しく読めた列まで
+	 *                                永久に枠が付いてノイズになる）
+	 */
+	function isEditedCell(record, skillId, candidateId) {
+		if (!record || !record.ocrCells) return false;
+		const base = record.ocrCells[skillId];
+		if (!base || base[candidateId] === undefined) return false;
+		const cur = (record.cells && record.cells[skillId]) ? record.cells[skillId][candidateId] : undefined;
+		return base[candidateId] !== (cur === undefined ? 0 : cur);
 	}
 
 	function buildOverwriteMessage(targets) {
@@ -1716,6 +1753,7 @@
 		normalizeCandidateEnabled: normalizeCandidateEnabled,
 		countEnabledCandidates: countEnabledCandidates,
 		applyStarAssignments: applyStarAssignments,
+		isEditedCell: isEditedCell,
 
 		// Undo
 		pushUndo: pushUndo,
