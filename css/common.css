@@ -1,0 +1,394 @@
+/* ============================================================
+ * Uma Tools 共通スタイル
+ *
+ * special.html / uma-skill-deck.html で共有する。exam.html へは後日適用する。
+ *
+ * ここに置くもの:
+ *   1. デザイントークン（色・余白・文字サイズ・角丸・影）
+ *   2. 全ツールで同じ形であるべき共通部品（ボタン・入力欄・バッジ・カード）
+ * ここに置かないもの:
+ *   各画面固有のレイアウトと、その画面にしか出てこない要素の装飾。
+ *   判断基準は「片方だけ変えたくなる可能性があるか」。あるなら共通化しない。
+ *
+ * ---- カスケードについての重要な前提 ----
+ * Tailwind v4（browser版）はユーティリティを @layer utilities に入れる。
+ * CSSのカスケードレイヤー規則では「レイヤーに属さない指定」がレイヤー付きより
+ * 強いため、このファイルの素のクラスセレクタは Tailwind ユーティリティに勝つ。
+ * 読み込み順は  common.css → Tailwind → 各HTMLの<style>  であり、
+ *   共通の土台 → ユーティリティ → ページ固有の上書き
+ * という三層になる。したがって !important は不要。
+ *
+ * 逆に、このファイルに要素セレクタ（button {} など）で装飾を書くと、
+ * 既存のユーティリティ指定を一括で無効化してしまう。装飾はクラスセレクタで書く。
+ * 要素セレクタを使ってよいのは body の基本色など「継承の起点」だけ。
+ *
+ * ---- 色の値について ----
+ * Tailwind v4 はパレットを oklch で再定義しており、v3時代の hex とは
+ * 微妙に違う（例: slate-500 は #64748b ではなく #62748e）。
+ * ここに書く hex は、実際に読み込んでいる Tailwind v4.1.11 を
+ * ブラウザ上で描画して実測した値である。v3世代の値を混ぜないこと。
+ * ============================================================ */
+
+:root {
+	/* 版数。変更したらここと、各HTMLの ?v= と、
+	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
+	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
+	     読み込み側で照合して警告を出している） */
+	--common-css-version: "2026-09-10g";
+
+	/* ---- 面 ---- */
+	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
+	--uma-glass-bg: rgba(255, 255, 255, .9); /* 半透明パネルの地 */
+	--uma-glass-blur: blur(14px);            /* 同上のぼかし量 */
+	--uma-surface-sunken: #f8fafc;   /* slate-50  : 一段沈めた面 */
+	--uma-surface-muted: #f1f5f9;    /* slate-100 : 押せる要素の待機状態 */
+	--uma-surface-inverse: #0f172b;  /* slate-900 : トースト・選択中の反転 */
+
+	/* ---- 文字 ---- */
+	--uma-text: #1d293d;             /* slate-800 : 本文 */
+	--uma-text-heading: #314158;     /* slate-700 : 見出し・ボタン文字 */
+	--uma-text-muted: #45556c;       /* slate-600 : やや弱い文字 */
+	--uma-text-subtle: #62748e;      /* slate-500 : 補助・説明 */
+	--uma-text-faint: #90a1b9;       /* slate-400 : 注記 */
+	--uma-text-inverse: #ffffff;
+
+	/* ---- 罫線 ---- */
+	--uma-border: #e2e8f0;           /* slate-200 : 既定の罫線 */
+	--uma-border-strong: #cad5e2;    /* slate-300 : hover時など */
+
+	/* ---- 状態色 ---- */
+	--uma-success: #008236;          /* green-700 */
+	--uma-warn-bg: #fffbeb;          /* amber-50  */
+	--uma-warn-border: #fee685;      /* amber-200 */
+	--uma-warn-text: #973c00;        /* amber-800 */
+	--uma-danger-bg: #fef2f2;        /* red-50    */
+	--uma-danger-border: #ffc9c9;    /* red-200   */
+	--uma-danger-text: #c10007;      /* red-700   */
+	--uma-star: #fe9a00;             /* amber-500 : ★の実数 */
+	--uma-star-empty: #cad5e2;       /* slate-300 : ★の空き */
+
+	/* ---- アクセント ----
+	   既定は藍。ツールごとに各HTMLの<style>で :root ごと上書きする。
+	   「できること」ではなく「何のための画面か」で色を分ける（Deck=評価/比較、Star=読取/登録）。 */
+	--uma-accent: #4f39f6;           /* indigo-600 : 主ボタンの地 */
+	--uma-accent-hover: #432dd7;     /* indigo-700 */
+	--uma-accent-soft: #eef2ff;      /* indigo-50  : 淡い面 */
+	--uma-accent-soft-text: #432dd7; /* indigo-700 : 淡い面の上の文字 */
+	--uma-accent-border: #c6d2ff;    /* indigo-200 */
+	--uma-accent-ring: #4f39f6;      /* フォーカス輪郭 */
+
+	/* ---- 余白（4pxを単位とする刻み。1/3/7/9pxのような孤立値は使わない） ---- */
+	--uma-sp-0-5: 2px;
+	--uma-sp-1: 4px;
+	--uma-sp-1-5: 6px;
+	--uma-sp-2: 8px;
+	--uma-sp-2-5: 10px;
+	--uma-sp-3: 12px;
+	--uma-sp-3-5: 14px;
+	--uma-sp-4: 16px;
+	--uma-sp-5: 20px;
+	--uma-sp-6: 24px;
+
+	/* ---- 文字サイズ（行間とセット。同じ字送りが2種類生まれないようにする） ---- */
+	--uma-fs-2xs: 10px;  --uma-lh-2xs: 14px;
+	--uma-fs-xs: 11px;   --uma-lh-xs: 16px;
+	--uma-fs-sm: 12px;   --uma-lh-sm: 16px;   /* 基準 */
+	--uma-fs-md: 14px;   --uma-lh-md: 20px;
+	--uma-fs-lg: 18px;   --uma-lh-lg: 24px;
+	--uma-fs-xl: 24px;   --uma-lh-xl: 32px;
+
+	/* ---- 角丸 ---- */
+	--uma-r-sm: 6px;
+	--uma-r-md: 8px;
+	--uma-r-lg: 12px;   /* 既定 */
+	--uma-r-xl: 16px;   /* カード */
+	--uma-r-full: 999px;
+
+	/* ---- 影（3段。面は最小限、浮遊要素だけ強く） ---- */
+	--uma-shadow-1: 0 1px 2px 0 rgba(0, 0, 0, .05);
+	--uma-shadow-2: 0 4px 6px -1px rgba(0, 0, 0, .1), 0 2px 4px -2px rgba(0, 0, 0, .1);
+	--uma-shadow-3: 0 20px 25px -5px rgba(0, 0, 0, .1), 0 8px 10px -6px rgba(0, 0, 0, .1);
+
+	/* ---- 等幅フォント（OCRの生文字列・JSONなど、字形の区別が必要な場所） ---- */
+	--uma-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+	/* ---- 演出 ---- */
+	--uma-transition: 160ms cubic-bezier(.16, 1, .3, 1);
+
+	/* ---- カードの内側余白（狭い画面では詰める） ---- */
+	--uma-card-pad: 16px;
+}
+
+@media (min-width: 768px) {
+	:root { --uma-card-pad: 24px; }
+}
+
+/* ============================================================
+ * 基礎
+ * ============================================================ */
+
+/* 基本の文字色。継承の起点なので要素セレクタで置く。
+   （uma-skill-deck.html は指定が無く、ブラウザ既定の黒のままだった） */
+body {
+	color: var(--uma-text);
+}
+
+/* キーボード操作時のフォーカス。輪郭色はツールのアクセントに追従する。 */
+:focus-visible {
+	outline: 2px solid var(--uma-accent-ring);
+	outline-offset: 2px;
+	border-radius: var(--uma-r-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	* { scroll-behavior: auto !important; }
+	.uma-btn, .uma-icon-btn, .uma-pill, .uma-input { transition: none; }
+}
+
+/* 共通部品と「隠す指定」の衝突を防ぐ。
+   共通部品は display を指定するが、このファイルはレイヤーに属さないため、
+   Tailwind の .hidden（@layer utilities）や hidden 属性のUA既定より強くなってしまう。
+   放置すると「hidden を付けたのに消えない」事故になるので、詳細度で明示的に負かす。
+   （!important は使わない。§詳細度の設計で解決する） */
+.uma-btn.hidden, .uma-btn[hidden],
+.uma-icon-btn.hidden, .uma-icon-btn[hidden],
+.uma-pill.hidden, .uma-pill[hidden],
+.uma-input.hidden, .uma-input[hidden],
+.uma-badge.hidden, .uma-badge[hidden],
+.uma-list-row.hidden, .uma-list-row[hidden] {
+	display: none;
+}
+
+/* Tailwind を読み込めなかったときの保険。
+   Tailwind が無いと `hidden` クラスが何も指定しないクラスになり、
+   隠れているべき要素（エラー表示・他タブの中身など）が全部見えてしまう。
+   読み込みに成功した時点で各ページのJSが <html> に .uma-tw-ready を付けるので、
+   通常時この規則は無効になり、既存の挙動（例：hidden と sm:inline の併記で
+   広い画面だけ表示する）は一切変わらない。 */
+html:not(.uma-tw-ready) .hidden { display: none; }
+
+/* ============================================================
+ * カード
+ * 両ツールに同名で存在していたものを、ここに一本化する。
+ * ============================================================ */
+.glass-card {
+	background: var(--uma-glass-bg);
+	backdrop-filter: var(--uma-glass-blur);
+	border: 1px solid var(--uma-border);
+	border-radius: var(--uma-r-xl);
+	padding: var(--uma-card-pad);
+}
+
+/* 一覧の行。カードより情報密度が高く、押せることがある。
+   （uma-skill-deck.html の .list-card と core.js の .usd-list-card が
+     衝突回避のためだけに同じ定義を二重に持っていたものを一本化した） */
+.uma-list-row {
+	display: flex;
+	align-items: center;
+	gap: var(--uma-sp-3);
+	padding: var(--uma-sp-3) var(--uma-sp-4);
+	border: 1px solid var(--uma-border);
+	border-radius: var(--uma-r-lg);
+	background: var(--uma-surface);
+	margin-bottom: var(--uma-sp-2);
+}
+.uma-list-row--selectable {
+	cursor: pointer;
+	transition: border-color var(--uma-transition), background-color var(--uma-transition);
+}
+.uma-list-row--selectable:hover {
+	border-color: var(--uma-border-strong);
+	background: var(--uma-surface-sunken);
+}
+.uma-list-row--selected {
+	border-color: var(--uma-accent-border);
+	background: var(--uma-accent-soft);
+}
+
+/* ============================================================
+ * ボタン
+ *   既定 = 12px / 600 / 角丸12px
+ *   --primary   塗り（そのツールのアクセント）
+ *   --secondary 白地＋罫線
+ *   --ghost     文字だけ
+ *   --lg        主要導線用の大きいボタン
+ * ============================================================ */
+.uma-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--uma-sp-1-5);
+	padding: var(--uma-sp-2-5) var(--uma-sp-4);
+	border: 1px solid transparent;
+	border-radius: var(--uma-r-lg);
+	background: transparent;
+	font-size: var(--uma-fs-sm);
+	line-height: var(--uma-lh-sm);
+	font-weight: 600;
+	color: var(--uma-text-heading);
+	cursor: pointer;
+	transition: background-color var(--uma-transition), border-color var(--uma-transition), color var(--uma-transition), box-shadow var(--uma-transition);
+}
+
+.uma-btn:active { scale: .99; }
+
+.uma-btn:disabled,
+.uma-btn[disabled] {
+	opacity: .4;
+	cursor: not-allowed;
+	box-shadow: none;
+	scale: 1;
+}
+
+.uma-btn--primary {
+	background: var(--uma-accent);
+	color: var(--uma-text-inverse);
+	box-shadow: var(--uma-shadow-2);
+}
+.uma-btn--primary:hover:not(:disabled) { background: var(--uma-accent-hover); }
+
+.uma-btn--secondary {
+	background: var(--uma-surface);
+	border-color: var(--uma-border);
+	color: var(--uma-text-heading);
+	box-shadow: var(--uma-shadow-1);
+}
+.uma-btn--secondary:hover:not(:disabled) {
+	border-color: var(--uma-border-strong);
+	background: var(--uma-surface-sunken);
+}
+
+.uma-btn--ghost { color: var(--uma-text-subtle); }
+.uma-btn--ghost:hover:not(:disabled) {
+	background: var(--uma-surface-muted);
+	color: var(--uma-text-heading);
+}
+
+/* 実行系だが、そのツールの主役ではない操作（解析する・元に戻す 等）。
+   アクセントを使うと主要導線と競合するため、無彩色で塗る。 */
+.uma-btn--neutral {
+	background: var(--uma-surface-inverse);
+	color: var(--uma-text-inverse);
+}
+.uma-btn--neutral:hover:not(:disabled) { background: var(--uma-text-heading); }
+
+/* 主ボタンと同じ系統だが一段弱い扱い（並記される第2の実行ボタン） */
+.uma-btn--accent-outline {
+	background: var(--uma-surface);
+	border-color: var(--uma-accent-border);
+	color: var(--uma-accent-hover);
+}
+.uma-btn--accent-outline:hover:not(:disabled) { background: var(--uma-accent-soft); }
+
+.uma-btn--lg {
+	padding: var(--uma-sp-3-5) var(--uma-sp-4);
+	font-size: var(--uma-fs-md);
+	line-height: var(--uma-lh-md);
+	font-weight: 700;
+}
+
+/* アイコンだけのボタン */
+.uma-icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--uma-sp-1-5);
+	border: none;
+	border-radius: var(--uma-r-md);
+	background: transparent;
+	color: var(--uma-text-subtle);
+	cursor: pointer;
+	transition: background-color var(--uma-transition), color var(--uma-transition);
+}
+.uma-icon-btn:hover:not(:disabled) {
+	background: var(--uma-surface-muted);
+	color: var(--uma-text-heading);
+}
+.uma-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* 絞り込みなどの切り替えボタン。
+   UmaStar OCR の結果表で使っている形（角丸の矩形・選択中は反転）に揃えた。 */
+.uma-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--uma-sp-1);
+	padding: var(--uma-sp-1) var(--uma-sp-3);
+	border: 1px solid transparent;
+	border-radius: var(--uma-r-md);
+	background: var(--uma-surface-muted);
+	font-size: var(--uma-fs-sm);
+	line-height: var(--uma-lh-sm);
+	font-weight: 500;
+	color: var(--uma-text-muted);
+	cursor: pointer;
+	transition: background-color var(--uma-transition), color var(--uma-transition);
+}
+.uma-pill:hover:not(.active):not(:disabled) { background: var(--uma-border); }
+.uma-pill.active {
+	background: var(--uma-surface-inverse);
+	color: var(--uma-text-inverse);
+	font-weight: 500;
+}
+
+/* ============================================================
+ * 入力欄（input / select / textarea 共通）
+ * ============================================================ */
+.uma-input {
+	width: 100%;
+	padding: var(--uma-sp-2) var(--uma-sp-3);
+	border: 1px solid var(--uma-border);
+	border-radius: var(--uma-r-md);
+	background: var(--uma-surface);
+	color: var(--uma-text);
+	font-size: var(--uma-fs-sm);
+	line-height: var(--uma-lh-sm);
+	/* font-family はあえて指定しない。Tailwindのpreflight（@layer base）が
+	   フォーム部品に font: inherit を当てており、その上で font-mono のような
+	   ユーティリティを効かせたい箇所がある（JSONの貼り付け欄など）。
+	   ここで font-family を指定すると、レイヤー無しの方が強いため上書きしてしまう。 */
+	transition: border-color var(--uma-transition), box-shadow var(--uma-transition);
+}
+.uma-input:focus {
+	outline: none;
+	border-color: var(--uma-accent);
+	box-shadow: 0 0 0 3px var(--uma-accent-soft);
+}
+.uma-input:disabled {
+	background: var(--uma-surface-muted);
+	color: var(--uma-text-faint);
+	cursor: not-allowed;
+}
+.uma-input::placeholder { color: var(--uma-text-faint); }
+
+/* textarea は面積が大きいぶん角を大きくする */
+textarea.uma-input {
+	border-radius: var(--uma-r-lg);
+	padding: var(--uma-sp-3);
+	resize: vertical;
+}
+
+/* ============================================================
+ * バッジ
+ * ============================================================ */
+.uma-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--uma-sp-1);
+	padding: var(--uma-sp-1) var(--uma-sp-2-5);
+	border-radius: var(--uma-r-full);
+	background: var(--uma-surface-muted);
+	color: var(--uma-text-muted);
+	font-size: var(--uma-fs-xs);
+	line-height: var(--uma-lh-xs);
+	font-weight: 600;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+.uma-badge--accent {
+	background: var(--uma-accent-soft);
+	color: var(--uma-accent-soft-text);
+}
+.uma-badge--warn {
+	background: var(--uma-warn-bg);
+	color: var(--uma-warn-text);
+}

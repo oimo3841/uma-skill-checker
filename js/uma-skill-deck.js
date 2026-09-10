@@ -15,7 +15,62 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-10c';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-10i';
+
+// 読み込むべき css/common.css の版。
+// 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
+// 「直したはずなのに直っていない」状態になるため、起動時に照合する。
+const EXPECTED_COMMON_CSS_VERSION = '2026-09-10g';
+
+// 実際に読み込まれている common.css の版（:root のカスタムプロパティ）を返す。
+function loadedCommonCssVersion() {
+	const raw = getComputedStyle(document.documentElement).getPropertyValue('--common-css-version');
+	return (raw || '').trim().replace(/^["']|["']$/g, '');
+}
+
+	/* ============================================================
+	 * 外部スタイル（Tailwind CDN）の読み込み確認
+	 *
+	 * このページの見た目の大半は Tailwind のユーティリティに依存している。
+	 * CDNが落ちている・広告ブロッカーや社内プロキシに遮断されている場合、
+	 * 読み込みに失敗して表示が崩れる。利用者が原因を推測できないため、
+	 * 検出して案内を出す。
+	 *
+	 * Tailwind v4 は :root にテーマ変数（--spacing など）を定義するので、
+	 * その有無で「読み込めたか」が判定できる。
+	 * 生成は非同期なので、すぐには確定しない。少し待って数回試す。
+	 * ============================================================ */
+	function isTailwindLoaded() {
+		return getComputedStyle(document.documentElement).getPropertyValue('--spacing').trim() !== '';
+	}
+
+	function verifyTailwindLoaded(remainingTries) {
+		if (isTailwindLoaded()) {
+			// css/common.css に置いた保険（Tailwindが無いときだけ効く .hidden）を無効化する。
+			// これを付けないと、hidden と sm:inline を併記した要素まで隠れてしまう。
+			document.documentElement.classList.add('uma-tw-ready');
+			return;
+		}
+		if (remainingTries > 0) {
+			setTimeout(function () { verifyTailwindLoaded(remainingTries - 1); }, 800);
+			return;
+		}
+		const msg = '表示に必要な外部ファイルを読み込めませんでした。ページを再読み込みしてください。'
+			+ '広告ブロッカーや社内ネットワークが cdnjs.cloudflare.com を遮断している場合は、許可設定が必要です。';
+		console.warn('[UmaSkill Deck] ' + msg);
+		showToast(msg);
+	}
+
+function verifyCommonCssVersion() {
+	const loaded = loadedCommonCssVersion();
+	if (loaded === EXPECTED_COMMON_CSS_VERSION) return true;
+	const msg = loaded
+		? 'css/common.css が古い版です（読込:' + loaded + ' / 期待:' + EXPECTED_COMMON_CSS_VERSION + '）。キャッシュを消して再読み込みしてください。'
+		: 'css/common.css を読み込めていません。表示が崩れる場合はキャッシュを消して再読み込みしてください。';
+	console.warn('[UmaSkill Deck] ' + msg);
+	showToast(msg);
+	return false;
+}
 
 /* ============================================================
  * 共有モジュールへの参照・そこから借りる定数
@@ -115,16 +170,16 @@ function renderRecordList() {
 		return;
 	}
 	el.innerHTML = list.map(r => `
-		<div class="list-card">
+		<div class="list-card uma-list-row">
 			<div class="flex-1 min-w-0">
 				<p class="font-semibold text-sm text-slate-800 truncate">${escapeHtml(r.name)}</p>
 				<p class="text-xs text-slate-500">元テンプレート：${escapeHtml(getTemplateName(r.sourceTemplateId))}</p>
 				<p class="text-xs text-slate-500">候補${r.candidates.length}人・スキル${r.skillIds.length}件・更新 ${escapeHtml((r.updatedAt || '').slice(0, 10))}</p>
 			</div>
 			<div class="flex gap-1.5 shrink-0">
-				<button onclick="openRecordEditor('${r.recordId}')" class="icon-btn" title="開く"><i data-lucide="edit" class="w-4 h-4"></i></button>
-				<button onclick="duplicateRecord('${r.recordId}')" class="icon-btn" title="複製"><i data-lucide="copy" class="w-4 h-4"></i></button>
-				<button onclick="deleteRecord('${r.recordId}')" class="icon-btn text-red-500" title="削除"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+				<button onclick="openRecordEditor('${r.recordId}')" class="icon-btn uma-icon-btn" title="開く"><i data-lucide="edit" class="w-4 h-4"></i></button>
+				<button onclick="duplicateRecord('${r.recordId}')" class="icon-btn uma-icon-btn" title="複製"><i data-lucide="copy" class="w-4 h-4"></i></button>
+				<button onclick="deleteRecord('${r.recordId}')" class="icon-btn uma-icon-btn text-red-500" title="削除"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
 			</div>
 		</div>
 	`).join('');
@@ -521,21 +576,28 @@ function injectOcrHandoffStyles() {
 	if (document.getElementById('ocr-handoff-styles')) return;
 	const style = document.createElement('style');
 	style.id = 'ocr-handoff-styles';
+	// 見た目の値は css/common.css のトークンから取る。ここに色や寸法を直書きすると、
+	// Tailwind v4 のパレット（oklch）と微妙にズレた色が並ぶことになる。
+	// ボタンと入力欄そのものの形は共通部品（.uma-btn / .uma-input）に任せ、
+	// ここには「OCR受け渡しバナー固有の配置」だけを残す。
 	style.textContent = [
-		'.ocr-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;',
-		'  border: 1px solid #c7d2fe; background: #eef2ff; border-radius: .75rem; padding: 10px 14px; margin-bottom: 1rem; }',
+		'.ocr-banner { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-3); flex-wrap: wrap;',
+		'  border: 1px solid var(--uma-accent-border); background: var(--uma-accent-soft); border-radius: var(--uma-r-lg);',
+		'  padding: var(--uma-sp-2-5) var(--uma-sp-3-5); margin-bottom: var(--uma-sp-4); }',
 		'.ocr-banner[hidden] { display: none !important; }',
-		'.ocr-banner-title { font-size: 13px; font-weight: 700; color: #3730a3; }',
-		'.ocr-banner-sub { font-size: 11px; color: #6366f1; }',
-		'.ocr-banner-actions { display: flex; gap: 6px; flex-shrink: 0; }',
-		'.ocr-btn-primary { padding: 6px 14px; border-radius: .625rem; background: #4f46e5; color: #fff; font-size: 12px; font-weight: 600; border: none; cursor: pointer; }',
-		'.ocr-btn-ghost { padding: 6px 12px; border-radius: .625rem; background: #fff; color: #475569; font-size: 12px; font-weight: 600; border: 1px solid #e2e8f0; cursor: pointer; }',
-		'.ocr-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: .625rem; background: #fff; margin-bottom: 6px; }',
-		'.ocr-row-label { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: .5rem; background: #e0e7ff; color: #3730a3; flex-shrink: 0; }',
-		'.ocr-row-note { font-size: 11px; color: #64748b; flex-shrink: 0; }',
-		'.ocr-select { flex: 1; min-width: 180px; font-size: 12px; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: .5rem; background: #fff; }',
-		'.ocr-label-input { width: 110px; font-size: 12px; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: .5rem; background: #fff; }',
-		'.ocr-warn { border: 1px solid #fcd34d; background: #fffbeb; color: #92400e; font-size: 11px; border-radius: .625rem; padding: 8px 10px; margin-top: 10px; white-space: pre-line; }'
+		'.ocr-banner-title { font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-accent-soft-text); }',
+		'.ocr-banner-sub { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		'.ocr-banner-actions { display: flex; gap: var(--uma-sp-1-5); flex-shrink: 0; }',
+		'.ocr-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2); padding: var(--uma-sp-2) var(--uma-sp-2-5);',
+		'  border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg); background: var(--uma-surface); margin-bottom: var(--uma-sp-1-5); }',
+		'.ocr-row-label { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; padding: var(--uma-sp-0-5) var(--uma-sp-2);',
+		'  border-radius: var(--uma-r-md); background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); flex-shrink: 0; }',
+		'.ocr-row-note { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); flex-shrink: 0; }',
+		'.ocr-select { flex: 1; min-width: 180px; }',
+		'.ocr-label-input { width: 110px; }',
+		'.ocr-warn { border: 1px solid var(--uma-warn-border); background: var(--uma-warn-bg); color: var(--uma-warn-text);',
+		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); border-radius: var(--uma-r-lg);',
+		'  padding: var(--uma-sp-2) var(--uma-sp-2-5); margin-top: var(--uma-sp-2-5); white-space: pre-line; }'
 	].join('\n');
 	document.head.appendChild(style);
 }
@@ -557,8 +619,8 @@ function ensureOcrHandoffBanner() {
 			'</div>' +
 		'</div>' +
 		'<div class="ocr-banner-actions">' +
-			'<button type="button" class="ocr-btn-primary" data-ocr-act="import">読み込む</button>' +
-			'<button type="button" class="ocr-btn-ghost" data-ocr-act="dismiss">閉じる</button>' +
+			'<button type="button" class="ocr-btn-primary uma-btn uma-btn--primary" data-ocr-act="import">読み込む</button>' +
+			'<button type="button" class="ocr-btn-ghost uma-btn uma-btn--secondary" data-ocr-act="dismiss">閉じる</button>' +
 		'</div>';
 	// タブ切り替えの直下（どのタブを開いていても見える位置）に差し込む
 	const nav = document.getElementById('tab-btn-template').closest('nav');
@@ -659,12 +721,12 @@ function openOcrImportDialog() {
 					' の' + payload.persons.length + '人分・スキル' + skills.resolved.length + '件を取り込みます。' +
 					'保存は1人＝1候補まるごとです（選んだ候補の★は、対象スキルぶん置き換わります）。</p>' +
 				'<label class="block text-xs font-semibold text-slate-700 mb-1.5">取り込み先の比較シート</label>' +
-				'<select class="ocr-select" style="width:100%;" data-ocr-el="record-select"></select>' +
-				'<input type="text" class="ocr-label-input" style="width:100%;margin-top:6px;" data-ocr-el="record-name" placeholder="新しい比較シートの名前" hidden />' +
+				'<select class="ocr-select uma-input" style="width:100%;" data-ocr-el="record-select"></select>' +
+				'<input type="text" class="ocr-label-input uma-input" style="width:100%;margin-top:6px;" data-ocr-el="record-name" placeholder="新しい比較シートの名前" hidden />' +
 				'<label class="block text-xs font-semibold text-slate-700 mt-4 mb-1.5">それぞれの取り込み先の候補</label>' +
 				'<div data-ocr-el="rows"></div>' +
 				warn +
-				'<button type="button" class="ocr-btn-primary" style="width:100%;margin-top:14px;padding:10px;" data-ocr-act="apply">この内容で取り込む</button>' +
+				'<button type="button" class="ocr-btn-primary uma-btn uma-btn--primary" style="width:100%;margin-top:14px;padding:10px;" data-ocr-act="apply">この内容で取り込む</button>' +
 			'</div>' +
 		'</div>';
 
@@ -714,8 +776,8 @@ function renderOcrImportRows() {
 			'<span class="ocr-row-label">' + escapeHtml(p.label) + '</span>' +
 			'<span class="ocr-row-note">検出' + (detected + unknown) + '件'
 				+ (unknown > 0 ? ' / <span style="color:#b45309;font-weight:600;">★不明' + unknown + '件</span>' : '') + '</span>' +
-			'<select class="ocr-select" data-ocr-el="person-select" data-person="' + p.index + '">' + opts.join('') + '</select>' +
-			'<input type="text" class="ocr-label-input" data-ocr-el="person-label" data-person="' + p.index + '" value="' + escapeHtml(p.label) + '" placeholder="候補名"' + (def === '__new__' ? '' : ' hidden') + ' />' +
+			'<select class="ocr-select uma-input" data-ocr-el="person-select" data-person="' + p.index + '">' + opts.join('') + '</select>' +
+			'<input type="text" class="ocr-label-input uma-input" data-ocr-el="person-label" data-person="' + p.index + '" value="' + escapeHtml(p.label) + '" placeholder="候補名"' + (def === '__new__' ? '' : ' hidden') + ' />' +
 		'</div>';
 	}).join('');
 }
@@ -812,7 +874,10 @@ function renderAll() {
 }
 
 async function initApp() {
-	document.getElementById('js-version-note').textContent = 'js ' + UMA_SKILL_DECK_JS_VERSION + '・core ' + Core.VERSION;
+	document.getElementById('js-version-note').textContent =
+		'js ' + UMA_SKILL_DECK_JS_VERSION + '・core ' + Core.VERSION + '・css ' + (loadedCommonCssVersion() || '(未読込)');
+	verifyTailwindLoaded(5);
+	verifyCommonCssVersion();
 	Core.configure({ toast: showToast });
 	Core.onUndoChanged(renderUndoButton);
 	userData = Core.getUserData();

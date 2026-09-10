@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-10b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-10h';
 
 	/* ============================================================
 	 * 定数
@@ -531,47 +531,58 @@
 	// （.list-card / .chip 等）と衝突させないため usd- を接頭辞にする。
 	// 見た目は uma-skill-deck.html の既存デザインと同一。
 	const CORE_STYLES = [
-		// uma-skill-deck.html の既存デザインと同じ宣言。クラス名だけ usd- 接頭辞に変えて、
-		// 読み込み先ページのクラス（.list-card / .chip 等）と衝突しないようにしている。
-		'.usd-list-card { display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem; border: 1px solid #e2e8f0; border-radius: .75rem; background: #fff; margin-bottom: .5rem; }',
-		'.usd-list-card.usd-selectable { cursor: pointer; }',
-		'.usd-list-card.usd-selected { border-color: #a5b4fc; background: #eef2ff; }',
-		'.usd-icon-btn { padding: .375rem; border-radius: .5rem; color: #64748b; cursor: pointer; }',
-		'.usd-icon-btn:hover { background: #f1f5f9; }',
-		'.usd-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; background: #eef2ff; color: #4338ca; border-radius: 999px; font-size: 12px; }',
-		'.usd-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border: 1px solid #e2e8f0; border-radius: 999px; font-size: 11px; cursor: pointer; background: #fff; }',
-		'.usd-row { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 13px; border-bottom: 1px solid #f1f5f9; cursor: pointer; }',
+		// 見た目の値は css/common.css のトークンから取る。ここに色や寸法を直書きすると、
+		// Tailwind v4 のパレット（oklch）と微妙にズレた色が並ぶことになる。
+		// ボタン・入力欄そのものの形は共通部品（.uma-btn / .uma-icon-btn / .uma-input）に
+		// 任せ、ここにはこのモジュールが生成する要素固有の配置だけを残す。
+		// 一覧の行（.usd-list-card）とパネルの下地（.usd-panel）の見た目は
+		// css/common.css の .uma-list-row / .glass-card が持つ。
+		// 以前はページ側と同じ定義をここにも書いていたが、片方だけ直す事故の元だった。
+		'.usd-chip { display: inline-flex; align-items: center; gap: var(--uma-sp-1); padding: var(--uma-sp-1) var(--uma-sp-2-5);',
+		'  background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); border-radius: var(--uma-r-full);',
+		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; }',
+		'.usd-pill { display: inline-flex; align-items: center; gap: var(--uma-sp-1); padding: var(--uma-sp-1) var(--uma-sp-2-5);',
+		'  border: 1px solid var(--uma-border); border-radius: var(--uma-r-full); font-size: var(--uma-fs-xs);',
+		'  line-height: var(--uma-lh-xs); cursor: pointer; background: var(--uma-surface); color: var(--uma-text-muted); }',
+		'.usd-pill:hover { border-color: var(--uma-border-strong); background: var(--uma-surface-sunken); }',
+		'.usd-row { display: flex; align-items: center; gap: var(--uma-sp-2); padding: var(--uma-sp-1-5) var(--uma-sp-3);',
+		'  font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); border-bottom: 1px solid var(--uma-surface-muted); cursor: pointer; }',
+		'.usd-row:hover { background: var(--uma-surface-sunken); }',
 		'.usd-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
-		// uma-skill-deck.html では input の見た目がページ側CSSで一括指定されているが、
-		// special.html にはその指定がないため、モジュール側にも同じものを用意しておく。
-		'.usd-input { border: 1px solid #e2e8f0; border-radius: .5rem; padding: .5rem .75rem; font-size: .875rem; width: 100%; background: #fff; }',
 		// 既存の .glass-card 相当（テンプレート編集パネル・モーダルの下地）
-		'.usd-panel { background: rgba(255,255,255,0.9); backdrop-filter: blur(14px); }',
 		'.usd-modal { position: fixed; inset: 0; background: rgba(15,23,42,.4); z-index: 80; display: flex; align-items: flex-end; justify-content: center; }',
 		'.usd-modal[hidden] { display: none !important; }',
-		'.usd-modal-panel { background: rgba(255,255,255,.9); backdrop-filter: blur(14px); width: 100%; max-width: 42rem; border-radius: 1rem 1rem 0 0; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }',
-		'@media (min-width: 768px) { .usd-modal-panel { border-radius: 1rem; margin-bottom: 1.5rem; } }',
+		'.usd-modal-panel { background: var(--uma-glass-bg); backdrop-filter: var(--uma-glass-blur); width: 100%; max-width: 42rem;',
+		'  border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }',
+		'@media (min-width: 768px) { .usd-modal-panel { border-radius: var(--uma-r-xl); margin-bottom: var(--uma-sp-6); } }',
 		// 一括貼り付けの照合結果
-		'.usd-paste-summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 11px; margin-bottom: 6px; }',
-		'.usd-paste-ok { color: #15803d; font-weight: 600; }',
-		'.usd-paste-muted { color: #94a3b8; }',
-		'.usd-paste-warn { color: #b45309; font-weight: 600; }',
-		'.usd-paste-err { color: #b91c1c; font-weight: 600; }',
-		'.usd-paste-label { font-size: 11px; color: #64748b; margin: 8px 0 4px; }',
-		'.usd-paste-row { border: 1px solid #e2e8f0; border-radius: .5rem; background: #fff; padding: 6px 8px; margin-bottom: 4px; font-size: 12px; }',
-		'.usd-paste-approx { border-color: #fcd34d; background: #fffbeb; }',
-		'.usd-paste-error { border-color: #fca5a5; background: #fef2f2; }',
-		'.usd-paste-raw { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #334155; word-break: break-all; }',
-		'.usd-paste-arrow { color: #94a3b8; margin: 0 6px; }',
-		'.usd-paste-picked { font-weight: 600; color: #4338ca; }',
-		'.usd-paste-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }',
-		'.usd-paste-cands { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 4px; }',
-		'.usd-paste-hint { font-size: 11px; color: #94a3b8; }',
-		'.usd-paste-cand { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid #c7d2fe; background: #eef2ff; color: #4338ca; cursor: pointer; }',
-		'.usd-paste-cand:hover { background: #e0e7ff; }',
-		'.usd-paste-skip { font-size: 11px; color: #94a3b8; text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; }',
+		'.usd-paste-summary { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2); align-items: center; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); margin-bottom: var(--uma-sp-1-5); }',
+		'.usd-paste-ok { color: var(--uma-success); font-weight: 600; }',
+		'.usd-paste-muted { color: var(--uma-text-faint); }',
+		'.usd-paste-warn { color: var(--uma-warn-text); font-weight: 600; }',
+		'.usd-paste-err { color: var(--uma-danger-text); font-weight: 600; }',
+		'.usd-paste-label { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); margin: var(--uma-sp-2) 0 var(--uma-sp-1); }',
+		'.usd-paste-row { border: 1px solid var(--uma-border); border-radius: var(--uma-r-md); background: var(--uma-surface);',
+		'  padding: var(--uma-sp-1-5) var(--uma-sp-2); margin-bottom: var(--uma-sp-1); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); }',
+		'.usd-paste-approx { border-color: var(--uma-warn-border); background: var(--uma-warn-bg); }',
+		'.usd-paste-error { border-color: var(--uma-danger-border); background: var(--uma-danger-bg); }',
+		'.usd-paste-raw { font-family: var(--uma-font-mono); color: var(--uma-text-heading); word-break: break-all; }',
+		'.usd-paste-arrow { color: var(--uma-text-faint); margin: 0 var(--uma-sp-1-5); }',
+		'.usd-paste-picked { font-weight: 600; color: var(--uma-accent-soft-text); }',
+		'.usd-paste-head { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); }',
+		'.usd-paste-cands { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1); align-items: center; margin-top: var(--uma-sp-1); }',
+		'.usd-paste-hint { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-faint); }',
+		'.usd-paste-cand { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); padding: var(--uma-sp-0-5) var(--uma-sp-2);',
+		'  border-radius: var(--uma-r-full); border: 1px solid var(--uma-accent-border); background: var(--uma-accent-soft);',
+		'  color: var(--uma-accent-soft-text); cursor: pointer; }',
+		'.usd-paste-cand:hover { background: var(--uma-accent-border); }',
+		'.usd-paste-skip { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-faint);',
+		'  text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; }',
+		'.usd-paste-skip:hover { color: var(--uma-text-subtle); }',
 		'.usd-paste-scroll { max-height: 240px; overflow: auto; }',
-		'.usd-draft-badge { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 999px; background: #fef3c7; color: #92400e; vertical-align: 1px; }'
+		'.usd-draft-badge { display: inline-block; margin-left: var(--uma-sp-1-5); font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs);',
+		'  font-weight: 600; padding: var(--uma-sp-0-5) var(--uma-sp-1-5); border-radius: var(--uma-r-full);',
+		'  background: var(--uma-warn-bg); color: var(--uma-warn-text); vertical-align: 1px; }'
 	].join('\n');
 
 	let stylesInjected = false;
@@ -598,7 +609,7 @@
 			'<div class="usd-modal-panel">' +
 				'<div class="flex items-center justify-between p-4 border-b border-slate-200" style="flex-shrink:0;">' +
 					'<p class="text-sm font-semibold text-slate-700">スキルを選ぶ（軸間はAND・軸内はOR）</p>' +
-					'<button type="button" class="usd-icon-btn" data-usd-act="picker-close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>' +
+					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="picker-close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>' +
 				'</div>' +
 				'<div class="p-4" style="overflow:auto;">' +
 					// 一括貼り付け。7軸フィルターより上に置く（スプレッドシートからの
@@ -607,10 +618,10 @@
 						'<summary class="text-xs font-semibold text-slate-600 px-3 py-2 cursor-pointer select-none">スプレッドシートから貼り付けて一括選択</summary>' +
 						'<div class="px-3 pb-3">' +
 							'<p class="text-[11px] text-slate-500 leading-relaxed mb-2">1列ぶんを改行区切りのまま貼り付けてください。全角/半角の違いや、末尾の「★3」「(3)」のような評価表記は自動で読み替えます。複数列をまとめてコピーした行（タブを含む行）はエラーとしてお知らせします。</p>' +
-							'<textarea class="usd-input" rows="4" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;resize:vertical;" data-usd-el="paste-input" placeholder="1行に1つずつスキル名を貼り付け"></textarea>' +
+							'<textarea class="usd-input uma-input" rows="4" style="font-family:var(--uma-font-mono);resize:vertical;" data-usd-el="paste-input" placeholder="1行に1つずつスキル名を貼り付け"></textarea>' +
 							'<div class="flex flex-wrap gap-2 mt-2">' +
-								'<button type="button" class="px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold" data-usd-act="paste-run">貼り付けたテキストを照合</button>' +
-								'<button type="button" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold" data-usd-act="paste-clear">クリア</button>' +
+								'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="paste-run">貼り付けたテキストを照合</button>' +
+								'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="paste-clear">クリア</button>' +
 							'</div>' +
 							'<div data-usd-el="paste-report" class="mt-3"></div>' +
 						'</div>' +
@@ -623,13 +634,13 @@
 						'<p class="text-xs text-slate-500">絞り込み結果（<span data-usd-el="result-count">0件</span>）</p>' +
 					'</div>' +
 					'<div data-usd-el="results" style="border:1px solid #e2e8f0;border-radius:.75rem;max-height:280px;overflow:auto;margin-bottom:10px;"></div>' +
-					'<button type="button" class="w-full px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold mb-4" data-usd-act="picker-add">チェックしたスキルを追加</button>' +
+					'<button type="button" class="w-full uma-btn uma-btn--primary mb-4" data-usd-act="picker-add">チェックしたスキルを追加</button>' +
 					'<details class="border-t border-slate-200 pt-3">' +
 						'<summary class="text-xs font-semibold text-slate-600 cursor-pointer">マスターにないスキルを手入力で追加</summary>' +
 						'<div class="mt-3">' +
-							'<input type="text" class="usd-input mb-2" data-usd-el="custom-name" placeholder="スキル名"/>' +
+							'<input type="text" class="usd-input uma-input mb-2" data-usd-el="custom-name" placeholder="スキル名"/>' +
 							'<div data-usd-el="custom-tags"></div>' +
-							'<button type="button" class="mt-2 px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold" data-usd-act="custom-add">カスタムスキルとして追加</button>' +
+							'<button type="button" class="mt-2 uma-btn uma-btn--secondary" data-usd-act="custom-add">カスタムスキルとして追加</button>' +
 						'</div>' +
 					'</details>' +
 				'</div>' +
@@ -1052,24 +1063,24 @@
 		container.innerHTML = '' +
 			'<div data-usd-el="list-view">' +
 				'<div class="flex items-center justify-between mb-3">' +
-					'<button type="button" class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold" data-usd-act="template-new">＋ 新規作成</button>' +
+					'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="template-new">＋ 新規作成</button>' +
 					'<span class="text-xs text-slate-500" data-usd-el="count-badge"></span>' +
 				'</div>' +
 				'<div data-usd-el="list"></div>' +
 			'</div>' +
-			'<div data-usd-el="editor-view" class="usd-panel rounded-2xl border border-slate-200 p-4" hidden>' +
+			'<div data-usd-el="editor-view" class="usd-panel glass-card" hidden>' +
 				'<div class="flex items-center gap-2 mb-3">' +
-					'<button type="button" class="usd-icon-btn" data-usd-act="editor-close" aria-label="戻る"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>' +
-					'<input type="text" class="usd-input flex-1" data-usd-el="name-input" placeholder="テンプレート名（例：マイルCS想定）"/>' +
+					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="editor-close" aria-label="戻る"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>' +
+					'<input type="text" class="usd-input uma-input flex-1" data-usd-el="name-input" placeholder="テンプレート名（例：マイルCS想定）"/>' +
 					'<p class="flex-1 text-sm font-semibold text-slate-700" data-usd-el="draft-title" hidden>今回だけの対象スキルセット</p>' +
 				'</div>' +
-				'<button type="button" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold mb-3" data-usd-act="editor-pick">' +
+				'<button type="button" class="uma-btn uma-btn--secondary mb-3" data-usd-act="editor-pick">' +
 					'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> スキルを追加' +
 				'</button>' +
 				'<p class="text-xs text-slate-500 mb-1">選択済みスキル（<span data-usd-el="selected-count">0</span>）</p>' +
 				'<div data-usd-el="selected-list" class="flex flex-wrap gap-2"></div>' +
 				'<div class="mt-3" data-usd-el="draft-actions" hidden>' +
-					'<button type="button" class="px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold" data-usd-act="draft-promote">テンプレートとして保存</button>' +
+					'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="draft-promote">テンプレートとして保存</button>' +
 					'<p class="text-[11px] text-slate-400 mt-2">保存すると名前を付けて残せます。保存しない場合も、この端末のブラウザには次回まで残ります。</p>' +
 				'</div>' +
 				'<p class="text-[11px] text-slate-400 mt-4" data-usd-el="editor-note">変更は自動的に保存されます。</p>' +
@@ -1143,7 +1154,7 @@
 				? '<input type="radio" name="usd-tpl-' + esc(container.id || 'panel') + '" data-usd-el="template-radio" value="' + DRAFT_SELECTION_ID + '"' + (isSel ? ' checked' : '') + (n === 0 ? ' disabled' : '') + ' class="shrink-0"/>'
 				: '';
 			return '' +
-			'<label class="usd-list-card' + (selectable ? ' usd-selectable' : '') + (isSel ? ' usd-selected' : '') + '">' +
+			'<label class="usd-list-card uma-list-row' + (selectable ? ' usd-selectable uma-list-row--selectable' : '') + (isSel ? ' usd-selected uma-list-row--selected' : '') + '">' +
 				radio +
 				'<div class="flex-1 min-w-0">' +
 					'<p class="font-semibold text-sm text-slate-800 usd-truncate">今回だけの対象スキルセット<span class="usd-draft-badge">保存しない</span></p>' +
@@ -1152,8 +1163,8 @@
 						: 'スキル' + n + '件・この端末のブラウザに残ります') + '</p>' +
 				'</div>' +
 				'<div class="flex gap-1.5 shrink-0">' +
-					'<button type="button" class="usd-icon-btn" data-usd-act="draft-open" title="編集"><i data-lucide="edit" class="w-4 h-4"></i></button>' +
-					'<button type="button" class="usd-icon-btn text-red-500" data-usd-act="draft-clear" title="空にする"><i data-lucide="trash-2" class="w-4 h-4"></i></button>' +
+					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="draft-open" title="編集"><i data-lucide="edit" class="w-4 h-4"></i></button>' +
+					'<button type="button" class="usd-icon-btn uma-icon-btn text-red-500" data-usd-act="draft-clear" title="空にする"><i data-lucide="trash-2" class="w-4 h-4"></i></button>' +
 				'</div>' +
 			'</label>';
 		}
@@ -1185,18 +1196,18 @@
 					const radio = selectable
 						? '<input type="radio" name="usd-tpl-' + esc(container.id || 'panel') + '" data-usd-el="template-radio" value="' + esc(t.templateId) + '"' + (isSel ? ' checked' : '') + ' class="shrink-0"/>'
 						: '';
-					const tag = selectable ? ' usd-selectable' + (isSel ? ' usd-selected' : '') : '';
+					const tag = selectable ? ' usd-selectable uma-list-row--selectable' + (isSel ? ' usd-selected uma-list-row--selected' : '') : '';
 					return '' +
-					'<label class="usd-list-card' + tag + '">' +
+					'<label class="usd-list-card uma-list-row' + tag + '">' +
 						radio +
 						'<div class="flex-1 min-w-0">' +
 							'<p class="font-semibold text-sm text-slate-800 usd-truncate">' + esc(t.name || '（名称未設定）') + '</p>' +
 							'<p class="text-xs text-slate-500">スキル' + t.skillIds.length + '件・更新 ' + esc((t.updatedAt || '').slice(0, 10)) + '</p>' +
 						'</div>' +
 						'<div class="flex gap-1.5 shrink-0">' +
-							'<button type="button" class="usd-icon-btn" data-usd-act="template-open" data-template-id="' + esc(t.templateId) + '" title="開く"><i data-lucide="edit" class="w-4 h-4"></i></button>' +
-							'<button type="button" class="usd-icon-btn" data-usd-act="template-duplicate" data-template-id="' + esc(t.templateId) + '" title="複製"><i data-lucide="copy" class="w-4 h-4"></i></button>' +
-							'<button type="button" class="usd-icon-btn text-red-500" data-usd-act="template-delete" data-template-id="' + esc(t.templateId) + '" title="削除"><i data-lucide="trash-2" class="w-4 h-4"></i></button>' +
+							'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="template-open" data-template-id="' + esc(t.templateId) + '" title="開く"><i data-lucide="edit" class="w-4 h-4"></i></button>' +
+							'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="template-duplicate" data-template-id="' + esc(t.templateId) + '" title="複製"><i data-lucide="copy" class="w-4 h-4"></i></button>' +
+							'<button type="button" class="usd-icon-btn uma-icon-btn text-red-500" data-usd-act="template-delete" data-template-id="' + esc(t.templateId) + '" title="削除"><i data-lucide="trash-2" class="w-4 h-4"></i></button>' +
 						'</div>' +
 					'</label>';
 				}).join('');

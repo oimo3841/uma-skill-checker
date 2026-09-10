@@ -4,6 +4,11 @@
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>UmaStar OCR（β版）</title>
+	<!-- 共通スタイル（デザイントークン・共通部品）。Tailwindより先に読み込む。
+	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
+	     common.css の方が強い。読み込み順は common.css → Tailwind → 下の<style>で、
+	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
+	<link rel="stylesheet" href="css/common.css?v=2026-09-10g" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -12,10 +17,21 @@
 	<script src="js/common.js?v=2026-09-10a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-10b"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-10h"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-09a"></script>
 	<style>
+		/* このツールのアクセント。UmaStar OCR は「読み取って登録する」画面なので緑。
+		   共通部品（ボタン・入力欄・フォーカス輪郭）はこの変数を見て色が決まる。
+		   値は Tailwind v4.1.11 のパレット実測値。 */
+		:root {
+			--uma-accent: #00a63e;            /* green-600 */
+			--uma-accent-hover: #008236;      /* green-700 */
+			--uma-accent-soft: #dbfce7;       /* green-100 */
+			--uma-accent-soft-text: #016630;  /* green-800 */
+			--uma-accent-border: #b9f8cf;     /* green-200 */
+			--uma-accent-ring: #008236;       /* green-700 */
+		}
 		body {
 			background-color: #f4faf0;
 			background-image:
@@ -26,37 +42,46 @@
 			background-repeat: repeat, no-repeat, no-repeat, no-repeat;
 			background-attachment: fixed, fixed, fixed, fixed;
 		}
-		.glass-card {
-			background: rgba(255, 255, 255, 0.88);
-			backdrop-filter: blur(14px);
-			border-color: rgba(187, 224, 163, 0.55) !important;
-		}
-		:focus-visible {
-			outline: 2px solid #15803d;
-			outline-offset: 2px;
-			border-radius: 4px;
-		}
-		@media (prefers-reduced-motion: reduce) {
-			* { scroll-behavior: auto !important; }
-		}
+		/* .glass-card / :focus-visible / prefers-reduced-motion は css/common.css へ移した。
+		   （両ツールで同じ意図の定義が別々に存在していたため） */
 		.result-table { border-collapse: separate; border-spacing: 0; width: 100%; }
 		.result-table th {
-			background-color: #f1f5f9; font-weight: 600; font-size: 0.8125rem; color: #475569;
-			border-bottom: 2px solid #e2e8f0; padding: 0.75rem 1rem;
+			background-color: var(--uma-surface-muted); font-weight: 600;
+			font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); color: var(--uma-text-muted);
+			border-bottom: 2px solid var(--uma-border); padding: var(--uma-sp-3) var(--uma-sp-4);
 		}
 		.result-table td {
-			border-bottom: 1px solid #f1f5f9; padding: 0.75rem 1rem; font-size: 0.875rem;
+			border-bottom: 1px solid var(--uma-surface-muted);
+			padding: var(--uma-sp-3) var(--uma-sp-4);
+			font-size: var(--uma-fs-md); line-height: var(--uma-lh-md);
 		}
-		.result-table tr:hover td { background-color: #f8fafc; }
-		.found { color: #059669; font-weight: 600; }
-		.not-found { color: #94a3b8; }
-		.drop-active { border-color: #16a34a !important; background-color: #f0fdf4 !important; transform: scale(1.005); }
+		.result-table tr:hover td { background-color: var(--uma-surface-sunken); }
+
+		/* ===== 結果表の人物列 =====
+		   親Aセット＝青系統／親Bセット＝赤系統。値は Tailwind v4 のパレット実測値。
+		   以前はインラインstyleで当てていた（「クラスでは優先度で負ける」ため、と
+		   コメントに残っていた）が、Tailwindのユーティリティは @layer utilities に
+		   入るため、レイヤーに属さないこの指定の方が強い。前提が変わったのでクラスに戻した。
+		   exam.html を合流させるときは、このブロックごと共通化できる。 */
+		.person-col-blue { --person-bg: #eff6ff; --person-fg: #193cb8; --person-border-strong: #8ec5ff; --person-border-soft: #bedbff; --person-tint: rgba(43, 127, 255, .07); }
+		.person-col-red  { --person-bg: #fef2f2; --person-fg: #9f0712; --person-border-strong: #ffa2a2; --person-border-soft: #ffc9c9; --person-tint: rgba(251, 44, 54, .07); }
+		.result-table th.person-col { background-color: var(--person-bg); color: var(--person-fg); }
+		.result-table td.person-col { background-color: var(--person-tint); }
+		.result-table th.person-col.person-set-boundary { border-left: 2px solid var(--person-border-strong); }
+		.result-table td.person-col.person-set-boundary { border-left: 2px solid var(--person-border-soft); }
+		.result-table th.person-total { background-color: var(--uma-surface-muted); color: var(--uma-text-heading); border-left: 2px solid var(--uma-border-strong); }
+		.result-table td.person-total { background-color: var(--uma-surface-sunken); border-left: 2px solid var(--uma-border); }
+		.found { color: var(--uma-success); font-weight: 600; }
+		.not-found { color: var(--uma-text-faint); }
+		/* Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
+		   このルールの方が強い。以前は !important で押していたが不要になった。 */
+		.drop-active { border-color: var(--uma-accent); background-color: var(--uma-accent-soft); transform: scale(1.005); }
 		.dev-log {
-			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-			font-size: 0.725rem; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+			font-family: var(--uma-font-mono);
+			font-size: var(--uma-fs-xs); line-height: 1.6; white-space: pre-wrap; word-break: break-all;
 		}
 		#debug-preview canvas {
-			max-width: 100%; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #fff;
+			max-width: 100%; border: 1px solid var(--uma-border); border-radius: var(--uma-r-md); background: var(--uma-surface);
 		}
 		#toast {
 			transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -67,15 +92,30 @@
 		   注意: 背景の暗転に opacity は使わない。opacity<1 は新しいスタッキング
 		   コンテキストを生成し、他要素の z-index 制御を壊す（F-7の実績）。
 		   半透明の背景色を持つ不透明な要素として実装する。 */
+		/* UmaSkill Deck へ向かう/書き込むボタンは、共通部品のまま
+		   アクセント変数だけをその場で Deck 側の藍に差し替える。
+		   部品の形は共通、色だけが行き先を示す。 */
+		.btn-deck-accent {
+			--uma-accent: #4f39f6;            /* indigo-600 */
+			--uma-accent-hover: #432dd7;      /* indigo-700 */
+			--uma-accent-soft: #eef2ff;       /* indigo-50  */
+			--uma-accent-soft-text: #432dd7;
+			--uma-accent-border: #c6d2ff;     /* indigo-200 */
+		}
+
+		/* 引き出しの取っ手は「UmaSkill Deckへ行ける」ことを示すものなので、
+		   このページのアクセント（緑）ではなく Deck 側のアクセント（藍）で塗る。
+		   値は Tailwind v4 の indigo-600 / indigo-700 実測値。 */
 		.deck-drawer-trigger {
 			position: fixed; right: 0; top: 50%; transform: translateY(-50%);
-			z-index: 70; display: flex; flex-direction: column; align-items: center; gap: 6px;
-			padding: 14px 8px; border: none; border-radius: 12px 0 0 12px;
-			background: #4f46e5; color: #fff; font-size: 11px; font-weight: 700; line-height: 1.4;
+			z-index: 70; display: flex; flex-direction: column; align-items: center; gap: var(--uma-sp-1-5);
+			padding: var(--uma-sp-3-5) var(--uma-sp-2); border: none; border-radius: var(--uma-r-lg) 0 0 var(--uma-r-lg);
+			background: #4f39f6; color: var(--uma-text-inverse);
+			font-size: var(--uma-fs-xs); font-weight: 700; line-height: 1.4;
 			cursor: pointer; box-shadow: -2px 0 12px rgba(15, 23, 42, .18);
-			transition: background-color .2s, padding-right .2s;
+			transition: background-color var(--uma-transition), padding-right var(--uma-transition);
 		}
-		.deck-drawer-trigger:hover { background: #4338ca; padding-right: 12px; }
+		.deck-drawer-trigger:hover { background: #432dd7; padding-right: var(--uma-sp-3); }
 		.deck-drawer-trigger .label { writing-mode: vertical-rl; letter-spacing: .08em; }
 
 		.deck-drawer-backdrop {
@@ -98,7 +138,8 @@
 		.deck-drawer.open { transform: translateX(0); }
 		.deck-drawer-header {
 			flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
-			gap: 12px; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0;
+			gap: var(--uma-sp-3); padding: var(--uma-sp-3) var(--uma-sp-4);
+			background: var(--uma-surface); border-bottom: 1px solid var(--uma-border);
 		}
 		.deck-drawer-body { flex: 1; min-height: 0; background: #f5f6fb; }
 		.deck-drawer-body iframe { width: 100%; height: 100%; border: 0; display: block; }
@@ -137,7 +178,7 @@
 
 					<!-- ツール切り替えドロップダウン -->
 					<div class="relative" id="tool-dropdown-wrap">
-						<button id="tool-dropdown-btn" type="button" onclick="toggleToolDropdown()" class="inline-flex items-center justify-center gap-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
+						<button id="tool-dropdown-btn" type="button" onclick="toggleToolDropdown()" class="uma-btn uma-btn--secondary">
 							<i data-lucide="layout-grid" class="w-4 h-4 text-green-600"></i>
 							<span>ツール切替</span>
 							<i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
@@ -179,13 +220,13 @@
 						</div>
 					<!-- UmaSkill Deck連携モードの切り替え。既定はOFFで、押して初めて有効になる
 					     （既存の使い方には一切影響させない） -->
-					<button id="deck-mode-btn" type="button" onclick="toggleDeckMode()" class="inline-flex items-center justify-center gap-2 text-xs font-semibold text-slate-600 hover:text-indigo-700 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
+					<button id="deck-mode-btn" type="button" onclick="toggleDeckMode()" class="uma-btn uma-btn--secondary btn-deck-accent">
 						<i data-lucide="layers" class="w-4 h-4 text-indigo-500"></i>
 						<span id="deck-mode-btn-label">UmaSkill Deck連携</span>
 					</button>
 
 					<!-- 使い方ガイドボタン -->
-					<button type="button" onclick="toggleHelp()" class="inline-flex items-center justify-center gap-2 text-xs font-medium text-slate-600 hover:text-green-600 bg-white border border-slate-200 hover:border-green-300 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
+					<button type="button" onclick="toggleHelp()" class="uma-btn uma-btn--secondary">
 						<i data-lucide="help-circle" class="w-4 h-4"></i>
 						<span>使い方ガイド</span>
 					</button>
@@ -194,7 +235,7 @@
 		</header>
 
 		<!-- 使い方アコーディオン -->
-		<div id="help-box" class="hidden rounded-2xl border border-green-100 bg-gradient-to-br from-green-50/80 to-emerald-50/50 p-5 md:p-6 mb-8 shadow-xs relative overflow-hidden transition-all">
+		<div id="help-box" class="hidden rounded-2xl border border-green-100 bg-gradient-to-br from-green-50/80 to-emerald-50/50 p-4 md:p-6 mb-8 shadow-xs relative overflow-hidden transition-all">
 			<div class="flex items-center gap-2 text-sm font-bold text-green-900 mb-4">
 				<i data-lucide="book-open" class="w-4 h-4 text-green-600"></i>
 				<span>使い方の手順</span>
@@ -241,7 +282,7 @@
 		</div>
 
 		<!-- ステップ1：スキルリスト -->
-		<div class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6">
+		<div class="glass-card shadow-xs mb-6">
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
 					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">1</span>
@@ -257,11 +298,11 @@
 
 			<div class="mt-3 flex items-center justify-between gap-3">
 				<div class="flex items-center gap-2">
-					<button type="button" onclick="parseSkillList()" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-xs md:text-sm font-semibold hover:bg-slate-800 active:scale-98 transition-all shadow-xs cursor-pointer">
+					<button type="button" onclick="parseSkillList()" class="uma-btn uma-btn--neutral">
 						<i data-lucide="list-checks" class="w-4 h-4"></i>
 						<span>リストを解析する</span>
 					</button>
-					<button type="button" onclick="clearSkillList()" class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs md:text-sm font-medium hover:bg-slate-50 transition-all cursor-pointer">
+					<button type="button" onclick="clearSkillList()" class="uma-btn uma-btn--secondary">
 						<i data-lucide="eraser" class="w-4 h-4"></i>
 						<span>クリア</span>
 					</button>
@@ -281,7 +322,7 @@
 				<div class="mt-3 flex items-center justify-between gap-3 flex-wrap">
 					<!-- 表示/非表示は style.display で切り替える。Tailwindでは .inline-flex が .hidden より後に
 					     出力されるため、hiddenクラスの付け外しでは隠れないことを実測で確認済み。 -->
-					<button id="deck-undo-btn" type="button" onclick="UmaSkillDeckCore.performUndo()" style="display:none;" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-[11px] font-semibold cursor-pointer">
+					<button id="deck-undo-btn" type="button" onclick="UmaSkillDeckCore.performUndo()" style="display:none;" class="uma-btn uma-btn--neutral">
 						<i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
 						<span>元に戻す</span>
 						<span id="deck-undo-count" class="bg-white/20 rounded-full px-1.5"></span>
@@ -316,7 +357,7 @@
 		</div>
 
 		<!-- ステップ2：親A・祖A1・祖A2（＋任意で親B・祖B1・祖B2）の画像アップロード -->
-		<div class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6">
+		<div class="glass-card shadow-xs mb-6">
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
 					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">2</span>
@@ -389,7 +430,7 @@
 				<div id="error-content"></div>
 			</div>
 
-			<button id="process-btn" type="button" onclick="processImages()" class="w-full py-3.5 px-4 rounded-xl bg-green-600 text-white text-xs md:text-sm font-bold hover:bg-green-700 active:scale-99 transition-all shadow-md hover:shadow-green-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 cursor-pointer" disabled>
+			<button id="process-btn" type="button" onclick="processImages()" class="uma-btn uma-btn--primary uma-btn--lg w-full" disabled>
 				<i data-lucide="play" class="w-4 h-4 fill-current"></i>
 				<span>OCR処理を開始する</span>
 			</button>
@@ -397,7 +438,7 @@
 			<!-- 画像結合（SNS投稿用）。OCR処理とは独立した機能で、スキルリスト未入力でも
 			     アップロード済み画像だけで実行できる。各人ごとに複数枚のスクショを1枚に
 			     縦結合し、さらに親A・祖A1・祖A2を横結合して1枚の比較画像として出力する。 -->
-			<button id="stitch-btn" type="button" onclick="runImageStitching()" class="w-full mt-2 py-3.5 px-4 rounded-xl bg-white text-green-700 text-xs md:text-sm font-bold border-2 border-green-200 hover:bg-green-50 active:scale-99 transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer" disabled>
+			<button id="stitch-btn" type="button" onclick="runImageStitching()" class="uma-btn uma-btn--accent-outline uma-btn--lg w-full mt-2" disabled>
 				<i data-lucide="images" class="w-4 h-4"></i>
 				<span>画像を結合する（SNS投稿用）</span>
 			</button>
@@ -420,7 +461,7 @@
 		</div>
 
 		<!-- 画像結合結果（SNS投稿用・β）：スキルパネルのみを縦横に結合した画像を表示 -->
-		<div id="stitch-result-wrap" class="hidden glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-8 transition-all">
+		<div id="stitch-result-wrap" class="hidden glass-card shadow-xs mb-8 transition-all">
 			<div class="flex items-center gap-2 mb-4">
 				<i data-lucide="images" class="w-4 h-4 text-green-600"></i>
 				<h2 class="text-sm font-bold text-slate-800">画像結合プレビュー（β・SNS投稿用）</h2>
@@ -429,13 +470,13 @@
 		</div>
 
 		<!-- ステップ3 (結果表示) -->
-		<div id="result-wrap" class="hidden glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 transition-all">
+		<div id="result-wrap" class="hidden glass-card shadow-xs transition-all">
 			<div class="flex items-center justify-between mb-5">
 				<div class="flex items-center gap-2">
 					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">3</span>
 					<h2 class="text-sm font-bold text-slate-800">照合結果（★の数）</h2>
 				</div>
-				<button type="button" onclick="copyToClipboard()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all shadow-xs cursor-pointer">
+				<button type="button" onclick="copyToClipboard()" class="uma-btn uma-btn--neutral">
 					<i data-lucide="copy" class="w-3.5 h-3.5"></i>
 					<span id="copy-btn-label">まとめてコピー</span>
 				</button>
@@ -451,9 +492,9 @@
 					<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-green-500" />
 				</div>
 				<div class="flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
-					<button type="button" onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg bg-slate-900 text-white font-medium">すべて</button>
-					<button type="button" onclick="setFilter('found')" id="filter-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">誰かが検出</button>
-					<button type="button" onclick="setFilter('not-found')" id="filter-not-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">全員未検出</button>
+					<button type="button" onclick="setFilter('all')" id="filter-all" class="uma-pill active">すべて</button>
+					<button type="button" onclick="setFilter('found')" id="filter-found" class="uma-pill">誰かが検出</button>
+					<button type="button" onclick="setFilter('not-found')" id="filter-not-found" class="uma-pill">全員未検出</button>
 				</div>
 			</div>
 
@@ -495,7 +536,7 @@
 
 				<div id="deck-save-note" class="hidden mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-800 whitespace-pre-line"></div>
 
-				<button id="deck-save-btn" type="button" onclick="saveDeckResults()" class="w-full mt-4 py-3 px-4 rounded-xl bg-indigo-600 text-white text-xs md:text-sm font-bold hover:bg-indigo-700 active:scale-99 transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer">
+				<button id="deck-save-btn" type="button" onclick="saveDeckResults()" class="uma-btn uma-btn--primary uma-btn--lg btn-deck-accent w-full mt-4">
 					<i data-lucide="save" class="w-4 h-4"></i>
 					<span>この内容でUmaSkill Deckに保存</span>
 				</button>
@@ -559,7 +600,69 @@
 		let personResults = PERSON_LABELS.map(() => null); // matchAllSkillsWithStars() の戻り値を格納
 		let setBVisible = false;
 
+		/* ============================================================
+		 * css/common.css の版の照合
+		 *
+		 * 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
+		 * 「直したはずなのに直っていない」状態になる（js側で実績がある）。
+		 * common.css の :root に埋めた版数を読み、期待値と食い違えば警告する。
+		 * common.js が版数を文字列定数で持っているのと同じ方式。
+		 * ============================================================ */
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-10g';
+
+		function loadedCommonCssVersion() {
+			const raw = getComputedStyle(document.documentElement).getPropertyValue('--common-css-version');
+			return (raw || '').trim().replace(/^["']|["']$/g, '');
+		}
+
+		function verifyCommonCssVersion() {
+			const loaded = loadedCommonCssVersion();
+			if (loaded === EXPECTED_COMMON_CSS_VERSION) return true;
+			const msg = loaded
+				? 'css/common.css が古い版です（読込:' + loaded + ' / 期待:' + EXPECTED_COMMON_CSS_VERSION + '）。キャッシュを消して再読み込みしてください。'
+				: 'css/common.css を読み込めていません。表示が崩れる場合はキャッシュを消して再読み込みしてください。';
+			console.warn('[UmaStar OCR] ' + msg);
+			showToast(msg);
+			return false;
+		}
+
+
+		/* ============================================================
+		 * 外部スタイル（Tailwind CDN）の読み込み確認
+		 *
+		 * このページの見た目の大半は Tailwind のユーティリティに依存している。
+		 * CDNが落ちている・広告ブロッカーや社内プロキシに遮断されている場合、
+		 * 読み込みに失敗して表示が崩れる。利用者が原因を推測できないため、
+		 * 検出して案内を出す。
+		 *
+		 * Tailwind v4 は :root にテーマ変数（--spacing など）を定義するので、
+		 * その有無で「読み込めたか」が判定できる。
+		 * 生成は非同期なので、すぐには確定しない。少し待って数回試す。
+		 * ============================================================ */
+		function isTailwindLoaded() {
+			return getComputedStyle(document.documentElement).getPropertyValue('--spacing').trim() !== '';
+		}
+
+		function verifyTailwindLoaded(remainingTries) {
+			if (isTailwindLoaded()) {
+				// css/common.css に置いた保険（Tailwindが無いときだけ効く .hidden）を無効化する。
+				// これを付けないと、hidden と sm:inline を併記した要素まで隠れてしまう。
+				document.documentElement.classList.add('uma-tw-ready');
+				return;
+			}
+			if (remainingTries > 0) {
+				setTimeout(function () { verifyTailwindLoaded(remainingTries - 1); }, 800);
+				return;
+			}
+			const msg = '表示に必要な外部ファイルを読み込めませんでした。ページを再読み込みしてください。'
+				+ '広告ブロッカーや社内ネットワークが cdnjs.cloudflare.com を遮断している場合は、許可設定が必要です。';
+			console.warn('[UmaStar OCR] ' + msg);
+			showToast(msg);
+		}
+
 		document.addEventListener('DOMContentLoaded', () => {
+			verifyTailwindLoaded(5);
+			verifyCommonCssVersion();
 			renderPersonUploadGrid();
 			restoreOcrDictionary();
 			if (window.lucide) lucide.createIcons();
@@ -719,7 +822,7 @@
 				<div class="flex items-center justify-center gap-2 mb-3 select-none" aria-hidden="true">
 					<div class="w-9 h-9 rounded-full ${parentCls} text-[11px] font-bold flex items-center justify-center shadow-sm">親${set.id}</div>
 					<svg width="28" height="44" viewBox="0 0 28 44" class="shrink-0">
-						<path d="M2 22 H12 M12 22 V8 H26 M12 22 V36 H26" fill="none" stroke="#cbd5e1" stroke-width="2" />
+						<path d="M2 22 H12 M12 22 V8 H26 M12 22 V36 H26" fill="none" stroke="var(--uma-border-strong)" stroke-width="2" />
 					</svg>
 					<div class="flex flex-col gap-3">
 						<div class="w-7 h-7 rounded-full ${gp1Cls} text-[9px] font-bold flex items-center justify-center">祖${set.id}1</div>
@@ -1059,10 +1162,9 @@
 		// .result-table th には既に background-color を指定するCSSルールがあり、
 		// クラスの指定だけでは優先度で負けて反映されないことがあるため、
 		// ここではインラインstyleで確実に上書きする。
-		const HUE_HEX = {
-			blue: { bg: '#eff6ff', text: '#1e40af', borderStrong: '#93c5fd', borderSoft: '#bfdbfe', tint: 'rgba(59,130,246,0.07)' },
-			red: { bg: '#fef2f2', text: '#991b1b', borderStrong: '#fca5a5', borderSoft: '#fecaca', tint: 'rgba(239,68,68,0.07)' }
-		};
+		// 色の実値は<style>の .person-col-blue / .person-col-red が持つ。
+		// ここは「その色相のクラス名」だけを知っていればよい。
+		const HUE_CLASS = { blue: 'person-col-blue', red: 'person-col-red' };
 
 		// 表示中の列(used内の各personIdx)について、色と「セットの境目に区切り線を
 		// 入れるか」を計算する。ヘッダー・本体テーブルの両方で同じルールを使い、
@@ -1074,7 +1176,7 @@
 				const setIdx = Math.floor(i / 3);
 				const boundary = prevSetIdx !== null && setIdx !== prevSetIdx;
 				prevSetIdx = setIdx;
-				return { idx: i, hue: hue, colors: HUE_HEX[hue], boundary: boundary };
+				return { idx: i, hue: hue, hueClass: HUE_CLASS[hue], boundary: boundary };
 			});
 		}
 
@@ -1090,11 +1192,11 @@
 			const showTotal = shouldShowTotalColumn(used);
 			let html = `<tr><th class="${nameWidth}">スキル名（リスト順）</th>`;
 			meta.forEach(m => {
-				const borderStyle = m.boundary ? 'border-left:2px solid ' + m.colors.borderStrong + ';' : '';
-				html += `<th class="text-center" style="background-color:${m.colors.bg};color:${m.colors.text};${borderStyle}">${PERSON_LABELS[m.idx]}</th>`;
+				const boundary = m.boundary ? ' person-set-boundary' : '';
+				html += `<th class="text-center person-col ${m.hueClass}${boundary}">${PERSON_LABELS[m.idx]}</th>`;
 			});
 			if (showTotal) {
-				html += '<th class="text-center" style="background-color:#f1f5f9;color:#334155;border-left:2px solid #cbd5e1;">★合計</th>';
+				html += '<th class="text-center person-total">★合計</th>';
 			}
 			html += '</tr>';
 			thead.innerHTML = html;
@@ -1194,8 +1296,8 @@
 				if (query && !skill.toLowerCase().includes(query)) return;
 
 				const cells = meta.map((m, idx) => {
-					const borderStyle = m.boundary ? 'border-left:2px solid ' + m.colors.borderSoft + ';' : '';
-					return `<td class="text-center" style="background-color:${m.colors.tint};${borderStyle}">${starBadge(vals[idx])}</td>`;
+					const boundary = m.boundary ? ' person-set-boundary' : '';
+					return `<td class="text-center person-col ${m.hueClass}${boundary}">${starBadge(vals[idx])}</td>`;
 				}).join('');
 
 				// ★合計はコピー用データには含めない（表示のみ・集計の目安）。
@@ -1203,7 +1305,7 @@
 				let totalCell = '';
 				if (showTotal) {
 					const total = vals.reduce((sum, v) => sum + (typeof v === 'number' ? v : 0), 0);
-					totalCell = `<td class="text-center font-bold text-slate-700" style="background-color:#f8fafc;border-left:2px solid #e2e8f0;">${total}</td>`;
+					totalCell = `<td class="text-center font-bold text-slate-700 person-total">${total}</td>`;
 				}
 
 				tableHtml += `<tr class="transition-colors">
@@ -1222,15 +1324,13 @@
 			if (window.lucide) lucide.createIcons();
 		}
 
+		// 選択状態は .active の付け外しだけで表す。
+		// 以前は className を丸ごと書き換えていたため、マークアップ側でクラスを足しても
+		// 押した瞬間に消えてしまい、共通部品（.uma-pill）を使えなかった。
 		function setFilter(type) {
 			currentFilter = type;
 			['all', 'found', 'not-found'].forEach(f => {
-				const btn = document.getElementById('filter-' + f);
-				if (f === type) {
-					btn.className = 'px-3 py-1 rounded-lg bg-slate-900 text-white font-medium cursor-pointer';
-				} else {
-					btn.className = 'px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium cursor-pointer';
-				}
+				document.getElementById('filter-' + f).classList.toggle('active', f === type);
 			});
 			filterResults();
 		}
@@ -1290,6 +1390,7 @@
 			// 実際にブラウザで読み込まれている common.js の版を明示する。
 			// 更新したはずの内容が反映されていない（キャッシュ・貼り忘れ等）ことを切り分けるため。
 			parts.push('■ 実行環境\n  common.js 版: ' + (typeof COMMON_JS_VERSION !== 'undefined' ? COMMON_JS_VERSION : '(不明・古い版です)') +
+				'\n  common.css 版: ' + (loadedCommonCssVersion() || '(読み込めていません)') +
 				'\n  読み替え辞書: ' + Object.keys(ocrErrorDictionary).length + '件' +
 				'\n  画質しきい値: 横幅' + MIN_BASE_WIDTH_PX + 'px以上 / 鮮明度スコア' + MIN_SHARPNESS_SCORE + '以上');
 			if (devGeometry.length) parts.push('■ 行検出・★判定の内訳\n' + devGeometry.join('\n'));
@@ -1487,7 +1588,7 @@
 			const downloadLink = document.createElement('a');
 			downloadLink.href = dataUrl;
 			downloadLink.download = 'uma-star-stitched-' + set.id + '.png';
-			downloadLink.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-[11px] font-semibold hover:bg-green-700 transition-all cursor-pointer';
+			downloadLink.className = 'uma-btn uma-btn--primary';
 			downloadLink.textContent = 'PNGをダウンロード';
 			header.appendChild(downloadLink);
 			block.appendChild(header);
@@ -2008,7 +2109,7 @@
 				<p class="text-sm font-bold text-slate-800 truncate">UmaSkill Deck</p>
 				<span class="text-[11px] text-slate-400 truncate hidden sm:inline">テンプレートと比較シートをここで編集できます</span>
 			</div>
-			<button id="deck-drawer-close" type="button" onclick="closeDeckDrawer()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">
+			<button id="deck-drawer-close" type="button" onclick="closeDeckDrawer()" class="uma-btn uma-btn--secondary">
 				<i data-lucide="x" class="w-3.5 h-3.5"></i>
 				<span>閉じる</span>
 			</button>

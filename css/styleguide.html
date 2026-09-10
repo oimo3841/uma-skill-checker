@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Uma Tools スタイルガイド</title>
+	<!-- 確認専用。ツール本体には組み込まない。
+	     common.css だけを読み込み、Tailwind も lucide も使わない。
+	     ここが正しく見えていれば、共通部分の妥当性は確認できる。 -->
+	<link rel="stylesheet" href="common.css?v=2026-09-10g" />
+	<style>
+		body { margin: 0; padding: 24px; background: #fff; font-family: ui-sans-serif, system-ui, sans-serif; }
+		.sg-wrap { max-width: 960px; margin: 0 auto; }
+		.sg-h1 { font-size: var(--uma-fs-xl); line-height: var(--uma-lh-xl); font-weight: 700; margin: 0 0 4px; }
+		.sg-lead { font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); color: var(--uma-text-subtle); margin: 0 0 24px; }
+		.sg-sec { margin: 0 0 32px; }
+		.sg-h2 {
+			font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700;
+			margin: 0 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--uma-border);
+		}
+		.sg-note { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); margin: 0 0 12px; }
+		.sg-grid { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+		.sg-swatch { width: 148px; }
+		.sg-chip { height: 44px; border-radius: var(--uma-r-md); border: 1px solid var(--uma-border); }
+		.sg-label { font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); margin-top: 4px; color: var(--uma-text-heading); }
+		.sg-var { font-family: var(--uma-font-mono); font-size: var(--uma-fs-2xs); color: var(--uma-text-faint); word-break: break-all; }
+		.sg-row { display: flex; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--uma-border); }
+		.sg-row-key { width: 200px; flex-shrink: 0; }
+		.sg-bar { background: var(--uma-accent); height: 14px; border-radius: 3px; }
+		.sg-tool { display: flex; gap: 8px; margin: 0 0 20px; }
+		.sg-panel { padding: 16px; border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg); background: var(--uma-surface-sunken); }
+		.sg-state { font-size: var(--uma-fs-2xs); color: var(--uma-text-faint); display: block; margin-bottom: 4px; }
+		.sg-cell { min-width: 132px; }
+		/* ツールの見え方を切り替えるための見本（実際のツールは各HTMLの<style>で同じことをしている） */
+		.sg-accent-star {
+			--uma-accent: #00a63e; --uma-accent-hover: #008236; --uma-accent-soft: #dbfce7;
+			--uma-accent-soft-text: #016630; --uma-accent-border: #b9f8cf; --uma-accent-ring: #008236;
+		}
+		.sg-accent-deck {
+			--uma-accent: #4f39f6; --uma-accent-hover: #432dd7; --uma-accent-soft: #eef2ff;
+			--uma-accent-soft-text: #432dd7; --uma-accent-border: #c6d2ff; --uma-accent-ring: #4f39f6;
+		}
+	</style>
+</head>
+<body>
+<div class="sg-wrap">
+
+	<h1 class="sg-h1">Uma Tools スタイルガイド</h1>
+	<p class="sg-lead">
+		css/common.css <span id="ver"></span> の内容だけを表示している。Tailwind は読み込んでいない。
+	</p>
+
+	<!-- ============ 色 ============ -->
+	<section class="sg-sec">
+		<h2 class="sg-h2">色 — 面</h2>
+		<div class="sg-grid">
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-surface)"></div><div class="sg-label">面（カード・入力欄）</div><div class="sg-var">--uma-surface</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-surface-sunken)"></div><div class="sg-label">一段沈めた面</div><div class="sg-var">--uma-surface-sunken</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-surface-muted)"></div><div class="sg-label">押せる要素の待機</div><div class="sg-var">--uma-surface-muted</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-surface-inverse)"></div><div class="sg-label">反転（選択中・トースト）</div><div class="sg-var">--uma-surface-inverse</div></div>
+		</div>
+	</section>
+
+	<section class="sg-sec">
+		<h2 class="sg-h2">色 — 文字</h2>
+		<div class="sg-grid">
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-text)"></div><div class="sg-label">本文</div><div class="sg-var">--uma-text</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-text-heading)"></div><div class="sg-label">見出し・ボタン文字</div><div class="sg-var">--uma-text-heading</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-text-muted)"></div><div class="sg-label">やや弱い文字</div><div class="sg-var">--uma-text-muted</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-text-subtle)"></div><div class="sg-label">補助・説明</div><div class="sg-var">--uma-text-subtle</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-text-faint)"></div><div class="sg-label">注記・無効</div><div class="sg-var">--uma-text-faint</div></div>
+		</div>
+	</section>
+
+	<section class="sg-sec">
+		<h2 class="sg-h2">色 — 罫線・状態</h2>
+		<div class="sg-grid">
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-border)"></div><div class="sg-label">既定の罫線</div><div class="sg-var">--uma-border</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-border-strong)"></div><div class="sg-label">hover時の罫線</div><div class="sg-var">--uma-border-strong</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-success)"></div><div class="sg-label">成功</div><div class="sg-var">--uma-success</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-star)"></div><div class="sg-label">★の実数</div><div class="sg-var">--uma-star</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-star-empty)"></div><div class="sg-label">★の空き</div><div class="sg-var">--uma-star-empty</div></div>
+		</div>
+		<div class="sg-grid" style="margin-top:12px">
+			<div class="sg-panel" style="background:var(--uma-warn-bg);border-color:var(--uma-warn-border);color:var(--uma-warn-text);font-size:var(--uma-fs-sm)">警告（amber系）— --uma-warn-bg / -border / -text</div>
+			<div class="sg-panel" style="background:var(--uma-danger-bg);border-color:var(--uma-danger-border);color:var(--uma-danger-text);font-size:var(--uma-fs-sm)">エラー（red系）— --uma-danger-bg / -border / -text</div>
+		</div>
+	</section>
+
+	<section class="sg-sec">
+		<h2 class="sg-h2">色 — アクセント（ツールごとに切り替わる層）</h2>
+		<p class="sg-note">トーンは共通、アクセントだけが違う。左が UmaStar OCR（読み取って登録する画面）、右が UmaSkill Deck（評価して比較する画面）。</p>
+		<div class="sg-grid">
+			<div class="sg-accent-star sg-panel" style="flex:1;min-width:280px">
+				<div class="sg-state">UmaStar OCR</div>
+				<div class="sg-grid">
+					<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-accent)"></div><div class="sg-label">--uma-accent</div></div>
+					<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-accent-hover)"></div><div class="sg-label">--uma-accent-hover</div></div>
+					<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-accent-soft)"></div><div class="sg-label">--uma-accent-soft</div></div>
+				</div>
+				<div style="margin-top:12px"><button class="uma-btn uma-btn--primary">主ボタン</button> <button class="uma-btn uma-btn--secondary">二次</button> <span class="uma-badge uma-badge--accent">バッジ</span></div>
+			</div>
+			<div class="sg-accent-deck sg-panel" style="flex:1;min-width:280px">
+				<div class="sg-state">UmaSkill Deck</div>
+				<div class="sg-grid">
+					<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-accent)"></div><div class="sg-label">--uma-accent</div></div>
+					<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-accent-hover)"></div><div class="sg-label">--uma-accent-hover</div></div>
+					<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-accent-soft)"></div><div class="sg-label">--uma-accent-soft</div></div>
+				</div>
+				<div style="margin-top:12px"><button class="uma-btn uma-btn--primary">主ボタン</button> <button class="uma-btn uma-btn--secondary">二次</button> <span class="uma-badge uma-badge--accent">バッジ</span></div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ============ 文字 ============ -->
+	<section class="sg-sec">
+		<h2 class="sg-h2">フォントサイズ（全段階）</h2>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-fs-2xs / 10px</div><div style="font-size:var(--uma-fs-2xs);line-height:var(--uma-lh-2xs)">ウマ娘 プリティーダービー Uma Tools 0123</div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-fs-xs / 11px</div><div style="font-size:var(--uma-fs-xs);line-height:var(--uma-lh-xs)">ウマ娘 プリティーダービー Uma Tools 0123</div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-fs-sm / 12px（基準）</div><div style="font-size:var(--uma-fs-sm);line-height:var(--uma-lh-sm)">ウマ娘 プリティーダービー Uma Tools 0123</div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-fs-md / 14px</div><div style="font-size:var(--uma-fs-md);line-height:var(--uma-lh-md)">ウマ娘 プリティーダービー Uma Tools 0123</div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-fs-lg / 18px</div><div style="font-size:var(--uma-fs-lg);line-height:var(--uma-lh-lg)">ウマ娘 プリティーダービー Uma Tools 0123</div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-fs-xl / 24px</div><div style="font-size:var(--uma-fs-xl);line-height:var(--uma-lh-xl)">ウマ娘 プリティーダービー Uma Tools 0123</div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-font-mono</div><div style="font-family:var(--uma-font-mono);font-size:var(--uma-fs-sm)">根幹距離○ / 1 2 3 / {"masterVersion":"2026-09-09a"}</div></div>
+		<p class="sg-note" style="margin-top:12px">太さは 500（弱）／600（既定）／700（強）の3段のみ使う。</p>
+		<div class="sg-row"><div class="sg-row-key sg-var">500</div><div style="font-weight:500;font-size:var(--uma-fs-sm)">絞り込みボタンなど</div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">600</div><div style="font-weight:600;font-size:var(--uma-fs-sm)">ボタン・見出しの既定</div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">700</div><div style="font-weight:700;font-size:var(--uma-fs-sm)">主要導線・強調</div></div>
+	</section>
+
+	<!-- ============ 余白 ============ -->
+	<section class="sg-sec">
+		<h2 class="sg-h2">余白スケール</h2>
+		<p class="sg-note">4pxを単位とする刻み。1px・3px・7px・9px のような孤立値は使わない。</p>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-sp-0-5 / 2px</div><div class="sg-bar" style="width:2px"></div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-sp-1 / 4px</div><div class="sg-bar" style="width:4px"></div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-sp-1-5 / 6px</div><div class="sg-bar" style="width:6px"></div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-sp-2 / 8px</div><div class="sg-bar" style="width:8px"></div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-sp-2-5 / 10px</div><div class="sg-bar" style="width:10px"></div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-sp-3 / 12px</div><div class="sg-bar" style="width:12px"></div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-sp-3-5 / 14px</div><div class="sg-bar" style="width:14px"></div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-sp-4 / 16px</div><div class="sg-bar" style="width:16px"></div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-sp-5 / 20px</div><div class="sg-bar" style="width:20px"></div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-sp-6 / 24px</div><div class="sg-bar" style="width:24px"></div></div>
+		<div class="sg-row"><div class="sg-row-key sg-var">--uma-card-pad</div><div class="sg-bar" style="width:var(--uma-card-pad)"></div><span class="sg-var">カード内側（狭い画面16px／768px以上24px）</span></div>
+	</section>
+
+	<!-- ============ 角丸・影 ============ -->
+	<section class="sg-sec">
+		<h2 class="sg-h2">角丸と影</h2>
+		<div class="sg-grid">
+			<div class="sg-swatch"><div class="sg-chip" style="border-radius:var(--uma-r-sm);background:var(--uma-surface-muted)"></div><div class="sg-label">--uma-r-sm / 6px</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="border-radius:var(--uma-r-md);background:var(--uma-surface-muted)"></div><div class="sg-label">--uma-r-md / 8px</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="border-radius:var(--uma-r-lg);background:var(--uma-surface-muted)"></div><div class="sg-label">--uma-r-lg / 12px（既定）</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="border-radius:var(--uma-r-xl);background:var(--uma-surface-muted)"></div><div class="sg-label">--uma-r-xl / 16px（カード）</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="border-radius:var(--uma-r-full);background:var(--uma-surface-muted)"></div><div class="sg-label">--uma-r-full / ピル</div></div>
+		</div>
+		<div class="sg-grid" style="margin-top:16px">
+			<div class="sg-swatch"><div class="sg-chip" style="background:#fff;box-shadow:var(--uma-shadow-1)"></div><div class="sg-label">--uma-shadow-1（面）</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:#fff;box-shadow:var(--uma-shadow-2)"></div><div class="sg-label">--uma-shadow-2（主ボタン）</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:#fff;box-shadow:var(--uma-shadow-3)"></div><div class="sg-label">--uma-shadow-3（浮遊要素）</div></div>
+		</div>
+	</section>
+
+	<!-- ============ ボタン ============ -->
+	<section class="sg-sec sg-accent-star">
+		<h2 class="sg-h2">ボタン（全状態）</h2>
+		<p class="sg-note">この節は UmaStar OCR のアクセント（緑）で表示している。hover は実際にカーソルを乗せて確認する。focus はTabキーで確認する。</p>
+		<div class="sg-grid">
+			<div class="sg-cell"><span class="sg-state">通常</span><button class="uma-btn uma-btn--primary">主ボタン</button></div>
+			<div class="sg-cell"><span class="sg-state">disabled</span><button class="uma-btn uma-btn--primary" disabled>主ボタン</button></div>
+			<div class="sg-cell"><span class="sg-state">大（--lg）</span><button class="uma-btn uma-btn--primary uma-btn--lg">OCR処理を開始する</button></div>
+		</div>
+		<div class="sg-grid" style="margin-top:12px">
+			<div class="sg-cell"><span class="sg-state">通常</span><button class="uma-btn uma-btn--secondary">二次ボタン</button></div>
+			<div class="sg-cell"><span class="sg-state">disabled</span><button class="uma-btn uma-btn--secondary" disabled>二次ボタン</button></div>
+			<div class="sg-cell"><span class="sg-state">通常</span><button class="uma-btn uma-btn--ghost">文字だけ</button></div>
+			<div class="sg-cell"><span class="sg-state">disabled</span><button class="uma-btn uma-btn--ghost" disabled>文字だけ</button></div>
+		</div>
+		<div class="sg-grid" style="margin-top:12px">
+			<div class="sg-cell"><span class="sg-state">アイコン</span><button class="uma-icon-btn">✕</button> <button class="uma-icon-btn" disabled>✕</button></div>
+			<div class="sg-cell"><span class="sg-state">切り替え（通常 / 選択中）</span>
+				<button class="uma-pill">すべて</button>
+				<button class="uma-pill active">選択中</button>
+			</div>
+		</div>
+	</section>
+
+	<!-- ============ 入力欄 ============ -->
+	<section class="sg-sec sg-accent-deck">
+		<h2 class="sg-h2">入力欄（全状態）</h2>
+		<p class="sg-note">この節は UmaSkill Deck のアクセント（藍）で表示している。クリックするとフォーカス表現が確認できる。</p>
+		<div class="sg-grid">
+			<div class="sg-cell" style="flex:1"><span class="sg-state">input（通常）</span><input class="uma-input" value="中距離・差し 想定" /></div>
+			<div class="sg-cell" style="flex:1"><span class="sg-state">input（placeholder）</span><input class="uma-input" placeholder="候補の名前（例：親A）" /></div>
+			<div class="sg-cell" style="flex:1"><span class="sg-state">input（disabled）</span><input class="uma-input" value="編集できません" disabled /></div>
+		</div>
+		<div class="sg-grid" style="margin-top:12px">
+			<div class="sg-cell" style="flex:1"><span class="sg-state">select</span>
+				<select class="uma-input"><option>中距離・差し 想定</option><option>ダート短距離 想定</option></select>
+			</div>
+			<div class="sg-cell" style="flex:2"><span class="sg-state">textarea</span>
+				<textarea class="uma-input" rows="3">根幹距離○
+右回り○
+直線コース○</textarea>
+			</div>
+		</div>
+	</section>
+
+	<!-- ============ バッジ・カード ============ -->
+	<section class="sg-sec sg-accent-deck">
+		<h2 class="sg-h2">バッジ</h2>
+		<div class="sg-grid">
+			<div class="sg-cell"><span class="sg-state">既定</span><span class="uma-badge">12件</span></div>
+			<div class="sg-cell"><span class="sg-state">アクセント</span><span class="uma-badge uma-badge--accent">選択中</span></div>
+			<div class="sg-cell"><span class="sg-state">警告</span><span class="uma-badge uma-badge--warn">未保存</span></div>
+		</div>
+	</section>
+
+	<section class="sg-sec">
+		<h2 class="sg-h2">カード</h2>
+		<div class="glass-card" style="max-width:520px">
+			<p style="margin:0 0 8px;font-size:var(--uma-fs-md);font-weight:700">カード（.glass-card）</p>
+			<p style="margin:0;font-size:var(--uma-fs-sm);color:var(--uma-text-subtle)">
+				半透明の白＋blur(14px)、角丸16px、罫線は既定色。内側の余白は狭い画面で16px、768px以上で24px。
+			</p>
+		</div>
+	</section>
+
+	<script>
+		// 読み込まれている common.css の版を表示する（版ずれの確認用）。
+		document.getElementById('ver').textContent =
+			getComputedStyle(document.documentElement).getPropertyValue('--common-css-version').trim() || '(読み込めていません)';
+	</script>
+</div>
+</body>
+</html>
