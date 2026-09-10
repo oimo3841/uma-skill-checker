@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-10a';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-10b';
 
 /* ============================================================
  * 共有モジュールへの参照・そこから借りる定数
@@ -156,6 +156,9 @@ function closeRecordEditor() {
 }
 
 function getTemplateName(templateId) {
+	// UmaStar OCR側で「保存しない一時的な対象スキルセット」から作られたシートは
+	// 元テンプレートを持たない。削除済みと区別できる文言にする。
+	if (!templateId) return '（テンプレート未保存）';
 	const t = userData.templates.find(x => x.templateId === templateId);
 	return t ? t.name : '（削除済みテンプレート）';
 }
@@ -193,7 +196,7 @@ function renderRecordEditor() {
 	const sel = document.getElementById('record-template-select');
 	const options = userData.templates.map(t => `<option value="${t.templateId}">${escapeHtml(t.name)}</option>`);
 	const hasCurrent = userData.templates.some(t => t.templateId === draftRecord.sourceTemplateId);
-	if (!hasCurrent) options.unshift(`<option value="${draftRecord.sourceTemplateId || ''}" disabled selected>（削除済みテンプレート）</option>`);
+	if (!hasCurrent) options.unshift(`<option value="${draftRecord.sourceTemplateId || ''}" disabled selected>${escapeHtml(getTemplateName(draftRecord.sourceTemplateId))}</option>`);
 	sel.innerHTML = options.join('');
 	sel.value = draftRecord.sourceTemplateId || '';
 	renderRecordGrid();

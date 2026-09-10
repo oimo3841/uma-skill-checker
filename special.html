@@ -12,7 +12,7 @@
 	<script src="js/common.js?v=2026-09-10a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-10a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-10b"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-09a"></script>
 	<style>
@@ -232,7 +232,7 @@
 			     uma-skill-deck.html と同じコンポーネント・同じlocalStorageを共有するため、
 			     ここで作成・編集したテンプレートはUmaSkill Deck側にもそのまま反映される。 -->
 			<div id="deck-skill-body" class="hidden">
-				<p class="text-xs text-slate-500 mb-3">UmaSkill Deckで作った「対象スキルセット」（テンプレート）を1つ選ぶと、そのスキルだけを照合対象にします。この画面からテンプレートの新規作成・編集もできます（UmaSkill Deck側にもそのまま反映されます）。</p>
+				<p class="text-xs text-slate-500 mb-3">照合したいスキルのまとまりを1つ選んでください。スプレッドシートの1列をそのまま貼り付けて作れます。<strong>「今回だけの対象スキルセット」</strong>は保存不要でこの端末のブラウザに残り、次に開いたときも続きから使えます。繰り返し使うものは<strong>テンプレート</strong>として保存でき、UmaSkill Deck側とも共有されます。</p>
 				<div id="deck-loading-note" class="text-xs text-slate-500 mb-3">テンプレートを読み込んでいます…</div>
 				<div id="deck-template-panel"></div>
 				<div class="mt-3 flex items-center justify-between gap-3 flex-wrap">
@@ -1472,11 +1472,17 @@
 		 * ============================================================ */
 		let deckMode = false;
 		let deckTemplateManager = null;
-		let deckTemplateId = null;
+		// 選択中の対象スキルセット。共有モジュールの getSelection() が返す
+		// { kind:'template'|'draft', id, name, skillIds } または null。
+		// 「保存したテンプレート」なのか「今回だけの一時的なもの」なのかを
+		// このファイル側で区別せずに済むよう、選択結果はこの1つにまとめて持つ。
+		let deckScope = null;
 		let deckMasterLoaded = false;
-		// テンプレートのスキル [{ id, name, raw }]。raw は照合辞書に実際に載った表記で、
+		// 対象スキル [{ id, name, raw }]。raw は照合辞書に実際に載った表記で、
 		// OCR結果（スキル名がキー）から★を引くために使う。
 		let deckSkillEntries = [];
+		// 「今回だけの対象スキルセット」の保存先。userData とは別の名前空間。
+		const DECK_DRAFT_SCOPE_KEY = 'special';
 		// Deckモードに入る前の手入力リストの状態。モードを抜けたらそのまま復元する。
 		let manualSkillState = null;
 
@@ -1502,7 +1508,7 @@
 			document.getElementById('deck-mode-btn-label').textContent = 'Deck連携モード（ON）';
 
 			// 選択が済むまでは照合対象が無い状態にする
-			deckTemplateId = null;
+			deckScope = null;
 			deckSkillEntries = [];
 			skillList = [];
 			skillIndex = [];
@@ -1521,19 +1527,20 @@
 					document.getElementById('deck-template-panel'),
 					{
 						selectable: true,
-						onSelectionChange: onDeckTemplateSelected,
-						// テンプレートの中身が変わったら、選択中のものなら照合辞書を作り直す
-						onChange: () => {
-							if (deckTemplateId) onDeckTemplateSelected(deckTemplateId);
-						}
+						// 保存しない一時的な対象スキルセットを一覧の先頭に出し、
+						// その内容をブラウザに残す（次に開いたときも続きから使える）。
+						draftScopeKey: DECK_DRAFT_SCOPE_KEY,
+						onSelectionChange: onDeckScopeSelected,
+						// 選択中のものの中身が変わったら照合辞書を作り直す
+						onChange: () => { onDeckScopeSelected(deckTemplateManager.getSelection()); }
 					}
 				);
 			} else {
 				deckTemplateManager.render();
 			}
 			document.getElementById('deck-loading-note').classList.add('hidden');
-			updateDeckSelectedNote();
-			renderDeckSavePanel();
+			// 前回の続き（保存しておいた一時的な対象スキルセット）があれば、そのまま使えるようにする
+			onDeckScopeSelected(deckTemplateManager.getSelection());
 			if (window.lucide) lucide.createIcons();
 		}
 
@@ -1567,12 +1574,15 @@
 			document.getElementById('deck-undo-count').textContent = count;
 		}
 
-		// テンプレートが選ばれた（または中身が変わった）とき、そのスキルだけを
+		// 対象スキルセットが選ばれた（または中身が変わった）とき、そのスキルだけを
 		// 照合辞書としてcommon.jsに注入する。
-		function onDeckTemplateSelected(templateId) {
-			deckTemplateId = templateId || null;
+		// 引数は共有モジュールの getSelection() の戻り値。テンプレートかドラフトかは
+		// ここでは区別せず、skillIds と name だけを見る。
+		function onDeckScopeSelected(selection) {
+			const prevId = deckScope ? deckScope.id : null;
+			deckScope = selection || null;
 			const badge = document.getElementById('skill-count-badge');
-			if (!deckTemplateId) {
+			if (!deckScope) {
 				deckSkillEntries = [];
 				skillList = [];
 				skillIndex = [];
@@ -1583,8 +1593,7 @@
 				renderDeckSavePanel();
 				return;
 			}
-			const template = UmaSkillDeckCore.findTemplate(deckTemplateId);
-			const entries = UmaSkillDeckCore.getSkillEntries(template ? template.skillIds : []);
+			const entries = UmaSkillDeckCore.getSkillEntries(deckScope.skillIds);
 			const dict = buildSkillDictionary(entries.map(e => e.name));
 			setActiveSkillDictionary(dict);
 			skillList = dict.list;
@@ -1597,8 +1606,9 @@
 
 			badge.textContent = skillList.length + ' 個のスキル';
 			badge.classList.remove('hidden');
-			// 新規シート名の既定値は選んだテンプレート名から作るので、切り替えたら作り直す
-			document.getElementById('deck-new-record-name').value = '';
+			// 新規シート名の既定値は選んだ対象スキルセットの名前から作るので、
+			// 別のものに切り替わったら作り直す
+			if (prevId !== deckScope.id) document.getElementById('deck-new-record-name').value = '';
 			parseOcrDictionary(); // 辞書に書かれたスキル名がリストに存在するか再確認する
 			updateDeckSelectedNote();
 			updateProcessBtn();
@@ -1608,9 +1618,8 @@
 		function updateDeckSelectedNote() {
 			const note = document.getElementById('deck-selected-note');
 			if (!note) return;
-			if (!deckTemplateId) { note.textContent = 'テンプレートを1つ選んでください'; return; }
-			const t = UmaSkillDeckCore.findTemplate(deckTemplateId);
-			note.textContent = '✓ 「' + (t && t.name ? t.name : '（名称未設定）') + '」の' + skillList.length + '件を照合します';
+			if (!deckScope) { note.textContent = '対象スキルセットを1つ選んでください'; return; }
+			note.textContent = '✓ 「' + deckScope.name + '」の' + skillList.length + '件を照合します';
 		}
 
 		/* ============================================================
@@ -1632,25 +1641,38 @@
 			return { detected: detected, unknown: unknown };
 		}
 
+		// そのシートが、いま選んでいる対象スキルセットから作られたものかどうか。
+		// テンプレートなら元テンプレートIDで、保存していないドラフトなら
+		// 「テンプレートを持たない」ことと対象スキルが一致することで判定する。
+		function isSameScopeRecord(summary) {
+			if (!deckScope) return false;
+			if (deckScope.kind === 'template') return summary.sourceTemplateId === deckScope.id;
+			if (summary.sourceTemplateId) return false;
+			const rec = UmaSkillDeckCore.findRecord(summary.recordId);
+			if (!rec || rec.skillIds.length !== deckScope.skillIds.length) return false;
+			const want = new Set(deckScope.skillIds);
+			return rec.skillIds.every(id => want.has(id));
+		}
+
 		function renderDeckSavePanel() {
 			const wrap = document.getElementById('deck-save-wrap');
 			if (!wrap) return;
 			const used = activePersonIndexes();
-			if (!deckMode || !deckTemplateId || used.length === 0) { wrap.classList.add('hidden'); return; }
+			if (!deckMode || !deckScope || used.length === 0) { wrap.classList.add('hidden'); return; }
 
 			const sel = document.getElementById('deck-record-select');
 			const prev = sel.value;
 			const summaries = UmaSkillDeckCore.listRecordSummaries();
 			const options = ['<option value="__new__">＋ 新しい比較シートを作成する</option>'];
 			summaries.forEach(r => {
-				const same = r.sourceTemplateId === deckTemplateId;
+				const same = isSameScopeRecord(r);
 				const label = (same ? '✓ ' : '') + r.name + '（候補' + r.candidateCount + '人・スキル' + r.skillCount + '件'
-					+ (same ? '' : '・元テンプレートが違います') + '）';
+					+ (same ? '' : '・対象スキルセットが違います') + '）';
 				options.push('<option value="' + escapeHtml(r.recordId) + '">' + escapeHtml(label) + '</option>');
 			});
 			sel.innerHTML = options.join('');
-			// 既定は「同じテンプレートから作られた既存シート」。無ければ新規作成。
-			const sameOne = summaries.find(r => r.sourceTemplateId === deckTemplateId);
+			// 既定は「同じ対象スキルセットから作られた既存シート」。無ければ新規作成。
+			const sameOne = summaries.find(isSameScopeRecord);
 			const keep = prev && Array.from(sel.options).some(o => o.value === prev);
 			sel.value = keep ? prev : (sameOne ? sameOne.recordId : '__new__');
 
@@ -1665,8 +1687,7 @@
 			const nameInput = document.getElementById('deck-new-record-name');
 			nameInput.classList.toggle('hidden', !isNewRecord);
 			if (isNewRecord && !nameInput.value) {
-				const t = UmaSkillDeckCore.findTemplate(deckTemplateId);
-				nameInput.value = (t && t.name ? t.name : 'テンプレート') + ' 候補比較';
+				nameInput.value = (deckScope ? deckScope.name : '対象スキルセット') + ' 候補比較';
 			}
 
 			const candidates = isNewRecord ? [] : UmaSkillDeckCore.listCandidateSummaries(recordId);
@@ -1705,9 +1726,9 @@
 				messages.push('★の数を確定できなかったスキルが' + unknownTotal + '件あります。これらは★0として保存されるため、保存後にUmaSkill Deck側で手入力してください（結果表では「?」と表示されている行です）。');
 			}
 			if (!isNewRecord) {
-				const rec = UmaSkillDeckCore.findRecord(recordId);
-				if (rec && rec.sourceTemplateId !== deckTemplateId) {
-					messages.push('選んだ比較シートは別のテンプレートから作られています。シートに無いスキルは保存されません。');
+				const summary = UmaSkillDeckCore.listRecordSummaries().find(r => r.recordId === recordId);
+				if (summary && !isSameScopeRecord(summary)) {
+					messages.push('選んだ比較シートは別の対象スキルセットから作られています。シートに無いスキルは保存されません。');
 				}
 			}
 			note.textContent = messages.join('\n');
@@ -1720,7 +1741,7 @@
 		}
 
 		function saveDeckResults() {
-			if (!deckMode || !deckTemplateId) return;
+			if (!deckMode || !deckScope) return;
 
 			// 先に「何を書くか」を作る。保存対象が0人なら、比較シートを新規作成する前に止める。
 			const specs = [];
@@ -1757,7 +1778,13 @@
 					showToast('比較シートは最大' + UmaSkillDeckCore.RECORD_LIMIT + '件までです。UmaSkill Deck側で不要なものを削除してください');
 					return;
 				}
-				const rec = UmaSkillDeckCore.createRecordFromTemplate(deckTemplateId, document.getElementById('deck-new-record-name').value);
+				// ドラフト（保存していない対象スキルセット）から作る場合、
+				// 紐づくテンプレートが無いので sourceTemplateId は空になる。
+				const rec = UmaSkillDeckCore.createRecord({
+					name: document.getElementById('deck-new-record-name').value,
+					skillIds: deckScope.skillIds,
+					sourceTemplateId: deckScope.kind === 'template' ? deckScope.id : ''
+				});
 				if (!rec) return;
 				recordId = rec.recordId;
 			}
