@@ -28,6 +28,17 @@ npm run test:ocr -- --page=special --dict=deck --expect=連綿
 初回のみ `npm install` と `npx playwright install chromium` が必要。
 OCRエンジン(tesseract.js)と日本語辞書は CDN から取得するため**ネットワーク接続が必要**。
 
+## 文字正規化の安全確認
+
+```bash
+npm run test:norm
+```
+
+`js/common.js` の `CHAR_CONFUSION_MAP` / `HOMOGLYPH_MAP` は、OCRの読み取り結果だけでなく
+**スキル名そのものにも**適用される。誤読対策のつもりで足した1文字が別々のスキル名を
+同じ文字列に潰すと恒久的な誤検出になるため、マップに追記したとき・スキルマスタを
+更新したときは必ずこれを走らせる（衝突があれば exit 1）。
+
 ## 出力
 
 コンソールに検出スキル・★・診断ログ・エラーを表示し、
