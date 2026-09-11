@@ -115,6 +115,24 @@
 		   画面の外へ追い出す形で隠す。 */
 		.copy-source-hidden { position: absolute; width: 1px; height: 1px; margin: -1px;
 			padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+		/* 引き出しの中のタブ（照合結果／結果画像）。special は使わないのでこのページに置く。
+		   ステップのタブ（css/shell.css の .step-tabs）と同じ見え方に合わせてある。 */
+		.drawer-tabs { flex-shrink: 0; display: flex; gap: var(--uma-sp-2);
+			padding: 0 var(--uma-sp-4); background: var(--uma-surface);
+			border-bottom: 1px solid var(--uma-border); }
+		.drawer-tab { position: relative; display: flex; align-items: center; gap: var(--uma-sp-1-5);
+			padding: var(--uma-sp-2-5) var(--uma-sp-2); margin-bottom: -1px;
+			background: none; border: 0; border-bottom: 2px solid transparent;
+			font: inherit; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600;
+			color: var(--uma-text-subtle); cursor: pointer;
+			transition: color var(--uma-transition), border-color var(--uma-transition); }
+		.drawer-tab:hover:not(:disabled) { color: var(--uma-text-heading); }
+		.drawer-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-accent); }
+		.drawer-tab:disabled { color: var(--uma-text-faint); cursor: not-allowed; }
+		.drawer-tab:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
+		/* 未読の点はタブの文字の右に置く（FABの点と同じ見た目を借りるが、位置だけ流し込みに戻す） */
+		.drawer-tab .uma-fab-dot { position: static; margin-left: var(--uma-sp-0-5); }
+		.drawer-panel[hidden] { display: none !important; }
 		.deck-note-btn { background: var(--uma-accent); }
 		.deck-note-btn:hover { background: var(--uma-accent-hover); }
 		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
@@ -636,11 +654,16 @@
 	<div id="drawer-backdrop" class="uma-drawer-backdrop" hidden onclick="closeDrawer()"></div>
 
 	<!-- 照合結果（★の数）。表の列が人数ぶん増えるので、他より広い引き出しにする。 -->
-	<aside id="result-drawer" class="uma-drawer uma-drawer--wide" hidden role="dialog" aria-modal="true" aria-label="照合結果">
+	<!-- ===== 判定の結果の引き出し（「照合結果」と「結果画像」を1枚にまとめ、中のタブで切り替える）=====
+	     以前は別々の引き出しだったが、どちらも「判定した結果」で、行き来のたびに開き直すのが手間だった。
+	     FAB の項目は2つのまま（どちらを押しても同じ引き出しが開き、押した方のタブが表になる）。
+	     未読の印は「そのタブを実際に表示したとき」だけ外す（引き出しを開いただけでは外さない）。
+	     表の列が人数ぶん増えるので、他より広い引き出し（--wide）にする。タブを変えても幅は変わらない。 -->
+	<aside id="result-drawer" class="uma-drawer uma-drawer--wide" hidden role="dialog" aria-modal="true" aria-label="判定の結果">
 		<div class="uma-drawer-header">
 			<div class="flex items-center gap-2 min-w-0">
-				<i data-lucide="list-checks" class="w-4 h-4 text-indigo-600 shrink-0"></i>
-				<p class="text-sm font-bold text-slate-800 truncate">照合結果（★の数）</p>
+				<i data-lucide="clipboard-check" class="w-4 h-4 text-indigo-600 shrink-0"></i>
+				<p class="text-sm font-bold text-slate-800 truncate">判定の結果</p>
 			</div>
 			<div class="flex items-center gap-2 shrink-0">
 				<button id="result-drawer-close" type="button" onclick="closeDrawer()" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
@@ -649,156 +672,162 @@
 				</button>
 			</div>
 		</div>
-		<div class="uma-drawer-body">
-			<!-- 結果がまだ無いときの案内。行き止まりにせず、作るためのボタンへ戻す。 -->
-			<div id="result-empty" class="uma-drawer-empty">
-				<i data-lucide="list-checks"></i>
-				<p class="text-sm font-bold text-slate-600">まだ照合結果がありません</p>
-				<p class="text-xs">②に画像を入れて「OCR処理を開始する」を押すと、ここに結果が出ます。</p>
-				<button type="button" onclick="backToInput('process-btn')" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
-					<i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
-					<span>入力画面に戻る</span>
-				</button>
-			</div>
-			<div id="result-drawer-slot" class="uma-drawer-content">
-				<!-- 結果の実体。hidden クラスは「結果があるか」の印（setSectionReady が切り替える）。 -->
-				<div id="result-wrap" class="hidden">
-					<!-- ===== UmaSkill Deck への受け渡しの案内（第2段階・手順3）=====
-					     判定が終わると writeOcrHandoff() が localStorage へ書き出す。
-					     「Deck側に渡し終わった」ことは画面に出ないと分からないので、結果の先頭で知らせる。
-					     取り込みが済んだかどうかは refreshDeckHandoffState() が localStorage を見て
-					     切り替える（Deck側の取り込みは storage イベントで届く）。
-					     Deck は右下の FAB と同じ引き出し（iframe）で開く（以前は固定名の別タブ）。
-					     色は Deck の色（.deck-accent → css/tokens.css の --uma-deck-*。special と同じ .deck-note）。 -->
-					<div id="deck-handoff-note" class="hidden mb-6">
-						<div id="deck-handoff-box" class="deck-accent deck-note">
-							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-								<div class="flex items-start gap-2.5 min-w-0">
-									<span class="relative shrink-0 mt-0.5">
-										<i data-lucide="layers" class="w-4 h-4 deck-icon"></i>
-										<span id="deck-handoff-dot" class="uma-fab-dot" style="top:-5px; right:-5px;"></span>
-									</span>
-									<div class="min-w-0">
-										<p id="deck-handoff-title" class="text-xs font-bold deck-note-title">この結果をUmaSkill Deckに取り込めます</p>
-										<p id="deck-handoff-detail" class="text-[11px] deck-note-text mt-0.5 leading-relaxed"></p>
-									</div>
-								</div>
-								<button type="button" id="deck-handoff-btn" onclick="fabGoTo('deck')" class="deck-note-btn shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-white text-xs font-semibold transition-all shadow-xs cursor-pointer">
-									<i data-lucide="layers" class="w-3.5 h-3.5"></i>
-									<span id="deck-handoff-btn-label">UmaSkill Deckを開いて取り込む</span>
-								</button>
-							</div>
-						</div>
-					</div>
 
-			<!-- サマリーカード（アップロード人数に応じてJSで生成） -->
-			<div id="stat-grid" class="grid grid-cols-4 gap-3 mb-6"></div>
-
-			<!-- 技能試験ハイライト（sp70緑・緑59種） -->
-			<div id="exam-highlight" class="hidden rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 md:p-5 mb-6">
-				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-					<h3 class="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
-						<i data-lucide="target" class="w-4 h-4"></i>
-						<span>緑スキルハイライト</span>
-					</h3>
-					<div class="flex items-center gap-1 text-xs bg-white rounded-lg border border-indigo-200 p-0.5 shrink-0">
-						<button type="button" onclick="setCountMode('equivalence')" id="mode-equivalence" class="mode-btn">実質53種（既定）</button>
-						<button type="button" onclick="setCountMode('individual')" id="mode-individual" class="mode-btn">59種個別</button>
-					</div>
-				</div>
-				<div id="exam-highlight-grid" class="grid gap-3"></div>
-				<p class="text-[11px] text-indigo-700/70 mt-3">※「〇〇の目覚め」系スキルは、実質53種モードでは対応する基本スキルとペアで1カウントします（本体テーブルの表示・★の判定そのものには影響しません）。</p>
-			</div>
-
-			<!-- 検索・フィルターバー -->
-			<div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-2">
-				<div class="relative w-full sm:w-64">
-					<i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
-					<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-indigo-500" />
-				</div>
-				<div class="flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
-					<button type="button" onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg bg-slate-900 text-white font-medium">すべて</button>
-					<button type="button" onclick="setFilter('found')" id="filter-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">誰かが検出</button>
-					<button type="button" onclick="setFilter('not-found')" id="filter-not-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">全員未検出</button>
-				</div>
-			</div>
-			<!-- 現在の絞り込み条件に該当するスキル数。「全員未検出」件数から因子セット全体の
-			     充足度（あとどれだけ足りていないか）を把握できるようにするための表示。 -->
-			<p id="filter-result-count" class="text-[11px] text-slate-400 mb-1"></p>
-			<p class="text-[11px] text-slate-400 mb-3">※ スマホ等の狭い画面では、スキル名列を固定したまま横スクロールで確認できます。</p>
-
-			<!-- 親A/親B列の表示切替（両方の結果がある時だけ表示・スマホで片方ずつ見たい場合向け） -->
-			<div id="table-set-toggle-wrap" class="hidden flex flex-wrap items-center gap-2 mb-3">
-				<span class="text-[11px] text-slate-500">表示する列：</span>
-				<button type="button" id="table-toggle-A" onclick="toggleTableSet(0)" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer">親Aセット</button>
-				<button type="button" id="table-toggle-B" onclick="toggleTableSet(1)" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer">親Bセット</button>
-			</div>
-
-			<!-- ★の数をコピーするボタン。以前は引き出しの見出し（「閉じる」の左）にあり、
-			     実機で気づかれなかったので、結果の一覧のすぐ上へ移した。
-			     旧UIではカードの見出し（#old-copy-slot）へ戻る（placeSections）。 -->
-			<div id="result-copy-slot" class="flex justify-end mb-2">
-				<button type="button" id="result-copy-btn" onclick="copyToClipboard()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all shadow-xs cursor-pointer">
-					<i data-lucide="copy" class="w-3.5 h-3.5"></i>
-					<span id="copy-btn-label">★の数をコピー</span>
-				</button>
-			</div>
-
-			<!-- テーブル -->
-			<div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
-				<table id="result-table-el" class="result-table">
-					<thead id="result-thead"></thead>
-					<tbody id="result-tbody"></tbody>
-				</table>
-			</div>
-
-			<!-- コピー用エリア（窓）。新UIでは出さない（コピーはボタンに一本化）。
-			     旧UIは「元の画面」なので今までどおり出す。placeSections が切り替える。 -->
-			<div id="copy-data-wrap" class="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-6">
-				<div class="flex items-center justify-between mb-2">
-					<p class="text-xs font-semibold text-slate-700" id="copy-title">スプレッドシート貼り付け用データ</p>
-					<span class="text-[11px] text-slate-400" id="copy-hint"></span>
-				</div>
-				<div class="flex gap-2">
-					<textarea id="copy-data" readonly class="w-full h-24 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none"></textarea>
-				</div>
-			</div>
-
-			<!-- 旧UIでの置き場。旧UIは「元の画面」なので、プレビュー・開発ログは結果の下のまま。
-			     中身は新UIと同じ要素を placeSections() が移してくる。 -->
-			<div id="old-devlog-slot"></div>
-				</div>
-			</div>
-		</div>
-	</aside>
-
-	<!-- 結果画像。OCR＋結合で作る「検出数と sp70緑の数を焼き込んだ画像」（SNS投稿用）。
-	     special の「画像結合レビュー」とは意図が違うので名前を分けてある。 -->
-	<aside id="stitch-drawer" class="uma-drawer" hidden role="dialog" aria-modal="true" aria-label="結果画像">
-		<div class="uma-drawer-header">
-			<div class="flex items-center gap-2 min-w-0">
-				<i data-lucide="image" class="w-4 h-4 text-amber-600 shrink-0"></i>
-				<p class="text-sm font-bold text-slate-800 truncate">結果画像</p>
-				<span class="text-[11px] text-slate-400 truncate hidden sm:inline">β・SNS投稿用</span>
-			</div>
-			<button id="stitch-drawer-close" type="button" onclick="closeDrawer()" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
-				<i data-lucide="x" class="w-3.5 h-3.5"></i>
-				<span>閉じる</span>
+		<!-- 引き出しの中のタブ。ヘッダーと本文のあいだに固定で置き、中をスクロールしても見えたままにする。
+		     結果画像がまだ無いときは、そちらへ「切り替えられない」（押せない）。押せないことは
+		     ラベルの「（なし）」でも分かるようにしてある。FAB の「結果画像」から来たときだけは、
+		     作り方の案内を読めるようにこのタブを表にする（updateResultTabs）。 -->
+		<div class="drawer-tabs" role="tablist" aria-label="結果の種類" onkeydown="onResultTabKeydown(event)">
+			<button type="button" role="tab" class="drawer-tab" id="result-tab-result"
+				aria-controls="result-panel-result" aria-selected="true" tabindex="0" onclick="selectResultTab('result')">
+				<i data-lucide="list-checks" class="w-3.5 h-3.5"></i>
+				<span>照合結果</span>
+				<span id="result-tab-dot-result" class="uma-fab-dot" hidden></span>
+			</button>
+			<button type="button" role="tab" class="drawer-tab" id="result-tab-stitch"
+				aria-controls="result-panel-stitch" aria-selected="false" tabindex="-1" onclick="selectResultTab('stitch')">
+				<i data-lucide="image" class="w-3.5 h-3.5"></i>
+				<span id="result-tab-stitch-label">結果画像</span>
+				<span id="result-tab-dot-stitch" class="uma-fab-dot" hidden></span>
 			</button>
 		</div>
+
 		<div class="uma-drawer-body">
-			<div id="stitch-empty" class="uma-drawer-empty">
-				<i data-lucide="image"></i>
-				<p class="text-sm font-bold text-slate-600">まだ結果画像がありません</p>
-				<p class="text-xs">②で「OCR処理＋画像結合を開始する」を押すと、判定結果を焼き込んだ画像がここに出ます。</p>
-				<button type="button" onclick="backToInput('process-stitch-btn')" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
-					<i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
-					<span>入力画面に戻る</span>
-				</button>
+			<div id="result-panel-result" class="drawer-panel" role="tabpanel" aria-labelledby="result-tab-result">
+				<!-- 結果がまだ無いときの案内。行き止まりにせず、作るためのボタンへ戻す。 -->
+				<div id="result-empty" class="uma-drawer-empty">
+					<i data-lucide="list-checks"></i>
+					<p class="text-sm font-bold text-slate-600">まだ照合結果がありません</p>
+					<p class="text-xs">②に画像を入れて「OCR処理を開始する」を押すと、ここに結果が出ます。</p>
+					<button type="button" onclick="backToInput('process-btn')" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
+						<i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+						<span>入力画面に戻る</span>
+					</button>
+				</div>
+				<div id="result-drawer-slot" class="uma-drawer-content">
+					<!-- 結果の実体。hidden クラスは「結果があるか」の印（setSectionReady が切り替える）。 -->
+					<div id="result-wrap" class="hidden">
+						<!-- ===== UmaSkill Deck への受け渡しの案内（第2段階・手順3）=====
+						     判定が終わると writeOcrHandoff() が localStorage へ書き出す。
+						     「Deck側に渡し終わった」ことは画面に出ないと分からないので、結果の先頭で知らせる。
+						     取り込みが済んだかどうかは refreshDeckHandoffState() が localStorage を見て
+						     切り替える（Deck側の取り込みは storage イベントで届く）。
+						     Deck は右下の FAB と同じ引き出し（iframe）で開く（以前は固定名の別タブ）。
+						     色は Deck の色（.deck-accent → css/tokens.css の --uma-deck-*。special と同じ .deck-note）。 -->
+						<div id="deck-handoff-note" class="hidden mb-6">
+							<div id="deck-handoff-box" class="deck-accent deck-note">
+								<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+									<div class="flex items-start gap-2.5 min-w-0">
+										<span class="relative shrink-0 mt-0.5">
+											<i data-lucide="layers" class="w-4 h-4 deck-icon"></i>
+											<span id="deck-handoff-dot" class="uma-fab-dot" style="top:-5px; right:-5px;"></span>
+										</span>
+										<div class="min-w-0">
+											<p id="deck-handoff-title" class="text-xs font-bold deck-note-title">この結果をUmaSkill Deckに取り込めます</p>
+											<p id="deck-handoff-detail" class="text-[11px] deck-note-text mt-0.5 leading-relaxed"></p>
+										</div>
+									</div>
+									<button type="button" id="deck-handoff-btn" onclick="fabGoTo('deck')" class="deck-note-btn shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-white text-xs font-semibold transition-all shadow-xs cursor-pointer">
+										<i data-lucide="layers" class="w-3.5 h-3.5"></i>
+										<span id="deck-handoff-btn-label">UmaSkill Deckを開いて取り込む</span>
+									</button>
+								</div>
+							</div>
+						</div>
+	
+				<!-- サマリーカード（アップロード人数に応じてJSで生成） -->
+				<div id="stat-grid" class="grid grid-cols-4 gap-3 mb-6"></div>
+	
+				<!-- 技能試験ハイライト（sp70緑・緑59種） -->
+				<div id="exam-highlight" class="hidden rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 md:p-5 mb-6">
+					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+						<h3 class="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
+							<i data-lucide="target" class="w-4 h-4"></i>
+							<span>緑スキルハイライト</span>
+						</h3>
+						<div class="flex items-center gap-1 text-xs bg-white rounded-lg border border-indigo-200 p-0.5 shrink-0">
+							<button type="button" onclick="setCountMode('equivalence')" id="mode-equivalence" class="mode-btn">実質53種（既定）</button>
+							<button type="button" onclick="setCountMode('individual')" id="mode-individual" class="mode-btn">59種個別</button>
+						</div>
+					</div>
+					<div id="exam-highlight-grid" class="grid gap-3"></div>
+					<p class="text-[11px] text-indigo-700/70 mt-3">※「〇〇の目覚め」系スキルは、実質53種モードでは対応する基本スキルとペアで1カウントします（本体テーブルの表示・★の判定そのものには影響しません）。</p>
+				</div>
+	
+				<!-- 検索・フィルターバー -->
+				<div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-2">
+					<div class="relative w-full sm:w-64">
+						<i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
+						<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-indigo-500" />
+					</div>
+					<div class="flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
+						<button type="button" onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg bg-slate-900 text-white font-medium">すべて</button>
+						<button type="button" onclick="setFilter('found')" id="filter-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">誰かが検出</button>
+						<button type="button" onclick="setFilter('not-found')" id="filter-not-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">全員未検出</button>
+					</div>
+				</div>
+				<!-- 現在の絞り込み条件に該当するスキル数。「全員未検出」件数から因子セット全体の
+				     充足度（あとどれだけ足りていないか）を把握できるようにするための表示。 -->
+				<p id="filter-result-count" class="text-[11px] text-slate-400 mb-1"></p>
+				<p class="text-[11px] text-slate-400 mb-3">※ スマホ等の狭い画面では、スキル名列を固定したまま横スクロールで確認できます。</p>
+	
+				<!-- 親A/親B列の表示切替（両方の結果がある時だけ表示・スマホで片方ずつ見たい場合向け） -->
+				<div id="table-set-toggle-wrap" class="hidden flex flex-wrap items-center gap-2 mb-3">
+					<span class="text-[11px] text-slate-500">表示する列：</span>
+					<button type="button" id="table-toggle-A" onclick="toggleTableSet(0)" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer">親Aセット</button>
+					<button type="button" id="table-toggle-B" onclick="toggleTableSet(1)" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer">親Bセット</button>
+				</div>
+	
+				<!-- ★の数をコピーするボタン。以前は引き出しの見出し（「閉じる」の左）にあり、
+				     実機で気づかれなかったので、結果の一覧のすぐ上へ移した。
+				     旧UIではカードの見出し（#old-copy-slot）へ戻る（placeSections）。 -->
+				<div id="result-copy-slot" class="flex justify-end mb-2">
+					<button type="button" id="result-copy-btn" onclick="copyToClipboard()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all shadow-xs cursor-pointer">
+						<i data-lucide="copy" class="w-3.5 h-3.5"></i>
+						<span id="copy-btn-label">★の数をコピー</span>
+					</button>
+				</div>
+	
+				<!-- テーブル -->
+				<div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
+					<table id="result-table-el" class="result-table">
+						<thead id="result-thead"></thead>
+						<tbody id="result-tbody"></tbody>
+					</table>
+				</div>
+	
+				<!-- コピー用エリア（窓）。新UIでは出さない（コピーはボタンに一本化）。
+				     旧UIは「元の画面」なので今までどおり出す。placeSections が切り替える。 -->
+				<div id="copy-data-wrap" class="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-6">
+					<div class="flex items-center justify-between mb-2">
+						<p class="text-xs font-semibold text-slate-700" id="copy-title">スプレッドシート貼り付け用データ</p>
+						<span class="text-[11px] text-slate-400" id="copy-hint"></span>
+					</div>
+					<div class="flex gap-2">
+						<textarea id="copy-data" readonly class="w-full h-24 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none"></textarea>
+					</div>
+				</div>
+	
+				<!-- 旧UIでの置き場。旧UIは「元の画面」なので、プレビュー・開発ログは結果の下のまま。
+				     中身は新UIと同じ要素を placeSections() が移してくる。 -->
+				<div id="old-devlog-slot"></div>
+					</div>
+				</div>
 			</div>
-			<div id="stitch-drawer-slot" class="uma-drawer-content">
-				<div id="stitch-result-wrap" class="hidden">
-					<div id="stitch-result-content" class="space-y-4"></div>
+			<div id="result-panel-stitch" class="drawer-panel" role="tabpanel" aria-labelledby="result-tab-stitch" hidden>
+				<div id="stitch-empty" class="uma-drawer-empty">
+					<i data-lucide="image"></i>
+					<p class="text-sm font-bold text-slate-600">まだ結果画像がありません</p>
+					<p class="text-xs">②で「OCR処理＋画像結合を開始する」を押すと、判定結果を焼き込んだ画像がここに出ます。</p>
+					<button type="button" onclick="backToInput('process-stitch-btn')" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
+						<i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+						<span>入力画面に戻る</span>
+					</button>
+				</div>
+				<div id="stitch-drawer-slot" class="uma-drawer-content">
+					<div id="stitch-result-wrap" class="hidden">
+						<div id="stitch-result-content" class="space-y-4"></div>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -1874,7 +1903,8 @@
 		//                   結合が終わった時点で結果画像の方を開くため）。
 		async function processImages(opts) {
 			const anyFiles = persons.some(p => p.files.length > 0);
-			if (!anyFiles) { showToast('少なくとも1人分の画像をアップロードしてください'); return; }
+			// 呼び出し元（processImagesAndStitch）が「判定できたか」を見て開くタブを決めるので、真偽を返す
+			if (!anyFiles) { showToast('少なくとも1人分の画像をアップロードしてください'); return false; }
 
 			devGeometry = [];
 			previewCanvases = [];
@@ -1923,7 +1953,7 @@
 				document.getElementById('error-content').textContent = 'OCR処理の初期化に失敗しました。ネットワーク接続を確認してください。\n' + err;
 				progressWrap.classList.add('hidden');
 				processBtn.disabled = false;
-				return;
+				return false;
 			} finally {
 				if (worker) { try { await worker.terminate(); } catch (e) {} }
 			}
@@ -1947,17 +1977,18 @@
 				} else {
 					document.getElementById('error-content').textContent = 'OCR処理に失敗しました。別の画像を試してください。';
 				}
-				return;
+				return false;
 			}
 
 			renderResults();
 			// 判定が終わるたびに UmaSkill Deck へ渡す（親A/親B列の表示トグルでは書き直さない）
 			writeOcrHandoff();
 			showToast('照合が完了しました');
-			// 結果は引き出しの中。判定だけなら、終わった時点でその引き出しを開く。
+			// 結果は引き出しの中。判定だけなら、終わった時点で照合結果のタブを開く。
 			// 「OCR＋結合」のときは開かず、未読の印だけ立てて結合の完了を待つ。
 			markFabUnseen('result');
-			if (!(opts && opts.keepClosed)) openDrawer('result');
+			if (!(opts && opts.keepClosed)) { selectResultTab('result'); openDrawer('result'); }
+			return true;
 		}
 
 		function setProgress(ratio, label) {
@@ -2678,11 +2709,12 @@
 			const stitchBtn = document.getElementById('process-stitch-btn');
 			if (stitchBtn) stitchBtn.disabled = true;
 			try {
-				await processImages({ keepClosed: true });
+				const judged = await processImages({ keepClosed: true });
 				const made = await runImageStitching();
-				// 最後に終わったものを開く（判定→照合結果、結合→結果画像。special の規則と同じ）。
-				// 照合結果は未読の印が残るので、FAB から開ける。
-				if (made) openDrawer('stitch');
+				// まとめた引き出しを「照合結果」のタブで開く。結果画像には未読の印が残るので、
+				// タブ（または FAB の「結果画像」）から見に行ける。
+				if (judged) { selectResultTab('result'); openDrawer('result'); }
+				else if (made) { selectResultTab('stitch'); openDrawer('result'); }
 			} finally {
 				stitchInProgress = false;
 				updateProcessBtn(); // ファイルの有無に応じて正しいdisabled状態に戻す
@@ -2940,10 +2972,12 @@
 		 * 引き出しが開いているかとは別物（setSectionReady で切り替える）。
 		 * FAB のバッジ（fabUnseen）は「その結果をまだ見に行っていない」印で、開いたら消える。
 		 * ============================================================ */
+		// 「照合結果」と「結果画像」は1枚の引き出しにまとめ、中のタブで切り替える（FAB の項目は2つのまま）。
+		// unseenKey がある引き出しは「開いた時点で未読を外す」。まとめた引き出しは、どちらのタブを
+		// 表示したかで外す相手が変わるので、ここには置かず selectResultTab() が持つ。
 		const DRAWERS = {
-			result: { el: 'result-drawer', close: 'result-drawer-close', trigger: 'fab-item-result' },
-			stitch: { el: 'stitch-drawer', close: 'stitch-drawer-close', trigger: 'fab-item-stitch' },
-			deck: { el: 'deck-drawer', close: 'deck-drawer-close', trigger: 'deck-drawer-trigger', onOpen: prepareDeckFrame, onClose: refreshDeckHandoffState }
+			result: { el: 'result-drawer', close: 'result-drawer-close', triggers: ['fab-item-result', 'fab-item-stitch'] },
+			deck: { el: 'deck-drawer', close: 'deck-drawer-close', triggers: ['deck-drawer-trigger'], unseenKey: 'deck', onOpen: prepareDeckFrame, onClose: refreshDeckHandoffState }
 		};
 		let openDrawerKey = null;
 		let drawerBackdropTimer = null;
@@ -2966,7 +3000,7 @@
 			const def = DRAWERS[key];
 			const el = document.getElementById(def.el);
 			el.classList.remove('open');
-			document.getElementById(def.trigger).setAttribute('aria-expanded', 'false');
+			def.triggers.forEach(id => document.getElementById(id).setAttribute('aria-expanded', 'false'));
 			const finish = () => { if (openDrawerKey !== key) el.hidden = true; };
 			el.addEventListener('transitionend', finish, { once: true });
 			setTimeout(finish, 400);
@@ -2994,9 +3028,10 @@
 			backdrop.classList.remove('closing');
 			document.body.style.overflow = 'hidden';
 			openDrawerKey = key;
-			// 見に行った時点で未読は消す（自動で開いた場合も同じ）。
-			if (fabUnseen[key]) { fabUnseen[key] = false; updateFabBadges(); }
-			document.getElementById(def.trigger).setAttribute('aria-expanded', 'true');
+			// 見に行った時点で未読は消す（自動で開いた場合も同じ）。まとめた引き出しは
+			// タブを表示したときに消すので、ここでは消さない。
+			if (def.unseenKey && fabUnseen[def.unseenKey]) { fabUnseen[def.unseenKey] = false; updateFabBadges(); }
+			def.triggers.forEach(id => document.getElementById(id).setAttribute('aria-expanded', 'true'));
 			document.getElementById(def.close).focus();
 			if (window.lucide) lucide.createIcons();
 		}
@@ -3046,6 +3081,8 @@
 			const sec = RESULT_SECTIONS[key];
 			document.getElementById(sec.wrap).classList.toggle('hidden', !ready);
 			document.getElementById(sec.empty).hidden = ready;
+			// 「結果画像」のタブが押せるかは、結果があるかで決まる
+			updateResultTabs();
 			// 旧UIでは結果を本文のカードで出す。カードの外枠も「結果があるか」に合わせる（新UIでは常に隠す）
 			document.getElementById('old-' + key + '-card').hidden = newUi || !ready;
 		}
@@ -3066,6 +3103,7 @@
 			document.getElementById('fab-dot-stitch').hidden = !fabUnseen.stitch;
 			document.getElementById('fab-dot-result').hidden = !fabUnseen.result;
 			document.getElementById('fab-dot-deck').hidden = !fabUnseen.deck;
+			updateResultTabs();
 		}
 
 		// 結果が新しく出たときに呼ぶ。結果を作り直した場合も「新着」に戻す。
@@ -3076,7 +3114,60 @@
 
 		function fabGoTo(key) {
 			setFabOpen(false);
+			// 「OCRの照合結果」「結果画像」はどちらも同じ引き出し。押した方のタブを表にしてから開く
+			if (key === 'result' || key === 'stitch') {
+				selectResultTab(key);
+				openDrawer('result');
+				return;
+			}
 			openDrawer(key);
+		}
+
+		/* ---------- まとめた引き出しの中のタブ ---------- */
+		let resultTab = 'result';
+
+		function selectResultTab(tab) {
+			const pick = tab === 'stitch' ? 'stitch' : 'result';
+			resultTab = pick;
+			['result', 'stitch'].forEach(k => {
+				const on = k === pick;
+				const btn = document.getElementById('result-tab-' + k);
+				const panel = document.getElementById('result-panel-' + k);
+				if (!btn || !panel) return;
+				btn.setAttribute('aria-selected', String(on));
+				btn.tabIndex = on ? 0 : -1;
+				panel.hidden = !on;
+			});
+			// 未読は「そのタブを実際に表示したとき」だけ外す（引き出しを開いただけでは外さない）
+			if (fabUnseen[pick]) { fabUnseen[pick] = false; }
+			updateFabBadges();
+			// タブを変えたら中身の頭から読めるようにする
+			const body = document.querySelector('#result-drawer .uma-drawer-body');
+			if (body) body.scrollTop = 0;
+			if (window.lucide) lucide.createIcons();
+		}
+
+		// ←→・Home/End でも切り替わる（WAI-ARIA のタブの作法）。押せないタブへは動かさない。
+		function onResultTabKeydown(e) {
+			const next = { ArrowRight: 'stitch', ArrowLeft: 'result', Home: 'result', End: 'stitch' }[e.key];
+			if (!next) return;
+			if (document.getElementById('result-tab-' + next).disabled) return;
+			e.preventDefault();
+			selectResultTab(next);
+			document.getElementById('result-tab-' + next).focus();
+		}
+
+		// タブの状態（結果画像がまだ無いときは押せない・未読の点）を今の状態に合わせる。
+		function updateResultTabs() {
+			const stitchTab = document.getElementById('result-tab-stitch');
+			if (!stitchTab) return;
+			const hasStitch = !document.getElementById('stitch-result-wrap').classList.contains('hidden');
+			// 結果画像がまだ無いあいだは、そちらへ切り替えられない。ただし FAB の「結果画像」から
+			// 来たときは表になっているので、作り方の案内（#stitch-empty）を読める。
+			stitchTab.disabled = !hasStitch && resultTab !== 'stitch';
+			document.getElementById('result-tab-stitch-label').textContent = hasStitch ? '結果画像' : '結果画像（なし）';
+			document.getElementById('result-tab-dot-result').hidden = !fabUnseen.result;
+			document.getElementById('result-tab-dot-stitch').hidden = !fabUnseen.stitch;
 		}
 
 		// メニュー外タップで閉じる（開いたままスクロールして誤爆するのを防ぐ）

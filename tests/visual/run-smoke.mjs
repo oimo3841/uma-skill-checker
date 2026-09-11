@@ -854,16 +854,40 @@ const browser = await chromium.launch();
 	assert(await page.evaluate(() => document.body.style.overflow) === '', 'exam: 引き出しを閉じると本文のスクロールが戻る');
 	assert(await page.isVisible('#fab-nav'), 'exam: 引き出しを閉じるとFABが戻る');
 
-	// 結果画像の引き出し。結果が無いときは案内を出し、「入力画面に戻る」で②のタブへ連れて行く
-	await page.evaluate(() => openDrawer('stitch'));
+	/* --- 照合結果と結果画像は1枚の引き出し。中のタブで切り替える（追加修正⑤） ---
+	   FAB の項目は2つのままで、どちらを押しても同じ引き出しが開き、押した方のタブが表になる。
+	   未読の印は「そのタブを実際に表示したとき」だけ外す。 */
+	const tabState2 = () => page.evaluate(() => ({
+		drawer: !document.getElementById('result-drawer').hidden,
+		stitchDrawerGone: !document.getElementById('stitch-drawer'),
+		resultSel: document.getElementById('result-tab-result').getAttribute('aria-selected'),
+		stitchSel: document.getElementById('result-tab-stitch').getAttribute('aria-selected'),
+		stitchDisabled: document.getElementById('result-tab-stitch').disabled,
+		stitchLabel: document.getElementById('result-tab-stitch-label').textContent,
+		width: getComputedStyle(document.getElementById('result-drawer')).width,
+	}));
+	assert((await tabState2()).stitchDrawerGone, 'exam: 結果画像だけの引き出しは無くなった');
+
+	// 結果画像がまだ無いときは、そのタブへ「切り替えられない」（押せないことはラベルでも分かる）
+	await page.evaluate(() => fabGoTo('result'));
 	await page.waitForTimeout(700);
-	assert(await page.isVisible('#stitch-drawer') && await page.isVisible('#stitch-empty'), 'exam: 結果画像の引き出しは、結果が無いときは案内を出す');
-	assert((await page.textContent('#stitch-drawer .uma-drawer-header p')).trim() === '結果画像', 'exam: 引き出しの見出しは「結果画像」');
+	let t2 = await tabState2();
+	const wideWidth = t2.width;
+	assert(t2.drawer && t2.resultSel === 'true' && t2.stitchSel === 'false', 'exam: 「OCRの照合結果」からは照合結果のタブで開く', t2);
+	assert(t2.stitchDisabled && t2.stitchLabel === '結果画像（なし）', 'exam: 結果画像がまだ無いタブは押せず、ラベルでもそれが分かる', t2);
+
+	// FAB の「結果画像」からは、結果が無くてもそのタブを表にして案内を読ませる（行き止まりを作らない）
+	await page.evaluate(() => fabGoTo('stitch'));
+	await page.waitForTimeout(500);
+	t2 = await tabState2();
+	assert(t2.stitchSel === 'true' && await page.isVisible('#stitch-empty'), 'exam: 「結果画像」からは結果画像のタブで開き、案内が出る', t2);
+	assert(t2.width === wideWidth, 'exam: タブを切り替えても引き出しの幅は変わらない', { wide: wideWidth, now: t2.width });
 	await page.click('#stitch-empty button');
 	await page.waitForTimeout(700);
-	assert(!(await page.isVisible('#stitch-drawer')), 'exam: 案内から入力画面に戻れる');
+	assert(!(await page.isVisible('#result-drawer')), 'exam: 案内から入力画面に戻れる');
 	assert(await page.evaluate(() => document.getElementById('step-tab-2').getAttribute('aria-selected') === 'true'),
 		'exam: 「入力画面に戻る」は②のタブを開く（実行ボタンはそこにある）');
+
 	// 結合結果ができたときの切り替わり（runImageStitching と同じ経路）
 	await page.evaluate(() => {
 		document.getElementById('stitch-result-content').innerHTML = '<p id="stitch-dummy">結果画像</p>';
@@ -872,13 +896,32 @@ const browser = await chromium.launch();
 	});
 	await page.waitForTimeout(300);
 	assert(await page.isVisible('#fab-dot-stitch'), 'exam: 結果画像ができると新着バッジが立つ');
-	await page.click('#fab-toggle');
-	await page.waitForTimeout(300);
-	await page.click('#fab-item-stitch');
+	assert(!(await tabState2()).stitchDisabled, 'exam: 結果画像ができるとそのタブが押せるようになる');
+	/* 引き出しを「照合結果」で開いただけでは、結果画像の未読は残る。
+	   引き出しを開くと FAB ごと隠れるので、見えているかではなく印の状態そのものを見る。 */
+	const unseen = () => page.evaluate(() => ({
+		stitch: fabUnseen.stitch,
+		result: fabUnseen.result,
+		fabDot: !document.getElementById('fab-dot-stitch').hidden,
+		tabDot: !document.getElementById('result-tab-dot-stitch').hidden,
+	}));
+	await page.evaluate(() => fabGoTo('result'));
 	await page.waitForTimeout(700);
-	assert(await page.isVisible('#stitch-dummy') && !(await page.isVisible('#stitch-empty')), 'exam: 結果画像ができると案内が消えて中身が出る');
-	assert(!(await page.isVisible('#fab-dot-stitch')), 'exam: 見に行くと新着バッジが消える');
-	await page.evaluate(() => { closeDrawer(); document.getElementById('stitch-result-content').innerHTML = ''; setSectionReady('stitch', false); });
+	let u = await unseen();
+	assert(u.stitch && u.fabDot, 'exam: 引き出しを開いただけでは結果画像の未読は残る', u);
+	assert(u.tabDot, 'exam: 未読のタブには印が出る', u);
+	// タブを押して実際に表示したときに外れる
+	await page.click('#result-tab-stitch');
+	await page.waitForTimeout(500);
+	assert(await page.isVisible('#stitch-dummy') && !(await page.isVisible('#stitch-empty')), 'exam: 結果画像のタブに中身が出る');
+	u = await unseen();
+	assert(!u.stitch && !u.fabDot, 'exam: タブを表示すると未読の印が外れる', u);
+	assert(!u.tabDot, 'exam: タブ側の印も外れる', u);
+	// ←→ でも切り替わる
+	await page.keyboard.press('ArrowLeft');
+	await page.waitForTimeout(300);
+	assert((await tabState2()).resultSel === 'true', 'exam: ←キーで照合結果のタブへ戻る');
+	await page.evaluate(() => { closeDrawer(); document.getElementById('stitch-result-content').innerHTML = ''; setSectionReady('stitch', false); selectResultTab('result'); });
 	await page.waitForTimeout(600);
 
 	// 本文の下端余白がFAB展開時の高さを吸収できているか
@@ -935,16 +978,16 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(200);
 	assert(!(await page.isVisible('#help-box')), 'exam: 背景タップでガイドが閉じる');
 	// Esc の優先順位: ガイド → 引き出し。引き出しの上でガイドを開き、Esc を2回
-	await page.evaluate(() => openDrawer('stitch'));
+	await page.evaluate(() => fabGoTo('result'));
 	await page.waitForTimeout(500);
 	await page.evaluate(() => openHelp());
 	await page.waitForTimeout(200);
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(300);
-	assert(!(await page.isVisible('#help-box')) && await page.isVisible('#stitch-drawer'), 'exam: Esc はガイドを先に閉じ、引き出しは残る');
+	assert(!(await page.isVisible('#help-box')) && await page.isVisible('#result-drawer'), 'exam: Esc はガイドを先に閉じ、引き出しは残る');
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(600);
-	assert(!(await page.isVisible('#stitch-drawer')), 'exam: もう一度 Esc で引き出しが閉じる');
+	assert(!(await page.isVisible('#result-drawer')), 'exam: もう一度 Esc で引き出しが閉じる');
 
 	// 375px で横スクロールが出ていないこと（結果カードと案内が出ている状態で）
 	await page.setViewportSize({ width: 375, height: 812 });
