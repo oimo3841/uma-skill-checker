@@ -534,6 +534,15 @@ const browser = await chromium.launch();
 	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
 
 	assert((await page.title()).includes('UmaExam OCR'), 'exam: HTTP で読み込める', await page.title());
+	// 既定は新UIで、初回は切り替えの告知モーダルが出る。このブロックは新UI（タブ・引き出し）を
+	// 前提に進むので、モーダルを閉じてから「新UIにいる」ことを明示しておく（F-29③。告知そのものの
+	// 出方は、この後ろの専用ブロックでまとめて見ている）。
+	await page.waitForTimeout(800);
+	if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
+	await page.waitForTimeout(300);
+	assert(await page.evaluate(() => newUi === true && !document.getElementById('new-step-card').hidden
+		&& document.getElementById('old-step1-card').hidden && !document.getElementById('fab-nav').hidden),
+		'exam: 新UI（タブ・引き出し・FAB）で開いている');
 
 	const registry = await page.evaluate(() => ({
 		rows: document.querySelectorAll('#skill-registry-list > div').length,
@@ -1565,6 +1574,177 @@ const browser = await chromium.launch();
 
 	assert(errors.length === 0, 'deck: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
+}
+
+/* ============================================================
+ * exam.html — 既定は新UI／切り替えの告知モーダル／旧UIとの往復
+ *
+ * special の C-16 と同じ作法。exam の旧UI／新UIは「画面構成そのもの」の切り替えで、
+ * 中身の要素（①②のパネル・結果・結果画像・ガイドの本文）は placeSections() で
+ * 置き場の間を移る。「どちらのUIで開くか」と「既読か」が localStorage に残るので、
+ * まっさらな文脈を使って通しで見る。閉じ方4通りは文脈を分けて1通りずつ確かめる。
+ * ============================================================ */
+{
+	const uiState = (page) => page.evaluate(() => ({
+		notice: !document.getElementById('ui-notice').hidden,
+		backdrop: !document.getElementById('ui-notice-backdrop').hidden,
+		badge: !document.getElementById('ui-mode-badge').hidden,
+		newCard: !document.getElementById('new-step-card').hidden,
+		oldCards: [!document.getElementById('old-step1-card').hidden, !document.getElementById('old-step2-card').hidden],
+		fab: !document.getElementById('fab-nav').hidden,
+		label: document.getElementById('deck-mode-btn-label').textContent,
+		scrollLocked: document.body.style.overflow === 'hidden',
+		seen: localStorage.getItem('uma-exam-ui-notice'),
+		mode: localStorage.getItem('uma-exam-ui-mode'),
+		// 中身の置き場（どの箱の中にいるか）
+		panel1In: document.getElementById('step-panel-1').parentElement.id,
+		resultIn: document.getElementById('result-wrap').parentElement.id,
+		helpIn: document.getElementById('help-content').parentElement.id,
+		copyIn: document.getElementById('result-copy-btn').parentElement.id
+	}));
+
+	// 1. 初回訪問：新UIで開き、モーダルが出る
+	{
+		const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+		await page.waitForTimeout(800);
+		const first = await uiState(page);
+		assert(first.newCard && !first.oldCards[0] && !first.oldCards[1] && first.fab && first.badge && first.label === '旧UIへ',
+			'exam: 初回は新UI（タブ・FAB）で開き、旧UIのカードは出ない', first);
+		assert(first.panel1In === 'new-step-slot' && first.resultIn === 'result-drawer-slot' && first.helpIn === 'help-dialog-slot' && first.copyIn === 'result-drawer-copy-slot',
+			'exam: 新UIでは中身がタブ・引き出し・ダイアログの中にある', first);
+		assert(first.notice && first.backdrop && first.scrollLocked,
+			'exam: 初回は切り替えの告知モーダルが出て、本文のスクロールが止まる', first);
+		assert(await page.evaluate(() => document.activeElement === document.getElementById('ui-notice-ok')),
+			'exam: 開いた時点でOKにフォーカスが移る');
+		assert(first.seen === null, 'exam: 開いただけではまだ既読にしない', first.seen);
+		// 文面は固定。＜新機能＞の段は Deck の色の枠
+		const text = await page.evaluate(() => ({
+			title: document.getElementById('ui-notice-title').textContent,
+			body: document.querySelector('#ui-notice .notice-body').textContent.replace(/\s+/g, ''),
+			newBox: getComputedStyle(document.querySelector('#ui-notice .notice-new')).backgroundColor
+		}));
+		assert(text.title === '画面が新しくなりました'
+			&& text.body.includes('対象スキル（133種）や除外・追加の設定はそのままです。')
+			&& text.body.includes('照合結果と結果画像は、右下の＋ボタンから開く引き出しに表示されます。')
+			&& text.body.includes('右上の「旧UIへ」から、いつでも元の画面に戻せます。')
+			&& text.body.includes('＜新機能＞')
+			&& text.body.includes('OCRの結果を保存して、候補どうしを見比べられる「UmaSkillDeck」が追加されました。')
+			&& text.body.includes('UmaSkillDeckは、右下の＋ボタンから開く引き出しに表示されます。'),
+			'exam: 告知の文面が決めたとおり', text);
+		assert(text.newBox === 'rgb(231, 229, 228)', 'exam: ＜新機能＞の段は Deck の色（暖灰）の枠', text.newBox);
+		// 語の途中で折れていないこと（.nb で括った文節は1行に収まる）
+		const broken = await page.evaluate(() => [...document.querySelectorAll('#ui-notice .nb')]
+			.filter((el) => el.getClientRects().length > 1).map((el) => el.textContent));
+		assert(broken.length === 0, 'exam: 告知の文節が途中で折り返されていない（PC幅）', broken);
+
+		await page.click('#ui-notice-ok');
+		await page.waitForTimeout(300);
+		const closed = await uiState(page);
+		assert(!closed.notice && !closed.backdrop && !closed.scrollLocked, 'exam: OKでモーダルが閉じ、スクロールが戻る', closed);
+		assert(closed.seen === '2026-09-exam-drawer-layout', 'exam: 閉じると既読の印が残る', closed.seen);
+
+		// 再読み込み → 新UIのまま・モーダルは出ない
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForTimeout(1500);
+		const again = await uiState(page);
+		assert(again.newCard && !again.notice, 'exam: 既読なら新UIのままで、モーダルは繰り返さない', again);
+
+		// 右上のバッジから読み直せる（既読のまま）
+		await page.click('#ui-mode-badge');
+		await page.waitForTimeout(300);
+		const reopened = await uiState(page);
+		assert(reopened.notice && reopened.seen === '2026-09-exam-drawer-layout', 'exam: 右上のバッジから読み直せて、既読のまま変わらない', reopened);
+		await page.click('#ui-notice-ok');
+		await page.waitForTimeout(300);
+
+		// 旧UIへ：中身が本文のカードへ移り、FAB と Deck の入口が消える。受け渡しの書き込みは続く
+		await page.evaluate(() => {
+			const mk = (names, offset) => matchAllSkillsWithStars(
+				names.map((n, i) => ({ text: n, stars: ((i + offset) % 3) + 1, starsReliable: true, rowKey: 'r' + i })),
+				skillList, skillIndex, {});
+			personResults = PERSON_LABELS.map(() => null);
+			personResults[0] = mk(skillList, 0);
+			renderResults();
+			writeOcrHandoff();
+		});
+		await page.click('#deck-mode-btn');
+		await page.waitForTimeout(600);
+		const old = await uiState(page);
+		assert(old.mode === 'old' && old.label === '新UIへ' && !old.badge, 'exam: 選んだUIが保存され、ラベルが「新UIへ」になる', old);
+		assert(!old.newCard && old.oldCards[0] && old.oldCards[1] && !old.fab, 'exam: 旧UIでは①②が別々のカードで縦に並び、FABは出ない', old);
+		assert(old.panel1In === 'old-step1-slot' && old.resultIn === 'old-result-slot' && old.helpIn === 'old-help-slot' && old.copyIn === 'old-copy-slot',
+			'exam: 旧UIでは中身が本文のカードとアコーディオンの中へ移る', old);
+		assert(await page.isVisible('#old-result-card') && await page.isVisible('#result-tbody') && await page.isVisible('#result-copy-btn'),
+			'exam: 旧UIでは照合結果が本文のカードとして出て、「まとめてコピー」も見出しにある');
+		assert(await page.evaluate(() => document.getElementById('deck-handoff-note').classList.contains('hidden')),
+			'exam: 旧UIでは Deck の入口（取り込み案内）を出さない（F-29②）');
+		assert(await page.evaluate(() => !!JSON.parse(localStorage.getItem('umaSkillDeck:ocrHandoff:exam') || 'null')),
+			'exam: 受け渡しの書き込み自体は旧UIでも続いている');
+		// 旧UIのガイドはアコーディオン
+		await page.click('button[onclick="toggleHelp()"]');
+		await page.waitForTimeout(200);
+		assert(await page.isVisible('#old-help-card') && await page.evaluate(() => document.getElementById('help-box').hidden),
+			'exam: 旧UIではガイドが本文のアコーディオンで開き、ダイアログは使わない');
+		await page.click('button[onclick="toggleHelp()"]');
+		await page.waitForTimeout(200);
+		assert(!(await page.isVisible('#old-help-card')), 'exam: 旧UIのアコーディオンはもう一度押すと閉じる');
+
+		// 再読み込み → 旧UIで開く・告知は出ない
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForTimeout(1500);
+		const old2 = await uiState(page);
+		assert(!old2.newCard && old2.oldCards[0] && old2.label === '新UIへ' && !old2.badge && !old2.notice,
+			'exam: 既読なら最後に選んだ旧UIで開き、モーダルは出ない', old2);
+
+		// 新UIへ戻る：中身がタブ・引き出しへ戻り、①のタブが開いている
+		await page.click('#deck-mode-btn');
+		await page.waitForTimeout(600);
+		const back = await uiState(page);
+		assert(back.newCard && back.fab && back.badge && back.panel1In === 'new-step-slot' && back.resultIn === 'result-drawer-slot',
+			'exam: 新UIへ戻ると中身もタブ・引き出しへ戻る', back);
+		assert(await page.evaluate(() => document.getElementById('step-tab-1').getAttribute('aria-selected') === 'true' && document.getElementById('step-panel-2').hidden),
+			'exam: 新UIへ戻ったときは①のタブが開いている');
+		assert(errors.length === 0, 'exam: 切り替え・告知まわりでコンソールエラーが出ない', errors.slice(0, 3));
+		await ctx.close();
+	}
+
+	// 2. 「旧UI」の保存値だけを持つ人（既読の印なし）は、一度だけ新UIへ寄せる
+	{
+		const { ctx, page } = await openPage(browser, base, 'exam.html');
+		await page.evaluate(() => { localStorage.setItem('uma-exam-ui-mode', 'old'); localStorage.removeItem('uma-exam-ui-notice'); });
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForTimeout(1500);
+		const s = await uiState(page);
+		assert(s.newCard && s.notice, 'exam: 既読の印が無ければ、保存が「旧UI」でも新UIで開いてモーダルを出す', s);
+		await ctx.close();
+	}
+
+	// 3. 閉じ方は4通り。どれで閉じても既読になる（✕・背景・Esc。OKは上で確認済み）
+	for (const [how, act] of [['✕', async (page) => page.click('#ui-notice .notice-close')],
+		['背景', async (page) => page.click('#ui-notice-backdrop', { position: { x: 5, y: 5 } })],
+		['Esc', async (page) => page.keyboard.press('Escape')]]) {
+		const { ctx, page } = await openPage(browser, base, 'exam.html');
+		await page.waitForTimeout(800);
+		assert(await page.isVisible('#ui-notice'), 'exam: ' + how + 'で閉じる前にモーダルが出ている');
+		await act(page);
+		await page.waitForTimeout(300);
+		const s = await uiState(page);
+		assert(!s.notice && s.seen === '2026-09-exam-drawer-layout', 'exam: ' + how + 'で閉じても既読になる', s);
+		await ctx.close();
+	}
+
+	// 4. 375px でも告知の文節が途中で折り返されない
+	{
+		const { ctx, page } = await openPage(browser, base, 'exam.html', { width: 375, height: 812 });
+		await page.waitForTimeout(800);
+		assert(await page.isVisible('#ui-notice'), 'exam: 375px でも初回はモーダルが出る');
+		const broken = await page.evaluate(() => [...document.querySelectorAll('#ui-notice .nb')]
+			.filter((el) => el.getClientRects().length > 1).map((el) => el.textContent));
+		assert(broken.length === 0, 'exam: 告知の文節が途中で折り返されていない（375px）', broken);
+		const ov = await page.evaluate(() => { const d = document.getElementById('ui-notice'); return { sw: d.scrollWidth, cw: d.clientWidth }; });
+		assert(ov.sw <= ov.cw, 'exam: 375px で告知が横にはみ出さない', ov);
+		await ctx.close();
+	}
 }
 
 /* ============================================================

@@ -100,6 +100,14 @@
 		}
 		/* 取り込み案内の「UmaSkill Deck を開いて取り込む」。Deck の色（.deck-accent の中で --uma-accent が
 		   Deck の色になる）で塗る。共通部品 .uma-btn は読んでいないので、このページのボタンの書き方で。 */
+		/* 「旧UIへ／新UIへ」の、新UI中の点灯（このページの藍） */
+		#deck-mode-btn.is-on { border-color: var(--uma-accent-border); background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
+		/* 告知の文面: 語の途中で折れないよう、文節を .nb（改行しない）で括る。文言は変えない */
+		.nb { white-space: nowrap; }
+		.notice-text { text-wrap: pretty; }
+		.notice-new { margin-top: var(--uma-sp-4); text-align: left; }
+		.notice-new-title { margin: 0 0 var(--uma-sp-1-5); font-size: var(--uma-fs-sm); font-weight: 700; }
+		.notice-new .notice-text + .notice-text { margin-top: var(--uma-sp-2); }
 		.deck-note-btn { background: var(--uma-accent); }
 		.deck-note-btn:hover { background: var(--uma-accent-hover); }
 		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
@@ -140,8 +148,8 @@
 					<p class="mt-0.5 text-[11px] text-amber-700">※ SNSの投稿画像等は解像度不足のため対象外となる場合があります。また、加工された画像は適切に判定できない場合があります。ゲーム画面から直接撮ったスクリーンショットをご利用ください。</p>
 				</div>
 
-				<!-- 右側：アクションボタン群 -->
-				<div class="flex items-center gap-2 shrink-0">
+				<!-- 右側：アクションボタン群。4つに増えたので、狭い画面では折り返す（ボタンの中で改行させない） -->
+				<div class="flex flex-wrap items-center gap-2 shrink-0">
 
 					<!-- ツール切り替えドロップダウン -->
 					<div class="relative" id="tool-dropdown-wrap">
@@ -184,6 +192,21 @@
 						</div>
 					</div>
 
+					<!-- いま新しいUI（引き出しの画面構成）にいることの表示。過渡期のあいだだけ出す目印で、
+					     旧UIのときは何も出さない。押すと告知を読み直せる（既読の状態は変えない）。
+					     色は css/shell.css の .ui-mode-badge（このページの藍）。 -->
+					<button type="button" id="ui-mode-badge" hidden onclick="reopenUiNotice()"
+						class="ui-mode-badge shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full"
+						title="画面が新しくなったお知らせをもう一度見る">新UI</button>
+
+					<!-- 旧UI（結果をカードで縦に並べる画面）と新UI（引き出し）の切り替え。既定は新UI。
+					     ラベルは行き先そのものを書く（F-29①）。アイコンは状態で変えない。 -->
+					<button id="deck-mode-btn" type="button" onclick="toggleUiMode()" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer"
+						title="以前の画面に戻します（結果をカードで縦に並べる形）">
+						<i data-lucide="arrow-left-right" class="w-4 h-4 text-indigo-500"></i>
+						<span id="deck-mode-btn-label">旧UIへ</span>
+					</button>
+
 					<!-- 使い方ガイドボタン -->
 					<button type="button" onclick="toggleHelp()" class="inline-flex items-center justify-center gap-2 text-xs font-medium text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-300 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
 						<i data-lucide="help-circle" class="w-4 h-4"></i>
@@ -209,7 +232,9 @@
 					<i data-lucide="x" class="w-5 h-5"></i>
 				</button>
 			</div>
-			<div class="help-body">
+			<div id="help-dialog-slot" class="help-body">
+				<!-- 4ステップと撮影の注意。旧UIではアコーディオン（#old-help-card）へ移す（placeSections） -->
+				<div id="help-content">
 				<ol class="help-steps">
 					<li>
 						<span class="help-num">1</span>
@@ -252,9 +277,48 @@
 						<li>各スキルについて、スキル名と★が両方とも同じ画像内に収まっているカットが少なくとも1枚は含まれるように撮影してください（複数枚で範囲が重なっていても問題ありません）。特に一番下の行は★が途切れて写りやすいため、1枚多めに、少し範囲をずらして撮っておくと安心です。</li>
 					</ul>
 				</div>
+				</div><!-- /#help-content -->
 			</div>
 			<div class="help-foot">
 				<button type="button" onclick="closeHelp()" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all shadow-xs cursor-pointer">閉じる</button>
+			</div>
+		</div>
+
+		<!-- 旧UIの使い方（本文に差し込むアコーディオン）。中身（#help-content）は新UIのダイアログと共通で、
+		     旧UIのときだけここへ移す。旧UIを畳むときはこの箱ごと消す。 -->
+		<div id="old-help-card" class="hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 to-violet-50/50 p-5 md:p-6 mb-8 shadow-xs relative overflow-hidden transition-all">
+			<div class="flex items-center gap-2 text-sm font-bold text-indigo-900 mb-4">
+				<i data-lucide="book-open" class="w-4 h-4 text-indigo-600"></i>
+				<span>使い方の手順</span>
+			</div>
+			<div id="old-help-slot"></div>
+		</div>
+
+		<!-- 画面の切り替えの告知。初回だけ自動で出て、以後は右上の「新UI」バッジから読み直せる。
+		     ✕・OK・背景・Esc のどれで閉じても既読になる（special の C-16 と同じ作法）。
+		     上の段はこのページの藍、＜新機能＞の段は Deck の色（.deck-accent）の枠で囲み、
+		     「この色＝Deck」と覚えてもらう。文面は固定（改行位置だけ .nb で整える）。 -->
+		<div id="ui-notice-backdrop" class="uma-overlay-backdrop" hidden onclick="closeUiNotice()"></div>
+		<div id="ui-notice" class="uma-overlay notice-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="ui-notice-title">
+			<button type="button" class="notice-close inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer" onclick="closeUiNotice()" aria-label="閉じる">
+				<i data-lucide="x" class="w-4 h-4"></i>
+			</button>
+			<div class="notice-body">
+				<div class="notice-icon" aria-hidden="true">
+					<i data-lucide="panel-right-open" class="w-6 h-6"></i>
+				</div>
+				<h2 class="notice-title" id="ui-notice-title">画面が新しくなりました</h2>
+				<p class="notice-text"><span class="nb">対象スキル（133種）</span>や<span class="nb">除外・追加の設定</span>は<span class="nb">そのままです。</span></p>
+				<p class="notice-text"><span class="nb">照合結果</span>と<span class="nb">結果画像</span>は、<span class="nb">右下の＋ボタン</span>から開く<span class="nb">引き出しに</span><span class="nb">表示されます。</span></p>
+				<p class="notice-text"><span class="nb">右上の「旧UIへ」</span>から、<span class="nb">いつでも</span><span class="nb">元の画面</span>に<span class="nb">戻せます。</span></p>
+				<div class="deck-accent deck-note notice-new">
+					<p class="notice-new-title deck-note-title">＜新機能＞</p>
+					<p class="notice-text deck-note-text"><span class="nb">OCRの結果</span>を保存して、<span class="nb">候補どうし</span>を<span class="nb">見比べられる</span><span class="nb">「UmaSkill Deck」</span>が<span class="nb">追加されました。</span></p>
+					<p class="notice-text deck-note-text"><span class="nb">UmaSkill Deck</span>は、<span class="nb">右下の＋ボタン</span>から開く<span class="nb">引き出しに</span><span class="nb">表示されます。</span></p>
+				</div>
+			</div>
+			<div class="notice-foot">
+				<button type="button" id="ui-notice-ok" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all shadow-xs cursor-pointer w-full" onclick="closeUiNotice()">OK</button>
 			</div>
 		</div>
 
@@ -263,7 +327,7 @@
 		     （タブの骨格は css/shell.css）。①は登録済みで触る機会が少ないのに、②へ行くたびに
 		     ①の全高を通り過ぎる必要があったため。隠れている側の状況はタブのバッジで分かる
 		     （①＝対象の種数と調整の有無、②＝アップロード済みの枚数）。 -->
-		<div class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6">
+		<div id="new-step-card" class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6">
 			<div class="step-tabs" role="tablist" aria-label="入力の手順" onkeydown="onStepTabKeydown(event)">
 				<button type="button" role="tab" class="step-tab" id="step-tab-1"
 					aria-controls="step-panel-1" aria-selected="true" tabindex="0" onclick="selectStepTab(1)">
@@ -282,6 +346,8 @@
 				</button>
 			</div>
 
+			<!-- ①②のパネルの置き場。旧UIでは #old-step1-card / #old-step2-card へ移す（placeSections） -->
+			<div id="new-step-slot">
 			<!-- ① 技能試験 対象スキル（登録済み・入力不要） -->
 			<div id="step-panel-1" class="step-panel" role="tabpanel" aria-labelledby="step-tab-1">
 			<p class="text-xs text-slate-500 mb-3">技能試験で有利な対象スキルをあらかじめ<span id="step1-skill-count-inline">133</span>種登録しています。アップロードした因子すべてに対して、このリストで照合します。追加・除外は下の「対象スキルのカスタム設定」から行えます。</p>
@@ -479,6 +545,44 @@
 			</button>
 			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、親A（＋祖A1＋祖A2）・親B（＋祖B1＋祖B2）それぞれのスクリーンショットを1枚の画像にまとめ、SNS投稿用に使える形で出力します。画像枚数が多いほど処理に時間がかかります。</p>
 			</div><!-- /#step-panel-2 -->
+			</div><!-- /#new-step-slot -->
+		</div>
+
+		<!-- ===== 旧UIの置き場（既定では出さない） =====
+		     ①②を別々のカードで縦に並べ、結果・結果画像も本文のカードとして出す、以前の画面構成。
+		     中身（#step-panel-1 / #step-panel-2 / #result-wrap / #stitch-result-wrap / #help-content /
+		     まとめてコピー）は新UIと同じ要素を placeSections() で移して使い回す。
+		     旧UIを畳むときはこの4つの箱と #old-help-card、placeSections() ごと消す。 -->
+		<div id="old-step1-card" class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6" hidden>
+			<div class="flex items-center gap-2 mb-4">
+				<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">1</span>
+				<h2 class="text-sm font-bold text-slate-800">技能試験 対象スキル（登録済み・入力不要）</h2>
+			</div>
+			<div id="old-step1-slot"></div>
+		</div>
+		<div id="old-step2-card" class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6" hidden>
+			<div class="flex items-center gap-2 mb-2">
+				<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">2</span>
+				<h2 class="text-sm font-bold text-slate-800">因子セットの画像をアップロード</h2>
+			</div>
+			<div id="old-step2-slot"></div>
+		</div>
+		<div id="old-stitch-card" class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-8 transition-all" hidden>
+			<div class="flex items-center gap-2 mb-4">
+				<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">4</span>
+				<h2 class="text-sm font-bold text-slate-800">画像結合プレビュー（β・SNS投稿用）</h2>
+			</div>
+			<div id="old-stitch-slot"></div>
+		</div>
+		<div id="old-result-card" class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 transition-all" hidden>
+			<div class="flex items-center justify-between mb-5">
+				<div class="flex items-center gap-2">
+					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">3</span>
+					<h2 class="text-sm font-bold text-slate-800">照合結果（★の数）</h2>
+				</div>
+				<span id="old-copy-slot" class="contents"></span>
+			</div>
+			<div id="old-result-slot"></div>
 		</div>
 
 	</div>
@@ -498,10 +602,12 @@
 				<p class="text-sm font-bold text-slate-800 truncate">照合結果（★の数）</p>
 			</div>
 			<div class="flex items-center gap-2 shrink-0">
-				<button type="button" onclick="copyToClipboard()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all shadow-xs cursor-pointer">
+				<span id="result-drawer-copy-slot" class="contents">
+				<button type="button" id="result-copy-btn" onclick="copyToClipboard()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all shadow-xs cursor-pointer">
 					<i data-lucide="copy" class="w-3.5 h-3.5"></i>
 					<span id="copy-btn-label">まとめてコピー</span>
 				</button>
+				</span>
 				<button id="result-drawer-close" type="button" onclick="closeDrawer()" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
 					<i data-lucide="x" class="w-3.5 h-3.5"></i>
 					<span>閉じる</span>
@@ -519,7 +625,7 @@
 					<span>入力画面に戻る</span>
 				</button>
 			</div>
-			<div class="uma-drawer-content">
+			<div id="result-drawer-slot" class="uma-drawer-content">
 				<!-- 結果の実体。hidden クラスは「結果があるか」の印（setSectionReady が切り替える）。 -->
 				<div id="result-wrap" class="hidden">
 					<!-- ===== UmaSkill Deck への受け渡しの案内（第2段階・手順3）=====
@@ -663,7 +769,7 @@
 					<span>入力画面に戻る</span>
 				</button>
 			</div>
-			<div class="uma-drawer-content">
+			<div id="stitch-drawer-slot" class="uma-drawer-content">
 				<div id="stitch-result-wrap" class="hidden">
 					<div id="stitch-result-content" class="space-y-4"></div>
 				</div>
@@ -1096,6 +1202,8 @@
 			restoreCountMode();
 			selectCopyList('all133');
 			updateProcessBtn();
+			// どちらのUIで開くかを決める（未読なら新UI＋告知モーダル）。他の準備が終わってから
+			initUiMode();
 			if (window.lucide) lucide.createIcons();
 		});
 
@@ -1413,6 +1521,8 @@
 		let helpReturnFocus = null;
 
 		function toggleHelp() {
+			// 旧UIでは以前どおり本文に差し込むアコーディオンを開閉する
+			if (!newUi) { document.getElementById('old-help-card').classList.toggle('hidden'); return; }
 			if (helpOpen) closeHelp(); else openHelp();
 		}
 
@@ -2616,6 +2726,149 @@
 		}
 
 		/* ============================================================
+		 * 旧UI／新UIの切り替えと、切り替えの告知モーダル（special の C-16 と同じ作法）
+		 *
+		 * exam の旧UI／新UIは「画面構成そのもの」の切り替え（special は「入力の仕方」）。
+		 *   新UI … ①②はタブ、結果・結果画像・Deck は右下の＋から開く引き出し、ガイドはダイアログ
+		 *   旧UI … ①②は別々のカード、結果・結果画像は本文のカード、ガイドはアコーディオン
+		 * DOM は1つのまま。中身の要素を placeSections() で置き場の間で移し替える。
+		 *
+		 * どちらで開くかは2段階: 告知が未読なら保存値に関係なく新UI＋モーダル、既読なら最後の選択。
+		 * 既読の印は「告知のID」で持つ（将来べつの告知を出すときは ID を変えるだけ）。
+		 * ============================================================ */
+		const UI_MODE_STORAGE_KEY = 'uma-exam-ui-mode';       // 'new' | 'old'
+		const UI_NOTICE_STORAGE_KEY = 'uma-exam-ui-notice';   // 見た告知のID
+		const UI_NOTICE_ID = '2026-09-exam-drawer-layout';
+		let newUi = true;
+
+		function readStored(key) {
+			try { return localStorage.getItem(key); } catch (e) { return null; }
+		}
+		function writeStored(key, value) {
+			try { localStorage.setItem(key, value); } catch (e) {}
+		}
+		// 読めない／壊れているときは「未読」扱い。もう一度案内するだけで害がない。
+		function hasSeenUiNotice() {
+			return readStored(UI_NOTICE_STORAGE_KEY) === UI_NOTICE_ID;
+		}
+		function markUiNoticeSeen() {
+			if (hasSeenUiNotice()) return;
+			writeStored(UI_NOTICE_STORAGE_KEY, UI_NOTICE_ID);
+		}
+		function saveUiModeChoice() {
+			writeStored(UI_MODE_STORAGE_KEY, newUi ? 'new' : 'old');
+		}
+
+		/* 起動時にどちらのUIで開くかを決め、必要なら告知モーダルを出す。 */
+		function initUiMode() {
+			const seen = hasSeenUiNotice();
+			const startNew = seen ? readStored(UI_MODE_STORAGE_KEY) !== 'old' : true;
+			try {
+				if (startNew) enterNewUi(); else exitNewUi();
+			} catch (e) {
+				console.error('[UmaExam OCR] UIの初期化に失敗しました', e);
+			}
+			if (!seen) openUiNotice();
+		}
+
+		/* 中身の要素を、新UIの置き場（タブ・引き出し・ダイアログ）と旧UIの置き場（本文のカード）の間で移す。
+		   同じノードを動かすだけなので、開いている <details>・入力値・結果はそのまま残る。 */
+		function placeSections(mode) {
+			const move = (id, slotId) => {
+				const el = document.getElementById(id), slot = document.getElementById(slotId);
+				if (el && slot && el.parentElement !== slot) slot.appendChild(el);
+			};
+			const isNew = mode === 'new';
+			move('step-panel-1', isNew ? 'new-step-slot' : 'old-step1-slot');
+			move('step-panel-2', isNew ? 'new-step-slot' : 'old-step2-slot');
+			move('result-wrap', isNew ? 'result-drawer-slot' : 'old-result-slot');
+			move('result-copy-btn', isNew ? 'result-drawer-copy-slot' : 'old-copy-slot');
+			move('stitch-result-wrap', isNew ? 'stitch-drawer-slot' : 'old-stitch-slot');
+			move('help-content', isNew ? 'help-dialog-slot' : 'old-help-slot');
+			document.getElementById('new-step-card').hidden = !isNew;
+			document.getElementById('old-step1-card').hidden = isNew;
+			document.getElementById('old-step2-card').hidden = isNew;
+			// 結果のカードは「結果があるか」に従う（旧UIのときだけ見える）
+			document.getElementById('old-result-card').hidden = isNew || document.getElementById('result-wrap').classList.contains('hidden');
+			document.getElementById('old-stitch-card').hidden = isNew || document.getElementById('stitch-result-wrap').classList.contains('hidden');
+			document.getElementById('old-help-card').classList.add('hidden');
+			document.getElementById('fab-nav').hidden = !isNew;
+			if (isNew) {
+				selectStepTab(1);
+			} else {
+				// 旧UIは縦並びなので両方のパネルを出す
+				document.getElementById('step-panel-1').hidden = false;
+				document.getElementById('step-panel-2').hidden = false;
+			}
+		}
+
+		function enterNewUi() {
+			newUi = true;
+			placeSections('new');
+			const btn = document.getElementById('deck-mode-btn');
+			btn.classList.add('is-on');
+			btn.title = '以前の画面に戻します（結果をカードで縦に並べる形）';
+			document.getElementById('deck-mode-btn-label').textContent = '旧UIへ';
+			document.getElementById('ui-mode-badge').hidden = false;
+			saveUiModeChoice();
+			refreshDeckHandoffState();
+			if (window.lucide) lucide.createIcons();
+		}
+
+		function exitNewUi() {
+			// 開いているものは先に畳む（引き出し・ガイド・FAB）
+			if (newUi) { closeDrawer(); closeHelp(); setFabOpen(false); }
+			newUi = false;
+			placeSections('old');
+			const btn = document.getElementById('deck-mode-btn');
+			btn.classList.remove('is-on');
+			btn.title = '新しい画面に切り替えます（結果は右下の＋ボタンから開く引き出しに出ます）';
+			document.getElementById('deck-mode-btn-label').textContent = '新UIへ';
+			document.getElementById('ui-mode-badge').hidden = true;
+			saveUiModeChoice();
+			refreshDeckHandoffState();
+			if (window.lucide) lucide.createIcons();
+		}
+
+		function toggleUiMode() {
+			if (newUi) exitNewUi(); else enterNewUi();
+		}
+
+		/* ---------- 告知モーダル（使い方ガイドと同じ作法） ---------- */
+		let uiNoticeOpen = false;
+		let uiNoticeReturnFocus = null;
+
+		function openUiNotice() {
+			if (uiNoticeOpen) return;
+			// 引き出しやガイドが開いている上には重ねない
+			if (helpOpen || openDrawerKey) return;
+			uiNoticeOpen = true;
+			uiNoticeReturnFocus = document.activeElement;
+			document.getElementById('ui-notice-backdrop').hidden = false;
+			document.getElementById('ui-notice').hidden = false;
+			document.body.style.overflow = 'hidden';
+			if (window.lucide) lucide.createIcons();
+			document.getElementById('ui-notice-ok').focus();
+		}
+
+		// ✕・OK・背景・Esc のどれで閉じても既読にする
+		function closeUiNotice() {
+			if (!uiNoticeOpen) return;
+			uiNoticeOpen = false;
+			document.getElementById('ui-notice-backdrop').hidden = true;
+			document.getElementById('ui-notice').hidden = true;
+			document.body.style.overflow = '';
+			markUiNoticeSeen();
+			if (uiNoticeReturnFocus && typeof uiNoticeReturnFocus.focus === 'function') uiNoticeReturnFocus.focus();
+			uiNoticeReturnFocus = null;
+		}
+
+		// 右上の「新UI」バッジからの読み直し。既読の状態は変えない（もともと既読なので）。
+		function reopenUiNotice() {
+			openUiNotice();
+		}
+
+		/* ============================================================
 		 * 引き出しパネル（スライドオーバー）と右下の折りたたみFAB
 		 *
 		 * special.html（C-13・F-26・F-27）と同じ作り。骨格の CSS は css/shell.css。
@@ -2660,6 +2913,7 @@
 		}
 
 		function openDrawer(key) {
+			if (!newUi) return;  // 旧UIでは結果は本文のカードに出る（引き出しは使わない）
 			if (openDrawerKey === key) return;
 			if (openDrawerKey) collapseDrawer(openDrawerKey); // 開いていた別の引き出しを畳む
 			clearTimeout(drawerBackdropTimer);
@@ -2731,6 +2985,8 @@
 			const sec = RESULT_SECTIONS[key];
 			document.getElementById(sec.wrap).classList.toggle('hidden', !ready);
 			document.getElementById(sec.empty).hidden = ready;
+			// 旧UIでは結果を本文のカードで出す。カードの外枠も「結果があるか」に合わせる（新UIでは常に隠す）
+			document.getElementById('old-' + key + '-card').hidden = newUi || !ready;
 		}
 
 		function setFabOpen(open) {
@@ -2771,7 +3027,8 @@
 		// Esc は「開いているものを1つ閉じる」。いちばん手前にあるものから順に。
 		document.addEventListener('keydown', (e) => {
 			if (e.key !== 'Escape') return;
-			if (helpOpen) closeHelp();
+			if (uiNoticeOpen) closeUiNotice();
+			else if (helpOpen) closeHelp();
 			else if (openDrawerKey) closeDrawer();
 			else if (fabOpen) setFabOpen(false);
 		});
@@ -2857,7 +3114,8 @@
 		function refreshDeckHandoffState() {
 			const note = document.getElementById('deck-handoff-note');
 			if (!note) return;
-			const payload = readOcrHandoff();
+			// 旧UIでは Deck の入口を出さない（F-29②。受け渡しの書き込み自体は旧UIでも続ける）
+			const payload = newUi ? readOcrHandoff() : null;
 			if (!payload || !payload.persons) {
 				note.classList.add('hidden');
 				fabUnseen.deck = false;
