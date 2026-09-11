@@ -1628,9 +1628,15 @@ const browser = await chromium.launch();
 			&& text.body.includes('照合結果と結果画像は、右下の＋ボタンから開く引き出しに表示されます。')
 			&& text.body.includes('右上の「旧UIへ」から、いつでも元の画面に戻せます。')
 			&& text.body.includes('＜新機能＞')
-			&& text.body.includes('OCRの結果を保存して、候補どうしを見比べられる「UmaSkillDeck」が追加されました。')
-			&& text.body.includes('UmaSkillDeckは、右下の＋ボタンから開く引き出しに表示されます。'),
+			&& text.body.includes('OCRの結果を保存して、候補同士を見比べられる「UmaSkillDeck」が追加されました。')
+			&& text.body.includes('UmaSkillDeckは、右下の＋ボタンから開く引き出しに表示されます。')
+			&& text.body.includes('照合結果はUmaSkillDeckに直接追加できます。'),
 			'exam: 告知の文面が決めたとおり', text);
+		// ツール名は太字で強調する（枠の中の本文と同じ色）
+		assert(await page.evaluate(() => {
+			const el = document.querySelector('#ui-notice .notice-deck-name');
+			return el ? getComputedStyle(el).fontWeight : null;
+		}) === '700', 'exam: 告知の「UmaSkill Deck」が太字で強調されている');
 		assert(text.newBox === 'rgb(231, 229, 228)', 'exam: ＜新機能＞の段は Deck の色（暖灰）の枠', text.newBox);
 		// 語の途中で折れていないこと（.nb で括った文節は1行に収まる）
 		const broken = await page.evaluate(() => [...document.querySelectorAll('#ui-notice .nb')]

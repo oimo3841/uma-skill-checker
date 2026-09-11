@@ -108,6 +108,8 @@
 		.notice-new { margin-top: var(--uma-sp-4); text-align: left; }
 		.notice-new-title { margin: 0 0 var(--uma-sp-1-5); font-size: var(--uma-fs-sm); font-weight: 700; }
 		.notice-new .notice-text + .notice-text { margin-top: var(--uma-sp-2); }
+		/* ＜新機能＞の段でツール名を強調する。色は枠の中の本文と同じ（Deck の色の濃い方）で読みやすい */
+		.notice-deck-name { font-weight: 700; color: var(--uma-accent-soft-text); }
 		.deck-note-btn { background: var(--uma-accent); }
 		.deck-note-btn:hover { background: var(--uma-accent-hover); }
 		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
@@ -316,8 +318,9 @@
 				<p class="notice-text"><span class="nb">右上の「旧UIへ」</span>から、<span class="nb">いつでも</span><span class="nb">元の画面</span>に<span class="nb">戻せます。</span></p>
 				<div class="deck-accent deck-note notice-new">
 					<p class="notice-new-title deck-note-title">＜新機能＞</p>
-					<p class="notice-text deck-note-text"><span class="nb">OCRの結果</span>を保存して、<span class="nb">候補どうし</span>を<span class="nb">見比べられる</span><span class="nb">「UmaSkill Deck」</span>が<span class="nb">追加されました。</span></p>
+					<p class="notice-text deck-note-text"><span class="nb">OCRの結果</span>を保存して、<span class="nb">候補同士</span>を<span class="nb">見比べられる</span><br /><span class="nb notice-deck-name">「UmaSkill Deck」</span>が<span class="nb">追加されました。</span></p>
 					<p class="notice-text deck-note-text"><span class="nb">UmaSkill Deck</span>は、<span class="nb">右下の＋ボタン</span>から開く<span class="nb">引き出しに</span><span class="nb">表示されます。</span></p>
+					<p class="notice-text deck-note-text"><span class="nb">照合結果</span>は<span class="nb">UmaSkill Deck</span>に<span class="nb">直接追加できます。</span></p>
 				</div>
 			</div>
 			<div class="notice-foot">
