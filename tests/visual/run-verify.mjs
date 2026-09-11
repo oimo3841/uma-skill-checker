@@ -133,30 +133,13 @@ for (const p of ['index.html', 'js/common.js', 'js/stitch.js']) {
    免除ではなく記録として1行ずつ残す（なぜ消えたのかを後から追えるようにする）。
    免除したものは実行のたびに [免除] として表示されるので、放置に気付ける。 */
 const INTENTIONALLY_REMOVED = {
-	'special.html': [
-		// 12セッション目: Deck保存パネルをDeck側の「読み込む」導線に一本化して削除（F-27）
-		'deck-save-wrap', 'deck-record-select', 'deck-new-record-name',
-		'deck-assign-rows', 'deck-save-note', 'deck-save-btn',
-		// 12セッション目: 引き出しが3つになり、背景の暗転を1枚（#drawer-backdrop）に集約した
-		'deck-drawer-backdrop',
-		// 14セッション目: 既定を新UIにしたので、旧UIから新UIへ誘う告知一式が不要になった。
-		// いま旧UIにいるのは、切り替えの告知を読んだうえで自分で戻った人だけ（C-16）
-		'new-ui-cta', 'deck-mode-new-badge', 'new-ui-coach', 'new-ui-coach-title', 'new-ui-welcome',
-	],
-	'exam.html': [
-		// 16セッション目（追加修正⑦）: 「★の数をコピー」を引き出しの見出しから結果の一覧の上へ
-		// 移したので、見出し側の置き場が不要になった（新しい置き場は #result-copy-slot）
-		'result-drawer-copy-slot',
-		// 16セッション目（追加修正⑤）: 「照合結果」と「結果画像」を1枚の引き出しにまとめ、
-		// 中のタブで切り替える形にしたので、結果画像だけの引き出しが不要になった。
-		// 中身（#stitch-empty / #stitch-drawer-slot / #stitch-result-wrap）はタブの中へ移した
-		'stitch-drawer', 'stitch-drawer-close',
-	],
-	'js/uma-skill-deck-core.js': [
-		// 13セッション目: 8軸すべてが常に見える形（1行 or 角丸ボタンの多段）にしたので、
-		// タブバーの横スクロールと「最初へ/最後へ」ボタンごと不要になった（F-28）
-		'data-usd-edge', 'data-more-left', 'data-more-right',
-	],
+	// 2026-09-11: 7〜16セッション目ぶんを push したので、ここまでの免除は空に戻した。
+	// この検査は git show HEAD: と作業ツリーを比べるので、commit が進めば免除は要らなくなる。
+	// 残しておくと「本当の事故でその id が消えた」ときに見逃す口になる。
+	// 過去に何を消したかは commit メッセージと HANDOFF に残っている。
+	// 例: special の Deck保存パネル（F-27）／旧UIの告知一式（C-16）／
+	//     exam の #stitch-drawer・#result-drawer-copy-slot（C-18 追加修正⑤⑦）／
+	//     core.js の data-usd-edge ほか（F-28）。
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
