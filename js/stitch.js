@@ -125,130 +125,160 @@ function stitchTrimFixedFooterChrome(canvases, headerEnd, footerStart, groupLabe
 	return trimmed;
 }
 
-// スクロールバーのつまみ位置を検出して、順不同アップロードでも正しい順序に
-// 並び替える。つまみが見つからない/長さが不一致の場合はnullを返し、
-// 呼び出し側でアップロード順にフォールバックする。
-function stitchDetectScrollbarOrder(canvases, headerEnd, footerStart, groupLabel, darkThreshold = 200) {
-	const w = canvases[0].width;
-	const contentH = footerStart - headerEnd;
-	const xStart = Math.floor(w * 0.75);
+// ── 画像の並び順と継ぎ目の推定 ──────────────────────────────
+// 【全面差し替え 2026-09-12】
+// 旧方式は「スクロールバーのつまみ位置で並び替え」＋「上画像の末尾から切り出した
+// 固定長テンプレートを下画像上でスライドさせ、平均絶対差分(MAD)が最小の位置を
+// 継ぎ目とする」だったが、実機スクリーンショット(test-images/20260910ライス,
+// 20260911ルドルフ1, 20260911ルドルフ2)での検証で次の3点の欠陥が確認された。
+//
+//  (1) つまみの位置は並び順の根拠にならない。ライスの3枚は、本文を見れば
+//      image6→image7→image8 の順なのに、つまみの上端は 1753 / 1832 / 1790 で、
+//      一番下までスクロールした image8 のつまみだけが image7 より上に、しかも
+//      短く(126px 対 146px)描かれていた。検出自体は「成功」するので、誤った
+//      並び [0,2,1] をそのまま採用し、末尾のスキル5行が欠落していた。
+//  (2) つまみを探す列の選び方も脆い。幅の75%から右へ走査して「1枚目でそれらしい
+//      暗い縦線が見つかった最初の列」を採るため、ルドルフではつまみの角丸の先端が
+//      わずかに写り込んだ列(x=1121)を掴み、他の画像には同じ列に何も無いので
+//      並び替え自体を断念していた。
+//  (3) 固定長テンプレート(150行)方式は、重なりが「テンプレート長+余白」=160行より
+//      小さい継ぎ目を原理的に探索できない。ルドルフ1には重なり121行の継ぎ目があり、
+//      探索範囲外なので誤った位置(217行)を採用してスキル1行が丸ごと消えていた。
+//      さらにスキルパネルは行によらずほぼ同じ形なので、150行程度の窓では行ピッチ
+//      (約97行)ごとにほぼ同値の谷ができ、正解と誤答の差が MAD 5.35 対 5.44 しか
+//      無く、事実上区別できていなかった。
+//
+// 新方式は、重なり領域『全体』を突き合わせて「明らかに食い違う画素の割合」
+// (badRate)が最小になるスクロール量を1px刻みで探す。領域全体を使うので判断材料が
+// 桁違いに増え、実機3ケース8継ぎ目すべてで正解を当て、正解と次点の差が3.4〜23倍に
+// 開くことを確認済み。平均差分ではなく「閾値を超えた画素の割合」なので、窓を広げる
+// ほど値が下がり続ける(旧方式で問題になった)偏りも生じない。並び順も同じ尺度で決める。
 
-	function darkRun(canvas, x) {
-		const ctx = canvas.getContext('2d', { willReadFrequently: true });
-		const data = ctx.getImageData(x, headerEnd, 1, contentH).data;
-		let first = -1, last = -1, cnt = 0;
-		for (let y = 0; y < contentH; y++) {
-			const idx = y * 4;
-			const v = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-			if (v < darkThreshold) { if (first === -1) first = y; last = y; cnt++; }
-		}
-		if (first === -1) return null;
-		const span = last - first + 1;
-		if (cnt / span < 0.6) return null;
-		if (span > contentH * 0.6 || span < 3) return null;
-		return { first: first, last: last, span: span };
-	}
+const STITCH_DIFF_THRESHOLD = 24;      // この差(0-255階調)を超えた画素を「食い違い」と数える
+const STITCH_MIN_OVERLAP = 60;         // これ未満しか重ならない継ぎ目は候補にしない
+const STITCH_BAD_RATE_LIMIT = 0.03;    // 不一致率がこれ以上なら「継ぎ目として怪しい」
+const STITCH_BAD_RATE_MARGIN = 2.0;    // 次点との比がこれ未満なら「決め手に欠ける」
+const STITCH_SECOND_GUARD = 40;        // 次点を探すとき最良値の±この範囲は同じ谷とみなす
 
-	let candidateX = -1;
-	for (let x = xStart; x < w; x++) {
-		if (darkRun(canvases[0], x)) { candidateX = x; break; }
+// 突き合わせに使う本文領域だけを、グレースケール1バイト/画素の平面に落としておく。
+// 継ぎ目探索は同じ画素を何百回も読むので、getImageData を毎回呼ばないようにする。
+function stitchContentPlane(canvas, headerEnd, footerStart, xStart, xEnd) {
+	const w = xEnd - xStart;
+	const h = footerStart - headerEnd;
+	const data = canvas.getContext('2d', { willReadFrequently: true }).getImageData(xStart, headerEnd, w, h).data;
+	const gray = new Uint8Array(w * h);
+	for (let i = 0, p = 0; i < gray.length; i++, p += 4) {
+		gray[i] = (data[p] * 77 + data[p + 1] * 150 + data[p + 2] * 29) >> 8;
 	}
-	if (candidateX === -1) {
-		stitchLog(groupLabel + ': スクロールバー検出: 該当する列が見つかりませんでした。');
-		return null;
-	}
-
-	const runs = [];
-	for (let i = 0; i < canvases.length; i++) {
-		const run = darkRun(canvases[i], candidateX);
-		if (!run) {
-			stitchLog(groupLabel + ': スクロールバー検出: 画像' + i + 'でつまみが検出できませんでした。並び替えを断念します。');
-			return null;
-		}
-		runs.push(run);
-	}
-	const spans = runs.map(r => r.span);
-	const minSpan = Math.min.apply(null, spans), maxSpan = Math.max.apply(null, spans);
-	if (minSpan / maxSpan < 0.85) {
-		stitchLog(groupLabel + ': スクロールバー検出: つまみ長さが不一致(' + minSpan + '〜' + maxSpan + ')のため並び替えを断念します。');
-		return null;
-	}
-	const order = runs.map((r, i) => ({ i: i, y: r.first })).sort((a, b) => a.y - b.y).map(o => o.i);
-	stitchLog(groupLabel + ': スクロールバー検出成功(x=' + candidateX + '): 並び順 = [' + order.join(', ') + ']');
-	return order;
+	return { gray: gray, w: w, h: h };
 }
 
-// オーバーラップ（重複範囲）を、実ピクセルの平均絶対差分(MAD)に基づき推定する。
-// 大きい候補から順に見て、閾値を下回る最初の(最大の)候補を採用することで、
-// 小さい窓幅で偶然低スコアになる誤検出を避ける。
-// 【全面差し替え】以前は「上下の帯全体の平均差分が最小になる重なり幅」を
-// 探していたが、スキル一覧は丸角パネルの枠線や星アイコンの並びが行に
-// よらずほぼ同じ形であるため、重なり幅を広げるほど平均差分がなだらかに
-// 下がり続け、正しい位置とは無関係な値に吸い寄せられる不具合が実データで
-// 確認された。代わりに、上画像の末尾から固定サイズのテンプレートを
-// 1つだけ切り出し、それを下画像の全域に対してスライドさせて最も一致する
-// 位置（＝真の継ぎ目）を探す方式に変更する。比較対象が固定サイズになる
-// ため、以前のような「窓を広げるほど下がり続ける」問題が起きない。
-function stitchEstimateOverlapByPixelMAD(canvasTop, canvasBottom, yStart, yEnd, xStart, xEnd, opts) {
-	opts = opts || {};
-	const minOverlap = opts.minOverlap || 60;
-	const templateH = opts.templateH || 150;
-	const edgeBuffer = opts.edgeBuffer || 10;
-	const madThreshold = opts.madThreshold || 6.0;
-	const sampleStepX = opts.sampleStepX || 3;
-
-	const ctxTop = canvasTop.getContext('2d', { willReadFrequently: true });
-	const ctxBottom = canvasBottom.getContext('2d', { willReadFrequently: true });
-	const w = xEnd - xStart;
-	const h = yEnd - yStart;
-
-	const effTemplateH = Math.max(20, Math.min(templateH, h - minOverlap));
-	const t0 = h - edgeBuffer - effTemplateH; // 上画像内でのテンプレート開始位置（コンテンツ相対）
-
-	const dataTop = ctxTop.getImageData(xStart, yStart + t0, w, effTemplateH).data;
-	const dataBottom = ctxBottom.getImageData(xStart, yStart, w, h).data;
-
-	function isBlankish(r, g, b) { return r > 244 && g > 244 && b > 244; }
-
-	function madAt(y0) {
-		let sum = 0, cnt = 0;
-		const rowStride = w * 4;
-		for (let ty = 0; ty < effTemplateH; ty++) {
-			const topRow = ty * rowStride;
-			const botRow = (y0 + ty) * rowStride;
-			for (let x = 0; x < w; x += sampleStepX) {
-				const it = topRow + x * 4;
-				const ib = botRow + x * 4;
-				const rT = dataTop[it], gT = dataTop[it + 1], bT = dataTop[it + 2];
-				const rB = dataBottom[ib], gB = dataBottom[ib + 1], bB = dataBottom[ib + 2];
-				if (isBlankish(rT, gT, bT) && isBlankish(rB, gB, bB)) continue;
-				sum += Math.abs(rT - rB) + Math.abs(gT - gB) + Math.abs(bT - bB);
-				cnt += 3;
+// 下画像を d 行ぶんスクロールした位置として重ねたときの「食い違い画素の割合」を、
+// d = 1 〜 (本文高さ - 最小重なり) について総当たりで求める。
+// 重なりが白紙同士になる位置は、いくら一致していても根拠にならないので無効扱いにする。
+function stitchScanShiftBadRates(planeTop, planeBottom, yStep, xStep) {
+	const w = planeTop.w, h = planeTop.h;
+	const A = planeTop.gray, B = planeBottom.gray;
+	const maxShift = h - STITCH_MIN_OVERLAP;
+	const rates = new Float64Array(maxShift + 1).fill(Infinity);
+	for (let d = 1; d <= maxShift; d++) {
+		const rows = h - d;
+		let bad = 0, tot = 0, ink = 0;
+		for (let y = 0; y < rows; y += yStep) {
+			const ra = (y + d) * w, rb = y * w;
+			for (let x = 0; x < w; x += xStep) {
+				const a = A[ra + x], b = B[rb + x];
+				if (a < 240 || b < 240) ink++;
+				if (Math.abs(a - b) > STITCH_DIFF_THRESHOLD) bad++;
+				tot++;
 			}
 		}
-		const totalPairs = effTemplateH * Math.ceil(w / sampleStepX) * 3;
-		if (cnt < totalPairs * 0.05) return Infinity;
-		return sum / cnt;
+		if (tot === 0 || ink < tot * 0.05) continue;
+		rates[d] = bad / tot;
+	}
+	return rates;
+}
+
+// 最良のスクロール量と、その確からしさ（不一致率そのものと、離れた位置の次点との比）。
+function stitchMeasureSeam(planeTop, planeBottom, yStep, xStep) {
+	const rates = stitchScanShiftBadRates(planeTop, planeBottom, yStep, xStep);
+	let shift = -1, badRate = Infinity;
+	for (let d = 1; d < rates.length; d++) {
+		if (rates[d] < badRate) { badRate = rates[d]; shift = d; }
+	}
+	let secondBadRate = Infinity;
+	for (let d = 1; d < rates.length; d++) {
+		if (Math.abs(d - shift) > STITCH_SECOND_GUARD && rates[d] < secondBadRate) secondBadRate = rates[d];
+	}
+	const confident = shift > 0
+		&& badRate < STITCH_BAD_RATE_LIMIT
+		&& (!isFinite(secondBadRate) || secondBadRate / badRate >= STITCH_BAD_RATE_MARGIN);
+	return {
+		shift: shift,
+		overlap: shift > 0 ? planeTop.h - shift : STITCH_MIN_OVERLAP,
+		badRate: badRate,
+		secondBadRate: secondBadRate,
+		confident: confident,
+	};
+}
+
+function stitchFormatSeam(r) {
+	const pct = isFinite(r.badRate) ? (r.badRate * 100).toFixed(2) + '%' : '—';
+	const second = isFinite(r.secondBadRate) ? (r.secondBadRate * 100).toFixed(2) + '%' : '—';
+	return 'オーバーラップ=' + r.overlap + '行 (不一致率=' + pct + '/次点' + second + ', 信頼度' + (r.confident ? '高' : '低') + ')';
+}
+
+// 並び順を決める。アップロード順のまま全継ぎ目が十分確からしければ、それを採用する
+// （ユーザーは普通スクロール順に選ぶので、無用な並び替えで壊さないため）。
+// 怪しい継ぎ目がある場合だけ、全ての順序対を粗く評価して最良の並びを総当たりで探す。
+function stitchResolveOrder(planes, groupLabel) {
+	const n = planes.length;
+	const asUploaded = [];
+	for (let i = 0; i < n - 1; i++) asUploaded.push(stitchMeasureSeam(planes[i], planes[i + 1], 2, 3));
+	if (asUploaded.every(s => s.confident)) {
+		return { order: planes.map((p, i) => i), seams: asUploaded };
 	}
 
-	// 【修正】粗い間隔で走査してから周辺だけ再探索する二段探索だと、
-	// 真の最良位置がわずか数px幅の狭い谷にしかない場合に飛び越して
-	// 見逃し、たまたま粗い格子に乗った劣った候補を採用してしまう
-	// ことが実データで確認された。1px刻みの全探索に変更する。
-	const maxY0 = h - effTemplateH;
-	let bestY0 = 0, bestMad = Infinity, secondMad = Infinity;
-	for (let y0 = 0; y0 <= maxY0; y0++) {
-		const mad = madAt(y0);
-		if (mad < bestMad) { secondMad = bestMad; bestMad = mad; bestY0 = y0; }
-		else if (mad < secondMad) secondMad = mad;
+	stitchLog(groupLabel + ': アップロード順では確からしくない継ぎ目があるため、並び順を探索します。');
+	if (n > 7) {
+		stitchLog(groupLabel + ': 画像が' + n + '枚と多いため並び順の総当たりは行わず、アップロード順を使用します。');
+		return { order: planes.map((p, i) => i), seams: asUploaded };
 	}
 
-	let overlap = h - (t0 - bestY0);
-	overlap = Math.max(minOverlap, Math.min(h - 1, overlap));
-	// 信頼度は「一致度が閾値未満」かつ「次点候補と十分に差がある」の両方で判定する。
-	// 差が小さいと、たまたま似ている位置を拾っただけの可能性がある。
-	const confident = bestMad < madThreshold && (secondMad - bestMad) > 1.5;
-	return { overlap: overlap, mad: bestMad, secondMad: secondMad, confident: confident };
+	// cost[i][j] = 画像jを画像iの真下に置いたときの不一致率（小さいほど繋がりが良い）
+	const cost = [];
+	for (let i = 0; i < n; i++) {
+		cost.push([]);
+		for (let j = 0; j < n; j++) {
+			cost[i].push(i === j ? Infinity : stitchMeasureSeam(planes[i], planes[j], 6, 6).badRate);
+		}
+	}
+
+	let bestOrder = planes.map((p, i) => i);
+	let bestCost = Infinity;
+	const used = new Array(n).fill(false);
+	const cur = [];
+	(function walk(sum) {
+		if (sum >= bestCost) return;
+		if (cur.length === n) { bestCost = sum; bestOrder = cur.slice(); return; }
+		for (let i = 0; i < n; i++) {
+			if (used[i]) continue;
+			const add = cur.length === 0 ? 0 : cost[cur[cur.length - 1]][i];
+			if (!isFinite(add)) continue;
+			used[i] = true; cur.push(i);
+			walk(sum + add);
+			cur.pop(); used[i] = false;
+		}
+	})(0);
+
+	if (bestOrder.join() === planes.map((p, i) => i).join()) {
+		stitchLog(groupLabel + ': 探索の結果もアップロード順が最良でした。');
+		return { order: bestOrder, seams: asUploaded };
+	}
+	stitchLog(groupLabel + ': 並び順を [' + bestOrder.join(', ') + '] に並び替えます。');
+	const seams = [];
+	for (let i = 0; i < n - 1; i++) seams.push(stitchMeasureSeam(planes[bestOrder[i]], planes[bestOrder[i + 1]], 2, 3));
+	return { order: bestOrder, seams: seams };
 }
 
 // 標準的なスクリーンショットかどうかの簡易判定（実測済みDMM版・スマホ版の
@@ -358,23 +388,23 @@ async function stitchOnePerson(files, groupLabel) {
 	const footerStart = stitchTrimFixedFooterChrome(canvases, headerEnd, hf.footerStart, groupLabel);
 	stitchLog(groupLabel + ': ヘッダー=行0〜' + (headerEnd - 1) + '(除外), スクロール領域=行' + headerEnd + '〜' + (footerStart - 1) + ', フッター=行' + footerStart + '〜' + (canvases[0].height - 1) + '(除外)');
 
-	let canvasesForStitch = canvases;
-	const order = stitchDetectScrollbarOrder(canvases, headerEnd, footerStart, groupLabel);
-	if (order) {
-		canvasesForStitch = order.map(i => canvases[i]);
-	} else {
-		stitchLog(groupLabel + ': 並び替えできなかったためアップロード順を使用します。');
-	}
-
 	const marginX = Math.floor(w0 * 0.1);
+	// 左右1割を除くのは、キャラ切り替え矢印やスクロールバーなど本文と一緒に
+	// スクロールしない装飾を突き合わせから外すため。
+	const planes = canvases.map(c => stitchContentPlane(c, headerEnd, footerStart, marginX, w0 - marginX));
+	const resolved = stitchResolveOrder(planes, groupLabel);
+	const canvasesForStitch = resolved.order.map(i => canvases[i]);
+	stitchLog(groupLabel + ': 並び順 = [' + resolved.order.join(', ') + ']');
+
 	const overlaps = [];
 	// 検証用：低信頼度の継ぎ目を警告として集め、結合結果に添付する
 	const warnings = [];
-	for (let i = 0; i < canvasesForStitch.length - 1; i++) {
-		const r = stitchEstimateOverlapByPixelMAD(canvasesForStitch[i], canvasesForStitch[i + 1], headerEnd, footerStart, marginX, w0 - marginX);
-		stitchLog(groupLabel + ': 画像' + i + '→' + (i + 1) + ': オーバーラップ=' + r.overlap + '行 (MAD=' + r.mad.toFixed(2) + '/次点' + r.secondMad.toFixed(2) + ', 信頼度' + (r.confident ? '高' : '低') + ')');
+	for (let i = 0; i < resolved.seams.length; i++) {
+		const r = resolved.seams[i];
+		stitchLog(groupLabel + ': 画像' + i + '→' + (i + 1) + ': ' + stitchFormatSeam(r));
 		if (!r.confident) {
-			const warnMsg = groupLabel + ': 画像' + i + '→' + (i + 1) + 'の継ぎ目は一致度が低く(MAD=' + r.mad.toFixed(1) + ')、結合位置がズレている可能性があります。';
+			const rate = isFinite(r.badRate) ? '不一致率' + (r.badRate * 100).toFixed(1) + '%' : '測定不能';
+			const warnMsg = groupLabel + ': 画像' + i + '→' + (i + 1) + 'の継ぎ目は一致度が低く(' + rate + ')、結合位置がズレている可能性があります。';
 			stitchLog('⚠ ' + warnMsg);
 			warnings.push(warnMsg);
 		}
