@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11h';
 
 	/* ============================================================
 	 * 定数
@@ -1457,7 +1457,7 @@
 					'</button>' +
 				'</div>' +
 				'<div class="flex items-baseline justify-between gap-2 mb-1">' +
-					'<p class="text-xs text-slate-500">選択済みスキル（<span data-usd-el="selected-count">0</span>）</p>' +
+					'<p class="text-xs text-slate-500">選択済みスキル（<span data-usd-el="selected-count">0</span>種）</p>' +
 					// 一覧の行にあった「空にする」をここへ移した。中身を触っている画面で、
 					// 何件消えるのかが見えている状態で押せるようにするため。
 					'<button type="button" class="usd-link-btn" data-usd-act="editor-clear-skills" data-usd-el="clear-skills">すべて外す</button>' +
@@ -1546,7 +1546,7 @@
 					// 件数は保存済みテンプレートの行と同じ位置・同じ言い回しで出す
 					// （並びの中で見比べるものなので、片方だけ書式が違うと比べにくい）。
 					'<p class="font-semibold text-sm text-slate-800 usd-truncate">ドラフト' +
-						'<span class="text-xs font-normal text-slate-500 ml-2">スキル' + n + '件</span></p>' +
+						'<span class="text-xs font-normal text-slate-500 ml-2">' + n + '種</span></p>' +
 					'<p class="text-xs text-slate-500">※次回開いた際も復元されます。繰り返し使う場合は「テンプレートとして保存」を選択してください。</p>' +
 				'</div>' +
 				'<div class="flex gap-1.5 shrink-0">' +
@@ -1591,7 +1591,7 @@
 						radio +
 						'<div class="flex-1 min-w-0">' +
 							'<p class="font-semibold text-sm text-slate-800 usd-truncate">' + esc(t.name || '（名称未設定）') + '</p>' +
-							'<p class="text-xs text-slate-500">スキル' + t.skillIds.length + '件・更新 ' + esc((t.updatedAt || '').slice(0, 10)) + '</p>' +
+							'<p class="text-xs text-slate-500">' + t.skillIds.length + '種・更新 ' + esc((t.updatedAt || '').slice(0, 10)) + '</p>' +
 						'</div>' +
 						'<div class="flex gap-1.5 shrink-0">' +
 							'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="template-open" data-template-id="' + esc(t.templateId) + '" title="開く"><i data-lucide="edit" class="w-4 h-4"></i></button>' +

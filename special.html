@@ -25,7 +25,7 @@
 	<script src="js/common.js?v=2026-09-10b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-11g"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-11h"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-09a"></script>
 	<style>
@@ -153,9 +153,9 @@
 					<!-- 何ができるかを1行で言い切り、注意書きは1件1行に分ける。
 					     以前は「親Aセット（親A+祖A1+祖A2）の因子スクリーンショットから…」と
 					     画面の構造を先に説明していたが、初見には読み解けない語が多かった。 -->
-					<p class="mt-1.5 text-xs md:text-sm text-slate-500">ゲーム画面のスクリーンショットから、スキルの★の数を判定します。</p>
-					<p class="mt-1.5 text-[11px] text-amber-700">※ OCR・★判定の精度は完全ではありません。目視でもご確認ください。</p>
-					<p class="mt-0.5 text-[11px] text-amber-700">※ 解像度不足の画像（SNSの投稿画像等）は対象外となる場合があります。</p>
+					<p class="mt-1.5 text-xs md:text-sm text-slate-500">ゲーム画面のスクリーンショットから、スキルの★の数を判定</p>
+					<p class="mt-1.5 text-[11px] text-amber-700">※ OCR・★判定の精度は完全ではありません。</p>
+					<p class="mt-0.5 text-[11px] text-amber-700">※ 解像度不足の画像はエラーとなる場合があります。</p>
 					<p class="mt-0.5 text-[11px] text-amber-700">※ 加工された画像は適切に判定できない場合があります。</p>
 				</div>
 
@@ -772,9 +772,9 @@
 
 			document.getElementById('skill-count').textContent = '✓ ' + skillList.length + '個解析完了';
 			const badge = document.getElementById('skill-count-badge');
-			badge.textContent = skillList.length + ' 個のスキル';
+			badge.textContent = skillList.length + '種';
 			badge.classList.remove('hidden');
-			showToast(skillList.length + '個のスキルをセットしました');
+			showToast(skillList.length + '種をセットしました');
 			parseOcrDictionary(); // 辞書に書かれたスキル名がリストに存在するか再確認する
 			updateProcessBtn();
 		}
@@ -1813,7 +1813,7 @@
 
 			document.getElementById('manual-skill-body').classList.add('hidden');
 			document.getElementById('deck-skill-body').classList.remove('hidden');
-			document.getElementById('step1-title').textContent = '対象スキルセットを選ぶ';
+			document.getElementById('step1-title').textContent = '対象スキル';
 			const btn = document.getElementById('deck-mode-btn');
 			btn.classList.add('is-on');  // 点灯（Deck の色。css/shell.css の .uma-btn.is-on）
 			btn.title = '以前のUIに戻します（スキルリストを手で貼り付ける形）';
@@ -1916,7 +1916,7 @@
 			skillList = dict.list;
 			skillIndex = dict.index;
 
-			badge.textContent = skillList.length + ' 個のスキル';
+			badge.textContent = skillList.length + '種';
 			badge.classList.remove('hidden');
 			parseOcrDictionary(); // 辞書に書かれたスキル名がリストに存在するか再確認する
 			updateDeckSelectedNote();
@@ -1927,7 +1927,7 @@
 			const note = document.getElementById('deck-selected-note');
 			if (!note) return;
 			if (!deckScope) { note.textContent = '対象スキルセットを1つ選んでください'; return; }
-			note.textContent = '✓ 「' + deckScope.name + '」の' + skillList.length + '件を照合します';
+			note.textContent = '✓ 「' + deckScope.name + '」の' + skillList.length + '種を照合します';
 		}
 
 		/* ============================================================

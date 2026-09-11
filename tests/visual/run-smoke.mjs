@@ -257,7 +257,7 @@ const browser = await chromium.launch();
 			icons: card.querySelectorAll('button').length
 		};
 	});
-	assert(draftRow.title.startsWith('ドラフト') && /スキル\d+件/.test(draftRow.title),
+	assert(draftRow.title.startsWith('ドラフト') && /\d+種/.test(draftRow.title),
 		'special: ドラフトの行に名前と件数が出る', draftRow.title);
 	assert(draftRow.sub.startsWith('※次回開いた際も復元されます'),
 		'special: ドラフトの行に復元の案内が出る', draftRow.sub);
@@ -310,7 +310,7 @@ const browser = await chromium.launch();
 		};
 	});
 	await page.waitForTimeout(300);
-	assert(draftPicked.note === '✓ 「ドラフト」の1件を照合します',
+	assert(draftPicked.note === '✓ 「ドラフト」の1種を照合します',
 		'special: 選択中の案内にも一覧と同じ「ドラフト」が出る', draftPicked);
 	assert(draftPicked.row.startsWith('ドラフト'), 'special: 一覧の行の呼び方と一致している', draftPicked);
 
@@ -410,7 +410,7 @@ const browser = await chromium.launch();
 	const newUi = await uiState();
 	assert(newUi.label === '旧UIへ' && newUi.badge === true,
 		'special: 新UIに入るとボタンが「旧UIへ」になり「新UI」バッジが出る', newUi);
-	assert(newUi.title === '対象スキルセットを選ぶ', 'special: 新UIの①の見出しが短縮されている', newUi.title);
+	assert(newUi.title === '対象スキル', 'special: 新UIの①の見出しが短縮されている', newUi.title);
 	assert((await stepState()).panel1, 'special: 新UIへ切り替えると①が開いた状態になる');
 	await page.click('#deck-mode-btn');
 	await page.waitForTimeout(600);
@@ -456,7 +456,7 @@ const browser = await chromium.launch();
 		const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 		await page.waitForTimeout(2500);
 		const first = await uiState(page);
-		assert(first.title === '対象スキルセットを選ぶ' && first.badge && first.label === '旧UIへ',
+		assert(first.title === '対象スキル' && first.badge && first.label === '旧UIへ',
 			'special: 初回は新UIで開く', first);
 		assert(first.notice && first.backdrop && first.scrollLocked,
 			'special: 初回は切り替えの告知モーダルが出て、本文のスクロールが止まる', first);
@@ -482,7 +482,7 @@ const browser = await chromium.launch();
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await page.waitForTimeout(2500);
 		const again = await uiState(page);
-		assert(again.title === '対象スキルセットを選ぶ' && !again.notice,
+		assert(again.title === '対象スキル' && !again.notice,
 			'special: 既読なら新UIのままで、モーダルは繰り返さない', again);
 
 		// 6. 右上のバッジから読み直せる（既読のまま）
@@ -520,7 +520,7 @@ const browser = await chromium.launch();
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await page.waitForTimeout(2500);
 		const s = await uiState(page);
-		assert(s.title === '対象スキルセットを選ぶ' && s.notice,
+		assert(s.title === '対象スキル' && s.notice,
 			'special: 既読の印が無ければ、保存が「旧UI」でも新UIで開いてモーダルを出す', s);
 		await ctx.close();
 	}
