@@ -28,6 +28,11 @@ const browser = await chromium.launch();
 	assert((await page.getAttribute('html', 'class') || '').includes('uma-tw-ready'),
 		'special: Tailwind の読み込みを検出できている');
 
+	// 新UIの告知の吹き出しは初回だけ出る。開いたままだと以降のクリックに被るので、
+	// ここで閉じておく（出ること自体は最後の専用ブロックで確かめる）。
+	await page.waitForTimeout(900);
+	if (await page.isVisible('#new-ui-coach')) await page.click('[data-act="coach-later"]');
+
 	// スキルリストの解析（hidden の付け外し・件数バッジ）
 	await seedSpecialResults(page);
 	assert(await page.isVisible('#skill-count-badge'), 'special: スキル件数バッジが出る');
@@ -401,6 +406,60 @@ const browser = await chromium.launch();
 	assert(ov.sw === ov.cw, 'special: 375px で横スクロールが出ない', ov);
 
 	assert(errors.length === 0, 'special: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
+ * special.html — 新UIの告知（初回だけ出て、使ったら消える）
+ * 状態が localStorage に残るかどうかが肝なので、まっさらな文脈を1つ使う。
+ * ============================================================ */
+{
+	const { ctx, page } = await openPage(browser, base, 'special.html');
+	await page.waitForTimeout(1400);
+
+	const cta = () => page.evaluate(() => ({
+		badge: !document.getElementById('deck-mode-new-badge').hidden,
+		coach: !document.getElementById('new-ui-coach').hidden,
+		pulse: document.getElementById('deck-mode-btn').classList.contains('deck-mode-btn--new'),
+		welcome: !document.getElementById('new-ui-welcome').hidden
+	}));
+
+	const first = await cta();
+	assert(first.badge && first.coach && first.pulse,
+		'special: 初回はNEWバッジ・吹き出し・脈打ちが出る', first);
+
+	// 「あとで」→ 吹き出しだけ閉じ、目印は残る
+	await page.click('[data-act="coach-later"]');
+	await page.waitForTimeout(300);
+	const later = await cta();
+	assert(!later.coach && later.badge, 'special: 「あとで」で吹き出しだけ閉じ、NEWバッジは残る', later);
+
+	// 読み込み直しても吹き出しは出ない（覚えている）。バッジはまだ出る。
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await page.waitForTimeout(1400);
+	const again = await cta();
+	assert(!again.coach && again.badge, 'special: 開き直しても吹き出しは繰り返さない', again);
+
+	// 新UIへ入ると「ようこそ」が出て、告知側（バッジ・脈打ち）は引っ込む
+	await page.click('#deck-mode-btn');
+	await page.waitForTimeout(2000);
+	const entered = await cta();
+	assert(entered.welcome && !entered.badge && !entered.pulse,
+		'special: 新UIへ入るとようこそ枠が出て、告知は引っ込む', entered);
+
+	// 旧UIへ戻すと、一度見た扱いになって告知は出ない
+	await page.click('#deck-mode-btn');
+	await page.waitForTimeout(800);
+	const returned = await cta();
+	assert(!returned.badge && !returned.coach && !returned.welcome,
+		'special: 一度使ったら旧UIへ戻しても告知は出ない', returned);
+
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await page.waitForTimeout(1400);
+	const afterAdopt = await cta();
+	assert(!afterAdopt.badge && !afterAdopt.coach,
+		'special: 開き直しても告知は復活しない', afterAdopt);
+
 	await ctx.close();
 }
 
