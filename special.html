@@ -1832,6 +1832,12 @@
 		}
 
 		function prepareDeckFrame() {
+			// Deckを開いた＝この結果については見に行った、とみなす。
+			// 実際に取り込むかどうかは利用者の判断で、取り込まなかった場合でも
+			// 結果画面の案内は「取り込めます」のまま残る。
+			const seen = readOcrHandoff();
+			deckSeenHandoffId = seen ? seen.handoffId : null;
+
 			const frame = document.getElementById('deck-drawer-frame');
 			if (!frame.getAttribute('src')) {
 				// 初回だけ読み込む（既定の利用では余計な通信を発生させない）
@@ -1891,8 +1897,7 @@
 			document.body.style.overflow = 'hidden';
 			openDrawerKey = key;
 			// 見に行った時点で未読は消す（自動で開いた場合も同じ）。
-			// Deckだけは「未取り込み」の印なので、開いただけでは消さない。
-			if (key !== 'deck' && fabUnseen[key]) { fabUnseen[key] = false; updateFabBadges(); }
+			if (fabUnseen[key]) { fabUnseen[key] = false; updateFabBadges(); }
 			document.getElementById(def.trigger).setAttribute('aria-expanded', 'true');
 			document.getElementById(def.close).focus();
 			if (window.lucide) lucide.createIcons();
@@ -1936,11 +1941,20 @@
 		 * ここで持つのは「その結果をFABから見に行ったか」という未読状態だけ。
 		 * ============================================================ */
 		let fabOpen = false;
-		// バッジの意味は行き先ごとに違う。
-		//   result / stitch … 未読（その引き出しを開いたら消える）
-		//   deck            … 未取り込み（Deck側で取り込むまで消えない。開くだけでは消さない）
-		// 「開いたら消える」に揃えないのは、Deckは開いてから取り込む操作が別にあるため。
+		// 3つとも「未読 ＝ その引き出しをまだ開いていない」。開いたら消える。
+		// deck だけは、Deck側で取り込んだ場合も（別タブ等で取り込んだときのために）消える。
+		//
+		// 当初 deck を「取り込むまで消えない」にしていたが、Deck側のバナーで
+		// 「読み込む」も「閉じる」も押さずに戻ったときと同じ扱いになり、
+		// 見に行ったのにバッジが残り続けて使いにくかったため、他と同じ意味に揃えた。
+		// 取り込んだかどうかは結果画面の案内（#deck-handoff-note）が持ち続けるので、
+		// バッジを下ろしても情報は失われない。
 		let fabUnseen = { stitch: false, result: false, deck: false };
+
+		// 「どの結果についてDeckを見に行ったか」。判定をやり直すと handoffId が
+		// 変わるので、新しい結果では自動的にまたバッジが点く。
+		// 引き出しを閉じたときの再計算で点き直さないために、開閉ではなくIDで覚える。
+		let deckSeenHandoffId = null;
 
 		// 結果の実体と、まだ無いときに出す案内。両者は排他で切り替える。
 		const RESULT_SECTIONS = {
@@ -2094,7 +2108,8 @@
 			document.getElementById('deck-handoff-btn-label').textContent = done ? 'UmaSkill Deckを開く' : 'UmaSkill Deckを開いて取り込む';
 			note.classList.remove('hidden');
 
-			fabUnseen.deck = !done;
+			// 未取り込みでも、一度Deckを見に行った結果ならバッジは出さない。
+			fabUnseen.deck = !done && payload.handoffId !== deckSeenHandoffId;
 			updateFabBadges();
 			if (window.lucide) lucide.createIcons();
 		}

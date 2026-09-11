@@ -89,9 +89,9 @@ const browser = await chromium.launch();
 	assert(await page.isVisible('#fab-toggle'), 'special: 右下ナビのメインボタンが出る');
 	assert(await page.evaluate(() => getComputedStyle(document.getElementById('deck-drawer-trigger')).pointerEvents) === 'none',
 		'special: 畳んだ状態ではサブボタンが押せない');
-	// 一度開いたので照合結果の未読は下りている。Deckは取り込むまで下りない。
+	// 一度開いたので照合結果の未読は下りている。Deckはまだ見に行っていないので残る。
 	assert(!(await page.isVisible('#fab-dot-result')), 'special: 一度開くと未読バッジが下りる');
-	assert(await page.isVisible('#fab-dot-deck'), 'special: Deckのバッジは開くだけでは下りない');
+	assert(await page.isVisible('#fab-dot-deck'), 'special: Deckを見に行くまではバッジが残る');
 
 	await page.click('#fab-toggle');
 	await page.waitForTimeout(400);
@@ -107,6 +107,8 @@ const browser = await chromium.launch();
 	assert(await page.evaluate(() => document.body.style.overflow) === 'hidden',
 		'special: 引き出しを開くと本文のスクロールが止まる');
 	assert(!(await page.isVisible('#fab-nav')), 'special: 引き出しを開くとFABは隠れる');
+	// Deckを開いた時点でバッジは下りる（Deck側のバナーで何を押したかに依存させない）
+	assert(await page.evaluate(() => !fabUnseen.deck), 'special: Deckを開くとバッジが下りる');
 
 	// OCR結果のDeckへの受け渡し。special側の保存パネルは廃止し、
 	// Deck側の「読み込む」に一本化した（12セッション目）。バナーが出ることを確かめる。
@@ -120,12 +122,19 @@ const browser = await chromium.launch();
 		'special: 取り込みダイアログ（保存先の選択）が開く');
 
 	// 実際に取り込むと、Deck側が imported を立てる。それが storage イベントで
-	// 親（この画面）に届き、バッジと案内が「取り込み済み」に変わるところまで見る。
+	// 親（この画面）に届き、結果画面の案内が「取り込み済み」に変わるところまで見る。
 	await deckFrame.locator('[data-ocr-act="apply"]').click();
 	await page.waitForTimeout(1200);
-	assert(!(await page.isVisible('#fab-dot-deck')), 'special: 取り込むとDeckのバッジが下りる');
 	assert((await page.textContent('#deck-handoff-title')).includes('取り込み済み'),
 		'special: 案内が「取り込み済み」に変わる');
+	assert(await page.evaluate(() => !fabUnseen.deck), 'special: 取り込み済みならバッジは出ない');
+
+	// 判定をやり直すと handoffId が変わるので、Deckのバッジがまた点く
+	await page.evaluate(() => renderResults());
+	await page.waitForTimeout(400);
+	assert(await page.evaluate(() => fabUnseen.deck), 'special: 判定し直すとDeckのバッジがまた点く');
+	assert((await page.textContent('#deck-handoff-title')).includes('取り込めます'),
+		'special: 案内も「未取り込み」に戻る');
 
 	// 別の引き出しへ乗り換えても、同時に2枚開かない
 	await page.evaluate(() => openDrawer('stitch'));
