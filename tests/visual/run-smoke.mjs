@@ -1604,6 +1604,64 @@ const browser = await chromium.launch();
 		'deck: 条件で検索のときは8軸フィルターだけが出る', filterMode);
 	assert(/条件でスキルを検索/.test(filterMode.title), 'deck: 見出しが「条件でスキルを検索」', filterMode.title);
 
+	/* --- 追加ボタンはスクロール領域の外（フッター）に置き、脇に選択数を出す ---
+	   一覧をいくら下まで見にいってもボタンが画面外へ出ず、最後の行も隠れないこと。 */
+	const footState = () => page.evaluate(() => {
+		const foot = document.querySelector('[data-usd-el="picker-footer"]');
+		const body = document.querySelector('[data-usd-el="picker-body"]');
+		const st = getComputedStyle(foot);
+		return {
+			hidden: foot.hidden,
+			count: document.querySelector('[data-usd-el="picker-checked-count"]').textContent,
+			disabled: document.querySelector('[data-usd-el="picker-commit"]').disabled,
+			bg: st.backgroundColor,
+			opacity: st.opacity,
+			// スクロール領域の下端がフッターの上端を越えていない＝重なっていない
+			overlap: Math.round(body.getBoundingClientRect().bottom - foot.getBoundingClientRect().top)
+		};
+	});
+	const foot0 = await footState();
+	assert(foot0.hidden === false && foot0.count === '0種選択' && foot0.disabled === true,
+		'deck: 何もチェックしていなければ「0種選択」でボタンは押せない', foot0);
+	assert(foot0.opacity === '1' && /^rgb\(\d+, \d+, \d+\)$/.test(foot0.bg),
+		'deck: フッターの地は不透明で塗ってある（opacity を使わない）', foot0);
+	assert(foot0.overlap <= 0, 'deck: フッターがスクロール領域に重ならない（最後の行を隠さない）', foot0);
+
+	await page.click('[data-usd-el="results"] .usd-row:first-child input');
+	await page.waitForTimeout(200);
+	const foot1 = await footState();
+	assert(foot1.count === '1種選択' && foot1.disabled === false,
+		'deck: チェックを入れると「1種選択」になりボタンが押せる', foot1);
+
+	// 「表示中を全て選択」の隣の件数（絞り込み結果の総数）と、フッターの選択数は別のもの。
+	// 全部チェックしたときだけ一致するので、それをそのまま検査にしている。
+	await page.click('[data-usd-act="picker-select-all"]');
+	await page.waitForTimeout(300);
+	const footAll = await page.evaluate(() => ({
+		count: document.querySelector('[data-usd-el="picker-checked-count"]').textContent,
+		result: document.querySelector('[data-usd-el="result-count"]').textContent
+	}));
+	assert(footAll.count === parseInt(footAll.result, 10) + '種選択',
+		'deck: 「表示中を全て選択」で選択数が絞り込み結果の件数に揃う', footAll);
+
+	// 一覧を下端までスクロールしてもフッターの位置は動かない（画面外へ出ない）
+	const footScroll = await page.evaluate(() => {
+		const foot = document.querySelector('[data-usd-el="picker-footer"]');
+		const body = document.querySelector('[data-usd-el="picker-body"]');
+		const before = foot.getBoundingClientRect().top;
+		body.scrollTop = body.scrollHeight;
+		return { before: Math.round(before), after: Math.round(foot.getBoundingClientRect().top),
+			scrolled: body.scrollTop > 0 };
+	});
+	assert(footScroll.before === footScroll.after,
+		'deck: 一覧を下までスクロールしてもフッターの位置が変わらない', footScroll);
+
+	await page.click('[data-usd-act="picker-select-all"]');
+	await page.waitForTimeout(300);
+	const footNone = await footState();
+	assert(footNone.count === '0種選択' && footNone.disabled === true,
+		'deck: 全て解除すると「0種選択」へ戻りボタンも止まる', footNone);
+
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);
 	assert(!(await page.isVisible('.usd-modal')), 'deck: モーダルが閉じる');
@@ -1629,8 +1687,10 @@ const browser = await chromium.launch();
 	assert(pasteInput.placeholder === '1行に1つずつスキル名を貼り付けるか、スプレッドシートの1列をそのまま貼り付け',
 		'deck: 貼り付けのプレースホルダーがスプレッドシート限定に読めない文言になっている', pasteInput.placeholder);
 	assert(pasteInput.focused, 'deck: 開いた時点で貼り付け欄にカーソルが入る', pasteInput);
-	// 実際に照合が動く（マスターに在る名前を2件）
-	await page.fill('[data-usd-el="paste-input"]', '右回り○\n左回り○');
+	// 実際に照合が動く（マスターに在る名前を2件）。
+	// 1件目はこの比較シートに既に入っているもの、2件目は入っていないものにしてある
+	// （フッターの「XX種選択」が、押したら実際に足される数だけを数えることを見るため）。
+	await page.fill('[data-usd-el="paste-input"]', '右回り○\n根幹距離○');
 	await page.click('[data-usd-act="paste-run"]');
 	await page.waitForTimeout(500);
 	// 完全一致した行は一覧には出さない仕様（要確認の行だけを並べる）ので、件数サマリーで見る
@@ -1640,6 +1700,21 @@ const browser = await chromium.launch();
 	});
 	assert(matched.text === '選択 2件' && matched.warn,
 		'deck: 貼り付けたテキストが照合されて2件が選択に入る', matched);
+	// フッターは「条件で検索」と同じものを使う。数えるのは「押したら実際に足される数」なので、
+	// 照合で2件そろっても、片方が追加済みなら1種選択になる。
+	const pasteFoot = await page.evaluate(() => {
+		const rep = document.querySelector('[data-usd-el="paste-report"]');
+		const already = rep.querySelector('.usd-paste-muted');
+		return {
+			hidden: document.querySelector('[data-usd-el="picker-footer"]').hidden,
+			count: document.querySelector('[data-usd-el="picker-checked-count"]').textContent,
+			disabled: document.querySelector('[data-usd-el="picker-commit"]').disabled,
+			already: already ? already.textContent : null
+		};
+	});
+	assert(pasteFoot.hidden === false && pasteFoot.count === '1種選択' && pasteFoot.disabled === false
+		&& /追加済み 1件/.test(pasteFoot.already || ''),
+		'deck: テキストで検索でも同じフッターが出て、追加済みを除いた数が出る', pasteFoot);
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);
 
@@ -1649,8 +1724,11 @@ const browser = await chromium.launch();
 	assert(!customMode.filter && !customMode.paste && customMode.custom,
 		'deck: 「マスターにないスキルを追加」は手入力欄だけを出す', customMode);
 	assert(customMode.title === 'マスターにないスキルを追加', 'deck: 見出しが「マスターにないスキルを追加」', customMode.title);
-	// 作ったその場で対象セットへ入るので、下の確定ボタンは出さない
+	// 作ったその場で対象セットへ入るので、下の確定ボタンは出さない（フッターごと畳む）
 	assert(customMode.commit === false, 'deck: 手入力のときは下の確定ボタンを出さない', customMode);
+	assert((await page.evaluate(() =>
+		document.querySelector('[data-usd-el="picker-footer"]').getBoundingClientRect().height)) === 0,
+		'deck: 手入力のときはフッターごと出さない');
 	const customAxes = await page.evaluate(() =>
 		new Set([...document.querySelectorAll('[data-usd-el="custom-tag"]')].map((el) => el.dataset.axis)).size);
 	assert(customAxes === 8, 'deck: 手入力にも8軸ぶんのタグ入力が出る', customAxes);
@@ -1673,6 +1751,21 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(600);
 	const ov = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
 	assert(ov.sw === ov.cw, 'deck: 375px で横スクロールが出ない', ov);
+
+	// 375px でも、一覧を下まで見たあとにフッターが画面内へ収まっている
+	await page.click('button[onclick="openRecordSkillPicker()"]');
+	await page.waitForTimeout(700);
+	const footNarrow = await page.evaluate(() => {
+		const body = document.querySelector('[data-usd-el="picker-body"]');
+		body.scrollTop = body.scrollHeight;
+		const fr = document.querySelector('[data-usd-el="picker-footer"]').getBoundingClientRect();
+		return { top: Math.round(fr.top), bottom: Math.round(fr.bottom), vh: window.innerHeight,
+			overlap: Math.round(body.getBoundingClientRect().bottom - fr.top) };
+	});
+	assert(footNarrow.bottom <= footNarrow.vh && footNarrow.top >= 0 && footNarrow.overlap <= 0,
+		'deck: 375px でも一覧を下まで見たときフッターが画面内に収まり、一覧と重ならない', footNarrow);
+	await page.click('[data-usd-act="picker-close"]');
+	await page.waitForTimeout(400);
 
 	assert(errors.length === 0, 'deck: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();

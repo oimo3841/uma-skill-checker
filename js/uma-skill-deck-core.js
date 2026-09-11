@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11i';
 
 	/* ============================================================
 	 * 定数
@@ -565,6 +565,18 @@
 		'.usd-modal-panel { background: var(--uma-glass-bg); backdrop-filter: var(--uma-glass-blur); width: 100%; max-width: 42rem;',
 		'  border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }',
 		'@media (min-width: 768px) { .usd-modal-panel { border-radius: var(--uma-r-xl); margin-bottom: var(--uma-sp-6); } }',
+		// モーダル下部に固定するフッター（追加ボタンと選択数）。パネルの3段目なので
+		// スクロール領域と重ならず、一覧の最後の行を隠すこともない。
+		// 地は不透明で塗る（opacity は使わない。B節ルール9・F-7）。狭い画面ではパネルの下端が
+		// 画面の下端に接するので、iOS のホームバーぶんの余白を env() で足す。
+		'.usd-modal-foot { flex-shrink: 0; display: flex; align-items: center; gap: var(--uma-sp-3);',
+		'  padding: var(--uma-sp-3) var(--uma-sp-4);',
+		'  padding-bottom: max(var(--uma-sp-3), env(safe-area-inset-bottom));',
+		'  background: var(--uma-surface); border-top: 1px solid var(--uma-border); }',
+		'.usd-modal-foot[hidden] { display: none !important; }',
+		'.usd-foot-count { flex-shrink: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
+		'  font-weight: 600; color: var(--uma-text-subtle); white-space: nowrap; }',
+		'.usd-foot-commit { flex: 1 1 auto; justify-content: center; }',
 		// 一括貼り付けの照合結果
 		'.usd-paste-summary { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2); align-items: center; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); margin-bottom: var(--uma-sp-1-5); }',
 		'.usd-paste-ok { color: var(--uma-success); font-weight: 600; }',
@@ -771,7 +783,10 @@
 					'<p class="text-sm font-semibold text-slate-700" data-usd-el="picker-title">条件でスキルを検索</p>' +
 					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="picker-close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>' +
 				'</div>' +
-				'<div class="p-4" style="overflow:auto;">' +
+				// ヘッダー／スクロール領域／フッターの3段。真ん中だけが伸び縮みするので、
+				// 一覧をいくら下までスクロールしても追加ボタンが視界から消えない。
+				// min-height:0 が無いと、flex の子は中身の高さより小さくなれず溢れる。
+				'<div class="p-4" data-usd-el="picker-body" style="overflow:auto;min-height:0;">' +
 					// ---- 条件でスキルを検索 ----
 					'<div class="usd-mode" data-usd-el="mode-filter">' +
 						// 8軸フィルター。中身（タブ＋共通パネル）は renderPickerFilterAxes() が
@@ -802,7 +817,13 @@
 						'<div data-usd-el="custom-tags"></div>' +
 						'<button type="button" class="w-full uma-btn uma-btn--primary mt-2" data-usd-act="custom-add">カスタムスキルとして追加</button>' +
 					'</div>' +
-					'<button type="button" class="w-full uma-btn uma-btn--primary mt-3" data-usd-el="picker-commit" data-usd-act="picker-add">チェックしたスキルを追加</button>' +
+				'</div>' +
+				// 追加ボタンはスクロール領域の外（フッター）に置く。以前は一覧の下に流れていたので、
+				// 絞り込み結果を下まで見にいくとボタンが画面外へ出て、押すために戻る必要があった。
+				// 「いま何種足すのか」をボタンの脇に出し、0種のときは押しても何も起きないので止める。
+				'<div class="usd-modal-foot" data-usd-el="picker-footer">' +
+					'<p class="usd-foot-count" data-usd-el="picker-checked-count">0種選択</p>' +
+					'<button type="button" class="uma-btn uma-btn--primary usd-foot-commit" data-usd-el="picker-commit" data-usd-act="picker-add" disabled>チェックしたスキルを追加</button>' +
 				'</div>' +
 			'</div>';
 	}
@@ -1080,6 +1101,7 @@
 		q(pickerEl, 'result-count').textContent = filtered.length + '件';
 		const selectAllBox = pickerEl.querySelector('[data-usd-act="picker-select-all"]');
 		if (selectAllBox) selectAllBox.checked = filtered.length > 0 && filtered.every(s => picker.checked.has(s.id));
+		updatePickerCommitState();
 		if (filtered.length === 0) {
 			el.innerHTML = '<p class="text-xs text-slate-400 p-3">条件に一致するスキルがありません。</p>';
 			return;
@@ -1100,6 +1122,25 @@
 
 	function onPickerCheck(skillId, checked) {
 		if (checked) picker.checked.add(skillId); else picker.checked.delete(skillId);
+		// 一覧は作り直さない（チェックだけの操作でフォーカスを飛ばさない）ので、
+		// フッターの数だけをここで更新する。
+		updatePickerCommitState();
+	}
+
+	/**
+	 * フッターの「XXX種選択」とボタンの活性を、いまのチェック状態に合わせる。
+	 * 数えるのは picker.checked ＝「押したら実際に足されるスキル」で、
+	 * 「表示中を全て選択」の隣に出ている件数（絞り込み結果の総数）とは別のもの。
+	 * 条件で検索・テキストで検索のどちらも同じ集合を使うので、モードでは分けない。
+	 * 0種のときは押しても何も足されなかったので、ボタンごと止めて理由を数で示す。
+	 */
+	function updatePickerCommitState() {
+		if (!pickerEl) return;
+		const n = picker.checked.size;
+		const label = q(pickerEl, 'picker-checked-count');
+		if (label) label.textContent = n + '種選択';
+		const btn = q(pickerEl, 'picker-commit');
+		if (btn) btn.disabled = (n === 0);
 	}
 
 	function addCheckedSkills() {
@@ -1256,6 +1297,9 @@
 		if (!pickerEl) return;
 		const el = q(pickerEl, 'paste-report');
 		if (!el) return;
+		// 照合・候補の選び直し・行のスキップはどれも picker.checked を動かすので、
+		// 貼り付けモードでもフッターの数を同じ関数で追従させる。
+		updatePickerCommitState();
 		if (pasteRows.length === 0) { el.innerHTML = ''; return; }
 
 		const excluded = new Set(picker.excludeIds);
@@ -1369,7 +1413,9 @@
 		q(pickerEl, 'picker-title').textContent = spec.title;
 		['filter', 'paste', 'custom'].forEach(m => { q(pickerEl, 'mode-' + m).hidden = m !== picker.mode; });
 		// 手入力は作った時点でその場で足すので、下の確定ボタンは要らない。
+		// フッターごと畳む（条件で検索・テキストで検索の2モードは同じフッターを使う）。
 		q(pickerEl, 'picker-commit').hidden = !spec.commit;
+		q(pickerEl, 'picker-footer').hidden = !spec.commit;
 
 		pickerEl.hidden = false;
 		// 幅が確定するのは hidden を外したあとなので、タブの段数の判定もここで行う。
