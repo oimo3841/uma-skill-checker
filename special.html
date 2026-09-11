@@ -134,7 +134,17 @@
 			<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
 				<!-- 左側：タイトルエリア -->
 				<div>
-					<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR<span class="ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">β版</span></h1>
+					<!-- タイトルの右に「新UI」バッジを並べる（exam と同じ位置）。
+					     狭い画面ではバッジが次の行へ回るよう flex-wrap にしてある。 -->
+					<div class="flex items-center flex-wrap gap-x-2 gap-y-1">
+						<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR<span class="ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">β版</span></h1>
+						<!-- いま新しいUIにいることの表示。過渡期のあいだだけ出す目印で、
+						     旧UIのときは何も出さない（旧UIが「普通の状態」なので）。
+						     押すと告知を読み直せる（既読の状態は変えない）。 -->
+						<button type="button" id="ui-mode-badge" hidden onclick="reopenUiNotice()"
+							class="ui-mode-badge shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full"
+							title="スキルの選び方が変わったお知らせをもう一度見る">新UI</button>
+					</div>
 					<!-- 何ができるかを1行で言い切り、注意書きは1件1行に分ける。
 					     以前は「親Aセット（親A+祖A1+祖A2）の因子スクリーンショットから…」と
 					     画面の構造を先に説明していたが、初見には読み解けない語が多かった。 -->
@@ -146,13 +156,6 @@
 
 				<!-- 右側：アクションボタン群 -->
 				<div class="flex items-center gap-2 shrink-0">
-
-					<!-- いま新しいUIにいることの表示。過渡期のあいだだけ出す目印で、
-					     旧UI（既定）のときは何も出さない（旧UIが「普通の状態」なので）。 -->
-					<!-- 押すと告知を読み直せる（既読の状態は変えない） -->
-					<button type="button" id="ui-mode-badge" hidden onclick="reopenUiNotice()"
-						class="ui-mode-badge deck-accent shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full"
-						title="スキルの選び方が変わったお知らせをもう一度見る">新UI</button>
 
 					<!-- ツール切り替えドロップダウン -->
 					<div class="relative" id="tool-dropdown-wrap">
