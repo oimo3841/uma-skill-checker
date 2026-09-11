@@ -733,47 +733,100 @@ const browser = await chromium.launch();
 		&& !document.querySelector('[data-usd-act="filter-jump"]')),
 		'deck: 「すべて解除」でバッジと「絞り込み中」が消える');
 
-	// PC幅では全タブが収まるので、端へ移動ボタンは出さない
-	assert(await page.evaluate(() => [...document.querySelectorAll('.usd-tab-jump')].every((b) => b.hidden)),
-		'deck: PC幅では端へ移動ボタンが出ない');
-
-	// --- 375px：タブバーの中だけが横スクロールする ---
-	await page.setViewportSize({ width: 375, height: 812 });
-	await page.waitForTimeout(500);
-	const narrowBar = await page.evaluate(() => {
+	/* --- 8軸すべてが常に見えていること（横スクロールも「端へ」操作も要らない） ---
+	   1行に収まるかどうかはJSが実測して data-usd-rows を切り替える。 */
+	const tabLayout = () => page.evaluate(() => {
 		const bar = document.querySelector('.usd-tablist');
-		return { scrollable: bar.scrollWidth > bar.clientWidth + 2, sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth };
-	});
-	assert(narrowBar.scrollable, 'deck: 375px でタブバーが横スクロールする', narrowBar);
-	assert(narrowBar.sw === narrowBar.cw, 'deck: 375px でモーダルを開いてもページは横スクロールしない', narrowBar);
-
-	const jumpState = () => page.evaluate(() => {
-		const pick = (e) => document.querySelector('.usd-tab-jump[data-usd-edge="' + e + '"]');
-		const bar = document.querySelector('.usd-tablist');
+		const tabs = [...document.querySelectorAll('.usd-tab')];
+		const box = bar.getBoundingClientRect();
 		return {
-			startHidden: pick('start').hidden, endHidden: pick('end').hidden,
-			startDisabled: pick('start').getAttribute('aria-disabled'),
-			endDisabled: pick('end').getAttribute('aria-disabled'),
-			scrollLeft: Math.round(bar.scrollLeft), max: Math.round(bar.scrollWidth - bar.clientWidth)
+			rows: document.querySelector('[data-usd-el="tabbar"]').getAttribute('data-usd-rows'),
+			count: tabs.length,
+			// 1枚でも枠から食み出していたら「全部は見えていない」
+			clipped: tabs.filter((t) => {
+				const r = t.getBoundingClientRect();
+				return r.width < 1 || r.left < box.left - 1 || r.right > box.right + 1;
+			}).length,
+			hScroll: bar.scrollWidth > bar.clientWidth + 1,
+			pageSw: document.documentElement.scrollWidth, pageCw: document.documentElement.clientWidth
 		};
 	});
-	const atStart = await jumpState();
-	assert(atStart.startHidden === false && atStart.endHidden === false,
-		'deck: 375px では端へ移動ボタンが出る', atStart);
-	assert(atStart.startDisabled === 'true' && atStart.endDisabled === 'false',
-		'deck: 左端にいるので「最初へ」だけ aria-disabled になる', atStart);
+	const pcTabs = await tabLayout();
+	assert(pcTabs.rows === '1' && pcTabs.count === 8 && pcTabs.clipped === 0 && !pcTabs.hScroll,
+		'deck: PC幅では8タブが1行に収まり、どれも欠けない', pcTabs);
 
-	await page.click('.usd-tab-jump[data-usd-edge="end"]');
-	await page.waitForTimeout(700);
-	const atEnd = await jumpState();
-	assert(atEnd.scrollLeft >= atEnd.max - 2, 'deck: 「最後へ」でタブバーが右端までスクロールする', atEnd);
-	assert(atEnd.endDisabled === 'true' && atEnd.startDisabled === 'false',
-		'deck: 右端に着くと「最後へ」が aria-disabled になる', atEnd);
-	// 端へ移動は選択中のタブを変えない（条件を触る前に軸を見渡せるように）
-	assert(await panelShown('distance'), 'deck: 端へ移動しても選択中のタブは変わらない');
+	// --- 375px：1行に入らないので角丸ボタンの多段へ切り替わる ---
+	await page.setViewportSize({ width: 375, height: 812 });
+	await page.waitForTimeout(600);
+	const narrowTabs = await tabLayout();
+	assert(narrowTabs.rows === 'multi', 'deck: 375px では多段レイアウトに切り替わる', narrowTabs);
+	assert(narrowTabs.count === 8 && narrowTabs.clipped === 0 && !narrowTabs.hScroll,
+		'deck: 375px でも8タブすべてが見えていて横スクロールしない', narrowTabs);
+	assert(narrowTabs.pageSw === narrowTabs.pageCw,
+		'deck: 375px でモーダルを開いてもページは横スクロールしない', narrowTabs);
+	// 多段でもタブとして機能する
+	await page.click('.usd-tab[data-usd-axis="trackVenue"]');
+	await page.waitForTimeout(300);
+	assert(await panelShown('trackVenue'), 'deck: 375px の多段タブでも切り替えられる');
 
 	await page.setViewportSize({ width: 1280, height: 900 });
-	await page.waitForTimeout(400);
+	await page.waitForTimeout(600);
+	assert((await tabLayout()).rows === '1', 'deck: PC幅へ戻すと1行レイアウトに戻る');
+
+	/* --- 選択肢は2行で頭打ち。続きがあることをフェードで示し、スクロールで読める --- */
+	const optState = (axis) => page.evaluate((a) => {
+		const opts = document.querySelector('.usd-tabpanel[data-usd-axis="' + a + '"] .usd-opts');
+		const rowTop = (c) => Math.round(c.offsetTop);
+		return {
+			more: opts.parentElement.hasAttribute('data-more-below'),
+			clipped: Math.round(opts.clientHeight), full: Math.round(opts.scrollHeight),
+			totalRows: new Set([...opts.children].map(rowTop)).size,
+			// 枠の中に丸ごと収まっている行だけを数える
+			visibleRows: new Set([...opts.children]
+				.filter((c) => c.offsetTop + c.offsetHeight <= opts.clientHeight + 1).map(rowTop)).size
+		};
+	}, axis);
+	const venue = await optState('trackVenue');
+	assert(venue.visibleRows === 2 && venue.totalRows > 2 && venue.full > venue.clipped + 2,
+		'deck: 選択肢の多い軸は2行までに抑えられ、続きは隠れている', venue);
+	assert(venue.more === true, 'deck: 続きがある軸は下端にフェードが出る', venue);
+
+	const distance = await optState('distance');
+	assert(distance.more === false, 'deck: 1行で収まる軸にはフェードが出ない', distance);
+
+	// パネルの高さは2行ぶんで一定（切り替えても下のスキル一覧が跳ねない）
+	const heightOnVenue = await page.evaluate(() => Math.round(document.querySelector('.usd-tabpanels').getBoundingClientRect().height));
+	await page.click('.usd-tab[data-usd-axis="distance"]');
+	await page.waitForTimeout(300);
+	const heightOnDistance = await page.evaluate(() => Math.round(document.querySelector('.usd-tabpanels').getBoundingClientRect().height));
+	assert(heightOnVenue === heightOnDistance, 'deck: 軸を替えてもパネルの高さは変わらない', { heightOnVenue, heightOnDistance });
+
+	// 下までスクロールするとフェードが消える
+	await page.evaluate(() => {
+		const opts = document.querySelector('.usd-tabpanel[data-usd-axis="trackVenue"] .usd-opts');
+		opts.scrollTop = opts.scrollHeight;
+	});
+	await page.waitForTimeout(300);
+	assert((await optState('trackVenue')).more === false,
+		'deck: 下までスクロールするとフェードが消える');
+
+	/* --- 並び順：8軸パネル → 貼り付け → 手入力 → 結果一覧。折りたたみは閉じて始まる --- */
+	const order = await page.evaluate(() => {
+		const pick = (sel) => document.querySelector(sel);
+		const top = (el) => Math.round(el.getBoundingClientRect().top);
+		return {
+			axes: top(pick('[data-usd-el="filter-axes"]')),
+			paste: top(pick('[data-usd-el="paste-box"]')),
+			custom: top(pick('[data-usd-el="custom-box"]')),
+			results: top(pick('[data-usd-el="results"]')),
+			pasteOpen: pick('[data-usd-el="paste-box"]').open,
+			customOpen: pick('[data-usd-el="custom-box"]').open
+		};
+	});
+	assert(order.axes < order.paste && order.paste < order.custom && order.custom < order.results,
+		'deck: 8軸パネル→貼り付け→手入力→結果一覧の順に並ぶ', order);
+	assert(order.pasteOpen === false && order.customOpen === false,
+		'deck: 貼り付けと手入力は畳んだ状態で始まる', order);
 
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);

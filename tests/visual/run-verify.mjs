@@ -112,17 +112,24 @@ const INTENTIONALLY_REMOVED = {
 		// 12セッション目: 引き出しが3つになり、背景の暗転を1枚（#drawer-backdrop）に集約した
 		'deck-drawer-backdrop',
 	],
+	'js/uma-skill-deck-core.js': [
+		// 13セッション目: 8軸すべてが常に見える形（1行 or 角丸ボタンの多段）にしたので、
+		// タブバーの横スクロールと「最初へ/最後へ」ボタンごと不要になった（F-28）
+		'data-usd-edge', 'data-more-left', 'data-more-right',
+	],
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
 for (const p of TARGETS) {
 	const b = head(p), a = read(p);
 	const allow = new Set(INTENTIONALLY_REMOVED[p] || []);
-	const gone = [...ids(b)].filter((x) => !ids(a).has(x));
-	const lostId = gone.filter((x) => !allow.has(x));
+	// 免除リストは id と data-* の両方に効かせる。JSが生成するマークアップでは、
+	// 部品ごと作り替えたときに id ではなく data-* が消えることのほうが多いため。
+	const gone = [...ids(b)].filter((x) => !ids(a).has(x)).concat([...datas(b)].filter((x) => !datas(a).has(x)));
 	const excused = gone.filter((x) => allow.has(x));
-	const lostData = [...datas(b)].filter((x) => !datas(a).has(x));
-	if (excused.length > 0) console.log('     [免除] ' + p + ' の意図的に消したid(' + excused.length + '): ' + excused.join(' '));
+	const lostId = gone.filter((x) => !allow.has(x) && !x.startsWith('data-'));
+	const lostData = gone.filter((x) => !allow.has(x) && x.startsWith('data-'));
+	if (excused.length > 0) console.log('     [免除] ' + p + ' の意図的に消したセレクタ(' + excused.length + '): ' + excused.join(' '));
 	check(lostId.length === 0, p + ' の id が1つも失われていない', lostId);
 	check(lostData.length === 0, p + ' の data-* が1つも失われていない', lostData);
 }

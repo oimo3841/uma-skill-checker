@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11c';
 
 	/* ============================================================
 	 * 定数
@@ -595,86 +595,106 @@
 		'  background: var(--uma-warn-bg); color: var(--uma-warn-text); vertical-align: 1px; }',
 
 		/* ------------------------------------------------------------
-		 * 8軸フィルターのタブ（フォルダの見出し風タブ＋共通パネル1枚）
+		 * 8軸フィルターのタブ（見出しタブ＋共通パネル1枚）
 		 *
 		 * 以前は軸ごとに <details> を縦に8つ並べていたが、開くほど縦に伸びて
 		 * 肝心のスキル一覧が画面外へ押し出されていた。タブなら軸をいくつ
 		 * 増やしても縦の高さは変わらない。
+		 *
+		 * 幅に応じて見た目を2通りに切り替える（どちらの幅でも8軸すべてが見えていて、
+		 * 端へスクロールする操作は要らない、という状態を保つため）。
+		 *   data-usd-rows="1"     … 1行に収まるとき。フォルダの見出し風（選択中がパネルと地続き）
+		 *   data-usd-rows="multi" … 収まらないとき。角丸ボタンの格子（4列×2段など）へ切り替える
+		 * 段が増えるとフォルダの切り欠きは上段で意味をなさないので、見た目ごと替えている。
+		 * どちらにするかはCSSのブレークポイントではなくJSの実測で決める（F-28）。
 		 * ------------------------------------------------------------ */
-		'.usd-axis-tabs { --usd-tab-lift: 5px; margin-bottom: var(--uma-sp-3); }',
-		// パネル上端の線はタブバー全体で引く。選択中タブがこの線を塗り潰して「つながって」見える
-		'.usd-tabbar { display: flex; align-items: flex-end; background: var(--uma-surface-sunken);',
-		'  border-radius: var(--uma-r-lg) var(--uma-r-lg) 0 0; box-shadow: inset 0 -1px 0 var(--uma-border); }',
-		'.usd-tabscroll { position: relative; flex: 1 1 auto; min-width: 0; }',
-		// 左右にまだタブがあることを示すフェード。opacity は使わない（スタッキング
-		// コンテキストが生まれ、モーダル内の重なり順を壊すため）
-		'.usd-tabscroll::before, .usd-tabscroll::after { content: ""; position: absolute; top: 0; bottom: 1px;',
-		'  width: 28px; pointer-events: none; z-index: 2; visibility: hidden; }',
-		'.usd-tabscroll::before { left: 0; background: linear-gradient(to right, var(--uma-surface-sunken), transparent); }',
-		'.usd-tabscroll::after { right: 0; background: linear-gradient(to left, var(--uma-surface-sunken), transparent); }',
-		'.usd-tabscroll[data-more-left]::before, .usd-tabscroll[data-more-right]::after { visibility: visible; }',
-		// 端へ移動ボタン。タブと見間違えないよう枠も地色も持たせない。
-		// 端の番号（①／⑧）で「全部でいくつあるか」を示す
-		'.usd-tab-jump { flex: none; width: 32px; height: 3.1rem; margin: 0 0 1px; padding: 0;',
-		'  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;',
-		'  font: inherit; line-height: 1; color: var(--uma-accent-hover); background: transparent;',
-		'  border: 0; border-radius: var(--uma-r-md); cursor: pointer; }',
-		'.usd-tab-jump[hidden] { display: none; }',
-		'.usd-tab-jump:hover { background: var(--uma-accent-soft); }',
-		'.usd-tab-jump:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: -2px; }',
-		'.usd-tab-jump-arrow { font-size: var(--uma-fs-md); font-weight: 700; }',
-		'.usd-tab-jump-num { font-size: var(--uma-fs-sm); font-weight: 700; }',
-		// すでに端にいるとき。disabled ではなく aria-disabled にして、押した直後もフォーカスを失わせない
-		'.usd-tab-jump[aria-disabled="true"] { color: var(--uma-border-strong); background: transparent; cursor: default; }',
-		'.usd-tablist { position: relative; display: flex; align-items: flex-end; gap: var(--uma-sp-1);',
-		'  padding: 0 var(--uma-sp-1-5); overflow-x: auto; overscroll-behavior-x: contain;',
-		'  scroll-snap-type: x proximity;',
-		// padding と揃える。揃えないと吸着で左端が数pxずれ、「最初にいる」の判定が外れる
-		'  scroll-padding-inline: var(--uma-sp-1-5); scrollbar-width: none; }',
-		'.usd-tablist::-webkit-scrollbar { display: none; }',
-		// flex: 1 0 0 で幅に余裕があれば8枚を同じ幅で並べ、足りなければ文字幅より縮まず横スクロールに回す
-		'.usd-tab { flex: 1 0 0; min-width: max-content; min-height: 3.1rem; margin-top: var(--usd-tab-lift);',
-		'  padding: var(--uma-sp-1-5) var(--uma-sp-3); display: flex; flex-direction: column;',
-		'  align-items: center; justify-content: center; position: relative; scroll-snap-align: start;',
-		'  font: inherit; line-height: var(--uma-lh-sm); white-space: nowrap; color: var(--uma-text-subtle);',
-		'  background: var(--uma-surface-muted); border: 1px solid var(--uma-border);',
-		'  border-radius: var(--uma-r-lg) var(--uma-r-lg) 0 0; cursor: pointer;',
+		'.usd-axis-tabs { --usd-tab-lift: 5px; --usd-opt-row: 32px; margin-bottom: var(--uma-sp-3); }',
+		'.usd-tablist { display: flex; min-width: 0; }',
+		// タブ本体。共通の見た目だけをここに置き、形は段数ごとの指定で上書きする
+		'.usd-tab { display: flex; flex-direction: column; align-items: center; justify-content: center;',
+		'  position: relative; padding: var(--uma-sp-1-5) var(--uma-sp-3); font: inherit;',
+		'  font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); white-space: nowrap;',
+		'  color: var(--uma-text-subtle); background: var(--uma-surface-muted);',
+		'  border: 1px solid var(--uma-border); cursor: pointer;',
 		'  transition: background-color var(--uma-transition), color var(--uma-transition); }',
 		'.usd-tab:hover { background: var(--uma-surface); color: var(--uma-text-heading); }',
 		'.usd-tab:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: -3px; }',
-		'.usd-tab-main { font-size: var(--uma-fs-sm); font-weight: 600; }',
-		'.usd-tab-sub { font-size: var(--uma-fs-2xs); }',
-		// 選択中：一段持ち上がり、上端に藍の帯、下の線を消してパネルと地続きにする
-		'.usd-tab[aria-selected="true"] { margin-top: 0; min-height: calc(3.1rem + var(--usd-tab-lift));',
-		'  color: var(--uma-text); background: var(--uma-surface); border-bottom-color: var(--uma-surface);',
-		'  box-shadow: inset 0 3px 0 var(--uma-accent); z-index: 1; }',
+		'.usd-tab-main { font-weight: 600; }',
+		'.usd-tab[aria-selected="true"] { color: var(--uma-text); background: var(--uma-surface); }',
 		'.usd-tab[aria-selected="true"] .usd-tab-main { font-weight: 700; color: var(--uma-accent-soft-text); }',
+
+		/* --- 1行に収まるとき：フォルダの見出し風 --- */
+		// パネル上端の線はタブバー全体で引く。選択中タブがこの線を塗り潰して「つながって」見える
+		'.usd-tabbar[data-usd-rows="1"] { display: flex; align-items: flex-end;',
+		'  background: var(--uma-surface-sunken); border-radius: var(--uma-r-lg) var(--uma-r-lg) 0 0;',
+		'  box-shadow: inset 0 -1px 0 var(--uma-border); }',
+		// flex: 1 1 auto が無いと、タブの列がタブバーの幅いっぱいに伸びず右側が空く
+		'[data-usd-rows="1"] .usd-tablist { flex: 1 1 auto; align-items: flex-end; gap: var(--uma-sp-1); padding: 0 var(--uma-sp-1-5); }',
+		// flex: 1 0 0 で8枚を同じ幅に伸ばす。min-width で文字幅より縮まないようにし、
+		// 縮めきれない＝1行に入らないことをJS側が scrollWidth で検出できるようにしてある
+		'[data-usd-rows="1"] .usd-tab { flex: 1 0 0; min-width: max-content; min-height: 3.1rem;',
+		'  margin-top: var(--usd-tab-lift); border-radius: var(--uma-r-lg) var(--uma-r-lg) 0 0; }',
+		// 選択中：一段持ち上がり、上端に藍の帯、下の線を消してパネルと地続きにする
+		'[data-usd-rows="1"] .usd-tab[aria-selected="true"] { margin-top: 0;',
+		'  min-height: calc(3.1rem + var(--usd-tab-lift)); border-bottom-color: var(--uma-surface);',
+		'  box-shadow: inset 0 3px 0 var(--uma-accent); z-index: 1; }',
+		'[data-usd-rows="1"] .usd-tabpanels { border-top: 0; border-radius: 0 0 var(--uma-r-lg) var(--uma-r-lg); }',
+
+		/* --- 収まらないとき：角丸ボタンの格子（狭い画面。4列×2段など） --- */
+		'.usd-tabbar[data-usd-rows="multi"] { background: var(--uma-surface-sunken);',
+		'  border: 1px solid var(--uma-border); border-bottom: 0;',
+		'  border-radius: var(--uma-r-lg) var(--uma-r-lg) 0 0; padding: var(--uma-sp-1-5); }',
+		// auto-fit なので、幅に入るだけの列数へ自動で割れる（375pxなら4列×2段）
+		'[data-usd-rows="multi"] .usd-tablist { display: grid; gap: var(--uma-sp-1-5);',
+		'  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); }',
+		'[data-usd-rows="multi"] .usd-tab { min-height: 2.6rem; padding: var(--uma-sp-1) var(--uma-sp-2);',
+		'  border-radius: var(--uma-r-md); }',
+		'[data-usd-rows="multi"] .usd-tab[aria-selected="true"] { background: var(--uma-accent-soft);',
+		'  border-color: var(--uma-accent); box-shadow: inset 0 2px 0 var(--uma-accent); }',
+		'[data-usd-rows="multi"] .usd-tabpanels { border-radius: 0 0 var(--uma-r-lg) var(--uma-r-lg); }',
+
 		// 条件が入っている軸の件数バッジ（他のタブに隠れた条件を見落とさないため）
 		'.usd-tab-count { position: absolute; top: 3px; right: var(--uma-sp-1); min-width: 17px; height: 17px;',
 		'  padding: 0 5px; border-radius: var(--uma-r-full); font-size: var(--uma-fs-2xs); font-weight: 700;',
 		'  line-height: 17px; text-align: center; color: var(--uma-text-inverse); background: var(--uma-accent); }',
-		'.usd-tab[aria-selected="true"] .usd-tab-count { top: 7px; }',
+		'[data-usd-rows="1"] .usd-tab[aria-selected="true"] .usd-tab-count { top: 7px; }',
 		'.usd-tab-count[hidden] { display: none; }',
-		// 共通パネル。全軸を同じグリッドのマスに重ね、いちばん背の高い軸（⑦レース場）に
-		// 高さを揃えることで、タブを切り替えても下のスキル一覧が上下に跳ねない
+
+		// 共通パネル。全軸を同じグリッドのマスに重ね、切り替えても下のスキル一覧が上下に跳ねないようにする
 		'.usd-tabpanels { display: grid; background: var(--uma-surface); border: 1px solid var(--uma-border);',
-		'  border-top: 0; border-radius: 0 0 var(--uma-r-lg) var(--uma-r-lg);',
-		'  padding: var(--uma-sp-3-5) var(--uma-sp-4) var(--uma-sp-4); }',
+		'  padding: var(--uma-sp-3) var(--uma-sp-4) var(--uma-sp-3-5); }',
 		'.usd-tabpanel { grid-area: 1 / 1; min-width: 0; }',
-		// Tailwind の hidden クラスは使わない（F-13）
+		// Tailwind の hidden クラスは使わない（F-13）。visibility なら場所は取ったままなので、
+		// いちばん背の高い軸に高さが揃う（display:none にすると揃わなくなる）
 		'.usd-tabpanel:not(.is-active) { visibility: hidden; }',
 		'.usd-tabpanel:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: 4px; border-radius: var(--uma-r-sm); }',
 		'.usd-axis-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--uma-sp-1) var(--uma-sp-3);',
-		'  margin-bottom: var(--uma-sp-2-5); }',
+		'  margin-bottom: var(--uma-sp-2); }',
 		'.usd-axis-title { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); }',
 		'.usd-axis-hint { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
 		'.usd-link-btn { margin-left: auto; font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
 		'  padding: var(--uma-sp-0-5) var(--uma-sp-1-5); border-radius: var(--uma-r-sm); color: var(--uma-accent-soft-text);',
 		'  background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }',
 		'.usd-link-btn:disabled { color: var(--uma-border-strong); text-decoration: none; cursor: default; }',
+
+		// 選択肢の置き場。2行ぶんで頭打ちにして、続きはこの中だけを縦スクロールさせる。
+		// 選択肢が最多の軸（⑦レース場17個）に高さを合わせると、それだけでモーダルが埋まるため。
+		// 続きがあることは下端のフェードで示す（data-more-below はJSが付け外しする）。
+		'.usd-opts-wrap { position: relative; }',
+		'.usd-opts-wrap::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 24px;',
+		'  pointer-events: none; visibility: hidden;',
+		'  background: linear-gradient(to top, var(--uma-surface), transparent); }',
+		'.usd-opts-wrap[data-more-below]::after { visibility: visible; }',
+		// 2行ぶん＋3行目が半分だけ覗く高さ。ちょうど2行で切ると、フェードが2行目に
+		// かかって「2行目が切れている」としか見えず、続きの合図にならない。逆に覗きが
+		// 数pxだと、ただの余白に見えて続きがあることが伝わらない（どちらも実機で確認した）。
+		'.usd-opts { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2);',
+		'  max-height: calc(var(--usd-opt-row) * 2.5 + var(--uma-sp-2) * 2);',
+		'  overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: none; }',
+		'.usd-opts::-webkit-scrollbar { display: none; }',
+
 		// 選択肢チップ。中身は本物の checkbox のままなので、既存のJSとテストがそのまま掴める
 		// （.usd-chip はテンプレートのスキル名チップで使用済みのため .usd-opt にしてある）
-		'.usd-opts { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2); }',
 		'.usd-opt { display: inline-flex; align-items: center; gap: var(--uma-sp-1-5);',
 		'  padding: var(--uma-sp-1-5) var(--uma-sp-3) var(--uma-sp-1-5) var(--uma-sp-2);',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
@@ -692,15 +712,23 @@
 		'.usd-opt:has(input:checked) { background: var(--uma-accent-soft); border-color: var(--uma-accent-border);',
 		'  color: var(--uma-accent-soft-text); font-weight: 600; }',
 		'.usd-opt:has(input:focus-visible) { outline: 2px solid var(--uma-accent-ring); outline-offset: 2px; }',
+
 		// 絞り込み中の条件。どのタブに何が入っているかを一望し、押すとそのタブへ飛ぶ
 		'.usd-active-summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-1-5) var(--uma-sp-2);',
-		'  margin-top: var(--uma-sp-3); min-height: 30px; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		'  margin-top: var(--uma-sp-2-5); min-height: 30px; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
 		'.usd-summary-label { font-weight: 600; color: var(--uma-text-heading); }',
 		'.usd-summary-item { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
 		'  padding: var(--uma-sp-0-5) var(--uma-sp-2-5); border-radius: var(--uma-r-full); cursor: pointer;',
 		'  color: var(--uma-accent-soft-text); background: var(--uma-accent-soft); border: 1px solid var(--uma-accent-border); }',
 		'.usd-summary-item:hover { border-color: var(--uma-accent); }',
 		'.usd-summary-item b { font-weight: 700; margin-right: var(--uma-sp-1); }',
+
+		// 折りたたみの箱（貼り付け・手入力）。8軸パネルの下に並べる
+		'.usd-foldbox { margin-bottom: var(--uma-sp-2); border: 1px solid var(--uma-border);',
+		'  border-radius: var(--uma-r-lg); background: var(--uma-surface-sunken); }',
+		'.usd-foldbox > summary { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600;',
+		'  color: var(--uma-text-muted); padding: var(--uma-sp-2) var(--uma-sp-3); cursor: pointer; user-select: none; }',
+		'.usd-foldbox > div { padding: 0 var(--uma-sp-3) var(--uma-sp-3); }',
 		'@media (prefers-reduced-motion: reduce) { .usd-tab, .usd-opt { transition: none; } }'
 	].join('\n');
 
@@ -733,11 +761,15 @@
 					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="picker-close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>' +
 				'</div>' +
 				'<div class="p-4" style="overflow:auto;">' +
-					// 一括貼り付け。8軸フィルターより上に置く（スプレッドシートからの
-					// 移行が主な入口になる想定のため）。既存の絞り込みはそのまま下に残す。
-					'<details class="mb-3 rounded-xl border border-slate-200 bg-slate-50" data-usd-el="paste-box" open>' +
-						'<summary class="text-xs font-semibold text-slate-600 px-3 py-2 cursor-pointer select-none">スプレッドシートから貼り付けて一括選択</summary>' +
-						'<div class="px-3 pb-3">' +
+					// 8軸フィルター。中身（タブ＋共通パネル）は renderPickerFilterAxes() が
+					// ensurePicker() のときに1回だけ組み立てる。
+					// 最初に目に入る位置に置く。ここが主な入口で、下の2つは「必要なときだけ開く」補助。
+					'<div data-usd-el="filter-axes"></div>' +
+					// 一括貼り付けと手入力。どちらも畳んだ状態で始める（開くと縦に長く、
+					// 開いたままだと下のスキル一覧が押し出されるため）。
+					'<details class="usd-foldbox" data-usd-el="paste-box">' +
+						'<summary>スプレッドシートから貼り付けて一括選択</summary>' +
+						'<div>' +
 							'<p class="text-[11px] text-slate-500 leading-relaxed mb-2">1列ぶんを改行区切りのまま貼り付けてください。全角/半角の違いや、末尾の「★3」「(3)」のような評価表記は自動で読み替えます。複数列をまとめてコピーした行（タブを含む行）はエラーとしてお知らせします。</p>' +
 							'<textarea class="usd-input uma-input" rows="4" style="font-family:var(--uma-font-mono);resize:vertical;" data-usd-el="paste-input" placeholder="1行に1つずつスキル名を貼り付け"></textarea>' +
 							'<div class="flex flex-wrap gap-2 mt-2">' +
@@ -747,25 +779,22 @@
 							'<div data-usd-el="paste-report" class="mt-3"></div>' +
 						'</div>' +
 					'</details>' +
-					// 8軸フィルター。中身（タブ＋共通パネル）は renderPickerFilterAxes() が
-					// ensurePicker() のときに1回だけ組み立てる。
-					'<div data-usd-el="filter-axes"></div>' +
-					'<div class="flex items-center justify-between mb-1">' +
+					'<details class="usd-foldbox" data-usd-el="custom-box">' +
+						'<summary>マスターにないスキルを手入力で追加</summary>' +
+						'<div>' +
+							'<input type="text" class="usd-input uma-input mb-2" data-usd-el="custom-name" placeholder="スキル名"/>' +
+							'<div data-usd-el="custom-tags"></div>' +
+							'<button type="button" class="mt-2 uma-btn uma-btn--secondary" data-usd-act="custom-add">カスタムスキルとして追加</button>' +
+						'</div>' +
+					'</details>' +
+					'<div class="flex items-center justify-between mb-1 mt-3">' +
 						'<label class="flex items-center gap-1.5 text-xs text-slate-600">' +
 							'<input type="checkbox" data-usd-act="picker-select-all"/> 表示中を全て選択' +
 						'</label>' +
 						'<p class="text-xs text-slate-500">絞り込み結果（<span data-usd-el="result-count">0件</span>）</p>' +
 					'</div>' +
 					'<div data-usd-el="results" style="border:1px solid #e2e8f0;border-radius:.75rem;max-height:280px;overflow:auto;margin-bottom:10px;"></div>' +
-					'<button type="button" class="w-full uma-btn uma-btn--primary mb-4" data-usd-act="picker-add">チェックしたスキルを追加</button>' +
-					'<details class="border-t border-slate-200 pt-3">' +
-						'<summary class="text-xs font-semibold text-slate-600 cursor-pointer">マスターにないスキルを手入力で追加</summary>' +
-						'<div class="mt-3">' +
-							'<input type="text" class="usd-input uma-input mb-2" data-usd-el="custom-name" placeholder="スキル名"/>' +
-							'<div data-usd-el="custom-tags"></div>' +
-							'<button type="button" class="mt-2 uma-btn uma-btn--secondary" data-usd-act="custom-add">カスタムスキルとして追加</button>' +
-						'</div>' +
-					'</details>' +
+					'<button type="button" class="w-full uma-btn uma-btn--primary" data-usd-act="picker-add">チェックしたスキルを追加</button>' +
 				'</div>' +
 			'</div>';
 	}
@@ -789,7 +818,6 @@
 			else if (act === 'filter-tab') selectPickerAxisTab(btn.dataset.usdAxis, false);
 			// 「絞り込み中」から飛ぶときは、どのタブへ移ったかが分かるようフォーカスも移す。
 			else if (act === 'filter-jump') selectPickerAxisTab(btn.dataset.usdAxis, true);
-			else if (act === 'filter-edge') { if (btn.getAttribute('aria-disabled') !== 'true') scrollPickerTabsToEdge(btn.dataset.usdEdge); }
 			else if (act === 'filter-clear-axis') clearPickerAxisFilter(btn.dataset.usdAxis);
 			else if (act === 'filter-clear-all') clearAllPickerFilters();
 			else if (act === 'picker-add') addCheckedSkills();
@@ -816,7 +844,6 @@
 	function q(root, name) {
 		return root.querySelector('[data-usd-el="' + name + '"]');
 	}
-
 	/* ------------------------------------------------------------
 	 * 8軸フィルター（タブ切り替え）
 	 *
@@ -825,52 +852,35 @@
 	 *
 	 * 組み立ては ensurePicker() で1回だけ行い、以降は属性とクラスの付け外しで
 	 * 更新する。以前のように checkbox を触るたび innerHTML を作り直すと、
-	 * タブバーの横スクロール位置とフォーカスが毎回吹き飛ぶため。
+	 * タブのフォーカスが毎回吹き飛ぶため。
 	 * ------------------------------------------------------------ */
 
-	// ラベルの「（…）」は2行目の小さい文字に分けて表示する（TAG_AXES 側は無変更で済む）。
+	// タブに出す軸名。ラベルの「（…）」が実名なのでそちらを優先し、無ければ
+	// 先頭の丸数字を落とした部分を使う（⑥その他1（レース環境）→「レース環境」）。
+	// 丸数字と「その他N」はタブから外すと8軸が1行に収まるようになる。軸の通し番号は
+	// パネルの見出し（axis.label をそのまま出す）に残るので、対応は追える。
+	// TAG_AXES 側は無変更で済ませたいので、短縮名をデータに持たせることはしない。
 	function splitAxisLabel(label) {
 		const m = String(label).match(/^(.+?)（(.+)）$/);
-		return m ? { main: m[1], sub: m[2] } : { main: String(label), sub: '' };
+		const main = m ? m[1] : String(label);
+		return { main: main, sub: m ? m[2] : '' };
 	}
 
-	// 端へ移動ボタンに出す番号（①／⑧）。軸がいくつあるかを一目で分かるようにするためのもの。
-	// ハードコードせず TAG_AXES の最初と最後のラベル先頭の丸数字から取る。
-	// 丸数字で始まらないラベルに変わっても困らないよう 1／軸の数 で代用する。
-	function axisEdgeMark(edge) {
-		const axis = edge === 'start' ? TAG_AXES[0] : TAG_AXES[TAG_AXES.length - 1];
-		const m = splitAxisLabel(axis.label).main.match(/^[①-⑳]/);
-		return m ? m[0] : String(edge === 'start' ? 1 : TAG_AXES.length);
-	}
-
-	function axisEdgeButton(edge) {
-		const axis = edge === 'start' ? TAG_AXES[0] : TAG_AXES[TAG_AXES.length - 1];
-		const name = splitAxisLabel(axis.label).main;
-		const text = edge === 'start' ? '最初の「' + name + '」まで戻る' : '最後の「' + name + '」まで進む';
-		return '' +
-			'<button type="button" class="usd-tab-jump" data-usd-act="filter-edge" data-usd-edge="' + edge + '"' +
-				' aria-label="' + esc(text) + '" title="' + esc(text) + '" hidden>' +
-				'<span class="usd-tab-jump-arrow" aria-hidden="true">' + (edge === 'start' ? '«' : '»') + '</span>' +
-				'<span class="usd-tab-jump-num" aria-hidden="true">' + esc(axisEdgeMark(edge)) + '</span>' +
-			'</button>';
-	}
-
-	function prefersReducedMotion() {
-		return !!(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
+	function axisTabName(label) {
+		const parts = splitAxisLabel(label);
+		return parts.sub || parts.main.replace(/^[①-⑳]/, '');
 	}
 
 	function renderPickerFilterAxes() {
 		const el = q(pickerEl, 'filter-axes');
 
 		const tabs = TAG_AXES.map(axis => {
-			const parts = splitAxisLabel(axis.label);
 			const isActive = axis.key === picker.activeAxis;
 			return '' +
 			'<button type="button" role="tab" class="usd-tab" id="usd-tab-' + axis.key + '"' +
 				' aria-controls="usd-panel-' + axis.key + '" aria-selected="' + isActive + '"' +
 				' tabindex="' + (isActive ? 0 : -1) + '" data-usd-act="filter-tab" data-usd-axis="' + axis.key + '">' +
-				'<span class="usd-tab-main">' + esc(parts.main) + '</span>' +
-				(parts.sub ? '<span class="usd-tab-sub">' + esc(parts.sub) + '</span>' : '') +
+				'<span class="usd-tab-main">' + esc(axisTabName(axis.label)) + '</span>' +
 				'<span class="usd-tab-count" data-usd-el="axis-count" data-usd-axis="' + axis.key + '" hidden></span>' +
 			'</button>';
 		}).join('');
@@ -895,20 +905,18 @@
 					'<p class="usd-axis-hint">' + hint + '</p>' +
 					'<button type="button" class="usd-link-btn" data-usd-act="filter-clear-axis" data-usd-axis="' + axis.key + '">この軸を解除</button>' +
 				'</div>' +
-				'<div class="usd-opts">' + opts + '</div>' +
+				'<div class="usd-opts-wrap">' +
+					'<div class="usd-opts" data-usd-el="axis-options">' + opts + '</div>' +
+				'</div>' +
 			'</section>';
 		}).join('');
 
 		el.innerHTML = '' +
 			'<div class="usd-axis-tabs">' +
-				'<div class="usd-tabbar">' +
-					axisEdgeButton('start') +
-					'<div class="usd-tabscroll" data-usd-el="tabscroll">' +
-						'<div class="usd-tablist" role="tablist" aria-label="絞り込みの軸">' + tabs + '</div>' +
-					'</div>' +
-					axisEdgeButton('end') +
+				'<div class="usd-tabbar" data-usd-el="tabbar" data-usd-rows="1">' +
+					'<div class="usd-tablist" role="tablist" aria-label="絞り込みの軸">' + tabs + '</div>' +
 				'</div>' +
-				'<div class="usd-tabpanels">' + panels + '</div>' +
+				'<div class="usd-tabpanels" data-usd-el="tabpanels">' + panels + '</div>' +
 				'<div class="usd-active-summary" data-usd-el="filter-summary" aria-live="polite"></div>' +
 			'</div>';
 
@@ -927,8 +935,12 @@
 			e.preventDefault();
 			selectPickerAxisTab(keys[next], true);
 		});
-		tablist.addEventListener('scroll', updatePickerTabOverflow, { passive: true });
-		if (global.ResizeObserver) new global.ResizeObserver(updatePickerTabOverflow).observe(tablist);
+		// scroll はバブリングしないので、選択肢の縦スクロールは捕捉フェーズで1本だけ張る
+		// （軸ごとに8本張らずに済む）。
+		q(pickerEl, 'tabpanels').addEventListener('scroll', (e) => {
+			if (e.target.classList && e.target.classList.contains('usd-opts')) updateOptionFade(e.target);
+		}, true);
+		if (global.ResizeObserver) new global.ResizeObserver(updatePickerFilterLayout).observe(tablist);
 	}
 
 	/* タブの切り替えは aria-selected・tabindex・is-active を揃えて付け替えるだけ。 */
@@ -938,54 +950,45 @@
 			const on = tab.dataset.usdAxis === axisKey;
 			tab.setAttribute('aria-selected', String(on));
 			tab.tabIndex = on ? 0 : -1;
-			if (!on) return;
-			scrollPickerTabIntoView(tab);
-			if (focus) tab.focus({ preventScroll: true });
+			if (on && focus) tab.focus({ preventScroll: true });
 		});
 		pickerEl.querySelectorAll('.usd-tabpanel').forEach(panel => {
 			panel.classList.toggle('is-active', panel.dataset.usdAxis === axisKey);
 		});
 	}
 
-	/* scrollIntoView はモーダル本体まで縦に動かしてしまうので、タブバーの横方向だけを動かす。 */
-	function scrollPickerTabIntoView(tab) {
-		const bar = tab.parentElement;
-		const pad = 32; // 端へ移動ボタンのぶん、少し余分に寄せて隣のタブの存在を見せる
-		const left = tab.offsetLeft;
-		const right = left + tab.offsetWidth;
-		let target = null;
-		if (left - pad < bar.scrollLeft) target = left - pad;
-		else if (right + pad > bar.scrollLeft + bar.clientWidth) target = right + pad - bar.clientWidth;
-		if (target === null) return;
-		bar.scrollTo({ left: Math.max(0, target), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+	/**
+	 * タブバーを1行で出すか、角丸ボタンの格子（多段）で出すかを決める。
+	 *
+	 * CSSのブレークポイントではなく実測で決めている。軸の数もラベルの長さも
+	 * TAG_AXES 次第で変わるので、「何pxから2段」を決め打ちすると、軸を1本足した
+	 * だけで静かに破綻するため。1行の指定を当てた状態で横にあふれるかどうかを見る。
+	 */
+	function updatePickerFilterLayout() {
+		if (!pickerEl || pickerEl.hidden) return;
+		const bar = q(pickerEl, 'tabbar');
+		const tablist = bar && bar.querySelector('.usd-tablist');
+		if (!tablist) return;
+		bar.setAttribute('data-usd-rows', '1');
+		const overflows = tablist.scrollWidth > tablist.clientWidth + 1;
+		bar.setAttribute('data-usd-rows', overflows ? 'multi' : '1');
+
+		// 選択肢を「2行ぶん」で頭打ちにする高さは、チップの実測値から決める。
+		// px を決め打ちすると、チップの余白や中の checkbox の寸法を触った瞬間に
+		// 2行目が半分だけ見える状態へ静かにずれる（実際に踏んだ）。
+		const chip = pickerEl.querySelector('.usd-opt');
+		const tabs = pickerEl.querySelector('.usd-axis-tabs');
+		if (chip && chip.offsetHeight && tabs) tabs.style.setProperty('--usd-opt-row', chip.offsetHeight + 'px');
+
+		pickerEl.querySelectorAll('.usd-opts').forEach(updateOptionFade);
 	}
 
-	/* 左右にまだタブがあるときだけフェードと端へ移動ボタンを出す。 */
-	function updatePickerTabOverflow() {
-		if (!pickerEl) return;
-		const bar = pickerEl.querySelector('.usd-tablist');
-		const wrap = q(pickerEl, 'tabscroll');
-		if (!bar || !wrap) return;
-		const max = bar.scrollWidth - bar.clientWidth;
-		const atStart = bar.scrollLeft <= 2;
-		const atEnd = bar.scrollLeft >= max - 2;
-		wrap.toggleAttribute('data-more-left', !atStart);
-		wrap.toggleAttribute('data-more-right', !atEnd);
-		// 全タブが収まっているとき（PC幅）は端へ移動ボタンを出さない。
-		const overflowing = max > 2;
-		pickerEl.querySelectorAll('.usd-tab-jump').forEach(btn => {
-			btn.hidden = !overflowing;
-			// disabled ではなく aria-disabled。押した直後にフォーカスを失わせないため。
-			btn.setAttribute('aria-disabled', String(btn.dataset.usdEdge === 'start' ? atStart : atEnd));
-		});
-	}
-
-	/* 端へスクロールするだけで、選択中のタブは変えない（条件を触る前に一覧を見渡せるように）。 */
-	function scrollPickerTabsToEdge(edge) {
-		const bar = pickerEl.querySelector('.usd-tablist');
-		if (!bar) return;
-		const left = edge === 'start' ? 0 : bar.scrollWidth - bar.clientWidth;
-		bar.scrollTo({ left: left, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+	/* 選択肢が2行に収まりきらないとき、続きがあることを下端のフェードで示す。 */
+	function updateOptionFade(opts) {
+		const wrap = opts.parentElement;
+		if (!wrap) return;
+		const more = opts.scrollHeight - opts.clientHeight - opts.scrollTop > 2;
+		wrap.toggleAttribute('data-more-below', more);
 	}
 
 	/**
@@ -999,7 +1002,7 @@
 			const badge = pickerEl.querySelector('[data-usd-el="axis-count"][data-usd-axis="' + axis.key + '"]');
 			if (badge) { badge.hidden = n === 0; badge.textContent = n; }
 			const tab = pickerEl.querySelector('.usd-tab[data-usd-axis="' + axis.key + '"]');
-			if (tab) tab.setAttribute('aria-label', splitAxisLabel(axis.label).main + (n ? '（' + n + '件選択中）' : ''));
+			if (tab) tab.setAttribute('aria-label', axisTabName(axis.label) + (n ? '（' + n + '件選択中）' : ''));
 			const clearBtn = pickerEl.querySelector('[data-usd-act="filter-clear-axis"][data-usd-axis="' + axis.key + '"]');
 			if (clearBtn) clearBtn.disabled = n === 0;
 		});
@@ -1014,7 +1017,7 @@
 		summary.innerHTML = '<span class="usd-summary-label">絞り込み中</span>' +
 			active.map(a =>
 				'<button type="button" class="usd-summary-item" data-usd-act="filter-jump" data-usd-axis="' + a.key + '" title="このタブを開く">' +
-					'<b>' + esc(splitAxisLabel(a.label).main) + '</b>' +
+					'<b>' + esc(axisTabName(a.label)) + '</b>' +
 					esc(picker.filters[a.key].map(v => tagLabel(a.key, v)).join('・')) +
 				'</button>'
 			).join('') +
@@ -1024,9 +1027,10 @@
 	/* モーダルを開き直したときに、チェックと選択中のタブを初期状態へ戻す。 */
 	function resetPickerFilterUi() {
 		pickerEl.querySelectorAll('[data-usd-el="filter-check"]').forEach(el => { el.checked = false; });
+		pickerEl.querySelectorAll('.usd-opts').forEach(el => { el.scrollTop = 0; });
 		selectPickerAxisTab(TAG_AXES[0].key, false);
 		refreshPickerFilterUi();
-		updatePickerTabOverflow();
+		updatePickerFilterLayout();
 	}
 
 	function onPickerFilterChange(input) {
