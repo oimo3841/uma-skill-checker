@@ -542,10 +542,45 @@ const browser = await chromium.launch();
 		green: document.getElementById('badge-green59-count').textContent,
 		total: document.getElementById('header-skill-count').textContent
 	}));
-	assert(registry.rows === 133 && registry.total === '133' && registry.badge === '133種 登録済み',
-		'exam: 組み込みの133種が登録されている', registry);
+	assert(registry.rows === 133 && registry.total === '133' && registry.badge === '133種',
+		'exam: 組み込みの133種が登録されている（①のタブのバッジは「133種」）', registry);
 	assert(registry.sp70 === 'sp70緑：17種' && registry.green === '緑59種（実質53種）',
 		'exam: sp70緑17・緑59（実質53）のバッジが出る', registry);
+	assert(await page.evaluate(() => loadedCssVersion('--common-css-version')) === COMMON_CSS_VERSION
+		&& await page.evaluate(() => loadedCssVersion('--uma-shell-css-version')) === COMMON_CSS_VERSION,
+		'exam: tokens.css と shell.css の版を読めている', COMMON_CSS_VERSION);
+	// 共通部品（common.css）は読まない。読むと .glass-card の余白など既存の見た目が変わる
+	assert(await page.evaluate(() => loadedCssVersion('--uma-components-css-version')) === '',
+		'exam: common.css は読んでいない');
+
+	/* --- ステップ1・2のタブ（special と同じ骨格。①は登録済みなので既定で①を開く） --- */
+	const stepState = () => page.evaluate(() => ({
+		tab1: document.getElementById('step-tab-1').getAttribute('aria-selected'),
+		tab2: document.getElementById('step-tab-2').getAttribute('aria-selected'),
+		panel1: !document.getElementById('step-panel-1').hidden,
+		panel2: !document.getElementById('step-panel-2').hidden,
+		imageBadge: document.getElementById('image-count-badge').hidden,
+		underline: getComputedStyle(document.getElementById('step-tab-1')).borderBottomColor
+	}));
+	const step0 = await stepState();
+	assert(step0.tab1 === 'true' && step0.panel1 && !step0.panel2, 'exam: 初期表示は①のパネルだけが出ている', step0);
+	assert(step0.imageBadge === true, 'exam: 画像が無いうちは②の枚数バッジを出さない', step0);
+	// タブの下線はこのページの藍（v3 の #4f46e5 = rgb(79, 70, 229)）。special の緑や v4 の藍ではない
+	assert(step0.underline === 'rgb(79, 70, 229)', 'exam: 選択中のタブの下線が exam の藍', step0.underline);
+	await page.click('#step-tab-2');
+	await page.waitForTimeout(300);
+	const step2 = await stepState();
+	assert(step2.tab2 === 'true' && !step2.panel1 && step2.panel2, 'exam: ②のタブを押すとパネルが入れ替わる', step2);
+	assert(await page.isVisible('#process-btn') && await page.isVisible('#setb-toggle-btn'),
+		'exam: ②に実行ボタンと「親Bセットも追加する」がある');
+	await page.keyboard.press('ArrowLeft');
+	await page.waitForTimeout(300);
+	assert((await stepState()).panel1, 'exam: ←キーで①へ戻る');
+	// 除外・追加があるとバッジに「（調整あり）」が付き、無くなれば戻る
+	await page.evaluate(() => { customAddedSkills.push('テスト追加'); refreshAfterCustomSkillsChange(); });
+	assert(await page.textContent('#step1-skill-badge') === '134種（調整あり）', 'exam: 追加があると①のバッジに（調整あり）が付く');
+	await page.evaluate(() => { customAddedSkills = []; refreshAfterCustomSkillsChange(); });
+	assert(await page.textContent('#step1-skill-badge') === '133種', 'exam: 調整を戻すとバッジも「133種」に戻る');
 
 	/* --- UmaSkill Deck への受け渡し（手順3）---
 	   OCRを回さずに、合成した行を本物の照合関数に通して結果を作る（special と同じ考え方）。

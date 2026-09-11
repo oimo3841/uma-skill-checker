@@ -5,6 +5,12 @@
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>UmaExam OCR（β版）</title>
+	<!-- 共通スタイルのうち、変数（tokens.css）と画面の骨格（shell.css：ステップのタブ・FAB・引き出し・
+	     ダイアログ）だけを読む。共通部品（common.css）は読まない — 読むと .glass-card の余白など
+	     このページの既存の見た目が変わるため（exam-ui-analysis.md A-3）。変数は参照されない限り
+	     何も描かないので、既存の見た目はそのまま。Tailwind より先に読み込む（レイヤー無しの方が強い）。 -->
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-11b" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-11b" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -14,6 +20,22 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-09a"></script>
 	<style>
+		/* このツールのアクセント（藍）。shell.css の部品（タブの下線・FAB のメインボタン・
+		   フォーカスの輪）はこの変数を見て色が決まる。値は special のような Tailwind v4 の実測値
+		   ではなく、このページが以前から使っている v3 世代の藍（下の .mode-btn / .drop-active 等）に
+		   合わせる。同じ画面の中で既存の主ボタンと同じ藍に揃えることを優先した（v3/v4 の差は
+		   将来の exam のデザイン統一でまとめて解消する）。 */
+		:root {
+			--uma-accent: #4f46e5;            /* このページの主ボタン・.mode-btn.active と同じ */
+			--uma-accent-hover: #4338ca;      /* :focus-visible の輪と同じ */
+			--uma-accent-soft: #eef2ff;       /* .drop-active の地と同じ */
+			--uma-accent-soft-text: #4338ca;
+			--uma-accent-border: #c6d2ff;     /* border-indigo-200（進捗バー・緑スキルハイライトの枠）と同じ */
+			--uma-accent-ring: #4338ca;
+			--uma-fab-shadow: 0 10px 20px -6px rgba(79, 70, 229, .45);  /* メインFABの影（#4f46e5 の半透明） */
+		}
+		/* ①のタブに出す件数バッジ。骨格（shell.css の .step-tab-badge）は灰なので、このページの藍に */
+		.step-tab-badge--accent { background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
 		body {
 			background-color: #f5f4fb;
 			background-image:
@@ -202,16 +224,32 @@
 			</div>
 		</div>
 
-		<!-- ステップ1：技能試験 対象スキル（登録済み・入力不要） -->
+		<!-- ステップ1・2。以前は「①対象スキル（登録済み）」「②画像アップロード」を別々のカードで
+		     縦に並べていた。special.html と同じく1枚のカードに重ね、上のタブで切り替える
+		     （タブの骨格は css/shell.css）。①は登録済みで触る機会が少ないのに、②へ行くたびに
+		     ①の全高を通り過ぎる必要があったため。隠れている側の状況はタブのバッジで分かる
+		     （①＝対象の種数と調整の有無、②＝アップロード済みの枚数）。 -->
 		<div class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6">
-			<div class="flex items-center justify-between mb-4">
-				<div class="flex items-center gap-2">
-					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">1</span>
-					<h2 class="text-sm font-bold text-slate-800">技能試験 対象スキル（登録済み・入力不要）</h2>
-				</div>
-				<span id="step1-skill-badge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800">133種 登録済み</span>
+			<div class="step-tabs" role="tablist" aria-label="入力の手順" onkeydown="onStepTabKeydown(event)">
+				<button type="button" role="tab" class="step-tab" id="step-tab-1"
+					aria-controls="step-panel-1" aria-selected="true" tabindex="0" onclick="selectStepTab(1)">
+					<span class="step-tab-num" aria-hidden="true">1</span>
+					<!-- 375px ではバッジと並べると入りきらないので、狭い画面では「（登録済み）」を畳む -->
+					<span id="step1-title" class="step-tab-label">対象スキル<span class="hidden sm:inline">（登録済み）</span></span>
+					<!-- 133種 ／ 除外・追加があれば「（調整あり）」。updateSkillCountDisplays() が書く -->
+					<span id="step1-skill-badge" class="step-tab-badge step-tab-badge--accent">133種</span>
+				</button>
+				<button type="button" role="tab" class="step-tab" id="step-tab-2"
+					aria-controls="step-panel-2" aria-selected="false" tabindex="-1" onclick="selectStepTab(2)">
+					<span class="step-tab-num" aria-hidden="true">2</span>
+					<span class="step-tab-label">画像をアップロード</span>
+					<!-- 隠れている側の状況が分かるよう、アップロード済みの枚数をここに出す -->
+					<span id="image-count-badge" class="step-tab-badge" hidden></span>
+				</button>
 			</div>
 
+			<!-- ① 技能試験 対象スキル（登録済み・入力不要） -->
+			<div id="step-panel-1" class="step-panel" role="tabpanel" aria-labelledby="step-tab-1">
 			<p class="text-xs text-slate-500 mb-3">技能試験で有利な対象スキルをあらかじめ<span id="step1-skill-count-inline">133</span>種登録しています。アップロードした因子すべてに対して、このリストで照合します。追加・除外は下の「対象スキルのカスタム設定」から行えます。</p>
 
 			<div class="flex flex-wrap gap-2 mb-4">
@@ -323,15 +361,12 @@
 					</div>
 				</div>
 			</details>
-		</div>
+			</div><!-- /#step-panel-1 -->
 
-		<!-- ステップ2：因子セットの画像アップロード -->
-		<div class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6">
-			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-				<div class="flex items-center gap-2">
-					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">2</span>
-					<h2 class="text-sm font-bold text-slate-800">因子セットの画像をアップロード（親Aセットのみでも判定可）</h2>
-				</div>
+			<!-- ② 因子セットの画像アップロード（親Aセットのみでも判定可） -->
+			<div id="step-panel-2" class="step-panel" role="tabpanel" aria-labelledby="step-tab-2" hidden>
+			<div class="flex items-center justify-between gap-3 mb-2">
+				<p class="text-xs font-semibold text-slate-700">親Aセットのみでも判定できます</p>
 				<button type="button" id="setb-toggle-btn" onclick="toggleSetB()" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0">
 					<i data-lucide="git-branch" class="w-3.5 h-3.5"></i>
 					<span id="setb-toggle-label">＋ 親Bセットも追加する</span>
@@ -409,6 +444,7 @@
 				<span>OCR処理＋画像結合を開始する（高負荷）</span>
 			</button>
 			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、親A（＋祖A1＋祖A2）・親B（＋祖B1＋祖B2）それぞれのスクリーンショットを1枚の画像にまとめ、SNS投稿用に使える形で出力します。画像枚数が多いほど処理に時間がかかります。</p>
+			</div><!-- /#step-panel-2 -->
 		</div>
 
 		<!-- 画像結合結果（①）：親A/親Bセットごとに、スキルパネルのみを縦横に結合した画像とコピー用コメントを表示 -->
@@ -871,7 +907,41 @@
 		// コピー用データ・統計カード・緑スキルハイライトには影響しない（常に全アップロード分を含む）。
 		let tableSetVisible = [true, true];
 
+		/* ============================================================
+		 * 共通CSS（css/tokens.css / shell.css）の版の照合
+		 *
+		 * 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
+		 * 「直したはずなのに直っていない」状態になる。2ファイルはそれぞれ :root に
+		 * 同じ版数の印を持つ。このページが読む2つを全部読み、期待値と食い違うものがあれば警告する。
+		 * special.html と同じ方式（このページは common.css を読まないので、その印は見ない）。
+		 * ============================================================ */
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-11b';
+		const COMMON_CSS_FILES = [
+			['css/tokens.css', '--common-css-version'],
+			['css/shell.css', '--uma-shell-css-version'],
+		];
+
+		function loadedCssVersion(prop) {
+			const raw = getComputedStyle(document.documentElement).getPropertyValue(prop);
+			return (raw || '').trim().replace(/^["']|["']$/g, '');
+		}
+
+		function verifyCommonCssVersion() {
+			const bad = COMMON_CSS_FILES
+				.map(([file, prop]) => [file, loadedCssVersion(prop)])
+				.filter(([, v]) => v !== EXPECTED_COMMON_CSS_VERSION);
+			if (bad.length === 0) return true;
+			const msg = bad.map(([file, v]) => v
+				? file + ' が古い版です（読込:' + v + ' / 期待:' + EXPECTED_COMMON_CSS_VERSION + '）'
+				: file + ' を読み込めていません').join('。')
+				+ '。キャッシュを消して再読み込みしてください。';
+			console.warn('[UmaExam OCR] ' + msg);
+			showToast(msg);
+			return false;
+		}
+
 		document.addEventListener('DOMContentLoaded', () => {
+			verifyCommonCssVersion();
 			restoreCustomSkills();
 			rebuildSkillList();
 			renderSkillRegistryList();
@@ -916,8 +986,10 @@
 				const el = document.getElementById(id);
 				if (el) el.textContent = String(total);
 			});
+			// ①のタブのバッジ。除外・追加があるときは、既定の133種から離れていることが分かるようにする
 			const badge = document.getElementById('step1-skill-badge');
-			if (badge) badge.textContent = total + '種 登録済み';
+			const adjusted = customAddedSkills.length > 0 || removedSkillsSet.size > 0;
+			if (badge) badge.textContent = total + '種' + (adjusted ? '（調整あり）' : '');
 		}
 
 		function updateCategoryBadges() {
@@ -1365,6 +1437,43 @@
 			processBtn.disabled = !anyFiles;
 			const stitchBtn = document.getElementById('process-stitch-btn');
 			if (stitchBtn) stitchBtn.disabled = !anyFiles;
+			updateImageCountBadge();
+		}
+
+		/* ============================================================
+		 * ステップ1・2のタブ（骨格は css/shell.css。special.html と同じ作法）
+		 *
+		 * 2枚を重ねた以上、開いていない側の状況が見えなくなる。①の種数は
+		 * #step1-skill-badge が、②の画像の枚数は #image-count-badge が受け持つ。
+		 * ============================================================ */
+		function selectStepTab(n) {
+			[1, 2].forEach(k => {
+				const on = k === Number(n);
+				const tab = document.getElementById('step-tab-' + k);
+				const panel = document.getElementById('step-panel-' + k);
+				if (!tab || !panel) return;
+				tab.setAttribute('aria-selected', String(on));
+				tab.tabIndex = on ? 0 : -1;
+				panel.hidden = !on;
+			});
+		}
+
+		// WAI-ARIA のタブの作法：←→で隣へ、Home/Endで端へ（移動と同時に切り替える）
+		function onStepTabKeydown(e) {
+			const cur = document.getElementById('step-tab-1').getAttribute('aria-selected') === 'true' ? 1 : 2;
+			const next = { ArrowRight: cur === 1 ? 2 : 1, ArrowLeft: cur === 1 ? 2 : 1, Home: 1, End: 2 }[e.key];
+			if (!next) return;
+			e.preventDefault();
+			selectStepTab(next);
+			document.getElementById('step-tab-' + next).focus();
+		}
+
+		function updateImageCountBadge() {
+			const badge = document.getElementById('image-count-badge');
+			if (!badge) return;
+			const total = persons.reduce((n, p) => n + p.files.length, 0);
+			badge.hidden = total === 0;
+			badge.textContent = total + '枚';
 		}
 
 		/* ============================================================

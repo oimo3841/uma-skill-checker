@@ -87,8 +87,8 @@ const CSS_LINKS = {
 	'special.html': ['tokens', 'common', 'shell'],
 	'uma-skill-deck.html': ['tokens', 'common'],
 	'css/styleguide.html': ['tokens', 'common'],
-	// exam.html は段3（画面構成の作り替え）で tokens と shell を読むようになる。それまでは何も読まない。
-	'exam.html': [],
+	// exam.html は共通部品（common.css）を読まない。読むと .glass-card の余白など既存の見た目が変わるため
+	'exam.html': ['tokens', 'shell'],
 };
 for (const [p, files] of Object.entries(CSS_LINKS)) {
 	const src = read(p);
@@ -100,7 +100,6 @@ for (const [p, files] of Object.entries(CSS_LINKS)) {
 }
 for (const p of ['special.html', 'js/uma-skill-deck.js', 'exam.html']) {
 	const e = [...read(p).matchAll(/EXPECTED_COMMON_CSS_VERSION\s*=\s*'([^']+)'/g)].map((m) => m[1]);
-	if (p === 'exam.html' && e.length === 0) { console.log('     [参考] exam.html はまだ EXPECTED_COMMON_CSS_VERSION を持たない（段3で入る）'); continue; }
 	check(e.length === 1 && e[0] === cssVer, p + ' の EXPECTED_COMMON_CSS_VERSION が定数と一致', e);
 }
 const coreVer = /UMA_SKILL_DECK_CORE_JS_VERSION = '([^']+)'/.exec(read('js/uma-skill-deck-core.js'))[1];
