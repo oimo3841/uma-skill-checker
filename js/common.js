@@ -21,7 +21,7 @@
 // このファイルの版。ツールの開発用ログの先頭に表示される。
 // 「どの版の common.js がブラウザで実際に動いているか」を確認するための目印。
 // 中身を変更したらこの日付も更新すること。
-const COMMON_JS_VERSION = '2026-09-12b';
+const COMMON_JS_VERSION = '2026-09-12c';
 
 const MAX_SIDE_PX = 3000;
 const CONF_THRESHOLD = 55;
@@ -288,14 +288,20 @@ function sharpnessScore(gray, w, h) {
  * チューニング対象ではなく、事前に弾くべき「対象外の入力」として扱う。
  *
  * 判定は2段階ある。
- *   - reasons（ok:false）… OCRを試みても結果が崩れる水準。呼び出し側はスキップし、
- *     reasons を利用者に見える形で表示すること。
- *   - warnings（ok:true）… 推奨より低品質だが実測では読める水準。呼び出し側は
- *     OCRを実行したうえで、warnings を「取りこぼしがあるかもしれない」注意として表示すること。
- *     ここを足切りにすると、765pxのスマホ直撮りスクリーンショットのような
+ *   - reasons（ok:false）… OCRを試みても結果が崩れる水準。呼び出し側はスキップする。
+ *   - warnings（ok:true）… 推奨より低品質だが実測では読める水準。呼び出し側はOCRを
+ *     実行する。ここを足切りにすると、765pxの直撮りスクリーンショットのような
  *     正当な入力まで弾いてしまう（上のしきい値の実測表を参照）。
  *
- * 戻り値: { ok, width, height, sharpness, reasons: string[], warnings: string[] }
+ * reasons / warnings は px 値を含む「開発ログ向けの事実」であって、そのまま利用者に
+ * 見せる文ではない。利用者に見せる文は buildImageQualityNotice() が rejectKinds /
+ * warnKinds から組み立てる（利用者にとって必要なのは px 値ではなく次に取るべき行動）。
+ *
+ * 戻り値: {
+ *   ok, width, height, sharpness,
+ *   reasons: string[], warnings: string[],      // 開発ログ用の詳細
+ *   rejectKinds: string[], warnKinds: string[], // 'too-small' | 'blurry' | 'narrow'
+ * }
  */
 function assessImageQuality(baseCanvas) {
 	const w = baseCanvas.width, h = baseCanvas.height;
@@ -309,28 +315,84 @@ function assessImageQuality(baseCanvas) {
 	} catch (err) {
 		reasons.push('鮮明度の計測に失敗しました: ' + err);
 	}
+	const rejectKinds = [];
+	const warnKinds = [];
 	if (w < MIN_BASE_WIDTH_PX) {
-		reasons.push(
-			'画像の横幅が ' + w + 'px しかありません（下限 ' + MIN_BASE_WIDTH_PX + 'px）。' +
-			'この幅を下回ると行の切り出しごと崩れるため、OCRの対象外としています。' +
-			'SNSへの投稿・再共有や、複数画像を結合するツールを経由すると縮小されがちです。'
-		);
+		rejectKinds.push('too-small');
+		reasons.push('画像の横幅が ' + w + 'px で、足切りの ' + MIN_BASE_WIDTH_PX + 'px を下回ります。');
 	} else if (w < RECOMMENDED_BASE_WIDTH_PX) {
-		warnings.push(
-			'画像の横幅が ' + w + 'px で、推奨の ' + RECOMMENDED_BASE_WIDTH_PX + 'px を下回っています。' +
-			'読み取りは行いますが、取りこぼしが起きやすくなります。'
-		);
+		warnKinds.push('narrow');
+		warnings.push('画像の横幅が ' + w + 'px で、推奨の ' + RECOMMENDED_BASE_WIDTH_PX + 'px を下回ります。');
 	}
 	if (sharpness !== null && sharpness < MIN_SHARPNESS_SCORE) {
-		reasons.push(
-			'画像の鮮明度が低い状態です（スコア ' + Math.round(sharpness) + ' / 目安 ' + MIN_SHARPNESS_SCORE + ' 以上）。' +
-			'文字のストロークが潰れている可能性が高く、再圧縮や過度な縮小が繰り返された画像で起こりやすい現象です。'
-		);
+		rejectKinds.push('blurry');
+		reasons.push('鮮明度スコアが ' + Math.round(sharpness) + ' で、目安の ' + MIN_SHARPNESS_SCORE + ' を下回ります。');
 	}
 	return {
 		ok: reasons.length === 0, width: w, height: h, sharpness: sharpness,
-		reasons: reasons, warnings: warnings
+		reasons: reasons, warnings: warnings,
+		rejectKinds: rejectKinds, warnKinds: warnKinds
 	};
+}
+
+/**
+ * 画質チェックの結果から、利用者向けの通知文（黄色い警告帯の本文）を組み立てる純粋関数。
+ * DOM には触らない。呼び出し側（exam.html / special.html）が textContent に入れる。
+ *
+ * 文面の決まり:
+ *   1. 警告どまりの画像は、1枚ずつ書かずに枚数だけまとめて1回書く
+ *      （画像ごとの横幅などの詳細は開発ログに出ているので、ここでは繰り返さない）
+ *   2. 足切りした画像は「どれが駄目だったか」が分からないと直せないので、ファイル名を列挙する
+ *   3. SNS・結合ツールの説明は、足切りがあるときだけ添える（警告どまりなら原因は
+ *      ウィンドウの小ささなので、SNSの話を出すとかえって誤解を招く）
+ *   4. 最後は必ず「次に何をすればよいか」で締める。DMM版はウィンドウを変えるとゲームが
+ *      その大きさで描き直すため、ウィンドウを大きくするのがそのまま対策になる
+ *      （スマホ版は機種依存で可変ではないので「パソコン版をお使いの場合は」と断る）
+ *
+ * @param {Array<{label:string,name:string,kinds:string[]}>} skipped 足切りしてOCRしなかった画像
+ * @param {Array<{label:string,name:string,kinds:string[]}>} warned  警告つきでOCRした画像
+ * @returns {string} 表示する本文。何も言うことがなければ空文字。
+ */
+function buildImageQualityNotice(skipped, warned) {
+	skipped = skipped || [];
+	warned = warned || [];
+	if (skipped.length === 0 && warned.length === 0) return '';
+
+	const blocks = [];
+	const list = (items) => items.map((s) => '・' + s.label + ': ' + s.name).join('\n');
+	const has = (s, kind) => (s.kinds || []).indexOf(kind) !== -1;
+
+	const tooSmall = skipped.filter((s) => has(s, 'too-small'));
+	// 「小さすぎ」と「ぼやけ」の両方に当たった画像は、小さすぎの側だけに数える（原因が重なるため）
+	const blurry = skipped.filter((s) => has(s, 'blurry') && !has(s, 'too-small'));
+	const other = skipped.filter((s) => !has(s, 'too-small') && !has(s, 'blurry'));
+
+	if (tooSmall.length > 0) {
+		blocks.push('次の画像は、ゲーム画面が小さすぎて読み取れませんでした。\n' + list(tooSmall));
+	}
+	if (blurry.length > 0) {
+		blocks.push('次の画像は、ぼやけていて文字を読み取れませんでした。\n' + list(blurry));
+	}
+	if (other.length > 0) {
+		blocks.push('次の画像は読み取れませんでした。\n' + list(other));
+	}
+	if (warned.length > 0) {
+		blocks.push(
+			'ゲーム画面が小さめに写っているため（' + warned.length + '枚）、スキル名や★の数を' +
+			'取りこぼすことがあります。結果に抜けや★の数の誤りがないかご確認ください。'
+		);
+	}
+
+	// 締めの一文。足切りがあったかどうかで、お願いの強さと SNS の説明の有無を変える。
+	if (skipped.length > 0) {
+		blocks.push(
+			'パソコン版をお使いの場合は、ゲームのウィンドウを大きくしてから撮り直してください。\n' +
+			'SNSに投稿した画像や、複数画像を結合するツールを通した画像も、小さくなって読み取れないことがあります。'
+		);
+	} else {
+		blocks.push('パソコン版をお使いの場合は、ゲームのウィンドウを大きくしてから撮り直すと精度が上がります。');
+	}
+	return blocks.join('\n\n');
 }
 
 function greenMaskOf(imageData) {

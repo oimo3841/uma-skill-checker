@@ -22,7 +22,7 @@
 	<!-- Lucide Icons -->
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html で共有） -->
-	<script src="js/common.js?v=2026-09-12b"></script>
+	<script src="js/common.js?v=2026-09-12c"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-12a"></script>
@@ -1029,13 +1029,19 @@
 						diag.push('→ 画質が基準未満のため対象外と判定し、OCRをスキップします');
 						quality.reasons.forEach(r => diag.push('  ・' + r));
 						devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
-						skipped.push({ label: labelPrefix, name: file.name, reasons: quality.reasons });
+						skipped.push({
+							label: labelPrefix, name: file.name,
+							reasons: quality.reasons, kinds: quality.rejectKinds
+						});
 						continue;
 					}
 					if (quality.warnings.length > 0) {
 						diag.push('→ 推奨品質は下回るが読み取りは可能と判断し、OCRを実行します');
 						quality.warnings.forEach(r => diag.push('  ・' + r));
-						warned.push({ label: labelPrefix, name: file.name, reasons: quality.warnings });
+						warned.push({
+							label: labelPrefix, name: file.name,
+							reasons: quality.warnings, kinds: quality.warnKinds
+						});
 					}
 
 					detection = detectSkillRows(base, diag);
@@ -1151,28 +1157,19 @@
 			progressWrap.classList.add('hidden');
 			processBtn.disabled = false;
 
-			if (skippedAll.length > 0 || warnedAll.length > 0) {
+			// 文面の組み立ては common.js の buildImageQualityNotice() に集約している
+			// （exam.html / special.html で同じ文言を二重に持たないため）。ここはDOMに入れるだけ。
+			const qualityNotice = buildImageQualityNotice(skippedAll, warnedAll);
+			if (qualityNotice) {
 				qualityWarnWrap.classList.remove('hidden');
-				const msgs = [];
-				if (skippedAll.length > 0) {
-					msgs.push(
-						skippedAll.length + '件の画像を、解像度/鮮明度不足のため対象外としてOCRをスキップしました。\n' +
-						skippedAll.map(s => '・' + s.label + ': ' + s.name).join('\n'));
-				}
-				if (warnedAll.length > 0) {
-					msgs.push(
-						warnedAll.length + '件の画像は推奨品質を下回りますが、読み取りは行いました（取りこぼしの可能性があります）。\n' +
-						warnedAll.map(s => '・' + s.label + ': ' + s.name + '\n    ' + s.reasons.join('\n    ')).join('\n'));
-				}
-				msgs.push('SNSへの再投稿や複数画像結合ツールを経由すると起こりやすい現象です。ゲーム画面から直接撮ったスクリーンショットの利用を推奨します。');
-				document.getElementById('quality-warn-content').textContent = msgs.join('\n\n');
+				document.getElementById('quality-warn-content').textContent = qualityNotice;
 			}
 
 			if (!anySuccess) {
 				errorWrap.classList.remove('hidden');
 				const totalFiles = persons.reduce((s, p) => s + p.files.length, 0);
 				if (skippedAll.length > 0 && skippedAll.length === totalFiles) {
-					document.getElementById('error-content').textContent = 'アップロードされた画像はすべて解像度/鮮明度不足のため対象外と判定されました。ゲーム画面から直接撮影したスクリーンショットをご利用ください。';
+					document.getElementById('error-content').textContent = 'アップロードされた画像は、いずれもゲーム画面が小さすぎて読み取れませんでした。パソコン版をお使いの場合は、ゲームのウィンドウを大きくしてから撮り直してください。';
 				} else {
 					document.getElementById('error-content').textContent = 'OCR処理に失敗しました。別の画像を試してください。';
 				}

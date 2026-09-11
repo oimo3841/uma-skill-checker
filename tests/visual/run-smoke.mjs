@@ -2206,6 +2206,70 @@ const browser = await chromium.launch();
 	await ctx.close();
 }
 
+/* ============================================================
+ * 画質の警告帯の文面（common.js の buildImageQualityNotice）
+ *
+ * 実機で「正当なスクリーンショットが丸ごと足切りされる」不具合を出したあと、
+ * 足切りと警告を分け、文面を common.js に集約した経緯がある（2026-09-12）。
+ * 文面そのものが利用者への対処方法（ウィンドウを大きくする）を運んでいるので、
+ * 崩れても例外が出ず気付けない。ここで本文の作られ方を直接押さえる。
+ * ============================================================ */
+{
+	const ctx = await browser.newContext();
+	const page = await ctx.newPage();
+	await page.goto(base + '/exam.html', { waitUntil: 'networkidle' });
+	await page.waitForTimeout(500);
+
+	const warn3 = (label) => ({ label: label, name: label + '.png', kinds: ['narrow'] });
+
+	// 1) 警告のみ3枚 … 本文は1回だけ／SNSの一文は出さない
+	const onlyWarn = await page.evaluate(() =>
+		buildImageQualityNotice([], [
+			{ label: '親A', name: 'a.png', kinds: ['narrow'] },
+			{ label: '親A', name: 'b.png', kinds: ['narrow'] },
+			{ label: '祖A1', name: 'c.png', kinds: ['narrow'] },
+		]));
+	const countOf = (s, needle) => s.split(needle).length - 1;
+	assert(countOf(onlyWarn, 'ゲーム画面が小さめに写っているため') === 1,
+		'警告のみ3枚: 本文は1回だけ（枚数でまとめる）', onlyWarn);
+	assert(onlyWarn.includes('（3枚）'), '警告のみ3枚: 枚数が入る');
+	assert(!onlyWarn.includes('SNS'), '警告のみ3枚: SNSの一文は付けない');
+	assert(!/\d{3}px/.test(onlyWarn), '警告のみ3枚: px値は本文に出さない（開発ログ行き）', onlyWarn);
+	assert(!onlyWarn.includes('a.png') && !onlyWarn.includes('c.png'),
+		'警告のみ3枚: 個別のファイル名は並べない');
+	assert(onlyWarn.includes('ウィンドウを大きく'), '警告のみ3枚: 対処方法で締める');
+
+	// 2) 足切りあり … SNSの一文を付け、どの画像かファイル名で示す
+	const withSkip = await page.evaluate(() =>
+		buildImageQualityNotice(
+			[{ label: '親A', name: 'tiny.png', kinds: ['too-small'] }],
+			[{ label: '親B', name: 'd.png', kinds: ['narrow'] }]));
+	assert(withSkip.includes('SNS'), '足切りあり: SNSの一文を付ける');
+	assert(withSkip.includes('・親A: tiny.png'), '足切りあり: 足切りした画像はファイル名で示す');
+	assert(withSkip.includes('ゲーム画面が小さめに写っているため'),
+		'足切りと警告の混在: 両方を出す', withSkip);
+	assert(withSkip.includes('ウィンドウを大きく'), '足切りあり: 対処方法で締める');
+
+	// 3) ぼやけによる足切り … 小ささとは別の言い回しにする
+	const blurry = await page.evaluate(() =>
+		buildImageQualityNotice([{ label: '親B', name: 'blur.jpg', kinds: ['blurry'] }], []));
+	assert(blurry.includes('ぼやけていて'), 'ぼやけ: 小ささとは別の文面になる', blurry);
+	assert(!blurry.includes('小さすぎて'), 'ぼやけ: 小ささの文面は混ぜない');
+
+	// 4) 何も問題が無ければ空文字（＝帯を出さない）
+	const none = await page.evaluate(() => buildImageQualityNotice([], []));
+	assert(none === '', '問題なし: 空文字を返す（帯を出さない）', none);
+
+	// 5) しきい値の定数が、実測で決めた値から動いていないか
+	const th = await page.evaluate(() => ({
+		min: MIN_BASE_WIDTH_PX, rec: RECOMMENDED_BASE_WIDTH_PX,
+	}));
+	assert(th.min === 400 && th.rec === 700,
+		'画質しきい値が実測値のまま（足切り400 / 推奨700）', th);
+
+	await ctx.close();
+}
+
 await browser.close();
 await close();
 console.log('\n' + (fails === 0 ? '=== スモークテスト: 全項目OK ===' : '=== スモークテスト: ' + fails + '件 NG ==='));
