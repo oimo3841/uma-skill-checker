@@ -9,13 +9,13 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-11a" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-11a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-11b" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-11b" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-11g"></script>
-	<script src="js/uma-skill-deck.js?v=2026-09-11c"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-11d"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -36,14 +36,15 @@
 		}
 
 		/* このツールのアクセント。共通部品はこの変数を見て色が決まる。
-		   値は Tailwind v4.1.11 のパレット実測値。 */
+		   値は css/tokens.css の --uma-deck-*（濃いめの暖かいグレー）から引く。
+		   special / exam の「Deck 行き」の部品も同じトークンを見るので、色はそちらで1か所で変える。 */
 		:root {
-			--uma-accent: #4f39f6;            /* indigo-600 */
-			--uma-accent-hover: #432dd7;      /* indigo-700 */
-			--uma-accent-soft: #eef2ff;       /* indigo-50  */
-			--uma-accent-soft-text: #432dd7;  /* indigo-700 */
-			--uma-accent-border: #c6d2ff;     /* indigo-200 */
-			--uma-accent-ring: #4f39f6;       /* indigo-600 */
+			--uma-accent: var(--uma-deck-accent);
+			--uma-accent-hover: var(--uma-deck-accent-hover);
+			--uma-accent-soft: var(--uma-deck-accent-soft);
+			--uma-accent-soft-text: var(--uma-deck-accent-soft-text);
+			--uma-accent-border: var(--uma-deck-accent-border);
+			--uma-accent-ring: var(--uma-deck-accent-ring);
 		}
 
 		/* .glass-card / .icon-btn / 入力欄の一括指定は css/common.css へ移した。

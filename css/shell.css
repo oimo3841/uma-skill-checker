@@ -21,7 +21,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-09-11a";
+	--uma-shell-css-version: "2026-09-11b";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -347,9 +347,29 @@
 /* ✕はカードの右上に浮かせる（見出しを中央に置きたいので、頭に行を作らない） */
 .notice-close { position: absolute; top: var(--uma-sp-2); right: var(--uma-sp-2); }
 
-/* 右上の「新UI」バッジ。押すと告知を読み直せる。 */
-.ui-mode-badge { cursor: pointer; transition: background-color var(--uma-transition); }
+/* 右上の「新UI」バッジ。押すと告知を読み直せる。
+   色はそのスコープのアクセント（special は .deck-accent を付けて Deck の色、exam はページの藍）。 */
+.ui-mode-badge {
+	cursor: pointer; transition: background-color var(--uma-transition);
+	background: var(--uma-accent-soft); color: var(--uma-accent-soft-text);
+	border: 1px solid var(--uma-accent-border);
+}
 .ui-mode-badge:hover { background: var(--uma-accent-border); }
+
+/* ===== 「Deck 行き」の部品 =====
+   色は .deck-accent（css/tokens.css）の中で --uma-accent 系に写像された Deck の色になる。
+   以前は special.html が indigo のユーティリティを直書きしていたが、Deck の色を1か所で
+   変えられるようにトークン経由へ寄せた（2026-09-11・段2）。 */
+/* スコープの中のアイコン（lucide が <i> を <svg class> に置き換えるので class で拾う） */
+.deck-accent .deck-icon, .btn-deck-accent .deck-icon { color: var(--uma-accent); }
+/* FAB の項目のうち Deck 行きのものは、アイコンの丸を Deck の色で塗る */
+.deck-accent .uma-fab-icon { background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
+/* 「いま新UIにいる」ことを示す、二次ボタンの点灯状態（旧UIへ／新UIへ のボタン） */
+.uma-btn.is-on { border-color: var(--uma-accent-border); background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
+/* 結果の先頭に置く取り込み案内（未取り込みのとき。取り込み済みは各ページの緑のユーティリティ） */
+.deck-note { border: 1px solid var(--uma-accent-border); border-radius: var(--uma-r-lg); background: var(--uma-accent-soft); padding: var(--uma-sp-4); }
+.deck-note-title { color: var(--uma-accent-soft-text); }
+.deck-note-text { color: var(--uma-accent-soft-text); }
 .ui-mode-badge:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: 2px; }
 
 @media (max-width: 640px) {

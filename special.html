@@ -14,9 +14,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-11a" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-11a" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-11a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-11b" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-11b" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-11b" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -151,7 +151,7 @@
 					     旧UI（既定）のときは何も出さない（旧UIが「普通の状態」なので）。 -->
 					<!-- 押すと告知を読み直せる（既読の状態は変えない） -->
 					<button type="button" id="ui-mode-badge" hidden onclick="reopenUiNotice()"
-						class="ui-mode-badge shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200"
+						class="ui-mode-badge deck-accent shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full"
 						title="スキルの選び方が変わったお知らせをもう一度見る">新UI</button>
 
 					<!-- ツール切り替えドロップダウン -->
@@ -206,7 +206,7 @@
 					     （いま旧UIにいるのは、モーダルを読んだうえで自分で戻った人だけ）。 -->
 					<button id="deck-mode-btn" type="button" onclick="toggleDeckMode()" class="uma-btn uma-btn--secondary btn-deck-accent"
 						title="以前のUIに戻します（スキルリストを手で貼り付ける形）">
-						<i data-lucide="arrow-left-right" class="w-4 h-4 text-indigo-500"></i>
+						<i data-lucide="arrow-left-right" class="w-4 h-4 deck-icon"></i>
 						<span id="deck-mode-btn-label">旧UIへ</span>
 					</button>
 
@@ -535,7 +535,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-11a';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-11b';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -1762,7 +1762,7 @@
 			document.getElementById('deck-skill-body').classList.remove('hidden');
 			document.getElementById('step1-title').textContent = '対象スキルセットを選ぶ';
 			const btn = document.getElementById('deck-mode-btn');
-			btn.classList.add('border-indigo-300', 'bg-indigo-50', 'text-indigo-700');
+			btn.classList.add('is-on');  // 点灯（Deck の色。css/shell.css の .uma-btn.is-on）
 			btn.title = '以前のUIに戻します（スキルリストを手で貼り付ける形）';
 			document.getElementById('deck-mode-btn-label').textContent = '旧UIへ';
 			document.getElementById('ui-mode-badge').hidden = false;
@@ -1814,7 +1814,7 @@
 			document.getElementById('manual-skill-body').classList.remove('hidden');
 			document.getElementById('step1-title').textContent = 'スキルリストを入力';
 			const btn = document.getElementById('deck-mode-btn');
-			btn.classList.remove('border-indigo-300', 'bg-indigo-50', 'text-indigo-700');
+			btn.classList.remove('is-on');
 			btn.title = '新しいUIに切り替えます（対象スキルセットをUmaSkill Deckから選べます）';
 			document.getElementById('deck-mode-btn-label').textContent = '新UIへ';
 			document.getElementById('ui-mode-badge').hidden = true;
@@ -1888,7 +1888,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-11c';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-11d';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {
@@ -2200,16 +2200,17 @@
 
 			const done = !!payload.imported;
 			const who = payload.persons.map(p => p.label).join('・');
+			// 未取り込み＝Deck の色（.deck-accent の中の .deck-note。css/shell.css）、取り込み済み＝緑
 			document.getElementById('deck-handoff-box').className =
-				'rounded-xl border p-4 ' + (done ? 'border-green-200 bg-green-50' : 'border-indigo-200 bg-indigo-50');
+				done ? 'rounded-xl border p-4 border-green-200 bg-green-50' : 'deck-accent deck-note';
 			document.getElementById('deck-handoff-dot').hidden = done;
 			const title = document.getElementById('deck-handoff-title');
 			title.textContent = done ? 'この結果はUmaSkill Deckに取り込み済みです' : 'この結果をUmaSkill Deckに取り込めます';
-			title.className = 'text-xs font-bold ' + (done ? 'text-green-900' : 'text-indigo-900');
+			title.className = 'text-xs font-bold ' + (done ? 'text-green-900' : 'deck-note-title');
 			const detail = document.getElementById('deck-handoff-detail');
 			detail.textContent = who + ' の' + payload.persons.length + '人分・スキル' + payload.skillNames.length + '件を渡しました。'
 				+ (done ? '' : 'UmaSkill Deckを開き、「読み込む」から保存先の比較シートと候補を選んでください。');
-			detail.className = 'text-[11px] mt-0.5 leading-relaxed ' + (done ? 'text-green-800/80' : 'text-indigo-800/80');
+			detail.className = 'text-[11px] mt-0.5 leading-relaxed ' + (done ? 'text-green-800/80' : 'deck-note-text');
 			document.getElementById('deck-handoff-btn-label').textContent = done ? 'UmaSkill Deckを開く' : 'UmaSkill Deckを開いて取り込む';
 			note.classList.remove('hidden');
 
@@ -2273,15 +2274,15 @@
 					     ここで知らせる。取り込みが済んだかどうかは refreshDeckHandoffState()
 					     が localStorage を見て切り替える（Deck側の取り込みは storage イベントで届く）。 -->
 					<div id="deck-handoff-note" class="hidden mb-6">
-						<div id="deck-handoff-box" class="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+						<div id="deck-handoff-box" class="deck-accent deck-note">
 							<div class="flex items-start gap-2.5">
 								<span class="relative shrink-0 mt-0.5">
-									<i data-lucide="layers" class="w-4 h-4 text-indigo-600"></i>
+									<i data-lucide="layers" class="w-4 h-4 deck-icon"></i>
 									<span id="deck-handoff-dot" class="uma-fab-dot" style="top:-5px; right:-5px;"></span>
 								</span>
 								<div class="min-w-0">
-									<p id="deck-handoff-title" class="text-xs font-bold text-indigo-900">この結果をUmaSkill Deckに取り込めます</p>
-									<p id="deck-handoff-detail" class="text-[11px] text-indigo-800/80 mt-0.5 leading-relaxed"></p>
+									<p id="deck-handoff-title" class="text-xs font-bold deck-note-title">この結果をUmaSkill Deckに取り込めます</p>
+									<p id="deck-handoff-detail" class="text-[11px] deck-note-text mt-0.5 leading-relaxed"></p>
 								</div>
 							</div>
 							<button type="button" onclick="fabGoTo('deck')" class="uma-btn uma-btn--primary uma-btn--lg btn-deck-accent w-full mt-3">
@@ -2407,10 +2408,10 @@
 		<!-- Deck へ向かうボタンだけは Deck 側のアクセント（藍）で塗り、行き先を色で示す。
 		     新UIのあいだだけ出す（updateDeckEntryVisibility）。既定の旧UIでは出さないので
 		     hidden を書いた状態で置いてある。 -->
-		<button id="deck-drawer-trigger" type="button" class="uma-fab-item" onclick="fabGoTo('deck')"
+		<button id="deck-drawer-trigger" type="button" class="uma-fab-item deck-accent" onclick="fabGoTo('deck')"
 			aria-controls="deck-drawer" aria-expanded="false" hidden>
 			<span>UmaSkill Deck</span>
-			<span class="uma-fab-icon" style="background: #eef2ff; color: #432dd7;">
+			<span class="uma-fab-icon">
 				<i data-lucide="layers" class="w-4 h-4"></i>
 				<span id="fab-dot-deck" class="uma-fab-dot" hidden></span>
 			</span>
@@ -2428,7 +2429,7 @@
 	<aside id="deck-drawer" class="uma-drawer" hidden role="dialog" aria-modal="true" aria-label="UmaSkill Deck">
 		<div class="uma-drawer-header">
 			<div class="flex items-center gap-2 min-w-0">
-				<i data-lucide="layers" class="w-4 h-4 text-indigo-600 shrink-0"></i>
+				<i data-lucide="layers" class="w-4 h-4 deck-accent deck-icon shrink-0"></i>
 				<p class="text-sm font-bold text-slate-800 truncate">UmaSkill Deck</p>
 				<span class="text-[11px] text-slate-400 truncate hidden sm:inline">テンプレートと比較シートをここで編集できます</span>
 			</div>

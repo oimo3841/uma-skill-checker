@@ -15,12 +15,12 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-11c';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-11d';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
 // 「直したはずなのに直っていない」状態になるため、起動時に照合する。
-const EXPECTED_COMMON_CSS_VERSION = '2026-09-11a';
+const EXPECTED_COMMON_CSS_VERSION = '2026-09-11b';
 // このページが読む共通CSSと、それぞれが :root に持つ版の印
 const COMMON_CSS_FILES = [
 	['css/tokens.css', '--common-css-version'],
@@ -813,6 +813,7 @@ function injectOcrHandoffStyles() {
 		'  padding: var(--uma-sp-2-5) var(--uma-sp-3-5); margin-bottom: var(--uma-sp-4); }',
 		'.ocr-banner[hidden] { display: none !important; }',
 		'.ocr-banner-title { font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-accent-soft-text); }',
+		'.ocr-banner-icon { color: var(--uma-accent); }',
 		'.ocr-banner-sub { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
 		'.ocr-banner-actions { display: flex; gap: var(--uma-sp-1-5); flex-shrink: 0; }',
 		'.ocr-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2); padding: var(--uma-sp-2) var(--uma-sp-2-5);',
@@ -839,7 +840,7 @@ function ensureOcrHandoffBanner() {
 	el.hidden = true;
 	el.innerHTML = '' +
 		'<div class="flex items-center gap-2.5 min-w-0">' +
-			'<i data-lucide="download" class="w-4 h-4 text-indigo-600 shrink-0"></i>' +
+			'<i data-lucide="download" class="w-4 h-4 ocr-banner-icon shrink-0"></i>' +
 			'<div class="min-w-0">' +
 				'<p class="ocr-banner-title" data-ocr-el="title"></p>' +
 				'<p class="ocr-banner-sub" data-ocr-el="summary"></p>' +

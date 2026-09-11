@@ -7,8 +7,8 @@
 	<!-- 確認専用。ツール本体には組み込まない。
 	     tokens.css（変数）と common.css（共通部品）だけを読み込み、Tailwind も lucide も使わない。
 	     ここが正しく見えていれば、共通部分の妥当性は確認できる。 -->
-	<link rel="stylesheet" href="tokens.css?v=2026-09-11a" />
-	<link rel="stylesheet" href="common.css?v=2026-09-11a" />
+	<link rel="stylesheet" href="tokens.css?v=2026-09-11b" />
+	<link rel="stylesheet" href="common.css?v=2026-09-11b" />
 	<style>
 		body { margin: 0; padding: 24px; background: #fff; font-family: ui-sans-serif, system-ui, sans-serif; }
 		.sg-wrap { max-width: 960px; margin: 0 auto; }
@@ -38,8 +38,9 @@
 			--uma-accent-soft-text: #016630; --uma-accent-border: #b9f8cf; --uma-accent-ring: #008236;
 		}
 		.sg-accent-deck {
-			--uma-accent: #4f39f6; --uma-accent-hover: #432dd7; --uma-accent-soft: #eef2ff;
-			--uma-accent-soft-text: #432dd7; --uma-accent-border: #c6d2ff; --uma-accent-ring: #4f39f6;
+			--uma-accent: var(--uma-deck-accent); --uma-accent-hover: var(--uma-deck-accent-hover);
+			--uma-accent-soft: var(--uma-deck-accent-soft); --uma-accent-soft-text: var(--uma-deck-accent-soft-text);
+			--uma-accent-border: var(--uma-deck-accent-border); --uma-accent-ring: var(--uma-deck-accent-ring);
 		}
 	</style>
 </head>

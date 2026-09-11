@@ -30,7 +30,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-09-11a";
+	--uma-components-css-version: "2026-09-11b";
 }
 
 /* ============================================================
