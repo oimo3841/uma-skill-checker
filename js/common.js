@@ -21,7 +21,7 @@
 // このファイルの版。ツールの開発用ログの先頭に表示される。
 // 「どの版の common.js がブラウザで実際に動いているか」を確認するための目印。
 // 中身を変更したらこの日付も更新すること。
-const COMMON_JS_VERSION = '2026-09-10b';
+const COMMON_JS_VERSION = '2026-09-12a';
 
 const MAX_SIDE_PX = 3000;
 const CONF_THRESHOLD = 55;
@@ -30,14 +30,35 @@ const DARK_LEVEL = 128;
 const ADAPTIVE_BLOCK = 31;
 const ADAPTIVE_C = 12;
 
-// 2026-09-06b 追加: 画質による事前足切り（下記「画質判定」セクション参照）のしきい値。
-// X(旧Twitter)経由で再共有された画像や、「レシート因子メーカー」等で複数画像を
-// 結合したうえで再圧縮された画像は、文字のストロークが画素として失われており、
-// CHAR_CONFUSION_MAP や allowedDistance をどれだけ調整しても構造的に精度が出ないことを
-// 実機画像（HLCQGwlbYAAqGcD.jpg, 730×1931）で確認済み。
-// これらは「精度が悪い」のではなく「そもそも対象外の入力」として、OCRを試みる前に弾く。
-// 値は実測1件からの暫定値。他の劣化画像で誤って弾く/弾けないケースが出たら調整すること。
-const MIN_BASE_WIDTH_PX = 900;
+// 2026-09-06b 追加 / 2026-09-12 見直し: 画質による事前足切り（下記「画質判定」セクション参照）
+// のしきい値。
+//
+// X(旧Twitter)経由で再共有された画像や、「レシート因子メーカー」等で複数画像を結合した
+// うえで再圧縮された画像は、文字のストロークが画素として失われており、CHAR_CONFUSION_MAP や
+// allowedDistance をどれだけ調整しても構造的に精度が出ない（実機画像 HLCQGwlbYAAqGcD.jpg,
+// 730×1931 で確認済み）。これらを「そもそも対象外の入力」として弾くのがこのしきい値の目的。
+//
+// 2026-09-12: 当初は「横幅900px未満なら足切り」としていたが、実機ケース
+// test-images/20260912_シロエさんエル（765×1360 のスマホ直撮りスクリーンショット）が
+// 丸ごと弾かれる誤検出を確認した。幅を変えて検出数を実測した結果は次のとおり
+// （同一の結合結果を各幅へリサイズし、--dict=deck の445種で照合）:
+//
+//   幅  250  300  350  400  450  500  600  700  765(原寸)  900  1179
+//   検出  1    1    2   11   20   20   22   22    25       25    24
+//
+// 900px に「読める/読めない」の崖は存在せず、765px の原寸を弾く一方でそれを900pxへ
+// 引き伸ばしただけの（情報量が増えていない）画像は通してしまっていた。崖は 400〜450px の
+// 間にあり、そこを下回ると行検出ごと崩れる。
+// そこで「900px」は足切りではなく推奨値（下回ったら警告）に降格し、足切りは崖の手前の
+// 500px に置く。実機スクリーンショットの下限は js/stitch.js の
+// STITCH_KNOWN_SCREENSHOT_PROFILES でも 700px としており、500px を下回る入力は
+// 直撮りスクリーンショットではない。
+const RECOMMENDED_BASE_WIDTH_PX = 900;
+const MIN_BASE_WIDTH_PX = 500;
+// 鮮明度スコア（ラプラシアン分散）は画素あたりのエッジ強度なので、同じ画像でも
+// 縮小すると上がり拡大すると下がる（実測: 同一画像で 600px→1062 / 765px→1051 /
+// 900px→345）。つまりこの値は「小さい画像の劣化」を検出する用途には使えず、
+// 大きいのにぼやけている画像（拡大リサイズや強い再圧縮）を弾くためのものと考えること。
 const MIN_SHARPNESS_SCORE = 120;
 
 const CHAR_CONFUSION_MAP = {
@@ -245,14 +266,20 @@ function sharpnessScore(gray, w, h) {
  * 前処理を工夫しても復元できない（＝情報自体が失われている）ため、辞書やしきい値の
  * チューニング対象ではなく、事前に弾くべき「対象外の入力」として扱う。
  *
- * 呼び出し側（special.html/index.html）は、ok:false の場合はOCRを試みずスキップし、
- * reasons を利用者に見える形で表示すること。
+ * 判定は2段階ある。
+ *   - reasons（ok:false）… OCRを試みても結果が崩れる水準。呼び出し側はスキップし、
+ *     reasons を利用者に見える形で表示すること。
+ *   - warnings（ok:true）… 推奨より低品質だが実測では読める水準。呼び出し側は
+ *     OCRを実行したうえで、warnings を「取りこぼしがあるかもしれない」注意として表示すること。
+ *     ここを足切りにすると、765pxのスマホ直撮りスクリーンショットのような
+ *     正当な入力まで弾いてしまう（上のしきい値の実測表を参照）。
  *
- * 戻り値: { ok: boolean, width: number, height: number, sharpness: number|null, reasons: string[] }
+ * 戻り値: { ok, width, height, sharpness, reasons: string[], warnings: string[] }
  */
 function assessImageQuality(baseCanvas) {
 	const w = baseCanvas.width, h = baseCanvas.height;
 	const reasons = [];
+	const warnings = [];
 	let sharpness = null;
 	try {
 		const imageData = getPixels(baseCanvas);
@@ -263,8 +290,14 @@ function assessImageQuality(baseCanvas) {
 	}
 	if (w < MIN_BASE_WIDTH_PX) {
 		reasons.push(
-			'画像の横幅が ' + w + 'px しかありません（目安 ' + MIN_BASE_WIDTH_PX + 'px 以上）。' +
+			'画像の横幅が ' + w + 'px しかありません（下限 ' + MIN_BASE_WIDTH_PX + 'px）。' +
+			'この幅を下回ると行の切り出しごと崩れるため、OCRの対象外としています。' +
 			'SNSへの投稿・再共有や、複数画像を結合するツールを経由すると縮小されがちです。'
+		);
+	} else if (w < RECOMMENDED_BASE_WIDTH_PX) {
+		warnings.push(
+			'画像の横幅が ' + w + 'px で、推奨の ' + RECOMMENDED_BASE_WIDTH_PX + 'px を下回っています。' +
+			'読み取りは行いますが、取りこぼしが起きやすくなります。'
 		);
 	}
 	if (sharpness !== null && sharpness < MIN_SHARPNESS_SCORE) {
@@ -273,7 +306,10 @@ function assessImageQuality(baseCanvas) {
 			'文字のストロークが潰れている可能性が高く、再圧縮や過度な縮小が繰り返された画像で起こりやすい現象です。'
 		);
 	}
-	return { ok: reasons.length === 0, width: w, height: h, sharpness: sharpness, reasons: reasons };
+	return {
+		ok: reasons.length === 0, width: w, height: h, sharpness: sharpness,
+		reasons: reasons, warnings: warnings
+	};
 }
 
 function greenMaskOf(imageData) {

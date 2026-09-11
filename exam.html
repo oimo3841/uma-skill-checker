@@ -17,7 +17,7 @@
 	<!-- Lucide Icons -->
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html / exam.html で共有） -->
-	<script src="js/common.js?v=2026-09-10b"></script>
+	<script src="js/common.js?v=2026-09-12a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-09a"></script>
 	<style>
@@ -1830,6 +1830,8 @@
 		async function processPersonImages(worker, files, labelPrefix, usePre, multi, wantPreview) {
 			const lines = [];
 			const skipped = [];
+			// 足切りはしないが品質が推奨を下回った画像（利用者への注意表示用）
+			const warned = [];
 			for (let i = 0; i < files.length; i++) {
 				const file = files[i];
 				const diag = [];
@@ -1839,9 +1841,10 @@
 					base = toBaseCanvas(img);
 					diag.push('画像サイズ ' + base.width + '×' + base.height);
 
-					// 画質による事前足切り（common.js参照）。SNS再共有や画像結合ツールを経由した
-					// 画像は、辞書やしきい値を調整しても構造的に精度が出ないことを確認済みのため、
-					// OCRを試みる前にここで弾き、利用者に理由が分かる形でスキップする。
+					// 画質による事前チェック（common.js参照）。SNS再共有や画像結合ツールを経由した
+					// 画像は、辞書やしきい値を調整しても構造的に精度が出ないことを確認済み。
+					// ただし「推奨を下回る」と「読めない」は別物なので、前者は警告にとどめて
+					// OCRは実行し、後者（quality.ok===false）だけをスキップする。
 					const quality = assessImageQuality(base);
 					if (quality.sharpness !== null) {
 						diag.push('鮮明度スコア ' + Math.round(quality.sharpness) + '（目安 ' + MIN_SHARPNESS_SCORE + ' 以上）');
@@ -1852,6 +1855,11 @@
 						devGeometry.push('【' + labelPrefix + ' ' + file.name + '】\n  ' + diag.join('\n  '));
 						skipped.push({ label: labelPrefix, name: file.name, reasons: quality.reasons });
 						continue;
+					}
+					if (quality.warnings.length > 0) {
+						diag.push('→ 推奨品質は下回るが読み取りは可能と判断し、OCRを実行します');
+						quality.warnings.forEach(r => diag.push('  ・' + r));
+						warned.push({ label: labelPrefix, name: file.name, reasons: quality.warnings });
 					}
 
 					detection = detectSkillRows(base, diag);
@@ -1896,7 +1904,7 @@
 					}
 				}
 			}
-			return { lines: lines, skipped: skipped };
+			return { lines: lines, skipped: skipped, warned: warned };
 		}
 
 		// opts.keepClosed … 判定後に照合結果の引き出しを自動で開かない（OCR＋結合のときは、
@@ -1926,6 +1934,7 @@
 			let worker = null;
 			let anySuccess = false;
 			const skippedAll = [];
+			const warnedAll = [];
 
 			try {
 				setProgress(0, 'OCRエンジンを初期化中…');
@@ -1945,6 +1954,7 @@
 					const result = await processPersonImages(worker, files, PERSON_LABELS[p], usePre, multi, wantPreview);
 					if (result.lines.length > 0) anySuccess = true;
 					if (result.skipped.length > 0) skippedAll.push.apply(skippedAll, result.skipped);
+					if (result.warned.length > 0) warnedAll.push.apply(warnedAll, result.warned);
 					personResults[p] = matchAllSkillsWithStars(result.lines, skillList, skillIndex, {});
 				}
 			} catch (err) {
@@ -1961,12 +1971,21 @@
 			progressWrap.classList.add('hidden');
 			processBtn.disabled = false;
 
-			if (skippedAll.length > 0) {
+			if (skippedAll.length > 0 || warnedAll.length > 0) {
 				qualityWarnWrap.classList.remove('hidden');
-				const detail = skippedAll.map(s => '・' + s.label + ': ' + s.name).join('\n');
-				document.getElementById('quality-warn-content').textContent =
-					skippedAll.length + '件の画像を、解像度/鮮明度不足のため対象外としてOCRをスキップしました。\n' + detail +
-					'\nSNSへの再投稿や複数画像結合ツールを経由すると起こりやすい現象です。ゲーム画面から直接撮ったスクリーンショットの利用を推奨します。';
+				const msgs = [];
+				if (skippedAll.length > 0) {
+					msgs.push(
+						skippedAll.length + '件の画像を、解像度/鮮明度不足のため対象外としてOCRをスキップしました。\n' +
+						skippedAll.map(s => '・' + s.label + ': ' + s.name).join('\n'));
+				}
+				if (warnedAll.length > 0) {
+					msgs.push(
+						warnedAll.length + '件の画像は推奨品質を下回りますが、読み取りは行いました（取りこぼしの可能性があります）。\n' +
+						warnedAll.map(s => '・' + s.label + ': ' + s.name + '\n    ' + s.reasons.join('\n    ')).join('\n'));
+				}
+				msgs.push('SNSへの再投稿や複数画像結合ツールを経由すると起こりやすい現象です。ゲーム画面から直接撮ったスクリーンショットの利用を推奨します。');
+				document.getElementById('quality-warn-content').textContent = msgs.join('\n\n');
 			}
 
 			if (!anySuccess) {
@@ -2433,7 +2452,7 @@
 			// 更新したはずの内容が反映されていない（キャッシュ・貼り忘れ等）ことを切り分けるため。
 			parts.push('■ 実行環境\n  common.js 版: ' + (typeof COMMON_JS_VERSION !== 'undefined' ? COMMON_JS_VERSION : '(不明・古い版です)') +
 				'\n  緑59種カウントモード: ' + (countMode === 'equivalence' ? '実質' + effectiveGreen59EquivalenceMax() + '種（既定）' : '59種個別') +
-				'\n  画質しきい値: 横幅' + MIN_BASE_WIDTH_PX + 'px以上 / 鮮明度スコア' + MIN_SHARPNESS_SCORE + '以上');
+				'\n  画質しきい値: 横幅' + MIN_BASE_WIDTH_PX + 'px未満は対象外 / ' + RECOMMENDED_BASE_WIDTH_PX + 'px未満は警告 / 鮮明度スコア' + MIN_SHARPNESS_SCORE + '以上');
 			if (devGeometry.length) parts.push('■ 行検出・★判定の内訳\n' + devGeometry.join('\n'));
 
 			// デバッグしやすいよう、件数だけでなく実際のOCRテキスト・正規化結果・
