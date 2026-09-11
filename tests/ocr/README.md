@@ -10,20 +10,30 @@ HTML側や `js/common.js` の修正がそのままテスト結果に反映され
 ## 実行方法
 
 ```bash
-npm run test:ocr                              # exam.html / 133種リスト / 元画像
+npm run test:ocr                              # exam.html / 組み込み133種（--dict=exam が既定）/ 元画像
 npm run test:ocr -- --stitched                # 先に stitchOnePerson() で結合してからOCR
 npm run test:ocr -- --page=special            # special.html を対象にする
+npm run test:ocr -- --dict=exam               # exam.html の組み込み133種を照合辞書に（npm script の既定）
 npm run test:ocr -- --dict=deck               # uma-skill-deck-skills.json の全スキルを照合辞書に
+npm run test:ocr -- --dict=page               # ページ側が起動時に持つ skillList をそのまま照合辞書に
 npm run test:ocr -- --dict=連綿,存在感        # 指定したスキル名だけを照合辞書に
 npm run test:ocr -- --expect=連綿             # 検出されるべきスキルを指定して合否判定（未検出なら exit 1）
 npm run test:ocr -- --errdict=連締=連綿       # special.html の「読み替え辞書」と同じ補正を効かせる
 ```
 
-オプションは組み合わせられる。実機で報告された取りこぼしを再現する例:
+オプションは組み合わせられる。同じオプションを2回渡したときは**後のものが勝つ**ので、
+npm script が付けている既定の `--dict=exam` はコマンドラインで上書きできる。
+実機で報告された取りこぼしを再現する例:
 
 ```bash
 npm run test:ocr -- --page=special --dict=deck --expect=連綿
 ```
+
+`--dict=exam` を既定にしている理由: exam.html の既定が新UI（UmaSkill Deck から対象スキルセットを
+選ぶ）になると、`file://` ではマスターが読めず、ページ側の `skillList` が空か組み込みサンプル3件に
+なる。その状態で「ページ既定」を使うと**テストが黙って別の対象で走る**ため、技能試験の133種で
+照合したいことを常に明示する（`--dict=exam` は実際に exam.html を開いて `EXAM_SKILL_LIST` から
+名前を取り出す。ソースを正規表現で拾ってはいない）。
 
 初回のみ `npm install` と `npx playwright install chromium` が必要。
 OCRエンジン(tesseract.js)と日本語辞書は CDN から取得するため**ネットワーク接続が必要**。
@@ -53,8 +63,8 @@ npm run test:norm
 
 ## 判定の見方
 
-- `exam.html` の既定の照合対象は `EXAM_SKILL_LIST` の**133種のみ**。
-  `--dict=deck` を付けると `uma-skill-deck-skills.json` の439種になる。
+- `npm run test:ocr` の既定の照合対象は `exam.html` の `EXAM_SKILL_LIST` の**133種のみ**（`--dict=exam`）。
+  `--dict=deck` を付けると `uma-skill-deck-skills.json` の全件（445種）になる。
   画像に写っていても辞書に無いもの(レース名・因子・シナリオ因子など)は
   検出されなくて正常。取りこぼしを数えるときは、まず正解リストを辞書で
   絞り込んでから比較すること。

@@ -524,6 +524,40 @@ const browser = await chromium.launch();
 }
 
 /* ============================================================
+ * exam.html（UmaExam OCR）— 最小ブロック
+ *
+ * 第2段階（exam×Deck）の着手にあたり、それまで exam を見る項目が 0 件だった
+ * ところに受け皿を作った。読み込める・コンソールエラー0・375px で横スクロール無し、
+ * に加えて「組み込み133種が登録されて見えている」ことだけを見る。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+
+	assert((await page.title()).includes('UmaExam OCR'), 'exam: HTTP で読み込める', await page.title());
+
+	const registry = await page.evaluate(() => ({
+		rows: document.querySelectorAll('#skill-registry-list > div').length,
+		badge: document.getElementById('step1-skill-badge').textContent,
+		sp70: document.getElementById('badge-sp70-count').textContent,
+		green: document.getElementById('badge-green59-count').textContent,
+		total: document.getElementById('header-skill-count').textContent
+	}));
+	assert(registry.rows === 133 && registry.total === '133' && registry.badge === '133種 登録済み',
+		'exam: 組み込みの133種が登録されている', registry);
+	assert(registry.sp70 === 'sp70緑：17種' && registry.green === '緑59種（実質53種）',
+		'exam: sp70緑17・緑59（実質53）のバッジが出る', registry);
+
+	// 375px で横スクロールが出ていないこと
+	await page.setViewportSize({ width: 375, height: 812 });
+	await page.waitForTimeout(500);
+	const ov = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
+	assert(ov.sw === ov.cw, 'exam: 375px で横スクロールが出ない', ov);
+
+	assert(errors.length === 0, 'exam: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
  * uma-skill-deck.html（UmaSkill Deck）
  * ============================================================ */
 {

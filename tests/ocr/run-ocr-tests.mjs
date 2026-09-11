@@ -5,13 +5,23 @@
 // 中の OCR 処理をそのまま呼び出す(ロジックの複製は一切行わない)。
 //
 // 使い方:
-//   npm run test:ocr                          … exam.html / 133種リスト / 元画像
+//   npm run test:ocr                          … exam.html / 組み込み133種（--dict=exam）/ 元画像
 //   npm run test:ocr -- --stitched            … 先に画像結合してから、その結合結果をOCR
 //   npm run test:ocr -- --page=special        … special.html を対象にする
+//   npm run test:ocr -- --dict=exam           … exam.html の組み込み133種を照合辞書に（npm script の既定）
 //   npm run test:ocr -- --dict=deck           … uma-skill-deck-skills.json の全スキルを照合辞書に
+//   npm run test:ocr -- --dict=page           … ページ側が起動時に持つ skillList をそのまま照合辞書に
 //   npm run test:ocr -- --dict=連綿,存在感    … 指定したスキル名だけを照合辞書に
 //   npm run test:ocr -- --expect=連綿,存在感  … 検出されるべきスキルを指定し、合否を判定する
 //   npm run test:ocr -- --errdict=連締=連綿   … special.html の「読み替え辞書」と同じ補正を効かせる
+//
+// 同じオプションを2回渡したときは後のものが勝つ（npm script が付ける既定の --dict=exam を、
+// `npm run test:ocr -- --dict=deck` のように上書きできるようにするため）。
+//
+// 「ページ側の skillList をそのまま使う」を既定にしていない理由:
+//   exam.html の既定が新UI（Deck から対象スキルセットを選ぶ）になると、file:// では
+//   マスターが読めず skillList が空か組み込みサンプル3件になり、テストが黙って別の対象で
+//   走ってしまう（F-29③と同型）。技能試験の133種で照合したいことを常に明示する。
 //
 // 出力:
 //   コンソールに検出スキル一覧・★・診断ログ・エラーを表示し、
@@ -31,7 +41,8 @@ const DECK_MASTER = path.join(ROOT, 'uma-skill-deck-skills.json');
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.bmp', '.webp']);
 
 function argValue(name, fallback) {
-	const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
+	// 後に書いたものが勝つ（npm script の既定値をコマンドラインから上書きできるように）
+	const hit = process.argv.filter((a) => a.startsWith(`--${name}=`)).pop();
 	return hit ? hit.slice(name.length + 3) : fallback;
 }
 
@@ -50,11 +61,22 @@ const ERRDICT = ERRDICT_ARG
 		)
 	: {};
 
-async function resolveDictionary() {
-	if (!DICT_ARG) return null; // ページ側の既定の照合対象をそのまま使う
+async function resolveDictionary(browser) {
+	if (!DICT_ARG || DICT_ARG === 'page') return null; // ページ側の既定の照合対象をそのまま使う
 	if (DICT_ARG === 'deck') {
 		const json = JSON.parse(await fs.readFile(DECK_MASTER, 'utf-8'));
 		return (json.skills || json).map((s) => s.name || String(s));
+	}
+	if (DICT_ARG === 'exam') {
+		// exam.html が組み込みで持つ技能試験の133種。ソースを正規表現で拾うのではなく
+		// 実際に exam.html を開いて定数を読む（持ち方が名前の配列から {id, name} に
+		// 変わっても追従できるように、どちらの形でも名前だけを取り出す）。
+		const page = await browser.newPage();
+		await page.goto(pathToFileURL(path.join(ROOT, 'exam.html')).href, { waitUntil: 'load' });
+		const names = await page.evaluate(() =>
+			EXAM_SKILL_LIST.map((s) => (typeof s === 'string' ? s : s.name)));
+		await page.close();
+		return names;
 	}
 	return DICT_ARG.split(',').map((s) => s.trim()).filter(Boolean);
 }
@@ -171,9 +193,8 @@ async function main() {
 		console.log(`[警告] ${TEST_IMAGES_DIR} にテストケースが見つかりません。`);
 		return;
 	}
-	const dictNames = await resolveDictionary();
-
 	const browser = await chromium.launch();
+	const dictNames = await resolveDictionary(browser);
 	const page = await browser.newPage();
 	const pageErrors = [];
 	const consoleErrors = [];
@@ -186,7 +207,7 @@ async function main() {
 
 	console.log(`対象ページ: ${PAGE_NAME}`);
 	console.log(`モード: ${USE_STITCHED ? '画像結合してからOCR' : '元画像をそのままOCR'}`);
-	console.log(`照合辞書: ${dictNames ? `指定 ${dictNames.length}件` : 'ページ既定'}`);
+	console.log(`照合辞書: ${dictNames ? `指定 ${dictNames.length}件（--dict=${DICT_ARG}）` : 'ページ既定'}`);
 	console.log(`読み替え辞書: ${Object.keys(ERRDICT).length}件\n`);
 
 	let failed = 0;

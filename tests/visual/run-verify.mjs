@@ -62,7 +62,9 @@ function grabQuery(sources) {
 
 const ALL_JS = ['special.html', 'uma-skill-deck.html', 'exam.html', 'index.html',
 	'js/common.js', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/stitch.js'];
-const TARGETS = ['special.html', 'uma-skill-deck.html', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js'];
+// 15セッション目: exam.html を「変更してはいけないファイル」から外し、
+// special.html と同じくセレクタ資産・class・構文の検査対象に移した（第2段階の着手）。
+const TARGETS = ['special.html', 'exam.html', 'uma-skill-deck.html', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js'];
 
 console.log('=== 1. バージョン文字列の整合 ===');
 const css = read('css/common.css');
@@ -84,6 +86,7 @@ console.log('     内部定数:  common.js=%s / core=%s / deck=%s / css=%s', com
 for (const [p, pat, ver, name] of [
 	['special.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
 	['special.html', /js\/common\.js\?v=([0-9a-z-]+)/g, commonVer, 'common.js'],
+	['exam.html', /js\/common\.js\?v=([0-9a-z-]+)/g, commonVer, 'common.js'],
 	['uma-skill-deck.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
 	['uma-skill-deck.html', /js\/uma-skill-deck\.js\?v=([0-9a-z-]+)/g, deckVer, 'deck.js'],
 	// special.html の引き出しパネルが読む iframe。deck.js の版に合わせている値だが、
@@ -95,7 +98,7 @@ for (const [p, pat, ver, name] of [
 }
 
 console.log('\n=== 2. 変更してはいけないファイル ===');
-for (const p of ['index.html', 'exam.html', 'js/common.js', 'js/stitch.js']) {
+for (const p of ['index.html', 'js/common.js', 'js/stitch.js']) {
 	const r = spawnSync('git', ['diff', '--quiet', 'HEAD', '--', p], { cwd: REPO_ROOT });
 	check(r.status === 0, p + ' が未変更');
 }
@@ -114,6 +117,10 @@ const INTENTIONALLY_REMOVED = {
 		// 14セッション目: 既定を新UIにしたので、旧UIから新UIへ誘う告知一式が不要になった。
 		// いま旧UIにいるのは、切り替えの告知を読んだうえで自分で戻った人だけ（C-16）
 		'new-ui-cta', 'deck-mode-new-badge', 'new-ui-coach', 'new-ui-coach-title', 'new-ui-welcome',
+	],
+	'exam.html': [
+		// 15セッション目: 第2段階（exam×Deck）の受け皿として欄だけ用意。まだ消したものは無い。
+		// 旧UIの要素を消す段階になったら、special.html と同じ作法で1行ずつ理由を添えて足す
 	],
 	'js/uma-skill-deck-core.js': [
 		// 13セッション目: 8軸すべてが常に見える形（1行 or 角丸ボタンの多段）にしたので、
@@ -142,6 +149,7 @@ console.log('\n=== 4. 消したclassがJSに掴まれていないか ===');
 // querySelector 系は文書全体を探すのでファイル横断で危険。
 const SIBLINGS = {
 	'special.html': ['special.html', 'js/common.js', 'js/uma-skill-deck-core.js', 'js/stitch.js'],
+	'exam.html': ['exam.html', 'js/common.js', 'js/stitch.js'],
 	'uma-skill-deck.html': ['uma-skill-deck.html', 'js/uma-skill-deck.js', 'js/uma-skill-deck-core.js'],
 	'js/uma-skill-deck-core.js': ['js/uma-skill-deck-core.js'],
 	'js/uma-skill-deck.js': ['js/uma-skill-deck.js'],
@@ -160,7 +168,7 @@ for (const [p, sources] of Object.entries(SIBLINGS)) {
 
 console.log('\n=== 5. JS構文チェック ===');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'umacheck-'));
-for (const p of ['special.html', 'uma-skill-deck.html', 'css/styleguide.html']) {
+for (const p of ['special.html', 'exam.html', 'uma-skill-deck.html', 'css/styleguide.html']) {
 	const blocks = [...read(p).matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
 	console.log('     %s: <script>ブロック %d件', p, blocks.length);
 	blocks.forEach((b, i) => {
