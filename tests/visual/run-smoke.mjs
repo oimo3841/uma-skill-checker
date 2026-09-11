@@ -1614,6 +1614,7 @@ const browser = await chromium.launch();
 			hidden: foot.hidden,
 			count: document.querySelector('[data-usd-el="picker-checked-count"]').textContent,
 			disabled: document.querySelector('[data-usd-el="picker-commit"]').disabled,
+			label: document.querySelector('[data-usd-el="picker-commit"]').textContent,
 			bg: st.backgroundColor,
 			opacity: st.opacity,
 			// スクロール領域の下端がフッターの上端を越えていない＝重なっていない
@@ -1623,6 +1624,8 @@ const browser = await chromium.launch();
 	const foot0 = await footState();
 	assert(foot0.hidden === false && foot0.count === '0種選択' && foot0.disabled === true,
 		'deck: 何もチェックしていなければ「0種選択」でボタンは押せない', foot0);
+	assert(foot0.label === 'チェックしたスキルを追加',
+		'deck: まだ何も足していないうちは「追加済み」を出さない', foot0.label);
 	assert(foot0.opacity === '1' && /^rgb\(\d+, \d+, \d+\)$/.test(foot0.bg),
 		'deck: フッターの地は不透明で塗ってある（opacity を使わない）', foot0);
 	assert(foot0.overlap <= 0, 'deck: フッターがスクロール領域に重ならない（最後の行を隠さない）', foot0);
@@ -1662,6 +1665,34 @@ const browser = await chromium.launch();
 	assert(footNone.count === '0種選択' && footNone.disabled === true,
 		'deck: 全て解除すると「0種選択」へ戻りボタンも止まる', footNone);
 
+	// 実際に押すと、足したぶんがボタンの中に累計で残る。
+	// 押すとチェックは外れて一覧からも消えるので、これが無いと足した実感が画面に残らない。
+	await page.click('[data-usd-el="results"] .usd-row:first-child input');
+	await page.click('[data-usd-el="results"] .usd-row:nth-child(2) input');
+	await page.waitForTimeout(200);
+	await page.click('[data-usd-el="picker-commit"]');
+	await page.waitForTimeout(500);
+	const footAdded = await footState();
+	assert(footAdded.label === 'チェックしたスキルを追加（2種追加済み）'
+		&& footAdded.count === '0種選択' && footAdded.disabled === true,
+		'deck: 追加すると「2種追加済み」がボタンに出て、選択は0種へ戻る', footAdded);
+
+	// もう1件足すと累計で数える（押すたびに上書きではない）
+	await page.click('[data-usd-el="results"] .usd-row:first-child input');
+	await page.waitForTimeout(200);
+	await page.click('[data-usd-el="picker-commit"]');
+	await page.waitForTimeout(500);
+	assert((await footState()).label === 'チェックしたスキルを追加（3種追加済み）',
+		'deck: 続けて足すと累計になる');
+
+	// 開き直すと0に戻る（モーダルを開いている間だけの数）
+	await page.click('[data-usd-act="picker-close"]');
+	await page.waitForTimeout(400);
+	await page.click('button[onclick="openRecordSkillPicker()"]');
+	await page.waitForTimeout(700);
+	assert((await footState()).label === 'チェックしたスキルを追加',
+		'deck: 開き直すと「追加済み」は0に戻る');
+
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);
 	assert(!(await page.isVisible('.usd-modal')), 'deck: モーダルが閉じる');
@@ -1690,7 +1721,9 @@ const browser = await chromium.launch();
 	// 実際に照合が動く（マスターに在る名前を2件）。
 	// 1件目はこの比較シートに既に入っているもの、2件目は入っていないものにしてある
 	// （フッターの「XX種選択」が、押したら実際に足される数だけを数えることを見るため）。
-	await page.fill('[data-usd-el="paste-input"]', '右回り○\n根幹距離○');
+	// 2件目は、上のフッターの検査で実際に足した3件（マスターの12〜14番目）より後ろの
+	// ものを選んでいる。手前のものにすると「追加済み」になって1件目と区別が付かなくなる。
+	await page.fill('[data-usd-el="paste-input"]', '右回り○\n道悪○');
 	await page.click('[data-usd-act="paste-run"]');
 	await page.waitForTimeout(500);
 	// 完全一致した行は一覧には出さない仕様（要確認の行だけを並べる）ので、件数サマリーで見る

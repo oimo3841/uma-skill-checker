@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11i';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11j';
 
 	/* ============================================================
 	 * 定数
@@ -576,7 +576,8 @@
 		'.usd-modal-foot[hidden] { display: none !important; }',
 		'.usd-foot-count { flex-shrink: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
 		'  font-weight: 600; color: var(--uma-text-subtle); white-space: nowrap; }',
-		'.usd-foot-commit { flex: 1 1 auto; justify-content: center; }',
+		'.usd-foot-commit { flex: 1 1 auto; justify-content: center; text-align: center; }',
+		'.usd-foot-added { white-space: nowrap; font-weight: 400; }',
 		// 一括貼り付けの照合結果
 		'.usd-paste-summary { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2); align-items: center; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); margin-bottom: var(--uma-sp-1-5); }',
 		'.usd-paste-ok { color: var(--uma-success); font-weight: 600; }',
@@ -758,7 +759,9 @@
 	let pickerEl = null;
 	// activeAxis は「モーダルを開いている間だけ」覚える。openSkillPicker() で毎回
 	// 先頭の軸に戻すので、localStorage には保存しない（以前の axisOpen と同じ寿命）。
-	let picker = { mode: 'filter', filters: {}, checked: new Set(), onAdd: null, excludeIds: [], activeAxis: TAG_AXES[0].key };
+	// addedCount は「このモーダルを開いてからボタンで足した数」。開くたび 0 に戻す
+	// （activeAxis と同じ寿命で、localStorage には持たない）。
+	let picker = { mode: 'filter', filters: {}, checked: new Set(), onAdd: null, excludeIds: [], addedCount: 0, activeAxis: TAG_AXES[0].key };
 	// 一括貼り付けの照合結果。各行に chosenId（採用したスキルID）を後から書き込む。
 	let pasteRows = [];
 
@@ -770,6 +773,10 @@
 	// 最初に決まっているので、選ばなかった2つは畳まれた見出しとして場所を取るだけだった。
 	// 入口を呼び出し元の画面（テンプレート編集・比較シート編集）へ出し、
 	// モーダルは選ばれた1つだけを出す形にしてある。
+	// フッターの確定ボタンの見出し。押した実績があるときは
+	// 「（XXX種追加済み）」を後ろに足すので、文字列はここ1か所に置く。
+	const PICKER_COMMIT_LABEL = 'チェックしたスキルを追加';
+
 	const PICKER_MODES = {
 		filter: { title: '条件でスキルを検索（軸間はAND・軸内はOR）', commit: true },
 		paste: { title: 'テキストで検索', commit: true },
@@ -823,7 +830,7 @@
 				// 「いま何種足すのか」をボタンの脇に出し、0種のときは押しても何も起きないので止める。
 				'<div class="usd-modal-foot" data-usd-el="picker-footer">' +
 					'<p class="usd-foot-count" data-usd-el="picker-checked-count">0種選択</p>' +
-					'<button type="button" class="uma-btn uma-btn--primary usd-foot-commit" data-usd-el="picker-commit" data-usd-act="picker-add" disabled>チェックしたスキルを追加</button>' +
+					'<button type="button" class="uma-btn uma-btn--primary usd-foot-commit" data-usd-el="picker-commit" data-usd-act="picker-add" disabled>' + PICKER_COMMIT_LABEL + '</button>' +
 				'</div>' +
 			'</div>';
 	}
@@ -1128,9 +1135,16 @@
 	}
 
 	/**
-	 * フッターの「XXX種選択」とボタンの活性を、いまのチェック状態に合わせる。
-	 * 数えるのは picker.checked ＝「押したら実際に足されるスキル」で、
-	 * 「表示中を全て選択」の隣に出ている件数（絞り込み結果の総数）とは別のもの。
+	 * フッターの表示を、いまのチェック状態と「これまでに足した数」に合わせる。
+	 *
+	 * 2つの数は意味が違うので、出す場所も分けてある。
+	 *   脇の「XXX種選択」   … picker.checked ＝ これから足すぶん（まだ足していない）
+	 *   ボタンの「XXX種追加済み」… picker.addedCount ＝ このモーダルを開いてから
+	 *                              ボタンを押して実際に足したぶんの累計
+	 * 押すとチェックは外れて一覧からも消えるため、ボタン側の数が無いと
+	 * 「さっき押したぶんがちゃんと入ったのか」を確かめる手がかりが画面に残らない。
+	 * どちらも「表示中を全て選択」の隣の件数（絞り込み結果の総数）とは別のもの。
+	 *
 	 * 条件で検索・テキストで検索のどちらも同じ集合を使うので、モードでは分けない。
 	 * 0種のときは押しても何も足されなかったので、ボタンごと止めて理由を数で示す。
 	 */
@@ -1140,7 +1154,13 @@
 		const label = q(pickerEl, 'picker-checked-count');
 		if (label) label.textContent = n + '種選択';
 		const btn = q(pickerEl, 'picker-commit');
-		if (btn) btn.disabled = (n === 0);
+		if (!btn) return;
+		btn.disabled = (n === 0);
+		// 0種のうちは「（0種追加済み）」を出さない（まだ何も起きていないので数える意味がない）。
+		// 375px では1行に収まらないので、折り返しは「追加済み」の括弧の中では起こさず、
+		// 見出しとの境目で起こす（span 側を nowrap にしてある）。
+		btn.innerHTML = PICKER_COMMIT_LABEL + (picker.addedCount > 0
+			? '<span class="usd-foot-added">（' + picker.addedCount + '種追加済み）</span>' : '');
 	}
 
 	function addCheckedSkills() {
@@ -1148,6 +1168,8 @@
 		const ids = Array.from(picker.checked);
 		if (picker.onAdd) picker.onAdd(ids);
 		picker.excludeIds = picker.excludeIds.concat(ids);
+		// 足したぶんは excludeIds に入って一覧から消えるので、同じスキルを二重に数えることはない。
+		picker.addedCount += ids.length;
 		picker.checked.clear();
 		renderPickerResults();
 		// 貼り付けの照合結果は消さずに残し、「追加済み」として見えるようにする
@@ -1400,6 +1422,7 @@
 		picker.filters = {};
 		TAG_AXES.forEach(a => { picker.filters[a.key] = []; });
 		picker.checked = new Set();
+		picker.addedCount = 0;
 		picker.excludeIds = (existingSkillIds || []).slice();
 		picker.onAdd = onAdd;
 		pasteRows = [];
