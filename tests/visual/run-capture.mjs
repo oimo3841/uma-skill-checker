@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { startServer, REPO_ROOT } from './lib/serve.mjs';
-import { openPage, seedSpecialResults, RECORD_ID } from './lib/fixtures.mjs';
+import { openPage, seedSpecialResults, RECORD_ID, PICK } from './lib/fixtures.mjs';
 
 const TAG = (process.argv[2] || 'after').replace(/[^a-z0-9_-]/gi, '');
 const WANT_COMPARE = process.argv.includes('--compare');
@@ -41,8 +41,19 @@ async function shot(page, name, opts = {}) {
 /* ---- special.html ---- */
 {
 	const { ctx, page } = await openPage(browser, base, 'special.html');
+	// 既定は新UIで、初回は切り替えの告知モーダルが出る（C-16）。閉じてから撮る。
+	// また seedSpecialResults は旧UIにしかない入力欄（#skill-list）へ貼るので、
+	// 旧UIのうちに済ませてから新UIへ戻す（run-smoke.mjs と同じ手順。F-29③）。
+	await page.waitForTimeout(2500);
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
 	await shot(page, 'special-01-top');
+	await page.click('#deck-mode-btn');
+	await page.waitForTimeout(600);
 	await seedSpecialResults(page);
+	await page.click('#deck-mode-btn');
+	await page.waitForTimeout(1500);
+	await page.evaluate((names) => { skillList = names; renderResults(); }, PICK.map((s) => s.name));
 	await shot(page, 'special-02-input-only');
 	// トーストが消えるまで待つ（消える前だとFABのバッジに重なる）
 	await page.waitForTimeout(2600);
@@ -136,8 +147,10 @@ for (const width of [1280, 375]) {
 	await shot(page, n('04-result-drawer'), { fullPage: false, wait: 900 });
 	await page.evaluate(() => { const b = document.querySelector('#result-drawer .uma-drawer-body'); b.scrollTop = b.scrollHeight; });
 	await shot(page, n('05-result-drawer-bottom'), { fullPage: false, wait: 500 });
-	await page.evaluate(() => { document.querySelector('#result-drawer .uma-drawer-body').scrollTop = 0; openDrawer('stitch'); });
+	// 結果画像は同じ引き出しの中のタブ（追加修正⑤）。まだ作っていないので案内が出る
+	await page.evaluate(() => { document.querySelector('#result-drawer .uma-drawer-body').scrollTop = 0; fabGoTo('stitch'); });
 	await shot(page, n('06-stitch-empty'), { fullPage: false, wait: 700 });
+	await page.evaluate(() => selectResultTab('result'));
 	await page.evaluate(() => openDrawer('deck'));
 	await shot(page, n('07-deck-drawer'), { fullPage: false, wait: 1500 });
 	await page.evaluate(() => closeDrawer());
