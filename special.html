@@ -495,6 +495,33 @@
 				</div>
 			</div>
 
+			<!-- 「高度な解析オプション」で出るもの（切り出しプレビュー・開発ログ）。
+			     以前は照合結果の引き出しのいちばん下にあったが、オプションを入れた場所から遠く、
+			     結果を読む流れの邪魔でもあったので、処理を始めるボタンの下へ移した。
+			     オプションを切れば隠れる（renderPreview / renderDevLog）のは今までどおり。 -->
+			<!-- 切り出し画像プレビュー -->
+			<div id="preview-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
+				<h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
+					<i data-lucide="image" class="w-4 h-4 text-slate-500"></i>
+					<span>切り出し結果プレビュー</span>
+				</h3>
+				<div id="debug-preview" class="space-y-4"></div>
+			</div>
+
+			<!-- 開発ログ -->
+			<div id="dev-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
+				<div class="flex items-center justify-between mb-3">
+					<h3 class="text-xs font-bold text-amber-700 flex items-center gap-1.5">
+						<i data-lucide="terminal" class="w-4 h-4"></i>
+						<span>開発用ログ</span>
+					</h3>
+					<button type="button" onclick="copyDevLog()" class="px-3 py-1 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 text-xs font-semibold transition-colors">
+						ログをコピー
+					</button>
+				</div>
+				<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-amber-900 max-h-80 overflow-y-auto"></div>
+			</div>
+
 			</div><!-- /#step-panel-2 -->
 		</div>
 
@@ -2331,29 +2358,6 @@
 						<div class="flex gap-2">
 							<textarea id="copy-data" readonly class="w-full h-24 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none"></textarea>
 						</div>
-					</div>
-
-					<!-- 切り出し画像プレビュー -->
-					<div id="preview-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
-						<h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
-							<i data-lucide="image" class="w-4 h-4 text-slate-500"></i>
-							<span>切り出し結果プレビュー</span>
-						</h3>
-						<div id="debug-preview" class="space-y-4"></div>
-					</div>
-
-					<!-- 開発ログ -->
-					<div id="dev-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
-						<div class="flex items-center justify-between mb-3">
-							<h3 class="text-xs font-bold text-amber-700 flex items-center gap-1.5">
-								<i data-lucide="terminal" class="w-4 h-4"></i>
-								<span>開発用ログ</span>
-							</h3>
-							<button type="button" onclick="copyDevLog()" class="px-3 py-1 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 text-xs font-semibold transition-colors">
-								ログをコピー
-							</button>
-						</div>
-						<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-amber-900 max-h-80 overflow-y-auto"></div>
 					</div>
 				</div>
 			</div>

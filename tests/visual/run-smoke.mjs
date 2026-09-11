@@ -100,6 +100,24 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(600);
 	assert(!(await page.isVisible('#result-drawer')), 'special: 照合結果の引き出しが閉じる');
 
+	/* --- 「高度な解析オプション」で出るもの（切り出しプレビュー・開発ログ）の置き場 ---
+	   結果の引き出しの下から②タブの処理ボタンの下へ移した。オプションとの連動は今までどおり。 */
+	const devPlaceS = await page.evaluate(() => {
+		document.getElementById('opt-devlog').checked = true;
+		renderDevLog();
+		return {
+			inPanel2: document.getElementById('step-panel-2').contains(document.getElementById('dev-wrap')),
+			previewInPanel2: document.getElementById('step-panel-2').contains(document.getElementById('preview-wrap')),
+			devShown: !document.getElementById('dev-wrap').classList.contains('hidden')
+		};
+	});
+	assert(devPlaceS.inPanel2 && devPlaceS.previewInPanel2, 'special: プレビューと開発ログは②タブの処理ボタンの下にある', devPlaceS);
+	assert(devPlaceS.devShown, 'special: オプションを入れると開発ログが出る', devPlaceS);
+	assert(await page.evaluate(() => {
+		document.getElementById('opt-devlog').checked = false;
+		renderDevLog();
+		return document.getElementById('dev-wrap').classList.contains('hidden');
+	}), 'special: オプションを切ると開発ログが隠れる');
 	// 右下の固定ナビ（FAB）。畳んだ状態ではサブボタンが押せないことまで見る。
 	assert(await page.isVisible('#fab-toggle'), 'special: 右下ナビのメインボタンが出る');
 	assert(await page.evaluate(() => getComputedStyle(document.getElementById('deck-drawer-trigger')).pointerEvents) === 'none',
@@ -633,6 +651,26 @@ const browser = await chromium.launch();
 		return wrap.querySelector('#deck-handoff-note').compareDocumentPosition(wrap.querySelector('#stat-grid')) & Node.DOCUMENT_POSITION_FOLLOWING;
 	}), 'exam: 案内は結果カードの中でサマリーより前にある');
 
+	/* --- 「高度な解析オプション」で出るもの（切り出しプレビュー・開発ログ）の置き場 ---
+	   結果の下から②タブの処理ボタンの下へ移した。オプションとの連動は今までどおり。 */
+	const devPlace = await page.evaluate(() => {
+		document.getElementById('opt-devlog').checked = true;
+		renderDevLog();
+		return {
+			devIn: document.getElementById('dev-wrap').parentElement.id,
+			previewIn: document.getElementById('preview-wrap').parentElement.id,
+			devShown: !document.getElementById('dev-wrap').classList.contains('hidden'),
+			inPanel2: document.getElementById('step-panel-2').contains(document.getElementById('dev-wrap'))
+		};
+	});
+	assert(devPlace.devIn === 'new-devlog-slot' && devPlace.previewIn === 'new-devlog-slot' && devPlace.inPanel2,
+		'exam: プレビューと開発ログは②タブの処理ボタンの下にある', devPlace);
+	assert(devPlace.devShown, 'exam: オプションを入れると開発ログが出る', devPlace);
+	assert(await page.evaluate(() => {
+		document.getElementById('opt-devlog').checked = false;
+		renderDevLog();
+		return document.getElementById('dev-wrap').classList.contains('hidden');
+	}), 'exam: オプションを切ると開発ログが隠れる');
 	/* --- 引き出しと右下の FAB（special と同じ骨格。css/shell.css） ---
 	   合成結果は renderResults() を直接呼んで作っているので、引き出しはまだ開いていない。
 	   （実際の判定では processImages() の末尾で照合結果の引き出しが自動で開く。
@@ -1600,7 +1638,8 @@ const browser = await chromium.launch();
 		panel1In: document.getElementById('step-panel-1').parentElement.id,
 		resultIn: document.getElementById('result-wrap').parentElement.id,
 		helpIn: document.getElementById('help-content').parentElement.id,
-		copyIn: document.getElementById('result-copy-btn').parentElement.id
+		copyIn: document.getElementById('result-copy-btn').parentElement.id,
+		devIn: document.getElementById('dev-wrap').parentElement.id
 	}));
 
 	// 1. 初回訪問：新UIで開き、モーダルが出る
@@ -1610,7 +1649,8 @@ const browser = await chromium.launch();
 		const first = await uiState(page);
 		assert(first.newCard && !first.oldCards[0] && !first.oldCards[1] && first.fab && first.badge && first.label === '旧UIへ',
 			'exam: 初回は新UI（タブ・FAB）で開き、旧UIのカードは出ない', first);
-		assert(first.panel1In === 'new-step-slot' && first.resultIn === 'result-drawer-slot' && first.helpIn === 'help-dialog-slot' && first.copyIn === 'result-drawer-copy-slot',
+		assert(first.panel1In === 'new-step-slot' && first.resultIn === 'result-drawer-slot' && first.helpIn === 'help-dialog-slot' && first.copyIn === 'result-drawer-copy-slot'
+			&& first.devIn === 'new-devlog-slot',
 			'exam: 新UIでは中身がタブ・引き出し・ダイアログの中にある', first);
 		assert(first.notice && first.backdrop && first.scrollLocked,
 			'exam: 初回は切り替えの告知モーダルが出て、本文のスクロールが止まる', first);
@@ -1678,7 +1718,8 @@ const browser = await chromium.launch();
 		const old = await uiState(page);
 		assert(old.mode === 'old' && old.label === '新UIへ' && !old.badge, 'exam: 選んだUIが保存され、ラベルが「新UIへ」になる', old);
 		assert(!old.newCard && old.oldCards[0] && old.oldCards[1] && !old.fab, 'exam: 旧UIでは①②が別々のカードで縦に並び、FABは出ない', old);
-		assert(old.panel1In === 'old-step1-slot' && old.resultIn === 'old-result-slot' && old.helpIn === 'old-help-slot' && old.copyIn === 'old-copy-slot',
+		assert(old.panel1In === 'old-step1-slot' && old.resultIn === 'old-result-slot' && old.helpIn === 'old-help-slot' && old.copyIn === 'old-copy-slot'
+			&& old.devIn === 'old-devlog-slot',
 			'exam: 旧UIでは中身が本文のカードとアコーディオンの中へ移る', old);
 		assert(await page.isVisible('#old-result-card') && await page.isVisible('#result-tbody') && await page.isVisible('#result-copy-btn'),
 			'exam: 旧UIでは照合結果が本文のカードとして出て、「まとめてコピー」も見出しにある');

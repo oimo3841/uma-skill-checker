@@ -550,6 +550,36 @@
 				<span>OCR処理＋画像結合を開始する（高負荷）</span>
 			</button>
 			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、親A（＋祖A1＋祖A2）・親B（＋祖B1＋祖B2）それぞれのスクリーンショットを1枚の画像にまとめ、SNS投稿用に使える形で出力します。画像枚数が多いほど処理に時間がかかります。</p>
+			<!-- 「高度な解析オプション」で出るもの（切り出しプレビュー・開発ログ）の置き場。
+			     以前は照合結果のいちばん下にあったが、オプションを入れた場所から遠く、結果を読む
+			     流れの邪魔でもあったので、新UIでは処理を始めるボタンの下へ移した。
+			     旧UIでは今までどおり結果の下（#old-devlog-slot）へ戻す。
+			     オプションを切れば隠れる（renderPreview / renderDevLog）のは今までどおり。 -->
+			<div id="new-devlog-slot">
+			<!-- 切り出し画像プレビュー -->
+			<div id="preview-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
+				<h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
+					<i data-lucide="image" class="w-4 h-4 text-slate-500"></i>
+					<span>切り出し結果プレビュー</span>
+				</h3>
+				<div id="debug-preview" class="space-y-4"></div>
+			</div>
+
+			<!-- 開発ログ -->
+			<div id="dev-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
+				<div class="flex items-center justify-between mb-3">
+					<h3 class="text-xs font-bold text-amber-700 flex items-center gap-1.5">
+						<i data-lucide="terminal" class="w-4 h-4"></i>
+						<span>開発用ログ</span>
+					</h3>
+					<button type="button" onclick="copyDevLog()" class="px-3 py-1 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 text-xs font-semibold transition-colors">
+						ログをコピー
+					</button>
+				</div>
+				<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-amber-900 max-h-80 overflow-y-auto"></div>
+			</div>
+			</div><!-- /#new-devlog-slot -->
+
 			</div><!-- /#step-panel-2 -->
 			</div><!-- /#new-step-slot -->
 		</div>
@@ -724,28 +754,9 @@
 				</div>
 			</div>
 
-			<!-- 切り出し画像プレビュー -->
-			<div id="preview-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
-				<h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
-					<i data-lucide="image" class="w-4 h-4 text-slate-500"></i>
-					<span>切り出し結果プレビュー</span>
-				</h3>
-				<div id="debug-preview" class="space-y-4"></div>
-			</div>
-
-			<!-- 開発ログ -->
-			<div id="dev-wrap" class="hidden border-t border-slate-200 pt-6 mt-6">
-				<div class="flex items-center justify-between mb-3">
-					<h3 class="text-xs font-bold text-amber-700 flex items-center gap-1.5">
-						<i data-lucide="terminal" class="w-4 h-4"></i>
-						<span>開発用ログ</span>
-					</h3>
-					<button type="button" onclick="copyDevLog()" class="px-3 py-1 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 text-xs font-semibold transition-colors">
-						ログをコピー
-					</button>
-				</div>
-				<div id="dev-log" class="dev-log rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-amber-900 max-h-80 overflow-y-auto"></div>
-			</div>
+			<!-- 旧UIでの置き場。旧UIは「元の画面」なので、プレビュー・開発ログは結果の下のまま。
+			     中身は新UIと同じ要素を placeSections() が移してくる。 -->
+			<div id="old-devlog-slot"></div>
 				</div>
 			</div>
 		</div>
@@ -2803,6 +2814,9 @@
 			move('result-copy-btn', isNew ? 'result-drawer-copy-slot' : 'old-copy-slot');
 			move('stitch-result-wrap', isNew ? 'stitch-drawer-slot' : 'old-stitch-slot');
 			move('help-content', isNew ? 'help-dialog-slot' : 'old-help-slot');
+			// 「高度な解析オプション」で出るもの。新UIは処理ボタンの下、旧UIは今までどおり結果の下
+			move('preview-wrap', isNew ? 'new-devlog-slot' : 'old-devlog-slot');
+			move('dev-wrap', isNew ? 'new-devlog-slot' : 'old-devlog-slot');
 			document.getElementById('new-step-card').hidden = !isNew;
 			document.getElementById('old-step1-card').hidden = isNew;
 			document.getElementById('old-step2-card').hidden = isNew;
