@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11j';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-12a';
 
 	/* ============================================================
 	 * 定数
@@ -759,9 +759,7 @@
 	let pickerEl = null;
 	// activeAxis は「モーダルを開いている間だけ」覚える。openSkillPicker() で毎回
 	// 先頭の軸に戻すので、localStorage には保存しない（以前の axisOpen と同じ寿命）。
-	// addedCount は「このモーダルを開いてからボタンで足した数」。開くたび 0 に戻す
-	// （activeAxis と同じ寿命で、localStorage には持たない）。
-	let picker = { mode: 'filter', filters: {}, checked: new Set(), onAdd: null, excludeIds: [], addedCount: 0, activeAxis: TAG_AXES[0].key };
+	let picker = { mode: 'filter', filters: {}, checked: new Set(), onAdd: null, excludeIds: [], activeAxis: TAG_AXES[0].key };
 	// 一括貼り付けの照合結果。各行に chosenId（採用したスキルID）を後から書き込む。
 	let pasteRows = [];
 
@@ -1135,14 +1133,16 @@
 	}
 
 	/**
-	 * フッターの表示を、いまのチェック状態と「これまでに足した数」に合わせる。
+	 * フッターの表示を、いまのチェック状態と「追加済みの総数」に合わせる。
 	 *
 	 * 2つの数は意味が違うので、出す場所も分けてある。
 	 *   脇の「XXX種選択」   … picker.checked ＝ これから足すぶん（まだ足していない）
-	 *   ボタンの「XXX種追加済み」… picker.addedCount ＝ このモーダルを開いてから
-	 *                              ボタンを押して実際に足したぶんの累計
-	 * 押すとチェックは外れて一覧からも消えるため、ボタン側の数が無いと
-	 * 「さっき押したぶんがちゃんと入ったのか」を確かめる手がかりが画面に残らない。
+	 *   ボタンの「XXX種追加済み」… picker.excludeIds ＝ 編集中のセットに入っている総数。
+	 *                              背後の「追加済みスキル（XXX種）」と必ず同じ数になる
+	 * excludeIds は開くときに編集中のセットの中身をそのまま受け取り、足すたびに伸びるので、
+	 * その長さが「いま何種入っているか」になる（一覧には出さないIDでもあるので二重に数えない）。
+	 * 背後の見出しと数が重複して見えるが、**スマホでは背後が隠れて片方しか見えない**ため、
+	 * ボタン側にも総数を出す意味がある（2026-09-12・おいもさんの実機確認）。
 	 * どちらも「表示中を全て選択」の隣の件数（絞り込み結果の総数）とは別のもの。
 	 *
 	 * 条件で検索・テキストで検索のどちらも同じ集合を使うので、モードでは分けない。
@@ -1156,11 +1156,12 @@
 		const btn = q(pickerEl, 'picker-commit');
 		if (!btn) return;
 		btn.disabled = (n === 0);
-		// 0種のうちは「（0種追加済み）」を出さない（まだ何も起きていないので数える意味がない）。
+		// まだ1種も入っていないうちは「（0種追加済み）」を出さない（数える意味がない）。
 		// 375px では1行に収まらないので、折り返しは「追加済み」の括弧の中では起こさず、
 		// 見出しとの境目で起こす（span 側を nowrap にしてある）。
-		btn.innerHTML = PICKER_COMMIT_LABEL + (picker.addedCount > 0
-			? '<span class="usd-foot-added">（' + picker.addedCount + '種追加済み）</span>' : '');
+		const added = picker.excludeIds.length;
+		btn.innerHTML = PICKER_COMMIT_LABEL + (added > 0
+			? '<span class="usd-foot-added">（' + added + '種追加済み）</span>' : '');
 	}
 
 	function addCheckedSkills() {
@@ -1168,8 +1169,6 @@
 		const ids = Array.from(picker.checked);
 		if (picker.onAdd) picker.onAdd(ids);
 		picker.excludeIds = picker.excludeIds.concat(ids);
-		// 足したぶんは excludeIds に入って一覧から消えるので、同じスキルを二重に数えることはない。
-		picker.addedCount += ids.length;
 		picker.checked.clear();
 		renderPickerResults();
 		// 貼り付けの照合結果は消さずに残し、「追加済み」として見えるようにする
@@ -1422,7 +1421,6 @@
 		picker.filters = {};
 		TAG_AXES.forEach(a => { picker.filters[a.key] = []; });
 		picker.checked = new Set();
-		picker.addedCount = 0;
 		picker.excludeIds = (existingSkillIds || []).slice();
 		picker.onAdd = onAdd;
 		pasteRows = [];
@@ -1526,7 +1524,7 @@
 					'</button>' +
 				'</div>' +
 				'<div class="flex items-baseline justify-between gap-2 mb-1">' +
-					'<p class="text-xs text-slate-500">選択済みスキル（<span data-usd-el="selected-count">0</span>種）</p>' +
+					'<p class="text-xs text-slate-500">追加済みスキル（<span data-usd-el="selected-count">0</span>種）</p>' +
 					// 一覧の行にあった「空にする」をここへ移した。中身を触っている画面で、
 					// 何件消えるのかが見えている状態で押せるようにするため。
 					'<button type="button" class="usd-link-btn" data-usd-act="editor-clear-skills" data-usd-el="clear-skills">すべて外す</button>' +
@@ -1619,7 +1617,7 @@
 					'<p class="text-xs text-slate-500">※次回開いた際も復元されます。繰り返し使う場合は「テンプレートとして保存」を選択してください。</p>' +
 				'</div>' +
 				'<div class="flex gap-1.5 shrink-0">' +
-					// 空にする操作は編集画面側（選択済みスキルの「すべて外す」）へ移した。
+					// 空にする操作は編集画面側（追加済みスキルの「すべて外す」）へ移した。
 					// 一覧の行に置くと、隣のテンプレートの削除ボタンと同じ見た目・同じ位置になり、
 					// 「ドラフトごと消える」のか「中身が空になる」のかが区別できなかったため。
 					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="draft-open" title="編集"><i data-lucide="edit" class="w-4 h-4"></i></button>' +
@@ -1782,7 +1780,7 @@
 		}
 
 		/**
-		 * 編集中のセットから選択済みスキルをすべて外す。
+		 * 編集中のセットから追加済みスキルをすべて外す。
 		 * ドラフトでもテンプレートでも同じ操作にしてある（編集画面の見た目が同じなので、
 		 * 片方だけ出来ないと「なぜここには無いのか」を考えさせることになる）。
 		 * 破壊的な操作は確認ダイアログではなく「即実行＋元に戻す」で統一する方針に従う。
@@ -1801,7 +1799,7 @@
 			renderPasteReport();
 			if (isSelected(target)) fireSelection();
 			fireChange();
-			pushUndo('選択済みスキル' + prev.length + '件を外しました', () => {
+			pushUndo('追加済みスキル' + prev.length + '件を外しました', () => {
 				list.length = 0;
 				prev.forEach(id => list.push(id));
 				if (target.kind === 'draft') draftScope = saveDraftScope(draftScopeKey, draftScope.skillIds);
