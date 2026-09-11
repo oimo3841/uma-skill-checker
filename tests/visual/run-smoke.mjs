@@ -1754,6 +1754,51 @@ const browser = await chromium.launch();
 }
 
 /* ============================================================
+ * exam.html — 最後に使ったステップのタブを覚える
+ *
+ * ①（対象スキル）は一度整えたら触らず、以降はほぼ②（画像アップロード）から
+ * 操作するので、次に開いたときは最後のタブから始める。
+ * 保存が残るかどうかを見るので、まっさらな文脈を使う。
+ * ============================================================ */
+{
+	const tabState = (page) => page.evaluate(() => ({
+		tab1: document.getElementById('step-tab-1').getAttribute('aria-selected'),
+		tab2: document.getElementById('step-tab-2').getAttribute('aria-selected'),
+		saved: localStorage.getItem('uma-exam-last-step')
+	}));
+	{
+		const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+		await page.waitForTimeout(800);
+		if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
+		await page.waitForTimeout(300);
+		assert((await tabState(page)).tab1 === 'true', 'exam: 保存が無ければ①から始まる（今までどおり）');
+
+		await page.click('#step-tab-2');
+		await page.waitForTimeout(300);
+		assert((await tabState(page)).saved === '2', 'exam: タブを切り替えると覚える');
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForTimeout(1500);
+		const after = await tabState(page);
+		assert(after.tab2 === 'true' && after.tab1 === 'false', 'exam: 次に開いたときは最後のタブ（②）から始まる', after);
+
+		// 旧UIにはタブが無い。旧UIから新UIへ戻したときも、覚えたタブを開く
+		await page.click('#deck-mode-btn');
+		await page.waitForTimeout(600);
+		await page.click('#deck-mode-btn');
+		await page.waitForTimeout(600);
+		assert((await tabState(page)).tab2 === 'true', 'exam: 旧UIから新UIへ戻しても、覚えたタブを開く');
+
+		// 壊れた値は①として扱う（読めない値でも画面が止まらない）
+		await page.evaluate(() => localStorage.setItem('uma-exam-last-step', '{壊れた値}'));
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForTimeout(1500);
+		assert((await tabState(page)).tab1 === 'true', 'exam: 保存が壊れた値なら①から始まる');
+		assert(errors.length === 0, 'exam: タブの記憶でコンソールエラーが出ない', errors.slice(0, 3));
+		await ctx.close();
+	}
+}
+
+/* ============================================================
  * uma-skill-deck.html — OCR受け取り口（2ソース: special / exam）
  *
  * 受け渡しデータはツールごとに別のキー（:special / :exam）。Deck 単独ページで

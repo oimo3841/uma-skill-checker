@@ -1730,9 +1730,19 @@
 		 * 2枚を重ねた以上、開いていない側の状況が見えなくなる。①の種数は
 		 * #step1-skill-badge が、②の画像の枚数は #image-count-badge が受け持つ。
 		 * ============================================================ */
+		/* 最後に見ていたタブを覚えておき、次に開いたときはそこから始める。
+		   ①（対象スキル）は一度整えたら触らず、以降はほぼ②（画像アップロード）から操作するため。
+		   保存が無い／壊れているときは①（今までどおり）。タブが無い旧UIでは働かない。 */
+		const LAST_STEP_STORAGE_KEY = 'uma-exam-last-step';
+
+		function restoredStepTab() {
+			return readStored(LAST_STEP_STORAGE_KEY) === '2' ? 2 : 1;
+		}
+
 		function selectStepTab(n) {
+			const pick = Number(n) === 2 ? 2 : 1;
 			[1, 2].forEach(k => {
-				const on = k === Number(n);
+				const on = k === pick;
 				const tab = document.getElementById('step-tab-' + k);
 				const panel = document.getElementById('step-panel-' + k);
 				if (!tab || !panel) return;
@@ -1740,6 +1750,8 @@
 				tab.tabIndex = on ? 0 : -1;
 				panel.hidden = !on;
 			});
+			// 切り替えはすべてここを通るので、覚えるのもここ1か所でよい
+			writeStored(LAST_STEP_STORAGE_KEY, String(pick));
 		}
 
 		// WAI-ARIA のタブの作法：←→で隣へ、Home/Endで端へ（移動と同時に切り替える）
@@ -2800,7 +2812,8 @@
 			document.getElementById('old-help-card').classList.add('hidden');
 			document.getElementById('fab-nav').hidden = !isNew;
 			if (isNew) {
-				selectStepTab(1);
+				// 最後に見ていたタブから始める（旧UIから戻ったときも同じ）
+				selectStepTab(restoredStepTab());
 			} else {
 				// 旧UIは縦並びなので両方のパネルを出す
 				document.getElementById('step-panel-1').hidden = false;
