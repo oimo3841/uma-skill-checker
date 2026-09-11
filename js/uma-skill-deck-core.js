@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11d';
 
 	/* ============================================================
 	 * 定数
@@ -681,15 +681,17 @@
 		// 選択肢が最多の軸（⑦レース場17個）に高さを合わせると、それだけでモーダルが埋まるため。
 		// 続きがあることは下端のフェードで示す（data-more-below はJSが付け外しする）。
 		'.usd-opts-wrap { position: relative; }',
-		'.usd-opts-wrap::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 24px;',
+		'.usd-opts-wrap::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 20px;',
 		'  pointer-events: none; visibility: hidden;',
 		'  background: linear-gradient(to top, var(--uma-surface), transparent); }',
 		'.usd-opts-wrap[data-more-below]::after { visibility: visible; }',
-		// 2行ぶん＋3行目が半分だけ覗く高さ。ちょうど2行で切ると、フェードが2行目に
+		// 2行ぶん＋3行目が4分の3ほど覗く高さ。ちょうど2行で切ると、フェードが2行目に
 		// かかって「2行目が切れている」としか見えず、続きの合図にならない。逆に覗きが
-		// 数pxだと、ただの余白に見えて続きがあることが伝わらない（どちらも実機で確認した）。
+		// 数pxだと、ただの余白に見えて続きがあることが伝わらない。半分でもまだ気付き
+		// にくかったので、チップの丸みが見分けられるところまで出してある。覗き（24px）は
+		// フェードの高さ（20px）より大きくし、覗いた行の上端は素の色で見えるようにする。
 		'.usd-opts { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2);',
-		'  max-height: calc(var(--usd-opt-row) * 2.5 + var(--uma-sp-2) * 2);',
+		'  max-height: calc(var(--usd-opt-row) * 2.75 + var(--uma-sp-2) * 2);',
 		'  overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: none; }',
 		'.usd-opts::-webkit-scrollbar { display: none; }',
 
@@ -763,22 +765,22 @@
 				'<div class="p-4" style="overflow:auto;">' +
 					// 8軸フィルター。中身（タブ＋共通パネル）は renderPickerFilterAxes() が
 					// ensurePicker() のときに1回だけ組み立てる。
-					// 最初に目に入る位置に置く。ここが主な入口で、下の2つは「必要なときだけ開く」補助。
+					// 最初に目に入る位置に置く。ここが主な入口。
 					'<div data-usd-el="filter-axes"></div>' +
-					// 一括貼り付けと手入力。どちらも畳んだ状態で始める（開くと縦に長く、
-					// 開いたままだと下のスキル一覧が押し出されるため）。
-					'<details class="usd-foldbox" data-usd-el="paste-box">' +
-						'<summary>スプレッドシートから貼り付けて一括選択</summary>' +
-						'<div>' +
-							'<p class="text-[11px] text-slate-500 leading-relaxed mb-2">1列ぶんを改行区切りのまま貼り付けてください。全角/半角の違いや、末尾の「★3」「(3)」のような評価表記は自動で読み替えます。複数列をまとめてコピーした行（タブを含む行）はエラーとしてお知らせします。</p>' +
-							'<textarea class="usd-input uma-input" rows="4" style="font-family:var(--uma-font-mono);resize:vertical;" data-usd-el="paste-input" placeholder="1行に1つずつスキル名を貼り付け"></textarea>' +
-							'<div class="flex flex-wrap gap-2 mt-2">' +
-								'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="paste-run">貼り付けたテキストを照合</button>' +
-								'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="paste-clear">クリア</button>' +
-							'</div>' +
-							'<div data-usd-el="paste-report" class="mt-3"></div>' +
+					// 一括貼り付け。枠も見出しも説明文も持たせず、入力欄だけを最初から出しておく。
+					// 「スプレッドシートから」と名乗る枠に畳んでおくと、メモ帳やメールから
+					// 貼るという使い方が伝わらないうえ、開く操作ぶんだけ遠くなるため。
+					// 何を貼ればよいかはプレースホルダー1行で足りる（表記ゆれの読み替えや
+					// タブ入りの行のエラーは、照合したあとに結果として出る）。
+					'<div data-usd-el="paste-box" class="mb-2">' +
+						'<textarea class="usd-input uma-input" rows="3" style="font-family:var(--uma-font-mono);resize:vertical;" data-usd-el="paste-input" placeholder="1行に1つずつスキル名を貼り付けるか、スプレッドシートの1列をそのまま貼り付け"></textarea>' +
+						'<div class="flex flex-wrap gap-2 mt-2">' +
+							'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="paste-run">貼り付けたテキストを照合</button>' +
+							'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="paste-clear">クリア</button>' +
 						'</div>' +
-					'</details>' +
+						'<div data-usd-el="paste-report" class="mt-3"></div>' +
+					'</div>' +
+					// 手入力は畳んだ状態で始める（開くと8軸ぶんのタグ入力で縦に長いため）。
 					'<details class="usd-foldbox" data-usd-el="custom-box">' +
 						'<summary>マスターにないスキルを手入力で追加</summary>' +
 						'<div>' +
@@ -787,14 +789,14 @@
 							'<button type="button" class="mt-2 uma-btn uma-btn--secondary" data-usd-act="custom-add">カスタムスキルとして追加</button>' +
 						'</div>' +
 					'</details>' +
+					'<button type="button" class="w-full uma-btn uma-btn--primary" data-usd-act="picker-add">チェックしたスキルを追加</button>' +
 					'<div class="flex items-center justify-between mb-1 mt-3">' +
 						'<label class="flex items-center gap-1.5 text-xs text-slate-600">' +
 							'<input type="checkbox" data-usd-act="picker-select-all"/> 表示中を全て選択' +
 						'</label>' +
 						'<p class="text-xs text-slate-500">絞り込み結果（<span data-usd-el="result-count">0件</span>）</p>' +
 					'</div>' +
-					'<div data-usd-el="results" style="border:1px solid #e2e8f0;border-radius:.75rem;max-height:280px;overflow:auto;margin-bottom:10px;"></div>' +
-					'<button type="button" class="w-full uma-btn uma-btn--primary" data-usd-act="picker-add">チェックしたスキルを追加</button>' +
+					'<div data-usd-el="results" style="border:1px solid #e2e8f0;border-radius:.75rem;max-height:280px;overflow:auto;"></div>' +
 				'</div>' +
 			'</div>';
 	}

@@ -810,7 +810,7 @@ const browser = await chromium.launch();
 	assert((await optState('trackVenue')).more === false,
 		'deck: 下までスクロールするとフェードが消える');
 
-	/* --- 並び順：8軸パネル → 貼り付け → 手入力 → 結果一覧。折りたたみは閉じて始まる --- */
+	/* --- 並び順：8軸パネル → 貼り付け → 手入力 → 追加ボタン → 結果一覧 --- */
 	const order = await page.evaluate(() => {
 		const pick = (sel) => document.querySelector(sel);
 		const top = (el) => Math.round(el.getBoundingClientRect().top);
@@ -818,15 +818,34 @@ const browser = await chromium.launch();
 			axes: top(pick('[data-usd-el="filter-axes"]')),
 			paste: top(pick('[data-usd-el="paste-box"]')),
 			custom: top(pick('[data-usd-el="custom-box"]')),
+			add: top(pick('[data-usd-act="picker-add"]')),
 			results: top(pick('[data-usd-el="results"]')),
-			pasteOpen: pick('[data-usd-el="paste-box"]').open,
 			customOpen: pick('[data-usd-el="custom-box"]').open
 		};
 	});
-	assert(order.axes < order.paste && order.paste < order.custom && order.custom < order.results,
-		'deck: 8軸パネル→貼り付け→手入力→結果一覧の順に並ぶ', order);
-	assert(order.pasteOpen === false && order.customOpen === false,
-		'deck: 貼り付けと手入力は畳んだ状態で始まる', order);
+	assert(order.axes < order.paste && order.paste < order.custom
+		&& order.custom < order.add && order.add < order.results,
+		'deck: 8軸パネル→貼り付け→手入力→追加ボタン→結果一覧の順に並ぶ', order);
+	assert(order.customOpen === false, 'deck: 手入力は畳んだ状態で始まる', order);
+
+	// 貼り付けは枠も見出しも持たず、最初から入力できる
+	const paste = await page.evaluate(() => {
+		const box = document.querySelector('[data-usd-el="paste-box"]');
+		const input = document.querySelector('[data-usd-el="paste-input"]');
+		return {
+			isDetails: box.tagName === 'DETAILS',
+			summaries: box.querySelectorAll('summary').length,
+			visible: !!(input.offsetWidth && input.offsetHeight),
+			placeholder: input.placeholder,
+			// 長文の説明を置いていないこと（入力欄とボタン以外のテキストを数える）
+			proseChars: [...box.querySelectorAll('p')].map((p) => p.textContent.trim()).join('').length
+		};
+	});
+	assert(!paste.isDetails && paste.summaries === 0 && paste.visible,
+		'deck: 貼り付けは折りたたまず最初から入力欄が出ている', paste);
+	assert(paste.proseChars === 0, 'deck: 貼り付けの説明文は置いていない', paste);
+	assert(paste.placeholder === '1行に1つずつスキル名を貼り付けるか、スプレッドシートの1列をそのまま貼り付け',
+		'deck: 貼り付けのプレースホルダーがスプレッドシート限定に読めない文言になっている', paste.placeholder);
 
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);
