@@ -165,14 +165,11 @@ const browser = await chromium.launch();
 
 	assert(await readCount() === 445, 'モーダルに445件が表示される', await readCount());
 
-	// フィルターのチェックボックスを実際にクリックして絞り込む（UIの配線ごと確かめる）
-	// ④以降の軸は既定で畳まれている（⑧も⑥⑦に合わせて畳んである）ので、
-	// 実際の操作と同じく開いてからチェックする。
+	// フィルターのチェックボックスを実際にクリックして絞り込む（UIの配線ごと確かめる）。
+	// 軸はタブに分かれていて、選んでいないタブのパネルは visibility:hidden で
+	// Playwright から押せない。実際の操作と同じく、該当タブを押してからチェックする。
 	const tick = async (axis, value) => {
-		await page.evaluate((a) => {
-			const d = document.querySelector('details[data-usd-axis="' + a + '"]');
-			if (d && !d.open) d.open = true;
-		}, axis);
+		await page.click('.usd-tab[data-usd-axis="' + axis + '"]');
 		await page.waitForTimeout(150);
 		await page.click('[data-usd-el="filter-check"][data-axis="' + axis + '"][data-value="' + value + '"]');
 		await page.waitForTimeout(300);

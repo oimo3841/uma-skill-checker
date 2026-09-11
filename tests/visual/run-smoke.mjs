@@ -672,6 +672,109 @@ const browser = await chromium.launch();
 	await page.click('button[onclick="openRecordSkillPicker()"]');
 	await page.waitForTimeout(900);
 	assert(await page.isVisible('.usd-modal'), 'deck: スキル選択モーダルが開く');
+
+	/* --- 8軸フィルターのタブ切り替え ---
+	   パネルの出し分けは .is-active の付け外し＋visibility で、Tailwind の hidden は使わない（F-13）。
+	   タブ化で他の軸に入れた条件が視界から消えるため、バッジと「絞り込み中」で補えているかも見る。 */
+	const panelShown = (axis) => page.isVisible('.usd-tabpanel[data-usd-axis="' + axis + '"]');
+	assert(await panelShown('distance') && !(await panelShown('trackVenue')),
+		'deck: 初期表示は①のパネルだけが見えている');
+
+	await page.click('.usd-tab[data-usd-axis="trackVenue"]');
+	await page.waitForTimeout(300);
+	assert(!(await panelShown('distance')) && await panelShown('trackVenue'),
+		'deck: タブを押すと表示パネルが入れ替わる');
+
+	// パネルの高さは全軸で共通（切り替えても下のスキル一覧が上下に跳ねない）
+	const panelHeights = await page.evaluate(() => {
+		const h = [...document.querySelectorAll('.usd-tabpanels')].map((el) => el.getBoundingClientRect().height);
+		return h[0];
+	});
+	await page.click('.usd-tab[data-usd-axis="distance"]');
+	await page.waitForTimeout(300);
+	const panelHeightAfter = await page.evaluate(() => document.querySelector('.usd-tabpanels').getBoundingClientRect().height);
+	assert(Math.abs(panelHeights - panelHeightAfter) < 1,
+		'deck: タブを切り替えてもパネルの高さが変わらない', { panelHeights, panelHeightAfter });
+
+	// 件数バッジ
+	await page.click('[data-usd-el="filter-check"][data-axis="distance"][data-value="long"]');
+	await page.waitForTimeout(300);
+	const badge = await page.evaluate(() => {
+		const el = document.querySelector('[data-usd-el="axis-count"][data-usd-axis="distance"]');
+		return { hidden: el.hidden, text: el.textContent };
+	});
+	assert(badge.hidden === false && badge.text === '1', 'deck: 条件を入れた軸のタブに件数バッジが出る', badge);
+
+	// 別のタブへ移っても「絞り込み中」に残り、押すとその軸のタブへ戻れる
+	await page.click('.usd-tab[data-usd-axis="scenario"]');
+	await page.waitForTimeout(300);
+	assert(await page.isVisible('[data-usd-act="filter-jump"][data-usd-axis="distance"]'),
+		'deck: 他のタブに移っても「絞り込み中」に条件が残る');
+	await page.click('[data-usd-act="filter-jump"][data-usd-axis="distance"]');
+	await page.waitForTimeout(300);
+	assert(await panelShown('distance'), 'deck: 「絞り込み中」を押すとその軸のタブへ移動する');
+
+	// キーボード（←→・Home・End で移動と同時に切り替わる）
+	await page.keyboard.press('ArrowRight');
+	await page.waitForTimeout(250);
+	assert(await panelShown('style'), 'deck: →キーで隣のタブへ移動する');
+	await page.keyboard.press('End');
+	await page.waitForTimeout(250);
+	assert(await panelShown('scenario'), 'deck: Endキーで最後のタブへ移動する');
+	await page.keyboard.press('Home');
+	await page.waitForTimeout(250);
+	assert(await panelShown('distance'), 'deck: Homeキーで最初のタブへ移動する');
+
+	// すべて解除
+	await page.click('[data-usd-act="filter-clear-all"]');
+	await page.waitForTimeout(300);
+	assert(await page.evaluate(() =>
+		document.querySelector('[data-usd-el="axis-count"][data-usd-axis="distance"]').hidden === true
+		&& !document.querySelector('[data-usd-act="filter-jump"]')),
+		'deck: 「すべて解除」でバッジと「絞り込み中」が消える');
+
+	// PC幅では全タブが収まるので、端へ移動ボタンは出さない
+	assert(await page.evaluate(() => [...document.querySelectorAll('.usd-tab-jump')].every((b) => b.hidden)),
+		'deck: PC幅では端へ移動ボタンが出ない');
+
+	// --- 375px：タブバーの中だけが横スクロールする ---
+	await page.setViewportSize({ width: 375, height: 812 });
+	await page.waitForTimeout(500);
+	const narrowBar = await page.evaluate(() => {
+		const bar = document.querySelector('.usd-tablist');
+		return { scrollable: bar.scrollWidth > bar.clientWidth + 2, sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth };
+	});
+	assert(narrowBar.scrollable, 'deck: 375px でタブバーが横スクロールする', narrowBar);
+	assert(narrowBar.sw === narrowBar.cw, 'deck: 375px でモーダルを開いてもページは横スクロールしない', narrowBar);
+
+	const jumpState = () => page.evaluate(() => {
+		const pick = (e) => document.querySelector('.usd-tab-jump[data-usd-edge="' + e + '"]');
+		const bar = document.querySelector('.usd-tablist');
+		return {
+			startHidden: pick('start').hidden, endHidden: pick('end').hidden,
+			startDisabled: pick('start').getAttribute('aria-disabled'),
+			endDisabled: pick('end').getAttribute('aria-disabled'),
+			scrollLeft: Math.round(bar.scrollLeft), max: Math.round(bar.scrollWidth - bar.clientWidth)
+		};
+	});
+	const atStart = await jumpState();
+	assert(atStart.startHidden === false && atStart.endHidden === false,
+		'deck: 375px では端へ移動ボタンが出る', atStart);
+	assert(atStart.startDisabled === 'true' && atStart.endDisabled === 'false',
+		'deck: 左端にいるので「最初へ」だけ aria-disabled になる', atStart);
+
+	await page.click('.usd-tab-jump[data-usd-edge="end"]');
+	await page.waitForTimeout(700);
+	const atEnd = await jumpState();
+	assert(atEnd.scrollLeft >= atEnd.max - 2, 'deck: 「最後へ」でタブバーが右端までスクロールする', atEnd);
+	assert(atEnd.endDisabled === 'true' && atEnd.startDisabled === 'false',
+		'deck: 右端に着くと「最後へ」が aria-disabled になる', atEnd);
+	// 端へ移動は選択中のタブを変えない（条件を触る前に軸を見渡せるように）
+	assert(await panelShown('distance'), 'deck: 端へ移動しても選択中のタブは変わらない');
+
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.waitForTimeout(400);
+
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);
 	assert(!(await page.isVisible('.usd-modal')), 'deck: モーダルが閉じる');

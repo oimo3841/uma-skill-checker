@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11b';
 
 	/* ============================================================
 	 * 定数
@@ -55,26 +55,26 @@
 
 	// 8軸のタグ辞書。フィルターパネル・タグ表示・カスタムスキル入力で共有する。
 	const TAG_AXES = [
-		{ key: 'distance', label: '①距離', defaultOpen: true, options: [
+		{ key: 'distance', label: '①距離', options: [
 			{ v: 'short', t: '短距離' }, { v: 'mile', t: 'マイル' }, { v: 'medium', t: '中距離' }, { v: 'long', t: '長距離' }
 		]},
-		{ key: 'style', label: '②脚質', defaultOpen: true, options: [
+		{ key: 'style', label: '②脚質', options: [
 			{ v: 'nige', t: '逃げ' }, { v: 'senko', t: '先行' }, { v: 'sashi', t: '差し' }, { v: 'oikomi', t: '追込' }
 		]},
-		{ key: 'effect', label: '③効果タイプ', defaultOpen: true, options: [
+		{ key: 'effect', label: '③効果タイプ', options: [
 			{ v: 'target_speed_up', t: '速度アップ' }, { v: 'accel_up', t: '加速度アップ' }, { v: 'move_forward', t: '前に出る' }, { v: 'extend', t: '伸び' },
 			{ v: 'stamina', t: '持久力回復' }, { v: 'stamina_down', t: '持久力減少' }, { v: 'speed_down', t: '速度ダウン' }, { v: 'start_good', t: 'スタート得意' }, { v: 'course_sense', t: 'コース取り' },
 			{ v: 'lane_change', t: 'レーン移動' }, { v: 'temptation_time', t: '掛かり時間' }, { v: 'vision', t: '視野' },
 			{ v: 'speed_up', t: 'スピードアップ' }, { v: 'stamina_up', t: 'スタミナアップ' }, { v: 'power_up', t: 'パワーアップ' },
 			{ v: 'guts_up', t: '根性アップ' }, { v: 'wisdom_up', t: '賢さアップ' }, { v: 'all_up', t: '全てアップ' }
 		]},
-		{ key: 'phase', label: '④フェーズ', defaultOpen: false, options: [
+		{ key: 'phase', label: '④フェーズ', options: [
 			{ v: 'early', t: '序盤' }, { v: 'mid', t: '中盤' }, { v: 'late', t: '終盤' }, { v: 'lastspurt', t: 'ラストスパート' }
 		]},
-		{ key: 'coursePos', label: '⑤コース位置', defaultOpen: false, options: [
+		{ key: 'coursePos', label: '⑤コース位置', options: [
 			{ v: 'corner', t: 'コーナー' }, { v: 'straight', t: '直線' }, { v: 'uphill', t: '上り坂' }, { v: 'downhill', t: '下り坂' }
 		]},
-		{ key: 'environment', label: '⑥その他1（レース環境）', defaultOpen: false, options: [
+		{ key: 'environment', label: '⑥その他1（レース環境）', options: [
 			{ v: 'ground_good', t: '良バ場' }, { v: 'ground_bad', t: '道悪' },
 			{ v: 'surface_turf', t: '芝' }, { v: 'surface_dirt', t: 'ダート' },
 			{ v: 'right_turn', t: '右回り' }, { v: 'left_turn', t: '左回り' }, { v: 'small_track', t: '小回り' }, { v: 'straight_course', t: '直線コース' },
@@ -83,7 +83,7 @@
 			{ v: 'time_day', t: '昼' }, { v: 'time_evening', t: '夕方' }, { v: 'time_night', t: 'ナイター' },
 			{ v: 'distance_basis', t: '根幹距離' }, { v: 'distance_nonbasis', t: '非根幹距離' }
 		]},
-		{ key: 'trackVenue', label: '⑦その他2（レース場）', defaultOpen: false, options: [
+		{ key: 'trackVenue', label: '⑦その他2（レース場）', options: [
 			{ v: 'track_sapporo', t: '札幌' }, { v: 'track_hakodate', t: '函館' }, { v: 'track_fukushima', t: '福島' }, { v: 'track_niigata', t: '新潟' },
 			{ v: 'track_nakayama', t: '中山' }, { v: 'track_tokyo', t: '東京' }, { v: 'track_chukyo', t: '中京' }, { v: 'track_kyoto', t: '京都' },
 			{ v: 'track_hanshin', t: '阪神' }, { v: 'track_kokura', t: '小倉' },
@@ -92,7 +92,7 @@
 		]},
 		// 該当/非該当だけの単一フラグ軸。選択肢は1つしかないので、
 		// 「条件を持たない＝万能スキル」という他の軸の扱いは当てはめない（flagAxis）。
-		{ key: 'scenario', label: '⑧その他3（シナリオスキル）', defaultOpen: false, flagAxis: true, options: [
+		{ key: 'scenario', label: '⑧その他3（シナリオスキル）', flagAxis: true, options: [
 			{ v: 'scenario', t: 'シナリオスキル' }
 		]}
 	];
@@ -592,7 +592,116 @@
 		'.usd-paste-scroll { max-height: 240px; overflow: auto; }',
 		'.usd-draft-badge { display: inline-block; margin-left: var(--uma-sp-1-5); font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs);',
 		'  font-weight: 600; padding: var(--uma-sp-0-5) var(--uma-sp-1-5); border-radius: var(--uma-r-full);',
-		'  background: var(--uma-warn-bg); color: var(--uma-warn-text); vertical-align: 1px; }'
+		'  background: var(--uma-warn-bg); color: var(--uma-warn-text); vertical-align: 1px; }',
+
+		/* ------------------------------------------------------------
+		 * 8軸フィルターのタブ（フォルダの見出し風タブ＋共通パネル1枚）
+		 *
+		 * 以前は軸ごとに <details> を縦に8つ並べていたが、開くほど縦に伸びて
+		 * 肝心のスキル一覧が画面外へ押し出されていた。タブなら軸をいくつ
+		 * 増やしても縦の高さは変わらない。
+		 * ------------------------------------------------------------ */
+		'.usd-axis-tabs { --usd-tab-lift: 5px; margin-bottom: var(--uma-sp-3); }',
+		// パネル上端の線はタブバー全体で引く。選択中タブがこの線を塗り潰して「つながって」見える
+		'.usd-tabbar { display: flex; align-items: flex-end; background: var(--uma-surface-sunken);',
+		'  border-radius: var(--uma-r-lg) var(--uma-r-lg) 0 0; box-shadow: inset 0 -1px 0 var(--uma-border); }',
+		'.usd-tabscroll { position: relative; flex: 1 1 auto; min-width: 0; }',
+		// 左右にまだタブがあることを示すフェード。opacity は使わない（スタッキング
+		// コンテキストが生まれ、モーダル内の重なり順を壊すため）
+		'.usd-tabscroll::before, .usd-tabscroll::after { content: ""; position: absolute; top: 0; bottom: 1px;',
+		'  width: 28px; pointer-events: none; z-index: 2; visibility: hidden; }',
+		'.usd-tabscroll::before { left: 0; background: linear-gradient(to right, var(--uma-surface-sunken), transparent); }',
+		'.usd-tabscroll::after { right: 0; background: linear-gradient(to left, var(--uma-surface-sunken), transparent); }',
+		'.usd-tabscroll[data-more-left]::before, .usd-tabscroll[data-more-right]::after { visibility: visible; }',
+		// 端へ移動ボタン。タブと見間違えないよう枠も地色も持たせない。
+		// 端の番号（①／⑧）で「全部でいくつあるか」を示す
+		'.usd-tab-jump { flex: none; width: 32px; height: 3.1rem; margin: 0 0 1px; padding: 0;',
+		'  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;',
+		'  font: inherit; line-height: 1; color: var(--uma-accent-hover); background: transparent;',
+		'  border: 0; border-radius: var(--uma-r-md); cursor: pointer; }',
+		'.usd-tab-jump[hidden] { display: none; }',
+		'.usd-tab-jump:hover { background: var(--uma-accent-soft); }',
+		'.usd-tab-jump:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: -2px; }',
+		'.usd-tab-jump-arrow { font-size: var(--uma-fs-md); font-weight: 700; }',
+		'.usd-tab-jump-num { font-size: var(--uma-fs-sm); font-weight: 700; }',
+		// すでに端にいるとき。disabled ではなく aria-disabled にして、押した直後もフォーカスを失わせない
+		'.usd-tab-jump[aria-disabled="true"] { color: var(--uma-border-strong); background: transparent; cursor: default; }',
+		'.usd-tablist { position: relative; display: flex; align-items: flex-end; gap: var(--uma-sp-1);',
+		'  padding: 0 var(--uma-sp-1-5); overflow-x: auto; overscroll-behavior-x: contain;',
+		'  scroll-snap-type: x proximity;',
+		// padding と揃える。揃えないと吸着で左端が数pxずれ、「最初にいる」の判定が外れる
+		'  scroll-padding-inline: var(--uma-sp-1-5); scrollbar-width: none; }',
+		'.usd-tablist::-webkit-scrollbar { display: none; }',
+		// flex: 1 0 0 で幅に余裕があれば8枚を同じ幅で並べ、足りなければ文字幅より縮まず横スクロールに回す
+		'.usd-tab { flex: 1 0 0; min-width: max-content; min-height: 3.1rem; margin-top: var(--usd-tab-lift);',
+		'  padding: var(--uma-sp-1-5) var(--uma-sp-3); display: flex; flex-direction: column;',
+		'  align-items: center; justify-content: center; position: relative; scroll-snap-align: start;',
+		'  font: inherit; line-height: var(--uma-lh-sm); white-space: nowrap; color: var(--uma-text-subtle);',
+		'  background: var(--uma-surface-muted); border: 1px solid var(--uma-border);',
+		'  border-radius: var(--uma-r-lg) var(--uma-r-lg) 0 0; cursor: pointer;',
+		'  transition: background-color var(--uma-transition), color var(--uma-transition); }',
+		'.usd-tab:hover { background: var(--uma-surface); color: var(--uma-text-heading); }',
+		'.usd-tab:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: -3px; }',
+		'.usd-tab-main { font-size: var(--uma-fs-sm); font-weight: 600; }',
+		'.usd-tab-sub { font-size: var(--uma-fs-2xs); }',
+		// 選択中：一段持ち上がり、上端に藍の帯、下の線を消してパネルと地続きにする
+		'.usd-tab[aria-selected="true"] { margin-top: 0; min-height: calc(3.1rem + var(--usd-tab-lift));',
+		'  color: var(--uma-text); background: var(--uma-surface); border-bottom-color: var(--uma-surface);',
+		'  box-shadow: inset 0 3px 0 var(--uma-accent); z-index: 1; }',
+		'.usd-tab[aria-selected="true"] .usd-tab-main { font-weight: 700; color: var(--uma-accent-soft-text); }',
+		// 条件が入っている軸の件数バッジ（他のタブに隠れた条件を見落とさないため）
+		'.usd-tab-count { position: absolute; top: 3px; right: var(--uma-sp-1); min-width: 17px; height: 17px;',
+		'  padding: 0 5px; border-radius: var(--uma-r-full); font-size: var(--uma-fs-2xs); font-weight: 700;',
+		'  line-height: 17px; text-align: center; color: var(--uma-text-inverse); background: var(--uma-accent); }',
+		'.usd-tab[aria-selected="true"] .usd-tab-count { top: 7px; }',
+		'.usd-tab-count[hidden] { display: none; }',
+		// 共通パネル。全軸を同じグリッドのマスに重ね、いちばん背の高い軸（⑦レース場）に
+		// 高さを揃えることで、タブを切り替えても下のスキル一覧が上下に跳ねない
+		'.usd-tabpanels { display: grid; background: var(--uma-surface); border: 1px solid var(--uma-border);',
+		'  border-top: 0; border-radius: 0 0 var(--uma-r-lg) var(--uma-r-lg);',
+		'  padding: var(--uma-sp-3-5) var(--uma-sp-4) var(--uma-sp-4); }',
+		'.usd-tabpanel { grid-area: 1 / 1; min-width: 0; }',
+		// Tailwind の hidden クラスは使わない（F-13）
+		'.usd-tabpanel:not(.is-active) { visibility: hidden; }',
+		'.usd-tabpanel:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: 4px; border-radius: var(--uma-r-sm); }',
+		'.usd-axis-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--uma-sp-1) var(--uma-sp-3);',
+		'  margin-bottom: var(--uma-sp-2-5); }',
+		'.usd-axis-title { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-axis-hint { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		'.usd-link-btn { margin-left: auto; font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
+		'  padding: var(--uma-sp-0-5) var(--uma-sp-1-5); border-radius: var(--uma-r-sm); color: var(--uma-accent-soft-text);',
+		'  background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }',
+		'.usd-link-btn:disabled { color: var(--uma-border-strong); text-decoration: none; cursor: default; }',
+		// 選択肢チップ。中身は本物の checkbox のままなので、既存のJSとテストがそのまま掴める
+		// （.usd-chip はテンプレートのスキル名チップで使用済みのため .usd-opt にしてある）
+		'.usd-opts { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2); }',
+		'.usd-opt { display: inline-flex; align-items: center; gap: var(--uma-sp-1-5);',
+		'  padding: var(--uma-sp-1-5) var(--uma-sp-3) var(--uma-sp-1-5) var(--uma-sp-2);',
+		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
+		'  background: var(--uma-surface); color: var(--uma-text-heading); font-size: var(--uma-fs-sm);',
+		'  line-height: var(--uma-lh-sm); cursor: pointer; user-select: none;',
+		'  transition: background-color var(--uma-transition), border-color var(--uma-transition); }',
+		'.usd-opt:hover { border-color: var(--uma-accent-border); background: var(--uma-surface-sunken); }',
+		'.usd-opt input { appearance: none; -webkit-appearance: none; flex: none; margin: 0; width: 18px; height: 18px;',
+		'  border: 1.5px solid var(--uma-border-strong); border-radius: 50%; background: var(--uma-surface);',
+		'  display: grid; place-content: center; cursor: pointer; }',
+		'.usd-opt input::after { content: ""; width: 8px; height: 4.5px; border: 2px solid var(--uma-text-inverse);',
+		'  border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); visibility: hidden; }',
+		'.usd-opt input:checked { background: var(--uma-accent); border-color: var(--uma-accent); }',
+		'.usd-opt input:checked::after { visibility: visible; }',
+		'.usd-opt:has(input:checked) { background: var(--uma-accent-soft); border-color: var(--uma-accent-border);',
+		'  color: var(--uma-accent-soft-text); font-weight: 600; }',
+		'.usd-opt:has(input:focus-visible) { outline: 2px solid var(--uma-accent-ring); outline-offset: 2px; }',
+		// 絞り込み中の条件。どのタブに何が入っているかを一望し、押すとそのタブへ飛ぶ
+		'.usd-active-summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-1-5) var(--uma-sp-2);',
+		'  margin-top: var(--uma-sp-3); min-height: 30px; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		'.usd-summary-label { font-weight: 600; color: var(--uma-text-heading); }',
+		'.usd-summary-item { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
+		'  padding: var(--uma-sp-0-5) var(--uma-sp-2-5); border-radius: var(--uma-r-full); cursor: pointer;',
+		'  color: var(--uma-accent-soft-text); background: var(--uma-accent-soft); border: 1px solid var(--uma-accent-border); }',
+		'.usd-summary-item:hover { border-color: var(--uma-accent); }',
+		'.usd-summary-item b { font-weight: 700; margin-right: var(--uma-sp-1); }',
+		'@media (prefers-reduced-motion: reduce) { .usd-tab, .usd-opt { transition: none; } }'
 	].join('\n');
 
 	let stylesInjected = false;
@@ -610,7 +719,9 @@
 	 * ============================================================ */
 	// モーダルはページに1つだけ生成し、開くたびに状態を作り直す。
 	let pickerEl = null;
-	let picker = { filters: {}, checked: new Set(), onAdd: null, excludeIds: [], axisOpen: {} };
+	// activeAxis は「モーダルを開いている間だけ」覚える。openSkillPicker() で毎回
+	// 先頭の軸に戻すので、localStorage には保存しない（以前の axisOpen と同じ寿命）。
+	let picker = { filters: {}, checked: new Set(), onAdd: null, excludeIds: [], activeAxis: TAG_AXES[0].key };
 	// 一括貼り付けの照合結果。各行に chosenId（採用したスキルID）を後から書き込む。
 	let pasteRows = [];
 
@@ -636,7 +747,9 @@
 							'<div data-usd-el="paste-report" class="mt-3"></div>' +
 						'</div>' +
 					'</details>' +
-					'<div data-usd-el="filter-axes" class="grid grid-cols-1 gap-2 mb-3"></div>' +
+					// 8軸フィルター。中身（タブ＋共通パネル）は renderPickerFilterAxes() が
+					// ensurePicker() のときに1回だけ組み立てる。
+					'<div data-usd-el="filter-axes"></div>' +
 					'<div class="flex items-center justify-between mb-1">' +
 						'<label class="flex items-center gap-1.5 text-xs text-slate-600">' +
 							'<input type="checkbox" data-usd-act="picker-select-all"/> 表示中を全て選択' +
@@ -673,6 +786,12 @@
 			if (!btn || !pickerEl.contains(btn)) return;
 			const act = btn.dataset.usdAct;
 			if (act === 'picker-close') closePicker();
+			else if (act === 'filter-tab') selectPickerAxisTab(btn.dataset.usdAxis, false);
+			// 「絞り込み中」から飛ぶときは、どのタブへ移ったかが分かるようフォーカスも移す。
+			else if (act === 'filter-jump') selectPickerAxisTab(btn.dataset.usdAxis, true);
+			else if (act === 'filter-edge') { if (btn.getAttribute('aria-disabled') !== 'true') scrollPickerTabsToEdge(btn.dataset.usdEdge); }
+			else if (act === 'filter-clear-axis') clearPickerAxisFilter(btn.dataset.usdAxis);
+			else if (act === 'filter-clear-all') clearAllPickerFilters();
 			else if (act === 'picker-add') addCheckedSkills();
 			else if (act === 'custom-add') addCustomSkillFromPicker();
 			else if (act === 'paste-run') runPasteMatch();
@@ -688,6 +807,9 @@
 			if (el.dataset.usdEl === 'skill-check') { onPickerCheck(el.value, el.checked); return; }
 		});
 		renderCustomSkillTagInputs();
+		// 軸は実行中に増減しないので、タブとパネルは1回だけ組み立てて使い回す。
+		// 開き直すたびの初期化は resetPickerFilterUi() が担う。
+		renderPickerFilterAxes();
 		return pickerEl;
 	}
 
@@ -695,32 +817,216 @@
 		return root.querySelector('[data-usd-el="' + name + '"]');
 	}
 
+	/* ------------------------------------------------------------
+	 * 8軸フィルター（タブ切り替え）
+	 *
+	 * 以前は軸ごとの <details> を縦に8つ並べていた。開くほど縦に伸びて、
+	 * 肝心のスキル一覧が画面外へ押し出されるのを解消するためタブにした。
+	 *
+	 * 組み立ては ensurePicker() で1回だけ行い、以降は属性とクラスの付け外しで
+	 * 更新する。以前のように checkbox を触るたび innerHTML を作り直すと、
+	 * タブバーの横スクロール位置とフォーカスが毎回吹き飛ぶため。
+	 * ------------------------------------------------------------ */
+
+	// ラベルの「（…）」は2行目の小さい文字に分けて表示する（TAG_AXES 側は無変更で済む）。
+	function splitAxisLabel(label) {
+		const m = String(label).match(/^(.+?)（(.+)）$/);
+		return m ? { main: m[1], sub: m[2] } : { main: String(label), sub: '' };
+	}
+
+	// 端へ移動ボタンに出す番号（①／⑧）。軸がいくつあるかを一目で分かるようにするためのもの。
+	// ハードコードせず TAG_AXES の最初と最後のラベル先頭の丸数字から取る。
+	// 丸数字で始まらないラベルに変わっても困らないよう 1／軸の数 で代用する。
+	function axisEdgeMark(edge) {
+		const axis = edge === 'start' ? TAG_AXES[0] : TAG_AXES[TAG_AXES.length - 1];
+		const m = splitAxisLabel(axis.label).main.match(/^[①-⑳]/);
+		return m ? m[0] : String(edge === 'start' ? 1 : TAG_AXES.length);
+	}
+
+	function axisEdgeButton(edge) {
+		const axis = edge === 'start' ? TAG_AXES[0] : TAG_AXES[TAG_AXES.length - 1];
+		const name = splitAxisLabel(axis.label).main;
+		const text = edge === 'start' ? '最初の「' + name + '」まで戻る' : '最後の「' + name + '」まで進む';
+		return '' +
+			'<button type="button" class="usd-tab-jump" data-usd-act="filter-edge" data-usd-edge="' + edge + '"' +
+				' aria-label="' + esc(text) + '" title="' + esc(text) + '" hidden>' +
+				'<span class="usd-tab-jump-arrow" aria-hidden="true">' + (edge === 'start' ? '«' : '»') + '</span>' +
+				'<span class="usd-tab-jump-num" aria-hidden="true">' + esc(axisEdgeMark(edge)) + '</span>' +
+			'</button>';
+	}
+
+	function prefersReducedMotion() {
+		return !!(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
+	}
+
 	function renderPickerFilterAxes() {
 		const el = q(pickerEl, 'filter-axes');
-		el.innerHTML = TAG_AXES.map(axis => {
-			const activeCount = picker.filters[axis.key].length;
-			const isOpen = picker.axisOpen[axis.key];
+
+		const tabs = TAG_AXES.map(axis => {
+			const parts = splitAxisLabel(axis.label);
+			const isActive = axis.key === picker.activeAxis;
 			return '' +
-			'<details class="bg-slate-50 rounded-xl border border-slate-200" data-usd-axis="' + axis.key + '"' + (isOpen ? ' open' : '') + '>' +
-				'<summary class="text-[11px] text-slate-500 px-3 py-2 cursor-pointer select-none flex items-center justify-between">' +
-					'<span>' + axis.label + (activeCount > 0 ? ' <span class="text-indigo-600 font-semibold">(' + activeCount + ')</span>' : '') + '</span>' +
-					'<i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>' +
-				'</summary>' +
-				'<div class="flex flex-wrap gap-1.5 px-3 pb-3">' +
-					axis.options.map(o =>
-						'<label class="usd-pill">' +
-							'<input type="checkbox" data-usd-el="filter-check" data-axis="' + axis.key + '" data-value="' + esc(o.v) + '"' + (picker.filters[axis.key].includes(o.v) ? ' checked' : '') + '/>' +
-							'<span>' + esc(o.t) + '</span>' +
-						'</label>'
-					).join('') +
-				'</div>' +
-			'</details>';
+			'<button type="button" role="tab" class="usd-tab" id="usd-tab-' + axis.key + '"' +
+				' aria-controls="usd-panel-' + axis.key + '" aria-selected="' + isActive + '"' +
+				' tabindex="' + (isActive ? 0 : -1) + '" data-usd-act="filter-tab" data-usd-axis="' + axis.key + '">' +
+				'<span class="usd-tab-main">' + esc(parts.main) + '</span>' +
+				(parts.sub ? '<span class="usd-tab-sub">' + esc(parts.sub) + '</span>' : '') +
+				'<span class="usd-tab-count" data-usd-el="axis-count" data-usd-axis="' + axis.key + '" hidden></span>' +
+			'</button>';
 		}).join('');
-		// toggle イベントはバブリングしないため、委譲ではなく個別に張る。
-		el.querySelectorAll('details[data-usd-axis]').forEach(d => {
-			d.addEventListener('toggle', () => { picker.axisOpen[d.dataset.usdAxis] = d.open; });
+
+		const panels = TAG_AXES.map(axis => {
+			const isActive = axis.key === picker.activeAxis;
+			// 選択肢の見た目だけチップにする。中身は従来どおり本物の checkbox で、
+			// data-usd-el / data-axis / data-value もそのまま残してある。
+			const opts = axis.options.map(o =>
+				'<label class="usd-opt">' +
+					'<input type="checkbox" data-usd-el="filter-check" data-axis="' + axis.key + '" data-value="' + esc(o.v) + '"/>' +
+					'<span>' + esc(o.t) + '</span>' +
+				'</label>'
+			).join('');
+			const hint = axis.flagAxis ? 'チェックすると該当スキルだけに絞る' : '選んだもののいずれかに一致（OR）';
+			return '' +
+			'<section role="tabpanel" class="usd-tabpanel' + (isActive ? ' is-active' : '') + '"' +
+				' id="usd-panel-' + axis.key + '" aria-labelledby="usd-tab-' + axis.key + '"' +
+				' data-usd-axis="' + axis.key + '" tabindex="0">' +
+				'<div class="usd-axis-head">' +
+					'<h3 class="usd-axis-title">' + esc(axis.label) + '</h3>' +
+					'<p class="usd-axis-hint">' + hint + '</p>' +
+					'<button type="button" class="usd-link-btn" data-usd-act="filter-clear-axis" data-usd-axis="' + axis.key + '">この軸を解除</button>' +
+				'</div>' +
+				'<div class="usd-opts">' + opts + '</div>' +
+			'</section>';
+		}).join('');
+
+		el.innerHTML = '' +
+			'<div class="usd-axis-tabs">' +
+				'<div class="usd-tabbar">' +
+					axisEdgeButton('start') +
+					'<div class="usd-tabscroll" data-usd-el="tabscroll">' +
+						'<div class="usd-tablist" role="tablist" aria-label="絞り込みの軸">' + tabs + '</div>' +
+					'</div>' +
+					axisEdgeButton('end') +
+				'</div>' +
+				'<div class="usd-tabpanels">' + panels + '</div>' +
+				'<div class="usd-active-summary" data-usd-el="filter-summary" aria-live="polite"></div>' +
+			'</div>';
+
+		const tablist = el.querySelector('.usd-tablist');
+		// WAI-ARIA のタブの作法：←→で隣へ、Home/Endで端へ（移動と同時に切り替える）。
+		tablist.addEventListener('keydown', (e) => {
+			const keys = TAG_AXES.map(a => a.key);
+			const i = keys.indexOf(picker.activeAxis);
+			const next = {
+				ArrowRight: (i + 1) % keys.length,
+				ArrowLeft: (i - 1 + keys.length) % keys.length,
+				Home: 0,
+				End: keys.length - 1
+			}[e.key];
+			if (next === undefined) return;
+			e.preventDefault();
+			selectPickerAxisTab(keys[next], true);
 		});
-		refreshIcons();
+		tablist.addEventListener('scroll', updatePickerTabOverflow, { passive: true });
+		if (global.ResizeObserver) new global.ResizeObserver(updatePickerTabOverflow).observe(tablist);
+	}
+
+	/* タブの切り替えは aria-selected・tabindex・is-active を揃えて付け替えるだけ。 */
+	function selectPickerAxisTab(axisKey, focus) {
+		picker.activeAxis = axisKey;
+		pickerEl.querySelectorAll('.usd-tab').forEach(tab => {
+			const on = tab.dataset.usdAxis === axisKey;
+			tab.setAttribute('aria-selected', String(on));
+			tab.tabIndex = on ? 0 : -1;
+			if (!on) return;
+			scrollPickerTabIntoView(tab);
+			if (focus) tab.focus({ preventScroll: true });
+		});
+		pickerEl.querySelectorAll('.usd-tabpanel').forEach(panel => {
+			panel.classList.toggle('is-active', panel.dataset.usdAxis === axisKey);
+		});
+	}
+
+	/* scrollIntoView はモーダル本体まで縦に動かしてしまうので、タブバーの横方向だけを動かす。 */
+	function scrollPickerTabIntoView(tab) {
+		const bar = tab.parentElement;
+		const pad = 32; // 端へ移動ボタンのぶん、少し余分に寄せて隣のタブの存在を見せる
+		const left = tab.offsetLeft;
+		const right = left + tab.offsetWidth;
+		let target = null;
+		if (left - pad < bar.scrollLeft) target = left - pad;
+		else if (right + pad > bar.scrollLeft + bar.clientWidth) target = right + pad - bar.clientWidth;
+		if (target === null) return;
+		bar.scrollTo({ left: Math.max(0, target), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+	}
+
+	/* 左右にまだタブがあるときだけフェードと端へ移動ボタンを出す。 */
+	function updatePickerTabOverflow() {
+		if (!pickerEl) return;
+		const bar = pickerEl.querySelector('.usd-tablist');
+		const wrap = q(pickerEl, 'tabscroll');
+		if (!bar || !wrap) return;
+		const max = bar.scrollWidth - bar.clientWidth;
+		const atStart = bar.scrollLeft <= 2;
+		const atEnd = bar.scrollLeft >= max - 2;
+		wrap.toggleAttribute('data-more-left', !atStart);
+		wrap.toggleAttribute('data-more-right', !atEnd);
+		// 全タブが収まっているとき（PC幅）は端へ移動ボタンを出さない。
+		const overflowing = max > 2;
+		pickerEl.querySelectorAll('.usd-tab-jump').forEach(btn => {
+			btn.hidden = !overflowing;
+			// disabled ではなく aria-disabled。押した直後にフォーカスを失わせないため。
+			btn.setAttribute('aria-disabled', String(btn.dataset.usdEdge === 'start' ? atStart : atEnd));
+		});
+	}
+
+	/* 端へスクロールするだけで、選択中のタブは変えない（条件を触る前に一覧を見渡せるように）。 */
+	function scrollPickerTabsToEdge(edge) {
+		const bar = pickerEl.querySelector('.usd-tablist');
+		if (!bar) return;
+		const left = edge === 'start' ? 0 : bar.scrollWidth - bar.clientWidth;
+		bar.scrollTo({ left: left, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+	}
+
+	/**
+	 * 件数バッジ・「この軸を解除」の活性・「絞り込み中」の一覧をまとめて更新する。
+	 * タブ化すると他の軸に入れた条件が視界から消えるので、この3つで補っている。
+	 */
+	function refreshPickerFilterUi() {
+		if (!pickerEl) return;
+		TAG_AXES.forEach(axis => {
+			const n = picker.filters[axis.key].length;
+			const badge = pickerEl.querySelector('[data-usd-el="axis-count"][data-usd-axis="' + axis.key + '"]');
+			if (badge) { badge.hidden = n === 0; badge.textContent = n; }
+			const tab = pickerEl.querySelector('.usd-tab[data-usd-axis="' + axis.key + '"]');
+			if (tab) tab.setAttribute('aria-label', splitAxisLabel(axis.label).main + (n ? '（' + n + '件選択中）' : ''));
+			const clearBtn = pickerEl.querySelector('[data-usd-act="filter-clear-axis"][data-usd-axis="' + axis.key + '"]');
+			if (clearBtn) clearBtn.disabled = n === 0;
+		});
+
+		const summary = q(pickerEl, 'filter-summary');
+		if (!summary) return;
+		const active = TAG_AXES.filter(a => picker.filters[a.key].length > 0);
+		if (active.length === 0) {
+			summary.innerHTML = '<span>条件なし（すべてのスキルを表示）</span>';
+			return;
+		}
+		summary.innerHTML = '<span class="usd-summary-label">絞り込み中</span>' +
+			active.map(a =>
+				'<button type="button" class="usd-summary-item" data-usd-act="filter-jump" data-usd-axis="' + a.key + '" title="このタブを開く">' +
+					'<b>' + esc(splitAxisLabel(a.label).main) + '</b>' +
+					esc(picker.filters[a.key].map(v => tagLabel(a.key, v)).join('・')) +
+				'</button>'
+			).join('') +
+			'<button type="button" class="usd-link-btn" data-usd-act="filter-clear-all">すべて解除</button>';
+	}
+
+	/* モーダルを開き直したときに、チェックと選択中のタブを初期状態へ戻す。 */
+	function resetPickerFilterUi() {
+		pickerEl.querySelectorAll('[data-usd-el="filter-check"]').forEach(el => { el.checked = false; });
+		selectPickerAxisTab(TAG_AXES[0].key, false);
+		refreshPickerFilterUi();
+		updatePickerTabOverflow();
 	}
 
 	function onPickerFilterChange(input) {
@@ -729,8 +1035,24 @@
 		const idx = arr.indexOf(value);
 		if (input.checked && idx === -1) arr.push(value);
 		if (!input.checked && idx !== -1) arr.splice(idx, 1);
-		renderPickerFilterAxes();
+		refreshPickerFilterUi();
 		renderPickerResults();
+	}
+
+	function clearPickerAxisFilter(axisKey) {
+		picker.filters[axisKey].length = 0;
+		pickerEl.querySelectorAll('[data-usd-el="filter-check"][data-axis="' + axisKey + '"]').forEach(el => { el.checked = false; });
+		refreshPickerFilterUi();
+		renderPickerResults();
+	}
+
+	function clearAllPickerFilters() {
+		TAG_AXES.forEach(a => { picker.filters[a.key].length = 0; });
+		pickerEl.querySelectorAll('[data-usd-el="filter-check"]').forEach(el => { el.checked = false; });
+		refreshPickerFilterUi();
+		renderPickerResults();
+		const tab = pickerEl.querySelector('.usd-tab[data-usd-axis="' + picker.activeAxis + '"]');
+		if (tab) tab.focus();
 	}
 
 	function getFilteredPickerPool() {
@@ -1015,8 +1337,7 @@
 	function openSkillPicker(existingSkillIds, onAdd) {
 		ensurePicker();
 		picker.filters = {};
-		picker.axisOpen = {};
-		TAG_AXES.forEach(a => { picker.filters[a.key] = []; picker.axisOpen[a.key] = a.defaultOpen; });
+		TAG_AXES.forEach(a => { picker.filters[a.key] = []; });
 		picker.checked = new Set();
 		picker.excludeIds = (existingSkillIds || []).slice();
 		picker.onAdd = onAdd;
@@ -1024,7 +1345,8 @@
 		const pasteInput = q(pickerEl, 'paste-input');
 		if (pasteInput) pasteInput.value = '';
 		pickerEl.hidden = false;
-		renderPickerFilterAxes();
+		// 幅が確定するのは hidden を外したあとなので、端へ移動ボタンの判定もここで行う。
+		resetPickerFilterUi();
 		renderPickerResults();
 		renderPasteReport();
 		refreshIcons();
