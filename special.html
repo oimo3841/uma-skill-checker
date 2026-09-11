@@ -101,6 +101,11 @@
 			z-index: 110;
 		}
 		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
+		/* ★の数のコピー元。「スプレッドシート貼り付け用データ」の窓としては出さないが、
+		   値をコピーするために DOM には残す。display:none だと選択できなくなるので、
+		   画面の外へ追い出す形で隠す。 */
+		.copy-source-hidden { position: absolute; width: 1px; height: 1px; margin: -1px;
+			padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
 		/* ステップのタブ・FAB・引き出し・ダイアログ（ガイド／告知）・「新UI」バッジの骨格は
 		   css/shell.css へ移した（exam.html と共有するため）。Deck（藍）のスコープ
@@ -1265,17 +1270,19 @@
 			const btnLabel = document.getElementById('copy-btn-label');
 			const title = document.getElementById('copy-title');
 			const hint = document.getElementById('copy-hint');
-			if (used.length <= 1) {
-				btnLabel.textContent = '★の数をコピー';
-				title.textContent = 'スプレッドシート貼り付け用データ';
-			} else {
-				btnLabel.textContent = used.length + '列まとめてコピー';
-				title.textContent = 'スプレッドシート貼り付け用データ（' + used.length + '列）';
-			}
+			// ボタンのラベルは、何がコピーされるかを言い切る。窓を出さないので、
+			// ボタンの文字だけで分かる必要がある。
+			btnLabel.textContent = used.length <= 1 ? '★の数をコピー' : '★の数をコピー（' + used.length + '列）';
+			if (title) title.textContent = used.length <= 1
+				? 'スプレッドシート貼り付け用データ'
+				: 'スプレッドシート貼り付け用データ（' + used.length + '列）';
 			const names = used.map(i => PERSON_LABELS[i]).join('・');
 			hint.textContent = used.length <= 1
 				? '※' + names + 'の★の数です。スキル名は含みません'
 				: '※' + names + 'の★の数（タブ区切り）。スキル名は含みません';
+			// 窓を出さない画面では、この説明の行き場がボタンの title しかない
+			const copyBtn = document.getElementById('result-copy-btn');
+			if (copyBtn) copyBtn.title = hint.textContent.replace(/^※/, '');
 		}
 
 		function updateFilterLabels(used) {
@@ -1487,11 +1494,24 @@
 			devWrap.classList.remove('hidden');
 		}
 
+		/* ★の数（タブ区切り）をコピーする。値は #copy-data が持つ。
+		   以前は「スプレッドシート貼り付け用データ」の窓を select() して execCommand していたが、
+		   窓を画面から外した（新UI）ので、値を直接クリップボードへ渡す形にした。
+		   execCommand は画面に出ている要素にしか効かないため、こちらが本筋。
+		   古いブラウザ・保護されていない文脈（file:// など）のときだけ従来の経路へ落ちる。 */
 		function copyToClipboard() {
 			const copyData = document.getElementById('copy-data');
-			copyData.select();
-			document.execCommand('copy');
-			showToast('★データをクリップボードにコピーしました');
+			const done = () => showToast('★データをクリップボードにコピーしました');
+			if (navigator.clipboard && navigator.clipboard.writeText) {
+				navigator.clipboard.writeText(copyData.value).then(done, () => { legacyCopy(copyData); done(); });
+				return;
+			}
+			legacyCopy(copyData);
+			done();
+		}
+
+		function legacyCopy(el) {
+			try { el.select(); document.execCommand('copy'); } catch (e) {}
 		}
 
 		function copyDevLog() {
@@ -2274,10 +2294,6 @@
 				<p class="text-sm font-bold text-slate-800 truncate">照合結果（★の数）</p>
 			</div>
 			<div class="flex items-center gap-2 shrink-0">
-				<button type="button" onclick="copyToClipboard()" class="uma-btn uma-btn--neutral">
-					<i data-lucide="copy" class="w-3.5 h-3.5"></i>
-					<span id="copy-btn-label">まとめてコピー</span>
-				</button>
 				<button id="result-drawer-close" type="button" onclick="closeDrawer()" class="uma-btn uma-btn--secondary">
 					<i data-lucide="x" class="w-3.5 h-3.5"></i>
 					<span>閉じる</span>
@@ -2341,6 +2357,15 @@
 						</div>
 					</div>
 
+					<!-- ★の数をコピーするボタン。以前は引き出しの見出し（「閉じる」の左）にあり、
+					     実機で気づかれなかったので、結果の一覧のすぐ上へ移した。 -->
+					<div id="result-copy-slot" class="flex justify-end mb-2">
+						<button type="button" id="result-copy-btn" onclick="copyToClipboard()" class="uma-btn uma-btn--neutral">
+							<i data-lucide="copy" class="w-3.5 h-3.5"></i>
+							<span id="copy-btn-label">★の数をコピー</span>
+						</button>
+					</div>
+
 					<!-- テーブル -->
 					<div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
 						<table class="result-table">
@@ -2349,8 +2374,9 @@
 						</table>
 					</div>
 
-					<!-- コピー用エリア -->
-					<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-6">
+					<!-- コピー用エリア（窓）。画面には出さず、★の数のコピー元としてだけ残す。
+					     見せる窓としては読みにくく、コピーはボタンに一本化した。 -->
+					<div id="copy-data-wrap" class="copy-source-hidden">
 						<div class="flex items-center justify-between mb-2">
 							<p class="text-xs font-semibold text-slate-700" id="copy-title">スプレッドシート貼り付け用データ</p>
 							<span class="text-[11px] text-slate-400" id="copy-hint"></span>

@@ -110,6 +110,11 @@
 		.notice-new .notice-text + .notice-text { margin-top: var(--uma-sp-2); }
 		/* ＜新機能＞の段でツール名を強調する。色は枠の中の本文と同じ（Deck の色の濃い方）で読みやすい */
 		.notice-deck-name { font-weight: 700; color: var(--uma-accent-soft-text); }
+		/* ★の数のコピー元。「スプレッドシート貼り付け用データ」の窓としては出さないが、
+		   値をコピーするために DOM には残す。display:none だと選択できなくなるので、
+		   画面の外へ追い出す形で隠す。 */
+		.copy-source-hidden { position: absolute; width: 1px; height: 1px; margin: -1px;
+			padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 		.deck-note-btn { background: var(--uma-accent); }
 		.deck-note-btn:hover { background: var(--uma-accent-hover); }
 		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
@@ -638,12 +643,6 @@
 				<p class="text-sm font-bold text-slate-800 truncate">照合結果（★の数）</p>
 			</div>
 			<div class="flex items-center gap-2 shrink-0">
-				<span id="result-drawer-copy-slot" class="contents">
-				<button type="button" id="result-copy-btn" onclick="copyToClipboard()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all shadow-xs cursor-pointer">
-					<i data-lucide="copy" class="w-3.5 h-3.5"></i>
-					<span id="copy-btn-label">まとめてコピー</span>
-				</button>
-				</span>
 				<button id="result-drawer-close" type="button" onclick="closeDrawer()" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
 					<i data-lucide="x" class="w-3.5 h-3.5"></i>
 					<span>閉じる</span>
@@ -735,6 +734,16 @@
 				<button type="button" id="table-toggle-B" onclick="toggleTableSet(1)" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer">親Bセット</button>
 			</div>
 
+			<!-- ★の数をコピーするボタン。以前は引き出しの見出し（「閉じる」の左）にあり、
+			     実機で気づかれなかったので、結果の一覧のすぐ上へ移した。
+			     旧UIではカードの見出し（#old-copy-slot）へ戻る（placeSections）。 -->
+			<div id="result-copy-slot" class="flex justify-end mb-2">
+				<button type="button" id="result-copy-btn" onclick="copyToClipboard()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all shadow-xs cursor-pointer">
+					<i data-lucide="copy" class="w-3.5 h-3.5"></i>
+					<span id="copy-btn-label">★の数をコピー</span>
+				</button>
+			</div>
+
 			<!-- テーブル -->
 			<div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
 				<table id="result-table-el" class="result-table">
@@ -743,8 +752,9 @@
 				</table>
 			</div>
 
-			<!-- コピー用エリア -->
-			<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-6">
+			<!-- コピー用エリア（窓）。新UIでは出さない（コピーはボタンに一本化）。
+			     旧UIは「元の画面」なので今までどおり出す。placeSections が切り替える。 -->
+			<div id="copy-data-wrap" class="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-6">
 				<div class="flex items-center justify-between mb-2">
 					<p class="text-xs font-semibold text-slate-700" id="copy-title">スプレッドシート貼り付け用データ</p>
 					<span class="text-[11px] text-slate-400" id="copy-hint"></span>
@@ -2174,17 +2184,19 @@
 			const btnLabel = document.getElementById('copy-btn-label');
 			const title = document.getElementById('copy-title');
 			const hint = document.getElementById('copy-hint');
-			if (used.length <= 1) {
-				btnLabel.textContent = '★の数をコピー';
-				title.textContent = 'スプレッドシート貼り付け用データ';
-			} else {
-				btnLabel.textContent = used.length + '列まとめてコピー';
-				title.textContent = 'スプレッドシート貼り付け用データ（' + used.length + '列）';
-			}
+			// ボタンのラベルは、何がコピーされるかを言い切る。窓を出さないので、
+			// ボタンの文字だけで分かる必要がある。
+			btnLabel.textContent = used.length <= 1 ? '★の数をコピー' : '★の数をコピー（' + used.length + '列）';
+			if (title) title.textContent = used.length <= 1
+				? 'スプレッドシート貼り付け用データ'
+				: 'スプレッドシート貼り付け用データ（' + used.length + '列）';
 			const names = used.map(i => PERSON_LABELS[i]).join('・');
 			hint.textContent = used.length <= 1
 				? '※' + names + 'の★の数です。スキル名は含みません'
 				: '※' + names + 'の★の数（タブ区切り）。スキル名は含みません';
+			// 窓を出さない画面では、この説明の行き場がボタンの title しかない
+			const copyBtn = document.getElementById('result-copy-btn');
+			if (copyBtn) copyBtn.title = hint.textContent.replace(/^※/, '');
 		}
 
 		function updateFilterLabels(used) {
@@ -2427,11 +2439,24 @@
 			devWrap.classList.remove('hidden');
 		}
 
+		/* ★の数（タブ区切り）をコピーする。値は #copy-data が持つ。
+		   以前は「スプレッドシート貼り付け用データ」の窓を select() して execCommand していたが、
+		   窓を画面から外した（新UI）ので、値を直接クリップボードへ渡す形にした。
+		   execCommand は画面に出ている要素にしか効かないため、こちらが本筋。
+		   古いブラウザ・保護されていない文脈（file:// など）のときだけ従来の経路へ落ちる。 */
 		function copyToClipboard() {
 			const copyData = document.getElementById('copy-data');
-			copyData.select();
-			document.execCommand('copy');
-			showToast('★データをクリップボードにコピーしました');
+			const done = () => showToast('★データをクリップボードにコピーしました');
+			if (navigator.clipboard && navigator.clipboard.writeText) {
+				navigator.clipboard.writeText(copyData.value).then(done, () => { legacyCopy(copyData); done(); });
+				return;
+			}
+			legacyCopy(copyData);
+			done();
+		}
+
+		function legacyCopy(el) {
+			try { el.select(); document.execCommand('copy'); } catch (e) {}
 		}
 
 		function copyDevLog() {
@@ -2811,7 +2836,7 @@
 			move('step-panel-1', isNew ? 'new-step-slot' : 'old-step1-slot');
 			move('step-panel-2', isNew ? 'new-step-slot' : 'old-step2-slot');
 			move('result-wrap', isNew ? 'result-drawer-slot' : 'old-result-slot');
-			move('result-copy-btn', isNew ? 'result-drawer-copy-slot' : 'old-copy-slot');
+			move('result-copy-btn', isNew ? 'result-copy-slot' : 'old-copy-slot');
 			move('stitch-result-wrap', isNew ? 'stitch-drawer-slot' : 'old-stitch-slot');
 			move('help-content', isNew ? 'help-dialog-slot' : 'old-help-slot');
 			// 「高度な解析オプション」で出るもの。新UIは処理ボタンの下、旧UIは今までどおり結果の下
@@ -2824,6 +2849,9 @@
 			document.getElementById('old-result-card').hidden = isNew || document.getElementById('result-wrap').classList.contains('hidden');
 			document.getElementById('old-stitch-card').hidden = isNew || document.getElementById('stitch-result-wrap').classList.contains('hidden');
 			document.getElementById('old-help-card').classList.add('hidden');
+			// コピー用の窓は旧UIだけ。新UIはコピーのボタンに一本化する（値は隠したまま持つ）
+			document.getElementById('copy-data-wrap').classList.toggle('copy-source-hidden', isNew);
+			document.getElementById('result-copy-slot').hidden = !isNew;
 			document.getElementById('fab-nav').hidden = !isNew;
 			if (isNew) {
 				// 最後に見ていたタブから始める（旧UIから戻ったときも同じ）

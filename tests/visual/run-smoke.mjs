@@ -723,7 +723,28 @@ const browser = await chromium.launch();
 		const wrap = document.getElementById('result-wrap');
 		return wrap.querySelector('#deck-handoff-note').compareDocumentPosition(wrap.querySelector('#stat-grid')) & Node.DOCUMENT_POSITION_FOLLOWING;
 	}), 'exam: 案内は結果の中でサマリーより前にある');
-	assert(await page.isVisible('#exam-highlight') && await page.isVisible('#copy-btn-label'), 'exam: 緑スキルハイライトと「まとめてコピー」が引き出しの中にある');
+	assert(await page.isVisible('#exam-highlight') && await page.isVisible('#copy-btn-label'), 'exam: 緑スキルハイライトと「★の数をコピー」が引き出しの中にある');
+
+	/* --- ★の数のコピー: 窓は出さず、ボタンを結果の一覧のすぐ上に置く（追加修正⑦） --- */
+	const copyPlace = await page.evaluate(() => {
+		const btn = document.getElementById('result-copy-btn');
+		const table = document.getElementById('result-table-el');
+		return {
+			inResult: document.getElementById('result-wrap').contains(btn),
+			slot: btn.parentElement.id,
+			aboveTable: !!(btn.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING),
+			label: document.getElementById('copy-btn-label').textContent,
+			title: btn.title,
+			windowShown: !document.getElementById('copy-data-wrap').classList.contains('copy-source-hidden'),
+			value: document.getElementById('copy-data').value.split(String.fromCharCode(10))[0],
+		};
+	});
+	assert(copyPlace.inResult && copyPlace.slot === 'result-copy-slot' && copyPlace.aboveTable,
+		'exam: 「★の数をコピー」は結果の中の、一覧のすぐ上にある', copyPlace);
+	assert(copyPlace.label === '★の数をコピー（2列）' && copyPlace.title.includes('スキル名は含みません'),
+		'exam: ラベルは何をコピーするかを言い切り、詳しい説明は title に入る', copyPlace);
+	assert(!copyPlace.windowShown, 'exam: 新UIでは「スプレッドシート貼り付け用データ」の窓を出さない', copyPlace);
+	assert(/^\d+\t\d+$/.test(copyPlace.value), 'exam: コピーされる中身（タブ区切りの★の数）は変えていない', copyPlace.value);
 	// 取り込み案内の色は Deck の色（.deck-accent → --uma-deck-accent-soft）。ページの藍ではない
 	const noteColor = await page.evaluate(() => ({
 		box: getComputedStyle(document.getElementById('deck-handoff-box')).backgroundColor,
@@ -1649,7 +1670,7 @@ const browser = await chromium.launch();
 		const first = await uiState(page);
 		assert(first.newCard && !first.oldCards[0] && !first.oldCards[1] && first.fab && first.badge && first.label === '旧UIへ',
 			'exam: 初回は新UI（タブ・FAB）で開き、旧UIのカードは出ない', first);
-		assert(first.panel1In === 'new-step-slot' && first.resultIn === 'result-drawer-slot' && first.helpIn === 'help-dialog-slot' && first.copyIn === 'result-drawer-copy-slot'
+		assert(first.panel1In === 'new-step-slot' && first.resultIn === 'result-drawer-slot' && first.helpIn === 'help-dialog-slot' && first.copyIn === 'result-copy-slot'
 			&& first.devIn === 'new-devlog-slot',
 			'exam: 新UIでは中身がタブ・引き出し・ダイアログの中にある', first);
 		assert(first.notice && first.backdrop && first.scrollLocked,
@@ -1721,6 +1742,11 @@ const browser = await chromium.launch();
 		assert(old.panel1In === 'old-step1-slot' && old.resultIn === 'old-result-slot' && old.helpIn === 'old-help-slot' && old.copyIn === 'old-copy-slot'
 			&& old.devIn === 'old-devlog-slot',
 			'exam: 旧UIでは中身が本文のカードとアコーディオンの中へ移る', old);
+		assert(await page.evaluate(() => ({
+			window: !document.getElementById('copy-data-wrap').classList.contains('copy-source-hidden'),
+			newSlotHidden: document.getElementById('result-copy-slot').hidden,
+		})).then((x) => x.window && x.newSlotHidden),
+			'exam: 旧UIでは窓を今までどおり出し、新UI用のボタンの置き場は畳む');
 		assert(await page.isVisible('#old-result-card') && await page.isVisible('#result-tbody') && await page.isVisible('#result-copy-btn'),
 			'exam: 旧UIでは照合結果が本文のカードとして出て、「まとめてコピー」も見出しにある');
 		assert(await page.evaluate(() => document.getElementById('deck-handoff-note').classList.contains('hidden')),

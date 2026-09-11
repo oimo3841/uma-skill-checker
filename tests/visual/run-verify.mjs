@@ -144,8 +144,9 @@ const INTENTIONALLY_REMOVED = {
 		'new-ui-cta', 'deck-mode-new-badge', 'new-ui-coach', 'new-ui-coach-title', 'new-ui-welcome',
 	],
 	'exam.html': [
-		// 15セッション目: 第2段階（exam×Deck）の受け皿として欄だけ用意。まだ消したものは無い。
-		// 旧UIの要素を消す段階になったら、special.html と同じ作法で1行ずつ理由を添えて足す
+		// 16セッション目（追加修正⑦）: 「★の数をコピー」を引き出しの見出しから結果の一覧の上へ
+		// 移したので、見出し側の置き場が不要になった（新しい置き場は #result-copy-slot）
+		'result-drawer-copy-slot',
 	],
 	'js/uma-skill-deck-core.js': [
 		// 13セッション目: 8軸すべてが常に見える形（1行 or 角丸ボタンの多段）にしたので、
