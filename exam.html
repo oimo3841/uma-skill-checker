@@ -535,225 +535,173 @@
 		 * 例外として、スキル名をハードコードしている。
 		 * （このような例外を伴う特殊ツールを新設する際は、その都度ユーザーに
 		 * 　例外扱いとしてよいか確認すること。）
+		 *
+		 * 【持ち方（2026-09-11・第2段階 手順1）】
+		 * 各スキルは「UmaSkill Deck マスター（uma-skill-deck-skills.json）の id」と
+		 * 「このツールでの表示名」の組で持つ。sp70緑・緑59種・目覚めペアの判定は
+		 * すべて id で行い、名前は表示・OCR照合・コピー用にだけ使う。
+		 * 名前をマスターから引かずにここへ残しているのは次の2つの理由による。
+		 *   1. exam はマスターJSONが読めない環境（file:// など）でも単体で動く。
+		 *      名前をマスターに頼ると、その性質を失う。
+		 *   2. 表示・コピーの表記を変えないため。名前は従来どおり「右回り〇」（U+3007）・
+		 *      「トリック(前)」（半角括弧）のままにする。マスター側は「○」（U+25CB）・
+		 *      全角括弧で、揃えると利用者のスプレッドシート側の照合（VLOOKUP等）が
+		 *      黙って外れるおそれがある。
+		 * 名前とマスターの食い違いは npm run test:norm が見張る
+		 * （normalizeText 後の文字列がマスターと一致しなければ落ちる）。
 		 * ============================================================ */
 		const EXAM_SKILL_LIST = [
-		'右回り〇',
-		'左回り〇',
-		'東京レース場〇',
-		'中山レース場〇',
-		'阪神レース場〇',
-		'京都レース場〇',
-		'中京レース場〇',
-		'札幌レース場〇',
-		'函館レース場〇',
-		'福島レース場〇',
-		'新潟レース場〇',
-		'小倉レース場〇',
-		'根幹距離〇',
-		'非根幹距離〇',
-		'良バ場〇',
-		'道悪〇',
-		'春ウマ娘〇',
-		'夏ウマ娘〇',
-		'秋ウマ娘〇',
-		'冬ウマ娘〇',
-		'晴れの日〇',
-		'曇りの日〇',
-		'雨の日〇',
-		'雪の日〇',
-		'内枠得意〇',
-		'外枠得意〇',
-		'おひとり様〇',
-		'対抗意識〇',
-		'徹底マーク〇',
-		'伏兵〇',
-		'ポジションセンス',
-		'臨機応変',
-		'先駆け',
-		'トリック(前)',
-		'トリック(後)',
-		'逃げ駆け引き',
-		'先行駆け引き',
-		'差し駆け引き',
-		'追込駆け引き',
-		'逃げけん制',
-		'逃げ焦り',
-		'逃げためらい',
-		'先行けん制',
-		'先行焦り',
-		'先行ためらい',
-		'差しけん制',
-		'差し焦り',
-		'差しためらい',
-		'追込けん制',
-		'追込焦り',
-		'追込ためらい',
-		'大井レース場〇',
-		'短距離直線〇',
-		'短距離コーナー〇',
-		'マイル直線〇',
-		'マイルコーナー〇',
-		'負けん気',
-		'中距離直線〇',
-		'中距離コーナー〇',
-		'ホークアイ',
-		'長距離直線〇',
-		'長距離コーナー〇',
-		'目くらまし',
-		'逃げ直線〇',
-		'逃げコーナー〇',
-		'危険回避',
-		'リスタート',
-		'先行直線〇',
-		'先行コーナー〇',
-		'巧みなステップ',
-		'直滑降',
-		'まき直し',
-		'かく乱',
-		'差し直線〇',
-		'差しコーナー〇',
-		'がんばり屋',
-		'十万バリキ',
-		'追込直線〇',
-		'追込コーナー〇',
-		'お見通し',
-		'策士',
-		'逃げのコツ〇',
-		'先行のコツ〇',
-		'差しのコツ〇',
-		'追込のコツ〇',
-		'ラッキーセブン',
-		'地固め',
-		'尻尾上がり',
-		'ふり絞り',
-		'シンパシー',
-		'一匹狼',
-		'あやしげな作戦',
-		'川崎レース場〇',
-		'船橋レース場〇',
-		'盛岡レース場〇',
-		'ナイター〇',
-		'小回り〇',
-		'交流重賞〇',
-		'踏み込み上手',
-		'泥遊び〇',
-		'土煙',
-		'一番乗り',
-		'探求心',
-		'ロンシャンレース場〇',
-		'急発進',
-		'直線コース〇',
-		'瞬発力',
-		'風切り',
-		'無二',
-		'無三',
-		'ダート直線〇',
-		'ダートコーナー〇',
-		'熱狂的',
-		'光差す方へ',
-		'駆け降り',
-		'登竜門',
-		'影を追って',
-		'精神力',
-		'弾ける足取り',
-		'急降下',
-		'華麗な足取り',
-		'余勢を駆って',
-		'サンタアニタパークレース場〇',
-		'デルマーレース場〇',
-		'実直な走り',
-		'ポイントマン',
-		'勝負勘',
-		'右回りの目覚め',
-		'左回りの目覚め',
-		'春の目覚め',
-		'夏の目覚め',
-		'秋の目覚め',
-		'冬の目覚め'
+		{ id: '1', name: '右回り〇' },
+		{ id: '2', name: '左回り〇' },
+		{ id: '3', name: '東京レース場〇' },
+		{ id: '4', name: '中山レース場〇' },
+		{ id: '5', name: '阪神レース場〇' },
+		{ id: '6', name: '京都レース場〇' },
+		{ id: '7', name: '中京レース場〇' },
+		{ id: '8', name: '札幌レース場〇' },
+		{ id: '9', name: '函館レース場〇' },
+		{ id: '10', name: '福島レース場〇' },
+		{ id: '11', name: '新潟レース場〇' },
+		{ id: '12', name: '小倉レース場〇' },
+		{ id: '13', name: '根幹距離〇' },
+		{ id: '14', name: '非根幹距離〇' },
+		{ id: '15', name: '良バ場〇' },
+		{ id: '16', name: '道悪〇' },
+		{ id: '17', name: '春ウマ娘〇' },
+		{ id: '18', name: '夏ウマ娘〇' },
+		{ id: '19', name: '秋ウマ娘〇' },
+		{ id: '20', name: '冬ウマ娘〇' },
+		{ id: '21', name: '晴れの日〇' },
+		{ id: '22', name: '曇りの日〇' },
+		{ id: '23', name: '雨の日〇' },
+		{ id: '24', name: '雪の日〇' },
+		{ id: '25', name: '内枠得意〇' },
+		{ id: '26', name: '外枠得意〇' },
+		{ id: '27', name: 'おひとり様〇' },
+		{ id: '28', name: '対抗意識〇' },
+		{ id: '29', name: '徹底マーク〇' },
+		{ id: '30', name: '伏兵〇' },
+		{ id: '39', name: 'ポジションセンス' },
+		{ id: '44', name: '臨機応変' },
+		{ id: '46', name: '先駆け' },
+		{ id: '70', name: 'トリック(前)' },
+		{ id: '71', name: 'トリック(後)' },
+		{ id: '72', name: '逃げ駆け引き' },
+		{ id: '73', name: '先行駆け引き' },
+		{ id: '74', name: '差し駆け引き' },
+		{ id: '75', name: '追込駆け引き' },
+		{ id: '76', name: '逃げけん制' },
+		{ id: '77', name: '逃げ焦り' },
+		{ id: '78', name: '逃げためらい' },
+		{ id: '79', name: '先行けん制' },
+		{ id: '80', name: '先行焦り' },
+		{ id: '81', name: '先行ためらい' },
+		{ id: '82', name: '差しけん制' },
+		{ id: '83', name: '差し焦り' },
+		{ id: '84', name: '差しためらい' },
+		{ id: '85', name: '追込けん制' },
+		{ id: '86', name: '追込焦り' },
+		{ id: '87', name: '追込ためらい' },
+		{ id: '88', name: '大井レース場〇' },
+		{ id: '89', name: '短距離直線〇' },
+		{ id: '90', name: '短距離コーナー〇' },
+		{ id: '96', name: 'マイル直線〇' },
+		{ id: '97', name: 'マイルコーナー〇' },
+		{ id: '100', name: '負けん気' },
+		{ id: '103', name: '中距離直線〇' },
+		{ id: '104', name: '中距離コーナー〇' },
+		{ id: '105', name: 'ホークアイ' },
+		{ id: '110', name: '長距離直線〇' },
+		{ id: '111', name: '長距離コーナー〇' },
+		{ id: '116', name: '目くらまし' },
+		{ id: '117', name: '逃げ直線〇' },
+		{ id: '118', name: '逃げコーナー〇' },
+		{ id: '119', name: '危険回避' },
+		{ id: '123', name: 'リスタート' },
+		{ id: '124', name: '先行直線〇' },
+		{ id: '125', name: '先行コーナー〇' },
+		{ id: '126', name: '巧みなステップ' },
+		{ id: '127', name: '直滑降' },
+		{ id: '129', name: 'まき直し' },
+		{ id: '130', name: 'かく乱' },
+		{ id: '131', name: '差し直線〇' },
+		{ id: '132', name: '差しコーナー〇' },
+		{ id: '133', name: 'がんばり屋' },
+		{ id: '134', name: '十万バリキ' },
+		{ id: '138', name: '追込直線〇' },
+		{ id: '139', name: '追込コーナー〇' },
+		{ id: '140', name: 'お見通し' },
+		{ id: '143', name: '策士' },
+		{ id: '145', name: '逃げのコツ〇' },
+		{ id: '146', name: '先行のコツ〇' },
+		{ id: '147', name: '差しのコツ〇' },
+		{ id: '148', name: '追込のコツ〇' },
+		{ id: '149', name: 'ラッキーセブン' },
+		{ id: '153', name: '地固め' },
+		{ id: '154', name: '尻尾上がり' },
+		{ id: '155', name: 'ふり絞り' },
+		{ id: '156', name: 'シンパシー' },
+		{ id: '157', name: '一匹狼' },
+		{ id: '168', name: 'あやしげな作戦' },
+		{ id: '181', name: '川崎レース場〇' },
+		{ id: '182', name: '船橋レース場〇' },
+		{ id: '183', name: '盛岡レース場〇' },
+		{ id: '184', name: 'ナイター〇' },
+		{ id: '185', name: '小回り〇' },
+		{ id: '186', name: '交流重賞〇' },
+		{ id: '194', name: '踏み込み上手' },
+		{ id: '195', name: '泥遊び〇' },
+		{ id: '196', name: '土煙' },
+		{ id: '227', name: '一番乗り' },
+		{ id: '228', name: '探求心' },
+		{ id: '231', name: 'ロンシャンレース場〇' },
+		{ id: '243', name: '急発進' },
+		{ id: '256', name: '直線コース〇' },
+		{ id: '258', name: '瞬発力' },
+		{ id: '259', name: '風切り' },
+		{ id: '263', name: '無二' },
+		{ id: '264', name: '無三' },
+		{ id: '266', name: 'ダート直線〇' },
+		{ id: '267', name: 'ダートコーナー〇' },
+		{ id: '284', name: '熱狂的' },
+		{ id: '285', name: '光差す方へ' },
+		{ id: '286', name: '駆け降り' },
+		{ id: '307', name: '登竜門' },
+		{ id: '327', name: '影を追って' },
+		{ id: '333', name: '精神力' },
+		{ id: '339', name: '弾ける足取り' },
+		{ id: '342', name: '急降下' },
+		{ id: '356', name: '華麗な足取り' },
+		{ id: '360', name: '余勢を駆って' },
+		{ id: '375', name: 'サンタアニタパークレース場〇' },
+		{ id: '376', name: 'デルマーレース場〇' },
+		{ id: '384', name: '実直な走り' },
+		{ id: '397', name: 'ポイントマン' },
+		{ id: '404', name: '勝負勘' },
+		{ id: '441', name: '右回りの目覚め' },
+		{ id: '440', name: '左回りの目覚め' },
+		{ id: '442', name: '春の目覚め' },
+		{ id: '443', name: '夏の目覚め' },
+		{ id: '444', name: '秋の目覚め' },
+		{ id: '445', name: '冬の目覚め' }
 		];
 
-		// 高コスパ17種（通称「sp70緑」）。EXAM_SKILL_LISTの部分集合。
-		const SP70_GREEN_17 = [
-		'札幌レース場〇',
-		'函館レース場〇',
-		'福島レース場〇',
-		'新潟レース場〇',
-		'小倉レース場〇',
-		'シンパシー',
-		'一匹狼',
-		'川崎レース場〇',
-		'船橋レース場〇',
-		'盛岡レース場〇',
-		'ナイター〇',
-		'小回り〇',
-		'交流重賞〇',
-		'ロンシャンレース場〇',
-		'直線コース〇',
-		'サンタアニタパークレース場〇',
-		'デルマーレース場〇'
+		// 高コスパ17種（通称「sp70緑」）。EXAM_SKILL_LISTの部分集合（マスターID）。
+		// 並び順はコピー機能の出力順になるので、従来の名前の並びをそのまま保っている。
+		const SP70_GREEN_17_IDS = [
+			'8', '9', '10', '11', '12', '156', '157', '181', '182', '183',
+			'184', '185', '186', '231', '256', '375', '376'
 		];
 
-		// 緑59種（適性証明系）。sp70緑17種をすべて含む上位集合。EXAM_SKILL_LISTの部分集合。
-		const GREEN_59 = [
-		'右回り〇',
-		'左回り〇',
-		'東京レース場〇',
-		'中山レース場〇',
-		'阪神レース場〇',
-		'京都レース場〇',
-		'中京レース場〇',
-		'札幌レース場〇',
-		'函館レース場〇',
-		'福島レース場〇',
-		'新潟レース場〇',
-		'小倉レース場〇',
-		'根幹距離〇',
-		'非根幹距離〇',
-		'良バ場〇',
-		'道悪〇',
-		'春ウマ娘〇',
-		'夏ウマ娘〇',
-		'秋ウマ娘〇',
-		'冬ウマ娘〇',
-		'晴れの日〇',
-		'曇りの日〇',
-		'雨の日〇',
-		'雪の日〇',
-		'内枠得意〇',
-		'外枠得意〇',
-		'おひとり様〇',
-		'対抗意識〇',
-		'徹底マーク〇',
-		'伏兵〇',
-		'大井レース場〇',
-		'逃げのコツ〇',
-		'先行のコツ〇',
-		'差しのコツ〇',
-		'追込のコツ〇',
-		'ラッキーセブン',
-		'シンパシー',
-		'一匹狼',
-		'川崎レース場〇',
-		'船橋レース場〇',
-		'盛岡レース場〇',
-		'ナイター〇',
-		'小回り〇',
-		'交流重賞〇',
-		'踏み込み上手',
-		'泥遊び〇',
-		'探求心',
-		'ロンシャンレース場〇',
-		'直線コース〇',
-		'精神力',
-		'サンタアニタパークレース場〇',
-		'デルマーレース場〇',
-		'勝負勘',
-		'右回りの目覚め',
-		'左回りの目覚め',
-		'春の目覚め',
-		'夏の目覚め',
-		'秋の目覚め',
-		'冬の目覚め'
+		// 緑59種（適性証明系）。sp70緑17種をすべて含む上位集合。EXAM_SKILL_LISTの部分集合（マスターID）。
+		// 並び順はコピー機能の出力順になるので、従来の名前の並びをそのまま保っている。
+		const GREEN_59_IDS = [
+			'1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+			'11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
+			'21', '22', '23', '24', '25', '26', '27', '28', '29', '30',
+			'88', '145', '146', '147', '148', '149', '156', '157', '181', '182',
+			'183', '184', '185', '186', '194', '195', '228', '231', '256', '333',
+			'375', '376', '404', '441', '440', '442', '443', '444', '445'
 		];
 
 		// 「〇〇の目覚め」系スキルは、ゲーム仕様上「対応する基本スキルを発動できる」
@@ -762,28 +710,49 @@
 		// OCR照合ロジック（common.js側）や本体テーブルの★表示には一切影響しない。
 		// ※ 将来「〇〇の目覚め」と対応スキルそれぞれの発動確率を可視化する機能を
 		//   追加する予定があるため、照合自体は独立したまま維持している。
+		// マスターには「これは X の目覚めである」というペア情報が無い（タグが同じだけ）ため、
+		// この表は exam 側に残す。キー・値ともマスターID。
 		const AWAKENING_PAIR_MAP = {
-			'右回りの目覚め': '右回り〇',
-			'左回りの目覚め': '左回り〇',
-			'春の目覚め': '春ウマ娘〇',
-			'夏の目覚め': '夏ウマ娘〇',
-			'秋の目覚め': '秋ウマ娘〇',
-			'冬の目覚め': '冬ウマ娘〇'
+			'441': '1', // 右回りの目覚め → 右回り〇
+			'440': '2', // 左回りの目覚め → 左回り〇
+			'442': '17', // 春の目覚め → 春ウマ娘〇
+			'443': '18', // 夏の目覚め → 夏ウマ娘〇
+			'444': '19', // 秋の目覚め → 秋ウマ娘〇
+			'445': '20', // 冬の目覚め → 冬ウマ娘〇
 		};
 
-		const SP70_GREEN_17_SET = new Set(SP70_GREEN_17);
-		const GREEN_59_SET = new Set(GREEN_59);
+		/* ------------------------------------------------------------
+		 * 名前 ⇄ ID の引き直し
+		 * カテゴリ判定は「名前 → ID を引いてから ID で判定」する。名前 → ID は
+		 * normalizeText() 後の文字列で引くので、このツールの表記（右回り〇）でも
+		 * マスターの表記（右回り○）でも同じ ID に着く。将来 Deck から来た名前で
+		 * skillList が差し替わっても、sp70緑・緑59種の集計が数え落とさないための備え。
+		 * ------------------------------------------------------------ */
+		const EXAM_SKILL_NAMES = EXAM_SKILL_LIST.map(s => s.name);
+		const EXAM_NAME_BY_ID = {};
+		const EXAM_ID_BY_NORM = {};
+		EXAM_SKILL_LIST.forEach(s => {
+			EXAM_NAME_BY_ID[s.id] = s.name;
+			EXAM_ID_BY_NORM[normalizeText(s.name)] = s.id;
+		});
+		// スキル名からマスターIDを引く。133種に無い名前（カスタム追加分など）は null。
+		function examSkillId(name) {
+			return EXAM_ID_BY_NORM[normalizeText(name)] || null;
+		}
+
+		const SP70_GREEN_17_SET = new Set(SP70_GREEN_17_IDS);
+		const GREEN_59_SET = new Set(GREEN_59_IDS);
 
 		// 緑59種を等価カウントした場合の最大値（＝実質何種になるか）を自動計算する。
 		// 59種・対応表の中身が今後変わっても、この値は再計算されるため保守しやすい。
 		const GREEN_59_EQUIVALENCE_MAX = (function () {
 			const canonical = new Set();
-			GREEN_59.forEach(s => canonical.add(AWAKENING_PAIR_MAP[s] || s));
+			GREEN_59_IDS.forEach(id => canonical.add(AWAKENING_PAIR_MAP[id] || id));
 			return canonical.size;
 		})();
 
 		/* 状態変数（このツール固有。共通ロジック・共通定数は js/common.js を参照） */
-		let skillList = EXAM_SKILL_LIST.slice();
+		let skillList = EXAM_SKILL_NAMES.slice();
 		let skillIndex = [];
 		let currentFilter = 'all';
 		let previewCanvases = [];
@@ -812,18 +781,23 @@
 		const CUSTOM_ADDED_STORAGE_KEY = 'uma-exam-custom-added';
 		const CUSTOM_REMOVED_STORAGE_KEY = 'uma-exam-custom-removed';
 
-		// 除外を反映した基準リスト（sp70緑・緑59種の集計母数もこれで動的に縮む）
+		// 除外を反映した基準リスト（名前）
 		function effectiveBaseList(list) {
 			return list.filter(s => !removedSkillsSet.has(s));
 		}
+		// 除外を反映した基準リスト（ID）。sp70緑・緑59種の集計母数はこれで動的に縮む。
+		// 除外の保存値は名前なので、ID → 名前に引き直して照らす。
+		function effectiveBaseIds(ids) {
+			return ids.filter(id => !removedSkillsSet.has(EXAM_NAME_BY_ID[id]));
+		}
 		function effectiveGreen59EquivalenceMax() {
 			const canonical = new Set();
-			effectiveBaseList(GREEN_59).forEach(s => canonical.add(AWAKENING_PAIR_MAP[s] || s));
+			effectiveBaseIds(GREEN_59_IDS).forEach(id => canonical.add(AWAKENING_PAIR_MAP[id] || id));
 			return canonical.size;
 		}
 
 		function rebuildSkillList() {
-			skillList = effectiveBaseList(EXAM_SKILL_LIST).concat(customAddedSkills);
+			skillList = effectiveBaseList(EXAM_SKILL_NAMES).concat(customAddedSkills);
 			skillIndex = skillList.map(raw => ({ raw: raw, norm: normalizeText(raw) }));
 		}
 
@@ -892,10 +866,11 @@
 			const box = document.getElementById('skill-registry-list');
 			// 除外設定を反映した基本133種＋カスタム追加分を、現在の対象スキル一覧として表示する。
 			box.innerHTML = skillList.map(skill => {
+				const id = examSkillId(skill);
 				let mark = '<span class="inline-block w-3"></span>';
-				if (SP70_GREEN_17_SET.has(skill)) {
+				if (id && SP70_GREEN_17_SET.has(id)) {
 					mark = '<span class="text-amber-500 font-bold" title="sp70緑">★</span>';
-				} else if (GREEN_59_SET.has(skill)) {
+				} else if (id && GREEN_59_SET.has(id)) {
 					mark = '<span class="text-emerald-500 font-bold" title="緑59種">●</span>';
 				} else if (customAddedSkills.indexOf(skill) !== -1) {
 					mark = '<span class="text-indigo-500 font-bold" title="カスタム追加スキル">＋</span>';
@@ -918,7 +893,7 @@
 		}
 
 		function updateCategoryBadges() {
-			const sp70Count = effectiveBaseList(SP70_GREEN_17).length;
+			const sp70Count = effectiveBaseIds(SP70_GREEN_17_IDS).length;
 			const greenMax = effectiveGreen59EquivalenceMax();
 			const sp70Badge = document.getElementById('badge-sp70-count');
 			if (sp70Badge) sp70Badge.textContent = 'sp70緑：' + sp70Count + '種';
@@ -945,7 +920,7 @@
 			} catch (e) { customAddedSkills = []; }
 			try {
 				const removedRaw = localStorage.getItem(CUSTOM_REMOVED_STORAGE_KEY);
-				if (removedRaw) removedSkillsSet = new Set(JSON.parse(removedRaw).filter(s => EXAM_SKILL_LIST.indexOf(s) !== -1));
+				if (removedRaw) removedSkillsSet = new Set(JSON.parse(removedRaw).filter(s => EXAM_SKILL_NAMES.indexOf(s) !== -1));
 			} catch (e) { removedSkillsSet = new Set(); }
 		}
 
@@ -1024,7 +999,7 @@
 			let removed = 0;
 			const unknown = [];
 			names.forEach(name => {
-				if (EXAM_SKILL_LIST.indexOf(name) === -1) { unknown.push(name); return; }
+				if (EXAM_SKILL_NAMES.indexOf(name) === -1) { unknown.push(name); return; }
 				if (!removedSkillsSet.has(name)) removed++;
 				removedSkillsSet.add(name);
 			});
@@ -1096,18 +1071,18 @@
 		 * ============================================================ */
 		// 緑59種を、現在のモードに応じた名前リストに変換する。
 		// equivalence=true の場合、「〇〇の目覚め」は対応する基本スキルに
-		// まとめられ、GREEN_59内で先に登場している基本スキル名の側だけが残る
-		// （＝目覚め系の6件を除いた53件になる）。
+		// まとめられ、GREEN_59_IDS内で先に登場している基本スキルの側だけが残る
+		// （＝目覚め系の6件を除いた53件になる）。ID で畳んでから名前に直す。
 		function canonicalGreen59List(equivalence) {
-			const base = effectiveBaseList(GREEN_59);
-			if (!equivalence) return base;
+			const baseIds = effectiveBaseIds(GREEN_59_IDS);
+			if (!equivalence) return baseIds.map(id => EXAM_NAME_BY_ID[id]);
 			const seen = new Set();
 			const out = [];
-			base.forEach(s => {
-				const canonical = AWAKENING_PAIR_MAP[s] || s;
+			baseIds.forEach(id => {
+				const canonical = AWAKENING_PAIR_MAP[id] || id;
 				if (!seen.has(canonical)) {
 					seen.add(canonical);
-					out.push(canonical);
+					out.push(EXAM_NAME_BY_ID[canonical]);
 				}
 			});
 			return out;
@@ -1132,7 +1107,7 @@
 		function renderSkillCopyTextarea() {
 			let list, hint;
 			if (copyListMode === 'sp70') {
-				list = effectiveBaseList(SP70_GREEN_17);
+				list = effectiveBaseIds(SP70_GREEN_17_IDS).map(id => EXAM_NAME_BY_ID[id]);
 				hint = 'sp70緑（' + list.length + '種）';
 			} else if (copyListMode === 'green59') {
 				const equivalence = (countMode === 'equivalence');
@@ -1609,17 +1584,25 @@
 			grid.innerHTML = html;
 		}
 
-		// 指定リストのうち、そのpersonが検出できた数を数える。
-		// equivalence=true の場合、AWAKENING_PAIR_MAP で対応づけられるスキル同士は1カウントに畳み込む。
-		function countCategory(personIdx, list, equivalence) {
+		// そのpersonが検出できた対象スキルの数（カスタム追加分も含むので ID には引き直さない）。
+		function countDetected(personIdx) {
 			const res = personResults[personIdx];
 			if (!res) return 0;
-			if (!equivalence) {
-				return list.filter(s => res.detectedSkills.has(s)).length;
-			}
+			return skillList.filter(s => res.detectedSkills.has(s)).length;
+		}
+
+		// 指定のカテゴリ（マスターIDの集合）のうち、そのpersonが検出できた数を数える。
+		// 検出済みのスキル名を ID に引き直してから判定するので、skillList の表記が
+		// このツールの「〇」でもマスターの「○」でも同じ結果になる。
+		// equivalence=true の場合、AWAKENING_PAIR_MAP で対応づけられるスキル同士は1カウントに畳み込む。
+		function countCategory(personIdx, idSet, equivalence) {
+			const res = personResults[personIdx];
+			if (!res) return 0;
 			const counted = new Set();
-			list.forEach(s => {
-				if (res.detectedSkills.has(s)) counted.add(AWAKENING_PAIR_MAP[s] || s);
+			res.detectedSkills.forEach(name => {
+				const id = examSkillId(name);
+				if (!id || !idSet.has(id)) return;
+				counted.add(equivalence ? (AWAKENING_PAIR_MAP[id] || id) : id);
 			});
 			return counted.size;
 		}
@@ -1630,9 +1613,9 @@
 			wrap.classList.remove('hidden');
 
 			const equivalence = (countMode === 'equivalence');
-			const sp70List = effectiveBaseList(SP70_GREEN_17);
-			const greenList = effectiveBaseList(GREEN_59);
-			const green59Max = equivalence ? effectiveGreen59EquivalenceMax() : greenList.length;
+			const sp70Ids = new Set(effectiveBaseIds(SP70_GREEN_17_IDS));
+			const greenIds = new Set(effectiveBaseIds(GREEN_59_IDS));
+			const green59Max = equivalence ? effectiveGreen59EquivalenceMax() : greenIds.size;
 
 			const grid = document.getElementById('exam-highlight-grid');
 			// セット単位（親A/親B）で縦に並べ、それぞれのセット内で最大6カード（=3人分）まで自動折り返す。
@@ -1657,12 +1640,12 @@
 				indices.forEach(i => {
 					const label = PERSON_LABELS[i];
 					// sp70緑には「目覚め」系の対応スキルが含まれないため、モードに関わらず単純カウント。
-					const sp70Count = countCategory(i, sp70List, false);
-					const greenCount = countCategory(i, greenList, equivalence);
+					const sp70Count = countCategory(i, sp70Ids, false);
+					const greenCount = countCategory(i, greenIds, equivalence);
 					cardsHtml += `
 						<div class="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-center">
 							<p class="text-[11px] font-medium text-amber-700 mb-1">${label} sp70緑</p>
-							<p class="text-base md:text-xl font-extrabold text-amber-600">${sp70Count}<span class="text-xs font-medium text-amber-400">/${sp70List.length}</span></p>
+							<p class="text-base md:text-xl font-extrabold text-amber-600">${sp70Count}<span class="text-xs font-medium text-amber-400">/${sp70Ids.size}</span></p>
 						</div>
 						<div class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-center">
 							<p class="text-[11px] font-medium text-emerald-700 mb-1">${label} 緑59種</p>
@@ -1817,8 +1800,9 @@
 
 		// スキル名の前に付けるカテゴリバッジ（sp70緑=★ / 緑59種=● / カスタム追加=＋）。
 		function categoryBadge(skill) {
-			if (SP70_GREEN_17_SET.has(skill)) return '<span class="text-amber-500 mr-1" title="sp70緑（高コスパ17種）">★</span>';
-			if (GREEN_59_SET.has(skill)) return '<span class="text-emerald-500 mr-1" title="緑59種">●</span>';
+			const id = examSkillId(skill);
+			if (id && SP70_GREEN_17_SET.has(id)) return '<span class="text-amber-500 mr-1" title="sp70緑（高コスパ17種）">★</span>';
+			if (id && GREEN_59_SET.has(id)) return '<span class="text-emerald-500 mr-1" title="緑59種">●</span>';
 			if (customAddedSkills.indexOf(skill) !== -1) return '<span class="text-indigo-500 mr-1" title="カスタム追加スキル">＋</span>';
 			return '';
 		}
@@ -2153,8 +2137,8 @@
 			if (activeIndexes.length === 0) return null;
 
 			const equivalence = (countMode === 'equivalence');
-			const sp70List = effectiveBaseList(SP70_GREEN_17);
-			const greenList = effectiveBaseList(GREEN_59);
+			const sp70Ids = new Set(effectiveBaseIds(SP70_GREEN_17_IDS));
+			const greenIds = new Set(effectiveBaseIds(GREEN_59_IDS));
 
 			const bannerCanvases = [];
 			const contentCanvases = [];
@@ -2168,9 +2152,9 @@
 				if (contentCanvas._stitchWarnings && contentCanvas._stitchWarnings.length) {
 					allWarnings.push(...contentCanvas._stitchWarnings);
 				}
-				const detected = countCategory(idx, skillList, false);
-				const sp70Count = countCategory(idx, sp70List, false);
-				const greenCount = countCategory(idx, greenList, equivalence);
+				const detected = countDetected(idx);
+				const sp70Count = countCategory(idx, sp70Ids, false);
+				const greenCount = countCategory(idx, greenIds, equivalence);
 				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count);
 				bannerCanvases.push(banner);
 				contentCanvases.push(contentCanvas);
