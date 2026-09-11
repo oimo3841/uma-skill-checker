@@ -111,6 +111,9 @@ const INTENTIONALLY_REMOVED = {
 		'deck-assign-rows', 'deck-save-note', 'deck-save-btn',
 		// 12セッション目: 引き出しが3つになり、背景の暗転を1枚（#drawer-backdrop）に集約した
 		'deck-drawer-backdrop',
+		// 14セッション目: 既定を新UIにしたので、旧UIから新UIへ誘う告知一式が不要になった。
+		// いま旧UIにいるのは、切り替えの告知を読んだうえで自分で戻った人だけ（C-16）
+		'new-ui-cta', 'deck-mode-new-badge', 'new-ui-coach', 'new-ui-coach-title', 'new-ui-welcome',
 	],
 	'js/uma-skill-deck-core.js': [
 		// 13セッション目: 8軸すべてが常に見える形（1行 or 角丸ボタンの多段）にしたので、

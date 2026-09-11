@@ -186,73 +186,9 @@
 			--uma-accent-soft: #eef2ff;       /* indigo-50  */
 			--uma-accent-soft-text: #432dd7;
 			--uma-accent-border: #c6d2ff;     /* indigo-200 */
+			--uma-accent-ring: #4f39f6;       /* indigo-600。これが無いとフォーカスの輪だけ
+			                                     ページの緑のまま残り、藍の中で浮く */
 		}
-
-		/* ============================================================
-		 * 新UIの告知
-		 *
-		 * 旧UIはいずれ廃止するので、そこに留まっている人へ「新しい方がある」と
-		 * 気づいてもらう必要がある。ただし毎回言うと邪魔なので、
-		 *   NEWバッジ … 一度使うまで出し続ける（いつでも見つけられる目印）
-		 *   脈打ち     … 読み込み直後に数回だけ（視線を一度だけ引く）
-		 *   吹き出し   … 初回のみ。閉じるか新UIへ入ったら二度と出ない
-		 *   ようこそ枠 … 新UI側で「これが新しい方です」と受け止める（告知の回収）
-		 * の4段にしてある。状態は localStorage に持つ。
-		 * ============================================================ */
-		.new-ui-cta { position: relative; display: inline-flex; }
-		.new-ui-badge {
-			margin-left: var(--uma-sp-1);
-			padding: var(--uma-sp-0-5) var(--uma-sp-1-5);
-			border-radius: var(--uma-r-full);
-			font-size: var(--uma-fs-2xs); line-height: 1.3; font-weight: 800; letter-spacing: .04em;
-			background: var(--uma-accent); color: var(--uma-text-inverse);
-		}
-		.new-ui-badge[hidden] { display: none !important; }
-		/* 気づいてもらうための脈打ち。4回で止める（動き続けると視線を奪い続けるため）。 */
-		@keyframes new-ui-pulse {
-			0%   { box-shadow: 0 0 0 0 var(--uma-accent-border); }
-			70%  { box-shadow: 0 0 0 10px transparent; }
-			100% { box-shadow: 0 0 0 0 transparent; }
-		}
-		.deck-mode-btn--new { animation: new-ui-pulse 2.2s ease-out 4; }
-		@media (prefers-reduced-motion: reduce) {
-			.deck-mode-btn--new { animation: none; }
-		}
-
-		.new-ui-coach {
-			position: absolute; z-index: 60;
-			top: calc(100% + 10px); right: 0;
-			width: min(288px, calc(100vw - 2rem));
-			padding: var(--uma-sp-3-5);
-			border: 1px solid var(--uma-accent-border); border-radius: var(--uma-r-lg);
-			background: var(--uma-surface); box-shadow: var(--uma-shadow-3);
-			text-align: left;
-		}
-		.new-ui-coach[hidden] { display: none !important; }
-		/* 吹き出しの角。どのボタンの話なのかを形で結びつける */
-		.new-ui-coach::before {
-			content: ""; position: absolute; top: -7px; right: 24px;
-			width: 12px; height: 12px; transform: rotate(45deg);
-			background: var(--uma-surface);
-			border-left: 1px solid var(--uma-accent-border);
-			border-top: 1px solid var(--uma-accent-border);
-		}
-		.new-ui-coach-title {
-			margin: 0 0 var(--uma-sp-1-5); display: flex; align-items: center; gap: var(--uma-sp-1-5);
-			font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-accent-soft-text);
-		}
-		.new-ui-coach-text { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-md); color: var(--uma-text-muted); }
-		.new-ui-coach-actions { margin-top: var(--uma-sp-3); display: flex; gap: var(--uma-sp-2); justify-content: flex-end; }
-
-		.new-ui-welcome {
-			display: flex; align-items: flex-start; gap: var(--uma-sp-3);
-			margin-bottom: var(--uma-sp-3); padding: var(--uma-sp-3) var(--uma-sp-3-5);
-			border: 1px solid var(--uma-accent-border); border-radius: var(--uma-r-lg);
-			background: var(--uma-accent-soft);
-		}
-		.new-ui-welcome[hidden] { display: none !important; }
-		.new-ui-welcome-title { margin: 0 0 var(--uma-sp-1); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-accent-soft-text); }
-		.new-ui-welcome-text { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-md); color: var(--uma-accent-soft-text); }
 
 		/* ===== 画面固定ナビ（右下・折りたたみFAB） =====
 		   画面右端に取っ手を常時出しておく方式をやめ、右下のメインボタン1つに畳んだ。
@@ -420,25 +356,27 @@
 		}
 
 		/* ============================================================
-		 * 使い方ガイド（手前に重ねるダイアログ）
+		 * 手前に重ねるダイアログの骨格（使い方ガイド・UI切り替えの告知で共有）
 		 * 引き出し（z 90/100）より手前、FAB（z 70）より手前。
 		 * 背景の暗さは引き出しの暗転と同じ値に揃える。
+		 * 中身の寸法は各ダイアログ側（.help-dialog / .notice-dialog）が持つ。
 		 * ============================================================ */
-		.help-backdrop {
+		.uma-overlay-backdrop {
 			position: fixed; inset: 0; z-index: 110;
 			background: rgba(15, 23, 42, .45);
 		}
-		.help-backdrop[hidden] { display: none !important; }
-		.help-dialog {
+		.uma-overlay-backdrop[hidden] { display: none !important; }
+		.uma-overlay {
 			position: fixed; z-index: 111;
 			left: 50%; top: 50%; transform: translate(-50%, -50%);
-			width: min(92vw, 640px); max-height: min(88vh, 720px);
 			display: flex; flex-direction: column;
 			background: var(--uma-surface); border-radius: var(--uma-r-xl);
 			box-shadow: var(--uma-shadow-3);
 		}
 		/* display:flex を上で当てているので、hidden は自前で押す（F-13） */
-		.help-dialog[hidden] { display: none !important; }
+		.uma-overlay[hidden] { display: none !important; }
+
+		.help-dialog { width: min(92vw, 640px); max-height: min(88vh, 720px); }
 		.help-head {
 			flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
 			gap: var(--uma-sp-3); padding: var(--uma-sp-3) var(--uma-sp-3) var(--uma-sp-3) var(--uma-sp-5);
@@ -472,10 +410,43 @@
 		.help-tips-title { margin: 0 0 var(--uma-sp-1-5); display: flex; align-items: center; gap: var(--uma-sp-1-5); font-size: var(--uma-fs-sm); font-weight: 700; color: var(--uma-warn-text); }
 		.help-tips ul { margin: 0; padding-left: var(--uma-sp-4); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-md); color: var(--uma-warn-text); }
 		.help-tips li + li { margin-top: var(--uma-sp-1); }
+		/* ============================================================
+		 * UIの切り替えを知らせるモーダル
+		 * 既定を新UIにしたことは利用者が頼んだ変化ではないので、画面の中の案内枠ではなく
+		 * 一度だけ手前に出して確実に伝える。以後は右上のバッジから読み直せる。
+		 * ============================================================ */
+		.notice-dialog { width: min(92vw, 420px); max-height: min(88vh, 640px); }
+		.notice-body { padding: var(--uma-sp-6) var(--uma-sp-5) var(--uma-sp-4); text-align: center; overflow-y: auto; }
+		.notice-icon {
+			width: 48px; height: 48px; margin: 0 auto var(--uma-sp-3);
+			display: flex; align-items: center; justify-content: center;
+			border-radius: var(--uma-r-full);
+			background: var(--uma-accent-soft); color: var(--uma-accent);
+		}
+		.notice-title {
+			margin: 0 0 var(--uma-sp-2-5);
+			font-size: var(--uma-fs-lg); line-height: var(--uma-lh-lg); font-weight: 700; color: var(--uma-text-heading);
+		}
+		.notice-text { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-md); color: var(--uma-text-muted); }
+		.notice-text + .notice-text { margin-top: var(--uma-sp-3); }
+		.notice-foot {
+			flex-shrink: 0; padding: 0 var(--uma-sp-5) var(--uma-sp-5);
+		}
+		/* ✕はカードの右上に浮かせる（見出しを中央に置きたいので、頭に行を作らない） */
+		.notice-close { position: absolute; top: var(--uma-sp-2); right: var(--uma-sp-2); }
+
+		/* 右上の「新UI」バッジ。押すと告知を読み直せる。 */
+		.ui-mode-badge { cursor: pointer; transition: background-color var(--uma-transition); }
+		.ui-mode-badge:hover { background: var(--uma-accent-border); }
+		.ui-mode-badge:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: 2px; }
+
 		@media (max-width: 640px) {
 			/* 狭い画面では下から出るシートにする（片手で ✕ に届く位置に「閉じる」を置くため） */
-			.help-dialog { left: 0; top: auto; bottom: 0; transform: none; width: 100%; max-height: 90vh; border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; }
+			.uma-overlay { left: 0; top: auto; bottom: 0; transform: none; width: 100%; border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; }
+			.help-dialog, .notice-dialog { max-height: 90vh; }
 			.help-body { padding: var(--uma-sp-4); }
+			.notice-body { padding: var(--uma-sp-5) var(--uma-sp-4) var(--uma-sp-3); }
+			.notice-foot { padding: 0 var(--uma-sp-4) var(--uma-sp-4); }
 		}
 	</style>
 </head>
@@ -521,7 +492,10 @@
 
 					<!-- いま新しいUIにいることの表示。過渡期のあいだだけ出す目印で、
 					     旧UI（既定）のときは何も出さない（旧UIが「普通の状態」なので）。 -->
-					<span id="ui-mode-badge" hidden class="text-[10px] font-bold px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">新UI</span>
+					<!-- 押すと告知を読み直せる（既読の状態は変えない） -->
+					<button type="button" id="ui-mode-badge" hidden onclick="reopenUiNotice()"
+						class="ui-mode-badge shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200"
+						title="スキルの選び方が変わったお知らせをもう一度見る">新UI</button>
 
 					<!-- ツール切り替えドロップダウン -->
 					<div class="relative" id="tool-dropdown-wrap">
@@ -570,28 +544,14 @@
 					     ラベルは「Deck連携モード（ON/OFF）」だったが、開発の経緯を知らないと
 					     何が起きるのか分からないので、行き先そのものを書く形に変えた。
 					     アイコンは状態で変えない（付け替えると押すたびに形が変わって落ち着かない）。 -->
-					<span class="new-ui-cta" id="new-ui-cta">
-						<button id="deck-mode-btn" type="button" onclick="toggleDeckMode()" class="uma-btn uma-btn--secondary btn-deck-accent"
-							title="新しいUIに切り替えます（対象スキルセットをUmaSkill Deckから選べます）">
-							<i data-lucide="arrow-left-right" class="w-4 h-4 text-indigo-500"></i>
-							<span id="deck-mode-btn-label">新UIへ</span>
-							<!-- まだ新UIを使っていない間だけ出す目印。使ったら消える -->
-							<span id="deck-mode-new-badge" class="new-ui-badge" hidden>NEW</span>
-						</button>
-
-						<!-- 初回だけ出す吹き出し。閉じるか新UIへ入れば二度と出ない -->
-						<div id="new-ui-coach" class="new-ui-coach deck-accent" hidden role="dialog" aria-labelledby="new-ui-coach-title">
-							<p class="new-ui-coach-title" id="new-ui-coach-title">
-								<i data-lucide="sparkles" class="w-4 h-4"></i>
-								<span>新しいUIができました</span>
-							</p>
-							<p class="new-ui-coach-text">スキル名を毎回貼り付けなくても、保存しておいた<strong>スキルセット</strong>から選べます。作ったセットは次回も残ります。いつでも元のUIに戻せます。</p>
-							<div class="new-ui-coach-actions">
-								<button type="button" class="uma-btn uma-btn--secondary" data-act="coach-later" onclick="closeNewUiCoach(true)">あとで</button>
-								<button type="button" class="uma-btn uma-btn--primary" data-act="coach-try" onclick="tryNewUiFromCoach()">使ってみる</button>
-							</div>
-						</div>
-					</span>
+					<!-- 新UIが既定になったので、このボタンは「戻る手段」として普通に置くだけでよい。
+					     以前あったNEWバッジ・脈打ち・吹き出しは、旧UIが既定だった頃の告知なので撤去した
+					     （いま旧UIにいるのは、モーダルを読んだうえで自分で戻った人だけ）。 -->
+					<button id="deck-mode-btn" type="button" onclick="toggleDeckMode()" class="uma-btn uma-btn--secondary btn-deck-accent"
+						title="以前のUIに戻します（スキルリストを手で貼り付ける形）">
+						<i data-lucide="arrow-left-right" class="w-4 h-4 text-indigo-500"></i>
+						<span id="deck-mode-btn-label">旧UIへ</span>
+					</button>
 
 					<!-- 使い方ガイドボタン -->
 					<button type="button" onclick="toggleHelp()" class="uma-btn uma-btn--secondary">
@@ -608,8 +568,8 @@
 		     ✕・「閉じる」・背景タップ・Esc の4つ用意してある。
 		     文面は「①でリストを用意 → ②で画像 → 判定 → 結果」の流れだけに絞り、
 		     画像の注意は撮影のときに要るものだけ残した（画質の注意はヘッダーにある）。 -->
-		<div id="help-backdrop" class="help-backdrop" hidden onclick="closeHelp()"></div>
-		<div id="help-box" class="help-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="help-title">
+		<div id="help-backdrop" class="uma-overlay-backdrop" hidden onclick="closeHelp()"></div>
+		<div id="help-box" class="uma-overlay help-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="help-title">
 			<div class="help-head">
 				<h2 id="help-title" class="help-title">
 					<i data-lucide="book-open" class="w-4 h-4 text-green-600"></i>
@@ -663,6 +623,26 @@
 			</div>
 		</div>
 
+		<!-- UIの切り替えの告知。初回だけ自動で出て、以後は右上の「新UI」バッジから読み直せる。
+		     ✕・OK・背景・Esc のどれで閉じても既読になる。 -->
+		<div id="ui-notice-backdrop" class="uma-overlay-backdrop" hidden onclick="closeUiNotice()"></div>
+		<div id="ui-notice" class="uma-overlay notice-dialog deck-accent" hidden role="dialog" aria-modal="true" aria-labelledby="ui-notice-title">
+			<button type="button" class="usd-icon-btn uma-icon-btn notice-close" data-act="notice-close" onclick="closeUiNotice()" aria-label="閉じる">
+				<i data-lucide="x" class="w-4 h-4"></i>
+			</button>
+			<div class="notice-body">
+				<div class="notice-icon" aria-hidden="true">
+					<i data-lucide="layers" class="w-6 h-6"></i>
+				</div>
+				<h2 class="notice-title" id="ui-notice-title">スキルの選び方が新しくなりました</h2>
+				<p class="notice-text">スキル名を毎回貼り付けなくても、保存しておいたスキルセットから選べます。作ったセットは次回も残り、UmaSkill Deck とも共有されます。</p>
+				<p class="notice-text">右上の「旧UIへ」から、いつでも元の画面に戻せます。</p>
+			</div>
+			<div class="notice-foot">
+				<button type="button" id="ui-notice-ok" class="uma-btn uma-btn--primary uma-btn--lg w-full" data-act="notice-ok" onclick="closeUiNotice()">OK</button>
+			</div>
+		</div>
+
 
 		<!-- ステップ1・2。別々のカードで縦に並べていたものを1枚に重ね、タブで切り替える。
 		     ①は一度用意したら触らないのに、②へ行くたびに①の全高を通り過ぎる必要があったため。 -->
@@ -710,17 +690,6 @@
 			     uma-skill-deck.html と同じコンポーネント・同じlocalStorageを共有するため、
 			     ここで作成・編集したテンプレートはUmaSkill Deck側にもそのまま反映される。 -->
 			<div id="deck-skill-body" class="hidden">
-				<!-- 新UIへ来たときに一度だけ出す。旧UIで出した告知を、ここで受け止める。 -->
-				<div id="new-ui-welcome" class="new-ui-welcome deck-accent" hidden>
-					<i data-lucide="sparkles" class="w-4 h-4 shrink-0" style="margin-top:2px;color:var(--uma-accent);"></i>
-					<div class="flex-1 min-w-0">
-						<p class="new-ui-welcome-title">ここが新しいUIです</p>
-						<p class="new-ui-welcome-text">照合したいスキルのまとまりを1つ選ぶと、その中のスキルだけを判定します。作ったものは次回も残り、UmaSkill Deck とも共有されます。右上の「旧UIへ」でいつでも元に戻せます。</p>
-					</div>
-					<button type="button" class="usd-icon-btn uma-icon-btn shrink-0" data-act="welcome-close" onclick="dismissNewUiWelcome()" aria-label="閉じる">
-						<i data-lucide="x" class="w-4 h-4"></i>
-					</button>
-				</div>
 				<div id="deck-loading-note" class="text-xs text-slate-500 mb-3">テンプレートを読み込んでいます…</div>
 				<div id="deck-template-panel"></div>
 				<div class="mt-3 flex items-center justify-between gap-3 flex-wrap">
@@ -965,10 +934,9 @@
 			verifyCommonCssVersion();
 			renderPersonUploadGrid();
 			restoreOcrDictionary();
-			loadNewUiIntro();
-			updateNewUiCta();
-			// 読み込み直後の慌ただしいところへ重ねない。一拍おいてから出す。
-			setTimeout(maybeShowNewUiCoach, 700);
+			// どちらのUIで開くかを決める（未読なら新UI＋告知モーダル）。
+			// 初期化が済んでから出したいので、ここを通す時点で他の準備は終わっている。
+			initUiMode();
 			// 既定は旧UIなので、Deckの入口は出さない状態から始める
 			// （マークアップ側にも hidden を書いてあるが、状態を1か所で決められるようここでも通す）。
 			updateDeckEntryVisibility();
@@ -1038,11 +1006,6 @@
 			if (wrap && !wrap.contains(e.target) && menu && !menu.classList.contains('hidden')) {
 				menu.classList.add('hidden');
 			}
-			// 新UIの吹き出しも外側を触ったら閉じる（「あとで」と同じ扱いで覚える）。
-			// 他を操作し始めた＝いま読む気は無い、という合図なので出し続けない。
-			const cta = document.getElementById('new-ui-cta');
-			const coach = document.getElementById('new-ui-coach');
-			if (cta && coach && !coach.hidden && !cta.contains(e.target)) closeNewUiCoach(true);
 		});
 
 		/* ============================================================
@@ -2021,76 +1984,93 @@
 		const DECK_DRAFT_SCOPE_KEY = 'special';
 		// Deckモードに入る前の手入力リストの状態。モードを抜けたらそのまま復元する。
 		let manualSkillState = null;
-
 		/* ------------------------------------------------------------
-		 * 新UIの告知（旧UIに留まっている人に気づいてもらうための一式）
+		 * どちらのUIで開くか と、切り替えの告知モーダル
 		 *
-		 * 出し方は4段（NEWバッジ・脈打ち・吹き出し・ようこそ枠）。詳しくは <style> の
-		 * 「新UIの告知」を参照。ここでは「どこまで見たか」だけを持つ。
-		 *   coach   … 吹き出しを閉じた／新UIへ入った
-		 *   welcome … 新UIを実際に見た（ようこそ枠を閉じた、または新UIから戻ってきた）
-		 * welcome が立ったら告知は役目を終わりにする。使っている人に「新機能です」は要らない。
+		 * 判定は2段階。
+		 *   告知モーダルをまだ見ていない人 … 保存されたUIの選択に関係なく新UIで開き、モーダルを出す
+		 *   見た後                          … 最後に選んだUIで開く（旧UIへ戻った人は次回も旧UI）
+		 *
+		 * 一律に新UIへ寄せるのは、旧UIが既定だった期間の保存値では
+		 * 「自分で旧UIを選んだ人」と「既定のままだった人」を区別できないため。
+		 * 一度だけ全員に新UIとモーダルを見せ、その後は本人の選択を尊重する。
+		 *
+		 * 既読の印は「告知のID」を値として持つ。将来べつの告知を出すときは
+		 * IDを変えるだけで、そのときだけもう一度出せる。
 		 * ------------------------------------------------------------ */
-		const NEW_UI_INTRO_KEY = 'uma-special-new-ui-intro';
-		let newUiIntro = { coach: false, welcome: false };
+		const UI_MODE_STORAGE_KEY = 'uma-special-ui-mode';       // 'new' | 'old'
+		const UI_NOTICE_STORAGE_KEY = 'uma-special-ui-notice';   // 見た告知のID
+		const UI_NOTICE_ID = '2026-09-new-ui-default';
 
-		function loadNewUiIntro() {
+		function readStored(key) {
+			try { return localStorage.getItem(key); } catch (e) { return null; }
+		}
+		function writeStored(key, value) {
+			try { localStorage.setItem(key, value); } catch (e) {}
+		}
+
+		// 読めない／壊れているときは「未読」扱い。もう一度案内するだけで害がない。
+		function hasSeenUiNotice() {
+			return readStored(UI_NOTICE_STORAGE_KEY) === UI_NOTICE_ID;
+		}
+		function markUiNoticeSeen() {
+			if (hasSeenUiNotice()) return;
+			writeStored(UI_NOTICE_STORAGE_KEY, UI_NOTICE_ID);
+		}
+		function saveUiModeChoice() {
+			writeStored(UI_MODE_STORAGE_KEY, deckMode ? 'new' : 'old');
+		}
+
+		/* 起動時にどちらのUIで開くかを決め、必要なら告知モーダルを出す。 */
+		async function initUiMode() {
+			const seen = hasSeenUiNotice();
+			// 未読なら保存値を見ずに新UI。既読なら最後の選択に従う（既定は新UI）。
+			const startNew = seen ? readStored(UI_MODE_STORAGE_KEY) !== 'old' : true;
 			try {
-				const raw = localStorage.getItem(NEW_UI_INTRO_KEY);
-				if (!raw) return;
-				const o = JSON.parse(raw);
-				newUiIntro = { coach: !!o.coach, welcome: !!o.welcome };
+				if (startNew) await enterDeckMode();
+				else exitDeckMode();
 			} catch (e) {
-				// 読めない／壊れているときは「まだ見ていない」扱いでよい（もう一度案内するだけ）
+				// 新UIの準備（マスターデータの取得など）に失敗しても、告知だけは出す。
+				// 「何も言われずに知らない画面になっている」のがいちばん困るため。
+				console.error('[UmaStar OCR] UIの初期化に失敗しました', e);
 			}
+			if (!seen) openUiNotice();
 		}
 
-		function saveNewUiIntro() {
-			try { localStorage.setItem(NEW_UI_INTRO_KEY, JSON.stringify(newUiIntro)); } catch (e) {}
+		/* ---------- 告知モーダル（使い方ガイドと同じ作法） ---------- */
+		let uiNoticeOpen = false;
+		let uiNoticeReturnFocus = null;
+
+		function openUiNotice() {
+			if (uiNoticeOpen) return;
+			// 引き出しやガイドが開いている上には重ねない
+			if (helpOpen || openDrawerKey) return;
+			uiNoticeOpen = true;
+			uiNoticeReturnFocus = document.activeElement;
+			document.getElementById('ui-notice-backdrop').hidden = false;
+			document.getElementById('ui-notice').hidden = false;
+			document.body.style.overflow = 'hidden';
+			if (window.lucide) lucide.createIcons();
+			document.getElementById('ui-notice-ok').focus();
 		}
 
-		// NEWバッジと脈打ちの出し入れ。新UIにいる間と、一度使ったあとは出さない。
-		function updateNewUiCta() {
-			const badge = document.getElementById('deck-mode-new-badge');
-			const btn = document.getElementById('deck-mode-btn');
-			if (!badge || !btn) return;
-			const announce = !newUiIntro.welcome && !deckMode;
-			badge.hidden = !announce;
-			btn.classList.toggle('deck-mode-btn--new', announce);
-			if (!announce) closeNewUiCoach(false);
+		// ✕・OK・背景・Esc のどれで閉じても既読にする
+		// （「次回から表示しない」の選択制にしない。一度きりの告知には重いため）。
+		function closeUiNotice() {
+			if (!uiNoticeOpen) return;
+			uiNoticeOpen = false;
+			document.getElementById('ui-notice-backdrop').hidden = true;
+			document.getElementById('ui-notice').hidden = true;
+			document.body.style.overflow = '';
+			markUiNoticeSeen();
+			// 読み直した場合は開いた元（右上のバッジ）へ、初回表示なら元の位置へ返す
+			if (uiNoticeReturnFocus && typeof uiNoticeReturnFocus.focus === 'function') uiNoticeReturnFocus.focus();
+			uiNoticeReturnFocus = null;
 		}
 
-		function maybeShowNewUiCoach() {
-			if (newUiIntro.coach || newUiIntro.welcome || deckMode) return;
-			const el = document.getElementById('new-ui-coach');
-			if (el) el.hidden = false;
-		}
-
-		// remember=true のときだけ「もう出さない」を覚える。
-		// （新UIに入ったときの自動クローズで覚えてしまうと、戻ったときに出し直せない）
-		function closeNewUiCoach(remember) {
-			const el = document.getElementById('new-ui-coach');
-			if (el) el.hidden = true;
-			if (remember && !newUiIntro.coach) { newUiIntro.coach = true; saveNewUiIntro(); }
-		}
-
-		function tryNewUiFromCoach() {
-			closeNewUiCoach(true);
-			enterDeckMode();
-		}
-
-		function dismissNewUiWelcome() {
-			const el = document.getElementById('new-ui-welcome');
-			if (el) el.hidden = true;
-			markNewUiSeen();
-		}
-
-		function markNewUiSeen() {
-			if (newUiIntro.welcome && newUiIntro.coach) return;
-			newUiIntro.coach = true;
-			newUiIntro.welcome = true;
-			saveNewUiIntro();
-			updateNewUiCta();
+		// 右上の「新UI」バッジからの読み直し。既読の状態は変えない（もともと既読なので）。
+		function reopenUiNotice() {
+			openUiNotice();
 		}
 
 		function toggleDeckMode() {
@@ -2116,10 +2096,7 @@
 			document.getElementById('deck-mode-btn-label').textContent = '旧UIへ';
 			document.getElementById('ui-mode-badge').hidden = false;
 			updateDeckEntryVisibility();
-			// 旧UIで出していた告知をここで受け止める。まだ見ていない人にだけ1回。
-			closeNewUiCoach(true);
-			document.getElementById('new-ui-welcome').hidden = newUiIntro.welcome;
-			updateNewUiCta();
+			saveUiModeChoice();
 			// ①の中身が入れ替わるので、隠れたまま気付かれないことがないよう①を開いておく
 			selectStepTab(1);
 
@@ -2171,9 +2148,7 @@
 			document.getElementById('deck-mode-btn-label').textContent = '新UIへ';
 			document.getElementById('ui-mode-badge').hidden = true;
 			updateDeckEntryVisibility();
-			// 一度でも新UIを見たなら告知は終わり（戻ってきた＝見たうえでの判断なので）
-			document.getElementById('new-ui-welcome').hidden = true;
-			markNewUiSeen();
+			saveUiModeChoice();
 			selectStepTab(1);
 
 			clearActiveSkillDictionary();
@@ -2445,9 +2420,8 @@
 		// Esc は「開いているものを1つ閉じる」。いちばん手前にあるものから順に。
 		document.addEventListener('keydown', (e) => {
 			if (e.key !== 'Escape') return;
-			const coach = document.getElementById('new-ui-coach');
-			if (helpOpen) closeHelp();
-			else if (coach && !coach.hidden) closeNewUiCoach(true);
+			if (uiNoticeOpen) closeUiNotice();
+			else if (helpOpen) closeHelp();
 			else if (openDrawerKey) closeDrawer();
 			else if (fabOpen) setFabOpen(false);
 		});

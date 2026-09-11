@@ -28,10 +28,14 @@ const browser = await chromium.launch();
 	assert((await page.getAttribute('html', 'class') || '').includes('uma-tw-ready'),
 		'special: Tailwind の読み込みを検出できている');
 
-	// 新UIの告知の吹き出しは初回だけ出る。開いたままだと以降のクリックに被るので、
-	// ここで閉じておく（出ること自体は最後の専用ブロックで確かめる）。
-	await page.waitForTimeout(900);
-	if (await page.isVisible('#new-ui-coach')) await page.click('[data-act="coach-later"]');
+	// 既定は新UIで、初回は切り替えの告知モーダルが出る。ここから先は旧UI側の
+	// 入力欄（#skill-list）を使うので、モーダルを閉じてから旧UIへ移る。
+	// 告知そのものの出方は、この後ろの専用ブロックでまとめて見ている。
+	await page.waitForTimeout(2500);
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	await page.click('#deck-mode-btn');
+	await page.waitForTimeout(600);
 
 	// スキルリストの解析（hidden の付け外し・件数バッジ）
 	await seedSpecialResults(page);
@@ -410,57 +414,113 @@ const browser = await chromium.launch();
 }
 
 /* ============================================================
- * special.html — 新UIの告知（初回だけ出て、使ったら消える）
- * 状態が localStorage に残るかどうかが肝なので、まっさらな文脈を1つ使う。
+ * special.html — 既定は新UI／切り替えの告知モーダル
+ *
+ * 「どちらのUIで開くか」と「モーダルを既読にしたか」が localStorage に残るので、
+ * まっさらな文脈を使って通しで見る。閉じ方が4通りあり、どれで閉じても既読に
+ * なることが仕様の肝なので、そこは文脈を分けて1通りずつ確かめる。
  * ============================================================ */
 {
-	const { ctx, page } = await openPage(browser, base, 'special.html');
-	await page.waitForTimeout(1400);
-
-	const cta = () => page.evaluate(() => ({
-		badge: !document.getElementById('deck-mode-new-badge').hidden,
-		coach: !document.getElementById('new-ui-coach').hidden,
-		pulse: document.getElementById('deck-mode-btn').classList.contains('deck-mode-btn--new'),
-		welcome: !document.getElementById('new-ui-welcome').hidden
+	// 画面の状態をまとめて読む。どのUIで開いたかは①の見出しで判る。
+	const uiState = (page) => page.evaluate(() => ({
+		notice: !document.getElementById('ui-notice').hidden,
+		backdrop: !document.getElementById('ui-notice-backdrop').hidden,
+		badge: !document.getElementById('ui-mode-badge').hidden,
+		title: document.getElementById('step1-title').textContent,
+		label: document.getElementById('deck-mode-btn-label').textContent,
+		scrollLocked: document.body.style.overflow === 'hidden',
+		seen: localStorage.getItem('uma-special-ui-notice'),
+		mode: localStorage.getItem('uma-special-ui-mode')
 	}));
 
-	const first = await cta();
-	assert(first.badge && first.coach && first.pulse,
-		'special: 初回はNEWバッジ・吹き出し・脈打ちが出る', first);
+	// 1. 初回訪問：新UIで開き、モーダルが出る
+	{
+		const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+		await page.waitForTimeout(2500);
+		const first = await uiState(page);
+		assert(first.title === '対象スキルセットを選ぶ' && first.badge && first.label === '旧UIへ',
+			'special: 初回は新UIで開く', first);
+		assert(first.notice && first.backdrop && first.scrollLocked,
+			'special: 初回は切り替えの告知モーダルが出て、本文のスクロールが止まる', first);
+		assert(await page.evaluate(() => ({
+			role: document.getElementById('ui-notice').getAttribute('role'),
+			modal: document.getElementById('ui-notice').getAttribute('aria-modal'),
+			labelled: document.getElementById('ui-notice').getAttribute('aria-labelledby')
+		})).then((a) => a.role === 'dialog' && a.modal === 'true' && a.labelledby !== ''),
+			'special: モーダルがダイアログとして印付けされている');
+		assert(await page.evaluate(() => document.activeElement === document.getElementById('ui-notice-ok')),
+			'special: 開いた時点でOKにフォーカスが移る');
+		assert(first.seen === null, 'special: 開いただけではまだ既読にしない', first.seen);
 
-	// 「あとで」→ 吹き出しだけ閉じ、目印は残る
-	await page.click('[data-act="coach-later"]');
-	await page.waitForTimeout(300);
-	const later = await cta();
-	assert(!later.coach && later.badge, 'special: 「あとで」で吹き出しだけ閉じ、NEWバッジは残る', later);
+		// 「OK」で閉じる → 既読になる
+		await page.click('[data-act="notice-ok"]');
+		await page.waitForTimeout(300);
+		const closed = await uiState(page);
+		assert(!closed.notice && !closed.backdrop && !closed.scrollLocked,
+			'special: OKでモーダルが閉じ、スクロールが戻る', closed);
+		assert(closed.seen === '2026-09-new-ui-default', 'special: 閉じると既読の印が残る', closed.seen);
 
-	// 読み込み直しても吹き出しは出ない（覚えている）。バッジはまだ出る。
-	await page.reload({ waitUntil: 'domcontentloaded' });
-	await page.waitForTimeout(1400);
-	const again = await cta();
-	assert(!again.coach && again.badge, 'special: 開き直しても吹き出しは繰り返さない', again);
+		// 3. 再読み込み → 新UIのまま・モーダルは出ない
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForTimeout(2500);
+		const again = await uiState(page);
+		assert(again.title === '対象スキルセットを選ぶ' && !again.notice,
+			'special: 既読なら新UIのままで、モーダルは繰り返さない', again);
 
-	// 新UIへ入ると「ようこそ」が出て、告知側（バッジ・脈打ち）は引っ込む
-	await page.click('#deck-mode-btn');
-	await page.waitForTimeout(2000);
-	const entered = await cta();
-	assert(entered.welcome && !entered.badge && !entered.pulse,
-		'special: 新UIへ入るとようこそ枠が出て、告知は引っ込む', entered);
+		// 6. 右上のバッジから読み直せる（既読のまま）
+		await page.click('#ui-mode-badge');
+		await page.waitForTimeout(300);
+		const reopened = await uiState(page);
+		assert(reopened.notice && reopened.seen === '2026-09-new-ui-default',
+			'special: 右上のバッジから読み直せて、既読のまま変わらない', reopened);
+		await page.click('[data-act="notice-ok"]');
+		await page.waitForTimeout(300);
 
-	// 旧UIへ戻すと、一度見た扱いになって告知は出ない
-	await page.click('#deck-mode-btn');
-	await page.waitForTimeout(800);
-	const returned = await cta();
-	assert(!returned.badge && !returned.coach && !returned.welcome,
-		'special: 一度使ったら旧UIへ戻しても告知は出ない', returned);
+		// 4. 旧UIへ切り替え → 再読み込み → 旧UIで開く・告知は出ない
+		await page.click('#deck-mode-btn');
+		await page.waitForTimeout(600);
+		assert((await uiState(page)).mode === 'old', 'special: 選んだUIが保存される');
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForTimeout(2000);
+		const old = await uiState(page);
+		assert(old.title === 'スキルリストを入力' && old.label === '新UIへ' && !old.badge,
+			'special: 既読なら最後に選んだ旧UIで開く', old);
+		assert(!old.notice, 'special: 旧UIで開いてもモーダルは出ない', old);
+		// 5節で撤去した旧告知が復活していないこと
+		assert(await page.evaluate(() => !document.getElementById('deck-mode-new-badge')
+			&& !document.getElementById('new-ui-coach') && !document.getElementById('new-ui-welcome')),
+			'special: 旧UIの告知一式（NEWバッジ・吹き出し・ようこそ枠）は残っていない');
 
-	await page.reload({ waitUntil: 'domcontentloaded' });
-	await page.waitForTimeout(1400);
-	const afterAdopt = await cta();
-	assert(!afterAdopt.badge && !afterAdopt.coach,
-		'special: 開き直しても告知は復活しない', afterAdopt);
+		assert(errors.length === 0, 'special: 告知まわりでコンソールエラーが出ない', errors.slice(0, 3));
+		await ctx.close();
+	}
 
-	await ctx.close();
+	// 5. 「旧UI」の保存値だけを持つ人（既読の印なし）は、一度だけ新UIへ寄せる
+	{
+		const { ctx, page } = await openPage(browser, base, 'special.html');
+		await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForTimeout(2500);
+		const s = await uiState(page);
+		assert(s.title === '対象スキルセットを選ぶ' && s.notice,
+			'special: 既読の印が無ければ、保存が「旧UI」でも新UIで開いてモーダルを出す', s);
+		await ctx.close();
+	}
+
+	// 2. 閉じ方は4通り。どれで閉じても既読になる（✕・背景・Esc。OKは上で確認済み）
+	for (const [how, act] of [['✕', async (page) => page.click('[data-act="notice-close"]')],
+		['背景', async (page) => page.click('#ui-notice-backdrop', { position: { x: 5, y: 5 } })],
+		['Esc', async (page) => page.keyboard.press('Escape')]]) {
+		const { ctx, page } = await openPage(browser, base, 'special.html');
+		await page.waitForTimeout(2500);
+		assert(await page.isVisible('#ui-notice'), 'special: ' + how + 'で閉じる前にモーダルが出ている');
+		await act(page);
+		await page.waitForTimeout(300);
+		const s = await uiState(page);
+		assert(!s.notice && s.seen === '2026-09-new-ui-default',
+			'special: ' + how + 'で閉じても既読になる', s);
+		await ctx.close();
+	}
 }
 
 /* ============================================================
