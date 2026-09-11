@@ -193,45 +193,68 @@
 			</div>
 		</header>
 
-		<!-- 使い方アコーディオン -->
-		<div id="help-box" class="hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 to-violet-50/50 p-5 md:p-6 mb-8 shadow-xs relative overflow-hidden transition-all">
-			<div class="flex items-center gap-2 text-sm font-bold text-indigo-900 mb-4">
-				<i data-lucide="book-open" class="w-4 h-4 text-indigo-600"></i>
-				<span>使い方の手順</span>
+		<!-- 使い方ガイド（手前に重ねるダイアログ。骨格は css/shell.css の .uma-overlay / .help-*）
+		     以前は本文の上に差し込むアコーディオンで、開くと下のカードが押し下げられ、閉じるには
+		     ヘッダーのボタンまで戻る必要があった。special.html（C-15⑥）と同じく手前に重ね、
+		     閉じる手段を ✕・「閉じる」・背景タップ・Esc の4つ用意してある。
+		     文面は以前の4ステップと撮影の注意をそのまま。STEP3 に「結果は右下の＋から開く引き出し」を足した。 -->
+		<div id="help-backdrop" class="uma-overlay-backdrop" hidden onclick="closeHelp()"></div>
+		<div id="help-box" class="uma-overlay help-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="help-title">
+			<div class="help-head">
+				<h2 id="help-title" class="help-title">
+					<i data-lucide="book-open" class="w-4 h-4 text-indigo-600"></i>
+					<span>使い方の手順</span>
+				</h2>
+				<button id="help-close" type="button" onclick="closeHelp()" aria-label="閉じる" class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer">
+					<i data-lucide="x" class="w-5 h-5"></i>
+				</button>
 			</div>
-			<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs text-slate-700 mb-5">
-				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-indigo-100 shadow-2xs">
-					<span class="inline-block px-2 py-0.5 rounded-md bg-indigo-600 text-white font-bold text-[10px] mb-1.5">STEP 1</span>
-					<p class="font-bold text-slate-800">対象を撮影</p>
-					<p class="text-slate-500 mt-1">親A（＋祖A1＋祖A2）、必要なら親B（＋祖B1＋祖B2）の因子画面を、境界を含めず個別に撮影（対象スキルは登録済みのため準備不要）</p>
-				</div>
-				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-indigo-100 shadow-2xs">
-					<span class="inline-block px-2 py-0.5 rounded-md bg-indigo-600 text-white font-bold text-[10px] mb-1.5">STEP 2</span>
-					<p class="font-bold text-slate-800">使う欄にアップロード</p>
-					<p class="text-slate-500 mt-1">親Aセットの使う欄にスクショを追加。親Bセットが必要な場合は「＋ 親Bセットも追加する」で表示してから追加（残りは空欄でOK）</p>
-				</div>
-				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-indigo-100 shadow-2xs">
-					<span class="inline-block px-2 py-0.5 rounded-md bg-indigo-600 text-white font-bold text-[10px] mb-1.5">STEP 3</span>
-					<p class="font-bold text-slate-800">OCR実行</p>
-					<p class="text-slate-500 mt-1">スキル名の判定と、★の数の判定を同時に行います</p>
-				</div>
-				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-indigo-100 shadow-2xs">
-					<span class="inline-block px-2 py-0.5 rounded-md bg-indigo-600 text-white font-bold text-[10px] mb-1.5">STEP 4</span>
-					<p class="font-bold text-slate-800">結果コピー</p>
-					<p class="text-slate-500 mt-1">使った人数分の★の数をまとめてスプレッドシートに貼り付け</p>
-				</div>
-			</div>
+			<div class="help-body">
+				<ol class="help-steps">
+					<li>
+						<span class="help-num">1</span>
+						<div>
+							<p class="help-step-title">対象を撮影</p>
+							<p class="help-step-text">親A（＋祖A1＋祖A2）、必要なら親B（＋祖B1＋祖B2）の因子画面を、境界を含めず個別に撮影（対象スキルは登録済みのため準備不要）</p>
+						</div>
+					</li>
+					<li>
+						<span class="help-num">2</span>
+						<div>
+							<p class="help-step-title">使う欄にアップロード</p>
+							<p class="help-step-text">タブ②で、親Aセットの使う欄にスクショを追加。親Bセットが必要な場合は「＋ 親Bセットも追加する」で表示してから追加（残りは空欄でOK）</p>
+						</div>
+					</li>
+					<li>
+						<span class="help-num">3</span>
+						<div>
+							<p class="help-step-title">OCR実行</p>
+							<p class="help-step-text">スキル名の判定と、★の数の判定を同時に行います。結果は右下の <strong>＋</strong> ボタンから開く引き出し（「OCRの照合結果」「結果画像」）に表示されます。</p>
+						</div>
+					</li>
+					<li>
+						<span class="help-num">4</span>
+						<div>
+							<p class="help-step-title">結果コピー</p>
+							<p class="help-step-text">使った人数分の★の数をまとめてスプレッドシートに貼り付け</p>
+						</div>
+					</li>
+				</ol>
 
-			<!-- 撮影の注意点 -->
-			<div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
-				<div class="flex items-center gap-1.5 text-xs font-bold text-amber-800 mb-2">
-					<i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
-					<span>スクリーンショットのポイント</span>
+				<!-- 撮影の注意点 -->
+				<div class="help-tips">
+					<p class="help-tips-title">
+						<i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+						<span>スクリーンショットのポイント</span>
+					</p>
+					<ul>
+						<li>各キャラクターのスキルリスト部分だけが写るように撮影してください。見出しや前後のキャラクターの行が混ざると、誤判定の原因になることがあります。</li>
+						<li>各スキルについて、スキル名と★が両方とも同じ画像内に収まっているカットが少なくとも1枚は含まれるように撮影してください（複数枚で範囲が重なっていても問題ありません）。特に一番下の行は★が途切れて写りやすいため、1枚多めに、少し範囲をずらして撮っておくと安心です。</li>
+					</ul>
 				</div>
-				<ul class="text-xs text-amber-800 leading-relaxed list-disc list-outside pl-4 space-y-1.5">
-					<li>各キャラクターのスキルリスト部分だけが写るように撮影してください。見出しや前後のキャラクターの行が混ざると、誤判定の原因になることがあります。</li>
-					<li>各スキルについて、スキル名と★が両方とも同じ画像内に収まっているカットが少なくとも1枚は含まれるように撮影してください（複数枚で範囲が重なっていても問題ありません）。特に一番下の行は★が途切れて写りやすいため、1枚多めに、少し範囲をずらして撮っておくと安心です。</li>
-				</ul>
+			</div>
+			<div class="help-foot">
+				<button type="button" onclick="closeHelp()" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all shadow-xs cursor-pointer">閉じる</button>
 			</div>
 		</div>
 
@@ -1384,8 +1407,34 @@
 			}
 		});
 
+		/* 使い方ガイド（手前に重ねるダイアログ）。special.html と同じ作法。
+		   開いている間は本文のスクロールを止め、閉じたらフォーカスを開く前の場所へ返す。 */
+		let helpOpen = false;
+		let helpReturnFocus = null;
+
 		function toggleHelp() {
-			document.getElementById('help-box').classList.toggle('hidden');
+			if (helpOpen) closeHelp(); else openHelp();
+		}
+
+		function openHelp() {
+			if (helpOpen) return;
+			helpOpen = true;
+			helpReturnFocus = document.activeElement;
+			document.getElementById('help-backdrop').hidden = false;
+			document.getElementById('help-box').hidden = false;
+			document.body.style.overflow = 'hidden';
+			if (window.lucide) lucide.createIcons();
+			document.getElementById('help-close').focus();
+		}
+
+		function closeHelp() {
+			if (!helpOpen) return;
+			helpOpen = false;
+			document.getElementById('help-backdrop').hidden = true;
+			document.getElementById('help-box').hidden = true;
+			document.body.style.overflow = '';
+			if (helpReturnFocus && typeof helpReturnFocus.focus === 'function') helpReturnFocus.focus();
+			helpReturnFocus = null;
 		}
 
 		function showToast(msg) {
@@ -2722,7 +2771,8 @@
 		// Esc は「開いているものを1つ閉じる」。いちばん手前にあるものから順に。
 		document.addEventListener('keydown', (e) => {
 			if (e.key !== 'Escape') return;
-			if (openDrawerKey) closeDrawer();
+			if (helpOpen) closeHelp();
+			else if (openDrawerKey) closeDrawer();
 			else if (fabOpen) setFabOpen(false);
 		});
 

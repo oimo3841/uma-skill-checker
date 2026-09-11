@@ -829,6 +829,55 @@ const browser = await chromium.launch();
 	assert(!(await page.evaluate(() => document.getElementById('fab-nav').classList.contains('open'))), 'exam: Esc でFABが畳まれる');
 	await page.evaluate(() => { selectStepTab(1); window.scrollTo(0, 0); });
 
+	/* --- 使い方ガイド（手前に重ねるダイアログ）。閉じる手段が4つあることまで見る --- */
+	await page.click('button[onclick="toggleHelp()"]');
+	await page.waitForTimeout(200);
+	assert(await page.isVisible('#help-box'), 'exam: 使い方ガイドが開く');
+	const helpOpened = await page.evaluate(() => ({
+		dialog: document.getElementById('help-box').getAttribute('role'),
+		backdrop: !document.getElementById('help-backdrop').hidden,
+		scrollLocked: document.body.style.overflow === 'hidden',
+		focusOnClose: document.activeElement === document.getElementById('help-close'),
+		steps: document.querySelectorAll('#help-box .help-steps > li').length,
+		step3: document.querySelectorAll('#help-box .help-step-text')[2].textContent,
+		tips: document.querySelectorAll('#help-box .help-tips li').length
+	}));
+	assert(helpOpened.dialog === 'dialog' && helpOpened.backdrop && helpOpened.scrollLocked,
+		'exam: ガイドは背景を暗くして手前に重なり、本文のスクロールが止まる', helpOpened);
+	assert(helpOpened.focusOnClose, 'exam: 開いた時点で✕にフォーカスが移る', helpOpened);
+	assert(helpOpened.steps === 4 && helpOpened.tips === 2 && helpOpened.step3.includes('右下の') && helpOpened.step3.includes('引き出し'),
+		'exam: 文面は4ステップ＋撮影の注意2点のまま。STEP3 に引き出しの案内が足されている', helpOpened);
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+	assert(!(await page.isVisible('#help-box')), 'exam: Escでガイドが閉じる');
+	assert(await page.evaluate(() => document.body.style.overflow === ''), 'exam: 閉じると本文のスクロールが戻る');
+	await page.click('button[onclick="toggleHelp()"]');
+	await page.waitForTimeout(200);
+	await page.click('#help-close');
+	await page.waitForTimeout(200);
+	assert(!(await page.isVisible('#help-box')), 'exam: ✕でガイドが閉じる');
+	await page.click('button[onclick="toggleHelp()"]');
+	await page.waitForTimeout(200);
+	await page.click('#help-box .help-foot button');
+	await page.waitForTimeout(200);
+	assert(!(await page.isVisible('#help-box')), 'exam: 「閉じる」でガイドが閉じる');
+	await page.click('button[onclick="toggleHelp()"]');
+	await page.waitForTimeout(200);
+	await page.mouse.click(8, 8); // 背景（左上の隅）
+	await page.waitForTimeout(200);
+	assert(!(await page.isVisible('#help-box')), 'exam: 背景タップでガイドが閉じる');
+	// Esc の優先順位: ガイド → 引き出し。引き出しの上でガイドを開き、Esc を2回
+	await page.evaluate(() => openDrawer('stitch'));
+	await page.waitForTimeout(500);
+	await page.evaluate(() => openHelp());
+	await page.waitForTimeout(200);
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
+	assert(!(await page.isVisible('#help-box')) && await page.isVisible('#stitch-drawer'), 'exam: Esc はガイドを先に閉じ、引き出しは残る');
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(600);
+	assert(!(await page.isVisible('#stitch-drawer')), 'exam: もう一度 Esc で引き出しが閉じる');
+
 	// 375px で横スクロールが出ていないこと（結果カードと案内が出ている状態で）
 	await page.setViewportSize({ width: 375, height: 812 });
 	await page.waitForTimeout(500);
