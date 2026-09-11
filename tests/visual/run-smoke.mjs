@@ -95,6 +95,17 @@ const browser = await chromium.launch();
 	assert(await page.isVisible('#fab-toggle'), 'special: 右下ナビのメインボタンが出る');
 	assert(await page.evaluate(() => getComputedStyle(document.getElementById('deck-drawer-trigger')).pointerEvents) === 'none',
 		'special: 畳んだ状態ではサブボタンが押せない');
+	// 畳んだナビの外枠（透明な箱）が、その下にある要素のクリックを吸わないこと。
+	// 以前はテンプレート行の編集／複製／削除が、スクロール位置によって押せなくなっていた。
+	const fabBlocks = await page.evaluate(() => {
+		const nav = document.getElementById('fab-nav');
+		const r = nav.getBoundingClientRect();
+		// ナビの箱の中で、メインボタンの外（畳んだサブボタンの位置）を突く
+		const hit = document.elementFromPoint(r.left + 4, r.top + 4);
+		return { navPointer: getComputedStyle(nav).pointerEvents, hitIsNav: hit === nav };
+	});
+	assert(fabBlocks.navPointer === 'none' && !fabBlocks.hitIsNav,
+		'special: 畳んだナビの外枠が下の要素のクリックを吸わない', fabBlocks);
 	// 一度開いたので照合結果の未読は下りている。Deckはまだ見に行っていないので残る。
 	assert(!(await page.isVisible('#fab-dot-result')), 'special: 一度開くと未読バッジが下りる');
 	assert(await page.isVisible('#fab-dot-deck'), 'special: Deckを見に行くまではバッジが残る');
@@ -243,13 +254,37 @@ const browser = await chromium.launch();
 	await page.click('#deck-mode-btn');
 	await page.waitForTimeout(800);
 
-	// 使い方ガイド・親Bセット（hidden の付け外し）
+	// 使い方ガイド（手前に重ねるオーバーレイ）。閉じる手段が4つあることまで見る。
 	await page.click('button[onclick="toggleHelp()"]');
 	await page.waitForTimeout(200);
 	assert(await page.isVisible('#help-box'), 'special: 使い方ガイドが開く');
+	const helpOpened = await page.evaluate(() => ({
+		dialog: document.getElementById('help-box').getAttribute('role'),
+		backdrop: !document.getElementById('help-backdrop').hidden,
+		scrollLocked: document.body.style.overflow === 'hidden',
+		focusOnClose: document.activeElement === document.getElementById('help-close'),
+		// 旧UIなので①の説明は旧UI向けだけが出ている
+		oldText: [...document.querySelectorAll('[data-help-mode="old"]')].every((el) => !el.hidden),
+		newText: [...document.querySelectorAll('[data-help-mode="new"]')].every((el) => el.hidden)
+	}));
+	assert(helpOpened.dialog === 'dialog' && helpOpened.backdrop && helpOpened.scrollLocked,
+		'special: ガイドは背景を暗くして手前に重なり、本文のスクロールが止まる', helpOpened);
+	assert(helpOpened.focusOnClose, 'special: 開いた時点で✕にフォーカスが移る', helpOpened);
+	assert(helpOpened.oldText && helpOpened.newText, 'special: ガイドの①の説明が旧UI向けだけ出る', helpOpened);
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+	assert(!(await page.isVisible('#help-box')), 'special: Escでガイドが閉じる');
+	assert(await page.evaluate(() => document.body.style.overflow === ''), 'special: 閉じると本文のスクロールが戻る');
 	await page.click('button[onclick="toggleHelp()"]');
 	await page.waitForTimeout(200);
-	assert(!(await page.isVisible('#help-box')), 'special: 使い方ガイドが閉じる');
+	await page.click('#help-close');
+	await page.waitForTimeout(200);
+	assert(!(await page.isVisible('#help-box')), 'special: ✕でガイドが閉じる');
+	await page.click('button[onclick="toggleHelp()"]');
+	await page.waitForTimeout(200);
+	await page.mouse.click(8, 8); // 背景（左上の隅）
+	await page.waitForTimeout(200);
+	assert(!(await page.isVisible('#help-box')), 'special: 背景タップでガイドが閉じる');
 	/* --- ステップ1・2のタブ（1枚のカードに重ねて切り替える） --- */
 	const stepState = () => page.evaluate(() => ({
 		tab1: document.getElementById('step-tab-1').getAttribute('aria-selected'),

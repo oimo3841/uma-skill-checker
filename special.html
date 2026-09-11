@@ -199,7 +199,15 @@
 			bottom: calc(var(--uma-fab-edge) + env(safe-area-inset-bottom, 0px));
 			z-index: 70;
 			display: flex; flex-direction: column; align-items: flex-end; gap: var(--uma-fab-gap);
+			/* 外枠そのものはクリックを受け取らない。畳んでいる間もこの箱は
+			   「見えないサブボタン3つ＋間隔＋メインボタン」ぶんの高さを持ち、右下に
+			   約170×250px の透明な板として居座る。何も指定しないと、その板の下にある
+			   テンプレート行の編集／複製／削除ボタンが、スクロール位置によって
+			   押せなくなる（実測で 900px幅は6箇所・375pxは8箇所がブロックされていた）。
+			   受け取るのはメインボタンと、展開中のサブボタンだけ。 */
+			pointer-events: none;
 		}
+		.uma-fab-nav > * { pointer-events: auto; }
 		/* 引き出しを開いている間は隠す。暗転の下に見えていると押せそうに見えるが、
 		   実際には暗転がクリックを受け取って閉じるだけで、紛らわしいため。
 		   display:flex を上で指定しているので [hidden] は !important で押す。 */
@@ -341,6 +349,65 @@
 		@media (prefers-reduced-motion: reduce) {
 			.uma-drawer, .uma-drawer-backdrop { transition: none !important; }
 		}
+
+		/* ============================================================
+		 * 使い方ガイド（手前に重ねるダイアログ）
+		 * 引き出し（z 90/100）より手前、FAB（z 70）より手前。
+		 * 背景の暗さは引き出しの暗転と同じ値に揃える。
+		 * ============================================================ */
+		.help-backdrop {
+			position: fixed; inset: 0; z-index: 110;
+			background: rgba(15, 23, 42, .45);
+		}
+		.help-backdrop[hidden] { display: none !important; }
+		.help-dialog {
+			position: fixed; z-index: 111;
+			left: 50%; top: 50%; transform: translate(-50%, -50%);
+			width: min(92vw, 640px); max-height: min(88vh, 720px);
+			display: flex; flex-direction: column;
+			background: var(--uma-surface); border-radius: var(--uma-r-xl);
+			box-shadow: var(--uma-shadow-3);
+		}
+		/* display:flex を上で当てているので、hidden は自前で押す（F-13） */
+		.help-dialog[hidden] { display: none !important; }
+		.help-head {
+			flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+			gap: var(--uma-sp-3); padding: var(--uma-sp-3) var(--uma-sp-3) var(--uma-sp-3) var(--uma-sp-5);
+			border-bottom: 1px solid var(--uma-border);
+		}
+		.help-title {
+			margin: 0; display: flex; align-items: center; gap: var(--uma-sp-2);
+			font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; color: var(--uma-text-heading);
+		}
+		.help-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--uma-sp-5); }
+		.help-foot {
+			flex-shrink: 0; display: flex; justify-content: flex-end;
+			padding: var(--uma-sp-3) var(--uma-sp-5); border-top: 1px solid var(--uma-border);
+		}
+		.help-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--uma-sp-4); }
+		.help-steps > li { display: flex; gap: var(--uma-sp-3); align-items: flex-start; }
+		.help-num {
+			flex: none; width: 24px; height: 24px; border-radius: var(--uma-r-full);
+			display: flex; align-items: center; justify-content: center;
+			font-size: var(--uma-fs-xs); font-weight: 700;
+			background: var(--uma-surface-inverse); color: var(--uma-text-inverse);
+		}
+		.help-step-title { margin: 0 0 var(--uma-sp-1); font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; color: var(--uma-text-heading); }
+		.help-step-text { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-md); color: var(--uma-text-muted); }
+		.help-step-text + .help-step-text { margin-top: var(--uma-sp-1); }
+		.help-step-text[hidden] { display: none !important; }
+		.help-tips {
+			margin-top: var(--uma-sp-5); padding: var(--uma-sp-3) var(--uma-sp-4);
+			border: 1px solid var(--uma-warn-border); border-radius: var(--uma-r-lg); background: var(--uma-warn-bg);
+		}
+		.help-tips-title { margin: 0 0 var(--uma-sp-1-5); display: flex; align-items: center; gap: var(--uma-sp-1-5); font-size: var(--uma-fs-sm); font-weight: 700; color: var(--uma-warn-text); }
+		.help-tips ul { margin: 0; padding-left: var(--uma-sp-4); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-md); color: var(--uma-warn-text); }
+		.help-tips li + li { margin-top: var(--uma-sp-1); }
+		@media (max-width: 640px) {
+			/* 狭い画面では下から出るシートにする（片手で ✕ に届く位置に「閉じる」を置くため） */
+			.help-dialog { left: 0; top: auto; bottom: 0; transform: none; width: 100%; max-height: 90vh; border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; }
+			.help-body { padding: var(--uma-sp-4); }
+		}
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-green-600 selection:text-white">
@@ -449,52 +516,67 @@
 			</div>
 		</header>
 
-		<!-- 使い方アコーディオン -->
-		<div id="help-box" class="hidden rounded-2xl border border-green-100 bg-gradient-to-br from-green-50/80 to-emerald-50/50 p-4 md:p-6 mb-8 shadow-xs relative overflow-hidden transition-all">
-			<div class="flex items-center gap-2 text-sm font-bold text-green-900 mb-4">
-				<i data-lucide="book-open" class="w-4 h-4 text-green-600"></i>
-				<span>使い方の手順</span>
+		<!-- 使い方ガイド（オーバーレイ）
+		     以前は本文の上に差し込むパネルで、開くと下の入力欄が押し下げられ、閉じるには
+		     ヘッダーのボタンまで戻る必要があった。手前に重ねる形にし、閉じる手段を
+		     ✕・「閉じる」・背景タップ・Esc の4つ用意してある。
+		     文面は「①でリストを用意 → ②で画像 → 判定 → 結果」の流れだけに絞り、
+		     画像の注意は撮影のときに要るものだけ残した（画質の注意はヘッダーにある）。 -->
+		<div id="help-backdrop" class="help-backdrop" hidden onclick="closeHelp()"></div>
+		<div id="help-box" class="help-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="help-title">
+			<div class="help-head">
+				<h2 id="help-title" class="help-title">
+					<i data-lucide="book-open" class="w-4 h-4 text-green-600"></i>
+					<span>使い方</span>
+				</h2>
+				<button id="help-close" type="button" class="uma-icon-btn" onclick="closeHelp()" aria-label="閉じる">
+					<i data-lucide="x" class="w-5 h-5"></i>
+				</button>
 			</div>
-			<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-xs text-slate-700 mb-5">
-				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
-					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 1</span>
-					<p class="font-bold text-slate-800">リスト準備</p>
-					<p class="text-slate-500 mt-1">スプレッドシートの1列をコピーして貼り付け</p>
-				</div>
-				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
-					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 2</span>
-					<p class="font-bold text-slate-800">対象を撮影</p>
-					<p class="text-slate-500 mt-1">親A・祖A1・祖A2（必要に応じて親B・祖B1・祖B2も）のうち、必要な人数分の因子画面を、境界を含めず個別に撮影</p>
-				</div>
-				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
-					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 3</span>
-					<p class="font-bold text-slate-800">使う欄にアップロード</p>
-					<p class="text-slate-500 mt-1">親A・祖A1・祖A2（＋親B・祖B1・祖B2）のうち、使う欄にだけスクショを追加（残りは空欄でOK）</p>
-				</div>
-				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
-					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 4</span>
-					<p class="font-bold text-slate-800">OCR実行</p>
-					<p class="text-slate-500 mt-1">スキル名の判定と、★の数の判定を同時に行います</p>
-				</div>
-				<div class="bg-white/80 backdrop-blur p-3 rounded-xl border border-green-100 shadow-2xs">
-					<span class="inline-block px-2 py-0.5 rounded-md bg-green-600 text-white font-bold text-[10px] mb-1.5">STEP 5</span>
-					<p class="font-bold text-slate-800">結果コピー</p>
-					<p class="text-slate-500 mt-1">使った人数分の★の数をまとめてスプレッドシートに貼り付け</p>
-				</div>
-			</div>
+			<div class="help-body">
+				<ol class="help-steps">
+					<li>
+						<span class="help-num">1</span>
+						<div>
+							<p class="help-step-title">照合するスキルを用意する</p>
+							<!-- ①の中身は旧UIと新UIで違うので、開いたときに片方だけ出す（data-help-mode） -->
+							<p class="help-step-text" data-help-mode="old">タブ①に、スキル名を1行1つで貼り付けて「リストを解析する」を押します。スプレッドシートの1列をそのまま貼り付けても読めます。</p>
+							<p class="help-step-text" data-help-mode="new">タブ①で対象スキルセットを1つ選びます。無ければ「ドラフト」を編集して作れます（次回も残ります）。繰り返し使うものはテンプレートとして保存できます。</p>
+						</div>
+					</li>
+					<li>
+						<span class="help-num">2</span>
+						<div>
+							<p class="help-step-title">画像をアップロードする</p>
+							<p class="help-step-text">タブ②で、親A・祖A1・祖A2 のうち使う欄にだけスクリーンショットを入れます。1人分だけでも構いません。親Bセットも比べたいときは「＋ 親Bセットも追加する」を押します。</p>
+						</div>
+					</li>
+					<li>
+						<span class="help-num">3</span>
+						<div>
+							<p class="help-step-title">判定して結果を見る</p>
+							<p class="help-step-text">「OCR処理を開始する」を押すと、スキル名と★の数を判定します。結果は右下の <strong>＋</strong> ボタンから「OCRの照合結果」で開き、★の数はまとめてコピーできます。</p>
+							<p class="help-step-text" data-help-mode="new">結果は「UmaSkill Deck」にも渡せます。同じ右下のボタンから開いて「読み込む」を押してください。</p>
+						</div>
+					</li>
+				</ol>
 
-			<!-- 撮影の注意点 -->
-			<div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
-				<div class="flex items-center gap-1.5 text-xs font-bold text-amber-800 mb-2">
-					<i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
-					<span>スクリーンショットのポイント</span>
+				<div class="help-tips">
+					<p class="help-tips-title">
+						<i data-lucide="camera" class="w-3.5 h-3.5"></i>
+						<span>撮影のコツ</span>
+					</p>
+					<ul>
+						<li>スキル一覧の部分だけを写します。見出しや前後のキャラクターの行が混ざると誤判定のもとになります。</li>
+						<li>スキル名と★が同じ画像に収まるように撮ります。一番下の行は★が切れやすいので、少しずらしてもう1枚撮っておくと安心です。</li>
+					</ul>
 				</div>
-				<ul class="text-xs text-amber-800 leading-relaxed list-disc list-outside pl-4 space-y-1.5">
-					<li>各キャラクターのスキルリスト部分だけが写るように撮影してください。見出しや前後のキャラクターの行が混ざると、誤判定の原因になることがあります。</li>
-					<li>各スキルについて、スキル名と★が両方とも同じ画像内に収まっているカットが少なくとも1枚は含まれるように撮影してください（複数枚で範囲が重なっていても問題ありません）。特に一番下の行は★が途切れて写りやすいため、1枚多めに、少し範囲をずらして撮っておくと安心です。</li>
-				</ul>
+			</div>
+			<div class="help-foot">
+				<button type="button" class="uma-btn uma-btn--primary" onclick="closeHelp()">閉じる</button>
 			</div>
 		</div>
+
 
 		<!-- ステップ1・2。別々のカードで縦に並べていたものを1枚に重ね、タブで切り替える。
 		     ①は一度用意したら触らないのに、②へ行くたびに①の全高を通り過ぎる必要があったため。 -->
@@ -542,7 +624,6 @@
 			     uma-skill-deck.html と同じコンポーネント・同じlocalStorageを共有するため、
 			     ここで作成・編集したテンプレートはUmaSkill Deck側にもそのまま反映される。 -->
 			<div id="deck-skill-body" class="hidden">
-				<p class="text-xs text-slate-500 mb-3">照合したいスキルセットを1つ選んでください。スプレッドシートの1列をそのまま貼り付けて作れます。<strong>「今回だけの対象スキルセット」</strong>は保存不要でこの端末のブラウザに残り、次に開いたときも続きから使えます。繰り返し使うものは<strong>テンプレート</strong>として保存でき、UmaSkill Deck側とも共有されます。</p>
 				<div id="deck-loading-note" class="text-xs text-slate-500 mb-3">テンプレートを読み込んでいます…</div>
 				<div id="deck-template-panel"></div>
 				<div class="mt-3 flex items-center justify-between gap-3 flex-wrap">
@@ -858,8 +939,41 @@
 			}
 		});
 
+		/* ============================================================
+		 * 使い方ガイド（手前に重ねるオーバーレイ）
+		 * 閉じる手段は ✕・「閉じる」・背景タップ・Esc の4つ。開いている間は本文の
+		 * スクロールを止め、閉じたらフォーカスをヘッダーのボタンへ返す。
+		 * ============================================================ */
+		let helpOpen = false;
+		let helpReturnFocus = null;
+
 		function toggleHelp() {
-			document.getElementById('help-box').classList.toggle('hidden');
+			if (helpOpen) closeHelp(); else openHelp();
+		}
+
+		function openHelp() {
+			if (helpOpen) return;
+			helpOpen = true;
+			helpReturnFocus = document.activeElement;
+			// ①の中身は旧UIと新UIで違うので、いま出ている方に合わせた説明だけを見せる
+			document.querySelectorAll('[data-help-mode]').forEach(el => {
+				el.hidden = el.dataset.helpMode !== (deckMode ? 'new' : 'old');
+			});
+			document.getElementById('help-backdrop').hidden = false;
+			document.getElementById('help-box').hidden = false;
+			document.body.style.overflow = 'hidden';
+			if (window.lucide) lucide.createIcons();
+			document.getElementById('help-close').focus();
+		}
+
+		function closeHelp() {
+			if (!helpOpen) return;
+			helpOpen = false;
+			document.getElementById('help-backdrop').hidden = true;
+			document.getElementById('help-box').hidden = true;
+			document.body.style.overflow = '';
+			if (helpReturnFocus && typeof helpReturnFocus.focus === 'function') helpReturnFocus.focus();
+			helpReturnFocus = null;
 		}
 
 		function showToast(msg) {
@@ -2144,10 +2258,11 @@
 			if (!document.getElementById('fab-nav').contains(e.target)) setFabOpen(false);
 		});
 
-		// Esc は「開いているものを1つ閉じる」。引き出しの方を先に閉じる。
+		// Esc は「開いているものを1つ閉じる」。いちばん手前にあるものから順に。
 		document.addEventListener('keydown', (e) => {
 			if (e.key !== 'Escape') return;
-			if (openDrawerKey) closeDrawer();
+			if (helpOpen) closeHelp();
+			else if (openDrawerKey) closeDrawer();
 			else if (fabOpen) setFabOpen(false);
 		});
 
