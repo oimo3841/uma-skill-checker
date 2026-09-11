@@ -1237,6 +1237,121 @@ const browser = await chromium.launch();
 }
 
 /* ============================================================
+ * uma-skill-deck.html — OCR受け取り口（2ソース: special / exam）
+ *
+ * 受け渡しデータはツールごとに別のキー（:special / :exam）。Deck 単独ページで
+ * キーに直接 payload を書き、バナーの見出しがツール名で出ること・取り込めること・
+ * imported が元のキーへ書き戻ることを見る。両方に未取り込みがあるときは
+ * createdAt が新しい方が先に出て、読み込む／閉じるともう一方が続けて出る。
+ * special からの受け渡しそのものは special のブロックで見ている。
+ * ============================================================ */
+{
+	const KEY_SPECIAL = 'umaSkillDeck:ocrHandoff:special';
+	const KEY_EXAM = 'umaSkillDeck:ocrHandoff:exam';
+	const mkPayload = (source, handoffId, createdAt) => ({
+		schemaVersion: 1, handoffId, createdAt, source,
+		scope: { kind: 'manual', id: '', name: source === 'exam' ? '技能試験の対象スキル' : '手入力のスキルリスト' },
+		skillNames: PICK.map((s) => s.name),
+		persons: [{ index: 0, label: '親A', stars: Object.fromEntries(PICK.map((s, i) => [s.name, (i % 3) + 1])), unknownStars: [] }],
+	});
+	const openWithHandoffs = async (seeds) => {
+		const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+		const page = await ctx.newPage();
+		const errors = [];
+		page.on('pageerror', (e) => errors.push(String(e)));
+		page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+		await page.addInitScript(({ d, seeds }) => {
+			localStorage.setItem('umaSkillDeck:userData', JSON.stringify(d));
+			seeds.forEach(([k, p]) => localStorage.setItem(k, JSON.stringify(p)));
+		}, { d: USER_DATA, seeds });
+		await page.goto(base + '/uma-skill-deck.html', { waitUntil: 'networkidle', timeout: 60000 });
+		await page.waitForTimeout(1500);
+		return { ctx, page, errors };
+	};
+	const bannerState = (page) => page.evaluate(() => {
+		const el = document.getElementById('ocr-handoff-banner');
+		return { visible: !!el && !el.hidden, title: el ? el.querySelector('[data-ocr-el="title"]').textContent : null };
+	});
+	const stored = (page, key) => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), key);
+
+	/* --- 1) exam のキーだけに未取り込みがある --- */
+	{
+		const { ctx, page, errors } = await openWithHandoffs([[KEY_EXAM, mkPayload('exam', 'ho_exam_1', '2026-09-11T10:00:00.000Z')]]);
+		const b = await bannerState(page);
+		assert(b.visible && b.title === 'UmaExam OCRの判定結果があります', 'deck: examキーの結果はバナーが「UmaExam OCR」で出る', b);
+		await page.click('[data-ocr-act="import"]');
+		await page.waitForTimeout(600);
+		assert(await page.textContent('[data-ocr-el="dialog-title"]') === 'UmaExam OCRの結果を読み込む',
+			'deck: ダイアログの見出しも「UmaExam OCR」');
+		await page.click('[data-ocr-act="apply"]');
+		await page.waitForTimeout(800);
+		const afterExam = await stored(page, KEY_EXAM);
+		assert(afterExam && afterExam.imported === true && afterExam.handoffId === 'ho_exam_1',
+			'deck: 取り込むと imported が examキーへ書き戻る', afterExam && { imported: afterExam.imported, id: afterExam.handoffId });
+		assert((await stored(page, KEY_SPECIAL)) === null, 'deck: specialキーには何も書かない');
+		assert(!(await bannerState(page)).visible, 'deck: 取り込み後はバナーが消える');
+		const recs = await page.evaluate(() => Core.listRecordSummaries().map((r) => ({ name: r.name, candidates: r.candidateCount })));
+		assert(recs.length === 2 && recs.some((r) => r.name === '技能試験の対象スキル 候補比較' && r.candidates === 1),
+			'deck: 取り込みで比較シートが1件増え、候補が1人入る', recs);
+		assert(errors.length === 0, 'deck: examキーの取り込みでコンソールエラーなし', errors.slice(0, 3));
+		await ctx.close();
+	}
+
+	/* --- 2) 両キーに未取り込み。新しい方（exam）→ 閉じる → もう一方（special）→ 取り込み --- */
+	{
+		const { ctx, page, errors } = await openWithHandoffs([
+			[KEY_SPECIAL, mkPayload('special', 'ho_special_1', '2026-09-11T09:00:00.000Z')],
+			[KEY_EXAM, mkPayload('exam', 'ho_exam_2', '2026-09-11T10:00:00.000Z')],
+		]);
+		let b = await bannerState(page);
+		assert(b.visible && b.title === 'UmaExam OCRの判定結果があります', 'deck: 両方あるときは createdAt が新しい方（exam）が先に出る', b);
+		await page.click('[data-ocr-act="dismiss"]');
+		await page.waitForTimeout(300);
+		b = await bannerState(page);
+		assert(b.visible && b.title === 'UmaStar OCRの判定結果があります', 'deck: 閉じると、もう一方（special）が続けて出る', b);
+		await page.click('[data-ocr-act="import"]');
+		await page.waitForTimeout(600);
+		assert(await page.textContent('[data-ocr-el="dialog-title"]') === 'UmaStar OCRの結果を読み込む',
+			'deck: 続けて出た方のダイアログは「UmaStar OCR」');
+		await page.click('[data-ocr-act="apply"]');
+		await page.waitForTimeout(800);
+		const sp = await stored(page, KEY_SPECIAL);
+		const ex = await stored(page, KEY_EXAM);
+		assert(sp && sp.imported === true, 'deck: imported は取り込んだ special のキーへ書き戻る', sp && sp.imported);
+		assert(ex && !ex.imported, 'deck: 閉じただけの exam のキーは未取り込みのまま', ex && ex.imported);
+		assert(!(await bannerState(page)).visible, 'deck: 両方さばいたのでバナーは消える');
+
+		// storage リスナが :exam も通すこと。同一オリジンの別ページから書く（storage イベントは他の文書に飛ぶ）
+		const page2 = await ctx.newPage();
+		await page2.goto(base + '/css/styleguide.html', { waitUntil: 'load' });
+		await page2.evaluate(({ k, p }) => localStorage.setItem(k, JSON.stringify(p)), { k: KEY_EXAM, p: mkPayload('exam', 'ho_exam_3', '2026-09-11T11:00:00.000Z') });
+		await page.waitForTimeout(500);
+		b = await bannerState(page);
+		assert(b.visible && b.title === 'UmaExam OCRの判定結果があります', 'deck: 別ページが examキーへ書くと storage イベントでバナーが出る', b);
+		assert(errors.length === 0, 'deck: 2ソースの受け取りでコンソールエラーなし', errors.slice(0, 3));
+		await ctx.close();
+	}
+
+	/* --- 3) special の方が新しい／source が欠けた payload --- */
+	{
+		const noSource = mkPayload('exam', 'ho_unknown_1', '2026-09-11T09:00:00.000Z');
+		delete noSource.source;
+		const { ctx, page, errors } = await openWithHandoffs([
+			[KEY_SPECIAL, mkPayload('special', 'ho_special_2', '2026-09-11T10:00:00.000Z')],
+			[KEY_EXAM, noSource],
+		]);
+		let b = await bannerState(page);
+		assert(b.visible && b.title === 'UmaStar OCRの判定結果があります', 'deck: special の方が新しければ special が先', b);
+		await page.click('[data-ocr-act="dismiss"]');
+		await page.waitForTimeout(300);
+		b = await bannerState(page);
+		assert(b.visible && b.title === 'OCRの判定結果があります', 'deck: source が欠けた payload は「OCR」とだけ出る', b);
+		assert(errors.length === 0, 'deck: コンソールエラーなし（3）', errors.slice(0, 3));
+		await ctx.close();
+	}
+}
+
+/* ============================================================
  * 失敗時の案内（版ずれ・CDN遮断）が実際に出るか
  * ============================================================ */
 {

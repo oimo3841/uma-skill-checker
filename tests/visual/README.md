@@ -6,7 +6,7 @@
 ## 使い方
 
 ```
-npm run test:visual          # 機能スモークテスト（187項目。special 97・deck 78・exam 5・その他 7）
+npm run test:visual          # 機能スモークテスト（205項目。special 97・deck 96・exam 5・その他 7）
 npm run test:verify          # 納品前チェック（版数・セレクタ資産・構文）
 npm run test:master          # マスターデータ・8軸タグの検証（件数・フィルター・タグのコピー）
 npm run test:visual:capture -- before            # 変更前のスクリーンショット

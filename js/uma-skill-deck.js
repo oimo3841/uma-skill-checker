@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-11a';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-11b';
 
 // 読み込むべき css/common.css の版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -718,11 +718,11 @@ async function refreshMasterData() {
 }
 
 /* ============================================================
- * UmaStar OCR からの受け取り口（付加機能）
+ * OCRツールからの受け取り口（付加機能）
  *
- * special.html が判定結果を専用のlocalStorageキーへ書き出す。ここではそれを
- * 見つけたらバナーを出し、利用者が「読み込む」を押したときだけ取り込む。
- * 自動では反映しない。
+ * OCRツール（special.html = UmaStar OCR、exam.html = UmaExam OCR）が判定結果を
+ * ツールごとの localStorage キーへ書き出す。ここではそれを見つけたらバナーを出し、
+ * 利用者が「読み込む」を押したときだけ取り込む。自動では反映しない。
  *
  * 設計上の約束:
  * - この節は既存のテンプレート／比較シート／インポート・エクスポートのロジックに
@@ -730,34 +730,62 @@ async function refreshMasterData() {
  *   そのまま呼ぶだけで、新しい書き込み処理は作らない（上書き確認もそちらに任せる）。
  * - uma-skill-deck.html は変更しないため、バナーとダイアログのDOMは
  *   このファイルが実行時に生成して差し込む。
- * - special.html の引き出しパネル（iframe）越しでも、このページを単独で
+ * - OCRツールの引き出しパネル（iframe）越しでも、このページを単独で
  *   開いたときでも、同じように動く。
+ * - 受け渡しデータはツールごとに別のキーで持つ（書く側のツールを変えずに済ませるため）。
+ *   両方に未取り込みの結果があるときは createdAt が新しい方を先に1件だけ出し、
+ *   それを読み込む／閉じると、もう一方がまだ未取り込みなら続けて出る。
  * ============================================================ */
 
-// ※ 同じキー名が special.html の書き出し側にもある。
+// ※ 各キー名は書き出し側（special.html / exam.html）にも同じ文字列がある。
 //    片方を変えるときは必ず両方を直すこと。
-const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:special';
+//    label は payload.source → バナー・ダイアログに出すツール名。
+//    source が未知・欠落のときは 'OCR' とだけ出す。
+const OCR_HANDOFF_SOURCES = [
+	{ source: 'special', key: 'umaSkillDeck:ocrHandoff:special', label: 'UmaStar OCR' },
+	{ source: 'exam', key: 'umaSkillDeck:ocrHandoff:exam', label: 'UmaExam OCR' },
+];
+const OCR_HANDOFF_STORAGE_KEYS = OCR_HANDOFF_SOURCES.map(s => s.key);
 
-// 「今回は読まない」と閉じられた受け渡しデータのID（メモリのみ。再読込で戻る）
-let dismissedHandoffId = null;
+function ocrSourceLabel(source) {
+	const hit = OCR_HANDOFF_SOURCES.find(s => s.source === source);
+	return hit ? hit.label : 'OCR';
+}
+
+// 「今回は読まない」と閉じられた受け渡しデータのID（キーごと・メモリのみ。再読込で戻る）
+const dismissedHandoffIds = {};
 let ocrImportModal = null;
 
-function readOcrHandoff() {
+/** 1つのキーを読む。戻り値は { key, payload }。無い・壊れているときは null */
+function readOcrHandoffEntry(key) {
 	try {
-		const raw = localStorage.getItem(OCR_HANDOFF_STORAGE_KEY);
+		const raw = localStorage.getItem(key);
 		if (!raw) return null;
 		const parsed = JSON.parse(raw);
 		if (!parsed || !Array.isArray(parsed.persons) || !Array.isArray(parsed.skillNames)) return null;
-		return parsed;
+		return { key: key, payload: parsed };
 	} catch (e) {
 		return null;
 	}
 }
 
-function markOcrHandoffImported(payload) {
-	payload.imported = true;
-	payload.importedAt = nowIso();
-	try { localStorage.setItem(OCR_HANDOFF_STORAGE_KEY, JSON.stringify(payload)); } catch (e) {}
+/**
+ * いま画面に出すべき受け渡しデータ（未取り込み・閉じられていない）を1件返す。
+ * 複数あれば createdAt が新しい方。無ければ null。
+ */
+function pendingOcrHandoff() {
+	const pending = OCR_HANDOFF_STORAGE_KEYS
+		.map(readOcrHandoffEntry)
+		.filter(e => e && !e.payload.imported && e.payload.handoffId !== dismissedHandoffIds[e.key]);
+	if (pending.length === 0) return null;
+	pending.sort((a, b) => String(b.payload.createdAt || '').localeCompare(String(a.payload.createdAt || '')));
+	return pending[0];
+}
+
+function markOcrHandoffImported(entry) {
+	entry.payload.imported = true;
+	entry.payload.importedAt = nowIso();
+	try { localStorage.setItem(entry.key, JSON.stringify(entry.payload)); } catch (e) {}
 }
 
 function injectOcrHandoffStyles() {
@@ -802,7 +830,7 @@ function ensureOcrHandoffBanner() {
 		'<div class="flex items-center gap-2.5 min-w-0">' +
 			'<i data-lucide="download" class="w-4 h-4 text-indigo-600 shrink-0"></i>' +
 			'<div class="min-w-0">' +
-				'<p class="ocr-banner-title">UmaStar OCRの判定結果があります</p>' +
+				'<p class="ocr-banner-title" data-ocr-el="title"></p>' +
 				'<p class="ocr-banner-sub" data-ocr-el="summary"></p>' +
 			'</div>' +
 		'</div>' +
@@ -818,8 +846,9 @@ function ensureOcrHandoffBanner() {
 		if (!btn) return;
 		if (btn.dataset.ocrAct === 'import') openOcrImportDialog();
 		else if (btn.dataset.ocrAct === 'dismiss') {
-			const p = readOcrHandoff();
-			dismissedHandoffId = p ? p.handoffId : null;
+			// いま出しているものだけを閉じる。もう一方のツールの結果が残っていれば次に出る
+			const entry = pendingOcrHandoff();
+			if (entry) dismissedHandoffIds[entry.key] = entry.payload.handoffId;
 			renderOcrHandoffBanner();
 		}
 	});
@@ -828,11 +857,13 @@ function ensureOcrHandoffBanner() {
 
 function renderOcrHandoffBanner() {
 	const el = ensureOcrHandoffBanner();
-	const p = readOcrHandoff();
-	if (!p || p.imported || p.handoffId === dismissedHandoffId) { el.hidden = true; return; }
+	const entry = pendingOcrHandoff();
+	if (!entry) { el.hidden = true; return; }
+	const p = entry.payload;
 	const when = String(p.createdAt || '').replace('T', ' ').slice(0, 16);
 	const who = p.persons.map(x => x.label).join('・');
 	const scopeName = (p.scope && p.scope.name) ? p.scope.name : '';
+	el.querySelector('[data-ocr-el="title"]').textContent = ocrSourceLabel(p.source) + 'の判定結果があります';
 	el.querySelector('[data-ocr-el="summary"]').textContent =
 		who + ' の' + p.persons.length + '人分・' + when + (scopeName ? '（対象：' + scopeName + '）' : '');
 	el.hidden = false;
@@ -861,8 +892,9 @@ function resolveHandoffSkills(payload) {
 }
 
 function openOcrImportDialog() {
-	const payload = readOcrHandoff();
-	if (!payload) { showToast('読み込めるデータがありません'); return; }
+	const entry = pendingOcrHandoff();
+	if (!entry) { showToast('読み込めるデータがありません'); return; }
+	const payload = entry.payload;
 	const skills = resolveHandoffSkills(payload);
 	if (skills.resolved.length === 0) {
 		showToast('このツールに登録されているスキルと一致しませんでした');
@@ -890,6 +922,7 @@ function openOcrImportDialog() {
 			}
 		});
 	}
+	ocrImportModal._entry = entry;      // 取り込み後に imported を書き戻すキーを覚えておく
 	ocrImportModal._payload = payload;
 	ocrImportModal._skills = skills;
 
@@ -901,7 +934,7 @@ function openOcrImportDialog() {
 	ocrImportModal.innerHTML = '' +
 		'<div class="usd-modal-panel">' +
 			'<div class="flex items-center justify-between p-4 border-b border-slate-200" style="flex-shrink:0;">' +
-				'<p class="text-sm font-semibold text-slate-700">UmaStar OCRの結果を読み込む</p>' +
+				'<p class="text-sm font-semibold text-slate-700" data-ocr-el="dialog-title">' + escapeHtml(ocrSourceLabel(payload.source)) + 'の結果を読み込む</p>' +
 				'<button type="button" class="usd-icon-btn" data-ocr-act="close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>' +
 			'</div>' +
 			'<div class="p-4" style="overflow:auto;">' +
@@ -1027,7 +1060,7 @@ function applyOcrImport() {
 		return;
 	}
 
-	markOcrHandoffImported(payload);
+	markOcrHandoffImported(ocrImportModal._entry);
 	closeOcrImportDialog();
 	userData = Core.getUserData();
 	draftRecord = null;
@@ -1041,10 +1074,11 @@ function applyOcrImport() {
 
 function initOcrHandoff() {
 	renderOcrHandoffBanner();
-	// 同一オリジンの別ウィンドウ（special.htmlの引き出しパネルの親側）で
+	// 同一オリジンの別ウィンドウ（OCRツールの引き出しパネルの親側）で
 	// 書き込みがあると、このイベントが飛んでくる。ポーリングは不要。
+	// e.key は localStorage.clear() のとき null になるので、その場合も描き直す。
 	window.addEventListener('storage', (e) => {
-		if (e.key && e.key !== OCR_HANDOFF_STORAGE_KEY) return;
+		if (e.key && OCR_HANDOFF_STORAGE_KEYS.indexOf(e.key) === -1) return;
 		renderOcrHandoffBanner();
 	});
 	document.addEventListener('keydown', (e) => {
