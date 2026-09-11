@@ -92,6 +92,8 @@ for (const [p, pat, ver, name] of [
 	// special.html の引き出しパネルが読む iframe。deck.js の版に合わせている値だが、
 	// HTMLの <script src> と違って目に付きにくく、実際に取り残されたことがある。
 	['special.html', /uma-skill-deck\.html\?v=([0-9a-z-]+)/g, deckVer, '引き出しiframe'],
+	// exam.html の「UmaSkill Deck を開く」（別タブ）のURL。同じ決まりで deck.js の版に合わせる。
+	['exam.html', /uma-skill-deck\.html\?v=([0-9a-z-]+)/g, deckVer, 'Deckを開くリンク'],
 ]) {
 	const q = [...read(p).matchAll(pat)].map((m) => m[1]);
 	check(q.length === 1 && q[0] === ver, `${p} の ${name} の ?v= が ${ver}`, q);

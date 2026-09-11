@@ -433,6 +433,34 @@
 				</button>
 			</div>
 
+			<!-- UmaSkill Deck への受け渡しの案内（第2段階・手順3）。
+			     判定が終わると writeOcrHandoff() が localStorage へ書き出す。
+			     「Deck側に渡し終わった」ことは画面に出ないと分からないので、ここで知らせる。
+			     取り込みが済んだかどうかは refreshDeckHandoffState() が localStorage を見て
+			     切り替える（Deck側の取り込みは storage イベントで届く）。
+			     Deck は別タブ（固定名。何度押しても同じタブ）で開く。
+			     見た目は exam の既存の部品・色の範囲で組む（css/common.css は読み込まない）。 -->
+			<div id="deck-handoff-note" class="hidden mb-6">
+				<div id="deck-handoff-box" class="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+						<div class="flex items-start gap-2.5 min-w-0">
+							<span class="relative shrink-0 mt-0.5">
+								<i data-lucide="layers" class="w-4 h-4 text-indigo-600"></i>
+								<span id="deck-handoff-dot" class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></span>
+							</span>
+							<div class="min-w-0">
+								<p id="deck-handoff-title" class="text-xs font-bold text-indigo-900">この結果をUmaSkill Deckに取り込めます</p>
+								<p id="deck-handoff-detail" class="text-[11px] text-indigo-800/80 mt-0.5 leading-relaxed"></p>
+							</div>
+						</div>
+						<button type="button" id="deck-handoff-btn" onclick="openDeckPage()" class="shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all shadow-xs cursor-pointer">
+							<i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+							<span id="deck-handoff-btn-label">UmaSkill Deckを開いて取り込む</span>
+						</button>
+					</div>
+				</div>
+			</div>
+
 			<!-- サマリーカード（アップロード人数に応じてJSで生成） -->
 			<div id="stat-grid" class="grid grid-cols-4 gap-3 mb-6"></div>
 
@@ -1495,6 +1523,8 @@
 			}
 
 			renderResults();
+			// 判定が終わるたびに UmaSkill Deck へ渡す（親A/親B列の表示トグルでは書き直さない）
+			writeOcrHandoff();
 			showToast('照合が完了しました');
 		}
 
@@ -2295,6 +2325,128 @@
 
 			container.appendChild(block);
 		}
+
+		/* ============================================================
+		 * UmaSkill Deck への受け渡し（第2段階・手順3）
+		 *
+		 * 判定が終わるたびに、スキル名と★の数を localStorage の専用キーへ書き出す。
+		 * Deck（uma-skill-deck.html）側がそれを見つけてバナーを出し、利用者が「読み込む」を
+		 * 押したときだけ比較シートへ取り込む（自動では反映しない）。special.html と同じ仕組み。
+		 *
+		 * exam の対象は常に「133種＋各自の除外／追加」で、Deck のテンプレートには紐づかない。
+		 * そのため scope は kind:'manual' で渡し、取り込み先の既定は新しい比較シート
+		 * （既定名「技能試験 候補比較」）になる。既存のシートは取り込みダイアログで選べる。
+		 *
+		 * スキル名は exam の表記（右回り〇・トリック(前)）のまま渡す。Deck 側の
+		 * 名前→ID 解決が正規化で吸収する（tests/visual/run-smoke.mjs が133件すべて
+		 * 解決することを見ている）。利用者が「追加」した名前でマスターに無いものは
+		 * Deck 側で「見つからなかったため取り込みません」と一覧で知らせる（既存の挙動）。
+		 * ============================================================ */
+
+		// ※ 同じキー名が js/uma-skill-deck.js の受け取り側（OCR_HANDOFF_SOURCES）にもある。
+		//    片方を変えるときは必ず両方を直すこと。
+		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
+		// 「UmaSkill Deck を開く」で開くページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
+		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-11b';
+		// 別タブは固定名で開き、何度押しても同じタブを使い回す
+		const DECK_PAGE_WINDOW_NAME = 'umaSkillDeck';
+		// 「UmaSkill Deck を開く」を押した時点の handoffId。一度見に行った結果には新着の印を出さない
+		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、押したことで下ろす。F-27④）。
+		let deckSeenHandoffId = null;
+
+		// 除外／追加がある人は、対象が既定の133種と違うことが Deck 側でも分かるようにする
+		function handoffScopeName() {
+			return (customAddedSkills.length > 0 || removedSkillsSet.size > 0) ? '技能試験（調整あり）' : '技能試験';
+		}
+
+		function writeOcrHandoff() {
+			const used = activePersonIndexes();
+			if (used.length === 0 || skillList.length === 0) return;
+
+			const persons = used.map(i => {
+				const stars = {};
+				const unknownStars = [];
+				skillList.forEach(name => {
+					const v = starsFor(i, name);
+					if (v === undefined) return;              // 未検出
+					if (v === null) { unknownStars.push(name); return; } // 検出したが★不明（Deck では0になる）
+					stars[name] = v;
+				});
+				return { index: i, label: PERSON_LABELS[i], stars: stars, unknownStars: unknownStars };
+			});
+
+			const payload = {
+				schemaVersion: 1,
+				handoffId: 'ho_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
+				createdAt: new Date().toISOString(),
+				source: 'exam',
+				scope: { kind: 'manual', id: '', name: handoffScopeName() },
+				skillNames: skillList.slice(),
+				persons: persons
+			};
+			try {
+				localStorage.setItem(OCR_HANDOFF_STORAGE_KEY, JSON.stringify(payload));
+			} catch (e) {
+				// 容量超過など。連携は諦めるが、画面上の結果表示は通常どおり続ける。
+				return;
+			}
+			refreshDeckHandoffState();
+		}
+
+		function readOcrHandoff() {
+			try {
+				const raw = localStorage.getItem(OCR_HANDOFF_STORAGE_KEY);
+				return raw ? JSON.parse(raw) : null;
+			} catch (e) { return null; }
+		}
+
+		// 「UmaSkill Deck を開く」。別タブ（固定名）で開き、既に開いていればそのタブを再利用する。
+		function openDeckPage() {
+			const payload = readOcrHandoff();
+			deckSeenHandoffId = payload ? payload.handoffId : null;
+			const win = window.open(DECK_PAGE_URL, DECK_PAGE_WINDOW_NAME);
+			if (win) { try { win.focus(); } catch (e) {} }
+			refreshDeckHandoffState();
+		}
+
+		/**
+		 * 受け渡しの状態を結果カードの案内へ反映する。
+		 * 取り込みが済んだかどうかは Deck 側が payload.imported を立てるので、
+		 * localStorage を読み直せば分かる（下の storage リスナで自動更新される）。
+		 */
+		function refreshDeckHandoffState() {
+			const note = document.getElementById('deck-handoff-note');
+			if (!note) return;
+			const payload = readOcrHandoff();
+			if (!payload || !payload.persons) {
+				note.classList.add('hidden');
+				return;
+			}
+
+			const done = !!payload.imported;
+			const seen = done || payload.handoffId === deckSeenHandoffId;
+			const who = payload.persons.map(p => p.label).join('・');
+			document.getElementById('deck-handoff-box').className =
+				'rounded-xl border p-4 ' + (done ? 'border-green-200 bg-green-50' : 'border-indigo-200 bg-indigo-50');
+			document.getElementById('deck-handoff-dot').hidden = seen;
+			const title = document.getElementById('deck-handoff-title');
+			title.textContent = done ? 'この結果はUmaSkill Deckに取り込み済みです' : 'この結果をUmaSkill Deckに取り込めます';
+			title.className = 'text-xs font-bold ' + (done ? 'text-green-900' : 'text-indigo-900');
+			const detail = document.getElementById('deck-handoff-detail');
+			detail.textContent = who + ' の' + payload.persons.length + '人分・スキル' + payload.skillNames.length + '件を渡しました'
+				+ (payload.scope && payload.scope.name ? '（対象：' + payload.scope.name + '）' : '') + '。'
+				+ (done ? '' : 'UmaSkill Deckを開き、「読み込む」から保存先の比較シートと候補を選んでください。');
+			detail.className = 'text-[11px] mt-0.5 leading-relaxed ' + (done ? 'text-green-800/80' : 'text-indigo-800/80');
+			document.getElementById('deck-handoff-btn-label').textContent = done ? 'UmaSkill Deckを開く' : 'UmaSkill Deckを開いて取り込む';
+			note.classList.remove('hidden');
+			if (window.lucide) lucide.createIcons();
+		}
+
+		// 別タブの Deck が取り込む（imported を書き戻す）と、このイベントが飛んでくる。ポーリングは不要。
+		window.addEventListener('storage', (e) => {
+			if (e.key === OCR_HANDOFF_STORAGE_KEY) refreshDeckHandoffState();
+		});
 	</script>
 </body>
 </html>

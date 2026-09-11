@@ -547,7 +547,141 @@ const browser = await chromium.launch();
 	assert(registry.sp70 === 'sp70緑：17種' && registry.green === '緑59種（実質53種）',
 		'exam: sp70緑17・緑59（実質53）のバッジが出る', registry);
 
-	// 375px で横スクロールが出ていないこと
+	/* --- UmaSkill Deck への受け渡し（手順3）---
+	   OCRを回さずに、合成した行を本物の照合関数に通して結果を作る（special と同じ考え方）。
+	   親Aは133種すべて検出（うち1件は★不明）、親Bは先頭20件だけ検出。 */
+	const seedExam = (extraNames) => page.evaluate((extra) => {
+		const mk = (names, offset) => matchAllSkillsWithStars(
+			names.map((n, i) => ({ text: n, stars: ((i + offset) % 3) + 1, starsReliable: i !== 4, rowKey: 'r' + i })),
+			skillList, skillIndex, {});
+		personResults = PERSON_LABELS.map(() => null);
+		personResults[0] = mk(skillList.concat(extra || []), 0);
+		// 5件目（阪神レース場〇）は「検出したが★を確定できなかった」（starsFor が null を返す経路）
+		personResults[0].skillStars[skillList[4]] = null;
+		personResults[3] = mk(skillList.slice(0, 20), 1);
+		renderResults();
+		writeOcrHandoff();
+	}, extraNames || []);
+	await seedExam();
+	await page.waitForTimeout(400);
+	const KEY_EXAM = 'umaSkillDeck:ocrHandoff:exam';
+	const readExam = () => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), KEY_EXAM);
+	const noteState = () => page.evaluate(() => ({
+		visible: !document.getElementById('deck-handoff-note').classList.contains('hidden'),
+		title: document.getElementById('deck-handoff-title').textContent,
+		detail: document.getElementById('deck-handoff-detail').textContent,
+		dot: !document.getElementById('deck-handoff-dot').hidden,
+		btn: document.getElementById('deck-handoff-btn-label').textContent
+	}));
+	let p = await readExam();
+	assert(p && p.source === 'exam' && p.scope.kind === 'manual' && p.scope.name === '技能試験' && p.skillNames.length === 133,
+		'exam: 判定が終わると :exam キーへ payload が書かれる（source=exam・scope=manual「技能試験」・133件）',
+		p && { source: p.source, scope: p.scope, n: p.skillNames.length });
+	assert(p && p.persons.length === 2 && p.persons[0].label === '親A' && p.persons[1].label === '親B'
+		&& Object.keys(p.persons[0].stars).length === 132 && p.persons[0].unknownStars.length === 1
+		&& Object.keys(p.persons[1].stars).length === 20,
+		'exam: persons は special と同じ形（親A 132件＋★不明1件・親B 20件）', p && p.persons.map((x) => [x.label, Object.keys(x.stars).length, x.unknownStars.length]));
+	let n = await noteState();
+	assert(n.visible && n.title.includes('取り込めます') && n.detail.startsWith('親A・親B の2人分・スキル133件を渡しました（対象：技能試験）') && n.dot,
+		'exam: 結果カードの先頭に「取り込めます」の案内と新着の印が出る', n);
+	assert(await page.evaluate(() => {
+		const wrap = document.getElementById('result-wrap');
+		return wrap.querySelector('#deck-handoff-note').compareDocumentPosition(wrap.querySelector('#stat-grid')) & Node.DOCUMENT_POSITION_FOLLOWING;
+	}), 'exam: 案内は結果カードの中でサマリーより前にある');
+
+	// 「UmaSkill Deck を開く」は別タブ。固定名なので2回押しても同じタブを使う
+	const [deckPage] = await Promise.all([ctx.waitForEvent('page'), page.click('#deck-handoff-btn')]);
+	await deckPage.waitForLoadState('networkidle');
+	assert(deckPage.url().includes('/uma-skill-deck.html?v='), 'exam: 「UmaSkill Deck を開く」で別タブに Deck が開く', deckPage.url());
+	const tabsBefore = ctx.pages().length;
+	await page.click('#deck-handoff-btn');
+	await page.waitForTimeout(800);
+	assert(ctx.pages().length === tabsBefore, 'exam: もう一度押しても同じタブを再利用する', { before: tabsBefore, after: ctx.pages().length });
+	n = await noteState();
+	assert(!n.dot && n.title.includes('取り込めます'), 'exam: 一度開きに行ったら新着の印は消える（案内は未取り込みのまま）', n);
+
+	// Deck 側: 「UmaExam OCR」のバナー → 133件すべて解決 → 取り込み → 比較シートに★
+	await deckPage.waitForLoadState('networkidle');
+	await deckPage.waitForTimeout(800);
+	const deckErrors = [];
+	deckPage.on('pageerror', (e) => deckErrors.push(String(e)));
+	deckPage.on('console', (m) => { if (m.type() === 'error') deckErrors.push(m.text()); });
+	await deckPage.locator('#ocr-handoff-banner').waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
+	assert(await deckPage.evaluate(() => document.querySelector('#ocr-handoff-banner [data-ocr-el="title"]').textContent) === 'UmaExam OCRの判定結果があります',
+		'exam: Deck 側に「UmaExam OCR」のバナーが出る');
+	const resolved = await deckPage.evaluate(() => {
+		const r = resolveHandoffSkills(pendingOcrHandoff().payload);
+		return { resolved: r.resolved.length, unresolved: r.unresolved, ids: new Set(r.resolved.map((x) => x.id)).size };
+	});
+	assert(resolved.resolved === 133 && resolved.ids === 133 && resolved.unresolved.length === 0,
+		'exam: exam の表記（〇・半角括弧）のまま133件すべてが Deck 側で別々の ID に解決する', resolved);
+	await deckPage.click('[data-ocr-act="import"]');
+	await deckPage.waitForTimeout(600);
+	const dlg = await deckPage.evaluate(() => ({
+		title: document.querySelector('[data-ocr-el="dialog-title"]').textContent,
+		lead: document.querySelector('.usd-modal-panel .text-xs.text-slate-500').textContent,
+		record: document.querySelector('[data-ocr-el="record-select"]').value,
+		name: document.querySelector('[data-ocr-el="record-name"]').value,
+		warn: !!document.querySelector('.usd-modal-panel .ocr-warn')
+	}));
+	assert(dlg.title === 'UmaExam OCRの結果を読み込む' && dlg.lead.includes('スキル133件') && !dlg.warn,
+		'exam: 取り込みダイアログは「UmaExam OCR」・133件・未解決の警告なし', dlg);
+	assert(dlg.record === '__new__' && dlg.name === '技能試験 候補比較',
+		'exam: 取り込み先の既定は新しい比較シート「技能試験 候補比較」', dlg);
+	await deckPage.click('[data-ocr-act="apply"]');
+	await deckPage.waitForTimeout(1000);
+	const rec = await deckPage.evaluate(() => {
+		const r = Core.getUserData().records.find((x) => x.name === '技能試験 候補比較');
+		if (!r) return null;
+		const byLabel = {};
+		r.candidates.forEach((c) => { byLabel[c.label] = c.candidateId; });
+		const v = (skillId, label) => ((r.cells[skillId] || {})[byLabel[label]] || 0);
+		return {
+			skills: r.skillIds.length, labels: r.candidates.map((c) => c.label),
+			a1: v('1', '親A'),      // 右回り〇 = ID 1、親A は i=0 → ★1
+			a5: v('5', '親A'),      // 阪神レース場〇 = ID 5、i=4 は★不明 → 0
+			a70: v('70', '親A'),    // トリック(前) = ID 70（半角括弧の表記ゆれ）、i=33 → ★1
+			b1: v('1', '親B'),      // 親B は offset 1 → ★2
+			b445: v('445', '親B'),  // 親B は先頭20件だけ → 未検出 0
+		};
+	});
+	assert(rec && rec.skills === 133 && rec.labels.join('・') === '親A・親B',
+		'exam: 比較シートが133件・親A/親B の2候補で作られる', rec);
+	assert(rec && rec.a1 === 1 && rec.a5 === 0 && rec.a70 === 1 && rec.b1 === 2 && rec.b445 === 0,
+		'exam: 比較シートに★が入る（★不明は0・表記ゆれの名前も正しい ID に入る）', rec);
+	const ex = await readExam();
+	assert(ex && ex.imported === true, 'exam: imported が :exam キーへ書き戻る');
+	await page.waitForTimeout(400);
+	n = await noteState();
+	assert(n.title.includes('取り込み済み') && n.btn === 'UmaSkill Deckを開く' && !n.dot,
+		'exam: storage イベントで案内が「取り込み済み」に変わる', n);
+	assert(deckErrors.length === 0, 'exam: Deck 側にコンソールエラーなし', deckErrors.slice(0, 3));
+
+	// 除外／追加がある人は scope の名前が「技能試験（調整あり）」。マスターに無い追加名は
+	// Deck 側で「見つからなかったため取り込みません」と一覧で知らされる（既存の挙動）
+	await page.evaluate(() => { customAddedSkills.push('マスターに無いスキル'); refreshAfterCustomSkillsChange(); });
+	await seedExam();
+	await page.waitForTimeout(400);
+	p = await readExam();
+	assert(p && !p.imported && p.scope.name === '技能試験（調整あり）' && p.skillNames.length === 134,
+		'exam: 判定し直すと新しい payload（調整あり・134件）になり未取り込みに戻る', p && { imported: p.imported, scope: p.scope, n: p.skillNames.length });
+	n = await noteState();
+	assert(n.title.includes('取り込めます') && n.detail.includes('（対象：技能試験（調整あり））') && n.dot,
+		'exam: 案内も「取り込めます」に戻り、対象名に（調整あり）が付く', n);
+	await deckPage.waitForTimeout(500);
+	await deckPage.click('[data-ocr-act="import"]');
+	await deckPage.waitForTimeout(600);
+	const warn = await deckPage.evaluate(() => {
+		const el = document.querySelector('.usd-modal-panel .ocr-warn');
+		return el ? el.textContent : null;
+	});
+	assert(warn && warn.includes('マスターに無いスキル') && warn.includes('取り込みません'),
+		'exam: マスターに無い追加名は取り込みダイアログで利用者に見える', warn);
+	await deckPage.click('[data-ocr-act="close"]');
+	await page.evaluate(() => { customAddedSkills = []; refreshAfterCustomSkillsChange(); });
+	await deckPage.close();
+
+	// 375px で横スクロールが出ていないこと（結果カードと案内が出ている状態で）
 	await page.setViewportSize({ width: 375, height: 812 });
 	await page.waitForTimeout(500);
 	const ov = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));

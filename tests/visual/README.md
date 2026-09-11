@@ -6,7 +6,7 @@
 ## 使い方
 
 ```
-npm run test:visual          # 機能スモークテスト（205項目。special 97・deck 96・exam 5・その他 7）
+npm run test:visual          # 機能スモークテスト（224項目。special 97・deck 96・exam 24・その他 7）
 npm run test:verify          # 納品前チェック（版数・セレクタ資産・構文）
 npm run test:master          # マスターデータ・8軸タグの検証（件数・フィルター・タグのコピー）
 npm run test:visual:capture -- before            # 変更前のスクリーンショット
@@ -78,7 +78,8 @@ npm run test:visual:capture -- after --compare   # 変更後＋前後比較画�
 ## run-verify.mjs が見ているもの
 
 1. 版数の一致（`--common-css-version` / 各HTMLの `?v=` / `EXPECTED_COMMON_CSS_VERSION`）。
-   special.html の**引き出しパネルの iframe `uma-skill-deck.html?v=`** も含む（deck.js の版に合わせる決まりだが、
+   special.html の**引き出しパネルの iframe `uma-skill-deck.html?v=`** と exam.html の
+   **「UmaSkill Deck を開く」のURL `uma-skill-deck.html?v=`** も含む（deck.js の版に合わせる決まりだが、
    <script src> と違って目に付きにくく、実際に取り残されたことがある）
 2. 変更してはいけないファイル（`index.html` / `js/common.js` / `js/stitch.js`）が未変更か
    （`exam.html` は第2段階の着手で対象から外し、3〜5 の検査対象へ移した）
