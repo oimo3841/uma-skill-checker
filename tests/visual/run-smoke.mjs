@@ -39,6 +39,12 @@ const browser = await chromium.launch();
 		'special: 結果があるので「まだありません」の案内は消える');
 	assert((await page.$$('#result-tbody tr')).length === PICK.length, 'special: 表の行数', (await page.$$('#result-tbody tr')).length);
 
+	// ここから先は Deck への受け渡しを見る。Deck の入口は新UIにしか出さないので、
+	// 新UIへ切り替えてから進む（切り替えの表示そのものは、後半でまとめて確かめる）。
+	// リストの入力欄は旧UIにしか無いため、seedSpecialResults は旧UIのうちに済ませてある。
+	await page.click('#deck-mode-btn');
+	await page.waitForTimeout(1800);
+
 	// 照合結果が出た直後。まだ引き出しを開いていないので未読、
 	// Deck側にも渡し終わっているので「未取り込み」のバッジが立っている。
 	assert(await page.isVisible('#fab-dot-result'), 'special: 照合結果に新着バッジが出る');
@@ -129,7 +135,10 @@ const browser = await chromium.launch();
 		'special: 案内が「取り込み済み」に変わる');
 	assert(await page.evaluate(() => !fabUnseen.deck), 'special: 取り込み済みならバッジは出ない');
 
-	// 判定をやり直すと handoffId が変わるので、Deckのバッジがまた点く
+	// 判定をやり直すと handoffId が変わるので、Deckのバッジがまた点く。
+	// 新UIへ切り替えた時点で照合対象は空に戻っている（対象スキルセットを選び直す画面なので）。
+	// 実際の新UIではテンプレートを選んだ時点で入るものなので、ここでも入れ直してから判定し直す。
+	await page.evaluate((names) => { skillList = names; }, PICK.map((s) => s.name));
 	await page.evaluate(() => renderResults());
 	await page.waitForTimeout(400);
 	assert(await page.evaluate(() => fabUnseen.deck), 'special: 判定し直すとDeckのバッジがまた点く');
@@ -200,6 +209,10 @@ const browser = await chromium.launch();
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.waitForTimeout(300);
 
+	// Deck まわりはここまで。以降は旧UI（既定の姿）に戻して確かめる。
+	await page.click('#deck-mode-btn');
+	await page.waitForTimeout(800);
+
 	// 使い方ガイド・親Bセット（hidden の付け外し）
 	await page.click('button[onclick="toggleHelp()"]');
 	await page.waitForTimeout(200);
@@ -251,8 +264,20 @@ const browser = await chromium.launch();
 	const oldUi = await uiState();
 	assert(oldUi.label === '新UIへ' && oldUi.badge === false,
 		'special: 既定は旧UIで、ボタンは「新UIへ」・バッジは出さない', oldUi);
+
+	// 旧UIはいずれ廃止するので、そちらにDeckの入口は残さない。
+	// FABの項目と、結果引き出しの取り込み案内の2か所だけが入口。
+	const deckEntry = () => page.evaluate(() => ({
+		fab: !document.getElementById('deck-drawer-trigger').hidden,
+		note: !document.getElementById('deck-handoff-note').classList.contains('hidden')
+	}));
+	assert((await deckEntry()).fab === false, 'special: 旧UIではFABにDeckの項目を出さない');
+	// hidden 属性が効いていること自体も見る（display:flex に負けないか。F-13）
+	assert(!(await page.isVisible('#deck-drawer-trigger')), 'special: 旧UIのDeck項目は実際に描画されない');
+
 	await page.click('#deck-mode-btn');
 	await page.waitForTimeout(1500);
+	assert((await deckEntry()).fab === true, 'special: 新UIではFABにDeckの項目が出る');
 	const newUi = await uiState();
 	assert(newUi.label === '旧UIへ' && newUi.badge === true,
 		'special: 新UIに入るとボタンが「旧UIへ」になり「新UI」バッジが出る', newUi);
@@ -263,6 +288,9 @@ const browser = await chromium.launch();
 	const backUi = await uiState();
 	assert(backUi.label === '新UIへ' && backUi.badge === false && backUi.title === 'スキルリストを入力',
 		'special: 旧UIへ戻ると表示も元に戻る', backUi);
+	const backEntry = await deckEntry();
+	assert(backEntry.fab === false && backEntry.note === false,
+		'special: 旧UIへ戻すとDeckの入口（FAB・取り込み案内）も引っ込む', backEntry);
 
 	// 375px で横スクロールが出ていないこと
 	await page.setViewportSize({ width: 375, height: 812 });

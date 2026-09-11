@@ -225,6 +225,9 @@
 			opacity: 0; transform: translateY(8px) scale(.96); pointer-events: none;
 			transition: opacity .18s ease, transform .18s ease, background-color var(--uma-transition);
 		}
+		/* 自前で指定する（F-13）。上の display:flex と同じ詳細度では、
+		   Tailwind preflight の [hidden]{display:none} が後ろに来ないため効かない。 */
+		.uma-fab-item[hidden] { display: none !important; }
 		.uma-fab-item:hover { background: var(--uma-surface-sunken); }
 		.uma-fab-nav.open .uma-fab-item { opacity: 1; transform: none; pointer-events: auto; }
 		/* 下（メインボタンに近い側）から順に現れる。nth-child(3) が最下段＝最初。 */
@@ -779,6 +782,9 @@
 			verifyCommonCssVersion();
 			renderPersonUploadGrid();
 			restoreOcrDictionary();
+			// 既定は旧UIなので、Deckの入口は出さない状態から始める
+			// （マークアップ側にも hidden を書いてあるが、状態を1か所で決められるようここでも通す）。
+			updateDeckEntryVisibility();
 			if (window.lucide) lucide.createIcons();
 		});
 
@@ -1813,6 +1819,7 @@
 			btn.title = '以前のUIに戻します（スキルリストを手で貼り付ける形）';
 			document.getElementById('deck-mode-btn-label').textContent = '旧UIへ';
 			document.getElementById('ui-mode-badge').hidden = false;
+			updateDeckEntryVisibility();
 			// ①の中身が入れ替わるので、隠れたまま気付かれないことがないよう①を開いておく
 			selectStepTab(1);
 
@@ -1863,6 +1870,7 @@
 			btn.title = '新しいUIに切り替えます（対象スキルセットをUmaSkill Deckから選べます）';
 			document.getElementById('deck-mode-btn-label').textContent = '新UIへ';
 			document.getElementById('ui-mode-badge').hidden = true;
+			updateDeckEntryVisibility();
 			selectStepTab(1);
 
 			clearActiveSkillDictionary();
@@ -2205,9 +2213,32 @@
 		 * 取り込みが済んだかどうかは Deck側が payload.imported を立てるので、
 		 * localStorage を読み直せば分かる（下の storage リスナで自動更新される）。
 		 */
+		/**
+		 * UmaSkill Deck への導線（FABの項目・結果引き出しの取り込み案内）を、
+		 * 新UIのあいだだけ出す。旧UIはいずれ廃止する過渡的な姿なので、
+		 * そちらにDeckの入口を残しておくと「どちらでも同じことができる」ように
+		 * 見えてしまい、移行の判断を鈍らせる。
+		 *
+		 * 隠すのは入口だけで、OCR結果の受け渡し自体（writeOcrHandoff）は旧UIでも
+		 * 続ける。uma-skill-deck.html を直接開けば従来どおり取り込めるし、
+		 * 旧UIで判定してから新UIへ切り替えた場合もそのまま拾える。
+		 */
+		function updateDeckEntryVisibility() {
+			const trigger = document.getElementById('deck-drawer-trigger');
+			if (trigger) trigger.hidden = !deckMode;
+			refreshDeckHandoffState();
+		}
+
 		function refreshDeckHandoffState() {
 			const note = document.getElementById('deck-handoff-note');
 			if (!note) return;
+			// 旧UIではDeckの入口を出さないので、取り込みの案内もバッジも出さない。
+			if (!deckMode) {
+				note.classList.add('hidden');
+				fabUnseen.deck = false;
+				updateFabBadges();
+				return;
+			}
 			const payload = readOcrHandoff();
 			if (!payload || !payload.persons) {
 				note.classList.add('hidden');
@@ -2422,9 +2453,11 @@
 			</span>
 		</button>
 
-		<!-- Deck へ向かうボタンだけは Deck 側のアクセント（藍）で塗り、行き先を色で示す。 -->
+		<!-- Deck へ向かうボタンだけは Deck 側のアクセント（藍）で塗り、行き先を色で示す。
+		     新UIのあいだだけ出す（updateDeckEntryVisibility）。既定の旧UIでは出さないので
+		     hidden を書いた状態で置いてある。 -->
 		<button id="deck-drawer-trigger" type="button" class="uma-fab-item" onclick="fabGoTo('deck')"
-			aria-controls="deck-drawer" aria-expanded="false">
+			aria-controls="deck-drawer" aria-expanded="false" hidden>
 			<span>UmaSkill Deck</span>
 			<span class="uma-fab-icon" style="background: #eef2ff; color: #432dd7;">
 				<i data-lucide="layers" class="w-4 h-4"></i>
