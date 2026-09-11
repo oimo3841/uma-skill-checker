@@ -126,6 +126,57 @@
 		/* UmaSkill Deck へ向かう/書き込むボタンは、共通部品のまま
 		   アクセント変数だけをその場で Deck 側の藍に差し替える。
 		   部品の形は共通、色だけが行き先を示す。 */
+		/* ============================================================
+		 * ステップ1・2のタブ
+		 *
+		 * 以前は「①スキルリスト」「②画像アップロード」を別々のカードで縦に並べていた。
+		 * ①は一度用意したら触らないのに、②へ行くたびに①の全高をスクロールして
+		 * 通り過ぎる必要があった。1枚のカードに重ねてタブで切り替える。
+		 * 隠れている側の状況は、タブに出す件数バッジ（スキル件数／画像枚数）で分かる。
+		 * ============================================================ */
+		.step-tabs {
+			display: flex; gap: var(--uma-sp-2);
+			margin-bottom: var(--uma-sp-4);
+			border-bottom: 1px solid var(--uma-border);
+		}
+		.step-tab {
+			/* 1 1 0 で2枚を等分し、min-width:0 とラベル側の省略で、狭い画面でも枠から溢れさせない */
+			flex: 1 1 0; min-width: 0;
+			display: flex; align-items: center; gap: var(--uma-sp-2);
+			padding: var(--uma-sp-2) var(--uma-sp-2-5);
+			margin-bottom: -1px;                 /* 下線をカードの区切り線に重ねる */
+			background: none; border: 0; border-bottom: 2px solid transparent;
+			font: inherit; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600;
+			color: var(--uma-text-subtle); text-align: left; cursor: pointer;
+			transition: color var(--uma-transition), border-color var(--uma-transition);
+		}
+		.step-tab:hover { color: var(--uma-text-heading); }
+		.step-tab:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
+		.step-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-accent); }
+		.step-tab-num {
+			flex: none; width: 24px; height: 24px; border-radius: var(--uma-r-full);
+			display: flex; align-items: center; justify-content: center;
+			font-size: var(--uma-fs-xs); font-weight: 700;
+			background: var(--uma-surface-muted); color: var(--uma-text-subtle);
+			transition: background-color var(--uma-transition), color var(--uma-transition);
+		}
+		.step-tab[aria-selected="true"] .step-tab-num { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }
+		.step-tab-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.step-tab-badge {
+			flex: none; margin-left: auto;
+			font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 700;
+			padding: var(--uma-sp-0-5) var(--uma-sp-1-5); border-radius: var(--uma-r-full);
+			background: var(--uma-surface-muted); color: var(--uma-text-subtle);
+		}
+		.step-tab-badge[hidden] { display: none !important; }
+		.step-panel[hidden] { display: none !important; }
+		/* Tailwind の preflight が来なかった場合の保険（F-13と同じ理由で自前でも指定する） */
+		#ui-mode-badge[hidden] { display: none !important; }
+		@media (max-width: 640px) {
+			.step-tab { gap: var(--uma-sp-1-5); padding: var(--uma-sp-2) var(--uma-sp-1); font-size: var(--uma-fs-xs); }
+			.step-tab-num { width: 20px; height: 20px; }
+		}
+
 		.btn-deck-accent {
 			--uma-accent: #4f39f6;            /* indigo-600 */
 			--uma-accent-hover: #432dd7;      /* indigo-700 */
@@ -317,13 +368,21 @@
 				<!-- 左側：タイトルエリア -->
 				<div>
 					<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR<span class="ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">β版</span></h1>
-					<p class="mt-1.5 text-xs md:text-sm text-slate-500">親Aセット（親A+祖A1+祖A2）の因子スクリーンショットから、スキルごとの★の数を自動判定します。親Bセットもオプションで判定・比較できます。</p>
-					<p class="mt-1 text-[11px] text-amber-700">※ OCR・★判定の精度は完全ではありません。結果は念のため目視でもご確認ください。</p>
-					<p class="mt-0.5 text-[11px] text-amber-700">※ SNSの投稿画像等は解像度不足のため対象外となる場合があります。また、加工された画像は適切に判定できない場合があります。ゲーム画面から直接撮ったスクリーンショットをご利用ください。</p>
+					<!-- 何ができるかを1行で言い切り、注意書きは1件1行に分ける。
+					     以前は「親Aセット（親A+祖A1+祖A2）の因子スクリーンショットから…」と
+					     画面の構造を先に説明していたが、初見には読み解けない語が多かった。 -->
+					<p class="mt-1.5 text-xs md:text-sm text-slate-500">ゲーム画面のスクリーンショットから、スキルの★の数を判定します。</p>
+					<p class="mt-1.5 text-[11px] text-amber-700">※ OCR・★判定の精度は完全ではありません。目視でもご確認ください。</p>
+					<p class="mt-0.5 text-[11px] text-amber-700">※ 解像度不足の画像（SNSの投稿画像等）は対象外となる場合があります。</p>
+					<p class="mt-0.5 text-[11px] text-amber-700">※ 加工された画像は適切に判定できない場合があります。</p>
 				</div>
 
 				<!-- 右側：アクションボタン群 -->
 				<div class="flex items-center gap-2 shrink-0">
+
+					<!-- いま新しいUIにいることの表示。過渡期のあいだだけ出す目印で、
+					     旧UI（既定）のときは何も出さない（旧UIが「普通の状態」なので）。 -->
+					<span id="ui-mode-badge" hidden class="text-[10px] font-bold px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">新UI</span>
 
 					<!-- ツール切り替えドロップダウン -->
 					<div class="relative" id="tool-dropdown-wrap">
@@ -367,11 +426,15 @@
 								</div>
 							</a>
 						</div>
-					<!-- UmaSkill Deck連携モードの切り替え。既定はOFFで、押して初めて有効になる
-					     （既存の使い方には一切影響させない） -->
-					<button id="deck-mode-btn" type="button" onclick="toggleDeckMode()" class="uma-btn uma-btn--secondary btn-deck-accent">
-						<i data-lucide="layers" class="w-4 h-4 text-indigo-500"></i>
-						<span id="deck-mode-btn-label">UmaSkill Deck連携</span>
+					<!-- 新UI（UmaSkill Deck連携）と旧UI（手入力リスト）の切り替え。既定は旧UIで、
+					     押して初めて新UIになる（既存の使い方には一切影響させない）。
+					     ラベルは「Deck連携モード（ON/OFF）」だったが、開発の経緯を知らないと
+					     何が起きるのか分からないので、行き先そのものを書く形に変えた。
+					     アイコンは状態で変えない（付け替えると押すたびに形が変わって落ち着かない）。 -->
+					<button id="deck-mode-btn" type="button" onclick="toggleDeckMode()" class="uma-btn uma-btn--secondary btn-deck-accent"
+						title="新しいUIに切り替えます（対象スキルセットをUmaSkill Deckから選べます）">
+						<i data-lucide="arrow-left-right" class="w-4 h-4 text-indigo-500"></i>
+						<span id="deck-mode-btn-label">新UIへ</span>
 					</button>
 
 					<!-- 使い方ガイドボタン -->
@@ -430,15 +493,26 @@
 			</div>
 		</div>
 
-		<!-- ステップ1：スキルリスト -->
+		<!-- ステップ1・2。別々のカードで縦に並べていたものを1枚に重ね、タブで切り替える。
+		     ①は一度用意したら触らないのに、②へ行くたびに①の全高を通り過ぎる必要があったため。 -->
 		<div class="glass-card shadow-xs mb-6">
-			<div class="flex items-center justify-between mb-4">
-				<div class="flex items-center gap-2">
-					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">1</span>
-					<h2 id="step1-title" class="text-sm font-bold text-slate-800">スキルリストを入力（親A〜祖B2まで共通）</h2>
-				</div>
-				<span id="skill-count-badge" class="hidden text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-800"></span>
+			<div class="step-tabs" role="tablist" aria-label="入力の手順" onkeydown="onStepTabKeydown(event)">
+				<button type="button" role="tab" class="step-tab" id="step-tab-1"
+					aria-controls="step-panel-1" aria-selected="true" tabindex="0" onclick="selectStepTab(1)">
+					<span class="step-tab-num" aria-hidden="true">1</span>
+					<span id="step1-title" class="step-tab-label">スキルリストを入力</span>
+					<span id="skill-count-badge" class="hidden text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-800"></span>
+				</button>
+				<button type="button" role="tab" class="step-tab" id="step-tab-2"
+					aria-controls="step-panel-2" aria-selected="false" tabindex="-1" onclick="selectStepTab(2)">
+					<span class="step-tab-num" aria-hidden="true">2</span>
+					<span class="step-tab-label">画像をアップロード</span>
+					<!-- 隠れている側の状況が分かるよう、アップロード済みの枚数をここに出す -->
+					<span id="image-count-badge" class="step-tab-badge" hidden></span>
+				</button>
 			</div>
+
+			<div id="step-panel-1" class="step-panel" role="tabpanel" aria-labelledby="step-tab-1">
 
 			<div id="manual-skill-body">
 			<p class="text-xs text-slate-500 mb-3">スプレッドシートから1列分（改行区切り）コピーしてそのまま貼り付けできます。親A〜祖B2まで、すべてに対して同じリストで照合します。</p>
@@ -503,16 +577,11 @@
 					</div>
 				</div>
 			</details>
-		</div>
 
-		<!-- ステップ2：親A・祖A1・祖A2（＋任意で親B・祖B1・祖B2）の画像アップロード -->
-		<div class="glass-card shadow-xs mb-6">
-			<div class="flex items-center justify-between mb-4">
-				<div class="flex items-center gap-2">
-					<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">2</span>
-					<h2 class="text-sm font-bold text-slate-800">画像をアップロード（1人分だけでもOK）</h2>
-				</div>
-			</div>
+			</div><!-- /#step-panel-1 -->
+
+			<!-- ステップ2：親A・祖A1・祖A2（＋任意で親B・祖B1・祖B2）の画像アップロード -->
+			<div id="step-panel-2" class="step-panel" role="tabpanel" aria-labelledby="step-tab-2" hidden>
 
 			<!-- 親Aセット -->
 			<div id="personset-A-wrap" class="mb-3"></div>
@@ -607,6 +676,8 @@
 					<div id="stitch-progress-bar" class="h-full bg-green-600 rounded-full transition-all duration-300" style="width:0%"></div>
 				</div>
 			</div>
+
+			</div><!-- /#step-panel-2 -->
 		</div>
 
 	</div>
@@ -883,7 +954,10 @@
 					<div class="flex items-center justify-between mb-1">
 						<p class="text-xs font-bold text-${set.hue}-800 flex items-center gap-1.5">
 							<i data-lucide="workflow" class="w-3.5 h-3.5"></i>
-							<span>${set.label}（親${set.id}＋祖${set.id}1＋祖${set.id}2）</span>
+							<!-- 括弧の中は「何を入れる枠か」ではなく「どこまで入れれば動くか」を書く。
+							     3人ぶん揃っていないと使えない、と誤解されるのを防ぐため。
+							     枠の構成（親＋祖1＋祖2）はすぐ下の図で見て分かる。 -->
+							<span>${set.label}（1人分だけでもOK）</span>
 						</p>
 						<button type="button" onclick="clearPersonSet(${setIdx})" class="text-[11px] text-slate-400 hover:text-red-600 underline underline-offset-2 cursor-pointer">セットをクリア</button>
 					</div>
@@ -980,6 +1054,45 @@
 			processBtn.disabled = (skillList.length === 0 || !anyFiles);
 			const stitchBtn = document.getElementById('stitch-btn');
 			if (stitchBtn) stitchBtn.disabled = !anyFiles;
+			updateImageCountBadge();
+		}
+
+		/* ============================================================
+		 * ステップ1・2のタブ
+		 *
+		 * 2枚を重ねた以上、開いていない側の状況が見えなくなる。スキル件数は
+		 * ①のタブに元からある #skill-count-badge が、画像の枚数は②のタブに
+		 * 出すバッジが受け持つ。どちらも「隠れている側を見に行かなくても
+		 * 足りているか分かる」ためのもの。
+		 * ============================================================ */
+		function selectStepTab(n) {
+			[1, 2].forEach(k => {
+				const on = k === Number(n);
+				const tab = document.getElementById('step-tab-' + k);
+				const panel = document.getElementById('step-panel-' + k);
+				if (!tab || !panel) return;
+				tab.setAttribute('aria-selected', String(on));
+				tab.tabIndex = on ? 0 : -1;
+				panel.hidden = !on;
+			});
+		}
+
+		// WAI-ARIA のタブの作法：←→で隣へ、Home/Endで端へ（移動と同時に切り替える）
+		function onStepTabKeydown(e) {
+			const cur = document.getElementById('step-tab-1').getAttribute('aria-selected') === 'true' ? 1 : 2;
+			const next = { ArrowRight: cur === 1 ? 2 : 1, ArrowLeft: cur === 1 ? 2 : 1, Home: 1, End: 2 }[e.key];
+			if (!next) return;
+			e.preventDefault();
+			selectStepTab(next);
+			document.getElementById('step-tab-' + next).focus();
+		}
+
+		function updateImageCountBadge() {
+			const badge = document.getElementById('image-count-badge');
+			if (!badge) return;
+			const total = persons.reduce((n, p) => n + p.files.length, 0);
+			badge.hidden = total === 0;
+			badge.textContent = total + '枚';
 		}
 
 		/* ============================================================
@@ -1061,6 +1174,9 @@
 
 		async function processImages() {
 			if (skillList.length === 0) {
+				// 足りないのは①側なので、案内だけ出して放置せずタブごと連れて行く
+				// （②のタブから押すボタンなので、①は隠れている）。
+				selectStepTab(1);
 				showToast(deckMode ? 'テンプレートを選択してください' : 'スキルリストを解析してください');
 				return;
 			}
@@ -1691,10 +1807,14 @@
 
 			document.getElementById('manual-skill-body').classList.add('hidden');
 			document.getElementById('deck-skill-body').classList.remove('hidden');
-			document.getElementById('step1-title').textContent = '対象スキルセットを選ぶ（UmaSkill Deck連携）';
+			document.getElementById('step1-title').textContent = '対象スキルセットを選ぶ';
 			const btn = document.getElementById('deck-mode-btn');
 			btn.classList.add('border-indigo-300', 'bg-indigo-50', 'text-indigo-700');
-			document.getElementById('deck-mode-btn-label').textContent = 'Deck連携モード（ON）';
+			btn.title = '以前のUIに戻します（スキルリストを手で貼り付ける形）';
+			document.getElementById('deck-mode-btn-label').textContent = '旧UIへ';
+			document.getElementById('ui-mode-badge').hidden = false;
+			// ①の中身が入れ替わるので、隠れたまま気付かれないことがないよう①を開いておく
+			selectStepTab(1);
 
 			// 選択が済むまでは照合対象が無い状態にする
 			deckScope = null;
@@ -1737,10 +1857,13 @@
 			UmaSkillDeckCore.closeSkillPicker();
 			document.getElementById('deck-skill-body').classList.add('hidden');
 			document.getElementById('manual-skill-body').classList.remove('hidden');
-			document.getElementById('step1-title').textContent = 'スキルリストを入力（親A〜祖B2まで共通）';
+			document.getElementById('step1-title').textContent = 'スキルリストを入力';
 			const btn = document.getElementById('deck-mode-btn');
 			btn.classList.remove('border-indigo-300', 'bg-indigo-50', 'text-indigo-700');
-			document.getElementById('deck-mode-btn-label').textContent = 'UmaSkill Deck連携';
+			btn.title = '新しいUIに切り替えます（対象スキルセットをUmaSkill Deckから選べます）';
+			document.getElementById('deck-mode-btn-label').textContent = '新UIへ';
+			document.getElementById('ui-mode-badge').hidden = true;
+			selectStepTab(1);
 
 			clearActiveSkillDictionary();
 			if (manualSkillState) {

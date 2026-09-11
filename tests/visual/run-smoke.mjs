@@ -207,9 +207,62 @@ const browser = await chromium.launch();
 	await page.click('button[onclick="toggleHelp()"]');
 	await page.waitForTimeout(200);
 	assert(!(await page.isVisible('#help-box')), 'special: 使い方ガイドが閉じる');
+	/* --- ステップ1・2のタブ（1枚のカードに重ねて切り替える） --- */
+	const stepState = () => page.evaluate(() => ({
+		tab1: document.getElementById('step-tab-1').getAttribute('aria-selected'),
+		tab2: document.getElementById('step-tab-2').getAttribute('aria-selected'),
+		panel1: !document.getElementById('step-panel-1').hidden,
+		panel2: !document.getElementById('step-panel-2').hidden,
+		title: document.getElementById('step1-title').textContent
+	}));
+	const step0 = await stepState();
+	assert(step0.tab1 === 'true' && step0.panel1 && !step0.panel2,
+		'special: 初期表示は①のパネルだけが出ている', step0);
+	assert(step0.title === 'スキルリストを入力', 'special: ①の見出しが短縮されている', step0.title);
+
+	await page.click('#step-tab-2');
+	await page.waitForTimeout(300);
+	const step2 = await stepState();
+	assert(step2.tab2 === 'true' && !step2.panel1 && step2.panel2,
+		'special: ②のタブを押すとパネルが入れ替わる', step2);
+	// ←キーでも戻れる（WAI-ARIA のタブの作法）
+	await page.keyboard.press('ArrowLeft');
+	await page.waitForTimeout(300);
+	assert((await stepState()).panel1, 'special: ←キーで①へ戻る');
+	await page.click('#step-tab-2');
+	await page.waitForTimeout(300);
+
 	await page.click('#setb-toggle-btn');
 	await page.waitForTimeout(300);
 	assert(await page.isVisible('#personset-B-wrap'), 'special: 親Bセットが開く');
+	// 隠れている側の状況が分かるよう、②のタブにアップロード枚数を出す
+	const imgBadge = await page.evaluate(() => {
+		const el = document.getElementById('image-count-badge');
+		return { hidden: el.hidden, text: el.textContent };
+	});
+	assert(imgBadge.hidden === true, 'special: 画像が無いうちは②の枚数バッジを出さない', imgBadge);
+
+	/* --- 新UI／旧UIの切り替え表示 --- */
+	const uiState = () => page.evaluate(() => ({
+		label: document.getElementById('deck-mode-btn-label').textContent,
+		badge: !document.getElementById('ui-mode-badge').hidden,
+		title: document.getElementById('step1-title').textContent
+	}));
+	const oldUi = await uiState();
+	assert(oldUi.label === '新UIへ' && oldUi.badge === false,
+		'special: 既定は旧UIで、ボタンは「新UIへ」・バッジは出さない', oldUi);
+	await page.click('#deck-mode-btn');
+	await page.waitForTimeout(1500);
+	const newUi = await uiState();
+	assert(newUi.label === '旧UIへ' && newUi.badge === true,
+		'special: 新UIに入るとボタンが「旧UIへ」になり「新UI」バッジが出る', newUi);
+	assert(newUi.title === '対象スキルセットを選ぶ', 'special: 新UIの①の見出しが短縮されている', newUi.title);
+	assert((await stepState()).panel1, 'special: 新UIへ切り替えると①が開いた状態になる');
+	await page.click('#deck-mode-btn');
+	await page.waitForTimeout(600);
+	const backUi = await uiState();
+	assert(backUi.label === '新UIへ' && backUi.badge === false && backUi.title === 'スキルリストを入力',
+		'special: 旧UIへ戻ると表示も元に戻る', backUi);
 
 	// 375px で横スクロールが出ていないこと
 	await page.setViewportSize({ width: 375, height: 812 });
