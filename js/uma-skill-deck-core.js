@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11e';
 
 	/* ============================================================
 	 * 定数
@@ -725,12 +725,10 @@
 		'.usd-summary-item:hover { border-color: var(--uma-accent); }',
 		'.usd-summary-item b { font-weight: 700; margin-right: var(--uma-sp-1); }',
 
-		// 折りたたみの箱（貼り付け・手入力）。8軸パネルの下に並べる
-		'.usd-foldbox { margin-bottom: var(--uma-sp-2); border: 1px solid var(--uma-border);',
-		'  border-radius: var(--uma-r-lg); background: var(--uma-surface-sunken); }',
-		'.usd-foldbox > summary { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600;',
-		'  color: var(--uma-text-muted); padding: var(--uma-sp-2) var(--uma-sp-3); cursor: pointer; user-select: none; }',
-		'.usd-foldbox > div { padding: 0 var(--uma-sp-3) var(--uma-sp-3); }',
+		// スキルを足す3つの入口。モーダルは選ばれた1つぶんだけを出す
+		'.usd-mode[hidden] { display: none; }',
+		// 呼び出し元の画面に並べる入口ボタン
+		'.usd-entry-row { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2); margin-bottom: var(--uma-sp-3); }',
 		'@media (prefers-reduced-motion: reduce) { .usd-tab, .usd-opt { transition: none; } }'
 	].join('\n');
 
@@ -751,52 +749,63 @@
 	let pickerEl = null;
 	// activeAxis は「モーダルを開いている間だけ」覚える。openSkillPicker() で毎回
 	// 先頭の軸に戻すので、localStorage には保存しない（以前の axisOpen と同じ寿命）。
-	let picker = { filters: {}, checked: new Set(), onAdd: null, excludeIds: [], activeAxis: TAG_AXES[0].key };
+	let picker = { mode: 'filter', filters: {}, checked: new Set(), onAdd: null, excludeIds: [], activeAxis: TAG_AXES[0].key };
 	// 一括貼り付けの照合結果。各行に chosenId（採用したスキルID）を後から書き込む。
 	let pasteRows = [];
+
+	// スキルを足す入口は3つあり、どれも同じモーダルの中身を差し替えて出す。
+	//   filter … 条件でスキルを検索（8軸フィルター＋絞り込み結果）
+	//   paste  … テキストで検索（貼り付けたテキストとマスターの照合）
+	//   custom … マスターにないスキルを追加（名前＋8軸タグの手入力）
+	// 以前は3つを1枚のモーダルに縦に積んでいたが、実際には「今どれをやるか」は
+	// 最初に決まっているので、選ばなかった2つは畳まれた見出しとして場所を取るだけだった。
+	// 入口を呼び出し元の画面（テンプレート編集・比較シート編集）へ出し、
+	// モーダルは選ばれた1つだけを出す形にしてある。
+	const PICKER_MODES = {
+		filter: { title: '条件でスキルを検索（軸間はAND・軸内はOR）', commit: true },
+		paste: { title: 'テキストで検索', commit: true },
+		custom: { title: 'マスターにないスキルを追加', commit: false }
+	};
 
 	function pickerMarkup() {
 		return '' +
 			'<div class="usd-modal-panel">' +
 				'<div class="flex items-center justify-between p-4 border-b border-slate-200" style="flex-shrink:0;">' +
-					'<p class="text-sm font-semibold text-slate-700">スキルを選ぶ（軸間はAND・軸内はOR）</p>' +
+					'<p class="text-sm font-semibold text-slate-700" data-usd-el="picker-title">条件でスキルを検索</p>' +
 					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="picker-close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>' +
 				'</div>' +
 				'<div class="p-4" style="overflow:auto;">' +
-					// 8軸フィルター。中身（タブ＋共通パネル）は renderPickerFilterAxes() が
-					// ensurePicker() のときに1回だけ組み立てる。
-					// 最初に目に入る位置に置く。ここが主な入口。
-					'<div data-usd-el="filter-axes"></div>' +
-					// 一括貼り付け。枠も見出しも説明文も持たせず、入力欄だけを最初から出しておく。
-					// 「スプレッドシートから」と名乗る枠に畳んでおくと、メモ帳やメールから
-					// 貼るという使い方が伝わらないうえ、開く操作ぶんだけ遠くなるため。
-					// 何を貼ればよいかはプレースホルダー1行で足りる（表記ゆれの読み替えや
-					// タブ入りの行のエラーは、照合したあとに結果として出る）。
-					'<div data-usd-el="paste-box" class="mb-2">' +
-						'<textarea class="usd-input uma-input" rows="3" style="font-family:var(--uma-font-mono);resize:vertical;" data-usd-el="paste-input" placeholder="1行に1つずつスキル名を貼り付けるか、スプレッドシートの1列をそのまま貼り付け"></textarea>' +
+					// ---- 条件でスキルを検索 ----
+					'<div class="usd-mode" data-usd-el="mode-filter">' +
+						// 8軸フィルター。中身（タブ＋共通パネル）は renderPickerFilterAxes() が
+						// ensurePicker() のときに1回だけ組み立てる。
+						'<div data-usd-el="filter-axes"></div>' +
+						'<div class="flex items-center justify-between mb-1">' +
+							'<label class="flex items-center gap-1.5 text-xs text-slate-600">' +
+								'<input type="checkbox" data-usd-act="picker-select-all"/> 表示中を全て選択' +
+							'</label>' +
+							'<p class="text-xs text-slate-500">絞り込み結果（<span data-usd-el="result-count">0件</span>）</p>' +
+						'</div>' +
+						'<div data-usd-el="results" style="border:1px solid #e2e8f0;border-radius:.75rem;max-height:280px;overflow:auto;"></div>' +
+					'</div>' +
+					// ---- テキストで検索 ----
+					// 枠も見出しも説明文も持たせない。何を貼ればよいかはプレースホルダー1行で足りる
+					// （表記ゆれの読み替えやタブ入りの行のエラーは、照合したあとに結果として出る）。
+					'<div class="usd-mode" data-usd-el="mode-paste" hidden>' +
+						'<textarea class="usd-input uma-input" rows="5" style="font-family:var(--uma-font-mono);resize:vertical;" data-usd-el="paste-input" placeholder="1行に1つずつスキル名を貼り付けるか、スプレッドシートの1列をそのまま貼り付け"></textarea>' +
 						'<div class="flex flex-wrap gap-2 mt-2">' +
 							'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="paste-run">貼り付けたテキストを照合</button>' +
 							'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="paste-clear">クリア</button>' +
 						'</div>' +
 						'<div data-usd-el="paste-report" class="mt-3"></div>' +
 					'</div>' +
-					// 手入力は畳んだ状態で始める（開くと8軸ぶんのタグ入力で縦に長いため）。
-					'<details class="usd-foldbox" data-usd-el="custom-box">' +
-						'<summary>マスターにないスキルを手入力で追加</summary>' +
-						'<div>' +
-							'<input type="text" class="usd-input uma-input mb-2" data-usd-el="custom-name" placeholder="スキル名"/>' +
-							'<div data-usd-el="custom-tags"></div>' +
-							'<button type="button" class="mt-2 uma-btn uma-btn--secondary" data-usd-act="custom-add">カスタムスキルとして追加</button>' +
-						'</div>' +
-					'</details>' +
-					'<button type="button" class="w-full uma-btn uma-btn--primary" data-usd-act="picker-add">チェックしたスキルを追加</button>' +
-					'<div class="flex items-center justify-between mb-1 mt-3">' +
-						'<label class="flex items-center gap-1.5 text-xs text-slate-600">' +
-							'<input type="checkbox" data-usd-act="picker-select-all"/> 表示中を全て選択' +
-						'</label>' +
-						'<p class="text-xs text-slate-500">絞り込み結果（<span data-usd-el="result-count">0件</span>）</p>' +
+					// ---- マスターにないスキルを追加 ----
+					'<div class="usd-mode" data-usd-el="mode-custom" hidden>' +
+						'<input type="text" class="usd-input uma-input mb-3" data-usd-el="custom-name" placeholder="スキル名"/>' +
+						'<div data-usd-el="custom-tags"></div>' +
+						'<button type="button" class="w-full uma-btn uma-btn--primary mt-2" data-usd-act="custom-add">カスタムスキルとして追加</button>' +
 					'</div>' +
-					'<div data-usd-el="results" style="border:1px solid #e2e8f0;border-radius:.75rem;max-height:280px;overflow:auto;"></div>' +
+					'<button type="button" class="w-full uma-btn uma-btn--primary mt-3" data-usd-el="picker-commit" data-usd-act="picker-add">チェックしたスキルを追加</button>' +
 				'</div>' +
 			'</div>';
 	}
@@ -1169,6 +1178,10 @@
 		if (!id) { renderPickerResults(); return; }
 		nameInput.value = '';
 		pickerEl.querySelectorAll('[data-usd-el="custom-tag"]').forEach(el => { el.checked = false; });
+		// 作ったその場で対象セットへ入れる。ここは1件ずつ作る画面なので、
+		// 「作る」と「足す」を分けても押す手間が増えるだけになる。
+		// モーダルは開いたままにして、続けて何件でも作れるようにしてある。
+		if (picker.mode === 'custom') addCheckedSkills();
 		renderPickerResults();
 		toast('カスタムスキル「' + name + '」を追加しました');
 	}
@@ -1340,8 +1353,9 @@
 	 * existingSkillIds: 既に選択済みで一覧から除外したいID
 	 * onAdd: 追加が押されたときに呼ばれる。引数は追加されたIDの配列。
 	 */
-	function openSkillPicker(existingSkillIds, onAdd) {
+	function openPicker(mode, existingSkillIds, onAdd) {
 		ensurePicker();
+		picker.mode = PICKER_MODES[mode] ? mode : 'filter';
 		picker.filters = {};
 		TAG_AXES.forEach(a => { picker.filters[a.key] = []; });
 		picker.checked = new Set();
@@ -1350,13 +1364,32 @@
 		pasteRows = [];
 		const pasteInput = q(pickerEl, 'paste-input');
 		if (pasteInput) pasteInput.value = '';
+		const customName = q(pickerEl, 'custom-name');
+		if (customName) customName.value = '';
+		pickerEl.querySelectorAll('[data-usd-el="custom-tag"]').forEach(el => { el.checked = false; });
+
+		const spec = PICKER_MODES[picker.mode];
+		q(pickerEl, 'picker-title').textContent = spec.title;
+		['filter', 'paste', 'custom'].forEach(m => { q(pickerEl, 'mode-' + m).hidden = m !== picker.mode; });
+		// 手入力は作った時点でその場で足すので、下の確定ボタンは要らない。
+		q(pickerEl, 'picker-commit').hidden = !spec.commit;
+
 		pickerEl.hidden = false;
-		// 幅が確定するのは hidden を外したあとなので、端へ移動ボタンの判定もここで行う。
+		// 幅が確定するのは hidden を外したあとなので、タブの段数の判定もここで行う。
 		resetPickerFilterUi();
 		renderPickerResults();
 		renderPasteReport();
 		refreshIcons();
+		const focusTarget = picker.mode === 'paste' ? pasteInput : (picker.mode === 'custom' ? customName : null);
+		if (focusTarget) focusTarget.focus();
 	}
+
+	// 条件でスキルを検索（8軸フィルター）。従来の openSkillPicker と同じ呼び出し方。
+	function openSkillPicker(existingSkillIds, onAdd) { openPicker('filter', existingSkillIds, onAdd); }
+	// テキストで検索（貼り付けたテキストとマスターの照合）。
+	function openTextSkillPicker(existingSkillIds, onAdd) { openPicker('paste', existingSkillIds, onAdd); }
+	// マスターにないスキルを追加（名前＋8軸タグの手入力）。
+	function openCustomSkillPicker(existingSkillIds, onAdd) { openPicker('custom', existingSkillIds, onAdd); }
 
 	function closePicker() {
 		if (pickerEl) pickerEl.hidden = true;
@@ -1412,9 +1445,20 @@
 					'<input type="text" class="usd-input uma-input flex-1" data-usd-el="name-input" placeholder="テンプレート名（例：マイルCS想定）"/>' +
 					'<p class="flex-1 text-sm font-semibold text-slate-700" data-usd-el="draft-title" hidden>今回だけの対象スキルセット</p>' +
 				'</div>' +
-				'<button type="button" class="uma-btn uma-btn--secondary mb-3" data-usd-act="editor-pick">' +
-					'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> スキルを追加' +
-				'</button>' +
+				// スキルを足す入口は3つ。以前は「スキルを追加」1つだけを出し、
+				// 中の畳んだ見出しで3つに分かれていたが、それだと「テキストで検索」も
+				// 「マスターにないスキルを追加」も、開いてみるまで在ることが分からなかった。
+				'<div class="usd-entry-row">' +
+					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
+						'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件でスキルを検索' +
+					'</button>' +
+					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-text">' +
+						'<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索' +
+					'</button>' +
+					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-custom">' +
+						'<i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> マスターにないスキルを追加' +
+					'</button>' +
+				'</div>' +
 				'<p class="text-xs text-slate-500 mb-1">選択済みスキル（<span data-usd-el="selected-count">0</span>）</p>' +
 				'<div data-usd-el="selected-list" class="flex flex-wrap gap-2"></div>' +
 				'<div class="mt-3" data-usd-el="draft-actions" hidden>' +
@@ -1434,7 +1478,9 @@
 			const act = btn.dataset.usdAct;
 			if (act === 'template-new') openEditor(null);
 			else if (act === 'editor-close') closeEditor();
-			else if (act === 'editor-pick') openEditorPicker();
+			else if (act === 'editor-pick') openEditorPicker('filter');
+			else if (act === 'editor-pick-text') openEditorPicker('paste');
+			else if (act === 'editor-pick-custom') openEditorPicker('custom');
 			else if (act === 'template-open') openEditor(btn.dataset.templateId);
 			else if (act === 'template-duplicate') duplicateTemplate(btn.dataset.templateId);
 			else if (act === 'template-delete') deleteTemplate(btn.dataset.templateId);
@@ -1633,9 +1679,10 @@
 			fireChange();
 		}
 
-		function openEditorPicker() {
+		// 3つの入口はどれも同じ「選んだIDを編集中のセットへ足す」処理へ合流する。
+		function openEditorPicker(mode) {
 			const target = editing;
-			openSkillPicker(editingSkillIds(), (ids) => {
+			openPicker(mode, editingSkillIds(), (ids) => {
 				const list = target.kind === 'draft' ? draftScope.skillIds : target.obj.skillIds;
 				ids.forEach(id => { if (!list.includes(id)) list.push(id); });
 				persistEditing();
@@ -2074,6 +2121,8 @@
 
 		// スキル選択モーダル
 		openSkillPicker: openSkillPicker,
+		openTextSkillPicker: openTextSkillPicker,
+		openCustomSkillPicker: openCustomSkillPicker,
 		closeSkillPicker: closePicker,
 		renderPickerResults: renderPickerResults,
 

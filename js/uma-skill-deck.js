@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-10n';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-11a';
 
 // 読み込むべき css/common.css の版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -619,12 +619,23 @@ function renderRecordGrid() {
 	refreshIcons();
 }
 
+// スキルを足す3つの入口。どれも「選んだIDを比較シートへ足す」処理へ合流する。
+function addSkillsToRecord(ids) {
+	ids.forEach(id => { if (!draftRecord.skillIds.includes(id)) draftRecord.skillIds.push(id); });
+	persistDraftRecord();
+	renderRecordGrid();
+}
+
 function openRecordSkillPicker() {
-	Core.openSkillPicker(draftRecord.skillIds, (ids) => {
-		ids.forEach(id => { if (!draftRecord.skillIds.includes(id)) draftRecord.skillIds.push(id); });
-		persistDraftRecord();
-		renderRecordGrid();
-	});
+	Core.openSkillPicker(draftRecord.skillIds, addSkillsToRecord);
+}
+
+function openRecordTextPicker() {
+	Core.openTextSkillPicker(draftRecord.skillIds, addSkillsToRecord);
+}
+
+function openRecordCustomSkill() {
+	Core.openCustomSkillPicker(draftRecord.skillIds, addSkillsToRecord);
 }
 
 function duplicateRecord(recordId) {

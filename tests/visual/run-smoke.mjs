@@ -810,46 +810,74 @@ const browser = await chromium.launch();
 	assert((await optState('trackVenue')).more === false,
 		'deck: 下までスクロールするとフェードが消える');
 
-	/* --- 並び順：8軸パネル → 貼り付け → 手入力 → 追加ボタン → 結果一覧 --- */
-	const order = await page.evaluate(() => {
-		const pick = (sel) => document.querySelector(sel);
-		const top = (el) => Math.round(el.getBoundingClientRect().top);
+	/* --- 「条件でスキルを検索」のときは8軸フィルターだけが出ている --- */
+	const modeState = () => page.evaluate(() => {
+		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
 		return {
-			axes: top(pick('[data-usd-el="filter-axes"]')),
-			paste: top(pick('[data-usd-el="paste-box"]')),
-			custom: top(pick('[data-usd-el="custom-box"]')),
-			add: top(pick('[data-usd-act="picker-add"]')),
-			results: top(pick('[data-usd-el="results"]')),
-			customOpen: pick('[data-usd-el="custom-box"]').open
+			title: el('picker-title').textContent,
+			filter: !el('mode-filter').hidden,
+			paste: !el('mode-paste').hidden,
+			custom: !el('mode-custom').hidden,
+			commit: !el('picker-commit').hidden
 		};
 	});
-	assert(order.axes < order.paste && order.paste < order.custom
-		&& order.custom < order.add && order.add < order.results,
-		'deck: 8軸パネル→貼り付け→手入力→追加ボタン→結果一覧の順に並ぶ', order);
-	assert(order.customOpen === false, 'deck: 手入力は畳んだ状態で始まる', order);
-
-	// 貼り付けは枠も見出しも持たず、最初から入力できる
-	const paste = await page.evaluate(() => {
-		const box = document.querySelector('[data-usd-el="paste-box"]');
-		const input = document.querySelector('[data-usd-el="paste-input"]');
-		return {
-			isDetails: box.tagName === 'DETAILS',
-			summaries: box.querySelectorAll('summary').length,
-			visible: !!(input.offsetWidth && input.offsetHeight),
-			placeholder: input.placeholder,
-			// 長文の説明を置いていないこと（入力欄とボタン以外のテキストを数える）
-			proseChars: [...box.querySelectorAll('p')].map((p) => p.textContent.trim()).join('').length
-		};
-	});
-	assert(!paste.isDetails && paste.summaries === 0 && paste.visible,
-		'deck: 貼り付けは折りたたまず最初から入力欄が出ている', paste);
-	assert(paste.proseChars === 0, 'deck: 貼り付けの説明文は置いていない', paste);
-	assert(paste.placeholder === '1行に1つずつスキル名を貼り付けるか、スプレッドシートの1列をそのまま貼り付け',
-		'deck: 貼り付けのプレースホルダーがスプレッドシート限定に読めない文言になっている', paste.placeholder);
+	const filterMode = await modeState();
+	assert(filterMode.filter && !filterMode.paste && !filterMode.custom && filterMode.commit,
+		'deck: 条件で検索のときは8軸フィルターだけが出る', filterMode);
+	assert(/条件でスキルを検索/.test(filterMode.title), 'deck: 見出しが「条件でスキルを検索」', filterMode.title);
 
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);
 	assert(!(await page.isVisible('.usd-modal')), 'deck: モーダルが閉じる');
+
+	/* --- スキルを足す入口は3つ。それぞれ別のモードでモーダルが開く --- */
+	const entries = await page.evaluate(() =>
+		[...document.querySelectorAll('#record-editor-view .uma-btn')]
+			.map((b) => b.textContent.trim()).filter((t) => /検索|マスターにない/.test(t)));
+	assert(entries.length === 3 && entries[0] === '条件でスキルを検索'
+		&& entries[1] === 'テキストで検索' && entries[2] === 'マスターにないスキルを追加',
+		'deck: 比較シート編集に3つの入口ボタンが並ぶ', entries);
+
+	await page.click('button[onclick="openRecordTextPicker()"]');
+	await page.waitForTimeout(700);
+	const pasteMode = await modeState();
+	assert(!pasteMode.filter && pasteMode.paste && !pasteMode.custom && pasteMode.commit,
+		'deck: 「テキストで検索」は貼り付け欄だけを出す', pasteMode);
+	assert(pasteMode.title === 'テキストで検索', 'deck: 見出しが「テキストで検索」', pasteMode.title);
+	const pasteInput = await page.evaluate(() => {
+		const el = document.querySelector('[data-usd-el="paste-input"]');
+		return { placeholder: el.placeholder, focused: document.activeElement === el };
+	});
+	assert(pasteInput.placeholder === '1行に1つずつスキル名を貼り付けるか、スプレッドシートの1列をそのまま貼り付け',
+		'deck: 貼り付けのプレースホルダーがスプレッドシート限定に読めない文言になっている', pasteInput.placeholder);
+	assert(pasteInput.focused, 'deck: 開いた時点で貼り付け欄にカーソルが入る', pasteInput);
+	// 実際に照合が動く（マスターに在る名前を2件）
+	await page.fill('[data-usd-el="paste-input"]', '右回り○\n左回り○');
+	await page.click('[data-usd-act="paste-run"]');
+	await page.waitForTimeout(500);
+	// 完全一致した行は一覧には出さない仕様（要確認の行だけを並べる）ので、件数サマリーで見る
+	const matched = await page.evaluate(() => {
+		const ok = document.querySelector('[data-usd-el="paste-report"] .usd-paste-ok');
+		return { text: ok ? ok.textContent : null, warn: !document.querySelector('.usd-paste-warn') };
+	});
+	assert(matched.text === '選択 2件' && matched.warn,
+		'deck: 貼り付けたテキストが照合されて2件が選択に入る', matched);
+	await page.click('[data-usd-act="picker-close"]');
+	await page.waitForTimeout(400);
+
+	await page.click('button[onclick="openRecordCustomSkill()"]');
+	await page.waitForTimeout(700);
+	const customMode = await modeState();
+	assert(!customMode.filter && !customMode.paste && customMode.custom,
+		'deck: 「マスターにないスキルを追加」は手入力欄だけを出す', customMode);
+	assert(customMode.title === 'マスターにないスキルを追加', 'deck: 見出しが「マスターにないスキルを追加」', customMode.title);
+	// 作ったその場で対象セットへ入るので、下の確定ボタンは出さない
+	assert(customMode.commit === false, 'deck: 手入力のときは下の確定ボタンを出さない', customMode);
+	const customAxes = await page.evaluate(() =>
+		new Set([...document.querySelectorAll('[data-usd-el="custom-tag"]')].map((el) => el.dataset.axis)).size);
+	assert(customAxes === 8, 'deck: 手入力にも8軸ぶんのタグ入力が出る', customAxes);
+	await page.click('[data-usd-act="picker-close"]');
+	await page.waitForTimeout(400);
 
 	// データ管理
 	await page.click('#tab-btn-data');

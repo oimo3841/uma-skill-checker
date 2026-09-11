@@ -12,8 +12,8 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-11d"></script>
-	<script src="js/uma-skill-deck.js?v=2026-09-10n"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-11e"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-11a"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -371,10 +371,20 @@
 					<span class="text-slate-500 whitespace-nowrap">テンプレート：</span>
 					<select id="record-template-select" onchange="switchRecordTemplate(this.value)" class="uma-input" style="width:auto;"></select>
 				</div>
+				<!-- スキルを足す入口はテンプレート編集画面と同じ3つ（条件／テキスト／手入力）。
+				     片方だけ1ボタンのままにすると、この画面からテキスト検索と手入力へ行けなくなる。 -->
 				<div class="flex flex-wrap gap-2 mb-2">
 					<button onclick="openRecordSkillPicker()" class="uma-btn uma-btn--secondary deck-pill-btn">
-						<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> スキルを追加
+						<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件でスキルを検索
 					</button>
+					<button onclick="openRecordTextPicker()" class="uma-btn uma-btn--secondary deck-pill-btn">
+						<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索
+					</button>
+					<button onclick="openRecordCustomSkill()" class="uma-btn uma-btn--secondary deck-pill-btn">
+						<i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> マスターにないスキルを追加
+					</button>
+				</div>
+				<div class="flex flex-wrap gap-2 mb-2">
 					<div class="flex items-center gap-1.5 flex-1 min-w-[160px]">
 						<input id="candidate-label-input" placeholder="候補の名前（例：親A）" class="uma-input flex-1"/>
 						<button onclick="addCandidate()" class="uma-btn uma-btn--secondary whitespace-nowrap">＋ 候補</button>
