@@ -20,7 +20,7 @@
 	<script src="js/common.js?v=2026-09-10b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-11e"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-11f"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-09a"></script>
 	<style>
@@ -542,7 +542,7 @@
 			     uma-skill-deck.html と同じコンポーネント・同じlocalStorageを共有するため、
 			     ここで作成・編集したテンプレートはUmaSkill Deck側にもそのまま反映される。 -->
 			<div id="deck-skill-body" class="hidden">
-				<p class="text-xs text-slate-500 mb-3">照合したいスキルのまとまりを1つ選んでください。スプレッドシートの1列をそのまま貼り付けて作れます。<strong>「今回だけの対象スキルセット」</strong>は保存不要でこの端末のブラウザに残り、次に開いたときも続きから使えます。繰り返し使うものは<strong>テンプレート</strong>として保存でき、UmaSkill Deck側とも共有されます。</p>
+				<p class="text-xs text-slate-500 mb-3">照合したいスキルセットを1つ選んでください。スプレッドシートの1列をそのまま貼り付けて作れます。<strong>「今回だけの対象スキルセット」</strong>は保存不要でこの端末のブラウザに残り、次に開いたときも続きから使えます。繰り返し使うものは<strong>テンプレート</strong>として保存でき、UmaSkill Deck側とも共有されます。</p>
 				<div id="deck-loading-note" class="text-xs text-slate-500 mb-3">テンプレートを読み込んでいます…</div>
 				<div id="deck-template-panel"></div>
 				<div class="mt-3 flex items-center justify-between gap-3 flex-wrap">
@@ -568,11 +568,16 @@
 					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
 				</summary>
 				<div class="p-4 pt-1 border-t border-slate-200/60">
-					<p class="text-[11px] text-slate-500 leading-relaxed mb-2">
-						どうしても正しく読み取れないスキルがある場合、<strong>OCRが実際に出した文字列</strong>と<strong>本来のスキル名</strong>の対応をここに書くと、その文字列を必ずそのスキルとして扱います。
-						1行に1組、<code class="px-1 rounded bg-slate-200 text-slate-700">誤った文字列 = 正しいスキル名</code> の形式です（<code class="px-1 rounded bg-slate-200 text-slate-700">→</code> や <code class="px-1 rounded bg-slate-200 text-slate-700">タブ</code> 区切りも可）。
-						OCRが出した文字列は、下の開発用ログの「誤字候補」「その他未一致」に表示されているものをそのままコピーしてください。内容はこのブラウザに保存され、次回も使われます。
+					<!-- 何をするものかを1行で言い切り、書き方と入手先は箇条書きに分ける。
+					     以前は同じ内容を1つの段落に詰めていて、どこまでが説明でどこからが
+					     手順なのかを読み分ける必要があった。 -->
+					<p class="text-[11px] text-slate-500 leading-relaxed mb-1.5">
+						OCRの読み取りミスを補正します。1行に1組ずつ記述してください。内容はブラウザに自動保存されます。
 					</p>
+					<ul class="text-[11px] text-slate-500 leading-relaxed list-disc list-outside pl-4 space-y-0.5 mb-2">
+						<li>フォーマット：<code class="px-1 rounded bg-slate-200 text-slate-700">誤った文字列 = 正しいスキル名</code>（<code class="px-1 rounded bg-slate-200 text-slate-700">→</code> や タブ区切りも可）</li>
+						<li>文字列の取得：下部の開発用ログ「誤字候補」「その他未一致」からコピーできます。</li>
+					</ul>
 					<textarea id="ocr-dict" oninput="parseOcrDictionary()" class="w-full h-24 text-xs p-3 rounded-xl border border-slate-200 bg-white focus:border-green-500 focus:ring-2 focus:ring-green-200 font-mono transition-all outline-none resize-y" placeholder="例：&#10;を回り〇 = 左回り○&#10;急隆下 = 急降下"></textarea>
 					<div class="mt-2 flex items-center justify-between">
 						<span id="dict-status" class="text-[11px] text-slate-500"></span>

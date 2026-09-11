@@ -209,6 +209,36 @@ const browser = await chromium.launch();
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.waitForTimeout(300);
 
+	/* --- 新UIの対象スキルセット一覧：ドラフトの行と、編集画面の「すべて外す」 --- */
+	const draftRow = await page.evaluate(() => {
+		const card = document.querySelector('#deck-template-panel [data-usd-act="draft-open"]').closest('label');
+		return {
+			title: card.querySelector('p').textContent,
+			sub: card.querySelectorAll('p')[1].textContent,
+			hasTrash: !!card.querySelector('[data-usd-act="draft-clear"]'),
+			icons: card.querySelectorAll('button').length
+		};
+	});
+	assert(draftRow.title.startsWith('ドラフト') && /スキル\d+件/.test(draftRow.title),
+		'special: ドラフトの行に名前と件数が出る', draftRow.title);
+	assert(draftRow.sub.startsWith('※次回開いた際も復元されます'),
+		'special: ドラフトの行に復元の案内が出る', draftRow.sub);
+	assert(draftRow.hasTrash === false && draftRow.icons === 1,
+		'special: ドラフトの行にごみ箱ボタンは無く、編集だけが残る', draftRow);
+
+	await page.click('#deck-template-panel [data-usd-act="draft-open"]');
+	await page.waitForTimeout(400);
+	const clearBtn = await page.evaluate(() => {
+		const btn = document.querySelector('#deck-template-panel [data-usd-el="clear-skills"]');
+		const n = Number(document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent);
+		return { exists: !!btn, disabled: btn ? btn.disabled : null, count: n };
+	});
+	assert(clearBtn.exists, 'special: 編集画面に「すべて外す」がある', clearBtn);
+	assert(clearBtn.disabled === (clearBtn.count === 0),
+		'special: 「すべて外す」は選択が無いときだけ押せない', clearBtn);
+	await page.click('#deck-template-panel [data-usd-act="editor-close"]');
+	await page.waitForTimeout(400);
+
 	// Deck まわりはここまで。以降は旧UI（既定の姿）に戻して確かめる。
 	await page.click('#deck-mode-btn');
 	await page.waitForTimeout(800);

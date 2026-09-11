@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11f';
 
 	/* ============================================================
 	 * 定数
@@ -590,9 +590,6 @@
 		'  text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; }',
 		'.usd-paste-skip:hover { color: var(--uma-text-subtle); }',
 		'.usd-paste-scroll { max-height: 240px; overflow: auto; }',
-		'.usd-draft-badge { display: inline-block; margin-left: var(--uma-sp-1-5); font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs);',
-		'  font-weight: 600; padding: var(--uma-sp-0-5) var(--uma-sp-1-5); border-radius: var(--uma-r-full);',
-		'  background: var(--uma-warn-bg); color: var(--uma-warn-text); vertical-align: 1px; }',
 
 		/* ------------------------------------------------------------
 		 * 8軸フィルターのタブ（見出しタブ＋共通パネル1枚）
@@ -1459,7 +1456,12 @@
 						'<i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> マスターにないスキルを追加' +
 					'</button>' +
 				'</div>' +
-				'<p class="text-xs text-slate-500 mb-1">選択済みスキル（<span data-usd-el="selected-count">0</span>）</p>' +
+				'<div class="flex items-baseline justify-between gap-2 mb-1">' +
+					'<p class="text-xs text-slate-500">選択済みスキル（<span data-usd-el="selected-count">0</span>）</p>' +
+					// 一覧の行にあった「空にする」をここへ移した。中身を触っている画面で、
+					// 何件消えるのかが見えている状態で押せるようにするため。
+					'<button type="button" class="usd-link-btn" data-usd-act="editor-clear-skills" data-usd-el="clear-skills">すべて外す</button>' +
+				'</div>' +
 				'<div data-usd-el="selected-list" class="flex flex-wrap gap-2"></div>' +
 				'<div class="mt-3" data-usd-el="draft-actions" hidden>' +
 					'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="draft-promote">テンプレートとして保存</button>' +
@@ -1485,8 +1487,8 @@
 			else if (act === 'template-duplicate') duplicateTemplate(btn.dataset.templateId);
 			else if (act === 'template-delete') deleteTemplate(btn.dataset.templateId);
 			else if (act === 'template-skill-remove') removeSkillFromEditing(btn.dataset.skillId);
+			else if (act === 'editor-clear-skills') clearEditingSkills();
 			else if (act === 'draft-open') openDraftEditor();
-			else if (act === 'draft-clear') clearDraft();
 			else if (act === 'draft-promote') promoteDraftToTemplate();
 		});
 		container.addEventListener('change', (e) => {
@@ -1541,14 +1543,17 @@
 			'<label class="usd-list-card uma-list-row' + (selectable ? ' usd-selectable uma-list-row--selectable' : '') + (isSel ? ' usd-selected uma-list-row--selected' : '') + '">' +
 				radio +
 				'<div class="flex-1 min-w-0">' +
-					'<p class="font-semibold text-sm text-slate-800 usd-truncate">今回だけの対象スキルセット<span class="usd-draft-badge">保存しない</span></p>' +
-					'<p class="text-xs text-slate-500">' + (n === 0
-						? '「編集」から貼り付け・選択して作ります'
-						: 'スキル' + n + '件・この端末のブラウザに残ります') + '</p>' +
+					// 件数は保存済みテンプレートの行と同じ位置・同じ言い回しで出す
+					// （並びの中で見比べるものなので、片方だけ書式が違うと比べにくい）。
+					'<p class="font-semibold text-sm text-slate-800 usd-truncate">ドラフト' +
+						'<span class="text-xs font-normal text-slate-500 ml-2">スキル' + n + '件</span></p>' +
+					'<p class="text-xs text-slate-500">※次回開いた際も復元されます。繰り返し使う場合は「テンプレートとして保存」を選択してください。</p>' +
 				'</div>' +
 				'<div class="flex gap-1.5 shrink-0">' +
+					// 空にする操作は編集画面側（選択済みスキルの「すべて外す」）へ移した。
+					// 一覧の行に置くと、隣のテンプレートの削除ボタンと同じ見た目・同じ位置になり、
+					// 「ドラフトごと消える」のか「中身が空になる」のかが区別できなかったため。
 					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="draft-open" title="編集"><i data-lucide="edit" class="w-4 h-4"></i></button>' +
-					'<button type="button" class="usd-icon-btn uma-icon-btn text-red-500" data-usd-act="draft-clear" title="空にする"><i data-lucide="trash-2" class="w-4 h-4"></i></button>' +
 				'</div>' +
 			'</label>';
 		}
@@ -1614,6 +1619,7 @@
 			const ids = editingSkillIds();
 			const el = q(container, 'selected-list');
 			q(container, 'selected-count').textContent = String(ids.length);
+			q(container, 'clear-skills').disabled = ids.length === 0;
 			if (ids.length === 0) {
 				el.innerHTML = '<p class="text-xs text-slate-400">まだスキルが選択されていません。</p>';
 				return;
@@ -1706,6 +1712,37 @@
 				: selectedId === target.obj.templateId;
 		}
 
+		/**
+		 * 編集中のセットから選択済みスキルをすべて外す。
+		 * ドラフトでもテンプレートでも同じ操作にしてある（編集画面の見た目が同じなので、
+		 * 片方だけ出来ないと「なぜここには無いのか」を考えさせることになる）。
+		 * 破壊的な操作は確認ダイアログではなく「即実行＋元に戻す」で統一する方針に従う。
+		 */
+		function clearEditingSkills() {
+			const target = editing;
+			if (!target) return;
+			const list = target.kind === 'draft' ? draftScope.skillIds : target.obj.skillIds;
+			if (list.length === 0) return;
+			const prev = list.slice();
+			list.length = 0;
+			persistEditing();
+			picker.excludeIds = picker.excludeIds.filter(id => prev.indexOf(id) === -1);
+			renderSelectedList();
+			renderPickerResults();
+			renderPasteReport();
+			if (isSelected(target)) fireSelection();
+			fireChange();
+			pushUndo('選択済みスキル' + prev.length + '件を外しました', () => {
+				list.length = 0;
+				prev.forEach(id => list.push(id));
+				if (target.kind === 'draft') draftScope = saveDraftScope(draftScopeKey, draftScope.skillIds);
+				else saveUserData();
+				render();
+				if (isSelected(target)) fireSelection();
+				fireChange();
+			});
+		}
+
 		function removeSkillFromEditing(skillId) {
 			const target = editing;
 			if (!target) return;
@@ -1756,24 +1793,6 @@
 				data.templates.splice(idx, 0, removed);
 				saveUserData();
 				render();
-				fireChange();
-			});
-		}
-
-		/* ---------- ドラフト ---------- */
-		function clearDraft() {
-			if (!draftScope || draftScope.skillIds.length === 0) return;
-			const prev = draftScope.skillIds.slice();
-			draftScope = saveDraftScope(draftScopeKey, []);
-			if (selectedId === DRAFT_SELECTION_ID) selectedId = null;
-			render();
-			fireSelection();
-			fireChange();
-			pushUndo('今回だけの対象スキルセットを空にしました', () => {
-				draftScope = saveDraftScope(draftScopeKey, prev);
-				selectedId = DRAFT_SELECTION_ID;
-				render();
-				fireSelection();
 				fireChange();
 			});
 		}
