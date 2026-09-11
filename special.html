@@ -20,7 +20,7 @@
 	<script src="js/common.js?v=2026-09-10b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-11f"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-11g"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-09a"></script>
 	<style>
@@ -1907,11 +1907,11 @@
 		let deckTemplateManager = null;
 		// 選択中の対象スキルセット。共有モジュールの getSelection() が返す
 		// { kind:'template'|'draft', id, name, skillIds } または null。
-		// 「保存したテンプレート」なのか「今回だけの一時的なもの」なのかを
+		// 「保存したテンプレート」なのか「ドラフト」なのかを
 		// このファイル側で区別せずに済むよう、選択結果はこの1つにまとめて持つ。
 		let deckScope = null;
 		let deckMasterLoaded = false;
-		// 「今回だけの対象スキルセット」の保存先。userData とは別の名前空間。
+		// 「ドラフト」（保存しない一時的な対象スキルセット）の保存先。userData とは別の名前空間。
 		const DECK_DRAFT_SCOPE_KEY = 'special';
 		// Deckモードに入る前の手入力リストの状態。モードを抜けたらそのまま復元する。
 		let manualSkillState = null;

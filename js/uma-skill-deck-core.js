@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-11g';
 
 	/* ============================================================
 	 * 定数
@@ -1403,7 +1403,7 @@
 	/**
 	 * options:
 	 *   selectable        … true にすると各行にラジオが付き、1つを選択できる（OCRツール側で使う）
-	 *   draftScopeKey     … 文字列を渡すと「今回だけの対象スキルセット」（保存しないドラフト）を
+	 *   draftScopeKey     … 文字列を渡すと「ドラフト」（保存しない一時的な対象スキルセット）を
 	 *                       一覧の先頭に出し、その内容を localStorage に永続化する。
 	 *                       省略すると従来どおりテンプレートだけを扱う（uma-skill-deck.html はこちら）。
 	 *   onSelectionChange … 選択が変わったとき fn(selection|null)。selection は getSelection() と同じ形。
@@ -1440,7 +1440,7 @@
 				'<div class="flex items-center gap-2 mb-3">' +
 					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="editor-close" aria-label="戻る"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>' +
 					'<input type="text" class="usd-input uma-input flex-1" data-usd-el="name-input" placeholder="テンプレート名（例：マイルCS想定）"/>' +
-					'<p class="flex-1 text-sm font-semibold text-slate-700" data-usd-el="draft-title" hidden>今回だけの対象スキルセット</p>' +
+					'<p class="flex-1 text-sm font-semibold text-slate-700" data-usd-el="draft-title" hidden>ドラフト</p>' +
 				'</div>' +
 				// スキルを足す入口は3つ。以前は「スキルを追加」1つだけを出し、
 				// 中の畳んだ見出しで3つに分かれていたが、それだと「テキストで検索」も
@@ -1577,7 +1577,7 @@
 			let html = draftScopeKey ? draftCardHtml() : '';
 			if (list.length === 0) {
 				html += draftScopeKey
-					? '<p class="text-sm text-slate-400 p-4">保存済みのテンプレートはまだありません。上の「今回だけの対象スキルセット」で試して、繰り返し使うものだけテンプレートに残せます。</p>'
+					? '<p class="text-sm text-slate-400 p-4">保存済みのテンプレートはまだありません。上の「ドラフト」で試して、繰り返し使うものだけテンプレートに残せます。</p>'
 					: '<p class="text-sm text-slate-400 p-4">まだテンプレートがありません。「新規作成」から始めてください。</p>';
 			} else {
 				html += list.map(t => {
@@ -1834,7 +1834,10 @@
 
 		function getSelection() {
 			if (selectedId === DRAFT_SELECTION_ID && draftScope && draftScope.skillIds.length > 0) {
-				return { kind: 'draft', id: DRAFT_SELECTION_ID, name: '今回だけの対象スキルセット', skillIds: draftScope.skillIds.slice() };
+				// name は画面に出る表示名（「✓『◯◯』の○件を照合します」、OCR結果の受け渡し先の
+				// 既定のシート名など）。一覧の行と同じ呼び方にしておかないと、
+				// 選んだものと表示されるものの名前が食い違って見える。
+				return { kind: 'draft', id: DRAFT_SELECTION_ID, name: 'ドラフト', skillIds: draftScope.skillIds.slice() };
 			}
 			const t = ensureUserData().templates.find(x => x.templateId === selectedId);
 			if (!t) return null;

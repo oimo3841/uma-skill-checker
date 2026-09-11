@@ -247,8 +247,45 @@ const browser = await chromium.launch();
 	assert(clearBtn.exists, 'special: 編集画面に「すべて外す」がある', clearBtn);
 	assert(clearBtn.disabled === (clearBtn.count === 0),
 		'special: 「すべて外す」は選択が無いときだけ押せない', clearBtn);
+	// 編集画面の見出しも一覧の行と同じ呼び方にしてある（名前の食い違いを作らない）
+	assert(await page.evaluate(() =>
+		document.querySelector('#deck-template-panel [data-usd-el="draft-title"]').textContent) === 'ドラフト',
+		'special: ドラフトの編集画面の見出しも「ドラフト」');
 	await page.click('#deck-template-panel [data-usd-act="editor-close"]');
 	await page.waitForTimeout(400);
+
+	/* 選んだときに出る名前（getSelection().name）も一覧の行と揃っていること。
+	   ドラフトは空だと選べないので、「テキストで検索」で実際に1件入れてから確かめる
+	   （ついでに、編集画面からの貼り付け→追加の一連が通ることも見ている）。 */
+	await page.click('#deck-template-panel [data-usd-act="draft-open"]');
+	await page.waitForTimeout(400);
+	await page.click('#deck-template-panel [data-usd-act="editor-pick-text"]');
+	await page.waitForTimeout(700);
+	await page.fill('[data-usd-el="paste-input"]', '右回り○');
+	await page.click('[data-usd-act="paste-run"]');
+	await page.waitForTimeout(500);
+	await page.click('[data-usd-act="picker-add"]');
+	await page.waitForTimeout(500);
+	await page.click('[data-usd-act="picker-close"]');
+	await page.waitForTimeout(400);
+	assert(await page.evaluate(() =>
+		document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent) === '1',
+		'special: 貼り付けたスキルがドラフトに入る');
+	await page.click('#deck-template-panel [data-usd-act="editor-close"]');
+	await page.waitForTimeout(400);
+
+	const draftPicked = await page.evaluate(() => {
+		const radio = document.querySelector('#deck-template-panel [data-usd-el="template-radio"][value="__draft__"]');
+		radio.click();
+		return {
+			note: document.getElementById('deck-selected-note').textContent,
+			row: document.querySelector('#deck-template-panel [data-usd-act="draft-open"]').closest('label').querySelector('p').textContent
+		};
+	});
+	await page.waitForTimeout(300);
+	assert(draftPicked.note === '✓ 「ドラフト」の1件を照合します',
+		'special: 選択中の案内にも一覧と同じ「ドラフト」が出る', draftPicked);
+	assert(draftPicked.row.startsWith('ドラフト'), 'special: 一覧の行の呼び方と一致している', draftPicked);
 
 	// Deck まわりはここまで。以降は旧UI（既定の姿）に戻して確かめる。
 	await page.click('#deck-mode-btn');
