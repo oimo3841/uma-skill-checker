@@ -207,9 +207,12 @@
 					<!-- 新UIが既定になったので、このボタンは「戻る手段」として普通に置くだけでよい。
 					     以前あったNEWバッジ・脈打ち・吹き出しは、旧UIが既定だった頃の告知なので撤去した
 					     （いま旧UIにいるのは、モーダルを読んだうえで自分で戻った人だけ）。 -->
-					<button id="deck-mode-btn" type="button" onclick="toggleDeckMode()" class="uma-btn uma-btn--secondary btn-deck-accent"
+					<!-- 色はこのツール自身の緑（Deck の色＝グレーは「Deck 行き」のものに限る。
+					     FABのDeck項目・Deckの引き出し・取り込み案内・告知の＜新機能＞の段）。
+					     新UIのあいだの点灯（.is-on）も css/shell.css がページのアクセントで描く。 -->
+					<button id="deck-mode-btn" type="button" onclick="toggleDeckMode()" class="uma-btn uma-btn--secondary"
 						title="以前のUIに戻します（スキルリストを手で貼り付ける形）">
-						<i data-lucide="arrow-left-right" class="w-4 h-4 deck-icon"></i>
+						<i data-lucide="arrow-left-right" class="w-4 h-4 text-green-600"></i>
 						<span id="deck-mode-btn-label">旧UIへ</span>
 					</button>
 
