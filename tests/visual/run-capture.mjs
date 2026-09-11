@@ -99,6 +99,64 @@ async function shot(page, name, opts = {}) {
 	await ctx.close();
 }
 
+/* ---- exam.html（UmaExam OCR） ----
+   special と同じ画面構成（タブ・FAB・引き出し・ガイドのダイアログ・告知）を PC 幅と 375px で撮る。
+   結果は OCR を回さず、合成した行を本物の照合関数に通して作る（run-smoke.mjs の seedExam と同じ）。 */
+for (const width of [1280, 375]) {
+	const ctx = await browser.newContext({ viewport: { width, height: 900 } });
+	await ctx.addInitScript(() => {
+		// 告知モーダルは別に撮るので、通常の状態は既読で開く
+		localStorage.setItem('uma-exam-ui-notice', '2026-09-exam-drawer-layout');
+	});
+	const page = await ctx.newPage();
+	await page.goto(base + '/exam.html', { waitUntil: 'networkidle', timeout: 60000 });
+	await page.waitForTimeout(1500);
+	const n = (s) => `exam-${s}-${width}`;
+	await shot(page, n('01-top'));
+	await page.click('#step-tab-2');
+	await shot(page, n('02-tab2'));
+	await page.evaluate(() => {
+		selectStepTab(1);
+		const mk = (names, offset) => matchAllSkillsWithStars(
+			names.map((name, i) => ({ text: name, stars: ((i + offset) % 3) + 1, starsReliable: i !== 4, rowKey: 'r' + i })),
+			skillList, skillIndex, {});
+		personResults = PERSON_LABELS.map(() => null);
+		personResults[0] = mk(skillList, 0);
+		personResults[0].skillStars[skillList[4]] = null;
+		personResults[3] = mk(skillList.slice(0, 20), 1);
+		renderResults();
+		writeOcrHandoff();
+		markFabUnseen('result');
+		window.scrollTo(0, 0);
+	});
+	await page.waitForTimeout(2600); // トーストが消えるのを待つ
+	await page.click('#fab-toggle');
+	await shot(page, n('03-fab-open'), { fullPage: false, wait: 500 });
+	await page.click('#fab-item-result');
+	await shot(page, n('04-result-drawer'), { fullPage: false, wait: 900 });
+	await page.evaluate(() => { const b = document.querySelector('#result-drawer .uma-drawer-body'); b.scrollTop = b.scrollHeight; });
+	await shot(page, n('05-result-drawer-bottom'), { fullPage: false, wait: 500 });
+	await page.evaluate(() => { document.querySelector('#result-drawer .uma-drawer-body').scrollTop = 0; openDrawer('stitch'); });
+	await shot(page, n('06-stitch-empty'), { fullPage: false, wait: 700 });
+	await page.evaluate(() => openDrawer('deck'));
+	await shot(page, n('07-deck-drawer'), { fullPage: false, wait: 1500 });
+	await page.evaluate(() => closeDrawer());
+	await page.waitForTimeout(600);
+	if (await page.evaluate(() => typeof openHelp === 'function')) {
+		await page.evaluate(() => openHelp());
+		await shot(page, n('08-help'), { fullPage: false, wait: 400 });
+		await page.evaluate(() => closeHelp());
+	}
+	if (await page.evaluate(() => typeof openUiNotice === 'function')) {
+		await page.evaluate(() => openUiNotice());
+		await shot(page, n('09-notice'), { fullPage: false, wait: 400 });
+		await page.evaluate(() => closeUiNotice());
+		await page.click('#deck-mode-btn');
+		await shot(page, n('10-old-ui'), { wait: 800 });
+	}
+	await ctx.close();
+}
+
 /* ---- 変更前と並べた比較画像 ---- */
 if (WANT_COMPARE) {
 	const beforeDir = path.join(REPO_ROOT, 'output', 'visual', 'shots-before');

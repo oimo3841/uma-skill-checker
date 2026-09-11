@@ -6,7 +6,7 @@
 ## 使い方
 
 ```
-npm run test:visual          # 機能スモークテスト（224項目。special 97・deck 96・exam 24・その他 7）
+npm run test:visual          # 機能スモークテスト（項目数は実行時に表示。special・deck・exam・その他）
 npm run test:verify          # 納品前チェック（版数・セレクタ資産・構文）
 npm run test:master          # マスターデータ・8軸タグの検証（件数・フィルター・タグのコピー）
 npm run test:visual:capture -- before            # 変更前のスクリーンショット
@@ -81,9 +81,8 @@ npm run test:visual:capture -- after --compare   # 変更後＋前後比較画�
    3ファイルで**版は1つ**。それぞれの `:root` の印（`--common-css-version` / `--uma-components-css-version` /
    `--uma-shell-css-version`）が同じ文字列で、各HTMLが読む分の `?v=` と `EXPECTED_COMMON_CSS_VERSION` も揃っているか。
    どのページがどのファイルを読むかは `CSS_LINKS` に書いてある（読まないはずのファイルを読んでいないかも見る）。
-   special.html の**引き出しパネルの iframe `uma-skill-deck.html?v=`** と exam.html の
-   **「UmaSkill Deck を開く」のURL `uma-skill-deck.html?v=`** も含む（deck.js の版に合わせる決まりだが、
-   <script src> と違って目に付きにくく、実際に取り残されたことがある）
+   special.html と exam.html の**引き出しパネルの iframe `uma-skill-deck.html?v=`** も含む
+   （deck.js の版に合わせる決まりだが、<script src> と違って目に付きにくく、実際に取り残されたことがある）
 2. 変更してはいけないファイル（`index.html` / `js/common.js` / `js/stitch.js`）が未変更か
    （`exam.html` は第2段階の着手で対象から外し、3〜5 の検査対象へ移した）
 3. `id` と `data-*` が1つも失われていないか（HEAD と比較。`special.html` / `exam.html` / `uma-skill-deck.html` / 共有JS 2本）

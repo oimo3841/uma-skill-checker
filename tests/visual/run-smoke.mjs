@@ -624,35 +624,96 @@ const browser = await chromium.launch();
 		return wrap.querySelector('#deck-handoff-note').compareDocumentPosition(wrap.querySelector('#stat-grid')) & Node.DOCUMENT_POSITION_FOLLOWING;
 	}), 'exam: 案内は結果カードの中でサマリーより前にある');
 
-	// 「UmaSkill Deck を開く」は別タブ。固定名なので2回押しても同じタブを使う
-	const [deckPage] = await Promise.all([ctx.waitForEvent('page'), page.click('#deck-handoff-btn')]);
-	await deckPage.waitForLoadState('networkidle');
-	assert(deckPage.url().includes('/uma-skill-deck.html?v='), 'exam: 「UmaSkill Deck を開く」で別タブに Deck が開く', deckPage.url());
-	const tabsBefore = ctx.pages().length;
+	/* --- 引き出しと右下の FAB（special と同じ骨格。css/shell.css） ---
+	   合成結果は renderResults() を直接呼んで作っているので、引き出しはまだ開いていない。
+	   （実際の判定では processImages() の末尾で照合結果の引き出しが自動で開く。
+	     「OCR＋結合」のときは結合が終わった時点で結果画像の方が開く。この2つは実機で確認する） */
+	assert(await page.evaluate(() => document.getElementById('result-empty').hidden),
+		'exam: 結果があるので「まだありません」の案内は消える');
+	assert(!(await page.isVisible('#result-drawer')), 'exam: 合成しただけでは引き出しは開いていない');
+	assert(await page.isVisible('#fab-toggle'), 'exam: 右下ナビのメインボタンが出る');
+	assert(await page.isVisible('#fab-dot-deck') && !(await page.isVisible('#fab-dot-result')),
+		'exam: 渡し終わった直後は Deck の項目に新着バッジが立ち、照合結果には（見に行く前でも）立てない');
+	assert(await page.evaluate(() => getComputedStyle(document.getElementById('deck-drawer-trigger')).pointerEvents) === 'none',
+		'exam: 畳んだ状態ではサブボタンが押せない');
+	// 畳んだナビの外枠（透明な箱）が、その下にある要素のクリックを吸わないこと（F-30）
+	const fabBlocks = await page.evaluate(() => {
+		const nav = document.getElementById('fab-nav');
+		const r = nav.getBoundingClientRect();
+		const hit = document.elementFromPoint(r.left + 4, r.top + 4);
+		return { navPointer: getComputedStyle(nav).pointerEvents, hitIsNav: hit === nav };
+	});
+	assert(fabBlocks.navPointer === 'none' && !fabBlocks.hitIsNav, 'exam: 畳んだナビの外枠が下の要素のクリックを吸わない', fabBlocks);
+	// ①の <details> の見出しと ②のアップロード欄が、畳んだナビに隠れて押せなくなっていないこと
+	const hitTargets = await page.evaluate(() => {
+		const out = [];
+		const probe = (sel) => {
+			const el = document.querySelector(sel);
+			el.scrollIntoView({ block: 'center' });
+			const r = el.getBoundingClientRect();
+			const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+			out.push({ sel, ok: el === hit || el.contains(hit) });
+		};
+		probe('#step-panel-1 details:nth-of-type(3) summary');
+		selectStepTab(2);
+		probe('#personset-A-wrap .person-drop-zone');
+		selectStepTab(1);
+		window.scrollTo(0, 0);
+		return out;
+	});
+	assert(hitTargets.every((h) => h.ok), 'exam: ①の見出しと②のアップロード欄のクリックがナビに吸われない', hitTargets);
+
+	// 照合結果の引き出し。案内が先頭（サマリーより前）にある
+	await page.click('#fab-toggle');
+	await page.waitForTimeout(400);
+	assert(await page.evaluate(() => document.getElementById('fab-nav').classList.contains('open')), 'exam: 右下ナビが開く');
+	await page.click('#fab-item-result');
+	await page.waitForTimeout(900);
+	assert(await page.isVisible('#result-drawer') && await page.isVisible('#result-tbody'), 'exam: 照合結果の引き出しが開き、中に結果表が見える');
+	assert(await page.evaluate(() => document.body.style.overflow) === 'hidden', 'exam: 引き出しを開くと本文のスクロールが止まる');
+	assert(!(await page.isVisible('#fab-nav')), 'exam: 引き出しを開くとFABは隠れる');
+	assert(await page.evaluate(() => {
+		const wrap = document.getElementById('result-wrap');
+		return wrap.querySelector('#deck-handoff-note').compareDocumentPosition(wrap.querySelector('#stat-grid')) & Node.DOCUMENT_POSITION_FOLLOWING;
+	}), 'exam: 案内は結果の中でサマリーより前にある');
+	assert(await page.isVisible('#exam-highlight') && await page.isVisible('#copy-btn-label'), 'exam: 緑スキルハイライトと「まとめてコピー」が引き出しの中にある');
+	// 取り込み案内の色は Deck の色（.deck-accent → --uma-deck-accent-soft）。ページの藍ではない
+	const noteColor = await page.evaluate(() => ({
+		box: getComputedStyle(document.getElementById('deck-handoff-box')).backgroundColor,
+		btn: getComputedStyle(document.getElementById('deck-handoff-btn')).backgroundColor,
+		deckSoft: getComputedStyle(document.documentElement).getPropertyValue('--uma-deck-accent-soft').trim()
+	}));
+	assert(noteColor.deckSoft === '#e7e5e4' && noteColor.box === 'rgb(231, 229, 228)' && noteColor.btn === 'rgb(68, 64, 59)',
+		'exam: 取り込み案内は Deck の色（暖灰）で描かれる', noteColor);
+
+	// 「UmaSkill Deck を開いて取り込む」→ Deck の引き出し（iframe）が開く。開いた時点で新着の印は下りる
 	await page.click('#deck-handoff-btn');
-	await page.waitForTimeout(800);
-	assert(ctx.pages().length === tabsBefore, 'exam: もう一度押しても同じタブを再利用する', { before: tabsBefore, after: ctx.pages().length });
+	await page.waitForTimeout(1500);
+	assert(await page.isVisible('#deck-drawer'), 'exam: 案内のボタンで Deck の引き出しが開く');
+	assert(!(await page.evaluate(() => document.getElementById('result-drawer').classList.contains('open'))),
+		'exam: 乗り換えると照合結果の引き出しは畳まれる');
 	n = await noteState();
 	assert(!n.dot && n.title.includes('取り込めます'), 'exam: 一度開きに行ったら新着の印は消える（案内は未取り込みのまま）', n);
+	assert(await page.evaluate(() => !fabUnseen.deck), 'exam: Deck を開くとバッジが下りる');
 
-	// Deck 側: 「UmaExam OCR」のバナー → 133件すべて解決 → 取り込み → 比較シートに★
-	await deckPage.waitForLoadState('networkidle');
-	await deckPage.waitForTimeout(800);
+	// Deck 側（iframe）: 「UmaExam OCR」のバナー → 133件すべて解決 → 取り込み → 比較シートに★
 	const deckErrors = [];
-	deckPage.on('pageerror', (e) => deckErrors.push(String(e)));
-	deckPage.on('console', (m) => { if (m.type() === 'error') deckErrors.push(m.text()); });
-	await deckPage.locator('#ocr-handoff-banner').waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
-	assert(await deckPage.evaluate(() => document.querySelector('#ocr-handoff-banner [data-ocr-el="title"]').textContent) === 'UmaExam OCRの判定結果があります',
+	page.on('console', (m) => { if (m.type() === 'error') deckErrors.push(m.text()); });
+	const deckFrame = page.frameLocator('#deck-drawer-frame');
+	await deckFrame.locator('#ocr-handoff-banner').waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
+	const frame = page.frames().find((f) => f.url().includes('uma-skill-deck.html'));
+	assert(!!frame, 'exam: 引き出しの iframe が uma-skill-deck.html を読んでいる', page.frames().map((f) => f.url()));
+	assert(await frame.evaluate(() => document.querySelector('#ocr-handoff-banner [data-ocr-el="title"]').textContent) === 'UmaExam OCRの判定結果があります',
 		'exam: Deck 側に「UmaExam OCR」のバナーが出る');
-	const resolved = await deckPage.evaluate(() => {
+	const resolved = await frame.evaluate(() => {
 		const r = resolveHandoffSkills(pendingOcrHandoff().payload);
 		return { resolved: r.resolved.length, unresolved: r.unresolved, ids: new Set(r.resolved.map((x) => x.id)).size };
 	});
 	assert(resolved.resolved === 133 && resolved.ids === 133 && resolved.unresolved.length === 0,
 		'exam: exam の表記（〇・半角括弧）のまま133件すべてが Deck 側で別々の ID に解決する', resolved);
-	await deckPage.click('[data-ocr-act="import"]');
-	await deckPage.waitForTimeout(600);
-	const dlg = await deckPage.evaluate(() => ({
+	await deckFrame.locator('[data-ocr-act="import"]').click();
+	await page.waitForTimeout(600);
+	const dlg = await frame.evaluate(() => ({
 		title: document.querySelector('[data-ocr-el="dialog-title"]').textContent,
 		lead: document.querySelector('.usd-modal-panel .text-xs.text-slate-500').textContent,
 		record: document.querySelector('[data-ocr-el="record-select"]').value,
@@ -663,9 +724,9 @@ const browser = await chromium.launch();
 		'exam: 取り込みダイアログは「UmaExam OCR」・133件・未解決の警告なし', dlg);
 	assert(dlg.record === '__new__' && dlg.name === '技能試験 候補比較',
 		'exam: 取り込み先の既定は新しい比較シート「技能試験 候補比較」', dlg);
-	await deckPage.click('[data-ocr-act="apply"]');
-	await deckPage.waitForTimeout(1000);
-	const rec = await deckPage.evaluate(() => {
+	await deckFrame.locator('[data-ocr-act="apply"]').click();
+	await page.waitForTimeout(1200);
+	const rec = await frame.evaluate(() => {
 		const r = Core.getUserData().records.find((x) => x.name === '技能試験 候補比較');
 		if (!r) return null;
 		const byLabel = {};
@@ -686,10 +747,9 @@ const browser = await chromium.launch();
 		'exam: 比較シートに★が入る（★不明は0・表記ゆれの名前も正しい ID に入る）', rec);
 	const ex = await readExam();
 	assert(ex && ex.imported === true, 'exam: imported が :exam キーへ書き戻る');
-	await page.waitForTimeout(400);
 	n = await noteState();
 	assert(n.title.includes('取り込み済み') && n.btn === 'UmaSkill Deckを開く' && !n.dot,
-		'exam: storage イベントで案内が「取り込み済み」に変わる', n);
+		'exam: iframe からの storage イベントで案内が「取り込み済み」に変わる', n);
 	assert(deckErrors.length === 0, 'exam: Deck 側にコンソールエラーなし', deckErrors.slice(0, 3));
 
 	// 除外／追加がある人は scope の名前が「技能試験（調整あり）」。マスターに無い追加名は
@@ -703,18 +763,71 @@ const browser = await chromium.launch();
 	n = await noteState();
 	assert(n.title.includes('取り込めます') && n.detail.includes('（対象：技能試験（調整あり））') && n.dot,
 		'exam: 案内も「取り込めます」に戻り、対象名に（調整あり）が付く', n);
-	await deckPage.waitForTimeout(500);
-	await deckPage.click('[data-ocr-act="import"]');
-	await deckPage.waitForTimeout(600);
-	const warn = await deckPage.evaluate(() => {
+	assert(await page.evaluate(() => fabUnseen.deck), 'exam: 判定し直すと Deck のバッジがまた点く');
+	await deckFrame.locator('#ocr-handoff-banner').waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
+	await deckFrame.locator('[data-ocr-act="import"]').click();
+	await page.waitForTimeout(600);
+	const warn = await frame.evaluate(() => {
 		const el = document.querySelector('.usd-modal-panel .ocr-warn');
 		return el ? el.textContent : null;
 	});
 	assert(warn && warn.includes('マスターに無いスキル') && warn.includes('取り込みません'),
 		'exam: マスターに無い追加名は取り込みダイアログで利用者に見える', warn);
-	await deckPage.click('[data-ocr-act="close"]');
+	await deckFrame.locator('[data-ocr-act="close"]').click();
 	await page.evaluate(() => { customAddedSkills = []; refreshAfterCustomSkillsChange(); });
-	await deckPage.close();
+
+	// Esc は開いているものを1つ閉じる（引き出し → FAB の順）。
+	// 直前まで iframe の中を操作していたので、キーは親の文書に戻してから送る
+	// （iframe の中で押した Esc は親には届かない。special の Deck 引き出しも同じ）。
+	await page.focus('#deck-drawer-close');
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(600);
+	assert(!(await page.isVisible('#deck-drawer')), 'exam: Esc で引き出しが閉じる');
+	assert(await page.evaluate(() => document.body.style.overflow) === '', 'exam: 引き出しを閉じると本文のスクロールが戻る');
+	assert(await page.isVisible('#fab-nav'), 'exam: 引き出しを閉じるとFABが戻る');
+
+	// 結果画像の引き出し。結果が無いときは案内を出し、「入力画面に戻る」で②のタブへ連れて行く
+	await page.evaluate(() => openDrawer('stitch'));
+	await page.waitForTimeout(700);
+	assert(await page.isVisible('#stitch-drawer') && await page.isVisible('#stitch-empty'), 'exam: 結果画像の引き出しは、結果が無いときは案内を出す');
+	assert((await page.textContent('#stitch-drawer .uma-drawer-header p')).trim() === '結果画像', 'exam: 引き出しの見出しは「結果画像」');
+	await page.click('#stitch-empty button');
+	await page.waitForTimeout(700);
+	assert(!(await page.isVisible('#stitch-drawer')), 'exam: 案内から入力画面に戻れる');
+	assert(await page.evaluate(() => document.getElementById('step-tab-2').getAttribute('aria-selected') === 'true'),
+		'exam: 「入力画面に戻る」は②のタブを開く（実行ボタンはそこにある）');
+	// 結合結果ができたときの切り替わり（runImageStitching と同じ経路）
+	await page.evaluate(() => {
+		document.getElementById('stitch-result-content').innerHTML = '<p id="stitch-dummy">結果画像</p>';
+		setSectionReady('stitch', true);
+		markFabUnseen('stitch');
+	});
+	await page.waitForTimeout(300);
+	assert(await page.isVisible('#fab-dot-stitch'), 'exam: 結果画像ができると新着バッジが立つ');
+	await page.click('#fab-toggle');
+	await page.waitForTimeout(300);
+	await page.click('#fab-item-stitch');
+	await page.waitForTimeout(700);
+	assert(await page.isVisible('#stitch-dummy') && !(await page.isVisible('#stitch-empty')), 'exam: 結果画像ができると案内が消えて中身が出る');
+	assert(!(await page.isVisible('#fab-dot-stitch')), 'exam: 見に行くと新着バッジが消える');
+	await page.evaluate(() => { closeDrawer(); document.getElementById('stitch-result-content').innerHTML = ''; setSectionReady('stitch', false); });
+	await page.waitForTimeout(600);
+
+	// 本文の下端余白がFAB展開時の高さを吸収できているか
+	await page.evaluate(() => { selectStepTab(2); window.scrollTo(0, document.body.scrollHeight); });
+	await page.waitForTimeout(400);
+	await page.click('#fab-toggle');
+	await page.waitForTimeout(400);
+	const bottomFit = await page.evaluate(() => {
+		const nav = document.getElementById('fab-nav').getBoundingClientRect();
+		const cards = [...document.querySelectorAll('.glass-card')];
+		return { navTop: Math.round(nav.top), lastBottom: Math.round(cards[cards.length - 1].getBoundingClientRect().bottom) };
+	});
+	assert(bottomFit.lastBottom <= bottomFit.navTop, 'exam: 最下部で本文がFABに被らない', bottomFit);
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
+	assert(!(await page.evaluate(() => document.getElementById('fab-nav').classList.contains('open'))), 'exam: Esc でFABが畳まれる');
+	await page.evaluate(() => { selectStepTab(1); window.scrollTo(0, 0); });
 
 	// 375px で横スクロールが出ていないこと（結果カードと案内が出ている状態で）
 	await page.setViewportSize({ width: 375, height: 812 });
