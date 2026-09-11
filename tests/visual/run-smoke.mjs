@@ -1489,19 +1489,20 @@ const browser = await chromium.launch();
  * 失敗時の案内（版ずれ・CDN遮断）が実際に出るか
  * ============================================================ */
 {
-	// 1) common.css の版がずれている場合
+	// 1) 共通CSSの版がずれている場合（3ファイルのうち shell.css だけが古い、という取り残しも捕まえる）
 	const ctx = await browser.newContext();
 	const page = await ctx.newPage();
 	const warns = [];
 	page.on('console', (m) => { if (m.type() === 'warning') warns.push(m.text()); });
-	const css = await (await fetch(base + '/css/common.css')).text();
-	await page.route('**/css/common.css*', (r) => r.fulfill({
+	const css = await (await fetch(base + '/css/shell.css')).text();
+	await page.route('**/css/shell.css*', (r) => r.fulfill({
 		contentType: 'text/css; charset=utf-8',
-		body: css.replace(/--common-css-version:\s*"[^"]+"/, '--common-css-version: "0000-00-00z"'),
+		body: css.replace(/--uma-shell-css-version:\s*"[^"]+"/, '--uma-shell-css-version: "0000-00-00z"'),
 	}));
 	await page.goto(base + '/special.html', { waitUntil: 'networkidle' });
 	await page.waitForTimeout(1800);
-	assert(warns.some((w) => w.includes('common.css が古い版です')), '版ずれを検出して警告が出る');
+	assert(warns.some((w) => w.includes('shell.css が古い版です')), '版ずれを検出して警告が出る（shell.css だけ古い）');
+	assert(!warns.some((w) => w.includes('tokens.css が古い版です')), '版が合っている tokens.css は警告に含めない');
 	await ctx.close();
 }
 {

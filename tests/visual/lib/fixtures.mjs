@@ -19,9 +19,9 @@ export const PICK = master.skills.slice(0, 12).map((s) => ({ id: s.id, name: s.n
 export const TEMPLATE_ID = 'tpl_demo01';
 export const RECORD_ID = 'rec_demo01';
 
-/** css/common.css が名乗っている版数（テスト側に版数を直書きしないため） */
+/** 共通CSSが名乗っている版数（tokens.css / common.css / shell.css で1つ。テスト側に版数を直書きしないため） */
 export const COMMON_CSS_VERSION =
-	/--common-css-version:\s*"([^"]+)"/.exec(fs.readFileSync(path.join(REPO_ROOT, 'css/common.css'), 'utf8'))[1];
+	/--common-css-version:\s*"([^"]+)"/.exec(fs.readFileSync(path.join(REPO_ROOT, 'css/tokens.css'), 'utf8'))[1];
 
 function buildCells() {
 	const cells = {};

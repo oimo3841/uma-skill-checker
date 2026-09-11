@@ -24,15 +24,19 @@
 
 | 知りたいこと | 見る場所 |
 |---|---|
-| 使ってよい色・余白・文字サイズ・角丸・影 | [`css/common.css`](../css/common.css) の `:root`。値の隣に用途をコメントしてある |
-| 共通部品の見た目と状態（hover / focus / disabled / selected） | [`css/styleguide.html`](../css/styleguide.html) をブラウザで開く。`common.css` だけを読み込む確認専用ファイル |
+| 使ってよい色・余白・文字サイズ・角丸・影 | [`css/tokens.css`](../css/tokens.css) の `:root`。値の隣に用途をコメントしてある |
+| 共通部品（ボタン・入力欄・バッジ・カード） | [`css/common.css`](../css/common.css) |
+| 画面の骨格（ステップのタブ・FAB・引き出し・ダイアログ） | [`css/shell.css`](../css/shell.css)。special.html と exam.html が読む |
+| 共通部品の見た目と状態（hover / focus / disabled / selected） | [`css/styleguide.html`](../css/styleguide.html) をブラウザで開く。`tokens.css` と `common.css` だけを読み込む確認専用ファイル |
 | ツールごとの差別化（アクセント色） | 各HTMLの `<style>` にある `:root` の6変数 |
 | 壊していないかの確認方法 | [`tests/visual/README.md`](../../tests/visual/README.md) |
 
 ## 運用
 
 - **記録は書き換えない。** 状況が変わったら新しい文書を足し、この索引の「時点」で新旧を示す。
-- **基準（`common.css` / `styleguide.html`）は更新する。** 版数 `--common-css-version` を上げ、
-  各HTMLの `?v=` と `EXPECTED_COMMON_CSS_VERSION` も揃える（`npm run test:verify` が3点一致を確認する）。
+- **基準（`tokens.css` / `common.css` / `shell.css` / `styleguide.html`）は更新する。** 版は3ファイルで1つ。
+  `tokens.css` の `--common-css-version`・`common.css` の `--uma-components-css-version`・`shell.css` の
+  `--uma-shell-css-version` を同じ文字列に上げ、各HTMLの `?v=`（読む分すべて）と `EXPECTED_COMMON_CSS_VERSION` も
+  揃える（`npm run test:verify` が一致を確認する）。
 - **課題は消化したら更新する。** 提案文書を「やり残しの唯一の置き場」にしておくと、
   別セッションで再開したときに何が残っているかが分かる。

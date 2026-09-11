@@ -7,11 +7,16 @@
 	     ノッチ端末のホームバーにFABが潜り込む。 -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 	<title>UmaStar OCR（β版）</title>
-	<!-- 共通スタイル（デザイントークン・共通部品）。Tailwindより先に読み込む。
+	<!-- 共通スタイル（3ファイル・版は1つ）。Tailwindより先に読み込む。
+	       tokens.css … デザイントークン（変数だけ）
+	       common.css … 共通部品（ボタン・入力欄・バッジ・カード）
+	       shell.css  … 画面の骨格（タブ・FAB・引き出し・ダイアログ）
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
-	     common.css の方が強い。読み込み順は common.css → Tailwind → 下の<style>で、
+	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/common.css?v=2026-09-10g" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-11a" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-11a" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-11a" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -26,7 +31,8 @@
 	<style>
 		/* このツールのアクセント。UmaStar OCR は「読み取って登録する」画面なので緑。
 		   共通部品（ボタン・入力欄・フォーカス輪郭）はこの変数を見て色が決まる。
-		   値は Tailwind v4.1.11 のパレット実測値。 */
+		   値は Tailwind v4.1.11 のパレット実測値。
+		   FAB の寸法は css/shell.css の :root が持つ。影だけはツールの色に合わせてここで上書きする。 */
 		:root {
 			--uma-accent: #00a63e;            /* green-600 */
 			--uma-accent-hover: #008236;      /* green-700 */
@@ -34,30 +40,7 @@
 			--uma-accent-soft-text: #016630;  /* green-800 */
 			--uma-accent-border: #b9f8cf;     /* green-200 */
 			--uma-accent-ring: #008236;       /* green-700 */
-
-			/* ===== 右下固定ナビ（FAB）の寸法 =====
-			   トーストの退避位置・本文の下端余白もこの変数から計算するので、
-			   サイズを変えるときはここだけ触ればよい（3か所が自動で追従する）。 */
-			--uma-fab-edge: var(--uma-sp-4);   /* 画面端からの距離 */
-			--uma-fab-size: 56px;              /* メインボタンの直径 */
-			--uma-fab-gap: var(--uma-sp-3);    /* ボタン間の間隔 */
-			--uma-fab-icon: 36px;              /* サブボタンのアイコン丸の直径 */
-			--uma-fab-font: var(--uma-fs-sm);  /* サブボタンのラベル */
-			--uma-fab-reserve: 18rem;          /* 本文の下端に空ける余白（展開時の高さ+余白） */
-		}
-
-		/* PCではスマホ用の寸法だと小さく見えるので、一回り大きくする。
-		   位置も画面の右端ではなく本文カラム（max-w-5xl = 1024px）の右端に合わせ、
-		   本文と関係のない隅に浮いて見えないようにする。構造は共通のまま。 */
-		@media (min-width: 768px) {
-			:root {
-				--uma-fab-edge: var(--uma-sp-6);
-				--uma-fab-size: 64px;
-				--uma-fab-gap: var(--uma-sp-3-5);
-				--uma-fab-icon: 40px;
-				--uma-fab-font: var(--uma-fs-md);
-				--uma-fab-reserve: 20rem;
-			}
+			--uma-fab-shadow: 0 10px 20px -6px rgba(1, 102, 48, .45);  /* メインFABの影（緑系） */
 		}
 		body {
 			background-color: #f4faf0;
@@ -119,335 +102,9 @@
 		}
 		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
 
-		/* ===== UmaSkill Deck 引き出しパネル =====
-		   注意: 背景の暗転に opacity は使わない。opacity<1 は新しいスタッキング
-		   コンテキストを生成し、他要素の z-index 制御を壊す（F-7の実績）。
-		   半透明の背景色を持つ不透明な要素として実装する。 */
-		/* UmaSkill Deck へ向かう/書き込むボタンは、共通部品のまま
-		   アクセント変数だけをその場で Deck 側の藍に差し替える。
-		   部品の形は共通、色だけが行き先を示す。 */
-		/* ============================================================
-		 * ステップ1・2のタブ
-		 *
-		 * 以前は「①スキルリスト」「②画像アップロード」を別々のカードで縦に並べていた。
-		 * ①は一度用意したら触らないのに、②へ行くたびに①の全高をスクロールして
-		 * 通り過ぎる必要があった。1枚のカードに重ねてタブで切り替える。
-		 * 隠れている側の状況は、タブに出す件数バッジ（スキル件数／画像枚数）で分かる。
-		 * ============================================================ */
-		.step-tabs {
-			display: flex; gap: var(--uma-sp-2);
-			margin-bottom: var(--uma-sp-4);
-			border-bottom: 1px solid var(--uma-border);
-		}
-		.step-tab {
-			/* 1 1 0 で2枚を等分し、min-width:0 とラベル側の省略で、狭い画面でも枠から溢れさせない */
-			flex: 1 1 0; min-width: 0;
-			display: flex; align-items: center; gap: var(--uma-sp-2);
-			padding: var(--uma-sp-2) var(--uma-sp-2-5);
-			margin-bottom: -1px;                 /* 下線をカードの区切り線に重ねる */
-			background: none; border: 0; border-bottom: 2px solid transparent;
-			font: inherit; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600;
-			color: var(--uma-text-subtle); text-align: left; cursor: pointer;
-			transition: color var(--uma-transition), border-color var(--uma-transition);
-		}
-		.step-tab:hover { color: var(--uma-text-heading); }
-		.step-tab:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
-		.step-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-accent); }
-		.step-tab-num {
-			flex: none; width: 24px; height: 24px; border-radius: var(--uma-r-full);
-			display: flex; align-items: center; justify-content: center;
-			font-size: var(--uma-fs-xs); font-weight: 700;
-			background: var(--uma-surface-muted); color: var(--uma-text-subtle);
-			transition: background-color var(--uma-transition), color var(--uma-transition);
-		}
-		.step-tab[aria-selected="true"] .step-tab-num { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }
-		.step-tab-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-		.step-tab-badge {
-			flex: none; margin-left: auto;
-			font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 700;
-			padding: var(--uma-sp-0-5) var(--uma-sp-1-5); border-radius: var(--uma-r-full);
-			background: var(--uma-surface-muted); color: var(--uma-text-subtle);
-		}
-		.step-tab-badge[hidden] { display: none !important; }
-		.step-panel[hidden] { display: none !important; }
-		/* Tailwind の preflight が来なかった場合の保険（F-13と同じ理由で自前でも指定する） */
-		#ui-mode-badge[hidden] { display: none !important; }
-		@media (max-width: 640px) {
-			.step-tab { gap: var(--uma-sp-1-5); padding: var(--uma-sp-2) var(--uma-sp-1); font-size: var(--uma-fs-xs); }
-			.step-tab-num { width: 20px; height: 20px; }
-		}
-
-		/* Deck（藍）のアクセントを局所的に当てるスコープ。
-		   .btn-deck-accent はボタン用の古い名前で、中身は同じ。ボタン以外にも使うので
-		   .deck-accent を足してある（新UIの告知の吹き出し・ようこそ枠がこちらを使う）。 */
-		.btn-deck-accent, .deck-accent {
-			--uma-accent: #4f39f6;            /* indigo-600 */
-			--uma-accent-hover: #432dd7;      /* indigo-700 */
-			--uma-accent-soft: #eef2ff;       /* indigo-50  */
-			--uma-accent-soft-text: #432dd7;
-			--uma-accent-border: #c6d2ff;     /* indigo-200 */
-			--uma-accent-ring: #4f39f6;       /* indigo-600。これが無いとフォーカスの輪だけ
-			                                     ページの緑のまま残り、藍の中で浮く */
-		}
-
-		/* ===== 画面固定ナビ（右下・折りたたみFAB） =====
-		   画面右端に取っ手を常時出しておく方式をやめ、右下のメインボタン1つに畳んだ。
-		   行き先は「UmaSkill Deck（引き出し）」「画像結合レビュー」「OCRの照合結果」の3つで、
-		   メインボタンに近い順＝押す頻度の高い順に並べる。
-
-		   ・.uma-fab-nav が fixed のクラスタ本体。子は「サブ3つ → メインボタン」の順。
-		   ・展開状態は .open クラス1つで表す（JS側は setFabOpen() だけを触ればよい）。
-		   ・スマホの片手操作を基準に、右下 16px・タッチ領域 44px・間隔 12px を最低線にした。 */
-		.uma-fab-nav {
-			position: fixed;
-			right: var(--uma-fab-edge);
-			bottom: calc(var(--uma-fab-edge) + env(safe-area-inset-bottom, 0px));
-			z-index: 70;
-			display: flex; flex-direction: column; align-items: flex-end; gap: var(--uma-fab-gap);
-			/* 外枠そのものはクリックを受け取らない。畳んでいる間もこの箱は
-			   「見えないサブボタン3つ＋間隔＋メインボタン」ぶんの高さを持ち、右下に
-			   約170×250px の透明な板として居座る。何も指定しないと、その板の下にある
-			   テンプレート行の編集／複製／削除ボタンが、スクロール位置によって
-			   押せなくなる（実測で 900px幅は6箇所・375pxは8箇所がブロックされていた）。
-			   受け取るのはメインボタンと、展開中のサブボタンだけ。 */
-			pointer-events: none;
-		}
-		.uma-fab-nav > * { pointer-events: auto; }
-		/* 引き出しを開いている間は隠す。暗転の下に見えていると押せそうに見えるが、
-		   実際には暗転がクリックを受け取って閉じるだけで、紛らわしいため。
-		   display:flex を上で指定しているので [hidden] は !important で押す。 */
-		.uma-fab-nav[hidden] { display: none !important; }
-		/* PCでは本文カラムの右端に揃える。fixed 要素の % は
-		   ビューポート（スクロールバーを除いた幅）基準なので、
-		   100vw で計算するよりスクロールバーぶんのズレが出ない。
-		   本文が画面いっぱいまで広がる幅では max() 側の端マージンが効く。 */
-		@media (min-width: 768px) {
-			.uma-fab-nav { right: max(var(--uma-fab-edge), calc(50% - 512px)); }
-		}
-
-		/* サブボタン（ピル型）。閉じている間は pointer-events:none で完全に無効化する。
-		   display:none にしないのは、開閉のトランジションを効かせるため。 */
-		.uma-fab-item {
-			display: flex; align-items: center; gap: var(--uma-sp-2);
-			min-height: 44px;
-			padding: var(--uma-sp-1-5) var(--uma-sp-1-5) var(--uma-sp-1-5) var(--uma-sp-4);
-			border: 1px solid var(--uma-border); border-radius: var(--uma-r-full);
-			background: var(--uma-surface); color: var(--uma-text-heading);
-			font-size: var(--uma-fab-font); line-height: 1.4; font-weight: 700; white-space: nowrap;
-			box-shadow: var(--uma-shadow-2); cursor: pointer;
-			opacity: 0; transform: translateY(8px) scale(.96); pointer-events: none;
-			transition: opacity .18s ease, transform .18s ease, background-color var(--uma-transition);
-		}
-		/* 自前で指定する（F-13）。上の display:flex と同じ詳細度では、
-		   Tailwind preflight の [hidden]{display:none} が後ろに来ないため効かない。 */
-		.uma-fab-item[hidden] { display: none !important; }
-		.uma-fab-item:hover { background: var(--uma-surface-sunken); }
-		.uma-fab-nav.open .uma-fab-item { opacity: 1; transform: none; pointer-events: auto; }
-		/* 下（メインボタンに近い側）から順に現れる。nth-child(3) が最下段＝最初。 */
-		.uma-fab-nav.open .uma-fab-item:nth-child(1) { transition-delay: .06s; }
-		.uma-fab-nav.open .uma-fab-item:nth-child(2) { transition-delay: .03s; }
-		.uma-fab-nav.open .uma-fab-item:nth-child(3) { transition-delay: 0s; }
-
-		.uma-fab-icon {
-			position: relative; flex-shrink: 0;
-			width: var(--uma-fab-icon); height: var(--uma-fab-icon); border-radius: var(--uma-r-full);
-			display: flex; align-items: center; justify-content: center;
-		}
-
-		/* 新着バッジ。行き先に「まだ見ていない結果」があるときだけ出す。
-		   数を出さないドットにしているのは、結果が1件か複数かに意味がないため。 */
-		.uma-fab-dot {
-			position: absolute; top: -2px; right: -2px;
-			width: 12px; height: 12px; border-radius: var(--uma-r-full);
-			background: #f54900;                       /* orange-600 */
-			border: 2px solid var(--uma-surface);
-			animation: uma-fab-pulse 1.8s ease-out infinite;
-		}
-		.uma-fab-dot[hidden] { display: none !important; }
-		@keyframes uma-fab-pulse {
-			0%   { box-shadow: 0 0 0 0 rgba(245, 73, 0, .55); }
-			70%  { box-shadow: 0 0 0 8px rgba(245, 73, 0, 0); }
-			100% { box-shadow: 0 0 0 0 rgba(245, 73, 0, 0); }
-		}
-
-		/* メインボタン。このページのアクセント（緑）で塗る。
-		   開いている間は＋アイコンを135度回して×にする。 */
-		.uma-fab-toggle {
-			width: var(--uma-fab-size); height: var(--uma-fab-size); flex-shrink: 0;
-			border: none; border-radius: var(--uma-r-full);
-			background: var(--uma-accent); color: var(--uma-text-inverse);
-			display: flex; align-items: center; justify-content: center;
-			box-shadow: 0 10px 20px -6px rgba(1, 102, 48, .45), var(--uma-shadow-2);
-			cursor: pointer;
-			transition: background-color var(--uma-transition), transform var(--uma-transition);
-		}
-		.uma-fab-toggle:hover { background: var(--uma-accent-hover); }
-		.uma-fab-toggle:active { transform: scale(.95); }
-		/* lucide は <i data-lucide> を <svg> に差し替えるので、回転はsvgに掛ける。
-		   アイコンの大きさは Tailwind の w-4/w-6 ではなくボタン径から決める
-		   （PCで一回り大きくしたときに、アイコンだけ取り残されないようにするため）。
-		   Tailwindのユーティリティは @layer utilities に入るので、この指定の方が強い。 */
-		.uma-fab-toggle svg {
-			width: calc(var(--uma-fab-size) * .43); height: calc(var(--uma-fab-size) * .43);
-			transition: transform .25s ease;
-		}
-		.uma-fab-icon svg {
-			width: calc(var(--uma-fab-icon) * .45); height: calc(var(--uma-fab-icon) * .45);
-		}
-		.uma-fab-nav.open .uma-fab-toggle svg { transform: rotate(135deg); }
-
-		@media (prefers-reduced-motion: reduce) {
-			.uma-fab-item, .uma-fab-toggle, .uma-fab-toggle svg { transition: none !important; }
-			.uma-fab-nav.open .uma-fab-item { transition-delay: 0s !important; }
-			.uma-fab-dot { animation: none !important; }
-		}
-
-		/* ===== 引き出しパネル（スライドオーバー） =====
-		   FABの3つの行き先（照合結果 / 画像結合レビュー / UmaSkill Deck）が
-		   同じ骨格を共有する。同時に開くのは1つだけで、背景の暗転は1枚を使い回す。
-
-		   注意: 背景の暗転に opacity は使わない。opacity<1 は新しいスタッキング
-		   コンテキストを生成し、他要素の z-index 制御を壊す（F-7の実績）。
-		   半透明の背景色を持つ不透明な要素として実装する。 */
-		.uma-drawer-backdrop {
-			position: fixed; inset: 0; z-index: 90;
-			background: rgba(15, 23, 42, .45);
-			transition: background-color .3s ease;
-		}
-		.uma-drawer-backdrop[hidden] { display: none !important; }
-		.uma-drawer-backdrop.closing { background: rgba(15, 23, 42, 0); }
-
-		.uma-drawer {
-			position: fixed; top: 0; right: 0; z-index: 100;
-			width: min(92vw, 820px); height: 100%;
-			display: flex; flex-direction: column;
-			background: #f5f6fb; box-shadow: -8px 0 32px rgba(15, 23, 42, .25);
-			transform: translateX(100%);
-			transition: transform .3s cubic-bezier(0.16, 1, 0.3, 1);
-		}
-		/* 照合結果の表は人物ぶん列が増える（最大7列）ので、この引き出しだけ広く取る。 */
-		.uma-drawer--wide { width: min(96vw, 1100px); }
-		.uma-drawer[hidden] { display: none !important; }
-		.uma-drawer.open { transform: translateX(0); }
-		.uma-drawer-header {
-			flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
-			gap: var(--uma-sp-3); padding: var(--uma-sp-3) var(--uma-sp-4);
-			background: var(--uma-surface); border-bottom: 1px solid var(--uma-border);
-		}
-		/* 中身は引き出しの中でスクロールする（本文側は body ごとスクロールを止める）。
-		   iframe の引き出しだけは中の文書が自前でスクロールするので、外側は固定。 */
-		.uma-drawer-body { flex: 1; min-height: 0; overflow-y: auto; background: #f5f6fb; }
-		.uma-drawer-body--frame { overflow: hidden; }
-		.uma-drawer-body iframe { width: 100%; height: 100%; border: 0; display: block; }
-		.uma-drawer-content { padding: var(--uma-sp-4); }
-
-		/* 結果がまだ無いときの案内。行き止まりにせず、作るためのボタンへ戻す。 */
-		.uma-drawer-empty {
-			display: flex; flex-direction: column; align-items: center; justify-content: center;
-			gap: var(--uma-sp-3); text-align: center;
-			min-height: 60vh; padding: var(--uma-sp-6);
-			color: var(--uma-text-subtle);
-		}
-		.uma-drawer-empty[hidden] { display: none !important; }
-		.uma-drawer-empty svg { width: 40px; height: 40px; color: var(--uma-text-faint); }
-
-		@media (prefers-reduced-motion: reduce) {
-			.uma-drawer, .uma-drawer-backdrop { transition: none !important; }
-		}
-
-		/* ============================================================
-		 * 手前に重ねるダイアログの骨格（使い方ガイド・UI切り替えの告知で共有）
-		 * 引き出し（z 90/100）より手前、FAB（z 70）より手前。
-		 * 背景の暗さは引き出しの暗転と同じ値に揃える。
-		 * 中身の寸法は各ダイアログ側（.help-dialog / .notice-dialog）が持つ。
-		 * ============================================================ */
-		.uma-overlay-backdrop {
-			position: fixed; inset: 0; z-index: 110;
-			background: rgba(15, 23, 42, .45);
-		}
-		.uma-overlay-backdrop[hidden] { display: none !important; }
-		.uma-overlay {
-			position: fixed; z-index: 111;
-			left: 50%; top: 50%; transform: translate(-50%, -50%);
-			display: flex; flex-direction: column;
-			background: var(--uma-surface); border-radius: var(--uma-r-xl);
-			box-shadow: var(--uma-shadow-3);
-		}
-		/* display:flex を上で当てているので、hidden は自前で押す（F-13） */
-		.uma-overlay[hidden] { display: none !important; }
-
-		.help-dialog { width: min(92vw, 640px); max-height: min(88vh, 720px); }
-		.help-head {
-			flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
-			gap: var(--uma-sp-3); padding: var(--uma-sp-3) var(--uma-sp-3) var(--uma-sp-3) var(--uma-sp-5);
-			border-bottom: 1px solid var(--uma-border);
-		}
-		.help-title {
-			margin: 0; display: flex; align-items: center; gap: var(--uma-sp-2);
-			font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; color: var(--uma-text-heading);
-		}
-		.help-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--uma-sp-5); }
-		.help-foot {
-			flex-shrink: 0; display: flex; justify-content: flex-end;
-			padding: var(--uma-sp-3) var(--uma-sp-5); border-top: 1px solid var(--uma-border);
-		}
-		.help-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--uma-sp-4); }
-		.help-steps > li { display: flex; gap: var(--uma-sp-3); align-items: flex-start; }
-		.help-num {
-			flex: none; width: 24px; height: 24px; border-radius: var(--uma-r-full);
-			display: flex; align-items: center; justify-content: center;
-			font-size: var(--uma-fs-xs); font-weight: 700;
-			background: var(--uma-surface-inverse); color: var(--uma-text-inverse);
-		}
-		.help-step-title { margin: 0 0 var(--uma-sp-1); font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; color: var(--uma-text-heading); }
-		.help-step-text { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-md); color: var(--uma-text-muted); }
-		.help-step-text + .help-step-text { margin-top: var(--uma-sp-1); }
-		.help-step-text[hidden] { display: none !important; }
-		.help-tips {
-			margin-top: var(--uma-sp-5); padding: var(--uma-sp-3) var(--uma-sp-4);
-			border: 1px solid var(--uma-warn-border); border-radius: var(--uma-r-lg); background: var(--uma-warn-bg);
-		}
-		.help-tips-title { margin: 0 0 var(--uma-sp-1-5); display: flex; align-items: center; gap: var(--uma-sp-1-5); font-size: var(--uma-fs-sm); font-weight: 700; color: var(--uma-warn-text); }
-		.help-tips ul { margin: 0; padding-left: var(--uma-sp-4); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-md); color: var(--uma-warn-text); }
-		.help-tips li + li { margin-top: var(--uma-sp-1); }
-		/* ============================================================
-		 * UIの切り替えを知らせるモーダル
-		 * 既定を新UIにしたことは利用者が頼んだ変化ではないので、画面の中の案内枠ではなく
-		 * 一度だけ手前に出して確実に伝える。以後は右上のバッジから読み直せる。
-		 * ============================================================ */
-		.notice-dialog { width: min(92vw, 420px); max-height: min(88vh, 640px); }
-		.notice-body { padding: var(--uma-sp-6) var(--uma-sp-5) var(--uma-sp-4); text-align: center; overflow-y: auto; }
-		.notice-icon {
-			width: 48px; height: 48px; margin: 0 auto var(--uma-sp-3);
-			display: flex; align-items: center; justify-content: center;
-			border-radius: var(--uma-r-full);
-			background: var(--uma-accent-soft); color: var(--uma-accent);
-		}
-		.notice-title {
-			margin: 0 0 var(--uma-sp-2-5);
-			font-size: var(--uma-fs-lg); line-height: var(--uma-lh-lg); font-weight: 700; color: var(--uma-text-heading);
-		}
-		.notice-text { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-md); color: var(--uma-text-muted); }
-		.notice-text + .notice-text { margin-top: var(--uma-sp-3); }
-		.notice-foot {
-			flex-shrink: 0; padding: 0 var(--uma-sp-5) var(--uma-sp-5);
-		}
-		/* ✕はカードの右上に浮かせる（見出しを中央に置きたいので、頭に行を作らない） */
-		.notice-close { position: absolute; top: var(--uma-sp-2); right: var(--uma-sp-2); }
-
-		/* 右上の「新UI」バッジ。押すと告知を読み直せる。 */
-		.ui-mode-badge { cursor: pointer; transition: background-color var(--uma-transition); }
-		.ui-mode-badge:hover { background: var(--uma-accent-border); }
-		.ui-mode-badge:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: 2px; }
-
-		@media (max-width: 640px) {
-			/* 狭い画面では下から出るシートにする（片手で ✕ に届く位置に「閉じる」を置くため） */
-			.uma-overlay { left: 0; top: auto; bottom: 0; transform: none; width: 100%; border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; }
-			.help-dialog, .notice-dialog { max-height: 90vh; }
-			.help-body { padding: var(--uma-sp-4); }
-			.notice-body { padding: var(--uma-sp-5) var(--uma-sp-4) var(--uma-sp-3); }
-			.notice-foot { padding: 0 var(--uma-sp-4) var(--uma-sp-4); }
-		}
+		/* ステップのタブ・FAB・引き出し・ダイアログ（ガイド／告知）・「新UI」バッジの骨格は
+		   css/shell.css へ移した（exam.html と共有するため）。Deck（藍）のスコープ
+		   .btn-deck-accent / .deck-accent は css/tokens.css にある。 */
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-green-600 selection:text-white">
@@ -870,26 +527,40 @@
 		let setBVisible = false;
 
 		/* ============================================================
-		 * css/common.css の版の照合
+		 * 共通CSS（css/tokens.css / common.css / shell.css）の版の照合
 		 *
 		 * 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
 		 * 「直したはずなのに直っていない」状態になる（js側で実績がある）。
-		 * common.css の :root に埋めた版数を読み、期待値と食い違えば警告する。
+		 * 3ファイルはそれぞれ :root に同じ版数の印を持つ。このページが読む3つを
+		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-10g';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-11a';
+		// このページが読む共通CSSと、それぞれの版の印
+		const COMMON_CSS_FILES = [
+			['css/tokens.css', '--common-css-version'],
+			['css/common.css', '--uma-components-css-version'],
+			['css/shell.css', '--uma-shell-css-version'],
+		];
 
-		function loadedCommonCssVersion() {
-			const raw = getComputedStyle(document.documentElement).getPropertyValue('--common-css-version');
+		function loadedCssVersion(prop) {
+			const raw = getComputedStyle(document.documentElement).getPropertyValue(prop);
 			return (raw || '').trim().replace(/^["']|["']$/g, '');
+		}
+		// 互換: 開発用ログなどが「共通CSSの版」として tokens.css の印を読む
+		function loadedCommonCssVersion() {
+			return loadedCssVersion('--common-css-version');
 		}
 
 		function verifyCommonCssVersion() {
-			const loaded = loadedCommonCssVersion();
-			if (loaded === EXPECTED_COMMON_CSS_VERSION) return true;
-			const msg = loaded
-				? 'css/common.css が古い版です（読込:' + loaded + ' / 期待:' + EXPECTED_COMMON_CSS_VERSION + '）。キャッシュを消して再読み込みしてください。'
-				: 'css/common.css を読み込めていません。表示が崩れる場合はキャッシュを消して再読み込みしてください。';
+			const bad = COMMON_CSS_FILES
+				.map(([file, prop]) => [file, loadedCssVersion(prop)])
+				.filter(([, v]) => v !== EXPECTED_COMMON_CSS_VERSION);
+			if (bad.length === 0) return true;
+			const msg = bad.map(([file, v]) => v
+				? file + ' が古い版です（読込:' + v + ' / 期待:' + EXPECTED_COMMON_CSS_VERSION + '）'
+				: file + ' を読み込めていません').join('。')
+				+ '。キャッシュを消して再読み込みしてください。';
 			console.warn('[UmaStar OCR] ' + msg);
 			showToast(msg);
 			return false;
@@ -2217,7 +1888,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-11b';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-11c';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {

@@ -15,17 +15,25 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-11b';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-11c';
 
-// 読み込むべき css/common.css の版。
+// 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
 // 「直したはずなのに直っていない」状態になるため、起動時に照合する。
-const EXPECTED_COMMON_CSS_VERSION = '2026-09-10g';
+const EXPECTED_COMMON_CSS_VERSION = '2026-09-11a';
+// このページが読む共通CSSと、それぞれが :root に持つ版の印
+const COMMON_CSS_FILES = [
+	['css/tokens.css', '--common-css-version'],
+	['css/common.css', '--uma-components-css-version'],
+];
 
-// 実際に読み込まれている common.css の版（:root のカスタムプロパティ）を返す。
-function loadedCommonCssVersion() {
-	const raw = getComputedStyle(document.documentElement).getPropertyValue('--common-css-version');
+function loadedCssVersion(prop) {
+	const raw = getComputedStyle(document.documentElement).getPropertyValue(prop);
 	return (raw || '').trim().replace(/^["']|["']$/g, '');
+}
+// 実際に読み込まれている共通CSSの版（tokens.css の印）を返す。読み込み状況の表示に使う。
+function loadedCommonCssVersion() {
+	return loadedCssVersion('--common-css-version');
 }
 
 	/* ============================================================
@@ -62,11 +70,14 @@ function loadedCommonCssVersion() {
 	}
 
 function verifyCommonCssVersion() {
-	const loaded = loadedCommonCssVersion();
-	if (loaded === EXPECTED_COMMON_CSS_VERSION) return true;
-	const msg = loaded
-		? 'css/common.css が古い版です（読込:' + loaded + ' / 期待:' + EXPECTED_COMMON_CSS_VERSION + '）。キャッシュを消して再読み込みしてください。'
-		: 'css/common.css を読み込めていません。表示が崩れる場合はキャッシュを消して再読み込みしてください。';
+	const bad = COMMON_CSS_FILES
+		.map(([file, prop]) => [file, loadedCssVersion(prop)])
+		.filter(([, v]) => v !== EXPECTED_COMMON_CSS_VERSION);
+	if (bad.length === 0) return true;
+	const msg = bad.map(([file, v]) => v
+		? file + ' が古い版です（読込:' + v + ' / 期待:' + EXPECTED_COMMON_CSS_VERSION + '）'
+		: file + ' を読み込めていません').join('。')
+		+ '。キャッシュを消して再読み込みしてください。';
 	console.warn('[UmaSkill Deck] ' + msg);
 	showToast(msg);
 	return false;

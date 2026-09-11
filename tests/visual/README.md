@@ -77,7 +77,10 @@ npm run test:visual:capture -- after --compare   # 変更後＋前後比較画�
 
 ## run-verify.mjs が見ているもの
 
-1. 版数の一致（`--common-css-version` / 各HTMLの `?v=` / `EXPECTED_COMMON_CSS_VERSION`）。
+1. 版数の一致。共通CSSは `css/tokens.css`（変数）／`css/common.css`（部品）／`css/shell.css`（骨格）の
+   3ファイルで**版は1つ**。それぞれの `:root` の印（`--common-css-version` / `--uma-components-css-version` /
+   `--uma-shell-css-version`）が同じ文字列で、各HTMLが読む分の `?v=` と `EXPECTED_COMMON_CSS_VERSION` も揃っているか。
+   どのページがどのファイルを読むかは `CSS_LINKS` に書いてある（読まないはずのファイルを読んでいないかも見る）。
    special.html の**引き出しパネルの iframe `uma-skill-deck.html?v=`** と exam.html の
    **「UmaSkill Deck を開く」のURL `uma-skill-deck.html?v=`** も含む（deck.js の版に合わせる決まりだが、
    <script src> と違って目に付きにくく、実際に取り残されたことがある）
@@ -88,7 +91,8 @@ npm run test:visual:capture -- after --compare   # 変更後＋前後比較画�
    - `classList` / `className=` … そのページの JS でのみ危険
    - `querySelector` 系 … 文書全体を探すのでファイル横断で危険
 5. JS の構文（HTML埋め込みの `<script>` も抽出して確認）
-6. `common.css` に `!important` が増えていないか（詳細度で解決する方針のため）
+6. `common.css` に `!important` が増えていないか（詳細度で解決する方針のため）。`tokens.css` は0件、
+   `shell.css` は `[hidden]` の規則と `prefers-reduced-motion` の中だけに限る（F-13）
 
 4 で名前が挙がったものは、**必ず実物を見て判断すること**。
 JS が自分で作った要素に同じクラスを付けているだけ、という誤検知もある。

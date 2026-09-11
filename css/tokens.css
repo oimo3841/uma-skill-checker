@@ -1,0 +1,134 @@
+/* ============================================================
+ * Uma Tools 共通スタイル — 1/3 デザイントークン（css/tokens.css）
+ *
+ * special.html / uma-skill-deck.html / exam.html / css/styleguide.html で共有する。
+ * ここには :root のカスタムプロパティ（色・余白・文字サイズ・角丸・影）だけを置く。
+ * 見た目を描く規則は置かない。参照されない限り何も描かないので、
+ * 共通部品を持たないページ（exam.html）が読んでも既存の見た目は変わらない。
+ *
+ * 3ファイルの役割:
+ *   css/tokens.css … 変数だけ（このファイル）
+ *   css/common.css … 共通部品（ボタン・入力欄・バッジ・カード）
+ *   css/shell.css  … 画面の骨格（FAB・引き出し・オーバーレイ・ステップのタブ・告知）
+ * 読み込み順は tokens → common → shell → Tailwind → 各HTMLの<style>。
+ * 版は3ファイルで1つ（同じ文字列）。tests/visual/run-verify.mjs が一致を検査する。
+ *
+ * ---- 色の値について ----
+ * Tailwind v4 はパレットを oklch で再定義しており、v3時代の hex とは
+ * 微妙に違う（例: slate-500 は #64748b ではなく #62748e）。
+ * ここに書く hex は、実際に読み込んでいる Tailwind v4.1.11 を
+ * ブラウザ上で描画して実測した値である。v3世代の値を混ぜないこと。
+ * ============================================================ */
+
+:root {
+	/* 版数。tokens.css / common.css / shell.css の3ファイルで同じ文字列を使う。
+	   変更したら3ファイルの印と、各HTMLの ?v=（3つとも）と、
+	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
+	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
+	     読み込み側で照合して警告を出している） */
+	--common-css-version: "2026-09-11a";
+
+	/* ---- 面 ---- */
+	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
+	--uma-glass-bg: rgba(255, 255, 255, .9); /* 半透明パネルの地 */
+	--uma-glass-blur: blur(14px);            /* 同上のぼかし量 */
+	--uma-surface-sunken: #f8fafc;   /* slate-50  : 一段沈めた面 */
+	--uma-surface-muted: #f1f5f9;    /* slate-100 : 押せる要素の待機状態 */
+	--uma-surface-inverse: #0f172b;  /* slate-900 : トースト・選択中の反転 */
+
+	/* ---- 文字 ---- */
+	--uma-text: #1d293d;             /* slate-800 : 本文 */
+	--uma-text-heading: #314158;     /* slate-700 : 見出し・ボタン文字 */
+	--uma-text-muted: #45556c;       /* slate-600 : やや弱い文字 */
+	--uma-text-subtle: #62748e;      /* slate-500 : 補助・説明 */
+	--uma-text-faint: #90a1b9;       /* slate-400 : 注記 */
+	--uma-text-inverse: #ffffff;
+
+	/* ---- 罫線 ---- */
+	--uma-border: #e2e8f0;           /* slate-200 : 既定の罫線 */
+	--uma-border-strong: #cad5e2;    /* slate-300 : hover時など */
+
+	/* ---- 状態色 ---- */
+	--uma-success: #008236;          /* green-700 */
+	--uma-warn-bg: #fffbeb;          /* amber-50  */
+	--uma-warn-border: #fee685;      /* amber-200 */
+	--uma-warn-text: #973c00;        /* amber-800 */
+	--uma-danger-bg: #fef2f2;        /* red-50    */
+	--uma-danger-border: #ffc9c9;    /* red-200   */
+	--uma-danger-text: #c10007;      /* red-700   */
+	--uma-star: #fe9a00;             /* amber-500 : ★の実数 */
+	--uma-star-empty: #cad5e2;       /* slate-300 : ★の空き */
+
+	/* ---- アクセント ----
+	   既定は藍。ツールごとに各HTMLの<style>で :root ごと上書きする。
+	   「できること」ではなく「何のための画面か」で色を分ける（Deck=評価/比較、Star=読取/登録）。 */
+	--uma-accent: #4f39f6;           /* indigo-600 : 主ボタンの地 */
+	--uma-accent-hover: #432dd7;     /* indigo-700 */
+	--uma-accent-soft: #eef2ff;      /* indigo-50  : 淡い面 */
+	--uma-accent-soft-text: #432dd7; /* indigo-700 : 淡い面の上の文字 */
+	--uma-accent-border: #c6d2ff;    /* indigo-200 */
+	--uma-accent-ring: #4f39f6;      /* フォーカス輪郭 */
+
+	/* ---- 余白（4pxを単位とする刻み。1/3/7/9pxのような孤立値は使わない） ---- */
+	--uma-sp-0-5: 2px;
+	--uma-sp-1: 4px;
+	--uma-sp-1-5: 6px;
+	--uma-sp-2: 8px;
+	--uma-sp-2-5: 10px;
+	--uma-sp-3: 12px;
+	--uma-sp-3-5: 14px;
+	--uma-sp-4: 16px;
+	--uma-sp-5: 20px;
+	--uma-sp-6: 24px;
+
+	/* ---- 文字サイズ（行間とセット。同じ字送りが2種類生まれないようにする） ---- */
+	--uma-fs-2xs: 10px;  --uma-lh-2xs: 14px;
+	--uma-fs-xs: 11px;   --uma-lh-xs: 16px;
+	--uma-fs-sm: 12px;   --uma-lh-sm: 16px;   /* 基準 */
+	--uma-fs-md: 14px;   --uma-lh-md: 20px;
+	--uma-fs-lg: 18px;   --uma-lh-lg: 24px;
+	--uma-fs-xl: 24px;   --uma-lh-xl: 32px;
+
+	/* ---- 角丸 ---- */
+	--uma-r-sm: 6px;
+	--uma-r-md: 8px;
+	--uma-r-lg: 12px;   /* 既定 */
+	--uma-r-xl: 16px;   /* カード */
+	--uma-r-full: 999px;
+
+	/* ---- 影（3段。面は最小限、浮遊要素だけ強く） ---- */
+	--uma-shadow-1: 0 1px 2px 0 rgba(0, 0, 0, .05);
+	--uma-shadow-2: 0 4px 6px -1px rgba(0, 0, 0, .1), 0 2px 4px -2px rgba(0, 0, 0, .1);
+	--uma-shadow-3: 0 20px 25px -5px rgba(0, 0, 0, .1), 0 8px 10px -6px rgba(0, 0, 0, .1);
+
+	/* ---- 等幅フォント（OCRの生文字列・JSONなど、字形の区別が必要な場所） ---- */
+	--uma-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+	/* ---- 演出 ---- */
+	--uma-transition: 160ms cubic-bezier(.16, 1, .3, 1);
+
+	/* ---- カードの内側余白（狭い画面では詰める） ---- */
+	--uma-card-pad: 16px;
+}
+
+@media (min-width: 768px) {
+	:root { --uma-card-pad: 24px; }
+}
+
+/* ============================================================
+ * スコープ
+ * 「この中だけ別のアクセント」を作るためのクラス。値だけなのでここに置く。
+ * ============================================================ */
+
+/* UmaSkill Deck（藍）のアクセントを局所的に当てるスコープ。
+   .btn-deck-accent はボタン用の古い名前で、中身は同じ。ボタン以外にも使うので
+   .deck-accent を足してある。special.html の Deck 行きのボタン・告知モーダルが使う。 */
+.btn-deck-accent, .deck-accent {
+	--uma-accent: #4f39f6;            /* indigo-600 */
+	--uma-accent-hover: #432dd7;      /* indigo-700 */
+	--uma-accent-soft: #eef2ff;       /* indigo-50  */
+	--uma-accent-soft-text: #432dd7;
+	--uma-accent-border: #c6d2ff;     /* indigo-200 */
+	--uma-accent-ring: #4f39f6;       /* indigo-600。これが無いとフォーカスの輪だけ
+	                                     ページのアクセントのまま残り、藍の中で浮く */
+}

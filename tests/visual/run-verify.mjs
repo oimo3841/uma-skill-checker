@@ -67,16 +67,40 @@ const ALL_JS = ['special.html', 'uma-skill-deck.html', 'exam.html', 'index.html'
 const TARGETS = ['special.html', 'exam.html', 'uma-skill-deck.html', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js'];
 
 console.log('=== 1. バージョン文字列の整合 ===');
+// 共通CSSは3ファイル（tokens / common / shell）で版は1つ。
+// それぞれが :root に持つ印が同じ文字列であることと、各HTMLが読む分の ?v= が全部その値であることを見る。
+const CSS_FILES = [
+	['css/tokens.css', /--common-css-version:\s*"([^"]+)"/],
+	['css/common.css', /--uma-components-css-version:\s*"([^"]+)"/],
+	['css/shell.css', /--uma-shell-css-version:\s*"([^"]+)"/],
+];
 const css = read('css/common.css');
-const cssVer = /--common-css-version:\s*"([^"]+)"/.exec(css)[1];
-check(!!cssVer, 'css/common.css に --common-css-version がある', cssVer);
-
-for (const p of ['special.html', 'uma-skill-deck.html', 'css/styleguide.html']) {
-	const q = [...read(p).matchAll(/common\.css\?v=([0-9a-z-]+)/g)].map((m) => m[1]);
-	check(q.length === 1 && q[0] === cssVer, p + ' の ?v= が定数と一致', q);
+const cssVer = CSS_FILES[0][1].exec(read('css/tokens.css'))[1];
+check(!!cssVer, 'css/tokens.css に --common-css-version がある', cssVer);
+for (const [p, re] of CSS_FILES.slice(1)) {
+	const m = re.exec(read(p));
+	check(!!m && m[1] === cssVer, p + ' の版の印が tokens.css と一致', m && m[1]);
 }
-for (const p of ['special.html', 'js/uma-skill-deck.js']) {
+
+// どのページがどのファイルを読むか（レポート exam-ui-analysis.md A-5 の表）
+const CSS_LINKS = {
+	'special.html': ['tokens', 'common', 'shell'],
+	'uma-skill-deck.html': ['tokens', 'common'],
+	'css/styleguide.html': ['tokens', 'common'],
+	// exam.html は段3（画面構成の作り替え）で tokens と shell を読むようになる。それまでは何も読まない。
+	'exam.html': [],
+};
+for (const [p, files] of Object.entries(CSS_LINKS)) {
+	const src = read(p);
+	for (const f of ['tokens', 'common', 'shell']) {
+		const q = [...src.matchAll(new RegExp(f + '\\.css\\?v=([0-9a-z-]+)', 'g'))].map((m) => m[1]);
+		if (files.includes(f)) check(q.length === 1 && q[0] === cssVer, `${p} の ${f}.css の ?v= が定数と一致`, q);
+		else check(q.length === 0, `${p} は ${f}.css を読まない`, q);
+	}
+}
+for (const p of ['special.html', 'js/uma-skill-deck.js', 'exam.html']) {
 	const e = [...read(p).matchAll(/EXPECTED_COMMON_CSS_VERSION\s*=\s*'([^']+)'/g)].map((m) => m[1]);
+	if (p === 'exam.html' && e.length === 0) { console.log('     [参考] exam.html はまだ EXPECTED_COMMON_CSS_VERSION を持たない（段3で入る）'); continue; }
 	check(e.length === 1 && e[0] === cssVer, p + ' の EXPECTED_COMMON_CSS_VERSION が定数と一致', e);
 }
 const coreVer = /UMA_SKILL_DECK_CORE_JS_VERSION = '([^']+)'/.exec(read('js/uma-skill-deck-core.js'))[1];
@@ -186,10 +210,27 @@ for (const p of ['js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/common
 }
 fs.rmSync(tmp, { recursive: true, force: true });
 
-console.log('\n=== 6. common.css の !important（詳細度で解決する方針） ===');
-const imp = css.split('\n').filter((l) => /[a-z-]+\s*:[^;{}]*!important/.test(l)).map((l) => l.trim());
+console.log('\n=== 6. 共通CSSの !important（詳細度で解決する方針） ===');
+const impLines = (src) => src.split('\n').filter((l) => /[a-z-]+\s*:[^;{}]*!important/.test(l)).map((l) => l.trim());
+const imp = impLines(css);
 imp.forEach((l) => console.log('       ' + l));
 check(imp.length <= 1, 'common.css の !important は prefers-reduced-motion の1件のみ', imp.length);
+check(impLines(read('css/tokens.css')).length === 0, 'tokens.css に !important が無い');
+// shell.css は display:flex を持つ箱を hidden 属性で確実に消すための [hidden] と、
+// prefers-reduced-motion の中（transition / animation / transition-delay を止める）だけに限る（F-13）。
+{
+	const lines = read('css/shell.css').split('\n');
+	let inReduce = false, depth = 0;
+	const stray = [];
+	for (const raw of lines) {
+		const l = raw.trim();
+		if (/^@media\s*\(prefers-reduced-motion/.test(l)) { inReduce = true; depth = 0; }
+		if (inReduce) { depth += (l.match(/\{/g) || []).length - (l.match(/\}/g) || []).length; }
+		if (/[a-z-]+\s*:[^;{}]*!important/.test(l) && !/\[hidden\]/.test(l) && !inReduce) stray.push(l);
+		if (inReduce && depth <= 0 && /\}/.test(l)) inReduce = false;
+	}
+	check(stray.length === 0, 'shell.css の !important は [hidden] と prefers-reduced-motion の中に限る', stray);
+}
 
 console.log('\n' + (ok ? '=== 総合: OK ===' : '=== 総合: NG（上の[NG]を確認） ==='));
 process.exit(ok ? 0 : 1);
