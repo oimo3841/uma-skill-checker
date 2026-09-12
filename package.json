@@ -11,6 +11,7 @@
     "test:master": "node tests/visual/run-master-tests.mjs",
     "test:ocr": "node tests/ocr/run-ocr-tests.mjs --dict=exam",
     "test:norm": "node tests/ocr/check-normalization.mjs",
+    "check:privacy": "node tests/privacy/check-privacy.mjs",
     "skillset:cards": "node tests/skillset/run-extract-cards.mjs",
     "skillset:ocr": "node tests/skillset/run-ocr-crops.mjs",
     "skillset:truth": "node tests/skillset/build-truth.mjs",

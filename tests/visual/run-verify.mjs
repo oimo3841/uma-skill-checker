@@ -276,6 +276,22 @@ check(impLines(read('css/tokens.css')).length === 0, 'tokens.css に !important 
 	check(stray.length === 0, 'shell.css の !important は [hidden] と prefers-reduced-motion の中に限る', stray);
 }
 
+console.log('\n=== 7. 個人情報の混入（公開リポジトリ） ===');
+// このリポジトリは公開で、GitHub Pages で配信している。22セッション目に全履歴を人手で監査して
+// 混入0件を確認したが、人手では毎回はできないので機械化した。**ここが落ちたら push しない。**
+// 実体は tests/privacy/check-privacy.mjs（npm run check:privacy で単体でも回せる）。
+{
+	const r = spawnSync(process.execPath, [path.join(REPO_ROOT, 'tests/privacy/check-privacy.mjs')], {
+		cwd: REPO_ROOT, encoding: 'utf8',
+	});
+	// 走査の明細は、落ちたときだけ全部出す（通るときは要約の行だけで足りる）
+	const out = (r.stdout || '').trimEnd();
+	if (r.status === 0) out.split('\n').filter((l) => /^(\s{5}|\[OK\])/.test(l)).forEach((l) => console.log(l));
+	else console.log(out);
+	if (r.stderr) console.log(r.stderr.trimEnd());
+	check(r.status === 0, '追跡中のファイルに個人情報の混入が無い');
+}
+
 if (warnings.length > 0) {
 	console.log('\n=== 警告（検査は落とさないが、放置しないこと。' + warnings.length + '件） ===');
 	warnings.forEach((w) => console.log('  ・' + w));

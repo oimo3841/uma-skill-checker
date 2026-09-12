@@ -1,0 +1,25 @@
+{
+	"_readme": [
+		"tests/privacy/check-privacy.mjs の許可リスト。黙って除外せず、必ず理由を書いて登録する。",
+		"allowedEmails … 検出しても警告にしないメールアドレス。",
+		"allowCommitAuthors … true なら、このリポジトリのコミットの author / committer に実際に",
+		"  使われているアドレスも許可する。**実アドレスをこのファイルに書かないため**の仕組みで、",
+		"  値は git から実行時に取る（すでにコミットのメタデータとして公開済みのものだけが対象）。",
+		"exceptions … パターンには当たるが個人情報ではないと確認した箇所。file / rule / match / reason の4つが必須。",
+		"  rule は win-users / win-drive / unix-users / unix-home / mydrive / email / assets-root / assets-root-name のどれか。",
+		"  match は検出された文字列そのもの（行番号ではなく文字列で照合するので、行がずれても効き続ける）。",
+		"  免除したものは実行のたびに [免除] として表示されるので、放置に気付ける。"
+	],
+	"allowCommitAuthors": true,
+	"allowedEmails": [
+		{
+			"address": "noreply@anthropic.com",
+			"reason": "Claude の Co-Authored-By トレーラで使う Anthropic の noreply。個人に結びつかない"
+		},
+		{
+			"address": "noreply@github.com",
+			"reason": "GitHub の Web UI 経由の commit の committer。個人に結びつかない"
+		}
+	],
+	"exceptions": []
+}
