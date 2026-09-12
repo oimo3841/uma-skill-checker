@@ -4,8 +4,10 @@
 //
 // 特に「JSがクラスを付け外しする箇所」「hidden の付け外し」を通す。
 // 見た目の統一作業で最も壊れやすいのがここで、目視では気付きにくい。
+import fs from 'node:fs';
+import path from 'node:path';
 import { chromium } from 'playwright';
-import { startServer } from './lib/serve.mjs';
+import { startServer, REPO_ROOT } from './lib/serve.mjs';
 import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, PICK, EDITED_CELLS, USER_DATA } from './lib/fixtures.mjs';
 
 let fails = 0;
@@ -2309,6 +2311,8 @@ const browser = await chromium.launch();
 		'undo: 「すべて外す」で0種になり、保存先も空になる', cleared);
 	assert(cleared.btn && cleared.badge === '1' && cleared.stack === 1 && cleared.scope === 'editor',
 		'undo: 編集画面に「元に戻す ①」が出る', cleared);
+	assert(cleared.toast === '追加済みスキル' + PICK.length + '種を外しました',
+		'undo: 実行時のトーストは doneLabel（単位は「種」）', cleared.toast);
 	await page.click('#deck-undo-btn');
 	await page.waitForTimeout(200);
 	const restored = await undoUi();
@@ -2316,6 +2320,8 @@ const browser = await chromium.launch();
 	assert((await storedDraft()).join() === PICK.map((s) => s.id).join(),
 		'undo: 保存先（localStorage）にも元の12種が同じ順で戻る');
 	assert(!restored.btn && restored.stack === 0, 'undo: 戻せたのでボタンが消える', restored);
+	assert(restored.toast === '外した' + PICK.length + '種を戻しました',
+		'undo: 戻したときのトーストは undoneLabel（外したN種を戻しました）', restored.toast);
 
 	// 2) 永続化。リロードしても戻した状態のまま
 	await page.reload({ waitUntil: 'networkidle' });
@@ -2333,10 +2339,13 @@ const browser = await chromium.launch();
 		document.querySelectorAll('#deck-template-panel [data-usd-act="template-skill-remove"]')[3].click();
 		const removedLen = read().length;
 		const ok = UmaSkillDeckCore.performUndo();
-		return { ok, removedLen, same: read().join() === before.join(), stack: UmaSkillDeckCore.undoCount() };
+		return { ok, removedLen, same: read().join() === before.join(), stack: UmaSkillDeckCore.undoCount(),
+			toast: document.getElementById('toast-message').textContent };
 	});
 	assert(single.removedLen === PICK.length - 1 && single.ok && single.same && single.stack === 0,
 		'undo: 個別に外す→元に戻すで、順序も含めて実行前と一致する', single);
+	assert(single.toast === '外したスキル「' + PICK[3].name + '」を戻しました',
+		'undo: 個別に外したものを戻すトーストは「外したスキル「○○」を戻しました」', single.toast);
 
 	// 4) 成功を名乗る前の検証。apply() が false／状態が変わらない／積んだ時点の状態に戻らない、はどれも失敗扱い
 	for (const [how, entry] of [
@@ -2409,15 +2418,17 @@ const browser = await chromium.launch();
 		stack: UmaSkillDeckCore.undoCount(),
 	}));
 	// 「実行 → 元に戻す → 実行前と一致」の往復を1操作ずつ
-	async function roundTrip(label, run, expectScope) {
+	async function roundTrip(label, run, expectScope, expectToast) {
 		const before = await state();
 		await page.evaluate(run);
 		await page.waitForTimeout(200);
 		const mid = await state();
 		const btn = await undoBtn();
 		const ok = await page.evaluate(() => performUndo());
+		const toast = await page.evaluate(() => document.getElementById('toast-message').textContent);
 		await page.waitForTimeout(300);
 		const after = await state();
+		assert(toast === expectToast, 'undo(deck): ' + label + ' を戻したトーストが undoneLabel', toast);
 		assert(mid !== before, 'undo(deck): ' + label + ' で保存データが変わる');
 		assert(btn.shown && btn.scope === expectScope && btn.stack === 1,
 			'undo(deck): ' + label + ' で「元に戻す」が ' + expectScope + ' に1件出る', btn);
@@ -2425,18 +2436,22 @@ const browser = await chromium.launch();
 		assert((await undoBtn()).shown === false, 'undo(deck): ' + label + ' を戻すとボタンが消える');
 	}
 
-	await roundTrip('テンプレート削除', () => { document.querySelector('[data-usd-act="template-delete"]').click(); }, 'list');
+	await roundTrip('テンプレート削除', () => { document.querySelector('[data-usd-act="template-delete"]').click(); }, 'list',
+		'削除したテンプレート「' + USER_DATA.templates[0].name + '」を戻しました');
 
 	await page.click('#tab-btn-record');
 	await page.waitForTimeout(300);
-	await roundTrip('比較シート削除', () => { document.querySelector('#record-list button[title="削除"]').click(); }, 'list');
+	await roundTrip('比較シート削除', () => { document.querySelector('#record-list button[title="削除"]').click(); }, 'list',
+		'削除した比較シート「' + USER_DATA.records[0].name + '」を戻しました');
 
 	await page.evaluate((id) => openRecordEditor(id), RECORD_ID);
 	await page.waitForTimeout(500);
 	const other = USER_DATA.templates[1].templateId;
-	await roundTrip('元テンプレートの切り替え', new Function(`switchRecordTemplate(${JSON.stringify(other)})`), 'sheet');
-	await roundTrip('候補の削除', () => { removeCandidate('c_a'); }, 'sheet');
-	await roundTrip('スキル行の削除', new Function(`removeSkillFromRecord(${JSON.stringify(PICK[2].id)})`), 'sheet');
+	await roundTrip('元テンプレートの切り替え', new Function(`switchRecordTemplate(${JSON.stringify(other)})`), 'sheet',
+		'テンプレートを「' + USER_DATA.templates[0].name + '」に戻しました');
+	await roundTrip('候補の削除', () => { removeCandidate('c_a'); }, 'sheet', '削除した候補「親A」を戻しました');
+	await roundTrip('スキル行の削除', new Function(`removeSkillFromRecord(${JSON.stringify(PICK[2].id)})`), 'sheet',
+		'削除したスキル「' + PICK[2].name + '」の行を戻しました');
 
 	// 多段：3つ続けて実行し、3回続けて戻せること
 	const multi = await state();
@@ -2455,6 +2470,12 @@ const browser = await chromium.launch();
 
 	assert(errors.length === 0, 'undo(deck): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
+
+	// 「元に戻しました：」＋実行時の文、という連結はやめた（「戻した結果、外れた」とも読めるため）。
+	// 画面は上で見ているので、ここではソースに残っていないことを見る。
+	const leftover = ['js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'special.html', 'uma-skill-deck.html', 'exam.html']
+		.filter((p) => fs.readFileSync(path.join(REPO_ROOT, p), 'utf8').includes('元に戻しました：'));
+	assert(leftover.length === 0, 'undo: 「元に戻しました：」という接頭辞がソースに残っていない', leftover);
 }
 
 await browser.close();

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-12b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-12c';
 
 	/* ============================================================
 	 * 定数
@@ -1897,8 +1897,10 @@
 			// 状態を変える前に積む。積んだ時点の probe() が「戻るべき姿」になる。
 			pushUndo({
 				scope: 'editor',
-				doneLabel: '追加済みスキル' + prev.length + '件を外しました',
-				undoneLabel: '元に戻しました：追加済みスキル' + prev.length + '件を外しました',
+				// 数えているのはスキルの種類数なので単位は「種」。取り消し側は実行時と別の文にする
+				// （「元に戻しました」に実行時の文を連結すると「戻した結果、外れた」とも読めるため）。
+				doneLabel: '追加済みスキル' + prev.length + '種を外しました',
+				undoneLabel: '外した' + prev.length + '種を戻しました',
 				probe: () => probeOf(skillIdsOf(target)),
 				apply: () => {
 					if (!writeSkillIds(target, snapshot(prev))) return false;
@@ -1921,8 +1923,8 @@
 			const name = getSkillName(skillId);
 			pushUndo({
 				scope: 'editor',
-				doneLabel: 'スキル「' + name + '」を削除しました',
-				undoneLabel: '元に戻しました：スキル「' + name + '」を削除しました',
+				doneLabel: 'スキル「' + name + '」を外しました',
+				undoneLabel: '外したスキル「' + name + '」を戻しました',
 				// 見るのは「そのスキルが元の位置にあるか」だけ。あとから足したスキルは末尾に
 				// 付くので、間に追加があっても正しく戻せたことを判定できる。
 				probe: () => String((skillIdsOf(target) || []).indexOf(skillId)),
@@ -2001,7 +2003,7 @@
 			pushUndo({
 				scope: 'list',
 				doneLabel: 'テンプレート「' + label + '」を削除しました',
-				undoneLabel: '元に戻しました：テンプレート「' + label + '」を削除しました',
+				undoneLabel: '削除したテンプレート「' + label + '」を戻しました',
 				// そのテンプレートが（同じ中身で）在るかどうか。無ければ空文字。
 				probe: () => {
 					const cur = ensureUserData().templates.find(x => x.templateId === templateId);

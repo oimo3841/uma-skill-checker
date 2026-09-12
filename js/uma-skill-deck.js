@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-12a';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-12b';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -260,7 +260,7 @@ function switchRecordTemplate(newTemplateId) {
 	pushUndo({
 		scope: 'sheet',
 		doneLabel: 'テンプレートを「' + t.name + '」に切り替えました',
-		undoneLabel: '元に戻しました：テンプレートを「' + t.name + '」に切り替えました',
+		undoneLabel: 'テンプレートを「' + getTemplateName(prev.sourceTemplateId) + '」に戻しました',
 		probe: () => { const r = findRecordById(recordId); return r ? Core.probeOf(sheetState(r)) : ''; },
 		apply: () => {
 			const r = findRecordById(recordId);
@@ -386,7 +386,7 @@ function removeCandidate(candidateId) {
 	pushUndo({
 		scope: 'sheet',
 		doneLabel: '候補「' + removed.label + '」を削除しました',
-		undoneLabel: '元に戻しました：候補「' + removed.label + '」を削除しました',
+		undoneLabel: '削除した候補「' + removed.label + '」を戻しました',
 		probe: () => {
 			const r = findRecordById(recordId);
 			if (!r) return '';
@@ -435,8 +435,9 @@ function removeSkillFromRecord(skillId) {
 	const row = Core.snapshot(rowOf(targetRecord));
 	pushUndo({
 		scope: 'sheet',
-		doneLabel: 'スキル「' + name + '」を削除しました',
-		undoneLabel: '元に戻しました：スキル「' + name + '」を削除しました',
+		// 編集画面の「外す」と区別する。ここで消えるのは★の値ごとの「行」。
+		doneLabel: 'スキル「' + name + '」の行を削除しました',
+		undoneLabel: '削除したスキル「' + name + '」の行を戻しました',
 		probe: () => { const r = findRecordById(recordId); return r ? Core.probeOf(rowOf(r)) : ''; },
 		apply: () => {
 			const r = findRecordById(recordId);
@@ -734,7 +735,7 @@ function deleteRecord(recordId) {
 	pushUndo({
 		scope: 'list',
 		doneLabel: '比較シート「' + removed.name + '」を削除しました',
-		undoneLabel: '元に戻しました：比較シート「' + removed.name + '」を削除しました',
+		undoneLabel: '削除した比較シート「' + removed.name + '」を戻しました',
 		// その比較シートが（同じ中身で）在るかどうか。無ければ空文字。
 		probe: () => { const r = findRecordById(recordId); return r ? Core.probeOf(r) : ''; },
 		apply: () => {
