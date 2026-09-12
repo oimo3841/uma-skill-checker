@@ -129,7 +129,7 @@ function absorb(row, entry) {
  *   格子で持てば、隠れたカードは**穴**になるだけで下のカードの位置は動かない。
  *   側（side）の食い違いも起こり得ない（同じ格子の升だけを比べる）。
  *
- *   k の候補は「画像の全部が新しい段」から「画像の先頭が一覧の先頭」までの全部を試し、
+ *   k の候補は「画像の全部が一覧の上に出る」から「画像の全部が新しい段」までの全部を試し、
  *   升ごとの点数（名前の一致 +3 / 金どうし +1.5 / どちらかが未確定 0 / 名前の食い違い -1.5 /
  *   片方にしか無い升 -1）の合計がいちばん高い k を採る。同点なら直前の画像の k に近いほう
  *   （連続するフレームは大きくは動かない）。合計が 0 以下なら重なり無しとして末尾に足す（gaps）。
@@ -140,19 +140,26 @@ export function stitchEntries(sequences) {
 	const cellKey = (grid, side) => `${grid}:${side}`;
 	const overlaps = [];
 	let gaps = 0;
+	let started = false;
+	let minGrid = 0;
 	let maxGrid = -1;
 	let prevK = 0;
 	sequences.forEach((seq) => {
 		if (!seq.length) return;
 		const maxBand = Math.max(...seq.map((e) => e.band));
-		if (maxGrid < 0) {
+		if (!started) {
 			seq.forEach((e) => cells.set(cellKey(e.band, e.side), newRow(e, e.band)));
 			maxGrid = maxBand;
+			started = true;
 			prevK = 0;
 			return;
 		}
 		let best = null;
-		for (let k = 0; k <= maxGrid + 1; k++) {
+		// k が負＝画像が一覧の**上**に伸びる。最初のフレームがタブ切り替えの途中で上の段が
+		// まだ写っていないことがある（592x1280 の優先タブの実測: 1フレーム目は「一足飛び」から、
+		// 2フレーム目はその2段上の「攻めの姿勢」から見えていた）。上へ戻るスクロールも同じ。
+		// 段の番号は負でもよい（最後に並べ替える）。
+		for (let k = minGrid - maxBand; k <= maxGrid + 1; k++) {
 			let score = 0;
 			let matched = 0;
 			const covered = new Set();
@@ -164,7 +171,7 @@ export function stitchEntries(sequences) {
 					const s = pairScore(row, e);
 					score += s;
 					if (row.key != null && row.key === e.key && e.key !== GOLD_KEY) matched++;
-				} else if (g <= maxGrid) {
+				} else if (g >= minGrid && g <= maxGrid) {
 					score += SCORE.gap; // 一覧側に無い升に画像のカードがある（以前は隠れていた升）
 				}
 			});
@@ -190,6 +197,7 @@ export function stitchEntries(sequences) {
 			if (row) absorb(row, e);
 			else cells.set(cellKey(g, e.side), newRow(e, g));
 			if (g > maxGrid) maxGrid = g;
+			if (g < minGrid) minGrid = g;
 		});
 		prevK = k;
 	});
