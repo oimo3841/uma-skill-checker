@@ -272,15 +272,31 @@ async function scan(browser, page, channel, info, urlPath, setName, file, fps, p
 		kept.push(pick);
 		group = [];
 	};
+	// タブを切り替えると、スクロール量は変わらないのに中身が総入れ替えになる。
+	// 位置だけでまとめると、直前のタブのフレームと同じ組に入って落とされてしまう
+	// （実際に、一覧が短いタブが丸ごと消えた）。**写っているカードの量が大きく変わったら組を切る。**
+	const CONTENT_CHANGE_RATIO = 0.2;
 	frames.forEach((f) => {
-		if (group.length && Math.abs(f.cumulative - group[0].cumulative) > DEDUPE_PX) flush();
+		if (group.length) {
+			const movedFar = Math.abs(f.cumulative - group[0].cumulative) > DEDUPE_PX;
+			const base = group[0].cardRows || 0;
+			const changed = base > 0 && Math.abs((f.cardRows || 0) - base) > base * CONTENT_CHANGE_RATIO;
+			if (movedFar || changed) flush();
+		}
 		group.push(f);
 	});
 	flush();
-	const keptSharp = kept.filter((f) => f.sharpEnough);
-	console.log(`  スクロール位置でまとめると ${kept.length}枚、うち鮮明 ${keptSharp.length}枚`);
+	// **しきい値に届かない位置でも、その位置でいちばん鮮明な1枚は必ず残す。**
+	// 落とすと、その区間のカードが丸ごと取れなくなる。実際に、一覧が短いタブは
+	// 鮮明さのスコアが構造的に低く出るため、しきい値で切るとタブ1つぶんが消えた。
+	const keptSharp = kept;
+	const belowThreshold = kept.filter((f) => !f.sharpEnough).length;
+	console.log(
+		`  スクロール位置でまとめると ${kept.length}枚（各位置のいちばん鮮明な1枚。` +
+			`うち ${belowThreshold}枚はしきい値に届かないが、その位置の最良なので残す）`
+	);
 
-	// 「鮮明フレームが1枚も無い区間」＝鮮明なフレームどうしの間でスクロールが飛んだ量
+	// 「採用したフレームどうしの間でスクロールが飛んだ量」。1画面ぶんを超えると撮り漏れになる
 	const gaps = [];
 	for (let i = 1; i < keptSharp.length; i++) {
 		const d = Math.abs(keptSharp[i].cumulative - keptSharp[i - 1].cumulative);
@@ -288,7 +304,7 @@ async function scan(browser, page, channel, info, urlPath, setName, file, fps, p
 	}
 	const maxGap = gaps.length ? Math.max(...gaps.map((g) => g.px)) : 0;
 	const totalScroll = frames.length ? Math.abs(frames[frames.length - 1].cumulative - frames[0].cumulative) : 0;
-	console.log(`  総スクロール量 約${Math.round(totalScroll)}px / 鮮明フレーム間の最大の飛び ${Math.round(maxGap)}px`);
+	console.log(`  総スクロール量 約${Math.round(totalScroll)}px / 採用フレーム間の最大の飛び ${Math.round(maxGap)}px`);
 
 	// 保存
 	const outSharp = assetsDir('frames', setName);
