@@ -34,6 +34,20 @@ export function loadTruth(setName) {
 	return { file, json, byCrop };
 }
 
+/**
+ * 金の地のカードのIDを集める。金のカードは継承できないスキル（進化・金・◎）で、
+ * マスター445種には仕様上入らない。**OCRにかけず「対象外」にする。**
+ * 「読めませんでした」の警告に混ぜると、直しようのない警告が毎回出続ける。
+ */
+export function goldCardIds(setName) {
+	const file = path.join(assetsRoot(), 'crops', setName, 'index.json');
+	if (!fsSync.existsSync(file)) return new Set();
+	const index = JSON.parse(fsSync.readFileSync(file, 'utf-8'));
+	const ids = new Set();
+	index.images.forEach((im) => im.cards.forEach((c) => { if (c.kind === 'gold') ids.add(c.id); }));
+	return ids;
+}
+
 const RANK = { exact: 0, viaMap: 1, ambiguous: 2, unreadable: 3 };
 
 /**
@@ -72,10 +86,17 @@ export function combineReads(reads, matcher) {
 	return { chosen: classified[0].cls, read: classified[0].read, classified };
 }
 
-export async function ocrCondition(ocr, cropFiles, condition, matcher, truth) {
+export async function ocrCondition(ocr, cropFiles, condition, matcher, truth, goldIds) {
 	const rows = [];
+	const gold = goldIds || new Set();
 	for (const file of cropFiles) {
 		const id = path.basename(file, '.png');
+		if (gold.has(id)) {
+			// 対象外。OCRにかけない
+			const t0 = truth ? truth.byCrop.get(id) : null;
+			rows.push({ id, text: '', texts: [], category: 'excluded', reason: '金の地＝継承できないスキル（対象外）', matchedId: null, matchedName: null, candidates: [], truthId: t0 ? t0.skillId : null, truthName: t0 ? t0.skillName : null, truthInMaster: t0 ? !!t0.inMaster : null, correct: null });
+			continue;
+		}
 		const dataUrl = await fileToDataUrl(file);
 		const res = await ocr.prepareAndRecognize(dataUrl, {
 			scale: condition.scale == null ? 1 : condition.scale,
@@ -109,9 +130,10 @@ export async function ocrCondition(ocr, cropFiles, condition, matcher, truth) {
 }
 
 export function summarize(rows) {
-	const s = { total: rows.length, exact: 0, viaMap: 0, ambiguous: 0, unreadable: 0, autoAcceptedWrong: 0, autoAcceptedRight: 0, ambiguousTopWrong: 0, checked: 0, truthInMaster: 0, truthOutsideMaster: 0 };
+	const s = { total: rows.length, excluded: 0, exact: 0, viaMap: 0, ambiguous: 0, unreadable: 0, autoAcceptedWrong: 0, autoAcceptedRight: 0, ambiguousTopWrong: 0, checked: 0, truthInMaster: 0, truthOutsideMaster: 0 };
 	rows.forEach((r) => {
 		s[r.category]++;
+		if (r.category === 'excluded') return; // 対象外は正誤の対象にしない
 		if (r.truthName) {
 			s.checked++;
 			if (r.truthInMaster) s.truthInMaster++; else s.truthOutsideMaster++;
@@ -128,9 +150,11 @@ export function summarize(rows) {
 }
 
 export function formatSummary(s) {
-	const pct = (n) => (s.total ? ((n / s.total) * 100).toFixed(1) : '0.0');
+	const target = s.total - s.excluded;
+	const pctT = (n) => (target ? ((n / target) * 100).toFixed(1) : '0.0');
 	let line =
-		`  完全一致 ${s.exact}（${pct(s.exact)}%） / マップ経由 ${s.viaMap} / ` +
+		`  対象 ${target}枚（対象外の金 ${s.excluded}枚を除く）: ` +
+		`完全一致 ${s.exact}（${pctT(s.exact)}%） / マップ経由 ${s.viaMap} / ` +
 		`曖昧 ${s.ambiguous} / 読めない ${s.unreadable}`;
 	if (s.checked) {
 		line +=
@@ -155,6 +179,7 @@ async function main() {
 	const master = loadMaster();
 	const matcher = buildMatcher(master);
 	const truth = loadTruth(setName);
+	const goldIds = goldCardIds(setName);
 	console.log(`セット ${setName}（${kind}）  切り出し ${cropFiles.length}枚  マスター ${master.length}種  psm=${psm}`);
 	console.log(truth ? `正解あり（${relToAssets(truth.file)}）` : '正解なし（結果は正解の案づくりに使う）');
 
@@ -164,7 +189,7 @@ async function main() {
 		for (const condition of conditions) {
 			process.stdout.write(`\n[${condition.name}] ${condition.label}\n`);
 			const t0 = Date.now();
-			const rows = await ocrCondition(ocr, cropFiles, condition, matcher, truth);
+			const rows = await ocrCondition(ocr, cropFiles, condition, matcher, truth, goldIds);
 			const s = summarize(rows);
 			console.log(formatSummary(s));
 			console.log(`  (${((Date.now() - t0) / 1000).toFixed(1)}秒)`);

@@ -20,6 +20,7 @@ import { fileToDataUrl } from './lib/browser.mjs';
 import { loadMaster } from './lib/common-in-node.mjs';
 import { buildMatcher } from './lib/match.mjs';
 import { combineReads } from './run-ocr-crops.mjs';
+import { toSequence, stitchSequences, countKinds } from './lib/stitch-sequence.mjs';
 
 function argValue(name, fallback) {
 	const hit = process.argv.filter((a) => a.startsWith(`--${name}=`)).pop();
@@ -170,6 +171,18 @@ async function main() {
 		badgeCounts[tab].push(b.count);
 	});
 
+	// 撮り漏れの判定用に、タブごとに画像を継ぎ合わせて「並んでいたカードの種類数」を数える。
+	// 金のカードはOCRにかけていないので、名前ではなく並びの一致で重複を消す。
+	const nameById = new Map(cards.map((c) => [c.id, c.proposedName]));
+	const stitchByTab = new Map();
+	for (const [tab, t] of byTab) {
+		const seqs = index.images
+			.filter((im) => (im.activeTab || '不明') === tab)
+			.map((im) => toSequence(im.cards, (id) => nameById.get(id)));
+		const st = stitchSequences(seqs);
+		stitchByTab.set(tab, { ...countKinds(st.sequence), gaps: st.gaps, overlaps: st.overlaps });
+	}
+
 	const autoCount = cards.filter((c) => c.status === 'auto').length;
 	const byStatus = (st) => cards.filter((c) => c.status === st).length;
 	console.log(`内訳: 一意一致 ${byStatus('auto')} / 候補1つ ${byStatus('guess')} / 目視 ${byStatus('override')} / 要確認 ${byStatus('check')}`);
@@ -178,15 +191,33 @@ async function main() {
 	for (const [tab, t] of byTab) {
 		const counts = badgeCounts[tab] || [];
 		const known = counts.filter((n) => n != null);
-		const uniq = t.names.size;
+		const st = stitchByTab.get(tab) || { total: 0, lavender: 0, gold: 0, unknown: 0, gaps: 0 };
 		const expected = known.length ? Math.max(...known) : null;
-		const ok = expected != null && expected === uniq && t.unresolved === 0;
+		// 撮り漏れの判定は「全色の検出種類数 vs 設定数」。取り込みの成否とは別の話なので分けて出す。
+		// 撮り漏れの判定は種類数と設定数の突き合わせだけで決める。
+		// 継ぎ目が合わない件数は参考情報（バッジに隠れて落ちたカードがあると、
+		// 前後の画像の並びが1枚ぶんずれて合わなくなるが、種類数は正しく出る）。
+		const ok = expected != null && expected === st.total;
 		const line =
-			`タブ ${tab}: 画像 ${t.images.length}枚 / 読めた種類 ${uniq} / 設定数 ${expected == null ? '読めず' : expected}` +
-			(t.unresolved ? ` / 未確定 ${t.unresolved}枚` : '') +
-			(expected == null ? '（チェックは省略）' : ok ? ' → 一致' : ' → **食い違いあり**');
+			`タブ ${tab}: 画像 ${t.images.length}枚 / 検出 ${st.total}種（取り込み対象 ${st.lavender}種・対象外の金 ${st.gold}種` +
+			(st.unknown ? `・名前未確定 ${st.unknown}種` : '') +
+			`） / 設定数 ${expected == null ? '読めず' : expected}` +
+			(st.gaps ? ` / 継ぎ目が合わない箇所 ${st.gaps}件（参考）` : '') +
+			(expected == null ? '（撮り漏れの判定は省略）' : ok ? ' → 撮り漏れなし' : ' → **撮り漏れの疑い**');
 		console.log('  ' + line);
-		summaryLines.push({ tab, images: t.images.length, unique: uniq, expected, unresolved: t.unresolved, ok });
+		summaryLines.push({
+			tab,
+			images: t.images.length,
+			detected: st.total,
+			lavender: st.lavender,
+			gold: st.gold,
+			unknown: st.unknown,
+			gaps: st.gaps,
+			unique: t.names.size,
+			expected,
+			unresolved: t.unresolved,
+			ok
+		});
 	}
 
 	const draft = {

@@ -71,6 +71,9 @@ async function main() {
 	const reportsDir = path.join(assetsRoot(), 'reports');
 
 	const subs = new Map(); // "誤読字→正字" → 回数
+	// **主指標はスキルの種類数。** 動画では同じカードが何十フレームも読まれるので、
+	// 延べ回数だと「たまたま長く写っていたスキル」が上位を占めてしまう。
+	const subSkills = new Map(); // "誤読字→正字" → その化け方が起きたスキル名の集合
 	const dels = new Map(); // 読み落とされた字
 	const inss = new Map(); // 余計に読まれた字
 	const perCondition = new Map();
@@ -114,6 +117,8 @@ async function main() {
 						if (op.type === 'sub') {
 							const k = `${op.from}→${op.to}`;
 							bump(subs, k);
+							if (!subSkills.has(k)) subSkills.set(k, new Set());
+							subSkills.get(k).add(name);
 							pc.subs++;
 							if (!examples.has(k)) examples.set(k, []);
 							if (examples.get(k).length < 4) examples.get(k).push({ set: setName, condition: key, id: row.id, read: t, truth: name });
@@ -134,16 +139,16 @@ async function main() {
 	const subList = [...subs.entries()]
 		.map(([k, n]) => {
 			const [from, to] = k.split('→');
-			return { from, to, count: n, alreadyMapped: existing[from] === to, mappedTo: existing[from] || null, examples: examples.get(k) || [] };
+			return { from, to, count: n, skillCount: (subSkills.get(k) || new Set()).size, skills: [...(subSkills.get(k) || new Set())], alreadyMapped: existing[from] === to, mappedTo: existing[from] || null, examples: examples.get(k) || [] };
 		})
-		.sort((a, b) => b.count - a.count);
+		.sort((a, b) => b.skillCount - a.skillCount || b.count - a.count);
 	const delList = [...dels.entries()].map(([ch, n]) => ({ char: ch, count: n })).sort((a, b) => b.count - a.count);
 	const insList = [...inss.entries()].map(([ch, n]) => ({ char: ch, count: n })).sort((a, b) => b.count - a.count);
 
 	console.log(`対象カード ${cards}件 / 突き合わせた読み ${usedReads}件（かけ離れていて外した読み ${skippedReads}件）`);
 	console.log('\n■ 置き換え（誤読字→正字）上位');
 	subList.slice(0, 30).forEach((s) => {
-		console.log(`  ${s.from} → ${s.to}   ${s.count}回` + (s.alreadyMapped ? '（既存マップにあり）' : s.mappedTo ? `（既存は ${s.from}→${s.mappedTo}）` : ''));
+		console.log(`  ${s.from} → ${s.to}   ${s.skillCount}種 / 延べ${s.count}回` + (s.alreadyMapped ? '（既存マップにあり）' : s.mappedTo ? `（既存は ${s.from}→${s.mappedTo}）` : ''));
 	});
 	console.log('\n■ 読み落とし（正解にあってOCRに無い字）上位');
 	delList.slice(0, 12).forEach((s) => console.log(`  ${s.char}   ${s.count}回`));

@@ -37,7 +37,7 @@ export async function extractSet(analyzer, kind, setName, opts = {}) {
 			const c = res.cards[i];
 			const id = `${name}-${String(i).padStart(2, '0')}`;
 			if (outDir && c.cropDataUrl) await dataUrlToFile(c.cropDataUrl, path.join(outDir, `${id}.png`));
-			cards.push({ id, card: c.card, text: c.text });
+			cards.push({ id, card: c.card, text: c.text, kind: c.kind, goldRatio: c.goldRatio, signature: c.signature });
 		}
 		if (outDir && res.badgeDataUrl) await dataUrlToFile(res.badgeDataUrl, path.join(outDir, `${name}-badge.png`));
 		entries.push({
@@ -52,8 +52,9 @@ export async function extractSet(analyzer, kind, setName, opts = {}) {
 			cards
 		});
 		if (!opts.quiet) {
+			const goldN = cards.filter((c) => c.kind === 'gold').length;
 			console.log(
-				`  ${path.basename(file)}  ${res.width}x${res.height}  カード ${cards.length}枚  ` +
+				`  ${path.basename(file)}  ${res.width}x${res.height}  カード ${cards.length}枚（金 ${goldN}枚＝対象外）  ` +
 					`タブ ${res.activeTab ? TAB_LABELS[res.activeTab.index] : '不明'}  ` +
 					`バッジ ${res.badge ? 'あり' : 'なし'}  (${res.ms}ms)`
 			);

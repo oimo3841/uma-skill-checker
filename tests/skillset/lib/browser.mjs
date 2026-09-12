@@ -45,6 +45,27 @@ export async function openAnalyzer(options = {}) {
 			ctx.drawImage(canvas, rect.x, rect.y, rect.w, rect.h, 0, 0, out.width, out.height);
 			return out.toDataURL('image/png');
 		};
+		// 文字領域を小さな明るさの配列に潰した指紋。同じカードなら近い値になる。
+		window.__SIGNATURE_W = 48;
+		window.__SIGNATURE_H = 12;
+		window.__signature = function (canvas, rect) {
+			const w = window.__SIGNATURE_W, h = window.__SIGNATURE_H;
+			const out = document.createElement('canvas');
+			out.width = w;
+			out.height = h;
+			const ctx = out.getContext('2d');
+			ctx.imageSmoothingEnabled = true;
+			ctx.imageSmoothingQuality = 'high';
+			ctx.drawImage(canvas, rect.x, rect.y, rect.w, rect.h, 0, 0, w, h);
+			const d = ctx.getImageData(0, 0, w, h).data;
+			const v = [];
+			for (let i = 0; i < w * h; i++) {
+				const p = i * 4;
+				v.push(Math.round(0.299 * d[p] + 0.587 * d[p + 1] + 0.114 * d[p + 2]));
+			}
+			return v;
+		};
+
 		window.__analyze = async function (dataUrl, opts) {
 			const o = opts || {};
 			const canvas = await window.__decode(dataUrl);
@@ -58,7 +79,15 @@ export async function openAnalyzer(options = {}) {
 				ms: Math.round(ms),
 				badge: res.badge,
 				activeTab: res.activeTab,
-				cards: res.cards.map((c) => ({ card: c.card, text: c.text }))
+				cards: res.cards.map((c) => ({
+					card: c.card,
+					text: c.text,
+					kind: c.kind,
+					goldRatio: Number((c.goldRatio || 0).toFixed(4)),
+					// 文字領域を小さく潰した指紋。OCRを使わずに「同じカードか」を見分けるために使う
+					// （金のカードはOCRにかけないので、名前では重複を消せない）。
+					signature: window.__signature(canvas, c.text)
+				}))
 			};
 			if (o.crops) {
 				out.cards.forEach((c, i) => {

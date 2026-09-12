@@ -63,6 +63,13 @@
 		TAB_MIN_H_RATIO: 0.010,
 		TAB_MAX_H_RATIO: 0.030,
 		TAB_COUNT: 3,
+		// カードの地が金かどうかの判定。アイコン（左端）を外した帯で、
+		// 金の画素とラベンダーの画素のどちらが多いかを見る。
+		// 金のカードは継承できないスキル（進化・金・◎）なので、OCRにかけず「対象外」にする。
+		KIND_SCAN_LEFT: 0.15, // アイコンぶんを外す
+		KIND_SCAN_TOP: 0.15,
+		KIND_SCAN_BOTTOM: 0.85,
+		KIND_GOLD_MIN_RATIO: 0.2, // 帯の画素のうち、金がこの割合を超えたら金のカード
 		// スクロールバー（右端）
 		SCROLLBAR_X_FROM: 0.93,
 		SCROLLBAR_X_TO: 0.985,
@@ -205,8 +212,39 @@
 	}
 
 	/**
+	 * カードの地が金かラベンダーかを返す（'gold' / 'lavender'）。
+	 *
+	 * マスター445種は**継承スキルだけ**が対象で、進化スキル・金スキル・◎（○の強化版）は
+	 * 仕様上そこに入らない。それらは画面上で金の地のカードになるので、**色だけでOCR前に外せる。**
+	 * アイコンは金のカードでもラベンダーのカードでも金色なので、左端のアイコンぶんは見ない。
+	 */
+	function classifyCardKind(img, rect, tuning) {
+		var T = tuning || SKILLSET_TUNING;
+		var W = img.width, d = img.data;
+		var x0 = rect.x + Math.round(rect.w * T.KIND_SCAN_LEFT);
+		var x1 = rect.x + rect.w;
+		var y0 = rect.y + Math.round(rect.h * T.KIND_SCAN_TOP);
+		var y1 = rect.y + Math.round(rect.h * T.KIND_SCAN_BOTTOM);
+		var gold = 0, lav = 0, total = 0;
+		for (var y = y0; y < y1; y++) {
+			for (var x = x0; x < x1; x++) {
+				var p = (y * W + x) * 4;
+				var r = d[p], g = d[p + 1], b = d[p + 2];
+				total++;
+				if (r > T.GOLD_MIN_R && g > T.GOLD_MIN_G && b < T.GOLD_MAX_B && (r - b) > T.GOLD_MIN_R_MINUS_B) gold++;
+				else if ((b - r > T.LAVENDER_B_MINUS_R) && r > T.LAVENDER_MIN_R && b > T.LAVENDER_MIN_B) lav++;
+			}
+		}
+		return {
+			kind: total > 0 && gold / total > T.KIND_GOLD_MIN_RATIO ? 'gold' : 'lavender',
+			goldRatio: total > 0 ? gold / total : 0,
+			lavenderRatio: total > 0 ? lav / total : 0
+		};
+	}
+
+	/**
 	 * 完全に見えていて、かつ文字がバッジに隠れていないカードを返す。
-	 * 戻り値: [{ card:{x,y,w,h}, text:{x,y,w,h} }]
+	 * 戻り値: [{ card:{x,y,w,h}, text:{x,y,w,h}, kind:'gold'|'lavender', goldRatio }]
 	 */
 	function detectFullCards(img, tuning) {
 		var T = tuning || SKILLSET_TUNING;
@@ -227,8 +265,11 @@
 			};
 			// 枠は完全に見えているのに文字だけバッジに隠れている場合がある
 			if (badge && overlaps(band, badge)) return;
+			var kind = classifyCardKind(img, c, T);
 			out.push({
 				card: { x: c.x, y: c.y, w: c.w, h: c.h },
+				kind: kind.kind,
+				goldRatio: kind.goldRatio,
 				text: {
 					x: c.x + Math.round(c.w * T.TEXT_CROP_LEFT),
 					y: c.y + Math.round(c.h * T.TEXT_CROP_TOP),
@@ -368,6 +409,7 @@
 		detectFullCards: detectFullCards,
 		detectActiveTab: detectActiveTab,
 		detectScrollThumb: detectScrollThumb,
+		classifyCardKind: classifyCardKind,
 		analyzeScreen: analyzeScreen,
 		_internal: { maskFrom: maskFrom, close: close, components: components, median: median }
 	};
