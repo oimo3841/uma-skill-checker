@@ -85,8 +85,13 @@ node tests/skillset/extract-video-frames.mjs --set=2026-09-12a --probe   # 長�
 node tests/skillset/extract-video-frames.mjs --set=2026-09-12a --fps=12
 node tests/skillset/run-extract-cards.mjs --kind=frames --set=2026-09-12a
 node tests/skillset/run-extract-cards.mjs --kind=frames-blurry --set=2026-09-12a --out=2026-09-12a-blurry
-node tests/skillset/build-blurry-truth.mjs --set=2026-09-12a             # 実劣化の正解と誤り検出
+node tests/skillset/build-blurry-truth.mjs --set=2026-09-12a --universe=2026-09-11a
 ```
+
+`frames-blurry/` は「その動画の中で鮮明さが低いほうから一定割合」。
+**画面収録にはモーションブラーが無い**（実測。フレームは合成済みの画面をそのまま取ったもので、
+カメラの露光ではない）ので、ここに入るのは実際には「画面に写っているカードが少ないフレーム」になりやすい。
+`extract-video-frames.mjs` は、鮮明さの幅が狭いとき「この動画にはブレが無い」と明示して知らせる。
 
 `probe-scrollbar.mjs` は、一覧の右端のスクロールバーのつまみを見つけられるかを
 端末ごとに確かめるための道具。

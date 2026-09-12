@@ -36,17 +36,27 @@ async function main() {
 	const blurrySet = `${setName}-blurry`;
 	const root = assetsRoot();
 
-	const sharpTruth = JSON.parse(await fs.readFile(path.join(root, 'truth', `${setName}.json`), 'utf-8'));
-	// タブごとに「そのタブに実在するスキル名」の一覧を作る
+	// タブごとに「そのタブに実在するスキル名」の一覧を作る。
+	// --universe に別の撮影セットを足せる（同じスキルセットを静止画でも撮っている場合。
+	// 動画だけでは読めなかった分が埋まり、一覧が完全になる）。
+	const universeSets = [setName, ...String(argValue('universe', '')).split(',').map((s) => s.trim()).filter(Boolean)];
 	const universeByTab = new Map();
-	sharpTruth.cards.forEach((c) => {
-		if (!c.skillName) return;
-		const tab = c.tab || '不明';
-		if (!universeByTab.has(tab)) universeByTab.set(tab, new Set());
-		universeByTab.get(tab).add(c.skillName);
-	});
+	const completeTabs = new Set();
+	for (const s of universeSets) {
+		const file = path.join(root, 'truth', `${s}.json`);
+		if (!fsSync.existsSync(file)) { console.log(`※ truth/${s}.json が無いので一覧に足せません`); continue; }
+		const t = JSON.parse(await fs.readFile(file, 'utf-8'));
+		t.cards.forEach((c) => {
+			if (!c.skillName) return;
+			const tab = c.tab || '不明';
+			if (!universeByTab.has(tab)) universeByTab.set(tab, new Set());
+			universeByTab.get(tab).add(c.skillName);
+		});
+		// 「読めた種類数＝設定数」が確認できたタブだけ、一覧が完全だとみなす
+		(t.tabs || []).forEach((x) => { if (x.ok) completeTabs.add(x.tab); });
+	}
 	const allNames = new Set([...universeByTab.values()].flatMap((s) => [...s]));
-	console.log(`鮮明フレーム側で確定している一覧: ${[...universeByTab].map(([t, s]) => `${t} ${s.size}種`).join(' / ')}`);
+	console.log(`一覧（${universeSets.join(' + ')}）: ${[...universeByTab].map(([t, s]) => `${t} ${s.size}種${completeTabs.has(t) ? '（設定数と一致＝完全）' : '（不完全）'}`).join(' / ')}`);
 
 	const reportsDir = path.join(root, 'reports');
 	const files = fsSync.readdirSync(reportsDir).filter((f) => f.startsWith(`ocr-${blurrySet}-`) && f.endsWith('.json'));
@@ -77,8 +87,9 @@ async function main() {
 	let decided = 0;
 	for (const [id, texts] of readsById) {
 		const tab = tabById.get(id) || '不明';
-		const universe = universeByTab.get(tab) || allNames;
+		const universe = universeByTab.get(tab);
 		let name = null;
+		if (!universe) { cards.push({ id, tab, skillName: null, skillId: null, inMaster: false, decidedBy: null }); continue; }
 		for (const t of texts) {
 			const hit = strictUniverse.get(normalizeWithoutConfusion(t));
 			if (hit && universe.has(hit)) { name = hit; break; }
@@ -100,9 +111,13 @@ async function main() {
 	const matcher = buildMatcher(master);
 	let autoAccepted = 0, outsideUniverse = 0;
 	const wrongExamples = [];
+	let skippedNoUniverse = 0;
 	for (const [id, texts] of readsById) {
 		const tab = tabById.get(id) || '不明';
-		const universe = universeByTab.get(tab) || allNames;
+		// 一覧が**完全だと確認できたタブ**だけを検査対象にする。
+		// 不完全な一覧で見ると、まだ読めていないスキルに当たっただけで「誤り」と数えてしまう。
+		if (!completeTabs.has(tab) || !universeByTab.has(tab)) { skippedNoUniverse++; continue; }
+		const universe = universeByTab.get(tab);
 		const { chosen } = combineReads(texts.map((t) => ({ text: t, confidence: 0 })), matcher);
 		if (!isAutoAccepted(chosen.category) || !chosen.skill) continue;
 		autoAccepted++;
@@ -112,7 +127,8 @@ async function main() {
 		}
 	}
 	console.log(
-		`一意に一致した ${autoAccepted}枚のうち、そのタブに存在しないスキルに当たった＝**確実に誤り** ${outsideUniverse}枚`
+		`一意に一致した ${autoAccepted}枚のうち、そのタブに存在しないスキルに当たった＝**確実に誤り** ${outsideUniverse}枚` +
+			(skippedNoUniverse ? `（一覧が完全だと確認できていないタブの ${skippedNoUniverse}枚は検査の対象外）` : '')
 	);
 	wrongExamples.forEach((w) => console.log(`  ${w.id}（${w.tab}） → ${w.matched}   読み: ${JSON.stringify(w.texts)}`));
 
