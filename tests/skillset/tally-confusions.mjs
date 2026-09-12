@@ -15,6 +15,7 @@
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { assetsRoot, assetsDir, relToAssets } from './lib/assets.mjs';
 import { common, normalizeWithoutConfusion } from './lib/common-in-node.mjs';
 
@@ -64,10 +65,12 @@ function bump(map, key) {
 	map.set(key, (map.get(key) || 0) + 1);
 }
 
-async function main() {
-	const setsArg = argValue('sets', null);
-	const sets = setsArg ? setsArg.split(',').map((s) => s.trim()) : [argValue('set', '2026-09-11a')];
-	const conditionsArg = argValue('conditions', null);
+/**
+ * セットの集合について誤読を集計する。report-confusion-recount.mjs が**条件（解像度）ごと**に
+ * 呼び分けるので、main から切り出してある。戻り値は reports/confusions-*.json と同じ形。
+ */
+export async function tallyConfusions(sets, conditionsArg, { quiet = false } = {}) {
+	const log = quiet ? () => {} : console.log;
 	const reportsDir = path.join(assetsRoot(), 'reports');
 
 	const subs = new Map(); // "誤読字→正字" → 回数
@@ -83,7 +86,7 @@ async function main() {
 	for (const setName of sets) {
 		const truthFile = path.join(assetsRoot(), 'truth', `${setName}.json`);
 		if (!fsSync.existsSync(truthFile)) {
-			console.log(`※ truth/${setName}.json が無いので飛ばします`);
+			log(`※ truth/${setName}.json が無いので飛ばします`);
 			continue;
 		}
 		const truth = JSON.parse(await fs.readFile(truthFile, 'utf-8'));
@@ -149,21 +152,21 @@ async function main() {
 	const delList = [...dels.entries()].map(([ch, n]) => ({ char: ch, count: n })).sort((a, b) => b.count - a.count);
 	const insList = [...inss.entries()].map(([ch, n]) => ({ char: ch, count: n })).sort((a, b) => b.count - a.count);
 
-	console.log(`対象カード ${cards}件 / 突き合わせた読み ${usedReads}件（かけ離れていて外した読み ${skippedReads}件）`);
-	console.log('\n■ 置き換え（誤読字→正字）上位');
+	log(`対象カード ${cards}件 / 突き合わせた読み ${usedReads}件（かけ離れていて外した読み ${skippedReads}件）`);
+	log('\n■ 置き換え（誤読字→正字）上位');
 	subList.slice(0, 30).forEach((s) => {
-		console.log(`  ${s.from} → ${s.to}   ${s.skillCount}種 / 延べ${s.count}回` + (s.alreadyMapped ? '（既存マップにあり）' : s.mappedTo ? `（既存は ${s.from}→${s.mappedTo}）` : ''));
+		log(`  ${s.from} → ${s.to}   ${s.skillCount}種 / 延べ${s.count}回` + (s.alreadyMapped ? '（既存マップにあり）' : s.mappedTo ? `（既存は ${s.from}→${s.mappedTo}）` : ''));
 	});
-	console.log('\n■ 読み落とし（正解にあってOCRに無い字）上位');
-	delList.slice(0, 12).forEach((s) => console.log(`  ${s.char}   ${s.count}回`));
-	console.log('\n■ 余計に読まれた字 上位');
-	insList.slice(0, 12).forEach((s) => console.log(`  ${s.char}   ${s.count}回`));
-	console.log('\n■ 条件ごとの誤りの内訳');
+	log('\n■ 読み落とし（正解にあってOCRに無い字）上位');
+	delList.slice(0, 12).forEach((s) => log(`  ${s.char}   ${s.count}回`));
+	log('\n■ 余計に読まれた字 上位');
+	insList.slice(0, 12).forEach((s) => log(`  ${s.char}   ${s.count}回`));
+	log('\n■ 条件ごとの誤りの内訳');
 	for (const [k, v] of perCondition) {
-		console.log(`  ${k}: 読み ${v.reads}（そのうち完全に一致 ${v.clean}） 置き換え ${v.subs} / 読み落とし ${v.dels} / 余計 ${v.inss}`);
+		log(`  ${k}: 読み ${v.reads}（そのうち完全に一致 ${v.clean}） 置き換え ${v.subs} / 読み落とし ${v.dels} / 余計 ${v.inss}`);
 	}
 
-	const out = {
+	return {
 		sets,
 		generatedAt: new Date().toISOString(),
 		note: '混同マップを通していない正規化どうしで突き合わせた結果。置き換えだけが CHAR_CONFUSION_MAP の候補になる。',
@@ -176,12 +179,22 @@ async function main() {
 		insertions: insList,
 		perCondition: Object.fromEntries(perCondition)
 	};
+}
+
+async function main() {
+	const setsArg = argValue('sets', null);
+	const sets = setsArg ? setsArg.split(',').map((s) => s.trim()) : [argValue('set', '2026-09-11a')];
+	const out = await tallyConfusions(sets, argValue('conditions', null));
 	const outFile = path.join(assetsDir('reports'), `confusions-${sets.join('+')}.json`);
 	await fs.writeFile(outFile, JSON.stringify(out, null, '\t'), 'utf-8');
 	console.log(`\n→ ${relToAssets(outFile)}`);
 }
 
-main().catch((e) => {
-	console.error(e.stack || e.message || e);
-	process.exit(1);
-});
+// report-confusion-recount.mjs から import されたときは main を走らせない
+// （走ると既定のセットの reports/confusions-2026-09-11a.json を書き直してしまう）
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
+	main().catch((e) => {
+		console.error(e.stack || e.message || e);
+		process.exit(1);
+	});
+}

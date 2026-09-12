@@ -16,6 +16,7 @@
     "skillset:ocr": "node tests/skillset/run-ocr-crops.mjs",
     "skillset:truth": "node tests/skillset/build-truth.mjs",
     "skillset:confusions": "node tests/skillset/tally-confusions.mjs",
+    "skillset:confusions:by-condition": "node tests/skillset/report-confusion-recount.mjs",
     "skillset:check-map": "node tests/skillset/check-confusion-candidates.mjs",
     "skillset:coverage": "node tests/skillset/report-coverage.mjs",
     "skillset:video": "node tests/skillset/extract-video-frames.mjs",
