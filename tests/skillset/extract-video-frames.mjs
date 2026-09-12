@@ -263,6 +263,18 @@ async function scan(browser, page, channel, info, urlPath, setName, file, fps, p
 
 	// 縦位置がほぼ同じ連続フレームは1枚だけ残す（止まっている間の重複を落とす）
 	const DEDUPE_PX = 6;
+	// **位置の判定は、つまみが見えていればつまみで行う**（F-37）。画の相関で求めた shift は
+	// 探索範囲（±MAX_SHIFT_PX）を超える速さでスクロールすると一覧の周期（1段≒カードの
+	// 高さ＋余白）に誤って合い、動いているのに「ほぼ0」と出る。実測（592x1280・通常タブ
+	// 43種）: つまみが 0.10→0.57 と半分近く動いた0.4秒間の5フレームが shift 0/-3/5/-3/-3 で
+	// 先頭の静止フレームと同じ組に入り、その区間だけに写っていたカード2種が丸ごと落ちた。
+	// つまみは絶対位置なので周期に惑わされない。見えないとき（止まると消える）だけ
+	// shift の積算に戻る。止まっているなら積算でも正しく「同じ位置」と出る。
+	const THUMB_DEDUPE_PX = 2;
+	const samePosition = (a, b) =>
+		a.thumbY != null && b.thumbY != null
+			? Math.abs(a.thumbY - b.thumbY) <= THUMB_DEDUPE_PX
+			: Math.abs(a.cumulative - b.cumulative) <= DEDUPE_PX;
 	const kept = [];
 	let group = [];
 	const flush = () => {
@@ -278,7 +290,7 @@ async function scan(browser, page, channel, info, urlPath, setName, file, fps, p
 	const CONTENT_CHANGE_RATIO = 0.2;
 	frames.forEach((f) => {
 		if (group.length) {
-			const movedFar = Math.abs(f.cumulative - group[0].cumulative) > DEDUPE_PX;
+			const movedFar = !samePosition(f, group[0]);
 			const base = group[0].cardRows || 0;
 			const changed = base > 0 && Math.abs((f.cardRows || 0) - base) > base * CONTENT_CHANGE_RATIO;
 			if (movedFar || changed) flush();
@@ -304,7 +316,17 @@ async function scan(browser, page, channel, info, urlPath, setName, file, fps, p
 	}
 	const maxGap = gaps.length ? Math.max(...gaps.map((g) => g.px)) : 0;
 	const totalScroll = frames.length ? Math.abs(frames[frames.length - 1].cumulative - frames[0].cumulative) : 0;
-	console.log(`  総スクロール量 約${Math.round(totalScroll)}px / 採用フレーム間の最大の飛び ${Math.round(maxGap)}px`);
+	// つまみで見た飛び（採用フレームどうしで両方に見えているときだけ）。画の相関の積算は
+	// 速いスクロールで頭打ちになるので、こちらのほうが実際の飛びに近い。
+	let maxThumbGap = 0;
+	for (let i = 1; i < keptSharp.length; i++) {
+		const a = keptSharp[i - 1], b = keptSharp[i];
+		if (a.thumbY != null && b.thumbY != null) maxThumbGap = Math.max(maxThumbGap, Math.abs(a.thumbY - b.thumbY));
+	}
+	console.log(
+		`  総スクロール量 約${Math.round(totalScroll)}px（画の相関の積算。速い区間は頭打ち） / ` +
+			`採用フレーム間の最大の飛び ${Math.round(maxGap)}px（同）／ つまみで ${maxThumbGap}px`
+	);
 
 	// 保存
 	const outSharp = assetsDir('frames', setName);

@@ -300,7 +300,13 @@
 		var topCardY = cards && cards.length ? Math.min.apply(null, cards.map(function (c) { return c.card.y; })) : H;
 		var hit = null;
 		components(m, W, H).forEach(function (c) {
-			if (c.y + c.h > topCardY) return; // カードより下（カード内の緑アイコンなど）
+			// カードより下（カード内の緑アイコンなど）は外す。**上端で比べる。**
+			// 「下端がカードの上端より下」で外すと、上端で切れたカードの地がタブ段の直下の
+			// 薄い背景と繋がって数px上に伸びたとき（592x1280 の画面収録で実測: 本来 308 の
+			// カードが 296 から始まる）、タブ段の下端がそれに重なってタブそのものが落ちる。
+			// タブ段はカードより上から始まり、カード内のアイコンはカードより下から始まるので、
+			// 上端だけで見れば両方を正しく分けられる。
+			if (c.y >= topCardY) return;
 			if (c.w < W * T.TAB_MIN_W_RATIO || c.w > W * T.TAB_MAX_W_RATIO) return;
 			if (c.h < H * T.TAB_MIN_H_RATIO || c.h > H * T.TAB_MAX_H_RATIO) return;
 			if (!hit || c.y > hit.y) hit = c; // タブの段は見出し帯より下

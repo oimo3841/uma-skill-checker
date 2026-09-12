@@ -87,7 +87,11 @@ async function main() {
 			continue;
 		}
 		const truth = JSON.parse(await fs.readFile(truthFile, 'utf-8'));
-		const nameById = new Map(truth.cards.map((c) => [c.id, c.skillName]));
+		// 暫定の正解（build-truth の --write-truth）では、多数決で決まらなかった行にも
+		// 最多得票の名前が入っている（decidedBy: 'check'）。それを正解として突き合わせると
+		// 読み違いを「正しい読み」の側に数えてしまうので外す。おいもさんが確認して保存した
+		// 正解には decidedBy が無く、全カードを使う。
+		const nameById = new Map(truth.cards.filter((c) => c.decidedBy !== 'check').map((c) => [c.id, c.skillName]));
 		const files = fsSync
 			.readdirSync(reportsDir)
 			.filter((f) => f.startsWith(`ocr-${setName}-`) && f.endsWith('.json'))

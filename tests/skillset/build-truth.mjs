@@ -54,7 +54,12 @@ function loadLexicon() {
 	const file = path.join(assetsRoot(), 'reference', 'skill-names.json');
 	if (!fsSync.existsSync(file)) return null;
 	const json = JSON.parse(fsSync.readFileSync(file, 'utf-8'));
-	return json.names.map((n) => ({ id: `name:${n}`, name: n }));
+	// ◎ のスキルは辞書から外す。◎（○の強化版）は継承できないので画面では**金の地のカード**になり、
+	// 金は照合にかける前に外している。つまりラベンダーのカードが ◎ に一致することは無い。
+	// 残しておくと、正規化で ◎ が ○ に潰れるため「根幹距離○」と「根幹距離◎」が常に同点になり、
+	// ○ のスキルは完全一致の読みでも曖昧、距離1の読みでは票そのものが立たない
+	// （実測: 592x1280 の画面収録で、○ のカードが並ぶ冒頭15フレームが1枚も投票できなかった）。
+	return json.names.filter((n) => !n.includes('◎')).map((n) => ({ id: `name:${n}`, name: n }));
 }
 
 function esc(s) {
