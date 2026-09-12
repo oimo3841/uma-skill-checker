@@ -20,19 +20,15 @@
 
 export const GOLD_KEY = ' GOLD';
 
-// 重なりの対応づけの点数。**ずれ（片側にしか無い）と読み違い（両側にあるが別の名前）を
-// 区別できる値にしてある**。
-//   ずれ   … 画面の端やバッジに隠れて1枚だけ検出できなかった。片側に隙間を空けるのが正しい
-//   読み違い … 同じカードを別の名前に読んだ。**同じ行にまとめるのが正しい**（多数決の材料になる）
-// 読み違いの罰（-1.5）を隙間2つぶん（-2）より軽くしてあるので、同じ長さで並んでいるときは
-// まとめるほうが選ばれ、本当に1枚欠けているときだけ隙間が選ばれる。
-// **格子の左右（side）が違うカードは、決して同じ一覧の項目ではない。**
-// 一覧は2列に流し込まれるだけで組み替わらないので、これは読みの善し悪しと関係なく効く。
-// 左右を見ないと、片方のフレームで1枚検出できなかったときに「右の◯◯」と「左の××」が
-// 同じ長さで並んでしまい、読み違いとして1行にまとめられる（実測: 実直な走り／決定打）。
-const SCORE = { name: 3, gold: 1.5, unknown: 0, mismatch: -1.5, gap: -1, sideMismatch: -1000 };
-// 次の画像の先頭を、列の末尾からどれだけ遡って探すか（画像1枚ぶん＋余裕）
-const TAIL_SLACK = 8;
+// 格子の升どうしを比べる点数（stitchEntries）。
+//   name     … 両方に名前があって一致した
+//   gold     … 両方とも金（名前が無いので弱い一致）
+//   unknown  … どちらかの名前が分からない（判定材料にしない）
+//   mismatch … 両方に名前があって違う＝同じ升を別の名前に読んだ（読み違い。多数決の材料になる）
+//   gap      … 片方にしか無い升（画面の端・バッジ・タップ演出に隠れて検出できなかった）
+// 読み違いの罰は隙間2つぶん（-2）より軽い。升の対応は段のずれ k だけで決まるので、
+// 「読み違い」と「1枚欠けて繰り上がった並び」を混同することはもう無い（stitchEntries の説明）。
+const SCORE = { name: 3, gold: 1.5, unknown: 0, mismatch: -1.5, gap: -1 };
 
 /**
  * 1画像ぶんのカードを、画面に並ぶ順（上から、左→右）に並べ替える。
@@ -49,9 +45,11 @@ function sortByPosition(cards) {
 	const tol = Math.max(4, Math.round(medianH * 0.5));
 	const out = [];
 	let band = [];
+	let bandIndex = 0;
 	const flush = () => {
 		band.sort((a, b) => a.card.x - b.card.x);
-		out.push(...band);
+		band.forEach((c) => out.push({ card: c, band: bandIndex }));
+		bandIndex++;
 		band = [];
 	};
 	for (const c of list) {
@@ -65,94 +63,40 @@ function sortByPosition(cards) {
 /**
  * 1画像ぶんのカードを、継ぎ合わせ用の項目の配列にする。
  * どのカードだったか（id・金かどうか）を持ち続ける。
+ *
+ * **段（band）は「見えているカードの段」ではなく「画面上の段」で数える。**
+ * 隣り合う段の間隔（カードの高さ＋余白）の中央値で y の差を割って段の番号にするので、
+ * 途中の段が丸ごと隠れて（バッジ・タップ演出）検出されなくても、その下の段の番号は飛ぶ。
+ * 見えている順に番号を振ると、隠れた段のぶんだけ下の段が繰り上がり、格子の対応づけが1段ずれる。
  */
 export function toEntries(cards, nameOf) {
-	return sortByPosition(cards).map((c) => ({
+	const sorted = sortByPosition(cards);
+	// 段の y（各段の先頭カードの y）から、段の間隔の中央値を出す
+	const bandY = [];
+	sorted.forEach((e) => { if (bandY[e.band] == null) bandY[e.band] = e.card.card.y; });
+	const steps = [];
+	for (let i = 1; i < bandY.length; i++) steps.push(bandY[i] - bandY[i - 1]);
+	const pitch = steps.length ? steps.slice().sort((a, b) => a - b)[Math.floor(steps.length / 2)] : 0;
+	const bandOf = (b) => (pitch > 0 ? Math.round((bandY[b] - bandY[0]) / pitch) : b);
+	return sorted.map(({ card: c, band }) => ({
 		id: c.id,
 		gold: c.kind === 'gold',
 		// 格子の何列目か。左の列の左端はカード1枚の幅よりずっと内側にある
 		// （実測: 幅 531 に対し 左 x=53〜68 / 右 x=597〜598）ので、幅で割れば列が出る。
 		side: c.card.w > 0 ? Math.round(c.card.x / c.card.w) : 0,
+		band: bandOf(band),
 		key: c.kind === 'gold' ? GOLD_KEY : nameOf(c.id) || null
 	}));
 }
 
 function pairScore(a, b) {
-	if (a.side !== b.side) return SCORE.sideMismatch;
 	if (a.key == null || b.key == null) return SCORE.unknown; // 名前が分からない側は判定材料にしない
 	if (a.key !== b.key) return SCORE.mismatch;
 	return a.key === GOLD_KEY ? SCORE.gold : SCORE.name;
 }
 
-/**
- * 列の末尾 `tail` と、次の画像の先頭 `head` を対応づける。
- *
- * 「tail の後ろのほう」と「head の前のほう」を、**隙間（片側にしか無い項目）を許して**
- * 対応づける。tail の前のほうと head の後ろのほうは余り（それぞれ既存の行・新しい行）。
- * 単純な「末尾と先頭が丸ごと一致する長さ」を探すやり方だと、1枚でも検出できなかった
- * カードがあるだけで一致が取れず、列が分かれて同じ項目が2行に割れる。
- *
- * 引数は { key, side } の配列。
- * 戻り値: { ops, matched }
- *   ops … 前から順に { t, h }（-1 は片側だけ）。tail 全部と head 全部を必ず覆う
- *   matched … 名前どうしが一致した個数。0 なら重なりが見つからなかった
- */
-export function alignOverlap(tail, head) {
-	const L = tail.length;
-	const M = head.length;
-	const NEG = -1e9;
-	// D[i][j] … tail[0..i-1] と head[0..j-1] まで処理したときの最良の点数。
-	// D[i][0] = 0 … tail の前のほうはいくら余ってもよい（既存の行としてそのまま残る）
-	const D = Array.from({ length: L + 1 }, () => new Float64Array(M + 1).fill(NEG));
-	for (let i = 0; i <= L; i++) D[i][0] = 0;
-	for (let j = 1; j <= M; j++) D[0][j] = j * SCORE.gap;
-	for (let i = 1; i <= L; i++) {
-		for (let j = 1; j <= M; j++) {
-			const diag = D[i - 1][j - 1] + pairScore(tail[i - 1], head[j - 1]);
-			const up = D[i - 1][j] + SCORE.gap;
-			const left = D[i][j - 1] + SCORE.gap;
-			D[i][j] = Math.max(diag, up, left);
-		}
-	}
-	// head の後ろのほうはいくら余ってもよい（新しい行として足す）ので、
-	// tail を使い切った行（i = L）の中でいちばん良いところで切る。
-	let bestJ = 0;
-	let best = D[L][0];
-	for (let j = 1; j <= M; j++) {
-		if (D[L][j] > best) { best = D[L][j]; bestJ = j; }
-	}
-	if (best <= 0) return { ops: null, matched: 0, score: best };
-
-	const ops = [];
-	let i = L;
-	let j = bestJ;
-	let matched = 0;
-	while (i > 0 || j > 0) {
-		if (i > 0 && j > 0 && D[i][j] === D[i - 1][j - 1] + pairScore(tail[i - 1], head[j - 1])) {
-			if (tail[i - 1].key != null && tail[i - 1].key === head[j - 1].key && tail[i - 1].key !== GOLD_KEY) matched++;
-			ops.push({ t: i - 1, h: j - 1 });
-			i--; j--;
-		} else if (i > 0 && D[i][j] === D[i - 1][j] + SCORE.gap) {
-			ops.push({ t: i - 1, h: -1 });
-			i--;
-		} else if (j > 0 && D[i][j] === D[i][j - 1] + SCORE.gap) {
-			ops.push({ t: -1, h: j - 1 });
-			j--;
-		} else if (i > 0) {
-			// D[i][0] = 0 の行に降りた＝ここから前の tail は余り
-			while (i > 0) { ops.push({ t: --i, h: -1 }); }
-		} else {
-			break;
-		}
-	}
-	ops.reverse();
-	// head の残り（bestJ 以降）は新しい行
-	for (let k = bestJ; k < M; k++) ops.push({ t: -1, h: k });
-	return { ops, matched, score: best };
-}
-
-function newRow(entry) {
-	return { key: entry.key, side: entry.side, ids: [entry.id], goldCount: entry.gold ? 1 : 0, total: 1 };
+function newRow(entry, grid) {
+	return { key: entry.key, side: entry.side, grid, ids: [entry.id], goldCount: entry.gold ? 1 : 0, total: 1 };
 }
 
 function absorb(row, entry) {
@@ -167,37 +111,89 @@ function absorb(row, entry) {
 /**
  * `toEntries` の結果を継ぎ合わせ、**1行ごとにどのカードが重なったか**を返す。
  * 戻り値: { rows, overlaps, gaps }
- *   rows[i] = { key, ids: [...], goldCount, total }
+ *   rows[i] = { key, side, grid, ids: [...], goldCount, total }
  *     key       … その行の暫定の名前（金なら GOLD_KEY、未確定なら null）
+ *     grid/side … 一覧の格子の何段目・どちらの列か（一覧の並び順そのもの）
  *     ids       … その行に重なったカードのID。多数決の母数になる
  *     goldCount … そのうち金と判定された枚数
- *   gaps … 重なりが1つも見つからなかった継ぎ目の数。撮り漏れの疑い
+ *   overlaps … 継ぎ目ごとに、名前どうしが一致した個数
+ *   gaps     … 重なりが1つも見つからなかった継ぎ目の数。撮り漏れの疑い
+ *
+ * ■ 対応づけは「列の並び」ではなく「2列の格子の平行移動」で決める（24セッション目に変更）
+ *   一覧は2列の格子に流し込まれるだけで組み替わらないので、隣り合う画像の対応は
+ *   **段の番号のずれ k がただ1つ**決まれば全部決まる（画像側の (段, 列) → 一覧側の (段+k, 列)）。
+ *   以前は1次元の列にほどいて編集距離のDPで合わせていたが、それだと**片方の列で1枚だけ
+ *   検出できなかったとき**（1180x2556 の実測: タップ演出の光る輪が「アオハル点火・賢」の右のカード
+ *   を隠した）、その列の下のカードが1段繰り上がって前の画像と同じ長さで並び、「読み違い」として
+ *   別のカードと同じ行にまとめられた（通常タブ 43種が 45行になり、賢と夢の途中の票が1行に混ざった）。
+ *   格子で持てば、隠れたカードは**穴**になるだけで下のカードの位置は動かない。
+ *   側（side）の食い違いも起こり得ない（同じ格子の升だけを比べる）。
+ *
+ *   k の候補は「画像の全部が新しい段」から「画像の先頭が一覧の先頭」までの全部を試し、
+ *   升ごとの点数（名前の一致 +3 / 金どうし +1.5 / どちらかが未確定 0 / 名前の食い違い -1.5 /
+ *   片方にしか無い升 -1）の合計がいちばん高い k を採る。同点なら直前の画像の k に近いほう
+ *   （連続するフレームは大きくは動かない）。合計が 0 以下なら重なり無しとして末尾に足す（gaps）。
+ *   撮影は上下どちらにスクロールしてもよいので、k が減る向きも許す。
  */
 export function stitchEntries(sequences) {
-	let rows = [];
+	const cells = new Map(); // `${grid}:${side}` → row
+	const cellKey = (grid, side) => `${grid}:${side}`;
 	const overlaps = [];
 	let gaps = 0;
+	let maxGrid = -1;
+	let prevK = 0;
 	sequences.forEach((seq) => {
 		if (!seq.length) return;
-		if (!rows.length) { rows = seq.map(newRow); return; }
-		const L = Math.min(rows.length, seq.length + TAIL_SLACK);
-		const keep = rows.slice(0, rows.length - L);
-		const tail = rows.slice(rows.length - L);
-		const { ops, matched } = alignOverlap(tail, seq);
-		overlaps.push(matched);
-		if (!ops) {
-			gaps++;
-			rows = rows.concat(seq.map(newRow));
+		const maxBand = Math.max(...seq.map((e) => e.band));
+		if (maxGrid < 0) {
+			seq.forEach((e) => cells.set(cellKey(e.band, e.side), newRow(e, e.band)));
+			maxGrid = maxBand;
+			prevK = 0;
 			return;
 		}
-		const merged = [];
-		ops.forEach((op) => {
-			if (op.t >= 0 && op.h >= 0) merged.push(absorb(tail[op.t], seq[op.h]));
-			else if (op.t >= 0) merged.push(tail[op.t]);
-			else merged.push(newRow(seq[op.h]));
+		let best = null;
+		for (let k = 0; k <= maxGrid + 1; k++) {
+			let score = 0;
+			let matched = 0;
+			const covered = new Set();
+			seq.forEach((e) => {
+				const g = e.band + k;
+				const row = cells.get(cellKey(g, e.side));
+				if (row) {
+					covered.add(row);
+					const s = pairScore(row, e);
+					score += s;
+					if (row.key != null && row.key === e.key && e.key !== GOLD_KEY) matched++;
+				} else if (g <= maxGrid) {
+					score += SCORE.gap; // 一覧側に無い升に画像のカードがある（以前は隠れていた升）
+				}
+			});
+			// 画像が覆う範囲（段 k〜k+maxBand）にある一覧側の行で、画像に相手がいないもの
+			for (const row of cells.values()) {
+				if (row.grid >= k && row.grid <= k + maxBand && !covered.has(row)) score += SCORE.gap;
+			}
+			const better = !best || score > best.score || (score === best.score && Math.abs(k - prevK) < Math.abs(best.k - prevK));
+			if (better) best = { k, score, matched };
+		}
+		let k;
+		if (!best || best.score <= 0) {
+			gaps++;
+			overlaps.push(0);
+			k = maxGrid + 1; // 重なりが見つからない → 末尾に新しい段として足す
+		} else {
+			overlaps.push(best.matched);
+			k = best.k;
+		}
+		seq.forEach((e) => {
+			const g = e.band + k;
+			const row = cells.get(cellKey(g, e.side));
+			if (row) absorb(row, e);
+			else cells.set(cellKey(g, e.side), newRow(e, g));
+			if (g > maxGrid) maxGrid = g;
 		});
-		rows = keep.concat(merged);
+		prevK = k;
 	});
+	const rows = [...cells.values()].sort((a, b) => a.grid - b.grid || a.side - b.side);
 	return { rows, overlaps, gaps };
 }
 
