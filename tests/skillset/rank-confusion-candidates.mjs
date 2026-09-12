@@ -31,7 +31,8 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { assetsRoot, assetsDir, relToAssets, REPO_ROOT } from './lib/assets.mjs';
 import { common, normalizeWithExtraMap, loadMaster } from './lib/common-in-node.mjs';
-import { loadCorpus, evaluate, diff, formatMetrics, expandExtra } from './lib/replay.mjs';
+import { loadCorpus, evaluate, diff, formatMetrics, expandExtra, rowMetricsWithOverlap, VOTE_THRESHOLD } from './lib/replay.mjs';
+import { tallyRow } from './build-truth.mjs';
 
 function argValue(name, fallback) {
 	const hit = process.argv.filter((a) => a.startsWith(`--${name}=`)).pop();
@@ -76,17 +77,21 @@ async function main() {
 	const sets = (argValue('sets', '') || '').split(',').map((s) => s.trim()).filter(Boolean);
 	if (!sets.length) throw new Error('--sets=<セット,...>（人の確認済みの正解を持つセット）を指定してください');
 	const candLabel = argValue('candidates', '1180x2556');
-	const commonLabel = argValue('common-with', '592x1280');
+	// 採用判断の土台は、既定では候補の出どころ（無劣化）で正解が確定している全種。
+	// --common-with=<条件> を渡すと、その条件とも共通するスキルに絞る（半解像度との比較用。採用判断には使わない）。
+	const commonLabel = argValue('common-with', 'none');
 	const minCount = Number(argValue('min-count', '3'));
 	const tier1MinSkills = Number(argValue('tier1-min-skills', '3'));
 	const useExam = !process.argv.includes('--no-exam');
+	const outName = argValue('out', 'confusion-adoption-plan');
 	const reportsDir = path.join(assetsRoot(), 'reports');
 
 	const candRep = JSON.parse(fsSync.readFileSync(path.join(reportsDir, `confusions-${candLabel}.json`), 'utf-8'));
-	const otherRep = fsSync.existsSync(path.join(reportsDir, `confusions-${commonLabel}.json`))
+	const otherRep = commonLabel !== 'none' && fsSync.existsSync(path.join(reportsDir, `confusions-${commonLabel}.json`))
 		? JSON.parse(fsSync.readFileSync(path.join(reportsDir, `confusions-${commonLabel}.json`), 'utf-8'))
 		: null;
 	const commonSkills = new Set(otherRep ? candRep.skills.filter((n) => otherRep.skills.includes(n)) : candRep.skills);
+	const baseLabel = otherRep ? `${commonLabel} と共通の ${commonSkills.size}種` : `${candLabel} で正解が確定している ${commonSkills.size}種（全種）`;
 
 	const corpus = loadCorpus(sets);
 	console.log(`評価コーパス: ${corpus.sets.join(', ')} … カード ${corpus.cards.length}枚・行 ${corpus.rows.length}`);
@@ -99,7 +104,22 @@ async function main() {
 	if (useExam) {
 		try { examNames = await examSkillNames(); } catch (e) { console.log(`※ exam.html の133種を読めませんでした（${String(e.message).split('\n')[0]}）。マスターだけで検査します`); }
 	}
-	console.log(`候補の出どころ: confusions-${candLabel}.json（${candRep.skillCount}種）／共通スキル: ${commonLabel} と共通の ${commonSkills.size}種`);
+	console.log(`候補の出どころ: confusions-${candLabel}.json（${candRep.skillCount}種）／土台: ${baseLabel}`);
+	// 行を持つカード → 行（「増えた枚数がどの行に入ったか」を見るため）
+	const rowOfCard = new Map();
+	corpus.rows.forEach((row) => row.ids.forEach((id) => rowOfCard.set(`${row.set}/${id}`, row)));
+	const baselineDecided = new Set();
+	{
+		const r = rowMetricsWithOverlap(corpus, baseline, 0);
+		void r;
+		corpus.rows.forEach((row) => {
+			const voteById = new Map();
+			row.ids.forEach((id) => { const v = baseline.perVote.get(`${row.set}/${id}`); if (v) voteById.set(id, v); });
+			const t = tallyRow(row.ids, voteById);
+			if (!!t.top && !t.tied && t.top.exactVotes > 0 && t.share >= VOTE_THRESHOLD) baselineDecided.add(`${row.set}/${row.index}`);
+		});
+	}
+	const OVERLAPS = [1, 2, 3];
 
 	const candidates = candRep.substitutions
 		.filter((s) => s.count >= minCount)
@@ -126,6 +146,18 @@ async function main() {
 		const colExam = replay && examNames.length ? collisions(examNames, extra) : [];
 		const ev = replay ? evaluate(corpus, extra, baseline) : baseline;
 		const d = replay ? diff(baseline, ev) : { autoRightDelta: 0, exactDelta: 0, autoWrongDelta: 0, checkDelta: 0, decidedWrongDelta: 0 };
+		// 重なりを k 枚に絞ったときの「確認に回る行」の増減（スクリーンショット数枚の想定）
+		const checkDeltaByOverlap = {};
+		if (replay) OVERLAPS.forEach((k) => { checkDeltaByOverlap[k] = rowMetricsWithOverlap(corpus, ev, k).check - rowMetricsWithOverlap(corpus, baseline, k).check; });
+		// 増えた枚数のうち、もともと確定していた行に入ったもの（票が厚くなるだけ）と、確認行きの行に入ったもの
+		let gainInDecided = 0, gainInCheck = 0;
+		if (replay) corpus.cards.forEach((card) => {
+			const key = `${card.set}/${card.id}`;
+			if (ev.perCard.get(key).ok && !baseline.perCard.get(key).ok) {
+				const row = rowOfCard.get(key);
+				if (row && baselineDecided.has(`${row.set}/${row.index}`)) gainInDecided++; else gainInCheck++;
+			}
+		});
 		const fromChars = Object.keys(extra);
 		const affectedCards = corpus.cards.filter((k) => k.readsSharp.some((t) => fromChars.some((ch) => String(t).includes(ch)))).length;
 		const lens = c.skills.map((n) => lenOf.get(n) || [...n].length);
@@ -149,6 +181,7 @@ async function main() {
 			skills: c.skills, commonSkills: c.commonSkills, affectedCards, minLen: Math.min(...lens), shortSkills, shortCommon,
 			already, collisionsMaster: colMaster, collisionsExam: colExam,
 			gainAuto: d.autoRightDelta, gainExact: d.exactDelta, autoWrongDelta: d.autoWrongDelta, checkDelta: d.checkDelta, decidedWrongDelta: d.decidedWrongDelta,
+			checkDeltaByOverlap, gainInDecided, gainInCheck,
 			wrongs: replay ? ev.card.wrongs.filter((w) => !baseline.card.wrongs.some((b) => b.set === w.set && b.id === w.id)) : [],
 			replayed: replay, tier, reasons
 		});
@@ -204,7 +237,7 @@ async function main() {
 	lines.push(`生成: ${new Date().toISOString()}　**採用も実装もしていない**（js/common.js は無変更。追加はおいもさんの承認後）。`);
 	lines.push('');
 	lines.push(`- 評価コーパス（人の確認済みの正解）: ${corpus.sets.join('・')} … カード ${corpus.cards.length}枚・行 ${corpus.rows.length}（製品と同じ前処理の読みで判定）`);
-	lines.push(`- 候補の出どころ: \`confusions-${candLabel}.json\`（${candRep.skillCount}種）。**共通スキル**＝${commonLabel} と共通の ${commonSkills.size}種（同じ土俵）。延べ ${minCount}回以上の候補 ${candidates.length}件を評価`);
+	lines.push(`- 候補の出どころ: \`confusions-${candLabel}.json\`（${candRep.skillCount}種）。**土台**＝${baseLabel}。延べ ${minCount}回以上の候補 ${candidates.length}件を評価`);
 	lines.push(`- 衝突検査: マスター ${masterNames.length}種${examNames.length ? `＋ exam.html ${examNames.length}種` : '（exam は未検査）'}`);
 	lines.push('');
 	lines.push('## 検証の枠組み（採用ごとに同じ指標を測る）');
@@ -236,6 +269,42 @@ async function main() {
 		if (cu.collisionsMaster.length) lines.push(`  - 衝突（マスター）: ${cu.collisionsMaster.map((x) => x.names.join('／')).join('、')}`);
 		if (cu.collisionsExam.length) lines.push(`  - 衝突（exam）: ${cu.collisionsExam.map((x) => x.names.join('／')).join('、')}`);
 	});
+	lines.push('');
+	// 「確認に回る行」がほとんど動かない理由: 増えた枚数の大半が、もともと確定していた行に入る（票が厚くなるだけ）
+	lines.push('### 2つの指標を分ける: 確認に回る行の減少（手間） と 完全一致率の上昇（票の厚み）');
+	lines.push('');
+	lines.push('| 段 | 確認なしで取り込める（+枚） | うち、もともと確定していた行に入った枚数（票が厚くなるだけ） | うち、確認行きの行に入った枚数 | 確認に回る行の減少 |');
+	lines.push('|---|---|---|---|---|');
+	cumulative.forEach((cu) => {
+		let inDecided = 0, inCheck = 0;
+		corpus.cards.forEach((card) => {
+			const key = `${card.set}/${card.id}`;
+			if (cu.metrics.perCard.get(key).ok && !baseline.perCard.get(key).ok) {
+				const row = rowOfCard.get(key);
+				if (row && baselineDecided.has(`${row.set}/${row.index}`)) inDecided++; else inCheck++;
+			}
+		});
+		lines.push(`| ${cu.label} | +${cu.delta.autoRightDelta} | ${inDecided} | ${inCheck} | ${-cu.delta.checkDelta} |`);
+	});
+	lines.push('');
+	lines.push('### 重なりを絞った場合（スクリーンショット数枚の想定）の「確認に回る行」');
+	lines.push('');
+	lines.push('行に写るカードを k 枚に絞って多数決を取り直す（読みは同じ。行のカードをフレーム順から等間隔に選ぶ）。k=1 は「1枚の読みがそのまま結果になる」状況で、確認なしで取り込める率とほぼ同じものを行で見た値。');
+	lines.push('');
+	lines.push(`| 段 | ${OVERLAPS.map((k) => `重なり ${k}枚`).join(' | ')} | 全部（動画） |`);
+	lines.push(`|---|${OVERLAPS.map(() => '---').join('|')}|---|`);
+	const rowLine = (label, ev) => `| ${label} | ${OVERLAPS.map((k) => { const r = rowMetricsWithOverlap(corpus, ev, k); const b = rowMetricsWithOverlap(corpus, baseline, k); return `${r.check}／${r.rows}${ev !== baseline ? `（${r.check - b.check >= 0 ? '+' : ''}${r.check - b.check}）` : ''}`; }).join(' | ')} | ${ev.row.check}／${ev.row.rows}${ev !== baseline ? `（${ev.row.check - baseline.row.check >= 0 ? '+' : ''}${ev.row.check - baseline.row.check}）` : ''} |`;
+	lines.push(rowLine('採用前', baseline));
+	cumulative.forEach((cu) => lines.push(rowLine(cu.label, cu.metrics)));
+	lines.push('');
+	// 並べ替え: 確認に回る行の減少（全部／重なり1枚）順
+	const adoptable = results.filter((r) => r.tier <= 2);
+	lines.push('### 第1段＋第2段を「確認に回る行の減少」で並べ替えた場合');
+	lines.push('');
+	lines.push('| 候補 | 段 | 確認に回る行の減少（動画・全部） | 同（重なり3枚） | 同（重なり2枚） | 同（重なり1枚） | 確認なしで取り込める（+枚） | うち確認行きの行に入った枚数 |');
+	lines.push('|---|---|---|---|---|---|---|---|');
+	adoptable.slice().sort((a, b) => a.checkDelta - b.checkDelta || (a.checkDeltaByOverlap[1] || 0) - (b.checkDeltaByOverlap[1] || 0) || b.gainAuto - a.gainAuto)
+		.forEach((r) => lines.push(`| ${r.from}→${r.to} | ${r.tier} | **${-r.checkDelta}** | ${-(r.checkDeltaByOverlap[3] || 0)} | ${-(r.checkDeltaByOverlap[2] || 0)} | ${-(r.checkDeltaByOverlap[1] || 0)} | +${r.gainAuto} | ${r.gainInCheck} |`));
 	lines.push('');
 	// 第3段のうち、2文字以下のスキルで起きたものは参考として別枠に出す（見込みと衝突を付けてある）
 	const shortRescue = results.filter((r) => r.tier === 3 && r.replayed && r.shortSkills.length && !r.collisionsMaster.length && !r.collisionsExam.length && r.autoWrongDelta === 0 && r.gainAuto > 0)
@@ -275,9 +344,30 @@ async function main() {
 		});
 		lines.push('');
 	}
-	const mdFile = path.join(assetsDir('reports'), 'confusion-adoption-plan.md');
+	// 参考 (b): 許容距離の緩和（2文字以下を距離1まで）を common.js を変えずに見積もる。
+	// 読み替えと違い、距離1の一致は「曖昧（確認行き・候補あり）」であって確認なしでは入らない。
+	// 効くのは「読めない → 候補あり」の変化で、行の確定や確認なしの取り込みには効かない。
+	{
+		const relaxed = (len) => (len <= 2 ? 1 : common.allowedDistance(len));
+		const evB = evaluate(corpus, {}, baseline, { allowedDistance: relaxed });
+		const evB1 = evaluate(corpus, mapOf([1]), baseline, { allowedDistance: relaxed });
+		lines.push('## 参考: (b) 許容距離の緩和（2文字以下を距離0→1）を見積もる');
+		lines.push('');
+		lines.push('`common.js` の `allowedDistance` を tests 側で差し替えて照合し直した値（製品は無変更）。距離1の一致は「曖昧（候補あり・確認行き）」で、確認なしでは入らない。');
+		lines.push('');
+		lines.push('| 条件 | 誤着地 | 確認なしで取り込める | 曖昧（候補あり） | 読めない | 確認に回る行（全部） | 確認に回る行（重なり1枚） | 曖昧の最上位候補が正解 |');
+		lines.push('|---|---|---|---|---|---|---|---|');
+		const topRight = (ev) => { let right = 0, total = 0; corpus.cards.forEach((card) => { const j = ev.perCard.get(`${card.set}/${card.id}`); if (j.category === 'ambiguous') { total++; if (j.vote && j.vote.name === card.truth) right++; } }); return `${right}／${total}`; };
+		const line = (label, ev) => `| ${label} | **${ev.card.autoWrong}** | ${auto(ev)}（${pct(auto(ev))}） | ${ev.card.ambiguous} | ${ev.card.unreadable} | ${ev.row.check} | ${rowMetricsWithOverlap(corpus, ev, 1).check} | ${topRight(ev)} |`;
+		lines.push(line('採用前（距離0）', baseline));
+		lines.push(line('(b) 2文字以下を距離1', evB));
+		lines.push(line('第1段＋(b)', evB1));
+		lines.push('');
+		cumulative.push({ label: '参考(b): 2文字以下を距離1', tiers: [], size: 0, map: {}, entries: {}, metrics: evB, delta: diff(baseline, evB), collisionsMaster: [], collisionsExam: [] });
+	}
+	const mdFile = path.join(assetsDir('reports'), `${outName}.md`);
 	await fs.writeFile(mdFile, lines.join('\n'), 'utf-8');
-	const jsonFile = path.join(assetsDir('reports'), 'confusion-adoption-plan.json');
+	const jsonFile = path.join(assetsDir('reports'), `${outName}.json`);
 	await fs.writeFile(jsonFile, JSON.stringify({
 		generatedAt: new Date().toISOString(), sets: corpus.sets, candidatesFrom: candLabel, commonWith: commonLabel, commonSkillCount: commonSkills.size, minCount, tier1MinSkills,
 		baseline: { card: baseline.card, row: baseline.row },

@@ -16,7 +16,13 @@
 
 import { common, normalizeWithoutConfusion, normalizeWithExtraMap } from './common-in-node.mjs';
 
-export function buildMatcher(master, extraConfusion) {
+/**
+ * @param {object} [opts]
+ * @param {(len:number)=>number} [opts.allowedDistance] 許容距離の差し替え（tests 専用。common.js の
+ *   allowedDistance を緩めた場合の効き目を、common.js を変えずに見積もるため）
+ */
+export function buildMatcher(master, extraConfusion, opts = {}) {
+	const allowedDistanceFn = opts.allowedDistance || common.allowedDistance;
 	const entries = master.map((s) => ({
 		id: s.id,
 		name: s.name,
@@ -76,7 +82,7 @@ export function buildMatcher(master, extraConfusion) {
 		const hits = [];
 		entries.forEach((e) => {
 			if (!e.full) return;
-			const allowed = common.allowedDistance(e.full.length);
+			const allowed = allowedDistanceFn(e.full.length);
 			const d = common.levenshtein(full, e.full);
 			if (d > allowed) return;
 			hits.push({ id: e.id, name: e.name, distance: d });

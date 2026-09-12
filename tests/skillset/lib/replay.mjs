@@ -114,20 +114,43 @@ function judge(card, matcher, reads) {
  * 読み替え extra（{誤読字: 正字}）を足した状態で、コーパス全体の指標を出す。
  * baseline（extra 無し）を渡すと、その字を含まないカードは再照合せずに流用する。
  */
-export function evaluate(corpus, extra, baseline) {
+/**
+ * 重なり（1行に何枚のカードが写っているか）を人為的に絞った行の集合を作る。
+ * 製品の主用途はスクリーンショットで、利用者が出すのは数枚。行に1枚しか無ければ多数決は効かず、
+ * **1枚の読みの質がそのまま結果になる**。k 枚は行のカード（フレーム順）から等間隔に選ぶ（決定的）。
+ */
+export function rowsWithOverlap(rows, k) {
+	return rows.map((row) => {
+		const n = row.ids.length;
+		if (n <= k) return row;
+		const ids = [];
+		for (let i = 0; i < k; i++) ids.push(row.ids[Math.round((i * (n - 1)) / Math.max(1, k - 1))]);
+		if (k === 1) ids[0] = row.ids[n >> 1];
+		return { ...row, ids: [...new Set(ids)] };
+	});
+}
+
+/**
+ * @param {object} [opts]
+ * @param {number} [opts.overlap] 行の重なりを k 枚に絞って行の指標を出す（カードの指標は変わらない）
+ * @param {(len:number)=>number} [opts.allowedDistance] 許容距離の差し替え（common.js を変えずに見積もる）
+ */
+export function evaluate(corpus, extra, baseline, opts = {}) {
 	const master = loadMaster();
 	const expanded = expandExtra(extra);
-	const raw = buildMatcher(master, Object.keys(expanded).length ? expanded : undefined);
+	const raw = buildMatcher(master, Object.keys(expanded).length ? expanded : undefined, { allowedDistance: opts.allowedDistance });
 	// 同じ読みは何十フレームにもわたって繰り返されるので、読みの文字列ごとに判定を覚える
 	const memo = new Map();
 	const matcher = { classify: (t) => { const k = String(t == null ? '' : t); if (!memo.has(k)) memo.set(k, raw.classify(k)); return memo.get(k); } };
 	const fromChars = Object.keys(expanded);
+	// 許容距離を差し替えたときは全カードを照合し直す（どの読みが変わるか分からない）
+	const reuse = baseline && !opts.allowedDistance && baseline.allowedDistance === undefined;
 	const touches = (reads) => !fromChars.length || reads.some((t) => fromChars.some((ch) => String(t).includes(ch)));
 	const perCard = new Map();
 	const perVote = new Map();
 	corpus.cards.forEach((card) => {
 		const key = `${card.set}/${card.id}`;
-		if (baseline && !touches(card.readsAll)) {
+		if (reuse && !touches(card.readsAll)) {
 			perCard.set(key, baseline.perCard.get(key));
 			perVote.set(key, baseline.perVote.get(key));
 			return;
@@ -143,9 +166,10 @@ export function evaluate(corpus, extra, baseline) {
 		if (j.ok) m.autoRight++;
 		if (j.wrong) { m.autoWrong++; m.wrongs.push({ set: card.set, id: card.id, truth: card.truth, matched: j.skillName, reads: card.readsSharp.slice(0, 3) }); }
 	});
-	// 行単位（build-truth と同じ確定の条件）
-	const r = { rows: corpus.rows.length, decided: 0, check: 0, decidedWrong: 0, decidedWrongs: [] };
-	corpus.rows.forEach((row) => {
+	// 行単位（build-truth と同じ確定の条件）。opts.overlap があれば重なりを絞った行で数える
+	const rows = opts.overlap ? rowsWithOverlap(corpus.rows, opts.overlap) : corpus.rows;
+	const r = { rows: rows.length, overlap: opts.overlap || null, decided: 0, check: 0, decidedWrong: 0, decidedWrongs: [] };
+	rows.forEach((row) => {
 		const voteById = new Map();
 		row.ids.forEach((id) => { const v = perVote.get(`${row.set}/${id}`); if (v) voteById.set(id, v); });
 		const t = tallyRow(row.ids, voteById);
@@ -155,7 +179,21 @@ export function evaluate(corpus, extra, baseline) {
 			if (row.truth && t.top.name !== row.truth) { r.decidedWrong++; r.decidedWrongs.push({ set: row.set, index: row.index, truth: row.truth, voted: t.top.name }); }
 		} else r.check++;
 	});
-	return { extra: extra || {}, expanded, card: m, row: r, perCard, perVote };
+	return { extra: extra || {}, expanded, allowedDistance: opts.allowedDistance, card: m, row: r, perCard, perVote };
+}
+
+/** 既に照合した結果（perVote）から、重なりを k 枚に絞った行の指標だけを出し直す（再照合しない）。 */
+export function rowMetricsWithOverlap(corpus, ev, k) {
+	const rows = k ? rowsWithOverlap(corpus.rows, k) : corpus.rows;
+	const r = { rows: rows.length, overlap: k || null, decided: 0, check: 0, decidedWrong: 0 };
+	rows.forEach((row) => {
+		const voteById = new Map();
+		row.ids.forEach((id) => { const v = ev.perVote.get(`${row.set}/${id}`); if (v) voteById.set(id, v); });
+		const t = tallyRow(row.ids, voteById);
+		const decided = !!t.top && !t.tied && t.top.exactVotes > 0 && t.share >= VOTE_THRESHOLD;
+		if (decided) { r.decided++; if (row.truth && t.top.name !== row.truth) r.decidedWrong++; } else r.check++;
+	});
+	return r;
 }
 
 /** 2つの評価の差分（採用の前後）。 */

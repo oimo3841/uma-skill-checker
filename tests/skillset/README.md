@@ -92,10 +92,12 @@ node tests/skillset/report-confusion-recount.mjs \
 node tests/skillset/check-confusion-candidates.mjs --from-report --min=8 --combined
 
 # 7b. 読み替え候補を採用判断のために優先順・3段に並べる（採用も実装もしない）
-#     評価コーパスは人の確認済みの正解を持つセット。候補は共通スキル（同じ土俵）で2種以上のもの
+#     評価コーパスは人の確認済みの正解を持つセット。土台は候補の出どころ（無劣化）で確定している全種。
+#     --common-with=592x1280 を付けると半解像度と共通のスキルに絞る（比較用。採用判断には使わない）
 node tests/skillset/rank-confusion-candidates.mjs \
-  --sets=20260912_1-full,20260912_2-full,20260912_3-full --candidates=1180x2556 --common-with=592x1280
-#    → reports/confusion-adoption-plan.md / .json（段ごとの map を持つ）
+  --sets=20260912_1-full,20260912_2-full,20260912_3-full --candidates=1180x2556
+#    → reports/confusion-adoption-plan.md / .json（段ごとの map、確認に回る行と票の厚みを分けた表、
+#      重なりを1〜3枚に絞った場合の推定、短い名前を救う候補、許容距離の緩和 (b) の見積もり）
 
 # 7c. 読み替えを採用の前後で同じ指標で測る（採用ごとに回す。誤着地が1件でも増えたら却下）
 node tests/skillset/evaluate-confusion-map.mjs --sets=20260912_1-full,20260912_2-full,20260912_3-full --map=二=ー,ァ=ア
