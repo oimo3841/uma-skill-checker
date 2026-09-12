@@ -17,7 +17,8 @@
     "skillset:confusions": "node tests/skillset/tally-confusions.mjs",
     "skillset:check-map": "node tests/skillset/check-confusion-candidates.mjs",
     "skillset:coverage": "node tests/skillset/report-coverage.mjs",
-    "skillset:video": "node tests/skillset/extract-video-frames.mjs"
+    "skillset:video": "node tests/skillset/extract-video-frames.mjs",
+    "skillset:vote-effect": "node tests/skillset/report-vote-effect.mjs"
   },
   "devDependencies": {
     "playwright": "^1.47.0"
