@@ -24,6 +24,31 @@ npm run test:verify       # 納品前チェックの §7 からも呼ばれる�
 加えて、**`.skillset-assets.json` が追跡対象に入っていないこと**と、
 **`.gitignore` にその除外規則があること**を確認する。
 
+## コミットメッセージも見る
+
+B節ルール11で、`tests/` 配下だけの変更は確認なしで push するようになった。
+Claude Code が書いたコミットメッセージが**人の目を通らずに公開される**ので、
+**push しようとしている範囲（`origin/main..HEAD`）のメッセージ全文**（件名＋本文＋トレーラ）を、
+ファイルの中身と**同じ7規則**で検査する。メッセージ専用の規則は持たない（規則を増やすと偽陽性の設計が崩れる）。
+
+```bash
+node tests/privacy/check-privacy.mjs                 # 既定: origin/main..HEAD（これから push する範囲）
+node tests/privacy/check-privacy.mjs --commits=all   # 全履歴。監査のやり直し用
+node tests/privacy/check-privacy.mjs --commits=v1..HEAD
+```
+
+- `Co-Authored-By: … <noreply@anthropic.com>` のトレーラは、許可リストの noreply で通る。
+- `origin/main` が無い環境（remote 未設定の clone）では範囲が決められないので、その旨を出して飛ばす（落とさない）。
+- **未pushのコミットで検出したら、免除せず `git commit --amend` でメッセージを直す。**
+  push 済みで直せないものだけ `allowlist.json` の `exceptions` に登録する。`file` は
+  `"commit:<sha>"`（そのコミットだけ。sha の先頭7桁以上）か `"commit-message"`（どのコミットでも。
+  検出文字列で照合）。push 済みなら sha は変わらない（`--force` を使わない運用）ので前者を使う。
+- 導入時（24セッション目）、全履歴 236 件のメッセージに対して回した。22セッション目の人手の監査
+  （`Handoffメモ/privacy-audit-2026-09-12.md` 追補-1・235件）の範囲は検出 0 件で一致。
+  監査の後に積まれた 1 件（23セッション目の `6cc192a`）は、メッセージ本文が規則の名前として
+  「マイドライブ」と書いていたので当たった（パスではない。push 済みなので `commit:<sha>` で免除）。
+  **コミットメッセージには規則の名前（検出する文字列そのもの）を書かない。**
+
 ## 偽陽性を出さないための設計（ここを緩めない）
 
 22セッション目の人手の監査では、部分一致に頼ったせいで `confu`（`CHAR_CONFUSION_MAP` 等）で

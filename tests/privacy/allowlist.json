@@ -8,6 +8,9 @@
 		"exceptions … パターンには当たるが個人情報ではないと確認した箇所。file / rule / match / reason の4つが必須。",
 		"  rule は win-users / win-drive / unix-users / unix-home / mydrive / email / assets-root / assets-root-name のどれか。",
 		"  match は検出された文字列そのもの（行番号ではなく文字列で照合するので、行がずれても効き続ける）。",
+		"  コミットメッセージでの検出は、未pushなら免除せず git commit --amend でメッセージを直す。",
+		"  push 済みで直せないものだけ免除する。file は \"commit:<sha>\"（そのコミットだけ。sha の先頭7桁以上）か",
+		"  \"commit-message\"（どのコミットでも。検出文字列で照合）。push 済みなら sha は変わらないので前者を使う。",
 		"  免除したものは実行のたびに [免除] として表示されるので、放置に気付ける。"
 	],
 	"allowCommitAuthors": true,
@@ -21,5 +24,12 @@
 			"reason": "GitHub の Web UI 経由の commit の committer。個人に結びつかない"
 		}
 	],
-	"exceptions": []
+	"exceptions": [
+		{
+			"file": "commit:6cc192a747e6df6e08e68f2b2cf36bf6a1591c9d",
+			"rule": "mydrive",
+			"match": "マイドライブ",
+			"reason": "23セッション目の commit（個人情報の走査の機械化）のメッセージ本文が、検査する規則の名前として「マイドライブ」と書いたもの。パスの一部ではなく、Google ドライブ共通の既定フォルダ名。push 済みで直せないので、このコミットだけ免除する。以後のコミットメッセージには規則名も書かない。"
+		}
+	]
 }
