@@ -82,6 +82,8 @@ node tests/skillset/report-confusion-recount.mjs \
   --group=1180x2556=2026-09-11a,2026-09-12a,2026-09-12a-blurry,20260912_1-full,20260912_2-full,20260912_3-full \
   --group=592x1280=20260912_1,20260912_2,20260912_3
 #    → reports/confusion-candidates-by-condition.md（条件別の種類数と「片方の条件でしか起きない読み替え」）
+#    突き合わせの母数（確定した種数）は条件で違うので、全体の件数はそのまま比べない。
+#    **全条件で確定している共通スキルに限った列**を併記し、品質ゲートの材料にはそちらを使う。
 
 # 7. 読み替え候補を検査する（衝突＋手元のOCR結果の再照合）
 node tests/skillset/check-confusion-candidates.mjs --from-report --min=8 --combined

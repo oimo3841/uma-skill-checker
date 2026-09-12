@@ -82,6 +82,8 @@ export async function tallyConfusions(sets, conditionsArg, { quiet = false } = {
 	const perCondition = new Map();
 	const examples = new Map();
 	let usedReads = 0, skippedReads = 0, cards = 0;
+	// 突き合わせに使った（＝正解が確定している）スキルの集合。条件どうしを同じ土俵で比べるために返す
+	const skillsUsed = new Set();
 
 	for (const setName of sets) {
 		const truthFile = path.join(assetsRoot(), 'truth', `${setName}.json`);
@@ -108,6 +110,7 @@ export async function tallyConfusions(sets, conditionsArg, { quiet = false } = {
 				const name = nameById.get(row.id);
 				if (!name) return;
 				cards++;
+				skillsUsed.add(name);
 				const target = normalizeWithoutConfusion(name);
 				(row.texts || [row.text]).forEach((t) => {
 					const read = normalizeWithoutConfusion(t);
@@ -174,6 +177,8 @@ export async function tallyConfusions(sets, conditionsArg, { quiet = false } = {
 		cards,
 		usedReads,
 		skippedReads,
+		skillCount: skillsUsed.size,
+		skills: [...skillsUsed].sort(),
 		substitutions: subList,
 		deletions: delList,
 		insertions: insList,

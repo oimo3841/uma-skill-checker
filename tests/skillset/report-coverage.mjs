@@ -22,7 +22,17 @@ function loadTruths() {
 	return fsSync
 		.readdirSync(dir)
 		.filter((f) => f.endsWith('.json') && !f.endsWith('.draft.json') && !f.endsWith('.overrides.json'))
-		.map((f) => ({ file: f, json: JSON.parse(fsSync.readFileSync(path.join(dir, f), 'utf-8')) }));
+		.map((f) => ({ file: f, json: JSON.parse(fsSync.readFileSync(path.join(dir, f), 'utf-8')) }))
+		.filter((t) => {
+			// ファイル名と中身のセット名が合わないものは読まない。ブラウザのダウンロードで
+			// `<セット> (3).json` のような複製が truth/ に混ざると、古い版の名前（記号の取り違え等）が
+			// 網羅に紛れ込む（実測: 24セッション目に「徹底マーク〇」が「マスターに無い」として出た）。
+			if (t.json.set && `${t.json.set}.json` !== t.file) {
+				console.log(`※ truth/${t.file} はセット名（${t.json.set}）とファイル名が合わないので読まない（複製なら消してよい）`);
+				return false;
+			}
+			return true;
+		});
 }
 
 /**
