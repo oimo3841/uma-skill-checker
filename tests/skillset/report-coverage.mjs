@@ -49,10 +49,25 @@ function loadNotOnScreen() {
 	return { names: Array.isArray(json.names) ? json.names : [], file };
 }
 
+/**
+ * 画面に出たがマスターに無いスキルの分類（素材フォルダの reference/outside-master.json）。
+ * **分類はおいもさんが行う。** 新スキルか、意図的にマスターから除外しているかは、マスターを作った側にしか
+ * 区別がつかない（24セッション目の指示）。Code は分類せず「マスターに無いスキルが画面に出た」として
+ * 一覧で報告し、ここに無い名前は「未分類」として出す。
+ */
+function loadOutsideMaster() {
+	const file = path.join(assetsRoot(), 'reference', 'outside-master.json');
+	if (!fsSync.existsSync(file)) return {};
+	const json = JSON.parse(fsSync.readFileSync(file, 'utf-8'));
+	return json && json.entries ? json.entries : {};
+}
+const OUTSIDE_KIND_LABELS = { new: '新スキル（マスター追加の候補）', gold: '金スキル（照合対象外＝仕様どおり）', excluded: '意図的にマスターから除外（追加不要）' };
+
 async function main() {
 	const master = loadMaster();
 	const masterNames = new Set(master.map((s) => s.name));
 	const notOnScreen = loadNotOnScreen();
+	const outsideInfo = loadOutsideMaster();
 	const unreachable = new Set(notOnScreen.names.filter((n) => masterNames.has(n)));
 	const reachableCount = master.length - unreachable.size;
 	const truths = loadTruths();
@@ -150,8 +165,16 @@ async function main() {
 	lines.push('');
 	lines.push('マスター（445種）は因子で継承できるスキルだけを持っています。');
 	lines.push('スキルセット画面にはそれ以外も並ぶため、OCRの照合対象には入りません。');
+	lines.push('**分類はおいもさんが行う**（新スキルか、意図的な除外かはマスターを作った側にしか区別がつかない）。');
+	lines.push('根拠は `reference/outside-master.json`。ここに無い名前は「未分類」＝おいもさんの分類待ち。');
 	lines.push('');
-	outsideMaster.forEach((n) => lines.push(`- ${n}  <small>${[...seen.get(n)].join(', ')}</small>`));
+	outsideMaster.forEach((n) => {
+		const info = outsideInfo[n];
+		const label = info ? `**${OUTSIDE_KIND_LABELS[info.kind] || info.kind}** — ${info.reason}（${info.decidedBy || '?'}・${info.date || '?'}）` : '**未分類**（おいもさんの分類待ち）';
+		lines.push(`- ${n}  <small>${[...seen.get(n)].join(', ')}</small>  ${label}`);
+	});
+	const unclassified = outsideMaster.filter((n) => !outsideInfo[n]);
+	if (unclassified.length) console.log(`※ マスターに無いスキルのうち未分類: ${unclassified.join('・')}（おいもさんが分類する。reference/outside-master.json）`);
 
 	const mdFile = path.join(assetsDir('reports'), 'coverage.md');
 	await fs.writeFile(mdFile, lines.join('\n'), 'utf-8');
@@ -174,7 +197,8 @@ async function main() {
 				candidateOnly,
 				missing,
 				missingUnreachable,
-				outsideMaster
+				outsideMaster,
+				outsideMasterKinds: Object.fromEntries(outsideMaster.map((n) => [n, outsideInfo[n] ? outsideInfo[n].kind : null]))
 			},
 			null,
 			'\t'

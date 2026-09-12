@@ -48,6 +48,9 @@ OCRし、445種のマスターに照合する。目的は2つ:
   reference/not-on-skillset-screen.json … スキルセット画面に構造的に現れないマスターのスキル
                                      （「Xの目覚め」6種）。report-coverage.mjs が網羅率の分母から外す。
                                      載せるかどうかはおいもさんが決める（撮れなかっただけでは載せない）
+  reference/outside-master.json   … 画面に出たがマスターに無いスキルの分類（new / gold / excluded）。
+                                     **分類はおいもさんが行う。** Code は分類せず一覧で報告するだけ
+                                     （新スキルか意図的な除外かは、マスターを作った側にしか区別がつかない）
   reports/                        … 集計結果
 ```
 

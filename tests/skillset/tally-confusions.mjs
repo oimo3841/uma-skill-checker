@@ -81,9 +81,12 @@ export async function tallyConfusions(sets, conditionsArg, { quiet = false } = {
 	const inss = new Map(); // 余計に読まれた字
 	const perCondition = new Map();
 	const examples = new Map();
-	let usedReads = 0, skippedReads = 0, cards = 0;
+	let usedReads = 0, skippedReads = 0;
 	// 突き合わせに使った（＝正解が確定している）スキルの集合。条件どうしを同じ土俵で比べるために返す
 	const skillsUsed = new Set();
+	// 対象カードは「セット/カードID」で重複を除いて数える（同じカードが条件ごとの結果ファイルに
+	// 1行ずつ出るので、行を数えると条件の数だけ膨らむ）。
+	const cardsUsed = new Set();
 
 	for (const setName of sets) {
 		const truthFile = path.join(assetsRoot(), 'truth', `${setName}.json`);
@@ -109,7 +112,12 @@ export async function tallyConfusions(sets, conditionsArg, { quiet = false } = {
 			rep.rows.forEach((row) => {
 				const name = nameById.get(row.id);
 				if (!name) return;
-				cards++;
+				// 金の地のカード（対象外・OCRにかけない）は数えない。金の除外を入れる前に作った
+				// 古いセットの正解（2026-09-11a・2026-09-12a）には金のカードにも名前が入っているので、
+				// ここで外さないと「対象カード」と「確定した種数」が金のぶん膨らむ
+				// （実測: 24セッション目に 1180x2556 の種数が 454 と出た。うち10種が金だった）。
+				if (row.category === 'excluded') return;
+				cardsUsed.add(`${setName}/${row.id}`);
 				skillsUsed.add(name);
 				const target = normalizeWithoutConfusion(name);
 				(row.texts || [row.text]).forEach((t) => {
@@ -155,7 +163,8 @@ export async function tallyConfusions(sets, conditionsArg, { quiet = false } = {
 	const delList = [...dels.entries()].map(([ch, n]) => ({ char: ch, count: n })).sort((a, b) => b.count - a.count);
 	const insList = [...inss.entries()].map(([ch, n]) => ({ char: ch, count: n })).sort((a, b) => b.count - a.count);
 
-	log(`対象カード ${cards}件 / 突き合わせた読み ${usedReads}件（かけ離れていて外した読み ${skippedReads}件）`);
+	const cards = cardsUsed.size;
+	log(`対象カード ${cards}枚（重複なし・金を除く）/ 確定した種数 ${skillsUsed.size}種 / 突き合わせた読み ${usedReads}件（かけ離れていて外した読み ${skippedReads}件）`);
 	log('\n■ 置き換え（誤読字→正字）上位');
 	subList.slice(0, 30).forEach((s) => {
 		log(`  ${s.from} → ${s.to}   ${s.skillCount}種 / 延べ${s.count}回` + (s.alreadyMapped ? '（既存マップにあり）' : s.mappedTo ? `（既存は ${s.from}→${s.mappedTo}）` : ''));
