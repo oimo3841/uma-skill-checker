@@ -19,7 +19,7 @@
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html / exam.html で共有） -->
 	<script src="js/common.js?v=2026-09-13c"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-12a"></script>
+	<script src="js/stitch.js?v=2026-09-13a"></script>
 	<style>
 		/* このツールのアクセント（藍）。shell.css の部品（タブの下線・FAB のメインボタン・
 		   フォーカスの輪）はこの変数を見て色が決まる。値は special のような Tailwind v4 の実測値
@@ -2762,7 +2762,8 @@
 		async function runImageStitching() {
 			const container = document.getElementById('stitch-result-content');
 			container.innerHTML = '';
-			let anyOutput = false;
+			let anyOutput = false;  // 結果画像のタブに出すものがあるか（エラーの帯も含む）
+			let anySuccess = false; // 結合画像が1枚でもできたか
 
 			for (let setIdx = 0; setIdx < PERSON_SETS.length; setIdx++) {
 				if (setIdx === 1 && !setBVisible) continue; // 親Bセットが非表示なら結合もスキップ
@@ -2774,6 +2775,7 @@
 					const canvas = await buildStitchedSetImage(setIdx);
 					if (canvas) {
 						anyOutput = true;
+						anySuccess = true;
 						appendStitchResultBlock(container, PERSON_SETS[setIdx], canvas);
 					}
 				} catch (e) {
@@ -2783,9 +2785,11 @@
 				}
 			}
 
-			// 「結果画像がある」の印と未読の印。引き出しを開くのは呼び出し元
+			// 「結果画像がある」の印はエラーの帯だけでも立てる（タブを開いて理由を読めるように）。
+			// **未読の印は結合画像が1枚でもできたときだけ**。エラーしか無いのに「新着」を立てると、
+			// 印を頼りに開いた人が空振りし、印そのものの意味が壊れる。引き出しを開くのは呼び出し元。
 			setSectionReady('stitch', anyOutput);
-			if (anyOutput) markFabUnseen('stitch');
+			if (anySuccess) markFabUnseen('stitch');
 			return anyOutput;
 		}
 

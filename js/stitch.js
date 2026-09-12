@@ -15,7 +15,7 @@
 
 // このファイルの版。B節ルール4の3点一致（内部定数・各HTMLの ?v=・npm run test:verify）の対象。
 // 中身を変更したらこの日付も更新すること。
-const STITCH_JS_VERSION = '2026-09-12a';
+const STITCH_JS_VERSION = '2026-09-13a';
 
 // 画像結合用の簡易ログ。既存の開発ログ（devGeometry）に相乗りさせることで、
 // 「開発ログを表示」チェックを入れれば結合処理の詳細も確認できるようにする。
@@ -98,7 +98,8 @@ function stitchDetectHeaderFooter(canvases, groupLabel, threshold = 5) {
 		stitchLog(groupLabel + ': 画像' + i + '-' + (i + 1) + '間の差分範囲: 行' + first + ' 〜 行' + last + (quietStart !== -1 ? '（以降は静止区間として除外）' : ''));
 	}
 	if (!isFinite(headerEnd) || !isFinite(footerStart)) {
-		throw new Error('[' + groupLabel + '] 全画像が同一、またはヘッダー/フッター境界を検出できませんでした。');
+		stitchLog(groupLabel + ': 全画像が同一、またはヘッダー/フッター境界を検出できなかった');
+		throw new Error(stitchBuildAbortNotice('no-scroll', groupLabel, []));
 	}
 	return { headerEnd: headerEnd, footerStart: footerStart };
 }
@@ -288,12 +289,88 @@ function stitchResolveOrder(planes, groupLabel) {
 }
 
 // 標準的なスクリーンショットかどうかの簡易判定（実測済みDMM版・スマホ版の
-// 解像度/アスペクト比のホワイトリスト方式）。結合済み画像や加工済み画像など、
-// レンジ外の画像がアップロードされた場合は結合処理そのものを中止する。
+// 解像度/アスペクト比のホワイトリスト方式）。レンジ外の画像がアップロードされた
+// 場合は結合処理そのものを中止する。
+//
+// 注意: この下限(700px)は、OCR側の足切り(`MIN_BASE_WIDTH_PX` = 400)とわざと揃えていない。
+// 400〜699px は「OCRは警告つきで通るが、結合はできない」区間になるが、2つのゲートは
+// 見ているものが違う（OCRは下限だけ／結合は下限＋上限＋縦横比）ので、揃える必要はない
+// という判断（2026-09-13・25セッション目）。利用者に見えるのは文面の側の問題なので、
+// 下の stitchBuildAbortNotice() で「何が起きていて何をすればよいか」を伝える。
 const STITCH_KNOWN_SCREENSHOT_PROFILES = [
 	{ label: 'DMM版(ブラウザ)相当', minWidth: 700, maxWidth: 1300, minAspect: 1.55, maxAspect: 1.95 },
 	{ label: 'スマホ版相当', minWidth: 700, maxWidth: 1500, minAspect: 1.9, maxAspect: 2.5 }
 ];
+
+/**
+ * プロファイルのどれにも当てはまらなかった理由を、利用者に説明できる粒度で分類する。
+ *   'too-small' … 縦横比の合うプロファイルはあるが、その下限より狭い
+ *   'too-large' … 同上で、上限より広い
+ *   'aspect'    … どのプロファイルとも縦横比が合わない
+ *
+ * なぜ分けるか: 「結合済み画像や加工済み画像かもしれない」という推測が当たるのは
+ * **縦横比が外れたときだけ**。縦につないだ画像は縦横比が5前後、横に並べた画像は1.1前後に
+ * なるので必ず 'aspect' に落ちる。一方、幅が大きいだけの画像（とても大きなDMMウィンドウ）や
+ * 小さいだけの画像（小さなウィンドウ・SNS経由）は加工されていないことのほうが多い。
+ * 以前はどれでも同じ「結合済み画像や加工済み画像がアップロードされた可能性があるため
+ * 処理を中止します」を出していたので、**身に覚えのない理由を名指しされる**状態だった。
+ */
+function stitchClassifyScreenshotMismatch(w, aspect) {
+	const aspectOk = STITCH_KNOWN_SCREENSHOT_PROFILES.filter((p) => aspect >= p.minAspect && aspect <= p.maxAspect);
+	if (aspectOk.length === 0) return 'aspect';
+	if (aspectOk.every((p) => w < p.minWidth)) return 'too-small';
+	if (aspectOk.every((p) => w > p.maxWidth)) return 'too-large';
+	return 'aspect';
+}
+
+/** 中止文に出すファイル名。File が取れないときは「画像N」で代える。 */
+function stitchFileName(files, i) {
+	const f = files && files[i];
+	return f && f.name ? f.name : '画像' + (i + 1);
+}
+
+/**
+ * 結合を中止したときに利用者へ見せる文を組み立てる純粋関数（DOM には触らない）。
+ * 呼び出し側（exam.html / special.html の appendStitchErrorBlock）が
+ * 「<セット名>の画像結合に失敗しました: 」を前に付けるので、その続きとして読める文にする。
+ *
+ * 文面の決まりは js/common.js の buildImageQualityNotice()（C-20）と同じ:
+ *   1. px値や縦横比は本文に出さず、開発ログ（stitchLog）へ回す
+ *   2. どの画像が駄目かは分からないと直せないので、ファイル名は出す
+ *   3. 「結合済み・加工済みでは」という推測は、その可能性が高いとき（縦横比）だけ添える
+ *   4. 最後は必ず「次に何をすればよいか」で締める
+ *   5. OCR は別に動いているので、それが伝わらないと「全部失敗した」と読まれる
+ */
+function stitchBuildAbortNotice(kind, groupLabel, names) {
+	const list = (names || []).map((s) => '「' + s + '」').join('、');
+	const target = groupLabel + ' の画像' + list;
+	switch (kind) {
+		case 'too-small':
+			return target + 'は、ゲーム画面が小さく写っています。この大きさでは、つなぎ目を正しく判断できません。' +
+				'スキル名と★の読み取りは別に行っているので、判定の結果はそのままご覧いただけます。' +
+				'パソコン版をお使いの場合は、ゲームのウィンドウを大きくしてから撮り直してください。';
+		case 'too-large':
+			return target + 'は、ゲーム画面が大きすぎます。' +
+				'すでに結合した画像や、拡大して保存し直した画像ではないかご確認ください。' +
+				'ゲームのウィンドウがとても大きい場合も同じ状態になるので、そのときはウィンドウを少し小さくしてから撮り直してください。';
+		case 'aspect':
+			return target + 'は、縦横の比率がゲーム画面のスクリーンショットと違います。' +
+				'すでに結合した画像や、切り抜き・拡大などの加工をした画像の可能性があります。' +
+				'加工していないスクリーンショットをそのままアップロードしてください。' +
+				'タブレットなど、画面の形が違う端末で撮った画像も結合できないことがあります。';
+		case 'single':
+			return groupLabel + ' は画像が1枚だけです。結合には、少しずつスクロールして撮った2枚以上の画像が必要です。' +
+				'読み取りだけなら「OCR処理を開始する」で行えます。';
+		case 'width-mismatch':
+			return target + 'は、ほかの画像と横幅がそろっていません。' +
+				'同じ端末・同じウィンドウの大きさで撮った画像をまとめて選んでください。';
+		case 'no-scroll':
+			return groupLabel + ' の画像は、すべて同じ場所が写っているか、スクロールした範囲を見つけられませんでした。' +
+				'少しずつスクロールしながら、前の画像と重なりが残るように撮り直してください。';
+		default:
+			return groupLabel + ' の画像は結合できませんでした。撮り直したスクリーンショットでお試しください。';
+	}
+}
 
 function stitchCheckStandardScreenshot(canvas) {
 	const w = canvas.width, h = canvas.height;
@@ -368,24 +445,36 @@ function stitchFindTrailingCutY(canvas, searchStartY) {
 async function stitchOnePerson(files, groupLabel) {
 	if (files.length === 0) return null;
 	if (files.length === 1) {
-		throw new Error('[' + groupLabel + '] 画像が1枚のみです。結合には2枚以上が必要なため処理を中止します。');
+		stitchLog(groupLabel + ': 画像が1枚のみ（結合には2枚以上が必要）');
+		throw new Error(stitchBuildAbortNotice('single', groupLabel, []));
 	}
 	stitchLog(groupLabel + ': ' + files.length + '枚を読み込みます...');
 	const imgs = [];
 	for (const f of files) imgs.push(await loadImage(f));
 	const canvases = imgs.map(stitchImgToCanvas);
 
+	// 扱える範囲から外れた画像は、**同じ理由のものをまとめて1回**で伝える。
+	// 数値（px・縦横比）は開発ログへ回し、本文にはファイル名だけを出す（C-20の決まり）。
+	const mismatches = [];
 	for (let i = 0; i < canvases.length; i++) {
 		const check = stitchCheckStandardScreenshot(canvases[i]);
-		if (!check.ok) {
-			throw new Error('[' + groupLabel + '] 画像' + i + '(' + check.w + 'x' + check.h + ', 縦横比' + check.aspect.toFixed(2) + ')が標準的なスクリーンショットのサイズ範囲外です。結合済み画像や加工済み画像がアップロードされた可能性があるため処理を中止します。');
-		}
+		if (check.ok) continue;
+		const kind = stitchClassifyScreenshotMismatch(check.w, check.aspect);
+		stitchLog(groupLabel + ': 画像' + i + '（' + stitchFileName(files, i) + '）' + check.w + 'x' + check.h +
+			'・縦横比' + check.aspect.toFixed(2) + ' は扱えるスクリーンショットの範囲外（' + kind + '）');
+		mismatches.push({ kind: kind, name: stitchFileName(files, i) });
+	}
+	if (mismatches.length) {
+		const kind = mismatches[0].kind;
+		const names = mismatches.filter((m) => m.kind === kind).map((m) => m.name);
+		throw new Error(stitchBuildAbortNotice(kind, groupLabel, names));
 	}
 
 	const w0 = canvases[0].width;
 	for (let i = 1; i < canvases.length; i++) {
 		if (canvases[i].width !== w0) {
-			throw new Error('[' + groupLabel + '] 画像の幅が一致していません（画像0: ' + w0 + 'px, 画像' + i + ': ' + canvases[i].width + 'px）。標準的なスクロールキャプチャではない可能性があるため中止します。');
+			stitchLog(groupLabel + ': 画像0 ' + w0 + 'px と 画像' + i + ' ' + canvases[i].width + 'px で幅が違う');
+			throw new Error(stitchBuildAbortNotice('width-mismatch', groupLabel, [stitchFileName(files, i)]));
 		}
 	}
 

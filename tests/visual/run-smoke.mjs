@@ -2318,6 +2318,124 @@ const browser = await chromium.launch();
 }
 
 /* ============================================================
+ * 画像結合の中止文（js/stitch.js の stitchBuildAbortNotice / stitchClassifyScreenshotMismatch）
+ *
+ * 以前はどの理由でも「…標準的なスクリーンショットのサイズ範囲外です。結合済み画像や
+ * 加工済み画像がアップロードされた可能性があるため処理を中止します」の1文だけを出していた。
+ * ゲーム画面をそのまま撮っただけの人（例: 592x1280）にも身に覚えのない理由を名指しし、
+ * どうすれば直るかも書いていなかった（2026-09-13・25セッション目に分岐させた）。
+ * 文面そのものが対処方法を運んでいて、崩れても例外が出ないので、ここで直接押さえる。
+ * ============================================================ */
+{
+	const ctx = await browser.newContext();
+	const page = await ctx.newPage();
+	await page.goto(base + '/exam.html', { waitUntil: 'networkidle' });
+	await page.waitForTimeout(500);
+
+	const notice = (kind, label, names) =>
+		page.evaluate(([k, l, n]) => stitchBuildAbortNotice(k, l, n), [kind, label, names]);
+	const classify = (w, aspect) =>
+		page.evaluate(([a, b]) => stitchClassifyScreenshotMismatch(a, b), [w, aspect]);
+
+	// 1) 分類 … 幅だけ足りない／幅だけ大きい／縦横比が外れた を取り違えない
+	assert(await classify(592, 1280 / 592) === 'too-small',
+		'分類: 592x1280（スマホの縦横比・幅だけ足りない）は too-small');
+	assert(await classify(490, 870 / 490) === 'too-small',
+		'分類: DMMの縦横比で幅だけ足りないものも too-small');
+	assert(await classify(1920, 3413 / 1920) === 'too-large',
+		'分類: 大きなDMMウィンドウ（縦横比1.78）は too-large');
+	assert(await classify(1180, 6000 / 1180) === 'aspect',
+		'分類: 縦につないだ画像（縦横比5前後）は aspect');
+	assert(await classify(2360, 2556 / 2360) === 'aspect',
+		'分類: 横に並べた画像（縦横比1.08）は aspect');
+	assert(await classify(1640, 2360 / 1640) === 'aspect',
+		'分類: タブレット（4:3相当）は aspect に落ちる（既知。文面で断ってある）');
+
+	// 2) 幅が足りない … OCR が別に動いていることを伝え、対処方法で締める
+	const small = await notice('too-small', '祖A1', ['02.png']);
+	assert(small.includes('02.png'), '幅不足: どの画像かファイル名で示す', small);
+	assert(small.includes('読み取りは別に行っている'),
+		'幅不足: OCR は動いていることを伝える（「全部失敗した」と読ませない）', small);
+	assert(small.includes('ウィンドウを大きく'), '幅不足: 対処方法で締める', small);
+	assert(!small.includes('加工'), '幅不足: 加工の疑いは書かない', small);
+	assert(!small.includes('SNS'), '幅不足: SNSの一文は付けない（対処方法を薄めない）', small);
+
+	// 3) 幅が大きい … 加工の疑いは出すが、大きなウィンドウの可能性も併記する
+	const large = await notice('too-large', '親A', ['01.png']);
+	assert(large.includes('ウィンドウがとても大きい場合も同じ状態になる'),
+		'幅超過: 正当な大きいウィンドウの可能性も書く', large);
+
+	// 4) 縦横比 … ここだけは加工の疑いを強く出す。タブレットの断りも入れる
+	const aspect = await notice('aspect', '親B', ['03.png']);
+	assert(aspect.includes('加工をした画像の可能性'), '縦横比: 加工の疑いはここで出す', aspect);
+	assert(aspect.includes('タブレット'), '縦横比: タブレットの断りを入れる', aspect);
+
+	// 5) 残り3種も、それぞれ別の対処方法で締める
+	const single = await notice('single', '祖A1', []);
+	assert(single.includes('2枚以上') && single.includes('OCR処理を開始する'),
+		'1枚だけ: 必要な枚数と、読み取りだけする方法を書く', single);
+	const mismatch = await notice('width-mismatch', '親A', ['02.png']);
+	assert(mismatch.includes('横幅がそろっていません') && mismatch.includes('同じ端末'),
+		'幅不揃い: そろえ方を書く', mismatch);
+	const noScroll = await notice('no-scroll', '親A', []);
+	assert(noScroll.includes('重なりが残る'), 'スクロール未検出: 撮り方を書く', noScroll);
+
+	// 6) どの文面にも px 値・縦横比の数値を出さない（開発ログ行き）
+	for (const [name, text] of [['幅不足', small], ['幅超過', large], ['縦横比', aspect],
+		['1枚だけ', single], ['幅不揃い', mismatch], ['スクロール未検出', noScroll]]) {
+		assert(!/\d{3,4}\s*[x×]\s*\d{3,4}/.test(text) && !/縦横比\s*\d/.test(text),
+			name + ': px値・縦横比の数値を本文に出さない', text);
+		assert(!text.includes('処理を中止します'), name + ': 内部向けの言い回しを残さない', text);
+	}
+
+	// 7) 6種の文面がすべて違う（分岐が実際に効いている）
+	const all = [small, large, aspect, single, mismatch, noScroll];
+	assert(new Set(all).size === 6, '6種の中止文がすべて異なる', all.map((s) => s.slice(0, 20)));
+
+	// 8) 呼び出し側の前置き「<セット名>の画像結合に失敗しました: 」に続けて読める形か
+	assert(all.every((s) => /^(親A|親B|祖A1) /.test(s)),
+		'中止文は「だれの画像か」から始まる（前置きの続きとして読める）', all.map((s) => s.slice(0, 8)));
+
+	// 9) 結合がエラーだけで終わったとき、FAB の未読の印を立てない（exam）。
+	//    印を頼りに「結果画像」を開いた人が空振りすると、印そのものの意味が壊れる。
+	const badges = await page.evaluate(async () => {
+		const orig = buildStitchedSetImage;
+		persons[0].files = [{ name: 'a.png' }, { name: 'b.png' }];
+		const run = async (impl) => {
+			buildStitchedSetImage = impl;
+			fabUnseen.stitch = false;
+			const made = await runImageStitching();
+			return {
+				made: made,
+				dot: !document.getElementById('fab-dot-stitch').hidden,
+				tab: !document.getElementById('result-tab-stitch').disabled,
+				text: document.getElementById('stitch-result-content').textContent
+			};
+		};
+		const failed = await run(async () => { throw new Error('祖A1 の画像「02.png」は、ゲーム画面が小さく写っています。'); });
+		const ok = await run(async () => {
+			const c = document.createElement('canvas');
+			c.width = 100; c.height = 100;
+			c._personMeta = []; c._stitchWarnings = [];
+			return c;
+		});
+		buildStitchedSetImage = orig;
+		persons[0].files = [];
+		return { failed: failed, ok: ok };
+	});
+	assert(badges.failed.dot === false,
+		'結合がエラーだけ: FAB の未読の印を立てない', badges.failed);
+	assert(badges.failed.tab === true,
+		'結合がエラーだけ: 「結果画像」タブは開ける（理由を読めるように）', badges.failed);
+	assert(badges.failed.text.includes('小さく写っています'),
+		'結合がエラーだけ: 中止文がタブの中に出る', badges.failed.text.slice(0, 80));
+	assert(badges.ok.dot === true,
+		'結合が成功: FAB の未読の印を立てる', badges.ok);
+
+	await ctx.close();
+}
+
+/* ============================================================
  * 「元に戻す」の契約（special.html のドラフト／uma-skill-deck.html の各操作）
  *
  * 実機で「すべて外す」→「元に戻す」が復元されない事故があった。原因は、ドラフトの保存
