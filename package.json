@@ -10,7 +10,14 @@
     "test:verify": "node tests/visual/run-verify.mjs",
     "test:master": "node tests/visual/run-master-tests.mjs",
     "test:ocr": "node tests/ocr/run-ocr-tests.mjs --dict=exam",
-    "test:norm": "node tests/ocr/check-normalization.mjs"
+    "test:norm": "node tests/ocr/check-normalization.mjs",
+    "skillset:cards": "node tests/skillset/run-extract-cards.mjs",
+    "skillset:ocr": "node tests/skillset/run-ocr-crops.mjs",
+    "skillset:truth": "node tests/skillset/build-truth.mjs",
+    "skillset:confusions": "node tests/skillset/tally-confusions.mjs",
+    "skillset:check-map": "node tests/skillset/check-confusion-candidates.mjs",
+    "skillset:coverage": "node tests/skillset/report-coverage.mjs",
+    "skillset:video": "node tests/skillset/extract-video-frames.mjs"
   },
   "devDependencies": {
     "playwright": "^1.47.0"

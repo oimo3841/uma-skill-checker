@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>スキルセットOCR 検証用ホスト（製品ではない）</title>
+<!--
+  カード切り出し画像のOCRと、js/common.js の照合ロジックを
+  そのまま呼び出すためだけの検証用ページ。製品からは参照しない。
+  製品と同じ条件にするため、Tesseract の版とCDNは special.html に合わせている。
+-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
+<script src="../../../js/common.js"></script>
+<script src="../lib/skillset-cards.js"></script>
+</head>
+<body>
+<p>tests/skillset のハーネスが使う検証用ページです。</p>
+</body>
+</html>
