@@ -11,9 +11,9 @@
 import fsSync from 'node:fs';
 import path from 'node:path';
 import { assetsRoot } from './lib/assets.mjs';
-import { loadMaster } from './lib/common-in-node.mjs';
-import { loadCorpus, evaluate, diff, formatMetrics, expandExtra } from './lib/replay.mjs';
-import { collisions } from './rank-confusion-candidates.mjs';
+import { common, loadMaster } from './lib/common-in-node.mjs';
+import { loadCorpus, evaluate, diff, formatMetrics, expandExtra, rowMetricsWithOverlap } from './lib/replay.mjs';
+import { collisions, examSkillNames } from './rank-confusion-candidates.mjs';
 
 function argValue(name, fallback) {
 	const hit = process.argv.filter((a) => a.startsWith(`--${name}=`)).pop();
@@ -43,30 +43,59 @@ function loadMap() {
 	return { map: parseMap(argValue('map', '')), label: '--map' };
 }
 
+const OVERLAPS = [1, 2, 3];
+function overlapLine(corpus, ev) {
+	return OVERLAPS.map((k) => { const r = rowMetricsWithOverlap(corpus, ev, k); return `重なり${k}枚 ${r.check}／${r.rows}`; }).join('・');
+}
+
 async function main() {
 	const sets = (argValue('sets', '') || '').split(',').map((s) => s.trim()).filter(Boolean);
 	if (!sets.length) throw new Error('--sets=<セット,...>（人の確認済みの正解を持つセット）を指定してください');
-	const { map, label } = loadMap();
-	if (!Object.keys(map).length) throw new Error('読み替えが空です（--map / --map-file / --tier）');
+	// --baseline: 読み替えを足さず、いまの js/common.js のままの指標だけを出す
+	// （CHAR_CONFUSION_MAP に足したあと、見積もりどおりになったかを実測で確かめるため）
+	const baselineOnly = process.argv.includes('--baseline');
+	const { map, label } = baselineOnly ? { map: {}, label: '（無し）' } : loadMap();
+	if (!baselineOnly && !Object.keys(map).length) throw new Error('読み替えが空です（--map / --map-file / --tier / --baseline）');
 	const corpus = loadCorpus(sets);
 	console.log(`評価コーパス: ${corpus.sets.join(', ')} … カード ${corpus.cards.length}枚・行 ${corpus.rows.length}`);
+	const masterNames = loadMaster().map((s) => s.name);
+	let examNames = [];
+	if (process.argv.includes('--exam')) {
+		try { examNames = await examSkillNames(); } catch (e) { console.log(`※ exam.html の133種を読めませんでした（${String(e.message).split('\n')[0]}）`); }
+	}
+	const before = evaluate(corpus, {});
+	if (baselineOnly) {
+		console.log(`いまの common.js（${common.COMMON_JS_VERSION}・CHAR_CONFUSION_MAP ${Object.keys(common.CHAR_CONFUSION_MAP).length}件）での実測:`);
+		console.log(`  ${formatMetrics(before)}`);
+		console.log(`  ${overlapLine(corpus, before)}`);
+		const cm = collisions(masterNames, {});
+		console.log(`  衝突（いまのマップで潰れている別名の組）: マスター ${cm.length}${examNames.length ? ` / exam ${collisions(examNames, {}).length}` : ''}`);
+		if (before.card.wrongs.length) before.card.wrongs.forEach((w) => console.log(`  ✗ 誤着地 ${w.set} ${w.id}: 正解 ${w.truth} → ${w.matched}  読み ${JSON.stringify(w.reads)}`));
+		return;
+	}
 	console.log(`読み替え（${label}・${Object.keys(map).length}件）: ${Object.entries(map).map(([a, b]) => `${a}→${b}`).join(' ')}`);
 	const expanded = expandExtra(map);
 	console.log(`実際に足す項目（統一前の字に展開・${Object.keys(expanded).length}件）: ${Object.entries(expanded).map(([a, b]) => `${a}→${b}`).join(' ')}`);
-	const col = collisions(loadMaster().map((s) => s.name), expanded);
-	console.log(`衝突（マスター）: ${col.length}件${col.length ? '  ' + col.map((x) => x.names.join('／')).join('、') : ''}`);
-	const before = evaluate(corpus, {});
+	const col = collisions(masterNames, expanded);
+	console.log(`衝突（マスター ${masterNames.length}）: ${col.length}件${col.length ? '  ' + col.map((x) => x.names.join('／')).join('、') : ''}`);
+	let colExam = [];
+	if (examNames.length) {
+		colExam = collisions(examNames, expanded);
+		console.log(`衝突（exam ${examNames.length}）: ${colExam.length}件${colExam.length ? '  ' + colExam.map((x) => x.names.join('／')).join('、') : ''}`);
+	}
 	const after = evaluate(corpus, map, before);
 	const d = diff(before, after);
 	console.log(`\n採用前: ${formatMetrics(before)}`);
+	console.log(`        ${overlapLine(corpus, before)}`);
 	console.log(`採用後: ${formatMetrics(after)}`);
+	console.log(`        ${overlapLine(corpus, after)}`);
 	console.log(`差分: 誤着地 ${d.autoWrongDelta >= 0 ? '+' : ''}${d.autoWrongDelta} / 完全一致(exact) ${d.exactDelta >= 0 ? '+' : ''}${d.exactDelta} / 確認なしで取り込める ${d.autoDelta >= 0 ? '+' : ''}${d.autoDelta} / 確認に回る行 ${d.checkDelta >= 0 ? '+' : ''}${d.checkDelta} / 行の誤確定 ${d.decidedWrongDelta >= 0 ? '+' : ''}${d.decidedWrongDelta}`);
 	const newWrongs = after.card.wrongs.filter((w) => !before.card.wrongs.some((b) => b.set === w.set && b.id === w.id));
 	if (newWrongs.length) {
 		console.log('\n新たな誤着地:');
 		newWrongs.forEach((w) => console.log(`  ✗ ${w.set} ${w.id}: 正解 ${w.truth} → ${w.matched}  読み ${JSON.stringify(w.reads)}`));
 	}
-	const verdict = d.autoWrongDelta > 0 || col.length ? '**却下**（誤着地が増える／衝突する）' : d.autoDelta > 0 ? '採用してよい（誤着地は増えない）' : '効果なし';
+	const verdict = d.autoWrongDelta > 0 || col.length || colExam.length ? '**却下**（誤着地が増える／衝突する）' : d.autoDelta > 0 ? '採用してよい（誤着地は増えない）' : '効果なし';
 	console.log(`\n判定: ${verdict}`);
 }
 

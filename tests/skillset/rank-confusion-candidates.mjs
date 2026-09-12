@@ -39,7 +39,7 @@ function argValue(name, fallback) {
 	return hit ? hit.slice(name.length + 3) : fallback;
 }
 
-async function examSkillNames() {
+export async function examSkillNames() {
 	const { chromium } = await import('playwright');
 	const browser = await chromium.launch();
 	try {
