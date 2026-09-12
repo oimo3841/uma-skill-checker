@@ -2457,6 +2457,113 @@ const browser = await chromium.launch();
 	});
 	assert(cloned === 2, 'undo: snapshot() は元の配列への参照を持たない', cloned);
 
+	/* ---- 一度に2種以上足したときだけ「元に戻す」に積む（線引きの固定） ----
+	   「94種を追加 → すべて外す → 元に戻す」は戻せるのに「94種を追加 → 元に戻す」は
+	   できない、という非対称をなくすために足した。1種だけの追加はチップの×で消せるので積まない。 */
+	// 下ごしらえ: ドラフトを空にしてから、条件で絞らずに一覧から選ぶ
+	await page.evaluate(() => { localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify({ skillIds: [], updatedAt: '' })); });
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.waitForTimeout(2500);
+	await page.click('#deck-template-panel [data-usd-act="draft-open"]');
+	await page.waitForTimeout(400);
+
+	// ピッカーを開いて、指定した数だけチェックして追加する
+	const bulkAdd = async (n) => {
+		await page.click('#deck-template-panel [data-usd-act="editor-pick"]');
+		await page.waitForTimeout(700);
+		const r = await page.evaluate((count) => {
+			const boxes = [...document.querySelectorAll('[data-usd-el="skill-check"]')].slice(0, count);
+			boxes.forEach((b) => { b.checked = true; b.dispatchEvent(new Event('change', { bubbles: true })); });
+			const before = UmaSkillDeckCore.undoCount();
+			document.querySelector('[data-usd-act="picker-add"]').click();
+			return { before, after: UmaSkillDeckCore.undoCount(), toast: document.getElementById('toast-message').textContent };
+		}, n);
+		await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
+		await page.waitForTimeout(400);
+		return r;
+	};
+	const draftCount = () => page.evaluate(() =>
+		Number(document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent));
+
+	// 1) 複数種の追加 → 元に戻す → 追加前の件数に戻る
+	const before3 = await draftCount();
+	const add3 = await bulkAdd(3);
+	const after3 = await draftCount();
+	assert(after3 === before3 + 3 && add3.after === add3.before + 1,
+		'undo: 3種まとめて追加すると「元に戻す」に1件積まれる', { before3, after3, ...add3 });
+	assert(add3.toast === '3種を追加しました', 'undo: 追加のトーストは doneLabel（N種を追加しました）', add3.toast);
+	const undone = await page.evaluate(() => ({ ok: UmaSkillDeckCore.performUndo(), toast: document.getElementById('toast-message').textContent }));
+	await page.waitForTimeout(300);
+	assert(undone.ok && (await draftCount()) === before3,
+		'undo: 追加を元に戻すと追加前の件数に戻る', { undone, now: await draftCount() });
+	assert(undone.toast === '追加した3種を取り消しました',
+		'undo: 追加の取り消しは「取り消しました」（削除系の「戻しました」とは別の型）', undone.toast);
+	assert((await page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds.length)) === before3,
+		'undo: 保存先（localStorage）も追加前に戻る');
+
+	// 2) 1種だけの追加は積まない。トーストも出ない（文面が直前のまま動かないことで見る）
+	const toastBefore1 = await page.evaluate(() => document.getElementById('toast-message').textContent);
+	const add1 = await bulkAdd(1);
+	assert(add1.after === add1.before, 'undo: 1種だけの追加は「元に戻す」に積まない', add1);
+	assert(add1.toast === toastBefore1,
+		'undo: 1種だけの追加ではトーストも出ない（文面が直前のまま）', { toastBefore1, after: add1.toast });
+
+	// 3) 追加済みを含む追加は、実際に足った分だけを戻す
+	//    いま1種入っているので、その1種＋新しい2種をチェックして足す → 足るのは2種
+	const withDupe = await page.evaluate(async () => {
+		const cur = JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds;
+		return { cur };
+	});
+	await page.click('#deck-template-panel [data-usd-act="editor-pick-text"]');
+	await page.waitForTimeout(700);
+	const dupeRun = await page.evaluate(async (already) => {
+		// すでに入っている1種＋未追加の2種を、テキスト照合で同時に採用する
+		const names = UmaSkillDeckCore.getSkillEntries(already).map((s) => s.name);
+		const master = UmaSkillDeckCore.getMasterSkills().filter((s) => !already.includes(s.id)).slice(0, 2).map((s) => s.name);
+		document.querySelector('[data-usd-el="paste-input"]').value = names.concat(master).join('\n');
+		document.querySelector('[data-usd-act="paste-run"]').click();
+		return { pasted: names.length + master.length, already: names.length };
+	}, withDupe.cur);
+	await page.waitForTimeout(600);
+	const dupeAdd = await page.evaluate(() => {
+		const before = UmaSkillDeckCore.undoCount();
+		const beforeIds = JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds.slice();
+		document.querySelector('[data-usd-act="picker-add"]').click();
+		const afterIds = JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds.slice();
+		return { before, after: UmaSkillDeckCore.undoCount(), beforeIds, afterIds, toast: document.getElementById('toast-message').textContent };
+	});
+	await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
+	await page.waitForTimeout(400);
+	assert(dupeRun.pasted === 3 && dupeRun.already === 1 && dupeAdd.afterIds.length === dupeAdd.beforeIds.length + 2,
+		'undo: 3件照合のうち1件は追加済みなので、足るのは2種', { ...dupeRun, added: dupeAdd.afterIds.length - dupeAdd.beforeIds.length });
+	assert(dupeAdd.toast === '2種を追加しました',
+		'undo: 文言が数えるのも「実際に足った数」（チェック数ではない）', dupeAdd.toast);
+	const dupeUndo = await page.evaluate(() => {
+		const ok = UmaSkillDeckCore.performUndo();
+		return { ok, ids: JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds };
+	});
+	await page.waitForTimeout(300);
+	assert(dupeUndo.ok && dupeUndo.ids.join() === dupeAdd.beforeIds.join(),
+		'undo: 取り消すのは実際に足った2種だけで、元から入っていた1種は巻き込まない', dupeUndo.ids.length);
+
+	// 4) 追加1回につきトーストは1回だけ（pushUndo が出す1回に一本化されている）
+	const toastCount = await page.evaluate(async () => {
+		let n = 0;
+		const real = window.showToast;
+		window.showToast = (m) => { n++; return real(m); };
+		UmaSkillDeckCore.configure({ toast: window.showToast });
+		document.querySelector('#deck-template-panel [data-usd-act="editor-pick"]').click();
+		await new Promise((r) => setTimeout(r, 500));
+		[...document.querySelectorAll('[data-usd-el="skill-check"]')].slice(0, 2)
+			.forEach((b) => { b.checked = true; b.dispatchEvent(new Event('change', { bubbles: true })); });
+		document.querySelector('[data-usd-act="picker-add"]').click();
+		UmaSkillDeckCore.closeSkillPicker();
+		window.showToast = real;
+		UmaSkillDeckCore.configure({ toast: real });
+		return n;
+	});
+	assert(toastCount === 1, 'undo: 追加1回につきトーストは1回だけ', toastCount);
+
 	assert(errors.length === 0, 'undo: special でコンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
@@ -2535,6 +2642,37 @@ const browser = await chromium.launch();
 	await page.evaluate((id) => openRecordEditor(id), RECORD_ID);
 	await page.waitForTimeout(300);
 	assert((await undoBtn()).stack === 0, 'undo(deck): シートを開き直しても前のぶんは復活しない');
+	await page.evaluate(() => closeRecordEditor());
+	await page.waitForTimeout(200);
+
+	// 比較シートへの一括追加も、編集画面と同じ受け皿の約束で動く（scope は 'sheet'）
+	await page.evaluate((id) => openRecordEditor(id), RECORD_ID);
+	await page.waitForTimeout(400);
+	const sheetAdd = await page.evaluate(async () => {
+		const before = draftRecord.skillIds.slice();
+		openRecordSkillPicker();
+		await new Promise((r) => setTimeout(r, 500));
+		[...document.querySelectorAll('[data-usd-el="skill-check"]')].slice(0, 3)
+			.forEach((b) => { b.checked = true; b.dispatchEvent(new Event('change', { bubbles: true })); });
+		document.querySelector('[data-usd-act="picker-add"]').click();
+		UmaSkillDeckCore.closeSkillPicker();
+		const after = draftRecord.skillIds.slice();
+		return {
+			added: after.length - before.length, before,
+			toast: document.getElementById('toast-message').textContent,
+			scope: UmaSkillDeckCore.getUndoScope(), stack: UmaSkillDeckCore.undoCount(),
+		};
+	});
+	await page.waitForTimeout(300);
+	assert(sheetAdd.added === 3 && sheetAdd.stack === 1 && sheetAdd.scope === 'sheet' && sheetAdd.toast === '3種を追加しました',
+		'undo(deck): 比較シートへの一括追加が sheet の scope に1件積まれる', sheetAdd);
+	const sheetUndo = await page.evaluate(() => ({
+		ok: performUndo(), ids: draftRecord.skillIds.slice(),
+		toast: document.getElementById('toast-message').textContent,
+	}));
+	await page.waitForTimeout(300);
+	assert(sheetUndo.ok && sheetUndo.ids.join() === sheetAdd.before.join() && sheetUndo.toast === '追加した3種を取り消しました',
+		'undo(deck): 取り消すと比較シートの行が追加前と一致', { ok: sheetUndo.ok, toast: sheetUndo.toast });
 	await page.evaluate(() => closeRecordEditor());
 	await page.waitForTimeout(200);
 

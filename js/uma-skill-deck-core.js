@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-12d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-12e';
 
 	/* ============================================================
 	 * 定数
@@ -35,6 +35,12 @@
 	const STAR_MAX = 3;
 	const MAX_ENABLED_CANDIDATES = 6;
 	const UNDO_STACK_LIMIT = 20;
+
+	// 一度にこの数以上のスキルを足したときだけ「元に戻す」に積む。
+	// 1種だけの追加はチップの×で消せるのでUndoの出番が薄く、スタックを埋める害のほうが大きい。
+	// （手入力の「マスターにないスキルを追加」は構造上つねに1種ずつなので、この線引きで自動的に外れる。
+	//   ただしカスタムスキルそのものは×で外してもマスターに残り続ける。削除UIが無い点はD節の課題）
+	const UNDO_MIN_BULK_ADD = 2;
 
 	// 一括貼り付けでスキル名を照合するときのしきい値。
 	// 実機での使用感しだいで調整できるよう独立した定数にしてある
@@ -1270,16 +1276,44 @@
 			? '<span class="usd-foot-added">（' + added + '種追加済み）</span>' : '');
 	}
 
+	/**
+	 * チェックしたスキルを、開いた側の受け皿へ足す。
+	 * 3つのモード（条件で検索・テキストで検索・手入力）はどれもここへ合流するので、
+	 * 「一度に2種以上足したらUndoに積む」の判定もここ1か所で済む。
+	 *
+	 * 受け皿（openPicker の第3引数）は次の形のオブジェクトで渡す:
+	 *   { scope, add(ids)->実際に足したIDの配列, remove(ids)->真偽, probe()->文字列 }
+	 * 関数をそのまま渡す旧い形も受け付けるが、その場合はUndoに積まない（戻し方が分からないため）。
+	 */
 	function addCheckedSkills() {
 		if (picker.checked.size === 0) { toast('スキルにチェックを入れてください'); return; }
 		const ids = Array.from(picker.checked);
-		if (picker.onAdd) picker.onAdd(ids);
+		const sink = picker.onAdd;
+		const undoable = sink && typeof sink === 'object' && typeof sink.add === 'function';
+		// 足す前の姿を控えておく。実際に何種足りたかは足してみないと分からないので、
+		// pushUndo は足したあとに回し、戻るべき姿は baseline として渡す（契約どおり）。
+		const baseline = undoable ? sink.probe() : null;
+		const added = undoable
+			? (sink.add(ids) || [])
+			: (typeof sink === 'function' ? (sink(ids), []) : []);
 		picker.excludeIds = picker.excludeIds.concat(ids);
 		picker.checked.clear();
 		renderPickerResults();
 		// 貼り付けの照合結果は消さずに残し、「追加済み」として見えるようにする
 		// （まだ処理していない要確認の行が消えてしまわないように）。
 		renderPasteReport();
+		if (undoable && added.length >= UNDO_MIN_BULK_ADD) {
+			// 取り消し側は「戻しました」の型を使わない。追加のUndoは結果として消えるので、
+			// 「戻しました」だと逆の意味に読めるため（削除系とは別の言い回しにする）。
+			pushUndo({
+				scope: sink.scope,
+				baseline: baseline,
+				doneLabel: added.length + '種を追加しました',
+				undoneLabel: '追加した' + added.length + '種を取り消しました',
+				probe: () => sink.probe(),
+				apply: () => sink.remove(added.slice())
+			});
+		}
 	}
 
 	function renderCustomSkillTagInputs() {
@@ -1865,20 +1899,46 @@
 		// 3つの入口はどれも同じ「選んだIDを編集中のセットへ足す」処理へ合流する。
 		function openEditorPicker(mode) {
 			const target = editing;
-			openPicker(mode, editingSkillIds(), (ids) => {
-				const list = target.kind === 'draft' ? draftScope.skillIds : target.obj.skillIds;
-				ids.forEach(id => { if (!list.includes(id)) list.push(id); });
-				persistEditing();
-				renderSelectedList();
-				// ドラフトに中身ができたら、そのまま使えるよう選択状態にする
-				if (target.kind === 'draft' && draftScope.skillIds.length > 0 && selectedId !== DRAFT_SELECTION_ID) {
-					selectedId = DRAFT_SELECTION_ID;
-					fireSelection();
-				} else if (isSelected(target)) {
-					fireSelection();
+			openPicker(mode, editingSkillIds(), {
+				scope: 'editor',
+				// 見るのは編集中のセットの中身だけ。復元で変わるのはここだけなので、
+				// 他の状態を混ぜると正しく戻せても「戻っていない」と判定してしまう。
+				probe: () => probeOf(skillIdsOf(target)),
+				add: (ids) => {
+					const cur = skillIdsOf(target);
+					if (!cur) return [];
+					// 実際に足りるのは「まだ入っていないもの」だけ。すでに入っていたものは巻き込まない。
+					const fresh = ids.filter(id => cur.indexOf(id) === -1);
+					if (fresh.length === 0) return [];
+					if (!writeSkillIds(target, cur.concat(fresh))) return [];
+					afterEditorPickerAdd(target);
+					return fresh;
+				},
+				remove: (ids) => {
+					const cur = skillIdsOf(target);
+					if (!cur) return false;
+					if (!writeSkillIds(target, cur.filter(id => ids.indexOf(id) === -1))) return false;
+					// 一覧から消えていたぶんを戻す（モーダルが開いたままでも数が合うように）
+					picker.excludeIds = picker.excludeIds.filter(id => ids.indexOf(id) === -1);
+					renderPickerResults();
+					renderPasteReport();
+					afterEditorPickerAdd(target, true);
+					return true;
 				}
-				fireChange();
 			});
+		}
+
+		// スキルを足した／その追加を取り消したあとの描画と通知。
+		function afterEditorPickerAdd(target, redrawAll) {
+			if (redrawAll) render(); else renderSelectedList();
+			// ドラフトに中身ができたら、そのまま使えるよう選択状態にする
+			if (target.kind === 'draft' && draftScope.skillIds.length > 0 && selectedId !== DRAFT_SELECTION_ID) {
+				selectedId = DRAFT_SELECTION_ID;
+				fireSelection();
+			} else if (isSelected(target)) {
+				fireSelection();
+			}
+			fireChange();
 		}
 
 		// 編集中の対象が、いま選択されているものかどうか

@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-12c';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-12d';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -701,22 +701,49 @@ function renderRecordGrid() {
 }
 
 // スキルを足す3つの入口。どれも「選んだIDを比較シートへ足す」処理へ合流する。
-function addSkillsToRecord(ids) {
-	ids.forEach(id => { if (!draftRecord.skillIds.includes(id)) draftRecord.skillIds.push(id); });
-	persistDraftRecord();
-	renderRecordGrid();
+// 共有モジュールへは受け皿オブジェクトで渡す（一度に2種以上足したときだけ「元に戻す」に積まれる）。
+function recordSkillSink() {
+	const recordId = draftRecord.recordId;
+	return {
+		scope: 'sheet',
+		// 追加で変わるのは行の並びだけ。★の値（cells）は混ぜない
+		probe: () => { const r = findRecordById(recordId); return r ? Core.probeOf(r.skillIds) : ''; },
+		add: (ids) => {
+			const r = findRecordById(recordId);
+			if (!r) return [];
+			const fresh = ids.filter(id => !r.skillIds.includes(id));
+			if (fresh.length === 0) return [];
+			fresh.forEach(id => r.skillIds.push(id));
+			r.updatedAt = nowIso();
+			saveUserData();
+			renderRecordGrid();
+			return fresh;
+		},
+		remove: (ids) => {
+			const r = findRecordById(recordId);
+			if (!r) return false;
+			r.skillIds = r.skillIds.filter(id => ids.indexOf(id) === -1);
+			// cells / ocrCells は消さない。足した操作は★を作っていないので、
+			// ここにある値は「足したあとに人が入れたもの」。取り消しで黙って捨てない
+			// （行を足し直せばそのまま出てくる。シートに無い行は描画にも集計にも出ない）。
+			r.updatedAt = nowIso();
+			saveUserData();
+			renderAll();
+			return true;
+		}
+	};
 }
 
 function openRecordSkillPicker() {
-	Core.openSkillPicker(draftRecord.skillIds, addSkillsToRecord);
+	Core.openSkillPicker(draftRecord.skillIds, recordSkillSink());
 }
 
 function openRecordTextPicker() {
-	Core.openTextSkillPicker(draftRecord.skillIds, addSkillsToRecord);
+	Core.openTextSkillPicker(draftRecord.skillIds, recordSkillSink());
 }
 
 function openRecordCustomSkill() {
-	Core.openCustomSkillPicker(draftRecord.skillIds, addSkillsToRecord);
+	Core.openCustomSkillPicker(draftRecord.skillIds, recordSkillSink());
 }
 
 function duplicateRecord(recordId) {

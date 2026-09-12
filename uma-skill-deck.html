@@ -14,8 +14,8 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-12d"></script>
-	<script src="js/uma-skill-deck.js?v=2026-09-12c"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-12e"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-12d"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -328,6 +328,15 @@
 		@media (max-width: 640px) {
 			#toast { bottom: 4.75rem; }
 		}
+		/* スキル選択モーダル（.usd-modal は z-index:80）より前に出す。
+		   スキルを足したときのトーストはモーダルを開いたまま出るので、
+		   Tailwind の z-[60] のままだとモーダルの裏に回って一度も見えない（実測で確認）。
+		   special.html が #toast を 110 にしているのと同じ値に揃えてある。
+		   このページで 80 より上に居る要素は他に無い（最前面がモーダル、次がスキル名の
+		   ツールチップ 70）。引き出しも確認ダイアログのオーバーレイも持たない。
+		   Tailwind のユーティリティは @layer utilities に入るので、レイヤーに属さない
+		   この指定のほうが強い（F-18）。 */
+		#toast { z-index: 110; }
 
 		/* ---- コントロールエリア ----
 		   .uma-pill / .uma-btn は special.html と共有する共通部品なので本体は触らず、
