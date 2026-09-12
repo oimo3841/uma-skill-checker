@@ -111,11 +111,17 @@ for (const p of ['special.html', 'js/uma-skill-deck.js', 'exam.html']) {
 const coreVer = /UMA_SKILL_DECK_CORE_JS_VERSION = '([^']+)'/.exec(read('js/uma-skill-deck-core.js'))[1];
 const deckVer = /UMA_SKILL_DECK_JS_VERSION = '([^']+)'/.exec(read('js/uma-skill-deck.js'))[1];
 const commonVer = /COMMON_JS_VERSION = '([^']+)'/.exec(read('js/common.js'))[1];
-console.log('     内部定数:  common.js=%s / core=%s / deck=%s / css=%s', commonVer, coreVer, deckVer, cssVer);
+// 21セッション目に追加。stitch.js は長らく ?v= が2か所に手書きで並ぶだけで、
+// 内部の版定数も検査も無かった（ズレても誰も気づかない状態）。
+// 結合画像のファイル名をこのファイルへ置いたのを機に、他と同じ運用へ載せた。
+const stitchVer = /STITCH_JS_VERSION = '([^']+)'/.exec(read('js/stitch.js'))[1];
+console.log('     内部定数:  common.js=%s / core=%s / deck=%s / stitch=%s / css=%s', commonVer, coreVer, deckVer, stitchVer, cssVer);
 for (const [p, pat, ver, name] of [
 	['special.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
 	['special.html', /js\/common\.js\?v=([0-9a-z-]+)/g, commonVer, 'common.js'],
 	['exam.html', /js\/common\.js\?v=([0-9a-z-]+)/g, commonVer, 'common.js'],
+	['special.html', /js\/stitch\.js\?v=([0-9a-z-]+)/g, stitchVer, 'stitch.js'],
+	['exam.html', /js\/stitch\.js\?v=([0-9a-z-]+)/g, stitchVer, 'stitch.js'],
 	['uma-skill-deck.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
 	['uma-skill-deck.html', /js\/uma-skill-deck\.js\?v=([0-9a-z-]+)/g, deckVer, 'deck.js'],
 	// special.html の引き出しパネルが読む iframe。deck.js の版に合わせている値だが、
@@ -150,6 +156,7 @@ const VERSIONED = [
 	['js/common.js', commonVer, /COMMON_JS_VERSION = '([^']+)'/],
 	['js/uma-skill-deck-core.js', coreVer, /UMA_SKILL_DECK_CORE_JS_VERSION = '([^']+)'/],
 	['js/uma-skill-deck.js', deckVer, /UMA_SKILL_DECK_JS_VERSION = '([^']+)'/],
+	['js/stitch.js', stitchVer, /STITCH_JS_VERSION = '([^']+)'/],
 	['css/tokens.css', cssVer, /--common-css-version:\s*"([^"]+)"/],
 ];
 const today = new Date().toLocaleDateString('sv-SE');  // ローカル時刻の YYYY-MM-DD
@@ -169,7 +176,11 @@ for (const [p, ver, pat] of VERSIONED) {
 }
 
 console.log('\n=== 2. 変更してはいけないファイル ===');
-for (const p of ['index.html', 'js/common.js', 'js/stitch.js']) {
+// 21セッション目: js/stitch.js の凍結を解いた（結合画像のファイル名をここに置いたため）。
+// 代わりに §1 の3点一致の検査対象へ入れてある。js/common.js は凍結のまま
+// （OCR・照合のレイヤーで役割が違ううえ、tests/skillset/ のハーネスが Node の vm で
+//  そのまま評価しているので、localStorage に触るコードを持ち込まない）。
+for (const p of ['index.html', 'js/common.js']) {
 	const r = spawnSync('git', ['diff', '--quiet', 'HEAD', '--', p], { cwd: REPO_ROOT });
 	check(r.status === 0, p + ' が未変更');
 }

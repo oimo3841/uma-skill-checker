@@ -19,7 +19,7 @@
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html / exam.html で共有） -->
 	<script src="js/common.js?v=2026-09-12c"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-09a"></script>
+	<script src="js/stitch.js?v=2026-09-12a"></script>
 	<style>
 		/* このツールのアクセント（藍）。shell.css の部品（タブの下線・FAB のメインボタン・
 		   フォーカスの輪）はこの変数を見て色が決まる。値は special のような Tailwind v4 の実測値
@@ -824,6 +824,27 @@
 						<span>入力画面に戻る</span>
 					</button>
 				</div>
+				<!-- 保存するときの名前。結果を見てから名付けられるよう、タブの先頭に1つだけ置く。
+				     #stitch-result-wrap の**外**に置いてある。旧UIへ切り替えると
+				     #stitch-result-wrap は #old-stitch-slot へ移動するが、この欄は移動させない
+				     （旧UIは廃止に向かっている画面なので、新UIにだけ置く。
+				      旧UIで保存した場合は指定名称なしの `260912_001.png` になる）。
+				     出し入れは setSectionReady('stitch', …) が行う。 -->
+				<!-- 左右の余白は下の #stitch-drawer-slot と同じ .uma-drawer-content に合わせる。
+				     下の余白はスロット側が持つので、こちらの下だけ 0 にする
+				     （Tailwind の pb-0 は @layer utilities なので、レイヤーに属さない
+				      .uma-drawer-content の padding に負ける。ここは inline で確実に上書きする）。 -->
+				<div id="stitch-name-wrap" class="uma-drawer-content" style="padding-bottom:0" hidden>
+					<label for="stitch-save-name" class="block text-xs font-bold text-slate-700 mb-1.5">保存するときの名前（任意）</label>
+					<input type="text" id="stitch-save-name" maxlength="40" placeholder="例：9月因子"
+						oninput="onStitchSaveNameInput()"
+						class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-indigo-500" />
+					<p class="mt-1.5 text-[11px] text-slate-400">
+						<!-- 見本と「.png」の間に空白を入れないため、2つの span を続けて書く -->
+						<span id="stitch-save-name-preview" class="font-mono text-slate-500"></span><span>.png として保存されます（番号は保存するたびに増え、日付が変わると001に戻ります）</span>
+					</p>
+					<p id="stitch-save-name-note" class="mt-1 text-[11px] text-amber-600" hidden>ファイル名に使えない文字を全角に直しました。</p>
+				</div>
 				<div id="stitch-drawer-slot" class="uma-drawer-content">
 					<div id="stitch-result-wrap" class="hidden">
 						<div id="stitch-result-content" class="space-y-4"></div>
@@ -1256,6 +1277,7 @@
 			updateCategoryBadges();
 			renderPersonUploadGrid();
 			restoreCountMode();
+			initStitchSaveName();
 			selectCopyList('all133');
 			updateProcessBtn();
 			// どちらのUIで開くかを決める（未読なら新UI＋告知モーダル）。他の準備が終わってから
@@ -2794,7 +2816,10 @@
 			header.innerHTML = '<p class="text-xs font-bold text-slate-700">' + escapeHtml(set.label) + '</p>';
 			const downloadLink = document.createElement('a');
 			downloadLink.href = dataUrl;
-			downloadLink.download = 'uma-exam-' + set.id + '.png';
+			// ファイル名は `YYMMDD_NNN_指定名称.png`。組み立てとイベントの張り方は js/stitch.js。
+			// 長押しやドラッグでの保存では click が飛ばないので、押した瞬間ではなく
+			// pointerdown で入れ直す作りになっている（stitchAttachSaveName のコメント参照）。
+			stitchAttachSaveName(downloadLink, currentStitchSaveName);
 			downloadLink.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[11px] font-semibold hover:bg-indigo-700 transition-all cursor-pointer';
 			downloadLink.textContent = 'PNGをダウンロード';
 			header.appendChild(downloadLink);
@@ -2825,6 +2850,62 @@
 			}
 
 			container.appendChild(block);
+		}
+
+		/* ============================================================
+		 * 結合画像を保存するときの名前
+		 * 組み立て・保存領域・イベントの張り方は js/stitch.js にある（special.html と共有）。
+		 * ここにあるのは画面まわり（入力欄の復元・保存・見本の表示）だけ。
+		 * 指定名称はツールごとに別のキーで覚える。exam で入れた名前が
+		 * special の保存時に出てくると混乱するため。
+		 * 通し番号のほうは全ツール共通の1キー（js/stitch.js 側）。
+		 * ============================================================ */
+		const STITCH_SAVE_NAME_STORAGE_KEY = 'uma-exam-save-name';
+
+		/**
+		 * いま入力されている指定名称。
+		 * **旧UIでは常に空**にする。入力欄は新UIの引き出しにしか置いていないので、
+		 * 旧UIで保存した人には見えないまま名前が付くことになり、辻褄が合わないため。
+		 */
+		function currentStitchSaveName() {
+			if (!newUi) return '';
+			const el = document.getElementById('stitch-save-name');
+			return el ? el.value : '';
+		}
+
+		// 入力のたびに、使えない文字を全角へ直してから覚える。
+		function onStitchSaveNameInput() {
+			const el = document.getElementById('stitch-save-name');
+			if (!el) return;
+			const fixed = stitchSanitizeSaveNameInput(el.value);
+			const changed = fixed !== el.value;
+			if (changed) {
+				// カーソルの位置は保つ（置き換えは1文字→1文字なので長さは変わらない）
+				const pos = el.selectionStart;
+				el.value = fixed;
+				try { el.setSelectionRange(pos, pos); } catch (e) {}
+			}
+			document.getElementById('stitch-save-name-note').hidden = !changed;
+			writeStored(STITCH_SAVE_NAME_STORAGE_KEY, fixed);
+			updateStitchSaveNameUi();
+		}
+
+		// 見本の表示と、並んでいる保存リンクの名前を今の状態に合わせる。
+		function updateStitchSaveNameUi() {
+			const preview = document.getElementById('stitch-save-name-preview');
+			if (preview) {
+				preview.textContent = stitchFormatSaveName(
+					stitchTodayStamp(), stitchPeekSaveSeq(), currentStitchSaveName());
+			}
+			stitchRefreshSaveNames(document.getElementById('stitch-result-content'));
+		}
+
+		// 前回入力した名前を戻す。読めなければ空欄のまま（害がない）。
+		function initStitchSaveName() {
+			const el = document.getElementById('stitch-save-name');
+			if (!el) return;
+			el.value = stitchSanitizeSaveNameInput(readStored(STITCH_SAVE_NAME_STORAGE_KEY) || '');
+			updateStitchSaveNameUi();
 		}
 
 		/* ============================================================
@@ -2896,6 +2977,9 @@
 			// 結果のカードは「結果があるか」に従う（旧UIのときだけ見える）
 			document.getElementById('old-result-card').hidden = isNew || document.getElementById('result-wrap').classList.contains('hidden');
 			document.getElementById('old-stitch-card').hidden = isNew || document.getElementById('stitch-result-wrap').classList.contains('hidden');
+			// 旧UIでは指定名称を付けない決まりなので、往復したら保存リンクの名前を入れ直す
+			// （旧UI → `260912_001.png`、新UI → `260912_001_9月因子.png`）。
+			updateStitchSaveNameUi();
 			document.getElementById('old-help-card').classList.add('hidden');
 			// コピー用の窓は旧UIだけ。新UIはコピーのボタンに一本化する（値は隠したまま持つ）
 			document.getElementById('copy-data-wrap').classList.toggle('copy-source-hidden', isNew);
@@ -3097,6 +3181,12 @@
 			const sec = RESULT_SECTIONS[key];
 			document.getElementById(sec.wrap).classList.toggle('hidden', !ready);
 			document.getElementById(sec.empty).hidden = ready;
+			// 保存するときの名前の欄も、結果画像があるときだけ出す（無いときは案内だけ見せる）。
+			// #stitch-result-wrap の外にあるので、旧UIへ移動することはない。
+			if (key === 'stitch') {
+				document.getElementById('stitch-name-wrap').hidden = !ready;
+				updateStitchSaveNameUi();
+			}
 			// 「結果画像」のタブが押せるかは、結果があるかで決まる
 			updateResultTabs();
 			// 旧UIでは結果を本文のカードで出す。カードの外枠も「結果があるか」に合わせる（新UIでは常に隠す）
@@ -3154,6 +3244,9 @@
 				btn.tabIndex = on ? 0 : -1;
 				panel.hidden = !on;
 			});
+			// 結果画像のタブを表にしたときは、見本（通し番号）を出し直す。前回の保存で番号が
+			// 進んでいたり、開きっぱなしで日付をまたいでいたりしても、表示が今の値になる。
+			if (pick === 'stitch') updateStitchSaveNameUi();
 			// 未読は「そのタブを実際に表示したとき」だけ外す（引き出しを開いただけでは外さない）
 			if (fabUnseen[pick]) { fabUnseen[pick] = false; }
 			updateFabBadges();

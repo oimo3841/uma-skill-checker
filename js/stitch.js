@@ -9,7 +9,13 @@
  * OCRマッチング用の loadImage() は js/common.js のものをそのまま利用する
  * （同名関数の重複定義を避けるため、ここでは再定義しない）。
  * devGeometry は各HTML側で宣言されるグローバルな開発ログ配列を利用する。
+ * 保存領域の読み書きは各HTML側の readStored() / writeStored()
+ * （try/catch で包んだ小さな関数）をそのまま使う。
  * ============================================================ */
+
+// このファイルの版。B節ルール4の3点一致（内部定数・各HTMLの ?v=・npm run test:verify）の対象。
+// 中身を変更したらこの日付も更新すること。
+const STITCH_JS_VERSION = '2026-09-12a';
 
 // 画像結合用の簡易ログ。既存の開発ログ（devGeometry）に相乗りさせることで、
 // 「開発ログを表示」チェックを入れれば結合処理の詳細も確認できるようにする。
@@ -470,4 +476,160 @@ function stitchConcatHorizontallyTopAligned(canvasList, gap) {
 		cursorX += c.width + gap;
 	}
 	return out;
+}
+
+/* ============================================================
+ * 結合画像を保存するときのファイル名
+ * ------------------------------------------------------------
+ * 形式は `YYMMDD_NNN_指定名称`（例 260912_001_9月因子.png）。
+ *   YYMMDD … 年月日の下2桁ずつ。**必ず現地時間で取る**
+ *            （協定世界時で取ると日本の 00〜09時の保存が前日の日付になる）
+ *   NNN    … その日の通し番号。3桁ゼロ埋め。999を超えたら桁が増える
+ *   指定名称 … 利用者が入力した名前。空欄なら `260912_001`（末尾に区切りを残さない）
+ *
+ * 区切りはアンダーバー。指定名称の中のアンダーバーは置き換えないので、
+ * **後から機械的に読み解くときは先頭2つのアンダーバーだけで区切る**こと。
+ *
+ * 置き場所について: 結合画像を保存するのは special.html と exam.html の2つだけで、
+ * その2つが読む共有ファイルがこの stitch.js なので、ここに置いている。
+ * js/common.js はOCR・照合のレイヤーで役割が違ううえ、
+ * tests/skillset/ のハーネスが Node の vm でそのまま評価しているため、
+ * localStorage に触るコードを持ち込まない。
+ * ============================================================ */
+
+// 通し番号は「全ツールで1つ」。ツールごとに分けると、special と exam が
+// 同じ日にどちらも 001 を作ってしまう。保存領域は同一オリジンで共有される。
+// 指定名称のほうはツールごとに別キー（special で入れた名前が exam で出てこないように）。
+const STITCH_SEQ_STORAGE_KEY = 'uma-shared-save-seq';
+const STITCH_NAME_MAX_LENGTH = 40;
+
+// ファイル名に使えない文字。放っておくと保存に失敗するか、ブラウザが黙って
+// アンダーバーへ置き換える（＝画面に出ている名前と実際のファイル名がずれる）。
+// 先回りして全角へ置き換え、見た目を保ったまま安全な名前にする。
+// Windowsの予約名（CON・PRN 等）は、先頭に必ず `YYMMDD_NNN` が付くので起こり得ない。
+const STITCH_FULLWIDTH_MAP = {
+	'/': '／', '\\': '＼', ':': '：', '*': '＊', '?': '？',
+	'"': '”', '<': '＜', '>': '＞', '|': '｜'
+};
+
+/** 今日の YYMMDD。現地時間で取る（getFullYear/getMonth/getDate はブラウザの現地時間）。 */
+function stitchTodayStamp(now) {
+	const d = now || new Date();
+	return String(d.getFullYear() % 100).padStart(2, '0')
+		+ String(d.getMonth() + 1).padStart(2, '0')
+		+ String(d.getDate()).padStart(2, '0');
+}
+
+/**
+ * 入力欄に映す用の整形。使えない文字を全角へ置き換え、制御文字を落とし、長さを止める。
+ * **前後の空白は削らない。** 打っている途中の「先行 」が即座に詰まると、
+ * 続けて「A」を打てなくなるため。空白の始末はファイル名を作るときに行う。
+ */
+function stitchSanitizeSaveNameInput(raw) {
+	if (!raw) return '';
+	let s = String(raw);
+	s = s.replace(/[\u0000-\u001f\u007f]/g, '');
+	s = s.replace(/[\/\\:*?"<>|]/g, (c) => STITCH_FULLWIDTH_MAP[c]);
+	if (s.length > STITCH_NAME_MAX_LENGTH) s = s.slice(0, STITCH_NAME_MAX_LENGTH);
+	return s;
+}
+
+/**
+ * ファイル名に入れる用の整形。上の整形に加えて、前後の空白と末尾のピリオドを落とす。
+ * Windows は末尾の空白・ピリオドを黙って落とすので、こちらで先に始末しておく。
+ */
+function stitchSanitizeSaveName(raw) {
+	let s = stitchSanitizeSaveNameInput(raw);
+	s = s.replace(/^[\s　]+/, '');
+	s = s.replace(/[\s　.．]+$/, '');
+	return s;
+}
+
+/** `260912_001_9月因子` を組み立てる（拡張子は付けない）。名前が空なら `260912_001`。 */
+function stitchFormatSaveName(stamp, seq, rawName) {
+	const name = stitchSanitizeSaveName(rawName);
+	// 999 を超えたら4桁へ伸ばす。padStart は長い文字列を切らないので、これだけで足りる。
+	// 桁が揃わなくなるより「番号が飛ばない・止まらない」ことを優先する。
+	const num = String(seq).padStart(3, '0');
+	return stamp + '_' + num + (name ? '_' + name : '');
+}
+
+/** 保存済みの {date, n}。読めない・壊れている・形が違うときは null。 */
+function stitchReadSaveSeq() {
+	try {
+		const raw = readStored(STITCH_SEQ_STORAGE_KEY);
+		if (!raw) return null;
+		const rec = JSON.parse(raw);
+		if (!rec || typeof rec.date !== 'string') return null;
+		if (typeof rec.n !== 'number' || !isFinite(rec.n) || rec.n < 1) return null;
+		return rec;
+	} catch (e) {
+		return null;
+	}
+}
+
+/**
+ * 次に使う番号を「消費せずに」返す。
+ * 日付が変わっていれば 001 に戻る。判定は押した瞬間の突き合わせだけで足りるので、
+ * 日付の変化を見張るタイマーは要らない（画面を開きっぱなしでも正しく戻る）。
+ */
+function stitchPeekSaveSeq(stamp) {
+	const today = stamp || stitchTodayStamp();
+	const rec = stitchReadSaveSeq();
+	return (rec && rec.date === today) ? rec.n + 1 : 1;
+}
+
+/** 次に使う番号を返し、同時に書き戻す（＝1つ進める）。 */
+function stitchConsumeSaveSeq(stamp) {
+	const today = stamp || stitchTodayStamp();
+	const seq = stitchPeekSaveSeq(today);
+	writeStored(STITCH_SEQ_STORAGE_KEY, JSON.stringify({ date: today, n: seq }));
+	return seq;
+}
+
+/**
+ * 保存リンクにファイル名を付ける。getRawName() は指定名称を返す関数。
+ *
+ * download 属性が読まれるのは「押した瞬間」ではなく「ダウンロードが始まる瞬間」で、
+ * **長押しの『リンク先を保存』やドラッグでの保存では click が飛ばない**
+ * （Chromium で実測: 右クリック＝長押し相当では pointerdown / mousedown /
+ *   auxclick / contextmenu、ドラッグでは pointerdown / mousedown / dragstart。
+ *   いずれも click は飛ばない）。
+ *
+ * そこで、**どの保存経路でも必ず最初に飛ぶ pointerdown で名前を入れ直す**
+ * （peek＝番号は消費しない）。そのうえで、
+ *   - click        … 通常の保存。番号を1つ進める
+ *   - contextmenu  … 長押し／右クリックからの保存。番号を1つ進める
+ *   - dragstart    … ドラッグでの保存。番号を1つ進める
+ * とする。番号を進めたあとは入れ直さない（メニューを開いたまま入れ替わると、
+ * 実際に保存されるファイルの名前が変わってしまうため）。次の操作の
+ * pointerdown で入れ直されるので、それで足りる。
+ *
+ * メニューを開いて何も選ばずに閉じた場合は番号が1つ飛ぶが、
+ * 番号が飛ぶことより同じ名前が2回出るほうが困るので、この向きに倒している。
+ */
+function stitchAttachSaveName(link, getRawName) {
+	function nameNow(seq) {
+		return stitchFormatSaveName(stitchTodayStamp(), seq, getRawName()) + '.png';
+	}
+	function peek() { link.download = nameNow(stitchPeekSaveSeq()); }
+	function consume() { link.download = nameNow(stitchConsumeSaveSeq()); }
+
+	peek();
+	link.addEventListener('pointerdown', peek);
+	link.addEventListener('click', consume);
+	link.addEventListener('contextmenu', consume);
+	link.addEventListener('dragstart', consume);
+	// 名前の欄が変わったときに呼び直せるようにしておく（stitchRefreshSaveNames）
+	link._stitchRefreshSaveName = peek;
+	return peek;
+}
+
+/** 指定名称の欄が変わったときに、並んでいる保存リンクの名前を一斉に入れ直す。 */
+function stitchRefreshSaveNames(container) {
+	if (!container) return;
+	const links = container.querySelectorAll('a[download]');
+	for (const a of links) {
+		if (typeof a._stitchRefreshSaveName === 'function') a._stitchRefreshSaveName();
+	}
 }

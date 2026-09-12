@@ -2741,6 +2741,236 @@ const browser = await chromium.launch();
 	assert(leftover.length === 0, 'undo: 「元に戻しました：」という接頭辞がソースに残っていない', leftover);
 }
 
+/* ============================================================
+ * 結合画像を保存するときのファイル名（special / exam 共通・js/stitch.js）
+ *
+ * 形式は `YYMMDD_NNN_指定名称.png`。
+ * 組み立てそのもの（純粋な関数）と、実際の保存リンクに付く名前の両方を見る。
+ * 通し番号は全ツール共通の1キー（uma-shared-save-seq）で、指定名称はツールごと。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+
+	// --- 組み立て（純粋な関数）---
+	const f = await page.evaluate(() => ({
+		// 現地時間で取る。この時刻は協定世界時だと前日（2026-09-11T15:30Z）になる
+		localDate: stitchTodayStamp(new Date(2026, 8, 12, 0, 30)),
+		utcWouldBe: new Date(2026, 8, 12, 0, 30).toISOString().slice(0, 10),
+		empty: stitchFormatSaveName('260912', 1, ''),
+		named: stitchFormatSaveName('260912', 1, '9月因子'),
+		underscore: stitchFormatSaveName('260912', 1, '先行_A'),
+		hyphen: stitchFormatSaveName('260912', 1, '先行-A'),
+		trimmed: stitchFormatSaveName('260912', 1, '　先行 . '),
+		over999: stitchFormatSaveName('260912', 1000, 'x'),
+		at999: stitchFormatSaveName('260912', 999, 'x'),
+		forbidden: stitchSanitizeSaveNameInput('先行/差し\\逃げ:A*B?C"D<E>F|G'),
+		control: stitchSanitizeSaveNameInput('先\u0000行\u001f差\u007fし'),
+		tooLong: stitchSanitizeSaveNameInput('あ'.repeat(60)).length,
+	}));
+	assert(f.localDate === '260912', 'ファイル名: 日付を現地時間で取る（協定世界時なら前日になる時刻）',
+		{ 現地: f.localDate, 協定世界時: f.utcWouldBe });
+	assert(f.empty === '260912_001', 'ファイル名: 名前が空欄なら末尾にアンダーバーを残さない', f.empty);
+	assert(f.named === '260912_001_9月因子', 'ファイル名: 名前を入れると YYMMDD_NNN_名前 になる', f.named);
+	assert(f.underscore === '260912_001_先行_A', 'ファイル名: 名前の中のアンダーバーは置き換えない', f.underscore);
+	assert(f.hyphen === '260912_001_先行-A', 'ファイル名: 名前の中のハイフンはそのまま残る', f.hyphen);
+	assert(f.trimmed === '260912_001_先行', 'ファイル名: 前後の空白と末尾のピリオドは落とす', f.trimmed);
+	assert(f.at999 === '260912_999_x' && f.over999 === '260912_1000_x',
+		'ファイル名: 999までは3桁ゼロ埋め、超えたら4桁へ伸びる', { at999: f.at999, over999: f.over999 });
+	assert(f.forbidden === '先行／差し＼逃げ：A＊B？C”D＜E＞F｜G',
+		'ファイル名: 使えない文字は全角へ置き換わる', f.forbidden);
+	assert(f.control === '先行差し', 'ファイル名: 制御文字は落とす', f.control);
+	assert(f.tooLong === 40, 'ファイル名: 指定名称は40文字で止まる', f.tooLong);
+
+	// --- 通し番号（全ツール共通の1キー・日付が変わったら001へ）---
+	const seq = await page.evaluate(() => {
+		const KEY = 'uma-shared-save-seq';
+		const today = stitchTodayStamp();
+		const out = {};
+		localStorage.removeItem(KEY);
+		out.noRecord = stitchPeekSaveSeq();
+		localStorage.setItem(KEY, JSON.stringify({ date: today, n: 7 }));
+		out.sameDay = stitchPeekSaveSeq();
+		localStorage.setItem(KEY, JSON.stringify({ date: '260911', n: 42 }));
+		out.otherDay = stitchPeekSaveSeq();
+		localStorage.setItem(KEY, '壊れた値');
+		out.broken = stitchPeekSaveSeq();
+		localStorage.removeItem(KEY);
+		out.consumed = [stitchConsumeSaveSeq(), stitchConsumeSaveSeq(), stitchConsumeSaveSeq()];
+		out.stored = JSON.parse(localStorage.getItem(KEY));
+		out.storedKey = KEY;
+		localStorage.removeItem(KEY);
+		return out;
+	});
+	assert(seq.noRecord === 1, '通し番号: 記録が無ければ001から', seq.noRecord);
+	assert(seq.sameDay === 8, '通し番号: 同じ日なら続きから', seq.sameDay);
+	assert(seq.otherDay === 1, '通し番号: 日付が変わったら001に戻る', seq.otherDay);
+	assert(seq.broken === 1, '通し番号: 保存領域が壊れていても001から（落ちない）', seq.broken);
+	assert(JSON.stringify(seq.consumed) === '[1,2,3]', '通し番号: 保存のたびに1つ進む', seq.consumed);
+	assert(seq.stored.date === (await page.evaluate(() => stitchTodayStamp())) && seq.stored.n === 3,
+		'通し番号: 日付と番号が保存領域に残る', seq.stored);
+
+	// --- 実際の保存リンクに付く名前（special）---
+	// 結合の中身は通さず、結果ブロックの組み立てだけを本物の関数で作る。
+	const mkBlocks = async (n) => await page.evaluate((count) => {
+		const container = document.getElementById('stitch-result-content');
+		container.innerHTML = '';
+		for (let i = 0; i < count; i++) {
+			const c = document.createElement('canvas');
+			c.width = 8; c.height = 8;
+			c.getContext('2d').fillRect(0, 0, 8, 8);
+			appendStitchResultBlock(container, { id: i === 0 ? 'A' : 'B', label: i === 0 ? '親Aセット' : '親Bセット' }, c);
+		}
+		setSectionReady('stitch', true);
+		return container.querySelectorAll('a[download]').length;
+	}, n);
+
+	// 押したときに本当のダウンロードが始まらないよう、既定の動作だけ止める。
+	// 名前を入れ直す処理は先に登録されているので、こちらが後から止めても効き方は変わらない。
+	const saveNth = async (i, type) => await page.evaluate(([idx, kind]) => {
+		const link = document.querySelectorAll('#stitch-result-content a[download]')[idx];
+		link.addEventListener('click', (e) => e.preventDefault());
+		link.addEventListener('dragstart', (e) => e.preventDefault());
+		link.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+		const beforePress = link.download;
+		link.dispatchEvent(new (kind === 'click' ? MouseEvent : Event)(kind, { bubbles: true, cancelable: true }));
+		return { beforePress: beforePress, saved: link.download };
+	}, [i, type]);
+
+	await page.evaluate(() => { localStorage.removeItem('uma-shared-save-seq'); });
+	const stamp = await page.evaluate(() => stitchTodayStamp());
+	// 名前の欄は結果と同じ引き出しの中にあるので、結果を作って開いてからでないと触れない
+	const made = await mkBlocks(2);
+	assert(made === 2, 'ファイル名(special): 2セットぶんの保存リンクができる', made);
+	await page.evaluate(() => openDrawer('stitch'));
+	await page.waitForTimeout(500);
+	assert(await page.isVisible('#stitch-save-name'), 'ファイル名(special): 名前の欄が引き出しの先頭に出る');
+	await page.fill('#stitch-save-name', '9月因子');
+	await page.waitForTimeout(150);
+
+	const first = await saveNth(0, 'click');
+	assert(first.saved === stamp + '_001_9月因子.png',
+		'ファイル名(special): 名前を入れて保存すると YYMMDD_001_名前.png になる', first.saved);
+	const second = await saveNth(1, 'click');
+	assert(second.saved === stamp + '_002_9月因子.png',
+		'ファイル名(special): 2枚目を保存すると番号が002へ進む', second.saved);
+
+	// 長押し／右クリックからの保存では click が飛ばない（Chromium実測）。
+	// pointerdown で名前を入れ直し、contextmenu で番号を進める作りになっている。
+	const longPress = await saveNth(0, 'contextmenu');
+	assert(longPress.beforePress === stamp + '_003_9月因子.png' && longPress.saved === stamp + '_003_9月因子.png',
+		'ファイル名(special): 長押し（contextmenu）での保存でも番号が進む', longPress);
+
+	// 名前を空にすると、リンクの名前からも末尾のアンダーバーが消える
+	await page.fill('#stitch-save-name', '');
+	await page.waitForTimeout(150);
+	const emptyName = await page.evaluate(() => document.querySelector('#stitch-result-content a[download]').download);
+	assert(emptyName === stamp + '_004.png',
+		'ファイル名(special): 名前を消すと YYMMDD_NNN.png になる（末尾のアンダーバーなし）', emptyName);
+
+	// 入力欄そのもの: 使えない文字は打った時点で全角になり、注意書きが出る
+	await page.fill('#stitch-save-name', '先行/差し');
+	await page.waitForTimeout(150);
+	const typed = await page.evaluate(() => ({
+		value: document.getElementById('stitch-save-name').value,
+		note: !document.getElementById('stitch-save-name-note').hidden,
+		preview: document.getElementById('stitch-save-name-preview').textContent,
+		max: document.getElementById('stitch-save-name').getAttribute('maxlength'),
+		saved: localStorage.getItem('uma-special-save-name'),
+	}));
+	assert(typed.value === '先行／差し', 'ファイル名(special): 入力欄の使えない文字がその場で全角になる', typed.value);
+	assert(typed.note, 'ファイル名(special): 置き換えたことを知らせる注意書きが出る');
+	assert(typed.preview === stamp + '_004_先行／差し', 'ファイル名(special): 見本が今の名前と番号を映す', typed.preview);
+	assert(typed.max === '40', 'ファイル名(special): 入力欄が40文字で止まる', typed.max);
+	assert(typed.saved === '先行／差し', 'ファイル名(special): 入力した名前はツールごとのキーに覚える', typed.saved);
+
+	// 開き直しても名前が戻る
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.waitForTimeout(1200);
+	const restored = await page.evaluate(() => document.getElementById('stitch-save-name').value);
+	assert(restored === '先行／差し', 'ファイル名(special): 開き直しても名前が戻る', restored);
+
+	assert(errors.length === 0, 'ファイル名(special): コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+{
+	// exam 側。番号のキーは special と同じ1つ、名前のキーはツールごとに別。
+	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+	await page.waitForTimeout(800);
+	if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
+	await page.waitForTimeout(300);
+
+	const keys = await page.evaluate(() => ({
+		seq: STITCH_SEQ_STORAGE_KEY,
+		name: STITCH_SAVE_NAME_STORAGE_KEY,
+	}));
+	assert(keys.seq === 'uma-shared-save-seq', 'ファイル名(exam): 通し番号のキーは全ツール共通', keys.seq);
+	assert(keys.name === 'uma-exam-save-name', 'ファイル名(exam): 指定名称のキーはツールごと', keys.name);
+
+	// 結果画像がまだ無いときは名前の欄も出さない（案内だけ読ませる）
+	assert(await page.evaluate(() => document.getElementById('stitch-name-wrap').hidden),
+		'ファイル名(exam): 結果画像が無いうちは名前の欄を出さない');
+
+	const stamp = await page.evaluate(() => {
+		localStorage.removeItem('uma-shared-save-seq');
+		return stitchTodayStamp();
+	});
+	await page.evaluate(() => {
+		const container = document.getElementById('stitch-result-content');
+		container.innerHTML = '';
+		const c = document.createElement('canvas');
+		c.width = 8; c.height = 8;
+		c.getContext('2d').fillRect(0, 0, 8, 8);
+		c._personMeta = [];
+		appendStitchResultBlock(container, { id: 'A', label: '親Aセット' }, c);
+		setSectionReady('stitch', true);
+	});
+	assert(!(await page.evaluate(() => document.getElementById('stitch-name-wrap').hidden)),
+		'ファイル名(exam): 結果画像ができると名前の欄が出る');
+
+	// 名前の欄は「判定の結果」の引き出しの、結果画像のタブの中にある
+	await page.evaluate(() => { selectResultTab('stitch'); openDrawer('result'); });
+	await page.waitForTimeout(500);
+	assert(await page.isVisible('#stitch-save-name'), 'ファイル名(exam): 名前の欄が結果画像のタブの先頭に出る');
+	await page.fill('#stitch-save-name', '技能試験');
+	await page.waitForTimeout(150);
+	const examSave = await page.evaluate(() => {
+		const link = document.querySelector('#stitch-result-content a[download]');
+		link.addEventListener('click', (e) => e.preventDefault());
+		link.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+		link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+		return link.download;
+	});
+	assert(examSave === stamp + '_001_技能試験.png', 'ファイル名(exam): exam でも同じ形式で名前が付く', examSave);
+
+	// 旧UIには名前の欄を置かない。旧UIで保存したものは指定名称なしになる。
+	await page.evaluate(() => exitNewUi());
+	await page.waitForTimeout(400);
+	const oldUi = await page.evaluate(() => {
+		const link = document.querySelector('#stitch-result-content a[download]');
+		link.addEventListener('click', (e) => e.preventDefault());
+		link.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+		link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+		return {
+			download: link.download,
+			nameWrapInOldSlot: document.getElementById('old-stitch-slot').contains(document.getElementById('stitch-name-wrap')),
+		};
+	});
+	assert(oldUi.download === stamp + '_002.png', 'ファイル名(exam): 旧UIでの保存は指定名称なしになる', oldUi.download);
+	assert(!oldUi.nameWrapInOldSlot, 'ファイル名(exam): 名前の欄は旧UIへ移動しない');
+
+	// 新UIへ戻せば、また名前が付く
+	await page.evaluate(() => enterNewUi());
+	await page.waitForTimeout(400);
+	const backToNew = await page.evaluate(() => document.querySelector('#stitch-result-content a[download]').download);
+	assert(backToNew === stamp + '_003_技能試験.png', 'ファイル名(exam): 新UIへ戻すと名前が付き直す', backToNew);
+
+	assert(errors.length === 0, 'ファイル名(exam): コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
 await browser.close();
 await close();
 console.log('\n' + (fails === 0 ? '=== スモークテスト: 全項目OK ===' : '=== スモークテスト: ' + fails + '件 NG ==='));

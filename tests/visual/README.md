@@ -82,9 +82,11 @@ npm run test:visual:capture -- after --compare   # 変更後＋前後比較画�
    `--uma-shell-css-version`）が同じ文字列で、各HTMLが読む分の `?v=` と `EXPECTED_COMMON_CSS_VERSION` も揃っているか。
    どのページがどのファイルを読むかは `CSS_LINKS` に書いてある（読まないはずのファイルを読んでいないかも見る）。
    special.html と exam.html の**引き出しパネルの iframe `uma-skill-deck.html?v=`** も含む
-   （deck.js の版に合わせる決まりだが、<script src> と違って目に付きにくく、実際に取り残されたことがある）
-2. 変更してはいけないファイル（`index.html` / `js/common.js` / `js/stitch.js`）が未変更か
-   （`exam.html` は第2段階の着手で対象から外し、3〜5 の検査対象へ移した）
+   （deck.js の版に合わせる決まりだが、<script src> と違って目に付きにくく、実際に取り残されたことがある）。
+   **`js/stitch.js` も21セッション目から対象**（`STITCH_JS_VERSION` と special・exam の `?v=` の3点）
+2. 変更してはいけないファイル（`index.html` / `js/common.js`）が未変更か
+   （`exam.html` は第2段階の着手で対象から外し、3〜5 の検査対象へ移した。
+   `js/stitch.js` は21セッション目に凍結を解き、代わりに 1 の3点一致へ載せた）
 3. `id` と `data-*` が1つも失われていないか（HEAD と比較。`special.html` / `exam.html` / `uma-skill-deck.html` / 共有JS 2本）
 4. 消した class を JS が名前で掴んでいないか
    - `classList` / `className=` … そのページの JS でのみ危険

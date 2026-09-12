@@ -27,7 +27,7 @@
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-12e"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-09a"></script>
+	<script src="js/stitch.js?v=2026-09-12a"></script>
 	<style>
 		/* このツールのアクセント。UmaStar OCR は「読み取って登録する」画面なので緑。
 		   共通部品（ボタン・入力欄・フォーカス輪郭）はこの変数を見て色が決まる。
@@ -643,6 +643,7 @@
 			verifyCommonCssVersion();
 			renderPersonUploadGrid();
 			restoreOcrDictionary();
+			initStitchSaveName();
 			// どちらのUIで開くかを決める（未読なら新UI＋告知モーダル）。
 			// 初期化が済んでから出したいので、ここを通す時点で他の準備は終わっている。
 			initUiMode();
@@ -1684,7 +1685,10 @@
 			header.innerHTML = '<p class="text-xs font-bold text-slate-700">' + escapeHtml(set.label) + ' 結合画像</p>';
 			const downloadLink = document.createElement('a');
 			downloadLink.href = dataUrl;
-			downloadLink.download = 'uma-star-stitched-' + set.id + '.png';
+			// ファイル名は `YYMMDD_NNN_指定名称.png`。組み立てとイベントの張り方は js/stitch.js。
+			// 長押しやドラッグでの保存では click が飛ばないので、押した瞬間ではなく
+			// pointerdown で入れ直す作りになっている（stitchAttachSaveName のコメント参照）。
+			stitchAttachSaveName(downloadLink, currentStitchSaveName);
 			downloadLink.className = 'uma-btn uma-btn--primary';
 			downloadLink.textContent = 'PNGをダウンロード';
 			header.appendChild(downloadLink);
@@ -1696,6 +1700,57 @@
 			block.appendChild(img);
 
 			container.appendChild(block);
+		}
+
+		/* ============================================================
+		 * 結合画像を保存するときの名前
+		 * 組み立て・保存領域・イベントの張り方は js/stitch.js にある（exam.html と共有）。
+		 * ここにあるのは画面まわり（入力欄の復元・保存・見本の表示）だけ。
+		 * 指定名称はツールごとに別のキーで覚える。special で入れた名前が
+		 * exam の保存時に出てくると混乱するため。
+		 * 通し番号のほうは全ツール共通の1キー（js/stitch.js 側）。
+		 * ============================================================ */
+		const STITCH_SAVE_NAME_STORAGE_KEY = 'uma-special-save-name';
+
+		/** いま入力されている指定名称。入力欄がまだ無い場面でも落ちないようにする。 */
+		function currentStitchSaveName() {
+			const el = document.getElementById('stitch-save-name');
+			return el ? el.value : '';
+		}
+
+		// 入力のたびに、使えない文字を全角へ直してから覚える。
+		function onStitchSaveNameInput() {
+			const el = document.getElementById('stitch-save-name');
+			if (!el) return;
+			const fixed = stitchSanitizeSaveNameInput(el.value);
+			const changed = fixed !== el.value;
+			if (changed) {
+				// カーソルの位置は保つ（置き換えは1文字→1文字なので長さは変わらない）
+				const pos = el.selectionStart;
+				el.value = fixed;
+				try { el.setSelectionRange(pos, pos); } catch (e) {}
+			}
+			document.getElementById('stitch-save-name-note').hidden = !changed;
+			writeStored(STITCH_SAVE_NAME_STORAGE_KEY, fixed);
+			updateStitchSaveNameUi();
+		}
+
+		// 見本の表示と、並んでいる保存リンクの名前を今の状態に合わせる。
+		function updateStitchSaveNameUi() {
+			const preview = document.getElementById('stitch-save-name-preview');
+			if (preview) {
+				preview.textContent = stitchFormatSaveName(
+					stitchTodayStamp(), stitchPeekSaveSeq(), currentStitchSaveName());
+			}
+			stitchRefreshSaveNames(document.getElementById('stitch-result-content'));
+		}
+
+		// 前回入力した名前を戻す。読めなければ空欄のまま（害がない）。
+		function initStitchSaveName() {
+			const el = document.getElementById('stitch-save-name');
+			if (!el) return;
+			el.value = stitchSanitizeSaveNameInput(readStored(STITCH_SAVE_NAME_STORAGE_KEY) || '');
+			updateStitchSaveNameUi();
 		}
 
 		/* ============================================================
@@ -1964,7 +2019,9 @@
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {
 			result: { el: 'result-drawer', close: 'result-drawer-close', trigger: 'fab-item-result' },
-			stitch: { el: 'stitch-drawer', close: 'stitch-drawer-close', trigger: 'fab-item-stitch' },
+			// onOpen で見本（通し番号）を出し直す。前回の保存で番号が進んでいたり、
+			// 開きっぱなしで日付をまたいでいたりしても、開いたときの表示が今の値になる。
+			stitch: { el: 'stitch-drawer', close: 'stitch-drawer-close', trigger: 'fab-item-stitch', onOpen: updateStitchSaveNameUi },
 			deck: {
 				el: 'deck-drawer', close: 'deck-drawer-close', trigger: 'deck-drawer-trigger',
 				onOpen: prepareDeckFrame, onClose: refreshDeckStateAfterDrawer
@@ -2433,6 +2490,20 @@
 			</div>
 			<div class="uma-drawer-content">
 				<div id="stitch-result-wrap" class="hidden">
+					<!-- 保存するときの名前。結果を見てから名付けられるよう、引き出しの先頭に1つだけ置く。
+					     #stitch-result-content の外なので、結果ブロックを作り直しても入力が消えない。
+					     使えない文字は打った時点で全角へ直す（ブラウザに任せると黙ってアンダーバーに
+					     変えられ、画面に出ている名前と実際のファイル名がずれるため）。 -->
+					<div class="mb-4">
+						<label for="stitch-save-name" class="block text-xs font-bold text-slate-700 mb-1.5">保存するときの名前（任意）</label>
+						<input type="text" id="stitch-save-name" maxlength="40" placeholder="例：9月因子"
+							oninput="onStitchSaveNameInput()" class="uma-input" />
+						<p class="mt-1.5 text-[11px] text-slate-400">
+							<!-- 見本と「.png」の間に空白を入れないため、2つの span を続けて書く -->
+							<span id="stitch-save-name-preview" class="font-mono text-slate-500"></span><span>.png として保存されます（番号は保存するたびに増え、日付が変わると001に戻ります）</span>
+						</p>
+						<p id="stitch-save-name-note" class="mt-1 text-[11px] text-amber-600" hidden>ファイル名に使えない文字を全角に直しました。</p>
+					</div>
 					<div id="stitch-result-content" class="space-y-4"></div>
 				</div>
 			</div>
