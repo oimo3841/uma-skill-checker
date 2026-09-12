@@ -12,9 +12,15 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { REPO_ROOT } from './lib/serve.mjs';
 
 let ok = true;
+const warnings = [];
 function check(cond, label, detail) {
 	if (!cond) ok = false;
 	console.log((cond ? '[OK] ' : '[NG] ') + label + (detail !== undefined ? '  ' + JSON.stringify(detail) : ''));
+}
+/** 検査は失敗させないが、見逃さないよう最後にもう一度まとめて出すもの */
+function warn(label, detail) {
+	warnings.push(label + (detail !== undefined ? '  ' + JSON.stringify(detail) : ''));
+	console.log('[警告] ' + label + (detail !== undefined ? '  ' + JSON.stringify(detail) : ''));
 }
 const read = (p) => fs.readFileSync(path.join(REPO_ROOT, p), 'utf8');
 function head(p) {
@@ -122,6 +128,46 @@ for (const [p, pat, ver, name] of [
 	check(q.length === 1 && q[0] === ver, `${p} の ${name} の ?v= が ${ver}`, q);
 }
 
+/* --- 凍結中のファイル。不一致でも落とさず、警告として必ず一覧に出す ---
+   index.html は C-1 で更新終了・凍結。?v= の更新対象から外れ続けた結果、
+   実体（common.js の定数）とのズレが誰にも見えないまま残っていた（18セッション目に発見）。
+   凍結中でも「ズレていること」は毎回見えるようにしておく。 */
+for (const [p, pat, ver, name] of [
+	['index.html', /js\/common\.js\?v=([0-9a-z-]+)/g, commonVer, 'common.js'],
+]) {
+	const q = [...read(p).matchAll(pat)].map((m) => m[1]);
+	if (q.length === 1 && q[0] === ver) console.log(`[OK] ${p}（凍結中）の ${name} の ?v= が ${ver}`);
+	else warn(`${p}（凍結中）の ${name} の ?v= が定数と違う`, { 読込: q, 定数: ver, 備考: '凍結を解くとき／common.js を次に変えるときに一緒に直す（D節）' });
+}
+
+/* --- 版の日付と逆行の検査（18セッション目に追加） ---
+   3点一致は「定数と ?v= が揃っているか」しか見ないので、
+   uma-skill-deck.js を前日の日付のまま `2026-09-11e` と採番する誤りが素通りした。
+   (A) 変更したファイルの版の日付が当日か … 警告のみ。日付をまたぐ作業（23時台に変更して
+       0時過ぎに commit）で不当に落とさないため。警告が出たら理由を報告に書く。
+   (B) 版が逆行していないか … こちらは失敗させる。 */
+const VERSIONED = [
+	['js/common.js', commonVer, /COMMON_JS_VERSION = '([^']+)'/],
+	['js/uma-skill-deck-core.js', coreVer, /UMA_SKILL_DECK_CORE_JS_VERSION = '([^']+)'/],
+	['js/uma-skill-deck.js', deckVer, /UMA_SKILL_DECK_JS_VERSION = '([^']+)'/],
+	['css/tokens.css', cssVer, /--common-css-version:\s*"([^"]+)"/],
+];
+const today = new Date().toLocaleDateString('sv-SE');  // ローカル時刻の YYYY-MM-DD
+console.log('     版の日付の検査: 今日は %s', today);
+for (const [p, ver, pat] of VERSIONED) {
+	const changed = spawnSync('git', ['diff', '--quiet', 'HEAD', '--', p], { cwd: REPO_ROOT }).status !== 0;
+	const date = /^(\d{4}-\d{2}-\d{2})/.exec(ver);
+	// (A) 変更したファイルだけ、版の日付が当日かを見る
+	if (changed) {
+		if (date && date[1] === today) console.log(`[OK] ${p} は変更あり。版の日付が当日（${ver}）`);
+		else warn(`${p} は変更あるのに版の日付が当日でない`, { 版: ver, 今日: today, 備考: '日付をまたいだ作業なら問題なし。そうでなければ版を振り直す' });
+	}
+	// (B) HEAD の版より下がっていないか（日付をまたいで前日の連番を進める誤りは (A) で拾う）
+	const headSrc = head(p);
+	const m = headSrc ? pat.exec(headSrc) : null;
+	if (m) check(ver >= m[1], `${p} の版が HEAD から逆行していない`, { HEAD: m[1], 作業ツリー: ver });
+}
+
 console.log('\n=== 2. 変更してはいけないファイル ===');
 for (const p of ['index.html', 'js/common.js', 'js/stitch.js']) {
 	const r = spawnSync('git', ['diff', '--quiet', 'HEAD', '--', p], { cwd: REPO_ROOT });
@@ -219,5 +265,9 @@ check(impLines(read('css/tokens.css')).length === 0, 'tokens.css に !important 
 	check(stray.length === 0, 'shell.css の !important は [hidden] と prefers-reduced-motion の中に限る', stray);
 }
 
+if (warnings.length > 0) {
+	console.log('\n=== 警告（検査は落とさないが、放置しないこと。' + warnings.length + '件） ===');
+	warnings.forEach((w) => console.log('  ・' + w));
+}
 console.log('\n' + (ok ? '=== 総合: OK ===' : '=== 総合: NG（上の[NG]を確認） ==='));
 process.exit(ok ? 0 : 1);
