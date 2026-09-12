@@ -251,18 +251,36 @@ async function main() {
 	}
 }
 
+/**
+ * 同じ中身のカードを1行にまとめる。動画から取ったフレームは同じカードを何度も含むので、
+ * まとめないと1000行を超える（画像を埋め込むのでファイルも巨大になる）。
+ * まとめた行を直すと、同じ組のカード全部に反映される（行に全部のIDを持たせてある）。
+ */
+function groupCards(list) {
+	const groups = new Map();
+	list.forEach((c) => {
+		const key = c.proposedName ? `name:${c.proposedName}` : `reads:${c.readings.join('')}`;
+		if (!groups.has(key)) groups.set(key, { head: c, ids: [] });
+		groups.get(key).ids.push(c.id);
+	});
+	return [...groups.values()];
+}
+
 function renderReview(setName, draft, imgData, lexiconSize, masterSize) {
-	const card = (c) => `
-			<tr data-id="${esc(c.id)}" class="${c.status}">
+	const card = (g) => {
+		const c = g.head;
+		return `
+			<tr data-ids="${esc(g.ids.join(','))}" class="${c.status}">
 				<td class="thumb"><img src="${imgData.get(c.id)}" alt=""></td>
-				<td class="meta"><code>${esc(c.id)}</code><br>${esc(c.tab || '')}</td>
+				<td class="meta"><code>${esc(c.id)}</code><br>${esc(c.tab || '')}${g.ids.length > 1 ? `<br><b>同じもの ${g.ids.length}枚</b>` : ''}</td>
 				<td class="name"><input type="text" value="${esc(c.proposedName || c.topCandidate || (c.readings[0] || ''))}"></td>
 				<td class="cand">${(c.candidates || []).map((n) => `<button type="button">${esc(n)}</button>`).join(' ')}</td>
-				<td class="reads">${c.readings.map((r) => `<span>${esc(r) || '（空）'}</span>`).join('')}</td>
+				<td class="reads">${c.readings.slice(0, 6).map((r) => `<span>${esc(r) || '（空）'}</span>`).join('')}</td>
 				<td class="flag">${c.inMaster ? 'マスターにある' : '<b>マスターに無い</b>'}</td>
 			</tr>`;
-	const checks = draft.cards.filter((c) => c.status !== 'auto');
-	const autos = draft.cards.filter((c) => c.status === 'auto');
+	};
+	const checks = groupCards(draft.cards.filter((c) => c.status !== 'auto'));
+	const autos = groupCards(draft.cards.filter((c) => c.status === 'auto'));
 	return `<!DOCTYPE html>
 <html lang="ja"><head><meta charset="utf-8"><title>スキルセットOCR 正解の確認 — ${esc(setName)}</title>
 <style>
@@ -303,11 +321,11 @@ ${draft.tabs
 	)
 	.join('\n')}
 </ul>
-<h2>要確認（${checks.length}枚）</h2>
+<h2>要確認（${checks.length}組 / ${checks.reduce((n, g) => n + g.ids.length, 0)}枚）</h2>
 <table><tbody>
 ${checks.map(card).join('\n')}
 </tbody></table>
-<h2>自動で決まったもの（${autos.length}枚）</h2>
+<h2>自動で決まったもの（${autos.length}組 / ${autos.reduce((n, g) => n + g.ids.length, 0)}枚）</h2>
 <table><tbody>
 ${autos.map(card).join('\n')}
 </tbody></table>
@@ -322,10 +340,14 @@ ${autos.map(card).join('\n')}
   var byId = {};
   base.cards.forEach(function (c) { byId[c.id] = c; });
   var cards = [];
-  document.querySelectorAll('tr[data-id]').forEach(function (tr) {
-   var c = byId[tr.dataset.id];
+  document.querySelectorAll('tr[data-ids]').forEach(function (tr) {
    var name = tr.querySelector('.name input').value.trim();
-   cards.push({ id: c.id, source: c.source, tab: c.tab, skillName: name, skillId: c.skillId, inMaster: c.inMaster });
+   // まとめた行は、同じ組のカード全部に同じ名前を書く
+   tr.dataset.ids.split(',').forEach(function (id) {
+    var c = byId[id];
+    if (!c) return;
+    cards.push({ id: c.id, source: c.source, tab: c.tab, skillName: name, skillId: c.skillId, inMaster: c.inMaster });
+   });
   });
   var out = { set: base.set, kind: base.kind, confirmedAt: new Date().toISOString(), tabs: base.tabs, badges: base.badges, cards: cards };
   var blob = new Blob([JSON.stringify(out, null, '\\t')], { type: 'application/json' });
