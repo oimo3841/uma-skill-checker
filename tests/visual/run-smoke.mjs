@@ -2116,6 +2116,51 @@ const browser = await chromium.launch();
 		await ctx.close();
 	}
 
+	/* --- 1b) 既存の比較シートの候補（親A）へ上書きで取り込む → 元に戻す。新しいシートへの取り込みは積まない --- */
+	{
+		const { ctx, page, errors } = await openWithHandoffs([[KEY_SPECIAL, mkPayload('special', 'ho_special_ow', '2026-09-11T10:00:00.000Z')]]);
+		const shape = () => page.evaluate((rid) => {
+			const r = UmaSkillDeckCore.getUserData().records.find((x) => x.recordId === rid);
+			return UmaSkillDeckCore.probeOf({ candidates: r.candidates, cells: r.cells, ocrCells: r.ocrCells });
+		}, RECORD_ID);
+		const before = await shape();
+		await page.click('[data-ocr-act="import"]');
+		await page.waitForTimeout(600);
+		await page.selectOption('[data-ocr-el="record-select"]', RECORD_ID);
+		await page.waitForTimeout(300);
+		const target = await page.evaluate(() => document.querySelector('[data-ocr-el="person-select"]').value);
+		assert(target === 'c_a', 'deck: 同じ名前の候補（親A）が既定の取り込み先になる', target);
+		const applied = await page.evaluate(() => {
+			const realConfirm = window.confirm;
+			window.confirm = () => true;
+			document.querySelector('[data-ocr-act="apply"]').click();
+			window.confirm = realConfirm;
+			return { toast: document.getElementById('toast-message').textContent, scope: UmaSkillDeckCore.getUndoScope(), stack: UmaSkillDeckCore.undoCount(),
+				shown: !document.getElementById('undo-button').classList.contains('hidden') };
+		});
+		await page.waitForTimeout(300);
+		const after = await shape();
+		assert(after !== before, 'deck: 既存の候補へ取り込むと★が上書きされる');
+		assert(applied.toast === '1人分を取り込みました' && applied.scope === 'list' && applied.stack === 1 && applied.shown,
+			'deck: 上書きの取り込みは「元に戻す」に1件積まれ、一覧に出る', applied);
+		const undone = await page.evaluate(() => ({ ok: performUndo(), toast: document.getElementById('toast-message').textContent, stack: UmaSkillDeckCore.undoCount() }));
+		await page.waitForTimeout(300);
+		assert(undone.ok && undone.toast === '取り込む前の★に戻しました' && undone.stack === 0 && (await shape()) === before,
+			'deck: 取り込み→元に戻すで、候補・★・原本値が取り込む前と一致', undone);
+		assert(errors.length === 0, 'deck: 上書き取り込みの往復でコンソールエラーなし', errors.slice(0, 3));
+		await ctx.close();
+	}
+	{
+		const { ctx, page } = await openWithHandoffs([[KEY_SPECIAL, mkPayload('special', 'ho_special_new', '2026-09-11T10:00:00.000Z')]]);
+		await page.click('[data-ocr-act="import"]');
+		await page.waitForTimeout(600);
+		await page.click('[data-ocr-act="apply"]');
+		await page.waitForTimeout(600);
+		const n = await page.evaluate(() => ({ stack: UmaSkillDeckCore.undoCount(), records: UmaSkillDeckCore.getUserData().records.length }));
+		assert(n.records === 2 && n.stack === 0, 'deck: 新しいシートへの取り込みは足すだけなので「元に戻す」に積まない', n);
+		await ctx.close();
+	}
+
 	/* --- 2) 両キーに未取り込み。新しい方（exam）→ 閉じる → もう一方（special）→ 取り込み --- */
 	{
 		const { ctx, page, errors } = await openWithHandoffs([
@@ -2347,6 +2392,21 @@ const browser = await chromium.launch();
 	assert(single.toast === '外したスキル「' + PICK[3].name + '」を戻しました',
 		'undo: 個別に外したものを戻すトーストは「外したスキル「○○」を戻しました」', single.toast);
 
+	// 3b) 編集画面を閉じるとスタックが空になり、ボタンが消える（開き直しても復活しない）
+	await page.click('#deck-template-panel [data-usd-el="clear-skills"]');
+	await page.waitForTimeout(200);
+	const beforeClose = await undoUi();
+	await page.click('#deck-template-panel [data-usd-act="editor-close"]');
+	await page.waitForTimeout(400);
+	const afterClose = await undoUi();
+	assert(beforeClose.stack === 1 && afterClose.stack === 0 && !afterClose.btn && afterClose.scope === 'list',
+		'undo: 編集画面を閉じるとスタックが空になり「元に戻す」が消える', { beforeClose, afterClose });
+	await page.click('#deck-template-panel [data-usd-act="draft-open"]');
+	await page.waitForTimeout(400);
+	const reopened = await undoUi();
+	assert(reopened.stack === 0 && !reopened.btn && reopened.scope === 'editor',
+		'undo: 開き直しても前のぶんは復活しない', reopened);
+
 	// 4) 成功を名乗る前の検証。apply() が false／状態が変わらない／積んだ時点の状態に戻らない、はどれも失敗扱い
 	for (const [how, entry] of [
 		['apply が false を返す', 'return false'],
@@ -2463,10 +2523,75 @@ const browser = await chromium.launch();
 	assert(stacked.stack === 3 && stacked.badge === '3' && (await state()) === multi && (await undoBtn()).stack === 0,
 		'undo(deck): 3操作を続けて戻すと、実行前と一致する', stacked);
 
-	// 一覧に戻ると、シートの scope から一覧の scope に切り替わる
+	// シートを閉じるとシートのぶんは捨てられ、一覧の scope になる。開き直しても復活しない
+	await page.evaluate(() => removeCandidate('c_b'));
+	await page.waitForTimeout(200);
+	const sheetStack = (await undoBtn()).stack;
 	await page.evaluate(() => closeRecordEditor());
 	await page.waitForTimeout(200);
-	assert((await undoBtn()).scope === 'list', 'undo(deck): シートを閉じると一覧の scope になる');
+	const closedSheet = await undoBtn();
+	assert(sheetStack === 1 && closedSheet.scope === 'list' && closedSheet.stack === 0 && !closedSheet.shown,
+		'undo(deck): シートを閉じるとシートのぶんは捨てられ、一覧の scope になる', closedSheet);
+	await page.evaluate((id) => openRecordEditor(id), RECORD_ID);
+	await page.waitForTimeout(300);
+	assert((await undoBtn()).stack === 0, 'undo(deck): シートを開き直しても前のぶんは復活しない');
+	await page.evaluate(() => closeRecordEditor());
+	await page.waitForTimeout(200);
+
+	// 一覧で積んだもの（比較シート削除）は、シートを開いている間は隠れ、閉じると戻る
+	// 代表データの比較シートは1件なので、複製して2件にしてから片方を消す（開くシートを残すため）
+	await page.evaluate((id) => { duplicateRecord(id); document.querySelector('#record-list button[title="削除"]').click(); }, RECORD_ID);
+	await page.waitForTimeout(200);
+	const listEntry = await undoBtn();
+	await page.evaluate(() => openRecordEditor(UmaSkillDeckCore.getUserData().records[0].recordId));
+	await page.waitForTimeout(300);
+	const hiddenInSheet = await undoBtn();
+	await page.evaluate(() => closeRecordEditor());
+	await page.waitForTimeout(200);
+	const backInList = await undoBtn();
+	assert(listEntry.shown && listEntry.scope === 'list' && !hiddenInSheet.shown && hiddenInSheet.scope === 'sheet'
+		&& backInList.shown && backInList.stack === 1,
+		'undo(deck): 一覧のぶんはシートを開いている間だけ隠れ、閉じると数ごと戻る', { listEntry, hiddenInSheet, backInList });
+	assert(await page.evaluate(() => performUndo()), 'undo(deck): 一覧に戻ってから比較シート削除を元に戻せる');
+
+	// テンプレート編集：チップの×で外す→閉じるとスタックが空になる
+	await page.click('#tab-btn-template');
+	await page.waitForTimeout(300);
+	await page.evaluate((id) => templateManager.openEditor(id), USER_DATA.templates[0].templateId);
+	await page.waitForTimeout(300);
+	await page.click('[data-usd-act="template-skill-remove"]');
+	await page.waitForTimeout(200);
+	const editorEntry = await undoBtn();
+	await page.click('[data-usd-act="editor-close"]');
+	await page.waitForTimeout(300);
+	const editorClosed = await undoBtn();
+	assert(editorEntry.scope === 'editor' && editorEntry.stack === 1 && editorClosed.scope === 'list' && editorClosed.stack === 0,
+		'undo(deck): テンプレートの編集画面を閉じると、そのぶんは捨てられる', { editorEntry, editorClosed });
+
+	// インポート（全データの置き換え）→ 元に戻す。確認ダイアログは Playwright が打ち消すので差し替える（F-25）
+	await page.click('#tab-btn-data');
+	await page.waitForTimeout(300);
+	const importBefore = await state();
+	const imported = await page.evaluate(() => {
+		const next = JSON.parse(JSON.stringify(UmaSkillDeckCore.getUserData()));
+		next.templates = next.templates.slice(0, 1);
+		next.templates[0].name = 'インポートで入れ替えたテンプレート';
+		next.records = [];
+		document.getElementById('import-textarea').value = JSON.stringify(next);
+		const realConfirm = window.confirm;
+		window.confirm = () => true;
+		importData();
+		window.confirm = realConfirm;
+		return { toast: document.getElementById('toast-message').textContent, templates: UmaSkillDeckCore.getUserData().templates.length, records: UmaSkillDeckCore.getUserData().records.length };
+	});
+	const importBtn = await undoBtn();
+	assert(imported.templates === 1 && imported.records === 0 && imported.toast === 'インポートしました',
+		'undo(deck): インポートで全データが置き換わる', imported);
+	assert(importBtn.shown && importBtn.stack === 1 && importBtn.scope === 'list', 'undo(deck): インポートが「元に戻す」に1件積まれる', importBtn);
+	const importUndo = await page.evaluate(() => ({ ok: performUndo(), toast: document.getElementById('toast-message').textContent }));
+	await page.waitForTimeout(300);
+	assert(importUndo.ok && importUndo.toast === 'インポート前のデータに戻しました' && (await state()) === importBefore,
+		'undo(deck): インポート→元に戻すで、メモリと保存先がインポート前と一致', importUndo);
 
 	assert(errors.length === 0, 'undo(deck): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();

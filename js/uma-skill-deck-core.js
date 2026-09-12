@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-12c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-12d';
 
 	/* ============================================================
 	 * 定数
@@ -636,6 +636,9 @@
 		undoListeners.push(fn);
 		fn(undoCount());
 	}
+
+	// ページを離れたら捨てる（bfcache から戻ってきても、古い状態を指すものは出さない）。
+	if (global.addEventListener) global.addEventListener('pagehide', clearUndo);
 
 	/* ============================================================
 	 * スタイル（1回だけ<head>へ注入する）
@@ -1805,6 +1808,8 @@
 
 		/* ---------- テンプレートの編集 ---------- */
 		function openEditor(templateId) {
+			// 編集対象が替わるので、前の編集画面のぶんは捨てる（閉じたときも同じ）
+			dropUndoScope('editor');
 			const data = ensureUserData();
 			if (templateId) {
 				const t = data.templates.find(x => x.templateId === templateId);
@@ -1828,6 +1833,7 @@
 
 		function openDraftEditor() {
 			if (!draftScopeKey) return;
+			dropUndoScope('editor');
 			editing = { kind: 'draft' };
 			render();
 		}
@@ -1842,6 +1848,7 @@
 				saveUserData();
 			}
 			editing = null;
+			dropUndoScope('editor');
 			closePicker();
 			render();
 			fireChange();
@@ -2041,6 +2048,8 @@
 			saveUserData();
 			// 中身はテンプレートへ移ったので、ドラフトは空にする（二重管理を避ける）
 			draftScope = saveDraftScope(draftScopeKey, []);
+			// 編集対象がドラフトからテンプレートへ替わる
+			dropUndoScope('editor');
 			editing = { kind: 'template', obj: t };
 			selectedId = t.templateId;
 			render();

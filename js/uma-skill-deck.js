@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-12b';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-12c';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -223,6 +223,8 @@ function createRecordFromTemplate() {
 }
 
 function openRecordEditor(recordId) {
+	// 開くシートが替わるので、前のシートのぶんは捨てる（閉じたときも同じ）
+	Core.dropUndoScope('sheet');
 	draftRecord = userData.records.find(x => x.recordId === recordId);
 	Core.normalizeCandidateEnabled(draftRecord);
 	recordRowFilter = 'all';
@@ -236,6 +238,7 @@ function setRecordRowFilter(mode) {
 
 function closeRecordEditor() {
 	draftRecord = null;
+	Core.dropUndoScope('sheet');
 	renderRecordTab();
 }
 
@@ -790,12 +793,25 @@ function importData() {
 		return;
 	}
 	if (!confirm('現在保存されているデータをすべて置き換えます。よろしいですか？')) return;
-	Core.replaceUserData(parsed);
-	userData = Core.getUserData();
-	draftRecord = null;
-	templateManager.closeEditor();
-	renderAll();
-	showToast('インポートしました');
+	// 全データの置き換え。積んであるものは全部古い状態を指すので捨て、この置き換えを1件だけ積む。
+	Core.clearUndo();
+	const prevData = Core.snapshot(Core.getUserData());
+	const applyData = (data) => {
+		Core.replaceUserData(data);
+		userData = Core.getUserData();
+		draftRecord = null;
+		Core.dropUndoScope('sheet');
+		templateManager.closeEditor();
+		renderAll();
+	};
+	pushUndo({
+		scope: 'list',
+		doneLabel: 'インポートしました',
+		undoneLabel: 'インポート前のデータに戻しました',
+		probe: () => Core.probeOf(Core.getUserData()),
+		apply: () => { applyData(Core.snapshot(prevData)); return true; }
+	});
+	applyData(parsed);
 }
 
 async function refreshMasterData() {
@@ -1129,6 +1145,12 @@ function applyOcrImport() {
 	}
 
 	let recordId = ocrImportModal.querySelector('[data-ocr-el="record-select"]').value;
+	// 既存のシートへの取り込みは、候補の列ごと★を上書きし得る。上書き確認は applyStarAssignments の中で
+	// 出る（途中で止まり得る）ので、pushUndo は書き込みの後に回し、戻るべき姿だけ先に控えておく。
+	const sheetOf = (r) => ({ candidates: r.candidates, cells: r.cells, ocrCells: r.ocrCells || {} });
+	const existing = recordId === '__new__' ? null : findRecordById(recordId);
+	const prevSheet = existing ? Core.snapshot(sheetOf(existing)) : null;
+	const baseline = existing ? Core.probeOf(sheetOf(existing)) : null;
 	if (recordId === '__new__') {
 		if (!Core.canCreateRecord()) {
 			showToast('比較シートは最大' + RECORD_LIMIT + '件までです。不要なものを削除してください');
@@ -1153,12 +1175,38 @@ function applyOcrImport() {
 	closeOcrImportDialog();
 	userData = Core.getUserData();
 	draftRecord = null;
+	Core.dropUndoScope('sheet');
 	renderAll();
 	renderOcrHandoffBanner();
 	switchTab('record');
 	const parts = [res.written + '人分を取り込みました'];
 	if (res.skippedSkillIds.length > 0) parts.push('（' + res.skippedSkillIds.length + '件はシートに無いスキルのため対象外）');
-	showToast(parts.join(''));
+	if (prevSheet && res.overwrittenLabels.length > 0) {
+		// 既存の★を上書きしたぶんだけ元に戻せるようにする（新しい候補・新しいシートは足すだけなので積まない）。
+		// 取り込み後は比較シートの一覧に戻るので、一覧の scope に積む。
+		const rid = recordId;
+		pushUndo({
+			scope: 'list',
+			baseline: baseline,
+			doneLabel: parts.join(''),
+			undoneLabel: '取り込む前の★に戻しました',
+			probe: () => { const r = findRecordById(rid); return r ? Core.probeOf(sheetOf(r)) : ''; },
+			apply: () => {
+				const r = findRecordById(rid);
+				if (!r) return false;
+				const s = Core.snapshot(prevSheet);
+				r.candidates = s.candidates;
+				r.cells = s.cells;
+				r.ocrCells = s.ocrCells;
+				r.updatedAt = nowIso();
+				saveUserData();
+				renderAll();
+				return true;
+			}
+		});
+	} else {
+		showToast(parts.join(''));
+	}
 }
 
 function initOcrHandoff() {
