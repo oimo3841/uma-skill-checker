@@ -26,6 +26,7 @@
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { assetsRoot, assetsDir, relToAssets } from './lib/assets.mjs';
 import { openOcr } from './lib/ocr.mjs';
 import { fileToDataUrl } from './lib/browser.mjs';
@@ -551,7 +552,10 @@ ${gold
 </body></html>`;
 }
 
-main().catch((e) => {
-	console.error(e.stack || e.message || e);
-	process.exit(1);
-});
+// lib/replay.mjs が voteOf / tallyRow を import するので、import されたときは main を走らせない
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
+	main().catch((e) => {
+		console.error(e.stack || e.message || e);
+		process.exit(1);
+	});
+}

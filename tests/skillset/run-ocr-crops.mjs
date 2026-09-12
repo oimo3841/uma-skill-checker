@@ -216,7 +216,7 @@ async function main() {
 	console.log(`分類の意味: ${Object.entries(CATEGORY_LABELS).map(([k, v]) => `${k}=${v}`).join(' / ')}`);
 }
 
-if (pathToFileURL(process.argv[1]).href === import.meta.url) {
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
 	main().catch((e) => {
 		console.error(e.stack || e.message || e);
 		process.exit(1);

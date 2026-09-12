@@ -91,6 +91,17 @@ node tests/skillset/report-confusion-recount.mjs \
 # 7. 読み替え候補を検査する（衝突＋手元のOCR結果の再照合）
 node tests/skillset/check-confusion-candidates.mjs --from-report --min=8 --combined
 
+# 7b. 読み替え候補を採用判断のために優先順・3段に並べる（採用も実装もしない）
+#     評価コーパスは人の確認済みの正解を持つセット。候補は共通スキル（同じ土俵）で2種以上のもの
+node tests/skillset/rank-confusion-candidates.mjs \
+  --sets=20260912_1-full,20260912_2-full,20260912_3-full --candidates=1180x2556 --common-with=592x1280
+#    → reports/confusion-adoption-plan.md / .json（段ごとの map を持つ）
+
+# 7c. 読み替えを採用の前後で同じ指標で測る（採用ごとに回す。誤着地が1件でも増えたら却下）
+node tests/skillset/evaluate-confusion-map.mjs --sets=20260912_1-full,20260912_2-full,20260912_3-full --map=二=ー,ァ=ア
+node tests/skillset/evaluate-confusion-map.mjs --sets=... --tier=1      # 計画の第1段をまとめて
+node tests/skillset/evaluate-confusion-map.mjs --sets=... --tier=1+2
+
 # 8. 網羅状況（まだ撮っていないスキルの一覧）
 #    分母は「画面に現れ得る種数」（マスター − reference/not-on-skillset-screen.json）。マスター全体に対する率も併記
 node tests/skillset/report-coverage.mjs
@@ -202,6 +213,21 @@ node tests/skillset/build-blurry-truth.mjs --set=2026-09-12a --universe=2026-09-
   外すと、上端で切れたカードの地がタブ段の直下の薄い背景と繋がって数px上へ伸びたとき
   （592x1280 で実測）、タブそのものが落ちてそのフレームが「タブ不明」になり、別の列として
   継ぎ合わされて種類数が水増しされる。
+
+## 読み替え候補の採用判断の枠組み（`lib/replay.mjs`）
+
+保存済みのOCRの読みを、読み替えを足した正規化で**照合し直す**（再OCRしない・`js/common.js` は変更しない）。
+採用の前後で必ず同じ3つの指標を測る（優先順）:
+
+1. **誤着地** … 一意に一致した（exact / viaMap ＝確認なしで取り込まれる）のに正解と違うカード。**1件でも増える採用は却下。**
+2. **完全一致率** … exact（読みがそのまま一致）と、確認なしで取り込める率（exact＋viaMap）を分けて出す。読み替えの効き目は後者に出る。
+3. **確認に回る行** … 多数決の単位（継ぎ合わせた列の1行）のうち確定しない行の数。
+
+評価コーパスは**人の確認済みの正解**を持つセットだけ（暫定の正解は使わない）。カード単位は製品と同じ前処理の読み（sharp）、
+行単位は build-truth.mjs と同じく sharp と sharp-raw の両方の読みで多数決を取る。
+`rank-confusion-candidates.mjs` が候補を3段に分け（第1段: 種数が多く衝突が無く短い名前を救う／第2段: 種数は少ないが衝突なし／
+第3段: 衝突・食い違い・誤着地・1種のみ・効果なし＝見送り）、段ごとに「まとめて足した場合」も測る。
+`evaluate-confusion-map.mjs` で任意の map（または計画の段）を採用ごとに再測定する。
 
 ## 仕組み
 
