@@ -45,6 +45,9 @@ OCRし、445種のマスターに照合する。目的は2つ:
   crops/<切り出し名>/             … カードの文字領域のPNGと index.json（生成物）
   truth/<セット名>.json           … 確定した正解。.draft.json は案、.overrides.json は目視で決めた分
   reference/skill-names.json      … 正解の案づくりに使うスキル名の辞書（名前だけ。内部IDは持たない）
+  reference/not-on-skillset-screen.json … スキルセット画面に構造的に現れないマスターのスキル
+                                     （「Xの目覚め」6種）。report-coverage.mjs が網羅率の分母から外す。
+                                     載せるかどうかはおいもさんが決める（撮れなかっただけでは載せない）
   reports/                        … 集計結果
 ```
 
@@ -84,6 +87,7 @@ node tests/skillset/report-confusion-recount.mjs \
 node tests/skillset/check-confusion-candidates.mjs --from-report --min=8 --combined
 
 # 8. 網羅状況（まだ撮っていないスキルの一覧）
+#    分母は「画面に現れ得る種数」（マスター − reference/not-on-skillset-screen.json）。マスター全体に対する率も併記
 node tests/skillset/report-coverage.mjs
 ```
 
