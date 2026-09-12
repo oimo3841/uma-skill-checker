@@ -2436,6 +2436,89 @@ const browser = await chromium.launch();
 }
 
 /* ============================================================
+ * 画像結合の結末の伝え方（special.html）
+ *
+ * special は anyOutput（エラーの帯を出した場合も true）だけを見て
+ * 「画像を結合しました」のトーストを出し、未読の印を立て、引き出しを開いていた。
+ * **1枚も結合できていなくても「結合しました」と言う**状態だったので、
+ * 成功・全滅・一部成功で出し分けるようにした（2026-09-13・25セッション目）。
+ * 引き出しはどの結末でも開く（中止の理由を読めるように）が、未読の印は成功したときだけ。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	await page.waitForTimeout(1500);
+
+	// special は結合が終わると引き出しを自動で開き、openDrawer() が開いた時点で
+	// その引き出しの未読の印を消す。そのため「印が画面に残るか」では検証できない。
+	// markFabUnseen() の呼ばれ方を記録して、成功したときだけ呼ばれることを見る。
+	const runStitch = (okSets) => page.evaluate(async (ok) => {
+		const origBuild = buildStitchedSetImage;
+		const origMark = markFabUnseen;
+		const marked = [];
+		const makeCanvas = () => {
+			const c = document.createElement('canvas');
+			c.width = 80; c.height = 80;
+			c._personMeta = []; c._stitchWarnings = [];
+			return c;
+		};
+		// 親Aセット・親Bセットの両方を対象にする（一部成功を作れるように）
+		setBVisible = true;
+		persons[0].files = [{ name: 'a1.png' }, { name: 'a2.png' }];
+		persons[3].files = [{ name: 'b1.png' }, { name: 'b2.png' }];
+		buildStitchedSetImage = async (setIdx) => {
+			if (ok.indexOf(setIdx) === -1) throw new Error('親A の画像「a1.png」は、ゲーム画面が小さく写っています。');
+			return makeCanvas();
+		};
+		markFabUnseen = (k) => { marked.push(k); return origMark(k); };
+		document.getElementById('toast-message').textContent = '';
+		await runImageStitching();
+		const out = {
+			toast: document.getElementById('toast-message').textContent,
+			marked: marked,
+			drawerOpen: !document.getElementById('stitch-drawer').hidden,
+			text: document.getElementById('stitch-result-content').textContent
+		};
+		buildStitchedSetImage = origBuild;
+		markFabUnseen = origMark;
+		persons[0].files = [];
+		persons[3].files = [];
+		setBVisible = false;
+		closeDrawer();
+		return out;
+	}, okSets);
+
+	// 1) 両方とも成功 … これまでどおり「結合しました」
+	const allOk = await runStitch([0, 1]);
+	assert(allOk.toast === '画像を結合しました', '両方成功: 「画像を結合しました」', allOk);
+	assert(allOk.marked.includes('stitch'), '両方成功: 未読の印を立てる', allOk);
+	assert(allOk.drawerOpen === true, '両方成功: 引き出しを開く', allOk);
+
+	// 2) 両方とも失敗 … 「結合しました」と言わない。印も立てない
+	const allNg = await runStitch([]);
+	assert(allNg.toast === '画像を結合できませんでした',
+		'両方失敗: 事実に合ったトーストを出す', allNg);
+	assert(!allNg.toast.includes('結合しました'), '両方失敗: 成功を名乗らない', allNg.toast);
+	assert(allNg.marked.length === 0, '両方失敗: 未読の印を立てない', allNg);
+	assert(allNg.drawerOpen === true, '両方失敗: 引き出しは開く（中止の理由を読めるように）', allNg);
+	assert(allNg.text.includes('小さく写っています'), '両方失敗: 中止文が引き出しの中に出る',
+		allNg.text.slice(0, 60));
+
+	// 3) 片方だけ成功 … 失敗があったことが分かる文面にする
+	const partial = await runStitch([0]);
+	assert(partial.toast === '一部のセットは結合できませんでした',
+		'一部成功: 失敗があったことを伝える', partial);
+	assert(partial.marked.includes('stitch'), '一部成功: 結合できたぶんがあるので未読の印は立てる', partial);
+	assert(partial.drawerOpen === true, '一部成功: 引き出しを開く', partial);
+	assert(partial.text.includes('小さく写っています'), '一部成功: 失敗したセットの理由も並べる',
+		partial.text.slice(0, 60));
+
+	// わざと起こした結合の失敗は console.error に出る（既存の作り）。それ以外は出ないこと
+	const unexpected = errors.filter((e) => !String(e).includes('ゲーム画面が小さく写っています'));
+	assert(unexpected.length === 0, 'special 結合の結末: 想定外のコンソールエラーが出ない', unexpected);
+	await ctx.close();
+}
+
+/* ============================================================
  * 「元に戻す」の契約（special.html のドラフト／uma-skill-deck.html の各操作）
  *
  * 実機で「すべて外す」→「元に戻す」が復元されない事故があった。原因は、ドラフトの保存

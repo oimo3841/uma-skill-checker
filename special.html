@@ -1622,7 +1622,9 @@
 				setStitchProgress(0, '画像結合を準備中…');
 
 				let done = 0;
-				let anyOutput = false;
+				let anyOutput = false;  // 引き出しに出すものがあるか（エラーの帯も含む）
+				let anySuccess = false; // 結合画像が1枚でもできたか
+				let anyFailure = false; // 結合できなかったセットがあるか
 
 				for (const target of targets) {
 					const set = PERSON_SETS[target.setIdx];
@@ -1633,21 +1635,30 @@
 						});
 						if (canvas) {
 							anyOutput = true;
+							anySuccess = true;
 							appendStitchResultBlock(container, set, canvas);
 						}
 					} catch (e) {
 						console.error(e);
 						anyOutput = true;
+						anyFailure = true;
 						appendStitchErrorBlock(container, set, e.message);
 						done += target.count; // 失敗したセット分だけ進捗を進めて次に備える
 					}
 				}
 
 				setStitchProgress(1, '完了');
+				// 引き出しはエラーの帯だけでも開ける（中止の理由を読めるように）。
+				// **未読の印は結合画像が1枚でもできたときだけ**立てる。1枚もできていないのに
+				// 「新着」を立てると、印を頼りに開いた人が空振りし、印そのものの意味が壊れる（exam と同じ扱い）。
 				setSectionReady('stitch', anyOutput);
 				if (anyOutput) {
-					showToast('画像を結合しました');
-					markFabUnseen('stitch'); // 右下ナビに新着バッジを出す
+					// トーストは事実に合わせて出し分ける。以前は anyOutput だけを見ていたので、
+					// **1枚も結合できていなくても「画像を結合しました」と言っていた。**
+					showToast(anySuccess
+						? (anyFailure ? '一部のセットは結合できませんでした' : '画像を結合しました')
+						: '画像を結合できませんでした');
+					if (anySuccess) markFabUnseen('stitch'); // 右下ナビに新着バッジを出す
 					openDrawer('stitch');   // 結果は引き出しの中なので、そのまま開いて見せる
 				}
 
