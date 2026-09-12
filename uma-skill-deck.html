@@ -14,8 +14,8 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-12a"></script>
-	<script src="js/uma-skill-deck.js?v=2026-09-11d"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-12b"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-12a"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -319,6 +319,14 @@
 			/* 4em = 全角4文字ぶん。狭い幅では名前より候補の見比べを優先し、
 			   はみ出しはフェード＋タップでの全文表示に任せる。 */
 			.deck-name-clip { max-width: 4em; }
+		}
+
+		/* ---- トースト ----
+		   左下の「元に戻す」と同じ高さ（bottom-6）に出すと、狭い幅では重なる
+		   （実測：375px で「候補「親A」を削除しました」がボタンに食い込んだ）。
+		   トーストは数秒で消えるが、押す前に文面が読めないと困るので、ボタンの上へ逃がす。 */
+		@media (max-width: 640px) {
+			#toast { bottom: 4.75rem; }
 		}
 
 		/* ---- コントロールエリア ----

@@ -2270,6 +2270,193 @@ const browser = await chromium.launch();
 	await ctx.close();
 }
 
+/* ============================================================
+ * 「元に戻す」の契約（special.html のドラフト／uma-skill-deck.html の各操作）
+ *
+ * 実機で「すべて外す」→「元に戻す」が復元されない事故があった。原因は、ドラフトの保存
+ * （saveDraftScope）が skillIds の配列ごと差し替えるのに、復元処理が古い配列へ書いていたこと。
+ * ここでは Undo 対象の各操作について「実行 → 元に戻す → 実行前と一致」の往復と永続化、
+ * そして「戻せなかったときに成功を名乗らない・スタックを減らさない」ことを見る。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	await page.waitForTimeout(2500);
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	// ドラフトに12種を仕込んで読み直す（実機の再現手順「条件で検索→94種追加」の代わり）
+	await page.evaluate((ids) => localStorage.setItem('umaSkillDeck:draftScope:special',
+		JSON.stringify({ skillIds: ids, updatedAt: '' })), PICK.map((s) => s.id));
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.waitForTimeout(2500);
+	await page.click('#deck-template-panel [data-usd-act="draft-open"]');
+	await page.waitForTimeout(400);
+
+	const storedDraft = () => page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds);
+	const undoUi = () => page.evaluate(() => ({
+		count: Number(document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent),
+		btn: getComputedStyle(document.getElementById('deck-undo-btn')).display !== 'none',
+		badge: document.getElementById('deck-undo-count').textContent,
+		toast: document.getElementById('toast-message').textContent,
+		stack: UmaSkillDeckCore.undoCount(),
+		scope: UmaSkillDeckCore.getUndoScope(),
+	}));
+
+	// 1) すべて外す → 元に戻す。件数・保存先・ボタンの3つが揃って戻ること
+	await page.click('#deck-template-panel [data-usd-el="clear-skills"]');
+	await page.waitForTimeout(200);
+	const cleared = await undoUi();
+	assert(cleared.count === 0 && (await storedDraft()).length === 0,
+		'undo: 「すべて外す」で0種になり、保存先も空になる', cleared);
+	assert(cleared.btn && cleared.badge === '1' && cleared.stack === 1 && cleared.scope === 'editor',
+		'undo: 編集画面に「元に戻す ①」が出る', cleared);
+	await page.click('#deck-undo-btn');
+	await page.waitForTimeout(200);
+	const restored = await undoUi();
+	assert(restored.count === PICK.length, 'undo: 「元に戻す」でスキルの数が元に戻る', restored);
+	assert((await storedDraft()).join() === PICK.map((s) => s.id).join(),
+		'undo: 保存先（localStorage）にも元の12種が同じ順で戻る');
+	assert(!restored.btn && restored.stack === 0, 'undo: 戻せたのでボタンが消える', restored);
+
+	// 2) 永続化。リロードしても戻した状態のまま
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.waitForTimeout(2500);
+	const afterReload = await page.evaluate(() =>
+		document.querySelector('#deck-template-panel [data-usd-act="draft-open"]').closest('label').querySelector('p').textContent);
+	assert(/12種/.test(afterReload), 'undo: リロードしても戻した12種が保たれている', afterReload);
+
+	// 3) 個別に外す → 元に戻す。位置も含めて実行前と一致すること
+	await page.click('#deck-template-panel [data-usd-act="draft-open"]');
+	await page.waitForTimeout(400);
+	const single = await page.evaluate(() => {
+		const read = () => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds;
+		const before = read();
+		document.querySelectorAll('#deck-template-panel [data-usd-act="template-skill-remove"]')[3].click();
+		const removedLen = read().length;
+		const ok = UmaSkillDeckCore.performUndo();
+		return { ok, removedLen, same: read().join() === before.join(), stack: UmaSkillDeckCore.undoCount() };
+	});
+	assert(single.removedLen === PICK.length - 1 && single.ok && single.same && single.stack === 0,
+		'undo: 個別に外す→元に戻すで、順序も含めて実行前と一致する', single);
+
+	// 4) 成功を名乗る前の検証。apply() が false／状態が変わらない／積んだ時点の状態に戻らない、はどれも失敗扱い
+	for (const [how, entry] of [
+		['apply が false を返す', 'return false'],
+		['apply が true でも状態が変わらない', 'return true'],
+	]) {
+		const r = await page.evaluate((body) => {
+			const before = UmaSkillDeckCore.undoCount();
+			UmaSkillDeckCore.pushUndo({ scope: UmaSkillDeckCore.getUndoScope(), doneLabel: 'テスト用の操作', undoneLabel: 'テスト用の操作を戻しました',
+				probe: () => 'same', apply: new Function(body) });
+			const pushed = UmaSkillDeckCore.undoCount();
+			const ok = UmaSkillDeckCore.performUndo();
+			return { before, pushed, ok, after: UmaSkillDeckCore.undoCount(), toast: document.getElementById('toast-message').textContent };
+		}, entry);
+		assert(r.pushed === r.before + 1 && r.ok === false && r.after === r.pushed,
+			'undo: ' + how + ' → 失敗扱いでスタックを消費しない', r);
+		assert(r.toast === '元に戻せませんでした', 'undo: ' + how + ' → 成功メッセージを出さない', r.toast);
+		await page.evaluate(() => UmaSkillDeckCore.dropUndoScope(UmaSkillDeckCore.getUndoScope()));
+	}
+	const notBack = await page.evaluate(() => {
+		let v = 'before';
+		UmaSkillDeckCore.pushUndo({ scope: UmaSkillDeckCore.getUndoScope(), doneLabel: 'テスト用の操作', undoneLabel: 'テスト用の操作を戻しました',
+			probe: () => v, apply: () => { v = 'somewhere-else'; return true; } });
+		v = 'changed';
+		const ok = UmaSkillDeckCore.performUndo();
+		return { ok, stack: UmaSkillDeckCore.undoCount(), toast: document.getElementById('toast-message').textContent };
+	});
+	assert(!notBack.ok && notBack.stack === 1 && notBack.toast === '元に戻せませんでした',
+		'undo: 変わりはしたが積んだ時点の状態に戻らない → 失敗扱い', notBack);
+	await page.evaluate(() => UmaSkillDeckCore.dropUndoScope(UmaSkillDeckCore.getUndoScope()));
+
+	// 5) 契約に欠けがあれば積まない（旧形式「ラベル＋関数」は例外になる）
+	const rejected = await page.evaluate(() => {
+		try { UmaSkillDeckCore.pushUndo('ラベル', () => {}); return 'no-throw'; } catch (e) { return String(e.message); }
+	});
+	assert(rejected !== 'no-throw' && rejected.startsWith('pushUndo:'), 'undo: 旧形式（ラベル＋関数）は例外にして積まない', rejected);
+	const partial = await page.evaluate(() => {
+		try { UmaSkillDeckCore.pushUndo({ scope: 'editor', doneLabel: 'x', apply: () => true, probe: () => '' }); return 'no-throw'; } catch (e) { return String(e.message); }
+	});
+	assert(partial.includes('undoneLabel'), 'undo: undoneLabel の無いエントリは例外にして積まない', partial);
+	assert(await page.evaluate(() => UmaSkillDeckCore.undoCount()) === 0, 'undo: 例外になったエントリは積まれていない');
+
+	// 6) スナップショットは独立したコピー（元の配列を空にしても残る）
+	const cloned = await page.evaluate(() => {
+		const src = { ids: ['a', 'b'] };
+		const s = UmaSkillDeckCore.snapshot(src);
+		src.ids.length = 0;
+		return s.ids.length;
+	});
+	assert(cloned === 2, 'undo: snapshot() は元の配列への参照を持たない', cloned);
+
+	assert(errors.length === 0, 'undo: special でコンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
+	// 保存データの姿（updatedAt は復元時に打ち直すので除く）。メモリ上と localStorage の両方を見る
+	const state = () => page.evaluate(() => {
+		const shape = (d) => UmaSkillDeckCore.probeOf(JSON.parse(JSON.stringify(d, (k, v) => (k === 'updatedAt' ? undefined : v))));
+		return JSON.stringify({
+			mem: shape(UmaSkillDeckCore.getUserData()),
+			stored: shape(JSON.parse(localStorage.getItem('umaSkillDeck:userData'))),
+		});
+	});
+	const undoBtn = () => page.evaluate(() => ({
+		shown: !document.getElementById('undo-button').classList.contains('hidden'),
+		badge: document.getElementById('undo-count-badge').textContent,
+		scope: UmaSkillDeckCore.getUndoScope(),
+		stack: UmaSkillDeckCore.undoCount(),
+	}));
+	// 「実行 → 元に戻す → 実行前と一致」の往復を1操作ずつ
+	async function roundTrip(label, run, expectScope) {
+		const before = await state();
+		await page.evaluate(run);
+		await page.waitForTimeout(200);
+		const mid = await state();
+		const btn = await undoBtn();
+		const ok = await page.evaluate(() => performUndo());
+		await page.waitForTimeout(300);
+		const after = await state();
+		assert(mid !== before, 'undo(deck): ' + label + ' で保存データが変わる');
+		assert(btn.shown && btn.scope === expectScope && btn.stack === 1,
+			'undo(deck): ' + label + ' で「元に戻す」が ' + expectScope + ' に1件出る', btn);
+		assert(ok && after === before, 'undo(deck): ' + label + ' → 元に戻すで、メモリと保存先が実行前と一致', { ok });
+		assert((await undoBtn()).shown === false, 'undo(deck): ' + label + ' を戻すとボタンが消える');
+	}
+
+	await roundTrip('テンプレート削除', () => { document.querySelector('[data-usd-act="template-delete"]').click(); }, 'list');
+
+	await page.click('#tab-btn-record');
+	await page.waitForTimeout(300);
+	await roundTrip('比較シート削除', () => { document.querySelector('#record-list button[title="削除"]').click(); }, 'list');
+
+	await page.evaluate((id) => openRecordEditor(id), RECORD_ID);
+	await page.waitForTimeout(500);
+	const other = USER_DATA.templates[1].templateId;
+	await roundTrip('元テンプレートの切り替え', new Function(`switchRecordTemplate(${JSON.stringify(other)})`), 'sheet');
+	await roundTrip('候補の削除', () => { removeCandidate('c_a'); }, 'sheet');
+	await roundTrip('スキル行の削除', new Function(`removeSkillFromRecord(${JSON.stringify(PICK[2].id)})`), 'sheet');
+
+	// 多段：3つ続けて実行し、3回続けて戻せること
+	const multi = await state();
+	await page.evaluate(([sid, tid]) => { removeCandidate('c_b'); removeSkillFromRecord(sid); switchRecordTemplate(tid); }, [PICK[0].id, other]);
+	await page.waitForTimeout(200);
+	const stacked = await undoBtn();
+	await page.evaluate(() => { performUndo(); performUndo(); performUndo(); });
+	await page.waitForTimeout(300);
+	assert(stacked.stack === 3 && stacked.badge === '3' && (await state()) === multi && (await undoBtn()).stack === 0,
+		'undo(deck): 3操作を続けて戻すと、実行前と一致する', stacked);
+
+	// 一覧に戻ると、シートの scope から一覧の scope に切り替わる
+	await page.evaluate(() => closeRecordEditor());
+	await page.waitForTimeout(200);
+	assert((await undoBtn()).scope === 'list', 'undo(deck): シートを閉じると一覧の scope になる');
+
+	assert(errors.length === 0, 'undo(deck): コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
 await browser.close();
 await close();
 console.log('\n' + (fails === 0 ? '=== スモークテスト: 全項目OK ===' : '=== スモークテスト: ' + fails + '件 NG ==='));

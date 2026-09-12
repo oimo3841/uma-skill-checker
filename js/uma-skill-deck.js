@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-11d';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-12a';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -132,7 +132,7 @@ function showToast(msg) {
 }
 
 function performUndo() {
-	Core.performUndo();
+	return Core.performUndo();
 }
 
 function renderUndoButton(count) {
@@ -146,7 +146,19 @@ function renderUndoButton(count) {
 /* ============================================================
  * タブ切り替え
  * ============================================================ */
+let currentTab = 'template';
+
+// 「元に戻す」はいま見ている画面のぶんだけ出す。テンプレートタブは編集画面が開いていれば
+// 'editor'、比較シートタブはシートを開いていれば 'sheet'、それ以外（一覧・データ管理）は 'list'。
+function syncUndoScope() {
+	let scope = 'list';
+	if (currentTab === 'template' && templateManager && templateManager.isEditing()) scope = 'editor';
+	else if (currentTab === 'record' && draftRecord) scope = 'sheet';
+	Core.setUndoScope(scope);
+}
+
 function switchTab(name) {
+	currentTab = name;
 	['template', 'record', 'data'].forEach(t => {
 		document.getElementById('tab-panel-' + t).classList.toggle('hidden', t !== name);
 		document.getElementById('tab-btn-' + t).classList.toggle('tab-active', t === name);
@@ -156,12 +168,14 @@ function switchTab(name) {
 	if (name === 'template') templateManager.render();
 	if (name === 'record') renderRecordTab();
 	if (name === 'data') renderDataTab();
+	syncUndoScope();
 }
 
 /* ============================================================
  * 比較レコード（スプレッドシート）
  * ============================================================ */
 function renderRecordTab() {
+	syncUndoScope();
 	if (draftRecord) {
 		document.getElementById('record-list-view').classList.add('hidden');
 		document.getElementById('record-editor-view').classList.remove('hidden');
@@ -238,12 +252,30 @@ function switchRecordTemplate(newTemplateId) {
 	const t = userData.templates.find(x => x.templateId === newTemplateId);
 	if (!t) return;
 	const targetRecord = draftRecord;
-	const prevTemplateId = targetRecord.sourceTemplateId;
-	const prevSkillIds = targetRecord.skillIds.slice();
-	const prevCells = JSON.parse(JSON.stringify(targetRecord.cells));
+	const recordId = targetRecord.recordId;
 	// 原本値（ocrCells）も現在値と対で退避・剪定する。片方だけ戻すと
 	// Undoした瞬間に「手動修正済み」の判定だけが壊れるため。
-	const prevOcrCells = JSON.parse(JSON.stringify(targetRecord.ocrCells || {}));
+	const sheetState = (r) => ({ sourceTemplateId: r.sourceTemplateId, skillIds: r.skillIds, cells: r.cells, ocrCells: r.ocrCells || {} });
+	const prev = Core.snapshot(sheetState(targetRecord));
+	pushUndo({
+		scope: 'sheet',
+		doneLabel: 'テンプレートを「' + t.name + '」に切り替えました',
+		undoneLabel: '元に戻しました：テンプレートを「' + t.name + '」に切り替えました',
+		probe: () => { const r = findRecordById(recordId); return r ? Core.probeOf(sheetState(r)) : ''; },
+		apply: () => {
+			const r = findRecordById(recordId);
+			if (!r) return false;
+			const s = Core.snapshot(prev);
+			r.sourceTemplateId = s.sourceTemplateId;
+			r.skillIds = s.skillIds;
+			r.cells = s.cells;
+			r.ocrCells = s.ocrCells;
+			r.updatedAt = nowIso();
+			saveUserData();
+			renderAll();
+			return true;
+		}
+	});
 	targetRecord.sourceTemplateId = t.templateId;
 	targetRecord.skillIds = t.skillIds.slice();
 	const keep = new Set(targetRecord.skillIds);
@@ -251,16 +283,15 @@ function switchRecordTemplate(newTemplateId) {
 	if (targetRecord.ocrCells) {
 		Object.keys(targetRecord.ocrCells).forEach(sid => { if (!keep.has(sid)) delete targetRecord.ocrCells[sid]; });
 	}
+	targetRecord.updatedAt = nowIso();
 	saveUserData();
 	renderRecordEditor();
-	pushUndo('テンプレートを「' + t.name + '」に切り替えました', () => {
-		targetRecord.sourceTemplateId = prevTemplateId;
-		targetRecord.skillIds = prevSkillIds;
-		targetRecord.cells = prevCells;
-		targetRecord.ocrCells = prevOcrCells;
-		saveUserData();
-		renderAll();
-	});
+}
+
+// 「元に戻す」の apply() から比較シートを引き直すときに使う。掴んでおいた参照ではなく
+// IDで引く（インポート等で userData ごと差し替わっていても、古い実体に書かない）。
+function findRecordById(recordId) {
+	return userData.records.find(r => r.recordId === recordId) || null;
 }
 
 function persistDraftRecord() {
@@ -338,62 +369,97 @@ function removeCandidate(candidateId) {
 	const idx = draftRecord.candidates.findIndex(c => c.candidateId === candidateId);
 	if (idx === -1) return;
 	const targetRecord = draftRecord;
-	const removed = targetRecord.candidates[idx];
-	const cellBackups = {};
-	Object.keys(targetRecord.cells).forEach(skillId => {
-		if (targetRecord.cells[skillId][candidateId] !== undefined) cellBackups[skillId] = targetRecord.cells[skillId][candidateId];
-		delete targetRecord.cells[skillId][candidateId];
+	const recordId = targetRecord.recordId;
+	// その候補の列（現在値と原本値）。原本値も対で退避する（片方だけ戻すと手動修正済みの判定が壊れる）。
+	const columnOf = (r) => {
+		const cells = {}, ocr = {};
+		Object.keys(r.cells).forEach(skillId => {
+			if (r.cells[skillId][candidateId] !== undefined) cells[skillId] = r.cells[skillId][candidateId];
+		});
+		Object.keys(r.ocrCells || {}).forEach(skillId => {
+			if (r.ocrCells[skillId][candidateId] !== undefined) ocr[skillId] = r.ocrCells[skillId][candidateId];
+		});
+		return { cells: cells, ocr: ocr };
+	};
+	const removed = Core.snapshot(targetRecord.candidates[idx]);
+	const column = Core.snapshot(columnOf(targetRecord));
+	pushUndo({
+		scope: 'sheet',
+		doneLabel: '候補「' + removed.label + '」を削除しました',
+		undoneLabel: '元に戻しました：候補「' + removed.label + '」を削除しました',
+		probe: () => {
+			const r = findRecordById(recordId);
+			if (!r) return '';
+			return Core.probeOf({ cand: r.candidates.find(c => c.candidateId === candidateId) || null, col: columnOf(r) });
+		},
+		apply: () => {
+			const r = findRecordById(recordId);
+			if (!r) return false;
+			if (r.candidates.some(c => c.candidateId === candidateId)) return false;
+			r.candidates.splice(Math.min(idx, r.candidates.length), 0, Core.snapshot(removed));
+			Object.keys(column.cells).forEach(skillId => {
+				if (!r.cells[skillId]) r.cells[skillId] = {};
+				r.cells[skillId][candidateId] = column.cells[skillId];
+			});
+			if (!r.ocrCells) r.ocrCells = {};
+			Object.keys(column.ocr).forEach(skillId => {
+				if (!r.ocrCells[skillId]) r.ocrCells[skillId] = {};
+				r.ocrCells[skillId][candidateId] = column.ocr[skillId];
+			});
+			r.updatedAt = nowIso();
+			saveUserData();
+			renderAll();
+			return true;
+		}
 	});
-	// 原本値も対で退避する（片方だけ戻すと手動修正済みの判定が壊れる）。
-	const ocrBackups = {};
-	Object.keys(targetRecord.ocrCells || {}).forEach(skillId => {
-		if (targetRecord.ocrCells[skillId][candidateId] !== undefined) ocrBackups[skillId] = targetRecord.ocrCells[skillId][candidateId];
-		delete targetRecord.ocrCells[skillId][candidateId];
-	});
+	Object.keys(targetRecord.cells).forEach(skillId => { delete targetRecord.cells[skillId][candidateId]; });
+	Object.keys(targetRecord.ocrCells || {}).forEach(skillId => { delete targetRecord.ocrCells[skillId][candidateId]; });
 	targetRecord.candidates.splice(idx, 1);
 	targetRecord.updatedAt = nowIso();
 	saveUserData();
 	renderRecordGrid();
-	pushUndo('候補「' + removed.label + '」を削除しました', () => {
-		targetRecord.candidates.splice(idx, 0, removed);
-		Object.keys(cellBackups).forEach(skillId => {
-			if (!targetRecord.cells[skillId]) targetRecord.cells[skillId] = {};
-			targetRecord.cells[skillId][candidateId] = cellBackups[skillId];
-		});
-		if (!targetRecord.ocrCells) targetRecord.ocrCells = {};
-		Object.keys(ocrBackups).forEach(skillId => {
-			if (!targetRecord.ocrCells[skillId]) targetRecord.ocrCells[skillId] = {};
-			targetRecord.ocrCells[skillId][candidateId] = ocrBackups[skillId];
-		});
-		saveUserData();
-		renderAll();
-	});
 }
 
 function removeSkillFromRecord(skillId) {
 	const idx = draftRecord.skillIds.indexOf(skillId);
 	if (idx === -1) return;
 	const targetRecord = draftRecord;
+	const recordId = targetRecord.recordId;
 	const name = getSkillName(skillId);
-	const cellsBackup = targetRecord.cells[skillId];
-	// 原本値も対で退避する（片方だけ戻すと手動修正済みの判定が壊れる）。
-	const ocrBackup = targetRecord.ocrCells && targetRecord.ocrCells[skillId];
+	// その行（位置・現在値・原本値）。原本値も対で退避する（片方だけ戻すと手動修正済みの判定が壊れる）。
+	const rowOf = (r) => ({
+		at: r.skillIds.indexOf(skillId),
+		cells: r.cells[skillId] || null,
+		ocr: (r.ocrCells && r.ocrCells[skillId]) || null
+	});
+	const row = Core.snapshot(rowOf(targetRecord));
+	pushUndo({
+		scope: 'sheet',
+		doneLabel: 'スキル「' + name + '」を削除しました',
+		undoneLabel: '元に戻しました：スキル「' + name + '」を削除しました',
+		probe: () => { const r = findRecordById(recordId); return r ? Core.probeOf(rowOf(r)) : ''; },
+		apply: () => {
+			const r = findRecordById(recordId);
+			if (!r) return false;
+			if (r.skillIds.indexOf(skillId) !== -1) return false;
+			r.skillIds.splice(Math.min(row.at, r.skillIds.length), 0, skillId);
+			if (row.cells) r.cells[skillId] = Core.snapshot(row.cells);
+			if (row.ocr) {
+				if (!r.ocrCells) r.ocrCells = {};
+				r.ocrCells[skillId] = Core.snapshot(row.ocr);
+			}
+			r.updatedAt = nowIso();
+			saveUserData();
+			renderAll();
+			return true;
+		}
+	});
 	targetRecord.skillIds.splice(idx, 1);
 	delete targetRecord.cells[skillId];
 	if (targetRecord.ocrCells) delete targetRecord.ocrCells[skillId];
 	targetRecord.updatedAt = nowIso();
 	saveUserData();
 	renderRecordGrid();
-	pushUndo('スキル「' + name + '」を削除しました', () => {
-		targetRecord.skillIds.splice(idx, 0, skillId);
-		if (cellsBackup) targetRecord.cells[skillId] = cellsBackup;
-		if (ocrBackup) {
-			if (!targetRecord.ocrCells) targetRecord.ocrCells = {};
-			targetRecord.ocrCells[skillId] = ocrBackup;
-		}
-		saveUserData();
-		renderAll();
-	});
 }
 
 // 有効な候補だけを対象にした、そのスキル行の★合計。
@@ -664,15 +730,25 @@ function duplicateRecord(recordId) {
 function deleteRecord(recordId) {
 	const idx = userData.records.findIndex(x => x.recordId === recordId);
 	if (idx === -1) return;
-	const removed = userData.records[idx];
+	const removed = Core.snapshot(userData.records[idx]);
+	pushUndo({
+		scope: 'list',
+		doneLabel: '比較シート「' + removed.name + '」を削除しました',
+		undoneLabel: '元に戻しました：比較シート「' + removed.name + '」を削除しました',
+		// その比較シートが（同じ中身で）在るかどうか。無ければ空文字。
+		probe: () => { const r = findRecordById(recordId); return r ? Core.probeOf(r) : ''; },
+		apply: () => {
+			if (findRecordById(recordId)) return false;
+			if (userData.records.length >= RECORD_LIMIT) return false;
+			userData.records.splice(Math.min(idx, userData.records.length), 0, Core.snapshot(removed));
+			saveUserData();
+			renderAll();
+			return true;
+		}
+	});
 	userData.records.splice(idx, 1);
 	saveUserData();
 	renderRecordList();
-	pushUndo('比較シート「' + removed.name + '」を削除しました', () => {
-		userData.records.splice(idx, 0, removed);
-		saveUserData();
-		renderAll();
-	});
 }
 
 /* ============================================================
@@ -1119,7 +1195,9 @@ async function initApp() {
 	templateManager = Core.createTemplateManager(document.getElementById('template-panel-root'), {
 		// テンプレートの追加・削除・改名は比較シートタブの選択肢にも影響するため、
 		// 変更があったら他タブも描き直す。
-		onChange: () => { renderRecordTab(); renderDataTab(); }
+		onChange: () => { renderRecordTab(); renderDataTab(); },
+		// 一覧⇄編集が切り替わったら「元に戻す」に出す画面（scope）も合わせる
+		onViewChange: () => syncUndoScope()
 	});
 	renderAll();
 	initOcrHandoff();

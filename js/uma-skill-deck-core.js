@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-12a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-12b';
 
 	/* ============================================================
 	 * 定数
@@ -499,39 +499,142 @@
 	/* ============================================================
 	 * Undo
 	 * ============================================================ */
-	// 破壊的な操作（削除・切り替え等）は確認ダイアログではなく「即実行＋元に戻す」で統一する。
+	// 破壊的な操作（削除・全消し・上書き）は確認ダイアログではなく「即実行＋元に戻す」で統一する。
 	// 複数回さかのぼれるよう、スタック形式で保持する。
 	//
-	// 上限は20件とする。理由:
-	// - このUndoスタックはページ内メモリのみに保持し、localStorageには保存しない
-	//   （リロードすれば消える、セッション限定の安全網という位置づけ）。
-	// - 20件あれば「まとめて削除しすぎた／切り替えを何度か試した」程度の作業を十分さかのぼれる。
-	let undoStack = [];
+	// ■ エントリの契約（pushUndo に渡すもの。欠けていれば例外にし、黙って積ませない）
+	//   apply()     … 復元処理。保存先への書き込みと再描画まで済ませ、復元できたら true を返す。
+	//                 復元先は呼び出し時に探し直す。捕まえておいた参照は、保存のたびに
+	//                 差し替わるもの（ドラフトの skillIds など）だと保存先に届かない。
+	//   probe()     … 復元対象の状態を表す比較可能な文字列。成否の検証に使う。
+	//                 復元で変わるものだけを表す（他の操作で変わり得るものを混ぜると、
+	//                 正しく戻せても「戻っていない」と判定してしまう）。
+	//   doneLabel   … 操作を実行した直後に出すトースト文。
+	//   undoneLabel … 元に戻せたときに出すトースト文。
+	//   scope       … このエントリが属する画面（'list' / 'editor' / 'sheet'）。
+	//   baseline    … 省略可。操作の前に取っておいた probe() の値。操作が途中で中止され得る
+	//                 （確認ダイアログを挟む等）ために push を操作の後へ回す場合だけ渡す。
+	//
+	// ■ 守ること
+	//   - pushUndo は状態を変更する前に呼ぶ（baseline を渡す場合を除く）。
+	//   - スナップショットは snapshot() で独立したコピーにする。元の配列・オブジェクトへの
+	//     参照を抱えると、直後のクリア処理（length=0 や splice）でスタックの中身も一緒に消える。
+	//   - 対で扱う状態（cells と ocrCells 等）はまとめて1つのエントリに含める。
+	//
+	// ■ 成功の検証
+	//   元に戻すときは probe() を apply() の前後で取り、apply() が true を返し、値が変化し、
+	//   かつ積んだ時点の値（baseline）に戻ったときだけ成功とする。それ以外は undoneLabel を
+	//   出さず、スタックも消費しない。「何もしていないのに成功したと言う」ことを構造的に起こさないため。
+	//
+	// ■ 寿命
+	//   スタックは scope ごとに持つ。ボタンに出す数は「いまの scope」（setUndoScope で
+	//   呼び出し元ページが決める）のエントリ数。画面を閉じた／編集対象を切り替えたときは
+	//   dropUndoScope(scope) で捨てる。ページ内メモリのみに保持し localStorage には保存しない
+	//   （リロードすれば消える、セッション限定の安全網という位置づけ）。上限は scope ごとに20件。
+	let undoStacks = {};
+	let undoScope = 'list';
 	const undoListeners = [];
 
-	function notifyUndoChanged() {
-		undoListeners.forEach(fn => { try { fn(undoStack.length); } catch (e) {} });
+	function undoStackFor(scope) {
+		if (!undoStacks[scope]) undoStacks[scope] = [];
+		return undoStacks[scope];
 	}
 
-	function pushUndo(label, restoreFn) {
-		undoStack.push({ label: label, restore: restoreFn });
-		if (undoStack.length > UNDO_STACK_LIMIT) undoStack.shift();
-		toast(label);
+	function undoCount() {
+		return undoStackFor(undoScope).length;
+	}
+
+	function notifyUndoChanged() {
+		const n = undoCount();
+		undoListeners.forEach(fn => { try { fn(n); } catch (e) {} });
+	}
+
+	// スナップショット用。元のデータへの参照を一切持たない独立したコピーを返す。
+	function snapshot(value) {
+		if (value === undefined) return undefined;
+		if (typeof global.structuredClone === 'function') return global.structuredClone(value);
+		return JSON.parse(JSON.stringify(value));
+	}
+
+	// probe() 用。オブジェクトのキー順に依存しない文字列にする
+	// （復元は「消して足し直す」ことがあり、キーの順序が元と変わり得るため）。
+	function stableStringify(v) {
+		if (v === undefined) return 'null';
+		if (v === null || typeof v !== 'object') return JSON.stringify(v);
+		if (Array.isArray(v)) return '[' + v.map(stableStringify).join(',') + ']';
+		return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + stableStringify(v[k])).join(',') + '}';
+	}
+	function probeOf(value) {
+		return stableStringify(value);
+	}
+
+	function pushUndo(entry) {
+		if (!entry || typeof entry !== 'object') throw new TypeError('pushUndo: エントリはオブジェクトで渡してください');
+		const missing = [];
+		if (typeof entry.apply !== 'function') missing.push('apply');
+		if (typeof entry.probe !== 'function') missing.push('probe');
+		if (typeof entry.doneLabel !== 'string' || !entry.doneLabel) missing.push('doneLabel');
+		if (typeof entry.undoneLabel !== 'string' || !entry.undoneLabel) missing.push('undoneLabel');
+		if (typeof entry.scope !== 'string' || !entry.scope) missing.push('scope');
+		if (missing.length > 0) throw new TypeError('pushUndo: エントリに ' + missing.join(' / ') + ' がありません');
+		const baseline = typeof entry.baseline === 'string' ? entry.baseline : entry.probe();
+		const stack = undoStackFor(entry.scope);
+		stack.push({
+			apply: entry.apply, probe: entry.probe, baseline: baseline,
+			doneLabel: entry.doneLabel, undoneLabel: entry.undoneLabel, scope: entry.scope
+		});
+		if (stack.length > UNDO_STACK_LIMIT) stack.shift();
+		toast(entry.doneLabel);
 		notifyUndoChanged();
 	}
 
 	function performUndo() {
-		const entry = undoStack.pop();
+		const stack = undoStackFor(undoScope);
+		const entry = stack[stack.length - 1];
 		if (!entry) return false;
-		entry.restore();
-		toast('元に戻しました：' + entry.label);
+		let ok = false, before = '', after = '';
+		try {
+			before = entry.probe();
+			ok = entry.apply() === true;
+			after = entry.probe();
+		} catch (e) {
+			ok = false;
+			if (global.console) global.console.error('[UmaSkillDeckCore] 元に戻す処理で例外', e);
+		}
+		if (!ok || after === before || after !== entry.baseline) {
+			// 成功を名乗らない。エントリも残す（消費すると「戻したつもり」だけが残る）。
+			if (global.console) global.console.warn('[UmaSkillDeckCore] 元に戻せませんでした', {
+				scope: entry.scope, applied: ok, changed: after !== before, reachedBaseline: after === entry.baseline
+			});
+			toast('元に戻せませんでした');
+			return false;
+		}
+		stack.pop();
+		toast(entry.undoneLabel);
 		notifyUndoChanged();
 		return true;
 	}
 
+	// 呼び出し元ページが「いまどの画面か」を告げる。ボタンの数はこの scope のぶんだけ出す。
+	function setUndoScope(scope) {
+		undoScope = scope || 'list';
+		notifyUndoChanged();
+	}
+
+	// その画面を閉じた／編集対象を切り替えたときに、その画面のエントリを捨てる。
+	function dropUndoScope(scope) {
+		undoStacks[scope] = [];
+		notifyUndoChanged();
+	}
+
+	function clearUndo() {
+		undoStacks = {};
+		notifyUndoChanged();
+	}
+
 	function onUndoChanged(fn) {
 		undoListeners.push(fn);
-		fn(undoStack.length);
+		fn(undoCount());
 	}
 
 	/* ============================================================
@@ -1788,51 +1891,93 @@
 		function clearEditingSkills() {
 			const target = editing;
 			if (!target) return;
-			const list = target.kind === 'draft' ? draftScope.skillIds : target.obj.skillIds;
-			if (list.length === 0) return;
-			const prev = list.slice();
-			list.length = 0;
-			persistEditing();
-			picker.excludeIds = picker.excludeIds.filter(id => prev.indexOf(id) === -1);
-			renderSelectedList();
-			renderPickerResults();
-			renderPasteReport();
-			if (isSelected(target)) fireSelection();
-			fireChange();
-			pushUndo('追加済みスキル' + prev.length + '件を外しました', () => {
-				list.length = 0;
-				prev.forEach(id => list.push(id));
-				if (target.kind === 'draft') draftScope = saveDraftScope(draftScopeKey, draftScope.skillIds);
-				else saveUserData();
-				render();
-				if (isSelected(target)) fireSelection();
-				fireChange();
+			const ids = skillIdsOf(target);
+			if (!ids || ids.length === 0) return;
+			const prev = snapshot(ids);
+			// 状態を変える前に積む。積んだ時点の probe() が「戻るべき姿」になる。
+			pushUndo({
+				scope: 'editor',
+				doneLabel: '追加済みスキル' + prev.length + '件を外しました',
+				undoneLabel: '元に戻しました：追加済みスキル' + prev.length + '件を外しました',
+				probe: () => probeOf(skillIdsOf(target)),
+				apply: () => {
+					if (!writeSkillIds(target, snapshot(prev))) return false;
+					picker.excludeIds = picker.excludeIds.concat(prev.filter(id => picker.excludeIds.indexOf(id) === -1));
+					afterEditingSkillsChanged(target, true);
+					return true;
+				}
 			});
+			if (!writeSkillIds(target, [])) return;
+			picker.excludeIds = picker.excludeIds.filter(id => prev.indexOf(id) === -1);
+			afterEditingSkillsChanged(target);
 		}
 
 		function removeSkillFromEditing(skillId) {
 			const target = editing;
 			if (!target) return;
-			const list = target.kind === 'draft' ? draftScope.skillIds : target.obj.skillIds;
-			const idx = list.indexOf(skillId);
+			const ids = skillIdsOf(target);
+			const idx = ids ? ids.indexOf(skillId) : -1;
 			if (idx === -1) return;
 			const name = getSkillName(skillId);
-			list.splice(idx, 1);
-			persistEditing();
+			pushUndo({
+				scope: 'editor',
+				doneLabel: 'スキル「' + name + '」を削除しました',
+				undoneLabel: '元に戻しました：スキル「' + name + '」を削除しました',
+				// 見るのは「そのスキルが元の位置にあるか」だけ。あとから足したスキルは末尾に
+				// 付くので、間に追加があっても正しく戻せたことを判定できる。
+				probe: () => String((skillIdsOf(target) || []).indexOf(skillId)),
+				apply: () => {
+					const cur = skillIdsOf(target);
+					if (!cur) return false;
+					// 元に戻す前に同じスキルを足し直してあった場合は、重複させずに元の位置へ寄せる
+					const next = cur.filter(id => id !== skillId);
+					next.splice(Math.min(idx, next.length), 0, skillId);
+					if (!writeSkillIds(target, next)) return false;
+					if (picker.excludeIds.indexOf(skillId) === -1) picker.excludeIds.push(skillId);
+					afterEditingSkillsChanged(target, true);
+					return true;
+				}
+			});
+			const next = ids.slice();
+			next.splice(idx, 1);
+			if (!writeSkillIds(target, next)) return;
 			picker.excludeIds = picker.excludeIds.filter(id => id !== skillId);
-			renderSelectedList();
+			afterEditingSkillsChanged(target);
+		}
+
+		// 編集中のセット（ドラフト／テンプレート）の「今の」スキルID一覧。
+		// ドラフトは保存のたびに draftScope ごと差し替わるので、捕まえておいた配列ではなく
+		// 毎回ここで引き直す。テンプレートはIDで引き直す（読み直しで実体が替わっても届くように）。
+		function skillIdsOf(target) {
+			if (!target) return null;
+			if (target.kind === 'draft') return draftScope ? draftScope.skillIds : null;
+			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
+			return t ? t.skillIds : null;
+		}
+
+		// 編集中のセットのスキルID一覧を、保存先まで書き換える。
+		function writeSkillIds(target, ids) {
+			if (target.kind === 'draft') {
+				if (!draftScope) return false;
+				draftScope = saveDraftScope(draftScopeKey, ids);
+				return true;
+			}
+			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
+			if (!t) return false;
+			t.skillIds = ids.slice();
+			t.updatedAt = nowIso();
+			saveUserData();
+			return true;
+		}
+
+		// 追加済みスキルが増減したあとの描画と通知（削除・全消し・元に戻す、で共通）。
+		// 元に戻すときは、いま出ている画面（一覧か編集か）ごと描き直す。
+		function afterEditingSkillsChanged(target, redrawAll) {
+			if (redrawAll) render(); else renderSelectedList();
 			renderPickerResults();
 			renderPasteReport();
 			if (isSelected(target)) fireSelection();
 			fireChange();
-			pushUndo('スキル「' + name + '」を削除しました', () => {
-				list.splice(idx, 0, skillId);
-				if (target.kind === 'draft') draftScope = saveDraftScope(draftScopeKey, draftScope.skillIds);
-				else saveUserData();
-				render();
-				if (isSelected(target)) fireSelection();
-				fireChange();
-			});
 		}
 
 		function duplicateTemplate(templateId) {
@@ -1851,17 +1996,32 @@
 			const data = ensureUserData();
 			const idx = data.templates.findIndex(x => x.templateId === templateId);
 			if (idx === -1) return;
-			const removed = data.templates[idx];
+			const removed = snapshot(data.templates[idx]);
+			const label = removed.name || '（名称未設定）';
+			pushUndo({
+				scope: 'list',
+				doneLabel: 'テンプレート「' + label + '」を削除しました',
+				undoneLabel: '元に戻しました：テンプレート「' + label + '」を削除しました',
+				// そのテンプレートが（同じ中身で）在るかどうか。無ければ空文字。
+				probe: () => {
+					const cur = ensureUserData().templates.find(x => x.templateId === templateId);
+					return cur ? probeOf(cur) : '';
+				},
+				apply: () => {
+					const d = ensureUserData();
+					if (d.templates.some(x => x.templateId === templateId)) return false;
+					if (d.templates.length >= TEMPLATE_LIMIT) return false;
+					d.templates.splice(Math.min(idx, d.templates.length), 0, snapshot(removed));
+					saveUserData();
+					render();
+					fireChange();
+					return true;
+				}
+			});
 			data.templates.splice(idx, 1);
 			saveUserData();
 			renderList();
 			fireChange();
-			pushUndo('テンプレート「' + (removed.name || '（名称未設定）') + '」を削除しました', () => {
-				data.templates.splice(idx, 0, removed);
-				saveUserData();
-				render();
-				fireChange();
-			});
 		}
 
 		// ドラフトをテンプレートへ昇格する。名前は昇格後の編集画面で付けてもらう
@@ -2175,7 +2335,17 @@
 
 		// データ層
 		getUserData: ensureUserData,
-		reloadUserData: function () { userData = loadUserData(); return userData; },
+		// 外（引き出しの iframe など）で保存された内容を読み直す。中身が変わっていたら、
+		// 積んである「元に戻す」は古い状態を指すので捨てる。変わっていなければ同じ
+		// オブジェクトを使い続ける（差し替えると、掴んでいる参照が全部古くなる）。
+		reloadUserData: function () {
+			const next = loadUserData();
+			if (stableStringify(next) !== stableStringify(userData)) {
+				userData = next;
+				clearUndo();
+			}
+			return userData;
+		},
 		saveUserData: saveUserData,
 		replaceUserData: replaceUserData,
 		createEmptyUserData: createEmptyUserData,
@@ -2228,11 +2398,16 @@
 		applyStarAssignments: applyStarAssignments,
 		isEditedCell: isEditedCell,
 
-		// Undo
+		// Undo（契約は「Undo」の節のコメント参照）
 		pushUndo: pushUndo,
 		performUndo: performUndo,
-		undoCount: function () { return undoStack.length; },
+		undoCount: undoCount,
 		onUndoChanged: onUndoChanged,
-		clearUndo: function () { undoStack = []; notifyUndoChanged(); }
+		setUndoScope: setUndoScope,
+		getUndoScope: function () { return undoScope; },
+		dropUndoScope: dropUndoScope,
+		clearUndo: clearUndo,
+		snapshot: snapshot,
+		probeOf: probeOf
 	};
 })(window);
