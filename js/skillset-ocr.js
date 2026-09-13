@@ -26,7 +26,7 @@
  * （{ raw, norm, kind:'exact'|'review'|'none', matchedId, matchedName, candidates:[{id,name,distance}] }）。
  * 曖昧な行はこの形のまま Deck の貼り付けピッカーへ渡す（決定 A-8。core 側の口はコミット3）。
  */
-const SKILLSET_OCR_JS_VERSION = '2026-09-13c';
+const SKILLSET_OCR_JS_VERSION = '2026-09-13d';
 
 (function (global) {
 	'use strict';
@@ -44,7 +44,14 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-13c';
 		// カード1枚＝1行なので、Tesseract の psm は 7（1行）。因子画面の 6（段組）とは違う
 		PSM: '7',
 		// preprocessVariants(canvas, multi) の multi。3変種（二値化／反転／原画）を全部読む＝製品の因子OCRと同じ
-		MULTI_VARIANTS: true
+		MULTI_VARIANTS: true,
+		// 30セッション目: 3変種すべてが空文字（symbols 0）だった白カードだけ、この psm で読み直す。
+		// 「連綿」「一匹狼」は切り出しが鮮明でも Tesseract のレイアウト解析（psm 7／6／8／11）が行ごと捨てて
+		// 何も返さない。レイアウト解析を省く psm 13 だけが文字を返す（「遣綿」「一匹翼」＝距離1の誤読）。
+		// 読み直しの結果は**照合に当たった（確定または自動採用）ときだけ採用**し、当たらなければ
+		// 「読めなかった」のまま（psm 13 はゴミを返しやすいので、ゴミの行を確認行きに増やさない）。
+		// 白だけ。金は照合先が無いので、ゴミがそのまま種類数に乗る。'' にすると読み直しをしない。
+		EMPTY_READ_FALLBACK_PSM: '13'
 	};
 
 	/* ============================================================
@@ -395,6 +402,31 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-13c';
 		return { text: text, confidence: typeof data.confidence === 'number' ? data.confidence : null };
 	}
 
+	/** 変種を順に OCR する（失敗した変種は空の読みにして止めない）。 */
+	async function recognizeVariants(worker, variants) {
+		var reads = [];
+		for (var v = 0; v < variants.length; v++) {
+			try { reads.push(await recognizeText(worker, variants[v])); }
+			catch (err) { reads.push({ text: '', confidence: null, error: String(err) }); }
+		}
+		return reads;
+	}
+
+	/**
+	 * psm を一時的に切り替えて変種を読み直し、必ず元の psm に戻す（OPTIONS.EMPTY_READ_FALLBACK_PSM）。
+	 * 戻せなかったときは以降の読みが狂うので、戻す側の失敗はそのまま投げる。
+	 */
+	async function recognizeVariantsWithPsm(worker, variants, psm, restorePsm) {
+		await worker.setParameters({ tessedit_pageseg_mode: psm });
+		try { return await recognizeVariants(worker, variants); }
+		finally { await worker.setParameters({ tessedit_pageseg_mode: restorePsm }); }
+	}
+
+	/** 照合に当たった行か（確定、または決定 B-2 の自動採用）。 */
+	function isDecidedRow(row) {
+		return !!row.matchedId && (row.kind === 'exact' || (row.kind === 'review' && row.autoAccepted));
+	}
+
 	/**
 	 * 切り出したカードを OCR して行にする。
 	 * - lavender … 前処理（tightenAndScale → preprocessVariants）→ 変種ごとに OCR → 照合 → combineCardReads
@@ -419,11 +451,7 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-13c';
 			var ink = inkHeight(c.canvas);
 			var prepared = tightenAndScale(c.canvas);
 			var variants = preprocessVariants(prepared, options.MULTI_VARIANTS); // common.js
-			var reads = [];
-			for (var v = 0; v < variants.length; v++) {
-				try { reads.push(await recognizeText(worker, variants[v])); }
-				catch (err) { reads.push({ text: '', confidence: null, error: String(err) }); }
-			}
+			var reads = await recognizeVariants(worker, variants);
 			if (c.kind === 'gold') {
 				// 照合しない。いちばん信頼度の高い非空の読みを代表にし、全部の読みも残す
 				var nonEmpty = reads.filter(function (r) { return r.text; }).sort(function (a, b) { return (b.confidence || 0) - (a.confidence || 0); });
@@ -443,6 +471,22 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-13c';
 					return row;
 				});
 				var row = combineCardReads(rows);
+				// 3変種すべてが空（レイアウト解析が行ごと捨てた）なら psm を変えて読み直す。
+				// 当たったときだけ差し替える。当たらなければ元の行（読めなかった）のまま、読み直しの読みだけ開発ログ用に残す。
+				var fallbackPsm = options.EMPTY_READ_FALLBACK_PSM;
+				if (fallbackPsm && reads.every(function (r) { return !r.text; })) {
+					var fbReads = await recognizeVariantsWithPsm(worker, variants, fallbackPsm, options.PSM);
+					var fbRow = combineCardReads(fbReads.map(function (r) {
+						var fr = classifyCardRead(r.text, dict, options);
+						fr.confidence = r.confidence;
+						return fr;
+					}));
+					if (isDecidedRow(fbRow)) {
+						row = fbRow;
+						row.reason = (row.reason ? row.reason + '。' : '') + 'psm' + fallbackPsm + 'で読み直して当たった';
+					}
+					row.fallback = { psm: fallbackPsm, adopted: isDecidedRow(fbRow), reads: fbReads.map(function (r) { return { raw: r.text, confidence: r.confidence }; }) };
+				}
 				row.cardKind = 'lavender';
 				row.inkHeight = ink;
 				row.card = c.card;
@@ -644,12 +688,14 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-13c';
 		var q = r.quality || {};
 		var inks = (r.white || []).concat(r.gold || []).map(function (x) { return x.inkHeight; }).filter(function (v) { return typeof v === 'number' && v > 0; }).sort(function (a, b) { return a - b; });
 		var kc = r.kindCounts || {};
+		var fallbacks = (r.white || []).map(function (x) { return x.fallback; }).filter(Boolean);
 		var parts = [
 			r.name + ' ' + r.width + 'x' + r.height + (r.natural && (r.natural.w !== r.width) ? '（原寸 ' + r.natural.w + 'x' + r.natural.h + '）' : ''),
 			'画質 ' + (q.ok ? 'OK' : 'NG') + (q.rejectKinds && q.rejectKinds.length ? ' 拒否=' + q.rejectKinds.join(',') : '') + (q.warnKinds && q.warnKinds.length ? ' 警告=' + q.warnKinds.join(',') : '') + (typeof q.sharpness === 'number' ? ' 鮮明度=' + Math.round(q.sharpness) : ''),
 			'タブ ' + (r.tab && typeof r.tab.index === 'number' ? (r.tab.index + 1) : ('不明:' + (r.tab && r.tab.reason))),
 			'バッジ ' + (r.badge && typeof r.badge.count === 'number' ? r.badge.count + '/' + r.badge.capacity : ('読めず' + (r.badge && r.badge.raw ? '「' + r.badge.raw + '」' : ''))),
 			'カード 白' + (kc.lavender || 0) + ' 金' + (kc.gold || 0) + ' 不明' + (kc.unknown || 0),
+			'読み直し ' + fallbacks.length + '枚' + (fallbacks.length ? '（当たり' + fallbacks.filter(function (f) { return f.adopted; }).length + '。' + fallbacks.map(function (f) { return f.reads.map(function (r) { return '「' + r.raw + '」'; }).join(''); }).join(' ') + '）' : ''),
 			'文字高 ' + (inks.length ? '中央値' + inks[inks.length >> 1] + 'px（' + inks[0] + '〜' + inks[inks.length - 1] + '）' : '—'),
 			r.ms + 'ms'
 		];
