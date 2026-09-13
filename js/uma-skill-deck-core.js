@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-12e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-13a';
 
 	/* ============================================================
 	 * 定数
@@ -890,7 +890,12 @@
 	const PICKER_MODES = {
 		filter: { title: '条件でスキルを検索（軸間はAND・軸内はOR）', commit: true },
 		paste: { title: 'テキストで検索', commit: true },
-		custom: { title: 'マスターにないスキルを追加', commit: false }
+		custom: { title: 'マスターにないスキルを追加', commit: false },
+		// 4つ目（スキルセットOCR・フェーズa コミット3）。外で照合を済ませた行（ID付きの候補一覧）を受け取って、
+		// 「テキストで検索」と同じ報告（候補チップ・取り消し・確定）を出す。貼り付け欄と照合ボタンは出さない。
+		// 照合は common.js 側（CHAR_CONFUSION_MAP が効く経路）で行い、ここは見せるだけ＝C-24 調査4 の推奨。
+		// 入口（special.html のボタン）はコミット4、Deck 単体ページの入口は後続。この段は口だけ。
+		ocr: { title: '画像から読み取る', commit: true }
 	};
 
 	function pickerMarkup() {
@@ -920,11 +925,16 @@
 					// ---- テキストで検索 ----
 					// 枠も見出しも説明文も持たせない。何を貼ればよいかはプレースホルダー1行で足りる
 					// （表記ゆれの読み替えやタブ入りの行のエラーは、照合したあとに結果として出る）。
+					// 「画像から読み取る」（ocr モード）も同じ枠を使う。貼り付け欄と照合ボタン（paste-input-wrap）を隠し、
+					// 代わりに読み取りの要約（paste-summary）を先頭に1行出す。報告（paste-report）の作りは共通。
 					'<div class="usd-mode" data-usd-el="mode-paste" hidden>' +
+						'<p class="usd-paste-hint mb-2" data-usd-el="paste-summary" hidden></p>' +
+						'<div data-usd-el="paste-input-wrap">' +
 						'<textarea class="usd-input uma-input" rows="5" style="font-family:var(--uma-font-mono);resize:vertical;" data-usd-el="paste-input" placeholder="1行に1つずつスキル名を貼り付けるか、スプレッドシートの1列をそのまま貼り付け"></textarea>' +
 						'<div class="flex flex-wrap gap-2 mt-2">' +
 							'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="paste-run">貼り付けたテキストを照合</button>' +
 							'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="paste-clear">クリア</button>' +
+						'</div>' +
 						'</div>' +
 						'<div data-usd-el="paste-report" class="mt-3"></div>' +
 					'</div>' +
@@ -1388,21 +1398,36 @@
 	/* ------------------------------------------------------------
 	 * 一括貼り付けのUI
 	 * ------------------------------------------------------------ */
-	function runPasteMatch() {
-		const input = q(pickerEl, 'paste-input');
-		const text = input ? input.value : '';
-		if (!text.trim()) { toast('貼り付けたテキストがありません'); return; }
-		const result = matchPastedSkillText(text);
-		pasteRows = result.rows;
-		// 完全一致した行だけ、その場で選択状態に入れる。
-		// 距離1の候補は必ず利用者に選ばせる（自動採用しない）。
+	/**
+	 * 照合済みの行を報告に載せ、確定してよい行をその場で選択状態に入れる。
+	 * 「テキストで検索」（runPasteMatch）と「画像から読み取る」（openSkillRowsPicker）の共通の後処理。
+	 *
+	 * - kind === 'exact' の行は選択に入れる（従来どおり）。
+	 * - 貼り付けでは距離1の候補は必ず利用者に選ばせる（自動採用しない）。
+	 * - 画像の読み取りでは、外の照合が `autoAccepted: true` を付けた行（許容距離内で一意に当たった行）も
+	 *   選択に入れる（決定 B-2。製品の bestCandidate() と同じ規則で、実測 9,609枚＋素材で誤着地 0）。
+	 *   その行は kind が 'review' のままなので、報告では「完全一致ではない行（内容をご確認ください）」として
+	 *   上部に並び、チェックが入った状態で出る＝既存の usd-paste-approx の見せ方をそのまま使う。
+	 *   貼り付けの行には autoAccepted が無いので、貼り付けの挙動は変わらない。
+	 */
+	function applyPasteRows(rows) {
+		pasteRows = rows || [];
 		pasteRows.forEach(r => {
-			if (r.kind !== 'exact') return;
+			const accept = r.kind === 'exact' || (r.autoAccepted === true && r.matchedId);
+			if (!accept) return;
 			r.chosenId = r.matchedId;
 			if (picker.excludeIds.indexOf(r.matchedId) === -1) picker.checked.add(r.matchedId);
 		});
 		renderPasteReport();
 		renderPickerResults();
+	}
+
+	function runPasteMatch() {
+		const input = q(pickerEl, 'paste-input');
+		const text = input ? input.value : '';
+		if (!text.trim()) { toast('貼り付けたテキストがありません'); return; }
+		const result = matchPastedSkillText(text);
+		applyPasteRows(result.rows);
 		const c = result.counts;
 		toast(c.exact + '件が一致しました' + ((c.review + c.none) > 0 ? '／要確認 ' + (c.review + c.none) + '件' : '') + (c.error > 0 ? '／エラー ' + c.error + '件' : ''));
 	}
@@ -1572,7 +1597,15 @@
 
 		const spec = PICKER_MODES[picker.mode];
 		q(pickerEl, 'picker-title').textContent = spec.title;
-		['filter', 'paste', 'custom'].forEach(m => { q(pickerEl, 'mode-' + m).hidden = m !== picker.mode; });
+		// ocr モードは paste の枠を借りる（貼り付け欄だけ隠す）。要約は openSkillRowsPicker が入れる
+		const isOcr = picker.mode === 'ocr';
+		q(pickerEl, 'mode-filter').hidden = picker.mode !== 'filter';
+		q(pickerEl, 'mode-paste').hidden = !(picker.mode === 'paste' || isOcr);
+		q(pickerEl, 'mode-custom').hidden = picker.mode !== 'custom';
+		q(pickerEl, 'paste-input-wrap').hidden = isOcr;
+		const summaryEl = q(pickerEl, 'paste-summary');
+		summaryEl.hidden = true;
+		summaryEl.textContent = '';
 		// 手入力は作った時点でその場で足すので、下の確定ボタンは要らない。
 		// フッターごと畳む（条件で検索・テキストで検索の2モードは同じフッターを使う）。
 		q(pickerEl, 'picker-commit').hidden = !spec.commit;
@@ -1594,6 +1627,46 @@
 	function openTextSkillPicker(existingSkillIds, onAdd) { openPicker('paste', existingSkillIds, onAdd); }
 	// マスターにないスキルを追加（名前＋8軸タグの手入力）。
 	function openCustomSkillPicker(existingSkillIds, onAdd) { openPicker('custom', existingSkillIds, onAdd); }
+
+	/**
+	 * 外で照合を済ませた行を受け取って、候補の選択と確定だけをするモーダルを開く（スキルセットOCR・フェーズa コミット3）。
+	 *
+	 * @param existingSkillIds 既に入っているID（一覧から除外）
+	 * @param onAdd            openPicker と同じ受け皿（{scope, add, remove, probe} か fn(ids)）
+	 * @param rows             matchPastedSkillText() の rows と同じ形:
+	 *                         { raw, norm, kind:'exact'|'review'|'none'|'error', matchedId, matchedName,
+	 *                           candidates:[{id,name,distance}], reason?, autoAccepted? }
+	 *                         autoAccepted:true の 'review' 行は選択に入った状態で出る（applyPasteRows）。
+	 * @param summary          { lavender, gold, unknown, tabs:[{tab, detected, badgeCount}] } 省略可。
+	 *                         報告の先頭に1行出す。**文面はコミット4で確定する**（ここは骨組み。数字を並べるだけ）。
+	 *
+	 * 照合そのものはここで行わない。この関数は Deck 側の照合（normalizeSkillText。混同マップ無し）を通さないので、
+	 * common.js 側で CHAR_CONFUSION_MAP を効かせた結果をそのまま見せられる。
+	 */
+	function openSkillRowsPicker(existingSkillIds, onAdd, rows, summary) {
+		openPicker('ocr', existingSkillIds, onAdd);
+		const summaryEl = q(pickerEl, 'paste-summary');
+		const text = formatRowsSummary(summary);
+		summaryEl.textContent = text;
+		summaryEl.hidden = !text;
+		applyPasteRows(Array.isArray(rows) ? rows.slice() : []);
+	}
+
+	/** summary → 1行の文。骨組みの文面（コミット4で差し替える）。 */
+	function formatRowsSummary(s) {
+		if (!s) return '';
+		const parts = [];
+		if (typeof s.lavender === 'number') parts.push('白スキル ' + s.lavender + '種');
+		if (typeof s.gold === 'number') parts.push('金スキル ' + s.gold + '種（対象外）');
+		if (typeof s.unknown === 'number' && s.unknown > 0) parts.push('分類できない地の色 ' + s.unknown + '枚');
+		if (Array.isArray(s.tabs) && s.tabs.length) {
+			parts.push(s.tabs.map(t => {
+				const name = (t.tab == null || t.tab === 'unknown') ? 'タブ不明' : 'タブ' + t.tab;
+				return name + ' ' + (t.detected == null ? '' : t.detected + '枚') + (t.badgeCount == null ? '' : '／設定数 ' + t.badgeCount);
+			}).join('、'));
+		}
+		return parts.join(' ／ ');
+	}
 
 	function closePicker() {
 		if (pickerEl) pickerEl.hidden = true;
@@ -2452,6 +2525,7 @@
 		// スキル選択モーダル
 		openSkillPicker: openSkillPicker,
 		openTextSkillPicker: openTextSkillPicker,
+		openSkillRowsPicker: openSkillRowsPicker,
 		openCustomSkillPicker: openCustomSkillPicker,
 		closeSkillPicker: closePicker,
 		renderPickerResults: renderPickerResults,

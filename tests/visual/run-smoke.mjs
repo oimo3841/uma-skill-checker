@@ -448,6 +448,109 @@ const browser = await chromium.launch();
 }
 
 /* ============================================================
+ * special.html — 「画像から読み取る」の口（openSkillRowsPicker。スキルセットOCR フェーズa コミット3）
+ *
+ * 外で照合を済ませた行（ID付きの候補一覧）を core に渡し、「テキストで検索」と同じ報告
+ * （候補チップ・取り消し・確定）が動くことを見る。入口のボタンはコミット4なので、ここでは口を直接呼ぶ。
+ * 行の形は matchPastedSkillText() と同じ。autoAccepted:true の review 行は最初から選択に入る（決定 B-2）。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	await page.waitForTimeout(2500);
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	// マスター445種が読めてから（名前→ID の解決に使う）
+	await page.waitForFunction(() => UmaSkillDeckCore.matchPastedSkillText('右回り○').rows[0].kind === 'exact', null, { timeout: 15000 });
+
+	const opened = await page.evaluate(() => {
+		const m = UmaSkillDeckCore.matchPastedSkillText('右回り○\n左回り○\n春ウマ娘○\n夏ウマ娘○\n秋ウマ娘○');
+		const id = (i) => m.rows[i].matchedId;
+		const name = (i) => m.rows[i].matchedName;
+		window.__rowsAdded = null;
+		const rows = [
+			// 完全一致 → 最初から選択に入る
+			{ raw: name(0), norm: name(0), kind: 'exact', matchedId: id(0), matchedName: name(0), candidates: [{ id: id(0), name: name(0), distance: 0 }] },
+			// 距離1で一意 → autoAccepted:true。選択に入った状態で「完全一致ではない行」に並ぶ
+			{ raw: '左回りO', norm: '左回りO', kind: 'review', matchedId: id(1), matchedName: name(1), distance: 1, autoAccepted: true, reason: '距離1（完全一致ではない）',
+				candidates: [{ id: id(1), name: name(1), distance: 1 }, { id: id(0), name: name(0), distance: 2 }] },
+			// 同点3件 → 要確認。チップで選ぶ
+			{ raw: '種ウマ娩○', norm: '種ウマ娩○', kind: 'review', matchedId: null, matchedName: null, distance: 1, autoAccepted: false, reason: '距離1で同点3件',
+				candidates: [2, 3, 4].map((i) => ({ id: id(i), name: name(i), distance: 1 })) },
+			// 候補なし → 要確認（カスタムスキルとして追加／無視）
+			{ raw: '謎の読み', norm: '謎の読み', kind: 'none', matchedId: null, matchedName: null, distance: 3, candidates: [], reason: '距離3 > 許容1' }
+		];
+		UmaSkillDeckCore.openSkillRowsPicker([], (ids) => { window.__rowsAdded = ids.slice(); }, rows,
+			{ lavender: 3, gold: 2, unknown: 0, tabs: [{ tab: 1, detected: 5, badgeCount: 61 }] });
+		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
+		return {
+			title: el('picker-title').textContent,
+			paste: !el('mode-paste').hidden, filter: !el('mode-filter').hidden, custom: !el('mode-custom').hidden,
+			inputHidden: el('paste-input-wrap').hidden,
+			summary: el('paste-summary').hidden ? null : el('paste-summary').textContent,
+			footer: !el('picker-footer').hidden,
+			count: el('picker-checked-count').textContent,
+			approx: [...document.querySelectorAll('.usd-paste-approx .usd-paste-picked')].map((e) => e.textContent),
+			pendingLabel: (document.querySelector('[data-usd-el="paste-report"] .usd-paste-warn') || {}).textContent || null,
+			chips: [...document.querySelectorAll('.usd-paste-row:not(.usd-paste-approx) .usd-paste-cand')].map((e) => e.textContent),
+			ids: { pick: id(2), exact: id(0), near: id(1) }
+		};
+	});
+	assert(opened.title === '画像から読み取る' && opened.paste && !opened.filter && !opened.custom && opened.inputHidden && opened.footer,
+		'special/ocr口: 「画像から読み取る」は貼り付けの枠を借り、貼り付け欄だけを隠してフッターを出す', opened);
+	assert(opened.summary === '白スキル 3種 ／ 金スキル 2種（対象外） ／ タブ1 5枚／設定数 61',
+		'special/ocr口: (e) 要約の1行が報告の先頭に出る', opened.summary);
+	assert(opened.count === '2種選択' && opened.approx.length === 1 && opened.approx[0] === '左回り○',
+		'special/ocr口: (a) 完全一致と autoAccepted の行が最初から選択済み、後者は「完全一致ではない行」に並ぶ', { count: opened.count, approx: opened.approx });
+	assert(opened.pendingLabel === '要確認 2件' && opened.chips.includes('春ウマ娘○') && opened.chips.includes('カスタムスキルとして追加'),
+		'special/ocr口: 同点の行と候補なしの行が要確認に並び、候補チップとカスタム追加が出る', { pending: opened.pendingLabel, chips: opened.chips });
+
+	// (b) 候補チップを押すと選び直せる（同点3件から1つを選ぶ → 3種選択）
+	await page.click('.usd-paste-row:not(.usd-paste-approx) .usd-paste-cand[data-skill-id="' + opened.ids.pick + '"]');
+	await page.waitForTimeout(300);
+	const picked = await page.evaluate(() => ({
+		count: document.querySelector('[data-usd-el="picker-checked-count"]').textContent,
+		approx: [...document.querySelectorAll('.usd-paste-approx .usd-paste-picked')].map((e) => e.textContent)
+	}));
+	assert(picked.count === '3種選択' && picked.approx.includes('春ウマ娘○'),
+		'special/ocr口: (b) 候補チップを押すと選び直せて、選択の数が増える', picked);
+
+	// (c) 「取り消す」で autoAccepted の行の選択が外れる（3 → 2）
+	await page.evaluate(() => {
+		const row = [...document.querySelectorAll('.usd-paste-approx')].find((r) => r.querySelector('.usd-paste-picked').textContent === '左回り○');
+		row.querySelector('[data-usd-act="paste-skip"]').click();
+	});
+	await page.waitForTimeout(300);
+	const skipped = await page.evaluate(() => ({
+		count: document.querySelector('[data-usd-el="picker-checked-count"]').textContent,
+		approx: [...document.querySelectorAll('.usd-paste-approx .usd-paste-picked')].map((e) => e.textContent)
+	}));
+	assert(skipped.count === '2種選択' && !skipped.approx.includes('左回り○'),
+		'special/ocr口: (c) 「取り消す」で自動採用の行の選択が外れる', skipped);
+
+	// (d) 「チェックしたスキルを追加」で onAdd が呼ばれる（完全一致＋選び直した1件＝2件）
+	await page.click('[data-usd-act="picker-add"]');
+	await page.waitForTimeout(400);
+	const added = await page.evaluate(() => window.__rowsAdded);
+	assert(Array.isArray(added) && added.length === 2 && added.includes(opened.ids.exact) && added.includes(opened.ids.pick) && !added.includes(opened.ids.near),
+		'special/ocr口: (d) 確定で onAdd に選んだIDだけが渡る', added);
+
+	// 「テキストで検索」を開き直すと貼り付け欄が戻り、要約が消える（モードの後始末）
+	await page.click('[data-usd-act="picker-close"]');
+	await page.waitForTimeout(300);
+	const back = await page.evaluate(() => {
+		UmaSkillDeckCore.openTextSkillPicker([], () => {});
+		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
+		return { title: el('picker-title').textContent, inputHidden: el('paste-input-wrap').hidden, summaryHidden: el('paste-summary').hidden, report: el('paste-report').innerHTML.length };
+	});
+	assert(back.title === 'テキストで検索' && !back.inputHidden && back.summaryHidden && back.report === 0,
+		'special/ocr口: 「テキストで検索」を開き直すと貼り付け欄が戻り、要約と前の報告が消える', back);
+	await page.click('[data-usd-act="picker-close"]');
+
+	assert(errors.length === 0, 'special/ocr口: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
  * special.html — 既定は新UI／切り替えの告知モーダル
  *
  * 「どちらのUIで開くか」と「モーダルを既読にしたか」が localStorage に残るので、
