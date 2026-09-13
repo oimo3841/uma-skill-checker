@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-13b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-13c';
 
 	/* ============================================================
 	 * 定数
@@ -1710,6 +1710,10 @@
 	 *   onSelectionChange … 選択が変わったとき fn(selection|null)。selection は getSelection() と同じ形。
 	 *   onChange          … テンプレート/ドラフト/カスタムスキルが変化したとき fn()
 	 *   onViewChange      … 一覧⇄編集が切り替わったとき fn('list'|'editor')
+	 *   screenshotEntry   … { label, onClick, onHelp } を渡すと、編集画面の入口の並び（「テキストで検索」と
+	 *                       「マスターにないスキルを追加」の間）に4つ目の入口「スクショから読み取る」と「?」（撮影ガイド）を
+	 *                       出す。押したときの処理は呼び出し元（special.html のスキルセットOCR）が持つ。
+	 *                       省略すると出ない（uma-skill-deck.html はこちら。Deck 単体ページの入口は後続）。
 	 *
 	 * 呼び出し元がテンプレートIDやドラフトの区別を意識しなくて済むよう、
 	 * 選択結果は getSelection() が返す { kind, id, name, skillIds } に統一している。
@@ -1753,6 +1757,20 @@
 					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-text">' +
 						'<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索' +
 					'</button>' +
+					// 4つ目の入口（スクショから読み取る）は呼び出し元が opts.screenshotEntry を渡したときだけ出す
+					// （special.html だけ。uma-skill-deck.html には出さない＝Deck 単体ページの入口は後続）。
+					// アイコンはツール内のアップロード枠と同じ lucide の upload-cloud（雲＋上矢印）。
+					// 「?」は撮影ガイド（onHelp）。どちらも見た目は他の入口と揃える。
+					(opts.screenshotEntry ?
+						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-screenshot">' +
+							'<i data-lucide="upload-cloud" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> ' + esc(opts.screenshotEntry.label || 'スクショで追加') +
+						'</button>' +
+						(typeof opts.screenshotEntry.onHelp === 'function'
+							? '<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="editor-pick-screenshot-help" aria-label="撮影ガイド" title="撮影ガイド">' +
+									'<i data-lucide="help-circle" class="w-4 h-4"></i>' +
+								'</button>'
+							: '')
+					: '') +
 					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-custom">' +
 						'<i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> マスターにないスキルを追加' +
 					'</button>' +
@@ -1784,6 +1802,8 @@
 			else if (act === 'editor-pick') openEditorPicker('filter');
 			else if (act === 'editor-pick-text') openEditorPicker('paste');
 			else if (act === 'editor-pick-custom') openEditorPicker('custom');
+			else if (act === 'editor-pick-screenshot') { if (opts.screenshotEntry && typeof opts.screenshotEntry.onClick === 'function') opts.screenshotEntry.onClick(); }
+			else if (act === 'editor-pick-screenshot-help') { if (opts.screenshotEntry && typeof opts.screenshotEntry.onHelp === 'function') opts.screenshotEntry.onHelp(); }
 			else if (act === 'template-open') openEditor(btn.dataset.templateId);
 			else if (act === 'template-duplicate') duplicateTemplate(btn.dataset.templateId);
 			else if (act === 'template-delete') deleteTemplate(btn.dataset.templateId);

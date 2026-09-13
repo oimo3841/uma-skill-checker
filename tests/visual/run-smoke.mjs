@@ -566,30 +566,61 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(300);
 	await page.waitForFunction(() => UmaSkillDeckCore.matchPastedSkillText('右回り○').rows[0].kind === 'exact', null, { timeout: 15000 });
 
-	// 入口: 新UIのステップ①、#deck-template-panel の下に、既存の3つの入口と同じ見た目で1つ。押すと画像のファイル選択が開く
+	// 入口は編集画面の入口の並びに出る（改訂: 「テキストで検索」と「マスターにないスキルを追加」の間。
+	// ラベル「スキルセットのスクショで追加」、アイコンはアップロード枠と同じ upload-cloud、隣に「?」＝撮影ガイド）。
+	// 一覧の画面には無い。ドラフトの編集を開いてから見る。
+	// 編集画面のマークアップは一覧と同じコンテナに hidden で同居するので、「見えているか」で見る
+	assert(await page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-act="editor-pick-screenshot"]'); return !b || b.offsetParent === null; }),
+		'special/ocr入口: 一覧の画面には入口が見えない（編集画面の入口の並びにだけ出す）');
+	await page.click('#deck-template-panel [data-usd-act="draft-open"]');
+	await page.waitForTimeout(400);
 	const entry = await page.evaluate(() => {
-		const btn = document.getElementById('deck-ocr-btn');
+		const row = document.querySelector('#deck-template-panel .usd-entry-row');
+		const buttons = [...row.querySelectorAll('button')].map((b) => ({ act: b.dataset.usdAct, label: b.textContent.trim(), cls: b.className, icon: (b.querySelector('svg, i') || {}).getAttribute ? (b.querySelector('svg, i').getAttribute('data-lucide') || b.querySelector('svg, i').getAttribute('class')) : null }));
+		const btn = row.querySelector('[data-usd-act="editor-pick-screenshot"]');
+		const help = row.querySelector('[data-usd-act="editor-pick-screenshot-help"]');
 		const input = document.getElementById('deck-ocr-files');
-		const panel = document.getElementById('deck-template-panel');
 		window.__filePickerOpened = 0;
 		input.click = () => { window.__filePickerOpened++; };
-		btn.click();
+		const guide = () => !document.getElementById('skillset-guide-box').hidden;
+		const before = guide();
+		btn.click();                                  // 入口 → 撮影ガイド（アップロードの画面）が開く。ファイル選択はまだ
+		const opened = guide();
+		const openedWithoutPicker = window.__filePickerOpened;
+		const guideText = document.querySelector('#skillset-guide-box .help-body p').textContent;
+		const img = document.getElementById('skillset-guide-img');
+		document.getElementById('skillset-guide-pick').click(); // 「スクショを選ぶ」→ ガイドが閉じてファイル選択が開く
+		const afterPick = { guide: guide(), picker: window.__filePickerOpened };
+		help.click();                                 // 「?」→ 同じガイドが開く
+		const helpOpened = guide();
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); // Esc で閉じる
+		const afterEsc = guide();
 		return {
-			visible: !!btn && btn.offsetParent !== null,
-			label: btn.textContent.trim(),
-			classes: btn.className,
-			inDeckBody: !!btn.closest('#deck-skill-body'),
-			afterPanel: !!panel && !!(panel.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING),
+			order: buttons.map((b) => b.act),
+			label: btn.textContent.trim(), cls: btn.className,
+			icon: buttons.find((b) => b.act === 'editor-pick-screenshot').icon,
+			helpLabel: help.getAttribute('aria-label'),
+			// 参考画像は SKILLSET_GUIDE_IMAGE が空のあいだは出さない（src も付けない＝404 を出さない）。パスが入れば src が付いて見える
+			before, opened, openedWithoutPicker, guideText, imgAlt: img.getAttribute('alt'),
+			imgOk: SKILLSET_GUIDE_IMAGE ? (img.getAttribute('src') === SKILLSET_GUIDE_IMAGE && !img.hidden) : (!img.getAttribute('src') && img.hidden),
+			afterPick, helpOpened, afterEsc,
 			input: { hidden: input.hidden, multiple: input.multiple, accept: input.accept },
-			opened: window.__filePickerOpened,
 			progressHidden: document.getElementById('deck-ocr-progress').hidden,
 			warnHidden: document.getElementById('deck-ocr-warn').classList.contains('hidden')
 		};
 	});
-	assert(entry.visible && entry.label === 'スキルセット画面のスクショから読み取る' && entry.classes.includes('uma-btn--secondary') && entry.inDeckBody && entry.afterPanel,
-		'special/ocr入口: ステップ①の #deck-template-panel の下に、既存の入口と同じ見た目で出る', entry);
-	assert(entry.input.hidden && entry.input.multiple && entry.input.accept === 'image/*' && entry.opened === 1 && entry.progressHidden && entry.warnHidden,
-		'special/ocr入口: 押すと画像のファイル選択（複数）が開き、進捗と知らせの枠は閉じたまま', entry);
+	assert(entry.order.join(',') === 'editor-pick,editor-pick-text,editor-pick-screenshot,editor-pick-screenshot-help,editor-pick-custom'
+		&& entry.label === 'スキルセットのスクショで追加' && entry.cls.includes('uma-btn--secondary') && entry.helpLabel === '撮影ガイド',
+		'special/ocr入口: 「テキストで検索」と「マスターにないスキルを追加」の間に、同じ見た目で「スキルセットのスクショで追加」と「?」が出る', { order: entry.order, label: entry.label, help: entry.helpLabel });
+	assert(entry.icon === 'upload-cloud' || String(entry.icon).includes('lucide-upload-cloud'),
+		'special/ocr入口: アイコンはアップロード枠と同じ upload-cloud（雲＋上矢印）', entry.icon);
+	assert(!entry.before && entry.opened && entry.openedWithoutPicker === 0
+		&& entry.guideText.includes('「スキルセット詳細」画面') && entry.imgOk && entry.imgAlt,
+		'special/ocr入口: 押すと撮影ガイド（スキルセット詳細画面の例＋説明）が先に開き、ファイル選択はまだ開かない', { text: entry.guideText, imgOk: entry.imgOk });
+	assert(!entry.afterPick.guide && entry.afterPick.picker === 1 && entry.input.hidden && entry.input.multiple && entry.input.accept === 'image/*',
+		'special/ocr入口: ガイドの「スクショを選ぶ」でガイドが閉じ、画像のファイル選択（複数）が開く', { afterPick: entry.afterPick, input: entry.input });
+	assert(entry.helpOpened && !entry.afterEsc && entry.progressHidden && entry.warnHidden,
+		'special/ocr入口: 「?」で同じガイドが開き、Esc で閉じる。進捗と知らせの枠は閉じたまま', { helpOpened: entry.helpOpened, afterEsc: entry.afterEsc });
 
 	// 読み取りの結果（合成）: 完全一致1・自動採用1・要確認1、金2種、読めない1枚、小さすぎる画像1、カードが見つからない画像1
 	const shown = await page.evaluate(() => {

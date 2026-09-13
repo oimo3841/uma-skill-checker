@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-13d"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-13b"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-13c"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-13a"></script>
 	<style>
@@ -242,6 +242,36 @@
 		     ✕・「閉じる」・背景タップ・Esc の4つ用意してある。
 		     文面は「①でリストを用意 → ②で画像 → 判定 → 結果」の流れだけに絞り、
 		     画像の注意は撮影のときに要るものだけ残した（画質の注意はヘッダーにある）。 -->
+		<!-- 撮影ガイド（スキルセットOCR。使い方ガイドと同じオーバーレイの作り）
+		     入口「スキルセットのスクショで追加」を押すと開き、ここから「スクショを選ぶ」でファイル選択へ進む
+		     ＝アップロードの画面そのものがガイドを兼ねる（開いた瞬間に例が見える）。「?」からも同じものを開ける。
+		     参考画像は img/skillset-guide.png（おいもさんがリポジトリに保存。無ければ画像だけ消えて文は残る）。 -->
+		<div id="skillset-guide-backdrop" class="uma-overlay-backdrop" hidden onclick="closeSkillsetGuide()"></div>
+		<div id="skillset-guide-box" class="uma-overlay help-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="skillset-guide-title">
+			<div class="help-head">
+				<h2 id="skillset-guide-title" class="help-title">
+					<i data-lucide="upload-cloud" class="w-4 h-4 text-green-600"></i>
+					<span>スキルセットのスクショで追加</span>
+				</h2>
+				<button id="skillset-guide-close" type="button" class="uma-icon-btn" onclick="closeSkillsetGuide()" aria-label="閉じる">
+					<i data-lucide="x" class="w-5 h-5"></i>
+				</button>
+			</div>
+			<div class="help-body">
+				<p class="text-sm text-slate-700">ゲームの<strong>「スキルセット詳細」画面</strong>のスクリーンショットを選んでください。下の画面が例です。スクロールして撮った複数枚を、一度に選べます。</p>
+				<p class="text-xs text-slate-500 mt-1">読み取った白スキルを、いま編集している対象スキルセットに追加します。金スキルは対象外です。</p>
+				<!-- src は開くときに SKILLSET_GUIDE_IMAGE から入れる（空なら画像を出さない＝無い画像を取りに行って 404 を出さない） -->
+				<img id="skillset-guide-img" alt="スキルセット詳細画面の例" class="mt-3 rounded-lg border border-slate-200 max-h-[50vh] w-auto mx-auto block" hidden onerror="this.hidden = true">
+				<div class="mt-4 flex flex-wrap gap-2 justify-end">
+					<button type="button" class="uma-btn uma-btn--secondary" onclick="closeSkillsetGuide()">閉じる</button>
+					<button id="skillset-guide-pick" type="button" class="uma-btn uma-btn--primary" onclick="pickSkillsetScreenshots()">
+						<i data-lucide="upload-cloud" class="w-4 h-4"></i>
+						<span>スクショを選ぶ</span>
+					</button>
+				</div>
+			</div>
+		</div>
+
 		<div id="help-backdrop" class="uma-overlay-backdrop" hidden onclick="closeHelp()"></div>
 		<div id="help-box" class="uma-overlay help-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="help-title">
 			<div class="help-head">
@@ -366,17 +396,14 @@
 			<div id="deck-skill-body" class="hidden">
 				<div id="deck-loading-note" class="text-xs text-slate-500 mb-3">テンプレートを読み込んでいます…</div>
 				<div id="deck-template-panel"></div>
-				<!-- スキルセットOCR（フェーズa コミット4）: ゲームのスキルセット画面のスクショから白スキルを読み取り、
-				     対象スキルセットへ足す入口。読み取りは js/skillset-ocr.js、結果の選択と確定は core の
-				     openSkillRowsPicker（「テキストで検索」と同じ報告）。語は B-4（ゲーム側は必ず「スキルセット画面」、
-				     ツール側は「対象スキルセット」のまま。ボタンは名指しを避ける）。 -->
-				<div id="deck-ocr-entry" class="mt-3">
+				<!-- スキルセットOCR（フェーズa コミット4・改訂）: ゲームの「スキルセット詳細」画面のスクショから白スキルを読み取り、
+				     対象スキルセットへ足す。入口のボタン「スキルセットのスクショで追加」と「?」（撮影ガイド）は core の編集画面の
+				     入口の並び（「テキストで検索」と「マスターにないスキルを追加」の間）に、createTemplateManager の
+				     screenshotEntry で出す。ここにあるのは、そのボタンが呼ぶ部品（ファイル選択・進捗・画像単位の知らせ）。
+				     読み取りは js/skillset-ocr.js、結果の選択と確定は core の openSkillRowsPicker（「テキストで検索」と同じ報告）。 -->
+				<div id="deck-ocr-status">
 					<input type="file" id="deck-ocr-files" accept="image/*" multiple hidden onchange="runSkillsetScreenshots(this.files)">
-					<button id="deck-ocr-btn" type="button" class="uma-btn uma-btn--secondary" onclick="pickSkillsetScreenshots()">
-						<i data-lucide="image" class="w-3.5 h-3.5"></i>
-						<span>スキルセット画面のスクショから読み取る</span>
-					</button>
-					<p id="deck-ocr-progress" class="text-xs text-slate-500 mt-1.5" hidden></p>
+					<p id="deck-ocr-progress" class="text-xs text-slate-500 mt-2" hidden></p>
 					<!-- 画像単位の知らせ（4b）。因子OCRの画質警告（#quality-warn-wrap）と同じ見た目。表示は classList の hidden -->
 					<div id="deck-ocr-warn" class="hidden mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 whitespace-pre-line flex gap-2">
 						<i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500 shrink-0 mt-0.5"></i>
@@ -1957,7 +1984,10 @@
 						// 選択中のものの中身が変わったら照合辞書を作り直す
 						onChange: () => { onDeckScopeSelected(deckTemplateManager.getSelection()); },
 						// 「元に戻す」は、いま見ている画面（一覧か編集か）のぶんだけ出す
-						onViewChange: (view) => UmaSkillDeckCore.setUndoScope(view === 'editor' ? 'editor' : 'list')
+						onViewChange: (view) => UmaSkillDeckCore.setUndoScope(view === 'editor' ? 'editor' : 'list'),
+						// スキルセットOCR: 編集画面の入口の並びに4つ目「スキルセットのスクショで追加」と「?」（撮影ガイド）を出す。
+						// 押すと撮影ガイド（＝アップロードの画面）を開き、その中の「スクショを選ぶ」からファイル選択へ。
+						screenshotEntry: { label: 'スキルセットのスクショで追加', onClick: openSkillsetGuide, onHelp: openSkillsetGuide }
 					}
 				);
 			} else {
@@ -2049,9 +2079,41 @@
 		 * ============================================================ */
 		let skillsetOcrBusy = false;
 		let skillsetOcrDevLog = []; // 開発ログ用（利用者向けの文ではない。タブごとの内訳・幅・文字高・読み直しはここだけ）
+		let skillsetGuideOpen = false;
+		let skillsetGuideReturnFocus = null;
+		// 撮影ガイドの参考画像（「スキルセット詳細」画面の例）。おいもさんがリポジトリに保存したパスをここに入れる。
+		// 空のあいだは画像を出さない（無い画像を取りに行って 404 のコンソールエラーを出さないため。test:visual / test:master が見る）。
+		const SKILLSET_GUIDE_IMAGE = '';
+
+		// 入口（core の編集画面の4つ目のボタン）を押すと、まず撮影ガイド＝アップロードの画面を開く。
+		// ファイル選択はその中の「スクショを選ぶ」から。OS のファイル選択の裏でガイドが開きっぱなしにならないよう、
+		// 選ぶ瞬間にガイドを閉じる。「?」は同じガイドを開くだけ。
+		function openSkillsetGuide() {
+			if (skillsetGuideOpen) return;
+			skillsetGuideOpen = true;
+			skillsetGuideReturnFocus = document.activeElement;
+			const img = document.getElementById('skillset-guide-img');
+			if (SKILLSET_GUIDE_IMAGE && img.getAttribute('src') !== SKILLSET_GUIDE_IMAGE) { img.hidden = false; img.src = SKILLSET_GUIDE_IMAGE; }
+			document.getElementById('skillset-guide-backdrop').hidden = false;
+			document.getElementById('skillset-guide-box').hidden = false;
+			document.body.style.overflow = 'hidden';
+			if (window.lucide) lucide.createIcons();
+			document.getElementById('skillset-guide-pick').focus();
+		}
+
+		function closeSkillsetGuide() {
+			if (!skillsetGuideOpen) return;
+			skillsetGuideOpen = false;
+			document.getElementById('skillset-guide-backdrop').hidden = true;
+			document.getElementById('skillset-guide-box').hidden = true;
+			document.body.style.overflow = '';
+			if (skillsetGuideReturnFocus && typeof skillsetGuideReturnFocus.focus === 'function') skillsetGuideReturnFocus.focus();
+			skillsetGuideReturnFocus = null;
+		}
 
 		function pickSkillsetScreenshots() {
 			if (skillsetOcrBusy) return;
+			closeSkillsetGuide();
 			const input = document.getElementById('deck-ocr-files');
 			input.value = ''; // 同じファイルを選び直しても change が起きるように
 			input.click();
@@ -2064,10 +2126,11 @@
 				showToast('表示に必要な外部ファイルを読み込めませんでした。ページを再読み込みしてください。');
 				return;
 			}
-			const btn = document.getElementById('deck-ocr-btn');
+			// 入口のボタンは core が編集画面に描く（data-usd-act）。処理中は押せなくする（編集画面を閉じていれば無い）
+			const btn = document.querySelector('#deck-template-panel [data-usd-act="editor-pick-screenshot"]');
 			const prog = document.getElementById('deck-ocr-progress');
 			skillsetOcrBusy = true;
-			btn.disabled = true;
+			if (btn) btn.disabled = true;
 			document.getElementById('deck-ocr-warn').classList.add('hidden');
 			prog.hidden = false;
 			prog.textContent = 'OCRエンジンを初期化中…';
@@ -2097,7 +2160,7 @@
 			} finally {
 				if (worker) { try { await worker.terminate(); } catch (e) {} }
 				prog.hidden = true;
-				btn.disabled = false;
+				if (btn) btn.disabled = false;
 				skillsetOcrBusy = false;
 			}
 		}
@@ -2367,6 +2430,7 @@
 		document.addEventListener('keydown', (e) => {
 			if (e.key !== 'Escape') return;
 			if (uiNoticeOpen) closeUiNotice();
+			else if (skillsetGuideOpen) closeSkillsetGuide();
 			else if (helpOpen) closeHelp();
 			else if (openDrawerKey) closeDrawer();
 			else if (fabOpen) setFabOpen(false);

@@ -208,6 +208,10 @@ const INTENTIONALLY_REMOVED = {
 	// 例: special の Deck保存パネル（F-27）／旧UIの告知一式（C-16）／
 	//     exam の #stitch-drawer・#result-drawer-copy-slot（C-18 追加修正⑤⑦）／
 	//     core.js の data-usd-edge ほか（F-28）。
+	// 2026-09-13（30セッション目・コミット4の改訂）: スキルセットOCRの入口を special.html のステップ①直下（#deck-ocr-entry / #deck-ocr-btn）から
+	// core の編集画面の入口の並び（data-usd-act="editor-pick-screenshot"）へ移した。ファイル選択・進捗・知らせの枠は #deck-ocr-status に残る。
+	// commit `e10e14a` の直後の1回だけ要る免除（commit が進んだら消してよい）。
+	'special.html': ['deck-ocr-entry', 'deck-ocr-btn']
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
