@@ -10,9 +10,10 @@
 // 別に数える。これがいちばん危険な分類。
 //
 // 距離と許容距離は js/common.js のものをそのまま使う（複製しない）。
-// ただし common.js の bestCandidate() は「長い行の一部にスキル名が含まれる」場合を
-// 見るための窓付き距離を使う。カード1枚＝スキル名1つなので、ここでは窓を使わない
-// 素の距離で見る（後続フェーズで製品に入れるときも同じ想定）。
+// common.js の bestCandidate() も素の Levenshtein で、窓付き距離は無い
+// （以前ここに「窓付き距離を使う」と書いていたのは誤り。28セッション目・フェーズa Step 0 で訂正）。
+// 製品の js/skillset-ocr.js は bestCandidate() をそのまま呼ぶ。ここでは exact / viaMap / ambiguous /
+// unreadable の分類を出すために levenshtein() と allowedDistance() を直接使うが、距離の定義は同じ。
 
 import { common, normalizeWithoutConfusion, normalizeWithExtraMap } from './common-in-node.mjs';
 

@@ -93,6 +93,8 @@ function replayReports(extra) {
 		const nameById = truth ? new Map(truth.cards.map((c) => [c.id, c.skillName])) : new Map();
 		const idById = truth ? new Map(truth.cards.map((c) => [c.id, c.skillId])) : new Map();
 		rep.rows.forEach((row) => {
+			// 金の地のカードは OCR にかけていない（category: 'excluded'・texts: []）。照合し直す対象ではない
+			if (row.category === 'excluded') return;
 			const reads = (row.texts || [row.text]).map((t) => ({ text: t, confidence: 0 }));
 			const a = combineReads(reads, base).chosen;
 			const b = combineReads(reads, withExtra).chosen;

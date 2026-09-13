@@ -56,6 +56,12 @@ const RANK = { exact: 0, viaMap: 1, ambiguous: 2, unreadable: 3 };
  * 変種どうしが別々のスキルに一意一致したときは「確定させない」＝確認行きにする。
  */
 export function combineReads(reads, matcher) {
+	// 読みが1つも無いカード（金の地で OCR にかけなかった行など。保存した結果では texts: []）は
+	// 「読めない」として返す。以前は classified[0] を参照して TypeError で落ちていた（コミット5で修正）。
+	if (!reads || !reads.length) {
+		const cls = matcher.classify('');
+		return { chosen: cls, read: { text: '', confidence: 0 }, classified: [] };
+	}
 	const classified = reads.map((r) => ({ read: r, cls: matcher.classify(r.text) }));
 	const decided = classified.filter((c) => c.cls.skill);
 	const ids = new Set(decided.map((c) => c.cls.skill.id));
