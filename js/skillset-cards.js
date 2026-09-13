@@ -17,7 +17,7 @@
  * （lib/browser.mjs・fixtures/*.html）も**この実体をそのまま読む**（二重管理しない）。
  * 版は他の共有JSと同じ運用（各HTMLの ?v= と定数の3点一致。tests/visual/run-verify.mjs が見る）。
  */
-const SKILLSET_CARDS_JS_VERSION = '2026-09-13a';
+const SKILLSET_CARDS_JS_VERSION = '2026-09-13b';
 
 (function (global) {
 	'use strict';
@@ -69,13 +69,17 @@ const SKILLSET_CARDS_JS_VERSION = '2026-09-13a';
 		TAB_MIN_H_RATIO: 0.010,
 		TAB_MAX_H_RATIO: 0.030,
 		TAB_COUNT: 3,
-		// カードの地が金かどうかの判定。アイコン（左端）を外した帯で、
-		// 金の画素とラベンダーの画素のどちらが多いかを見る。
-		// 金のカードは継承できないスキル（進化・金・◎）なので、OCRにかけず「対象外」にする。
+		// カードの地の色の判定（classifyCardKind）。アイコン（左端）を外した帯で、
+		// CARD_KINDS の色ごとに画素を数え、いちばん多い色を採る。
+		// 金のカードは継承できないスキルなので、OCRにかけず「対象外」にする。
 		KIND_SCAN_LEFT: 0.15, // アイコンぶんを外す
 		KIND_SCAN_TOP: 0.15,
 		KIND_SCAN_BOTTOM: 0.85,
-		KIND_GOLD_MIN_RATIO: 0.2, // 帯の画素のうち、金がこの割合を超えたら金のカード
+		// いちばん多い色でも、帯の画素に占める割合がこれに届かなければ 'unknown'（どの色でもない）。
+		// 値は以前の KIND_GOLD_MIN_RATIO（金と判定する下限）をそのまま引き継いだ。
+		// 実測（1179x2556 の添付4枚・無劣化の動画3本）では、ラベンダーのカードの帯はほぼ全面が
+		// ラベンダー、金のカードは金の割合が 0.2 を大きく超えるので、2色の判定は以前と変わらない。
+		KIND_MIN_RATIO: 0.2,
 		// スクロールバー（右端）
 		SCROLLBAR_X_FROM: 0.93,
 		SCROLLBAR_X_TO: 0.985,
@@ -181,14 +185,40 @@ const SKILLSET_CARDS_JS_VERSION = '2026-09-13a';
 
 	/* ---------- カード ---------- */
 
+	/**
+	 * カードの地の色の一覧（フェーズa コミット2・決定 B-6）。
+	 *
+	 * 以前は「ラベンダーか金か」の2値で、金でなければラベンダーに落としていた。
+	 * この画面には第3の色（進化スキルは赤みがかった別の色、とおいもさん）が並び得るので、
+	 * 色の定義を一覧で持ち、**どれにも当たらないカードは 'unknown' にする**（ラベンダーに落とさない）。
+	 * カードの検出（detectCards）のマスクはこの一覧の論理和なので、色を1つ足せば検出にも分類にも効く。
+	 *
+	 *   key      … 分類名。'lavender'（白スキル＝取り込み対象）／'gold'（金スキル＝対象外）／…
+	 *   test     … 画素がこの地の色かどうか。しきい値は SKILLSET_TUNING から取る
+	 *
+	 * 3色目以降の定義は素材（進化スキル入りの画面）が届いてから実測して足す。
+	 * 今は既存の2色のまま（構造だけ先に作った）。
+	 */
+	var CARD_KINDS = [
+		{
+			key: 'lavender',
+			test: function (r, g, b, T) { return (b - r > T.LAVENDER_B_MINUS_R) && r > T.LAVENDER_MIN_R && b > T.LAVENDER_MIN_B; }
+		},
+		{
+			key: 'gold',
+			test: function (r, g, b, T) { return r > T.GOLD_MIN_R && g > T.GOLD_MIN_G && b < T.GOLD_MAX_B && (r - b) > T.GOLD_MIN_R_MINUS_B; }
+		}
+	];
+
 	/** カード候補の外接矩形（上端で切れたものやボタンも含む）。 */
 	function detectCards(img, tuning) {
 		var T = tuning || SKILLSET_TUNING;
 		var W = img.width, H = img.height;
 		var m = maskFrom(img, function (r, g, b) {
-			var lav = (b - r > T.LAVENDER_B_MINUS_R) && r > T.LAVENDER_MIN_R && b > T.LAVENDER_MIN_B;
-			var gold = r > T.GOLD_MIN_R && g > T.GOLD_MIN_G && b < T.GOLD_MAX_B && (r - b) > T.GOLD_MIN_R_MINUS_B;
-			return lav || gold;
+			// 地の色の一覧の論理和。金の画素の判定を先に置くのは、金の条件のほうが厳しく
+			// （r>220 かつ b<190）ラベンダーと重なることが無いため、順番はどちらでもよい。
+			for (var i = 0; i < CARD_KINDS.length; i++) if (CARD_KINDS[i].test(r, g, b, T)) return true;
+			return false;
 		});
 		m = close(m, W, H, T.CARD_CLOSE_KERNEL);
 		return components(m, W, H)
@@ -218,11 +248,20 @@ const SKILLSET_CARDS_JS_VERSION = '2026-09-13a';
 	}
 
 	/**
-	 * カードの地が金かラベンダーかを返す（'gold' / 'lavender'）。
+	 * カードの地の色を返す（'lavender' / 'gold' / 'unknown'）。
 	 *
-	 * マスター445種は**継承スキルだけ**が対象で、進化スキル・金スキル・◎（○の強化版）は
-	 * 仕様上そこに入らない。それらは画面上で金の地のカードになるので、**色だけでOCR前に外せる。**
-	 * アイコンは金のカードでもラベンダーのカードでも金色なので、左端のアイコンぶんは見ない。
+	 * マスター445種は**継承スキルだけ**が対象で、金スキル・◎（○の強化版）は仕様上そこに入らない。
+	 * 金の地のカードは**色だけでOCR前に外せる。** アイコンは金のカードでもラベンダーのカードでも
+	 * 金色なので、左端のアイコンぶんは見ない。
+	 *
+	 * 決め方（フェーズa コミット2・決定 B-6）: アイコンを外した帯の画素を CARD_KINDS ごとに数え、
+	 * **いちばん多い色**を採る。ただしその色の割合が KIND_MIN_RATIO に届かなければ 'unknown'。
+	 * 以前の「金の割合が 0.2 を超えたら金、さもなくばラベンダー」という片側だけのしきい値は、
+	 * 第3の色をラベンダーとして OCR に回してしまうのでやめた。
+	 * 'unknown' のカードは OCR にかけず、「分類できない地の色のカードが N 枚」として報告する。
+	 *
+	 * 戻り値: { kind, goldRatio, lavenderRatio, ratios: {<key>: 割合} }
+	 *   goldRatio / lavenderRatio は以前からの呼び出し元（tests/skillset の切り出しの明細）のために残す。
 	 */
 	function classifyCardKind(img, rect, tuning) {
 		var T = tuning || SKILLSET_TUNING;
@@ -231,26 +270,37 @@ const SKILLSET_CARDS_JS_VERSION = '2026-09-13a';
 		var x1 = rect.x + rect.w;
 		var y0 = rect.y + Math.round(rect.h * T.KIND_SCAN_TOP);
 		var y1 = rect.y + Math.round(rect.h * T.KIND_SCAN_BOTTOM);
-		var gold = 0, lav = 0, total = 0;
+		var counts = CARD_KINDS.map(function () { return 0; });
+		var total = 0;
 		for (var y = y0; y < y1; y++) {
 			for (var x = x0; x < x1; x++) {
 				var p = (y * W + x) * 4;
 				var r = d[p], g = d[p + 1], b = d[p + 2];
 				total++;
-				if (r > T.GOLD_MIN_R && g > T.GOLD_MIN_G && b < T.GOLD_MAX_B && (r - b) > T.GOLD_MIN_R_MINUS_B) gold++;
-				else if ((b - r > T.LAVENDER_B_MINUS_R) && r > T.LAVENDER_MIN_R && b > T.LAVENDER_MIN_B) lav++;
+				// 1画素は最初に当たった色にだけ数える（一覧の順で優先）
+				for (var i = 0; i < CARD_KINDS.length; i++) {
+					if (CARD_KINDS[i].test(r, g, b, T)) { counts[i]++; break; }
+				}
 			}
 		}
+		var ratios = {};
+		var bestIndex = -1, bestRatio = 0;
+		CARD_KINDS.forEach(function (k, i) {
+			var ratio = total > 0 ? counts[i] / total : 0;
+			ratios[k.key] = ratio;
+			if (ratio > bestRatio) { bestRatio = ratio; bestIndex = i; }
+		});
 		return {
-			kind: total > 0 && gold / total > T.KIND_GOLD_MIN_RATIO ? 'gold' : 'lavender',
-			goldRatio: total > 0 ? gold / total : 0,
-			lavenderRatio: total > 0 ? lav / total : 0
+			kind: bestIndex >= 0 && bestRatio >= T.KIND_MIN_RATIO ? CARD_KINDS[bestIndex].key : 'unknown',
+			goldRatio: ratios.gold || 0,
+			lavenderRatio: ratios.lavender || 0,
+			ratios: ratios
 		};
 	}
 
 	/**
 	 * 完全に見えていて、かつ文字がバッジに隠れていないカードを返す。
-	 * 戻り値: [{ card:{x,y,w,h}, text:{x,y,w,h}, kind:'gold'|'lavender', goldRatio }]
+	 * 戻り値: [{ card:{x,y,w,h}, text:{x,y,w,h}, kind:'lavender'|'gold'|'unknown', goldRatio, kindRatios }]
 	 */
 	function detectFullCards(img, tuning) {
 		var T = tuning || SKILLSET_TUNING;
@@ -276,6 +326,7 @@ const SKILLSET_CARDS_JS_VERSION = '2026-09-13a';
 				card: { x: c.x, y: c.y, w: c.w, h: c.h },
 				kind: kind.kind,
 				goldRatio: kind.goldRatio,
+				kindRatios: kind.ratios,
 				text: {
 					x: c.x + Math.round(c.w * T.TEXT_CROP_LEFT),
 					y: c.y + Math.round(c.h * T.TEXT_CROP_TOP),
@@ -417,6 +468,7 @@ const SKILLSET_CARDS_JS_VERSION = '2026-09-13a';
 	global.SkillsetCards = {
 		VERSION: SKILLSET_CARDS_JS_VERSION,
 		TUNING: SKILLSET_TUNING,
+		CARD_KINDS: CARD_KINDS,
 		detectCards: detectCards,
 		detectBadge: detectBadge,
 		detectFullCards: detectFullCards,

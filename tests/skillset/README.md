@@ -74,6 +74,13 @@ node tests/skillset/run-ocr-crops.mjs --set=2026-09-11a --conditions=sharp   # �
 node tests/skillset/build-truth.mjs --set=2026-09-11a --write-truth
 #    → reports/review-<セット>.html をブラウザで開いて確認・修正し、truth/<セット>.json に保存
 
+# 10. 製品と同じ経路（js/skillset-ocr.js）で素材を通し、確定した正解と突き合わせる回帰テスト（フェーズa コミット2）
+npm run skillset:product                                            # 既定 images/2026-09-11a（約1分）
+npm run skillset:product -- --set=20260912_3-full --kind=frames     # 通常タブのフレーム21枚（約4分）
+npm run skillset:product -- --no-auto-accept                        # 決定 B-2 のフラグを倒して測る
+#    (1) 画面に無いスキルを取り込んだ枚数（0 でなければ失敗）(2) 覆えた種類 / 画面にある種類 (3) 確認に回る行数
+#    基準値はスクリプト冒頭の BASELINES（更新したら HANDOFF C-24 に理由を書く）
+
 # 5b. 多数決がどれだけ確認の手間を減らしたかを測る
 node tests/skillset/report-vote-effect.mjs --set=2026-09-11a --set=2026-09-12a
 
@@ -237,7 +244,15 @@ node tests/skillset/build-blurry-truth.mjs --set=2026-09-12a --universe=2026-09-
   ハーネスは製品の実体をそのまま読む。版は `SKILLSET_CARDS_JS_VERSION` と `special.html` の `?v=` の3点一致）
   ImageData を受け取って矩形を返すだけの純粋な関数の集まり。DOM も fetch も使わない。座標の決め打ちをせず、
   カードの地の色の連結成分と、その幅・高さの**中央値**で「完全に見えているカード」を選ぶ。
-  しきい値は `SkillsetCards.TUNING` に名前付きで置いてある。
+  しきい値は `SkillsetCards.TUNING` に名前付きで置いてある。地の色は `CARD_KINDS` の一覧で持ち、
+  どれにも当たらないカードは `'unknown'`（ラベンダーに落とさない。フェーズa コミット2・決定 B-6）。
+- **製品の読み取り本体** `js/skillset-ocr.js`（フェーズa コミット2。`special.html` からはコミット4まで呼ばない）
+  画質ゲート（`assessImageQuality`。幅 400/700 はそのまま、鮮明度は警告どまり）→ `SkillsetCards.analyzeScreen`
+  → 白・金・不明に分類 → 白と金を OCR（`tightenAndScale` → `preprocessVariants` の3変種）→ 白だけ
+  `normalizeText` → `bestCandidate` でマスター445種に照合 → 貼り付けピッカーと同じ形の行 → 和集合。
+  距離1以上の一意な一致の自動採用は `SkillsetOcr.OPTIONS.AUTO_ACCEPT_NEAR_MATCH`（決定 B-2。素材Bで誤着地が
+  出たら false に倒す）。金は照合せず生の読みを持ち、`normalizeText` 後の完全一致で種類数だけ数える（決定 B-3）。
+  `run-product-pipeline.mjs`（`npm run skillset:product`）が **この実装をそのまま**ブラウザの中で呼んで正解と突き合わせる。
 - **ブラウザの使い方** `lib/browser.mjs` / `lib/ocr.mjs`
   Node には PNG デコーダも canvas も無いので、既存の tests/ocr と同じくヘッドレス
   ブラウザの中で処理する。OCR は `fixtures/ocr-host.html` を開き、special.html と

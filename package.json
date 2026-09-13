@@ -22,7 +22,8 @@
     "skillset:eval-map": "node tests/skillset/evaluate-confusion-map.mjs",
     "skillset:coverage": "node tests/skillset/report-coverage.mjs",
     "skillset:video": "node tests/skillset/extract-video-frames.mjs",
-    "skillset:vote-effect": "node tests/skillset/report-vote-effect.mjs"
+    "skillset:vote-effect": "node tests/skillset/report-vote-effect.mjs",
+    "skillset:product": "node tests/skillset/run-product-pipeline.mjs"
   },
   "devDependencies": {
     "playwright": "^1.47.0"
