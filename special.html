@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-13d"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-14a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-14b"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-13a"></script>
 	<style>
@@ -2150,8 +2150,10 @@
 				const merged = await SkillsetOcr.runSkillsetOcr(files, {
 					worker: worker, dict: dict,
 					onProgress: (step, info) => {
+						// 「枚」は画像の枚数（ここは画像を数えているので枚のまま）。中の括弧は
+						// スキルの表示単位なので「スキルパネル」（利用者向けの語。C-24「確定文面の変更」）
 						const head = '読み取り中… ' + (info.index + 1) + '／' + info.total + '枚';
-						prog.textContent = step === 'card' ? head + '（' + info.done + '／' + info.cards + 'カード）' : head;
+						prog.textContent = step === 'card' ? head + '（スキルパネル ' + info.done + '／' + info.cards + '）' : head;
 					}
 				});
 				showSkillsetScreenshotResult(merged);
@@ -2205,7 +2207,7 @@
 			const summary = { white: white.accepted, gold: gold.kinds, unreadable: white.unreadable };
 			const openPicker = rows.length > 0 || gold.kinds > 0;
 			if (!openPicker && white.unreadable > 0) {
-				blocks.push('ほかに ' + white.unreadable + '枚は文字を読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。');
+				blocks.push('ほかに ' + white.unreadable + 'つのスキルパネルを読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。');
 			}
 			const warnWrap = document.getElementById('deck-ocr-warn');
 			document.getElementById('deck-ocr-warn-content').textContent = blocks.join('\n\n');

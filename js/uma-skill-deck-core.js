@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14b';
 
 	/* ============================================================
 	 * 定数
@@ -930,9 +930,9 @@
 					// 「画像から読み取る」（ocr モード）も同じ枠を使う。貼り付け欄と照合ボタン（paste-input-wrap）を隠し、
 					// 代わりに読み取りの要約（paste-summary）を先頭に1行出す。報告（paste-report）の作りは共通。
 					'<div class="usd-mode" data-usd-el="mode-paste" hidden>' +
-						// 要約（文面は formatRowsSummary。複数行）と、その下の注記（常時表示。警告ではなく事実の注記）。
+						// 要約（文面は formatRowsSummary。複数行）。以前ここに注記 paste-note を置いていたが、
+						// 前提が誤っていたので 31セッション目に撤去した（formatRowsSummary の見出し）。
 						'<p class="usd-ocr-summary mb-2" data-usd-el="paste-summary" hidden></p>' +
-						'<p class="usd-paste-hint mb-2" data-usd-el="paste-note" hidden>※白スキルは「〇〇の目覚め」等を含みます</p>' +
 						'<div data-usd-el="paste-input-wrap">' +
 						'<textarea class="usd-input uma-input" rows="5" style="font-family:var(--uma-font-mono);resize:vertical;" data-usd-el="paste-input" placeholder="1行に1つずつスキル名を貼り付けるか、スプレッドシートの1列をそのまま貼り付け"></textarea>' +
 						'<div class="flex flex-wrap gap-2 mt-2">' +
@@ -1610,7 +1610,6 @@
 		const summaryEl = q(pickerEl, 'paste-summary');
 		summaryEl.hidden = true;
 		summaryEl.textContent = '';
-		q(pickerEl, 'paste-note').hidden = true;
 		// 手入力は作った時点でその場で足すので、下の確定ボタンは要らない。
 		// フッターごと畳む（条件で検索・テキストで検索の2モードは同じフッターを使う）。
 		q(pickerEl, 'picker-commit').hidden = !spec.commit;
@@ -1644,7 +1643,7 @@
 	 *                         autoAccepted:true の 'review' 行は選択に入った状態で出る（applyPasteRows）。
 	 * @param summary          { white, gold, unreadable } 省略可。white＝確認なしで採用した白の種数（直下の「選択 N件」と
 	 *                         一致する）、gold＝金の種数（読みの揺れで1〜2多く出るので「約」を付けて出す）、
-	 *                         unreadable＝文字を読み取れなかった白のカードの枚数。文面は formatRowsSummary。
+	 *                         unreadable＝文字を読み取れなかった白のスキルパネルの数。文面は formatRowsSummary。
 	 *                         タブごとの内訳や設定数は利用者向けには出さない（開発ログだけ。コミット4の決定）。
 	 *
 	 * 照合そのものはここで行わない。この関数は Deck 側の照合（normalizeSkillText。混同マップ無し）を通さないので、
@@ -1652,41 +1651,46 @@
 	 */
 	function openSkillRowsPicker(existingSkillIds, onAdd, rows, summary) {
 		openPicker('ocr', existingSkillIds, onAdd);
-		const s = formatRowsSummary(summary);
+		const text = formatRowsSummary(summary);
 		const summaryEl = q(pickerEl, 'paste-summary');
-		summaryEl.textContent = s.text;
-		summaryEl.hidden = !s.text;
-		q(pickerEl, 'paste-note').hidden = !s.note;
+		summaryEl.textContent = text;
+		summaryEl.hidden = !text;
 		applyPasteRows(Array.isArray(rows) ? rows.slice() : []);
 	}
 
 	/**
 	 * 読み取りの要約の文面（Chat が確定。HANDOFF C-24「確定した文面4件」。**ここで勝手に変えない**）。
-	 *   1. 通常時（白N・金M）: 「白スキル N種を読み取りました。金スキル（約M種）は対象外です。」＋注記
-	 *   2. 金0件:             「白スキル N種を読み取りました。」＋注記（金の有無と白の範囲は別の話なので注記は残す）
-	 *   3. 白0件＋金N件:      3行（注記なし。0件のときに白の範囲を説明しても情報が無い）
-	 *   4a. 読めなかったカードが1以上のときだけ末尾に足す。
+	 *   1. 通常時（白N・金M）: 「白スキル N種を読み取りました。金スキル（約M種）は対象外です。」
+	 *   2. 金0件:             「白スキル N種を読み取りました。」
+	 *   3. 白0件＋金N件:      3行
+	 *   4a. 読み取れなかったスキルパネルが1以上のときだけ末尾に足す。
 	 * 「白スキル」はゲーム内の色の呼び名。「取り込む」は Deck への受け渡しの意味に固定されているので使わない
 	 * （ピッカーの動詞は「追加」）。「対象外」は Deck の取り込み結果で既にスキルに対して使われている語。
-	 * @returns {{ text: string, note: boolean }} note は注記「※白スキルは「〇〇の目覚め」等を含みます」を出すか
+	 *
+	 * **31セッション目（2026-09-14）の実機確認を受けた2つの変更**（C-24「確定文面の変更」）:
+	 *   - 4a の数える単位は「枚」ではなく**「つのスキルパネル」**。直前の行が「種」で数えているため
+	 *     単位が変わったことが伝わらず、複数のスクショを選んだ直後なので「2枚」が「画像2枚」に読めた。
+	 *     利用者向けの文言では、この画面の1つ1つのスキルの表示を**スキルパネル**と呼ぶ（「カード」も使わない）。
+	 *   - 注記「※白スキルは「〇〇の目覚め」等を含みます」は**撤去**した。目覚め6種はスキルセット画面に
+	 *     原理上表示されない（`reference/not-on-skillset-screen.json`。網羅率の分母が 439種なのがその根拠）ので、
+	 *     この画面に絶対に出ないものを白スキルの唯一の例として挙げていたことになる。
+	 * @returns {string} 要約の文面（複数行）。要約が無いときは空文字
 	 */
 	function formatRowsSummary(s) {
-		if (!s) return { text: '', note: false };
+		if (!s) return '';
 		const n = typeof s.white === 'number' ? s.white : 0;
 		const m = typeof s.gold === 'number' ? s.gold : 0;
 		const u = typeof s.unreadable === 'number' ? s.unreadable : 0;
 		const lines = [];
-		let note = true;
 		if (n === 0 && m > 0) {
 			lines.push('金スキル（約' + m + '種）が見つかりましたが、白スキルはありませんでした。');
 			lines.push('金スキルは対象外です。金スキルに対応する白スキルを探す機能は、まだありません。');
 			lines.push('白スキルは「テキストで検索」または「条件でスキルを検索」から追加してください。');
-			note = false;
 		} else {
 			lines.push('白スキル ' + n + '種を読み取りました。' + (m > 0 ? '金スキル（約' + m + '種）は対象外です。' : ''));
 		}
-		if (u > 0) lines.push('ほかに ' + u + '枚は文字を読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。');
-		return { text: lines.join('\n'), note: note };
+		if (u > 0) lines.push('ほかに ' + u + 'つのスキルパネルを読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。');
+		return lines.join('\n');
 	}
 
 	function closePicker() {

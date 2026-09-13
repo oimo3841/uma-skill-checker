@@ -487,7 +487,8 @@ const browser = await chromium.launch();
 			paste: !el('mode-paste').hidden, filter: !el('mode-filter').hidden, custom: !el('mode-custom').hidden,
 			inputHidden: el('paste-input-wrap').hidden,
 			summary: el('paste-summary').hidden ? null : el('paste-summary').textContent,
-			note: el('paste-note').hidden ? null : el('paste-note').textContent,
+			// 注記（paste-note）は 31セッション目に撤去した。枠ごと無いことを見る
+			noteEl: !!el('paste-note'),
 			footer: !el('picker-footer').hidden,
 			count: el('picker-checked-count').textContent,
 			approx: [...document.querySelectorAll('.usd-paste-approx .usd-paste-picked')].map((e) => e.textContent),
@@ -498,9 +499,10 @@ const browser = await chromium.launch();
 	});
 	assert(opened.title === '画像から読み取る' && opened.paste && !opened.filter && !opened.custom && opened.inputHidden && opened.footer,
 		'special/ocr口: 「画像から読み取る」は貼り付けの枠を借り、貼り付け欄だけを隠してフッターを出す', opened);
-	// 要約は Chat が確定した文面1（通常時）。注記は常時表示。タブの内訳・設定数は利用者向けには出さない（コミット4）
-	assert(opened.summary === '白スキル 3種を読み取りました。金スキル（約2種）は対象外です。' && opened.note === '※白スキルは「〇〇の目覚め」等を含みます',
-		'special/ocr口: (e) 要約（確定した文面1）と注記が報告の先頭に出る', { summary: opened.summary, note: opened.note });
+	// 要約は Chat が確定した文面1（通常時）。タブの内訳・設定数は利用者向けには出さない（コミット4）。
+	// 注記「※白スキルは「〇〇の目覚め」等を含みます」は 31セッション目に撤去（目覚め6種はこの画面に出ない）
+	assert(opened.summary === '白スキル 3種を読み取りました。金スキル（約2種）は対象外です。' && opened.noteEl === false,
+		'special/ocr口: (e) 要約（確定した文面1）が報告の先頭に出る。注記の枠は無い', { summary: opened.summary, noteEl: opened.noteEl });
 	assert(opened.count === '2種選択' && opened.approx.length === 1 && opened.approx[0] === '左回り○',
 		'special/ocr口: (a) 完全一致と autoAccepted の行が最初から選択済み、後者は「完全一致ではない行」に並ぶ', { count: opened.count, approx: opened.approx });
 	assert(opened.pendingLabel === '要確認 2件' && opened.chips.includes('春ウマ娘○') && opened.chips.includes('カスタムスキルとして追加'),
@@ -648,7 +650,7 @@ const browser = await chromium.launch();
 			open: !el('picker-title').closest('.usd-modal').hidden,
 			title: el('picker-title').textContent,
 			summary: el('paste-summary').hidden ? null : el('paste-summary').textContent,
-			note: el('paste-note').hidden ? null : el('paste-note').textContent,
+			noteEl: !!el('paste-note'),
 			count: el('picker-checked-count').textContent,
 			warn: document.getElementById('deck-ocr-warn').classList.contains('hidden') ? null : document.getElementById('deck-ocr-warn-content').textContent,
 			selection: deckTemplateManager.getSelection(),
@@ -658,9 +660,10 @@ const browser = await chromium.launch();
 	});
 	assert(shown.open && shown.title === '画像から読み取る' && shown.count === '2種選択',
 		'special/ocr入口: 結果を渡すとピッカーが ocr モードで開き、完全一致と自動採用の2種が選択済み', { open: shown.open, title: shown.title, count: shown.count });
-	assert(shown.summary === '白スキル 2種を読み取りました。金スキル（約2種）は対象外です。\nほかに 1枚は文字を読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。'
-		&& shown.note === '※白スキルは「〇〇の目覚め」等を含みます',
-		'special/ocr入口: 要約は文面1＋4a、注記は常時表示（タブの内訳・設定数は出ない）', { summary: shown.summary, note: shown.note });
+	// 4a は「枚」ではなく「つのスキルパネル」（31セッション目の実機確認。C-24「確定文面の変更」）
+	assert(shown.summary === '白スキル 2種を読み取りました。金スキル（約2種）は対象外です。\nほかに 1つのスキルパネルを読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。'
+		&& shown.noteEl === false,
+		'special/ocr入口: 要約は文面1＋4a（単位はスキルパネル）。注記の枠は無い（タブの内訳・設定数も出ない）', { summary: shown.summary, noteEl: shown.noteEl });
 	assert(shown.warn !== null
 		&& shown.warn.includes('次の画像は、ゲーム画面が小さすぎて読み取れませんでした。\n・スキルセット画面: small.png')
 		&& shown.warn.includes('次の画像からは、スキルセット画面のスキルが見つかりませんでした。\n・other.png\nスキルセット画面のスクリーンショットかどうか、ご確認ください。'),
@@ -702,17 +705,17 @@ const browser = await chromium.launch();
 		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
 		const base = { rows: [], white: { accepted: 0, review: 0, unreadable: 0, ids: [] }, gold: { kinds: 0, cards: 0 }, unknown: 0, tabs: [], quality: { skipped: [], warned: [] }, inkHeight: { median: 23 }, log: [] };
 		showSkillsetScreenshotResult(Object.assign({}, base, { gold: { kinds: 3, cards: 3 }, perImage: [{ name: 'g.png', quality: { ok: true }, kindCounts: { lavender: 0, gold: 3, unknown: 0 } }] }));
-		const goldOnly = { open: !el('picker-title').closest('.usd-modal').hidden, summary: el('paste-summary').textContent, noteHidden: el('paste-note').hidden, warnHidden: document.getElementById('deck-ocr-warn').classList.contains('hidden') };
+		const goldOnly = { open: !el('picker-title').closest('.usd-modal').hidden, summary: el('paste-summary').textContent, noteEl: !!el('paste-note'), warnHidden: document.getElementById('deck-ocr-warn').classList.contains('hidden') };
 		UmaSkillDeckCore.closeSkillPicker();
 		showSkillsetScreenshotResult(Object.assign({}, base, { white: { accepted: 0, review: 0, unreadable: 2, ids: [] }, perImage: [{ name: 'u.png', quality: { ok: true }, kindCounts: { lavender: 2, gold: 0, unknown: 0 } }] }));
 		const nothing = { open: !el('picker-title').closest('.usd-modal').hidden, warn: document.getElementById('deck-ocr-warn').classList.contains('hidden') ? null : document.getElementById('deck-ocr-warn-content').textContent };
 		return { goldOnly, nothing };
 	});
-	assert(empty.goldOnly.open && empty.goldOnly.noteHidden && empty.goldOnly.warnHidden
+	assert(empty.goldOnly.open && empty.goldOnly.noteEl === false && empty.goldOnly.warnHidden
 		&& empty.goldOnly.summary === '金スキル（約3種）が見つかりましたが、白スキルはありませんでした。\n金スキルは対象外です。金スキルに対応する白スキルを探す機能は、まだありません。\n白スキルは「テキストで検索」または「条件でスキルを検索」から追加してください。',
-		'special/ocr入口: 白0件＋金N件は文面3で、注記は付けない', empty.goldOnly);
-	assert(!empty.nothing.open && empty.nothing.warn === 'ほかに 2枚は文字を読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。',
-		'special/ocr入口: 読み取った白も金も無いときはピッカーを開かず、4a を入口の下の枠に出す', empty.nothing);
+		'special/ocr入口: 白0件＋金N件は文面3で、注記の枠は無い', empty.goldOnly);
+	assert(!empty.nothing.open && empty.nothing.warn === 'ほかに 2つのスキルパネルを読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。',
+		'special/ocr入口: 読み取った白も金も無いときはピッカーを開かず、4a（単位はスキルパネル）を入口の下の枠に出す', empty.nothing);
 
 	assert(errors.length === 0, 'special/ocr入口: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
