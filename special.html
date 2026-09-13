@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-13d"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-13c"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-14a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-13a"></script>
 	<style>
@@ -243,9 +243,9 @@
 		     文面は「①でリストを用意 → ②で画像 → 判定 → 結果」の流れだけに絞り、
 		     画像の注意は撮影のときに要るものだけ残した（画質の注意はヘッダーにある）。 -->
 		<!-- 撮影ガイド（スキルセットOCR。使い方ガイドと同じオーバーレイの作り）
-		     入口「スキルセットのスクショで追加」を押すと開き、ここから「スクショを選ぶ」でファイル選択へ進む
-		     ＝アップロードの画面そのものがガイドを兼ねる（開いた瞬間に例が見える）。「?」からも同じものを開ける。
-		     参考画像は img/skillset-guide.png（おいもさんがリポジトリに保存。無ければ画像だけ消えて文は残る）。 -->
+		     入口「スキルセットのスクショで追加」を押すと毎回開き、ここから「スクショを選ぶ」でファイル選択へ進む
+		     ＝アップロードの画面そのものがガイドを兼ねる（開いた瞬間に例が見える）。「?」は置かない（入口が唯一の経路）。
+		     参考画像は SKILLSET_GUIDE_IMAGE（img/ の縮小版 WebP。読めなければ画像だけ消えて文は残る）。 -->
 		<div id="skillset-guide-backdrop" class="uma-overlay-backdrop" hidden onclick="closeSkillsetGuide()"></div>
 		<div id="skillset-guide-box" class="uma-overlay help-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="skillset-guide-title">
 			<div class="help-head">
@@ -1985,9 +1985,11 @@
 						onChange: () => { onDeckScopeSelected(deckTemplateManager.getSelection()); },
 						// 「元に戻す」は、いま見ている画面（一覧か編集か）のぶんだけ出す
 						onViewChange: (view) => UmaSkillDeckCore.setUndoScope(view === 'editor' ? 'editor' : 'list'),
-						// スキルセットOCR: 編集画面の入口の並びに4つ目「スキルセットのスクショで追加」と「?」（撮影ガイド）を出す。
+						// スキルセットOCR: 編集画面の入口の並びに4つ目「スキルセットのスクショで追加」を出す。
 						// 押すと撮影ガイド（＝アップロードの画面）を開き、その中の「スクショを選ぶ」からファイル選択へ。
-						screenshotEntry: { label: 'スキルセットのスクショで追加', onClick: openSkillsetGuide, onHelp: openSkillsetGuide }
+						// ガイドは毎回出す（初回だけにしない）。「スキルセット画面」がどの画面かはこの機能の最大の躓きどころで、
+						// 「?」も外したので後から見る手段がガイド自身しか無いため（おいもさんの判断。F-43）。
+						screenshotEntry: { label: 'スキルセットのスクショで追加', onClick: openSkillsetGuide }
 					}
 				);
 			} else {
@@ -2081,9 +2083,10 @@
 		let skillsetOcrDevLog = []; // 開発ログ用（利用者向けの文ではない。タブごとの内訳・幅・文字高・読み直しはここだけ）
 		let skillsetGuideOpen = false;
 		let skillsetGuideReturnFocus = null;
-		// 撮影ガイドの参考画像（「スキルセット詳細」画面の例）。おいもさんがリポジトリに保存したパスをここに入れる。
-		// 空のあいだは画像を出さない（無い画像を取りに行って 404 のコンソールエラーを出さないため。test:visual / test:master が見る）。
-		const SKILLSET_GUIDE_IMAGE = '';
+		// 撮影ガイドの参考画像（「スキルセット詳細」画面の例。DMM 版のスクショを幅 600px の WebP に縮小したもの。B節の運用の例外）。
+		// キャッシュ対策はファイル名の版（日付）で行う: 差し替えるときは新しい名前で保存してここを直す（?v= ではなく名前で）。
+		// 空にすると画像を出さない（無い画像を取りに行って 404 のコンソールエラーを出さないため。test:visual / test:master が見る）。
+		const SKILLSET_GUIDE_IMAGE = 'img/skillset-guide-2026-09-14.webp';
 
 		// 入口（core の編集画面の4つ目のボタン）を押すと、まず撮影ガイド＝アップロードの画面を開く。
 		// ファイル選択はその中の「スクショを選ぶ」から。OS のファイル選択の裏でガイドが開きっぱなしにならないよう、

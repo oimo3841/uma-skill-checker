@@ -578,7 +578,6 @@ const browser = await chromium.launch();
 		const row = document.querySelector('#deck-template-panel .usd-entry-row');
 		const buttons = [...row.querySelectorAll('button')].map((b) => ({ act: b.dataset.usdAct, label: b.textContent.trim(), cls: b.className, icon: (b.querySelector('svg, i') || {}).getAttribute ? (b.querySelector('svg, i').getAttribute('data-lucide') || b.querySelector('svg, i').getAttribute('class')) : null }));
 		const btn = row.querySelector('[data-usd-act="editor-pick-screenshot"]');
-		const help = row.querySelector('[data-usd-act="editor-pick-screenshot-help"]');
 		const input = document.getElementById('deck-ocr-files');
 		window.__filePickerOpened = 0;
 		input.click = () => { window.__filePickerOpened++; };
@@ -591,7 +590,7 @@ const browser = await chromium.launch();
 		const img = document.getElementById('skillset-guide-img');
 		document.getElementById('skillset-guide-pick').click(); // 「スクショを選ぶ」→ ガイドが閉じてファイル選択が開く
 		const afterPick = { guide: guide(), picker: window.__filePickerOpened };
-		help.click();                                 // 「?」→ 同じガイドが開く
+		btn.click();                                  // もう一度押せば毎回ガイドが出る（初回だけにしない）
 		const helpOpened = guide();
 		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); // Esc で閉じる
 		const afterEsc = guide();
@@ -599,7 +598,7 @@ const browser = await chromium.launch();
 			order: buttons.map((b) => b.act),
 			label: btn.textContent.trim(), cls: btn.className,
 			icon: buttons.find((b) => b.act === 'editor-pick-screenshot').icon,
-			helpLabel: help.getAttribute('aria-label'),
+			noHelp: !row.querySelector('[data-usd-act="editor-pick-screenshot-help"]'),
 			// 参考画像は SKILLSET_GUIDE_IMAGE が空のあいだは出さない（src も付けない＝404 を出さない）。パスが入れば src が付いて見える
 			before, opened, openedWithoutPicker, guideText, imgAlt: img.getAttribute('alt'),
 			imgOk: SKILLSET_GUIDE_IMAGE ? (img.getAttribute('src') === SKILLSET_GUIDE_IMAGE && !img.hidden) : (!img.getAttribute('src') && img.hidden),
@@ -609,9 +608,10 @@ const browser = await chromium.launch();
 			warnHidden: document.getElementById('deck-ocr-warn').classList.contains('hidden')
 		};
 	});
-	assert(entry.order.join(',') === 'editor-pick,editor-pick-text,editor-pick-screenshot,editor-pick-screenshot-help,editor-pick-custom'
-		&& entry.label === 'スキルセットのスクショで追加' && entry.cls.includes('uma-btn--secondary') && entry.helpLabel === '撮影ガイド',
-		'special/ocr入口: 「テキストで検索」と「マスターにないスキルを追加」の間に、同じ見た目で「スキルセットのスクショで追加」と「?」が出る', { order: entry.order, label: entry.label, help: entry.helpLabel });
+	// 「?」は外した（入口を押せば必ずガイドが出るので情報を足さず、スマホ幅で並びが崩れたため）
+	assert(entry.order.join(',') === 'editor-pick,editor-pick-text,editor-pick-screenshot,editor-pick-custom'
+		&& entry.label === 'スキルセットのスクショで追加' && entry.cls.includes('uma-btn--secondary') && entry.noHelp,
+		'special/ocr入口: 「テキストで検索」と「マスターにないスキルを追加」の間に、同じ見た目で「スキルセットのスクショで追加」が出る（「?」は無い）', { order: entry.order, label: entry.label });
 	assert(entry.icon === 'upload-cloud' || String(entry.icon).includes('lucide-upload-cloud'),
 		'special/ocr入口: アイコンはアップロード枠と同じ upload-cloud（雲＋上矢印）', entry.icon);
 	assert(!entry.before && entry.opened && entry.openedWithoutPicker === 0
@@ -620,7 +620,7 @@ const browser = await chromium.launch();
 	assert(!entry.afterPick.guide && entry.afterPick.picker === 1 && entry.input.hidden && entry.input.multiple && entry.input.accept === 'image/*',
 		'special/ocr入口: ガイドの「スクショを選ぶ」でガイドが閉じ、画像のファイル選択（複数）が開く', { afterPick: entry.afterPick, input: entry.input });
 	assert(entry.helpOpened && !entry.afterEsc && entry.progressHidden && entry.warnHidden,
-		'special/ocr入口: 「?」で同じガイドが開き、Esc で閉じる。進捗と知らせの枠は閉じたまま', { helpOpened: entry.helpOpened, afterEsc: entry.afterEsc });
+		'special/ocr入口: 入口を押すたびにガイドが出て（初回だけにしない）、Esc で閉じる。進捗と知らせの枠は閉じたまま', { again: entry.helpOpened, afterEsc: entry.afterEsc });
 
 	// 読み取りの結果（合成）: 完全一致1・自動採用1・要確認1、金2種、読めない1枚、小さすぎる画像1、カードが見つからない画像1
 	const shown = await page.evaluate(() => {
