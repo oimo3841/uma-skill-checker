@@ -17,7 +17,7 @@
  * （lib/browser.mjs・fixtures/*.html）も**この実体をそのまま読む**（二重管理しない）。
  * 版は他の共有JSと同じ運用（各HTMLの ?v= と定数の3点一致。tests/visual/run-verify.mjs が見る）。
  */
-const SKILLSET_CARDS_JS_VERSION = '2026-09-13b';
+const SKILLSET_CARDS_JS_VERSION = '2026-09-13c';
 
 (function (global) {
 	'use strict';
@@ -37,11 +37,16 @@ const SKILLSET_CARDS_JS_VERSION = '2026-09-13b';
 		GOLD_MIN_R_MINUS_B: 50,
 		// 地のマスクを閉じるカーネル（正方形の一辺）
 		CARD_CLOSE_KERNEL: 5,
-		// カード候補とみなす外接矩形の大きさ（画像の幅・高さに対する比）
+		// カード候補とみなす外接矩形の大きさ。**幅も高さも「画像の幅」に対する比**で持つ。
+		// 以前は高さを「画像の高さ」に対する比（0.015〜0.06）で持っていたが、この画面は横方向に
+		// リフローしない（カード幅÷画像幅は 0.446〜0.451 で一定）一方、縦横比は撮り方で変わる
+		// （スマホの原寸 1179x2556／DMM 版はゲーム画面だけ 986x1764／一部を切り抜いた画像）。
+		// 高さ比だと切り抜いた画像（1179x1180）でカードが 0.080 になって上限 0.06 を超え、1枚も取れなかった。
+		// 幅比なら カード高さ÷画像幅 ＝ 0.081 がスマホ・DMM 3サイズ・切り抜きの全部で一定（28セッション目の実測）。
 		CARD_MIN_W_RATIO: 0.30,
 		CARD_MAX_W_RATIO: 0.55,
-		CARD_MIN_H_RATIO: 0.015,
-		CARD_MAX_H_RATIO: 0.06,
+		CARD_MIN_H_TO_W: 0.03,  // 実測 0.080〜0.081。1179px 幅なら 35px 以上
+		CARD_MAX_H_TO_W: 0.13,  // 同 153px 以下（下部のボタンや見出し帯を外す）
 		// 「完全なカード」判定。候補の幅・高さの中央値からの許容ずれ
 		FULL_W_TOL: 0.03,
 		FULL_H_TOL: 0.08,
@@ -64,10 +69,13 @@ const SKILLSET_CARDS_JS_VERSION = '2026-09-13b';
 		TAB_GREEN_MIN_G: 140,
 		TAB_GREEN_G_MINUS_R: 25,
 		TAB_GREEN_G_MINUS_B: 60,
+		// 帯の幅も高さも「画像の幅」に対する比（理由はカードの高さと同じ）。
+		// 高さ比（0.010〜0.030）だと DMM 版（986x1764）でタブの帯が 0.031〜0.032 になって上限を超え、
+		// 3サイズともタブを判別できなかった。幅比なら 帯の高さ÷画像幅 ＝ 0.056〜0.057 で一定。
 		TAB_MIN_W_RATIO: 0.18,
 		TAB_MAX_W_RATIO: 0.34,
-		TAB_MIN_H_RATIO: 0.010,
-		TAB_MAX_H_RATIO: 0.030,
+		TAB_MIN_H_TO_W: 0.025,  // 実測 0.056。1179px 幅なら 29px 以上
+		TAB_MAX_H_TO_W: 0.09,   // 同 106px 以下（画面上端の見出し帯 0.086 は幅の比 0.978 で先に外れる）
 		TAB_COUNT: 3,
 		// カードの地の色の判定（classifyCardKind）。アイコン（左端）を外した帯で、
 		// CARD_KINDS の色ごとに画素を数え、いちばん多い色を採る。
@@ -224,7 +232,7 @@ const SKILLSET_CARDS_JS_VERSION = '2026-09-13b';
 		return components(m, W, H)
 			.filter(function (c) {
 				return c.w > W * T.CARD_MIN_W_RATIO && c.w < W * T.CARD_MAX_W_RATIO &&
-					c.h > H * T.CARD_MIN_H_RATIO && c.h < H * T.CARD_MAX_H_RATIO;
+					c.h > W * T.CARD_MIN_H_TO_W && c.h < W * T.CARD_MAX_H_TO_W;
 			})
 			.sort(function (a, b) { return a.y - b.y || a.x - b.x; });
 	}
@@ -365,7 +373,7 @@ const SKILLSET_CARDS_JS_VERSION = '2026-09-13b';
 			// 上端だけで見れば両方を正しく分けられる。
 			if (c.y >= topCardY) return;
 			if (c.w < W * T.TAB_MIN_W_RATIO || c.w > W * T.TAB_MAX_W_RATIO) return;
-			if (c.h < H * T.TAB_MIN_H_RATIO || c.h > H * T.TAB_MAX_H_RATIO) return;
+			if (c.h < W * T.TAB_MIN_H_TO_W || c.h > W * T.TAB_MAX_H_TO_W) return;
 			if (!hit || c.y > hit.y) hit = c; // タブの段は見出し帯より下
 		});
 		if (!hit || !cards || !cards.length) return null;

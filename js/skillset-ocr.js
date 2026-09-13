@@ -26,7 +26,7 @@
  * （{ raw, norm, kind:'exact'|'review'|'none', matchedId, matchedName, candidates:[{id,name,distance}] }）。
  * 曖昧な行はこの形のまま Deck の貼り付けピッカーへ渡す（決定 A-8。core 側の口はコミット3）。
  */
-const SKILLSET_OCR_JS_VERSION = '2026-09-13a';
+const SKILLSET_OCR_JS_VERSION = '2026-09-13b';
 
 (function (global) {
 	'use strict';
@@ -183,18 +183,18 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-13a';
 	 * **端末の原寸（1179x2556）でも鮮明度が 118〜131 と、しきい値 120 の上下すれすれ**に出る
 	 * （28セッション目・コミット2の実測: 添付4枚のうち image0.png が 118 で拒否された）。
 	 * 幅の判定と違って、この値はこの画面に対する実測の裏付けが無い。
-	 * → **この画面では 'blurry' を拒否にせず警告に落とす**（数値は開発ログに出す。common.js は変えない）。
-	 *   拒否にするかどうかは、この画面の鮮明度の分布を素材で測ってから決める（おいもさんの判断）。
+	 * → **この画面では鮮明度を拒否にも警告にも使わない**（おいもさんの決定・2026-09-13）。
+	 *   利用者向けの表示には一切出さず、数値は開発ログ（formatImageLog）にだけ残す。common.js は変えない。
+	 *   理由: スマホ7枚中5枚が 120 未満（114〜118）＝正常な画像の7割で警告が出ることになり、
+	 *   利用者に「この警告は無視してよい」と学習させてしまう。将来ほんとうに危ない画像で警告を出しても効かなくなる。
+	 *   しきい値の見直しは、実際に手ぶれ・劣化した素材が手に入ってから。
+	 *   `original` に assessImageQuality() の生の結果を残す（開発ログ用）。
 	 */
 	function adaptQualityForSkillset(q) {
 		var rejectKinds = (q.rejectKinds || []).filter(function (k) { return k !== 'blurry'; });
-		var warnKinds = (q.warnKinds || []).slice();
+		var warnKinds = (q.warnKinds || []).filter(function (k) { return k !== 'blurry'; });
 		var reasons = (q.reasons || []).filter(function (s) { return s.indexOf('鮮明度') === -1; });
-		var warnings = (q.warnings || []).slice();
-		if ((q.rejectKinds || []).indexOf('blurry') !== -1) {
-			warnKinds.push('blurry');
-			(q.reasons || []).filter(function (s) { return s.indexOf('鮮明度') !== -1; }).forEach(function (s) { warnings.push(s + '（スキルセット画面では警告どまり）'); });
-		}
+		var warnings = (q.warnings || []).filter(function (s) { return s.indexOf('鮮明度') === -1; });
 		return {
 			ok: rejectKinds.length === 0, width: q.width, height: q.height, sharpness: q.sharpness,
 			reasons: reasons, warnings: warnings, rejectKinds: rejectKinds, warnKinds: warnKinds,
