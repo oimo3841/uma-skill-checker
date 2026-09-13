@@ -11,8 +11,14 @@
  * - スキル名そのものはこのファイルに一切書かない（B節ルール1）。
  *
  * 読み込み方: 素の <script>（classic script）。globalThis.SkillsetCards に公開する。
- * 現在は tests/skillset/ の検証ツールからのみ使う。製品ファイルからは参照していない。
+ *
+ * 置き場所の履歴: フェーズ0（19〜24セッション目）は tests/skillset/lib/ にあり、検証ツールからだけ使っていた。
+ * フェーズa コミット1（28セッション目）で js/ へ移した。tests/skillset/ のハーネス
+ * （lib/browser.mjs・fixtures/*.html）も**この実体をそのまま読む**（二重管理しない）。
+ * 版は他の共有JSと同じ運用（各HTMLの ?v= と定数の3点一致。tests/visual/run-verify.mjs が見る）。
  */
+const SKILLSET_CARDS_JS_VERSION = '2026-09-13a';
+
 (function (global) {
 	'use strict';
 
@@ -409,6 +415,7 @@
 	}
 
 	global.SkillsetCards = {
+		VERSION: SKILLSET_CARDS_JS_VERSION,
 		TUNING: SKILLSET_TUNING,
 		detectCards: detectCards,
 		detectBadge: detectBadge,

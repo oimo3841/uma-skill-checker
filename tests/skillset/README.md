@@ -233,9 +233,9 @@ node tests/skillset/build-blurry-truth.mjs --set=2026-09-12a --universe=2026-09-
 
 ## 仕組み
 
-- **カードの切り出し** `lib/skillset-cards.js`
-  ImageData を受け取って矩形を返すだけの純粋な関数の集まり。DOM も fetch も使わない
-  （後続フェーズで製品にそのまま持ち込めるように）。座標の決め打ちをせず、
+- **カードの切り出し** `js/skillset-cards.js`（フェーズa コミット1で `lib/` から製品の `js/` へ移した。
+  ハーネスは製品の実体をそのまま読む。版は `SKILLSET_CARDS_JS_VERSION` と `special.html` の `?v=` の3点一致）
+  ImageData を受け取って矩形を返すだけの純粋な関数の集まり。DOM も fetch も使わない。座標の決め打ちをせず、
   カードの地の色の連結成分と、その幅・高さの**中央値**で「完全に見えているカード」を選ぶ。
   しきい値は `SkillsetCards.TUNING` に名前付きで置いてある。
 - **ブラウザの使い方** `lib/browser.mjs` / `lib/ocr.mjs`

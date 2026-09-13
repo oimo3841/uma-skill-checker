@@ -67,7 +67,7 @@ function grabQuery(sources) {
 }
 
 const ALL_JS = ['special.html', 'uma-skill-deck.html', 'exam.html', 'index.html',
-	'js/common.js', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/stitch.js'];
+	'js/common.js', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/stitch.js', 'js/skillset-cards.js'];
 // 15セッション目: exam.html を「変更してはいけないファイル」から外し、
 // special.html と同じくセレクタ資産・class・構文の検査対象に移した（第2段階の着手）。
 const TARGETS = ['special.html', 'exam.html', 'uma-skill-deck.html', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js'];
@@ -115,13 +115,19 @@ const commonVer = /COMMON_JS_VERSION = '([^']+)'/.exec(read('js/common.js'))[1];
 // 内部の版定数も検査も無かった（ズレても誰も気づかない状態）。
 // 結合画像のファイル名をこのファイルへ置いたのを機に、他と同じ運用へ載せた。
 const stitchVer = /STITCH_JS_VERSION = '([^']+)'/.exec(read('js/stitch.js'))[1];
-console.log('     内部定数:  common.js=%s / core=%s / deck=%s / stitch=%s / css=%s', commonVer, coreVer, deckVer, stitchVer, cssVer);
+// 28セッション目（スキルセットOCR フェーズa コミット1）: tests/skillset/lib/ から js/ へ移した
+// skillset-cards.js を、他の共有JSと同じ「定数と ?v= の3点一致」の運用に載せた。
+// 読むのは special.html だけ（Deck 単体ページへの入口は後続フェーズ。そのとき JS の中から
+// 動的に読む ?v= を走査対象に足す＝C-24 調査3）。
+const skillsetVer = /SKILLSET_CARDS_JS_VERSION = '([^']+)'/.exec(read('js/skillset-cards.js'))[1];
+console.log('     内部定数:  common.js=%s / core=%s / deck=%s / stitch=%s / skillset-cards=%s / css=%s', commonVer, coreVer, deckVer, stitchVer, skillsetVer, cssVer);
 for (const [p, pat, ver, name] of [
 	['special.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
 	['special.html', /js\/common\.js\?v=([0-9a-z-]+)/g, commonVer, 'common.js'],
 	['exam.html', /js\/common\.js\?v=([0-9a-z-]+)/g, commonVer, 'common.js'],
 	['special.html', /js\/stitch\.js\?v=([0-9a-z-]+)/g, stitchVer, 'stitch.js'],
 	['exam.html', /js\/stitch\.js\?v=([0-9a-z-]+)/g, stitchVer, 'stitch.js'],
+	['special.html', /js\/skillset-cards\.js\?v=([0-9a-z-]+)/g, skillsetVer, 'skillset-cards.js'],
 	['uma-skill-deck.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
 	['uma-skill-deck.html', /js\/uma-skill-deck\.js\?v=([0-9a-z-]+)/g, deckVer, 'deck.js'],
 	// special.html の引き出しパネルが読む iframe。deck.js の版に合わせている値だが、
@@ -157,6 +163,7 @@ const VERSIONED = [
 	['js/uma-skill-deck-core.js', coreVer, /UMA_SKILL_DECK_CORE_JS_VERSION = '([^']+)'/],
 	['js/uma-skill-deck.js', deckVer, /UMA_SKILL_DECK_JS_VERSION = '([^']+)'/],
 	['js/stitch.js', stitchVer, /STITCH_JS_VERSION = '([^']+)'/],
+	['js/skillset-cards.js', skillsetVer, /SKILLSET_CARDS_JS_VERSION = '([^']+)'/],
 	['css/tokens.css', cssVer, /--common-css-version:\s*"([^"]+)"/],
 ];
 const today = new Date().toLocaleDateString('sv-SE');  // ローカル時刻の YYYY-MM-DD
@@ -248,7 +255,7 @@ for (const p of ['special.html', 'exam.html', 'uma-skill-deck.html', 'css/styleg
 		check(r.status === 0, `${p} の<script>#${i} が構文エラーなし`, (r.stderr || '').slice(0, 160));
 	});
 }
-for (const p of ['js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/common.js', 'js/stitch.js']) {
+for (const p of ['js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/common.js', 'js/stitch.js', 'js/skillset-cards.js']) {
 	const r = spawnSync(process.execPath, ['--check', path.join(REPO_ROOT, p)], { encoding: 'utf8' });
 	check(r.status === 0, p + ' が構文エラーなし', (r.stderr || '').slice(0, 160));
 }

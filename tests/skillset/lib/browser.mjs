@@ -1,16 +1,18 @@
 // Playwright のブラウザを「画像デコード＋カード切り出しの実行環境」として使うための薄い層。
 //
 // Node 単体には PNG デコーダも canvas も無いので、既存の tests/ocr ハーネスと同じく
-// ヘッドレスブラウザの中で処理する。lib/skillset-cards.js は素の <script> として読み込むので、
-// ここで組み立てた環境は後続フェーズの製品（ブラウザ）と同じ条件になる。
+// ヘッドレスブラウザの中で処理する。js/skillset-cards.js は素の <script> として読み込むので、
+// ここで組み立てた環境は製品（ブラウザ）と同じ条件になる。
+//
+// フェーズa コミット1（28セッション目）で skillset-cards.js を tests/skillset/lib/ から js/ へ移した。
+// ハーネスは**製品の実体をそのまま読む**（コピーを持たない＝二重管理しない）。
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { REPO_ROOT } from './assets.mjs';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CARDS_JS = path.join(__dirname, 'skillset-cards.js');
+const CARDS_JS = path.join(REPO_ROOT, 'js', 'skillset-cards.js');
 
 export async function openAnalyzer(options = {}) {
 	const browser = await chromium.launch({ channel: options.channel || undefined });

@@ -23,6 +23,9 @@
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html で共有） -->
 	<script src="js/common.js?v=2026-09-13e"></script>
+	<!-- スキルセット画面のスクリーンショットからカードの矩形を取り出す純粋関数（スキルセットOCR・フェーズa）。
+	     ImageData を受け取って矩形を返すだけで DOM も fetch も使わない。tests/skillset/ のハーネスも同じ実体を読む。 -->
+	<script src="js/skillset-cards.js?v=2026-09-13a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-12e"></script>
