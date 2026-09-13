@@ -480,13 +480,14 @@ const browser = await chromium.launch();
 			{ raw: '謎の読み', norm: '謎の読み', kind: 'none', matchedId: null, matchedName: null, distance: 3, candidates: [], reason: '距離3 > 許容1' }
 		];
 		UmaSkillDeckCore.openSkillRowsPicker([], (ids) => { window.__rowsAdded = ids.slice(); }, rows,
-			{ lavender: 3, gold: 2, unknown: 0, tabs: [{ tab: 1, detected: 5, badgeCount: 61 }] });
+			{ white: 3, gold: 2, unreadable: 0 });
 		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
 		return {
 			title: el('picker-title').textContent,
 			paste: !el('mode-paste').hidden, filter: !el('mode-filter').hidden, custom: !el('mode-custom').hidden,
 			inputHidden: el('paste-input-wrap').hidden,
 			summary: el('paste-summary').hidden ? null : el('paste-summary').textContent,
+			note: el('paste-note').hidden ? null : el('paste-note').textContent,
 			footer: !el('picker-footer').hidden,
 			count: el('picker-checked-count').textContent,
 			approx: [...document.querySelectorAll('.usd-paste-approx .usd-paste-picked')].map((e) => e.textContent),
@@ -497,8 +498,9 @@ const browser = await chromium.launch();
 	});
 	assert(opened.title === '画像から読み取る' && opened.paste && !opened.filter && !opened.custom && opened.inputHidden && opened.footer,
 		'special/ocr口: 「画像から読み取る」は貼り付けの枠を借り、貼り付け欄だけを隠してフッターを出す', opened);
-	assert(opened.summary === '白スキル 3種 ／ 金スキル 2種（対象外） ／ タブ1 5枚／設定数 61',
-		'special/ocr口: (e) 要約の1行が報告の先頭に出る', opened.summary);
+	// 要約は Chat が確定した文面1（通常時）。注記は常時表示。タブの内訳・設定数は利用者向けには出さない（コミット4）
+	assert(opened.summary === '白スキル 3種を読み取りました。金スキル（約2種）は対象外です。' && opened.note === '※白スキルは「〇〇の目覚め」等を含みます',
+		'special/ocr口: (e) 要約（確定した文面1）と注記が報告の先頭に出る', { summary: opened.summary, note: opened.note });
 	assert(opened.count === '2種選択' && opened.approx.length === 1 && opened.approx[0] === '左回り○',
 		'special/ocr口: (a) 完全一致と autoAccepted の行が最初から選択済み、後者は「完全一致ではない行」に並ぶ', { count: opened.count, approx: opened.approx });
 	assert(opened.pendingLabel === '要確認 2件' && opened.chips.includes('春ウマ娘○') && opened.chips.includes('カスタムスキルとして追加'),
@@ -547,6 +549,141 @@ const browser = await chromium.launch();
 	await page.click('[data-usd-act="picker-close"]');
 
 	assert(errors.length === 0, 'special/ocr口: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
+ * special.html — ステップ①の入口「スキルセット画面のスクショから読み取る」（スキルセットOCR フェーズa コミット4）
+ *
+ * OCR そのものは回さない（Tesseract の言語データと実画像が要る）。読み取りの結果（runSkillsetOcr の戻り値の形）を
+ * showSkillsetScreenshotResult に直接渡し、押す → ピッカーが ocr モードで開く → 追加が対象スキルセット（ドラフト）に入る
+ * → 「元に戻す」で戻る、を見る。文面は Chat が確定したもの（HANDOFF C-24「確定した文面4件」）と一字一句同じであること。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	await page.waitForTimeout(2500);
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	await page.waitForFunction(() => UmaSkillDeckCore.matchPastedSkillText('右回り○').rows[0].kind === 'exact', null, { timeout: 15000 });
+
+	// 入口: 新UIのステップ①、#deck-template-panel の下に、既存の3つの入口と同じ見た目で1つ。押すと画像のファイル選択が開く
+	const entry = await page.evaluate(() => {
+		const btn = document.getElementById('deck-ocr-btn');
+		const input = document.getElementById('deck-ocr-files');
+		const panel = document.getElementById('deck-template-panel');
+		window.__filePickerOpened = 0;
+		input.click = () => { window.__filePickerOpened++; };
+		btn.click();
+		return {
+			visible: !!btn && btn.offsetParent !== null,
+			label: btn.textContent.trim(),
+			classes: btn.className,
+			inDeckBody: !!btn.closest('#deck-skill-body'),
+			afterPanel: !!panel && !!(panel.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING),
+			input: { hidden: input.hidden, multiple: input.multiple, accept: input.accept },
+			opened: window.__filePickerOpened,
+			progressHidden: document.getElementById('deck-ocr-progress').hidden,
+			warnHidden: document.getElementById('deck-ocr-warn').classList.contains('hidden')
+		};
+	});
+	assert(entry.visible && entry.label === 'スキルセット画面のスクショから読み取る' && entry.classes.includes('uma-btn--secondary') && entry.inDeckBody && entry.afterPanel,
+		'special/ocr入口: ステップ①の #deck-template-panel の下に、既存の入口と同じ見た目で出る', entry);
+	assert(entry.input.hidden && entry.input.multiple && entry.input.accept === 'image/*' && entry.opened === 1 && entry.progressHidden && entry.warnHidden,
+		'special/ocr入口: 押すと画像のファイル選択（複数）が開き、進捗と知らせの枠は閉じたまま', entry);
+
+	// 読み取りの結果（合成）: 完全一致1・自動採用1・要確認1、金2種、読めない1枚、小さすぎる画像1、カードが見つからない画像1
+	const shown = await page.evaluate(() => {
+		const m = UmaSkillDeckCore.matchPastedSkillText('右回り○\n左回り○\n春ウマ娘○');
+		const id = (i) => m.rows[i].matchedId, name = (i) => m.rows[i].matchedName;
+		const rows = [
+			{ raw: name(0), norm: name(0), kind: 'exact', matchedId: id(0), matchedName: name(0), candidates: [{ id: id(0), name: name(0), distance: 0 }] },
+			{ raw: '左回りO', norm: '左回りO', kind: 'review', matchedId: id(1), matchedName: name(1), distance: 1, autoAccepted: true, reason: '距離1（完全一致ではない）', candidates: [{ id: id(1), name: name(1), distance: 1 }] },
+			{ raw: '謎の読み', norm: '謎の読み', kind: 'none', matchedId: null, matchedName: null, distance: 3, candidates: [], reason: '距離3 > 許容1' }
+		];
+		window.__ocrIds = [id(0), id(1)];
+		showSkillsetScreenshotResult({
+			rows: rows, white: { accepted: 2, review: 1, unreadable: 1, ids: [id(0), id(1)] }, gold: { kinds: 2, cards: 3 }, unknown: 0,
+			tabs: [{ index: 0, images: 3, detected: 6, lavender: 4, gold: 2, unknown: 0, badgeCount: 61 }],
+			quality: { skipped: [{ name: 'small.png', kinds: ['too-small'] }], warned: [] },
+			inkHeight: { median: 23 }, log: ['a.png 1179x2556 / 画質 OK'],
+			perImage: [
+				{ name: 'a.png', quality: { ok: true }, kindCounts: { lavender: 4, gold: 2, unknown: 0 } },
+				{ name: 'other.png', quality: { ok: true }, kindCounts: { lavender: 0, gold: 0, unknown: 0 } },
+				{ name: 'small.png', quality: { ok: false }, kindCounts: { lavender: 0, gold: 0, unknown: 0 } }
+			]
+		});
+		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
+		return {
+			open: !el('picker-title').closest('.usd-modal').hidden,
+			title: el('picker-title').textContent,
+			summary: el('paste-summary').hidden ? null : el('paste-summary').textContent,
+			note: el('paste-note').hidden ? null : el('paste-note').textContent,
+			count: el('picker-checked-count').textContent,
+			warn: document.getElementById('deck-ocr-warn').classList.contains('hidden') ? null : document.getElementById('deck-ocr-warn-content').textContent,
+			selection: deckTemplateManager.getSelection(),
+			undo: document.getElementById('deck-undo-btn').style.display,
+			devLog: skillsetOcrDevLog.join('\n')
+		};
+	});
+	assert(shown.open && shown.title === '画像から読み取る' && shown.count === '2種選択',
+		'special/ocr入口: 結果を渡すとピッカーが ocr モードで開き、完全一致と自動採用の2種が選択済み', { open: shown.open, title: shown.title, count: shown.count });
+	assert(shown.summary === '白スキル 2種を読み取りました。金スキル（約2種）は対象外です。\nほかに 1枚は文字を読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。'
+		&& shown.note === '※白スキルは「〇〇の目覚め」等を含みます',
+		'special/ocr入口: 要約は文面1＋4a、注記は常時表示（タブの内訳・設定数は出ない）', { summary: shown.summary, note: shown.note });
+	assert(shown.warn !== null
+		&& shown.warn.includes('次の画像は、ゲーム画面が小さすぎて読み取れませんでした。\n・スキルセット画面: small.png')
+		&& shown.warn.includes('次の画像からは、スキルセット画面のスキルが見つかりませんでした。\n・other.png\nスキルセット画面のスクリーンショットかどうか、ご確認ください。'),
+		'special/ocr入口: 画像単位の知らせ（4b-1 は既存の文・4b-2 は専用の文）が入口の下に出る', shown.warn);
+	assert(shown.devLog.includes('設定数61') && shown.devLog.includes('タブ1') && shown.devLog.includes('読めない1枚'),
+		'special/ocr入口: タブの内訳・設定数は開発ログにだけ残る', shown.devLog);
+	assert(shown.selection === null && shown.undo === 'none',
+		'special/ocr入口: 追加する前は対象スキルセットが空で「元に戻す」も出ていない', { selection: shown.selection, undo: shown.undo });
+
+	// 「チェックしたスキルを追加」→ ドラフト（対象スキルセット）に入って選択され、「元に戻す」が出る
+	await page.click('[data-usd-act="picker-add"]');
+	await page.waitForTimeout(500);
+	const added = await page.evaluate(() => ({
+		ids: window.__ocrIds,
+		selection: deckTemplateManager.getSelection(),
+		undo: document.getElementById('deck-undo-btn').style.display,
+		undoCount: document.getElementById('deck-undo-count').textContent,
+		note: document.getElementById('deck-selected-note').textContent
+	}));
+	assert(added.selection && added.selection.kind === 'draft' && added.selection.skillIds.length === 2 && added.ids.every((i) => added.selection.skillIds.includes(i)),
+		'special/ocr入口: 追加した2種がドラフト（対象スキルセット）に入り、選択される', added.selection);
+	assert(added.undo === 'inline-flex' && added.undoCount === '1' && added.note === '✓ 「ドラフト」の2種を照合します',
+		'special/ocr入口: 「元に戻す」が出て、①の案内が「ドラフト」の2種になる', { undo: added.undo, count: added.undoCount, note: added.note });
+
+	// 「元に戻す」で追加が取り消され、対象スキルセットが空に戻る
+	await page.click('[data-usd-act="picker-close"]');
+	await page.click('#deck-undo-btn');
+	await page.waitForTimeout(500);
+	const undone = await page.evaluate(() => ({
+		selection: deckTemplateManager.getSelection(),
+		undo: document.getElementById('deck-undo-btn').style.display,
+		note: document.getElementById('deck-selected-note').textContent
+	}));
+	assert(undone.selection === null && undone.undo === 'none' && undone.note === '対象スキルセットを1つ選んでください',
+		'special/ocr入口: 「元に戻す」で追加が取り消され、対象スキルセットが空に戻る', undone);
+
+	// 白0件＋金N件 → 文面3（注記なし）。読み取った白も金も無い → ピッカーを開かず、4a を入口の下の枠に出す
+	const empty = await page.evaluate(() => {
+		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
+		const base = { rows: [], white: { accepted: 0, review: 0, unreadable: 0, ids: [] }, gold: { kinds: 0, cards: 0 }, unknown: 0, tabs: [], quality: { skipped: [], warned: [] }, inkHeight: { median: 23 }, log: [] };
+		showSkillsetScreenshotResult(Object.assign({}, base, { gold: { kinds: 3, cards: 3 }, perImage: [{ name: 'g.png', quality: { ok: true }, kindCounts: { lavender: 0, gold: 3, unknown: 0 } }] }));
+		const goldOnly = { open: !el('picker-title').closest('.usd-modal').hidden, summary: el('paste-summary').textContent, noteHidden: el('paste-note').hidden, warnHidden: document.getElementById('deck-ocr-warn').classList.contains('hidden') };
+		UmaSkillDeckCore.closeSkillPicker();
+		showSkillsetScreenshotResult(Object.assign({}, base, { white: { accepted: 0, review: 0, unreadable: 2, ids: [] }, perImage: [{ name: 'u.png', quality: { ok: true }, kindCounts: { lavender: 2, gold: 0, unknown: 0 } }] }));
+		const nothing = { open: !el('picker-title').closest('.usd-modal').hidden, warn: document.getElementById('deck-ocr-warn').classList.contains('hidden') ? null : document.getElementById('deck-ocr-warn-content').textContent };
+		return { goldOnly, nothing };
+	});
+	assert(empty.goldOnly.open && empty.goldOnly.noteHidden && empty.goldOnly.warnHidden
+		&& empty.goldOnly.summary === '金スキル（約3種）が見つかりましたが、白スキルはありませんでした。\n金スキルは対象外です。金スキルに対応する白スキルを探す機能は、まだありません。\n白スキルは「テキストで検索」または「条件でスキルを検索」から追加してください。',
+		'special/ocr入口: 白0件＋金N件は文面3で、注記は付けない', empty.goldOnly);
+	assert(!empty.nothing.open && empty.nothing.warn === 'ほかに 2枚は文字を読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。',
+		'special/ocr入口: 読み取った白も金も無いときはピッカーを開かず、4a を入口の下の枠に出す', empty.nothing);
+
+	assert(errors.length === 0, 'special/ocr入口: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
 

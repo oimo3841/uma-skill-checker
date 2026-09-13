@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-13d"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-13a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-13b"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-13a"></script>
 	<style>
@@ -366,6 +366,23 @@
 			<div id="deck-skill-body" class="hidden">
 				<div id="deck-loading-note" class="text-xs text-slate-500 mb-3">テンプレートを読み込んでいます…</div>
 				<div id="deck-template-panel"></div>
+				<!-- スキルセットOCR（フェーズa コミット4）: ゲームのスキルセット画面のスクショから白スキルを読み取り、
+				     対象スキルセットへ足す入口。読み取りは js/skillset-ocr.js、結果の選択と確定は core の
+				     openSkillRowsPicker（「テキストで検索」と同じ報告）。語は B-4（ゲーム側は必ず「スキルセット画面」、
+				     ツール側は「対象スキルセット」のまま。ボタンは名指しを避ける）。 -->
+				<div id="deck-ocr-entry" class="mt-3">
+					<input type="file" id="deck-ocr-files" accept="image/*" multiple hidden onchange="runSkillsetScreenshots(this.files)">
+					<button id="deck-ocr-btn" type="button" class="uma-btn uma-btn--secondary" onclick="pickSkillsetScreenshots()">
+						<i data-lucide="image" class="w-3.5 h-3.5"></i>
+						<span>スキルセット画面のスクショから読み取る</span>
+					</button>
+					<p id="deck-ocr-progress" class="text-xs text-slate-500 mt-1.5" hidden></p>
+					<!-- 画像単位の知らせ（4b）。因子OCRの画質警告（#quality-warn-wrap）と同じ見た目。表示は classList の hidden -->
+					<div id="deck-ocr-warn" class="hidden mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 whitespace-pre-line flex gap-2">
+						<i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500 shrink-0 mt-0.5"></i>
+						<div id="deck-ocr-warn-content"></div>
+					</div>
+				</div>
 				<div class="mt-3 flex items-center justify-between gap-3 flex-wrap">
 					<!-- 表示/非表示は style.display で切り替える。Tailwindでは .inline-flex が .hidden より後に
 					     出力されるため、hiddenクラスの付け外しでは隠れないことを実測で確認済み。 -->
@@ -1482,6 +1499,8 @@
 				'\n  読み替え辞書: ' + Object.keys(ocrErrorDictionary).length + '件' +
 				'\n  画質しきい値: 横幅' + MIN_BASE_WIDTH_PX + 'px未満は対象外 / ' + RECOMMENDED_BASE_WIDTH_PX + 'px未満は警告 / 鮮明度スコア' + MIN_SHARPNESS_SCORE + '以上');
 			if (devGeometry.length) parts.push('■ 行検出・★判定の内訳\n' + devGeometry.join('\n'));
+			// スキルセット画面の読み取り（コミット4）。タブごとの内訳・設定数・幅・文字高・読み直しは利用者向けには出さず、ここにだけ残す
+			if (skillsetOcrDevLog.length) parts.push(skillsetOcrDevLog.join('\n'));
 
 			// デバッグしやすいよう、件数だけでなく実際のOCRテキスト・正規化結果・
 			// 候補との距離まで出す（見つからなかったスキルの原因調査のため）。
@@ -2018,6 +2037,117 @@
 			if (!note) return;
 			if (!deckScope) { note.textContent = '対象スキルセットを1つ選んでください'; return; }
 			note.textContent = '✓ 「' + deckScope.name + '」の' + skillList.length + '種を照合します';
+		}
+
+		/* ============================================================
+		 * スキルセット画面のスクショから読み取る（スキルセットOCR フェーズa コミット4）
+		 *
+		 * 入口は Deck 連携モードのステップ①（#deck-ocr-entry）。読み取りの本体は js/skillset-ocr.js
+		 * （runSkillsetOcr）、結果の選択と確定は core の openSkillRowsPicker（「テキストで検索」と同じ報告）で、
+		 * ここは「ファイル選択 → 進捗 → 結果を core へ渡す」だけ。機能はコミット2・3で入れたものを画面に出すだけ。
+		 * 利用者向けの文面は HANDOFF C-24「確定した文面4件」（要約は core の formatRowsSummary、画像単位の知らせ 4b はここ）。
+		 * ============================================================ */
+		let skillsetOcrBusy = false;
+		let skillsetOcrDevLog = []; // 開発ログ用（利用者向けの文ではない。タブごとの内訳・幅・文字高・読み直しはここだけ）
+
+		function pickSkillsetScreenshots() {
+			if (skillsetOcrBusy) return;
+			const input = document.getElementById('deck-ocr-files');
+			input.value = ''; // 同じファイルを選び直しても change が起きるように
+			input.click();
+		}
+
+		async function runSkillsetScreenshots(fileList) {
+			const files = Array.from(fileList || []);
+			if (!files.length || skillsetOcrBusy) return;
+			if (typeof SkillsetOcr === 'undefined' || typeof Tesseract === 'undefined') {
+				showToast('表示に必要な外部ファイルを読み込めませんでした。ページを再読み込みしてください。');
+				return;
+			}
+			const btn = document.getElementById('deck-ocr-btn');
+			const prog = document.getElementById('deck-ocr-progress');
+			skillsetOcrBusy = true;
+			btn.disabled = true;
+			document.getElementById('deck-ocr-warn').classList.add('hidden');
+			prog.hidden = false;
+			prog.textContent = 'OCRエンジンを初期化中…';
+			let worker = null;
+			let initialized = false;
+			try {
+				// 因子OCR（processImages）と同じ手順で worker を作り、終わったら必ず terminate する
+				worker = await Tesseract.createWorker();
+				await worker.loadLanguage('jpn');
+				await worker.initialize('jpn');
+				initialized = true;
+				// 辞書はマスター445種（対象スキルセットの中身ではない）。因子OCRの辞書とは混ぜない（buildMasterDictionary はローカル）
+				const dict = SkillsetOcr.buildMasterDictionary(UmaSkillDeckCore.getMasterSkills().map(s => ({ id: String(s.id), name: s.name })));
+				const merged = await SkillsetOcr.runSkillsetOcr(files, {
+					worker: worker, dict: dict,
+					onProgress: (step, info) => {
+						const head = '読み取り中… ' + (info.index + 1) + '／' + info.total + '枚';
+						prog.textContent = step === 'card' ? head + '（' + info.done + '／' + info.cards + 'カード）' : head;
+					}
+				});
+				showSkillsetScreenshotResult(merged);
+			} catch (err) {
+				console.error(err);
+				showToast(initialized
+					? 'OCR処理に失敗しました。別の画像を試してください。'
+					: 'OCR処理の初期化に失敗しました。ネットワーク接続を確認してください。');
+			} finally {
+				if (worker) { try { await worker.terminate(); } catch (e) {} }
+				prog.hidden = true;
+				btn.disabled = false;
+				skillsetOcrBusy = false;
+			}
+		}
+
+		/**
+		 * 読み取りの結果を画面に出す（runSkillsetOcr / mergeSkillsetResults の戻り値）。
+		 *  - 4b（画像単位の知らせ）は入口の下の枠。小さすぎる画像は既存の buildImageQualityNotice() をそのまま使い、
+		 *    カードが1枚も見つからなかった画像だけ専用の文（C-24 4b-2）。
+		 *  - 要約（文面1〜3・4a）と行は core へ渡す。読み取った白も金も無いときはピッカーを開かず、4a を枠に出す
+		 *    （選ぶものが無いモーダルを開かないため）。
+		 *  - タブごとの内訳・設定数・幅・文字高・読み直しは開発ログにだけ残す（利用者向けの行から外す決定）。
+		 */
+		function showSkillsetScreenshotResult(merged) {
+			const white = merged.white || { accepted: 0, review: 0, unreadable: 0 };
+			const gold = merged.gold || { kinds: 0, cards: 0 };
+			const rows = Array.isArray(merged.rows) ? merged.rows : [];
+			const perImage = Array.isArray(merged.perImage) ? merged.perImage : [];
+
+			skillsetOcrDevLog = ['■ スキルセット画面の読み取り（skillset-ocr.js 版: ' + SkillsetOcr.VERSION + '）']
+				.concat((merged.log || []).map(l => '  ' + l));
+			skillsetOcrDevLog.push('  内訳: ' + (merged.tabs || []).map(t =>
+				'タブ' + (t.index == null ? '不明' : (t.index + 1)) + ' 画像' + t.images + ' 検出' + t.detected +
+				'（白' + t.lavender + ' 金' + t.gold + ' 不明' + t.unknown + '）設定数' + (t.badgeCount == null ? '読めず' : t.badgeCount)).join(' / '));
+			skillsetOcrDevLog.push('  白: 採用' + white.accepted + '種 / 確認行き' + white.review + '行 / 読めない' + white.unreadable + '枚' +
+				' / 金' + gold.kinds + '種（' + gold.cards + '枚）' + ' / 文字高 中央値' + (merged.inkHeight ? merged.inkHeight.median : '—') + 'px');
+			console.log(skillsetOcrDevLog.join('\n'));
+
+			// 4b: 画像単位の知らせ
+			const skipped = ((merged.quality && merged.quality.skipped) || []).map(s => ({ label: 'スキルセット画面', name: s.name, kinds: s.kinds }));
+			const noCards = perImage.filter(im => im.quality && im.quality.ok && !skipped.some(s => s.name === im.name) &&
+				((im.kindCounts && (im.kindCounts.lavender + im.kindCounts.gold + im.kindCounts.unknown)) || 0) === 0).map(im => im.name);
+			const blocks = [];
+			const qualityNotice = buildImageQualityNotice(skipped, []); // common.js。文面を二重に持たない
+			if (qualityNotice) blocks.push(qualityNotice);
+			if (noCards.length) {
+				blocks.push('次の画像からは、スキルセット画面のスキルが見つかりませんでした。\n' +
+					noCards.map(n => '・' + n).join('\n') + '\nスキルセット画面のスクリーンショットかどうか、ご確認ください。');
+			}
+			const summary = { white: white.accepted, gold: gold.kinds, unreadable: white.unreadable };
+			const openPicker = rows.length > 0 || gold.kinds > 0;
+			if (!openPicker && white.unreadable > 0) {
+				blocks.push('ほかに ' + white.unreadable + '枚は文字を読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。');
+			}
+			const warnWrap = document.getElementById('deck-ocr-warn');
+			document.getElementById('deck-ocr-warn-content').textContent = blocks.join('\n\n');
+			warnWrap.classList.toggle('hidden', blocks.length === 0);
+			if (window.lucide) lucide.createIcons();
+
+			if (openPicker) deckTemplateManager.openSkillRowsPickerForSelection(rows, summary);
+			else if (blocks.length === 0) showToast('スキルセット画面のスキルが見つかりませんでした');
 		}
 
 		/* ============================================================

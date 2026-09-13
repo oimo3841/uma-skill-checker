@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-13a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-13b';
 
 	/* ============================================================
 	 * 定数
@@ -707,6 +707,8 @@
 		'.usd-paste-head { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); }',
 		'.usd-paste-cands { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1); align-items: center; margin-top: var(--uma-sp-1); }',
 		'.usd-paste-hint { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-faint); }',
+		// 画像から読み取る（ocr モード）の要約。文が複数行になるので改行をそのまま出す
+		'.usd-ocr-summary { font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); color: var(--uma-text-subtle); white-space: pre-line; }',
 		'.usd-paste-cand { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); padding: var(--uma-sp-0-5) var(--uma-sp-2);',
 		'  border-radius: var(--uma-r-full); border: 1px solid var(--uma-accent-border); background: var(--uma-accent-soft);',
 		'  color: var(--uma-accent-soft-text); cursor: pointer; }',
@@ -928,7 +930,9 @@
 					// 「画像から読み取る」（ocr モード）も同じ枠を使う。貼り付け欄と照合ボタン（paste-input-wrap）を隠し、
 					// 代わりに読み取りの要約（paste-summary）を先頭に1行出す。報告（paste-report）の作りは共通。
 					'<div class="usd-mode" data-usd-el="mode-paste" hidden>' +
-						'<p class="usd-paste-hint mb-2" data-usd-el="paste-summary" hidden></p>' +
+						// 要約（文面は formatRowsSummary。複数行）と、その下の注記（常時表示。警告ではなく事実の注記）。
+						'<p class="usd-ocr-summary mb-2" data-usd-el="paste-summary" hidden></p>' +
+						'<p class="usd-paste-hint mb-2" data-usd-el="paste-note" hidden>※白スキルは「〇〇の目覚め」等を含みます</p>' +
 						'<div data-usd-el="paste-input-wrap">' +
 						'<textarea class="usd-input uma-input" rows="5" style="font-family:var(--uma-font-mono);resize:vertical;" data-usd-el="paste-input" placeholder="1行に1つずつスキル名を貼り付けるか、スプレッドシートの1列をそのまま貼り付け"></textarea>' +
 						'<div class="flex flex-wrap gap-2 mt-2">' +
@@ -1606,6 +1610,7 @@
 		const summaryEl = q(pickerEl, 'paste-summary');
 		summaryEl.hidden = true;
 		summaryEl.textContent = '';
+		q(pickerEl, 'paste-note').hidden = true;
 		// 手入力は作った時点でその場で足すので、下の確定ボタンは要らない。
 		// フッターごと畳む（条件で検索・テキストで検索の2モードは同じフッターを使う）。
 		q(pickerEl, 'picker-commit').hidden = !spec.commit;
@@ -1637,35 +1642,51 @@
 	 *                         { raw, norm, kind:'exact'|'review'|'none'|'error', matchedId, matchedName,
 	 *                           candidates:[{id,name,distance}], reason?, autoAccepted? }
 	 *                         autoAccepted:true の 'review' 行は選択に入った状態で出る（applyPasteRows）。
-	 * @param summary          { lavender, gold, unknown, tabs:[{tab, detected, badgeCount}] } 省略可。
-	 *                         報告の先頭に1行出す。**文面はコミット4で確定する**（ここは骨組み。数字を並べるだけ）。
+	 * @param summary          { white, gold, unreadable } 省略可。white＝確認なしで採用した白の種数（直下の「選択 N件」と
+	 *                         一致する）、gold＝金の種数（読みの揺れで1〜2多く出るので「約」を付けて出す）、
+	 *                         unreadable＝文字を読み取れなかった白のカードの枚数。文面は formatRowsSummary。
+	 *                         タブごとの内訳や設定数は利用者向けには出さない（開発ログだけ。コミット4の決定）。
 	 *
 	 * 照合そのものはここで行わない。この関数は Deck 側の照合（normalizeSkillText。混同マップ無し）を通さないので、
 	 * common.js 側で CHAR_CONFUSION_MAP を効かせた結果をそのまま見せられる。
 	 */
 	function openSkillRowsPicker(existingSkillIds, onAdd, rows, summary) {
 		openPicker('ocr', existingSkillIds, onAdd);
+		const s = formatRowsSummary(summary);
 		const summaryEl = q(pickerEl, 'paste-summary');
-		const text = formatRowsSummary(summary);
-		summaryEl.textContent = text;
-		summaryEl.hidden = !text;
+		summaryEl.textContent = s.text;
+		summaryEl.hidden = !s.text;
+		q(pickerEl, 'paste-note').hidden = !s.note;
 		applyPasteRows(Array.isArray(rows) ? rows.slice() : []);
 	}
 
-	/** summary → 1行の文。骨組みの文面（コミット4で差し替える）。 */
+	/**
+	 * 読み取りの要約の文面（Chat が確定。HANDOFF C-24「確定した文面4件」。**ここで勝手に変えない**）。
+	 *   1. 通常時（白N・金M）: 「白スキル N種を読み取りました。金スキル（約M種）は対象外です。」＋注記
+	 *   2. 金0件:             「白スキル N種を読み取りました。」＋注記（金の有無と白の範囲は別の話なので注記は残す）
+	 *   3. 白0件＋金N件:      3行（注記なし。0件のときに白の範囲を説明しても情報が無い）
+	 *   4a. 読めなかったカードが1以上のときだけ末尾に足す。
+	 * 「白スキル」はゲーム内の色の呼び名。「取り込む」は Deck への受け渡しの意味に固定されているので使わない
+	 * （ピッカーの動詞は「追加」）。「対象外」は Deck の取り込み結果で既にスキルに対して使われている語。
+	 * @returns {{ text: string, note: boolean }} note は注記「※白スキルは「〇〇の目覚め」等を含みます」を出すか
+	 */
 	function formatRowsSummary(s) {
-		if (!s) return '';
-		const parts = [];
-		if (typeof s.lavender === 'number') parts.push('白スキル ' + s.lavender + '種');
-		if (typeof s.gold === 'number') parts.push('金スキル ' + s.gold + '種（対象外）');
-		if (typeof s.unknown === 'number' && s.unknown > 0) parts.push('分類できない地の色 ' + s.unknown + '枚');
-		if (Array.isArray(s.tabs) && s.tabs.length) {
-			parts.push(s.tabs.map(t => {
-				const name = (t.tab == null || t.tab === 'unknown') ? 'タブ不明' : 'タブ' + t.tab;
-				return name + ' ' + (t.detected == null ? '' : t.detected + '枚') + (t.badgeCount == null ? '' : '／設定数 ' + t.badgeCount);
-			}).join('、'));
+		if (!s) return { text: '', note: false };
+		const n = typeof s.white === 'number' ? s.white : 0;
+		const m = typeof s.gold === 'number' ? s.gold : 0;
+		const u = typeof s.unreadable === 'number' ? s.unreadable : 0;
+		const lines = [];
+		let note = true;
+		if (n === 0 && m > 0) {
+			lines.push('金スキル（約' + m + '種）が見つかりましたが、白スキルはありませんでした。');
+			lines.push('金スキルは対象外です。金スキルに対応する白スキルを探す機能は、まだありません。');
+			lines.push('白スキルは「テキストで検索」または「条件でスキルを検索」から追加してください。');
+			note = false;
+		} else {
+			lines.push('白スキル ' + n + '種を読み取りました。' + (m > 0 ? '金スキル（約' + m + '種）は対象外です。' : ''));
 		}
-		return parts.join(' ／ ');
+		if (u > 0) lines.push('ほかに ' + u + '枚は文字を読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。');
+		return { text: lines.join('\n'), note: note };
 	}
 
 	function closePicker() {
@@ -1971,10 +1992,15 @@
 
 		// 3つの入口はどれも同じ「選んだIDを編集中のセットへ足す」処理へ合流する。
 		function openEditorPicker(mode) {
-			const target = editing;
-			openPicker(mode, editingSkillIds(), {
-				scope: 'editor',
-				// 見るのは編集中のセットの中身だけ。復元で変わるのはここだけなので、
+			openPicker(mode, editingSkillIds(), pickerSinkFor(editing, 'editor'));
+		}
+
+		// ピッカーの受け皿（openPicker の第3引数。{scope, probe, add, remove}）。
+		// 編集画面の3つの入口と、ステップ①の「スキルセット画面のスクショから読み取る」（一覧の画面から呼ぶ）で共通。
+		function pickerSinkFor(target, scope) {
+			return {
+				scope: scope,
+				// 見るのは対象のセットの中身だけ。復元で変わるのはここだけなので、
 				// 他の状態を混ぜると正しく戻せても「戻っていない」と判定してしまう。
 				probe: () => probeOf(skillIdsOf(target)),
 				add: (ids) => {
@@ -1984,7 +2010,8 @@
 					const fresh = ids.filter(id => cur.indexOf(id) === -1);
 					if (fresh.length === 0) return [];
 					if (!writeSkillIds(target, cur.concat(fresh))) return [];
-					afterEditorPickerAdd(target);
+					// 一覧の画面から足したときは一覧ごと描き直す（件数・選択の行が変わる）
+					afterEditorPickerAdd(target, scope !== 'editor');
 					return fresh;
 				},
 				remove: (ids) => {
@@ -1998,7 +2025,25 @@
 					afterEditorPickerAdd(target, true);
 					return true;
 				}
-			});
+			};
+		}
+
+		/**
+		 * 外で照合を済ませた行（スキルセットOCR。コミット4）を、いま扱っている対象スキルセットへ足すモーダルを開く。
+		 * 対象は、編集中ならその対象、そうでなければ選択中のテンプレート、何も選んでいなければドラフト
+		 * （足した時点でドラフトが選択される＝「ドラフトを編集して作れます」と同じ流れ）。
+		 * 足した分は Undo に積める（受け皿は編集画面の入口と同じ pickerSinkFor）。scope は見ている画面に合わせる。
+		 */
+		function openSkillRowsPickerForSelection(rows, summary) {
+			let target = editing;
+			if (!target) {
+				const t = ensureUserData().templates.find(x => x.templateId === selectedId);
+				target = t ? { kind: 'template', obj: t } : { kind: 'draft' };
+			}
+			if (target.kind === 'draft' && !draftScope) { toast('対象スキルセットを1つ選んでください'); return false; }
+			const scope = editing ? 'editor' : 'list';
+			openSkillRowsPicker(skillIdsOf(target) || [], pickerSinkFor(target, scope), rows, summary);
+			return true;
 		}
 
 		// スキルを足した／その追加を取り消したあとの描画と通知。
@@ -2224,6 +2269,8 @@
 			closeEditor: closeEditor,
 			getSelection: getSelection,
 			setSelectedId: setSelectedId,
+			// スキルセットOCR（コミット4）: 照合済みの行を、いま扱っている対象スキルセットへ足すモーダル
+			openSkillRowsPickerForSelection: openSkillRowsPickerForSelection,
 			// 旧API（テンプレートIDだけを扱う）。呼び出し元の移行が済むまで残す。
 			getSelectedTemplateId: function () { return selectedId; }
 		};
