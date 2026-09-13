@@ -26,7 +26,7 @@
  * （{ raw, norm, kind:'exact'|'review'|'none', matchedId, matchedName, candidates:[{id,name,distance}] }）。
  * 曖昧な行はこの形のまま Deck の貼り付けピッカーへ渡す（決定 A-8。core 側の口はコミット3）。
  */
-const SKILLSET_OCR_JS_VERSION = '2026-09-13b';
+const SKILLSET_OCR_JS_VERSION = '2026-09-13c';
 
 (function (global) {
 	'use strict';
@@ -191,10 +191,20 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-13b';
 	 *   `original` に assessImageQuality() の生の結果を残す（開発ログ用）。
 	 */
 	function adaptQualityForSkillset(q) {
+		// **幅による事前の警告（'narrow'・400〜700px）も出さない**（おいもさんの決定・2026-09-13。B-1 の変更）。
+		//   B-1 の原案は「400未満は拒否、400〜700は警告つきで通す」だったが、DMM 版の実測で 700px 未満の5水準
+		//   （683／618／577／536／492px）すべてに 'narrow' が出る一方、それらは白を 88〜94% 読めていた。
+		//   正常に読めている画像で警告が出続けると利用者は警告を無視するようになり、将来ほんとうに危ない画像で
+		//   警告を出しても効かなくなる（鮮明度と同じ構図）。逆に、幅ゲートは弾きたいもの（スマホの半解像度 592px＝
+		//   実際に崩れる）を弾けない（400〜700 は警告どまりで通るため）。DMM 577px は通したい・スマホ 592px は
+		//   弾きたい、を幅だけでは区別できない＝鳴ってほしくないところで鳴り、鳴ってほしいところで止められない状態だった。
+		//   → 400px 未満の**拒否は残す**（文字高 8px 相当で完全一致 6〜9% しか読めない実測があるため）。
+		//     警告の代わりに、B-1 で決めてある**「読めなかった N 枚」の事後報告**を本命の対策にする。
+		//     幅の数値は鮮明度と同じく開発ログ（formatImageLog）に残す。common.js は変えない。
 		var rejectKinds = (q.rejectKinds || []).filter(function (k) { return k !== 'blurry'; });
-		var warnKinds = (q.warnKinds || []).filter(function (k) { return k !== 'blurry'; });
+		var warnKinds = (q.warnKinds || []).filter(function (k) { return k !== 'blurry' && k !== 'narrow'; });
 		var reasons = (q.reasons || []).filter(function (s) { return s.indexOf('鮮明度') === -1; });
-		var warnings = (q.warnings || []).filter(function (s) { return s.indexOf('鮮明度') === -1; });
+		var warnings = (q.warnings || []).filter(function (s) { return s.indexOf('鮮明度') === -1 && s.indexOf('推奨') === -1; });
 		return {
 			ok: rejectKinds.length === 0, width: q.width, height: q.height, sharpness: q.sharpness,
 			reasons: reasons, warnings: warnings, rejectKinds: rejectKinds, warnKinds: warnKinds,
