@@ -15,7 +15,7 @@
 
 // このファイルの版。B節ルール4の3点一致（内部定数・各HTMLの ?v=・npm run test:verify）の対象。
 // 中身を変更したらこの日付も更新すること。
-const STITCH_JS_VERSION = '2026-09-13a';
+const STITCH_JS_VERSION = '2026-09-15a';
 
 // 画像結合用の簡易ログ。既存の開発ログ（devGeometry）に相乗りさせることで、
 // 「開発ログを表示」チェックを入れれば結合処理の詳細も確認できるようにする。
@@ -440,8 +440,32 @@ function stitchFindTrailingCutY(canvas, searchStartY) {
 	return h;
 }
 
+/**
+ * 末尾トリミングで切り落とした範囲を、_sourcePlacements 側からも落とす。
+ * outY0 は必ず 0 以上・昇順なので、下端だけを cutY で詰めればよい。
+ */
+function stitchClipPlacements(placements, cutY) {
+	const out = [];
+	for (const p of placements) {
+		if (p.outY0 >= cutY) continue;
+		const keep = Math.min(p.outY0 + (p.srcY1 - p.srcY0), cutY) - p.outY0;
+		if (keep <= 0) continue;
+		out.push({ fileIndex: p.fileIndex, srcY0: p.srcY0, srcY1: p.srcY0 + keep, outY0: p.outY0 });
+	}
+	return out;
+}
+
 // 1人分の画像配列を縦結合し、結果Canvasを返す。
 // ヘッダー/フッターは完全除外し、スキルパネル自体のみを出力する。
+//
+// 戻り値のCanvasには、_stitchWarnings（継ぎ目の警告）に加えて
+// **_sourcePlacements**（[{ fileIndex, srcY0, srcY1, outY0 }]）を添える。
+// 「元画像のこのy範囲が、結合後のここに入った」という対応表で、
+// 結合が終わったあとに印などを重ねたい呼び出し元（exam.html の属性アイコン）が使う。
+// **印は必ず結合の「後」に焼くこと。** 結合の前に元画像へ描き込むと、継ぎ目を
+// 画素の突き合わせで決めている stitchResolveOrder / stitchMeasureSeam がその描き込みに
+// 引きずられ、結合位置がズレる（34セッション目の Step 0 で実測。
+// 結合後の高さが 2272px → 1899px に化けた）。
 async function stitchOnePerson(files, groupLabel) {
 	if (files.length === 0) return null;
 	if (files.length === 1) {
@@ -520,14 +544,22 @@ async function stitchOnePerson(files, groupLabel) {
 	out.height = totalHeight;
 	const octx = out.getContext('2d');
 
+	// 元画像のどの範囲が、結合後のどこに入ったか（_sourcePlacements）。
+	// 横は等倍・縦も等倍なので、1枚につき「元のy範囲」と「結合後の上端」の3つの数字で足りる。
+	// fileIndex は **呼び出し元が渡した files の添字**（並べ替え後の順番ではない）。
+	const placements = [];
 	let cursorY = 0;
-	octx.drawImage(canvasesForStitch[0], 0, headerEnd + skipFirst, w0, contentHeight - skipFirst, 0, cursorY, w0, contentHeight - skipFirst);
-	cursorY += (contentHeight - skipFirst);
+	const firstSrcY = headerEnd + skipFirst;
+	const firstDrawH = contentHeight - skipFirst;
+	octx.drawImage(canvasesForStitch[0], 0, firstSrcY, w0, firstDrawH, 0, cursorY, w0, firstDrawH);
+	placements.push({ fileIndex: resolved.order[0], srcY0: firstSrcY, srcY1: firstSrcY + firstDrawH, outY0: cursorY });
+	cursorY += firstDrawH;
 	for (let i = 1; i < canvasesForStitch.length; i++) {
 		const ov = overlaps[i - 1];
 		const srcY = headerEnd + ov;
 		const drawH = contentHeight - ov;
 		octx.drawImage(canvasesForStitch[i], 0, srcY, w0, drawH, 0, cursorY, w0, drawH);
+		placements.push({ fileIndex: resolved.order[i], srcY0: srcY, srcY1: srcY + drawH, outY0: cursorY });
 		cursorY += drawH;
 	}
 
@@ -539,11 +571,13 @@ async function stitchOnePerson(files, groupLabel) {
 		trimmed.height = cutY;
 		trimmed.getContext('2d').drawImage(out, 0, 0, w0, cutY, 0, 0, w0, cutY);
 		trimmed._stitchWarnings = warnings;
+		trimmed._sourcePlacements = stitchClipPlacements(placements, cutY);
 		stitchLog(groupLabel + ': 縦結合完了(末尾トリミング後): ' + w0 + ' x ' + cutY);
 		return trimmed;
 	}
 
 	out._stitchWarnings = warnings;
+	out._sourcePlacements = placements;
 	stitchLog(groupLabel + ': 縦結合完了: ' + w0 + ' x ' + totalHeight);
 	return out;
 }
