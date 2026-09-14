@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14g';
 
 	/* ============================================================
 	 * 定数
@@ -757,6 +757,13 @@
 		'.usd-paste-hint { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-faint); }',
 		// 画像から読み取る（ocr モード）の要約。文が複数行になるので改行をそのまま出す
 		'.usd-ocr-summary { font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); color: var(--uma-text-subtle); white-space: pre-line; }',
+		/* 報告の中のボタンは**意味ごとに見た目を分ける**（32セッション目に整理）。取り違えると
+		   取り返しの付きやすさが違うものを同じ形で並べることになる（実際そうなっていた＝
+		   「カスタムスキルとして追加」が候補チップと同じ形で並び、押すと新しいスキルが作られていた）。
+		     .usd-paste-cand  … **押すとその場で確定する**。アクセント色・**角丸いっぱいの丸い形**
+		     .usd-paste-panel … **押すと何かが開く**（入力欄・画像）。無彩色・**四角い形**
+		     .usd-paste-skip  … **押すとその行を畳む／控えめな導線**。下線付きの淡い文字
+		   新しいボタンを足すときは、この3つのどれかに必ず当てはめる。 */
 		'.usd-paste-cand { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); padding: var(--uma-sp-0-5) var(--uma-sp-2);',
 		'  border-radius: var(--uma-r-full); border: 1px solid var(--uma-accent-border); background: var(--uma-accent-soft);',
 		'  color: var(--uma-accent-soft-text); cursor: pointer; }',
@@ -766,8 +773,9 @@
 		'.usd-paste-skip:hover { color: var(--uma-text-subtle); }',
 		// 行の右肩のボタンの並び（「画像を見る」＋「取り消す」／「無視する」）。31セッション目
 		'.usd-paste-acts { display: flex; align-items: center; gap: var(--uma-sp-2); flex-shrink: 0; }',
+		// 「押すと開く」側は**四角い形**にして、丸い候補チップと一目で分かるようにする（32セッション目）
 		'.usd-paste-panel { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); padding: var(--uma-sp-0-5) var(--uma-sp-2);',
-		'  border-radius: var(--uma-r-full); border: 1px solid var(--uma-border); background: var(--uma-surface);',
+		'  border-radius: var(--uma-r-sm); border: 1px solid var(--uma-border); background: var(--uma-surface);',
 		'  color: var(--uma-text-subtle); cursor: pointer; white-space: nowrap; }',
 		'.usd-paste-panel:hover { color: var(--uma-text-heading); border-color: var(--uma-text-faint); }',
 		'.usd-paste-scroll { max-height: 240px; overflow: auto; }',
@@ -776,14 +784,18 @@
 		   候補一覧だけが伸び縮みするので、スマホでキーボードが出ても入力欄が押し出されない。 */
 		'.usd-name-head { margin-bottom: var(--uma-sp-2); }',
 		'.usd-name-read { margin-bottom: var(--uma-sp-2); font-family: var(--uma-font-mono); word-break: break-all; }',
-		'.usd-name-img { display: block; width: 100%; height: auto; margin-bottom: var(--uma-sp-3);',
+		// 画像は高さを抑える。抑えないと、縦に長い切り出しが来たときスマホで入力欄が画面の外へ押し出される
+		'.usd-name-img { display: block; width: 100%; height: auto; max-height: 22vh; object-fit: contain;',
+		'  margin-bottom: var(--uma-sp-3);',
 		'  border: 1px solid var(--uma-border); border-radius: var(--uma-r-md); background: var(--uma-surface); }',
 		'.usd-name-img[data-usd-act] { cursor: zoom-in; }',
 		'.usd-name-label { display: block; margin-bottom: var(--uma-sp-1-5);',
 		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
 		'.usd-name-results { margin-top: var(--uma-sp-3); }',
+		// 候補一覧も画面の高さに合わせる。キーボードが出て縦が狭いときに、一覧だけが伸びて
+		// 入力欄を押し出さないようにする（入力欄の下に必ず数件は見えている状態を保つ）
 		'.usd-name-list { display: flex; flex-direction: column; gap: var(--uma-sp-1);',
-		'  max-height: 240px; overflow: auto; }',
+		'  max-height: min(240px, 40vh); overflow: auto; }',
 		// 候補は「押すと確定する」もの。行の候補チップ（.usd-paste-cand）と同じアクセント色の系統にそろえる
 		'.usd-name-hit { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2);',
 		'  text-align: left; padding: var(--uma-sp-2) var(--uma-sp-3); border-radius: var(--uma-r-md);',
@@ -1949,7 +1961,9 @@
 	 *     原理上表示されない（`reference/not-on-skillset-screen.json`。網羅率の分母が 439種なのがその根拠）ので、
 	 *     この画面に絶対に出ないものを白スキルの唯一の例として挙げていたことになる。
 	 *   - 利用者向けの文言では、この画面の1つ1つのスキルの表示を**スキルパネル**と呼ぶ（「カード」「枚」は使わない）。
-	 *   - **文面4a（「ほかに N つのスキルパネルを読み取れませんでした。…」）は廃止した。**
+	 *   - **【廃止済み・いまは使っていない文言】文面4a**。「ほかに N つのスキルパネルを…」という
+	 *     読み取れなかった数を出す行があったが、31セッション目に**この関数から取り除いた**
+	 *     （下の実装にこの行は無い。復活させないこと）。
 	 *     おいもさんの決定2＝手1（重複除去はせず見せ方で引き受ける）を採ったことで **N は「足りない数」ではなくなり**、
 	 *     数字を出し続けると「N個足りない」と読まれ続ける。読み取れなかったパネルは**画像を並べて見せる**ので、
 	 *     数は見れば分かり、数字が重複する。区画と文面は special.html（`#deck-ocr-panels`）が持つ。
