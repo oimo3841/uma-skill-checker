@@ -3051,34 +3051,32 @@
 		 * 印は**へこみ**の 0.75 倍にする（＝間隔の 0.0844）。〇（間隔の 0.0758）より大きいので
 		 * **〇は隠れ、へこみの縁は外側に残る。**
 		 * ------------------------------------------------------------ */
-		// 列が1本しか取れなかったときに使う、画像の幅に対する比（間隔/幅 ≒ 0.385 で換算した値）
-		const ATTR_WELL_D_RATIO = 0.0433;
-		const ATTR_CIRCLE_CX_RATIO = 0.0272;
-		const ATTR_MARK_SCALE = 0.75;
-
-		// ふだん使うほう。列と列の間隔に対する比。理由は attrCircleMetrics() を参照。
+		// 列と列の間隔に対する比。基準を間隔にする理由は attrCircleMetrics() を参照。
 		const ATTR_WELL_D_OVER_PITCH = 0.1125;
 		const ATTR_CIRCLE_CX_OVER_PITCH = 0.0708;
+		const ATTR_MARK_SCALE = 0.75;
 
 		/**
 		 * その画像での「へこみ（印を置く枠）の直径」と、列の左端から〇の中心までのずれ。
-		 * どちらも元画像の画素で返す。
+		 * どちらも元画像の画素で返す。測れなければ null。
 		 *
 		 * 基準は**実際に検出した列と列の間隔**にする。ゲーム画面は同じ比率で拡大縮小
 		 * されるので、画面の大きさが違っても間隔から測れば正しい大きさになる。
 		 * 画像の幅を基準にすると、スクショの左右にゲーム画面以外のものが入る形
 		 * （DMM版のウィンドウなど）で幅とUIの大きさが対応しなくなり、印がズレる。
-		 * 列が1本しか取れなかったときだけ、画像の幅から求める比に倒す。
+		 *
+		 * **列がちょうど2本のときだけ測る。** 以前は1本しか取れなかったときに画像の幅から
+		 * 求める比へ倒していたが、それは**上で捨てたはずの基準に戻る**経路で、しかも
+		 * 一度も通らないので狂っても気づけない（過去のOCR結果35ケース・62枚を数えたところ、
+		 * 列は全部2本だった）。3本以上のときも xs[1] - xs[0] が本来の間隔と別物になるので測らない。
+		 * 測れない画像が混ざっていたら、その人には印を付けず、補助テキストで理由を断る。
 		 */
-		function attrCircleMetrics(g, W) {
+		function attrCircleMetrics(g) {
 			const xs = g.columnXs || [];
-			if (xs.length >= 2) {
-				const pitch = (xs[1] - xs[0]) * g.scale;
-				if (pitch > 0) {
-					return { d: pitch * ATTR_WELL_D_OVER_PITCH, offset: pitch * ATTR_CIRCLE_CX_OVER_PITCH };
-				}
-			}
-			return { d: W * ATTR_WELL_D_RATIO, offset: W * ATTR_CIRCLE_CX_RATIO };
+			if (xs.length !== 2) return null;
+			const pitch = (xs[1] - xs[0]) * g.scale;
+			if (!(pitch > 0)) return null;
+			return { d: pitch * ATTR_WELL_D_OVER_PITCH, offset: pitch * ATTR_CIRCLE_CX_OVER_PITCH };
 		}
 
 		// 区分ごとの色。値は書かず、css/tokens.css のトークンの名前だけを持つ（F-19）。
@@ -3103,7 +3101,13 @@
 		};
 		const MARK_LEGEND_HEAD = '印の見かた：';
 		const MARK_LEGEND_NOTE = '印の無い行は、対象外のスキルか、読み取れなかった行です。';
-		const MARK_SUPPRESSED_NOTE = 'この画像は対応を確認できていない画面サイズのため、印を付けていません。';
+		// 印を付けなかった理由。**原因ごとに別の文面にする**（利用者が「撮り方を変えれば直るか」を
+		// 判断できるようにするため。画面サイズの話と、並びを読めなかった話は別物）。
+		const MARK_SUPPRESSED_NOTE = {
+			size: 'この画像は対応を確認できていない画面サイズのため、印を付けていません。',
+			layout: 'この画像はスキルパネルの並びを読み取れなかったため、印を付けていません。'
+		};
+		const MARK_SUPPRESSED_ORDER = ['size', 'layout'];
 
 		/**
 		 * 印の色をトークンから読む。Canvas には CSS が効かないので実行時に引く。
@@ -3217,7 +3221,8 @@
 		 *   kinds      … 実際に使った区分（凡例に並べるのは使ったものだけ）
 		 */
 		function drawAttrIconsOnPerson(canvas, personIdx) {
-			const none = { drawn: false, suppressed: false, kinds: [] };
+			// suppressed … 印を付けなかった理由（null / 'size' / 'layout'）
+			const none = { drawn: false, suppressed: null, kinds: [] };
 			if (!attrIconsEnabled) return none;
 			const geo = personGeometry[personIdx];
 			const lines = personLines[personIdx];
@@ -3225,7 +3230,14 @@
 			if (!geo || !lines || !res) return none;
 			// 1枚でも未対応の形が混ざっていれば、この人には印を付けない（決定6）
 			if (!geo.every(g => g && attrIconProfileOf(g.naturalW, g.naturalH))) {
-				return { drawn: false, suppressed: true, kinds: [] };
+				return { drawn: false, suppressed: 'size', kinds: [] };
+			}
+			// スキルパネルの並び（列）を読めていない画像が混ざっていたら、印は付けない。
+			// 〇の位置と大きさは列と列の間隔から出しているので、間隔が測れなければ置き場所が決まらない。
+			if (geo.some(g => g.rows && !attrCircleMetrics(g))) {
+				devGeometry.push('[印] ' + PERSON_LABELS[personIdx] +
+					': 列がちょうど2本にならない画像があり、〇の位置を決められないため印を描きませんでした');
+				return { drawn: false, suppressed: 'layout', kinds: [] };
 			}
 			const colors = attrMarkColors();
 			if (!colors) {
@@ -3275,7 +3287,8 @@
 					const g = geo[p.fileIndex];
 					if (!g || !g.rows || !g.columnXs) return;
 					// 〇の大きさと位置は画像ごとに測り直す（1人分でも画面の大きさが違うことがある）
-					const metrics = attrCircleMetrics(g, W);
+					const metrics = attrCircleMetrics(g);
+					if (!metrics) return; // 上で弾いているので通らないが、念のため
 					const d = metrics.d * ATTR_MARK_SCALE;
 					g.rows.forEach((row, rowIndex) => {
 						const kind = kindByRowKey[p.fileIndex + ':' + rowIndex];
@@ -3303,7 +3316,7 @@
 				devGeometry.push('[印] ' + PERSON_LABELS[personIdx] + ': 印を置いた ' + placed.length +
 					' / 印を置きたかった行 ' + wantKeys + '（結合後のCanvasに収まらなかった行があります）');
 			}
-			return { drawn: placed.length > 0, suppressed: false, kinds: MARK_KIND_ORDER.filter(k => used.has(k)) };
+			return { drawn: placed.length > 0, suppressed: null, kinds: MARK_KIND_ORDER.filter(k => used.has(k)) };
 		}
 
 		/**
@@ -3501,8 +3514,8 @@
 		// 上に「何を追加／除外したか」を左揃えで、いちばん下に従来からの脚注を右揃えで置く。
 		// 調整が無ければ従来どおり脚注の1行だけになる。
 		//
-		// markInfo … 印の凡例。{ kinds: [使った区分], suppressed: 未対応の形だったか }。
-		//   印が OFF のときは kinds が空・suppressed が false なので、この欄は1行も増えない。
+		// markInfo … 印の凡例。{ kinds: [使った区分], suppressed: [印を付けなかった理由] }。
+		//   印が OFF のときはどちらも空なので、この欄は1行も増えない。
 		function stitchDrawSharedNoteBar(totalWidth, referenceWidth, markInfo) {
 			const cardH = Math.round(referenceWidth * 0.185);
 			// ④ 補助テキスト欄は、バナーのカードの見出し（0.28）より一段小さくする
@@ -3535,9 +3548,13 @@
 			if (legendLines.length) {
 				stitchWrapText(ctx, MARK_LEGEND_NOTE, maxTextWidth).forEach(line => tailNotes.push(line));
 			}
-			if (info.suppressed) {
-				stitchWrapText(ctx, MARK_SUPPRESSED_NOTE, maxTextWidth).forEach(line => tailNotes.push(line));
-			}
+			(info.suppressed || []).slice()
+				.sort((a, b) => MARK_SUPPRESSED_ORDER.indexOf(a) - MARK_SUPPRESSED_ORDER.indexOf(b))
+				.forEach(reason => {
+					const text = MARK_SUPPRESSED_NOTE[reason];
+					if (!text) return;
+					stitchWrapText(ctx, text, maxTextWidth).forEach(line => tailNotes.push(line));
+				});
 
 			const lineH = Math.round(fontSize * 1.8);
 			const barHeight = lineH * (extra.length + legendLines.length + tailNotes.length + 1);
@@ -3614,7 +3631,7 @@
 			const allWarnings = [];
 			// 印の凡例に出すもの（セット内の全員ぶんをまとめる）
 			const usedMarkKinds = new Set();
-			let markSuppressed = false;
+			const markSuppressed = new Set();
 			for (const idx of activeIndexes) {
 				const label = PERSON_LABELS[idx];
 				const contentCanvas = await stitchOnePerson(persons[idx].files, label);
@@ -3625,7 +3642,7 @@
 				// 区分の印は**結合が終わってから**焼く（結合の前に描くと継ぎ目がズレる）
 				const mark = drawAttrIconsOnPerson(contentCanvas, idx);
 				mark.kinds.forEach(k => usedMarkKinds.add(k));
-				if (mark.suppressed) markSuppressed = true;
+				if (mark.suppressed) markSuppressed.add(mark.suppressed);
 				const detected = countDetected(idx);
 				const sp70Count = countCategory(idx, sp70Ids, false);
 				const greenCount = countCategory(idx, greenIds, equivalence);
@@ -3641,7 +3658,7 @@
 			const contentRow = contentCanvases.length === 1 ? contentCanvases[0] : stitchConcatHorizontallyTopAligned(contentCanvases);
 			const noteBar = stitchDrawSharedNoteBar(bannerRow.width, contentCanvases[0].width, {
 				kinds: MARK_KIND_ORDER.filter(k => usedMarkKinds.has(k)),
-				suppressed: markSuppressed
+				suppressed: MARK_SUPPRESSED_ORDER.filter(r => markSuppressed.has(r))
 			});
 
 			const totalWidth = Math.max(bannerRow.width, noteBar.width, contentRow.width);
