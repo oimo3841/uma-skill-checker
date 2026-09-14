@@ -3258,28 +3258,51 @@
 			const W = canvas.width;
 			const used = new Set();
 			const placed = [];
-			placements.forEach(p => {
-				const g = geo[p.fileIndex];
-				if (!g || !g.rows || !g.columnXs) return;
-				// 〇の大きさと位置は画像ごとに測り直す（1人分でも画面の大きさが違うことがある）
-				const metrics = attrCircleMetrics(g, W);
-				const d = metrics.d * ATTR_MARK_SCALE;
-				g.rows.forEach((row, rowIndex) => {
-					const kind = kindByRowKey[p.fileIndex + ':' + rowIndex];
-					if (!kind) return;
-					// rows は toBaseCanvas() 後の座標なので、元画像の座標へ戻す
-					const cySrc = (row.y + row.h / 2) * g.scale;
-					// この画像から実際に採られた範囲の外は、別の画像が受け持つ
-					if (cySrc < p.srcY0 || cySrc >= p.srcY1) return;
-					const cx = g.columnXs[row.col] * g.scale - metrics.offset;
-					const cy = p.outY0 + (cySrc - p.srcY0);
-					// 同じ行が2枚に写っていたときの重ね描きを避ける
-					if (placed.some(q => Math.abs(q.x - cx) < d && Math.abs(q.y - cy) < d)) return;
-					placed.push({ x: cx, y: cy });
-					drawSkillMark(ctx, kind, cx, cy, d, colors);
-					used.add(kind);
+			// 2周する。1周目は「その画像から実際に採った範囲」にある行だけを置き、
+			// 2周目に、それ以外の行も同じ平行移動で結合後の座標へ写して置く。
+			//
+			// 2周目が要る理由: **同じ段でも、写っている画像によって行として検出できたり
+			// できなかったりする**（段がリスト表示枠の上端・下端で切れていると落ちる）。
+			// 結合後のその場所を受け持った画像で行が取れていないと、判定では検出できて
+			// いるのに印だけ付かない。実機で「検出35・印32」となり、印の無い段が
+			// **段まるごと**（左右2つとも）抜けていたのがこれ。
+			//
+			// 継ぎ目は画素単位で合わせてあるので、どの画像の平行移動で写しても同じ場所に着く
+			// （placements は全体で1つの座標系になっている）。範囲外から写したものは
+			// 結合後のCanvasに収まるものだけを採り、重なりは下の重複よけが落とす。
+			[true, false].forEach(inRangeOnly => {
+				placements.forEach(p => {
+					const g = geo[p.fileIndex];
+					if (!g || !g.rows || !g.columnXs) return;
+					// 〇の大きさと位置は画像ごとに測り直す（1人分でも画面の大きさが違うことがある）
+					const metrics = attrCircleMetrics(g, W);
+					const d = metrics.d * ATTR_MARK_SCALE;
+					g.rows.forEach((row, rowIndex) => {
+						const kind = kindByRowKey[p.fileIndex + ':' + rowIndex];
+						if (!kind) return;
+						// rows は toBaseCanvas() 後の座標なので、元画像の座標へ戻す
+						const cySrc = (row.y + row.h / 2) * g.scale;
+						const inRange = (cySrc >= p.srcY0 && cySrc < p.srcY1);
+						if (inRangeOnly !== inRange) return;
+						const cx = g.columnXs[row.col] * g.scale - metrics.offset;
+						const cy = p.outY0 + (cySrc - p.srcY0);
+						if (cy < 0 || cy >= canvas.height) return;
+						// 同じ行が2枚に写っていたときの重ね描きを避ける
+						if (placed.some(q => Math.abs(q.x - cx) < d && Math.abs(q.y - cy) < d)) return;
+						placed.push({ x: cx, y: cy });
+						drawSkillMark(ctx, kind, cx, cy, d, colors);
+						used.add(kind);
+					});
 				});
 			});
+			// 検出できているのに印を置けなかったものがあれば、開発ログに残す。
+			// 「検出の数と印の数が合わない」はパッと見では原因が分からないので、
+			// どのスキルがどういう理由で置けなかったかを後から読めるようにしておく。
+			const wantKeys = Object.keys(kindByRowKey).length;
+			if (placed.length < wantKeys) {
+				devGeometry.push('[印] ' + PERSON_LABELS[personIdx] + ': 印を置いた ' + placed.length +
+					' / 印を置きたかった行 ' + wantKeys + '（結合後のCanvasに収まらなかった行があります）');
+			}
 			return { drawn: placed.length > 0, suppressed: false, kinds: MARK_KIND_ORDER.filter(k => used.has(k)) };
 		}
 
