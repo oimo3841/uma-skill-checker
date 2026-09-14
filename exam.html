@@ -139,6 +139,14 @@
 		.mode-btn { padding: 0.25rem 0.75rem; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: all 0.15s; }
 		.mode-btn.active { background-color: #4f46e5; color: #fff; }
 
+		/* ①②の見出し（css/shell.css の .step-tab）は special.html と共有の大きさで、
+		   このページだと少し小さく見えるので、このページの中だけ一段大きくする。
+		   共通CSSを触ると special 側の見え方まで変わるため、ここで上書きする。 */
+		.step-tab-label { font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); }
+		/* 375px 級ではバッジ（「121種（調整あり）」）と並べる幅が無いので、共通CSS（shell.css の
+		   640px 以下の 11px）と同じ大きさに戻し、以前と同じ見え方にする。大きくするのは 480px より上だけ。 */
+		@media (max-width: 480px) { .step-tab-label { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); } }
+
 		/* 「対象スキルの範囲」で足す5種／外す12種の名前を出す欄（#scope-detail）。
 		   以前は選択肢に重ねる吹き出し（position:absolute）だったが、3択が横並びでも
 		   縦積みでも隣の選択肢の上に乗ってしまい、乗られた側が押せなくなった。
@@ -802,12 +810,14 @@
 				<!-- サマリーカード（アップロード人数に応じてJSで生成） -->
 				<div id="stat-grid" class="grid grid-cols-4 gap-3 mb-6"></div>
 	
-				<!-- 技能試験ハイライト（sp70緑・緑59種） -->
+				<!-- ハイライト（sp70緑・緑59種・シナリオ因子）。
+				     以前は「緑スキルハイライト」だったが、緑スキル以外（シナリオ因子）も
+				     並べるようになったので、上位の呼び方「ハイライト」にしてある。 -->
 				<div id="exam-highlight" class="hidden rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 md:p-5 mb-6">
 					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
 						<h3 class="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
 							<i data-lucide="target" class="w-4 h-4"></i>
-							<span>緑スキルハイライト</span>
+							<span>ハイライト</span>
 						</h3>
 						<div class="flex items-center gap-1 text-xs bg-white rounded-lg border border-indigo-200 p-0.5 shrink-0">
 							<button type="button" onclick="setCountMode('equivalence')" id="mode-equivalence" class="mode-btn">実質53種（既定）</button>
@@ -2415,6 +2425,34 @@
 			return counted.size;
 		}
 
+		/* ------------------------------------------------------------
+		 * ハイライトに出すシナリオ因子の行（「因子名：★の数」）を組み立てる。
+		 *
+		 * 選んだ因子が3種以下 … その全部を1行ずつ（最大3段）。
+		 * 4種以上          … ★の多い上位3種を3段で出し、他があることを「他」の1文字で添える
+		 *                     （件数などの数字は付けない）。
+		 * ★が同数のときは正本（24件）の並び順を保つ。
+		 * 画面のカードと結果画像で同じ並び・同じ文字列を使うため、ここに1本化してある。
+		 *
+		 * 戻り値: null（1種も選んでいない）／{ items: [{name, text}], more: boolean }
+		 * ------------------------------------------------------------ */
+		function scenarioFactorHighlight(personIdx) {
+			const selected = activeScenarioFactors();
+			if (selected.length === 0) return null;
+			// 未検出は −、検出したが★を読めなかったものは ★? （表の「?」と同じ意味）
+			const starText = (v) => (typeof v === 'number' ? '★' + v : (v === null ? '★?' : '−'));
+			const rank = (v) => (typeof v === 'number' ? v : (v === null ? -0.5 : -1));
+			const entries = selected.map((name, i) => ({ name: name, order: i, stars: starsFor(personIdx, name) }));
+			// text は結果画像用の1本の文字列、name / stars は画面のカードで
+			// 「名前だけ詰める・★は必ず見せる」ために分けて持つ。
+			const shape = (e) => ({ name: e.name, stars: starText(e.stars), text: e.name + '：' + starText(e.stars) });
+			if (selected.length <= 3) {
+				return { items: entries.map(shape), more: false };
+			}
+			const top = entries.slice().sort((a, b) => (rank(b.stars) - rank(a.stars)) || (a.order - b.order)).slice(0, 3);
+			return { items: top.map(shape), more: true };
+		}
+
 		function renderExamHighlight(used) {
 			const wrap = document.getElementById('exam-highlight');
 			if (used.length === 0) { wrap.classList.add('hidden'); return; }
@@ -2424,6 +2462,10 @@
 			const sp70Ids = new Set(effectiveBaseIds(SP70_GREEN_17_IDS));
 			const greenIds = new Set(effectiveBaseIds(GREEN_59_IDS));
 			const green59Max = equivalence ? effectiveGreen59EquivalenceMax() : greenIds.size;
+			// カードの見出しも集計モードに連動させる。以前は「緑59種」で固定だったため、
+			// 実質53種モードだと「緑59種 18/53」と、見出しと分母が食い違って見えていた。
+			const greenLabel = equivalence ? ('緑（実質' + green59Max + '種）') : ('緑（' + green59Max + '種個別）');
+			const factorCount = activeScenarioFactors().length;
 
 			const grid = document.getElementById('exam-highlight-grid');
 			// セット単位（親A/親B）で縦に並べ、それぞれのセット内で最大6カード（=3人分）まで自動折り返す。
@@ -2441,7 +2483,9 @@
 				if (indices.length === 0) return;
 				const set = PERSON_SETS[setIdx];
 				const colors = HUE_HEX[set.hue];
-				const cardsCount = indices.length * 2;
+				// 1人あたりのカードは sp70緑・緑（＋シナリオ因子を選んでいれば1枚）
+				const perPerson = factorCount > 0 ? 3 : 2;
+				const cardsCount = indices.length * perPerson;
 				const colsClass = 'grid-cols-2 sm:grid-cols-' + Math.min(cardsCount, 4) + ' lg:grid-cols-' + Math.min(cardsCount, 6);
 
 				let cardsHtml = '';
@@ -2456,9 +2500,28 @@
 							<p class="text-base md:text-xl font-extrabold text-amber-600">${sp70Count}<span class="text-xs font-medium text-amber-400">/${sp70Ids.size}</span></p>
 						</div>
 						<div class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-center">
-							<p class="text-[11px] font-medium text-emerald-700 mb-1">${label} 緑59種</p>
+							<p class="text-[11px] font-medium text-emerald-700 mb-1">${label} ${greenLabel}</p>
 							<p class="text-base md:text-xl font-extrabold text-emerald-600">${greenCount}<span class="text-xs font-medium text-emerald-400">/${green59Max}</span></p>
 						</div>`;
+					const factors = scenarioFactorHighlight(i);
+					if (factors) {
+						// 「他」は行を増やさず、最後の行の右端に添える
+						// 幅が足りないときに詰めるのは名前だけ。★の数は必ず見えるようにする。
+						const lines = factors.items.map((it, n) => {
+							const isLast = (n === factors.items.length - 1);
+							const more = (isLast && factors.more)
+								? '<span class="pl-1 text-[11px] font-bold text-sky-500 shrink-0">他</span>' : '';
+							return `<p class="flex items-baseline text-[11px] text-sky-900 leading-snug" title="${escapeHtml(it.text)}">`
+								+ `<span class="truncate min-w-0">${escapeHtml(it.name)}</span>`
+								+ `<span class="shrink-0">：${escapeHtml(it.stars)}</span>`
+								+ `<span class="ml-auto"></span>${more}</p>`;
+						}).join('');
+						cardsHtml += `
+						<div class="rounded-xl border border-sky-200 bg-sky-50/60 p-3">
+							<p class="text-[11px] font-medium text-sky-700 mb-1 text-center">${label} シナリオ因子</p>
+							${lines}
+						</div>`;
+					}
 				});
 
 				html += `
