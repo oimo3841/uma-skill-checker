@@ -3134,7 +3134,9 @@
 			ctx.fillStyle = colors[kind];
 			ctx.strokeStyle = colors[kind];
 			if (kind === 'sp70') {
-				const r = d * 0.62;
+				// 0.62 では★の凹みから〇が見えたので 0.78 に拡げた（決定5の但し書き）。
+				// 外接円はへこみより少し大きくなるが、パネルの中には収まる。
+				const r = d * 0.78;
 				ctx.beginPath();
 				for (let i = 0; i < 10; i++) {
 					const rr = (i % 2 === 0) ? r : r * 0.45;
@@ -3149,7 +3151,8 @@
 				ctx.arc(cx, cy, d / 2, 0, Math.PI * 2);
 				ctx.fill();
 			} else if (kind === 'factor') {
-				const r = d * 0.62;
+				// 斜め45度のところが〇の半径より内側に入らないよう 0.62 → 0.70
+				const r = d * 0.70;
 				ctx.beginPath();
 				ctx.moveTo(cx, cy - r);
 				ctx.lineTo(cx + r, cy);
@@ -3158,7 +3161,8 @@
 				ctx.closePath();
 				ctx.fill();
 			} else if (kind === 'added') {
-				const s = d * 0.78;
+				// 辺の真ん中が〇の半径より内側に入らないよう 0.78 → 0.96（対角はへこみとほぼ同じ）
+				const s = d * 0.96;
 				ctx.fillRect(cx - s / 2, cy - s / 2, s, s);
 			} else if (kind === 'removed') {
 				const r = d * 0.40;
