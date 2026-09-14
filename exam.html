@@ -3018,7 +3018,8 @@
 		 * 素材が届いたら実測して、ここに1行足す。
 		 * ------------------------------------------------------------ */
 		const ATTR_ICON_KNOWN_PROFILES = [
-			{ label: 'スマホ版相当', minWidth: 700, maxWidth: 1500, minAspect: 1.9, maxAspect: 2.5 }
+			{ label: 'スマホ版相当', minWidth: 700, maxWidth: 1500, minAspect: 1.9, maxAspect: 2.5 },
+			{ label: 'DMM版(ブラウザ)相当', minWidth: 700, maxWidth: 1300, minAspect: 1.55, maxAspect: 1.95 }
 		];
 
 		function attrIconProfileOf(w, h) {
@@ -3040,6 +3041,32 @@
 		const ATTR_CIRCLE_D_RATIO = 0.0433;
 		const ATTR_CIRCLE_CX_RATIO = 0.0322;
 		const ATTR_MARK_SCALE = 0.75;
+
+		// 同じ実測値を「列と列の間隔」に対する比で言い直したもの（間隔453pxのとき直径51.5px・ずれ38px）。
+		// ふだんはこちらを使う。理由は attrCircleMetrics() を参照。
+		const ATTR_CIRCLE_D_OVER_PITCH = 0.1137;
+		const ATTR_CIRCLE_CX_OVER_PITCH = 0.0839;
+
+		/**
+		 * その画像での「元の灰色の〇」の直径と、列の左端から〇の中心までのずれ。
+		 * どちらも元画像の画素で返す。
+		 *
+		 * 基準は**実際に検出した列と列の間隔**にする。ゲーム画面は同じ比率で拡大縮小
+		 * されるので、画面の大きさが違っても間隔から測れば正しい大きさになる。
+		 * 画像の幅を基準にすると、スクショの左右にゲーム画面以外のものが入る形
+		 * （DMM版のウィンドウなど）で幅とUIの大きさが対応しなくなり、印がズレる。
+		 * 列が1本しか取れなかったときだけ、画像の幅から求める比に倒す。
+		 */
+		function attrCircleMetrics(g, W) {
+			const xs = g.columnXs || [];
+			if (xs.length >= 2) {
+				const pitch = (xs[1] - xs[0]) * g.scale;
+				if (pitch > 0) {
+					return { d: pitch * ATTR_CIRCLE_D_OVER_PITCH, offset: pitch * ATTR_CIRCLE_CX_OVER_PITCH };
+				}
+			}
+			return { d: W * ATTR_CIRCLE_D_RATIO, offset: W * ATTR_CIRCLE_CX_RATIO };
+		}
 
 		// 区分ごとの色。値は書かず、css/tokens.css のトークンの名前だけを持つ（F-19）。
 		const ATTR_MARK_TOKEN = {
@@ -3212,12 +3239,14 @@
 
 			const ctx = canvas.getContext('2d');
 			const W = canvas.width;
-			const d = W * ATTR_CIRCLE_D_RATIO * ATTR_MARK_SCALE;
 			const used = new Set();
 			const placed = [];
 			placements.forEach(p => {
 				const g = geo[p.fileIndex];
 				if (!g || !g.rows || !g.columnXs) return;
+				// 〇の大きさと位置は画像ごとに測り直す（1人分でも画面の大きさが違うことがある）
+				const metrics = attrCircleMetrics(g, W);
+				const d = metrics.d * ATTR_MARK_SCALE;
 				g.rows.forEach((row, rowIndex) => {
 					const kind = kindByRowKey[p.fileIndex + ':' + rowIndex];
 					if (!kind) return;
@@ -3225,7 +3254,7 @@
 					const cySrc = (row.y + row.h / 2) * g.scale;
 					// この画像から実際に採られた範囲の外は、別の画像が受け持つ
 					if (cySrc < p.srcY0 || cySrc >= p.srcY1) return;
-					const cx = g.columnXs[row.col] * g.scale - W * ATTR_CIRCLE_CX_RATIO;
+					const cx = g.columnXs[row.col] * g.scale - metrics.offset;
 					const cy = p.outY0 + (cySrc - p.srcY0);
 					// 同じ行が2枚に写っていたときの重ね描きを避ける
 					if (placed.some(q => Math.abs(q.x - cx) < d && Math.abs(q.y - cy) < d)) return;
