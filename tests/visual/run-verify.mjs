@@ -201,6 +201,16 @@ for (const p of ['index.html', 'js/common.js']) {
    免除ではなく記録として1行ずつ残す（なぜ消えたのかを後から追えるようにする）。
    免除したものは実行のたびに [免除] として表示されるので、放置に気付ける。 */
 const INTENTIONALLY_REMOVED = {
+	// 2026-09-14: exam の「対象スキルのカスタム設定（追加・除外）」を廃止した。
+	// 1件ずつ足す／外す仕組みは「対象スキルの範囲」（既定／広げる／絞る）と
+	// シナリオ因子の個別選択に一本化したので、パネルごと消してある。
+	// step1-skill-count-inline は説明文の可変の種数（「あらかじめ133種登録しています」を
+	// 固定文言にしたので不要になった）。
+	'exam.html': [
+		'step1-skill-count-inline',
+		'custom-skills-badge', 'custom-add-textarea', 'custom-add-status', 'custom-added-list',
+		'custom-remove-textarea', 'custom-remove-status', 'custom-removed-list',
+	],
 	// 2026-09-11: 7〜16セッション目ぶんを push したので、ここまでの免除は空に戻した。
 	// この検査は git show HEAD: と作業ツリーを比べるので、commit が進めば免除は要らなくなる。
 	// 残しておくと「本当の事故でその id が消えた」ときに見逃す口になる。

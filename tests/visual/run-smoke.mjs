@@ -1270,11 +1270,26 @@ const browser = await chromium.launch();
 	await page.keyboard.press('ArrowLeft');
 	await page.waitForTimeout(300);
 	assert((await stepState()).panel1, 'exam: ←キーで①へ戻る');
-	// 除外・追加があるとバッジに「（調整あり）」が付き、無くなれば戻る
-	await page.evaluate(() => { customAddedSkills.push('テスト追加'); refreshAfterCustomSkillsChange(); });
-	assert(await page.textContent('#step1-skill-badge') === '134種（調整あり）', 'exam: 追加があると①のバッジに（調整あり）が付く');
-	await page.evaluate(() => { customAddedSkills = []; refreshAfterCustomSkillsChange(); });
+	// 対象の範囲を既定から動かすとバッジに「（調整あり）」が付き、戻せば消える
+	await page.evaluate(() => setTargetScopeMode('expanded'));
+	assert(await page.textContent('#step1-skill-badge') === '138種（調整あり）', 'exam: 対象を広げると①のバッジに（調整あり）が付く');
+	assert(await page.evaluate(() => !document.getElementById('badge-scope-added').classList.contains('hidden')
+		&& document.getElementById('badge-scope-added-text').textContent === '追加5種'),
+		'exam: 対象を広げると「追加5種」のバッジが出る');
+	await page.evaluate(() => setTargetScopeMode('curated'));
+	assert(await page.textContent('#step1-skill-badge') === '121種（調整あり）', 'exam: 対象を絞ると「121種（調整あり）」になる');
+	assert(await page.evaluate(() => !document.getElementById('badge-scope-removed').classList.contains('hidden')
+		&& document.getElementById('badge-scope-removed-text').textContent === '除外12種'
+		&& document.querySelectorAll('#skill-registry-list .registry-removed').length === 12),
+		'exam: 対象を絞ると「除外12種」のバッジが出て、一覧には取り消し線で残る');
+	await page.evaluate(() => { toggleScenarioFactor(0, true); toggleScenarioFactor(1, true); });
+	assert(await page.evaluate(() => document.getElementById('badge-scenario-factors-text').textContent) === 'シナリオ因子：2種',
+		'exam: シナリオ因子を選ぶと「シナリオ因子：2種」のバッジが出る');
+	await page.evaluate(() => { clearScenarioFactors(); setTargetScopeMode('default'); });
 	assert(await page.textContent('#step1-skill-badge') === '133種', 'exam: 調整を戻すとバッジも「133種」に戻る');
+	assert(await page.evaluate(() => ['badge-scope-added', 'badge-scope-removed', 'badge-scenario-factors']
+		.every((id) => document.getElementById(id).classList.contains('hidden'))),
+		'exam: 既定に戻すと3つの追加バッジは出ない');
 
 	/* --- UmaSkill Deck への受け渡し（手順3）---
 	   OCRを回さずに、合成した行を本物の照合関数に通して結果を作る（special と同じ考え方）。
@@ -1368,7 +1383,7 @@ const browser = await chromium.launch();
 			const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
 			out.push({ sel, ok: el === hit || el.contains(hit) });
 		};
-		probe('#step-panel-1 details:nth-of-type(3) summary');
+		probe('#step-panel-1 > details:last-of-type summary');
 		selectStepTab(2);
 		probe('#personset-A-wrap .person-drop-zone');
 		selectStepTab(1);
@@ -1487,29 +1502,65 @@ const browser = await chromium.launch();
 		'exam: iframe からの storage イベントで案内が「取り込み済み」に変わる', n);
 	assert(deckErrors.length === 0, 'exam: Deck 側にコンソールエラーなし', deckErrors.slice(0, 3));
 
-	// 除外／追加がある人は scope の名前が「技能試験（調整あり）」。マスターに無い追加名は
-	// Deck 側で「見つからなかったため取り込みません」と一覧で知らされる（既存の挙動）
-	await page.evaluate(() => { customAddedSkills.push('マスターに無いスキル'); refreshAfterCustomSkillsChange(); });
+	// 既定から動かした人は scope の名前が「技能試験（調整あり）」。
+	// 対象を広げ、シナリオ因子も1種足す。シナリオ因子は白スキル445種のマスターには無いが、
+	// Deck は追加カタログ（catalog-data/）から引くので、警告を出さずに取り込める。
+	await page.evaluate(() => { setTargetScopeMode('expanded'); toggleScenarioFactor(0, true); });
 	await seedExam();
 	await page.waitForTimeout(400);
 	p = await readExam();
-	assert(p && !p.imported && p.scope.name === '技能試験（調整あり）' && p.skillNames.length === 134,
-		'exam: 判定し直すと新しい payload（調整あり・134件）になり未取り込みに戻る', p && { imported: p.imported, scope: p.scope, n: p.skillNames.length });
+	assert(p && !p.imported && p.scope.name === '技能試験（調整あり）' && p.skillNames.length === 139,
+		'exam: 判定し直すと新しい payload（調整あり・139件）になり未取り込みに戻る', p && { imported: p.imported, scope: p.scope, n: p.skillNames.length });
 	n = await noteState();
 	assert(n.title.includes('取り込めます') && n.detail.includes('（対象：技能試験（調整あり））') && n.dot,
 		'exam: 案内も「取り込めます」に戻り、対象名に（調整あり）が付く', n);
 	assert(await page.evaluate(() => fabUnseen.deck), 'exam: 判定し直すと Deck のバッジがまた点く');
 	await deckFrame.locator('#ocr-handoff-banner').waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
+	const factorResolve = await frame.evaluate(() => {
+		const r = resolveHandoffSkills(pendingOcrHandoff().payload);
+		const hit = r.resolved.find((x) => x.name === 'URAシナリオ');
+		return { resolved: r.resolved.length, unresolved: r.unresolved, uraId: hit ? hit.id : null,
+			kind: hit ? UmaSkillDeckCore.skillCatalogKind(hit.id) : null };
+	});
+	assert(factorResolve.resolved === 139 && factorResolve.unresolved.length === 0
+		&& factorResolve.uraId === 'sf-ura' && factorResolve.kind === 'scenarioFactor',
+		'exam: シナリオ因子も含めて139件すべてが解決し、URAシナリオはカタログの sf-ura に着く', factorResolve);
 	await deckFrame.locator('[data-ocr-act="import"]').click();
 	await page.waitForTimeout(600);
 	const warn = await frame.evaluate(() => {
 		const el = document.querySelector('.usd-modal-panel .ocr-warn');
 		return el ? el.textContent : null;
 	});
-	assert(warn && warn.includes('マスターに無いスキル') && warn.includes('取り込みません'),
-		'exam: マスターに無い追加名は取り込みダイアログで利用者に見える', warn);
-	await deckFrame.locator('[data-ocr-act="close"]').click();
-	await page.evaluate(() => { customAddedSkills = []; refreshAfterCustomSkillsChange(); });
+	assert(warn === null, 'exam: シナリオ因子を混ぜても「見つからなかった」警告は出ない', warn);
+	// 取り込んだシートで、カタログ由来の行に◆が付き、名前が「（不明なスキル）」にならないこと。
+	// 行の格子はシートを開いている間だけ描かれるので、取り込んだシートを開いてから見る。
+	await deckFrame.locator('[data-ocr-act="apply"]').click();
+	await page.waitForTimeout(1200);
+	await frame.evaluate(() => {
+		const recs = UmaSkillDeckCore.getUserData().records;
+		openRecordEditor(recs[recs.length - 1].recordId);
+	});
+	await page.waitForTimeout(600);
+	const factorRow = await frame.evaluate(() => {
+		const row = document.getElementById('row-sf-ura');
+		const plain = document.getElementById('row-1');
+		return {
+			exists: !!row,
+			name: row ? row.querySelector('.deck-name-clip').textContent : null,
+			mark: row ? !!row.querySelector('.deck-catalog-mark') : false,
+			markTitle: row ? (row.querySelector('.deck-catalog-mark') || {}).title : null,
+			markOutsideClip: row ? !row.querySelector('.deck-name-clip .deck-catalog-mark') : false,
+			plainExists: !!plain,
+			plainHasMark: plain ? !!plain.querySelector('.deck-catalog-mark') : null
+		};
+	});
+	assert(factorRow.exists && factorRow.name === 'URAシナリオ' && factorRow.mark
+		&& factorRow.markTitle === 'シナリオ因子' && factorRow.markOutsideClip
+		&& factorRow.plainExists && factorRow.plainHasMark === false,
+		'deck: 取り込んだシートでカタログ由来の行に◆が付き、白スキルの行には付かない', factorRow);
+	await frame.evaluate(() => closeRecordEditor());
+	await page.waitForTimeout(300);
+	await page.evaluate(() => { clearScenarioFactors(); setTargetScopeMode('default'); });
 
 	// Esc は開いているものを1つ閉じる（引き出し → FAB の順）。
 	// 直前まで iframe の中を操作していたので、キーは親の文書に戻してから送る

@@ -18,6 +18,29 @@
 //     - 目覚めペア6組の ID がマスター 440〜445 と対応元（1, 2, 17〜20）に一致
 //   を見る。exam の名前とマスターが食い違ったら落ちる。
 //
+// 3. 対象スキルの範囲（軸1）とシナリオ因子（軸2）の整合
+//   exam.html は 133種の足し引き（対象拡張の5種 EXPANDED_EXTRA_SKILL_LIST ／
+//   絞り込みで外す12種 CURATED_EXCLUDED_IDS）と、シナリオ因子24種
+//   （SCENARIO_INHERITANCE_FACTORS）を持つ。ここでは
+//     - 足す5種の id がマスターにあり、normalizeText 後の名前が一致し、133種と重ならない
+//     - 外す12種の id がすべて133種にあり、重複が無い
+//     - シナリオ因子の写しが正本（catalog-data/scenario-inheritance-factors.json）と
+//       1文字も違わない（並び・件数も同じ）
+//
+// 4. 追加カタログ（catalog-data/）と uma-skill-deck-core.js の整合
+//   正本の写しは exam.html（名前だけ）と core.js（id＋名前）の2か所にある。
+//   3者がズレると、Deck 側で名前を解決できなくなったり、保存済みの比較シートが
+//   行を見失ったりする。ここでは
+//     - core の組み込みの写しが正本と 1文字も違わない（id・名前・並び・件数）
+//     - id が一意で、マスターのID（1〜445）と衝突しない
+//     - Deck 側で全件が findSkill() で引け、名前から同じ id へ解決する
+//     - 追加カタログは「条件でスキルを検索」の母集団には入っていない
+//   を見る。Deck のページは http で開く（file:// だと JSON のフェッチが CORS で
+//   落ちて組み込みの写しに落ち、正本との突き合わせにならないため）。
+//     - シナリオ因子どうし・シナリオ因子とスキル名が、normalizeText 後に衝突しない
+//     - 3つのモードの種数（133 / 138 / 121）
+//   を見る。
+//
 // 使い方:
 //   npm run test:norm
 //
@@ -27,6 +50,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { startServer } from '../visual/lib/serve.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -34,6 +58,13 @@ const ROOT = path.resolve(__dirname, '../..');
 const master = JSON.parse(await fs.readFile(path.join(ROOT, 'uma-skill-deck-skills.json'), 'utf-8'));
 const deckSkills = (master.skills || master).map((s) => ({ id: String(s.id), name: s.name }));
 const deckNames = deckSkills.map((s) => s.name);
+
+/** シナリオ因子の正本。exam.html が持つのはこの写し（file:// でも動かすため） */
+const scenarioFile = path.join(ROOT, 'catalog-data', 'scenario-inheritance-factors.json');
+const scenarioMaster = JSON.parse(await fs.readFile(scenarioFile, 'utf-8'));
+const scenarioMasterEntries = scenarioMaster.entries || [];
+const scenarioMasterNames = scenarioMasterEntries.map((f) => f.name);
+const scenarioMasterIds = (scenarioMaster.entries || []).map((f) => f.id);
 
 /** 目覚めペアの期待値（マスターID）。目覚め → 対応元 */
 const EXPECTED_AWAKENING_PAIRS = {
@@ -50,7 +81,7 @@ const page = await browser.newPage();
 page.on('pageerror', (e) => console.error('[pageerror]', e.message));
 await page.goto(pathToFileURL(path.join(ROOT, 'exam.html')).href, { waitUntil: 'load' });
 
-const report = await page.evaluate(({ deckSkills, deckNames }) => {
+const report = await page.evaluate(({ deckSkills, deckNames, scenarioMasterNames }) => {
 	function collisionsIn(names) {
 		const byNorm = {};
 		names.forEach((n) => {
@@ -110,10 +141,107 @@ const report = await page.evaluate(({ deckSkills, deckNames }) => {
 			greenNotInExam: GREEN_59_IDS.filter((id) => !examIdSet.has(id)),
 			pairs: Object.assign({}, AWAKENING_PAIR_MAP),
 		},
+		scope: {
+			// 対象拡張で足す5種
+			extras: EXPANDED_EXTRA_SKILL_LIST.map((s) => ({ id: s.id, name: s.name })),
+			extraProblems: EXPANDED_EXTRA_SKILL_LIST.map((s) => {
+				const m = masterById[s.id];
+				if (m === undefined) return { id: s.id, name: s.name, problem: 'マスターに無いID' };
+				if (normalizeText(m) !== normalizeText(s.name)) return { id: s.id, name: s.name, master: m, problem: '正規化後の名前が不一致' };
+				if (examIdSet.has(s.id)) return { id: s.id, name: s.name, problem: '既に133種にある' };
+				return null;
+			}).filter(Boolean),
+			// 絞り込みで外す12種
+			curatedSize: CURATED_EXCLUDED_IDS.length,
+			curatedUnique: new Set(CURATED_EXCLUDED_IDS).size,
+			curatedNotInExam: CURATED_EXCLUDED_IDS.filter((id) => !examIdSet.has(id)),
+			curatedNames: CURATED_EXCLUDED_IDS.map((id) => EXAM_NAME_BY_ID[id] || null),
+			// 3つのモードの種数（軸2 OFF の状態）
+			counts: {
+				default: scopeBaseNames('default').length,
+				expanded: scopeBaseNames('expanded').length,
+				curated: scopeBaseNames('curated').length,
+			},
+			// シナリオ因子（写し vs 正本）
+			factorSize: SCENARIO_INHERITANCE_FACTORS.length,
+			factorMismatch: (function () {
+				const a = SCENARIO_INHERITANCE_FACTORS, b = scenarioMasterNames;
+				if (a.length !== b.length) return [{ problem: '件数が違う', 写し: a.length, 正本: b.length }];
+				return a.map((n, i) => (n === b[i] ? null : { index: i, 写し: n, 正本: b[i] })).filter(Boolean);
+			})(),
+			factorCollisions: collisionsIn(SCENARIO_INHERITANCE_FACTORS),
+			// シナリオ因子とスキル名（133＋5）が正規化後にぶつかると、
+			// どちらか一方が常にもう一方として検出されることになる
+			factorVsSkill: (function () {
+				const skillNorms = {};
+				EXAM_SKILL_LIST.concat(EXPANDED_EXTRA_SKILL_LIST).forEach((s) => { skillNorms[normalizeText(s.name)] = s.name; });
+				return SCENARIO_INHERITANCE_FACTORS
+					.filter((n) => skillNorms[normalizeText(n)])
+					.map((n) => ({ factor: n, skill: skillNorms[normalizeText(n)] }));
+			})(),
+			// シナリオ因子は白スキルのIDを持たない（sp70緑・緑59種の集計に混ざらない）
+			factorWithSkillId: SCENARIO_INHERITANCE_FACTORS.filter((n) => examSkillId(n) !== null),
+		},
 	};
-}, { deckSkills, deckNames });
+}, { deckSkills, deckNames, scenarioMasterNames });
+
+/* --- 追加カタログ（Deck 側）。core.js を読むページを http で開いて見る --- */
+const server = await startServer(0);
+const deckPage = await browser.newPage();
+deckPage.on('pageerror', (e) => console.error('[pageerror:deck]', e.message));
+await deckPage.goto(server.base + '/uma-skill-deck.html', { waitUntil: 'load' });
+await deckPage.waitForFunction(() => window.UmaSkillDeckCore
+	&& UmaSkillDeckCore.getMasterSkills().length > 0
+	&& UmaSkillDeckCore.getExtraCatalog().length > 0, null, { timeout: 15000 });
+
+const catalogReport = await deckPage.evaluate(({ masterIds, wantEntries }) => {
+	const C = window.UmaSkillDeckCore;
+	const cat = C.getExtraCatalog();
+	const masterIdSet = new Set(masterIds);
+	return {
+		meta: C.getExtraCatalogMeta(),
+		sources: C.getExtraCatalogSources(),
+		size: cat.length,
+		uniqueIds: new Set(cat.map((e) => e.id)).size,
+		categories: Array.from(new Set(cat.map((e) => e.category))),
+		// 読み込んだ中身が正本と一致するか（id・名前・並び）
+		mismatch: (function () {
+			if (cat.length !== wantEntries.length) return [{ problem: '件数が違う', core: cat.length, 正本: wantEntries.length }];
+			return cat.map((e, i) => (e.id === wantEntries[i].id && e.name === wantEntries[i].name)
+				? null : { index: i, core: e.id + '/' + e.name, 正本: wantEntries[i].id + '/' + wantEntries[i].name }).filter(Boolean);
+		})(),
+		collidesWithMaster: cat.filter((e) => masterIdSet.has(e.id)).map((e) => e.id),
+		// 全件が findSkill() で引け、kind にカテゴリが付く
+		findProblems: cat.filter((e) => {
+			const sk = C.findSkill(e.id);
+			return !sk || sk.name !== e.name || sk.kind !== e.category;
+		}).map((e) => e.id),
+		// 名前 → 同じ id へ解決する（OCRツールから渡ってきた名前が当たるか）
+		resolveProblems: cat.filter((e) => {
+			const row = C.matchPastedSkillText(e.name).rows[0];
+			return !row || row.kind !== 'exact' || row.matchedId !== e.id;
+		}).map((e) => e.name),
+		// 「条件でスキルを検索」の母集団には入れない（タグ無しで万能扱いになるため）
+		inPickerPool: (function () {
+			C.openSkillPicker([], () => {});
+			const ids = new Set(Array.from(document.querySelectorAll('[data-usd-el="skill-check"]')).map((el) => el.value));
+			C.closeSkillPicker();
+			return cat.filter((e) => ids.has(e.id)).map((e) => e.id);
+		})(),
+	};
+}, { masterIds: deckSkills.map((s) => s.id), wantEntries: scenarioMasterEntries });
+
+/* core の組み込みの写し（フェッチできない環境で使う最後の砦）も、正本と突き合わせる。
+   上の検査は http で読めた中身を見るので、写しがズレていても気づけない。 */
+const coreSrc = await fs.readFile(path.join(ROOT, 'js/uma-skill-deck-core.js'), 'utf-8');
+const embeddedBlock = /const EMBEDDED_EXTRA_CATALOG = \{([\s\S]*?)\n\t\};/.exec(coreSrc);
+const embeddedPairs = embeddedBlock
+	? [...embeddedBlock[1].matchAll(/\{\s*id:\s*'([^']+)',\s*name:\s*(?:'([^']*)'|"([^"]*)")\s*\}/g)]
+		.map((m) => ({ id: m[1], name: m[2] !== undefined ? m[2] : m[3] }))
+	: [];
 
 await browser.close();
+await server.close();
 
 console.log(`common.js 版: ${report.version}\n`);
 
@@ -156,6 +284,54 @@ check(pairOk, '目覚めペア6組の ID がマスター 440〜445 と対応元�
 const pairNames = {};
 for (const [a, b] of Object.entries(ids.pairs)) pairNames[deckSkills.find((s) => s.id === a)?.name] = deckSkills.find((s) => s.id === b)?.name;
 console.log('    ' + Object.entries(pairNames).map(([a, b]) => `${a} → ${b}`).join(' / '));
+console.log('');
+
+const scope = report.scope;
+console.log('■ 対象スキルの範囲（軸1）と シナリオ因子（軸2）');
+check(scope.extras.length === 5 && scope.extraProblems.length === 0,
+	'対象拡張で足す5種が、マスターにあり・名前が一致し・133種と重ならない', scope.extraProblems);
+console.log('    足す5種: ' + scope.extras.map((s) => `${s.name}(${s.id})`).join(' / '));
+check(scope.curatedSize === 12 && scope.curatedUnique === 12,
+	'絞り込みで外すのは12種（重複なし）', { size: scope.curatedSize, unique: scope.curatedUnique });
+check(scope.curatedNotInExam.length === 0, '外す12種がすべて133種にある', scope.curatedNotInExam);
+console.log('    外す12種: ' + scope.curatedNames.join(' / '));
+check(scope.counts.default === 133 && scope.counts.expanded === 138 && scope.counts.curated === 121,
+	'3つのモードの種数が 133 / 138 / 121', scope.counts);
+check(scope.factorMismatch.length === 0,
+	'exam.html のシナリオ因子が正本（catalog-data/scenario-inheritance-factors.json）と一致', scope.factorMismatch);
+console.log(`    シナリオ因子: ${scope.factorSize}種`);
+check(scope.factorCollisions.length === 0, 'シナリオ因子どうしが正規化後に衝突しない', scope.factorCollisions);
+check(scope.factorVsSkill.length === 0, 'シナリオ因子とスキル名（133＋5）が正規化後に衝突しない', scope.factorVsSkill);
+check(scope.factorWithSkillId.length === 0, 'シナリオ因子は白スキルのIDを持たない', scope.factorWithSkillId);
+console.log('');
+
+console.log('■ 追加カタログ（catalog-data/）と uma-skill-deck-core.js の整合');
+console.log('    取得元: ' + catalogReport.sources.map((x) => `${x.category} ← ${x.path}`).join(' / '));
+console.log('    読み込み: ' + catalogReport.meta.sources
+	.map((x) => `${x.category} ${x.count}件（${x.from}${x.version ? '・' + x.version : ''}）`).join(' / '));
+check(catalogReport.meta.sources.every((x) => x.from === '取得'),
+	'正本のJSONを取得できている（キャッシュ・組み込みへ落ちていない）', catalogReport.meta.sources.map((x) => x.from));
+check(catalogReport.size === scenarioMasterEntries.length && catalogReport.uniqueIds === catalogReport.size,
+	`Deck が読み込んだカタログは${scenarioMasterEntries.length}件・id に重複なし`,
+	{ size: catalogReport.size, uniqueIds: catalogReport.uniqueIds });
+check(catalogReport.mismatch.length === 0, 'Deck が読み込んだ中身が正本と一致（id・名前・並び）', catalogReport.mismatch);
+check(catalogReport.collidesWithMaster.length === 0,
+	'カタログの id がマスターのID（1〜445）と衝突しない', catalogReport.collidesWithMaster);
+check(catalogReport.categories.length === 1 && catalogReport.categories[0] === 'scenarioFactor',
+	'今あるカテゴリは scenarioFactor の1つ（増やしたらこの行を直す）', catalogReport.categories);
+check(catalogReport.findProblems.length === 0,
+	'全件が findSkill() で引け、kind にカテゴリが付く', catalogReport.findProblems);
+check(catalogReport.resolveProblems.length === 0,
+	'名前から同じ id へ解決する（OCRツールから渡った名前が当たる）', catalogReport.resolveProblems);
+check(catalogReport.inPickerPool.length === 0,
+	'「条件でスキルを検索」の母集団には入っていない', catalogReport.inPickerPool);
+// core の組み込みの写し（フェッチもキャッシュも駄目なときの最後の砦）
+const embeddedDiff = embeddedPairs.length !== scenarioMasterEntries.length
+	? [{ problem: '件数が違う', 写し: embeddedPairs.length, 正本: scenarioMasterEntries.length }]
+	: embeddedPairs.map((e, i) => (e.id === scenarioMasterEntries[i].id && e.name === scenarioMasterEntries[i].name)
+		? null : { index: i, 写し: e.id + '/' + e.name, 正本: scenarioMasterEntries[i].id + '/' + scenarioMasterEntries[i].name }).filter(Boolean);
+check(embeddedDiff.length === 0,
+	'core.js の組み込みの写し（EMBEDDED_EXTRA_CATALOG）が正本と一致', embeddedDiff);
 console.log('');
 
 if (failed > 0) {

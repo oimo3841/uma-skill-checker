@@ -138,6 +138,31 @@
 		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
 		.mode-btn { padding: 0.25rem 0.75rem; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: all 0.15s; }
 		.mode-btn.active { background-color: #4f46e5; color: #fff; }
+
+		/* 「対象スキルの範囲」で足す5種／外す12種の名前を出す欄（#scope-detail）。
+		   以前は選択肢に重ねる吹き出し（position:absolute）だったが、3択が横並びでも
+		   縦積みでも隣の選択肢の上に乗ってしまい、乗られた側が押せなくなった。
+		   吹き出しをどこに出しても「3つの選択肢のどれにも重ならない場所」は無い
+		   （横並びなら右隣、縦積みなら真下が必ず別の選択肢）ので、重ねるのをやめ、
+		   選択肢の下に通常の流れで置く欄にした。触れている間はその選択肢の中身、
+		   離れたら選んでいる選択肢の中身を出す。1行ぶんの高さを常に確保して、
+		   触れるたびに下の部品が上下に動かないようにしてある。 */
+		.scope-detail {
+			min-height: 1.6em; margin-top: 0.5rem; padding: 0.45rem 0.7rem;
+			font-size: 11px; line-height: 1.6; color: #475569;
+			background: #fff; border: 1px dashed #cbd5e1; border-radius: 0.5rem;
+			overflow-wrap: anywhere;
+		}
+		.scope-detail-title { font-weight: 700; color: #334155; }
+		/* 一覧の色分けと同じ意味づけ（足す＝下線・外す＝取り消し線） */
+		.scope-detail--added .scope-detail-name { color: #b91c1c; text-decoration: underline; text-underline-offset: 2px; }
+		.scope-detail--removed .scope-detail-name { color: #b91c1c; text-decoration: line-through; }
+
+		/* 対象スキルの一覧（①の「一覧を確認する」）での見分け。
+		   足す5種＝赤字＋下線、外す12種＝赤字＋取り消し線。
+		   判定の結果の表では付けない（そちらは従来どおり無印）。 */
+		.registry-added { color: #b91c1c; text-decoration: underline; text-underline-offset: 2px; }
+		.registry-removed { color: #b91c1c; text-decoration: line-through; }
 		.mode-btn:not(.active) { color: #64748b; }
 		.mode-btn:not(.active):hover { background-color: #f1f5f9; }
 		.copylist-btn { padding: 0.375rem 0.875rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid #e2e8f0; background: #fff; color: #64748b; }
@@ -379,8 +404,12 @@
 			<div id="new-step-slot">
 			<!-- ① 技能試験 対象スキル（登録済み・入力不要） -->
 			<div id="step-panel-1" class="step-panel" role="tabpanel" aria-labelledby="step-tab-1">
-			<p class="text-xs text-slate-500 mb-3">技能試験で有利な対象スキルをあらかじめ<span id="step1-skill-count-inline">133</span>種登録しています。アップロードした因子すべてに対して、このリストで照合します。追加・除外は下の「対象スキルのカスタム設定」から行えます。</p>
+			<!-- 件数は「既定の133種」で固定。今の対象の種数は下の範囲の選択肢と①のタブのバッジが出す
+			     （ここまで可変にすると、既定が何種なのかが画面のどこにも残らないため）。 -->
+			<p class="text-xs text-slate-500 mb-3">技能試験で有利な対象スキルをあらかじめ既定として133種登録しています。対象の広さは下の「対象スキルの範囲」で調整可能です。</p>
 
+			<!-- 今の設定のバッジ。sp70緑・緑59種は常時、あとの3つは
+			     その設定を選んでいるときだけ出す（updateCategoryBadges が出し入れする）。 -->
 			<div class="flex flex-wrap gap-2 mb-4">
 				<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
 					<i data-lucide="star" class="w-3 h-3"></i>
@@ -390,9 +419,86 @@
 					<i data-lucide="leaf" class="w-3 h-3"></i>
 					<span id="badge-green59-count">緑59種（実質53種）</span>
 				</span>
+				<span id="badge-scope-added" class="hidden items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-800">
+					<i data-lucide="plus" class="w-3 h-3"></i>
+					<span id="badge-scope-added-text">追加5種</span>
+				</span>
+				<span id="badge-scope-removed" class="hidden items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-800">
+					<i data-lucide="minus" class="w-3 h-3"></i>
+					<span id="badge-scope-removed-text">除外12種</span>
+				</span>
+				<span id="badge-scenario-factors" class="hidden items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-sky-100 text-sky-800">
+					<i data-lucide="clapperboard" class="w-3 h-3"></i>
+					<span id="badge-scenario-factors-text">シナリオ因子：0種</span>
+				</span>
 			</div>
 
-			<!-- 133種の一覧（確認用・折りたたみ） -->
+			<!-- 対象スキルの範囲（軸1・排他3択）と シナリオ因子（軸2・独立ON/OFF）
+			     画面に出す呼び方は仮のもので未確定。内部の値は default / expanded / curated
+			     （優劣を含まない中立な名前）で、文言が決まってもこの値は変えない。
+			     各選択肢の種数は renderTargetScopeControls() が定数から数えて書く。 -->
+			<div class="rounded-xl border border-slate-200 bg-slate-50/50 p-4 mb-4">
+				<fieldset>
+					<legend class="text-xs font-semibold text-slate-700 mb-2">対象スキルの範囲</legend>
+					<!-- 「対象を広げる／絞る」に触れている間は、足す／外すスキル名を下の #scope-detail に出す
+					     （中身は renderScopeDetail() がデータから書く）。マウスだけでなく、キーボード・
+					     タップでラジオに焦点が来たときも同じ欄に出す。選択肢の上には何も重ねない。 -->
+					<div class="grid gap-2 sm:grid-cols-3">
+						<label for="scope-mode-default" class="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 cursor-pointer hover:border-indigo-300 transition-all"
+							onmouseenter="previewScopeDetail('default')" onmouseleave="previewScopeDetail(null)">
+							<input type="radio" id="scope-mode-default" name="target-scope-mode" value="default" class="mt-0.5 accent-indigo-600 cursor-pointer" onchange="setTargetScopeMode('default')" onfocus="previewScopeDetail('default')" onblur="previewScopeDetail(null)" checked />
+							<span>
+								<span class="block text-xs font-semibold text-slate-800">既定（<span id="scope-count-default">133</span>種）</span>
+								<span class="block text-[11px] text-slate-500 mt-0.5">これまでどおりの対象です</span>
+							</span>
+						</label>
+						<label for="scope-mode-expanded" class="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 cursor-pointer hover:border-indigo-300 transition-all"
+							onmouseenter="previewScopeDetail('expanded')" onmouseleave="previewScopeDetail(null)">
+							<input type="radio" id="scope-mode-expanded" name="target-scope-mode" value="expanded" class="mt-0.5 accent-indigo-600 cursor-pointer" onchange="setTargetScopeMode('expanded')" onfocus="previewScopeDetail('expanded')" onblur="previewScopeDetail(null)" />
+							<span>
+								<span class="block text-xs font-semibold text-slate-800">対象を広げる（<span id="scope-count-expanded">138</span>種）</span>
+								<span class="block text-[11px] text-slate-500 mt-0.5">既定に5種を足します</span>
+							</span>
+						</label>
+						<label for="scope-mode-curated" class="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 cursor-pointer hover:border-indigo-300 transition-all"
+							onmouseenter="previewScopeDetail('curated')" onmouseleave="previewScopeDetail(null)">
+							<input type="radio" id="scope-mode-curated" name="target-scope-mode" value="curated" class="mt-0.5 accent-indigo-600 cursor-pointer" onchange="setTargetScopeMode('curated')" onfocus="previewScopeDetail('curated')" onblur="previewScopeDetail(null)" />
+							<span>
+								<span class="block text-xs font-semibold text-slate-800">対象を絞る（<span id="scope-count-curated">121</span>種）</span>
+								<span class="block text-[11px] text-slate-500 mt-0.5">既定から12種を外します</span>
+							</span>
+						</label>
+					</div>
+					<!-- 足す／外すスキル名の欄。aria-live で、キーボード操作でも読み上げられる -->
+					<div id="scope-detail" class="scope-detail" aria-live="polite"></div>
+				</fieldset>
+
+				<!-- シナリオ因子は24種の個別選択。押すとパネルが開く（中身は
+				     renderScenarioFactorPicker() が正本のデータから作る）。
+				     上の3択と同じ「白いカード」の見え方に揃えて、押せることが分かるようにしてある。 -->
+				<div class="mt-2">
+					<details id="scenario-factors-details" class="group rounded-lg border border-slate-200 bg-white p-2.5 hover:border-indigo-300 transition-all">
+						<summary class="flex items-center justify-between gap-2 cursor-pointer select-none">
+							<span class="flex items-center gap-2 min-w-0 flex-wrap">
+								<span class="text-xs font-semibold text-slate-800">シナリオ因子を対象に含める（<span id="scenario-factors-count">24</span>種から選ぶ）</span>
+								<span id="scenario-factors-badge" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 shrink-0"></span>
+							</span>
+							<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform shrink-0"></i>
+						</summary>
+						<div class="pt-2">
+							<p class="text-[11px] text-slate-500 leading-relaxed mb-2">上のどれを選んでいても足せます。読み間違いを拾わないよう、名前が丸ごと読み取れたものだけを検出します（一覧・結果では <span class="text-sky-500 font-bold">◆</span> が付きます）。</p>
+							<div class="flex justify-end mb-1.5">
+								<button type="button" id="scenario-factors-clear" onclick="clearScenarioFactors()" class="text-[11px] font-semibold text-slate-600 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-2.5 py-1 rounded-lg transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">すべて解除</button>
+							</div>
+							<div id="scenario-factor-list" class="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-0.5 max-h-56 overflow-y-auto"></div>
+						</div>
+					</details>
+				</div>
+
+				<p id="target-scope-note" class="text-[11px] text-slate-400 mt-2.5">ここで選んだ内容はこのブラウザに保存され、次回も使われます。変えたあとは、もう一度判定してください。</p>
+			</div>
+
+			<!-- 対象スキルの一覧（確認用・折りたたみ） -->
 			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-4">
 				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
 					<span class="flex items-center gap-2">
@@ -405,7 +511,9 @@
 					<p class="text-[11px] text-slate-500 mb-2">
 						<span class="text-amber-500 font-bold">★</span> = sp70緑（17種） ／
 						<span class="text-emerald-500 font-bold">●</span> = 緑59種（sp70緑を含む） ／
-						<span class="text-indigo-500 font-bold">＋</span> = カスタム追加スキル
+						<span class="text-sky-500 font-bold">◆</span> = シナリオ因子<br />
+						<span class="registry-added">下線</span> = 「対象を広げる」で足したスキル ／
+						<span class="registry-removed">取り消し線</span> = 「対象を絞る」で対象から外したスキル（判定には使いません）
 					</p>
 					<div id="skill-registry-list" class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-xs text-slate-600 max-h-72 overflow-y-auto"></div>
 				</div>
@@ -446,50 +554,6 @@
 				</div>
 			</details>
 
-			<!-- 対象スキルのカスタム設定（追加・除外）（任意・デフォルト折りたたみ） -->
-			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-4">
-				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
-					<span class="flex items-center gap-2">
-						<i data-lucide="list-plus" class="w-4 h-4 text-slate-500"></i>
-						<span>対象スキルのカスタム設定（追加・除外）</span>
-						<span id="custom-skills-badge" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800"></span>
-					</span>
-					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
-				</summary>
-				<div class="p-4 pt-1 border-t border-slate-200/60">
-					<p class="text-[11px] text-slate-500 leading-relaxed mb-3">
-						通常は登録済みの133種で判定しますが、独自に追跡したいスキルを追加したり、不要なスキルを対象から除外したりできます。
-						どちらも1行に1つ、まとめて入力できます。内容はこのブラウザに保存され、次回も使われます。
-						既定の133種以外のスキルはOCRの精度が不十分で、検出できない場合があります。
-					</p>
-
-					<!-- 追加 -->
-					<div class="mb-4">
-						<p class="text-xs font-semibold text-slate-700 mb-1.5">スキルを追加する</p>
-						<textarea id="custom-add-textarea" class="w-full h-20 text-xs p-2.5 rounded-lg border border-slate-200 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-mono resize-y" placeholder="1行に1つ、追加したいスキル名を入力（複数行まとめて可）&#10;例：&#10;スキルA&#10;スキルB"></textarea>
-						<div class="flex items-center justify-between mt-2">
-							<span id="custom-add-status" class="text-[11px] text-slate-500"></span>
-							<button type="button" onclick="addCustomSkillsBatch()" class="shrink-0 px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all cursor-pointer">まとめて追加</button>
-						</div>
-						<div id="custom-added-list" class="flex flex-wrap gap-1.5 mt-2"></div>
-					</div>
-
-					<!-- 除外 -->
-					<div>
-						<p class="text-xs font-semibold text-slate-700 mb-1.5">対象から除外する</p>
-						<textarea id="custom-remove-textarea" class="w-full h-20 text-xs p-2.5 rounded-lg border border-slate-200 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-mono resize-y" placeholder="1行に1つ、除外したいスキル名を登録済み表記のまま入力（複数行まとめて可）&#10;例：&#10;逃げのコツ〇&#10;右回りの目覚め"></textarea>
-						<div class="flex items-center justify-between mt-2">
-							<span id="custom-remove-status" class="text-[11px] text-slate-500"></span>
-							<button type="button" onclick="addRemovedSkillsBatch()" class="shrink-0 px-3.5 py-1.5 rounded-lg bg-slate-700 text-white text-xs font-semibold hover:bg-slate-800 transition-all cursor-pointer">まとめて除外</button>
-						</div>
-						<div id="custom-removed-list" class="flex flex-wrap gap-1.5 mt-2"></div>
-					</div>
-
-					<div class="mt-3 flex items-center justify-end">
-						<button type="button" onclick="resetCustomSkills()" class="text-[11px] text-slate-500 hover:text-red-600 underline underline-offset-2 cursor-pointer">カスタム設定をリセット</button>
-					</div>
-				</div>
-			</details>
 			</div><!-- /#step-panel-1 -->
 
 			<!-- ② 因子セットの画像アップロード（親Aセットのみでも判定可） -->
@@ -1110,6 +1174,101 @@
 			'445': '20', // 冬の目覚め → 冬ウマ娘〇
 		};
 
+		/* ============================================================
+		 * 対象スキルの範囲（軸1）と シナリオ因子（軸2）
+		 *
+		 * 軸1（排他3択・targetScopeMode）
+		 *   'default'  … EXAM_SKILL_LIST の133種そのまま（従来どおり・既定）
+		 *   'expanded' … 133種 ＋ EXPANDED_EXTRA_SKILL_LIST の5種
+		 *   'curated'  … 133種 − CURATED_EXCLUDED_IDS の12種
+		 * 軸2（独立・selectedScenarioFactors）
+		 *   SCENARIO_INHERITANCE_FACTORS の24件から選んだぶんを、軸1の状態に
+		 *   関わらず足す。1種も選んでいなければ従来どおり何も足さない。
+		 *
+		 * 内部の識別子は優劣を含まない中立な名前にすること（default / expanded /
+		 * curated / scenarioFactors）。画面に出す文言は未確定で、ここにあるのは仮の表記。
+		 *
+		 * EXAM_SKILL_LIST（133種）自体はこれまでどおり固定で、足し引きはすべて
+		 * この下の定数と rebuildSkillList() で行う。133件という数は
+		 * tests/ocr/check-normalization.mjs が見張っているので動かさない。
+		 * ============================================================ */
+
+		// 対象拡張（'expanded'）で足す5種。マスター445種にはあるが133種には無いもの。
+		// id はマスター（uma-skill-deck-skills.json）のID。名前はマスターの表記と同じ
+		// （〇・括弧の食い違いが無いので、133種のような読み替えは要らない）。
+		const EXPANDED_EXTRA_SKILL_LIST = [
+			{ id: '37', name: '集中力' },
+			{ id: '93', name: '仕掛け準備' },
+			{ id: '106', name: 'イナズマステップ' },
+			{ id: '136', name: '読解力' },
+			{ id: '161', name: '前列狙い' }
+		];
+
+		// 絞り込み（'curated'）で133種から外す12種（マスターID）。
+		// 名前ではなくIDで持つのは、exam の表記（トリック(前)＝半角括弧）と
+		// マスターの表記（トリック（前）＝全角括弧）の食い違いを避けるため。
+		const CURATED_EXCLUDED_IDS = [
+			'39',  // ポジションセンス
+			'44',  // 臨機応変
+			'70',  // トリック(前)
+			'71',  // トリック(後)
+			'72',  // 逃げ駆け引き
+			'73',  // 先行駆け引き
+			'74',  // 差し駆け引き
+			'75',  // 追込駆け引き
+			'130', // かく乱
+			'140', // お見通し
+			'143', // 策士
+			'168'  // あやしげな作戦
+		];
+
+		/* ------------------------------------------------------------
+		 * シナリオ因子（24種）
+		 *
+		 * 正本は catalog-data/scenario-inheritance-factors.json（追加カタログの共通の置き場。
+		 * UmaSkill Deck も uma-skill-deck-core.js からこの同じファイルを読む）。
+		 * （素材フォルダの reference/ はスキルセットOCR系の正本置き場なので混ぜない）
+		 * ここにあるのはその写しで、exam.html が file:// でも単体で動く性質を
+		 * 保つため（133種を埋め込んでいるのと同じ理由。冒頭のコメント参照）。
+		 * 正本・core の写し・ここの写しの3者の食い違いは npm run test:norm が見張る。
+		 * ※ ここは名前だけを持つ。id は Deck 側（保存済みシートが指す鍵）の都合なので
+		 *   正本と core だけが持ち、exam は名前で受け渡す（Deck が名前からIDへ解決する）。
+		 *
+		 * 白スキル445種のマスターとは別カテゴリなので、examSkillId() では引けない
+		 * （＝ sp70緑・緑59種の集計には一切入らない）。
+		 *
+		 * 照合は「完全一致（および辞書）だけ」を採る。シナリオ名どうしは
+		 * 「豊食祭シナリオ・にんじん」と「豊食祭シナリオ・にんにく」のように
+		 * 1〜2文字しか違わず、あいまい一致を許すと互いに化けるため。
+		 * 絞り込みは applyScenarioFactorExactOnly() が照合の後で行う。
+		 * ------------------------------------------------------------ */
+		const SCENARIO_INHERITANCE_FACTORS = [
+			'URAシナリオ',
+			'アオハル杯シナリオ',
+			'クライマックスシナリオ',
+			'グランドライブシナリオ',
+			'グランドマスターズシナリオ',
+			"L'Arcシナリオ",
+			'U.A.F.シナリオ・スフィア',
+			'U.A.F.シナリオ・ファイト',
+			'U.A.F.シナリオ・フリー',
+			'豊食祭シナリオ・にんじん',
+			'豊食祭シナリオ・にんにく',
+			'豊食祭シナリオ・じゃがいも',
+			'豊食祭シナリオ・唐辛子',
+			'豊食祭シナリオ・いちご',
+			'メカウマ娘シナリオ・SPD',
+			'メカウマ娘シナリオ・STM',
+			'メカウマ娘シナリオ・POW',
+			'メカウマ娘シナリオ・GUTS',
+			'メカウマ娘シナリオ・WIT',
+			'Legendsシナリオ',
+			'無人島シナリオ',
+			'温泉郷シナリオ',
+			'Dreamsシナリオ',
+			'トレセン軒シナリオ'
+		];
+
 		/* ------------------------------------------------------------
 		 * 名前 ⇄ ID の引き直し
 		 * カテゴリ判定は「名前 → ID を引いてから ID で判定」する。名前 → ID は
@@ -1118,15 +1277,56 @@
 		 * skillList が差し替わっても、sp70緑・緑59種の集計が数え落とさないための備え。
 		 * ------------------------------------------------------------ */
 		const EXAM_SKILL_NAMES = EXAM_SKILL_LIST.map(s => s.name);
+		const EXPANDED_EXTRA_SKILL_NAMES = EXPANDED_EXTRA_SKILL_LIST.map(s => s.name);
 		const EXAM_NAME_BY_ID = {};
 		const EXAM_ID_BY_NORM = {};
-		EXAM_SKILL_LIST.forEach(s => {
+		// 対象拡張の5種も同じ表に入れる。軸1が 'default' のときは skillList に出て
+		// こないので集計には影響せず、'expanded' のときだけ名前から ID を引ける。
+		EXAM_SKILL_LIST.concat(EXPANDED_EXTRA_SKILL_LIST).forEach(s => {
 			EXAM_NAME_BY_ID[s.id] = s.name;
 			EXAM_ID_BY_NORM[normalizeText(s.name)] = s.id;
 		});
-		// スキル名からマスターIDを引く。133種に無い名前（カスタム追加分など）は null。
+		// スキル名からマスターIDを引く。表に無い名前（カスタム追加分・シナリオ因子）は null。
 		function examSkillId(name) {
 			return EXAM_ID_BY_NORM[normalizeText(name)] || null;
+		}
+
+		// シナリオ因子かどうか（正規化後の文字列で判定する）。白スキルのIDは持たない。
+		const SCENARIO_FACTOR_NORM_SET = new Set(SCENARIO_INHERITANCE_FACTORS.map(n => normalizeText(n)));
+		function isScenarioFactor(name) {
+			return SCENARIO_FACTOR_NORM_SET.has(normalizeText(name));
+		}
+
+		/**
+		 * シナリオ因子だけ「完全一致で読めた行がある」ものに絞り込む（照合の後処理）。
+		 *
+		 * common.js の照合は、完全一致で決まらなかった行をあいまい一致（編集距離）に
+		 * 回す。シナリオ名どうしは「豊食祭シナリオ・にんじん / にんにく」のように
+		 * 2文字しか違わず、正規化後14文字なら距離3まで許されるので、あいまい一致に
+		 * 任せると別のシナリオへ化ける。そこで、シナリオ因子に限っては
+		 * 「どれかのOCR行の正規化文字列に、その名前の正規化文字列がそのまま入っている」
+		 * ものだけを残す（＝common.js の「完全一致」と同じ判定を、後からもう一度かける）。
+		 *
+		 * 白スキル133種側の判定には触らない。common.js を変えずに済ませるため、
+		 * 照合の中ではなくここで落としている。
+		 */
+		function applyScenarioFactorExactOnly(res, lines) {
+			if (selectedScenarioFactors.size === 0) return res;
+			const lineNorms = [];
+			(lines || []).forEach(l => {
+				const n = normalizeText(l.text);
+				if (n) lineNorms.push(n);
+			});
+			Array.from(res.detectedSkills).forEach(name => {
+				if (!isScenarioFactor(name)) return;
+				const norm = normalizeText(name);
+				if (lineNorms.some(n => n.indexOf(norm) !== -1)) return;
+				res.detectedSkills.delete(name);
+				delete res.matchReasons[name];
+				delete res.skillSources[name];
+				if (res.skillStars) delete res.skillStars[name];
+			});
+			return res;
 		}
 
 		const SP70_GREEN_17_SET = new Set(SP70_GREEN_17_IDS);
@@ -1157,27 +1357,48 @@
 		let copyListMode = 'all133';
 
 		/* ------------------------------------------------------------
-		 * 対象スキルのカスタム設定（追加・除外）
+		 * 軸1（対象スキルの範囲）と軸2（シナリオ因子）の状態
+		 *
 		 * EXAM_SKILL_LIST（登録済み133種）はこのファイル内の固定値のまま変更せず、
-		 * 「除外リスト」でEXAM_SKILL_LISTから取り除く分を、「追加リスト」で
-		 * ユーザー独自のスキルを足す分を管理する。実際にOCR照合・結果表示・
-		 * コピー機能等が参照する skillList / skillIndex は、この2つを反映して
-		 * rebuildSkillList() が都度再構築する（＝既存ロジックへの影響を skillList
-		 * の中身の差し替えだけに閉じ込める設計）。
+		 * 足し引きはすべてこの2つの軸で行う。実際にOCR照合・結果表示・コピー機能等が
+		 * 参照する skillList / skillIndex は、2つの軸を反映して rebuildSkillList() が
+		 * 都度再構築する（＝既存ロジックへの影響を skillList の中身の差し替えだけに
+		 * 閉じ込める設計）。
+		 *
+		 * 以前はここに「1件ずつ足す／外す」カスタム設定（uma-exam-custom-added /
+		 * uma-exam-custom-removed）もあったが、軸1・軸2で選ぶ方式に一本化したため
+		 * 2026-09-14 に削除した。古い保存値は読まない（残っていても無視される）。
 		 * ------------------------------------------------------------ */
-		let customAddedSkills = [];           // ユーザーが追加したスキル名（EXAM_SKILL_LIST外）
-		let removedSkillsSet = new Set();     // EXAM_SKILL_LISTのうち対象から外したスキル名
-		const CUSTOM_ADDED_STORAGE_KEY = 'uma-exam-custom-added';
-		const CUSTOM_REMOVED_STORAGE_KEY = 'uma-exam-custom-removed';
+		const TARGET_SCOPE_MODES = ['default', 'expanded', 'curated'];
+		let targetScopeMode = 'default';
+		// 軸2は一括ON/OFFではなく24種の個別選択。中身はシナリオ因子の名前。
+		let selectedScenarioFactors = new Set();
+		const TARGET_SCOPE_STORAGE_KEY = 'uma-exam-target-scope';
+		const SCENARIO_FACTORS_STORAGE_KEY = 'uma-exam-scenario-factors';
 
-		// 除外を反映した基準リスト（名前）
-		function effectiveBaseList(list) {
-			return list.filter(s => !removedSkillsSet.has(s));
+		const CURATED_EXCLUDED_ID_SET = new Set(CURATED_EXCLUDED_IDS);
+
+		// 軸1を反映した基準リスト（名前）
+		function scopeBaseNames(mode) {
+			const m = mode || targetScopeMode;
+			if (m === 'expanded') return EXAM_SKILL_NAMES.concat(EXPANDED_EXTRA_SKILL_NAMES);
+			if (m === 'curated') return EXAM_SKILL_NAMES.filter(n => !CURATED_EXCLUDED_ID_SET.has(examSkillId(n)));
+			return EXAM_SKILL_NAMES.slice();
 		}
-		// 除外を反映した基準リスト（ID）。sp70緑・緑59種の集計母数はこれで動的に縮む。
-		// 除外の保存値は名前なので、ID → 名前に引き直して照らす。
+		// 軸1を反映した基準リスト（ID）。名前の表記ゆれを避けるため ID で持つ。
+		function scopeBaseIdSet(mode) {
+			return new Set(scopeBaseNames(mode).map(n => examSkillId(n)).filter(Boolean));
+		}
+
+		// 軸2で選ばれているシナリオ因子。並びは正本（24種）の順のまま。
+		function activeScenarioFactors() {
+			return SCENARIO_INHERITANCE_FACTORS.filter(n => selectedScenarioFactors.has(n));
+		}
+
+		// 軸1を反映した基準リスト（ID）。sp70緑・緑59種の集計母数はこれで動的に縮む。
 		function effectiveBaseIds(ids) {
-			return ids.filter(id => !removedSkillsSet.has(EXAM_NAME_BY_ID[id]));
+			const inScope = scopeBaseIdSet();
+			return ids.filter(id => inScope.has(id));
 		}
 		function effectiveGreen59EquivalenceMax() {
 			const canonical = new Set();
@@ -1185,9 +1406,18 @@
 			return canonical.size;
 		}
 
+		// 実際に照合・表示・コピーで使う対象スキル。
+		// 並びは「軸1の基準リスト → シナリオ因子」。既定の133種の並びは動かさない
+		// （利用者のスプレッドシート側の照合が黙って外れないため）。
 		function rebuildSkillList() {
-			skillList = effectiveBaseList(EXAM_SKILL_NAMES).concat(customAddedSkills);
+			skillList = scopeBaseNames().concat(activeScenarioFactors());
 			skillIndex = skillList.map(raw => ({ raw: raw, norm: normalizeText(raw) }));
+		}
+
+		// 既定（133種・シナリオ因子なし）から離れているか。
+		// ①のタブのバッジと Deck への受け渡し名で「調整あり」を出すのに使う。
+		function isTargetAdjusted() {
+			return targetScopeMode !== 'default' || selectedScenarioFactors.size > 0;
 		}
 
 		/* ------------------------------------------------------------
@@ -1267,12 +1497,10 @@
 
 		document.addEventListener('DOMContentLoaded', () => {
 			verifyCommonCssVersion();
-			restoreCustomSkills();
+			restoreTargetScope();
 			rebuildSkillList();
+			renderTargetScopeControls();
 			renderSkillRegistryList();
-			renderCustomAddedList();
-			renderCustomRemovedList();
-			updateCustomSkillsBadge();
 			updateSkillCountDisplays();
 			updateCategoryBadges();
 			renderPersonUploadGrid();
@@ -1288,20 +1516,51 @@
 		/* ============================================================
 		 * 対象スキル一覧の表示（確認用・読み取り専用）
 		 * ============================================================ */
+		/**
+		 * ①の「一覧を確認する」に並べる行を組み立てる。
+		 *
+		 * 対象に入っているものだけでなく、「対象を絞る」で外した12種も
+		 * 取り消し線で残す（何を外したのかが一覧で分かるように）。
+		 * 「対象を広げる」で足した5種は下線で示す。どちらも赤字。
+		 * カスタム除外は従来どおり一覧に出さない（利用者が自分で外したものなので）。
+		 *
+		 * 戻り値: [{ name, state }] … state は 'normal' | 'scopeAdded' | 'scopeRemoved'
+		 */
+		function buildSkillRegistryRows() {
+			const rows = [];
+			const curated = (targetScopeMode === 'curated');
+			EXAM_SKILL_NAMES.forEach(name => {
+				if (curated && CURATED_EXCLUDED_ID_SET.has(examSkillId(name))) {
+					rows.push({ name: name, state: 'scopeRemoved' });
+					return;
+				}
+				rows.push({ name: name, state: 'normal' });
+			});
+			if (targetScopeMode === 'expanded') {
+				EXPANDED_EXTRA_SKILL_NAMES.forEach(name => rows.push({ name: name, state: 'scopeAdded' }));
+			}
+			activeScenarioFactors().forEach(name => rows.push({ name: name, state: 'normal' }));
+			return rows;
+		}
+
 		function renderSkillRegistryList() {
 			const box = document.getElementById('skill-registry-list');
-			// 除外設定を反映した基本133種＋カスタム追加分を、現在の対象スキル一覧として表示する。
-			box.innerHTML = skillList.map(skill => {
+			box.innerHTML = buildSkillRegistryRows().map(row => {
+				const skill = row.name;
 				const id = examSkillId(skill);
 				let mark = '<span class="inline-block w-3"></span>';
-				if (id && SP70_GREEN_17_SET.has(id)) {
+				if (isScenarioFactor(skill)) {
+					mark = '<span class="text-sky-500 font-bold" title="シナリオ因子">◆</span>';
+				} else if (id && SP70_GREEN_17_SET.has(id)) {
 					mark = '<span class="text-amber-500 font-bold" title="sp70緑">★</span>';
 				} else if (id && GREEN_59_SET.has(id)) {
 					mark = '<span class="text-emerald-500 font-bold" title="緑59種">●</span>';
-				} else if (customAddedSkills.indexOf(skill) !== -1) {
-					mark = '<span class="text-indigo-500 font-bold" title="カスタム追加スキル">＋</span>';
 				}
-				return '<div class="flex items-center gap-1.5 py-0.5"><span class="w-3.5 text-center">' + mark + '</span><span>' + escapeHtml(skill) + '</span></div>';
+				let nameClass = '', title = '';
+				if (row.state === 'scopeAdded') { nameClass = ' class="registry-added"'; title = ' title="「対象を広げる」で足したスキル"'; }
+				else if (row.state === 'scopeRemoved') { nameClass = ' class="registry-removed"'; title = ' title="「対象を絞る」で対象から外したスキル"'; }
+				return '<div class="flex items-center gap-1.5 py-0.5"' + title + '><span class="w-3.5 text-center">' + mark + '</span>'
+					+ '<span' + nameClass + '>' + escapeHtml(skill) + '</span></div>';
 			}).join('');
 		}
 
@@ -1310,14 +1569,14 @@
 		 * ============================================================ */
 		function updateSkillCountDisplays() {
 			const total = skillList.length;
-			['header-skill-count', 'step1-skill-count-inline', 'registry-skill-count', 'copylist-all133-count'].forEach(id => {
+			['header-skill-count', 'registry-skill-count', 'copylist-all133-count'].forEach(id => {
 				const el = document.getElementById(id);
 				if (el) el.textContent = String(total);
 			});
-			// ①のタブのバッジ。除外・追加があるときは、既定の133種から離れていることが分かるようにする
+			// ①のタブのバッジ。軸1・軸2・除外・追加のどれかがあるときは、
+			// 既定の133種から離れていることが分かるようにする
 			const badge = document.getElementById('step1-skill-badge');
-			const adjusted = customAddedSkills.length > 0 || removedSkillsSet.size > 0;
-			if (badge) badge.textContent = total + '種' + (adjusted ? '（調整あり）' : '');
+			if (badge) badge.textContent = total + '種' + (isTargetAdjusted() ? '（調整あり）' : '');
 		}
 
 		function updateCategoryBadges() {
@@ -1329,167 +1588,184 @@
 			if (greenBadge) greenBadge.textContent = '緑59種（実質' + greenMax + '種）';
 			const sp70CopyCount = document.getElementById('copylist-sp70-count');
 			if (sp70CopyCount) sp70CopyCount.textContent = String(sp70Count);
+
+			// 今の設定でだけ出すバッジ。該当しない設定のときはバッジ自体を出さない。
+			// Tailwind の .hidden と .inline-flex は同じ display ユーティリティで、
+			// 両方付けると後勝ちになり隠れない。出すときにだけ inline-flex を足す。
+			const show = (wrapId, textId, on, text) => {
+				const wrap = document.getElementById(wrapId);
+				if (!wrap) return;
+				wrap.classList.toggle('hidden', !on);
+				wrap.classList.toggle('inline-flex', on);
+				if (on) {
+					const el = document.getElementById(textId);
+					if (el) el.textContent = text;
+				}
+			};
+			show('badge-scope-added', 'badge-scope-added-text', targetScopeMode === 'expanded',
+				'追加' + EXPANDED_EXTRA_SKILL_NAMES.length + '種');
+			show('badge-scope-removed', 'badge-scope-removed-text', targetScopeMode === 'curated',
+				'除外' + CURATED_EXCLUDED_IDS.length + '種');
+			const factorCount = activeScenarioFactors().length;
+			show('badge-scenario-factors', 'badge-scenario-factors-text', factorCount > 0,
+				'シナリオ因子：' + factorCount + '種');
 		}
 
 		/* ============================================================
-		 * 対象スキルのカスタム設定（追加・除外）
+		 * 対象スキルの範囲（軸1）と シナリオ因子（軸2）の操作
+		 *
+		 * ※ ここに出る文言（「対象を広げる」等）は仮のもので、未確定。
+		 *    内部の値（default / expanded / curated）は文言が決まっても変えない。
 		 * ============================================================ */
-		function saveCustomSkills() {
+		function saveTargetScope() {
 			try {
-				localStorage.setItem(CUSTOM_ADDED_STORAGE_KEY, JSON.stringify(customAddedSkills));
-				localStorage.setItem(CUSTOM_REMOVED_STORAGE_KEY, JSON.stringify(Array.from(removedSkillsSet)));
+				localStorage.setItem(TARGET_SCOPE_STORAGE_KEY, targetScopeMode);
+				localStorage.setItem(SCENARIO_FACTORS_STORAGE_KEY, JSON.stringify(activeScenarioFactors()));
 			} catch (e) {}
 		}
 
-		function restoreCustomSkills() {
+		function restoreTargetScope() {
 			try {
-				const addedRaw = localStorage.getItem(CUSTOM_ADDED_STORAGE_KEY);
-				if (addedRaw) customAddedSkills = JSON.parse(addedRaw).filter(s => typeof s === 'string' && s);
-			} catch (e) { customAddedSkills = []; }
+				const mode = localStorage.getItem(TARGET_SCOPE_STORAGE_KEY);
+				if (TARGET_SCOPE_MODES.indexOf(mode) !== -1) targetScopeMode = mode;
+			} catch (e) { targetScopeMode = 'default'; }
 			try {
-				const removedRaw = localStorage.getItem(CUSTOM_REMOVED_STORAGE_KEY);
-				if (removedRaw) removedSkillsSet = new Set(JSON.parse(removedRaw).filter(s => EXAM_SKILL_NAMES.indexOf(s) !== -1));
-			} catch (e) { removedSkillsSet = new Set(); }
+				const raw = localStorage.getItem(SCENARIO_FACTORS_STORAGE_KEY);
+				// 個別選択にする前は一括ON/OFFで '1' / '0' を書いていた。
+				// '1' は「24件すべて選んでいた」ことに読み替える（設定を黙って失わせない）。
+				if (raw === '1') selectedScenarioFactors = new Set(SCENARIO_INHERITANCE_FACTORS);
+				else if (raw === '0' || raw === null) selectedScenarioFactors = new Set();
+				else {
+					const names = JSON.parse(raw);
+					selectedScenarioFactors = new Set(
+						(Array.isArray(names) ? names : []).filter(n => SCENARIO_INHERITANCE_FACTORS.indexOf(n) !== -1)
+					);
+				}
+			} catch (e) { selectedScenarioFactors = new Set(); }
 		}
 
-		// カスタム設定に変更があった際、影響するすべての表示をまとめて更新する。
-		function refreshAfterCustomSkillsChange() {
+		// ラジオ・チェックボックスの状態と、各選択肢に出す種数を現在の値に合わせる。
+		// 種数は定数から数え直すので、5種・12種・24種の中身が変わっても直さなくてよい。
+		function renderTargetScopeControls() {
+			TARGET_SCOPE_MODES.forEach(mode => {
+				const radio = document.getElementById('scope-mode-' + mode);
+				if (radio) radio.checked = (mode === targetScopeMode);
+				const count = document.getElementById('scope-count-' + mode);
+				if (count) count.textContent = String(scopeBaseNames(mode).length);
+			});
+			renderScopeDetail();
+			renderScenarioFactorPicker();
+		}
+
+		/* ------------------------------------------------------------
+		 * 足す5種・外す12種の名前の欄（#scope-detail）
+		 * 触れている（マウス／焦点）選択肢があればその中身、無ければ選んでいる選択肢の中身。
+		 * 既定を出すときは、触れると名前が出ることの案内にする。
+		 * 中身は定数から作るので、5種・12種が変わっても書き直さなくてよい。
+		 * ------------------------------------------------------------ */
+		let scopeDetailPreview = null; // 触れている選択肢（'default' | 'expanded' | 'curated' | null）
+
+		function previewScopeDetail(mode) {
+			scopeDetailPreview = (TARGET_SCOPE_MODES.indexOf(mode) !== -1) ? mode : null;
+			renderScopeDetail();
+		}
+
+		function renderScopeDetail() {
+			const box = document.getElementById('scope-detail');
+			if (!box) return;
+			const mode = scopeDetailPreview || targetScopeMode;
+			const list = (title, names) => '<span class="scope-detail-title">' + title + '</span>：'
+				+ names.map(n => '<span class="scope-detail-name">' + escapeHtml(n) + '</span>').join('・');
+			box.classList.remove('scope-detail--added', 'scope-detail--removed');
+			if (mode === 'expanded') {
+				box.classList.add('scope-detail--added');
+				box.innerHTML = list('足す' + EXPANDED_EXTRA_SKILL_NAMES.length + '種', EXPANDED_EXTRA_SKILL_NAMES);
+			} else if (mode === 'curated') {
+				const names = CURATED_EXCLUDED_IDS.map(id => EXAM_NAME_BY_ID[id]).filter(Boolean);
+				box.classList.add('scope-detail--removed');
+				box.innerHTML = list('外す' + names.length + '種', names);
+			} else {
+				box.innerHTML = '「対象を広げる」「対象を絞る」に触れると、足す／外すスキル名をここに表示します。';
+			}
+		}
+
+		/* ------------------------------------------------------------
+		 * シナリオ因子の個別選択（24種のチェックボックス）
+		 * 24種はデータ（SCENARIO_INHERITANCE_FACTORS）から作る。HTML には
+		 * 入れ物だけ置き、1件ずつ手書きしない（正本が増減しても直さなくてよい）。
+		 * ------------------------------------------------------------ */
+		function renderScenarioFactorPicker() {
+			const box = document.getElementById('scenario-factor-list');
+			if (box) {
+				box.innerHTML = SCENARIO_INHERITANCE_FACTORS.map((name, i) => {
+					const id = 'scenario-factor-' + i;
+					return '<label for="' + id + '" class="flex items-start gap-1.5 rounded-lg px-1.5 py-1 cursor-pointer hover:bg-sky-50 transition-colors">'
+						+ '<input type="checkbox" id="' + id + '" class="mt-0.5 accent-sky-600 cursor-pointer shrink-0"'
+						+ (selectedScenarioFactors.has(name) ? ' checked' : '')
+						+ ' onchange="toggleScenarioFactor(' + i + ', this.checked)" />'
+						+ '<span class="text-[11px] text-slate-700 leading-snug">' + escapeHtml(name) + '</span>'
+						+ '</label>';
+				}).join('');
+			}
+			const total = document.getElementById('scenario-factors-count');
+			if (total) total.textContent = String(SCENARIO_INHERITANCE_FACTORS.length);
+			// 見出しのバッジ（選んでいる件数）。0件のときは出さない。
+			const badge = document.getElementById('scenario-factors-badge');
+			if (badge) {
+				const n = selectedScenarioFactors.size;
+				badge.textContent = n + '種を対象に追加中';
+				badge.classList.toggle('hidden', n === 0);
+			}
+			const clearBtn = document.getElementById('scenario-factors-clear');
+			if (clearBtn) clearBtn.disabled = (selectedScenarioFactors.size === 0);
+		}
+
+		// チェックボックスは添字で受ける。名前を onclick の文字列に埋めると、
+		// 「L'Arcシナリオ」のような引用符を含む名前でエスケープを間違えるため。
+		function toggleScenarioFactor(index, on) {
+			const name = SCENARIO_INHERITANCE_FACTORS[index];
+			if (!name) return;
+			if (on) selectedScenarioFactors.add(name);
+			else selectedScenarioFactors.delete(name);
+			saveTargetScope();
+			refreshAfterTargetChange();
+		}
+
+		function clearScenarioFactors() {
+			if (selectedScenarioFactors.size === 0) return;
+			selectedScenarioFactors = new Set();
+			saveTargetScope();
+			refreshAfterTargetChange();
+		}
+
+		function setTargetScopeMode(mode) {
+			if (TARGET_SCOPE_MODES.indexOf(mode) === -1 || mode === targetScopeMode) return;
+			targetScopeMode = mode;
+			// 選んだ瞬間は、触れていた選択肢より選んだ選択肢の中身を優先して出す
+			// （タップ操作では mouseleave が来ないことがあり、前に触れた方が残るため）。
+			scopeDetailPreview = null;
+			saveTargetScope();
+			refreshAfterTargetChange();
+		}
+
+		// 軸1・軸2が変わったときに、影響するすべての表示をまとめて更新する。
+		// 判定済みの結果（personResults）は消さない（アップロードした画像も残る）が、
+		// 照合そのものはやり直さないと新しい対象に対する結果にならない。
+		// 表は次の判定まで前のままになるので、結果が出ている状態で切り替えたときだけ
+		// 「もう一度判定する」と知らせる。
+		function refreshAfterTargetChange() {
 			rebuildSkillList();
-			saveCustomSkills();
+			renderTargetScopeControls();
 			renderSkillRegistryList();
-			renderCustomAddedList();
-			renderCustomRemovedList();
-			updateCustomSkillsBadge();
 			updateSkillCountDisplays();
 			updateCategoryBadges();
 			// 「スキル名のコピー」が開いている場合に備え、表示中のリストも再計算する
 			renderSkillCopyTextarea();
 			updateProcessBtn();
 			if (window.lucide) lucide.createIcons();
-		}
-
-		function updateCustomSkillsBadge() {
-			const badge = document.getElementById('custom-skills-badge');
-			const count = customAddedSkills.length + removedSkillsSet.size;
-			if (count > 0) {
-				badge.textContent = '追加' + customAddedSkills.length + '・除外' + removedSkillsSet.size;
-				badge.classList.remove('hidden');
-			} else {
-				badge.classList.add('hidden');
+			if (activePersonIndexes().length > 0) {
+				showToast('対象スキルを変えました。今の結果に反映するには、もう一度判定してください');
 			}
-		}
-
-		// テキストエリアの入力を「1行1スキル名」として分割し、空行・前後の空白を除去する。
-		function splitSkillLines(raw) {
-			return raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-		}
-
-		// 追加：1行1スキル名で複数行まとめて入力できる。既に対象に含まれる名前・
-		// バッチ内の重複はスキップし、件数を要約して知らせる。
-		function addCustomSkillsBatch() {
-			const textarea = document.getElementById('custom-add-textarea');
-			const status = document.getElementById('custom-add-status');
-			const names = splitSkillLines(textarea.value);
-			if (names.length === 0) return;
-
-			let added = 0, skipped = 0;
-			const seenThisBatch = new Set();
-			names.forEach(name => {
-				if (seenThisBatch.has(name) || skillList.indexOf(name) !== -1) { skipped++; return; }
-				seenThisBatch.add(name);
-				customAddedSkills.push(name);
-				added++;
-			});
-
-			textarea.value = '';
-			let msg = added + '件追加しました';
-			if (skipped > 0) msg += '（' + skipped + '件は既に対象のため無視）';
-			status.textContent = msg;
-			status.className = 'text-[11px] ' + (added > 0 ? 'text-slate-500' : 'text-amber-600');
-			refreshAfterCustomSkillsChange();
-		}
-
-		function removeCustomSkill(name) {
-			const idx = customAddedSkills.indexOf(name);
-			if (idx === -1) return;
-			customAddedSkills.splice(idx, 1);
-			refreshAfterCustomSkillsChange();
-		}
-
-		// 除外：1行1スキル名で複数行まとめて入力できる。登録済み133種に無い表記は
-		// 除外できないため、無視した名前を知らせる（誤字・別ツール向けの表記違いに気付けるように）。
-		function addRemovedSkillsBatch() {
-			const textarea = document.getElementById('custom-remove-textarea');
-			const status = document.getElementById('custom-remove-status');
-			const names = splitSkillLines(textarea.value);
-			if (names.length === 0) return;
-
-			let removed = 0;
-			const unknown = [];
-			names.forEach(name => {
-				if (EXAM_SKILL_NAMES.indexOf(name) === -1) { unknown.push(name); return; }
-				if (!removedSkillsSet.has(name)) removed++;
-				removedSkillsSet.add(name);
-			});
-
-			textarea.value = '';
-			let msg = removed + '件除外しました';
-			if (unknown.length > 0) msg += '（対象133種に無い名前のため無視: ' + unknown.join('、') + '）';
-			status.textContent = msg;
-			status.className = 'text-[11px] ' + (unknown.length > 0 ? 'text-red-600' : 'text-slate-500');
-			refreshAfterCustomSkillsChange();
-		}
-
-		function restoreRemovedSkill(name) {
-			if (!removedSkillsSet.has(name)) return;
-			removedSkillsSet.delete(name);
-			refreshAfterCustomSkillsChange();
-		}
-
-		function resetCustomSkills() {
-			if (customAddedSkills.length === 0 && removedSkillsSet.size === 0) return;
-			customAddedSkills = [];
-			removedSkillsSet = new Set();
-			try {
-				localStorage.removeItem(CUSTOM_ADDED_STORAGE_KEY);
-				localStorage.removeItem(CUSTOM_REMOVED_STORAGE_KEY);
-			} catch (e) {}
-			document.getElementById('custom-add-status').textContent = '';
-			document.getElementById('custom-remove-status').textContent = '';
-			refreshAfterCustomSkillsChange();
-			showToast('カスタム設定をリセットしました');
-		}
-
-		function renderCustomAddedList() {
-			const box = document.getElementById('custom-added-list');
-			if (customAddedSkills.length === 0) {
-				box.innerHTML = '<span class="text-[11px] text-slate-400">追加済みのスキルはありません</span>';
-				return;
-			}
-			box.innerHTML = customAddedSkills.map(name => `
-				<span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-indigo-100 text-indigo-800 text-[11px] font-medium">
-					${escapeHtml(name)}
-					<button type="button" onclick="removeCustomSkill('${escapeHtml(name).replace(/'/g, "\\'")}')" class="w-4 h-4 rounded-full hover:bg-indigo-200 flex items-center justify-center cursor-pointer">
-						<i data-lucide="x" class="w-3 h-3"></i>
-					</button>
-				</span>`).join('');
-			if (window.lucide) lucide.createIcons();
-		}
-
-		function renderCustomRemovedList() {
-			const box = document.getElementById('custom-removed-list');
-			if (removedSkillsSet.size === 0) {
-				box.innerHTML = '<span class="text-[11px] text-slate-400">除外中のスキルはありません</span>';
-				return;
-			}
-			box.innerHTML = Array.from(removedSkillsSet).map(name => `
-				<span class="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-slate-200 text-slate-700 text-[11px] font-medium">
-					${escapeHtml(name)}
-					<button type="button" onclick="restoreRemovedSkill('${escapeHtml(name).replace(/'/g, "\\'")}')" title="対象に戻す" class="w-4 h-4 rounded-full hover:bg-slate-300 flex items-center justify-center cursor-pointer">
-						<i data-lucide="rotate-ccw" class="w-3 h-3"></i>
-					</button>
-				</span>`).join('');
-			if (window.lucide) lucide.createIcons();
 		}
 
 		/* ============================================================
@@ -1545,7 +1821,7 @@
 					: '緑59種（除外反映後' + list.length + '種・目覚め系も独立して含みます）';
 			} else {
 				list = skillList;
-				hint = '対象スキル全' + skillList.length + '種（登録順・カスタム設定反映）';
+				hint = '対象スキル全' + skillList.length + '種（登録順・範囲とカスタム設定を反映）';
 			}
 			document.getElementById('skill-copy-textarea').value = list.join('\n');
 			document.getElementById('skill-copy-hint').textContent = hint + ' ・ ' + list.length + '行';
@@ -1983,7 +2259,8 @@
 					if (result.lines.length > 0) anySuccess = true;
 					if (result.skipped.length > 0) skippedAll.push.apply(skippedAll, result.skipped);
 					if (result.warned.length > 0) warnedAll.push.apply(warnedAll, result.warned);
-					personResults[p] = matchAllSkillsWithStars(result.lines, skillList, skillIndex, {});
+					personResults[p] = applyScenarioFactorExactOnly(
+						matchAllSkillsWithStars(result.lines, skillList, skillIndex, {}), result.lines);
 				}
 			} catch (err) {
 				console.error(err);
@@ -2335,9 +2612,9 @@
 		// スキル名の前に付けるカテゴリバッジ（sp70緑=★ / 緑59種=● / カスタム追加=＋）。
 		function categoryBadge(skill) {
 			const id = examSkillId(skill);
+			if (isScenarioFactor(skill)) return '<span class="text-sky-500 mr-1" title="シナリオ因子">◆</span>';
 			if (id && SP70_GREEN_17_SET.has(id)) return '<span class="text-amber-500 mr-1" title="sp70緑（高コスパ17種）">★</span>';
 			if (id && GREEN_59_SET.has(id)) return '<span class="text-emerald-500 mr-1" title="緑59種">●</span>';
-			if (customAddedSkills.indexOf(skill) !== -1) return '<span class="text-indigo-500 mr-1" title="カスタム追加スキル">＋</span>';
 			return '';
 		}
 
@@ -3325,9 +3602,10 @@
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;
 
-		// 除外／追加がある人は、対象が既定の133種と違うことが Deck 側でも分かるようにする
+		// 対象の範囲を変えた人・除外／追加がある人は、対象が既定の133種と違うことが
+		// Deck 側でも分かるようにする（軸1・軸2もここに含める）。
 		function handoffScopeName() {
-			return (customAddedSkills.length > 0 || removedSkillsSet.size > 0) ? '技能試験（調整あり）' : '技能試験';
+			return isTargetAdjusted() ? '技能試験（調整あり）' : '技能試験';
 		}
 
 		function writeOcrHandoff() {
