@@ -15,7 +15,7 @@
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-14j"></script>
-	<script src="js/uma-skill-deck.js?v=2026-09-12d"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-14a"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -431,7 +431,10 @@
 				<p class="text-xs text-slate-500">テンプレート：<span id="data-template-count"></span>／比較シート：<span id="data-record-count"></span>／カスタムスキル：<span id="data-custom-count"></span></p>
 			</div>
 			<div class="glass-card mb-4">
-				<p class="text-sm font-semibold text-slate-700 mb-2">マスタースキルデータ</p>
+				<!-- 32セッション目: 利用者向けの語を「収録」で統一。「収録されていないスキル」と対になり、
+				     「収録されているものの集まり」と「収録されていないもの」の関係が読み取れる。
+				     コード内部の識別子（refreshMasterData / data-master-version など）は変えない。 -->
+				<p class="text-sm font-semibold text-slate-700 mb-2">収録スキルデータ</p>
 				<p class="text-xs text-slate-500 mb-2">版：<span id="data-master-version"></span>／取得日時：<span id="data-master-fetched"></span></p>
 				<button onclick="refreshMasterData()" class="uma-btn uma-btn--secondary">
 					<i data-lucide="refresh-cw" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 再取得

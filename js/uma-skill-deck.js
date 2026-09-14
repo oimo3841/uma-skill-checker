@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-12d';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-14a';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -842,10 +842,12 @@ function importData() {
 }
 
 async function refreshMasterData() {
-	showToast('マスターデータを再取得しています…');
+	// 32セッション目: 利用者向けの語は「収録スキルデータ」（設定の見出しと同じ）。関数名や
+	// Core の API の「マスター」は開発側の語なので変えない。
+	showToast('収録スキルデータを再取得しています…');
 	await Core.loadMasterSkills(true);
 	renderDataTab();
-	showToast('マスターデータを更新しました（' + Core.getMasterSkills().length + '件）');
+	showToast('収録スキルデータを更新しました（' + Core.getMasterSkills().length + '件）');
 }
 
 /* ============================================================
