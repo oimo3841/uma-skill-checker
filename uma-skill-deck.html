@@ -9,8 +9,8 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-11b" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-11b" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15a" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-15a" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
@@ -184,7 +184,7 @@
 		/* 追加カタログ（シナリオ因子など）の行に付く印。OCRツール側の一覧・結果と同じ◆。
 		   .deck-name-clip の**外**に置く。中に入れると印のぶんだけ名前が早く切れ、
 		   「6em ＝ 全角6文字ぶん」という上のクリップ幅の前提が崩れる。 */
-		.deck-catalog-mark { flex: 0 0 auto; color: #0ea5e9; font-weight: 700; }
+		.deck-catalog-mark { flex: 0 0 auto; color: var(--uma-mark-catalog); font-weight: 700; }
 		.deck-name-clip {
 			display: block; max-width: 6em;
 			overflow: hidden; white-space: nowrap;

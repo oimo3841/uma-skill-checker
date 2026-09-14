@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-09-11b";
+	--common-css-version: "2026-09-15a";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -58,6 +58,17 @@
 	--uma-danger-text: #c10007;      /* red-700   */
 	--uma-star: #fe9a00;             /* amber-500 : ★の実数 */
 	--uma-star-empty: #cad5e2;       /* slate-300 : ★の空き */
+
+	/* ---- 印の色 ----
+	   「そのスキルがどの区分か」を表す記号（★●♦■✕）の色。一覧・判定結果の表・
+	   結果画像の3か所が同じ値を使う。面の色（--uma-surface-*）や状態色
+	   （--uma-success 等）を流用しないこと。役割が違うものを同じ値にすると、
+	   面の色を変えたときに印まで一緒に動いてしまう。
+	   値は Tailwind v4.1.11 の実測（F-19）。
+	   ★は --uma-star、その他の対象スキルの●は --uma-text、
+	   追加・除外の■✕は --uma-danger-text を使うので、ここには無い。 */
+	--uma-mark-green-skill: #00bc7d; /* emerald-500 : 緑スキル（SP70以外）の● */
+	--uma-mark-catalog: #0ea5e9;     /* sky-500     : 追加カタログ（シナリオ因子）の♦ */
 
 	/* ---- アクセント ----
 	   既定は藍。ツールごとに各HTMLの<style>で :root ごと上書きする。
