@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14f';
 
 	/* ============================================================
 	 * 定数
@@ -51,6 +51,15 @@
 	// 3文字以下どうしで距離1のペアが複数存在するため、短い名前は完全一致のみ許す。
 	const DECK_TEXT_MATCH_MAX_DISTANCE = 1;
 	const DECK_TEXT_MATCH_MIN_LENGTH_FOR_FUZZY = 4;
+
+	// 要確認の行から開く「名前を入れて探す」の一覧に出す上限（32セッション目）。
+	// 20 にした理由: 1文字だけ入れた時点では数十件当たることがあり、全部出すと一覧が長くなって
+	// 「絞り込む」という操作の意味が伝わらない。20 なら狭い画面でも数回のスクロールで見渡せ、
+	// かつ 2文字入れればほとんどの場合これを下回るので、上限に当たること自体が
+	// 「もう少し入力してください」の合図になる。超えたぶんは件数だけ知らせる。
+	const NAME_FIND_LIMIT = 20;
+	// 絞り込みを走らせるまでの待ち（ms）。1文字ごとに 445 件を走査して描き直すのを避ける。
+	const NAME_FIND_DEBOUNCE_MS = 120;
 
 	// ドラフト（保存しない一時的な対象スキルセット）の保存先の接頭辞。
 	// scope名を後ろに付けるので、将来 exam 側が合流しても衝突しない。
@@ -426,6 +435,45 @@
 	}
 
 	/**
+	 * 「名前を入れて探す」の絞り込み（32セッション目・新設）。
+	 *
+	 * **`matchPastedSkillText()` とは別の仕組み。流用しない。** あちらは「貼り付けた行を一括で照合する」もので、
+	 * 完全一致＋距離1のあいまい照合が入っている。こちらは**人が1文字ずつ打ちながら探す**ための絞り込みで、
+	 * 規則が違う（決定・32セッション目）:
+	 *
+	 * - **部分一致だけ。あいまい照合（距離1）は入れない。** 打ち間違えても候補が出てしまうと、
+	 *   利用者が**自分の入力ミスに気づく機会を失う**。「打ち間違えたら候補が出ない」ことがこの方式の狙いの一部。
+	 * - 照合は**正規化後の文字列どうし**（入力側も `normalizeSkillText` を通す）。
+	 * - **`CHAR_CONFUSION_MAP` は通さない**。人が打った文字に誤読の補正を当てると、意図しない変換が起きる
+	 *   （`normalizeSkillText` はもともと common.js の読み替えを持っていないので、そのまま使えばよい）。
+	 * - 並びは**前方一致を先に、それ以外の部分一致を後に**。同じ組の中では短い名前を先に（入力に近い順）。
+	 * - 入力が空なら何も返さない。
+	 *
+	 * 母集団は `buildSkillTextIndex()`＝**マスター＋利用者のカスタムスキル**。「条件でスキルを検索」の一覧と同じ
+	 * 顔ぶれにしてある（過去に登録したカスタムスキルを二重に作らずに済む）。
+	 * **ただし「条件で検索」と違い、追加済みのものも落とさずに返す**（呼び出し側で「追加済み」と示して選べなくする。
+	 * 一覧から消すと利用者が「打ち間違えたのか」と迷うため）。
+	 *
+	 * @returns {{ query:string, hits:Array<{id,name,norm}>, total:number, more:number }}
+	 */
+	function findSkillsByNameFragment(text) {
+		const query = normalizeSkillText(text);
+		if (!query) return { query: '', hits: [], total: 0, more: 0 };
+		const starts = [], contains = [];
+		buildSkillTextIndex().forEach(p => {
+			if (!p.norm) return;
+			const at = p.norm.indexOf(query);
+			if (at === 0) starts.push(p);
+			else if (at > 0) contains.push(p);
+		});
+		const byCloseness = (a, b) => (a.norm.length - b.norm.length) || a.name.localeCompare(b.name, 'ja');
+		starts.sort(byCloseness);
+		contains.sort(byCloseness);
+		const all = starts.concat(contains);
+		return { query: query, hits: all.slice(0, NAME_FIND_LIMIT), total: all.length, more: Math.max(0, all.length - NAME_FIND_LIMIT) };
+	}
+
+	/**
 	 * 改行区切りのテキストをスキルIDへ照合する（ツール非依存）。
 	 *
 	 * 戻り値: { rows, counts }
@@ -724,6 +772,32 @@
 		'.usd-paste-panel:hover { color: var(--uma-text-heading); border-color: var(--uma-text-faint); }',
 		'.usd-paste-scroll { max-height: 240px; overflow: auto; }',
 
+		/* 「名前を入れて探す」のサブ画面（32セッション目）。報告と入れ替えで出す。
+		   候補一覧だけが伸び縮みするので、スマホでキーボードが出ても入力欄が押し出されない。 */
+		'.usd-name-head { margin-bottom: var(--uma-sp-2); }',
+		'.usd-name-read { margin-bottom: var(--uma-sp-2); font-family: var(--uma-font-mono); word-break: break-all; }',
+		'.usd-name-img { display: block; width: 100%; height: auto; margin-bottom: var(--uma-sp-3);',
+		'  border: 1px solid var(--uma-border); border-radius: var(--uma-r-md); background: var(--uma-surface); }',
+		'.usd-name-img[data-usd-act] { cursor: zoom-in; }',
+		'.usd-name-label { display: block; margin-bottom: var(--uma-sp-1-5);',
+		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		'.usd-name-results { margin-top: var(--uma-sp-3); }',
+		'.usd-name-list { display: flex; flex-direction: column; gap: var(--uma-sp-1);',
+		'  max-height: 240px; overflow: auto; }',
+		// 候補は「押すと確定する」もの。行の候補チップ（.usd-paste-cand）と同じアクセント色の系統にそろえる
+		'.usd-name-hit { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2);',
+		'  text-align: left; padding: var(--uma-sp-2) var(--uma-sp-3); border-radius: var(--uma-r-md);',
+		'  border: 1px solid var(--uma-accent-border); background: var(--uma-accent-soft);',
+		'  color: var(--uma-accent-soft-text); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); cursor: pointer; }',
+		'.usd-name-hit:hover { background: var(--uma-accent-border); }',
+		// 追加済みは一覧から消さずに出して、選べない見た目にする
+		'.usd-name-hit--added { border-color: var(--uma-border); background: var(--uma-surface-sunken);',
+		'  color: var(--uma-text-faint); cursor: default; }',
+		'.usd-name-hit--added:hover { background: var(--uma-surface-sunken); }',
+		'.usd-name-added { flex-shrink: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
+		'.usd-name-none { margin-bottom: var(--uma-sp-2); }',
+		'.usd-name-custom { display: inline-block; }',
+
 		/* ------------------------------------------------------------
 		 * 8軸フィルターのタブ（見出しタブ＋共通パネル1枚）
 		 *
@@ -883,9 +957,14 @@
 	// 一括貼り付けの照合結果。各行に chosenId（採用したスキルID）を後から書き込む。
 	let pasteRows = [];
 	// 貼り付け／画像から読み取る の報告に対する呼び出し元からの口（31セッション目）。
-	// いまは onShowPanel(row) だけ。**core は画像を描かない**（Deck 単体ページには不要な資産なので増やさない）。
-	// 行に row.panelImage（PNG の dataURL）があり、かつこの口が渡っているときだけ「画像を見る」を出す。
+	// いまは onShowPanel(row) だけ。32セッション目に役割が変わり、**サブ画面の中の画像を押したときに
+	// 原寸で見せる**ための任意の口になった（渡さなければ画像は押せないだけで、表示そのものは core が行う）。
 	let pasteOptions = {};
+	// 「名前を入れて探す」のサブ画面の状態（32セッション目）。
+	//   row    … 開いている行の pasteRows の添字。-1 は閉じている
+	//   scroll … 開く直前の報告のスクロール位置（戻ったときに同じ場所へ返すため。display:none で失われる）
+	//   composing / timer … 日本語入力の変換中かどうかと、絞り込みの遅延
+	let pasteName = { row: -1, scroll: 0, composing: false, timer: null };
 
 	// スキルを足す入口は3つあり、どれも同じモーダルの中身を差し替えて出す。
 	//   filter … 条件でスキルを検索（8軸フィルター＋絞り込み結果）
@@ -951,6 +1030,10 @@
 						'</div>' +
 						'</div>' +
 						'<div data-usd-el="paste-report" class="mt-3"></div>' +
+						// 「名前を入れて探す」のサブ画面（32セッション目）。要確認の行から開く。
+						// 報告と入れ替えで出すので、狭い画面でもキーボードの上に入力欄と候補一覧が収まる。
+						// 中身は renderPasteNamePanel() が組み立てる。画像は row.panelImage があるときだけ。
+						'<div data-usd-el="paste-name" hidden></div>' +
 					'</div>' +
 					// ---- マスターにないスキルを追加 ----
 					'<div class="usd-mode" data-usd-el="mode-custom" hidden>' +
@@ -995,8 +1078,11 @@
 			else if (act === 'paste-run') runPasteMatch();
 			else if (act === 'paste-clear') clearPaste();
 			else if (act === 'paste-pick') choosePasteCandidate(Number(btn.dataset.row), btn.dataset.skillId);
-			else if (act === 'paste-panel') showPasteRowPanel(Number(btn.dataset.row));
-			else if (act === 'paste-custom') createCustomFromPasteRow(Number(btn.dataset.row));
+			else if (act === 'paste-find') openPasteNameFinder(Number(btn.dataset.row));
+			else if (act === 'name-back') closePasteNameFinder();
+			else if (act === 'name-pick') pickPasteNameResult(btn.dataset.skillId);
+			else if (act === 'name-custom') createCustomFromName();
+			else if (act === 'name-zoom') zoomPasteNameImage();
 			else if (act === 'paste-skip') skipPasteRow(Number(btn.dataset.row));
 		});
 		pickerEl.addEventListener('change', (e) => {
@@ -1466,13 +1552,150 @@
 		renderPickerResults();
 	}
 
-	/**
-	 * 「画像を見る」。**core は画像を描かず**、行をそのまま呼び出し元へ渡すだけ（31セッション目）。
-	 * 表示の作りは呼び出し元が持つ（special.html が既存の `.uma-overlay` で出す）。
-	 * 描き直しをしないので、ここではスクロール位置も動かない。
-	 */
-	function showPasteRowPanel(rowIndex) {
+	/* ============================================================
+	 * 「名前を入れて探す」のサブ画面（32セッション目）
+	 *
+	 * 要確認の行から開く。**スキルセットOCR（ocr モード）と「テキストで検索」（paste モード）で同じ仕組み**を使い、
+	 * 切り出し画像の有無だけを出し分ける。Deck 単体ページにも OCR は無いが「テキストで検索」はあるので、
+	 * ここが core にある必要がある（special.html 側に置くと Deck 単体ページで使えない）。
+	 *
+	 * 報告（paste-report）と**入れ替え**で出す。行の中に埋め込むと、報告のスクロール領域（240px）の中に
+	 * 入力欄と候補一覧が入ってしまい、スマホでキーボードが出たときに何も見えなくなる。
+	 * ============================================================ */
+
+	/** サブ画面と報告の表示を入れ替える。 */
+	function togglePasteNameView(on) {
+		if (!pickerEl) return;
+		q(pickerEl, 'paste-name').hidden = !on;
+		q(pickerEl, 'paste-report').hidden = !!on;
+		const summary = q(pickerEl, 'paste-summary');
+		// 要約は「何種読み取れたか」の話なので、名前を入れている間は引っ込める（縦の余地をあける）
+		if (summary && summary.textContent) summary.hidden = !!on;
+		// 貼り付け欄は paste モードのときだけ出ているので、開いている間は隠す
+		const wrap = q(pickerEl, 'paste-input-wrap');
+		if (wrap) wrap.hidden = on ? true : (picker.mode === 'ocr');
+		// 確定のフッターは押し間違いのもとになるので、開いている間は畳む
+		const spec = PICKER_MODES[picker.mode];
+		q(pickerEl, 'picker-footer').hidden = on ? true : !(spec && spec.commit);
+	}
+
+	function openPasteNameFinder(rowIndex) {
 		const row = pasteRows[rowIndex];
+		if (!row) return;
+		const area = pickerEl ? q(pickerEl, 'paste-report').querySelector('.usd-paste-scroll') : null;
+		pasteName.row = rowIndex;
+		pasteName.scroll = area ? area.scrollTop : 0;
+		pasteName.composing = false;
+		renderPasteNamePanel();
+		togglePasteNameView(true);
+		const input = q(pickerEl, 'find-input');
+		if (input) input.focus();
+	}
+
+	function closePasteNameFinder() {
+		if (pasteName.timer) { clearTimeout(pasteName.timer); pasteName.timer = null; }
+		const scroll = pasteName.scroll;
+		pasteName = { row: -1, scroll: 0, composing: false, timer: null };
+		if (!pickerEl) return;
+		togglePasteNameView(false);
+		q(pickerEl, 'paste-name').textContent = '';
+		const area = q(pickerEl, 'paste-report').querySelector('.usd-paste-scroll');
+		if (area && scroll) area.scrollTop = scroll;
+	}
+
+	/** サブ画面の枠を組み立てる（1回だけ）。候補の中身は renderPasteNameResults() が入れ替える。 */
+	function renderPasteNamePanel() {
+		const row = pasteRows[pasteName.row];
+		if (!row || !pickerEl) return;
+		const el = q(pickerEl, 'paste-name');
+		const img = row.panelImage
+			? '<img class="usd-name-img" data-usd-el="find-img" src="' + esc(row.panelImage) + '" alt="読み取り元のスキルパネル"' +
+				(typeof pasteOptions.onShowPanel === 'function' ? ' data-usd-act="name-zoom"' : '') + '>'
+			: '';
+		el.innerHTML = '' +
+			'<div class="usd-name-head">' +
+				'<button type="button" class="usd-paste-skip" data-usd-act="name-back">← 一覧へ戻る</button>' +
+			'</div>' +
+			(row.raw ? '<p class="usd-paste-hint usd-name-read">読み取った文字：「' + esc(row.raw) + '」</p>' : '') +
+			img +
+			'<label class="usd-name-label" for="usd-find-input">スキル名を入力すると候補が出ます</label>' +
+			'<input type="text" id="usd-find-input" class="usd-input uma-input" data-usd-el="find-input" autocomplete="off" placeholder="名前の一部を入力（例：下り）">' +
+			'<div class="usd-name-results" data-usd-el="find-results"></div>';
+		const input = q(pickerEl, 'find-input');
+		// 日本語入力の変換中は絞り込まない（未確定の文字で絞ると候補が目まぐるしく入れ替わる）。
+		// compositionend のあとに input が来ない環境があるので、compositionend でも走らせる。
+		input.addEventListener('compositionstart', () => { pasteName.composing = true; });
+		input.addEventListener('compositionend', () => { pasteName.composing = false; schedulePasteNameSearch(); });
+		input.addEventListener('input', (e) => {
+			if (pasteName.composing || (e && e.isComposing)) return;
+			schedulePasteNameSearch();
+		});
+		renderPasteNameResults();
+	}
+
+	function schedulePasteNameSearch() {
+		if (pasteName.timer) clearTimeout(pasteName.timer);
+		pasteName.timer = setTimeout(() => { pasteName.timer = null; renderPasteNameResults(); }, NAME_FIND_DEBOUNCE_MS);
+	}
+
+	/** 入力に応じた候補一覧。入力が空なら何も出さない。 */
+	function renderPasteNameResults() {
+		if (!pickerEl || pasteName.row < 0) return;
+		const input = q(pickerEl, 'find-input');
+		const out = q(pickerEl, 'find-results');
+		if (!input || !out) return;
+		const found = findSkillsByNameFragment(input.value);
+		if (!found.query) { out.innerHTML = ''; return; }
+		if (found.total === 0) {
+			// 候補0件でも**自動でカスタム登録へ進ませない**（入力し直せる状態を保つ）。
+			// 登録の導線は押しやすいボタンではなくリンク相当にして、控えめに置く。
+			out.innerHTML = '<p class="usd-paste-hint usd-name-none">一致するスキルがありません。入力に誤りがないかご確認ください。新しく追加されたスキルなど、一覧に無いスキルの可能性もあります。</p>' +
+				'<button type="button" class="usd-paste-skip usd-name-custom" data-usd-act="name-custom">一覧に無いスキルとして追加</button>';
+			return;
+		}
+		const excluded = new Set(picker.excludeIds);
+		out.innerHTML = '<div class="usd-name-list">' +
+			found.hits.map(h => excluded.has(h.id)
+				// 追加済みのものも**一覧から消さない**（消すと「打ち間違えたのか」と迷うため）。
+				// 出したうえで選べなくする＝自分の入力が正しかったことは確認できる。
+				? '<span class="usd-name-hit usd-name-hit--added">' + esc(h.name) + '<span class="usd-name-added">追加済み</span></span>'
+				: '<button type="button" class="usd-name-hit" data-usd-act="name-pick" data-skill-id="' + esc(h.id) + '">' + esc(h.name) + '</button>'
+			).join('') + '</div>' +
+			(found.more > 0 ? '<p class="usd-paste-hint">ほかにも候補があります（全' + found.total + '件）。もう少し入力すると絞り込めます。</p>' : '');
+	}
+
+	/** 候補を選んで確定する。格上げは候補チップと同じ既存の処理を使う。 */
+	function pickPasteNameResult(skillId) {
+		const rowIndex = pasteName.row;
+		if (rowIndex < 0 || !skillId) return;
+		closePasteNameFinder();
+		choosePasteCandidate(rowIndex, skillId);
+	}
+
+	/**
+	 * 一覧に無いスキルとして登録する（32セッション目）。
+	 * **利用者が入力した文字列がそのまま登録名になる。** 以前の `createCustomFromPasteRow()` は
+	 * `row.norm`（OCRの読みを正規化した文字列）を登録名にしていたため、画面に出ている文字と
+	 * 登録される名前が食い違うことがあった。その関数ごと置き換えた。
+	 */
+	function createCustomFromName() {
+		const rowIndex = pasteName.row;
+		const input = pickerEl ? q(pickerEl, 'find-input') : null;
+		const name = input ? String(input.value || '').trim() : '';
+		if (rowIndex < 0 || !pasteRows[rowIndex]) return;
+		if (!name) { toast('スキル名を入力してください'); return; }
+		const id = createCustomSkill(name, emptyTagSet());
+		if (!id) return;
+		pasteRows[rowIndex].chosenId = id;
+		closePasteNameFinder();
+		renderPasteReport();
+		renderPickerResults();
+		toast('「' + name + '」を一覧に無いスキルとして追加しました（タグは未設定です）');
+	}
+
+	/** サブ画面の中の画像を押したとき。原寸で見せる作りは呼び出し元が持つ（special.html の .uma-overlay）。 */
+	function zoomPasteNameImage() {
+		const row = pasteRows[pasteName.row];
 		if (!row || !row.panelImage) return;
 		if (typeof pasteOptions.onShowPanel === 'function') pasteOptions.onShowPanel(row);
 	}
@@ -1485,20 +1708,10 @@
 		picker.checked.delete(skillId);
 	}
 
-	function createCustomFromPasteRow(rowIndex) {
-		const row = pasteRows[rowIndex];
-		if (!row) return;
-		// 8軸タグは未設定のまま作る（後から埋める運用）。
-		const id = createCustomSkill(row.norm, emptyTagSet());
-		if (!id) return;
-		row.chosenId = id;
-		renderPasteReport();
-		renderPickerResults();
-		toast('カスタムスキル「' + row.norm + '」を追加しました（タグは未設定です）');
-	}
-
 	function skipPasteRow(rowIndex) {
 		if (rowIndex < 0 || rowIndex >= pasteRows.length) return;
+		// 添字がずれるので、サブ画面が開いたままなら閉じる（通常は報告が隠れていて押せない）
+		if (pasteName.row >= 0) closePasteNameFinder();
 		const removed = pasteRows.splice(rowIndex, 1)[0];
 		releaseIfUnused(removed.chosenId);
 		renderPasteReport();
@@ -1533,11 +1746,11 @@
 			if (bodyEl && keep.body) bodyEl.scrollTop = keep.body;
 		};
 
-		// 「画像を見る」。行が画像を持ち、呼び出し元が受け口を渡しているときだけ出す（31セッション目）。
-		// core は押されたことを伝えるだけで、画像そのものは描かない。
-		const panelBtn = (r, i) => (r.panelImage && typeof pasteOptions.onShowPanel === 'function')
-			? '<button type="button" class="usd-paste-panel" data-usd-act="paste-panel" data-row="' + i + '">画像を見る</button>'
-			: '';
+		// 「名前を入れて探す」を開くボタン（32セッション目）。**すべての要確認・解決済みの行に出す。**
+		// 画像を持つ行（スキルセットOCR）は画像も一緒に出すので、そのことが分かる名前にする。
+		// 「押すと確定する」候補チップ（.usd-paste-cand）とは別のクラス（.usd-paste-panel＝押すと何かが開く）。
+		const findBtn = (r, i) => '<button type="button" class="usd-paste-panel" data-usd-act="paste-find" data-row="' + i + '">' +
+			(r.panelImage ? '画像を見て入力' : '入力して探す') + '</button>';
 
 		const excluded = new Set(picker.excludeIds);
 		const resolved = pasteRows.filter(r => r.chosenId);
@@ -1576,7 +1789,7 @@
 						'<span><span class="usd-paste-raw">' + esc(r.raw) + '</span>' +
 						'<span class="usd-paste-arrow">→</span>' +
 						'<span class="usd-paste-picked">' + esc(getSkillName(r.chosenId)) + '</span></span>' +
-						'<span class="usd-paste-acts">' + panelBtn(r, i) +
+						'<span class="usd-paste-acts">' + findBtn(r, i) +
 							'<button type="button" class="usd-paste-skip" data-usd-act="paste-skip" data-row="' + i + '">取り消す</button>' +
 						'</span>' +
 					'</div>' +
@@ -1597,20 +1810,19 @@
 				html += '<div class="usd-paste-row">' +
 					'<div class="usd-paste-head">' +
 						'<span class="usd-paste-raw">' + esc(r.raw) + '</span>' +
-						'<span class="usd-paste-acts">' + panelBtn(r, i) +
+						'<span class="usd-paste-acts">' + findBtn(r, i) +
 							'<button type="button" class="usd-paste-skip" data-usd-act="paste-skip" data-row="' + i + '">無視する</button>' +
 						'</span>' +
 					'</div>';
+				// 候補がある行は従来どおりチップを並べる。候補が無い行には**何も置かない**
+				// （32セッション目に「近いスキルが見つかりませんでした」＋「カスタムスキルとして追加」の
+				//  組み合わせを廃止した。読み違いをそのまま登録させる近道になっていたため。
+				//  代わりの導線は上の「入力して探す」で、カスタム登録はその中で候補0件のときだけ出る）。
 				if (r.candidates.length > 0) {
 					html += '<div class="usd-paste-cands"><span class="usd-paste-hint">近いスキル：</span>' +
 						r.candidates.map(c =>
 							'<button type="button" class="usd-paste-cand" data-usd-act="paste-pick" data-row="' + i + '" data-skill-id="' + esc(c.id) + '">' + esc(c.name) + '</button>'
 						).join('') + '</div>';
-				} else {
-					html += '<div class="usd-paste-cands">' +
-						'<span class="usd-paste-hint">近いスキルが見つかりませんでした。</span>' +
-						'<button type="button" class="usd-paste-cand" data-usd-act="paste-custom" data-row="' + i + '">カスタムスキルとして追加</button>' +
-					'</div>';
 				}
 				html += '</div>';
 			});
@@ -1647,6 +1859,12 @@
 		pasteRows = [];
 		// 呼び出し元の口はモードをまたいで残さない。openSkillRowsPicker がこの後で入れ直す
 		pasteOptions = {};
+		// 「名前を入れて探す」も開いたままにしない（モードを変えたら報告ごと作り直すため）
+		if (pasteName.timer) clearTimeout(pasteName.timer);
+		pasteName = { row: -1, scroll: 0, composing: false, timer: null };
+		const nameEl = q(pickerEl, 'paste-name');
+		if (nameEl) { nameEl.hidden = true; nameEl.textContent = ''; }
+		q(pickerEl, 'paste-report').hidden = false;
 		const pasteInput = q(pickerEl, 'paste-input');
 		if (pasteInput) pasteInput.value = '';
 		const customName = q(pickerEl, 'custom-name');

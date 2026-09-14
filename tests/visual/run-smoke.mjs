@@ -494,6 +494,8 @@ const browser = await chromium.launch();
 			approx: [...document.querySelectorAll('.usd-paste-approx .usd-paste-picked')].map((e) => e.textContent),
 			pendingLabel: (document.querySelector('[data-usd-el="paste-report"] .usd-paste-warn') || {}).textContent || null,
 			chips: [...document.querySelectorAll('.usd-paste-row:not(.usd-paste-approx) .usd-paste-cand')].map((e) => e.textContent),
+			// 32セッション目: 「カスタムスキルとして追加」のチップは廃止し、行からは「入力して探す」だけになった
+			finders: [...document.querySelectorAll('.usd-paste-row:not(.usd-paste-approx) [data-usd-act="paste-find"]')].map((e) => e.textContent),
 			ids: { pick: id(2), exact: id(0), near: id(1) }
 		};
 	});
@@ -505,8 +507,11 @@ const browser = await chromium.launch();
 		'special/ocr口: (e) 要約（確定した文面1）が報告の先頭に出る。注記の枠は無い', { summary: opened.summary, noteEl: opened.noteEl });
 	assert(opened.count === '2種選択' && opened.approx.length === 1 && opened.approx[0] === '左回り○',
 		'special/ocr口: (a) 完全一致と autoAccepted の行が最初から選択済み、後者は「完全一致ではない行」に並ぶ', { count: opened.count, approx: opened.approx });
-	assert(opened.pendingLabel === '要確認 2件' && opened.chips.includes('春ウマ娘○') && opened.chips.includes('カスタムスキルとして追加'),
-		'special/ocr口: 同点の行と候補なしの行が要確認に並び、候補チップとカスタム追加が出る', { pending: opened.pendingLabel, chips: opened.chips });
+	// 32セッション目: 「近いスキルが見つかりませんでした」＋「カスタムスキルとして追加」の組み合わせを廃止し、
+	// どの要確認の行にも「入力して探す」（画像を持つ行は「画像を見て入力」）を出す
+	assert(opened.pendingLabel === '要確認 2件' && opened.chips.includes('春ウマ娘○')
+		&& !opened.chips.includes('カスタムスキルとして追加') && opened.finders.length === 2,
+		'special/ocr口: 要確認の行に候補チップは出るが「カスタムスキルとして追加」は出ず、各行に入力の入口が出る', { pending: opened.pendingLabel, chips: opened.chips, finders: opened.finders });
 
 	// (b) 候補チップを押すと選び直せる（同点3件から1つを選ぶ → 3種選択）
 	await page.click('.usd-paste-row:not(.usd-paste-approx) .usd-paste-cand[data-skill-id="' + opened.ids.pick + '"]');
@@ -617,6 +622,39 @@ const browser = await chromium.launch();
 	assert(!scrollKeptPaste.skipped && scrollKeptPaste.before > 0 && scrollKeptPaste.after === scrollKeptPaste.before,
 		'special/テキストで検索: 候補チップを押してもスクロール位置が変わらない（core の同じ描画を通る）', scrollKeptPaste);
 	await page.click('[data-usd-act="picker-close"]');
+
+	/* ------------------------------------------------------------
+	 * (B)「テキストで検索」側でも同じ「名前を入れて探す」が使える（32セッション目）
+	 * 画像が無いので、ボタンの名前は「入力して探す」・サブ画面に画像は出ない。
+	 * ---------------------------------------------------------- */
+	const finderPaste = await page.evaluate(async () => {
+		const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
+		UmaSkillDeckCore.openTextSkillPicker([], () => {});
+		el('paste-input').value = 'まったく当たらない文字列';
+		document.querySelector('[data-usd-act="paste-run"]').click();
+		const btn = document.querySelector('[data-usd-el="paste-report"] [data-usd-act="paste-find"]');
+		const label = btn ? btn.textContent : null;
+		const noCustomChip = !document.querySelector('[data-usd-el="paste-report"] [data-usd-act="paste-custom"]');
+		const noHint = !/近いスキルが見つかりませんでした/.test(el('paste-report').textContent);
+		if (btn) btn.click();
+		const target = UmaSkillDeckCore.getMasterSkills().find((s) => s.name.length >= 4);
+		const input = el('find-input');
+		input.value = target.name.slice(0, 2);
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		await wait(260);
+		const out = {
+			label: label, noCustomChip: noCustomChip, noHint: noHint,
+			hasImg: !!el('find-img'), inputWrapHidden: el('paste-input-wrap').hidden,
+			hits: document.querySelectorAll('.usd-name-hit').length
+		};
+		UmaSkillDeckCore.closeSkillPicker();
+		return out;
+	});
+	assert(finderPaste.label === '入力して探す' && finderPaste.noCustomChip && finderPaste.noHint,
+		'special/テキストで検索: 要確認の行から「カスタムスキルとして追加」と「近いスキルが…」が消え、「入力して探す」になった', finderPaste);
+	assert(finderPaste.hasImg === false && finderPaste.inputWrapHidden === true && finderPaste.hits > 0,
+		'special/テキストで検索: 画像なしの形で同じ入力欄が開き、部分一致の候補が出る', finderPaste);
 
 	assert(errors.length === 0, 'special/ocr口: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
@@ -850,31 +888,132 @@ const browser = await chromium.launch();
 	assert(overlay.byBackdrop.boxHidden === true && overlay.byEsc.boxHidden === true,
 		'special/ocr入口: 背景タップと Esc でも閉じる', { backdrop: overlay.byBackdrop, esc: overlay.byEsc });
 
-	// 要確認の行の「画像を見る」は、行が画像を持つときだけ出て、押すと同じオーバーレイが開く
-	const rowPanel = await page.evaluate(async (png) => {
-		const m = UmaSkillDeckCore.matchPastedSkillText('右回り○');
+	/* ------------------------------------------------------------
+	 * 「名前を入れて探す」のサブ画面（32セッション目・(A) スキルセットOCR側）
+	 *
+	 * 画像を持つ行のボタンは「画像を見て入力」で、押すと報告と入れ替わって画像＋入力欄＋候補一覧が出る。
+	 * 絞り込みは部分一致だけ（あいまい照合は入れない）。追加済みは一覧から消さず選べない形で出す。
+	 * 候補0件でもカスタム登録へ自動で進まない。
+	 * ---------------------------------------------------------- */
+	const finder = await page.evaluate(async (png) => {
+		const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
+		// 実際の入力と同じ道を通す（絞り込みは遅延つき・変換中は走らせない作りなので、イベントで動かす）
+		const type = async (value) => {
+			const input = el('find-input');
+			input.value = value;
+			input.dispatchEvent(new Event('input', { bubbles: true }));
+			await wait(260);
+		};
+		const master = UmaSkillDeckCore.getMasterSkills();
+		const target = master.find((s) => s.name.length >= 4);
 		const rows = [
-			{ raw: '謎の読み', norm: '謎の読み', kind: 'none', matchedId: null, matchedName: null, distance: 3, candidates: [], reason: '距離3 > 許容1', panelImage: png },
-			{ raw: m.rows[0].matchedName, norm: m.rows[0].matchedName, kind: 'exact', matchedId: m.rows[0].matchedId, matchedName: m.rows[0].matchedName, candidates: [] }
+			{ raw: '謎の読み', norm: '謎の読み', kind: 'none', matchedId: null, matchedName: null, distance: 3, candidates: [], reason: '距離3 > 許容1', panelImage: png }
 		];
 		showSkillsetScreenshotResult({
-			rows: rows, white: { accepted: 1, review: 1, unreadable: 0, ids: [m.rows[0].matchedId] }, gold: { kinds: 0, cards: 0 }, unknown: 0,
+			rows: rows, white: { accepted: 0, review: 1, unreadable: 0, ids: [] }, gold: { kinds: 0, cards: 0 }, unknown: 0,
 			tabs: [], quality: { skipped: [], warned: [] }, inkHeight: { median: 23 }, log: [], unreadableRows: [],
-			perImage: [{ name: 'a.png', quality: { ok: true }, kindCounts: { lavender: 2, gold: 0, unknown: 0 } }]
+			perImage: [{ name: 'a.png', quality: { ok: true }, kindCounts: { lavender: 1, gold: 0, unknown: 0 } }]
 		});
-		const btns = [...document.querySelectorAll('[data-usd-el="paste-report"] [data-usd-act="paste-panel"]')];
-		const count = btns.length;
-		if (count) btns[0].click();
-		const box = document.getElementById('skillset-panel-box');
-		const out = { count: count, label: count ? btns[0].textContent : null, boxHidden: box.hidden, caption: document.getElementById('skillset-panel-caption').textContent };
-		closeSkillsetPanel();
+		const btn = document.querySelector('[data-usd-el="paste-report"] [data-usd-act="paste-find"]');
+		const label = btn ? btn.textContent : null;
+		btn.click();
+		const opened = {
+			nameHidden: el('paste-name').hidden, reportHidden: el('paste-report').hidden,
+			footerHidden: el('picker-footer').hidden,
+			hasImg: !!el('find-img'), read: (document.querySelector('.usd-name-read') || {}).textContent || null,
+			results: el('find-results').innerHTML.length
+		};
+		// 日本語入力の変換中は絞り込まない。確定（compositionend）で初めて走る
+		const input = el('find-input');
+		input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+		await type(target.name.slice(0, 2));
+		const whileComposing = document.querySelectorAll('.usd-name-hit').length;
+		input.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
+		await wait(260);
+		const afterCompose = document.querySelectorAll('.usd-name-hit').length;
+
+		const hits = [...document.querySelectorAll('.usd-name-hit')].map((e) => e.textContent.replace('追加済み', ''));
+		// あいまい照合は入れていない＝打ち間違えたら候補は出ない
+		await type('ゑゐ' + target.name.slice(0, 2));
+		const none = {
+			hits: document.querySelectorAll('.usd-name-hit').length,
+			message: (document.querySelector('.usd-name-none') || {}).textContent || null,
+			customLabel: (document.querySelector('[data-usd-act="name-custom"]') || {}).textContent || null,
+			customIsChip: !!document.querySelector('[data-usd-act="name-custom"].usd-paste-cand')
+		};
+		// 入力を空に戻すと候補も消える
+		await type('');
+		const emptied = el('find-results').innerHTML.length;
+		return { label, opened, targetName: target.name, hits, none, whileComposing, afterCompose, emptied };
+	}, PANEL_PNG);
+	assert(finder.whileComposing === 0 && finder.afterCompose > 0,
+		'special/ocr入口: 日本語入力の変換中は絞り込まず、確定してから候補が出る', { whileComposing: finder.whileComposing, afterCompose: finder.afterCompose });
+	assert(finder.emptied === 0, 'special/ocr入口: 入力を空に戻すと候補を出さない', finder.emptied);
+	assert(finder.label === '画像を見て入力',
+		'special/ocr入口: 画像を持つ行のボタンは「画像を見て入力」', finder.label);
+	assert(finder.opened.nameHidden === false && finder.opened.reportHidden === true
+		&& finder.opened.hasImg && finder.opened.footerHidden === true && finder.opened.results === 0
+		&& finder.opened.read === '読み取った文字：「謎の読み」',
+		'special/ocr入口: 押すと報告と入れ替わり、画像・読み取った文字・入力欄が出る（入力が空なら候補なし）', finder.opened);
+	assert(finder.hits.length > 0 && finder.hits.some((n) => n === finder.targetName),
+		'special/ocr入口: 名前の一部を入れると部分一致で候補が出る', { hits: finder.hits.slice(0, 5), target: finder.targetName });
+	assert(finder.none.hits === 0
+		&& finder.none.message === '一致するスキルがありません。入力に誤りがないかご確認ください。新しく追加されたスキルなど、一覧に無いスキルの可能性もあります。'
+		&& finder.none.customLabel === '一覧に無いスキルとして追加' && finder.none.customIsChip === false,
+		'special/ocr入口: 打ち間違いでは候補が出ず（あいまい照合なし）、確定文面と控えめな登録の導線だけが出る', finder.none);
+
+	// 候補を選ぶと行が確定し、報告へ戻る
+	const finderPick = await page.evaluate(async () => {
+		const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
+		const master = UmaSkillDeckCore.getMasterSkills();
+		const target = master.find((s) => s.name.length >= 4);
+		const input = el('find-input');
+		input.value = target.name.slice(0, 2);
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		await wait(260);
+		const pick = document.querySelector('.usd-name-hit[data-usd-act="name-pick"]');
+		const name = pick.textContent;
+		pick.click();
+		return {
+			name: name,
+			nameHidden: el('paste-name').hidden, reportHidden: el('paste-report').hidden,
+			count: el('picker-checked-count').textContent,
+			approx: [...document.querySelectorAll('.usd-paste-approx .usd-paste-picked')].map((e) => e.textContent)
+		};
+	});
+	assert(finderPick.nameHidden === true && finderPick.reportHidden === false
+		&& finderPick.count === '1種選択' && finderPick.approx.includes(finderPick.name),
+		'special/ocr入口: 候補を選ぶと報告へ戻り、その行が「完全一致ではない行」として選択に入る', finderPick);
+
+	// 追加済みのスキルは一覧に出るが選べない
+	const finderAdded = await page.evaluate(async () => {
+		const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
+		// いま選んだスキルを「追加済み」に見立てて開き直す
+		const picked = document.querySelector('.usd-paste-approx .usd-paste-picked').textContent;
+		const id = UmaSkillDeckCore.getMasterSkills().find((s) => s.name === picked).id;
+		UmaSkillDeckCore.closeSkillPicker();
+		UmaSkillDeckCore.openSkillRowsPicker([String(id)], () => {},
+			[{ raw: '謎の読み', norm: '謎の読み', kind: 'none', matchedId: null, matchedName: null, candidates: [], reason: '' }],
+			{ white: 0, gold: 0 });
+		document.querySelector('[data-usd-el="paste-report"] [data-usd-act="paste-find"]').click();
+		const input = el('find-input');
+		input.value = picked.slice(0, 2);
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		await wait(260);
+		const added = document.querySelector('.usd-name-hit--added');
+		const out = {
+			shown: !!added, text: added ? added.textContent : null,
+			pickable: !!(added && added.getAttribute('data-usd-act')),
+			hasImg: !!el('find-img')
+		};
 		UmaSkillDeckCore.closeSkillPicker();
 		return out;
-	}, PANEL_PNG);
-	assert(rowPanel.count === 1 && rowPanel.label === '画像を見る',
-		'special/ocr入口: 「画像を見る」は panelImage を持つ行にだけ出る（確定した行には出ない）', rowPanel);
-	assert(rowPanel.boxHidden === false && rowPanel.caption === '読み取った文字:「謎の読み」',
-		'special/ocr入口: 「画像を見る」で同じオーバーレイが開き、読み取った文字が添えられる', rowPanel);
+	});
+	assert(finderAdded.shown && /追加済み$/.test(finderAdded.text) && finderAdded.pickable === false,
+		'special/ocr入口: 追加済みのスキルは一覧から消さず、「追加済み」と示して選べなくする', finderAdded);
 
 	assert(errors.length === 0, 'special/ocr入口: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
@@ -2202,6 +2341,32 @@ const browser = await chromium.launch();
 	assert(pasteFoot.hidden === false && pasteFoot.count === '1種選択' && pasteFoot.disabled === false
 		&& /追加済み 1件/.test(pasteFoot.already || ''),
 		'deck: テキストで検索でも同じフッターが出て、追加済みを除いた数が出る', pasteFoot);
+
+	// Deck 単体ページにも「名前を入れて探す」がある（32セッション目）。OCR が無いので画像なしの形だけ
+	const deckFinder = await page.evaluate(async () => {
+		const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
+		el('paste-input').value = 'まったく当たらない文字列';
+		document.querySelector('[data-usd-act="paste-run"]').click();
+		const btn = document.querySelector('[data-usd-el="paste-report"] [data-usd-act="paste-find"]');
+		const label = btn ? btn.textContent : null;
+		const noCustomChip = !document.querySelector('[data-usd-el="paste-report"] [data-usd-act="paste-custom"]');
+		if (btn) btn.click();
+		const target = UmaSkillDeckCore.getMasterSkills().find((s) => s.name.length >= 4);
+		const input = el('find-input');
+		input.value = target.name.slice(0, 2);
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		await wait(260);
+		return {
+			label: label, noCustomChip: noCustomChip,
+			hasImg: !!el('find-img'), reportHidden: el('paste-report').hidden,
+			hits: document.querySelectorAll('.usd-name-hit').length
+		};
+	});
+	assert(deckFinder.label === '入力して探す' && deckFinder.noCustomChip && deckFinder.hasImg === false
+		&& deckFinder.reportHidden === true && deckFinder.hits > 0,
+		'deck: Deck 単体ページでも「入力して探す」が開き、画像なしで部分一致の候補が出る', deckFinder);
+
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);
 
