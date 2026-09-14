@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14c';
 
 	/* ============================================================
 	 * 定数
@@ -1492,6 +1492,25 @@
 		updatePickerCommitState();
 		if (pasteRows.length === 0) { el.innerHTML = ''; return; }
 
+		/* この関数は報告を innerHTML で総入れ替えする。中にあるスクロール領域（.usd-paste-scroll）も
+		   作り直されるので、**何もしないと scrollTop が 0 に戻る**（31セッション目・実機で判明。
+		   要確認が複数あるとき、上から順に候補を選んでいく操作ができなくなっていた）。
+		   総入れ替えをやめて「変わった行だけ差し替える」形にはしない。候補を選んだ行は要確認から
+		   「完全一致ではない行」へ**区画をまたいで移動する**うえ、行のボタンが持つ番号は
+		   pasteRows の添字で、「無視する」が splice するたびに後ろが全部ずれるので、
+		   結局どの道すべての行を描き直すことになる（F-28 のタブ化とは事情が違う）。
+		   ここでは前後のスクロール位置を持ち越すだけにする。 */
+		const bodyEl = q(pickerEl, 'picker-body');
+		const keep = {
+			inner: (el.querySelector('.usd-paste-scroll') || {}).scrollTop || 0,
+			body: bodyEl ? bodyEl.scrollTop : 0
+		};
+		const restoreScroll = () => {
+			const next = el.querySelector('.usd-paste-scroll');
+			if (next && keep.inner) next.scrollTop = keep.inner;
+			if (bodyEl && keep.body) bodyEl.scrollTop = keep.body;
+		};
+
 		const excluded = new Set(picker.excludeIds);
 		const resolved = pasteRows.filter(r => r.chosenId);
 		const pending = pasteRows.filter(r => (r.kind === 'review' || r.kind === 'none') && !r.chosenId);
@@ -1577,6 +1596,7 @@
 
 		html += '</div>';
 		el.innerHTML = html;
+		restoreScroll();
 	}
 
 	/**

@@ -550,6 +550,74 @@ const browser = await chromium.launch();
 		'special/ocr口: 「テキストで検索」を開き直すと貼り付け欄が戻り、要約と前の報告が消える', back);
 	await page.click('[data-usd-act="picker-close"]');
 
+	/* ------------------------------------------------------------
+	 * 候補を選んでもスクロール位置が飛ばないこと（31セッション目・実機で見つかった不具合）
+	 *
+	 * 報告（paste-report）は総入れ替えで描き直すので、その中のスクロール領域（.usd-paste-scroll）が
+	 * 作り直されて scrollTop が 0 に戻っていた。要確認が複数あるとき、上から順に判断していく操作が
+	 * できなくなる。要確認の行を12本作って下までスクロールしてから候補チップを押す。
+	 * ---------------------------------------------------------- */
+	const manyRows = () => {
+		const master = UmaSkillDeckCore.getMasterSkills();
+		const rows = [];
+		for (let i = 0; i < 12; i++) {
+			const a = master[i * 2], b = master[i * 2 + 1];
+			rows.push({
+				raw: 'あいまい' + i, norm: 'あいまい' + i, kind: 'review', matchedId: null, matchedName: null,
+				distance: 1, autoAccepted: false, reason: '距離1で同点2件',
+				candidates: [{ id: String(a.id), name: a.name, distance: 1 }, { id: String(b.id), name: b.name, distance: 1 }]
+			});
+		}
+		return rows;
+	};
+	const scrollKept = await page.evaluate((src) => {
+		const build = new Function('return ' + src)();
+		UmaSkillDeckCore.openSkillRowsPicker([], () => {}, build(), { white: 0, gold: 0, unreadable: 0 });
+		const area = () => document.querySelector('[data-usd-el="paste-report"] .usd-paste-scroll');
+		const scrollable = area().scrollHeight - area().clientHeight;
+		area().scrollTop = Math.round(scrollable / 2);
+		const before = area().scrollTop;
+		// いま見えている位置にある行の候補チップを押す（上端の行ではなく、スクロールした先の行）
+		const rows = [...document.querySelectorAll('[data-usd-el="paste-report"] .usd-paste-row')];
+		const target = rows.find((r) => r.offsetTop >= before) || rows[rows.length - 1];
+		target.querySelector('[data-usd-act="paste-pick"]').click();
+		const afterPick = area().scrollTop;
+		// 「取り消す」でも同じ
+		area().scrollTop = before;
+		const approx = document.querySelector('[data-usd-el="paste-report"] .usd-paste-approx [data-usd-act="paste-skip"]');
+		if (approx) approx.click();
+		return { scrollable: scrollable, before: before, afterPick: afterPick, afterSkip: area().scrollTop };
+	}, manyRows.toString());
+	assert(scrollKept.scrollable > 0 && scrollKept.before > 0,
+		'special/ocr口: 要確認が多いとき報告の中がスクロールする（検査の前提）', scrollKept);
+	assert(scrollKept.afterPick === scrollKept.before,
+		'special/ocr口: 候補チップを押してもスクロール位置が変わらない（上から順に判断できる）', scrollKept);
+	assert(scrollKept.afterSkip === scrollKept.before,
+		'special/ocr口: 「取り消す」でもスクロール位置が変わらない', scrollKept);
+	await page.click('[data-usd-act="picker-close"]');
+
+	// 「テキストで検索」（貼り付け）の要確認の行でも同じこと。core の同じ描画を通るため。
+	// マスターの名前の末尾に1文字足して距離1にし、候補チップが出る要確認の行を作る
+	const scrollKeptPaste = await page.evaluate(() => {
+		const names = UmaSkillDeckCore.getMasterSkills().map((s) => s.name).filter((n) => n.length >= 4).slice(0, 12);
+		UmaSkillDeckCore.openTextSkillPicker([], () => {});
+		document.querySelector('[data-usd-el="paste-input"]').value = names.map((n) => n + 'ヌ').join('\n');
+		document.querySelector('[data-usd-act="paste-run"]').click();
+		const area = () => document.querySelector('[data-usd-el="paste-report"] .usd-paste-scroll');
+		if (!area()) return { skipped: '報告にスクロール領域が無い' };
+		const scrollable = area().scrollHeight - area().clientHeight;
+		area().scrollTop = Math.round(scrollable / 2);
+		const before = area().scrollTop;
+		const chip = [...document.querySelectorAll('[data-usd-el="paste-report"] [data-usd-act="paste-pick"]')]
+			.find((b) => b.offsetTop >= before);
+		if (!chip) return { skipped: '押せる候補チップが見えていない', scrollable: scrollable, before: before };
+		chip.click();
+		return { scrollable: scrollable, before: before, after: area().scrollTop };
+	});
+	assert(!scrollKeptPaste.skipped && scrollKeptPaste.before > 0 && scrollKeptPaste.after === scrollKeptPaste.before,
+		'special/テキストで検索: 候補チップを押してもスクロール位置が変わらない（core の同じ描画を通る）', scrollKeptPaste);
+	await page.click('[data-usd-act="picker-close"]');
+
 	assert(errors.length === 0, 'special/ocr口: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
