@@ -26,7 +26,7 @@
  * （{ raw, norm, kind:'exact'|'review'|'none', matchedId, matchedName, candidates:[{id,name,distance}] }）。
  * 曖昧な行はこの形のまま Deck の貼り付けピッカーへ渡す（決定 A-8。core 側の口はコミット3）。
  */
-const SKILLSET_OCR_JS_VERSION = '2026-09-14a';
+const SKILLSET_OCR_JS_VERSION = '2026-09-14b';
 
 (function (global) {
 	'use strict';
@@ -512,10 +512,17 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-14a';
 				row.cardKind = 'lavender';
 				row.inkHeight = ink;
 				row.card = c.card;
-				// 決定1（31セッション目）: 画像を残すのは**確定していない行だけ**。
-				// isDecidedRow() が偽という同じ条件で、要確認の行と**読み取れなかった行の両方**を拾える
-				// （読み取れなかった行は matchedId が無いため必ずここに入る）。
-				if (!isDecidedRow(row)) row.panelImage = panelDataUrl(c.canvas);
+				// 画像を残すのは**完全一致でない行**（32セッション目に条件を広げた）。
+				//
+				// 31セッション目は `!isDecidedRow(row)`（確定していない行だけ）だった。ところが
+				// **距離1で一意に当たって自動採用された行は isDecidedRow が真**になるため画像が載らず、
+				// その行こそが Deck 側の「完全一致ではない行（内容をご確認ください）」の区画に並ぶ。
+				// つまり**利用者が「この判定で合っているか」を確かめたい行にだけ画像が無い**状態だった
+				// （実機でその区画のボタンが「入力して探す」＝画像なしの形で出ていたのが証拠）。
+				//
+				// 完全一致（距離0で一意）は確かめる必要が無いので、そこだけ外す。
+				// 読み取れなかった行は kind が 'none' なので、この条件でも引き続き入る。
+				if (row.kind !== 'exact') row.panelImage = panelDataUrl(c.canvas);
 				out.white.push(row);
 			}
 			done++;

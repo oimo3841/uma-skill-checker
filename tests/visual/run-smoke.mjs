@@ -889,6 +889,52 @@ const browser = await chromium.launch();
 		'special/ocr入口: 背景タップと Esc でも閉じる', { backdrop: overlay.byBackdrop, esc: overlay.byEsc });
 
 	/* ------------------------------------------------------------
+	 * 「完全一致ではない行」にも画像が出る（32セッション目）
+	 *
+	 * 距離1で一意に当たって自動採用された行は、Deck 側の「完全一致ではない行（内容をご確認ください）」
+	 * の区画に並ぶ。利用者が「この判定で合っているか」を確かめたい行なので、画像を出す。
+	 * 「選び直す」の候補チップはそのまま残す（入力に一本化しない）。
+	 * ---------------------------------------------------------- */
+	const approxRow = await page.evaluate(async (png) => {
+		const m = UmaSkillDeckCore.matchPastedSkillText('右回り○\n左回り○\n春ウマ娘○');
+		const id = (i) => m.rows[i].matchedId, name = (i) => m.rows[i].matchedName;
+		const rows = [
+			// 距離1で一意＝自動採用。画像を持つ（32セッション目に条件を広げた）
+			{ raw: '左回りO', norm: '左回りO', kind: 'review', matchedId: id(1), matchedName: name(1), distance: 1, autoAccepted: true,
+				reason: '距離1（完全一致ではない）', panelImage: png,
+				candidates: [{ id: id(1), name: name(1), distance: 1 }, { id: id(2), name: name(2), distance: 2 }] },
+			// 完全一致は確かめる必要が無いので画像を持たない
+			{ raw: name(0), norm: name(0), kind: 'exact', matchedId: id(0), matchedName: name(0), candidates: [] }
+		];
+		showSkillsetScreenshotResult({
+			rows: rows, white: { accepted: 2, review: 0, unreadable: 0, ids: [id(0), id(1)] }, gold: { kinds: 0, cards: 0 }, unknown: 0,
+			tabs: [], quality: { skipped: [], warned: [] }, inkHeight: { median: 23 }, log: [], unreadableRows: [],
+			perImage: [{ name: 'a.png', quality: { ok: true }, kindCounts: { lavender: 2, gold: 0, unknown: 0 } }]
+		});
+		const approx = document.querySelector('.usd-paste-approx');
+		const out = {
+			label: (approx.querySelector('[data-usd-act="paste-find"]') || {}).textContent || null,
+			// 「選び直す」の候補チップは残っている
+			cands: [...approx.querySelectorAll('[data-usd-act="paste-pick"]')].map((b) => b.textContent),
+			// 完全一致の行はそもそも一覧に出ない（選択数に数えられるだけ）
+			rowCount: document.querySelectorAll('.usd-paste-row').length
+		};
+		approx.querySelector('[data-usd-act="paste-find"]').click();
+		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
+		out.imgShown = !!el('find-img') && el('find-img').getAttribute('src') === png;
+		out.read = (document.querySelector('.usd-name-read') || {}).textContent || null;
+		document.querySelector('[data-usd-act="name-back"]').click();
+		UmaSkillDeckCore.closeSkillPicker();
+		return out;
+	}, PANEL_PNG);
+	assert(approxRow.label === '画像を見て入力' && approxRow.rowCount === 1,
+		'special/ocr入口: 「完全一致ではない行」にも画像があり、ボタンは「画像を見て入力」になる', approxRow);
+	assert(approxRow.cands.length === 1 && approxRow.cands[0] === '春ウマ娘○',
+		'special/ocr入口: 「完全一致ではない行」の「選び直す」の候補チップはそのまま残る', approxRow.cands);
+	assert(approxRow.imgShown === true && approxRow.read === '読み取った文字：「左回りO」',
+		'special/ocr入口: 押すとサブ画面にその行の切り出し画像が出る', { imgShown: approxRow.imgShown, read: approxRow.read });
+
+	/* ------------------------------------------------------------
 	 * 「名前を入れて探す」のサブ画面（32セッション目・(A) スキルセットOCR側）
 	 *
 	 * 画像を持つ行のボタンは「画像を見て入力」で、押すと報告と入れ替わって画像＋入力欄＋候補一覧が出る。
