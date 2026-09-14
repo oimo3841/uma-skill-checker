@@ -669,7 +669,7 @@
 				<input id="opt-attr-icons" type="checkbox" onchange="setAttrIcons(this.checked)" class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
 				<div>
 					<span class="text-xs font-semibold text-slate-800">結果画像にスキルの区分の印を付ける</span>
-					<p class="text-[11px] text-slate-500 mt-0.5">スキル名の左の〇に、そのスキルがどの区分かを表す印（★●◆■✕）を重ねて焼き込みます。印の見かたは画像の上部に入ります。</p>
+					<p class="text-[11px] text-slate-500 mt-0.5">スキル名の左の〇に、そのスキルがどの区分かを表す印を重ねて焼き込みます。印の見かたは画像の上部に入ります。</p>
 				</div>
 			</label>
 			<!-- 「高度な解析オプション」で出るもの（切り出しプレビュー・開発ログ）の置き場。
@@ -1457,11 +1457,34 @@
 		 * 足した5種・外した12種は赤＋下線／赤＋打ち消し線で示していて、記号は使っていない）。
 		 * 結果画像のほうは6種すべてを描く。
 		 */
-		const SCREEN_MARK = {
-			factor: { glyph: '◆', color: 'text-sky-500', listTitle: 'シナリオ因子', tableTitle: 'シナリオ因子' },
-			sp70: { glyph: '★', color: 'text-amber-500', listTitle: 'sp70緑', tableTitle: 'sp70緑（高コスパ17種）' },
-			green: { glyph: '●', color: 'text-emerald-500', listTitle: '緑59種', tableTitle: '緑59種' }
+		/* 区分の呼び名と並び順。**画面（一覧・判定結果の表）と結果画像の凡例で同じ語を使う。**
+		   ここに置いてあるのは、呼び名が「区分そのもの」の属性だから（描画側の都合ではない）。 */
+		const MARK_KIND_ORDER = ['sp70', 'green', 'plain', 'factor', 'added', 'removed'];
+		const MARK_LEGEND_LABEL = {
+			sp70: 'SP70の緑スキル',
+			green: '緑スキル（SP70以外）',
+			plain: 'その他の対象スキル',
+			factor: 'シナリオ因子',
+			added: '追加したスキル',
+			removed: '除外したスキル'
 		};
+
+		// 呼び名は**凡例（MARK_LEGEND_LABEL）に合わせる**。同じ区分を画面のどこでも同じ語で呼ぶ。
+		// 種数は定数から出す（リストが変わったときに数字だけ取り残されないように）。
+		// ● が指すのは「緑スキルのうち SP70 以外」で、緑59種の全体ではない。
+		// 「緑59種」とだけ書くと ★ の17種を含むのか42種のことなのか区別できないため、数を添える。
+		// 優劣を想起させる語（「高コスパ」など）は使わない（軸1の呼び名と同じ基準）。
+		const SCREEN_MARK = (function () {
+			const sp70Count = SP70_GREEN_17_SET.size;
+			const greenOnlyCount = GREEN_59_SET.size - sp70Count;
+			const sp70Title = MARK_LEGEND_LABEL.sp70 + '（' + sp70Count + '種）';
+			const greenTitle = '緑スキル（SP70以外・' + greenOnlyCount + '種）';
+			return {
+				factor: { glyph: '◆', color: 'text-sky-500', listTitle: MARK_LEGEND_LABEL.factor, tableTitle: MARK_LEGEND_LABEL.factor },
+				sp70: { glyph: '★', color: 'text-amber-500', listTitle: sp70Title, tableTitle: sp70Title },
+				green: { glyph: '●', color: 'text-emerald-500', listTitle: greenTitle, tableTitle: greenTitle }
+			};
+		})();
 
 		// 軸1を反映した基準リスト（名前）
 		function scopeBaseNames(mode) {
@@ -3089,16 +3112,6 @@
 			removed: '--uma-danger-text'
 		};
 
-		// 凡例に並べる順番と文言（文言は仮）。
-		const MARK_KIND_ORDER = ['sp70', 'green', 'plain', 'factor', 'added', 'removed'];
-		const MARK_LEGEND_LABEL = {
-			sp70: 'SP70の緑スキル',
-			green: '緑スキル（SP70以外）',
-			plain: 'その他の対象スキル',
-			factor: 'シナリオ因子',
-			added: '追加したスキル',
-			removed: '除外したスキル'
-		};
 		const MARK_LEGEND_HEAD = '印の見かた：';
 		const MARK_LEGEND_NOTE = '印の無い行は、対象外のスキルか、読み取れなかった行です。';
 		// 印を付けなかった理由。**原因ごとに別の文面にする**（利用者が「撮り方を変えれば直るか」を
