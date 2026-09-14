@@ -2883,14 +2883,24 @@
 		 * exam.html専用のUI組み立て（バナー描画・セット単位の結合処理）のみ。
 		 * ============================================================ */
 
-		// ①-7：緑スキルハイライトバナー（検出数・sp70緑のみのシンプルな表示。
+		// ①-7：ハイライトバナー（検出数・sp70緑のシンプルな表示。
 		// 現行UIの「照合結果」カードと同じ配色：検出＝青系、sp70緑＝黄色/オレンジ系）
-		function stitchDrawPersonBanner(width, groupLabel, totalDetected, sp70Count) {
+		//
+		// factors … scenarioFactorHighlight() の戻り値（1件も選んでいなければ null）。
+		// 渡されたときは、カードの下に「因子名：★の数」を画面のハイライトと同じ並び・
+		// 同じ文字列で1行ずつ焼き込む（4種以上選んでいれば最後に「他」）。
+		function stitchDrawPersonBanner(width, groupLabel, totalDetected, sp70Count, factors) {
 			const pad = Math.round(width * 0.03);
 			const titleH = Math.round(width * 0.065);
 			const cardH = Math.round(width * 0.185);
 			const gapY = Math.round(width * 0.02);
-			const barHeight = pad * 2 + titleH + gapY + cardH;
+			// 「他」は行を増やさず、最後の行の右端に添える（画面のハイライトと同じ形）
+			const factorLines = factors ? factors.items.map(it => it.text) : [];
+			const factorMore = !!(factors && factors.more);
+			const factorFont = Math.round(cardH * 0.26);
+			const factorLineH = Math.round(factorFont * 1.55);
+			const factorBlockH = factorLines.length ? (gapY + factorLines.length * factorLineH) : 0;
+			const barHeight = pad * 2 + titleH + gapY + cardH + factorBlockH;
 
 			const c = document.createElement('canvas');
 			c.width = width;
@@ -2962,13 +2972,78 @@
 			ctx.font = 'bold ' + Math.round(cardH * 0.56) + 'px sans-serif';
 			ctx.fillText(String(sp70Count), x2 + cardW * 0.08, y + cardH * 0.36);
 
+			if (factorLines.length) {
+				y += cardH + gapY;
+				// 幅に収まらない行があれば、全体を縮めて桁を揃える（行ごとに大きさが変わらないように）。
+				// 最後の行は右端の「他」と重ならないよう、そのぶん狭い幅で見る。
+				const moreText = '他';
+				let fs = factorFont;
+				const maxW = width - pad * 2;
+				const fits = () => {
+					ctx.font = 'bold ' + fs + 'px sans-serif';
+					const moreW = factorMore ? ctx.measureText(moreText).width + fs * 0.6 : 0;
+					return factorLines.every((t, i) => {
+						const limit = (factorMore && i === factorLines.length - 1) ? maxW - moreW : maxW;
+						return ctx.measureText(t).width <= limit;
+					});
+				};
+				while (fs > 9 && !fits()) fs -= 1;
+				ctx.font = 'bold ' + fs + 'px sans-serif';
+				ctx.textBaseline = 'top';
+				ctx.textAlign = 'left';
+				ctx.fillStyle = '#0c5a7a';
+				factorLines.forEach((t, i) => ctx.fillText(t, pad, y + i * factorLineH));
+				if (factorMore) {
+					// 「他」だけは薄い色にして、因子名の並びの続きだと分かるようにする
+					ctx.fillStyle = '#5aa3c0';
+					ctx.textAlign = 'right';
+					ctx.fillText(moreText, width - pad, y + (factorLines.length - 1) * factorLineH);
+					ctx.textAlign = 'left';
+				}
+			}
+
 			return c;
 		}
 
-		// 共有の注意書きバー（セット内の全員分の横幅を使い、1行・右揃えで表示）
+		/* ------------------------------------------------------------
+		 * 結果画像の補助テキスト（対象スキルをどう調整したか）。
+		 * 既定（133種・調整なし）のときは空配列＝何も足さない。
+		 * シナリオ因子の「因子名：★の数」は人ごとの値なので、各人のバナーに焼く
+		 * （stitchDrawPersonBanner）。ここは全員に共通する「何を対象にしたか」だけを書く。
+		 * ------------------------------------------------------------ */
+		function buildTargetAdjustmentNotes() {
+			const notes = [];
+			const added = (targetScopeMode === 'expanded') ? EXPANDED_EXTRA_SKILL_NAMES.slice() : [];
+			const removed = (targetScopeMode === 'curated')
+				? CURATED_EXCLUDED_IDS.map(id => EXAM_NAME_BY_ID[id]).filter(Boolean) : [];
+			const factors = activeScenarioFactors();
+			if (added.length) notes.push('追加スキル（' + added.length + '種）：' + added.join('・'));
+			if (removed.length) notes.push('除外スキル（' + removed.length + '種）：' + removed.join('・'));
+			if (factors.length) notes.push('シナリオ因子（' + factors.length + '種）：' + factors.join('・'));
+			return notes;
+		}
+
+		// 1行に収まらない文字列を、収まる幅で折り返す（日本語なので1文字ずつで足りる）
+		function stitchWrapText(ctx, text, maxWidth) {
+			if (ctx.measureText(text).width <= maxWidth) return [text];
+			const out = [];
+			let cur = '';
+			for (const ch of text) {
+				const next = cur + ch;
+				if (cur && ctx.measureText(next).width > maxWidth) { out.push(cur); cur = ch; }
+				else cur = next;
+			}
+			if (cur) out.push(cur);
+			return out;
+		}
+
+		// 共有の補助テキスト欄（セット内の全員分の横幅を使う）。
+		// 上に「何を追加／除外したか」を左揃えで、いちばん下に従来からの脚注を右揃えで置く。
+		// 調整が無ければ従来どおり脚注の1行だけになる。
 		function stitchDrawSharedNoteBar(totalWidth, referenceWidth) {
 			const cardH = Math.round(referenceWidth * 0.185);
-			const targetFontSize = Math.round(cardH * 0.28);
+			// ④ 補助テキスト欄は、バナーのカードの見出し（0.28）より一段小さくする
+			const targetFontSize = Math.round(cardH * 0.23);
 			const pad = Math.round(referenceWidth * 0.03);
 			const noteText = '※「〇〇の目覚め」は対応する基本スキルと個別にカウントしています。';
 
@@ -2983,17 +3058,26 @@
 				ctx.font = 'bold ' + fontSize + 'px sans-serif';
 			}
 
-			const barHeight = Math.round(fontSize * 1.8);
+			const extra = [];
+			buildTargetAdjustmentNotes().forEach(t => {
+				stitchWrapText(ctx, t, maxTextWidth).forEach(line => extra.push(line));
+			});
+
+			const lineH = Math.round(fontSize * 1.8);
+			const barHeight = lineH * (extra.length + 1);
 			c.width = totalWidth;
 			c.height = barHeight;
+			// canvas の大きさを変えると描画状態が初期化されるので、ここで設定し直す
 			ctx.font = 'bold ' + fontSize + 'px sans-serif';
 			ctx.fillStyle = '#ffffff';
 			ctx.fillRect(0, 0, totalWidth, barHeight);
 
-			ctx.fillStyle = '#555555';
 			ctx.textBaseline = 'top';
+			ctx.fillStyle = '#555555';
+			ctx.textAlign = 'left';
+			extra.forEach((line, i) => ctx.fillText(line, pad, Math.round(i * lineH + lineH * 0.15)));
 			ctx.textAlign = 'right';
-			ctx.fillText(noteText, totalWidth - pad, Math.round(barHeight * 0.15));
+			ctx.fillText(noteText, totalWidth - pad, Math.round(extra.length * lineH + lineH * 0.15));
 			ctx.textAlign = 'left';
 
 			return c;
@@ -3042,7 +3126,7 @@
 				const detected = countDetected(idx);
 				const sp70Count = countCategory(idx, sp70Ids, false);
 				const greenCount = countCategory(idx, greenIds, equivalence);
-				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count);
+				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count, scenarioFactorHighlight(idx));
 				bannerCanvases.push(banner);
 				contentCanvases.push(contentCanvas);
 				personMeta.push({ idx: idx, label: label, sp70Count: sp70Count, greenCount: greenCount });
