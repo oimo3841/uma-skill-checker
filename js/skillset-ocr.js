@@ -26,7 +26,7 @@
  * （{ raw, norm, kind:'exact'|'review'|'none', matchedId, matchedName, candidates:[{id,name,distance}] }）。
  * 曖昧な行はこの形のまま Deck の貼り付けピッカーへ渡す（決定 A-8。core 側の口はコミット3）。
  */
-const SKILLSET_OCR_JS_VERSION = '2026-09-13d';
+const SKILLSET_OCR_JS_VERSION = '2026-09-14a';
 
 (function (global) {
 	'use strict';
@@ -174,6 +174,28 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-13d';
 	/** canvas の裏の画素を手放す（参照を落とすだけより早く解放される）。 */
 	function releaseCanvas(canvas) {
 		if (canvas && canvas.width) { canvas.width = 0; canvas.height = 0; }
+	}
+
+	/**
+	 * 切り出しを PNG の dataURL にする（31セッション目。Step 0 調査 `skillset-ocr-panel-image-step0.md`）。
+	 *
+	 * **確定していない行にだけ載せる**（おいもさんの決定1）。全行に載せる案は採らなかった。
+	 * 実測（検証ハーネスが書き出した同じ切り出しPNG）で**スマホ原寸 1枚 19.5 KiB・1画像あたり約20枚**なので、
+	 * 全行だと 4枚で約2 MiB・16枚で約8 MiB になる。要確認＋読み取れなかった行だけなら**合計 1 MiB 未満**。
+	 *
+	 * dataURL は canvas から独立した文字列なので、**`processImage` の末尾で canvas を破棄しても残る**
+	 * （破棄の側は変えていない）。
+	 *
+	 * 見せるのは**文字の領域**（OCR にかけたものそのもの）。カード全体（アイコン込み）は、
+	 * この時点では元の canvas を既に手放しているので作れない。利用者が要るのは読めなかった**名前**なので、
+	 * 文字の領域のほうが用途にも合う。
+	 *
+	 * 失敗しても処理は止めず null を返す（呼び出し側は画像が無い行を想定しておくこと）。
+	 */
+	function panelDataUrl(canvas) {
+		if (!canvas || !canvas.width || !canvas.height) return null;
+		try { return canvas.toDataURL('image/png'); }
+		catch (err) { return null; }
 	}
 
 	/* ============================================================
@@ -490,6 +512,10 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-13d';
 				row.cardKind = 'lavender';
 				row.inkHeight = ink;
 				row.card = c.card;
+				// 決定1（31セッション目）: 画像を残すのは**確定していない行だけ**。
+				// isDecidedRow() が偽という同じ条件で、要確認の行と**読み取れなかった行の両方**を拾える
+				// （読み取れなかった行は matchedId が無いため必ずここに入る）。
+				if (!isDecidedRow(row)) row.panelImage = panelDataUrl(c.canvas);
 				out.white.push(row);
 			}
 			done++;
@@ -521,6 +547,13 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-13d';
 	 * @param perImage Array<{ name, quality, tab, kindCounts, badge:{count,capacity,raw}, white:[行], gold:[…], unknown:number, inkHeights? }>
 	 * @returns {{
 	 *   rows: Array<行>            … 白。ピッカーへ渡す（同じスキルは1行に。確定行を優先）
+	 *   unreadableRows: Array<行>  … 文字を取れなかった行（31セッション目）。**rows には混ぜない。**
+	 *                                混ぜると「選んで追加できる行」として扱われ、ピッカーの
+	 *                                「選択 N件／要確認 M件」にも入ってしまう。選ぶものが無いので別扱いにする。
+	 *                                **重複は除いていない**（おいもさんの決定2＝手1）。同じパネルを別の画像でも
+	 *                                撮っていれば、そちらで読めていてもここに残る。名前が無い以上、画像をまたいだ
+	 *                                同定は継ぎ合わせ（決定 A-6 で外したもの）無しにはできないため。
+	 *                                見せ方でこれを引き受ける（special.html の区画の注意書き）。
 	 *   white: { accepted:number, review:number, unreadable:number, ids:string[] }
 	 *   gold:  { kinds:number, cards:number, byKey:Map<normKey, Array<読み>>, raw:Array<読み> }
 	 *   unknown: number
@@ -533,6 +566,7 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-13d';
 		var byId = new Map();     // 白。スキルID → 代表の行
 		var byNorm = new Map();   // 白のうち ID が決まっていない行。正規化文字列 → 行
 		var unreadable = 0;
+		var unreadableRows = [];
 		var goldByKey = new Map();
 		var goldRaw = [];
 		var unknown = 0;
@@ -568,7 +602,9 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-13d';
 
 			(im.white || []).forEach(function (r) {
 				if (typeof r.inkHeight === 'number' && r.inkHeight > 0) inks.push(r.inkHeight);
-				if (!r.norm) { unreadable++; return; }
+				// 文字が取れなかった行。数えるだけでなく**行そのものも持って上げる**（31セッション目）。
+				// 以前はここで捨てていたので、ピッカーにも呼び出し元にも1行も届いていなかった。
+				if (!r.norm) { unreadable++; unreadableRows.push(r); return; }
 				if (r.matchedId) {
 					var prev = byId.get(r.matchedId);
 					if (!prev || rank(r) < rank(prev)) byId.set(r.matchedId, r);
@@ -607,6 +643,7 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-13d';
 		inks.sort(function (a, b) { return a - b; });
 		return {
 			rows: rows,
+			unreadableRows: unreadableRows,
 			white: { accepted: accepted.length, review: review.length, unreadable: unreadable, ids: accepted.map(function (r) { return r.matchedId; }) },
 			gold: { kinds: goldByKey.size, cards: goldRaw.length, byKey: goldByKey, raw: goldRaw },
 			unknown: unknown,
@@ -708,6 +745,7 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-13d';
 		buildMasterDictionary: buildMasterDictionary,
 		inkHeight: inkHeight,
 		tightenAndScale: tightenAndScale,
+		panelDataUrl: panelDataUrl,
 		resolveActiveTab: resolveActiveTab,
 		adaptQualityForSkillset: adaptQualityForSkillset,
 		analyzeSkillsetImage: analyzeSkillsetImage,

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14d';
 
 	/* ============================================================
 	 * 定数
@@ -716,6 +716,12 @@
 		'.usd-paste-skip { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-faint);',
 		'  text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; }',
 		'.usd-paste-skip:hover { color: var(--uma-text-subtle); }',
+		// 行の右肩のボタンの並び（「画像を見る」＋「取り消す」／「無視する」）。31セッション目
+		'.usd-paste-acts { display: flex; align-items: center; gap: var(--uma-sp-2); flex-shrink: 0; }',
+		'.usd-paste-panel { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); padding: var(--uma-sp-0-5) var(--uma-sp-2);',
+		'  border-radius: var(--uma-r-full); border: 1px solid var(--uma-border); background: var(--uma-surface);',
+		'  color: var(--uma-text-subtle); cursor: pointer; white-space: nowrap; }',
+		'.usd-paste-panel:hover { color: var(--uma-text-heading); border-color: var(--uma-text-faint); }',
 		'.usd-paste-scroll { max-height: 240px; overflow: auto; }',
 
 		/* ------------------------------------------------------------
@@ -876,6 +882,10 @@
 	let picker = { mode: 'filter', filters: {}, checked: new Set(), onAdd: null, excludeIds: [], activeAxis: TAG_AXES[0].key };
 	// 一括貼り付けの照合結果。各行に chosenId（採用したスキルID）を後から書き込む。
 	let pasteRows = [];
+	// 貼り付け／画像から読み取る の報告に対する呼び出し元からの口（31セッション目）。
+	// いまは onShowPanel(row) だけ。**core は画像を描かない**（Deck 単体ページには不要な資産なので増やさない）。
+	// 行に row.panelImage（PNG の dataURL）があり、かつこの口が渡っているときだけ「画像を見る」を出す。
+	let pasteOptions = {};
 
 	// スキルを足す入口は3つあり、どれも同じモーダルの中身を差し替えて出す。
 	//   filter … 条件でスキルを検索（8軸フィルター＋絞り込み結果）
@@ -985,6 +995,7 @@
 			else if (act === 'paste-run') runPasteMatch();
 			else if (act === 'paste-clear') clearPaste();
 			else if (act === 'paste-pick') choosePasteCandidate(Number(btn.dataset.row), btn.dataset.skillId);
+			else if (act === 'paste-panel') showPasteRowPanel(Number(btn.dataset.row));
 			else if (act === 'paste-custom') createCustomFromPasteRow(Number(btn.dataset.row));
 			else if (act === 'paste-skip') skipPasteRow(Number(btn.dataset.row));
 		});
@@ -1455,6 +1466,17 @@
 		renderPickerResults();
 	}
 
+	/**
+	 * 「画像を見る」。**core は画像を描かず**、行をそのまま呼び出し元へ渡すだけ（31セッション目）。
+	 * 表示の作りは呼び出し元が持つ（special.html が既存の `.uma-overlay` で出す）。
+	 * 描き直しをしないので、ここではスクロール位置も動かない。
+	 */
+	function showPasteRowPanel(rowIndex) {
+		const row = pasteRows[rowIndex];
+		if (!row || !row.panelImage) return;
+		if (typeof pasteOptions.onShowPanel === 'function') pasteOptions.onShowPanel(row);
+	}
+
 	// そのスキルを参照している貼り付け行がもう無く、まだ追加もされていなければ選択を外す
 	function releaseIfUnused(skillId) {
 		if (!skillId) return;
@@ -1511,6 +1533,12 @@
 			if (bodyEl && keep.body) bodyEl.scrollTop = keep.body;
 		};
 
+		// 「画像を見る」。行が画像を持ち、呼び出し元が受け口を渡しているときだけ出す（31セッション目）。
+		// core は押されたことを伝えるだけで、画像そのものは描かない。
+		const panelBtn = (r, i) => (r.panelImage && typeof pasteOptions.onShowPanel === 'function')
+			? '<button type="button" class="usd-paste-panel" data-usd-act="paste-panel" data-row="' + i + '">画像を見る</button>'
+			: '';
+
 		const excluded = new Set(picker.excludeIds);
 		const resolved = pasteRows.filter(r => r.chosenId);
 		const pending = pasteRows.filter(r => (r.kind === 'review' || r.kind === 'none') && !r.chosenId);
@@ -1548,7 +1576,9 @@
 						'<span><span class="usd-paste-raw">' + esc(r.raw) + '</span>' +
 						'<span class="usd-paste-arrow">→</span>' +
 						'<span class="usd-paste-picked">' + esc(getSkillName(r.chosenId)) + '</span></span>' +
-						'<button type="button" class="usd-paste-skip" data-usd-act="paste-skip" data-row="' + i + '">取り消す</button>' +
+						'<span class="usd-paste-acts">' + panelBtn(r, i) +
+							'<button type="button" class="usd-paste-skip" data-usd-act="paste-skip" data-row="' + i + '">取り消す</button>' +
+						'</span>' +
 					'</div>' +
 					(sameRow ? '<div class="usd-paste-hint">「' + esc(sameRow.raw) + '」と同じスキルです</div>' : '') +
 					(others.length > 0
@@ -1567,7 +1597,9 @@
 				html += '<div class="usd-paste-row">' +
 					'<div class="usd-paste-head">' +
 						'<span class="usd-paste-raw">' + esc(r.raw) + '</span>' +
-						'<button type="button" class="usd-paste-skip" data-usd-act="paste-skip" data-row="' + i + '">無視する</button>' +
+						'<span class="usd-paste-acts">' + panelBtn(r, i) +
+							'<button type="button" class="usd-paste-skip" data-usd-act="paste-skip" data-row="' + i + '">無視する</button>' +
+						'</span>' +
 					'</div>';
 				if (r.candidates.length > 0) {
 					html += '<div class="usd-paste-cands"><span class="usd-paste-hint">近いスキル：</span>' +
@@ -1613,6 +1645,8 @@
 		picker.excludeIds = (existingSkillIds || []).slice();
 		picker.onAdd = onAdd;
 		pasteRows = [];
+		// 呼び出し元の口はモードをまたいで残さない。openSkillRowsPicker がこの後で入れ直す
+		pasteOptions = {};
 		const pasteInput = q(pickerEl, 'paste-input');
 		if (pasteInput) pasteInput.value = '';
 		const customName = q(pickerEl, 'custom-name');
@@ -1661,6 +1695,10 @@
 	 *                         { raw, norm, kind:'exact'|'review'|'none'|'error', matchedId, matchedName,
 	 *                           candidates:[{id,name,distance}], reason?, autoAccepted? }
 	 *                         autoAccepted:true の 'review' 行は選択に入った状態で出る（applyPasteRows）。
+	 * @param options          省略可。`{ onShowPanel(row) }` を渡すと、**`row.panelImage` を持つ行にだけ**
+	 *                         「画像を見る」ボタンを出し、押されたらその行を渡して呼ぶ（31セッション目）。
+	 *                         **core 自身は画像を描かない。** 表示は呼び出し元（special.html が既存の
+	 *                         `.uma-overlay` で出す。z-index 111 ＞ このモーダルの 80）。
 	 * @param summary          { white, gold, unreadable } 省略可。white＝確認なしで採用した白の種数（直下の「選択 N件」と
 	 *                         一致する）、gold＝金の種数（読みの揺れで1〜2多く出るので「約」を付けて出す）、
 	 *                         unreadable＝文字を読み取れなかった白のスキルパネルの数。文面は formatRowsSummary。
@@ -1669,8 +1707,9 @@
 	 * 照合そのものはここで行わない。この関数は Deck 側の照合（normalizeSkillText。混同マップ無し）を通さないので、
 	 * common.js 側で CHAR_CONFUSION_MAP を効かせた結果をそのまま見せられる。
 	 */
-	function openSkillRowsPicker(existingSkillIds, onAdd, rows, summary) {
+	function openSkillRowsPicker(existingSkillIds, onAdd, rows, summary, options) {
 		openPicker('ocr', existingSkillIds, onAdd);
+		pasteOptions = options || {};
 		const text = formatRowsSummary(summary);
 		const summaryEl = q(pickerEl, 'paste-summary');
 		summaryEl.textContent = text;
@@ -2073,7 +2112,7 @@
 		 * （足した時点でドラフトが選択される＝「ドラフトを編集して作れます」と同じ流れ）。
 		 * 足した分は Undo に積める（受け皿は編集画面の入口と同じ pickerSinkFor）。scope は見ている画面に合わせる。
 		 */
-		function openSkillRowsPickerForSelection(rows, summary) {
+		function openSkillRowsPickerForSelection(rows, summary, options) {
 			let target = editing;
 			if (!target) {
 				const t = ensureUserData().templates.find(x => x.templateId === selectedId);
@@ -2081,7 +2120,7 @@
 			}
 			if (target.kind === 'draft' && !draftScope) { toast('対象スキルセットを1つ選んでください'); return false; }
 			const scope = editing ? 'editor' : 'list';
-			openSkillRowsPicker(skillIdsOf(target) || [], pickerSinkFor(target, scope), rows, summary);
+			openSkillRowsPicker(skillIdsOf(target) || [], pickerSinkFor(target, scope), rows, summary, options);
 			return true;
 		}
 
