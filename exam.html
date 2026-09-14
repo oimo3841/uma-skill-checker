@@ -365,11 +365,15 @@
 				<i data-lucide="x" class="w-4 h-4"></i>
 			</button>
 			<div class="notice-body">
+				<!-- 告知は2種類あり、出すのはどちらか一方だけ（openUiNotice が切り替える）。
+				     ・layout … 画面の作りが変わったときの案内（右上の「新UI」バッジから読み直せる）
+				     ・target … 対象スキルの選び方が変わったときの案内（2026-09-14） -->
+				<div id="ui-notice-body-layout">
 				<div class="notice-icon" aria-hidden="true">
 					<i data-lucide="panel-right-open" class="w-6 h-6"></i>
 				</div>
 				<h2 class="notice-title" id="ui-notice-title">画面が新しくなりました</h2>
-				<p class="notice-text"><span class="nb">対象スキル（133種）</span>や<span class="nb">除外・追加の設定</span>は<span class="nb">そのままです。</span></p>
+				<p class="notice-text"><span class="nb">対象スキル（133種）</span>は<span class="nb">そのままです。</span></p>
 				<p class="notice-text"><span class="nb">照合結果</span>と<span class="nb">結果画像</span>は、<span class="nb">右下の＋ボタン</span>から開く<span class="nb">引き出しに</span><span class="nb">表示されます。</span></p>
 				<p class="notice-text"><span class="nb">右上の「旧UIへ」</span>から、<span class="nb">いつでも</span><span class="nb">元の画面</span>に<span class="nb">戻せます。</span></p>
 				<div class="deck-accent deck-note notice-new">
@@ -377,6 +381,18 @@
 					<p class="notice-text deck-note-text"><span class="nb">OCRの結果</span>を保存して、<span class="nb">候補同士</span>を<span class="nb">見比べられる</span><br /><span class="nb notice-deck-name">「UmaSkill Deck」</span>が<span class="nb">追加されました。</span></p>
 					<p class="notice-text deck-note-text"><span class="nb">UmaSkill Deck</span>は、<span class="nb">右下の＋ボタン</span>から開く<span class="nb">引き出しに</span><span class="nb">表示されます。</span></p>
 					<p class="notice-text deck-note-text"><span class="nb">照合結果</span>は<span class="nb">UmaSkill Deck</span>に<span class="nb">直接追加できます。</span></p>
+				</div>
+				</div><!-- /#ui-notice-body-layout -->
+
+				<div id="ui-notice-body-target" hidden>
+					<div class="notice-icon" aria-hidden="true">
+						<i data-lucide="list-checks" class="w-6 h-6"></i>
+					</div>
+					<h2 class="notice-title" id="ui-notice-title-target">対象スキルの選択方法がアップデートされました</h2>
+					<p class="notice-text"><span class="nb">「対象スキルの範囲」</span>から、<span class="nb">既定133種</span>／<span class="nb">拡張138種</span>／<span class="nb">絞り込み121種</span>を<span class="nb">選べるようになりました。</span></p>
+					<p class="notice-text"><span class="nb">新たに</span><span class="nb">「シナリオ因子」</span>を<span class="nb">1種ずつ選んで</span><span class="nb">対象に追加できます。</span></p>
+					<p class="notice-text"><span class="nb">設定は</span><span class="nb">①「対象スキル」</span>の<span class="nb">タブにあります。</span></p>
+					<p class="notice-text"><span class="nb">これまでの</span><span class="nb">「対象スキルのカスタム設定</span><span class="nb">（追加・除外）」</span>は、<span class="nb">この2つに</span><span class="nb">まとめました。</span></p>
 				</div>
 			</div>
 			<div class="notice-foot">
@@ -3350,6 +3366,10 @@
 		const UI_MODE_STORAGE_KEY = 'uma-exam-ui-mode';       // 'new' | 'old'
 		const UI_NOTICE_STORAGE_KEY = 'uma-exam-ui-notice';   // 見た告知のID
 		const UI_NOTICE_ID = '2026-09-exam-drawer-layout';
+		// 対象スキルの選び方が変わったことの告知（2026-09-14）。画面の作りの告知とは別に持つ。
+		// 別のキーにしてあるので、画面の告知を既読にした人にもこちらは1度だけ出る。
+		const TARGET_NOTICE_STORAGE_KEY = 'uma-exam-target-notice';
+		const TARGET_NOTICE_ID = '2026-09-14-target-scope';
 		let newUi = true;
 
 		function readStored(key) {
@@ -3366,11 +3386,21 @@
 			if (hasSeenUiNotice()) return;
 			writeStored(UI_NOTICE_STORAGE_KEY, UI_NOTICE_ID);
 		}
+		function hasSeenTargetNotice() {
+			return readStored(TARGET_NOTICE_STORAGE_KEY) === TARGET_NOTICE_ID;
+		}
+		function markTargetNoticeSeen() {
+			if (hasSeenTargetNotice()) return;
+			writeStored(TARGET_NOTICE_STORAGE_KEY, TARGET_NOTICE_ID);
+		}
 		function saveUiModeChoice() {
 			writeStored(UI_MODE_STORAGE_KEY, newUi ? 'new' : 'old');
 		}
 
-		/* 起動時にどちらのUIで開くかを決め、必要なら告知モーダルを出す。 */
+		/* 起動時にどちらのUIで開くかを決め、必要なら告知モーダルを出す。
+		   モーダルは一度に1枚だけ。画面の作りの告知が未読の人（＝このツールを初めて開く人）は
+		   そちらだけを見せ、対象スキルの告知は「見たこと」にする（新しい選び方しか知らないので、
+		   「変わりました」と言っても意味がないため）。 */
 		function initUiMode() {
 			const seen = hasSeenUiNotice();
 			const startNew = seen ? readStored(UI_MODE_STORAGE_KEY) !== 'old' : true;
@@ -3379,7 +3409,12 @@
 			} catch (e) {
 				console.error('[UmaExam OCR] UIの初期化に失敗しました', e);
 			}
-			if (!seen) openUiNotice();
+			if (!seen) {
+				markTargetNoticeSeen();
+				openUiNotice('layout');
+			} else if (!hasSeenTargetNotice()) {
+				openUiNotice('target');
+			}
 		}
 
 		/* 中身の要素を、新UIの置き場（タブ・引き出し・ダイアログ）と旧UIの置き場（本文のカード）の間で移す。
@@ -3455,14 +3490,24 @@
 			if (newUi) exitNewUi(); else enterNewUi();
 		}
 
-		/* ---------- 告知モーダル（使い方ガイドと同じ作法） ---------- */
+		/* ---------- 告知モーダル（使い方ガイドと同じ作法） ----------
+		   枠（背景・✕・OK・Esc）は1つで、中身だけ差し替える。
+		   kind: 'layout' … 画面の作りの案内 ／ 'target' … 対象スキルの選び方の案内 */
 		let uiNoticeOpen = false;
+		let uiNoticeKind = 'layout';
 		let uiNoticeReturnFocus = null;
 
-		function openUiNotice() {
+		function openUiNotice(kind) {
 			if (uiNoticeOpen) return;
 			// 引き出しやガイドが開いている上には重ねない
 			if (helpOpen || openDrawerKey) return;
+			uiNoticeKind = (kind === 'target') ? 'target' : 'layout';
+			const isTarget = (uiNoticeKind === 'target');
+			document.getElementById('ui-notice-body-layout').hidden = isTarget;
+			document.getElementById('ui-notice-body-target').hidden = !isTarget;
+			// 読み上げの見出しも、出している方の見出しに向ける
+			document.getElementById('ui-notice').setAttribute('aria-labelledby',
+				isTarget ? 'ui-notice-title-target' : 'ui-notice-title');
 			uiNoticeOpen = true;
 			uiNoticeReturnFocus = document.activeElement;
 			document.getElementById('ui-notice-backdrop').hidden = false;
@@ -3472,21 +3517,21 @@
 			document.getElementById('ui-notice-ok').focus();
 		}
 
-		// ✕・OK・背景・Esc のどれで閉じても既読にする
+		// ✕・OK・背景・Esc のどれで閉じても既読にする（出していた方だけ）
 		function closeUiNotice() {
 			if (!uiNoticeOpen) return;
 			uiNoticeOpen = false;
 			document.getElementById('ui-notice-backdrop').hidden = true;
 			document.getElementById('ui-notice').hidden = true;
 			document.body.style.overflow = '';
-			markUiNoticeSeen();
+			if (uiNoticeKind === 'target') markTargetNoticeSeen(); else markUiNoticeSeen();
 			if (uiNoticeReturnFocus && typeof uiNoticeReturnFocus.focus === 'function') uiNoticeReturnFocus.focus();
 			uiNoticeReturnFocus = null;
 		}
 
 		// 右上の「新UI」バッジからの読み直し。既読の状態は変えない（もともと既読なので）。
 		function reopenUiNotice() {
-			openUiNotice();
+			openUiNotice('layout');
 		}
 
 		/* ============================================================

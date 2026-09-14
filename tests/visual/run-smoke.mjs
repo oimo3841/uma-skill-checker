@@ -2605,14 +2605,17 @@ const browser = await chromium.launch();
 		assert(await page.evaluate(() => document.activeElement === document.getElementById('ui-notice-ok')),
 			'exam: 開いた時点でOKにフォーカスが移る');
 		assert(first.seen === null, 'exam: 開いただけではまだ既読にしない', first.seen);
-		// 文面は固定。＜新機能＞の段は Deck の色の枠
+		// 文面は固定。＜新機能＞の段は Deck の色の枠。
+		// 告知は2種類あり、枠は共有で中身だけ差し替わるので、出している方の中身だけを見る。
 		const text = await page.evaluate(() => ({
 			title: document.getElementById('ui-notice-title').textContent,
-			body: document.querySelector('#ui-notice .notice-body').textContent.replace(/\s+/g, ''),
+			body: document.getElementById('ui-notice-body-layout').textContent.replace(/\s+/g, ''),
+			targetHidden: document.getElementById('ui-notice-body-target').hidden,
 			newBox: getComputedStyle(document.querySelector('#ui-notice .notice-new')).backgroundColor
 		}));
+		assert(text.targetHidden, 'exam: 初回は対象スキルの告知は出さない（画面の告知だけ）', text.targetHidden);
 		assert(text.title === '画面が新しくなりました'
-			&& text.body.includes('対象スキル（133種）や除外・追加の設定はそのままです。')
+			&& text.body.includes('対象スキル（133種）はそのままです。')
 			&& text.body.includes('照合結果と結果画像は、右下の＋ボタンから開く引き出しに表示されます。')
 			&& text.body.includes('右上の「旧UIへ」から、いつでも元の画面に戻せます。')
 			&& text.body.includes('＜新機能＞')
@@ -2642,6 +2645,39 @@ const browser = await chromium.launch();
 		await page.waitForTimeout(1500);
 		const again = await uiState(page);
 		assert(again.newCard && !again.notice, 'exam: 既読なら新UIのままで、モーダルは繰り返さない', again);
+
+		/* 対象スキルの告知（2026-09-14）。画面の告知を既に読んでいる人にだけ、1度だけ出る。
+		   画面の告知が未読の人（＝初めて開く人）には出さない（上で targetHidden を見ている）。 */
+		await page.evaluate(() => localStorage.removeItem('uma-exam-target-notice'));
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForTimeout(1500);
+		const tgt = await page.evaluate(() => ({
+			notice: !document.getElementById('ui-notice').hidden,
+			layoutHidden: document.getElementById('ui-notice-body-layout').hidden,
+			title: document.getElementById('ui-notice-title-target').textContent,
+			body: document.getElementById('ui-notice-body-target').textContent.replace(/\s+/g, ''),
+			labelledby: document.getElementById('ui-notice').getAttribute('aria-labelledby'),
+			seen: localStorage.getItem('uma-exam-target-notice')
+		}));
+		assert(tgt.notice && tgt.layoutHidden && tgt.labelledby === 'ui-notice-title-target',
+			'exam: 画面の告知が既読なら、対象スキルの告知が代わりに出る', tgt);
+		assert(tgt.title === '対象スキルの選択方法がアップデートされました'
+			&& tgt.body.includes('「対象スキルの範囲」から、既定133種／拡張138種／絞り込み121種を選べるようになりました。')
+			&& tgt.body.includes('新たに「シナリオ因子」を1種ずつ選んで対象に追加できます。'),
+			'exam: 対象スキルの告知の文面が決めたとおり', tgt);
+		assert(tgt.seen === null, 'exam: 対象スキルの告知も、開いただけではまだ既読にしない', tgt.seen);
+		await page.click('#ui-notice-ok');
+		await page.waitForTimeout(300);
+		const tgtClosed = await page.evaluate(() => ({
+			notice: !document.getElementById('ui-notice').hidden,
+			seen: localStorage.getItem('uma-exam-target-notice')
+		}));
+		assert(!tgtClosed.notice && tgtClosed.seen === '2026-09-14-target-scope',
+			'exam: 閉じると対象スキルの告知の既読の印が残る', tgtClosed);
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForTimeout(1500);
+		assert(!(await page.evaluate(() => !document.getElementById('ui-notice').hidden)),
+			'exam: 対象スキルの告知は繰り返さない');
 
 		// 右上のバッジから読み直せる（既読のまま）
 		await page.click('#ui-mode-badge');
