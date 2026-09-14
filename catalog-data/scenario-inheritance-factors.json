@@ -1,0 +1,33 @@
+{
+	"dataVersion": "2026-09-15a",
+	"category": "scenarioFactor",
+	"note": "因子継承画面に現れる「シナリオ因子」の正規表記。白スキル445種のマスター（uma-skill-deck-skills.json）とは別カテゴリで、あちらには載らない。name はゲーム画面の表示そのまま（全角・半角・中黒「・」を含めて変えない）。照合は完全一致だけに使う前提（あいまい一致で拾うと、シナリオどうしが1〜2文字違いのため互いに誤検出する）。特定の画面（exam / special / Deck）専用の項目はここに混ぜない。",
+	"idNote": "id は保存済みの比較シートが指し続ける不変の鍵。表記が変わっても id は変えないこと（name を鍵にすると、表記を直した瞬間に保存済みのシートが行を見失う）。マスターの id（1〜445 の数字）と衝突しないよう sf- で始める。",
+	"schemaNote": "この形（dataVersion / category / entries[{id,name}]）は追加カタログの共通の形。別カテゴリを足すときは、同じ形のファイルをもう1つ作って uma-skill-deck-core.js の EXTRA_CATALOG_SOURCES に並べる。",
+	"entries": [
+		{ "id": "sf-ura", "name": "URAシナリオ" },
+		{ "id": "sf-aoharu", "name": "アオハル杯シナリオ" },
+		{ "id": "sf-climax", "name": "クライマックスシナリオ" },
+		{ "id": "sf-grandlive", "name": "グランドライブシナリオ" },
+		{ "id": "sf-grandmasters", "name": "グランドマスターズシナリオ" },
+		{ "id": "sf-larc", "name": "L'Arcシナリオ" },
+		{ "id": "sf-uaf-sphere", "name": "U.A.F.シナリオ・スフィア" },
+		{ "id": "sf-uaf-fight", "name": "U.A.F.シナリオ・ファイト" },
+		{ "id": "sf-uaf-free", "name": "U.A.F.シナリオ・フリー" },
+		{ "id": "sf-housyoku-carrot", "name": "豊食祭シナリオ・にんじん" },
+		{ "id": "sf-housyoku-garlic", "name": "豊食祭シナリオ・にんにく" },
+		{ "id": "sf-housyoku-potato", "name": "豊食祭シナリオ・じゃがいも" },
+		{ "id": "sf-housyoku-chili", "name": "豊食祭シナリオ・唐辛子" },
+		{ "id": "sf-housyoku-strawberry", "name": "豊食祭シナリオ・いちご" },
+		{ "id": "sf-mecha-spd", "name": "メカウマ娘シナリオ・SPD" },
+		{ "id": "sf-mecha-stm", "name": "メカウマ娘シナリオ・STM" },
+		{ "id": "sf-mecha-pow", "name": "メカウマ娘シナリオ・POW" },
+		{ "id": "sf-mecha-guts", "name": "メカウマ娘シナリオ・GUTS" },
+		{ "id": "sf-mecha-wit", "name": "メカウマ娘シナリオ・WIT" },
+		{ "id": "sf-legends", "name": "Legendsシナリオ" },
+		{ "id": "sf-island", "name": "無人島シナリオ" },
+		{ "id": "sf-onsen", "name": "温泉郷シナリオ" },
+		{ "id": "sf-dreams", "name": "Dreamsシナリオ" },
+		{ "id": "sf-tresen", "name": "トレセン軒シナリオ" }
+	]
+}

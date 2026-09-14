@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14j';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-15a';
 
 	/* ============================================================
 	 * 定数
@@ -28,6 +28,31 @@
 	const STORAGE_KEY_USER = 'umaSkillDeck:userData';
 	const STORAGE_KEY_MASTER = 'umaSkillDeck:masterCache';
 	const MASTER_JSON_PATH = 'uma-skill-deck-skills.json';
+
+	/* ------------------------------------------------------------
+	 * 追加カタログ（マスター445種の外にある、比較の対象にできるもの）
+	 *
+	 * マスターは「白スキル445種」だけを載せる決まりなので、そこに無いもの
+	 * （シナリオ因子など）はマスターには足せない。かといって利用者の
+	 * カスタムスキルにすると、利用者の枠を食い・消せてしまい・書き出しにも混ざる。
+	 * そこで「配布物として用意する、マスターとは別のカタログ」をここに持つ。
+	 *
+	 * **特定のカテゴリ専用の仕組みにしないこと。** 1ファイル＝1カテゴリで、
+	 * カテゴリを増やすときは同じ形のJSONをもう1つ作ってこの配列に並べるだけにする
+	 * （読み込み・キャッシュ・組み込みの写しは、どのカテゴリでも同じ経路を通る）。
+	 *
+	 * ファイルの形（catalog-data/*.json）:
+	 *   { dataVersion, category, entries: [{ id, name }] }
+	 * category はファイル単位。読み込んだ各エントリに category を押して、
+	 * findSkill() が返すオブジェクトの kind になる。
+	 *
+	 * id はマスターの id（1〜445 の数字）と衝突しない接頭辞を付けること
+	 * （保存済みの比較シートは id で行を指すため、衝突すると別物にすり替わる）。
+	 * ------------------------------------------------------------ */
+	const STORAGE_KEY_EXTRA_CATALOG = 'umaSkillDeck:extraCatalogCache';
+	const EXTRA_CATALOG_SOURCES = [
+		{ category: 'scenarioFactor', path: 'catalog-data/scenario-inheritance-factors.json' }
+	];
 	const TEMPLATE_LIMIT = 10;
 	const RECORD_LIMIT = 10;
 	const CUSTOM_SKILL_SOFT_CAP = 50;
@@ -112,6 +137,39 @@
 		]}
 	];
 
+	/* フェッチもキャッシュも駄目だったときに使う、追加カタログの組み込みの写し。
+	   カタログが1件も無いと、保存済みの比較シートの行が「（不明なスキル：…）」に化けるので、
+	   マスターのサンプルと違ってこちらは**全件**を持つ。
+	   正本は catalog-data/ の各JSON。写しとの食い違いは npm run test:norm が見張る。 */
+	const EMBEDDED_EXTRA_CATALOG = {
+		scenarioFactor: [
+			{ id: 'sf-ura', name: 'URAシナリオ' },
+			{ id: 'sf-aoharu', name: 'アオハル杯シナリオ' },
+			{ id: 'sf-climax', name: 'クライマックスシナリオ' },
+			{ id: 'sf-grandlive', name: 'グランドライブシナリオ' },
+			{ id: 'sf-grandmasters', name: 'グランドマスターズシナリオ' },
+			{ id: 'sf-larc', name: "L'Arcシナリオ" },
+			{ id: 'sf-uaf-sphere', name: 'U.A.F.シナリオ・スフィア' },
+			{ id: 'sf-uaf-fight', name: 'U.A.F.シナリオ・ファイト' },
+			{ id: 'sf-uaf-free', name: 'U.A.F.シナリオ・フリー' },
+			{ id: 'sf-housyoku-carrot', name: '豊食祭シナリオ・にんじん' },
+			{ id: 'sf-housyoku-garlic', name: '豊食祭シナリオ・にんにく' },
+			{ id: 'sf-housyoku-potato', name: '豊食祭シナリオ・じゃがいも' },
+			{ id: 'sf-housyoku-chili', name: '豊食祭シナリオ・唐辛子' },
+			{ id: 'sf-housyoku-strawberry', name: '豊食祭シナリオ・いちご' },
+			{ id: 'sf-mecha-spd', name: 'メカウマ娘シナリオ・SPD' },
+			{ id: 'sf-mecha-stm', name: 'メカウマ娘シナリオ・STM' },
+			{ id: 'sf-mecha-pow', name: 'メカウマ娘シナリオ・POW' },
+			{ id: 'sf-mecha-guts', name: 'メカウマ娘シナリオ・GUTS' },
+			{ id: 'sf-mecha-wit', name: 'メカウマ娘シナリオ・WIT' },
+			{ id: 'sf-legends', name: 'Legendsシナリオ' },
+			{ id: 'sf-island', name: '無人島シナリオ' },
+			{ id: 'sf-onsen', name: '温泉郷シナリオ' },
+			{ id: 'sf-dreams', name: 'Dreamsシナリオ' },
+			{ id: 'sf-tresen', name: 'トレセン軒シナリオ' }
+		]
+	};
+
 	// フェッチに失敗した場合のみ使うサンプルデータ（uma-skill-deck-skills.json が
 	// まだ未公開/未配置の環境でも動作確認できるようにするための最終フォールバック）。
 	const SAMPLE_MASTER_SKILLS = { masterVersion: 'embedded-sample', skills: [
@@ -126,6 +184,9 @@
 	let userData = null;
 	let masterSkills = [];
 	let masterMeta = { version: '', fetchedAt: '' };
+	// 追加カタログ（全カテゴリを1本の配列にまとめたもの）。各要素は { id, name, category }。
+	let extraCatalog = [];
+	let extraCatalogMeta = { entryCount: 0, sources: [] };
 
 	// 呼び出し元ページから差し込む入出力（トースト・確認ダイアログ）。
 	// 既定値を持たせておくことで、設定し忘れても動作は壊れない。
@@ -268,7 +329,65 @@
 		return await res.json();
 	}
 
+	/* ------------------------------------------------------------
+	 * 追加カタログの読み込み（fetch → キャッシュ → 組み込みの写し）
+	 *
+	 * マスターと同じ3段のフォールバック。カテゴリ名で分岐しない
+	 * （EXTRA_CATALOG_SOURCES に並べたぶんだけ同じ処理を回す）。
+	 * 1カテゴリが落ちても他のカテゴリは読めたぶんだけ使う。
+	 * ------------------------------------------------------------ */
+	function normalizeCatalogEntries(data, category) {
+		const list = (data && Array.isArray(data.entries)) ? data.entries : [];
+		return list
+			.filter(e => e && e.id && e.name)
+			.map(e => ({ id: String(e.id), name: String(e.name), category: category }));
+	}
+
+	async function loadExtraCatalog(forceRefresh) {
+		let cached = null;
+		try { cached = JSON.parse(global.localStorage.getItem(STORAGE_KEY_EXTRA_CATALOG) || 'null'); } catch (e) {}
+		const nextCache = {};
+		const entries = [];
+		const sources = [];
+
+		for (let i = 0; i < EXTRA_CATALOG_SOURCES.length; i++) {
+			const src = EXTRA_CATALOG_SOURCES[i];
+			let data = null, from = '';
+			try {
+				data = await fetchMasterJson(src.path, !!forceRefresh);
+				from = '取得';
+			} catch (e) {
+				if (cached && cached.data && cached.data[src.category]) { data = cached.data[src.category]; from = 'キャッシュ'; }
+			}
+			let list = normalizeCatalogEntries(data, src.category);
+			if (list.length === 0) {
+				// 組み込みの写し。ここまで来ても空なら、そのカテゴリは今回は無いものとして進む。
+				list = (EMBEDDED_EXTRA_CATALOG[src.category] || [])
+					.map(e => ({ id: e.id, name: e.name, category: src.category }));
+				data = null;
+				from = '組み込み';
+			}
+			if (data) nextCache[src.category] = data;
+			list.forEach(e => entries.push(e));
+			sources.push({ category: src.category, count: list.length, from: from, version: (data && data.dataVersion) || '' });
+		}
+
+		extraCatalog = entries;
+		extraCatalogMeta = { entryCount: entries.length, sources: sources };
+		try {
+			global.localStorage.setItem(STORAGE_KEY_EXTRA_CATALOG, JSON.stringify({ data: nextCache, fetchedAt: nowIso() }));
+		} catch (e) {}
+		return extraCatalogMeta;
+	}
+
+	/**
+	 * 収録スキルデータの読み込み。
+	 * 追加カタログ（EXTRA_CATALOG_SOURCES）もここで一緒に読む。呼び出し側が
+	 * 別々に呼ぶ形にすると、片方を呼び忘れたページだけ保存済みシートの行が
+	 * 「（不明なスキル：…）」に化けるため、入口を1つに寄せてある。
+	 */
 	async function loadMasterSkills(forceRefresh, masterJsonPath) {
+		await loadExtraCatalog(forceRefresh);
 		const url = masterJsonPath || MASTER_JSON_PATH;
 		try {
 			const data = await fetchMasterJson(url, !!forceRefresh);
@@ -300,7 +419,18 @@
 		if (m) return m;
 		const c = (ensureUserData().customSkills || []).find(s => s.customId === skillId);
 		if (c) return { id: c.customId, name: c.name, tags: c.tags };
+		// 追加カタログ（シナリオ因子など）。タグは持たないので空のタグ集合を返す。
+		// kind にカテゴリが入るので、呼び出し側は「カタログ由来か」を見分けられる。
+		const x = extraCatalog.find(s => s.id === skillId);
+		if (x) return { id: x.id, name: x.name, tags: emptyTagSet(), kind: x.category };
 		return null;
+	}
+
+	// そのスキルIDが追加カタログのものなら、そのカテゴリ名を返す（違えば空文字）。
+	// 行の印など「カタログ由来かどうか」で見せ方を変えたいときに使う。
+	function skillCatalogKind(skillId) {
+		const x = extraCatalog.find(s => s.id === skillId);
+		return x ? x.category : '';
 	}
 
 	function getSkillName(skillId) {
@@ -428,9 +558,15 @@
 	// 照合対象のプール（マスター＋カスタムスキル）。
 	// スキル選択パネルの一覧と同じ母集団にしておくことで、
 	// 「一覧には出ているのに貼り付けでは当たらない」というズレを避ける。
+	// 名前で引くための索引。母集団は「マスター＋利用者のカスタムスキル＋追加カタログ」。
+	// カタログを入れているのは、OCRツールから渡ってきた名前（シナリオ因子など）を
+	// 解決できるようにするため。「条件でスキルを検索」の母集団（getFilteredPickerPool）には
+	// 入れない — カタログのエントリはタグを持たず、条件検索では「万能スキル」として
+	// どの条件にも当たってしまうため。
 	function buildSkillTextIndex() {
 		const pool = masterSkills.map(sk => ({ id: sk.id, name: sk.name }))
-			.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name })));
+			.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name })))
+			.concat(extraCatalog.map(x => ({ id: x.id, name: x.name })));
 		return pool.map(p => ({ id: p.id, name: p.name, norm: normalizeSkillText(p.name) }));
 	}
 
@@ -1352,6 +1488,9 @@
 		if (tab) tab.focus();
 	}
 
+	// 「条件でスキルを検索」の母集団。追加カタログはここには入れない
+	// （タグを持たないため、matchesFilters では万能スキル扱いになって全条件に当たる）。
+	// 名前で探す側（findSkillsByNameFragment → buildSkillTextIndex）には入っている。
 	function getFilteredPickerPool() {
 		const pool = masterSkills.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name, tags: c.tags })));
 		return pool.filter(s => !picker.excludeIds.includes(s.id) && matchesFilters(s, picker.filters));
@@ -2896,6 +3035,13 @@
 		loadMasterSkills: loadMasterSkills,
 		getMasterSkills: function () { return masterSkills; },
 		getMasterMeta: function () { return masterMeta; },
+
+		// 追加カタログ（マスターの外のもの。読み込みは loadMasterSkills が一緒に行う）
+		loadExtraCatalog: loadExtraCatalog,
+		getExtraCatalog: function () { return extraCatalog; },
+		getExtraCatalogMeta: function () { return extraCatalogMeta; },
+		getExtraCatalogSources: function () { return EXTRA_CATALOG_SOURCES.slice(); },
+		skillCatalogKind: skillCatalogKind,
 
 		// スキル参照
 		findSkill: findSkill,

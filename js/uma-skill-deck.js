@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-14a';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-15a';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -174,6 +174,13 @@ function switchTab(name) {
 /* ============================================================
  * 比較レコード（スプレッドシート）
  * ============================================================ */
+/* 追加カタログのカテゴリ → 利用者に見せる呼び名。
+   ここに無いカテゴリは、カテゴリ名をそのまま出す（増やし忘れても壊れない）。 */
+const CATALOG_CATEGORY_LABELS = { scenarioFactor: 'シナリオ因子' };
+function catalogLabel(kind) {
+	return CATALOG_CATEGORY_LABELS[kind] || kind;
+}
+
 function renderRecordTab() {
 	syncUndoScope();
 	if (draftRecord) {
@@ -658,10 +665,16 @@ function renderRecordGrid() {
 		// tr が無いので、行の地色（ゼブラ）は行の全セルに同じクラスで付ける。
 		const zebra = idx % 2 === 0 ? 'deck-row-a' : 'deck-row-b';
 		const name = escapeHtml(getSkillName(skillId));
+		// 追加カタログ（シナリオ因子など。マスター445種の外のもの）から来た行は◆を付ける。
+		// 名前だけでは白スキルと区別できないため（OCRツール側の一覧・結果と同じ印）。
+		const catalogKind = Core.skillCatalogKind(skillId);
+		const catalogMark = catalogKind
+			? '<span class="deck-catalog-mark" title="' + escapeHtml(catalogLabel(catalogKind)) + '">◆</span>' : '';
 		html += '<div class="deck-cell deck-info ' + zebra + ' ' + (sum === 0 ? 'row-zero' : '') + '" id="row-' + escapeHtml(skillId) + '">'
 			+ '<span class="deck-name">'
 			// 効果タイプのドット。色分けは別フェーズなので今は1色のプレースホルダー。
 			+ '<span class="deck-cat-dot"></span>'
+			+ catalogMark
 			+ '<span class="deck-name-wrap">'
 			+ '<button type="button" class="deck-name-clip" title="' + name + '"'
 			+ ' onclick="event.stopPropagation(); toggleSkillNameTip(this, \'' + escapeHtml(skillId) + '\')">' + name + '</button>'
