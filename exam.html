@@ -661,6 +661,17 @@
 				<span>OCR処理＋画像結合を開始する（高負荷）</span>
 			</button>
 			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、親A（＋祖A1＋祖A2）・親B（＋祖B1＋祖B2）それぞれのスクリーンショットを1枚の画像にまとめ、SNS投稿用に使える形で出力します。画像枚数が多いほど処理に時間がかかります。</p>
+			<!-- 結果画像に区分の印を焼くかどうか。ここに置いてあるのは、印を付けるには
+			     結合をやり直す必要があるから（結果画像の引き出しに置くと、切り替えても
+			     その場では何も変わらない）。開発用の設定ではないので、「高度な解析オプション」の
+			     中には入れていない。 -->
+			<label class="mt-3 flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white transition-colors cursor-pointer">
+				<input id="opt-attr-icons" type="checkbox" onchange="setAttrIcons(this.checked)" class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
+				<div>
+					<span class="text-xs font-semibold text-slate-800">結果画像にスキルの区分の印を付ける</span>
+					<p class="text-[11px] text-slate-500 mt-0.5">スキル名の左の〇に、そのスキルがどの区分かを表す印（★●◆■✕）を重ねて焼き込みます。印の見かたは画像の上部に入ります。</p>
+				</div>
+			</label>
 			<!-- 「高度な解析オプション」で出るもの（切り出しプレビュー・開発ログ）の置き場。
 			     以前は照合結果のいちばん下にあったが、オプションを入れた場所から遠く、結果を読む
 			     流れの邪魔でもあったので、新UIでは処理を始めるボタンの下へ移した。
@@ -1373,6 +1384,12 @@
 		let previewCanvases = [];
 		let devGeometry = [];
 
+		/* 結果画像にスキルの区分の印を焼くために取っておくもの（人ごと）。
+		   personResults[p].skillSources の添字は personLines[p] を指すので、
+		   行まで辿るには両方を持っている必要がある。 */
+		let personLines = [];     // 人ごとのOCR行（stars・rowKey 付き）
+		let personGeometry = [];  // 人ごと・画像ごとの { rows, columnXs, scale, naturalW, naturalH }
+
 		// 緑59種の集計モード。'equivalence' = 実質53種（既定・目覚め系をペアで1カウント）
 		// 'individual' = 59種個別カウント。本体テーブルの★表示には影響しない。
 		let countMode = 'equivalence';
@@ -1403,6 +1420,48 @@
 		const SCENARIO_FACTORS_STORAGE_KEY = 'uma-exam-scenario-factors';
 
 		const CURATED_EXCLUDED_ID_SET = new Set(CURATED_EXCLUDED_IDS);
+		const EXPANDED_EXTRA_ID_SET = new Set(EXPANDED_EXTRA_SKILL_LIST.map(s => s.id));
+
+		/* ------------------------------------------------------------
+		 * スキルの区分（印の種類）
+		 *
+		 * 一覧・判定結果の表・結果画像の3か所が、同じこの1つの関数で区分を決める。
+		 * 以前は一覧と表にそれぞれ同じ if の連鎖が書いてあり、片方だけ直すと食い違った。
+		 *
+		 *   'sp70'    … SP70の緑スキル 17種
+		 *   'green'   … 緑スキル（SP70以外）42種
+		 *   'plain'   … その他の対象スキル 74種
+		 *   'factor'  … シナリオ因子 24種
+		 *   'added'   … 「対象を広げる」で足した5種（そのモードのときだけ）
+		 *   'removed' … 「対象を絞る」で外した12種（そのモードのときだけ）
+		 *   null      … 133種の外・選んでいないシナリオ因子など（印を付けない）
+		 *
+		 * 軸1は排他なので、'added' と 'removed' が同時に現れることはない。
+		 * ------------------------------------------------------------ */
+		function skillMarkKind(name) {
+			if (isScenarioFactor(name)) return 'factor';
+			const id = examSkillId(name);
+			if (!id) return null;
+			if (SP70_GREEN_17_SET.has(id)) return 'sp70';
+			if (GREEN_59_SET.has(id)) return 'green';
+			if (targetScopeMode === 'expanded' && EXPANDED_EXTRA_ID_SET.has(id)) return 'added';
+			if (targetScopeMode === 'curated' && CURATED_EXCLUDED_ID_SET.has(id)) return 'removed';
+			// 足した5種は 'expanded' 以外では skillList に入らないので、ここへは来ない
+			if (EXPANDED_EXTRA_ID_SET.has(id)) return null;
+			return 'plain';
+		}
+
+		/**
+		 * 画面（一覧・判定結果の表）に出す記号。**3種だけ**で、
+		 * 'plain' / 'added' / 'removed' には記号を出さない（画面の見た目は従来どおり。
+		 * 足した5種・外した12種は赤＋下線／赤＋打ち消し線で示していて、記号は使っていない）。
+		 * 結果画像のほうは6種すべてを描く。
+		 */
+		const SCREEN_MARK = {
+			factor: { glyph: '◆', color: 'text-sky-500', listTitle: 'シナリオ因子', tableTitle: 'シナリオ因子' },
+			sp70: { glyph: '★', color: 'text-amber-500', listTitle: 'sp70緑', tableTitle: 'sp70緑（高コスパ17種）' },
+			green: { glyph: '●', color: 'text-emerald-500', listTitle: '緑59種', tableTitle: '緑59種' }
+		};
 
 		// 軸1を反映した基準リスト（名前）
 		function scopeBaseNames(mode) {
@@ -1531,6 +1590,7 @@
 			updateCategoryBadges();
 			renderPersonUploadGrid();
 			restoreCountMode();
+			restoreAttrIcons();
 			initStitchSaveName();
 			selectCopyList('all133');
 			updateProcessBtn();
@@ -1573,15 +1633,10 @@
 			const box = document.getElementById('skill-registry-list');
 			box.innerHTML = buildSkillRegistryRows().map(row => {
 				const skill = row.name;
-				const id = examSkillId(skill);
-				let mark = '<span class="inline-block w-3"></span>';
-				if (isScenarioFactor(skill)) {
-					mark = '<span class="text-sky-500 font-bold" title="シナリオ因子">◆</span>';
-				} else if (id && SP70_GREEN_17_SET.has(id)) {
-					mark = '<span class="text-amber-500 font-bold" title="sp70緑">★</span>';
-				} else if (id && GREEN_59_SET.has(id)) {
-					mark = '<span class="text-emerald-500 font-bold" title="緑59種">●</span>';
-				}
+				const m = SCREEN_MARK[skillMarkKind(skill)];
+				const mark = m
+					? '<span class="' + m.color + ' font-bold" title="' + m.listTitle + '">' + m.glyph + '</span>'
+					: '<span class="inline-block w-3"></span>';
 				let nameClass = '', title = '';
 				if (row.state === 'scopeAdded') { nameClass = ' class="registry-added"'; title = ' title="「対象を広げる」で足したスキル"'; }
 				else if (row.state === 'scopeRemoved') { nameClass = ' class="registry-removed"'; title = ' title="「対象を絞る」で対象から外したスキル"'; }
@@ -2156,14 +2211,25 @@
 			const skipped = [];
 			// 足切りはしないが品質が推奨を下回った画像（利用者への注意表示用）
 			const warned = [];
+			// 結果画像に印を焼くための行の座標（画像ごと・files と同じ並び）。
+			// 行を検出できなかった画像・画質で飛ばした画像のところは null のまま残す。
+			const geometry = files.map(() => null);
 			for (let i = 0; i < files.length; i++) {
 				const file = files[i];
 				const diag = [];
-				let base = null, detection = null;
+				let base = null, detection = null, img = null;
 				try {
-					const img = await loadImage(file);
+					img = await loadImage(file);
 					base = toBaseCanvas(img);
 					diag.push('画像サイズ ' + base.width + '×' + base.height);
+					// 印を焼くのに使う情報。行（rows）は検出できてから入れる。
+					// 元の大きさは、画面の形が印に対応しているかの判定（決定6）に使うので、
+					// 行が取れなかった画像でも必ず控えておく。
+					geometry[i] = {
+						rows: null, columnXs: null,
+						scale: img.naturalWidth / base.width,
+						naturalW: img.naturalWidth, naturalH: img.naturalHeight
+					};
 
 					// 画質による事前チェック（common.js参照）。SNS再共有や画像結合ツールを経由した
 					// 画像は、辞書やしきい値を調整しても構造的に精度が出ないことを確認済み。
@@ -2202,6 +2268,11 @@
 
 				let target, placements = [], rowStars = [];
 				if (detection) {
+					// rows / columnXs は toBaseCanvas() 後の座標。元画像へ戻す倍率は上で控えてある。
+					if (geometry[i]) {
+						geometry[i].rows = detection.rows;
+						geometry[i].columnXs = detection.columnXs;
+					}
 					rowStars = computeRowStarCounts(base, detection);
 					const stacked = stackRowsWithMeta(base, detection.rows);
 					target = stacked.canvas;
@@ -2234,7 +2305,7 @@
 					}
 				}
 			}
-			return { lines: lines, skipped: skipped, warned: warned };
+			return { lines: lines, skipped: skipped, warned: warned, geometry: geometry };
 		}
 
 		// opts.keepClosed … 判定後に照合結果の引き出しを自動で開かない（OCR＋結合のときは、
@@ -2247,6 +2318,8 @@
 			devGeometry = [];
 			previewCanvases = [];
 			personResults = PERSON_LABELS.map(() => null);
+			personLines = PERSON_LABELS.map(() => null);
+			personGeometry = PERSON_LABELS.map(() => null);
 
 			const progressWrap = document.getElementById('progress-wrap');
 			const errorWrap = document.getElementById('error-wrap');
@@ -2287,6 +2360,9 @@
 					if (result.warned.length > 0) warnedAll.push.apply(warnedAll, result.warned);
 					personResults[p] = applyScenarioFactorExactOnly(
 						matchAllSkillsWithStars(result.lines, skillList, skillIndex, {}), result.lines);
+					// 結果画像の印を焼くのに使う（判定・集計には一切関わらない）
+					personLines[p] = result.lines;
+					personGeometry[p] = result.geometry;
 				}
 			} catch (err) {
 				console.error(err);
@@ -2688,13 +2764,12 @@
 				'<span class="star-cell text-slate-300">' + '★'.repeat(3 - stars) + '</span>';
 		}
 
-		// スキル名の前に付けるカテゴリバッジ（sp70緑=★ / 緑59種=● / カスタム追加=＋）。
+		// スキル名の前に付けるカテゴリバッジ（sp70緑=★ / 緑59種=● / シナリオ因子=◆）。
+		// 区分の判定は skillMarkKind() に一本化してある（一覧・結果画像と共有）。
 		function categoryBadge(skill) {
-			const id = examSkillId(skill);
-			if (isScenarioFactor(skill)) return '<span class="text-sky-500 mr-1" title="シナリオ因子">◆</span>';
-			if (id && SP70_GREEN_17_SET.has(id)) return '<span class="text-amber-500 mr-1" title="sp70緑（高コスパ17種）">★</span>';
-			if (id && GREEN_59_SET.has(id)) return '<span class="text-emerald-500 mr-1" title="緑59種">●</span>';
-			return '';
+			const m = SCREEN_MARK[skillMarkKind(skill)];
+			if (!m) return '';
+			return '<span class="' + m.color + ' mr-1" title="' + m.tableTitle + '">' + m.glyph + '</span>';
 		}
 
 		function filterResults() {
@@ -2899,6 +2974,306 @@
 		 * exam.html専用のUI組み立て（バナー描画・セット単位の結合処理）のみ。
 		 * ============================================================ */
 
+		/* ============================================================
+		 * 結果画像のスキルの区分の印（属性アイコン）
+		 *
+		 * 結果画像の中のスキルパネルには、スキル名の左に灰色の〇が描かれている。
+		 * その〇の位置に、そのスキルがどの区分かを表す印を重ねる。
+		 * SNS に投稿した画像で、どの因子が何なのかを見分けられるようにするため。
+		 *
+		 * 既定は OFF（保存値が無ければ付けない）。OFF のときは印も凡例も一切出さず、
+		 * 結果画像は従来とまったく同じものになる。
+		 *
+		 * 位置の決め方: 〇の色は**見ない**（スクショの明るさや圧縮ノイズに左右されるため）。
+		 *   スキル名 → 検出の根拠になったOCR行 → 元画像の行（detectSkillRows の rows）
+		 *   → 結合後の座標（stitchOnePerson の _sourcePlacements）と、静かな表引きでたどる。
+		 *
+		 * 描く順番: **必ず結合が終わったあとに焼く。** 結合の前に元画像へ描き込むと、
+		 *   継ぎ目を画素の突き合わせで決めている処理がその描き込みに引きずられて
+		 *   結合位置がズレる（js/stitch.js の stitchOnePerson の注意書きを参照）。
+		 * ============================================================ */
+
+		const ATTR_ICONS_STORAGE_KEY = 'uma-exam-attr-icons';
+		let attrIconsEnabled = false; // 保存値が無いときは OFF
+
+		function restoreAttrIcons() {
+			attrIconsEnabled = readStored(ATTR_ICONS_STORAGE_KEY) === '1';
+			const el = document.getElementById('opt-attr-icons');
+			if (el) el.checked = attrIconsEnabled;
+		}
+
+		function setAttrIcons(on) {
+			attrIconsEnabled = !!on;
+			writeStored(ATTR_ICONS_STORAGE_KEY, attrIconsEnabled ? '1' : '0');
+		}
+
+		/* ------------------------------------------------------------
+		 * 印を付けてよい画面の形
+		 *
+		 * 〇の位置と大きさは「画像の幅に対する比」で持っている。その比を実測できて
+		 * いる画面の形のときだけ印を描く（決定6）。幅と縦横比だけで決める。
+		 * js/stitch.js の「結合できる形か」とは別物で、こちらのほうが狭い。
+		 *
+		 * DMM版（縦横比 1.55〜1.95）は素材がまだ無く比率を測れていないので入れていない。
+		 * 素材が届いたら実測して、ここに1行足す。
+		 * ------------------------------------------------------------ */
+		const ATTR_ICON_KNOWN_PROFILES = [
+			{ label: 'スマホ版相当', minWidth: 700, maxWidth: 1500, minAspect: 1.9, maxAspect: 2.5 }
+		];
+
+		function attrIconProfileOf(w, h) {
+			if (!w || !h) return null;
+			const aspect = h / w;
+			return ATTR_ICON_KNOWN_PROFILES.find(p =>
+				w >= p.minWidth && w <= p.maxWidth && aspect >= p.minAspect && aspect <= p.maxAspect) || null;
+		}
+
+		/* ------------------------------------------------------------
+		 * 〇 の位置と大きさ（34セッション目の Step 0 で実測）
+		 *
+		 * 幅1179px のスクリーンショット14枚・のべ62行で測った値。ばらつきは ±1px。
+		 *   元の灰色の〇の直径      = 幅 × 0.0433（実測 51〜53px）
+		 *   〇の中心x = 列の左端 − 幅 × 0.0322（実測 38px）
+		 *   〇の中心y = スキル名の外接矩形の中心y（ズレ 0px）
+		 * 印は元の〇の 0.75 倍にして、灰色の輪を外側に残す。
+		 * ------------------------------------------------------------ */
+		const ATTR_CIRCLE_D_RATIO = 0.0433;
+		const ATTR_CIRCLE_CX_RATIO = 0.0322;
+		const ATTR_MARK_SCALE = 0.75;
+
+		// 区分ごとの色。値は書かず、css/tokens.css のトークンの名前だけを持つ（F-19）。
+		const ATTR_MARK_TOKEN = {
+			sp70: '--uma-star',
+			green: '--uma-mark-green-skill',
+			plain: '--uma-text',
+			factor: '--uma-mark-catalog',
+			added: '--uma-danger-text',
+			removed: '--uma-danger-text'
+		};
+
+		// 凡例に並べる順番と文言（文言は仮）。
+		const MARK_KIND_ORDER = ['sp70', 'green', 'plain', 'factor', 'added', 'removed'];
+		const MARK_LEGEND_LABEL = {
+			sp70: 'SP70の緑スキル',
+			green: '緑スキル（SP70以外）',
+			plain: 'その他の対象スキル',
+			factor: 'シナリオ因子',
+			added: '追加したスキル',
+			removed: '除外したスキル'
+		};
+		const MARK_LEGEND_HEAD = '印の見かた：';
+		const MARK_LEGEND_NOTE = '印の無い行は、対象外のスキルか、読み取れなかった行です。';
+		const MARK_SUPPRESSED_NOTE = 'この画像は対応を確認できていない画面サイズのため、印を付けていません。';
+
+		/**
+		 * 印の色をトークンから読む。Canvas には CSS が効かないので実行時に引く。
+		 * 1つでも読めなければ null を返し、呼び出し側は印そのものを描かない
+		 * （読めなかったときの代わりの色をここに書くと、生のhexが戻ってきてしまう）。
+		 */
+		function attrMarkColors() {
+			const css = getComputedStyle(document.documentElement);
+			const out = {};
+			for (const kind of Object.keys(ATTR_MARK_TOKEN)) {
+				const v = css.getPropertyValue(ATTR_MARK_TOKEN[kind]).trim();
+				if (!v) return null;
+				out[kind] = v;
+			}
+			return out;
+		}
+
+		/**
+		 * 印そのものを描く。中心 (cx, cy)・差し渡し d。
+		 * 結果画像と凡例の**両方がこれを呼ぶ**（2か所で別々に描くと形が食い違う）。
+		 *
+		 * ★ と ♦ だけ外接円を d より大きく取っている。塗りの面積が円より小さいので、
+		 * 同じ差し渡しで並べると一段小さく見えるため（決定5の但し書き）。
+		 * それでも元の灰色の〇（d ÷ 0.75）の内側に収まる。
+		 */
+		function drawSkillMark(ctx, kind, cx, cy, d, colors) {
+			ctx.save();
+			ctx.fillStyle = colors[kind];
+			ctx.strokeStyle = colors[kind];
+			if (kind === 'sp70') {
+				const r = d * 0.62;
+				ctx.beginPath();
+				for (let i = 0; i < 10; i++) {
+					const rr = (i % 2 === 0) ? r : r * 0.45;
+					const a = -Math.PI / 2 + (i * Math.PI) / 5;
+					const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+					if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+				}
+				ctx.closePath();
+				ctx.fill();
+			} else if (kind === 'green' || kind === 'plain') {
+				ctx.beginPath();
+				ctx.arc(cx, cy, d / 2, 0, Math.PI * 2);
+				ctx.fill();
+			} else if (kind === 'factor') {
+				const r = d * 0.62;
+				ctx.beginPath();
+				ctx.moveTo(cx, cy - r);
+				ctx.lineTo(cx + r, cy);
+				ctx.lineTo(cx, cy + r);
+				ctx.lineTo(cx - r, cy);
+				ctx.closePath();
+				ctx.fill();
+			} else if (kind === 'added') {
+				const s = d * 0.78;
+				ctx.fillRect(cx - s / 2, cy - s / 2, s, s);
+			} else if (kind === 'removed') {
+				const r = d * 0.40;
+				ctx.lineWidth = Math.max(2, d * 0.22);
+				ctx.lineCap = 'round';
+				ctx.beginPath();
+				ctx.moveTo(cx - r, cy - r); ctx.lineTo(cx + r, cy + r);
+				ctx.moveTo(cx + r, cy - r); ctx.lineTo(cx - r, cy + r);
+				ctx.stroke();
+			}
+			ctx.restore();
+		}
+
+		/**
+		 * 「対象を絞る」で外した12種を、**表示のためだけに**拾い直す。
+		 *
+		 * この12種は skillList から外れているので、通常の照合では検出されない。
+		 * ✕ を描く位置を決めるためだけに使い、判定にも集計にも一切入れない
+		 * （personResults には触らない）。
+		 *
+		 * シナリオ因子と同じく normalizeText() 後の完全一致でしか拾わない。
+		 * あいまい一致を許すと、字面の近い別のスキルの行に ✕ を描いてしまう。
+		 *
+		 * 戻り値: { スキル名: [lines の添字, ...] }
+		 */
+		function curatedRemovedSources(lines) {
+			const out = {};
+			if (targetScopeMode !== 'curated') return out;
+			const targets = CURATED_EXCLUDED_IDS
+				.map(id => EXAM_NAME_BY_ID[id])
+				.filter(Boolean)
+				.map(name => ({ name: name, norm: normalizeText(name) }))
+				.filter(t => t.norm);
+			(lines || []).forEach((l, i) => {
+				const norm = normalizeText(l.text);
+				if (!norm) return;
+				targets.forEach(t => {
+					if (norm.indexOf(t.norm) === -1) return;
+					if (!out[t.name]) out[t.name] = [];
+					out[t.name].push(i);
+				});
+			});
+			return out;
+		}
+
+		/**
+		 * 1人分の結合画像（縦につないだCanvas）の上に印を焼く。
+		 *
+		 * 戻り値: { drawn, suppressed, kinds }
+		 *   drawn      … 1つでも印を描いたか
+		 *   suppressed … 画面の形が未対応で描かなかったか（抑止の1行を出す）
+		 *   kinds      … 実際に使った区分（凡例に並べるのは使ったものだけ）
+		 */
+		function drawAttrIconsOnPerson(canvas, personIdx) {
+			const none = { drawn: false, suppressed: false, kinds: [] };
+			if (!attrIconsEnabled) return none;
+			const geo = personGeometry[personIdx];
+			const lines = personLines[personIdx];
+			const res = personResults[personIdx];
+			if (!geo || !lines || !res) return none;
+			// 1枚でも未対応の形が混ざっていれば、この人には印を付けない（決定6）
+			if (!geo.every(g => g && attrIconProfileOf(g.naturalW, g.naturalH))) {
+				return { drawn: false, suppressed: true, kinds: [] };
+			}
+			const colors = attrMarkColors();
+			if (!colors) {
+				devGeometry.push('[印] 色のトークンを読めなかったため、印を描きませんでした');
+				return none;
+			}
+
+			// rowKey（"画像の番号:行の番号"）→ 区分
+			const kindByRowKey = {};
+			const assign = (sources, kind) => {
+				(sources || []).forEach(li => {
+					const l = lines[li];
+					if (l && l.rowKey) kindByRowKey[l.rowKey] = kind;
+				});
+			};
+			res.detectedSkills.forEach(name => {
+				const kind = skillMarkKind(name);
+				if (kind) assign(res.skillSources[name], kind);
+			});
+			const removed = curatedRemovedSources(lines);
+			Object.keys(removed).forEach(name => assign(removed[name], 'removed'));
+
+			// 結合を経ていないCanvas（1枚だけ・幅不揃い・スクロール未検出で結合できなかった等）
+			// に備えて、恒等の対応表へ倒す。
+			const placements = (canvas._sourcePlacements && canvas._sourcePlacements.length)
+				? canvas._sourcePlacements
+				: [{ fileIndex: 0, srcY0: 0, srcY1: canvas.height, outY0: 0 }];
+
+			const ctx = canvas.getContext('2d');
+			const W = canvas.width;
+			const d = W * ATTR_CIRCLE_D_RATIO * ATTR_MARK_SCALE;
+			const used = new Set();
+			const placed = [];
+			placements.forEach(p => {
+				const g = geo[p.fileIndex];
+				if (!g || !g.rows || !g.columnXs) return;
+				g.rows.forEach((row, rowIndex) => {
+					const kind = kindByRowKey[p.fileIndex + ':' + rowIndex];
+					if (!kind) return;
+					// rows は toBaseCanvas() 後の座標なので、元画像の座標へ戻す
+					const cySrc = (row.y + row.h / 2) * g.scale;
+					// この画像から実際に採られた範囲の外は、別の画像が受け持つ
+					if (cySrc < p.srcY0 || cySrc >= p.srcY1) return;
+					const cx = g.columnXs[row.col] * g.scale - W * ATTR_CIRCLE_CX_RATIO;
+					const cy = p.outY0 + (cySrc - p.srcY0);
+					// 同じ行が2枚に写っていたときの重ね描きを避ける
+					if (placed.some(q => Math.abs(q.x - cx) < d && Math.abs(q.y - cy) < d)) return;
+					placed.push({ x: cx, y: cy });
+					drawSkillMark(ctx, kind, cx, cy, d, colors);
+					used.add(kind);
+				});
+			});
+			return { drawn: placed.length > 0, suppressed: false, kinds: MARK_KIND_ORDER.filter(k => used.has(k)) };
+		}
+
+		/**
+		 * 凡例の1行を、折り返し済みの「部品の並び」に組み立てる。
+		 *
+		 * 記号は文字ではなく drawSkillMark() で描く。黒の● と 緑の● は色でしか
+		 * 違わないので、単色の文字として描くと凡例が凡例にならない。
+		 */
+		function buildMarkLegendLines(ctx, kinds, maxWidth, fontSize) {
+			const glyphW = fontSize * 1.35;
+			const sep = ' ／ ';
+			// 「区切り＋記号＋説明」を1つのかたまりにして、その境目でだけ折り返す。
+			// 部品ごとに折り返すと、行頭が「／」だけになる。
+			const groups = [[{ type: 'text', text: MARK_LEGEND_HEAD, w: ctx.measureText(MARK_LEGEND_HEAD).width }]];
+			kinds.forEach((k, i) => {
+				const g = [];
+				if (i > 0) g.push({ type: 'text', text: sep, w: ctx.measureText(sep).width });
+				g.push({ type: 'mark', kind: k, w: glyphW });
+				const label = ' ' + MARK_LEGEND_LABEL[k];
+				g.push({ type: 'text', text: label, w: ctx.measureText(label).width });
+				groups.push(g);
+			});
+			const lines = [[]];
+			let x = 0;
+			groups.forEach(g => {
+				let parts = g;
+				const gw = g.reduce((sum, it) => sum + it.w, 0);
+				if (x > 0 && x + gw > maxWidth) {
+					lines.push([]);
+					x = 0;
+					// 行の頭に区切りの「／」だけが残らないように落とす
+					parts = g.filter(it => !(it.type === 'text' && it.text === sep));
+				}
+				parts.forEach(it => lines[lines.length - 1].push(it));
+				x += parts.reduce((sum, it) => sum + it.w, 0);
+			});
+			return lines;
+		}
+
 		// ①-7：ハイライトバナー（検出数・sp70緑のシンプルな表示。
 		// 現行UIの「照合結果」カードと同じ配色：検出＝青系、sp70緑＝黄色/オレンジ系）
 		//
@@ -3056,7 +3431,10 @@
 		// 共有の補助テキスト欄（セット内の全員分の横幅を使う）。
 		// 上に「何を追加／除外したか」を左揃えで、いちばん下に従来からの脚注を右揃えで置く。
 		// 調整が無ければ従来どおり脚注の1行だけになる。
-		function stitchDrawSharedNoteBar(totalWidth, referenceWidth) {
+		//
+		// markInfo … 印の凡例。{ kinds: [使った区分], suppressed: 未対応の形だったか }。
+		//   印が OFF のときは kinds が空・suppressed が false なので、この欄は1行も増えない。
+		function stitchDrawSharedNoteBar(totalWidth, referenceWidth, markInfo) {
 			const cardH = Math.round(referenceWidth * 0.185);
 			// ④ 補助テキスト欄は、バナーのカードの見出し（0.28）より一段小さくする
 			const targetFontSize = Math.round(cardH * 0.23);
@@ -3079,8 +3457,21 @@
 				stitchWrapText(ctx, t, maxTextWidth).forEach(line => extra.push(line));
 			});
 
+			// 印の凡例。使った区分だけを並べる。記号は色で描き分けるので、
+			// 文字ではなく結果画像と同じ drawSkillMark() で描く。
+			const info = markInfo || {};
+			const markColors = (info.kinds && info.kinds.length) ? attrMarkColors() : null;
+			const legendLines = markColors ? buildMarkLegendLines(ctx, info.kinds, maxTextWidth, fontSize) : [];
+			const tailNotes = [];
+			if (legendLines.length) {
+				stitchWrapText(ctx, MARK_LEGEND_NOTE, maxTextWidth).forEach(line => tailNotes.push(line));
+			}
+			if (info.suppressed) {
+				stitchWrapText(ctx, MARK_SUPPRESSED_NOTE, maxTextWidth).forEach(line => tailNotes.push(line));
+			}
+
 			const lineH = Math.round(fontSize * 1.8);
-			const barHeight = lineH * (extra.length + 1);
+			const barHeight = lineH * (extra.length + legendLines.length + tailNotes.length + 1);
 			c.width = totalWidth;
 			c.height = barHeight;
 			// canvas の大きさを変えると描画状態が初期化されるので、ここで設定し直す
@@ -3088,12 +3479,32 @@
 			ctx.fillStyle = '#ffffff';
 			ctx.fillRect(0, 0, totalWidth, barHeight);
 
+			// 補助テキストの文字色。凡例の説明文もこれに合わせる（記号だけが区分の色）。
+			const noteColor = '#555555';
+			const lineTop = (i) => Math.round(i * lineH + lineH * 0.15);
+			let row = 0;
 			ctx.textBaseline = 'top';
-			ctx.fillStyle = '#555555';
+			ctx.fillStyle = noteColor;
 			ctx.textAlign = 'left';
-			extra.forEach((line, i) => ctx.fillText(line, pad, Math.round(i * lineH + lineH * 0.15)));
+			extra.forEach(line => { ctx.fillText(line, pad, lineTop(row)); row++; });
+			legendLines.forEach(segs => {
+				const y = lineTop(row);
+				let x = pad;
+				segs.forEach(it => {
+					if (it.type === 'mark') {
+						drawSkillMark(ctx, it.kind, x + it.w / 2, y + fontSize * 0.5, fontSize * 0.95, markColors);
+					} else {
+						ctx.fillStyle = noteColor;
+						ctx.fillText(it.text, x, y);
+					}
+					x += it.w;
+				});
+				row++;
+			});
+			ctx.fillStyle = noteColor;
+			tailNotes.forEach(line => { ctx.fillText(line, pad, lineTop(row)); row++; });
 			ctx.textAlign = 'right';
-			ctx.fillText(noteText, totalWidth - pad, Math.round(extra.length * lineH + lineH * 0.15));
+			ctx.fillText(noteText, totalWidth - pad, lineTop(row));
 			ctx.textAlign = 'left';
 
 			return c;
@@ -3132,6 +3543,9 @@
 			const personMeta = []; // コピー機能用に、personIdx・sp70・green・labelを保持
 
 			const allWarnings = [];
+			// 印の凡例に出すもの（セット内の全員ぶんをまとめる）
+			const usedMarkKinds = new Set();
+			let markSuppressed = false;
 			for (const idx of activeIndexes) {
 				const label = PERSON_LABELS[idx];
 				const contentCanvas = await stitchOnePerson(persons[idx].files, label);
@@ -3139,6 +3553,10 @@
 				if (contentCanvas._stitchWarnings && contentCanvas._stitchWarnings.length) {
 					allWarnings.push(...contentCanvas._stitchWarnings);
 				}
+				// 区分の印は**結合が終わってから**焼く（結合の前に描くと継ぎ目がズレる）
+				const mark = drawAttrIconsOnPerson(contentCanvas, idx);
+				mark.kinds.forEach(k => usedMarkKinds.add(k));
+				if (mark.suppressed) markSuppressed = true;
 				const detected = countDetected(idx);
 				const sp70Count = countCategory(idx, sp70Ids, false);
 				const greenCount = countCategory(idx, greenIds, equivalence);
@@ -3152,7 +3570,10 @@
 
 			const bannerRow = bannerCanvases.length === 1 ? bannerCanvases[0] : stitchConcatHorizontallyTopAligned(bannerCanvases);
 			const contentRow = contentCanvases.length === 1 ? contentCanvases[0] : stitchConcatHorizontallyTopAligned(contentCanvases);
-			const noteBar = stitchDrawSharedNoteBar(bannerRow.width, contentCanvases[0].width);
+			const noteBar = stitchDrawSharedNoteBar(bannerRow.width, contentCanvases[0].width, {
+				kinds: MARK_KIND_ORDER.filter(k => usedMarkKinds.has(k)),
+				suppressed: markSuppressed
+			});
 
 			const totalWidth = Math.max(bannerRow.width, noteBar.width, contentRow.width);
 			const totalHeight = bannerRow.height + noteBar.height + contentRow.height;
