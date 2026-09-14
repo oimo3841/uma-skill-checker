@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14i';
 
 	/* ============================================================
 	 * 定数
@@ -763,7 +763,10 @@
 		     .usd-paste-cand  … **押すとその場で確定する**。アクセント色・**角丸いっぱいの丸い形**
 		     .usd-paste-panel … **押すと何かが開く**（入力欄・画像）。無彩色・**四角い形**
 		     .usd-paste-skip  … **押すとその行を畳む／控えめな導線**。下線付きの淡い文字
-		   新しいボタンを足すときは、この3つのどれかに必ず当てはめる。 */
+		     .uma-btn--secondary … **押すと戻る**。共通部品の二次ボタン（枠と影のある普通のボタン）
+		   新しいボタンを足すときは、この4つのどれかに必ず当てはめる。
+		   32セッション目の実機で「戻る」を .usd-paste-skip で出していたら**押せる要素に見えなかった**。
+		   候補チップと似せないようにして控えめに倒しすぎた例で、**戻るは別枠**として扱う。 */
 		'.usd-paste-cand { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); padding: var(--uma-sp-0-5) var(--uma-sp-2);',
 		'  border-radius: var(--uma-r-full); border: 1px solid var(--uma-accent-border); background: var(--uma-accent-soft);',
 		'  color: var(--uma-accent-soft-text); cursor: pointer; }',
@@ -782,7 +785,9 @@
 
 		/* 「名前を入れて探す」のサブ画面（32セッション目）。報告と入れ替えで出す。
 		   候補一覧だけが伸び縮みするので、スマホでキーボードが出ても入力欄が押し出されない。 */
-		'.usd-name-head { margin-bottom: var(--uma-sp-2); }',
+		'.usd-name-head { margin-bottom: var(--uma-sp-3); }',
+		// スマホで押しやすい大きさを確保する（共通部品の padding だけだと指には小さい）
+		'.usd-name-back { min-height: 40px; padding-left: var(--uma-sp-3); padding-right: var(--uma-sp-4); }',
 		'.usd-name-read { margin-bottom: var(--uma-sp-2); font-family: var(--uma-font-mono); word-break: break-all; }',
 		// 画像は高さを抑える。抑えないと、縦に長い切り出しが来たときスマホで入力欄が画面の外へ押し出される
 		'.usd-name-img { display: block; width: 100%; height: auto; max-height: 22vh; object-fit: contain;',
@@ -1648,14 +1653,20 @@
 				(typeof pasteOptions.onShowPanel === 'function' ? ' data-usd-act="name-zoom"' : '') + '>'
 			: '';
 		el.innerHTML = '' +
+			// 戻るは**サブ画面で唯一の目に見える戻り手段**なので、押せることが一目で分かる大きさにする
+			// （32セッション目・実機。以前は .usd-paste-skip ＝下線付きの淡い小さな文字で、押せる要素に見えなかった）。
+			// 候補チップ（押すと確定）とも「開く」ボタンとも違う3つ目の形＝共通部品の二次ボタンを使う。
 			'<div class="usd-name-head">' +
-				'<button type="button" class="usd-paste-skip" data-usd-act="name-back">← 一覧へ戻る</button>' +
+				'<button type="button" class="uma-btn uma-btn--secondary usd-name-back" data-usd-act="name-back">' +
+					'<i data-lucide="arrow-left" class="w-4 h-4"></i><span>一覧へ戻る</span>' +
+				'</button>' +
 			'</div>' +
 			(row.raw ? '<p class="usd-paste-hint usd-name-read">読み取った文字：「' + esc(row.raw) + '」</p>' : '') +
 			img +
 			'<label class="usd-name-label" for="usd-find-input">スキル名を入力すると候補が出ます</label>' +
 			'<input type="text" id="usd-find-input" class="usd-input uma-input" data-usd-el="find-input" autocomplete="off" placeholder="名前の一部を入力（例：下り）">' +
 			'<div class="usd-name-results" data-usd-el="find-results"></div>';
+		refreshIcons(); // 戻るボタンの矢印（lucide）を実体化する
 		const input = q(pickerEl, 'find-input');
 		// 日本語入力の変換中は絞り込まない（未確定の文字で絞ると候補が目まぐるしく入れ替わる）。
 		// compositionend のあとに input が来ない環境があるので、compositionend でも走らせる。
