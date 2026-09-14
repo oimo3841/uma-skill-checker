@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14h';
 
 	/* ============================================================
 	 * 定数
@@ -1073,9 +1073,25 @@
 		pickerEl.innerHTML = pickerMarkup();
 		document.body.appendChild(pickerEl);
 
+		// Esc。**「名前を入れて探す」を開いている間だけ**受け、サブ画面を閉じて一覧へ戻す
+		// （32セッション目。モーダル全体は閉じない＝読み取った結果を消さない）。
+		// 一覧の状態では何もしない（ピッカーはもともと Esc で閉じない作りで、そこは変えない）。
+		// 手前に別の層（撮影ガイド・画像の拡大など）が開いているときは、そちらが先に処理して
+		// preventDefault() を立てるので譲る。こちらも処理したら立てる（二重に閉じないため）。
+		document.addEventListener('keydown', (e) => {
+			if (e.key !== 'Escape' || e.defaultPrevented) return;
+			if (!pickerEl || pickerEl.hidden || pasteName.row < 0) return;
+			closePasteNameFinder();
+			e.preventDefault();
+		});
+
 		pickerEl.addEventListener('click', (e) => {
-			// 背景（パネル外）のクリックで閉じる
-			if (e.target === pickerEl) { closePicker(); return; }
+			// 背景（パネル外）のクリック。**「名前を入れて探す」を開いている間は一覧へ戻るだけ**にする
+			// （32セッション目・実機。ここでモーダルごと閉じると読み取った結果が全部消える）。
+			if (e.target === pickerEl) {
+				if (pasteName.row >= 0) closePasteNameFinder(); else closePicker();
+				return;
+			}
 			const btn = e.target.closest('[data-usd-act]');
 			if (!btn || !pickerEl.contains(btn)) return;
 			const act = btn.dataset.usdAct;
@@ -1578,6 +1594,13 @@
 	/** サブ画面と報告の表示を入れ替える。 */
 	function togglePasteNameView(on) {
 		if (!pickerEl) return;
+		// モーダル右上の×は**サブ画面を開いている間だけ隠す**（32セッション目・実機で判明）。
+		// 開いている間、利用者には「いま操作しているこの行をやめる」ボタンに見えるが、実際には
+		// モーダルごと閉じて読み取った結果が全部消える（読み取り直しは画像の選択からやり直し）。
+		// ×そのものは無くさない。一覧の状態では閉じる手段として要る。
+		// `.uma-icon-btn[hidden]` が css/common.css で display:none になるので hidden 属性で消える。
+		const closeBtn = pickerEl.querySelector('[data-usd-act="picker-close"]');
+		if (closeBtn) closeBtn.hidden = !!on;
 		q(pickerEl, 'paste-name').hidden = !on;
 		q(pickerEl, 'paste-report').hidden = !!on;
 		const summary = q(pickerEl, 'paste-summary');
@@ -1877,6 +1900,9 @@
 		const nameEl = q(pickerEl, 'paste-name');
 		if (nameEl) { nameEl.hidden = true; nameEl.textContent = ''; }
 		q(pickerEl, 'paste-report').hidden = false;
+		// サブ画面を開いたまま閉じられていた場合に備えて、×を出し直す
+		const closeBtnReset = pickerEl.querySelector('[data-usd-act="picker-close"]');
+		if (closeBtnReset) closeBtnReset.hidden = false;
 		const pasteInput = q(pickerEl, 'paste-input');
 		if (pasteInput) pasteInput.value = '';
 		const customName = q(pickerEl, 'custom-name');

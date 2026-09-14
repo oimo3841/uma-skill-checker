@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-14g"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-14h"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-13a"></script>
 	<style>
@@ -2559,7 +2559,7 @@
 
 		// Esc は「開いているものを1つ閉じる」。いちばん手前にあるものから順に。
 		document.addEventListener('keydown', (e) => {
-			if (e.key !== 'Escape') return;
+			if (e.key !== 'Escape' || e.defaultPrevented) return;
 			// スキルパネルの画像はスキル選択モーダルの上に重なるので、いちばん手前＝先に閉じる
 			if (skillsetPanelOpen) closeSkillsetPanel();
 			else if (uiNoticeOpen) closeUiNotice();
@@ -2567,6 +2567,10 @@
 			else if (helpOpen) closeHelp();
 			else if (openDrawerKey) closeDrawer();
 			else if (fabOpen) setFabOpen(false);
+			else return;
+			// 処理したことを知らせる。core 側もスキル選択モーダルの中のサブ画面を Esc で閉じるので、
+			// 印を立てないと「画像を閉じる」と「サブ画面を閉じる」が一度に起きる（32セッション目）。
+			e.preventDefault();
 		});
 
 		/* ============================================================

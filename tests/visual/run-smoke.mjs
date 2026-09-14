@@ -963,8 +963,41 @@ const browser = await chromium.launch();
 		&& finder.none.customLabel === '一覧に無いスキルとして追加' && finder.none.customIsChip === false,
 		'special/ocr入口: 打ち間違いでは候補が出ず（あいまい照合なし）、確定文面と控えめな登録の導線だけが出る', finder.none);
 
+	/* ------------------------------------------------------------
+	 * サブ画面を開いている間の閉じる手段（32セッション目・実機で見つかった不具合）
+	 *
+	 * ×でモーダルごと閉じると読み取った結果が全部消える。開いている間は×を隠し、
+	 * 背景タップと Esc は「一覧へ戻る」と同じ動きにする（モーダルは閉じない）。
+	 * ---------------------------------------------------------- */
+	const closing = await page.evaluate(() => {
+		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
+		const closeBtn = () => document.querySelector('[data-usd-act="picker-close"]');
+		const modal = () => el('picker-title').closest('.usd-modal');
+		const opened = { xHidden: closeBtn().hidden, xVisible: closeBtn().offsetParent !== null };
+		// 背景タップ → 一覧へ戻るだけ
+		modal().dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		const byBackdrop = { modalOpen: !modal().hidden, nameHidden: el('paste-name').hidden, reportHidden: el('paste-report').hidden, xHidden: closeBtn().hidden };
+		// 開き直して Esc → 同じ
+		document.querySelector('[data-usd-el="paste-report"] [data-usd-act="paste-find"]').click();
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+		const byEsc = { modalOpen: !modal().hidden, nameHidden: el('paste-name').hidden, reportHidden: el('paste-report').hidden };
+		// 一覧の状態なら×は出ていて、押せばモーダルが閉じる
+		const backOnList = { xHidden: closeBtn().hidden };
+		return { opened, byBackdrop, byEsc, backOnList };
+	});
+	assert(closing.opened.xHidden === true && closing.opened.xVisible === false,
+		'special/ocr入口: サブ画面を開いている間はモーダルの×を隠す（押すと結果が全部消えるため）', closing.opened);
+	assert(closing.byBackdrop.modalOpen && closing.byBackdrop.nameHidden === true && closing.byBackdrop.reportHidden === false
+		&& closing.byBackdrop.xHidden === false,
+		'special/ocr入口: サブ画面を開いている間の背景タップは一覧へ戻るだけ（モーダルは閉じない・×が戻る）', closing.byBackdrop);
+	assert(closing.byEsc.modalOpen && closing.byEsc.nameHidden === true && closing.byEsc.reportHidden === false,
+		'special/ocr入口: サブ画面を開いている間の Esc も一覧へ戻るだけ（モーダルは閉じない）', closing.byEsc);
+	assert(closing.backOnList.xHidden === false,
+		'special/ocr入口: 一覧の状態に戻れば×は出ている（閉じる手段は無くさない）', closing.backOnList);
+
 	// 候補を選ぶと行が確定し、報告へ戻る
 	const finderPick = await page.evaluate(async () => {
+		document.querySelector('[data-usd-el="paste-report"] [data-usd-act="paste-find"]').click();
 		const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
 		const master = UmaSkillDeckCore.getMasterSkills();
@@ -2357,15 +2390,24 @@ const browser = await chromium.launch();
 		input.value = target.name.slice(0, 2);
 		input.dispatchEvent(new Event('input', { bubbles: true }));
 		await wait(260);
-		return {
+		const out = {
 			label: label, noCustomChip: noCustomChip,
 			hasImg: !!el('find-img'), reportHidden: el('paste-report').hidden,
-			hits: document.querySelectorAll('.usd-name-hit').length
+			hits: document.querySelectorAll('.usd-name-hit').length,
+			// 開いている間は×が隠れる（32セッション目。Deck 単体ページでも同じ）
+			xHidden: document.querySelector('[data-usd-act="picker-close"]').hidden
 		};
+		// Esc で一覧へ戻る。モーダルは閉じない
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+		out.afterEsc = { modalOpen: !el('picker-title').closest('.usd-modal').hidden, nameHidden: el('paste-name').hidden, xHidden: document.querySelector('[data-usd-act="picker-close"]').hidden };
+		return out;
 	});
 	assert(deckFinder.label === '入力して探す' && deckFinder.noCustomChip && deckFinder.hasImg === false
 		&& deckFinder.reportHidden === true && deckFinder.hits > 0,
 		'deck: Deck 単体ページでも「入力して探す」が開き、画像なしで部分一致の候補が出る', deckFinder);
+	assert(deckFinder.xHidden === true && deckFinder.afterEsc.modalOpen && deckFinder.afterEsc.nameHidden === true
+		&& deckFinder.afterEsc.xHidden === false,
+		'deck: Deck 単体ページでもサブ画面を開いている間は×が隠れ、Esc は一覧へ戻るだけ', { xHidden: deckFinder.xHidden, afterEsc: deckFinder.afterEsc });
 
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);
