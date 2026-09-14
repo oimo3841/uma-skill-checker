@@ -674,7 +674,7 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(300);
 	await page.waitForFunction(() => UmaSkillDeckCore.matchPastedSkillText('右回り○').rows[0].kind === 'exact', null, { timeout: 15000 });
 
-	// 入口は編集画面の入口の並びに出る（改訂: 「テキストで検索」と「マスターにないスキルを追加」の間。
+	// 入口は編集画面の入口の並びに出る（改訂: 「テキストで検索」と「収録されていないスキルを追加」の間。
 	// ラベル「スキルセットのスクショで追加」、アイコンはアップロード枠と同じ upload-cloud、隣に「?」＝撮影ガイド）。
 	// 一覧の画面には無い。ドラフトの編集を開いてから見る。
 	// 編集画面のマークアップは一覧と同じコンテナに hidden で同居するので、「見えているか」で見る
@@ -719,7 +719,7 @@ const browser = await chromium.launch();
 	// 「?」は外した（入口を押せば必ずガイドが出るので情報を足さず、スマホ幅で並びが崩れたため）
 	assert(entry.order.join(',') === 'editor-pick,editor-pick-text,editor-pick-screenshot,editor-pick-custom'
 		&& entry.label === 'スキルセットのスクショで追加' && entry.cls.includes('uma-btn--secondary') && entry.noHelp,
-		'special/ocr入口: 「テキストで検索」と「マスターにないスキルを追加」の間に、同じ見た目で「スキルセットのスクショで追加」が出る（「?」は無い）', { order: entry.order, label: entry.label });
+		'special/ocr入口: 「テキストで検索」と「収録されていないスキルを追加」の間に、同じ見た目で「スキルセットのスクショで追加」が出る（「?」は無い）', { order: entry.order, label: entry.label });
 	assert(entry.icon === 'upload-cloud' || String(entry.icon).includes('lucide-upload-cloud'),
 		'special/ocr入口: アイコンはアップロード枠と同じ upload-cloud（雲＋上矢印）', entry.icon);
 	assert(!entry.before && entry.opened && entry.openedWithoutPicker === 0
@@ -959,8 +959,8 @@ const browser = await chromium.launch();
 	assert(finder.hits.length > 0 && finder.hits.some((n) => n === finder.targetName),
 		'special/ocr入口: 名前の一部を入れると部分一致で候補が出る', { hits: finder.hits.slice(0, 5), target: finder.targetName });
 	assert(finder.none.hits === 0
-		&& finder.none.message === '一致するスキルがありません。入力に誤りがないかご確認ください。新しく追加されたスキルなど、一覧に無いスキルの可能性もあります。'
-		&& finder.none.customLabel === '一覧に無いスキルとして追加' && finder.none.customIsChip === false,
+		&& finder.none.message === '一致するスキルがありません。入力に誤りがないかご確認ください。新しく追加されたスキルなど、このツールに収録されていないスキルの可能性もあります。'
+		&& finder.none.customLabel === '収録されていないスキルとして追加' && finder.none.customIsChip === false,
 		'special/ocr入口: 打ち間違いでは候補が出ず（あいまい照合なし）、確定文面と控えめな登録の導線だけが出る', finder.none);
 
 	/* ------------------------------------------------------------
@@ -2326,9 +2326,9 @@ const browser = await chromium.launch();
 	/* --- スキルを足す入口は3つ。それぞれ別のモードでモーダルが開く --- */
 	const entries = await page.evaluate(() =>
 		[...document.querySelectorAll('#record-editor-view .uma-btn')]
-			.map((b) => b.textContent.trim()).filter((t) => /検索|マスターにない/.test(t)));
+			.map((b) => b.textContent.trim()).filter((t) => /検索|収録されていない/.test(t)));
 	assert(entries.length === 3 && entries[0] === '条件でスキルを検索'
-		&& entries[1] === 'テキストで検索' && entries[2] === 'マスターにないスキルを追加',
+		&& entries[1] === 'テキストで検索' && entries[2] === '収録されていないスキルを追加',
 		'deck: 比較シート編集に3つの入口ボタンが並ぶ', entries);
 
 	await page.click('button[onclick="openRecordTextPicker()"]');
@@ -2416,8 +2416,8 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(700);
 	const customMode = await modeState();
 	assert(!customMode.filter && !customMode.paste && customMode.custom,
-		'deck: 「マスターにないスキルを追加」は手入力欄だけを出す', customMode);
-	assert(customMode.title === 'マスターにないスキルを追加', 'deck: 見出しが「マスターにないスキルを追加」', customMode.title);
+		'deck: 「収録されていないスキルを追加」は手入力欄だけを出す', customMode);
+	assert(customMode.title === '収録されていないスキルを追加', 'deck: 見出しが「収録されていないスキルを追加」', customMode.title);
 	// 作ったその場で対象セットへ入るので、下の確定ボタンは出さない（フッターごと畳む）
 	assert(customMode.commit === false, 'deck: 手入力のときは下の確定ボタンを出さない', customMode);
 	assert((await page.evaluate(() =>

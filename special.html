@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-14i"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-14j"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-13a"></script>
 	<style>
@@ -421,7 +421,7 @@
 				<div id="deck-template-panel"></div>
 				<!-- スキルセットOCR（フェーズa コミット4・改訂）: ゲームの「スキルセット詳細」画面のスクショから白スキルを読み取り、
 				     対象スキルセットへ足す。入口のボタン「スキルセットのスクショで追加」と「?」（撮影ガイド）は core の編集画面の
-				     入口の並び（「テキストで検索」と「マスターにないスキルを追加」の間）に、createTemplateManager の
+				     入口の並び（「テキストで検索」と「収録されていないスキルを追加」の間）に、createTemplateManager の
 				     screenshotEntry で出す。ここにあるのは、そのボタンが呼ぶ部品（ファイル選択・進捗・画像単位の知らせ）。
 				     読み取りは js/skillset-ocr.js、結果の選択と確定は core の openSkillRowsPicker（「テキストで検索」と同じ報告）。 -->
 				<div id="deck-ocr-status">

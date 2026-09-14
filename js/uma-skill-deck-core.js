@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14i';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-14j';
 
 	/* ============================================================
 	 * 定数
@@ -998,7 +998,10 @@
 	const PICKER_MODES = {
 		filter: { title: '条件でスキルを検索（軸間はAND・軸内はOR）', commit: true },
 		paste: { title: 'テキストで検索', commit: true },
-		custom: { title: 'マスターにないスキルを追加', commit: false },
+		// 32セッション目: 利用者向けの語を「収録されていない」に統一（「マスター」も「一覧」も
+		// 画面上に存在しないものを指していて、利用者は見たことのない何かを参照させられていた）。
+		// **コード内部の識別子・変数名・開発ログの「マスター」は変えない。**
+		custom: { title: '収録されていないスキルを追加', commit: false },
 		// 4つ目（スキルセットOCR・フェーズa コミット3）。外で照合を済ませた行（ID付きの候補一覧）を受け取って、
 		// 「テキストで検索」と同じ報告（候補チップ・取り消し・確定）を出す。貼り付け欄と照合ボタンは出さない。
 		// 照合は common.js 側（CHAR_CONFUSION_MAP が効く経路）で行い、ここは見せるだけ＝C-24 調査4 の推奨。
@@ -1695,8 +1698,8 @@
 		if (found.total === 0) {
 			// 候補0件でも**自動でカスタム登録へ進ませない**（入力し直せる状態を保つ）。
 			// 登録の導線は押しやすいボタンではなくリンク相当にして、控えめに置く。
-			out.innerHTML = '<p class="usd-paste-hint usd-name-none">一致するスキルがありません。入力に誤りがないかご確認ください。新しく追加されたスキルなど、一覧に無いスキルの可能性もあります。</p>' +
-				'<button type="button" class="usd-paste-skip usd-name-custom" data-usd-act="name-custom">一覧に無いスキルとして追加</button>';
+			out.innerHTML = '<p class="usd-paste-hint usd-name-none">一致するスキルがありません。入力に誤りがないかご確認ください。新しく追加されたスキルなど、このツールに収録されていないスキルの可能性もあります。</p>' +
+				'<button type="button" class="usd-paste-skip usd-name-custom" data-usd-act="name-custom">収録されていないスキルとして追加</button>';
 			return;
 		}
 		const excluded = new Set(picker.excludeIds);
@@ -1719,7 +1722,7 @@
 	}
 
 	/**
-	 * 一覧に無いスキルとして登録する（32セッション目）。
+	 * 収録されていないスキルとして登録する（32セッション目）。
 	 * **利用者が入力した文字列がそのまま登録名になる。** 以前の `createCustomFromPasteRow()` は
 	 * `row.norm`（OCRの読みを正規化した文字列）を登録名にしていたため、画面に出ている文字と
 	 * 登録される名前が食い違うことがあった。その関数ごと置き換えた。
@@ -1736,7 +1739,7 @@
 		closePasteNameFinder();
 		renderPasteReport();
 		renderPickerResults();
-		toast('「' + name + '」を一覧に無いスキルとして追加しました（タグは未設定です）');
+		toast('「' + name + '」を収録されていないスキルとして追加しました（タグは未設定です）');
 	}
 
 	/** サブ画面の中の画像を押したとき。原寸で見せる作りは呼び出し元が持つ（special.html の .uma-overlay）。 */
@@ -2101,7 +2104,7 @@
 						'</button>'
 					: '') +
 					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-custom">' +
-						'<i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> マスターにないスキルを追加' +
+						'<i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 収録されていないスキルを追加' +
 					'</button>' +
 				'</div>' +
 				'<div class="flex items-baseline justify-between gap-2 mb-1">' +
