@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-14d"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-14e"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-13a"></script>
 	<style>
@@ -272,6 +272,29 @@
 			</div>
 		</div>
 
+		<!-- スキルパネルの切り出し画像を大きく見る（31セッション目）。撮影ガイドと同じ骨格で、
+		     閉じ方も ✕・「閉じる」・背景タップ・Esc の4通り。.uma-overlay は z-index 111 で、
+		     スキル選択モーダル（core の .usd-modal・z-index 80）の上にそのまま重なる＝重ね順の変更は要らない。 -->
+		<div id="skillset-panel-backdrop" class="uma-overlay-backdrop" hidden onclick="closeSkillsetPanel()"></div>
+		<div id="skillset-panel-box" class="uma-overlay help-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="skillset-panel-title">
+			<div class="help-head">
+				<h2 id="skillset-panel-title" class="help-title">
+					<i data-lucide="image" class="w-4 h-4 text-green-600"></i>
+					<span>スキルパネルの画像</span>
+				</h2>
+				<button id="skillset-panel-close" type="button" class="uma-icon-btn" onclick="closeSkillsetPanel()" aria-label="閉じる">
+					<i data-lucide="x" class="w-5 h-5"></i>
+				</button>
+			</div>
+			<div class="help-body">
+				<p id="skillset-panel-caption" class="text-xs text-slate-500 mb-2"></p>
+				<img id="skillset-panel-img" alt="スキルパネルの切り出し画像" class="w-full h-auto rounded-lg border border-slate-200">
+			</div>
+			<div class="help-foot">
+				<button type="button" class="uma-btn uma-btn--primary" onclick="closeSkillsetPanel()">閉じる</button>
+			</div>
+		</div>
+
 		<div id="help-backdrop" class="uma-overlay-backdrop" hidden onclick="closeHelp()"></div>
 		<div id="help-box" class="uma-overlay help-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="help-title">
 			<div class="help-head">
@@ -408,6 +431,16 @@
 					<div id="deck-ocr-warn" class="hidden mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 whitespace-pre-line flex gap-2">
 						<i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500 shrink-0 mt-0.5"></i>
 						<div id="deck-ocr-warn-content"></div>
+					</div>
+					<!-- 文字を読み取れなかったスキルパネル（31セッション目）。確定文面4aの置き換え。
+					     警告ではなく事実の知らせなので、4b の琥珀色ではなく落ち着いた地にする。
+					     ここを要確認の行（ピッカーの中）とは**別の区画**にしたのは、注意書きが指している
+					     「テキストで検索」「条件でスキルを検索」の入口がピッカーの外＝編集画面にあるため。
+					     読み取れなかった行が1つ以上あるときだけ出す（0のときは見出しごと出さない）。 -->
+					<div id="deck-ocr-panels" class="hidden mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+						<p class="text-xs font-semibold text-slate-700">文字を読み取れなかったスキルパネル</p>
+						<p class="mt-1 text-[11px] text-slate-500">すでに追加済みのものが含まれることがあります。必要なものは「テキストで検索」または「条件でスキルを検索」から追加してください。</p>
+						<div id="deck-ocr-panels-list" class="mt-2 flex flex-wrap gap-2"></div>
 					</div>
 				</div>
 				<div class="mt-3 flex items-center justify-between gap-3 flex-wrap">
@@ -2114,6 +2147,88 @@
 			skillsetGuideReturnFocus = null;
 		}
 
+		/* ------------------------------------------------------------
+		 * スキルパネルの切り出し画像を大きく見る（31セッション目。Step 0 調査の項目5）
+		 *
+		 * 呼ばれ方は2つ。(1) ピッカーの要確認の行の「画像を見る」（core が onShowPanel で渡してくる）、
+		 * (2) 下の「文字を読み取れなかったスキルパネル」の区画の画像。
+		 *
+		 * **本文のスクロール止めは「元の値を覚えて戻す」。** 無条件に '' へ戻さない。
+		 * 実測では core のスキル選択モーダルは body のスクロールを止めていない（止めているのは
+		 * この画面の撮影ガイド・使い方・引き出しだけ）ので、いまは '' に戻しても同じ結果になる。
+		 * ただしこれは**ピッカーの上に重ねる初めての層**なので、将来ガイドや引き出しの中から開かれても
+		 * 相手の指定を解いてしまわないように、覚えて戻す形にしておく（Step 0 調査の項目5の注意）。
+		 * ---------------------------------------------------------- */
+		let skillsetPanelOpen = false;
+		let skillsetPanelReturnFocus = null;
+		let skillsetPanelPrevOverflow = '';
+
+		function openSkillsetPanel(src, caption) {
+			if (!src || skillsetPanelOpen) return;
+			skillsetPanelOpen = true;
+			skillsetPanelReturnFocus = document.activeElement;
+			document.getElementById('skillset-panel-img').src = src;
+			document.getElementById('skillset-panel-caption').textContent = caption || '';
+			document.getElementById('skillset-panel-backdrop').hidden = false;
+			document.getElementById('skillset-panel-box').hidden = false;
+			skillsetPanelPrevOverflow = document.body.style.overflow;
+			document.body.style.overflow = 'hidden';
+			if (window.lucide) lucide.createIcons();
+			document.getElementById('skillset-panel-close').focus();
+		}
+
+		function closeSkillsetPanel() {
+			if (!skillsetPanelOpen) return;
+			skillsetPanelOpen = false;
+			document.getElementById('skillset-panel-backdrop').hidden = true;
+			document.getElementById('skillset-panel-box').hidden = true;
+			document.body.style.overflow = skillsetPanelPrevOverflow;
+			// dataURL を掴んだままにしない（行の側が持っているので、ここで持ち続ける理由が無い）
+			document.getElementById('skillset-panel-img').removeAttribute('src');
+			if (skillsetPanelReturnFocus && typeof skillsetPanelReturnFocus.focus === 'function') skillsetPanelReturnFocus.focus();
+			skillsetPanelReturnFocus = null;
+		}
+
+		/**
+		 * 「文字を読み取れなかったスキルパネル」の区画を描く（31セッション目・確定文面4aの置き換え）。
+		 *
+		 * 数は出さない。**おいもさんの決定2＝手1**（重複除去はせず見せ方で引き受ける）により N は
+		 * 「足りない数」ではなくなったので、数字を出すと「N個足りない」と読まれ続ける。
+		 * 並べた画像を見れば数は分かるうえ、注意書きで「すでに追加済みのものが含まれることがあります」と伝える。
+		 *
+		 * **画像が取れなかった行のフォールバック**: その行だけ画像の代わりに同じ大きさの枠を出す。
+		 * 区画ごと消してしまうと「読み取れなかったパネルがあった」ことすら伝わらなくなるため、
+		 * 行の数だけは必ず場所を取る（全行が画像なしでも、見出しと注意書きと枠が残る）。
+		 */
+		function renderUnreadablePanels(rows) {
+			const wrap = document.getElementById('deck-ocr-panels');
+			const list = document.getElementById('deck-ocr-panels-list');
+			list.textContent = '';
+			wrap.classList.toggle('hidden', rows.length === 0);
+			if (!rows.length) return;
+			rows.forEach((r, i) => {
+				const label = (i + 1) + 'つ目のスキルパネル';
+				if (!r.panelImage) {
+					const box = document.createElement('p');
+					box.className = 'rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-[11px] text-slate-400';
+					box.textContent = label + '（画像を用意できませんでした）';
+					list.appendChild(box);
+					return;
+				}
+				const btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = 'rounded-lg border border-slate-200 bg-white p-1 hover:border-slate-400';
+				btn.setAttribute('aria-label', label + 'を大きく見る');
+				btn.onclick = () => openSkillsetPanel(r.panelImage, '文字を読み取れませんでした（' + label + '）');
+				const img = document.createElement('img');
+				img.src = r.panelImage;
+				img.alt = label;
+				img.className = 'block h-10 w-auto';
+				btn.appendChild(img);
+				list.appendChild(btn);
+			});
+		}
+
 		function pickSkillsetScreenshots() {
 			if (skillsetOcrBusy) return;
 			closeSkillsetGuide();
@@ -2174,8 +2289,10 @@
 		 * 読み取りの結果を画面に出す（runSkillsetOcr / mergeSkillsetResults の戻り値）。
 		 *  - 4b（画像単位の知らせ）は入口の下の枠。小さすぎる画像は既存の buildImageQualityNotice() をそのまま使い、
 		 *    カードが1枚も見つからなかった画像だけ専用の文（C-24 4b-2）。
-		 *  - 要約（文面1〜3・4a）と行は core へ渡す。読み取った白も金も無いときはピッカーを開かず、4a を枠に出す
+		 *  - 要約（文面1〜3）と行は core へ渡す。読み取った白も金も無いときはピッカーを開かない
 		 *    （選ぶものが無いモーダルを開かないため）。
+		 *  - 文字を読み取れなかったパネルは `merged.unreadableRows` を受けて**入口の下の専用の区画**に画像で並べる
+		 *    （31セッション目。確定文面4aの置き換え。数は出さない＝決定2＝手1）。ピッカーの開閉とは独立。
 		 *  - タブごとの内訳・設定数・幅・文字高・読み直しは開発ログにだけ残す（利用者向けの行から外す決定）。
 		 */
 		function showSkillsetScreenshotResult(merged) {
@@ -2204,18 +2321,27 @@
 				blocks.push('次の画像からは、スキルセット画面のスキルが見つかりませんでした。\n' +
 					noCards.map(n => '・' + n).join('\n') + '\nスキルセット画面のスクリーンショットかどうか、ご確認ください。');
 			}
-			const summary = { white: white.accepted, gold: gold.kinds, unreadable: white.unreadable };
+			const summary = { white: white.accepted, gold: gold.kinds };
 			const openPicker = rows.length > 0 || gold.kinds > 0;
-			if (!openPicker && white.unreadable > 0) {
-				blocks.push('ほかに ' + white.unreadable + 'つのスキルパネルを読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。');
-			}
 			const warnWrap = document.getElementById('deck-ocr-warn');
 			document.getElementById('deck-ocr-warn-content').textContent = blocks.join('\n\n');
 			warnWrap.classList.toggle('hidden', blocks.length === 0);
+
+			// 読み取れなかったスキルパネルの区画（31セッション目。確定文面4aの置き換え）。
+			// ピッカーを開くかどうかに関わらず、1つ以上あれば出す
+			const unreadableRows = Array.isArray(merged.unreadableRows) ? merged.unreadableRows : [];
+			renderUnreadablePanels(unreadableRows);
 			if (window.lucide) lucide.createIcons();
 
-			if (openPicker) deckTemplateManager.openSkillRowsPickerForSelection(rows, summary);
-			else if (blocks.length === 0) showToast('スキルセット画面のスキルが見つかりませんでした');
+			// 要確認の行の「画像を見る」。core は押されたことを伝えるだけで、表示はこちらが持つ
+			if (openPicker) {
+				deckTemplateManager.openSkillRowsPickerForSelection(rows, summary, {
+					onShowPanel: (row) => openSkillsetPanel(row.panelImage,
+						row.raw ? '読み取った文字:「' + row.raw + '」' : '文字を読み取れませんでした')
+				});
+			} else if (blocks.length === 0 && unreadableRows.length === 0) {
+				showToast('スキルセット画面のスキルが見つかりませんでした');
+			}
 		}
 
 		/* ============================================================
@@ -2434,7 +2560,9 @@
 		// Esc は「開いているものを1つ閉じる」。いちばん手前にあるものから順に。
 		document.addEventListener('keydown', (e) => {
 			if (e.key !== 'Escape') return;
-			if (uiNoticeOpen) closeUiNotice();
+			// スキルパネルの画像はスキル選択モーダルの上に重なるので、いちばん手前＝先に閉じる
+			if (skillsetPanelOpen) closeSkillsetPanel();
+			else if (uiNoticeOpen) closeUiNotice();
 			else if (skillsetGuideOpen) closeSkillsetGuide();
 			else if (helpOpen) closeHelp();
 			else if (openDrawerKey) closeDrawer();

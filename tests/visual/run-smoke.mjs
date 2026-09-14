@@ -721,6 +721,7 @@ const browser = await chromium.launch();
 			noteEl: !!el('paste-note'),
 			count: el('picker-checked-count').textContent,
 			warn: document.getElementById('deck-ocr-warn').classList.contains('hidden') ? null : document.getElementById('deck-ocr-warn-content').textContent,
+			panelsHidden: document.getElementById('deck-ocr-panels').classList.contains('hidden'),
 			selection: deckTemplateManager.getSelection(),
 			undo: document.getElementById('deck-undo-btn').style.display,
 			devLog: skillsetOcrDevLog.join('\n')
@@ -728,10 +729,11 @@ const browser = await chromium.launch();
 	});
 	assert(shown.open && shown.title === '画像から読み取る' && shown.count === '2種選択',
 		'special/ocr入口: 結果を渡すとピッカーが ocr モードで開き、完全一致と自動採用の2種が選択済み', { open: shown.open, title: shown.title, count: shown.count });
-	// 4a は「枚」ではなく「つのスキルパネル」（31セッション目の実機確認。C-24「確定文面の変更」）
-	assert(shown.summary === '白スキル 2種を読み取りました。金スキル（約2種）は対象外です。\nほかに 1つのスキルパネルを読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。'
-		&& shown.noteEl === false,
-		'special/ocr入口: 要約は文面1＋4a（単位はスキルパネル）。注記の枠は無い（タブの内訳・設定数も出ない）', { summary: shown.summary, noteEl: shown.noteEl });
+	// 確定文面4a は 31セッション目に廃止（読み取れなかったパネルは数ではなく画像で見せる）。要約は文面1だけ
+	assert(shown.summary === '白スキル 2種を読み取りました。金スキル（約2種）は対象外です。' && shown.noteEl === false,
+		'special/ocr入口: 要約は文面1だけ（4aは廃止・注記の枠も無い。タブの内訳・設定数も出ない）', { summary: shown.summary, noteEl: shown.noteEl });
+	assert(shown.panelsHidden === true,
+		'special/ocr入口: unreadableRows が無いときは「読み取れなかったスキルパネル」の区画を出さない', shown.panelsHidden);
 	assert(shown.warn !== null
 		&& shown.warn.includes('次の画像は、ゲーム画面が小さすぎて読み取れませんでした。\n・スキルセット画面: small.png')
 		&& shown.warn.includes('次の画像からは、スキルセット画面のスキルが見つかりませんでした。\n・other.png\nスキルセット画面のスクリーンショットかどうか、ご確認ください。'),
@@ -768,7 +770,7 @@ const browser = await chromium.launch();
 	assert(undone.selection === null && undone.undo === 'none' && undone.note === '対象スキルセットを1つ選んでください',
 		'special/ocr入口: 「元に戻す」で追加が取り消され、対象スキルセットが空に戻る', undone);
 
-	// 白0件＋金N件 → 文面3（注記なし）。読み取った白も金も無い → ピッカーを開かず、4a を入口の下の枠に出す
+	// 白0件＋金N件 → 文面3。読み取った白も金も無い → ピッカーを開かない（4a は廃止したので枠にも出ない）
 	const empty = await page.evaluate(() => {
 		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
 		const base = { rows: [], white: { accepted: 0, review: 0, unreadable: 0, ids: [] }, gold: { kinds: 0, cards: 0 }, unknown: 0, tabs: [], quality: { skipped: [], warned: [] }, inkHeight: { median: 23 }, log: [] };
@@ -782,8 +784,97 @@ const browser = await chromium.launch();
 	assert(empty.goldOnly.open && empty.goldOnly.noteEl === false && empty.goldOnly.warnHidden
 		&& empty.goldOnly.summary === '金スキル（約3種）が見つかりましたが、白スキルはありませんでした。\n金スキルは対象外です。金スキルに対応する白スキルを探す機能は、まだありません。\n白スキルは「テキストで検索」または「条件でスキルを検索」から追加してください。',
 		'special/ocr入口: 白0件＋金N件は文面3で、注記の枠は無い', empty.goldOnly);
-	assert(!empty.nothing.open && empty.nothing.warn === 'ほかに 2つのスキルパネルを読み取れませんでした。「テキストで検索」または「条件でスキルを検索」から追加できます。',
-		'special/ocr入口: 読み取った白も金も無いときはピッカーを開かず、4a（単位はスキルパネル）を入口の下の枠に出す', empty.nothing);
+	assert(!empty.nothing.open && empty.nothing.warn === null,
+		'special/ocr入口: 読み取った白も金も無いときはピッカーを開かず、廃止した4aも枠に出ない', empty.nothing);
+
+	/* ------------------------------------------------------------
+	 * 「文字を読み取れなかったスキルパネル」の区画と、画像のオーバーレイ（31セッション目・コミットC）
+	 *
+	 * 区画は merged.unreadableRows を受けて入口の下に出る（ピッカーの開閉とは独立）。
+	 * 見出しと注意書きは新しい確定文面なので、一字一句そのままであることを見る。
+	 * 画像が取れなかった行は、画像の代わりに枠を出す（区画が空にならないためのフォールバック）。
+	 * ---------------------------------------------------------- */
+	const PANEL_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+	const panels = await page.evaluate((png) => {
+		const base = { rows: [], white: { accepted: 0, review: 0, unreadable: 0, ids: [] }, gold: { kinds: 0, cards: 0 }, unknown: 0, tabs: [], quality: { skipped: [], warned: [] }, inkHeight: { median: 23 }, log: [], perImage: [{ name: 'u.png', quality: { ok: true }, kindCounts: { lavender: 3, gold: 0, unknown: 0 } }] };
+		// 2件は画像あり、1件は画像なし（フォールバック）
+		const unreadableRows = [
+			{ raw: '', norm: '', kind: 'none', matchedId: null, matchedName: null, candidates: [], reason: '文字が取れなかった', panelImage: png },
+			{ raw: '', norm: '', kind: 'none', matchedId: null, matchedName: null, candidates: [], reason: '文字が取れなかった', panelImage: png },
+			{ raw: '', norm: '', kind: 'none', matchedId: null, matchedName: null, candidates: [], reason: '文字が取れなかった' }
+		];
+		showSkillsetScreenshotResult(Object.assign({}, base, { white: { accepted: 0, review: 0, unreadable: 3, ids: [] }, unreadableRows: unreadableRows }));
+		const wrap = document.getElementById('deck-ocr-panels');
+		const list = document.getElementById('deck-ocr-panels-list');
+		return {
+			hidden: wrap.classList.contains('hidden'),
+			heading: wrap.querySelector('p').textContent,
+			note: wrap.querySelectorAll('p')[1].textContent,
+			images: list.querySelectorAll('button img').length,
+			fallbacks: [...list.querySelectorAll('p')].map((p) => p.textContent),
+			// 数字は出さない（決定2＝手1。4a を廃止した理由）
+			hasCount: /\d/.test(wrap.querySelectorAll('p')[0].textContent + wrap.querySelectorAll('p')[1].textContent)
+		};
+	}, PANEL_PNG);
+	assert(panels.hidden === false && panels.images === 2 && panels.fallbacks.length === 1,
+		'special/ocr入口: 読み取れなかった行があると区画が出て、画像2つと画像なし1件の枠が並ぶ', panels);
+	assert(panels.heading === '文字を読み取れなかったスキルパネル'
+		&& panels.note === 'すでに追加済みのものが含まれることがあります。必要なものは「テキストで検索」または「条件でスキルを検索」から追加してください。'
+		&& panels.hasCount === false,
+		'special/ocr入口: 区画の見出しと注意書きは確定文面のとおりで、数は出さない', { heading: panels.heading, note: panels.note, hasCount: panels.hasCount });
+	assert(panels.fallbacks[0] === '3つ目のスキルパネル（画像を用意できませんでした）',
+		'special/ocr入口: 画像を用意できなかった行も枠として残す（区画が空にならない）', panels.fallbacks);
+
+	// 画像を押すとオーバーレイが開き、✕・背景・Esc のどれでも閉じる。本文のスクロール止めは元の値に戻る
+	const overlay = await page.evaluate(async () => {
+		const box = document.getElementById('skillset-panel-box');
+		const backdrop = document.getElementById('skillset-panel-backdrop');
+		const before = document.body.style.overflow;
+		document.querySelector('#deck-ocr-panels-list button').click();
+		const opened = { boxHidden: box.hidden, backdropHidden: backdrop.hidden, overflow: document.body.style.overflow, caption: document.getElementById('skillset-panel-caption').textContent, hasSrc: !!document.getElementById('skillset-panel-img').getAttribute('src') };
+		document.getElementById('skillset-panel-close').click();
+		const byClose = { boxHidden: box.hidden, overflow: document.body.style.overflow, hasSrc: !!document.getElementById('skillset-panel-img').getAttribute('src') };
+		document.querySelector('#deck-ocr-panels-list button').click();
+		backdrop.click();
+		const byBackdrop = { boxHidden: box.hidden };
+		document.querySelector('#deck-ocr-panels-list button').click();
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+		const byEsc = { boxHidden: box.hidden };
+		return { before, opened, byClose, byBackdrop, byEsc };
+	});
+	assert(overlay.opened.boxHidden === false && overlay.opened.backdropHidden === false && overlay.opened.hasSrc
+		&& overlay.opened.overflow === 'hidden' && overlay.opened.caption === '文字を読み取れませんでした（1つ目のスキルパネル）',
+		'special/ocr入口: 区画の画像を押すとオーバーレイが開き、本文のスクロールが止まる', overlay.opened);
+	assert(overlay.byClose.boxHidden === true && overlay.byClose.overflow === overlay.before && !overlay.byClose.hasSrc,
+		'special/ocr入口: ✕で閉じるとスクロール止めが元の値に戻り、画像の参照も外れる', { byClose: overlay.byClose, before: overlay.before });
+	assert(overlay.byBackdrop.boxHidden === true && overlay.byEsc.boxHidden === true,
+		'special/ocr入口: 背景タップと Esc でも閉じる', { backdrop: overlay.byBackdrop, esc: overlay.byEsc });
+
+	// 要確認の行の「画像を見る」は、行が画像を持つときだけ出て、押すと同じオーバーレイが開く
+	const rowPanel = await page.evaluate(async (png) => {
+		const m = UmaSkillDeckCore.matchPastedSkillText('右回り○');
+		const rows = [
+			{ raw: '謎の読み', norm: '謎の読み', kind: 'none', matchedId: null, matchedName: null, distance: 3, candidates: [], reason: '距離3 > 許容1', panelImage: png },
+			{ raw: m.rows[0].matchedName, norm: m.rows[0].matchedName, kind: 'exact', matchedId: m.rows[0].matchedId, matchedName: m.rows[0].matchedName, candidates: [] }
+		];
+		showSkillsetScreenshotResult({
+			rows: rows, white: { accepted: 1, review: 1, unreadable: 0, ids: [m.rows[0].matchedId] }, gold: { kinds: 0, cards: 0 }, unknown: 0,
+			tabs: [], quality: { skipped: [], warned: [] }, inkHeight: { median: 23 }, log: [], unreadableRows: [],
+			perImage: [{ name: 'a.png', quality: { ok: true }, kindCounts: { lavender: 2, gold: 0, unknown: 0 } }]
+		});
+		const btns = [...document.querySelectorAll('[data-usd-el="paste-report"] [data-usd-act="paste-panel"]')];
+		const count = btns.length;
+		if (count) btns[0].click();
+		const box = document.getElementById('skillset-panel-box');
+		const out = { count: count, label: count ? btns[0].textContent : null, boxHidden: box.hidden, caption: document.getElementById('skillset-panel-caption').textContent };
+		closeSkillsetPanel();
+		UmaSkillDeckCore.closeSkillPicker();
+		return out;
+	}, PANEL_PNG);
+	assert(rowPanel.count === 1 && rowPanel.label === '画像を見る',
+		'special/ocr入口: 「画像を見る」は panelImage を持つ行にだけ出る（確定した行には出ない）', rowPanel);
+	assert(rowPanel.boxHidden === false && rowPanel.caption === '読み取った文字:「謎の読み」',
+		'special/ocr入口: 「画像を見る」で同じオーバーレイが開き、読み取った文字が添えられる', rowPanel);
 
 	assert(errors.length === 0, 'special/ocr入口: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
