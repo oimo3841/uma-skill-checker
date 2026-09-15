@@ -4363,6 +4363,196 @@ const browser = await chromium.launch();
 	await ctx.close();
 }
 
+/* ============================================================
+ * exam.html — 結果画像の引き出しの「表示を変更」（③）: 引き出しのUI
+ *
+ *   出し入れは setSectionReady('stitch') に乗る（#stitch-empty / #stitch-name-wrap と同じタイミング）／
+ *   中身は②と同じパネル（模式図・注記なし・id は drawer-）で、どちらで変えても両方と保存に映る／
+ *   「画像を更新」は表示設定が違うときだけ押せ、作り直せないときは案内が出る／
+ *   375px で崩れず横スクロールが出ない／旧UIには出ない
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+	await page.waitForTimeout(800);
+	if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
+	await page.waitForTimeout(300);
+
+	const shape = await page.evaluate(() => {
+		const wrap = document.getElementById('stitch-show-drawer-wrap');
+		const panel = document.getElementById('stitch-show-panel-drawer');
+		return {
+			hiddenAtStart: wrap.hidden,
+			inStitchPanel: document.getElementById('result-panel-stitch').contains(wrap),
+			outsideResultWrap: !document.getElementById('stitch-result-wrap').contains(wrap),
+			afterNameWrap: document.getElementById('stitch-name-wrap').nextElementSibling === wrap,
+			detailsClosed: !document.getElementById('stitch-show-drawer').open,
+			inputs: Array.from(panel.querySelectorAll('input[data-stitch-show]')).map((i) => i.id),
+			noWire: !panel.querySelector('.stitch-wire'),
+			noNote: !panel.querySelector('.stitch-show-note'),
+			step2Note: document.querySelector('#stitch-show-panel .stitch-show-note').textContent,
+			btnDisabled: document.getElementById('stitch-refresh-btn').disabled,
+			noteHidden: document.getElementById('stitch-refresh-note').hidden,
+			dupIds: ['opt-attr-icons', 'stitch-show-banner', 'stitch-show-legend', 'stitch-show-conditions']
+				.filter((id) => document.querySelectorAll('#' + id).length !== 1)
+		};
+	});
+	assert(shape.hiddenAtStart && shape.inStitchPanel && shape.outsideResultWrap && shape.afterNameWrap,
+		'表示を変更: 結果画像のタブの #stitch-name-wrap の直下にあり、結果が無いうちは隠れている', shape);
+	assert(shape.detailsClosed && shape.noWire && shape.noNote, '表示を変更: 既定は閉じていて、模式図と②の注記は出さない', shape);
+	assert(shape.inputs.join(',') === 'drawer-stitch-show-banner,drawer-opt-attr-icons,drawer-stitch-show-legend,drawer-stitch-show-conditions' && shape.dupIds.length === 0,
+		'表示を変更: チェック4つの id は drawer- で分かれ、②の id と重複しない', shape);
+	assert(shape.step2Note.includes('結果画像の画面からも表示を変えて更新できます'), '表示を変更: ②の注記が③の道も示す', shape.step2Note);
+	assert(shape.btnDisabled && shape.noteHidden, '表示を変更: 結果が無いうちは「画像を更新」は押せず、案内も出ない', shape);
+
+	// 結果ができると出る（setSectionReady に乗っている）／消えると隠れる
+	const ready = await page.evaluate(() => {
+		document.getElementById('stitch-result-content').innerHTML = '<p id="stitch-dummy">結果画像</p>';
+		setSectionReady('stitch', true);
+		const on = { wrap: !document.getElementById('stitch-show-drawer-wrap').hidden, name: !document.getElementById('stitch-name-wrap').hidden, empty: document.getElementById('stitch-empty').hidden };
+		document.getElementById('stitch-result-content').innerHTML = '';
+		setSectionReady('stitch', false);
+		const off = { wrap: document.getElementById('stitch-show-drawer-wrap').hidden, name: document.getElementById('stitch-name-wrap').hidden, empty: !document.getElementById('stitch-empty').hidden };
+		return { on, off };
+	});
+	assert(Object.values(ready.on).every(Boolean) && Object.values(ready.off).every(Boolean),
+		'表示を変更: #stitch-name-wrap・#stitch-empty と同じタイミングで出入りする', ready);
+
+	// 「OCR が済んで結合画像ができた」状態を作り、引き出しで操作する
+	await page.evaluate(async () => {
+		window.__origStitch = stitchOnePerson;
+		stitchOnePerson = async () => {
+			const c = document.createElement('canvas');
+			c.width = 600; c.height = 400;
+			c._stitchWarnings = []; c._sourcePlacements = [];
+			return c;
+		};
+		setStitchShow('banner', true); setStitchShow('legend', true); setStitchShow('conditions', true);
+		setAttrIcons(false);
+		persons[0].files = [{ name: 'a.png' }, { name: 'b.png' }];
+		const run = captureRun();
+		lastOcrRun = run;
+		await runImageStitching(run);
+		selectResultTab('stitch');
+		openDrawer('result');
+	});
+	await page.waitForTimeout(500);
+	// 折りたたみは閉じているので、見えるのは見出し（summary）だけ。ボタンは開くまで見えない
+	assert(await page.isVisible('#stitch-show-drawer-wrap') && await page.isVisible('#stitch-show-drawer summary') && !(await page.isVisible('#stitch-refresh-btn')),
+		'表示を変更: 結果画像ができると引き出しに「表示を変更」の見出しが出る（中身は閉じている）');
+	await page.click('#stitch-show-drawer summary');
+	await page.waitForTimeout(300);
+	assert(await page.isVisible('#drawer-stitch-show-banner'), '表示を変更: 見出しを押すとチェックが開く');
+
+	// 引き出しで変える → ②にも映り、保存され、ボタンが押せる。戻す → 押せない
+	await page.click('#drawer-stitch-show-banner');
+	await page.waitForTimeout(200);
+	let ui = await page.evaluate(() => ({
+		drawer: document.getElementById('drawer-stitch-show-banner').checked,
+		step2: document.getElementById('stitch-show-banner').checked,
+		stored: localStorage.getItem('uma-exam-stitch-banner'),
+		btn: document.getElementById('stitch-refresh-btn').disabled,
+		state: document.getElementById('stitch-refresh-btn').getAttribute('data-state'),
+		note: document.getElementById('stitch-refresh-note').hidden
+	}));
+	assert(!ui.drawer && !ui.step2 && ui.stored === '0', '表示を変更: 引き出しで変えると②のパネルと保存にも映る', ui);
+	assert(!ui.btn && ui.state === 'ready' && ui.note, '表示を変更: 表示設定が違うと「画像を更新」が押せる（案内は出ない）', ui);
+	await page.click('#drawer-stitch-show-banner');
+	await page.waitForTimeout(200);
+	ui = await page.evaluate(() => ({ btn: document.getElementById('stitch-refresh-btn').disabled, state: document.getElementById('stitch-refresh-btn').getAttribute('data-state') }));
+	assert(ui.btn && ui.state === 'same', '表示を変更: 表示設定を元に戻すとボタンが無効に戻る', ui);
+
+	// 引き出しの印のチェック → ②の #opt-attr-icons にも映る。押して更新 → 画像が変わり、ボタンは無効に戻る
+	await page.click('#drawer-opt-attr-icons');
+	await page.click('#drawer-stitch-show-banner');
+	await page.waitForTimeout(200);
+	const before = await page.evaluate(async () => {
+		const img = document.querySelector('#stitch-result-content img');
+		try { await img.decode(); } catch (e) {}
+		const body = document.querySelector('#result-drawer .uma-drawer-body');
+		body.scrollTop = 40;
+		return { h: img.naturalHeight, src: img.src, marks: document.getElementById('opt-attr-icons').checked, scroll: body.scrollTop, links: document.querySelectorAll('#stitch-result-content a[download]').length };
+	});
+	assert(before.marks === true, '表示を変更: 引き出しの印のチェックは②の #opt-attr-icons にも映る', before);
+	await page.click('#stitch-refresh-btn');
+	await page.waitForTimeout(600);
+	const after = await page.evaluate(async () => {
+		const img = document.querySelector('#stitch-result-content img');
+		try { await img.decode(); } catch (e) {}
+		const link = document.querySelector('#stitch-result-content a[download]');
+		const body = document.querySelector('#result-drawer .uma-drawer-body');
+		return {
+			h: img.naturalHeight, src: img.src, linkMatchesImg: link && link.href === img.src,
+			links: document.querySelectorAll('#stitch-result-content a[download]').length,
+			copyBtns: document.querySelectorAll('#stitch-result-content button').length,
+			btn: document.getElementById('stitch-refresh-btn').disabled,
+			state: document.getElementById('stitch-refresh-btn').getAttribute('data-state'),
+			label: document.getElementById('stitch-refresh-label').textContent,
+			unseen: fabUnseen.stitch,
+			drawerOpen: document.getElementById('result-drawer').classList.contains('open'),
+			scroll: body.scrollTop,
+			inProgress: stitchInProgress
+		};
+	});
+	assert(after.h < before.h && after.src !== before.src, '表示を変更: 「画像を更新」で画像が作り直る（バナー無しで低くなる）', { before: before.h, after: after.h });
+	assert(after.linkMatchesImg && after.links === 1, '表示を変更: ダウンロードリンクは更新後の画像を指し、古いリンクは残らない', after);
+	assert(after.btn && after.state === 'same' && after.label === '画像を更新' && !after.inProgress, '表示を変更: 更新後はボタンが無効に戻り、文言も戻る', after);
+	assert(after.unseen === false && after.drawerOpen, '表示を変更: 更新しても未読の印は立たず、引き出しは開いたまま', after);
+	assert(after.scroll === before.scroll, '表示を変更: 更新後も引き出しのスクロール位置を保つ', { before: before.scroll, after: after.scroll });
+
+	// 画像を足す → 押せず、案内が出る。戻す → 案内が消える
+	const staleUi = await page.evaluate(() => {
+		persons[0].files.push({ name: 'c.png' });
+		updateProcessBtn();
+		setStitchShow('banner', true);
+		const stale = { btn: document.getElementById('stitch-refresh-btn').disabled, note: !document.getElementById('stitch-refresh-note').hidden, text: document.getElementById('stitch-refresh-note').textContent };
+		persons[0].files.pop();
+		updateProcessBtn();
+		const back = { btn: document.getElementById('stitch-refresh-btn').disabled, note: !document.getElementById('stitch-refresh-note').hidden };
+		setStitchShow('banner', false);
+		return { stale, back };
+	});
+	assert(staleUi.stale.btn && staleUi.stale.note && staleUi.stale.text.includes('OCR処理＋画像結合を開始する'),
+		'表示を変更: OCR 後に画像を足すとボタンが無効になり、やり直しの案内が出る', staleUi.stale);
+	assert(!staleUi.back.btn && !staleUi.back.note, '表示を変更: 画像を元に戻すと案内が消えて押せるようになる', staleUi.back);
+
+	// 375px: 折りたたみを開いた状態で崩れず、横スクロールが出ない
+	await page.setViewportSize({ width: 375, height: 812 });
+	await page.waitForTimeout(500);
+	const narrow = await page.evaluate(() => {
+		const drawer = document.getElementById('result-drawer');
+		const panel = document.getElementById('stitch-show-panel-drawer').getBoundingClientRect();
+		return { sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, drawerSw: drawer.scrollWidth, drawerCw: drawer.clientWidth, panelRight: panel.right, drawerRight: drawer.getBoundingClientRect().right, open: document.getElementById('stitch-show-drawer').open };
+	});
+	assert(narrow.sw === narrow.cw && narrow.drawerSw <= narrow.drawerCw && narrow.panelRight <= narrow.drawerRight + 1 && narrow.open,
+		'表示を変更: 375px で開いたまま崩れず、横スクロールが出ない', narrow);
+
+	// 旧UIには出ない（#stitch-name-wrap と同じ扱い。#stitch-result-wrap だけが旧UIへ移る）
+	const oldUi = await page.evaluate(() => {
+		closeDrawer();
+		placeSections('old');
+		const r = {
+			wrapInOldSlot: document.getElementById('old-stitch-slot').contains(document.getElementById('stitch-show-drawer-wrap')),
+			resultInOldSlot: document.getElementById('old-stitch-slot').contains(document.getElementById('stitch-result-wrap')),
+			oldCardShown: !document.getElementById('old-stitch-card').hidden
+		};
+		placeSections('new');
+		return r;
+	});
+	assert(!oldUi.wrapInOldSlot && oldUi.resultInOldSlot, '表示を変更: 旧UIへは移動しない（結果画像だけが移る）', oldUi);
+
+	await page.evaluate(() => {
+		stitchOnePerson = window.__origStitch;
+		persons[0].files = [];
+		setAttrIcons(false); setStitchShow('banner', true);
+		lastOcrRun = null; lastStitchRun = null;
+		document.getElementById('stitch-result-content').innerHTML = '';
+		setSectionReady('stitch', false);
+		fabUnseen.stitch = false; updateFabBadges();
+	});
+	assert(errors.length === 0, '表示を変更: コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
 await browser.close();
 await close();
 console.log('\n' + (fails === 0 ? '=== スモークテスト: 全項目OK ===' : '=== スモークテスト: ' + fails + '件 NG ==='));

@@ -206,6 +206,20 @@
 		.stitch-wire-line[data-stitch-part="legend"] b { flex: 1 1 auto; width: auto; }
 		/* チェックに触れている間、対応する帯を強調する（輪の色はこのページの藍） */
 		.stitch-wire .is-hot { box-shadow: 0 0 0 2px var(--uma-accent); }
+		/* 結果画像の引き出しの「表示を変更」（③）。折りたたみの中に②と同じパネル（模式図なし）と「画像を更新」 */
+		.stitch-show-details { border: 1px solid var(--uma-border); border-radius: var(--uma-r-xl); background: var(--uma-surface); }
+		.stitch-show-summary { display: flex; align-items: center; gap: var(--uma-sp-1-5);
+			padding: var(--uma-sp-2-5) var(--uma-sp-3); list-style: none;
+			font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-heading);
+			cursor: pointer; user-select: none; }
+		.stitch-show-summary::-webkit-details-marker { display: none; }
+		.stitch-show-summary .stitch-show-chevron { margin-left: auto; color: var(--uma-text-faint); transition: transform var(--uma-transition); }
+		.stitch-show-details[open] .stitch-show-chevron { transform: rotate(180deg); }
+		.stitch-show-details .stitch-show { margin: 0 var(--uma-sp-3); }
+		.stitch-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2) var(--uma-sp-3); padding: var(--uma-sp-3); }
+		/* 作り直せないときの案内。色は css/tokens.css の警告の色（opacity は使わない。B節ルール9） */
+		.stitch-refresh-note { margin: 0; flex: 1 1 16rem; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); color: var(--uma-warn-text); }
+		.stitch-refresh-note[hidden] { display: none; }
 		@media (max-width: 640px) {
 			/* 狭い画面では模式図をチェックの下に小さく置く */
 			.stitch-show { flex-direction: column; }
@@ -1037,6 +1051,31 @@
 					</p>
 					<p id="stitch-save-name-note" class="mt-1 text-[11px] text-amber-600" hidden>ファイル名に使えない文字を全角に直しました。</p>
 				</div>
+				<!-- 結果画像を見ながら表示を変えて作り直す（③）。②の「結合画像の表示」と同じ状態を映す
+				     （中身は renderStitchShowPanel が作り、syncStitchShowUi が②とここの両方へ状態を映す。
+				      id は drawer- の接頭辞で分ける）。模式図は出さない（実物の画像が見本になる）。
+				     既定は閉じる。#stitch-name-wrap と同じく #stitch-result-wrap の**外**にあり、旧UIへは
+				     移動しない（旧UIには出ない）。出し入れは setSectionReady('stitch', …) が行う。
+				     作り直しは「画像を更新」で明示的に行う（チェックだけでは作り直さない。
+				     押せるかは updateStitchRefreshUi が決める。案内 #stitch-refresh-note は
+				     画像や集計の設定が変わっていて作り直せないときだけ出す）。 -->
+				<div id="stitch-show-drawer-wrap" class="uma-drawer-content" style="padding-bottom:0" hidden>
+					<details id="stitch-show-drawer" class="stitch-show-details">
+						<summary class="stitch-show-summary">
+							<i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
+							<span>表示を変更</span>
+							<i data-lucide="chevron-down" class="w-4 h-4 stitch-show-chevron"></i>
+						</summary>
+						<div id="stitch-show-panel-drawer"></div>
+						<div class="stitch-refresh">
+							<button type="button" id="stitch-refresh-btn" onclick="refreshStitchedImages()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+								<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+								<span id="stitch-refresh-label">画像を更新</span>
+							</button>
+							<p id="stitch-refresh-note" class="stitch-refresh-note" hidden>画像や集計の設定が変わったため、「OCR処理＋画像結合を開始する」からやり直してください。</p>
+						</div>
+					</details>
+				</div>
 				<div id="stitch-drawer-slot" class="uma-drawer-content">
 					<div id="stitch-result-wrap" class="hidden">
 						<div id="stitch-result-content" class="space-y-4"></div>
@@ -1714,6 +1753,8 @@
 			restoreCountMode();
 			// 「結合画像の表示」のパネルは復元より先に作る（復元が状態をパネルへ映すため）
 			renderStitchShowPanel(document.getElementById('stitch-show-panel'));
+			// 結果画像の引き出しにも同じパネル（模式図・注記なし。id は drawer- で分ける）
+			renderStitchShowPanel(document.getElementById('stitch-show-panel-drawer'), { idPrefix: 'drawer-', wire: false, note: false });
 			restoreAttrIcons();
 			restoreStitchShow();
 			initStitchSaveName();
@@ -3351,9 +3392,14 @@
 		 * チェックに応じて該当する帯をその場で消し、チェックに触れている間（hover / focus）は
 		 * 対応する帯を強調する。文字は装飾なので読み上げの対象から外す（aria-hidden）。
 		 * ------------------------------------------------------------ */
+		// opts.idPrefix … チェックの id の接頭辞（置き場所ごとに変える。②は ''、引き出しは 'drawer-'）
+		// opts.wire     … false なら模式図を出さない（引き出しでは実物の画像が見本になる）
+		// opts.note     … false なら「反映のしかた」の注記を出さない（引き出しには「画像を更新」がある）
 		function renderStitchShowPanel(container, opts) {
 			if (!container) return;
 			const prefix = (opts && opts.idPrefix) || '';
+			const withWire = !(opts && opts.wire === false);
+			const withNote = !(opts && opts.note === false);
 			const ids = {
 				banner: prefix + 'stitch-show-banner',
 				marks: prefix + 'opt-attr-icons',
@@ -3393,14 +3439,16 @@
 					'</div>' +
 				'</div></div>';
 
+			// ②の注記。結果画像の引き出しからも変えて更新できるようになった（③）ので、その道も示す
+			const note = '<p class="stitch-show-note">ここで変えた表示は、次に「OCR処理＋画像結合を開始する」を押したときに反映されます。結果画像の画面からも表示を変えて更新できます。</p>';
 			container.innerHTML =
-				'<div class="stitch-show" data-stitch-show-panel>' +
+				'<div class="stitch-show' + (withWire ? '' : ' stitch-show--plain') + '" data-stitch-show-panel>' +
 					'<div class="stitch-show-body">' +
 						'<p class="stitch-show-title">結合画像の表示</p>' +
 						'<div class="stitch-show-list">' + list + '</div>' +
-						'<p class="stitch-show-note">変えたあとは、もう一度「OCR処理＋画像結合を開始する」を押してください。</p>' +
+						(withNote ? note : '') +
 					'</div>' +
-					wire +
+					(withWire ? wire : '') +
 				'</div>';
 			bindStitchShowHighlight(container.querySelector('[data-stitch-show-panel]'));
 			syncStitchShowUi();
@@ -4703,7 +4751,10 @@
 			// #stitch-result-wrap の外にあるので、旧UIへ移動することはない。
 			if (key === 'stitch') {
 				document.getElementById('stitch-name-wrap').hidden = !ready;
+				// 「表示を変更」（③）も同じタイミングで出し入れする
+				document.getElementById('stitch-show-drawer-wrap').hidden = !ready;
 				updateStitchSaveNameUi();
+				updateStitchRefreshUi();
 			}
 			// 「結果画像」のタブが押せるかは、結果があるかで決まる
 			updateResultTabs();
