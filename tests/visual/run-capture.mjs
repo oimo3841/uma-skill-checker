@@ -48,8 +48,10 @@ async function shot(page, name, opts = {}) {
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
 	await page.waitForTimeout(300);
 	await shot(page, 'special-01-top');
-	await page.click('#deck-mode-btn');
-	await page.waitForTimeout(600);
+	// 片道化（C-32）で新UIから旧UIへは入れないので、保存値 'old' で開き直して仕込む
+	await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await page.waitForTimeout(2000);
 	await seedSpecialResults(page);
 	await page.click('#deck-mode-btn');
 	await page.waitForTimeout(1500);
@@ -164,8 +166,10 @@ for (const width of [1280, 375]) {
 		await page.evaluate(() => openUiNotice());
 		await shot(page, n('09-notice'), { fullPage: false, wait: 400 });
 		await page.evaluate(() => closeUiNotice());
-		await page.click('#deck-mode-btn');
-		await shot(page, n('10-old-ui'), { wait: 800 });
+		// 片道化（C-32）で新UIから旧UIへは入れないので、保存値 'old' で開き直して撮る
+		await page.evaluate(() => localStorage.setItem('uma-exam-ui-mode', 'old'));
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await shot(page, n('10-old-ui'), { wait: 1500 });
 	}
 	await ctx.close();
 }

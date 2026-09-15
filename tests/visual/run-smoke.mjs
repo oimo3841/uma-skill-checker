@@ -33,11 +33,14 @@ const browser = await chromium.launch();
 	// 既定は新UIで、初回は切り替えの告知モーダルが出る。ここから先は旧UI側の
 	// 入力欄（#skill-list）を使うので、モーダルを閉じてから旧UIへ移る。
 	// 告知そのものの出方は、この後ろの専用ブロックでまとめて見ている。
+	// 片道化（2026-09-15・C-32）で新UIに「旧UIへ」は出なくなったので、旧UIへは
+	// 保存値 'old' を直接セットして開き直す（モーダルを閉じて既読になった後なら保存値が効く）。
 	await page.waitForTimeout(2500);
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
 	await page.waitForTimeout(300);
-	await page.click('#deck-mode-btn');
-	await page.waitForTimeout(600);
+	await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await page.waitForTimeout(2000);
 
 	// スキルリストの解析（hidden の付け外し・件数バッジ）
 	await seedSpecialResults(page);
@@ -330,9 +333,12 @@ const browser = await chromium.launch();
 		'special: 選択中の案内にも一覧と同じ「ドラフト」が出る', draftPicked);
 	assert(draftPicked.row.startsWith('ドラフト'), 'special: 一覧の行の呼び方と一致している', draftPicked);
 
-	// Deck まわりはここまで。以降は旧UI（既定の姿）に戻して確かめる。
-	await page.click('#deck-mode-btn');
-	await page.waitForTimeout(800);
+	// Deck まわりはここまで。以降は旧UIに戻して確かめる。
+	// 片道化（C-32）で新UIから旧UIへは入れないので、保存値 'old' で開き直す
+	// （ここから先の検査は仕込んだ結果に依存しない）。
+	await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await page.waitForTimeout(2000);
 
 	// 使い方ガイド（手前に重ねるオーバーレイ）。閉じる手段が4つあることまで見る。
 	await page.click('button[onclick="toggleHelp()"]');
@@ -400,15 +406,48 @@ const browser = await chromium.launch();
 	});
 	assert(imgBadge.hidden === true, 'special: 画像が無いうちは②の枚数バッジを出さない', imgBadge);
 
-	/* --- 新UI／旧UIの切り替え表示 --- */
+	/* --- 新UI／旧UIの切り替え表示 ---
+	 * 片道化（2026-09-15・C-32）: 新UIに「旧UIへ」は出さない。旧UIには「新UIへ」（出口）と
+	 * 更新終了の注記 #old-ui-end-note を常時出す。旧UIの DOM・ロジックは残っている（削除は未実施）。
+	 *
+	 * 【片道化で書き換えた検査の記録】（run-verify.mjs の INTENTIONALLY_REMOVED と同じ要領で残す）
+	 *   新UIから「旧UIへ」を押す手順を含んでいた検査は、保存値 'old' を直接セットして開き直す形に
+	 *   書き換えた。書き換えで通らず外した検査は無い。
+	 *   - special 本体（上）: 仕込み前に旧UIへ入る手順 → 保存値 'old' ＋ reload
+	 *   - special 本体（ここ）: 「旧UIへ戻ると表示も元に戻る」「Deckの入口も引っ込む」の往復 → 保存値 'old' ＋ reload で同じ表示を見る
+	 *   - special 告知ブロック: 「旧UIへ切り替え → 選んだUIが保存される」 → 保存値 'old' ＋ reload。
+	 *     保存のほうは逆向き（旧UI →「新UIへ」で 'new' が保存される）で見る
+	 *   - exam 告知ブロック: 「旧UIへ：中身が本文のカードへ移る」 → 保存値 'old' ＋ reload ＋ 結果の仕込み
+	 *   - exam タブの記憶: 「旧UI → 新UIへ戻しても覚えたタブを開く」 → 保存値 'old' ＋ reload →「新UIへ」
+	 *   - run-capture.mjs: special の仕込み・旧UIの撮影も同じ手
+	 *   exitNewUi() / exitDeckMode() を直接呼ぶ検査（結合画像の保存名。C-25）は落ちないのでそのまま。
+	 * 【方針】旧UIの検査はカナリアとして残すが、今後、共有部分の変更で旧UIの検査が落ちたときの既定は
+	 *   「検査を外して記録に残す」（旧UIは動作保証の範囲外）。新UI向けの新しい検査を旧UIにも足すことはしない。
+	 */
 	const uiState = () => page.evaluate(() => ({
 		label: document.getElementById('deck-mode-btn-label').textContent,
 		badge: !document.getElementById('ui-mode-badge').hidden,
-		title: document.getElementById('step1-title').textContent
+		title: document.getElementById('step1-title').textContent,
+		btnShown: !document.getElementById('deck-mode-btn').hidden,
+		note: !document.getElementById('old-ui-end-note').hidden
 	}));
 	const oldUi = await uiState();
-	assert(oldUi.label === '新UIへ' && oldUi.badge === false,
-		'special: 既定は旧UIで、ボタンは「新UIへ」・バッジは出さない', oldUi);
+	assert(oldUi.label === '新UIへ' && oldUi.badge === false && oldUi.btnShown,
+		'special: 保存値 old で開くと旧UIで、ボタンは「新UIへ」として出る・バッジは出さない', oldUi);
+	assert(oldUi.note, 'special: 旧UIでは更新終了の注記が出る', oldUi);
+	const noteText = await page.evaluate(() => ({
+		text: document.getElementById('old-ui-end-note').textContent.replace(/\s+/g, ''),
+		closeBtn: !!document.querySelector('#old-ui-end-note button'),
+		visible: document.getElementById('old-ui-end-note').getClientRects().length > 0,
+		bg: getComputedStyle(document.getElementById('old-ui-end-note')).backgroundColor,
+		opacity: getComputedStyle(document.getElementById('old-ui-end-note')).opacity
+	}));
+	assert(noteText.text.includes('この画面は更新を終了しました')
+		&& noteText.text.includes('今後、新しい機能はこの画面には追加されません。右上の「新UIへ」から、最新の画面に切り替えられます。'),
+		'special: 注記の文面が決めたとおり', noteText);
+	assert(!noteText.closeBtn && noteText.visible, 'special: 注記に閉じるボタンは無く、実際に描画されている', noteText);
+	assert(noteText.bg === 'rgb(255, 251, 235)' && noteText.opacity === '1',
+		'special: 注記の地は警告の色（不透明）で opacity を使っていない', noteText);
 
 	// 旧UIはいずれ廃止するので、そちらにDeckの入口は残さない。
 	// FABの項目と、結果引き出しの取り込み案内の2か所だけが入口。
@@ -425,17 +464,22 @@ const browser = await chromium.launch();
 	assert((await deckEntry()).fab === true, 'special: 新UIではFABにDeckの項目が出る');
 	const newUi = await uiState();
 	assert(newUi.label === '旧UIへ' && newUi.badge === true,
-		'special: 新UIに入るとボタンが「旧UIへ」になり「新UI」バッジが出る', newUi);
+		'special: 新UIに入るとボタンのラベルが「旧UIへ」になり「新UI」バッジが出る', newUi);
+	assert(!newUi.btnShown && !newUi.note,
+		'special: 新UIでは「旧UIへ」を出さず、更新終了の注記も出ない（片道化）', newUi);
+	assert(!(await page.isVisible('#deck-mode-btn')), 'special: 隠した「旧UIへ」は実際に描画されない（F-13）');
 	assert(newUi.title === '対象スキル', 'special: 新UIの①の見出しが短縮されている', newUi.title);
 	assert((await stepState()).panel1, 'special: 新UIへ切り替えると①が開いた状態になる');
-	await page.click('#deck-mode-btn');
-	await page.waitForTimeout(600);
+	// 往復（新UI →「旧UIへ」）は片道化で無くなった。保存値 'old' で開き直して同じ表示を見る
+	await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await page.waitForTimeout(2000);
 	const backUi = await uiState();
-	assert(backUi.label === '新UIへ' && backUi.badge === false && backUi.title === 'スキルリストを入力',
-		'special: 旧UIへ戻ると表示も元に戻る', backUi);
+	assert(backUi.label === '新UIへ' && backUi.badge === false && backUi.title === 'スキルリストを入力' && backUi.btnShown && backUi.note,
+		'special: 保存値 old で開き直すと旧UIの表示に戻る（「新UIへ」と注記が出る）', backUi);
 	const backEntry = await deckEntry();
 	assert(backEntry.fab === false && backEntry.note === false,
-		'special: 旧UIへ戻すとDeckの入口（FAB・取り込み案内）も引っ込む', backEntry);
+		'special: 旧UIで開き直すとDeckの入口（FAB・取り込み案内）も出ない', backEntry);
 
 	// 375px で横スクロールが出ていないこと
 	await page.setViewportSize({ width: 375, height: 812 });
@@ -1113,6 +1157,9 @@ const browser = await chromium.launch();
 		badge: !document.getElementById('ui-mode-badge').hidden,
 		title: document.getElementById('step1-title').textContent,
 		label: document.getElementById('deck-mode-btn-label').textContent,
+		btnShown: !document.getElementById('deck-mode-btn').hidden,
+		endNote: !document.getElementById('old-ui-end-note').hidden,
+		noticeText: document.getElementById('ui-notice').textContent.replace(/\s+/g, ''),
 		scrollLocked: document.body.style.overflow === 'hidden',
 		seen: localStorage.getItem('uma-special-ui-notice'),
 		mode: localStorage.getItem('uma-special-ui-mode')
@@ -1125,6 +1172,10 @@ const browser = await chromium.launch();
 		const first = await uiState(page);
 		assert(first.title === '対象スキル' && first.badge && first.label === '旧UIへ',
 			'special: 初回は新UIで開く', first);
+		assert(!first.btnShown && !first.endNote, 'special: 初回（新UI）では「旧UIへ」も更新終了の注記も出ない（片道化）', first);
+		// 片道化で「右上の『旧UIへ』から、いつでも元の画面に戻せます。」は削った（新UIから旧UIへは行けない）
+		assert(first.noticeText.includes('スキルの選び方が新しくなりました') && !first.noticeText.includes('旧UIへ'),
+			'special: 告知の文面に「旧UIへ」の案内が残っていない', first.noticeText);
 		assert(first.notice && first.backdrop && first.scrollLocked,
 			'special: 初回は切り替えの告知モーダルが出て、本文のスクロールが止まる', first);
 		assert(await page.evaluate(() => ({
@@ -1161,16 +1212,25 @@ const browser = await chromium.launch();
 		await page.click('[data-act="notice-ok"]');
 		await page.waitForTimeout(300);
 
-		// 4. 旧UIへ切り替え → 再読み込み → 旧UIで開く・告知は出ない
-		await page.click('#deck-mode-btn');
-		await page.waitForTimeout(600);
-		assert((await uiState(page)).mode === 'old', 'special: 選んだUIが保存される');
+		// 4. 保存値 'old'（以前に旧UIを選んだ人）→ 再読み込み → 旧UIで開く・告知は出ない
+		//    片道化（C-32）で新UIから旧UIへ入る手順は無くなったので、保存値を直接セットする
+		await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await page.waitForTimeout(2000);
 		const old = await uiState(page);
 		assert(old.title === 'スキルリストを入力' && old.label === '新UIへ' && !old.badge,
 			'special: 既読なら最後に選んだ旧UIで開く', old);
+		assert(old.btnShown && old.endNote, 'special: 旧UIでは「新UIへ」（出口）と更新終了の注記が出る', old);
 		assert(!old.notice, 'special: 旧UIで開いてもモーダルは出ない', old);
+		// 出口は生きている：「新UIへ」で新UIへ移り、選んだUIが保存される
+		await page.click('#deck-mode-btn');
+		await page.waitForTimeout(1500);
+		const exited = await uiState(page);
+		assert(exited.title === '対象スキル' && exited.mode === 'new' && !exited.btnShown && !exited.endNote,
+			'special: 旧UIから「新UIへ」で新UIへ移り、選んだUIが保存される', exited);
+		await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForTimeout(2000);
 		// 5節で撤去した旧告知が復活していないこと
 		assert(await page.evaluate(() => !document.getElementById('deck-mode-new-badge')
 			&& !document.getElementById('new-ui-coach') && !document.getElementById('new-ui-welcome')),
@@ -2579,6 +2639,9 @@ const browser = await chromium.launch();
 		oldCards: [!document.getElementById('old-step1-card').hidden, !document.getElementById('old-step2-card').hidden],
 		fab: !document.getElementById('fab-nav').hidden,
 		label: document.getElementById('deck-mode-btn-label').textContent,
+		btnShown: !document.getElementById('deck-mode-btn').hidden,
+		// 更新終了の注記は #old-step1-card の中にあるので、カードごと見えるか（描画されているか）で見る
+		endNote: document.getElementById('old-ui-end-note').getClientRects().length > 0,
 		scrollLocked: document.body.style.overflow === 'hidden',
 		seen: localStorage.getItem('uma-exam-ui-notice'),
 		mode: localStorage.getItem('uma-exam-ui-mode'),
@@ -2597,6 +2660,8 @@ const browser = await chromium.launch();
 		const first = await uiState(page);
 		assert(first.newCard && !first.oldCards[0] && !first.oldCards[1] && first.fab && first.badge && first.label === '旧UIへ',
 			'exam: 初回は新UI（タブ・FAB）で開き、旧UIのカードは出ない', first);
+		assert(!first.btnShown && !first.endNote, 'exam: 初回（新UI）では「旧UIへ」も更新終了の注記も出ない（片道化）', first);
+		assert(!(await page.isVisible('#deck-mode-btn')), 'exam: 隠した「旧UIへ」は実際に描画されない（inline-flex に負けない。F-13）');
 		assert(first.panel1In === 'new-step-slot' && first.resultIn === 'result-drawer-slot' && first.helpIn === 'help-dialog-slot' && first.copyIn === 'result-copy-slot'
 			&& first.devIn === 'new-devlog-slot',
 			'exam: 新UIでは中身がタブ・引き出し・ダイアログの中にある', first);
@@ -2617,7 +2682,8 @@ const browser = await chromium.launch();
 		assert(text.title === '画面が新しくなりました'
 			&& text.body.includes('対象スキル（133種）はそのままです。')
 			&& text.body.includes('照合結果と結果画像は、右下の＋ボタンから開く引き出しに表示されます。')
-			&& text.body.includes('右上の「旧UIへ」から、いつでも元の画面に戻せます。')
+			// 片道化で「右上の『旧UIへ』から、いつでも元の画面に戻せます。」は削った（新UIから旧UIへは行けない）
+			&& !text.body.includes('旧UIへ')
 			&& text.body.includes('＜新機能＞')
 			&& text.body.includes('OCRの結果を保存して、候補同士を見比べられる「UmaSkillDeck」が追加されました。')
 			&& text.body.includes('UmaSkillDeckは、右下の＋ボタンから開く引き出しに表示されます。')
@@ -2687,7 +2753,11 @@ const browser = await chromium.launch();
 		await page.click('#ui-notice-ok');
 		await page.waitForTimeout(300);
 
-		// 旧UIへ：中身が本文のカードへ移り、FAB と Deck の入口が消える。受け渡しの書き込みは続く
+		// 旧UI：中身が本文のカードにあり、FAB と Deck の入口が無い。受け渡しの書き込みは続く。
+		// 片道化（C-32）で新UIから旧UIへは入れないので、保存値 'old' で開き直してから結果を仕込む
+		await page.evaluate(() => localStorage.setItem('uma-exam-ui-mode', 'old'));
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForTimeout(1500);
 		await page.evaluate(() => {
 			const mk = (names, offset) => matchAllSkillsWithStars(
 				names.map((n, i) => ({ text: n, stars: ((i + offset) % 3) + 1, starsReliable: true, rowKey: 'r' + i })),
@@ -2697,10 +2767,27 @@ const browser = await chromium.launch();
 			renderResults();
 			writeOcrHandoff();
 		});
-		await page.click('#deck-mode-btn');
-		await page.waitForTimeout(600);
+		await page.waitForTimeout(300);
 		const old = await uiState(page);
-		assert(old.mode === 'old' && old.label === '新UIへ' && !old.badge, 'exam: 選んだUIが保存され、ラベルが「新UIへ」になる', old);
+		assert(old.mode === 'old' && old.label === '新UIへ' && !old.badge, 'exam: 保存値 old で開くと旧UIで、ラベルが「新UIへ」になる', old);
+		assert(old.btnShown && old.endNote, 'exam: 旧UIでは「新UIへ」（出口）と更新終了の注記が出る', old);
+		const endNote = await page.evaluate(() => {
+			const el = document.getElementById('old-ui-end-note');
+			return {
+				text: el.textContent.replace(/\s+/g, ''),
+				closeBtn: !!el.querySelector('button'),
+				inOldCard: document.getElementById('old-step1-card').contains(el) && !document.getElementById('old-step1-slot').contains(el),
+				first: document.getElementById('old-step1-card').firstElementChild === el,
+				bg: getComputedStyle(el).backgroundColor, opacity: getComputedStyle(el).opacity
+			};
+		});
+		assert(endNote.text.includes('この画面は更新を終了しました')
+			&& endNote.text.includes('今後、新しい機能はこの画面には追加されません。右上の「新UIへ」から、最新の画面に切り替えられます。'),
+			'exam: 注記の文面が決めたとおり', endNote);
+		assert(!endNote.closeBtn && endNote.inOldCard && endNote.first,
+			'exam: 注記に閉じるボタンは無く、#old-step1-card の先頭に直接置かれている（移動対象の外）', endNote);
+		assert(endNote.bg === 'rgb(255, 251, 235)' && endNote.opacity === '1',
+			'exam: 注記の地は警告の色（不透明）で opacity を使っていない', endNote);
 		assert(!old.newCard && old.oldCards[0] && old.oldCards[1] && !old.fab, 'exam: 旧UIでは①②が別々のカードで縦に並び、FABは出ない', old);
 		assert(old.panel1In === 'old-step1-slot' && old.resultIn === 'old-result-slot' && old.helpIn === 'old-help-slot' && old.copyIn === 'old-copy-slot'
 			&& old.devIn === 'old-devlog-slot',
@@ -2738,6 +2825,8 @@ const browser = await chromium.launch();
 		const back = await uiState(page);
 		assert(back.newCard && back.fab && back.badge && back.panel1In === 'new-step-slot' && back.resultIn === 'result-drawer-slot',
 			'exam: 新UIへ戻ると中身もタブ・引き出しへ戻る', back);
+		assert(back.mode === 'new' && !back.btnShown && !back.endNote,
+			'exam: 新UIへ戻ると選んだUIが保存され、「旧UIへ」と注記は出ない（片道化）', back);
 		assert(await page.evaluate(() => document.getElementById('step-tab-1').getAttribute('aria-selected') === 'true' && document.getElementById('step-panel-2').hidden),
 			'exam: 新UIへ戻ったときは①のタブが開いている');
 		assert(errors.length === 0, 'exam: 切り替え・告知まわりでコンソールエラーが出ない', errors.slice(0, 3));
@@ -2812,8 +2901,10 @@ const browser = await chromium.launch();
 		assert(after.tab2 === 'true' && after.tab1 === 'false', 'exam: 次に開いたときは最後のタブ（②）から始まる', after);
 
 		// 旧UIにはタブが無い。旧UIから新UIへ戻したときも、覚えたタブを開く
-		await page.click('#deck-mode-btn');
-		await page.waitForTimeout(600);
+		// （片道化（C-32）で新UIから旧UIへは入れないので、保存値 'old' で開き直してから「新UIへ」を押す）
+		await page.evaluate(() => localStorage.setItem('uma-exam-ui-mode', 'old'));
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForTimeout(1500);
 		await page.click('#deck-mode-btn');
 		await page.waitForTimeout(600);
 		assert((await tabState(page)).tab2 === 'true', 'exam: 旧UIから新UIへ戻しても、覚えたタブを開く');
