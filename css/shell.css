@@ -9,7 +9,8 @@
  *
  * 前提:
  *   - 色・寸法は css/tokens.css のトークン経由。直書きの色は「ツールに依らない意味」
- *     （新着ドット＝橙、暗転＝slate-900 の半透明）のものだけ。
+ *     （暗転＝slate-900 の半透明）のものだけ。新着ドットは行き先ごとの色を
+ *     --uma-dot-color で受け取る（2026-09-15・43セッション目に橙の直書きをやめた）。
  *   - ツールごとに変える値（FAB の影）は :root のトークンにし、各HTMLの <style> で上書きする。
  *   - マークアップ側のボタンは共通部品（.uma-btn 等）を使っても、ページ固有の
  *     ユーティリティで書いてもよい。このファイルは骨格の箱だけを描く。
@@ -21,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-09-15c";
+	--uma-shell-css-version: "2026-09-15d";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -169,20 +170,64 @@
 }
 
 /* 新着バッジ。行き先に「まだ見ていない結果」があるときだけ出す。
-   数を出さないドットにしているのは、結果が1件か複数かに意味がないため。 */
+   数を出さないドットにしているのは、結果が1件か複数かに意味がないため。
+   【2026-09-15・43セッション目】色を橙の直書きから**行き先ごとの色**へ変えた。
+   赤や橙は「警告・失敗」に見えるうえ、どの行き先の新着かが色から分からなかった。
+   色は --uma-dot-color で渡す（下の修飾クラス、または呼ぶ側の style）。
+   脈動の光も同じ色から作るので、指定は1か所でよい。 */
 .uma-fab-dot {
 	position: absolute; top: -2px; right: -2px;
 	width: 12px; height: 12px; border-radius: var(--uma-r-full);
-	background: #f54900;                       /* orange-600 */
+	background: var(--uma-dot-color, var(--uma-accent));
 	border: 2px solid var(--uma-surface);
 	animation: uma-fab-pulse 1.8s ease-out infinite;
 }
 .uma-fab-dot[hidden] { display: none !important; }
+/* 行き先ごとの色。照合結果＝そのページのアクセント／結合画像＝琥珀／Deck＝赤紫 */
+.uma-fab-dot--accent { --uma-dot-color: var(--uma-accent); }
+.uma-fab-dot--stitch { --uma-dot-color: var(--uma-stitch-accent); }
+.uma-fab-dot--deck   { --uma-dot-color: var(--uma-deck-accent); }
 @keyframes uma-fab-pulse {
-	0%   { box-shadow: 0 0 0 0 rgba(245, 73, 0, .55); }
-	70%  { box-shadow: 0 0 0 8px rgba(245, 73, 0, 0); }
-	100% { box-shadow: 0 0 0 0 rgba(245, 73, 0, 0); }
+	0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--uma-dot-color, var(--uma-accent)) 55%, transparent); }
+	70%  { box-shadow: 0 0 0 8px color-mix(in srgb, var(--uma-dot-color, var(--uma-accent)) 0%, transparent); }
+	100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--uma-dot-color, var(--uma-accent)) 0%, transparent); }
 }
+
+/* ===== 閉じているときの未読の印（メインボタンの周りを回る丸） =====
+   畳んでいる間は、どの行き先に新着があるかがサブボタンごと隠れて分からない。
+   メインボタン自体に赤い丸を付けると「1つでも新着がある」ことしか言えないので、
+   **未読の行き先の数だけ、その行き先の色の丸**をメインボタンの外周のすぐ外に並べる。
+   ・配置は右上（CSS の rotate で -45deg）を起点に 360/個数 の等間隔。JS が角度を渡す。
+   ・新しい未読が立ったときだけ、並び全体が6秒で1周してから止まる（.is-spinning は
+     JS が animationend で外す。開いている間は出さない）。残像は付けない。
+   ・止まったあとも各丸の脈動は続ける（.uma-fab-dot と同じ @keyframes）。
+   ・reduced-motion では回転も脈動もせず、止まった配置で出す。 */
+.uma-fab-main { position: relative; display: flex; }
+.uma-fab-orbit {
+	position: absolute; left: 50%; top: 50%;
+	width: 0; height: 0;
+	pointer-events: none;
+}
+/* 開いている間は隠す（サブボタン側のバッジで分かるため） */
+.uma-fab-nav.open .uma-fab-orbit { display: none; }
+.uma-fab-orbit.is-spinning { animation: uma-fab-orbit-spin 6s cubic-bezier(.45, .05, .35, 1) 1; }
+@keyframes uma-fab-orbit-spin {
+	from { transform: rotate(0turn); }
+	to   { transform: rotate(1turn); }
+}
+.uma-fab-orbit-dot {
+	position: absolute; left: 0; top: 0;
+	width: 12px; height: 12px; margin: -6px 0 0 -6px;
+	border-radius: var(--uma-r-full);
+	background: var(--uma-dot-color, var(--uma-accent));
+	border: 2px solid var(--uma-surface);
+	/* 中心から外周の外へ。--uma-orbit-angle は JS が入れる（右上が -45deg） */
+	transform: rotate(var(--uma-orbit-angle, -45deg))
+		translate(calc(var(--uma-fab-size) / 2 + var(--uma-sp-2)))
+		rotate(calc(var(--uma-orbit-angle, -45deg) * -1));
+	animation: uma-fab-pulse 1.8s ease-out infinite;
+}
+.uma-fab-orbit-dot[hidden] { display: none !important; }
 
 /* メインボタン。塗りは --uma-fab-bg（3ツール共通の黒。ページのアクセントとは分ける）で、
    影は --uma-fab-shadow。開いている間は＋アイコンを135度回して×にする。 */
@@ -213,7 +258,8 @@
 @media (prefers-reduced-motion: reduce) {
 	.uma-fab-item, .uma-fab-toggle, .uma-fab-toggle svg { transition: none !important; }
 	.uma-fab-nav.open .uma-fab-item { transition-delay: 0s !important; }
-	.uma-fab-dot { animation: none !important; }
+	/* 脈動も1周の回転も止める。丸そのものは止まった配置のまま出す（消さない） */
+	.uma-fab-dot, .uma-fab-orbit, .uma-fab-orbit-dot { animation: none !important; }
 }
 
 /* ===== 引き出しパネル（スライドオーバー） =====

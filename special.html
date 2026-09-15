@@ -14,9 +14,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15c" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-15c" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-15c" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15d" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-15d" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-15d" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -687,7 +687,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-15c';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-15d';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -2392,7 +2392,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-15c';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-15d';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {
@@ -2563,6 +2563,16 @@
 			fabOpen = open;
 			document.getElementById('fab-nav').classList.toggle('open', open);
 			document.getElementById('fab-toggle').setAttribute('aria-expanded', String(open));
+			// 開いている間、周りの丸は隠れる（CSS）。開いた時点で回転は打ち切り、
+			// 閉じたときは「開いている間に立った未読があれば回す／無ければ止まった配置で出す」。
+			const orbit = document.getElementById('fab-orbit');
+			if (open) {
+				if (orbit) orbit.classList.remove('is-spinning');
+			} else {
+				const spin = fabOrbitPendingSpin;
+				fabOrbitPendingSpin = false;
+				updateFabOrbit(spin);
+			}
 		}
 
 		function toggleFab(e) {
@@ -2575,6 +2585,48 @@
 			document.getElementById('fab-dot-stitch').hidden = !fabUnseen.stitch;
 			document.getElementById('fab-dot-result').hidden = !fabUnseen.result;
 			document.getElementById('fab-dot-deck').hidden = !fabUnseen.deck;
+			// 閉じているときに出す「周りの丸」。新しく立った未読があるときだけ1周させる。
+			// 既に出ているものを描き直しただけでは回さない（同じ知らせを何度も動かさない）。
+			const isNew = FAB_ORBIT_KEYS.some(k => fabUnseen[k] && !fabOrbitPrev[k]);
+			FAB_ORBIT_KEYS.forEach(k => { fabOrbitPrev[k] = !!fabUnseen[k]; });
+			if (isNew && fabOpen) fabOrbitPendingSpin = true;
+			updateFabOrbit(isNew && !fabOpen);
+		}
+
+		/* 閉じたメインボタンの周りに出す未読の印。exam.html と同じ規則。
+		 * ・未読の行き先の数だけ、その行き先の色の丸を外周のすぐ外に置く。
+		 * ・1つなら右上、2つ以上は右上を起点に 360/個数 の等間隔（CSS の rotate は
+		 *   時計回りなので、右上は -45deg）。
+		 * ・spin が true のときだけ、並び全体が6秒で1周してから止まる。
+		 *   アニメーションは終わったら外す（class が残っていると、開閉で display が
+		 *   戻ったときに回り直してしまう）。
+		 * ・Deck の項目は旧UIでは出さない（updateDeckEntryVisibility）ので、
+		 *   出ていない行き先の丸は周りにも出さない。
+		 * ・reduced-motion のときは回転も脈動も CSS 側で止まる（配置はそのまま）。 */
+		const FAB_ORBIT_KEYS = ['result', 'stitch', 'deck'];
+		let fabOrbitPrev = { result: false, stitch: false, deck: false };
+		let fabOrbitPendingSpin = false;
+
+		function updateFabOrbit(spin) {
+			const orbit = document.getElementById('fab-orbit');
+			if (!orbit) return;
+			const shown = (key) => {
+				const item = document.getElementById(key === 'deck' ? 'deck-drawer-trigger' : 'fab-item-' + key);
+				return !item || !item.hidden;
+			};
+			const on = FAB_ORBIT_KEYS.filter(k => fabUnseen[k] && shown(k));
+			orbit.querySelectorAll('.uma-fab-orbit-dot').forEach(dot => {
+				const key = dot.dataset.orbit;
+				const i = on.indexOf(key);
+				dot.hidden = i < 0;
+				if (i < 0) return;
+				dot.style.setProperty('--uma-orbit-angle', (-45 + i * (360 / on.length)) + 'deg');
+			});
+			if (!spin || !on.length || fabReduceMotion()) return;
+			orbit.classList.remove('is-spinning');
+			void orbit.offsetWidth;                 // 同じ class を付け直すだけでは再生されない
+			orbit.classList.add('is-spinning');
+			orbit.addEventListener('animationend', () => orbit.classList.remove('is-spinning'), { once: true });
 		}
 
 		// 結果が新しく出たときに呼ぶ。結果を作り直した場合も「新着」に戻す。
@@ -2691,6 +2743,8 @@
 			const trigger = document.getElementById('deck-drawer-trigger');
 			if (trigger) trigger.hidden = !deckMode;
 			refreshDeckHandoffState();
+			// Deck の項目を出し入れしたら、閉じているときの周りの丸も数え直す（回さない）
+			updateFabOrbit(false);
 		}
 
 		function refreshDeckHandoffState() {
@@ -2903,7 +2957,7 @@
 			<span>OCRの照合結果</span>
 			<span class="uma-fab-icon" style="background: var(--uma-accent-soft); color: var(--uma-accent-soft-text);">
 				<i data-lucide="list-checks" class="w-4 h-4"></i>
-				<span id="fab-dot-result" class="uma-fab-dot" hidden></span>
+				<span id="fab-dot-result" class="uma-fab-dot uma-fab-dot--accent" hidden></span>
 			</span>
 		</button>
 
@@ -2911,7 +2965,7 @@
 			<span>画像結合レビュー</span>
 			<span class="uma-fab-icon stitch-accent-icon">
 				<i data-lucide="images" class="w-4 h-4"></i>
-				<span id="fab-dot-stitch" class="uma-fab-dot" hidden></span>
+				<span id="fab-dot-stitch" class="uma-fab-dot uma-fab-dot--stitch" hidden></span>
 			</span>
 		</button>
 
@@ -2923,14 +2977,25 @@
 			<span>UmaSkill Deck</span>
 			<span class="uma-fab-icon">
 				<i data-lucide="layers" class="w-4 h-4"></i>
-				<span id="fab-dot-deck" class="uma-fab-dot" hidden></span>
+				<span id="fab-dot-deck" class="uma-fab-dot uma-fab-dot--deck" hidden></span>
 			</span>
 		</button>
 
-		<button id="fab-toggle" type="button" class="uma-fab-toggle" onclick="toggleFab(event)"
-			aria-controls="fab-nav" aria-expanded="false" aria-label="ページ内ナビゲーションを開く">
-			<i data-lucide="plus" class="w-6 h-6"></i>
-		</button>
+		<!-- メインボタンと、閉じているときの未読の印（周りの丸）。丸はメインボタンの中心を基準に
+		     置くので、2つを .uma-fab-main で包んである（包んでも .uma-fab-nav の最後の子は
+		     1つのままなので、サブボタンの nth-last-child の遅延は変わらない）。
+		     並べ方と色は updateFabOrbit()。 -->
+		<span class="uma-fab-main">
+			<span id="fab-orbit" class="uma-fab-orbit" aria-hidden="true">
+				<span class="uma-fab-orbit-dot uma-fab-dot--accent" data-orbit="result" hidden></span>
+				<span class="uma-fab-orbit-dot uma-fab-dot--stitch" data-orbit="stitch" hidden></span>
+				<span class="uma-fab-orbit-dot uma-fab-dot--deck" data-orbit="deck" hidden></span>
+			</span>
+			<button id="fab-toggle" type="button" class="uma-fab-toggle" onclick="toggleFab(event)"
+				aria-controls="fab-nav" aria-expanded="false" aria-label="ページ内ナビゲーションを開く">
+				<i data-lucide="plus" class="w-6 h-6"></i>
+			</button>
+		</span>
 	</div>
 
 	<!-- UmaSkill Deck。ここだけ中身が iframe（uma-skill-deck.html をそのまま読む）で、

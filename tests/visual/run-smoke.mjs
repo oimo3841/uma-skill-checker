@@ -4826,6 +4826,170 @@ const browser = await chromium.launch();
 	await ctx.close();
 }
 
+/* ============================================================
+ * 未読の丸（2026-09-15・43セッション目）
+ *
+ * ・子項目・引き出しのタブ・Deck の取り込み案内の丸が、行き先ごとの色になっている
+ *   （照合結果＝ページのアクセント／結合画像＝琥珀／Deck＝赤紫）。赤や橙ではない。
+ * ・閉じたメインボタンの周りは、未読の数だけ同じ色の丸が等間隔に並ぶ（1つなら右上）。
+ * ・回るのは「新しく未読が立ったとき」だけ。描き直しただけでは回らない。
+ * ・開いている間は出さない。閉じたときは回さずに出す（開いている間に立っていれば回す）。
+ * ・reduced-motion では回転も脈動もせず、止まった配置で出す。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+	await page.evaluate(() => { if (typeof closeUiNotice === 'function') closeUiNotice(); });
+	await page.waitForTimeout(300);
+
+	// 丸の色（子項目・タブ・取り込み案内）
+	const dotColors = await page.evaluate(() => {
+		markFabUnseen('result'); markFabUnseen('stitch'); markFabUnseen('deck');
+		const bg = (id) => getComputedStyle(document.getElementById(id)).backgroundColor;
+		return {
+			result: bg('fab-dot-result'), stitch: bg('fab-dot-stitch'), deck: bg('fab-dot-deck'),
+			tabResult: bg('result-tab-dot-result'), tabStitch: bg('result-tab-dot-stitch'),
+			handoff: bg('deck-handoff-dot'),
+			border: getComputedStyle(document.getElementById('fab-dot-result')).borderTopWidth,
+		};
+	});
+	const BLUE = 'rgb(11, 107, 203)', AMBER = 'rgb(217, 119, 6)', FUCHSIA = 'rgb(134, 25, 143)';
+	assert(dotColors.result === BLUE && dotColors.stitch === AMBER && dotColors.deck === FUCHSIA,
+		'未読の丸: 右下の子項目の丸が行き先ごとの色になる', dotColors);
+	assert(dotColors.tabResult === BLUE && dotColors.tabStitch === AMBER && dotColors.handoff === FUCHSIA,
+		'未読の丸: 引き出しのタブと取り込み案内の丸も同じ色', dotColors);
+	assert(dotColors.border === '2px', '未読の丸: 白い縁取りが付く', dotColors.border);
+
+	// 周りの丸：3つ・2つ・1つで等間隔（右上が起点）。半径はボタンの外周のすぐ外
+	const orbit = () => page.evaluate(() => {
+		const b = document.getElementById('fab-toggle').getBoundingClientRect();
+		const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+		const dots = [...document.querySelectorAll('.uma-fab-orbit-dot')].filter((d) => !d.hidden).map((d) => {
+			const r = d.getBoundingClientRect();
+			const dx = r.left + r.width / 2 - cx, dy = r.top + r.height / 2 - cy;
+			return { key: d.dataset.orbit, angle: Math.round(Math.atan2(-dy, dx) * 180 / Math.PI), dist: Math.round(Math.hypot(dx, dy)) };
+		});
+		return { dots, radius: b.width / 2, spinning: document.getElementById('fab-orbit').classList.contains('is-spinning') };
+	});
+	const o3 = await orbit();
+	assert(o3.dots.length === 3 && o3.dots.every((d) => Math.abs(d.dist - (o3.radius + 8)) <= 1),
+		'未読の丸: 3つとも外周のすぐ外（半径＋8px）に並ぶ', o3);
+	assert(Math.abs(o3.dots[0].angle - 45) <= 1 && new Set(o3.dots.map((d) => ((d.angle % 120) + 120) % 120)).size === 1,
+		'未読の丸: 3つのときは右上を起点に120度ずつ', o3.dots);
+	await page.evaluate(() => { fabUnseen.deck = false; updateFabBadges(); });
+	const o2 = await orbit();
+	assert(o2.dots.length === 2 && Math.abs(o2.dots[0].angle - 45) <= 1 && Math.abs(Math.abs(o2.dots[1].angle - o2.dots[0].angle) - 180) <= 1,
+		'未読の丸: 2つのときは右上と真向かい', o2.dots);
+	await page.evaluate(() => { fabUnseen.stitch = false; updateFabBadges(); });
+	const o1 = await orbit();
+	assert(o1.dots.length === 1 && Math.abs(o1.dots[0].angle - 45) <= 1, '未読の丸: 1つのときは右上', o1.dots);
+
+	// 回るのは新しく立ったときだけ。1周は6秒・1回で、終わると class が外れ、脈動は続く
+	const spinRule = await page.evaluate(() => {
+		const el = document.getElementById('fab-orbit');
+		el.classList.remove('is-spinning');
+		updateFabBadges();                       // 同じ未読のまま描き直す
+		const redraw = el.classList.contains('is-spinning');
+		markFabUnseen('stitch');                 // 新しく立てる
+		const st = getComputedStyle(el);
+		return { redraw, fresh: el.classList.contains('is-spinning'), dur: st.animationDuration, count: st.animationIterationCount, timing: st.animationTimingFunction };
+	});
+	assert(!spinRule.redraw && spinRule.fresh, '未読の丸: 新しく立ったときだけ回る（描き直しでは回らない）', spinRule);
+	assert(spinRule.dur === '6s' && spinRule.count === '1' && spinRule.timing === 'cubic-bezier(0.45, 0.05, 0.35, 1)',
+		'未読の丸: 1周は6秒・1回・ゆっくり動き出して止まる', spinRule);
+	await page.waitForTimeout(6400);
+	const afterSpin = await page.evaluate(() => ({
+		spinning: document.getElementById('fab-orbit').classList.contains('is-spinning'),
+		pulse: getComputedStyle(document.querySelector('.uma-fab-orbit-dot:not([hidden])')).animationName,
+	}));
+	assert(!afterSpin.spinning && afterSpin.pulse === 'uma-fab-pulse', '未読の丸: 1周したら止まり、そのあとも脈動は続く', afterSpin);
+
+	// 開いている間は出さない。閉じたときは回さずに出す（開いている間に立っていれば回す）
+	await page.evaluate(() => setFabOpen(true));
+	await page.waitForTimeout(200);
+	assert(await page.evaluate(() => getComputedStyle(document.getElementById('fab-orbit')).display) === 'none',
+		'未読の丸: 開いている間は周りの丸を出さない');
+	await page.evaluate(() => setFabOpen(false));
+	await page.waitForTimeout(200);
+	assert(await page.evaluate(() => getComputedStyle(document.getElementById('fab-orbit')).display) !== 'none'
+		&& !(await orbit()).spinning, '未読の丸: 閉じたときは回さずに止まった配置で出す');
+	const pending = await page.evaluate(async () => {
+		fabUnseen.result = false; updateFabBadges();
+		setFabOpen(true);
+		markFabUnseen('result');                 // 開いている間に新しい未読
+		const whileOpen = document.getElementById('fab-orbit').classList.contains('is-spinning');
+		setFabOpen(false);
+		return { whileOpen, afterClose: document.getElementById('fab-orbit').classList.contains('is-spinning') };
+	});
+	assert(!pending.whileOpen && pending.afterClose, '未読の丸: 開いている間に立った未読は、閉じたときに回る', pending);
+
+	assert(errors.length === 0, '未読の丸: コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+// reduced-motion では回らず脈動もせず、配置はそのまま
+{
+	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+	const page = await ctx.newPage();
+	await page.goto(base + '/exam.html', { waitUntil: 'networkidle', timeout: 60000 });
+	await page.waitForTimeout(1800);
+	await page.evaluate(() => { if (typeof closeUiNotice === 'function') closeUiNotice(); });
+	const rm = await page.evaluate(() => {
+		markFabUnseen('result'); markFabUnseen('stitch');
+		const el = document.getElementById('fab-orbit');
+		const dot = document.querySelector('.uma-fab-orbit-dot:not([hidden])');
+		const b = document.getElementById('fab-toggle').getBoundingClientRect();
+		const r = dot.getBoundingClientRect();
+		const dx = r.left + r.width / 2 - (b.left + b.width / 2), dy = r.top + r.height / 2 - (b.top + b.height / 2);
+		return {
+			spinning: el.classList.contains('is-spinning'),
+			orbitAnim: getComputedStyle(el).animationName,
+			dotAnim: getComputedStyle(dot).animationName,
+			shown: [...document.querySelectorAll('.uma-fab-orbit-dot')].filter((d) => !d.hidden).length,
+			angle: Math.round(Math.atan2(-dy, dx) * 180 / Math.PI),
+		};
+	});
+	assert(!rm.spinning && rm.orbitAnim === 'none' && rm.dotAnim === 'none' && rm.shown === 2 && Math.abs(rm.angle - 45) <= 1,
+		'未読の丸: reduced-motion では回らず脈動もせず、止まった配置で出す', rm);
+	await ctx.close();
+}
+
+// special にも同じ見た目と動きが乗っている
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	const sp = await page.evaluate(() => {
+		markFabUnseen('result'); markFabUnseen('stitch');
+		const bg = (id) => getComputedStyle(document.getElementById(id)).backgroundColor;
+		const b = document.getElementById('fab-toggle').getBoundingClientRect();
+		const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+		const dots = [...document.querySelectorAll('.uma-fab-orbit-dot')].filter((d) => !d.hidden).map((d) => {
+			const r = d.getBoundingClientRect();
+			return { key: d.dataset.orbit, angle: Math.round(Math.atan2(-(r.top + r.height / 2 - cy), r.left + r.width / 2 - cx) * 180 / Math.PI) };
+		});
+		return { result: bg('fab-dot-result'), stitch: bg('fab-dot-stitch'), dots, deckHidden: document.getElementById('deck-drawer-trigger').hidden };
+	});
+	assert(sp.result === 'rgb(0, 166, 62)' && sp.stitch === 'rgb(217, 119, 6)',
+		'未読の丸: special は照合結果＝緑・画像結合＝琥珀', sp);
+	assert(sp.dots.length === 2 && Math.abs(sp.dots[0].angle - 45) <= 1,
+		'未読の丸: special でも周りに等間隔で並ぶ', sp.dots);
+	// 旧UIでは Deck の項目そのものを出さないので、周りの丸にも出さない（出し入れに追従する）
+	const noDeck = await page.evaluate(() => {
+		markFabUnseen('deck');
+		const list = () => [...document.querySelectorAll('.uma-fab-orbit-dot')].filter((d) => !d.hidden).map((d) => d.dataset.orbit);
+		const trigger = document.getElementById('deck-drawer-trigger');
+		const was = trigger.hidden;
+		trigger.hidden = true; updateFabOrbit(false);
+		const hidden = list();
+		trigger.hidden = was; updateFabOrbit(false);
+		return { hidden, back: list() };
+	});
+	assert(!noDeck.hidden.includes('deck') && noDeck.back.includes('deck'),
+		'未読の丸: special の旧UIでは Deck の丸を周りに出さない', noDeck);
+	assert(errors.length === 0, '未読の丸: special でコンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
 await browser.close();
 await close();
 console.log('\n' + (fails === 0 ? '=== スモークテスト: 全項目OK ===' : '=== スモークテスト: ' + fails + '件 NG ==='));
