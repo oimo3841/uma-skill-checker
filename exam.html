@@ -3620,29 +3620,32 @@
 			const maxTextWidth = m.maxTextWidth;
 			const lineH = m.lineH;
 
-			const extra = [];
-			buildTargetAdjustmentNotes().forEach(t => {
-				stitchWrapText(ctx, t, maxTextWidth).forEach(line => extra.push(line));
-			});
-
 			// 印の凡例。使った区分だけを並べる。記号は色で描き分けるので、
 			// 文字ではなく結果画像と同じ drawSkillMark() で描く。
 			const info = markInfo || {};
 			const markColors = (info.kinds && info.kinds.length) ? attrMarkColors() : null;
 			const legendLines = markColors ? buildMarkLegendLines(ctx, info.kinds, maxTextWidth, fontSize) : [];
-			const tailNotes = [];
+
+			// 凡例に続く、印そのものについての断り（印の無い行の意味・印を付けなかった理由）。
+			const markNotes = [];
 			if (legendLines.length) {
-				stitchWrapText(ctx, MARK_LEGEND_NOTE, maxTextWidth).forEach(line => tailNotes.push(line));
+				stitchWrapText(ctx, MARK_LEGEND_NOTE, maxTextWidth).forEach(line => markNotes.push(line));
 			}
 			(info.suppressed || []).slice()
 				.sort((a, b) => MARK_SUPPRESSED_ORDER.indexOf(a) - MARK_SUPPRESSED_ORDER.indexOf(b))
 				.forEach(reason => {
 					const text = MARK_SUPPRESSED_NOTE[reason];
 					if (!text) return;
-					stitchWrapText(ctx, text, maxTextWidth).forEach(line => tailNotes.push(line));
+					stitchWrapText(ctx, text, maxTextWidth).forEach(line => markNotes.push(line));
 				});
 
-			const rowCount = extra.length + legendLines.length + tailNotes.length;
+			// 何を対象にしたか（追加スキル → 除外スキル → シナリオ因子）。
+			const adjustNotes = [];
+			buildTargetAdjustmentNotes().forEach(t => {
+				stitchWrapText(ctx, t, maxTextWidth).forEach(line => adjustNotes.push(line));
+			});
+
+			const rowCount = legendLines.length + markNotes.length + adjustNotes.length;
 			if (rowCount === 0) return null;
 
 			// 区切り線の上下に余白を取る（スクショの下端と文字がくっつかないように）。
@@ -3664,13 +3667,15 @@
 			ctx.lineTo(totalWidth - pad, ruleY);
 			ctx.stroke();
 
+			// 行の順は「印の見かた → 印の無い行の説明 → 追加 → 除外 → シナリオ因子」。
+			// 画像を見た人がまず知りたいのは記号の意味なので、凡例を先頭に置き、
+			// 対象スキルをどう調整したかは後ろにまとめる。
 			const noteColor = STITCH_NOTE_COLOR;
 			const lineTop = (i) => Math.round(textTop + i * lineH + lineH * 0.15);
 			let row = 0;
 			ctx.textBaseline = 'top';
 			ctx.fillStyle = noteColor;
 			ctx.textAlign = 'left';
-			extra.forEach(line => { ctx.fillText(line, pad, lineTop(row)); row++; });
 			legendLines.forEach(segs => {
 				const y = lineTop(row);
 				let x = pad;
@@ -3686,7 +3691,8 @@
 				row++;
 			});
 			ctx.fillStyle = noteColor;
-			tailNotes.forEach(line => { ctx.fillText(line, pad, lineTop(row)); row++; });
+			markNotes.forEach(line => { ctx.fillText(line, pad, lineTop(row)); row++; });
+			adjustNotes.forEach(line => { ctx.fillText(line, pad, lineTop(row)); row++; });
 
 			return c;
 		}
