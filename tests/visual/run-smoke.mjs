@@ -4066,22 +4066,46 @@ const browser = await chromium.launch();
 			inputs: document.querySelectorAll('#stitch-show-panel input[data-stitch-show]').length,
 			marksIsOptAttrIcons: q('marks') === document.getElementById('opt-attr-icons'),
 			banner: q('banner').checked, marks: q('marks').checked, legend: q('legend').checked, conditions: q('conditions').checked,
+			scenario: q('scenario').checked, scenarioDisabled: q('scenario').disabled,
+			scenarioGrey: q('scenario').closest('.stitch-show-item').classList.contains('is-off'),
+			order: Array.from(document.querySelectorAll('#stitch-show-panel input[data-stitch-show]')).map((i) => i.getAttribute('data-stitch-show')).join(','),
 			legendDisabled: q('legend').disabled,
 			legendGrey: q('legend').closest('.stitch-show-item').classList.contains('is-off'),
 			eff: stitchShowEffective(),
-			wire: { banner: hiddenOf('banner'), legend: hiddenOf('legend'), conditions: hiddenOf('conditions'), notebar: hiddenOf('notebar'), header: hiddenOf('header') },
+			wire: { banner: hiddenOf('banner'), scenario: hiddenOf('scenario'), legend: hiddenOf('legend'), conditions: hiddenOf('conditions'), notebar: hiddenOf('notebar'), header: hiddenOf('header') },
 			marksOn: Array.from(document.querySelectorAll('#stitch-show-panel [data-stitch-part="marks"]')).map((el) => el.classList.contains('is-on')),
-			stored: ['uma-exam-attr-icons', 'uma-exam-stitch-banner', 'uma-exam-stitch-legend', 'uma-exam-stitch-conditions'].map((k) => localStorage.getItem(k))
+			stored: ['uma-exam-attr-icons', 'uma-exam-stitch-banner', 'uma-exam-stitch-legend', 'uma-exam-stitch-conditions', 'uma-exam-stitch-scenario'].map((k) => localStorage.getItem(k))
 		};
 	});
 
 	let s = await stateOf();
-	assert(s.inPanel2 && s.inputs === 4 && s.marksIsOptAttrIcons, '結合画像の表示: ②にチェック4つのパネルがあり、印は既存の #opt-attr-icons のまま', s);
-	assert(s.banner && !s.marks && s.legend && s.conditions, '結合画像の表示: 既定はバナー・凡例・集計条件が ON、印が OFF', s);
+	assert(s.inPanel2 && s.inputs === 5 && s.marksIsOptAttrIcons, '結合画像の表示: ②にチェック5つのパネルがあり、印は既存の #opt-attr-icons のまま', s);
+	assert(s.order === 'banner,scenario,marks,legend,conditions', '結合画像の表示: 並びは 検出数カード → シナリオ因子 → 印 → 凡例 → 集計条件', s.order);
+	assert(s.banner && s.scenario && !s.marks && s.legend && s.conditions, '結合画像の表示: 既定は検出数カード・シナリオ因子・凡例・集計条件が ON、印が OFF', s);
+	assert(s.scenarioDisabled && s.scenarioGrey && s.eff.scenario === false && s.wire.scenario.every((h) => h),
+		'結合画像の表示: シナリオ因子を1件も選んでいなければ、チェックは灰色で選べず、模式図の帯も出ない', s);
 	assert(s.legendDisabled && s.legendGrey && s.eff.legend === false, '結合画像の表示: 印が OFF の間、凡例は選べず灰色になり、合成にも効かない', s);
 	assert(s.wire.header.every((h) => !h) && s.wire.banner.every((h) => !h) && s.wire.legend.every((h) => h) && s.wire.conditions.every((h) => !h) && s.wire.notebar.every((h) => !h),
 		'結合画像の表示: 模式図は列見出し・バナー・集計条件が出て、凡例だけ消えている', s.wire);
 	assert(s.marksOn.length > 0 && s.marksOn.every((v) => !v), '結合画像の表示: 印が OFF なら模式図の〇は灰色', s.marksOn);
+
+	// シナリオ因子を1件選ぶと選べるようになり、模式図の帯が出る。OFF にすると帯が消え、保存される。
+	// 検出数カード（banner）と目覚めの脚注は影響を受けない
+	await page.evaluate(() => toggleScenarioFactor(0, true));
+	await page.waitForTimeout(200);
+	s = await stateOf();
+	assert(!s.scenarioDisabled && !s.scenarioGrey && s.eff.scenario === true && s.wire.scenario.every((h) => !h),
+		'結合画像の表示: シナリオ因子を選ぶとチェックが選べるようになり、模式図の帯が出る', s);
+	await page.click('#stitch-show-scenario');
+	await page.waitForTimeout(200);
+	s = await stateOf();
+	assert(!s.scenario && s.stored[4] === '0' && s.wire.scenario.every((h) => h) && s.wire.banner.every((h) => !h),
+		'結合画像の表示: シナリオ因子を OFF にすると uma-exam-stitch-scenario に保存され、帯だけ消える（カードと脚注は残る）', s);
+	await page.click('#stitch-show-scenario');
+	await page.evaluate(() => toggleScenarioFactor(0, false));
+	await page.waitForTimeout(200);
+	s = await stateOf();
+	assert(s.scenario && s.scenarioDisabled && s.stored[4] === '1', '結合画像の表示: 因子を全部外すとまた灰色になるが、チェックの状態は保たれる', s);
 
 	// 印を ON にすると凡例が選べるようになり、模式図の〇に色が付き、凡例の帯が出る
 	await page.click('#opt-attr-icons');
@@ -4126,6 +4150,25 @@ const browser = await chromium.launch();
 	s = await stateOf();
 	assert(s.marks && !s.banner && !s.legend && !s.conditions && s.eff.banner === false && s.eff.legend === false && s.eff.conditions === false,
 		'結合画像の表示: 開き直しても切り替えが戻る', s);
+	assert(s.scenario === true && s.stored[4] === '1', '結合画像の表示: シナリオ因子の保存値があればそれが戻る', s);
+
+	// 保存キーの移行: uma-exam-stitch-banner が '0' で uma-exam-stitch-scenario が無ければ、シナリオ因子も OFF で開く
+	await page.evaluate(() => { localStorage.setItem('uma-exam-stitch-banner', '0'); localStorage.removeItem('uma-exam-stitch-scenario'); });
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.waitForTimeout(1500);
+	if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
+	await page.evaluate(() => selectStepTab(2));
+	await page.waitForTimeout(300);
+	s = await stateOf();
+	assert(!s.banner && !s.scenario && s.stored[4] === null, '結合画像の表示: 保存の移行＝バナー OFF・シナリオ因子の保存無しで開くと、シナリオ因子も OFF（保存は書かない）', s);
+	await page.evaluate(() => { localStorage.setItem('uma-exam-stitch-banner', '1'); localStorage.removeItem('uma-exam-stitch-scenario'); });
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.waitForTimeout(1500);
+	if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
+	await page.evaluate(() => selectStepTab(2));
+	await page.waitForTimeout(300);
+	s = await stateOf();
+	assert(s.banner && s.scenario, '結合画像の表示: 保存の移行＝バナー ON なら シナリオ因子も ON で開く', s);
 
 	// 合成の分岐（OCR は回さず、描画関数を直接呼ぶ）
 	const draw = await page.evaluate(() => {
@@ -4152,6 +4195,20 @@ const browser = await chromium.launch();
 	assert(draw.bothH > draw.legendOnlyH && draw.bothH > draw.condOnlyH && draw.legendOnlyH > 0 && draw.condOnlyH > 0,
 		'結合画像の表示: 補足欄は凡例・集計条件をそれぞれ省ける', draw);
 	assert(draw.none && draw.condOnlyNoRows, '結合画像の表示: 補足欄に出す行が無ければ欄ごと置かない（null）', draw);
+
+	// 列見出しの帯: 検出数カードとシナリオ因子の行を個別に省ける。カード OFF・因子 ON なら見出しの下に因子の行を詰める
+	const band = await page.evaluate(() => {
+		const factors = { items: [{ text: 'URAシナリオ：★2' }, { text: 'アオハル杯シナリオ：−' }], more: false };
+		const h = (opts) => stitchDrawPersonBanner(600, '親A', 12, 3, factors, opts).height;
+		const full = h(undefined), noCards = h({ cards: false }), noFactors = h({ factors: false }), none = h({ cards: false, factors: false });
+		// 因子を渡さなければ（1件も選んでいない）、因子 ON でも見出し＋カードだけ
+		const noneSelected = stitchDrawPersonBanner(600, '親A', 12, 3, null, { cards: true, factors: true }).height;
+		return { full, noCards, noFactors, none, noneSelected, factorBlockSame: (full - noFactors) === (noCards - none) };
+	});
+	assert(band.full > band.noCards && band.noCards > band.none && band.full > band.noFactors && band.noFactors > band.none,
+		'結合画像の表示: 列見出しの帯はカード・因子の行を個別に省ける', band);
+	assert(band.factorBlockSame && band.noneSelected === band.noFactors,
+		'結合画像の表示: カード OFF でも因子の行の高さは同じで、因子を1件も選んでいなければ行は出ない', band);
 
 	// 押した時点の設定の固定（run）。処理中に「結合画像の表示」を変えても、その回の出力は押した時点の設定になる。
 	// OCR は回さず、stitchOnePerson と processImages を差し替えて経路だけ通す。
@@ -4264,9 +4321,10 @@ const browser = await chromium.launch();
 			return img.naturalHeight;
 		};
 		try {
-			setStitchShow('banner', true); setStitchShow('legend', true); setStitchShow('conditions', true);
+			setStitchShow('banner', true); setStitchShow('scenario', true); setStitchShow('legend', true); setStitchShow('conditions', true);
 			setAttrIcons(false);
-			setTargetScopeMode('default'); clearScenarioFactors(); setCountMode('equivalence');
+			// シナリオ因子を1件選んだ状態で OCR したことにする（因子の行の ON/OFF が効く状態）
+			setTargetScopeMode('default'); clearScenarioFactors(); toggleScenarioFactor(0, true); setCountMode('equivalence');
 			persons[0].files = [{ name: 'a.png' }, { name: 'b.png' }];
 			out.states.beforeAny = stitchRefreshState();
 			// 「OCR が済んで結合画像ができた」状態を作る
@@ -4280,6 +4338,11 @@ const browser = await chromium.launch();
 			out.states.bannerOff = stitchRefreshState();
 			setStitchShow('banner', true);
 			out.states.bannerBack = stitchRefreshState();
+			// シナリオ因子の行だけ OFF → ready、戻す → same
+			setStitchShow('scenario', false);
+			out.states.scenarioOff = stitchRefreshState();
+			setStitchShow('scenario', true);
+			out.states.scenarioBack = stitchRefreshState();
 			// 印を ON にして「画像を更新」→ OCR は回らず、合成だけやり直る。未読の印は立たない
 			setAttrIcons(true);
 			setStitchShow('banner', false);
@@ -4308,10 +4371,10 @@ const browser = await chromium.launch();
 			out.states.scopeChanged = stitchRefreshState();
 			setTargetScopeMode('default');
 			out.states.scopeBack = stitchRefreshState();
-			// シナリオ因子 → stale → 戻す
-			toggleScenarioFactor(0, true);
+			// シナリオ因子の選択 → stale → 戻す
+			toggleScenarioFactor(1, true);
 			out.states.factorOn = stitchRefreshState();
-			toggleScenarioFactor(0, false);
+			toggleScenarioFactor(1, false);
 			out.states.factorOff = stitchRefreshState();
 			// 集計モード → stale → 戻す
 			setCountMode('individual');
@@ -4337,6 +4400,7 @@ const browser = await chromium.launch();
 			persons[0].files = [];
 			setAttrIcons(false);
 			setStitchShow('banner', true);
+			clearScenarioFactors();
 			lastOcrRun = null; lastStitchRun = null;
 			document.getElementById('stitch-result-content').innerHTML = '';
 			setSectionReady('stitch', false);
@@ -4348,6 +4412,7 @@ const browser = await chromium.launch();
 	const st = flow.states;
 	assert(st.beforeAny === 'none' && st.afterStitch === 'same', '画像を更新: 結果画像が無ければ none、できた直後は same', st);
 	assert(st.bannerOff === 'ready' && st.bannerBack === 'same', '画像を更新: 表示設定を変えると ready、戻すと same', st);
+	assert(st.scenarioOff === 'ready' && st.scenarioBack === 'same', '画像を更新: シナリオ因子の行だけ変えても ready、戻すと same', st);
 	assert(flow.refreshStitched && flow.refreshProcessCalls === 0 && flow.refreshedH < flow.firstH && st.afterRefresh === 'same',
 		'画像を更新: OCR を回さず合成だけやり直し、更新後は same に戻る（バナー無しで低くなる）', flow);
 	assert(flow.unseenAfterRefresh === false, '画像を更新: 見ている最中の更新では未読の印を立てない', flow.unseenAfterRefresh);
@@ -4392,15 +4457,17 @@ const browser = await chromium.launch();
 			step2Note: document.querySelector('#stitch-show-panel .stitch-show-note').textContent,
 			btnDisabled: document.getElementById('stitch-refresh-btn').disabled,
 			noteHidden: document.getElementById('stitch-refresh-note').hidden,
-			dupIds: ['opt-attr-icons', 'stitch-show-banner', 'stitch-show-legend', 'stitch-show-conditions']
+			drawerScenarioDisabled: document.getElementById('drawer-stitch-show-scenario').disabled,
+			dupIds: ['opt-attr-icons', 'stitch-show-banner', 'stitch-show-scenario', 'stitch-show-legend', 'stitch-show-conditions']
 				.filter((id) => document.querySelectorAll('#' + id).length !== 1)
 		};
 	});
+	assert(shape.drawerScenarioDisabled, '表示を変更: 引き出し側のシナリオ因子も、1件も選んでいなければ灰色', shape);
 	assert(shape.hiddenAtStart && shape.inStitchPanel && shape.outsideResultWrap && shape.afterNameWrap,
 		'表示を変更: 結果画像のタブの #stitch-name-wrap の直下にあり、結果が無いうちは隠れている', shape);
 	assert(shape.detailsClosed && shape.noWire && shape.noNote, '表示を変更: 既定は閉じていて、模式図と②の注記は出さない', shape);
-	assert(shape.inputs.join(',') === 'drawer-stitch-show-banner,drawer-opt-attr-icons,drawer-stitch-show-legend,drawer-stitch-show-conditions' && shape.dupIds.length === 0,
-		'表示を変更: チェック4つの id は drawer- で分かれ、②の id と重複しない', shape);
+	assert(shape.inputs.join(',') === 'drawer-stitch-show-banner,drawer-stitch-show-scenario,drawer-opt-attr-icons,drawer-stitch-show-legend,drawer-stitch-show-conditions' && shape.dupIds.length === 0,
+		'表示を変更: チェック5つの id は drawer- で分かれ、②の id と重複しない', shape);
 	assert(shape.step2Note.includes('結果画像の画面からも表示を変えて更新できます'), '表示を変更: ②の注記が③の道も示す', shape.step2Note);
 	assert(shape.btnDisabled && shape.noteHidden, '表示を変更: 結果が無いうちは「画像を更新」は押せず、案内も出ない', shape);
 

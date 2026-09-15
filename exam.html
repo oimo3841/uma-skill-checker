@@ -173,7 +173,7 @@
 		.stitch-show-item.is-off, .stitch-show-item.is-off .stitch-show-sub { color: var(--uma-text-faint); cursor: not-allowed; }
 		.stitch-show-item.is-off .stitch-show-check { cursor: not-allowed; }
 		.stitch-show-note { margin: var(--uma-sp-2) 0 0; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); color: var(--uma-text-subtle); }
-		/* 模式図。帯の並びは結合画像と同じ（列見出し → 集計バナー → 脚注 → スクショ → 区切り線＋補足欄）。
+		/* 模式図。帯の並びは結合画像と同じ（列見出し → 検出数カード → シナリオ因子 → 脚注 → スクショ → 区切り線＋補足欄）。
 		   大きさは px で決め打ち（縮尺の見本なので、文字の大きさの設定に追従させない）。 */
 		.stitch-wire { flex: 0 0 auto; width: 128px; }
 		.stitch-wire-sheet { display: flex; flex-direction: column; gap: 3px; padding: 5px; background: #fff;
@@ -187,7 +187,9 @@
 		.stitch-wire-card--a { background: #f5f8ff; border-color: #cfe0fb; color: #3c5a99; }
 		.stitch-wire-card--b { background: #fffaf0; border-color: #f5dfae; color: #a9720b; }
 		.stitch-wire-card b { display: block; width: 40%; height: 7px; border-radius: 2px; background: currentColor; }
-		.stitch-wire-factor { grid-column: 1 / -1; width: 70%; height: 4px; border-radius: 2px; background: #0c5a7a; }
+		/* シナリオ因子の行（カードとは別の帯。個別に消せる） */
+		.stitch-wire-factors { padding: 0 0 2px; }
+		.stitch-wire-factor { display: block; width: 70%; height: 4px; border-radius: 2px; background: #0c5a7a; }
 		.stitch-wire-countnote { display: flex; justify-content: flex-end; padding: 0 0 2px; }
 		.stitch-wire-countnote b { display: block; width: 55%; height: 3px; border-radius: 2px; background: var(--uma-border-strong); }
 		.stitch-wire-shots { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 4px; padding: 3px; background: var(--uma-surface-sunken); }
@@ -763,7 +765,7 @@
 				<span>OCR処理＋画像結合を開始する（高負荷）</span>
 			</button>
 			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、親A（＋祖A1＋祖A2）・親B（＋祖B1＋祖B2）それぞれのスクリーンショットを1枚の画像にまとめ、SNS投稿用に使える形で出力します。画像枚数が多いほど処理に時間がかかります。</p>
-			<!-- 「結合画像の表示」（結果画像に何を焼き込むか。集計バナー／印／凡例／集計条件）。
+			<!-- 「結合画像の表示」（結果画像に何を焼き込むか。検出数カード／シナリオ因子／印／凡例／集計条件）。
 			     ここに置いてあるのは、切り替えを効かせるには結合をやり直す必要があるから
 			     （結果画像の引き出しに置くと、切り替えてもその場では何も変わらない）。
 			     開発用の設定ではないので、「高度な解析オプション」の中には入れていない。
@@ -2011,6 +2013,8 @@
 			// 「スキル名のコピー」が開いている場合に備え、表示中のリストも再計算する
 			renderSkillCopyTextarea();
 			updateProcessBtn();
+			// 「結合画像の表示」のシナリオ因子のチェックは、1件も選んでいなければ灰色にする
+			syncStitchShowUi();
 			if (window.lucide) lucide.createIcons();
 			if (activePersonIndexes().length > 0) {
 				showToast('対象スキルを変えました。今の結果に反映するには、もう一度判定してください');
@@ -3193,30 +3197,38 @@
 		/* ------------------------------------------------------------
 		 * 結合画像の表示（何を焼き込むか）
 		 *
-		 * 印（上の attrIconsEnabled）のほかに、次の3つを ON/OFF できる。**既定はどれも ON**
+		 * 印（上の attrIconsEnabled）のほかに、次の4つを ON/OFF できる。**既定はどれも ON**
 		 * （保存値が無ければ従来どおり全部出す）。
-		 *   banner     … 集計バナー（各人の検出数・sp70緑のカード・シナリオ因子の行）。
+		 *   banner     … 検出数カード（各人の検出数・sp70緑のカード）。内部の名前と保存キーは、
+		 *                分割前の「集計バナー」のものをそのまま使っている（キー名は変えない）。
 		 *                数え方の脚注「※「〇〇の目覚め」は…」の帯もこれに従う。
 		 *                列見出し（親A・祖A1・祖A2）は OFF でも常に出す。
+		 *   scenario   … シナリオ因子（各列の「因子名：★の数」の行）。**1件も選んでいなければ効かせない**
+		 *                （出す行が無い。チェックは灰色にし、保存値は残す）。
+		 *                検出数カード OFF・シナリオ因子 ON なら、列見出しの下に因子の行だけを詰めて置く。
 		 *   legend     … 印の凡例（印の見かた・印の無い行の説明・印を付けなかった理由）。
 		 *                **印が OFF のときは効かせない**（凡例だけ出ても意味が無い）。
-		 *   conditions … 集計条件（追加／除外スキル・シナリオ因子の一覧）。印やバナーとは独立。
+		 *   conditions … 集計条件（追加／除外スキル・シナリオ因子の一覧）。ほかの項目とは独立。
 		 * 補足欄（凡例＋集計条件）に出す行が0なら、欄ごと置かない（従来どおり）。
 		 *
 		 * 切り替えは合成のときに読むだけで、OCR の判定・集計には一切関わらない。
 		 * ------------------------------------------------------------ */
 		const STITCH_SHOW_STORAGE_KEYS = {
 			banner: 'uma-exam-stitch-banner',
+			scenario: 'uma-exam-stitch-scenario',
 			legend: 'uma-exam-stitch-legend',
 			conditions: 'uma-exam-stitch-conditions'
 		};
-		const stitchShow = { banner: true, legend: true, conditions: true };
+		const stitchShow = { banner: true, scenario: true, legend: true, conditions: true };
 
 		function restoreStitchShow() {
 			Object.keys(STITCH_SHOW_STORAGE_KEYS).forEach(key => {
 				const v = readStored(STITCH_SHOW_STORAGE_KEYS[key]);
 				stitchShow[key] = (v === null) ? true : v === '1';
 			});
+			// 「シナリオ因子」は「集計バナー」から分けた項目。保存値が無ければバナー（いまは検出数カード）の
+			// 保存値を引き継ぐ（分割前にバナーを OFF にしていた人の見た目が変わらないように）。
+			if (readStored(STITCH_SHOW_STORAGE_KEYS.scenario) === null) stitchShow.scenario = stitchShow.banner;
 			syncStitchShowUi();
 		}
 
@@ -3227,13 +3239,15 @@
 			syncStitchShowUi();
 		}
 
-		// 合成が実際に使う値。凡例は印が OFF なら OFF に倒す。
+		// 合成が実際に使う値。凡例は印が OFF なら OFF に、シナリオ因子は1件も選んでいなければ OFF に倒す。
 		// run（下の captureRun() の戻り値）を渡せばその時点の値で、渡さなければ今の画面の値で答える。
 		function stitchShowEffective(run) {
 			const show = run ? run.show : stitchShow;
 			const marks = run ? run.attrIcons : attrIconsEnabled;
+			const factorCount = run ? run.factors.size : selectedScenarioFactors.size;
 			return {
 				banner: !!show.banner,
+				scenario: !!show.scenario && factorCount > 0,
 				legend: !!show.legend && !!marks,
 				conditions: !!show.conditions
 			};
@@ -3253,7 +3267,7 @@
 		 * 同じ関数を呼ぶ（OCR はやり直さない）。
 		 *
 		 * 控えるもの:
-		 *   show / attrIcons … 結合画像の表示（集計バナー・凡例・集計条件／印）
+		 *   show / attrIcons … 結合画像の表示（検出数カード・シナリオ因子・凡例・集計条件／印）
 		 *   scope / factors / countMode … 集計に関わる設定（範囲・シナリオ因子（Set は複製）・集計モード）
 		 *   setB … 親Bセットを開いているか（結合するセットの範囲）
 		 *   files … 各人物の画像（File の参照の配列を複製。枚数と並び順を固定する）
@@ -3324,7 +3338,7 @@
 				cur.setB !== lastOcrRun.setB) return 'stale';
 			const now = stitchShowEffective(cur);
 			const shown = stitchShowEffective(lastStitchRun);
-			const same = now.banner === shown.banner && now.legend === shown.legend &&
+			const same = now.banner === shown.banner && now.scenario === shown.scenario && now.legend === shown.legend &&
 				now.conditions === shown.conditions && cur.attrIcons === lastStitchRun.attrIcons;
 			return same ? 'same' : 'ready';
 		}
@@ -3388,7 +3402,7 @@
 		 * （印だけは既存の #opt-attr-icons を使う決まりなので、接頭辞が無いときだけその id になる）。
 		 *
 		 * 模式図は結合画像の帯の並びをそのまま縦に積んだもの:
-		 *   列見出し → 集計バナー → 数え方の脚注 → スクショ（印付き） → 区切り線＋補足欄（凡例・集計条件）。
+		 *   列見出し → 検出数カード → シナリオ因子 → 数え方の脚注 → スクショ（印付き） → 区切り線＋補足欄（凡例・集計条件）。
 		 * チェックに応じて該当する帯をその場で消し、チェックに触れている間（hover / focus）は
 		 * 対応する帯を強調する。文字は装飾なので読み上げの対象から外す（aria-hidden）。
 		 * ------------------------------------------------------------ */
@@ -3402,6 +3416,7 @@
 			const withNote = !(opts && opts.note === false);
 			const ids = {
 				banner: prefix + 'stitch-show-banner',
+				scenario: prefix + 'stitch-show-scenario',
 				marks: prefix + 'opt-attr-icons',
 				legend: prefix + 'stitch-show-legend',
 				conditions: prefix + 'stitch-show-conditions'
@@ -3412,8 +3427,10 @@
 					'<input type="checkbox" id="' + ids[key] + '" data-stitch-show="' + key + '" onchange="' + onchange + '" class="stitch-show-check" />' +
 					'<span class="stitch-show-text">' + label + '<span class="stitch-show-sub">' + sub + '</span></span>' +
 				'</label>';
+			// 「検出数カード」の内部名は banner（分割前の「集計バナー」から引き継いだ。保存キーも同じ）
 			const list =
-				item('banner', "setStitchShow('banner', this.checked)", '集計バナー', '（検出数・sp70緑・シナリオ因子）') +
+				item('banner', "setStitchShow('banner', this.checked)", '検出数カード', '（検出数・sp70緑）') +
+				item('scenario', "setStitchShow('scenario', this.checked)", 'シナリオ因子', '（各列の該当状況）') +
 				item('marks', 'setAttrIcons(this.checked)', '印', '（★●◆✕）') +
 				item('legend', "setStitchShow('legend', this.checked)", '凡例', '（印の見かた）', true) +
 				item('conditions', "setStitchShow('conditions', this.checked)", '集計条件', '（追加／除外スキル・シナリオ因子一覧）');
@@ -3428,8 +3445,8 @@
 					'<div class="stitch-wire-banner" data-stitch-part="banner">' +
 						'<span class="stitch-wire-card stitch-wire-card--a"><small>検出</small><b></b></span>' +
 						'<span class="stitch-wire-card stitch-wire-card--b"><small>sp70緑</small><b></b></span>' +
-						'<span class="stitch-wire-factor"></span>' +
 					'</div>' +
+					'<div class="stitch-wire-factors" data-stitch-part="scenario"><span class="stitch-wire-factor"></span></div>' +
 					'<div class="stitch-wire-countnote" data-stitch-part="banner"><b></b></div>' +
 					'<div class="stitch-wire-shots" data-stitch-part="shots">' + shotKinds.map(shotRow).join('') + '</div>' +
 					'<div class="stitch-wire-notes" data-stitch-part="notebar">' +
@@ -3461,8 +3478,10 @@
 				panel.querySelectorAll('input[data-stitch-show]').forEach(input => {
 					const key = input.getAttribute('data-stitch-show');
 					input.checked = (key === 'marks') ? attrIconsEnabled : !!stitchShow[key];
-					// 凡例は印の子。印が OFF の間は選べない（保存値は残し、印を戻せばそのまま効く）
-					const off = (key === 'legend') && !attrIconsEnabled;
+					// 凡例は印の子。印が OFF の間は選べない（保存値は残し、印を戻せばそのまま効く）。
+					// シナリオ因子は1件も選んでいなければ選べない（出す行が無い。同じく保存値は残す）。
+					const off = ((key === 'legend') && !attrIconsEnabled) ||
+						((key === 'scenario') && selectedScenarioFactors.size === 0);
 					input.disabled = off;
 					const label = input.closest('.stitch-show-item');
 					if (label) label.classList.toggle('is-off', off);
@@ -3470,6 +3489,7 @@
 				const setHidden = (part, hidden) =>
 					panel.querySelectorAll('[data-stitch-part="' + part + '"]').forEach(el => { el.hidden = hidden; });
 				setHidden('banner', !eff.banner);
+				setHidden('scenario', !eff.scenario);
 				setHidden('legend', !eff.legend);
 				setHidden('conditions', !eff.conditions);
 				// 補足欄は凡例も集計条件も出さないなら区切り線ごと消す（結果画像と同じ）
@@ -3843,21 +3863,24 @@
 		// factors … scenarioFactorHighlight() の戻り値（1件も選んでいなければ null）。
 		// 渡されたときは、カードの下に「因子名：★の数」を画面のハイライトと同じ並び・
 		// 同じ文字列で1行ずつ焼き込む（4種以上選んでいれば最後に「他」）。
-		// opts.cards … false なら列見出し（親A など）だけの帯にする（集計バナー OFF のとき）。
-		//   見出しはバナーの有無にかかわらず常に出す決まりなので、カードと因子の行だけを省く。
+		// opts.cards   … false なら検出数・sp70緑のカードを省く（検出数カード OFF のとき）。
+		// opts.factors … false ならシナリオ因子の行を省く（シナリオ因子 OFF のとき）。
+		//   見出し（親A など）は両方 OFF でも常に出す。カード OFF・因子 ON なら、見出しの下に因子の行だけを
+		//   詰めて置く（行数は同じ run の中で全員同じなので、セット内の帯の高さは揃う）。
 		function stitchDrawPersonBanner(width, groupLabel, totalDetected, sp70Count, factors, opts) {
 			const withCards = !(opts && opts.cards === false);
+			const withFactors = !(opts && opts.factors === false);
 			const pad = Math.round(width * 0.03);
 			const titleH = Math.round(width * 0.065);
 			const cardH = Math.round(width * 0.185);
 			const gapY = Math.round(width * 0.02);
 			// 「他」は行を増やさず、最後の行の右端に添える（画面のハイライトと同じ形）
-			const factorLines = factors ? factors.items.map(it => it.text) : [];
-			const factorMore = !!(factors && factors.more);
+			const factorLines = (withFactors && factors) ? factors.items.map(it => it.text) : [];
+			const factorMore = withFactors && !!(factors && factors.more);
 			const factorFont = Math.round(cardH * 0.26);
 			const factorLineH = Math.round(factorFont * 1.55);
 			const factorBlockH = factorLines.length ? (gapY + factorLines.length * factorLineH) : 0;
-			const barHeight = withCards ? (pad * 2 + titleH + gapY + cardH + factorBlockH) : (pad * 2 + titleH);
+			const barHeight = pad * 2 + titleH + (withCards ? gapY + cardH : 0) + factorBlockH;
 
 			const c = document.createElement('canvas');
 			c.width = width;
@@ -3879,59 +3902,62 @@
 			ctx.font = 'bold ' + titleH + 'px sans-serif';
 			ctx.textBaseline = 'top';
 			ctx.fillText(groupLabel, pad, y);
-			if (!withCards) return c; // 見出しだけの帯（下の区切り線は上で引いてある）
+			if (!withCards && !factorLines.length) return c; // 見出しだけの帯（下の区切り線は上で引いてある）
 			y += titleH + gapY;
 
-			function roundRect(x, yy, w, h, r) {
-				ctx.beginPath();
-				ctx.moveTo(x + r, yy);
-				ctx.arcTo(x + w, yy, x + w, yy + h, r);
-				ctx.arcTo(x + w, yy + h, x, yy + h, r);
-				ctx.arcTo(x, yy + h, x, yy, r);
-				ctx.arcTo(x, yy, x + w, yy, r);
-				ctx.closePath();
+			if (withCards) {
+				const roundRect = (x, yy, w, h, r) => {
+					ctx.beginPath();
+					ctx.moveTo(x + r, yy);
+					ctx.arcTo(x + w, yy, x + w, yy + h, r);
+					ctx.arcTo(x + w, yy + h, x, yy + h, r);
+					ctx.arcTo(x, yy + h, x, yy, r);
+					ctx.arcTo(x, yy, x + w, yy, r);
+					ctx.closePath();
+				};
+
+				const cardGap = Math.round(width * 0.03);
+				const cardW = (width - pad * 2 - cardGap) / 2;
+				const radius = Math.round(width * 0.02);
+
+				const x1 = pad;
+				roundRect(x1, y, cardW, cardH, radius);
+				ctx.fillStyle = '#f5f8ff';
+				ctx.fill();
+				ctx.strokeStyle = '#cfe0fb';
+				ctx.lineWidth = 2;
+				ctx.stroke();
+
+				ctx.fillStyle = '#3c5a99';
+				ctx.font = 'bold ' + Math.round(cardH * 0.28) + 'px sans-serif';
+				ctx.textBaseline = 'top';
+				ctx.fillText('検出', x1 + cardW * 0.08, y + cardH * 0.10);
+
+				ctx.fillStyle = '#0f3fc9';
+				ctx.font = 'bold ' + Math.round(cardH * 0.56) + 'px sans-serif';
+				ctx.fillText(String(totalDetected), x1 + cardW * 0.08, y + cardH * 0.36);
+
+				const x2 = x1 + cardW + cardGap;
+				roundRect(x2, y, cardW, cardH, radius);
+				ctx.fillStyle = '#fffaf0';
+				ctx.fill();
+				ctx.strokeStyle = '#f5dfae';
+				ctx.lineWidth = 2;
+				ctx.stroke();
+
+				ctx.fillStyle = '#a9720b';
+				ctx.font = 'bold ' + Math.round(cardH * 0.28) + 'px sans-serif';
+				ctx.textBaseline = 'top';
+				ctx.fillText('sp70緑', x2 + cardW * 0.08, y + cardH * 0.10);
+
+				ctx.fillStyle = '#c96a00';
+				ctx.font = 'bold ' + Math.round(cardH * 0.56) + 'px sans-serif';
+				ctx.fillText(String(sp70Count), x2 + cardW * 0.08, y + cardH * 0.36);
 			}
 
-			const cardGap = Math.round(width * 0.03);
-			const cardW = (width - pad * 2 - cardGap) / 2;
-			const radius = Math.round(width * 0.02);
-
-			const x1 = pad;
-			roundRect(x1, y, cardW, cardH, radius);
-			ctx.fillStyle = '#f5f8ff';
-			ctx.fill();
-			ctx.strokeStyle = '#cfe0fb';
-			ctx.lineWidth = 2;
-			ctx.stroke();
-
-			ctx.fillStyle = '#3c5a99';
-			ctx.font = 'bold ' + Math.round(cardH * 0.28) + 'px sans-serif';
-			ctx.textBaseline = 'top';
-			ctx.fillText('検出', x1 + cardW * 0.08, y + cardH * 0.10);
-
-			ctx.fillStyle = '#0f3fc9';
-			ctx.font = 'bold ' + Math.round(cardH * 0.56) + 'px sans-serif';
-			ctx.fillText(String(totalDetected), x1 + cardW * 0.08, y + cardH * 0.36);
-
-			const x2 = x1 + cardW + cardGap;
-			roundRect(x2, y, cardW, cardH, radius);
-			ctx.fillStyle = '#fffaf0';
-			ctx.fill();
-			ctx.strokeStyle = '#f5dfae';
-			ctx.lineWidth = 2;
-			ctx.stroke();
-
-			ctx.fillStyle = '#a9720b';
-			ctx.font = 'bold ' + Math.round(cardH * 0.28) + 'px sans-serif';
-			ctx.textBaseline = 'top';
-			ctx.fillText('sp70緑', x2 + cardW * 0.08, y + cardH * 0.10);
-
-			ctx.fillStyle = '#c96a00';
-			ctx.font = 'bold ' + Math.round(cardH * 0.56) + 'px sans-serif';
-			ctx.fillText(String(sp70Count), x2 + cardW * 0.08, y + cardH * 0.36);
-
 			if (factorLines.length) {
-				y += cardH + gapY;
+				// カードがあればその下、無ければ見出しのすぐ下（y は見出しの下端＋余白のまま）
+				if (withCards) y += cardH + gapY;
 				// 幅に収まらない行があれば、全体を縮めて桁を揃える（行ごとに大きさが変わらないように）。
 				// 最後の行は右端の「他」と重ならないよう、そのぶん狭い幅で見る。
 				const moreText = '他';
@@ -4182,7 +4208,7 @@
 			const personMeta = []; // コピー機能用に、personIdx・sp70・green・labelを保持
 
 			const allWarnings = [];
-			// 何を焼き込むか（集計バナー／凡例／集計条件）。印は drawAttrIconsOnPerson が run から見る
+			// 何を焼き込むか（検出数カード／シナリオ因子／凡例／集計条件）。印は drawAttrIconsOnPerson が run から見る
 			const show = stitchShowEffective(run);
 			// 印の凡例に出すもの（セット内の全員ぶんをまとめる）
 			const usedMarkKinds = new Set();
@@ -4201,8 +4227,9 @@
 				const detected = countDetected(idx, run);
 				const sp70Count = countCategory(idx, sp70Ids, false);
 				const greenCount = countCategory(idx, greenIds, equivalence);
-				// 集計バナー OFF のときも列見出し（親A など）の帯は出す（cards: false）
-				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count, scenarioFactorHighlight(idx, run), { cards: show.banner });
+				// 検出数カード・シナリオ因子は個別に省ける。両方 OFF でも列見出し（親A など）の帯は出す
+				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count, scenarioFactorHighlight(idx, run),
+					{ cards: show.banner, factors: show.scenario });
 				bannerCanvases.push(banner);
 				contentCanvases.push(contentCanvas);
 				personMeta.push({ idx: idx, label: label, sp70Count: sp70Count, greenCount: greenCount });
@@ -4216,10 +4243,11 @@
 			// スクショ群の下へ置く。contentRow は上揃えの横結合なので高さ＝いちばん長い列。
 			// その下に敷けば、短い列の下の空きには入らず、全幅で並ぶ。
 			// 帯の幅の基準は**スクショの行**（contentRow）に取る。バナーの行は各人のスクショと
-			// 同じ幅・同じ間隔で横結合しているので値は同じだが、集計バナーの有無で
+			// 同じ幅・同じ間隔で横結合しているので値は同じだが、カードや因子の行の有無で
 			// 基準が変わらないよう、バナー側の幅は見ない。
 			const rowWidth = contentRow.width;
-			// 数え方の脚注は集計バナーに従う（カードの数の断りなので、カードが無ければ出さない）
+			// 数え方の脚注は検出数カードに従う（カードの数の断りなので、カードが無ければ出さない。
+			// シナリオ因子の ON/OFF には関わらない）
 			const countNoteBar = show.banner ? stitchDrawCountNoteBar(rowWidth, contentCanvases[0].width) : null;
 			const noteBar = stitchDrawSharedNoteBar(rowWidth, contentCanvases[0].width, {
 				kinds: MARK_KIND_ORDER.filter(k => usedMarkKinds.has(k)),
