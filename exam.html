@@ -1648,6 +1648,7 @@
 			renderPersonUploadGrid();
 			restoreCountMode();
 			restoreAttrIcons();
+			restoreStitchShow();
 			initStitchSaveName();
 			selectCopyList('all133');
 			updateProcessBtn();
@@ -3067,6 +3068,50 @@
 		}
 
 		/* ------------------------------------------------------------
+		 * 結合画像の表示（何を焼き込むか）
+		 *
+		 * 印（上の attrIconsEnabled）のほかに、次の3つを ON/OFF できる。**既定はどれも ON**
+		 * （保存値が無ければ従来どおり全部出す）。
+		 *   banner     … 集計バナー（各人の検出数・sp70緑のカード・シナリオ因子の行）。
+		 *                数え方の脚注「※「〇〇の目覚め」は…」の帯もこれに従う。
+		 *                列見出し（親A・祖A1・祖A2）は OFF でも常に出す。
+		 *   legend     … 印の凡例（印の見かた・印の無い行の説明・印を付けなかった理由）。
+		 *                **印が OFF のときは効かせない**（凡例だけ出ても意味が無い）。
+		 *   conditions … 集計条件（追加／除外スキル・シナリオ因子の一覧）。印やバナーとは独立。
+		 * 補足欄（凡例＋集計条件）に出す行が0なら、欄ごと置かない（従来どおり）。
+		 *
+		 * 切り替えは合成のときに読むだけで、OCR の判定・集計には一切関わらない。
+		 * ------------------------------------------------------------ */
+		const STITCH_SHOW_STORAGE_KEYS = {
+			banner: 'uma-exam-stitch-banner',
+			legend: 'uma-exam-stitch-legend',
+			conditions: 'uma-exam-stitch-conditions'
+		};
+		const stitchShow = { banner: true, legend: true, conditions: true };
+
+		function restoreStitchShow() {
+			Object.keys(STITCH_SHOW_STORAGE_KEYS).forEach(key => {
+				const v = readStored(STITCH_SHOW_STORAGE_KEYS[key]);
+				stitchShow[key] = (v === null) ? true : v === '1';
+			});
+		}
+
+		function setStitchShow(key, on) {
+			if (!Object.prototype.hasOwnProperty.call(STITCH_SHOW_STORAGE_KEYS, key)) return;
+			stitchShow[key] = !!on;
+			writeStored(STITCH_SHOW_STORAGE_KEYS[key], stitchShow[key] ? '1' : '0');
+		}
+
+		// 合成が実際に使う値。凡例は印が OFF なら OFF に倒す。
+		function stitchShowEffective() {
+			return {
+				banner: stitchShow.banner,
+				legend: stitchShow.legend && attrIconsEnabled,
+				conditions: stitchShow.conditions
+			};
+		}
+
+		/* ------------------------------------------------------------
 		 * 印を付けてよい画面の形
 		 *
 		 * 〇の位置と大きさは「画像の幅に対する比」で持っている。その比を実測できて
@@ -3411,7 +3456,10 @@
 		// factors … scenarioFactorHighlight() の戻り値（1件も選んでいなければ null）。
 		// 渡されたときは、カードの下に「因子名：★の数」を画面のハイライトと同じ並び・
 		// 同じ文字列で1行ずつ焼き込む（4種以上選んでいれば最後に「他」）。
-		function stitchDrawPersonBanner(width, groupLabel, totalDetected, sp70Count, factors) {
+		// opts.cards … false なら列見出し（親A など）だけの帯にする（集計バナー OFF のとき）。
+		//   見出しはバナーの有無にかかわらず常に出す決まりなので、カードと因子の行だけを省く。
+		function stitchDrawPersonBanner(width, groupLabel, totalDetected, sp70Count, factors, opts) {
+			const withCards = !(opts && opts.cards === false);
 			const pad = Math.round(width * 0.03);
 			const titleH = Math.round(width * 0.065);
 			const cardH = Math.round(width * 0.185);
@@ -3422,7 +3470,7 @@
 			const factorFont = Math.round(cardH * 0.26);
 			const factorLineH = Math.round(factorFont * 1.55);
 			const factorBlockH = factorLines.length ? (gapY + factorLines.length * factorLineH) : 0;
-			const barHeight = pad * 2 + titleH + gapY + cardH + factorBlockH;
+			const barHeight = withCards ? (pad * 2 + titleH + gapY + cardH + factorBlockH) : (pad * 2 + titleH);
 
 			const c = document.createElement('canvas');
 			c.width = width;
@@ -3444,6 +3492,7 @@
 			ctx.font = 'bold ' + titleH + 'px sans-serif';
 			ctx.textBaseline = 'top';
 			ctx.fillText(groupLabel, pad, y);
+			if (!withCards) return c; // 見出しだけの帯（下の区切り線は上で引いてある）
 			y += titleH + gapY;
 
 			function roundRect(x, yy, w, h, r) {
@@ -3617,7 +3666,11 @@
 		// markInfo … 印の凡例。{ kinds: [使った区分], suppressed: [印を付けなかった理由] }。
 		//   印が OFF のときはどちらも空。書くことが1行も無ければ **null を返す**
 		//   （欄そのものを置かない。区切り線だけが取り残されないように）。
-		function stitchDrawSharedNoteBar(totalWidth, referenceWidth, markInfo) {
+		// show … { legend, conditions }。どちらも省略時は true（stitchShowEffective() の値を渡す）。
+		//   legend が false なら印にまつわる行（見かた・無い行の説明・付けなかった理由）を全部省く。
+		//   conditions が false なら集計条件（追加／除外スキル・シナリオ因子）の行を省く。
+		function stitchDrawSharedNoteBar(totalWidth, referenceWidth, markInfo, show) {
+			const s = Object.assign({ legend: true, conditions: true }, show || {});
 			const c = document.createElement('canvas');
 			const ctx = c.getContext('2d');
 			const m = stitchNoteMetrics(ctx, totalWidth, referenceWidth);
@@ -3629,7 +3682,7 @@
 			// 印の凡例。使った区分だけを並べる。記号は色で描き分けるので、
 			// 文字ではなく結果画像と同じ drawSkillMark() で描く。
 			const info = markInfo || {};
-			const markColors = (info.kinds && info.kinds.length) ? attrMarkColors() : null;
+			const markColors = (s.legend && info.kinds && info.kinds.length) ? attrMarkColors() : null;
 			const legendLines = markColors ? buildMarkLegendLines(ctx, info.kinds, maxTextWidth, fontSize) : [];
 
 			// 凡例に続く、印そのものについての断り（印の無い行の意味・印を付けなかった理由）。
@@ -3637,7 +3690,7 @@
 			if (legendLines.length) {
 				stitchWrapText(ctx, MARK_LEGEND_NOTE, maxTextWidth).forEach(line => markNotes.push(line));
 			}
-			(info.suppressed || []).slice()
+			(s.legend ? (info.suppressed || []) : []).slice()
 				.sort((a, b) => MARK_SUPPRESSED_ORDER.indexOf(a) - MARK_SUPPRESSED_ORDER.indexOf(b))
 				.forEach(reason => {
 					const text = MARK_SUPPRESSED_NOTE[reason];
@@ -3647,7 +3700,7 @@
 
 			// 何を対象にしたか（追加スキル → 除外スキル → シナリオ因子）。
 			const adjustNotes = [];
-			buildTargetAdjustmentNotes().forEach(t => {
+			(s.conditions ? buildTargetAdjustmentNotes() : []).forEach(t => {
 				stitchWrapText(ctx, t, maxTextWidth).forEach(line => adjustNotes.push(line));
 			});
 
@@ -3736,6 +3789,8 @@
 			const personMeta = []; // コピー機能用に、personIdx・sp70・green・labelを保持
 
 			const allWarnings = [];
+			// 何を焼き込むか（集計バナー／凡例／集計条件）。印は drawAttrIconsOnPerson が自分で見る
+			const show = stitchShowEffective();
 			// 印の凡例に出すもの（セット内の全員ぶんをまとめる）
 			const usedMarkKinds = new Set();
 			const markSuppressed = new Set();
@@ -3753,7 +3808,8 @@
 				const detected = countDetected(idx);
 				const sp70Count = countCategory(idx, sp70Ids, false);
 				const greenCount = countCategory(idx, greenIds, equivalence);
-				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count, scenarioFactorHighlight(idx));
+				// 集計バナー OFF のときも列見出し（親A など）の帯は出す（cards: false）
+				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count, scenarioFactorHighlight(idx), { cards: show.banner });
 				bannerCanvases.push(banner);
 				contentCanvases.push(contentCanvas);
 				personMeta.push({ idx: idx, label: label, sp70Count: sp70Count, greenCount: greenCount });
@@ -3766,15 +3822,21 @@
 			// 数え方の脚注はスクショの上（従来の位置）に残し、補助テキスト欄は
 			// スクショ群の下へ置く。contentRow は上揃えの横結合なので高さ＝いちばん長い列。
 			// その下に敷けば、短い列の下の空きには入らず、全幅で並ぶ。
-			const countNoteBar = stitchDrawCountNoteBar(bannerRow.width, contentCanvases[0].width);
-			const noteBar = stitchDrawSharedNoteBar(bannerRow.width, contentCanvases[0].width, {
+			// 帯の幅の基準は**スクショの行**（contentRow）に取る。バナーの行は各人のスクショと
+			// 同じ幅・同じ間隔で横結合しているので値は同じだが、集計バナーの有無で
+			// 基準が変わらないよう、バナー側の幅は見ない。
+			const rowWidth = contentRow.width;
+			// 数え方の脚注は集計バナーに従う（カードの数の断りなので、カードが無ければ出さない）
+			const countNoteBar = show.banner ? stitchDrawCountNoteBar(rowWidth, contentCanvases[0].width) : null;
+			const noteBar = stitchDrawSharedNoteBar(rowWidth, contentCanvases[0].width, {
 				kinds: MARK_KIND_ORDER.filter(k => usedMarkKinds.has(k)),
 				suppressed: MARK_SUPPRESSED_ORDER.filter(r => markSuppressed.has(r))
-			});
+			}, { legend: show.legend, conditions: show.conditions });
 
-			const totalWidth = Math.max(bannerRow.width, countNoteBar.width, contentRow.width,
+			const totalWidth = Math.max(bannerRow.width, rowWidth,
+				countNoteBar ? countNoteBar.width : 0,
 				noteBar ? noteBar.width : 0);
-			const totalHeight = bannerRow.height + countNoteBar.height + contentRow.height +
+			const totalHeight = bannerRow.height + (countNoteBar ? countNoteBar.height : 0) + contentRow.height +
 				(noteBar ? noteBar.height : 0);
 			const finalCanvas = document.createElement('canvas');
 			finalCanvas.width = totalWidth;
@@ -3783,8 +3845,11 @@
 			fctx.fillStyle = '#ffffff';
 			fctx.fillRect(0, 0, totalWidth, totalHeight);
 			fctx.drawImage(bannerRow, 0, 0);
-			fctx.drawImage(countNoteBar, 0, bannerRow.height);
-			const contentTop = bannerRow.height + countNoteBar.height;
+			let contentTop = bannerRow.height;
+			if (countNoteBar) {
+				fctx.drawImage(countNoteBar, 0, contentTop);
+				contentTop += countNoteBar.height;
+			}
 			fctx.drawImage(contentRow, 0, contentTop);
 			if (noteBar) fctx.drawImage(noteBar, 0, contentTop + contentRow.height);
 
