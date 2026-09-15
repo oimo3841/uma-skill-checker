@@ -135,7 +135,7 @@
 		}
 		/* 取り込み案内の「UmaSkill Deck を開いて取り込む」。Deck の色（.deck-accent の中で --uma-accent が
 		   Deck の色になる）で塗る。共通部品 .uma-btn は読んでいないので、このページのボタンの書き方で。 */
-		/* 「旧UIへ／新UIへ」の、新UI中の点灯（このページの藍） */
+		/* 「旧UIへ／新UIへ」の、新UI中の点灯（このページの青） */
 		#deck-mode-btn.is-on { border-color: var(--uma-accent-border); background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
 		/* 片道化（2026-09-15）: 新UIの間はこのボタンを出さない。Tailwind の inline-flex が display を
 		   当てているので、hidden 属性を自前で押す（F-13。css/shell.css の .uma-fab-item[hidden] と同じ理由） */
@@ -242,7 +242,7 @@
 		.stitch-wire-line { display: flex; align-items: center; gap: 2px; }
 		.stitch-wire-line b { display: block; flex: 0 0 auto; width: 100%; height: 3px; border-radius: 2px; background: var(--uma-border-strong); }
 		.stitch-wire-line[data-stitch-part="legend"] b { flex: 1 1 auto; width: auto; }
-		/* チェックに触れている間、対応する帯を強調する（輪の色はこのページの藍） */
+		/* チェックに触れている間、対応する帯を強調する（輪の色はこのページの青） */
 		.stitch-wire .is-hot { box-shadow: 0 0 0 2px var(--uma-accent); }
 		/* 引き出しの中の「結合画像の設定」（③）の「画像を更新」の段。骨格は css/shell.css の .uma-popover--drawer */
 		.stitch-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2) var(--uma-sp-3); padding: var(--uma-sp-3) 0 0; }
@@ -331,7 +331,7 @@
 						<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-800 via-indigo-700 to-indigo-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Exam</span> OCR<span class="ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">β版</span></h1>
 						<!-- いま新しいUI（引き出しの画面構成）にいることの表示。過渡期のあいだだけ出す目印で、
 						     旧UIのときは何も出さない。押すと告知を読み直せる（既読の状態は変えない）。
-						     色は css/shell.css の .ui-mode-badge（このページの藍＝ツール自身の部品なので Deck の色にはしない）。 -->
+						     色は css/shell.css の .ui-mode-badge（このページの青＝ツール自身の部品なので Deck の色にはしない）。 -->
 						<button type="button" id="ui-mode-badge" hidden onclick="reopenUiNotice()"
 							class="ui-mode-badge shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full"
 							title="画面が新しくなったお知らせをもう一度見る">新UI</button>
@@ -491,7 +491,7 @@
 
 		<!-- 画面の切り替えの告知。初回だけ自動で出て、以後は右上の「新UI」バッジから読み直せる。
 		     ✕・OK・背景・Esc のどれで閉じても既読になる（special の C-16 と同じ作法）。
-		     上の段はこのページの藍、＜新機能＞の段は Deck の色（.deck-accent）の枠で囲み、
+		     上の段はこのページの青、＜新機能＞の段は Deck の色（.deck-accent）の枠で囲み、
 		     「この色＝Deck」と覚えてもらう。文面は固定（改行位置だけ .nb で整える）。 -->
 		<div id="ui-notice-backdrop" class="uma-overlay-backdrop" hidden onclick="closeUiNotice()"></div>
 		<div id="ui-notice" class="uma-overlay notice-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="ui-notice-title">
@@ -1135,7 +1135,7 @@
 
 	<!-- ===== 画面固定ナビ（右下・折りたたみFAB） =====
 	     子要素の並び順は「上→下」＝「使用頻度の低い→高い」。バッジの出し入れは updateFabBadges()。
-	     メインボタンはこのページの藍（--uma-accent）。Deck の項目だけ Deck の色（.deck-accent）で、
+	     メインボタンは3ツール共通の黒（tokens.css の --uma-fab-bg）。Deck の項目だけ Deck の色（.deck-accent）で、
 	     行き先を色で示す。 -->
 	<div id="fab-nav" class="uma-fab-nav">
 		<button id="fab-item-result" type="button" class="uma-fab-item" onclick="fabGoTo('result')">
