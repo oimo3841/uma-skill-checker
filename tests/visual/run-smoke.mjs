@@ -1360,6 +1360,22 @@ const browser = await chromium.launch();
 	await page.evaluate(() => { toggleScenarioFactor(0, true); toggleScenarioFactor(1, true); });
 	assert(await page.evaluate(() => document.getElementById('badge-scenario-factors-text').textContent) === 'シナリオ因子：2種',
 		'exam: シナリオ因子を選ぶと「シナリオ因子：2種」のバッジが出る');
+	// シナリオ因子はスキルではないので、「スキル」と付く数には入れない。
+	// 並び（照合・一覧・表）には従来どおり入る＝skillList は 121+2 のまま。
+	const splitCounts = await page.evaluate(() => ({
+		skillOnly: skillOnlyList.length, factorOnly: factorOnlyList.length, all: skillList.length,
+		badge: document.getElementById('step1-skill-badge').textContent,
+		registry: document.getElementById('registry-skill-count').textContent,
+		copylist: document.getElementById('copylist-all133-count').textContent,
+		rows: document.querySelectorAll('#skill-registry-list > div').length
+	}));
+	assert(splitCounts.skillOnly === 121 && splitCounts.factorOnly === 2 && splitCounts.all === 123,
+		'exam: シナリオ因子を選ぶと、数える配列はスキル121・因子2に分かれる（並びの skillList は123のまま）', splitCounts);
+	assert(splitCounts.badge === '121種（調整あり）' && splitCounts.registry === '121' && splitCounts.copylist === '121',
+		'exam: ①のバッジ・一覧の見出し・コピーの「全◯種」は、因子を選んでもスキルだけの数（121）', splitCounts);
+	// 一覧は「外した12種」も取り消し線で残すので 133＋因子2＝135行。数だけがスキルの121になる。
+	assert(splitCounts.rows === 135,
+		'exam: 一覧の行そのものにはシナリオ因子も並ぶ（133＋因子2＝135行）', splitCounts);
 	await page.evaluate(() => { clearScenarioFactors(); setTargetScopeMode('default'); });
 	assert(await page.textContent('#step1-skill-badge') === '133種', 'exam: 調整を戻すとバッジも「133種」に戻る');
 	assert(await page.evaluate(() => ['badge-scope-added', 'badge-scope-removed', 'badge-scenario-factors']
@@ -1586,8 +1602,31 @@ const browser = await chromium.launch();
 	await seedExam();
 	await page.waitForTimeout(400);
 	p = await readExam();
+	// Deck へ渡す skillNames は**因子を含めたまま**（Deck 側はカタログの◆として取り込む）。
+	// 138種＋シナリオ因子1種＝139件。この139は「渡した行数」であって「スキル数」ではない。
 	assert(p && !p.imported && p.scope.name === '技能試験（調整あり）' && p.skillNames.length === 139,
-		'exam: 判定し直すと新しい payload（調整あり・139件）になり未取り込みに戻る', p && { imported: p.imported, scope: p.scope, n: p.skillNames.length });
+		'exam: 判定し直すと新しい payload（調整あり・139件＝スキル138＋シナリオ因子1）になり未取り込みに戻る', p && { imported: p.imported, scope: p.scope, n: p.skillNames.length });
+	assert(await page.evaluate(() => {
+		const f = new Set(SCENARIO_INHERITANCE_FACTORS);
+		const pay = JSON.parse(localStorage.getItem('umaSkillDeck:ocrHandoff:exam'));
+		return pay.skillNames.filter((x) => !f.has(x)).length === 138 && pay.skillNames.filter((x) => f.has(x)).length === 1;
+	}), 'exam: 渡した139件の内訳はスキル138件・シナリオ因子1件');
+	// 「スキル」と付く数からは因子を外す。検出数もスキルだけを数える（因子は全員が検出済みの種でも増えない）。
+	const factorSplit = await page.evaluate(() => ({
+		skillOnly: skillOnlyList.length, factorOnly: factorOnlyList.length, all: skillList.length,
+		badge: document.getElementById('step1-skill-badge').textContent,
+		registry: document.getElementById('registry-skill-count').textContent,
+		statTotal: document.getElementById('stat-total').textContent,
+		statFound1: document.getElementById('stat-found-1').textContent,
+		statFound4: document.getElementById('stat-found-4').textContent,
+		detected0: countDetected(0),
+		detectedWithFactors: skillList.filter((s) => personResults[0].detectedSkills.has(s)).length
+	}));
+	assert(factorSplit.skillOnly === 138 && factorSplit.factorOnly === 1 && factorSplit.all === 139
+		&& factorSplit.badge === '138種（調整あり）' && factorSplit.registry === '138' && factorSplit.statTotal === '138',
+		'exam: ①のバッジ・一覧の見出し・「対象スキル数」カードは、因子を除いた138', factorSplit);
+	assert(factorSplit.detected0 === 138 && factorSplit.detectedWithFactors === 139 && factorSplit.statFound1 === '138',
+		'exam: 検出数はスキルだけを数える（因子込みなら139になるところを138）', factorSplit);
 	n = await noteState();
 	assert(n.title.includes('取り込めます') && n.detail.includes('（対象：技能試験（調整あり））') && n.dot,
 		'exam: 案内も「取り込めます」に戻り、対象名に（調整あり）が付く', n);

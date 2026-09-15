@@ -1618,7 +1618,13 @@
 		})();
 
 		/* 状態変数（このツール固有。共通ロジック・共通定数は js/common.js を参照） */
+		// skillList     … 照合・一覧・表の**並び**に使う（対象スキル → シナリオ因子）。
+		// skillOnlyList … 「スキル」と付く数を数えるのはこちら（シナリオ因子を含めない）。
+		// factorOnlyList… 選んでいるシナリオ因子だけ。因子の数はここから出す。
+		// 3つは rebuildSkillList() が同時に作り直す（片方だけ古い、が起きないように）。
 		let skillList = EXAM_SKILL_NAMES.slice();
+		let skillOnlyList = EXAM_SKILL_NAMES.slice();
+		let factorOnlyList = [];
 		let skillIndex = [];
 		let currentFilter = 'all';
 		let previewCanvases = [];
@@ -1763,8 +1769,13 @@
 		// 実際に照合・表示・コピーで使う対象スキル。
 		// 並びは「軸1の基準リスト → シナリオ因子」。既定の133種の並びは動かさない
 		// （利用者のスプレッドシート側の照合が黙って外れないため）。
+		// シナリオ因子はスキルではないので、**数える用の配列は分けて持つ**
+		// （「スキル◯種」と書いてある数に因子が混ざると、表記と食い違って誤解を生む）。
+		// 照合・一覧・表の並びには従来どおり結合した skillList を使う。
 		function rebuildSkillList() {
-			skillList = scopeBaseNames().concat(activeScenarioFactors());
+			skillOnlyList = scopeBaseNames();
+			factorOnlyList = activeScenarioFactors();
+			skillList = skillOnlyList.concat(factorOnlyList);
 			skillIndex = skillList.map(raw => ({ raw: raw, norm: normalizeText(raw) }));
 		}
 
@@ -1922,10 +1933,13 @@
 		}
 
 		/* ============================================================
-		 * ヘッダー・バッジ類の件数表示を、現在のskillList（除外・追加反映後）に同期する
+		 * ヘッダー・バッジ類の件数表示を、現在のskillOnlyList（除外・追加反映後）に同期する
+		 *
+		 * 数えるのは**スキルだけ**（シナリオ因子は含めない）。因子の数は
+		 * 「シナリオ因子：N種」のバッジ（updateCategoryBadges）が別に出す。
 		 * ============================================================ */
 		function updateSkillCountDisplays() {
-			const total = skillList.length;
+			const total = skillOnlyList.length;
 			// 見出しの種数（#header-skill-count）はこの一覧から外した。見出しには
 			// 数を出さない方針にしたため（上のヘッダーのコメント参照）。
 			['registry-skill-count', 'copylist-all133-count'].forEach(id => {
@@ -2816,10 +2830,11 @@
 
 		// そのpersonが検出できた対象スキルの数（カスタム追加分も含むので ID には引き直さない）。
 		// run（captureRun）を渡せば、その OCR に使った対象スキルで数える（結合画像の側が使う）。
+		// **シナリオ因子は数えない**（スキルではないため。因子の該当状況は各人のシナリオ因子の行で示す）。
 		function countDetected(personIdx, run) {
 			const res = personResults[personIdx];
 			if (!res) return 0;
-			return (run ? run.skillList : skillList).filter(s => res.detectedSkills.has(s)).length;
+			return (run ? run.skillOnlyList : skillOnlyList).filter(s => res.detectedSkills.has(s)).length;
 		}
 
 		// 指定のカテゴリ（マスターIDの集合）のうち、そのpersonが検出できた数を数える。
@@ -3051,15 +3066,19 @@
 			used.forEach(i => { foundCounts[i] = 0; });
 			const copyRows = [];
 
+			// 並び（表・コピー用データ）は従来どおり skillList＝スキル→シナリオ因子。
+			// **検出数はスキルの行だけ数える**（シナリオ因子はスキルではないため）。
 			skillList.forEach(skill => {
 				const rowVals = used.map(p => starsFor(p, skill));
-				rowVals.forEach((v, idx) => { if (v !== undefined) foundCounts[used[idx]]++; });
+				if (!isScenarioFactor(skill)) {
+					rowVals.forEach((v, idx) => { if (v !== undefined) foundCounts[used[idx]]++; });
+				}
 				// ★を計測できなかった場合（null）は、誤った数字を貼らないよう空欄にする。
 				// 表側には「?」を出して、手で補う必要があることが分かるようにしている。
 				copyRows.push(rowVals.map(v => (v === null || v === undefined) ? '' : String(v)).join('\t'));
 			});
 
-			document.getElementById('stat-total').textContent = skillList.length;
+			document.getElementById('stat-total').textContent = skillOnlyList.length;
 			used.forEach(i => {
 				document.getElementById('stat-found-' + (i + 1)).textContent = foundCounts[i];
 			});
@@ -3409,6 +3428,7 @@
 		 *   setB … 親Bセットを開いているか（結合するセットの範囲）
 		 *   files … 各人物の画像（File の参照の配列を複製。枚数と並び順を固定する）
 		 *   skillList / skillIndex … 照合に使う対象スキル（rebuildSkillList は配列を作り直すので参照で足りる）
+		 *   skillOnlyList / factorOnlyList … 数える用（スキルだけ／シナリオ因子だけ）。同上
 		 * ------------------------------------------------------------ */
 		let runSeq = 0;
 		function captureRun() {
@@ -3422,6 +3442,8 @@
 				setB: setBVisible,
 				files: persons.map(p => p.files.slice()),
 				skillList: skillList,
+				skillOnlyList: skillOnlyList,
+				factorOnlyList: factorOnlyList,
 				skillIndex: skillIndex
 			};
 		}
