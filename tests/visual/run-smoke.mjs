@@ -443,7 +443,7 @@ const browser = await chromium.launch();
 		opacity: getComputedStyle(document.getElementById('old-ui-end-note')).opacity
 	}));
 	assert(noteText.text.includes('この画面は更新を終了しました')
-		&& noteText.text.includes('今後、新しい機能はこの画面には追加されません。右上の「新UIへ」から、最新の画面に切り替えられます。'),
+		&& noteText.text.includes('今後、新しい機能はこの画面には追加されません。画面上部の「新UIへ」から、最新の画面に切り替えられます。'),
 		'special: 注記の文面が決めたとおり', noteText);
 	assert(!noteText.closeBtn && noteText.visible, 'special: 注記に閉じるボタンは無く、実際に描画されている', noteText);
 	assert(noteText.bg === 'rgb(255, 251, 235)' && noteText.opacity === '1',
@@ -2782,7 +2782,7 @@ const browser = await chromium.launch();
 			};
 		});
 		assert(endNote.text.includes('この画面は更新を終了しました')
-			&& endNote.text.includes('今後、新しい機能はこの画面には追加されません。右上の「新UIへ」から、最新の画面に切り替えられます。'),
+			&& endNote.text.includes('今後、新しい機能はこの画面には追加されません。画面上部の「新UIへ」から、最新の画面に切り替えられます。'),
 			'exam: 注記の文面が決めたとおり', endNote);
 		assert(!endNote.closeBtn && endNote.inOldCard && endNote.first,
 			'exam: 注記に閉じるボタンは無く、#old-step1-card の先頭に直接置かれている（移動対象の外）', endNote);
