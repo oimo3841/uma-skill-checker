@@ -201,6 +201,12 @@ for (const p of ['index.html', 'js/common.js']) {
    免除ではなく記録として1行ずつ残す（なぜ消えたのかを後から追えるようにする）。
    免除したものは実行のたびに [免除] として表示されるので、放置に気付ける。 */
 const INTENTIONALLY_REMOVED = {
+	// 2026-09-15: exam のヘッダーの見出しから可変の種数 #header-skill-count を消した。
+	// 「対象スキルの範囲」を選べるようになったので、見出しの数が利用者の選択で
+	// 変わってしまうため（見出しは「技能試験で有利な登録済み対象スキル」に）。
+	// いまの種数は #step1-skill-badge と #registry-skill-count が出す。
+	// **commit が進んだらこの1行は消す**（下の申し送りと同じ扱い）。
+	'exam.html': ['header-skill-count'],
 	// 2026-09-15: exam の「対象スキルのカスタム設定（追加・除外）」の一式
 	// （#custom-skills-badge・#custom-add-textarea・#custom-add-status・#custom-added-list・
 	//   #custom-remove-textarea・#custom-remove-status・#custom-removed-list）と、

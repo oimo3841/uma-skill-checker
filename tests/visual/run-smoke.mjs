@@ -1294,10 +1294,15 @@ const browser = await chromium.launch();
 		badge: document.getElementById('step1-skill-badge').textContent,
 		sp70: document.getElementById('badge-sp70-count').textContent,
 		green: document.getElementById('badge-green59-count').textContent,
-		total: document.getElementById('header-skill-count').textContent
+		// ヘッダーの見出しからは種数を外した（範囲を選べるので、見出しの数が
+		// 利用者の選択で変わるのを避けるため）。いまの種数は一覧の見出しが出す。
+		total: document.getElementById('registry-skill-count').textContent,
+		header: document.querySelector('header p').textContent
 	}));
 	assert(registry.rows === 133 && registry.total === '133' && registry.badge === '133種',
 		'exam: 組み込みの133種が登録されている（①のタブのバッジは「133種」）', registry);
+	assert(/技能試験で有利な登録済み対象スキル/.test(registry.header) && !/種・登録済み/.test(registry.header),
+		'exam: ヘッダーの見出しに種数を書かない', registry.header.slice(0, 40));
 	assert(registry.sp70 === 'sp70緑：17種' && registry.green === '緑59種（実質53種）',
 		'exam: sp70緑17・緑59（実質53）のバッジが出る', registry);
 	assert(await page.evaluate(() => loadedCssVersion('--common-css-version')) === COMMON_CSS_VERSION
