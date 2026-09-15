@@ -15,7 +15,7 @@
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-15b"></script>
-	<script src="js/uma-skill-deck.js?v=2026-09-15g"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-15h"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -23,17 +23,6 @@
 		     こちらは常時有効。このページには hidden と sm:inline を併記した要素が
 		     無いため、常に効かせても既存の挙動は変わらない） */
 		.hidden { display: none !important; }
-
-		/* ページの地。UmaSkill Deck は「評価して比較する」画面なので藍系。
-		   作り（淡い色面＋放射グラデーション）は UmaStar OCR と共通で、色相だけが違う。 */
-		body {
-			background-color: #f5f6fb;
-			background-image:
-				radial-gradient(ellipse 720px 300px at 50% -4%, rgba(199, 210, 250, 0.55), transparent 70%),
-				linear-gradient(180deg, #f1f3fc 0%, #f8f9fd 42%, #ffffff 100%);
-			background-repeat: no-repeat;
-			background-attachment: fixed;
-		}
 
 		/* このツールのアクセント。共通部品はこの変数を見て色が決まる。
 		   値は css/tokens.css の --uma-deck-*（濃いめの暖かいグレー）から引く。
@@ -45,6 +34,24 @@
 			--uma-accent-soft-text: var(--uma-deck-accent-soft-text);
 			--uma-accent-border: var(--uma-deck-accent-border);
 			--uma-accent-ring: var(--uma-deck-accent-ring);
+
+			/* ページの地。半透明を含むので --uma-deck-* の段とは別に持つ。
+			   【2026-09-15・43セッション目】藍寄りの淡いグラデーションだったのを、
+			   Deck の色（暖かいグレー）に合わせて灰色系へ寄せた。値の直書きはここだけ。 */
+			--uma-page-bg: #f6f5f4;
+			--uma-page-glow: rgba(214, 211, 209, 0.55);   /* stone-300 の半透明 */
+			--uma-page-mid: #f3f2f1;
+			--uma-page-high: #faf9f8;
+		}
+
+		/* ページの地。作り（淡い色面＋放射グラデーション）は UmaStar OCR と共通で、色相だけが違う。 */
+		body {
+			background-color: var(--uma-page-bg);
+			background-image:
+				radial-gradient(ellipse 720px 300px at 50% -4%, var(--uma-page-glow), transparent 70%),
+				linear-gradient(180deg, var(--uma-page-mid) 0%, var(--uma-page-high) 42%, #ffffff 100%);
+			background-repeat: no-repeat;
+			background-attachment: fixed;
 		}
 
 		/* .glass-card / .icon-btn / 入力欄の一括指定は css/common.css へ移した。
