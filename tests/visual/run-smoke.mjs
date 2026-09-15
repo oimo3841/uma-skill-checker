@@ -4452,14 +4452,17 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(300);
 
 	const shape = await page.evaluate(() => {
-		const wrap = document.getElementById('stitch-show-drawer-wrap');
+		const fab = document.getElementById('stitch-drawer-fab');
+		const pop = document.getElementById('stitch-drawer-pop');
 		const panel = document.getElementById('stitch-show-panel-drawer');
+		const drawer = document.getElementById('result-drawer');
 		return {
-			hiddenAtStart: wrap.hidden,
-			inStitchPanel: document.getElementById('result-panel-stitch').contains(wrap),
-			outsideResultWrap: !document.getElementById('stitch-result-wrap').contains(wrap),
-			afterNameWrap: document.getElementById('stitch-name-wrap').nextElementSibling === wrap,
-			detailsClosed: !document.getElementById('stitch-show-drawer').open,
+			hiddenAtStart: fab.hidden && pop.hidden,
+			inDrawer: drawer.contains(fab) && drawer.contains(pop),
+			outsideBody: !drawer.querySelector('.uma-drawer-body').contains(fab) && !drawer.querySelector('.uma-drawer-body').contains(pop),
+			outsideResultWrap: !document.getElementById('stitch-result-wrap').contains(pop),
+			looksLikeFab: fab.classList.contains('uma-fab-toggle') && getComputedStyle(fab).position === 'absolute',
+			oldFoldGone: !document.getElementById('stitch-show-drawer-wrap') && !document.getElementById('stitch-show-drawer'),
 			inputs: Array.from(panel.querySelectorAll('input[data-stitch-show]')).map((i) => i.id),
 			noWire: !panel.querySelector('.stitch-wire'),
 			noNote: !panel.querySelector('.stitch-show-note'),
@@ -4472,26 +4475,34 @@ const browser = await chromium.launch();
 		};
 	});
 	assert(shape.drawerScenarioDisabled, '表示を変更: 引き出し側のシナリオ因子も、1件も選んでいなければ灰色', shape);
-	assert(shape.hiddenAtStart && shape.inStitchPanel && shape.outsideResultWrap && shape.afterNameWrap,
-		'表示を変更: 結果画像のタブの #stitch-name-wrap の直下にあり、結果が無いうちは隠れている', shape);
-	assert(shape.detailsClosed && shape.noWire && shape.noNote, '表示を変更: 既定は閉じていて、模式図と②の注記は出さない', shape);
+	assert(shape.hiddenAtStart && shape.inDrawer && shape.outsideBody && shape.outsideResultWrap && shape.looksLikeFab,
+		'表示を変更: 丸ボタンとパネルは引き出しの内側（本文の外）にあり、結果が無いうちは隠れている', shape);
+	assert(shape.oldFoldGone && shape.noWire && shape.noNote, '表示を変更: 「表示を変更」の折りたたみは無くなり、パネルに模式図と②の注記は出さない', shape);
 	assert(shape.inputs.join(',') === 'drawer-stitch-show-banner,drawer-stitch-show-scenario,drawer-opt-attr-icons,drawer-stitch-show-legend,drawer-stitch-show-conditions' && shape.dupIds.length === 0,
 		'表示を変更: チェック5つの id は drawer- で分かれ、②の id と重複しない', shape);
 	assert(shape.step2Note.includes('「結合画像の表示」の画面からも表示を変えて更新できます'), '表示を変更: ②の注記が③の道も示す', shape.step2Note);
 	assert(shape.btnDisabled && shape.noteHidden, '表示を変更: 結果が無いうちは「画像を更新」は押せず、案内も出ない', shape);
 
-	// 結果ができると出る（setSectionReady に乗っている）／消えると隠れる
+	// 結果ができると出る（setSectionReady に乗っている）／消えると隠れる。「照合結果」のタブでは出ない
 	const ready = await page.evaluate(() => {
+		const fabShown = () => !document.getElementById('stitch-drawer-fab').hidden;
+		selectResultTab('stitch');
 		document.getElementById('stitch-result-content').innerHTML = '<p id="stitch-dummy">結果画像</p>';
 		setSectionReady('stitch', true);
-		const on = { wrap: !document.getElementById('stitch-show-drawer-wrap').hidden, name: !document.getElementById('stitch-name-wrap').hidden, empty: document.getElementById('stitch-empty').hidden };
+		const on = { fab: fabShown(), name: !document.getElementById('stitch-name-wrap').hidden, empty: document.getElementById('stitch-empty').hidden };
+		selectResultTab('result');
+		const onResultTab = { fabHidden: !fabShown() };
+		selectResultTab('stitch');
+		const backOnStitchTab = { fab: fabShown() };
 		document.getElementById('stitch-result-content').innerHTML = '';
 		setSectionReady('stitch', false);
-		const off = { wrap: document.getElementById('stitch-show-drawer-wrap').hidden, name: document.getElementById('stitch-name-wrap').hidden, empty: !document.getElementById('stitch-empty').hidden };
-		return { on, off };
+		const off = { fab: !fabShown(), name: document.getElementById('stitch-name-wrap').hidden, empty: !document.getElementById('stitch-empty').hidden };
+		selectResultTab('result');
+		return { on, onResultTab, backOnStitchTab, off };
 	});
 	assert(Object.values(ready.on).every(Boolean) && Object.values(ready.off).every(Boolean),
-		'表示を変更: #stitch-name-wrap・#stitch-empty と同じタイミングで出入りする', ready);
+		'表示を変更: 丸ボタンは #stitch-name-wrap・#stitch-empty と同じタイミングで出入りする', ready);
+	assert(ready.onResultTab.fabHidden && ready.backOnStitchTab.fab, '表示を変更: 丸ボタンは「照合結果」のタブでは出ず、「結合画像の表示」のタブに戻ると出る', ready);
 
 	// 「OCR が済んで結合画像ができた」状態を作り、引き出しで操作する
 	await page.evaluate(async () => {
@@ -4512,12 +4523,41 @@ const browser = await chromium.launch();
 		openDrawer('result');
 	});
 	await page.waitForTimeout(500);
-	// 折りたたみは閉じているので、見えるのは見出し（summary）だけ。ボタンは開くまで見えない
-	assert(await page.isVisible('#stitch-show-drawer-wrap') && await page.isVisible('#stitch-show-drawer summary') && !(await page.isVisible('#stitch-refresh-btn')),
-		'表示を変更: 結果画像ができると引き出しに「表示を変更」の見出しが出る（中身は閉じている）');
-	await page.click('#stitch-show-drawer summary');
+	// 丸ボタンだけが見え、パネルは押すまで見えない。押すと丸ボタンの真上に開き、✕にフォーカスが移る
+	assert(await page.isVisible('#stitch-drawer-fab') && !(await page.isVisible('#stitch-drawer-pop')) && !(await page.isVisible('#stitch-refresh-btn')),
+		'表示を変更: 結合画像ができると引き出しの右下に丸ボタンが出る（パネルは閉じている）');
+	// 本文をスクロールしても丸ボタンの画面上の位置は変わらない
+	const pinned = await page.evaluate(async () => {
+		const body = document.querySelector('#result-drawer .uma-drawer-body');
+		const before = document.getElementById('stitch-drawer-fab').getBoundingClientRect();
+		body.scrollTop = 200;
+		await new Promise((r) => requestAnimationFrame(r));
+		const after = document.getElementById('stitch-drawer-fab').getBoundingClientRect();
+		const scrolled = body.scrollTop;
+		body.scrollTop = 0;
+		return { same: before.top === after.top && before.left === after.left, scrolled };
+	});
+	assert(pinned.same, '表示を変更: 引き出しの本文をスクロールしても丸ボタンの位置は変わらない', pinned);
+	await page.click('#stitch-drawer-fab');
 	await page.waitForTimeout(300);
-	assert(await page.isVisible('#drawer-stitch-show-banner'), '表示を変更: 見出しを押すとチェックが開く');
+	const opened = await page.evaluate(() => {
+		const p = document.getElementById('stitch-drawer-pop').getBoundingClientRect();
+		const f = document.getElementById('stitch-drawer-fab').getBoundingClientRect();
+		const d = document.getElementById('result-drawer').getBoundingClientRect();
+		return {
+			visible: !document.getElementById('stitch-drawer-pop').hidden,
+			focus: document.activeElement && document.activeElement.id,
+			expanded: document.getElementById('stitch-drawer-fab').getAttribute('aria-expanded'),
+			aboveFab: p.bottom <= f.top + 1, rightAligned: Math.abs(p.right - f.right) < 2,
+			insideDrawer: p.left >= d.left - 1 && p.right <= d.right + 1,
+			backdropHidden: document.getElementById('stitch-settings-backdrop').hidden,
+			smallEnough: p.height <= d.height * 0.6 + 1
+		};
+	});
+	assert(opened.visible && opened.focus === 'stitch-drawer-pop-close' && opened.expanded === 'true', '表示を変更: 丸ボタンを押すとパネルが開き、✕にフォーカスが移る', opened);
+	assert(opened.aboveFab && opened.rightAligned && opened.insideDrawer && opened.backdropHidden && opened.smallEnough,
+		'表示を変更: パネルは引き出しの内側で丸ボタンの真上に浮き、暗転は付かず、画像の大半を隠さない', opened);
+	assert(await page.isVisible('#drawer-stitch-show-banner'), '表示を変更: パネルの中にチェックが出る');
 
 	// 引き出しで変える → ②にも映り、保存され、ボタンが押せる。戻す → 押せない
 	await page.click('#drawer-stitch-show-banner');
@@ -4566,9 +4606,11 @@ const browser = await chromium.launch();
 			unseen: fabUnseen.stitch,
 			drawerOpen: document.getElementById('result-drawer').classList.contains('open'),
 			scroll: body.scrollTop,
-			inProgress: stitchInProgress
+			inProgress: stitchInProgress,
+			popOpen: !document.getElementById('stitch-drawer-pop').hidden
 		};
 	});
+	assert(after.popOpen, '表示を変更: 「画像を更新」を押したあともパネルは開いたまま', after.popOpen);
 	assert(after.h < before.h && after.src !== before.src, '表示を変更: 「画像を更新」で画像が作り直る（バナー無しで低くなる）', { before: before.h, after: after.h });
 	assert(after.linkMatchesImg && after.links === 1, '表示を変更: ダウンロードリンクは更新後の画像を指し、古いリンクは残らない', after);
 	assert(after.btn && after.state === 'same' && after.label === '画像を更新' && !after.inProgress, '表示を変更: 更新後はボタンが無効に戻り、文言も戻る', after);
@@ -4591,30 +4633,66 @@ const browser = await chromium.launch();
 		'表示を変更: OCR 後に画像を足すとボタンが無効になり、やり直しの案内が出る', staleUi.stale);
 	assert(!staleUi.back.btn && !staleUi.back.note, '表示を変更: 画像を元に戻すと案内が消えて押せるようになる', staleUi.back);
 
-	// 375px: 折りたたみを開いた状態で崩れず、横スクロールが出ない
+	// パネルの外（引き出しの本文）を押すと閉じる。もう一度開いて Esc → パネルだけ閉じて引き出しは残り、
+	// フォーカスは丸ボタンへ。もう一度 Esc で引き出しが閉じる
+	await page.evaluate(() => document.getElementById('stitch-name-wrap').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+	await page.waitForTimeout(200);
+	assert(await page.evaluate(() => document.getElementById('stitch-drawer-pop').hidden), '表示を変更: パネルの外（引き出しの本文）を押すと閉じる');
+	await page.click('#stitch-drawer-fab');
+	await page.waitForTimeout(300);
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
+	const esc1 = await page.evaluate(() => ({
+		popHidden: document.getElementById('stitch-drawer-pop').hidden,
+		drawerOpen: document.getElementById('result-drawer').classList.contains('open'),
+		focus: document.activeElement && document.activeElement.id,
+		expanded: document.getElementById('stitch-drawer-fab').getAttribute('aria-expanded')
+	}));
+	assert(esc1.popHidden && esc1.drawerOpen && esc1.focus === 'stitch-drawer-fab' && esc1.expanded === 'false',
+		'表示を変更: Esc はまずパネルを閉じ、引き出しは残り、フォーカスは丸ボタンへ戻る', esc1);
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(600);
+	assert(!(await page.isVisible('#result-drawer')), '表示を変更: もう一度 Esc で引き出しが閉じる');
+	// 引き出しを開き直してパネルを開いたまま「照合結果」へ切り替えると、丸ボタンもパネルも消える
+	await page.evaluate(() => { selectResultTab('stitch'); openDrawer('result'); });
+	await page.waitForTimeout(500);
+	await page.click('#stitch-drawer-fab');
+	await page.waitForTimeout(300);
+	await page.click('#result-tab-result');
+	await page.waitForTimeout(300);
+	const switched = await page.evaluate(() => ({ fabHidden: document.getElementById('stitch-drawer-fab').hidden, popHidden: document.getElementById('stitch-drawer-pop').hidden }));
+	assert(switched.fabHidden && switched.popHidden, '表示を変更: 「照合結果」のタブに切り替えると丸ボタンとパネルが消える', switched);
+	await page.click('#result-tab-stitch');
+	await page.waitForTimeout(300);
+	await page.click('#stitch-drawer-fab');
+	await page.waitForTimeout(300);
+
+	// 375px: 引き出しの下辺からのシート（高さは引き出しの半分まで＝上側で画像が見える）で、横スクロールが出ない
 	await page.setViewportSize({ width: 375, height: 812 });
 	await page.waitForTimeout(500);
 	const narrow = await page.evaluate(() => {
 		const drawer = document.getElementById('result-drawer');
-		const panel = document.getElementById('stitch-show-panel-drawer').getBoundingClientRect();
-		return { sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, drawerSw: drawer.scrollWidth, drawerCw: drawer.clientWidth, panelRight: panel.right, drawerRight: drawer.getBoundingClientRect().right, open: document.getElementById('stitch-show-drawer').open };
+		const d = drawer.getBoundingClientRect();
+		const p = document.getElementById('stitch-drawer-pop').getBoundingClientRect();
+		return { sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, drawerSw: drawer.scrollWidth, drawerCw: drawer.clientWidth,
+			open: !document.getElementById('stitch-drawer-pop').hidden, left: p.left - d.left, right: d.right - p.right, bottom: d.bottom - p.bottom, height: p.height, drawerH: d.height };
 	});
-	assert(narrow.sw === narrow.cw && narrow.drawerSw <= narrow.drawerCw && narrow.panelRight <= narrow.drawerRight + 1 && narrow.open,
-		'表示を変更: 375px で開いたまま崩れず、横スクロールが出ない', narrow);
+	assert(narrow.sw === narrow.cw && narrow.drawerSw <= narrow.drawerCw && narrow.open && Math.abs(narrow.left) < 1 && Math.abs(narrow.right) < 1 && Math.abs(narrow.bottom) < 1 && narrow.height <= narrow.drawerH / 2 + 1,
+		'表示を変更: 375px では引き出しの下辺からのシートになり、高さは半分まで、横スクロールが出ない', narrow);
 
 	// 旧UIには出ない（#stitch-name-wrap と同じ扱い。#stitch-result-wrap だけが旧UIへ移る）
 	const oldUi = await page.evaluate(() => {
 		closeDrawer();
 		placeSections('old');
 		const r = {
-			wrapInOldSlot: document.getElementById('old-stitch-slot').contains(document.getElementById('stitch-show-drawer-wrap')),
+			wrapInOldSlot: document.getElementById('old-stitch-slot').contains(document.getElementById('stitch-drawer-fab')) || document.getElementById('old-stitch-slot').contains(document.getElementById('stitch-drawer-pop')),
 			resultInOldSlot: document.getElementById('old-stitch-slot').contains(document.getElementById('stitch-result-wrap')),
 			oldCardShown: !document.getElementById('old-stitch-card').hidden
 		};
 		placeSections('new');
 		return r;
 	});
-	assert(!oldUi.wrapInOldSlot && oldUi.resultInOldSlot, '表示を変更: 旧UIへは移動しない（結果画像だけが移る）', oldUi);
+	assert(!oldUi.wrapInOldSlot && oldUi.resultInOldSlot, '表示を変更: 丸ボタンとパネルは旧UIへ移動しない（結合画像だけが移る）', oldUi);
 
 	await page.evaluate(() => {
 		stitchOnePerson = window.__origStitch;

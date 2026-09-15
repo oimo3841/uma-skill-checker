@@ -212,17 +212,8 @@
 		.stitch-wire-line[data-stitch-part="legend"] b { flex: 1 1 auto; width: auto; }
 		/* チェックに触れている間、対応する帯を強調する（輪の色はこのページの藍） */
 		.stitch-wire .is-hot { box-shadow: 0 0 0 2px var(--uma-accent); }
-		/* 結果画像の引き出しの「表示を変更」（③）。折りたたみの中に②と同じパネル（模式図なし）と「画像を更新」 */
-		.stitch-show-details { border: 1px solid var(--uma-border); border-radius: var(--uma-r-xl); background: var(--uma-surface); }
-		.stitch-show-summary { display: flex; align-items: center; gap: var(--uma-sp-1-5);
-			padding: var(--uma-sp-2-5) var(--uma-sp-3); list-style: none;
-			font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-heading);
-			cursor: pointer; user-select: none; }
-		.stitch-show-summary::-webkit-details-marker { display: none; }
-		.stitch-show-summary .stitch-show-chevron { margin-left: auto; color: var(--uma-text-faint); transition: transform var(--uma-transition); }
-		.stitch-show-details[open] .stitch-show-chevron { transform: rotate(180deg); }
-		.stitch-show-details .stitch-show { margin: 0 var(--uma-sp-3); }
-		.stitch-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2) var(--uma-sp-3); padding: var(--uma-sp-3); }
+		/* 引き出しの中の「結合画像の設定」（③）の「画像を更新」の段。骨格は css/shell.css の .uma-popover--drawer */
+		.stitch-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2) var(--uma-sp-3); padding: var(--uma-sp-3) 0 0; }
 		/* 作り直せないときの案内。色は css/tokens.css の警告の色（opacity は使わない。B節ルール9） */
 		.stitch-refresh-note { margin: 0; flex: 1 1 16rem; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); color: var(--uma-warn-text); }
 		.stitch-refresh-note[hidden] { display: none; }
@@ -1061,35 +1052,50 @@
 					</p>
 					<p id="stitch-save-name-note" class="mt-1 text-[11px] text-amber-600" hidden>ファイル名に使えない文字を全角に直しました。</p>
 				</div>
-				<!-- 結果画像を見ながら表示を変えて作り直す（③）。②の「結合画像の表示」と同じ状態を映す
-				     （中身は renderStitchShowPanel が作り、syncStitchShowUi が②とここの両方へ状態を映す。
-				      id は drawer- の接頭辞で分ける）。模式図は出さない（実物の画像が見本になる）。
-				     既定は閉じる。#stitch-name-wrap と同じく #stitch-result-wrap の**外**にあり、旧UIへは
-				     移動しない（旧UIには出ない）。出し入れは setSectionReady('stitch', …) が行う。
-				     作り直しは「画像を更新」で明示的に行う（チェックだけでは作り直さない。
-				     押せるかは updateStitchRefreshUi が決める。案内 #stitch-refresh-note は
-				     画像や集計の設定が変わっていて作り直せないときだけ出す）。 -->
-				<div id="stitch-show-drawer-wrap" class="uma-drawer-content" style="padding-bottom:0" hidden>
-					<details id="stitch-show-drawer" class="stitch-show-details">
-						<summary class="stitch-show-summary">
-							<i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
-							<span>表示を変更</span>
-							<i data-lucide="chevron-down" class="w-4 h-4 stitch-show-chevron"></i>
-						</summary>
-						<div id="stitch-show-panel-drawer"></div>
-						<div class="stitch-refresh">
-							<button type="button" id="stitch-refresh-btn" onclick="refreshStitchedImages()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" disabled>
-								<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-								<span id="stitch-refresh-label">画像を更新</span>
-							</button>
-							<p id="stitch-refresh-note" class="stitch-refresh-note" hidden>画像や集計の設定が変わったため、「OCR処理＋画像結合を開始する」からやり直してください。</p>
-						</div>
-					</details>
-				</div>
+				<!-- 結合画像を見ながら表示を変えて作り直す（③）のパネルは、この引き出しの右下の丸ボタン
+				     （#stitch-drawer-fab。この <aside> の末尾）から開く。以前ここにあった「表示を変更」の
+				     折りたたみは、そのパネルに置き換えて廃止した（2026-09-15・41セッション目）。 -->
 				<div id="stitch-drawer-slot" class="uma-drawer-content">
 					<div id="stitch-result-wrap" class="hidden">
 						<div id="stitch-result-content" class="space-y-4"></div>
 					</div>
+				</div>
+			</div>
+		</div>
+		<!-- ===== 引き出しの中の「結合画像の設定」（③） =====
+		     「結合画像の表示」のタブを表示していて結合画像があるときだけ、引き出しの内側の右下に
+		     右下のボタン群の丸ボタンと同じ見た目の小さな丸ボタン（.uma-fab-toggle + .uma-drawer-fab）を出す。
+		     引き出し本体は fixed＋transform なので、この2つは absolute でその内側に張り付き、
+		     本文をスクロールしても画面上の位置は変わらない。出し入れは updateDrawerStitchFab()
+		     （setSectionReady('stitch') とタブの切り替えから呼ぶ）。
+		     押すと丸ボタンの真上に設定パネル（.uma-popover--drawer。PC は浮かせ、640px 以下は引き出しの
+		     下辺からのシート・高さは半分まで・暗転なし）を開く。中身は②と同じ renderStitchShowPanel
+		     （模式図なし・id は drawer-）と「画像を更新」。更新の可否・案内・多重実行の防止は③の既存の
+		     実装（updateStitchRefreshUi / refreshStitchedImages）。更新後もパネルは開いたまま。
+		     閉じ方は ✕・パネルの外（引き出しの本文）のクリック・Esc（Esc は引き出しより先にこちらを閉じる）。
+		     旧UIでは引き出しを使わないので出ない。 -->
+		<button type="button" id="stitch-drawer-fab" class="uma-fab-toggle uma-drawer-fab" onclick="toggleDrawerStitchSettings()"
+			aria-controls="stitch-drawer-pop" aria-expanded="false" aria-label="結合画像の設定を開く" hidden>
+			<i data-lucide="sliders-horizontal"></i>
+		</button>
+		<div id="stitch-drawer-pop" class="uma-popover uma-popover--drawer" hidden role="dialog" aria-labelledby="stitch-drawer-pop-title">
+			<div class="uma-popover-head">
+				<h2 id="stitch-drawer-pop-title" class="uma-popover-title">
+					<i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+					<span>結合画像の設定</span>
+				</h2>
+				<button type="button" id="stitch-drawer-pop-close" class="uma-popover-close" onclick="closeStitchSettings()" aria-label="閉じる">
+					<i data-lucide="x"></i>
+				</button>
+			</div>
+			<div class="uma-popover-body">
+				<div id="stitch-show-panel-drawer"></div>
+				<div class="stitch-refresh">
+					<button type="button" id="stitch-refresh-btn" onclick="refreshStitchedImages()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+						<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+						<span id="stitch-refresh-label">画像を更新</span>
+					</button>
+					<p id="stitch-refresh-note" class="stitch-refresh-note" hidden>画像や集計の設定が変わったため、「OCR処理＋画像結合を開始する」からやり直してください。</p>
 				</div>
 			</div>
 		</div>
@@ -1797,7 +1803,7 @@
 			// 「結合画像の表示」のパネルは復元より先に作る（復元が状態をパネルへ映すため）
 			renderStitchShowPanel(document.getElementById('stitch-show-panel'));
 			// 結合画像の引き出しにも同じパネル（模式図・注記なし。id は drawer- で分ける）
-			renderStitchShowPanel(document.getElementById('stitch-show-panel-drawer'), { idPrefix: 'drawer-', wire: false, note: false });
+			renderStitchShowPanel(document.getElementById('stitch-show-panel-drawer'), { idPrefix: 'drawer-', wire: false, note: false, title: false });
 			// 右下のボタン群から開く「結合画像の設定」にも（模式図・注記・見出しなし。id は fab- で分ける）
 			renderStitchShowPanel(document.getElementById('stitch-show-panel-fab'), { idPrefix: 'fab-', wire: false, note: false, title: false });
 			restoreAttrIcons();
@@ -4779,6 +4785,8 @@
 			if (!openDrawerKey) return;
 			const key = openDrawerKey;
 			openDrawerKey = null;
+			// 引き出しの中の「結合画像の設定」が開いていれば一緒に閉じる（フォーカスは下でメインFABへ）
+			if (stitchSettingsOpen === 'drawer') closeStitchSettings({ keepFocus: true });
 			collapseDrawer(key);
 
 			const backdrop = document.getElementById('drawer-backdrop');
@@ -4824,10 +4832,10 @@
 			// #stitch-result-wrap の外にあるので、旧UIへ移動することはない。
 			if (key === 'stitch') {
 				document.getElementById('stitch-name-wrap').hidden = !ready;
-				// 「表示を変更」（③）も同じタイミングで出し入れする
-				document.getElementById('stitch-show-drawer-wrap').hidden = !ready;
 				updateStitchSaveNameUi();
 				updateStitchRefreshUi();
+				// 引き出しの中の「結合画像の設定」の丸ボタン（③）も同じタイミングで出し入れする
+				updateDrawerStitchFab();
 			}
 			// 「結果画像」のタブが押せるかは、結果があるかで決まる
 			updateResultTabs();
@@ -4928,6 +4936,22 @@
 			if (!(opts && opts.keepFocus) && back && typeof back.focus === 'function' && !back.hidden) back.focus();
 		}
 
+		function toggleDrawerStitchSettings() {
+			if (stitchSettingsOpen === 'drawer') closeStitchSettings();
+			else openStitchSettings('drawer', document.getElementById('stitch-drawer-fab'));
+		}
+
+		// 引き出しの中の丸ボタンは、「結合画像の表示」のタブを表示していて結合画像があるときだけ出す。
+		// 出せない状態になったら、開いていたパネルも一緒に閉じる。
+		function updateDrawerStitchFab() {
+			const btn = document.getElementById('stitch-drawer-fab');
+			if (!btn) return;
+			const hasStitch = !document.getElementById('stitch-result-wrap').classList.contains('hidden');
+			const show = newUi && resultTab === 'stitch' && hasStitch;
+			btn.hidden = !show;
+			if (!show && stitchSettingsOpen === 'drawer') closeStitchSettings({ keepFocus: true });
+		}
+
 		/* ---------- まとめた引き出しの中のタブ ---------- */
 		let resultTab = 'result';
 
@@ -4946,6 +4970,8 @@
 			// 結果画像のタブを表にしたときは、見本（通し番号）を出し直す。前回の保存で番号が
 			// 進んでいたり、開きっぱなしで日付をまたいでいたりしても、表示が今の値になる。
 			if (pick === 'stitch') { updateStitchSaveNameUi(); updateStitchRefreshUi(); }
+			// 引き出しの中の「結合画像の設定」の丸ボタンは「結合画像の表示」のタブでだけ出す
+			updateDrawerStitchFab();
 			// 未読は「そのタブを実際に表示したとき」だけ外す（引き出しを開いただけでは外さない）
 			if (fabUnseen[pick]) { fabUnseen[pick] = false; }
 			updateFabBadges();
@@ -4980,6 +5006,15 @@
 
 		// メニュー外タップで閉じる（開いたままスクロールして誤爆するのを防ぐ）
 		document.addEventListener('click', (e) => {
+			// 引き出しの中の「結合画像の設定」は、パネルと丸ボタンの外（引き出しの本文など）を押すと閉じる
+			if (stitchSettingsOpen === 'drawer') {
+				const pop = document.getElementById('stitch-drawer-pop');
+				const btn = document.getElementById('stitch-drawer-fab');
+				// contains() ではなく composedPath() で見る。開いた直後に lucide.createIcons() が丸ボタンの
+				// アイコン（クリックされた svg）を作り直すので、target はもう DOM から外れていて contains() が偽になる
+				const path = e.composedPath ? e.composedPath() : [];
+				if (!path.includes(pop) && !path.includes(btn)) closeStitchSettings({ keepFocus: true });
+			}
 			if (!fabOpen) return;
 			if (!document.getElementById('fab-nav').contains(e.target)) setFabOpen(false);
 		});

@@ -201,6 +201,11 @@ for (const p of ['index.html', 'js/common.js']) {
    免除ではなく記録として1行ずつ残す（なぜ消えたのかを後から追えるようにする）。
    免除したものは実行のたびに [免除] として表示されるので、放置に気付ける。 */
 const INTENTIONALLY_REMOVED = {
+	// 2026-09-15（41セッション目）: exam の結合画像の引き出しにあった「表示を変更」の折りたたみ
+	// （#stitch-show-drawer-wrap / #stitch-show-drawer）を、引き出しの右下の丸ボタン（#stitch-drawer-fab）から
+	// 開く設定パネル（#stitch-drawer-pop）に置き換えた。中のパネル #stitch-show-panel-drawer と
+	// 「画像を更新」（#stitch-refresh-*）はそのまま新しいパネルへ移した。commit が進んだらこの行は消す。
+	'exam.html': ['stitch-show-drawer-wrap', 'stitch-show-drawer'],
 	// 2026-09-15: exam のヘッダーの見出しから可変の種数 #header-skill-count を消した
 	// （見出しは「技能試験で有利な登録済み対象スキル」に。範囲を選べるようになって
 	// 見出しの数が利用者の選択で変わるため。いまの種数は #step1-skill-badge と
