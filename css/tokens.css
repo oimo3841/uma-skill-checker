@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-09-15e";
+	--common-css-version: "2026-09-15f";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -69,6 +69,18 @@
 	   追加・除外の■✕は --uma-danger-text を使うので、ここには無い。 */
 	--uma-mark-green-skill: #00bc7d; /* emerald-500 : 緑スキル（SP70以外）の● */
 	--uma-mark-catalog: #0ea5e9;     /* sky-500     : 追加カタログ（シナリオ因子）の♦ */
+
+	/* ---- 緑スキルの色（emerald） ----
+	   「緑スキル」という区分そのものを表す色。印の●（上の --uma-mark-green-skill）と
+	   ハイライトの緑カード（emerald-50/200/600/700）が同じ系統を使う。
+	   **「操作できる部品は黒」の例外**: 緑スキルの数え方の切り替え（「実質53種（既定）」／
+	   「59種個別」）は押せる部品だが、**何を数えるのか＝緑スキル**を色が示しているので、
+	   ここの緑で塗る（通知の赤と同じ扱い。2026-09-15・43セッション目）。
+	   値は Tailwind v4.1.11 の emerald の実測。 */
+	--uma-green-skill: #007a55;        /* emerald-700 : 選択中の地（白文字と 5.36）・未選択の文字 */
+	--uma-green-skill-hover: #006045;  /* emerald-800 : 選択中の hover（白文字と 7.61） */
+	--uma-green-skill-soft: #ecfdf5;   /* emerald-50  : 未選択の hover の面 */
+	--uma-green-skill-border: #a4f4cf; /* emerald-200 : 切り替えを囲む枠 */
 
 	/* ---- 操作できる部品の色（3ツール共通の黒） ----
 	   ボタンの地・枠線だけのボタンの枠と文字・チェック／ラジオ・選択中のタブの下線・

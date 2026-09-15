@@ -5022,6 +5022,49 @@ const browser = await chromium.launch();
 }
 
 
+/* ============================================================
+ * 緑スキルの数え方の切り替え（2026-09-15・43セッション目）
+ *
+ * 「操作できる部品は黒」の例外。何を数えるのか（＝緑スキル）を色が示すので緑で塗る。
+ * 選択中＝緑の地に白い文字（白とのコントラスト 5.36）、未選択＝緑の文字、枠も緑。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+	await page.evaluate(() => { if (typeof closeUiNotice === 'function') closeUiNotice(); });
+	await page.waitForTimeout(300);
+	const GREEN = 'rgb(0, 122, 85)';      // emerald-700 #007a55
+	const modes = await page.evaluate(() => {
+		setCountMode('equivalence');
+		const on = document.getElementById('mode-equivalence');
+		const off = document.getElementById('mode-individual');
+		const cs = (el) => getComputedStyle(el);
+		return {
+			onBg: cs(on).backgroundColor, onColor: cs(on).color,
+			offColor: cs(off).color, offBg: cs(off).backgroundColor,
+			frame: cs(off.parentElement).borderTopColor,
+			token: getComputedStyle(document.documentElement).getPropertyValue('--uma-green-skill').trim(),
+		};
+	});
+	assert(modes.onBg === GREEN && modes.onColor === 'rgb(255, 255, 255)',
+		'数え方の切り替え: 選んでいる側は緑の地に白い文字', modes);
+	assert(modes.offColor === GREEN && modes.frame === 'rgb(164, 244, 207)',
+		'数え方の切り替え: 選んでいない側は緑の文字で、枠も緑', modes);
+	assert(modes.token === '#007a55', '数え方の切り替え: 緑は --uma-green-skill（emerald-700）', modes.token);
+	// 反対側を選ぶと入れ替わる
+	const swapped = await page.evaluate(() => {
+		setCountMode('individual');
+		return {
+			eq: getComputedStyle(document.getElementById('mode-equivalence')).backgroundColor,
+			ind: getComputedStyle(document.getElementById('mode-individual')).backgroundColor,
+		};
+	});
+	assert(swapped.ind === GREEN && swapped.eq !== GREEN, '数え方の切り替え: 押すと緑の地が入れ替わる', swapped);
+	await page.evaluate(() => setCountMode('equivalence'));
+	assert(errors.length === 0, '数え方の切り替え: コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+
 await browser.close();
 await close();
 console.log('\n' + (fails === 0 ? '=== スモークテスト: 全項目OK ===' : '=== スモークテスト: ' + fails + '件 NG ==='));
