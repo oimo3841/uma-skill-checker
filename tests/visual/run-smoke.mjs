@@ -4041,6 +4041,132 @@ const browser = await chromium.launch();
 	await ctx.close();
 }
 
+/* ============================================================
+ * exam.html — 「結合画像の表示」（集計バナー／印／凡例／集計条件）の設定パネルと合成の分岐
+ *
+ * パネルは JS が作る（renderStitchShowPanel）。見るのは次の4点。
+ *   1. 既定（保存値なし）: バナー・凡例・集計条件は ON、印は OFF、印が OFF の間は凡例が選べない
+ *   2. 切り替えが localStorage に保存され、開き直しても戻る
+ *   3. 模式図の帯がチェックに追従する（印 OFF なら凡例の帯も消える／両方 OFF なら区切り線ごと消える）
+ *   4. 合成の分岐: 列見出しだけの帯 / 補足欄の行の出し分け（OCR は回さず、描画関数を直接呼ぶ）
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+	await page.waitForTimeout(800);
+	if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
+	await page.waitForTimeout(300);
+	await page.evaluate(() => selectStepTab(2));
+	await page.waitForTimeout(300);
+
+	const stateOf = () => page.evaluate(() => {
+		const q = (k) => document.querySelector('#stitch-show-panel input[data-stitch-show="' + k + '"]');
+		const hiddenOf = (part) => Array.from(document.querySelectorAll('#stitch-show-panel [data-stitch-part="' + part + '"]')).map((el) => el.hidden);
+		return {
+			inPanel2: document.getElementById('step-panel-2').contains(document.getElementById('stitch-show-panel')),
+			inputs: document.querySelectorAll('#stitch-show-panel input[data-stitch-show]').length,
+			marksIsOptAttrIcons: q('marks') === document.getElementById('opt-attr-icons'),
+			banner: q('banner').checked, marks: q('marks').checked, legend: q('legend').checked, conditions: q('conditions').checked,
+			legendDisabled: q('legend').disabled,
+			legendGrey: q('legend').closest('.stitch-show-item').classList.contains('is-off'),
+			eff: stitchShowEffective(),
+			wire: { banner: hiddenOf('banner'), legend: hiddenOf('legend'), conditions: hiddenOf('conditions'), notebar: hiddenOf('notebar'), header: hiddenOf('header') },
+			marksOn: Array.from(document.querySelectorAll('#stitch-show-panel [data-stitch-part="marks"]')).map((el) => el.classList.contains('is-on')),
+			stored: ['uma-exam-attr-icons', 'uma-exam-stitch-banner', 'uma-exam-stitch-legend', 'uma-exam-stitch-conditions'].map((k) => localStorage.getItem(k))
+		};
+	});
+
+	let s = await stateOf();
+	assert(s.inPanel2 && s.inputs === 4 && s.marksIsOptAttrIcons, '結合画像の表示: ②にチェック4つのパネルがあり、印は既存の #opt-attr-icons のまま', s);
+	assert(s.banner && !s.marks && s.legend && s.conditions, '結合画像の表示: 既定はバナー・凡例・集計条件が ON、印が OFF', s);
+	assert(s.legendDisabled && s.legendGrey && s.eff.legend === false, '結合画像の表示: 印が OFF の間、凡例は選べず灰色になり、合成にも効かない', s);
+	assert(s.wire.header.every((h) => !h) && s.wire.banner.every((h) => !h) && s.wire.legend.every((h) => h) && s.wire.conditions.every((h) => !h) && s.wire.notebar.every((h) => !h),
+		'結合画像の表示: 模式図は列見出し・バナー・集計条件が出て、凡例だけ消えている', s.wire);
+	assert(s.marksOn.length > 0 && s.marksOn.every((v) => !v), '結合画像の表示: 印が OFF なら模式図の〇は灰色', s.marksOn);
+
+	// 印を ON にすると凡例が選べるようになり、模式図の〇に色が付き、凡例の帯が出る
+	await page.click('#opt-attr-icons');
+	await page.waitForTimeout(200);
+	s = await stateOf();
+	assert(s.marks && !s.legendDisabled && !s.legendGrey && s.eff.legend === true, '結合画像の表示: 印を ON にすると凡例が選べるようになる', s);
+	assert(s.marksOn.every((v) => v) && s.wire.legend.every((h) => !h), '結合画像の表示: 印を ON にすると模式図の〇に色が付き、凡例の帯が出る', s.wire);
+	assert(s.stored[0] === '1', '結合画像の表示: 印の保存キーは従来のまま（uma-exam-attr-icons）', s.stored);
+
+	// バナーと集計条件を OFF にする → 保存される・模式図の帯が消える。両方 OFF でも補足欄は凡例のぶん残る
+	await page.click('#stitch-show-banner');
+	await page.click('#stitch-show-conditions');
+	await page.waitForTimeout(200);
+	s = await stateOf();
+	assert(!s.banner && !s.conditions && s.stored[1] === '0' && s.stored[3] === '0', '結合画像の表示: バナー・集計条件の OFF が uma-exam-stitch-* に保存される', s.stored);
+	assert(s.wire.banner.every((h) => h) && s.wire.conditions.every((h) => h) && s.wire.notebar.every((h) => !h) && s.wire.header.every((h) => !h),
+		'結合画像の表示: バナー・集計条件の帯が消え、列見出しと凡例（補足欄）は残る', s.wire);
+
+	// 凡例も OFF → 補足欄は区切り線ごと消える
+	await page.click('#stitch-show-legend');
+	await page.waitForTimeout(200);
+	s = await stateOf();
+	assert(!s.legend && s.stored[2] === '0' && s.wire.notebar.every((h) => h), '結合画像の表示: 凡例も OFF にすると補足欄が区切り線ごと消える', s.wire);
+
+	// チェックに触れると模式図の対応する帯が強調される
+	const hot = await page.evaluate(() => {
+		const label = document.querySelector('#stitch-show-panel [data-stitch-hot="banner"]');
+		label.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+		const on = Array.from(document.querySelectorAll('#stitch-show-panel [data-stitch-part="banner"]')).map((el) => el.classList.contains('is-hot'));
+		label.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+		const off = Array.from(document.querySelectorAll('#stitch-show-panel [data-stitch-part="banner"]')).map((el) => el.classList.contains('is-hot'));
+		return { on, off };
+	});
+	assert(hot.on.every((v) => v) && hot.off.every((v) => !v), '結合画像の表示: チェックに触れている間だけ模式図の帯が強調される', hot);
+
+	// 開き直しても戻る（印 ON・バナー OFF・凡例 OFF・集計条件 OFF）
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.waitForTimeout(1500);
+	if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
+	await page.evaluate(() => selectStepTab(2));
+	await page.waitForTimeout(300);
+	s = await stateOf();
+	assert(s.marks && !s.banner && !s.legend && !s.conditions && s.eff.banner === false && s.eff.legend === false && s.eff.conditions === false,
+		'結合画像の表示: 開き直しても切り替えが戻る', s);
+
+	// 合成の分岐（OCR は回さず、描画関数を直接呼ぶ）
+	const draw = await page.evaluate(() => {
+		const withCards = stitchDrawPersonBanner(600, '親A', 12, 3, null);
+		const headerOnly = stitchDrawPersonBanner(600, '親A', 12, 3, null, { cards: false });
+		// 補足欄。集計条件の行が出る状態（対象を絞る＝除外スキル12種）で見る
+		const prevScope = targetScopeMode;
+		setTargetScopeMode('curated');
+		const info = { kinds: ['sp70', 'green'], suppressed: ['size'] };
+		const both = stitchDrawSharedNoteBar(600, 600, info);
+		const legendOnly = stitchDrawSharedNoteBar(600, 600, info, { legend: true, conditions: false });
+		const condOnly = stitchDrawSharedNoteBar(600, 600, info, { legend: false, conditions: true });
+		const none = stitchDrawSharedNoteBar(600, 600, info, { legend: false, conditions: false });
+		setTargetScopeMode('default');
+		const condOnlyNoRows = stitchDrawSharedNoteBar(600, 600, info, { legend: false, conditions: true });
+		setTargetScopeMode(prevScope);
+		return {
+			withCardsH: withCards.height, headerOnlyH: headerOnly.height, sameW: withCards.width === headerOnly.width,
+			bothH: both ? both.height : 0, legendOnlyH: legendOnly ? legendOnly.height : 0, condOnlyH: condOnly ? condOnly.height : 0,
+			none: none === null, condOnlyNoRows: condOnlyNoRows === null
+		};
+	});
+	assert(draw.headerOnlyH > 0 && draw.headerOnlyH < draw.withCardsH && draw.sameW, '結合画像の表示: バナー OFF は列見出しだけの帯になる（幅は同じ・高さは低い）', draw);
+	assert(draw.bothH > draw.legendOnlyH && draw.bothH > draw.condOnlyH && draw.legendOnlyH > 0 && draw.condOnlyH > 0,
+		'結合画像の表示: 補足欄は凡例・集計条件をそれぞれ省ける', draw);
+	assert(draw.none && draw.condOnlyNoRows, '結合画像の表示: 補足欄に出す行が無ければ欄ごと置かない（null）', draw);
+
+	// 375px: 模式図がチェックの下に回り、横スクロールが出ない
+	await page.setViewportSize({ width: 375, height: 812 });
+	await page.waitForTimeout(500);
+	const narrow = await page.evaluate(() => {
+		const body = document.querySelector('#stitch-show-panel .stitch-show-body').getBoundingClientRect();
+		const wire = document.querySelector('#stitch-show-panel .stitch-wire').getBoundingClientRect();
+		return { sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, wireBelow: wire.top >= body.bottom - 1, wireW: wire.width };
+	});
+	assert(narrow.sw === narrow.cw && narrow.wireBelow && narrow.wireW < 200, '結合画像の表示: 375px では模式図がチェックの下に小さく並び、横スクロールが出ない', narrow);
+
+	assert(errors.length === 0, '結合画像の表示: コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
 await browser.close();
 await close();
 console.log('\n' + (fails === 0 ? '=== スモークテスト: 全項目OK ===' : '=== スモークテスト: ' + fails + '件 NG ==='));

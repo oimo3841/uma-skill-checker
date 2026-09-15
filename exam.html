@@ -149,6 +149,68 @@
 		/* 未読の点はタブの文字の右に置く（FABの点と同じ見た目を借りるが、位置だけ流し込みに戻す） */
 		.drawer-tab .uma-fab-dot { position: static; margin-left: var(--uma-sp-0-5); }
 		.drawer-panel[hidden] { display: none !important; }
+		/* 「結合画像の表示」の設定パネル（チェック4つ＋結合画像の模式図）。中身は JS が作る
+		   （renderStitchShowPanel）ので、Tailwind の class ではなく自前の class で組み、
+		   色・余白は css/tokens.css のトークンから取る。共通CSSは触らず、このページに閉じる。 */
+		.stitch-show { display: flex; align-items: stretch; gap: var(--uma-sp-4);
+			margin-top: var(--uma-sp-3); padding: var(--uma-sp-3);
+			border: 1px solid var(--uma-border); border-radius: var(--uma-r-xl); background: var(--uma-surface-muted); }
+		.stitch-show-body { flex: 1 1 auto; min-width: 0; }
+		.stitch-show-title { margin: 0 0 var(--uma-sp-1-5); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);
+			font-weight: 700; color: var(--uma-text-heading); }
+		.stitch-show-list { display: flex; flex-direction: column; gap: var(--uma-sp-0-5); }
+		.stitch-show-item { display: flex; align-items: flex-start; gap: var(--uma-sp-2);
+			padding: var(--uma-sp-1) var(--uma-sp-1-5); border-radius: var(--uma-r-md);
+			font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; color: var(--uma-text-heading);
+			cursor: pointer; transition: background-color var(--uma-transition); }
+		.stitch-show-item:hover { background: var(--uma-surface); }
+		/* 凡例は印の子。字下げと「└」で親子を示す */
+		.stitch-show-item--child { margin-left: var(--uma-sp-5); }
+		.stitch-show-branch { color: var(--uma-text-faint); font-weight: 400; }
+		.stitch-show-check { flex-shrink: 0; width: 1rem; height: 1rem; margin-top: 1px; accent-color: var(--uma-accent); cursor: pointer; }
+		.stitch-show-sub { font-weight: 400; color: var(--uma-text-subtle); }
+		/* 印が OFF の間、凡例は選べない。色だけで示す（opacity は使わない。B節ルール9） */
+		.stitch-show-item.is-off, .stitch-show-item.is-off .stitch-show-sub { color: var(--uma-text-faint); cursor: not-allowed; }
+		.stitch-show-item.is-off .stitch-show-check { cursor: not-allowed; }
+		.stitch-show-note { margin: var(--uma-sp-2) 0 0; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); color: var(--uma-text-subtle); }
+		/* 模式図。帯の並びは結合画像と同じ（列見出し → 集計バナー → 脚注 → スクショ → 区切り線＋補足欄）。
+		   大きさは px で決め打ち（縮尺の見本なので、文字の大きさの設定に追従させない）。 */
+		.stitch-wire { flex: 0 0 auto; width: 128px; }
+		.stitch-wire-sheet { display: flex; flex-direction: column; gap: 3px; padding: 5px; background: #fff;
+			border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm);
+			font-size: 7px; line-height: 1; color: var(--uma-text-subtle); }
+		.stitch-wire [hidden] { display: none; }
+		.stitch-wire-sheet > div { border-radius: 2px; }
+		.stitch-wire-head { padding: 2px 2px 3px; border-bottom: 1px solid var(--uma-border); font-weight: 700; color: var(--uma-text); }
+		.stitch-wire-banner { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 1px 0 2px; }
+		.stitch-wire-card { display: flex; flex-direction: column; gap: 2px; padding: 3px; border: 1px solid; border-radius: 3px; }
+		.stitch-wire-card--a { background: #f5f8ff; border-color: #cfe0fb; color: #3c5a99; }
+		.stitch-wire-card--b { background: #fffaf0; border-color: #f5dfae; color: #a9720b; }
+		.stitch-wire-card b { display: block; width: 40%; height: 7px; border-radius: 2px; background: currentColor; }
+		.stitch-wire-factor { grid-column: 1 / -1; width: 70%; height: 4px; border-radius: 2px; background: #0c5a7a; }
+		.stitch-wire-countnote { display: flex; justify-content: flex-end; padding: 0 0 2px; }
+		.stitch-wire-countnote b { display: block; width: 55%; height: 3px; border-radius: 2px; background: var(--uma-border-strong); }
+		.stitch-wire-shots { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 4px; padding: 3px; background: var(--uma-surface-sunken); }
+		.stitch-wire-row { display: flex; align-items: center; gap: 2px; padding: 2px; background: #fff; border-radius: 2px; }
+		.stitch-wire-row b { display: block; flex: 1 1 auto; height: 3px; border-radius: 2px; background: var(--uma-border-strong); }
+		/* 印。OFF のときはスクショにもとからある灰色の〇、ON のときは区分の色（結果画像と同じトークン） */
+		.stitch-wire-mark { display: block; flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; background: var(--uma-star-empty); }
+		.stitch-wire-mark.is-on[data-stitch-mark="sp70"] { background: var(--uma-star); }
+		.stitch-wire-mark.is-on[data-stitch-mark="green"] { background: var(--uma-mark-green-skill); }
+		.stitch-wire-mark.is-on[data-stitch-mark="plain"] { background: var(--uma-text); }
+		.stitch-wire-mark.is-on[data-stitch-mark="factor"] { background: var(--uma-mark-catalog); }
+		.stitch-wire-mark.is-on[data-stitch-mark="removed"] { background: var(--uma-danger-text); }
+		.stitch-wire-notes { display: flex; flex-direction: column; gap: 3px; padding: 4px 2px 1px; border-top: 1px solid var(--uma-border-strong); }
+		.stitch-wire-line { display: flex; align-items: center; gap: 2px; }
+		.stitch-wire-line b { display: block; flex: 0 0 auto; width: 100%; height: 3px; border-radius: 2px; background: var(--uma-border-strong); }
+		.stitch-wire-line[data-stitch-part="legend"] b { flex: 1 1 auto; width: auto; }
+		/* チェックに触れている間、対応する帯を強調する（輪の色はこのページの藍） */
+		.stitch-wire .is-hot { box-shadow: 0 0 0 2px var(--uma-accent); }
+		@media (max-width: 640px) {
+			/* 狭い画面では模式図をチェックの下に小さく置く */
+			.stitch-show { flex-direction: column; }
+			.stitch-wire { width: 120px; align-self: center; }
+		}
 		.deck-note-btn { background: var(--uma-accent); }
 		.deck-note-btn:hover { background: var(--uma-accent-hover); }
 		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
@@ -687,17 +749,13 @@
 				<span>OCR処理＋画像結合を開始する（高負荷）</span>
 			</button>
 			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、親A（＋祖A1＋祖A2）・親B（＋祖B1＋祖B2）それぞれのスクリーンショットを1枚の画像にまとめ、SNS投稿用に使える形で出力します。画像枚数が多いほど処理に時間がかかります。</p>
-			<!-- 結果画像に区分の印を焼くかどうか。ここに置いてあるのは、印を付けるには
-			     結合をやり直す必要があるから（結果画像の引き出しに置くと、切り替えても
-			     その場では何も変わらない）。開発用の設定ではないので、「高度な解析オプション」の
-			     中には入れていない。 -->
-			<label class="mt-3 flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white transition-colors cursor-pointer">
-				<input id="opt-attr-icons" type="checkbox" onchange="setAttrIcons(this.checked)" class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
-				<div>
-					<span class="text-xs font-semibold text-slate-800">結果画像にスキルの区分の印を付ける</span>
-					<p class="text-[11px] text-slate-500 mt-0.5">スキル名の左の〇に、そのスキルがどの区分かを表す印を重ねて焼き込みます。印の見かたは画像の上部に入ります。</p>
-				</div>
-			</label>
+			<!-- 「結合画像の表示」（結果画像に何を焼き込むか。集計バナー／印／凡例／集計条件）。
+			     ここに置いてあるのは、切り替えを効かせるには結合をやり直す必要があるから
+			     （結果画像の引き出しに置くと、切り替えてもその場では何も変わらない）。
+			     開発用の設定ではないので、「高度な解析オプション」の中には入れていない。
+			     中身（チェック4つ＋結合画像の模式図）は renderStitchShowPanel() が作る。
+			     印のチェック（#opt-attr-icons。保存キー uma-exam-attr-icons）もこの中に入る。 -->
+			<div id="stitch-show-panel"></div>
 			<!-- 「高度な解析オプション」で出るもの（切り出しプレビュー・開発ログ）の置き場。
 			     以前は照合結果のいちばん下にあったが、オプションを入れた場所から遠く、結果を読む
 			     流れの邪魔でもあったので、新UIでは処理を始めるボタンの下へ移した。
@@ -1647,6 +1705,8 @@
 			updateCategoryBadges();
 			renderPersonUploadGrid();
 			restoreCountMode();
+			// 「結合画像の表示」のパネルは復元より先に作る（復元が状態をパネルへ映すため）
+			renderStitchShowPanel(document.getElementById('stitch-show-panel'));
 			restoreAttrIcons();
 			restoreStitchShow();
 			initStitchSaveName();
@@ -3060,11 +3120,14 @@
 			attrIconsEnabled = readStored(ATTR_ICONS_STORAGE_KEY) === '1';
 			const el = document.getElementById('opt-attr-icons');
 			if (el) el.checked = attrIconsEnabled;
+			syncStitchShowUi();
 		}
 
 		function setAttrIcons(on) {
 			attrIconsEnabled = !!on;
 			writeStored(ATTR_ICONS_STORAGE_KEY, attrIconsEnabled ? '1' : '0');
+			// 凡例の可否と模式図の印は、印の ON/OFF に連動する
+			syncStitchShowUi();
 		}
 
 		/* ------------------------------------------------------------
@@ -3094,12 +3157,14 @@
 				const v = readStored(STITCH_SHOW_STORAGE_KEYS[key]);
 				stitchShow[key] = (v === null) ? true : v === '1';
 			});
+			syncStitchShowUi();
 		}
 
 		function setStitchShow(key, on) {
 			if (!Object.prototype.hasOwnProperty.call(STITCH_SHOW_STORAGE_KEYS, key)) return;
 			stitchShow[key] = !!on;
 			writeStored(STITCH_SHOW_STORAGE_KEYS[key], stitchShow[key] ? '1' : '0');
+			syncStitchShowUi();
 		}
 
 		// 合成が実際に使う値。凡例は印が OFF なら OFF に倒す。
@@ -3109,6 +3174,116 @@
 				legend: stitchShow.legend && attrIconsEnabled,
 				conditions: stitchShow.conditions
 			};
+		}
+
+		/* ------------------------------------------------------------
+		 * 「結合画像の表示」の設定パネル（チェック4つ＋結合画像の模式図）
+		 *
+		 * いまはステップ②（処理を始めるボタンの下）だけに置く。将来は結果画像の引き出し
+		 * （#stitch-name-wrap の下）にも同じものを置く予定なので、**描画（renderStitchShowPanel）と
+		 * 状態の同期（syncStitchShowUi）を関数にまとめ、何か所に置いても同じ状態を映す**ようにしてある。
+		 * 置き場所ごとに id が重ならないよう、チェックの id には opts.idPrefix を付ける
+		 * （印だけは既存の #opt-attr-icons を使う決まりなので、接頭辞が無いときだけその id になる）。
+		 *
+		 * 模式図は結合画像の帯の並びをそのまま縦に積んだもの:
+		 *   列見出し → 集計バナー → 数え方の脚注 → スクショ（印付き） → 区切り線＋補足欄（凡例・集計条件）。
+		 * チェックに応じて該当する帯をその場で消し、チェックに触れている間（hover / focus）は
+		 * 対応する帯を強調する。文字は装飾なので読み上げの対象から外す（aria-hidden）。
+		 * ------------------------------------------------------------ */
+		function renderStitchShowPanel(container, opts) {
+			if (!container) return;
+			const prefix = (opts && opts.idPrefix) || '';
+			const ids = {
+				banner: prefix + 'stitch-show-banner',
+				marks: prefix + 'opt-attr-icons',
+				legend: prefix + 'stitch-show-legend',
+				conditions: prefix + 'stitch-show-conditions'
+			};
+			const item = (key, onchange, label, sub, child) =>
+				'<label class="stitch-show-item' + (child ? ' stitch-show-item--child' : '') + '" data-stitch-hot="' + key + '">' +
+					(child ? '<span class="stitch-show-branch" aria-hidden="true">└</span>' : '') +
+					'<input type="checkbox" id="' + ids[key] + '" data-stitch-show="' + key + '" onchange="' + onchange + '" class="stitch-show-check" />' +
+					'<span class="stitch-show-text">' + label + '<span class="stitch-show-sub">' + sub + '</span></span>' +
+				'</label>';
+			const list =
+				item('banner', "setStitchShow('banner', this.checked)", '集計バナー', '（検出数・sp70緑・シナリオ因子）') +
+				item('marks', 'setAttrIcons(this.checked)', '印', '（★●◆✕）') +
+				item('legend', "setStitchShow('legend', this.checked)", '凡例', '（印の見かた）', true) +
+				item('conditions', "setStitchShow('conditions', this.checked)", '集計条件', '（追加／除外スキル・シナリオ因子一覧）');
+
+			// 模式図。スクショの段は「左右2列 × 4段」で、印の色は区分ごと（順は結果画像で目にする頻度）
+			const shotRow = (kind) => '<span class="stitch-wire-row"><i class="stitch-wire-mark" data-stitch-mark="' + kind + '" data-stitch-part="marks"></i><b></b></span>';
+			const shotKinds = ['sp70', 'green', 'plain', 'factor', 'green', 'removed', 'sp70', 'plain'];
+			const legendMark = (kind) => '<i class="stitch-wire-mark is-on" data-stitch-mark="' + kind + '"></i>';
+			const wire =
+				'<div class="stitch-wire" aria-hidden="true"><div class="stitch-wire-sheet">' +
+					'<div class="stitch-wire-head" data-stitch-part="header"><span>親A</span></div>' +
+					'<div class="stitch-wire-banner" data-stitch-part="banner">' +
+						'<span class="stitch-wire-card stitch-wire-card--a"><small>検出</small><b></b></span>' +
+						'<span class="stitch-wire-card stitch-wire-card--b"><small>sp70緑</small><b></b></span>' +
+						'<span class="stitch-wire-factor"></span>' +
+					'</div>' +
+					'<div class="stitch-wire-countnote" data-stitch-part="banner"><b></b></div>' +
+					'<div class="stitch-wire-shots" data-stitch-part="shots">' + shotKinds.map(shotRow).join('') + '</div>' +
+					'<div class="stitch-wire-notes" data-stitch-part="notebar">' +
+						'<span class="stitch-wire-line" data-stitch-part="legend">' + legendMark('sp70') + legendMark('green') + legendMark('factor') + '<b></b></span>' +
+						'<span class="stitch-wire-line" data-stitch-part="conditions"><b style="width:92%"></b></span>' +
+						'<span class="stitch-wire-line" data-stitch-part="conditions"><b style="width:74%"></b></span>' +
+					'</div>' +
+				'</div></div>';
+
+			container.innerHTML =
+				'<div class="stitch-show" data-stitch-show-panel>' +
+					'<div class="stitch-show-body">' +
+						'<p class="stitch-show-title">結合画像の表示</p>' +
+						'<div class="stitch-show-list">' + list + '</div>' +
+						'<p class="stitch-show-note">変えたあとは、もう一度「OCR処理＋画像結合を開始する」を押してください。</p>' +
+					'</div>' +
+					wire +
+				'</div>';
+			bindStitchShowHighlight(container.querySelector('[data-stitch-show-panel]'));
+			syncStitchShowUi();
+		}
+
+		// 置いてある全部のパネルへ、いまの状態（チェック・凡例の可否・模式図の帯）を映す
+		function syncStitchShowUi() {
+			const eff = stitchShowEffective();
+			document.querySelectorAll('[data-stitch-show-panel]').forEach(panel => {
+				panel.querySelectorAll('input[data-stitch-show]').forEach(input => {
+					const key = input.getAttribute('data-stitch-show');
+					input.checked = (key === 'marks') ? attrIconsEnabled : !!stitchShow[key];
+					// 凡例は印の子。印が OFF の間は選べない（保存値は残し、印を戻せばそのまま効く）
+					const off = (key === 'legend') && !attrIconsEnabled;
+					input.disabled = off;
+					const label = input.closest('.stitch-show-item');
+					if (label) label.classList.toggle('is-off', off);
+				});
+				const setHidden = (part, hidden) =>
+					panel.querySelectorAll('[data-stitch-part="' + part + '"]').forEach(el => { el.hidden = hidden; });
+				setHidden('banner', !eff.banner);
+				setHidden('legend', !eff.legend);
+				setHidden('conditions', !eff.conditions);
+				// 補足欄は凡例も集計条件も出さないなら区切り線ごと消す（結果画像と同じ）
+				setHidden('notebar', !(eff.legend || eff.conditions));
+				panel.querySelectorAll('[data-stitch-part="marks"]').forEach(el => el.classList.toggle('is-on', attrIconsEnabled));
+			});
+		}
+
+		// チェックに触れている間（hover / focus）、模式図の対応する帯を強調する
+		function bindStitchShowHighlight(panel) {
+			if (!panel) return;
+			const keyOf = (e) => {
+				const t = (e.target && e.target.closest) ? e.target.closest('[data-stitch-hot]') : null;
+				return t ? t.getAttribute('data-stitch-hot') : null;
+			};
+			const setHot = (key, on) => {
+				if (!key) return;
+				panel.querySelectorAll('[data-stitch-part="' + key + '"]').forEach(el => el.classList.toggle('is-hot', on));
+			};
+			panel.addEventListener('mouseover', e => setHot(keyOf(e), true));
+			panel.addEventListener('mouseout', e => setHot(keyOf(e), false));
+			panel.addEventListener('focusin', e => setHot(keyOf(e), true));
+			panel.addEventListener('focusout', e => setHot(keyOf(e), false));
 		}
 
 		/* ------------------------------------------------------------
