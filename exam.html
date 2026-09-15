@@ -10,8 +10,8 @@
 	     ダイアログ）だけを読む。共通部品（common.css）は読まない — 読むと .glass-card の余白など
 	     このページの既存の見た目が変わるため（exam-ui-analysis.md A-3）。変数は参照されない限り
 	     何も描かないので、既存の見た目はそのまま。Tailwind より先に読み込む（レイヤー無しの方が強い）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15b" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-15b" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15c" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-15c" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -21,43 +21,68 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-15a"></script>
 	<style>
-		/* このツールのアクセント（藍）。shell.css の部品（タブの下線・FAB のメインボタン・
-		   フォーカスの輪）はこの変数を見て色が決まる。値は special のような Tailwind v4 の実測値
-		   ではなく、このページが以前から使っている v3 世代の藍（下の .mode-btn / .drop-active 等）に
-		   合わせる。同じ画面の中で既存の主ボタンと同じ藍に揃えることを優先した（v3/v4 の差は
-		   将来の exam のデザイン統一でまとめて解消する）。 */
+		/* このツールのアクセント（青）。shell.css の部品（タブの下線・フォーカスの輪）と、
+		   このページの Tailwind の色つきユーティリティは、すべてここの変数を見て色が決まる。
+		   【2026-09-15・43セッション目】藍（v3 世代の indigo）から青へ変えた。基調 #0b6bcb は
+		   白地とのコントラスト 5.28、淡い地は #e0f0ff。
+		   --uma-c-* は「そのままの濃さの段」で、Tailwind の indigo-50〜950 が置かれていた場所を
+		   同じ濃さの青で置き換えるためのもの（色相 210 の一本の階段）。役割で名前が付いた
+		   --uma-accent-* は、この段のどれかを指すだけにしてある。**色の値をこの :root の外へ
+		   直書きしない**こと。ダークモードを入れるときは、ここの段と役割の対応だけを差し替える。 */
 		:root {
-			--uma-accent: #4f46e5;            /* このページの主ボタン・.mode-btn.active と同じ */
-			--uma-accent-hover: #4338ca;      /* :focus-visible の輪と同じ */
-			--uma-accent-soft: #eef2ff;       /* .drop-active の地と同じ */
-			--uma-accent-soft-text: #4338ca;
-			--uma-accent-border: #c6d2ff;     /* border-indigo-200（進捗バー・緑スキルハイライトの枠）と同じ */
-			--uma-accent-ring: #4338ca;
-			--uma-fab-shadow: 0 10px 20px -6px rgba(79, 70, 229, .45);  /* メインFABの影（#4f46e5 の半透明） */
-			/* 右下のボタン群の「結合画像の設定」のアイコンの丸。**仮の値**（sky-100 / sky-800）。
-			   配色のフェーズで決め直す。値を直書きせず変数にしてあるのは、ダークモードと配色の変更に備えるため。 */
-			--uma-stitch-settings-bg: #e0f2fe;
-			--uma-stitch-settings-text: #075985;
+			/* 青の段（淡い→濃い）。50 と 600 がおいもさんの確定値で、間は色相 210 で揃えた */
+			--uma-c-50: #e0f0ff;              /* 確定値：淡い地 */
+			--uma-c-100: #cbe5ff;
+			--uma-c-200: #a8d4ff;
+			--uma-c-300: #7cbcfb;
+			--uma-c-400: #4a9ef5;
+			--uma-c-500: #1a80e8;
+			--uma-c-600: #0b6bcb;             /* 確定値：基調（白地に 5.28） */
+			--uma-c-700: #0957a5;             /* 白地に 7.20 / 淡い地の上で 6.19 */
+			--uma-c-800: #0a4784;
+			--uma-c-900: #0c3b6b;
+			--uma-c-950: #08284a;
+
+			--uma-accent: var(--uma-c-600);       /* 主ボタンの地・.mode-btn.active */
+			--uma-accent-hover: var(--uma-c-700); /* 主ボタンの hover */
+			--uma-accent-soft: var(--uma-c-50);   /* .drop-active の地・淡い面 */
+			--uma-accent-soft-text: var(--uma-c-700); /* 淡い面の上の文字 */
+			--uma-accent-border: var(--uma-c-200);    /* 進捗バー・緑スキルハイライトの枠 */
+			--uma-accent-ring: var(--uma-c-700);      /* :focus-visible の輪 */
+			/* 右下のメインボタンは黒（tokens.css の --uma-fab-bg）なので、影もページの色ではなく
+			   shell.css の既定（暗い中間色）に任せる。ここで上書きしない。 */
+			/* 「結合画像の設定」のパネルの見出しのアイコンは、結合画像の琥珀（tokens.css） */
+			--uma-popover-icon: var(--uma-stitch-accent);
+
+			/* 本文の地とカードの枠。半透明なので段（--uma-c-*）とは別に持つ。
+			   右下の暖色のにじみ（--uma-page-warm）は結合画像の琥珀と同じ系統なので変えていない。 */
+			--uma-page-bg: #f4f8fd;
+			--uma-page-stripe: rgba(11, 107, 203, .05);
+			--uma-page-glow: rgba(168, 212, 255, .65);
+			--uma-page-warm: rgba(250, 231, 175, .3);
+			--uma-page-mid: #f1f6fc;
+			--uma-page-high: #f7fafd;
+			--uma-card-border: rgba(150, 196, 240, .55);
 		}
-		/* ①のタブに出す件数バッジ。骨格（shell.css の .step-tab-badge）は灰なので、このページの藍に */
+		/* ①のタブに出す件数バッジ。骨格（shell.css の .step-tab-badge）は灰なので、このページの青に */
 		.step-tab-badge--accent { background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
 		body {
-			background-color: #f5f4fb;
+			background-color: var(--uma-page-bg);
 			background-image:
-				repeating-linear-gradient(115deg, rgba(79, 70, 229, 0.05) 0px, rgba(79, 70, 229, 0.05) 40px, transparent 40px, transparent 80px),
-				radial-gradient(ellipse 720px 300px at 50% -4%, rgba(199, 210, 254, 0.65), transparent 70%),
-				radial-gradient(ellipse 600px 260px at 90% 100%, rgba(250, 231, 175, 0.3), transparent 70%),
-				linear-gradient(180deg, #f2f1fb 0%, #f8f7fc 42%, #ffffff 100%);
+				repeating-linear-gradient(115deg, var(--uma-page-stripe) 0px, var(--uma-page-stripe) 40px, transparent 40px, transparent 80px),
+				radial-gradient(ellipse 720px 300px at 50% -4%, var(--uma-page-glow), transparent 70%),
+				radial-gradient(ellipse 600px 260px at 90% 100%, var(--uma-page-warm), transparent 70%),
+				linear-gradient(180deg, var(--uma-page-mid) 0%, var(--uma-page-high) 42%, #ffffff 100%);
 			background-repeat: repeat, no-repeat, no-repeat, no-repeat;
 			background-attachment: fixed, fixed, fixed, fixed;
 		}
 		.glass-card {
 			background: rgba(255, 255, 255, 0.88);
 			backdrop-filter: blur(14px);
-			border-color: rgba(199, 193, 246, 0.55) !important;
+			border-color: var(--uma-card-border) !important;
 		}
 		:focus-visible {
-			outline: 2px solid #4338ca;
+			outline: 2px solid var(--uma-accent-ring);
 			outline-offset: 2px;
 			border-radius: 4px;
 		}
@@ -88,7 +113,7 @@
 		}
 		.found { color: #059669; font-weight: 600; }
 		.not-found { color: #94a3b8; }
-		.drop-active { border-color: #4f46e5 !important; background-color: #eef2ff !important; transform: scale(1.005); }
+		.drop-active { border-color: var(--uma-accent) !important; background-color: var(--uma-accent-soft) !important; transform: scale(1.005); }
 		.dev-log {
 			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 			font-size: 0.725rem; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
@@ -161,7 +186,8 @@
 			border: 1px solid var(--uma-border); border-radius: var(--uma-r-xl); background: var(--uma-surface-muted); }
 		.stitch-show-body { flex: 1 1 auto; min-width: 0; }
 		.stitch-show-title { margin: 0 0 var(--uma-sp-1-5); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);
-			font-weight: 700; color: var(--uma-text-heading); }
+			font-weight: 700; color: var(--uma-text-heading);
+			display: flex; align-items: center; gap: var(--uma-sp-1-5); }
 		.stitch-show-list { display: flex; flex-direction: column; gap: var(--uma-sp-0-5); }
 		.stitch-show-item { display: flex; align-items: flex-start; gap: var(--uma-sp-2);
 			padding: var(--uma-sp-1) var(--uma-sp-1-5); border-radius: var(--uma-r-md);
@@ -220,7 +246,8 @@
 		/* 「結合画像の設定」パネル（骨格は css/shell.css の .uma-popover）。中のパネルは上の余白を持たない */
 		.uma-popover-body .stitch-show { margin-top: 0; }
 		.uma-popover-body .stitch-show-note { margin-top: var(--uma-sp-3); }
-		.stitch-settings-icon { background: var(--uma-stitch-settings-bg); color: var(--uma-stitch-settings-text); }
+		/* ②のパネルの見出しに添える調整つまみ。引き出し・右下のパネルの見出しと同じ琥珀 */
+		.stitch-show-title svg { width: 14px; height: 14px; color: var(--uma-stitch-accent); }
 		@media (max-width: 640px) {
 			/* 狭い画面では模式図をチェックの下に小さく置く */
 			.stitch-show { flex-direction: column; }
@@ -230,7 +257,7 @@
 		.deck-note-btn:hover { background: var(--uma-accent-hover); }
 		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
 		.mode-btn { padding: 0.25rem 0.75rem; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: all 0.15s; }
-		.mode-btn.active { background-color: #4f46e5; color: #fff; }
+		.mode-btn.active { background-color: var(--uma-accent); color: #fff; }
 
 		/* ①②の見出し（css/shell.css の .step-tab）は special.html と共有の大きさで、
 		   このページだと少し小さく見えるので、このページの中だけ一段大きくする。
@@ -268,7 +295,7 @@
 		.mode-btn:not(.active):hover { background-color: #f1f5f9; }
 		.copylist-btn { padding: 0.375rem 0.875rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid #e2e8f0; background: #fff; color: #64748b; }
 		.copylist-btn:hover { background-color: #f1f5f9; }
-		.copylist-btn.active { background-color: #4f46e5; color: #fff; border-color: #4f46e5; }
+		.copylist-btn.active { background-color: var(--uma-accent); color: #fff; border-color: var(--uma-accent); }
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-indigo-600 selection:text-white">
@@ -1116,7 +1143,7 @@
 
 		<button id="fab-item-stitch" type="button" class="uma-fab-item" onclick="fabGoTo('stitch')">
 			<span>結合画像の表示</span>
-			<span class="uma-fab-icon" style="background: #fef3c6; color: #973c00;">
+			<span class="uma-fab-icon stitch-accent-icon">
 				<i data-lucide="image" class="w-4 h-4"></i>
 				<span id="fab-dot-stitch" class="uma-fab-dot" hidden></span>
 			</span>
@@ -1127,7 +1154,7 @@
 		<button id="fab-item-settings" type="button" class="uma-fab-item" onclick="fabGoTo('settings')"
 			aria-controls="stitch-settings-pop" aria-expanded="false">
 			<span>結合画像の設定</span>
-			<span class="uma-fab-icon stitch-settings-icon">
+			<span class="uma-fab-icon stitch-accent-icon">
 				<i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
 			</span>
 		</button>
@@ -1765,7 +1792,7 @@
 		 * 同じ版数の印を持つ。このページが読む2つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（このページは common.css を読まないので、その印は見ない）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-15b';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-15c';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/shell.css', '--uma-shell-css-version'],
@@ -3512,7 +3539,7 @@
 			container.innerHTML =
 				'<div class="stitch-show' + (withWire ? '' : ' stitch-show--plain') + '" data-stitch-show-panel>' +
 					'<div class="stitch-show-body">' +
-						(withTitle ? '<p class="stitch-show-title">結合画像の設定</p>' : '') +
+						(withTitle ? '<p class="stitch-show-title"><i data-lucide="sliders-horizontal"></i><span>結合画像の設定</span></p>' : '') +
 						'<div class="stitch-show-list">' + list + '</div>' +
 						(withNote ? note : '') +
 					'</div>' +
@@ -5052,7 +5079,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-15b';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-15c';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;

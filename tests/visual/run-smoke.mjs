@@ -1333,8 +1333,9 @@ const browser = await chromium.launch();
 	const step0 = await stepState();
 	assert(step0.tab1 === 'true' && step0.panel1 && !step0.panel2, 'exam: 初期表示は①のパネルだけが出ている', step0);
 	assert(step0.imageBadge === true, 'exam: 画像が無いうちは②の枚数バッジを出さない', step0);
-	// タブの下線はこのページの藍（v3 の #4f46e5 = rgb(79, 70, 229)）。special の緑や v4 の藍ではない
-	assert(step0.underline === 'rgb(79, 70, 229)', 'exam: 選択中のタブの下線が exam の藍', step0.underline);
+	// タブの下線はこのページの青（#0b6bcb = rgb(11, 107, 203)）。special の緑ではない
+	// （2026-09-15・43セッション目に藍 #4f46e5 から変更。exam.html の --uma-c-600）
+	assert(step0.underline === 'rgb(11, 107, 203)', 'exam: 選択中のタブの下線が exam の青', step0.underline);
 	await page.click('#step-tab-2');
 	await page.waitForTimeout(300);
 	const step2 = await stepState();
@@ -1501,14 +1502,15 @@ const browser = await chromium.launch();
 		'exam: ラベルは何をコピーするかを言い切り、詳しい説明は title に入る', copyPlace);
 	assert(!copyPlace.windowShown, 'exam: 新UIでは「スプレッドシート貼り付け用データ」の窓を出さない', copyPlace);
 	assert(/^\d+\t\d+$/.test(copyPlace.value), 'exam: コピーされる中身（タブ区切りの★の数）は変えていない', copyPlace.value);
-	// 取り込み案内の色は Deck の色（.deck-accent → --uma-deck-accent-soft）。ページの藍ではない
+	// 取り込み案内の色は Deck の色（.deck-accent → --uma-deck-accent-soft）。ページの青ではない
 	const noteColor = await page.evaluate(() => ({
 		box: getComputedStyle(document.getElementById('deck-handoff-box')).backgroundColor,
 		btn: getComputedStyle(document.getElementById('deck-handoff-btn')).backgroundColor,
 		deckSoft: getComputedStyle(document.documentElement).getPropertyValue('--uma-deck-accent-soft').trim()
 	}));
-	assert(noteColor.deckSoft === '#e7e5e4' && noteColor.box === 'rgb(231, 229, 228)' && noteColor.btn === 'rgb(68, 64, 59)',
-		'exam: 取り込み案内は Deck の色（暖灰）で描かれる', noteColor);
+	// 2026-09-15・43セッション目に Deck の色を暖灰（stone）から暗めの赤紫（fuchsia）へ変えた
+	assert(noteColor.deckSoft === '#fae8ff' && noteColor.box === 'rgb(250, 232, 255)' && noteColor.btn === 'rgb(134, 25, 143)',
+		'exam: 取り込み案内は Deck の色（赤紫）で描かれる', noteColor);
 
 	// 「UmaSkill Deck を開いて取り込む」→ Deck の引き出し（iframe）が開く。開いた時点で新着の印は下りる
 	await page.click('#deck-handoff-btn');
@@ -2708,7 +2710,7 @@ const browser = await chromium.launch();
 			const el = document.querySelector('#ui-notice .notice-deck-name');
 			return el ? getComputedStyle(el).fontWeight : null;
 		}) === '700', 'exam: 告知の「UmaSkill Deck」が太字で強調されている');
-		assert(text.newBox === 'rgb(231, 229, 228)', 'exam: ＜新機能＞の段は Deck の色（暖灰）の枠', text.newBox);
+		assert(text.newBox === 'rgb(250, 232, 255)', 'exam: ＜新機能＞の段は Deck の色（赤紫）の枠', text.newBox);
 		// 語の途中で折れていないこと（.nb で括った文節は1行に収まる）
 		const broken = await page.evaluate(() => [...document.querySelectorAll('#ui-notice .nb')]
 			.filter((el) => el.getClientRects().length > 1).map((el) => el.textContent));

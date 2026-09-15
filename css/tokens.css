@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-09-15b";
+	--common-css-version: "2026-09-15c";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -85,13 +85,33 @@
 	   --uma-accent 系へ写像して使う。ここを変えれば3ツールの Deck の色が一度に変わる。
 	   special の緑とも exam の藍とも重ならないよう、濃いめの暖かいグレー（stone 系）。
 	   薄いグレーは「無効・★0・未選択」の表現（slate-100/300/400）と見分けがつかないので採らない
-	   （exam-ui-analysis.md B-2 / B-3 の案B）。値は Tailwind v4.1.11 の実測。 */
-	--uma-deck-accent: #44403b;         /* stone-700 : 主ボタンの地・チェック・タブの帯 */
-	--uma-deck-accent-hover: #292524;   /* stone-800 */
-	--uma-deck-accent-soft: #e7e5e4;    /* stone-200 : 淡い面（計バッジ・候補名チップ・選択中タブ） */
-	--uma-deck-accent-soft-text: #292524; /* stone-800 : 淡い面の上の文字 */
-	--uma-deck-accent-border: #a6a09b;  /* stone-400 */
-	--uma-deck-accent-ring: #44403b;    /* stone-700 : フォーカス輪郭 */
+	   （exam-ui-analysis.md B-2 / B-3 の案B）。
+	   【2026-09-15・43セッション目】暗い灰（stone 系）から**暗めの赤紫**へ変えた。灰は「Deck 行き」の
+	   合図としては弱く、無効の灰とも紛らわしかった。基調 #86198f は白地とのコントラスト 8.24。
+	   値は Tailwind v4.1.11 の fuchsia の実測。 */
+	--uma-deck-accent: #86198f;         /* fuchsia-800 : 主ボタンの地・チェック・タブの帯 */
+	--uma-deck-accent-hover: #701a75;   /* fuchsia-900 */
+	--uma-deck-accent-soft: #fae8ff;    /* fuchsia-100 : 淡い面（計バッジ・候補名チップ・選択中タブ） */
+	--uma-deck-accent-soft-text: #701a75; /* fuchsia-900 : 淡い面の上の文字（淡い面の上で 8.62） */
+	--uma-deck-accent-border: #e879f9;  /* fuchsia-400 */
+	--uma-deck-accent-ring: #86198f;    /* fuchsia-800 : フォーカス輪郭 */
+
+	/* ---- 結合画像（琥珀）の色 ----
+	   「結合画像」に属するもの（右下のボタン群の2項目のアイコン・引き出しの中の丸ボタン・
+	   設定パネルの見出しのアイコン・結合画像の新着の丸）だけに使う。
+	   操作部品（チェック・主ボタン・「画像を更新」）には使わない＝そちらはページのアクセント。
+	   基調は白地とのコントラストが 3.19 しかないので、**この地の上に白い文字は載せない**
+	   （載せてよいのは大きめの白いアイコンまで）。文字を載せる面は必ず淡い地（-soft）の側。 */
+	--uma-stitch-accent: #d97706;       /* amber-600 : 丸ボタンの地・新着の丸 */
+	--uma-stitch-soft: #fef3c6;         /* amber-100 : 淡い面 */
+	--uma-stitch-soft-text: #973c00;    /* amber-800 : 淡い面の上の文字・アイコン（6.36） */
+
+	/* ---- 右下のメインボタン（FAB）の色 ----
+	   ページのアクセント（--uma-accent）とは分けてある。3ツールで同じ黒にして、
+	   「ここを押すと行き先が出る」という役割の合図をページの色から独立させるため
+	   （2026-09-15・43セッション目）。 */
+	--uma-fab-bg: #1c1917;              /* stone-900 : 白いアイコンとのコントラスト 17.49 */
+	--uma-fab-bg-hover: #292524;        /* stone-800 */
 
 	/* ---- 余白（4pxを単位とする刻み。1/3/7/9pxのような孤立値は使わない） ---- */
 	--uma-sp-0-5: 2px;

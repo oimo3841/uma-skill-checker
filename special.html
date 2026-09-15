@@ -14,9 +14,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15b" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-15b" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-15b" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15c" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-15c" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-15c" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -46,7 +46,8 @@
 			--uma-accent-soft-text: #016630;  /* green-800 */
 			--uma-accent-border: #b9f8cf;     /* green-200 */
 			--uma-accent-ring: #008236;       /* green-700 */
-			--uma-fab-shadow: 0 10px 20px -6px rgba(1, 102, 48, .45);  /* メインFABの影（緑系） */
+			/* 右下のメインボタンは3ツール共通の黒（tokens.css の --uma-fab-bg）になったので、
+			   影もページの色ではなく shell.css の既定（暗い中間色）に任せる。ここで上書きしない。 */
 		}
 		body {
 			background-color: #f4faf0;
@@ -686,7 +687,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-15b';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-15c';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -2391,7 +2392,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-15b';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-15c';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {
@@ -2908,7 +2909,7 @@
 
 		<button id="fab-item-stitch" type="button" class="uma-fab-item" onclick="fabGoTo('stitch')">
 			<span>画像結合レビュー</span>
-			<span class="uma-fab-icon" style="background: #fef3c6; color: var(--uma-warn-text);">
+			<span class="uma-fab-icon stitch-accent-icon">
 				<i data-lucide="images" class="w-4 h-4"></i>
 				<span id="fab-dot-stitch" class="uma-fab-dot" hidden></span>
 			</span>

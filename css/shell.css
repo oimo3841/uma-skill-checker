@@ -21,7 +21,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-09-15b";
+	--uma-shell-css-version: "2026-09-15c";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -32,8 +32,8 @@
 	--uma-fab-icon: 36px;              /* サブボタンのアイコン丸の直径 */
 	--uma-fab-font: var(--uma-fs-sm);  /* サブボタンのラベル */
 	--uma-fab-reserve: 18rem;          /* 本文の下端に空ける余白（展開時の高さ+余白） */
-	/* メインボタンの影。既定は無彩色。ツールのアクセントに合わせるなら各HTMLの :root で上書きする
-	   （special.html は緑系、exam.html は藍系）。 */
+	/* メインボタンの影。メインボタンが3ツール共通の黒（--uma-fab-bg）になったので、影も無彩色で揃える
+	   （2026-09-15・43セッション目に special の緑系・exam の藍系の上書きを外した）。 */
 	--uma-fab-shadow: 0 10px 20px -6px rgba(15, 23, 42, .35);
 }
 
@@ -184,18 +184,18 @@
 	100% { box-shadow: 0 0 0 0 rgba(245, 73, 0, 0); }
 }
 
-/* メインボタン。そのページのアクセント（--uma-accent）で塗り、影は --uma-fab-shadow。
-   開いている間は＋アイコンを135度回して×にする。 */
+/* メインボタン。塗りは --uma-fab-bg（3ツール共通の黒。ページのアクセントとは分ける）で、
+   影は --uma-fab-shadow。開いている間は＋アイコンを135度回して×にする。 */
 .uma-fab-toggle {
 	width: var(--uma-fab-size); height: var(--uma-fab-size); flex-shrink: 0;
 	border: none; border-radius: var(--uma-r-full);
-	background: var(--uma-accent); color: var(--uma-text-inverse);
+	background: var(--uma-fab-bg); color: var(--uma-text-inverse);
 	display: flex; align-items: center; justify-content: center;
 	box-shadow: var(--uma-fab-shadow), var(--uma-shadow-2);
 	cursor: pointer;
 	transition: background-color var(--uma-transition), transform var(--uma-transition);
 }
-.uma-fab-toggle:hover { background: var(--uma-accent-hover); }
+.uma-fab-toggle:hover { background: var(--uma-fab-bg-hover); }
 .uma-fab-toggle:active { transform: scale(.95); }
 /* lucide は <i data-lucide> を <svg> に差し替えるので、回転はsvgに掛ける。
    アイコンの大きさは Tailwind の w-4/w-6 ではなくボタン径から決める
@@ -315,6 +315,9 @@
 	margin: 0; display: flex; align-items: center; gap: var(--uma-sp-2);
 	font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading);
 }
+/* 見出しに添えるアイコンだけ別の色にできるようにしておく（既定は見出しの文字と同じ色）。
+   exam の「結合画像の設定」は結合画像の琥珀を入れて、何の設定かを色でも示している。 */
+.uma-popover-title svg { color: var(--uma-popover-icon, currentColor); }
 .uma-popover-close {
 	flex-shrink: 0; width: 36px; height: 36px; border: 0; border-radius: var(--uma-r-full);
 	display: flex; align-items: center; justify-content: center;
@@ -333,10 +336,14 @@
 @media (min-width: 768px) {
 	.uma-popover--fab { right: max(var(--uma-fab-edge), calc(50% - 512px)); }
 }
-/* 引き出しの中の丸ボタン。見た目は右下の FAB のメインボタン（.uma-fab-toggle を併用）で、一回り小さい */
+/* 引き出しの中の丸ボタン。形は右下の FAB のメインボタン（.uma-fab-toggle を併用）で一回り小さく、
+   色だけ結合画像の琥珀にする（右下の黒いメインボタンと役割が違うことを色で示す）。
+   地の上に載るのは大きめの白いアイコンだけで、白い文字は載せない（tokens.css の注記）。 */
 .uma-drawer-fab {
 	position: absolute; z-index: 2;
 	--uma-fab-size: 48px;
+	--uma-fab-bg: var(--uma-stitch-accent);
+	--uma-fab-bg-hover: var(--uma-stitch-soft-text);
 	right: var(--uma-sp-4);
 	bottom: calc(var(--uma-sp-4) + env(safe-area-inset-bottom, 0px));
 }
@@ -426,6 +433,9 @@
 .deck-accent .deck-icon, .btn-deck-accent .deck-icon { color: var(--uma-accent); }
 /* FAB の項目のうち Deck 行きのものは、アイコンの丸を Deck の色で塗る */
 .deck-accent .uma-fab-icon { background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
+/* 「結合画像」に属する項目のアイコンの丸（exam の「結合画像の表示」「結合画像の設定」、
+   special の「画像結合レビュー」）。同じ琥珀に揃えて、行き先の仲間であることを色で示す。 */
+.stitch-accent-icon { background: var(--uma-stitch-soft); color: var(--uma-stitch-soft-text); }
 /* 「いま新UIにいる」ことを示す、二次ボタンの点灯状態（旧UIへ／新UIへ のボタン） */
 .uma-btn.is-on { border-color: var(--uma-accent-border); background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
 /* 結果の先頭に置く取り込み案内（未取り込みのとき。取り込み済みは各ページの緑のユーティリティ） */
