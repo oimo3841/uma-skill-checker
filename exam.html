@@ -126,6 +126,12 @@
 			/* 引き出し（z-index:100）より前に出す。引き出しの中の操作（「まとめてコピー」など）も
 			   トーストで結果を知らせるため、Tailwind の z-50 のままだと引き出しの裏に隠れて見えない。 */
 			z-index: 110;
+			/* 置き場所。以前は要素の style 属性に直接書いていたが、「結合画像の設定」の
+			   パネルが開いている間だけ上へ逃がせるように（--uma-toast-lift）ここへ移した。
+			   逃がす量は updateToastLift() が実測して入れる。 */
+			right: max(1.25rem, calc(50% - 512px));
+			bottom: calc(var(--uma-fab-edge) + var(--uma-fab-size) + var(--uma-sp-4)
+				+ env(safe-area-inset-bottom, 0px) + var(--uma-toast-lift, 0px));
 		}
 		/* 取り込み案内の「UmaSkill Deck を開いて取り込む」。Deck の色（.deck-accent の中で --uma-accent が
 		   Deck の色になる）で塗る。共通部品 .uma-btn は読んでいないので、このページのボタンの書き方で。 */
@@ -301,8 +307,7 @@
 <body class="min-h-screen text-slate-800 antialiased selection:bg-indigo-600 selection:text-white">
 
 	<!-- トースト通知 -->
-	<div id="toast" class="fixed transform translate-y-16 opacity-0 pointer-events-none flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 text-sm font-medium"
-		style="bottom: calc(var(--uma-fab-edge) + var(--uma-fab-size) + var(--uma-sp-4) + env(safe-area-inset-bottom, 0px)); right: max(1.25rem, calc(50% - 512px));">
+	<div id="toast" class="fixed transform translate-y-16 opacity-0 pointer-events-none flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 text-sm font-medium">
 		<i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
 		<span id="toast-message">コピーしました</span>
 	</div>
@@ -2243,9 +2248,38 @@
 			helpReturnFocus = null;
 		}
 
+		/* 「結合画像の設定」のパネルが開いている間、トーストをパネルの上辺より上へ逃がす。
+		 * 引き出しの中のパネルは右下に浮いていて、「画像を更新」を押した直後のトーストが
+		 * その下端に重なっていた（押した直後なので操作は妨げないが、読みにくい）。
+		 * 逃がす量は実測で決める（PC は浮かせたパネル、640px 以下は下からのシートで
+		 * 高さが変わるため、固定値では足りたり空きすぎたりする）。
+		 * ・パネルが閉じているときは 0（変数ごと外す）。
+		 * ・重なっていなければ動かさない。
+		 * ・トーストは隠れている間も translate で下にずれているだけなので、位置の計算には
+		 *   getComputedStyle の bottom（= CSS の calc の結果）を使う。 */
+		function updateToastLift() {
+			const toast = document.getElementById('toast');
+			if (!toast) return;
+			// いま入っている逃がし量を差し引いて、本来の「画面下からの距離」を出す。
+			// **変数を消してから getComputedStyle を読み直してはいけない**: 同じ turn の中では
+			// 計算値が消す前の値のまま返り、基準が逃がした後の位置になって差が 0 になる
+			// （実測。それで一度も上がらなかった）。差し引きなら1回の読みで足りる。
+			const lifted = parseFloat(toast.style.getPropertyValue('--uma-toast-lift')) || 0;
+			const base = (parseFloat(getComputedStyle(toast).bottom) || 0) - lifted;
+			const pop = stitchSettingsOpen
+				? document.getElementById(stitchSettingsOpen === 'fab' ? 'stitch-settings-pop' : 'stitch-drawer-pop')
+				: null;
+			if (!pop || pop.hidden) { toast.style.removeProperty('--uma-toast-lift'); return; }
+			// パネルの上辺より上に出すのに要る「画面下からの距離」
+			const need = (window.innerHeight - pop.getBoundingClientRect().top) + 12;
+			if (need > base) toast.style.setProperty('--uma-toast-lift', Math.round(need - base) + 'px');
+			else toast.style.removeProperty('--uma-toast-lift');
+		}
+
 		function showToast(msg) {
 			const toast = document.getElementById('toast');
 			document.getElementById('toast-message').textContent = msg;
+			updateToastLift();
 			toast.classList.remove('translate-y-16', 'opacity-0', 'pointer-events-none');
 			setTimeout(() => {
 				toast.classList.add('translate-y-16', 'opacity-0', 'pointer-events-none');
@@ -4998,6 +5032,8 @@
 			pop.hidden = false;
 			syncStitchShowUi();
 			if (window.lucide) lucide.createIcons();
+			// 出ている最中のトーストがパネルに重ならないように逃がす（次に出すぶんは showToast が測る）
+			updateToastLift();
 			document.getElementById(where === 'fab' ? 'stitch-settings-close' : 'stitch-drawer-pop-close').focus();
 		}
 
@@ -5015,6 +5051,7 @@
 				document.getElementById('stitch-drawer-pop').hidden = true;
 				document.getElementById('stitch-drawer-fab').setAttribute('aria-expanded', 'false');
 			}
+			updateToastLift();          // パネルが閉じたら、逃がしていたトーストを元の位置へ
 			const back = stitchSettingsReturnFocus;
 			stitchSettingsReturnFocus = null;
 			if (!(opts && opts.keepFocus) && back && typeof back.focus === 'function' && !back.hidden) back.focus();

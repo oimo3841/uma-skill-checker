@@ -4827,6 +4827,80 @@ const browser = await chromium.launch();
 }
 
 /* ============================================================
+ * トーストと「結合画像の設定」のパネルの重なり（2026-09-15・43セッション目）
+ *
+ * 「画像を更新」の直後のトーストが、引き出しの中のパネルの下端に重なっていた。
+ * パネルが開いている間だけ、トーストをパネルの上辺より上へ逃がす（--uma-toast-lift）。
+ * 閉じたら元の位置へ戻す。あわせて、パネルの見出しが1つだけであることも見る。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+	await page.evaluate(() => { if (typeof closeUiNotice === 'function') closeUiNotice(); });
+	await page.evaluate(() => {
+		selectResultTab('stitch');
+		document.getElementById('stitch-result-content').innerHTML = '<p id="stitch-dummy">結果画像</p>';
+		setSectionReady('stitch', true);
+		openDrawer('result');
+	});
+	await page.waitForTimeout(400);
+
+	// パネルの見出しは1つだけ（上の見出しと内側の枠の見出しが二重に出ない）
+	await page.click('#stitch-drawer-fab');
+	await page.waitForTimeout(300);
+	const heads = await page.evaluate(() => [...document.querySelectorAll('#stitch-drawer-pop .uma-popover-title, #stitch-drawer-pop .stitch-show-title')].map((n) => n.textContent.trim()));
+	assert(heads.length === 1 && heads[0] === '結合画像の設定', '重なり: 引き出しのパネルの見出しは1つだけ', heads);
+
+	const overlap = async (popId) => page.evaluate((id) => {
+		const toast = document.getElementById('toast');
+		const t = toast.getBoundingClientRect();
+		const el = document.getElementById(id);
+		const p = el && !el.hidden ? el.getBoundingClientRect() : null;
+		return {
+			hidden: toast.className.includes('translate-y-16'),
+			lift: toast.style.getPropertyValue('--uma-toast-lift') || '',
+			hit: !!(p && !(t.bottom < p.top || t.top > p.bottom || t.right < p.left || t.left > p.right)),
+		};
+	}, popId);
+
+	await page.evaluate(() => showToast('結合画像を更新しました'));
+	await page.waitForTimeout(600);
+	let ov = await overlap('stitch-drawer-pop');
+	assert(!ov.hidden && !ov.hit && ov.lift, '重なり: パネルが開いている間、トーストはパネルに重ならない', ov);
+
+	// 閉じると逃がしを解いて元の位置へ戻る
+	await page.evaluate(() => closeStitchSettings());
+	await page.waitForTimeout(2700);           // 前のトーストが引っ込むのを待つ
+	await page.evaluate(() => showToast('コピーしました'));
+	await page.waitForTimeout(600);
+	ov = await overlap('stitch-drawer-pop');
+	assert(!ov.hidden && ov.lift === '', '重なり: パネルを閉じるとトーストは元の位置へ戻る', ov);
+
+	// 375px（引き出しの下辺からのシート）でも重ならない
+	await page.waitForTimeout(2700);
+	await page.setViewportSize({ width: 375, height: 812 });
+	await page.waitForTimeout(400);
+	await page.click('#stitch-drawer-fab');
+	await page.waitForTimeout(400);
+	await page.evaluate(() => showToast('結合画像を更新しました'));
+	await page.waitForTimeout(600);
+	ov = await overlap('stitch-drawer-pop');
+	assert(!ov.hidden && !ov.hit, '重なり: 375px のシートでもトーストは重ならない', ov);
+
+	// 右下のボタン群から開くパネルでも同じ
+	await page.waitForTimeout(2700);
+	await page.evaluate(() => { closeStitchSettings(); closeDrawer(); });
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.waitForTimeout(500);
+	await page.evaluate(() => { fabGoTo('settings'); showToast('保存しました'); });
+	await page.waitForTimeout(600);
+	ov = await overlap('stitch-settings-pop');
+	assert(!ov.hidden && !ov.hit, '重なり: 右下から開くパネルでもトーストは重ならない', ov);
+
+	assert(errors.length === 0, '重なり: コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
  * 未読の丸（2026-09-15・43セッション目）
  *
  * ・子項目・引き出しのタブ・Deck の取り込み案内の丸が、行き先ごとの色になっている
