@@ -5065,6 +5065,44 @@ const browser = await chromium.launch();
 }
 
 
+/* ============================================================
+ * 右下のボタン群の幅（2026-09-15・43セッション目）
+ *
+ * いちばん長いラベルのボタンに、ほかのボタンの幅が揃う（ピクセルでは固定しない）。
+ * ラベルは左揃え、アイコンの丸は右端。PC と 375px の両方で見る。
+ * ============================================================ */
+for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], ['special.html', 1280, 900]]) {
+	const { ctx, page, errors } = await openPage(browser, base, file, { width: w, height: h });
+	await page.evaluate(() => { if (typeof closeUiNotice === 'function') closeUiNotice(); });
+	await page.waitForTimeout(200);
+	// special の Deck の項目は新UIのときだけ出る。4項目そろった状態で測る
+	if (file === 'special.html') await page.evaluate(() => { deckMode = true; updateDeckEntryVisibility(); });
+	await page.evaluate(() => setFabOpen(true));
+	await page.waitForTimeout(400);
+	const fab = await page.evaluate(() => {
+		const items = [...document.querySelectorAll('.uma-fab-item')].filter((e) => !e.hidden);
+		const r = items.map((e) => e.getBoundingClientRect());
+		return {
+			n: items.length,
+			widths: r.map((x) => Math.round(x.width)),
+			labelLefts: items.map((e) => Math.round(e.firstElementChild.getBoundingClientRect().left)),
+			iconRights: items.map((e) => Math.round(e.lastElementChild.getBoundingClientRect().right)),
+			toggleRight: Math.round(document.getElementById('fab-toggle').getBoundingClientRect().right),
+			navRight: Math.round(document.getElementById('fab-nav').getBoundingClientRect().right),
+			overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+		};
+	});
+	const label = file + ' ' + w + 'px';
+	assert(fab.n >= 3 && new Set(fab.widths).size === 1, 'ボタン群の幅: ' + label + ' で全部同じ幅', fab.widths);
+	assert(new Set(fab.labelLefts).size === 1, 'ボタン群の幅: ' + label + ' でラベルが左で揃う', fab.labelLefts);
+	assert(new Set(fab.iconRights).size === 1, 'ボタン群の幅: ' + label + ' でアイコンの丸が右で揃う', fab.iconRights);
+	assert(fab.toggleRight === fab.navRight && !fab.overflow,
+		'ボタン群の幅: ' + label + ' でメインボタンは右端のまま、横スクロールも出ない', fab);
+	assert(errors.length === 0, 'ボタン群の幅: ' + label + ' でコンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+
 await browser.close();
 await close();
 console.log('\n' + (fails === 0 ? '=== スモークテスト: 全項目OK ===' : '=== スモークテスト: ' + fails + '件 NG ==='));

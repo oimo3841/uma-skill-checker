@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-09-15f";
+	--uma-shell-css-version: "2026-09-15g";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -117,7 +117,11 @@
 	right: var(--uma-fab-edge);
 	bottom: calc(var(--uma-fab-edge) + env(safe-area-inset-bottom, 0px));
 	z-index: 70;
-	display: flex; flex-direction: column; align-items: flex-end; gap: var(--uma-fab-gap);
+	/* align-items: stretch で、サブボタンをこの箱の幅（＝いちばん長いラベルのボタンの幅）に
+	   揃える。箱そのものの幅は中身に合わせて決まるので、ラベルが変わっても自動で追従する
+	   （ピクセルで固定しない。2026-09-15・43セッション目）。メインボタンだけは丸のままに
+	   したいので、下の .uma-fab-main で align-self: flex-end に戻す。 */
+	display: flex; flex-direction: column; align-items: stretch; gap: var(--uma-fab-gap);
 	/* 外枠そのものはクリックを受け取らない。畳んでいる間もこの箱は
 	   「見えないサブボタン3つ＋間隔＋メインボタン」ぶんの高さを持ち、右下に
 	   約170×250px の透明な板として居座る。何も指定しないと、その板の下にある
@@ -142,7 +146,8 @@
 /* サブボタン（ピル型）。閉じている間は pointer-events:none で完全に無効化する。
    display:none にしないのは、開閉のトランジションを効かせるため。 */
 .uma-fab-item {
-	display: flex; align-items: center; gap: var(--uma-sp-2);
+	/* ラベルは左、アイコンの丸は右端。幅は .uma-fab-nav の align-items: stretch で揃う */
+	display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2);
 	min-height: 44px;
 	padding: var(--uma-sp-1-5) var(--uma-sp-1-5) var(--uma-sp-1-5) var(--uma-sp-4);
 	border: 1px solid var(--uma-border); border-radius: var(--uma-r-full);
@@ -193,7 +198,7 @@
    （未読の行き先がいくつあっても1つ。子項目を開けば行き先ごとの丸が見える）。
    丸は .uma-fab-dot をそのまま使い、この箱を位置の基準にする。
    周りに並べる・回す案は取りやめた（2026-09-15・43セッション目）。 */
-.uma-fab-main { position: relative; display: flex; }
+.uma-fab-main { position: relative; display: flex; align-self: flex-end; }
 
 /* メインボタン。塗りは --uma-control（3ツール共通の黒。ページの色とは分ける）で、
    影は --uma-fab-shadow。開いている間は＋アイコンを135度回して×にする。 */
