@@ -138,6 +138,15 @@ const browser = await chromium.launch();
 	});
 	assert(fabBlocks.navPointer === 'none' && !fabBlocks.hitIsNav,
 		'special: 畳んだナビの外枠が下の要素のクリックを吸わない', fabBlocks);
+	// 展開の遅延は下（メインボタンに近い側）から 0 / .03 / .06 秒。exam が4項目になっても special の3項目はこのまま
+	const fabDelays = await page.evaluate(() => {
+		const nav = document.getElementById('fab-nav');
+		nav.classList.add('open');
+		const d = Array.from(nav.querySelectorAll('.uma-fab-item')).map((b) => getComputedStyle(b).transitionDelay);
+		nav.classList.remove('open');
+		return d;
+	});
+	assert(fabDelays.join(',') === '0.06s,0.03s,0s', 'special: 右下ナビの3項目の展開の遅延が従来どおり', fabDelays);
 	// 一度開いたので照合結果の未読は下りている。Deckはまだ見に行っていないので残る。
 	assert(!(await page.isVisible('#fab-dot-result')), 'special: 一度開くと未読バッジが下りる');
 	assert(await page.isVisible('#fab-dot-deck'), 'special: Deckを見に行くまではバッジが残る');
@@ -4617,6 +4626,123 @@ const browser = await chromium.launch();
 		fabUnseen.stitch = false; updateFabBadges();
 	});
 	assert(errors.length === 0, '表示を変更: コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
+ * exam.html — 右下のボタン群の「結合画像の設定」
+ *   並びは 照合結果 → 結合画像の表示 → 結合画像の設定 → Deck／展開の遅延は下から 0/.03/.06/.09 秒／
+ *   押すと暗転つきの小さなパネルが FAB の上に開き、結合画像が無くても開ける／「画像を更新」は無い／
+ *   ここで変えた設定は②と引き出しのパネル・保存に映る／✕・暗転・Esc で閉じ、フォーカスはメインボタンへ戻る／
+ *   375px では下からのシート（高さは画面の半分まで）で、横スクロールが出ない
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+	await page.waitForTimeout(800);
+	if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
+	await page.waitForTimeout(300);
+
+	const nav = await page.evaluate(() => {
+		const el = document.getElementById('fab-nav');
+		const items = Array.from(el.querySelectorAll('.uma-fab-item'));
+		el.classList.add('open');
+		const delays = items.map((b) => getComputedStyle(b).transitionDelay);
+		el.classList.remove('open');
+		return {
+			order: items.map((b) => b.id).join(','),
+			label: document.querySelector('#fab-item-settings > span').textContent,
+			delays,
+			popHidden: document.getElementById('stitch-settings-pop').hidden,
+			hasStitch: !document.getElementById('stitch-result-wrap').classList.contains('hidden')
+		};
+	});
+	assert(nav.order === 'fab-item-result,fab-item-stitch,fab-item-settings,deck-drawer-trigger', '結合画像の設定: 右下のボタン群の並び', nav.order);
+	assert(nav.label === '結合画像の設定' && nav.popHidden, '結合画像の設定: 項目のラベルと、初期はパネルが閉じていること', nav);
+	assert(nav.delays.join(',') === '0.09s,0.06s,0.03s,0s', '結合画像の設定: 4項目の展開の遅延は下から 0/.03/.06/.09 秒', nav.delays);
+
+	// 結合画像が無い状態で、メインボタン → 項目 の順に押して開く
+	assert(!nav.hasStitch, '結合画像の設定: 結合画像が無い状態から始める');
+	await page.click('#fab-toggle');
+	await page.waitForTimeout(400);
+	await page.click('#fab-item-settings');
+	await page.waitForTimeout(400);
+	let st = await page.evaluate(() => ({
+		popVisible: !document.getElementById('stitch-settings-pop').hidden,
+		backdropVisible: !document.getElementById('stitch-settings-backdrop').hidden,
+		navOpen: document.getElementById('fab-nav').classList.contains('open'),
+		hasRefresh: !!document.querySelector('#stitch-settings-pop #stitch-refresh-btn'),
+		inputs: Array.from(document.querySelectorAll('#stitch-settings-pop input[data-stitch-show]')).map((i) => i.id).join(','),
+		title: document.getElementById('stitch-settings-title').textContent.trim(),
+		innerTitle: !!document.querySelector('#stitch-settings-pop .stitch-show-title'),
+		note: document.querySelector('#stitch-settings-pop .stitch-show-note').textContent,
+		focus: document.activeElement && document.activeElement.id,
+		expanded: document.getElementById('fab-item-settings').getAttribute('aria-expanded'),
+		bodyOverflow: document.body.style.overflow
+	}));
+	assert(st.popVisible && st.backdropVisible && !st.navOpen, '結合画像の設定: 項目を押すと暗転つきのパネルが開き、ボタン群は畳まれる', st);
+	assert(!st.hasRefresh && st.note.includes('「結合画像の表示」の画面で「画像を更新」'), '結合画像の設定: 「画像を更新」は無く、更新の道を案内で示す', st);
+	assert(st.inputs === 'fab-stitch-show-banner,fab-stitch-show-scenario,fab-opt-attr-icons,fab-stitch-show-legend,fab-stitch-show-conditions' && st.title === '結合画像の設定' && !st.innerTitle,
+		'結合画像の設定: 5項目の id は fab- で分かれ、見出しはパネルの頭に1つだけ', st);
+	assert(st.focus === 'stitch-settings-close' && st.expanded === 'true' && st.bodyOverflow === 'hidden', '結合画像の設定: 開いたら ✕ にフォーカスが移り、本文のスクロールが止まる', st);
+
+	// 変えた設定が②と引き出しのパネル・保存に映る
+	await page.click('#fab-stitch-show-banner');
+	await page.waitForTimeout(200);
+	const mirrored = await page.evaluate(() => ({
+		fab: document.getElementById('fab-stitch-show-banner').checked,
+		step2: document.getElementById('stitch-show-banner').checked,
+		drawer: document.getElementById('drawer-stitch-show-banner').checked,
+		stored: localStorage.getItem('uma-exam-stitch-banner')
+	}));
+	assert(!mirrored.fab && !mirrored.step2 && !mirrored.drawer && mirrored.stored === '0', '結合画像の設定: ここで変えた設定が②と引き出しのパネルと保存に映る', mirrored);
+
+	// Esc で閉じ、フォーカスはメインボタンへ
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
+	st = await page.evaluate(() => ({
+		popHidden: document.getElementById('stitch-settings-pop').hidden,
+		backdropHidden: document.getElementById('stitch-settings-backdrop').hidden,
+		focus: document.activeElement && document.activeElement.id,
+		bodyOverflow: document.body.style.overflow,
+		expanded: document.getElementById('fab-item-settings').getAttribute('aria-expanded')
+	}));
+	assert(st.popHidden && st.backdropHidden && st.focus === 'fab-toggle' && st.bodyOverflow === '' && st.expanded === 'false',
+		'結合画像の設定: Esc で閉じ、フォーカスはメインボタンへ戻り、スクロールの固定も解ける', st);
+
+	// 暗転のクリックでも閉じる（fabGoTo から開く経路）
+	await page.evaluate(() => fabGoTo('settings'));
+	await page.waitForTimeout(300);
+	assert(await page.isVisible('#stitch-settings-pop'), '結合画像の設定: fabGoTo からも開く');
+	await page.mouse.click(10, 10);
+	await page.waitForTimeout(300);
+	assert(await page.evaluate(() => document.getElementById('stitch-settings-pop').hidden), '結合画像の設定: 暗転を押すと閉じる');
+
+	// PC 幅ではメインボタンの真上に右揃えで浮く
+	await page.evaluate(() => fabGoTo('settings'));
+	await page.waitForTimeout(300);
+	const pc = await page.evaluate(() => {
+		const p = document.getElementById('stitch-settings-pop').getBoundingClientRect();
+		const t = document.getElementById('fab-toggle').getBoundingClientRect();
+		return { popRight: p.right, toggleRight: t.right, popBottom: p.bottom, toggleTop: t.top, popW: p.width };
+	});
+	assert(Math.abs(pc.popRight - pc.toggleRight) < 2 && pc.popBottom <= pc.toggleTop && pc.popW <= 380, '結合画像の設定: PC 幅ではメインボタンの真上に右揃えで浮く', pc);
+	await page.keyboard.press('Escape');
+
+	// 375px: 下からのシート（画面の半分まで）で、横スクロールが出ない
+	await page.setViewportSize({ width: 375, height: 812 });
+	await page.waitForTimeout(400);
+	await page.evaluate(() => fabGoTo('settings'));
+	await page.waitForTimeout(400);
+	const sp = await page.evaluate(() => {
+		const p = document.getElementById('stitch-settings-pop').getBoundingClientRect();
+		return { left: p.left, right: p.right, bottom: p.bottom, height: p.height, vw: window.innerWidth, vh: window.innerHeight, sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth };
+	});
+	assert(sp.left === 0 && Math.abs(sp.right - sp.vw) < 1 && Math.abs(sp.bottom - sp.vh) < 1 && sp.height <= sp.vh / 2 + 1 && sp.sw === sp.cw,
+		'結合画像の設定: 375px では下からのシートになり、高さは画面の半分まで、横スクロールが出ない', sp);
+	await page.keyboard.press('Escape');
+	await page.evaluate(() => setStitchShow('banner', true));
+
+	assert(errors.length === 0, '結合画像の設定: コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
 

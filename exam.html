@@ -10,8 +10,8 @@
 	     ダイアログ）だけを読む。共通部品（common.css）は読まない — 読むと .glass-card の余白など
 	     このページの既存の見た目が変わるため（exam-ui-analysis.md A-3）。変数は参照されない限り
 	     何も描かないので、既存の見た目はそのまま。Tailwind より先に読み込む（レイヤー無しの方が強い）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15a" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-15a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15b" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-15b" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -34,6 +34,10 @@
 			--uma-accent-border: #c6d2ff;     /* border-indigo-200（進捗バー・緑スキルハイライトの枠）と同じ */
 			--uma-accent-ring: #4338ca;
 			--uma-fab-shadow: 0 10px 20px -6px rgba(79, 70, 229, .45);  /* メインFABの影（#4f46e5 の半透明） */
+			/* 右下のボタン群の「結合画像の設定」のアイコンの丸。**仮の値**（sky-100 / sky-800）。
+			   配色のフェーズで決め直す。値を直書きせず変数にしてあるのは、ダークモードと配色の変更に備えるため。 */
+			--uma-stitch-settings-bg: #e0f2fe;
+			--uma-stitch-settings-text: #075985;
 		}
 		/* ①のタブに出す件数バッジ。骨格（shell.css の .step-tab-badge）は灰なので、このページの藍に */
 		.step-tab-badge--accent { background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
@@ -222,6 +226,10 @@
 		/* 作り直せないときの案内。色は css/tokens.css の警告の色（opacity は使わない。B節ルール9） */
 		.stitch-refresh-note { margin: 0; flex: 1 1 16rem; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); color: var(--uma-warn-text); }
 		.stitch-refresh-note[hidden] { display: none; }
+		/* 「結合画像の設定」パネル（骨格は css/shell.css の .uma-popover）。中のパネルは上の余白を持たない */
+		.uma-popover-body .stitch-show { margin-top: 0; }
+		.uma-popover-body .stitch-show-note { margin-top: var(--uma-sp-3); }
+		.stitch-settings-icon { background: var(--uma-stitch-settings-bg); color: var(--uma-stitch-settings-text); }
 		@media (max-width: 640px) {
 			/* 狭い画面では模式図をチェックの下に小さく置く */
 			.stitch-show { flex-direction: column; }
@@ -1108,6 +1116,16 @@
 			</span>
 		</button>
 
+		<!-- 結合画像の設定。引き出しではなく、右下に浮かせる小さなパネル（#stitch-settings-pop）を開く。
+		     結合画像が無くても開ける。「画像を更新」はここには置かない（更新は「結合画像の表示」の画面から）。 -->
+		<button id="fab-item-settings" type="button" class="uma-fab-item" onclick="fabGoTo('settings')"
+			aria-controls="stitch-settings-pop" aria-expanded="false">
+			<span>結合画像の設定</span>
+			<span class="uma-fab-icon stitch-settings-icon">
+				<i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+			</span>
+		</button>
+
 		<button id="deck-drawer-trigger" type="button" class="uma-fab-item deck-accent" onclick="fabGoTo('deck')"
 			aria-controls="deck-drawer" aria-expanded="false">
 			<span>UmaSkill Deck</span>
@@ -1121,6 +1139,29 @@
 			aria-controls="fab-nav" aria-expanded="false" aria-label="ページ内ナビゲーションを開く">
 			<i data-lucide="plus" class="w-6 h-6"></i>
 		</button>
+	</div>
+
+	<!-- ===== 「結合画像の設定」（右下のボタン群から開く小さなパネル） =====
+	     骨格は css/shell.css の .uma-overlay（暗転つき。引き出しは閉じている前提）＋ .uma-popover--fab
+	     （PC は右下のボタン群の真上に浮かせ、640px 以下は下からのシート）。中身は②と同じ
+	     renderStitchShowPanel（模式図なし・id は fab- の接頭辞）で、状態は②・引き出しと同じ1つ
+	     （syncStitchShowUi）。「画像を更新」は置かず、更新の道を案内で示す。
+	     開閉は openStitchSettings('fab') / closeStitchSettings()。閉じ方は ✕・暗転・Esc。 -->
+	<div id="stitch-settings-backdrop" class="uma-overlay-backdrop" hidden onclick="closeStitchSettings()"></div>
+	<div id="stitch-settings-pop" class="uma-overlay uma-popover uma-popover--fab" hidden role="dialog" aria-modal="true" aria-labelledby="stitch-settings-title">
+		<div class="uma-popover-head">
+			<h2 id="stitch-settings-title" class="uma-popover-title">
+				<i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+				<span>結合画像の設定</span>
+			</h2>
+			<button type="button" id="stitch-settings-close" class="uma-popover-close" onclick="closeStitchSettings()" aria-label="閉じる">
+				<i data-lucide="x"></i>
+			</button>
+		</div>
+		<div class="uma-popover-body">
+			<div id="stitch-show-panel-fab"></div>
+			<p class="stitch-show-note">ここで変えた表示は、次の結合から反映されます。いまある結合画像を作り直すときは、「結合画像の表示」の画面で「画像を更新」を押してください。</p>
+		</div>
 	</div>
 
 	<!-- UmaSkill Deck。中身は iframe（uma-skill-deck.html をそのまま読む）。同一オリジンなので
@@ -1718,7 +1759,7 @@
 		 * 同じ版数の印を持つ。このページが読む2つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（このページは common.css を読まないので、その印は見ない）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-15a';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-15b';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/shell.css', '--uma-shell-css-version'],
@@ -1755,8 +1796,10 @@
 			restoreCountMode();
 			// 「結合画像の表示」のパネルは復元より先に作る（復元が状態をパネルへ映すため）
 			renderStitchShowPanel(document.getElementById('stitch-show-panel'));
-			// 結果画像の引き出しにも同じパネル（模式図・注記なし。id は drawer- で分ける）
+			// 結合画像の引き出しにも同じパネル（模式図・注記なし。id は drawer- で分ける）
 			renderStitchShowPanel(document.getElementById('stitch-show-panel-drawer'), { idPrefix: 'drawer-', wire: false, note: false });
+			// 右下のボタン群から開く「結合画像の設定」にも（模式図・注記・見出しなし。id は fab- で分ける）
+			renderStitchShowPanel(document.getElementById('stitch-show-panel-fab'), { idPrefix: 'fab-', wire: false, note: false, title: false });
 			restoreAttrIcons();
 			restoreStitchShow();
 			initStitchSaveName();
@@ -3414,6 +3457,8 @@
 			const prefix = (opts && opts.idPrefix) || '';
 			const withWire = !(opts && opts.wire === false);
 			const withNote = !(opts && opts.note === false);
+			// opts.title … false なら見出し「結合画像の設定」を出さない（見出しを持つパネルの中に置くとき）
+			const withTitle = !(opts && opts.title === false);
 			const ids = {
 				banner: prefix + 'stitch-show-banner',
 				scenario: prefix + 'stitch-show-scenario',
@@ -3461,7 +3506,7 @@
 			container.innerHTML =
 				'<div class="stitch-show' + (withWire ? '' : ' stitch-show--plain') + '" data-stitch-show-panel>' +
 					'<div class="stitch-show-body">' +
-						'<p class="stitch-show-title">結合画像の設定</p>' +
+						(withTitle ? '<p class="stitch-show-title">結合画像の設定</p>' : '') +
 						'<div class="stitch-show-list">' + list + '</div>' +
 						(withNote ? note : '') +
 					'</div>' +
@@ -4817,13 +4862,70 @@
 
 		function fabGoTo(key) {
 			setFabOpen(false);
-			// 「OCRの照合結果」「結果画像」はどちらも同じ引き出し。押した方のタブを表にしてから開く
+			// 「結合画像の設定」は引き出しではなく、右下に浮かせる小さなパネル。
+			// 閉じたあとのフォーカスはメインボタンへ（項目は畳まれて押せないので）
+			if (key === 'settings') {
+				openStitchSettings('fab', document.getElementById('fab-toggle'));
+				return;
+			}
+			// 「OCRの照合結果」「結合画像の表示」はどちらも同じ引き出し。押した方のタブを表にしてから開く
 			if (key === 'result' || key === 'stitch') {
 				selectResultTab(key);
 				openDrawer('result');
 				return;
 			}
 			openDrawer(key);
+		}
+
+		/* ------------------------------------------------------------
+		 * 「結合画像の設定」パネル
+		 *   'fab'    … 右下のボタン群から。#stitch-settings-pop（暗転つき・引き出しは閉じている）。
+		 *              「画像を更新」は置かない。
+		 *   'drawer' … 引き出しの「結合画像の表示」タブの中の丸ボタン（#stitch-drawer-fab）から。
+		 *              #stitch-drawer-pop（暗転なし・引き出しの内側に浮かせる）。「画像を更新」を置く。
+		 * 同時に開くのは1つ。閉じ方は ✕・外側のクリック・Esc（Esc はこのパネルを引き出しより先に閉じる）。
+		 * 閉じたらフォーカスを開いたボタンへ返す。
+		 * ------------------------------------------------------------ */
+		let stitchSettingsOpen = null;      // null | 'fab' | 'drawer'
+		let stitchSettingsReturnFocus = null;
+
+		function openStitchSettings(where, returnTo) {
+			if (stitchSettingsOpen === where) return;
+			if (stitchSettingsOpen) closeStitchSettings({ keepFocus: true });
+			const pop = document.getElementById(where === 'fab' ? 'stitch-settings-pop' : 'stitch-drawer-pop');
+			if (!pop) return;
+			stitchSettingsOpen = where;
+			stitchSettingsReturnFocus = returnTo || document.activeElement;
+			if (where === 'fab') {
+				document.getElementById('stitch-settings-backdrop').hidden = false;
+				document.getElementById('fab-item-settings').setAttribute('aria-expanded', 'true');
+				document.body.style.overflow = 'hidden';
+			} else {
+				document.getElementById('stitch-drawer-fab').setAttribute('aria-expanded', 'true');
+			}
+			pop.hidden = false;
+			syncStitchShowUi();
+			if (window.lucide) lucide.createIcons();
+			document.getElementById(where === 'fab' ? 'stitch-settings-close' : 'stitch-drawer-pop-close').focus();
+		}
+
+		function closeStitchSettings(opts) {
+			if (!stitchSettingsOpen) return;
+			const where = stitchSettingsOpen;
+			stitchSettingsOpen = null;
+			if (where === 'fab') {
+				document.getElementById('stitch-settings-backdrop').hidden = true;
+				document.getElementById('stitch-settings-pop').hidden = true;
+				document.getElementById('fab-item-settings').setAttribute('aria-expanded', 'false');
+				// 本文のスクロール固定は引き出しと共有している。引き出しが開いていなければ戻す
+				if (!openDrawerKey) document.body.style.overflow = '';
+			} else {
+				document.getElementById('stitch-drawer-pop').hidden = true;
+				document.getElementById('stitch-drawer-fab').setAttribute('aria-expanded', 'false');
+			}
+			const back = stitchSettingsReturnFocus;
+			stitchSettingsReturnFocus = null;
+			if (!(opts && opts.keepFocus) && back && typeof back.focus === 'function' && !back.hidden) back.focus();
 		}
 
 		/* ---------- まとめた引き出しの中のタブ ---------- */
@@ -4885,7 +4987,9 @@
 		// Esc は「開いているものを1つ閉じる」。いちばん手前にあるものから順に。
 		document.addEventListener('keydown', (e) => {
 			if (e.key !== 'Escape') return;
-			if (uiNoticeOpen) closeUiNotice();
+			// 「結合画像の設定」のパネルは、引き出しより手前にあるので先に閉じる
+			if (stitchSettingsOpen) closeStitchSettings();
+			else if (uiNoticeOpen) closeUiNotice();
 			else if (helpOpen) closeHelp();
 			else if (openDrawerKey) closeDrawer();
 			else if (fabOpen) setFabOpen(false);
@@ -4913,7 +5017,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-15a';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-15b';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;

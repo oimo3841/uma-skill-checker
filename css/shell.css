@@ -21,7 +21,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-09-15a";
+	--uma-shell-css-version: "2026-09-15b";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -155,10 +155,12 @@
 .uma-fab-item[hidden] { display: none !important; }
 .uma-fab-item:hover { background: var(--uma-surface-sunken); }
 .uma-fab-nav.open .uma-fab-item { opacity: 1; transform: none; pointer-events: auto; }
-/* 下（メインボタンに近い側）から順に現れる。nth-child(3) が最下段＝最初。 */
-.uma-fab-nav.open .uma-fab-item:nth-child(1) { transition-delay: .06s; }
-.uma-fab-nav.open .uma-fab-item:nth-child(2) { transition-delay: .03s; }
-.uma-fab-nav.open .uma-fab-item:nth-child(3) { transition-delay: 0s; }
+/* 下（メインボタンに近い側）から順に現れる。最後の子はメインボタンなので、その1つ上（nth-last-child(2)）が
+   最下段＝最初。下から数えるのは、項目が3つ（special）でも4つ（exam）でも下側の遅延が変わらないようにするため。 */
+.uma-fab-nav.open .uma-fab-item:nth-last-child(2) { transition-delay: 0s; }
+.uma-fab-nav.open .uma-fab-item:nth-last-child(3) { transition-delay: .03s; }
+.uma-fab-nav.open .uma-fab-item:nth-last-child(4) { transition-delay: .06s; }
+.uma-fab-nav.open .uma-fab-item:nth-last-child(5) { transition-delay: .09s; }
 
 .uma-fab-icon {
 	position: relative; flex-shrink: 0;
@@ -288,6 +290,66 @@
 /* display:flex を上で当てているので、hidden は自前で押す（F-13） */
 .uma-overlay[hidden] { display: none !important; }
 
+/* ============================================================
+ * 小さな設定パネル（ポップオーバー）。exam の「結合画像の設定」が使う（2026-09-15・41セッション目）。
+ *   .uma-popover--fab    … 右下の FAB の項目から開く。.uma-overlay と併用して暗転つき（引き出しは閉じている前提）。
+ *                          PC は FAB のメインボタンの真上に右揃えで浮かせ、640px 以下は下からのシート（高さは画面の半分まで）。
+ *   .uma-popover--drawer … 引き出しの中の丸ボタン（.uma-drawer-fab）から開く。引き出し本体（fixed＋transform）の
+ *                          内側に absolute で置くので、引き出しの本文をスクロールしても位置は変わらない。暗転なし。
+ *                          640px 以下は引き出しの下辺からのシート（高さは引き出しの半分まで＝上側で画像が見える）。
+ * 色はトークンだけを使う（ダークモードと配色の変更に備える）。
+ * ============================================================ */
+.uma-popover {
+	display: flex; flex-direction: column;
+	width: min(92vw, 380px); max-height: min(70vh, 560px);
+	background: var(--uma-surface); border: 1px solid var(--uma-border);
+	border-radius: var(--uma-r-xl); box-shadow: var(--uma-shadow-3);
+}
+.uma-popover[hidden] { display: none !important; }
+.uma-popover-head {
+	flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2);
+	padding: var(--uma-sp-2) var(--uma-sp-2) var(--uma-sp-2) var(--uma-sp-4);
+	border-bottom: 1px solid var(--uma-border);
+}
+.uma-popover-title {
+	margin: 0; display: flex; align-items: center; gap: var(--uma-sp-2);
+	font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading);
+}
+.uma-popover-close {
+	flex-shrink: 0; width: 36px; height: 36px; border: 0; border-radius: var(--uma-r-full);
+	display: flex; align-items: center; justify-content: center;
+	background: transparent; color: var(--uma-text-subtle); cursor: pointer;
+	transition: background-color var(--uma-transition), color var(--uma-transition);
+}
+.uma-popover-close:hover { background: var(--uma-surface-muted); color: var(--uma-text-heading); }
+.uma-popover-close svg { width: 18px; height: 18px; }
+.uma-popover-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--uma-sp-3); }
+/* FAB から開くもの。.uma-overlay の中央寄せを解いて、メインボタンの真上・右揃えに置く（右端の計算は .uma-fab-nav と同じ） */
+.uma-popover--fab {
+	left: auto; top: auto; transform: none;
+	right: var(--uma-fab-edge);
+	bottom: calc(var(--uma-fab-edge) + var(--uma-fab-size) + var(--uma-fab-gap) + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px) {
+	.uma-popover--fab { right: max(var(--uma-fab-edge), calc(50% - 512px)); }
+}
+/* 引き出しの中の丸ボタン。見た目は右下の FAB のメインボタン（.uma-fab-toggle を併用）で、一回り小さい */
+.uma-drawer-fab {
+	position: absolute; z-index: 2;
+	--uma-fab-size: 48px;
+	right: var(--uma-sp-4);
+	bottom: calc(var(--uma-sp-4) + env(safe-area-inset-bottom, 0px));
+}
+.uma-drawer-fab[hidden] { display: none !important; }
+/* 引き出しの中で開くもの。丸ボタンの真上に浮かせる */
+.uma-popover--drawer {
+	position: absolute; z-index: 3;
+	right: var(--uma-sp-4);
+	bottom: calc(var(--uma-sp-4) + 48px + var(--uma-sp-3) + env(safe-area-inset-bottom, 0px));
+	width: min(calc(100% - var(--uma-sp-4) * 2), 400px);
+	max-height: 60%;
+}
+
 .help-dialog { width: min(92vw, 640px); max-height: min(88vh, 720px); }
 .help-head {
 	flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
@@ -379,4 +441,10 @@
 	.help-body { padding: var(--uma-sp-4); }
 	.notice-body { padding: var(--uma-sp-5) var(--uma-sp-4) var(--uma-sp-3); }
 	.notice-foot { padding: 0 var(--uma-sp-4) var(--uma-sp-4); }
+	/* 「結合画像の設定」は下からのシート。FAB から開くものは画面の、引き出しの中のものは引き出しの、それぞれ半分まで */
+	.uma-popover--fab { right: auto; bottom: 0; max-height: 50vh; }
+	.uma-popover--drawer {
+		left: 0; right: 0; bottom: 0; width: 100%; max-height: 50%;
+		border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; border-left: 0; border-right: 0; border-bottom: 0;
+	}
 }
