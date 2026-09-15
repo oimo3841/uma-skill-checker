@@ -534,7 +534,7 @@
 				<div class="p-4 pt-2 border-t border-slate-200/60">
 					<p class="text-[11px] text-slate-500 mb-2">
 						<span class="text-amber-500 font-bold">★</span> = sp70緑（17種） ／
-						<span class="text-emerald-500 font-bold">●</span> = 緑59種（sp70緑を含む） ／
+						<span class="text-emerald-500 font-bold">●</span> = その他緑（42種） ／
 						<span class="text-sky-500 font-bold">◆</span> = シナリオ因子<br />
 						<span class="registry-added">下線</span> = 「対象を広げる」で足したスキル ／
 						<span class="registry-removed">取り消し線</span> = 「対象を絞る」で対象から外したスキル（判定には使いません）
@@ -852,7 +852,7 @@
 						</div>
 					</div>
 					<div id="exam-highlight-grid" class="grid gap-3"></div>
-					<p class="text-[11px] text-indigo-700/70 mt-3">※「〇〇の目覚め」系スキルは、実質53種モードでは対応する基本スキルとペアで1カウントします（本体テーブルの表示・★の判定そのものには影響しません）。</p>
+					<p class="text-[11px] text-indigo-700/70 mt-3">※「〇〇の目覚め」系スキルは、実質53種モードでは対応する緑スキルとペアで1カウントします（本体テーブルの表示・★の判定そのものには影響しません）。</p>
 				</div>
 	
 				<!-- 検索・フィルターバー -->
@@ -1176,7 +1176,7 @@
 		{ id: '445', name: '冬の目覚め' }
 		];
 
-		// 高コスパ17種（通称「sp70緑」）。EXAM_SKILL_LISTの部分集合（マスターID）。
+		// sp70緑（17種）。EXAM_SKILL_LISTの部分集合（マスターID）。
 		// 並び順はコピー機能の出力順になるので、従来の名前の並びをそのまま保っている。
 		const SP70_GREEN_17_IDS = [
 			'8', '9', '10', '11', '12', '156', '157', '181', '182', '183',
@@ -1461,8 +1461,8 @@
 		   ここに置いてあるのは、呼び名が「区分そのもの」の属性だから（描画側の都合ではない）。 */
 		const MARK_KIND_ORDER = ['sp70', 'green', 'plain', 'factor', 'added', 'removed'];
 		const MARK_LEGEND_LABEL = {
-			sp70: 'SP70の緑スキル',
-			green: '緑スキル（SP70以外）',
+			sp70: 'sp70緑',
+			green: 'その他緑',
 			plain: 'その他の対象スキル',
 			factor: 'シナリオ因子',
 			added: '追加したスキル',
@@ -1471,14 +1471,15 @@
 
 		// 呼び名は**凡例（MARK_LEGEND_LABEL）に合わせる**。同じ区分を画面のどこでも同じ語で呼ぶ。
 		// 種数は定数から出す（リストが変わったときに数字だけ取り残されないように）。
-		// ● が指すのは「緑スキルのうち SP70 以外」で、緑59種の全体ではない。
+		// ● が指すのは「緑のうち sp70緑 以外」で、緑59種の全体ではない。
 		// 「緑59種」とだけ書くと ★ の17種を含むのか42種のことなのか区別できないため、数を添える。
+		// 「緑59種」は**緑全体を数える場所にだけ**使う（①のタブのバッジなど）。
 		// 優劣を想起させる語（「高コスパ」など）は使わない（軸1の呼び名と同じ基準）。
 		const SCREEN_MARK = (function () {
 			const sp70Count = SP70_GREEN_17_SET.size;
 			const greenOnlyCount = GREEN_59_SET.size - sp70Count;
 			const sp70Title = MARK_LEGEND_LABEL.sp70 + '（' + sp70Count + '種）';
-			const greenTitle = '緑スキル（SP70以外・' + greenOnlyCount + '種）';
+			const greenTitle = MARK_LEGEND_LABEL.green + '（' + greenOnlyCount + '種）';
 			return {
 				factor: { glyph: '◆', color: 'text-sky-500', listTitle: MARK_LEGEND_LABEL.factor, tableTitle: MARK_LEGEND_LABEL.factor },
 				sp70: { glyph: '★', color: 'text-amber-500', listTitle: sp70Title, tableTitle: sp70Title },
@@ -2787,7 +2788,7 @@
 				'<span class="star-cell text-slate-300">' + '★'.repeat(3 - stars) + '</span>';
 		}
 
-		// スキル名の前に付けるカテゴリバッジ（sp70緑=★ / 緑59種=● / シナリオ因子=◆）。
+		// スキル名の前に付けるカテゴリバッジ（sp70緑=★ / その他緑=● / シナリオ因子=◆）。
 		// 区分の判定は skillMarkKind() に一本化してある（一覧・結果画像と共有）。
 		function categoryBadge(skill) {
 			const m = SCREEN_MARK[skillMarkKind(skill)];
@@ -3534,7 +3535,7 @@
 			// ④ 補助テキスト欄は、バナーのカードの見出し（0.28）より一段小さくする
 			const targetFontSize = Math.round(cardH * 0.23);
 			const pad = Math.round(referenceWidth * 0.03);
-			const noteText = '※「〇〇の目覚め」は対応する基本スキルと個別にカウントしています。';
+			const noteText = '※「〇〇の目覚め」は対応する緑スキルと個別にカウントしています。';
 
 			const c = document.createElement('canvas');
 			const ctx = c.getContext('2d');
