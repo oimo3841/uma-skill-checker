@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-09-15g";
+	--common-css-version: "2026-09-15h";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -69,6 +69,29 @@
 	   追加・除外の■✕は --uma-danger-text を使うので、ここには無い。 */
 	--uma-mark-green-skill: #00bc7d; /* emerald-500 : 緑スキル（SP70以外）の● */
 	--uma-mark-catalog: #0ea5e9;     /* sky-500     : 追加カタログ（シナリオ因子）の♦ */
+
+	/* ---- シナリオ因子（追加カタログ）の色 ----
+	   ◆の印・バッジ・ハイライトのカード・結合画像の因子の行・模式図の帯が使う。
+	   これまで場所ごとに別の値（sky-50/100/200/500/700/800/900・canvas の直書き）で
+	   描かれていたので、**4つの役割（印／文字／淡い地／枠）にまとめる**のが目的。
+
+	   【この版は「値を変えない置き換え」の段階】
+	   いまは現状の見た目をそのまま保つため、同じ役割でも値が複数ある。
+	   `-tmp-` が付いているものは、次の版で行き先の役割へ畳んで消す。
+	   行き先は変数名の前半（mark-catalog / catalog-text / catalog-soft / catalog-border）。
+	   値は Tailwind v4.1.11 の実測（F-19。v3 の hex とは違う）。 */
+	--uma-mark-catalog-tmp-screen: #00a6f4; /* sky-500 の実測 : 画面の◆と「他」。→ --uma-mark-catalog へ
+	                                           （結合画像の◆が使う上の --uma-mark-catalog は v3 の値のままで、
+	                                             画面の◆と**すでに色が違う**。まとめると揃う） */
+	--uma-mark-catalog-tmp-more: #5aa3c0;   /* 結合画像の「他」。→ --uma-mark-catalog へ */
+	--uma-mark-catalog-tmp-wire: #0c5a7a;   /* 模式図の因子の帯。→ --uma-mark-catalog へ */
+	--uma-catalog-text-tmp-badge: #00598a;  /* sky-800 : バッジの文字。→ --uma-catalog-text へ */
+	--uma-catalog-text-tmp-card: #0069a8;   /* sky-700 : カードの見出し。→ --uma-catalog-text へ */
+	--uma-catalog-text-tmp-line: #024a70;   /* sky-900 : カードの行の文字。→ --uma-catalog-text へ */
+	--uma-catalog-text-tmp-canvas: #0c5a7a; /* 結合画像の因子の行。→ --uma-catalog-text へ */
+	--uma-catalog-soft-tmp-badge: #dff2fe;  /* sky-100 : バッジの地。→ --uma-catalog-soft へ */
+	--uma-catalog-soft-tmp-card: #f0f8ff;   /* sky-50  : カードの地・選択一覧の hover。→ --uma-catalog-soft へ */
+	--uma-catalog-border: #b8e6fe;          /* sky-200 : カードの枠（役割は1つなので -tmp- は付けない） */
 
 	/* ---- 緑スキルの色（emerald） ----
 	   「緑スキル」という区分そのものを表す色。印の●（上の --uma-mark-green-skill）と

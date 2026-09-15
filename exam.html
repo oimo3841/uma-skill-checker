@@ -10,8 +10,8 @@
 	     ダイアログ）だけを読む。共通部品（common.css）は読まない — 読むと .glass-card の余白など
 	     このページの既存の見た目が変わるため（exam-ui-analysis.md A-3）。変数は参照されない限り
 	     何も描かないので、既存の見た目はそのまま。Tailwind より先に読み込む（レイヤー無しの方が強い）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15g" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-15g" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15h" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-15h" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -241,7 +241,7 @@
 		.stitch-wire-card b { display: block; width: 40%; height: 7px; border-radius: 2px; background: currentColor; }
 		/* シナリオ因子の行（カードとは別の帯。個別に消せる） */
 		.stitch-wire-factors { padding: 0 0 2px; }
-		.stitch-wire-factor { display: block; width: 70%; height: 4px; border-radius: 2px; background: #0c5a7a; }
+		.stitch-wire-factor { display: block; width: 70%; height: 4px; border-radius: 2px; background: var(--uma-mark-catalog-tmp-wire); }
 		.stitch-wire-countnote { display: flex; justify-content: flex-end; padding: 0 0 2px; }
 		.stitch-wire-countnote b { display: block; width: 55%; height: 3px; border-radius: 2px; background: var(--uma-border-strong); }
 		.stitch-wire-shots { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 4px; padding: 3px; background: var(--uma-surface-sunken); }
@@ -605,7 +605,7 @@
 					<i data-lucide="minus" class="w-3 h-3"></i>
 					<span id="badge-scope-removed-text">除外12種</span>
 				</span>
-				<span id="badge-scenario-factors" class="hidden items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-sky-100 text-sky-800">
+				<span id="badge-scenario-factors" class="hidden items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-[var(--uma-catalog-soft-tmp-badge)] text-[var(--uma-catalog-text-tmp-badge)]">
 					<i data-lucide="clapperboard" class="w-3 h-3"></i>
 					<span id="badge-scenario-factors-text">シナリオ因子：0種</span>
 				</span>
@@ -659,12 +659,12 @@
 						<summary class="flex items-center justify-between gap-2 cursor-pointer select-none">
 							<span class="flex items-center gap-2 min-w-0 flex-wrap">
 								<span class="text-xs font-semibold text-slate-800">シナリオ因子を対象に含める（<span id="scenario-factors-count">24</span>種から選ぶ）</span>
-								<span id="scenario-factors-badge" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 shrink-0"></span>
+								<span id="scenario-factors-badge" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--uma-catalog-soft-tmp-badge)] text-[var(--uma-catalog-text-tmp-badge)] shrink-0"></span>
 							</span>
 							<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform shrink-0"></i>
 						</summary>
 						<div class="pt-2">
-							<p class="text-[11px] text-slate-500 leading-relaxed mb-2">上のどれを選んでいても足せます。読み間違いを拾わないよう、名前が丸ごと読み取れたものだけを検出します（一覧・結果では <span class="text-sky-500 font-bold">◆</span> が付きます）。シナリオ因子はスキルではないので、<span class="font-semibold">対象スキル数・検出数には含めず</span>、別に数えます。</p>
+							<p class="text-[11px] text-slate-500 leading-relaxed mb-2">上のどれを選んでいても足せます。読み間違いを拾わないよう、名前が丸ごと読み取れたものだけを検出します（一覧・結果では <span class="text-[var(--uma-mark-catalog-tmp-screen)] font-bold">◆</span> が付きます）。シナリオ因子はスキルではないので、<span class="font-semibold">対象スキル数・検出数には含めず</span>、別に数えます。</p>
 							<div class="flex justify-end mb-1.5">
 								<button type="button" id="scenario-factors-clear" onclick="clearScenarioFactors()" class="text-[11px] font-semibold text-slate-600 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-2.5 py-1 rounded-lg transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">すべて解除</button>
 							</div>
@@ -691,7 +691,7 @@
 					<p class="text-[11px] text-slate-500 mb-2">
 						<span class="text-amber-500 font-bold">★</span> = sp70緑（17種） ／
 						<span class="text-emerald-500 font-bold">●</span> = その他緑（42種） ／
-						<span class="text-sky-500 font-bold">◆</span> = シナリオ因子<br />
+						<span class="text-[var(--uma-mark-catalog-tmp-screen)] font-bold">◆</span> = シナリオ因子<br />
 						<span class="registry-added">下線</span> = 「対象を広げる」で足したスキル ／
 						<span class="registry-removed">取り消し線</span> = 「対象を絞る」で対象から外したスキル（判定には使いません）
 					</p>
@@ -1734,7 +1734,7 @@
 			const sp70Title = MARK_LEGEND_LABEL.sp70 + '（' + sp70Count + '種）';
 			const greenTitle = MARK_LEGEND_LABEL.green + '（' + greenOnlyCount + '種）';
 			return {
-				factor: { glyph: '◆', color: 'text-sky-500', listTitle: MARK_LEGEND_LABEL.factor, tableTitle: MARK_LEGEND_LABEL.factor },
+				factor: { glyph: '◆', color: 'text-[var(--uma-mark-catalog-tmp-screen)]', listTitle: MARK_LEGEND_LABEL.factor, tableTitle: MARK_LEGEND_LABEL.factor },
 				sp70: { glyph: '★', color: 'text-amber-500', listTitle: sp70Title, tableTitle: sp70Title },
 				green: { glyph: '●', color: 'text-emerald-500', listTitle: greenTitle, tableTitle: greenTitle }
 			};
@@ -1840,7 +1840,7 @@
 		 * 同じ版数の印を持つ。このページが読む2つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（このページは common.css を読まないので、その印は見ない）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-15g';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-15h';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/shell.css', '--uma-shell-css-version'],
@@ -2085,8 +2085,9 @@
 			if (box) {
 				box.innerHTML = SCENARIO_INHERITANCE_FACTORS.map((name, i) => {
 					const id = 'scenario-factor-' + i;
-					return '<label for="' + id + '" class="flex items-start gap-1.5 rounded-lg px-1.5 py-1 cursor-pointer hover:bg-sky-50 transition-colors">'
-						+ '<input type="checkbox" id="' + id + '" class="mt-0.5 accent-sky-600 cursor-pointer shrink-0"'
+					// チェックは**操作できる部品なので黒**（C-37 の方針。ここだけシナリオ因子の色を使わない）
+					return '<label for="' + id + '" class="flex items-start gap-1.5 rounded-lg px-1.5 py-1 cursor-pointer hover:bg-[var(--uma-catalog-soft-tmp-card)] transition-colors">'
+						+ '<input type="checkbox" id="' + id + '" class="mt-0.5 accent-[var(--uma-control)] cursor-pointer shrink-0"'
 						+ (selectedScenarioFactors.has(name) ? ' checked' : '')
 						+ ' onchange="toggleScenarioFactor(' + i + ', this.checked)" />'
 						+ '<span class="text-[11px] text-slate-700 leading-snug">' + escapeHtml(name) + '</span>'
@@ -2957,15 +2958,15 @@
 						const lines = factors.items.map((it, n) => {
 							const isLast = (n === factors.items.length - 1);
 							const more = (isLast && factors.more)
-								? '<span class="pl-1 text-[11px] font-bold text-sky-500 shrink-0">他</span>' : '';
-							return `<p class="flex items-baseline text-[11px] text-sky-900 leading-snug" title="${escapeHtml(it.text)}">`
+								? '<span class="pl-1 text-[11px] font-bold text-[var(--uma-mark-catalog-tmp-screen)] shrink-0">他</span>' : '';
+							return `<p class="flex items-baseline text-[11px] text-[var(--uma-catalog-text-tmp-line)] leading-snug" title="${escapeHtml(it.text)}">`
 								+ `<span class="truncate min-w-0">${escapeHtml(it.name)}</span>`
 								+ `<span class="shrink-0">：${escapeHtml(it.stars)}</span>`
 								+ `<span class="ml-auto"></span>${more}</p>`;
 						}).join('');
 						cardsHtml += `
-						<div class="rounded-xl border border-sky-200 bg-sky-50/60 p-3">
-							<p class="text-[11px] font-medium text-sky-700 mb-1 text-center">${label} シナリオ因子</p>
+						<div class="rounded-xl border border-[var(--uma-catalog-border)] bg-[var(--uma-catalog-soft-tmp-card)]/60 p-3">
+							<p class="text-[11px] font-medium text-[var(--uma-catalog-text-tmp-card)] mb-1 text-center">${label} シナリオ因子</p>
 							${lines}
 						</div>`;
 					}
@@ -3811,6 +3812,23 @@
 		}
 
 		/**
+		 * Canvas に塗る色をトークンから読む。印（attrMarkColors）と同じ考え方で、
+		 * **値は書かずトークンの名前だけを持つ**（F-19）。
+		 *
+		 * 印は読めなければ描かない選択ができるが、**文字は描かないわけにいかない**ので、
+		 * 読めなかったときは補助テキストの色（STITCH_NOTE_COLOR）へ倒す。
+		 * ここに区分の色の hex を代わりに書くと、トークンを変えても古い色が生き残る。
+		 */
+		function stitchTokenColor(token) {
+			const v = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+			return v || STITCH_NOTE_COLOR;
+		}
+
+		// 結合画像のシナリオ因子の行に使うトークン（名前だけ。値は css/tokens.css）
+		const STITCH_FACTOR_TEXT_TOKEN = '--uma-catalog-text-tmp-canvas';
+		const STITCH_FACTOR_MORE_TOKEN = '--uma-mark-catalog-tmp-more';
+
+		/**
 		 * 印そのものを描く。中心 (cx, cy)・差し渡し d。
 		 * 結果画像と凡例の**両方がこれを呼ぶ**（2か所で別々に描くと形が食い違う）。
 		 *
@@ -4160,11 +4178,11 @@
 				ctx.font = 'bold ' + fs + 'px sans-serif';
 				ctx.textBaseline = 'top';
 				ctx.textAlign = 'left';
-				ctx.fillStyle = '#0c5a7a';
+				ctx.fillStyle = stitchTokenColor(STITCH_FACTOR_TEXT_TOKEN);
 				factorLines.forEach((t, i) => ctx.fillText(t, pad, y + i * factorLineH));
 				if (factorMore) {
 					// 「他」だけは薄い色にして、因子名の並びの続きだと分かるようにする
-					ctx.fillStyle = '#5aa3c0';
+					ctx.fillStyle = stitchTokenColor(STITCH_FACTOR_MORE_TOKEN);
 					ctx.textAlign = 'right';
 					ctx.fillText(moreText, width - pad, y + (factorLines.length - 1) * factorLineH);
 					ctx.textAlign = 'left';
@@ -5202,7 +5220,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-15i';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-15j';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;
