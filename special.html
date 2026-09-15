@@ -14,9 +14,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15d" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-15d" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-15d" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15e" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-15e" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-15e" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-15a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-15b"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-15a"></script>
 	<style>
@@ -92,7 +92,7 @@
 		.not-found { color: var(--uma-text-faint); }
 		/* Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 		   このルールの方が強い。以前は !important で押していたが不要になった。 */
-		.drop-active { border-color: var(--uma-accent); background-color: var(--uma-accent-soft); transform: scale(1.005); }
+		.drop-active { border-color: var(--uma-control); background-color: var(--uma-control-soft); transform: scale(1.005); }
 		.dev-log {
 			font-family: var(--uma-font-mono);
 			font-size: var(--uma-fs-xs); line-height: 1.6; white-space: pre-wrap; word-break: break-all;
@@ -426,7 +426,7 @@
 			<div id="manual-skill-body">
 			<p class="text-xs text-slate-500 mb-3">スプレッドシートから1列分（改行区切り）コピーしてそのまま貼り付けできます。親A〜祖B2まで、すべてに対して同じリストで照合します。</p>
 
-			<textarea id="skill-list" class="w-full h-28 text-xs md:text-sm p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-green-500 focus:ring-2 focus:ring-green-200 font-mono transition-all outline-none resize-y" placeholder="例：&#10;根幹距離○&#10;右回り○&#10;直線コース○"></textarea>
+			<textarea id="skill-list" class="w-full h-28 text-xs md:text-sm p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-[var(--uma-control)] focus:ring-2 focus:ring-[var(--uma-control-soft)] font-mono transition-all outline-none resize-y" placeholder="例：&#10;根幹距離○&#10;右回り○&#10;直線コース○"></textarea>
 
 			<div class="mt-3 flex items-center justify-between gap-3">
 				<div class="flex items-center gap-2">
@@ -507,7 +507,7 @@
 						<li>フォーマット：<code class="px-1 rounded bg-slate-200 text-slate-700">誤った文字列 = 正しいスキル名</code>（<code class="px-1 rounded bg-slate-200 text-slate-700">→</code> や タブ区切りも可）</li>
 						<li>文字列の取得：下部の開発用ログ「誤字候補」「その他未一致」からコピーできます。</li>
 					</ul>
-					<textarea id="ocr-dict" oninput="parseOcrDictionary()" class="w-full h-24 text-xs p-3 rounded-xl border border-slate-200 bg-white focus:border-green-500 focus:ring-2 focus:ring-green-200 font-mono transition-all outline-none resize-y" placeholder="例：&#10;を回り〇 = 左回り○&#10;急隆下 = 急降下"></textarea>
+					<textarea id="ocr-dict" oninput="parseOcrDictionary()" class="w-full h-24 text-xs p-3 rounded-xl border border-slate-200 bg-white focus:border-[var(--uma-control)] focus:ring-2 focus:ring-[var(--uma-control-soft)] font-mono transition-all outline-none resize-y" placeholder="例：&#10;を回り〇 = 左回り○&#10;急隆下 = 急降下"></textarea>
 					<div class="mt-2 flex items-center justify-between">
 						<span id="dict-status" class="text-[11px] text-slate-500"></span>
 						<button type="button" onclick="clearOcrDictionary()" class="text-[11px] text-slate-500 hover:text-red-600 underline underline-offset-2 cursor-pointer">辞書をクリア</button>
@@ -542,7 +542,7 @@
 
 				<div class="p-4 pt-1 border-t border-slate-200/60 grid grid-cols-1 md:grid-cols-2 gap-3">
 					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-						<input id="opt-devlog" type="checkbox" class="mt-0.5 rounded text-green-600 focus:ring-green-500 w-4 h-4" />
+						<input id="opt-devlog" type="checkbox" class="mt-0.5 rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" />
 						<div>
 							<span class="text-xs font-semibold text-slate-800">開発用ログ出力</span>
 							<p class="text-[11px] text-slate-500 mt-0.5">判定根拠や不一致テキストの内訳を結果エリアに表示</p>
@@ -550,7 +550,7 @@
 					</label>
 
 					<label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
-						<input id="opt-preview" type="checkbox" class="mt-0.5 rounded text-green-600 focus:ring-green-500 w-4 h-4" />
+						<input id="opt-preview" type="checkbox" class="mt-0.5 rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" />
 						<div>
 							<span class="text-xs font-semibold text-slate-800">切り出し画像のプレビュー</span>
 							<p class="text-[11px] text-slate-500 mt-0.5">OCRエンジンに渡した整形画像をデバッグ用に確認</p>
@@ -687,7 +687,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-15d';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-15e';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -2392,7 +2392,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-15d';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-15e';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {
@@ -2563,16 +2563,8 @@
 			fabOpen = open;
 			document.getElementById('fab-nav').classList.toggle('open', open);
 			document.getElementById('fab-toggle').setAttribute('aria-expanded', String(open));
-			// 開いている間、周りの丸は隠れる（CSS）。開いた時点で回転は打ち切り、
-			// 閉じたときは「開いている間に立った未読があれば回す／無ければ止まった配置で出す」。
-			const orbit = document.getElementById('fab-orbit');
-			if (open) {
-				if (orbit) orbit.classList.remove('is-spinning');
-			} else {
-				const spin = fabOrbitPendingSpin;
-				fabOrbitPendingSpin = false;
-				updateFabOrbit(spin);
-			}
+			// 開いている間は、メインボタンの赤丸を隠す（行き先ごとの丸が見えるため）
+			updateFabUnseenDot();
 		}
 
 		function toggleFab(e) {
@@ -2585,48 +2577,22 @@
 			document.getElementById('fab-dot-stitch').hidden = !fabUnseen.stitch;
 			document.getElementById('fab-dot-result').hidden = !fabUnseen.result;
 			document.getElementById('fab-dot-deck').hidden = !fabUnseen.deck;
-			// 閉じているときに出す「周りの丸」。新しく立った未読があるときだけ1周させる。
-			// 既に出ているものを描き直しただけでは回さない（同じ知らせを何度も動かさない）。
-			const isNew = FAB_ORBIT_KEYS.some(k => fabUnseen[k] && !fabOrbitPrev[k]);
-			FAB_ORBIT_KEYS.forEach(k => { fabOrbitPrev[k] = !!fabUnseen[k]; });
-			if (isNew && fabOpen) fabOrbitPendingSpin = true;
-			updateFabOrbit(isNew && !fabOpen);
+			updateFabUnseenDot();
 		}
 
-		/* 閉じたメインボタンの周りに出す未読の印。exam.html と同じ規則。
-		 * ・未読の行き先の数だけ、その行き先の色の丸を外周のすぐ外に置く。
-		 * ・1つなら右上、2つ以上は右上を起点に 360/個数 の等間隔（CSS の rotate は
-		 *   時計回りなので、右上は -45deg）。
-		 * ・spin が true のときだけ、並び全体が6秒で1周してから止まる。
-		 *   アニメーションは終わったら外す（class が残っていると、開閉で display が
-		 *   戻ったときに回り直してしまう）。
-		 * ・Deck の項目は旧UIでは出さない（updateDeckEntryVisibility）ので、
-		 *   出ていない行き先の丸は周りにも出さない。
-		 * ・reduced-motion のときは回転も脈動も CSS 側で止まる（配置はそのまま）。 */
-		const FAB_ORBIT_KEYS = ['result', 'stitch', 'deck'];
-		let fabOrbitPrev = { result: false, stitch: false, deck: false };
-		let fabOrbitPendingSpin = false;
-
-		function updateFabOrbit(spin) {
-			const orbit = document.getElementById('fab-orbit');
-			if (!orbit) return;
+		/* 畳んでいるときの未読の印。exam.html と同じ規則で、メインボタンの右上に
+		 * 赤い丸を1つだけ出す（未読の行き先がいくつあっても1つ）。開いている間は出さない。
+		 * Deck の項目は旧UIでは出さない（updateDeckEntryVisibility）ので、
+		 * 出ていない行き先の未読はこの丸にも数えない。 */
+		function updateFabUnseenDot() {
+			const dot = document.getElementById('fab-unseen-dot');
+			if (!dot) return;
 			const shown = (key) => {
 				const item = document.getElementById(key === 'deck' ? 'deck-drawer-trigger' : 'fab-item-' + key);
 				return !item || !item.hidden;
 			};
-			const on = FAB_ORBIT_KEYS.filter(k => fabUnseen[k] && shown(k));
-			orbit.querySelectorAll('.uma-fab-orbit-dot').forEach(dot => {
-				const key = dot.dataset.orbit;
-				const i = on.indexOf(key);
-				dot.hidden = i < 0;
-				if (i < 0) return;
-				dot.style.setProperty('--uma-orbit-angle', (-45 + i * (360 / on.length)) + 'deg');
-			});
-			if (!spin || !on.length || fabReduceMotion()) return;
-			orbit.classList.remove('is-spinning');
-			void orbit.offsetWidth;                 // 同じ class を付け直すだけでは再生されない
-			orbit.classList.add('is-spinning');
-			orbit.addEventListener('animationend', () => orbit.classList.remove('is-spinning'), { once: true });
+			const any = ['result', 'stitch', 'deck'].some((k) => fabUnseen[k] && shown(k));
+			dot.hidden = fabOpen || !any;
 		}
 
 		// 結果が新しく出たときに呼ぶ。結果を作り直した場合も「新着」に戻す。
@@ -2743,8 +2709,8 @@
 			const trigger = document.getElementById('deck-drawer-trigger');
 			if (trigger) trigger.hidden = !deckMode;
 			refreshDeckHandoffState();
-			// Deck の項目を出し入れしたら、閉じているときの周りの丸も数え直す（回さない）
-			updateFabOrbit(false);
+			// Deck の項目を出し入れしたら、畳んでいるときの赤丸も数え直す
+			updateFabUnseenDot();
 		}
 
 		function refreshDeckHandoffState() {
@@ -2862,7 +2828,7 @@
 					<div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
 						<div class="relative w-full sm:w-64">
 							<i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
-							<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-green-500" />
+							<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-[var(--uma-control)]" />
 						</div>
 						<div class="flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
 							<button type="button" onclick="setFilter('all')" id="filter-all" class="uma-pill active">すべて</button>
@@ -2957,7 +2923,7 @@
 			<span>OCRの照合結果</span>
 			<span class="uma-fab-icon" style="background: var(--uma-accent-soft); color: var(--uma-accent-soft-text);">
 				<i data-lucide="list-checks" class="w-4 h-4"></i>
-				<span id="fab-dot-result" class="uma-fab-dot uma-fab-dot--accent" hidden></span>
+				<span id="fab-dot-result" class="uma-fab-dot" hidden></span>
 			</span>
 		</button>
 
@@ -2965,7 +2931,7 @@
 			<span>画像結合レビュー</span>
 			<span class="uma-fab-icon stitch-accent-icon">
 				<i data-lucide="images" class="w-4 h-4"></i>
-				<span id="fab-dot-stitch" class="uma-fab-dot uma-fab-dot--stitch" hidden></span>
+				<span id="fab-dot-stitch" class="uma-fab-dot" hidden></span>
 			</span>
 		</button>
 
@@ -2977,20 +2943,17 @@
 			<span>UmaSkill Deck</span>
 			<span class="uma-fab-icon">
 				<i data-lucide="layers" class="w-4 h-4"></i>
-				<span id="fab-dot-deck" class="uma-fab-dot uma-fab-dot--deck" hidden></span>
+				<span id="fab-dot-deck" class="uma-fab-dot" hidden></span>
 			</span>
 		</button>
 
-		<!-- メインボタンと、閉じているときの未読の印（周りの丸）。丸はメインボタンの中心を基準に
-		     置くので、2つを .uma-fab-main で包んである（包んでも .uma-fab-nav の最後の子は
+		<!-- メインボタンと、畳んでいるときの未読の印。印はボタンの右上に赤い丸を1つだけ出す
+		     （行き先がいくつ未読でも1つ。開けば行き先ごとの丸が見える）。丸をボタンの角に
+		     合わせるために .uma-fab-main で包んである（包んでも .uma-fab-nav の最後の子は
 		     1つのままなので、サブボタンの nth-last-child の遅延は変わらない）。
-		     並べ方と色は updateFabOrbit()。 -->
+		     出し入れは updateFabUnseenDot()。 -->
 		<span class="uma-fab-main">
-			<span id="fab-orbit" class="uma-fab-orbit" aria-hidden="true">
-				<span class="uma-fab-orbit-dot uma-fab-dot--accent" data-orbit="result" hidden></span>
-				<span class="uma-fab-orbit-dot uma-fab-dot--stitch" data-orbit="stitch" hidden></span>
-				<span class="uma-fab-orbit-dot uma-fab-dot--deck" data-orbit="deck" hidden></span>
-			</span>
+			<span id="fab-unseen-dot" class="uma-fab-dot" aria-hidden="true" hidden></span>
 			<button id="fab-toggle" type="button" class="uma-fab-toggle" onclick="toggleFab(event)"
 				aria-controls="fab-nav" aria-expanded="false" aria-label="ページ内ナビゲーションを開く">
 				<i data-lucide="plus" class="w-6 h-6"></i>

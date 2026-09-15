@@ -1333,9 +1333,9 @@ const browser = await chromium.launch();
 	const step0 = await stepState();
 	assert(step0.tab1 === 'true' && step0.panel1 && !step0.panel2, 'exam: 初期表示は①のパネルだけが出ている', step0);
 	assert(step0.imageBadge === true, 'exam: 画像が無いうちは②の枚数バッジを出さない', step0);
-	// タブの下線はこのページの青（#0b6bcb = rgb(11, 107, 203)）。special の緑ではない
-	// （2026-09-15・43セッション目に藍 #4f46e5 から変更。exam.html の --uma-c-600）
-	assert(step0.underline === 'rgb(11, 107, 203)', 'exam: 選択中のタブの下線が exam の青', step0.underline);
+	// 選んでいるタブの下線は「操作の色」＝3ツール共通の黒（#1c1917）。ページの色ではない
+	// （2026-09-15・43セッション目に、押せる部品を黒へ揃えた）
+	assert(step0.underline === 'rgb(28, 25, 23)', 'exam: 選択中のタブの下線が操作の色（黒）', step0.underline);
 	await page.click('#step-tab-2');
 	await page.waitForTimeout(300);
 	const step2 = await stepState();
@@ -1508,9 +1508,10 @@ const browser = await chromium.launch();
 		btn: getComputedStyle(document.getElementById('deck-handoff-btn')).backgroundColor,
 		deckSoft: getComputedStyle(document.documentElement).getPropertyValue('--uma-deck-accent-soft').trim()
 	}));
-	// 2026-09-15・43セッション目に Deck の色を暖灰（stone）から暗めの赤紫（fuchsia）へ変えた
-	assert(noteColor.deckSoft === '#fae8ff' && noteColor.box === 'rgb(250, 232, 255)' && noteColor.btn === 'rgb(134, 25, 143)',
-		'exam: 取り込み案内は Deck の色（赤紫）で描かれる', noteColor);
+	// Deck の色は暖灰（stone）。案内の枠と地は Deck の色、押せるボタンは操作の色（黒）
+	// （2026-09-15・43セッション目。赤紫を試したが戻した）
+	assert(noteColor.deckSoft === '#e7e5e4' && noteColor.box === 'rgb(231, 229, 228)' && noteColor.btn === 'rgb(28, 25, 23)',
+		'exam: 取り込み案内は Deck の色（暖灰）、ボタンは黒', noteColor);
 
 	// 「UmaSkill Deck を開いて取り込む」→ Deck の引き出し（iframe）が開く。開いた時点で新着の印は下りる
 	await page.click('#deck-handoff-btn');
@@ -2710,7 +2711,7 @@ const browser = await chromium.launch();
 			const el = document.querySelector('#ui-notice .notice-deck-name');
 			return el ? getComputedStyle(el).fontWeight : null;
 		}) === '700', 'exam: 告知の「UmaSkill Deck」が太字で強調されている');
-		assert(text.newBox === 'rgb(250, 232, 255)', 'exam: ＜新機能＞の段は Deck の色（赤紫）の枠', text.newBox);
+		assert(text.newBox === 'rgb(231, 229, 228)', 'exam: ＜新機能＞の段は Deck の色（暖灰）の枠', text.newBox);
 		// 語の途中で折れていないこと（.nb で括った文節は1行に収まる）
 		const broken = await page.evaluate(() => [...document.querySelectorAll('#ui-notice .nb')]
 			.filter((el) => el.getClientRects().length > 1).map((el) => el.textContent));
@@ -4903,104 +4904,72 @@ const browser = await chromium.launch();
 /* ============================================================
  * 未読の丸（2026-09-15・43セッション目）
  *
- * ・子項目・引き出しのタブ・Deck の取り込み案内の丸が、行き先ごとの色になっている
- *   （照合結果＝ページのアクセント／結合画像＝琥珀／Deck＝赤紫）。赤や橙ではない。
- * ・閉じたメインボタンの周りは、未読の数だけ同じ色の丸が等間隔に並ぶ（1つなら右上）。
- * ・回るのは「新しく未読が立ったとき」だけ。描き直しただけでは回らない。
- * ・開いている間は出さない。閉じたときは回さずに出す（開いている間に立っていれば回す）。
- * ・reduced-motion では回転も脈動もせず、止まった配置で出す。
+ * ・子項目・引き出しのタブ・Deck の取り込み案内の丸は、行き先を問わず1色の赤
+ *   （--uma-notify #c53030）。白い縁取りと脈動が付く。
+ * ・畳んだメインボタンの未読は、右上に赤丸を1つだけ（未読がいくつでも1つ）。
+ *   回る動きは付けない。開いたら隠し、閉じたら（未読が残っていれば）出す。
+ * ・reduced-motion では脈動しない。
  * ============================================================ */
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
 	await page.evaluate(() => { if (typeof closeUiNotice === 'function') closeUiNotice(); });
 	await page.waitForTimeout(300);
+	const RED = 'rgb(197, 48, 48)';
 
-	// 丸の色（子項目・タブ・取り込み案内）
-	const dotColors = await page.evaluate(() => {
-		markFabUnseen('result'); markFabUnseen('stitch'); markFabUnseen('deck');
+	// 未読0では出ない
+	assert(await page.evaluate(() => document.getElementById('fab-unseen-dot').hidden),
+		'未読の丸: 未読が無いときは畳んだボタンに丸を出さない');
+
+	// 1つでも未読が立てば、赤丸が1つだけ出る（脈動あり・白い縁取り・回らない）
+	const one = await page.evaluate(() => {
+		markFabUnseen('result');
+		const dot = document.getElementById('fab-unseen-dot');
+		const st = getComputedStyle(dot);
+		return {
+			hidden: dot.hidden, bg: st.backgroundColor, border: st.borderTopWidth,
+			anim: st.animationName, transform: st.transform,
+			count: document.querySelectorAll('.uma-fab-main .uma-fab-dot:not([hidden])').length,
+		};
+	});
+	assert(!one.hidden && one.count === 1 && one.bg === RED && one.border === '2px',
+		'未読の丸: 未読が1つ以上あれば赤い丸が1つだけ出る', one);
+	assert(one.anim === 'uma-fab-pulse' && one.transform === 'none',
+		'未読の丸: 脈動はするが回らない', one);
+
+	// 未読が増えても丸は1つのまま
+	const many = await page.evaluate(() => {
+		markFabUnseen('stitch'); markFabUnseen('deck');
+		return document.querySelectorAll('.uma-fab-main .uma-fab-dot:not([hidden])').length;
+	});
+	assert(many === 1, '未読の丸: 未読が増えても畳んだボタンの丸は1つのまま', many);
+
+	// 開くと隠れ、閉じると（未読が残っていれば）また出る
+	await page.evaluate(() => setFabOpen(true));
+	await page.waitForTimeout(200);
+	assert(await page.evaluate(() => document.getElementById('fab-unseen-dot').hidden),
+		'未読の丸: 開いている間は畳んだボタンの丸を出さない');
+	await page.evaluate(() => setFabOpen(false));
+	await page.waitForTimeout(200);
+	assert(!(await page.evaluate(() => document.getElementById('fab-unseen-dot').hidden)),
+		'未読の丸: 閉じると未読が残っているぶんだけまた出る');
+
+	// 子項目・タブ・取り込み案内の丸も同じ赤
+	const dots = await page.evaluate(() => {
 		const bg = (id) => getComputedStyle(document.getElementById(id)).backgroundColor;
 		return {
 			result: bg('fab-dot-result'), stitch: bg('fab-dot-stitch'), deck: bg('fab-dot-deck'),
 			tabResult: bg('result-tab-dot-result'), tabStitch: bg('result-tab-dot-stitch'),
 			handoff: bg('deck-handoff-dot'),
-			border: getComputedStyle(document.getElementById('fab-dot-result')).borderTopWidth,
 		};
 	});
-	const BLUE = 'rgb(11, 107, 203)', AMBER = 'rgb(217, 119, 6)', FUCHSIA = 'rgb(134, 25, 143)';
-	assert(dotColors.result === BLUE && dotColors.stitch === AMBER && dotColors.deck === FUCHSIA,
-		'未読の丸: 右下の子項目の丸が行き先ごとの色になる', dotColors);
-	assert(dotColors.tabResult === BLUE && dotColors.tabStitch === AMBER && dotColors.handoff === FUCHSIA,
-		'未読の丸: 引き出しのタブと取り込み案内の丸も同じ色', dotColors);
-	assert(dotColors.border === '2px', '未読の丸: 白い縁取りが付く', dotColors.border);
-
-	// 周りの丸：3つ・2つ・1つで等間隔（右上が起点）。半径はボタンの外周のすぐ外
-	const orbit = () => page.evaluate(() => {
-		const b = document.getElementById('fab-toggle').getBoundingClientRect();
-		const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
-		const dots = [...document.querySelectorAll('.uma-fab-orbit-dot')].filter((d) => !d.hidden).map((d) => {
-			const r = d.getBoundingClientRect();
-			const dx = r.left + r.width / 2 - cx, dy = r.top + r.height / 2 - cy;
-			return { key: d.dataset.orbit, angle: Math.round(Math.atan2(-dy, dx) * 180 / Math.PI), dist: Math.round(Math.hypot(dx, dy)) };
-		});
-		return { dots, radius: b.width / 2, spinning: document.getElementById('fab-orbit').classList.contains('is-spinning') };
-	});
-	const o3 = await orbit();
-	assert(o3.dots.length === 3 && o3.dots.every((d) => Math.abs(d.dist - (o3.radius + 8)) <= 1),
-		'未読の丸: 3つとも外周のすぐ外（半径＋8px）に並ぶ', o3);
-	assert(Math.abs(o3.dots[0].angle - 45) <= 1 && new Set(o3.dots.map((d) => ((d.angle % 120) + 120) % 120)).size === 1,
-		'未読の丸: 3つのときは右上を起点に120度ずつ', o3.dots);
-	await page.evaluate(() => { fabUnseen.deck = false; updateFabBadges(); });
-	const o2 = await orbit();
-	assert(o2.dots.length === 2 && Math.abs(o2.dots[0].angle - 45) <= 1 && Math.abs(Math.abs(o2.dots[1].angle - o2.dots[0].angle) - 180) <= 1,
-		'未読の丸: 2つのときは右上と真向かい', o2.dots);
-	await page.evaluate(() => { fabUnseen.stitch = false; updateFabBadges(); });
-	const o1 = await orbit();
-	assert(o1.dots.length === 1 && Math.abs(o1.dots[0].angle - 45) <= 1, '未読の丸: 1つのときは右上', o1.dots);
-
-	// 回るのは新しく立ったときだけ。1周は6秒・1回で、終わると class が外れ、脈動は続く
-	const spinRule = await page.evaluate(() => {
-		const el = document.getElementById('fab-orbit');
-		el.classList.remove('is-spinning');
-		updateFabBadges();                       // 同じ未読のまま描き直す
-		const redraw = el.classList.contains('is-spinning');
-		markFabUnseen('stitch');                 // 新しく立てる
-		const st = getComputedStyle(el);
-		return { redraw, fresh: el.classList.contains('is-spinning'), dur: st.animationDuration, count: st.animationIterationCount, timing: st.animationTimingFunction };
-	});
-	assert(!spinRule.redraw && spinRule.fresh, '未読の丸: 新しく立ったときだけ回る（描き直しでは回らない）', spinRule);
-	assert(spinRule.dur === '6s' && spinRule.count === '1' && spinRule.timing === 'cubic-bezier(0.45, 0.05, 0.35, 1)',
-		'未読の丸: 1周は6秒・1回・ゆっくり動き出して止まる', spinRule);
-	await page.waitForTimeout(6400);
-	const afterSpin = await page.evaluate(() => ({
-		spinning: document.getElementById('fab-orbit').classList.contains('is-spinning'),
-		pulse: getComputedStyle(document.querySelector('.uma-fab-orbit-dot:not([hidden])')).animationName,
-	}));
-	assert(!afterSpin.spinning && afterSpin.pulse === 'uma-fab-pulse', '未読の丸: 1周したら止まり、そのあとも脈動は続く', afterSpin);
-
-	// 開いている間は出さない。閉じたときは回さずに出す（開いている間に立っていれば回す）
-	await page.evaluate(() => setFabOpen(true));
-	await page.waitForTimeout(200);
-	assert(await page.evaluate(() => getComputedStyle(document.getElementById('fab-orbit')).display) === 'none',
-		'未読の丸: 開いている間は周りの丸を出さない');
-	await page.evaluate(() => setFabOpen(false));
-	await page.waitForTimeout(200);
-	assert(await page.evaluate(() => getComputedStyle(document.getElementById('fab-orbit')).display) !== 'none'
-		&& !(await orbit()).spinning, '未読の丸: 閉じたときは回さずに止まった配置で出す');
-	const pending = await page.evaluate(async () => {
-		fabUnseen.result = false; updateFabBadges();
-		setFabOpen(true);
-		markFabUnseen('result');                 // 開いている間に新しい未読
-		const whileOpen = document.getElementById('fab-orbit').classList.contains('is-spinning');
-		setFabOpen(false);
-		return { whileOpen, afterClose: document.getElementById('fab-orbit').classList.contains('is-spinning') };
-	});
-	assert(!pending.whileOpen && pending.afterClose, '未読の丸: 開いている間に立った未読は、閉じたときに回る', pending);
+	assert(Object.values(dots).every((c) => c === RED),
+		'未読の丸: 子項目・引き出しのタブ・取り込み案内の丸はすべて同じ赤', dots);
 
 	assert(errors.length === 0, '未読の丸: コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
 
-// reduced-motion では回らず脈動もせず、配置はそのまま
+// reduced-motion では脈動しない（丸は出したまま）
 {
 	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
 	const page = await ctx.newPage();
@@ -5008,26 +4977,15 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(1800);
 	await page.evaluate(() => { if (typeof closeUiNotice === 'function') closeUiNotice(); });
 	const rm = await page.evaluate(() => {
-		markFabUnseen('result'); markFabUnseen('stitch');
-		const el = document.getElementById('fab-orbit');
-		const dot = document.querySelector('.uma-fab-orbit-dot:not([hidden])');
-		const b = document.getElementById('fab-toggle').getBoundingClientRect();
-		const r = dot.getBoundingClientRect();
-		const dx = r.left + r.width / 2 - (b.left + b.width / 2), dy = r.top + r.height / 2 - (b.top + b.height / 2);
-		return {
-			spinning: el.classList.contains('is-spinning'),
-			orbitAnim: getComputedStyle(el).animationName,
-			dotAnim: getComputedStyle(dot).animationName,
-			shown: [...document.querySelectorAll('.uma-fab-orbit-dot')].filter((d) => !d.hidden).length,
-			angle: Math.round(Math.atan2(-dy, dx) * 180 / Math.PI),
-		};
+		markFabUnseen('result');
+		const dot = document.getElementById('fab-unseen-dot');
+		return { hidden: dot.hidden, anim: getComputedStyle(dot).animationName };
 	});
-	assert(!rm.spinning && rm.orbitAnim === 'none' && rm.dotAnim === 'none' && rm.shown === 2 && Math.abs(rm.angle - 45) <= 1,
-		'未読の丸: reduced-motion では回らず脈動もせず、止まった配置で出す', rm);
+	assert(!rm.hidden && rm.anim === 'none', '未読の丸: reduced-motion では脈動しない（丸は出す）', rm);
 	await ctx.close();
 }
 
-// special にも同じ見た目と動きが乗っている
+// special にも同じ見た目が乗っている
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
@@ -5035,34 +4993,34 @@ const browser = await chromium.launch();
 	const sp = await page.evaluate(() => {
 		markFabUnseen('result'); markFabUnseen('stitch');
 		const bg = (id) => getComputedStyle(document.getElementById(id)).backgroundColor;
-		const b = document.getElementById('fab-toggle').getBoundingClientRect();
-		const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
-		const dots = [...document.querySelectorAll('.uma-fab-orbit-dot')].filter((d) => !d.hidden).map((d) => {
-			const r = d.getBoundingClientRect();
-			return { key: d.dataset.orbit, angle: Math.round(Math.atan2(-(r.top + r.height / 2 - cy), r.left + r.width / 2 - cx) * 180 / Math.PI) };
-		});
-		return { result: bg('fab-dot-result'), stitch: bg('fab-dot-stitch'), dots, deckHidden: document.getElementById('deck-drawer-trigger').hidden };
+		const dot = document.getElementById('fab-unseen-dot');
+		return {
+			result: bg('fab-dot-result'), stitch: bg('fab-dot-stitch'),
+			mainHidden: dot.hidden, mainBg: getComputedStyle(dot).backgroundColor,
+			count: document.querySelectorAll('.uma-fab-main .uma-fab-dot:not([hidden])').length,
+		};
 	});
-	assert(sp.result === 'rgb(0, 166, 62)' && sp.stitch === 'rgb(217, 119, 6)',
-		'未読の丸: special は照合結果＝緑・画像結合＝琥珀', sp);
-	assert(sp.dots.length === 2 && Math.abs(sp.dots[0].angle - 45) <= 1,
-		'未読の丸: special でも周りに等間隔で並ぶ', sp.dots);
-	// 旧UIでは Deck の項目そのものを出さないので、周りの丸にも出さない（出し入れに追従する）
+	assert(sp.result === 'rgb(197, 48, 48)' && sp.stitch === 'rgb(197, 48, 48)',
+		'未読の丸: special の子項目の丸も同じ赤', sp);
+	assert(!sp.mainHidden && sp.count === 1 && sp.mainBg === 'rgb(197, 48, 48)',
+		'未読の丸: special でも畳んだボタンの丸は1つ', sp);
+	// 旧UIでは Deck の項目を出さないので、その未読は畳んだボタンの丸にも数えない
 	const noDeck = await page.evaluate(() => {
-		markFabUnseen('deck');
-		const list = () => [...document.querySelectorAll('.uma-fab-orbit-dot')].filter((d) => !d.hidden).map((d) => d.dataset.orbit);
+		fabUnseen.result = false; fabUnseen.stitch = false; updateFabBadges();
 		const trigger = document.getElementById('deck-drawer-trigger');
 		const was = trigger.hidden;
-		trigger.hidden = true; updateFabOrbit(false);
-		const hidden = list();
-		trigger.hidden = was; updateFabOrbit(false);
-		return { hidden, back: list() };
+		trigger.hidden = true;
+		markFabUnseen('deck');
+		const hiddenWhileOldUi = document.getElementById('fab-unseen-dot').hidden;
+		trigger.hidden = was; updateFabBadges();
+		return { hiddenWhileOldUi, shownAfter: !document.getElementById('fab-unseen-dot').hidden };
 	});
-	assert(!noDeck.hidden.includes('deck') && noDeck.back.includes('deck'),
-		'未読の丸: special の旧UIでは Deck の丸を周りに出さない', noDeck);
+	assert(noDeck.hiddenWhileOldUi && noDeck.shownAfter,
+		'未読の丸: special の旧UIでは Deck の未読を畳んだボタンの丸に数えない', noDeck);
 	assert(errors.length === 0, '未読の丸: special でコンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+
 
 await browser.close();
 await close();

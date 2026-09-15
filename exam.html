@@ -10,8 +10,8 @@
 	     ダイアログ）だけを読む。共通部品（common.css）は読まない — 読むと .glass-card の余白など
 	     このページの既存の見た目が変わるため（exam-ui-analysis.md A-3）。変数は参照されない限り
 	     何も描かないので、既存の見た目はそのまま。Tailwind より先に読み込む（レイヤー無しの方が強い）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15d" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-15d" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-15e" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-15e" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -21,14 +21,16 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-15a"></script>
 	<style>
-		/* このツールのアクセント（青）。shell.css の部品（タブの下線・フォーカスの輪）と、
-		   このページの Tailwind の色つきユーティリティは、すべてここの変数を見て色が決まる。
-		   【2026-09-15・43セッション目】藍（v3 世代の indigo）から青へ変えた。基調 #0b6bcb は
-		   白地とのコントラスト 5.28、淡い地は #e0f0ff。
-		   --uma-c-* は「そのままの濃さの段」で、Tailwind の indigo-50〜950 が置かれていた場所を
-		   同じ濃さの青で置き換えるためのもの（色相 210 の一本の階段）。役割で名前が付いた
-		   --uma-accent-* は、この段のどれかを指すだけにしてある。**色の値をこの :root の外へ
-		   直書きしない**こと。ダークモードを入れるときは、ここの段と役割の対応だけを差し替える。 */
+		/* このツールの色（青）。**見出し・バッジ・淡い地・枠などの装飾にだけ使う。**
+		   押せる部品（ボタン・チェック・選択中のタブ）は色を持たず、3ツール共通の黒
+		   （css/tokens.css の --uma-control 系）で塗る。フォーカスの輪は --uma-focus-ring、
+		   未読の丸は --uma-notify（どちらも tokens.css）。
+		   【2026-09-15・43セッション目】藍（v3 世代の indigo）から青へ変え、さらに
+		   「操作＝黒／装飾＝青」で役割を分け直した。基調 #0b6bcb は白地とのコントラスト 5.28。
+		   --uma-c-* は「そのままの濃さの段」（色相 210 の一本の階段）で、**段の番号を参照して
+		   よいのはこの :root の中の役割の定義だけ**。ユーティリティや CSS は下の --uma-deco-* /
+		   --uma-control-* のような役割の名前で参照する。ダークモードを入れるときは、
+		   ここの段と役割の対応だけを差し替える。 */
 		:root {
 			/* 青の段（淡い→濃い）。50 と 600 がおいもさんの確定値で、間は色相 210 で揃えた */
 			--uma-c-50: #e0f0ff;              /* 確定値：淡い地 */
@@ -43,13 +45,27 @@
 			--uma-c-900: #0c3b6b;
 			--uma-c-950: #08284a;
 
-			--uma-accent: var(--uma-c-600);       /* 主ボタンの地・.mode-btn.active */
-			--uma-accent-hover: var(--uma-c-700); /* 主ボタンの hover */
-			--uma-accent-soft: var(--uma-c-50);   /* .drop-active の地・淡い面 */
-			--uma-accent-soft-text: var(--uma-c-700); /* 淡い面の上の文字 */
-			--uma-accent-border: var(--uma-c-200);    /* 進捗バー・緑スキルハイライトの枠 */
-			--uma-accent-ring: var(--uma-c-700);      /* :focus-visible の輪 */
-			/* 右下のメインボタンは黒（tokens.css の --uma-fab-bg）なので、影もページの色ではなく
+			/* 装飾の役割（見出し・アイコン・バッジ・進捗バー・淡い地・枠） */
+			--uma-deco: var(--uma-c-600);            /* 見出しのアイコン・進捗バーの実体 */
+			--uma-deco-muted: var(--uma-c-500);      /* 一段弱いアイコン */
+			--uma-deco-strong: var(--uma-c-700);     /* 淡い地の上の文字・小さなバッジの文字 */
+			--uma-deco-text: var(--uma-c-900);       /* 見出しの文字 */
+			--uma-deco-text-strong: var(--uma-c-950);/* 濃い本文 */
+			--uma-deco-soft: var(--uma-c-50);        /* 淡い地 */
+			--uma-deco-soft-2: var(--uma-c-100);     /* 淡い枠 */
+			--uma-deco-border: var(--uma-c-200);     /* 枠・進捗バーの溝 */
+			--uma-deco-grad-from: var(--uma-c-800);  /* タイトルのグラデーション */
+			--uma-deco-grad-via: var(--uma-c-700);
+			--uma-deco-grad-to: var(--uma-c-500);
+
+			/* 共通CSS（shell.css / common.css）が見る名前。このページでは装飾の色を指す。
+			   押せる部品はもう --uma-accent を見ていない（--uma-control を見る）。 */
+			--uma-accent: var(--uma-deco);
+			--uma-accent-hover: var(--uma-deco-strong);
+			--uma-accent-soft: var(--uma-deco-soft);
+			--uma-accent-soft-text: var(--uma-deco-strong);
+			--uma-accent-border: var(--uma-deco-border);
+			/* 右下のメインボタンは黒（tokens.css の --uma-control）なので、影もページの色ではなく
 			   shell.css の既定（暗い中間色）に任せる。ここで上書きしない。 */
 			/* 「結合画像の設定」のパネルの見出しのアイコンは、結合画像の琥珀（tokens.css） */
 			--uma-popover-icon: var(--uma-stitch-accent);
@@ -65,7 +81,7 @@
 			--uma-card-border: rgba(150, 196, 240, .55);
 		}
 		/* ①のタブに出す件数バッジ。骨格（shell.css の .step-tab-badge）は灰なので、このページの青に */
-		.step-tab-badge--accent { background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
+		.step-tab-badge--accent { background: var(--uma-deco-soft); color: var(--uma-deco-strong); }
 		body {
 			background-color: var(--uma-page-bg);
 			background-image:
@@ -82,7 +98,7 @@
 			border-color: var(--uma-card-border) !important;
 		}
 		:focus-visible {
-			outline: 2px solid var(--uma-accent-ring);
+			outline: 2px solid var(--uma-focus-ring);
 			outline-offset: 2px;
 			border-radius: 4px;
 		}
@@ -113,7 +129,7 @@
 		}
 		.found { color: #059669; font-weight: 600; }
 		.not-found { color: #94a3b8; }
-		.drop-active { border-color: var(--uma-accent) !important; background-color: var(--uma-accent-soft) !important; transform: scale(1.005); }
+		.drop-active { border-color: var(--uma-control) !important; background-color: var(--uma-control-soft) !important; transform: scale(1.005); }
 		.dev-log {
 			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 			font-size: 0.725rem; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
@@ -135,8 +151,8 @@
 		}
 		/* 取り込み案内の「UmaSkill Deck を開いて取り込む」。Deck の色（.deck-accent の中で --uma-accent が
 		   Deck の色になる）で塗る。共通部品 .uma-btn は読んでいないので、このページのボタンの書き方で。 */
-		/* 「旧UIへ／新UIへ」の、新UI中の点灯（このページの青） */
-		#deck-mode-btn.is-on { border-color: var(--uma-accent-border); background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
+		/* 「旧UIへ／新UIへ」の、新UI中の点灯（選んでいる状態なので操作の色＝黒） */
+		#deck-mode-btn.is-on { border-color: var(--uma-control-border); background: var(--uma-control-soft); color: var(--uma-control); }
 		/* 片道化（2026-09-15）: 新UIの間はこのボタンを出さない。Tailwind の inline-flex が display を
 		   当てているので、hidden 属性を自前で押す（F-13。css/shell.css の .uma-fab-item[hidden] と同じ理由） */
 		#deck-mode-btn[hidden] { display: none !important; }
@@ -160,7 +176,7 @@
 		.notice-new-title { margin: 0 0 var(--uma-sp-1-5); font-size: var(--uma-fs-sm); font-weight: 700; }
 		.notice-new .notice-text + .notice-text { margin-top: var(--uma-sp-2); }
 		/* ＜新機能＞の段でツール名を強調する。色は枠の中の本文と同じ（Deck の色の濃い方）で読みやすい */
-		.notice-deck-name { font-weight: 700; color: var(--uma-accent-soft-text); }
+		.notice-deck-name { font-weight: 700; color: var(--uma-deco-strong); }
 		/* ★の数のコピー元。「スプレッドシート貼り付け用データ」の窓としては出さないが、
 		   値をコピーするために DOM には残す。display:none だと選択できなくなるので、
 		   画面の外へ追い出す形で隠す。 */
@@ -178,9 +194,9 @@
 			color: var(--uma-text-subtle); cursor: pointer;
 			transition: color var(--uma-transition), border-color var(--uma-transition); }
 		.drawer-tab:hover:not(:disabled) { color: var(--uma-text-heading); }
-		.drawer-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-accent); }
+		.drawer-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control); }
 		.drawer-tab:disabled { color: var(--uma-text-faint); cursor: not-allowed; }
-		.drawer-tab:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
+		.drawer-tab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
 		/* 未読の点はタブの文字の右に置く（FABの点と同じ見た目を借りるが、位置だけ流し込みに戻す） */
 		.drawer-tab .uma-fab-dot { position: static; margin-left: var(--uma-sp-0-5); }
 		.drawer-panel[hidden] { display: none !important; }
@@ -203,7 +219,7 @@
 		/* 凡例は印の子。字下げと「└」で親子を示す */
 		.stitch-show-item--child { margin-left: var(--uma-sp-5); }
 		.stitch-show-branch { color: var(--uma-text-faint); font-weight: 400; }
-		.stitch-show-check { flex-shrink: 0; width: 1rem; height: 1rem; margin-top: 1px; accent-color: var(--uma-accent); cursor: pointer; }
+		.stitch-show-check { flex-shrink: 0; width: 1rem; height: 1rem; margin-top: 1px; accent-color: var(--uma-control); cursor: pointer; }
 		.stitch-show-sub { font-weight: 400; color: var(--uma-text-subtle); }
 		/* 印が OFF の間、凡例は選べない。色だけで示す（opacity は使わない。B節ルール9） */
 		.stitch-show-item.is-off, .stitch-show-item.is-off .stitch-show-sub { color: var(--uma-text-faint); cursor: not-allowed; }
@@ -242,8 +258,8 @@
 		.stitch-wire-line { display: flex; align-items: center; gap: 2px; }
 		.stitch-wire-line b { display: block; flex: 0 0 auto; width: 100%; height: 3px; border-radius: 2px; background: var(--uma-border-strong); }
 		.stitch-wire-line[data-stitch-part="legend"] b { flex: 1 1 auto; width: auto; }
-		/* チェックに触れている間、対応する帯を強調する（輪の色はこのページの青） */
-		.stitch-wire .is-hot { box-shadow: 0 0 0 2px var(--uma-accent); }
+		/* チェックに触れている間、対応する帯を強調する（輪の色はこのページの青＝装飾） */
+		.stitch-wire .is-hot { box-shadow: 0 0 0 2px var(--uma-deco); }
 		/* 引き出しの中の「結合画像の設定」（③）の「画像を更新」の段。骨格は css/shell.css の .uma-popover--drawer */
 		.stitch-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2) var(--uma-sp-3); padding: var(--uma-sp-3) 0 0; }
 		/* 作り直せないときの案内。色は css/tokens.css の警告の色（opacity は使わない。B節ルール9） */
@@ -259,11 +275,11 @@
 			.stitch-show { flex-direction: column; }
 			.stitch-wire { width: 120px; align-self: center; }
 		}
-		.deck-note-btn { background: var(--uma-accent); }
-		.deck-note-btn:hover { background: var(--uma-accent-hover); }
+		.deck-note-btn { background: var(--uma-control); }
+		.deck-note-btn:hover { background: var(--uma-control-hover); }
 		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
 		.mode-btn { padding: 0.25rem 0.75rem; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: all 0.15s; }
-		.mode-btn.active { background-color: var(--uma-accent); color: #fff; }
+		.mode-btn.active { background-color: var(--uma-control); color: #fff; }
 
 		/* ①②の見出し（css/shell.css の .step-tab）は special.html と共有の大きさで、
 		   このページだと少し小さく見えるので、このページの中だけ一段大きくする。
@@ -301,7 +317,7 @@
 		.mode-btn:not(.active):hover { background-color: #f1f5f9; }
 		.copylist-btn { padding: 0.375rem 0.875rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid #e2e8f0; background: #fff; color: #64748b; }
 		.copylist-btn:hover { background-color: #f1f5f9; }
-		.copylist-btn.active { background-color: var(--uma-accent); color: #fff; border-color: var(--uma-accent); }
+		.copylist-btn.active { background-color: var(--uma-control); color: #fff; border-color: var(--uma-control); }
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-indigo-600 selection:text-white">
@@ -919,13 +935,13 @@
 				aria-controls="result-panel-result" aria-selected="true" tabindex="0" onclick="selectResultTab('result')">
 				<i data-lucide="list-checks" class="w-3.5 h-3.5"></i>
 				<span>照合結果</span>
-				<span id="result-tab-dot-result" class="uma-fab-dot uma-fab-dot--accent" hidden></span>
+				<span id="result-tab-dot-result" class="uma-fab-dot" hidden></span>
 			</button>
 			<button type="button" role="tab" class="drawer-tab" id="result-tab-stitch"
 				aria-controls="result-panel-stitch" aria-selected="false" tabindex="-1" onclick="selectResultTab('stitch')">
 				<i data-lucide="image" class="w-3.5 h-3.5"></i>
 				<span id="result-tab-stitch-label">結合画像の表示</span>
-				<span id="result-tab-dot-stitch" class="uma-fab-dot uma-fab-dot--stitch" hidden></span>
+				<span id="result-tab-dot-stitch" class="uma-fab-dot" hidden></span>
 			</button>
 		</div>
 
@@ -957,7 +973,7 @@
 									<div class="flex items-start gap-2.5 min-w-0">
 										<span class="relative shrink-0 mt-0.5">
 											<i data-lucide="layers" class="w-4 h-4 deck-icon"></i>
-											<span id="deck-handoff-dot" class="uma-fab-dot uma-fab-dot--deck" style="top:-5px; right:-5px;"></span>
+											<span id="deck-handoff-dot" class="uma-fab-dot" style="top:-5px; right:-5px;"></span>
 										</span>
 										<div class="min-w-0">
 											<p id="deck-handoff-title" class="text-xs font-bold deck-note-title">この結果をUmaSkill Deckに取り込めます</p>
@@ -1140,9 +1156,9 @@
 	<div id="fab-nav" class="uma-fab-nav">
 		<button id="fab-item-result" type="button" class="uma-fab-item" onclick="fabGoTo('result')">
 			<span>OCRの照合結果</span>
-			<span class="uma-fab-icon" style="background: var(--uma-accent-soft); color: var(--uma-accent-soft-text);">
+			<span class="uma-fab-icon" style="background: var(--uma-deco-soft); color: var(--uma-deco-strong);">
 				<i data-lucide="list-checks" class="w-4 h-4"></i>
-				<span id="fab-dot-result" class="uma-fab-dot uma-fab-dot--accent" hidden></span>
+				<span id="fab-dot-result" class="uma-fab-dot" hidden></span>
 			</span>
 		</button>
 
@@ -1150,7 +1166,7 @@
 			<span>結合画像の表示</span>
 			<span class="uma-fab-icon stitch-accent-icon">
 				<i data-lucide="image" class="w-4 h-4"></i>
-				<span id="fab-dot-stitch" class="uma-fab-dot uma-fab-dot--stitch" hidden></span>
+				<span id="fab-dot-stitch" class="uma-fab-dot" hidden></span>
 			</span>
 		</button>
 
@@ -1169,20 +1185,17 @@
 			<span>UmaSkill Deck</span>
 			<span class="uma-fab-icon">
 				<i data-lucide="layers" class="w-4 h-4"></i>
-				<span id="fab-dot-deck" class="uma-fab-dot uma-fab-dot--deck" hidden></span>
+				<span id="fab-dot-deck" class="uma-fab-dot" hidden></span>
 			</span>
 		</button>
 
-		<!-- メインボタンと、閉じているときの未読の印（周りの丸）。丸はメインボタンの中心を基準に
-		     置くので、2つを .uma-fab-main で包んである（包んでも .uma-fab-nav の最後の子は
+		<!-- メインボタンと、畳んでいるときの未読の印。印はボタンの右上に赤い丸を1つだけ出す
+		     （行き先がいくつ未読でも1つ。開けば行き先ごとの丸が見える）。丸をボタンの角に
+		     合わせるために .uma-fab-main で包んである（包んでも .uma-fab-nav の最後の子は
 		     1つのままなので、サブボタンの nth-last-child の遅延は変わらない）。
-		     並べ方と色は updateFabOrbit()。 -->
+		     出し入れは updateFabBadges()。 -->
 		<span class="uma-fab-main">
-			<span id="fab-orbit" class="uma-fab-orbit" aria-hidden="true">
-				<span class="uma-fab-orbit-dot uma-fab-dot--accent" data-orbit="result" hidden></span>
-				<span class="uma-fab-orbit-dot uma-fab-dot--stitch" data-orbit="stitch" hidden></span>
-				<span class="uma-fab-orbit-dot uma-fab-dot--deck" data-orbit="deck" hidden></span>
-			</span>
+			<span id="fab-unseen-dot" class="uma-fab-dot" aria-hidden="true" hidden></span>
 			<button id="fab-toggle" type="button" class="uma-fab-toggle" onclick="toggleFab(event)"
 				aria-controls="fab-nav" aria-expanded="false" aria-label="ページ内ナビゲーションを開く">
 				<i data-lucide="plus" class="w-6 h-6"></i>
@@ -1808,7 +1821,7 @@
 		 * 同じ版数の印を持つ。このページが読む2つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（このページは common.css を読まないので、その印は見ない）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-15d';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-15e';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/shell.css', '--uma-shell-css-version'],
@@ -4919,16 +4932,8 @@
 			fabOpen = open;
 			document.getElementById('fab-nav').classList.toggle('open', open);
 			document.getElementById('fab-toggle').setAttribute('aria-expanded', String(open));
-			// 開いている間、周りの丸は隠れる（CSS）。開いた時点で回転は打ち切り、
-			// 閉じたときは「開いている間に立った未読があれば回す／無ければ止まった配置で出す」。
-			const orbit = document.getElementById('fab-orbit');
-			if (open) {
-				if (orbit) orbit.classList.remove('is-spinning');
-			} else {
-				const spin = fabOrbitPendingSpin;
-				fabOrbitPendingSpin = false;
-				updateFabOrbit(spin);
-			}
+			// 開いている間は、メインボタンの赤丸を隠す（行き先ごとの丸が見えるため）
+			updateFabUnseenDot();
 		}
 
 		function toggleFab(e) {
@@ -4941,43 +4946,18 @@
 			document.getElementById('fab-dot-stitch').hidden = !fabUnseen.stitch;
 			document.getElementById('fab-dot-result').hidden = !fabUnseen.result;
 			document.getElementById('fab-dot-deck').hidden = !fabUnseen.deck;
-			// 閉じているときに出す「周りの丸」。新しく立った未読があるときだけ1周させる。
-			// 既に出ているものを描き直しただけでは回さない（同じ知らせを何度も動かさない）。
-			const isNew = FAB_ORBIT_KEYS.some(k => fabUnseen[k] && !fabOrbitPrev[k]);
-			FAB_ORBIT_KEYS.forEach(k => { fabOrbitPrev[k] = !!fabUnseen[k]; });
-			if (isNew && fabOpen) fabOrbitPendingSpin = true;
-			updateFabOrbit(isNew && !fabOpen);
+			updateFabUnseenDot();
 			updateResultTabs();
 		}
 
-		/* 閉じたメインボタンの周りに出す未読の印。
-		 * ・未読の行き先の数だけ、その行き先の色の丸を外周のすぐ外に置く。
-		 * ・1つなら右上、2つ以上は右上を起点に 360/個数 の等間隔（CSS の rotate は
-		 *   時計回りなので、右上は -45deg）。
-		 * ・spin が true のときだけ、並び全体が6秒で1周してから止まる。
-		 *   アニメーションは終わったら外す（class が残っていると、開閉で display が
-		 *   戻ったときに回り直してしまう）。
-		 * ・reduced-motion のときは回転も脈動も CSS 側で止まる（配置はそのまま）。 */
-		const FAB_ORBIT_KEYS = ['result', 'stitch', 'deck'];
-		let fabOrbitPrev = { result: false, stitch: false, deck: false };
-		let fabOrbitPendingSpin = false;
-
-		function updateFabOrbit(spin) {
-			const orbit = document.getElementById('fab-orbit');
-			if (!orbit) return;
-			const on = FAB_ORBIT_KEYS.filter(k => fabUnseen[k]);
-			orbit.querySelectorAll('.uma-fab-orbit-dot').forEach(dot => {
-				const key = dot.dataset.orbit;
-				const i = on.indexOf(key);
-				dot.hidden = i < 0;
-				if (i < 0) return;
-				dot.style.setProperty('--uma-orbit-angle', (-45 + i * (360 / on.length)) + 'deg');
-			});
-			if (!spin || !on.length || fabReduceMotion()) return;
-			orbit.classList.remove('is-spinning');
-			void orbit.offsetWidth;                 // 同じ class を付け直すだけでは再生されない
-			orbit.classList.add('is-spinning');
-			orbit.addEventListener('animationend', () => orbit.classList.remove('is-spinning'), { once: true });
+		/* 畳んでいるときの未読の印。メインボタンの右上に赤い丸を1つだけ出す。
+		 * 未読の行き先がいくつあっても丸は1つ（数は数えない。行き先は開けば分かる）。
+		 * 開いている間は出さない。脈動は子項目の丸と同じ CSS（reduced-motion では止まる）。 */
+		function updateFabUnseenDot() {
+			const dot = document.getElementById('fab-unseen-dot');
+			if (!dot) return;
+			const any = fabUnseen.result || fabUnseen.stitch || fabUnseen.deck;
+			dot.hidden = fabOpen || !any;
 		}
 
 		// 結果が新しく出たときに呼ぶ。結果を作り直した場合も「新着」に戻す。
@@ -5173,7 +5153,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-15d';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-15e';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;

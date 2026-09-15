@@ -9,8 +9,8 @@
  *
  * 前提:
  *   - 色・寸法は css/tokens.css のトークン経由。直書きの色は「ツールに依らない意味」
- *     （暗転＝slate-900 の半透明）のものだけ。新着ドットは行き先ごとの色を
- *     --uma-dot-color で受け取る（2026-09-15・43セッション目に橙の直書きをやめた）。
+ *     （暗転＝slate-900 の半透明）のものだけ。押せる部品は --uma-control、未読の丸は
+ *     --uma-notify（2026-09-15・43セッション目に橙の直書きをやめた）。
  *   - ツールごとに変える値（FAB の影）は :root のトークンにし、各HTMLの <style> で上書きする。
  *   - マークアップ側のボタンは共通部品（.uma-btn 等）を使っても、ページ固有の
  *     ユーティリティで書いてもよい。このファイルは骨格の箱だけを描く。
@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-09-15d";
+	--uma-shell-css-version: "2026-09-15e";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -33,7 +33,7 @@
 	--uma-fab-icon: 36px;              /* サブボタンのアイコン丸の直径 */
 	--uma-fab-font: var(--uma-fs-sm);  /* サブボタンのラベル */
 	--uma-fab-reserve: 18rem;          /* 本文の下端に空ける余白（展開時の高さ+余白） */
-	/* メインボタンの影。メインボタンが3ツール共通の黒（--uma-fab-bg）になったので、影も無彩色で揃える
+	/* メインボタンの影。メインボタンが3ツール共通の黒（--uma-control）になったので、影も無彩色で揃える
 	   （2026-09-15・43セッション目に special の緑系・exam の藍系の上書きを外した）。 */
 	--uma-fab-shadow: 0 10px 20px -6px rgba(15, 23, 42, .35);
 }
@@ -77,8 +77,9 @@
 	transition: color var(--uma-transition), border-color var(--uma-transition);
 }
 .step-tab:hover { color: var(--uma-text-heading); }
-.step-tab:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
-.step-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-accent); }
+.step-tab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
+/* 選んでいるタブの下線は操作の色（黒）。ページの色ではない */
+.step-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control); }
 .step-tab-num {
 	flex: none; width: 24px; height: 24px; border-radius: var(--uma-r-full);
 	display: flex; align-items: center; justify-content: center;
@@ -171,76 +172,41 @@
 
 /* 新着バッジ。行き先に「まだ見ていない結果」があるときだけ出す。
    数を出さないドットにしているのは、結果が1件か複数かに意味がないため。
-   【2026-09-15・43セッション目】色を橙の直書きから**行き先ごとの色**へ変えた。
-   赤や橙は「警告・失敗」に見えるうえ、どの行き先の新着かが色から分からなかった。
-   色は --uma-dot-color で渡す（下の修飾クラス、または呼ぶ側の style）。
-   脈動の光も同じ色から作るので、指定は1か所でよい。 */
+   【2026-09-15・43セッション目】橙の直書き → 行き先ごとの色、と試したうえで、
+   **行き先を問わず1色の赤（--uma-notify）**に落ち着いた。色で行き先を言い分けるより、
+   「見ていないものがある」ことだけを一目で分かる方を採る。脈動の光も同じ色から作る。 */
 .uma-fab-dot {
 	position: absolute; top: -2px; right: -2px;
 	width: 12px; height: 12px; border-radius: var(--uma-r-full);
-	background: var(--uma-dot-color, var(--uma-accent));
+	background: var(--uma-notify);
 	border: 2px solid var(--uma-surface);
 	animation: uma-fab-pulse 1.8s ease-out infinite;
 }
 .uma-fab-dot[hidden] { display: none !important; }
-/* 行き先ごとの色。照合結果＝そのページのアクセント／結合画像＝琥珀／Deck＝赤紫 */
-.uma-fab-dot--accent { --uma-dot-color: var(--uma-accent); }
-.uma-fab-dot--stitch { --uma-dot-color: var(--uma-stitch-accent); }
-.uma-fab-dot--deck   { --uma-dot-color: var(--uma-deck-accent); }
 @keyframes uma-fab-pulse {
-	0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--uma-dot-color, var(--uma-accent)) 55%, transparent); }
-	70%  { box-shadow: 0 0 0 8px color-mix(in srgb, var(--uma-dot-color, var(--uma-accent)) 0%, transparent); }
-	100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--uma-dot-color, var(--uma-accent)) 0%, transparent); }
+	0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--uma-notify) 55%, transparent); }
+	70%  { box-shadow: 0 0 0 8px color-mix(in srgb, var(--uma-notify) 0%, transparent); }
+	100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--uma-notify) 0%, transparent); }
 }
 
-/* ===== 閉じているときの未読の印（メインボタンの周りを回る丸） =====
-   畳んでいる間は、どの行き先に新着があるかがサブボタンごと隠れて分からない。
-   メインボタン自体に赤い丸を付けると「1つでも新着がある」ことしか言えないので、
-   **未読の行き先の数だけ、その行き先の色の丸**をメインボタンの外周のすぐ外に並べる。
-   ・配置は右上（CSS の rotate で -45deg）を起点に 360/個数 の等間隔。JS が角度を渡す。
-   ・新しい未読が立ったときだけ、並び全体が6秒で1周してから止まる（.is-spinning は
-     JS が animationend で外す。開いている間は出さない）。残像は付けない。
-   ・止まったあとも各丸の脈動は続ける（.uma-fab-dot と同じ @keyframes）。
-   ・reduced-motion では回転も脈動もせず、止まった配置で出す。 */
+/* 畳んでいるときの未読の印は、メインボタンの右上に**赤い丸を1つだけ**出す
+   （未読の行き先がいくつあっても1つ。子項目を開けば行き先ごとの丸が見える）。
+   丸は .uma-fab-dot をそのまま使い、この箱を位置の基準にする。
+   周りに並べる・回す案は取りやめた（2026-09-15・43セッション目）。 */
 .uma-fab-main { position: relative; display: flex; }
-.uma-fab-orbit {
-	position: absolute; left: 50%; top: 50%;
-	width: 0; height: 0;
-	pointer-events: none;
-}
-/* 開いている間は隠す（サブボタン側のバッジで分かるため） */
-.uma-fab-nav.open .uma-fab-orbit { display: none; }
-.uma-fab-orbit.is-spinning { animation: uma-fab-orbit-spin 6s cubic-bezier(.45, .05, .35, 1) 1; }
-@keyframes uma-fab-orbit-spin {
-	from { transform: rotate(0turn); }
-	to   { transform: rotate(1turn); }
-}
-.uma-fab-orbit-dot {
-	position: absolute; left: 0; top: 0;
-	width: 12px; height: 12px; margin: -6px 0 0 -6px;
-	border-radius: var(--uma-r-full);
-	background: var(--uma-dot-color, var(--uma-accent));
-	border: 2px solid var(--uma-surface);
-	/* 中心から外周の外へ。--uma-orbit-angle は JS が入れる（右上が -45deg） */
-	transform: rotate(var(--uma-orbit-angle, -45deg))
-		translate(calc(var(--uma-fab-size) / 2 + var(--uma-sp-2)))
-		rotate(calc(var(--uma-orbit-angle, -45deg) * -1));
-	animation: uma-fab-pulse 1.8s ease-out infinite;
-}
-.uma-fab-orbit-dot[hidden] { display: none !important; }
 
-/* メインボタン。塗りは --uma-fab-bg（3ツール共通の黒。ページのアクセントとは分ける）で、
+/* メインボタン。塗りは --uma-control（3ツール共通の黒。ページの色とは分ける）で、
    影は --uma-fab-shadow。開いている間は＋アイコンを135度回して×にする。 */
 .uma-fab-toggle {
 	width: var(--uma-fab-size); height: var(--uma-fab-size); flex-shrink: 0;
 	border: none; border-radius: var(--uma-r-full);
-	background: var(--uma-fab-bg); color: var(--uma-text-inverse);
+	background: var(--uma-control); color: var(--uma-text-inverse);
 	display: flex; align-items: center; justify-content: center;
 	box-shadow: var(--uma-fab-shadow), var(--uma-shadow-2);
 	cursor: pointer;
 	transition: background-color var(--uma-transition), transform var(--uma-transition);
 }
-.uma-fab-toggle:hover { background: var(--uma-fab-bg-hover); }
+.uma-fab-toggle:hover { background: var(--uma-control-hover); }
 .uma-fab-toggle:active { transform: scale(.95); }
 /* lucide は <i data-lucide> を <svg> に差し替えるので、回転はsvgに掛ける。
    アイコンの大きさは Tailwind の w-4/w-6 ではなくボタン径から決める
@@ -258,8 +224,8 @@
 @media (prefers-reduced-motion: reduce) {
 	.uma-fab-item, .uma-fab-toggle, .uma-fab-toggle svg { transition: none !important; }
 	.uma-fab-nav.open .uma-fab-item { transition-delay: 0s !important; }
-	/* 脈動も1周の回転も止める。丸そのものは止まった配置のまま出す（消さない） */
-	.uma-fab-dot, .uma-fab-orbit, .uma-fab-orbit-dot { animation: none !important; }
+	/* 脈動は止める。丸そのものは出したまま（消さない） */
+	.uma-fab-dot { animation: none !important; }
 }
 
 /* ===== 引き出しパネル（スライドオーバー） =====
@@ -382,14 +348,11 @@
 @media (min-width: 768px) {
 	.uma-popover--fab { right: max(var(--uma-fab-edge), calc(50% - 512px)); }
 }
-/* 引き出しの中の丸ボタン。形は右下の FAB のメインボタン（.uma-fab-toggle を併用）で一回り小さく、
-   色だけ結合画像の琥珀にする（右下の黒いメインボタンと役割が違うことを色で示す）。
-   地の上に載るのは大きめの白いアイコンだけで、白い文字は載せない（tokens.css の注記）。 */
+/* 引き出しの中の丸ボタン。右下の FAB のメインボタン（.uma-fab-toggle を併用）と同じ黒で、
+   一回り小さいだけ。押せるものは黒に揃える（43セッション目に琥珀からこちらへ戻した）。 */
 .uma-drawer-fab {
 	position: absolute; z-index: 2;
 	--uma-fab-size: 48px;
-	--uma-fab-bg: var(--uma-stitch-accent);
-	--uma-fab-bg-hover: var(--uma-stitch-soft-text);
 	right: var(--uma-sp-4);
 	bottom: calc(var(--uma-sp-4) + env(safe-area-inset-bottom, 0px));
 }
@@ -483,12 +446,13 @@
    special の「画像結合レビュー」）。同じ琥珀に揃えて、行き先の仲間であることを色で示す。 */
 .stitch-accent-icon { background: var(--uma-stitch-soft); color: var(--uma-stitch-soft-text); }
 /* 「いま新UIにいる」ことを示す、二次ボタンの点灯状態（旧UIへ／新UIへ のボタン） */
-.uma-btn.is-on { border-color: var(--uma-accent-border); background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
+/* 選んでいる状態の表示は操作の色（黒）で示す */
+.uma-btn.is-on { border-color: var(--uma-control-border); background: var(--uma-control-soft); color: var(--uma-control); }
 /* 結果の先頭に置く取り込み案内（未取り込みのとき。取り込み済みは各ページの緑のユーティリティ） */
 .deck-note { border: 1px solid var(--uma-accent-border); border-radius: var(--uma-r-lg); background: var(--uma-accent-soft); padding: var(--uma-sp-4); }
 .deck-note-title { color: var(--uma-accent-soft-text); }
 .deck-note-text { color: var(--uma-accent-soft-text); }
-.ui-mode-badge:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: 2px; }
+.ui-mode-badge:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }
 
 @media (max-width: 640px) {
 	/* 狭い画面では下から出るシートにする（片手で ✕ に届く位置に「閉じる」を置くため） */

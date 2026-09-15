@@ -205,7 +205,11 @@ const INTENTIONALLY_REMOVED = {
 	// （#stitch-show-drawer-wrap / #stitch-show-drawer）を、引き出しの右下の丸ボタン（#stitch-drawer-fab）から
 	// 開く設定パネル（#stitch-drawer-pop）に置き換えた。中のパネル #stitch-show-panel-drawer と
 	// 「画像を更新」（#stitch-refresh-*）はそのまま新しいパネルへ移した。commit が進んだらこの行は消す。
-	'exam.html': ['stitch-show-drawer-wrap', 'stitch-show-drawer'],
+	'exam.html': ['fab-orbit', 'data-orbit'],
+	// 2026-09-15（43セッション目）: 閉じた丸ボタンの未読を「周りに並べて1周回る丸」から
+	// 「右上に赤い丸1つ」へ変えたので、#fab-orbit と data-orbit（周りの丸の並び）を消した。
+	// 代わりに #fab-unseen-dot を置いてある。commit が進んだらこの行は消す。
+	'special.html': ['fab-orbit', 'data-orbit'],
 	// 2026-09-15: exam のヘッダーの見出しから可変の種数 #header-skill-count を消した
 	// （見出しは「技能試験で有利な登録済み対象スキル」に。範囲を選べるようになって
 	// 見出しの数が利用者の選択で変わるため。いまの種数は #step1-skill-badge と

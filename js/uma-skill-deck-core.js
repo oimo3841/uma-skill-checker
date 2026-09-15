@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-15a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-15b';
 
 	/* ============================================================
 	 * 定数
@@ -975,10 +975,10 @@
 		'  border: 1px solid var(--uma-border); cursor: pointer;',
 		'  transition: background-color var(--uma-transition), color var(--uma-transition); }',
 		'.usd-tab:hover { background: var(--uma-surface); color: var(--uma-text-heading); }',
-		'.usd-tab:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: -3px; }',
+		'.usd-tab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -3px; }',
 		'.usd-tab-main { font-weight: 600; }',
 		'.usd-tab[aria-selected="true"] { color: var(--uma-text); background: var(--uma-surface); }',
-		'.usd-tab[aria-selected="true"] .usd-tab-main { font-weight: 700; color: var(--uma-accent-soft-text); }',
+		'.usd-tab[aria-selected="true"] .usd-tab-main { font-weight: 700; color: var(--uma-control); }',
 
 		/* --- 1行に収まるとき：フォルダの見出し風 --- */
 		// パネル上端の線はタブバー全体で引く。選択中タブがこの線を塗り潰して「つながって」見える
@@ -991,10 +991,10 @@
 		// 縮めきれない＝1行に入らないことをJS側が scrollWidth で検出できるようにしてある
 		'[data-usd-rows="1"] .usd-tab { flex: 1 0 0; min-width: max-content; min-height: 3.1rem;',
 		'  margin-top: var(--usd-tab-lift); border-radius: var(--uma-r-lg) var(--uma-r-lg) 0 0; }',
-		// 選択中：一段持ち上がり、上端に藍の帯、下の線を消してパネルと地続きにする
+		// 選択中：一段持ち上がり、上端に黒い帯（操作の色）、下の線を消してパネルと地続きにする
 		'[data-usd-rows="1"] .usd-tab[aria-selected="true"] { margin-top: 0;',
 		'  min-height: calc(3.1rem + var(--usd-tab-lift)); border-bottom-color: var(--uma-surface);',
-		'  box-shadow: inset 0 3px 0 var(--uma-accent); z-index: 1; }',
+		'  box-shadow: inset 0 3px 0 var(--uma-control); z-index: 1; }',
 		'[data-usd-rows="1"] .usd-tabpanels { border-top: 0; border-radius: 0 0 var(--uma-r-lg) var(--uma-r-lg); }',
 
 		/* --- 収まらないとき：角丸ボタンの格子（狭い画面。4列×2段など） --- */
@@ -1006,8 +1006,8 @@
 		'  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); }',
 		'[data-usd-rows="multi"] .usd-tab { min-height: 2.6rem; padding: var(--uma-sp-1) var(--uma-sp-2);',
 		'  border-radius: var(--uma-r-md); }',
-		'[data-usd-rows="multi"] .usd-tab[aria-selected="true"] { background: var(--uma-accent-soft);',
-		'  border-color: var(--uma-accent); box-shadow: inset 0 2px 0 var(--uma-accent); }',
+		'[data-usd-rows="multi"] .usd-tab[aria-selected="true"] { background: var(--uma-control-soft);',
+		'  border-color: var(--uma-control); box-shadow: inset 0 2px 0 var(--uma-control); }',
 		'[data-usd-rows="multi"] .usd-tabpanels { border-radius: 0 0 var(--uma-r-lg) var(--uma-r-lg); }',
 
 		// 条件が入っている軸の件数バッジ（他のタブに隠れた条件を見落とさないため）
@@ -1024,7 +1024,7 @@
 		// Tailwind の hidden クラスは使わない（F-13）。visibility なら場所は取ったままなので、
 		// いちばん背の高い軸に高さが揃う（display:none にすると揃わなくなる）
 		'.usd-tabpanel:not(.is-active) { visibility: hidden; }',
-		'.usd-tabpanel:focus-visible { outline: 2px solid var(--uma-accent-ring); outline-offset: 4px; border-radius: var(--uma-r-sm); }',
+		'.usd-tabpanel:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 4px; border-radius: var(--uma-r-sm); }',
 		'.usd-axis-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--uma-sp-1) var(--uma-sp-3);',
 		'  margin-bottom: var(--uma-sp-2); }',
 		'.usd-axis-title { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); }',

@@ -30,7 +30,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-09-15d";
+	--uma-components-css-version: "2026-09-15e";
 }
 
 /* ============================================================
@@ -43,9 +43,10 @@ body {
 	color: var(--uma-text);
 }
 
-/* キーボード操作時のフォーカス。輪郭色はツールのアクセントに追従する。 */
+/* キーボード操作時のフォーカス。黒い部品の上でも見えるよう、部品の色とは変えて青
+   （--uma-focus-ring）。3ツール共通（2026-09-15・43セッション目）。 */
 :focus-visible {
-	outline: 2px solid var(--uma-accent-ring);
+	outline: 2px solid var(--uma-focus-ring);
 	outline-offset: 2px;
 	border-radius: var(--uma-r-sm);
 }
@@ -110,9 +111,10 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 	border-color: var(--uma-border-strong);
 	background: var(--uma-surface-sunken);
 }
+/* 選んでいる行。選択は操作の結果なので、ページの色ではなく操作の色（黒）で示す */
 .uma-list-row--selected {
-	border-color: var(--uma-accent-border);
-	background: var(--uma-accent-soft);
+	border-color: var(--uma-control);
+	background: var(--uma-control-soft);
 }
 
 /* ============================================================
@@ -150,12 +152,13 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 	scale: 1;
 }
 
+/* 主ボタン。押せるものは3ツールとも黒（--uma-control）。ページの色は装飾の側で使う */
 .uma-btn--primary {
-	background: var(--uma-accent);
+	background: var(--uma-control);
 	color: var(--uma-text-inverse);
 	box-shadow: var(--uma-shadow-2);
 }
-.uma-btn--primary:hover:not(:disabled) { background: var(--uma-accent-hover); }
+.uma-btn--primary:hover:not(:disabled) { background: var(--uma-control-hover); }
 
 .uma-btn--secondary {
 	background: var(--uma-surface);
@@ -182,13 +185,14 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 }
 .uma-btn--neutral:hover:not(:disabled) { background: var(--uma-text-heading); }
 
-/* 主ボタンと同じ系統だが一段弱い扱い（並記される第2の実行ボタン） */
+/* 主ボタンと同じ系統だが一段弱い扱い（並記される第2の実行ボタン）。
+   枠と文字は黒、面だけ白のまま。 */
 .uma-btn--accent-outline {
 	background: var(--uma-surface);
-	border-color: var(--uma-accent-border);
-	color: var(--uma-accent-hover);
+	border-color: var(--uma-control-border);
+	color: var(--uma-control);
 }
-.uma-btn--accent-outline:hover:not(:disabled) { background: var(--uma-accent-soft); }
+.uma-btn--accent-outline:hover:not(:disabled) { background: var(--uma-control-soft); }
 
 .uma-btn--lg {
 	padding: var(--uma-sp-3-5) var(--uma-sp-4);
@@ -260,8 +264,8 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 }
 .uma-input:focus {
 	outline: none;
-	border-color: var(--uma-accent);
-	box-shadow: 0 0 0 3px var(--uma-accent-soft);
+	border-color: var(--uma-control);
+	box-shadow: 0 0 0 3px var(--uma-control-soft);
 }
 .uma-input:disabled {
 	background: var(--uma-surface-muted);
