@@ -2056,6 +2056,8 @@
 			try { localStorage.setItem(COUNT_MODE_STORAGE_KEY, countMode); } catch (e) {}
 			renderExamHighlight(activePersonIndexes());
 			if (copyListMode === 'green59') renderSkillCopyTextarea();
+			// 集計モードは結合画像のコメントの数え方に関わるので、「画像を更新」の可否も見直す
+			updateStitchRefreshUi();
 		}
 
 		function restoreCountMode() {
@@ -2230,6 +2232,8 @@
 			wrap.classList.toggle('hidden', !setBVisible);
 			document.getElementById('setb-toggle-label').textContent = setBVisible ? '− 親Bセットを閉じる' : '＋ 親Bセットも追加する';
 			document.getElementById('setb-toggle-btn').classList.toggle('bg-red-100', setBVisible);
+			// 結合するセットの範囲が変わるので、「画像を更新」の可否も見直す
+			updateStitchRefreshUi();
 		}
 
 		// 指定セット（0=親A, 1=親B）の3枠すべてのアップロード済み画像をクリアする
@@ -2278,6 +2282,8 @@
 			const stitchBtn = document.getElementById('process-stitch-btn');
 			if (stitchBtn) stitchBtn.disabled = !anyFiles;
 			updateImageCountBadge();
+			// 画像の追加削除・範囲の変更のあとに呼ばれるので、「画像を更新」の可否もここで見直す
+			updateStitchRefreshUi();
 		}
 
 		/* ============================================================
@@ -3233,6 +3239,105 @@
 		let lastStitchRun = null;
 
 		/* ------------------------------------------------------------
+		 * 結果画像の引き出しからの「画像を更新」（③）
+		 *
+		 * 結果画像を見ながら「結合画像の表示」を変え、**OCR を回さずに**合成だけやり直す。
+		 * チェックを変えただけでは作り直さず、「画像を更新」のボタンで明示的に行う。
+		 *
+		 * 使う値: 前回の OCR の run（lastOcrRun）のうち、集計に関わる設定と画像はそのまま、
+		 *         表示設定（show / attrIcons）だけを今の値に差し替える。
+		 * 押せる条件（'ready'）: 表示中の画像を作ったときの表示設定と今の表示設定が違う。
+		 * 押せない条件:
+		 *   'same'  … 表示設定が同じ（作り直しても同じ画像になる）
+		 *   'stale' … 前回の OCR 以降に、画像（枚数・並び）／範囲／シナリオ因子／集計モード／
+		 *              親Bセットの開閉が変わった。または結果画像より後に OCR だけ回した。
+		 *              表示設定だけ差し替えても OCR の結果と噛み合わないので、
+		 *              「OCR処理＋画像結合を開始する」からやり直してもらう（案内を出す）。
+		 *   'none'  … 結果画像がまだ無い
+		 * 判定は、引き出しを開いたとき・チェック操作時・画像の追加削除時・上の設定の変更時に
+		 * updateStitchRefreshUi() で行う（ボタンやパネルが無い場面では何もしない）。
+		 * ------------------------------------------------------------ */
+		const STITCH_REFRESH_LABEL = '画像を更新';
+		const STITCH_REFRESH_BUSY_LABEL = '更新中…';
+		let stitchRefreshBusy = false; // 「画像を更新」で作り直している最中（ボタンの文言用）
+
+		function sameFileLists(a, b) {
+			if (a.length !== b.length) return false;
+			return a.every((list, i) => list.length === b[i].length && list.every((f, j) => f === b[i][j]));
+		}
+		function sameFactorSets(a, b) {
+			if (a.size !== b.size) return false;
+			for (const n of a) if (!b.has(n)) return false;
+			return true;
+		}
+
+		function stitchRefreshState() {
+			if (!lastOcrRun || !lastStitchRun) return 'none';
+			// 結果画像より後に OCR だけ回した（personResults はもう別の run のもの）
+			if (lastStitchRun.id !== lastOcrRun.id) return 'stale';
+			const cur = captureRun();
+			if (!sameFileLists(cur.files, lastOcrRun.files) ||
+				cur.scope !== lastOcrRun.scope ||
+				!sameFactorSets(cur.factors, lastOcrRun.factors) ||
+				cur.countMode !== lastOcrRun.countMode ||
+				cur.setB !== lastOcrRun.setB) return 'stale';
+			const now = stitchShowEffective(cur);
+			const shown = stitchShowEffective(lastStitchRun);
+			const same = now.banner === shown.banner && now.legend === shown.legend &&
+				now.conditions === shown.conditions && cur.attrIcons === lastStitchRun.attrIcons;
+			return same ? 'same' : 'ready';
+		}
+
+		// 「画像を更新」のボタンと案内を今の状態に合わせる（ボタンが無い場面では何もしない）
+		function updateStitchRefreshUi() {
+			const btn = document.getElementById('stitch-refresh-btn');
+			if (!btn) return;
+			const state = stitchRefreshState();
+			btn.disabled = stitchInProgress || state !== 'ready';
+			btn.setAttribute('data-state', state);
+			const label = document.getElementById('stitch-refresh-label');
+			if (label) label.textContent = stitchRefreshBusy ? STITCH_REFRESH_BUSY_LABEL : STITCH_REFRESH_LABEL;
+			const note = document.getElementById('stitch-refresh-note');
+			if (note) note.hidden = state !== 'stale';
+		}
+
+		// 前回の OCR の結果のまま、表示設定だけを今の値に差し替えて結合画像を作り直す。
+		async function refreshStitchedImages() {
+			if (stitchInProgress) return; // OCR 中・更新中は受け付けない
+			if (stitchRefreshState() !== 'ready') { updateStitchRefreshUi(); return; }
+			stitchInProgress = true;
+			stitchRefreshBusy = true;
+			const stitchBtn = document.getElementById('process-stitch-btn');
+			if (stitchBtn) stitchBtn.disabled = true;
+			// 作り直す間は中身が一度空になって引き出しの高さが縮み、スクロール位置が失われる。
+			// 前の高さを最低の高さとして残し、新しい画像が読めてから外す。
+			const body = document.querySelector('#result-drawer .uma-drawer-body');
+			const scrollTop = body ? body.scrollTop : 0;
+			const slot = document.getElementById('stitch-drawer-slot');
+			if (slot) slot.style.minHeight = slot.offsetHeight + 'px';
+			updateStitchRefreshUi();
+			try {
+				const run = Object.assign({}, lastOcrRun, {
+					show: Object.assign({}, stitchShow),
+					attrIcons: attrIconsEnabled
+				});
+				// 見ている最中の作り直しなので未読の印は立てない（quiet）
+				await runImageStitching(run, { quiet: true });
+				const imgs = Array.from(document.querySelectorAll('#stitch-result-content img'));
+				await Promise.all(imgs.map(img => img.decode().catch(() => {})));
+				if (body) body.scrollTop = scrollTop;
+				showToast('結合画像を更新しました');
+			} finally {
+				if (slot) slot.style.minHeight = '';
+				if (body) body.scrollTop = scrollTop;
+				stitchInProgress = false;
+				stitchRefreshBusy = false;
+				updateProcessBtn(); // ファイルの有無に応じて正しい disabled 状態に戻す
+				updateStitchRefreshUi();
+			}
+		}
+
+		/* ------------------------------------------------------------
 		 * 「結合画像の表示」の設定パネル（チェック4つ＋結合画像の模式図）
 		 *
 		 * いまはステップ②（処理を始めるボタンの下）だけに置く。将来は結果画像の引き出し
@@ -3323,6 +3428,8 @@
 				setHidden('notebar', !(eff.legend || eff.conditions));
 				panel.querySelectorAll('[data-stitch-part="marks"]').forEach(el => el.classList.toggle('is-on', attrIconsEnabled));
 			});
+			// 表示設定が変わったので、「画像を更新」が押せるかも見直す
+			updateStitchRefreshUi();
 		}
 
 		// チェックに触れている間（hover / focus）、模式図の対応する帯を強調する
@@ -4161,6 +4268,7 @@
 			setSectionReady('stitch', anyOutput);
 			if (anyOutput) lastStitchRun = run;
 			if (anySuccess && !(opts && opts.quiet)) markFabUnseen('stitch');
+			updateStitchRefreshUi();
 			return anyOutput;
 		}
 
@@ -4525,6 +4633,8 @@
 			const el = document.getElementById(def.el);
 			const backdrop = document.getElementById('drawer-backdrop');
 			if (def.onOpen) def.onOpen();
+			// 開いた時点で「画像を更新」の可否を見直す（閉じている間に画像や設定が変わっていることがある）
+			updateStitchRefreshUi();
 
 			backdrop.hidden = false;
 			el.hidden = false;
@@ -4654,7 +4764,7 @@
 			});
 			// 結果画像のタブを表にしたときは、見本（通し番号）を出し直す。前回の保存で番号が
 			// 進んでいたり、開きっぱなしで日付をまたいでいたりしても、表示が今の値になる。
-			if (pick === 'stitch') updateStitchSaveNameUi();
+			if (pick === 'stitch') { updateStitchSaveNameUi(); updateStitchRefreshUi(); }
 			// 未読は「そのタブを実際に表示したとき」だけ外す（引き出しを開いただけでは外さない）
 			if (fabUnseen[pick]) { fabUnseen[pick] = false; }
 			updateFabBadges();

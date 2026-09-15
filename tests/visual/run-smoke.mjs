@@ -4228,6 +4228,141 @@ const browser = await chromium.launch();
 	await ctx.close();
 }
 
+/* ============================================================
+ * exam.html — 結果画像の引き出しからの「画像を更新」（③）: 状態の判定
+ *
+ * OCR は回さず、stitchOnePerson を差し替えて「OCR が済んだ状態」（lastOcrRun）を作る。
+ * 見るのは stitchRefreshState() の遷移:
+ *   same（表示設定が同じ）→ ready（違う）→ same（戻した）／
+ *   stale（画像の足し引き・範囲・シナリオ因子・集計モード・親Bセットの開閉・OCR だけ回した）→ 戻せば same
+ * と、refreshStitchedImages() が OCR を回さずに作り直し、未読の印を立てないこと。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+	await page.waitForTimeout(800);
+	if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
+	await page.waitForTimeout(300);
+
+	const flow = await page.evaluate(async () => {
+		const origStitch = stitchOnePerson;
+		const origProcess = processImages;
+		let stitchCalls = 0;
+		let processCalls = 0;
+		stitchOnePerson = async () => {
+			stitchCalls++;
+			const c = document.createElement('canvas');
+			c.width = 600; c.height = 400;
+			c._stitchWarnings = []; c._sourcePlacements = [];
+			return c;
+		};
+		processImages = async () => { processCalls++; return true; };
+		const out = { states: {} };
+		const imgH = async () => {
+			const img = document.querySelector('#stitch-result-content img');
+			if (!img) return 0;
+			try { await img.decode(); } catch (e) {}
+			return img.naturalHeight;
+		};
+		try {
+			setStitchShow('banner', true); setStitchShow('legend', true); setStitchShow('conditions', true);
+			setAttrIcons(false);
+			setTargetScopeMode('default'); clearScenarioFactors(); setCountMode('equivalence');
+			persons[0].files = [{ name: 'a.png' }, { name: 'b.png' }];
+			out.states.beforeAny = stitchRefreshState();
+			// 「OCR が済んで結合画像ができた」状態を作る
+			const run = captureRun();
+			lastOcrRun = run;
+			await runImageStitching(run);
+			out.firstH = await imgH();
+			out.states.afterStitch = stitchRefreshState();
+			// 表示設定を変える → ready、戻す → same
+			setStitchShow('banner', false);
+			out.states.bannerOff = stitchRefreshState();
+			setStitchShow('banner', true);
+			out.states.bannerBack = stitchRefreshState();
+			// 印を ON にして「画像を更新」→ OCR は回らず、合成だけやり直る。未読の印は立たない
+			setAttrIcons(true);
+			setStitchShow('banner', false);
+			out.states.readyForRefresh = stitchRefreshState();
+			fabUnseen.stitch = false; updateFabBadges();
+			const beforeCalls = stitchCalls;
+			await refreshStitchedImages();
+			out.refreshStitched = stitchCalls > beforeCalls;
+			out.refreshProcessCalls = processCalls;
+			out.refreshedH = await imgH();
+			out.states.afterRefresh = stitchRefreshState();
+			out.unseenAfterRefresh = fabUnseen.stitch;
+			out.shownAttrIcons = lastStitchRun.attrIcons;
+			out.shownBanner = lastStitchRun.show.banner;
+			out.storedBanner = localStorage.getItem('uma-exam-stitch-banner');
+			out.panelBanner = document.querySelector('#stitch-show-panel input[data-stitch-show="banner"]').checked;
+			// 画像の足し引き → stale、戻す → same
+			persons[0].files.push({ name: 'c.png' });
+			updateProcessBtn();
+			out.states.fileAdded = stitchRefreshState();
+			persons[0].files.pop();
+			updateProcessBtn();
+			out.states.fileBack = stitchRefreshState();
+			// 範囲 → stale → 戻す
+			setTargetScopeMode('curated');
+			out.states.scopeChanged = stitchRefreshState();
+			setTargetScopeMode('default');
+			out.states.scopeBack = stitchRefreshState();
+			// シナリオ因子 → stale → 戻す
+			toggleScenarioFactor(0, true);
+			out.states.factorOn = stitchRefreshState();
+			toggleScenarioFactor(0, false);
+			out.states.factorOff = stitchRefreshState();
+			// 集計モード → stale → 戻す
+			setCountMode('individual');
+			out.states.countMode = stitchRefreshState();
+			setCountMode('equivalence');
+			out.states.countModeBack = stitchRefreshState();
+			// 親Bセットの開閉 → stale → 戻す
+			toggleSetB();
+			out.states.setB = stitchRefreshState();
+			toggleSetB();
+			out.states.setBBack = stitchRefreshState();
+			// 結果画像より後に OCR だけ回した → stale（表示設定を変えても押せない）
+			lastOcrRun = captureRun();
+			setStitchShow('banner', true);
+			out.states.ocrOnlyAfter = stitchRefreshState();
+			// stale のときは refreshStitchedImages が何もしない
+			const callsBefore = stitchCalls;
+			await refreshStitchedImages();
+			out.staleRefreshIgnored = stitchCalls === callsBefore;
+		} finally {
+			stitchOnePerson = origStitch;
+			processImages = origProcess;
+			persons[0].files = [];
+			setAttrIcons(false);
+			setStitchShow('banner', true);
+			lastOcrRun = null; lastStitchRun = null;
+			document.getElementById('stitch-result-content').innerHTML = '';
+			setSectionReady('stitch', false);
+			fabUnseen.stitch = false; updateFabBadges();
+			if (typeof closeDrawer === 'function') closeDrawer();
+		}
+		return out;
+	});
+	const st = flow.states;
+	assert(st.beforeAny === 'none' && st.afterStitch === 'same', '画像を更新: 結果画像が無ければ none、できた直後は same', st);
+	assert(st.bannerOff === 'ready' && st.bannerBack === 'same', '画像を更新: 表示設定を変えると ready、戻すと same', st);
+	assert(flow.refreshStitched && flow.refreshProcessCalls === 0 && flow.refreshedH < flow.firstH && st.afterRefresh === 'same',
+		'画像を更新: OCR を回さず合成だけやり直し、更新後は same に戻る（バナー無しで低くなる）', flow);
+	assert(flow.unseenAfterRefresh === false, '画像を更新: 見ている最中の更新では未読の印を立てない', flow.unseenAfterRefresh);
+	assert(flow.shownAttrIcons === true && flow.shownBanner === false && flow.storedBanner === '0' && flow.panelBanner === false,
+		'画像を更新: 更新した画像の表示設定は今の値で、②のパネルと保存も同じ', flow);
+	assert(st.fileAdded === 'stale' && st.fileBack === 'same', '画像を更新: 画像を足すと stale、戻すと same', st);
+	assert(st.scopeChanged === 'stale' && st.scopeBack === 'same', '画像を更新: 範囲を変えると stale、戻すと same', st);
+	assert(st.factorOn === 'stale' && st.factorOff === 'same', '画像を更新: シナリオ因子を変えると stale、戻すと same', st);
+	assert(st.countMode === 'stale' && st.countModeBack === 'same', '画像を更新: 集計モードを変えると stale、戻すと same', st);
+	assert(st.setB === 'stale' && st.setBBack === 'same', '画像を更新: 親Bセットの開閉で stale、戻すと same', st);
+	assert(st.ocrOnlyAfter === 'stale' && flow.staleRefreshIgnored, '画像を更新: 結果画像より後に OCR だけ回したら stale で、更新は何もしない', flow);
+	assert(errors.length === 0, '画像を更新: コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
 await browser.close();
 await close();
 console.log('\n' + (fails === 0 ? '=== スモークテスト: 全項目OK ===' : '=== スモークテスト: ' + fails + '件 NG ==='));
