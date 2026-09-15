@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-15h';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-15i';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -1038,6 +1038,25 @@ function resolveHandoffSkills(payload) {
 	return { resolved: resolved, unresolved: unresolved };
 }
 
+/**
+ * 解決した行の内訳を「スキル◯件・シナリオ因子N件」の形にする。
+ * シナリオ因子はスキルではないので、ひとまとめに「スキル◯件」と数えない
+ * （OCRツール側の表記と揃える。2026-09-15）。カタログ由来が0件なら
+ * 従来どおり「スキル◯件」だけを返す。カテゴリが増えても呼び名ごとにまとめる。
+ */
+function resolvedCountText(resolved) {
+	const byKind = {};
+	let plain = 0;
+	resolved.forEach(r => {
+		const kind = Core.skillCatalogKind(r.id);
+		if (!kind) { plain++; return; }
+		byKind[kind] = (byKind[kind] || 0) + 1;
+	});
+	const parts = ['スキル' + plain + '件'];
+	Object.keys(byKind).forEach(kind => parts.push(catalogLabel(kind) + byKind[kind] + '件'));
+	return parts.join('・');
+}
+
 function openOcrImportDialog() {
 	const entry = pendingOcrHandoff();
 	if (!entry) { showToast('読み込めるデータがありません'); return; }
@@ -1086,7 +1105,7 @@ function openOcrImportDialog() {
 			'</div>' +
 			'<div class="p-4" style="overflow:auto;">' +
 				'<p class="text-xs text-slate-500 mb-3">' + escapeHtml(payload.persons.map(x => x.label).join('・')) +
-					' の' + payload.persons.length + '人分・スキル' + skills.resolved.length + '件を取り込みます。' +
+					' の' + payload.persons.length + '人分・' + resolvedCountText(skills.resolved) + 'を取り込みます。' +
 					'保存は1人＝1候補まるごとです（選んだ候補の★は、対象スキルぶん置き換わります）。</p>' +
 				'<label class="block text-xs font-semibold text-slate-700 mb-1.5">取り込み先の比較シート</label>' +
 				'<select class="ocr-select uma-input" style="width:100%;" data-ocr-el="record-select"></select>' +

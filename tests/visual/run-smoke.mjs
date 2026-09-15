@@ -1362,13 +1362,21 @@ const browser = await chromium.launch();
 		'exam: シナリオ因子を選ぶと「シナリオ因子：2種」のバッジが出る');
 	// シナリオ因子はスキルではないので、「スキル」と付く数には入れない。
 	// 並び（照合・一覧・表）には従来どおり入る＝skillList は 121+2 のまま。
-	const splitCounts = await page.evaluate(() => ({
-		skillOnly: skillOnlyList.length, factorOnly: factorOnlyList.length, all: skillList.length,
-		badge: document.getElementById('step1-skill-badge').textContent,
-		registry: document.getElementById('registry-skill-count').textContent,
-		copylist: document.getElementById('copylist-all133-count').textContent,
-		rows: document.querySelectorAll('#skill-registry-list > div').length
-	}));
+	const splitCounts = await page.evaluate(() => {
+		selectCopyList('all133');
+		return {
+			skillOnly: skillOnlyList.length, factorOnly: factorOnlyList.length, all: skillList.length,
+			badge: document.getElementById('step1-skill-badge').textContent,
+			registry: document.getElementById('registry-skill-count').textContent,
+			copylist: document.getElementById('copylist-all133-count').textContent,
+			rows: document.querySelectorAll('#skill-registry-list > div').length,
+			// 表記（＋シナリオ因子N種）
+			registryHead: document.getElementById('registry-skill-count').parentElement.textContent,
+			copyBtn: document.getElementById('copylist-all133').textContent,
+			copyHint: document.getElementById('skill-copy-hint').textContent,
+			copyLines: document.getElementById('skill-copy-textarea').value.split('\n').length
+		};
+	});
 	assert(splitCounts.skillOnly === 121 && splitCounts.factorOnly === 2 && splitCounts.all === 123,
 		'exam: シナリオ因子を選ぶと、数える配列はスキル121・因子2に分かれる（並びの skillList は123のまま）', splitCounts);
 	assert(splitCounts.badge === '121種（調整あり）' && splitCounts.registry === '121' && splitCounts.copylist === '121',
@@ -1376,6 +1384,14 @@ const browser = await chromium.launch();
 	// 一覧は「外した12種」も取り消し線で残すので 133＋因子2＝135行。数だけがスキルの121になる。
 	assert(splitCounts.rows === 135,
 		'exam: 一覧の行そのものにはシナリオ因子も並ぶ（133＋因子2＝135行）', splitCounts);
+	// 表記: 因子も並ぶ／書き出される場所には「＋シナリオ因子N種」を添える
+	assert(splitCounts.registryHead === '対象スキル121種＋シナリオ因子2種の一覧を確認する',
+		'exam: 一覧の見出しは「対象スキル121種＋シナリオ因子2種の一覧を確認する」', splitCounts.registryHead);
+	assert(splitCounts.copyBtn === '全121種＋シナリオ因子2種',
+		'exam: コピーの全種ボタンも「全121種＋シナリオ因子2種」', splitCounts.copyBtn);
+	assert(splitCounts.copyHint === '対象スキル全121種＋シナリオ因子2種（登録順・範囲とカスタム設定を反映） ・ 123行'
+		&& splitCounts.copyLines === 123,
+		'exam: スキル名のコピーの見出しは種数を分けて書き、行数は実際の123行のまま', splitCounts);
 	await page.evaluate(() => { clearScenarioFactors(); setTargetScopeMode('default'); });
 	assert(await page.textContent('#step1-skill-badge') === '133種', 'exam: 調整を戻すとバッジも「133種」に戻る');
 	assert(await page.evaluate(() => ['badge-scope-added', 'badge-scope-removed', 'badge-scenario-factors']
@@ -1619,6 +1635,8 @@ const browser = await chromium.launch();
 		statTotal: document.getElementById('stat-total').textContent,
 		statFound1: document.getElementById('stat-found-1').textContent,
 		statFound4: document.getElementById('stat-found-4').textContent,
+		statFactor: document.getElementById('stat-total-factor').textContent,
+		statFactorHidden: document.getElementById('stat-total-factor').hidden,
 		detected0: countDetected(0),
 		detectedWithFactors: skillList.filter((s) => personResults[0].detectedSkills.has(s)).length
 	}));
@@ -1627,9 +1645,13 @@ const browser = await chromium.launch();
 		'exam: ①のバッジ・一覧の見出し・「対象スキル数」カードは、因子を除いた138', factorSplit);
 	assert(factorSplit.detected0 === 138 && factorSplit.detectedWithFactors === 139 && factorSplit.statFound1 === '138',
 		'exam: 検出数はスキルだけを数える（因子込みなら139になるところを138）', factorSplit);
+	assert(!factorSplit.statFactorHidden && factorSplit.statFactor === '＋シナリオ因子1種',
+		'exam: 「対象スキル数」カードの下に「＋シナリオ因子1種」が出る', factorSplit);
 	n = await noteState();
 	assert(n.title.includes('取り込めます') && n.detail.includes('（対象：技能試験（調整あり））') && n.dot,
 		'exam: 案内も「取り込めます」に戻り、対象名に（調整あり）が付く', n);
+	assert(n.detail.startsWith('親A・親B の2人分・スキル138件・シナリオ因子1件を渡しました'),
+		'exam: 取り込み案内は「スキル138件・シナリオ因子1件」と分けて書く', n.detail);
 	assert(await page.evaluate(() => fabUnseen.deck), 'exam: 判定し直すと Deck のバッジがまた点く');
 	await deckFrame.locator('#ocr-handoff-banner').waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
 	const factorResolve = await frame.evaluate(() => {
@@ -1648,6 +1670,10 @@ const browser = await chromium.launch();
 		return el ? el.textContent : null;
 	});
 	assert(warn === null, 'exam: シナリオ因子を混ぜても「見つからなかった」警告は出ない', warn);
+	const factorDlg = await frame.evaluate(() =>
+		document.querySelector('.usd-modal-panel .text-xs.text-slate-500').textContent);
+	assert(factorDlg.includes('スキル138件・シナリオ因子1件を取り込みます'),
+		'deck: 取り込みダイアログも「スキル138件・シナリオ因子1件」と分けて書く', factorDlg);
 	// 取り込んだシートで、カタログ由来の行に◆が付き、名前が「（不明なスキル）」にならないこと。
 	// 行の格子はシートを開いている間だけ描かれるので、取り込んだシートを開いてから見る。
 	await deckFrame.locator('[data-ocr-act="apply"]').click();

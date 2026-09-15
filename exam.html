@@ -664,7 +664,7 @@
 							<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform shrink-0"></i>
 						</summary>
 						<div class="pt-2">
-							<p class="text-[11px] text-slate-500 leading-relaxed mb-2">上のどれを選んでいても足せます。読み間違いを拾わないよう、名前が丸ごと読み取れたものだけを検出します（一覧・結果では <span class="text-sky-500 font-bold">◆</span> が付きます）。</p>
+							<p class="text-[11px] text-slate-500 leading-relaxed mb-2">上のどれを選んでいても足せます。読み間違いを拾わないよう、名前が丸ごと読み取れたものだけを検出します（一覧・結果では <span class="text-sky-500 font-bold">◆</span> が付きます）。シナリオ因子はスキルではないので、<span class="font-semibold">対象スキル数・検出数には含めず</span>、別に数えます。</p>
 							<div class="flex justify-end mb-1.5">
 								<button type="button" id="scenario-factors-clear" onclick="clearScenarioFactors()" class="text-[11px] font-semibold text-slate-600 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-2.5 py-1 rounded-lg transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">すべて解除</button>
 							</div>
@@ -681,7 +681,9 @@
 				<summary class="flex items-center justify-between p-3.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
 					<span class="flex items-center gap-2">
 						<i data-lucide="list" class="w-4 h-4 text-slate-500"></i>
-						<span>対象スキル<span id="registry-skill-count">133</span>種の一覧を確認する</span>
+						<!-- 「＋シナリオ因子N種」は因子を1種以上選んでいるときだけ出す（updateSkillCountDisplays が書く）。
+						     一覧には因子の行も並ぶが、種数は「スキル」と「シナリオ因子」で分けて示す。 -->
+						<span>対象スキル<span id="registry-skill-count">133</span>種<span id="registry-factor-count"></span>の一覧を確認する</span>
 					</span>
 					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
 				</summary>
@@ -710,7 +712,8 @@
 					<p class="text-[11px] text-slate-500 mb-3">ご自身のスプレッドシートにスキル名の列を作る際にお使いください。1行に1スキル名で出力します。</p>
 
 					<div class="flex flex-wrap items-center gap-2 mb-2">
-						<button type="button" onclick="selectCopyList('all133')" id="copylist-all133" class="copylist-btn">全<span id="copylist-all133-count">133</span>種</button>
+						<!-- 全種の書き出しにはシナリオ因子の行も入るので、因子を選んでいれば「＋シナリオ因子N種」を添える -->
+						<button type="button" onclick="selectCopyList('all133')" id="copylist-all133" class="copylist-btn">全<span id="copylist-all133-count">133</span>種<span id="copylist-all133-factor"></span></button>
 						<button type="button" onclick="selectCopyList('sp70')" id="copylist-sp70" class="copylist-btn">sp70緑<span id="copylist-sp70-count">17</span>種</button>
 						<button type="button" onclick="selectCopyList('green59')" id="copylist-green59" class="copylist-btn">緑59種</button>
 						<!-- 緑59種を選んだ時だけ表示。「技能試験ハイライト」と同じcountModeを共有し、既定/個別のどちらで書き出すか切り替える -->
@@ -1024,8 +1027,10 @@
 						<button type="button" onclick="setFilter('not-found')" id="filter-not-found" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium">全員未検出</button>
 					</div>
 				</div>
-				<!-- 現在の絞り込み条件に該当するスキル数。「全員未検出」件数から因子セット全体の
-				     充足度（あとどれだけ足りていないか）を把握できるようにするための表示。 -->
+				<!-- 現在の絞り込み条件に該当する**表の行数**。「全員未検出」件数から因子セット全体の
+				     充足度（あとどれだけ足りていないか）を把握できるようにするための表示。
+				     表にはシナリオ因子の行も並ぶので、**この件数だけは因子込み**（数えているのは
+				     スキルの数ではなく行の数なので、「件」のまま分けない）。 -->
 				<p id="filter-result-count" class="text-[11px] text-slate-400 mb-1"></p>
 				<p class="text-[11px] text-slate-400 mb-3">※ スマホ等の狭い画面では、スキル名列を固定したまま横スクロールで確認できます。</p>
 	
@@ -1946,8 +1951,16 @@
 				const el = document.getElementById(id);
 				if (el) el.textContent = String(total);
 			});
+			// 一覧と全種の書き出しには**シナリオ因子の行も入る**ので、数は分けて添える
+			// （数だけ「スキル」に寄せて、行が減ったように見えるのを防ぐ）。
+			const factorNote = factorOnlyList.length ? '＋シナリオ因子' + factorOnlyList.length + '種' : '';
+			['registry-factor-count', 'copylist-all133-factor'].forEach(id => {
+				const el = document.getElementById(id);
+				if (el) el.textContent = factorNote;
+			});
 			// ①のタブのバッジ。軸1・軸2・除外・追加のどれかがあるときは、
-			// 既定の133種から離れていることが分かるようにする
+			// 既定の133種から離れていることが分かるようにする。
+			// 因子の数はここには足さない（「シナリオ因子：N種」のバッジが別に出ている）。
 			const badge = document.getElementById('step1-skill-badge');
 			if (badge) badge.textContent = total + '種' + (isTargetAdjusted() ? '（調整あり）' : '');
 		}
@@ -2195,8 +2208,11 @@
 					? '緑59種・実質' + effectiveGreen59EquivalenceMax() + '種（目覚め系は対応スキルにまとめています）'
 					: '緑59種（除外反映後' + list.length + '種・目覚め系も独立して含みます）';
 			} else {
+				// 書き出す行はシナリオ因子も含む（従来どおり）。種数だけスキルと因子に分けて書く。
 				list = skillList;
-				hint = '対象スキル全' + skillList.length + '種（登録順・範囲とカスタム設定を反映）';
+				hint = '対象スキル全' + skillOnlyList.length + '種'
+					+ (factorOnlyList.length ? '＋シナリオ因子' + factorOnlyList.length + '種' : '')
+					+ '（登録順・範囲とカスタム設定を反映）';
 			}
 			document.getElementById('skill-copy-textarea').value = list.join('\n');
 			document.getElementById('skill-copy-hint').textContent = hint + ' ・ ' + list.length + '行';
@@ -2812,10 +2828,13 @@
 			const cols = used.length + 1;
 			grid.className = 'grid gap-3 mb-6 ' + (cols <= 2 ? 'grid-cols-2' : cols === 3 ? 'grid-cols-3' : cols === 4 ? 'grid-cols-4' : 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-' + cols);
 
+			// 「対象スキル数」はスキルだけの数。シナリオ因子を選んでいれば、その数を数字の下に小さく添える
+			// （因子も照合の対象だが、スキルではないので同じ数字には足さない）。
 			let html = `
 				<div class="rounded-xl border border-slate-200 bg-slate-50/50 p-3 md:p-4 text-center">
 					<p class="text-[11px] font-medium text-slate-500 mb-1">対象スキル数</p>
 					<p class="text-lg md:text-2xl font-extrabold text-slate-900" id="stat-total">0</p>
+					<p class="text-[10px] font-medium text-slate-500 mt-0.5" id="stat-total-factor" hidden></p>
 				</div>`;
 			used.forEach(i => {
 				const [color, label] = PERSON_STAT_META[i];
@@ -3079,6 +3098,11 @@
 			});
 
 			document.getElementById('stat-total').textContent = skillOnlyList.length;
+			const statFactor = document.getElementById('stat-total-factor');
+			if (statFactor) {
+				statFactor.hidden = (factorOnlyList.length === 0);
+				statFactor.textContent = factorOnlyList.length ? '＋シナリオ因子' + factorOnlyList.length + '種' : '';
+			}
 			used.forEach(i => {
 				document.getElementById('stat-found-' + (i + 1)).textContent = foundCounts[i];
 			});
@@ -5178,7 +5202,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-15h';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-15i';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;
@@ -5259,7 +5283,13 @@
 			title.textContent = done ? 'この結果はUmaSkill Deckに取り込み済みです' : 'この結果をUmaSkill Deckに取り込めます';
 			title.className = 'text-xs font-bold ' + (done ? 'text-green-900' : 'deck-note-title');
 			const detail = document.getElementById('deck-handoff-detail');
-			detail.textContent = who + ' の' + payload.persons.length + '人分・スキル' + payload.skillNames.length + '件を渡しました'
+			// 渡す中身は従来どおり（スキル＋シナリオ因子）。**数だけ**分けて書く。
+			// 数えるのは payload の中身（古い版が書いた payload でも同じ結果になる）。
+			const names = payload.skillNames || [];
+			const handoffFactors = names.filter(n => isScenarioFactor(n)).length;
+			const handoffSkills = names.length - handoffFactors;
+			detail.textContent = who + ' の' + payload.persons.length + '人分・スキル' + handoffSkills + '件'
+				+ (handoffFactors ? '・シナリオ因子' + handoffFactors + '件' : '') + 'を渡しました'
 				+ (payload.scope && payload.scope.name ? '（対象：' + payload.scope.name + '）' : '') + '。'
 				+ (done ? '' : 'UmaSkill Deckを開き、「読み込む」から保存先の比較シートと候補を選んでください。');
 			detail.className = 'text-[11px] mt-0.5 leading-relaxed ' + (done ? 'text-green-800/80' : 'deck-note-text');
