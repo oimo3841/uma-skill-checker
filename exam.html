@@ -102,6 +102,22 @@
 		   Deck の色になる）で塗る。共通部品 .uma-btn は読んでいないので、このページのボタンの書き方で。 */
 		/* 「旧UIへ／新UIへ」の、新UI中の点灯（このページの藍） */
 		#deck-mode-btn.is-on { border-color: var(--uma-accent-border); background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
+		/* 片道化（2026-09-15）: 新UIの間はこのボタンを出さない。Tailwind の inline-flex が display を
+		   当てているので、hidden 属性を自前で押す（F-13。css/shell.css の .uma-fab-item[hidden] と同じ理由） */
+		#deck-mode-btn[hidden] { display: none !important; }
+		/* 旧UIの画面先頭の注記（更新終了。2026-09-15 片道化）。共有CSSは触らず、このページに閉じる。
+		   色は css/tokens.css の警告の色（不透明。opacity は使わない。B節ルール9・F-7）。
+		   #old-step1-card の中に直接置いてあるので、カードごと新UIでは隠れる（placeSections の移動対象には入れない）。 */
+		.old-ui-end-note {
+			margin-bottom: var(--uma-sp-5);
+			padding: var(--uma-sp-4) var(--uma-sp-5);
+			border: 1px solid var(--uma-warn-border);
+			border-radius: var(--uma-r-xl);
+			background: var(--uma-warn-bg);
+			color: var(--uma-warn-text);
+		}
+		.old-ui-end-note-title { margin: 0 0 var(--uma-sp-1); font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; }
+		.old-ui-end-note-text { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-md); text-wrap: pretty; }
 		/* 告知の文面: 語の途中で折れないよう、文節を .nb（改行しない）で括る。文言は変えない */
 		.nb { white-space: nowrap; }
 		.notice-text { text-wrap: pretty; }
@@ -262,7 +278,12 @@
 
 					<!-- 旧UI（結果をカードで縦に並べる画面）と新UI（引き出し）の切り替え。既定は新UI。
 					     ラベルは行き先そのものを書く（F-29①）。アイコンは状態で変えない。 -->
-					<button id="deck-mode-btn" type="button" onclick="toggleUiMode()" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer"
+					<!-- 【片道化・2026-09-15】旧UIは更新を終了した。新UIにいる間はこのボタンを出さず
+					     （新しく旧UIへ入る経路を塞ぐ）、旧UIにいる間だけ「新UIへ」として出す（出口は必ず残す）。
+					     出し入れは enterNewUi()／exitNewUi() が hidden 属性で行う。
+					     既定が新UIなので、初期表示で「旧UIへ」が一瞬見えないよう最初から hidden にしておく。
+					     Tailwind の inline-flex が display を当てているので、[hidden] は上の <style> で自前に押す（F-13）。 -->
+					<button id="deck-mode-btn" type="button" onclick="toggleUiMode()" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer" hidden
 						title="以前の画面に戻します（結果をカードで縦に並べる形）">
 						<i data-lucide="arrow-left-right" class="w-4 h-4 text-indigo-500"></i>
 						<span id="deck-mode-btn-label">旧UIへ</span>
@@ -712,6 +733,13 @@
 		     まとめてコピー）は新UIと同じ要素を placeSections() で移して使い回す。
 		     旧UIを畳むときはこの4つの箱と #old-help-card、placeSections() ごと消す。 -->
 		<div id="old-step1-card" class="glass-card rounded-2xl border border-slate-200/80 shadow-xs p-5 md:p-6 mb-6" hidden>
+			<!-- 【片道化・2026-09-15】旧UIの画面先頭に常時出す注記。閉じるボタンは付けない
+			     （閉じられると状況が伝わらないため）。placeSections() の移動対象（#step-panel-1 等）の中ではなく
+			     この箱に直接置いてあるので、新UIへ持っていかれず、カードごと隠れる（C-25 の保存名の欄と同じ手）。 -->
+			<div id="old-ui-end-note" class="old-ui-end-note" role="note">
+				<p class="old-ui-end-note-title">この画面は更新を終了しました</p>
+				<p class="old-ui-end-note-text">今後、新しい機能はこの画面には追加されません。<span class="nb">右上の「新UIへ」</span>から、最新の画面に切り替えられます。</p>
+			</div>
 			<div class="flex items-center gap-2 mb-4">
 				<span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">1</span>
 				<h2 class="text-sm font-bold text-slate-800">技能試験 対象スキル（登録済み・入力不要）</h2>
@@ -3986,6 +4014,8 @@
 			btn.classList.add('is-on');
 			btn.title = '以前の画面に戻します（結果をカードで縦に並べる形）';
 			document.getElementById('deck-mode-btn-label').textContent = '旧UIへ';
+			// 片道化（2026-09-15）: 新UIからは旧UIへ入れない。ボタンごと出さない（ラベルの更新は残す）
+			btn.hidden = true;
 			document.getElementById('ui-mode-badge').hidden = false;
 			saveUiModeChoice();
 			refreshDeckHandoffState();
@@ -4001,6 +4031,8 @@
 			btn.classList.remove('is-on');
 			btn.title = '新しい画面に切り替えます（結果は右下の＋ボタンから開く引き出しに出ます）';
 			document.getElementById('deck-mode-btn-label').textContent = '新UIへ';
+			// 片道化（2026-09-15）: 旧UIにいる間は「新UIへ」（出口）を必ず出す。更新終了の注記は #old-step1-card と一緒に出る
+			btn.hidden = false;
 			document.getElementById('ui-mode-badge').hidden = true;
 			saveUiModeChoice();
 			refreshDeckHandoffState();
