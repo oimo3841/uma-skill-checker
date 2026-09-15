@@ -5209,6 +5209,129 @@ const browser = await chromium.launch();
 
 
 /* ============================================================
+ * ハイライトの人物ごとのまとまり（2026-09-16・45セッション目）
+ *
+ * カード単位で並べていたものを、人物ごとのまとまり（見出し＋その人のカード）に
+ * 組み直した。スマホ幅で「親Aのシナリオ因子の隣に祖A1のsp70緑」のように
+ * 人物の区切りが行の途中に入るのを無くすのが目的。
+ * 区切りの幅は sm（640px）＝まとまりの中を3枚横並びに、lg（1024px）＝まとまりを2列に。
+ * ============================================================ */
+{
+	// ハイライトを引き出しごと開いて、人物ごとのまとまりを作る
+	const seedHighlight = (page, factorCount) => page.evaluate((n) => {
+		if (typeof closeUiNotice === 'function') closeUiNotice();
+		document.querySelectorAll('.uma-overlay-backdrop, .uma-overlay').forEach((el) => { el.hidden = true; });
+		clearScenarioFactors();
+		// 長い名前（グランドマスターズシナリオ）も混ぜる
+		[0, 4, 23, 1].slice(0, n).forEach((i) => toggleScenarioFactor(i, true));
+		const mk = (names, offset) => matchAllSkillsWithStars(
+			names.map((s, i) => ({ text: s, stars: ((i + offset) % 3) + 1, starsReliable: true, rowKey: 'r' + i })),
+			skillList, skillIndex, {});
+		personResults = PERSON_LABELS.map(() => null);
+		for (let p = 0; p < 3; p++) personResults[p] = mk(skillList.slice(0, 120 - p * 10), p);
+		renderResults();
+		openDrawer('result');
+	}, factorCount);
+	const readGroups = (page) => page.evaluate(() => {
+		const groups = [...document.querySelectorAll('#exam-highlight-grid [data-person-group]')];
+		const box = document.getElementById('exam-highlight');
+		return {
+			count: groups.length,
+			labels: groups.map((g) => g.querySelector('p').textContent),
+			// まとまりごとのカードの見出し（人物名は入らない）
+			cardHeads: groups.map((g) => [...g.querySelectorAll(':scope > div > div > p:first-child')].map((p) => p.textContent)),
+			cardCounts: groups.map((g) => g.querySelectorAll(':scope > div > div').length),
+			// 段組み: 同じ行かどうかは実際の矩形の上端で見る
+			tops: groups.map((g) => Math.round(g.getBoundingClientRect().top)),
+			// まとまりの中のカードの上端（sp70緑・緑・因子の順）
+			innerTops: groups.map((g) => [...g.querySelectorAll(':scope > div > div')].map((d) => Math.round(d.getBoundingClientRect().top))),
+			innerWidths: groups.map((g) => [...g.querySelectorAll(':scope > div > div')].map((d) => Math.round(d.getBoundingClientRect().width))),
+			gridWidth: Math.round(groups[0].querySelector(':scope > div').getBoundingClientRect().width),
+			overflow: box.scrollWidth > box.clientWidth,
+			docOverflow: document.documentElement.scrollWidth > window.innerWidth
+		};
+	});
+
+	// --- 375px（スマホ幅）・シナリオ因子あり ---
+	{
+		const { ctx, page, errors } = await openPage(browser, base, 'exam.html', { width: 375, height: 1400 });
+		await seedHighlight(page, 4);
+		await page.waitForTimeout(700);
+		const g = await readGroups(page);
+		assert(g.count === 3 && g.labels.join('・') === '親A・祖A1・祖A2',
+			'ハイライト: 人物ごとのまとまりが3つあり、見出しは親A・祖A1・祖A2', g.labels);
+		assert(g.cardHeads.every((h) => h.join('|') === 'sp70緑|緑（実質53種）|シナリオ因子'),
+			'ハイライト: カードの見出しに人物名は入らない（sp70緑／緑（実質53種）／シナリオ因子）', g.cardHeads[0]);
+		assert(g.cardCounts.every((n) => n === 3), 'ハイライト: まとまりの中は3枚', g.cardCounts);
+		assert(g.tops[0] < g.tops[1] && g.tops[1] < g.tops[2],
+			'ハイライト: 375px ではまとまりが縦に積まれる', g.tops);
+		assert(g.innerTops.every((t) => t[0] === t[1] && t[2] > t[1]),
+			'ハイライト: 375px では sp70緑と緑が同じ行、シナリオ因子はその下', g.innerTops);
+		assert(g.innerWidths.every((w) => Math.abs(w[2] - g.gridWidth) <= 1),
+			'ハイライト: 375px ではシナリオ因子のカードが全幅', { widths: g.innerWidths[0], grid: g.gridWidth });
+		assert(!g.overflow && !g.docOverflow, 'ハイライト: 375px で横スクロールが出ない', g);
+		// 長い因子名が折り返さない（1行に収まる）
+		const lineWrap = await page.evaluate(() => {
+			const lines = [...document.querySelectorAll('#exam-highlight-grid [data-person-group] p[title]')];
+			return lines.map((p) => Math.round(p.getBoundingClientRect().height));
+		});
+		assert(lineWrap.length > 0 && lineWrap.every((h) => h <= 20),
+			'ハイライト: 375px でシナリオ因子の行が折り返さない（1行の高さに収まる）', lineWrap);
+		assert(errors.length === 0, 'ハイライト: 375px でコンソールエラーが出ない', errors.slice(0, 3));
+		await ctx.close();
+	}
+
+	// --- 375px・シナリオ因子なし ---
+	{
+		const { ctx, page } = await openPage(browser, base, 'exam.html', { width: 375, height: 1400 });
+		await seedHighlight(page, 0);
+		await page.waitForTimeout(700);
+		const g = await readGroups(page);
+		assert(g.cardCounts.every((n) => n === 2) && g.cardHeads.every((h) => h.join('|') === 'sp70緑|緑（実質53種）'),
+			'ハイライト: シナリオ因子を選んでいなければ、まとまりの中は2枚', g.cardHeads[0]);
+		assert(g.innerTops.every((t) => t[0] === t[1]),
+			'ハイライト: 375px でも2枚は横並び1行に収まる', g.innerTops);
+		assert(!g.overflow && !g.docOverflow, 'ハイライト: 375px・因子なしでも横スクロールが出ない', g);
+		await ctx.close();
+	}
+
+	// --- 768px（中間）: まとまりの中は3枚横並び、まとまりは縦に積む ---
+	{
+		const { ctx, page } = await openPage(browser, base, 'exam.html', { width: 768, height: 1200 });
+		await seedHighlight(page, 4);
+		await page.waitForTimeout(700);
+		const g = await readGroups(page);
+		assert(g.innerTops.every((t) => t[0] === t[1] && t[1] === t[2]),
+			'ハイライト: 768px ではまとまりの中の3枚が横並び', g.innerTops);
+		assert(g.tops[0] < g.tops[1] && g.tops[1] < g.tops[2],
+			'ハイライト: 768px ではまとまりはまだ縦に積む', g.tops);
+		await ctx.close();
+	}
+
+	// --- 1280px（PC幅）: まとまりを横に2つずつ ---
+	{
+		const { ctx, page } = await openPage(browser, base, 'exam.html', { width: 1280, height: 1000 });
+		await seedHighlight(page, 4);
+		await page.waitForTimeout(700);
+		const g = await readGroups(page);
+		assert(g.innerTops.every((t) => t[0] === t[1] && t[1] === t[2]),
+			'ハイライト: 1280px でもまとまりの中の3枚は横並び', g.innerTops);
+		assert(g.tops[0] === g.tops[1] && g.tops[2] > g.tops[1],
+			'ハイライト: 1280px ではまとまりが横に2つずつ並ぶ', g.tops);
+		// 数え方を切り替えると緑の見出しが追従する（既存の挙動）
+		const swapped = await page.evaluate(() => {
+			setCountMode('individual');
+			const g0 = document.querySelector('#exam-highlight-grid [data-person-group]');
+			return [...g0.querySelectorAll(':scope > div > div > p:first-child')].map((p) => p.textContent);
+		});
+		assert(swapped.join('|') === 'sp70緑|緑（59種個別）|シナリオ因子',
+			'ハイライト: 数え方を切り替えると緑のカードの見出しも変わる', swapped);
+		await ctx.close();
+	}
+}
+
+
+/* ============================================================
  * 右下のボタン群の幅（2026-09-15・43セッション目）
  *
  * いちばん長いラベルのボタンに、ほかのボタンの幅が揃う（ピクセルでは固定しない）。

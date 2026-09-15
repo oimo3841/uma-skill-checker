@@ -2916,41 +2916,65 @@
 			const factorCount = activeScenarioFactors().length;
 
 			const grid = document.getElementById('exam-highlight-grid');
-			// セット単位（親A/親B）で縦に並べ、それぞれのセット内で最大6カード（=3人分）まで自動折り返す。
+			// セット単位（親A/親B）で縦に並べる。
 			grid.className = 'flex flex-col gap-3';
 
-			// usedをセット単位（0=親Aセット, 1=親Bセット）にグループ化し、
-			// セットごとに色付きの枠で囲んで境界を分かりやすくする。
-			// sp70緑=amber、緑59種=emeraldの配色はそのまま維持しつつ、
-			// 枠自体は結果テーブルと同じ青(親A)/赤(親B)を使い、UI全体で色のルールを揃える。
+			/* ------------------------------------------------------------
+			 * 並びの構造（2026-09-16・45セッション目に組み直し）
+			 *
+			 *   セットの箱（親Aセット／親Bセット。色付きの2px枠）
+			 *     └ 人物のまとまり（親A・祖A1・祖A2。白い面＋人物名の見出し）
+			 *         └ カード（sp70緑・緑・シナリオ因子）
+			 *
+			 * 以前はセットの箱の中にカードを**カード単位**で並べていた。PC幅では1行に
+			 * 6枚入って人物ごとに揃って見えたが、**スマホ幅では2列**になるため
+			 * 「親Aのシナリオ因子の隣に祖A1のsp70緑」のように人物の区切りが行の途中に
+			 * 入り、どこまでが誰のものか分からなかった（シナリオ因子が加わって1人3枚に
+			 * なったことで目立つようになった）。
+			 *
+			 * 段組みの区切り（Tailwind の sm / lg をそのまま使う）:
+			 *   〜639px … まとまりは縦に積む。まとまりの中は sp70緑・緑を横に2枚、
+			 *              シナリオ因子はその下に全幅（`col-span-2`）。
+			 *   640px〜 … まとまりの中は3枚を横並び。まとまりはまだ縦に積む
+			 *              （3枚を横に並べるとまとまり1つで幅を使い切るため）。
+			 *   1024px〜… まとまりを横に2つずつ並べる（従来の見た目に近い）。
+			 *
+			 * まとまりの区別は**白い面**で付ける。セットの箱が既に色付きの2px枠なので、
+			 * まとまりにも枠を足すと入れ子が二重に見える（枠は1段だけにする）。
+			 *
+			 * 人物名は**まとまりの見出し**に1回だけ出し、カードの見出しからは外した
+			 * （「親A sp70緑」→「sp70緑」）。同じ名前が3回並ぶのをやめ、
+			 * カードの見出しを短くして狭い幅でも折り返さないようにする狙いもある。
+			 * ------------------------------------------------------------ */
 			const bySet = [[], []];
 			used.forEach(i => bySet[Math.floor(i / 3)].push(i));
+
+			// まとまりの中の段組み。シナリオ因子が無ければ2枚なので、どの幅でも2列でよい。
+			const innerCols = factorCount > 0 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2';
+			// シナリオ因子のカードは、2列のときだけ全幅にする
+			const factorSpan = 'col-span-2 sm:col-span-1';
 
 			let html = '';
 			bySet.forEach((indices, setIdx) => {
 				if (indices.length === 0) return;
 				const set = PERSON_SETS[setIdx];
 				const colors = HUE_HEX[set.hue];
-				// 1人あたりのカードは sp70緑・緑（＋シナリオ因子を選んでいれば1枚）
-				const perPerson = factorCount > 0 ? 3 : 2;
-				const cardsCount = indices.length * perPerson;
-				const colsClass = 'grid-cols-2 sm:grid-cols-' + Math.min(cardsCount, 4) + ' lg:grid-cols-' + Math.min(cardsCount, 6);
 
-				let cardsHtml = '';
+				let groupsHtml = '';
 				indices.forEach(i => {
 					const label = PERSON_LABELS[i];
 					// sp70緑には「目覚め」系の対応スキルが含まれないため、モードに関わらず単純カウント。
 					const sp70Count = countCategory(i, sp70Ids, false);
 					const greenCount = countCategory(i, greenIds, equivalence);
-					cardsHtml += `
-						<div class="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-center">
-							<p class="text-[11px] font-medium text-amber-700 mb-1">${label} sp70緑</p>
-							<p class="text-base md:text-xl font-extrabold text-amber-600">${sp70Count}<span class="text-xs font-medium text-amber-400">/${sp70Ids.size}</span></p>
-						</div>
-						<div class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-center">
-							<p class="text-[11px] font-medium text-emerald-700 mb-1">${label} ${greenLabel}</p>
-							<p class="text-base md:text-xl font-extrabold text-emerald-600">${greenCount}<span class="text-xs font-medium text-emerald-400">/${green59Max}</span></p>
-						</div>`;
+					let cardsHtml = `
+							<div class="rounded-lg border border-amber-200 bg-amber-50/60 p-2 sm:p-2.5 text-center">
+								<p class="text-[11px] font-medium text-amber-700 mb-0.5">sp70緑</p>
+								<p class="text-base md:text-xl font-extrabold text-amber-600">${sp70Count}<span class="text-xs font-medium text-amber-400">/${sp70Ids.size}</span></p>
+							</div>
+							<div class="rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 sm:p-2.5 text-center">
+								<p class="text-[11px] font-medium text-emerald-700 mb-0.5">${greenLabel}</p>
+								<p class="text-base md:text-xl font-extrabold text-emerald-600">${greenCount}<span class="text-xs font-medium text-emerald-400">/${green59Max}</span></p>
+							</div>`;
 					const factors = scenarioFactorHighlight(i);
 					if (factors) {
 						// 「他」は行を増やさず、最後の行の右端に添える
@@ -2965,17 +2989,22 @@
 								+ `<span class="ml-auto"></span>${more}</p>`;
 						}).join('');
 						cardsHtml += `
-						<div class="rounded-xl border border-[var(--uma-catalog-border)] bg-[var(--uma-catalog-soft)]/60 p-3">
-							<p class="text-[11px] font-medium text-[var(--uma-catalog-text)] mb-1 text-center">${label} シナリオ因子</p>
-							${lines}
-						</div>`;
+							<div class="${factorSpan} rounded-lg border border-[var(--uma-catalog-border)] bg-[var(--uma-catalog-soft)]/60 p-2 sm:p-2.5">
+								<p class="text-[11px] font-medium text-[var(--uma-catalog-text)] mb-0.5 text-center">シナリオ因子</p>
+								${lines}
+							</div>`;
 					}
+					groupsHtml += `
+						<div class="rounded-xl bg-white/70 p-2 sm:p-2.5" data-person-group="${i}">
+							<p class="text-[11px] font-bold mb-1.5" style="color:${colors.text}">${label}</p>
+							<div class="grid gap-2 ${innerCols}">${cardsHtml}</div>
+						</div>`;
 				});
 
 				html += `
 					<div class="rounded-2xl p-3" style="border:2px solid ${colors.borderStrong};background-color:${colors.bg};">
 						<p class="text-[11px] font-bold mb-2" style="color:${colors.text}">${set.label}</p>
-						<div class="grid gap-3 ${colsClass}">${cardsHtml}</div>
+						<div class="grid gap-2.5 lg:grid-cols-2">${groupsHtml}</div>
 					</div>`;
 			});
 			grid.innerHTML = html;
