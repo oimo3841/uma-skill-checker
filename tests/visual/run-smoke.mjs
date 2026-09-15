@@ -5131,6 +5131,84 @@ const browser = await chromium.launch();
 
 
 /* ============================================================
+ * シナリオ因子の色＝赤紫（2026-09-15・44セッション目）
+ *
+ * 場所ごとに別の値（sky-50〜900・canvas の直書き）だったものを、4つの役割に
+ * まとめた。**どの箇所もトークンと同じ値で描かれている**ことを見る。
+ * 因子の選択一覧のチェックだけは「操作できる部品は黒」の例外ではなく原則どおり黒。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+	await page.evaluate(() => {
+		if (typeof closeUiNotice === 'function') closeUiNotice();
+		document.querySelectorAll('.uma-overlay-backdrop, .uma-overlay').forEach((el) => { el.hidden = true; });
+		// 4種選ぶ（3種以下だとハイライトの「他」が出ない）
+		[0, 1, 2, 3].forEach((i) => toggleScenarioFactor(i, true));
+		const mk = (names, offset) => matchAllSkillsWithStars(
+			names.map((n, i) => ({ text: n, stars: ((i + offset) % 3) + 1, starsReliable: true, rowKey: 'r' + i })),
+			skillList, skillIndex, {});
+		personResults = PERSON_LABELS.map(() => null);
+		personResults[0] = mk(skillList, 0);
+		renderResults();
+		document.querySelectorAll('#step-panel-1 details').forEach((d) => { d.open = true; });
+	});
+	await page.waitForTimeout(400);
+	const MARK = 'rgb(176, 42, 168)';   // --uma-mark-catalog  #b02aa8
+	const TEXT = 'rgb(118, 19, 111)';   // --uma-catalog-text  #76136f
+	const SOFT = 'rgb(251, 231, 248)';  // --uma-catalog-soft  #fbe7f8
+	const BORDER = 'rgb(240, 171, 232)';// --uma-catalog-border #f0abe8
+	const CONTROL = 'rgb(28, 25, 23)';  // --uma-control       #1c1917
+	const c = await page.evaluate(() => {
+		const cs = (el, prop) => (el ? getComputedStyle(el)[prop] : '(要素なし)');
+		const root = getComputedStyle(document.documentElement);
+		const listMark = document.querySelector('#skill-registry-list [title="シナリオ因子"]');
+		const tableMark = document.querySelector('#result-tbody [title="シナリオ因子"]');
+		const card = [...document.querySelectorAll('#exam-highlight-grid div')]
+			.find((d) => d.className.includes('--uma-catalog-border'));
+		const cardHead = card ? card.querySelector('p') : null;
+		const cardLine = card ? card.querySelectorAll('p')[1] : null;
+		const cardMore = card ? card.querySelector('p span.pl-1') : null;
+		return {
+			tokens: {
+				mark: root.getPropertyValue('--uma-mark-catalog').trim(),
+				text: root.getPropertyValue('--uma-catalog-text').trim(),
+				soft: root.getPropertyValue('--uma-catalog-soft').trim(),
+				border: root.getPropertyValue('--uma-catalog-border').trim()
+			},
+			badgeBg: cs(document.getElementById('badge-scenario-factors'), 'backgroundColor'),
+			badgeText: cs(document.getElementById('badge-scenario-factors'), 'color'),
+			listMark: cs(listMark, 'color'),
+			tableMark: cs(tableMark, 'color'),
+			check: cs(document.querySelector('#scenario-factor-list input'), 'accentColor'),
+			cardBorder: cs(card, 'borderTopColor'),
+			cardHead: cs(cardHead, 'color'),
+			cardLine: cs(cardLine, 'color'),
+			cardMore: cs(cardMore, 'color'),
+			wireBar: cs(document.querySelector('.stitch-wire-factor'), 'backgroundColor'),
+			// 結合画像が実行時に読むトークン（canvas に CSS は効かないので名前で引く）
+			stitchText: stitchTokenColor(STITCH_FACTOR_TEXT_TOKEN),
+			stitchMore: stitchTokenColor(STITCH_FACTOR_MORE_TOKEN)
+		};
+	});
+	assert(c.tokens.mark === '#b02aa8' && c.tokens.text === '#76136f'
+		&& c.tokens.soft === '#fbe7f8' && c.tokens.border === '#f0abe8',
+		'シナリオ因子の色: 4つの役割のトークンが赤紫の確定値', c.tokens);
+	assert(c.listMark === MARK && c.tableMark === MARK && c.cardMore === MARK && c.wireBar === MARK,
+		'シナリオ因子の色: 一覧と表の◆・ハイライトの「他」・模式図の帯が印の色', c);
+	assert(c.badgeText === TEXT && c.cardHead === TEXT && c.cardLine === TEXT,
+		'シナリオ因子の色: バッジの文字・カードの見出しと行が文字の色', c);
+	assert(c.badgeBg === SOFT && c.cardBorder === BORDER,
+		'シナリオ因子の色: バッジの地が淡い地、カードの枠が枠の色', c);
+	assert(c.stitchText === '#76136f' && c.stitchMore === '#b02aa8',
+		'シナリオ因子の色: 結合画像が読むトークンも文字と印の色', c);
+	assert(c.check === CONTROL,
+		'シナリオ因子の色: 因子の選択一覧のチェックだけは操作の色（黒）', c.check);
+	assert(errors.length === 0, 'シナリオ因子の色: コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+
+/* ============================================================
  * 右下のボタン群の幅（2026-09-15・43セッション目）
  *
  * いちばん長いラベルのボタンに、ほかのボタンの幅が揃う（ピクセルでは固定しない）。
