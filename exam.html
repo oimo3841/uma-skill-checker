@@ -1438,8 +1438,10 @@
 		 * 白スキル133種側の判定には触らない。common.js を変えずに済ませるため、
 		 * 照合の中ではなくここで落としている。
 		 */
-		function applyScenarioFactorExactOnly(res, lines) {
-			if (selectedScenarioFactors.size === 0) return res;
+		// run … 押した時点のスナップショット（captureRun）。渡されればそのシナリオ因子の選択を見る。
+		function applyScenarioFactorExactOnly(res, lines, run) {
+			const factors = run ? run.factors : selectedScenarioFactors;
+			if (factors.size === 0) return res;
 			const lineNorms = [];
 			(lines || []).forEach(l => {
 				const n = normalizeText(l.text);
@@ -1529,14 +1531,16 @@
 		 *
 		 * 軸1は排他なので、'added' と 'removed' が同時に現れることはない。
 		 * ------------------------------------------------------------ */
-		function skillMarkKind(name) {
+		// run … 押した時点のスナップショット（captureRun）。結合画像の側はこれを渡し、画面の側は渡さない。
+		function skillMarkKind(name, run) {
+			const scope = run ? run.scope : targetScopeMode;
 			if (isScenarioFactor(name)) return 'factor';
 			const id = examSkillId(name);
 			if (!id) return null;
 			if (SP70_GREEN_17_SET.has(id)) return 'sp70';
 			if (GREEN_59_SET.has(id)) return 'green';
-			if (targetScopeMode === 'expanded' && EXPANDED_EXTRA_ID_SET.has(id)) return 'added';
-			if (targetScopeMode === 'curated' && CURATED_EXCLUDED_ID_SET.has(id)) return 'removed';
+			if (scope === 'expanded' && EXPANDED_EXTRA_ID_SET.has(id)) return 'added';
+			if (scope === 'curated' && CURATED_EXCLUDED_ID_SET.has(id)) return 'removed';
 			// 足した5種は 'expanded' 以外では skillList に入らないので、ここへは来ない
 			if (EXPANDED_EXTRA_ID_SET.has(id)) return null;
 			return 'plain';
@@ -1591,13 +1595,16 @@
 		}
 
 		// 軸2で選ばれているシナリオ因子。並びは正本（24種）の順のまま。
-		function activeScenarioFactors() {
-			return SCENARIO_INHERITANCE_FACTORS.filter(n => selectedScenarioFactors.has(n));
+		// run（captureRun）を渡せば、押した時点の選択で答える（結合画像の側が使う）。
+		function activeScenarioFactors(run) {
+			const selected = run ? run.factors : selectedScenarioFactors;
+			return SCENARIO_INHERITANCE_FACTORS.filter(n => selected.has(n));
 		}
 
 		// 軸1を反映した基準リスト（ID）。sp70緑・緑59種の集計母数はこれで動的に縮む。
-		function effectiveBaseIds(ids) {
-			const inScope = scopeBaseIdSet();
+		// run（captureRun）を渡せば、押した時点の範囲で答える（結合画像の側が使う）。
+		function effectiveBaseIds(ids, run) {
+			const inScope = scopeBaseIdSet(run ? run.scope : targetScopeMode);
 			return ids.filter(id => inScope.has(id));
 		}
 		function effectiveGreen59EquivalenceMax() {
@@ -2430,8 +2437,11 @@
 
 		// opts.keepClosed … 判定後に照合結果の引き出しを自動で開かない（OCR＋結合のときは、
 		//                   結合が終わった時点で結果画像の方を開くため）。
+		// opts.run … 押した時点のスナップショット（captureRun）。省略時はここで控える。
+		//            画像・対象スキル・シナリオ因子はこの run から読み、処理中の画面の変更は効かせない。
 		async function processImages(opts) {
-			const anyFiles = persons.some(p => p.files.length > 0);
+			const run = (opts && opts.run) || captureRun();
+			const anyFiles = run.files.some(files => files.length > 0);
 			// 呼び出し元（processImagesAndStitch）が「判定できたか」を見て開くタブを決めるので、真偽を返す
 			if (!anyFiles) { showToast('少なくとも1人分の画像をアップロードしてください'); return false; }
 
@@ -2440,6 +2450,8 @@
 			personResults = PERSON_LABELS.map(() => null);
 			personLines = PERSON_LABELS.map(() => null);
 			personGeometry = PERSON_LABELS.map(() => null);
+			// これ以降の personResults 等はこの run のもの
+			lastOcrRun = run;
 
 			const progressWrap = document.getElementById('progress-wrap');
 			const errorWrap = document.getElementById('error-wrap');
@@ -2471,7 +2483,7 @@
 				});
 
 				for (let p = 0; p < persons.length; p++) {
-					const files = persons[p].files;
+					const files = run.files[p];
 					if (files.length === 0) continue;
 					setProgress(p / persons.length, PERSON_LABELS[p] + 'を処理中…');
 					const result = await processPersonImages(worker, files, PERSON_LABELS[p], usePre, multi, wantPreview);
@@ -2479,7 +2491,7 @@
 					if (result.skipped.length > 0) skippedAll.push.apply(skippedAll, result.skipped);
 					if (result.warned.length > 0) warnedAll.push.apply(warnedAll, result.warned);
 					personResults[p] = applyScenarioFactorExactOnly(
-						matchAllSkillsWithStars(result.lines, skillList, skillIndex, {}), result.lines);
+						matchAllSkillsWithStars(result.lines, run.skillList, run.skillIndex, {}), result.lines, run);
 					// 結果画像の印を焼くのに使う（判定・集計には一切関わらない）
 					personLines[p] = result.lines;
 					personGeometry[p] = result.geometry;
@@ -2615,10 +2627,11 @@
 		}
 
 		// そのpersonが検出できた対象スキルの数（カスタム追加分も含むので ID には引き直さない）。
-		function countDetected(personIdx) {
+		// run（captureRun）を渡せば、その OCR に使った対象スキルで数える（結合画像の側が使う）。
+		function countDetected(personIdx, run) {
 			const res = personResults[personIdx];
 			if (!res) return 0;
-			return skillList.filter(s => res.detectedSkills.has(s)).length;
+			return (run ? run.skillList : skillList).filter(s => res.detectedSkills.has(s)).length;
 		}
 
 		// 指定のカテゴリ（マスターIDの集合）のうち、そのpersonが検出できた数を数える。
@@ -2648,8 +2661,8 @@
 		 *
 		 * 戻り値: null（1種も選んでいない）／{ items: [{name, text}], more: boolean }
 		 * ------------------------------------------------------------ */
-		function scenarioFactorHighlight(personIdx) {
-			const selected = activeScenarioFactors();
+		function scenarioFactorHighlight(personIdx, run) {
+			const selected = activeScenarioFactors(run);
 			if (selected.length === 0) return null;
 			// 未検出は −、検出したが★を読めなかったものは ★? （表の「?」と同じ意味）
 			const starText = (v) => (typeof v === 'number' ? '★' + v : (v === null ? '★?' : '−'));
@@ -3168,13 +3181,56 @@
 		}
 
 		// 合成が実際に使う値。凡例は印が OFF なら OFF に倒す。
-		function stitchShowEffective() {
+		// run（下の captureRun() の戻り値）を渡せばその時点の値で、渡さなければ今の画面の値で答える。
+		function stitchShowEffective(run) {
+			const show = run ? run.show : stitchShow;
+			const marks = run ? run.attrIcons : attrIconsEnabled;
 			return {
-				banner: stitchShow.banner,
-				legend: stitchShow.legend && attrIconsEnabled,
-				conditions: stitchShow.conditions
+				banner: !!show.banner,
+				legend: !!show.legend && !!marks,
+				conditions: !!show.conditions
 			};
 		}
+
+		/* ------------------------------------------------------------
+		 * 実行のスナップショット（run）
+		 *
+		 * 「OCR処理を開始する」「OCR処理＋画像結合を開始する」を**押した時点**の設定と画像を控え、
+		 * その回の OCR・合成はすべてここから読む。処理には数十秒かかるので、その間に画面で
+		 * チェックや範囲を変えても（変更と保存は通常どおり受け付ける）、その回の出力には
+		 * 影響させない。以前は合成のときにグローバルを直接読んでいたため、処理中に
+		 * 「結合画像の表示」を変えると変えたあとの設定で画像ができていた。
+		 *
+		 * 合成の関数（buildStitchedSetImage とその下請け）はグローバルを読まず、この run を受け取る。
+		 * 結果画像の引き出しからの「画像を更新」も、前回の OCR の run の表示設定だけを差し替えて
+		 * 同じ関数を呼ぶ（OCR はやり直さない）。
+		 *
+		 * 控えるもの:
+		 *   show / attrIcons … 結合画像の表示（集計バナー・凡例・集計条件／印）
+		 *   scope / factors / countMode … 集計に関わる設定（範囲・シナリオ因子（Set は複製）・集計モード）
+		 *   setB … 親Bセットを開いているか（結合するセットの範囲）
+		 *   files … 各人物の画像（File の参照の配列を複製。枚数と並び順を固定する）
+		 *   skillList / skillIndex … 照合に使う対象スキル（rebuildSkillList は配列を作り直すので参照で足りる）
+		 * ------------------------------------------------------------ */
+		let runSeq = 0;
+		function captureRun() {
+			return {
+				id: ++runSeq,
+				show: Object.assign({}, stitchShow),
+				attrIcons: attrIconsEnabled,
+				scope: targetScopeMode,
+				factors: new Set(selectedScenarioFactors),
+				countMode: countMode,
+				setB: setBVisible,
+				files: persons.map(p => p.files.slice()),
+				skillList: skillList,
+				skillIndex: skillIndex
+			};
+		}
+		// 最後に OCR を回したときの run。personResults / personLines / personGeometry はこれに対応する。
+		let lastOcrRun = null;
+		// 表示中の結合画像を作ったときの run（表示設定の差し替え後はそちら）。
+		let lastStitchRun = null;
 
 		/* ------------------------------------------------------------
 		 * 「結合画像の表示」の設定パネル（チェック4つ＋結合画像の模式図）
@@ -3461,9 +3517,9 @@
 		 *
 		 * 戻り値: { スキル名: [lines の添字, ...] }
 		 */
-		function curatedRemovedSources(lines) {
+		function curatedRemovedSources(lines, run) {
 			const out = {};
-			if (targetScopeMode !== 'curated') return out;
+			if ((run ? run.scope : targetScopeMode) !== 'curated') return out;
 			const targets = CURATED_EXCLUDED_IDS
 				.map(id => EXAM_NAME_BY_ID[id])
 				.filter(Boolean)
@@ -3489,10 +3545,11 @@
 		 *   suppressed … 画面の形が未対応で描かなかったか（抑止の1行を出す）
 		 *   kinds      … 実際に使った区分（凡例に並べるのは使ったものだけ）
 		 */
-		function drawAttrIconsOnPerson(canvas, personIdx) {
+		function drawAttrIconsOnPerson(canvas, personIdx, run) {
 			// suppressed … 印を付けなかった理由（null / 'size' / 'layout'）
 			const none = { drawn: false, suppressed: null, kinds: [] };
-			if (!attrIconsEnabled) return none;
+			// 印を付けるかは押した時点の値（run）。画面の今のチェックは見ない
+			if (!(run ? run.attrIcons : attrIconsEnabled)) return none;
 			const geo = personGeometry[personIdx];
 			const lines = personLines[personIdx];
 			const res = personResults[personIdx];
@@ -3523,10 +3580,10 @@
 				});
 			};
 			res.detectedSkills.forEach(name => {
-				const kind = skillMarkKind(name);
+				const kind = skillMarkKind(name, run);
 				if (kind) assign(res.skillSources[name], kind);
 			});
-			const removed = curatedRemovedSources(lines);
+			const removed = curatedRemovedSources(lines, run);
 			Object.keys(removed).forEach(name => assign(removed[name], 'removed'));
 
 			// 結合を経ていないCanvas（1枚だけ・幅不揃い・スクロール未検出で結合できなかった等）
@@ -3757,12 +3814,14 @@
 		 * シナリオ因子の「因子名：★の数」は人ごとの値なので、各人のバナーに焼く
 		 * （stitchDrawPersonBanner）。ここは全員に共通する「何を対象にしたか」だけを書く。
 		 * ------------------------------------------------------------ */
-		function buildTargetAdjustmentNotes() {
+		// run（captureRun）を渡せば、押した時点の範囲・シナリオ因子で書く（結合画像の側が使う）。
+		function buildTargetAdjustmentNotes(run) {
 			const notes = [];
-			const added = (targetScopeMode === 'expanded') ? EXPANDED_EXTRA_SKILL_NAMES.slice() : [];
-			const removed = (targetScopeMode === 'curated')
+			const scope = run ? run.scope : targetScopeMode;
+			const added = (scope === 'expanded') ? EXPANDED_EXTRA_SKILL_NAMES.slice() : [];
+			const removed = (scope === 'curated')
 				? CURATED_EXCLUDED_IDS.map(id => EXAM_NAME_BY_ID[id]).filter(Boolean) : [];
-			const factors = activeScenarioFactors();
+			const factors = activeScenarioFactors(run);
 			if (added.length) notes.push('追加スキル（' + added.length + '種）：' + added.join('・'));
 			if (removed.length) notes.push('除外スキル（' + removed.length + '種）：' + removed.join('・'));
 			if (factors.length) notes.push('シナリオ因子（' + factors.length + '種）：' + factors.join('・'));
@@ -3844,7 +3903,8 @@
 		// show … { legend, conditions }。どちらも省略時は true（stitchShowEffective() の値を渡す）。
 		//   legend が false なら印にまつわる行（見かた・無い行の説明・付けなかった理由）を全部省く。
 		//   conditions が false なら集計条件（追加／除外スキル・シナリオ因子）の行を省く。
-		function stitchDrawSharedNoteBar(totalWidth, referenceWidth, markInfo, show) {
+		// run … 押した時点のスナップショット（captureRun）。集計条件の行はこの範囲・シナリオ因子で書く。
+		function stitchDrawSharedNoteBar(totalWidth, referenceWidth, markInfo, show, run) {
 			const s = Object.assign({ legend: true, conditions: true }, show || {});
 			const c = document.createElement('canvas');
 			const ctx = c.getContext('2d');
@@ -3875,7 +3935,7 @@
 
 			// 何を対象にしたか（追加スキル → 除外スキル → シナリオ因子）。
 			const adjustNotes = [];
-			(s.conditions ? buildTargetAdjustmentNotes() : []).forEach(t => {
+			(s.conditions ? buildTargetAdjustmentNotes(run) : []).forEach(t => {
 				stitchWrapText(ctx, t, maxTextWidth).forEach(line => adjustNotes.push(line));
 			});
 
@@ -3950,41 +4010,44 @@
 		// それぞれを縦結合し、バナー・注意書きバーとともに横結合した最終Canvasを返す。
 		// アップロードが1人分のみの場合は横結合をスキップしてその1人分を返す（①-5）。
 		// セット内の誰もアップロードしていない場合はnullを返す。
-		async function buildStitchedSetImage(setIdx) {
+		// run … 押した時点のスナップショット（captureRun）。**必須**。画像・設定はすべてここから読み、
+		//       グローバル（persons / stitchShow / targetScopeMode など）は見ない。
+		async function buildStitchedSetImage(setIdx, run) {
+			if (!run) throw new Error('buildStitchedSetImage: run（押した時点のスナップショット）が要ります');
 			const baseIdx = setIdx * 3;
-			const activeIndexes = [0, 1, 2].map(r => baseIdx + r).filter(i => persons[i].files.length > 0);
+			const activeIndexes = [0, 1, 2].map(r => baseIdx + r).filter(i => run.files[i].length > 0);
 			if (activeIndexes.length === 0) return null;
 
-			const equivalence = (countMode === 'equivalence');
-			const sp70Ids = new Set(effectiveBaseIds(SP70_GREEN_17_IDS));
-			const greenIds = new Set(effectiveBaseIds(GREEN_59_IDS));
+			const equivalence = (run.countMode === 'equivalence');
+			const sp70Ids = new Set(effectiveBaseIds(SP70_GREEN_17_IDS, run));
+			const greenIds = new Set(effectiveBaseIds(GREEN_59_IDS, run));
 
 			const bannerCanvases = [];
 			const contentCanvases = [];
 			const personMeta = []; // コピー機能用に、personIdx・sp70・green・labelを保持
 
 			const allWarnings = [];
-			// 何を焼き込むか（集計バナー／凡例／集計条件）。印は drawAttrIconsOnPerson が自分で見る
-			const show = stitchShowEffective();
+			// 何を焼き込むか（集計バナー／凡例／集計条件）。印は drawAttrIconsOnPerson が run から見る
+			const show = stitchShowEffective(run);
 			// 印の凡例に出すもの（セット内の全員ぶんをまとめる）
 			const usedMarkKinds = new Set();
 			const markSuppressed = new Set();
 			for (const idx of activeIndexes) {
 				const label = PERSON_LABELS[idx];
-				const contentCanvas = await stitchOnePerson(persons[idx].files, label);
+				const contentCanvas = await stitchOnePerson(run.files[idx], label);
 				if (!contentCanvas) continue;
 				if (contentCanvas._stitchWarnings && contentCanvas._stitchWarnings.length) {
 					allWarnings.push(...contentCanvas._stitchWarnings);
 				}
 				// 区分の印は**結合が終わってから**焼く（結合の前に描くと継ぎ目がズレる）
-				const mark = drawAttrIconsOnPerson(contentCanvas, idx);
+				const mark = drawAttrIconsOnPerson(contentCanvas, idx, run);
 				mark.kinds.forEach(k => usedMarkKinds.add(k));
 				if (mark.suppressed) markSuppressed.add(mark.suppressed);
-				const detected = countDetected(idx);
+				const detected = countDetected(idx, run);
 				const sp70Count = countCategory(idx, sp70Ids, false);
 				const greenCount = countCategory(idx, greenIds, equivalence);
 				// 集計バナー OFF のときも列見出し（親A など）の帯は出す（cards: false）
-				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count, scenarioFactorHighlight(idx), { cards: show.banner });
+				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count, scenarioFactorHighlight(idx, run), { cards: show.banner });
 				bannerCanvases.push(banner);
 				contentCanvases.push(contentCanvas);
 				personMeta.push({ idx: idx, label: label, sp70Count: sp70Count, greenCount: greenCount });
@@ -4006,7 +4069,7 @@
 			const noteBar = stitchDrawSharedNoteBar(rowWidth, contentCanvases[0].width, {
 				kinds: MARK_KIND_ORDER.filter(k => usedMarkKinds.has(k)),
 				suppressed: MARK_SUPPRESSED_ORDER.filter(r => markSuppressed.has(r))
-			}, { legend: show.legend, conditions: show.conditions });
+			}, { legend: show.legend, conditions: show.conditions }, run);
 
 			const totalWidth = Math.max(bannerRow.width, rowWidth,
 				countNoteBar ? countNoteBar.width : 0,
@@ -4049,8 +4112,10 @@
 			const stitchBtn = document.getElementById('process-stitch-btn');
 			if (stitchBtn) stitchBtn.disabled = true;
 			try {
-				const judged = await processImages({ keepClosed: true });
-				const made = await runImageStitching();
+				// 押した時点の設定と画像で OCR も合成も行う（処理中に画面を触っても、この回には効かせない）
+				const run = captureRun();
+				const judged = await processImages({ keepClosed: true, run: run });
+				const made = await runImageStitching(run);
 				// まとめた引き出しを「照合結果」のタブで開く。結果画像には未読の印が残るので、
 				// タブ（または FAB の「結果画像」）から見に行ける。
 				if (judged) { selectResultTab('result'); openDrawer('result'); }
@@ -4061,20 +4126,23 @@
 			}
 		}
 
-		async function runImageStitching() {
+		// run  … 押した時点のスナップショット（captureRun）。省略時は今の画面の値で控える。
+		// opts.quiet … true なら未読の印を立てない（結果画像を見ている最中の「画像を更新」用）。
+		async function runImageStitching(run, opts) {
+			run = run || captureRun();
 			const container = document.getElementById('stitch-result-content');
 			container.innerHTML = '';
 			let anyOutput = false;  // 結果画像のタブに出すものがあるか（エラーの帯も含む）
 			let anySuccess = false; // 結合画像が1枚でもできたか
 
 			for (let setIdx = 0; setIdx < PERSON_SETS.length; setIdx++) {
-				if (setIdx === 1 && !setBVisible) continue; // 親Bセットが非表示なら結合もスキップ
+				if (setIdx === 1 && !run.setB) continue; // 親Bセットが非表示なら結合もスキップ
 				const baseIdx = setIdx * 3;
-				const hasFiles = [0, 1, 2].some(r => persons[baseIdx + r].files.length > 0);
+				const hasFiles = [0, 1, 2].some(r => run.files[baseIdx + r].length > 0);
 				if (!hasFiles) continue;
 
 				try {
-					const canvas = await buildStitchedSetImage(setIdx);
+					const canvas = await buildStitchedSetImage(setIdx, run);
 					if (canvas) {
 						anyOutput = true;
 						anySuccess = true;
@@ -4091,7 +4159,8 @@
 			// **未読の印は結合画像が1枚でもできたときだけ**。エラーしか無いのに「新着」を立てると、
 			// 印を頼りに開いた人が空振りし、印そのものの意味が壊れる。引き出しを開くのは呼び出し元。
 			setSectionReady('stitch', anyOutput);
-			if (anySuccess) markFabUnseen('stitch');
+			if (anyOutput) lastStitchRun = run;
+			if (anySuccess && !(opts && opts.quiet)) markFabUnseen('stitch');
 			return anyOutput;
 		}
 

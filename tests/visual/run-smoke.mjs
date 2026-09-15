@@ -4153,6 +4153,67 @@ const browser = await chromium.launch();
 		'結合画像の表示: 補足欄は凡例・集計条件をそれぞれ省ける', draw);
 	assert(draw.none && draw.condOnlyNoRows, '結合画像の表示: 補足欄に出す行が無ければ欄ごと置かない（null）', draw);
 
+	// 押した時点の設定の固定（run）。処理中に「結合画像の表示」を変えても、その回の出力は押した時点の設定になる。
+	// OCR は回さず、stitchOnePerson と processImages を差し替えて経路だけ通す。
+	const frozen = await page.evaluate(async () => {
+		const origStitch = stitchOnePerson;
+		const origProcess = processImages;
+		const fakeCanvas = () => {
+			const c = document.createElement('canvas');
+			c.width = 600; c.height = 400;
+			c._stitchWarnings = []; c._sourcePlacements = [];
+			return c;
+		};
+		stitchOnePerson = async () => fakeCanvas();
+		persons[0].files = [{ name: 'a.png' }, { name: 'b.png' }];
+		setStitchShow('banner', true);
+		setStitchShow('conditions', true);
+		setAttrIcons(false);
+		const out = {};
+		try {
+			// (1) run を控えてから設定を変えても、合成は控えた値を使う
+			const run = captureRun();
+			setStitchShow('banner', false);
+			const fromRun = await buildStitchedSetImage(0, run);
+			const fromNow = await buildStitchedSetImage(0, captureRun());
+			out.runH = fromRun.height; out.nowH = fromNow.height;
+			out.runSnapshotKept = run.show.banner === true && stitchShow.banner === false;
+			out.uiSaved = localStorage.getItem('uma-exam-stitch-banner') === '0';
+			// (2) 「OCR処理＋画像結合」の経路。処理中（processImages の最中）に切り替える
+			setStitchShow('banner', true);
+			processImages = async (o) => { await new Promise((r) => setTimeout(r, 60)); return false; };
+			const p = processImagesAndStitch();
+			await new Promise((r) => setTimeout(r, 10));
+			setStitchShow('banner', false);
+			await p;
+			const img = document.querySelector('#stitch-result-content img');
+			if (img) { try { await img.decode(); } catch (e) {} }
+			out.flowH = img ? img.naturalHeight : 0;
+			out.flowStitchRunBanner = lastStitchRun ? lastStitchRun.show.banner : null;
+			out.bannerNow = stitchShow.banner;
+			// (3) 画像（files）も押した時点で固定される。処理中に足しても、その回には入らない
+			setStitchShow('banner', true);
+			const run3 = captureRun();
+			persons[0].files.push({ name: 'c.png' });
+			out.runFiles = run3.files[0].length; out.nowFiles = persons[0].files.length;
+		} finally {
+			stitchOnePerson = origStitch;
+			processImages = origProcess;
+			persons[0].files = [];
+			setStitchShow('banner', true);
+			document.getElementById('stitch-result-content').innerHTML = '';
+			setSectionReady('stitch', false);
+			fabUnseen.stitch = false; updateFabBadges();
+			if (typeof closeDrawer === 'function') closeDrawer();
+		}
+		return out;
+	});
+	assert(frozen.runH > frozen.nowH && frozen.runSnapshotKept && frozen.uiSaved,
+		'設定の固定: 控えた run で合成するとバナーが残り、画面のチェックと保存は変えたとおりになる', frozen);
+	assert(frozen.flowH === frozen.runH && frozen.flowStitchRunBanner === true && frozen.bannerNow === false,
+		'設定の固定: 「OCR処理＋画像結合」の処理中に変えても、その回の出力は押した時点の設定', frozen);
+	assert(frozen.runFiles === 2 && frozen.nowFiles === 3, '設定の固定: 画像の枚数・並びも押した時点で固定される', frozen);
+
 	// 375px: 模式図がチェックの下に回り、横スクロールが出ない
 	await page.setViewportSize({ width: 375, height: 812 });
 	await page.waitForTimeout(500);
