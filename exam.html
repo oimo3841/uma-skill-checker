@@ -3553,29 +3553,72 @@
 			return out;
 		}
 
-		// 共有の補助テキスト欄（セット内の全員分の横幅を使う）。
-		// 上に「何を追加／除外したか」を左揃えで、いちばん下に従来からの脚注を右揃えで置く。
-		// 調整が無ければ従来どおり脚注の1行だけになる。
-		//
-		// markInfo … 印の凡例。{ kinds: [使った区分], suppressed: [印を付けなかった理由] }。
-		//   印が OFF のときはどちらも空なので、この欄は1行も増えない。
-		function stitchDrawSharedNoteBar(totalWidth, referenceWidth, markInfo) {
+		// 数え方の脚注。**スクショの上に残す**1行（下の補助テキスト欄へは移さない）。
+		// スキルの数え方の断りなので、画像を見る前に読めるほうがよい。
+		const STITCH_COUNT_NOTE = '※「〇〇の目覚め」は対応する緑スキルと個別にカウントしています。';
+
+		// 補助テキストの文字の大きさ・余白。上（脚注）と下（補助テキスト欄）で
+		// **同じ値を使う**（別々に決めると、同じ画像の中で字の大きさが食い違う）。
+		// 大きさの基準を脚注の文字列にしているのは従来どおり。下の欄だけに出る行が
+		// 増えても、上下の字の大きさは変わらない。
+		function stitchNoteMetrics(ctx, totalWidth, referenceWidth) {
 			const cardH = Math.round(referenceWidth * 0.185);
 			// ④ 補助テキスト欄は、バナーのカードの見出し（0.28）より一段小さくする
-			const targetFontSize = Math.round(cardH * 0.23);
+			let fontSize = Math.round(cardH * 0.23);
 			const pad = Math.round(referenceWidth * 0.03);
-			const noteText = '※「〇〇の目覚め」は対応する緑スキルと個別にカウントしています。';
-
-			const c = document.createElement('canvas');
-			const ctx = c.getContext('2d');
-
-			let fontSize = targetFontSize;
 			const maxTextWidth = totalWidth - pad * 2;
 			ctx.font = 'bold ' + fontSize + 'px sans-serif';
-			while (fontSize > 10 && ctx.measureText(noteText).width > maxTextWidth) {
+			while (fontSize > 10 && ctx.measureText(STITCH_COUNT_NOTE).width > maxTextWidth) {
 				fontSize -= 1;
 				ctx.font = 'bold ' + fontSize + 'px sans-serif';
 			}
+			return {
+				fontSize: fontSize,
+				pad: pad,
+				maxTextWidth: maxTextWidth,
+				lineH: Math.round(fontSize * 1.8)
+			};
+		}
+
+		// 補助テキストの文字色。凡例の説明文もこれに合わせる（記号だけが区分の色）。
+		const STITCH_NOTE_COLOR = '#555555';
+
+		// 数え方の脚注だけの帯。バナーとスクショ群の間（＝これまで補助テキスト欄が
+		// あった場所）に置く。右揃えなのも従来どおり。
+		function stitchDrawCountNoteBar(totalWidth, referenceWidth) {
+			const c = document.createElement('canvas');
+			const ctx = c.getContext('2d');
+			const m = stitchNoteMetrics(ctx, totalWidth, referenceWidth);
+			c.width = totalWidth;
+			c.height = m.lineH;
+			// canvas の大きさを変えると描画状態が初期化されるので、ここで設定し直す
+			ctx.font = 'bold ' + m.fontSize + 'px sans-serif';
+			ctx.fillStyle = '#ffffff';
+			ctx.fillRect(0, 0, totalWidth, c.height);
+			ctx.fillStyle = STITCH_NOTE_COLOR;
+			ctx.textBaseline = 'top';
+			ctx.textAlign = 'right';
+			ctx.fillText(STITCH_COUNT_NOTE, totalWidth - m.pad, Math.round(m.lineH * 0.15));
+			ctx.textAlign = 'left';
+			return c;
+		}
+
+		// 共有の補助テキスト欄（セット内の全員分の横幅を使う）。
+		// **スクショ群の下**に、いちばん長い列の下端より下へ全幅で置く。
+		// 短い列の下にできる空きへは詰めない（列ごとに読む場所がばらけるため）。
+		// 上端に区切り線を引いて、スクショとの境目が分かるようにする。
+		//
+		// markInfo … 印の凡例。{ kinds: [使った区分], suppressed: [印を付けなかった理由] }。
+		//   印が OFF のときはどちらも空。書くことが1行も無ければ **null を返す**
+		//   （欄そのものを置かない。区切り線だけが取り残されないように）。
+		function stitchDrawSharedNoteBar(totalWidth, referenceWidth, markInfo) {
+			const c = document.createElement('canvas');
+			const ctx = c.getContext('2d');
+			const m = stitchNoteMetrics(ctx, totalWidth, referenceWidth);
+			const fontSize = m.fontSize;
+			const pad = m.pad;
+			const maxTextWidth = m.maxTextWidth;
+			const lineH = m.lineH;
 
 			const extra = [];
 			buildTargetAdjustmentNotes().forEach(t => {
@@ -3599,8 +3642,13 @@
 					stitchWrapText(ctx, text, maxTextWidth).forEach(line => tailNotes.push(line));
 				});
 
-			const lineH = Math.round(fontSize * 1.8);
-			const barHeight = lineH * (extra.length + legendLines.length + tailNotes.length + 1);
+			const rowCount = extra.length + legendLines.length + tailNotes.length;
+			if (rowCount === 0) return null;
+
+			// 区切り線の上下に余白を取る（スクショの下端と文字がくっつかないように）。
+			const ruleY = Math.round(lineH * 0.9);
+			const textTop = ruleY + Math.round(lineH * 0.7);
+			const barHeight = textTop + lineH * rowCount + Math.round(lineH * 0.3);
 			c.width = totalWidth;
 			c.height = barHeight;
 			// canvas の大きさを変えると描画状態が初期化されるので、ここで設定し直す
@@ -3608,9 +3656,16 @@
 			ctx.fillStyle = '#ffffff';
 			ctx.fillRect(0, 0, totalWidth, barHeight);
 
-			// 補助テキストの文字色。凡例の説明文もこれに合わせる（記号だけが区分の色）。
-			const noteColor = '#555555';
-			const lineTop = (i) => Math.round(i * lineH + lineH * 0.15);
+			// スクショ群と補助テキスト欄の区切り線
+			ctx.strokeStyle = '#d0d0d0';
+			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.moveTo(pad, ruleY);
+			ctx.lineTo(totalWidth - pad, ruleY);
+			ctx.stroke();
+
+			const noteColor = STITCH_NOTE_COLOR;
+			const lineTop = (i) => Math.round(textTop + i * lineH + lineH * 0.15);
 			let row = 0;
 			ctx.textBaseline = 'top';
 			ctx.fillStyle = noteColor;
@@ -3632,9 +3687,6 @@
 			});
 			ctx.fillStyle = noteColor;
 			tailNotes.forEach(line => { ctx.fillText(line, pad, lineTop(row)); row++; });
-			ctx.textAlign = 'right';
-			ctx.fillText(noteText, totalWidth - pad, lineTop(row));
-			ctx.textAlign = 'left';
 
 			return c;
 		}
@@ -3699,13 +3751,19 @@
 
 			const bannerRow = bannerCanvases.length === 1 ? bannerCanvases[0] : stitchConcatHorizontallyTopAligned(bannerCanvases);
 			const contentRow = contentCanvases.length === 1 ? contentCanvases[0] : stitchConcatHorizontallyTopAligned(contentCanvases);
+			// 数え方の脚注はスクショの上（従来の位置）に残し、補助テキスト欄は
+			// スクショ群の下へ置く。contentRow は上揃えの横結合なので高さ＝いちばん長い列。
+			// その下に敷けば、短い列の下の空きには入らず、全幅で並ぶ。
+			const countNoteBar = stitchDrawCountNoteBar(bannerRow.width, contentCanvases[0].width);
 			const noteBar = stitchDrawSharedNoteBar(bannerRow.width, contentCanvases[0].width, {
 				kinds: MARK_KIND_ORDER.filter(k => usedMarkKinds.has(k)),
 				suppressed: MARK_SUPPRESSED_ORDER.filter(r => markSuppressed.has(r))
 			});
 
-			const totalWidth = Math.max(bannerRow.width, noteBar.width, contentRow.width);
-			const totalHeight = bannerRow.height + noteBar.height + contentRow.height;
+			const totalWidth = Math.max(bannerRow.width, countNoteBar.width, contentRow.width,
+				noteBar ? noteBar.width : 0);
+			const totalHeight = bannerRow.height + countNoteBar.height + contentRow.height +
+				(noteBar ? noteBar.height : 0);
 			const finalCanvas = document.createElement('canvas');
 			finalCanvas.width = totalWidth;
 			finalCanvas.height = totalHeight;
@@ -3713,8 +3771,10 @@
 			fctx.fillStyle = '#ffffff';
 			fctx.fillRect(0, 0, totalWidth, totalHeight);
 			fctx.drawImage(bannerRow, 0, 0);
-			fctx.drawImage(noteBar, 0, bannerRow.height);
-			fctx.drawImage(contentRow, 0, bannerRow.height + noteBar.height);
+			fctx.drawImage(countNoteBar, 0, bannerRow.height);
+			const contentTop = bannerRow.height + countNoteBar.height;
+			fctx.drawImage(contentRow, 0, contentTop);
+			if (noteBar) fctx.drawImage(noteBar, 0, contentTop + contentRow.height);
 
 			finalCanvas._personMeta = personMeta; // コピーボタン描画用に一時保持
 			finalCanvas._stitchWarnings = allWarnings;
