@@ -260,6 +260,24 @@
 		.stitch-wire-line[data-stitch-part="legend"] b { flex: 1 1 auto; width: auto; }
 		/* チェックに触れている間、対応する帯を強調する（輪の色はこのページの青＝装飾） */
 		.stitch-wire .is-hot { box-shadow: 0 0 0 2px var(--uma-deco); }
+
+		/* ============================================================
+		 * ハイライトの「人物のまとまり」の中のカードの段組み
+		 *
+		 * **どの幅でも2列以上の格子**にする。639px 以下は 2列に固定で、
+		 * 1行目に sp70緑・緑、2行目の左にシナリオ因子が入り、**右下は空いたまま**。
+		 * ここは将来の4枚目のパネルの置き場所なので、**カード側に幅の指定を持たせない**
+		 * （因子だけ col-span-2 で全幅にすると、4枚目を足すとき並びを組み直すことになる）。
+		 *
+		 * 640px 以上は3列。**3列目（シナリオ因子）だけ広くする**のは、因子の行が
+		 * 「名前＋：★N」の2つで1行なので、等分だと PC 幅でも名前が省略されてしまうため
+		 * （1.7 は、1280px で「グランドマスターズシナリオ」が省略されずに入る最小の比率から
+		 *   少し余裕を見た値。実測で決めている）。数字だけの sp70緑・緑は狭くても困らない。
+		 * ============================================================ */
+		.hl-cards { display: grid; gap: var(--uma-sp-2); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		@media (min-width: 640px) {
+			.hl-cards--factors { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.7fr); }
+		}
 		/* 引き出しの中の「結合画像の設定」（③）の「画像を更新」の段。骨格は css/shell.css の .uma-popover--drawer */
 		.stitch-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2) var(--uma-sp-3); padding: var(--uma-sp-3) 0 0; }
 		/* 作り直せないときの案内。色は css/tokens.css の警告の色（opacity は使わない。B節ルール9） */
@@ -2949,10 +2967,9 @@
 			const bySet = [[], []];
 			used.forEach(i => bySet[Math.floor(i / 3)].push(i));
 
-			// まとまりの中の段組み。シナリオ因子が無ければ2枚なので、どの幅でも2列でよい。
-			const innerCols = factorCount > 0 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2';
-			// シナリオ因子のカードは、2列のときだけ全幅にする
-			const factorSpan = 'col-span-2 sm:col-span-1';
+			// まとまりの中の段組み（規則は上の <style> の .hl-cards）。
+			// シナリオ因子が無ければ2枚なので、どの幅でも2列のまま。
+			const innerCols = factorCount > 0 ? 'hl-cards hl-cards--factors' : 'hl-cards';
 
 			let html = '';
 			bySet.forEach((indices, setIdx) => {
@@ -2977,27 +2994,37 @@
 							</div>`;
 					const factors = scenarioFactorHighlight(i);
 					if (factors) {
-						// 「他」は行を増やさず、最後の行の右端に添える
-						// 幅が足りないときに詰めるのは名前だけ。★の数は必ず見えるようにする。
-						const lines = factors.items.map((it, n) => {
-							const isLast = (n === factors.items.length - 1);
-							const more = (isLast && factors.more)
-								? '<span class="pl-1 text-[11px] font-bold text-[var(--uma-mark-catalog)] shrink-0">他</span>' : '';
-							return `<p class="flex items-baseline text-[11px] text-[var(--uma-catalog-text)] leading-snug" title="${escapeHtml(it.text)}">`
-								+ `<span class="truncate min-w-0">${escapeHtml(it.name)}</span>`
-								+ `<span class="shrink-0">：${escapeHtml(it.stars)}</span>`
-								+ `<span class="ml-auto"></span>${more}</p>`;
-						}).join('');
+						/* 因子の行は「名前の列」と「：★N の列」の2列で組む。
+						   **1つの grid に全行の升目を入れる**のが肝で、行ごとに別の箱
+						   （flex の <p>）にすると2列目の幅が行ごとに決まり、★の縦位置が揃わない。
+						   grid-template-columns: minmax(0, 1fr) max-content
+						     1列目 … 残りの幅を全部使う。min が 0 なので中身より狭くなれて、
+						             `truncate` が効く（`auto` のままだと縮まず溢れる）。
+						     2列目 … **そのカードの中でいちばん長い「：★N」に合わせた1つの幅**。
+						             max-content は列単位で決まるので、全行が同じ幅になる。
+						             中身は**左に寄せる**（右に寄せると「：－」だけ右へ流れて
+						             「：」の位置が行ごとにずれる。左に寄せれば「：」も★も揃う）。
+						   行は折り返さない。溢れたときに削るのは**名前だけ**（末尾を「…」に）。
+						   省略した名前の全文は title で出す（PC は hover、スマホは長押し。
+						   全文は①の「シナリオ因子を対象に含める」の一覧でも確認できる）。 */
+						const cells = factors.items.map(it =>
+							`<span class="truncate" title="${escapeHtml(it.text)}">${escapeHtml(it.name)}</span>`
+							+ `<span class="pl-0.5 text-left">：${escapeHtml(it.stars)}</span>`
+						).join('');
+						// 「他」は★の列と重ならないよう、格子の外に出してカードの右下へ置く
+						const more = factors.more
+							? '<p class="text-right text-[11px] font-bold text-[var(--uma-mark-catalog)] leading-snug">他</p>' : '';
 						cardsHtml += `
-							<div class="${factorSpan} rounded-lg border border-[var(--uma-catalog-border)] bg-[var(--uma-catalog-soft)]/60 p-2 sm:p-2.5">
+							<div class="rounded-lg border border-[var(--uma-catalog-border)] bg-[var(--uma-catalog-soft)]/60 p-2 sm:p-2.5">
 								<p class="text-[11px] font-medium text-[var(--uma-catalog-text)] mb-0.5 text-center">シナリオ因子</p>
-								${lines}
+								<div class="grid items-baseline text-[11px] text-[var(--uma-catalog-text)] leading-snug" style="grid-template-columns: minmax(0, 1fr) max-content;">${cells}</div>
+								${more}
 							</div>`;
 					}
 					groupsHtml += `
 						<div class="rounded-xl bg-white/70 p-2 sm:p-2.5" data-person-group="${i}">
 							<p class="text-[11px] font-bold mb-1.5" style="color:${colors.text}">${label}</p>
-							<div class="grid gap-2 ${innerCols}">${cardsHtml}</div>
+							<div class="${innerCols}">${cardsHtml}</div>
 						</div>`;
 				});
 

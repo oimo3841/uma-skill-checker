@@ -5165,9 +5165,10 @@ const browser = await chromium.launch();
 		const tableMark = document.querySelector('#result-tbody [title="シナリオ因子"]');
 		const card = [...document.querySelectorAll('#exam-highlight-grid div')]
 			.find((d) => d.className.includes('--uma-catalog-border'));
+		// カードの中は 見出しの<p> → 因子の行の格子（<div class="grid">）→「他」の<p>
 		const cardHead = card ? card.querySelector('p') : null;
-		const cardLine = card ? card.querySelectorAll('p')[1] : null;
-		const cardMore = card ? card.querySelector('p span.pl-1') : null;
+		const cardLine = card ? card.querySelector('div.grid span') : null;
+		const cardMore = card ? card.querySelector(':scope > p.text-right') : null;
 		return {
 			tokens: {
 				mark: root.getPropertyValue('--uma-mark-catalog').trim(),
@@ -5228,7 +5229,10 @@ const browser = await chromium.launch();
 			names.map((s, i) => ({ text: s, stars: ((i + offset) % 3) + 1, starsReliable: true, rowKey: 'r' + i })),
 			skillList, skillIndex, {});
 		personResults = PERSON_LABELS.map(() => null);
-		for (let p = 0; p < 3; p++) personResults[p] = mk(skillList.slice(0, 120 - p * 10), p);
+		// 因子は先頭2種だけ検出したことにする（★が付く行と「－」の行を両方出すため）
+		for (let p = 0; p < 3; p++) {
+			personResults[p] = mk(skillList.slice(0, 120 - p * 10).concat(factorOnlyList.slice(0, 2)), p);
+		}
 		renderResults();
 		openDrawer('result');
 	}, factorCount);
@@ -5246,9 +5250,42 @@ const browser = await chromium.launch();
 			// まとまりの中のカードの上端（sp70緑・緑・因子の順）
 			innerTops: groups.map((g) => [...g.querySelectorAll(':scope > div > div')].map((d) => Math.round(d.getBoundingClientRect().top))),
 			innerWidths: groups.map((g) => [...g.querySelectorAll(':scope > div > div')].map((d) => Math.round(d.getBoundingClientRect().width))),
+			innerLefts: groups.map((g) => [...g.querySelectorAll(':scope > div > div')].map((d) => Math.round(d.getBoundingClientRect().left))),
 			gridWidth: Math.round(groups[0].querySelector(':scope > div').getBoundingClientRect().width),
 			overflow: box.scrollWidth > box.clientWidth,
 			docOverflow: document.documentElement.scrollWidth > window.innerWidth
+		};
+	});
+
+	/* シナリオ因子のカードの行を読む。
+	   名前の升目（title 付き）と「：★N」の升目が交互に並ぶ1つの grid なので、
+	   2つずつ組にして1行として見る。★の縦位置は「：★N」の升目の左端で確かめる。 */
+	const readFactorRows = (page) => page.evaluate(() => {
+		const card = document.querySelector('#exam-highlight-grid [data-person-group] div.grid[style*="minmax"]');
+		if (!card) return null;
+		const cells = [...card.children];
+		const rows = [];
+		for (let i = 0; i + 1 < cells.length; i += 2) {
+			const name = cells[i], stars = cells[i + 1];
+			rows.push({
+				name: name.textContent,
+				title: name.getAttribute('title'),
+				// 中身が幅に入りきらない＝末尾が「…」で省略されている
+				clipped: name.scrollWidth > name.clientWidth + 1,
+				stars: stars.textContent,
+				// 「：★N」が切れていないこと
+				starsClipped: stars.scrollWidth > stars.clientWidth + 1,
+				starsLeft: Math.round(stars.getBoundingClientRect().left),
+				height: Math.round(name.getBoundingClientRect().height),
+				lineHeight: Math.round(parseFloat(getComputedStyle(name).lineHeight))
+			});
+		}
+		const moreEl = card.parentElement.querySelector(':scope > p.text-right');
+		return {
+			rows,
+			// 「他」は格子の外・カードの右下
+			moreText: moreEl ? moreEl.textContent : null,
+			moreBelowGrid: moreEl ? moreEl.getBoundingClientRect().top >= card.getBoundingClientRect().bottom - 1 : null
 		};
 	});
 
@@ -5267,16 +5304,31 @@ const browser = await chromium.launch();
 			'ハイライト: 375px ではまとまりが縦に積まれる', g.tops);
 		assert(g.innerTops.every((t) => t[0] === t[1] && t[2] > t[1]),
 			'ハイライト: 375px では sp70緑と緑が同じ行、シナリオ因子はその下', g.innerTops);
-		assert(g.innerWidths.every((w) => Math.abs(w[2] - g.gridWidth) <= 1),
-			'ハイライト: 375px ではシナリオ因子のカードが全幅', { widths: g.innerWidths[0], grid: g.gridWidth });
+		// 2列の格子に固定。因子は2行目の**左の列**で、幅は sp70緑・緑と同じ。右の列は空けたまま
+		// （将来の4枚目のパネルの置き場所。因子だけに幅の指定を持たせない）
+		assert(g.innerWidths.every((w) => Math.abs(w[2] - w[0]) <= 1 && Math.abs(w[2] - w[1]) <= 1),
+			'ハイライト: 375px でシナリオ因子のカードは sp70緑・緑と同じ幅', { widths: g.innerWidths[0] });
+		assert(g.innerWidths.every((w) => w[2] < g.gridWidth - 10),
+			'ハイライト: 375px でシナリオ因子のカードは全幅ではない（右の列が空く）', { widths: g.innerWidths[0], grid: g.gridWidth });
+		assert(g.innerLefts.every((l) => l[2] === l[0]),
+			'ハイライト: 375px でシナリオ因子は2行目の左の列にある', g.innerLefts);
 		assert(!g.overflow && !g.docOverflow, 'ハイライト: 375px で横スクロールが出ない', g);
-		// 長い因子名が折り返さない（1行に収まる）
-		const lineWrap = await page.evaluate(() => {
-			const lines = [...document.querySelectorAll('#exam-highlight-grid [data-person-group] p[title]')];
-			return lines.map((p) => Math.round(p.getBoundingClientRect().height));
-		});
-		assert(lineWrap.length > 0 && lineWrap.every((h) => h <= 20),
-			'ハイライト: 375px でシナリオ因子の行が折り返さない（1行の高さに収まる）', lineWrap);
+
+		// 因子の行: 1行に収まる／「：★N」は切れない／★の左端が全行で揃う／長い名前は省略して title で全文
+		const f = await readFactorRows(page);
+		assert(f && f.rows.length === 3, 'ハイライト: 因子の行は上位3種ぶん出る', f && f.rows.length);
+		assert(f.rows.every((r) => r.height <= r.lineHeight + 1),
+			'ハイライト: 375px で因子の各行が1行に収まる（折り返さない）', f.rows.map((r) => [r.height, r.lineHeight]));
+		// 未検出の印は U+2212（−）。全角ハイフン（－）ではないので、そのまま比べる
+		assert(f.rows.every((r) => !r.starsClipped) && f.rows.some((r) => r.stars.startsWith('：★')) && f.rows.some((r) => r.stars === '：−'),
+			'ハイライト: 「：★N」「：−」は切れずに全部出る', f.rows.map((r) => r.stars));
+		assert(new Set(f.rows.map((r) => r.starsLeft)).size === 1,
+			'ハイライト: 「：★N」の左端が全行で揃う（★の縦位置が揃う）', f.rows.map((r) => r.starsLeft));
+		const clipped = f.rows.filter((r) => r.clipped);
+		assert(clipped.length > 0 && clipped.every((r) => r.title && r.title.length > r.name.length),
+			'ハイライト: 375px で長い因子名は省略され、全文が title で分かる', clipped.map((r) => [r.name, r.title]));
+		assert(f.moreText === '他' && f.moreBelowGrid,
+			'ハイライト: 「他」は格子の外・カードの右下にあり、★の列と重ならない', { more: f.moreText, below: f.moreBelowGrid });
 		assert(errors.length === 0, 'ハイライト: 375px でコンソールエラーが出ない', errors.slice(0, 3));
 		await ctx.close();
 	}
@@ -5318,6 +5370,12 @@ const browser = await chromium.launch();
 			'ハイライト: 1280px でもまとまりの中の3枚は横並び', g.innerTops);
 		assert(g.tops[0] === g.tops[1] && g.tops[2] > g.tops[1],
 			'ハイライト: 1280px ではまとまりが横に2つずつ並ぶ', g.tops);
+		// 広い幅では名前が全部出る。★の左端が揃うのは幅を問わない
+		const f = await readFactorRows(page);
+		assert(f.rows.every((r) => !r.clipped) && f.rows.some((r) => r.name === 'グランドマスターズシナリオ'),
+			'ハイライト: 1280px では因子の名前が省略されずに出る', f.rows.map((r) => r.name));
+		assert(new Set(f.rows.map((r) => r.starsLeft)).size === 1 && f.rows.every((r) => !r.starsClipped),
+			'ハイライト: 1280px でも「：★N」の左端が全行で揃う', f.rows.map((r) => [r.stars, r.starsLeft]));
 		// 数え方を切り替えると緑の見出しが追従する（既存の挙動）
 		const swapped = await page.evaluate(() => {
 			setCountMode('individual');
