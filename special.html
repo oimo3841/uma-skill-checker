@@ -116,6 +116,21 @@
 		/* ステップのタブ・FAB・引き出し・ダイアログ（ガイド／告知）・「新UI」バッジの骨格は
 		   css/shell.css へ移した（exam.html と共有するため）。Deck（藍）のスコープ
 		   .btn-deck-accent / .deck-accent は css/tokens.css にある。 */
+
+		/* 旧UIの画面先頭の注記（更新終了。2026-09-15 片道化）。共有CSSは触らず、このページに閉じる。
+		   色は css/tokens.css の警告の色（不透明。opacity は使わない。B節ルール9・F-7）。
+		   display は指定していないので hidden 属性はそのまま効く。 */
+		.old-ui-end-note {
+			margin-bottom: var(--uma-sp-6);
+			padding: var(--uma-sp-4) var(--uma-sp-5);
+			border: 1px solid var(--uma-warn-border);
+			border-radius: var(--uma-r-xl);
+			background: var(--uma-warn-bg);
+			color: var(--uma-warn-text);
+		}
+		.old-ui-end-note-title { margin: 0 0 var(--uma-sp-1); font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; }
+		.old-ui-end-note-text { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-md); text-wrap: pretty; }
+		.old-ui-end-note-nb { white-space: nowrap; }  /* 「新UIへ」の途中で折り返さない（375px） */
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-green-600 selection:text-white">
@@ -221,7 +236,12 @@
 					<!-- 色はこのツール自身の緑（Deck の色＝グレーは「Deck 行き」のものに限る。
 					     FABのDeck項目・Deckの引き出し・取り込み案内・告知の＜新機能＞の段）。
 					     新UIのあいだの点灯（.is-on）も css/shell.css がページのアクセントで描く。 -->
-					<button id="deck-mode-btn" type="button" onclick="toggleDeckMode()" class="uma-btn uma-btn--secondary"
+					<!-- 【片道化・2026-09-15】旧UIは更新を終了した。新UIにいる間はこのボタンを出さず
+					     （新しく旧UIへ入る経路を塞ぐ）、旧UIにいる間だけ「新UIへ」として出す（出口は必ず残す）。
+					     出し入れは enterDeckMode()／exitDeckMode() が hidden 属性で行う。
+					     既定が新UIなので、初期表示で「旧UIへ」が一瞬見えないよう最初から hidden にしておく。
+					     .uma-btn[hidden] は css/common.css が display:none で押している（F-13）。 -->
+					<button id="deck-mode-btn" type="button" onclick="toggleDeckMode()" class="uma-btn uma-btn--secondary" hidden
 						title="以前のUIに戻します（スキルリストを手で貼り付ける形）">
 						<i data-lucide="arrow-left-right" class="w-4 h-4 text-green-600"></i>
 						<span id="deck-mode-btn-label">旧UIへ</span>
@@ -370,6 +390,15 @@
 			</div>
 		</div>
 
+
+		<!-- 【片道化・2026-09-15】旧UIの画面先頭に常時出す注記。閉じるボタンは付けない
+		     （閉じられると状況が伝わらないため）。新UIでは出さない。
+		     出し入れは enterDeckMode()／exitDeckMode() が hidden 属性で行う。
+		     ①のタブの中ではなく手前に置いてあるのは、②のタブを開いているときも見えるようにするため。 -->
+		<div id="old-ui-end-note" class="old-ui-end-note" role="note" hidden>
+			<p class="old-ui-end-note-title">この画面は更新を終了しました</p>
+			<p class="old-ui-end-note-text">今後、新しい機能はこの画面には追加されません。<span class="old-ui-end-note-nb">右上の「新UIへ」</span>から、最新の画面に切り替えられます。</p>
+		</div>
 
 		<!-- ステップ1・2。別々のカードで縦に並べていたものを1枚に重ね、タブで切り替える。
 		     ①は一度用意したら触らないのに、②へ行くたびに①の全高を通り過ぎる必要があったため。 -->
@@ -1985,6 +2014,9 @@
 			btn.classList.add('is-on');  // 点灯（Deck の色。css/shell.css の .uma-btn.is-on）
 			btn.title = '以前のUIに戻します（スキルリストを手で貼り付ける形）';
 			document.getElementById('deck-mode-btn-label').textContent = '旧UIへ';
+			// 片道化（2026-09-15）: 新UIからは旧UIへ入れない。ボタンごと出さない（ラベルの更新は残す）
+			btn.hidden = true;
+			document.getElementById('old-ui-end-note').hidden = true;
 			document.getElementById('ui-mode-badge').hidden = false;
 			updateDeckEntryVisibility();
 			saveUiModeChoice();
@@ -2044,6 +2076,9 @@
 			btn.classList.remove('is-on');
 			btn.title = '新しいUIに切り替えます（対象スキルセットをUmaSkill Deckから選べます）';
 			document.getElementById('deck-mode-btn-label').textContent = '新UIへ';
+			// 片道化（2026-09-15）: 旧UIにいる間は「新UIへ」（出口）と更新終了の注記を必ず出す
+			btn.hidden = false;
+			document.getElementById('old-ui-end-note').hidden = false;
 			document.getElementById('ui-mode-badge').hidden = true;
 			updateDeckEntryVisibility();
 			saveUiModeChoice();
