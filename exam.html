@@ -418,7 +418,7 @@
 						<span class="help-num">3</span>
 						<div>
 							<p class="help-step-title">OCR実行</p>
-							<p class="help-step-text">スキル名の判定と、★の数の判定を同時に行います。結果は右下の <strong>＋</strong> ボタンから開く引き出し（「OCRの照合結果」「結果画像」）に表示されます。</p>
+							<p class="help-step-text">スキル名の判定と、★の数の判定を同時に行います。結果は右下の <strong>＋</strong> ボタンから開く引き出し（「OCRの照合結果」「結合画像の表示」）に表示されます。</p>
 						</div>
 					</li>
 					<li>
@@ -477,7 +477,7 @@
 				</div>
 				<h2 class="notice-title" id="ui-notice-title">画面が新しくなりました</h2>
 				<p class="notice-text"><span class="nb">対象スキル（133種）</span>は<span class="nb">そのままです。</span></p>
-				<p class="notice-text"><span class="nb">照合結果</span>と<span class="nb">結果画像</span>は、<span class="nb">右下の＋ボタン</span>から開く<span class="nb">引き出しに</span><span class="nb">表示されます。</span></p>
+				<p class="notice-text"><span class="nb">照合結果</span>と<span class="nb">結合画像の表示</span>は、<span class="nb">右下の＋ボタン</span>から開く<span class="nb">引き出しに</span><span class="nb">表示されます。</span></p>
 				<!-- 「右上の『旧UIへ』から、いつでも元の画面に戻せます。」の一文は 2026-09-15 の片道化で削った
 				     （新UIからは旧UIへ行けなくなったので事実と食い違う）。告知の ID は据え置き＝既読の人には再表示されない。 -->
 				<div class="deck-accent deck-note notice-new">
@@ -893,7 +893,7 @@
 			<button type="button" role="tab" class="drawer-tab" id="result-tab-stitch"
 				aria-controls="result-panel-stitch" aria-selected="false" tabindex="-1" onclick="selectResultTab('stitch')">
 				<i data-lucide="image" class="w-3.5 h-3.5"></i>
-				<span id="result-tab-stitch-label">結果画像</span>
+				<span id="result-tab-stitch-label">結合画像の表示</span>
 				<span id="result-tab-dot-stitch" class="uma-fab-dot" hidden></span>
 			</button>
 		</div>
@@ -1025,7 +1025,7 @@
 			<div id="result-panel-stitch" class="drawer-panel" role="tabpanel" aria-labelledby="result-tab-stitch" hidden>
 				<div id="stitch-empty" class="uma-drawer-empty">
 					<i data-lucide="image"></i>
-					<p class="text-sm font-bold text-slate-600">まだ結果画像がありません</p>
+					<p class="text-sm font-bold text-slate-600">まだ結合画像がありません</p>
 					<p class="text-xs">②で「OCR処理＋画像結合を開始する」を押すと、判定結果を焼き込んだ画像がここに出ます。</p>
 					<button type="button" onclick="backToInput('process-stitch-btn')" class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer">
 						<i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
@@ -1101,7 +1101,7 @@
 		</button>
 
 		<button id="fab-item-stitch" type="button" class="uma-fab-item" onclick="fabGoTo('stitch')">
-			<span>結果画像</span>
+			<span>結合画像の表示</span>
 			<span class="uma-fab-icon" style="background: #fef3c6; color: #973c00;">
 				<i data-lucide="image" class="w-4 h-4"></i>
 				<span id="fab-dot-stitch" class="uma-fab-dot" hidden></span>
@@ -3457,11 +3457,11 @@
 				'</div></div>';
 
 			// ②の注記。結果画像の引き出しからも変えて更新できるようになった（③）ので、その道も示す
-			const note = '<p class="stitch-show-note">ここで変えた表示は、次に「OCR処理＋画像結合を開始する」を押したときに反映されます。結果画像の画面からも表示を変えて更新できます。</p>';
+			const note = '<p class="stitch-show-note">ここで変えた表示は、次に「OCR処理＋画像結合を開始する」を押したときに反映されます。「結合画像の表示」の画面からも表示を変えて更新できます。</p>';
 			container.innerHTML =
 				'<div class="stitch-show' + (withWire ? '' : ' stitch-show--plain') + '" data-stitch-show-panel>' +
 					'<div class="stitch-show-body">' +
-						'<p class="stitch-show-title">結合画像の表示</p>' +
+						'<p class="stitch-show-title">結合画像の設定</p>' +
 						'<div class="stitch-show-list">' + list + '</div>' +
 						(withNote ? note : '') +
 					'</div>' +
@@ -4871,7 +4871,7 @@
 			// 結果画像がまだ無いあいだは、そちらへ切り替えられない。ただし FAB の「結果画像」から
 			// 来たときは表になっているので、作り方の案内（#stitch-empty）を読める。
 			stitchTab.disabled = !hasStitch && resultTab !== 'stitch';
-			document.getElementById('result-tab-stitch-label').textContent = hasStitch ? '結果画像' : '結果画像（なし）';
+			document.getElementById('result-tab-stitch-label').textContent = hasStitch ? '結合画像の表示' : '結合画像の表示（なし）';
 			document.getElementById('result-tab-dot-result').hidden = !fabUnseen.result;
 			document.getElementById('result-tab-dot-stitch').hidden = !fabUnseen.stitch;
 		}

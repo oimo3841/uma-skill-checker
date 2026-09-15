@@ -1657,7 +1657,7 @@ const browser = await chromium.launch();
 	let t2 = await tabState2();
 	const wideWidth = t2.width;
 	assert(t2.drawer && t2.resultSel === 'true' && t2.stitchSel === 'false', 'exam: 「OCRの照合結果」からは照合結果のタブで開く', t2);
-	assert(t2.stitchDisabled && t2.stitchLabel === '結果画像（なし）', 'exam: 結果画像がまだ無いタブは押せず、ラベルでもそれが分かる', t2);
+	assert(t2.stitchDisabled && t2.stitchLabel === '結合画像の表示（なし）', 'exam: 結合画像がまだ無いタブは押せず、ラベルでもそれが分かる', t2);
 
 	// FAB の「結果画像」からは、結果が無くてもそのタブを表にして案内を読ませる（行き止まりを作らない）
 	await page.evaluate(() => fabGoTo('stitch'));
@@ -2686,7 +2686,7 @@ const browser = await chromium.launch();
 		assert(text.targetHidden, 'exam: 初回は対象スキルの告知は出さない（画面の告知だけ）', text.targetHidden);
 		assert(text.title === '画面が新しくなりました'
 			&& text.body.includes('対象スキル（133種）はそのままです。')
-			&& text.body.includes('照合結果と結果画像は、右下の＋ボタンから開く引き出しに表示されます。')
+			&& text.body.includes('照合結果と結合画像の表示は、右下の＋ボタンから開く引き出しに表示されます。')
 			// 片道化で「右上の『旧UIへ』から、いつでも元の画面に戻せます。」は削った（新UIから旧UIへは行けない）
 			&& !text.body.includes('旧UIへ')
 			&& text.body.includes('＜新機能＞')
@@ -4468,7 +4468,7 @@ const browser = await chromium.launch();
 	assert(shape.detailsClosed && shape.noWire && shape.noNote, '表示を変更: 既定は閉じていて、模式図と②の注記は出さない', shape);
 	assert(shape.inputs.join(',') === 'drawer-stitch-show-banner,drawer-stitch-show-scenario,drawer-opt-attr-icons,drawer-stitch-show-legend,drawer-stitch-show-conditions' && shape.dupIds.length === 0,
 		'表示を変更: チェック5つの id は drawer- で分かれ、②の id と重複しない', shape);
-	assert(shape.step2Note.includes('結果画像の画面からも表示を変えて更新できます'), '表示を変更: ②の注記が③の道も示す', shape.step2Note);
+	assert(shape.step2Note.includes('「結合画像の表示」の画面からも表示を変えて更新できます'), '表示を変更: ②の注記が③の道も示す', shape.step2Note);
 	assert(shape.btnDisabled && shape.noteHidden, '表示を変更: 結果が無いうちは「画像を更新」は押せず、案内も出ない', shape);
 
 	// 結果ができると出る（setSectionReady に乗っている）／消えると隠れる
