@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "test:stitch": "node tests/stitch/run-stitch-tests.mjs",
     "test:stitch:gen-samples": "node tests/stitch/generate-sample-images.mjs",
     "test:visual": "node tests/visual/run-smoke.mjs",

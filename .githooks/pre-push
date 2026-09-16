@@ -1,0 +1,99 @@
+#!/bin/sh
+# push の関門。恒久ルール11の条件を、覚えて守る運用ではなく仕組みで確かめる。
+#
+# 有効になる仕組み: git config core.hooksPath .githooks
+#   core.hooksPath はローカル設定なので clone し直すと外れる。
+#   npm install（package.json の prepare）で自動的に設定され、
+#   npm run test:verify の §9 が毎回「効いているか」を見る。
+#
+# 見るもの（1つでも引っかかれば push を止める）:
+#   1. 非fast-forward でないか（--force 相当。フラグではなく効果で判定する）
+#   2. 作業ツリーがクリーンか
+#   3. npm run test:verify が総合OK
+#
+# 順番の理由: 1 は速いので先に見る。3 は10秒ほどかかるので最後。
+#
+# 回避が必要な場合は .githooks/README.md を参照。
+
+set -u
+
+ZERO='0000000000000000000000000000000000000000'
+SEE_README='  回避が必要な場合は .githooks/README.md を参照してください。'
+
+stop() {
+	echo "" >&2
+	echo "pre-push: push を止めました — $1" >&2
+	shift
+	while [ $# -gt 0 ]; do echo "  $1" >&2; shift; done
+	echo "$SEE_README" >&2
+	exit 1
+}
+
+# ── 標準入力から <ローカルref> <ローカルsha> <リモートref> <リモートsha> を読む ──
+# 先に全部読み切る（後で npm を動かすので、標準入力を残さない）。
+has_update=0
+has_delete=0
+while read -r lref lsha rref rsha; do
+	[ -z "${lref:-}" ] && continue
+
+	# 削除（ローカル側が全ゼロ）。コードは送られないので検査の対象にしない。
+	# fast-forward の判定も意味を持たない（誤って止めないため、ここで抜ける）。
+	if [ "$lsha" = "$ZERO" ]; then
+		has_delete=1
+		echo "pre-push: $rref の削除が含まれています（送られるコードが無いので検査は省略）" >&2
+		continue
+	fi
+
+	has_update=1
+
+	# リモート側が全ゼロ＝新しいブランチ。比べる先が無いので fast-forward の判定はしない。
+	if [ "$rsha" = "$ZERO" ]; then
+		echo "pre-push: $rref は新しいブランチです（fast-forward の判定は行いません）" >&2
+		continue
+	fi
+
+	# リモートの先端を手元に持っていないと、fast-forward かどうか判定できない。
+	# 「判定できない」を「問題なし」と扱わない。
+	if ! git cat-file -e "$rsha^{commit}" 2>/dev/null; then
+		stop "リモートの先端を手元に持っていないため、fast-forward か判定できません" \
+			"$rref の $(echo "$rsha" | cut -c1-7) が手元にありません。" \
+			"git fetch してから push し直してください。"
+	fi
+
+	if ! git merge-base --is-ancestor "$rsha" "$lsha" 2>/dev/null; then
+		stop "非fast-forward の push です（--force 相当）" \
+			"$rref の先端 $(echo "$rsha" | cut -c1-7) が、送ろうとしている履歴に含まれていません。" \
+			"上書きすると、リモートにしか無いコミットが失われます。"
+	fi
+done
+
+# 送るものが無い（削除だけ）なら、ここで終わり。
+if [ "$has_update" = "0" ]; then
+	[ "$has_delete" = "1" ] && echo "pre-push: 削除だけなので、作業ツリーと test:verify の検査は行いません" >&2
+	exit 0
+fi
+
+# ── 2. 作業ツリー ──
+# --porcelain の既定は「追跡中の未コミット変更（staged / unstaged）＋ .gitignore されていない未追跡」。
+# .gitignore 済み（output/ など）は含まれないので、そこでは止まらない。
+dirty=$(git status --porcelain --untracked-files=normal)
+if [ -n "$dirty" ]; then
+	echo "" >&2
+	echo "pre-push: push を止めました — 作業ツリーが汚れています" >&2
+	echo "  test:verify は作業ツリーの実ファイルを見ます。汚れたまま通しても、その結果は" >&2
+	echo "  push される内容（HEAD）を説明しません。commit するか、元に戻してください。" >&2
+	echo "  （.gitignore 済みのファイルは対象外です）" >&2
+	echo "$dirty" | sed 's/^/    /' >&2
+	echo "$SEE_README" >&2
+	exit 1
+fi
+
+# ── 3. test:verify ──
+echo "pre-push: npm run test:verify を実行します（10秒ほどかかります）…" >&2
+if ! npm run test:verify --silent >&2 </dev/null; then
+	stop "npm run test:verify が通りませんでした" \
+		"上の [NG] を直してから push してください。"
+fi
+
+echo "pre-push: 関門を通過（fast-forward・作業ツリーはクリーン・test:verify 総合OK）" >&2
+exit 0

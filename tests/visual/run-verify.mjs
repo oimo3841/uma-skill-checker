@@ -341,6 +341,27 @@ console.log('\n=== 8. 恒久ルールの2か所の一致 ===');
 	else check(r.status === 0, 'CLAUDE.md と CLAUDE-RULES.md が同じ内容');
 }
 
+console.log('\n=== 9. push の関門が効いているか ===');
+// .githooks/pre-push が push のたびにルール11の条件を確かめる。ただし core.hooksPath は
+// ローカル設定なので、clone し直すと黙って外れる（＝関門が消えても誰も気づかない）。
+// ここで毎回見ることで、外れていれば検査のたびに分かる。設定は npm install が行う。
+{
+	const r = spawnSync('git', ['config', '--get', 'core.hooksPath'], { cwd: REPO_ROOT, encoding: 'utf8' });
+	const hooksPath = (r.stdout || '').trim();
+	check(hooksPath === '.githooks',
+		'core.hooksPath が .githooks を指している（外れていたら npm install で直る）',
+		hooksPath || '(未設定)');
+	const hook = path.join(REPO_ROOT, '.githooks', 'pre-push');
+	const exists = fs.existsSync(hook);
+	check(exists, '.githooks/pre-push がある');
+	if (exists) {
+		const src = fs.readFileSync(hook, 'utf8');
+		// 中身の検査はしない（フックの書き方は変わりうる）。空でないことと、
+		// 関門の本体である test:verify を呼んでいることだけ見る。
+		check(src.includes('test:verify'), '.githooks/pre-push が test:verify を呼んでいる');
+	}
+}
+
 if (warnings.length > 0) {
 	console.log('\n=== 警告（検査は落とさないが、放置しないこと。' + warnings.length + '件） ===');
 	warnings.forEach((w) => console.log('  ・' + w));
