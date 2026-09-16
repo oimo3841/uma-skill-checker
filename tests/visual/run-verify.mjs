@@ -318,6 +318,29 @@ console.log('\n=== 7. 個人情報の混入（公開リポジトリ） ===');
 	check(r.status === 0, '追跡中のファイルに個人情報の混入が無い');
 }
 
+console.log('\n=== 8. 恒久ルールの2か所の一致 ===');
+// 恒久ルールは同じ全文が2か所にある（リポジトリ直下の CLAUDE.md と同期フォルダの CLAUDE-RULES.md）。
+// 弱点は「2か所にあること」ではなく「コピーし忘れても誰も気づかないこと」なので、気づける形にした。
+// 実体は tests/rules/check-rules-sync.mjs（npm run check:rules で単体でも回せる）。
+// 警告どまりにするもの（改行コードだけの違い・同期フォルダが見えない・パス未設定）は
+// あちら側で判断し、ここでは終了コードだけを見る。警告の行はそのまま出す。
+{
+	const r = spawnSync(process.execPath, [path.join(REPO_ROOT, 'tests/rules/check-rules-sync.mjs')], {
+		cwd: REPO_ROOT, encoding: 'utf8',
+	});
+	const out = (r.stdout || '').trimEnd();
+	for (const l of out.split('\n')) {
+		if (/^=== /.test(l) || l === '') continue;
+		if (l.startsWith('[警告] ')) warn(l.slice('[警告] '.length));
+		else console.log(l);
+	}
+	if (r.stderr) console.log(r.stderr.trimEnd());
+	// 終了コードは3値（0=一致を確認した / 1=落とす / 2=確かめられなかった）。
+	// 2 のときに [OK] 一致 と出すと嘘になるので、言い方を分ける。
+	if (r.status === 2) console.log('[--] 一致は確認できていない（上の警告のとおり。検査は落とさない）');
+	else check(r.status === 0, 'CLAUDE.md と CLAUDE-RULES.md が同じ内容');
+}
+
 if (warnings.length > 0) {
 	console.log('\n=== 警告（検査は落とさないが、放置しないこと。' + warnings.length + '件） ===');
 	warnings.forEach((w) => console.log('  ・' + w));

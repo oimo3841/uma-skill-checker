@@ -97,6 +97,60 @@ function assetsRootOrNull() {
 	}
 }
 
+/**
+ * 恒久ルールの正本（同期フォルダ側の CLAUDE-RULES.md）の絶対パス。無ければ null。
+ * 探す順序は tests/rules/check-rules-sync.mjs の `resolveRulesFile()` と同じ。
+ * あちらを import しないのは assetsRootOrNull() と同じ理由（実在の確認で例外を投げさせない）。
+ */
+function rulesFileOrNull() {
+	const fromEnv = process.env.UMA_CLAUDE_RULES;
+	if (fromEnv && fromEnv.trim()) return fromEnv.trim();
+	const f = path.join(REPO_ROOT, '.claude-rules.json');
+	if (!fs.existsSync(f)) return null;
+	try {
+		const j = JSON.parse(fs.readFileSync(f, 'utf8'));
+		return j && j.rulesFile ? String(j.rulesFile) : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * 「リポジトリに書いてはいけない実パス」の一覧。値そのものは出力しない。
+ * 素材フォルダと、恒久ルールの正本の置き場所の2つ。どちらも
+ *   ・パスそのもの（区切りと大小の違いを吸収）
+ *   ・その**フォルダ名**（それだけで置き場所が割れる名前）
+ * を見る。ファイル名（CLAUDE-RULES.md）は秘密ではないので見ない。
+ * この説明にフォルダ名の実例を書くと自分で検出するので、例は書かない。
+ */
+function secretPaths() {
+	const out = [];
+	const add = (id, label, p, dir) => {
+		if (!p) return;
+		const variants = [...new Set([p, p.replace(/\\/g, '/'), p.replace(/\//g, '\\')])].map((s) => s.toLowerCase());
+		const base = path.basename((dir || p).replace(/[\\/]+$/, '')).toLowerCase();
+		out.push({ id, nameId: id + '-name', label, variants, base });
+	};
+	add('assets-root', '素材フォルダ', assetsRootOrNull(), null);
+	const rules = rulesFileOrNull();
+	add('rules-path', '恒久ルールの正本の置き場所', rules, rules ? path.dirname(rules) : null);
+	return out;
+}
+
+/** 1つの本文から、秘密のパス／フォルダ名の混入を拾う。 */
+function scanSecrets(text, src, push) {
+	const lower = text.toLowerCase();
+	for (const s of secrets) {
+		if (s.variants.some((v) => lower.includes(v))) {
+			const i = src.findIndex((l) => s.variants.some((v) => l.toLowerCase().includes(v)));
+			push(s.id, `(${s.label}の絶対パス)`, i + 1, '(値は出力しない)');
+		} else if (s.base && s.base.length >= 4 && lower.includes(s.base)) {
+			const i = src.findIndex((l) => l.toLowerCase().includes(s.base));
+			push(s.nameId, `(${s.label}のフォルダ名)`, i + 1, '(値は出力しない)');
+		}
+	}
+}
+
 /** パスの形でしか現れない並び。単語の部分一致は入れない。 */
 function pathRules() {
 	// 「マイドライブ」はこのファイル自身に書くと自分で検出してしまうので、分割して組み立てる。
@@ -187,19 +241,20 @@ function isExemptCommit(sha, rule, match) {
 const files = trackedFiles();
 const rules = pathRules();
 const emails = allowedEmails();
-const root = assetsRootOrNull();
-// root は区切り文字の違いと大文字小文字の違いを吸収して比べる（Windows のパスは大小を区別しない）
-const rootVariants = root
-	? [...new Set([root, root.replace(/\\/g, '/'), root.replace(/\//g, '\\')])].map((s) => s.toLowerCase())
-	: [];
-const rootBase = root ? path.basename(root.replace(/[\\/]+$/, '')).toLowerCase() : null;
+// パスは区切り文字の違いと大文字小文字の違いを吸収して比べる（Windows のパスは大小を区別しない）
+const secrets = secretPaths();
 
 say('=== 個人情報の走査（追跡中のファイル ' + files.length + '件） ===');
-say('     検査: ' + rules.map((r) => r.label).join(' / ') + ' / メールアドレス / 素材フォルダの root');
+say('     検査: ' + rules.map((r) => r.label).join(' / ') + ' / メールアドレス / '
+	+ (secrets.length ? secrets.map((s) => s.label).join(' / ') : '（実パスの検査は設定が無いので省略）'));
 const rootFrom = process.env.UMA_SKILLSET_ASSETS && process.env.UMA_SKILLSET_ASSETS.trim()
 	? '環境変数 UMA_SKILLSET_ASSETS'
 	: '.skillset-assets.json';
-say('     素材フォルダの root: ' + (root ? `${rootFrom} から取得（値はここには出さない）` : '未設定のためこの検査は省略'));
+const rulesFrom = process.env.UMA_CLAUDE_RULES && process.env.UMA_CLAUDE_RULES.trim()
+	? '環境変数 UMA_CLAUDE_RULES'
+	: '.claude-rules.json';
+say('     素材フォルダの root: ' + (secrets.some((s) => s.id === 'assets-root') ? `${rootFrom} から取得（値はここには出さない）` : '未設定のためこの検査は省略'));
+say('     恒久ルールの正本: ' + (secrets.some((s) => s.id === 'rules-path') ? `${rulesFrom} から取得（値はここには出さない）` : '未設定のためこの検査は省略'));
 say('     パスの形の検査だけ対象外: ' + [...SELF].join(' / '));
 say('       （検査の定義・免除の記録・説明そのものなので構造上必ず当たる。メールアドレスと root の検査は効かせている）');
 
@@ -243,17 +298,8 @@ for (const file of files) {
 		}
 	}
 
-	// 3) 素材フォルダの root そのもの（全ファイル）
-	if (rootVariants.length) {
-		const lower = text.toLowerCase();
-		if (rootVariants.some((v) => lower.includes(v))) {
-			const i = src.findIndex((l) => rootVariants.some((v) => l.toLowerCase().includes(v)));
-			push('assets-root', '(素材フォルダの絶対パス)', i + 1, '(値は出力しない)');
-		} else if (rootBase && rootBase.length >= 4 && lower.includes(rootBase)) {
-			const i = src.findIndex((l) => l.toLowerCase().includes(rootBase));
-			push('assets-root-name', '(素材フォルダ名)', i + 1, '(値は出力しない)');
-		}
-	}
+	// 3) 書いてはいけない実パスそのもの／そのフォルダ名（全ファイル）
+	scanSecrets(text, src, push);
 }
 
 say(`     走査 ${scanned}件 / バイナリのため飛ばした ${skippedBinary}件`);
@@ -336,17 +382,8 @@ function commitMessages(range) {
 					push('email', m[0], i + 1, src[i]);
 				}
 			}
-			// 3) 素材フォルダの root そのもの／フォルダ名
-			if (rootVariants.length) {
-				const lower = c.body.toLowerCase();
-				if (rootVariants.some((v) => lower.includes(v))) {
-					const i = src.findIndex((l) => rootVariants.some((v) => l.toLowerCase().includes(v)));
-					push('assets-root', '(素材フォルダの絶対パス)', i + 1, '(値は出力しない)');
-				} else if (rootBase && rootBase.length >= 4 && lower.includes(rootBase)) {
-					const i = src.findIndex((l) => l.toLowerCase().includes(rootBase));
-					push('assets-root-name', '(素材フォルダ名)', i + 1, '(値は出力しない)');
-				}
-			}
+			// 3) 書いてはいけない実パスそのもの／そのフォルダ名
+			scanSecrets(c.body, src, push);
 		}
 		say(`     走査 ${commits.length}件（件名＋本文＋トレーラの全文）`);
 	}
@@ -355,18 +392,18 @@ function commitMessages(range) {
 /* ───────────────────────── .skillset-assets.json が追跡されていないこと ───────────────────────── */
 
 const tracked = new Set(files.map((f) => f.split(path.sep).join('/')));
-const configTracked = tracked.has('.skillset-assets.json');
-if (configTracked) {
-	ng++;
-	say('[NG] .skillset-assets.json が追跡対象に入っている（素材フォルダの絶対パスが公開される）');
-} else {
-	say('[OK] .skillset-assets.json は追跡対象に入っていない');
-}
-// .gitignore に規則があることも見る（今は入っていなくても、将来 git add -f されると入ってしまうため）
+// .gitignore の規則も見る（今は入っていなくても、将来 git add -f されると入ってしまうため）
 const gi = fs.existsSync(path.join(REPO_ROOT, '.gitignore')) ? fs.readFileSync(path.join(REPO_ROOT, '.gitignore'), 'utf8') : '';
-const ignoredByRule = gi.split('\n').some((l) => l.trim() === '.skillset-assets.json');
-if (ignoredByRule) say('[OK] .gitignore に .skillset-assets.json の除外規則がある');
-else { ng++; say('[NG] .gitignore に .skillset-assets.json の除外規則が無い'); }
+// 実パスを書いてあるローカル設定。どちらも追跡されていないこと・除外規則があることを見る。
+for (const [cfg, what] of [
+	['.skillset-assets.json', '素材フォルダの絶対パス'],
+	['.claude-rules.json', '恒久ルールの正本の絶対パス'],
+]) {
+	if (tracked.has(cfg)) { ng++; say(`[NG] ${cfg} が追跡対象に入っている（${what}が公開される）`); }
+	else say(`[OK] ${cfg} は追跡対象に入っていない`);
+	if (gi.split('\n').some((l) => l.trim() === cfg)) say(`[OK] .gitignore に ${cfg} の除外規則がある`);
+	else { ng++; say(`[NG] .gitignore に ${cfg} の除外規則が無い`); }
+}
 
 /* ───────────────────────── 結果 ───────────────────────── */
 
