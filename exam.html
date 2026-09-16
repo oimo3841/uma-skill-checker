@@ -278,6 +278,13 @@
 		@media (min-width: 640px) {
 			.hl-cards--factors { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.7fr); }
 		}
+		/* sp70緑・緑のカードは「見出し＋数字」の2行しか中身が無い。格子の升目は同じ行の
+		   いちばん高いカードに合わせて伸びる（stretch）ので、隣にシナリオ因子の一覧が並ぶと
+		   下側だけが大きく空いて見える。中身をカードの中で**上下中央**に置いて散らす。
+		   **シナリオ因子のカードには付けない**（一覧なので上から順に並ぶ形のままにする）。
+		   中身が伸びていないとき（因子を選んでいない・カードの高さが揃っているとき）は、
+		   中央に寄せても見た目は変わらない。 */
+		.hl-card--center { display: flex; flex-direction: column; justify-content: center; }
 		/* 引き出しの中の「結合画像の設定」（③）の「画像を更新」の段。骨格は css/shell.css の .uma-popover--drawer */
 		.stitch-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2) var(--uma-sp-3); padding: var(--uma-sp-3) 0 0; }
 		/* 作り直せないときの案内。色は css/tokens.css の警告の色（opacity は使わない。B節ルール9） */
@@ -3060,11 +3067,11 @@
 					const sp70Count = countCategory(i, sp70Ids, false);
 					const greenCount = countCategory(i, greenIds, equivalence);
 					let cardsHtml = `
-							<div class="rounded-lg border border-amber-200 bg-amber-50/60 p-2 sm:p-2.5 text-center">
+							<div class="hl-card--center rounded-lg border border-amber-200 bg-amber-50/60 p-2 sm:p-2.5 text-center">
 								<p class="text-[11px] font-medium text-amber-700 mb-0.5">sp70緑</p>
 								<p class="text-base md:text-xl font-extrabold text-amber-600">${sp70Count}<span class="text-xs font-medium text-amber-400">/${sp70Ids.size}</span></p>
 							</div>
-							<div class="rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 sm:p-2.5 text-center">
+							<div class="hl-card--center rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 sm:p-2.5 text-center">
 								<p class="text-[11px] font-medium text-emerald-700 mb-0.5">${greenLabel}</p>
 								<p class="text-base md:text-xl font-extrabold text-emerald-600">${greenCount}<span class="text-xs font-medium text-emerald-400">/${green59Max}</span></p>
 							</div>`;
