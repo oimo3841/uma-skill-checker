@@ -24,10 +24,11 @@
 //   シナリオ因子のように「445種のマスターには載らないが、因子画面には出るもの」は
 //   catalog-data/*.json に別カテゴリとして置いてある（C-29）。辞書名の末尾に `+catalog` を
 //   付けると、そのファイル群の名前を辞書に足す。
-//   **製品（exam.html）は照合のあと applyScenarioFactorExactOnly() で「行にその名前が
-//   そのまま入っているものだけ」に絞る**ので、ここでも同じ絞り込みを既定で掛ける
-//   （シナリオ名どうしは1〜2文字しか違わず、あいまい一致に任せると互いに化けるため）。
-//   絞り込みで落ちたぶんは「あいまい一致では当たったが完全一致では落ちた」ものとして表示する。
+//   **製品（exam.html）は照合のあと applyScenarioFactorStrictMatch() で「行にその名前が
+//   そのまま入っている」か「カタログの中で1つに絞れる1文字違い」だけに絞る**ので、
+//   ここでも同じ絞り込みを既定で掛ける（シナリオ名どうしは1〜2文字しか違わず、
+//   あいまい一致にそのまま任せると互いに化けるため）。
+//   絞り込みで落ちたぶんは catalogDropped として表示する。
 //   --no-catalog-exact-only を付けると絞り込みを外せる（どこまで拾えているかを見る調査用）。
 //
 // 「ページ側の skillList をそのまま使う」を既定にしていない理由:
@@ -62,7 +63,7 @@ function argValue(name, fallback) {
 }
 
 const USE_STITCHED = process.argv.includes('--stitched');
-// 追加カタログの後段の絞り込み（製品の applyScenarioFactorExactOnly と同じ）。既定は掛ける。
+// 追加カタログの後段の絞り込み（製品の applyScenarioFactorStrictMatch と同じ）。既定は掛ける。
 const CATALOG_EXACT_ONLY = !process.argv.includes('--no-catalog-exact-only');
 const PAGE_NAME = argValue('page', 'exam') === 'special' ? 'special.html' : 'exam.html';
 const DICT_ARG = argValue('dict', null);
@@ -228,17 +229,45 @@ async function runOcrInPage({ files, groupLabel, useStitched, dictNames, errDict
 		const matched = matchAllSkillsWithStars(result.lines, list, index, errDict || {});
 		let detected = Array.from(matched.detectedSkills);
 
-		// 追加カタログの後段の絞り込み。exam.html の applyScenarioFactorExactOnly() と同じ判定を
-		// ここでもう一度掛ける（製品のロジックを複製しないため、判定の中身だけを同じ形で書く。
-		// exam.html 側の関数はページの状態＝利用者が選んだ因子に依存するので直接は呼べない）。
+		// 追加カタログの後段の絞り込み。exam.html の applyScenarioFactorStrictMatch() と同じ判定を
+		// ここでもう一度掛ける（exam.html 側の関数はページの状態＝利用者が選んだ因子に依存するので
+		// 直接は呼べない。判定の中身だけを同じ形で書く。片方を変えたらもう片方も直すこと）。
+		//   ① 行にその名前がそのまま入っている（完全一致）
+		//   ② 行が、カタログの中でその名前にだけ距離 nearLimit 以内で近い（同じ距離で並んだら採らない）
+		// nearLimit は **カタログから計算する**（数値を書かない）。安全な上限は floor(最小距離/2) で、
+		// さらに 1 で頭打ちにする。製品側と同じ式にしてあり、ズレは run-smoke.mjs が見張る。
 		out.catalogDropped = [];
 		if (catalogNames && catalogNames.length && catalogExactOnly) {
 			const catalogSet = new Set(catalogNames);
+			const catNorms = catalogNames.map((n) => ({ raw: n, norm: normalizeText(n) }));
+			let minPair = Infinity;
+			for (let i = 0; i < catNorms.length; i++) {
+				for (let j = i + 1; j < catNorms.length; j++) {
+					const d = levenshtein(catNorms[i].norm, catNorms[j].norm);
+					if (d < minPair) minPair = d;
+				}
+			}
+			const nearLimit = Math.min(1, Math.floor((minPair === Infinity ? 0 : minPair) / 2));
+			out.catalogMinDistance = minPair === Infinity ? 0 : minPair;
+			out.catalogNearLimit = nearLimit;
+
 			const lineNorms = result.lines.map((l) => normalizeText(l.text)).filter(Boolean);
+			const nearHits = new Set();
+			lineNorms.forEach((line) => {
+				let bestNorm = null, bestD = Infinity, tie = 0;
+				for (const c of catNorms) {
+					const d = levenshtein(line, c.norm);
+					if (d < bestD) { bestD = d; bestNorm = c.norm; tie = 1; }
+					else if (d === bestD) tie++;
+				}
+				if (bestNorm !== null && bestD <= nearLimit && tie === 1) nearHits.add(bestNorm);
+			});
+
 			detected = detected.filter((name) => {
 				if (!catalogSet.has(name)) return true;
 				const n = normalizeText(name);
-				if (lineNorms.some((s) => s.indexOf(n) !== -1)) return true;
+				if (lineNorms.some((s) => s.indexOf(n) !== -1)) return true; // ①
+				if (nearHits.has(n)) return true;                            // ②
 				out.catalogDropped.push(name);
 				return false;
 			});

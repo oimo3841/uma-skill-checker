@@ -1704,6 +1704,69 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(300);
 	await page.evaluate(() => { clearScenarioFactors(); setTargetScopeMode('default'); });
 
+	/* --- シナリオ因子の絞り込み（applyScenarioFactorStrictMatch。47セッション目） ---
+	   完全一致に加えて「カタログの中で1つに絞れる1文字違い」も採る。
+	   試す文字列は**カタログから組み立てる**（シナリオ名をこのファイルに書かない）。
+	   実際の距離も一緒に返して、前提（距離1／距離2／同点）が本当に成立しているかを検査する。 */
+	const strict = await page.evaluate(() => {
+		const N = SCENARIO_FACTOR_NORMS;
+		const d = (a, b) => levenshtein(a, b);
+		// 近い名前がいちばん遠い因子（＝1文字変えても他と紛れない）を選ぶ
+		let far = null, farNn = -1;
+		for (const a of N) {
+			let nn = Infinity;
+			for (const b of N) if (b !== a) nn = Math.min(nn, d(a.norm, b.norm));
+			if (nn > farNn) { farNn = nn; far = a; }
+		}
+		// 置き換えに使う文字は、別の因子の1文字目から借りる（元の文字と違うもの）
+		const swap = (norm, k) => {
+			for (const b of N) { const c = b.norm[0]; if (c && c !== norm[k]) return norm.slice(0, k) + c + norm.slice(k + 1); }
+			return norm;
+		};
+		const one = swap(far.norm, 0);           // 距離1・一意のはず
+		const two = swap(swap(far.norm, 0), 1);  // 距離2・一意のはず
+		// 距離2で長さが同じ組を探し、その中間（両方から距離1）を作る
+		let tie = null, tiePair = null;
+		for (let i = 0; i < N.length && !tie; i++) {
+			for (let j = i + 1; j < N.length && !tie; j++) {
+				const a = N[i].norm, b = N[j].norm;
+				if (a.length !== b.length || d(a, b) !== 2) continue;
+				const k = [...a].findIndex((ch, idx) => ch !== b[idx]);
+				if (k < 0) continue;
+				tie = a.slice(0, k) + b[k] + a.slice(k + 1);
+				tiePair = [N[i].raw, N[j].raw];
+			}
+		}
+		// 「その因子だけが検出されている」状態を作って絞り込みを通す（採用されれば残る）
+		const keep = (lineText, factorName) => {
+			const res = { detectedSkills: new Set([factorName]), matchReasons: {}, skillSources: {}, skillStars: {} };
+			applyScenarioFactorStrictMatch(res, [{ text: lineText }], { factors: new Set(SCENARIO_INHERITANCE_FACTORS) });
+			return res.detectedSkills.has(factorName);
+		};
+		return {
+			min: SCENARIO_FACTOR_MIN_DISTANCE,
+			limit: SCENARIO_FACTOR_NEAR_LIMIT,
+			far: far.raw, farNn: farNn,
+			dOne: d(normalizeText(one), far.norm), keepOne: keep(one, far.raw),
+			dTwo: d(normalizeText(two), far.norm), keepTwo: keep(two, far.raw),
+			tiePair: tiePair,
+			dTieA: tie ? d(normalizeText(tie), N.find((x) => x.raw === tiePair[0]).norm) : null,
+			dTieB: tie ? d(normalizeText(tie), N.find((x) => x.raw === tiePair[1]).norm) : null,
+			keepTie: tie ? keep(tie, tiePair[0]) : null,
+			keepExact: keep(far.raw, far.raw)
+		};
+	});
+	assert(strict.min === 2 && strict.limit === 1,
+		'exam: シナリオ因子24種の最小距離は2・許す「ずれ」の上限は1（カタログが増えて近づいたら落ちる）', strict);
+	assert(strict.dOne === 1 && strict.keepOne === true,
+		'exam: 1文字違いで候補が一意なら採用する', strict);
+	assert(strict.dTieA === 1 && strict.dTieB === 1 && strict.keepTie === false,
+		'exam: 距離1で2つ以上並ぶなら採用しない（選んでいない因子と並んだ場合も）', strict);
+	assert(strict.dTwo === 2 && strict.keepTwo === false,
+		'exam: 距離2は候補が一意でも採用しない', strict);
+	assert(strict.keepExact === true,
+		'exam: 完全一致は従来どおり採用する', strict);
+
 	// Esc は開いているものを1つ閉じる（引き出し → FAB の順）。
 	// 直前まで iframe の中を操作していたので、キーは親の文書に戻してから送る
 	// （iframe の中で押した Esc は親には届かない。special の Deck 引き出しも同じ）。

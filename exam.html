@@ -1535,10 +1535,10 @@
 		 * 白スキル445種のマスターとは別カテゴリなので、examSkillId() では引けない
 		 * （＝ sp70緑・緑59種の集計には一切入らない）。
 		 *
-		 * 照合は「完全一致（および辞書）だけ」を採る。シナリオ名どうしは
-		 * 「豊食祭シナリオ・にんじん」と「豊食祭シナリオ・にんにく」のように
-		 * 1〜2文字しか違わず、あいまい一致を許すと互いに化けるため。
-		 * 絞り込みは applyScenarioFactorExactOnly() が照合の後で行う。
+		 * 照合は「完全一致」か「24種の中で1つに絞れる1文字違い」だけを採る。
+		 * シナリオ名どうしは「豊食祭シナリオ・にんじん」と「豊食祭シナリオ・にんにく」の
+		 * ように1〜2文字しか違わず、あいまい一致をそのまま許すと互いに化けるため。
+		 * 絞り込みは applyScenarioFactorStrictMatch() が照合の後で行う。
 		 * ------------------------------------------------------------ */
 		const SCENARIO_INHERITANCE_FACTORS = [
 			'URAシナリオ',
@@ -1595,21 +1595,90 @@
 			return SCENARIO_FACTOR_NORM_SET.has(normalizeText(name));
 		}
 
+		// シナリオ因子24種を「表示名と正規化後の文字列」の組で持つ（距離の計算に使う）。
+		const SCENARIO_FACTOR_NORMS = SCENARIO_INHERITANCE_FACTORS.map(n => ({ raw: n, norm: normalizeText(n) }));
+
+		/* ------------------------------------------------------------
+		 * シナリオ因子の絞り込みで許す「ずれ」の上限
+		 *
+		 * **数値をここに書かず、カタログから毎回計算する。** カタログが増えて
+		 * 名前どうしが近づいたときに、前提が黙って崩れないようにするため。
+		 *
+		 * 安全な上限の出し方: 真の名前 A が d 文字ぶん誤読された行に対して、
+		 * 別の名前 B のほうが選ばれるには d(行, B) < d(行, A) = d でなければならない
+		 * （同じ距離で並んだ場合は「一意でない」として採らないので、真に小さい必要がある）。
+		 * このとき三角不等式から d(A, B) ≤ d(行, A) + d(行, B) < 2d。
+		 * つまり **2d ≤ 24種どうしの最小距離** であれば、取り違えは起こり得ない。
+		 *   → 上限 = floor(最小距離 / 2)
+		 *
+		 * 現在のカタログの最小距離は 2（「豊食祭シナリオ・にんじん」と「…にんにく」、
+		 * 「メカウマ娘シナリオ・SPD」と「…STM」「…POW」）なので、上限は 1 になる。
+		 * 距離2まで緩めると、2文字の誤読で別のシナリオ名そのものになり得るため危険
+		 * （C-29 が完全一致だけにした理由）。
+		 *
+		 * さらに **1 で頭打ちにする**。将来カタログの名前どうしが離れても、
+		 * 2文字以上のずれは採らないと決めたため（47セッション目）。
+		 * 最小距離が 2 のままであることは tests/visual/run-smoke.mjs が見張る。
+		 * ------------------------------------------------------------ */
+		const SCENARIO_FACTOR_MIN_DISTANCE = (function () {
+			let min = Infinity;
+			for (let i = 0; i < SCENARIO_FACTOR_NORMS.length; i++) {
+				for (let j = i + 1; j < SCENARIO_FACTOR_NORMS.length; j++) {
+					const d = levenshtein(SCENARIO_FACTOR_NORMS[i].norm, SCENARIO_FACTOR_NORMS[j].norm);
+					if (d < min) min = d;
+				}
+			}
+			return min === Infinity ? 0 : min;
+		})();
+		const SCENARIO_FACTOR_NEAR_LIMIT = Math.min(1, Math.floor(SCENARIO_FACTOR_MIN_DISTANCE / 2));
+
 		/**
-		 * シナリオ因子だけ「完全一致で読めた行がある」ものに絞り込む（照合の後処理）。
+		 * 1つのOCR行が、シナリオ因子のどれか1つに「近い」と言い切れるか。
+		 * 言い切れるならその表示名、言い切れなければ null を返す。
+		 *
+		 * 条件は「いちばん近い因子との距離が SCENARIO_FACTOR_NEAR_LIMIT 以下」かつ
+		 * 「その距離に並ぶ因子が1つだけ」。並んだら採らない（安全側に倒す）。
+		 *
+		 * **候補は、利用者が選んでいる因子だけでなく24種すべてを見る。**
+		 * 選んでいない因子を候補から外すと、同じ画像・同じ読みでも「何を選んでいるか」で
+		 * 採否が変わってしまう（選んでいない側と距離1で並ぶ行を、並んでいないものとして
+		 * 採ってしまう）。**選択の有無で判定の安全性が変わらないように**、
+		 * ここでは常に24種全部を相手にする。選択によるふるいは呼び出し側が行う。
+		 */
+		function nearestScenarioFactor(lineNorm) {
+			if (!lineNorm) return null;
+			let bestRaw = null, bestD = Infinity, tie = 0;
+			for (let i = 0; i < SCENARIO_FACTOR_NORMS.length; i++) {
+				const d = levenshtein(lineNorm, SCENARIO_FACTOR_NORMS[i].norm);
+				if (d < bestD) { bestD = d; bestRaw = SCENARIO_FACTOR_NORMS[i].raw; tie = 1; }
+				else if (d === bestD) tie++;
+			}
+			if (bestRaw === null || bestD > SCENARIO_FACTOR_NEAR_LIMIT || tie > 1) return null;
+			return bestRaw;
+		}
+
+		/**
+		 * シナリオ因子だけ「その因子だと言い切れる行がある」ものに絞り込む（照合の後処理）。
 		 *
 		 * common.js の照合は、完全一致で決まらなかった行をあいまい一致（編集距離）に
 		 * 回す。シナリオ名どうしは「豊食祭シナリオ・にんじん / にんにく」のように
 		 * 2文字しか違わず、正規化後14文字なら距離3まで許されるので、あいまい一致に
-		 * 任せると別のシナリオへ化ける。そこで、シナリオ因子に限っては
-		 * 「どれかのOCR行の正規化文字列に、その名前の正規化文字列がそのまま入っている」
-		 * ものだけを残す（＝common.js の「完全一致」と同じ判定を、後からもう一度かける）。
+		 * 任せると別のシナリオへ化ける。そこで、シナリオ因子に限っては次のどちらかを満たす
+		 * ものだけを残す。
+		 *   ① どれかのOCR行の正規化文字列に、その名前の正規化文字列がそのまま入っている
+		 *      （＝common.js の「完全一致」と同じ判定を、後からもう一度かける）
+		 *   ② どれかのOCR行が、24種の中でその名前にだけ距離 SCENARIO_FACTOR_NEAR_LIMIT 以内で近い
+		 *      （nearestScenarioFactor。47セッション目に追加）
+		 *
+		 * ②を足した理由: 実機で「アオハル杯シナリオ」を選んでいたのに検出されなかった。
+		 * 元画像のOCRが「アオハル杓シナリオ」「アオムハル杯シナリオ」と1文字違いでしか
+		 * 読めず、①だけでは落ちていた（判定は元画像のOCRで行う。結合画像は判定に使わない）。
 		 *
 		 * 白スキル133種側の判定には触らない。common.js を変えずに済ませるため、
 		 * 照合の中ではなくここで落としている。
 		 */
 		// run … 押した時点のスナップショット（captureRun）。渡されればそのシナリオ因子の選択を見る。
-		function applyScenarioFactorExactOnly(res, lines, run) {
+		function applyScenarioFactorStrictMatch(res, lines, run) {
 			const factors = run ? run.factors : selectedScenarioFactors;
 			if (factors.size === 0) return res;
 			const lineNorms = [];
@@ -1617,10 +1686,17 @@
 				const n = normalizeText(l.text);
 				if (n) lineNorms.push(n);
 			});
+			// ②の判定は行ごとに1回でよいので、先にまとめて出しておく。
+			const nearHits = new Set();
+			lineNorms.forEach(n => {
+				const hit = nearestScenarioFactor(n);
+				if (hit) nearHits.add(normalizeText(hit));
+			});
 			Array.from(res.detectedSkills).forEach(name => {
 				if (!isScenarioFactor(name)) return;
 				const norm = normalizeText(name);
-				if (lineNorms.some(n => n.indexOf(norm) !== -1)) return;
+				if (lineNorms.some(n => n.indexOf(norm) !== -1)) return; // ① 完全一致
+				if (nearHits.has(norm)) return;                          // ② 1文字違いで一意
 				res.detectedSkills.delete(name);
 				delete res.matchReasons[name];
 				delete res.skillSources[name];
@@ -2727,7 +2803,7 @@
 					if (result.lines.length > 0) anySuccess = true;
 					if (result.skipped.length > 0) skippedAll.push.apply(skippedAll, result.skipped);
 					if (result.warned.length > 0) warnedAll.push.apply(warnedAll, result.warned);
-					personResults[p] = applyScenarioFactorExactOnly(
+					personResults[p] = applyScenarioFactorStrictMatch(
 						matchAllSkillsWithStars(result.lines, run.skillList, run.skillIndex, {}), result.lines, run);
 					// 結果画像の印を焼くのに使う（判定・集計には一切関わらない）
 					personLines[p] = result.lines;
