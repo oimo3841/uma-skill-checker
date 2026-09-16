@@ -17,6 +17,8 @@ npm run test:ocr -- --dict=exam               # exam.html の組み込み133種�
 npm run test:ocr -- --dict=deck               # uma-skill-deck-skills.json の全スキルを照合辞書に
 npm run test:ocr -- --dict=page               # ページ側が起動時に持つ skillList をそのまま照合辞書に
 npm run test:ocr -- --dict=連綿,存在感        # 指定したスキル名だけを照合辞書に
+npm run test:ocr -- --dict=deck+catalog       # 上の辞書に「追加カタログ」（catalog-data/*.json）を足す
+npm run test:ocr -- --dict=deck+catalog --no-catalog-exact-only  # 追加カタログの後段の絞り込みを外す（調査用）
 npm run test:ocr -- --expect=連綿             # 検出されるべきスキルを指定して合否判定（未検出なら exit 1）
 npm run test:ocr -- --errdict=連締=連綿       # special.html の「読み替え辞書」と同じ補正を効かせる
 ```
@@ -37,6 +39,25 @@ npm run test:ocr -- --page=special --dict=deck --expect=連綿
 
 初回のみ `npm install` と `npx playwright install chromium` が必要。
 OCRエンジン(tesseract.js)と日本語辞書は CDN から取得するため**ネットワーク接続が必要**。
+
+## 追加カタログ（シナリオ因子など）の照合
+
+シナリオ因子のように「445種のマスターには載らないが、因子画面には出るもの」は
+`catalog-data/*.json` に別カテゴリとして置いてある（C-29）。辞書名の末尾に **`+catalog`** を
+付けると、そのフォルダの全カテゴリの名前を辞書に足す（ファイル名は列挙していないので、
+カテゴリが増えればそのまま増える）。
+
+**製品と同じ判定にするため、後段の絞り込みを既定で掛ける。** `exam.html` は照合のあと
+`applyScenarioFactorExactOnly()` で「どれかの行にその名前がそのまま入っているものだけ」に絞る。
+シナリオ名どうしは1〜2文字しか違わず（24種の最小距離は**2**）、あいまい一致に任せると
+互いに化けるため。ハーネスも同じ判定をもう一度掛け、落ちたぶんを
+`後段の完全一致で落ちた追加カタログ` として表示する（`result.json` の `catalogDropped`）。
+
+`--no-catalog-exact-only` を付けると絞り込みを外せる。「あいまい一致ではどこまで届いているか」を
+見るための調査用で、**製品の挙動ではない**。
+
+出力の `うち追加カタログ(N件)` は、検出スキルのうちカタログ由来のものの一覧
+（`result.json` の `catalogDetected`）。スキルの検出結果には影響しない。
 
 ## 文字正規化の安全確認
 
@@ -65,9 +86,11 @@ npm run test:norm
 
 - `npm run test:ocr` の既定の照合対象は `exam.html` の `EXAM_SKILL_LIST` の**133種のみ**（`--dict=exam`）。
   `--dict=deck` を付けると `uma-skill-deck-skills.json` の全件（445種）になる。
-  画像に写っていても辞書に無いもの(レース名・因子・シナリオ因子など)は
+  画像に写っていても辞書に無いもの(レース名・適性因子など)は
   検出されなくて正常。取りこぼしを数えるときは、まず正解リストを辞書で
   絞り込んでから比較すること。
+  **シナリオ因子は `+catalog` を付ければ照合できる**（付けないと、写っていても出ない。
+  47セッション目に、これを忘れて「取りこぼしは無い」と報告した取り違えがあった）。
 - `--stitched` の結果が素の結果より少ない場合、原因はOCRではなく画像結合側にある
   可能性が高い。`npm run test:stitch` の結合結果画像と突き合わせて確認する。
 - 2文字のスキル名は `allowedDistance()`(js/common.js)が距離0＝完全一致を要求するため、

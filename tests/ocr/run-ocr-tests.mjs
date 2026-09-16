@@ -12,11 +12,23 @@
 //   npm run test:ocr -- --dict=deck           … uma-skill-deck-skills.json の全スキルを照合辞書に
 //   npm run test:ocr -- --dict=page           … ページ側が起動時に持つ skillList をそのまま照合辞書に
 //   npm run test:ocr -- --dict=連綿,存在感    … 指定したスキル名だけを照合辞書に
+//   npm run test:ocr -- --dict=deck+catalog   … 上の辞書に「追加カタログ」（catalog-data/*.json）を足す
+//   npm run test:ocr -- --no-catalog-exact-only … 追加カタログの後段の絞り込みを外す（調査用）
 //   npm run test:ocr -- --expect=連綿,存在感  … 検出されるべきスキルを指定し、合否を判定する
 //   npm run test:ocr -- --errdict=連締=連綿   … special.html の「読み替え辞書」と同じ補正を効かせる
 //
 // 同じオプションを2回渡したときは後のものが勝つ（npm script が付ける既定の --dict=exam を、
 // `npm run test:ocr -- --dict=deck` のように上書きできるようにするため）。
+//
+// 追加カタログ（`+catalog`）について:
+//   シナリオ因子のように「445種のマスターには載らないが、因子画面には出るもの」は
+//   catalog-data/*.json に別カテゴリとして置いてある（C-29）。辞書名の末尾に `+catalog` を
+//   付けると、そのファイル群の名前を辞書に足す。
+//   **製品（exam.html）は照合のあと applyScenarioFactorExactOnly() で「行にその名前が
+//   そのまま入っているものだけ」に絞る**ので、ここでも同じ絞り込みを既定で掛ける
+//   （シナリオ名どうしは1〜2文字しか違わず、あいまい一致に任せると互いに化けるため）。
+//   絞り込みで落ちたぶんは「あいまい一致では当たったが完全一致では落ちた」ものとして表示する。
+//   --no-catalog-exact-only を付けると絞り込みを外せる（どこまで拾えているかを見る調査用）。
 //
 // 「ページ側の skillList をそのまま使う」を既定にしていない理由:
 //   exam.html の既定が新UI（Deck から対象スキルセットを選ぶ）になると、file:// では
@@ -37,6 +49,9 @@ const ROOT = path.resolve(__dirname, '../..');
 const TEST_IMAGES_DIR = path.join(ROOT, 'test-images');
 const OUTPUT_DIR = path.join(ROOT, 'output', 'ocr');
 const DECK_MASTER = path.join(ROOT, 'uma-skill-deck-skills.json');
+// 追加カタログ（マスター445種の外にあるもの）の正本の置き場。
+// ファイル名は列挙せずフォルダごと読む（カテゴリが増えても追従するため。B節ルール1の精神）。
+const CATALOG_DIR = path.join(ROOT, 'catalog-data');
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.bmp', '.webp']);
 
@@ -47,6 +62,8 @@ function argValue(name, fallback) {
 }
 
 const USE_STITCHED = process.argv.includes('--stitched');
+// 追加カタログの後段の絞り込み（製品の applyScenarioFactorExactOnly と同じ）。既定は掛ける。
+const CATALOG_EXACT_ONLY = !process.argv.includes('--no-catalog-exact-only');
 const PAGE_NAME = argValue('page', 'exam') === 'special' ? 'special.html' : 'exam.html';
 const DICT_ARG = argValue('dict', null);
 const EXPECT_ARG = argValue('expect', null);
@@ -61,13 +78,30 @@ const ERRDICT = ERRDICT_ARG
 		)
 	: {};
 
-async function resolveDictionary(browser) {
-	if (!DICT_ARG || DICT_ARG === 'page') return null; // ページ側の既定の照合対象をそのまま使う
-	if (DICT_ARG === 'deck') {
+/** catalog-data/ の全カテゴリの名前（[{category, names}]）。フォルダが無ければ空。 */
+async function loadCatalogs() {
+	let files;
+	try {
+		files = (await fs.readdir(CATALOG_DIR)).filter((f) => f.toLowerCase().endsWith('.json')).sort();
+	} catch {
+		return [];
+	}
+	const out = [];
+	for (const f of files) {
+		const json = JSON.parse(await fs.readFile(path.join(CATALOG_DIR, f), 'utf-8'));
+		const names = (json.entries || []).map((e) => e.name).filter(Boolean);
+		if (names.length) out.push({ file: f, category: json.category || f, names });
+	}
+	return out;
+}
+
+async function resolveBaseDictionary(browser, arg) {
+	if (!arg || arg === 'page') return null; // ページ側の既定の照合対象をそのまま使う
+	if (arg === 'deck') {
 		const json = JSON.parse(await fs.readFile(DECK_MASTER, 'utf-8'));
 		return (json.skills || json).map((s) => s.name || String(s));
 	}
-	if (DICT_ARG === 'exam') {
+	if (arg === 'exam') {
 		// exam.html が組み込みで持つ技能試験の133種。ソースを正規表現で拾うのではなく
 		// 実際に exam.html を開いて定数を読む（持ち方が名前の配列から {id, name} に
 		// 変わっても追従できるように、どちらの形でも名前だけを取り出す）。
@@ -78,7 +112,28 @@ async function resolveDictionary(browser) {
 		await page.close();
 		return names;
 	}
-	return DICT_ARG.split(',').map((s) => s.trim()).filter(Boolean);
+	return arg.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * --dict の値を解釈する。末尾の `+catalog` は「追加カタログを足す」の意味。
+ * 戻り値 { names, catalogNames, catalogs }。names が null ならページ側の既定を使う
+ * （その場合でも catalog は足せない＝ページ側の skillList をそのまま使う約束のため）。
+ */
+async function resolveDictionary(browser) {
+	const wantCatalog = !!DICT_ARG && /\+catalog$/.test(DICT_ARG);
+	const baseArg = wantCatalog ? DICT_ARG.replace(/\+catalog$/, '') : DICT_ARG;
+	const base = await resolveBaseDictionary(browser, baseArg);
+	if (!wantCatalog) return { names: base, catalogNames: [], catalogs: [] };
+	if (base === null) {
+		console.log('[警告] --dict=page に +catalog は付けられません（ページ側の skillList をそのまま使うため）。カタログは足しません。');
+		return { names: null, catalogNames: [], catalogs: [] };
+	}
+	const catalogs = await loadCatalogs();
+	const catalogNames = catalogs.flatMap((c) => c.names);
+	// マスター側と同じ名前があっても二重には入れない（辞書は名前の集合）。
+	const seen = new Set(base);
+	return { names: base.concat(catalogNames.filter((n) => !seen.has(n))), catalogNames, catalogs };
 }
 
 async function discoverCases() {
@@ -115,7 +170,7 @@ async function saveDataUrl(dataUrl, filePath) {
 // page.evaluate に渡す、実際の OCR 呼び出しラッパー。
 // ページ側で定義済みの processPersonImages / matchAllSkillsWithStars を
 // そのまま利用する。
-async function runOcrInPage({ files, groupLabel, useStitched, dictNames, errDict }) {
+async function runOcrInPage({ files, groupLabel, useStitched, dictNames, errDict, catalogNames, catalogExactOnly }) {
 	async function dataUrlToFile(dataUrl, name) {
 		const res = await fetch(dataUrl);
 		const blob = await res.blob();
@@ -171,7 +226,24 @@ async function runOcrInPage({ files, groupLabel, useStitched, dictNames, errDict
 		previewCanvases = [];
 		const result = await processPersonImages(worker, fileObjs, groupLabel, true, true, true);
 		const matched = matchAllSkillsWithStars(result.lines, list, index, errDict || {});
-		const detected = Array.from(matched.detectedSkills);
+		let detected = Array.from(matched.detectedSkills);
+
+		// 追加カタログの後段の絞り込み。exam.html の applyScenarioFactorExactOnly() と同じ判定を
+		// ここでもう一度掛ける（製品のロジックを複製しないため、判定の中身だけを同じ形で書く。
+		// exam.html 側の関数はページの状態＝利用者が選んだ因子に依存するので直接は呼べない）。
+		out.catalogDropped = [];
+		if (catalogNames && catalogNames.length && catalogExactOnly) {
+			const catalogSet = new Set(catalogNames);
+			const lineNorms = result.lines.map((l) => normalizeText(l.text)).filter(Boolean);
+			detected = detected.filter((name) => {
+				if (!catalogSet.has(name)) return true;
+				const n = normalizeText(name);
+				if (lineNorms.some((s) => s.indexOf(n) !== -1)) return true;
+				out.catalogDropped.push(name);
+				return false;
+			});
+		}
+		out.catalogDetected = detected.filter((n) => (catalogNames || []).indexOf(n) !== -1);
 		out.nLines = result.lines.length;
 		out.skipped = result.skipped;
 		out.detected = detected.map((name) => ({ name: name, stars: matched.skillStars[name] }));
@@ -194,7 +266,7 @@ async function main() {
 		return;
 	}
 	const browser = await chromium.launch();
-	const dictNames = await resolveDictionary(browser);
+	const { names: dictNames, catalogNames, catalogs } = await resolveDictionary(browser);
 	const page = await browser.newPage();
 	const pageErrors = [];
 	const consoleErrors = [];
@@ -208,6 +280,12 @@ async function main() {
 	console.log(`対象ページ: ${PAGE_NAME}`);
 	console.log(`モード: ${USE_STITCHED ? '画像結合してからOCR' : '元画像をそのままOCR'}`);
 	console.log(`照合辞書: ${dictNames ? `指定 ${dictNames.length}件（--dict=${DICT_ARG}）` : 'ページ既定'}`);
+	if (catalogNames.length) {
+		console.log(
+			`追加カタログ: ${catalogs.map((c) => `${c.category} ${c.names.length}件`).join(' / ')}` +
+				`（後段の完全一致の絞り込み: ${CATALOG_EXACT_ONLY ? 'あり（製品と同じ）' : 'なし（--no-catalog-exact-only）'}）`
+		);
+	}
 	console.log(`読み替え辞書: ${Object.keys(ERRDICT).length}件\n`);
 
 	let failed = 0;
@@ -227,6 +305,8 @@ async function main() {
 			useStitched: USE_STITCHED,
 			dictNames: dictNames,
 			errDict: ERRDICT,
+			catalogNames: catalogNames,
+			catalogExactOnly: CATALOG_EXACT_ONLY,
 		});
 		const elapsed = Date.now() - start;
 
@@ -255,6 +335,14 @@ async function main() {
 			console.log(`  検出スキル(${result.detected.length}件):`);
 			for (const d of result.detected) {
 				console.log(`    - ${d.name} (${d.stars == null ? '★不明' : '★' + d.stars})`);
+			}
+			if (catalogNames.length) {
+				const hit = result.catalogDetected || [];
+				console.log(`  うち追加カタログ(${hit.length}件): ${hit.length ? hit.join('・') : '(なし)'}`);
+				const dropped = result.catalogDropped || [];
+				if (dropped.length) {
+					console.log(`  後段の完全一致で落ちた追加カタログ(${dropped.length}件): ${dropped.join('・')}`);
+				}
 			}
 			if (EXPECTED) {
 				const got = new Set(result.detected.map((d) => d.name));
