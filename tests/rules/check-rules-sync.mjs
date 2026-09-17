@@ -71,7 +71,11 @@ const normalizeEol = (s) => s.replace(/\r\n/g, '\n');
  * 2つの本文を比べる。
  *   same     … 完全に同じ
  *   eol-only … 改行コードを揃えれば同じ（警告どまり）
- *   diff     … 中身が違う（落とす）。最初に違う行を添える
+ *   diff     … 中身が違う（落とす）。最初に違う行の「位置と長さ」だけを添える
+ *
+ * **本文そのものは返さない。** 返り値に行の中身を入れると、呼ぶ側がうっかり画面へ
+ * 出せてしまう（実際、以前はここで返した行を80文字まで表示していた）。恒久ルールの
+ * 本文は画面にも出さない約束なので、出せる形を残さない。
  */
 export function compareRules(repoText, rulesText) {
 	if (repoText === rulesText) return { kind: 'same' };
@@ -85,8 +89,8 @@ export function compareRules(repoText, rulesText) {
 	return {
 		kind: 'diff',
 		line: i + 1,
-		repoLine: i < la.length ? la[i] : null,
-		rulesLine: i < lb.length ? lb[i] : null,
+		repoLineLen: i < la.length ? [...la[i]].length : null,
+		rulesLineLen: i < lb.length ? [...lb[i]].length : null,
 		repoLines: la.length,
 		rulesLines: lb.length,
 	};
@@ -101,7 +105,8 @@ const stamp = (p) => {
 		return '(不明)';
 	}
 };
-const cut = (s) => (s === null ? '（行なし）' : s.length > 80 ? s.slice(0, 80) + '…' : s);
+/** 本文は出さない。行が有るか無いかと、その文字数だけを言う。 */
+const lenOf = (n) => (n === null ? '（行なし）' : `${n} 文字`);
 
 /**
  * 検査を1回走らせる。副作用は無く、結果だけ返す。
@@ -189,11 +194,13 @@ export function runCheck({ repoFile = REPO_RULES_FILE, env = process.env, config
 			: `→ 更新日時では ${ta > tb ? 'CLAUDE.md' : 'CLAUDE-RULES.md'} のほうが新しい。新しいほうを古いほうへコピーする。`;
 		ng('CLAUDE.md と CLAUDE-RULES.md が一致', [
 			`最初に違う行: ${r.line} 行目`,
-			`  CLAUDE.md        : ${cut(r.repoLine)}`,
-			`  CLAUDE-RULES.md  : ${cut(r.rulesLine)}`,
+			`  CLAUDE.md        : ${lenOf(r.repoLineLen)}`,
+			`  CLAUDE-RULES.md  : ${lenOf(r.rulesLineLen)}`,
 			`行数        CLAUDE.md ${r.repoLines} / CLAUDE-RULES.md ${r.rulesLines}`,
 			hint,
 			'（同期フォルダ側の更新日時は、他の端末から同期で降りてきたときにも変わる。目安として見ること）',
+			`中身はここには出さない。違いを見るときは、手元で CLAUDE.md と ${mask(resolved.file)} を`,
+			'diff で突き合わせる（この検査に本文を出すオプションは用意しない）。',
 		]);
 	}
 	return { ok, verified, warnings, lines };

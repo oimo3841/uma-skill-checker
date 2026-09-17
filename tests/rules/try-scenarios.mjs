@@ -32,10 +32,22 @@ const results = [];
 
 // (a) 中身が違う → NG
 {
-	const repo = W('a-repo.md', BASE + '3. あとから足したルール\n');
+	const EXTRA = '3. あとから足したルール';
+	const repo = W('a-repo.md', BASE + EXTRA + '\n');
 	const rules = W('a-rules.md', BASE);
-	results.push(show('(a) 2ファイルの内容が不一致', 'NG',
-		runCheck({ repoFile: repo, env: { UMA_CLAUDE_RULES: rules }, configFile: path.join(tmp, 'none.json') })));
+	const res = runCheck({ repoFile: repo, env: { UMA_CLAUDE_RULES: rules }, configFile: path.join(tmp, 'none.json') });
+	results.push(show('(a) 2ファイルの内容が不一致', 'NG', res));
+
+	// 不一致のときでも、2ファイルの本文は画面に出さない。出しているとルールの中身が
+	// 検査ログに残る（以前は最初に違う行を80文字まで表示していた）。いまは行番号・行数・
+	// 文字数だけなので、ダミーの本文の行が1つも混ざっていないことをここで機械的に見る。
+	const out = res.lines.join('\n');
+	const bodyLines = [...new Set([...BASE.split('\n'), EXTRA])].filter((l) => l.trim());
+	const leaked = bodyLines.filter((l) => out.includes(l));
+	const clean = leaked.length === 0;
+	// 漏れた行そのものは出さない（出すとここが漏れ口になる）。件数だけ言う。
+	console.log(`   本文の行が出ていないこと: ${clean ? '出ていない → 想定どおり' : `${leaked.length}件 出ている → 想定と違う`}`);
+	results.push(clean);
 }
 
 // (b) 改行コードだけが違う → 警告（NG にはしない）
