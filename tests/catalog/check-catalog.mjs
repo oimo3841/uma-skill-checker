@@ -80,7 +80,11 @@ const DATA_STATUS_KEYS = {
 const STATUS_VALUES = ['done', 'none', 'pending'];
 const EVENT_STATUS_VALUES = ['done', 'none'];
 const STAR_MIN = 1, STAR_MAX = 5;
-const LEVEL_MIN = 1, LEVEL_MAX = 5;
+// 覚醒レベルに上限は設けない（0以上の整数・昇順・重複なし だけを見る）。
+// レベルの上限はゲーム側で変わりうるので、決め打ちにすると、増えたときに
+// 正しいデータのほうが落ちる。0 は「覚醒のレベルに紐づかない枠（最初から
+// 持っているスキル）」を表すので、下限は 1 ではなく 0。
+const LEVEL_MIN = 0;
 const DATA_VERSION_RE = /^\d{4}-\d{2}-\d{2}[a-z]$/;
 const SERIAL_RE = /^(\d{4,})$/;
 
@@ -254,7 +258,7 @@ docs.trainingUmamusume.entries.forEach((e, i) => {
 		e.awakeningSkills.forEach((row, j) => {
 			const rw = w + '.awakeningSkills[' + j + ']';
 			if (!checkKeys(row, LEVEL_ROW_KEYS, rw, unknownKeys, missingKeys)) return;
-			if (!isInt(row.level) || row.level < LEVEL_MIN || row.level > LEVEL_MAX) badTypes.push(rw + ': level は ' + LEVEL_MIN + '〜' + LEVEL_MAX + ' の整数');
+			if (!isInt(row.level) || row.level < LEVEL_MIN) badTypes.push(rw + ': level は ' + LEVEL_MIN + ' 以上の整数');
 			readSkillRefs(row.skills, rw + '.skills');
 		});
 	} else badTypes.push(w + ': awakeningSkills は配列');
