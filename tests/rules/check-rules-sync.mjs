@@ -109,6 +109,12 @@ const stamp = (p) => {
 const lenOf = (n) => (n === null ? '（行なし）' : `${n} 文字`);
 
 /**
+ * 例外から、画面に出してよい手掛かりだけを取り出す。
+ * `e.message` には開こうとした**絶対パス**が入るので使わない（恒久ルール12）。
+ */
+const codeOf = (e) => (e && e.code) || (e && e.name) || '不明';
+
+/**
  * 検査を1回走らせる。副作用は無く、結果だけ返す。
  * paths を渡せるのは、状況（不一致・CLAUDE.md が無い等）を再現して確かめられるようにするため。
  */
@@ -165,8 +171,31 @@ export function runCheck({ repoFile = REPO_RULES_FILE, env = process.env, config
 	}
 	if (!repoExists) return { ok, verified, warnings, lines };
 
-	const repoText = fs.readFileSync(repoFile, 'utf8');
-	const rulesText = fs.readFileSync(resolved.file, 'utf8');
+	// existsSync を通っても読めないことはある（権限・同期中のロック・その瞬間の削除・
+	// フォルダを指していた等）。包まずに投げさせると、Node の例外メッセージが
+	// `ENOENT: … open '<絶対パス>'` の形で**同期フォルダの絶対パスを画面に出す**
+	// （§8 は子プロセスの stderr をそのまま流すため。mask() の伏せ方を素通りする）。
+	// 読めなかったこと自体は伝える必要があるので、伏せた名前と理由（コード）だけを出す。
+	let repoText;
+	let rulesText;
+	try {
+		repoText = fs.readFileSync(repoFile, 'utf8');
+	} catch (e) {
+		ng(`CLAUDE.md を読めなかった（理由: ${codeOf(e)}）`, [
+			'ファイルはあるのに読めない。権限・ロック・フォルダを指している等が考えられる。',
+			'（詳しい理由は、この検査ではなく手元で開いて確かめる。絶対パスはここには出さない）',
+		]);
+		return { ok, verified, warnings, lines };
+	}
+	try {
+		rulesText = fs.readFileSync(resolved.file, 'utf8');
+	} catch (e) {
+		ng(`${mask(resolved.file)} を読めなかった（理由: ${codeOf(e)}）`, [
+			'同期フォルダは見えていて正本もあるのに読めない。同期の途中・権限・ロックが考えられる。',
+			'（詳しい理由は、この検査ではなく手元で開いて確かめる。絶対パスはここには出さない）',
+		]);
+		return { ok, verified, warnings, lines };
+	}
 	const repoInfo = `${Buffer.byteLength(repoText, 'utf8')} B / ${repoText.split('\n').length} 行 / ${eolOf(repoText)} / 更新 ${stamp(repoFile)}`;
 	const rulesInfo = `${Buffer.byteLength(rulesText, 'utf8')} B / ${rulesText.split('\n').length} 行 / ${eolOf(rulesText)} / 更新 ${stamp(resolved.file)}`;
 	say(`     CLAUDE.md        ${repoInfo}`);

@@ -88,6 +88,25 @@ const results = [];
 		runCheck({ repoFile: repo, env: { UMA_CLAUDE_RULES: path.join(tmp, 'e-missing.md') }, configFile: path.join(tmp, 'none.json') })));
 }
 
+// 参考：正本はあるのに読めない → NG。絶対パスを画面に出さないことも見る
+{
+	const repo = W('g-repo.md', BASE);
+	// 「あるのに読めない」を作る。権限の細工は OS 差が大きいので、フォルダを指させる
+	// （存在はするので existsSync は通り、readFileSync は必ず失敗する）。
+	const asDir = path.join(tmp, 'g-rules-as-directory');
+	fs.mkdirSync(asDir, { recursive: true });
+	const res = runCheck({ repoFile: repo, env: { UMA_CLAUDE_RULES: asDir }, configFile: path.join(tmp, 'none.json') });
+	results.push(show('(参考) 正本はあるのに読めない', 'NG', res));
+
+	// 包まずに投げさせると Node の例外メッセージが絶対パスごと stderr に出る。
+	// 伏せた名前と理由だけになっていることを、一時フォルダの実パスで機械的に見る。
+	const out = res.lines.join('\n');
+	const clean = !out.includes(tmp) && !out.includes(asDir);
+	// 漏れていた場合もパスそのものは出さない（出すとここが漏れ口になる）。
+	console.log(`   絶対パスが出ていないこと: ${clean ? '出ていない → 想定どおり' : '出ている → 想定と違う'}`);
+	results.push(clean);
+}
+
 // 参考：一致しているとき
 {
 	const repo = W('f-repo.md', BASE);
