@@ -1,7 +1,2673 @@
 {
 	"dataVersion": "2026-09-18a",
 	"category": "extendedSkill",
-	"nextSerial": "ex-0001",
+	"nextSerial": "ex-0534",
 	"note": "マスター（uma-skill-deck-skills.json）の445種に無いスキル。name はゲーム画面の表示そのまま（全角・半角・中黒「・」を含めて変えない）。id は保存済みの比較シートが指し続ける不変の鍵なので、表記を直しても id は変えない。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。tagsPending が付いている間は8軸のタグが未設定で、条件での絞り込みの母集団には入れない（8軸すべてが空のタグは「条件を持たない＝万能スキル」という別の意味になるため、未設定はこの印で示す）。tagsPending と tags はどちらか一方だけを持つ。形は npm run check:catalog が確かめる。",
-	"entries": []
+	"entries": [
+		{
+			"id": "ex-0001",
+			"name": "シューティングスター",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0002",
+			"name": "食いしん坊",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0003",
+			"name": "全身全霊",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0004",
+			"name": "行雲流水",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0005",
+			"name": "わやかわ♪マリンダイヴ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0006",
+			"name": "迅速果断",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0007",
+			"name": "アガッてきた！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0008",
+			"name": "威風堂々、夢錦！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0009",
+			"name": "怒涛の追い上げ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0010",
+			"name": "日本一のウマ娘",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0011",
+			"name": "先頭の景色は譲らない…！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0012",
+			"name": "コンセントレーション",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0013",
+			"name": "逃亡者",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0014",
+			"name": "左回りの鬼",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0015",
+			"name": "水平線のその先へ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0016",
+			"name": "脱出術",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0017",
+			"name": "誰より前へ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0018",
+			"name": "究極テイオーステップ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0019",
+			"name": "技巧派",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0020",
+			"name": "ライトニングステップ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0021",
+			"name": "夢の舞台へ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0022",
+			"name": "絶対は、ボクだ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0023",
+			"name": "レースプランナー",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0024",
+			"name": "神業ステップ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0025",
+			"name": "歌舞歓楽や、ああをかし",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0026",
+			"name": "鍔迫り合い",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0027",
+			"name": "余裕綽々",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0028",
+			"name": "紅焔ギア/LP1211-M",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0029",
+			"name": "ギアチェンジ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0030",
+			"name": "アクセル全開！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0031",
+			"name": "グッときて♪Chu",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0032",
+			"name": "じゃじゃウマ娘",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0033",
+			"name": "マイルの支配者",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0034",
+			"name": "霊験灼然チョベリグ神託",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0035",
+			"name": "姉御肌",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0036",
+			"name": "傑出",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0037",
+			"name": "煌星のヴォードヴィル",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0038",
+			"name": "Ravissant",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0039",
+			"name": "見惚れるトリック",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0040",
+			"name": "スピードスター",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0041",
+			"name": "Gloire à toi!",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0042",
+			"name": "神速",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0043",
+			"name": "王手",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0044",
+			"name": "勝利の鼓動",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0045",
+			"name": "曲線のソムリエ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0046",
+			"name": "聖夜のミラクルラン！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0047",
+			"name": "内的体験",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0048",
+			"name": "灰の光跡：シンデレラグレイ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0049",
+			"name": "努力の結実",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0050",
+			"name": "怪物",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0051",
+			"name": "波乱注意砲！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0052",
+			"name": "不沈艦、抜錨ォッ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0053",
+			"name": "視界良好！異常なし！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0054",
+			"name": "下校後のスペシャリスト",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0055",
+			"name": "Adventure of 564",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0056",
+			"name": "高揚感",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0057",
+			"name": "Vive la GOLD",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0058",
+			"name": "迫る影",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0059",
+			"name": "道悪の鬼",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0060",
+			"name": "アクセルX",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0061",
+			"name": "カッティング×DRIVE！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0062",
+			"name": "好転一息",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0063",
+			"name": "豪脚",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0064",
+			"name": "Into High Gear!",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0065",
+			"name": "ノンストップガール",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0066",
+			"name": "トップギア",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0067",
+			"name": "レッドエース",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0068",
+			"name": "ブリリアント・レッドエース",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0069",
+			"name": "キラーチューン",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0070",
+			"name": "Queen's Lumination",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0071",
+			"name": "踏ませぬ影",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0072",
+			"name": "ヴィクトリーショット！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0073",
+			"name": "Joyful Voyage!",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0074",
+			"name": "Have S'more Love!",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0075",
+			"name": "ぶっちぎり！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0076",
+			"name": "猪突猛進",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0077",
+			"name": "精神一到",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0078",
+			"name": "精神一到何事か成らざらん",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0079",
+			"name": "独占力",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0080",
+			"name": "乗り換え上手",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0081",
+			"name": "ゲインヒール・スペリアー",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0082",
+			"name": "クールダウン",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0083",
+			"name": "リラックス",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0084",
+			"name": "演舞・撫子大薙刀",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0085",
+			"name": "勇往邁進",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0086",
+			"name": "後の先",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0087",
+			"name": "タイマン！デッドヒート！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0088",
+			"name": "勝利への執念",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0089",
+			"name": "疾風怒濤",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0090",
+			"name": "大盛り！ファーストバイト！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0091",
+			"name": "強攻策",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0092",
+			"name": "抜群の切れ味",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0093",
+			"name": "貴顕の使命を果たすべく",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0094",
+			"name": "先陣の心得",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0095",
+			"name": "最強の名を懸けて",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0096",
+			"name": "ハヤテ一文字",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0097",
+			"name": "きらめくは海、まばゆきは君",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0098",
+			"name": "真打",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0099",
+			"name": "一意専心",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0100",
+			"name": "熱血☆アミーゴ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0101",
+			"name": "プランチャ☆ガナドール",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0102",
+			"name": "千里眼",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0103",
+			"name": "コンドル猛撃波",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0104",
+			"name": "昇り龍",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0105",
+			"name": "ヴィットーリアに捧ぐ舞踏",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0106",
+			"name": "恵福バルカローレ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0107",
+			"name": "円弧のマエストロ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0108",
+			"name": "Shadow Break",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0109",
+			"name": "灰色の臨界点",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0110",
+			"name": "猛追",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0111",
+			"name": "汝、皇帝の神威を見よ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0112",
+			"name": "弧線のプロフェッサー",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0113",
+			"name": "翳り退く、さざめきの矢",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0114",
+			"name": "初嵐",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0115",
+			"name": "エンプレス・プライド",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0116",
+			"name": "ブレイズ・オブ・プライド",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0117",
+			"name": "幻惑のかく乱",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0118",
+			"name": "レーンの魔術師",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0119",
+			"name": "薫風、永遠なる瞬間を",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0120",
+			"name": "尊み☆ﾗｽﾄｽﾊﾟ—(ﾟ∀ﾟ)—ﾄ!",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0121",
+			"name": "ウママニア",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0122",
+			"name": "狙うは最前列！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0123",
+			"name": "萌到讓我活過來了！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0124",
+			"name": "捲土重来",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0125",
+			"name": "アングリング×スキーミング",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0126",
+			"name": "Do Ya Breakin!",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0127",
+			"name": "トップランナー",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0128",
+			"name": "海風にまったり身を任せ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0129",
+			"name": "急先鋒",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0130",
+			"name": "白い稲妻、見せたるで！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0131",
+			"name": "尻尾の滝登り",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0132",
+			"name": "火神鳴",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0133",
+			"name": "Fairy tale",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0134",
+			"name": "決意の直滑降",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0135",
+			"name": "Best day ever",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0136",
+			"name": "麗走一直！ラーメン道",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0137",
+			"name": "順風満帆",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0138",
+			"name": "正攻法",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0139",
+			"name": "∴win Q.E.D.",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0140",
+			"name": "Presents from X",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0141",
+			"name": "VIP顔パス",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0142",
+			"name": "勝利ヘ至ル累積",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0143",
+			"name": "一点集中",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0144",
+			"name": "脱兎の先へ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0145",
+			"name": "勝利のキッス☆",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0146",
+			"name": "ひらめき☆ランディング",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0147",
+			"name": "フラワリー☆マニューバ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0148",
+			"name": "魅惑のささやき",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0149",
+			"name": "HOP STEP♪LOCK ON!",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0150",
+			"name": "万里一空",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0151",
+			"name": "早業",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0152",
+			"name": "アナタヲ・オイカケテ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0153",
+			"name": "スタミナグリード",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0154",
+			"name": "心からのおもてにゃし",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0155",
+			"name": "一網打尽",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0156",
+			"name": "迷える時も、幽かなる時も",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0157",
+			"name": "絶塵",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0158",
+			"name": "G00 1st.F∞;",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0159",
+			"name": "先手必勝",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0160",
+			"name": "切り開く者",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0161",
+			"name": "オペレーション・Cacao",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0162",
+			"name": "燃えろ筋肉！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0163",
+			"name": "レッツ・アナボリック！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0164",
+			"name": "あなたに捧げるフリーポア",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0165",
+			"name": "至高のダウンヒラー",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0166",
+			"name": "I'M☆FULL☆SPEED!!",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0167",
+			"name": "準備万全！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0168",
+			"name": "シュガーパレード・始動！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0169",
+			"name": "まばたき厳禁！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0170",
+			"name": "ゆきあかり、おいかけて",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0171",
+			"name": "いっぱいおあげんしぇ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0172",
+			"name": "アンストッパブル",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0173",
+			"name": "ブルーローズチェイサー",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0174",
+			"name": "Drain for rose",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0175",
+			"name": "あおぞらクッキング♪",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0176",
+			"name": "究極のヒルクライマー",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0177",
+			"name": "淀の申し子",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0178",
+			"name": "チャージ完了！全速前進！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0179",
+			"name": "荒ぶる旋風",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0180",
+			"name": "フレッシュ☆パーラー",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0181",
+			"name": "陣風円刃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0182",
+			"name": "全力全開！サイクロン",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0183",
+			"name": "お先に失礼っ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0184",
+			"name": "introduction：My body",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0185",
+			"name": "U=ma2",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0186",
+			"name": "夏空ハレーション",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0187",
+			"name": "シンギュラリティ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0188",
+			"name": "超光速微粒子の可能性",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0189",
+			"name": "流星光底",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0190",
+			"name": "ディオスクロイの流星",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0191",
+			"name": "冷静沈着",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0192",
+			"name": "Crystal Mist",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0193",
+			"name": "追跡者",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0194",
+			"name": "一張一弛",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0195",
+			"name": "快走かな、快走かな！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0196",
+			"name": "砂の玄人",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0197",
+			"name": "灯穂",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0198",
+			"name": "全力Vサインッ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0199",
+			"name": "勝利のチケットを、君にッ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0200",
+			"name": "努力家",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0201",
+			"name": "夢の先へ、届け！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0202",
+			"name": "百万バリキ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0203",
+			"name": "決死の覚悟",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0204",
+			"name": "GO! Full-send",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0205",
+			"name": "千里の道",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0206",
+			"name": "trigger:BEAT",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0207",
+			"name": "月影一閃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0208",
+			"name": "...found you.",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0209",
+			"name": "Schwarzes Schwert",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0210",
+			"name": "Guten Appetit♪",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0211",
+			"name": "光芒一閃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0212",
+			"name": "潮風のGeschenk",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0213",
+			"name": "府中の申し子",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0214",
+			"name": "#LookatCurren",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0215",
+			"name": "悩殺術",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0216",
+			"name": "One True Color",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0217",
+			"name": "スプリントターボ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0218",
+			"name": "姫たるもの、勝利をこの手に",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0219",
+			"name": "快なる剛力",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0220",
+			"name": "KEEP IT REAL.",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0221",
+			"name": "慧眼",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0222",
+			"name": "GET DOWN",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0223",
+			"name": "布陣",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0224",
+			"name": "潜伏態勢",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0225",
+			"name": "Silent Sunset Gold",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0226",
+			"name": "陽炎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0227",
+			"name": "学級委員長+速さ＝バクシン",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0228",
+			"name": "優等生×バクシン＝大勝利ッ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0229",
+			"name": "圧倒的リード",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0230",
+			"name": "CHERRY☆スクランブル",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0231",
+			"name": "意気衝天",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0232",
+			"name": "紫電一閃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0233",
+			"name": "桜吹雪くスプリントバースト",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0234",
+			"name": "閃く雷光",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0235",
+			"name": "『I'm possible』",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0236",
+			"name": "Oh!bento-magic☆",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0237",
+			"name": "一陣の風",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0238",
+			"name": "ネバーギブアップ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0239",
+			"name": "Ding Dong Boo",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0240",
+			"name": "全速前進！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0241",
+			"name": "泥んこマイスター",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0242",
+			"name": "最恐！いたずら計画なのだ♪",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0243",
+			"name": "ハジける闘志",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0244",
+			"name": "見事な砂蹴り",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0245",
+			"name": "いただき☆ストレリチア！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0246",
+			"name": "熱いまなざし",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0247",
+			"name": "とっておきmaterialize",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0248",
+			"name": "一心不乱",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0249",
+			"name": "クリアハート",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0250",
+			"name": "ピュリティオブハート",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0251",
+			"name": "ぐるぐるマミートリック♡",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0252",
+			"name": "忍法・ほほえみ心結の印",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0253",
+			"name": "キラキラ☆STARDOM",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0254",
+			"name": "注目の踊り子",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0255",
+			"name": "チャート急上昇！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0256",
+			"name": "α-star*",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0257",
+			"name": "目指せセンター！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0258",
+			"name": "Forward March!",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0259",
+			"name": "コール&レスポンス",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0260",
+			"name": "掲げよ、己が魂の剣を！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0261",
+			"name": "光芒円刃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0262",
+			"name": "未知との遭遇、即ち物語",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0263",
+			"name": "勇迅一閃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0264",
+			"name": "YEAH☆VIVID TIME!",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0265",
+			"name": "GALmem.ふぉーえば♪",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0266",
+			"name": "起死回生",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0267",
+			"name": "大胆不敵",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0268",
+			"name": "ヤバ技☆ジャグルビート",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0269",
+			"name": "ストレートハート",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0270",
+			"name": "剣ヶ峰より、狂気に嗤え",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0271",
+			"name": "博打うち",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0272",
+			"name": "勝負師",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0273",
+			"name": "雲蒸竜変",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0274",
+			"name": "運否、聖夜の星に賭ける",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0275",
+			"name": "Nemesis",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0276",
+			"name": "眠れる獅子",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0277",
+			"name": "Hephaistos",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0278",
+			"name": "ブレイクスルー",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0279",
+			"name": "Overdrive Speed",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0280",
+			"name": "飛翔脚",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0281",
+			"name": "完全燃焼",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0282",
+			"name": "つぼみ、ほころぶ時",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0283",
+			"name": "Flowering Dreams",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0284",
+			"name": "豪風円刃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0285",
+			"name": "ワクワクよーいドン",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0286",
+			"name": "ワクワククライマックス",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0287",
+			"name": "鋼の意志",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0288",
+			"name": "不屈の心",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0289",
+			"name": "113転び114起き",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0290",
+			"name": "熱血！！風紀アタック",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0291",
+			"name": "破竹の勢い",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0292",
+			"name": "奥義・常夏バーニング！！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0293",
+			"name": "ペガサスフルパワー！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0294",
+			"name": "疾風爆走ペガサスダッシュ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0295",
+			"name": "電撃の煌めき",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0296",
+			"name": "万彩☆マーベラス★世界",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0297",
+			"name": "喝采☆ワンダードール！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0298",
+			"name": "ルミネセンス",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0299",
+			"name": "麒麟児",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0300",
+			"name": "来てください来てください！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0301",
+			"name": "来ます来てます来させます！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0302",
+			"name": "奇術師",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0303",
+			"name": "スーパーラッキーセブン",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0304",
+			"name": "禾スナハチ登ル",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0305",
+			"name": "叙情、旅路の果てに",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0306",
+			"name": "天衣無縫",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0307",
+			"name": "爛然闊歩",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0308",
+			"name": "千載一遇",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0309",
+			"name": "I Never Goof Up!",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0310",
+			"name": "Spooky-Scary-Happy",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0311",
+			"name": "彼方、その先へ…",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0312",
+			"name": "八方にらみ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0313",
+			"name": "ときめきが呼ぶほうへ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0314",
+			"name": "アタシもたまには、ね？",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0315",
+			"name": "きっとその先へ…！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0316",
+			"name": "Go☆Go☆for it!",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0317",
+			"name": "もちっと・ハレハレ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0318",
+			"name": "いいとこ入った！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0319",
+			"name": "Call me KING",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0320",
+			"name": "Pride of KING",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0321",
+			"name": "大局観",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0322",
+			"name": "轟！トレセン応援団！！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0323",
+			"name": "春一番",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0324",
+			"name": "理想へのwinding road",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0325",
+			"name": "気骨稜稜",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0326",
+			"name": "レディー、どんっ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0327",
+			"name": "どんっ、パッ、むんっ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0328",
+			"name": "どこ吹く風",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0329",
+			"name": "ごろりん！？パワードライブ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0330",
+			"name": "打ち、鍛えて",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0331",
+			"name": "百錬成鋼",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0332",
+			"name": "千歳、廻りて",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0333",
+			"name": "ぶっちぎりロード",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0334",
+			"name": "jingle all the way",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0335",
+			"name": "烈風一閃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0336",
+			"name": "ブチ☆アゲ↑バイブス",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0337",
+			"name": "アゲてアゲてぷちょへんざ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0338",
+			"name": "遮二無二",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0339",
+			"name": "ノッてけ、マッシュアップ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0340",
+			"name": "エンジン点火！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0341",
+			"name": "エンジン全開！大噴射！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0342",
+			"name": "出力1000％！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0343",
+			"name": "晦冥を照らせ永遠の耀き",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0344",
+			"name": "右回りの鬼",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0345",
+			"name": "玄雲散らす、黄金甲矢",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0346",
+			"name": "無我夢中",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0347",
+			"name": "ポンテ・デ・ディアマン",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0348",
+			"name": "勝ち鬨ワッショイ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0349",
+			"name": "あっぱれ大盤振る舞い！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0350",
+			"name": "ミンナノアタシへ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0351",
+			"name": "画竜点睛",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0352",
+			"name": "憧れは桜を越える！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0353",
+			"name": "咲け咲け！私！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0354",
+			"name": "気炎万丈",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0355",
+			"name": "セイリオス",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0356",
+			"name": "駆るは光、狩るは星々",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0357",
+			"name": "昂る鼓動",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0358",
+			"name": "一期の夢、刹那の飛翔",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0359",
+			"name": "Danser le présent",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0360",
+			"name": "烈火繚乱、無敵之舞",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0361",
+			"name": "剛勇果断、烈火之刀",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0362",
+			"name": "心、強し！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0363",
+			"name": "燃え盛るは絶対の意志",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0364",
+			"name": "勇迅円刃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0365",
+			"name": "麗しき花信風",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0366",
+			"name": "泰然自若",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0367",
+			"name": "Illuminate you",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0368",
+			"name": "夕凪のリトリート・メモリー",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0369",
+			"name": "一発必中",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0370",
+			"name": "一気呵成",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0371",
+			"name": "花開き、世界",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0372",
+			"name": "春光・Bon appétit",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0373",
+			"name": "気丈夫",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0374",
+			"name": "Road to Glory",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0375",
+			"name": "良バ場の鬼",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0376",
+			"name": "Joy to the World",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0377",
+			"name": "影従打破",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0378",
+			"name": "一杯全力、お届けします！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0379",
+			"name": "エネルギッシュ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0380",
+			"name": "快刀乱麻",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0381",
+			"name": "風光る",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0382",
+			"name": "風雲の志",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0383",
+			"name": "Breezy Treat",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0384",
+			"name": "かっとばせ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0385",
+			"name": "『船橋最強！』",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0386",
+			"name": "優位形成",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0387",
+			"name": "猛烈激走",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0388",
+			"name": "Info: Acquired",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0389",
+			"name": "盤石の構え",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0390",
+			"name": "砂の開拓者",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0391",
+			"name": "地熱解放オーヴァードライブ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0392",
+			"name": "勇壮活発",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0393",
+			"name": "Punkish Bite",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0394",
+			"name": "踏みしめる大地",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0395",
+			"name": "清濁併呑",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0396",
+			"name": "Shining Runway",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0397",
+			"name": "ハイボルテージ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0398",
+			"name": "煌めき華やぐアローライン",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0399",
+			"name": "熱情",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0400",
+			"name": "Mission: Triumph",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0401",
+			"name": "Immortal Work",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0402",
+			"name": "霹靂のアウフヘーベン",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0403",
+			"name": "深淵のテルプシコラー",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0404",
+			"name": "至上であれ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0405",
+			"name": "威風堂々",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0406",
+			"name": "電光石火",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0407",
+			"name": "蒼炎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0408",
+			"name": "愛と熔けよただ熔けよ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0409",
+			"name": "十全十美",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0410",
+			"name": "解けぬ結い目",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0411",
+			"name": "Silent letter",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0412",
+			"name": "ふわもこアワー",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0413",
+			"name": "イニシアチブ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0414",
+			"name": "Reversal Illusion",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0415",
+			"name": "夏雷カスケード！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0416",
+			"name": "刹那の勝機",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0417",
+			"name": "Celeste Oath",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0418",
+			"name": "快進撃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0419",
+			"name": "Tidebreaker",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0420",
+			"name": "ショーダウン",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0421",
+			"name": "Queen's Rebirth",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0422",
+			"name": "デラックス☆ファウンテン",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0423",
+			"name": "ジュ・テーム☆バカンス！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0424",
+			"name": "才気煥発",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0425",
+			"name": "照らすのはわたしの焔",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0426",
+			"name": "初志貫徹",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0427",
+			"name": "燃ゆる魂",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0428",
+			"name": "幸せの青い光",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0429",
+			"name": "きせき・おもい・かなで",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0430",
+			"name": "Faith in the Feral",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0431",
+			"name": "突撃魂",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0432",
+			"name": "黄昏の血盟",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0433",
+			"name": "有志竟成",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0434",
+			"name": "念い、信ずればこそ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0435",
+			"name": "百戦錬磨",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0436",
+			"name": "知宵欺敵、百戦不殆",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0437",
+			"name": "スカーレットリリィの高揚",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0438",
+			"name": "闘争本能",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0439",
+			"name": "解き放つ情念",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0440",
+			"name": "理運開かりて翔る",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0441",
+			"name": "勝利の機運",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0442",
+			"name": "抜群の踏み込み",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0443",
+			"name": "五獣挙りて彩光奏づ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0444",
+			"name": "点滴穿石",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0445",
+			"name": "交流重賞の鬼",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0446",
+			"name": "かがやけ☆とまこまい",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0447",
+			"name": "とびだせ☆ポッピングシェル",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0448",
+			"name": "Never Say Never",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0449",
+			"name": "優雅な砂浴び",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0450",
+			"name": "湯守の和心",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0451",
+			"name": "震天動地",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0452",
+			"name": "ヴィヴァーチェ・ヴォラーレ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0453",
+			"name": "ケ・ピアチェーヴォレ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0454",
+			"name": "開花",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0455",
+			"name": "アピール宣言！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0456",
+			"name": "絶対最強☆アピール宣言！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0457",
+			"name": "大車輪",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0458",
+			"name": "暁の御旗『葛城栄主』！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0459",
+			"name": "決意一筆",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0460",
+			"name": "勝負はここから！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0461",
+			"name": "英姿颯爽",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0462",
+			"name": "アド・アストラ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0463",
+			"name": "Encounter with U",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0464",
+			"name": "コネクト",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0465",
+			"name": "Bang☆ミラクるわせ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0466",
+			"name": "小さな奇跡、フォーユー♪",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0467",
+			"name": "Billions of stars",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0468",
+			"name": "Romantic Horizon",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0469",
+			"name": "羅刹、赤翼にて天上へ至らん",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0470",
+			"name": "君臨",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0471",
+			"name": "繋ぐ・繋がる×夢・未来",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0472",
+			"name": "ずっとずっと輝いて",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0473",
+			"name": "この手に掴んだ未来",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0474",
+			"name": "Guiding Sea",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0475",
+			"name": "時かけるせせらぎ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0476",
+			"name": "辿る血脈、芽吹く未来",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0477",
+			"name": "用意周到",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0478",
+			"name": "With All My Heart",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0479",
+			"name": "ホップステップ・ゲッチュ♡",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0480",
+			"name": "渚のヴィーナスタイム♡",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0481",
+			"name": "To Our Vista",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0482",
+			"name": "勇気凛々",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0483",
+			"name": "我が覇道、阻むものなし",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0484",
+			"name": "睥睨",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0485",
+			"name": "烈華の洗礼",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0486",
+			"name": "強者の証",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0487",
+			"name": "不凋なるCattleya",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0488",
+			"name": "鋭気のアレグロ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0489",
+			"name": "肉薄",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0490",
+			"name": "悠遠のファーノース",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0491",
+			"name": "才色兼備",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0492",
+			"name": "天賦の才",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0493",
+			"name": "『それでは、よき旅を』",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0494",
+			"name": "掌握",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0495",
+			"name": "夢寐に見る銀世界",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0496",
+			"name": "無二無三なる一条の路",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0497",
+			"name": "陣風一閃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0498",
+			"name": "Lame de vent",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0499",
+			"name": "ふくらむ夢、先駆の途",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0500",
+			"name": "幕引き",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0501",
+			"name": "暁霞を拓き、朝を掴む",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0502",
+			"name": "対象捕捉！正義遂行！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0503",
+			"name": "剛心鉄壁ガーディアン",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0504",
+			"name": "百花繚乱",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0505",
+			"name": "Peerless Heroine",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0506",
+			"name": "パラダイムシフト",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0507",
+			"name": "唯一無二",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0508",
+			"name": "咲う花形",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0509",
+			"name": "¡Qué alegría!",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0510",
+			"name": "トキメキハート",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0511",
+			"name": "天真爛漫",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0512",
+			"name": "Circulating Love♡",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0513",
+			"name": "Watch Us Flourish",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0514",
+			"name": "王道一途",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0515",
+			"name": "Weaving History",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0516",
+			"name": "いずれあなたに咲くフローラ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0517",
+			"name": "黄金を訪ねて",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0518",
+			"name": "遥か先へ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0519",
+			"name": "好奇心",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0520",
+			"name": "無垢の祈り・ホーリーライト",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0521",
+			"name": "聖女の挑戦",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0522",
+			"name": "舞い降りる翼",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0523",
+			"name": "想像×創造＝∞",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0524",
+			"name": "インスピレーション",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0525",
+			"name": "一世一代",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0526",
+			"name": "光れ！弾けろ！超新星爆発！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0527",
+			"name": "超然",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0528",
+			"name": "Ring-a-Link",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0529",
+			"name": "冠絶タクティクス",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0530",
+			"name": "烈々と咲く",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0531",
+			"name": "立ち合い",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0532",
+			"name": "剣抜弩張",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0533",
+			"name": "気勢を上げて",
+			"tagsPending": true
+		}
+	]
 }
