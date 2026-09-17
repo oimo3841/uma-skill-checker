@@ -1,0 +1,7 @@
+{
+	"dataVersion": "2026-09-18a",
+	"category": "trainingUmamusume",
+	"nextSerial": "uma-0001",
+	"note": "育成ウマ娘（勝負服ごと）。initialSkills は★ごとの初期スキルで、minStar が現在の★以下の行のうち minStar が最大のものを使う（各行はその★での全部であって、前の行との差分ではない）。awakeningSkills は覚醒レベルごと。スキルの参照は skillId が本体で、name は照合のための控え（表示には使わない）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。dataStatus は done（確かめて載せた）／none（無いと確かめた）／pending（未確認）。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。形は npm run check:catalog が確かめる。",
+	"entries": []
+}

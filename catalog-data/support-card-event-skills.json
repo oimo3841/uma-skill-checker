@@ -1,0 +1,6 @@
+{
+	"dataVersion": "2026-09-18a",
+	"category": "supportCardEventSkill",
+	"note": "サポートカードのイベントで得られるスキル。ゲーム画面を見ながら、確かめられたカードから1件ずつ足す。ここに無い cardId は「未確認」の扱いなので、560件ぶんの空の行をあらかじめ並べる必要はない。status は done（スキルがあった）／none（見て回って無かった）。cardId は support-cards.json の id。スキルの参照は skillId が本体で、name は照合のための控え（表示には使わない）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。既存の行は消さない。書き足したら dataVersion をその日の日付＋連番に上げて npm run check:catalog を回す。このファイルには独自の id を振らないので nextSerial は持たない（行の鍵は cardId）。",
+	"entries": []
+}
