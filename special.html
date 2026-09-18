@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-18b"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-18c"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-15a"></script>
 	<style>
@@ -449,6 +449,12 @@
 			     ここで作成・編集したテンプレートはUmaSkill Deck側にもそのまま反映される。 -->
 			<div id="deck-skill-body" class="hidden">
 				<div id="deck-loading-note" class="text-xs text-slate-500 mb-3">テンプレートを読み込んでいます…</div>
+				<!-- 編成（育成ウマ娘1人＋サポートカード6枚）。中身は core の createRosterPanel が描画する。
+				     既定は閉じておく（対象スキルセットを組むのが主で、編成は使う人だけが開く）。C-51 -->
+				<details id="deck-roster" class="mb-3">
+					<summary class="text-xs font-medium text-slate-600 cursor-pointer">編成から、得られるスキルを調べる</summary>
+					<div id="deck-roster-panel" class="mt-2"></div>
+				</details>
 				<div id="deck-template-panel"></div>
 				<!-- スキルセットOCR（フェーズa コミット4・改訂）: ゲームの「スキルセット詳細」画面のスクショから白スキルを読み取り、
 				     対象スキルセットへ足す。入口のボタン「スキルセットのスクショで追加」と「?」（撮影ガイド）は core の編集画面の
@@ -1896,6 +1902,7 @@
 		 * ============================================================ */
 		let deckMode = false;
 		let deckTemplateManager = null;
+		let deckRosterPanel = null;
 		// 選択中の対象スキルセット。共有モジュールの getSelection() が返す
 		// { kind:'template'|'draft', id, name, skillIds } または null。
 		// 「保存したテンプレート」なのか「ドラフト」なのかを
@@ -2057,6 +2064,18 @@
 						// ガイドは毎回出す（初回だけにしない）。「スキルセット画面」がどの画面かはこの機能の最大の躓きどころで、
 						// 「?」も外したので後から見る手段がガイド自身しか無いため（おいもさんの判断。F-43）。
 						screenshotEntry: { label: 'スキルセットのスクショで追加', onClick: openSkillsetGuide }
+					}
+				);
+				// 編成パネル（C-51）。収録データ（育成ウマ娘・サポートカード）は
+				// この画面を開いたときだけ読む（起動時には読まない）。
+				await UmaSkillDeckCore.loadTrainingSources(false);
+				deckRosterPanel = UmaSkillDeckCore.createRosterPanel(
+					document.getElementById('deck-roster-panel'),
+					{
+						onRemoveFromScope: (ids) => {
+							const n = deckTemplateManager.removeSkillsFromSelection(ids);
+							showToast(n > 0 ? n + '種を対象スキルセットから外しました' : '外すものはありませんでした');
+						}
 					}
 				);
 			} else {
