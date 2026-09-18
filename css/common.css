@@ -30,7 +30,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-09-18c";
+	--uma-components-css-version: "2026-09-18d";
 }
 
 /* ============================================================
@@ -283,6 +283,18 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 	color: var(--uma-text-inverse);
 	font-weight: 500;
 }
+
+/* スキルセットの分類（超優先／優先／通常）の★（C-57）。
+   ②のスキルパネルの左と、照合結果の表のスキル名の前で同じ部品を使う。
+   色は css/tokens.css の --uma-mark-tier-N（金・銀・銅）。data-tier="1|2|3" で引く。
+   ★の数（橙）とは色と置き場所で役割を分けるので、こちらは名前の左にだけ置く。 */
+.uma-tier-mark {
+	display: inline-block; flex: none; width: 1em; text-align: center;
+	font-size: var(--uma-fs-sm); line-height: 1; font-weight: 700;
+	color: var(--uma-mark-tier-2);
+}
+.uma-tier-mark[data-tier="1"] { color: var(--uma-mark-tier-1); }
+.uma-tier-mark[data-tier="3"] { color: var(--uma-mark-tier-3); }
 
 /* ============================================================
  * 入力欄（input / select / textarea 共通）

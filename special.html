@@ -14,9 +14,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-18c" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-18c" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-18c" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-18d" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-18d" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-18d" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-18j"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-18k"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-15a"></script>
 	<style>
@@ -738,7 +738,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-18c';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-18d';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -1597,8 +1597,11 @@
 					totalCell = `<td class="text-center font-bold text-slate-700 person-total">${total}</td>`;
 				}
 
+				// 分類の★（金・銀・銅。C-57 の (10)）は名前の左。★の数（橙）は右の列なので、位置と色で役割が分かれる
+				const tier = deckTierByName[skill];
+				const tierMark = tier ? `<span class="uma-tier-mark" data-tier="${tier}" role="img" aria-label="${escapeHtml(UmaSkillDeckCore.tiers.label(tier))}">★</span> ` : '';
 				tableHtml += `<tr class="transition-colors">
-					<td class="font-medium text-slate-800">${escapeHtml(skill)}</td>
+					<td class="font-medium text-slate-800">${tierMark}${escapeHtml(skill)}</td>
 					${cells}
 					${totalCell}
 				</tr>`;
@@ -1995,6 +1998,9 @@
 		// 「保存したテンプレート」なのか「ドラフト」なのかを
 		// このファイル側で区別せずに済むよう、選択結果はこの1つにまとめて持つ。
 		let deckScope = null;
+		// 照合対象のスキル名 → 分類（1＝超優先／2＝優先／3＝通常。C-57 の (10)）。照合結果の表で名前の前に金・銀・銅の★を出すために持つ。
+		// Deck連携モードで対象スキルセットを選んだときだけ埋まる（旧UIの手貼りのリストでは空＝印は出ない）
+		let deckTierByName = {};
 		let deckMasterLoaded = false;
 		// 「ドラフト」（保存しない一時的な対象スキルセット）の保存先。userData とは別の名前空間。
 		const DECK_DRAFT_SCOPE_KEY = 'special';
@@ -2211,6 +2217,7 @@
 			selectStepTab(1);
 
 			clearActiveSkillDictionary();
+			deckTierByName = {};   // 手貼りのリストには分類が無い（印を出さない）
 			if (manualSkillState) {
 				skillList = manualSkillState.skillList;
 				skillIndex = manualSkillState.skillIndex;
@@ -2252,6 +2259,7 @@
 			// Step 2 の選択が変わったら、Step 1 の「重なっています」の表示も描き直す（C-51 の修正5）
 			if (deckRosterPanel) deckRosterPanel.render();
 			const badge = document.getElementById('skill-count-badge');
+			deckTierByName = {};
 			if (!deckScope) {
 				skillList = [];
 				skillIndex = [];
@@ -2262,6 +2270,8 @@
 				return;
 			}
 			const entries = UmaSkillDeckCore.getSkillEntries(deckScope.skillIds);
+			// 分類（C-57 の (10)）。tiers に無い id は「優先」（core の tiers.of が既定を返す）
+			entries.forEach(e => { deckTierByName[e.name] = UmaSkillDeckCore.tiers.of(deckScope.tiers, e.id); });
 			const dict = buildSkillDictionary(entries.map(e => e.name));
 			setActiveSkillDictionary(dict);
 			skillList = dict.list;
@@ -2532,7 +2542,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-18c';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-18d';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {

@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { startServer, REPO_ROOT } from './lib/serve.mjs';
-import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, PICK, EDITED_CELLS, USER_DATA } from './lib/fixtures.mjs';
+import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA } from './lib/fixtures.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -283,11 +283,16 @@ const browser = await chromium.launch();
 	const clearBtn = await page.evaluate(() => {
 		const btn = document.querySelector('#deck-template-panel [data-usd-el="clear-skills"]');
 		const n = Number(document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent);
-		return { exists: !!btn, disabled: btn ? btn.disabled : null, count: n };
+		const del = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
+		const reclass = document.querySelector('#deck-template-panel [data-usd-el="mode-reclass"]');
+		return { exists: !!btn, hidden: btn ? btn.hidden : null, disabled: btn ? btn.disabled : null, count: n,
+			modes: !!del && !!reclass, modesOff: del && reclass && del.getAttribute('aria-pressed') === 'false' && reclass.getAttribute('aria-pressed') === 'false',
+			modesDisabled: del && reclass && del.disabled && reclass.disabled };
 	});
-	assert(clearBtn.exists, 'special: 「すべて外す」がある', clearBtn);
-	assert(clearBtn.disabled === (clearBtn.count === 0),
-		'special: 「すべて外す」は選択が無いときだけ押せない', clearBtn);
+	assert(clearBtn.exists && clearBtn.hidden, 'special: 「すべて外す」はあるが、削除モードでないときは出ない（C-57 の (9)）', clearBtn);
+	assert(clearBtn.modes && clearBtn.modesOff, 'special: 「再分類」「削除」のモードのボタンがあり、既定は両方 OFF', clearBtn);
+	assert(clearBtn.count === 0 && clearBtn.modesDisabled && clearBtn.disabled,
+		'special: 選択が無いときはモードのボタンも「すべて外す」も押せない', clearBtn);
 
 	/* 選んだときに出る名前（getSelection().name）もタブと揃っていること。
 	   ドラフトは空だと選べないので、「テキストで検索」で実際に1件入れてから確かめる
@@ -3546,7 +3551,14 @@ const browser = await chromium.launch();
 		scope: UmaSkillDeckCore.getUndoScope(),
 	}));
 
+	// 「すべて外す」と各パネルの × は削除モードのときだけ出る（C-57 の (9)）。押した状態なら触らない（押すと OFF になる）
+	const ensureDeleteMode = () => page.evaluate(() => {
+		const b = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
+		if (b.getAttribute('aria-pressed') !== 'true') b.click();
+	});
+
 	// 1) すべて外す → 元に戻す。件数・保存先・ボタンの3つが揃って戻ること
+	await ensureDeleteMode();
 	await page.click('#deck-template-panel [data-usd-el="clear-skills"]');
 	await page.waitForTimeout(200);
 	const cleared = await undoUi();
@@ -3603,6 +3615,8 @@ const browser = await chromium.launch();
 	const single = await page.evaluate(() => {
 		const read = () => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds;
 		const before = read();
+		const del = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
+		if (del.getAttribute('aria-pressed') !== 'true') del.click();   // × は削除モードのときだけ出る（C-57）
 		document.querySelectorAll('#deck-template-panel [data-usd-act="template-skill-remove"]')[3].click();
 		const removedLen = read().length;
 		const ok = UmaSkillDeckCore.performUndo();
@@ -3615,6 +3629,7 @@ const browser = await chromium.launch();
 		'undo: 個別に外したものを戻すトーストは「外したスキル「○○」を戻しました」', single.toast);
 
 	// 3b) 別画面の編集ビューは無くなった（C-53）。「すべて外す」のあと、①のタブへ移って戻っても「元に戻す」は残り、戻せる
+	await ensureDeleteMode();
 	await page.click('#deck-template-panel [data-usd-el="clear-skills"]');
 	await page.waitForTimeout(200);
 	const beforeSwitch = await undoUi();
@@ -3920,6 +3935,8 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(300);
 	await page.evaluate((id) => templateManager.openEditor(id), USER_DATA.templates[0].templateId);
 	await page.waitForTimeout(300);
+	// × は削除モードのときだけ出る（C-57 の (9)）
+	await page.evaluate(() => { const b = document.querySelector('#template-panel-root [data-usd-el="mode-delete"]'); if (b.getAttribute('aria-pressed') !== 'true') b.click(); });
 	await page.click('[data-usd-act="template-skill-remove"]');
 	await page.waitForTimeout(200);
 	const editorEntry = await undoBtn();
@@ -5500,6 +5517,124 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(fab.toggleRight === fab.navRight && !fab.overflow,
 		'ボタン群の幅: ' + label + ' でメインボタンは右端のまま、横スクロールも出ない', fab);
 	assert(errors.length === 0, 'ボタン群の幅: ' + label + ' でコンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
+ * スキルセットの分類（超優先／優先／通常。C-57）
+ *   - tiers を持たない既存のデータ（fixtures は schemaVersion 2）を開くと、全部「優先」に入る
+ *   - 開いて分類のタブを切り替えただけでは、保存データに tiers が書き足されない（C-51 の知見）
+ *   - 再分類 → tiers が書かれ schemaVersion が 4 に → 「元に戻す」で tiers が消える（分類は Undo に積む）
+ *   - モード（再分類／削除）は同時に ON にならず、× と移動先ボタンはモードのときだけ出る
+ *   - Deck の書き出しに tiers が入り、取り込み直しても残る。tiers の無いデータを取り込んでも壊れない
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	const stored = () => page.evaluate(() => localStorage.getItem('umaSkillDeck:userData'));
+	const before = await stored();
+	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
+	await page.waitForTimeout(400);
+	const ui = () => page.evaluate(() => {
+		const r = '#deck-template-panel';
+		const q = (s) => document.querySelector(r + ' ' + s);
+		return {
+			counts: [1, 2, 3].map(t => q('[data-usd-el="tier-count-' + t + '"]').textContent),
+			total: q('[data-usd-el="tier-total"]').textContent,
+			panels: document.querySelectorAll(r + ' .usd-panel').length,
+			marks: Array.from(document.querySelectorAll(r + ' .usd-panel .uma-tier-mark')).map(m => m.dataset.tier).join(''),
+			dels: document.querySelectorAll(r + ' .usd-panel-del').length,
+			moves: document.querySelectorAll(r + ' .usd-panel-move').length,
+			reclass: q('[data-usd-el="mode-reclass"]').getAttribute('aria-pressed'),
+			del: q('[data-usd-el="mode-delete"]').getAttribute('aria-pressed'),
+			clearHidden: q('[data-usd-el="clear-skills"]').hidden,
+			cols: getComputedStyle(q('[data-usd-el="selected-list"]')).gridTemplateColumns.split(' ').length,
+			schema: JSON.parse(localStorage.getItem('umaSkillDeck:userData')).schemaVersion,
+			tiers: JSON.parse(localStorage.getItem('umaSkillDeck:userData')).templates[0].tiers,
+		};
+	});
+	const t0 = await ui();
+	assert(t0.counts.join() === '0,' + PICK.length + ',0' && t0.total === String(PICK.length) && t0.panels === PICK.length && t0.marks === '2'.repeat(PICK.length),
+		'tiers: tiers を持たないデータのスキルは全部「優先」に入り、印は銀', t0);
+	assert(t0.dels === 0 && t0.moves === 0 && t0.reclass === 'false' && t0.del === 'false' && t0.clearHidden,
+		'tiers: 既定は両方のモードが OFF（× も移動先も「すべて外す」も出ない）', t0);
+	assert(t0.cols > 2, 'tiers: 1280px ではパネルの列が画面幅に合わせて増える', t0.cols);
+	await page.click('#deck-template-panel [data-usd-act="tier-tab"][data-tier="1"]');
+	await page.waitForTimeout(200);
+	const t1 = await ui();
+	assert(t1.panels === 0 && (await stored()) === before, 'tiers: 分類のタブを切り替えても保存データは変わらない（tiers は書き足されない）', t1);
+	await page.click('#deck-template-panel [data-usd-act="tier-tab"][data-tier="2"]');
+	await page.click('#deck-template-panel [data-usd-el="mode-reclass"]');
+	await page.waitForTimeout(200);
+	const t2 = await ui();
+	assert(t2.reclass === 'true' && t2.del === 'false' && t2.moves === PICK.length * 2 && t2.dels === 0,
+		'tiers: 再分類モードでは各パネルに移動先の2つ（超優先・通常）が出て、× は出ない', t2);
+	await page.click('#deck-template-panel [data-usd-el="mode-delete"]');
+	await page.waitForTimeout(200);
+	const t3 = await ui();
+	assert(t3.reclass === 'false' && t3.del === 'true' && t3.dels === PICK.length && t3.moves === 0 && !t3.clearHidden,
+		'tiers: 削除モードにすると再分類は OFF になり、× と「すべて外す」が出る', t3);
+	await page.click('#deck-template-panel [data-usd-el="mode-reclass"]');
+	await page.waitForTimeout(200);
+	await page.click('#deck-template-panel .usd-panel .usd-panel-move[data-tier="1"]');
+	await page.waitForTimeout(300);
+	const t4 = await ui();
+	assert(t4.counts.join() === '1,' + (PICK.length - 1) + ',0' && t4.schema === 4 && JSON.stringify(t4.tiers) === JSON.stringify({ [PICK[0].id]: 1 }),
+		'tiers: 再分類で tiers が書かれ、schemaVersion が 4 に上がる', t4);
+	assert((await page.evaluate(() => document.getElementById('toast-message').textContent)) === '「' + PICK[0].name + '」を超優先へ移しました'
+		&& (await page.evaluate(() => UmaSkillDeckCore.undoCount())) === 1,
+		'tiers: 再分類は「元に戻す」に積まれ、トーストが出る');
+	await page.click('#deck-template-panel [data-usd-act="tier-tab"][data-tier="1"]');
+	await page.waitForTimeout(200);
+	const t5 = await ui();
+	assert(t5.panels === 1 && t5.marks === '1', 'tiers: 超優先のタブに移したスキルが金の★で出る', t5);
+	await page.click('#deck-undo-btn');
+	await page.waitForTimeout(300);
+	const t6 = await ui();
+	assert(t6.tiers === undefined && t6.counts.join() === '0,' + PICK.length + ',0' && (await page.evaluate(() => UmaSkillDeckCore.undoCount())) === 0,
+		'tiers: 「元に戻す」で分類が元に戻り、tiers は消える', t6);
+	assert(errors.length === 0, 'tiers: special でコンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
+	await page.click('#template-panel-root .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
+	await page.waitForTimeout(300);
+	await page.click('#template-panel-root [data-usd-el="mode-reclass"]');
+	await page.click('#template-panel-root .usd-panel .usd-panel-move[data-tier="3"]');
+	await page.waitForTimeout(300);
+	await page.click('#tab-btn-data');
+	await page.waitForTimeout(300);
+	await page.click('button[onclick="exportData()"]');
+	await page.waitForTimeout(300);
+	const exported = await page.inputValue('#export-textarea');
+	const exp = JSON.parse(exported);
+	assert(exp.schemaVersion === 4 && JSON.stringify(exp.templates[0].tiers) === JSON.stringify({ [PICK[0].id]: 3 }),
+		'tiers(deck): 書き出しに tiers と schemaVersion 4 が入る', { schema: exp.schemaVersion, tiers: exp.templates[0].tiers });
+	const roundtrip = await page.evaluate((json) => {
+		document.getElementById('import-textarea').value = json;
+		const realConfirm = window.confirm; window.confirm = () => true; importData(); window.confirm = realConfirm;
+		const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
+		return { schema: d.schemaVersion, tiers: d.templates[0].tiers };
+	}, exported);
+	assert(roundtrip.schema === 4 && JSON.stringify(roundtrip.tiers) === JSON.stringify({ [PICK[0].id]: 3 }),
+		'tiers(deck): 取り込み直しても tiers が残る', roundtrip);
+	const legacy = await page.evaluate((json) => {
+		document.getElementById('import-textarea').value = json;
+		const realConfirm = window.confirm; window.confirm = () => true; importData(); window.confirm = realConfirm;
+		const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
+		return { schema: d.schemaVersion, tiers: d.templates[0].tiers, n: d.templates.length };
+	}, JSON.stringify(USER_DATA));
+	assert(legacy.schema === USER_DATA.schemaVersion && legacy.tiers === undefined && legacy.n === USER_DATA.templates.length,
+		'tiers(deck): tiers の無いデータを取り込んでも壊れず、tiers は補われない', legacy);
+	await page.click('#tab-btn-template');
+	await page.waitForTimeout(300);
+	await page.click('#template-panel-root .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
+	await page.waitForTimeout(300);
+	const counts = await page.evaluate(() => [1, 2, 3].map(t => document.querySelector('#template-panel-root [data-usd-el="tier-count-' + t + '"]').textContent));
+	assert(counts.join() === '0,' + PICK.length + ',0', 'tiers(deck): 取り込んだ古いデータのスキルは全部「優先」に入る', counts);
+	assert(errors.length === 0, 'tiers(deck): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
 

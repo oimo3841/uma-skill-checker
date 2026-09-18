@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18j';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18k';
 
 	/* ============================================================
 	 * 定数
@@ -59,6 +59,17 @@
 		// findSkill() と名前の索引にカード名・ウマ娘名が混ざる（C-49）。
 	];
 	const TEMPLATE_LIMIT = 10;
+	// スキルセットの分類（C-57）。ゲームの「スキルセット詳細」の3分類と同じ語。値は保存データ（tiers）にそのまま入る
+	const TIERS = [{ id: 1, label: '超優先' }, { id: 2, label: '優先' }, { id: 3, label: '通常' }];
+	const TIER_DEFAULT = 2;   // tiers に無い id はこの分類（既存のスキルは何もしなくても「優先」に入る）
+	function tierOf(tiers, skillId) {
+		const v = tiers && typeof tiers === 'object' ? tiers[skillId] : undefined;
+		return TIERS.some(t => t.id === v) ? v : TIER_DEFAULT;
+	}
+	function tierLabel(tier) {
+		const t = TIERS.find(x => x.id === tier);
+		return t ? t.label : TIERS.find(x => x.id === TIER_DEFAULT).label;
+	}
 	// 編成（育成ウマ娘1人＋サポートカード6枚）。テンプレート・比較シートと同じく
 	// 「利用者が作ったもの」なので userData に置き、書き出し／取り込みの対象にする（C-51）。
 	const ROSTER_LIMIT = 5;
@@ -250,7 +261,10 @@
 		// schemaVersion 3 で rosters（編成）が加わった。これも読み込み側は分岐しない
 		// （rosters が無いデータは「編成が1件も無い」として扱えば正しく動く。C-51）。
 		// 既存のデータに rosters を**後から足すことはしない**。足すのは編成を保存したときだけ。
-		return { schemaVersion: 3, templates: [], records: [], customSkills: [], rosters: [] };
+		// schemaVersion 4 で template.tiers（スキルセットの分類。{ skillId: 1|2|3 }。C-57）が加わった。
+		// これも読み込み側は分岐せず、**後から補わない**（tiers が無い id は「優先」（2）として読む。
+		// 補うと、分類を一度も変えていない人のデータの姿が開いただけで変わる。C-51 の知見）。
+		return { schemaVersion: 4, templates: [], records: [], customSkills: [], rosters: [] };
 	}
 
 	function loadUserData() {
@@ -316,15 +330,20 @@
 			if (!raw) return { skillIds: [], name: '', updatedAt: '' };
 			const parsed = JSON.parse(raw);
 			if (!parsed || !Array.isArray(parsed.skillIds)) return { skillIds: [], name: '', updatedAt: '' };
-			// name は C-53 で足した（「＋ 新規」のタブで入力した名前を保存まで覚えておく）。無い古い形は空文字
-			return { skillIds: parsed.skillIds.slice(), name: typeof parsed.name === 'string' ? parsed.name : '', updatedAt: parsed.updatedAt || '' };
+			// name は C-53 で足した（「＋ 新規」のタブで入力した名前を保存まで覚えておく）。無い古い形は空文字。
+			// tiers（分類。C-57）は持っているときだけ写す（無い古い形に補わない＝テンプレートと同じ流儀）
+			const out = { skillIds: parsed.skillIds.slice(), name: typeof parsed.name === 'string' ? parsed.name : '', updatedAt: parsed.updatedAt || '' };
+			if (parsed.tiers && typeof parsed.tiers === 'object') out.tiers = Object.assign({}, parsed.tiers);
+			return out;
 		} catch (e) {
 			return { skillIds: [], name: '', updatedAt: '' };
 		}
 	}
 
-	function saveDraftScope(scopeKey, skillIds, name) {
+	function saveDraftScope(scopeKey, skillIds, name, tiers) {
 		const payload = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
+		// 空の tiers は書かない（分類を変えていないドラフトの姿を変えない）
+		if (tiers && typeof tiers === 'object' && Object.keys(tiers).length > 0) payload.tiers = Object.assign({}, tiers);
 		try {
 			global.localStorage.setItem(draftStorageKey(scopeKey), JSON.stringify(payload));
 		} catch (e) {
@@ -1524,6 +1543,48 @@
 		// ボタンが同じ行だった）。文字は本文より一段大きく太くして、いま開いているセットの名前として読める大きさにする（C-55 の (6)）。
 		'.usd-name-input { font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 600; }',
 		'.usd-name-input::placeholder { font-weight: 400; }',
+		// スキルセットの分類（超優先／優先／通常）の切り替え（C-57 の (7)）。帯のタブ（.uma-subtabs＝どのセットか）と
+		// 混ぜないよう、見た目の違う切り替えピル（.uma-pill）を3つ並べる。選択中は操作の黒（ゲームの緑は使わない。
+		// ツール内の一貫性を優先したおいもさんの判断）。件数はピルの中の小さなバッジ
+		'.usd-tier-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2); }',
+		'.usd-tier-tabs { display: inline-flex; gap: var(--uma-sp-1); }',
+		'.usd-tier-tab .usd-tier-count { font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 700;',
+		'  padding: 0 var(--uma-sp-1-5); border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text-subtle); }',
+		'.usd-tier-tab.active .usd-tier-count { background: rgba(255, 255, 255, .2); color: var(--uma-text-inverse); }',
+		'.usd-tier-total { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); margin-left: auto; }',
+		// 「再分類」「削除」のモード（C-57 の (9)）。押した状態を持つボタン。同時には ON にならない。既定は両方 OFF
+		'.usd-mode-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2); }',
+		'.usd-mode-btn { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600;',
+		'  padding: var(--uma-sp-0-5) var(--uma-sp-2-5); border-radius: var(--uma-r-full); cursor: pointer;',
+		'  border: 1px solid var(--uma-control-border); background: var(--uma-surface); color: var(--uma-text-heading); }',
+		'.usd-mode-btn:hover { border-color: var(--uma-control-border-strong); background: var(--uma-control-soft); }',
+		'.usd-mode-btn[aria-pressed="true"] { background: var(--uma-control); border-color: var(--uma-control); color: var(--uma-text-inverse); }',
+		'.usd-mode-btn:disabled { color: var(--uma-control-disabled); background: var(--uma-control-disabled-bg); border-color: var(--uma-control-disabled-bg); cursor: default; }',
+		// スキルパネル（C-57 の (7)(8)）。ゲームの「スキルセット詳細」のパネルに寄せた箱（色は tokens.css の --uma-skillpanel-*）。
+		// 並びは CSS Grid: PC は画面幅に合わせて可変（auto-fill）、640px 以下は 2 列固定（ゲームと同じ）。
+		// 長い名前は 2 行まで折り返し、超えるぶんは「…」（ゲームは1行で切るが、こちらは名前で照合するので読めるほうを優先）
+		'.usd-panels { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--uma-sp-2); }',
+		'@media (max-width: 640px) { .usd-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
+		'.usd-panel { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; min-height: 36px;',
+		'  padding: var(--uma-sp-1-5) var(--uma-sp-2); border-radius: var(--uma-r-sm);',
+		'  background: var(--uma-skillpanel-bg); border: 1px solid var(--uma-skillpanel-border); color: var(--uma-text); }',
+		'.usd-panel-name { flex: 1 1 auto; min-width: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600;',
+		'  overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }',
+		// 各パネルの操作（モードが ON のときだけ出る）: 削除モードは ×、再分類モードは移動先の分類名の小ボタン
+		'.usd-panel-ops { display: inline-flex; flex: none; gap: var(--uma-sp-1); align-items: center; }',
+		// 再分類モードの移動先ボタン2つは、2列固定の狭い画面では名前と同じ行に入らない（名前が2文字＋「…」になる。実測）ので、
+		// 名前の下の行へ折り返す
+		'@media (max-width: 640px) {',
+		'  .usd-panel--reclass { flex-wrap: wrap; }',
+		'  .usd-panel--reclass .usd-panel-ops { flex-basis: 100%; justify-content: flex-end; }',
+		'}',
+		'.usd-panel-move { font: inherit; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 700;',
+		'  padding: 0 var(--uma-sp-1-5); border-radius: var(--uma-r-full); cursor: pointer;',
+		'  border: 1px solid var(--uma-control-border); background: var(--uma-surface); color: var(--uma-text-heading); }',
+		'.usd-panel-move:hover { background: var(--uma-control-soft); border-color: var(--uma-control-border-strong); }',
+		'.usd-panel-del { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: var(--uma-r-full);',
+		'  border: 0; background: var(--uma-surface); color: var(--uma-text-muted); cursor: pointer; padding: 0; }',
+		'.usd-panel-del:hover { background: var(--uma-danger-bg); color: var(--uma-danger-text); }',
 		'.usd-tm .usd-entry-row { margin-bottom: 0; }',
 		'.usd-roster-pills { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1); }',
 		'.usd-roster-pill { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
@@ -1558,33 +1619,38 @@
 		// 行と列の両方を交互にすると市松になる）、列の側で地色を分ける。
 		//   育成ウマ娘の列 … ツールのアクセントの淡い地＋右端に区切り線（見出しから全行まで）
 		//   カードの列     … 1列おきに灰（--uma-surface-muted）と白
+		// 表の見た目の確定形（C-57 の作業A・57セッション目）:
+		//   本体のセルは白のまま。列の区別は地色ではなく**罫線**で行う（すべての列の間に縦の細い線、
+		//   行の間は今までどおりの横のヘアライン）。塗るのは見出しのセルだけで、育成ウマ娘の列は
+		//   見出しのセルの色味（濃い地に白い ♦）だけで区別する。1列おきの灰（--alt）はやめた。
+		//   罫線と見出しの色は css/tokens.css の --uma-table-* で1か所で持つ（地色に依存させない＝
+		//   ダークモードに対応するときはトークンを変えるだけ）。
 		'.usd-roster-gc { min-width: 0; display: flex; align-items: center; justify-content: center;',
 		'  padding: var(--uma-sp-1) var(--uma-sp-0-5); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
-		'  background: var(--col-bg, var(--uma-surface)); border-bottom: 1px solid var(--uma-border); }',
-		// 育成ウマ娘の列は**濃い灰の反転**（地 --uma-deck-accent＝stone-700・文字と印は白。56セッション目・C-55 の (1)）。
-		// それまではツールのアクセントの淡い地（special では green-100）で、賢さのカードの色（green-100）と
-		// ほぼ同じだった。濃い地なら6色のカード色（すべて淡い）とも橙の★とも1列おきの薄灰とも被らず、
-		// 橙の★は濃い地の上のほうが目立つ（4.7:1）。区切り線は地が濃いので要らない。
-		'.usd-roster-gc--uma { --col-bg: var(--uma-deck-accent); color: var(--uma-text-inverse); }',
-		'.usd-roster-gh.usd-roster-gc--uma { color: var(--uma-text-inverse); }',
-		'.usd-roster-gh.usd-roster-gc--uma.usd-roster-gh--empty { color: rgba(255, 255, 255, .65); }',
-		'.usd-roster-gc--alt { --col-bg: var(--uma-surface-muted); }',
+		'  background: var(--uma-surface); border-bottom: 1px solid var(--uma-table-rule); }',
+		// 列の間の縦線（先頭のスキル名の列には引かない＝列と列の「間」だけ）
+		'.usd-roster-gc:not(.usd-roster-gc--name) { border-left: 1px solid var(--uma-table-rule); }',
 		// 余り列のセルは余白を持たない（0px の列に余白ぶんだけはみ出して横スクロールの種になるため）
 		'.usd-roster-gc--fill { padding: 0; }',
 		'.usd-roster-gc--name { justify-content: flex-start; text-align: left; padding-left: var(--uma-sp-2);',
 		'  font-weight: 700; overflow-wrap: anywhere; }',
-		// 見出し行（番号）は縦スクロール中も上に固定する。列の地色は見出しにも同じ変数で効く
-		'.usd-roster-gh { position: sticky; top: 0; z-index: 1;',
-		'  font-weight: 700; color: var(--uma-text-heading); border-bottom: 1px solid var(--uma-border-strong); }',
-		'.usd-roster-gh:not(.usd-roster-gc--uma):not(.usd-roster-gc--alt) { --col-bg: var(--uma-surface-sunken); }',
+		// 見出し行（番号）は縦スクロール中も上に固定する。見出しのセルだけ地を塗る
+		'.usd-roster-gh { position: sticky; top: 0; z-index: 1; background: var(--uma-table-head-bg);',
+		'  font-weight: 700; color: var(--uma-text-heading); border-bottom: 1px solid var(--uma-table-rule-strong); }',
+		// 育成ウマ娘の列は見出しのセルだけ濃い地（--uma-table-head-key-bg）に白い文字と ♦
+		'.usd-roster-gh.usd-roster-gc--uma { background: var(--uma-table-head-key-bg); color: var(--uma-table-head-key-text); }',
+		'.usd-roster-gh.usd-roster-gc--uma.usd-roster-gh--empty { color: var(--uma-table-head-key-text); opacity: 1; }',
 		'.usd-roster-gh--empty { color: var(--uma-text-faint); font-weight: 400; }',
-		// 表の中の「得られる」印は橙の★（チップ無し）
-		'.usd-roster-star { color: var(--uma-star); font-size: 13px; line-height: 1; }',
-		// 育成ウマ娘の列の見出しと凡例の印は単純な丸「●」（C-55 の (1)。◎ → ●。それまでは黒い丸に白い★ → ◎）。
-		// 列と同じ濃い地に白い ● のチップにして、凡例でも列と同じ色で見分けがつくようにする
-		// （列の見出しの中では地の色が列と同じなので、白い ● だけが見える）。表の中の橙の★とは形と色で見分ける
-		'.usd-roster-umamark { display: inline-block; min-width: 20px; text-align: center; font-size: 12px; line-height: 16px;',
-		'  font-weight: 700; color: var(--uma-text-inverse); background: var(--uma-deck-accent); border-radius: var(--uma-r-sm); }',
+		// 表の中の「得られる」印は**黒い輪郭の丸（塗りつぶしなし）**（C-57 の作業A。それまでは橙の★）。
+		// 文字ではなく CSS で描く（フォントで太さや大きさが変わらないように）
+		'.usd-roster-got { display: inline-block; width: 11px; height: 11px; border-radius: var(--uma-r-full);',
+		'  border: 1.5px solid var(--uma-text-heading); box-sizing: border-box; }',
+		// 育成ウマ娘の見出しと凡例の印は**白い ♦（正方形を 45 度回したもの）**（C-57 の作業A。◎ → ● → ♦）。
+		// 見出しと同じ濃い地のチップに白い ♦ を CSS で描く（見出しの中では地が同じなので ♦ だけが見える）。
+		'.usd-roster-umamark { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 16px;',
+		'  background: var(--uma-table-head-key-bg); border-radius: var(--uma-r-sm); }',
+		'.usd-roster-umamark::before { content: ""; display: block; width: 7px; height: 7px; background: var(--uma-table-head-key-text);',
+		'  transform: rotate(45deg); }',
 		// 凡例（番号 → 正式名称）。表の外に、左ぞろえで1行1件
 		'.usd-roster-legend { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--uma-sp-0-5);',
 		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
@@ -3038,12 +3104,14 @@
 			h += scopeChooserHtml(res);
 
 			// 得られるスキル（★取り表。C-51 の10節⑥・11節⑤〜⑧・C-54）。左の列にスキル名、見出し行に編成の並び
-			// （育成ウマ娘は「◎」、サポートカードは枠の順の番号 1〜）を置き、どのメンバーから得られるかを橙の★で示す。
+			// （育成ウマ娘は「♦」、サポートカードは枠の順の番号 1〜）を置き、どのメンバーから得られるかを黒い輪郭の丸で示す（C-57 の作業A）。
 			// 768px 以上では見出しにウマ娘名（短い名前）も出す（CSS が幅で切り替える。狭い画面では印と番号だけ）。
 			// 列は**常に全部**出す（空いている枠も列にする）ので、番号が枠の位置と常に一致し、表の形も安定する。
 			// 番号と正式名称の対応は表の外の凡例に置く（スマホの幅で正式名称を見出し行に並べられないため）。
-			const umaChip = '<span class="usd-roster-umamark" role="img" aria-label="育成ウマ娘">●</span>';
-			const colClass = (m) => m.kind === 'uma' ? ' usd-roster-gc--uma' : (m.no % 2 === 1 ? ' usd-roster-gc--alt' : '');
+			// 印は CSS が描く（白い ♦。C-57 の作業A）ので中身は空
+			const umaChip = '<span class="usd-roster-umamark" role="img" aria-label="育成ウマ娘"></span>';
+			// 列の区別は罫線で行う（C-57 の作業A）。育成ウマ娘の列だけ見出しのセルの色で区別する
+			const colClass = (m) => m.kind === 'uma' ? ' usd-roster-gc--uma' : '';
 			const colHead = (m) => (m.kind === 'uma' ? umaChip : String(m.no))
 				+ (m.shortLabel ? '<span class="usd-roster-gh-name">' + esc(m.shortLabel) + '</span>' : '');
 			const colName = (m) => (m.kind === 'uma' ? '育成ウマ娘' : String(m.no)) + (m.label ? '：' + esc(m.label) : '（空き）');
@@ -3065,7 +3133,7 @@
 					h += '<div class="usd-roster-grow" role="row">'
 						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader">' + esc(it.name) + '</div>'
 						+ members.map(m => '<div class="usd-roster-gc' + colClass(m) + '" role="cell">'
-							+ (it.members.indexOf(m.key) !== -1 ? '<span class="usd-roster-star" role="img" aria-label="得られる">★</span>' : '')
+							+ (it.members.indexOf(m.key) !== -1 ? '<span class="usd-roster-got" role="img" aria-label="得られる"></span>' : '')
 							+ '</div>').join('')
 						+ '</div>';
 				});
@@ -3271,6 +3339,10 @@
 		if (draftScope.skillIds.length > 0) selectedId = DRAFT_SELECTION_ID;
 		// 後方互換の別名: いま編集している対象（{ kind: 'draft' } または { kind: 'template', obj }）。render() のたびに引き直す。
 		let editing = null;
+		// 分類（C-57 の (7)）: いま開いている分類のタブ。既定は「優先」（tiers に無い id が入る分類）
+		let currentTier = TIER_DEFAULT;
+		// モード（C-57 の (9)）: null（両方 OFF）／'reclass'（再分類）／'delete'（削除）。保存しない（開き直すと OFF）
+		let mode = null;
 
 		container.innerHTML = '' +
 			'<div class="usd-tm">' +
@@ -3307,12 +3379,17 @@
 						'<i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 収録されていないスキルを追加' +
 					'</button>' +
 				'</div>' +
-				'<div class="flex items-baseline justify-between gap-2 mb-1">' +
+				// 分類の切り替え（超優先／優先／通常。C-57 の (7)）。追加の入口はいま選んでいる分類に足す
+				'<div class="usd-tier-row" data-usd-el="tier-row"></div>' +
+				'<div class="usd-mode-row">' +
 					'<p class="text-xs text-slate-500">追加済みスキル（<span data-usd-el="selected-count">0</span>種）</p>' +
-					// 中身を触っている画面で、何件消えるのかが見えている状態で押せるようにするため、ここに置く。
-					'<button type="button" class="usd-link-btn" data-usd-act="editor-clear-skills" data-usd-el="clear-skills">すべて外す</button>' +
+					// 「再分類」「削除」のモード（C-57 の (9)）。既定は両方 OFF＝パネルに操作が出ない（ゲームと同じ見え方）
+					'<button type="button" class="usd-mode-btn" data-usd-act="mode-reclass" data-usd-el="mode-reclass" aria-pressed="false">再分類</button>' +
+					'<button type="button" class="usd-mode-btn" data-usd-act="mode-delete" data-usd-el="mode-delete" aria-pressed="false">削除</button>' +
+					// 「すべて外す」は削除モードのときだけ出す。中身を触っている画面で、何件消えるのかが見えている状態で押せるようにするため、ここに置く。
+					'<button type="button" class="usd-link-btn" data-usd-act="editor-clear-skills" data-usd-el="clear-skills" hidden>すべて外す</button>' +
 				'</div>' +
-				'<div data-usd-el="selected-list" class="flex flex-wrap gap-2"></div>' +
+				'<div data-usd-el="selected-list" class="usd-panels"></div>' +
 				'<p class="text-[11px] text-slate-400 mt-3" data-usd-el="editor-note"></p>' +
 			'</div>';
 
@@ -3332,6 +3409,11 @@
 			else if (act === 'editor-pick-screenshot') { if (opts.screenshotEntry && typeof opts.screenshotEntry.onClick === 'function') opts.screenshotEntry.onClick(); }
 			else if (act === 'template-skill-remove') removeSkillFromEditing(btn.dataset.skillId);
 			else if (act === 'editor-clear-skills') clearEditingSkills();
+			// 分類（C-57）: 分類のタブ・再分類／削除のモード・1件の移動
+			else if (act === 'tier-tab') selectTier(Number(btn.dataset.tier));
+			else if (act === 'mode-reclass') setMode('reclass');
+			else if (act === 'mode-delete') setMode('delete');
+			else if (act === 'tier-move') moveSkillTier(btn.dataset.skillId, Number(btn.dataset.tier));
 		});
 		container.addEventListener('input', (e) => {
 			if (e.target === nameInput) onNameInput();
@@ -3421,22 +3503,113 @@
 				: '保存すると名前を付けて残せます。保存しない場合も、この端末のブラウザには次回まで残ります。';
 		}
 
+		// 分類の切り替え（超優先／優先／通常）と合計（C-57 の (7)）
+		function renderTierRow() {
+			const ids = editingSkillIds();
+			const tiers = tiersOf(currentTarget());
+			const counts = {};
+			TIERS.forEach(t => { counts[t.id] = 0; });
+			ids.forEach(id => { counts[tierOf(tiers, id)]++; });
+			q(container, 'tier-row').innerHTML =
+				'<div class="usd-tier-tabs" role="tablist" aria-label="スキルセットの分類">' +
+				TIERS.map(t => '<button type="button" role="tab" class="uma-pill usd-tier-tab' + (t.id === currentTier ? ' active' : '') + '"'
+					+ ' data-usd-act="tier-tab" data-tier="' + t.id + '" aria-selected="' + (t.id === currentTier ? 'true' : 'false') + '">'
+					+ esc(t.label) + '<span class="usd-tier-count" data-usd-el="tier-count-' + t.id + '">' + counts[t.id] + '</span></button>').join('') +
+				'</div>' +
+				'<span class="usd-tier-total">設定数 <span data-usd-el="tier-total">' + ids.length + '</span></span>';
+		}
+
+		// モードのボタンの押した状態（C-57 の (9)）。「すべて外す」は削除モードのときだけ出す
+		function renderModes(count) {
+			const reclass = q(container, 'mode-reclass');
+			const del = q(container, 'mode-delete');
+			reclass.setAttribute('aria-pressed', mode === 'reclass' ? 'true' : 'false');
+			del.setAttribute('aria-pressed', mode === 'delete' ? 'true' : 'false');
+			reclass.disabled = count === 0;
+			del.disabled = count === 0;
+			const clear = q(container, 'clear-skills');
+			clear.hidden = mode !== 'delete';
+			clear.disabled = count === 0;
+		}
+
 		function renderSelectedList() {
 			const ids = editingSkillIds();
+			const target = currentTarget();
+			const tiers = tiersOf(target);
 			const el = q(container, 'selected-list');
+			// 件数はセット全体（分類ごとの件数は分類の切り替えの側に出す）
 			q(container, 'selected-count').textContent = String(ids.length);
-			q(container, 'clear-skills').disabled = ids.length === 0;
+			if (ids.length === 0 && mode) mode = null;
+			renderTierRow();
+			renderModes(ids.length);
 			if (ids.length === 0) {
-				el.innerHTML = '<p class="text-xs text-slate-400">まだスキルが選択されていません。</p>';
+				el.innerHTML = '<p class="text-xs text-slate-400" style="grid-column: 1 / -1;">まだスキルが選択されていません。</p>';
 				return;
 			}
-			el.innerHTML = ids.map(id =>
-				// 名前と×の間の空白は元の実装（テンプレートリテラルの改行）と同じ見え方にするため意図的
-				'<span class="usd-chip">' + esc(getSkillName(id)) + ' ' +
-					'<button type="button" class="ml-1" data-usd-act="template-skill-remove" data-skill-id="' + esc(id) + '" aria-label="削除"><i data-lucide="x" class="w-3 h-3"></i></button>' +
-				'</span>'
-			).join('');
+			// いま開いている分類のぶんだけ並べる（順序はセットの中の順のまま）
+			const shown = ids.filter(id => tierOf(tiers, id) === currentTier);
+			if (shown.length === 0) {
+				el.innerHTML = '<p class="text-xs text-slate-400" style="grid-column: 1 / -1;">「' + esc(tierLabel(currentTier)) + '」にはまだスキルがありません。</p>';
+				return;
+			}
+			el.innerHTML = shown.map(id => {
+				const tier = tierOf(tiers, id);
+				let ops = '';
+				if (mode === 'delete') {
+					ops = '<button type="button" class="usd-panel-del" data-usd-act="template-skill-remove" data-skill-id="' + esc(id) + '" aria-label="削除"><i data-lucide="x" class="w-3 h-3"></i></button>';
+				} else if (mode === 'reclass') {
+					// 移動先＝いま開いている分類以外の2つ（文字は分類名）
+					ops = TIERS.filter(t => t.id !== tier).map(t =>
+						'<button type="button" class="usd-panel-move" data-usd-act="tier-move" data-skill-id="' + esc(id) + '" data-tier="' + t.id + '"'
+						+ ' aria-label="「' + esc(getSkillName(id)) + '」を' + esc(t.label) + 'へ">' + esc(t.label) + '</button>').join('');
+				}
+				return '<div class="usd-panel' + (mode === 'reclass' ? ' usd-panel--reclass' : '') + '" data-skill-id="' + esc(id) + '">'
+					+ '<span class="uma-tier-mark" data-tier="' + tier + '" role="img" aria-label="' + esc(tierLabel(tier)) + '">★</span>'
+					+ '<span class="usd-panel-name">' + esc(getSkillName(id)) + '</span>'
+					+ (ops ? '<span class="usd-panel-ops">' + ops + '</span>' : '')
+					+ '</div>';
+			}).join('');
 			refreshIcons();
+		}
+
+		function selectTier(tier) {
+			if (!TIERS.some(t => t.id === tier)) return;
+			currentTier = tier;
+			renderSelectedList();
+		}
+
+		function setMode(next) {
+			// 同時には ON にならない（同じものをもう一度押すと OFF）
+			mode = mode === next ? null : next;
+			renderSelectedList();
+		}
+
+		/**
+		 * 再分類（C-57 の (9)）。1件を移動先の分類へ移す。移動は「元に戻す」に積む
+		 * （C-56 では積まない案だったが、まとめて動かすと戻せないと痛い、というおいもさんの判断で積むことにした）。
+		 */
+		function moveSkillTier(skillId, toTier) {
+			if (!TIERS.some(t => t.id === toTier)) return;
+			const target = currentTarget();
+			const ids = skillIdsOf(target);
+			if (!ids || ids.indexOf(skillId) === -1) return;
+			const fromTier = tierOf(tiersOf(target), skillId);
+			if (fromTier === toTier) return;
+			const name = getSkillName(skillId);
+			pushUndo({
+				scope: 'list',
+				doneLabel: '「' + name + '」を' + tierLabel(toTier) + 'へ移しました',
+				undoneLabel: '「' + name + '」を' + tierLabel(fromTier) + 'に戻しました',
+				// 見るのは「そのスキルの分類」だけ
+				probe: () => String(tierOf(tiersOf(target), skillId)),
+				apply: () => {
+					if (!writeTier(target, skillId, fromTier)) return false;
+					afterEditingSkillsChanged(target);
+					return true;
+				}
+			});
+			if (!writeTier(target, skillId, toTier)) return;
+			afterEditingSkillsChanged(target);
 		}
 
 		/* ---------- タブの選択・名前・保存・複製・削除（C-53） ---------- */
@@ -3472,14 +3645,17 @@
 			const target = currentTarget();
 			if (target.kind === 'draft') {
 				// ドラフトの名前は保存まで覚えておく（保存先はドラフトと同じ＝userData の外）
-				draftScope = persistDraft(draftScope.skillIds, nameInput.value);
+				draftScope = persistDraft(draftScope.skillIds, nameInput.value, draftScope.tiers);
 			}
 			// テンプレートの名前は「保存」（またはタブを離れるとき）に反映する
 		}
 
-		function persistDraft(skillIds, name) {
-			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name);
-			return { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
+		// tiers（分類。C-57）は持っているときだけ残す（空なら書かない）
+		function persistDraft(skillIds, name, tiers) {
+			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, tiers);
+			const out = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
+			if (tiers && typeof tiers === 'object' && Object.keys(tiers).length > 0) out.tiers = Object.assign({}, tiers);
+			return out;
 		}
 
 		/**
@@ -3505,10 +3681,12 @@
 				return;
 			}
 			const t = { templateId: uid('tpl'), name: nameInput.value, skillIds: draftScope.skillIds.slice(), createdAt: nowIso(), updatedAt: nowIso() };
+			// ドラフトの分類（C-57）もテンプレートへ写す（「優先」だけなら tiers は持たない）
+			setTemplateTiers(t, draftScope.tiers || {});
 			data.templates.push(t);
 			saveUserData();
 			// 中身はテンプレートへ移ったので、ドラフトは空にする（二重管理を避ける）
-			draftScope = persistDraft([], '');
+			draftScope = persistDraft([], '', undefined);
 			selectedId = t.templateId;
 			render();
 			fireSelection();
@@ -3536,14 +3714,17 @@
 					// 実際に足りるのは「まだ入っていないもの」だけ。すでに入っていたものは巻き込まない。
 					const fresh = ids.filter(id => cur.indexOf(id) === -1);
 					if (fresh.length === 0) return [];
-					if (!writeSkillIds(target, cur.concat(fresh))) return [];
+					// 足したものは、いま開いている分類に入れる（C-57 の (7)。「優先」なら tiers には書かない＝既定）
+					const nextTiers = tiersWithout(tiersOf(target), []);
+					fresh.forEach(id => { if (currentTier !== TIER_DEFAULT) nextTiers[id] = currentTier; else delete nextTiers[id]; });
+					if (!writeSkillIds(target, cur.concat(fresh), nextTiers)) return [];
 					afterEditorPickerAdd(target);
 					return fresh;
 				},
 				remove: (ids) => {
 					const cur = skillIdsOf(target);
 					if (!cur) return false;
-					if (!writeSkillIds(target, cur.filter(id => ids.indexOf(id) === -1))) return false;
+					if (!writeSkillIds(target, cur.filter(id => ids.indexOf(id) === -1), tiersWithout(tiersOf(target), ids))) return false;
 					// 一覧から消えていたぶんを戻す（モーダルが開いたままでも数が合うように）
 					picker.excludeIds = picker.excludeIds.filter(id => ids.indexOf(id) === -1);
 					renderPickerResults();
@@ -3597,6 +3778,7 @@
 			const ids = skillIdsOf(target);
 			if (!ids || ids.length === 0) return;
 			const prev = snapshot(ids);
+			const prevTiers = snapshot(tiersOf(target));   // 分類（C-57）も一緒に戻す
 			// 状態を変える前に積む。積んだ時点の probe() が「戻るべき姿」になる。
 			pushUndo({
 				scope: 'list',
@@ -3606,13 +3788,13 @@
 				undoneLabel: '外した' + prev.length + '種を戻しました',
 				probe: () => probeOf(skillIdsOf(target)),
 				apply: () => {
-					if (!writeSkillIds(target, snapshot(prev))) return false;
+					if (!writeSkillIds(target, snapshot(prev), snapshot(prevTiers))) return false;
 					picker.excludeIds = picker.excludeIds.concat(prev.filter(id => picker.excludeIds.indexOf(id) === -1));
 					afterEditingSkillsChanged(target);
 					return true;
 				}
 			});
-			if (!writeSkillIds(target, [])) return;
+			if (!writeSkillIds(target, [], tiersWithout(prevTiers, prev))) return;
 			picker.excludeIds = picker.excludeIds.filter(id => prev.indexOf(id) === -1);
 			afterEditingSkillsChanged(target);
 		}
@@ -3623,6 +3805,7 @@
 			const idx = ids ? ids.indexOf(skillId) : -1;
 			if (idx === -1) return;
 			const name = getSkillName(skillId);
+			const prevTier = tierOf(tiersOf(target), skillId);   // 分類（C-57）も一緒に戻す
 			pushUndo({
 				scope: 'list',
 				doneLabel: 'スキル「' + name + '」を外しました',
@@ -3636,7 +3819,9 @@
 					// 元に戻す前に同じスキルを足し直してあった場合は、重複させずに元の位置へ寄せる
 					const next = cur.filter(id => id !== skillId);
 					next.splice(Math.min(idx, next.length), 0, skillId);
-					if (!writeSkillIds(target, next)) return false;
+					const nextTiers = tiersWithout(tiersOf(target), [skillId]);
+					if (prevTier !== TIER_DEFAULT) nextTiers[skillId] = prevTier;
+					if (!writeSkillIds(target, next, nextTiers)) return false;
 					if (picker.excludeIds.indexOf(skillId) === -1) picker.excludeIds.push(skillId);
 					afterEditingSkillsChanged(target);
 					return true;
@@ -3644,7 +3829,7 @@
 			});
 			const next = ids.slice();
 			next.splice(idx, 1);
-			if (!writeSkillIds(target, next)) return;
+			if (!writeSkillIds(target, next, tiersWithout(tiersOf(target), [skillId]))) return;
 			picker.excludeIds = picker.excludeIds.filter(id => id !== skillId);
 			afterEditingSkillsChanged(target);
 		}
@@ -3659,18 +3844,52 @@
 			return t ? t.skillIds : null;
 		}
 
+		// 対象の「今の」分類（tiers。C-57）。持っていなければ空（＝全部「優先」）。返すのは写しではなく実体
+		function tiersOf(target) {
+			if (!target) return {};
+			if (target.kind === 'draft') return draftScope.tiers || {};
+			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
+			return (t && t.tiers) || {};
+		}
+		// tiers の写しから、渡した id の項目を除いたもの（外したスキルの分類を残さない）
+		function tiersWithout(tiers, ids) {
+			const out = Object.assign({}, tiers || {});
+			(ids || []).forEach(id => { delete out[id]; });
+			return out;
+		}
 		// 対象のスキルID一覧を、保存先まで書き換える。**テンプレートは触った時点で保存**（C-53。元に戻せる）。
-		function writeSkillIds(target, ids) {
+		// tiers（分類）を渡したときはそれも書く。**渡さなければ tiers には触らない**（tiers を持たないデータに
+		// 空の tiers を書き足さない＝開いて触っただけでは保存データの姿が変わらない。C-51 の知見）。
+		function writeSkillIds(target, ids, tiers) {
 			if (target.kind === 'draft') {
-				draftScope = persistDraft(ids, draftScope.name);
+				draftScope = persistDraft(ids, draftScope.name, tiers !== undefined ? tiers : draftScope.tiers);
 				return true;
 			}
 			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
 			if (!t) return false;
 			t.skillIds = ids.slice();
+			if (tiers !== undefined) setTemplateTiers(t, tiers);
 			t.updatedAt = nowIso();
 			saveUserData();
 			return true;
+		}
+		// テンプレートの tiers を書く。中身が空なら項目ごと消す（「優先」だけのセットは tiers を持たない＝旧データと同じ姿）。
+		// 初めて tiers を書くとき、保存データの schemaVersion を 4 に上げる（形が増えたことの記録。C-57）
+		function setTemplateTiers(t, tiers) {
+			const clean = {};
+			Object.keys(tiers || {}).forEach(id => { if (tiers[id] !== TIER_DEFAULT && TIERS.some(x => x.id === tiers[id])) clean[id] = tiers[id]; });
+			if (Object.keys(clean).length === 0) { delete t.tiers; return; }
+			t.tiers = clean;
+			const data = ensureUserData();
+			if (!(data.schemaVersion >= 4)) data.schemaVersion = 4;
+		}
+		// 1件の分類を書く（再分類。C-57 の (9)）
+		function writeTier(target, skillId, tier) {
+			const ids = skillIdsOf(target);
+			if (!ids || ids.indexOf(skillId) === -1) return false;
+			const next = tiersWithout(tiersOf(target), [skillId]);
+			if (tier !== TIER_DEFAULT) next[skillId] = tier;
+			return writeSkillIds(target, ids, next);
 		}
 
 		// 追加済みスキルが増減したあとの描画と通知（削除・全消し・元に戻す、で共通）。
@@ -3690,6 +3909,7 @@
 			if (!t) return;
 			flushPendingName();
 			const copy = { templateId: uid('tpl'), name: t.name + '（コピー）', skillIds: t.skillIds.slice(), createdAt: nowIso(), updatedAt: nowIso() };
+			if (t.tiers) copy.tiers = Object.assign({}, t.tiers);   // 分類（C-57）も写す
 			data.templates.push(copy);
 			saveUserData();
 			// 複製したものをそのまま選ぶ（続けて名前を直せるように）
@@ -3749,11 +3969,12 @@
 				// name は画面に出る表示名（「✓『◯◯』の○件を照合します」、OCR結果の受け渡し先の
 				// 既定のシート名など）。タブと同じ呼び方にしておかないと、
 				// 選んだものと表示されるものの名前が食い違って見える。
-				return { kind: 'draft', id: DRAFT_SELECTION_ID, name: draftScope.name || 'ドラフト', skillIds: draftScope.skillIds.slice() };
+				// tiers（分類。C-57）は写しを渡す（無ければ空＝全部「優先」。呼び出し元は tierOf() で引く）
+				return { kind: 'draft', id: DRAFT_SELECTION_ID, name: draftScope.name || 'ドラフト', skillIds: draftScope.skillIds.slice(), tiers: Object.assign({}, draftScope.tiers || {}) };
 			}
 			const t = ensureUserData().templates.find(x => x.templateId === selectedId);
 			if (!t) return null;
-			return { kind: 'template', id: t.templateId, name: t.name || '（名称未設定）', skillIds: t.skillIds.slice() };
+			return { kind: 'template', id: t.templateId, name: t.name || '（名称未設定）', skillIds: t.skillIds.slice(), tiers: Object.assign({}, t.tiers || {}) };
 		}
 
 		/**
@@ -3790,18 +4011,19 @@
 			// 外すのは元に戻せない操作なので、他の破壊的な操作と同じく「即実行＋元に戻す」にする
 			// （確認ダイアログは挟まない。C-51 の修正4）。状態を変える前に積む。
 			const prev = snapshot(before);
+			const prevTiers = snapshot(tiersOf(target));   // 分類（C-57）も一緒に戻す
 			pushUndo({
 				scope: 'list',
 				doneLabel: '本育成スキル' + n + '種を周回スキルセットから外しました',
 				undoneLabel: '外した' + n + '種を周回スキルセットに戻しました',
 				probe: () => probeOf(skillIdsOf(target)),
 				apply: () => {
-					if (!writeSkillIds(target, snapshot(prev))) return false;
+					if (!writeSkillIds(target, snapshot(prev), snapshot(prevTiers))) return false;
 					afterEditingSkillsChanged(target);
 					return true;
 				}
 			});
-			if (!writeSkillIds(target, after)) return 0;
+			if (!writeSkillIds(target, after, tiersWithout(prevTiers, before.filter(id => drop.has(id))))) return 0;
 			afterEditingSkillsChanged(target);
 			return n;
 		}
@@ -4142,6 +4364,8 @@
 		createRosterPanel: createRosterPanel,
 		// 帯のタブ（共有部品。C-54）。special の親A／親Bセットのタブが使う
 		tabStrip: { html: tabStripHtml, reveal: revealSelectedTab, keydown: tabStripKeydown },
+		// スキルセットの分類（C-57）。呼び出し元（special の照合結果の表）が印を出すために使う
+		tiers: { list: TIERS.map(t => ({ id: t.id, label: t.label })), defaultTier: TIER_DEFAULT, of: tierOf, label: tierLabel },
 		listRosters: listRosters,
 		computeRosterSkills: computeRosterSkills,
 		getPickerHiddenIds: function () { return pickerHiddenIds.slice(); },
