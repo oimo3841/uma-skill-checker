@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18l';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19a';
 
 	/* ============================================================
 	 * 定数
@@ -709,6 +709,30 @@
 		const n = card && card.typeOrder;
 		return (typeof n === 'number' && isFinite(n) && n >= 1) ? n : null;
 	}
+	/**
+	 * 種類の名前 → 種類の順番の番号（C-62 の (1)(2)）。**種類の名前はここにも書かない** ――
+	 * データにある名前をそのままキーにして、色は番号で引く。番号を持たない種類は入れない
+	 * （呼び出し側は「色が無い」として既定の面に落とす）。
+	 */
+	function cardTypeOrderByName() {
+		const m = new Map();
+		listCards().forEach((c) => {
+			const t = c && c.type;
+			if (!t || m.has(t)) return;
+			const n = cardTypeOrderOf(c);
+			if (n !== null) m.set(t, n);
+		});
+		return m;
+	}
+	/**
+	 * 種類の色を、番号で CSS 変数へ流し込む宣言（C-51 の11節⑫ → C-62 で1か所にまとめた）。
+	 * 定義の無い番号は fallback（既定の面）に落ちる。使う側は `--usd-card-*` を読む。
+	 */
+	function cardTypeColorVars(n) {
+		return '--usd-card-bg: var(--uma-card-type-' + n + '-bg, var(--uma-surface));'
+			+ '--usd-card-border: var(--uma-card-type-' + n + '-border, var(--uma-border));'
+			+ '--usd-card-text: var(--uma-card-type-' + n + '-text, var(--uma-text-heading));';
+	}
 
 	/** そのウマ娘で選べる★（initialSkills のしきい値）。データが無ければ空。 */
 	function starChoicesOf(uma) {
@@ -1391,6 +1415,10 @@
 		'  border: 1px solid var(--uma-accent-border); background: var(--uma-accent-soft);',
 		'  color: var(--uma-accent-soft-text); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); cursor: pointer; }',
 		'.usd-name-hit:hover { background: var(--uma-accent-border); }',
+		// サポートカードの候補だけ、種類ごとの色で塗る（C-62 の (1)）。スキルの候補（.usd-name-hit）は
+		// 種類を持たないので、この修飾クラスが付いたときだけ色が変わる。
+		'.usd-name-hit--typed { border-color: var(--usd-card-border); background: var(--usd-card-bg); color: var(--usd-card-text); }',
+		'.usd-name-hit--typed:hover { background: var(--usd-card-bg); filter: brightness(.96); }',
 		// 追加済みは一覧から消さずに出して、選べない見た目にする
 		'.usd-name-hit--added { border-color: var(--uma-border); background: var(--uma-surface-sunken);',
 		'  color: var(--uma-text-faint); cursor: default; }',
@@ -1612,8 +1640,16 @@
 		'.usd-roster-pill { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
 		'  padding: var(--uma-sp-0-5) var(--uma-sp-2-5); border-radius: var(--uma-r-full); cursor: pointer;',
 		'  border: 1px solid var(--uma-border); background: var(--uma-surface); }',
-		'.usd-roster-pill[aria-pressed="true"] { background: var(--uma-accent-soft); border-color: var(--uma-accent);',
-		'  color: var(--uma-accent-soft-text); font-weight: 700; }',
+		// 番号を持たない種類（色が引けない）だけ、選んでいることを枠の濃さで示す
+		'.usd-roster-pill[aria-pressed="true"] { border-color: var(--uma-text-heading); font-weight: 700; }',
+		// 種類ごとの色（C-62 の (1)）。色は番号（typeOrder）で --uma-card-type-<番号>-* から引き、
+		// render() が inline の変数（--usd-card-*）に入れる（＝ここは番号も種類の名前も知らない）。
+		// 選んでいることは「色が付くこと」ではなく**枠の二重線と太字**で示す（色は種類の見分けに使い切る）。
+		'.usd-roster-pill--typed { background: var(--usd-card-bg); border-color: var(--usd-card-border); color: var(--usd-card-text); }',
+		'.usd-roster-pill--typed[aria-pressed="true"] { border-color: var(--usd-card-text); box-shadow: inset 0 0 0 1px currentColor; font-weight: 700; }',
+		// 「すべて」は種類ではないので黒と白（選択中＝黒地に白）
+		'.usd-roster-pill--all[aria-pressed="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse);',
+		'  color: var(--uma-text-inverse); font-weight: 700; }',
 		// ★取り表（C-51 の10節⑥）。<table> ではなく div ＋ CSS Grid（比較シートと同じ流儀）。
 		// **縦スクロールだけ**にする（overflow-x: hidden）。横スクロールを作らないので、
 		// スマホで縦横が同時に動く「斜めスクロール」は構造的に起きない。幅が足りないぶんは
@@ -1652,6 +1688,11 @@
 		'  background: var(--uma-surface); border-bottom: 1px solid var(--uma-table-rule); }',
 		// 列の間の縦線（先頭のスキル名の列には引かない＝列と列の「間」だけ）
 		'.usd-roster-gc:not(.usd-roster-gc--name) { border-left: 1px solid var(--uma-table-rule); }',
+		// 1列おきの薄い灰（C-62 の (3)）。**罫線だけでは列を目で追えなかった**ので、C-57 でやめた
+		// 縞を戻した。ただし戻したのは**サポートカードの列だけ**で、行の交互の地色は戻していない
+		// （行と列の両方を交互にすると市松になる。C-51 の11節⑥〜⑧）。育成ウマ娘の列は
+		// 見出しの色味だけで区別する扱いのまま＝本体のセルは白。
+		'.usd-roster-gc--alt { background: var(--uma-table-col-alt); }',
 		// 余り列のセルは余白を持たない（0px の列に余白ぶんだけはみ出して横スクロールの種になるため）
 		'.usd-roster-gc--fill { padding: 0; }',
 		'.usd-roster-gc--name { justify-content: flex-start; text-align: left; padding-left: var(--uma-sp-2);',
@@ -1663,6 +1704,10 @@
 		'.usd-roster-gh.usd-roster-gc--uma { background: var(--uma-table-head-key-bg); color: var(--uma-table-head-key-text); }',
 		'.usd-roster-gh.usd-roster-gc--uma.usd-roster-gh--empty { color: var(--uma-table-head-key-text); opacity: 1; }',
 		'.usd-roster-gh--empty { color: var(--uma-text-faint); font-weight: 400; }',
+		// 見出しのセルは、サポートカードの種類ごとの色（C-62 の (2)）。1列おきの灰より後に書いて
+		// 上書きする（灰は本体のセルのための縞で、見出しは種類の色が主）。空き枠には色が付かない
+		// （typeOrder が無い＝colStyle が何も出さない）ので、そのまま既定の見出しの地に落ちる。
+		'.usd-roster-gh.usd-roster-typed { background: var(--usd-card-bg); color: var(--usd-card-text); }',
 		// 表の中の「得られる」印は**黒い輪郭の丸（塗りつぶしなし）**（C-57 の作業A。それまでは橙の★）。
 		// 文字ではなく CSS で描く（フォントで太さや大きさが変わらないように）
 		'.usd-roster-got { display: inline-block; width: 11px; height: 11px; border-radius: var(--uma-r-full);',
@@ -1679,6 +1724,10 @@
 		'.usd-roster-legend li { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; }',
 		'.usd-roster-legend-no { flex: none; min-width: 20px; text-align: center; font-weight: 700;',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm); }',
+		// 番号は表の見出しと同じ色にする（C-62 の (2)）。凡例は「番号 → 正式名称」の対応表なので、
+		// 番号の見た目が表と食い違うと対応を追えない。
+		'.usd-roster-legend-no.usd-roster-typed { background: var(--usd-card-bg); border-color: var(--usd-card-border);',
+		'  color: var(--usd-card-text); }',
 		'.usd-roster-legend--empty { color: var(--uma-text-faint); }',
 		'.usd-roster-note { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); margin: 0; }',
 		'.usd-roster-warn { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); margin: 0; }',
@@ -2958,10 +3007,7 @@
 			const card = id ? findCard(id) : null;
 			const n = cardTypeOrderOf(card);
 			if (n === null) return '';
-			return ' data-type-order="' + n + '" style="'
-				+ '--usd-card-bg: var(--uma-card-type-' + n + '-bg, var(--uma-surface));'
-				+ '--usd-card-border: var(--uma-card-type-' + n + '-border, var(--uma-border));'
-				+ '--usd-card-text: var(--uma-card-type-' + n + '-text, var(--uma-text-heading));"';
+			return ' data-type-order="' + n + '" style="' + cardTypeColorVars(n) + '"';
 		}
 
 		/**
@@ -2976,7 +3022,9 @@
 			return pool
 				.filter(e => !type || cardTypeOf(e) === type)
 				.filter(e => !query || normalizeSkillText(formatEntryLabel(e)).indexOf(query) !== -1)
-				.map(e => ({ id: e.id, label: formatEntryLabel(e), used: used.indexOf(e.id) !== -1 }));
+				// typeOrder は候補の行を種類ごとの色で塗るため（C-62 の (1)）。育成ウマ娘には無いので null
+				.map(e => ({ id: e.id, label: formatEntryLabel(e), used: used.indexOf(e.id) !== -1,
+					typeOrder: kind === 'card' ? cardTypeOrderOf(e) : null }));
 		}
 
 		/**
@@ -2998,11 +3046,22 @@
 				+ ' placeholder="' + (isCard ? 'サポートカード名で検索' : '育成ウマ娘名で検索') + '" />';
 			if (isCard) {
 				if (types.length > 0) {
+					// 種類ごとの色（C-62 の (1)）。**選択済みのカードの欄と同じ色**を、同じ番号（typeOrder）から
+					// 引く（色の定義は css/tokens.css の --uma-card-type-<番号>-*。種類の名前はここに書かない）。
+					// 押していない状態でも色を出す ―― 「どれがどの種類か」を一目で見分けるための色なので、
+					// 選んだときだけ色が付く形では役に立たない。選んでいることは枠の二重線と太字で示す。
+					// 「すべて」だけは種類ではないので黒と白（選択中＝黒地に白）。
+					const orderByName = cardTypeOrderByName();
 					h += '<div class="usd-roster-pills" data-usd-el="types">'
-						+ '<button type="button" class="usd-roster-pill" data-usd-act="type" data-value=""'
+						+ '<button type="button" class="usd-roster-pill usd-roster-pill--all" data-usd-act="type" data-value=""'
 						+ ' aria-pressed="' + (pickType === '' ? 'true' : 'false') + '">すべて</button>'
-						+ types.map(t => '<button type="button" class="usd-roster-pill" data-usd-act="type" data-value="' + esc(t) + '"'
-							+ ' aria-pressed="' + (pickType === t ? 'true' : 'false') + '">' + esc(t) + '</button>').join('')
+						+ types.map(t => {
+							const n = orderByName.has(t) ? orderByName.get(t) : null;
+							return '<button type="button" class="usd-roster-pill' + (n === null ? '' : ' usd-roster-pill--typed') + '"'
+								+ ' data-usd-act="type" data-value="' + esc(t) + '"'
+								+ (n === null ? '' : ' data-type-order="' + n + '" style="' + cardTypeColorVars(n) + '"')
+								+ ' aria-pressed="' + (pickType === t ? 'true' : 'false') + '">' + esc(t) + '</button>';
+						}).join('')
 						+ '</div>';
 				} else {
 					// データに種類が入れば、この分岐は自動で絞り込みの側へ移る。
@@ -3020,11 +3079,18 @@
 			const hits = searchEntries(picking.kind, pickQuery, picking.kind === 'card' ? pickType : '');
 			if (hits.length === 0) { box.innerHTML = '<p class="usd-roster-note">見つかりません。</p>'; return; }
 			const shown = hits.slice(0, PICK_LIST_LIMIT);
+			// 候補の行も種類ごとの色で塗る（C-62 の (1)）。**どれも同じ緑**だったので、
+			// 一覧を眺めても種類が分からず、上の絞り込みを押すまで見分けられなかった。
+			// 色は選択済みの欄・絞り込みの候補と同じものを同じ番号（typeOrder）から引く。
+			// すでにこの編成に入っている行は、選べない見た目（灰）を優先する。
+			const tint = (h) => (h.typeOrder === null || h.typeOrder === undefined) ? ''
+				: ' data-type-order="' + h.typeOrder + '" style="' + cardTypeColorVars(h.typeOrder) + '"';
 			box.innerHTML = '<div class="usd-name-list">' + shown.map(h => h.used
 				// 同じカードを2枠には入れられない（実際に組めないため）。判定は id で行う
 				// ので、同じ二つ名の別のカードは別物として選べる。
 				? '<span class="usd-name-hit usd-name-hit--added">' + esc(h.label) + '<span class="usd-name-added">この編成に入っています</span></span>'
-				: '<button type="button" class="usd-name-hit" data-usd-act="take" data-entry-id="' + esc(h.id) + '">' + esc(h.label) + '</button>'
+				: '<button type="button" class="usd-name-hit' + (tint(h) ? ' usd-name-hit--typed' : '') + '"'
+					+ ' data-usd-act="take" data-entry-id="' + esc(h.id) + '"' + tint(h) + '>' + esc(h.label) + '</button>'
 			).join('') + '</div>'
 				+ (hits.length > shown.length
 					? '<p class="usd-roster-note">全' + hits.length + '件のうち ' + shown.length + '件を出しています。名前を入れると絞り込めます。</p>'
@@ -3132,8 +3198,17 @@
 			// 番号と正式名称の対応は表の外の凡例に置く（スマホの幅で正式名称を見出し行に並べられないため）。
 			// 印は CSS が描く（白い ♦。C-57 の作業A）ので中身は空
 			const umaChip = '<span class="usd-roster-umamark" role="img" aria-label="育成ウマ娘"></span>';
-			// 列の区別は罫線で行う（C-57 の作業A）。育成ウマ娘の列だけ見出しのセルの色で区別する
-			const colClass = (m) => m.kind === 'uma' ? ' usd-roster-gc--uma' : '';
+			// 列の区別は罫線＋**1列おきの薄い灰**（C-62 の (3)。罫線だけでは列を目で追えなかった）。
+			// 育成ウマ娘の列は今までどおり**見出しのセルの色味だけ**で区別する（C-57 の作業A）ので、
+			// 灰の縞には入れない（本体のセルは白のまま）。
+			const colClass = (m) => m.kind === 'uma' ? ' usd-roster-gc--uma'
+				: (m.no % 2 === 0 ? ' usd-roster-gc--alt' : '');
+			// 見出しのセルと凡例の番号は、サポートカードの種類ごとの色（C-62 の (2)）。
+			// 選択済みの欄・ミニウィンドウの候補と**同じ色を同じ番号から**引く。
+			const colStyle = (m) => (m.kind === 'card' && m.typeOrder !== null && m.typeOrder !== undefined)
+				? ' data-type-order="' + m.typeOrder + '" style="' + cardTypeColorVars(m.typeOrder) + '"' : '';
+			const colTypedClass = (m) => (m.kind === 'card' && m.typeOrder !== null && m.typeOrder !== undefined)
+				? ' usd-roster-typed' : '';
 			const colHead = (m) => (m.kind === 'uma' ? umaChip : String(m.no))
 				+ (m.shortLabel ? '<span class="usd-roster-gh-name">' + esc(m.shortLabel) + '</span>' : '');
 			const colName = (m) => (m.kind === 'uma' ? '育成ウマ娘' : String(m.no)) + (m.label ? '：' + esc(m.label) : '（空き）');
@@ -3148,8 +3223,9 @@
 					+ ' style="--usd-roster-cols:' + members.length + '">';
 				h += '<div class="usd-roster-grow" role="row">'
 					+ '<div class="usd-roster-gc usd-roster-gc--name usd-roster-gh" role="columnheader">スキル名</div>'
-					+ members.map(m => '<div class="usd-roster-gc usd-roster-gh' + colClass(m) + (m.label ? '' : ' usd-roster-gh--empty') + '"'
-						+ ' role="columnheader" aria-label="' + colName(m) + '">' + colHead(m) + '</div>').join('')
+					+ members.map(m => '<div class="usd-roster-gc usd-roster-gh' + colClass(m) + colTypedClass(m)
+						+ (m.label ? '' : ' usd-roster-gh--empty') + '"'
+						+ ' role="columnheader" aria-label="' + colName(m) + '"' + colStyle(m) + '>' + colHead(m) + '</div>').join('')
 					+ '</div>';
 				res.items.forEach((it) => {
 					h += '<div class="usd-roster-grow" role="row">'
@@ -3163,10 +3239,12 @@
 				h += '<p class="usd-roster-note">' + umaChip + '＝育成ウマ娘（初期＋覚醒）、1〜' + cardCount + '＝サポートカード（枠の順）</p>';
 				h += '<ol class="usd-roster-legend">' + members.map(m =>
 					'<li' + (m.label ? '' : ' class="usd-roster-legend--empty"') + '>'
-					+ (m.kind === 'uma' ? umaChip : '<span class="usd-roster-legend-no">' + m.no + '</span>')
+					+ (m.kind === 'uma' ? umaChip
+						: '<span class="usd-roster-legend-no' + colTypedClass(m) + '"' + colStyle(m) + '>' + m.no + '</span>')
 					+ '<span>' + (m.label ? esc(m.label) : '（空き）') + '</span></li>').join('') + '</ol>';
 			}
-			h += '<p class="usd-roster-note">ここに出ていないスキルが、この編成のカードと覚醒では得られないものです。</p>';
+			// 「ここに出ていないスキルが…」の1行は C-62 の (6) で削除した（表の見出しが
+			// 「本育成で得られるスキル N種」と言っているので、裏返しの言い換えにしかなっていなかった）。
 			h += '</div>';
 			h += '</div>';
 
@@ -3412,7 +3490,9 @@
 					'<button type="button" class="usd-link-btn" data-usd-act="editor-clear-skills" data-usd-el="clear-skills" hidden>すべて外す</button>' +
 				'</div>' +
 				'<div data-usd-el="selected-list" class="usd-panels"></div>' +
-				'<p class="text-[11px] text-slate-400 mt-3" data-usd-el="editor-note"></p>' +
+				// 最下段の注記（「スキルの追加・削除はすぐに保存されます…」／「保存すると名前を付けて残せます…」）は
+				// C-62 の (7) で削除した。どちらも保存の作法を言うだけで、名前欄と「保存」がその場に見えている
+				// 画面では読む意味が無かった（renderNote() ごと外したので、描く対象も無い）。
 			'</div>';
 
 		const nameInput = q(container, 'name-input');
@@ -3490,7 +3570,6 @@
 			renderTabs();
 			renderNameRow();
 			renderSelectedList();
-			renderNote();
 			fireViewChange('list');
 		}
 
@@ -3516,13 +3595,6 @@
 			nameInput.value = target.kind === 'template' ? (target.obj.name || '') : (draftScope.name || '');
 			q(container, 'dup-btn').hidden = target.kind !== 'template';
 			q(container, 'del-btn').hidden = target.kind !== 'template';
-		}
-
-		function renderNote() {
-			const target = currentTarget();
-			q(container, 'editor-note').textContent = target.kind === 'template'
-				? 'スキルの追加・削除はすぐに保存されます（元に戻せます）。名前は「保存」で反映します。'
-				: '保存すると名前を付けて残せます。保存しない場合も、この端末のブラウザには次回まで残ります。';
 		}
 
 		// 分類の切り替え（超優先／優先／通常）と合計（C-57 の (7)）

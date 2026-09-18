@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-09-18e";
+	--uma-shell-css-version: "2026-09-19a";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -361,6 +361,34 @@
 .uma-drawer-body--frame { overflow: hidden; }
 .uma-drawer-body iframe { width: 100%; height: 100%; border: 0; display: block; }
 .uma-drawer-content { padding: var(--uma-sp-4); }
+
+/* ===== 引き出しの中のタブ（照合結果／結合画像） =====
+   ヘッダーと本文のあいだに固定で置き、中をスクロールしても見えたままにする。
+   ステップのタブ（上の .step-tabs）と同じ見え方に合わせてある。
+   もとは exam.html の <style> にだけあったが、special も使うようになったので
+   ここ（画面の骨格）へ移した（C-62 の (9)）。**片方だけ直さないこと。**
+   exam … 1つの引き出しの中でパネルを切り替える（C-18）
+   special … 引き出しが2つのままなので、押すともう一方の引き出しへ切り替える（段5 は見送り中） */
+.drawer-tabs {
+	flex-shrink: 0; display: flex; gap: var(--uma-sp-2);
+	padding: 0 var(--uma-sp-4); background: var(--uma-surface);
+	border-bottom: 1px solid var(--uma-border);
+}
+.drawer-tab {
+	position: relative; display: flex; align-items: center; gap: var(--uma-sp-1-5);
+	padding: var(--uma-sp-2-5) var(--uma-sp-2); margin-bottom: -1px;
+	background: none; border: 0; border-bottom: 2px solid transparent;
+	font: inherit; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600;
+	color: var(--uma-text-subtle); cursor: pointer;
+	transition: color var(--uma-transition), border-color var(--uma-transition);
+}
+.drawer-tab:hover:not(:disabled) { color: var(--uma-text-heading); }
+.drawer-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control); }
+.drawer-tab:disabled { color: var(--uma-text-faint); cursor: not-allowed; }
+.drawer-tab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
+/* 未読の点はタブの文字の右に置く（FABの点と同じ見た目を借りるが、位置だけ流し込みに戻す） */
+.drawer-tab .uma-fab-dot { position: static; margin-left: var(--uma-sp-0-5); }
+.drawer-panel[hidden] { display: none !important; }
 
 /* 結果がまだ無いときの案内。行き止まりにせず、作るためのボタンへ戻す。 */
 .uma-drawer-empty {

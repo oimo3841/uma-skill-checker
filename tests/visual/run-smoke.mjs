@@ -271,7 +271,8 @@ const browser = await chromium.launch();
 			hasOld: !!p.querySelector('[data-usd-act="template-open"], [data-usd-act="draft-open"], [data-usd-el="template-radio"]'),
 			placeholder: p.querySelector('[data-usd-el="name-input"]').placeholder,
 			dupHidden: p.querySelector('[data-usd-el="dup-btn"]').hidden, delHidden: p.querySelector('[data-usd-el="del-btn"]').hidden,
-			note: p.querySelector('[data-usd-el="editor-note"]').textContent
+			// 最下段の注記は C-62 の (7) で削除した。要素ごと無いことを見る
+			note: !!p.querySelector('[data-usd-el="editor-note"]')
 		};
 	});
 	assert(draftTab.label === '＋ 新規' && draftTab.selected === 'true',
@@ -279,7 +280,7 @@ const browser = await chromium.launch();
 	assert(!draftTab.hasOld, 'special: 「開く」・ラジオ・ドラフトの行は無い（タブで選んでその場で編集する）', draftTab);
 	assert(draftTab.placeholder === '新しいスキルセットの名前' && draftTab.dupHidden && draftTab.delHidden,
 		'special: 「＋ 新規」では名前欄が「新しいスキルセットの名前」で、複製・削除は出ない', draftTab);
-	assert(draftTab.note.startsWith('保存すると名前を付けて残せます'), 'special: 「＋ 新規」の注記は保存の案内', draftTab.note);
+	assert(draftTab.note === false, 'special: ②のパネル最下段の注記は無い（C-62 の (7) で削除）', draftTab.note);
 	const clearBtn = await page.evaluate(() => {
 		const btn = document.querySelector('#deck-template-panel [data-usd-el="clear-skills"]');
 		const n = Number(document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent);
@@ -1785,6 +1786,19 @@ const browser = await chromium.launch();
 		width: getComputedStyle(document.getElementById('result-drawer')).width,
 	}));
 	assert((await tabState2()).stitchDrawerGone, 'exam: 結果画像だけの引き出しは無くなった');
+
+	// 引き出しの中のタブの CSS は css/shell.css へ移した（C-62 の (9)。special も使うようになったため）。
+	// exam の <style> から消えているので、**共通CSSから当たっているか**をここで見る（当たらないと
+	// タブが裸のボタンになる）。値は shell.css の .drawer-tab と、選択中の下線 --uma-control。
+	const tabCss = await page.evaluate(() => {
+		const on = getComputedStyle(document.getElementById('result-tab-result'));
+		const off = getComputedStyle(document.getElementById('result-tab-stitch'));
+		return { onLine: on.borderBottomColor, onWeight: on.fontWeight, offLine: off.borderBottomColor,
+			strip: getComputedStyle(document.querySelector('.drawer-tabs')).display };
+	});
+	assert(tabCss.strip === 'flex' && tabCss.onWeight === '600' && tabCss.onLine === 'rgb(28, 25, 23)'
+		&& tabCss.offLine === 'rgba(0, 0, 0, 0)',
+		'exam: 引き出しの中のタブの見た目が共通CSS（shell.css）から当たっている', tabCss);
 
 	// 結果画像がまだ無いときは、そのタブへ「切り替えられない」（押せないことはラベルでも分かる）
 	await page.evaluate(() => fabGoTo('result'));
@@ -5690,16 +5704,17 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(s0.shown && s0.tone === 'warn' && s0.text.includes('②で周回スキルセットを選ぶ') && s0.text.includes('印は入りません'),
 		'段0: セット未選択のときは「②で選ぶと焼ける／このままでは入らない」と出る', s0);
 
-	// 段0-2) セットを選ぶと「先に OCR を」に変わる（status() が③へ移しているので②へ戻してから押す）
+	// 段0-2) セットを選ぶと**何も言わなくなる**（status() が③へ移しているので②へ戻してから押す）。
+	// 60セッション目（C-61）は「一体のボタンなら印も焼ける」と案内していたが、
+	// 61セッション目（C-62 の (8)-6）に**文面ごと削除した** ―― どのボタンを押すかは
+	// すぐ上のボタンの並びが言っているので、言葉で重ねない。
 	await page.evaluate(() => selectStepTab(1));
 	await page.waitForTimeout(200);
 	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
 	await page.waitForTimeout(400);
 	const s1 = await status();
-	// 60セッション目（C-61）に文面を変えた。一体のボタンができたので、そちらを先に案内する
-	assert(s1.tone === 'warn' && s1.text.includes('OCR処理＋画像結合を開始する')
-		&& s1.text.includes('「画像を結合する」だけを押すと印は入りません'),
-		'段0: セットを選ぶと「一体のボタンなら印も焼ける／結合だけなら入らない」に変わる', s1);
+	assert(s1.tone === 'none' && s1.text === '',
+		'段0: セットを選んで OCR 未実行のときは何も言わない（C-62 の (8)-6）', s1);
 
 	// 段0-3) OCR の結果ができると「焼きます」になる（結果は本物の照合関数で作る）
 	await page.evaluate(() => {
@@ -5784,17 +5799,27 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	});
 
 	let L = await look();
-	assert(L.combo.top < L.ocr.top && L.ocr.top < L.stitch.top,
-		'C-61: 並びは「一体 → OCR単独 → 結合だけ」', { combo: L.combo.top, ocr: L.ocr.top, stitch: L.stitch.top });
-	assert(L.combo.cls.includes('uma-btn--primary') && L.combo.cls.includes('uma-btn--lg'),
-		'C-61: 一体のボタンが主（黒塗り・大）', L.combo.cls);
-	assert(L.ocr.cls.includes('uma-btn--secondary') && !L.ocr.cls.includes('uma-btn--lg')
-		&& L.stitch.cls.includes('uma-btn--secondary') && !L.stitch.cls.includes('uma-btn--lg'),
-		'C-61: 個別の2つは従（白地＋罫線・標準の大きさ）', { ocr: L.ocr.cls, stitch: L.stitch.cls });
-	assert(L.combo.h > L.ocr.h && L.combo.h > L.stitch.h,
-		'C-61: 主のほうが背が高い', { combo: L.combo.h, ocr: L.ocr.h, stitch: L.stitch.h });
+	// C-62 の (8): **並び・大きさ・色を exam.html と同じにした**（C-61 で special だけ
+	// 一体を先頭に置いていたのを戻した）。3つ目の「画像を結合する」は special だけの操作。
+	assert(L.ocr.top < L.combo.top && L.combo.top < L.stitch.top,
+		'C-62 (8): 並びは exam と同じ「OCR単独 → 一体 → 結合だけ」', { ocr: L.ocr.top, combo: L.combo.top, stitch: L.stitch.top });
+	assert(L.ocr.cls.includes('uma-btn--primary') && L.ocr.cls.includes('uma-btn--lg'),
+		'C-62 (8): OCR単独は黒塗り・大（exam と同じ）', L.ocr.cls);
+	assert(L.combo.cls.includes('uma-btn--accent-outline') && L.combo.cls.includes('uma-btn--lg'),
+		'C-62 (8): 一体は枠線・大（exam と同じ）', L.combo.cls);
+	assert(L.stitch.cls.includes('uma-btn--secondary') && !L.stitch.cls.includes('uma-btn--lg'),
+		'C-62 (8): 「画像を結合する」だけは標準の大きさのまま', L.stitch.cls);
+	assert(L.ocr.h === L.combo.h && L.combo.h > L.stitch.h,
+		'C-62 (8): 上の2つは同じ高さで、3つ目だけ低い', { ocr: L.ocr.h, combo: L.combo.h, stitch: L.stitch.h });
 	assert((await page.textContent('#process-stitch-btn')).trim() === 'OCR処理＋画像結合を開始する（高負荷）',
 		'C-61: 文言は exam と同じ');
+	assert((await page.textContent('#stitch-btn')).trim() === '画像を結合する（OCRしない）',
+		'C-62 (8): 3つ目は「画像を結合する（OCRしない）」（「（SNS投稿用）」から変えた）');
+	// 「個別に実行することもできます」の説明は C-62 の (8)-4 で削除した
+	assert(!(await page.content()).includes('個別に実行することもできます'),
+		'C-62 (8): 「個別に実行することもできます」は無い');
+	assert((await page.textContent('#tier-marks-row')).trim() === '分類の印（◎超優先・○優先・▲通常）',
+		'C-62 (8): 印のチェックの文言を短くした');
 
 	// 押せる条件。画像を足す前・足したあと・セットを外したあとの3通り
 	assert(L.combo.disabled && L.ocr.disabled && L.stitch.disabled,
@@ -5861,6 +5886,329 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 
 	await page.evaluate(() => { persons[0].files = []; updateProcessBtn(); });
 	assert(errors.length === 0, 'C-61: コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
+ * C-62（61セッション目）: 棚卸しで挙がった11件
+ *
+ * 見るのは、この回で入れたものだけ。
+ *   (1) カードを選ぶミニウィンドウの候補が種類ごとの色／「すべて」は黒と白
+ *   (2) ★取り表の見出しと凡例の番号も同じ種類の色
+ *   (3) 表の列が1列おきに薄い灰（育成ウマ娘の列は縞に入れない）
+ *   (4) 「αテスト」の注記が常時表示／開閉ボタンは無い／タイトル脇に「一部αテスト中」
+ *   (5) ①の項目名の脇に「除外N種」（0種でも出す）
+ *   (6) ①のパネル最下段の説明が無い
+ *   (9) 引き出しの中のタブで、照合結果と結合画像を行き来できる
+ * (7)(8) は上のブロック（②のパネル・③のボタン）で見ている。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	// 改修中の告知（C-62 の (11)）も既読にしてから先へ進む
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+
+	/* --- (4) αテストの見せ方 --- */
+	assert(await page.isVisible('#alpha-badge') && (await page.textContent('#alpha-badge')).trim() === '一部αテスト中',
+		'C-62 (4): タイトルの脇に「一部αテスト中」のタグが出る');
+	assert((await page.$('#alpha-badge')) !== null && (await page.evaluate(() => document.getElementById('alpha-badge').tagName)) === 'SPAN',
+		'C-62 (4): タグは押せない（button ではない）');
+	assert((await page.$('#deck-roster-alpha-btn')) === null,
+		'C-62 (4): ①のタブの「αテスト」の開閉ボタンは無い');
+	await page.evaluate(() => selectStepTab(0));
+	await page.waitForTimeout(400);
+	assert(await page.isVisible('#deck-roster-alpha'),
+		'C-62 (4): αテスト中の注記は（押さなくても）常時出ている');
+	assert((await page.textContent('#deck-roster-alpha')).includes('結果が正しくないことがあります'),
+		'C-62 (4): 注記の文面は据え置き');
+
+	/* --- (5) 除外N種 --- */
+	assert(await page.isVisible('#deck-roster-excluded') && (await page.textContent('#deck-roster-excluded')).trim() === '除外0種',
+		'C-62 (5): 除外していないときも「除外0種」と出す', await page.textContent('#deck-roster-excluded'));
+	const exclRed = await page.evaluate(() => getComputedStyle(document.getElementById('deck-roster-excluded')).color);
+	assert(exclRed === 'rgb(193, 0, 7)', 'C-62 (5): 文字は赤（--uma-danger-text）', exclRed);
+
+	/* --- (1) ミニウィンドウの候補の色 --- */
+	await page.click('#deck-roster-panel [data-usd-act="pick-card"][data-index="0"]');
+	await page.waitForTimeout(400);
+	const pills = await page.evaluate(() => {
+		const list = Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-pill'));
+		return list.map((b) => ({
+			all: b.classList.contains('usd-roster-pill--all'),
+			typed: b.classList.contains('usd-roster-pill--typed'),
+			order: b.dataset.typeOrder || null,
+			bg: getComputedStyle(b).backgroundColor,
+			fg: getComputedStyle(b).color,
+			pressed: b.getAttribute('aria-pressed'),
+		}));
+	});
+	assert(pills.length >= 3 && pills[0].all && pills.slice(1).every((p) => p.typed),
+		'C-62 (1): 先頭が「すべて」で、あとは種類ごとの色が付いた候補', { n: pills.length });
+	assert(pills[0].pressed === 'true' && pills[0].bg === 'rgb(15, 23, 43)' && pills[0].fg === 'rgb(255, 255, 255)',
+		'C-62 (1): 「すべて」は選択中で黒地に白', pills[0]);
+	const typedBg = pills.slice(1).map((p) => p.bg);
+	assert(new Set(typedBg).size === typedBg.length,
+		'C-62 (1): 種類ごとに違う色（緑一色ではない）', typedBg);
+	assert(pills.slice(1).every((p) => p.order && Number(p.order) >= 1),
+		'C-62 (1): 色は typeOrder の番号で引いている（名前ではない）', pills.slice(1).map((p) => p.order));
+
+	// 別々の種類のカードを2枚選ぶ（1枠目＝いちばん小さい番号、2枠目＝その次）
+	const takeCard = async (slot, pillIndex) => {
+		await page.click('#deck-roster-panel [data-usd-act="pick-card"][data-index="' + slot + '"]');
+		await page.waitForTimeout(300);
+		await page.click('#deck-roster-panel .usd-roster-pill:nth-of-type(' + (pillIndex + 1) + ')');
+		await page.waitForTimeout(300);
+		await page.click('#deck-roster-panel [data-usd-act="take"]');
+		await page.waitForTimeout(500);
+	};
+	// 開いているミニウィンドウは×（閉じる）で閉じてから次へ（背景が押下を遮るため）
+	await page.click('#deck-roster-panel .usd-roster-modal-head .uma-icon-btn');
+	await page.waitForTimeout(300);
+	await takeCard(0, 1);
+	await takeCard(1, 2);
+
+	/* --- (2)(3) 表の見出し・凡例の番号・1列おきの灰 --- */
+	const table = await page.evaluate(() => {
+		const grid = document.querySelector('#deck-roster-panel .usd-roster-grid');
+		if (!grid) return null;
+		const heads = Array.from(grid.querySelectorAll('.usd-roster-gh'));
+		const cards = heads.filter((h) => h.classList.contains('usd-roster-typed'));
+		const uma = heads.find((h) => h.classList.contains('usd-roster-gc--uma'));
+		// 本体（見出しでない）のセルを、1行目から拾う
+		const rows = Array.from(grid.querySelectorAll('.usd-roster-grow'));
+		const body = rows.length > 1 ? Array.from(rows[1].querySelectorAll('.usd-roster-gc')) : [];
+		const legend = Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-legend-no'));
+		return {
+			typedHeads: cards.map((h) => ({ order: h.dataset.typeOrder, bg: getComputedStyle(h).backgroundColor })),
+			umaHeadBg: uma ? getComputedStyle(uma).backgroundColor : null,
+			// 本体のセル: 育成ウマ娘の列と、1列おきの灰
+			bodyAlt: body.map((c) => ({
+				uma: c.classList.contains('usd-roster-gc--uma'),
+				alt: c.classList.contains('usd-roster-gc--alt'),
+				bg: getComputedStyle(c).backgroundColor,
+			})),
+			legend: legend.map((n) => ({ typed: n.classList.contains('usd-roster-typed'), order: n.dataset.typeOrder, bg: getComputedStyle(n).backgroundColor })),
+			note: document.querySelector('#deck-roster-panel .usd-roster-sec:last-child').textContent,
+		};
+	});
+	assert(table !== null && table.typedHeads.length >= 2,
+		'C-62 (2): 表の見出しに、種類の色が付いたサポートカードの列がある', table && table.typedHeads);
+	assert(new Set(table.typedHeads.map((h) => h.bg)).size >= 2,
+		'C-62 (2): 種類が違えば見出しの色も違う', table.typedHeads);
+	assert(table.umaHeadBg === 'rgb(68, 64, 59)',
+		'C-62 (3): 育成ウマ娘の列は見出しの濃い地のまま（扱いを変えていない）', table.umaHeadBg);
+	const umaBody = table.bodyAlt.filter((c) => c.uma);
+	assert(umaBody.length === 1 && umaBody[0].bg === 'rgb(255, 255, 255)',
+		'C-62 (3): 育成ウマ娘の列の本体のセルは白（縞に入れない）', umaBody);
+	const alt = table.bodyAlt.filter((c) => c.alt);
+	assert(alt.length >= 2 && alt.every((c) => c.bg === 'rgb(248, 250, 252)'),
+		'C-62 (3): 1列おきの列は薄い灰（--uma-table-col-alt）', alt.slice(0, 3));
+	const plain = table.bodyAlt.filter((c) => !c.alt && !c.uma && c.bg);
+	assert(plain.some((c) => c.bg === 'rgb(255, 255, 255)'),
+		'C-62 (3): もう一方の列は白のまま（交互になっている）', plain.slice(0, 3));
+	const legendTyped = table.legend.filter((n) => n.typed);
+	assert(legendTyped.length >= 2,
+		'C-62 (2): 凡例の番号にも種類の色が付く', table.legend);
+	assert(legendTyped.every((n) => table.typedHeads.some((h) => h.order === n.order && h.bg === n.bg)),
+		'C-62 (2): 凡例の番号の色は、同じ番号の見出しと同じ', { heads: table.typedHeads, legend: legendTyped });
+
+	/* --- (6) ①のパネル最下段の説明を削除 --- */
+	assert(!table.note.includes('ここに出ていないスキルが'),
+		'C-62 (6): ①のパネル最下段の「ここに出ていないスキルが…」は無い');
+
+	/* --- (5) 実際に除外すると数が変わる --- */
+	await page.evaluate(() => selectStepTab(1));
+	await page.waitForTimeout(200);
+	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
+	await page.waitForTimeout(400);
+	await page.evaluate(() => selectStepTab(0));
+	await page.waitForTimeout(300);
+	const before = (await page.textContent('#deck-roster-excluded')).trim();
+	await page.click('#deck-roster-panel [data-usd-act="exclude"]');
+	await page.waitForTimeout(600);
+	// 除外先を選ぶミニウィンドウが出たら、いま選んでいるほうを選ぶ
+	if (await page.isVisible('#deck-roster-panel [data-usd-el="scope-modal"]')) {
+		await page.click('#deck-roster-panel [data-usd-act="exclude-into"]');
+		await page.waitForTimeout(600);
+	}
+	const after = (await page.textContent('#deck-roster-excluded')).trim();
+	assert(before === '除外0種' && /^除外[1-9]\d*種$/.test(after),
+		'C-62 (5): 除外すると「除外N種」に変わる', { before, after });
+	await page.click('#deck-roster-panel [data-usd-act="exclude"]');
+	await page.waitForTimeout(600);
+	assert((await page.textContent('#deck-roster-excluded')).trim() === '除外0種',
+		'C-62 (5): 解除すると「除外0種」に戻る（0でも消さない）');
+
+	assert(errors.length === 0, 'C-62 (1)〜(6): コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
+ * C-62 の (9): 結合画像への導線（引き出しの中のタブ）
+ *
+ * **引き出しは2つのまま**で、タブは「もう一方の引き出しへ行く」導線。
+ * 段5（1引き出し＋タブへ統合）は引き続き見送り中なので、
+ * #result-drawer と #stitch-drawer が両方あることも一緒に見ておく。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+
+	assert((await page.$('#result-drawer')) !== null && (await page.$('#stitch-drawer')) !== null,
+		'C-62 (9): 引き出しは2つのまま（段5 は見送り中）');
+	const strips = await page.$$eval('.drawer-tabs', (els) => els.length);
+	assert(strips === 2, 'C-62 (9): タブ帯は2つの引き出しに1本ずつ', strips);
+	// CSS は css/shell.css から当たる（special の <style> には置いていない）
+	const tabCss = await page.evaluate(() => {
+		const on = getComputedStyle(document.getElementById('result-tab-result'));
+		const off = getComputedStyle(document.getElementById('result-tab-stitch'));
+		return { onLine: on.borderBottomColor, onWeight: on.fontWeight, offLine: off.borderBottomColor,
+			strip: getComputedStyle(document.querySelector('.drawer-tabs')).display };
+	});
+	assert(tabCss.strip === 'flex' && tabCss.onWeight === '600' && tabCss.onLine === 'rgb(28, 25, 23)'
+		&& tabCss.offLine === 'rgba(0, 0, 0, 0)',
+		'C-62 (9): タブ帯の見た目が共通CSS（shell.css）から当たっている', tabCss);
+
+	// 何も無いうちは、どちらも「（なし）」で、いま開いていない側は押せない
+	const tabsEmpty = await page.evaluate(() => ({
+		resultLabel: document.getElementById('result-tab-result-label').textContent,
+		stitchLabel: document.getElementById('result-tab-stitch-label').textContent,
+		stitchDisabled: document.getElementById('result-tab-stitch').disabled,
+		resultSelected: document.getElementById('result-tab-result').getAttribute('aria-selected'),
+	}));
+	assert(tabsEmpty.resultLabel === '照合結果（なし）' && tabsEmpty.stitchLabel === '結合画像（なし）',
+		'C-62 (9): 中身が無い行き先はラベルに「（なし）」が付く', tabsEmpty);
+	assert(tabsEmpty.stitchDisabled && tabsEmpty.resultSelected === 'true',
+		'C-62 (9): 中身が無い行き先へは押して行けない／自分のタブが選択中', tabsEmpty);
+
+	// 両方に結果があることにして、行き来を確かめる
+	await page.evaluate(() => { setSectionReady('result', true); setSectionReady('stitch', true); });
+	await page.waitForTimeout(200);
+	const tabsReady = await page.evaluate(() => ({
+		resultLabel: document.getElementById('result-tab-result-label').textContent,
+		stitchLabel: document.getElementById('result-tab-stitch-label').textContent,
+		stitchDisabled: document.getElementById('result-tab-stitch').disabled,
+	}));
+	assert(tabsReady.resultLabel === '照合結果' && tabsReady.stitchLabel === '結合画像' && !tabsReady.stitchDisabled,
+		'C-62 (9): 中身ができると「（なし）」が消えて押せるようになる', tabsReady);
+
+	// 結合画像に未読を立ててから照合結果を開く（OCR＋結合を1回で走らせたときと同じ形）
+	await page.evaluate(() => { markFabUnseen('stitch'); openDrawer('result'); });
+	await page.waitForTimeout(600);
+	const openedResult = await page.evaluate(() => ({
+		result: !document.getElementById('result-drawer').hidden,
+		stitch: !document.getElementById('stitch-drawer').hidden,
+		dot: !document.getElementById('result-tab-stitch-dot').hidden,
+		selfDot: !document.getElementById('result-tab-result-dot').hidden,
+	}));
+	assert(openedResult.result && openedResult.dot && !openedResult.selfDot,
+		'C-62 (9): 照合結果を開くと、結合画像のタブに未読の点が見える', openedResult);
+
+	// タブを押すともう一方の引き出しへ移る
+	await page.click('#result-tab-stitch');
+	await page.waitForTimeout(700);
+	const movedToStitch = await page.evaluate(() => ({
+		open: openDrawerKey,
+		stitchShown: !document.getElementById('stitch-drawer').hidden,
+		selected: document.getElementById('stitch-tab-stitch').getAttribute('aria-selected'),
+		dot: !document.getElementById('stitch-tab-stitch-dot').hidden,
+	}));
+	assert(movedToStitch.open === 'stitch' && movedToStitch.stitchShown && movedToStitch.selected === 'true' && !movedToStitch.dot,
+		'C-62 (9): タブを押すと結合画像の引き出しへ移り、未読も下りる', movedToStitch);
+
+	// 戻れる
+	await page.click('#stitch-tab-result');
+	await page.waitForTimeout(700);
+	assert(await page.evaluate(() => openDrawerKey) === 'result',
+		'C-62 (9): 結合画像から照合結果へも戻れる');
+
+	await page.evaluate(() => closeDrawer());
+	await page.waitForTimeout(500);
+	assert(errors.length === 0, 'C-62 (9): コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
+ * C-62 の (11): 改修中の告知
+ *
+ * 画面の切り替えの告知（layout）とは**別のキー**で持つので、
+ *   - 初めて開く人 … layout だけ出て、改修中のほうは「見たこと」になる
+ *   - layout を既読の人 … 改修中のほうが1度だけ出る
+ *   - 閉じたあと … もう出ない
+ * ============================================================ */
+{
+	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+	// layout の告知だけ既読にして開く＝改修中の告知が出るはずの状態
+	await ctx.addInitScript(() => {
+		localStorage.setItem('uma-special-ui-notice', '2026-09-new-ui-default');
+	});
+	const page = await ctx.newPage();
+	const errors = [];
+	page.on('pageerror', (e) => errors.push(String(e)));
+	page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+	await page.goto(base + '/special.html', { waitUntil: 'networkidle', timeout: 60000 });
+	await page.waitForTimeout(2000);
+
+	const shown = await page.evaluate(() => ({
+		open: !document.getElementById('ui-notice').hidden,
+		layoutHidden: document.getElementById('ui-notice-body-layout').hidden,
+		alphaHidden: document.getElementById('ui-notice-body-alpha').hidden,
+		title: document.getElementById('ui-notice-title-alpha').textContent,
+		labelled: document.getElementById('ui-notice').getAttribute('aria-labelledby'),
+	}));
+	assert(shown.open && shown.layoutHidden && !shown.alphaHidden,
+		'C-62 (11): 既読の人には改修中の告知だけが出る（出すのは一方だけ）', shown);
+	assert(shown.title === '機能を大幅に改修中です' && shown.labelled === 'ui-notice-title-alpha',
+		'C-62 (11): 見出しと読み上げの向き先も改修中のほう', shown);
+	assert((await page.textContent('#ui-notice-body-alpha')).includes('αテスト中'),
+		'C-62 (11): 文面にαテスト中であることが入っている');
+
+	// 閉じると既読になり、開き直しても出ない
+	await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	const key = await page.evaluate(() => localStorage.getItem('uma-special-alpha-notice'));
+	assert(key === '2026-09-18-alpha-rework', 'C-62 (11): 閉じると既読の印が付く', key);
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.waitForTimeout(2000);
+	assert(await page.evaluate(() => document.getElementById('ui-notice').hidden),
+		'C-62 (11): 一度閉じれば次からは出ない');
+
+	// 右上の「新UI」バッジからの読み直しは、これまでどおり layout のほう
+	await page.click('#ui-mode-badge');
+	await page.waitForTimeout(300);
+	assert(await page.evaluate(() => !document.getElementById('ui-notice-body-layout').hidden
+		&& document.getElementById('ui-notice-body-alpha').hidden),
+		'C-62 (11): バッジからの読み直しは「画面の切り替え」のほう');
+	await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(200);
+
+	assert(errors.length === 0, 'C-62 (11): コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
+ * C-62 の (11・裏）: 初めて開く人には layout だけ
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	await page.waitForTimeout(500);
+	const first = await page.evaluate(() => ({
+		open: !document.getElementById('ui-notice').hidden,
+		layoutHidden: document.getElementById('ui-notice-body-layout').hidden,
+		alphaSeen: localStorage.getItem('uma-special-alpha-notice'),
+	}));
+	assert(first.open && !first.layoutHidden && first.alphaSeen === '2026-09-18-alpha-rework',
+		'C-62 (11): 初めて開く人には layout だけを出し、改修中のほうは「見たこと」にする', first);
+	await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	assert(await page.evaluate(() => document.getElementById('ui-notice').hidden),
+		'C-62 (11): 初回の告知を閉じると、続けてもう1枚は出ない');
+	assert(errors.length === 0, 'C-62 (11・裏): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
 

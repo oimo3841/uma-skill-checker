@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-09-18e";
+	--common-css-version: "2026-09-19a";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -104,6 +104,7 @@
 	--uma-table-head-bg: #f8fafc;       /* slate-50  : 見出しのセルの地 */
 	--uma-table-head-key-bg: #44403b;   /* stone-700 : 主の列（育成ウマ娘）の見出しの地 */
 	--uma-table-head-key-text: #ffffff; /* 上の地の上の文字と印 */
+	--uma-table-col-alt: #f8fafc;       /* slate-50  : 1列おきの薄い灰（C-62 の (3)） */
 
 	/* ---- シナリオ因子（追加カタログ）の色＝赤紫 ----
 	   ◆の印・バッジ・ハイライトのカード・結合画像の因子の行・模式図の帯・

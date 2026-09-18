@@ -17,9 +17,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-18e" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-18e" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-18e" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-19a" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-19a" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-19a" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -198,24 +198,8 @@
 		   画面の外へ追い出す形で隠す。 */
 		.copy-source-hidden { position: absolute; width: 1px; height: 1px; margin: -1px;
 			padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-		/* 引き出しの中のタブ（照合結果／結果画像）。special は使わないのでこのページに置く。
-		   ステップのタブ（css/shell.css の .step-tabs）と同じ見え方に合わせてある。 */
-		.drawer-tabs { flex-shrink: 0; display: flex; gap: var(--uma-sp-2);
-			padding: 0 var(--uma-sp-4); background: var(--uma-surface);
-			border-bottom: 1px solid var(--uma-border); }
-		.drawer-tab { position: relative; display: flex; align-items: center; gap: var(--uma-sp-1-5);
-			padding: var(--uma-sp-2-5) var(--uma-sp-2); margin-bottom: -1px;
-			background: none; border: 0; border-bottom: 2px solid transparent;
-			font: inherit; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600;
-			color: var(--uma-text-subtle); cursor: pointer;
-			transition: color var(--uma-transition), border-color var(--uma-transition); }
-		.drawer-tab:hover:not(:disabled) { color: var(--uma-text-heading); }
-		.drawer-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control); }
-		.drawer-tab:disabled { color: var(--uma-text-faint); cursor: not-allowed; }
-		.drawer-tab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
-		/* 未読の点はタブの文字の右に置く（FABの点と同じ見た目を借りるが、位置だけ流し込みに戻す） */
-		.drawer-tab .uma-fab-dot { position: static; margin-left: var(--uma-sp-0-5); }
-		.drawer-panel[hidden] { display: none !important; }
+		/* 引き出しの中のタブ（.drawer-tabs / .drawer-tab / .drawer-panel）は
+		   css/shell.css へ移した（C-62 の (9)。special も使うようになったため）。 */
 		/* 「結合画像の表示」の設定パネル（チェック4つ＋結合画像の模式図）。中身は JS が作る
 		   （renderStitchShowPanel）ので、Tailwind の class ではなく自前の class で組み、
 		   色・余白は css/tokens.css のトークンから取る。共通CSSは触らず、このページに閉じる。 */
@@ -1978,7 +1962,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-18e';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-19a';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],
@@ -5387,7 +5371,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-18e';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-19a';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;

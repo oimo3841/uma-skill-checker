@@ -240,7 +240,10 @@ const INTENTIONALLY_REMOVED = {
 	// core.js の tiers.markHtml() が返す SVG 1か所で決めるようにしたので、special.html から
 	// data-tier の直書き（照合結果の表で ★ を出していた span）が消えた。印そのものは
 	// core.js が同じ data-tier を付けて出すので、画面から無くなったわけではない。
-	'special.html': ['data-tier'],
+	// 2026-09-18（61セッション目・C-62 の (4)）: 「αテスト」の赤いラベルを押して注記を開く形をやめ、
+	// 注記を常時表示に戻したので、開閉のボタン #deck-roster-alpha-btn を消した。注記そのもの
+	// （#deck-roster-alpha）は残っていて、hidden を外して常時出している。
+	'special.html': ['data-tier', 'deck-roster-alpha-btn'],
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
