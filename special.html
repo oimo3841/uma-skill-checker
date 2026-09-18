@@ -14,9 +14,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-18b" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-18b" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-18b" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-18c" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-18c" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-18c" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-18i"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-18j"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-15a"></script>
 	<style>
@@ -160,6 +160,16 @@
 		<i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
 		<span id="toast-message">コピーしました</span>
 	</div>
+
+	<!-- 画面左下に固定した「元に戻す」（Deck の「即実行＋元に戻す」の受け皿。css/shell.css の .uma-undo-fab。C-55 の (4)(5)）。
+	     履歴がある間だけ出す（表示は renderDeckUndoButton が style.display で切り替える。hidden 属性は
+	     引き出しを開いている間の非表示に使う＝Deck の引き出しの中に Deck 自身の「元に戻す」があり二重に見えるため）。
+	     ①②③どのタブにいても同じ場所にあるので、①で本育成スキルを除外したときにもここに出る。 -->
+	<button id="deck-undo-btn" type="button" class="uma-undo-fab" onclick="UmaSkillDeckCore.performUndo()" style="display:none;">
+		<i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
+		<span>元に戻す</span>
+		<span id="deck-undo-count" class="uma-undo-fab-count"></span>
+	</button>
 
 	<!-- 下端の余白は右下固定ナビ（FAB）のぶん。展開しても本文の最後が隠れないようにする。
 	     量は --uma-fab-reserve（スマホ18rem / PC20rem）。サブボタンの実高は
@@ -521,14 +531,9 @@
 						<div id="deck-ocr-panels-list" class="mt-2 flex flex-wrap gap-2"></div>
 					</div>
 				</div>
-				<div class="mt-3 flex items-center justify-between gap-3 flex-wrap">
-					<!-- 表示/非表示は style.display で切り替える。Tailwindでは .inline-flex が .hidden より後に
-					     出力されるため、hiddenクラスの付け外しでは隠れないことを実測で確認済み。 -->
-					<button id="deck-undo-btn" type="button" onclick="UmaSkillDeckCore.performUndo()" style="display:none;" class="uma-btn uma-btn--neutral">
-						<i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
-						<span>元に戻す</span>
-						<span id="deck-undo-count" class="bg-white/20 rounded-full px-1.5"></span>
-					</button>
+				<!-- 「元に戻す」はここ（②のパネルの下・インライン）ではなく、画面左下に固定した #deck-undo-btn に移した
+				     （C-55 の (4)(5)。①で除外したときにも同じ場所に出る）。 -->
+				<div class="mt-3 flex items-center justify-end gap-3 flex-wrap">
 					<div id="deck-selected-note" class="text-xs font-medium text-slate-500 ml-auto"></div>
 				</div>
 			</div>
@@ -733,7 +738,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-18b';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-18c';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -2527,7 +2532,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-18b';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-18c';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {
@@ -2610,6 +2615,8 @@
 			backdrop.hidden = false;
 			el.hidden = false;
 			document.getElementById('fab-nav').hidden = true;
+			// 固定の「元に戻す」も引き出しの間は隠す（Deck の引き出しの中に Deck 自身の「元に戻す」があり二重に見えるため）
+			document.getElementById('deck-undo-btn').hidden = true;
 			// hidden を外した直後に .open を付けてもトランジションが走らないため、
 			// 一度レイアウトを確定させてからクラスを付ける。
 			void el.offsetWidth;
@@ -2634,6 +2641,7 @@
 			backdrop.classList.add('closing');
 			document.body.style.overflow = '';
 			document.getElementById('fab-nav').hidden = false;
+			document.getElementById('deck-undo-btn').hidden = false;
 			clearTimeout(drawerBackdropTimer);
 			drawerBackdropTimer = setTimeout(() => { if (!openDrawerKey) backdrop.hidden = true; }, 400);
 

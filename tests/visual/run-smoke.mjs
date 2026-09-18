@@ -3132,7 +3132,8 @@ const browser = await chromium.launch();
 			document.querySelector('[data-ocr-act="apply"]').click();
 			window.confirm = realConfirm;
 			return { toast: document.getElementById('toast-message').textContent, scope: UmaSkillDeckCore.getUndoScope(), stack: UmaSkillDeckCore.undoCount(),
-				shown: !document.getElementById('undo-button').classList.contains('hidden') };
+				// 表示は hidden 属性（共通部品 .uma-undo-fab。C-55）。属性と実際の描画の両方で見る
+				shown: !document.getElementById('undo-button').hidden && getComputedStyle(document.getElementById('undo-button')).display !== 'none' };
 		});
 		await page.waitForTimeout(300);
 		const after = await shape();
@@ -3555,6 +3556,30 @@ const browser = await chromium.launch();
 		'undo: 「元に戻す ①」が出る（scope は list）', cleared);
 	assert(cleared.toast === '追加済みスキル' + PICK.length + '種を外しました',
 		'undo: 実行時のトーストは doneLabel（単位は「種」）', cleared.toast);
+	// 1') 「元に戻す」は画面左下に固定（css/shell.css の .uma-undo-fab。C-55 の (4)(5)）。
+	//     ②のパネルの中ではないので、①のタブへ移っても同じ場所に見える。引き出しを開いている間は隠れる。
+	await page.click('#step-tab-0');
+	await page.waitForTimeout(200);
+	const fixedUndo = await page.evaluate(() => {
+		const b = document.getElementById('deck-undo-btn');
+		const cs = getComputedStyle(b); const r = b.getBoundingClientRect();
+		return { position: cs.position, shownOnTab1: cs.display !== 'none' && !b.hidden, inside: r.left >= 0 && r.bottom <= innerHeight && r.top > innerHeight / 2,
+			leftHalf: r.right < innerWidth / 2 };
+	});
+	assert(fixedUndo.position === 'fixed' && fixedUndo.shownOnTab1 && fixedUndo.inside && fixedUndo.leftHalf,
+		'undo: 「元に戻す」は左下に固定され、①のタブでも見える', fixedUndo);
+	const drawerUndo = await page.evaluate(async () => {
+		openDrawer('result');
+		await new Promise(r => setTimeout(r, 450));
+		const whileOpen = document.getElementById('deck-undo-btn').hidden;
+		closeDrawer();
+		await new Promise(r => setTimeout(r, 450));
+		return { whileOpen, afterClose: document.getElementById('deck-undo-btn').hidden };
+	});
+	assert(drawerUndo.whileOpen === true && drawerUndo.afterClose === false,
+		'undo: 引き出しを開いている間は隠れ、閉じると戻る', drawerUndo);
+	await page.click('#step-tab-1');
+	await page.waitForTimeout(200);
 	await page.click('#deck-undo-btn');
 	await page.waitForTimeout(200);
 	const restored = await undoUi();
@@ -3773,7 +3798,7 @@ const browser = await chromium.launch();
 		});
 	});
 	const undoBtn = () => page.evaluate(() => ({
-		shown: !document.getElementById('undo-button').classList.contains('hidden'),
+		shown: !document.getElementById('undo-button').hidden && getComputedStyle(document.getElementById('undo-button')).display !== 'none',
 		badge: document.getElementById('undo-count-badge').textContent,
 		scope: UmaSkillDeckCore.getUndoScope(),
 		stack: UmaSkillDeckCore.undoCount(),

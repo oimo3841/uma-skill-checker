@@ -15,12 +15,12 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-18b';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-18c';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
 // 「直したはずなのに直っていない」状態になるため、起動時に照合する。
-const EXPECTED_COMMON_CSS_VERSION = '2026-09-18b';
+const EXPECTED_COMMON_CSS_VERSION = '2026-09-18c';
 // このページが読む共通CSSと、それぞれが :root に持つ版の印
 const COMMON_CSS_FILES = [
 	['css/tokens.css', '--common-css-version'],
@@ -139,8 +139,10 @@ function performUndo() {
 function renderUndoButton(count) {
 	const btn = document.getElementById('undo-button');
 	if (!btn) return;
-	if (count === 0) { btn.classList.add('hidden'); return; }
-	btn.classList.remove('hidden');
+	// 見た目は共通部品 .uma-undo-fab（css/shell.css）。表示／非表示は hidden 属性で切り替える
+	// （Tailwind の .hidden クラスだと、部品側の display: inline-flex との勝ち負けが読み込み順で変わるため）。
+	btn.hidden = count === 0;
+	if (count === 0) return;
 	document.getElementById('undo-count-badge').textContent = count;
 }
 

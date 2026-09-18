@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-09-18b";
+	--uma-shell-css-version: "2026-09-18c";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -149,10 +149,12 @@
 }
 @media (max-width: 640px) {
 	.uma-subtabs { flex-basis: 100%; }   /* 見出しの下の行へ折り返し、帯に幅いっぱいを使う */
-	.uma-subtab { width: 72px; max-width: 72px; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }
-	.uma-subtab--new { width: 56px; max-width: 56px; }
-	/* 選択中は幅を広げて名前と件数まで読めるようにする（残りは横スワイプで届く） */
-	.uma-subtab[aria-selected="true"] { width: auto; max-width: 75%; }
+	/* タブの幅は名前に合わせる（帯の半分まで）。それまでは 72px 固定で「＋新規＋3件が見える」ことを
+	   優先していたが、件数バッジのぶんで名前が2文字＋「…」になり読めなかった（C-55 の (2)）。
+	   名前の長さぶんだけ幅を取り、収まらないぶんは横スワイプで届く。件数バッジは flex: none なので
+	   縮まず、名前の側が「…」で切れる。選択中はさらに広げる（帯の 3/4 まで）。 */
+	.uma-subtab { width: auto; min-width: 56px; max-width: 50%; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }
+	.uma-subtab[aria-selected="true"] { max-width: 75%; }
 }
 @media (max-width: 640px) {
 	.step-tab { gap: var(--uma-sp-1-5); padding: var(--uma-sp-2) var(--uma-sp-1); font-size: var(--uma-fs-xs); }
@@ -196,6 +198,39 @@
    本文が画面いっぱいまで広がる幅では max() 側の端マージンが効く。 */
 @media (min-width: 768px) {
 	.uma-fab-nav { right: max(var(--uma-fab-edge), calc(50% - 512px)); }
+}
+
+/* ===== 画面固定の「元に戻す」（左下の黒いピル） =====
+   Deck の「即実行＋元に戻す」の受け皿。履歴がある間だけ出し、どのタブ・どのスクロール位置でも
+   同じ場所（左下＝右下の FAB と対称・同じ高さ）にある（C-55 の (4)(5)。56セッション目）。
+   もともと Deck 単独ページの左下にあった固定ボタンを共通部品にし、special にも出すようにした
+   （それまで special では②のパネルの下にインラインで出るだけで、①で除外しても見えなかった）。
+   ・表示／非表示は JS が hidden 属性で切り替える（Deck: 履歴 0 で隠す。special: 履歴 0 と、
+     引き出しを開いている間＝Deck の引き出しの中に Deck 自身の「元に戻す」があり二重に見えるため）。
+   ・PC では本文カラムの左端に揃える（FAB の右端と同じ計算。カラムの半幅はページが
+     --uma-content-half で上書きできる。既定は special の 1024px カラム）。 */
+.uma-undo-fab {
+	position: fixed;
+	left: var(--uma-fab-edge);
+	bottom: calc(var(--uma-fab-edge) + env(safe-area-inset-bottom, 0px));
+	z-index: 70;
+	display: inline-flex; align-items: center; gap: var(--uma-sp-2);
+	padding: var(--uma-sp-2-5) var(--uma-sp-4);
+	border: 0; border-radius: var(--uma-r-full);
+	background: var(--uma-surface-inverse); color: var(--uma-text-inverse);
+	font: inherit; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600;
+	box-shadow: var(--uma-shadow-3); cursor: pointer; white-space: nowrap;
+}
+.uma-undo-fab:hover { background: var(--uma-control-hover); }
+.uma-undo-fab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }
+.uma-undo-fab[hidden] { display: none !important; }
+.uma-undo-fab-count {
+	font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 700;
+	padding: 0 var(--uma-sp-1-5); border-radius: var(--uma-r-full);
+	background: rgba(255, 255, 255, .2);
+}
+@media (min-width: 768px) {
+	.uma-undo-fab { left: max(var(--uma-fab-edge), calc(50% - var(--uma-content-half, 512px))); }
 }
 
 /* サブボタン（ピル型）。閉じている間は pointer-events:none で完全に無効化する。

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18i';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18j';
 
 	/* ============================================================
 	 * 定数
@@ -388,7 +388,10 @@
 	function revealSelectedTab(root) {
 		const cur = root && root.querySelector && root.querySelector('.uma-subtab[aria-selected="true"]');
 		if (cur && typeof cur.scrollIntoView === 'function') {
-			try { cur.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* 古いブラウザ */ }
+			// 横は「選んだタブを帯の左端に寄せる」（inline: 'start'）。'nearest' だと、帯の scroll-snap
+			// （タブの先頭に吸着）が、右端を見せる位置から手前のタブの先頭へ引き戻してしまい、
+			// 幅を広げた選択中のタブの後半と件数が切れて見えた（C-55 の (2) で実測）。
+			try { cur.scrollIntoView({ block: 'nearest', inline: 'start' }); } catch (e) { /* 古いブラウザ */ }
 		}
 	}
 	/** WAI-ARIA のタブの作法（←→で隣へ、Home/End で端へ）。onSelect(id) を呼んだあと、選んだタブへフォーカスを戻す。 */
@@ -1516,7 +1519,11 @@
 		// スキルセットと親A／親Bセットにも広げたので、ここには編成だけの規則は無い。
 		// スキルセット（テンプレート管理。C-53）の1画面の骨格
 		'.usd-tm { display: flex; flex-direction: column; gap: var(--uma-sp-3); }',
-		'.usd-tm-name-row .uma-input { flex: 1 1 200px; min-width: 0; }',
+		// 名前欄（①の編成名・②のスキルセット名）。欄は行いっぱい（.uma-input の width: 100%）で、
+		// 保存／複製／削除はその下の行に折り返す（②も①と同じ並び。C-55 の (3)。それまで②だけ欄と
+		// ボタンが同じ行だった）。文字は本文より一段大きく太くして、いま開いているセットの名前として読める大きさにする（C-55 の (6)）。
+		'.usd-name-input { font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 600; }',
+		'.usd-name-input::placeholder { font-weight: 400; }',
 		'.usd-tm .usd-entry-row { margin-bottom: 0; }',
 		'.usd-roster-pills { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1); }',
 		'.usd-roster-pill { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
@@ -1554,7 +1561,13 @@
 		'.usd-roster-gc { min-width: 0; display: flex; align-items: center; justify-content: center;',
 		'  padding: var(--uma-sp-1) var(--uma-sp-0-5); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
 		'  background: var(--col-bg, var(--uma-surface)); border-bottom: 1px solid var(--uma-border); }',
-		'.usd-roster-gc--uma { --col-bg: var(--uma-accent-soft); border-right: 2px solid var(--uma-accent-border); }',
+		// 育成ウマ娘の列は**濃い灰の反転**（地 --uma-deck-accent＝stone-700・文字と印は白。56セッション目・C-55 の (1)）。
+		// それまではツールのアクセントの淡い地（special では green-100）で、賢さのカードの色（green-100）と
+		// ほぼ同じだった。濃い地なら6色のカード色（すべて淡い）とも橙の★とも1列おきの薄灰とも被らず、
+		// 橙の★は濃い地の上のほうが目立つ（4.7:1）。区切り線は地が濃いので要らない。
+		'.usd-roster-gc--uma { --col-bg: var(--uma-deck-accent); color: var(--uma-text-inverse); }',
+		'.usd-roster-gh.usd-roster-gc--uma { color: var(--uma-text-inverse); }',
+		'.usd-roster-gh.usd-roster-gc--uma.usd-roster-gh--empty { color: rgba(255, 255, 255, .65); }',
 		'.usd-roster-gc--alt { --col-bg: var(--uma-surface-muted); }',
 		// 余り列のセルは余白を持たない（0px の列に余白ぶんだけはみ出して横スクロールの種になるため）
 		'.usd-roster-gc--fill { padding: 0; }',
@@ -1567,10 +1580,11 @@
 		'.usd-roster-gh--empty { color: var(--uma-text-faint); font-weight: 400; }',
 		// 表の中の「得られる」印は橙の★（チップ無し）
 		'.usd-roster-star { color: var(--uma-star); font-size: 13px; line-height: 1; }',
-		// 育成ウマ娘の列の見出しと凡例の印は二重丸「◎」（競馬の本命の印。C-54 の (2)。それまでは黒い丸に白い★）。
-		// 表の中の橙の★とは形で見分ける
-		'.usd-roster-umamark { display: inline-block; min-width: 18px; text-align: center; font-size: 15px; line-height: 1;',
-		'  font-weight: 700; color: var(--uma-text-heading); }',
+		// 育成ウマ娘の列の見出しと凡例の印は単純な丸「●」（C-55 の (1)。◎ → ●。それまでは黒い丸に白い★ → ◎）。
+		// 列と同じ濃い地に白い ● のチップにして、凡例でも列と同じ色で見分けがつくようにする
+		// （列の見出しの中では地の色が列と同じなので、白い ● だけが見える）。表の中の橙の★とは形と色で見分ける
+		'.usd-roster-umamark { display: inline-block; min-width: 20px; text-align: center; font-size: 12px; line-height: 16px;',
+		'  font-weight: 700; color: var(--uma-text-inverse); background: var(--uma-deck-accent); border-radius: var(--uma-r-sm); }',
 		// 凡例（番号 → 正式名称）。表の外に、左ぞろえで1行1件
 		'.usd-roster-legend { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--uma-sp-0-5);',
 		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
@@ -2952,7 +2966,7 @@
 				{ act: 'select-roster', ariaLabel: '保存した編成', el: 'roster-tabs' });
 			h += '</div>';
 			h += '<div class="usd-roster-row">';
-			h += '<input class="uma-input" type="text" data-usd-el="name" data-usd-act="name" placeholder="新しい編成の名前" value="' + esc(roster.name || '') + '" />';
+			h += '<input class="uma-input usd-name-input" type="text" data-usd-el="name" data-usd-act="name" placeholder="新しい編成の名前" value="' + esc(roster.name || '') + '" />';
 			h += '<button type="button" class="uma-btn uma-btn--primary" data-usd-act="save">保存</button>';
 			// 複製（C-54 の (5)。スキルセットと同じ）と削除は保存済みのときだけ
 			if (selectedId) h += '<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="duplicate">複製</button>';
@@ -3028,7 +3042,7 @@
 			// 768px 以上では見出しにウマ娘名（短い名前）も出す（CSS が幅で切り替える。狭い画面では印と番号だけ）。
 			// 列は**常に全部**出す（空いている枠も列にする）ので、番号が枠の位置と常に一致し、表の形も安定する。
 			// 番号と正式名称の対応は表の外の凡例に置く（スマホの幅で正式名称を見出し行に並べられないため）。
-			const umaChip = '<span class="usd-roster-umamark" role="img" aria-label="育成ウマ娘">◎</span>';
+			const umaChip = '<span class="usd-roster-umamark" role="img" aria-label="育成ウマ娘">●</span>';
 			const colClass = (m) => m.kind === 'uma' ? ' usd-roster-gc--uma' : (m.no % 2 === 1 ? ' usd-roster-gc--alt' : '');
 			const colHead = (m) => (m.kind === 'uma' ? umaChip : String(m.no))
 				+ (m.shortLabel ? '<span class="usd-roster-gh-name">' + esc(m.shortLabel) + '</span>' : '');
@@ -3264,7 +3278,7 @@
 				'<div class="uma-subtabs-row" data-usd-el="head"></div>' +
 				// 名前と保存・複製・削除（編成パネルと同じ並び。C-53）
 				'<div class="usd-roster-row usd-tm-name-row">' +
-					'<input type="text" class="usd-input uma-input" data-usd-el="name-input" placeholder="新しいスキルセットの名前"/>' +
+					'<input type="text" class="usd-input uma-input usd-name-input" data-usd-el="name-input" placeholder="新しいスキルセットの名前"/>' +
 					'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="template-save">保存</button>' +
 					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="template-duplicate" data-usd-el="dup-btn">複製</button>' +
 					'<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="template-delete" data-usd-el="del-btn">削除</button>' +
