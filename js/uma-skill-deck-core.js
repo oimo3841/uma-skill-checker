@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18h';
 
 	/* ============================================================
 	 * 定数
@@ -501,6 +501,16 @@
 		const title = entry.title ? '[' + entry.title + ']' : '';
 		return title + (entry.charaName || '');
 	}
+	/**
+	 * 選択済みの欄に出す短い名前＝**二つ名を落としてウマ娘名だけ**（C-51 の11節）。
+	 * 選ぶミニウィンドウと凡例は正式名称（上）のまま。同じウマ娘の別のカードを同時に
+	 * 選ぶと区別がつかなくなるが、編成の文脈で把握できるという割り切りで、特別な処理は入れない
+	 * （おいもさんの判断）。ウマ娘名が無い行は正式名称に落とす。
+	 */
+	function formatEntryShortLabel(entry) {
+		if (!entry) return '';
+		return entry.charaName || formatEntryLabel(entry);
+	}
 
 	/** イベントスキルの状態。'done'（ある）/ 'none'（無い）/ 'pending'（未確認＝行が無い） */
 	function eventStatusOf(cardId) {
@@ -581,6 +591,11 @@
 			.sort((a, b) => (seen.get(a).order - seen.get(b).order) || (seen.get(a).seq - seen.get(b).seq));
 	}
 	function cardTypeOf(card) { return (card && card.type) || ''; }
+	/** 種類の順番の番号（1〜）。無ければ null。色はこの番号で `--uma-card-type-<番号>-*` から引く（C-51 の11節）。 */
+	function cardTypeOrderOf(card) {
+		const n = card && card.typeOrder;
+		return (typeof n === 'number' && isFinite(n) && n >= 1) ? n : null;
+	}
 
 	/** そのウマ娘で選べる★（initialSkills のしきい値）。データが無ければ空。 */
 	function starChoicesOf(uma) {
@@ -616,14 +631,16 @@
 	 *
 	 * 返り値:
 	 *   skillIds        … 得られると分かっているスキルのID（重複なし）
-	 *   items           … [{ skillId, name, origins: [由来の文言], members: [番号] }]（表示用）
-	 *   members         … [{ no, label }] 編成の並び順の番号と正式名称（凡例用。7件固定。
-	 *                     空いている枠は label が null）
+	 *   items           … [{ skillId, name, origins: [由来の文言], members: [key] }]（表示用）
+	 *   members         … [{ key, kind, no, label, typeOrder }] 編成の並び順（凡例・★取り表の列）。
+	 *                     key は並びの位置（0＝育成ウマ娘、1〜＝カードの枠）。kind は 'uma' | 'card'。
+	 *                     no は画面に出す番号で、育成ウマ娘は null（★で示す）、カードは枠の順に 1〜。
+	 *                     空いている枠は label が null。typeOrder はカードの種類の順番（無ければ null）
 	 *   unconfirmed     … [{ cardId, label, what }] まだ調べていないもの
 	 *   missing         … [{ kind, id }] id を引けなかったもの（行は消さずに知らせる）
 	 *
-	 * **番号は編成の並び順で機械的に振る**（育成ウマ娘が 1、サポートカードが枠の順に 2〜7）。
-	 * 名前も番号もコードに書かない（恒久ルール1）。★取り表の列と凡例はこの番号で対応させる。
+	 * **番号は編成の並び順で機械的に振る**（育成ウマ娘は★、サポートカードが枠の順に 1〜6。
+	 * C-51 の11節で「1〜7」から変えた）。名前も番号もコードに書かない（恒久ルール1）。
 	 *
 	 * **未確認のものは得られる側に入れない。** 除外しすぎて対象スキルセットから
 	 * 必要なスキルが落ちるほうが痛いので、「得られると分かっているもの」だけを返す。
@@ -633,19 +650,19 @@
 		const unconfirmed = [];
 		const missing = [];
 		const members = [];
-		const add = (ref, origin, memberNo) => {
+		const add = (ref, origin, memberKey) => {
 			if (!ref || !ref.skillId) return;
 			const sk = findSkill(ref.skillId);
 			if (!sk) { missing.push({ kind: 'skill', id: ref.skillId }); return; }
 			const cur = items.get(ref.skillId) || { skillId: ref.skillId, name: sk.name, origins: [], members: [] };
 			if (cur.origins.indexOf(origin) === -1) cur.origins.push(origin);
-			if (cur.members.indexOf(memberNo) === -1) cur.members.push(memberNo);
+			if (cur.members.indexOf(memberKey) === -1) cur.members.push(memberKey);
 			items.set(ref.skillId, cur);
 		};
 
 		const r = roster || {};
-		// ── 育成ウマ娘（番号 1） ──
-		const UMA_NO = 1;
+		// ── 育成ウマ娘（並びの先頭。番号ではなく★で示す） ──
+		const UMA_KEY = 0;
 		let umaLabel = null;
 		if (r.umaId) {
 			const uma = findUma(r.umaId);
@@ -656,35 +673,40 @@
 				// 選ばせる UI を削って認知負荷を下げた。保存済みの roster.star / awakeningLevel は
 				// ここでは**読まない**（画面から変えられないものを判定に混ぜない）。
 				const use = initialRowOf(uma);
-				if (use) (use.skills || []).forEach(s => add(s, '初期（★' + use.minStar + '）', UMA_NO));
+				if (use) (use.skills || []).forEach(s => add(s, '初期（★' + use.minStar + '）', UMA_KEY));
 				// 覚醒スキル: level 0 は「覚醒のレベルに紐づかない枠」なので**常に含める**
 				// （画面では「最初から」と出す）。それ以外は、そのウマ娘の最大レベルまで全部。
 				const maxLv = maxAwakeningLevelOf(uma);
 				(uma.awakeningSkills || []).forEach(row => {
-					if (row.level === 0) (row.skills || []).forEach(s => add(s, '最初から', UMA_NO));
+					if (row.level === 0) (row.skills || []).forEach(s => add(s, '最初から', UMA_KEY));
 					else if (typeof row.level === 'number' && row.level <= maxLv) {
-						(row.skills || []).forEach(s => add(s, '覚醒 Lv' + row.level, UMA_NO));
+						(row.skills || []).forEach(s => add(s, '覚醒 Lv' + row.level, UMA_KEY));
 					}
 				});
 			}
 		}
-		members.push({ no: UMA_NO, label: umaLabel });
-		// ── サポートカード（番号 2〜。枠の順） ──
+		members.push({ key: UMA_KEY, kind: 'uma', no: null, label: umaLabel, typeOrder: null });
+		// ── サポートカード（番号 1〜。枠の順） ──
 		const cardIds = (r.cardIds || []).slice(0, ROSTER_CARD_SLOTS);
 		while (cardIds.length < ROSTER_CARD_SLOTS) cardIds.push(null);
 		cardIds.forEach((cardId, i) => {
-			const no = UMA_NO + 1 + i;
-			if (!cardId) { members.push({ no: no, label: null }); return; }
+			const key = UMA_KEY + 1 + i;
+			const no = i + 1;
+			if (!cardId) { members.push({ key: key, kind: 'card', no: no, label: null, typeOrder: null }); return; }
 			const card = findCard(cardId);
-			if (!card) { missing.push({ kind: 'card', id: cardId }); members.push({ no: no, label: '（読み込めません：' + cardId + '）' }); return; }
+			if (!card) {
+				missing.push({ kind: 'card', id: cardId });
+				members.push({ key: key, kind: 'card', no: no, label: '（読み込めません：' + cardId + '）', typeOrder: null });
+				return;
+			}
 			const label = formatEntryLabel(card);
-			members.push({ no: no, label: label });
+			members.push({ key: key, kind: 'card', no: no, label: label, typeOrder: cardTypeOrderOf(card) });
 			const hintStatus = (card.dataStatus && card.dataStatus.hint) || 'pending';
-			if (hintStatus === 'done') (card.hintSkills || []).forEach(s => add(s, label + ' のヒント', no));
+			if (hintStatus === 'done') (card.hintSkills || []).forEach(s => add(s, label + ' のヒント', key));
 			else if (hintStatus === 'pending') unconfirmed.push({ cardId: cardId, label: label, what: 'ヒント' });
 
 			const evStatus = eventStatusOf(cardId);
-			if (evStatus === 'done') getEventSkillsOf(cardId).forEach(s => add(s, label + ' のイベント', no));
+			if (evStatus === 'done') getEventSkillsOf(cardId).forEach(s => add(s, label + ' のイベント', key));
 			else if (evStatus === 'pending') unconfirmed.push({ cardId: cardId, label: label, what: 'イベント' });
 		});
 
@@ -1410,6 +1432,31 @@
 		// 枠いっぱいに広げたボタンのラベルは左ぞろえ（.uma-btn は中央ぞろえなので上書きする。C-51 の10節④）
 		'.usd-roster-slot > button:first-child { flex: 1 1 auto; min-width: 0; text-align: left; justify-content: flex-start;',
 		'  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+		// 選択済みのカードの欄は、種類の順番（typeOrder）の色で塗る（C-51 の11節）。色は tokens.css の
+		// --uma-card-type-<番号>-* を番号で引く。番号の色が定義されていなければ fallback（既定の面）に落ちる。
+		// 値は render() が inline の変数（--usd-card-bg 等）に入れるので、ここは番号を知らない。
+		'.usd-roster-slot > button.usd-roster-card--typed { background: var(--usd-card-bg); color: var(--usd-card-text);',
+		'  border-color: var(--usd-card-border); border-left-width: 4px; }',
+		'.usd-roster-slot > button.usd-roster-card--typed:hover:not(:disabled) { background: var(--usd-card-bg); border-color: var(--usd-card-border); filter: brightness(.97); }',
+		// 保存済みの編成を選ぶタブの帯（C-51 の11節③）。**横だけ**スクロールする（縦は動かない＝斜めにならない）。
+		// 狭い画面ではタブを固定幅 72px にして、375px 幅で「＋ 新規」＋保存済み3件が見える。4件目以降は左右スワイプ。
+		'.usd-roster-tabs { display: flex; gap: var(--uma-sp-1); min-width: 0; flex: 1 1 auto;',
+		'  overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; scrollbar-width: none;',
+		'  border-bottom: 1px solid var(--uma-border-strong); }',
+		'.usd-roster-tabs::-webkit-scrollbar { display: none; }',
+		'.usd-roster-tab { flex: none; scroll-snap-align: start; max-width: 140px; min-width: 0;',
+		'  padding: var(--uma-sp-1-5) var(--uma-sp-2); margin-bottom: -1px;',
+		'  background: none; border: 0; border-bottom: 2px solid transparent;',
+		'  font: inherit; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600;',
+		'  color: var(--uma-text-subtle); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+		'.usd-roster-tab:hover { color: var(--uma-text-heading); }',
+		'.usd-roster-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control); }',
+		'.usd-roster-tab--new { font-weight: 700; }',
+		'@media (max-width: 640px) {',
+		'  .usd-roster-tabs { flex-basis: 100%; }',   // 見出しの下の行へ折り返し、帯に幅いっぱいを使う
+		'  .usd-roster-tab { width: 72px; max-width: 72px; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
+		'  .usd-roster-tab--new { width: 56px; max-width: 56px; }',
+		'}',
 		'.usd-roster-pills { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1); }',
 		'.usd-roster-pill { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
 		'  padding: var(--uma-sp-0-5) var(--uma-sp-2-5); border-radius: var(--uma-r-full); cursor: pointer;',
@@ -1429,31 +1476,38 @@
 		// 狭い画面では番号の列を 22px に詰め、スキル名の列に幅を残す（実測: 375px で名前の列 97px → 125px）
 		'@media (max-width: 640px) { .usd-roster-grid { --usd-roster-colw: 22px; } }',
 		'.usd-roster-grow { display: contents; }',
-		'.usd-roster-grow--b { --row-bg: var(--uma-surface-sunken); }',
+		// 列の見分け（C-51 の11節⑥〜⑧）: 行は横のヘアラインだけで区切り（行の交互の地色はやめた。
+		// 行と列の両方を交互にすると市松になる）、列の側で地色を分ける。
+		//   育成ウマ娘の列 … ツールのアクセントの淡い地＋右端に区切り線（見出しから全行まで）
+		//   カードの列     … 1列おきに灰（--uma-surface-muted）と白
 		'.usd-roster-gc { min-width: 0; display: flex; align-items: center; justify-content: center;',
 		'  padding: var(--uma-sp-1) var(--uma-sp-0-5); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
-		'  background: var(--row-bg, var(--uma-surface)); border-bottom: 1px solid var(--uma-border); }',
+		'  background: var(--col-bg, var(--uma-surface)); border-bottom: 1px solid var(--uma-border); }',
+		'.usd-roster-gc--uma { --col-bg: var(--uma-accent-soft); border-right: 2px solid var(--uma-accent-border); }',
+		'.usd-roster-gc--alt { --col-bg: var(--uma-surface-muted); }',
 		// 余り列のセルは余白を持たない（0px の列に余白ぶんだけはみ出して横スクロールの種になるため）
 		'.usd-roster-gc--fill { padding: 0; }',
 		'.usd-roster-gc--name { justify-content: flex-start; text-align: left; padding-left: var(--uma-sp-2);',
 		'  font-weight: 700; overflow-wrap: anywhere; }',
-		// 見出し行（番号）は縦スクロール中も上に固定する
-		'.usd-roster-gh { position: sticky; top: 0; z-index: 1; --row-bg: var(--uma-surface-muted);',
+		// 見出し行（番号）は縦スクロール中も上に固定する。列の地色は見出しにも同じ変数で効く
+		'.usd-roster-gh { position: sticky; top: 0; z-index: 1;',
 		'  font-weight: 700; color: var(--uma-text-heading); border-bottom: 1px solid var(--uma-border-strong); }',
+		'.usd-roster-gh:not(.usd-roster-gc--uma):not(.usd-roster-gc--alt) { --col-bg: var(--uma-surface-sunken); }',
 		'.usd-roster-gh--empty { color: var(--uma-text-faint); font-weight: 400; }',
+		// 表の中の「得られる」印は橙の★（チップ無し）
 		'.usd-roster-star { color: var(--uma-star); font-size: 13px; line-height: 1; }',
+		// 育成ウマ娘の列の見出しと凡例の印は「黒い丸のチップに白い★」。表の中の橙の★とは、
+		// 形（丸の中か裸か）と色（白/黒か橙か）の2点で見分ける（C-51 の11節⑥）
+		'.usd-roster-umachip { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;',
+		'  border-radius: var(--uma-r-full); background: var(--uma-control); color: var(--uma-text-inverse);',
+		'  font-size: 11px; line-height: 1; }',
 		// 凡例（番号 → 正式名称）。表の外に、左ぞろえで1行1件
 		'.usd-roster-legend { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--uma-sp-0-5);',
 		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
-		'.usd-roster-legend li { display: flex; align-items: baseline; gap: var(--uma-sp-1-5); min-width: 0; }',
+		'.usd-roster-legend li { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; }',
 		'.usd-roster-legend-no { flex: none; min-width: 20px; text-align: center; font-weight: 700;',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm); }',
 		'.usd-roster-legend--empty { color: var(--uma-text-faint); }',
-		// 隠している一覧を開閉する文字ボタン（未収録カードの一覧。C-51 の10節①）
-		'.usd-roster-disclose { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); padding: 1px var(--uma-sp-2);',
-		'  border: 1px solid var(--uma-danger-text); border-radius: var(--uma-r-full); background: transparent;',
-		'  color: var(--uma-danger-text); cursor: pointer; }',
-		'.usd-roster-disclose[aria-expanded="true"] { background: var(--uma-danger-text); color: var(--uma-text-inverse); }',
 		'.usd-roster-note { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); margin: 0; }',
 		'.usd-roster-warn { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); margin: 0; }',
 		'.usd-roster-unconf { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1); margin: var(--uma-sp-1) 0 0; padding: 0; list-style: none; }',
@@ -1475,9 +1529,6 @@
 		'  font-weight: 600; letter-spacing: .02em; }',
 		'.usd-roster-alert { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-danger-text); }',
 		'.usd-roster-unconf--alert li { border-color: var(--uma-danger-text); color: var(--uma-danger-text); }',
-		'.usd-roster-alpha { margin: 0; padding: var(--uma-sp-2) var(--uma-sp-3); border-radius: var(--uma-r-sm);',
-		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
-		'  background: var(--uma-surface-muted); border: 1px dashed var(--uma-border); }',
 		// カード・育成ウマ娘を選ぶミニウィンドウ
 		'.usd-roster-modal { position: fixed; inset: 0; z-index: 60; display: flex;',
 		'  align-items: center; justify-content: center; padding: var(--uma-sp-3); }',
@@ -2654,7 +2705,7 @@
 			if (typeof opts.onHiddenIdsChange === 'function') opts.onHiddenIdsChange(ids.slice());
 		}
 
-		/** Step 2 でいま選んでいるスキルセットと、この編成で得られるスキルの重なりの数。 */
+		/** ②（周回スキルセット）でいま選んでいるスキルセットと、この編成で得られるスキルの重なりの数。 */
 		function overlapWithScope(skillIds) {
 			if (typeof opts.getScopeSkillIds !== 'function') return 0;
 			const scope = opts.getScopeSkillIds() || [];
@@ -2664,14 +2715,14 @@
 		}
 
 		/**
-		 * 編成を触ったあとで、Step 2 の選択と重なっていたら知らせる（C-51 の修正5）。
+		 * 編成を触ったあとで、②（周回スキルセット）の選択と重なっていたら知らせる（C-51 の修正5）。
 		 * **黙って消さない。** 画面には常に件数を出したうえで、増えた瞬間だけトーストも出す
 		 * （引き出しの下のほうを見ていなくても気づけるように）。
 		 */
 		function notifyOverlap() {
 			const n = overlapWithScope(computed().skillIds);
 			if (n > 0 && n !== lastOverlap) {
-				toast('Step 2 で選んでいるスキルセットに、この編成で得られるスキルが ' + n + '種 含まれています');
+				toast('周回スキルセットに、本育成で得られるスキルが ' + n + '種 含まれています');
 			}
 			lastOverlap = n;
 		}
@@ -2685,7 +2736,22 @@
 			const id = roster.cardIds[i];
 			if (!id) return '＋ カードを選ぶ';
 			const card = findCard(id);
-			return card ? formatEntryLabel(card) : '（読み込めません：' + id + '）';
+			return card ? formatEntryShortLabel(card) : '（読み込めません：' + id + '）';
+		}
+		/**
+		 * 選択済みのカードの欄に付ける、種類の色の属性（C-51 の11節⑫）。色は番号（typeOrder）で
+		 * tokens.css の --uma-card-type-<番号>-* から引き、無い番号は既定の面に落ちる。
+		 * 種類の名前はここに出てこない。
+		 */
+		function cardSlotColorAttrs(i) {
+			const id = roster.cardIds[i];
+			const card = id ? findCard(id) : null;
+			const n = cardTypeOrderOf(card);
+			if (n === null) return '';
+			return ' data-type-order="' + n + '" style="'
+				+ '--usd-card-bg: var(--uma-card-type-' + n + '-bg, var(--uma-surface));'
+				+ '--usd-card-border: var(--uma-card-type-' + n + '-border, var(--uma-border));'
+				+ '--usd-card-text: var(--uma-card-type-' + n + '-text, var(--uma-text-heading));"';
 		}
 
 		/**
@@ -2762,37 +2828,44 @@
 
 			let h = '<div class="usd-roster">';
 
-			// αテスト中であることを、パネルを開いたら必ず目に入る位置に出す。
-			h += '<p class="usd-roster-alpha">αテスト中の機能です。まだ作りかけで、'
-				+ '<strong>結果が正しくないことがあります</strong>。確かめながらお使いください。</p>';
+			// αテスト中の注記は、呼び出し元の見出し（special.html の①のタブ）の「αテスト」ラベルの中へ移した（C-51 の11節②）。
 
-			/* ── 上位層: 編成（保存・読み込み・名前）と、Step 2 への除外 ──
+			/* ── 上位層: 編成（保存・読み込み・名前）と、周回スキルセットへの除外 ──
 			   下位層（育成ウマ娘・サポートカード）より一段強い見出しと、囲みの地色で見分ける。 */
 			h += '<div class="usd-roster-top">';
-			h += '<p class="usd-roster-h usd-roster-h--top">編成（' + saved.length + '／' + ROSTER_LIMIT + '件）</p>';
+			// 保存済みの編成はプルダウンではなくタブで選ぶ（C-51 の11節③）。先頭の「＋ 新規」が
+			// 「保存済みを選んでいない＝新しい編成」。名前はタブ幅に収まるぶんだけ出して「…」で切る
+			// （略称は作らない。正式名は title と、選んだときの名前欄に全文が入る）。
 			h += '<div class="usd-roster-row">';
-			h += '<select class="uma-input" data-usd-act="select"><option value="">新しい編成</option>'
-				+ saved.map(r => '<option value="' + esc(r.rosterId) + '"' + (r.rosterId === selectedId ? ' selected' : '') + '>'
-					+ esc(r.name || '（名称未設定）') + '</option>').join('') + '</select>';
-			h += '<input class="uma-input" type="text" data-usd-el="name" data-usd-act="name" placeholder="編成の名前" value="' + esc(roster.name || '') + '" />';
+			h += '<p class="usd-roster-h usd-roster-h--top">編成（' + saved.length + '／' + ROSTER_LIMIT + '件）</p>';
+			h += '<div class="usd-roster-tabs" role="tablist" aria-label="保存した編成" data-usd-el="roster-tabs">';
+			h += '<button type="button" role="tab" class="usd-roster-tab usd-roster-tab--new" data-usd-act="select-roster" data-roster-id=""'
+				+ ' aria-selected="' + (selectedId ? 'false' : 'true') + '">＋ 新規</button>';
+			h += saved.map(r => '<button type="button" role="tab" class="usd-roster-tab" data-usd-act="select-roster" data-roster-id="' + esc(r.rosterId) + '"'
+				+ ' aria-selected="' + (r.rosterId === selectedId ? 'true' : 'false') + '" title="' + esc(r.name || '（名称未設定）') + '">'
+				+ esc(r.name || '（名称未設定）') + '</button>').join('');
+			h += '</div>';
+			h += '</div>';
+			h += '<div class="usd-roster-row">';
+			h += '<input class="uma-input" type="text" data-usd-el="name" data-usd-act="name" placeholder="新しい編成の名前" value="' + esc(roster.name || '') + '" />';
 			h += '<button type="button" class="uma-btn uma-btn--primary" data-usd-act="save">保存</button>';
 			if (selectedId) h += '<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="delete">削除</button>';
 			h += '</div>';
 
 			// 「隠す」と「外す」を1つにまとめた操作（C-51 の修正）。押した状態＝隠しつつ、押した時点で外す。
 			// 外すのは元に戻せないので Undo に積む（黙って消さない方針は変えない）。
+			// 表記は状態で入れ替える（「本育成スキルを除外する」／除外中は「除外を解除する」。C-51 の11節④）。
 			if (typeof opts.onRemoveFromScope === 'function') {
 				h += '<div class="usd-roster-row">';
 				h += '<button type="button" class="uma-btn ' + (hide ? 'uma-btn--primary' : 'uma-btn--neutral') + '" data-usd-act="exclude"'
 					+ ' aria-pressed="' + (hide ? 'true' : 'false') + '"' + (res.items.length === 0 && !hide ? ' disabled' : '')
-					+ '>Step 2 のスキルセットから本育成スキルを除外する</button>';
-				h += '<span class="usd-roster-note">' + (hide ? '除外しています（もう一度押すと解除）' : 'Step 2 で非表示/選択・追加済みを除外') + '</span>';
+					+ '>' + (hide ? '除外を解除する' : '本育成スキルを除外する') + '</button>';
 				h += '</div>';
 			}
-			// Step 2 ですでに選んであるスキルとの重なり。**黙って消さない**ので、
+			// 周回スキルセットですでに選んであるスキルとの重なり。**黙って消さない**ので、
 			// 何件重なっているかを常に出し、外すかどうかは押して決めてもらう。
 			if (overlap > 0) {
-				h += '<p class="usd-roster-warn">Step 2 で選んでいるスキルセットに、この編成で得られるスキルが <strong>'
+				h += '<p class="usd-roster-warn">周回スキルセットに、本育成で得られるスキルが <strong>'
 					+ overlap + '種</strong> 含まれています（<strong>まだ外していません</strong>。上のボタンで外せます）。</p>';
 			}
 			// イベントスキルの未確認は、αテスト中の明示として編成の層に赤字で**1行だけ**出す
@@ -2803,7 +2876,7 @@
 				const cardCount = new Set(res.unconfirmed.map(u => u.cardId)).size;
 				h += '<div class="usd-roster-row">';
 				h += '<p class="usd-roster-alert">αテスト中：イベントスキル未収録（' + cardCount + '種）</p>';
-				h += '<button type="button" class="usd-roster-disclose" data-usd-act="toggle-unconf" aria-expanded="'
+				h += '<button type="button" class="uma-disclose" data-usd-act="toggle-unconf" aria-expanded="'
 					+ (showUnconf ? 'true' : 'false') + '">' + (showUnconf ? '対象のカードを閉じる' : '対象のカードを見る') + '</button>';
 				h += '</div>';
 				if (showUnconf) {
@@ -2829,8 +2902,10 @@
 
 			h += '<div class="usd-roster-sub"><p class="usd-roster-h usd-roster-h--sub">サポートカード</p><div class="usd-roster-slots">';
 			for (let i = 0; i < ROSTER_CARD_SLOTS; i++) {
+				const colorAttrs = cardSlotColorAttrs(i);
 				h += '<div class="usd-roster-slot">'
-					+ '<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="pick-card" data-index="' + i + '">'
+					+ '<button type="button" class="uma-btn uma-btn--secondary' + (colorAttrs ? ' usd-roster-card--typed' : '') + '"'
+					+ ' data-usd-act="pick-card" data-index="' + i + '"' + colorAttrs + '>'
 					+ esc(labelOfCard(i)) + '</button>'
 					+ (roster.cardIds[i] ? '<button type="button" class="uma-icon-btn" data-usd-act="clear-card" data-index="' + i + '" aria-label="外す">×</button>' : '')
 					+ '</div>';
@@ -2840,35 +2915,41 @@
 
 			h += searchHtml();
 
-			// 得られるスキル（★取り表。C-51 の10節⑤⑥）。左の列にスキル名、見出し行に編成の番号
-			// （1＝育成ウマ娘、2〜＝サポートカードの枠の順）を置き、どのメンバーから得られるかを★で示す。
+			// 得られるスキル（★取り表。C-51 の10節⑥・11節⑤〜⑧）。左の列にスキル名、見出し行に編成の並び
+			// （育成ウマ娘は黒チップの★、サポートカードは枠の順の番号 1〜）を置き、どのメンバーから得られるかを橙の★で示す。
 			// 列は**常に全部**出す（空いている枠も列にする）ので、番号が枠の位置と常に一致し、表の形も安定する。
 			// 番号と正式名称の対応は表の外の凡例に置く（スマホの幅で正式名称を見出し行に並べられないため）。
+			const umaChip = '<span class="usd-roster-umachip" role="img" aria-label="育成ウマ娘">★</span>';
+			const colClass = (m) => m.kind === 'uma' ? ' usd-roster-gc--uma' : (m.no % 2 === 1 ? ' usd-roster-gc--alt' : '');
+			const colHead = (m) => m.kind === 'uma' ? umaChip : String(m.no);
+			const colName = (m) => (m.kind === 'uma' ? '育成ウマ娘' : String(m.no)) + (m.label ? '：' + esc(m.label) : '（空き）');
 			h += '<div class="usd-roster-sec">';
-			h += '<p class="usd-roster-h">この編成で得られるスキル ' + res.items.length + '種</p>';
+			h += '<p class="usd-roster-h">本育成で得られるスキル ' + res.items.length + '種</p>';
 			if (res.items.length === 0) {
 				h += '<p class="usd-roster-note">育成ウマ娘とサポートカードを選ぶと、ここに出ます。</p>';
 			} else {
 				const members = res.members;
-				h += '<div class="usd-roster-grid-wrap"><div class="usd-roster-grid" role="table" aria-label="この編成で得られるスキル"'
+				const cardCount = members.filter(m => m.kind === 'card').length;
+				h += '<div class="usd-roster-grid-wrap"><div class="usd-roster-grid" role="table" aria-label="本育成で得られるスキル"'
 					+ ' style="--usd-roster-cols:' + members.length + '">';
 				h += '<div class="usd-roster-grow" role="row">'
 					+ '<div class="usd-roster-gc usd-roster-gc--name usd-roster-gh" role="columnheader">スキル名</div>'
-					+ members.map(m => '<div class="usd-roster-gc usd-roster-gh' + (m.label ? '' : ' usd-roster-gh--empty') + '" role="columnheader"'
-						+ ' aria-label="' + m.no + (m.label ? '：' + esc(m.label) : '（空き）') + '">' + m.no + '</div>').join('')
+					+ members.map(m => '<div class="usd-roster-gc usd-roster-gh' + colClass(m) + (m.label ? '' : ' usd-roster-gh--empty') + '"'
+						+ ' role="columnheader" aria-label="' + colName(m) + '">' + colHead(m) + '</div>').join('')
 					+ '<div class="usd-roster-gc usd-roster-gc--fill usd-roster-gh" role="cell"></div></div>';
-				res.items.forEach((it, i) => {
-					h += '<div class="usd-roster-grow' + (i % 2 === 1 ? ' usd-roster-grow--b' : '') + '" role="row">'
+				res.items.forEach((it) => {
+					h += '<div class="usd-roster-grow" role="row">'
 						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader">' + esc(it.name) + '</div>'
-						+ members.map(m => '<div class="usd-roster-gc" role="cell">'
-							+ (it.members.indexOf(m.no) !== -1 ? '<span class="usd-roster-star" role="img" aria-label="得られる">★</span>' : '')
+						+ members.map(m => '<div class="usd-roster-gc' + colClass(m) + '" role="cell">'
+							+ (it.members.indexOf(m.key) !== -1 ? '<span class="usd-roster-star" role="img" aria-label="得られる">★</span>' : '')
 							+ '</div>').join('')
 						+ '<div class="usd-roster-gc usd-roster-gc--fill" role="cell"></div></div>';
 				});
 				h += '</div></div>';
-				h += '<p class="usd-roster-note">1＝育成ウマ娘（初期＋覚醒）、2〜' + members.length + '＝サポートカード（枠の順）</p>';
+				h += '<p class="usd-roster-note">' + umaChip + '＝育成ウマ娘（初期＋覚醒）、1〜' + cardCount + '＝サポートカード（枠の順）</p>';
 				h += '<ol class="usd-roster-legend">' + members.map(m =>
-					'<li' + (m.label ? '' : ' class="usd-roster-legend--empty"') + '><span class="usd-roster-legend-no">' + m.no + '</span>'
+					'<li' + (m.label ? '' : ' class="usd-roster-legend--empty"') + '>'
+					+ (m.kind === 'uma' ? umaChip : '<span class="usd-roster-legend-no">' + m.no + '</span>')
 					+ '<span>' + (m.label ? esc(m.label) : '（空き）') + '</span></li>').join('') + '</ol>';
 			}
 			h += '<p class="usd-roster-note">ここに出ていないスキルが、この編成のカードと覚醒では得られないものです。</p>';
@@ -2877,6 +2958,11 @@
 
 			container.innerHTML = h;
 			refreshIcons();
+			// 選んでいる編成のタブが帯の外（スワイプの先）にあっても見える位置に寄せる
+			const curTab = container.querySelector('.usd-roster-tab[aria-selected="true"]');
+			if (curTab && typeof curTab.scrollIntoView === 'function') {
+				try { curTab.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* 古いブラウザ */ }
+			}
 			if (picking) {
 				const input = q(container, 'find');
 				if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
@@ -2892,8 +2978,8 @@
 			picking = null;
 			applyHidden();
 			render();
-			// 保存してある編成を選び直すのも「Step 1 を操作した」うち。
-			// ここで知らせないと、選んだ瞬間に Step 2 との重なりが生まれても気づけない。
+			// 保存してある編成を選び直すのも「①（本育成編成）を操作した」うち。
+			// ここで知らせないと、選んだ瞬間に②との重なりが生まれても気づけない。
 			lastOverlap = -1;
 			notifyOverlap();
 		}
@@ -2910,6 +2996,7 @@
 			}
 			else if (act === 'cancel-pick') { picking = null; render(); }
 			else if (act === 'toggle-unconf') { showUnconf = !showUnconf; render(); }
+			else if (act === 'select-roster') { loadSelected(btn.getAttribute('data-roster-id') || ''); }
 			else if (act === 'type') { pickType = btn.getAttribute('data-value') || ''; render(); renderHits(); }
 			else if (act === 'clear-uma') { roster.umaId = ''; syncFixedFields(); applyHidden(); render(); notifyOverlap(); }
 			else if (act === 'clear-card') { roster.cardIds[Number(btn.getAttribute('data-index'))] = null; applyHidden(); render(); notifyOverlap(); }
@@ -2952,12 +3039,6 @@
 				toast('編成を削除しました');
 				loadSelected('');
 			}
-		});
-
-		container.addEventListener('change', function (ev) {
-			const el = ev.target;
-			const act = el.getAttribute && el.getAttribute('data-usd-act');
-			if (act === 'select') loadSelected(el.value);
 		});
 
 		container.addEventListener('input', function (ev) {
@@ -3559,8 +3640,8 @@
 			const prev = snapshot(before);
 			pushUndo({
 				scope: 'list',
-				doneLabel: '本育成スキル' + n + '種を Step 2 のスキルセットから外しました',
-				undoneLabel: '外した' + n + '種を Step 2 のスキルセットに戻しました',
+				doneLabel: '本育成スキル' + n + '種を周回スキルセットから外しました',
+				undoneLabel: '外した' + n + '種を周回スキルセットに戻しました',
 				probe: () => probeOf(skillIdsOf(target)),
 				apply: () => {
 					if (!writeSkillIds(target, snapshot(prev))) return false;

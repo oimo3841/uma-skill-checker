@@ -477,7 +477,7 @@ const browser = await chromium.launch();
 	assert(!newUi.btnShown && !newUi.note,
 		'special: 新UIでは「旧UIへ」を出さず、更新終了の注記も出ない（片道化）', newUi);
 	assert(!(await page.isVisible('#deck-mode-btn')), 'special: 隠した「旧UIへ」は実際に描画されない（F-13）');
-	assert(newUi.title === '対象スキル', 'special: 新UIの①の見出しが短縮されている', newUi.title);
+	assert(newUi.title === '周回スキルセット', 'special: 新UIの①の見出しが短縮されている', newUi.title);
 	assert((await stepState()).panel1, 'special: 新UIへ切り替えると①が開いた状態になる');
 	// 往復（新UI →「旧UIへ」）は片道化で無くなった。保存値 'old' で開き直して同じ表示を見る
 	await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
@@ -1179,7 +1179,7 @@ const browser = await chromium.launch();
 		const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 		await page.waitForTimeout(2500);
 		const first = await uiState(page);
-		assert(first.title === '対象スキル' && first.badge && first.label === '旧UIへ',
+		assert(first.title === '周回スキルセット' && first.badge && first.label === '旧UIへ',
 			'special: 初回は新UIで開く', first);
 		assert(!first.btnShown && !first.endNote, 'special: 初回（新UI）では「旧UIへ」も更新終了の注記も出ない（片道化）', first);
 		// 片道化で「右上の『旧UIへ』から、いつでも元の画面に戻せます。」は削った（新UIから旧UIへは行けない）
@@ -1209,7 +1209,7 @@ const browser = await chromium.launch();
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await page.waitForTimeout(2500);
 		const again = await uiState(page);
-		assert(again.title === '対象スキル' && !again.notice,
+		assert(again.title === '周回スキルセット' && !again.notice,
 			'special: 既読なら新UIのままで、モーダルは繰り返さない', again);
 
 		// 6. 右上のバッジから読み直せる（既読のまま）
@@ -1235,7 +1235,7 @@ const browser = await chromium.launch();
 		await page.click('#deck-mode-btn');
 		await page.waitForTimeout(1500);
 		const exited = await uiState(page);
-		assert(exited.title === '対象スキル' && exited.mode === 'new' && !exited.btnShown && !exited.endNote,
+		assert(exited.title === '周回スキルセット' && exited.mode === 'new' && !exited.btnShown && !exited.endNote,
 			'special: 旧UIから「新UIへ」で新UIへ移り、選んだUIが保存される', exited);
 		await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
 		await page.reload({ waitUntil: 'domcontentloaded' });
@@ -1256,7 +1256,7 @@ const browser = await chromium.launch();
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await page.waitForTimeout(2500);
 		const s = await uiState(page);
-		assert(s.title === '対象スキル' && s.notice,
+		assert(s.title === '周回スキルセット' && s.notice,
 			'special: 既読の印が無ければ、保存が「旧UI」でも新UIで開いてモーダルを出す', s);
 		await ctx.close();
 	}

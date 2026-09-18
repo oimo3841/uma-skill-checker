@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-09-16a";
+	--common-css-version: "2026-09-18a";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -158,6 +158,23 @@
 	--uma-stitch-accent: #d97706;       /* amber-600 : 見出しのアイコン */
 	--uma-stitch-soft: #fef3c6;         /* amber-100 : 淡い面 */
 	--uma-stitch-soft-text: #973c00;    /* amber-800 : 淡い面の上の文字・アイコン（6.36） */
+
+	/* ---- サポートカードの種類の色（typeOrder の番号で引く） ----
+	   ゲーム内で種類ごとに使われている色に寄せた、**文字を載せる欄のための調整版**
+	   （地は淡く、文字は濃く。左の罫線だけ本来の色に近い濃さ）。
+	   **どの番号がどの種類かは、ここにもコードにも書かない**（恒久ルール1）。番号は
+	   収録データ（サポートカードの `typeOrder`＝ゲーム内で扱われる順番）に従い、
+	   使う側は `var(--uma-card-type-<番号>-bg)` のように番号で引く。定義の無い番号は
+	   使う側の fallback（既定の面の色）に落ちるので、種類が増えてもここに足すだけでよい。
+	   値は Tailwind v4.1.11 の各パレットの -100 / -300 / -800（F-19）。
+	   文字（-800）は地（-100）の上で 6.4〜7.2（実測。AA の 4.5:1 は全部満たし、AAA の 7:1 は 1 だけ。C-51 の11節）。
+	   2026-09-18・54セッション目に、編成パネルの選択済みカードの欄のために新設。 */
+	--uma-card-type-1-bg: #dbeafe;     --uma-card-type-1-border: #8ec5ff; --uma-card-type-1-text: #193cb8; /* 青 */
+	--uma-card-type-2-bg: #ffe2e2;     --uma-card-type-2-border: #ffa2a2; --uma-card-type-2-text: #9f0712; /* 赤 */
+	--uma-card-type-3-bg: #ffedd4;     --uma-card-type-3-border: #ffb86a; --uma-card-type-3-text: #9f2d00; /* 橙 */
+	--uma-card-type-4-bg: #fce7f3;     --uma-card-type-4-border: #fda5d5; --uma-card-type-4-text: #a3004c; /* 桃 */
+	--uma-card-type-5-bg: #dcfce7;     --uma-card-type-5-border: #7bf1a8; --uma-card-type-5-text: #016630; /* 緑 */
+	--uma-card-type-6-bg: #fef9c2;     --uma-card-type-6-border: #ffdf20; --uma-card-type-6-text: #894b00; /* 黄 */
 
 	/* ---- 余白（4pxを単位とする刻み。1/3/7/9pxのような孤立値は使わない） ---- */
 	--uma-sp-0-5: 2px;
