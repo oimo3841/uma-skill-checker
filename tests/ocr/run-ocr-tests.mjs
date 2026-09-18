@@ -171,7 +171,7 @@ async function saveDataUrl(dataUrl, filePath) {
 // page.evaluate に渡す、実際の OCR 呼び出しラッパー。
 // ページ側で定義済みの processPersonImages / matchAllSkillsWithStars を
 // そのまま利用する。
-async function runOcrInPage({ files, groupLabel, useStitched, dictNames, errDict, catalogNames, catalogExactOnly }) {
+async function runOcrInPage({ files, groupLabel, useStitched, dictNames, errDict, catalogGroups, catalogExactOnly }) {
 	async function dataUrlToFile(dataUrl, name) {
 		const res = await fetch(dataUrl);
 		const blob = await res.blob();
@@ -233,46 +233,64 @@ async function runOcrInPage({ files, groupLabel, useStitched, dictNames, errDict
 		// ここでもう一度掛ける（exam.html 側の関数はページの状態＝利用者が選んだ因子に依存するので
 		// 直接は呼べない。判定の中身だけを同じ形で書く。片方を変えたらもう片方も直すこと）。
 		//   ① 行にその名前がそのまま入っている（完全一致）
-		//   ② 行が、カタログの中でその名前にだけ距離 nearLimit 以内で近い（同じ距離で並んだら採らない）
+		//   ② 行が、そのカテゴリの中でその名前にだけ距離 nearLimit 以内で近い（同じ距離で並んだら採らない）
 		// nearLimit は **カタログから計算する**（数値を書かない）。安全な上限は floor(最小距離/2) で、
 		// さらに 1 で頭打ちにする。製品側と同じ式にしてあり、ズレは run-smoke.mjs が見張る。
+		//
+		// **最小距離はカテゴリごとに出す。** 製品（exam.html）はシナリオ因子24種だけを相手に
+		// 計算しているので、カテゴリをまたいで1つにまとめると製品と違う値になる。実際、
+		// 拡張スキルを足した時点で全体の最小距離が 2 → 1（左回りの鬼／右回りの鬼）に下がり、
+		// nearLimit が 1 → 0 になって「アオハル杯シナリオ」が落ちた（C-43 で直した件の再発）。
+		// 製品は影響を受けていない＝ハーネス側だけの取り違えだった。
 		out.catalogDropped = [];
-		if (catalogNames && catalogNames.length && catalogExactOnly) {
-			const catalogSet = new Set(catalogNames);
-			const catNorms = catalogNames.map((n) => ({ raw: n, norm: normalizeText(n) }));
-			let minPair = Infinity;
-			for (let i = 0; i < catNorms.length; i++) {
-				for (let j = i + 1; j < catNorms.length; j++) {
-					const d = levenshtein(catNorms[i].norm, catNorms[j].norm);
-					if (d < minPair) minPair = d;
-				}
-			}
-			const nearLimit = Math.min(1, Math.floor((minPair === Infinity ? 0 : minPair) / 2));
-			out.catalogMinDistance = minPair === Infinity ? 0 : minPair;
-			out.catalogNearLimit = nearLimit;
-
+		out.catalogLimits = [];
+		if (catalogGroups && catalogGroups.length && catalogExactOnly) {
 			const lineNorms = result.lines.map((l) => normalizeText(l.text)).filter(Boolean);
-			const nearHits = new Set();
-			lineNorms.forEach((line) => {
-				let bestNorm = null, bestD = Infinity, tie = 0;
-				for (const c of catNorms) {
-					const d = levenshtein(line, c.norm);
-					if (d < bestD) { bestD = d; bestNorm = c.norm; tie = 1; }
-					else if (d === bestD) tie++;
+			const keep = new Set(), drop = new Set();
+			// カテゴリの最小距離は中身が変わらない限り同じなので、ページに1度だけ計算して持たせる。
+			window.__catalogLimitCache = window.__catalogLimitCache || {};
+			catalogGroups.forEach((g) => {
+				const catNorms = g.names.map((n) => ({ raw: n, norm: normalizeText(n) }));
+				if (window.__catalogLimitCache[g.category] === undefined) {
+					let minPair = Infinity;
+					for (let i = 0; i < catNorms.length; i++) {
+						for (let j = i + 1; j < catNorms.length; j++) {
+							const d = levenshtein(catNorms[i].norm, catNorms[j].norm);
+							if (d < minPair) minPair = d;
+						}
+					}
+					window.__catalogLimitCache[g.category] = minPair === Infinity ? 0 : minPair;
 				}
-				if (bestNorm !== null && bestD <= nearLimit && tie === 1) nearHits.add(bestNorm);
+				const minDistance = window.__catalogLimitCache[g.category];
+				const nearLimit = Math.min(1, Math.floor(minDistance / 2));
+				out.catalogLimits.push({ category: g.category, minDistance: minDistance, nearLimit: nearLimit });
+
+				const nearHits = new Set();
+				lineNorms.forEach((line) => {
+					let bestNorm = null, bestD = Infinity, tie = 0;
+					for (const c of catNorms) {
+						const d = levenshtein(line, c.norm);
+						if (d < bestD) { bestD = d; bestNorm = c.norm; tie = 1; }
+						else if (d === bestD) tie++;
+					}
+					if (bestNorm !== null && bestD <= nearLimit && tie === 1) nearHits.add(bestNorm);
+				});
+				g.names.forEach((name) => {
+					const n = normalizeText(name);
+					if (lineNorms.some((s) => s.indexOf(n) !== -1)) keep.add(name);  // ①
+					else if (nearHits.has(n)) keep.add(name);                        // ②
+					else drop.add(name);
+				});
 			});
 
 			detected = detected.filter((name) => {
-				if (!catalogSet.has(name)) return true;
-				const n = normalizeText(name);
-				if (lineNorms.some((s) => s.indexOf(n) !== -1)) return true; // ①
-				if (nearHits.has(n)) return true;                            // ②
-				out.catalogDropped.push(name);
-				return false;
+				if (keep.has(name)) return true;
+				if (drop.has(name)) { out.catalogDropped.push(name); return false; }
+				return true;   // カタログに無い名前（マスター側）はそのまま
 			});
 		}
-		out.catalogDetected = detected.filter((n) => (catalogNames || []).indexOf(n) !== -1);
+		const allCatalogNames = (catalogGroups || []).reduce((acc, g) => acc.concat(g.names), []);
+		out.catalogDetected = detected.filter((n) => allCatalogNames.indexOf(n) !== -1);
 		out.nLines = result.lines.length;
 		out.skipped = result.skipped;
 		out.detected = detected.map((name) => ({ name: name, stars: matched.skillStars[name] }));
@@ -334,7 +352,7 @@ async function main() {
 			useStitched: USE_STITCHED,
 			dictNames: dictNames,
 			errDict: ERRDICT,
-			catalogNames: catalogNames,
+			catalogGroups: catalogs.map((c) => ({ category: c.category, names: c.names })),
 			catalogExactOnly: CATALOG_EXACT_ONLY,
 		});
 		const elapsed = Date.now() - start;
