@@ -228,8 +228,7 @@ const INTENTIONALLY_REMOVED = {
 	//     `083ad76`・F-43。commit が進んだので 2026-09-14 のコミット5で免除を消した）。
 	// 2026-09-18（54セッション目）: special の Deck連携モードで、Step 1 の <details id="deck-roster"> を
 	// ①のタブ（#step-tab-0 / #step-panel-0）に組み替えたので #deck-roster を消した（C-51 の11節①）。
-	// 編成パネルの置き場 #deck-roster-panel はそのまま。commit が進んだら免除を空に戻す。
-	'special.html': ['deck-roster'],
+	// 編成パネルの置き場 #deck-roster-panel はそのまま。`f718473` に commit したので免除は空に戻した。
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
