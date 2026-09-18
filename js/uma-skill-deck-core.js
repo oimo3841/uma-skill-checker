@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18b';
 
 	/* ============================================================
 	 * 定数
@@ -192,6 +192,8 @@
 	// 追加カタログ（全カテゴリを1本の配列にまとめたもの）。各要素は { id, name, category }。
 	let extraCatalog = [];
 	let extraCatalogMeta = { entryCount: 0, sources: [] };
+	let trainingSources = { };
+	let trainingMeta = { loaded: false, sources: [] };
 
 	// 呼び出し元ページから差し込む入出力（トースト・確認ダイアログ）。
 	// 既定値を持たせておくことで、設定し忘れても動作は壊れない。
@@ -426,6 +428,91 @@
 			masterMeta = { version: SAMPLE_MASTER_SKILLS.masterVersion + '（組み込みサンプル）', fetchedAt: nowIso() };
 			return false;
 		}
+	}
+
+	/* ============================================================
+	 * 収録データ（育成ウマ娘・サポートカード・イベントスキル）
+	 *
+	 * 追加カタログ（EXTRA_CATALOG_SOURCES）とは別に扱う。あちらは
+	 * 「比較シートの行になりうるもの＝スキル」で、こちらは「スキルを供給する側」。
+	 * 一緒にすると findSkill() と名前の索引にカード名・ウマ娘名が混ざる（C-49）。
+	 *
+	 * **起動時には読まない。** これを必要とする画面が loadTrainingSources() を
+	 * 呼んだときだけ読む（比較シートの行にはならないので、読み忘れても
+	 * 保存済みのデータが化けることはない）。
+	 * ============================================================ */
+	const TRAINING_SOURCES = [
+		{ key: 'trainingUmamusume', path: 'catalog-data/training-umamusume.json' },
+		{ key: 'supportCard', path: 'catalog-data/support-cards.json' },
+		{ key: 'supportCardEventSkill', path: 'catalog-data/support-card-event-skills.json' }
+	];
+
+	/**
+	 * 収録データを読む。キャッシュも組み込みの写しも持たない（件数が多く、
+	 * 保存済みのデータが化ける類のものでもないため）。読めなければそのキーは空のまま返し、
+	 * 呼び出し側が「読み込めませんでした」と出せるように meta に残す。
+	 */
+	async function loadTrainingSources(forceRefresh) {
+		const next = {};
+		const sources = [];
+		for (let i = 0; i < TRAINING_SOURCES.length; i++) {
+			const src = TRAINING_SOURCES[i];
+			try {
+				const data = await fetchMasterJson(src.path, !!forceRefresh);
+				next[src.key] = data;
+				sources.push({ key: src.key, count: (data && data.entries ? data.entries.length : 0), version: (data && data.dataVersion) || '', ok: true });
+			} catch (e) {
+				next[src.key] = null;
+				sources.push({ key: src.key, count: 0, version: '', ok: false });
+			}
+		}
+		trainingSources = next;
+		trainingMeta = { loaded: true, sources: sources };
+		const failed = sources.filter(s => !s.ok).map(s => s.key);
+		if (failed.length > 0) {
+			const msg = '収録データを読み込めませんでした（' + failed.join('・') + '）。';
+			try { global.console.warn('[UmaSkillDeck] ' + msg); } catch (e) {}
+			toast(msg);
+		}
+		return trainingMeta;
+	}
+
+	/**
+	 * 画面に出す名前。二つ名には重複があるので（同じ二つ名の別のウマ娘がいる）、
+	 * **必ず二つ名とウマ娘名の両方**を出す。育成ウマ娘・サポートカードで共通。
+	 */
+	function formatEntryLabel(entry) {
+		if (!entry) return '';
+		const title = entry.title ? '[' + entry.title + ']' : '';
+		return title + (entry.charaName || '');
+	}
+
+	/** イベントスキルの状態。'done'（ある）/ 'none'（無い）/ 'pending'（未確認＝行が無い） */
+	function eventStatusOf(cardId) {
+		const doc = trainingSources.supportCardEventSkill;
+		const rows = (doc && doc.entries) || [];
+		const row = rows.find(r => r && r.cardId === cardId);
+		return row ? row.status : 'pending';
+	}
+
+	/** そのカードのイベントスキルの参照（[{skillId, name}]）。未確認・無しなら空配列。 */
+	function getEventSkillsOf(cardId) {
+		const doc = trainingSources.supportCardEventSkill;
+		const rows = (doc && doc.entries) || [];
+		const row = rows.find(r => r && r.cardId === cardId);
+		return (row && row.skills) ? row.skills.slice() : [];
+	}
+
+	/**
+	 * 収録データ（育成ウマ娘・サポートカード）から参照してよいスキルか。
+	 * 参照先はマスターのスキルと拡張スキルだけで、シナリオ因子や
+	 * 利用者のカスタムスキルは対象外（check:catalog の判定と同じ範囲）。
+	 * カテゴリ名を呼び出し側に書かせないよう、判定はここに置く。
+	 */
+	const REFERABLE_CATALOG_CATEGORY = 'extendedSkill';
+	function isReferableSkillId(skillId) {
+		if (masterSkills.some(s => s.id === skillId)) return true;
+		return skillCatalogKind(skillId) === REFERABLE_CATALOG_CATEGORY;
 	}
 
 	/* ============================================================
@@ -3058,6 +3145,14 @@
 		getExtraCatalog: function () { return extraCatalog; },
 		getExtraCatalogMeta: function () { return extraCatalogMeta; },
 		getExtraCatalogSources: function () { return EXTRA_CATALOG_SOURCES.slice(); },
+		// 収録データ（育成ウマ娘・サポートカード・イベントスキル）。呼んだ画面だけが読む。
+		loadTrainingSources: loadTrainingSources,
+		getTrainingSources: function () { return trainingSources; },
+		getTrainingMeta: function () { return trainingMeta; },
+		formatEntryLabel: formatEntryLabel,
+		eventStatusOf: eventStatusOf,
+		getEventSkillsOf: getEventSkillsOf,
+		isReferableSkillId: isReferableSkillId,
 		skillCatalogKind: skillCatalogKind,
 
 		// スキル参照
@@ -3070,6 +3165,9 @@
 
 		// 一括貼り付けテキストのマッチング（UIを持たない純粋なロジック）
 		matchPastedSkillText: matchPastedSkillText,
+		// 「名前を入れて探す」の絞り込み。core 内のスキル選択パネルに加えて、
+		// 作業用ページ（card-event-input.html）からも使う（索引を二重に持たないため）。
+		findSkillsByNameFragment: findSkillsByNameFragment,
 		normalizeSkillText: normalizeSkillText,
 		stripSkillTextRank: stripSkillTextRank,
 
