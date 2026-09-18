@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-18f"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-18g"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-15a"></script>
 	<style>
@@ -39,22 +39,41 @@
 		   同じ枠・同じ見出しの重みで並べる。任意であることは「任意」の印だけで示し、
 		   文字を小さくしたり薄くしたりしない（おまけに見えると使われないため）。 */
 		.deck-step { margin-bottom: var(--uma-sp-4, 16px); }
-		.deck-step-box { border: 1px solid var(--uma-border); border-radius: var(--uma-r-md); padding: var(--uma-sp-3, 12px); background: var(--uma-surface); }
+		/* 枠は一段濃い罫線を 2px で引く（C-51 の10節③）。1px の薄い罫線だと、どこからどこまでが
+		   1つの領域か判別できなかった。Step 1 と Step 2 の両方に効く。 */
+		.deck-step-box { border: 2px solid var(--uma-border-strong); border-radius: var(--uma-r-md); padding: var(--uma-sp-3, 12px); background: var(--uma-surface); }
 		.deck-step-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2, 8px); }
 		/* 開閉の印は見出しの**右端**に置く（C-51 の修正）。左に置くと、印のぶんだけ「Step 1」の
-		   位置が Step 2 とずれて不ぞろいに見える。見出し全体（summary）が押せるのはそのまま。 */
+		   位置が Step 2 とずれて不ぞろいに見える。見出し全体（summary）が押せるのはそのまま。
+		   開いている／閉じているが一目で分かるよう（10節③）、閉じているときは「▼ 開く」をアクセント色の
+		   地で、開いているときは「▲ 閉じる」を灰色の地で出し、開いたら見出しの下に区切り線を引く。 */
 		details.deck-step-box > summary.deck-step-head { list-style: none; cursor: pointer; }
 		details.deck-step-box > summary.deck-step-head::-webkit-details-marker { display: none; }
 		details.deck-step-box > summary.deck-step-head::after {
-			content: '開く'; margin-left: auto; font-size: var(--uma-fs-2xs); color: var(--uma-text-subtle);
-			padding: 1px 8px; border: 1px solid var(--uma-border); border-radius: 999px; }
-		details.deck-step-box[open] > summary.deck-step-head::after { content: '閉じる'; }
+			content: '▼ 開く'; margin-left: auto; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700;
+			color: var(--uma-accent-soft-text); background: var(--uma-accent-soft);
+			padding: 3px 10px; border: 1px solid var(--uma-accent); border-radius: 999px; }
+		details.deck-step-box[open] > summary.deck-step-head::after {
+			content: '▲ 閉じる'; color: var(--uma-text-heading); background: var(--uma-surface-muted); border-color: var(--uma-border-strong); }
+		details.deck-step-box[open] > summary.deck-step-head {
+			padding-bottom: var(--uma-sp-2); margin-bottom: var(--uma-sp-2); border-bottom: 1px solid var(--uma-border-strong); }
 		.deck-step-num { font-size: var(--uma-fs-xs); font-weight: 700; letter-spacing: .02em;
 			padding: 2px 8px; border-radius: 999px; background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
 		.deck-step-title { font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; }
-		.deck-step-opt { font-size: var(--uma-fs-2xs); padding: 1px 6px; border-radius: 999px;
-			border: 1px solid var(--uma-border); color: var(--uma-text-subtle); }
-		.deck-step-lead { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); margin: 8px 0 0; }
+		/* 「任意」は読める濃さ・大きさで（10節③）。薄く小さくすると「おまけ」に見えて使われない。 */
+		.deck-step-opt { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; padding: 2px 8px; border-radius: 999px;
+			border: 1px solid var(--uma-border-strong); background: var(--uma-surface-muted); color: var(--uma-text-heading); }
+		/* 補助説明の「?」（C-52）。見出しの脇の小さな丸ボタンで、押すとその直下に説明の箱をインラインで開閉する。
+		   ホバー依存のツールチップにしない（タッチ端末で出せない）。開いている間はボタンをアクセント色にする。 */
+		.deck-step-help-btn { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0;
+			border: 1px solid var(--uma-border-strong); border-radius: 999px; background: var(--uma-surface);
+			color: var(--uma-text-heading); font: inherit; font-size: var(--uma-fs-sm); font-weight: 700; line-height: 1; cursor: pointer; }
+		.deck-step-help-btn:hover { background: var(--uma-surface-muted); }
+		.deck-step-help-btn[aria-expanded="true"] { background: var(--uma-accent-soft); border-color: var(--uma-accent); color: var(--uma-accent-soft-text); }
+		.deck-step-help { margin: 0 0 var(--uma-sp-2); padding: var(--uma-sp-2) var(--uma-sp-3); border: 1px solid var(--uma-border-strong);
+			border-radius: var(--uma-r-sm); background: var(--uma-surface-sunken);
+			font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); color: var(--uma-text); }
+		.deck-step-help[hidden] { display: none; }
 
 		/* このツールのアクセント。UmaStar OCR は「読み取って登録する」画面なので緑。
 		   共通部品（ボタン・入力欄・フォーカス輪郭）はこの変数を見て色が決まる。
@@ -479,8 +498,12 @@
 							<span class="deck-step-num" aria-hidden="true">Step 1</span>
 							<span class="deck-step-title">本育成のウマ娘/サポートカードの編成</span>
 							<span class="deck-step-opt">任意</span>
+							<!-- 説明は常時出さず「?」の中へ（C-52）。summary の中のボタンなので、押しても開閉に巻き込まれないよう
+							     toggleDeckRosterHelp() が既定の動作を止める。 -->
+							<button type="button" id="deck-roster-help-btn" class="deck-step-help-btn" aria-label="Step 1 の説明"
+								aria-expanded="false" aria-controls="deck-roster-help" onclick="toggleDeckRosterHelp(event)">?</button>
 						</summary>
-						<p class="deck-step-lead">選ぶと、その編成のカードと覚醒で得られるスキルが分かります。選ばなくても Step 2 だけで使えます。</p>
+						<p id="deck-roster-help" class="deck-step-help" hidden>選ぶと、その編成のカードと覚醒で得られるスキルが分かります。選ばなくても Step 2 だけで使えます。</p>
 						<div id="deck-roster-panel" class="mt-2"></div>
 					</details>
 				</div>
@@ -2166,6 +2189,20 @@
 			if (!btn) return;
 			btn.style.display = count === 0 ? 'none' : 'inline-flex';
 			document.getElementById('deck-undo-count').textContent = count;
+		}
+
+		// Step 1 の説明を「?」で開閉する（C-52）。<summary> の中のボタンなので、押しても
+		// details の開閉に巻き込まれないよう既定の動作を止める。閉じているときに押したら、
+		// 説明が見える位置（details の中）にあるので details も開く。
+		function toggleDeckRosterHelp(ev) {
+			ev.preventDefault();
+			ev.stopPropagation();
+			const btn = document.getElementById('deck-roster-help-btn');
+			const box = document.getElementById('deck-roster-help');
+			const open = box.hidden;
+			if (open) document.getElementById('deck-roster').open = true;
+			box.hidden = !open;
+			btn.setAttribute('aria-expanded', String(open));
 		}
 
 		// 対象スキルセットが選ばれた（または中身が変わった）とき、そのスキルだけを
