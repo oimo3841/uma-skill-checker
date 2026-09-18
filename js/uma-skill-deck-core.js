@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18k';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18l';
 
 	/* ============================================================
 	 * 定数
@@ -69,6 +69,25 @@
 	function tierLabel(tier) {
 		const t = TIERS.find(x => x.id === tier);
 		return t ? t.label : TIERS.find(x => x.id === TIER_DEFAULT).label;
+	}
+	/**
+	 * 分類の印（競馬の印。C-58）。超優先＝◎（本命）／優先＝○（対抗）／通常＝▲（単穴）を
+	 * **線で描き、塗りつぶさない**。形だけで順位が読めるので、色は補助でしかない。
+	 *
+	 * 形をここ1か所で決める理由: 画面（この SVG）と結合画像（special.html の Canvas）で
+	 * 別々に描くと、同じ印のはずのものが2つの形を持つ（C-30 の drawSkillMark と同じ考え方）。
+	 * 比率（半径・内側の輪・三角形）は Canvas 側と同じ値にしてある。
+	 */
+	function tierMarkHtml(tier) {
+		const t = TIERS.some(x => x.id === tier) ? tier : TIER_DEFAULT;
+		const shape = t === 1
+			? '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.8"/>'   // ◎ 内側は外側の 0.42
+			: t === 2
+				? '<circle cx="12" cy="12" r="9"/>'                                  // ○
+				: '<path d="M12 2.9 21.1 18.7 2.9 18.7Z"/>';                         // ▲（外接円は ○ の 1.12 倍）
+		return '<span class="uma-tier-mark" data-tier="' + t + '" role="img" aria-label="' + esc(tierLabel(t)) + '">'
+			+ '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true">'
+			+ shape + '</svg></span>';
 	}
 	// 編成（育成ウマ娘1人＋サポートカード6枚）。テンプレート・比較シートと同じく
 	// 「利用者が作ったもの」なので userData に置き、書き出し／取り込みの対象にする（C-51）。
@@ -1565,9 +1584,12 @@
 		// 長い名前は 2 行まで折り返し、超えるぶんは「…」（ゲームは1行で切るが、こちらは名前で照合するので読めるほうを優先）
 		'.usd-panels { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--uma-sp-2); }',
 		'@media (max-width: 640px) { .usd-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
+		// 地・枠・影は css/tokens.css の --uma-skillpanel-*（C-58 の作業A。ゲームの板の質感に寄せた
+		// 横方向のグラデーション＋下端の内側の影＋上端の白いハイライト）。ここには値を書かない
 		'.usd-panel { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; min-height: 36px;',
 		'  padding: var(--uma-sp-1-5) var(--uma-sp-2); border-radius: var(--uma-r-sm);',
-		'  background: var(--uma-skillpanel-bg); border: 1px solid var(--uma-skillpanel-border); color: var(--uma-text); }',
+		'  background: var(--uma-skillpanel-bg); border: 1px solid var(--uma-skillpanel-border);',
+		'  box-shadow: var(--uma-skillpanel-shadow); color: var(--uma-text); }',
 		'.usd-panel-name { flex: 1 1 auto; min-width: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600;',
 		'  overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }',
 		// 各パネルの操作（モードが ON のときだけ出る）: 削除モードは ×、再分類モードは移動先の分類名の小ボタン
@@ -3564,7 +3586,7 @@
 						+ ' aria-label="「' + esc(getSkillName(id)) + '」を' + esc(t.label) + 'へ">' + esc(t.label) + '</button>').join('');
 				}
 				return '<div class="usd-panel' + (mode === 'reclass' ? ' usd-panel--reclass' : '') + '" data-skill-id="' + esc(id) + '">'
-					+ '<span class="uma-tier-mark" data-tier="' + tier + '" role="img" aria-label="' + esc(tierLabel(tier)) + '">★</span>'
+					+ tierMarkHtml(tier)
 					+ '<span class="usd-panel-name">' + esc(getSkillName(id)) + '</span>'
 					+ (ops ? '<span class="usd-panel-ops">' + ops + '</span>' : '')
 					+ '</div>';
@@ -4365,7 +4387,7 @@
 		// 帯のタブ（共有部品。C-54）。special の親A／親Bセットのタブが使う
 		tabStrip: { html: tabStripHtml, reveal: revealSelectedTab, keydown: tabStripKeydown },
 		// スキルセットの分類（C-57）。呼び出し元（special の照合結果の表）が印を出すために使う
-		tiers: { list: TIERS.map(t => ({ id: t.id, label: t.label })), defaultTier: TIER_DEFAULT, of: tierOf, label: tierLabel },
+		tiers: { list: TIERS.map(t => ({ id: t.id, label: t.label })), defaultTier: TIER_DEFAULT, of: tierOf, label: tierLabel, markHtml: tierMarkHtml },
 		listRosters: listRosters,
 		computeRosterSkills: computeRosterSkills,
 		getPickerHiddenIds: function () { return pickerHiddenIds.slice(); },

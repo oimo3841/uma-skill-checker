@@ -234,6 +234,11 @@ const INTENTIONALLY_REMOVED = {
 	// （#setb-toggle-btn / #setb-toggle-label）を消した。core.js は、テンプレート一覧のラジオ（value="' + esc(t.templateId) + '"
 	// が id の検査に引っかかっていたもの）と data-template-id、編成のタブの data-roster-id が、共有部品の帯のタブ
 	// （data-tab-id）に置き換わって消えた。`d3332e8` に commit したので免除は空に戻した。
+	// 2026-09-18（58セッション目・C-58）: 分類の印を金銀銅の★から競馬の印（◎○▲）へ変え、形を
+	// core.js の tiers.markHtml() が返す SVG 1か所で決めるようにしたので、special.html から
+	// data-tier の直書き（照合結果の表で ★ を出していた span）が消えた。印そのものは
+	// core.js が同じ data-tier を付けて出すので、画面から無くなったわけではない。
+	'special.html': ['data-tier'],
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

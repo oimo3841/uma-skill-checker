@@ -5556,7 +5556,30 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	});
 	const t0 = await ui();
 	assert(t0.counts.join() === '0,' + PICK.length + ',0' && t0.total === String(PICK.length) && t0.panels === PICK.length && t0.marks === '2'.repeat(PICK.length),
-		'tiers: tiers を持たないデータのスキルは全部「優先」に入り、印は銀', t0);
+		'tiers: tiers を持たないデータのスキルは全部「優先」に入る', t0);
+	// 印は競馬の印（◎○▲）を**線で**描いた SVG（C-58 の作業B）。塗りつぶさないので fill は none
+	const markShape = await page.evaluate(() => {
+		const one = (t) => {
+			const el = document.createElement('div');
+			el.innerHTML = UmaSkillDeckCore.tiers.markHtml(t);
+			const svg = el.querySelector('svg');
+			const mark = el.querySelector('.uma-tier-mark');
+			return { tier: mark.dataset.tier, fill: svg.getAttribute('fill'), stroke: svg.getAttribute('stroke'),
+				shapes: Array.from(svg.children).map(c => c.tagName).join('+') };
+		};
+		return [1, 2, 3].map(one);
+	});
+	assert(markShape[0].shapes === 'circle+circle' && markShape[1].shapes === 'circle' && markShape[2].shapes === 'path',
+		'tiers: 印は 超優先＝◎（二重の輪）／優先＝○／通常＝▲（三角）', markShape.map(m => m.shapes));
+	assert(markShape.every(m => m.fill === 'none' && m.stroke === 'currentColor'),
+		'tiers: 印は線で描き、塗りつぶさない（色は data-tier から currentColor で拾う）', markShape);
+	// スキルパネルはゲームの板の質感（C-58 の作業A）。地はグラデーション、影は3つ重なる
+	const panelLook = await page.evaluate(() => {
+		const cs = getComputedStyle(document.querySelector('#deck-template-panel .usd-panel'));
+		return { bg: cs.backgroundImage, shadows: cs.boxShadow.split(/,(?![^(]*\))/).length, border: cs.borderTopWidth };
+	});
+	assert(panelLook.bg.startsWith('linear-gradient(') && panelLook.shadows === 3,
+		'tiers: スキルパネルは横方向のグラデーション＋影3つ（板の質感。C-58 の作業A）', panelLook);
 	assert(t0.dels === 0 && t0.moves === 0 && t0.reclass === 'false' && t0.del === 'false' && t0.clearHidden,
 		'tiers: 既定は両方のモードが OFF（× も移動先も「すべて外す」も出ない）', t0);
 	assert(t0.cols > 2, 'tiers: 1280px ではパネルの列が画面幅に合わせて増える', t0.cols);

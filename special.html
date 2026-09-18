@@ -14,9 +14,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-18d" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-18d" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-18d" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-18e" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-18e" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-18e" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-18k"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-18l"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-15a"></script>
 	<style>
@@ -651,6 +651,17 @@
 			</button>
 			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※1人につき2枚以上のスクリーンショットを縦結合し、親Aセット・親Bセットそれぞれで、使用中の人を1枚の画像にまとめて個別に出力します。1人分が1枚のみの場合はエラーになります。</p>
 
+			<!-- 分類の印を結合画像に焼くかの切り替え（C-58 の作業C）。結果画像の見た目が変わる設定なので、
+			     切り替えてもその場では何も変わらない引き出しの中ではなく、**結合を始める場所**に置く
+			     （C-30 で exam に入れたときと同じ判断）。既定は ON ―― 印が出るのは②で周回スキルセットを
+			     選んだときだけで、選ぶこと自体が利用者の明示的な操作なので、そこから更にもう一段
+			     チェックを入れさせる意味が薄いため（exam の属性アイコンが既定 OFF なのは、あちらが
+			     対象スキルを選ばない＝誰の画像にも勝手に付くため）。保存キー uma-special-tier-marks。 -->
+			<label id="tier-marks-row" class="mt-2 flex items-center justify-center gap-2 text-[11px] text-slate-500 cursor-pointer select-none">
+				<input type="checkbox" id="opt-tier-marks" class="rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" checked onchange="setTierMarksEnabled(this.checked)">
+				<span>結合画像に分類の印（◎超優先・○優先・▲通常）を焼く</span>
+			</label>
+
 			<!-- 画像結合の進捗バー（OCR処理と同じ見た目。処理中はstitch-btnを無効化して
 			     多重クリックを防ぐ。詳細はrunImageStitching()参照） -->
 			<div id="stitch-progress-wrap" class="hidden mt-3 p-4 rounded-xl bg-green-50 border border-green-200">
@@ -728,6 +739,10 @@
 		PERSON_SETS.forEach(set => { PERSON_COLORS.push(set.hue, set.hue, set.hue); });
 		const persons = PERSON_LABELS.map(() => ({ files: [] }));
 		let personResults = PERSON_LABELS.map(() => null); // matchAllSkillsWithStars() の戻り値を格納
+		// 結合画像に分類の印を焼くために控えるもの（C-58 の作業C）。personResults[p].skillSources の
+		// 添字は personLines[p] を指し、personGeometry[p] は画像ごとの { rows, columnXs, scale, … }。
+		let personLines = PERSON_LABELS.map(() => null);
+		let personGeometry = PERSON_LABELS.map(() => null);
 
 		/* ============================================================
 		 * 共通CSS（css/tokens.css / common.css / shell.css）の版の照合
@@ -738,7 +753,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-18d';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-18e';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -809,6 +824,7 @@
 			renderPersonUploadGrid();
 			restoreOcrDictionary();
 			initStitchSaveName();
+			loadTierMarksChoice();
 			// どちらのUIで開くかを決める（未読なら新UI＋告知モーダル）。
 			// 初期化が済んでから出したいので、ここを通す時点で他の準備は終わっている。
 			initUiMode();
@@ -1216,14 +1232,24 @@
 			const skipped = [];
 			// 足切りはしないが品質が推奨を下回った画像（利用者への注意表示用）
 			const warned = [];
+			// 結合画像に分類の印を焼くための行の座標（画像ごと・files と同じ並び。C-58 の作業C）。
+			// 行を検出できなかった画像・画質で飛ばした画像のところは null のまま残す。
+			const geometry = files.map(() => null);
 			for (let i = 0; i < files.length; i++) {
 				const file = files[i];
 				const diag = [];
-				let base = null, detection = null;
+				let base = null, detection = null, img = null;
 				try {
-					const img = await loadImage(file);
+					img = await loadImage(file);
 					base = toBaseCanvas(img);
 					diag.push('画像サイズ ' + base.width + '×' + base.height);
+					// 印を焼くのに使う情報。行（rows）は検出できてから入れる（C-58 の作業C）。
+					// 元画像へ戻す倍率は、行が取れなかった画像でも控えておく。
+					geometry[i] = {
+						rows: null, columnXs: null,
+						scale: img.naturalWidth / base.width,
+						naturalW: img.naturalWidth, naturalH: img.naturalHeight
+					};
 
 					// 画質による事前チェック（common.js参照）。SNS再共有や画像結合ツールを経由した
 					// 画像は、辞書やしきい値を調整しても構造的に精度が出ないことを確認済み。
@@ -1262,6 +1288,11 @@
 
 				let target, placements = [], rowStars = [];
 				if (detection) {
+					// rows / columnXs は toBaseCanvas() 後の座標。元画像へ戻す倍率は上で控えてある（C-58）
+					if (geometry[i]) {
+						geometry[i].rows = detection.rows;
+						geometry[i].columnXs = detection.columnXs;
+					}
 					rowStars = computeRowStarCounts(base, detection);
 					const stacked = stackRowsWithMeta(base, detection.rows);
 					target = stacked.canvas;
@@ -1294,7 +1325,7 @@
 					}
 				}
 			}
-			return { lines: lines, skipped: skipped, warned: warned };
+			return { lines: lines, skipped: skipped, warned: warned, geometry: geometry };
 		}
 
 		async function processImages() {
@@ -1311,6 +1342,8 @@
 			devGeometry = [];
 			previewCanvases = [];
 			personResults = persons.map(() => null);
+			personLines = persons.map(() => null);
+			personGeometry = persons.map(() => null);
 
 			const progressWrap = document.getElementById('progress-wrap');
 			const errorWrap = document.getElementById('error-wrap');
@@ -1350,6 +1383,8 @@
 					if (result.skipped.length > 0) skippedAll.push.apply(skippedAll, result.skipped);
 					if (result.warned.length > 0) warnedAll.push.apply(warnedAll, result.warned);
 					personResults[p] = matchAllSkillsWithStars(result.lines, skillList, skillIndex, ocrErrorDictionary);
+					personLines[p] = result.lines;
+					personGeometry[p] = result.geometry;
 				}
 			} catch (err) {
 				console.error(err);
@@ -1597,9 +1632,10 @@
 					totalCell = `<td class="text-center font-bold text-slate-700 person-total">${total}</td>`;
 				}
 
-				// 分類の★（金・銀・銅。C-57 の (10)）は名前の左。★の数（橙）は右の列なので、位置と色で役割が分かれる
+				// 分類の印（競馬の◎○▲。C-58）は名前の左。★の数（橙）は右の列なので、位置と形で役割が分かれる。
+				// 形は core の tiers.markHtml() が返す SVG（結合画像の Canvas と同じ形になるよう1か所で決めている）
 				const tier = deckTierByName[skill];
-				const tierMark = tier ? `<span class="uma-tier-mark" data-tier="${tier}" role="img" aria-label="${escapeHtml(UmaSkillDeckCore.tiers.label(tier))}">★</span> ` : '';
+				const tierMark = tier ? UmaSkillDeckCore.tiers.markHtml(tier) + ' ' : '';
 				tableHtml += `<tr class="transition-colors">
 					<td class="font-medium text-slate-800">${tierMark}${escapeHtml(skill)}</td>
 					${cells}
@@ -1758,6 +1794,183 @@
 		 * special.html専用のセット単位の結合処理のみ。
 		 * ============================================================ */
 
+		/* ------------------------------------------------------------
+		 * 結合画像に分類の印（競馬の◎○▲）を焼く（C-58 の作業C）
+		 *
+		 * どこに置くか: スキルパネルの**スキル名の左にある丸**の上。パネルの左端から丸までは
+		 * 丸の半分ほど、丸から名前までも同じくらいしか空いていないので、別枠を作る余白が無い
+		 * （名前の上に重ねると読めなくなる）。**元の丸は白い円で隠してから**印を描く
+		 * （丸の中の球が透けると、線だけの印が読みにくいため。おいもさんの選択）。
+		 * 消えるのは丸の中の装飾だけで、因子の種類はパネルの地の色が示すので情報は失われない。
+		 *
+		 * 置き場所の求め方は C-30（exam の属性アイコン）と同じ表引き:
+		 *   スキル名 → skillSources[名前] → lines[i].rowKey（"画像の番号:行の番号"）
+		 *            → detectSkillRows() の rows[行番号]（元画像の座標）
+		 *            → stitchOnePerson() の _sourcePlacements（結合後の座標）
+		 * 画素の色は見ない（スクショの明るさや圧縮ノイズに左右されるため）。
+		 *
+		 * **印は必ず結合の「後」に焼く**（C-30）。結合の前に元画像へ描き込むと、継ぎ目を画素の
+		 * 突き合わせで決めている stitchResolveOrder / stitchMeasureSeam が印に引きずられて位置が狂う。
+		 *
+		 * 大きさ・位置の比（因子画面で実測。1179×2556／976×1735／765×1360 の3つで一致）:
+		 *   元の丸の直径 = 列と列の間隔 × 0.0738
+		 *   丸の中心x   = 列の左端 − 列と列の間隔 × 0.0725
+		 *   丸の中心y   = 行の外接矩形の中心y
+		 *   印の差し渡し = 元の丸の 1.20 倍（おいもさんの選択。◎の二重の輪も▲の頂点もつぶれない）
+		 * 基準を画像の幅ではなく**列と列の間隔**にするのも C-30 と同じ理由
+		 * （スクショの左右にゲーム画面以外が入る形で、幅とUIの大きさが対応しなくなるため）。
+		 * ------------------------------------------------------------ */
+		const TIER_CIRCLE_D_OVER_PITCH = 0.0738;
+		const TIER_CIRCLE_CX_OVER_PITCH = 0.0725;
+		const TIER_MARK_SCALE = 1.20;
+
+		function tierCircleMetrics(g) {
+			const xs = g.columnXs || [];
+			// 列がちょうど2本のときだけ測る（間隔が測れなければ置き場所が決まらない。C-30 と同じ）
+			if (xs.length !== 2) return null;
+			const pitch = (xs[1] - xs[0]) * g.scale;
+			if (!(pitch > 0)) return null;
+			return { d: pitch * TIER_CIRCLE_D_OVER_PITCH, offset: pitch * TIER_CIRCLE_CX_OVER_PITCH };
+		}
+
+		/**
+		 * 印の色をトークンから読む。Canvas には CSS が効かないので実行時に引く。
+		 * 1つでも読めなければ null を返し、呼び出し側は印そのものを描かない
+		 * （読めなかったときの代わりの色をここに書くと、生のhexが戻ってきてしまう。F-19）。
+		 */
+		function tierMarkColors() {
+			const css = getComputedStyle(document.documentElement);
+			const out = {};
+			for (const t of [1, 2, 3]) {
+				const v = css.getPropertyValue('--uma-mark-tier-' + t).trim();
+				if (!v) return null;
+				out[t] = v;
+			}
+			return out;
+		}
+
+		/**
+		 * 印そのものを描く。中心 (cx, cy)・差し渡し d。**線だけで塗りつぶさない。**
+		 * 地の明るさがまちまちなので、色の線の外側に白いふち取りを入れる
+		 * （白で太く描いてから、その上に色で細く描く）。形の比率は core.js の
+		 * tiers.markHtml()（画面側のSVG）と同じ値にしてある。
+		 */
+		function drawTierMark(ctx, tier, cx, cy, d, colors) {
+			const r = d / 2;
+			const line = Math.max(1.2, d * 0.08);
+			const halo = Math.max(2, d * 0.15);
+			const paths = [];
+			if (tier === 1) {            // ◎ 本命
+				paths.push(() => { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); });
+				paths.push(() => { ctx.beginPath(); ctx.arc(cx, cy, r * 0.42, 0, Math.PI * 2); });
+			} else if (tier === 2) {     // ○ 対抗
+				paths.push(() => { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); });
+			} else {                     // ▲ 単穴（外接円は ○ の 1.12 倍。塗りが無いぶん小さく見えるため）
+				const rr = r * 1.12;
+				paths.push(() => {
+					ctx.beginPath();
+					for (let i = 0; i < 3; i++) {
+						const a = -Math.PI / 2 + i * (Math.PI * 2 / 3);
+						const x = cx + Math.cos(a) * rr;
+						const y = cy + Math.sin(a) * rr * 0.98 + rr * 0.10;
+						if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+					}
+					ctx.closePath();
+				});
+			}
+			ctx.save();
+			ctx.lineJoin = 'round';
+			ctx.lineCap = 'round';
+			// 元の丸を白で隠す（印の差し渡しは丸の 1.20 倍なので、丸の直径は d ÷ 1.20）
+			ctx.beginPath();
+			ctx.arc(cx, cy, (d / TIER_MARK_SCALE) * 0.51, 0, Math.PI * 2);
+			ctx.fillStyle = 'rgba(255, 255, 255, .92)';
+			ctx.fill();
+			ctx.strokeStyle = '#ffffff';
+			ctx.lineWidth = line + halo;
+			paths.forEach(p => { p(); ctx.stroke(); });
+			ctx.strokeStyle = colors[tier];
+			ctx.lineWidth = line;
+			paths.forEach(p => { p(); ctx.stroke(); });
+			ctx.restore();
+		}
+
+		/**
+		 * 1人分の結合画像（縦につないだCanvas）の上に、分類の印を焼く。返り値は描いた数。
+		 *
+		 * 印が出るのは**②で選んだ周回スキルセットに入っているスキルの行だけ**。3段すべて出すので、
+		 * 「通常に分類したスキル」と「そもそもセットに入れていないスキル（印の無い行）」を見分けられる。
+		 * OCRを回していない人・セットを選んでいないときは、分類が分からないので1つも描かない。
+		 */
+		function drawTierMarksOnPerson(canvas, personIdx) {
+			if (!tierMarksEnabled) return 0;
+			const geo = personGeometry[personIdx];
+			const lines = personLines[personIdx];
+			const res = personResults[personIdx];
+			if (!geo || !lines || !res) return 0;
+			// 行は取れているのに列の間隔を測れない画像が混ざっていたら、この人には印を付けない
+			if (geo.some(g => g && g.rows && !tierCircleMetrics(g))) {
+				devGeometry.push('[分類の印] ' + PERSON_LABELS[personIdx] +
+					': 列がちょうど2本にならない画像があり、置き場所を決められないため印を描きませんでした');
+				return 0;
+			}
+			const colors = tierMarkColors();
+			if (!colors) {
+				devGeometry.push('[分類の印] 色のトークンを読めなかったため、印を描きませんでした');
+				return 0;
+			}
+			// rowKey（"画像の番号:行の番号"）→ 分類
+			const tierByRowKey = {};
+			res.detectedSkills.forEach(name => {
+				const tier = deckTierByName[name];
+				if (!tier) return;
+				(res.skillSources[name] || []).forEach(li => {
+					const l = lines[li];
+					if (l && l.rowKey) tierByRowKey[l.rowKey] = tier;
+				});
+			});
+			if (Object.keys(tierByRowKey).length === 0) return 0;
+
+			// 結合を経ていないCanvasに備えて、恒等の対応表へ倒す（C-30 と同じ）
+			const placements = (canvas._sourcePlacements && canvas._sourcePlacements.length)
+				? canvas._sourcePlacements
+				: [{ fileIndex: 0, srcY0: 0, srcY1: canvas.height, outY0: 0 }];
+			const ctx = canvas.getContext('2d');
+			const placed = [];
+			// 2周する理由は C-30 と同じ。同じ段でも、写っている画像によって行として検出できたり
+			// できなかったりする（段がリスト表示枠の上端・下端で切れていると落ちる）ので、
+			// 1周目に「その画像から実際に採った範囲」の行を置き、2周目にそれ以外も同じ平行移動で写す。
+			[true, false].forEach(inRangeOnly => {
+				placements.forEach(p => {
+					const g = geo[p.fileIndex];
+					if (!g || !g.rows || !g.columnXs) return;
+					const m = tierCircleMetrics(g);
+					if (!m) return;
+					const d = m.d * TIER_MARK_SCALE;
+					g.rows.forEach((row, rowIndex) => {
+						const tier = tierByRowKey[p.fileIndex + ':' + rowIndex];
+						if (!tier) return;
+						const cySrc = (row.y + row.h / 2) * g.scale;
+						const inRange = (cySrc >= p.srcY0 && cySrc < p.srcY1);
+						if (inRangeOnly !== inRange) return;
+						const cx = g.columnXs[row.col] * g.scale - m.offset;
+						const cy = p.outY0 + (cySrc - p.srcY0);
+						if (cy < 0 || cy >= canvas.height) return;
+						// 同じ行が2枚に写っていたときの重ね描きを避ける
+						if (placed.some(q => Math.abs(q.x - cx) < d && Math.abs(q.y - cy) < d)) return;
+						placed.push({ x: cx, y: cy });
+						drawTierMark(ctx, tier, cx, cy, d, colors);
+					});
+				});
+			});
+			const want = Object.keys(tierByRowKey).length;
+			if (placed.length < want) {
+				devGeometry.push('[分類の印] ' + PERSON_LABELS[personIdx] + ': 印を置いた ' + placed.length +
+					' / 置きたかった行 ' + want + '（結合後のCanvasに収まらなかった行があります）');
+			}
+			return placed.length;
+		}
+
 		// 指定セット（0=親A, 1=親B）のうち、アップロード済みの人（1〜3人）
 		// それぞれを縦結合し、横結合したCanvasを返す（バナー等は付けず、スキルパネルの
 		// 結合のみ）。アップロードが1人分のみの場合は横結合をスキップしてその1人分を返す。
@@ -1776,6 +1989,8 @@
 				if (onPersonStart) onPersonStart(label);
 				const contentCanvas = await stitchOnePerson(persons[idx].files, label);
 				if (!contentCanvas) continue;
+				// 分類の印は**結合の後**に焼く（C-58 の作業C。前に焼くと継ぎ目の判定が狂う）
+				drawTierMarksOnPerson(contentCanvas, idx);
 				contentCanvases.push(contentCanvas);
 				if (contentCanvas._stitchWarnings && contentCanvas._stitchWarnings.length) {
 					allWarnings.push(...contentCanvas._stitchWarnings);
@@ -1998,7 +2213,22 @@
 		// 「保存したテンプレート」なのか「ドラフト」なのかを
 		// このファイル側で区別せずに済むよう、選択結果はこの1つにまとめて持つ。
 		let deckScope = null;
-		// 照合対象のスキル名 → 分類（1＝超優先／2＝優先／3＝通常。C-57 の (10)）。照合結果の表で名前の前に金・銀・銅の★を出すために持つ。
+		// 分類の印を結合画像に焼くか（C-58 の作業C）。保存値が無ければ ON
+		let tierMarksEnabled = true;
+
+		function loadTierMarksChoice() {
+			const v = readStored(TIER_MARKS_STORAGE_KEY);
+			tierMarksEnabled = (v !== '0');
+			const el = document.getElementById('opt-tier-marks');
+			if (el) el.checked = tierMarksEnabled;
+		}
+
+		function setTierMarksEnabled(on) {
+			tierMarksEnabled = !!on;
+			writeStored(TIER_MARKS_STORAGE_KEY, tierMarksEnabled ? '1' : '0');
+		}
+
+		// 照合対象のスキル名 → 分類（1＝超優先／2＝優先／3＝通常。C-57 の (10)）。照合結果の表で名前の前に競馬の印を出すために持つ。
 		// Deck連携モードで対象スキルセットを選んだときだけ埋まる（旧UIの手貼りのリストでは空＝印は出ない）
 		let deckTierByName = {};
 		let deckMasterLoaded = false;
@@ -2023,6 +2253,8 @@
 		const UI_MODE_STORAGE_KEY = 'uma-special-ui-mode';       // 'new' | 'old'
 		const UI_NOTICE_STORAGE_KEY = 'uma-special-ui-notice';   // 見た告知のID
 		const UI_NOTICE_ID = '2026-09-new-ui-default';
+		// 分類の印を結合画像に焼くか（C-58 の作業C）。**保存値が無ければ ON**（理由はチェックの脇のコメント）
+		const TIER_MARKS_STORAGE_KEY = 'uma-special-tier-marks';
 
 		function readStored(key) {
 			try { return localStorage.getItem(key); } catch (e) { return null; }
@@ -2542,7 +2774,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-18d';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-18e';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {
