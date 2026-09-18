@@ -34,7 +34,8 @@
 //     - core の組み込みの写しが正本と 1文字も違わない（id・名前・並び・件数）
 //     - id が一意で、マスターのID（1〜445）と衝突しない
 //     - Deck 側で全件が findSkill() で引け、名前から同じ id へ解決する
-//     - 追加カタログは「条件でスキルを検索」の母集団には入っていない
+//     - 「条件でスキルを検索」の母集団に入るのは、追加カタログのうちタグが付いたものだけ
+//       （段1b で変わった。それまでは追加カタログを1件も入れていなかった）
 //   を見る。Deck のページは http で開く（file:// だと JSON のフェッチが CORS で
 //   落ちて組み込みの写しに落ち、正本との突き合わせにならないため）。
 //     - シナリオ因子どうし・シナリオ因子とスキル名が、normalizeText 後に衝突しない
@@ -244,12 +245,24 @@ const catalogReport = await deckPage.evaluate(({ masterIds, wantByCategory }) =>
 			const row = C.matchPastedSkillText(e.name).rows[0];
 			return !row || row.kind !== 'exact' || row.matchedId !== e.id;
 		}).map((e) => e.name),
-		// 「条件でスキルを検索」の母集団には入れない（タグ無しで万能扱いになるため）
-		inPickerPool: (function () {
+		// 「条件でスキルを検索」の母集団に入るのは**タグが付いたものだけ**（段1b）。
+		// タグを持たないものを入れると、matchesFilters() では「8軸すべてが空＝万能スキル」＝
+		// どの条件にも当たる扱いになり、どんな条件で検索しても一覧に居座る。
+		// 対象は「タグ未設定の拡張スキル（tagsPending）」と「そもそもタグを持たない
+		// カテゴリ（シナリオ因子）」の2種類だが、どちらも tags の有無だけで判定できるので、
+		// **このテストにもカテゴリ名を書かない**（恒久ルール1）。
+		// 両方向を見る ―― タグ付きが入っていない場合も、タグ無しが入っている場合も落とす。
+		pickerPoolProblems: (function () {
 			C.openSkillPicker([], () => {});
 			const ids = new Set(Array.from(document.querySelectorAll('[data-usd-el="skill-check"]')).map((el) => el.value));
 			C.closeSkillPicker();
-			return cat.filter((e) => ids.has(e.id)).map((e) => e.id);
+			return cat.filter((e) => !!e.tags !== ids.has(e.id))
+				.map((e) => e.id + (e.tags ? '（タグ付きなのに母集団に無い）' : '（タグが無いのに母集団に居る）'));
+		})(),
+		// 内訳（情報。検査には使わない）。タグ付けの進み具合がここに出る。
+		pickerPoolCounts: (function () {
+			const tagged = cat.filter((e) => !!e.tags).length;
+			return { カタログ: cat.length, タグ付き: tagged, タグ無し: cat.length - tagged };
 		})(),
 	};
 }, { masterIds: deckSkills.map((s) => s.id), wantByCategory: catalogWant });
@@ -360,8 +373,9 @@ check(catalogReport.findProblems.length === 0,
 	'全件が findSkill() で引け、kind にカテゴリが付く', catalogReport.findProblems);
 check(catalogReport.resolveProblems.length === 0,
 	'名前から同じ id へ解決する（OCRツールから渡った名前が当たる）', catalogReport.resolveProblems);
-check(catalogReport.inPickerPool.length === 0,
-	'「条件でスキルを検索」の母集団には入っていない', catalogReport.inPickerPool);
+check(catalogReport.pickerPoolProblems.length === 0,
+	'「条件でスキルを検索」の母集団に入るのはタグ付きのものだけ', catalogReport.pickerPoolProblems);
+console.log('    母集団の内訳:', JSON.stringify(catalogReport.pickerPoolCounts));
 // core の組み込みの写し（フェッチもキャッシュも駄目なときの最後の砦）。カテゴリごとに見る。
 const embeddedDiff = [];
 for (const src of catalogSources) {

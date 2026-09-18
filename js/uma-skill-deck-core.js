@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19d';
 
 	/* ============================================================
 	 * 定数
@@ -2204,11 +2204,22 @@
 		if (tab) tab.focus();
 	}
 
-	// 「条件でスキルを検索」の母集団。追加カタログはここには入れない
-	// （タグを持たないため、matchesFilters では万能スキル扱いになって全条件に当たる）。
-	// 名前で探す側（findSkillsByNameFragment → buildSkillTextIndex）には入っている。
+	// 「条件でスキルを検索」の母集団。マスター＋利用者のカスタムスキル＋
+	// **タグが付いた追加カタログのもの**（段1b）。
+	//
+	// **タグを持たないものは入れない。** matchesFilters() では「8軸すべてが空＝万能スキル」＝
+	// **どの条件にも当たる**扱いになるので、タグ未設定のものを入れると、どんな条件で検索しても
+	// 一覧の先頭から最後まで居座ることになる。対象は2種類ある:
+	// - タグ未設定の拡張スキル（`tagsPending`。付け終わったものから自動でここへ入る）
+	// - そもそもタグを持たないカテゴリ（シナリオ因子。`tags` も `tagsPending` も持たない）
+	// どちらも「`tags` を持っているか」の1つの判定で外れるので、カテゴリ名では分岐しない。
+	//
+	// 名前で探す側（findSkillsByNameFragment → buildSkillTextIndex）には、タグの有無に関係なく
+	// 全件が入っている（名前で引くだけなら万能スキル扱いの問題が起きないため）。
 	function getFilteredPickerPool() {
-		const pool = masterSkills.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name, tags: c.tags })));
+		const pool = masterSkills
+			.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name, tags: c.tags })))
+			.concat(extraCatalog.filter(x => x.tags).map(x => ({ id: x.id, name: x.name, tags: x.tags })));
 		const hidden = new Set(pickerHiddenIds);
 		return pool.filter(s => !picker.excludeIds.includes(s.id) && !hidden.has(s.id) && matchesFilters(s, picker.filters));
 	}
