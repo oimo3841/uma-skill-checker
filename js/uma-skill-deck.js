@@ -15,16 +15,17 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-18a';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-18b';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
 // 「直したはずなのに直っていない」状態になるため、起動時に照合する。
-const EXPECTED_COMMON_CSS_VERSION = '2026-09-18a';
+const EXPECTED_COMMON_CSS_VERSION = '2026-09-18b';
 // このページが読む共通CSSと、それぞれが :root に持つ版の印
 const COMMON_CSS_FILES = [
 	['css/tokens.css', '--common-css-version'],
 	['css/common.css', '--uma-components-css-version'],
+	['css/shell.css', '--uma-shell-css-version'],   // 帯のタブ（C-54）のために 55セッション目から読む
 ];
 
 function loadedCssVersion(prop) {
@@ -1303,6 +1304,8 @@ async function initApp() {
 	userData = Core.getUserData();
 	await Core.loadMasterSkills(false);
 	templateManager = Core.createTemplateManager(document.getElementById('template-panel-root'), {
+		// 「＋ 新規」の中身（未保存のスキルセット）をこのページ用に残す（C-53。special の 'special' とは別）
+		draftScopeKey: 'deck',
 		// テンプレートの追加・削除・改名は比較シートタブの選択肢にも影響するため、
 		// 変更があったら他タブも描き直す。
 		onChange: () => { renderRecordTab(); renderDataTab(); },

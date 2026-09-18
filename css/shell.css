@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-09-18a";
+	--uma-shell-css-version: "2026-09-18b";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -99,6 +99,61 @@
 .step-panel[hidden] { display: none !important; }
 /* Tailwind の preflight が来なかった場合の保険（F-13と同じ理由で自前でも指定する） */
 #ui-mode-badge[hidden] { display: none !important; }
+
+/* ============================================================
+ * 帯のタブ（.uma-subtabs）— タブの中で「どれを扱うか」を選ぶ2段目のタブ（C-54）
+ *
+ * ステップのタブ（上の .step-tab）の下に置く、保存した編成／スキルセット／親A・親Bセットの
+ * 切り替え。見た目はステップのタブと同じ規則（選択中は黒の下線＋濃い文字、未選択は灰）。
+ * 帯は**横だけ**スクロールする（縦は動かない＝斜めスクロールにならない。C-51 の10節⑥）。
+ * 狭い画面ではタブを固定幅にして「＋ 新規」＋3件が見え、4件目からは左右スワイプ。
+ * **選択中のタブだけ幅を広げ、名前と件数まで読める**ようにする（C-54 の (8)）。
+ * 描画は js/uma-skill-deck-core.js の tabStrip.html()（Exam で使うときは core.js を読み込む）。
+ * 色付き（.uma-subtab--tinted）は --uma-subtab-tint-* を持つクラスと組み合わせて使う
+ * （special の親A／親Bセット＝ .person-col-blue / .person-col-red）。
+ * ============================================================ */
+.uma-subtabs-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2); }
+.uma-subtabs {
+	display: flex; gap: var(--uma-sp-1); min-width: 0; flex: 1 1 auto;
+	overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; scrollbar-width: none;
+	border-bottom: 1px solid var(--uma-border-strong);
+}
+.uma-subtabs::-webkit-scrollbar { display: none; }
+.uma-subtab {
+	flex: none; scroll-snap-align: start; max-width: 180px; min-width: 0;
+	display: inline-flex; align-items: center; gap: var(--uma-sp-1);
+	padding: var(--uma-sp-1-5) var(--uma-sp-2); margin-bottom: -1px;
+	background: none; border: 0; border-bottom: 2px solid transparent;
+	font: inherit; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600;
+	color: var(--uma-text-subtle); cursor: pointer; white-space: nowrap;
+}
+.uma-subtab-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.uma-subtab-count {
+	flex: none; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 700;
+	padding: 0 var(--uma-sp-1-5); border-radius: var(--uma-r-full);
+	background: var(--uma-surface-muted); color: var(--uma-text-subtle);
+}
+.uma-subtab:hover { color: var(--uma-text-heading); }
+.uma-subtab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
+.uma-subtab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control); }
+.uma-subtab[aria-selected="true"] .uma-subtab-count { background: var(--uma-control); color: var(--uma-text-inverse); }
+.uma-subtab--new { font-weight: 700; }
+.uma-subtab--tinted[aria-selected="true"] {
+	background: var(--uma-subtab-tint-bg, transparent);
+	color: var(--uma-subtab-tint-fg, var(--uma-text-heading));
+	border-bottom-color: var(--uma-subtab-tint-line, var(--uma-control));
+	border-radius: var(--uma-r-sm) var(--uma-r-sm) 0 0;
+}
+.uma-subtab--tinted[aria-selected="true"] .uma-subtab-count {
+	background: var(--uma-subtab-tint-fg, var(--uma-control)); color: var(--uma-text-inverse);
+}
+@media (max-width: 640px) {
+	.uma-subtabs { flex-basis: 100%; }   /* 見出しの下の行へ折り返し、帯に幅いっぱいを使う */
+	.uma-subtab { width: 72px; max-width: 72px; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }
+	.uma-subtab--new { width: 56px; max-width: 56px; }
+	/* 選択中は幅を広げて名前と件数まで読めるようにする（残りは横スワイプで届く） */
+	.uma-subtab[aria-selected="true"] { width: auto; max-width: 75%; }
+}
 @media (max-width: 640px) {
 	.step-tab { gap: var(--uma-sp-1-5); padding: var(--uma-sp-2) var(--uma-sp-1); font-size: var(--uma-fs-xs); }
 	.step-tab-num { width: 20px; height: 20px; }

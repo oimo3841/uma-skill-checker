@@ -261,45 +261,37 @@ const browser = await chromium.launch();
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.waitForTimeout(300);
 
-	/* --- 新UIの対象スキルセット一覧：ドラフトの行と、編集画面の「すべて外す」 --- */
-	const draftRow = await page.evaluate(() => {
-		const card = document.querySelector('#deck-template-panel [data-usd-act="draft-open"]').closest('label');
+	/* --- 新UIのスキルセット：帯のタブ（先頭の「＋ 新規」＝ドラフト）と、その場の編集（C-53） --- */
+	const draftTab = await page.evaluate(() => {
+		const p = document.getElementById('deck-template-panel');
+		const tab = p.querySelector('.uma-subtab[data-tab-id="__draft__"]');
 		return {
-			title: card.querySelector('p').textContent,
-			sub: card.querySelectorAll('p')[1].textContent,
-			hasTrash: !!card.querySelector('[data-usd-act="draft-clear"]'),
-			icons: card.querySelectorAll('button').length
+			label: tab.querySelector('.uma-subtab-label').textContent, selected: tab.getAttribute('aria-selected'),
+			tabs: p.querySelectorAll('.uma-subtab').length,
+			hasOld: !!p.querySelector('[data-usd-act="template-open"], [data-usd-act="draft-open"], [data-usd-el="template-radio"]'),
+			placeholder: p.querySelector('[data-usd-el="name-input"]').placeholder,
+			dupHidden: p.querySelector('[data-usd-el="dup-btn"]').hidden, delHidden: p.querySelector('[data-usd-el="del-btn"]').hidden,
+			note: p.querySelector('[data-usd-el="editor-note"]').textContent
 		};
 	});
-	assert(draftRow.title.startsWith('ドラフト') && /\d+種/.test(draftRow.title),
-		'special: ドラフトの行に名前と件数が出る', draftRow.title);
-	assert(draftRow.sub.startsWith('※次回開いた際も復元されます'),
-		'special: ドラフトの行に復元の案内が出る', draftRow.sub);
-	assert(draftRow.hasTrash === false && draftRow.icons === 1,
-		'special: ドラフトの行にごみ箱ボタンは無く、編集だけが残る', draftRow);
-
-	await page.click('#deck-template-panel [data-usd-act="draft-open"]');
-	await page.waitForTimeout(400);
+	assert(draftTab.label === '＋ 新規' && draftTab.selected === 'true',
+		'special: 先頭のタブは「＋ 新規」（ドラフト）で、最初はそれが選ばれている', draftTab);
+	assert(!draftTab.hasOld, 'special: 「開く」・ラジオ・ドラフトの行は無い（タブで選んでその場で編集する）', draftTab);
+	assert(draftTab.placeholder === '新しいスキルセットの名前' && draftTab.dupHidden && draftTab.delHidden,
+		'special: 「＋ 新規」では名前欄が「新しいスキルセットの名前」で、複製・削除は出ない', draftTab);
+	assert(draftTab.note.startsWith('保存すると名前を付けて残せます'), 'special: 「＋ 新規」の注記は保存の案内', draftTab.note);
 	const clearBtn = await page.evaluate(() => {
 		const btn = document.querySelector('#deck-template-panel [data-usd-el="clear-skills"]');
 		const n = Number(document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent);
 		return { exists: !!btn, disabled: btn ? btn.disabled : null, count: n };
 	});
-	assert(clearBtn.exists, 'special: 編集画面に「すべて外す」がある', clearBtn);
+	assert(clearBtn.exists, 'special: 「すべて外す」がある', clearBtn);
 	assert(clearBtn.disabled === (clearBtn.count === 0),
 		'special: 「すべて外す」は選択が無いときだけ押せない', clearBtn);
-	// 編集画面の見出しも一覧の行と同じ呼び方にしてある（名前の食い違いを作らない）
-	assert(await page.evaluate(() =>
-		document.querySelector('#deck-template-panel [data-usd-el="draft-title"]').textContent) === 'ドラフト',
-		'special: ドラフトの編集画面の見出しも「ドラフト」');
-	await page.click('#deck-template-panel [data-usd-act="editor-close"]');
-	await page.waitForTimeout(400);
 
-	/* 選んだときに出る名前（getSelection().name）も一覧の行と揃っていること。
+	/* 選んだときに出る名前（getSelection().name）もタブと揃っていること。
 	   ドラフトは空だと選べないので、「テキストで検索」で実際に1件入れてから確かめる
-	   （ついでに、編集画面からの貼り付け→追加の一連が通ることも見ている）。 */
-	await page.click('#deck-template-panel [data-usd-act="draft-open"]');
-	await page.waitForTimeout(400);
+	   （ついでに、貼り付け→追加の一連が通ることも見ている）。 */
 	await page.click('#deck-template-panel [data-usd-act="editor-pick-text"]');
 	await page.waitForTimeout(700);
 	await page.fill('[data-usd-el="paste-input"]', '右回り○');
@@ -318,29 +310,20 @@ const browser = await chromium.launch();
 		};
 	});
 	assert(draftFoot.heading === '追加済みスキル（1種）',
-		'special: 編集画面の見出しが「追加済みスキル（N種）」', draftFoot.heading);
+		'special: 見出しが「追加済みスキル（N種）」', draftFoot.heading);
 	assert(draftFoot.label === 'チェックしたスキルを追加（' + draftFoot.n + '種追加済み）',
 		'special: ボタンの「XX種追加済み」が背後の見出しと同じ数', draftFoot);
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);
-	assert(await page.evaluate(() =>
-		document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent) === '1',
-		'special: 貼り付けたスキルがドラフトに入る');
-	await page.click('#deck-template-panel [data-usd-act="editor-close"]');
-	await page.waitForTimeout(400);
-
-	const draftPicked = await page.evaluate(() => {
-		const radio = document.querySelector('#deck-template-panel [data-usd-el="template-radio"][value="__draft__"]');
-		radio.click();
-		return {
-			note: document.getElementById('deck-selected-note').textContent,
-			row: document.querySelector('#deck-template-panel [data-usd-act="draft-open"]').closest('label').querySelector('p').textContent
-		};
-	});
-	await page.waitForTimeout(300);
+	const draftPicked = await page.evaluate(() => ({
+		count: document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent,
+		note: document.getElementById('deck-selected-note').textContent,
+		tab: document.querySelector('#deck-template-panel .uma-subtab[data-tab-id="__draft__"]').textContent.trim()
+	}));
+	assert(draftPicked.count === '1', 'special: 貼り付けたスキルがドラフトに入る', draftPicked);
 	assert(draftPicked.note === '✓ 「ドラフト」の1種を照合します',
-		'special: 選択中の案内にも一覧と同じ「ドラフト」が出る', draftPicked);
-	assert(draftPicked.row.startsWith('ドラフト'), 'special: 一覧の行の呼び方と一致している', draftPicked);
+		'special: 中身ができたドラフトはそのまま照合対象になり、案内にも「ドラフト」が出る', draftPicked);
+	assert(draftPicked.tab === '＋ 新規1種', 'special: 「＋ 新規」のタブに件数が出る', draftPicked);
 
 	// Deck まわりはここまで。以降は旧UIに戻して確かめる。
 	// 片道化（C-32）で新UIから旧UIへは入れないので、保存値 'old' で開き直す
@@ -405,9 +388,14 @@ const browser = await chromium.launch();
 	await page.click('#step-tab-2');
 	await page.waitForTimeout(300);
 
-	await page.click('#setb-toggle-btn');
+	// 親A／親Bセットは帯のタブで切り替える（C-54）。B のタブを押すと B のパネルだけが見える
+	const setTabs = await page.evaluate(() => [...document.querySelectorAll('#personset-tabs .uma-subtab')].map(t => ({
+		label: t.querySelector('.uma-subtab-label').textContent, selected: t.getAttribute('aria-selected'), tinted: t.classList.contains('uma-subtab--tinted') })));
+	assert(setTabs.length === 2 && setTabs[0].label === '親Aセット' && setTabs[0].selected === 'true' && setTabs[1].label === '親Bセット' && setTabs.every(t => t.tinted),
+		'special: ③に親A／親Bセットのタブがあり、既定は親A', setTabs);
+	await page.click('#personset-tabs .uma-subtab[data-tab-id="1"]');
 	await page.waitForTimeout(300);
-	assert(await page.isVisible('#personset-B-wrap'), 'special: 親Bセットが開く');
+	assert(await page.isVisible('#personset-B-wrap') && !(await page.isVisible('#personset-A-wrap')), 'special: 親Bセットのタブで B のパネルだけが見える');
 	// 隠れている側の状況が分かるよう、②のタブにアップロード枚数を出す
 	const imgBadge = await page.evaluate(() => {
 		const el = document.getElementById('image-count-badge');
@@ -731,10 +719,9 @@ const browser = await chromium.launch();
 	// ラベル「スキルセットのスクショで追加」、アイコンはアップロード枠と同じ upload-cloud、隣に「?」＝撮影ガイド）。
 	// 一覧の画面には無い。ドラフトの編集を開いてから見る。
 	// 編集画面のマークアップは一覧と同じコンテナに hidden で同居するので、「見えているか」で見る
-	assert(await page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-act="editor-pick-screenshot"]'); return !b || b.offsetParent === null; }),
-		'special/ocr入口: 一覧の画面には入口が見えない（編集画面の入口の並びにだけ出す）');
-	await page.click('#deck-template-panel [data-usd-act="draft-open"]');
-	await page.waitForTimeout(400);
+	// 入口は常に見えている（C-53: 別画面の編集ビューは無く、タブで選んだものをその場で編集する）
+	assert(await page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-act="editor-pick-screenshot"]'); return !!b && b.offsetParent !== null; }),
+		'special/ocr入口: 入口が入口の並びに見えている');
 	const entry = await page.evaluate(() => {
 		const row = document.querySelector('#deck-template-panel .usd-entry-row');
 		const buttons = [...row.querySelectorAll('button')].map((b) => ({ act: b.dataset.usdAct, label: b.textContent.trim(), cls: b.className, icon: (b.querySelector('svg, i') || {}).getAttribute ? (b.querySelector('svg, i').getAttribute('data-lucide') || b.querySelector('svg, i').getAttribute('class')) : null }));
@@ -1341,7 +1328,7 @@ const browser = await chromium.launch();
 	const step2 = await stepState();
 	assert(step2.tab2 === 'true' && !step2.panel1 && step2.panel2, 'exam: ②のタブを押すとパネルが入れ替わる', step2);
 	assert(await page.isVisible('#process-btn') && await page.isVisible('#setb-toggle-btn'),
-		'exam: ②に実行ボタンと「親Bセットも追加する」がある');
+		'exam: ②に実行ボタンと「親Bセットも追加する」がある');  // exam は据え置き（C-54 は special だけ）
 	await page.keyboard.press('ArrowLeft');
 	await page.waitForTimeout(300);
 	assert((await stepState()).panel1, 'exam: ←キーで①へ戻る');
@@ -3471,7 +3458,7 @@ const browser = await chromium.launch();
 			return c;
 		};
 		// 親Aセット・親Bセットの両方を対象にする（一部成功を作れるように）
-		setBVisible = true;
+		selectPersonSet(1);   // タブ化（C-54）で非表示の概念は無いが、B を見ている状態で回す
 		persons[0].files = [{ name: 'a1.png' }, { name: 'a2.png' }];
 		persons[3].files = [{ name: 'b1.png' }, { name: 'b2.png' }];
 		buildStitchedSetImage = async (setIdx) => {
@@ -3491,7 +3478,7 @@ const browser = await chromium.launch();
 		markFabUnseen = origMark;
 		persons[0].files = [];
 		persons[3].files = [];
-		setBVisible = false;
+		selectPersonSet(0);
 		closeDrawer();
 		return out;
 	}, okSets);
@@ -3545,7 +3532,7 @@ const browser = await chromium.launch();
 		JSON.stringify({ skillIds: ids, updatedAt: '' })), PICK.map((s) => s.id));
 	await page.reload({ waitUntil: 'networkidle' });
 	await page.waitForTimeout(2500);
-	await page.click('#deck-template-panel [data-usd-act="draft-open"]');
+	await page.click('#deck-template-panel .uma-subtab[data-tab-id="__draft__"]');
 	await page.waitForTimeout(400);
 
 	const storedDraft = () => page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds);
@@ -3564,8 +3551,8 @@ const browser = await chromium.launch();
 	const cleared = await undoUi();
 	assert(cleared.count === 0 && (await storedDraft()).length === 0,
 		'undo: 「すべて外す」で0種になり、保存先も空になる', cleared);
-	assert(cleared.btn && cleared.badge === '1' && cleared.stack === 1 && cleared.scope === 'editor',
-		'undo: 編集画面に「元に戻す ①」が出る', cleared);
+	assert(cleared.btn && cleared.badge === '1' && cleared.stack === 1 && cleared.scope === 'list',
+		'undo: 「元に戻す ①」が出る（scope は list）', cleared);
 	assert(cleared.toast === '追加済みスキル' + PICK.length + '種を外しました',
 		'undo: 実行時のトーストは doneLabel（単位は「種」）', cleared.toast);
 	await page.click('#deck-undo-btn');
@@ -3582,11 +3569,11 @@ const browser = await chromium.launch();
 	await page.reload({ waitUntil: 'networkidle' });
 	await page.waitForTimeout(2500);
 	const afterReload = await page.evaluate(() =>
-		document.querySelector('#deck-template-panel [data-usd-act="draft-open"]').closest('label').querySelector('p').textContent);
+		document.querySelector('#deck-template-panel .uma-subtab[data-tab-id="__draft__"]').textContent);
 	assert(/12種/.test(afterReload), 'undo: リロードしても戻した12種が保たれている', afterReload);
 
 	// 3) 個別に外す → 元に戻す。位置も含めて実行前と一致すること
-	await page.click('#deck-template-panel [data-usd-act="draft-open"]');
+	await page.click('#deck-template-panel .uma-subtab[data-tab-id="__draft__"]');
 	await page.waitForTimeout(400);
 	const single = await page.evaluate(() => {
 		const read = () => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds;
@@ -3602,20 +3589,17 @@ const browser = await chromium.launch();
 	assert(single.toast === '外したスキル「' + PICK[3].name + '」を戻しました',
 		'undo: 個別に外したものを戻すトーストは「外したスキル「○○」を戻しました」', single.toast);
 
-	// 3b) 編集画面を閉じるとスタックが空になり、ボタンが消える（開き直しても復活しない）
+	// 3b) 別画面の編集ビューは無くなった（C-53）。「すべて外す」のあと、①のタブへ移って戻っても「元に戻す」は残り、戻せる
 	await page.click('#deck-template-panel [data-usd-el="clear-skills"]');
 	await page.waitForTimeout(200);
-	const beforeClose = await undoUi();
-	await page.click('#deck-template-panel [data-usd-act="editor-close"]');
-	await page.waitForTimeout(400);
-	const afterClose = await undoUi();
-	assert(beforeClose.stack === 1 && afterClose.stack === 0 && !afterClose.btn && afterClose.scope === 'list',
-		'undo: 編集画面を閉じるとスタックが空になり「元に戻す」が消える', { beforeClose, afterClose });
-	await page.click('#deck-template-panel [data-usd-act="draft-open"]');
-	await page.waitForTimeout(400);
-	const reopened = await undoUi();
-	assert(reopened.stack === 0 && !reopened.btn && reopened.scope === 'editor',
-		'undo: 開き直しても前のぶんは復活しない', reopened);
+	const beforeSwitch = await undoUi();
+	await page.evaluate(() => { selectStepTab(0); selectStepTab(1); });
+	await page.waitForTimeout(300);
+	const afterSwitch = await undoUi();
+	assert(beforeSwitch.stack === 1 && afterSwitch.stack === 1 && afterSwitch.btn && afterSwitch.scope === 'list',
+		'undo: タブを移って戻っても「元に戻す」は残る（scope は list）', { beforeSwitch, afterSwitch });
+	assert(await page.evaluate(() => UmaSkillDeckCore.performUndo()) && (await storedDraft()).length === PICK.length,
+		'undo: 残っている「元に戻す」で12種が戻る');
 
 	// 4) 成功を名乗る前の検証。apply() が false／状態が変わらない／積んだ時点の状態に戻らない、はどれも失敗扱い
 	for (const [how, entry] of [
@@ -3674,7 +3658,7 @@ const browser = await chromium.launch();
 	await page.evaluate(() => { localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify({ skillIds: [], updatedAt: '' })); });
 	await page.reload({ waitUntil: 'networkidle' });
 	await page.waitForTimeout(2500);
-	await page.click('#deck-template-panel [data-usd-act="draft-open"]');
+	await page.click('#deck-template-panel .uma-subtab[data-tab-id="__draft__"]');
 	await page.waitForTimeout(400);
 
 	// ピッカーを開いて、指定した数だけチェックして追加する
@@ -3813,8 +3797,11 @@ const browser = await chromium.launch();
 		assert((await undoBtn()).shown === false, 'undo(deck): ' + label + ' を戻すとボタンが消える');
 	}
 
-	await roundTrip('テンプレート削除', () => { document.querySelector('[data-usd-act="template-delete"]').click(); }, 'list',
-		'削除したテンプレート「' + USER_DATA.templates[0].name + '」を戻しました');
+	// 削除は「選んでいるタブのスキルセット」に効く（C-53）。先にそのタブを選ぶ
+	await page.evaluate((id) => templateManager.openEditor(id), USER_DATA.templates[0].templateId);
+	await page.waitForTimeout(200);
+	await roundTrip('スキルセット削除', () => { document.querySelector('[data-usd-act="template-delete"]').click(); }, 'list',
+		'削除したスキルセット「' + USER_DATA.templates[0].name + '」を戻しました');
 
 	await page.click('#tab-btn-record');
 	await page.waitForTimeout(300);
@@ -3902,7 +3889,8 @@ const browser = await chromium.launch();
 		'undo(deck): 一覧のぶんはシートを開いている間だけ隠れ、閉じると数ごと戻る', { listEntry, hiddenInSheet, backInList });
 	assert(await page.evaluate(() => performUndo()), 'undo(deck): 一覧に戻ってから比較シート削除を元に戻せる');
 
-	// テンプレート編集：チップの×で外す→閉じるとスタックが空になる
+	// スキルセットの編集：チップの×で外す → 別のタブへ移っても「元に戻す」は残り、戻せる（C-53。
+	// 別画面の編集ビューは無くなったので、閉じて捨てる動きも無い）
 	await page.click('#tab-btn-template');
 	await page.waitForTimeout(300);
 	await page.evaluate((id) => templateManager.openEditor(id), USER_DATA.templates[0].templateId);
@@ -3910,11 +3898,12 @@ const browser = await chromium.launch();
 	await page.click('[data-usd-act="template-skill-remove"]');
 	await page.waitForTimeout(200);
 	const editorEntry = await undoBtn();
-	await page.click('[data-usd-act="editor-close"]');
+	await page.evaluate((id) => templateManager.openEditor(id), USER_DATA.templates[1].templateId);
 	await page.waitForTimeout(300);
-	const editorClosed = await undoBtn();
-	assert(editorEntry.scope === 'editor' && editorEntry.stack === 1 && editorClosed.scope === 'list' && editorClosed.stack === 0,
-		'undo(deck): テンプレートの編集画面を閉じると、そのぶんは捨てられる', { editorEntry, editorClosed });
+	const afterSwitch = await undoBtn();
+	const undoneAcross = await page.evaluate(() => performUndo());
+	assert(editorEntry.scope === 'list' && editorEntry.stack === 1 && afterSwitch.stack === 1 && undoneAcross,
+		'undo(deck): スキルセットのタブを切り替えても「元に戻す」は残り、戻せる', { editorEntry, afterSwitch, undoneAcross });
 
 	// インポート（全データの置き換え）→ 元に戻す。確認ダイアログは Playwright が打ち消すので差し替える（F-25）
 	await page.click('#tab-btn-data');

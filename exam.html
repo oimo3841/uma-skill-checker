@@ -10,8 +10,8 @@
 	     ダイアログ）だけを読む。共通部品（common.css）は読まない — 読むと .glass-card の余白など
 	     このページの既存の見た目が変わるため（exam-ui-analysis.md A-3）。変数は参照されない限り
 	     何も描かないので、既存の見た目はそのまま。Tailwind より先に読み込む（レイヤー無しの方が強い）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-18a" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-18a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-18b" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-18b" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -1941,7 +1941,7 @@
 		 * 同じ版数の印を持つ。このページが読む2つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（このページは common.css を読まないので、その印は見ない）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-18a';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-18b';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/shell.css', '--uma-shell-css-version'],
@@ -5359,7 +5359,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-18a';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-18b';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;

@@ -91,7 +91,8 @@ for (const [p, re] of CSS_FILES.slice(1)) {
 // どのページがどのファイルを読むか（レポート exam-ui-analysis.md A-5 の表）
 const CSS_LINKS = {
 	'special.html': ['tokens', 'common', 'shell'],
-	'uma-skill-deck.html': ['tokens', 'common'],
+	// Deck は帯のタブ（.uma-subtabs。C-54）が shell.css にあるので、55セッション目から shell も読む
+	'uma-skill-deck.html': ['tokens', 'common', 'shell'],
 	'css/styleguide.html': ['tokens', 'common'],
 	// 作業用ページ（C-50）。ツール本体には組み込まないが、共通CSSを読むので同じ運用に載せる。
 	'card-event-input.html': ['tokens', 'common'],
@@ -229,6 +230,12 @@ const INTENTIONALLY_REMOVED = {
 	// 2026-09-18（54セッション目）: special の Deck連携モードで、Step 1 の <details id="deck-roster"> を
 	// ①のタブ（#step-tab-0 / #step-panel-0）に組み替えたので #deck-roster を消した（C-51 の11節①）。
 	// 編成パネルの置き場 #deck-roster-panel はそのまま。`f718473` に commit したので免除は空に戻した。
+	// 2026-09-18（55セッション目・C-53／C-54）: 親A／親Bセットを帯のタブにしたので「＋ 親Bセットも追加する」
+	// （#setb-toggle-btn / #setb-toggle-label）を消した。core.js は、テンプレート一覧のラジオ（value="' + esc(t.templateId) + '"
+	// が id の検査に引っかかっていたもの）と data-template-id、編成のタブの data-roster-id が、共有部品の帯のタブ
+	// （data-tab-id）に置き換わって消えた。commit が進んだら免除を空に戻す。
+	'special.html': ['setb-toggle-btn', 'setb-toggle-label'],
+	'js/uma-skill-deck-core.js': ["' + esc(r.rosterId) + '", "' + esc(t.templateId) + '", 'data-roster-id', 'data-template-id'],
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

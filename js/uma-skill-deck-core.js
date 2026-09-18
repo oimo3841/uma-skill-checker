@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18i';
 
 	/* ============================================================
 	 * 定数
@@ -313,17 +313,18 @@
 	function loadDraftScope(scopeKey) {
 		try {
 			const raw = global.localStorage.getItem(draftStorageKey(scopeKey));
-			if (!raw) return { skillIds: [], updatedAt: '' };
+			if (!raw) return { skillIds: [], name: '', updatedAt: '' };
 			const parsed = JSON.parse(raw);
-			if (!parsed || !Array.isArray(parsed.skillIds)) return { skillIds: [], updatedAt: '' };
-			return { skillIds: parsed.skillIds.slice(), updatedAt: parsed.updatedAt || '' };
+			if (!parsed || !Array.isArray(parsed.skillIds)) return { skillIds: [], name: '', updatedAt: '' };
+			// name は C-53 で足した（「＋ 新規」のタブで入力した名前を保存まで覚えておく）。無い古い形は空文字
+			return { skillIds: parsed.skillIds.slice(), name: typeof parsed.name === 'string' ? parsed.name : '', updatedAt: parsed.updatedAt || '' };
 		} catch (e) {
-			return { skillIds: [], updatedAt: '' };
+			return { skillIds: [], name: '', updatedAt: '' };
 		}
 	}
 
-	function saveDraftScope(scopeKey, skillIds) {
-		const payload = { skillIds: (skillIds || []).slice(), updatedAt: nowIso() };
+	function saveDraftScope(scopeKey, skillIds, name) {
+		const payload = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
 		try {
 			global.localStorage.setItem(draftStorageKey(scopeKey), JSON.stringify(payload));
 		} catch (e) {
@@ -334,6 +335,77 @@
 
 	function clearDraftScope(scopeKey) {
 		try { global.localStorage.removeItem(draftStorageKey(scopeKey)); } catch (e) {}
+	}
+
+	/* ---- 編成のドラフト（「＋ 新規」の中身＝未保存の編成。C-53） ----
+	   スキルセットのドラフト（上）と同じ考え方で userData の外に置く（書き出し・取り込みの対象外）。
+	   タブを切り替えてもページを閉じても、保存していない編成を失わないためのもの。 */
+	const STORAGE_KEY_DRAFT_ROSTER_PREFIX = 'umaSkillDeck:draftRoster:';
+	function loadDraftRoster(key) {
+		try {
+			const raw = global.localStorage.getItem(STORAGE_KEY_DRAFT_ROSTER_PREFIX + String(key));
+			if (!raw) return null;
+			const parsed = JSON.parse(raw);
+			return (parsed && typeof parsed === 'object') ? parsed : null;
+		} catch (e) { return null; }
+	}
+	function saveDraftRoster(key, roster) {
+		try { global.localStorage.setItem(STORAGE_KEY_DRAFT_ROSTER_PREFIX + String(key), JSON.stringify(roster)); }
+		catch (e) { toast('編成の一時保存に失敗しました（ブラウザのストレージ容量を確認してください）'); }
+	}
+	function clearDraftRoster(key) {
+		try { global.localStorage.removeItem(STORAGE_KEY_DRAFT_ROSTER_PREFIX + String(key)); } catch (e) {}
+	}
+
+	/* ============================================================
+	 * 帯のタブ（共有部品。C-54）
+	 *
+	 * 「＋ 新規／保存したもの…」のように、タブの中で扱うものを選ぶ2段目のタブ。
+	 * 見た目は css/shell.css の .uma-subtabs（ステップのタブと同じ規則）。
+	 * 編成パネル・スキルセット（テンプレート管理）・special の親A／親Bセットが同じものを使う。
+	 * Exam で使うときは core.js を読み込む（見た目は shell.css にあるので Exam も読める）。
+	 *
+	 * items: [{ id, label, count?, selected?, isNew?, title?, className? }]
+	 * opts : { act（押したときの data-usd-act）, ariaLabel, el（data-usd-el） }
+	 * 押した先の処理は呼び出し元が data-usd-act と data-tab-id で受ける（部品はイベントを持たない）。
+	 * ============================================================ */
+	function tabStripHtml(items, opts) {
+		const o = opts || {};
+		const act = o.act || 'tab';
+		return '<div class="uma-subtabs" role="tablist"' + (o.ariaLabel ? ' aria-label="' + esc(o.ariaLabel) + '"' : '')
+			+ (o.el ? ' data-usd-el="' + esc(o.el) + '"' : '') + '>'
+			+ (items || []).map(it => '<button type="button" role="tab" class="uma-subtab' + (it.isNew ? ' uma-subtab--new' : '')
+				+ (it.className ? ' ' + esc(it.className) : '') + '"'
+				+ ' data-usd-act="' + esc(act) + '" data-tab-id="' + esc(String(it.id)) + '"'
+				+ ' aria-selected="' + (it.selected ? 'true' : 'false') + '" tabindex="' + (it.selected ? '0' : '-1') + '"'
+				+ (it.title ? ' title="' + esc(it.title) + '"' : '') + '>'
+				+ '<span class="uma-subtab-label">' + esc(it.label) + '</span>'
+				+ (it.count !== undefined && it.count !== null && it.count !== '' ? '<span class="uma-subtab-count">' + esc(String(it.count)) + '</span>' : '')
+				+ '</button>').join('')
+			+ '</div>';
+	}
+	/** 選んでいるタブが帯の外（スワイプの先）にあっても見える位置へ寄せる。 */
+	function revealSelectedTab(root) {
+		const cur = root && root.querySelector && root.querySelector('.uma-subtab[aria-selected="true"]');
+		if (cur && typeof cur.scrollIntoView === 'function') {
+			try { cur.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* 古いブラウザ */ }
+		}
+	}
+	/** WAI-ARIA のタブの作法（←→で隣へ、Home/End で端へ）。onSelect(id) を呼んだあと、選んだタブへフォーカスを戻す。 */
+	function tabStripKeydown(ev, onSelect) {
+		const strip = ev.target && ev.target.closest ? ev.target.closest('.uma-subtabs') : null;
+		if (!strip) return;
+		const tabs = Array.from(strip.querySelectorAll('.uma-subtab'));
+		const i = tabs.indexOf(ev.target.closest('.uma-subtab'));
+		if (i < 0 || tabs.length === 0) return;
+		const next = { ArrowRight: (i + 1) % tabs.length, ArrowLeft: (i - 1 + tabs.length) % tabs.length, Home: 0, End: tabs.length - 1 }[ev.key];
+		if (next === undefined) return;
+		ev.preventDefault();
+		const id = tabs[next].getAttribute('data-tab-id');
+		const root = strip.parentElement;
+		onSelect(id);
+		const again = root && root.querySelector ? root.querySelector('.uma-subtab[data-tab-id="' + id.replace(/"/g, '\\"') + '"]') : null;
+		if (again) again.focus();
 	}
 
 	/* ============================================================
@@ -664,11 +736,13 @@
 		// ── 育成ウマ娘（並びの先頭。番号ではなく★で示す） ──
 		const UMA_KEY = 0;
 		let umaLabel = null;
+		let umaShort = null;
 		if (r.umaId) {
 			const uma = findUma(r.umaId);
-			if (!uma) { missing.push({ kind: 'uma', id: r.umaId }); umaLabel = '（読み込めません：' + r.umaId + '）'; }
+			if (!uma) { missing.push({ kind: 'uma', id: r.umaId }); umaLabel = umaShort = '（読み込めません：' + r.umaId + '）'; }
 			else {
 				umaLabel = formatEntryLabel(uma);
+				umaShort = formatEntryShortLabel(uma);
 				// ★と覚醒レベルは**固定**（C-51 の修正）。実用上は★3以上・覚醒最大で使うので、
 				// 選ばせる UI を削って認知負荷を下げた。保存済みの roster.star / awakeningLevel は
 				// ここでは**読まない**（画面から変えられないものを判定に混ぜない）。
@@ -685,22 +759,22 @@
 				});
 			}
 		}
-		members.push({ key: UMA_KEY, kind: 'uma', no: null, label: umaLabel, typeOrder: null });
+		members.push({ key: UMA_KEY, kind: 'uma', no: null, label: umaLabel, shortLabel: umaShort, typeOrder: null });
 		// ── サポートカード（番号 1〜。枠の順） ──
 		const cardIds = (r.cardIds || []).slice(0, ROSTER_CARD_SLOTS);
 		while (cardIds.length < ROSTER_CARD_SLOTS) cardIds.push(null);
 		cardIds.forEach((cardId, i) => {
 			const key = UMA_KEY + 1 + i;
 			const no = i + 1;
-			if (!cardId) { members.push({ key: key, kind: 'card', no: no, label: null, typeOrder: null }); return; }
+			if (!cardId) { members.push({ key: key, kind: 'card', no: no, label: null, shortLabel: null, typeOrder: null }); return; }
 			const card = findCard(cardId);
 			if (!card) {
 				missing.push({ kind: 'card', id: cardId });
-				members.push({ key: key, kind: 'card', no: no, label: '（読み込めません：' + cardId + '）', typeOrder: null });
+				members.push({ key: key, kind: 'card', no: no, label: '（読み込めません：' + cardId + '）', shortLabel: '（読み込めません）', typeOrder: null });
 				return;
 			}
 			const label = formatEntryLabel(card);
-			members.push({ key: key, kind: 'card', no: no, label: label, typeOrder: cardTypeOrderOf(card) });
+			members.push({ key: key, kind: 'card', no: no, label: label, shortLabel: formatEntryShortLabel(card), typeOrder: cardTypeOrderOf(card) });
 			const hintStatus = (card.dataStatus && card.dataStatus.hint) || 'pending';
 			if (hintStatus === 'done') (card.hintSkills || []).forEach(s => add(s, label + ' のヒント', key));
 			else if (hintStatus === 'pending') unconfirmed.push({ cardId: cardId, label: label, what: 'ヒント' });
@@ -1438,25 +1512,12 @@
 		'.usd-roster-slot > button.usd-roster-card--typed { background: var(--usd-card-bg); color: var(--usd-card-text);',
 		'  border-color: var(--usd-card-border); border-left-width: 4px; }',
 		'.usd-roster-slot > button.usd-roster-card--typed:hover:not(:disabled) { background: var(--usd-card-bg); border-color: var(--usd-card-border); filter: brightness(.97); }',
-		// 保存済みの編成を選ぶタブの帯（C-51 の11節③）。**横だけ**スクロールする（縦は動かない＝斜めにならない）。
-		// 狭い画面ではタブを固定幅 72px にして、375px 幅で「＋ 新規」＋保存済み3件が見える。4件目以降は左右スワイプ。
-		'.usd-roster-tabs { display: flex; gap: var(--uma-sp-1); min-width: 0; flex: 1 1 auto;',
-		'  overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; scrollbar-width: none;',
-		'  border-bottom: 1px solid var(--uma-border-strong); }',
-		'.usd-roster-tabs::-webkit-scrollbar { display: none; }',
-		'.usd-roster-tab { flex: none; scroll-snap-align: start; max-width: 140px; min-width: 0;',
-		'  padding: var(--uma-sp-1-5) var(--uma-sp-2); margin-bottom: -1px;',
-		'  background: none; border: 0; border-bottom: 2px solid transparent;',
-		'  font: inherit; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600;',
-		'  color: var(--uma-text-subtle); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
-		'.usd-roster-tab:hover { color: var(--uma-text-heading); }',
-		'.usd-roster-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control); }',
-		'.usd-roster-tab--new { font-weight: 700; }',
-		'@media (max-width: 640px) {',
-		'  .usd-roster-tabs { flex-basis: 100%; }',   // 見出しの下の行へ折り返し、帯に幅いっぱいを使う
-		'  .usd-roster-tab { width: 72px; max-width: 72px; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
-		'  .usd-roster-tab--new { width: 56px; max-width: 56px; }',
-		'}',
+		// 保存済みの編成を選ぶタブの帯は共有部品（css/shell.css の .uma-subtabs・tabStripHtml()）。C-54 で
+		// スキルセットと親A／親Bセットにも広げたので、ここには編成だけの規則は無い。
+		// スキルセット（テンプレート管理。C-53）の1画面の骨格
+		'.usd-tm { display: flex; flex-direction: column; gap: var(--uma-sp-3); }',
+		'.usd-tm-name-row .uma-input { flex: 1 1 200px; min-width: 0; }',
+		'.usd-tm .usd-entry-row { margin-bottom: 0; }',
 		'.usd-roster-pills { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1); }',
 		'.usd-roster-pill { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
 		'  padding: var(--uma-sp-0-5) var(--uma-sp-2-5); border-radius: var(--uma-r-full); cursor: pointer;',
@@ -1471,10 +1532,20 @@
 		// 行の地色を右端まで届かせるためのもの（JS が空セルを1つ出す）。
 		'.usd-roster-grid-wrap { max-height: 320px; overflow-y: auto; overflow-x: hidden;',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm); background: var(--uma-surface); }',
-		'.usd-roster-grid { display: grid; width: 100%; --usd-roster-colw: 26px;',
-		'  grid-template-columns: minmax(0, 260px) repeat(var(--usd-roster-cols, 7), var(--usd-roster-colw)) minmax(0, 1fr); }',
-		// 狭い画面では番号の列を 22px に詰め、スキル名の列に幅を残す（実測: 375px で名前の列 97px → 125px）
-		'@media (max-width: 640px) { .usd-roster-grid { --usd-roster-colw: 22px; } }',
+		// 列の幅は画面幅で自動で切り替える（C-54 の (6)(7)）:
+		//   狭い画面（既定）… スキル名の列は残りの幅（minmax(0, 1fr)）、メンバーの列は 28px 固定。見出しは印と番号だけ。
+		//   768px 以上      … メンバーの列を広げて見出しにウマ娘名（短い名前）も出す。スキル名の列は 140〜260px。
+		// 利用者が選ぶ切り替えにしなかった理由: 決め手は物理的な幅なので、幅で決めるほうが迷わせない（C-54）。
+		'.usd-roster-grid { display: grid; width: 100%; --usd-roster-colw: 28px;',
+		'  grid-template-columns: minmax(0, 1fr) repeat(var(--usd-roster-cols, 7), var(--usd-roster-colw)); }',
+		'.usd-roster-gh-name { display: none; }',
+		'@media (min-width: 768px) {',
+		'  .usd-roster-grid { grid-template-columns: minmax(140px, 260px) repeat(var(--usd-roster-cols, 7), minmax(64px, 1fr)); }',
+		'  .usd-roster-gh { flex-direction: column; gap: 2px; padding: var(--uma-sp-1); }',
+		'  .usd-roster-gh.usd-roster-gc--name { flex-direction: row; }',
+		'  .usd-roster-gh-name { display: block; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 600;',
+		'    text-align: center; white-space: normal; overflow-wrap: anywhere; max-width: 100%; }',
+		'}',
 		'.usd-roster-grow { display: contents; }',
 		// 列の見分け（C-51 の11節⑥〜⑧）: 行は横のヘアラインだけで区切り（行の交互の地色はやめた。
 		// 行と列の両方を交互にすると市松になる）、列の側で地色を分ける。
@@ -1496,11 +1567,10 @@
 		'.usd-roster-gh--empty { color: var(--uma-text-faint); font-weight: 400; }',
 		// 表の中の「得られる」印は橙の★（チップ無し）
 		'.usd-roster-star { color: var(--uma-star); font-size: 13px; line-height: 1; }',
-		// 育成ウマ娘の列の見出しと凡例の印は「黒い丸のチップに白い★」。表の中の橙の★とは、
-		// 形（丸の中か裸か）と色（白/黒か橙か）の2点で見分ける（C-51 の11節⑥）
-		'.usd-roster-umachip { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;',
-		'  border-radius: var(--uma-r-full); background: var(--uma-control); color: var(--uma-text-inverse);',
-		'  font-size: 11px; line-height: 1; }',
+		// 育成ウマ娘の列の見出しと凡例の印は二重丸「◎」（競馬の本命の印。C-54 の (2)。それまでは黒い丸に白い★）。
+		// 表の中の橙の★とは形で見分ける
+		'.usd-roster-umamark { display: inline-block; min-width: 18px; text-align: center; font-size: 15px; line-height: 1;',
+		'  font-weight: 700; color: var(--uma-text-heading); }',
 		// 凡例（番号 → 正式名称）。表の外に、左ぞろえで1行1件
 		'.usd-roster-legend { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--uma-sp-0-5);',
 		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
@@ -2675,8 +2745,11 @@
 		if (!container) return null;
 		injectStyles();
 		const opts = options || {};
-		let roster = emptyRoster();
+		// 「＋ 新規」の中身（未保存の編成）を残す localStorage のキー（C-53）。渡さなければメモリだけ
+		const draftKey = opts.draftKey || null;
+		let roster = restoreDraftRoster();
 		let selectedId = '';          // 保存済みを選んでいればその rosterId
+		let pickingScope = false;     // 除外先の周回スキルセットを選ぶミニウィンドウ（C-54 の (3)）
 		let picking = null;           // { kind: 'uma' } / { kind: 'card', index } / null
 		let pickQuery = '';           // ミニウィンドウの検索語
 		let pickType = '';            // ミニウィンドウの種類の絞り込み（'' はすべて）
@@ -2686,6 +2759,41 @@
 		let lastOverlap = -1;         // 対象スキルセットと重なっていた数（通知の出し分け用）
 
 		function computed() { return computeRosterSkills(roster); }
+
+		/** ドラフト（未保存の編成）を保存先から戻す。無ければ空の編成。 */
+		function restoreDraftRoster() {
+			const d = draftKey ? loadDraftRoster(draftKey) : null;
+			const base = emptyRoster();
+			if (!d) return base;
+			const r = Object.assign(base, snapshot(d));
+			r.cardIds = (Array.isArray(r.cardIds) ? r.cardIds : []).slice(0, ROSTER_CARD_SLOTS);
+			while (r.cardIds.length < ROSTER_CARD_SLOTS) r.cardIds.push(null);
+			return r;
+		}
+
+		/**
+		 * 変更をその場で保存する（C-53。「タブを切り替えたら未保存の変更が捨てられる」のをやめた）。
+		 * 保存済みの編成ならそのまま保存し、「＋ 新規」ならドラフトとして残す。
+		 * 名前だけは「保存」を押したとき（またはタブを離れるとき）に反映する。
+		 */
+		function persistNow() {
+			syncFixedFields();
+			if (selectedId) saveRoster(snapshot(roster));
+			else if (draftKey) saveDraftRoster(draftKey, snapshot(roster));
+		}
+
+		/** 名前欄に入れたまま「保存」を押していない名前を、タブを離れる前に反映する。 */
+		function flushPendingName() {
+			const nameEl = q(container, 'name');
+			if (!nameEl) return;
+			if (selectedId) {
+				const saved = findRoster(selectedId);
+				if (saved && nameEl.value !== (saved.name || '')) { roster.name = nameEl.value; persistNow(); }
+			} else {
+				roster.name = nameEl.value;
+				if (draftKey) saveDraftRoster(draftKey, snapshot(roster));
+			}
+		}
 
 		/**
 		 * 保存する形に残している star / awakeningLevel には、**実際に計算に使った値**を書く
@@ -2836,19 +2944,18 @@
 			// 保存済みの編成はプルダウンではなくタブで選ぶ（C-51 の11節③）。先頭の「＋ 新規」が
 			// 「保存済みを選んでいない＝新しい編成」。名前はタブ幅に収まるぶんだけ出して「…」で切る
 			// （略称は作らない。正式名は title と、選んだときの名前欄に全文が入る）。
-			h += '<div class="usd-roster-row">';
+			h += '<div class="uma-subtabs-row">';
 			h += '<p class="usd-roster-h usd-roster-h--top">編成（' + saved.length + '／' + ROSTER_LIMIT + '件）</p>';
-			h += '<div class="usd-roster-tabs" role="tablist" aria-label="保存した編成" data-usd-el="roster-tabs">';
-			h += '<button type="button" role="tab" class="usd-roster-tab usd-roster-tab--new" data-usd-act="select-roster" data-roster-id=""'
-				+ ' aria-selected="' + (selectedId ? 'false' : 'true') + '">＋ 新規</button>';
-			h += saved.map(r => '<button type="button" role="tab" class="usd-roster-tab" data-usd-act="select-roster" data-roster-id="' + esc(r.rosterId) + '"'
-				+ ' aria-selected="' + (r.rosterId === selectedId ? 'true' : 'false') + '" title="' + esc(r.name || '（名称未設定）') + '">'
-				+ esc(r.name || '（名称未設定）') + '</button>').join('');
-			h += '</div>';
+			h += tabStripHtml(
+				[{ id: '', label: '＋ 新規', isNew: true, selected: !selectedId, title: '新しい編成（未保存）' }].concat(
+					saved.map(r => ({ id: r.rosterId, label: r.name || '（名称未設定）', title: r.name || '（名称未設定）', selected: r.rosterId === selectedId }))),
+				{ act: 'select-roster', ariaLabel: '保存した編成', el: 'roster-tabs' });
 			h += '</div>';
 			h += '<div class="usd-roster-row">';
 			h += '<input class="uma-input" type="text" data-usd-el="name" data-usd-act="name" placeholder="新しい編成の名前" value="' + esc(roster.name || '') + '" />';
 			h += '<button type="button" class="uma-btn uma-btn--primary" data-usd-act="save">保存</button>';
+			// 複製（C-54 の (5)。スキルセットと同じ）と削除は保存済みのときだけ
+			if (selectedId) h += '<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="duplicate">複製</button>';
 			if (selectedId) h += '<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="delete">削除</button>';
 			h += '</div>';
 
@@ -2914,14 +3021,17 @@
 			h += '</div>';
 
 			h += searchHtml();
+			h += scopeChooserHtml(res);
 
-			// 得られるスキル（★取り表。C-51 の10節⑥・11節⑤〜⑧）。左の列にスキル名、見出し行に編成の並び
-			// （育成ウマ娘は黒チップの★、サポートカードは枠の順の番号 1〜）を置き、どのメンバーから得られるかを橙の★で示す。
+			// 得られるスキル（★取り表。C-51 の10節⑥・11節⑤〜⑧・C-54）。左の列にスキル名、見出し行に編成の並び
+			// （育成ウマ娘は「◎」、サポートカードは枠の順の番号 1〜）を置き、どのメンバーから得られるかを橙の★で示す。
+			// 768px 以上では見出しにウマ娘名（短い名前）も出す（CSS が幅で切り替える。狭い画面では印と番号だけ）。
 			// 列は**常に全部**出す（空いている枠も列にする）ので、番号が枠の位置と常に一致し、表の形も安定する。
 			// 番号と正式名称の対応は表の外の凡例に置く（スマホの幅で正式名称を見出し行に並べられないため）。
-			const umaChip = '<span class="usd-roster-umachip" role="img" aria-label="育成ウマ娘">★</span>';
+			const umaChip = '<span class="usd-roster-umamark" role="img" aria-label="育成ウマ娘">◎</span>';
 			const colClass = (m) => m.kind === 'uma' ? ' usd-roster-gc--uma' : (m.no % 2 === 1 ? ' usd-roster-gc--alt' : '');
-			const colHead = (m) => m.kind === 'uma' ? umaChip : String(m.no);
+			const colHead = (m) => (m.kind === 'uma' ? umaChip : String(m.no))
+				+ (m.shortLabel ? '<span class="usd-roster-gh-name">' + esc(m.shortLabel) + '</span>' : '');
 			const colName = (m) => (m.kind === 'uma' ? '育成ウマ娘' : String(m.no)) + (m.label ? '：' + esc(m.label) : '（空き）');
 			h += '<div class="usd-roster-sec">';
 			h += '<p class="usd-roster-h">本育成で得られるスキル ' + res.items.length + '種</p>';
@@ -2936,14 +3046,14 @@
 					+ '<div class="usd-roster-gc usd-roster-gc--name usd-roster-gh" role="columnheader">スキル名</div>'
 					+ members.map(m => '<div class="usd-roster-gc usd-roster-gh' + colClass(m) + (m.label ? '' : ' usd-roster-gh--empty') + '"'
 						+ ' role="columnheader" aria-label="' + colName(m) + '">' + colHead(m) + '</div>').join('')
-					+ '<div class="usd-roster-gc usd-roster-gc--fill usd-roster-gh" role="cell"></div></div>';
+					+ '</div>';
 				res.items.forEach((it) => {
 					h += '<div class="usd-roster-grow" role="row">'
 						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader">' + esc(it.name) + '</div>'
 						+ members.map(m => '<div class="usd-roster-gc' + colClass(m) + '" role="cell">'
 							+ (it.members.indexOf(m.key) !== -1 ? '<span class="usd-roster-star" role="img" aria-label="得られる">★</span>' : '')
 							+ '</div>').join('')
-						+ '<div class="usd-roster-gc usd-roster-gc--fill" role="cell"></div></div>';
+						+ '</div>';
 				});
 				h += '</div></div>';
 				h += '<p class="usd-roster-note">' + umaChip + '＝育成ウマ娘（初期＋覚醒）、1〜' + cardCount + '＝サポートカード（枠の順）</p>';
@@ -2959,23 +3069,56 @@
 			container.innerHTML = h;
 			refreshIcons();
 			// 選んでいる編成のタブが帯の外（スワイプの先）にあっても見える位置に寄せる
-			const curTab = container.querySelector('.usd-roster-tab[aria-selected="true"]');
-			if (curTab && typeof curTab.scrollIntoView === 'function') {
-				try { curTab.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* 古いブラウザ */ }
-			}
+			revealSelectedTab(container);
 			if (picking) {
 				const input = q(container, 'find');
 				if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
 			}
 		}
 
+		/**
+		 * 除外先の周回スキルセットを選ぶミニウィンドウ（C-54 の (3)）。呼び出し元が getScopeChoices() で
+		 * 候補（{ id, name, skillIds }）を渡したときだけ。各候補に、本育成で得られるスキルが何種含まれているかを添える。
+		 */
+		function scopeChooserHtml(res) {
+			if (!pickingScope) return '';
+			const choices = (typeof opts.getScopeChoices === 'function' ? opts.getScopeChoices() : null) || [];
+			const have = new Set(res.skillIds);
+			let h = '<div class="usd-roster-modal" data-usd-el="scope-modal">';
+			h += '<div class="usd-roster-modal-back" data-usd-act="cancel-scope"></div>';
+			h += '<div class="usd-roster-modal-box" role="dialog" aria-modal="true" aria-label="除外する周回スキルセットを選ぶ">';
+			h += '<div class="usd-roster-modal-head"><span class="usd-roster-h">除外する周回スキルセットを選ぶ</span>'
+				+ '<button type="button" class="uma-icon-btn" data-usd-act="cancel-scope" aria-label="閉じる">×</button></div>';
+			h += '<p class="usd-roster-note">選んだスキルセットから、本育成で得られるスキルを外します（元に戻せます）。</p>';
+			h += '<div class="usd-roster-hits"><div class="usd-name-list">' + choices.map(c => {
+				const n = (c.skillIds || []).filter(id => have.has(id)).length;
+				return '<button type="button" class="usd-name-hit" data-usd-act="exclude-into" data-choice-id="' + esc(c.id) + '">'
+					+ esc(c.name) + '<span class="usd-name-added">' + (n > 0 ? n + '種が含まれています' : '含まれていません') + '</span></button>';
+			}).join('') + '</div></div>';
+			h += '</div></div>';
+			return h;
+		}
+
+		/** 除外を実行する（隠す＋選んだスキルセットから外す）。choiceId が null なら、選択中のものから外す。 */
+		function runExclude(choiceId) {
+			pickingScope = false;
+			hide = true;
+			applyHidden();
+			if (typeof opts.onRemoveFromScope === 'function') opts.onRemoveFromScope(computed().skillIds.slice(), choiceId);
+			render();
+			lastOverlap = overlapWithScope(computed().skillIds);
+		}
+
 		function loadSelected(id) {
+			// タブを離れる前に、名前欄の未反映の名前とドラフトを残す（C-53。黙って捨てない）
+			flushPendingName();
 			selectedId = id || '';
 			const found = id ? findRoster(id) : null;
-			roster = found ? snapshot(found) : emptyRoster();
+			roster = found ? snapshot(found) : restoreDraftRoster();
 			roster.cardIds = (roster.cardIds || []).slice(0, ROSTER_CARD_SLOTS);
 			while (roster.cardIds.length < ROSTER_CARD_SLOTS) roster.cardIds.push(null);
 			picking = null;
+			pickingScope = false;
 			applyHidden();
 			render();
 			// 保存してある編成を選び直すのも「①（本育成編成）を操作した」うち。
@@ -2996,10 +3139,10 @@
 			}
 			else if (act === 'cancel-pick') { picking = null; render(); }
 			else if (act === 'toggle-unconf') { showUnconf = !showUnconf; render(); }
-			else if (act === 'select-roster') { loadSelected(btn.getAttribute('data-roster-id') || ''); }
+			else if (act === 'select-roster') { loadSelected(btn.getAttribute('data-tab-id') || ''); }
 			else if (act === 'type') { pickType = btn.getAttribute('data-value') || ''; render(); renderHits(); }
-			else if (act === 'clear-uma') { roster.umaId = ''; syncFixedFields(); applyHidden(); render(); notifyOverlap(); }
-			else if (act === 'clear-card') { roster.cardIds[Number(btn.getAttribute('data-index'))] = null; applyHidden(); render(); notifyOverlap(); }
+			else if (act === 'clear-uma') { roster.umaId = ''; persistNow(); applyHidden(); render(); notifyOverlap(); }
+			else if (act === 'clear-card') { roster.cardIds[Number(btn.getAttribute('data-index'))] = null; persistNow(); applyHidden(); render(); notifyOverlap(); }
 			else if (act === 'take') {
 				const id = btn.getAttribute('data-entry-id');
 				if (picking && picking.kind === 'uma') {
@@ -3009,26 +3152,56 @@
 					roster.cardIds[picking.index] = id;
 				}
 				picking = null;
+				persistNow();
 				applyHidden(); render(); notifyOverlap();
 			}
 			else if (act === 'exclude') {
 				// 1つの操作で「隠す」と「外す」の両方（C-51 の修正）。
 				// ON にした時点で、すでに選んである分を外す。外すのは元に戻せないので、
 				// 呼び出し元（テンプレート管理）が Undo に積む。OFF は隠すのをやめるだけ。
-				hide = !hide;
-				applyHidden();
-				if (hide && typeof opts.onRemoveFromScope === 'function') {
-					opts.onRemoveFromScope(computed().skillIds.slice());
+				// 除外先が複数あるときは、どのスキルセットから外すかを選んでもらう（C-54 の (3)）。
+				if (hide) {
+					hide = false;
+					applyHidden();
+					render();
+					lastOverlap = overlapWithScope(computed().skillIds);
+					return;
 				}
-				render();
-				lastOverlap = overlapWithScope(computed().skillIds);
+				const choices = typeof opts.getScopeChoices === 'function' ? (opts.getScopeChoices() || []) : null;
+				if (choices && choices.length > 1) { pickingScope = true; render(); return; }
+				runExclude(choices && choices.length === 1 ? choices[0].id : null);
+			}
+			else if (act === 'exclude-into') { runExclude(btn.getAttribute('data-choice-id')); }
+			else if (act === 'cancel-scope') { pickingScope = false; render(); }
+			else if (act === 'duplicate') {
+				// 複製（C-54 の (5)）。保存済みの編成を「（コピー）」の名前で増やし、そのタブへ移る
+				if (!selectedId) return;
+				const src = findRoster(selectedId);
+				if (!src) return;
+				flushPendingName();
+				const copy = snapshot(src);
+				copy.rosterId = uid('roster');
+				copy.name = (src.name || '') + '（コピー）';
+				copy.createdAt = nowIso();
+				copy.updatedAt = nowIso();
+				if (saveRoster(copy)) {
+					loadSelected(copy.rosterId);
+					toast('複製しました');
+				}
 			}
 			else if (act === 'save') {
 				const nameEl = q(container, 'name');
 				roster.name = nameEl ? nameEl.value : roster.name;
 				syncFixedFields();
-				if (saveRoster(snapshot(roster))) {
+				if (selectedId) {
+					// 保存済み: 中身は触った時点で保存してあるので、ここで反映するのは名前
+					saveRoster(snapshot(roster));
+					toast('編成を保存しました');
+					render();
+				} else if (saveRoster(snapshot(roster))) {
+					// 「＋ 新規」から保存: 保存済みのタブへ移り、ドラフトは空にする（二重管理を避ける）
 					selectedId = roster.rosterId;
+					if (draftKey) clearDraftRoster(draftKey);
 					toast('編成を保存しました');
 					render();
 				}
@@ -3037,8 +3210,12 @@
 				if (!selectedId) return;
 				deleteRoster(selectedId);
 				toast('編成を削除しました');
+				selectedId = '';
 				loadSelected('');
 			}
+		});
+		container.addEventListener('keydown', function (ev) {
+			if (ev.target && ev.target.closest && ev.target.closest('.uma-subtabs')) tabStripKeydown(ev, (id) => loadSelected(id || ''));
 		});
 
 		container.addEventListener('input', function (ev) {
@@ -3050,6 +3227,8 @@
 				findTimer = setTimeout(function () { renderHits(); }, NAME_FIND_DEBOUNCE_MS);
 			} else if (act === 'name') {
 				roster.name = el.value;   // 再描画せずに覚えるだけ（入力中に描き直すと文字が飛ぶ）
+				// 「＋ 新規」の名前はドラフトごと残す（保存済みの名前は「保存」かタブを離れるときに反映）
+				if (!selectedId && draftKey) saveDraftRoster(draftKey, snapshot(roster));
 			}
 		});
 
@@ -3068,30 +3247,29 @@
 		const selectable = !!opts.selectable;
 		const draftScopeKey = opts.draftScopeKey || null;
 
-		// 編集中の対象。{ kind: 'template', obj } または { kind: 'draft' }。
-		// template のときの obj は userData.templates 内の実体そのもの。
-		let editing = null;
-		// 選択中のID。テンプレートID または DRAFT_SELECTION_ID。
+		// 選択中のID。null／DRAFT_SELECTION_ID＝「＋ 新規」（ドラフト＝未保存）、それ以外はテンプレートID。
+		// **編集対象＝タブで選んでいるもの**（C-53）。別画面の編集ビューと「開く」は無く、選んだものをその場で編集する。
 		let selectedId = null;
-		let draftScope = draftScopeKey ? loadDraftScope(draftScopeKey) : null;
+		// ドラフト（「＋ 新規」の中身）。draftScopeKey があれば localStorage に残す（今までどおり userData の外）。
+		// 無ければメモリだけで持つ（ページを離れると消える）。
+		let draftScope = draftScopeKey ? loadDraftScope(draftScopeKey) : { skillIds: [], name: '', updatedAt: '' };
 		// 前回の続きがある場合は、そのまま使えるよう最初から選択しておく。
-		if (draftScope && draftScope.skillIds.length > 0) selectedId = DRAFT_SELECTION_ID;
+		if (draftScope.skillIds.length > 0) selectedId = DRAFT_SELECTION_ID;
+		// 後方互換の別名: いま編集している対象（{ kind: 'draft' } または { kind: 'template', obj }）。render() のたびに引き直す。
+		let editing = null;
 
 		container.innerHTML = '' +
-			'<div data-usd-el="list-view">' +
-				'<div class="flex items-center justify-between mb-3">' +
-					'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="template-new">＋ 新規作成</button>' +
-					'<span class="text-xs text-slate-500" data-usd-el="count-badge"></span>' +
+			'<div class="usd-tm">' +
+				// 見出しと帯のタブ（保存したスキルセットを選ぶ。先頭は「＋ 新規」＝ドラフト）
+				'<div class="uma-subtabs-row" data-usd-el="head"></div>' +
+				// 名前と保存・複製・削除（編成パネルと同じ並び。C-53）
+				'<div class="usd-roster-row usd-tm-name-row">' +
+					'<input type="text" class="usd-input uma-input" data-usd-el="name-input" placeholder="新しいスキルセットの名前"/>' +
+					'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="template-save">保存</button>' +
+					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="template-duplicate" data-usd-el="dup-btn">複製</button>' +
+					'<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="template-delete" data-usd-el="del-btn">削除</button>' +
 				'</div>' +
-				'<div data-usd-el="list"></div>' +
-			'</div>' +
-			'<div data-usd-el="editor-view" class="usd-panel glass-card" hidden>' +
-				'<div class="flex items-center gap-2 mb-3">' +
-					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="editor-close" aria-label="戻る"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>' +
-					'<input type="text" class="usd-input uma-input flex-1" data-usd-el="name-input" placeholder="テンプレート名（例：マイルCS想定）"/>' +
-					'<p class="flex-1 text-sm font-semibold text-slate-700" data-usd-el="draft-title" hidden>ドラフト</p>' +
-				'</div>' +
-				// スキルを足す入口は3つ。以前は「スキルを追加」1つだけを出し、
+				// スキルを足す入口は3つ（＋呼び出し元が渡せば4つ目）。以前は「スキルを追加」1つだけを出し、
 				// 中の畳んだ見出しで3つに分かれていたが、それだと「テキストで検索」も
 				// 「マスターにないスキルを追加」も、開いてみるまで在ることが分からなかった。
 				'<div class="usd-entry-row">' +
@@ -3117,49 +3295,43 @@
 				'</div>' +
 				'<div class="flex items-baseline justify-between gap-2 mb-1">' +
 					'<p class="text-xs text-slate-500">追加済みスキル（<span data-usd-el="selected-count">0</span>種）</p>' +
-					// 一覧の行にあった「空にする」をここへ移した。中身を触っている画面で、
-					// 何件消えるのかが見えている状態で押せるようにするため。
+					// 中身を触っている画面で、何件消えるのかが見えている状態で押せるようにするため、ここに置く。
 					'<button type="button" class="usd-link-btn" data-usd-act="editor-clear-skills" data-usd-el="clear-skills">すべて外す</button>' +
 				'</div>' +
 				'<div data-usd-el="selected-list" class="flex flex-wrap gap-2"></div>' +
-				'<div class="mt-3" data-usd-el="draft-actions" hidden>' +
-					'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="draft-promote">テンプレートとして保存</button>' +
-					'<p class="text-[11px] text-slate-400 mt-2">保存すると名前を付けて残せます。保存しない場合も、この端末のブラウザには次回まで残ります。</p>' +
-				'</div>' +
-				'<p class="text-[11px] text-slate-400 mt-4" data-usd-el="editor-note">変更は自動的に保存されます。</p>' +
+				'<p class="text-[11px] text-slate-400 mt-3" data-usd-el="editor-note"></p>' +
 			'</div>';
 
-		const listView = q(container, 'list-view');
-		const editorView = q(container, 'editor-view');
 		const nameInput = q(container, 'name-input');
 
 		container.addEventListener('click', (e) => {
 			const btn = e.target.closest('[data-usd-act]');
 			if (!btn || !container.contains(btn)) return;
 			const act = btn.dataset.usdAct;
-			if (act === 'template-new') openEditor(null);
-			else if (act === 'editor-close') closeEditor();
+			if (act === 'template-tab') selectTab(btn.dataset.tabId);
+			else if (act === 'template-save') saveCurrent();
+			else if (act === 'template-duplicate') duplicateTemplate(currentTemplateId());
+			else if (act === 'template-delete') deleteTemplate(currentTemplateId());
 			else if (act === 'editor-pick') openEditorPicker('filter');
 			else if (act === 'editor-pick-text') openEditorPicker('paste');
 			else if (act === 'editor-pick-custom') openEditorPicker('custom');
 			else if (act === 'editor-pick-screenshot') { if (opts.screenshotEntry && typeof opts.screenshotEntry.onClick === 'function') opts.screenshotEntry.onClick(); }
-			else if (act === 'template-open') openEditor(btn.dataset.templateId);
-			else if (act === 'template-duplicate') duplicateTemplate(btn.dataset.templateId);
-			else if (act === 'template-delete') deleteTemplate(btn.dataset.templateId);
 			else if (act === 'template-skill-remove') removeSkillFromEditing(btn.dataset.skillId);
 			else if (act === 'editor-clear-skills') clearEditingSkills();
-			else if (act === 'draft-open') openDraftEditor();
-			else if (act === 'draft-promote') promoteDraftToTemplate();
 		});
-		container.addEventListener('change', (e) => {
-			if (e.target === nameInput) { onNameChange(); return; }
-			if (e.target.dataset.usdEl === 'template-radio') { setSelectedId(e.target.value); return; }
+		container.addEventListener('input', (e) => {
+			if (e.target === nameInput) onNameInput();
+		});
+		container.addEventListener('keydown', (e) => {
+			if (e.target && e.target.closest && e.target.closest('.uma-subtabs')) tabStripKeydown(e, (id) => selectTab(id));
 		});
 
 		function fireChange() {
 			if (opts.onChange) opts.onChange();
 		}
 
+		// 一覧⇄編集の切り替えは無くなった（C-53）。呼び出し元の互換のため、描画のたびに 'list' を知らせる
+		// （「元に戻す」の scope は常に list）。
 		function fireViewChange(view) {
 			if (opts.onViewChange) opts.onViewChange(view);
 		}
@@ -3169,110 +3341,70 @@
 		}
 
 		/* ---------- 編集対象の抽象化（テンプレート／ドラフトを同じUIで扱う） ---------- */
+		function currentTemplateId() {
+			return (selectedId && selectedId !== DRAFT_SELECTION_ID) ? selectedId : null;
+		}
+		function currentTarget() {
+			const id = currentTemplateId();
+			if (!id) return { kind: 'draft' };
+			const t = ensureUserData().templates.find(x => x.templateId === id);
+			return t ? { kind: 'template', obj: t } : { kind: 'draft' };
+		}
 		function editingSkillIds() {
-			if (!editing) return [];
-			return editing.kind === 'draft' ? draftScope.skillIds : editing.obj.skillIds;
+			const target = currentTarget();
+			return target.kind === 'draft' ? draftScope.skillIds : target.obj.skillIds;
 		}
 
-		function persistEditing() {
-			if (!editing) return;
-			if (editing.kind === 'draft') {
-				draftScope = saveDraftScope(draftScopeKey, draftScope.skillIds);
-			} else {
-				editing.obj.updatedAt = nowIso();
-				saveUserData();
-			}
-		}
-
-		/* ---------- 描画 ---------- */
+		/* ---------- 描画（1画面。タブ・名前の行・入口・追加済みスキル・注記） ---------- */
 		function render() {
-			const isEditing = !!editing;
-			listView.hidden = isEditing;
-			editorView.hidden = !isEditing;
-			if (isEditing) renderEditor(); else renderList();
-			fireViewChange(isEditing ? 'editor' : 'list');
-		}
-
-		function draftCardHtml() {
-			const n = draftScope.skillIds.length;
-			const isSel = selectable && selectedId === DRAFT_SELECTION_ID;
-			const radio = selectable
-				? '<input type="radio" name="usd-tpl-' + esc(container.id || 'panel') + '" data-usd-el="template-radio" value="' + DRAFT_SELECTION_ID + '"' + (isSel ? ' checked' : '') + (n === 0 ? ' disabled' : '') + ' class="shrink-0"/>'
-				: '';
-			return '' +
-			'<label class="usd-list-card uma-list-row' + (selectable ? ' usd-selectable uma-list-row--selectable' : '') + (isSel ? ' usd-selected uma-list-row--selected' : '') + '">' +
-				radio +
-				'<div class="flex-1 min-w-0">' +
-					// 件数は保存済みテンプレートの行と同じ位置・同じ言い回しで出す
-					// （並びの中で見比べるものなので、片方だけ書式が違うと比べにくい）。
-					'<p class="font-semibold text-sm text-slate-800 usd-truncate">ドラフト' +
-						'<span class="text-xs font-normal text-slate-500 ml-2">' + n + '種</span></p>' +
-					'<p class="text-xs text-slate-500">※次回開いた際も復元されます。繰り返し使う場合は「テンプレートとして保存」を選択してください。</p>' +
-				'</div>' +
-				'<div class="flex gap-1.5 shrink-0">' +
-					// 空にする操作は編集画面側（追加済みスキルの「すべて外す」）へ移した。
-					// 一覧の行に置くと、隣のテンプレートの削除ボタンと同じ見た目・同じ位置になり、
-					// 「ドラフトごと消える」のか「中身が空になる」のかが区別できなかったため。
-					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="draft-open" title="編集"><i data-lucide="edit" class="w-4 h-4"></i></button>' +
-				'</div>' +
-			'</label>';
-		}
-
-		function renderList() {
-			const list = ensureUserData().templates;
-			q(container, 'count-badge').textContent = list.length + '/' + TEMPLATE_LIMIT + '件';
-			const el = q(container, 'list');
-
-			// 削除済みテンプレートが選ばれたままにならないよう掃除する
-			if (selectedId && selectedId !== DRAFT_SELECTION_ID && !list.some(t => t.templateId === selectedId)) {
+			const data = ensureUserData();
+			// 消えたテンプレートを選んだままにしない
+			if (currentTemplateId() && !data.templates.some(t => t.templateId === selectedId)) {
 				selectedId = null;
 				fireSelection();
 			}
-			// ドラフトが空になったら選択も外す
-			if (selectedId === DRAFT_SELECTION_ID && (!draftScope || draftScope.skillIds.length === 0)) {
+			// ドラフトが空になったら選択も外す（「＋ 新規」のタブは選ばれたまま＝中身が空）
+			if (selectedId === DRAFT_SELECTION_ID && draftScope.skillIds.length === 0) {
 				selectedId = null;
 				fireSelection();
 			}
-
-			let html = draftScopeKey ? draftCardHtml() : '';
-			if (list.length === 0) {
-				html += draftScopeKey
-					? '<p class="text-sm text-slate-400 p-4">保存済みのテンプレートはまだありません。上の「ドラフト」で試して、繰り返し使うものだけテンプレートに残せます。</p>'
-					: '<p class="text-sm text-slate-400 p-4">まだテンプレートがありません。「新規作成」から始めてください。</p>';
-			} else {
-				html += list.map(t => {
-					const isSel = selectable && t.templateId === selectedId;
-					const radio = selectable
-						? '<input type="radio" name="usd-tpl-' + esc(container.id || 'panel') + '" data-usd-el="template-radio" value="' + esc(t.templateId) + '"' + (isSel ? ' checked' : '') + ' class="shrink-0"/>'
-						: '';
-					const tag = selectable ? ' usd-selectable uma-list-row--selectable' + (isSel ? ' usd-selected uma-list-row--selected' : '') : '';
-					return '' +
-					'<label class="usd-list-card uma-list-row' + tag + '">' +
-						radio +
-						'<div class="flex-1 min-w-0">' +
-							'<p class="font-semibold text-sm text-slate-800 usd-truncate">' + esc(t.name || '（名称未設定）') + '</p>' +
-							'<p class="text-xs text-slate-500">' + t.skillIds.length + '種・更新 ' + esc((t.updatedAt || '').slice(0, 10)) + '</p>' +
-						'</div>' +
-						'<div class="flex gap-1.5 shrink-0">' +
-							'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="template-open" data-template-id="' + esc(t.templateId) + '" title="開く"><i data-lucide="edit" class="w-4 h-4"></i></button>' +
-							'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="template-duplicate" data-template-id="' + esc(t.templateId) + '" title="複製"><i data-lucide="copy" class="w-4 h-4"></i></button>' +
-							'<button type="button" class="usd-icon-btn uma-icon-btn text-red-500" data-usd-act="template-delete" data-template-id="' + esc(t.templateId) + '" title="削除"><i data-lucide="trash-2" class="w-4 h-4"></i></button>' +
-						'</div>' +
-					'</label>';
-				}).join('');
-			}
-			el.innerHTML = html;
-			refreshIcons();
-		}
-
-		function renderEditor() {
-			const isDraft = editing.kind === 'draft';
-			nameInput.hidden = isDraft;
-			q(container, 'draft-title').hidden = !isDraft;
-			q(container, 'draft-actions').hidden = !isDraft;
-			q(container, 'editor-note').hidden = isDraft;
-			if (!isDraft) nameInput.value = editing.obj.name;
+			editing = currentTarget();
+			renderTabs();
+			renderNameRow();
 			renderSelectedList();
+			renderNote();
+			fireViewChange('list');
+		}
+
+		function renderTabs() {
+			const list = ensureUserData().templates;
+			const onDraft = !currentTemplateId();
+			const items = [{
+				id: DRAFT_SELECTION_ID, label: '＋ 新規', isNew: true, selected: onDraft,
+				count: draftScope.skillIds.length > 0 ? draftScope.skillIds.length + '種' : null,
+				title: 'ドラフト（未保存のスキルセット）'
+			}].concat(list.map(t => ({
+				id: t.templateId, label: t.name || '（名称未設定）', title: t.name || '（名称未設定）',
+				selected: t.templateId === selectedId, count: t.skillIds.length + '種'
+			})));
+			q(container, 'head').innerHTML =
+				'<p class="usd-roster-h usd-roster-h--top">スキルセット（<span data-usd-el="count-badge">' + list.length + '</span>／' + TEMPLATE_LIMIT + '件）</p>' +
+				tabStripHtml(items, { act: 'template-tab', ariaLabel: 'スキルセット', el: 'tabs' });
+			revealSelectedTab(container);
+		}
+
+		function renderNameRow() {
+			const target = currentTarget();
+			nameInput.value = target.kind === 'template' ? (target.obj.name || '') : (draftScope.name || '');
+			q(container, 'dup-btn').hidden = target.kind !== 'template';
+			q(container, 'del-btn').hidden = target.kind !== 'template';
+		}
+
+		function renderNote() {
+			const target = currentTarget();
+			q(container, 'editor-note').textContent = target.kind === 'template'
+				? 'スキルの追加・削除はすぐに保存されます（元に戻せます）。名前は「保存」で反映します。'
+				: '保存すると名前を付けて残せます。保存しない場合も、この端末のブラウザには次回まで残ります。';
 		}
 
 		function renderSelectedList() {
@@ -3293,69 +3425,91 @@
 			refreshIcons();
 		}
 
-		/* ---------- テンプレートの編集 ---------- */
-		function openEditor(templateId) {
-			// 編集対象が替わるので、前の編集画面のぶんは捨てる（閉じたときも同じ）
-			dropUndoScope('editor');
-			const data = ensureUserData();
-			if (templateId) {
-				const t = data.templates.find(x => x.templateId === templateId);
-				if (!t) return;
-				editing = { kind: 'template', obj: t };
-			} else {
-				if (data.templates.length >= TEMPLATE_LIMIT) {
-					toast('テンプレートは最大' + TEMPLATE_LIMIT + '件までです。不要なものを削除してください');
-					return;
-				}
-				// 新規テンプレートはこの時点で即座に配列へ追加し、以降は全操作を自動保存する。
-				// 名前もスキルも入力されないまま閉じられた場合のみ、closeEditor側で破棄する。
-				const t = { templateId: uid('tpl'), name: '', skillIds: [], createdAt: nowIso(), updatedAt: nowIso() };
-				data.templates.push(t);
-				editing = { kind: 'template', obj: t };
-				saveUserData();
-				fireChange();
-			}
-			render();
-		}
-
-		function openDraftEditor() {
-			if (!draftScopeKey) return;
-			dropUndoScope('editor');
-			editing = { kind: 'draft' };
-			render();
-		}
-
-		function closeEditor() {
-			// スキルが1件も選ばれていない未完成の下書きは、一覧を汚さないよう自動で破棄する
-			// （ドラフトは空でも一覧に常駐するので、この処理はテンプレートだけ）。
-			if (editing && editing.kind === 'template' && editing.obj.skillIds.length === 0) {
-				const data = ensureUserData();
-				const gone = editing.obj;
-				data.templates = data.templates.filter(t => t.templateId !== gone.templateId);
-				saveUserData();
-			}
-			editing = null;
-			dropUndoScope('editor');
-			closePicker();
-			render();
-			fireChange();
-		}
-
-		function onNameChange() {
-			if (!editing || editing.kind !== 'template') return;
-			editing.obj.name = nameInput.value;
-			editing.obj.updatedAt = nowIso();
+		/* ---------- タブの選択・名前・保存・複製・削除（C-53） ---------- */
+		/**
+		 * 名前欄に入れたまま「保存」を押していない名前を、タブを離れる前に反映する。
+		 * 「タブを切り替えたら未保存の変更が捨てられる」のは望ましくない（おいもさんの判断）。
+		 * ドラフトの名前は入力のたびにドラフトごと覚えているので、ここではテンプレートだけ。
+		 */
+		function flushPendingName() {
+			const target = currentTarget();
+			if (target.kind !== 'template') return;
+			const name = nameInput.value;
+			if (name === (target.obj.name || '')) return;
+			target.obj.name = name;
+			target.obj.updatedAt = nowIso();
 			saveUserData();
 			fireChange();
 		}
 
+		function selectTab(id) {
+			flushPendingName();
+			if (id === DRAFT_SELECTION_ID || !id) {
+				selectedId = draftScope.skillIds.length > 0 ? DRAFT_SELECTION_ID : null;
+			} else {
+				selectedId = ensureUserData().templates.some(t => t.templateId === id) ? id : null;
+			}
+			closePicker();
+			render();
+			fireSelection();
+		}
+
+		function onNameInput() {
+			const target = currentTarget();
+			if (target.kind === 'draft') {
+				// ドラフトの名前は保存まで覚えておく（保存先はドラフトと同じ＝userData の外）
+				draftScope = persistDraft(draftScope.skillIds, nameInput.value);
+			}
+			// テンプレートの名前は「保存」（またはタブを離れるとき）に反映する
+		}
+
+		function persistDraft(skillIds, name) {
+			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name);
+			return { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
+		}
+
+		/**
+		 * 「保存」。テンプレートなら名前を反映するだけ（スキルは触った時点で保存済み）。
+		 * ドラフトなら、名前を付けてテンプレートを作り、そのタブへ移る（ドラフトは空になる＝二重管理を避ける）。
+		 */
+		function saveCurrent() {
+			const target = currentTarget();
+			const data = ensureUserData();
+			if (target.kind === 'template') {
+				target.obj.name = nameInput.value;
+				target.obj.updatedAt = nowIso();
+				saveUserData();
+				render();
+				fireSelection();
+				fireChange();
+				toast('スキルセットを保存しました');
+				return;
+			}
+			if (draftScope.skillIds.length === 0) { toast('スキルを1件以上選んでください'); return; }
+			if (data.templates.length >= TEMPLATE_LIMIT) {
+				toast('スキルセットは最大' + TEMPLATE_LIMIT + '件までです。不要なものを削除してください');
+				return;
+			}
+			const t = { templateId: uid('tpl'), name: nameInput.value, skillIds: draftScope.skillIds.slice(), createdAt: nowIso(), updatedAt: nowIso() };
+			data.templates.push(t);
+			saveUserData();
+			// 中身はテンプレートへ移ったので、ドラフトは空にする（二重管理を避ける）
+			draftScope = persistDraft([], '');
+			selectedId = t.templateId;
+			render();
+			fireSelection();
+			fireChange();
+			toast('スキルセットを保存しました');
+		}
+
+		/* ---------- スキルの追加（3つの入口） ---------- */
 		// 3つの入口はどれも同じ「選んだIDを編集中のセットへ足す」処理へ合流する。
 		function openEditorPicker(mode) {
-			openPicker(mode, editingSkillIds(), pickerSinkFor(editing, 'editor'));
+			openPicker(mode, editingSkillIds(), pickerSinkFor(currentTarget(), 'list'));
 		}
 
 		// ピッカーの受け皿（openPicker の第3引数。{scope, probe, add, remove}）。
-		// 編集画面の3つの入口と、ステップ①の「スキルセット画面のスクショから読み取る」（一覧の画面から呼ぶ）で共通。
+		// 3つの入口と、「スキルセット画面のスクショから読み取る」で共通。
 		function pickerSinkFor(target, scope) {
 			return {
 				scope: scope,
@@ -3369,8 +3523,7 @@
 					const fresh = ids.filter(id => cur.indexOf(id) === -1);
 					if (fresh.length === 0) return [];
 					if (!writeSkillIds(target, cur.concat(fresh))) return [];
-					// 一覧の画面から足したときは一覧ごと描き直す（件数・選択の行が変わる）
-					afterEditorPickerAdd(target, scope !== 'editor');
+					afterEditorPickerAdd(target);
 					return fresh;
 				},
 				remove: (ids) => {
@@ -3381,7 +3534,7 @@
 					picker.excludeIds = picker.excludeIds.filter(id => ids.indexOf(id) === -1);
 					renderPickerResults();
 					renderPasteReport();
-					afterEditorPickerAdd(target, true);
+					afterEditorPickerAdd(target);
 					return true;
 				}
 			};
@@ -3389,31 +3542,24 @@
 
 		/**
 		 * 外で照合を済ませた行（スキルセットOCR。コミット4）を、いま扱っている対象スキルセットへ足すモーダルを開く。
-		 * 対象は、編集中ならその対象、そうでなければ選択中のテンプレート、何も選んでいなければドラフト
-		 * （足した時点でドラフトが選択される＝「ドラフトを編集して作れます」と同じ流れ）。
-		 * 足した分は Undo に積める（受け皿は編集画面の入口と同じ pickerSinkFor）。scope は見ている画面に合わせる。
+		 * 対象は選択中のもの（テンプレート／ドラフト）。足した分は Undo に積める（受け皿は入口と同じ pickerSinkFor）。
 		 */
 		function openSkillRowsPickerForSelection(rows, summary, options) {
-			let target = editing;
-			if (!target) {
-				const t = ensureUserData().templates.find(x => x.templateId === selectedId);
-				target = t ? { kind: 'template', obj: t } : { kind: 'draft' };
-			}
-			if (target.kind === 'draft' && !draftScope) { toast('対象スキルセットを1つ選んでください'); return false; }
-			const scope = editing ? 'editor' : 'list';
-			openSkillRowsPicker(skillIdsOf(target) || [], pickerSinkFor(target, scope), rows, summary, options);
+			const target = currentTarget();
+			openSkillRowsPicker(skillIdsOf(target) || [], pickerSinkFor(target, 'list'), rows, summary, options);
 			return true;
 		}
 
 		// スキルを足した／その追加を取り消したあとの描画と通知。
-		function afterEditorPickerAdd(target, redrawAll) {
-			if (redrawAll) render(); else renderSelectedList();
+		function afterEditorPickerAdd(target) {
 			// ドラフトに中身ができたら、そのまま使えるよう選択状態にする
 			if (target.kind === 'draft' && draftScope.skillIds.length > 0 && selectedId !== DRAFT_SELECTION_ID) {
 				selectedId = DRAFT_SELECTION_ID;
+				render();
 				fireSelection();
-			} else if (isSelected(target)) {
-				fireSelection();
+			} else {
+				render();
+				if (isSelected(target)) fireSelection();
 			}
 			fireChange();
 		}
@@ -3428,19 +3574,18 @@
 
 		/**
 		 * 編集中のセットから追加済みスキルをすべて外す。
-		 * ドラフトでもテンプレートでも同じ操作にしてある（編集画面の見た目が同じなので、
+		 * ドラフトでもテンプレートでも同じ操作にしてある（見た目が同じなので、
 		 * 片方だけ出来ないと「なぜここには無いのか」を考えさせることになる）。
 		 * 破壊的な操作は確認ダイアログではなく「即実行＋元に戻す」で統一する方針に従う。
 		 */
 		function clearEditingSkills() {
-			const target = editing;
-			if (!target) return;
+			const target = currentTarget();
 			const ids = skillIdsOf(target);
 			if (!ids || ids.length === 0) return;
 			const prev = snapshot(ids);
 			// 状態を変える前に積む。積んだ時点の probe() が「戻るべき姿」になる。
 			pushUndo({
-				scope: 'editor',
+				scope: 'list',
 				// 数えているのはスキルの種類数なので単位は「種」。取り消し側は実行時と別の文にする
 				// （「元に戻しました」に実行時の文を連結すると「戻した結果、外れた」とも読めるため）。
 				doneLabel: '追加済みスキル' + prev.length + '種を外しました',
@@ -3449,7 +3594,7 @@
 				apply: () => {
 					if (!writeSkillIds(target, snapshot(prev))) return false;
 					picker.excludeIds = picker.excludeIds.concat(prev.filter(id => picker.excludeIds.indexOf(id) === -1));
-					afterEditingSkillsChanged(target, true);
+					afterEditingSkillsChanged(target);
 					return true;
 				}
 			});
@@ -3459,14 +3604,13 @@
 		}
 
 		function removeSkillFromEditing(skillId) {
-			const target = editing;
-			if (!target) return;
+			const target = currentTarget();
 			const ids = skillIdsOf(target);
 			const idx = ids ? ids.indexOf(skillId) : -1;
 			if (idx === -1) return;
 			const name = getSkillName(skillId);
 			pushUndo({
-				scope: 'editor',
+				scope: 'list',
 				doneLabel: 'スキル「' + name + '」を外しました',
 				undoneLabel: '外したスキル「' + name + '」を戻しました',
 				// 見るのは「そのスキルが元の位置にあるか」だけ。あとから足したスキルは末尾に
@@ -3480,7 +3624,7 @@
 					next.splice(Math.min(idx, next.length), 0, skillId);
 					if (!writeSkillIds(target, next)) return false;
 					if (picker.excludeIds.indexOf(skillId) === -1) picker.excludeIds.push(skillId);
-					afterEditingSkillsChanged(target, true);
+					afterEditingSkillsChanged(target);
 					return true;
 				}
 			});
@@ -3491,21 +3635,20 @@
 			afterEditingSkillsChanged(target);
 		}
 
-		// 編集中のセット（ドラフト／テンプレート）の「今の」スキルID一覧。
+		// 対象（ドラフト／テンプレート）の「今の」スキルID一覧。
 		// ドラフトは保存のたびに draftScope ごと差し替わるので、捕まえておいた配列ではなく
 		// 毎回ここで引き直す。テンプレートはIDで引き直す（読み直しで実体が替わっても届くように）。
 		function skillIdsOf(target) {
 			if (!target) return null;
-			if (target.kind === 'draft') return draftScope ? draftScope.skillIds : null;
+			if (target.kind === 'draft') return draftScope.skillIds;
 			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
 			return t ? t.skillIds : null;
 		}
 
-		// 編集中のセットのスキルID一覧を、保存先まで書き換える。
+		// 対象のスキルID一覧を、保存先まで書き換える。**テンプレートは触った時点で保存**（C-53。元に戻せる）。
 		function writeSkillIds(target, ids) {
 			if (target.kind === 'draft') {
-				if (!draftScope) return false;
-				draftScope = saveDraftScope(draftScopeKey, ids);
+				draftScope = persistDraft(ids, draftScope.name);
 				return true;
 			}
 			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
@@ -3517,9 +3660,8 @@
 		}
 
 		// 追加済みスキルが増減したあとの描画と通知（削除・全消し・元に戻す、で共通）。
-		// 元に戻すときは、いま出ている画面（一覧か編集か）ごと描き直す。
-		function afterEditingSkillsChanged(target, redrawAll) {
-			if (redrawAll) render(); else renderSelectedList();
+		function afterEditingSkillsChanged(target) {
+			render();
 			renderPickerResults();
 			renderPasteReport();
 			if (isSelected(target)) fireSelection();
@@ -3527,18 +3669,25 @@
 		}
 
 		function duplicateTemplate(templateId) {
+			if (!templateId) return;
 			const data = ensureUserData();
-			if (data.templates.length >= TEMPLATE_LIMIT) { toast('テンプレートは最大' + TEMPLATE_LIMIT + '件までです'); return; }
+			if (data.templates.length >= TEMPLATE_LIMIT) { toast('スキルセットは最大' + TEMPLATE_LIMIT + '件までです'); return; }
 			const t = data.templates.find(x => x.templateId === templateId);
 			if (!t) return;
-			data.templates.push({ templateId: uid('tpl'), name: t.name + '（コピー）', skillIds: t.skillIds.slice(), createdAt: nowIso(), updatedAt: nowIso() });
+			flushPendingName();
+			const copy = { templateId: uid('tpl'), name: t.name + '（コピー）', skillIds: t.skillIds.slice(), createdAt: nowIso(), updatedAt: nowIso() };
+			data.templates.push(copy);
 			saveUserData();
-			renderList();
+			// 複製したものをそのまま選ぶ（続けて名前を直せるように）
+			selectedId = copy.templateId;
+			render();
+			fireSelection();
 			fireChange();
 			toast('複製しました');
 		}
 
 		function deleteTemplate(templateId) {
+			if (!templateId) return;
 			const data = ensureUserData();
 			const idx = data.templates.findIndex(x => x.templateId === templateId);
 			if (idx === -1) return;
@@ -3546,8 +3695,8 @@
 			const label = removed.name || '（名称未設定）';
 			pushUndo({
 				scope: 'list',
-				doneLabel: 'テンプレート「' + label + '」を削除しました',
-				undoneLabel: '削除したテンプレート「' + label + '」を戻しました',
+				doneLabel: 'スキルセット「' + label + '」を削除しました',
+				undoneLabel: '削除したスキルセット「' + label + '」を戻しました',
 				// そのテンプレートが（同じ中身で）在るかどうか。無ければ空文字。
 				probe: () => {
 					const cur = ensureUserData().templates.find(x => x.templateId === templateId);
@@ -3559,64 +3708,53 @@
 					if (d.templates.length >= TEMPLATE_LIMIT) return false;
 					d.templates.splice(Math.min(idx, d.templates.length), 0, snapshot(removed));
 					saveUserData();
+					// 戻したものを選び直す
+					selectedId = templateId;
 					render();
+					fireSelection();
 					fireChange();
 					return true;
 				}
 			});
 			data.templates.splice(idx, 1);
 			saveUserData();
-			renderList();
-			fireChange();
-		}
-
-		// ドラフトをテンプレートへ昇格する。名前は昇格後の編集画面で付けてもらう
-		// （ここで prompt を出すと、他の画面の作法と揃わないため）。
-		function promoteDraftToTemplate() {
-			if (!draftScope || draftScope.skillIds.length === 0) { toast('スキルを1件以上選んでください'); return; }
-			const data = ensureUserData();
-			if (data.templates.length >= TEMPLATE_LIMIT) {
-				toast('テンプレートは最大' + TEMPLATE_LIMIT + '件までです。不要なものを削除してください');
-				return;
-			}
-			const skillIds = draftScope.skillIds.slice();
-			const t = { templateId: uid('tpl'), name: '', skillIds: skillIds, createdAt: nowIso(), updatedAt: nowIso() };
-			data.templates.push(t);
-			saveUserData();
-			// 中身はテンプレートへ移ったので、ドラフトは空にする（二重管理を避ける）
-			draftScope = saveDraftScope(draftScopeKey, []);
-			// 編集対象がドラフトからテンプレートへ替わる
-			dropUndoScope('editor');
-			editing = { kind: 'template', obj: t };
-			selectedId = t.templateId;
+			// 消したあとは「＋ 新規」（ドラフト）へ
+			selectedId = draftScope.skillIds.length > 0 ? DRAFT_SELECTION_ID : null;
 			render();
-			nameInput.focus();
 			fireSelection();
 			fireChange();
-			toast('テンプレートとして保存しました。名前を入力してください');
 		}
 
 		/* ---------- 選択 ---------- */
 		function setSelectedId(id) {
-			if (id === DRAFT_SELECTION_ID) {
-				selectedId = (draftScope && draftScope.skillIds.length > 0) ? DRAFT_SELECTION_ID : null;
-			} else {
-				selectedId = ensureUserData().templates.some(t => t.templateId === id) ? id : null;
-			}
-			renderList();
-			fireSelection();
+			selectTab(id === DRAFT_SELECTION_ID ? DRAFT_SELECTION_ID : id);
 		}
 
 		function getSelection() {
 			if (selectedId === DRAFT_SELECTION_ID && draftScope && draftScope.skillIds.length > 0) {
 				// name は画面に出る表示名（「✓『◯◯』の○件を照合します」、OCR結果の受け渡し先の
-				// 既定のシート名など）。一覧の行と同じ呼び方にしておかないと、
+				// 既定のシート名など）。タブと同じ呼び方にしておかないと、
 				// 選んだものと表示されるものの名前が食い違って見える。
-				return { kind: 'draft', id: DRAFT_SELECTION_ID, name: 'ドラフト', skillIds: draftScope.skillIds.slice() };
+				return { kind: 'draft', id: DRAFT_SELECTION_ID, name: draftScope.name || 'ドラフト', skillIds: draftScope.skillIds.slice() };
 			}
 			const t = ensureUserData().templates.find(x => x.templateId === selectedId);
 			if (!t) return null;
 			return { kind: 'template', id: t.templateId, name: t.name || '（名称未設定）', skillIds: t.skillIds.slice() };
+		}
+
+		/**
+		 * 選べるスキルセットの一覧（C-54 の (3)。編成パネルの「本育成スキルを除外する」で除外先を選ぶ）。
+		 * 中身のあるドラフトが先頭、続けてテンプレート。返すのは { id, name, skillIds } の配列。
+		 */
+		function listSelections() {
+			const out = [];
+			if (draftScope && draftScope.skillIds.length > 0) {
+				out.push({ id: DRAFT_SELECTION_ID, name: draftScope.name || 'ドラフト', skillIds: draftScope.skillIds.slice() });
+			}
+			ensureUserData().templates.forEach(t => {
+				out.push({ id: t.templateId, name: t.name || '（名称未設定）', skillIds: t.skillIds.slice() });
+			});
+			return out;
 		}
 
 		/**
@@ -3645,12 +3783,12 @@
 				probe: () => probeOf(skillIdsOf(target)),
 				apply: () => {
 					if (!writeSkillIds(target, snapshot(prev))) return false;
-					afterEditingSkillsChanged(target, true);
+					afterEditingSkillsChanged(target);
 					return true;
 				}
 			});
 			if (!writeSkillIds(target, after)) return 0;
-			afterEditingSkillsChanged(target, true);
+			afterEditingSkillsChanged(target);
 			return n;
 		}
 
@@ -3659,9 +3797,11 @@
 		return {
 			render: render,
 			removeSkillsFromSelection: removeSkillsFromSelection,
-			isEditing: function () { return !!editing; },
-			openEditor: openEditor,
-			closeEditor: closeEditor,
+			listSelections: listSelections,
+			// 後方互換: 別画面の編集ビューは無くなった（C-53）。openEditor はそのタブを選ぶ、closeEditor は描き直すだけ
+			isEditing: function () { return false; },
+			openEditor: function (templateId) { selectTab(templateId || DRAFT_SELECTION_ID); },
+			closeEditor: function () { flushPendingName(); render(); },
 			getSelection: getSelection,
 			setSelectedId: setSelectedId,
 			// スキルセットOCR（コミット4）: 照合済みの行を、いま扱っている対象スキルセットへ足すモーダル
@@ -3986,6 +4126,8 @@
 		createTemplateManager: createTemplateManager,
 		// 編成（C-51）。パネルは呼び出し元に依存しないので、どの画面にも差せる。
 		createRosterPanel: createRosterPanel,
+		// 帯のタブ（共有部品。C-54）。special の親A／親Bセットのタブが使う
+		tabStrip: { html: tabStripHtml, reveal: revealSelectedTab, keydown: tabStripKeydown },
 		listRosters: listRosters,
 		computeRosterSkills: computeRosterSkills,
 		getPickerHiddenIds: function () { return pickerHiddenIds.slice(); },

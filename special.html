@@ -14,9 +14,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-18a" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-18a" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-18a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-18b" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-18b" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-18b" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-18h"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-18i"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-15a"></script>
 	<style>
@@ -46,6 +46,10 @@
 			border: 1px solid var(--uma-border-strong); background: var(--uma-surface-muted); color: var(--uma-text-heading); }
 		.deck-panel-note { margin: 0 0 var(--uma-sp-2); }
 		.deck-panel-note--alpha { border-color: var(--uma-danger-border); background: var(--uma-danger-bg); color: var(--uma-danger-text); }
+		/* 親A／親Bセットのタブ（③）の色。結果の表と同じ変数（.person-col-blue / .person-col-red）を、
+		   共有部品の色付きタブ（css/shell.css の .uma-subtab--tinted）の変数へ写す。 */
+		.uma-subtab.person-col-blue, .uma-subtab.person-col-red {
+			--uma-subtab-tint-bg: var(--person-bg); --uma-subtab-tint-fg: var(--person-fg); --uma-subtab-tint-line: var(--person-border-strong); }
 
 		/* このツールのアクセント。UmaStar OCR は「読み取って登録する」画面なので緑。
 		   共通部品（ボタン・入力欄・フォーカス輪郭）はこの変数を見て色が決まる。
@@ -563,15 +567,15 @@
 			<!-- ステップ2：親A・祖A1・祖A2（＋任意で親B・祖B1・祖B2）の画像アップロード -->
 			<div id="step-panel-2" class="step-panel" role="tabpanel" aria-labelledby="step-tab-2" hidden>
 
-			<!-- 親Aセット -->
+			<!-- 親Aセット・親Bセットは帯のタブで切り替える（C-54 の (1)。それまでは「＋ 親Bセットも追加する」で
+			     B を開閉していた）。両方のパネルは常に DOM にあり（見えていないほうは hidden）、アップロード済みの
+			     画像は保持される。OCR と画像結合は「画像のあるセット」を対象にし、どちらのタブを見ているかは関係ない。
+			     タブの色は結果の表と同じ（親A＝青 .person-col-blue／親B＝赤 .person-col-red）。 -->
+			<div class="uma-subtabs-row mb-3">
+				<div id="personset-tabs" data-usd-el="personset-tabs" onkeydown="onPersonSetTabKeydown(event)"></div>
+			</div>
 			<div id="personset-A-wrap" class="mb-3"></div>
-
-			<!-- 親Bセット（因子元の系統が複数ある場合に追加）。デフォルト非表示。
-			     非表示にしてもアップロード済みのファイル自体は保持される。 -->
-			<button id="setb-toggle-btn" type="button" onclick="toggleSetB()" class="w-full mb-3 py-2 px-3 rounded-xl border border-dashed border-slate-300 text-xs font-semibold text-slate-500 hover:border-red-300 hover:text-red-600 hover:bg-red-50/40 transition-all cursor-pointer">
-				<span id="setb-toggle-label">＋ 親Bセットも追加する</span>
-			</button>
-			<div id="personset-B-wrap" class="hidden mb-3"></div>
+			<div id="personset-B-wrap" class="mb-3" hidden></div>
 
 			<!-- オプション設定（デフォルトで折りたたみ） -->
 			<details class="group rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden mb-5">
@@ -706,7 +710,7 @@
 		// Examと同じ「因子元の系統」の考え方・命名・親-祖-祖のツリー図デザインを
 		// そのままSpecialにも適用する（当初は単純な3人×2セットとして実装したが、
 		// デザインの一貫性のためExamと同一の家系ラベル・ビジュアルに統一した）。
-		// セットBはデフォルト非表示（toggleSetB()で表示切替）。スキルリストは
+		// 2セットは帯のタブで切り替える（C-54。selectPersonSet()）。スキルリストは
 		// 2セットで共通（1つのリストで親A〜祖B2まで全員を照合する）。
 		const PERSON_SETS = [
 			{ id: 'A', label: '親Aセット', hue: 'blue' },
@@ -719,7 +723,6 @@
 		PERSON_SETS.forEach(set => { PERSON_COLORS.push(set.hue, set.hue, set.hue); });
 		const persons = PERSON_LABELS.map(() => ({ files: [] }));
 		let personResults = PERSON_LABELS.map(() => null); // matchAllSkillsWithStars() の戻り値を格納
-		let setBVisible = false;
 
 		/* ============================================================
 		 * 共通CSS（css/tokens.css / common.css / shell.css）の版の照合
@@ -730,7 +733,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-18a';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-18b';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -1058,18 +1061,38 @@
 
 			// フルリビルド直後でも、既にアップロード済みのファイルがあればサムネイルを復元する
 			persons.forEach((_, idx) => renderPersonImageList(idx));
+			renderPersonSetTabs();
 		}
 
-		// 親Bセットの表示/非表示を切り替える。非表示にしてもアップロード済みの
-		// ファイル自体は保持される（再表示すれば残っている。OCR結果にも引き続き含まれる）。
-		function toggleSetB() {
-			setBVisible = !setBVisible;
-			const wrap = document.getElementById('personset-B-wrap');
-			wrap.classList.toggle('hidden', !setBVisible);
-			document.getElementById('setb-toggle-label').textContent = setBVisible ? '− 親Bセットを閉じる' : '＋ 親Bセットも追加する';
-			document.getElementById('setb-toggle-btn').classList.toggle('bg-red-50', setBVisible);
-			document.getElementById('setb-toggle-btn').classList.toggle('border-red-300', setBVisible);
+		/* 親A／親Bセットのタブ（C-54 の (1)）。帯の描画は core の共有部品（tabStrip）。
+		   見えていないセットも画像は保持され、OCR と画像結合の対象になる（タブは「どちらを見せるか」だけ）。
+		   タブには画像の枚数を出す（隠れている側の状況が分かるように。ステップのタブと同じ考え方）。 */
+		let activePersonSet = 0;
+		function renderPersonSetTabs() {
+			const slot = document.getElementById('personset-tabs');
+			if (!slot || !window.UmaSkillDeckCore) return;
+			const items = PERSON_SETS.map((set, i) => {
+				const n = [0, 1, 2].reduce((s, r) => s + persons[i * 3 + r].files.length, 0);
+				return { id: String(i), label: set.label, count: n > 0 ? n + '枚' : null, selected: i === activePersonSet,
+					className: 'uma-subtab--tinted ' + HUE_CLASS[set.hue], title: set.label };
+			});
+			slot.innerHTML = UmaSkillDeckCore.tabStrip.html(items, { act: 'personset-tab', ariaLabel: '因子元のセット' });
+			PERSON_SETS.forEach((set, i) => {
+				const wrap = document.getElementById('personset-' + set.id + '-wrap');
+				if (wrap) wrap.hidden = i !== activePersonSet;
+			});
 		}
+		function selectPersonSet(idx) {
+			activePersonSet = Number(idx) || 0;
+			renderPersonSetTabs();
+		}
+		function onPersonSetTabKeydown(ev) {
+			if (window.UmaSkillDeckCore) UmaSkillDeckCore.tabStrip.keydown(ev, (id) => selectPersonSet(id));
+		}
+		document.addEventListener('click', (e) => {
+			const btn = e.target.closest && e.target.closest('#personset-tabs [data-usd-act="personset-tab"]');
+			if (btn) selectPersonSet(btn.getAttribute('data-tab-id'));
+		});
 
 		// 指定セット（0=親A, 1=親B）の3枠すべてのアップロード済み画像をクリアする
 		function clearPersonSet(setIdx) {
@@ -1174,6 +1197,8 @@
 			const total = persons.reduce((n, p) => n + p.files.length, 0);
 			badge.hidden = total === 0;
 			badge.textContent = total + '枚';
+			// 親A／親Bセットのタブの枚数も同じ機会に更新する
+			renderPersonSetTabs();
 		}
 
 		/* ============================================================
@@ -1787,7 +1812,7 @@
 				// 対象セット・合計人数を先に数えて進捗バーの分母にする
 				const targets = [];
 				for (let setIdx = 0; setIdx < PERSON_SETS.length; setIdx++) {
-					if (setIdx === 1 && !setBVisible) continue; // 親Bセットが非表示なら結合もスキップ
+					// 画像のあるセットはすべて結合する（C-54 の (1)。タブで隠れているかは関係ない）
 					const baseIdx = setIdx * 3;
 					const count = [0, 1, 2].filter(r => persons[baseIdx + r].files.length > 0).length;
 					if (count > 0) targets.push({ setIdx: setIdx, count: count });
@@ -2138,7 +2163,13 @@
 							const sel = deckTemplateManager.getSelection();
 							return sel ? sel.skillIds : [];
 						},
-						onRemoveFromScope: (ids) => {
+						// 「＋ 新規」の中身（未保存の編成）をブラウザに残す（C-53。タブを切り替えても消えない）
+						draftKey: DECK_DRAFT_SCOPE_KEY,
+						// 除外先の周回スキルセットを選べるようにする（C-54 の (3)）。候補は②のスキルセット
+						getScopeChoices: () => deckTemplateManager.listSelections(),
+						onRemoveFromScope: (ids, choiceId) => {
+							// 選んだスキルセットを②の選択にしてから外す（照合対象もそれになる）
+							if (choiceId) deckTemplateManager.setSelectedId(choiceId);
 							const n = deckTemplateManager.removeSkillsFromSelection(ids);
 							// 外せたときのトーストは core の Undo（doneLabel）が出す。ここで重ねて出さない。
 							if (n === 0) showToast('外すものはありませんでした');
@@ -2496,7 +2527,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-18a';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-18b';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {
