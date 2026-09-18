@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19c';
 
 	/* ============================================================
 	 * 定数
@@ -471,11 +471,30 @@
 	 * （EXTRA_CATALOG_SOURCES に並べたぶんだけ同じ処理を回す）。
 	 * 1カテゴリが落ちても他のカテゴリは読めたぶんだけ使う。
 	 * ------------------------------------------------------------ */
+	/**
+	 * 追加カタログの1件を、内部で持つ形（{ id, name, category, tags?, tagsPending? }）に整える。
+	 *
+	 * **`tags` / `tagsPending` は落とさずに素通しする**（C-49 の5節に積み残していた件）。
+	 * 拡張スキルはこの2つでタグの有無を表しており、落とすと `findSkill()` が常に
+	 * 空のタグを返し、タグを付けても Deck に届かない。
+	 *
+	 * **持っているキーだけを写す**（無いものを既定値で作らない）。シナリオ因子のように
+	 * どちらも持たないカテゴリがあるため、ここで既定値を入れるとカテゴリ名で分岐する
+	 * ことになる（恒久ルール1）。「8軸すべてが空のタグ」は**万能スキル**という別の意味を
+	 * 持つので、未設定の代わりに空のタグを作ってはいけない。
+	 */
+	function toCatalogEntry(e, category) {
+		const out = { id: String(e.id), name: String(e.name), category: category };
+		if (e.tags) out.tags = e.tags;
+		if (e.tagsPending) out.tagsPending = true;
+		return out;
+	}
+
 	function normalizeCatalogEntries(data, category) {
 		const list = (data && Array.isArray(data.entries)) ? data.entries : [];
 		return list
 			.filter(e => e && e.id && e.name)
-			.map(e => ({ id: String(e.id), name: String(e.name), category: category }));
+			.map(e => toCatalogEntry(e, category));
 	}
 
 	async function loadExtraCatalog(forceRefresh) {
@@ -497,8 +516,10 @@
 			let list = normalizeCatalogEntries(data, src.category);
 			if (list.length === 0) {
 				// 組み込みの写し。ここまで来ても空なら、そのカテゴリは今回は無いものとして進む。
+				// 正本と同じ toCatalogEntry() を通す（写しにタグを持たせたときに、
+				// ここだけ落ちるということが起きないように）。
 				list = (EMBEDDED_EXTRA_CATALOG[src.category] || [])
-					.map(e => ({ id: e.id, name: e.name, category: src.category }));
+					.map(e => toCatalogEntry(e, src.category));
 				data = null;
 				from = '組み込み';
 			}
@@ -891,10 +912,13 @@
 		if (m) return m;
 		const c = (ensureUserData().customSkills || []).find(s => s.customId === skillId);
 		if (c) return { id: c.customId, name: c.name, tags: c.tags };
-		// 追加カタログ（シナリオ因子など）。タグは持たないので空のタグ集合を返す。
+		// 追加カタログ（シナリオ因子・拡張スキルなど）。タグを持つものはそのまま返し、
+		// 持たないもの（シナリオ因子・タグ未設定の拡張スキル）は空のタグ集合を返す。
+		// **空のタグ集合は「万能スキル」の意味になる**ので、未設定と見分けたい呼び出し側は
+		// tagsPending を見る（この2つを取り違えないよう、両方を返す）。
 		// kind にカテゴリが入るので、呼び出し側は「カタログ由来か」を見分けられる。
 		const x = extraCatalog.find(s => s.id === skillId);
-		if (x) return { id: x.id, name: x.name, tags: emptyTagSet(), kind: x.category };
+		if (x) return { id: x.id, name: x.name, tags: x.tags || emptyTagSet(), tagsPending: !!x.tagsPending, kind: x.category };
 		return null;
 	}
 
