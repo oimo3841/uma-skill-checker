@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-15b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18a';
 
 	/* ============================================================
 	 * 定数
@@ -51,7 +51,12 @@
 	 * ------------------------------------------------------------ */
 	const STORAGE_KEY_EXTRA_CATALOG = 'umaSkillDeck:extraCatalogCache';
 	const EXTRA_CATALOG_SOURCES = [
-		{ category: 'scenarioFactor', path: 'catalog-data/scenario-inheritance-factors.json' }
+		{ category: 'scenarioFactor', path: 'catalog-data/scenario-inheritance-factors.json' },
+		// マスター445種の外にあるスキル（C-48・C-49）。件数が多いので EMBEDDED_EXTRA_CATALOG に
+		// 写しは持たない（取得もキャッシュも駄目だったときは、黙って劣化させず知らせる）。
+		{ category: 'extendedSkill', path: 'catalog-data/extended-skills.json' }
+		// 育成ウマ娘・サポートカードはここに入れない。スキルではないので、入れると
+		// findSkill() と名前の索引にカード名・ウマ娘名が混ざる（C-49）。
 	];
 	const TEMPLATE_LIMIT = 10;
 	const RECORD_LIMIT = 10;
@@ -374,6 +379,18 @@
 
 		extraCatalog = entries;
 		extraCatalogMeta = { entryCount: entries.length, sources: sources };
+
+		// 1件も読めなかったカテゴリは**黙って進めない**（C-49）。
+		// 組み込みの写しを持たないカテゴリ（拡張スキル）では、取得にもキャッシュにも
+		// 失敗すると中身が丸ごと空になる。そのまま進むと、保存済みの比較シートの行が
+		// 「（不明なスキル：…）」に化けた理由が利用者にも開発者にも分からなくなる。
+		const emptyCategories = sources.filter(s => s.count === 0).map(s => s.category);
+		if (emptyCategories.length > 0) {
+			const msg = '収録データを読み込めませんでした（' + emptyCategories.join('・') + '）。'
+				+ '通信できないときは、ページを開き直すと直ることがあります。';
+			try { global.console.warn('[UmaSkillDeck] ' + msg); } catch (e) {}
+			toast(msg);
+		}
 		try {
 			global.localStorage.setItem(STORAGE_KEY_EXTRA_CATALOG, JSON.stringify({ data: nextCache, fetchedAt: nowIso() }));
 		} catch (e) {}
