@@ -233,9 +233,7 @@ const INTENTIONALLY_REMOVED = {
 	// 2026-09-18（55セッション目・C-53／C-54）: 親A／親Bセットを帯のタブにしたので「＋ 親Bセットも追加する」
 	// （#setb-toggle-btn / #setb-toggle-label）を消した。core.js は、テンプレート一覧のラジオ（value="' + esc(t.templateId) + '"
 	// が id の検査に引っかかっていたもの）と data-template-id、編成のタブの data-roster-id が、共有部品の帯のタブ
-	// （data-tab-id）に置き換わって消えた。commit が進んだら免除を空に戻す。
-	'special.html': ['setb-toggle-btn', 'setb-toggle-label'],
-	'js/uma-skill-deck-core.js': ["' + esc(r.rosterId) + '", "' + esc(t.templateId) + '", 'data-roster-id', 'data-template-id'],
+	// （data-tab-id）に置き換わって消えた。`d3332e8` に commit したので免除は空に戻した。
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
