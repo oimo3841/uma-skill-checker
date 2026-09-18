@@ -65,7 +65,9 @@ const TOP_KEYS = {
 const ENTRY_KEYS = {
 	extendedSkill: { need: ['id', 'name'], opt: ['tags', 'tagsPending'] },
 	trainingUmamusume: { need: ['id', 'title', 'charaName', 'initialStar', 'initialSkills', 'awakeningSkills', 'dataStatus'], opt: [] },
-	supportCard: { need: ['id', 'title', 'charaName', 'hintSkills', 'dataStatus'], opt: [] },
+	// type（種類）と typeOrder（ゲーム内で扱われる順番）は、どちらもデータが持つ値。
+	// **名前も番号もこのスクリプトに書かない**（恒久ルール1）。見るのは値どうしの整合だけ。
+	supportCard: { need: ['id', 'title', 'charaName', 'type', 'typeOrder', 'hintSkills', 'dataStatus'], opt: [] },
 	supportCardEventSkill: { need: ['cardId', 'status', 'skills'], opt: [] },
 };
 
@@ -274,6 +276,8 @@ docs.supportCard.entries.forEach((e, i) => {
 	const w = 'supportCard[' + i + ']';
 	if (!checkKeys(e, ENTRY_KEYS.supportCard, w, unknownKeys, missingKeys)) return;
 	if (!isStr(e.id) || !isStr(e.title) || !isStr(e.charaName)) badTypes.push(w + ': id / title / charaName は空でない文字列');
+	if (!isStr(e.type)) badTypes.push(w + ': type は空でない文字列');
+	if (!isInt(e.typeOrder) || e.typeOrder < 1) badTypes.push(w + ': typeOrder は1以上の整数');
 	readSkillRefs(e.hintSkills, w + '.hintSkills');
 	if (checkKeys(e.dataStatus, DATA_STATUS_KEYS.supportCard, w + '.dataStatus', unknownKeys, missingKeys)) {
 		if (!STATUS_VALUES.includes(e.dataStatus.hint)) badTypes.push(w + '.dataStatus.hint: ' + JSON.stringify(e.dataStatus.hint));
@@ -397,7 +401,7 @@ console.log('\n=== 4. スキルの参照 ===');
 
 /* ──────────────────────── 5. ★・覚醒レベル・状態 ──────────────────────── */
 
-console.log('\n=== 5. ★・覚醒レベル・状態 ===');
+console.log('\n=== 5. ★・覚醒レベル・状態・種類 ===');
 {
 	const starProblems = [], levelProblems = [], statusProblems = [];
 
@@ -440,6 +444,23 @@ console.log('\n=== 5. ★・覚醒レベル・状態 ===');
 	none(starProblems, 'minStar が初期の★以上で、昇順・重複なし');
 	none(levelProblems, '覚醒レベルが昇順・重複なし');
 	none(statusProblems, '状態の印と中身が食い違わない');
+
+	// 種類（type）と、ゲーム内で扱われる順番（typeOrder）の対応。
+	// **名前も番号も書かず、データにある値どうしが一対一かだけを見る。**
+	// ここがずれると、並べ替えの結果が実行ごとに違って見える。
+	const orderOfType = new Map(), typeOfOrder = new Map();
+	const typePairs = [];
+	docs.supportCard.entries.forEach((e, i) => {
+		if (!isStr(e.type) || !isInt(e.typeOrder)) return;
+		const w = 'supportCard[' + i + ']';
+		if (orderOfType.has(e.type) && orderOfType.get(e.type) !== e.typeOrder) {
+			typePairs.push(w + ': 同じ type に違う typeOrder（' + orderOfType.get(e.type) + ' と ' + e.typeOrder + '）');
+		} else orderOfType.set(e.type, e.typeOrder);
+		if (typeOfOrder.has(e.typeOrder) && typeOfOrder.get(e.typeOrder) !== e.type) {
+			typePairs.push(w + ': 同じ typeOrder に違う type');
+		} else typeOfOrder.set(e.typeOrder, e.type);
+	});
+	none(typePairs, 'type と typeOrder が全件で一対一に対応する（' + orderOfType.size + '種類）');
 }
 
 /* ──────────────────────── 6. 以前の内容との突き合わせ ──────────────────────── */
@@ -493,6 +514,20 @@ console.log('\n=== 7. 進み具合（情報。検査には影響しない） ===
 	const cards = docs.supportCard.entries;
 	const ev = docs.supportCardEventSkill.entries;
 	console.log('     サポートカード: ' + cards.length + '件');
+	// 種類ごとの件数。**並びは typeOrder の昇順**（データの並び順はゲーム内の順番と違う）。
+	// 種類の名前はデータから読む。
+	{
+		const byType = new Map();
+		cards.forEach((e) => {
+			const key = String(e.type || '(種類なし)');
+			const cur = byType.get(key) || { n: 0, order: isInt(e.typeOrder) ? e.typeOrder : Number.MAX_SAFE_INTEGER };
+			cur.n++;
+			byType.set(key, cur);
+		});
+		const line = [...byType.entries()].sort((a, b) => a[1].order - b[1].order)
+			.map(([name, v]) => name + ' ' + v.n).join(' / ');
+		console.log('       種類: ' + (line || '(まだ入っていません)'));
+	}
 	console.log('       ヒント: ' + countBy(cards, (e) => (e.dataStatus || {}).hint));
 	console.log('       イベント: done ' + ev.filter((e) => e.status === 'done').length
 		+ ' / none ' + ev.filter((e) => e.status === 'none').length
