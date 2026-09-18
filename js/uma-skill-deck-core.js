@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18e';
 
 	/* ============================================================
 	 * 定数
@@ -559,17 +559,26 @@
 	}
 
 	/**
-	 * サポートカードの種類（スピード・スタミナ…）。**値も並び順もデータに従う** ――
-	 * 種類の名前をこのファイルに書かない（恒久ルール1の精神）。
+	 * サポートカードの種類。**値も並び順もデータに従う** ――
+	 * 種類の名前も番号もこのファイルに書かない（恒久ルール1の精神）。
+	 *
+	 * **並びは `typeOrder`（ゲーム内で扱われる順番）の昇順。** データの行の並びは
+	 * ゲーム内の順番と一致していないので、出てきた順に並べると画面の並びが入れ替わる。
+	 *
+	 * `typeOrder` を持たない行は**いちばん後ろ**に回し、その中ではデータに出てきた順を保つ
+	 * （番号が無いだけで種類はあるので、落とさずに選べるようにしておく）。
 	 * データにまだ `type` が無ければ空配列を返し、呼び出し側は絞り込みを出さない。
 	 */
 	function listCardTypes() {
-		const out = [];
-		listCards().forEach(c => {
+		const seen = new Map();   // type → { order, seq }
+		listCards().forEach((c, i) => {
 			const t = c && c.type;
-			if (t && out.indexOf(t) === -1) out.push(t);
+			if (!t || seen.has(t)) return;
+			const n = c.typeOrder;
+			seen.set(t, { order: (typeof n === 'number' && isFinite(n)) ? n : Infinity, seq: i });
 		});
-		return out;
+		return Array.from(seen.keys())
+			.sort((a, b) => (seen.get(a).order - seen.get(b).order) || (seen.get(a).seq - seen.get(b).seq));
 	}
 	function cardTypeOf(card) { return (card && card.type) || ''; }
 
