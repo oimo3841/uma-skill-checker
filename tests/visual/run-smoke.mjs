@@ -490,6 +490,43 @@ const browser = await chromium.launch();
 	const ov = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
 	assert(ov.sw === ov.cw, 'special: 375px で横スクロールが出ない', ov);
 
+	/* ①のタブに「除外N種」のバッジが入ったので（C-63 の (2)）、375px でタブの名前が
+	   潰れていないことを見る。3等分（flex: 1 1 0）のままだと**ラベルが1文字まで削られた**ので、
+	   中身を基準に縮める形（flex: 1 1 auto）＋狭い画面での余白の詰めを入れてある。
+	   ここでは①のタブが他より広く取れていること（＝バッジのぶんを取り戻していること）と、
+	   ラベルに文字が残っていることを見る。 */
+	const narrowTabs = await page.evaluate(() => {
+		// バッジが出るのは新UIだけなので、いったん新UIへ戻して測る
+		localStorage.setItem('uma-special-ui-mode', 'new');
+		return null;
+	});
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await page.waitForTimeout(2500);
+	const tabW = await page.evaluate(() => {
+		// ②にも件数バッジが出ている状態（いちばん幅が苦しい）で見る
+		const b = document.getElementById('skill-count-badge');
+		b.textContent = '12種'; b.classList.remove('hidden');
+		const tabs = [...document.querySelectorAll('.step-tab')].filter((t) => !t.hidden);
+		return {
+			n: tabs.length,
+			badgeShown: !document.getElementById('deck-roster-excluded').hidden,
+			// ラベルが省略（…）されていないこと。scrollWidth > clientWidth なら切れている
+			clipped: tabs.map((t) => {
+				const l = t.querySelector('.step-tab-label');
+				return l.scrollWidth > l.clientWidth + 1;
+			}),
+			labels: tabs.map((t) => t.querySelector('.step-tab-label').textContent),
+			overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+		};
+	});
+	assert(tabW.n === 3 && tabW.badgeShown, 'special(375px): ①②③の3つのタブと「除外N種」が出ている', tabW);
+	// ①（「除外N種」を持つタブ）の名前が「…」で切れないことが、この直しの眼目。
+	// ③はもともといちばん長い名前で、バッジが無くても切れることがある（ここでは見ない）。
+	assert(tabW.clipped[0] === false && tabW.clipped[1] === false,
+		'special(375px): バッジを持つ①②の名前が「…」で切れない（バッジは名前の下へ回る）', tabW);
+	assert(!tabW.overflow, 'special(375px): タブを折り返しても横スクロールは出ない', tabW);
+	await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
+
 	assert(errors.length === 0, 'special: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
@@ -5700,9 +5737,11 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	});
 
 	// 段0-1) 周回スキルセットを選んでいない（新UI）
+	// **C-63 の (7) で「このまま結合すると印は入りません」の後半を落とした** ―― 印が付くのは
+	// 一体のボタンからだけになったので、「このまま結合すると」が指すものが無くなった。
 	const s0 = await status();
-	assert(s0.shown && s0.tone === 'warn' && s0.text.includes('②で周回スキルセットを選ぶ') && s0.text.includes('印は入りません'),
-		'段0: セット未選択のときは「②で選ぶと焼ける／このままでは入らない」と出る', s0);
+	assert(s0.shown && s0.tone === 'warn' && s0.text === '②で周回スキルセットを選ぶと、分類の印を付けられるようになります。',
+		'段0: セット未選択のときは「②で選ぶと付けられる」と出る', s0);
 
 	// 段0-2) セットを選ぶと**何も言わなくなる**（status() が③へ移しているので②へ戻してから押す）。
 	// 60セッション目（C-61）は「一体のボタンなら印も焼ける」と案内していたが、
@@ -5716,7 +5755,10 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(s1.tone === 'none' && s1.text === '',
 		'段0: セットを選んで OCR 未実行のときは何も言わない（C-62 の (8)-6）', s1);
 
-	// 段0-3) OCR の結果ができると「焼きます」になる（結果は本物の照合関数で作る）
+	// 段0-3) OCR の結果ができても**何も言わない**（C-63 の (7)-2）。
+	// それまでは「OCRの結果があるので印も焼きます」と出していたが、印が付くのは
+	// 一体のボタンからだけになったので、**その文は嘘になった**（OCR 済みでも
+	// 「画像を結合する（OCRしない）」からは付かない）。材料が揃っているときは何も言わない。
 	await page.evaluate(() => {
 		personResults[0] = matchAllSkillsWithStars(
 			skillList.map((name, i) => ({ text: name, stars: (i % 3) + 1, starsReliable: true, rowKey: '0:' + i })),
@@ -5724,17 +5766,23 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	});
 	await page.evaluate(() => updateTierMarksStatus());
 	const s2 = await status();
-	assert(s2.tone === 'ok' && s2.text.includes('焼きます'),
-		'段0: OCR の結果があると「印も焼きます」になる', s2);
+	assert(s2.tone === 'none' && s2.text === '',
+		'段0: OCR の結果があっても何も言わない（C-63 の (7)-2）', s2);
+	assert(!(await page.evaluate(() => document.body.innerText)).includes('OCRの結果があるので'),
+		'段0: 「OCRの結果があるので…」は画面に出ない（コード内のコメントは対象外）');
 
-	// 段0-4) 印を焼かない設定のときは、その旨だけを出す（OCR の有無に関わらず）
+	// 段0-4) 印を付けない設定のときは、その旨だけを出す（OCR の有無に関わらず）
 	await page.uncheck('#opt-tier-marks');
 	await page.waitForTimeout(200);
 	const s3 = await status();
-	assert(s3.tone === 'off' && s3.text.includes('焼きません'), '段0: 印 OFF のときは「焼きません」', s3);
+	assert(s3.tone === 'off' && s3.text === '分類の印は付けません（上のチェックを入れると付きます）。',
+		'段0: 印 OFF のときは「付けません」', s3);
 	await page.check('#opt-tier-marks');
 	await page.waitForTimeout(200);
-	assert((await status()).tone === 'ok', '段0: 印を戻すと元の判定に戻る');
+	assert((await status()).tone === 'none', '段0: 印を戻すと元の判定に戻る');
+	// 「焼く」という言い方はやめた（C-63 の (7)-4）。利用者に見える文字列に残っていないこと
+	assert(!/焼[きくかけい]/.test(await page.evaluate(() => document.body.innerText)),
+		'C-63 (7): 画面に出る文字列に「焼く」の言い回しが残っていない');
 
 	// 段3) 凡例の帯。印を1つも焼いていなければ置かない（＝これまでどおりスキルパネルだけ）
 	const legend = await page.evaluate(() => {
@@ -5750,11 +5798,41 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		}
 		return { off: off, w: on.width, h: on.height, white: white, note: note, red: red, total: d.length / 4 };
 	});
-	assert(legend.off === null, '段3: 印を1つも焼いていなければ凡例の帯を置かない', legend.off);
+	assert(legend.off === null, '段3: 印を1つも付けていなければ凡例の帯を置かない', legend.off);
 	assert(legend.w === 1200 && legend.h > 0, '段3: 帯は結合画像と同じ幅で作られる', { w: legend.w, h: legend.h });
 	assert(legend.white > legend.total * 0.8, '段3: 帯の地は白', legend);
 	assert(legend.note > 100, '段3: 説明文が補助テキストの色（#555555）で入っている', legend.note);
 	assert(legend.red > 0, '段3: 超優先の印が赤（--uma-mark-tier-1）で入っている', legend.red);
+
+	/* C-63 の (7): 分類の印が付くのは「OCR処理＋画像結合を開始する」からだけ。
+	   buildStitchedSetImage() の3つ目の引数（withMarks）が false なら1つも描かない。
+	   実際に結合させるのは重いので、**印を描く関数が呼ばれるかどうか**を差し替えて数える。 */
+	const marksRoute = await page.evaluate(async () => {
+		const calls = [];
+		const orig = window.drawTierMarksOnPerson;
+		window.drawTierMarksOnPerson = function (canvas, idx) { calls.push(idx); return 0; };
+		const origBuild = window.stitchOnePerson;
+		// 1人分の結合はダミーのCanvasで済ませる（印の経路だけを見る）
+		window.stitchOnePerson = async () => { const c = document.createElement('canvas'); c.width = 10; c.height = 10; return c; };
+		persons[0].files = [{ name: 'a.png' }, { name: 'b.png' }];
+		await buildStitchedSetImage(0, null, false);
+		const off = calls.length;
+		calls.length = 0;
+		await buildStitchedSetImage(0, null, true);
+		const on = calls.length;
+		persons[0].files = [];
+		window.drawTierMarksOnPerson = orig;
+		window.stitchOnePerson = origBuild;
+		return { off: off, on: on };
+	});
+	assert(marksRoute.off === 0, 'C-63 (7): withMarks が false なら印を1つも描かない（「画像を結合する（OCRしない）」）', marksRoute);
+	assert(marksRoute.on === 1, 'C-63 (7): withMarks が true なら印を描きに行く（「OCR処理＋画像結合」）', marksRoute);
+	// 呼び出し側: 個別のボタンは引数なし＝印なし、一体のボタンは withMarks: true
+	const src = await page.evaluate(() => document.documentElement.outerHTML);
+	assert(src.includes('onclick="runImageStitching()"'),
+		'C-63 (7): 「画像を結合する（OCRしない）」は引数なしで呼ぶ（＝印なし）');
+	assert(src.includes("runImageStitching({ keepClosed: true, quiet: true, withMarks: true })"),
+		'C-63 (7): 一体のボタンだけが withMarks: true で呼ぶ');
 
 	// 段3) 帯の骨格は js/stitch.js（exam と共通）。special 側に作り直しが残っていないこと
 	const shared = await page.evaluate(() => ({
@@ -5818,8 +5896,8 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	// 「個別に実行することもできます」の説明は C-62 の (8)-4 で削除した
 	assert(!(await page.content()).includes('個別に実行することもできます'),
 		'C-62 (8): 「個別に実行することもできます」は無い');
-	assert((await page.textContent('#tier-marks-row')).trim() === '分類の印（◎超優先・○優先・▲通常）',
-		'C-62 (8): 印のチェックの文言を短くした');
+	assert((await page.textContent('#tier-marks-row')).trim() === '分類の印（◎超優先・○優先・▲通常）を付ける',
+		'C-62 (8) → C-63 (7): 印のチェックの文言（短いまま、動詞を「付ける」に）');
 
 	// 押せる条件。画像を足す前・足したあと・セットを外したあとの3通り
 	assert(L.combo.disabled && L.ocr.disabled && L.stitch.disabled,
@@ -5917,6 +5995,9 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		'C-62 (4): タグは押せない（button ではない）');
 	assert((await page.$('#deck-roster-alpha-btn')) === null,
 		'C-62 (4): ①のタブの「αテスト」の開閉ボタンは無い');
+	// (3) 「?」（説明）は入口ごと削除した（C-63 の (3)）
+	assert((await page.$('#deck-roster-help-btn')) === null && (await page.$('#deck-roster-help')) === null,
+		'C-63 (3): ①の「?」と、その中の説明文は無い');
 	await page.evaluate(() => selectStepTab(0));
 	await page.waitForTimeout(400);
 	assert(await page.isVisible('#deck-roster-alpha'),
@@ -5924,11 +6005,25 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert((await page.textContent('#deck-roster-alpha')).includes('結果が正しくないことがあります'),
 		'C-62 (4): 注記の文面は据え置き');
 
-	/* --- (5) 除外N種 --- */
+	/* --- (5)/(2) 除外N種。**①のタブの中**（②の件数バッジと同じ並び）へ移した（C-63 の (2)） --- */
 	assert(await page.isVisible('#deck-roster-excluded') && (await page.textContent('#deck-roster-excluded')).trim() === '除外0種',
 		'C-62 (5): 除外していないときも「除外0種」と出す', await page.textContent('#deck-roster-excluded'));
-	const exclRed = await page.evaluate(() => getComputedStyle(document.getElementById('deck-roster-excluded')).color);
-	assert(exclRed === 'rgb(193, 0, 7)', 'C-62 (5): 文字は赤（--uma-danger-text）', exclRed);
+	const exclWhere = await page.evaluate(() => {
+		const el = document.getElementById('deck-roster-excluded');
+		const tab = document.getElementById('step-tab-0');
+		const label = tab.querySelector('.step-tab-label');
+		return {
+			inTab: tab.contains(el),
+			cls: el.className,
+			color: getComputedStyle(el).color,
+			// ラベルより右にある（②の件数バッジと同じ並び）
+			rightOfLabel: el.getBoundingClientRect().left >= label.getBoundingClientRect().right,
+		};
+	});
+	assert(exclWhere.inTab && exclWhere.rightOfLabel,
+		'C-63 (2): 「除外N種」は①のタブの中の、ラベルの右にある', exclWhere);
+	assert(exclWhere.cls.includes('step-tab-badge') && exclWhere.color === 'rgb(193, 0, 7)',
+		'C-63 (2): 他のタブの件数バッジと同じ形で、色だけ赤（--uma-danger-text）', exclWhere);
 
 	/* --- (1) ミニウィンドウの候補の色 --- */
 	await page.click('#deck-roster-panel [data-usd-act="pick-card"][data-index="0"]');
@@ -5953,6 +6048,34 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		'C-62 (1): 種類ごとに違う色（緑一色ではない）', typedBg);
 	assert(pills.slice(1).every((p) => p.order && Number(p.order) >= 1),
 		'C-62 (1): 色は typeOrder の番号で引いている（名前ではない）', pills.slice(1).map((p) => p.order));
+
+	/* --- (1) 候補の**行**も種類ごとの色（緑一色ではない）。絞り込みを押した後も同じ --- */
+	const cardHits = await page.evaluate(() => {
+		const rows = [...document.querySelectorAll('#deck-roster-panel .usd-name-hit')];
+		return rows.slice(0, 10).map((b) => ({
+			typed: b.classList.contains('usd-name-hit--typed'),
+			order: b.dataset.typeOrder || null,
+			bg: getComputedStyle(b).backgroundColor,
+		}));
+	});
+	assert(cardHits.length > 0 && cardHits.every((h) => h.typed && h.order),
+		'C-62 (1): サポートカードの候補の行は種類ごとの色（typeOrder の番号で引く）', cardHits.slice(0, 3));
+	assert(new Set(cardHits.map((h) => h.bg)).size >= 3,
+		'C-62 (1): 候補の行が緑一色ではない（種類ぶんの色が混ざる）', [...new Set(cardHits.map((h) => h.bg))]);
+	// 絞り込みを1つ押すと、その種類の色だけになる
+	await page.click('#deck-roster-panel .usd-roster-pill:nth-of-type(2)');
+	await page.waitForTimeout(400);
+	// マウスが候補の上に乗っていると hover の地色が混ざるので、端へ逃がしてから読む
+	await page.mouse.move(1, 1);
+	await page.waitForTimeout(200);
+	const filtered = await page.evaluate(() => {
+		const rows = [...document.querySelectorAll('#deck-roster-panel .usd-name-hit')];
+		return [...new Set(rows.map((b) => getComputedStyle(b).backgroundColor))];
+	});
+	assert(filtered.length === 1 && filtered[0] !== 'rgba(0, 0, 0, 0)',
+		'C-62 (1): 絞り込んだ後も色は残り、その種類の1色になる', filtered);
+	await page.click('#deck-roster-panel .usd-roster-pill:nth-of-type(1)');
+	await page.waitForTimeout(400);
 
 	// 別々の種類のカードを2枚選ぶ（1枠目＝いちばん小さい番号、2枠目＝その次）
 	const takeCard = async (slot, pillIndex) => {
@@ -5999,9 +6122,13 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		'C-62 (2): 種類が違えば見出しの色も違う', table.typedHeads);
 	assert(table.umaHeadBg === 'rgb(68, 64, 59)',
 		'C-62 (3): 育成ウマ娘の列は見出しの濃い地のまま（扱いを変えていない）', table.umaHeadBg);
+	// (4) 育成ウマ娘の列は、本体のセルにも地を敷く（C-63 の (4)）。1列おきの灰（slate-50）とは
+	// 別の値（slate-100）にして、縞の一部に見えないようにしてある。
 	const umaBody = table.bodyAlt.filter((c) => c.uma);
-	assert(umaBody.length === 1 && umaBody[0].bg === 'rgb(255, 255, 255)',
-		'C-62 (3): 育成ウマ娘の列の本体のセルは白（縞に入れない）', umaBody);
+	assert(umaBody.length === 1 && umaBody[0].bg === 'rgb(241, 245, 249)',
+		'C-63 (4): 育成ウマ娘の列の本体のセルは薄い灰（--uma-table-col-key）', umaBody);
+	assert(umaBody[0].bg !== 'rgb(248, 250, 252)',
+		'C-63 (4): 1列おきの灰（--uma-table-col-alt）とは別の値', umaBody);
 	const alt = table.bodyAlt.filter((c) => c.alt);
 	assert(alt.length >= 2 && alt.every((c) => c.bg === 'rgb(248, 250, 252)'),
 		'C-62 (3): 1列おきの列は薄い灰（--uma-table-col-alt）', alt.slice(0, 3));
@@ -6017,6 +6144,9 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	/* --- (6) ①のパネル最下段の説明を削除 --- */
 	assert(!table.note.includes('ここに出ていないスキルが'),
 		'C-62 (6): ①のパネル最下段の「ここに出ていないスキルが…」は無い');
+	/* --- C-63 の (5) 凡例の上の1行も削除（下に実際の一覧が並んでいるので冗長） --- */
+	assert(!table.note.includes('＝サポートカード（枠の順）'),
+		'C-63 (5): 「◆＝育成ウマ娘、1〜N＝サポートカード」の1行は無い');
 
 	/* --- (5) 実際に除外すると数が変わる --- */
 	await page.evaluate(() => selectStepTab(1));

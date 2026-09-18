@@ -243,7 +243,11 @@ const INTENTIONALLY_REMOVED = {
 	// 2026-09-18（61セッション目・C-62 の (4)）: 「αテスト」の赤いラベルを押して注記を開く形をやめ、
 	// 注記を常時表示に戻したので、開閉のボタン #deck-roster-alpha-btn を消した。注記そのもの
 	// （#deck-roster-alpha）は残っていて、hidden を外して常時出している。
-	'special.html': ['data-tier', 'deck-roster-alpha-btn'],
+	// 2026-09-19（62セッション目・C-63 の (3)）: ①の「?」（説明）を入口ごと削除したので
+	// #deck-roster-help-btn と #deck-roster-help が消えた。中身は「選ぶと…得られるスキルが
+	// 分かります」という、下の表を見れば分かることの言い換えだった。使い方は「使い方ガイド」にある。
+	// （#deck-roster-alpha-btn は `748aa64` に commit したので免除から外した。）
+	'special.html': ['data-tier', 'deck-roster-help-btn', 'deck-roster-help'],
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

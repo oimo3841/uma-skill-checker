@@ -14,9 +14,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-19a" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-19a" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-19a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-19b" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-19b" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-19b" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-19a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-19b"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-18a"></script>
 	<style>
@@ -46,11 +46,6 @@
 			border: 1px solid var(--uma-border-strong); background: var(--uma-surface-muted); color: var(--uma-text-heading); }
 		.deck-panel-note { margin: 0 0 var(--uma-sp-2); }
 		.deck-panel-note--alpha { border-color: var(--uma-danger-border); background: var(--uma-danger-bg); color: var(--uma-danger-text); }
-		/* いま除外しているスキルの数（C-62 の (5)）。「任意」の印と同じ形・同じ大きさで、色だけ赤にする。
-		   押せないので button ではなく span。 */
-		.deck-panel-excluded { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; padding: 2px 8px; border-radius: 999px;
-			border: 1px solid var(--uma-danger-border); background: var(--uma-danger-bg); color: var(--uma-danger-text); }
-		.deck-panel-excluded[hidden] { display: none !important; }
 		/* タイトルの脇の「一部αテスト中」（C-62 の (4)）。「新UI」バッジと同じ大きさで、色は注意の赤。 */
 		.alpha-badge { font-size: 10px; line-height: 1.4; font-weight: 700; padding: var(--uma-sp-1) var(--uma-sp-2); border-radius: 999px;
 			border: 1px solid var(--uma-danger-border); background: var(--uma-danger-bg); color: var(--uma-danger-text); }
@@ -405,8 +400,8 @@
 						<div>
 							<p class="help-step-title">3つのボタンを使い分ける</p>
 							<p class="help-step-text"><strong>OCR処理を開始する</strong> … スキル名と★の数だけを判定します。結合画像は作りません。</p>
-							<p class="help-step-text"><strong>OCR処理＋画像結合を開始する（高負荷）</strong> … 判定と結合を続けて行います。<span data-help-mode="new">分類の印はOCRの結果が元なので、印の付いた結合画像がほしいときはこれを押します。</span>枚数が多いほど時間がかかります。</p>
-							<p class="help-step-text"><strong>画像を結合する（OCRしない）</strong> … 判定せずに画像だけをつなぎます。スキルリストが空でも押せます。</p>
+							<p class="help-step-text"><strong>OCR処理＋画像結合を開始する（高負荷）</strong> … 判定と結合を続けて行います。<span data-help-mode="new"><strong>分類の印が付くのはこのボタンだけ</strong>です。</span>枚数が多いほど時間がかかります。</p>
+							<p class="help-step-text"><strong>画像を結合する（OCRしない）</strong> … 判定せずに画像だけをつなぎます。<span data-help-mode="new">分類の印も付きません。</span>スキルリストが空でも押せます。</p>
 						</div>
 					</li>
 					<li>
@@ -425,9 +420,10 @@
 						<span>結合画像の印と凡例</span>
 					</p>
 					<ul>
-						<li>周回スキルセットに入れたスキルの行には、分類の印（◎超優先・○優先・▲通常）が焼き込まれます。<strong>印の無い行は、周回スキルセットに入れていないスキル</strong>です。</li>
+						<li>分類の印が付くのは <strong>「OCR処理＋画像結合を開始する」</strong> で作った画像だけです。「画像を結合する（OCRしない）」では付きません。</li>
+						<li>周回スキルセットに入れたスキルの行に、分類の印（◎超優先・○優先・▲通常）が付きます。<strong>印の無い行は、周回スキルセットに入れていないスキル</strong>です。</li>
 						<li>画像の下端には印の見かたの帯が付きます。3段とも書くので、その画像に出ていない段があることも読み取れます。</li>
-						<li>印を焼くかどうかは、ボタンの下の<strong>「分類の印（◎超優先・○優先・▲通常）」</strong>のチェックで切り替えられます。印が1つも入らないときは帯も付きません。</li>
+						<li>印を付けるかどうかは、ボタンの下のチェックで切り替えられます。印が1つも入らないときは帯も付きません。</li>
 					</ul>
 				</div>
 
@@ -507,6 +503,11 @@
 					aria-controls="step-panel-0" aria-selected="false" tabindex="-1" onclick="selectStepTab(0)" hidden>
 					<span class="step-tab-num" aria-hidden="true">1</span>
 					<span class="step-tab-label">本育成編成</span>
+					<!-- いま除外しているスキルの数（C-62 の (5) → C-63 の (2) でここへ移した）。
+					     ②の件数バッジと同じ位置・同じ形で、色だけ赤（「何かを外している」ことの印）。
+					     **除外を解除している間も「除外0種」と出す** ―― 数が消えると、効いていないのか
+					     そもそも機能が無いのかが区別できない。 -->
+					<span id="deck-roster-excluded" class="step-tab-badge step-tab-badge--alert" hidden></span>
 				</button>
 				<button type="button" role="tab" class="step-tab" id="step-tab-1"
 					aria-controls="step-panel-1" aria-selected="true" tabindex="0" onclick="selectStepTab(1)">
@@ -529,20 +530,12 @@
 				<div class="deck-panel-head">
 					<span class="deck-panel-title">本育成のウマ娘/サポートカードの編成</span>
 					<span class="deck-panel-opt">任意</span>
-					<!-- 説明は常時出さず「?」の中へ（C-52）。
-					     **αテスト中の注記は常時表示に戻した**（C-62 の (4)）。赤いラベルを押して開く形にしていたが、
-					     このページの他のラベル（「任意」など）は押せないので、見た目が同じものの片方だけが
-					     ボタンになっていた。「まだ作りかけで結果が正しくないことがある」は、開かないと読めない
-					     場所に置いてよい種類の知らせでもない。 -->
-					<button type="button" id="deck-roster-help-btn" class="uma-help-btn" aria-label="本育成編成の説明"
-						aria-expanded="false" aria-controls="deck-roster-help" onclick="toggleDeckPanelNote('deck-roster-help', this)">?</button>
-					<!-- いま除外しているスキルの数（C-62 の (5)）。②のタブの「XXX種」と同じ形で、
-					     項目名の脇に置く。**除外していないときも「除外0種」と出す** ―― 数が消えると
-					     「効いていないのか、そもそも機能が無いのか」が分からなくなるため。
-					     赤は「いま何かを外している」ことの色で、0種のときも同じ色のまま置く。 -->
-					<span id="deck-roster-excluded" class="deck-panel-excluded" hidden></span>
+					<!-- **「?」（説明）は C-63 の (3) で削除した。** 中身は「選ぶと、その編成のカードと覚醒で
+					     得られるスキルが分かります」という、画面を見れば分かることの言い換えだった
+					     （得られるスキルは表になって下に出ている）。説明の入口そのものを消したので、
+					     ここに残るのは項目名・「任意」・αテスト中の注記だけ。使い方は「使い方ガイド」にある。
+					     **αテスト中の注記は常時表示**（C-62 の (4)）。 -->
 				</div>
-				<p id="deck-roster-help" class="uma-help-box deck-panel-note" hidden>選ぶと、その編成のカードと覚醒で得られるスキルが分かります。選ばなくても②の周回スキルセットだけで使えます。</p>
 				<p id="deck-roster-alpha" class="uma-help-box deck-panel-note deck-panel-note--alpha">αテスト中の機能です。まだ作りかけで、<strong>結果が正しくないことがあります</strong>。確かめながらお使いください。</p>
 				<div id="deck-roster-panel"></div>
 			</div>
@@ -739,7 +732,7 @@
 			     互いに相手の注意が抜けていた。片方を直すときはもう片方も直すこと。 -->
 			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、1人につき2枚以上のスクリーンショットを縦につなぎ、親Aセット・親Bセットそれぞれで、画像のある人を1枚にまとめてSNS投稿用に出力します。1人分が1枚だけのときはエラーになります。画像の枚数が多いほど時間がかかります。</p>
 
-			<!-- 分類の印を結合画像に焼くかの切り替え（C-58 の作業C）。結果画像の見た目が変わる設定なので、
+			<!-- 分類の印を結合画像に付けるかの切り替え（C-58 の作業C）。結果画像の見た目が変わる設定なので、
 			     切り替えてもその場では何も変わらない引き出しの中ではなく、**結合を始める場所**に置く
 			     （C-30 で exam に入れたときと同じ判断）。既定は ON ―― 印が出るのは②で周回スキルセットを
 			     選んだときだけで、選ぶこと自体が利用者の明示的な操作なので、そこから更にもう一段
@@ -747,10 +740,10 @@
 			     対象スキルを選ばない＝誰の画像にも勝手に付くため）。保存キー uma-special-tier-marks。 -->
 			<label id="tier-marks-row" class="mt-2 flex items-center justify-center gap-2 text-[11px] text-slate-500 cursor-pointer select-none">
 				<input type="checkbox" id="opt-tier-marks" class="rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" checked onchange="setTierMarksEnabled(this.checked)">
-				<span>分類の印（◎超優先・○優先・▲通常）</span>
+				<span>分類の印（◎超優先・○優先・▲通常）を付ける</span>
 			</label>
 
-			<!-- 印が焼けるかどうかの状態表示（段0。C-59 の案(a)）。
+			<!-- 印を付けられるかどうかの状態表示（段0。C-59 の案(a)）。
 			     結合はOCRと独立して押せるので、OCRを回していない・周回スキルセットを選んでいない・
 			     旧UIにいる、のいずれでも**印が黙って出ない**状態になる（C-58 で印を足したときに
 			     できた穴）。押したあとのトーストではなく**押す前に読める場所**へ出す。
@@ -848,7 +841,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-19a';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-19b';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -2116,7 +2109,7 @@
 
 		// totalWidth     … 帯の幅（＝結合画像の全幅）
 		// referenceWidth … 文字の大きさの基準にする幅（＝スクショ1人分の幅。exam と同じ考え方）
-		// 印を1つも焼いていないとき・色を読めないときは null（帯そのものを置かない）。
+		// 印を1つも付けていないとき・色を読めないときは null（帯そのものを置かない）。
 		function buildTierLegendBar(totalWidth, referenceWidth, hasMarks) {
 			if (!hasMarks) return null;
 			const colors = tierMarkColors();
@@ -2148,22 +2141,23 @@
 		// 結合のみ）。アップロードが1人分のみの場合は横結合をスキップしてその1人分を返す。
 		// セット内の誰もアップロードしていない場合はnullを返す。
 		// onPersonStart(label)：1人分の結合に着手する直前に呼ばれる進捗通知コールバック（任意）。
-		async function buildStitchedSetImage(setIdx, onPersonStart) {
+		// withMarks：分類の印を付けるか（C-63 の (7)）。**「画像を結合する（OCRしない）」からは false**。
+		async function buildStitchedSetImage(setIdx, onPersonStart, withMarks) {
 			const baseIdx = setIdx * 3;
 			const activeIndexes = [0, 1, 2].map(r => baseIdx + r).filter(i => persons[i].files.length > 0);
 			if (activeIndexes.length === 0) return null;
 
 			const contentCanvases = [];
 			const allWarnings = [];
-			let markCount = 0;   // セット内で実際に焼いた印の数（凡例の帯を置くかの判断に使う）
+			let markCount = 0;   // セット内で実際に付けた印の数（凡例の帯を置くかの判断に使う）
 
 			for (const idx of activeIndexes) {
 				const label = PERSON_LABELS[idx];
 				if (onPersonStart) onPersonStart(label);
 				const contentCanvas = await stitchOnePerson(persons[idx].files, label);
 				if (!contentCanvas) continue;
-				// 分類の印は**結合の後**に焼く（C-58 の作業C。前に焼くと継ぎ目の判定が狂う）
-				markCount += drawTierMarksOnPerson(contentCanvas, idx);
+				// 分類の印は**結合の後**に付ける（C-58 の作業C。前に描くと継ぎ目の判定が狂う）
+				if (withMarks) markCount += drawTierMarksOnPerson(contentCanvas, idx);
 				contentCanvases.push(contentCanvas);
 				if (contentCanvas._stitchWarnings && contentCanvas._stitchWarnings.length) {
 					allWarnings.push(...contentCanvas._stitchWarnings);
@@ -2173,7 +2167,7 @@
 			if (contentCanvases.length === 0) return null;
 
 			const contentRow = contentCanvases.length === 1 ? contentCanvases[0] : stitchConcatHorizontallyTopAligned(contentCanvases);
-			// 印の凡例の帯（段3）。1つも焼いていなければ置かない＝これまでどおりスキルパネルだけになる。
+			// 印の凡例の帯（段3）。1つも付けていなければ置かない＝スキルパネルだけの画像になる。
 			// 帯の幅の基準は**スクショ1人分**（contentCanvases[0].width）に取る。人数で字が太らないように。
 			const legendBar = buildTierLegendBar(contentRow.width, contentCanvases[0].width, markCount > 0);
 			const result = legendBar ? stitchStackVertically(contentRow, legendBar) : contentRow;
@@ -2228,10 +2222,14 @@
 		//   どちらも「OCR処理＋画像結合」（processImagesAndStitch）から呼ぶとき用。
 		//   OCRの完了と結合の完了で2回知らせると、先のトーストが一瞬で消えて読めないので、
 		//   まとめて1回だけ知らせる（C-61）。
+		// opts.withMarks  … 分類の印を付けるか（**既定は付けない**。C-63 の (7)）。
+		//   「画像を結合する（OCRしない）」は引数なしで呼ばれるので、**このボタンからは印が付かない**。
+		//   ボタンの名前どおりの動きにするための既定値で、印がほしいときは一体のボタンを押す。
 		// 戻り値: { anyOutput, anySuccess, anyFailure }。呼び出し元が文面と開き先を決めるのに使う。
 		async function runImageStitching(opts) {
 			const quiet = !!(opts && opts.quiet);
 			const keepClosed = !!(opts && opts.keepClosed);
+			const withMarks = !!(opts && opts.withMarks);
 			if (stitchInProgress) return { anyOutput: false, anySuccess: false, anyFailure: false }; // 多重クリック防止
 			stitchInProgress = true;
 			const stitchBtn = document.getElementById('stitch-btn');
@@ -2271,7 +2269,7 @@
 						const canvas = await buildStitchedSetImage(target.setIdx, (label) => {
 							setStitchProgress(done / totalPersons, set.label + ' ' + label + 'を結合中…');
 							done++;
-						});
+						}, withMarks);
 						if (canvas) {
 							anyOutput = true;
 							anySuccess = true;
@@ -2334,7 +2332,8 @@
 			});
 			try {
 				const judged = await processImages({ keepClosed: true, quiet: true });
-				const made = await runImageStitching({ keepClosed: true, quiet: true });
+				// 分類の印が付くのは**この一体のボタンから来たときだけ**（C-63 の (7)）
+				const made = await runImageStitching({ keepClosed: true, quiet: true, withMarks: true });
 				showToast(combinedOutcomeText(judged, made));
 				// 判定まで進めたなら照合結果を開く。OCRが駄目で結合だけできたときは結合のほう。
 				if (judged) openDrawer('result');
@@ -2496,53 +2495,44 @@
 		}
 
 		/* ------------------------------------------------------------
-		 * 「このまま結合したら印が焼かれるか」の状態表示（段0。C-59 の案(a)）
+		 * 「分類の印を付けられる材料が揃っているか」の状態表示（段0。C-59 の案(a)）
 		 *
-		 * 結合は OCR と独立して押せる（スキルリスト未入力でも結合できることは
-		 * special が明示的に保ってきた仕様で、やめると退行）。一方で C-58 から
-		 * 結合画像に分類の印が乗るようになり、印の材料（OCR の結果と、
-		 * 周回スキルセットの分類）が無いと**黙って印が出ない**状態になった。
+		 * **C-63 の (7) で役割が変わった。** それまでは「このまま結合したら印が付くか」を
+		 * 言っていたが、**印が付くのは「OCR処理＋画像結合を開始する」からだけ**になったので、
+		 * ここが言うのは「**その一体のボタンを押したとき**に印が付くか」だけになった。
 		 *
 		 * 知らせるのは押したあとではなく**押す前**。押してから「入っていなかった」と
-		 * 分かると、重い結合をもう一度やり直すことになるため。
+		 * 分かると、重い処理をもう一度やり直すことになるため。
 		 *
-		 * 戻り値は { text, tone }。tone は 'ok'（焼く）／'warn'（このままでは焼けない）／
-		 * 'off'（焼かない設定）。文面だけを返す形にして、DOM に触るのは下の関数だけにしてある
-		 * （スモークから文面を直接確かめられるように）。
+		 * 戻り値は { text, tone }。tone は 'warn'（このままでは付かない）／'off'（付けない設定）／
+		 * 'none'（言うことが無い＝そのまま押せば付く）。文面だけを返す形にして、DOM に触るのは
+		 * 下の関数だけにしてある（スモークから文面を直接確かめられるように）。
 		 *
-		 * **「OCR処理＋画像結合」（C-61）が増えても、場合分けは増やしていない。**
-		 * ここが言うのは「いま手元にある材料で印が焼けるか」であって「どのボタンを押すか」ではなく、
-		 * 材料の揃い方は前と同じ4通りだから。変えたのは「OCR未実行」の文面だけで、
-		 * そこだけは**押すべきボタンが変わる**（OCRを別に回さなくても、一体のボタンで済む）。
+		 * **場合分けは3通りに減った。**
+		 *   - 「OCR未実行」… C-62 の (8)-6 で削除（一体のボタンは OCR も走らせるので言うことが無い）
+		 *   - 「OCR済み」  … C-63 の (7)-2 で削除。**「OCRの結果があるので印も付けます」は嘘になった**
+		 *                    ―― OCR 済みでも「画像を結合する（OCRしない）」からは付かないため。
+		 *                    材料が揃っているときは**何も言わない**（言うべき注意が無い状態）。
+		 * 残る3つは、いずれも**ボタンの並びを見ても分からない**ことを言っている。
 		 * ------------------------------------------------------------ */
 		function tierMarksStatusText() {
 			if (!tierMarksEnabled) {
-				return { tone: 'off', text: '分類の印は焼きません（上のチェックを入れると焼けます）。' };
+				return { tone: 'off', text: '分類の印は付けません（上のチェックを入れると付きます）。' };
 			}
 			if (!deckMode) {
 				// 旧UIの手貼りのリストには分類が無い（exitDeckMode が deckTierByName を空にする）
-				return { tone: 'warn', text: '分類の印は新UIでのみ焼けます。このまま結合すると印は入りません。' };
+				return { tone: 'warn', text: '分類の印は新UIでのみ付けられます。' };
 			}
 			if (Object.keys(deckTierByName).length === 0) {
-				return { tone: 'warn', text: '②で周回スキルセットを選ぶと、分類の印を焼けるようになります。このまま結合すると印は入りません。' };
+				return { tone: 'warn', text: '②で周回スキルセットを選ぶと、分類の印を付けられるようになります。' };
 			}
-			if (!personResults.some(r => r)) {
-				// **OCR 未実行のときは何も言わない**（C-62 の (8)-6 で文面を削除した）。
-				// C-61 で「『OCR処理＋画像結合を開始する』なら印も焼かれます」と書いていたが、
-				// その一体のボタンはすぐ上に見えていて、3つ目のボタンにも「（OCRしない）」と
-				// 書いてある。**どのボタンを押すかは並びが言っているので、言葉で重ねない。**
-				// 材料が足りない他の3通り（印OFF・旧UI・セット未選択）は、**並びを見ても分からない**
-				// ことを言っているので残す。
-				return { tone: 'none', text: '' };
-			}
-			return { tone: 'ok', text: 'OCRの結果があるので、結合画像に分類の印（◎○▲）も焼きます。' };
+			return { tone: 'none', text: '' };
 		}
 
 		const TIER_MARKS_STATUS_TONE = {
-			ok: 'text-emerald-700',
 			warn: 'text-amber-700',
 			off: 'text-slate-400',
-			none: ''   // 何も言わない（C-62 の (8)-6）。要素は残すが中身は空
+			none: ''   // 何も言わない（C-62 の (8)-6・C-63 の (7)）。要素は残すが中身は空
 		};
 
 		function updateTierMarksStatus() {
@@ -2831,20 +2821,8 @@
 			document.getElementById('deck-undo-count').textContent = count;
 		}
 
-		// ①本育成編成の見出しの「?」（説明）を開閉する（C-52）。
-		// **αテスト中の注記は C-62 の (4) で常時表示に戻した**ので、ここで開閉するのは「?」の箱だけ。
-		// 複数の箱を排他で切り替える形はそのまま残してある（また増えたときに同じ書き方で足せる）。
-		function toggleDeckPanelNote(boxId, btn) {
-			const box = document.getElementById(boxId);
-			const open = box.hidden;
-			['deck-roster-help'].forEach(id => {
-				const b = document.getElementById(id);
-				const trigger = document.querySelector('[aria-controls="' + id + '"]');
-				const on = open && id === boxId;
-				b.hidden = !on;
-				if (trigger) trigger.setAttribute('aria-expanded', String(on));
-			});
-		}
+		// ①本育成編成の見出しの開閉（C-52）は、開く箱が無くなったので削除した
+		// （「αテスト」は C-62 の (4) で常時表示に、「?」は C-63 の (3) で削除）。
 
 		/* ------------------------------------------------------------
 		 * いま除外しているスキルの数（C-62 の (5)）
@@ -3153,7 +3131,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-19a';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-19b';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {

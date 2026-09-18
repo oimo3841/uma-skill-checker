@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19b';
 
 	/* ============================================================
 	 * 定数
@@ -1419,6 +1419,11 @@
 		// 種類を持たないので、この修飾クラスが付いたときだけ色が変わる。
 		'.usd-name-hit--typed { border-color: var(--usd-card-border); background: var(--usd-card-bg); color: var(--usd-card-text); }',
 		'.usd-name-hit--typed:hover { background: var(--usd-card-bg); filter: brightness(.96); }',
+		// 育成ウマ娘の候補（C-63 の (6)）。種類が無いので色では分けられない。★取り表の列と
+		// 同じ薄い灰（--uma-table-col-alt）と白を交互にして、行の切れ目だけが分かるようにする。
+		'.usd-name-hit--plain { border-color: var(--uma-border); background: var(--uma-surface); color: var(--uma-text); }',
+		'.usd-name-hit--plain.usd-name-hit--row-alt { background: var(--uma-table-col-alt); }',
+		'.usd-name-hit--plain:hover { background: var(--uma-surface-muted); }',
 		// 追加済みは一覧から消さずに出して、選べない見た目にする
 		'.usd-name-hit--added { border-color: var(--uma-border); background: var(--uma-surface-sunken);',
 		'  color: var(--uma-text-faint); cursor: default; }',
@@ -1693,6 +1698,11 @@
 		// （行と列の両方を交互にすると市松になる。C-51 の11節⑥〜⑧）。育成ウマ娘の列は
 		// 見出しの色味だけで区別する扱いのまま＝本体のセルは白。
 		'.usd-roster-gc--alt { background: var(--uma-table-col-alt); }',
+		// 育成ウマ娘の列は本体のセルも地を敷く（C-63 の (4)）。見出しの色味だけで区別していたが、
+		// **列としても追える**ようにする。1列おきの灰（--uma-table-col-alt）とは別の値
+		// （--uma-table-col-key。一段濃い）にして、縞の一部に見えないようにする。
+		// 見出しのセルは後ろの .usd-roster-gh が上書きするので、濃い地のまま。
+		'.usd-roster-gc--uma { background: var(--uma-table-col-key); }',
 		// 余り列のセルは余白を持たない（0px の列に余白ぶんだけはみ出して横スクロールの種になるため）
 		'.usd-roster-gc--fill { padding: 0; }',
 		'.usd-roster-gc--name { justify-content: flex-start; text-align: left; padding-left: var(--uma-sp-2);',
@@ -3079,18 +3089,24 @@
 			const hits = searchEntries(picking.kind, pickQuery, picking.kind === 'card' ? pickType : '');
 			if (hits.length === 0) { box.innerHTML = '<p class="usd-roster-note">見つかりません。</p>'; return; }
 			const shown = hits.slice(0, PICK_LIST_LIMIT);
-			// 候補の行も種類ごとの色で塗る（C-62 の (1)）。**どれも同じ緑**だったので、
-			// 一覧を眺めても種類が分からず、上の絞り込みを押すまで見分けられなかった。
-			// 色は選択済みの欄・絞り込みの候補と同じものを同じ番号（typeOrder）から引く。
-			// すでにこの編成に入っている行は、選べない見た目（灰）を優先する。
+			// 候補の行の色（C-62 の (1)・C-63 の (6)）。**どれも同じ緑**だったので、一覧を眺めても
+			// 何の行か分からなかった。**サポートカードと育成ウマ娘で分け方が違う。**
+			//   サポートカード … 種類ごとの色（選択済みの欄・絞り込み・表の見出しと同じものを
+			//                    同じ番号（typeOrder）から引く）。
+			//   育成ウマ娘     … **種類が無い**ので色では分けられない。★取り表の列と同じ考え方で
+			//                    **薄い灰と白の交互**にして、行の切れ目だけが分かるようにする。
+			// すでにこの編成に入っている行は、選べない見た目（灰）を優先する（カードだけで起こる）。
 			const tint = (h) => (h.typeOrder === null || h.typeOrder === undefined) ? ''
 				: ' data-type-order="' + h.typeOrder + '" style="' + cardTypeColorVars(h.typeOrder) + '"';
-			box.innerHTML = '<div class="usd-name-list">' + shown.map(h => h.used
+			const plain = picking.kind !== 'card';
+			box.innerHTML = '<div class="usd-name-list">' + shown.map((h, i) => h.used
 				// 同じカードを2枠には入れられない（実際に組めないため）。判定は id で行う
 				// ので、同じ二つ名の別のカードは別物として選べる。
 				? '<span class="usd-name-hit usd-name-hit--added">' + esc(h.label) + '<span class="usd-name-added">この編成に入っています</span></span>'
-				: '<button type="button" class="usd-name-hit' + (tint(h) ? ' usd-name-hit--typed' : '') + '"'
-					+ ' data-usd-act="take" data-entry-id="' + esc(h.id) + '"' + tint(h) + '>' + esc(h.label) + '</button>'
+				: '<button type="button" class="usd-name-hit'
+					+ (plain ? ' usd-name-hit--plain' + (i % 2 === 1 ? ' usd-name-hit--row-alt' : '')
+						: (tint(h) ? ' usd-name-hit--typed' : '')) + '"'
+					+ ' data-usd-act="take" data-entry-id="' + esc(h.id) + '"' + (plain ? '' : tint(h)) + '>' + esc(h.label) + '</button>'
 			).join('') + '</div>'
 				+ (hits.length > shown.length
 					? '<p class="usd-roster-note">全' + hits.length + '件のうち ' + shown.length + '件を出しています。名前を入れると絞り込めます。</p>'
@@ -3218,7 +3234,6 @@
 				h += '<p class="usd-roster-note">育成ウマ娘とサポートカードを選ぶと、ここに出ます。</p>';
 			} else {
 				const members = res.members;
-				const cardCount = members.filter(m => m.kind === 'card').length;
 				h += '<div class="usd-roster-grid-wrap"><div class="usd-roster-grid" role="table" aria-label="本育成で得られるスキル"'
 					+ ' style="--usd-roster-cols:' + members.length + '">';
 				h += '<div class="usd-roster-grow" role="row">'
@@ -3236,7 +3251,8 @@
 						+ '</div>';
 				});
 				h += '</div></div>';
-				h += '<p class="usd-roster-note">' + umaChip + '＝育成ウマ娘（初期＋覚醒）、1〜' + cardCount + '＝サポートカード（枠の順）</p>';
+				// 「◆＝育成ウマ娘、1〜N＝サポートカード」の1行は C-63 の (5) で削除した
+				// （すぐ下に実際の一覧が並んでいるので、印と番号の意味はそちらで分かる）。
 				h += '<ol class="usd-roster-legend">' + members.map(m =>
 					'<li' + (m.label ? '' : ' class="usd-roster-legend--empty"') + '>'
 					+ (m.kind === 'uma' ? umaChip
