@@ -194,21 +194,44 @@ await deckPage.waitForFunction(() => window.UmaSkillDeckCore
 	&& UmaSkillDeckCore.getMasterSkills().length > 0
 	&& UmaSkillDeckCore.getExtraCatalog().length > 0, null, { timeout: 15000 });
 
-const catalogReport = await deckPage.evaluate(({ masterIds, wantEntries }) => {
+/* 追加カタログは1カテゴリとは限らないので、**カテゴリの顔ぶれは core から受け取り**、
+   正本はそれぞれのファイルから読む（カテゴリ名もファイル名もここには書かない）。 */
+const catalogSources = await deckPage.evaluate(() => window.UmaSkillDeckCore.getExtraCatalogSources());
+const catalogWant = {};
+for (const src of catalogSources) {
+	const json = JSON.parse(await fs.readFile(path.join(ROOT, src.path), 'utf-8'));
+	catalogWant[src.category] = json.entries || [];
+}
+
+const catalogReport = await deckPage.evaluate(({ masterIds, wantByCategory }) => {
 	const C = window.UmaSkillDeckCore;
 	const cat = C.getExtraCatalog();
 	const masterIdSet = new Set(masterIds);
+	const wantTotal = Object.keys(wantByCategory).reduce((n, k) => n + wantByCategory[k].length, 0);
 	return {
 		meta: C.getExtraCatalogMeta(),
 		sources: C.getExtraCatalogSources(),
 		size: cat.length,
+		wantTotal: wantTotal,
 		uniqueIds: new Set(cat.map((e) => e.id)).size,
 		categories: Array.from(new Set(cat.map((e) => e.category))),
-		// 読み込んだ中身が正本と一致するか（id・名前・並び）
+		// 読み込んだ中身が正本と一致するか（id・名前・並び）。カテゴリごとに突き合わせる。
 		mismatch: (function () {
-			if (cat.length !== wantEntries.length) return [{ problem: '件数が違う', core: cat.length, 正本: wantEntries.length }];
-			return cat.map((e, i) => (e.id === wantEntries[i].id && e.name === wantEntries[i].name)
-				? null : { index: i, core: e.id + '/' + e.name, 正本: wantEntries[i].id + '/' + wantEntries[i].name }).filter(Boolean);
+			const out = [];
+			Object.keys(wantByCategory).forEach((category) => {
+				const want = wantByCategory[category];
+				const got = cat.filter((e) => e.category === category);
+				if (got.length !== want.length) {
+					out.push({ category: category, problem: '件数が違う', core: got.length, 正本: want.length });
+					return;
+				}
+				got.forEach((e, i) => {
+					if (e.id !== want[i].id || e.name !== want[i].name) {
+						out.push({ category: category, index: i, core: e.id + '/' + e.name, 正本: want[i].id + '/' + want[i].name });
+					}
+				});
+			});
+			return out;
 		})(),
 		collidesWithMaster: cat.filter((e) => masterIdSet.has(e.id)).map((e) => e.id),
 		// 全件が findSkill() で引け、kind にカテゴリが付く
@@ -229,16 +252,28 @@ const catalogReport = await deckPage.evaluate(({ masterIds, wantEntries }) => {
 			return cat.filter((e) => ids.has(e.id)).map((e) => e.id);
 		})(),
 	};
-}, { masterIds: deckSkills.map((s) => s.id), wantEntries: scenarioMasterEntries });
+}, { masterIds: deckSkills.map((s) => s.id), wantByCategory: catalogWant });
 
 /* core の組み込みの写し（フェッチできない環境で使う最後の砦）も、正本と突き合わせる。
    上の検査は http で読めた中身を見るので、写しがズレていても気づけない。 */
 const coreSrc = await fs.readFile(path.join(ROOT, 'js/uma-skill-deck-core.js'), 'utf-8');
 const embeddedBlock = /const EMBEDDED_EXTRA_CATALOG = \{([\s\S]*?)\n\t\};/.exec(coreSrc);
-const embeddedPairs = embeddedBlock
-	? [...embeddedBlock[1].matchAll(/\{\s*id:\s*'([^']+)',\s*name:\s*(?:'([^']*)'|"([^"]*)")\s*\}/g)]
-		.map((m) => ({ id: m[1], name: m[2] !== undefined ? m[2] : m[3] }))
-	: [];
+/** カテゴリごとの組み込みの写し。写しを持たないカテゴリはキーごと現れない。 */
+const embeddedByCategory = {};
+if (embeddedBlock) {
+	for (const m of embeddedBlock[1].matchAll(/(\w+)\s*:\s*\[([\s\S]*?)\n\t\t\]/g)) {
+		embeddedByCategory[m[1]] = [...m[2].matchAll(/\{\s*id:\s*'([^']+)',\s*name:\s*(?:'([^']*)'|"([^"]*)")\s*\}/g)]
+			.map((x) => ({ id: x[1], name: x[2] !== undefined ? x[2] : x[3] }));
+	}
+}
+/**
+ * 組み込みの写しを**あえて持たない**カテゴリ。
+ * 拡張スキルは件数が多く、写しを core.js に入れるとファイルが大きく膨らむので持たない（C-48 の7節）。
+ * 代わりに、1件も読めなかったときは黙って進まずに知らせる（C-49）。
+ * ここに無いカテゴリで写しが欠けていれば落とす ―― 新しいカテゴリを足した人に
+ * 「写しを持たせるかどうか」を必ず1度考えさせるため。
+ */
+const CATEGORIES_WITHOUT_EMBEDDED_COPY = ['extendedSkill'];
 
 await browser.close();
 await server.close();
@@ -311,25 +346,45 @@ console.log('    読み込み: ' + catalogReport.meta.sources
 	.map((x) => `${x.category} ${x.count}件（${x.from}${x.version ? '・' + x.version : ''}）`).join(' / '));
 check(catalogReport.meta.sources.every((x) => x.from === '取得'),
 	'正本のJSONを取得できている（キャッシュ・組み込みへ落ちていない）', catalogReport.meta.sources.map((x) => x.from));
-check(catalogReport.size === scenarioMasterEntries.length && catalogReport.uniqueIds === catalogReport.size,
-	`Deck が読み込んだカタログは${scenarioMasterEntries.length}件・id に重複なし`,
+check(catalogReport.size === catalogReport.wantTotal && catalogReport.uniqueIds === catalogReport.size,
+	`Deck が読み込んだカタログは${catalogReport.wantTotal}件・id に重複なし`,
 	{ size: catalogReport.size, uniqueIds: catalogReport.uniqueIds });
 check(catalogReport.mismatch.length === 0, 'Deck が読み込んだ中身が正本と一致（id・名前・並び）', catalogReport.mismatch);
 check(catalogReport.collidesWithMaster.length === 0,
 	'カタログの id がマスターのID（1〜445）と衝突しない', catalogReport.collidesWithMaster);
-check(catalogReport.categories.length === 1 && catalogReport.categories[0] === 'scenarioFactor',
-	'今あるカテゴリは scenarioFactor の1つ（増やしたらこの行を直す）', catalogReport.categories);
+// カテゴリ名は決め打ちしない。core が並べたぶんが全部読めていることだけを見る。
+check(catalogReport.categories.slice().sort().join(',') === catalogSources.map((s) => s.category).sort().join(','),
+	'読み込めたカテゴリが EXTRA_CATALOG_SOURCES と同じ顔ぶれ',
+	{ 読み込めた: catalogReport.categories, 並べてある: catalogSources.map((s) => s.category) });
 check(catalogReport.findProblems.length === 0,
 	'全件が findSkill() で引け、kind にカテゴリが付く', catalogReport.findProblems);
 check(catalogReport.resolveProblems.length === 0,
 	'名前から同じ id へ解決する（OCRツールから渡った名前が当たる）', catalogReport.resolveProblems);
 check(catalogReport.inPickerPool.length === 0,
 	'「条件でスキルを検索」の母集団には入っていない', catalogReport.inPickerPool);
-// core の組み込みの写し（フェッチもキャッシュも駄目なときの最後の砦）
-const embeddedDiff = embeddedPairs.length !== scenarioMasterEntries.length
-	? [{ problem: '件数が違う', 写し: embeddedPairs.length, 正本: scenarioMasterEntries.length }]
-	: embeddedPairs.map((e, i) => (e.id === scenarioMasterEntries[i].id && e.name === scenarioMasterEntries[i].name)
-		? null : { index: i, 写し: e.id + '/' + e.name, 正本: scenarioMasterEntries[i].id + '/' + scenarioMasterEntries[i].name }).filter(Boolean);
+// core の組み込みの写し（フェッチもキャッシュも駄目なときの最後の砦）。カテゴリごとに見る。
+const embeddedDiff = [];
+for (const src of catalogSources) {
+	const want = catalogWant[src.category] || [];
+	const copy = embeddedByCategory[src.category];
+	if (copy === undefined) {
+		if (CATEGORIES_WITHOUT_EMBEDDED_COPY.includes(src.category)) {
+			console.log(`    ${src.category}: 組み込みの写しは持たない（意図どおり。読めなければ知らせる）`);
+		} else {
+			embeddedDiff.push({ category: src.category, problem: '写しが無い（持たせるか、意図して持たないなら CATEGORIES_WITHOUT_EMBEDDED_COPY に足す）' });
+		}
+		continue;
+	}
+	if (copy.length !== want.length) {
+		embeddedDiff.push({ category: src.category, problem: '件数が違う', 写し: copy.length, 正本: want.length });
+		continue;
+	}
+	copy.forEach((e, i) => {
+		if (e.id !== want[i].id || e.name !== want[i].name) {
+			embeddedDiff.push({ category: src.category, index: i, 写し: e.id + '/' + e.name, 正本: want[i].id + '/' + want[i].name });
+		}
+	});
+}
 check(embeddedDiff.length === 0,
 	'core.js の組み込みの写し（EMBEDDED_EXTRA_CATALOG）が正本と一致', embeddedDiff);
 console.log('');
