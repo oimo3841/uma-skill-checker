@@ -66,7 +66,7 @@ function grabQuery(sources) {
 	return g;
 }
 
-const ALL_JS = ['special.html', 'uma-skill-deck.html', 'exam.html', 'index.html',
+const ALL_JS = ['special.html', 'uma-skill-deck.html', 'exam.html', 'index.html', 'card-event-input.html',
 	'js/common.js', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js'];
 // 15セッション目: exam.html を「変更してはいけないファイル」から外し、
 // special.html と同じくセレクタ資産・class・構文の検査対象に移した（第2段階の着手）。
@@ -93,6 +93,8 @@ const CSS_LINKS = {
 	'special.html': ['tokens', 'common', 'shell'],
 	'uma-skill-deck.html': ['tokens', 'common'],
 	'css/styleguide.html': ['tokens', 'common'],
+	// 作業用ページ（C-50）。ツール本体には組み込まないが、共通CSSを読むので同じ運用に載せる。
+	'card-event-input.html': ['tokens', 'common'],
 	// exam.html は共通部品（common.css）を読まない。読むと .glass-card の余白など既存の見た目が変わるため
 	'exam.html': ['tokens', 'shell'],
 };
@@ -132,6 +134,7 @@ for (const [p, pat, ver, name] of [
 	['special.html', /js\/skillset-cards\.js\?v=([0-9a-z-]+)/g, skillsetVer, 'skillset-cards.js'],
 	['special.html', /js\/skillset-ocr\.js\?v=([0-9a-z-]+)/g, skillsetOcrVer, 'skillset-ocr.js'],
 	['uma-skill-deck.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
+	['card-event-input.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
 	['uma-skill-deck.html', /js\/uma-skill-deck\.js\?v=([0-9a-z-]+)/g, deckVer, 'deck.js'],
 	// special.html の引き出しパネルが読む iframe。deck.js の版に合わせている値だが、
 	// HTMLの <script src> と違って目に付きにくく、実際に取り残されたことがある。

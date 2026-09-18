@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>イベントスキルの入力（作業用）</title>
+	<!--
+		catalog-data/support-card-event-skills.json の中身を、ゲーム画面を見ながら
+		1枚ずつ埋めていくための作業用ページ。**ツール本体には組み込まない**
+		（css/styleguide.html と同じ扱い。どのページからもリンクしない）。
+
+		■ このページがしないこと
+		- ファイルへの書き込みはしない（ブラウザからはできない）。出力をコピーして貼る。
+		- **カスタムスキルを作らない・使わない。** 名前を探すときの母集団には
+		  利用者のカスタムスキルも含まれるが、このページはそれを新しく作らないし、
+		  Deck の保存データ（umaSkillDeck:*）には一切書き込まない。
+		  途中経過は umaCardEventInput:draft にだけ持つ。
+
+		■ 読むもの（すべて読み取りだけ）
+		- catalog-data/support-cards.json          … カードの一覧
+		- catalog-data/support-card-event-skills.json … すでに入っている分
+		- uma-skill-deck-skills.json / catalog-data/extended-skills.json … スキル名（core 経由）
+	-->
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-16a" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-16a" />
+	<style>
+		body {
+			margin: 0; padding: 20px 16px 64px;
+			background: var(--uma-surface-sunken);
+			color: var(--uma-text);
+			font-family: ui-sans-serif, system-ui, sans-serif;
+		}
+		.cei-wrap { max-width: 900px; margin: 0 auto; }
+		.cei-h1 { font-size: var(--uma-fs-xl); line-height: var(--uma-lh-xl); font-weight: 700; margin: 0 0 4px; }
+		.cei-lead { font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); color: var(--uma-text-subtle); margin: 0 0 16px; }
+		.cei-panel {
+			background: var(--uma-surface); border: 1px solid var(--uma-border);
+			border-radius: var(--uma-r-md); padding: var(--uma-card-pad); margin: 0 0 16px;
+		}
+		.cei-h2 { font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; margin: 0 0 8px; }
+		.cei-steps { margin: 0; padding-left: 1.3em; font-size: var(--uma-fs-sm); line-height: 1.8; }
+		.cei-steps code { font-family: var(--uma-font-mono); font-size: var(--uma-fs-xs); }
+		.cei-note { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); margin: 8px 0 0; }
+		.cei-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 0 0 10px; }
+		.cei-bar .uma-input { flex: 1 1 220px; min-width: 0; }
+		.cei-check { display: inline-flex; align-items: center; gap: 6px; font-size: var(--uma-fs-sm); white-space: nowrap; }
+		.cei-counts { font-size: var(--uma-fs-sm); color: var(--uma-text-subtle); white-space: nowrap; }
+		.cei-list { display: flex; flex-direction: column; gap: 8px; }
+		.cei-row { border: 1px solid var(--uma-border); border-radius: var(--uma-r-sm); padding: 10px 12px; background: var(--uma-surface); }
+		.cei-row[data-state="done"] { border-color: var(--uma-accent); }
+		.cei-row[data-state="none"] { background: var(--uma-surface-muted); }
+		.cei-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+		.cei-label { font-size: var(--uma-fs-sm); font-weight: 600; flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+		.cei-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+		.cei-chip {
+			display: inline-flex; align-items: center; gap: 6px;
+			border: 1px solid var(--uma-border); border-radius: 999px;
+			padding: 2px 6px 2px 10px; font-size: var(--uma-fs-xs); background: var(--uma-surface-sunken);
+		}
+		.cei-find { margin-top: 8px; }
+		.cei-hits { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; max-height: 240px; overflow-y: auto; }
+		.cei-hit { text-align: left; font-size: var(--uma-fs-sm); }
+		.cei-empty { font-size: var(--uma-fs-sm); color: var(--uma-text-subtle); padding: 12px 0; }
+		#cei-out { width: 100%; box-sizing: border-box; min-height: 260px; font-family: var(--uma-font-mono); font-size: var(--uma-fs-xs); }
+		.cei-toast {
+			position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+			background: var(--uma-surface-inverse); color: #fff; padding: 8px 14px;
+			border-radius: var(--uma-r-sm); font-size: var(--uma-fs-sm); z-index: 50;
+		}
+	</style>
+</head>
+<body>
+<div class="cei-wrap">
+	<h1 class="cei-h1">イベントスキルの入力（作業用）</h1>
+	<p class="cei-lead">
+		サポートカードの「イベントで得られるスキル」を、ゲーム画面を見ながら1枚ずつ記録するためのページです。
+		このページはツール本体の一部ではありません。
+	</p>
+
+	<div class="cei-panel">
+		<h2 class="cei-h2">使い方</h2>
+		<ol class="cei-steps">
+			<li><strong>このページは簡易サーバー経由で開いてください。</strong> ファイルを直接開く（<code>file://</code>）と、データを読み込めません。</li>
+			<li>下の一覧から1枚ずつ、<strong>スキルがあれば「スキルを選ぶ」</strong>、<strong>見て回って無ければ「イベント無し」</strong>を押します。</li>
+			<li>区切りのよいところで、いちばん下の出力を<strong>コピー</strong>します。</li>
+			<li><code>catalog-data/support-card-event-skills.json</code> に貼って<strong>上書き</strong>します（ファイル全体を出しているので、そのまま置き換えられます）。</li>
+			<li><code>npm run check:catalog</code> を回して、形が正しいことを確かめます。</li>
+		</ol>
+		<p class="cei-note">
+			入力の途中経過はこのブラウザに残るので、閉じても続きから再開できます。
+			貼り終わってから開き直すと、ファイル側に入った分は途中経過から自動で消えます。
+		</p>
+	</div>
+
+	<div class="cei-panel">
+		<div class="cei-bar">
+			<input id="cei-q" class="uma-input" type="search" placeholder="二つ名・ウマ娘名で絞り込む" />
+			<label class="cei-check"><input id="cei-only-pending" type="checkbox" checked /> 未確認だけ</label>
+			<span id="cei-counts" class="cei-counts">読み込み中…</span>
+		</div>
+		<div id="cei-list" class="cei-list"></div>
+	</div>
+
+	<div class="cei-panel">
+		<h2 class="cei-h2">出力（ファイル全体）</h2>
+		<div class="cei-bar">
+			<label class="cei-check">版 <input id="cei-version" class="uma-input" type="text" size="12" /></label>
+			<button id="cei-copy" type="button" class="uma-btn uma-btn--primary">コピー</button>
+			<button id="cei-clear" type="button" class="uma-btn uma-btn--ghost">途中経過を捨てる</button>
+			<span id="cei-draft-info" class="cei-counts"></span>
+		</div>
+		<textarea id="cei-out" readonly spellcheck="false"></textarea>
+		<p id="cei-out-warn" class="cei-note" hidden></p>
+	</div>
+</div>
+
+<script src="js/uma-skill-deck-core.js?v=2026-09-18b"></script>
+<script>
+(function () {
+	'use strict';
+
+	// 途中経過の置き場。**umaSkillDeck: の名前空間は使わない**
+	// （Deck の書き出し・取り込みに混ざらないようにするため）。
+	var DRAFT_KEY = 'umaCardEventInput:draft';
+	var FIND_DEBOUNCE_MS = 120;
+
+	var Core = window.UmaSkillDeckCore;
+	var cards = [];        // サポートカードの行
+	var fileRows = {};     // すでにファイルに入っている分（cardId → 行）
+	var fileDoc = null;    // ファイルそのもの（note などを引き継ぐため）
+	var draft = {};        // cardId → { status, skillIds: [] }
+	var openCardId = '';   // いま「スキルを選ぶ」を開いている行
+	var findTimer = 0;
+
+	function $(id) { return document.getElementById(id); }
+	function esc(s) {
+		return String(s == null ? '' : s)
+			.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+	}
+	function toast(msg) {
+		var el = document.createElement('div');
+		el.className = 'cei-toast';
+		el.textContent = msg;
+		document.body.appendChild(el);
+		setTimeout(function () { el.remove(); }, 2600);
+	}
+
+	/* ---------- 途中経過 ---------- */
+	function loadDraft() {
+		try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}') || {}; } catch (e) { draft = {}; }
+		if (typeof draft !== 'object' || draft === null || Array.isArray(draft)) draft = {};
+	}
+	function saveDraft() {
+		try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (e) {}
+	}
+	/** ファイル側に入った分は、途中経過から落とす（二重に持たない）。 */
+	function pruneDraft() {
+		var dropped = 0;
+		Object.keys(draft).forEach(function (id) {
+			if (fileRows[id]) { delete draft[id]; dropped++; }
+			else if (!cards.some(function (c) { return c.id === id; })) { delete draft[id]; dropped++; }
+		});
+		if (dropped > 0) saveDraft();
+		return dropped;
+	}
+
+	/* ---------- 状態 ---------- */
+	// 'done'（スキルがある）/ 'none'（無い）/ 'pending'（未確認）
+	function stateOf(cardId) {
+		if (draft[cardId]) return draft[cardId].status;
+		var row = fileRows[cardId];
+		return row ? row.status : 'pending';
+	}
+	function skillIdsOf(cardId) {
+		if (draft[cardId]) return draft[cardId].skillIds || [];
+		var row = fileRows[cardId];
+		return row ? (row.skills || []).map(function (s) { return s.skillId; }) : [];
+	}
+	function isFromFile(cardId) { return !!fileRows[cardId] && !draft[cardId]; }
+
+	var STATE_LABEL = { done: '済', none: 'イベント無し', pending: '未確認' };
+
+	/* ---------- 一覧 ---------- */
+	function visibleCards() {
+		var q = Core.normalizeSkillText($('cei-q').value || '');
+		var onlyPending = $('cei-only-pending').checked;
+		return cards.filter(function (c) {
+			// いま開いている行は、絞り込みの条件にかかわらず残す。
+			// 「スキルを選ぶ」を押した時点で状態が未確認でなくなるので、
+			// これが無いと「未確認だけ」の絞り込みのせいで行ごと消えてしまう。
+			if (c.id === openCardId) return true;
+			if (onlyPending && stateOf(c.id) !== 'pending') return false;
+			if (!q) return true;
+			return Core.normalizeSkillText(Core.formatEntryLabel(c)).indexOf(q) !== -1;
+		});
+	}
+
+	function renderCounts() {
+		var n = { done: 0, none: 0, pending: 0 };
+		cards.forEach(function (c) { n[stateOf(c.id)]++; });
+		$('cei-counts').textContent = '全' + cards.length + '枚：済 ' + n.done
+			+ ' / イベント無し ' + n.none + ' / 未確認 ' + n.pending;
+	}
+
+	function chipHtml(cardId, skillId) {
+		var sk = Core.findSkill(skillId);
+		var name = sk ? sk.name : '（引けません：' + skillId + '）';
+		return '<span class="cei-chip">' + esc(name)
+			+ '<button type="button" class="uma-icon-btn" data-act="drop" data-card="' + esc(cardId)
+			+ '" data-skill="' + esc(skillId) + '" aria-label="外す">×</button></span>';
+	}
+
+	function rowHtml(card) {
+		var st = stateOf(card.id);
+		var ids = skillIdsOf(card.id);
+		var locked = isFromFile(card.id);
+		var h = '<div class="cei-row" data-card-id="' + esc(card.id) + '" data-state="' + st + '">';
+		h += '<div class="cei-head">';
+		h += '<span class="cei-label">' + esc(Core.formatEntryLabel(card)) + '</span>';
+		h += '<span class="uma-badge' + (st === 'done' ? ' uma-badge--accent' : (st === 'pending' ? ' uma-badge--warn' : ''))
+			+ '">' + STATE_LABEL[st] + '</span>';
+		if (locked) {
+			h += '<span class="cei-counts">ファイルに入っています</span>';
+		} else {
+			h += '<button type="button" class="uma-btn uma-btn--secondary" data-act="open" data-card="' + esc(card.id) + '">スキルを選ぶ</button>';
+			h += '<button type="button" class="uma-btn uma-btn--neutral" data-act="none" data-card="' + esc(card.id) + '">イベント無し</button>';
+			if (draft[card.id]) {
+				h += '<button type="button" class="uma-btn uma-btn--ghost" data-act="reset" data-card="' + esc(card.id) + '">取り消す</button>';
+			}
+		}
+		h += '</div>';
+		if (ids.length) {
+			h += '<div class="cei-chips">' + ids.map(function (id) { return chipHtml(card.id, id); }).join('') + '</div>';
+		}
+		if (openCardId === card.id && !locked) {
+			h += '<div class="cei-find">';
+			h += '<input class="uma-input" type="search" data-act="find" data-card="' + esc(card.id) + '" placeholder="スキル名の一部を入れて探す" />';
+			h += '<div class="cei-hits" data-hits="' + esc(card.id) + '"></div>';
+			h += '</div>';
+		}
+		h += '</div>';
+		return h;
+	}
+
+	function render() {
+		var list = visibleCards();
+		$('cei-list').innerHTML = list.length
+			? list.map(rowHtml).join('')
+			: '<p class="cei-empty">当てはまるカードがありません。</p>';
+		renderCounts();
+		renderOutput();
+		if (openCardId) {
+			var input = document.querySelector('[data-act="find"][data-card="' + openCardId + '"]');
+			if (input) input.focus();
+		}
+	}
+
+	/* ---------- スキルを探す ---------- */
+	function renderHits(cardId, text) {
+		var box = document.querySelector('[data-hits="' + cardId + '"]');
+		if (!box) return;
+		var res = Core.findSkillsByNameFragment(text);
+		// 収録データから参照してよいのは、マスターのスキルと拡張スキルだけ。
+		// シナリオ因子や利用者のカスタムスキルは対象外（判定は core 側に置いてある）。
+		var hits = res.hits.filter(function (h) { return Core.isReferableSkillId(h.id); });
+		var have = skillIdsOf(cardId);
+		if (!text) { box.innerHTML = ''; return; }
+		if (hits.length === 0) { box.innerHTML = '<p class="cei-empty">見つかりません。</p>'; return; }
+		box.innerHTML = hits.map(function (h) {
+			var added = have.indexOf(h.id) !== -1;
+			return '<button type="button" class="uma-btn uma-btn--ghost cei-hit" data-act="pick" data-card="' + esc(cardId)
+				+ '" data-skill="' + esc(h.id) + '"' + (added ? ' disabled' : '') + '>'
+				+ esc(h.name) + (added ? '（追加済み）' : '') + '</button>';
+		}).join('') + (res.more > 0 ? '<p class="cei-empty">ほか ' + res.more + '件。もう少し入力してください。</p>' : '');
+	}
+
+	/* ---------- 出力 ---------- */
+	function todayVersion() {
+		var d = new Date();
+		var p = function (n) { return (n < 10 ? '0' : '') + n; };
+		return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'a';
+	}
+
+	function buildOutput() {
+		// 既存の行の並びは保ち、新しいものは末尾に足す（C-48 の更新の運用）。
+		var entries = (fileDoc && Array.isArray(fileDoc.entries) ? fileDoc.entries : []).slice();
+		var unresolved = [];
+		cards.forEach(function (c) {
+			var d = draft[c.id];
+			if (!d) return;
+			var skills = (d.skillIds || []).map(function (id) {
+				var sk = Core.findSkill(id);
+				if (!sk || !Core.isReferableSkillId(id)) { unresolved.push(id); return null; }
+				return { skillId: id, name: sk.name };
+			}).filter(Boolean);
+			entries.push({ cardId: c.id, status: d.status, skills: skills });
+		});
+		var out = { dataVersion: $('cei-version').value || todayVersion(), category: 'supportCardEventSkill' };
+		if (fileDoc && fileDoc.note) out.note = fileDoc.note;
+		out.entries = entries;
+		return { text: JSON.stringify(out, null, '\t') + '\n', unresolved: unresolved, added: entries.length - (fileDoc && fileDoc.entries ? fileDoc.entries.length : 0) };
+	}
+
+	function renderOutput() {
+		var r = buildOutput();
+		$('cei-out').value = r.text;
+		var warn = $('cei-out-warn');
+		if (r.unresolved.length) {
+			warn.hidden = false;
+			warn.textContent = 'スキルとして参照できない id が含まれています（出力から外しました）: ' + r.unresolved.join(' / ');
+		} else {
+			warn.hidden = true;
+		}
+		var n = Object.keys(draft).length;
+		$('cei-draft-info').textContent = n > 0 ? 'このブラウザに ' + n + '枚ぶんの途中経過があります' : '途中経過はありません';
+	}
+
+	/* ---------- 操作 ---------- */
+	document.addEventListener('click', function (ev) {
+		var btn = ev.target.closest ? ev.target.closest('[data-act]') : null;
+		if (!btn) return;
+		var act = btn.getAttribute('data-act');
+		var cardId = btn.getAttribute('data-card');
+		if (act === 'open') {
+			openCardId = (openCardId === cardId) ? '' : cardId;
+			if (openCardId && !draft[cardId]) draft[cardId] = { status: 'done', skillIds: [] };
+			saveDraft(); render();
+		} else if (act === 'none') {
+			draft[cardId] = { status: 'none', skillIds: [] };
+			openCardId = '';
+			saveDraft(); render();
+			toast('「イベント無し」として記録しました');
+		} else if (act === 'reset') {
+			delete draft[cardId];
+			if (openCardId === cardId) openCardId = '';
+			saveDraft(); render();
+		} else if (act === 'pick') {
+			var sid = btn.getAttribute('data-skill');
+			var d = draft[cardId] || (draft[cardId] = { status: 'done', skillIds: [] });
+			d.status = 'done';
+			if (d.skillIds.indexOf(sid) === -1) d.skillIds.push(sid);
+			saveDraft();
+			var keep = document.querySelector('[data-act="find"][data-card="' + cardId + '"]');
+			var text = keep ? keep.value : '';
+			render();
+			var again = document.querySelector('[data-act="find"][data-card="' + cardId + '"]');
+			if (again) { again.value = text; renderHits(cardId, text); }
+		} else if (act === 'drop') {
+			var dropId = btn.getAttribute('data-skill');
+			var dd = draft[cardId];
+			if (dd) {
+				dd.skillIds = (dd.skillIds || []).filter(function (x) { return x !== dropId; });
+				if (dd.skillIds.length === 0 && dd.status === 'done') dd.status = 'done'; // 空のまま残すと check:catalog が落ちるので、出力前に気付けるようにしておく
+				saveDraft(); render();
+			}
+		}
+	});
+
+	document.addEventListener('input', function (ev) {
+		var el = ev.target;
+		if (el.getAttribute && el.getAttribute('data-act') === 'find') {
+			var cardId = el.getAttribute('data-card');
+			var text = el.value;
+			clearTimeout(findTimer);
+			findTimer = setTimeout(function () { renderHits(cardId, text); }, FIND_DEBOUNCE_MS);
+		}
+	});
+
+	/* ---------- 起動 ---------- */
+	window.addEventListener('DOMContentLoaded', function () {
+		$('cei-q').addEventListener('input', render);
+		$('cei-only-pending').addEventListener('change', render);
+		$('cei-version').value = todayVersion();
+		$('cei-version').addEventListener('input', renderOutput);
+		$('cei-copy').addEventListener('click', function () {
+			$('cei-out').select();
+			navigator.clipboard.writeText($('cei-out').value).then(function () {
+				toast('コピーしました。ファイルに貼って上書きしてください');
+			}, function () {
+				toast('コピーできませんでした。テキストを選んで手でコピーしてください');
+			});
+		});
+		$('cei-clear').addEventListener('click', function () {
+			if (!confirm('このブラウザに残っている途中経過を捨てます。よろしいですか。')) return;
+			draft = {}; openCardId = '';
+			saveDraft(); render();
+		});
+
+		Core.configure({ toast: toast });
+		// マスター445種＋追加カタログ（拡張スキル・シナリオ因子）。名前で探すために要る。
+		Core.loadMasterSkills(false).then(function () {
+			return Core.loadTrainingSources(false);
+		}).then(function () {
+			var src = Core.getTrainingSources();
+			cards = (src.supportCard && src.supportCard.entries) || [];
+			fileDoc = src.supportCardEventSkill || null;
+			fileRows = {};
+			((fileDoc && fileDoc.entries) || []).forEach(function (r) { fileRows[r.cardId] = r; });
+			loadDraft();
+			var dropped = pruneDraft();
+			render();
+			if (cards.length === 0) {
+				$('cei-counts').textContent = 'カードを読み込めませんでした（簡易サーバー経由で開いていますか）';
+			} else if (dropped > 0) {
+				toast('ファイルに入っている ' + dropped + '枚ぶんを途中経過から外しました');
+			}
+		}).catch(function (e) {
+			$('cei-counts').textContent = '読み込みに失敗しました: ' + (e && e.message ? e.message : e);
+		});
+	});
+})();
+</script>
+</body>
+</html>
