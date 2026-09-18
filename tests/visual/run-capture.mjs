@@ -118,8 +118,11 @@ async function shot(page, name, opts = {}) {
 for (const width of [1280, 375]) {
 	const ctx = await browser.newContext({ viewport: { width, height: 900 } });
 	await ctx.addInitScript(() => {
-		// 告知モーダルは別に撮るので、通常の状態は既読で開く
+		// 告知モーダルは別に撮るので、通常の状態は既読で開く。
+		// 告知は**2つある**（画面の作り／対象スキルの選び方。exam.html の initUiMode）。
+		// 片方だけ既読にすると、もう一方が開いたままになって以降のクリックが全部弾かれる。
 		localStorage.setItem('uma-exam-ui-notice', '2026-09-exam-drawer-layout');
+		localStorage.setItem('uma-exam-target-notice', '2026-09-14-target-scope');
 	});
 	const page = await ctx.newPage();
 	await page.goto(base + '/exam.html', { waitUntil: 'networkidle', timeout: 60000 });
