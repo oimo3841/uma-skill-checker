@@ -96,8 +96,10 @@ const CSS_LINKS = {
 	'css/styleguide.html': ['tokens', 'common'],
 	// 作業用ページ（C-50）。ツール本体には組み込まないが、共通CSSを読むので同じ運用に載せる。
 	'card-event-input.html': ['tokens', 'common'],
-	// exam.html は共通部品（common.css）を読まない。読むと .glass-card の余白など既存の見た目が変わるため
-	'exam.html': ['tokens', 'shell'],
+	// exam.html は 59セッション目（段1）から common.css も読む。ボタンを共通部品（.uma-btn）に
+	// 置き換えるため。食い違うのは .glass-card の余白（狭い画面の 4px）だけで、それは exam の
+	// <style> で戻してある（exam.html の <head> のコメント参照）
+	'exam.html': ['tokens', 'common', 'shell'],
 };
 for (const [p, files] of Object.entries(CSS_LINKS)) {
 	const src = read(p);
@@ -295,6 +297,25 @@ for (const p of ['js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/common
 	check(r.status === 0, p + ' が構文エラーなし', (r.stderr || '').slice(0, 160));
 }
 fs.rmSync(tmp, { recursive: true, force: true });
+
+/* ------------------------------------------------------------
+ * 5-2. special と exam で同じであるべき文言（59セッション目・段1）
+ *
+ * 結合の注記は、それまで special が「1人分が1枚だけならエラー」、exam が「枚数が多いほど
+ * 時間がかかる」と、互いに相手の注意が抜けていた。両方に両方を書いて揃えたので、
+ * **片方だけ直すと落ちる**ようにしておく（見た目の検査ではないのでここで見る）。
+ * ------------------------------------------------------------ */
+{
+	const noteOf = (p) => {
+		const m = /<p class="mt-1\.5 text-\[11px\] text-slate-400 text-center">(※画像結合は、[^<]*)<\/p>/.exec(read(p));
+		return m ? m[1] : null;
+	};
+	const sp = noteOf('special.html');
+	const ex = noteOf('exam.html');
+	check(sp !== null && sp === ex, '結合の注記が special と exam で同じ文面', { special: sp, exam: ex });
+	check(sp !== null && sp.includes('1枚だけのときはエラー') && sp.includes('時間がかかります'),
+		'結合の注記に「1枚だけならエラー」と「枚数が多いほど時間がかかる」の両方がある', sp);
+}
 
 console.log('\n=== 6. 共通CSSの !important（詳細度で解決する方針） ===');
 const impLines = (src) => src.split('\n').filter((l) => /[a-z-]+\s*:[^;{}]*!important/.test(l)).map((l) => l.trim());

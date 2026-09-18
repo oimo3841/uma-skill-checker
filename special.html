@@ -33,7 +33,7 @@
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-18l"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-15a"></script>
+	<script src="js/stitch.js?v=2026-09-18a"></script>
 	<style>
 		/* Deck連携モードの①のタブ（本育成編成）の見出し行（C-51 の11節①②）。
 		   ①〜③はステップのタブ（css/shell.css の .step-tab）に載せたので、ここには Step の枠は無い。
@@ -649,7 +649,10 @@
 				<i data-lucide="images" class="w-4 h-4"></i>
 				<span>画像を結合する（SNS投稿用）</span>
 			</button>
-			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※1人につき2枚以上のスクリーンショットを縦結合し、親Aセット・親Bセットそれぞれで、使用中の人を1枚の画像にまとめて個別に出力します。1人分が1枚のみの場合はエラーになります。</p>
+			<!-- 結合の注記。**exam.html と同じ文面**にしてある（段1）。
+			     それまでは special が「1枚だけならエラー」、exam が「枚数が多いほど時間がかかる」と、
+			     互いに相手の注意が抜けていた。片方を直すときはもう片方も直すこと。 -->
+			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、1人につき2枚以上のスクリーンショットを縦につなぎ、親Aセット・親Bセットそれぞれで、画像のある人を1枚にまとめてSNS投稿用に出力します。1人分が1枚だけのときはエラーになります。画像の枚数が多いほど時間がかかります。</p>
 
 			<!-- 分類の印を結合画像に焼くかの切り替え（C-58 の作業C）。結果画像の見た目が変わる設定なので、
 			     切り替えてもその場では何も変わらない引き出しの中ではなく、**結合を始める場所**に置く
@@ -661,6 +664,13 @@
 				<input type="checkbox" id="opt-tier-marks" class="rounded text-[var(--uma-control)] focus:ring-[var(--uma-focus-ring)] w-4 h-4" checked onchange="setTierMarksEnabled(this.checked)">
 				<span>結合画像に分類の印（◎超優先・○優先・▲通常）を焼く</span>
 			</label>
+
+			<!-- 印が焼けるかどうかの状態表示（段0。C-59 の案(a)）。
+			     結合はOCRと独立して押せるので、OCRを回していない・周回スキルセットを選んでいない・
+			     旧UIにいる、のいずれでも**印が黙って出ない**状態になる（C-58 で印を足したときに
+			     できた穴）。押したあとのトーストではなく**押す前に読める場所**へ出す。
+			     文面の組み立ては tierMarksStatusText()。 -->
+			<p id="tier-marks-status" class="mt-1 text-[11px] text-center leading-relaxed"></p>
 
 			<!-- 画像結合の進捗バー（OCR処理と同じ見た目。処理中はstitch-btnを無効化して
 			     多重クリックを防ぐ。詳細はrunImageStitching()参照） -->
@@ -1160,6 +1170,9 @@
 			const stitchBtn = document.getElementById('stitch-btn');
 			if (stitchBtn) stitchBtn.disabled = !anyFiles;
 			updateImageCountBadge();
+			// 結合ボタンの下の状態表示（段0）。UIの切り替え・対象スキルセットの選択・画像の増減は
+			// すべてここを通るので、状態表示の更新もここへ乗せる（呼び忘れが起きない）。
+			updateTierMarksStatus();
 		}
 
 		/* ============================================================
@@ -1420,6 +1433,7 @@
 			}
 
 			renderResults();
+			updateTierMarksStatus(); // OCR の結果ができたので、結合ボタンの下の表示も切り替える（段0）
 			showToast('照合が完了しました');
 			// 結果は引き出しの中にあるので、判定が終わったらそのまま開いて見せる。
 			// （renderResults() 自体は描画だけを担当し、開く判断はこちらに置く）
@@ -1971,6 +1985,55 @@
 			return placed.length;
 		}
 
+		/* ------------------------------------------------------------
+		 * 結合画像の下に敷く、印の凡例の帯（段3。C-59 の3節）
+		 *
+		 * **exam の帯をそのまま持ち込んではいない。** exam の帯は印の凡例と
+		 * 「集計条件」（追加・除外スキル・シナリオ因子の一覧）を一緒に描くが、
+		 * special には集計条件に当たるものが無い（対象は周回スキルセットで、
+		 * 名前を全部並べると長くなるだけ）。ここに出すのは印の見かた3行と、
+		 * 印の無い行についての断り1行だけ。
+		 *
+		 * 帯の骨格（白い矩形・区切り線・折り返し・文字の大きさの詰め方）は
+		 * js/stitch.js の stitchNoteMetrics / stitchDrawNoteBar が持つ（exam と共通）。
+		 *
+		 * **3段すべて出す**（その画像に出ていない段も含める）。◎○▲ は3段で1つの尺度で、
+		 * 「出ていない段がある」こと自体が読み手の情報になる。帯の高さがセットごとに
+		 * 変わらない利点もある。
+		 * ------------------------------------------------------------ */
+		const TIER_LEGEND_HEAD = '印の見かた：';
+		const TIER_LEGEND_LABEL = { 1: '超優先', 2: '優先', 3: '通常' };
+		const TIER_LEGEND_NOTE = '印の無い行は、周回スキルセットに入れていないスキルです。';
+
+		// totalWidth     … 帯の幅（＝結合画像の全幅）
+		// referenceWidth … 文字の大きさの基準にする幅（＝スクショ1人分の幅。exam と同じ考え方）
+		// 印を1つも焼いていないとき・色を読めないときは null（帯そのものを置かない）。
+		function buildTierLegendBar(totalWidth, referenceWidth, hasMarks) {
+			if (!hasMarks) return null;
+			const colors = tierMarkColors();
+			if (!colors) {
+				devGeometry.push('[分類の印] 色のトークンを読めなかったため、凡例の帯を置きませんでした');
+				return null;
+			}
+			const ctx = document.createElement('canvas').getContext('2d');
+			// 字の大きさの基準は、この帯でいちばん長い行（断りの1行）
+			const m = stitchNoteMetrics(ctx, totalWidth, referenceWidth, TIER_LEGEND_NOTE);
+			const headW = ctx.measureText(TIER_LEGEND_HEAD).width;
+			const glyphW = m.fontSize * 1.35;   // 記号1つ分の幅（exam の凡例と同じ比）
+			const rows = [];
+			[1, 2, 3].forEach((tier, i) => {
+				// 2行目からは見出しの幅だけ空けて、記号の左端を1行目とそろえる
+				const row = [{ type: 'text', text: i === 0 ? TIER_LEGEND_HEAD : '', w: headW }];
+				row.push({ type: 'mark', w: glyphW, draw: (c, cx, cy, d) => drawTierMark(c, tier, cx, cy, d, colors) });
+				const label = ' ' + TIER_LEGEND_LABEL[tier];
+				row.push({ type: 'text', text: label, w: ctx.measureText(label).width });
+				rows.push(row);
+			});
+			stitchWrapText(ctx, TIER_LEGEND_NOTE, m.maxTextWidth)
+				.forEach(line => rows.push(stitchNoteTextRow(ctx, line)));
+			return stitchDrawNoteBar(totalWidth, m, rows);
+		}
+
 		// 指定セット（0=親A, 1=親B）のうち、アップロード済みの人（1〜3人）
 		// それぞれを縦結合し、横結合したCanvasを返す（バナー等は付けず、スキルパネルの
 		// 結合のみ）。アップロードが1人分のみの場合は横結合をスキップしてその1人分を返す。
@@ -1983,6 +2046,7 @@
 
 			const contentCanvases = [];
 			const allWarnings = [];
+			let markCount = 0;   // セット内で実際に焼いた印の数（凡例の帯を置くかの判断に使う）
 
 			for (const idx of activeIndexes) {
 				const label = PERSON_LABELS[idx];
@@ -1990,7 +2054,7 @@
 				const contentCanvas = await stitchOnePerson(persons[idx].files, label);
 				if (!contentCanvas) continue;
 				// 分類の印は**結合の後**に焼く（C-58 の作業C。前に焼くと継ぎ目の判定が狂う）
-				drawTierMarksOnPerson(contentCanvas, idx);
+				markCount += drawTierMarksOnPerson(contentCanvas, idx);
 				contentCanvases.push(contentCanvas);
 				if (contentCanvas._stitchWarnings && contentCanvas._stitchWarnings.length) {
 					allWarnings.push(...contentCanvas._stitchWarnings);
@@ -1999,9 +2063,26 @@
 
 			if (contentCanvases.length === 0) return null;
 
-			const result = contentCanvases.length === 1 ? contentCanvases[0] : stitchConcatHorizontallyTopAligned(contentCanvases);
+			const contentRow = contentCanvases.length === 1 ? contentCanvases[0] : stitchConcatHorizontallyTopAligned(contentCanvases);
+			// 印の凡例の帯（段3）。1つも焼いていなければ置かない＝これまでどおりスキルパネルだけになる。
+			// 帯の幅の基準は**スクショ1人分**（contentCanvases[0].width）に取る。人数で字が太らないように。
+			const legendBar = buildTierLegendBar(contentRow.width, contentCanvases[0].width, markCount > 0);
+			const result = legendBar ? stitchStackVertically(contentRow, legendBar) : contentRow;
 			result._stitchWarnings = allWarnings;
 			return result;
+		}
+
+		// スクショ群の下に帯を敷いて1枚にする（段3）。幅は広いほうに合わせ、余りは白で埋める。
+		function stitchStackVertically(top, bottom) {
+			const out = document.createElement('canvas');
+			out.width = Math.max(top.width, bottom.width);
+			out.height = top.height + bottom.height;
+			const ctx = out.getContext('2d');
+			ctx.fillStyle = '#ffffff';
+			ctx.fillRect(0, 0, out.width, out.height);
+			ctx.drawImage(top, 0, 0);
+			ctx.drawImage(bottom, 0, top.height);
+			return out;
 		}
 
 		function setStitchProgress(ratio, label) {
@@ -2120,7 +2201,10 @@
 
 			const header = document.createElement('div');
 			header.className = 'flex items-center justify-between mb-3';
-			header.innerHTML = '<p class="text-xs font-bold text-slate-700">' + escapeHtml(set.label) + ' 結合画像</p>';
+			// 見出しは **exam.html と同じ**「親Aセット」だけにする（段1）。
+			// 置き場所（引き出し「画像結合レビュー」／exam の「結合画像の表示」タブ）が
+			// すでに結合画像であることを言っているので、「結合画像」を重ねて書かない。
+			header.innerHTML = '<p class="text-xs font-bold text-slate-700">' + escapeHtml(set.label) + '</p>';
 			const downloadLink = document.createElement('a');
 			downloadLink.href = dataUrl;
 			// ファイル名は `YYMMDD_NNN_指定名称.png`。組み立てとイベントの張り方は js/stitch.js。
@@ -2221,11 +2305,60 @@
 			tierMarksEnabled = (v !== '0');
 			const el = document.getElementById('opt-tier-marks');
 			if (el) el.checked = tierMarksEnabled;
+			updateTierMarksStatus();
 		}
 
 		function setTierMarksEnabled(on) {
 			tierMarksEnabled = !!on;
 			writeStored(TIER_MARKS_STORAGE_KEY, tierMarksEnabled ? '1' : '0');
+			updateTierMarksStatus();
+		}
+
+		/* ------------------------------------------------------------
+		 * 「このまま結合したら印が焼かれるか」の状態表示（段0。C-59 の案(a)）
+		 *
+		 * 結合は OCR と独立して押せる（スキルリスト未入力でも結合できることは
+		 * special が明示的に保ってきた仕様で、やめると退行）。一方で C-58 から
+		 * 結合画像に分類の印が乗るようになり、印の材料（OCR の結果と、
+		 * 周回スキルセットの分類）が無いと**黙って印が出ない**状態になった。
+		 *
+		 * 知らせるのは押したあとではなく**押す前**。押してから「入っていなかった」と
+		 * 分かると、重い結合をもう一度やり直すことになるため。
+		 *
+		 * 戻り値は { text, tone }。tone は 'ok'（焼く）／'warn'（このままでは焼けない）／
+		 * 'off'（焼かない設定）。文面だけを返す形にして、DOM に触るのは下の関数だけにしてある
+		 * （スモークから文面を直接確かめられるように）。
+		 * ------------------------------------------------------------ */
+		function tierMarksStatusText() {
+			if (!tierMarksEnabled) {
+				return { tone: 'off', text: '分類の印は焼きません（上のチェックを入れると焼けます）。' };
+			}
+			if (!deckMode) {
+				// 旧UIの手貼りのリストには分類が無い（exitDeckMode が deckTierByName を空にする）
+				return { tone: 'warn', text: '分類の印は新UIでのみ焼けます。このまま結合すると印は入りません。' };
+			}
+			if (Object.keys(deckTierByName).length === 0) {
+				return { tone: 'warn', text: '②で周回スキルセットを選ぶと、分類の印を焼けるようになります。このまま結合すると印は入りません。' };
+			}
+			if (!personResults.some(r => r)) {
+				return { tone: 'warn', text: '先に「OCR処理を開始する」を押すと、分類の印も焼かれます。このまま結合すると印は入りません。' };
+			}
+			return { tone: 'ok', text: 'OCRの結果があるので、結合画像に分類の印（◎○▲）も焼きます。' };
+		}
+
+		const TIER_MARKS_STATUS_TONE = {
+			ok: 'text-emerald-700',
+			warn: 'text-amber-700',
+			off: 'text-slate-400'
+		};
+
+		function updateTierMarksStatus() {
+			const el = document.getElementById('tier-marks-status');
+			if (!el) return;
+			const s = tierMarksStatusText();
+			el.textContent = s.text;
+			el.className = 'mt-1 text-[11px] text-center leading-relaxed ' + TIER_MARKS_STATUS_TONE[s.tone];
+			el.setAttribute('data-tone', s.tone);
 		}
 
 		// 照合対象のスキル名 → 分類（1＝超優先／2＝優先／3＝通常。C-57 の (10)）。照合結果の表で名前の前に競馬の印を出すために持つ。

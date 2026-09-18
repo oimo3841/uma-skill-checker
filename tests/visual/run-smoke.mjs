@@ -1306,12 +1306,15 @@ const browser = await chromium.launch();
 		'exam: ヘッダーの見出しに種数を書かない', registry.header.slice(0, 40));
 	assert(registry.sp70 === 'sp70緑：17種' && registry.green === '緑59種（実質53種）',
 		'exam: sp70緑17・緑59（実質53）のバッジが出る', registry);
+	// 59セッション目（段1）から common.css も読む（ボタンを共通部品にするため）。
+	// 食い違う .glass-card の余白は exam の <style> で戻してある
 	assert(await page.evaluate(() => loadedCssVersion('--common-css-version')) === COMMON_CSS_VERSION
-		&& await page.evaluate(() => loadedCssVersion('--uma-shell-css-version')) === COMMON_CSS_VERSION,
-		'exam: tokens.css と shell.css の版を読めている', COMMON_CSS_VERSION);
-	// 共通部品（common.css）は読まない。読むと .glass-card の余白など既存の見た目が変わる
-	assert(await page.evaluate(() => loadedCssVersion('--uma-components-css-version')) === '',
-		'exam: common.css は読んでいない');
+		&& await page.evaluate(() => loadedCssVersion('--uma-shell-css-version')) === COMMON_CSS_VERSION
+		&& await page.evaluate(() => loadedCssVersion('--uma-components-css-version')) === COMMON_CSS_VERSION,
+		'exam: 共通CSSの3つとも版を読めている', COMMON_CSS_VERSION);
+	// .glass-card の余白は、common.css の --uma-card-pad ではなく従来どおり（1280px なら 24px）
+	assert(await page.evaluate(() => getComputedStyle(document.getElementById('new-step-card')).padding) === '24px',
+		'exam: common.css を読んでも .glass-card の余白は従来どおり');
 
 	/* --- ステップ1・2のタブ（special と同じ骨格。①は登録済みなので既定で①を開く） --- */
 	const stepState = () => page.evaluate(() => ({
@@ -5658,6 +5661,193 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	const counts = await page.evaluate(() => [1, 2, 3].map(t => document.querySelector('#template-panel-root [data-usd-el="tier-count-' + t + '"]').textContent));
 	assert(counts.join() === '0,' + PICK.length + ',0', 'tiers(deck): 取り込んだ古いデータのスキルは全部「優先」に入る', counts);
 	assert(errors.length === 0, 'tiers(deck): コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
+ * special と exam の操作感を揃える（59セッション目・C-59 の段0〜段3）
+ *
+ * 段0 … 結合ボタンの下の状態表示。OCR を回さずに結合すると印が黙って出ない状態があり、
+ *        その3通り（旧UI／周回スキルセット未選択／OCR未実行）を押す前に知らせる。
+ * 段1 … exam のボタンが共通部品（.uma-btn）になり、common.css を読むようになった。
+ *        注記の文言と結果の見出しが両ツールで揃っている。
+ * 段2 … exam に結合の進捗バーが付いた。
+ * 段3 … special の結合画像に凡例の帯。骨格は js/stitch.js（exam と共通）。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	// 状態表示は③（画像をアップロード）のタブの中にあるので、見えるところへ連れて行ってから読む
+	const status = () => page.evaluate(() => {
+		selectStepTab(2);
+		const el = document.getElementById('tier-marks-status');
+		return { text: el.textContent, tone: el.dataset.tone, shown: el.getClientRects().length > 0 };
+	});
+
+	// 段0-1) 周回スキルセットを選んでいない（新UI）
+	const s0 = await status();
+	assert(s0.shown && s0.tone === 'warn' && s0.text.includes('②で周回スキルセットを選ぶ') && s0.text.includes('印は入りません'),
+		'段0: セット未選択のときは「②で選ぶと焼ける／このままでは入らない」と出る', s0);
+
+	// 段0-2) セットを選ぶと「先に OCR を」に変わる（status() が③へ移しているので②へ戻してから押す）
+	await page.evaluate(() => selectStepTab(1));
+	await page.waitForTimeout(200);
+	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
+	await page.waitForTimeout(400);
+	const s1 = await status();
+	assert(s1.tone === 'warn' && s1.text.includes('OCR処理を開始する'),
+		'段0: セットを選ぶと「先に OCR処理を開始する を押すと焼ける」に変わる', s1);
+
+	// 段0-3) OCR の結果ができると「焼きます」になる（結果は本物の照合関数で作る）
+	await page.evaluate(() => {
+		personResults[0] = matchAllSkillsWithStars(
+			skillList.map((name, i) => ({ text: name, stars: (i % 3) + 1, starsReliable: true, rowKey: '0:' + i })),
+			skillList, skillIndex, {});
+	});
+	await page.evaluate(() => updateTierMarksStatus());
+	const s2 = await status();
+	assert(s2.tone === 'ok' && s2.text.includes('焼きます'),
+		'段0: OCR の結果があると「印も焼きます」になる', s2);
+
+	// 段0-4) 印を焼かない設定のときは、その旨だけを出す（OCR の有無に関わらず）
+	await page.uncheck('#opt-tier-marks');
+	await page.waitForTimeout(200);
+	const s3 = await status();
+	assert(s3.tone === 'off' && s3.text.includes('焼きません'), '段0: 印 OFF のときは「焼きません」', s3);
+	await page.check('#opt-tier-marks');
+	await page.waitForTimeout(200);
+	assert((await status()).tone === 'ok', '段0: 印を戻すと元の判定に戻る');
+
+	// 段3) 凡例の帯。印を1つも焼いていなければ置かない（＝これまでどおりスキルパネルだけ）
+	const legend = await page.evaluate(() => {
+		const off = buildTierLegendBar(1200, 1200, false);
+		const on = buildTierLegendBar(1200, 1200, true);
+		const ctx2 = on.getContext('2d');
+		const d = ctx2.getImageData(0, 0, on.width, on.height).data;
+		let white = 0, note = 0, red = 0;
+		for (let i = 0; i < d.length; i += 4) {
+			if (d[i] === 255 && d[i + 1] === 255 && d[i + 2] === 255) white++;
+			if (d[i] === 0x55 && d[i + 1] === 0x55 && d[i + 2] === 0x55) note++;
+			if (d[i] === 0xd8 && d[i + 1] === 0x1f && d[i + 2] === 0x26) red++;   // --uma-mark-tier-1
+		}
+		return { off: off, w: on.width, h: on.height, white: white, note: note, red: red, total: d.length / 4 };
+	});
+	assert(legend.off === null, '段3: 印を1つも焼いていなければ凡例の帯を置かない', legend.off);
+	assert(legend.w === 1200 && legend.h > 0, '段3: 帯は結合画像と同じ幅で作られる', { w: legend.w, h: legend.h });
+	assert(legend.white > legend.total * 0.8, '段3: 帯の地は白', legend);
+	assert(legend.note > 100, '段3: 説明文が補助テキストの色（#555555）で入っている', legend.note);
+	assert(legend.red > 0, '段3: 超優先の印が赤（--uma-mark-tier-1）で入っている', legend.red);
+
+	// 段3) 帯の骨格は js/stitch.js（exam と共通）。special 側に作り直しが残っていないこと
+	const shared = await page.evaluate(() => ({
+		metrics: typeof stitchNoteMetrics, draw: typeof stitchDrawNoteBar,
+		wrap: typeof stitchWrapText, row: typeof stitchNoteTextRow, color: STITCH_NOTE_COLOR,
+	}));
+	assert(shared.metrics === 'function' && shared.draw === 'function' && shared.wrap === 'function'
+		&& shared.row === 'function' && shared.color === '#555555',
+		'段3: 帯の骨格が js/stitch.js から使える（special 側に写しを持たない）', shared);
+
+	assert(errors.length === 0, '段0〜3(special): コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+{
+	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+	await ctx.addInitScript(() => {
+		localStorage.setItem('uma-exam-ui-notice', '2026-09-exam-drawer-layout');
+		localStorage.setItem('uma-exam-target-notice', '2026-09-14-target-scope');
+	});
+	const page = await ctx.newPage();
+	const errors = [];
+	page.on('pageerror', (e) => errors.push(String(e)));
+	page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+	await page.goto(base + '/exam.html', { waitUntil: 'networkidle', timeout: 60000 });
+	await page.waitForTimeout(1500);
+
+	// 段1) ボタンが共通部品になっている。common.css も読んでいる（読まないと素の <button> になる）
+	const btns = await page.evaluate(() => {
+		const one = (id) => {
+			const b = document.getElementById(id);
+			const cs = getComputedStyle(b);
+			return { cls: b.className, radius: cs.borderTopLeftRadius, weight: cs.fontWeight, display: cs.display };
+		};
+		return {
+			ocr: one('process-btn'), stitch: one('process-stitch-btn'),
+			css: getComputedStyle(document.documentElement).getPropertyValue('--uma-components-css-version').trim(),
+			twReady: document.documentElement.classList.contains('uma-tw-ready'),
+		};
+	});
+	assert(btns.ocr.cls === 'uma-btn uma-btn--primary uma-btn--lg w-full'
+		&& btns.stitch.cls === 'uma-btn uma-btn--accent-outline uma-btn--lg w-full mt-2',
+		'段1: exam の2つのボタンが special と同じ共通部品になっている', { ocr: btns.ocr.cls, stitch: btns.stitch.cls });
+	assert(btns.ocr.display === 'inline-flex' && btns.ocr.weight === '700' && btns.ocr.radius === '12px',
+		'段1: 共通部品の指定が実際に効いている（common.css を読めている）', btns.ocr);
+	assert(btns.css !== '', '段1: exam が common.css を読んでいる（版の印が取れる）', btns.css);
+	assert(btns.twReady === true,
+		'段1: .uma-tw-ready が付く（common.css の「Tailwind を読めなかったときの保険」を無効にする）', btns.twReady);
+
+	// 段2) 結合の進捗バー。OCR のバーと同じ作りで、既定は隠れている
+	const bar = await page.evaluate(() => {
+		const w = document.getElementById('stitch-progress-wrap');
+		const before = w.classList.contains('hidden');
+		setStitchProgress(0.5, '親A 祖A1を結合中…');
+		w.classList.remove('hidden');
+		const shown = {
+			pct: document.getElementById('stitch-progress-pct').textContent,
+			label: document.getElementById('stitch-progress-label').querySelector('span').textContent,
+			width: document.getElementById('stitch-progress-bar').style.width,
+		};
+		w.classList.add('hidden');
+		return { before: before, shown: shown };
+	});
+	assert(bar.before === true, '段2: 結合の進捗バーは既定では隠れている', bar.before);
+	assert(bar.shown.pct === '50%' && bar.shown.width === '50%' && bar.shown.label === '親A 祖A1を結合中…',
+		'段2: setStitchProgress が割合と「だれを結合中か」を出す', bar.shown);
+
+	// 段2) 結合中は出て、終わったら隠れる。結合そのものは差し替えて速く回す
+	const flow = await page.evaluate(async () => {
+		const orig = buildStitchedSetImage;
+		const seen = [];
+		const w = document.getElementById('stitch-progress-wrap');
+		persons[0].files = [{ name: 'a.png' }, { name: 'b.png' }];
+		buildStitchedSetImage = async (setIdx, run, onPersonStart) => {
+			if (onPersonStart) onPersonStart('親A');
+			seen.push({ hidden: w.classList.contains('hidden'), label: document.getElementById('stitch-progress-label').querySelector('span').textContent });
+			const c = document.createElement('canvas');
+			c.width = 60; c.height = 60; c._personMeta = []; c._stitchWarnings = [];
+			return c;
+		};
+		await runImageStitching();
+		const during = seen.slice();
+		const after = w.classList.contains('hidden');
+		// 「画像を更新」（引き出しの中）はバーを出さない
+		seen.length = 0;
+		await runImageStitching(captureRun(), { quiet: true, progress: false });
+		const quiet = seen.map((s) => s.hidden);
+		buildStitchedSetImage = orig;
+		persons[0].files = [];
+		return { during: during, after: after, quiet: quiet };
+	});
+	assert(flow.during.length > 0 && flow.during.every((s) => s.hidden === false),
+		'段2: 1人分の結合に入るとき、バーは見えている', flow.during);
+	assert(flow.during[0].label.includes('を結合中…'), '段2: バーに「だれを結合中か」が出る', flow.during[0].label);
+	assert(flow.after === true, '段2: 結合が終わるとバーは隠れる', flow.after);
+	assert(flow.quiet.every((h) => h === true),
+		'段2: 引き出しの中からの「画像を更新」ではバーを出さない（引き出しの裏に隠れるため）', flow.quiet);
+
+	// 段1) 結果の見出しは「親Aセット」だけ（special と同じ）
+	const head = await page.evaluate(() => {
+		const c = document.createElement('div');
+		const canvas = document.createElement('canvas');
+		canvas.width = 40; canvas.height = 40; canvas._personMeta = []; canvas._stitchWarnings = [];
+		appendStitchResultBlock(c, PERSON_SETS[0], canvas);
+		return { title: c.querySelector('p').textContent, dl: c.querySelector('a[download]').className };
+	});
+	assert(head.title === '親Aセット', '段1: 結果の見出しは「親Aセット」（special と同じ）', head.title);
+	assert(head.dl === 'uma-btn uma-btn--primary', '段1: ダウンロードのボタンも共通部品', head.dl);
+
+	assert(errors.length === 0, '段1〜2(exam): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
 

@@ -15,7 +15,7 @@
 
 // このファイルの版。B節ルール4の3点一致（内部定数・各HTMLの ?v=・npm run test:verify）の対象。
 // 中身を変更したらこの日付も更新すること。
-const STITCH_JS_VERSION = '2026-09-15a';
+const STITCH_JS_VERSION = '2026-09-18a';
 
 // 画像結合用の簡易ログ。既存の開発ログ（devGeometry）に相乗りさせることで、
 // 「開発ログを表示」チェックを入れれば結合処理の詳細も確認できるようにする。
@@ -599,6 +599,128 @@ function stitchConcatHorizontallyTopAligned(canvasList, gap) {
 		cursorX += c.width + gap;
 	}
 	return out;
+}
+
+/* ============================================================
+ * 補助テキストの帯（結合画像の下に敷く、凡例・断り書きの欄）の骨格
+ * ------------------------------------------------------------
+ * 白い矩形・上端の区切り線・文字の大きさの詰め方・行の並べ方だけを持つ。
+ * **何を書くかはツールごとに違うので、ここには一切書かない。**
+ *   exam.html … 印の見かた／印を付けなかった理由／集計条件（追加・除外・シナリオ因子）
+ *   special.html … 分類の印（◎○▲）の見かたと、印の無い行の断り
+ * 59セッション目（段3）に、exam.html にしか無かった実装から骨格だけを切り出した。
+ * 切り出しの条件は「exam の結果画像が1バイトも変わらないこと」だったので、
+ * **描画の順番・座標の丸め方・色をそのまま持ってきている。** 直すときは両ツールの
+ * 結果画像を突き合わせること（C-59 の段3）。
+ * ============================================================ */
+
+// 補助テキストの文字色と、区切り線の色。記号だけが区分の色を持ち、説明文はこの色で揃える。
+const STITCH_NOTE_COLOR = '#555555';
+const STITCH_NOTE_RULE_COLOR = '#d0d0d0';
+
+/** 1行に収まらない文字列を、収まる幅で折り返す（日本語なので1文字ずつで足りる）。 */
+function stitchWrapText(ctx, text, maxWidth) {
+	if (ctx.measureText(text).width <= maxWidth) return [text];
+	const out = [];
+	let cur = '';
+	for (const ch of text) {
+		const next = cur + ch;
+		if (cur && ctx.measureText(next).width > maxWidth) { out.push(cur); cur = ch; }
+		else cur = next;
+	}
+	if (cur) out.push(cur);
+	return out;
+}
+
+/**
+ * 補助テキストの文字の大きさ・余白。
+ *
+ * totalWidth     … 帯の幅（＝結合画像の全幅）。
+ * referenceWidth … 大きさの基準にする幅（＝スクショ1人分の幅）。人数で字が太らないように、
+ *                  全幅ではなくこちらから決める。
+ * sizingText     … 「この1行が折り返さずに収まる大きさ」を探すための文字列。
+ *                  ツールごとに違う（exam は数え方の脚注、special は凡例のいちばん長い行）。
+ *
+ * **ctx.font をこの関数が設定する。** 戻り値を使う前に measureText するときは、
+ * 同じ ctx をそのまま使うこと（別の ctx で測ると字の大きさが食い違う）。
+ */
+function stitchNoteMetrics(ctx, totalWidth, referenceWidth, sizingText) {
+	const cardH = Math.round(referenceWidth * 0.185);
+	// 補助テキスト欄は、exam のバナーのカードの見出し（0.28）より一段小さくする
+	let fontSize = Math.round(cardH * 0.23);
+	const pad = Math.round(referenceWidth * 0.03);
+	const maxTextWidth = totalWidth - pad * 2;
+	ctx.font = 'bold ' + fontSize + 'px sans-serif';
+	while (fontSize > 10 && ctx.measureText(sizingText).width > maxTextWidth) {
+		fontSize -= 1;
+		ctx.font = 'bold ' + fontSize + 'px sans-serif';
+	}
+	return {
+		fontSize: fontSize,
+		pad: pad,
+		maxTextWidth: maxTextWidth,
+		lineH: Math.round(fontSize * 1.8)
+	};
+}
+
+/**
+ * 文字列の1行を、下の stitchDrawNoteBar が受け取る「部品の並び」に変える。
+ * ctx は stitchNoteMetrics を通した後のもの（font が設定済み）。
+ */
+function stitchNoteTextRow(ctx, text) {
+	return [{ type: 'text', text: text, w: ctx.measureText(text).width }];
+}
+
+/**
+ * 帯を1枚のCanvasに描く。
+ *
+ * m    … stitchNoteMetrics() の戻り値。
+ * rows … 行の配列。1行は「部品の並び」で、部品は次の2つ。
+ *          { type:'text', text, w }              … w のぶんだけ右へ進む
+ *          { type:'mark', w, draw(ctx,cx,cy,d) } … 記号。文字では描けない（色や形で区分を示すため）
+ *        **行が1つも無ければ null を返す**（区切り線だけの帯が取り残されないように）。
+ * opts.color … 説明文の色（既定は STITCH_NOTE_COLOR）。
+ */
+function stitchDrawNoteBar(totalWidth, m, rows, opts) {
+	if (!rows || rows.length === 0) return null;
+	const color = (opts && opts.color) || STITCH_NOTE_COLOR;
+	const c = document.createElement('canvas');
+	const ctx = c.getContext('2d');
+	const lineH = m.lineH;
+	// 区切り線の上下に余白を取る（スクショの下端と文字がくっつかないように）
+	const ruleY = Math.round(lineH * 0.9);
+	const textTop = ruleY + Math.round(lineH * 0.7);
+	c.width = totalWidth;
+	c.height = textTop + lineH * rows.length + Math.round(lineH * 0.3);
+	// canvas の大きさを変えると描画状態が初期化されるので、ここで設定し直す
+	ctx.font = 'bold ' + m.fontSize + 'px sans-serif';
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(0, 0, totalWidth, c.height);
+
+	// スクショ群と補助テキスト欄の区切り線
+	ctx.strokeStyle = STITCH_NOTE_RULE_COLOR;
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.moveTo(m.pad, ruleY);
+	ctx.lineTo(totalWidth - m.pad, ruleY);
+	ctx.stroke();
+
+	ctx.textBaseline = 'top';
+	ctx.textAlign = 'left';
+	rows.forEach((segs, row) => {
+		const y = Math.round(textTop + row * lineH + lineH * 0.15);
+		let x = m.pad;
+		segs.forEach((it) => {
+			if (it.type === 'mark') {
+				it.draw(ctx, x + it.w / 2, y + m.fontSize * 0.5, m.fontSize * 0.95);
+			} else {
+				ctx.fillStyle = color;
+				ctx.fillText(it.text, x, y);
+			}
+			x += it.w;
+		});
+	});
+	return c;
 }
 
 /* ============================================================

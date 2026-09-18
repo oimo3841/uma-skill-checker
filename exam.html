@@ -6,11 +6,19 @@
 	<!-- viewport-fit=cover が無いと env(safe-area-inset-bottom) が常に0になり、ノッチ端末で右下のFABがホームバーに潜る（F-26） -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 	<title>UmaExam OCR（β版）</title>
-	<!-- 共通スタイルのうち、変数（tokens.css）と画面の骨格（shell.css：ステップのタブ・FAB・引き出し・
-	     ダイアログ）だけを読む。共通部品（common.css）は読まない — 読むと .glass-card の余白など
-	     このページの既存の見た目が変わるため（exam-ui-analysis.md A-3）。変数は参照されない限り
-	     何も描かないので、既存の見た目はそのまま。Tailwind より先に読み込む（レイヤー無しの方が強い）。 -->
+	<!-- 共通スタイルの3つ（変数 tokens.css ／ 共通部品 common.css ／ 画面の骨格 shell.css）を読む。
+	     Tailwind より先に読み込む（レイヤー無しの方が強い）。
+	     **common.css は 59セッション目（段1）から読む。** それまで読んでいなかったのは
+	     「読むと .glass-card の余白など既存の見た目が変わる」ためだったが（exam-ui-analysis.md A-3）、
+	     実際に食い違うのは次の1点だけと分かったので、そこだけ下の <style> で戻してある:
+	       .glass-card の padding … common.css は --uma-card-pad（狭い画面 16px / 768px 以上 24px）、
+	         このページは Tailwind の p-5 md:p-6（20px / 24px）。**狭い画面の 4px だけ**が違う。
+	     他は値が同じ（body の色 #1d293d ＝ text-slate-800、--uma-r-xl 16px ＝ rounded-2xl）か、
+	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
+	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
+	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
 	<link rel="stylesheet" href="css/tokens.css?v=2026-09-18e" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-18e" />
 	<link rel="stylesheet" href="css/shell.css?v=2026-09-18e" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
@@ -19,7 +27,7 @@
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html / exam.html で共有） -->
 	<script src="js/common.js?v=2026-09-17a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-15a"></script>
+	<script src="js/stitch.js?v=2026-09-18a"></script>
 	<style>
 		/* このツールの色（青）。**見出し・バッジ・淡い地・枠などの装飾にだけ使う。**
 		   押せる部品（ボタン・チェック・選択中のタブ）は色を持たず、3ツール共通の黒
@@ -96,6 +104,14 @@
 			background: rgba(255, 255, 255, 0.88);
 			backdrop-filter: blur(14px);
 			border-color: var(--uma-card-border) !important;
+			/* common.css を読むようになった分（59セッション目・段1）。あちらの .glass-card は
+			   --uma-card-pad（狭い画面 16px）を当てるが、このページの既存の余白は Tailwind の
+			   p-5 md:p-6（20px / 24px）。common.css はレイヤーに属さないので Tailwind より強く、
+			   放っておくと狭い画面だけ 4px 詰まる。ここで元の値へ戻す。 */
+			padding: 20px;
+		}
+		@media (min-width: 768px) {
+			.glass-card { padding: 24px; }
 		}
 		:focus-visible {
 			outline: 2px solid var(--uma-focus-ring);
@@ -834,15 +850,36 @@
 				<div id="error-content"></div>
 			</div>
 
-			<button id="process-btn" type="button" onclick="processImages()" class="w-full py-3.5 px-4 rounded-xl bg-[var(--uma-control)] text-white text-xs md:text-sm font-bold hover:bg-[var(--uma-control-hover)] active:scale-99 transition-all shadow-md hover:shadow-[color:var(--uma-control-border)] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 cursor-pointer" disabled>
+			<!-- ボタンは共通部品（css/common.css の .uma-btn）。59セッション目・段1 で
+			     生の Tailwind 直書きから移した（ホバーと無効の扱いが special と二重管理だったため）。 -->
+			<button id="process-btn" type="button" onclick="processImages()" class="uma-btn uma-btn--primary uma-btn--lg w-full" disabled>
 				<i data-lucide="play" class="w-4 h-4 fill-current"></i>
 				<span>OCR処理を開始する</span>
 			</button>
-			<button id="process-stitch-btn" type="button" onclick="processImagesAndStitch()" class="w-full mt-2 py-3.5 px-4 rounded-xl bg-white text-[var(--uma-control)] text-xs md:text-sm font-bold border-2 border-[var(--uma-control-border)] hover:bg-[var(--uma-control-soft)] active:scale-99 transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer" disabled>
+			<button id="process-stitch-btn" type="button" onclick="processImagesAndStitch()" class="uma-btn uma-btn--accent-outline uma-btn--lg w-full mt-2" disabled>
 				<i data-lucide="layers" class="w-4 h-4"></i>
 				<span>OCR処理＋画像結合を開始する（高負荷）</span>
 			</button>
-			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、親A（＋祖A1＋祖A2）・親B（＋祖B1＋祖B2）それぞれのスクリーンショットを1枚の画像にまとめ、SNS投稿用に使える形で出力します。画像枚数が多いほど処理に時間がかかります。</p>
+			<!-- 結合の注記。**special.html と同じ文面**にしてある（段1）。
+			     それまでは special が「1枚だけならエラー」、exam が「枚数が多いほど時間がかかる」と、
+			     互いに相手の注意が抜けていた。片方を直すときはもう片方も直すこと。 -->
+			<p class="mt-1.5 text-[11px] text-slate-400 text-center">※画像結合は、1人につき2枚以上のスクリーンショットを縦につなぎ、親Aセット・親Bセットそれぞれで、画像のある人を1枚にまとめてSNS投稿用に出力します。1人分が1枚だけのときはエラーになります。画像の枚数が多いほど時間がかかります。</p>
+			<!-- 画像結合の進捗バー（段2。special.html と同じ作り・同じ見た目）。
+			     結合のほうが OCR より重い（バナー・印・凡例を描く）のに、それまでは OCR の進捗バーが
+			     消えたあと完了まで何も出ず、止まったように見えていた。OCR のバーとは別に持つのは、
+			     2つの処理の進み方が別物だから（special と同じ判断）。 -->
+			<div id="stitch-progress-wrap" class="hidden mt-3 p-4 rounded-xl bg-[var(--uma-deco-soft)] border border-[var(--uma-deco-border)]">
+				<div class="flex justify-between text-xs font-semibold text-[var(--uma-deco-text)] mb-2">
+					<span id="stitch-progress-label" class="flex items-center gap-1.5">
+						<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-[var(--uma-deco)]"></i>
+						<span>画像結合中…</span>
+					</span>
+					<span id="stitch-progress-pct">0%</span>
+				</div>
+				<div class="h-2 bg-[var(--uma-deco-border)]/70 rounded-full overflow-hidden">
+					<div id="stitch-progress-bar" class="h-full bg-[var(--uma-deco)] rounded-full transition-all duration-300" style="width:0%"></div>
+				</div>
+			</div>
 			<!-- 「結合画像の表示」（結果画像に何を焼き込むか。検出数カード／シナリオ因子／印／凡例／集計条件）。
 			     ここに置いてあるのは、切り替えを効かせるには結合をやり直す必要があるから
 			     （結果画像の引き出しに置くと、切り替えてもその場では何も変わらない）。
@@ -1934,22 +1971,51 @@
 		let tableSetVisible = [true, true];
 
 		/* ============================================================
-		 * 共通CSS（css/tokens.css / shell.css）の版の照合
+		 * 共通CSS（css/tokens.css / common.css / shell.css）の版の照合
 		 *
 		 * 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
-		 * 「直したはずなのに直っていない」状態になる。2ファイルはそれぞれ :root に
-		 * 同じ版数の印を持つ。このページが読む2つを全部読み、期待値と食い違うものがあれば警告する。
-		 * special.html と同じ方式（このページは common.css を読まないので、その印は見ない）。
+		 * 「直したはずなのに直っていない」状態になる。3ファイルはそれぞれ :root に
+		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
+		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
 		const EXPECTED_COMMON_CSS_VERSION = '2026-09-18e';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
+			['css/common.css', '--uma-components-css-version'],
 			['css/shell.css', '--uma-shell-css-version'],
 		];
 
 		function loadedCssVersion(prop) {
 			const raw = getComputedStyle(document.documentElement).getPropertyValue(prop);
 			return (raw || '').trim().replace(/^["']|["']$/g, '');
+		}
+
+		/* ============================================================
+		 * Tailwind が読めているかの確認（special.html と同じ作り）
+		 *
+		 * css/common.css には「Tailwind を読み込めなかったときの保険」として
+		 * html:not(.uma-tw-ready) .hidden { display: none } がある。読めていれば
+		 * .uma-tw-ready を付けて無効にする。**これを付けないと、hidden と sm:inline を
+		 * 併記した要素（ヘッダーの説明文など）が広い画面でも隠れたままになる。**
+		 * 生成は非同期なので、すぐには確定しない。少し待って数回試す。
+		 * ============================================================ */
+		function isTailwindLoaded() {
+			return getComputedStyle(document.documentElement).getPropertyValue('--spacing').trim() !== '';
+		}
+
+		function verifyTailwindLoaded(remainingTries) {
+			if (isTailwindLoaded()) {
+				document.documentElement.classList.add('uma-tw-ready');
+				return;
+			}
+			if (remainingTries > 0) {
+				setTimeout(function () { verifyTailwindLoaded(remainingTries - 1); }, 800);
+				return;
+			}
+			const msg = '表示に必要な外部ファイルを読み込めませんでした。ページを再読み込みしてください。'
+				+ '広告ブロッカーや社内ネットワークが cdnjs.cloudflare.com を遮断している場合は、許可設定が必要です。';
+			console.warn('[UmaExam OCR] ' + msg);
+			showToast(msg);
 		}
 
 		function verifyCommonCssVersion() {
@@ -1967,6 +2033,7 @@
 		}
 
 		document.addEventListener('DOMContentLoaded', () => {
+			verifyTailwindLoaded(5);
 			verifyCommonCssVersion();
 			restoreTargetScope();
 			rebuildSkillList();
@@ -2867,6 +2934,14 @@
 			document.getElementById('progress-label').querySelector('span').textContent = label;
 		}
 
+		// 画像結合の進捗（段2。OCR とは別のバーを持つ。special.html の setStitchProgress と同じ）
+		function setStitchProgress(ratio, label) {
+			const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
+			document.getElementById('stitch-progress-bar').style.width = pct + '%';
+			document.getElementById('stitch-progress-pct').textContent = pct + '%';
+			document.getElementById('stitch-progress-label').querySelector('span').textContent = label;
+		}
+
 		/* ============================================================
 		 * 結果表示
 		 * ============================================================ */
@@ -3699,8 +3774,9 @@
 					show: Object.assign({}, stitchShow),
 					attrIcons: attrIconsEnabled
 				});
-				// 見ている最中の作り直しなので未読の印は立てない（quiet）
-				await runImageStitching(run, { quiet: true });
+				// 見ている最中の作り直しなので未読の印は立てない（quiet）。
+				// 進捗バーは本文側にあって引き出しの裏に隠れるので出さない（このボタン自身が「更新中…」になる）
+				await runImageStitching(run, { quiet: true, progress: false });
 				const imgs = Array.from(document.querySelectorAll('#stitch-result-content img'));
 				await Promise.all(imgs.map(img => img.decode().catch(() => {})));
 				if (body) body.scrollTop = scrollTop;
@@ -4351,56 +4427,21 @@
 			return notes;
 		}
 
-		// 1行に収まらない文字列を、収まる幅で折り返す（日本語なので1文字ずつで足りる）
-		function stitchWrapText(ctx, text, maxWidth) {
-			if (ctx.measureText(text).width <= maxWidth) return [text];
-			const out = [];
-			let cur = '';
-			for (const ch of text) {
-				const next = cur + ch;
-				if (cur && ctx.measureText(next).width > maxWidth) { out.push(cur); cur = ch; }
-				else cur = next;
-			}
-			if (cur) out.push(cur);
-			return out;
-		}
-
 		// 数え方の脚注。**スクショの上に残す**1行（下の補助テキスト欄へは移さない）。
 		// スキルの数え方の断りなので、画像を見る前に読めるほうがよい。
+		// **字の大きさの基準にもなる**（stitchNoteMetrics の sizingText）。上（脚注）と
+		// 下（補助テキスト欄）で同じ値を使うため、この1行を渡す形で揃えている。
 		const STITCH_COUNT_NOTE = '※「〇〇の目覚め」は対応する緑スキルと個別にカウントしています。';
 
-		// 補助テキストの文字の大きさ・余白。上（脚注）と下（補助テキスト欄）で
-		// **同じ値を使う**（別々に決めると、同じ画像の中で字の大きさが食い違う）。
-		// 大きさの基準を脚注の文字列にしているのは従来どおり。下の欄だけに出る行が
-		// 増えても、上下の字の大きさは変わらない。
-		function stitchNoteMetrics(ctx, totalWidth, referenceWidth) {
-			const cardH = Math.round(referenceWidth * 0.185);
-			// ④ 補助テキスト欄は、バナーのカードの見出し（0.28）より一段小さくする
-			let fontSize = Math.round(cardH * 0.23);
-			const pad = Math.round(referenceWidth * 0.03);
-			const maxTextWidth = totalWidth - pad * 2;
-			ctx.font = 'bold ' + fontSize + 'px sans-serif';
-			while (fontSize > 10 && ctx.measureText(STITCH_COUNT_NOTE).width > maxTextWidth) {
-				fontSize -= 1;
-				ctx.font = 'bold ' + fontSize + 'px sans-serif';
-			}
-			return {
-				fontSize: fontSize,
-				pad: pad,
-				maxTextWidth: maxTextWidth,
-				lineH: Math.round(fontSize * 1.8)
-			};
-		}
-
-		// 補助テキストの文字色。凡例の説明文もこれに合わせる（記号だけが区分の色）。
-		const STITCH_NOTE_COLOR = '#555555';
+		// 帯の骨格（stitchWrapText / stitchNoteMetrics / stitchDrawNoteBar / STITCH_NOTE_COLOR）は
+		// js/stitch.js にある（59セッション目・段3 に special.html と共通化した）。
 
 		// 数え方の脚注だけの帯。バナーとスクショ群の間（＝これまで補助テキスト欄が
 		// あった場所）に置く。右揃えなのも従来どおり。
 		function stitchDrawCountNoteBar(totalWidth, referenceWidth) {
 			const c = document.createElement('canvas');
 			const ctx = c.getContext('2d');
-			const m = stitchNoteMetrics(ctx, totalWidth, referenceWidth);
+			const m = stitchNoteMetrics(ctx, totalWidth, referenceWidth, STITCH_COUNT_NOTE);
 			c.width = totalWidth;
 			c.height = m.lineH;
 			// canvas の大きさを変えると描画状態が初期化されるので、ここで設定し直す
@@ -4429,13 +4470,12 @@
 		// run … 押した時点のスナップショット（captureRun）。集計条件の行はこの範囲・シナリオ因子で書く。
 		function stitchDrawSharedNoteBar(totalWidth, referenceWidth, markInfo, show, run) {
 			const s = Object.assign({ legend: true, conditions: true }, show || {});
-			const c = document.createElement('canvas');
-			const ctx = c.getContext('2d');
-			const m = stitchNoteMetrics(ctx, totalWidth, referenceWidth);
+			// 測るための ctx（帯そのものは js/stitch.js の stitchDrawNoteBar が別のCanvasに描く）。
+			// **測るときと描くときで同じ font を使う**ため、m を取った ctx のまま measureText する。
+			const ctx = document.createElement('canvas').getContext('2d');
+			const m = stitchNoteMetrics(ctx, totalWidth, referenceWidth, STITCH_COUNT_NOTE);
 			const fontSize = m.fontSize;
-			const pad = m.pad;
 			const maxTextWidth = m.maxTextWidth;
-			const lineH = m.lineH;
 
 			// 印の凡例。使った区分だけを並べる。記号は色で描き分けるので、
 			// 文字ではなく結果画像と同じ drawSkillMark() で描く。
@@ -4462,56 +4502,18 @@
 				stitchWrapText(ctx, t, maxTextWidth).forEach(line => adjustNotes.push(line));
 			});
 
-			const rowCount = legendLines.length + markNotes.length + adjustNotes.length;
-			if (rowCount === 0) return null;
-
-			// 区切り線の上下に余白を取る（スクショの下端と文字がくっつかないように）。
-			const ruleY = Math.round(lineH * 0.9);
-			const textTop = ruleY + Math.round(lineH * 0.7);
-			const barHeight = textTop + lineH * rowCount + Math.round(lineH * 0.3);
-			c.width = totalWidth;
-			c.height = barHeight;
-			// canvas の大きさを変えると描画状態が初期化されるので、ここで設定し直す
-			ctx.font = 'bold ' + fontSize + 'px sans-serif';
-			ctx.fillStyle = '#ffffff';
-			ctx.fillRect(0, 0, totalWidth, barHeight);
-
-			// スクショ群と補助テキスト欄の区切り線
-			ctx.strokeStyle = '#d0d0d0';
-			ctx.lineWidth = 2;
-			ctx.beginPath();
-			ctx.moveTo(pad, ruleY);
-			ctx.lineTo(totalWidth - pad, ruleY);
-			ctx.stroke();
-
 			// 行の順は「印の見かた → 印の無い行の説明 → 追加 → 除外 → シナリオ因子」。
 			// 画像を見た人がまず知りたいのは記号の意味なので、凡例を先頭に置き、
 			// 対象スキルをどう調整したかは後ろにまとめる。
-			const noteColor = STITCH_NOTE_COLOR;
-			const lineTop = (i) => Math.round(textTop + i * lineH + lineH * 0.15);
-			let row = 0;
-			ctx.textBaseline = 'top';
-			ctx.fillStyle = noteColor;
-			ctx.textAlign = 'left';
-			legendLines.forEach(segs => {
-				const y = lineTop(row);
-				let x = pad;
-				segs.forEach(it => {
-					if (it.type === 'mark') {
-						drawSkillMark(ctx, it.kind, x + it.w / 2, y + fontSize * 0.5, fontSize * 0.95, markColors);
-					} else {
-						ctx.fillStyle = noteColor;
-						ctx.fillText(it.text, x, y);
-					}
-					x += it.w;
-				});
-				row++;
-			});
-			ctx.fillStyle = noteColor;
-			markNotes.forEach(line => { ctx.fillText(line, pad, lineTop(row)); row++; });
-			adjustNotes.forEach(line => { ctx.fillText(line, pad, lineTop(row)); row++; });
+			// 記号の部品は、描き方（drawSkillMark と色）を包んで骨格へ渡す。
+			const rows = legendLines.map(segs => segs.map(it => (it.type === 'mark'
+				? { type: 'mark', w: it.w, draw: (c2, cx, cy, d) => drawSkillMark(c2, it.kind, cx, cy, d, markColors) }
+				: it)));
+			markNotes.forEach(line => rows.push(stitchNoteTextRow(ctx, line)));
+			adjustNotes.forEach(line => rows.push(stitchNoteTextRow(ctx, line)));
 
-			return c;
+			// 書くことが1行も無ければ帯そのものを置かない（stitchDrawNoteBar が null を返す）
+			return stitchDrawNoteBar(totalWidth, m, rows);
 		}
 
 		/* ============================================================
@@ -4535,7 +4537,8 @@
 		// セット内の誰もアップロードしていない場合はnullを返す。
 		// run … 押した時点のスナップショット（captureRun）。**必須**。画像・設定はすべてここから読み、
 		//       グローバル（persons / stitchShow / targetScopeMode など）は見ない。
-		async function buildStitchedSetImage(setIdx, run) {
+		// onPersonStart(label) … 1人分の結合に着手する直前に呼ばれる進捗通知（任意。段2）。
+		async function buildStitchedSetImage(setIdx, run, onPersonStart) {
 			if (!run) throw new Error('buildStitchedSetImage: run（押した時点のスナップショット）が要ります');
 			const baseIdx = setIdx * 3;
 			const activeIndexes = [0, 1, 2].map(r => baseIdx + r).filter(i => run.files[i].length > 0);
@@ -4557,6 +4560,7 @@
 			const markSuppressed = new Set();
 			for (const idx of activeIndexes) {
 				const label = PERSON_LABELS[idx];
+				if (onPersonStart) onPersonStart(label);
 				const contentCanvas = await stitchOnePerson(run.files[idx], label);
 				if (!contentCanvas) continue;
 				if (contentCanvas._stitchWarnings && contentCanvas._stitchWarnings.length) {
@@ -4652,32 +4656,56 @@
 		}
 
 		// run  … 押した時点のスナップショット（captureRun）。省略時は今の画面の値で控える。
-		// opts.quiet … true なら未読の印を立てない（結果画像を見ている最中の「画像を更新」用）。
+		// opts.quiet    … true なら未読の印を立てない（結果画像を見ている最中の「画像を更新」用）。
+		// opts.progress … false なら進捗バーを出さない（段2）。「画像を更新」は引き出しの中の操作で、
+		//                 バーは本文側にあって引き出しの裏に隠れる。あちらは自前の「更新中…」を持つ。
 		async function runImageStitching(run, opts) {
 			run = run || captureRun();
+			const withProgress = !(opts && opts.progress === false);
+			const progressWrap = document.getElementById('stitch-progress-wrap');
 			const container = document.getElementById('stitch-result-content');
 			container.innerHTML = '';
 			let anyOutput = false;  // 結果画像のタブに出すものがあるか（エラーの帯も含む）
 			let anySuccess = false; // 結合画像が1枚でもできたか
 
+			// 対象セット・合計人数を先に数えて進捗バーの分母にする（special と同じ形）
+			const targets = [];
 			for (let setIdx = 0; setIdx < PERSON_SETS.length; setIdx++) {
 				if (setIdx === 1 && !run.setB) continue; // 親Bセットが非表示なら結合もスキップ
 				const baseIdx = setIdx * 3;
-				const hasFiles = [0, 1, 2].some(r => run.files[baseIdx + r].length > 0);
-				if (!hasFiles) continue;
+				const count = [0, 1, 2].filter(r => run.files[baseIdx + r].length > 0).length;
+				if (count > 0) targets.push({ setIdx: setIdx, count: count });
+			}
+			const totalPersons = targets.reduce((s, t) => s + t.count, 0);
 
-				try {
-					const canvas = await buildStitchedSetImage(setIdx, run);
-					if (canvas) {
-						anyOutput = true;
-						anySuccess = true;
-						appendStitchResultBlock(container, PERSON_SETS[setIdx], canvas);
-					}
-				} catch (e) {
-					console.error(e);
-					anyOutput = true;
-					appendStitchErrorBlock(container, PERSON_SETS[setIdx], e.message);
+			try {
+				if (withProgress && totalPersons > 0) {
+					progressWrap.classList.remove('hidden');
+					setStitchProgress(0, '画像結合を準備中…');
 				}
+				let done = 0;
+				for (const target of targets) {
+					const set = PERSON_SETS[target.setIdx];
+					try {
+						const canvas = await buildStitchedSetImage(target.setIdx, run, (label) => {
+							if (withProgress) setStitchProgress(done / totalPersons, set.label + ' ' + label + 'を結合中…');
+							done++;
+						});
+						if (canvas) {
+							anyOutput = true;
+							anySuccess = true;
+							appendStitchResultBlock(container, set, canvas);
+						}
+					} catch (e) {
+						console.error(e);
+						anyOutput = true;
+						appendStitchErrorBlock(container, set, e.message);
+						done += target.count; // 失敗したセット分だけ進捗を進めて次に備える
+					}
+				}
+				if (withProgress && totalPersons > 0) setStitchProgress(1, '完了');
+			} finally {
+				progressWrap.classList.add('hidden');
 			}
 
 			// 「結果画像がある」の印はエラーの帯だけでも立てる（タブを開いて理由を読めるように）。
@@ -4721,7 +4749,7 @@
 			// 長押しやドラッグでの保存では click が飛ばないので、押した瞬間ではなく
 			// pointerdown で入れ直す作りになっている（stitchAttachSaveName のコメント参照）。
 			stitchAttachSaveName(downloadLink, currentStitchSaveName);
-			downloadLink.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--uma-control)] text-white text-[11px] font-semibold hover:bg-[var(--uma-control-hover)] transition-all cursor-pointer';
+			downloadLink.className = 'uma-btn uma-btn--primary'; // 共通部品（段1。special.html と同じ）
 			downloadLink.textContent = 'PNGをダウンロード';
 			header.appendChild(downloadLink);
 			block.appendChild(header);
@@ -4737,7 +4765,7 @@
 				personMeta.forEach(m => {
 					const btn = document.createElement('button');
 					btn.type = 'button';
-					btn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-[11px] font-semibold hover:bg-slate-50 transition-all cursor-pointer';
+					btn.className = 'uma-btn uma-btn--secondary'; // 共通部品（段1。ダウンロードのボタンと同じ列に並ぶため）
 					btn.textContent = m.label + 'のコメントをコピー';
 					btn.onclick = () => {
 						const text = buildExamCopyComment(m.sp70Count, m.greenCount, countMode);
