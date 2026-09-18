@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18d';
 
 	/* ============================================================
 	 * 定数
@@ -94,6 +94,9 @@
 	const NAME_FIND_LIMIT = 20;
 	// 絞り込みを走らせるまでの待ち（ms）。1文字ごとに 445 件を走査して描き直すのを避ける。
 	const NAME_FIND_DEBOUNCE_MS = 120;
+	// 編成のミニウィンドウに一度に出す候補の上限（C-51 の修正）。
+	// 559枚を一度に描くと重く、目でも追えないので切る。絞り込めば必ず届く。
+	const PICK_LIST_LIMIT = 60;
 
 	// ドラフト（保存しない一時的な対象スキルセット）の保存先の接頭辞。
 	// scope名を後ろに付けるので、将来 exam 側が合流しても衝突しない。
@@ -554,6 +557,21 @@
 		const src = trainingSources.supportCard;
 		return ((src && src.entries) || []).slice();
 	}
+
+	/**
+	 * サポートカードの種類（スピード・スタミナ…）。**値も並び順もデータに従う** ――
+	 * 種類の名前をこのファイルに書かない（恒久ルール1の精神）。
+	 * データにまだ `type` が無ければ空配列を返し、呼び出し側は絞り込みを出さない。
+	 */
+	function listCardTypes() {
+		const out = [];
+		listCards().forEach(c => {
+			const t = c && c.type;
+			if (t && out.indexOf(t) === -1) out.push(t);
+		});
+		return out;
+	}
+	function cardTypeOf(card) { return (card && card.type) || ''; }
 
 	/** そのウマ娘で選べる★（initialSkills のしきい値）。データが無ければ空。 */
 	function starChoicesOf(uma) {
@@ -1368,7 +1386,20 @@
 		'.usd-roster-warn { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); margin: 0; }',
 		'.usd-roster-unconf { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1); margin: var(--uma-sp-1) 0 0; padding: 0; list-style: none; }',
 		'.usd-roster-unconf li { font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs);',
-		'  border: 1px dashed var(--uma-border); border-radius: var(--uma-r-full); padding: 0 var(--uma-sp-2); }'
+		'  border: 1px dashed var(--uma-border); border-radius: var(--uma-r-full); padding: 0 var(--uma-sp-2); }',
+		'.usd-roster-alpha { margin: 0; padding: var(--uma-sp-2) var(--uma-sp-3); border-radius: var(--uma-r-sm);',
+		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
+		'  background: var(--uma-surface-muted); border: 1px dashed var(--uma-border); }',
+		// カード・育成ウマ娘を選ぶミニウィンドウ
+		'.usd-roster-modal { position: fixed; inset: 0; z-index: 60; display: flex;',
+		'  align-items: center; justify-content: center; padding: var(--uma-sp-3); }',
+		'.usd-roster-modal-back { position: absolute; inset: 0; background: rgba(15, 23, 43, 0.4); }',
+		'.usd-roster-modal-box { position: relative; z-index: 1; width: min(520px, 100%);',
+		'  max-height: min(70vh, 560px); overflow: hidden; display: flex; flex-direction: column; gap: var(--uma-sp-2);',
+		'  background: var(--uma-surface); border: 1px solid var(--uma-border);',
+		'  border-radius: var(--uma-r-md); padding: var(--uma-card-pad); box-shadow: var(--uma-shadow-lg, 0 10px 30px rgba(0,0,0,.2)); }',
+		'.usd-roster-modal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); }',
+		'.usd-roster-hits { overflow-y: auto; }'
 	].join('\n');
 
 	let stylesInjected = false;
@@ -2508,8 +2539,11 @@
 		let roster = emptyRoster();
 		let selectedId = '';          // 保存済みを選んでいればその rosterId
 		let picking = null;           // { kind: 'uma' } / { kind: 'card', index } / null
+		let pickQuery = '';           // ミニウィンドウの検索語
+		let pickType = '';            // ミニウィンドウの種類の絞り込み（'' はすべて）
 		let hide = false;             // 「一覧から隠す」
 		let findTimer = 0;
+		let lastOverlap = -1;         // 対象スキルセットと重なっていた数（通知の出し分け用）
 
 		function computed() { return computeRosterSkills(roster); }
 
@@ -2517,6 +2551,28 @@
 			const ids = hide ? computed().skillIds : [];
 			pickerHiddenIds = ids;
 			if (typeof opts.onHiddenIdsChange === 'function') opts.onHiddenIdsChange(ids.slice());
+		}
+
+		/** Step 2 でいま選んでいるスキルセットと、この編成で得られるスキルの重なりの数。 */
+		function overlapWithScope(skillIds) {
+			if (typeof opts.getScopeSkillIds !== 'function') return 0;
+			const scope = opts.getScopeSkillIds() || [];
+			if (scope.length === 0) return 0;
+			const have = new Set(skillIds);
+			return scope.filter(id => have.has(id)).length;
+		}
+
+		/**
+		 * 編成を触ったあとで、Step 2 の選択と重なっていたら知らせる（C-51 の修正5）。
+		 * **黙って消さない。** 画面には常に件数を出したうえで、増えた瞬間だけトーストも出す
+		 * （引き出しの下のほうを見ていなくても気づけるように）。
+		 */
+		function notifyOverlap() {
+			const n = overlapWithScope(computed().skillIds);
+			if (n > 0 && n !== lastOverlap) {
+				toast('Step 2 で選んでいるスキルセットに、この編成で得られるスキルが ' + n + '種 含まれています');
+			}
+			lastOverlap = n;
 		}
 
 		function labelOfUma() {
@@ -2531,41 +2587,71 @@
 			return card ? formatEntryLabel(card) : '（読み込めません：' + id + '）';
 		}
 
-		/** 名前で探す母集団（育成ウマ娘／サポートカード）。部分一致だけ。 */
-		function searchEntries(kind, text) {
+		/**
+		 * 選ぶ候補。**並びはリストの降順**（新しいものが先頭）。
+		 * 昇順だと、いま使うカードほど後ろに来て実用に合わない（おいもさんの指摘）。
+		 * 名前は部分一致だけ（あいまい照合は入れない）。種類はデータにあるときだけ効く。
+		 */
+		function searchEntries(kind, text, type) {
 			const query = normalizeSkillText(text || '');
-			if (!query) return [];
-			const pool = kind === 'uma' ? listUmas() : listCards();
+			const pool = (kind === 'uma' ? listUmas() : listCards()).slice().reverse();
 			const used = kind === 'card' ? roster.cardIds.filter(Boolean) : [];
 			return pool
-				.filter(e => normalizeSkillText(formatEntryLabel(e)).indexOf(query) !== -1)
-				.map(e => ({ id: e.id, label: formatEntryLabel(e), used: used.indexOf(e.id) !== -1 }))
-				.slice(0, NAME_FIND_LIMIT);
+				.filter(e => !type || cardTypeOf(e) === type)
+				.filter(e => !query || normalizeSkillText(formatEntryLabel(e)).indexOf(query) !== -1)
+				.map(e => ({ id: e.id, label: formatEntryLabel(e), used: used.indexOf(e.id) !== -1 }));
 		}
 
+		/**
+		 * 選ぶためのミニウィンドウ。押した場所からテキスト欄へ飛ばさず、その場で開いて
+		 * 候補を一度に並べる（おいもさんの指摘）。**育成ウマ娘もサポートカードも同じ作り**に
+		 * してある ―― 片方だけ別の操作にすると、使う人が2つのやり方を覚えることになるため。
+		 */
 		function searchHtml() {
 			if (!picking) return '';
-			const what = picking.kind === 'uma' ? '育成ウマ娘' : 'サポートカード';
-			return '<div class="usd-roster-sec" data-usd-el="search">'
-				+ '<p class="usd-roster-note">' + what + 'を、二つ名かウマ娘名の一部で探します。</p>'
-				+ '<input class="uma-input" type="search" data-usd-el="find" data-usd-act="find" placeholder="名前の一部を入れて探す" />'
-				+ '<div data-usd-el="hits"></div>'
-				+ '<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="cancel-pick">やめる</button>'
-				+ '</div>';
+			const isCard = picking.kind === 'card';
+			const what = isCard ? 'サポートカード' : '育成ウマ娘';
+			const types = isCard ? listCardTypes() : [];
+			let h = '<div class="usd-roster-modal" data-usd-el="modal">';
+			h += '<div class="usd-roster-modal-back" data-usd-act="cancel-pick"></div>';
+			h += '<div class="usd-roster-modal-box" role="dialog" aria-modal="true" aria-label="' + what + 'を選ぶ">';
+			h += '<div class="usd-roster-modal-head"><span class="usd-roster-h">' + what + 'を選ぶ</span>'
+				+ '<button type="button" class="uma-icon-btn" data-usd-act="cancel-pick" aria-label="閉じる">×</button></div>';
+			h += '<input class="uma-input" type="search" data-usd-el="find" data-usd-act="find" value="' + esc(pickQuery) + '"'
+				+ ' placeholder="' + (isCard ? 'サポートカード名で検索' : '育成ウマ娘名で検索') + '" />';
+			if (isCard) {
+				if (types.length > 0) {
+					h += '<div class="usd-roster-pills" data-usd-el="types">'
+						+ '<button type="button" class="usd-roster-pill" data-usd-act="type" data-value=""'
+						+ ' aria-pressed="' + (pickType === '' ? 'true' : 'false') + '">すべて</button>'
+						+ types.map(t => '<button type="button" class="usd-roster-pill" data-usd-act="type" data-value="' + esc(t) + '"'
+							+ ' aria-pressed="' + (pickType === t ? 'true' : 'false') + '">' + esc(t) + '</button>').join('')
+						+ '</div>';
+				} else {
+					// データに種類が入れば、この分岐は自動で絞り込みの側へ移る。
+					h += '<p class="usd-roster-note">種類のデータがまだありません。</p>';
+				}
+			}
+			h += '<div class="usd-roster-hits" data-usd-el="hits"></div>';
+			h += '</div></div>';
+			return h;
 		}
 
-		function renderHits(text) {
+		function renderHits() {
 			const box = q(container, 'hits');
 			if (!box || !picking) return;
-			const hits = searchEntries(picking.kind, text);
-			if (!text) { box.innerHTML = ''; return; }
+			const hits = searchEntries(picking.kind, pickQuery, picking.kind === 'card' ? pickType : '');
 			if (hits.length === 0) { box.innerHTML = '<p class="usd-roster-note">見つかりません。</p>'; return; }
-			box.innerHTML = '<div class="usd-name-list">' + hits.map(h => h.used
+			const shown = hits.slice(0, PICK_LIST_LIMIT);
+			box.innerHTML = '<div class="usd-name-list">' + shown.map(h => h.used
 				// 同じカードを2枠には入れられない（実際に組めないため）。判定は id で行う
 				// ので、同じ二つ名の別のカードは別物として選べる。
 				? '<span class="usd-name-hit usd-name-hit--added">' + esc(h.label) + '<span class="usd-name-added">この編成に入っています</span></span>'
 				: '<button type="button" class="usd-name-hit" data-usd-act="take" data-entry-id="' + esc(h.id) + '">' + esc(h.label) + '</button>'
-			).join('') + '</div>';
+			).join('') + '</div>'
+				+ (hits.length > shown.length
+					? '<p class="usd-roster-note">全' + hits.length + '件のうち ' + shown.length + '件を出しています。名前を入れると絞り込めます。</p>'
+					: '<p class="usd-roster-note">' + hits.length + '件</p>');
 		}
 
 		function render() {
@@ -2576,6 +2662,10 @@
 			const saved = listRosters();
 
 			let h = '<div class="usd-roster">';
+
+			// αテスト中であることを、パネルを開いたら必ず目に入る位置に出す。
+			h += '<p class="usd-roster-alpha">αテスト中の機能です。まだ作りかけで、'
+				+ '<strong>結果が正しくないことがあります</strong>。確かめながらお使いください。</p>';
 
 			// 保存した編成
 			h += '<div class="usd-roster-sec"><p class="usd-roster-h">編成（' + saved.length + '／' + ROSTER_LIMIT + '件）</p>';
@@ -2650,12 +2740,19 @@
 			// 対象スキルセットへの効かせ方
 			h += '<div class="usd-roster-row">';
 			h += '<label class="usd-roster-note"><input type="checkbox" data-usd-act="hide"' + (hide ? ' checked' : '') + ' /> '
-				+ '対象スキルセットを選ぶときに、これらを隠す</label>';
+				+ 'Step 2 でスキルを選ぶときに、これらを隠す</label>';
 			if (typeof opts.onRemoveFromScope === 'function') {
 				h += '<button type="button" class="uma-btn uma-btn--neutral" data-usd-act="remove"'
-					+ (res.items.length === 0 ? ' disabled' : '') + '>いまの対象スキルセットから、これらを外す</button>';
+					+ (res.items.length === 0 ? ' disabled' : '') + '>Step 2 で選んでいるスキルセットから、これらを外す</button>';
 			}
 			h += '</div>';
+			// Step 2 ですでに選んであるスキルとの重なり。**黙って消さない**ので、
+			// 何件重なっているかを常に出し、外すかどうかは押して決めてもらう。
+			const overlap = overlapWithScope(res.skillIds);
+			if (overlap > 0) {
+				h += '<p class="usd-roster-warn">Step 2 で選んでいるスキルセットに、この編成で得られるスキルが <strong>'
+					+ overlap + '種</strong> 含まれています（<strong>まだ外していません</strong>。上のボタンで外せます）。</p>';
+			}
 			h += '<p class="usd-roster-note">ここに出ていないスキルが、この編成のカードと覚醒では得られないものです。</p>';
 			h += '</div>';
 
@@ -2663,7 +2760,7 @@
 			refreshIcons();
 			if (picking) {
 				const input = q(container, 'find');
-				if (input) input.focus();
+				if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
 			}
 		}
 
@@ -2676,17 +2773,26 @@
 			picking = null;
 			applyHidden();
 			render();
+			// 保存してある編成を選び直すのも「Step 1 を操作した」うち。
+			// ここで知らせないと、選んだ瞬間に Step 2 との重なりが生まれても気づけない。
+			lastOverlap = -1;
+			notifyOverlap();
 		}
 
 		container.addEventListener('click', function (ev) {
 			const btn = ev.target.closest('[data-usd-act]');
 			if (!btn || !container.contains(btn)) return;
 			const act = btn.getAttribute('data-usd-act');
-			if (act === 'pick-uma') { picking = { kind: 'uma' }; render(); }
-			else if (act === 'pick-card') { picking = { kind: 'card', index: Number(btn.getAttribute('data-index')) }; render(); }
+			if (act === 'pick-uma') { picking = { kind: 'uma' }; pickQuery = ''; pickType = ''; render(); renderHits(); }
+			else if (act === 'pick-card') {
+				picking = { kind: 'card', index: Number(btn.getAttribute('data-index')) };
+				pickQuery = ''; pickType = '';
+				render(); renderHits();
+			}
 			else if (act === 'cancel-pick') { picking = null; render(); }
-			else if (act === 'clear-uma') { roster.umaId = ''; roster.star = 0; roster.awakeningLevel = 0; applyHidden(); render(); }
-			else if (act === 'clear-card') { roster.cardIds[Number(btn.getAttribute('data-index'))] = null; applyHidden(); render(); }
+			else if (act === 'type') { pickType = btn.getAttribute('data-value') || ''; render(); renderHits(); }
+			else if (act === 'clear-uma') { roster.umaId = ''; roster.star = 0; roster.awakeningLevel = 0; applyHidden(); render(); notifyOverlap(); }
+			else if (act === 'clear-card') { roster.cardIds[Number(btn.getAttribute('data-index'))] = null; applyHidden(); render(); notifyOverlap(); }
 			else if (act === 'take') {
 				const id = btn.getAttribute('data-entry-id');
 				if (picking && picking.kind === 'uma') {
@@ -2703,10 +2809,10 @@
 					roster.cardIds[picking.index] = id;
 				}
 				picking = null;
-				applyHidden(); render();
+				applyHidden(); render(); notifyOverlap();
 			}
-			else if (act === 'star') { roster.star = Number(btn.getAttribute('data-value')); applyHidden(); render(); }
-			else if (act === 'awk') { roster.awakeningLevel = Number(btn.getAttribute('data-value')); applyHidden(); render(); }
+			else if (act === 'star') { roster.star = Number(btn.getAttribute('data-value')); applyHidden(); render(); notifyOverlap(); }
+			else if (act === 'awk') { roster.awakeningLevel = Number(btn.getAttribute('data-value')); applyHidden(); render(); notifyOverlap(); }
 			else if (act === 'save') {
 				const nameEl = q(container, 'name');
 				roster.name = nameEl ? nameEl.value : roster.name;
@@ -2724,6 +2830,8 @@
 			}
 			else if (act === 'remove') {
 				if (typeof opts.onRemoveFromScope === 'function') opts.onRemoveFromScope(computed().skillIds.slice());
+				render();                                          // 重なりの表示を更新する
+				lastOverlap = overlapWithScope(computed().skillIds);
 			}
 		});
 
@@ -2738,9 +2846,9 @@
 			const el = ev.target;
 			const act = el.getAttribute && el.getAttribute('data-usd-act');
 			if (act === 'find') {
-				const text = el.value;
+				pickQuery = el.value;
 				clearTimeout(findTimer);
-				findTimer = setTimeout(function () { renderHits(text); }, NAME_FIND_DEBOUNCE_MS);
+				findTimer = setTimeout(function () { renderHits(); }, NAME_FIND_DEBOUNCE_MS);
 			} else if (act === 'name') {
 				roster.name = el.value;   // 再描画せずに覚えるだけ（入力中に描き直すと文字が飛ぶ）
 			}
@@ -3632,6 +3740,9 @@
 		formatEntryLabel: formatEntryLabel,
 		eventStatusOf: eventStatusOf,
 		getEventSkillsOf: getEventSkillsOf,
+		// サポートカードの種類。データに type が入るまでは空配列を返す（C-51 の修正2）。
+		listCardTypes: listCardTypes,
+		cardTypeOf: cardTypeOf,
 		isReferableSkillId: isReferableSkillId,
 		skillCatalogKind: skillCatalogKind,
 

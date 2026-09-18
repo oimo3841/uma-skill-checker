@@ -31,10 +31,27 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-18c"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-18d"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-15a"></script>
 	<style>
+		/* Deck連携モードの2段階（C-51 の修正5）。Step 1（編成・任意）と Step 2（スキルセット）を
+		   同じ枠・同じ見出しの重みで並べる。任意であることは「任意」の印だけで示し、
+		   文字を小さくしたり薄くしたりしない（おまけに見えると使われないため）。 */
+		.deck-step { margin-bottom: var(--uma-sp-4, 16px); }
+		.deck-step-box { border: 1px solid var(--uma-border); border-radius: var(--uma-r-md); padding: var(--uma-sp-3, 12px); background: var(--uma-surface); }
+		.deck-step-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2, 8px); cursor: pointer; }
+		details.deck-step-box > summary.deck-step-head { list-style: none; }
+		details.deck-step-box > summary.deck-step-head::-webkit-details-marker { display: none; }
+		details.deck-step-box > summary.deck-step-head::before { content: '▶'; font-size: 10px; color: var(--uma-text-subtle); }
+		details.deck-step-box[open] > summary.deck-step-head::before { content: '▼'; }
+		.deck-step-num { font-size: var(--uma-fs-xs); font-weight: 700; letter-spacing: .02em;
+			padding: 2px 8px; border-radius: 999px; background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
+		.deck-step-title { font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; }
+		.deck-step-opt { font-size: var(--uma-fs-2xs); padding: 1px 6px; border-radius: 999px;
+			border: 1px solid var(--uma-border); color: var(--uma-text-subtle); }
+		.deck-step-lead { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); margin: 8px 0 0; }
+
 		/* このツールのアクセント。UmaStar OCR は「読み取って登録する」画面なので緑。
 		   共通部品（ボタン・入力欄・フォーカス輪郭）はこの変数を見て色が決まる。
 		   値は Tailwind v4.1.11 のパレット実測値。
@@ -449,13 +466,29 @@
 			     ここで作成・編集したテンプレートはUmaSkill Deck側にもそのまま反映される。 -->
 			<div id="deck-skill-body" class="hidden">
 				<div id="deck-loading-note" class="text-xs text-slate-500 mb-3">テンプレートを読み込んでいます…</div>
-				<!-- 編成（育成ウマ娘1人＋サポートカード6枚）。中身は core の createRosterPanel が描画する。
-				     既定は閉じておく（対象スキルセットを組むのが主で、編成は使う人だけが開く）。C-51 -->
-				<details id="deck-roster" class="mb-3">
-					<summary class="text-xs font-medium text-slate-600 cursor-pointer">編成から、得られるスキルを調べる</summary>
-					<div id="deck-roster-panel" class="mt-2"></div>
-				</details>
-				<div id="deck-template-panel"></div>
+				<!-- 順番のある2つの段階として見せる（C-51 の修正5）。
+				     Step 1（編成）は任意で、選ばなければ Step 2 だけで従来どおり動く。
+				     ただし「おまけ」に見えないよう、Step 2 と同じ見出しの重み・同じ枠で並べる。 -->
+				<div class="deck-step">
+					<details id="deck-roster" class="deck-step-box">
+						<summary class="deck-step-head">
+							<span class="deck-step-num" aria-hidden="true">Step 1</span>
+							<span class="deck-step-title">本育成のウマ娘/サポートカードの編成</span>
+							<span class="deck-step-opt">任意</span>
+						</summary>
+						<p class="deck-step-lead">選ぶと、その編成のカードと覚醒で得られるスキルが分かります。選ばなくても Step 2 だけで使えます。</p>
+						<div id="deck-roster-panel" class="mt-2"></div>
+					</details>
+				</div>
+				<div class="deck-step">
+					<div class="deck-step-box">
+						<div class="deck-step-head">
+							<span class="deck-step-num" aria-hidden="true">Step 2</span>
+							<span class="deck-step-title">因子周回用スキルセットの選択</span>
+						</div>
+						<div id="deck-template-panel"></div>
+					</div>
+				</div>
 				<!-- スキルセットOCR（フェーズa コミット4・改訂）: ゲームの「スキルセット詳細」画面のスクショから白スキルを読み取り、
 				     対象スキルセットへ足す。入口のボタン「スキルセットのスクショで追加」と「?」（撮影ガイド）は core の編集画面の
 				     入口の並び（「テキストで検索」と「収録されていないスキルを追加」の間）に、createTemplateManager の
@@ -2072,9 +2105,15 @@
 				deckRosterPanel = UmaSkillDeckCore.createRosterPanel(
 					document.getElementById('deck-roster-panel'),
 					{
+						// Step 2 でいま選んでいるスキルセットの中身。編成を触ったときに
+						// 「もう選んであるものと重なっています」と知らせるために使う（C-51 の修正5）。
+						getScopeSkillIds: () => {
+							const sel = deckTemplateManager.getSelection();
+							return sel ? sel.skillIds : [];
+						},
 						onRemoveFromScope: (ids) => {
 							const n = deckTemplateManager.removeSkillsFromSelection(ids);
-							showToast(n > 0 ? n + '種を対象スキルセットから外しました' : '外すものはありませんでした');
+							showToast(n > 0 ? n + '種を Step 2 のスキルセットから外しました' : '外すものはありませんでした');
 						}
 					}
 				);
@@ -2130,6 +2169,8 @@
 		// ここでは区別せず、skillIds と name だけを見る。
 		function onDeckScopeSelected(selection) {
 			deckScope = selection || null;
+			// Step 2 の選択が変わったら、Step 1 の「重なっています」の表示も描き直す（C-51 の修正5）
+			if (deckRosterPanel) deckRosterPanel.render();
 			const badge = document.getElementById('skill-count-badge');
 			if (!deckScope) {
 				skillList = [];
