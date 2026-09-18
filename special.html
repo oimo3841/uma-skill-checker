@@ -637,7 +637,23 @@
 				<div id="error-content"></div>
 			</div>
 
-			<button id="process-btn" type="button" onclick="processImages()" class="uma-btn uma-btn--primary uma-btn--lg w-full" disabled>
+			<!-- ボタンは3つ。**主従が見た目で分かるように並べてある**（C-61）。
+			     主 … OCR処理＋画像結合（黒塗り・大きいまま）。exam と同じ文言・同じアイコンで、
+			          special でも「OCRを回してから結合する」という実際の使い方をそのまま1回で行える。
+			          印も凡例も OCR の結果が前提なので、これが基本の操作になる。
+			     従 … 個別の2つ（白地＋罫線・標準の大きさ）。**どちらも残す。**
+			          とくに「画像を結合する」は、スキルリスト未入力でも押せることを
+			          special が保ってきた仕様で、やめると退行になる。
+			     並びは exam（OCR単独が先）と入れ替えてある。exam は OCR 単独が主だが、
+			     special は一体のほうが主なので、**先に読む位置＝いちばん上**へ置いた。 -->
+			<button id="process-stitch-btn" type="button" onclick="processImagesAndStitch()" class="uma-btn uma-btn--primary uma-btn--lg w-full" disabled>
+				<i data-lucide="layers" class="w-4 h-4"></i>
+				<span>OCR処理＋画像結合を開始する（高負荷）</span>
+			</button>
+
+			<p class="mt-3 mb-1.5 text-[11px] text-slate-400 text-center">個別に実行することもできます</p>
+
+			<button id="process-btn" type="button" onclick="processImages()" class="uma-btn uma-btn--secondary w-full" disabled>
 				<i data-lucide="play" class="w-4 h-4 fill-current"></i>
 				<span>OCR処理を開始する</span>
 			</button>
@@ -645,7 +661,7 @@
 			<!-- 画像結合（SNS投稿用）。OCR処理とは独立した機能で、スキルリスト未入力でも
 			     アップロード済み画像だけで実行できる。各人ごとに複数枚のスクショを1枚に
 			     縦結合し、さらに親A・祖A1・祖A2を横結合して1枚の比較画像として出力する。 -->
-			<button id="stitch-btn" type="button" onclick="runImageStitching()" class="uma-btn uma-btn--accent-outline uma-btn--lg w-full mt-2" disabled>
+			<button id="stitch-btn" type="button" onclick="runImageStitching()" class="uma-btn uma-btn--secondary w-full mt-2" disabled>
 				<i data-lucide="images" class="w-4 h-4"></i>
 				<span>画像を結合する（SNS投稿用）</span>
 			</button>
@@ -1165,8 +1181,17 @@
 		const processBtn = document.getElementById('process-btn');
 
 		function updateProcessBtn() {
+			// 「OCR処理＋画像結合」の最中は、3つとも無効にしたまま動かさない（C-61）。
+			// 途中で processImages() / runImageStitching() が自分のぶんを戻そうとするので、
+			// ここで一括して押さえないと、OCRが終わった瞬間に個別のボタンが復活してしまう。
+			if (combinedInProgress) return;
 			const anyFiles = persons.some(p => p.files.length > 0);
-			processBtn.disabled = (skillList.length === 0 || !anyFiles);
+			// 一体のボタンの押せる条件は **special の前提** に合わせる（対象スキルセットが空でなく、
+			// 画像が1枚以上）。exam は対象が常に133種で選ぶ段が無いので条件が違う（C-59 の 2-2）。
+			const canOcr = (skillList.length > 0 && anyFiles);
+			processBtn.disabled = !canOcr;
+			const comboBtn = document.getElementById('process-stitch-btn');
+			if (comboBtn) comboBtn.disabled = !canOcr;
 			const stitchBtn = document.getElementById('stitch-btn');
 			if (stitchBtn) stitchBtn.disabled = !anyFiles;
 			updateImageCountBadge();
@@ -1341,16 +1366,20 @@
 			return { lines: lines, skipped: skipped, warned: warned, geometry: geometry };
 		}
 
-		async function processImages() {
+		// opts.keepClosed … 判定のあとに照合結果の引き出しを自動で開かない
+		//                   （「OCR処理＋画像結合」のときは、結合まで終わってから開き先を決めるため）
+		// opts.quiet      … 完了のトーストを出さない（同上。まとめて1回だけ知らせる）
+		// 戻り値: 判定まで進めたか（true / false）。呼び出し元が開き先を決めるのに使う。
+		async function processImages(opts) {
 			if (skillList.length === 0) {
 				// 足りないのは①側なので、案内だけ出して放置せずタブごと連れて行く
 				// （②のタブから押すボタンなので、①は隠れている）。
 				selectStepTab(1);
 				showToast(deckMode ? 'テンプレートを選択してください' : 'スキルリストを解析してください');
-				return;
+				return false;
 			}
 			const anyFiles = persons.some(p => p.files.length > 0);
-			if (!anyFiles) { showToast('少なくとも1人分の画像をアップロードしてください'); return; }
+			if (!anyFiles) { showToast('少なくとも1人分の画像をアップロードしてください'); return false; }
 
 			devGeometry = [];
 			previewCanvases = [];
@@ -1364,7 +1393,7 @@
 			errorWrap.classList.add('hidden');
 			qualityWarnWrap.classList.add('hidden');
 			progressWrap.classList.remove('hidden');
-			processBtn.disabled = true;
+			setOcrBtnBusy(true);
 
 			// 画像前処理・高精度多重パスは常時有効（デフォルトのまま固定）
 			const usePre = true;
@@ -1404,14 +1433,14 @@
 				errorWrap.classList.remove('hidden');
 				document.getElementById('error-content').textContent = 'OCR処理の初期化に失敗しました。ネットワーク接続を確認してください。\n' + err;
 				progressWrap.classList.add('hidden');
-				processBtn.disabled = false;
-				return;
+				setOcrBtnBusy(false);
+				return false;
 			} finally {
 				if (worker) { try { await worker.terminate(); } catch (e) {} }
 			}
 
 			progressWrap.classList.add('hidden');
-			processBtn.disabled = false;
+			setOcrBtnBusy(false);
 
 			// 文面の組み立ては common.js の buildImageQualityNotice() に集約している
 			// （exam.html / special.html で同じ文言を二重に持たないため）。ここはDOMに入れるだけ。
@@ -1429,15 +1458,24 @@
 				} else {
 					document.getElementById('error-content').textContent = 'OCR処理に失敗しました。別の画像を試してください。';
 				}
-				return;
+				return false;
 			}
 
 			renderResults();
 			updateTierMarksStatus(); // OCR の結果ができたので、結合ボタンの下の表示も切り替える（段0）
-			showToast('照合が完了しました');
+			if (!(opts && opts.quiet)) showToast('照合が完了しました');
 			// 結果は引き出しの中にあるので、判定が終わったらそのまま開いて見せる。
 			// （renderResults() 自体は描画だけを担当し、開く判断はこちらに置く）
-			openDrawer('result');
+			// 「OCR処理＋画像結合」のときは開かず、結合まで終わってから呼び出し元が決める。
+			if (!(opts && opts.keepClosed)) openDrawer('result');
+			return true;
+		}
+
+		// 「OCR処理を開始する」の無効化。**「OCR処理＋画像結合」の最中はここで動かさない**
+		// （一体のボタンが3つまとめて押さえているため。C-61）。
+		function setOcrBtnBusy(busy) {
+			if (combinedInProgress) return;
+			processBtn.disabled = busy;
 		}
 
 		function setProgress(ratio, label) {
@@ -2095,6 +2133,16 @@
 		// 処理中の多重実行を防ぐためのフラグ。「画像を結合する」ボタンは処理中disabledに
 		// なるが、連打でイベントが取りこぼされるケースに備えて二重の安全策とする。
 		let stitchInProgress = false;
+		// 「OCR処理＋画像結合」の最中か（C-61）。stitchInProgress とは別に持つ。
+		// 一体の処理は中で runImageStitching() を呼ぶので、同じフラグを使うと
+		// 「多重クリック防止」に自分で引っかかって結合が走らない。
+		let combinedInProgress = false;
+
+		/** 結合の結末を1つの文にする（トースト用）。OCR と一緒に回したときもこれを使う。 */
+		function stitchOutcomeText(anySuccess, anyFailure) {
+			if (!anySuccess) return '画像を結合できませんでした';
+			return anyFailure ? '一部のセットは結合できませんでした' : '画像を結合しました';
+		}
 
 		// 「画像を結合する」ボタンから直接呼ばれるエントリーポイント。
 		// OCR処理（スキル照合）とは独立しており、スキルリスト未入力でも
@@ -2103,8 +2151,17 @@
 		// 場合は、画像が入っていても結合をスキップする）。
 		// 処理中はボタンを無効化し、完了後の再クリックでは（container.innerHTMLを
 		// 都度クリアするため）前回の結合結果が新しい結果で上書きされる。
-		async function runImageStitching() {
-			if (stitchInProgress) return; // 多重クリック防止
+		//
+		// opts.keepClosed … 終わっても引き出しを自動で開かない
+		// opts.quiet      … 完了のトーストを出さない
+		//   どちらも「OCR処理＋画像結合」（processImagesAndStitch）から呼ぶとき用。
+		//   OCRの完了と結合の完了で2回知らせると、先のトーストが一瞬で消えて読めないので、
+		//   まとめて1回だけ知らせる（C-61）。
+		// 戻り値: { anyOutput, anySuccess, anyFailure }。呼び出し元が文面と開き先を決めるのに使う。
+		async function runImageStitching(opts) {
+			const quiet = !!(opts && opts.quiet);
+			const keepClosed = !!(opts && opts.keepClosed);
+			if (stitchInProgress) return { anyOutput: false, anySuccess: false, anyFailure: false }; // 多重クリック防止
 			stitchInProgress = true;
 			const stitchBtn = document.getElementById('stitch-btn');
 			stitchBtn.disabled = true;
@@ -2123,7 +2180,10 @@
 				}
 				const totalPersons = targets.reduce((s, t) => s + t.count, 0);
 
-				if (totalPersons === 0) { setSectionReady('stitch', false); return; }
+				if (totalPersons === 0) {
+					setSectionReady('stitch', false);
+					return { anyOutput: false, anySuccess: false, anyFailure: false };
+				}
 
 				container.innerHTML = ''; // 前回の結果を消してから作り直す＝実質的な上書き
 				progressWrap.classList.remove('hidden');
@@ -2163,19 +2223,69 @@
 				if (anyOutput) {
 					// トーストは事実に合わせて出し分ける。以前は anyOutput だけを見ていたので、
 					// **1枚も結合できていなくても「画像を結合しました」と言っていた。**
-					showToast(anySuccess
-						? (anyFailure ? '一部のセットは結合できませんでした' : '画像を結合しました')
-						: '画像を結合できませんでした');
+					if (!quiet) showToast(stitchOutcomeText(anySuccess, anyFailure));
 					if (anySuccess) markFabUnseen('stitch'); // 右下ナビに新着バッジを出す
-					openDrawer('stitch');   // 結果は引き出しの中なので、そのまま開いて見せる
+					if (!keepClosed) openDrawer('stitch');   // 結果は引き出しの中なので、そのまま開いて見せる
 				}
 
 				if (document.getElementById('opt-devlog').checked) renderDevLog();
+				return { anyOutput: anyOutput, anySuccess: anySuccess, anyFailure: anyFailure };
 			} finally {
 				progressWrap.classList.add('hidden');
 				stitchInProgress = false;
 				updateProcessBtn(); // ファイルの有無に応じて正しいdisabled状態に戻す
 			}
+		}
+
+		/* ------------------------------------------------------------
+		 * 「OCR処理＋画像結合を開始する（高負荷）」（C-61）
+		 *
+		 * exam と同じ、**1回の操作で OCR から結合まで通す**入口。
+		 * C-59 では案(c) として挙げながら「並びが重くなる」ことを理由に採らず、
+		 * 状態表示（案(a)）だけで済ませていたが、**exam と同じ連続した体験を
+		 * special でも作ることのほうが、ボタンの数を抑えることより大事**という
+		 * おいもさんの判断で入れた。実際の使い方も「OCR を回してから結合する」が
+		 * 基本で、印も凡例も OCR の結果が前提になっている。
+		 *
+		 * 知らせ方は**まとめて1回**。OCR の完了と結合の完了で2回トーストを出すと、
+		 * 先のトーストが一瞬で置き換わって読めないため、両方の結末を1文にする。
+		 * 開く引き出しは exam と同じ考え方で、**判定できたなら照合結果のほう**
+		 * （結果画像には未読の印が立つので、右下のナビから見に行ける）。
+		 * ------------------------------------------------------------ */
+		async function processImagesAndStitch() {
+			if (combinedInProgress || stitchInProgress) return; // 多重クリック防止
+			combinedInProgress = true;
+			// 3つとも押せないようにする。この間 updateProcessBtn() は何もしない（早期 return）ので、
+			// 途中で個別のボタンが復活することはない。
+			['process-btn', 'process-stitch-btn', 'stitch-btn'].forEach(id => {
+				const b = document.getElementById(id);
+				if (b) b.disabled = true;
+			});
+			try {
+				const judged = await processImages({ keepClosed: true, quiet: true });
+				const made = await runImageStitching({ keepClosed: true, quiet: true });
+				showToast(combinedOutcomeText(judged, made));
+				// 判定まで進めたなら照合結果を開く。OCRが駄目で結合だけできたときは結合のほう。
+				if (judged) openDrawer('result');
+				else if (made.anyOutput) openDrawer('stitch');
+			} finally {
+				combinedInProgress = false;
+				updateProcessBtn(); // ファイルの有無に応じて正しいdisabled状態に戻す
+			}
+		}
+
+		/**
+		 * 「OCR処理＋画像結合」の結末を1文にする。
+		 * judged … processImages() の戻り値（判定まで進めたか）
+		 * made   … runImageStitching() の戻り値（{ anyOutput, anySuccess, anyFailure }）
+		 * OCRが駄目だったときは、その理由が本文の赤い枠に出ているので、ここでは結合の結末だけを言う。
+		 */
+		function combinedOutcomeText(judged, made) {
+			if (!judged) return stitchOutcomeText(made.anySuccess, made.anyFailure);
+			if (!made.anyOutput) return '照合が完了しました';
+			if (made.anySuccess && !made.anyFailure) return '照合と画像結合が完了しました';
+			if (made.anySuccess) return '照合が完了しました。一部のセットは結合できませんでした';
+			return '照合が完了しました。画像は結合できませんでした';
 		}
 
 		function appendStitchErrorBlock(container, set, message) {
@@ -2328,6 +2438,11 @@
 		 * 戻り値は { text, tone }。tone は 'ok'（焼く）／'warn'（このままでは焼けない）／
 		 * 'off'（焼かない設定）。文面だけを返す形にして、DOM に触るのは下の関数だけにしてある
 		 * （スモークから文面を直接確かめられるように）。
+		 *
+		 * **「OCR処理＋画像結合」（C-61）が増えても、場合分けは増やしていない。**
+		 * ここが言うのは「いま手元にある材料で印が焼けるか」であって「どのボタンを押すか」ではなく、
+		 * 材料の揃い方は前と同じ4通りだから。変えたのは「OCR未実行」の文面だけで、
+		 * そこだけは**押すべきボタンが変わる**（OCRを別に回さなくても、一体のボタンで済む）。
 		 * ------------------------------------------------------------ */
 		function tierMarksStatusText() {
 			if (!tierMarksEnabled) {
@@ -2341,7 +2456,10 @@
 				return { tone: 'warn', text: '②で周回スキルセットを選ぶと、分類の印を焼けるようになります。このまま結合すると印は入りません。' };
 			}
 			if (!personResults.some(r => r)) {
-				return { tone: 'warn', text: '先に「OCR処理を開始する」を押すと、分類の印も焼かれます。このまま結合すると印は入りません。' };
+				// **一体のボタン（C-61）ができたので、ここだけ文面を変えた。**
+				// それまでは「先に『OCR処理を開始する』を押すと…」と、OCR を別に回す前提で書いていたが、
+				// いまは1回で済ませる道があるので、そちらを先に案内する。
+				return { tone: 'warn', text: '「OCR処理＋画像結合を開始する」なら、分類の印も焼かれます。「画像を結合する」だけを押すと印は入りません。' };
 			}
 			return { tone: 'ok', text: 'OCRの結果があるので、結合画像に分類の印（◎○▲）も焼きます。' };
 		}

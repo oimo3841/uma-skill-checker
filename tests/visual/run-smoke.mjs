@@ -5696,8 +5696,10 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
 	await page.waitForTimeout(400);
 	const s1 = await status();
-	assert(s1.tone === 'warn' && s1.text.includes('OCR処理を開始する'),
-		'段0: セットを選ぶと「先に OCR処理を開始する を押すと焼ける」に変わる', s1);
+	// 60セッション目（C-61）に文面を変えた。一体のボタンができたので、そちらを先に案内する
+	assert(s1.tone === 'warn' && s1.text.includes('OCR処理＋画像結合を開始する')
+		&& s1.text.includes('「画像を結合する」だけを押すと印は入りません'),
+		'段0: セットを選ぶと「一体のボタンなら印も焼ける／結合だけなら入らない」に変わる', s1);
 
 	// 段0-3) OCR の結果ができると「焼きます」になる（結果は本物の照合関数で作る）
 	await page.evaluate(() => {
@@ -5749,6 +5751,116 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		'段3: 帯の骨格が js/stitch.js から使える（special 側に写しを持たない）', shared);
 
 	assert(errors.length === 0, '段0〜3(special): コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
+ * special の「OCR処理＋画像結合を開始する（高負荷）」（60セッション目・C-61）
+ *
+ * C-59 では案(c) として挙げながら採らなかったものを、**exam と同じ連続した体験を
+ * special でも作るほうが、ボタンの数を抑えることより大事**という判断で入れた。
+ * 見るのは4点。
+ *   - 3つのボタンの主従（一体＝黒塗り・大／個別2つ＝白地・標準）と並び
+ *   - 押せる条件が **special の前提**（対象スキルセットが空でなく、画像が1枚以上）に合っていること。
+ *     とくに「画像を結合する」は、セットが空でも押せたまま（退行させていない）
+ *   - 一体の処理の間は3つとも押せないこと（途中で個別のボタンが復活しない）
+ *   - 知らせがまとめて1回になること（combinedOutcomeText の場合分け）
+ * OCR そのものは回さない（Tesseract の言語データと実画像が要る）。実素材での通しは
+ * output/scratch の使い捨てスクリプトで別に確認している。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+
+	const look = () => page.evaluate(() => {
+		selectStepTab(2);
+		const one = (id) => {
+			const b = document.getElementById(id);
+			const r = b.getBoundingClientRect();
+			return { cls: b.className, disabled: b.disabled, top: Math.round(r.top), h: Math.round(r.height) };
+		};
+		return { combo: one('process-stitch-btn'), ocr: one('process-btn'), stitch: one('stitch-btn') };
+	});
+
+	let L = await look();
+	assert(L.combo.top < L.ocr.top && L.ocr.top < L.stitch.top,
+		'C-61: 並びは「一体 → OCR単独 → 結合だけ」', { combo: L.combo.top, ocr: L.ocr.top, stitch: L.stitch.top });
+	assert(L.combo.cls.includes('uma-btn--primary') && L.combo.cls.includes('uma-btn--lg'),
+		'C-61: 一体のボタンが主（黒塗り・大）', L.combo.cls);
+	assert(L.ocr.cls.includes('uma-btn--secondary') && !L.ocr.cls.includes('uma-btn--lg')
+		&& L.stitch.cls.includes('uma-btn--secondary') && !L.stitch.cls.includes('uma-btn--lg'),
+		'C-61: 個別の2つは従（白地＋罫線・標準の大きさ）', { ocr: L.ocr.cls, stitch: L.stitch.cls });
+	assert(L.combo.h > L.ocr.h && L.combo.h > L.stitch.h,
+		'C-61: 主のほうが背が高い', { combo: L.combo.h, ocr: L.ocr.h, stitch: L.stitch.h });
+	assert((await page.textContent('#process-stitch-btn')).trim() === 'OCR処理＋画像結合を開始する（高負荷）',
+		'C-61: 文言は exam と同じ');
+
+	// 押せる条件。画像を足す前・足したあと・セットを外したあとの3通り
+	assert(L.combo.disabled && L.ocr.disabled && L.stitch.disabled,
+		'C-61: 画像が無ければ3つとも押せない', L);
+	const setFiles = (n) => page.evaluate((k) => {
+		persons[0].files = Array.from({ length: k }, (_, i) => ({ name: 'a' + i + '.png' }));
+		updateProcessBtn();
+	}, n);
+	// look() が③のタブへ移しているので、②へ戻してから周回スキルセットを選ぶ
+	await page.evaluate(() => selectStepTab(1));
+	await page.waitForTimeout(200);
+	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
+	await page.waitForTimeout(400);
+	await setFiles(2);
+	L = await look();
+	assert(!L.combo.disabled && !L.ocr.disabled && !L.stitch.disabled,
+		'C-61: セット＋画像がそろえば3つとも押せる', L);
+	// セットを外す（＝対象スキルが空）と、一体と OCR は押せず、「画像を結合する」だけ残る
+	await page.evaluate(() => { onDeckScopeSelected(null); });
+	await page.waitForTimeout(300);
+	L = await look();
+	assert(L.combo.disabled && L.ocr.disabled && !L.stitch.disabled,
+		'C-61: セットが空でも「画像を結合する」だけは押せる（special が保ってきた仕様）', L);
+
+	// 一体の処理の間は3つとも押せないまま（updateProcessBtn が早期 return する）
+	const busy = await page.evaluate(() => {
+		combinedInProgress = true;
+		['process-btn', 'process-stitch-btn', 'stitch-btn'].forEach((id) => { document.getElementById(id).disabled = true; });
+		updateProcessBtn();   // 途中で呼ばれても戻さない
+		const during = ['process-btn', 'process-stitch-btn', 'stitch-btn'].map((id) => document.getElementById(id).disabled);
+		combinedInProgress = false;
+		updateProcessBtn();
+		return during;
+	});
+	assert(busy.every((d) => d === true),
+		'C-61: 一体の処理中は updateProcessBtn() を呼んでも3つとも無効のまま', busy);
+
+	// 知らせはまとめて1回。OCR と結合の結末の組み合わせで文面が変わる
+	const texts = await page.evaluate(() => {
+		const mk = (judged, anyOutput, anySuccess, anyFailure) =>
+			combinedOutcomeText(judged, { anyOutput: anyOutput, anySuccess: anySuccess, anyFailure: anyFailure });
+		return {
+			bothOk: mk(true, true, true, false),
+			partial: mk(true, true, true, true),
+			stitchNg: mk(true, true, false, true),
+			noStitch: mk(true, false, false, false),
+			ocrNg: mk(false, true, true, false),
+		};
+	});
+	assert(texts.bothOk === '照合と画像結合が完了しました', 'C-61: 両方成功なら1文でまとめて知らせる', texts.bothOk);
+	assert(texts.partial === '照合が完了しました。一部のセットは結合できませんでした', 'C-61: 一部だけ失敗', texts.partial);
+	assert(texts.stitchNg === '照合が完了しました。画像は結合できませんでした', 'C-61: 結合が全滅', texts.stitchNg);
+	assert(texts.noStitch === '照合が完了しました', 'C-61: 結合するものが無ければ照合の結末だけ', texts.noStitch);
+	assert(texts.ocrNg === '画像を結合しました',
+		'C-61: OCR が駄目なら（理由は赤い枠に出るので）結合の結末だけを言う', texts.ocrNg);
+	assert(new Set(Object.values(texts)).size === 5, 'C-61: 5通りの文面がすべて違う', texts);
+
+	// 個別の2つの結末の文面は、一体のほうと同じ関数から出る（二重管理にしない）
+	const solo = await page.evaluate(() => [
+		stitchOutcomeText(true, false), stitchOutcomeText(true, true), stitchOutcomeText(false, true),
+	]);
+	assert(solo.join('|') === '画像を結合しました|一部のセットは結合できませんでした|画像を結合できませんでした',
+		'C-61: 「画像を結合する」だけのときの文面は従来どおり', solo);
+
+	await page.evaluate(() => { persons[0].files = []; updateProcessBtn(); });
+	assert(errors.length === 0, 'C-61: コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
 
