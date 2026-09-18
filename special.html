@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-18e"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-18f"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-15a"></script>
 	<style>
@@ -40,11 +40,15 @@
 		   文字を小さくしたり薄くしたりしない（おまけに見えると使われないため）。 */
 		.deck-step { margin-bottom: var(--uma-sp-4, 16px); }
 		.deck-step-box { border: 1px solid var(--uma-border); border-radius: var(--uma-r-md); padding: var(--uma-sp-3, 12px); background: var(--uma-surface); }
-		.deck-step-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2, 8px); cursor: pointer; }
-		details.deck-step-box > summary.deck-step-head { list-style: none; }
+		.deck-step-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2, 8px); }
+		/* 開閉の印は見出しの**右端**に置く（C-51 の修正）。左に置くと、印のぶんだけ「Step 1」の
+		   位置が Step 2 とずれて不ぞろいに見える。見出し全体（summary）が押せるのはそのまま。 */
+		details.deck-step-box > summary.deck-step-head { list-style: none; cursor: pointer; }
 		details.deck-step-box > summary.deck-step-head::-webkit-details-marker { display: none; }
-		details.deck-step-box > summary.deck-step-head::before { content: '▶'; font-size: 10px; color: var(--uma-text-subtle); }
-		details.deck-step-box[open] > summary.deck-step-head::before { content: '▼'; }
+		details.deck-step-box > summary.deck-step-head::after {
+			content: '開く'; margin-left: auto; font-size: var(--uma-fs-2xs); color: var(--uma-text-subtle);
+			padding: 1px 8px; border: 1px solid var(--uma-border); border-radius: 999px; }
+		details.deck-step-box[open] > summary.deck-step-head::after { content: '閉じる'; }
 		.deck-step-num { font-size: var(--uma-fs-xs); font-weight: 700; letter-spacing: .02em;
 			padding: 2px 8px; border-radius: 999px; background: var(--uma-accent-soft); color: var(--uma-accent-soft-text); }
 		.deck-step-title { font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; }
@@ -2113,7 +2117,8 @@
 						},
 						onRemoveFromScope: (ids) => {
 							const n = deckTemplateManager.removeSkillsFromSelection(ids);
-							showToast(n > 0 ? n + '種を Step 2 のスキルセットから外しました' : '外すものはありませんでした');
+							// 外せたときのトーストは core の Undo（doneLabel）が出す。ここで重ねて出さない。
+							if (n === 0) showToast('外すものはありませんでした');
 						}
 					}
 				);

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-18f';
 
 	/* ============================================================
 	 * 定数
@@ -588,6 +588,20 @@
 		return rows.map(r => r.minStar).filter(n => typeof n === 'number').sort((a, b) => a - b);
 	}
 	/**
+	 * 初期スキルとして使う行（C-51 の修正）。**★は3で固定**し、
+	 * `minStar` が 3 以下の行のうち最大のものを採る。3以下の行が1つも無ければ、
+	 * そのウマ娘の `minStar` の最大の行（＝いちばん上の★の行）を採る。
+	 * 各行はその★での「全部」であって差分ではない（C-48）。
+	 */
+	const ROSTER_FIXED_STAR = 3;
+	function initialRowOf(uma) {
+		const rows = ((uma && uma.initialSkills) || []).filter(x => typeof x.minStar === 'number');
+		if (rows.length === 0) return null;
+		const within = rows.filter(x => x.minStar <= ROSTER_FIXED_STAR);
+		const pool = within.length > 0 ? within : rows;
+		return pool.reduce((best, x) => (best === null || x.minStar > best.minStar ? x : best), null);
+	}
+	/**
 	 * そのウマ娘の覚醒レベルの上限。**コードに数を書かない** ―― データにある
 	 * level の最大値から決める（ゲーム側で上限が変わっても直さずに済む。C-48）。
 	 * level 0 は「覚醒のレベルに紐づかない枠」なので上限には数えない。
@@ -628,16 +642,17 @@
 			const uma = findUma(r.umaId);
 			if (!uma) missing.push({ kind: 'uma', id: r.umaId });
 			else {
-				// 初期スキル: minStar が選んだ★以下の行のうち、minStar が最大のものだけを使う。
-				// 各行はその★での「全部」であって差分ではない（C-48）。
-				const rows = (uma.initialSkills || []).filter(x => typeof x.minStar === 'number' && x.minStar <= r.star);
-				const use = rows.reduce((best, x) => (best === null || x.minStar > best.minStar ? x : best), null);
-				if (use) (use.skills || []).forEach(s => add(s, '初期（★' + r.star + '）'));
-				// 覚醒スキル: level 0 は「覚醒のレベルに紐づかない枠」なので、
-				// 選んだ覚醒レベルにかかわらず**常に含める**（画面では「最初から」と出す）。
+				// ★と覚醒レベルは**固定**（C-51 の修正）。実用上は★3以上・覚醒最大で使うので、
+				// 選ばせる UI を削って認知負荷を下げた。保存済みの roster.star / awakeningLevel は
+				// ここでは**読まない**（画面から変えられないものを判定に混ぜない）。
+				const use = initialRowOf(uma);
+				if (use) (use.skills || []).forEach(s => add(s, '初期（★' + use.minStar + '）'));
+				// 覚醒スキル: level 0 は「覚醒のレベルに紐づかない枠」なので**常に含める**
+				// （画面では「最初から」と出す）。それ以外は、そのウマ娘の最大レベルまで全部。
+				const maxLv = maxAwakeningLevelOf(uma);
 				(uma.awakeningSkills || []).forEach(row => {
 					if (row.level === 0) (row.skills || []).forEach(s => add(s, '最初から'));
-					else if (typeof row.level === 'number' && row.level <= r.awakeningLevel) {
+					else if (typeof row.level === 'number' && row.level <= maxLv) {
 						(row.skills || []).forEach(s => add(s, '覚醒 Lv' + row.level));
 					}
 				});
@@ -1396,6 +1411,21 @@
 		'.usd-roster-unconf { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1); margin: var(--uma-sp-1) 0 0; padding: 0; list-style: none; }',
 		'.usd-roster-unconf li { font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs);',
 		'  border: 1px dashed var(--uma-border); border-radius: var(--uma-r-full); padding: 0 var(--uma-sp-2); }',
+		// 2層（C-51 の修正3）: 上位層＝編成と除外、下位層＝育成ウマ娘・サポートカード。
+		// 上位層は見出しを一段強くし、下位層は囲みの地色を沈めて内側に寄せる。
+		'.usd-roster-top { display: flex; flex-direction: column; gap: var(--uma-sp-2);',
+		'  padding-bottom: var(--uma-sp-3); border-bottom: 2px solid var(--uma-border-strong, var(--uma-border)); }',
+		'.usd-roster-h--top { font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); }',
+		'.usd-roster-lower { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--uma-sp-3);',
+		'  padding-left: var(--uma-sp-3); border-left: 3px solid var(--uma-border); }',
+		'@media (min-width: 720px) { .usd-roster-lower { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); } }',
+		'.usd-roster-sub { display: flex; flex-direction: column; gap: var(--uma-sp-2);',
+		'  background: var(--uma-surface-sunken); border: 1px solid var(--uma-border); border-radius: var(--uma-r-sm);',
+		'  padding: var(--uma-sp-2-5) var(--uma-sp-3); }',
+		'.usd-roster-h--sub { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle);',
+		'  font-weight: 600; letter-spacing: .02em; }',
+		'.usd-roster-alert { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-danger-text); }',
+		'.usd-roster-unconf--alert li { border-color: var(--uma-danger-text); color: var(--uma-danger-text); }',
 		'.usd-roster-alpha { margin: 0; padding: var(--uma-sp-2) var(--uma-sp-3); border-radius: var(--uma-r-sm);',
 		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
 		'  background: var(--uma-surface-muted); border: 1px dashed var(--uma-border); }',
@@ -2556,6 +2586,18 @@
 
 		function computed() { return computeRosterSkills(roster); }
 
+		/**
+		 * 保存する形に残している star / awakeningLevel には、**実際に計算に使った値**を書く
+		 * （★は固定の規則で決まる行の minStar、覚醒はそのウマ娘の最大）。読むときは使わない。
+		 * 画面から変えられない項目を空のまま残すより、何で計算したかが記録に残るほうがよい。
+		 */
+		function syncFixedFields() {
+			const uma = roster.umaId ? findUma(roster.umaId) : null;
+			const row = uma ? initialRowOf(uma) : null;
+			roster.star = row ? row.minStar : 0;
+			roster.awakeningLevel = uma ? maxAwakeningLevelOf(uma) : 0;
+		}
+
 		function applyHidden() {
 			const ids = hide ? computed().skillIds : [];
 			pickerHiddenIds = ids;
@@ -2664,11 +2706,9 @@
 		}
 
 		function render() {
-			const uma = roster.umaId ? findUma(roster.umaId) : null;
-			const stars = starChoicesOf(uma);
-			const maxLv = maxAwakeningLevelOf(uma);
 			const res = computed();
 			const saved = listRosters();
+			const overlap = overlapWithScope(res.skillIds);
 
 			let h = '<div class="usd-roster">';
 
@@ -2676,8 +2716,10 @@
 			h += '<p class="usd-roster-alpha">αテスト中の機能です。まだ作りかけで、'
 				+ '<strong>結果が正しくないことがあります</strong>。確かめながらお使いください。</p>';
 
-			// 保存した編成
-			h += '<div class="usd-roster-sec"><p class="usd-roster-h">編成（' + saved.length + '／' + ROSTER_LIMIT + '件）</p>';
+			/* ── 上位層: 編成（保存・読み込み・名前）と、Step 2 への除外 ──
+			   下位層（育成ウマ娘・サポートカード）より一段強い見出しと、囲みの地色で見分ける。 */
+			h += '<div class="usd-roster-top">';
+			h += '<p class="usd-roster-h usd-roster-h--top">編成（' + saved.length + '／' + ROSTER_LIMIT + '件）</p>';
 			h += '<div class="usd-roster-row">';
 			h += '<select class="uma-input" data-usd-act="select"><option value="">新しい編成</option>'
 				+ saved.map(r => '<option value="' + esc(r.rosterId) + '"' + (r.rosterId === selectedId ? ' selected' : '') + '>'
@@ -2685,34 +2727,49 @@
 			h += '<input class="uma-input" type="text" data-usd-el="name" data-usd-act="name" placeholder="編成の名前" value="' + esc(roster.name || '') + '" />';
 			h += '<button type="button" class="uma-btn uma-btn--primary" data-usd-act="save">保存</button>';
 			if (selectedId) h += '<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="delete">削除</button>';
-			h += '</div></div>';
+			h += '</div>';
 
-			// 育成ウマ娘
-			h += '<div class="usd-roster-sec"><p class="usd-roster-h">育成ウマ娘</p>';
+			// 「隠す」と「外す」を1つにまとめた操作（C-51 の修正）。押した状態＝隠しつつ、押した時点で外す。
+			// 外すのは元に戻せないので Undo に積む（黙って消さない方針は変えない）。
+			if (typeof opts.onRemoveFromScope === 'function') {
+				h += '<div class="usd-roster-row">';
+				h += '<button type="button" class="uma-btn ' + (hide ? 'uma-btn--primary' : 'uma-btn--neutral') + '" data-usd-act="exclude"'
+					+ ' aria-pressed="' + (hide ? 'true' : 'false') + '"' + (res.items.length === 0 && !hide ? ' disabled' : '')
+					+ '>Step 2 のスキルセットから本育成スキルを除外する</button>';
+				h += '<span class="usd-roster-note">' + (hide ? '除外しています（もう一度押すと解除）' : '押すと、Step 2 の候補から隠し、すでに選んでいる分は外します（元に戻せます）') + '</span>';
+				h += '</div>';
+			}
+			// Step 2 ですでに選んであるスキルとの重なり。**黙って消さない**ので、
+			// 何件重なっているかを常に出し、外すかどうかは押して決めてもらう。
+			if (overlap > 0) {
+				h += '<p class="usd-roster-warn">Step 2 で選んでいるスキルセットに、この編成で得られるスキルが <strong>'
+					+ overlap + '種</strong> 含まれています（<strong>まだ外していません</strong>。上のボタンで外せます）。</p>';
+			}
+			// イベントスキルの未確認は、αテスト中の明示として編成の層に赤字で出す。
+			// どのカードが未確認かの名前は残す（それが無いと埋めに行けない）。
+			if (res.unconfirmed.length > 0) {
+				h += '<p class="usd-roster-alert">αテスト中：イベントで得られるスキルは、まだ調べていないカードがあります'
+					+ '（これらは<strong>得られる側に入れていません</strong>）。</p>';
+				h += '<ul class="usd-roster-unconf usd-roster-unconf--alert">' + res.unconfirmed.map(u =>
+					'<li>' + esc(u.label) + ' の' + esc(u.what) + '</li>').join('') + '</ul>';
+			}
+			if (res.missing.length > 0) {
+				h += '<p class="usd-roster-alert">読み込めないものがあります（収録データが変わった可能性があります）: '
+					+ esc(res.missing.map(m => m.id).join(' / ')) + '</p>';
+			}
+			h += '</div>';
+
+			/* ── 下位層: 育成ウマ娘 と サポートカード を並列に ── */
+			h += '<div class="usd-roster-lower">';
+			h += '<div class="usd-roster-sub"><p class="usd-roster-h usd-roster-h--sub">育成ウマ娘</p>';
 			h += '<div class="usd-roster-row">';
 			h += '<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="pick-uma">' + esc(labelOfUma()) + '</button>';
 			if (roster.umaId) h += '<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="clear-uma">外す</button>';
 			h += '</div>';
-			if (uma) {
-				if (stars.length > 0) {
-					h += '<div class="usd-roster-row"><span class="usd-roster-note">★</span><div class="usd-roster-pills">'
-						+ stars.map(s => '<button type="button" class="usd-roster-pill" data-usd-act="star" data-value="' + s + '"'
-							+ ' aria-pressed="' + (roster.star === s ? 'true' : 'false') + '">★' + s + '</button>').join('')
-						+ '</div></div>';
-				}
-				if (maxLv > 0) {
-					const lv = [];
-					for (let i = 1; i <= maxLv; i++) lv.push(i);
-					h += '<div class="usd-roster-row"><span class="usd-roster-note">覚醒</span><div class="usd-roster-pills">'
-						+ lv.map(n => '<button type="button" class="usd-roster-pill" data-usd-act="awk" data-value="' + n + '"'
-							+ ' aria-pressed="' + (roster.awakeningLevel === n ? 'true' : 'false') + '">Lv' + n + '</button>').join('')
-						+ '</div></div>';
-				}
-			}
+			h += '<p class="usd-roster-note">★3・覚醒レベル最大として扱います。</p>';
 			h += '</div>';
 
-			// サポートカード
-			h += '<div class="usd-roster-sec"><p class="usd-roster-h">サポートカード</p><div class="usd-roster-slots">';
+			h += '<div class="usd-roster-sub"><p class="usd-roster-h usd-roster-h--sub">サポートカード</p><div class="usd-roster-slots">';
 			for (let i = 0; i < ROSTER_CARD_SLOTS; i++) {
 				h += '<div class="usd-roster-slot">'
 					+ '<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="pick-card" data-index="' + i + '">'
@@ -2721,6 +2778,7 @@
 					+ '</div>';
 			}
 			h += '</div></div>';
+			h += '</div>';
 
 			h += searchHtml();
 
@@ -2734,35 +2792,8 @@
 					'<div class="usd-roster-got-row"><span class="usd-roster-got-name">' + esc(it.name) + '</span>'
 					+ '<span class="usd-roster-got-from">' + esc(it.origins.join(' / ')) + '</span></div>').join('') + '</div>';
 			}
-			if (res.unconfirmed.length > 0) {
-				// 件数だけでは「どれを埋めればよいか」が分からないので、名前で出す。
-				h += '<p class="usd-roster-warn">まだ調べていないものがあります（これらは<strong>得られる側に入れていません</strong>）。</p>';
-				h += '<ul class="usd-roster-unconf">' + res.unconfirmed.map(u =>
-					'<li>' + esc(u.label) + ' の' + esc(u.what) + '</li>').join('') + '</ul>';
-			}
-			if (res.missing.length > 0) {
-				h += '<p class="usd-roster-warn">読み込めないものがあります（収録データが変わった可能性があります）: '
-					+ esc(res.missing.map(m => m.id).join(' / ')) + '</p>';
-			}
-			h += '</div>';
-
-			// 対象スキルセットへの効かせ方
-			h += '<div class="usd-roster-row">';
-			h += '<label class="usd-roster-note"><input type="checkbox" data-usd-act="hide"' + (hide ? ' checked' : '') + ' /> '
-				+ 'Step 2 でスキルを選ぶときに、これらを隠す</label>';
-			if (typeof opts.onRemoveFromScope === 'function') {
-				h += '<button type="button" class="uma-btn uma-btn--neutral" data-usd-act="remove"'
-					+ (res.items.length === 0 ? ' disabled' : '') + '>Step 2 で選んでいるスキルセットから、これらを外す</button>';
-			}
-			h += '</div>';
-			// Step 2 ですでに選んであるスキルとの重なり。**黙って消さない**ので、
-			// 何件重なっているかを常に出し、外すかどうかは押して決めてもらう。
-			const overlap = overlapWithScope(res.skillIds);
-			if (overlap > 0) {
-				h += '<p class="usd-roster-warn">Step 2 で選んでいるスキルセットに、この編成で得られるスキルが <strong>'
-					+ overlap + '種</strong> 含まれています（<strong>まだ外していません</strong>。上のボタンで外せます）。</p>';
-			}
 			h += '<p class="usd-roster-note">ここに出ていないスキルが、この編成のカードと覚醒では得られないものです。</p>';
+			h += '</div>';
 			h += '</div>';
 
 			container.innerHTML = h;
@@ -2800,31 +2831,35 @@
 			}
 			else if (act === 'cancel-pick') { picking = null; render(); }
 			else if (act === 'type') { pickType = btn.getAttribute('data-value') || ''; render(); renderHits(); }
-			else if (act === 'clear-uma') { roster.umaId = ''; roster.star = 0; roster.awakeningLevel = 0; applyHidden(); render(); notifyOverlap(); }
+			else if (act === 'clear-uma') { roster.umaId = ''; syncFixedFields(); applyHidden(); render(); notifyOverlap(); }
 			else if (act === 'clear-card') { roster.cardIds[Number(btn.getAttribute('data-index'))] = null; applyHidden(); render(); notifyOverlap(); }
 			else if (act === 'take') {
 				const id = btn.getAttribute('data-entry-id');
 				if (picking && picking.kind === 'uma') {
 					roster.umaId = id;
-					const uma = findUma(id);
-					const stars = starChoicesOf(uma);
-					// 既定は「そのウマ娘の初期の★」。無ければ選べる中でいちばん小さいもの。
-					roster.star = (uma && typeof uma.initialStar === 'number') ? uma.initialStar : (stars[0] || 0);
-					if (stars.length && stars.indexOf(roster.star) === -1) {
-						roster.star = stars.filter(s => s <= roster.star).pop() || stars[0];
-					}
-					roster.awakeningLevel = maxAwakeningLevelOf(uma);   // 既定はそのウマ娘の最大
+					syncFixedFields();
 				} else if (picking && picking.kind === 'card') {
 					roster.cardIds[picking.index] = id;
 				}
 				picking = null;
 				applyHidden(); render(); notifyOverlap();
 			}
-			else if (act === 'star') { roster.star = Number(btn.getAttribute('data-value')); applyHidden(); render(); notifyOverlap(); }
-			else if (act === 'awk') { roster.awakeningLevel = Number(btn.getAttribute('data-value')); applyHidden(); render(); notifyOverlap(); }
+			else if (act === 'exclude') {
+				// 1つの操作で「隠す」と「外す」の両方（C-51 の修正）。
+				// ON にした時点で、すでに選んである分を外す。外すのは元に戻せないので、
+				// 呼び出し元（テンプレート管理）が Undo に積む。OFF は隠すのをやめるだけ。
+				hide = !hide;
+				applyHidden();
+				if (hide && typeof opts.onRemoveFromScope === 'function') {
+					opts.onRemoveFromScope(computed().skillIds.slice());
+				}
+				render();
+				lastOverlap = overlapWithScope(computed().skillIds);
+			}
 			else if (act === 'save') {
 				const nameEl = q(container, 'name');
 				roster.name = nameEl ? nameEl.value : roster.name;
+				syncFixedFields();
 				if (saveRoster(snapshot(roster))) {
 					selectedId = roster.rosterId;
 					toast('編成を保存しました');
@@ -2837,18 +2872,12 @@
 				toast('編成を削除しました');
 				loadSelected('');
 			}
-			else if (act === 'remove') {
-				if (typeof opts.onRemoveFromScope === 'function') opts.onRemoveFromScope(computed().skillIds.slice());
-				render();                                          // 重なりの表示を更新する
-				lastOverlap = overlapWithScope(computed().skillIds);
-			}
 		});
 
 		container.addEventListener('change', function (ev) {
 			const el = ev.target;
 			const act = el.getAttribute && el.getAttribute('data-usd-act');
 			if (act === 'select') loadSelected(el.value);
-			else if (act === 'hide') { hide = !!el.checked; applyHidden(); }
 		});
 
 		container.addEventListener('input', function (ev) {
@@ -3445,6 +3474,20 @@
 			const after = before.filter(id => !drop.has(id));
 			const n = before.length - after.length;
 			if (n === 0) return 0;
+			// 外すのは元に戻せない操作なので、他の破壊的な操作と同じく「即実行＋元に戻す」にする
+			// （確認ダイアログは挟まない。C-51 の修正4）。状態を変える前に積む。
+			const prev = snapshot(before);
+			pushUndo({
+				scope: 'list',
+				doneLabel: '本育成スキル' + n + '種を Step 2 のスキルセットから外しました',
+				undoneLabel: '外した' + n + '種を Step 2 のスキルセットに戻しました',
+				probe: () => probeOf(skillIdsOf(target)),
+				apply: () => {
+					if (!writeSkillIds(target, snapshot(prev))) return false;
+					afterEditingSkillsChanged(target, true);
+					return true;
+				}
+			});
 			if (!writeSkillIds(target, after)) return 0;
 			afterEditingSkillsChanged(target, true);
 			return n;
