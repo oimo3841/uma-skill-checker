@@ -280,9 +280,44 @@ const browser = await chromium.launch();
 	assert(draftTab.label === '＋ 新規（ドラフト）' && draftTab.selected === 'true',
 		'special: 先頭のタブは「＋ 新規（ドラフト）」で、最初はそれが選ばれている', draftTab);
 	assert(!draftTab.hasOld, 'special: 「開く」・ラジオ・ドラフトの行は無い（タブで選んでその場で編集する）', draftTab);
-	assert(draftTab.placeholder === '新しいスキルセットの名前' && draftTab.dupHidden && draftTab.delHidden,
-		'special: 「＋ 新規（ドラフト）」では名前欄が「新しいスキルセットの名前」で、複製・削除は出ない', draftTab);
+	// 名前欄の呼び名は core の setLabel（C-1）。special は「因子セット」、Deck 単体ページは「スキルセット」。
+	// **ここが「スキルセット」に戻ったら、core の文字列を一律置換してしまった印。**
+	assert(draftTab.placeholder === '新しい因子セットの名前' && draftTab.dupHidden && draftTab.delHidden,
+		'special: 「＋ 新規（ドラフト）」では名前欄が「新しい因子セットの名前」で、複製・削除は出ない', draftTab);
 	assert(draftTab.note === false, 'special: ②のパネル最下段の注記は無い（C-62 の (7) で削除）', draftTab.note);
+
+	/* --- C-1: 改称と枠組み（②＝「因子セット」／その中の A＝「スキルセット」） ---
+	   入れ子の呼び名を検査で固定する。**②の見出しが「スキルセット（…）」に戻っていたら、
+	   core の setLabel を通していない**（＝一律置換してしまった）印。 */
+	const c1 = await page.evaluate(() => {
+		const p = document.getElementById('deck-template-panel');
+		const head = p.querySelector('[data-usd-el="head"] .usd-roster-h--top');
+		const secA = p.querySelector('[data-usd-el="section-a"]');
+		const body = secA && secA.querySelector('.usd-tm-section-body');
+		return {
+			// 件数は代表データの件数に依るので、呼び名だけを見る（数字は N に潰す）
+			head: head ? head.textContent.replace(/\s+/g, '').replace(/\d+/g, 'N') : null,
+			tabsAria: p.querySelector('.uma-subtabs') ? p.querySelector('.uma-subtabs').getAttribute('aria-label') : null,
+			// A の見出しは setLabel を通さない（special でも「スキルセット」のまま）
+			secAHead: secA ? secA.querySelector('.usd-roster-h--sub').textContent : null,
+			// 囲んだだけで、中身の data-usd-el は section-a の下に全部そろっている
+			inA: secA ? ['tier-row', 'selected-list', 'mode-delete', 'mode-reclass', 'selected-count', 'clear-skills']
+				.every(k => !!secA.querySelector('[data-usd-el="' + k + '"]')) : false,
+			entryInA: !!(secA && secA.querySelector('.usd-entry-row')),
+			bodyGap: body ? getComputedStyle(body).rowGap : null,
+			headGap: secA ? getComputedStyle(secA).rowGap : null,
+			// 名前の行（保存・複製・削除）は A の外＝セット全体の操作
+			nameRowOutside: !!p.querySelector('.usd-tm-name-row') && !(secA && secA.querySelector('.usd-tm-name-row'))
+		};
+	});
+	assert(c1.head === '因子セット（N／N件）' && c1.tabsAria === '因子セット',
+		'C-1: ②の見出しと帯のタブが「因子セット」（core の setLabel 経由）', c1);
+	assert(c1.secAHead === 'スキルセット',
+		'C-1: ②の中の A の見出しは「スキルセット」（入れ物の呼び名とは別。setLabel を通さない）', c1.secAHead);
+	assert(c1.inA && c1.entryInA && c1.nameRowOutside,
+		'C-1: 入口・分類・スキルパネルは [data-usd-el="section-a"] の中、名前の行はその外', c1);
+	assert(c1.headGap === '8px' && c1.bodyGap === '12px',
+		'C-1: 見出しと中身の間（8px）は、中身どうしの間（12px）より詰まっている', c1);
 	const clearBtn = await page.evaluate(() => {
 		const btn = document.querySelector('#deck-template-panel [data-usd-el="clear-skills"]');
 		const n = Number(document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent);
@@ -473,7 +508,7 @@ const browser = await chromium.launch();
 	assert(!newUi.btnShown && !newUi.note,
 		'special: 新UIでは「旧UIへ」を出さず、更新終了の注記も出ない（片道化）', newUi);
 	assert(!(await page.isVisible('#deck-mode-btn')), 'special: 隠した「旧UIへ」は実際に描画されない（F-13）');
-	assert(newUi.title === '周回スキルセット', 'special: 新UIの①の見出しが短縮されている', newUi.title);
+	assert(newUi.title === '周回因子セット', 'special: 新UIの①の見出しが短縮されている', newUi.title);
 	assert((await stepState()).panel1, 'special: 新UIへ切り替えると①が開いた状態になる');
 	// 往復（新UI →「旧UIへ」）は片道化で無くなった。保存値 'old' で開き直して同じ表示を見る
 	await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
@@ -881,7 +916,7 @@ const browser = await chromium.launch();
 	assert(added.undo === 'inline-flex' && added.undoCount === '1' && added.note === '✓ 「新規（ドラフト）」の2種を照合します',
 		'special/ocr入口: 「元に戻す」が出て、①の案内が「新規（ドラフト）」の2種になる', { undo: added.undo, count: added.undoCount, note: added.note });
 
-	// 「元に戻す」で追加が取り消され、対象スキルセットが空に戻る
+	// 「元に戻す」で追加が取り消され、因子セットが空に戻る
 	await page.click('[data-usd-act="picker-close"]');
 	await page.click('#deck-undo-btn');
 	await page.waitForTimeout(500);
@@ -890,8 +925,8 @@ const browser = await chromium.launch();
 		undo: document.getElementById('deck-undo-btn').style.display,
 		note: document.getElementById('deck-selected-note').textContent
 	}));
-	assert(undone.selection === null && undone.undo === 'none' && undone.note === '対象スキルセットを1つ選んでください',
-		'special/ocr入口: 「元に戻す」で追加が取り消され、対象スキルセットが空に戻る', undone);
+	assert(undone.selection === null && undone.undo === 'none' && undone.note === '因子セットを1つ選んでください',
+		'special/ocr入口: 「元に戻す」で追加が取り消され、因子セットが空に戻る', undone);
 
 	// 白0件＋金N件 → 文面3。読み取った白も金も無い → ピッカーを開かない（4a は廃止したので枠にも出ない）
 	const empty = await page.evaluate(() => {
@@ -1211,7 +1246,7 @@ const browser = await chromium.launch();
 		const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 		await page.waitForTimeout(2500);
 		const first = await uiState(page);
-		assert(first.title === '周回スキルセット' && first.badge && first.label === '旧UIへ',
+		assert(first.title === '周回因子セット' && first.badge && first.label === '旧UIへ',
 			'special: 初回は新UIで開く', first);
 		assert(!first.btnShown && !first.endNote, 'special: 初回（新UI）では「旧UIへ」も更新終了の注記も出ない（片道化）', first);
 		// 片道化で「右上の『旧UIへ』から、いつでも元の画面に戻せます。」は削った（新UIから旧UIへは行けない）
@@ -1241,7 +1276,7 @@ const browser = await chromium.launch();
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await page.waitForTimeout(2500);
 		const again = await uiState(page);
-		assert(again.title === '周回スキルセット' && !again.notice,
+		assert(again.title === '周回因子セット' && !again.notice,
 			'special: 既読なら新UIのままで、モーダルは繰り返さない', again);
 
 		// 6. 右上のバッジから読み直せる（既読のまま）
@@ -1267,7 +1302,7 @@ const browser = await chromium.launch();
 		await page.click('#deck-mode-btn');
 		await page.waitForTimeout(1500);
 		const exited = await uiState(page);
-		assert(exited.title === '周回スキルセット' && exited.mode === 'new' && !exited.btnShown && !exited.endNote,
+		assert(exited.title === '周回因子セット' && exited.mode === 'new' && !exited.btnShown && !exited.endNote,
 			'special: 旧UIから「新UIへ」で新UIへ移り、選んだUIが保存される', exited);
 		await page.evaluate(() => localStorage.setItem('uma-special-ui-mode', 'old'));
 		await page.reload({ waitUntil: 'domcontentloaded' });
@@ -1288,7 +1323,7 @@ const browser = await chromium.launch();
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await page.waitForTimeout(2500);
 		const s = await uiState(page);
-		assert(s.title === '周回スキルセット' && s.notice,
+		assert(s.title === '周回因子セット' && s.notice,
 			'special: 既読の印が無ければ、保存が「旧UI」でも新UIで開いてモーダルを出す', s);
 		await ctx.close();
 	}
@@ -3992,6 +4027,30 @@ const browser = await chromium.launch();
 	// 別画面の編集ビューは無くなったので、閉じて捨てる動きも無い）
 	await page.click('#tab-btn-template');
 	await page.waitForTimeout(300);
+
+	/* --- C-1: Deck 単体ページの呼び名は「スキルセット」のまま ---
+	   special の②だけを「因子セット」にしたので（core の opts.setLabel）、**こちらは据え置き**。
+	   ここが「因子セット」になったら、setLabel を通さず core の文字列を直接書き換えた印。
+	   Deck の語を「テンプレート」から「スキルセット」に揃えたのは C-66 の5節。 */
+	const deckLabel = await page.evaluate(() => {
+		const p = document.getElementById('template-panel-root');
+		const head = p.querySelector('[data-usd-el="head"] .usd-roster-h--top');
+		return {
+			tab: document.getElementById('tab-btn-template').textContent.trim(),
+			head: head ? head.textContent.replace(/\s+/g, '').replace(/\d+/g, 'N') : null,
+			placeholder: p.querySelector('[data-usd-el="name-input"]').placeholder,
+			tabsAria: p.querySelector('.uma-subtabs').getAttribute('aria-label'),
+			// A の枠は Deck にもできるが、**見出しは出さない**（opts.sectionHeadings）。
+			// Deck は A しか無く入れ物も「スキルセット」なので、出すと二重に見える
+			secA: !!p.querySelector('[data-usd-el="section-a"]'),
+			secAHead: !!p.querySelector('[data-usd-el="section-a"] .usd-roster-h--sub')
+		};
+	});
+	assert(deckLabel.tab === 'スキルセット' && deckLabel.head === 'スキルセット（N／N件）'
+		&& deckLabel.placeholder === '新しいスキルセットの名前' && deckLabel.tabsAria === 'スキルセット',
+		'C-1(deck): Deck 単体ページの呼び名は「スキルセット」のまま（special だけ setLabel で「因子セット」）', deckLabel);
+	assert(deckLabel.secA && !deckLabel.secAHead,
+		'C-1(deck): A の枠はあるが見出しは出さない（A しか無い画面で「スキルセット」が二重に見えるため）', deckLabel);
 	await page.evaluate((id) => templateManager.openEditor(id), USER_DATA.templates[0].templateId);
 	await page.waitForTimeout(300);
 	// × は削除モードのときだけ出る（C-57 の (9)）
@@ -5786,7 +5845,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  * special と exam の操作感を揃える（59セッション目・C-59 の段0〜段3）
  *
  * 段0 … 結合ボタンの下の状態表示。OCR を回さずに結合すると印が黙って出ない状態があり、
- *        その3通り（旧UI／周回スキルセット未選択／OCR未実行）を押す前に知らせる。
+ *        その3通り（旧UI／周回因子セット未選択／OCR未実行）を押す前に知らせる。
  * 段1 … exam のボタンが共通部品（.uma-btn）になり、common.css を読むようになった。
  *        注記の文言と結果の見出しが両ツールで揃っている。
  * 段2 … exam に結合の進捗バーが付いた。
@@ -5803,11 +5862,11 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		return { text: el.textContent, tone: el.dataset.tone, shown: el.getClientRects().length > 0 };
 	});
 
-	// 段0-1) 周回スキルセットを選んでいない（新UI）
+	// 段0-1) 周回因子セットを選んでいない（新UI）
 	// **C-63 の (7) で「このまま結合すると印は入りません」の後半を落とした** ―― 印が付くのは
 	// 一体のボタンからだけになったので、「このまま結合すると」が指すものが無くなった。
 	const s0 = await status();
-	assert(s0.shown && s0.tone === 'warn' && s0.text === '②で周回スキルセットを選ぶと、分類の印を付けられるようになります。',
+	assert(s0.shown && s0.tone === 'warn' && s0.text === '②で周回因子セットを選ぶと、分類の印を付けられるようになります。',
 		'段0: セット未選択のときは「②で選ぶと付けられる」と出る', s0);
 
 	// 段0-2) セットを選ぶと**何も言わなくなる**（status() が③へ移しているので②へ戻してから押す）。
@@ -5973,7 +6032,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		persons[0].files = Array.from({ length: k }, (_, i) => ({ name: 'a' + i + '.png' }));
 		updateProcessBtn();
 	}, n);
-	// look() が③のタブへ移しているので、②へ戻してから周回スキルセットを選ぶ
+	// look() が③のタブへ移しているので、②へ戻してから周回因子セットを選ぶ
 	await page.evaluate(() => selectStepTab(1));
 	await page.waitForTimeout(200);
 	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19m';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-20a';
 
 	/* ============================================================
 	 * 定数
@@ -143,7 +143,7 @@
 	/**
 	 * **未保存のスキルセットの呼び名。利用者に見える文字列はここ1か所だけ。**
 	 *
-	 * ②のタブが「新規」、①の「除外する周回スキルセットを選ぶ」が「ドラフト」と
+	 * ②のタブが「新規」、①の「除外するスキルセットを選ぶ」が「ドラフト」と
 	 * 食い違っていた（①②の設計時期の差。C-66）。同じものを2つの名前で呼ぶと、
 	 * 利用者は別のものだと思う。片方だけ直すとまた離れるので、定数にして両方から引く。
 	 *
@@ -151,6 +151,21 @@
 	 * 無いときの呼び名であって、名前を上書きするものではない。
 	 */
 	const DRAFT_LABEL = '新規（ドラフト）';
+
+	/**
+	 * **セットの呼び名の既定（`createTemplateManager` の `opts.setLabel` で差し替えられる）。**
+	 *
+	 * この共有モジュールが描く画面は2か所から使われ、**同じ部品を違う呼び名で出す**。
+	 *   - `uma-skill-deck.html`（Deck 単体ページ）… 「スキルセット」（C-66 の5節で「テンプレート」から揃えた）
+	 *   - `special.html` の②           … 「因子セット」（C-1。スキルセット・シナリオ因子・遺伝子を束ねた入れ物）
+	 *
+	 * **だからここの文字列を一律に置換してはいけない。** 置換すると Deck 単体ページの呼び名まで
+	 * 変わり、C-66 で揃えたばかりのものを打ち消す。呼び名を出すところは必ず `setLabel` を通す。
+	 *
+	 * **通さないもの**: 分類のタブの `aria-label`（「スキルセットの分類」）。これは入れ物ではなく
+	 * **A（スキルセット）の中の分類**（超優先／優先／通常）を指していて、special でも呼び名は変わらない。
+	 */
+	const DEFAULT_SET_LABEL = 'スキルセット';
 
 	// 8軸のタグ辞書。フィルターパネル・タグ表示・カスタムスキル入力で共有する。
 	const TAG_AXES = [
@@ -418,14 +433,15 @@
 		}
 	}
 
-	function saveDraftScope(scopeKey, skillIds, name, tiers) {
+	// label … 失敗を知らせるときの呼び名（呼び出し元の setLabel）。渡さなければ既定の呼び名
+	function saveDraftScope(scopeKey, skillIds, name, tiers, label) {
 		const payload = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
 		// 空の tiers は書かない（分類を変えていないドラフトの姿を変えない）
 		if (tiers && typeof tiers === 'object' && Object.keys(tiers).length > 0) payload.tiers = Object.assign({}, tiers);
 		try {
 			global.localStorage.setItem(draftStorageKey(scopeKey), JSON.stringify(payload));
 		} catch (e) {
-			toast('一時的な対象スキルセットの保存に失敗しました（ブラウザのストレージ容量を確認してください）');
+			toast('一時的な' + (label || DEFAULT_SET_LABEL) + 'の保存に失敗しました（ブラウザのストレージ容量を確認してください）');
 		}
 		return payload;
 	}
@@ -1686,6 +1702,11 @@
 		// スキルセットと親A／親Bセットにも広げたので、ここには編成だけの規則は無い。
 		// スキルセット（テンプレート管理。C-53）の1画面の骨格
 		'.usd-tm { display: flex; flex-direction: column; gap: var(--uma-sp-3); }',
+		// 節（C-1）。いまは A（スキルセット）だけだが、special の②には B（シナリオ因子）と
+		// C（遺伝子）が並ぶ（C-2a）。**見出しと中身の間は中身どうしの間より詰める**（8px と 12px）
+		// ―― 同じ間隔だと、見出しがどの節のものか読み取れない。
+		'.usd-tm-section { display: flex; flex-direction: column; gap: var(--uma-sp-2); }',
+		'.usd-tm-section-body { display: flex; flex-direction: column; gap: var(--uma-sp-3); }',
 		// 名前欄（①の編成名・②のスキルセット名）。欄は行いっぱい（.uma-input の width: 100%）で、
 		// 保存／複製／削除はその下の行に折り返す（②も①と同じ並び。C-55 の (3)。それまで②だけ欄と
 		// ボタンが同じ行だった）。文字は本文より一段大きく太くして、いま開いているセットの名前として読める大きさにする（C-55 の (6)）。
@@ -3010,7 +3031,7 @@
 		const draftKey = opts.draftKey || null;
 		let roster = restoreDraftRoster();
 		let selectedId = '';          // 保存済みを選んでいればその rosterId
-		let pickingScope = false;     // 除外先の周回スキルセットを選ぶミニウィンドウ（C-54 の (3)）
+		let pickingScope = false;     // 除外先のスキルセットを選ぶミニウィンドウ（C-54 の (3)）
 		let picking = null;           // { kind: 'uma' } / { kind: 'card', index } / null
 		let pickQuery = '';           // ミニウィンドウの検索語
 		let pickType = '';            // ミニウィンドウの種類の絞り込み（'' はすべて）
@@ -3074,7 +3095,7 @@
 			if (typeof opts.onHiddenIdsChange === 'function') opts.onHiddenIdsChange(ids.slice());
 		}
 
-		/** ②（周回スキルセット）でいま選んでいるスキルセットと、この編成で得られるスキルの重なりの数。 */
+		/** ②（周回因子セット）でいま選んでいるセットのスキルと、この編成で得られるスキルの重なりの数。 */
 		function overlapWithScope(skillIds) {
 			if (typeof opts.getScopeSkillIds !== 'function') return 0;
 			const scope = opts.getScopeSkillIds() || [];
@@ -3084,14 +3105,14 @@
 		}
 
 		/**
-		 * 編成を触ったあとで、②（周回スキルセット）の選択と重なっていたら知らせる（C-51 の修正5）。
+		 * 編成を触ったあとで、②（周回因子セット）の選択と重なっていたら知らせる（C-51 の修正5）。
 		 * **黙って消さない。** 画面には常に件数を出したうえで、増えた瞬間だけトーストも出す
 		 * （引き出しの下のほうを見ていなくても気づけるように）。
 		 */
 		function notifyOverlap() {
 			const n = overlapWithScope(computed().skillIds);
 			if (n > 0 && n !== lastOverlap) {
-				toast('周回スキルセットに、本育成で得られるスキルが ' + n + '種 含まれています');
+				toast('スキルセットに、本育成で得られるスキルが ' + n + '種 含まれています');
 			}
 			lastOverlap = n;
 		}
@@ -3222,7 +3243,7 @@
 
 			// αテスト中の注記は、呼び出し元の見出し（special.html の①のタブ）の「αテスト」ラベルの中へ移した（C-51 の11節②）。
 
-			/* ── 上位層: 編成（保存・読み込み・名前）と、周回スキルセットへの除外 ──
+			/* ── 上位層: 編成（保存・読み込み・名前）と、スキルセットへの除外 ──
 			   下位層（育成ウマ娘・サポートカード）より一段強い見出しと、囲みの地色で見分ける。 */
 			h += '<div class="usd-roster-top">';
 			// 保存済みの編成はプルダウンではなくタブで選ぶ（C-51 の11節③）。先頭の「＋ 新規」が
@@ -3253,10 +3274,10 @@
 					+ '>' + (hide ? '除外を解除する' : '本育成スキルを除外する') + '</button>';
 				h += '</div>';
 			}
-			// 周回スキルセットですでに選んであるスキルとの重なり。**黙って消さない**ので、
+			// スキルセットですでに選んであるスキルとの重なり。**黙って消さない**ので、
 			// 何件重なっているかを常に出し、外すかどうかは押して決めてもらう。
 			if (overlap > 0) {
-				h += '<p class="usd-roster-warn">周回スキルセットに、本育成で得られるスキルが <strong>'
+				h += '<p class="usd-roster-warn">スキルセットに、本育成で得られるスキルが <strong>'
 					+ overlap + '種</strong> 含まれています（<strong>まだ外していません</strong>。上のボタンで外せます）。</p>';
 			}
 			// イベントスキルの未確認は、αテスト中の明示として編成の層に赤字で**1行だけ**出す
@@ -3375,7 +3396,7 @@
 		}
 
 		/**
-		 * 除外先の周回スキルセットを選ぶミニウィンドウ（C-54 の (3)）。呼び出し元が getScopeChoices() で
+		 * 除外先のスキルセットを選ぶミニウィンドウ（C-54 の (3)）。呼び出し元が getScopeChoices() で
 		 * 候補（{ id, name, skillIds }）を渡したときだけ。各候補に、本育成で得られるスキルが何種含まれているかを添える。
 		 */
 		function scopeChooserHtml(res) {
@@ -3384,8 +3405,8 @@
 			const have = new Set(res.skillIds);
 			let h = '<div class="usd-roster-modal" data-usd-el="scope-modal">';
 			h += '<div class="usd-roster-modal-back" data-usd-act="cancel-scope"></div>';
-			h += '<div class="usd-roster-modal-box" role="dialog" aria-modal="true" aria-label="除外する周回スキルセットを選ぶ">';
-			h += '<div class="usd-roster-modal-head"><span class="usd-roster-h">除外する周回スキルセットを選ぶ</span>'
+			h += '<div class="usd-roster-modal-box" role="dialog" aria-modal="true" aria-label="除外するスキルセットを選ぶ">';
+			h += '<div class="usd-roster-modal-head"><span class="usd-roster-h">除外するスキルセットを選ぶ</span>'
 				+ '<button type="button" class="uma-icon-btn" data-usd-act="cancel-scope" aria-label="閉じる">×</button></div>';
 			h += '<p class="usd-roster-note">選んだスキルセットから、本育成で得られるスキルを外します（元に戻せます）。</p>';
 			h += '<div class="usd-roster-hits"><div class="usd-name-list">' + choices.map(c => {
@@ -3544,6 +3565,13 @@
 		const opts = options || {};
 		const selectable = !!opts.selectable;
 		const draftScopeKey = opts.draftScopeKey || null;
+		// このセットの呼び名（DEFAULT_SET_LABEL の説明を読むこと）。Deck 単体ページは既定の
+		// 「スキルセット」、special の②は「因子セット」。**呼び名を出すところは必ずこれを通す。**
+		const setLabel = opts.setLabel || DEFAULT_SET_LABEL;
+		// A（スキルセット）に見出しを出すか。**B・C が並ぶ画面（special の②）だけ出す。**
+		// Deck 単体ページは A しか無く、入れ物も「スキルセット」なので、出すと
+		// 「スキルセット（0／10件）」の下にもう一度「スキルセット」が出て二重に見える（実機で確認）。
+		const sectionHeadings = !!opts.sectionHeadings;
 
 		// 選択中のID。null／DRAFT_SELECTION_ID＝「＋ 新規」（ドラフト＝未保存）、それ以外はテンプレートID。
 		// **編集対象＝タブで選んでいるもの**（C-53）。別画面の編集ビューと「開く」は無く、選んだものをその場で編集する。
@@ -3566,46 +3594,57 @@
 				'<div class="uma-subtabs-row" data-usd-el="head"></div>' +
 				// 名前と保存・複製・削除（編成パネルと同じ並び。C-53）
 				'<div class="usd-roster-row usd-tm-name-row">' +
-					'<input type="text" class="usd-input uma-input usd-name-input" data-usd-el="name-input" placeholder="新しいスキルセットの名前"/>' +
+					'<input type="text" class="usd-input uma-input usd-name-input" data-usd-el="name-input" placeholder="' + esc('新しい' + setLabel + 'の名前') + '"/>' +
 					'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="template-save">保存</button>' +
 					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="template-duplicate" data-usd-el="dup-btn">複製</button>' +
 					'<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="template-delete" data-usd-el="del-btn">削除</button>' +
 				'</div>' +
-				// スキルを足す入口は3つ（＋呼び出し元が渡せば4つ目）。以前は「スキルを追加」1つだけを出し、
-				// 中の畳んだ見出しで3つに分かれていたが、それだと「テキストで検索」も
-				// 「マスターにないスキルを追加」も、開いてみるまで在ることが分からなかった。
-				'<div class="usd-entry-row">' +
-					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
-						'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件でスキルを検索' +
-					'</button>' +
-					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-text">' +
-						'<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索' +
-					'</button>' +
-					// 4つ目の入口（スクショから読み取る）は呼び出し元が opts.screenshotEntry を渡したときだけ出す
-					// （special.html だけ。uma-skill-deck.html には出さない＝Deck 単体ページの入口は後続）。
-					// アイコンはツール内のアップロード枠と同じ lucide の upload-cloud（雲＋上矢印）。見た目は他の入口と揃える。
-					// 隣に「?」（撮影ガイド）を置いていたが外した: 入口を押せば必ずガイドが出るので情報を足さず、
-					// スマホ幅で「?」の直前に改行が入って並びが崩れたため（30セッション目・おいもさんの指示）。
-					(opts.screenshotEntry ?
-						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-screenshot">' +
-							'<i data-lucide="upload-cloud" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> ' + esc(opts.screenshotEntry.label || 'スクショで追加') +
-						'</button>'
-					: '') +
-					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-custom">' +
-						'<i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 収録されていないスキルを追加' +
-					'</button>' +
+				// ここから下が **A（スキルセット）** のひとまとまり（C-1）。special の②では、この下に
+				// B（シナリオ因子）と C（遺伝子）が並ぶ（C-2a）。**囲んだだけで `data-usd-el` は
+				// 1つも変えていない** ので、renderNameRow / renderTabs / renderTierRow /
+				// renderSelectedList は無変更（どれも q(container, '…') で引くだけで深さを見ない）。
+				// 見出しの呼び名は setLabel を通さない ―― A は special でも「スキルセット」のままで、
+				// 入れ物（因子セット）の呼び名とは別（DEFAULT_SET_LABEL の説明を読むこと）。
+				'<div data-usd-el="section-a" class="usd-tm-section">' +
+					(sectionHeadings ? '<p class="usd-roster-h usd-roster-h--sub">スキルセット</p>' : '') +
+					'<div class="usd-tm-section-body">' +
+					// スキルを足す入口は3つ（＋呼び出し元が渡せば4つ目）。以前は「スキルを追加」1つだけを出し、
+					// 中の畳んだ見出しで3つに分かれていたが、それだと「テキストで検索」も
+					// 「マスターにないスキルを追加」も、開いてみるまで在ることが分からなかった。
+					'<div class="usd-entry-row">' +
+						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
+							'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件でスキルを検索' +
+						'</button>' +
+						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-text">' +
+							'<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索' +
+						'</button>' +
+						// 4つ目の入口（スクショから読み取る）は呼び出し元が opts.screenshotEntry を渡したときだけ出す
+						// （special.html だけ。uma-skill-deck.html には出さない＝Deck 単体ページの入口は後続）。
+						// アイコンはツール内のアップロード枠と同じ lucide の upload-cloud（雲＋上矢印）。見た目は他の入口と揃える。
+						// 隣に「?」（撮影ガイド）を置いていたが外した: 入口を押せば必ずガイドが出るので情報を足さず、
+						// スマホ幅で「?」の直前に改行が入って並びが崩れたため（30セッション目・おいもさんの指示）。
+						(opts.screenshotEntry ?
+							'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-screenshot">' +
+								'<i data-lucide="upload-cloud" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> ' + esc(opts.screenshotEntry.label || 'スクショで追加') +
+							'</button>'
+						: '') +
+						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-custom">' +
+							'<i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 収録されていないスキルを追加' +
+						'</button>' +
+					'</div>' +
+					// 分類の切り替え（超優先／優先／通常。C-57 の (7)）。追加の入口はいま選んでいる分類に足す
+					'<div class="usd-tier-row" data-usd-el="tier-row"></div>' +
+					'<div class="usd-mode-row">' +
+						'<p class="text-xs text-slate-500">追加済みスキル（<span data-usd-el="selected-count">0</span>種）</p>' +
+						// 「再分類」「削除」のモード（C-57 の (9)）。既定は両方 OFF＝パネルに操作が出ない（ゲームと同じ見え方）
+						'<button type="button" class="usd-mode-btn" data-usd-act="mode-reclass" data-usd-el="mode-reclass" aria-pressed="false">再分類</button>' +
+						'<button type="button" class="usd-mode-btn" data-usd-act="mode-delete" data-usd-el="mode-delete" aria-pressed="false">削除</button>' +
+						// 「すべて外す」は削除モードのときだけ出す。中身を触っている画面で、何件消えるのかが見えている状態で押せるようにするため、ここに置く。
+						'<button type="button" class="usd-link-btn" data-usd-act="editor-clear-skills" data-usd-el="clear-skills" hidden>すべて外す</button>' +
+					'</div>' +
+					'<div data-usd-el="selected-list" class="usd-panels"></div>' +
+					'</div>' +
 				'</div>' +
-				// 分類の切り替え（超優先／優先／通常。C-57 の (7)）。追加の入口はいま選んでいる分類に足す
-				'<div class="usd-tier-row" data-usd-el="tier-row"></div>' +
-				'<div class="usd-mode-row">' +
-					'<p class="text-xs text-slate-500">追加済みスキル（<span data-usd-el="selected-count">0</span>種）</p>' +
-					// 「再分類」「削除」のモード（C-57 の (9)）。既定は両方 OFF＝パネルに操作が出ない（ゲームと同じ見え方）
-					'<button type="button" class="usd-mode-btn" data-usd-act="mode-reclass" data-usd-el="mode-reclass" aria-pressed="false">再分類</button>' +
-					'<button type="button" class="usd-mode-btn" data-usd-act="mode-delete" data-usd-el="mode-delete" aria-pressed="false">削除</button>' +
-					// 「すべて外す」は削除モードのときだけ出す。中身を触っている画面で、何件消えるのかが見えている状態で押せるようにするため、ここに置く。
-					'<button type="button" class="usd-link-btn" data-usd-act="editor-clear-skills" data-usd-el="clear-skills" hidden>すべて外す</button>' +
-				'</div>' +
-				'<div data-usd-el="selected-list" class="usd-panels"></div>' +
 				// 最下段の注記（「スキルの追加・削除はすぐに保存されます…」／「保存すると名前を付けて残せます…」）は
 				// C-62 の (7) で削除した。どちらも保存の作法を言うだけで、名前欄と「保存」がその場に見えている
 				// 画面では読む意味が無かった（renderNote() ごと外したので、描く対象も無い）。
@@ -3695,14 +3734,14 @@
 			const items = [{
 				id: DRAFT_SELECTION_ID, label: '＋ ' + DRAFT_LABEL, isNew: true, selected: onDraft,
 				count: draftScope.skillIds.length > 0 ? draftScope.skillIds.length + '種' : null,
-				title: DRAFT_LABEL + '：保存していないスキルセット'
+				title: DRAFT_LABEL + '：保存していない' + setLabel
 			}].concat(list.map(t => ({
 				id: t.templateId, label: t.name || '（名称未設定）', title: t.name || '（名称未設定）',
 				selected: t.templateId === selectedId, count: t.skillIds.length + '種'
 			})));
 			q(container, 'head').innerHTML =
-				'<p class="usd-roster-h usd-roster-h--top">スキルセット（<span data-usd-el="count-badge">' + list.length + '</span>／' + TEMPLATE_LIMIT + '件）</p>' +
-				tabStripHtml(items, { act: 'template-tab', ariaLabel: 'スキルセット', el: 'tabs' });
+				'<p class="usd-roster-h usd-roster-h--top">' + esc(setLabel) + '（<span data-usd-el="count-badge">' + list.length + '</span>／' + TEMPLATE_LIMIT + '件）</p>' +
+				tabStripHtml(items, { act: 'template-tab', ariaLabel: setLabel, el: 'tabs' });
 			revealSelectedTab(container);
 		}
 
@@ -3862,7 +3901,7 @@
 
 		// tiers（分類。C-57）は持っているときだけ残す（空なら書かない）
 		function persistDraft(skillIds, name, tiers) {
-			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, tiers);
+			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, tiers, setLabel);
 			const out = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
 			if (tiers && typeof tiers === 'object' && Object.keys(tiers).length > 0) out.tiers = Object.assign({}, tiers);
 			return out;
@@ -3882,12 +3921,12 @@
 				render();
 				fireSelection();
 				fireChange();
-				toast('スキルセットを保存しました');
+				toast(setLabel + 'を保存しました');
 				return;
 			}
 			if (draftScope.skillIds.length === 0) { toast('スキルを1件以上選んでください'); return; }
 			if (data.templates.length >= TEMPLATE_LIMIT) {
-				toast('スキルセットは最大' + TEMPLATE_LIMIT + '件までです。不要なものを削除してください');
+				toast(setLabel + 'は最大' + TEMPLATE_LIMIT + '件までです。不要なものを削除してください');
 				return;
 			}
 			const t = { templateId: uid('tpl'), name: nameInput.value, skillIds: draftScope.skillIds.slice(), createdAt: nowIso(), updatedAt: nowIso() };
@@ -3901,7 +3940,7 @@
 			render();
 			fireSelection();
 			fireChange();
-			toast('スキルセットを保存しました');
+			toast(setLabel + 'を保存しました');
 		}
 
 		/* ---------- スキルの追加（3つの入口） ---------- */
@@ -4114,7 +4153,7 @@
 		function duplicateTemplate(templateId) {
 			if (!templateId) return;
 			const data = ensureUserData();
-			if (data.templates.length >= TEMPLATE_LIMIT) { toast('スキルセットは最大' + TEMPLATE_LIMIT + '件までです'); return; }
+			if (data.templates.length >= TEMPLATE_LIMIT) { toast(setLabel + 'は最大' + TEMPLATE_LIMIT + '件までです'); return; }
 			const t = data.templates.find(x => x.templateId === templateId);
 			if (!t) return;
 			flushPendingName();
@@ -4139,8 +4178,8 @@
 			const label = removed.name || '（名称未設定）';
 			pushUndo({
 				scope: 'list',
-				doneLabel: 'スキルセット「' + label + '」を削除しました',
-				undoneLabel: '削除したスキルセット「' + label + '」を戻しました',
+				doneLabel: setLabel + '「' + label + '」を削除しました',
+				undoneLabel: '削除した' + setLabel + '「' + label + '」を戻しました',
 				// そのテンプレートが（同じ中身で）在るかどうか。無ければ空文字。
 				probe: () => {
 					const cur = ensureUserData().templates.find(x => x.templateId === templateId);
@@ -4208,7 +4247,7 @@
 		 */
 		function removeSkillsFromSelection(ids) {
 			const sel = getSelection();
-			if (!sel) { toast('対象スキルセットを選んでください'); return 0; }
+			if (!sel) { toast(setLabel + 'を選んでください'); return 0; }
 			const drop = new Set(ids || []);
 			const target = sel.kind === 'draft'
 				? { kind: 'draft' }
@@ -4224,8 +4263,8 @@
 			const prevTiers = snapshot(tiersOf(target));   // 分類（C-57）も一緒に戻す
 			pushUndo({
 				scope: 'list',
-				doneLabel: '本育成スキル' + n + '種を周回スキルセットから外しました',
-				undoneLabel: '外した' + n + '種を周回スキルセットに戻しました',
+				doneLabel: '本育成スキル' + n + '種をスキルセットから外しました',
+				undoneLabel: '外した' + n + '種をスキルセットに戻しました',
 				probe: () => probeOf(skillIdsOf(target)),
 				apply: () => {
 					if (!writeSkillIds(target, snapshot(prev), snapshot(prevTiers))) return false;
