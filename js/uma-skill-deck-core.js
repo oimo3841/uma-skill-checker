@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19h';
 
 	/* ============================================================
 	 * 定数
@@ -184,10 +184,15 @@
 			{ v: 'track_oi', t: '大井' }, { v: 'track_kawasaki', t: '川崎' }, { v: 'track_funabashi', t: '船橋' }, { v: 'track_morioka', t: '盛岡' },
 			{ v: 'track_longchamp', t: 'ロンシャン' }, { v: 'track_santaanita', t: 'サンタアニタパーク' }, { v: 'track_delmar', t: 'デルマー' }
 		]},
-		// 該当/非該当だけの単一フラグ軸。選択肢は1つしかないので、
-		// 「条件を持たない＝万能スキル」という他の軸の扱いは当てはめない（flagAxis）。
-		{ key: 'scenario', label: '⑧その他3（シナリオスキル）', flagAxis: true, options: [
-			{ v: 'scenario', t: 'シナリオスキル' }
+		// **この軸だけ、空配列の意味が他の7軸と逆。** 他は「空＝どの条件でも出る（万能スキル）」だが、
+		// この軸は**入手経路の区分**（キャラやサポートカードからは得られないもの）なので、
+		// 「空＝どれにも当たらない（ふつうのスキル）」。445件中418件が空で、そちらが普通の状態。
+		// 選択肢が1つだった名残で flagAxis と呼んでいたが、**選択肢の数とは関係がない**ので
+		// emptyMeansNone（空は「該当なし」）に改名した。
+		{ key: 'scenario', label: '⑧その他3（シナリオスキル）', emptyMeansNone: true, options: [
+			{ v: 'scenario', t: 'シナリオスキル' },
+			{ v: 'scenario_factor', t: 'シナリオ因子' },
+			{ v: 'gene', t: '遺伝子' }
 		]}
 	];
 
@@ -978,14 +983,14 @@
 
 	// フィルター一致判定。軸間はAND、軸内はOR。
 	// スキルがその軸に条件を持たない（空配列）場合は、その軸のどの選択肢にも一致する扱い（万能スキル）。
-	// ただし flagAxis の軸（⑧シナリオスキル）は該当/非該当のフラグなので、
-	// 空配列は「非該当」であって「万能」ではない。ここだけ扱いを分ける。
+	// ただし emptyMeansNone の軸（⑧その他＝入手経路）は、空配列が「該当なし」であって
+	// 「万能」ではない。ここだけ扱いを分ける（選択肢の数とは関係がない。値が3つになっても同じ）。
 	function matchesFilters(skill, filters) {
 		return TAG_AXES.every(axis => {
 			const selected = filters[axis.key] || [];
 			if (selected.length === 0) return true; // その軸で絞り込みしていない
 			const skillValues = (skill.tags && skill.tags[axis.key]) || [];
-			if (skillValues.length === 0) return !axis.flagAxis; // 万能スキル（フラグ軸だけは非該当）
+			if (skillValues.length === 0) return !axis.emptyMeansNone; // 万能スキル（入手経路の軸だけは該当なし）
 			return skillValues.some(v => selected.includes(v));
 		});
 	}
@@ -2070,7 +2075,9 @@
 					'<span>' + esc(o.t) + '</span>' +
 				'</label>'
 			).join('');
-			const hint = axis.flagAxis ? 'チェックすると該当スキルだけに絞る' : '選んだもののいずれかに一致（OR）';
+			const hint = axis.emptyMeansNone
+				? '選んだもののいずれかに一致（OR）。この軸のタグが無いスキルは出ない'
+				: '選んだもののいずれかに一致（OR）';
 			return '' +
 			'<section role="tabpanel" class="usd-tabpanel' + (isActive ? ' is-active' : '') + '"' +
 				' id="usd-panel-' + axis.key + '" aria-labelledby="usd-tab-' + axis.key + '"' +

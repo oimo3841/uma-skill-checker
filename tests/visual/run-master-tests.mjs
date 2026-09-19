@@ -120,7 +120,7 @@ console.log('=== 1. マスターデータ（uma-skill-deck-skills.json） ===');
 	assert(scen.length === 27, '③シナリオスキルが27件', scen.length);
 	assert(eq(scen.map((s) => s.name).sort(), SCENARIO.slice().sort()),
 		'③シナリオスキルの内訳が指定の27件と一致', scen.map((s) => s.name));
-	assert(scen.every((s) => eq(s.tags.scenario, ['scenario'])), '③フラグの値が単一値 ["scenario"]');
+	assert(scen.every((s) => eq(s.tags.scenario, ['scenario'])), '③27件の値はいまのところ ["scenario"] だけ（シナリオ因子・遺伝子は未収録）');
 
 	assert(master.masterVersion !== '2026-09-09a' && /^\d{4}-\d{2}-\d{2}[a-z]$/.test(master.masterVersion),
 		'masterVersion が更新されている', master.masterVersion);
@@ -141,10 +141,15 @@ const browser = await chromium.launch();
 		'HTTP経由でマスターデータを読めている（組み込みサンプルではない）', meta);
 
 	// 8軸になっている
-	const axes = await page.evaluate(() => UmaSkillDeckCore.TAG_AXES.map((a) => ({ key: a.key, label: a.label, flag: !!a.flagAxis })));
+	const axes = await page.evaluate(() => UmaSkillDeckCore.TAG_AXES.map((a) => ({ key: a.key, label: a.label, flag: !!a.emptyMeansNone, opts: a.options.map((o) => o.v) })));
 	assert(axes.length === 8, 'タグ軸が8本ある', axes.length);
+	// 63セッション目（第2波）: ⑧を「その他」（入手経路）に広げ、値を3つにした。
+	// **空配列の意味が他の7軸と逆**（空＝該当なし）なのは変わらないので、印の名前だけ
+	// flagAxis → emptyMeansNone に改めた（選択肢の数とは関係がない印なので）。
 	assert(axes[7] && axes[7].key === 'scenario' && axes[7].label === '⑧その他3（シナリオスキル）' && axes[7].flag,
-		'8軸目が⑧その他3（シナリオスキル）でフラグ軸', axes[7]);
+		'8軸目が空を「該当なし」と読む軸', axes[7]);
+	assert(eq(axes[7].opts, ['scenario', 'scenario_factor', 'gene']),
+		'⑧の選択肢がシナリオスキル／シナリオ因子／遺伝子の3つ', axes[7].opts);
 
 	// 効果タイプの選択肢に「持久力回復」「持久力減少」が別々に並ぶ
 	const effectOpts = await page.evaluate(() =>
@@ -199,7 +204,7 @@ const browser = await chromium.launch();
 	await tick('scenario', 'scenario');
 	const scenCount = await readCount();
 	const scenNames = await listedNames();
-	assert(scenCount === 27, '⑧シナリオスキルで絞ると27件（タグ無しが万能扱いにならない）', scenCount);
+	assert(scenCount === 27, '⑧「シナリオスキル」で絞ると27件（この軸だけ、タグ無しが万能扱いにならない）', scenCount);
 	assert(eq(scenNames.slice().sort(), SCENARIO.slice().sort()), '⑧シナリオスキルの内訳が指定の27件', scenNames.length);
 
 	// 軸間ANDも壊れていないこと（シナリオ × 持久力回復）
@@ -228,10 +233,15 @@ const browser = await chromium.launch();
 		AWAKENINGS.map(([n]) => n));
 	assert(awakeListed === true, '②新規6件がモーダルの一覧に並ぶ', awakeListed);
 
-	// カスタムスキル入力欄にも8軸目が出る（TAG_AXES駆動になっていることの確認）
-	const customScenario = await page.evaluate(() =>
-		document.querySelectorAll('[data-usd-el="custom-tag"][data-axis="scenario"]').length);
-	assert(customScenario === 1, 'カスタムスキル入力にも⑧の選択肢が出る', customScenario);
+	// カスタムスキル入力欄にも8軸目が出る（TAG_AXES駆動になっていることの確認）。
+	// 件数は決め打ちせず TAG_AXES から取る ―― 選択肢が1つから3つに増えたとき、
+	// UI が追随していることこそ見たいので、決め打ちだと「追随した」こと自体で落ちてしまう。
+	const customScenario = await page.evaluate(() => ({
+		画面: document.querySelectorAll('[data-usd-el="custom-tag"][data-axis="scenario"]').length,
+		core: UmaSkillDeckCore.TAG_AXES.find((a) => a.key === 'scenario').options.length,
+	}));
+	assert(customScenario.画面 === customScenario.core && customScenario.core === 3,
+		'カスタムスキル入力の⑧の選択肢が TAG_AXES と同じ数（3つ）', customScenario);
 
 	await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
 	await page.waitForTimeout(300);

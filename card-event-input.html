@@ -244,7 +244,7 @@
 	</div>
 </div>
 
-<script src="js/uma-skill-deck-core.js?v=2026-09-19g"></script>
+<script src="js/uma-skill-deck-core.js?v=2026-09-19h"></script>
 <script>
 (function () {
 	'use strict';
@@ -564,8 +564,8 @@
 			var on = t[axis.key] || [];
 			// ⑧のような該当/非該当だけの軸は、**空の意味が他の軸と逆**（他は「空＝どの条件でも
 			// 出る万能」、この軸は「空＝該当しない」）。取り違えると絞り込みの結果が変わるので、
-			// 地色と注記で他の軸と区別する。flagAxis はデータが持つ印なので、ここで軸名は見ない。
-			h += '<div class="cei-axis' + (axis.flagAxis ? ' cei-axis--flag' : '') + '">';
+			// 地色と注記で他の軸と区別する。emptyMeansNone はデータが持つ印なので、ここで軸名は見ない。
+			h += '<div class="cei-axis' + (axis.emptyMeansNone ? ' cei-axis--flag' : '') + '">';
 			h += '<p class="cei-axis-label">' + esc(axis.label) + '</p>';
 			h += '<div class="cei-opts">';
 			axis.options.forEach(function (o) {
@@ -578,7 +578,7 @@
 			h += '</div>';
 			// 注意書きを出すのは**決まりが逆の軸だけ**。全部の軸に同じ文を並べると、
 			// 本当に違う軸の注意書きが同じ見た目の文章に埋もれる。
-			if (axis.flagAxis) {
+			if (axis.emptyMeansNone) {
 				h += '<p class="cei-axis-note"><strong>この枠だけ決まりが逆です。</strong>'
 					+ 'チェックを入れないと<strong>「該当しない」</strong>になります'
 					+ '（他の軸のように「どの条件でも出る」にはなりません）。</p>';
