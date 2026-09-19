@@ -6037,6 +6037,160 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 }
 
 /* ============================================================
+ * 因子を照合の対象に含める（C-2b）
+ *
+ *   - OFF のときは、3本立ても辞書も検出も**今までどおり**（因子が1つも混ざらない）
+ *   - ON にすると辞書に因子の名前が入り、対象スキル数・検出数には**含めず別に数える**
+ *   - 誤マッチのガード: 遺伝子は完全一致のみ（最小距離1）、シナリオ因子は距離1まで
+ *   - 結果の表では因子の行に◆が付く（分類の◎○▲ とは別）
+ *   - コピー用データには因子の行も入る
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
+	await page.waitForTimeout(500);
+
+	const lists = () => page.evaluate(() => ({
+		all: skillList.length, skills: skillOnlyList.length, factors: factorOnlyList.length,
+		badge: document.getElementById('skill-count-badge').textContent,
+		note: document.getElementById('deck-selected-note').textContent
+	}));
+	const off = await lists();
+	assert(off.all === off.skills && off.factors === 0 && off.badge === off.skills + '種'
+		&& off.note.indexOf('因子') === -1,
+		'C-2b: OFF のときは因子が1つも混ざらない（今までどおり）', off);
+
+	// B（シナリオ因子）を ON にする
+	await page.click('#deck-template-panel [data-usd-act="scope-toggle"][data-scope="scenarioFactors"]');
+	await page.waitForTimeout(200);
+	await page.click('#deck-template-panel [data-usd-act="scope-check"][data-scope="scenarioFactors"]');
+	await page.waitForTimeout(400);
+	const nFactor = await page.evaluate(() => UmaSkillDeckCore.getCatalogEntries('scenarioFactor').length);
+	const on = await lists();
+	assert(on.skills === off.skills && on.factors === nFactor && on.all === off.skills + nFactor,
+		'C-2b: ON にすると辞書に因子が入り、スキルの数は変わらない', { off, on, nFactor });
+	assert(on.badge === off.skills + '種',
+		'C-2b: ②のタブのバッジはスキルの数のまま（375px の折り返しを動かさない）', on.badge);
+	assert(on.note.includes('の' + off.skills + '種＋因子' + nFactor + '種を照合します'),
+		'C-2b: 選択の注記はスキルの数と因子の数を分けて書く', on.note);
+
+	// 照合を通す。因子2種が写っている行を混ぜ、「言い切れない1文字崩れ」も入れる
+	const res = await page.evaluate(() => {
+		const names = UmaSkillDeckCore.getCatalogEntries('scenarioFactor').map(e => e.name);
+		const broken = names[1].slice(0, 1) + '※' + names[1].slice(2);   // 距離1（一意）→ 残る
+		const far = names[2].slice(0, 1) + '※※' + names[2].slice(3);     // 距離2 → 落ちる
+		const mk = (texts) => texts.map((t, i) => ({ text: t, stars: (i % 3) + 1, starsReliable: true, rowKey: 'r' + i }));
+		const lines = mk(skillOnlyList.slice(0, 4).concat([names[0], broken, far]));
+		personResults[0] = applyFactorStrictMatch(
+			matchAllSkillsWithStars(lines, skillList, skillIndex, {}), lines);
+		personLines[0] = lines;
+		renderResults();
+		const rows = Array.from(document.querySelectorAll('#result-tbody tr'));
+		const factorSet = new Set(factorOnlyList);
+		return {
+			total: document.getElementById('stat-total').textContent,
+			totalFactor: document.getElementById('stat-total-factor').textContent,
+			totalFactorHidden: document.getElementById('stat-total-factor').hidden,
+			found: document.getElementById('stat-found-1').textContent,
+			foundFactor: document.getElementById('stat-found-factor-1').textContent,
+			rowCount: rows.length,
+			// ◆が付いている行の名前と、◎○▲ が付いている行の名前
+			diamond: rows.filter(r => r.querySelector('td .text-\\[var\\(--uma-mark-catalog\\)\\]'))
+				.map(r => r.querySelector('td').textContent.replace(/^◆\s*/, '').trim()),
+			tierMarked: rows.filter(r => r.querySelector('td .uma-tier-mark')).length,
+			copyLines: document.getElementById('copy-data').value.split('\n').length,
+			kept: [names[0], names[1]].filter(n => factorSet.has(n)),
+			detected: Array.from(personResults[0].detectedSkills).filter(n => factorSet.has(n)).sort(),
+			expectKept: [names[0], names[1]].sort(), dropped: names[2]
+		};
+	});
+	assert(res.total === String(off.skills) && !res.totalFactorHidden && res.totalFactor === '＋ 因子 ' + nFactor + '種',
+		'C-2b: 対象スキル数はスキルだけ。因子は別の行で数える', res);
+	assert(res.detected.join() === res.expectKept.join(),
+		'C-2b: 完全一致と「距離1で一意」の因子は残り、距離2の崩れは落ちる', { detected: res.detected, expect: res.expectKept, dropped: res.dropped });
+	assert(res.found === '4' && res.foundFactor === '＋ 因子 2',
+		'C-2b: 検出数もスキルと因子で分けて数える', { found: res.found, foundFactor: res.foundFactor });
+	assert(res.diamond.length === nFactor && res.tierMarked > 0,
+		'C-2b: 因子の行には◆、スキルの行には◎○▲（左の同じ欄）', { diamond: res.diamond.length, tier: res.tierMarked });
+	assert(res.copyLines === off.skills + nFactor,
+		'C-2b: コピー用データには因子の行も入る（表と同じ並び）', { copyLines: res.copyLines, expect: off.skills + nFactor });
+
+	// 結合画像の凡例に◆の行が増える
+	const legend = await page.evaluate(() => {
+		const rowsOf = () => {
+			const bar = buildTierLegendBar(600, 600, true);
+			return bar ? bar.height : 0;
+		};
+		const withFactor = rowsOf();
+		const keep = factorOnlyList;
+		factorOnlyList = [];
+		const withoutFactor = rowsOf();
+		factorOnlyList = keep;
+		return { withFactor, withoutFactor };
+	});
+	assert(legend.withFactor > legend.withoutFactor,
+		'C-2b: 因子を含めているときは、凡例の帯に◆の行が増える', legend);
+	assert(errors.length === 0, 'C-2b: special でコンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+{
+	// 誤マッチのガード: 遺伝子は完全一致のみ（「短距離の遺伝子」と「中距離の遺伝子」が距離1のため）
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	const g = await page.evaluate(() => {
+		const genes = UmaSkillDeckCore.getCatalogEntries('geneFactor').map(e => e.name);
+		const factors = UmaSkillDeckCore.getCatalogEntries('scenarioFactor').map(e => e.name);
+		// 上限は**カタログから計算**した値。ここに数字を書かず、計算結果そのものを見る
+		const limits = {};
+		factorGuards().forEach(x => { limits[x.key] = x.limit; });
+		// 最小距離（上限の根拠）
+		const minOf = (names) => {
+			const ns = names.map(normalizeText);
+			let m = Infinity;
+			for (let i = 0; i < ns.length; i++) for (let j = i + 1; j < ns.length; j++) m = Math.min(m, levenshtein(ns[i], ns[j]));
+			return m;
+		};
+		skillList = []; skillIndex = [];
+		const dict = buildSkillDictionary(genes.concat(factors));
+		skillList = dict.list; skillIndex = dict.index;
+		factorOnlyList = genes.concat(factors);
+		factorNormSet = new Set(factorOnlyList.map(normalizeText));
+		const run = (texts) => {
+			const lines = texts.map((t, i) => ({ text: t, stars: 1, starsReliable: true, rowKey: 'r' + i }));
+			return Array.from(applyFactorStrictMatch(
+				matchAllSkillsWithStars(lines, skillList, skillIndex, {}), lines).detectedSkills).sort();
+		};
+		// 「短距離の遺伝子」と「中距離の遺伝子」を探す（名前は書かず、距離1のペアとして取る）
+		const gn = genes.map(n => ({ raw: n, n: normalizeText(n) }));
+		let pair = null;
+		for (let i = 0; i < gn.length && !pair; i++)
+			for (let j = i + 1; j < gn.length && !pair; j++)
+				if (levenshtein(gn[i].n, gn[j].n) === 1) pair = [gn[i].raw, gn[j].raw];
+		// その1文字違いのペアを、両方そのまま／片方だけ／1文字崩して、の3通り
+		const broken = pair ? pair[0].slice(0, pair[0].length - 2) + '※' + pair[0].slice(pair[0].length - 1) : '';
+		return {
+			limits, minGene: minOf(genes), minFactor: minOf(factors), pair,
+			both: run(pair || []), onlyFirst: run(pair ? [pair[0]] : []), brokenHit: run([broken])
+		};
+	});
+	assert(g.minGene === 1 && g.limits.genes === 0,
+		'C-2b: 遺伝子は最小距離1なので、上限は0（完全一致のみ）', { min: g.minGene, limit: g.limits.genes });
+	assert(g.minFactor === 2 && g.limits.scenarioFactors === 1,
+		'C-2b: シナリオ因子は最小距離2なので、上限は1', { min: g.minFactor, limit: g.limits.scenarioFactors });
+	assert(g.pair && g.both.join() === g.pair.slice().sort().join(),
+		'C-2b: 1文字しか違わない遺伝子2つが同じ画像にあっても、両方そのまま検出できる', g);
+	assert(g.onlyFirst.length === 1 && g.onlyFirst[0] === g.pair[0],
+		'C-2b: 片方だけ写っているとき、もう片方は出てこない', g.onlyFirst);
+	assert(g.brokenHit.length === 0,
+		'C-2b: 遺伝子が1文字崩れたら採らない（相手方に化けるより出さないほうを採る）', g.brokenHit);
+	assert(errors.length === 0, 'C-2b: ガードの確認でコンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
  * special と exam の操作感を揃える（59セッション目・C-59 の段0〜段3）
  *
  * 段0 … 結合ボタンの下の状態表示。OCR を回さずに結合すると印が黙って出ない状態があり、

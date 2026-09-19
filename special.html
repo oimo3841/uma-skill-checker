@@ -802,7 +802,16 @@
 
 	<script>
 		/* 状態変数（このツール固有。共通ロジック・共通定数は js/common.js を参照） */
+		// skillList     … 照合・表の**並び**に使う（スキル → 因子）。コピー用データの行もこの並び。
+		// skillOnlyList … 「スキル」と付く数を数えるのはこちら（因子を含めない）。
+		// factorOnlyList… 選んでいる節（B・C）の因子だけ。因子の数はここから出す。
+		// 3つは onDeckScopeSelected() / parseSkillList() が同時に作り直す（片方だけ古い、が起きないように）。
+		// **exam の3本立て（C-68 の5節）と同じ形**にしてある。
 		let skillList = [];
+		let skillOnlyList = [];
+		let factorOnlyList = [];
+		// 因子の名前（正規化後）。◆を出すかどうかと、誤マッチのガードの判定に使う
+		let factorNormSet = new Set();
 		let skillIndex = [];
 		let currentFilter = 'all';
 		let previewCanvases = [];
@@ -1043,6 +1052,10 @@
 			if (!input) { showToast('スキルリストを入力してください'); return; }
 			skillList = input.split(/[\n,\t]/).map(s => s.trim()).filter(s => s.length > 0);
 			if (skillList.length === 0) { showToast('有効なスキルが見つかりません'); return; }
+			// 旧UIには因子の節（B・C）が無いので、3本立ては「全部スキル」になる
+			skillOnlyList = skillList.slice();
+			factorOnlyList = [];
+			factorNormSet = new Set();
 			skillIndex = skillList.map(raw => ({ raw: raw, norm: normalizeText(raw) }));
 
 			document.getElementById('skill-count').textContent = '✓ ' + skillList.length + '個解析完了';
@@ -1491,7 +1504,9 @@
 					if (result.lines.length > 0) anySuccess = true;
 					if (result.skipped.length > 0) skippedAll.push.apply(skippedAll, result.skipped);
 					if (result.warned.length > 0) warnedAll.push.apply(warnedAll, result.warned);
-					personResults[p] = matchAllSkillsWithStars(result.lines, skillList, skillIndex, ocrErrorDictionary);
+					// 因子は照合の後で絞る（言い切れないものを落とす。C-2b）。スキルの判定には触らない
+					personResults[p] = applyFactorStrictMatch(
+						matchAllSkillsWithStars(result.lines, skillList, skillIndex, ocrErrorDictionary), result.lines);
 					personLines[p] = result.lines;
 					personGeometry[p] = result.geometry;
 				}
@@ -1584,10 +1599,14 @@
 			else colsClass = 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-' + cols;
 			grid.className = 'grid gap-3 mb-6 ' + colsClass;
 
+			// 因子（B・C）を対象に含めているときは、**スキルの数の下に別の行**で出す（C-2b）。
+			// 大きい数字は「スキル」のまま ―― 因子はスキルではないので同じ数に混ぜない。
+			// 含めていないときは行ごと出さない（0 が並ぶだけになるため）。
 			let html = `
 				<div class="rounded-xl border border-slate-200 bg-slate-50/50 p-3 md:p-4 text-center">
 					<p class="text-[11px] font-medium text-slate-500 mb-1">対象スキル数</p>
 					<p class="text-lg md:text-2xl font-extrabold text-slate-900" id="stat-total">0</p>
+					<p class="text-[10px] font-medium text-slate-400 mt-0.5" id="stat-total-factor" hidden></p>
 				</div>`;
 			used.forEach(i => {
 				const [color, label] = PERSON_STAT_META[i];
@@ -1595,6 +1614,7 @@
 				<div class="rounded-xl border border-${color}-200 bg-${color}-50/50 p-3 md:p-4 text-center">
 					<p class="text-[11px] font-medium text-${color}-700 mb-1">${label} 検出</p>
 					<p class="text-lg md:text-2xl font-extrabold text-${color}-600" id="stat-found-${i + 1}">0</p>
+					<p class="text-[10px] font-medium text-${color}-500 mt-0.5" id="stat-found-factor-${i + 1}" hidden></p>
 				</div>`;
 			});
 			grid.innerHTML = html;
@@ -1632,7 +1652,14 @@
 			const nameWidth = used.length <= 1 ? 'w-2/5' : used.length === 2 ? 'w-1/3' : used.length <= 4 ? 'w-1/4' : 'w-1/5';
 			const meta = buildColumnMeta(used);
 			const showTotal = shouldShowTotalColumn(used);
-			let html = `<tr><th class="${nameWidth}">スキル名（リスト順）</th>`;
+			// B・C を含めているときは、この列にスキルではないもの（因子）の行も並ぶ（C-2b）。
+			// 「スキル名」のままだと、◆の行が何なのか見出しと食い違う（恒久ルール19）。
+			const hasFactors = factorOnlyList.length > 0;
+			const nameHead = hasFactors ? '名前（リスト順）' : 'スキル名（リスト順）';
+			// 絞り込みの欄も同じ列を探すので、呼び方を揃える
+			const search = document.getElementById('table-search');
+			if (search) search.placeholder = (hasFactors ? '名前' : 'スキル名') + 'で絞り込み...';
+			let html = `<tr><th class="${nameWidth}">${nameHead}</th>`;
 			meta.forEach(m => {
 				const boundary = m.boundary ? ' person-set-boundary' : '';
 				html += `<th class="text-center person-col ${m.hueClass}${boundary}">${PERSON_LABELS[m.idx]}</th>`;
@@ -1683,21 +1710,35 @@
 			updateCopyLabels(used);
 			updateFilterLabels(used);
 
+			// 検出数は**スキルと因子で別々に数える**（C-2b）。コピー用データの行は
+			// 表と同じ並び（スキル → 因子）で全部出す ―― 数え方と、貼り付ける中身は別の話。
 			const foundCounts = {};
-			used.forEach(i => { foundCounts[i] = 0; });
+			const foundFactorCounts = {};
+			used.forEach(i => { foundCounts[i] = 0; foundFactorCounts[i] = 0; });
 			const copyRows = [];
 
 			skillList.forEach(skill => {
+				const isFactor = factorNormSet.has(normalizeText(skill));
 				const rowVals = used.map(p => starsFor(p, skill));
-				rowVals.forEach((v, idx) => { if (v !== undefined) foundCounts[used[idx]]++; });
+				rowVals.forEach((v, idx) => {
+					if (v === undefined) return;
+					if (isFactor) foundFactorCounts[used[idx]]++; else foundCounts[used[idx]]++;
+				});
 				// ★を計測できなかった場合（null）は、誤った数字を貼らないよう空欄にする。
 				// 表側には「?」を出して、手で補う必要があることが分かるようにしている。
 				copyRows.push(rowVals.map(v => (v === null || v === undefined) ? '' : String(v)).join('\t'));
 			});
 
-			document.getElementById('stat-total').textContent = skillList.length;
+			const hasFactors = factorOnlyList.length > 0;
+			document.getElementById('stat-total').textContent = skillOnlyList.length;
+			const totalFactor = document.getElementById('stat-total-factor');
+			totalFactor.textContent = '＋ 因子 ' + factorOnlyList.length + '種';
+			totalFactor.hidden = !hasFactors;
 			used.forEach(i => {
 				document.getElementById('stat-found-' + (i + 1)).textContent = foundCounts[i];
+				const ff = document.getElementById('stat-found-factor-' + (i + 1));
+				ff.textContent = '＋ 因子 ' + foundFactorCounts[i];
+				ff.hidden = !hasFactors;
 			});
 
 			document.getElementById('copy-data').value = copyRows.join('\n');
@@ -1753,8 +1794,12 @@
 
 				// 分類の印（競馬の◎○▲。C-58）は名前の左。★の数（橙）は右の列なので、位置と形で役割が分かれる。
 				// 形は core の tiers.markHtml() が返す SVG（結合画像の Canvas と同じ形になるよう1か所で決めている）
+				// 因子には分類が付かない（deckTierByName に載らない）ので、同じ左の欄に◆を置く（C-2b）。
+				// ◆＝スキルではないもの、という基準は段A-2 で決めたもの。exam・Deck と同じ印・同じ色。
 				const tier = deckTierByName[skill];
-				const tierMark = tier ? UmaSkillDeckCore.tiers.markHtml(tier) + ' ' : '';
+				const tierMark = factorNormSet.has(normalizeText(skill))
+					? CATALOG_MARK_HTML + ' '
+					: (tier ? UmaSkillDeckCore.tiers.markHtml(tier) + ' ' : '');
 				tableHtml += `<tr class="transition-colors">
 					<td class="font-medium text-slate-800">${tierMark}${escapeHtml(skill)}</td>
 					${cells}
@@ -1942,6 +1987,13 @@
 		const TIER_CIRCLE_D_OVER_PITCH = 0.0738;
 		const TIER_CIRCLE_CX_OVER_PITCH = 0.0725;
 		const TIER_MARK_SCALE = 1.20;
+		/* 因子の印（◆。C-2b）。分類（1/2/3）と同じ仕組みに乗せるので、印の種類を表す値を1つ足す。
+		   **数字と混ざらない文字列**にしてあるので、tiers の値（1/2/3）と取り違えない。
+		   画面の表に出すぶんはこの HTML、結合画像に焼くぶんは drawTierMark() が描く菱形。
+		   色は exam・Deck と同じ --uma-mark-catalog（◆＝スキルではないもの。段A-2）。 */
+		const CATALOG_MARK = 'factor';
+		const CATALOG_MARK_HTML = '<span class="text-[var(--uma-mark-catalog)] font-bold" title="スキルではないもの（因子）">◆</span>';
+		const CATALOG_MARK_LEGEND = '因子';
 
 		function tierCircleMetrics(g) {
 			const xs = g.columnXs || [];
@@ -1965,6 +2017,10 @@
 				if (!v) return null;
 				out[t] = v;
 			}
+			// ◆（因子。C-2b）。exam・Deck と同じトークンを使う
+			const f = css.getPropertyValue('--uma-mark-catalog').trim();
+			if (!f) return null;
+			out[CATALOG_MARK] = f;
 			return out;
 		}
 
@@ -1984,6 +2040,18 @@
 				paths.push(() => { ctx.beginPath(); ctx.arc(cx, cy, r * 0.42, 0, Math.PI * 2); });
 			} else if (tier === 2) {     // ○ 対抗
 				paths.push(() => { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); });
+			} else if (tier === CATALOG_MARK) {   // ◆ スキルではないもの（因子。C-2b）
+				// ○ と同じ外接円に内接する菱形。◎○▲ とは形の系統を変えて、
+				// 「分類の段」ではなく「種類が違う」ことを示す
+				const rr = r * 1.10;
+				paths.push(() => {
+					ctx.beginPath();
+					ctx.moveTo(cx, cy - rr);
+					ctx.lineTo(cx + rr * 0.82, cy);
+					ctx.lineTo(cx, cy + rr);
+					ctx.lineTo(cx - rr * 0.82, cy);
+					ctx.closePath();
+				});
 			} else {                     // ▲ 単穴（外接円は ○ の 1.12 倍。塗りが無いぶん小さく見えるため）
 				const rr = r * 1.12;
 				paths.push(() => {
@@ -2017,7 +2085,8 @@
 		/**
 		 * 1人分の結合画像（縦につないだCanvas）の上に、分類の印を焼く。返り値は描いた数。
 		 *
-		 * 印が出るのは**②で選んだスキルセットに入っているスキルの行だけ**。3段すべて出すので、
+		 * 印が出るのは**②で選んだスキルセットに入っているスキルの行**と、
+		 * **B・C で対象に含めた因子のうち検出できた行**（◆。C-2b）。3段すべて出すので、
 		 * 「通常に分類したスキル」と「そもそもセットに入れていないスキル（印の無い行）」を見分けられる。
 		 * OCRを回していない人・セットを選んでいないときは、分類が分からないので1つも描かない。
 		 */
@@ -2038,10 +2107,11 @@
 				devGeometry.push('[分類の印] 色のトークンを読めなかったため、印を描きませんでした');
 				return 0;
 			}
-			// rowKey（"画像の番号:行の番号"）→ 分類
+			// rowKey（"画像の番号:行の番号"）→ 印（分類 1/2/3 または ◆）
 			const tierByRowKey = {};
 			res.detectedSkills.forEach(name => {
-				const tier = deckTierByName[name];
+				// 因子には分類が付かないので◆を置く（C-2b）。◆が付くのはスキルではないものだけ（段A-2）
+				const tier = factorNormSet.has(normalizeText(name)) ? CATALOG_MARK : deckTierByName[name];
 				if (!tier) return;
 				(res.skillSources[name] || []).forEach(li => {
 					const l = lines[li];
@@ -2096,8 +2166,8 @@
 		 * **exam の帯をそのまま持ち込んではいない。** exam の帯は印の凡例と
 		 * 「集計条件」（追加・除外スキル・シナリオ因子の一覧）を一緒に描くが、
 		 * special には集計条件に当たるものが無い（対象はスキルセットで、
-		 * 名前を全部並べると長くなるだけ）。ここに出すのは印の見かた3行と、
-		 * 印の無い行についての断り1行だけ。
+		 * 名前を全部並べると長くなるだけ）。ここに出すのは印の見かた（◎○▲、
+		 * B・C を含めているときは◆も）と、印の無い行についての断り1行だけ。
 		 *
 		 * 帯の骨格（白い矩形・区切り線・折り返し・文字の大きさの詰め方）は
 		 * js/stitch.js の stitchNoteMetrics / stitchDrawNoteBar が持つ（exam と共通）。
@@ -2126,11 +2196,14 @@
 			const headW = ctx.measureText(TIER_LEGEND_HEAD).width;
 			const glyphW = m.fontSize * 1.35;   // 記号1つ分の幅（exam の凡例と同じ比）
 			const rows = [];
-			[1, 2, 3].forEach((tier, i) => {
+			// ◆（因子）は、B・C を対象に含めているときだけ足す（C-2b）。
+			// 含めていないときに出すと、画面に出ない印の説明が1行増えるだけになる。
+			const marks = [1, 2, 3].concat(factorOnlyList.length > 0 ? [CATALOG_MARK] : []);
+			marks.forEach((tier, i) => {
 				// 2行目からは見出しの幅だけ空けて、記号の左端を1行目とそろえる
 				const row = [{ type: 'text', text: i === 0 ? TIER_LEGEND_HEAD : '', w: headW }];
 				row.push({ type: 'mark', w: glyphW, draw: (c, cx, cy, d) => drawTierMark(c, tier, cx, cy, d, colors) });
-				const label = ' ' + TIER_LEGEND_LABEL[tier];
+				const label = ' ' + (tier === CATALOG_MARK ? CATALOG_MARK_LEGEND : TIER_LEGEND_LABEL[tier]);
 				row.push({ type: 'text', text: label, w: ctx.measureText(label).width });
 				rows.push(row);
 			});
@@ -2578,9 +2651,89 @@
 			// 後半は exam と揃えない ―― exam の「一覧・結果では」の「一覧」は
 			// 「対象スキルN種の一覧を確認する」のことで、special にはその一覧が無い。
 			note: s.shortLabel + NOT_SKILL_NOTE_CORE + '結果の表と結合画像では ◆ が付きます',
+			category: s.category,
 			// 描くたびに数える（収録データが増減しても直さなくてよい）
 			count: () => UmaSkillDeckCore.getCatalogEntries(s.category).length
 		}));
+
+		/* ------------------------------------------------------------
+		 * 因子の誤マッチのガード（C-2b）
+		 *
+		 * common.js の照合は、完全一致で決まらなかった行をあいまい一致（編集距離）に回す。
+		 * 許す距離は名前の長さで決まり（allowedDistance）、6〜9文字なら 2 まで通る。
+		 * ところが**「短距離の遺伝子」と「中距離の遺伝子」は距離1**しか離れていない。
+		 * このまま辞書へ入れると、片方をもう片方として検出しうる。
+		 *
+		 * そこで因子だけ、照合の**後**で次のどちらかを満たすものに絞る。
+		 *   ① どれかのOCR行に、その名前がそのまま入っている（＝完全一致をもう一度かける）
+		 *   ② どれかのOCR行が、同じカテゴリの中でその名前**だけ**に上限以内で近い
+		 *
+		 * **上限は数値で書かず、カタログから毎回計算する。** カタログが増えて名前どうしが
+		 * 近づいたときに、前提が黙って崩れないようにするため（exam の47セッション目と同じ考え方）。
+		 *   真の名前 A が d 文字ぶん誤読された行に対して別の名前 B が選ばれるには
+		 *   d(行,B) < d(行,A) = d が要る。三角不等式から d(A,B) ≤ d(行,A)+d(行,B) < 2d。
+		 *   つまり 2d ≤ その集合の最小距離 なら取り違えは起こり得ない → 上限 = floor(最小距離/2)。
+		 *   さらに 1 で頭打ちにする（2文字以上のずれは採らないと決めてある）。
+		 * 2026-09-20 の実測では シナリオ因子＝最小距離2→上限1 ／ 遺伝子＝最小距離1→**上限0（完全一致のみ）**。
+		 *
+		 * **候補は選んでいるかどうかに関係なく、そのカテゴリ全部を相手にする。**
+		 * 選んでいない側を候補から外すと、同じ画像・同じ読みでも「何を選んでいるか」で
+		 * 採否が変わってしまう（exam の nearestScenarioFactor と同じ理由）。
+		 * ------------------------------------------------------------ */
+		let factorGuardCache = null;
+		function factorGuards() {
+			if (factorGuardCache) return factorGuardCache;
+			factorGuardCache = FACTOR_SCOPES.map(s => {
+				const norms = UmaSkillDeckCore.getCatalogEntries(s.category)
+					.map(e => ({ raw: e.name, norm: normalizeText(e.name) }));
+				let min = Infinity;
+				for (let i = 0; i < norms.length; i++) {
+					for (let j = i + 1; j < norms.length; j++) {
+						const d = levenshtein(norms[i].norm, norms[j].norm);
+						if (d < min) min = d;
+					}
+				}
+				return { key: s.key, norms: norms, limit: Math.min(1, Math.floor((min === Infinity ? 0 : min) / 2)) };
+			});
+			return factorGuardCache;
+		}
+
+		// 1つのOCR行が、そのカテゴリのどれか1つに「近い」と言い切れるか。
+		// 言い切れるなら正規化後の名前、言い切れなければ null（同じ距離で並んだら採らない＝安全側）。
+		function nearestFactorNorm(guard, lineNorm) {
+			if (!lineNorm || guard.limit <= 0) return null;
+			let best = null, bestD = Infinity, tie = 0;
+			for (let i = 0; i < guard.norms.length; i++) {
+				const d = levenshtein(lineNorm, guard.norms[i].norm);
+				if (d < bestD) { bestD = d; best = guard.norms[i].norm; tie = 1; }
+				else if (d === bestD) tie++;
+			}
+			if (best === null || bestD > guard.limit || tie > 1) return null;
+			return best;
+		}
+
+		/** 照合結果から、言い切れない因子の検出を落とす。スキルの判定には一切触らない。 */
+		function applyFactorStrictMatch(res, lines) {
+			if (factorNormSet.size === 0) return res;
+			const lineNorms = [];
+			(lines || []).forEach(l => { const n = normalizeText(l.text); if (n) lineNorms.push(n); });
+			// ②の判定は行ごとに1回でよいので、先にまとめて出しておく
+			const nearHits = new Set();
+			factorGuards().forEach(g => {
+				lineNorms.forEach(n => { const hit = nearestFactorNorm(g, n); if (hit) nearHits.add(hit); });
+			});
+			Array.from(res.detectedSkills).forEach(name => {
+				const norm = normalizeText(name);
+				if (!factorNormSet.has(norm)) return;                    // 因子以外は触らない
+				if (lineNorms.some(n => n.indexOf(norm) !== -1)) return;  // ① 完全一致
+				if (nearHits.has(norm)) return;                           // ② 一意に近い
+				res.detectedSkills.delete(name);
+				delete res.matchReasons[name];
+				delete res.skillSources[name];
+				if (res.skillStars) delete res.skillStars[name];
+			});
+			return res;
+		}
 		// Deckモードに入る前の手入力リストの状態。モードを抜けたらそのまま復元する。
 		let manualSkillState = null;
 		/* ------------------------------------------------------------
@@ -2892,6 +3045,9 @@
 			deckTierByName = {};
 			if (!deckScope) {
 				skillList = [];
+				skillOnlyList = [];
+				factorOnlyList = [];
+				factorNormSet = new Set();
 				skillIndex = [];
 				clearActiveSkillDictionary();
 				badge.classList.add('hidden');
@@ -2902,12 +3058,30 @@
 			const entries = UmaSkillDeckCore.getSkillEntries(deckScope.skillIds);
 			// 分類（C-57 の (10)）。tiers に無い id は「優先」（core の tiers.of が既定を返す）
 			entries.forEach(e => { deckTierByName[e.name] = UmaSkillDeckCore.tiers.of(deckScope.tiers, e.id); });
-			const dict = buildSkillDictionary(entries.map(e => e.name));
+			// B・C で ON にした節の因子を足す（C-2b）。並びは「スキル → 因子」で、
+			// **数えるときは分ける**（因子はスキルではないので、対象スキル数・検出数に入れない）
+			const skillNames = entries.map(e => e.name);
+			const scopes = deckScope.scopes || {};
+			const factorNames = [];
+			FACTOR_SCOPES.forEach(s => {
+				if (scopes[s.key] !== true) return;
+				UmaSkillDeckCore.getCatalogEntries(s.category).forEach(e => factorNames.push(e.name));
+			});
+			const dict = buildSkillDictionary(skillNames.concat(factorNames));
 			setActiveSkillDictionary(dict);
 			skillList = dict.list;
 			skillIndex = dict.index;
+			// **3本立ては辞書に残ったもので作る。** buildSkillDictionary は正規化後が同じ名前を
+			// 落とすので、渡した配列をそのまま数えると skillList と足し算が合わなくなる。
+			// スキルと同じ名前の因子があったらスキルの側として数える（先に入っているほう）。
+			const skillNorms = new Set(skillNames.map(n => normalizeText(n)));
+			factorNormSet = new Set(factorNames.map(n => normalizeText(n)).filter(n => !skillNorms.has(n)));
+			skillOnlyList = skillList.filter(n => !factorNormSet.has(normalizeText(n)));
+			factorOnlyList = skillList.filter(n => factorNormSet.has(normalizeText(n)));
 
-			badge.textContent = skillList.length + '種';
+			// ②のタブのバッジは**スキルの数だけ**（因子の数は B・C の節のバッジが別に出す）。
+			// ここに「＋因子N種」を足すと、375px でタブの折り返しが変わる（段E-2 で直した箇所）
+			badge.textContent = skillOnlyList.length + '種';
 			badge.classList.remove('hidden');
 			parseOcrDictionary(); // 辞書に書かれたスキル名がリストに存在するか再確認する
 			updateDeckSelectedNote();
@@ -2918,7 +3092,9 @@
 			const note = document.getElementById('deck-selected-note');
 			if (!note) return;
 			if (!deckScope) { note.textContent = '因子セットを1つ選んでください'; return; }
-			note.textContent = '✓ 「' + deckScope.name + '」の' + skillList.length + '種を照合します';
+			// 因子は「スキル」と同じ数に混ぜず、後ろに足して書く（C-2b）
+			const factorPart = factorOnlyList.length > 0 ? '＋因子' + factorOnlyList.length + '種' : '';
+			note.textContent = '✓ 「' + deckScope.name + '」の' + skillOnlyList.length + '種' + factorPart + 'を照合します';
 		}
 
 		/* ============================================================
