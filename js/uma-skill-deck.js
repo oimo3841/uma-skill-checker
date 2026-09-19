@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-19d';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-19e';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -180,6 +180,21 @@ function switchTab(name) {
 /* 追加カタログのカテゴリ → 利用者に見せる呼び名。
    ここに無いカテゴリは、カテゴリ名をそのまま出す（増やし忘れても壊れない）。 */
 const CATALOG_CATEGORY_LABELS = { scenarioFactor: 'シナリオ因子', geneFactor: '遺伝子' };
+/* **ふつうのスキルとして見せるカテゴリ**（64セッション目・段A-2）。
+   ◆を付けず、内訳でも「スキル」に数える ―― 利用者には区別を見せない。
+
+   拡張スキルがこれに当たる。**マスターの445種のほうが、全スキルから抜き出した
+   特定のカテゴリの集まり**であって、拡張スキルが「例外」なのではない
+   （本来は全スキルを収録したうえで、445種のほうを特別扱いするのが筋）。
+   利用者から見れば、どちらも同じ「スキル」でしかない。
+
+   core 側も同じ見方をしている ―― 収録データから参照してよいスキルの範囲
+   （isReferableSkillId）は、マスターと拡張スキルの2つ。
+   スキルではないもの（シナリオ因子・遺伝子）だけが、別のものとして◆と別勘定になる。 */
+const CATALOG_PLAIN_SKILL_CATEGORIES = ['extendedSkill'];
+function catalogIsPlainSkill(kind) {
+	return CATALOG_PLAIN_SKILL_CATEGORIES.includes(kind);
+}
 function catalogLabel(kind) {
 	return CATALOG_CATEGORY_LABELS[kind] || kind;
 }
@@ -668,10 +683,11 @@ function renderRecordGrid() {
 		// tr が無いので、行の地色（ゼブラ）は行の全セルに同じクラスで付ける。
 		const zebra = idx % 2 === 0 ? 'deck-row-a' : 'deck-row-b';
 		const name = escapeHtml(getSkillName(skillId));
-		// 追加カタログ（シナリオ因子など。マスター445種の外のもの）から来た行は◆を付ける。
+		// 追加カタログのうち**スキルではないもの**（シナリオ因子・遺伝子）から来た行に◆を付ける。
 		// 名前だけでは白スキルと区別できないため（OCRツール側の一覧・結果と同じ印）。
+		// 拡張スキルはスキルなので付けない（CATALOG_PLAIN_SKILL_CATEGORIES）。
 		const catalogKind = Core.skillCatalogKind(skillId);
-		const catalogMark = catalogKind
+		const catalogMark = (catalogKind && !catalogIsPlainSkill(catalogKind))
 			? '<span class="deck-catalog-mark" title="' + escapeHtml(catalogLabel(catalogKind)) + '">◆</span>' : '';
 		html += '<div class="deck-cell deck-info ' + zebra + ' ' + (sum === 0 ? 'row-zero' : '') + '" id="row-' + escapeHtml(skillId) + '">'
 			+ '<span class="deck-name">'
@@ -1043,16 +1059,17 @@ function resolveHandoffSkills(payload) {
 
 /**
  * 解決した行の内訳を「スキル◯件・シナリオ因子N件」の形にする。
- * シナリオ因子はスキルではないので、ひとまとめに「スキル◯件」と数えない
+ * シナリオ因子・遺伝子はスキルではないので、ひとまとめに「スキル◯件」と数えない
  * （OCRツール側の表記と揃える。2026-09-15）。カタログ由来が0件なら
  * 従来どおり「スキル◯件」だけを返す。カテゴリが増えても呼び名ごとにまとめる。
+ * 拡張スキルはスキルなので「スキル◯件」に含める（CATALOG_PLAIN_SKILL_CATEGORIES）。
  */
 function resolvedCountText(resolved) {
 	const byKind = {};
 	let plain = 0;
 	resolved.forEach(r => {
 		const kind = Core.skillCatalogKind(r.id);
-		if (!kind) { plain++; return; }
+		if (!kind || catalogIsPlainSkill(kind)) { plain++; return; }
 		byKind[kind] = (byKind[kind] || 0) + 1;
 	});
 	const parts = ['スキル' + plain + '件'];
