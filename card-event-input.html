@@ -115,12 +115,15 @@
 			background: var(--uma-accent-soft); color: var(--uma-accent-soft-text);
 			border-color: var(--uma-accent-soft-text);
 		}
-		/* 空配列の意味が他の軸と逆の軸（いまは8軸目の「その他」＝入手経路）。地色で区別する。
-		   **選択肢の数とは関係がない印**（値が3つに増えても逆のまま）。core の emptyMeansNone。 */
-		.cei-axis--flag {
+		/* 軸の中の**一部の値だけ**をまとめる枠。地色で区別する。
+		   いま入るのは core が internalOnly を付けた値（利用者向けの絞り込みには出さない値）。
+		   **軸そのものの印ではない** ―― 以前は軸全体（emptyMeansNone の軸）を囲んでいたが、
+		   ⑧の値が3つに増えて、性質の違うものが1つの枠に同居していた（64セッション目・段B-2）。 */
+		.cei-subbox {
 			border: 1px solid var(--uma-warn-border); border-radius: var(--uma-r-sm);
-			background: var(--uma-warn-bg); padding: 8px 10px;
+			background: var(--uma-warn-bg); padding: 8px 10px; margin-top: 8px;
 		}
+		.cei-subbox-label { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-muted); margin: 0 0 6px; }
 		.cei-axis-note {
 			font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);
 			color: var(--uma-text-subtle); margin: 4px 0 0;
@@ -560,30 +563,50 @@
 		// 本当に違う軸（空の意味が逆の軸）の注意書きが同じ見た目の文章に埋もれる。
 		h += '<p class="cei-axis-note" style="margin:0 0 10px">'
 			+ '軸の中で1つも選ばなければ、その軸では<strong>どの条件でも出る</strong>扱いになります'
-			+ '（当てはまるものだけを選んでください）。<strong>色の違う枠だけは決まりが逆です。</strong></p>';
-		Core.TAG_AXES.forEach(function (axis) {
-			var on = t[axis.key] || [];
-			// emptyMeansNone の軸は**空の意味が他の軸と逆**（他は「空＝どの条件でも出る万能」、
-			// この軸は「空＝該当しない」）。取り違えると絞り込みの結果が変わるので、地色と注記で区別する。
-			// **選択肢の数とは関係がない**（8軸目は値が3つに増えたが、逆のまま）。
-			// emptyMeansNone はデータが持つ印なので、ここで軸名も軸の位置も見ない。
-			h += '<div class="cei-axis' + (axis.emptyMeansNone ? ' cei-axis--flag' : '') + '">';
-			h += '<p class="cei-axis-label">' + esc(axis.label) + '</p>';
-			h += '<div class="cei-opts">';
-			axis.options.forEach(function (o) {
-				h += '<label class="cei-opt">'
+			+ '（当てはまるものだけを選んでください）。<strong>1つの軸だけ決まりが逆です</strong>（その軸に注記があります）。</p>';
+		// 値を2つの組に分ける。**枠に入れるのは internalOnly の値だけ**（段B-2）。
+		// 以前は emptyMeansNone の軸を丸ごと囲んでいたので、⑧の値が3つに増えたあと、
+		// ふつうのスキルに付ける値（シナリオ由来の分類）と、スキルではないものの値が
+		// 同じ枠に入り、「チェックを入れないと該当しない」の注記が3つ全部にかかっていた。
+		// **ここでも値の名前は書かない**（core が持つ印だけを見る）。
+		var split = function (opts) {
+			var plain = [], boxed = [];
+			opts.forEach(function (o) { (o.internalOnly ? boxed : plain).push(o); });
+			return { plain: plain, boxed: boxed };
+		};
+		var optsHtml = function (axis, list, on) {
+			var s = '<div class="cei-opts">';
+			list.forEach(function (o) {
+				s += '<label class="cei-opt">'
 					+ '<input type="checkbox" data-act="tag" data-skill="' + esc(skillId) + '"'
 					+ ' data-axis="' + esc(axis.key) + '" data-value="' + esc(o.v) + '"'
 					+ (on.indexOf(o.v) !== -1 ? ' checked' : '') + ' />'
 					+ '<span>' + esc(o.t) + '</span></label>';
 			});
-			h += '</div>';
-			// 注意書きを出すのは**決まりが逆の軸だけ**。全部の軸に同じ文を並べると、
-			// 本当に違う軸の注意書きが同じ見た目の文章に埋もれる。
+			return s + '</div>';
+		};
+		Core.TAG_AXES.forEach(function (axis) {
+			var on = t[axis.key] || [];
+			var g = split(axis.options);
+			h += '<div class="cei-axis">';
+			h += '<p class="cei-axis-label">' + esc(axis.label) + '</p>';
+			h += optsHtml(axis, g.plain, on);
+			// 空の意味が逆なのは**軸の決まり**（matchesFilters は軸ごとに見る）なので、
+			// 値の枠の中ではなく軸に付ける。「この枠」ではなく「この軸」と書くのはそのため。
+			// 出すのは決まりが逆の軸だけ ―― 全部の軸に同じ文を並べると埋もれる。
 			if (axis.emptyMeansNone) {
-				h += '<p class="cei-axis-note"><strong>この枠だけ決まりが逆です。</strong>'
-					+ 'チェックを入れないと<strong>「該当しない」</strong>になります'
+				h += '<p class="cei-axis-note"><strong>この軸だけ決まりが逆です。</strong>'
+					+ 'この軸で1つも選ばなければ<strong>「該当しない」</strong>になります'
 					+ '（他の軸のように「どの条件でも出る」にはなりません）。</p>';
+			}
+			// スキルではないものの値。ふつうのスキルに付ける値と混ざらないよう枠で分ける。
+			if (g.boxed.length) {
+				h += '<div class="cei-subbox">';
+				h += '<p class="cei-subbox-label">スキルではないものの値</p>';
+				h += optsHtml(axis, g.boxed, on);
+				h += '<p class="cei-axis-note"><strong>ふつうのスキルには付けません。</strong>'
+					+ 'ここにある値は利用者向けの絞り込みには出さず、ツールでもスキルとは別に扱います。</p>';
+				h += '</div>';
 			}
 			h += '</div>';
 		});
