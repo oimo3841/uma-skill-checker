@@ -248,6 +248,15 @@ const INTENTIONALLY_REMOVED = {
 	// 分かります」という、下の表を見れば分かることの言い換えだった。使い方は「使い方ガイド」にある。
 	// （#deck-roster-alpha-btn は `748aa64` に commit したので免除から外した。）
 	'special.html': ['data-tier', 'deck-roster-help-btn', 'deck-roster-help'],
+	// 2026-09-19（64セッション目・段D）: exam のシナリオ因子を24種の個別選択から
+	// **総括チェック1つ**（#scenario-factors-all）へ変えたので、開閉のパネル
+	// （#scenario-factors-details）・選んだ件数のバッジ（#scenario-factors-badge）・
+	// 「すべて解除」（#scenario-factors-clear）・24件の入れ物（#scenario-factor-list）が消えた。
+	// 種数の #scenario-factors-count は新しいチェックの中に残っている。
+	// `' + id + '` は、24件を組み立てていた文字列連結（id="' + id + '"）を
+	// この検査が id と読んでいたもの（core.js の value="' + esc(...) + '" と同じ引っかかり方）。
+	// commit が進めば免除は要らなくなるので、次の commit で空に戻す。
+	'exam.html': ['scenario-factors-details', 'scenario-factors-badge', 'scenario-factors-clear', 'scenario-factor-list', "' + id + '"],
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

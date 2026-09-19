@@ -1392,11 +1392,13 @@ const browser = await chromium.launch();
 		&& document.getElementById('badge-scope-removed-text').textContent === '除外12種'
 		&& document.querySelectorAll('#skill-registry-list .registry-removed').length === 12),
 		'exam: 対象を絞ると「除外12種」のバッジが出て、一覧には取り消し線で残る');
-	await page.evaluate(() => { toggleScenarioFactor(0, true); toggleScenarioFactor(1, true); });
-	assert(await page.evaluate(() => document.getElementById('badge-scenario-factors-text').textContent) === 'シナリオ因子：2種',
-		'exam: シナリオ因子を選ぶと「シナリオ因子：2種」のバッジが出る');
+	// 64セッション目（段D）に、24種の個別選択から**総括チェック1つ**へ変えた。
+	// ON にすると24種すべてが対象に入る（内部の Set は「24種全部」か「空」の2択）。
+	await page.evaluate(() => setScenarioFactorsAll(true));
+	assert(await page.evaluate(() => document.getElementById('badge-scenario-factors-text').textContent) === 'シナリオ因子：24種',
+		'exam: シナリオ因子を ON にすると「シナリオ因子：24種」のバッジが出る');
 	// シナリオ因子はスキルではないので、「スキル」と付く数には入れない。
-	// 並び（照合・一覧・表）には従来どおり入る＝skillList は 121+2 のまま。
+	// 並び（照合・一覧・表）には従来どおり入る＝skillList は 121+24 のまま。
 	const splitCounts = await page.evaluate(() => {
 		selectCopyList('all133');
 		return {
@@ -1412,22 +1414,22 @@ const browser = await chromium.launch();
 			copyLines: document.getElementById('skill-copy-textarea').value.split('\n').length
 		};
 	});
-	assert(splitCounts.skillOnly === 121 && splitCounts.factorOnly === 2 && splitCounts.all === 123,
-		'exam: シナリオ因子を選ぶと、数える配列はスキル121・因子2に分かれる（並びの skillList は123のまま）', splitCounts);
+	assert(splitCounts.skillOnly === 121 && splitCounts.factorOnly === 24 && splitCounts.all === 145,
+		'exam: シナリオ因子を ON にすると、数える配列はスキル121・因子24に分かれる（並びの skillList は145のまま）', splitCounts);
 	assert(splitCounts.badge === '121種（調整あり）' && splitCounts.registry === '121' && splitCounts.copylist === '121',
-		'exam: ①のバッジ・一覧の見出し・コピーの「全◯種」は、因子を選んでもスキルだけの数（121）', splitCounts);
-	// 一覧は「外した12種」も取り消し線で残すので 133＋因子2＝135行。数だけがスキルの121になる。
-	assert(splitCounts.rows === 135,
-		'exam: 一覧の行そのものにはシナリオ因子も並ぶ（133＋因子2＝135行）', splitCounts);
+		'exam: ①のバッジ・一覧の見出し・コピーの「全◯種」は、因子を足してもスキルだけの数（121）', splitCounts);
+	// 一覧は「外した12種」も取り消し線で残すので 133＋因子24＝157行。数だけがスキルの121になる。
+	assert(splitCounts.rows === 157,
+		'exam: 一覧の行そのものにはシナリオ因子も並ぶ（133＋因子24＝157行）', splitCounts);
 	// 表記: 因子も並ぶ／書き出される場所には「＋シナリオ因子N種」を添える
-	assert(splitCounts.registryHead === '対象スキル121種＋シナリオ因子2種の一覧を確認する',
-		'exam: 一覧の見出しは「対象スキル121種＋シナリオ因子2種の一覧を確認する」', splitCounts.registryHead);
-	assert(splitCounts.copyBtn === '全121種＋シナリオ因子2種',
-		'exam: コピーの全種ボタンも「全121種＋シナリオ因子2種」', splitCounts.copyBtn);
-	assert(splitCounts.copyHint === '対象スキル全121種＋シナリオ因子2種（登録順・範囲とカスタム設定を反映） ・ 123行'
-		&& splitCounts.copyLines === 123,
-		'exam: スキル名のコピーの見出しは種数を分けて書き、行数は実際の123行のまま', splitCounts);
-	await page.evaluate(() => { clearScenarioFactors(); setTargetScopeMode('default'); });
+	assert(splitCounts.registryHead === '対象スキル121種＋シナリオ因子24種の一覧を確認する',
+		'exam: 一覧の見出しは「対象スキル121種＋シナリオ因子24種の一覧を確認する」', splitCounts.registryHead);
+	assert(splitCounts.copyBtn === '全121種＋シナリオ因子24種',
+		'exam: コピーの全種ボタンも「全121種＋シナリオ因子24種」', splitCounts.copyBtn);
+	assert(splitCounts.copyHint === '対象スキル全121種＋シナリオ因子24種（登録順・範囲とカスタム設定を反映） ・ 145行'
+		&& splitCounts.copyLines === 145,
+		'exam: スキル名のコピーの見出しは種数を分けて書き、行数は実際の145行のまま', splitCounts);
+	await page.evaluate(() => { setScenarioFactorsAll(false); setTargetScopeMode('default'); });
 	assert(await page.textContent('#step1-skill-badge') === '133種', 'exam: 調整を戻すとバッジも「133種」に戻る');
 	assert(await page.evaluate(() => ['badge-scope-added', 'badge-scope-removed', 'badge-scenario-factors']
 		.every((id) => document.getElementById(id).classList.contains('hidden'))),
@@ -1647,21 +1649,21 @@ const browser = await chromium.launch();
 	assert(deckErrors.length === 0, 'exam: Deck 側にコンソールエラーなし', deckErrors.slice(0, 3));
 
 	// 既定から動かした人は scope の名前が「技能試験（調整あり）」。
-	// 対象を広げ、シナリオ因子も1種足す。シナリオ因子は白スキル445種のマスターには無いが、
+	// 対象を広げ、シナリオ因子も足す。シナリオ因子は白スキル445種のマスターには無いが、
 	// Deck は追加カタログ（catalog-data/）から引くので、警告を出さずに取り込める。
-	await page.evaluate(() => { setTargetScopeMode('expanded'); toggleScenarioFactor(0, true); });
+	await page.evaluate(() => { setTargetScopeMode('expanded'); setScenarioFactorsAll(true); });
 	await seedExam();
 	await page.waitForTimeout(400);
 	p = await readExam();
 	// Deck へ渡す skillNames は**因子を含めたまま**（Deck 側はカタログの◆として取り込む）。
-	// 138種＋シナリオ因子1種＝139件。この139は「渡した行数」であって「スキル数」ではない。
-	assert(p && !p.imported && p.scope.name === '技能試験（調整あり）' && p.skillNames.length === 139,
-		'exam: 判定し直すと新しい payload（調整あり・139件＝スキル138＋シナリオ因子1）になり未取り込みに戻る', p && { imported: p.imported, scope: p.scope, n: p.skillNames.length });
+	// 138種＋シナリオ因子24種＝162件。この162は「渡した行数」であって「スキル数」ではない。
+	assert(p && !p.imported && p.scope.name === '技能試験（調整あり）' && p.skillNames.length === 162,
+		'exam: 判定し直すと新しい payload（調整あり・162件＝スキル138＋シナリオ因子24）になり未取り込みに戻る', p && { imported: p.imported, scope: p.scope, n: p.skillNames.length });
 	assert(await page.evaluate(() => {
 		const f = new Set(SCENARIO_INHERITANCE_FACTORS);
 		const pay = JSON.parse(localStorage.getItem('umaSkillDeck:ocrHandoff:exam'));
-		return pay.skillNames.filter((x) => !f.has(x)).length === 138 && pay.skillNames.filter((x) => f.has(x)).length === 1;
-	}), 'exam: 渡した139件の内訳はスキル138件・シナリオ因子1件');
+		return pay.skillNames.filter((x) => !f.has(x)).length === 138 && pay.skillNames.filter((x) => f.has(x)).length === 24;
+	}), 'exam: 渡した162件の内訳はスキル138件・シナリオ因子24件');
 	// 「スキル」と付く数からは因子を外す。検出数もスキルだけを数える（因子は全員が検出済みの種でも増えない）。
 	const factorSplit = await page.evaluate(() => ({
 		skillOnly: skillOnlyList.length, factorOnly: factorOnlyList.length, all: skillList.length,
@@ -1675,18 +1677,18 @@ const browser = await chromium.launch();
 		detected0: countDetected(0),
 		detectedWithFactors: skillList.filter((s) => personResults[0].detectedSkills.has(s)).length
 	}));
-	assert(factorSplit.skillOnly === 138 && factorSplit.factorOnly === 1 && factorSplit.all === 139
+	assert(factorSplit.skillOnly === 138 && factorSplit.factorOnly === 24 && factorSplit.all === 162
 		&& factorSplit.badge === '138種（調整あり）' && factorSplit.registry === '138' && factorSplit.statTotal === '138',
 		'exam: ①のバッジ・一覧の見出し・「対象スキル数」カードは、因子を除いた138', factorSplit);
-	assert(factorSplit.detected0 === 138 && factorSplit.detectedWithFactors === 139 && factorSplit.statFound1 === '138',
-		'exam: 検出数はスキルだけを数える（因子込みなら139になるところを138）', factorSplit);
-	assert(!factorSplit.statFactorHidden && factorSplit.statFactor === '＋シナリオ因子1種',
-		'exam: 「対象スキル数」カードの下に「＋シナリオ因子1種」が出る', factorSplit);
+	assert(factorSplit.detected0 === 138 && factorSplit.detectedWithFactors === 162 && factorSplit.statFound1 === '138',
+		'exam: 検出数はスキルだけを数える（因子込みなら162になるところを138）', factorSplit);
+	assert(!factorSplit.statFactorHidden && factorSplit.statFactor === '＋シナリオ因子24種',
+		'exam: 「対象スキル数」カードの下に「＋シナリオ因子24種」が出る', factorSplit);
 	n = await noteState();
 	assert(n.title.includes('取り込めます') && n.detail.includes('（対象：技能試験（調整あり））') && n.dot,
 		'exam: 案内も「取り込めます」に戻り、対象名に（調整あり）が付く', n);
-	assert(n.detail.startsWith('親A・親B の2人分・スキル138件・シナリオ因子1件を渡しました'),
-		'exam: 取り込み案内は「スキル138件・シナリオ因子1件」と分けて書く', n.detail);
+	assert(n.detail.startsWith('親A・親B の2人分・スキル138件・シナリオ因子24件を渡しました'),
+		'exam: 取り込み案内は「スキル138件・シナリオ因子24件」と分けて書く', n.detail);
 	assert(await page.evaluate(() => fabUnseen.deck), 'exam: 判定し直すと Deck のバッジがまた点く');
 	await deckFrame.locator('#ocr-handoff-banner').waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
 	const factorResolve = await frame.evaluate(() => {
@@ -1695,9 +1697,9 @@ const browser = await chromium.launch();
 		return { resolved: r.resolved.length, unresolved: r.unresolved, uraId: hit ? hit.id : null,
 			kind: hit ? UmaSkillDeckCore.skillCatalogKind(hit.id) : null };
 	});
-	assert(factorResolve.resolved === 139 && factorResolve.unresolved.length === 0
+	assert(factorResolve.resolved === 162 && factorResolve.unresolved.length === 0
 		&& factorResolve.uraId === 'sf-ura' && factorResolve.kind === 'scenarioFactor',
-		'exam: シナリオ因子も含めて139件すべてが解決し、URAシナリオはカタログの sf-ura に着く', factorResolve);
+		'exam: シナリオ因子も含めて162件すべてが解決し、URAシナリオはカタログの sf-ura に着く', factorResolve);
 	await deckFrame.locator('[data-ocr-act="import"]').click();
 	await page.waitForTimeout(600);
 	const warn = await frame.evaluate(() => {
@@ -1707,8 +1709,8 @@ const browser = await chromium.launch();
 	assert(warn === null, 'exam: シナリオ因子を混ぜても「見つからなかった」警告は出ない', warn);
 	const factorDlg = await frame.evaluate(() =>
 		document.querySelector('.usd-modal-panel .text-xs.text-slate-500').textContent);
-	assert(factorDlg.includes('スキル138件・シナリオ因子1件を取り込みます'),
-		'deck: 取り込みダイアログも「スキル138件・シナリオ因子1件」と分けて書く', factorDlg);
+	assert(factorDlg.includes('スキル138件・シナリオ因子24件を取り込みます'),
+		'deck: 取り込みダイアログも「スキル138件・シナリオ因子24件」と分けて書く', factorDlg);
 	// 取り込んだシートで、カタログ由来の行に◆が付き、名前が「（不明なスキル）」にならないこと。
 	// 行の格子はシートを開いている間だけ描かれるので、取り込んだシートを開いてから見る。
 	await deckFrame.locator('[data-ocr-act="apply"]').click();
@@ -1737,7 +1739,7 @@ const browser = await chromium.launch();
 		'deck: 取り込んだシートでカタログ由来の行に◆が付き、白スキルの行には付かない', factorRow);
 	await frame.evaluate(() => closeRecordEditor());
 	await page.waitForTimeout(300);
-	await page.evaluate(() => { clearScenarioFactors(); setTargetScopeMode('default'); });
+	await page.evaluate(() => { setScenarioFactorsAll(false); setTargetScopeMode('default'); });
 
 	/* --- シナリオ因子の絞り込み（applyScenarioFactorStrictMatch。47セッション目） ---
 	   完全一致に加えて「カタログの中で1つに絞れる1文字違い」も採る。
@@ -2922,7 +2924,7 @@ const browser = await chromium.launch();
 			'exam: 画面の告知が既読なら、対象スキルの告知が代わりに出る', tgt);
 		assert(tgt.title === '対象スキルの選択方法がアップデートされました'
 			&& tgt.body.includes('「対象スキルの範囲」から、既定133種／拡張138種／絞り込み121種を選べるようになりました。')
-			&& tgt.body.includes('新たに「シナリオ因子」を1種ずつ選んで対象に追加できます。'),
+			&& tgt.body.includes('新たに「シナリオ因子」も対象に追加できます。'),
 			'exam: 対象スキルの告知の文面が決めたとおり', tgt);
 		assert(tgt.seen === null, 'exam: 対象スキルの告知も、開いただけではまだ既読にしない', tgt.seen);
 		await page.click('#ui-notice-ok');
@@ -4319,7 +4321,7 @@ const browser = await chromium.launch();
 
 	// シナリオ因子を1件選ぶと選べるようになり、模式図の帯が出る。OFF にすると帯が消え、保存される。
 	// 検出数カード（banner）と目覚めの脚注は影響を受けない
-	await page.evaluate(() => toggleScenarioFactor(0, true));
+	await page.evaluate(() => setScenarioFactorsAll(true));
 	await page.waitForTimeout(200);
 	s = await stateOf();
 	assert(!s.scenarioDisabled && !s.scenarioGrey && s.eff.scenario === true && s.wire.scenario.every((h) => !h),
@@ -4330,7 +4332,7 @@ const browser = await chromium.launch();
 	assert(!s.scenario && s.stored[4] === '0' && s.wire.scenario.every((h) => h) && s.wire.banner.every((h) => !h),
 		'結合画像の表示: シナリオ因子を OFF にすると uma-exam-stitch-scenario に保存され、帯だけ消える（カードと脚注は残る）', s);
 	await page.click('#stitch-show-scenario');
-	await page.evaluate(() => toggleScenarioFactor(0, false));
+	await page.evaluate(() => setScenarioFactorsAll(false));
 	await page.waitForTimeout(200);
 	s = await stateOf();
 	assert(s.scenario && s.scenarioDisabled && s.stored[4] === '1', '結合画像の表示: 因子を全部外すとまた灰色になるが、チェックの状態は保たれる', s);
@@ -4552,7 +4554,7 @@ const browser = await chromium.launch();
 			setStitchShow('banner', true); setStitchShow('scenario', true); setStitchShow('legend', true); setStitchShow('conditions', true);
 			setAttrIcons(false);
 			// シナリオ因子を1件選んだ状態で OCR したことにする（因子の行の ON/OFF が効く状態）
-			setTargetScopeMode('default'); clearScenarioFactors(); toggleScenarioFactor(0, true); setCountMode('equivalence');
+			setTargetScopeMode('default'); setScenarioFactorsAll(true); setCountMode('equivalence');
 			persons[0].files = [{ name: 'a.png' }, { name: 'b.png' }];
 			out.states.beforeAny = stitchRefreshState();
 			// 「OCR が済んで結合画像ができた」状態を作る
@@ -4599,10 +4601,10 @@ const browser = await chromium.launch();
 			out.states.scopeChanged = stitchRefreshState();
 			setTargetScopeMode('default');
 			out.states.scopeBack = stitchRefreshState();
-			// シナリオ因子の選択 → stale → 戻す
-			toggleScenarioFactor(1, true);
+			// シナリオ因子の ON/OFF → stale → 戻す（総括チェック1つになったので、OFF にして戻す）
+			setScenarioFactorsAll(false);
 			out.states.factorOn = stitchRefreshState();
-			toggleScenarioFactor(1, false);
+			setScenarioFactorsAll(true);
 			out.states.factorOff = stitchRefreshState();
 			// 集計モード → stale → 戻す
 			setCountMode('individual');
@@ -4628,7 +4630,7 @@ const browser = await chromium.launch();
 			persons[0].files = [];
 			setAttrIcons(false);
 			setStitchShow('banner', true);
-			clearScenarioFactors();
+			setScenarioFactorsAll(false);
 			lastOcrRun = null; lastStitchRun = null;
 			document.getElementById('stitch-result-content').innerHTML = '';
 			setSectionReady('stitch', false);
@@ -5286,15 +5288,15 @@ const browser = await chromium.launch();
  *
  * 場所ごとに別の値（sky-50〜900・canvas の直書き）だったものを、4つの役割に
  * まとめた。**どの箇所もトークンと同じ値で描かれている**ことを見る。
- * 因子の選択一覧のチェックだけは「操作できる部品は黒」の例外ではなく原則どおり黒。
+ * 因子の総括チェックだけは「操作できる部品は黒」の例外ではなく原則どおり黒。
  * ============================================================ */
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
 	await page.evaluate(() => {
 		if (typeof closeUiNotice === 'function') closeUiNotice();
 		document.querySelectorAll('.uma-overlay-backdrop, .uma-overlay').forEach((el) => { el.hidden = true; });
-		// 4種選ぶ（3種以下だとハイライトの「他」が出ない）
-		[0, 1, 2, 3].forEach((i) => toggleScenarioFactor(i, true));
+		// 因子を ON にする（24種。3種以下だとハイライトの「他」が出ない）
+		setScenarioFactorsAll(true);
 		const mk = (names, offset) => matchAllSkillsWithStars(
 			names.map((n, i) => ({ text: n, stars: ((i + offset) % 3) + 1, starsReliable: true, rowKey: 'r' + i })),
 			skillList, skillIndex, {});
@@ -5331,7 +5333,7 @@ const browser = await chromium.launch();
 			badgeText: cs(document.getElementById('badge-scenario-factors'), 'color'),
 			listMark: cs(listMark, 'color'),
 			tableMark: cs(tableMark, 'color'),
-			check: cs(document.querySelector('#scenario-factor-list input'), 'accentColor'),
+			check: cs(document.getElementById('scenario-factors-all'), 'accentColor'),
 			cardBorder: cs(card, 'borderTopColor'),
 			cardHead: cs(cardHead, 'color'),
 			cardLine: cs(cardLine, 'color'),
@@ -5354,7 +5356,7 @@ const browser = await chromium.launch();
 	assert(c.stitchText === '#76136f' && c.stitchMore === '#b02aa8',
 		'シナリオ因子の色: 結合画像が読むトークンも文字と印の色', c);
 	assert(c.check === CONTROL,
-		'シナリオ因子の色: 因子の選択一覧のチェックだけは操作の色（黒）', c.check);
+		'シナリオ因子の色: 因子の総括チェックだけは操作の色（黒）', c.check);
 	assert(errors.length === 0, 'シナリオ因子の色: コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
@@ -5370,23 +5372,29 @@ const browser = await chromium.launch();
  * ============================================================ */
 {
 	// ハイライトを引き出しごと開いて、人物ごとのまとまりを作る
-	const seedHighlight = (page, factorCount) => page.evaluate((n) => {
+	// factorsOn … シナリオ因子の総括チェック（ON なら24種すべてが対象）。
+	// 戻り値の longest は「いちばん長い因子名」。**名前をこのファイルに書かず**に
+	// 「長い名前が省略される／広い幅では全部出る」を確かめるために返す。
+	const seedHighlight = (page, factorsOn) => page.evaluate((on) => {
 		if (typeof closeUiNotice === 'function') closeUiNotice();
 		document.querySelectorAll('.uma-overlay-backdrop, .uma-overlay').forEach((el) => { el.hidden = true; });
-		clearScenarioFactors();
-		// 長い名前（グランドマスターズシナリオ）も混ぜる
-		[0, 4, 23, 1].slice(0, n).forEach((i) => toggleScenarioFactor(i, true));
+		setScenarioFactorsAll(on);
 		const mk = (names, offset) => matchAllSkillsWithStars(
 			names.map((s, i) => ({ text: s, stars: ((i + offset) % 3) + 1, starsReliable: true, rowKey: 'r' + i })),
 			skillList, skillIndex, {});
+		// 因子は2種だけ検出したことにする（★が付く行と「－」の行を両方出すため）。
+		// **いちばん長い名前を必ず混ぜる**（上位3行に入るので、省略の検査が効く）。
+		const longest = factorOnlyList.slice().sort((a, b) => b.length - a.length)[0] || null;
+		const hit = factorOnlyList.length
+			? [factorOnlyList[0], longest].filter((v, i, a) => v && a.indexOf(v) === i) : [];
 		personResults = PERSON_LABELS.map(() => null);
-		// 因子は先頭2種だけ検出したことにする（★が付く行と「－」の行を両方出すため）
 		for (let p = 0; p < 3; p++) {
-			personResults[p] = mk(skillList.slice(0, 120 - p * 10).concat(factorOnlyList.slice(0, 2)), p);
+			personResults[p] = mk(skillList.slice(0, 120 - p * 10).concat(hit), p);
 		}
 		renderResults();
 		openDrawer('result');
-	}, factorCount);
+		return { longest: longest, hit: hit };
+	}, factorsOn);
 	const readGroups = (page) => page.evaluate(() => {
 		const groups = [...document.querySelectorAll('#exam-highlight-grid [data-person-group]')];
 		const box = document.getElementById('exam-highlight');
@@ -5443,7 +5451,7 @@ const browser = await chromium.launch();
 	// --- 375px（スマホ幅）・シナリオ因子あり ---
 	{
 		const { ctx, page, errors } = await openPage(browser, base, 'exam.html', { width: 375, height: 1400 });
-		await seedHighlight(page, 4);
+		const seeded = await seedHighlight(page, true);
 		await page.waitForTimeout(700);
 		const g = await readGroups(page);
 		assert(g.count === 3 && g.labels.join('・') === '親A・祖A1・祖A2',
@@ -5476,7 +5484,9 @@ const browser = await chromium.launch();
 		assert(new Set(f.rows.map((r) => r.starsLeft)).size === 1,
 			'ハイライト: 「：★N」の左端が全行で揃う（★の縦位置が揃う）', f.rows.map((r) => r.starsLeft));
 		const clipped = f.rows.filter((r) => r.clipped);
-		assert(clipped.length > 0 && clipped.every((r) => r.title && r.title.length > r.name.length),
+		assert(clipped.length > 0 && clipped.every((r) => r.title && r.title.length > r.name.length)
+			// title は行の全文（「名前：★N」）なので、名前で始まっていることを見る
+			&& clipped.some((r) => r.title.startsWith(seeded.longest)),
 			'ハイライト: 375px で長い因子名は省略され、全文が title で分かる', clipped.map((r) => [r.name, r.title]));
 		assert(f.moreText === '他' && f.moreBelowGrid,
 			'ハイライト: 「他」は格子の外・カードの右下にあり、★の列と重ならない', { more: f.moreText, below: f.moreBelowGrid });
@@ -5487,7 +5497,7 @@ const browser = await chromium.launch();
 	// --- 375px・シナリオ因子なし ---
 	{
 		const { ctx, page } = await openPage(browser, base, 'exam.html', { width: 375, height: 1400 });
-		await seedHighlight(page, 0);
+		await seedHighlight(page, false);
 		await page.waitForTimeout(700);
 		const g = await readGroups(page);
 		assert(g.cardCounts.every((n) => n === 2) && g.cardHeads.every((h) => h.join('|') === 'sp70緑|緑（実質53種）'),
@@ -5501,7 +5511,7 @@ const browser = await chromium.launch();
 	// --- 768px（中間）: まとまりの中は3枚横並び、まとまりは縦に積む ---
 	{
 		const { ctx, page } = await openPage(browser, base, 'exam.html', { width: 768, height: 1200 });
-		await seedHighlight(page, 4);
+		await seedHighlight(page, true);
 		await page.waitForTimeout(700);
 		const g = await readGroups(page);
 		assert(g.innerTops.every((t) => t[0] === t[1] && t[1] === t[2]),
@@ -5514,7 +5524,7 @@ const browser = await chromium.launch();
 	// --- 1280px（PC幅）: まとまりを横に2つずつ ---
 	{
 		const { ctx, page } = await openPage(browser, base, 'exam.html', { width: 1280, height: 1000 });
-		await seedHighlight(page, 4);
+		const seeded1280 = await seedHighlight(page, true);
 		await page.waitForTimeout(700);
 		const g = await readGroups(page);
 		assert(g.innerTops.every((t) => t[0] === t[1] && t[1] === t[2]),
@@ -5523,7 +5533,7 @@ const browser = await chromium.launch();
 			'ハイライト: 1280px ではまとまりが横に2つずつ並ぶ', g.tops);
 		// 広い幅では名前が全部出る。★の左端が揃うのは幅を問わない
 		const f = await readFactorRows(page);
-		assert(f.rows.every((r) => !r.clipped) && f.rows.some((r) => r.name === 'グランドマスターズシナリオ'),
+		assert(f.rows.every((r) => !r.clipped) && f.rows.some((r) => r.name === seeded1280.longest),
 			'ハイライト: 1280px では因子の名前が省略されずに出る', f.rows.map((r) => r.name));
 		assert(new Set(f.rows.map((r) => r.starsLeft)).size === 1 && f.rows.every((r) => !r.starsClipped),
 			'ハイライト: 1280px でも「：★N」の左端が全行で揃う', f.rows.map((r) => [r.stars, r.starsLeft]));
