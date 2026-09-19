@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19e';
 
 	/* ============================================================
 	 * 定数
@@ -472,22 +472,27 @@
 	 * 1カテゴリが落ちても他のカテゴリは読めたぶんだけ使う。
 	 * ------------------------------------------------------------ */
 	/**
-	 * 追加カタログの1件を、内部で持つ形（{ id, name, category, tags?, tagsPending? }）に整える。
+	 * 追加カタログの1件を、内部で持つ形に整える（`{ …正本のキー全部, id, name, category }`）。
 	 *
-	 * **`tags` / `tagsPending` は落とさずに素通しする**（C-49 の5節に積み残していた件）。
-	 * 拡張スキルはこの2つでタグの有無を表しており、落とすと `findSkill()` が常に
-	 * 空のタグを返し、タグを付けても Deck に届かない。
+	 * **浅いコピー。知らないキーも落とさず素通しする。**
 	 *
-	 * **持っているキーだけを写す**（無いものを既定値で作らない）。シナリオ因子のように
-	 * どちらも持たないカテゴリがあるため、ここで既定値を入れるとカテゴリ名で分岐する
-	 * ことになる（恒久ルール1）。「8軸すべてが空のタグ」は**万能スキル**という別の意味を
-	 * 持つので、未設定の代わりに空のタグを作ってはいけない。
+	 * 写すキーをここに並べると、正本に項目が増えるたびに core を直すことになり、
+	 * **直し忘れたときに黙って落ちる**（C-49 の5節の `tags` がまさにこれだった。
+	 * 項目を足した側は core を直す必要に気づけないので、**気づく仕組みが無い**のが問題）。
+	 * 正本の入口は `npm run check:catalog` が許可リスト方式で固めているので、
+	 * 想定外のキーがファイルから紛れ込むことはない。**関門は入口に1つ置き、
+	 * ここは素通しにする**（C-64）。
+	 *
+	 * **無いものを既定値で作らない。** シナリオ因子は `tags` も `tagsPending` も持たないので、
+	 * ここで既定値を入れるとカテゴリ名で分岐することになる（恒久ルール1）。
+	 * 「8軸すべてが空のタグ」は**万能スキル**という別の意味を持つため、
+	 * タグ未設定の代わりに空のタグを作ってはいけない。
+	 *
+	 * `id` / `name` / `category` だけは上書きする（前2つは型をそろえるため、
+	 * `category` は正本ではなく `EXTRA_CATALOG_SOURCES` の並びが正のため）。
 	 */
 	function toCatalogEntry(e, category) {
-		const out = { id: String(e.id), name: String(e.name), category: category };
-		if (e.tags) out.tags = e.tags;
-		if (e.tagsPending) out.tagsPending = true;
-		return out;
+		return Object.assign({}, e, { id: String(e.id), name: String(e.name), category: category });
 	}
 
 	function normalizeCatalogEntries(data, category) {
@@ -912,13 +917,17 @@
 		if (m) return m;
 		const c = (ensureUserData().customSkills || []).find(s => s.customId === skillId);
 		if (c) return { id: c.customId, name: c.name, tags: c.tags };
-		// 追加カタログ（シナリオ因子・拡張スキルなど）。タグを持つものはそのまま返し、
-		// 持たないもの（シナリオ因子・タグ未設定の拡張スキル）は空のタグ集合を返す。
+		// 追加カタログ（シナリオ因子・拡張スキルなど）。
+		// **こちらも浅いコピーで返す**（上のマスターの層が生の1件をそのまま返しているのと
+		// 同じ扱い）。ここだけ手で並べたオブジェクトを組むと、toCatalogEntry() を素通しに
+		// しても**この関数でもう一度落ちる**（関門を入口に寄せた意味が無くなる。C-64）。
+		// タグを持つものはそのまま返し、持たないものは空のタグ集合を返す。
 		// **空のタグ集合は「万能スキル」の意味になる**ので、未設定と見分けたい呼び出し側は
 		// tagsPending を見る（この2つを取り違えないよう、両方を返す）。
-		// kind にカテゴリが入るので、呼び出し側は「カタログ由来か」を見分けられる。
+		// kind にカテゴリが入るので、呼び出し側は「カタログ由来か」を見分けられる
+		// （素通しにした結果 category も一緒に来るが、kind はこの関数が昔から使っている名前）。
 		const x = extraCatalog.find(s => s.id === skillId);
-		if (x) return { id: x.id, name: x.name, tags: x.tags || emptyTagSet(), tagsPending: !!x.tagsPending, kind: x.category };
+		if (x) return Object.assign({}, x, { tags: x.tags || emptyTagSet(), tagsPending: !!x.tagsPending, kind: x.category });
 		return null;
 	}
 
