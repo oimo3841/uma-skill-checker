@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19f';
 
 	/* ============================================================
 	 * 定数
@@ -226,9 +226,13 @@
 	let userData = null;
 	let masterSkills = [];
 	let masterMeta = { version: '', fetchedAt: '' };
-	// 追加カタログ（全カテゴリを1本の配列にまとめたもの）。各要素は { id, name, category }。
+	// 追加カタログ（全カテゴリを1本の配列にまとめたもの）。各要素は正本の1件＋ category。
 	let extraCatalog = [];
 	let extraCatalogMeta = { entryCount: 0, sources: [] };
+	// カテゴリ → 取得した**生の doc**（正本のファイルそのまま。上の extraCatalog は
+	// entries を平らにしたもので、ファイル階層のキー（dataVersion / nextSerial / note …）を
+	// 持たない）。貼り付け用のテキストを組み立てる側が要るので、読んだものを残しておく。
+	let extraCatalogDocs = {};
 	let trainingSources = { };
 	let trainingMeta = { loaded: false, sources: [] };
 
@@ -506,6 +510,7 @@
 		let cached = null;
 		try { cached = JSON.parse(global.localStorage.getItem(STORAGE_KEY_EXTRA_CATALOG) || 'null'); } catch (e) {}
 		const nextCache = {};
+		const nextDocs = {};
 		const entries = [];
 		const sources = [];
 
@@ -528,12 +533,16 @@
 				data = null;
 				from = '組み込み';
 			}
-			if (data) nextCache[src.category] = data;
+			// nextCache は localStorage へ書き戻すぶん、nextDocs は画面へ渡すぶん。
+			// 組み込みの写しに落ちたときは data が null なので、生の doc は残らない
+			// （呼び出し側は「読めていない」と判断できる）。
+			if (data) { nextCache[src.category] = data; nextDocs[src.category] = data; }
 			list.forEach(e => entries.push(e));
 			sources.push({ category: src.category, count: list.length, from: from, version: (data && data.dataVersion) || '' });
 		}
 
 		extraCatalog = entries;
+		extraCatalogDocs = nextDocs;
 		extraCatalogMeta = { entryCount: entries.length, sources: sources };
 
 		// 1件も読めなかったカテゴリは**黙って進めない**（C-49）。
@@ -4476,6 +4485,20 @@
 		getExtraCatalog: function () { return extraCatalog; },
 		getExtraCatalogMeta: function () { return extraCatalogMeta; },
 		getExtraCatalogSources: function () { return EXTRA_CATALOG_SOURCES.slice(); },
+		/**
+		 * 収録データから参照してよいスキルのカタログ（＝マスター445種の外にあるスキル）の
+		 * **取得した生の doc**。読めていなければ null。
+		 *
+		 * **貼り付け用のテキストを組み立てる側は、必ずこちらを土台にすること。**
+		 * `getExtraCatalog()` が返すのは core が正規化したあとの配列なので、それをもとに
+		 * ファイルを組み立て直すと、**ファイル階層のキー（`nextSerial` / `note` など）が
+		 * 丸ごと落ち、core が知らないエントリのキーも消える**。「1件足して貼ったら
+		 * 既存の全件から説明文が消えていた」という類の事故になる（C-64 の3節）。
+		 *
+		 * カテゴリ名を呼び出し側に書かせないため、`isReferableSkillId()` と同じ判断を
+		 * ここに置いてある（作業用ページはカテゴリ名を知らずに済む）。
+		 */
+		getReferableCatalogDoc: function () { return extraCatalogDocs[REFERABLE_CATALOG_CATEGORY] || null; },
 		// 収録データ（育成ウマ娘・サポートカード・イベントスキル）。呼んだ画面だけが読む。
 		loadTrainingSources: loadTrainingSources,
 		getTrainingSources: function () { return trainingSources; },

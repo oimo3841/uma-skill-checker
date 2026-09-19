@@ -289,7 +289,10 @@ for (const [p, sources] of Object.entries(SIBLINGS)) {
 
 console.log('\n=== 5. JS構文チェック ===');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'umacheck-'));
-for (const p of ['special.html', 'exam.html', 'uma-skill-deck.html', 'css/styleguide.html']) {
+// card-event-input.html は 63セッション目（段2）に足した。作業用ページだが中身は素の JS で、
+// 画面が2つになってスクリプトが伸びたので、他のページと同じく構文だけは見る
+// （C-50 のときは ALL_JS には入れたが、この一覧に入れ忘れていた）。
+for (const p of ['special.html', 'exam.html', 'uma-skill-deck.html', 'css/styleguide.html', 'card-event-input.html']) {
 	const blocks = [...read(p).matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
 	console.log('     %s: <script>ブロック %d件', p, blocks.length);
 	blocks.forEach((b, i) => {

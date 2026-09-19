@@ -3,18 +3,30 @@
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>イベントスキルの入力（作業用）</title>
+	<title>収録データの入力（作業用）</title>
 	<!--
-		catalog-data/support-card-event-skills.json の中身を、ゲーム画面を見ながら
-		1枚ずつ埋めていくための作業用ページ。**ツール本体には組み込まない**
-		（css/styleguide.html と同じ扱い。どのページからもリンクしない）。
+		catalog-data/ の中身を、ゲーム画面を見ながら手で埋めていくための作業用ページ。
+		**ツール本体には組み込まない**（css/styleguide.html と同じ扱い。どのページからもリンクしない）。
+
+		■ 2つの画面（貼り先が違うので、出力も分けてある）
+		- 「イベントスキル」… サポートカードのイベントで得られるスキルを1枚ずつ記録する。
+		                      → 出力 A ＝ catalog-data/support-card-event-skills.json
+		- 「スキルのタグ付け」… マスター445種の外にあるスキルに、8軸のタグを付ける。
+		                      → 出力 B ＝ catalog-data/extended-skills.json
+		イベントの画面で選んだスキルにもその場でタグを付けられるが、**タグの行き先は
+		つねに出力 B**（タグはスキルの属性で、カードの属性ではないため）。
+		**A と B を1つのテキストに混ぜない。**
 
 		■ このページがしないこと
 		- ファイルへの書き込みはしない（ブラウザからはできない）。出力をコピーして貼る。
 		- **カスタムスキルを作らない・使わない。** 名前を探すときの母集団には
 		  利用者のカスタムスキルも含まれるが、このページはそれを新しく作らないし、
 		  Deck の保存データ（umaSkillDeck:*）には一切書き込まない。
-		  途中経過は umaCardEventInput:draft にだけ持つ。
+		  途中経過は umaCardEventInput:draft と umaCardEventInput:tagDraft にだけ持つ。
+		- **読み込んだ収録データを書き換えない。** core が返す tags はカタログ本体と
+		  同じオブジェクトを指しているので（浅いコピー。C-64 の3節）、タグの編集は
+		  必ず copyTags() で作った深いコピーに対して行う。
+		- **軸名・選択肢をこのファイルに書かない。** すべて Core.TAG_AXES から引く（恒久ルール1）。
 
 		■ 読むもの（すべて読み取りだけ）
 		- catalog-data/support-cards.json          … カードの一覧
@@ -57,11 +69,67 @@
 			border: 1px solid var(--uma-border); border-radius: 999px;
 			padding: 2px 6px 2px 10px; font-size: var(--uma-fs-xs); background: var(--uma-surface-sunken);
 		}
+		/* --- 画面を切り替える帯。shell.css の .uma-subtabs は読まないので自前で持つ --- */
+		.cei-tabs { display: flex; gap: 8px; margin: 0 0 16px; flex-wrap: wrap; }
+		.cei-tab {
+			border: 1px solid var(--uma-border); border-radius: var(--uma-r-full);
+			background: var(--uma-surface); color: var(--uma-text-muted);
+			padding: 6px 16px; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm);
+			font-weight: 600; cursor: pointer;
+		}
+		.cei-tab[aria-selected="true"] {
+			background: var(--uma-accent-soft); color: var(--uma-accent-soft-text);
+			border-color: var(--uma-accent-soft-text);
+		}
+		.cei-panel[hidden] { display: none; }
+
+		/* --- タグ編集欄。1件ごとに独立して置けるよう、状態はすべて data-skill で引く --- */
+		.cei-tagbox {
+			margin-top: 8px; padding: 10px 12px;
+			border: 1px solid var(--uma-border); border-radius: var(--uma-r-sm);
+			background: var(--uma-surface-sunken);
+		}
+		.cei-axis { margin: 0 0 10px; }
+		.cei-axis:last-child { margin-bottom: 0; }
+		.cei-axis-label {
+			font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);
+			color: var(--uma-text-subtle); font-weight: 600; margin: 0 0 4px;
+		}
+		.cei-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+		.cei-opt {
+			display: inline-flex; align-items: center; gap: 5px;
+			border: 1px solid var(--uma-border); border-radius: var(--uma-r-full);
+			padding: 3px 10px; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);
+			background: var(--uma-surface); color: var(--uma-text-muted); cursor: pointer;
+		}
+		.cei-opt:hover { border-color: var(--uma-border-strong); background: var(--uma-surface-sunken); }
+		.cei-opt:has(input:checked) {
+			background: var(--uma-accent-soft); color: var(--uma-accent-soft-text);
+			border-color: var(--uma-accent-soft-text);
+		}
+		/* ⑧のような該当/非該当だけの軸。他の軸と「空の意味」が逆なので、地色で区別する。 */
+		.cei-axis--flag {
+			border: 1px solid var(--uma-warn-border); border-radius: var(--uma-r-sm);
+			background: var(--uma-warn-bg); padding: 8px 10px;
+		}
+		.cei-axis-note {
+			font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);
+			color: var(--uma-text-subtle); margin: 4px 0 0;
+		}
+		.cei-tagbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+		.cei-tagrow {
+			display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+			padding: 6px 0; border-top: 1px solid var(--uma-surface-muted);
+		}
+		.cei-tagrow:first-child { border-top: 0; }
+		.cei-taglist { margin-top: 8px; }
+		.cei-tagname { font-size: var(--uma-fs-sm); flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+		.cei-tagsum { font-size: var(--uma-fs-xs); color: var(--uma-text-subtle); overflow-wrap: anywhere; }
 		.cei-find { margin-top: 8px; }
 		.cei-hits { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; max-height: 240px; overflow-y: auto; }
 		.cei-hit { text-align: left; font-size: var(--uma-fs-sm); }
 		.cei-empty { font-size: var(--uma-fs-sm); color: var(--uma-text-subtle); padding: 12px 0; }
-		#cei-out { width: 100%; box-sizing: border-box; min-height: 260px; font-family: var(--uma-font-mono); font-size: var(--uma-fs-xs); }
+		#cei-out, #cei-ext-out { width: 100%; box-sizing: border-box; min-height: 260px; font-family: var(--uma-font-mono); font-size: var(--uma-fs-xs); }
 		.cei-toast {
 			position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
 			background: var(--uma-surface-inverse); color: #fff; padding: 8px 14px;
@@ -71,19 +139,26 @@
 </head>
 <body>
 <div class="cei-wrap">
-	<h1 class="cei-h1">イベントスキルの入力（作業用）</h1>
+	<h1 class="cei-h1">収録データの入力（作業用）</h1>
 	<p class="cei-lead">
-		サポートカードの「イベントで得られるスキル」を、ゲーム画面を見ながら1枚ずつ記録するためのページです。
+		サポートカードの「イベントで得られるスキル」と、マスターに収録されていないスキルの「タグ」を、
+		ゲーム画面を見ながら手で記録するためのページです。<strong>貼り先が違うので、出力は A と B に分かれています。</strong>
 		このページはツール本体の一部ではありません。
 	</p>
 
-	<div class="cei-panel">
+	<div class="cei-tabs" role="tablist" aria-label="作業の種類">
+		<button id="cei-tab-event" type="button" class="cei-tab" role="tab" aria-selected="true" data-act="tab" data-tab="event">イベントスキル</button>
+		<button id="cei-tab-tags" type="button" class="cei-tab" role="tab" aria-selected="false" data-act="tab" data-tab="tags">スキルのタグ付け</button>
+	</div>
+
+	<div class="cei-panel" data-pane="event">
 		<h2 class="cei-h2">使い方</h2>
 		<ol class="cei-steps">
 			<li><strong>このページは簡易サーバー経由で開いてください。</strong> ファイルを直接開く（<code>file://</code>）と、データを読み込めません。</li>
 			<li>下の一覧から1枚ずつ、<strong>スキルがあれば「スキルを選ぶ」</strong>、<strong>見て回って無ければ「イベント無し」</strong>を押します。</li>
-			<li>区切りのよいところで、いちばん下の出力を<strong>コピー</strong>します。</li>
-			<li><code>catalog-data/support-card-event-skills.json</code> に貼って<strong>上書き</strong>します（ファイル全体を出しているので、そのまま置き換えられます）。</li>
+			<li>選んだスキルが<strong>まだタグの付いていないもの</strong>なら、その場でタグを付けられます（付けなくても構いません）。</li>
+			<li>区切りのよいところで、下の出力を<strong>コピー</strong>します。<strong>出力は貼り先ごとに分かれています。</strong></li>
+			<li><code>catalog-data/support-card-event-skills.json</code> に A を、<code>catalog-data/extended-skills.json</code> に B を貼って<strong>上書き</strong>します（どちらもファイル全体を出しているので、そのまま置き換えられます）。</li>
 			<li><code>npm run check:catalog</code> を回して、形が正しいことを確かめます。</li>
 		</ol>
 		<p class="cei-note">
@@ -92,7 +167,7 @@
 		</p>
 	</div>
 
-	<div class="cei-panel">
+	<div class="cei-panel" data-pane="event">
 		<div class="cei-bar">
 			<input id="cei-q" class="uma-input" type="search" placeholder="二つ名・ウマ娘名で絞り込む" />
 			<label class="cei-check"><input id="cei-only-pending" type="checkbox" checked /> 未確認だけ</label>
@@ -101,20 +176,55 @@
 		<div id="cei-list" class="cei-list"></div>
 	</div>
 
+	<div class="cei-panel" data-pane="tags">
+		<h2 class="cei-h2">使い方</h2>
+		<ol class="cei-steps">
+			<li>一覧から1件ずつ「タグを付ける」を押し、当てはまる条件にチェックを入れます。</li>
+			<li>どの条件にも当てはまらないスキル（いつでも発動するもの）は、チェックを入れずに<strong>「どれにも当てはまらない」</strong>を押します。<strong>「未設定」のままとは別の意味</strong>になります。</li>
+			<li>区切りのよいところで、下の<strong>出力 B</strong> をコピーし、<code>catalog-data/extended-skills.json</code> に貼って上書きします。</li>
+		</ol>
+		<p class="cei-note">
+			ここに出るのは<strong>マスターに収録されていないスキル</strong>だけです。マスターの445種はすでにタグが付いているので出ません。
+			「イベントスキル」の画面で付けたタグも、同じ出力 B に入ります。
+		</p>
+	</div>
+
+	<div class="cei-panel" data-pane="tags">
+		<div class="cei-bar">
+			<input id="cei-tag-q" class="uma-input" type="search" placeholder="スキル名で絞り込む" />
+			<label class="cei-check"><input id="cei-tag-only-pending" type="checkbox" checked /> 未設定だけ</label>
+			<span id="cei-tag-counts" class="cei-counts">読み込み中…</span>
+		</div>
+		<div id="cei-tag-list" class="cei-list"></div>
+	</div>
+
 	<div class="cei-panel">
-		<h2 class="cei-h2">出力（ファイル全体）</h2>
+		<h2 class="cei-h2">出力 A（<code>support-card-event-skills.json</code> のファイル全体）</h2>
 		<div class="cei-bar">
 			<label class="cei-check">版 <input id="cei-version" class="uma-input" type="text" size="12" /></label>
-			<button id="cei-copy" type="button" class="uma-btn uma-btn--primary">コピー</button>
-			<button id="cei-clear" type="button" class="uma-btn uma-btn--ghost">途中経過を捨てる</button>
+			<button id="cei-copy" type="button" class="uma-btn uma-btn--primary">A をコピー</button>
+			<button id="cei-clear" type="button" class="uma-btn uma-btn--ghost">イベントの途中経過を捨てる</button>
 			<span id="cei-draft-info" class="cei-counts"></span>
 		</div>
 		<textarea id="cei-out" readonly spellcheck="false"></textarea>
 		<p id="cei-out-warn" class="cei-note" hidden></p>
 	</div>
+
+	<div class="cei-panel">
+		<h2 class="cei-h2">出力 B（<code>extended-skills.json</code> のファイル全体）</h2>
+		<p class="cei-note" style="margin-top:0">貼り先が違うので、A とは別のテキストです。<strong>混ぜて貼らないでください。</strong></p>
+		<div class="cei-bar">
+			<label class="cei-check">版 <input id="cei-ext-version" class="uma-input" type="text" size="12" /></label>
+			<button id="cei-ext-copy" type="button" class="uma-btn uma-btn--primary">B をコピー</button>
+			<button id="cei-tag-clear" type="button" class="uma-btn uma-btn--ghost">タグの途中経過を捨てる</button>
+			<span id="cei-ext-info" class="cei-counts"></span>
+		</div>
+		<textarea id="cei-ext-out" readonly spellcheck="false"></textarea>
+		<p id="cei-ext-warn" class="cei-note" hidden></p>
+	</div>
 </div>
 
-<script src="js/uma-skill-deck-core.js?v=2026-09-19e"></script>
+<script src="js/uma-skill-deck-core.js?v=2026-09-19f"></script>
 <script>
 (function () {
 	'use strict';
@@ -122,6 +232,7 @@
 	// 途中経過の置き場。**umaSkillDeck: の名前空間は使わない**
 	// （Deck の書き出し・取り込みに混ざらないようにするため）。
 	var DRAFT_KEY = 'umaCardEventInput:draft';
+	var TAG_DRAFT_KEY = 'umaCardEventInput:tagDraft';
 	var FIND_DEBOUNCE_MS = 120;
 
 	var Core = window.UmaSkillDeckCore;
@@ -131,6 +242,18 @@
 	var draft = {};        // cardId → { status, skillIds: [] }
 	var openCardId = '';   // いま「スキルを選ぶ」を開いている行
 	var findTimer = 0;
+	var tagFindTimer = 0;
+	var pane = 'event';    // いま見ている画面（'event' / 'tags'）
+
+	/* ---------- タグ付け ----------
+	   extDoc は extended-skills.json の**生の doc**（core から受け取る）。
+	   出力 B はこれを土台にするので、core が知らないキーも、ファイル階層のキー
+	   （nextSerial・note）も落ちない。core が正規化した配列のほうを土台にすると
+	   それらが消える（C-64 の3節）。 */
+	var extDoc = null;     // 生の doc（読めなければ null）
+	var extById = {};      // 拡張スキルの id → 正本の1件
+	var tagDraft = {};     // skillId → { 軸: [値] }。**触った分だけ**持つ
+	var openTagIds = {};   // タグ編集欄を開いている skillId（複数同時に開ける）
 
 	function $(id) { return document.getElementById(id); }
 	function esc(s) {
@@ -162,6 +285,173 @@
 		});
 		if (dropped > 0) saveDraft();
 		return dropped;
+	}
+
+	/* ==========================================================
+	 * タグ（8軸）
+	 *
+	 * 軸も選択肢も **Core.TAG_AXES から引く**。このファイルには軸名も選択肢も
+	 * 1つも書かない（恒久ルール1）。軸が増減しても、ここは直さなくてよい。
+	 * ========================================================== */
+
+	/**
+	 * タグの深いコピー。**軸の配列まで別物にする。**
+	 *
+	 * core の findSkill() / getExtraCatalog() は浅いコピーを返すので（C-64 の3節）、
+	 * 返ってきた tags は**カタログ本体と同じオブジェクト**を指している。
+	 * 1段だけ写した（`{...tags}` 相当の）ものに push すると、**軸の配列は共有されたまま**
+	 * なので、メモリ上のカタログを書き換えてしまう。貼る前の画面の他の場所
+	 * （候補の一覧・「条件でスキルを検索」の母集団）が、貼っていない編集を反映してしまう。
+	 * このページは**編集を必ずこのコピーに対して行い、元のオブジェクトには触れない**。
+	 */
+	function copyTags(src) {
+		var out = {};
+		Core.TAG_AXES.forEach(function (axis) {
+			var v = (src && src[axis.key]) || [];
+			out[axis.key] = v.slice();
+		});
+		return out;
+	}
+	function isAllEmpty(tags) {
+		return Core.TAG_AXES.every(function (axis) { return ((tags && tags[axis.key]) || []).length === 0; });
+	}
+
+	/**
+	 * そのスキルのタグの状態。
+	 *   ''          … 拡張スキルではない（マスター収録。ここでは扱わない）
+	 *   'pending'   … **未設定**（tagsPending）。まだ誰も見ていない
+	 *   'universal' … 8軸すべて空＝**万能スキル**（どの条件でも出る）
+	 *   'tagged'    … 1つ以上の条件が付いている
+	 *
+	 * **未設定かどうかは tagsPending を明示的に見る。** 「tags が無い＝未設定」で
+	 * 判定すると、'universal'（8軸すべて空の tags）を未設定と取り違える。
+	 * この2つは意味がまったく違う（前者は誰も見ていない、後者は見たうえで
+	 * 「条件なし」と決めた）。
+	 */
+	function tagStateOf(skillId) {
+		if (tagDraft[skillId]) return isAllEmpty(tagDraft[skillId]) ? 'universal' : 'tagged';
+		var e = extById[skillId];
+		if (!e) return '';
+		if (e.tagsPending === true) return 'pending';
+		if (e.tags) return isAllEmpty(e.tags) ? 'universal' : 'tagged';
+		return 'pending';  // check:catalog がこの形（どちらも無い）を許さないので、通常は来ない
+	}
+	var TAG_STATE_LABEL = { pending: '未設定', universal: '万能（条件なし）', tagged: 'タグあり' };
+	function tagBadgeHtml(skillId) {
+		var st = tagStateOf(skillId);
+		if (!st) return '<span class="uma-badge">マスター収録</span>';
+		var cls = st === 'pending' ? ' uma-badge--warn' : (st === 'tagged' ? ' uma-badge--accent' : '');
+		return '<span class="uma-badge' + cls + '">' + TAG_STATE_LABEL[st] + '</span>';
+	}
+	/** いま付いているタグの中身（編集欄を閉じているときに1行で見せる）。 */
+	function tagSummary(skillId) {
+		var t = currentTags(skillId);
+		if (!t) return '';
+		var parts = [];
+		Core.TAG_AXES.forEach(function (axis) {
+			var v = t[axis.key] || [];
+			if (v.length) parts.push(v.map(function (x) { return Core.tagLabel(axis.key, x); }).join('・'));
+		});
+		return parts.join(' ／ ');
+	}
+	/** いま画面に出すべきタグ（下書きがあればそれ、無ければ正本のもの）。無ければ null。 */
+	function currentTags(skillId) {
+		if (tagDraft[skillId]) return tagDraft[skillId];
+		var e = extById[skillId];
+		return (e && e.tags) ? e.tags : null;
+	}
+	/** 下書きを作る（まだ無ければ、いまの姿を**コピーして**種にする）。 */
+	function ensureTagDraft(skillId) {
+		if (!tagDraft[skillId]) tagDraft[skillId] = copyTags(currentTags(skillId));
+		return tagDraft[skillId];
+	}
+	function loadTagDraft() {
+		try { tagDraft = JSON.parse(localStorage.getItem(TAG_DRAFT_KEY) || '{}') || {}; } catch (e) { tagDraft = {}; }
+		if (typeof tagDraft !== 'object' || tagDraft === null || Array.isArray(tagDraft)) tagDraft = {};
+	}
+	function saveTagDraft() {
+		try { localStorage.setItem(TAG_DRAFT_KEY, JSON.stringify(tagDraft)); } catch (e) {}
+	}
+	/** 正本に取り込まれた分（中身が同じになった分）は下書きから落とす。 */
+	function pruneTagDraft() {
+		var dropped = 0;
+		Object.keys(tagDraft).forEach(function (id) {
+			var e = extById[id];
+			if (!e) { delete tagDraft[id]; dropped++; return; }   // もう拡張スキルに無い
+			if (e.tags && JSON.stringify(copyTags(e.tags)) === JSON.stringify(copyTags(tagDraft[id]))) {
+				delete tagDraft[id]; dropped++;
+			}
+		});
+		if (dropped > 0) saveTagDraft();
+		return dropped;
+	}
+
+	/** タグ編集欄。**1件ごとに独立して置ける**（状態はすべて data-skill で引く）。 */
+	function tagBoxHtml(skillId) {
+		var t = currentTags(skillId) || {};
+		var h = '<div class="cei-tagbox" data-tagbox="' + esc(skillId) + '">';
+		// 共通の決まりは**1回だけ**書く。各軸の下に同じ注意書きを繰り返すと、
+		// 本当に違う軸（⑧）の注意書きが同じ見た目の文章に埋もれる。
+		h += '<p class="cei-axis-note" style="margin:0 0 10px">'
+			+ '軸の中で1つも選ばなければ、その軸では<strong>どの条件でも出る</strong>扱いになります'
+			+ '（当てはまるものだけを選んでください）。<strong>色の違う枠だけは決まりが逆です。</strong></p>';
+		Core.TAG_AXES.forEach(function (axis) {
+			var on = t[axis.key] || [];
+			// ⑧のような該当/非該当だけの軸は、**空の意味が他の軸と逆**（他は「空＝どの条件でも
+			// 出る万能」、この軸は「空＝該当しない」）。取り違えると絞り込みの結果が変わるので、
+			// 地色と注記で他の軸と区別する。flagAxis はデータが持つ印なので、ここで軸名は見ない。
+			h += '<div class="cei-axis' + (axis.flagAxis ? ' cei-axis--flag' : '') + '">';
+			h += '<p class="cei-axis-label">' + esc(axis.label) + '</p>';
+			h += '<div class="cei-opts">';
+			axis.options.forEach(function (o) {
+				h += '<label class="cei-opt">'
+					+ '<input type="checkbox" data-act="tag" data-skill="' + esc(skillId) + '"'
+					+ ' data-axis="' + esc(axis.key) + '" data-value="' + esc(o.v) + '"'
+					+ (on.indexOf(o.v) !== -1 ? ' checked' : '') + ' />'
+					+ '<span>' + esc(o.t) + '</span></label>';
+			});
+			h += '</div>';
+			// 注意書きを出すのは**決まりが逆の軸だけ**。全部の軸に同じ文を並べると、
+			// 本当に違う軸の注意書きが同じ見た目の文章に埋もれる。
+			if (axis.flagAxis) {
+				h += '<p class="cei-axis-note"><strong>この枠だけ決まりが逆です。</strong>'
+					+ 'チェックを入れないと<strong>「該当しない」</strong>になります'
+					+ '（他の軸のように「どの条件でも出る」にはなりません）。</p>';
+			}
+			h += '</div>';
+		});
+		h += '<div class="cei-tagbar">';
+		h += '<button type="button" class="uma-btn uma-btn--secondary" data-act="tag-universal" data-skill="' + esc(skillId) + '">どれにも当てはまらない（万能）</button>';
+		// 下書きが無いときは押せない。**行ごと描き直さずに出し入れしたいので、
+		// 隠すのではなく disabled を付け外しする**（チェックのたびに描き直すと、
+		// いま触っているチェックボックスからフォーカスが外れる）。
+		h += '<button type="button" class="uma-btn uma-btn--ghost" data-act="tag-reset" data-skill="' + esc(skillId) + '"'
+			+ (tagDraft[skillId] ? '' : ' disabled') + '>この行の編集を取り消す</button>';
+		h += '<button type="button" class="uma-btn uma-btn--ghost" data-act="tag-close" data-skill="' + esc(skillId) + '">閉じる</button>';
+		h += '</div></div>';
+		return h;
+	}
+
+	/** タグ1件ぶんの行（名前・状態・開閉ボタン・開いていれば編集欄）。2つの画面で共用する。 */
+	function tagRowHtml(skillId, name) {
+		var open = !!openTagIds[skillId];
+		var st = tagStateOf(skillId);
+		var h = '<div class="cei-tagrow-wrap" data-tagrow="' + esc(skillId) + '">';
+		h += '<div class="cei-tagrow">';
+		h += '<span class="cei-tagname">' + esc(name) + '</span>';
+		h += '<span data-tagbadge="' + esc(skillId) + '">' + tagBadgeHtml(skillId) + '</span>';
+		if (st) {
+			h += '<button type="button" class="uma-btn uma-btn--secondary" data-act="tag-open" data-skill="' + esc(skillId) + '">'
+				+ (open ? '閉じる' : (st === 'pending' ? 'タグを付ける' : 'タグを見直す')) + '</button>';
+		}
+		h += '</div>';
+		if (st && !open) {
+			var sum = tagSummary(skillId);
+			if (sum) h += '<p class="cei-tagsum" data-tagsum="' + esc(skillId) + '">' + esc(sum) + '</p>';
+		}
+		if (st && open) h += tagBoxHtml(skillId);
+		h += '</div>';
+		return h;
 	}
 
 	/* ---------- 状態 ---------- */
@@ -231,6 +521,12 @@
 		h += '</div>';
 		if (ids.length) {
 			h += '<div class="cei-chips">' + ids.map(function (id) { return chipHtml(card.id, id); }).join('') + '</div>';
+			// 選んだスキルのタグ。マスター収録のものは状態だけ出して編集欄を出さない
+			// （マスターのタグはこのページの貼り先ではないため）。
+			h += '<div class="cei-taglist">' + ids.map(function (id) {
+				var sk = Core.findSkill(id);
+				return tagRowHtml(id, sk ? sk.name : id);
+			}).join('') + '</div>';
 		}
 		if (openCardId === card.id && !locked) {
 			h += '<div class="cei-find">';
@@ -249,10 +545,61 @@
 			: '<p class="cei-empty">当てはまるカードがありません。</p>';
 		renderCounts();
 		renderOutput();
+		renderExtOutput();   // イベントの画面からもタグを触れるので、B も追随させる
 		if (openCardId) {
 			var input = document.querySelector('[data-act="find"][data-card="' + openCardId + '"]');
 			if (input) input.focus();
 		}
+	}
+
+	/* ---------- タグ付けの画面 ---------- */
+	function visibleExtSkills() {
+		var q = Core.normalizeSkillText($('cei-tag-q').value || '');
+		var onlyPending = $('cei-tag-only-pending').checked;
+		return ((extDoc && extDoc.entries) || []).filter(function (e) {
+			// 開いている行は絞り込みの条件にかかわらず残す（チェックを入れた瞬間に
+			// 「未設定だけ」から外れて行ごと消えるのを防ぐ）。
+			if (openTagIds[e.id]) return true;
+			if (onlyPending && tagStateOf(e.id) !== 'pending') return false;
+			if (!q) return true;
+			return Core.normalizeSkillText(e.name).indexOf(q) !== -1;
+		});
+	}
+	function renderTagCounts() {
+		var all = (extDoc && extDoc.entries) || [];
+		var n = { pending: 0, universal: 0, tagged: 0 };
+		all.forEach(function (e) { var s = tagStateOf(e.id); if (n[s] !== undefined) n[s]++; });
+		$('cei-tag-counts').textContent = extDoc
+			? '全' + all.length + '件：タグあり ' + n.tagged + ' / 万能 ' + n.universal + ' / 未設定 ' + n.pending
+			: '読み込めませんでした（簡易サーバー経由で開いていますか）';
+	}
+	function renderTagPane() {
+		var list = visibleExtSkills();
+		$('cei-tag-list').innerHTML = list.length
+			? list.map(function (e) { return tagRowHtml(e.id, e.name); }).join('')
+			: '<p class="cei-empty">当てはまるスキルがありません。</p>';
+		renderTagCounts();
+		renderExtOutput();
+	}
+	/** その1行だけ描き直す（一覧ごと作り直すと、開いた編集欄と読んでいる位置が飛ぶ）。 */
+	function refreshTagRow(skillId) {
+		var wrap = document.querySelector('[data-tagrow="' + skillId + '"]');
+		if (wrap) {
+			var sk = Core.findSkill(skillId);
+			wrap.outerHTML = tagRowHtml(skillId, sk ? sk.name : skillId);
+		}
+		renderTagCounts();
+		renderExtOutput();
+	}
+	function setPane(next) {
+		pane = next;
+		document.querySelectorAll('[data-pane]').forEach(function (el) {
+			el.hidden = el.getAttribute('data-pane') !== pane;
+		});
+		document.querySelectorAll('[data-act="tab"]').forEach(function (el) {
+			el.setAttribute('aria-selected', el.getAttribute('data-tab') === pane ? 'true' : 'false');
+		});
+		if (pane === 'tags') renderTagPane();
 	}
 
 	/* ---------- スキルを探す ---------- */
@@ -315,6 +662,49 @@
 		$('cei-draft-info').textContent = n > 0 ? 'このブラウザに ' + n + '枚ぶんの途中経過があります' : '途中経過はありません';
 	}
 
+	/**
+	 * 出力 B（extended-skills.json のファイル全体）。
+	 *
+	 * **土台は core から受け取った生の doc。** これを写しながら、下書きのある行だけ
+	 * 差し替える。**触っていない行はオブジェクトをそのまま使う**ので、core が知らない
+	 * キーも、ファイル階層のキー（nextSerial・note）も落ちない。
+	 * ここで core の正規化後の配列から組み立て直すと、それらが丸ごと消えたファイルを
+	 * 貼ることになる（C-64 の3節）。
+	 *
+	 * 差し替える行は tagsPending を外して tags を入れる。**両方を持つ形は
+	 * check:catalog が落とす**ので、必ずどちらか一方にする。
+	 */
+	function buildExtOutput() {
+		if (!extDoc) return { text: '', error: '収録データを読み込めていないので、出力を作れません。' };
+		var out = {};
+		Object.keys(extDoc).forEach(function (k) { if (k !== 'entries') out[k] = extDoc[k]; });
+		out.dataVersion = $('cei-ext-version').value || todayVersion();
+		var changed = 0;
+		out.entries = (extDoc.entries || []).map(function (e) {
+			var t = tagDraft[e.id];
+			if (!t) return e;
+			changed++;
+			var next = {};
+			// 元のキーの並びを保ちながら、tagsPending / tags だけを入れ替える。
+			Object.keys(e).forEach(function (k) { if (k !== 'tagsPending' && k !== 'tags') next[k] = e[k]; });
+			next.tags = copyTags(t);
+			return next;
+		});
+		return { text: JSON.stringify(out, null, '\t') + '\n', changed: changed, error: '' };
+	}
+
+	function renderExtOutput() {
+		var r = buildExtOutput();
+		$('cei-ext-out').value = r.text;
+		var warn = $('cei-ext-warn');
+		if (r.error) { warn.hidden = false; warn.textContent = r.error; }
+		else { warn.hidden = true; }
+		var n = Object.keys(tagDraft).length;
+		$('cei-ext-info').textContent = n > 0
+			? 'このブラウザに ' + n + '件ぶんのタグの途中経過があります'
+			: 'タグの途中経過はありません';
+	}
+
 	/* ---------- 操作 ---------- */
 	document.addEventListener('click', function (ev) {
 		var btn = ev.target.closest ? ev.target.closest('[data-act]') : null;
@@ -353,7 +743,53 @@
 				if (dd.skillIds.length === 0 && dd.status === 'done') dd.status = 'done'; // 空のまま残すと check:catalog が落ちるので、出力前に気付けるようにしておく
 				saveDraft(); render();
 			}
+		} else if (act === 'tab') {
+			setPane(btn.getAttribute('data-tab'));
+		} else if (act === 'tag-open') {
+			var oid = btn.getAttribute('data-skill');
+			if (openTagIds[oid]) delete openTagIds[oid]; else openTagIds[oid] = true;
+			if (pane === 'tags') renderTagPane(); else render();
+		} else if (act === 'tag-close') {
+			delete openTagIds[btn.getAttribute('data-skill')];
+			if (pane === 'tags') renderTagPane(); else render();
+		} else if (act === 'tag-universal') {
+			// 「未設定」から「万能（どの条件でも出る）」へは、**必ずこの操作で移る**。
+			// 編集欄を開いただけ・チェックを外しただけでは万能にならない
+			// （8軸すべて空のタグは意味のある状態なので、うっかり作らせない）。
+			var uid = btn.getAttribute('data-skill');
+			tagDraft[uid] = copyTags(null);
+			saveTagDraft();
+			refreshTagRow(uid);
+			toast('「どの条件にも当てはまらない（万能スキル）」として記録しました');
+		} else if (act === 'tag-reset') {
+			delete tagDraft[btn.getAttribute('data-skill')];
+			saveTagDraft();
+			refreshTagRow(btn.getAttribute('data-skill'));
 		}
+	});
+
+	/* タグのチェック。**一覧ごと作り直さない**（開いた編集欄と読んでいる位置が飛ぶため）。 */
+	document.addEventListener('change', function (ev) {
+		var el = ev.target;
+		if (!el.getAttribute || el.getAttribute('data-act') !== 'tag') return;
+		var skillId = el.getAttribute('data-skill');
+		var axis = el.getAttribute('data-axis');
+		var value = el.getAttribute('data-value');
+		// **編集は必ず下書き（深いコピー）に対して行う。**
+		// core の findSkill() / getExtraCatalog() が返す tags はカタログ本体と
+		// 同じオブジェクトなので、そこを直接いじるとメモリ上の収録データが変わる。
+		var t = ensureTagDraft(skillId);
+		var arr = t[axis] || (t[axis] = []);
+		var i = arr.indexOf(value);
+		if (el.checked) { if (i === -1) arr.push(value); }
+		else if (i !== -1) arr.splice(i, 1);
+		saveTagDraft();
+		var badge = document.querySelector('[data-tagbadge="' + skillId + '"]');
+		if (badge) badge.innerHTML = tagBadgeHtml(skillId);
+		var reset = document.querySelector('[data-act="tag-reset"][data-skill="' + skillId + '"]');
+		if (reset) reset.disabled = !tagDraft[skillId];
+		renderTagCounts();
+		renderExtOutput();
 	});
 
 	document.addEventListener('input', function (ev) {
@@ -366,25 +802,45 @@
 		}
 	});
 
+	/** コピー用のボタン。2つの出力で同じ処理を使う（貼り先だけ言い分ける）。 */
+	function wireCopy(btnId, areaId, where) {
+		$(btnId).addEventListener('click', function () {
+			$(areaId).select();
+			navigator.clipboard.writeText($(areaId).value).then(function () {
+				toast('コピーしました。' + where + ' に貼って上書きしてください');
+			}, function () {
+				toast('コピーできませんでした。テキストを選んで手でコピーしてください');
+			});
+		});
+	}
+
 	/* ---------- 起動 ---------- */
 	window.addEventListener('DOMContentLoaded', function () {
 		$('cei-q').addEventListener('input', render);
 		$('cei-only-pending').addEventListener('change', render);
 		$('cei-version').value = todayVersion();
 		$('cei-version').addEventListener('input', renderOutput);
-		$('cei-copy').addEventListener('click', function () {
-			$('cei-out').select();
-			navigator.clipboard.writeText($('cei-out').value).then(function () {
-				toast('コピーしました。ファイルに貼って上書きしてください');
-			}, function () {
-				toast('コピーできませんでした。テキストを選んで手でコピーしてください');
-			});
+		$('cei-tag-q').addEventListener('input', function () {
+			clearTimeout(tagFindTimer);
+			tagFindTimer = setTimeout(renderTagPane, FIND_DEBOUNCE_MS);
 		});
+		$('cei-tag-only-pending').addEventListener('change', renderTagPane);
+		$('cei-ext-version').value = todayVersion();
+		$('cei-ext-version').addEventListener('input', renderExtOutput);
+		wireCopy('cei-copy', 'cei-out', 'support-card-event-skills.json');
+		wireCopy('cei-ext-copy', 'cei-ext-out', 'extended-skills.json');
 		$('cei-clear').addEventListener('click', function () {
-			if (!confirm('このブラウザに残っている途中経過を捨てます。よろしいですか。')) return;
+			if (!confirm('このブラウザに残っている「イベントスキル」の途中経過を捨てます。よろしいですか。\n（タグの途中経過は残ります）')) return;
 			draft = {}; openCardId = '';
 			saveDraft(); render();
 		});
+		$('cei-tag-clear').addEventListener('click', function () {
+			if (!confirm('このブラウザに残っている「タグ」の途中経過を捨てます。よろしいですか。\n（イベントスキルの途中経過は残ります）')) return;
+			tagDraft = {}; openTagIds = {};
+			saveTagDraft();
+			renderTagPane(); render();
+		});
+		setPane('event');
 
 		Core.configure({ toast: toast });
 		// マスター445種＋追加カタログ（拡張スキル・シナリオ因子）。名前で探すために要る。
@@ -396,14 +852,23 @@
 			fileDoc = src.supportCardEventSkill || null;
 			fileRows = {};
 			((fileDoc && fileDoc.entries) || []).forEach(function (r) { fileRows[r.cardId] = r; });
+			// 拡張スキルは**生の doc** を受け取る（出力 B の土台。C-64 の3節）。
+			extDoc = Core.getReferableCatalogDoc();
+			extById = {};
+			((extDoc && extDoc.entries) || []).forEach(function (e) { extById[e.id] = e; });
 			loadDraft();
+			loadTagDraft();
 			var dropped = pruneDraft();
+			var tagDropped = pruneTagDraft();
 			render();
+			renderTagCounts();
+			renderExtOutput();
 			if (cards.length === 0) {
 				$('cei-counts').textContent = 'カードを読み込めませんでした（簡易サーバー経由で開いていますか）';
 			} else if (dropped > 0) {
 				toast('ファイルに入っている ' + dropped + '枚ぶんを途中経過から外しました');
 			}
+			if (tagDropped > 0) toast('ファイルに入った ' + tagDropped + '件ぶんのタグを途中経過から外しました');
 		}).catch(function (e) {
 			$('cei-counts').textContent = '読み込みに失敗しました: ' + (e && e.message ? e.message : e);
 		});
