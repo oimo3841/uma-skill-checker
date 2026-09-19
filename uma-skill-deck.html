@@ -17,7 +17,7 @@
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-19j"></script>
-	<script src="js/uma-skill-deck.js?v=2026-09-19b"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-19c"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -374,7 +374,7 @@
 		</header>
 
 		<nav class="grid grid-cols-3 gap-2 mb-5">
-			<button id="tab-btn-template" class="tab-btn tab-active" onclick="switchTab('template')">テンプレート</button>
+			<button id="tab-btn-template" class="tab-btn tab-active" onclick="switchTab('template')">スキルセット</button>
 			<button id="tab-btn-record" class="tab-btn" onclick="switchTab('record')">比較シート</button>
 			<button id="tab-btn-data" class="tab-btn" onclick="switchTab('data')">データ管理</button>
 		</nav>
@@ -403,7 +403,7 @@
 					<input id="record-name-input" onchange="onRecordNameChange()" class="uma-input flex-1"/>
 				</div>
 				<div class="flex items-center gap-2 mb-3 text-xs">
-					<span class="text-slate-500 whitespace-nowrap">テンプレート：</span>
+					<span class="text-slate-500 whitespace-nowrap">スキルセット：</span>
 					<select id="record-template-select" onchange="switchRecordTemplate(this.value)" class="uma-input" style="width:auto;"></select>
 				</div>
 				<!-- スキルを足す入口はテンプレート編集画面と同じ3つ（条件／テキスト／手入力）。
@@ -443,7 +443,7 @@
 		<section id="tab-panel-data" class="hidden">
 			<div class="glass-card mb-4">
 				<p class="text-sm font-semibold text-slate-700 mb-2">保存件数</p>
-				<p class="text-xs text-slate-500">テンプレート：<span id="data-template-count"></span>／比較シート：<span id="data-record-count"></span>／カスタムスキル：<span id="data-custom-count"></span></p>
+				<p class="text-xs text-slate-500">スキルセット：<span id="data-template-count"></span>／比較シート：<span id="data-record-count"></span>／カスタムスキル：<span id="data-custom-count"></span></p>
 			</div>
 			<div class="glass-card mb-4">
 				<!-- 32セッション目: 利用者向けの語を「収録」で統一。「収録されていないスキル」と対になり、

@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-19b';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-19c';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -205,14 +205,14 @@ function renderRecordList() {
 	document.getElementById('record-new-btn').disabled = userData.templates.length === 0;
 	const el = document.getElementById('record-list');
 	if (list.length === 0) {
-		el.innerHTML = '<p class="text-sm text-slate-400 p-4">まだ比較シートがありません。テンプレートを選んで「新規作成」してください。</p>';
+		el.innerHTML = '<p class="text-sm text-slate-400 p-4">まだ比較シートがありません。スキルセットを選んで「新規作成」してください。</p>';
 		return;
 	}
 	el.innerHTML = list.map(r => `
 		<div class="list-card uma-list-row">
 			<div class="flex-1 min-w-0">
 				<p class="font-semibold text-sm text-slate-800 truncate">${escapeHtml(r.name)}</p>
-				<p class="text-xs text-slate-500">元テンプレート：${escapeHtml(getTemplateName(r.sourceTemplateId))}</p>
+				<p class="text-xs text-slate-500">元のスキルセット：${escapeHtml(getTemplateName(r.sourceTemplateId))}</p>
 				<p class="text-xs text-slate-500">候補${r.candidates.length}人・スキル${r.skillIds.length}件・更新 ${escapeHtml((r.updatedAt || '').slice(0, 10))}</p>
 			</div>
 			<div class="flex gap-1.5 shrink-0">
@@ -255,9 +255,9 @@ function closeRecordEditor() {
 function getTemplateName(templateId) {
 	// UmaStar OCR側で「保存しない一時的な対象スキルセット」から作られたシートは
 	// 元テンプレートを持たない。削除済みと区別できる文言にする。
-	if (!templateId) return '（テンプレート未保存）';
+	if (!templateId) return '（元のスキルセットは未保存）';
 	const t = userData.templates.find(x => x.templateId === templateId);
-	return t ? t.name : '（削除済みテンプレート）';
+	return t ? t.name : '（削除済みスキルセット）';
 }
 
 function switchRecordTemplate(newTemplateId) {
@@ -272,8 +272,8 @@ function switchRecordTemplate(newTemplateId) {
 	const prev = Core.snapshot(sheetState(targetRecord));
 	pushUndo({
 		scope: 'sheet',
-		doneLabel: 'テンプレートを「' + t.name + '」に切り替えました',
-		undoneLabel: 'テンプレートを「' + getTemplateName(prev.sourceTemplateId) + '」に戻しました',
+		doneLabel: 'スキルセットを「' + t.name + '」に切り替えました',
+		undoneLabel: 'スキルセットを「' + getTemplateName(prev.sourceTemplateId) + '」に戻しました',
 		probe: () => { const r = findRecordById(recordId); return r ? Core.probeOf(sheetState(r)) : ''; },
 		apply: () => {
 			const r = findRecordById(recordId);

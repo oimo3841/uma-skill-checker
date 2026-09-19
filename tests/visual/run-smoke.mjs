@@ -3907,8 +3907,9 @@ const browser = await chromium.launch();
 	await page.evaluate((id) => openRecordEditor(id), RECORD_ID);
 	await page.waitForTimeout(500);
 	const other = USER_DATA.templates[1].templateId;
-	await roundTrip('元テンプレートの切り替え', new Function(`switchRecordTemplate(${JSON.stringify(other)})`), 'sheet',
-		'テンプレートを「' + USER_DATA.templates[0].name + '」に戻しました');
+	// 63セッション目（第2波）: Deck の画面に出る語を「テンプレート」→「スキルセット」に統一した（C-54）。
+	await roundTrip('元のスキルセットの切り替え', new Function(`switchRecordTemplate(${JSON.stringify(other)})`), 'sheet',
+		'スキルセットを「' + USER_DATA.templates[0].name + '」に戻しました');
 	await roundTrip('候補の削除', () => { removeCandidate('c_a'); }, 'sheet', '削除した候補「親A」を戻しました');
 	await roundTrip('スキル行の削除', new Function(`removeSkillFromRecord(${JSON.stringify(PICK[2].id)})`), 'sheet',
 		'削除したスキル「' + PICK[2].name + '」の行を戻しました');
