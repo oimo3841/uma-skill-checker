@@ -715,8 +715,10 @@
 		renderOutput();
 		renderExtOutput();   // イベントの画面からもタグを触れるので、B も追随させる
 		if (openCardId) {
+			// **preventScroll を付ける。** この欄は開いているカードの行のいちばん下に
+			// あるので、そのまま focus() すると画面がそこまで送られる（C-65）。
 			var input = document.querySelector('[data-act="find"][data-card="' + openCardId + '"]');
-			if (input) input.focus();
+			if (input) { try { input.focus({ preventScroll: true }); } catch (e) { input.focus(); } }
 		}
 	}
 
@@ -759,14 +761,35 @@
 	 * タグ付けの一覧にも並ぶ）。片方だけ直すと、画面を切り替えたときに古い状態が見える。
 	 * skip に渡した要素を含む行だけは触らない（そこを操作中なので、描き直すとフォーカスが飛ぶ）。
 	 */
-	function refreshTagRows(skillId, skip) {
+	function swapTagRows(skillId, skip) {
 		var list = document.querySelectorAll('[data-tagrow="' + skillId + '"]');
 		Array.prototype.slice.call(list).forEach(function (wrap) {
 			if (skip && wrap.contains(skip)) return;
 			wrap.outerHTML = tagRowHtml(skillId, skillNameOf(skillId));
 		});
+	}
+	function refreshTagRows(skillId, skip) {
+		swapTagRows(skillId, skip);
 		renderTagCounts();
 		renderExtOutput();
+	}
+
+	/**
+	 * タグ編集欄の開閉。**一覧は作り直さず、その行だけ差し替える**（C-65）。
+	 *
+	 * 一覧ごと描き直すと、読んでいた位置を見失う。イベントの画面では、描き直しの
+	 * 最後に「探す」の入力欄へフォーカスを戻しており、**その欄は開いたタグ編集欄より
+	 * 下にある**ため、focus() がそこまで画面を送ってしまっていた（実測 -803px）。
+	 * 押したボタンは差し替えで消えるので、同じ場所の新しいボタンへフォーカスを戻す。
+	 * **preventScroll を付ける**（付けないと、フォーカスを戻すこと自体がまた画面を動かす）。
+	 */
+	function toggleTagBox(skillId) {
+		if (openTagIds[skillId]) delete openTagIds[skillId]; else openTagIds[skillId] = true;
+		swapTagRows(skillId);
+		var again = Array.prototype.slice.call(
+			document.querySelectorAll('[data-act="tag-open"][data-skill="' + skillId + '"]')
+		).filter(function (el) { return el.offsetParent !== null; })[0];
+		if (again) { try { again.focus({ preventScroll: true }); } catch (e) { /* 古いブラウザ */ } }
 	}
 	function setPane(next) {
 		pane = next;
@@ -946,12 +969,11 @@
 		} else if (act === 'tab') {
 			setPane(btn.getAttribute('data-tab'));
 		} else if (act === 'tag-open') {
-			var oid = btn.getAttribute('data-skill');
-			if (openTagIds[oid]) delete openTagIds[oid]; else openTagIds[oid] = true;
-			if (pane === 'tags') renderTagPane(); else render();
+			toggleTagBox(btn.getAttribute('data-skill'));
 		} else if (act === 'tag-close') {
-			delete openTagIds[btn.getAttribute('data-skill')];
-			if (pane === 'tags') renderTagPane(); else render();
+			// 「閉じる」は箱の中にあるので、いま開いている前提で閉じる側へ倒す。
+			openTagIds[btn.getAttribute('data-skill')] = true;
+			toggleTagBox(btn.getAttribute('data-skill'));
 		} else if (act === 'tag-universal') {
 			// 「未設定」から「万能（どの条件でも出る）」へは、**必ずこの操作で移る**。
 			// 編集欄を開いただけ・チェックを外しただけでは万能にならない
