@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19i';
 
 	/* ============================================================
 	 * 定数
@@ -149,26 +149,26 @@
 
 	// 8軸のタグ辞書。フィルターパネル・タグ表示・カスタムスキル入力で共有する。
 	const TAG_AXES = [
-		{ key: 'distance', label: '①距離', options: [
+		{ key: 'distance', label: '距離', options: [
 			{ v: 'short', t: '短距離' }, { v: 'mile', t: 'マイル' }, { v: 'medium', t: '中距離' }, { v: 'long', t: '長距離' }
 		]},
-		{ key: 'style', label: '②脚質', options: [
+		{ key: 'style', label: '脚質', options: [
 			{ v: 'nige', t: '逃げ' }, { v: 'senko', t: '先行' }, { v: 'sashi', t: '差し' }, { v: 'oikomi', t: '追込' }
 		]},
-		{ key: 'effect', label: '③効果タイプ', options: [
+		{ key: 'effect', label: '効果タイプ', options: [
 			{ v: 'target_speed_up', t: '速度アップ' }, { v: 'accel_up', t: '加速度アップ' }, { v: 'move_forward', t: '前に出る' }, { v: 'extend', t: '伸び' },
 			{ v: 'stamina', t: '持久力回復' }, { v: 'stamina_down', t: '持久力減少' }, { v: 'speed_down', t: '速度ダウン' }, { v: 'start_good', t: 'スタート得意' }, { v: 'course_sense', t: 'コース取り' },
 			{ v: 'lane_change', t: 'レーン移動' }, { v: 'temptation_time', t: '掛かり時間' }, { v: 'vision', t: '視野' },
 			{ v: 'speed_up', t: 'スピードアップ' }, { v: 'stamina_up', t: 'スタミナアップ' }, { v: 'power_up', t: 'パワーアップ' },
 			{ v: 'guts_up', t: '根性アップ' }, { v: 'wisdom_up', t: '賢さアップ' }, { v: 'all_up', t: '全てアップ' }
 		]},
-		{ key: 'phase', label: '④フェーズ', options: [
+		{ key: 'phase', label: 'フェーズ', options: [
 			{ v: 'early', t: '序盤' }, { v: 'mid', t: '中盤' }, { v: 'late', t: '終盤' }, { v: 'lastspurt', t: 'ラストスパート' }
 		]},
-		{ key: 'coursePos', label: '⑤コース位置', options: [
+		{ key: 'coursePos', label: 'コース位置', options: [
 			{ v: 'corner', t: 'コーナー' }, { v: 'straight', t: '直線' }, { v: 'uphill', t: '上り坂' }, { v: 'downhill', t: '下り坂' }
 		]},
-		{ key: 'environment', label: '⑥その他1（レース環境）', options: [
+		{ key: 'environment', label: 'レース環境', options: [
 			{ v: 'ground_good', t: '良バ場' }, { v: 'ground_bad', t: '道悪' },
 			{ v: 'surface_turf', t: '芝' }, { v: 'surface_dirt', t: 'ダート' },
 			{ v: 'right_turn', t: '右回り' }, { v: 'left_turn', t: '左回り' }, { v: 'small_track', t: '小回り' }, { v: 'straight_course', t: '直線コース' },
@@ -177,7 +177,7 @@
 			{ v: 'time_day', t: '昼' }, { v: 'time_evening', t: '夕方' }, { v: 'time_night', t: 'ナイター' },
 			{ v: 'distance_basis', t: '根幹距離' }, { v: 'distance_nonbasis', t: '非根幹距離' }
 		]},
-		{ key: 'trackVenue', label: '⑦その他2（レース場）', options: [
+		{ key: 'trackVenue', label: 'レース場', options: [
 			{ v: 'track_sapporo', t: '札幌' }, { v: 'track_hakodate', t: '函館' }, { v: 'track_fukushima', t: '福島' }, { v: 'track_niigata', t: '新潟' },
 			{ v: 'track_nakayama', t: '中山' }, { v: 'track_tokyo', t: '東京' }, { v: 'track_chukyo', t: '中京' }, { v: 'track_kyoto', t: '京都' },
 			{ v: 'track_hanshin', t: '阪神' }, { v: 'track_kokura', t: '小倉' },
@@ -189,7 +189,7 @@
 		// 「空＝どれにも当たらない（ふつうのスキル）」。445件中418件が空で、そちらが普通の状態。
 		// 選択肢が1つだった名残で flagAxis と呼んでいたが、**選択肢の数とは関係がない**ので
 		// emptyMeansNone（空は「該当なし」）に改名した。
-		{ key: 'scenario', label: '⑧その他3（シナリオスキル）', emptyMeansNone: true, options: [
+		{ key: 'scenario', label: 'その他', emptyMeansNone: true, options: [
 			{ v: 'scenario', t: 'シナリオスキル' },
 			{ v: 'scenario_factor', t: 'シナリオ因子' },
 			{ v: 'gene', t: '遺伝子' }
@@ -2035,21 +2035,9 @@
 	 * タブのフォーカスが毎回吹き飛ぶため。
 	 * ------------------------------------------------------------ */
 
-	// タブに出す軸名。ラベルの「（…）」が実名なのでそちらを優先し、無ければ
-	// 先頭の丸数字を落とした部分を使う（⑥その他1（レース環境）→「レース環境」）。
-	// 丸数字と「その他N」はタブから外すと8軸が1行に収まるようになる。軸の通し番号は
-	// パネルの見出し（axis.label をそのまま出す）に残るので、対応は追える。
-	// TAG_AXES 側は無変更で済ませたいので、短縮名をデータに持たせることはしない。
-	function splitAxisLabel(label) {
-		const m = String(label).match(/^(.+?)（(.+)）$/);
-		const main = m ? m[1] : String(label);
-		return { main: main, sub: m ? m[2] : '' };
-	}
-
-	function axisTabName(label) {
-		const parts = splitAxisLabel(label);
-		return parts.sub || parts.main.replace(/^[①-⑳]/, '');
-	}
+	// 軸名は TAG_AXES の label をそのまま出す。以前は label が「⑥その他1（レース環境）」の形で、
+	// タブに出すときだけ丸数字と「その他N」を落とす関数（splitAxisLabel / axisTabName）を挟んでいたが、
+	// label を素の名前（「レース環境」）にしたので、その加工は何もしなくなった。実体の無い加工は残さない。
 
 	function renderPickerFilterAxes() {
 		const el = q(pickerEl, 'filter-axes');
@@ -2060,7 +2048,7 @@
 			'<button type="button" role="tab" class="usd-tab" id="usd-tab-' + axis.key + '"' +
 				' aria-controls="usd-panel-' + axis.key + '" aria-selected="' + isActive + '"' +
 				' tabindex="' + (isActive ? 0 : -1) + '" data-usd-act="filter-tab" data-usd-axis="' + axis.key + '">' +
-				'<span class="usd-tab-main">' + esc(axisTabName(axis.label)) + '</span>' +
+				'<span class="usd-tab-main">' + esc(axis.label) + '</span>' +
 				'<span class="usd-tab-count" data-usd-el="axis-count" data-usd-axis="' + axis.key + '" hidden></span>' +
 			'</button>';
 		}).join('');
@@ -2184,7 +2172,7 @@
 			const badge = pickerEl.querySelector('[data-usd-el="axis-count"][data-usd-axis="' + axis.key + '"]');
 			if (badge) { badge.hidden = n === 0; badge.textContent = n; }
 			const tab = pickerEl.querySelector('.usd-tab[data-usd-axis="' + axis.key + '"]');
-			if (tab) tab.setAttribute('aria-label', axisTabName(axis.label) + (n ? '（' + n + '件選択中）' : ''));
+			if (tab) tab.setAttribute('aria-label', axis.label + (n ? '（' + n + '件選択中）' : ''));
 			const clearBtn = pickerEl.querySelector('[data-usd-act="filter-clear-axis"][data-usd-axis="' + axis.key + '"]');
 			if (clearBtn) clearBtn.disabled = n === 0;
 		});
@@ -2199,7 +2187,7 @@
 		summary.innerHTML = '<span class="usd-summary-label">絞り込み中</span>' +
 			active.map(a =>
 				'<button type="button" class="usd-summary-item" data-usd-act="filter-jump" data-usd-axis="' + a.key + '" title="このタブを開く">' +
-					'<b>' + esc(axisTabName(a.label)) + '</b>' +
+					'<b>' + esc(a.label) + '</b>' +
 					esc(picker.filters[a.key].map(v => tagLabel(a.key, v)).join('・')) +
 				'</button>'
 			).join('') +

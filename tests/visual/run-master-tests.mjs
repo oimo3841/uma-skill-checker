@@ -146,8 +146,11 @@ const browser = await chromium.launch();
 	// 63セッション目（第2波）: ⑧を「その他」（入手経路）に広げ、値を3つにした。
 	// **空配列の意味が他の7軸と逆**（空＝該当なし）なのは変わらないので、印の名前だけ
 	// flagAxis → emptyMeansNone に改めた（選択肢の数とは関係がない印なので）。
-	assert(axes[7] && axes[7].key === 'scenario' && axes[7].label === '⑧その他3（シナリオスキル）' && axes[7].flag,
-		'8軸目が空を「該当なし」と読む軸', axes[7]);
+	// 軸のラベルからは通し番号と「その他N」を外した（タブで選ぶので番号が要らない）。
+	assert(axes[7] && axes[7].key === 'scenario' && axes[7].label === 'その他' && axes[7].flag,
+		'8軸目が「その他」で、空を「該当なし」と読む軸', axes[7]);
+	assert(axes.every((a) => !/^[①-⑳]/.test(a.label)) && axes.every((a) => !/その他[0-9]/.test(a.label)),
+		'軸のラベルに通し番号と「その他N」が残っていない', axes.map((a) => a.label));
 	assert(eq(axes[7].opts, ['scenario', 'scenario_factor', 'gene']),
 		'⑧の選択肢がシナリオスキル／シナリオ因子／遺伝子の3つ', axes[7].opts);
 
