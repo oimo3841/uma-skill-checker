@@ -293,13 +293,13 @@ const browser = await chromium.launch();
 		const p = document.getElementById('deck-template-panel');
 		const head = p.querySelector('[data-usd-el="head"] .usd-roster-h--top');
 		const secA = p.querySelector('[data-usd-el="section-a"]');
-		const body = secA && secA.querySelector('.usd-tm-section-body');
+		const body = secA && secA.querySelector('.uma-section-body');
 		return {
 			// 件数は代表データの件数に依るので、呼び名だけを見る（数字は N に潰す）
 			head: head ? head.textContent.replace(/\s+/g, '').replace(/\d+/g, 'N') : null,
 			tabsAria: p.querySelector('.uma-subtabs') ? p.querySelector('.uma-subtabs').getAttribute('aria-label') : null,
 			// A の見出しは setLabel を通さない（special でも「スキルセット」のまま）
-			secAHead: secA ? secA.querySelector('.usd-roster-h--sub').textContent : null,
+			secAHead: secA ? secA.querySelector('.uma-section-head').textContent : null,
 			// 囲んだだけで、中身の data-usd-el は section-a の下に全部そろっている
 			inA: secA ? ['tier-row', 'selected-list', 'mode-delete', 'mode-reclass', 'selected-count', 'clear-skills']
 				.every(k => !!secA.querySelector('[data-usd-el="' + k + '"]')) : false,
@@ -4043,7 +4043,9 @@ const browser = await chromium.launch();
 			// A の枠は Deck にもできるが、**見出しは出さない**（opts.sectionHeadings）。
 			// Deck は A しか無く入れ物も「スキルセット」なので、出すと二重に見える
 			secA: !!p.querySelector('[data-usd-el="section-a"]'),
-			secAHead: !!p.querySelector('[data-usd-el="section-a"] .usd-roster-h--sub')
+			secAHead: !!p.querySelector('[data-usd-el="section-a"] .uma-section-head'),
+			// B・C は special だけ（opts.extraScopes を渡さない画面には出ない）
+			scopes: p.querySelectorAll('[data-usd-scope-section]').length
 		};
 	});
 	assert(deckLabel.tab === 'スキルセット' && deckLabel.head === 'スキルセット（N／N件）'
@@ -4051,6 +4053,8 @@ const browser = await chromium.launch();
 		'C-1(deck): Deck 単体ページの呼び名は「スキルセット」のまま（special だけ setLabel で「因子セット」）', deckLabel);
 	assert(deckLabel.secA && !deckLabel.secAHead,
 		'C-1(deck): A の枠はあるが見出しは出さない（A しか無い画面で「スキルセット」が二重に見えるため）', deckLabel);
+	assert(deckLabel.scopes === 0,
+		'C-2a(deck): B・C の節は出ない（opts.extraScopes を渡していないため）', deckLabel.scopes);
 	await page.evaluate((id) => templateManager.openEditor(id), USER_DATA.templates[0].templateId);
 	await page.waitForTimeout(300);
 	// × は削除モードのときだけ出る（C-57 の (9)）
@@ -5839,6 +5843,197 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(counts.join() === '0,' + PICK.length + ',0', 'tiers(deck): 取り込んだ古いデータのスキルは全部「優先」に入る', counts);
 	assert(errors.length === 0, 'tiers(deck): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
+}
+
+/* ============================================================
+ * ②の B・C ―― シナリオ因子と遺伝子を対象に含める（C-2a）
+ *
+ *   - 既定で閉じていて、閉じたままでも ON かどうかがバッジで分かる
+ *   - 種数はカタログから数える（ソースに数字を書かない）
+ *   - scopes を持たない既存のデータ（fixtures は schemaVersion 2）は両方 OFF で読める
+ *   - ON にすると template.scopes が書かれ schemaVersion が 5 に上がる。OFF に戻すと項目ごと消える
+ *   - 複製で写り、書き出し・取り込みで残る
+ *   - 注記の1文は exam.html と同じ（片方だけ直したら落ちる）
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
+	await page.waitForTimeout(400);
+	const sc = () => page.evaluate(() => {
+		const r = '#deck-template-panel';
+		const secs = Array.from(document.querySelectorAll(r + ' [data-usd-scope-section]')).map(s => {
+			const head = s.querySelector('.uma-section-head');
+			const body = s.querySelector('.uma-section-body');
+			const badge = s.querySelector('[data-usd-scope-badge]');
+			return {
+				key: s.getAttribute('data-usd-scope-section'),
+				label: head.querySelector('span').textContent,
+				open: head.getAttribute('aria-expanded'), bodyHidden: body.hidden,
+				badge: badge ? badge.textContent : null, badgeAccent: badge ? badge.classList.contains('uma-badge--accent') : null,
+				checked: s.querySelector('input[type="checkbox"]').checked,
+				check: s.querySelector('.uma-checkcard-title').textContent,
+				note: s.querySelector('.uma-checkcard-note').textContent
+			};
+		});
+		const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
+		return { secs, schema: d.schemaVersion, scopes: d.templates[0].scopes,
+			sel: (window.deckTemplateManager ? null : null),
+			// A の見出しと B・C が同じ形の見出しで並んでいるか（C-1 の「単独で浮いて見える」への答え）
+			heads: Array.from(document.querySelectorAll(r + ' .uma-section > .uma-section-head')).map(h => h.tagName + ':' + h.textContent.replace(/\s+/g, '').slice(0, 12)) };
+	});
+	// 種数はカタログから数えた値と突き合わせる（期待値をここに書かない）
+	const catalogCounts = await page.evaluate(() => ({
+		scenarioFactors: UmaSkillDeckCore.getCatalogEntries('scenarioFactor').length,
+		genes: UmaSkillDeckCore.getCatalogEntries('geneFactor').length
+	}));
+	const s0 = await sc();
+	assert(s0.secs.length === 2 && s0.secs[0].key === 'scenarioFactors' && s0.secs[1].key === 'genes'
+		&& s0.secs[0].label === 'シナリオ因子を対象に含める' && s0.secs[1].label === '遺伝子を対象に含める',
+		'C-2a: ②に B（シナリオ因子）と C（遺伝子）の節が並ぶ', s0.secs.map(x => x.key + '/' + x.label));
+	assert(s0.secs.every(x => x.open === 'false' && x.bodyHidden) && s0.secs.every(x => x.checked === false),
+		'C-2a: どちらも既定で閉じていて、チェックは OFF', s0.secs);
+	assert(s0.secs[0].badge === catalogCounts.scenarioFactors + '種' && s0.secs[1].badge === catalogCounts.genes + '種'
+		&& s0.secs.every(x => x.badgeAccent === false),
+		'C-2a: 閉じていても種数が見える（数はカタログから数える）', { badges: s0.secs.map(x => x.badge), catalogCounts });
+	assert(s0.scopes === undefined && s0.schema === USER_DATA.schemaVersion,
+		'C-2a: scopes を持たない既存のデータは、開いただけでは姿が変わらない', { scopes: s0.scopes, schema: s0.schema });
+	assert(s0.heads.length === 3 && s0.heads[0].startsWith('P:スキルセット') && s0.heads[1].startsWith('BUTTON:') && s0.heads[2].startsWith('BUTTON:'),
+		'C-2a: A・B・C が同じ形の見出しで3つ並ぶ（A だけ畳めないので <p>）', s0.heads);
+	// 開く → チェックを入れる
+	await page.click('#deck-template-panel [data-usd-act="scope-toggle"][data-scope="scenarioFactors"]');
+	await page.waitForTimeout(200);
+	const s1 = await sc();
+	assert(s1.secs[0].open === 'true' && !s1.secs[0].bodyHidden && s1.secs[1].bodyHidden,
+		'C-2a: 見出しを押した節だけ開く', s1.secs.map(x => x.open));
+	assert(s1.secs[0].check === 'すべて対象にする' && s1.secs[0].note.startsWith('シナリオ因子は'),
+		'C-2a: 中身は「すべて対象にする」のチェックと注記', s1.secs[0]);
+	await page.click('#deck-template-panel [data-usd-act="scope-check"][data-scope="scenarioFactors"]');
+	await page.waitForTimeout(300);
+	const s2 = await sc();
+	assert(s2.secs[0].checked && JSON.stringify(s2.scopes) === JSON.stringify({ scenarioFactors: true }) && s2.schema === 5,
+		'C-2a: ON にすると scopes が書かれ、schemaVersion が 5 に上がる', { scopes: s2.scopes, schema: s2.schema });
+	assert(s2.secs[0].badge === catalogCounts.scenarioFactors + '種を対象' && s2.secs[0].badgeAccent === true,
+		'C-2a: ON のあいだはバッジの文言と色が変わる（畳んでも分かる）', s2.secs[0]);
+	// 複製すると写る
+	await page.click('#deck-template-panel [data-usd-act="template-duplicate"]');
+	await page.waitForTimeout(400);
+	const dup = await page.evaluate(() => {
+		const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
+		const last = d.templates[d.templates.length - 1];
+		return { name: last.name, scopes: last.scopes, tiers: last.tiers };
+	});
+	assert(JSON.stringify(dup.scopes) === JSON.stringify({ scenarioFactors: true }),
+		'C-2a: 複製すると scopes も写る（tiers と同じ）', dup);
+	// OFF に戻すと項目ごと消える（全部 OFF のセットは scopes を持たない＝旧データと同じ姿）。
+	// B の節は開いたまま（開閉は描き直しで閉じない）なので、そのままチェックを外せる
+	await page.click('#deck-template-panel [data-usd-act="scope-check"][data-scope="scenarioFactors"]');
+	await page.waitForTimeout(300);
+	const off = await page.evaluate(() => {
+		const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
+		const last = d.templates[d.templates.length - 1];
+		return { scopes: last.scopes, has: Object.prototype.hasOwnProperty.call(last, 'scopes') };
+	});
+	assert(!off.has, 'C-2a: 全部 OFF に戻すと scopes は項目ごと消える', off);
+	// **元のセットのタブに戻してから** C を ON にして、保存された JSON を取っておく
+	// （複製したときに選択が複製側へ移っている）
+	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
+	await page.waitForTimeout(300);
+	await page.click('#deck-template-panel [data-usd-act="scope-toggle"][data-scope="genes"]');
+	await page.waitForTimeout(200);
+	await page.click('#deck-template-panel [data-usd-act="scope-check"][data-scope="genes"]');
+	await page.waitForTimeout(300);
+	const savedJson = await page.evaluate(() => localStorage.getItem('umaSkillDeck:userData'));
+	assert(JSON.stringify(JSON.parse(savedJson).templates.find(t => t.templateId === TEMPLATE_ID).scopes)
+			=== JSON.stringify({ scenarioFactors: true, genes: true }),
+		'C-2a: 元のセットの scopes に B・C が書かれている', JSON.parse(savedJson).templates.find(t => t.templateId === TEMPLATE_ID).scopes);
+	assert(errors.length === 0, 'C-2a: special でコンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+
+	/* 保存したものを**まっさらな画面で開き直す**。openPage は addInitScript で毎回
+	   代表データを書き戻すので、ここだけ自前で文脈を作って保存済みの JSON を入れる。 */
+	const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+	const page2 = await ctx2.newPage();
+	const errors2 = [];
+	page2.on('pageerror', (e) => errors2.push(String(e)));
+	page2.on('console', (m) => { if (m.type() === 'error') errors2.push(m.text()); });
+	await page2.addInitScript((json) => localStorage.setItem('umaSkillDeck:userData', json), savedJson);
+	await page2.goto(base + '/special.html', { waitUntil: 'networkidle', timeout: 60000 });
+	await page2.waitForTimeout(1500);
+	if (await page2.isVisible('#ui-notice')) await page2.click('[data-act="notice-ok"]');
+	await page2.waitForTimeout(300);
+	await page2.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
+	await page2.waitForTimeout(400);
+	const back = await page2.evaluate(() => {
+		const r = '#deck-template-panel';
+		const s = document.querySelector(r + ' [data-usd-scope-section="genes"]');
+		const b = document.querySelector(r + ' [data-usd-scope-section="scenarioFactors"]');
+		return { checked: s ? s.querySelector('input[type="checkbox"]').checked : null,
+			badge: s ? s.querySelector('[data-usd-scope-badge]').textContent : null,
+			open: s ? s.querySelector('.uma-section-head').getAttribute('aria-expanded') : null,
+			otherChecked: b ? b.querySelector('input[type="checkbox"]').checked : null,
+			// 呼び出し元へ渡す選択にも scopes が乗る（C-2b の照合はこれを見る）
+			sel: deckTemplateManager ? deckTemplateManager.getSelection().scopes : null };
+	});
+	// 元のセットは B を ON にしたあと複製しているので、B・C とも ON のまま
+	// （OFF に戻したのは複製したほうで、そちらは scopes ごと消えている）
+	assert(back.checked === true && back.badge.endsWith('種を対象') && back.otherChecked === true,
+		'C-2a: 開き直しても ON のまま', back);
+	assert(back.open === 'false', 'C-2a: 開閉は保存しない（開き直すと閉じた状態に戻る）', back.open);
+	assert(JSON.stringify(back.sel) === JSON.stringify({ scenarioFactors: true, genes: true }),
+		'C-2a: getSelection() の戻り値に scopes が入る', back.sel);
+	assert(errors2.length === 0, 'C-2a: 開き直した special でコンソールエラーが出ない', errors2.slice(0, 3));
+	await ctx2.close();
+}
+{
+	// 書き出し・取り込みで scopes が残る（Deck 単体ページのデータ管理から）
+	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
+	await page.evaluate(() => {
+		const d = UmaSkillDeckCore.getUserData();
+		d.templates[0].scopes = { genes: true };
+		d.schemaVersion = 5;
+		UmaSkillDeckCore.saveUserData();
+	});
+	await page.click('#tab-btn-data');
+	await page.waitForTimeout(300);
+	await page.click('button[onclick="exportData()"]');
+	await page.waitForTimeout(300);
+	const exported = await page.inputValue('#export-textarea');
+	const exp = JSON.parse(exported);
+	assert(exp.schemaVersion === 5 && JSON.stringify(exp.templates[0].scopes) === JSON.stringify({ genes: true }),
+		'C-2a(deck): 書き出しに scopes と schemaVersion 5 が入る', { schema: exp.schemaVersion, scopes: exp.templates[0].scopes });
+	const roundtrip = await page.evaluate((json) => {
+		document.getElementById('import-textarea').value = json;
+		const realConfirm = window.confirm; window.confirm = () => true; importData(); window.confirm = realConfirm;
+		const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
+		return { schema: d.schemaVersion, scopes: d.templates[0].scopes };
+	}, exported);
+	assert(roundtrip.schema === 5 && JSON.stringify(roundtrip.scopes) === JSON.stringify({ genes: true }),
+		'C-2a(deck): 取り込み直しても scopes が残る', roundtrip);
+	const legacy = await page.evaluate((json) => {
+		document.getElementById('import-textarea').value = json;
+		const realConfirm = window.confirm; window.confirm = () => true; importData(); window.confirm = realConfirm;
+		const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
+		return { schema: d.schemaVersion, has: Object.prototype.hasOwnProperty.call(d.templates[0], 'scopes') };
+	}, JSON.stringify(USER_DATA));
+	assert(legacy.schema === USER_DATA.schemaVersion && !legacy.has,
+		'C-2a(deck): scopes の無いデータを取り込んでも壊れず、scopes は補われない', legacy);
+	assert(errors.length === 0, 'C-2a(deck): コンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
+{
+	// 「因子はスキルではない」の1文は exam.html と special.html で同じ（片方だけ直したら落ちる）
+	const fs = await import('node:fs');
+	const SHARED = 'はスキルではないので、対象スキル数・検出数には含めず、別に数えます。';
+	// exam 側は「対象スキル数・検出数には含めず」だけ太字にしてあるので、**タグを外してから**比べる
+	// （見比べるのは利用者が読む文であって、飾りではない）。special 側は core の esc() を通るので素のまま
+	const strip = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8').replace(/<[^>]+>/g, '');
+	const inExam = strip('../../exam.html').includes(SHARED);
+	const inSpecial = strip('../../special.html').includes(SHARED);
+	assert(inExam && inSpecial,
+		'C-2a: 「因子はスキルではない」の1文が exam.html と special.html の両方にある（言い回しを分けない）',
+		{ exam: inExam, special: inSpecial });
 }
 
 /* ============================================================

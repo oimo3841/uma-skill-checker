@@ -1,8 +1,9 @@
 /* ============================================================
  * Uma Tools 共通スタイル — 2/3 共通部品（css/common.css）
  *
- * special.html / uma-skill-deck.html で共有する。exam.html は読まない
- * （exam の既存の見た目を変えないため。exam は tokens.css と shell.css だけを読む）。
+ * special.html / uma-skill-deck.html / card-event-input.html / exam.html で共有する。
+ * **exam.html も 59セッション目（C-60）から読む**（それまでは tokens.css と shell.css だけで、
+ * ここには「exam は読まない」と書いてあったが、実態と合わなくなっていた。2026-09-20 に直した）。
  *
  * ここに置くもの:
  *   全ツールで同じ形であるべき共通部品（ボタン・入力欄・バッジ・カード）
@@ -30,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-09-20b";
+	--uma-components-css-version: "2026-09-20c";
 }
 
 /* ============================================================
@@ -259,6 +260,64 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 	background: transparent; color: var(--uma-disclose-color); cursor: pointer;
 }
 .uma-disclose[aria-expanded="true"] { background: var(--uma-disclose-color); color: var(--uma-text-inverse); }
+
+/* ============================================================
+ * 節（見出し＋中身。C-2a）
+ *
+ * 1つの画面の中を意味のまとまりに分ける。中身を畳めるものは見出しを <button> にして
+ * aria-expanded を付け、中身は hidden 属性で開閉する（畳まないものは <p> のまま）。
+ * **.uma-disclose とは役割が違う** ―― あちらは「一覧をちょっと開く」小さな文字ボタンで、
+ * 赤い丸ピル1個ぶんの大きさしかない。こちらは節そのものの見出しで、横幅いっぱいに置く。
+ *
+ * **見出しと中身の間（8px）は、中身どうしの間（12px）より詰める。** 同じ間隔だと、
+ * 見出しがどの節のものか読み取れない。
+ * ============================================================ */
+.uma-section { display: flex; flex-direction: column; gap: var(--uma-sp-2); }
+.uma-section-head {
+	display: flex; align-items: center; gap: var(--uma-sp-1-5);
+	margin: 0; padding: 0; border: 0; background: transparent; text-align: left;
+	font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);
+	font-weight: 600; letter-spacing: .02em; color: var(--uma-text-subtle);
+}
+button.uma-section-head { cursor: pointer; }
+button.uma-section-head:hover { color: var(--uma-text-heading); }
+/* 開閉の向き。閉じているとき右、開くと下（<details> の chevron と同じ読み方） */
+.uma-section-mark { flex: none; transition: transform var(--uma-transition); }
+.uma-section-head[aria-expanded="true"] .uma-section-mark { transform: rotate(90deg); }
+.uma-section-body { display: flex; flex-direction: column; gap: var(--uma-sp-3); }
+.uma-section-body[hidden] { display: none; }
+
+/* ============================================================
+ * チェックの付いた白いカード（C-2a）
+ *
+ * 「これを対象に含める」のような、1行では言い切れない選択肢。見出しの下に、
+ * なぜそうなるのかの注記を添えられる。面ごと押せるように <label> で包む。
+ *
+ * exam.html の「対象スキルの範囲」の3択と「シナリオ因子を対象に含める」が同じ形を
+ * Tailwind の直書きで持っている。**段C では special だけがこのクラスを使い、
+ * exam を寄せるのは段F のついで**（段E-3 のとおり、枠と余白を動かすと狭い画面の
+ * 折り返しが変わるため、exam を触る段でまとめて確かめる）。
+ * ============================================================ */
+.uma-checkcard {
+	display: flex; align-items: flex-start; gap: var(--uma-sp-2);
+	padding: var(--uma-sp-2-5);
+	border: 1px solid var(--uma-border); border-radius: var(--uma-r-md);
+	background: var(--uma-surface); cursor: pointer;
+	transition: border-color var(--uma-transition);
+}
+.uma-checkcard:hover { border-color: var(--uma-control-border); }
+.uma-checkcard > input[type="checkbox"],
+.uma-checkcard > input[type="radio"] {
+	flex: none; margin: 2px 0 0; accent-color: var(--uma-control); cursor: pointer;
+}
+.uma-checkcard-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.uma-checkcard-title {
+	font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm);
+	font-weight: 600; color: var(--uma-text);
+}
+.uma-checkcard-note {
+	font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle);
+}
 
 /* 絞り込みなどの切り替えボタン。
    UmaStar OCR の結果表で使っている形（角丸の矩形・選択中は反転）に揃えた。 */

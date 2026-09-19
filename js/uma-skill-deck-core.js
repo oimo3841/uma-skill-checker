@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-20a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-20b';
 
 	/* ============================================================
 	 * 定数
@@ -357,7 +357,10 @@
 		// schemaVersion 4 で template.tiers（スキルセットの分類。{ skillId: 1|2|3 }。C-57）が加わった。
 		// これも読み込み側は分岐せず、**後から補わない**（tiers が無い id は「優先」（2）として読む。
 		// 補うと、分類を一度も変えていない人のデータの姿が開いただけで変わる。C-51 の知見）。
-		return { schemaVersion: 4, templates: [], records: [], customSkills: [], rosters: [] };
+		// schemaVersion 5 で template.scopes（節の ON/OFF。{ scenarioFactors: true, genes: true }。C-2a）が
+		// 加わった。これも読み込み側は分岐せず、**後から補わない**（scopes が無いセットは
+		// 「どの節も OFF」＝含めない、として読む。既定が OFF なので移行は要らない）。
+		return { schemaVersion: 5, templates: [], records: [], customSkills: [], rosters: [] };
 	}
 
 	function loadUserData() {
@@ -425,8 +428,10 @@
 			if (!parsed || !Array.isArray(parsed.skillIds)) return { skillIds: [], name: '', updatedAt: '' };
 			// name は C-53 で足した（「＋ 新規」のタブで入力した名前を保存まで覚えておく）。無い古い形は空文字。
 			// tiers（分類。C-57）は持っているときだけ写す（無い古い形に補わない＝テンプレートと同じ流儀）
+			// scopes（節の ON/OFF。C-2a）も tiers と同じ流儀（持っているときだけ写す）
 			const out = { skillIds: parsed.skillIds.slice(), name: typeof parsed.name === 'string' ? parsed.name : '', updatedAt: parsed.updatedAt || '' };
 			if (parsed.tiers && typeof parsed.tiers === 'object') out.tiers = Object.assign({}, parsed.tiers);
+			if (parsed.scopes && typeof parsed.scopes === 'object') out.scopes = Object.assign({}, parsed.scopes);
 			return out;
 		} catch (e) {
 			return { skillIds: [], name: '', updatedAt: '' };
@@ -434,10 +439,12 @@
 	}
 
 	// label … 失敗を知らせるときの呼び名（呼び出し元の setLabel）。渡さなければ既定の呼び名
-	function saveDraftScope(scopeKey, skillIds, name, tiers, label) {
+	function saveDraftScope(scopeKey, skillIds, name, tiers, label, scopes) {
 		const payload = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
 		// 空の tiers は書かない（分類を変えていないドラフトの姿を変えない）
 		if (tiers && typeof tiers === 'object' && Object.keys(tiers).length > 0) payload.tiers = Object.assign({}, tiers);
+		// scopes（節の ON/OFF。C-2a）も同じ ―― 全部 OFF なら書かない
+		if (scopes && typeof scopes === 'object' && Object.keys(scopes).length > 0) payload.scopes = Object.assign({}, scopes);
 		try {
 			global.localStorage.setItem(draftStorageKey(scopeKey), JSON.stringify(payload));
 		} catch (e) {
@@ -1702,11 +1709,11 @@
 		// スキルセットと親A／親Bセットにも広げたので、ここには編成だけの規則は無い。
 		// スキルセット（テンプレート管理。C-53）の1画面の骨格
 		'.usd-tm { display: flex; flex-direction: column; gap: var(--uma-sp-3); }',
-		// 節（C-1）。いまは A（スキルセット）だけだが、special の②には B（シナリオ因子）と
-		// C（遺伝子）が並ぶ（C-2a）。**見出しと中身の間は中身どうしの間より詰める**（8px と 12px）
-		// ―― 同じ間隔だと、見出しがどの節のものか読み取れない。
-		'.usd-tm-section { display: flex; flex-direction: column; gap: var(--uma-sp-2); }',
-		'.usd-tm-section-body { display: flex; flex-direction: column; gap: var(--uma-sp-3); }',
+		// 節（A／B／C）の骨格は css/common.css の .uma-section（C-2a で共通部品にした）。
+		// ここに置くのは「節どうしの間隔」だけ ―― B・C が並ぶときだけ意味を持つので、
+		// 1つも無ければ入れ物ごと高さを持たない
+		'.usd-tm-scopes:empty { display: none; }',
+		'.usd-tm-scopes { display: flex; flex-direction: column; gap: var(--uma-sp-3); }',
 		// 名前欄（①の編成名・②のスキルセット名）。欄は行いっぱい（.uma-input の width: 100%）で、
 		// 保存／複製／削除はその下の行に折り返す（②も①と同じ並び。C-55 の (3)。それまで②だけ欄と
 		// ボタンが同じ行だった）。文字は本文より一段大きく太くして、いま開いているセットの名前として読める大きさにする（C-55 の (6)）。
@@ -3572,6 +3579,23 @@
 		// Deck 単体ページは A しか無く、入れ物も「スキルセット」なので、出すと
 		// 「スキルセット（0／10件）」の下にもう一度「スキルセット」が出て二重に見える（実機で確認）。
 		const sectionHeadings = !!opts.sectionHeadings;
+		/**
+		 * **A（スキルセット）の下に並べる、ON/OFF だけの節**（C-2a）。中身は呼び出し元が渡す
+		 * （`opts.screenshotEntry` と同じ手口）。**core は「何を ON にしているのか」を知らない。**
+		 *
+		 *   { key, label, checkLabel, note, count }
+		 *     key       … 保存データの鍵。**保存済みのセットが指し続けるので後から変えない。**
+		 *     label     … 節の見出し（例「シナリオ因子を対象に含める」）
+		 *     checkLabel… チェックの文（例「すべて対象にする」）
+		 *     note      … チェックの下の注記（省略可）
+		 *     count     … 種数。数か、描くたびに呼ぶ関数。**画面にもここにも数字を書かない**ので、
+		 *                 呼び出し元がデータから数えて渡す
+		 *
+		 * 渡さなければ節は1つも出ない（Deck 単体ページ・card-event-input.html）。
+		 */
+		const extraScopes = (Array.isArray(opts.extraScopes) ? opts.extraScopes : []).filter(s => s && s.key);
+		// どの節を開いているか。**保存しない**（既定は閉じる。開き直すと閉じた状態に戻る）
+		const openScopes = {};
 
 		// 選択中のID。null／DRAFT_SELECTION_ID＝「＋ 新規」（ドラフト＝未保存）、それ以外はテンプレートID。
 		// **編集対象＝タブで選んでいるもの**（C-53）。別画面の編集ビューと「開く」は無く、選んだものをその場で編集する。
@@ -3605,9 +3629,9 @@
 				// renderSelectedList は無変更（どれも q(container, '…') で引くだけで深さを見ない）。
 				// 見出しの呼び名は setLabel を通さない ―― A は special でも「スキルセット」のままで、
 				// 入れ物（因子セット）の呼び名とは別（DEFAULT_SET_LABEL の説明を読むこと）。
-				'<div data-usd-el="section-a" class="usd-tm-section">' +
-					(sectionHeadings ? '<p class="usd-roster-h usd-roster-h--sub">スキルセット</p>' : '') +
-					'<div class="usd-tm-section-body">' +
+				'<div data-usd-el="section-a" class="uma-section">' +
+					(sectionHeadings ? '<p class="uma-section-head">スキルセット</p>' : '') +
+					'<div class="uma-section-body">' +
 					// スキルを足す入口は3つ（＋呼び出し元が渡せば4つ目）。以前は「スキルを追加」1つだけを出し、
 					// 中の畳んだ見出しで3つに分かれていたが、それだと「テキストで検索」も
 					// 「マスターにないスキルを追加」も、開いてみるまで在ることが分からなかった。
@@ -3645,6 +3669,8 @@
 					'<div data-usd-el="selected-list" class="usd-panels"></div>' +
 					'</div>' +
 				'</div>' +
+				// B・C …（opts.extraScopes。無ければ空のまま）。中身は renderExtraScopes() が描く
+				'<div data-usd-el="extra-scopes" class="usd-tm-scopes"></div>' +
 				// 最下段の注記（「スキルの追加・削除はすぐに保存されます…」／「保存すると名前を付けて残せます…」）は
 				// C-62 の (7) で削除した。どちらも保存の作法を言うだけで、名前欄と「保存」がその場に見えている
 				// 画面では読む意味が無かった（renderNote() ごと外したので、描く対象も無い）。
@@ -3671,6 +3697,13 @@
 			else if (act === 'mode-reclass') setMode('reclass');
 			else if (act === 'mode-delete') setMode('delete');
 			else if (act === 'tier-move') moveSkillTier(btn.dataset.skillId, Number(btn.dataset.tier));
+			// B・C …（C-2a）: 節の開閉。チェックそのものは change で受ける（label の中なので click は2回来る）
+			else if (act === 'scope-toggle') toggleScopeSection(btn.dataset.scope);
+		});
+		container.addEventListener('change', (e) => {
+			const box = e.target;
+			if (!box || !box.getAttribute || box.getAttribute('data-usd-act') !== 'scope-check') return;
+			setScope(box.dataset.scope, box.checked);
 		});
 		container.addEventListener('input', (e) => {
 			if (e.target === nameInput) onNameInput();
@@ -3725,7 +3758,73 @@
 			renderTabs();
 			renderNameRow();
 			renderSelectedList();
+			renderExtraScopes();
 			fireViewChange('list');
+		}
+
+		/* ---------- B・C …（opts.extraScopes。C-2a） ---------- */
+
+		/**
+		 * 節（B・C …）を描く。**既定は閉じる。**
+		 * 閉じたままでも ON かどうかが分かるよう、見出しの脇に種数のバッジを置き、
+		 * ON のときだけ文言と色を変える（「N種」→「N種を対象」・淡い強調色）。
+		 * 閉じている節の状態が見えないと、押して開くまで分からない。
+		 */
+		function renderExtraScopes() {
+			const el = q(container, 'extra-scopes');
+			if (!el) return;
+			if (extraScopes.length === 0) { el.innerHTML = ''; return; }
+			const cur = scopesOf(currentTarget());
+			el.innerHTML = extraScopes.map(s => {
+				const on = cur[s.key] === true;
+				const n = typeof s.count === 'function' ? s.count() : s.count;
+				const bodyId = 'usd-scope-body-' + s.key;
+				const open = !!openScopes[s.key];
+				return '<div class="uma-section" data-usd-scope-section="' + esc(s.key) + '">' +
+					'<button type="button" class="uma-section-head" data-usd-act="scope-toggle" data-scope="' + esc(s.key) + '"' +
+						' aria-expanded="' + (open ? 'true' : 'false') + '" aria-controls="' + bodyId + '">' +
+						'<i data-lucide="chevron-right" class="uma-section-mark w-3 h-3"></i>' +
+						'<span>' + esc(s.label) + '</span>' +
+						(typeof n === 'number'
+							? '<span class="uma-badge' + (on ? ' uma-badge--accent' : '') + '" data-usd-scope-badge="' + esc(s.key) + '">'
+								+ n + '種' + (on ? 'を対象' : '') + '</span>'
+							: '') +
+					'</button>' +
+					'<div class="uma-section-body" id="' + bodyId + '"' + (open ? '' : ' hidden') + '>' +
+						'<label class="uma-checkcard">' +
+							'<input type="checkbox" data-usd-act="scope-check" data-scope="' + esc(s.key) + '"' + (on ? ' checked' : '') + '>' +
+							'<span class="uma-checkcard-text">' +
+								'<span class="uma-checkcard-title">' + esc(s.checkLabel || 'すべて対象にする') + '</span>' +
+								(s.note ? '<span class="uma-checkcard-note">' + esc(s.note) + '</span>' : '') +
+							'</span>' +
+						'</label>' +
+					'</div>' +
+				'</div>';
+			}).join('');
+			refreshIcons();
+		}
+
+		function toggleScopeSection(key) {
+			if (!extraScopes.some(s => s.key === key)) return;
+			openScopes[key] = !openScopes[key];
+			renderExtraScopes();
+		}
+
+		/**
+		 * 節の ON/OFF。**「元に戻す」には積まない** ―― もう一度押せば戻る操作で、
+		 * いまの状態も画面に出ている。積むと、戻したいのはスキルの追加だったのに
+		 * チェックが戻る、ということが起きる（C-3 の「クリア」はまとめて戻すので、そちらには含める）。
+		 */
+		function setScope(key, on) {
+			if (!extraScopes.some(s => s.key === key)) return;
+			const target = currentTarget();
+			const next = Object.assign({}, scopesOf(target));
+			if (on) next[key] = true; else delete next[key];
+			if (!writeScopes(target, next)) return;
+			renderTabs();
+			renderExtraScopes();
+			if (isSelected(target)) fireSelection();
+			fireChange();
 		}
 
 		function renderTabs() {
@@ -3899,11 +3998,15 @@
 			// テンプレートの名前は「保存」（またはタブを離れるとき）に反映する
 		}
 
-		// tiers（分類。C-57）は持っているときだけ残す（空なら書かない）
-		function persistDraft(skillIds, name, tiers) {
-			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, tiers, setLabel);
+		// tiers（分類。C-57）と scopes（節の ON/OFF。C-2a）は持っているときだけ残す（空なら書かない）。
+		// **渡されなければ今のものを引き継ぐ**（片方を書き換えるときにもう片方を消さないため）
+		function persistDraft(skillIds, name, tiers, scopes) {
+			const nextTiers = tiers !== undefined ? tiers : draftScope.tiers;
+			const nextScopes = scopes !== undefined ? scopes : draftScope.scopes;
+			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, nextTiers, setLabel, nextScopes);
 			const out = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
-			if (tiers && typeof tiers === 'object' && Object.keys(tiers).length > 0) out.tiers = Object.assign({}, tiers);
+			if (nextTiers && typeof nextTiers === 'object' && Object.keys(nextTiers).length > 0) out.tiers = Object.assign({}, nextTiers);
+			if (nextScopes && typeof nextScopes === 'object' && Object.keys(nextScopes).length > 0) out.scopes = Object.assign({}, nextScopes);
 			return out;
 		}
 
@@ -3930,12 +4033,15 @@
 				return;
 			}
 			const t = { templateId: uid('tpl'), name: nameInput.value, skillIds: draftScope.skillIds.slice(), createdAt: nowIso(), updatedAt: nowIso() };
-			// ドラフトの分類（C-57）もテンプレートへ写す（「優先」だけなら tiers は持たない）
+			// ドラフトの分類（C-57）と節の ON/OFF（C-2a）もテンプレートへ写す
+			// （「優先」だけなら tiers は持たない／全部 OFF なら scopes は持たない）
 			setTemplateTiers(t, draftScope.tiers || {});
+			setTemplateScopes(t, draftScope.scopes || {});
 			data.templates.push(t);
 			saveUserData();
-			// 中身はテンプレートへ移ったので、ドラフトは空にする（二重管理を避ける）
-			draftScope = persistDraft([], '', undefined);
+			// 中身はテンプレートへ移ったので、ドラフトは空にする（二重管理を避ける）。
+			// **{} を渡して明示的に消す** ―― persistDraft は undefined を「今のものを引き継ぐ」と読む
+			draftScope = persistDraft([], '', {}, {});
 			selectedId = t.templateId;
 			render();
 			fireSelection();
@@ -4100,6 +4206,35 @@
 			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
 			return (t && t.tiers) || {};
 		}
+		/**
+		 * 対象の「今の」節の ON/OFF（scopes。C-2a）。持っていなければ空（＝全部 OFF）。
+		 * **tiers とまったく同じ流儀**: 無い古いデータに補わない／既定（全部 OFF）なら項目ごと持たない。
+		 */
+		function scopesOf(target) {
+			if (!target) return {};
+			if (target.kind === 'draft') return draftScope.scopes || {};
+			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
+			return (t && t.scopes) || {};
+		}
+		// この画面が知っている節のうち、ON のものだけを残す（OFF は書かない＝全部 OFF なら項目ごと消える）
+		function cleanScopes(scopes) {
+			const out = {};
+			extraScopes.forEach(s => { if (scopes && scopes[s.key] === true) out[s.key] = true; });
+			return out;
+		}
+		function writeScopes(target, scopes) {
+			const clean = cleanScopes(scopes);
+			if (target.kind === 'draft') {
+				draftScope = persistDraft(draftScope.skillIds, draftScope.name, draftScope.tiers, clean);
+				return true;
+			}
+			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
+			if (!t) return false;
+			setTemplateScopes(t, clean);
+			t.updatedAt = nowIso();
+			saveUserData();
+			return true;
+		}
 		// tiers の写しから、渡した id の項目を除いたもの（外したスキルの分類を残さない）
 		function tiersWithout(tiers, ids) {
 			const out = Object.assign({}, tiers || {});
@@ -4132,6 +4267,16 @@
 			const data = ensureUserData();
 			if (!(data.schemaVersion >= 4)) data.schemaVersion = 4;
 		}
+		// テンプレートの scopes を書く（C-2a）。setTemplateTiers とまったく同じ形。
+		// 中身が空なら項目ごと消す（全部 OFF のセットは scopes を持たない＝旧データと同じ姿）。
+		// 初めて scopes を書くとき、保存データの schemaVersion を 5 に上げる（形が増えたことの記録）
+		function setTemplateScopes(t, scopes) {
+			const clean = cleanScopes(scopes);
+			if (Object.keys(clean).length === 0) { delete t.scopes; return; }
+			t.scopes = clean;
+			const data = ensureUserData();
+			if (!(data.schemaVersion >= 5)) data.schemaVersion = 5;
+		}
 		// 1件の分類を書く（再分類。C-57 の (9)）
 		function writeTier(target, skillId, tier) {
 			const ids = skillIdsOf(target);
@@ -4159,6 +4304,7 @@
 			flushPendingName();
 			const copy = { templateId: uid('tpl'), name: t.name + '（コピー）', skillIds: t.skillIds.slice(), createdAt: nowIso(), updatedAt: nowIso() };
 			if (t.tiers) copy.tiers = Object.assign({}, t.tiers);   // 分類（C-57）も写す
+			if (t.scopes) copy.scopes = Object.assign({}, t.scopes); // 節の ON/OFF（C-2a）も写す
 			data.templates.push(copy);
 			saveUserData();
 			// 複製したものをそのまま選ぶ（続けて名前を直せるように）
@@ -4219,11 +4365,12 @@
 				// 既定のシート名など）。タブと同じ呼び方にしておかないと、
 				// 選んだものと表示されるものの名前が食い違って見える。
 				// tiers（分類。C-57）は写しを渡す（無ければ空＝全部「優先」。呼び出し元は tierOf() で引く）
-				return { kind: 'draft', id: DRAFT_SELECTION_ID, name: draftScope.name || DRAFT_LABEL, skillIds: draftScope.skillIds.slice(), tiers: Object.assign({}, draftScope.tiers || {}) };
+				// scopes（節の ON/OFF。C-2a）も写しを渡す（呼び出し元は scopes.<key> === true で見る）
+				return { kind: 'draft', id: DRAFT_SELECTION_ID, name: draftScope.name || DRAFT_LABEL, skillIds: draftScope.skillIds.slice(), tiers: Object.assign({}, draftScope.tiers || {}), scopes: Object.assign({}, draftScope.scopes || {}) };
 			}
 			const t = ensureUserData().templates.find(x => x.templateId === selectedId);
 			if (!t) return null;
-			return { kind: 'template', id: t.templateId, name: t.name || '（名称未設定）', skillIds: t.skillIds.slice(), tiers: Object.assign({}, t.tiers || {}) };
+			return { kind: 'template', id: t.templateId, name: t.name || '（名称未設定）', skillIds: t.skillIds.slice(), tiers: Object.assign({}, t.tiers || {}), scopes: Object.assign({}, t.scopes || {}) };
 		}
 
 		/**
@@ -4570,6 +4717,11 @@
 		loadExtraCatalog: loadExtraCatalog,
 		getExtraCatalog: function () { return extraCatalog; },
 		getExtraCatalogMeta: function () { return extraCatalogMeta; },
+		// 追加カタログの1カテゴリの中身（{id, name} の配列）。**件数も名前もここから取る**
+		// ―― 呼び出し元が「24種」「10種」のような数やスキル名を自前で持たないため（恒久ルール1）。
+		getCatalogEntries: function (category) {
+			return extraCatalog.filter(x => x.category === category).map(x => ({ id: x.id, name: x.name }));
+		},
 		getExtraCatalogSources: function () { return EXTRA_CATALOG_SOURCES.slice(); },
 		/**
 		 * 収録データから参照してよいスキルのカタログ（＝マスター445種の外にあるスキル）の

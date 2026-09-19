@@ -14,9 +14,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20b" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-20b" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-20b" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20c" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-20c" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-20c" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-20a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-20b"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-18a"></script>
 	<style>
@@ -844,7 +844,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20b';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20c';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -2553,6 +2553,34 @@
 		let deckMasterLoaded = false;
 		// 「ドラフト」（保存しない一時的な対象スキルセット）の保存先。userData とは別の名前空間。
 		const DECK_DRAFT_SCOPE_KEY = 'special';
+
+		/* ------------------------------------------------------------
+		 * ②の B・C ―― シナリオ因子と遺伝子を対象に含める（C-2a）
+		 *
+		 * 因子セットは「A. スキルセット ＋ B. シナリオ因子 ＋ C. 遺伝子」の入れ物。
+		 * B・C は ON/OFF だけで、**1種ずつ選び分けられるようにはしない**
+		 * （exam が段D で個別24件をやめて総括チェック1つにしたのと同じ。C-68 の5節）。
+		 *
+		 * **この文の前半は exam.html と同じ1文**。因子がスキルとどう違うかの説明は、
+		 * ツールごとに言い回しが分かれると片方だけ古くなるので、1文を正として両方が持つ。
+		 * 一致は tests/visual/run-smoke.mjs が見張る（**片方だけ直したら落ちる**）。
+		 * ------------------------------------------------------------ */
+		const NOT_SKILL_NOTE_CORE = 'はスキルではないので、対象スキル数・検出数には含めず、別に数えます。';
+		// key は保存データ（template.scopes）の鍵。**保存済みのセットが指し続けるので後から変えない。**
+		// category は core の追加カタログのカテゴリ（種数と、C-2b で使う名前をここから取る）。
+		const FACTOR_SCOPES = [
+			{ key: 'scenarioFactors', category: 'scenarioFactor', shortLabel: 'シナリオ因子' },
+			{ key: 'genes', category: 'geneFactor', shortLabel: '遺伝子' }
+		].map(s => ({
+			key: s.key,
+			label: s.shortLabel + 'を対象に含める',
+			checkLabel: 'すべて対象にする',
+			// 後半は exam と揃えない ―― exam の「一覧・結果では」の「一覧」は
+			// 「対象スキルN種の一覧を確認する」のことで、special にはその一覧が無い。
+			note: s.shortLabel + NOT_SKILL_NOTE_CORE + '結果の表と結合画像では ◆ が付きます',
+			// 描くたびに数える（収録データが増減しても直さなくてよい）
+			count: () => UmaSkillDeckCore.getCatalogEntries(s.category).length
+		}));
 		// Deckモードに入る前の手入力リストの状態。モードを抜けたらそのまま復元する。
 		let manualSkillState = null;
 		/* ------------------------------------------------------------
@@ -2737,6 +2765,10 @@
 						// A（スキルセット）に見出しを出す。②には B（シナリオ因子）・C（遺伝子）が並ぶので、
 						// どこまでが A なのかが要る。Deck 単体ページは A しか無いので出さない。
 						sectionHeadings: true,
+						// B・C（C-2a）。A の下に並ぶ、ON/OFF だけの節。**中身はここが渡す**
+						// （core は「因子セット」も「シナリオ因子」も知らない。opts で差し込む）。
+						// 種数はカタログから数える（数字をここに書かない。恒久ルール1）。
+						extraScopes: FACTOR_SCOPES,
 						// 保存しない一時的な対象スキルセットを一覧の先頭に出し、
 						// その内容をブラウザに残す（次に開いたときも続きから使える）。
 						draftScopeKey: DECK_DRAFT_SCOPE_KEY,
@@ -3140,7 +3172,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-20b';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-20c';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {
