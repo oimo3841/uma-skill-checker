@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-09-19b";
+	--uma-shell-css-version: "2026-09-20a";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -112,11 +112,22 @@
 @media (max-width: 480px) {
 	.step-tabs { gap: var(--uma-sp-1); }
 	/* 名前とバッジが1行に収まらないときは、バッジを名前の下へ回す。
-	   名前を1〜2文字まで削るより、2行にするほうが読める（375px で実測）。 */
-	.step-tab { gap: var(--uma-sp-1); padding-left: var(--uma-sp-1); padding-right: var(--uma-sp-1); flex-wrap: wrap; }
-	.step-tab-label { flex: 1 1 auto; min-width: 4em; }
+	   名前を1〜2文字まで削るより、2行にするほうが読める（375px で実測）。
+	   **折り返した行は上に詰める**（64セッション目・段E-2）。既定の align-content は
+	   1行しかないタブ（バッジの無い③）の行を縦に伸ばし、`align-items: center` と相まって
+	   **そのタブだけ丸数字と名前が下へ沈んでいた**。 */
+	.step-tab { gap: var(--uma-sp-1); padding-left: var(--uma-sp-1); padding-right: var(--uma-sp-1); flex-wrap: wrap; align-content: flex-start; }
+	/* **折り返しのきっかけになるのはバッジだけ**にする（64セッション目・段E-2）。
+	   basis が auto（＝名前の実寸）だと、名前が長いタブでは**名前そのものが丸数字の下へ
+	   回って**しまい、タブごとに名前の高さが変わっていた。basis を 0 にすると名前は
+	   残り幅まで縮んで（溢れは `text-overflow` で省略）、丸数字の隣に必ず並ぶ。
+	   min-width（4em）は残す ―― これが無いと名前が1文字まで削られ、バッジが名前の
+	   横に居座る（C-63 の (2) で実測した失敗。375px で名前の幅が 15px になる）。 */
+	.step-tab-label { flex: 1 1 0; min-width: 4em; }
 	.step-tab-num { width: 20px; height: 20px; }
-	.step-tab-badge { padding: var(--uma-sp-0-5) var(--uma-sp-1); }
+	/* 折り返したバッジは、右端ではなく**そのタブの左端**に置く（どのタブのものか分かるように）。
+	   1行に収まるときは、名前が残り幅まで伸びるので見え方は変わらない。 */
+	.step-tab-badge { padding: var(--uma-sp-0-5) var(--uma-sp-1); margin-left: 0; }
 }
 .step-panel[hidden] { display: none !important; }
 /* Tailwind の preflight が来なかった場合の保険（F-13と同じ理由で自前でも指定する） */
