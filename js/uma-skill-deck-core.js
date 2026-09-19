@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19l';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19m';
 
 	/* ============================================================
 	 * 定数
@@ -194,12 +194,33 @@
 		// 「空＝どれにも当たらない（ふつうのスキル）」。445件中418件が空で、そちらが普通の状態。
 		// 選択肢が1つだった名残で flagAxis と呼んでいたが、**選択肢の数とは関係がない**ので
 		// emptyMeansNone（空は「該当なし」）に改名した。
+		// internalOnly の2つは**利用者が選ぶ値ではなく、データの側だけが持つ**値。
+		// シナリオ因子・遺伝子はスキルではなく、条件検索の母集団にも入らない（C-67）ので、
+		// 絞り込みの選択肢として出しても1件も当たらない。値そのものは消さずに残す
+		// （データが持っており、tagLabel() が表示名に直すのに要る）。
 		{ key: 'scenario', label: 'その他', emptyMeansNone: true, options: [
 			{ v: 'scenario', t: 'シナリオスキル' },
-			{ v: 'scenario_factor', t: 'シナリオ因子' },
-			{ v: 'gene', t: '遺伝子' }
+			{ v: 'scenario_factor', t: 'シナリオ因子', internalOnly: true },
+			{ v: 'gene', t: '遺伝子', internalOnly: true }
 		]}
 	];
+
+	/**
+	 * **利用者に選ばせる選択肢**だけを返す（`internalOnly` の値を落とす）。
+	 *
+	 * `internalOnly` は「絞り込みに出さない」という**用途**ではなく、
+	 * 「利用者が選ぶ値ではなく、データの側だけが持つ」という**性質**の印（F-59）。
+	 * だから、利用者に値を選ばせる画面はどれもこれを通す
+	 * （いまは条件検索の絞り込みと、カスタムスキル入力のタグの2か所）。
+	 *
+	 * **通してはいけないもの**:
+	 *   - `tagLabel()` … 値 → 表示名の変換。通すと画面に生の値（`scenario_factor`）が出る
+	 *   - `matchesFilters()` … そもそも options を見ない（マッチングには影響しない）
+	 *   - `card-event-input.html` のタグ付け … おいもさんが**付ける**値なので全部出す
+	 */
+	function pickableOptions(axis) {
+		return axis.options.filter(o => !o.internalOnly);
+	}
 
 	/* フェッチもキャッシュも駄目だったときに使う、追加カタログの組み込みの写し。
 	   カタログが1件も無いと、保存済みの比較シートの行が「（不明なスキル：…）」に化けるので、
@@ -2073,7 +2094,8 @@
 			const isActive = axis.key === picker.activeAxis;
 			// 選択肢の見た目だけチップにする。中身は従来どおり本物の checkbox で、
 			// data-usd-el / data-axis / data-value もそのまま残してある。
-			const opts = axis.options.map(o =>
+			// 出すのは利用者が選ぶ値だけ（pickableOptions）。
+			const opts = pickableOptions(axis).map(o =>
 				'<label class="usd-opt">' +
 					'<input type="checkbox" data-usd-el="filter-check" data-axis="' + axis.key + '" data-value="' + esc(o.v) + '"/>' +
 					'<span>' + esc(o.t) + '</span>' +
@@ -2379,7 +2401,8 @@
 			'<div class="mb-2">' +
 				'<p class="text-[11px] text-slate-500 mb-1">' + axis.label + '</p>' +
 				'<div class="flex flex-wrap gap-1.5">' +
-					axis.options.map(o =>
+					// 利用者が自分のスキルに付ける値だけを出す（pickableOptions）。
+					pickableOptions(axis).map(o =>
 						'<label class="usd-pill">' +
 							'<input type="checkbox" data-usd-el="custom-tag" data-axis="' + axis.key + '" data-value="' + esc(o.v) + '"/>' +
 							'<span>' + esc(o.t) + '</span>' +
