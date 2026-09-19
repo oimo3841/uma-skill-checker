@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-09-20a";
+	--uma-shell-css-version: "2026-09-20b";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -100,10 +100,22 @@
 	background: var(--uma-surface-muted); color: var(--uma-text-subtle);
 }
 /* 注意を引く件数（いまは①の「除外N種」だけ。C-63 の (2)）。
-   「何かを外している」ことの印なので、他のバッジと同じ形のまま色だけ赤にする。 */
+   「何かを外している」ことの印なので、他のバッジと同じ形のまま色だけ赤にする。
+   **枠のぶんは内側の余白から引く**（64セッション目・段E-3）。引かないと枠の無いバッジより
+   外側が 2px 大きくなり、並んだときに大きさが揃わない。**幅も 2px 増えるので、
+   狭い画面では折り返しの境目まで変わる**（exam のタブが1行から2行になるのを実測した）。 */
 .step-tab-badge--alert {
 	background: var(--uma-danger-bg); color: var(--uma-danger-text);
 	border: 1px solid var(--uma-danger-border);
+	padding: calc(var(--uma-sp-0-5) - 1px) calc(var(--uma-sp-1-5) - 1px);
+}
+/* **そのステップに必要なものが揃っている**ことを表す件数（いまは②の「N種」だけ。
+   64セッション目・段E-3）。①の「除外N種」（--alert）と対になる ―― 赤は「外している
+   ものがある（注意）」、緑は「用意ができている」。**数が0のときは出さない**運用なので、
+   出ている＝揃っている、で意味が一致する。
+   名前は色（--green）でも用途（--count）でもなく、**何を表す件数か**を名乗らせている（F-59）。 */
+.step-tab-badge--ready {
+	background: var(--uma-success-bg); color: var(--uma-success-text);
 }
 .step-tab-badge[hidden] { display: none !important; }
 /* 狭い画面では、タブの余白と間隔を詰めて名前に幅を回す（C-63 の (2)）。
@@ -128,6 +140,8 @@
 	/* 折り返したバッジは、右端ではなく**そのタブの左端**に置く（どのタブのものか分かるように）。
 	   1行に収まるときは、名前が残り幅まで伸びるので見え方は変わらない。 */
 	.step-tab-badge { padding: var(--uma-sp-0-5) var(--uma-sp-1); margin-left: 0; }
+	/* 枠のぶんを引くのは、余白を詰めたここでも同じ（上の --alert と同じ理由）。 */
+	.step-tab-badge--alert { padding: calc(var(--uma-sp-0-5) - 1px) calc(var(--uma-sp-1) - 1px); }
 }
 .step-panel[hidden] { display: none !important; }
 /* Tailwind の preflight が来なかった場合の保険（F-13と同じ理由で自前でも指定する） */

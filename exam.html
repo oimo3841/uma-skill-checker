@@ -17,9 +17,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20a" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-20a" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-20a" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20b" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-20b" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-20b" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -1955,7 +1955,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20a';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20b';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],
@@ -5361,7 +5361,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-20a';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-20b';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;

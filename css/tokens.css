@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-09-20a";
+	--common-css-version: "2026-09-20b";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -49,7 +49,12 @@
 	--uma-border-strong: #cad5e2;    /* slate-300 : hover時など */
 
 	/* ---- 状態色 ---- */
-	--uma-success: #008236;          /* green-700 */
+	--uma-success: #008236;          /* green-700 : 本文に混ぜる緑（「見つかった」など、文字だけの箇所） */
+	/* 淡い緑の面と、その上に載せる文字（64セッション目・段E-3）。
+	   --uma-danger-bg / -text と同じ組み方。**面に載せる文字は上の --uma-success より
+	   一段濃い**（淡い緑の上で読めるようにするため。役割が違うので値も分けてある）。 */
+	--uma-success-bg: #dbfce7;       /* green-100 */
+	--uma-success-text: #016630;     /* green-800 */
 	--uma-warn-bg: #fffbeb;          /* amber-50  */
 	--uma-warn-border: #fee685;      /* amber-200 */
 	--uma-warn-text: #973c00;        /* amber-800 */
