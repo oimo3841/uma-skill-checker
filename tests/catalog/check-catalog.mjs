@@ -1,5 +1,6 @@
-// catalog-data/ に置く4ファイル（拡張スキル・育成ウマ娘・サポートカード・
-// サポートカードのイベントスキル）が、決めた形どおりかを確かめる。
+// catalog-data/ に置く5ファイル（拡張スキル・育成ウマ娘・サポートカード・
+// サポートカードのイベントスキル・シナリオ因子）が、決めた形どおりかを確かめる。
+// （シナリオ因子は63セッション目・段1d に追加。それまでこのファイルだけ対象外だった）
 //
 //   npm run check:catalog        … 単体で回す
 //   npm run test:verify          … 納品前チェックの §10 からも呼ばれる
@@ -9,7 +10,7 @@
 //                                  別のフォルダから読む（退行の検査を手元で起こせるようにするため）
 //
 // ■ なぜ要るか
-//   この4ファイルはおいもさんが用意し、手でも書き足す。ツールは中の id を鍵にして
+//   この5ファイルはおいもさんが用意し、手でも書き足す。ツールは中の id を鍵にして
 //   保存済みの比較シートの行を指すので、**形の崩れが利用者のデータの崩れに直結する**。
 //   目で見て確かめるには件数が多すぎる（スキルだけで千件規模）ので機械で見る。
 //
@@ -45,12 +46,22 @@ const MASTER_FILE = 'uma-skill-deck-skills.json';
 
 /* ──────────────────────── 形の定義（許可リスト） ──────────────────────── */
 
+// idTail … 接頭辞を外した残りの形。
+//   'serial' … 4桁以上の数字（末尾に足して nextSerial を1つ進める運用）
+//   'slug'   … 英小文字・数字をハイフンでつないだ語（採番しない。件数が少なく、
+//              ゲーム側の区分にそのまま対応するので、番号より語のほうが読める）
 const FILES = [
-	{ category: 'extendedSkill', file: 'extended-skills.json', prefix: 'ex-', key: 'id' },
-	{ category: 'trainingUmamusume', file: 'training-umamusume.json', prefix: 'uma-', key: 'id' },
-	{ category: 'supportCard', file: 'support-cards.json', prefix: 'card-', key: 'id' },
+	{ category: 'extendedSkill', file: 'extended-skills.json', prefix: 'ex-', key: 'id', idTail: 'serial' },
+	{ category: 'trainingUmamusume', file: 'training-umamusume.json', prefix: 'uma-', key: 'id', idTail: 'serial' },
+	{ category: 'supportCard', file: 'support-cards.json', prefix: 'card-', key: 'id', idTail: 'serial' },
 	// イベントスキルは独自の id を振らず、サポートカードの id（card-）を鍵にする
-	{ category: 'supportCardEventSkill', file: 'support-card-event-skills.json', prefix: 'card-', key: 'cardId' },
+	{ category: 'supportCardEventSkill', file: 'support-card-event-skills.json', prefix: 'card-', key: 'cardId', idTail: 'serial' },
+	// シナリオ因子（C-29）。63セッション目（段1d）に検査の対象へ入れた。
+	// それまでこのファイルだけ入口に関門が無く、core 側の normalizeCatalogEntries() が
+	// 「{id, name, category} に削ぎ落とす」ことで**偶然**想定外のキーを止めていた。
+	// 段1c でそこを素通しにした（C-64）ので、止める場所がどこにも無くなった。
+	// 非スキルの因子を手で足していく作業の前に埋める。
+	{ category: 'scenarioFactor', file: 'scenario-inheritance-factors.json', prefix: 'sf-', key: 'id', idTail: 'slug' },
 ];
 
 // 上位のキー。need=必須 / opt=あってもよい。これ以外は落とす。
@@ -60,6 +71,9 @@ const TOP_KEYS = {
 	trainingUmamusume: { need: ['dataVersion', 'category', 'nextSerial', 'entries'], opt: ['note'] },
 	supportCard: { need: ['dataVersion', 'category', 'nextSerial', 'entries'], opt: ['note'] },
 	supportCardEventSkill: { need: ['dataVersion', 'category', 'entries'], opt: ['note'] },
+	// シナリオ因子は採番しない（id が語）ので nextSerial を持たない。
+	// idNote / schemaNote はこのファイルだけが持つ覚え書き（C-29 のときからある）。
+	scenarioFactor: { need: ['dataVersion', 'category', 'entries'], opt: ['note', 'idNote', 'schemaNote'] },
 };
 
 const ENTRY_KEYS = {
@@ -69,6 +83,9 @@ const ENTRY_KEYS = {
 	// **名前も番号もこのスクリプトに書かない**（恒久ルール1）。見るのは値どうしの整合だけ。
 	supportCard: { need: ['id', 'title', 'charaName', 'type', 'typeOrder', 'hintSkills', 'dataStatus'], opt: [] },
 	supportCardEventSkill: { need: ['cardId', 'status', 'skills'], opt: [] },
+	// **いまの形をそのまま許可リストにする。** tags / 説明文など、今後足す予定のキーは
+	// まだ入れない（実際に足すときに、形も運用も決めたうえでここへ入れる）。
+	scenarioFactor: { need: ['id', 'name'], opt: [] },
 };
 
 const SKILL_REF_KEYS = { need: ['skillId', 'name'], opt: [] };
@@ -89,6 +106,9 @@ const STAR_MIN = 1, STAR_MAX = 5;
 const LEVEL_MIN = 0;
 const DATA_VERSION_RE = /^\d{4}-\d{2}-\d{2}[a-z]$/;
 const SERIAL_RE = /^(\d{4,})$/;
+// 語の形の id（接頭辞を外した残り）。英小文字と数字をハイフンでつなぐ。
+// 大文字・記号・全角を弾くのが狙い（手で足すときの取り違えをここで捕まえる）。
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /* ──────────────────────── 出力 ──────────────────────── */
 
@@ -191,7 +211,7 @@ const docs = {};
 		if (!DATA_VERSION_RE.test(String(r.data.dataVersion))) badVersion.push(f.file + ': ' + String(r.data.dataVersion));
 		if (!isArr(r.data.entries)) badTop.push(f.file + ': entries が配列でない');
 	}
-	none(unreadable, '4ファイルすべてが JSON として読める');
+	none(unreadable, FILES.length + 'ファイルすべてが JSON として読める');
 	none(unknown, '上位に知らないキーが無い');
 	none(missing, '上位の必須のキーが揃っている');
 	none(badCategory, 'category がファイルと対応する');
@@ -240,6 +260,13 @@ docs.extendedSkill.entries.forEach((e, i) => {
 			if (!isArr(e.tags[k]) || !e.tags[k].every(isStr)) badTypes.push(w + ': tags.' + k + ' は文字列の配列');
 		});
 	}
+});
+
+// シナリオ因子（63セッション目・段1d に検査の対象へ入れた）
+docs.scenarioFactor.entries.forEach((e, i) => {
+	const w = 'scenarioFactor[' + i + ']';
+	if (!checkKeys(e, ENTRY_KEYS.scenarioFactor, w, unknownKeys, missingKeys)) return;
+	if (!isStr(e.id) || !isStr(e.name)) badTypes.push(w + ': id / name は空でない文字列');
 });
 
 // 育成ウマ娘
@@ -300,7 +327,16 @@ none(badTypes, '値が決めた形になっている');
 /* ──────────────────────── 3. ID ──────────────────────── */
 
 console.log('\n=== 3. ID ===');
-// 同じフォルダにある他のカタログ（シナリオ因子など）の名前。§4 でも使う。
+/* スキルではないカタログの名前（シナリオ因子など）。§4 の「名前が一意か」で使う。
+   スキル名（マスター445＋拡張スキル）と重なると、名前で引く索引が一意に決まらない。
+   ただし**落とさず警告**にする ―― 別の種類のものなので、同じ名前が正しいこともある。
+
+   **集め方が2通りあるのは、検査の対象に入っているファイルとそうでないファイルが
+   あるため。** FILES に入っているものは docs から、入っていないものはフォルダを
+   読んで集める。63セッション目（段1d）にシナリオ因子を FILES へ移したとき、
+   ここを直さなければ**この警告の対象が0件になって黙って消えていた**
+   （検査の対象を増やしたつもりが、別の検査を1つ減らすところだった）。 */
+const NON_SKILL_CATEGORIES = ['scenarioFactor'];
 const otherCatalogNames = new Map();
 {
 	const badForm = [], dup = [], collide = [], badNext = [], notAscending = [];
@@ -319,6 +355,14 @@ const otherCatalogNames = new Map();
 			if (e && e.name) otherCatalogNames.set(String(e.name), String(e.id));
 		});
 	}
+	// 検査の対象に入っているスキルではないカタログの名前も、同じ箱へ入れる。
+	// id の衝突のほうは、この下の seen / dup で FILES どうしを突き合わせるので
+	// takenIds に足す必要はない（足すと自分自身と衝突したことになる）。
+	for (const c of NON_SKILL_CATEGORIES) {
+		((docs[c] && docs[c].entries) || []).forEach((e) => {
+			if (e && e.name) otherCatalogNames.set(String(e.name), String(e.id));
+		});
+	}
 
 	for (const f of FILES) {
 		const doc = docs[f.category];
@@ -328,8 +372,12 @@ const otherCatalogNames = new Map();
 			const where = f.category + '[' + i + ']';
 			if (!id.startsWith(f.prefix)) { badForm.push(where + ': ' + id); return; }
 			const tail = id.slice(f.prefix.length);
-			if (!SERIAL_RE.test(tail) || Number(tail) < 1) { badForm.push(where + ': ' + id); return; }
-			maxSerial = Math.max(maxSerial, Number(tail));
+			if (f.idTail === 'slug') {
+				if (!SLUG_RE.test(tail)) { badForm.push(where + ': ' + id); return; }
+			} else {
+				if (!SERIAL_RE.test(tail) || Number(tail) < 1) { badForm.push(where + ': ' + id); return; }
+				maxSerial = Math.max(maxSerial, Number(tail));
+			}
 			if (f.key === 'id') {
 				if (seen.has(id)) dup.push(id + '（' + seen.get(id) + ' と ' + f.category + '）');
 				else seen.set(id, f.category);
@@ -341,9 +389,13 @@ const otherCatalogNames = new Map();
 			ids.forEach((id) => { if (s.has(id)) dup.push(id + '（' + f.category + ' に重複）'); else s.add(id); });
 		}
 		// 末尾に足す運用が守られているか（並びが昇順か）。運用の目安なので警告どまりにする。
-		for (let i = 1; i < ids.length; i++) {
-			const a = Number(ids[i - 1].replace(/^\D+/, '')), b = Number(ids[i].replace(/^\D+/, ''));
-			if (Number.isFinite(a) && Number.isFinite(b) && b < a) { notAscending.push(f.category + ': ' + ids[i - 1] + ' → ' + ids[i]); break; }
+		// 語の形の id は採番しないので、昇順という考え方が当てはまらない（見ない）。
+		// ここを `continue` で飛ばさないのは、下の nextSerial の検査まで一緒に消さないため。
+		if (f.idTail !== 'slug') {
+			for (let i = 1; i < ids.length; i++) {
+				const a = Number(ids[i - 1].replace(/^\D+/, '')), b = Number(ids[i].replace(/^\D+/, ''));
+				if (Number.isFinite(a) && Number.isFinite(b) && b < a) { notAscending.push(f.category + ': ' + ids[i - 1] + ' → ' + ids[i]); break; }
+			}
 		}
 		if (TOP_KEYS[f.category].need.includes('nextSerial')) {
 			const ns = String(doc.nextSerial || '');
@@ -352,7 +404,7 @@ const otherCatalogNames = new Map();
 			else if (Number(tail) <= maxSerial) badNext.push(f.category + ': ' + ns + '（使用済みの最大は ' + maxSerial + '）');
 		}
 	}
-	none(badForm, 'id が「接頭辞＋4桁以上の数字」の形');
+	none(badForm, 'id が「接頭辞＋4桁以上の数字」または「接頭辞＋語」の形（ファイルごとに決まっている）');
 	none(dup, 'id が重複しない');
 	none(collide, 'id がマスター（数字）や他のカタログの id と衝突しない');
 	none(badNext, 'nextSerial が使用済みの最大より大きい');
@@ -504,6 +556,7 @@ console.log('\n=== 7. 進み具合（情報。検査には影響しない） ===
 	const ex = docs.extendedSkill.entries;
 	const tagged = ex.filter((e) => e.tags !== undefined).length;
 	console.log('     拡張スキル: ' + ex.length + '件（タグ済 ' + tagged + ' / 未設定 ' + (ex.length - tagged) + '）');
+	console.log('     シナリオ因子: ' + docs.scenarioFactor.entries.length + '件');
 
 	const countBy = (list, pick) => STATUS_VALUES.map((v) => v + ' ' + list.filter((e) => pick(e) === v).length).join(' / ');
 	const uma = docs.trainingUmamusume.entries;
