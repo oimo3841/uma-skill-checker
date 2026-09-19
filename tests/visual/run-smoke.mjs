@@ -261,7 +261,9 @@ const browser = await chromium.launch();
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.waitForTimeout(300);
 
-	/* --- 新UIのスキルセット：帯のタブ（先頭の「＋ 新規」＝ドラフト）と、その場の編集（C-53） --- */
+	/* --- 新UIのスキルセット：帯のタブ（先頭の「＋ 新規（ドラフト）」）と、その場の編集（C-53） ---
+	   呼び名は core の DRAFT_LABEL 1か所から来る（C-66）。②のタブと①の「除外する周回
+	   スキルセットを選ぶ」で「新規」と「ドラフト」に食い違っていたのを揃えた。 */
 	const draftTab = await page.evaluate(() => {
 		const p = document.getElementById('deck-template-panel');
 		const tab = p.querySelector('.uma-subtab[data-tab-id="__draft__"]');
@@ -275,11 +277,11 @@ const browser = await chromium.launch();
 			note: !!p.querySelector('[data-usd-el="editor-note"]')
 		};
 	});
-	assert(draftTab.label === '＋ 新規' && draftTab.selected === 'true',
-		'special: 先頭のタブは「＋ 新規」（ドラフト）で、最初はそれが選ばれている', draftTab);
+	assert(draftTab.label === '＋ 新規（ドラフト）' && draftTab.selected === 'true',
+		'special: 先頭のタブは「＋ 新規（ドラフト）」で、最初はそれが選ばれている', draftTab);
 	assert(!draftTab.hasOld, 'special: 「開く」・ラジオ・ドラフトの行は無い（タブで選んでその場で編集する）', draftTab);
 	assert(draftTab.placeholder === '新しいスキルセットの名前' && draftTab.dupHidden && draftTab.delHidden,
-		'special: 「＋ 新規」では名前欄が「新しいスキルセットの名前」で、複製・削除は出ない', draftTab);
+		'special: 「＋ 新規（ドラフト）」では名前欄が「新しいスキルセットの名前」で、複製・削除は出ない', draftTab);
 	assert(draftTab.note === false, 'special: ②のパネル最下段の注記は無い（C-62 の (7) で削除）', draftTab.note);
 	const clearBtn = await page.evaluate(() => {
 		const btn = document.querySelector('#deck-template-panel [data-usd-el="clear-skills"]');
@@ -327,9 +329,9 @@ const browser = await chromium.launch();
 		tab: document.querySelector('#deck-template-panel .uma-subtab[data-tab-id="__draft__"]').textContent.trim()
 	}));
 	assert(draftPicked.count === '1', 'special: 貼り付けたスキルがドラフトに入る', draftPicked);
-	assert(draftPicked.note === '✓ 「ドラフト」の1種を照合します',
-		'special: 中身ができたドラフトはそのまま照合対象になり、案内にも「ドラフト」が出る', draftPicked);
-	assert(draftPicked.tab === '＋ 新規1種', 'special: 「＋ 新規」のタブに件数が出る', draftPicked);
+	assert(draftPicked.note === '✓ 「新規（ドラフト）」の1種を照合します',
+		'special: 中身ができたドラフトはそのまま照合対象になり、案内にも同じ呼び名が出る', draftPicked);
+	assert(draftPicked.tab === '＋ 新規（ドラフト）1種', 'special: 「＋ 新規（ドラフト）」のタブに件数が出る', draftPicked);
 
 	// Deck まわりはここまで。以降は旧UIに戻して確かめる。
 	// 片道化（C-32）で新UIから旧UIへは入れないので、保存値 'old' で開き直す
@@ -876,8 +878,8 @@ const browser = await chromium.launch();
 	}));
 	assert(added.selection && added.selection.kind === 'draft' && added.selection.skillIds.length === 2 && added.ids.every((i) => added.selection.skillIds.includes(i)),
 		'special/ocr入口: 追加した2種がドラフト（対象スキルセット）に入り、選択される', added.selection);
-	assert(added.undo === 'inline-flex' && added.undoCount === '1' && added.note === '✓ 「ドラフト」の2種を照合します',
-		'special/ocr入口: 「元に戻す」が出て、①の案内が「ドラフト」の2種になる', { undo: added.undo, count: added.undoCount, note: added.note });
+	assert(added.undo === 'inline-flex' && added.undoCount === '1' && added.note === '✓ 「新規（ドラフト）」の2種を照合します',
+		'special/ocr入口: 「元に戻す」が出て、①の案内が「新規（ドラフト）」の2種になる', { undo: added.undo, count: added.undoCount, note: added.note });
 
 	// 「元に戻す」で追加が取り消され、対象スキルセットが空に戻る
 	await page.click('[data-usd-act="picker-close"]');

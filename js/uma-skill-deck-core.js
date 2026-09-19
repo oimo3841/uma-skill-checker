@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19g';
 
 	/* ============================================================
 	 * 定数
@@ -134,6 +134,18 @@
 
 	// テンプレート一覧の中でドラフトを指すための番号（テンプレートIDと衝突しない形）。
 	const DRAFT_SELECTION_ID = '__draft__';
+
+	/**
+	 * **未保存のスキルセットの呼び名。利用者に見える文字列はここ1か所だけ。**
+	 *
+	 * ②のタブが「新規」、①の「除外する周回スキルセットを選ぶ」が「ドラフト」と
+	 * 食い違っていた（①②の設計時期の差。C-66）。同じものを2つの名前で呼ぶと、
+	 * 利用者は別のものだと思う。片方だけ直すとまた離れるので、定数にして両方から引く。
+	 *
+	 * **利用者が自分で付けた名前（draftScope.name）には使わない。** これは名前が
+	 * 無いときの呼び名であって、名前を上書きするものではない。
+	 */
+	const DRAFT_LABEL = '新規（ドラフト）';
 
 	// 8軸のタグ辞書。フィルターパネル・タグ表示・カスタムスキル入力で共有する。
 	const TAG_AXES = [
@@ -3646,9 +3658,9 @@
 			const list = ensureUserData().templates;
 			const onDraft = !currentTemplateId();
 			const items = [{
-				id: DRAFT_SELECTION_ID, label: '＋ 新規', isNew: true, selected: onDraft,
+				id: DRAFT_SELECTION_ID, label: '＋ ' + DRAFT_LABEL, isNew: true, selected: onDraft,
 				count: draftScope.skillIds.length > 0 ? draftScope.skillIds.length + '種' : null,
-				title: 'ドラフト（未保存のスキルセット）'
+				title: DRAFT_LABEL + '：保存していないスキルセット'
 			}].concat(list.map(t => ({
 				id: t.templateId, label: t.name || '（名称未設定）', title: t.name || '（名称未設定）',
 				selected: t.templateId === selectedId, count: t.skillIds.length + '種'
@@ -4133,7 +4145,7 @@
 				// 既定のシート名など）。タブと同じ呼び方にしておかないと、
 				// 選んだものと表示されるものの名前が食い違って見える。
 				// tiers（分類。C-57）は写しを渡す（無ければ空＝全部「優先」。呼び出し元は tierOf() で引く）
-				return { kind: 'draft', id: DRAFT_SELECTION_ID, name: draftScope.name || 'ドラフト', skillIds: draftScope.skillIds.slice(), tiers: Object.assign({}, draftScope.tiers || {}) };
+				return { kind: 'draft', id: DRAFT_SELECTION_ID, name: draftScope.name || DRAFT_LABEL, skillIds: draftScope.skillIds.slice(), tiers: Object.assign({}, draftScope.tiers || {}) };
 			}
 			const t = ensureUserData().templates.find(x => x.templateId === selectedId);
 			if (!t) return null;
@@ -4147,7 +4159,7 @@
 		function listSelections() {
 			const out = [];
 			if (draftScope && draftScope.skillIds.length > 0) {
-				out.push({ id: DRAFT_SELECTION_ID, name: draftScope.name || 'ドラフト', skillIds: draftScope.skillIds.slice() });
+				out.push({ id: DRAFT_SELECTION_ID, name: draftScope.name || DRAFT_LABEL, skillIds: draftScope.skillIds.slice() });
 			}
 			ensureUserData().templates.forEach(t => {
 				out.push({ id: t.templateId, name: t.name || '（名称未設定）', skillIds: t.skillIds.slice() });
