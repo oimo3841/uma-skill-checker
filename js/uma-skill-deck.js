@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-19c';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-19d';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -179,7 +179,7 @@ function switchTab(name) {
  * ============================================================ */
 /* 追加カタログのカテゴリ → 利用者に見せる呼び名。
    ここに無いカテゴリは、カテゴリ名をそのまま出す（増やし忘れても壊れない）。 */
-const CATALOG_CATEGORY_LABELS = { scenarioFactor: 'シナリオ因子' };
+const CATALOG_CATEGORY_LABELS = { scenarioFactor: 'シナリオ因子', geneFactor: '遺伝子' };
 function catalogLabel(kind) {
 	return CATALOG_CATEGORY_LABELS[kind] || kind;
 }

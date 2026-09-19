@@ -1,0 +1,18 @@
+{
+	"dataVersion": "2026-09-19a",
+	"category": "geneFactor",
+	"note": "因子継承画面に現れる「遺伝子」の正規表記。スキルではないので、白スキル445種のマスター（uma-skill-deck-skills.json）にも拡張スキルにも載らない。name はゲーム画面の表示そのまま（「〜の遺伝子」まで含めて変えない）。照合は完全一致だけに使う前提。持つのは名前と id だけで、tags も tagsPending も持たない ―― 遺伝子は「条件でスキルを検索」の母集団には入れず、スキルとは別枠のパネルで選ぶため（C-67）。どの適性に効くか・効果量も、ここには持たない。",
+	"idNote": "id は保存済みの比較シートが指し続ける不変の鍵。表記が変わっても id は変えないこと（name を鍵にすると、表記を直した瞬間に保存済みのシートが行を見失う）。マスターの id（1〜445 の数字）やシナリオ因子（sf-）と衝突しないよう ap- で始める。接頭辞を外した語は、uma-skill-deck-core.js の TAG_AXES が使っている値と同じ綴りに揃えてある（距離 short / mile / medium / long、脚質 nige / senko / sashi / oikomi、レース環境 surface_turf / surface_dirt の turf・dirt）。同じものを2つの綴りで呼ばないため。採番しないので nextSerial を持たない。",
+	"entries": [
+		{ "id": "ap-turf", "name": "芝の遺伝子" },
+		{ "id": "ap-dirt", "name": "ダートの遺伝子" },
+		{ "id": "ap-nige", "name": "逃げの遺伝子" },
+		{ "id": "ap-senko", "name": "先行の遺伝子" },
+		{ "id": "ap-sashi", "name": "差しの遺伝子" },
+		{ "id": "ap-oikomi", "name": "追込の遺伝子" },
+		{ "id": "ap-short", "name": "短距離の遺伝子" },
+		{ "id": "ap-mile", "name": "マイルの遺伝子" },
+		{ "id": "ap-medium", "name": "中距離の遺伝子" },
+		{ "id": "ap-long", "name": "長距離の遺伝子" }
+	]
+}

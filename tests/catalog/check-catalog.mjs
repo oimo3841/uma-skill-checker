@@ -1,6 +1,7 @@
-// catalog-data/ に置く5ファイル（拡張スキル・育成ウマ娘・サポートカード・
-// サポートカードのイベントスキル・シナリオ因子）が、決めた形どおりかを確かめる。
-// （シナリオ因子は63セッション目・段1d に追加。それまでこのファイルだけ対象外だった）
+// catalog-data/ に置く6ファイル（拡張スキル・育成ウマ娘・サポートカード・
+// サポートカードのイベントスキル・シナリオ因子・遺伝子）が、決めた形どおりかを確かめる。
+// （シナリオ因子は63セッション目・段1d に追加。それまでこのファイルだけ対象外だった。
+//   遺伝子は64セッション目・段A に新設と同時に追加）
 //
 //   npm run check:catalog        … 単体で回す
 //   npm run test:verify          … 納品前チェックの §10 からも呼ばれる
@@ -10,7 +11,7 @@
 //                                  別のフォルダから読む（退行の検査を手元で起こせるようにするため）
 //
 // ■ なぜ要るか
-//   この5ファイルはおいもさんが用意し、手でも書き足す。ツールは中の id を鍵にして
+//   この6ファイルはおいもさんが用意し、手でも書き足す。ツールは中の id を鍵にして
 //   保存済みの比較シートの行を指すので、**形の崩れが利用者のデータの崩れに直結する**。
 //   目で見て確かめるには件数が多すぎる（スキルだけで千件規模）ので機械で見る。
 //
@@ -62,6 +63,9 @@ const FILES = [
 	// 段1c でそこを素通しにした（C-64）ので、止める場所がどこにも無くなった。
 	// 非スキルの因子を手で足していく作業の前に埋める。
 	{ category: 'scenarioFactor', file: 'scenario-inheritance-factors.json', prefix: 'sf-', key: 'id', idTail: 'slug' },
+	// 遺伝子（64セッション目・段A で新設。C-67）。シナリオ因子と同じ「スキルではないカタログ」で、
+	// 持つのは名前と id だけ（tags を持たないので「条件でスキルを検索」の母集団には入らない）。
+	{ category: 'geneFactor', file: 'aptitude-genes.json', prefix: 'ap-', key: 'id', idTail: 'slug' },
 ];
 
 // 上位のキー。need=必須 / opt=あってもよい。これ以外は落とす。
@@ -74,6 +78,10 @@ const TOP_KEYS = {
 	// シナリオ因子は採番しない（id が語）ので nextSerial を持たない。
 	// idNote / schemaNote はこのファイルだけが持つ覚え書き（C-29 のときからある）。
 	scenarioFactor: { need: ['dataVersion', 'category', 'entries'], opt: ['note', 'idNote', 'schemaNote'] },
+	// 遺伝子も採番しない（id が語）ので nextSerial を持たない。
+	// schemaNote は入れない ―― 追加カタログの共通の形の説明はシナリオ因子のファイルが持っており、
+	// 同じ説明を2か所に置くと片方が古くなる。
+	geneFactor: { need: ['dataVersion', 'category', 'entries'], opt: ['note', 'idNote'] },
 };
 
 const ENTRY_KEYS = {
@@ -86,6 +94,9 @@ const ENTRY_KEYS = {
 	// **いまの形をそのまま許可リストにする。** tags / 説明文など、今後足す予定のキーは
 	// まだ入れない（実際に足すときに、形も運用も決めたうえでここへ入れる）。
 	scenarioFactor: { need: ['id', 'name'], opt: [] },
+	// **遺伝子は名前と id だけ。** tags / tagsPending を持たせない（C-67 の0節・6節）。
+	// 許可リストに入れていないので、うっかり足せばここで落ちる。
+	geneFactor: { need: ['id', 'name'], opt: [] },
 };
 
 const SKILL_REF_KEYS = { need: ['skillId', 'name'], opt: [] };
@@ -269,6 +280,13 @@ docs.scenarioFactor.entries.forEach((e, i) => {
 	if (!isStr(e.id) || !isStr(e.name)) badTypes.push(w + ': id / name は空でない文字列');
 });
 
+// 遺伝子（64セッション目・段A）
+docs.geneFactor.entries.forEach((e, i) => {
+	const w = 'geneFactor[' + i + ']';
+	if (!checkKeys(e, ENTRY_KEYS.geneFactor, w, unknownKeys, missingKeys)) return;
+	if (!isStr(e.id) || !isStr(e.name)) badTypes.push(w + ': id / name は空でない文字列');
+});
+
 // 育成ウマ娘
 docs.trainingUmamusume.entries.forEach((e, i) => {
 	const w = 'trainingUmamusume[' + i + ']';
@@ -336,7 +354,7 @@ console.log('\n=== 3. ID ===');
    読んで集める。63セッション目（段1d）にシナリオ因子を FILES へ移したとき、
    ここを直さなければ**この警告の対象が0件になって黙って消えていた**
    （検査の対象を増やしたつもりが、別の検査を1つ減らすところだった）。 */
-const NON_SKILL_CATEGORIES = ['scenarioFactor'];
+const NON_SKILL_CATEGORIES = ['scenarioFactor', 'geneFactor'];
 const otherCatalogNames = new Map();
 {
 	const badForm = [], dup = [], collide = [], badNext = [], notAscending = [];
@@ -557,6 +575,7 @@ console.log('\n=== 7. 進み具合（情報。検査には影響しない） ===
 	const tagged = ex.filter((e) => e.tags !== undefined).length;
 	console.log('     拡張スキル: ' + ex.length + '件（タグ済 ' + tagged + ' / 未設定 ' + (ex.length - tagged) + '）');
 	console.log('     シナリオ因子: ' + docs.scenarioFactor.entries.length + '件');
+	console.log('     遺伝子: ' + docs.geneFactor.entries.length + '件');
 
 	const countBy = (list, pick) => STATUS_VALUES.map((v) => v + ' ' + list.filter((e) => pick(e) === v).length).join(' / ');
 	const uma = docs.trainingUmamusume.entries;

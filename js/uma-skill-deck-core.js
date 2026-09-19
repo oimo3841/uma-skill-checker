@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19k';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19l';
 
 	/* ============================================================
 	 * 定数
@@ -52,6 +52,11 @@
 	const STORAGE_KEY_EXTRA_CATALOG = 'umaSkillDeck:extraCatalogCache';
 	const EXTRA_CATALOG_SOURCES = [
 		{ category: 'scenarioFactor', path: 'catalog-data/scenario-inheritance-factors.json' },
+		// 遺伝子（C-67）。**tags を持たないので「条件でスキルを検索」の母集団には入らない**
+		// （母集団に入るかどうかは tags の有無で決まる。C-64 の2節）。ここに並べるのは、
+		// findSkill() で名前を引けるようにするため ―― 入れないと、保存済みの比較シートの
+		// 遺伝子の行が「（不明なスキル：…）」に化ける。シナリオ因子とまったく同じ扱い。
+		{ category: 'geneFactor', path: 'catalog-data/aptitude-genes.json' },
 		// マスター445種の外にあるスキル（C-48・C-49）。件数が多いので EMBEDDED_EXTRA_CATALOG に
 		// 写しは持たない（取得もキャッシュも駄目だったときは、黙って劣化させず知らせる）。
 		{ category: 'extendedSkill', path: 'catalog-data/extended-skills.json' }
@@ -226,6 +231,18 @@
 			{ id: 'sf-onsen', name: '温泉郷シナリオ' },
 			{ id: 'sf-dreams', name: 'Dreamsシナリオ' },
 			{ id: 'sf-tresen', name: 'トレセン軒シナリオ' }
+		],
+		geneFactor: [
+			{ id: 'ap-turf', name: '芝の遺伝子' },
+			{ id: 'ap-dirt', name: 'ダートの遺伝子' },
+			{ id: 'ap-nige', name: '逃げの遺伝子' },
+			{ id: 'ap-senko', name: '先行の遺伝子' },
+			{ id: 'ap-sashi', name: '差しの遺伝子' },
+			{ id: 'ap-oikomi', name: '追込の遺伝子' },
+			{ id: 'ap-short', name: '短距離の遺伝子' },
+			{ id: 'ap-mile', name: 'マイルの遺伝子' },
+			{ id: 'ap-medium', name: '中距離の遺伝子' },
+			{ id: 'ap-long', name: '長距離の遺伝子' }
 		]
 	};
 
