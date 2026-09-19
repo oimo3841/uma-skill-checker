@@ -3006,28 +3006,37 @@
 		/* ------------------------------------------------------------
 		 * ハイライトに出すシナリオ因子の行（「因子名：★の数」）を組み立てる。
 		 *
-		 * 選んだ因子が3種以下 … その全部を1行ずつ（最大3段）。
-		 * 4種以上          … ★の多い上位3種を3段で出し、他があることを「他」の1文字で添える
-		 *                     （件数などの数字は付けない）。
-		 * ★が同数のときは正本（24件）の並び順を保つ。
+		 * **出すのは検出したものだけ**（64セッション目・段E）。検出が3種以下ならその全部を
+		 * 1行ずつ、4種以上なら★の多い上位3種を出し、他があることを「他」の1文字で添える
+		 * （件数などの数字は付けない）。★が同数のときは正本（24件）の並び順を保つ。
+		 *
+		 * 以前は**選んだ**因子を並べ、未検出は「−」で最下位に沈めていた。24種をまとめて
+		 * 対象にする形（段D）にしたので、大半が常に未検出になり、「選んだのに出なかった」
+		 * という情報の値打ちが消えた。残り枠が「−」で埋まるだけなので出さない。
+		 *
 		 * 画面のカードと結果画像で同じ並び・同じ文字列を使うため、ここに1本化してある。
 		 *
-		 * 戻り値: null（1種も選んでいない）／{ items: [{name, text}], more: boolean }
+		 * 戻り値: null（1種も選んでいない／1種も検出していない）
+		 *         ／{ items: [{name, stars, text}], more: boolean }
 		 * ------------------------------------------------------------ */
 		function scenarioFactorHighlight(personIdx, run) {
 			const selected = activeScenarioFactors(run);
 			if (selected.length === 0) return null;
-			// 未検出は −、検出したが★を読めなかったものは ★? （表の「?」と同じ意味）
-			const starText = (v) => (typeof v === 'number' ? '★' + v : (v === null ? '★?' : '−'));
-			const rank = (v) => (typeof v === 'number' ? v : (v === null ? -0.5 : -1));
-			const entries = selected.map((name, i) => ({ name: name, order: i, stars: starsFor(personIdx, name) }));
+			// 検出したが★を読めなかったものは ★?（表の「?」と同じ意味）。
+			// 未検出（undefined）はそもそも並べないので、「−」はもう使わない。
+			const starText = (v) => (typeof v === 'number' ? '★' + v : '★?');
+			const rank = (v) => (typeof v === 'number' ? v : -0.5);
+			const found = selected
+				.map((name, i) => ({ name: name, order: i, stars: starsFor(personIdx, name) }))
+				.filter(e => e.stars !== undefined);
+			if (found.length === 0) return null;
 			// text は結果画像用の1本の文字列、name / stars は画面のカードで
 			// 「名前だけ詰める・★は必ず見せる」ために分けて持つ。
 			const shape = (e) => ({ name: e.name, stars: starText(e.stars), text: e.name + '：' + starText(e.stars) });
-			if (selected.length <= 3) {
-				return { items: entries.map(shape), more: false };
+			if (found.length <= 3) {
+				return { items: found.map(shape), more: false };
 			}
-			const top = entries.slice().sort((a, b) => (rank(b.stars) - rank(a.stars)) || (a.order - b.order)).slice(0, 3);
+			const top = found.slice().sort((a, b) => (rank(b.stars) - rank(a.stars)) || (a.order - b.order)).slice(0, 3);
 			return { items: top.map(shape), more: true };
 		}
 
@@ -3114,7 +3123,7 @@
 						             `truncate` が効く（`auto` のままだと縮まず溢れる）。
 						     2列目 … **そのカードの中でいちばん長い「：★N」に合わせた1つの幅**。
 						             max-content は列単位で決まるので、全行が同じ幅になる。
-						             中身は**左に寄せる**（右に寄せると「：－」だけ右へ流れて
+						             中身は**左に寄せる**（右に寄せると短い「：★?」だけ右へ流れて
 						             「：」の位置が行ごとにずれる。左に寄せれば「：」も★も揃う）。
 						   行は折り返さない。溢れたときに削るのは**名前だけ**（末尾を「…」に）。
 						   省略した名前の全文は title で出す（PC は hover、スマホは長押し。
@@ -4368,16 +4377,25 @@
 		 * （stitchDrawPersonBanner）。ここは全員に共通する「何を対象にしたか」だけを書く。
 		 * ------------------------------------------------------------ */
 		// run（captureRun）を渡せば、押した時点の範囲・シナリオ因子で書く（結合画像の側が使う）。
-		function buildTargetAdjustmentNotes(run) {
+		// personIdxs … この画像に入っている人（省略時は結果のある人すべて）。
+		//   シナリオ因子の行は**この人たちの誰かが検出したものだけ**を並べる。
+		function buildTargetAdjustmentNotes(run, personIdxs) {
 			const notes = [];
 			const scope = run ? run.scope : targetScopeMode;
 			const added = (scope === 'expanded') ? EXPANDED_EXTRA_SKILL_NAMES.slice() : [];
 			const removed = (scope === 'curated')
 				? CURATED_EXCLUDED_IDS.map(id => EXAM_NAME_BY_ID[id]).filter(Boolean) : [];
-			const factors = activeScenarioFactors(run);
+			// **検出したシナリオ因子だけ**を並べる（64セッション目・段E）。以前は選んだ全件を
+			// 1行に並べていたが、24種をまとめて対象にする形（段D）では常に24種になり、
+			// 長大なうえ「対象にした」ことしか伝えない。**帯＝人ごとの上位3種／
+			// この脚注＝画像に入っている人の全検出分**、という役割分担にする。
+			const seen = (personIdxs && personIdxs.length) ? personIdxs : activePersonIndexes();
+			const factors = activeScenarioFactors(run)
+				.filter(name => seen.some(i => starsFor(i, name) !== undefined));
 			if (added.length) notes.push('追加スキル（' + added.length + '種）：' + added.join('・'));
 			if (removed.length) notes.push('除外スキル（' + removed.length + '種）：' + removed.join('・'));
-			if (factors.length) notes.push('シナリオ因子（' + factors.length + '種）：' + factors.join('・'));
+			// 数は「対象にした数」ではなく「検出した数」なので、そう分かる書き方にする。
+			if (factors.length) notes.push('検出したシナリオ因子（' + factors.length + '種）：' + factors.join('・'));
 			return notes;
 		}
 
@@ -4422,7 +4440,8 @@
 		//   legend が false なら印にまつわる行（見かた・無い行の説明・付けなかった理由）を全部省く。
 		//   conditions が false なら集計条件（追加／除外スキル・シナリオ因子）の行を省く。
 		// run … 押した時点のスナップショット（captureRun）。集計条件の行はこの範囲・シナリオ因子で書く。
-		function stitchDrawSharedNoteBar(totalWidth, referenceWidth, markInfo, show, run) {
+		// personIdxs … この画像に入っている人。シナリオ因子の行を「誰かが検出したぶん」に絞るのに使う。
+		function stitchDrawSharedNoteBar(totalWidth, referenceWidth, markInfo, show, run, personIdxs) {
 			const s = Object.assign({ legend: true, conditions: true }, show || {});
 			// 測るための ctx（帯そのものは js/stitch.js の stitchDrawNoteBar が別のCanvasに描く）。
 			// **測るときと描くときで同じ font を使う**ため、m を取った ctx のまま measureText する。
@@ -4452,7 +4471,7 @@
 
 			// 何を対象にしたか（追加スキル → 除外スキル → シナリオ因子）。
 			const adjustNotes = [];
-			(s.conditions ? buildTargetAdjustmentNotes(run) : []).forEach(t => {
+			(s.conditions ? buildTargetAdjustmentNotes(run, personIdxs) : []).forEach(t => {
 				stitchWrapText(ctx, t, maxTextWidth).forEach(line => adjustNotes.push(line));
 			});
 
@@ -4552,7 +4571,8 @@
 			const noteBar = stitchDrawSharedNoteBar(rowWidth, contentCanvases[0].width, {
 				kinds: MARK_KIND_ORDER.filter(k => usedMarkKinds.has(k)),
 				suppressed: MARK_SUPPRESSED_ORDER.filter(r => markSuppressed.has(r))
-			}, { legend: show.legend, conditions: show.conditions }, run);
+			}, { legend: show.legend, conditions: show.conditions }, run,
+				personMeta.map(p => p.idx));
 
 			const totalWidth = Math.max(bannerRow.width, rowWidth,
 				countNoteBar ? countNoteBar.width : 0,

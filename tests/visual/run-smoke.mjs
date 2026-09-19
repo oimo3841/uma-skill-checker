@@ -4440,6 +4440,53 @@ const browser = await chromium.launch();
 	assert(band.factorBlockSame && band.noneSelected === band.noFactors,
 		'結合画像の表示: カード OFF でも因子の行の高さは同じで、因子を1件も選んでいなければ行は出ない', band);
 
+	/* --- 帯と脚注は「検出したものだけ」（64セッション目・段E） ---
+	   帯（人ごと）＝検出の上位3種＋「他」／脚注（画像全体）＝全検出分、の役割分担。
+	   因子名はデータから取り、このファイルには書かない。 */
+	const factorOnly = await page.evaluate(() => {
+		const prevResults = personResults;
+		const prevFactors = selectedScenarioFactors.size > 0;
+		setScenarioFactorsAll(true);
+		const all = activeScenarioFactors();
+		// 検出の有無だけを作る（starsFor / scenarioFactorHighlight / buildTargetAdjustmentNotes が読むのは
+		// detectedSkills と skillStars だけ）。描画は呼ばない。
+		const seed = (names) => {
+			personResults = PERSON_LABELS.map(() => null);
+			personResults[0] = { detectedSkills: new Set(names), skillStars: {} };
+			names.forEach((n, i) => { personResults[0].skillStars[n] = (i % 3) + 1; });
+		};
+		const read = () => {
+			const h = scenarioFactorHighlight(0);
+			return h ? { n: h.items.length, more: h.more, texts: h.items.map((x) => x.text) } : null;
+		};
+		const note = () => buildTargetAdjustmentNotes(null, [0]).filter((t) => t.indexOf('シナリオ因子') !== -1);
+		seed([]);              const none = { band: read(), note: note() };
+		seed(all.slice(0, 2)); const two = { band: read(), note: note() };
+		seed(all.slice(0, 4)); const four = { band: read(), note: note() };
+		seed(all);             const full = { band: read(), note: note() };
+		personResults = prevResults;
+		setScenarioFactorsAll(prevFactors);
+		return { total: all.length, none: none, two: two, four: four, full: full,
+			firstFour: all.slice(0, 4) };
+	});
+	assert(factorOnly.total === 24, '段E: 総括チェック ON で24種が対象', factorOnly.total);
+	assert(factorOnly.none.band === null && factorOnly.none.note.length === 0,
+		'段E: 1種も検出していなければ、帯も脚注も出さない（24種を対象にしていても）', factorOnly.none);
+	assert(factorOnly.two.band.n === 2 && factorOnly.two.band.more === false
+		&& factorOnly.two.band.texts.every((t) => t.indexOf('−') === -1),
+		'段E: 検出2種なら2行だけ。残り枠が「−」で埋まらない', factorOnly.two.band);
+	assert(factorOnly.four.band.n === 3 && factorOnly.four.band.more === true
+		&& factorOnly.four.band.texts.every((t) => t.indexOf('−') === -1),
+		'段E: 検出4種なら上位3種＋「他」', factorOnly.four.band);
+	assert(factorOnly.full.band.n === 3 && factorOnly.full.band.more === true,
+		'段E: 24種すべて検出しても帯は上位3種＋「他」', factorOnly.full.band);
+	assert(factorOnly.two.note.length === 1 && /^検出したシナリオ因子（2種）：/.test(factorOnly.two.note[0]),
+		'段E: 脚注は検出分だけを数えて並べる（2種）', factorOnly.two.note);
+	assert(factorOnly.four.note[0] === '検出したシナリオ因子（4種）：' + factorOnly.firstFour.join('・'),
+		'段E: 脚注は検出した因子の名前を全部並べる（帯の上位3種とは別）', factorOnly.four.note);
+	assert(/^検出したシナリオ因子（24種）：/.test(factorOnly.full.note[0]),
+		'段E: 24種すべて検出すれば脚注には24種が並ぶ', factorOnly.full.note[0].slice(0, 30));
+
 	// 押した時点の設定の固定（run）。処理中に「結合画像の表示」を変えても、その回の出力は押した時点の設定になる。
 	// OCR は回さず、stitchOnePerson と processImages を差し替えて経路だけ通す。
 	const frozen = await page.evaluate(async () => {
@@ -5373,28 +5420,32 @@ const browser = await chromium.launch();
 {
 	// ハイライトを引き出しごと開いて、人物ごとのまとまりを作る
 	// factorsOn … シナリオ因子の総括チェック（ON なら24種すべてが対象）。
+	// detectFactors … 因子を検出したことにするか。false なら「対象にしたが1種も出なかった」状態。
 	// 戻り値の longest は「いちばん長い因子名」。**名前をこのファイルに書かず**に
 	// 「長い名前が省略される／広い幅では全部出る」を確かめるために返す。
-	const seedHighlight = (page, factorsOn) => page.evaluate((on) => {
+	const seedHighlight = (page, factorsOn, detectFactors = true) => page.evaluate((o) => {
 		if (typeof closeUiNotice === 'function') closeUiNotice();
 		document.querySelectorAll('.uma-overlay-backdrop, .uma-overlay').forEach((el) => { el.hidden = true; });
-		setScenarioFactorsAll(on);
+		setScenarioFactorsAll(o.on);
 		const mk = (names, offset) => matchAllSkillsWithStars(
 			names.map((s, i) => ({ text: s, stars: ((i + offset) % 3) + 1, starsReliable: true, rowKey: 'r' + i })),
 			skillList, skillIndex, {});
-		// 因子は2種だけ検出したことにする（★が付く行と「－」の行を両方出すため）。
-		// **いちばん長い名前を必ず混ぜる**（上位3行に入るので、省略の検査が効く）。
+		// 64セッション目（段E）から、帯に出るのは**検出したものだけ**。上位3種＋「他」を
+		// 出すために**4種**検出したことにする。**いちばん長い名前を必ず混ぜ**、★を決め打ち
+		// （3,3,2,1）にして、その名前が必ず上位3行に入るようにする（省略の検査が効く）。
 		const longest = factorOnlyList.slice().sort((a, b) => b.length - a.length)[0] || null;
-		const hit = factorOnlyList.length
-			? [factorOnlyList[0], longest].filter((v, i, a) => v && a.indexOf(v) === i) : [];
+		const hit = (o.detect && longest)
+			? [longest].concat(factorOnlyList.filter((n) => n !== longest).slice(0, 3)) : [];
+		const STARS = [3, 3, 2, 1];
 		personResults = PERSON_LABELS.map(() => null);
 		for (let p = 0; p < 3; p++) {
 			personResults[p] = mk(skillList.slice(0, 120 - p * 10).concat(hit), p);
+			hit.forEach((n, i) => { personResults[p].skillStars[n] = STARS[i]; });
 		}
 		renderResults();
 		openDrawer('result');
 		return { longest: longest, hit: hit };
-	}, factorsOn);
+	}, { on: factorsOn, detect: detectFactors });
 	const readGroups = (page) => page.evaluate(() => {
 		const groups = [...document.querySelectorAll('#exam-highlight-grid [data-person-group]')];
 		const box = document.getElementById('exam-highlight');
@@ -5475,12 +5526,15 @@ const browser = await chromium.launch();
 
 		// 因子の行: 1行に収まる／「：★N」は切れない／★の左端が全行で揃う／長い名前は省略して title で全文
 		const f = await readFactorRows(page);
-		assert(f && f.rows.length === 3, 'ハイライト: 因子の行は上位3種ぶん出る', f && f.rows.length);
+		assert(f && f.rows.length === 3, 'ハイライト: 因子の行は検出分の上位3種ぶん出る', f && f.rows.length);
 		assert(f.rows.every((r) => r.height <= r.lineHeight + 1),
 			'ハイライト: 375px で因子の各行が1行に収まる（折り返さない）', f.rows.map((r) => [r.height, r.lineHeight]));
-		// 未検出の印は U+2212（−）。全角ハイフン（－）ではないので、そのまま比べる
-		assert(f.rows.every((r) => !r.starsClipped) && f.rows.some((r) => r.stars.startsWith('：★')) && f.rows.some((r) => r.stars === '：−'),
-			'ハイライト: 「：★N」「：−」は切れずに全部出る', f.rows.map((r) => r.stars));
+		assert(f.rows.every((r) => !r.starsClipped) && f.rows.every((r) => r.stars.startsWith('：★')),
+			'ハイライト: 「：★N」は切れずに全部出る', f.rows.map((r) => r.stars));
+		// 64セッション目（段E）: 未検出（「：−」U+2212）はもう並べない。
+		// 検出したものだけを出すので、残り枠が「−」で埋まることが無い。
+		assert(f.rows.every((r) => !r.stars.includes('−')),
+			'ハイライト: 未検出の「−」の行は出ない（検出したものだけを並べる）', f.rows.map((r) => r.stars));
 		assert(new Set(f.rows.map((r) => r.starsLeft)).size === 1,
 			'ハイライト: 「：★N」の左端が全行で揃う（★の縦位置が揃う）', f.rows.map((r) => r.starsLeft));
 		const clipped = f.rows.filter((r) => r.clipped);
