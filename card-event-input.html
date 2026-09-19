@@ -115,7 +115,8 @@
 			background: var(--uma-accent-soft); color: var(--uma-accent-soft-text);
 			border-color: var(--uma-accent-soft-text);
 		}
-		/* ⑧のような該当/非該当だけの軸。他の軸と「空の意味」が逆なので、地色で区別する。 */
+		/* 空配列の意味が他の軸と逆の軸（いまは8軸目の「その他」＝入手経路）。地色で区別する。
+		   **選択肢の数とは関係がない印**（値が3つに増えても逆のまま）。core の emptyMeansNone。 */
 		.cei-axis--flag {
 			border: 1px solid var(--uma-warn-border); border-radius: var(--uma-r-sm);
 			background: var(--uma-warn-bg); padding: 8px 10px;
@@ -244,7 +245,7 @@
 	</div>
 </div>
 
-<script src="js/uma-skill-deck-core.js?v=2026-09-19j"></script>
+<script src="js/uma-skill-deck-core.js?v=2026-09-19k"></script>
 <script>
 (function () {
 	'use strict';
@@ -556,15 +557,16 @@
 		var t = currentTags(skillId) || {};
 		var h = '<div class="cei-tagbox" data-tagbox="' + esc(skillId) + '">';
 		// 共通の決まりは**1回だけ**書く。各軸の下に同じ注意書きを繰り返すと、
-		// 本当に違う軸（⑧）の注意書きが同じ見た目の文章に埋もれる。
+		// 本当に違う軸（空の意味が逆の軸）の注意書きが同じ見た目の文章に埋もれる。
 		h += '<p class="cei-axis-note" style="margin:0 0 10px">'
 			+ '軸の中で1つも選ばなければ、その軸では<strong>どの条件でも出る</strong>扱いになります'
 			+ '（当てはまるものだけを選んでください）。<strong>色の違う枠だけは決まりが逆です。</strong></p>';
 		Core.TAG_AXES.forEach(function (axis) {
 			var on = t[axis.key] || [];
-			// ⑧のような該当/非該当だけの軸は、**空の意味が他の軸と逆**（他は「空＝どの条件でも
-			// 出る万能」、この軸は「空＝該当しない」）。取り違えると絞り込みの結果が変わるので、
-			// 地色と注記で他の軸と区別する。emptyMeansNone はデータが持つ印なので、ここで軸名は見ない。
+			// emptyMeansNone の軸は**空の意味が他の軸と逆**（他は「空＝どの条件でも出る万能」、
+			// この軸は「空＝該当しない」）。取り違えると絞り込みの結果が変わるので、地色と注記で区別する。
+			// **選択肢の数とは関係がない**（8軸目は値が3つに増えたが、逆のまま）。
+			// emptyMeansNone はデータが持つ印なので、ここで軸名も軸の位置も見ない。
 			h += '<div class="cei-axis' + (axis.emptyMeansNone ? ' cei-axis--flag' : '') + '">';
 			h += '<p class="cei-axis-label">' + esc(axis.label) + '</p>';
 			h += '<div class="cei-opts">';

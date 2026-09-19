@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19j';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19k';
 
 	/* ============================================================
 	 * 定数
@@ -983,7 +983,7 @@
 
 	// フィルター一致判定。軸間はAND、軸内はOR。
 	// スキルがその軸に条件を持たない（空配列）場合は、その軸のどの選択肢にも一致する扱い（万能スキル）。
-	// ただし emptyMeansNone の軸（⑧その他＝入手経路）は、空配列が「該当なし」であって
+	// ただし emptyMeansNone の軸（8軸目の「その他」＝入手経路）は、空配列が「該当なし」であって
 	// 「万能」ではない。ここだけ扱いを分ける（選択肢の数とは関係がない。値が3つになっても同じ）。
 	function matchesFilters(skill, filters) {
 		return TAG_AXES.every(axis => {
