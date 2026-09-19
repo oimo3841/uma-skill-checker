@@ -255,8 +255,7 @@ const INTENTIONALLY_REMOVED = {
 	// 種数の #scenario-factors-count は新しいチェックの中に残っている。
 	// `' + id + '` は、24件を組み立てていた文字列連結（id="' + id + '"）を
 	// この検査が id と読んでいたもの（core.js の value="' + esc(...) + '" と同じ引っかかり方）。
-	// commit が進めば免除は要らなくなるので、次の commit で空に戻す。
-	'exam.html': ['scenario-factors-details', 'scenario-factors-badge', 'scenario-factors-clear', 'scenario-factor-list', "' + id + '"],
+	// `64fe133` に commit したので免除は空に戻した。
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
