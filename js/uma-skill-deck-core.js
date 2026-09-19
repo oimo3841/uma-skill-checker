@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19i';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-19j';
 
 	/* ============================================================
 	 * 定数
@@ -1567,7 +1567,6 @@
 		'.usd-tabpanel:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 4px; border-radius: var(--uma-r-sm); }',
 		'.usd-axis-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--uma-sp-1) var(--uma-sp-3);',
 		'  margin-bottom: var(--uma-sp-2); }',
-		'.usd-axis-title { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); }',
 		'.usd-axis-hint { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
 		'.usd-link-btn { margin-left: auto; font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
 		'  padding: var(--uma-sp-0-5) var(--uma-sp-1-5); border-radius: var(--uma-r-sm); color: var(--uma-accent-soft-text);',
@@ -2070,8 +2069,9 @@
 			'<section role="tabpanel" class="usd-tabpanel' + (isActive ? ' is-active' : '') + '"' +
 				' id="usd-panel-' + axis.key + '" aria-labelledby="usd-tab-' + axis.key + '"' +
 				' data-usd-axis="' + axis.key + '" tabindex="0">' +
+				// 軸名はパネルの中に出さない。**タブで選んだ軸が開いている**ので、そこで名乗る必要がない。
+				// 「いずれかに一致（OR）」の説明は残す ―― こちらは軸名ではなく**選択肢の読み方**で、初見では分からない。
 				'<div class="usd-axis-head">' +
-					'<h3 class="usd-axis-title">' + esc(axis.label) + '</h3>' +
 					'<p class="usd-axis-hint">' + hint + '</p>' +
 					'<button type="button" class="usd-link-btn" data-usd-act="filter-clear-axis" data-usd-axis="' + axis.key + '">この軸を解除</button>' +
 				'</div>' +
