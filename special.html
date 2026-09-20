@@ -601,10 +601,12 @@
 					</div>
 				</div>
 				<!-- 「元に戻す」はここ（②のパネルの下・インライン）ではなく、画面左下に固定した #deck-undo-btn に移した
-				     （C-55 の (4)(5)。①で除外したときにも同じ場所に出る）。 -->
-				<div class="mt-3 flex items-center justify-end gap-3 flex-wrap">
-					<div id="deck-selected-note" class="text-xs font-medium text-slate-500 ml-auto"></div>
-				</div>
+				     （C-55 の (4)(5)。①で除外したときにも同じ場所に出る）。
+				     **同じ場所にあった選択の注記（#deck-selected-note・「✓「◯◯」のN種＋…を照合します」）は
+				     68セッション目に削除した。** この注記に固有の情報が1つも無かったため ――
+				     セット名は直前に自分で選んだ操作の繰り返し、因子・遺伝子の内訳は②の B・C のチェックが
+				     すでに示している、「N種」は結果の「対象スキル数」カードが出している。
+				     （切り替え直後に画面外へ出る問題も、これで消えた。位置の調整は要らなくなった。） -->
 			</div>
 
 			<!-- 誤認識の読み替え辞書（任意） -->
@@ -2784,9 +2786,9 @@
 		function factorCountParts(keys, counts, unit) {
 			return keys.map(k => '＋' + FACTOR_SCOPE_LABEL[k] + (counts[k] || 0) + unit);
 		}
-		function factorCountNote(keys, counts, unit) {
-			return factorCountParts(keys, counts, unit).join('');
-		}
+		// 文字列で1本につなぐ形（factorCountNote）は、②の下の選択の注記だけが使っていた。
+		// その注記を68セッション目に削除したので、使い手がいなくなり一緒に消した
+		// （また要るようになったら factorCountParts(...).join('') で戻せる）。
 
 		/**
 		 * 統計カードの2行目用。**節ごとを「折り返さないまとまり」にする。**
@@ -3198,7 +3200,6 @@
 				skillIndex = [];
 				clearActiveSkillDictionary();
 				badge.classList.add('hidden');
-				updateDeckSelectedNote();
 				updateProcessBtn();
 				return;
 			}
@@ -3244,19 +3245,7 @@
 			badge.textContent = skillOnlyList.length + '種';
 			badge.classList.remove('hidden');
 			parseOcrDictionary(); // 辞書に書かれたスキル名がリストに存在するか再確認する
-			updateDeckSelectedNote();
 			updateProcessBtn();
-		}
-
-		function updateDeckSelectedNote() {
-			const note = document.getElementById('deck-selected-note');
-			if (!note) return;
-			if (!deckScope) { note.textContent = '因子セットを1つ選んでください'; return; }
-			// 因子は「スキル」と同じ数に混ぜず、後ろに足して書く（C-2b）。
-			// **足すときも節ごとに並べる**（段F-2。「＋因子34種」では②の呼び名と食い違う）。
-			const scopeCounts = countFactorsByScope(factorOnlyList);
-			const factorPart = factorCountNote(activeFactorScopeKeys(scopeCounts), scopeCounts, '種');
-			note.textContent = '✓ 「' + deckScope.name + '」の' + skillOnlyList.length + '種' + factorPart + 'を照合します';
 		}
 
 		/* ============================================================

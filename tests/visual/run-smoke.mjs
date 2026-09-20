@@ -374,12 +374,16 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(400);
 	const draftPicked = await page.evaluate(() => ({
 		count: document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent,
-		note: document.getElementById('deck-selected-note').textContent,
+		// 選択の注記（#deck-selected-note）は68セッション目に削除した。「そのまま照合対象になる」ことは
+		// **照合に使う実体**（skillOnlyList）と②のタブのバッジで見る（文言ではなく効果で見る）。
+		skills: skillOnlyList.length,
+		badge: document.getElementById('skill-count-badge').textContent,
+		selName: (deckTemplateManager.getSelection() || {}).name,
 		tab: document.querySelector('#deck-template-panel .uma-subtab[data-tab-id="__draft__"]').textContent.trim()
 	}));
 	assert(draftPicked.count === '1', 'special: 貼り付けたスキルがドラフトに入る', draftPicked);
-	assert(draftPicked.note === '✓ 「新規（ドラフト）」の1種を照合します',
-		'special: 中身ができたドラフトはそのまま照合対象になり、案内にも同じ呼び名が出る', draftPicked);
+	assert(draftPicked.skills === 1 && draftPicked.badge === '1種' && draftPicked.selName === '新規（ドラフト）',
+		'special: 中身ができたドラフトはそのまま照合対象になり、②のタブにも同じ数が出る', draftPicked);
 	assert(draftPicked.tab === '＋ 新規（ドラフト）1種', 'special: 「＋ 新規（ドラフト）」のタブに件数が出る', draftPicked);
 
 	// Deck まわりはここまで。以降は旧UIに戻して確かめる。
@@ -924,12 +928,15 @@ const browser = await chromium.launch();
 		selection: deckTemplateManager.getSelection(),
 		undo: document.getElementById('deck-undo-btn').style.display,
 		undoCount: document.getElementById('deck-undo-count').textContent,
-		note: document.getElementById('deck-selected-note').textContent
+		// 選択の注記は68セッション目に削除。照合対象になったことは skillOnlyList とタブのバッジで見る
+		skills: skillOnlyList.length,
+		badge: document.getElementById('skill-count-badge').textContent
 	}));
 	assert(added.selection && added.selection.kind === 'draft' && added.selection.skillIds.length === 2 && added.ids.every((i) => added.selection.skillIds.includes(i)),
 		'special/ocr入口: 追加した2種がドラフト（対象スキルセット）に入り、選択される', added.selection);
-	assert(added.undo === 'inline-flex' && added.undoCount === '1' && added.note === '✓ 「新規（ドラフト）」の2種を照合します',
-		'special/ocr入口: 「元に戻す」が出て、①の案内が「新規（ドラフト）」の2種になる', { undo: added.undo, count: added.undoCount, note: added.note });
+	assert(added.undo === 'inline-flex' && added.undoCount === '1' && added.skills === 2 && added.badge === '2種',
+		'special/ocr入口: 「元に戻す」が出て、追加した2種がそのまま照合対象になる',
+		{ undo: added.undo, count: added.undoCount, skills: added.skills, badge: added.badge });
 
 	// 「元に戻す」で追加が取り消され、因子セットが空に戻る
 	await page.click('[data-usd-act="picker-close"]');
@@ -938,10 +945,13 @@ const browser = await chromium.launch();
 	const undone = await page.evaluate(() => ({
 		selection: deckTemplateManager.getSelection(),
 		undo: document.getElementById('deck-undo-btn').style.display,
-		note: document.getElementById('deck-selected-note').textContent
+		// 「因子セットを1つ選んでください」の文言も注記ごと消えた（68セッション目）。
+		// **未選択であることの印**は、②のタブの件数バッジが出ないことと、照合対象が空になること。
+		skills: skillOnlyList.length,
+		badgeHidden: document.getElementById('skill-count-badge').classList.contains('hidden')
 	}));
-	assert(undone.selection === null && undone.undo === 'none' && undone.note === '因子セットを1つ選んでください',
-		'special/ocr入口: 「元に戻す」で追加が取り消され、因子セットが空に戻る', undone);
+	assert(undone.selection === null && undone.undo === 'none' && undone.skills === 0 && undone.badgeHidden,
+		'special/ocr入口: 「元に戻す」で追加が取り消され、因子セットが空に戻る（タブの件数バッジも消える）', undone);
 
 	// 白0件＋金N件 → 文面3。読み取った白も金も無い → ピッカーを開かない（4a は廃止したので枠にも出ない）
 	const empty = await page.evaluate(() => {
@@ -6993,12 +7003,10 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 
 	const lists = () => page.evaluate(() => ({
 		all: skillList.length, skills: skillOnlyList.length, factors: factorOnlyList.length,
-		badge: document.getElementById('skill-count-badge').textContent,
-		note: document.getElementById('deck-selected-note').textContent
+		badge: document.getElementById('skill-count-badge').textContent
 	}));
 	const off = await lists();
-	assert(off.all === off.skills && off.factors === 0 && off.badge === off.skills + '種'
-		&& off.note.indexOf('因子') === -1,
+	assert(off.all === off.skills && off.factors === 0 && off.badge === off.skills + '種',
 		'C-2b: OFF のときは因子が1つも混ざらない（今までどおり）', off);
 
 	// B（シナリオ因子）を ON にする（C-2c で1行になったので、そのままチェックを押せる）
@@ -7012,12 +7020,9 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		'C-2b: ②のタブのバッジはスキルの数のまま（375px の折り返しを動かさない）', on.badge);
 	// 呼び名は製品側（FACTOR_SCOPES の label）から取る。検査にスキル名・呼び名を書かない（恒久ルール1）
 	const scopeLabel = await page.evaluate(() => Object.fromEntries(FACTOR_SCOPES.map(s => [s.key, s.label])));
-	// 段F-2: **合算せず節ごとに並べて書く。** ここはシナリオ因子だけを ON にした状態なので、
-	// 「片方だけ ON なら出ている側だけ書く」も同時に見ている（遺伝子の呼び名は出てこない）。
-	assert(on.note.includes('の' + off.skills + '種＋' + scopeLabel.scenarioFactors + nFactor + '種を照合します')
-		&& !on.note.includes(scopeLabel.genes),
-		'段F-2: 選択の注記は節ごとに並べて書く（片方だけ ON ならその片方だけ）',
-		{ note: on.note, label: scopeLabel });
+	// 段F-2 の並記をどこで見るか: **②の下の選択の注記は68セッション目に削除した**ので、
+	// 見る先は統計カードの2行目だけになった（下の res の検査）。
+	// 「片方だけ ON なら出ている側だけ書く」も、そこで一緒に見ている。
 
 	// 照合を通す。因子2種が写っている行を混ぜ、「言い切れない1文字崩れ」も入れる
 	const res = await page.evaluate(() => {
@@ -7059,9 +7064,12 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 			expectKept: [names[0], names[1]].sort(), dropped: names[2]
 		};
 	});
+	// ここはシナリオ因子だけを ON にした状態なので、**片方だけ ON なら出ている側だけ書く**
+	// （遺伝子の呼び名は出てこない）ことも同時に見ている。
 	assert(res.total === String(off.skills) && !res.totalFactorHidden
-		&& res.totalFactor === '＋' + scopeLabel.scenarioFactors + nFactor + '種',
-		'段F-2: 対象スキル数はスキルだけ。因子は別の行に節ごとに並べて書く',
+		&& res.totalFactor === '＋' + scopeLabel.scenarioFactors + nFactor + '種'
+		&& !res.totalFactor.includes(scopeLabel.genes),
+		'段F-2: 対象スキル数はスキルだけ。因子は別の行に節ごとに並べて書く（片方だけ ON ならその片方だけ）',
 		{ total: res.total, totalFactor: res.totalFactor, hidden: res.totalFactorHidden });
 	assert(res.detected.join() === res.expectKept.join(),
 		'C-2b: 完全一致と「距離1で一意」の因子は残り、距離2の崩れは落ちる', { detected: res.detected, expect: res.expectKept, dropped: res.dropped });
@@ -7157,7 +7165,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 			nFactor: names.length, nGene: genes.length,
 			totalFactor: document.getElementById('stat-total-factor').textContent,
 			foundFactor: document.getElementById('stat-found-factor-1').textContent,
-			note: document.getElementById('deck-selected-note').textContent,
+			// 選択の注記（#deck-selected-note）は68セッション目に削除したので、並記を見るのは統計カードだけ
 			scopeSum: Object.values(countFactorsByScope(factorOnlyList)).reduce((a, b) => a + b, 0),
 			factorOnly: factorOnlyList.length,
 			// 段F-2: 節ごとが「折り返さないまとまり」になっているか（数と単位が行をまたがないように）
@@ -7174,9 +7182,9 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	   ②の行のラベルを変えたのに数え分けの文言を直し忘れれば、ここも落ちる。 */
 	const wantTotal = '＋' + scopeLabel.scenarioFactors + both.nFactor + '種'
 		+ '＋' + scopeLabel.genes + both.nGene + '種';
-	assert(both.totalFactor === wantTotal && both.note.includes(wantTotal),
-		'段F-2: 両方 ON なら対象スキル数の下も選択の注記も2つを並べて書く（合算しない）',
-		{ totalFactor: both.totalFactor, note: both.note, want: wantTotal });
+	assert(both.totalFactor === wantTotal,
+		'段F-2: 両方 ON なら対象スキル数の下に2つを並べて書く（合算しない）',
+		{ totalFactor: both.totalFactor, want: wantTotal });
 	// 検出は 因子1種＋遺伝子2種。**「種」は付かない**（検出数は元からそう書いている）
 	assert(both.foundFactor === '＋' + scopeLabel.scenarioFactors + '1＋' + scopeLabel.genes + '2',
 		'段F-2: 検出数も2つを並べて書く', both.foundFactor);
