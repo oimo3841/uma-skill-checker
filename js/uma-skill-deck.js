@@ -15,12 +15,12 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-20g';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-20h';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
 // 「直したはずなのに直っていない」状態になるため、起動時に照合する。
-const EXPECTED_COMMON_CSS_VERSION = '2026-09-20g';
+const EXPECTED_COMMON_CSS_VERSION = '2026-09-20h';
 // このページが読む共通CSSと、それぞれが :root に持つ版の印
 const COMMON_CSS_FILES = [
 	['css/tokens.css', '--common-css-version'],
@@ -185,16 +185,18 @@ const CATALOG_CATEGORY_LABELS = { scenarioFactor: 'シナリオ因子', geneFact
    .deck-catalog-mark--<カテゴリ> が持つ（値は css/tokens.css のトークン）。
    知らないカテゴリが来たら ◆ に倒す（印が消えるより、種類が読めないほうがまだよい）。
 
-   遺伝子は**文字ではなくインライン SVG**（段G-2）。ハートは JIS X 0208 に無いため。
-   **この d は js/stitch.js の stitchHeartPathD(12, 12, 9) と同じ文字列**で、
+   **シナリオ因子＝塗りの ◆／遺伝子＝白抜きの ◇**（段I-5。それまではハートだったが、
+   形が定まらず取りやめた）。同じ菱形を塗り方だけで分ける。
+   白抜きのほうは**文字ではなくインライン SVG** ―― ◇（U+25C7）は検証環境で豆腐になった（F-63）。
+   **この d は js/stitch.js の stitchDiamondPathD(12, 12, 9) と同じ文字列**で、
    Deck は stitch.js を読まないのでここに写しを持っている。
    食い違ったら tests/visual/run-smoke.mjs が落とす（向こうで計算した値と突き合わせる）ので、
    **どちらかを直したらもう片方も直すこと**。 */
-const HEART_PATH_D_24 = 'M12 10.32C9.71 2.67 3.13 5.42 3.13 11.39C3.13 14.91 8.18 16.44 12 20.57C15.82 16.44 20.87 14.91 20.87 11.39C20.87 5.42 14.29 2.67 12 10.32Z';
+const DIAMOND_PATH_D_24 = 'M12 3L21 12L12 21L3 12Z';
 const CATALOG_CATEGORY_GLYPHS = {
 	scenarioFactor: '◆',
-	geneFactor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"'
-		+ ' stroke-linejoin="round" aria-hidden="true"><path d="' + HEART_PATH_D_24 + '"/></svg>',
+	geneFactor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"'
+		+ ' stroke-linejoin="round" aria-hidden="true"><path d="' + DIAMOND_PATH_D_24 + '"/></svg>',
 };
 /* **ふつうのスキルとして見せるカテゴリ**（64セッション目・段A-2）。
    ◆を付けず、内訳でも「スキル」に数える ―― 利用者には区別を見せない。

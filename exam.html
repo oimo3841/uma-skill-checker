@@ -17,9 +17,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20g" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-20g" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-20g" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20h" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-20h" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-20h" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -27,7 +27,7 @@
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html / exam.html で共有） -->
 	<script src="js/common.js?v=2026-09-17a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-20c"></script>
+	<script src="js/stitch.js?v=2026-09-20d"></script>
 	<style>
 		/* このツールの色（青）。**見出し・バッジ・淡い地・枠などの装飾にだけ使う。**
 		   押せる部品（ボタン・チェック・選択中のタブ）は色を持たず、3ツール共通の黒
@@ -2022,7 +2022,7 @@
 		 * 軸1は排他なので、'added' と 'removed' が同時に現れることはない。
 		 *
 		 * **'gene' も画面と結合画像の両方に出す**（段H）。段F のあいだは結合画像だけ
-		 * 落としていたが、示し方が決まった（紫のハート）ので落とすのをやめた。
+		 * 落としていたが、示し方が決まった（紫の菱形。段I-5 で白抜きに）ので落とすのをやめた。
 		 * ------------------------------------------------------------ */
 		// run … 押した時点のスナップショット（captureRun）。結合画像の側はこれを渡し、画面の側は渡さない。
 		function skillMarkKind(name, run) {
@@ -2046,7 +2046,7 @@
 		 * 段F のあいだはここで 'gene' だけ null に落としていた（結合画像での示し方を
 		 * 決めていなかったため）。段H で示し方が決まったので落とすのをやめた。
 		 * 凡例は「実際に描いた区分」から作る（drawAttrIconsOnPerson の戻り値 kinds）ので、
-		 * 落とすのをやめただけで**ハートと凡例の行が同時に出る**。
+		 * 落とすのをやめただけで**印と凡例の行が同時に出る**。
 		 *
 		 * **関数そのものは残す。** 画面と結合画像で区分を違えたくなったときに手を入れる
 		 * 場所がここ1つに決まっていて、描画の途中の分岐と違って検査から見える
@@ -2095,12 +2095,13 @@
 			const plainTitle = MARK_LEGEND_LABEL.plain + '（' + plainCount + '種）';
 			return {
 				factor: { glyph: '◆', color: 'text-[var(--uma-mark-catalog)]', listTitle: MARK_LEGEND_LABEL.factor, tableTitle: MARK_LEGEND_LABEL.factor },
-				// 遺伝子は**紫のハート**（形は段G、色は段G-2）。◆と同じ「スキルではないもの」の
-				// 仲間なので**同系色**にし、**形**で分ける（色＝どのカテゴリか／形＝その中のどれか）。
-				// **記号は文字ではなくインライン SVG**（段G-2）―― ハートは JIS X 0208 に無く、
-				// 端末のフォント次第で形が変わるか豆腐になる。輪郭は js/stitch.js が
-				// 結合画像の Canvas と同じ元から出すので、**画面と結合画像の形が必ず一致する**。
-				// Exam の印は塗りつぶし（fill）。大きさとベースラインは .uma-glyph-mark が揃える。
+				// 遺伝子は**紫の白抜きの菱形**（段I-5。それまではハートだった）。
+				// ◆と同じ「スキルではないもの」の仲間なので**同系色・同じ形**にし、
+				// **塗りと白抜き**で分ける（色＝どのカテゴリか／塗り方＝その中のどれか）。
+				// **記号は文字ではなくインライン SVG** ―― ◇（U+25C7）は検証環境で豆腐に
+				// なった（F-63）。輪郭は js/stitch.js が結合画像の Canvas と同じ元から
+				// 出すので、**画面と結合画像の形が必ず一致する**。
+				// 大きさとベースラインは .uma-glyph-mark が ◎○ と揃える。
 				gene: { svg: true, color: 'uma-glyph-mark text-[var(--uma-mark-gene)]',
 					listTitle: MARK_LEGEND_LABEL.gene, tableTitle: MARK_LEGEND_LABEL.gene },
 				sp70: { glyph: '★', color: 'text-amber-500', listTitle: sp70Title, tableTitle: sp70Title },
@@ -2111,10 +2112,14 @@
 			};
 		})();
 
-		/** 遺伝子の印の SVG（塗りつぶし）。輪郭は js/stitch.js の stitchHeartPathD() が出す。 */
+		/** 遺伝子の印の SVG（**白抜き**の菱形）。輪郭は js/stitch.js の stitchDiamondPathD() が出す。
+		    線の太さは viewBox（24）に対する比で、結合画像の stitchOutlineWidth(d) と同じ 0.10。
+		    中は塗らない ―― 画面では地が白か淡い色なので、透かしたままで「空いている」と読める
+		    （結合画像はスキルパネルの灰色の〇の上に載るので、あちらは白で塗る）。 */
 		function geneMarkSvg() {
-			return '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
-				+ '<path d="' + STITCH_HEART_PATH_D_24 + '"/></svg>';
+			return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"'
+				+ ' stroke-linejoin="round" aria-hidden="true">'
+				+ '<path d="' + STITCH_DIAMOND_PATH_D_24 + '"/></svg>';
 		}
 
 		/** 画面の印1つぶんの HTML。文字の記号と SVG の記号のどちらでも同じ形に組む。 */
@@ -2234,7 +2239,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20g';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20h';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],
@@ -4268,12 +4273,13 @@
 				// 「シナリオ因子・遺伝子」は1つのチェックで両方の行を持つ（段H）。帯の中では
 				// 因子の行の下に遺伝子の行が続き、区別は色で付くので、消すときも一緒でよい。
 				item('scenario', "setStitchShow('scenario', this.checked)", 'シナリオ因子・遺伝子', '（各列の該当状況）') +
-				// 括弧の中の記号の並びは**文字のまま**にしてある（♥ を含む）。F-63 は
+				// 括弧の中の記号の並びは**文字のまま**にしてある。F-63 は
 				// 「**印そのもの**を文字で置くとフォント次第で形が変わる」という話で、
 				// 印は画面も結合画像も SVG／Canvas で描いている。ここは項目名に添えた
 				// **参考表示**なので、豆腐になっても何の項目かは読める。SVG を混ぜると
 				// 項目名の行の中で大きさとベースラインを別に面倒みることになるので割に合わない。
-				item('marks', 'setAttrIcons(this.checked)', '印', '（★●◆♥✕）') +
+				// ◇ は段I-5 で遺伝子の印になった白抜きの菱形（塗りの ◆ と対）。
+				item('marks', 'setAttrIcons(this.checked)', '印', '（★●◆◇✕）') +
 				item('legend', "setStitchShow('legend', this.checked)", '凡例', '（印の見かた）', true) +
 				item('conditions', "setStitchShow('conditions', this.checked)", '集計条件', '（追加／除外スキル・シナリオ因子・遺伝子一覧）');
 
@@ -4525,26 +4531,27 @@
 				ctx.beginPath();
 				ctx.arc(cx, cy, d / 2, 0, Math.PI * 2);
 				ctx.fill();
-			} else if (kind === 'factor') {
-				// 斜め45度のところが〇の半径より内側に入らないよう 0.62 → 0.70
+			} else if (kind === 'factor' || kind === 'gene') {
+				/* シナリオ因子＝塗りの ◆／遺伝子＝白抜きの ◇（段I-5）。
+				   **同じ形を塗り方だけで分ける。** 輪郭は js/stitch.js の stitchDiamondPath()
+				   1か所から出すので、exam・special・画面の SVG がぜんぶ同じ形になる。
+				   斜め45度のところが〇の半径より内側に入らないよう 0.62 → 0.70（決定5の但し書き）。 */
 				const r = d * 0.70;
-				ctx.beginPath();
-				ctx.moveTo(cx, cy - r);
-				ctx.lineTo(cx + r, cy);
-				ctx.lineTo(cx, cy + r);
-				ctx.lineTo(cx - r, cy);
-				ctx.closePath();
-				ctx.fill();
-			} else if (kind === 'gene') {
-				// ハート（形は段G、輪郭の描き直しは段I-4）。◆ と同じ「スキルではないもの」だが、
-				// 形の系統を変えて区別する。**輪郭は js/stitch.js の stitchHeartPath()**
-				// （special と同じ形にするため。あちらは線だけで描くが、輪郭は1か所で持つ）。
-				// 渡す 0.78 は★と同じ。**段I-4 で輪郭が外接円にちょうど接するようになったので、
-				// 印の実際の広がりは前より1割小さい**（前の輪郭は r の 1.109 倍まで出ていた）。
-				// それでも一段小さく見えないのは、新しい輪郭のほうが円を素直に使うから
-				// ―― 塗りの面積は前とほぼ同じ（◆に対して 1.18 → 1.21）。
-				stitchHeartPath(ctx, cx, cy, d * 0.78);
-				ctx.fill();
+				stitchDiamondPath(ctx, cx, cy, r);
+				if (kind === 'factor') {
+					ctx.fill();
+				} else {
+					// **中を白で塗ってから線を引く。** 印はスキルパネルの灰色の〇の上に載るので、
+					// 透かしたままだと〇の灰色が中に残り、「白抜き」ではなく「灰色で塗った菱形」に
+					// 見える。白で塗れば、どんな地の上でも中が空いていることが読める。
+					ctx.save();
+					ctx.fillStyle = '#ffffff';
+					ctx.fill();
+					ctx.restore();
+					ctx.lineWidth = stitchOutlineWidth(d);
+					ctx.lineJoin = 'round';
+					ctx.stroke();
+				}
 			} else if (kind === 'added') {
 				// 辺の真ん中が〇の半径より内側に入らないよう 0.78 → 0.96（対角はへこみとほぼ同じ）
 				const s = d * 0.96;
@@ -5887,7 +5894,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-20g';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-20h';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;

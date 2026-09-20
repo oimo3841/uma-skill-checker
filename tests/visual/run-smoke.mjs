@@ -2175,7 +2175,7 @@ const browser = await chromium.launch();
 		};
 	});
 	assert(geneMark.画面の区分 === 'gene' && geneMark.記号 === 'svg' && geneMark.呼び名 === '遺伝子',
-		'段G-2(exam): 遺伝子は画面ではハートの SVG（区分は gene・呼び名は「遺伝子」）', geneMark);
+		'段I-5(exam): 遺伝子は画面では白抜きの菱形の SVG（区分は gene・呼び名は「遺伝子」）', geneMark);
 	assert(geneMark.結合画像の区分 === 'gene' && geneMark.一致 === true
 		&& geneMark.スキルの画面 === geneMark.スキルの結合画像,
 		'段H(exam): 結合画像にも遺伝子の印を焼く（画面と結合画像の区分が一致する）', geneMark);
@@ -2183,19 +2183,22 @@ const browser = await chromium.launch();
 		'段H(exam): 結合画像の印の色と凡例の呼び名が引ける（凡例に「遺伝子」の行が出る条件）', geneMark);
 
 	/* ------------------------------------------------------------
-	 * 段I-4: ハートの輪郭そのものを見る2本
+	 * 段I-4／段I-5: 印の輪郭そのものを見る3本
 	 *
 	 * **なぜ足したか。** F-63 は「画面と結合画像が同じ形であることを、作りとして
 	 * 保証する」と書いたが、**それを確かめる検査は無かった** ―― あったのは
-	 * 「画面の SVG の d が STITCH_HEART_PATH_D_24 と同じ文字列か」と
-	 * 「Deck の写しが同じ文字列か」の2本で、**どちらも SVG どうしの突き合わせ**。
-	 * Canvas（stitchHeartPath）は1度も比べられていなかった。
+	 * 「画面の SVG の d が共有の定数と同じ文字列か」と「Deck の写しが同じ文字列か」の
+	 * 2本で、**どちらも SVG どうしの突き合わせ**。Canvas は1度も比べられていなかった。
 	 * 66セッション目に「結合画像だけ形が違って見える」と疑われたとき、
-	 * 検査は何も言えなかった（実測した結果、形は一致していて原因は別だった）。
+	 * 検査は何も言えなかった（実測した結果、形は一致していて原因は輪郭の粗だった）。
 	 *
+	 * **段I-5 で印がハートから菱形になったが、この3本はそのまま意味を持つ。**
 	 * (1) Canvas と SVG を**同じ大きさで実際に描いて画素で突き合わせる**。
 	 *     文字列ではなく塗りを比べるので、出口のどちらかが壊れれば落ちる。
-	 * (2) 輪郭が**外接円からはみ出さない**。前の輪郭は「収まる」と書きながら
+	 * (2) 頂点が**上・右・下・左の4つで左右対称**。
+	 *     ―― special は因子の菱形を横 0.82 に潰していて、exam・画面の ◆ と
+	 *     形が食い違っていた（段I-5 で揃えた）。潰し直したらここで落ちる。
+	 * (3) 輪郭が**外接円にちょうど接する**。段I-4 の前の輪郭は「収まる」と書きながら
 	 *     1.109 倍まで出ていた（倍率を手で置いていたため、誰も気づかなかった）。
 	 * ------------------------------------------------------------ */
 	const outline = await page.evaluate(async () => {
@@ -2203,11 +2206,11 @@ const browser = await chromium.launch();
 		// Canvas 側（製品の関数をそのまま呼ぶ）
 		const c1 = document.createElement('canvas'); c1.width = S; c1.height = S;
 		const x1 = c1.getContext('2d');
-		stitchHeartPath(x1, CX, CY, R);
+		stitchDiamondPath(x1, CX, CY, R);
 		x1.fillStyle = '#000'; x1.fill();
 		// SVG 側（製品の関数が返す d を、同じ座標系でラスタライズ）
 		const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + S + '" height="' + S + '"'
-			+ ' viewBox="0 0 ' + S + ' ' + S + '"><path d="' + stitchHeartPathD(CX, CY, R) + '" fill="#000"/></svg>';
+			+ ' viewBox="0 0 ' + S + ' ' + S + '"><path d="' + stitchDiamondPathD(CX, CY, R) + '" fill="#000"/></svg>';
 		const img = new Image();
 		img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
 		await img.decode();
@@ -2227,40 +2230,75 @@ const browser = await chromium.launch();
 			if (m1[i] && !m2[i]) onlyCanvas++;
 			if (!m1[i] && m2[i]) onlySvg++;
 		}
-		// 外接円からのはみ出し（輪郭を刻んで中心からの距離を見る）
-		const seg = stitchHeartSegments(CX, CY, R);
-		const at = (a, b, c, d, t) => { const mt = 1 - t;
-			return mt * mt * mt * a + 3 * mt * mt * t * b + 3 * mt * t * t * c + t * t * t * d; };
-		let maxR = 0, p0 = seg.start;
-		for (const c of seg.curves) {
-			for (let i = 0; i <= 200; i++) {
-				const t = i / 200;
-				maxR = Math.max(maxR, Math.hypot(at(p0[0], c[0], c[2], c[4], t) - CX, at(p0[1], c[1], c[3], c[5], t) - CY));
-			}
-			p0 = [c[4], c[5]];
-		}
+		const pts = stitchDiamondPoints(CX, CY, R);
+		const rel = pts.map((p) => [Math.round((p[0] - CX) * 1000) / 1000, Math.round((p[1] - CY) * 1000) / 1000]);
 		return {
 			iou: inter / uni, onlyCanvas, onlySvg, ink: inter,
-			外接円に対する最大半径: maxR / R,
-			曲線の本数: seg.curves.length,
-			各曲線の数値の数: seg.curves.map((c) => c.length),
+			頂点: rel,
+			外接円に対する最大半径: Math.max(...rel.map(([x, y]) => Math.hypot(x, y))) / R,
+			左右対称: Math.abs(rel[1][0] + rel[3][0]) < 1e-9 && rel[1][1] === 0 && rel[3][1] === 0,
+			上下対称: Math.abs(rel[0][1] + rel[2][1]) < 1e-9 && rel[0][0] === 0 && rel[2][0] === 0,
+			// 白抜きの線の太さ（段I-5 で決めた値。18px でも中が空いて見えること）
+			線の太さ: { d18: stitchOutlineWidth(18), d26: stitchOutlineWidth(26), d38: stitchOutlineWidth(38) },
 		};
 	});
 	/* **ぴったり0画素にはしない。** SVG の d は座標を小数第2位で丸めて文字列にするので
-	   （stitchHeartPathD の n()）、r=150 で描くと最大 0.005 × (150/9) ≒ 0.08px ずれ、
-	   輪郭上の画素が1つ2つ入れ替わる。**形が違えば数千画素の単位で食い違う**ので、
-	   塗りの 0.1% までを丸めの許容とする。0 に固定すると丸めのせいで落ち続ける。 */
+	   （stitchDiamondPathD の n()）、輪郭上の画素が1つ2つ入れ替わりうる。
+	   **形が違えば数千画素の単位で食い違う**ので、塗りの 0.1% までを丸めの許容とする。
+	   0 に固定すると丸めのせいで落ち続ける。 */
 	const outlineSlack = Math.max(4, Math.round(outline.ink * 0.001));
 	assert(outline.ink > 1000 && outline.iou > 0.999
 		&& (outline.onlyCanvas + outline.onlySvg) <= outlineSlack,
-		'段I-4: ハートの輪郭は Canvas（結合画像）と SVG（画面）で一致する（差は d の丸めぶんだけ。'
+		'段I-4: 印の輪郭は Canvas（結合画像）と SVG（画面）で一致する（差は d の丸めぶんだけ。'
 		+ 'F-63 の「作りとして保証する」の実地の裏づけ）',
 		Object.assign({ 許容: outlineSlack }, outline));
-	assert(outline.曲線の本数 === 4 && outline.各曲線の数値の数.every((n) => n === 6),
-		'段I-4: 輪郭は3次ベジェ4本（直線に落ちていない）', outline);
-	// はみ出さないこと。ちょうど接していること（縮みすぎて小さくなっていないこと）も見る
+	assert(outline.頂点.length === 4 && outline.左右対称 && outline.上下対称,
+		'段I-5: 菱形の頂点は上・右・下・左の4つで、縦にも横にも対称（潰した菱形を持ち込まない）', outline.頂点);
 	assert(outline.外接円に対する最大半径 <= 1.001 && outline.外接円に対する最大半径 >= 0.999,
 		'段I-4: 輪郭が外接円にちょうど接する（はみ出さない・縮みすぎない）', outline.外接円に対する最大半径);
+
+	/* 段I-5: **白抜きが 18px でも「中が空いている」と分かるか**を画素で見る。
+	   線の太さは stitchOutlineWidth(d) が決める。太すぎると中が潰れ、細すぎると
+	   塗りの ◆ と見分けがつかなくなる ―― どちらに転んでもここで落ちる。
+	   地は**パネルの濃い地**（#dcdeee）にして、「中が地に溶けないか」も同時に見る
+	   （製品は中を白で塗るので、地の色に関わらず白く残るはず）。 */
+	const hollow = await page.evaluate(() => {
+		const colors = attrMarkColors();
+		const out = {};
+		for (const d of [18, 26, 38]) {
+			const S = Math.ceil(d * 3);
+			const c = document.createElement('canvas'); c.width = S; c.height = S;
+			const ctx = c.getContext('2d');
+			ctx.fillStyle = '#dcdeee'; ctx.fillRect(0, 0, S, S);   // パネルのいちばん濃い地
+			drawSkillMark(ctx, 'gene', S / 2, S / 2, d, colors);
+			const data = ctx.getImageData(0, 0, S, S).data;
+			const at = (x, y) => { const p = ((y * S) + x) * 4; return [data[p], data[p + 1], data[p + 2]]; };
+			const mid = at(Math.round(S / 2), Math.round(S / 2));
+			// 中央から上へ走査して、白 → 線 → 地 の順に変わるか（＝中が空いている）
+			let white = 0, ink = 0;
+			for (let y = Math.round(S / 2); y >= 0; y--) {
+				const [r, g, b] = at(Math.round(S / 2), y);
+				if (r > 245 && g > 245 && b > 245) white++;
+				else if (r < 160 && b > 100) ink++;         // 紫の線
+			}
+			out['d' + d] = { 中央の色: mid, 中の白い画素: white, 線の画素: ink, 線の太さ: stitchOutlineWidth(d) };
+		}
+		// 比較のため、塗りの ◆ の中央も取る（白抜きと明確に違うこと）
+		const S = 54;
+		const c = document.createElement('canvas'); c.width = S; c.height = S;
+		const ctx = c.getContext('2d');
+		ctx.fillStyle = '#dcdeee'; ctx.fillRect(0, 0, S, S);
+		drawSkillMark(ctx, 'factor', S / 2, S / 2, 18, colors);
+		const dd = ctx.getImageData(Math.round(S / 2), Math.round(S / 2), 1, 1).data;
+		out.塗りの中央 = [dd[0], dd[1], dd[2]];
+		return out;
+	});
+	const isWhite = (c) => c[0] > 245 && c[1] > 245 && c[2] > 245;
+	assert([18, 26, 38].every((d) => isWhite(hollow['d' + d].中央の色) && hollow['d' + d].中の白い画素 >= 2
+		&& hollow['d' + d].線の画素 >= 1),
+		'段I-5: 白抜きの ◇ は 18/26/38px のどれでも中が白く残る（パネルの濃い地の上でも溶けない）', hollow);
+	assert(!isWhite(hollow.塗りの中央),
+		'段I-5: 塗りの ◆ は中まで色が入っている（白抜きと取り違えない）', hollow.塗りの中央);
 
 	// Esc は開いているものを1つ閉じる（引き出し → FAB の順）。
 	// 直前まで iframe の中を操作していたので、キーは親の文書に戻してから送る
@@ -4808,9 +4846,10 @@ const browser = await chromium.launch();
 	assert(s.scenarioDisabled && s.scenarioGrey && s.eff.scenario === false && s.wire.scenario.every((h) => h),
 		'結合画像の表示: シナリオ因子も遺伝子も1件も選んでいなければ、チェックは灰色で選べず、模式図の帯も出ない', s);
 	/* 段H: 項目の呼び名。1つのチェックが因子と遺伝子の両方を持つので、呼び名も両方を名乗る。
-	   印の記号の並びにもハートが入る（★●◆♥✕）。模式図の帯は区分ごとに2本。 */
+	   印の記号の並びにも白抜きの菱形が入る（★●◆◇✕）。模式図の帯は区分ごとに2本。 */
 	assert(s.scenarioLabel.startsWith('シナリオ因子・遺伝子'), '段H: 項目の呼び名が「シナリオ因子・遺伝子」になっている', s.scenarioLabel);
-	assert(s.marksLabel.indexOf('♥') !== -1, '段H: 印の項目の記号の並びにハートが入る', s.marksLabel);
+	assert(s.marksLabel.indexOf('◇') !== -1 && s.marksLabel.indexOf('◆') !== -1,
+		'段I-5: 印の項目の記号の並びに ◆ と ◇ が並ぶ', s.marksLabel);
 	assert(s.scenarioBars.length === 2 && s.scenarioBars[0] !== s.scenarioBars[1],
 		'段H: 模式図の「シナリオ因子・遺伝子」の帯は2本で、色が違う', s.scenarioBars);
 	assert(s.legendDisabled && s.legendGrey && s.eff.legend === false, '結合画像の表示: 印が OFF の間、凡例は選べず灰色になり、合成にも効かない', s);
@@ -5983,7 +6022,7 @@ const browser = await chromium.launch();
 					名前との中心差: Math.round((r.top + r.height / 2 - (name.top + name.height / 2)) * 10) / 10 };
 			})() : null,
 			// 画面の SVG と結合画像の Canvas が同じ元から形を取っているか
-			wantD: STITCH_HEART_PATH_D_24,
+			wantD: STITCH_DIAMOND_PATH_D_24,
 			badgeBg: cs(document.getElementById('badge-scenario-factors'), 'backgroundColor'),
 			badgeText: cs(document.getElementById('badge-scenario-factors'), 'color'),
 			listMark: cs(listMark, 'color'),
@@ -6018,7 +6057,7 @@ const browser = await chromium.launch();
 	assert(c.listGene === GENE && c.tableGene === GENE,
 		'段G: 一覧と表の遺伝子の印が遺伝子の色', { listGene: c.listGene, tableGene: c.tableGene, want: GENE });
 	assert(c.listGeneSvg && c.legendGeneSvg && c.listMarkGlyph === '◆',
-		'段G-2: 遺伝子はハートの SVG・シナリオ因子は◆の文字（形も分かれている）',
+		'段I-5: 遺伝子は白抜きの菱形の SVG・シナリオ因子は◆の文字（塗り方で分かれている）',
 		{ svg: c.listGeneSvg, legend: c.legendGeneSvg, factor: c.listMarkGlyph });
 	assert(c.listGeneD === c.wantD,
 		'段G-2: 画面の SVG と結合画像の Canvas が同じ輪郭（js/stitch.js の1か所から出ている）',
@@ -6814,19 +6853,19 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 			found: document.getElementById('stat-found-1').textContent,
 			foundFactor: document.getElementById('stat-found-factor-1').textContent,
 			rowCount: rows.length,
-			// ◆（シナリオ因子）／♡（遺伝子）が付いている行と、◎○▲ が付いている行
-			// **段G で印を分けた。** 以前はどちらも ◆（--uma-mark-catalog）だった。
+			// ◆（シナリオ因子）／◇（遺伝子）が付いている行と、◎○△ が付いている行
+			// **段G で印を分け、段I-5 で「同じ菱形の塗りと白抜き」に落ち着いた。**
 			diamond: rows.filter(r => r.querySelector('td .text-\\[var\\(--uma-mark-catalog\\)\\]'))
 				.map(r => r.querySelector('td').textContent.replace(/^◆\s*/, '').trim()),
 			heart: rows.filter(r => r.querySelector('td .text-\\[var\\(--uma-mark-gene\\)\\]'))
 				.map(r => r.querySelector('td').textContent.trim()),
 			diamondGlyphs: rows.filter(r => r.querySelector('td .text-\\[var\\(--uma-mark-catalog\\)\\]'))
 				.map(r => r.querySelector('td .text-\\[var\\(--uma-mark-catalog\\)\\]').textContent),
-			// 遺伝子は SVG なので、文字ではなく中身の path の d で見る（段G-2）
+			// 遺伝子は SVG なので、文字ではなく中身の path の d で見る（段G-2・段I-5）
 			heartGlyphs: rows.filter(r => r.querySelector('td .text-\\[var\\(--uma-mark-gene\\)\\]'))
 				.map(r => { const el = r.querySelector('td .text-\\[var\\(--uma-mark-gene\\)\\] svg path');
 					return el ? el.getAttribute('d') : '(svg なし)'; }),
-			wantHeartD: STITCH_HEART_PATH_D_24,
+			wantHeartD: STITCH_DIAMOND_PATH_D_24,
 			tierMarked: rows.filter(r => r.querySelector('td .uma-tier-mark')).length,
 			copyLines: document.getElementById('copy-data').value.split('\n').length,
 			kept: [names[0], names[1]].filter(n => factorSet.has(n)),
@@ -6840,14 +6879,14 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		'C-2b: 完全一致と「距離1で一意」の因子は残り、距離2の崩れは落ちる', { detected: res.detected, expect: res.expectKept, dropped: res.dropped });
 	assert(res.found === '4' && res.foundFactor === '＋ 因子 2',
 		'C-2b: 検出数もスキルと因子で分けて数える', { found: res.found, foundFactor: res.foundFactor });
-	// 段G: 印は節ごとに分かれた（◆＝シナリオ因子／♡＝遺伝子）。
+	// 段G: 印は節ごとに分かれた（段I-5 から ◆＝シナリオ因子／◇＝遺伝子）。
 	// **この検査で見ているのはシナリオ因子だけを ON にした状態**（上の scopes の作り方による）。
-	// 合計が因子の数と合い、遺伝子の♡は1つも出ていないこと。
+	// 合計が因子の数と合い、遺伝子の◇は1つも出ていないこと。
 	assert(res.diamond.length + res.heart.length === nFactor && res.tierMarked > 0,
 		'C-2b: 因子の行には印、スキルの行には◎○▲（左の同じ欄）',
 		{ diamond: res.diamond.length, heart: res.heart.length, tier: res.tierMarked });
 	assert(res.diamondGlyphs.every(g => g === '◆') && res.heartGlyphs.every(g => g === res.wantHeartD),
-		'段G-2(special): シナリオ因子は◆の文字・遺伝子はハートの SVG（形が混ざらない）',
+		'段I-5(special): シナリオ因子は◆の文字・遺伝子は白抜きの菱形の SVG（塗り方で分かれている）',
 		{ diamond: res.diamondGlyphs.slice(0, 3), heart: res.heartGlyphs.slice(0, 1) });
 	assert(res.copyLines === off.skills + nFactor,
 		'C-2b: コピー用データには因子の行も入る（表と同じ並び）', { copyLines: res.copyLines, expect: off.skills + nFactor });
@@ -6920,7 +6959,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 			// 遺伝子は SVG（段G-2）。文字ではないので、中身の有無で数える
 			hearts: rows.map(r => r.querySelector('td .text-\\[var\\(--uma-mark-gene\\)\\] svg path'))
 				.filter(Boolean).map(el => el.getAttribute('d')),
-			wantHeartD: STITCH_HEART_PATH_D_24,
+			wantHeartD: STITCH_DIAMOND_PATH_D_24,
 			// 検出したのは 因子1種＋遺伝子2種
 			detectedGenes: genes.filter(n => personResults[0].detectedSkills.has(n)).length,
 			twoScopes, oneScope
@@ -6928,15 +6967,15 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	});
 	assert(both.diamonds.every(g => g === '◆') && both.hearts.every(g => g === both.wantHeartD)
 		&& both.diamonds.length > 0 && both.hearts.length > 0,
-		'段G-2(special): ◆とハートが同じ表に並び、形が混ざらない',
+		'段I-5(special): ◆と白抜きの◇が同じ表に並び、塗り方が混ざらない',
 		{ diamonds: both.diamonds.length, hearts: both.hearts.length });
-	/* **Deck が持つハートの写しが、stitch.js の計算と同じか**（段G-2）。
+	/* **Deck が持つ菱形の写しが、stitch.js の計算と同じか**（段G-2・段I-5）。
 	   Deck は stitch.js を読まないので js/uma-skill-deck.js に同じ文字列を写してある。
-	   片方だけ直すと、Deck の比較シートだけ形が違うハートになる。 */
+	   片方だけ直すと、Deck の比較シートだけ形が違う印になる。 */
 	const deckHeart = fs.readFileSync(path.join(REPO_ROOT, 'js/uma-skill-deck.js'), 'utf-8')
-		.match(/const HEART_PATH_D_24 = '([^']+)'/);
+		.match(/const DIAMOND_PATH_D_24 = '([^']+)'/);
 	assert(deckHeart && deckHeart[1] === both.wantHeartD,
-		'段G-2: Deck が持つハートの写しが js/stitch.js の計算と一致',
+		'段I-5: Deck が持つ菱形の写しが js/stitch.js の計算と一致',
 		{ deck: deckHeart ? deckHeart[1] : '(見つからない)', stitch: both.wantHeartD });
 	assert(both.detectedGenes === 2,
 		'段G(special): 遺伝子は完全一致で検出できている（印の分離が検出に影響していない）', both.detectedGenes);

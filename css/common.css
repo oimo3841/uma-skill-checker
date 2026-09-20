@@ -31,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-09-20g";
+	--uma-components-css-version: "2026-09-20h";
 }
 
 /* ============================================================
@@ -371,10 +371,11 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
 .uma-tier-mark svg { display: block; width: 100%; height: 100%; }
 
 /* 文字の記号（★●◆）と同じ場所に置く、**SVG の印**（段G-2・66セッション目）。
-   ハートのように JIS X 0208 に無い形は、端末のフォント次第で形が変わるか豆腐になる。
+   いまの用途は**白抜きの菱形 ◇**（遺伝子。段I-5）。◇（U+25C7）は JIS X 0208 内だが
+   **検証環境では豆腐になった**（F-63）ので、文字ではなく SVG で持っている。
    SVG で持てば**画面と結合画像（Canvas）が同じ形であることが作りとして保証される**
-   （上の .uma-tier-mark ＝ Special の ◎○▲ が先にこの作法を採っている。輪郭は
-   js/stitch.js の stitchHeartPathD() が Canvas と同じ元から出す）。
+   （上の .uma-tier-mark ＝ Special の ◎○△ が先にこの作法を採っている。輪郭は
+   js/stitch.js の stitchDiamondPathD() が Canvas と同じ元から出す）。
    大きさとベースラインの下げ幅は .uma-tier-mark と同じ値にしてある ―― 隣に ◆★● が
    並ぶので、揃っていないと1つだけ浮いて見える。
    **色は currentColor**（置く側が文字色で決める）。塗るか線だけかも置く側が決める

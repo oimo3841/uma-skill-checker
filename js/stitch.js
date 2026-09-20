@@ -15,7 +15,7 @@
 
 // このファイルの版。B節ルール4の3点一致（内部定数・各HTMLの ?v=・npm run test:verify）の対象。
 // 中身を変更したらこの日付も更新すること。
-const STITCH_JS_VERSION = '2026-09-20c';
+const STITCH_JS_VERSION = '2026-09-20d';
 
 // 画像結合用の簡易ログ。既存の開発ログ（devGeometry）に相乗りさせることで、
 // 「開発ログを表示」チェックを入れれば結合処理の詳細も確認できるようにする。
@@ -619,98 +619,62 @@ const STITCH_NOTE_COLOR = '#555555';
 const STITCH_NOTE_RULE_COLOR = '#d0d0d0';
 
 /* ============================================================
- * ハートの輪郭（遺伝子の印。段G・66セッション目。段G-2 で SVG も同じ元から出すようにした）
+ * 菱形の輪郭（「スキルではないもの」の印。66セッション目・段I-5）
  *
  * **形を決める場所はここ1つだけ。** 出口は3つある。
- *   Canvas 塗りつぶし … exam の結合画像（stitchHeartPath → fill）
- *   Canvas 線だけ     … special の結合画像（stitchHeartPath → stroke）
- *   SVG の d          … 画面に出す印（stitchHeartPathD）
- * 画面の印を**文字（♥ U+2665）ではなく SVG** にしてあるのは、
- *   (1) 端末のフォント次第で形が変わる／豆腐になるのを避けるため
+ *   Canvas 塗りつぶし … シナリオ因子の ◆（exam・special の結合画像）
+ *   Canvas 白抜き     … 遺伝子の ◇（中を白で塗ってから線を引く）
+ *   SVG の d          … 画面に出す ◇（stitchDiamondPathD）
+ *
+ * **段G〜段I-4 はハートだった。** 3回描き直しても形が定まらず、
+ * 「座標を数値で置いて曲線を組む」やり方は見た目の良し悪しが結果でしか分からず
+ * 反復のコストが高い、という判断で取りやめた（おいもさんの決定）。
+ * **いまは菱形1つを、塗りと白抜きで2つの区分に使い分ける。**
+ * 形が単純なので小さくしても崩れず、描き直しの必要がそもそも生じない。
+ *
+ * **画面の ◇ を文字（U+25C7）ではなく SVG にしてある**のは F-63 と同じ理由:
+ *   (1) 端末のフォント次第で豆腐になる（**検証環境では実際に ◇ が豆腐だった**）
  *   (2) **画面と結合画像が同じ形であることを、作りとして保証するため**
- * （special の ◎○▲ ＝ uma-skill-deck-core.js の tierMarkHtml() が先にこの作法を採っている）。
+ * 塗りの ◆（U+25C6）は JIS X 0208 内なので、画面では文字のまま使う。
  *
- * 中心 (cx, cy)・半径 r の**外接円にちょうど接する**。印はスキルパネルの
- * 灰色の〇の中に置くので、はみ出すと隣の段にかかる。
+ * 中心 (cx, cy)・半径 r の**外接円にちょうど接する**（頂点が円の上に乗る）。
+ * 印はスキルパネルの灰色の〇の中に置くので、はみ出すと隣の段にかかる。
  * 色も塗り／線も呼び出し側が決める ―― ここは輪郭だけを返す。
- *
- * **66セッション目（段I-4）に輪郭を描き直した。** 前の輪郭には2つの不具合があった:
- *   (1) 縦長（高さ÷幅 = 1.21）で左右のふくらみがトゲになり、18px では凹みが 1px しか
- *       残らず、ハートとして読めなかった。**大きく焼いたときは肩に「こぶ」が出ていた**
- *       ―― 制御点の置き方が原因で、ふくらみの頂が平らになり内側に段が付いていた。
- *   (2) 「外接円に収まる」と書きながら、**実際は r の 1.109 倍まではみ出していた**。
  * ============================================================ */
 
-/* 輪郭の正規化した形（中心 (0,0)・下向きが +y）。**形を決めるのはこの表だけ。**
-   大きさはここで決めない ―― 下の HEART_FIT が「外接円にちょうど接する」倍率を
-   輪郭から計算するので、**この表を描き替えれば円への収まりは自動で付いてくる**
-   （前の輪郭が知らないうちにはみ出していたのは、倍率を手で置いていたから）。 */
-const HEART_UNIT = {
-	start: [0, -0.22],                                // 上の凹みの底
-	curves: [
-		[-0.30, -1.22, -1.16, -0.86, -1.16, -0.08],   // 凹み → 左のふくらみの頂 → 左の張り出し
-		[-1.16, 0.38, -0.50, 0.58, 0, 1.12],          // 左の張り出し → 下の尖り
-		[0.50, 0.58, 1.16, 0.38, 1.16, -0.08],        // 下の尖り → 右の張り出し
-		[1.16, -0.86, 0.30, -1.22, 0, -0.22]          // 右の張り出し → 右のふくらみの頂 → 凹み
-	]
-};
-
-/** 正規化した輪郭を刻んで、中心からいちばん遠い点までの距離を返す。 */
-function heartUnitMaxRadius() {
-	const STEPS = 48;
-	let max = 0, p0 = HEART_UNIT.start;
-	const at = (a, b, c, d, t) => {
-		const mt = 1 - t;
-		return mt * mt * mt * a + 3 * mt * mt * t * b + 3 * mt * t * t * c + t * t * t * d;
-	};
-	for (const c of HEART_UNIT.curves) {
-		for (let i = 0; i <= STEPS; i++) {
-			const t = i / STEPS;
-			const x = at(p0[0], c[0], c[2], c[4], t);
-			const y = at(p0[1], c[1], c[3], c[5], t);
-			max = Math.max(max, Math.hypot(x, y));
-		}
-		p0 = [c[4], c[5]];
-	}
-	return max;
-}
-/** 外接円にちょうど接するための倍率（輪郭から毎回計算する。値を手で書かない）。 */
-const HEART_FIT = 1 / heartUnitMaxRadius();
-
-/** ハートの輪郭を「始点＋3次ベジェ4本」で返す。下の2つの出口が共通で使う。 */
-function stitchHeartSegments(cx, cy, r) {
-	const k = r * HEART_FIT;
-	const m = (x, y) => [cx + x * k, cy + y * k];
-	return {
-		start: m(HEART_UNIT.start[0], HEART_UNIT.start[1]),
-		curves: HEART_UNIT.curves.map(c => [
-			...m(c[0], c[1]), ...m(c[2], c[3]), ...m(c[4], c[5])
-		])
-	};
+/** 菱形の4つの頂点（上・右・下・左）を返す。下の2つの出口が共通で使う。 */
+function stitchDiamondPoints(cx, cy, r) {
+	return [[cx, cy - r], [cx + r, cy], [cx, cy + r], [cx - r, cy]];
 }
 
 /** Canvas の現在のパスに積む（fill も stroke もしない）。 */
-function stitchHeartPath(ctx, cx, cy, r) {
-	const s = stitchHeartSegments(cx, cy, r);
+function stitchDiamondPath(ctx, cx, cy, r) {
+	const p = stitchDiamondPoints(cx, cy, r);
 	ctx.beginPath();
-	ctx.moveTo(s.start[0], s.start[1]);
-	s.curves.forEach(c => ctx.bezierCurveTo(c[0], c[1], c[2], c[3], c[4], c[5]));
+	ctx.moveTo(p[0][0], p[0][1]);
+	for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]);
 	ctx.closePath();
 }
 
 /** 同じ輪郭を SVG の d 属性の文字列で返す。 */
-function stitchHeartPathD(cx, cy, r) {
+function stitchDiamondPathD(cx, cy, r) {
 	const n = (v) => String(Math.round(v * 100) / 100);
-	const s = stitchHeartSegments(cx, cy, r);
-	return 'M' + n(s.start[0]) + ' ' + n(s.start[1])
-		+ s.curves.map(c => 'C' + c.map(n).join(' ')).join('') + 'Z';
+	const p = stitchDiamondPoints(cx, cy, r);
+	return 'M' + p.map((q) => n(q[0]) + ' ' + n(q[1])).join('L') + 'Z';
 }
 
 /* 画面の印に使う d（viewBox="0 0 24 24"・中心(12,12)・半径9）。
    **半径9は .uma-tier-mark の ◎○ と同じ**なので、並べたときに大きさが揃う。
    js/uma-skill-deck.js は stitch.js を読まないので同じ文字列を持っているが、
    **食い違ったら tests/visual/run-smoke.mjs が落とす**（自分で計算した値と突き合わせる）。 */
-const STITCH_HEART_PATH_D_24 = stitchHeartPathD(12, 12, 9);
+const STITCH_DIAMOND_PATH_D_24 = stitchDiamondPathD(12, 12, 9);
+
+/* 白抜きの線の太さ。**中が空いていることが 18px でも分かる**必要があるので、
+   差し渡し d に比例させつつ下限を置く（値の根拠は段I-5 の実測）。
+   exam（結合画像）と special（結合画像）と画面の SVG で同じ考え方を使う。 */
+function stitchOutlineWidth(d) {
+	return Math.max(1.4, d * 0.10);
+}
 
 /** 1行に収まらない文字列を、収まる幅で折り返す（日本語なので1文字ずつで足りる）。 */
 function stitchWrapText(ctx, text, maxWidth) {
