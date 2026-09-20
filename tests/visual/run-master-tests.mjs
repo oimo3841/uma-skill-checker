@@ -237,14 +237,24 @@ const browser = await chromium.launch();
 	assert(awakeListed === true, '②新規6件がモーダルの一覧に並ぶ', awakeListed);
 
 	// カスタムスキル入力欄にも8軸目が出る（TAG_AXES駆動になっていることの確認）。
-	// 件数は決め打ちせず TAG_AXES から取る ―― 選択肢が1つから3つに増えたとき、
+	// 件数は決め打ちせず、**製品の pickableOptions() から取る** ―― 選択肢が増えたとき、
 	// UI が追随していることこそ見たいので、決め打ちだと「追随した」こと自体で落ちてしまう。
-	const customScenario = await page.evaluate(() => ({
-		画面: document.querySelectorAll('[data-usd-el="custom-tag"][data-axis="scenario"]').length,
-		core: UmaSkillDeckCore.TAG_AXES.find((a) => a.key === 'scenario').options.length,
-	}));
-	assert(customScenario.画面 === customScenario.core && customScenario.core === 3,
-		'カスタムスキル入力の⑧の選択肢が TAG_AXES と同じ数（3つ）', customScenario);
+	//
+	// **見る先を options から pickableOptions() へ変えた**（69セッション目）。
+	// 段B（C-68 の3節）で `internalOnly` を入れ、**カスタムスキル入力から
+	// `scenario_factor` と `gene` を隠した**ので、`options` をそのまま数えると必ず食い違う
+	// （画面 1 / core 3 で落ちていた）。**隠したのは意図どおり**なので、直すのは検査の意図のほう。
+	// 同じ規則をここに書き写すと片方が古くなるので、**製品の関数をそのまま借りる**。
+	const customScenario = await page.evaluate(() => {
+		const axis = UmaSkillDeckCore.TAG_AXES.find((a) => a.key === 'scenario');
+		return {
+			画面: document.querySelectorAll('[data-usd-el="custom-tag"][data-axis="scenario"]').length,
+			選ばせる: UmaSkillDeckCore.pickableOptions(axis).length,
+			軸の全部: axis.options.length,
+		};
+	});
+	assert(customScenario.画面 === customScenario.選ばせる && customScenario.選ばせる > 0,
+		'カスタムスキル入力の⑧の選択肢が pickableOptions() と同じ数（internalOnly は出さない）', customScenario);
 
 	await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
 	await page.waitForTimeout(300);

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21c';
 
 	/* ============================================================
 	 * 定数
@@ -4873,6 +4873,13 @@
 		cardTypeOf: cardTypeOf,
 		isReferableSkillId: isReferableSkillId,
 		skillCatalogKind: skillCatalogKind,
+		/**
+		 * その軸で**利用者に選ばせる選択肢**（`internalOnly` を落としたもの）。
+		 * 画面と同じ判断を外から借りられるようにしてある ―― `TAG_AXES` の `options` を
+		 * そのまま数えると `internalOnly` のぶんだけ食い違う（69セッション目に
+		 * `test:master` が落ちていたのがこれ）。**同じ規則を検査の側で書き写さない。**
+		 */
+		pickableOptions: pickableOptions,
 
 		// スキル参照
 		findSkill: findSkill,
