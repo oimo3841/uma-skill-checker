@@ -14,9 +14,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20f" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-20f" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-20f" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20g" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-20g" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-20g" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -33,7 +33,7 @@
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-20d"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-20a"></script>
+	<script src="js/stitch.js?v=2026-09-20b"></script>
 	<style>
 		/* Deck連携モードの①のタブ（本育成編成）の見出し行（C-51 の11節①②）。
 		   ①〜③はステップのタブ（css/shell.css の .step-tab）に載せたので、ここには Step の枠は無い。
@@ -859,7 +859,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20f';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20g';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -2008,15 +2008,24 @@
 		const CATALOG_MARKS = {
 			scenarioFactors: { mark: 'factor', legend: 'シナリオ因子', token: '--uma-mark-catalog', glyph: '◆',
 				cls: 'text-[var(--uma-mark-catalog)]' },
-			genes:           { mark: 'gene',   legend: '遺伝子',      token: '--uma-mark-gene',    glyph: '♡',
-				cls: 'text-[var(--uma-mark-gene)]' }
+			// 遺伝子の印は**文字ではなくインライン SVG**（段G-2）。ハートは JIS X 0208 に無く、
+			// 端末のフォント次第で形が変わるか豆腐になる。輪郭は js/stitch.js が結合画像の
+			// Canvas と同じ元から出すので、**画面と結合画像の形が必ず一致する**
+			// （◎○▲ が core の tierMarkHtml() で先にこの作法を採っているのと同じ）。
+			// **Special の印は線だけ**（塗りつぶさない）ので、SVG も stroke で描く。
+			genes:           { mark: 'gene',   legend: '遺伝子',      token: '--uma-mark-gene',    svg: true,
+				cls: 'uma-glyph-mark text-[var(--uma-mark-gene)]' }
 		};
 		// 色は cls（Tailwind の任意値）で当てる。**token と同じ変数を指すよう、書き分けずに1か所で持つ。**
 		// 素の style= で書くと、exam 側（同じ形の SCREEN_MARK）と書き方が食い違う。
 		const CATALOG_MARK_HTML = {};
 		Object.values(CATALOG_MARKS).forEach(m => {
-			CATALOG_MARK_HTML[m.mark] = '<span class="' + m.cls + ' font-bold" title="'
-				+ 'スキルではないもの（' + m.legend + '）">' + m.glyph + '</span>';
+			const inner = m.svg
+				? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"'
+					+ ' stroke-linejoin="round" aria-hidden="true"><path d="' + STITCH_HEART_PATH_D_24 + '"/></svg>'
+				: m.glyph;
+			CATALOG_MARK_HTML[m.mark] = '<span class="' + m.cls + (m.svg ? '' : ' font-bold') + '" title="'
+				+ 'スキルではないもの（' + m.legend + '）">' + inner + '</span>';
 		});
 		// 印の種類（'factor' / 'gene'）の一覧。凡例の並びもこの順。
 		const CATALOG_MARK_KEYS = Object.values(CATALOG_MARKS).map(m => m.mark);
@@ -2082,9 +2091,9 @@
 					ctx.lineTo(cx - rr * 0.82, cy);
 					ctx.closePath();
 				});
-			} else if (tier === 'gene') {     // ♡ 遺伝子（段G）
+			} else if (tier === 'gene') {     // ハート 遺伝子（段G）
 				// **輪郭は js/stitch.js の stitchHeartPath()**（exam と同じ形にするため。
-				// あちらは塗りつぶすが、輪郭そのものは1か所で持つ）。
+				// あちらは塗りつぶすが、輪郭そのものは1か所で持つ。画面の SVG も同じ元）。
 				// ◆ と同じく ○ の外接円より少しだけ大きく取る（線だけなので小さく見えるため）。
 				paths.push(() => stitchHeartPath(ctx, cx, cy, r * 1.06));
 			} else {                   // ▲ 単穴（外接円は ○ の 1.12 倍。塗りが無いぶん小さく見えるため）
@@ -3396,7 +3405,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-20e';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-20f';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {

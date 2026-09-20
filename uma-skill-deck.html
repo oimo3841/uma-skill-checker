@@ -10,14 +10,14 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20f" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-20f" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-20f" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20g" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-20g" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-20g" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-20d"></script>
-	<script src="js/uma-skill-deck.js?v=2026-09-20e"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-20f"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -198,7 +198,11 @@
 		   **カテゴリごとに色が違う**（段G）。形は js/uma-skill-deck.js の CATALOG_CATEGORY_GLYPHS。
 		   素の .deck-catalog-mark の色は、知らないカテゴリが来たときの既定。 */
 		.deck-catalog-mark { flex: 0 0 auto; color: var(--uma-mark-catalog); font-weight: 700; }
-		.deck-catalog-mark--geneFactor { color: var(--uma-mark-gene); }
+		/* 遺伝子は SVG の印（段G-2）。大きさとベースラインは共通CSSの .uma-glyph-mark と
+		   同じ値にしてある ―― ここは .deck-name の中なので、独立して指定する。 */
+		.deck-catalog-mark--geneFactor { color: var(--uma-mark-gene); width: 1.2em; height: 1.2em;
+			display: inline-flex; align-items: center; justify-content: center; vertical-align: -0.28em; }
+		.deck-catalog-mark--geneFactor svg { display: block; width: 100%; height: 100%; }
 		.deck-name-clip {
 			display: block; max-width: 6em;
 			overflow: hidden; white-space: nowrap;

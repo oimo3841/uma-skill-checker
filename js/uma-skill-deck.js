@@ -15,12 +15,12 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-20e';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-20f';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
 // 「直したはずなのに直っていない」状態になるため、起動時に照合する。
-const EXPECTED_COMMON_CSS_VERSION = '2026-09-20f';
+const EXPECTED_COMMON_CSS_VERSION = '2026-09-20g';
 // このページが読む共通CSSと、それぞれが :root に持つ版の印
 const COMMON_CSS_FILES = [
 	['css/tokens.css', '--common-css-version'],
@@ -183,8 +183,19 @@ const CATALOG_CATEGORY_LABELS = { scenarioFactor: 'シナリオ因子', geneFact
 /* 比較シートの行に付く印（段G）。**OCRツール側と同じ形**にする ―― Deck も Exam も
    Special も、同じものには同じ印を出す。色は uma-skill-deck.html の
    .deck-catalog-mark--<カテゴリ> が持つ（値は css/tokens.css のトークン）。
-   知らないカテゴリが来たら ◆ に倒す（印が消えるより、種類が読めないほうがまだよい）。 */
-const CATALOG_CATEGORY_GLYPHS = { scenarioFactor: '◆', geneFactor: '♡' };
+   知らないカテゴリが来たら ◆ に倒す（印が消えるより、種類が読めないほうがまだよい）。
+
+   遺伝子は**文字ではなくインライン SVG**（段G-2）。ハートは JIS X 0208 に無いため。
+   **この d は js/stitch.js の stitchHeartPathD(12, 12, 9) と同じ文字列**で、
+   Deck は stitch.js を読まないのでここに写しを持っている。
+   食い違ったら tests/visual/run-smoke.mjs が落とす（向こうで計算した値と突き合わせる）ので、
+   **どちらかを直したらもう片方も直すこと**。 */
+const HEART_PATH_D_24 = 'M12 20.28C3.18 12.45 3.18 1.47 9.21 3.63C11.46 1.83 12 8.22 12 9.3C12 8.22 12.54 1.83 14.79 3.63C20.82 1.47 20.82 12.45 12 20.28Z';
+const CATALOG_CATEGORY_GLYPHS = {
+	scenarioFactor: '◆',
+	geneFactor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"'
+		+ ' stroke-linejoin="round" aria-hidden="true"><path d="' + HEART_PATH_D_24 + '"/></svg>',
+};
 /* **ふつうのスキルとして見せるカテゴリ**（64セッション目・段A-2）。
    ◆を付けず、内訳でも「スキル」に数える ―― 利用者には区別を見せない。
 
@@ -696,7 +707,8 @@ function renderRecordGrid() {
 		const catalogKind = Core.skillCatalogKind(skillId);
 		const catalogMark = (catalogKind && !catalogIsPlainSkill(catalogKind))
 			? '<span class="deck-catalog-mark deck-catalog-mark--' + escapeHtml(catalogKind) + '" title="'
-				+ escapeHtml(catalogLabel(catalogKind)) + '">' + (CATALOG_CATEGORY_GLYPHS[catalogKind] || '◆') + '</span>' : '';
+				+ escapeHtml(catalogLabel(catalogKind)) + '">'
+				+ (CATALOG_CATEGORY_GLYPHS[catalogKind] || '◆') + '</span>' : '';
 		html += '<div class="deck-cell deck-info ' + zebra + ' ' + (sum === 0 ? 'row-zero' : '') + '" id="row-' + escapeHtml(skillId) + '">'
 			+ '<span class="deck-name">'
 			// 効果タイプのドット。色分けは別フェーズなので今は1色のプレースホルダー。

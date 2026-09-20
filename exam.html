@@ -17,9 +17,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20f" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-20f" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-20f" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20g" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-20g" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-20g" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -27,7 +27,7 @@
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html / exam.html で共有） -->
 	<script src="js/common.js?v=2026-09-17a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-20a"></script>
+	<script src="js/stitch.js?v=2026-09-20b"></script>
 	<style>
 		/* このツールの色（青）。**見出し・バッジ・淡い地・枠などの装飾にだけ使う。**
 		   押せる部品（ボタン・チェック・選択中のタブ）は色を持たず、3ツール共通の黒
@@ -766,7 +766,9 @@
 						<span class="text-amber-500 font-bold">★</span> = sp70緑（17種） ／
 						<span class="text-emerald-500 font-bold">●</span> = その他緑（42種） ／
 						<span class="text-[var(--uma-mark-catalog)] font-bold">◆</span> = シナリオ因子 ／
-						<span class="text-[var(--uma-mark-gene)] font-bold">♥</span> = 遺伝子<br />
+						<!-- 遺伝子の印は SVG（段G-2）。中身は renderSkillRegistryList() が入れる
+						     ―― 形を1か所（js/stitch.js）から取るため、ここには書かない。 -->
+						<span id="registry-legend-gene" class="uma-glyph-mark text-[var(--uma-mark-gene)]"></span> = 遺伝子<br />
 						<span class="registry-added">下線</span> = 「対象を広げる」で足したスキル ／
 						<span class="registry-removed">取り消し線</span> = 「対象を絞る」で対象から外したスキル（判定には使いません）
 					</p>
@@ -2060,14 +2062,32 @@
 			const greenTitle = MARK_LEGEND_LABEL.green + '（' + greenOnlyCount + '種）';
 			return {
 				factor: { glyph: '◆', color: 'text-[var(--uma-mark-catalog)]', listTitle: MARK_LEGEND_LABEL.factor, tableTitle: MARK_LEGEND_LABEL.factor },
-				// 遺伝子は**赤いハート**（段G）。◆と同じ「スキルではないもの」の仲間だが、
-				// 同じ記号を共用していると凡例を見ても両者の区別がつかないので、形も色も分けた。
-				// Exam の印は塗りつぶしなので ♥（Special は線だけなので ♡）。
-				gene: { glyph: '♥', color: 'text-[var(--uma-mark-gene)]', listTitle: MARK_LEGEND_LABEL.gene, tableTitle: MARK_LEGEND_LABEL.gene },
+				// 遺伝子は**紫のハート**（形は段G、色は段G-2）。◆と同じ「スキルではないもの」の
+				// 仲間なので**同系色**にし、**形**で分ける（色＝どのカテゴリか／形＝その中のどれか）。
+				// **記号は文字ではなくインライン SVG**（段G-2）―― ハートは JIS X 0208 に無く、
+				// 端末のフォント次第で形が変わるか豆腐になる。輪郭は js/stitch.js が
+				// 結合画像の Canvas と同じ元から出すので、**画面と結合画像の形が必ず一致する**。
+				// Exam の印は塗りつぶし（fill）。大きさとベースラインは .uma-glyph-mark が揃える。
+				gene: { svg: true, color: 'uma-glyph-mark text-[var(--uma-mark-gene)]',
+					listTitle: MARK_LEGEND_LABEL.gene, tableTitle: MARK_LEGEND_LABEL.gene },
 				sp70: { glyph: '★', color: 'text-amber-500', listTitle: sp70Title, tableTitle: sp70Title },
 				green: { glyph: '●', color: 'text-emerald-500', listTitle: greenTitle, tableTitle: greenTitle }
 			};
 		})();
+
+		/** 遺伝子の印の SVG（塗りつぶし）。輪郭は js/stitch.js の stitchHeartPathD() が出す。 */
+		function geneMarkSvg() {
+			return '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
+				+ '<path d="' + STITCH_HEART_PATH_D_24 + '"/></svg>';
+		}
+
+		/** 画面の印1つぶんの HTML。文字の記号と SVG の記号のどちらでも同じ形に組む。 */
+		function screenMarkHtml(m, title, extraCls) {
+			const inner = m.svg ? geneMarkSvg() : m.glyph;
+			// 文字の記号は font-bold で太らせる。SVG は太さを自分で持つので付けない。
+			const cls = m.color + (m.svg ? '' : ' font-bold') + (extraCls ? ' ' + extraCls : '');
+			return '<span class="' + cls + '" title="' + title + '">' + inner + '</span>';
+		}
 
 		// 軸1を反映した基準リスト（名前）
 		function scopeBaseNames(mode) {
@@ -2178,7 +2198,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20f';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20g';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],
@@ -2291,12 +2311,15 @@
 		}
 
 		function renderSkillRegistryList() {
+			// 一覧の上の凡例に出す遺伝子の印も、同じ SVG を入れる（形を2か所に書かない）
+			const legendGene = document.getElementById('registry-legend-gene');
+			if (legendGene && !legendGene.firstChild) legendGene.innerHTML = geneMarkSvg();
 			const box = document.getElementById('skill-registry-list');
 			box.innerHTML = buildSkillRegistryRows().map(row => {
 				const skill = row.name;
 				const m = SCREEN_MARK[skillMarkKind(skill)];
 				const mark = m
-					? '<span class="' + m.color + ' font-bold" title="' + m.listTitle + '">' + m.glyph + '</span>'
+					? screenMarkHtml(m, m.listTitle)
 					: '<span class="inline-block w-3"></span>';
 				let nameClass = '', title = '';
 				if (row.state === 'scopeAdded') { nameClass = ' class="registry-added"'; title = ' title="「対象を広げる」で足したスキル"'; }
@@ -3660,12 +3683,12 @@
 				'<span class="star-cell text-slate-300">' + '★'.repeat(3 - stars) + '</span>';
 		}
 
-		// スキル名の前に付けるカテゴリバッジ（sp70緑=★ / その他緑=● / シナリオ因子=◆）。
+		// スキル名の前に付けるカテゴリバッジ（sp70緑=★ / その他緑=● / シナリオ因子=◆ / 遺伝子=ハート）。
 		// 区分の判定は skillMarkKind() に一本化してある（一覧・結果画像と共有）。
 		function categoryBadge(skill) {
 			const m = SCREEN_MARK[skillMarkKind(skill)];
 			if (!m) return '';
-			return '<span class="' + m.color + ' mr-1" title="' + m.tableTitle + '">' + m.glyph + '</span>';
+			return screenMarkHtml(m, m.tableTitle, 'mr-1');
 		}
 
 		function filterResults() {
@@ -5734,7 +5757,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-20e';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-20f';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;

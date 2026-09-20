@@ -2048,14 +2048,14 @@ const browser = await chromium.launch();
 		const g = APTITUDE_GENES[0], s = EXAM_SKILL_NAMES[0];
 		return {
 			画面の区分: skillMarkKind(g), 結合画像の区分: stitchMarkKind(g),
-			記号: SCREEN_MARK.gene ? SCREEN_MARK.gene.glyph : null,
+			記号: SCREEN_MARK.gene ? (SCREEN_MARK.gene.svg ? 'svg' : SCREEN_MARK.gene.glyph) : null,
 			呼び名: SCREEN_MARK.gene ? SCREEN_MARK.gene.tableTitle : null,
 			// スキルのほうは画面でも結合画像でも同じ区分のまま（遺伝子だけを落としている）
 			スキルの画面: skillMarkKind(s), スキルの結合画像: stitchMarkKind(s),
 		};
 	});
-	assert(geneMark.画面の区分 === 'gene' && geneMark.記号 === '♥' && geneMark.呼び名 === '遺伝子',
-		'段G(exam): 遺伝子は画面では ♥（区分は gene・呼び名は「遺伝子」）', geneMark);
+	assert(geneMark.画面の区分 === 'gene' && geneMark.記号 === 'svg' && geneMark.呼び名 === '遺伝子',
+		'段G-2(exam): 遺伝子は画面ではハートの SVG（区分は gene・呼び名は「遺伝子」）', geneMark);
 	assert(geneMark.結合画像の区分 === null && geneMark.スキルの画面 === geneMark.スキルの結合画像,
 		'段F(exam): 結合画像には遺伝子の印を焼かない（落とすのは遺伝子だけ。スキルは素通り）', geneMark);
 
@@ -5641,8 +5641,8 @@ const browser = await chromium.launch();
 		document.querySelectorAll('#step-panel-1 details').forEach((d) => { d.open = true; });
 	});
 	await page.waitForTimeout(400);
-	const MARK = 'rgb(164, 47, 184)';   // --uma-mark-catalog  #a42fb8（段G で微調整）
-	const GENE = 'rgb(200, 30, 78)';    // --uma-mark-gene     #c81e4e（段G で新設）
+	const MARK = 'rgb(176, 42, 168)';   // --uma-mark-catalog  #b02aa8（段G-2 で元へ戻した）
+	const GENE = 'rgb(88, 28, 135)';    // --uma-mark-gene     #581c87（段G-2・紫の濃いほう）
 	const TEXT = 'rgb(118, 19, 111)';   // --uma-catalog-text  #76136f
 	const SOFT = 'rgb(251, 231, 248)';  // --uma-catalog-soft  #fbe7f8
 	const BORDER = 'rgb(240, 171, 232)';// --uma-catalog-border #f0abe8
@@ -5675,8 +5675,33 @@ const browser = await chromium.launch();
 			},
 			listGene: cs(listGene, 'color'),
 			tableGene: cs(tableGene, 'color'),
-			listGeneGlyph: listGene ? listGene.textContent : null,
+			// 遺伝子の印は SVG（段G-2）。文字ではないので textContent は空になる
+			listGeneSvg: listGene ? !!listGene.querySelector('svg path') : null,
+			listGeneD: listGene ? (listGene.querySelector('svg path') || {}).getAttribute
+				? listGene.querySelector('svg path').getAttribute('d') : null : null,
+			listGeneCls: listGene ? listGene.className : null,
 			listMarkGlyph: listMark ? listMark.textContent : null,
+			// 凡例の行にも同じ SVG が入る
+			legendGeneSvg: !!document.querySelector('#registry-legend-gene svg path'),
+			// 大きさと縦位置が ◆ とそろっているか（.uma-glyph-mark の役目）。
+			// **箱の寸法そのものは一致しない** ―― 文字の記号の箱は行の高さ（16px）と
+			// 字送り（12px）で決まり、SVG の箱は 1.2em の正方形（14.4px）だから。
+			// 見比べるべきなのは「**隣の名前の文字と、上下の中心がそろっているか**」。
+			// ここがずれると、印だけが一段高い／低い位置に浮いて見える。
+			geneBox: listGene ? (() => {
+				const r = listGene.getBoundingClientRect();
+				const name = listGene.closest('div').querySelector('span:last-child').getBoundingClientRect();
+				return { w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10,
+					名前との中心差: Math.round((r.top + r.height / 2 - (name.top + name.height / 2)) * 10) / 10 };
+			})() : null,
+			markBox: listMark ? (() => {
+				const r = listMark.getBoundingClientRect();
+				const name = listMark.closest('div').querySelector('span:last-child').getBoundingClientRect();
+				return { w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10,
+					名前との中心差: Math.round((r.top + r.height / 2 - (name.top + name.height / 2)) * 10) / 10 };
+			})() : null,
+			// 画面の SVG と結合画像の Canvas が同じ元から形を取っているか
+			wantD: STITCH_HEART_PATH_D_24,
 			badgeBg: cs(document.getElementById('badge-scenario-factors'), 'backgroundColor'),
 			badgeText: cs(document.getElementById('badge-scenario-factors'), 'color'),
 			listMark: cs(listMark, 'color'),
@@ -5692,27 +5717,38 @@ const browser = await chromium.launch();
 			stitchMore: stitchTokenColor(STITCH_FACTOR_MORE_TOKEN)
 		};
 	});
-	assert(c.tokens.mark === '#a42fb8' && c.tokens.text === '#76136f'
+	assert(c.tokens.mark === '#b02aa8' && c.tokens.text === '#76136f'
 		&& c.tokens.soft === '#fbe7f8' && c.tokens.border === '#f0abe8',
-		'シナリオ因子の色: 4つの役割のトークンが紫の確定値（印は段G で微調整）', c.tokens);
-	assert(c.geneTokens.mark === '#c81e4e' && c.geneTokens.text === '#7d0f33'
-		&& c.geneTokens.soft === '#fff0f3' && c.geneTokens.border === '#f7aebe',
-		'段G: 遺伝子の色も4つの役割のトークンを持つ（赤の確定値）', c.geneTokens);
+		'シナリオ因子の色: 4つの役割のトークンが紫の確定値（4本とも据え置き）', c.tokens);
+	assert(c.geneTokens.mark === '#581c87' && c.geneTokens.text === '#451270'
+		&& c.geneTokens.soft === '#f4ecfd' && c.geneTokens.border === '#d3bcf0',
+		'段G-2: 遺伝子の色も4つの役割のトークンを持つ（紫の濃いほうの確定値）', c.geneTokens);
 	assert(c.geneTokens.mark !== c.tokens.mark,
-		'段G: 遺伝子の印とシナリオ因子の印が同じ色に戻っていない', { gene: c.geneTokens.mark, factor: c.tokens.mark });
+		'段G-2: 遺伝子の印とシナリオ因子の印が同じ色に戻っていない', { gene: c.geneTokens.mark, factor: c.tokens.mark });
 	assert(c.listMark === MARK && c.tableMark === MARK && c.cardMore === MARK && c.wireBar === MARK,
 		'シナリオ因子の色: 一覧と表の◆・ハイライトの「他」・模式図の帯が印の色', c);
 	assert(c.badgeText === TEXT && c.cardHead === TEXT && c.cardLine === TEXT,
 		'シナリオ因子の色: バッジの文字・カードの見出しと行が文字の色', c);
 	assert(c.badgeBg === SOFT && c.cardBorder === BORDER,
 		'シナリオ因子の色: バッジの地が淡い地、カードの枠が枠の色', c);
-	assert(c.stitchText === '#76136f' && c.stitchMore === '#a42fb8',
+	assert(c.stitchText === '#76136f' && c.stitchMore === '#b02aa8',
 		'シナリオ因子の色: 結合画像が読むトークンも文字と印の色', c);
 	assert(c.listGene === GENE && c.tableGene === GENE,
 		'段G: 一覧と表の遺伝子の印が遺伝子の色', { listGene: c.listGene, tableGene: c.tableGene, want: GENE });
-	assert(c.listGeneGlyph === '♥' && c.listMarkGlyph === '◆',
-		'段G: 遺伝子は♥・シナリオ因子は◆（形も分かれている）',
-		{ gene: c.listGeneGlyph, factor: c.listMarkGlyph });
+	assert(c.listGeneSvg && c.legendGeneSvg && c.listMarkGlyph === '◆',
+		'段G-2: 遺伝子はハートの SVG・シナリオ因子は◆の文字（形も分かれている）',
+		{ svg: c.listGeneSvg, legend: c.legendGeneSvg, factor: c.listMarkGlyph });
+	assert(c.listGeneD === c.wantD,
+		'段G-2: 画面の SVG と結合画像の Canvas が同じ輪郭（js/stitch.js の1か所から出ている）',
+		{ 画面: c.listGeneD, 期待: c.wantD });
+	assert(c.listGeneCls.includes('uma-glyph-mark'),
+		'段G-2: 遺伝子の印に .uma-glyph-mark が付いている（大きさとベースラインを揃える）', c.listGeneCls);
+	assert(Math.abs(c.geneBox.名前との中心差) <= 0.5 && Math.abs(c.markBox.名前との中心差) <= 0.5,
+		'段G-2: SVG の印が、文字の記号と同じく名前と上下の中心でそろっている',
+		{ gene: c.geneBox, factor: c.markBox });
+	assert(c.geneBox.w <= c.markBox.w + 3 && c.geneBox.h <= c.markBox.h + 1,
+		'段G-2: SVG の印が文字の記号より大きくなりすぎていない（行の高さを押し広げない）',
+		{ gene: c.geneBox, factor: c.markBox });
 	assert(c.check === CONTROL,
 		'シナリオ因子の色: 因子の総括チェックだけは操作の色（黒）', c.check);
 	assert(errors.length === 0, 'シナリオ因子の色: コンソールエラーが出ない', errors.slice(0, 3));
@@ -6414,11 +6450,14 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 			diamond: rows.filter(r => r.querySelector('td .text-\\[var\\(--uma-mark-catalog\\)\\]'))
 				.map(r => r.querySelector('td').textContent.replace(/^◆\s*/, '').trim()),
 			heart: rows.filter(r => r.querySelector('td .text-\\[var\\(--uma-mark-gene\\)\\]'))
-				.map(r => r.querySelector('td').textContent.replace(/^♡\s*/, '').trim()),
+				.map(r => r.querySelector('td').textContent.trim()),
 			diamondGlyphs: rows.filter(r => r.querySelector('td .text-\\[var\\(--uma-mark-catalog\\)\\]'))
 				.map(r => r.querySelector('td .text-\\[var\\(--uma-mark-catalog\\)\\]').textContent),
+			// 遺伝子は SVG なので、文字ではなく中身の path の d で見る（段G-2）
 			heartGlyphs: rows.filter(r => r.querySelector('td .text-\\[var\\(--uma-mark-gene\\)\\]'))
-				.map(r => r.querySelector('td .text-\\[var\\(--uma-mark-gene\\)\\]').textContent),
+				.map(r => { const el = r.querySelector('td .text-\\[var\\(--uma-mark-gene\\)\\] svg path');
+					return el ? el.getAttribute('d') : '(svg なし)'; }),
+			wantHeartD: STITCH_HEART_PATH_D_24,
 			tierMarked: rows.filter(r => r.querySelector('td .uma-tier-mark')).length,
 			copyLines: document.getElementById('copy-data').value.split('\n').length,
 			kept: [names[0], names[1]].filter(n => factorSet.has(n)),
@@ -6438,9 +6477,9 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(res.diamond.length + res.heart.length === nFactor && res.tierMarked > 0,
 		'C-2b: 因子の行には印、スキルの行には◎○▲（左の同じ欄）',
 		{ diamond: res.diamond.length, heart: res.heart.length, tier: res.tierMarked });
-	assert(res.diamondGlyphs.every(g => g === '◆') && res.heartGlyphs.every(g => g === '♡'),
-		'段G(special): シナリオ因子は◆・遺伝子は♡（形が混ざらない）',
-		{ diamond: res.diamondGlyphs.slice(0, 3), heart: res.heartGlyphs.slice(0, 3) });
+	assert(res.diamondGlyphs.every(g => g === '◆') && res.heartGlyphs.every(g => g === res.wantHeartD),
+		'段G-2(special): シナリオ因子は◆の文字・遺伝子はハートの SVG（形が混ざらない）',
+		{ diamond: res.diamondGlyphs.slice(0, 3), heart: res.heartGlyphs.slice(0, 1) });
 	assert(res.copyLines === off.skills + nFactor,
 		'C-2b: コピー用データには因子の行も入る（表と同じ並び）', { copyLines: res.copyLines, expect: off.skills + nFactor });
 
@@ -6486,16 +6525,27 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		factorMarkByNorm = keep;
 		return {
 			diamonds: glyphs('.text-\\[var\\(--uma-mark-catalog\\)\\]'),
-			hearts: glyphs('.text-\\[var\\(--uma-mark-gene\\)\\]'),
+			// 遺伝子は SVG（段G-2）。文字ではないので、中身の有無で数える
+			hearts: rows.map(r => r.querySelector('td .text-\\[var\\(--uma-mark-gene\\)\\] svg path'))
+				.filter(Boolean).map(el => el.getAttribute('d')),
+			wantHeartD: STITCH_HEART_PATH_D_24,
 			// 検出したのは 因子1種＋遺伝子2種
 			detectedGenes: genes.filter(n => personResults[0].detectedSkills.has(n)).length,
 			twoScopes, oneScope
 		};
 	});
-	assert(both.diamonds.every(g => g === '◆') && both.hearts.every(g => g === '♡')
+	assert(both.diamonds.every(g => g === '◆') && both.hearts.every(g => g === both.wantHeartD)
 		&& both.diamonds.length > 0 && both.hearts.length > 0,
-		'段G(special): ◆と♡が同じ表に並び、形が混ざらない',
+		'段G-2(special): ◆とハートが同じ表に並び、形が混ざらない',
 		{ diamonds: both.diamonds.length, hearts: both.hearts.length });
+	/* **Deck が持つハートの写しが、stitch.js の計算と同じか**（段G-2）。
+	   Deck は stitch.js を読まないので js/uma-skill-deck.js に同じ文字列を写してある。
+	   片方だけ直すと、Deck の比較シートだけ形が違うハートになる。 */
+	const deckHeart = fs.readFileSync(path.join(REPO_ROOT, 'js/uma-skill-deck.js'), 'utf-8')
+		.match(/const HEART_PATH_D_24 = '([^']+)'/);
+	assert(deckHeart && deckHeart[1] === both.wantHeartD,
+		'段G-2: Deck が持つハートの写しが js/stitch.js の計算と一致',
+		{ deck: deckHeart ? deckHeart[1] : '(見つからない)', stitch: both.wantHeartD });
 	assert(both.detectedGenes === 2,
 		'段G(special): 遺伝子は完全一致で検出できている（印の分離が検出に影響していない）', both.detectedGenes);
 	assert(both.twoScopes > both.oneScope,
