@@ -262,8 +262,7 @@ const INTENTIONALLY_REMOVED = {
 	// 文字列連結（id="' + bodyId + '"）をこの検査が id と読んでいたもの
 	// （段D の `' + id + '` と同じ引っかかり方）。
 	// チェックそのもの（data-usd-act="scope-check"）と節の入れ物（data-usd-scope-section）は残っている。
-	// **commit したら免除は空に戻すこと**（残すと本当の事故を見逃す口になる）。
-	'js/uma-skill-deck-core.js': ["' + bodyId + '"],
+	// `ed0eaf2` に commit したので免除は空に戻した（残すと本当の事故を見逃す口になる）。
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

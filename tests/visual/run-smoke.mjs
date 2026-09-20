@@ -320,17 +320,22 @@ const browser = await chromium.launch();
 		'C-1: 見出しと中身の間（8px）は、中身どうしの間（12px）より詰まっている', c1);
 	const clearBtn = await page.evaluate(() => {
 		const btn = document.querySelector('#deck-template-panel [data-usd-el="clear-skills"]');
+		const entryRow = document.querySelector('#deck-template-panel .usd-entry-row');
 		const n = Number(document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent);
 		const del = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
 		const reclass = document.querySelector('#deck-template-panel [data-usd-el="mode-reclass"]');
 		return { exists: !!btn, hidden: btn ? btn.hidden : null, disabled: btn ? btn.disabled : null, count: n,
+			label: btn ? btn.textContent.trim() : null,
+			inEntryRow: !!(btn && entryRow && entryRow.contains(btn)),
 			modes: !!del && !!reclass, modesOff: del && reclass && del.getAttribute('aria-pressed') === 'false' && reclass.getAttribute('aria-pressed') === 'false',
 			modesDisabled: del && reclass && del.disabled && reclass.disabled };
 	});
-	assert(clearBtn.exists && clearBtn.hidden, 'special: 「すべて外す」はあるが、削除モードでないときは出ない（C-57 の (9)）', clearBtn);
+	// C-3: 「− 追加済みスキルを全て削除」は A の入口の並びに**常時見えている**（削除モードに入らない）
+	assert(clearBtn.exists && !clearBtn.hidden && clearBtn.label === '追加済みスキルを全て削除' && clearBtn.inEntryRow,
+		'C-3: 一括削除は A の入口の並びに常時見えている', clearBtn);
 	assert(clearBtn.modes && clearBtn.modesOff, 'special: 「再分類」「削除」のモードのボタンがあり、既定は両方 OFF', clearBtn);
 	assert(clearBtn.count === 0 && clearBtn.modesDisabled && clearBtn.disabled,
-		'special: 選択が無いときはモードのボタンも「すべて外す」も押せない', clearBtn);
+		'C-3: 0種のときはモードのボタンも一括削除も押せない', clearBtn);
 
 	/* 選んだときに出る名前（getSelection().name）もタブと揃っていること。
 	   ドラフトは空だと選べないので、「テキストで検索」で実際に1件入れてから確かめる
@@ -837,7 +842,8 @@ const browser = await chromium.launch();
 		};
 	});
 	// 「?」は外した（入口を押せば必ずガイドが出るので情報を足さず、スマホ幅で並びが崩れたため）
-	assert(entry.order.join(',') === 'editor-pick,editor-pick-text,editor-pick-screenshot,editor-pick-custom'
+	// C-3 で末尾に一括削除（editor-clear-skills）が並んだ
+	assert(entry.order.join(',') === 'editor-pick,editor-pick-text,editor-pick-screenshot,editor-pick-custom,editor-clear-skills'
 		&& entry.label === 'スキルセットのスクショで追加' && entry.cls.includes('uma-btn--secondary') && entry.noHelp,
 		'special/ocr入口: 「テキストで検索」と「収録されていないスキルを追加」の間に、同じ見た目で「スキルセットのスクショで追加」が出る（「?」は無い）', { order: entry.order, label: entry.label });
 	assert(entry.icon === 'upload-cloud' || String(entry.icon).includes('lucide-upload-cloud'),
@@ -3666,7 +3672,7 @@ const browser = await chromium.launch();
 /* ============================================================
  * 「元に戻す」の契約（special.html のドラフト／uma-skill-deck.html の各操作）
  *
- * 実機で「すべて外す」→「元に戻す」が復元されない事故があった。原因は、ドラフトの保存
+ * 実機で一括削除（当時は「すべて外す」）→「元に戻す」が復元されない事故があった。原因は、ドラフトの保存
  * （saveDraftScope）が skillIds の配列ごと差し替えるのに、復元処理が古い配列へ書いていたこと。
  * ここでは Undo 対象の各操作について「実行 → 元に戻す → 実行前と一致」の往復と永続化、
  * そして「戻せなかったときに成功を名乗らない・スタックを減らさない」ことを見る。
@@ -3694,23 +3700,24 @@ const browser = await chromium.launch();
 		scope: UmaSkillDeckCore.getUndoScope(),
 	}));
 
-	// 「すべて外す」と各パネルの × は削除モードのときだけ出る（C-57 の (9)）。押した状態なら触らない（押すと OFF になる）
+	// 各パネルの × は削除モードのときだけ出る（C-57 の (9)）。押した状態なら触らない（押すと OFF になる）
+	// 一括削除（C-3）は削除モードに関係なく押せる
 	const ensureDeleteMode = () => page.evaluate(() => {
 		const b = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
 		if (b.getAttribute('aria-pressed') !== 'true') b.click();
 	});
 
-	// 1) すべて外す → 元に戻す。件数・保存先・ボタンの3つが揃って戻ること
+	// 1) 追加済みスキルを全て削除 → 元に戻す。件数・保存先・ボタンの3つが揃って戻ること
 	await ensureDeleteMode();
 	await page.click('#deck-template-panel [data-usd-el="clear-skills"]');
 	await page.waitForTimeout(200);
 	const cleared = await undoUi();
 	assert(cleared.count === 0 && (await storedDraft()).length === 0,
-		'undo: 「すべて外す」で0種になり、保存先も空になる', cleared);
+		'undo: 一括削除で0種になり、保存先も空になる', cleared);
 	assert(cleared.btn && cleared.badge === '1' && cleared.stack === 1 && cleared.scope === 'list',
 		'undo: 「元に戻す ①」が出る（scope は list）', cleared);
-	assert(cleared.toast === '追加済みスキル' + PICK.length + '種を外しました',
-		'undo: 実行時のトーストは doneLabel（単位は「種」）', cleared.toast);
+	assert(cleared.toast === '追加済みスキル' + PICK.length + '種を削除しました',
+		'undo: 実行時のトーストは doneLabel（単位は「種」・C-3 で「削除」に）', cleared.toast);
 	// 1') 「元に戻す」は画面左下に固定（css/shell.css の .uma-undo-fab。C-55 の (4)(5)）。
 	//     ②のパネルの中ではないので、①のタブへ移っても同じ場所に見える。引き出しを開いている間は隠れる。
 	await page.click('#step-tab-0');
@@ -3742,8 +3749,8 @@ const browser = await chromium.launch();
 	assert((await storedDraft()).join() === PICK.map((s) => s.id).join(),
 		'undo: 保存先（localStorage）にも元の12種が同じ順で戻る');
 	assert(!restored.btn && restored.stack === 0, 'undo: 戻せたのでボタンが消える', restored);
-	assert(restored.toast === '外した' + PICK.length + '種を戻しました',
-		'undo: 戻したときのトーストは undoneLabel（外したN種を戻しました）', restored.toast);
+	assert(restored.toast === '削除した追加済みスキル' + PICK.length + '種を戻しました',
+		'undo: 戻したときのトーストは undoneLabel（削除した追加済みスキルN種を戻しました）', restored.toast);
 
 	// 2) 永続化。リロードしても戻した状態のまま
 	await page.reload({ waitUntil: 'networkidle' });
@@ -3771,7 +3778,7 @@ const browser = await chromium.launch();
 	assert(single.toast === '外したスキル「' + PICK[3].name + '」を戻しました',
 		'undo: 個別に外したものを戻すトーストは「外したスキル「○○」を戻しました」', single.toast);
 
-	// 3b) 別画面の編集ビューは無くなった（C-53）。「すべて外す」のあと、①のタブへ移って戻っても「元に戻す」は残り、戻せる
+	// 3b) 別画面の編集ビューは無くなった（C-53）。一括削除のあと、①のタブへ移って戻っても「元に戻す」は残り、戻せる
 	await ensureDeleteMode();
 	await page.click('#deck-template-panel [data-usd-el="clear-skills"]');
 	await page.waitForTimeout(200);
@@ -3835,7 +3842,7 @@ const browser = await chromium.launch();
 	assert(cloned === 2, 'undo: snapshot() は元の配列への参照を持たない', cloned);
 
 	/* ---- 一度に2種以上足したときだけ「元に戻す」に積む（線引きの固定） ----
-	   「94種を追加 → すべて外す → 元に戻す」は戻せるのに「94種を追加 → 元に戻す」は
+	   「94種を追加 → 一括削除 → 元に戻す」は戻せるのに「94種を追加 → 元に戻す」は
 	   できない、という非対称をなくすために足した。1種だけの追加はチップの×で消せるので積まない。 */
 	// 下ごしらえ: ドラフトを空にしてから、条件で絞らずに一覧から選ぶ
 	await page.evaluate(() => { localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify({ skillIds: [], updatedAt: '' })); });
@@ -5782,7 +5789,8 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 			moves: document.querySelectorAll(r + ' .usd-panel-move').length,
 			reclass: q('[data-usd-el="mode-reclass"]').getAttribute('aria-pressed'),
 			del: q('[data-usd-el="mode-delete"]').getAttribute('aria-pressed'),
-			clearHidden: q('[data-usd-el="clear-skills"]').hidden,
+			// C-3: 一括削除は常時見えている（削除モードとは関わらない）。0種でないので押せる
+			clearDisabled: q('[data-usd-el="clear-skills"]').disabled,
 			cols: getComputedStyle(q('[data-usd-el="selected-list"]')).gridTemplateColumns.split(' ').length,
 			schema: JSON.parse(localStorage.getItem('umaSkillDeck:userData')).schemaVersion,
 			tiers: JSON.parse(localStorage.getItem('umaSkillDeck:userData')).templates[0].tiers,
@@ -5814,8 +5822,8 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	});
 	assert(panelLook.bg.startsWith('linear-gradient(') && panelLook.shadows === 3,
 		'tiers: スキルパネルは横方向のグラデーション＋影3つ（板の質感。C-58 の作業A）', panelLook);
-	assert(t0.dels === 0 && t0.moves === 0 && t0.reclass === 'false' && t0.del === 'false' && t0.clearHidden,
-		'tiers: 既定は両方のモードが OFF（× も移動先も「すべて外す」も出ない）', t0);
+	assert(t0.dels === 0 && t0.moves === 0 && t0.reclass === 'false' && t0.del === 'false',
+		'tiers: 既定は両方のモードが OFF（× も移動先も出ない）', t0);
 	assert(t0.cols > 2, 'tiers: 1280px ではパネルの列が画面幅に合わせて増える', t0.cols);
 	await page.click('#deck-template-panel [data-usd-act="tier-tab"][data-tier="1"]');
 	await page.waitForTimeout(200);
@@ -5830,8 +5838,8 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	await page.click('#deck-template-panel [data-usd-el="mode-delete"]');
 	await page.waitForTimeout(200);
 	const t3 = await ui();
-	assert(t3.reclass === 'false' && t3.del === 'true' && t3.dels === PICK.length && t3.moves === 0 && !t3.clearHidden,
-		'tiers: 削除モードにすると再分類は OFF になり、× と「すべて外す」が出る', t3);
+	assert(t3.reclass === 'false' && t3.del === 'true' && t3.dels === PICK.length && t3.moves === 0,
+		'tiers: 削除モードにすると再分類は OFF になり、× が出る', t3);
 	await page.click('#deck-template-panel [data-usd-el="mode-reclass"]');
 	await page.waitForTimeout(200);
 	await page.click('#deck-template-panel .usd-panel .usd-panel-move[data-tier="1"]');
@@ -6086,6 +6094,71 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
    C-2c で**この説明文そのものを両方から消した**ため（冗長という判断。おいもさん）、
    見張る対象が無くなった。**文言が食い違ったのではなく、文言が無くなったので外した。**
    説明を復活させるなら、この検査も一緒に戻すこと。 */
+
+/* ============================================================
+ * 追加済みスキルの一括削除（C-3）
+ *
+ *   - A の入口の並びに常時見えている（削除モードに入らなくても押せる）
+ *   - 消すのは**スキルと分類だけ**。セットの名前も B・C（節の ON/OFF）も残る
+ *   - 保存済みの因子セットでも同じように使える
+ *   - 「元に戻す」で戻る
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	// 保存済みのセットを選び、名前を入れ、B・C を ON にしてから一括削除する
+	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
+	await page.waitForTimeout(400);
+	await page.click('#deck-template-panel [data-usd-act="scope-check"][data-scope="scenarioFactors"]');
+	await page.waitForTimeout(300);
+	const before = await page.evaluate((tid) => {
+		const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
+		const t = d.templates.find(x => x.templateId === tid) || d.templates[0];
+		const btn = document.querySelector('#deck-template-panel [data-usd-el="clear-skills"]');
+		return { name: t.name, n: t.skillIds.length, tiers: t.tiers, scopes: t.scopes,
+			disabled: btn.disabled, nameInput: document.querySelector('#deck-template-panel [data-usd-el="name-input"]').value };
+	}, TEMPLATE_ID);
+	assert(before.n > 0 && !before.disabled && JSON.stringify(before.scopes) === JSON.stringify({ scenarioFactors: true }),
+		'C-3: 中身のある保存済みのセットでは一括削除が押せる', before);
+	await page.click('#deck-template-panel [data-usd-el="clear-skills"]');
+	await page.waitForTimeout(400);
+	const after = await page.evaluate((tid) => {
+		const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
+		const t = d.templates.find(x => x.templateId === tid) || d.templates[0];
+		const btn = document.querySelector('#deck-template-panel [data-usd-el="clear-skills"]');
+		return { name: t.name, n: t.skillIds.length, tiers: t.tiers, scopes: t.scopes,
+			disabled: btn.disabled, count: document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent,
+			checked: document.querySelector('#deck-template-panel [data-usd-act="scope-check"][data-scope="scenarioFactors"]').checked,
+			nameInput: document.querySelector('#deck-template-panel [data-usd-el="name-input"]').value,
+			toast: document.getElementById('toast-message').textContent,
+			undo: UmaSkillDeckCore.undoCount() };
+	}, TEMPLATE_ID);
+	assert(after.n === 0 && after.count === '0' && after.tiers === undefined,
+		'C-3: 保存済みのセットでもスキルと分類が消える', after);
+	assert(after.name === before.name && after.nameInput === before.nameInput
+		&& JSON.stringify(after.scopes) === JSON.stringify(before.scopes) && after.checked === true,
+		'C-3: **名前と B・C は消えない**（消すのはスキルだけ）', { name: after.name, scopes: after.scopes, checked: after.checked });
+	assert(after.disabled && after.undo === 1
+		&& after.toast === '追加済みスキル' + before.n + '種を削除しました',
+		'C-3: 0種になると押せなくなり、「元に戻す」に1件積まれる', after);
+	await page.click('#deck-undo-btn');
+	await page.waitForTimeout(400);
+	const back = await page.evaluate((tid) => {
+		const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
+		const t = d.templates.find(x => x.templateId === tid) || d.templates[0];
+		return { n: t.skillIds.length, name: t.name, scopes: t.scopes,
+			toast: document.getElementById('toast-message').textContent,
+			undo: UmaSkillDeckCore.undoCount() };
+	}, TEMPLATE_ID);
+	assert(back.n === before.n && back.undo === 0
+		&& back.toast === '削除した追加済みスキル' + before.n + '種を戻しました',
+		'C-3: 「元に戻す」でスキルが戻る', back);
+	assert(back.name === before.name && JSON.stringify(back.scopes) === JSON.stringify(before.scopes),
+		'C-3: 戻したあとも名前と B・C はそのまま', back);
+	assert(errors.length === 0, 'C-3: special でコンソールエラーが出ない', errors.slice(0, 3));
+	await ctx.close();
+}
 
 /* ============================================================
  * 因子を照合の対象に含める（C-2b）

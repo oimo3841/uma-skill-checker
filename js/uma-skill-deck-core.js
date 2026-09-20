@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-20c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-20d';
 
 	/* ============================================================
 	 * 定数
@@ -3659,6 +3659,13 @@
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-custom">' +
 							'<i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 収録されていないスキルを追加' +
 						'</button>' +
+						// 追加済みスキルの一括削除（C-3）。**A（スキルセット）の中に置く** ―― 名前の行に
+						// 置くと、名前や B・C まで消えるように読める。消すのはスキルだけなので、
+						// 消す範囲が位置から分かるここに置く。「外す」ではなく「削除」で、
+						// 隣の分類の行にある「削除」とも語がそろう。
+						'<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="editor-clear-skills" data-usd-el="clear-skills">' +
+							'<i data-lucide="minus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 追加済みスキルを全て削除' +
+						'</button>' +
 					'</div>' +
 					// 分類の切り替え（超優先／優先／通常。C-57 の (7)）。追加の入口はいま選んでいる分類に足す
 					'<div class="usd-tier-row" data-usd-el="tier-row"></div>' +
@@ -3667,8 +3674,6 @@
 						// 「再分類」「削除」のモード（C-57 の (9)）。既定は両方 OFF＝パネルに操作が出ない（ゲームと同じ見え方）
 						'<button type="button" class="usd-mode-btn" data-usd-act="mode-reclass" data-usd-el="mode-reclass" aria-pressed="false">再分類</button>' +
 						'<button type="button" class="usd-mode-btn" data-usd-act="mode-delete" data-usd-el="mode-delete" aria-pressed="false">削除</button>' +
-						// 「すべて外す」は削除モードのときだけ出す。中身を触っている画面で、何件消えるのかが見えている状態で押せるようにするため、ここに置く。
-						'<button type="button" class="usd-link-btn" data-usd-act="editor-clear-skills" data-usd-el="clear-skills" hidden>すべて外す</button>' +
 					'</div>' +
 					'<div data-usd-el="selected-list" class="usd-panels"></div>' +
 					'</div>' +
@@ -3928,8 +3933,9 @@
 			del.setAttribute('aria-pressed', mode === 'delete' ? 'true' : 'false');
 			reclass.disabled = count === 0;
 			del.disabled = count === 0;
+			// 一括削除（C-3）は**常に見えている**。0種のときは押せない
+			// （削除モードのときだけ出る隠れた導線より、常時見えるほうが分かりやすい）
 			const clear = q(container, 'clear-skills');
-			clear.hidden = mode !== 'delete';
 			clear.disabled = count === 0;
 		}
 
@@ -4176,10 +4182,17 @@
 		}
 
 		/**
-		 * 編集中のセットから追加済みスキルをすべて外す。
+		 * 編集中のセットの追加済みスキルを全て削除する（C-3）。
+		 *
+		 * **消すのはスキルと分類だけ。** セットの名前も、B・C（節の ON/OFF）も触らない
+		 * ―― チェックはもう一度押せば戻せるが、スキルは1件ずつ消すのに手数がかかる。
+		 * 消したいのはスキルのほうなので、そこに限る。
+		 *
 		 * ドラフトでもテンプレートでも同じ操作にしてある（見た目が同じなので、
 		 * 片方だけ出来ないと「なぜここには無いのか」を考えさせることになる）。
 		 * 破壊的な操作は確認ダイアログではなく「即実行＋元に戻す」で統一する方針に従う。
+		 * probe / apply が見るのも**スキルと分類だけ**（名前と B・C は変わらないので混ぜない
+		 * ―― 混ぜると、正しく戻せても「戻っていない」と判定してしまう）。
 		 */
 		function clearEditingSkills() {
 			const target = currentTarget();
@@ -4191,9 +4204,9 @@
 			pushUndo({
 				scope: 'list',
 				// 数えているのはスキルの種類数なので単位は「種」。取り消し側は実行時と別の文にする
-				// （「元に戻しました」に実行時の文を連結すると「戻した結果、外れた」とも読めるため）。
-				doneLabel: '追加済みスキル' + prev.length + '種を外しました',
-				undoneLabel: '外した' + prev.length + '種を戻しました',
+				// （「元に戻しました」に実行時の文を連結すると「戻した結果、消えた」とも読めるため）。
+				doneLabel: '追加済みスキル' + prev.length + '種を削除しました',
+				undoneLabel: '削除した追加済みスキル' + prev.length + '種を戻しました',
 				probe: () => probeOf(skillIdsOf(target)),
 				apply: () => {
 					if (!writeSkillIds(target, snapshot(prev), snapshot(prevTiers))) return false;
