@@ -807,6 +807,7 @@
 		// skillList     … 照合・表の**並び**に使う（スキル → 因子）。コピー用データの行もこの並び。
 		// skillOnlyList … 「スキル」と付く数を数えるのはこちら（因子を含めない）。
 		// factorOnlyList… 選んでいる節（B・C）の因子だけ。因子の数はここから出す。
+		//                 **表に出すときは節ごとに数え直して並べる**（段F-2。countFactorsByScope）。
 		// 3つは onDeckScopeSelected() / parseSkillList() が同時に作り直す（片方だけ古い、が起きないように）。
 		// **exam の3本立て（C-68 の5節）と同じ形**にしてある。
 		let skillList = [];
@@ -816,7 +817,8 @@
 		let factorNormSet = new Set();
 		// 因子の名前（正規化後）→ 印の種類（'factor' / 'gene'）。段G で印を節ごとに分けたので、
 		// 「因子かどうか」だけでは足りず、**どちらの節か**を引く必要が出た。
-		// 数え方（factorOnlyList）は1本のままで、変えるのは印だけ。
+		// **段F-2 からは数え分けもここを引く**（countFactorsByScope）。印と数が同じ出どころなので、
+		// 「◇が付いているのに遺伝子として数えられていない」が起こらない。
 		let factorMarkByNorm = new Map();
 		let skillIndex = [];
 		let currentFilter = 'all';
@@ -1719,32 +1721,41 @@
 
 			// 検出数は**スキルと因子で別々に数える**（C-2b）。コピー用データの行は
 			// 表と同じ並び（スキル → 因子）で全部出す ―― 数え方と、貼り付ける中身は別の話。
+			// **因子のほうは節ごとに数える**（段F-2。合算すると「＋ 因子 3」としか書けない）。
 			const foundCounts = {};
-			const foundFactorCounts = {};
-			used.forEach(i => { foundCounts[i] = 0; foundFactorCounts[i] = 0; });
+			const foundFactorCounts = {};   // 人 → { 節の key: 検出数 }
+			used.forEach(i => { foundCounts[i] = 0; foundFactorCounts[i] = countFactorsByScope([]); });
 			const copyRows = [];
 
 			skillList.forEach(skill => {
+				// 因子かどうかは factorNormSet が決める。どの節かは印から引く（段F-2）。
+				const scopeKey = factorNormSet.has(normalizeText(skill))
+					? FACTOR_SCOPE_KEY_BY_MARK[factorMarkByNorm.get(normalizeText(skill))] : undefined;
 				const isFactor = factorNormSet.has(normalizeText(skill));
 				const rowVals = used.map(p => starsFor(p, skill));
 				rowVals.forEach((v, idx) => {
 					if (v === undefined) return;
-					if (isFactor) foundFactorCounts[used[idx]]++; else foundCounts[used[idx]]++;
+					if (isFactor) { if (scopeKey !== undefined) foundFactorCounts[used[idx]][scopeKey]++; }
+					else foundCounts[used[idx]]++;
 				});
 				// ★を計測できなかった場合（null）は、誤った数字を貼らないよう空欄にする。
 				// 表側には「?」を出して、手で補う必要があることが分かるようにしている。
 				copyRows.push(rowVals.map(v => (v === null || v === undefined) ? '' : String(v)).join('\t'));
 			});
 
+			// 節ごとに並べて書く（段F-2）。**どの節を書くかは種数のほうで決める** ――
+			// 対象に含めているのに1つも検出できなかった節は「0」と書く（「0件だった」も情報）。
+			const scopeCounts = countFactorsByScope(factorOnlyList);
+			const scopeKeys = activeFactorScopeKeys(scopeCounts);
 			const hasFactors = factorOnlyList.length > 0;
 			document.getElementById('stat-total').textContent = skillOnlyList.length;
 			const totalFactor = document.getElementById('stat-total-factor');
-			totalFactor.textContent = '＋ 因子 ' + factorOnlyList.length + '種';
+			totalFactor.innerHTML = factorCountHtml(scopeKeys, scopeCounts, '種');
 			totalFactor.hidden = !hasFactors;
 			used.forEach(i => {
 				document.getElementById('stat-found-' + (i + 1)).textContent = foundCounts[i];
 				const ff = document.getElementById('stat-found-factor-' + (i + 1));
-				ff.textContent = '＋ 因子 ' + foundFactorCounts[i];
+				ff.innerHTML = factorCountHtml(scopeKeys, foundFactorCounts[i], '');
 				ff.hidden = !hasFactors;
 			});
 
@@ -2723,6 +2734,73 @@
 		}));
 
 		/* ------------------------------------------------------------
+		 * 因子の数え分け ―― **合算せず、節ごとに並べて書く**（段F-2）
+		 *
+		 * 段F-2 まで Special は「＋ 因子 34種」とシナリオ因子と遺伝子を足していたが、
+		 * ②の選ぶ側（段K の横並び）では「シナリオ因子」「遺伝子」と**分けている**ので、
+		 * 数え方の書き方だけが取り残されていた。**Exam の extraCountNote() と同じ形**にする
+		 * （「＋シナリオ因子24種＋遺伝子10種」）。片方だけ直すとまた離れる（F-58）。
+		 *
+		 * **呼び名は FACTOR_SCOPES の label から取る**（ソースに書かない。恒久ルール1）。
+		 * **「因子」という曖昧な語は使わない** ―― ②では「シナリオ因子」と呼んでいるものを
+		 * ここだけ「因子」と呼ぶのが、段F-2 で直している食い違いそのものだった（恒久ルール19）。
+		 * ------------------------------------------------------------ */
+		// 印の種類（'factor' / 'gene'）→ 節の key。**節 → 印は CATALOG_MARKS が1対1で持つ**ので、
+		// 逆引きの表を別に持たず、そこから作る（2つ持つと片方が古くなる）。
+		const FACTOR_SCOPE_KEY_BY_MARK = {};
+		const FACTOR_SCOPE_LABEL = {};
+		FACTOR_SCOPES.forEach(s => {
+			FACTOR_SCOPE_LABEL[s.key] = s.label;
+			const m = CATALOG_MARKS[s.key];
+			if (m) FACTOR_SCOPE_KEY_BY_MARK[m.mark] = s.key;
+		});
+
+		/** 名前の配列を節ごとに数える。因子でない名前は数えない（どの節にも足さない）。 */
+		function countFactorsByScope(names) {
+			const out = {};
+			FACTOR_SCOPES.forEach(s => { out[s.key] = 0; });
+			names.forEach(n => {
+				const key = FACTOR_SCOPE_KEY_BY_MARK[factorMarkByNorm.get(normalizeText(n))];
+				if (key !== undefined) out[key]++;
+			});
+			return out;
+		}
+
+		/**
+		 * いま対象に含めている節の key（種数が1つ以上あるもの）。並びは FACTOR_SCOPES の順。
+		 * **どの節を書くかはここで決まる**ので、検出数のほうは 0 でも書く（「0件だった」も情報）。
+		 */
+		function activeFactorScopeKeys(scopeCounts) {
+			return FACTOR_SCOPES.filter(s => (scopeCounts[s.key] || 0) > 0).map(s => s.key);
+		}
+
+		/**
+		 * 「＋シナリオ因子24種＋遺伝子10種」。**合算しない**（段F-2）。
+		 *   keys  … 書く節（activeFactorScopeKeys の結果）。片方だけ ON ならその片方だけになる
+		 *   counts… 節の key → 数
+		 *   unit  … 種数なら '種'、検出数なら ''（検出数には「種」を付けない。元からそう書いている）
+		 * どの節も含めていなければ空文字を返す。呼び出し側はそれで「行ごと出さない」を判断できる。
+		 */
+		function factorCountParts(keys, counts, unit) {
+			return keys.map(k => '＋' + FACTOR_SCOPE_LABEL[k] + (counts[k] || 0) + unit);
+		}
+		function factorCountNote(keys, counts, unit) {
+			return factorCountParts(keys, counts, unit).join('');
+		}
+
+		/**
+		 * 統計カードの2行目用。**節ごとを「折り返さないまとまり」にする。**
+		 * 日本語は字と字の間ならどこでも折り返せるので、素の文字のまま入れると狭いカードで
+		 * 「＋シナリオ因子24種＋遺伝子10 ／ 種」のように**数と単位が別の行に割れる**
+		 * （375px と、6人ぶんを7列で並べたときに実際に起きた）。折り返すのは節と節の間だけにする。
+		 * 埋めるのは FACTOR_SCOPES の label と数だけ（利用者の入力は入らない）なので、そのまま書ける。
+		 */
+		function factorCountHtml(keys, counts, unit) {
+			return factorCountParts(keys, counts, unit)
+				.map(t => '<span class="whitespace-nowrap">' + t + '</span>').join('');
+		}
+
+		/* ------------------------------------------------------------
 		 * 因子の誤マッチのガード（C-2b）
 		 *
 		 * common.js の照合は、完全一致で決まらなかった行をあいまい一致（編集距離）に回す。
@@ -3161,7 +3239,8 @@
 
 			// ②のタブのバッジは**スキルの数だけ**（因子の数は下の選択の注記が別に出す。
 			// 段K までは B・C の行の件数バッジも出していたが、375px で3つを1行に並べるために外した）。
-			// ここに「＋因子N種」を足すと、375px でタブの折り返しが変わる（段E-2 で直した箇所）
+			// ここに「＋シナリオ因子N種＋遺伝子N種」を足すと、375px でタブの折り返しが変わる
+			// （段E-2 で直した箇所）
 			badge.textContent = skillOnlyList.length + '種';
 			badge.classList.remove('hidden');
 			parseOcrDictionary(); // 辞書に書かれたスキル名がリストに存在するか再確認する
@@ -3173,8 +3252,10 @@
 			const note = document.getElementById('deck-selected-note');
 			if (!note) return;
 			if (!deckScope) { note.textContent = '因子セットを1つ選んでください'; return; }
-			// 因子は「スキル」と同じ数に混ぜず、後ろに足して書く（C-2b）
-			const factorPart = factorOnlyList.length > 0 ? '＋因子' + factorOnlyList.length + '種' : '';
+			// 因子は「スキル」と同じ数に混ぜず、後ろに足して書く（C-2b）。
+			// **足すときも節ごとに並べる**（段F-2。「＋因子34種」では②の呼び名と食い違う）。
+			const scopeCounts = countFactorsByScope(factorOnlyList);
+			const factorPart = factorCountNote(activeFactorScopeKeys(scopeCounts), scopeCounts, '種');
 			note.textContent = '✓ 「' + deckScope.name + '」の' + skillOnlyList.length + '種' + factorPart + 'を照合します';
 		}
 

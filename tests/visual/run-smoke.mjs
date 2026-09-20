@@ -7010,8 +7010,14 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		'C-2b: ON にすると辞書に因子が入り、スキルの数は変わらない', { off, on, nFactor });
 	assert(on.badge === off.skills + '種',
 		'C-2b: ②のタブのバッジはスキルの数のまま（375px の折り返しを動かさない）', on.badge);
-	assert(on.note.includes('の' + off.skills + '種＋因子' + nFactor + '種を照合します'),
-		'C-2b: 選択の注記はスキルの数と因子の数を分けて書く', on.note);
+	// 呼び名は製品側（FACTOR_SCOPES の label）から取る。検査にスキル名・呼び名を書かない（恒久ルール1）
+	const scopeLabel = await page.evaluate(() => Object.fromEntries(FACTOR_SCOPES.map(s => [s.key, s.label])));
+	// 段F-2: **合算せず節ごとに並べて書く。** ここはシナリオ因子だけを ON にした状態なので、
+	// 「片方だけ ON なら出ている側だけ書く」も同時に見ている（遺伝子の呼び名は出てこない）。
+	assert(on.note.includes('の' + off.skills + '種＋' + scopeLabel.scenarioFactors + nFactor + '種を照合します')
+		&& !on.note.includes(scopeLabel.genes),
+		'段F-2: 選択の注記は節ごとに並べて書く（片方だけ ON ならその片方だけ）',
+		{ note: on.note, label: scopeLabel });
 
 	// 照合を通す。因子2種が写っている行を混ぜ、「言い切れない1文字崩れ」も入れる
 	const res = await page.evaluate(() => {
@@ -7053,12 +7059,15 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 			expectKept: [names[0], names[1]].sort(), dropped: names[2]
 		};
 	});
-	assert(res.total === String(off.skills) && !res.totalFactorHidden && res.totalFactor === '＋ 因子 ' + nFactor + '種',
-		'C-2b: 対象スキル数はスキルだけ。因子は別の行で数える', res);
+	assert(res.total === String(off.skills) && !res.totalFactorHidden
+		&& res.totalFactor === '＋' + scopeLabel.scenarioFactors + nFactor + '種',
+		'段F-2: 対象スキル数はスキルだけ。因子は別の行に節ごとに並べて書く',
+		{ total: res.total, totalFactor: res.totalFactor, hidden: res.totalFactorHidden });
 	assert(res.detected.join() === res.expectKept.join(),
 		'C-2b: 完全一致と「距離1で一意」の因子は残り、距離2の崩れは落ちる', { detected: res.detected, expect: res.expectKept, dropped: res.dropped });
-	assert(res.found === '4' && res.foundFactor === '＋ 因子 2',
-		'C-2b: 検出数もスキルと因子で分けて数える', { found: res.found, foundFactor: res.foundFactor });
+	assert(res.found === '4' && res.foundFactor === '＋' + scopeLabel.scenarioFactors + '2',
+		'段F-2: 検出数もスキルと因子で分けて数え、因子は節ごとに並べて書く（「種」は付かない）',
+		{ found: res.found, foundFactor: res.foundFactor });
 	// 段G: 印は節ごとに分かれた（段I-5 から ◆＝シナリオ因子／◇＝遺伝子）。
 	// **この検査で見ているのはシナリオ因子だけを ON にした状態**（上の scopes の作り方による）。
 	// 合計が因子の数と合い、遺伝子の◇は1つも出ていないこと。
@@ -7143,13 +7152,69 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 			wantHeartD: STITCH_DIAMOND_PATH_D_24,
 			// 検出したのは 因子1種＋遺伝子2種
 			detectedGenes: genes.filter(n => personResults[0].detectedSkills.has(n)).length,
-			twoScopes, oneScope
+			twoScopes, oneScope,
+			// 段F-2: 2つの節が並んで書かれるか。数え分けの合計が factorOnlyList と合うか。
+			nFactor: names.length, nGene: genes.length,
+			totalFactor: document.getElementById('stat-total-factor').textContent,
+			foundFactor: document.getElementById('stat-found-factor-1').textContent,
+			note: document.getElementById('deck-selected-note').textContent,
+			scopeSum: Object.values(countFactorsByScope(factorOnlyList)).reduce((a, b) => a + b, 0),
+			factorOnly: factorOnlyList.length,
+			// 段F-2: 節ごとが「折り返さないまとまり」になっているか（数と単位が行をまたがないように）
+			scopeSpans: [...document.getElementById('stat-total-factor').querySelectorAll('span')]
+				.map(s => ({ text: s.textContent, ws: getComputedStyle(s).whiteSpace })),
 		};
 	});
 	assert(both.diamonds.every(g => g === '◆') && both.hearts.every(g => g === both.wantHeartD)
 		&& both.diamonds.length > 0 && both.hearts.length > 0,
 		'段I-5(special): ◆と白抜きの◇が同じ表に並び、塗り方が混ざらない',
 		{ diamonds: both.diamonds.length, hearts: both.hearts.length });
+	/* --- 段F-2: 両方 ON なら**2つとも並ぶ**（合算しない） ---
+	   ここが「＋ 因子 34種」に戻ったら落ちる。呼び名は製品の FACTOR_SCOPES から取っているので、
+	   ②の行のラベルを変えたのに数え分けの文言を直し忘れれば、ここも落ちる。 */
+	const wantTotal = '＋' + scopeLabel.scenarioFactors + both.nFactor + '種'
+		+ '＋' + scopeLabel.genes + both.nGene + '種';
+	assert(both.totalFactor === wantTotal && both.note.includes(wantTotal),
+		'段F-2: 両方 ON なら対象スキル数の下も選択の注記も2つを並べて書く（合算しない）',
+		{ totalFactor: both.totalFactor, note: both.note, want: wantTotal });
+	// 検出は 因子1種＋遺伝子2種。**「種」は付かない**（検出数は元からそう書いている）
+	assert(both.foundFactor === '＋' + scopeLabel.scenarioFactors + '1＋' + scopeLabel.genes + '2',
+		'段F-2: 検出数も2つを並べて書く', both.foundFactor);
+	/* 数え分けの合計は factorOnlyList と必ず一致する。
+	   一致しないと「どの節にも数えられない因子」が出て、画面の数だけが静かに減る
+	   （印は付いているのに数に入らない、という食い違い）。**約束は検査にする**（F-65）。 */
+	assert(both.scopeSum === both.factorOnly,
+		'段F-2: 節ごとの数え分けの合計が、選んでいる因子の数と一致する',
+		{ 節ごとの合計: both.scopeSum, factorOnlyList: both.factorOnly });
+	/* 節ごとを「折り返さないまとまり」にしてある（factorCountHtml）。
+	   素の文字のまま入れると、狭いカードで「＋遺伝子10 ／ 種」と**数と単位が行をまたぐ**
+	   （1024px で6人ぶんを7列に並べたときに実際に起きた）。**約束は検査にする**（F-65）。 */
+	assert(both.scopeSpans.length === 2 && both.scopeSpans.every(s => s.ws === 'nowrap')
+		&& both.scopeSpans.map(s => s.text).join('') === wantTotal,
+		'段F-2: 2行目は節ごとに折り返さないまとまりになっている（数と単位が行をまたがない）',
+		both.scopeSpans);
+	/* --- 段F-2: **対象に含めているのに1件も検出できなかった節は「0」と書く** ---
+	   書かずに省くと「＋シナリオ因子1」だけが出て、**遺伝子を対象に入れていないように読める**。
+	   「対象に入れたが0件だった」と「そもそも入れていない」は別のことなので、書き分ける。
+	   （「出ている側だけ書く」が効くのは**節を ON にしているかどうか**で、検出数ではない。）
+	   F-56 の型を避けるため、**実際に0件になる状態を1つ作って**確かめる。 */
+	const zeroGene = await page.evaluate(() => {
+		const keep = { r: personResults[0], l: personLines[0] };
+		const names = UmaSkillDeckCore.getCatalogEntries('scenarioFactor').map(e => e.name);
+		const lines = skillOnlyList.slice(0, 2).concat([names[0]])
+			.map((t, i) => ({ text: t, stars: 1, starsReliable: true, rowKey: 'z' + i }));
+		personResults[0] = applyFactorStrictMatch(
+			matchAllSkillsWithStars(lines, skillList, skillIndex, {}), lines);
+		personLines[0] = lines;
+		renderResults();
+		const out = { foundFactor: document.getElementById('stat-found-factor-1').textContent,
+			hidden: document.getElementById('stat-found-factor-1').hidden };
+		personResults[0] = keep.r; personLines[0] = keep.l; renderResults();
+		return out;
+	});
+	assert(zeroGene.foundFactor === '＋' + scopeLabel.scenarioFactors + '1＋' + scopeLabel.genes + '0'
+		&& !zeroGene.hidden,
+		'段F-2: 対象に含めた節は、その人が0件でも「0」と書く（節ごと消さない）', zeroGene);
 	/* ------------------------------------------------------------
 	 * 段J-2(special): **スキルの検出が0件でも、因子・遺伝子の印は付く**
 	 *
