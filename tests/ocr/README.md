@@ -17,7 +17,7 @@ npm run test:ocr -- --dict=exam               # exam.html の組み込み133種�
 npm run test:ocr -- --dict=deck               # uma-skill-deck-skills.json の全スキルを照合辞書に
 npm run test:ocr -- --dict=page               # ページ側が起動時に持つ skillList をそのまま照合辞書に
 npm run test:ocr -- --dict=連綿,存在感        # 指定したスキル名だけを照合辞書に
-npm run test:ocr -- --dict=deck+catalog       # 上の辞書に「追加カタログ」（catalog-data/*.json）を足す
+npm run test:ocr -- --dict=deck+catalog       # 上の辞書に「追加カタログ」（data/*.json）を足す
 npm run test:ocr -- --dict=deck+catalog --no-catalog-exact-only  # 追加カタログの後段の絞り込みを外す（調査用）
 npm run test:ocr -- --expect=連綿             # 検出されるべきスキルを指定して合否判定（未検出なら exit 1）
 npm run test:ocr -- --errdict=連締=連綿       # special.html の「読み替え辞書」と同じ補正を効かせる
@@ -43,7 +43,7 @@ OCRエンジン(tesseract.js)と日本語辞書は CDN から取得するため*
 ## 追加カタログ（シナリオ因子など）の照合
 
 シナリオ因子のように「445種のマスターには載らないが、因子画面には出るもの」は
-`catalog-data/*.json` に別カテゴリとして置いてある（C-29）。辞書名の末尾に **`+catalog`** を
+`data/*.json` に別カテゴリとして置いてある（C-29）。辞書名の末尾に **`+catalog`** を
 付けると、そのフォルダの全カテゴリの名前を辞書に足す（ファイル名は列挙していないので、
 カテゴリが増えればそのまま増える）。
 

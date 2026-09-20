@@ -5,14 +5,14 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>収録データの入力（作業用）</title>
 	<!--
-		catalog-data/ の中身を、ゲーム画面を見ながら手で埋めていくための作業用ページ。
+		data/ の中身を、ゲーム画面を見ながら手で埋めていくための作業用ページ。
 		**ツール本体には組み込まない**（css/styleguide.html と同じ扱い。どのページからもリンクしない）。
 
 		■ 2つの画面（貼り先が違うので、出力も分けてある）
 		- 「イベントスキル」… サポートカードのイベントで得られるスキルを1枚ずつ記録する。
-		                      → 出力 A ＝ catalog-data/support-card-event-skills.json
+		                      → 出力 A ＝ data/support-card-event-skills.json
 		- 「スキルのタグ付け」… マスター445種の外にあるスキルに、8軸のタグを付ける。
-		                      → 出力 B ＝ catalog-data/extended-skills.json
+		                      → 出力 B ＝ data/extended-skills.json
 		イベントの画面で選んだスキルにもその場でタグを付けられるが、**タグの行き先は
 		つねに出力 B**（タグはスキルの属性で、カードの属性ではないため）。
 		**一覧に無いスキルをその場で起こしたぶんも出力 B**（新しい行＋進めた nextSerial）で、
@@ -37,9 +37,9 @@
 		- **軸名・選択肢をこのファイルに書かない。** すべて Core.TAG_AXES から引く（恒久ルール1）。
 
 		■ 読むもの（すべて読み取りだけ）
-		- catalog-data/support-cards.json          … カードの一覧
-		- catalog-data/support-card-event-skills.json … すでに入っている分
-		- uma-skill-deck-skills.json / catalog-data/extended-skills.json … スキル名（core 経由）
+		- data/support-cards.json          … カードの一覧
+		- data/support-card-event-skills.json … すでに入っている分
+		- uma-skill-deck-skills.json / data/extended-skills.json … スキル名（core 経由）
 	-->
 	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20i" />
 	<link rel="stylesheet" href="css/common.css?v=2026-09-20i" />
@@ -182,7 +182,7 @@
 			<li><strong>探しても出てこないスキル</strong>（イベントでしか得られない金スキルなど）は、その場で<strong>「新しく起こす」</strong>と収録データに足せます。番号は自動で振られます。</li>
 			<li>選んだスキルが<strong>まだタグの付いていないもの</strong>なら、その場でタグを付けられます（付けなくても構いません）。</li>
 			<li>区切りのよいところで、下の出力を<strong>コピー</strong>します。<strong>出力は貼り先ごとに分かれています。</strong></li>
-			<li><code>catalog-data/support-card-event-skills.json</code> に A を、<code>catalog-data/extended-skills.json</code> に B を貼って<strong>上書き</strong>します（どちらもファイル全体を出しているので、そのまま置き換えられます）。<strong>新しく起こしたスキルは B に入ります。</strong></li>
+			<li><code>data/support-card-event-skills.json</code> に A を、<code>data/extended-skills.json</code> に B を貼って<strong>上書き</strong>します（どちらもファイル全体を出しているので、そのまま置き換えられます）。<strong>新しく起こしたスキルは B に入ります。</strong></li>
 			<li><code>npm run check:catalog</code> を回して、形が正しいことを確かめます。</li>
 		</ol>
 		<p class="cei-note">
@@ -205,7 +205,7 @@
 		<ol class="cei-steps">
 			<li>一覧から1件ずつ「タグを付ける」を押し、当てはまる条件にチェックを入れます。</li>
 			<li>どの条件にも当てはまらないスキル（いつでも発動するもの）は、チェックを入れずに<strong>「どれにも当てはまらない」</strong>を押します。<strong>「未設定」のままとは別の意味</strong>になります。</li>
-			<li>区切りのよいところで、下の<strong>出力 B</strong> をコピーし、<code>catalog-data/extended-skills.json</code> に貼って上書きします。</li>
+			<li>区切りのよいところで、下の<strong>出力 B</strong> をコピーし、<code>data/extended-skills.json</code> に貼って上書きします。</li>
 		</ol>
 		<p class="cei-note">
 			ここに出るのは<strong>マスターに収録されていないスキル</strong>だけです。マスターの445種はすでにタグが付いているので出ません。
@@ -248,7 +248,7 @@
 	</div>
 </div>
 
-<script src="js/uma-skill-deck-core.js?v=2026-09-20e"></script>
+<script src="js/uma-skill-deck-core.js?v=2026-09-21a"></script>
 <script>
 (function () {
 	'use strict';

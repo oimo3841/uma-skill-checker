@@ -469,8 +469,8 @@ console.log('\n=== 9. push の関門が効いているか ===');
 	}
 }
 
-console.log('\n=== 10. 収録データ（catalog-data/）の形 ===');
-// catalog-data/ の6ファイル（拡張スキル・育成ウマ娘・サポートカード・イベントスキル・シナリオ因子・遺伝子）は
+console.log('\n=== 10. 収録データ（data/）の形 ===');
+// data/ の6ファイル（拡張スキル・育成ウマ娘・サポートカード・イベントスキル・シナリオ因子・遺伝子）は
 // おいもさんが用意し、手でも書き足す。中の id は保存済みの比較シートが指す鍵なので、
 // 形の崩れがそのまま利用者のデータの崩れになる。件数が多くて目では見切れないので機械で見る。
 // 実体は tests/catalog/check-catalog.mjs（npm run check:catalog で単体でも回せる）。
@@ -486,7 +486,7 @@ console.log('\n=== 10. 収録データ（catalog-data/）の形 ===');
 		else if (/^\s{5}/.test(l)) console.log(l);
 	}
 	if (r.stderr) console.log(r.stderr.trimEnd());
-	check(r.status === 0, 'catalog-data/ の6ファイルが決めた形どおり');
+	check(r.status === 0, 'data/ の6ファイルが決めた形どおり');
 }
 
 if (warnings.length > 0) {

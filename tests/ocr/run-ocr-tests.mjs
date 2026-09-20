@@ -12,7 +12,7 @@
 //   npm run test:ocr -- --dict=deck           … uma-skill-deck-skills.json の全スキルを照合辞書に
 //   npm run test:ocr -- --dict=page           … ページ側が起動時に持つ skillList をそのまま照合辞書に
 //   npm run test:ocr -- --dict=連綿,存在感    … 指定したスキル名だけを照合辞書に
-//   npm run test:ocr -- --dict=deck+catalog   … 上の辞書に「追加カタログ」（catalog-data/*.json）を足す
+//   npm run test:ocr -- --dict=deck+catalog   … 上の辞書に「追加カタログ」（data/*.json）を足す
 //   npm run test:ocr -- --no-catalog-exact-only … 追加カタログの後段の絞り込みを外す（調査用）
 //   npm run test:ocr -- --expect=連綿,存在感  … 検出されるべきスキルを指定し、合否を判定する
 //   npm run test:ocr -- --errdict=連締=連綿   … special.html の「読み替え辞書」と同じ補正を効かせる
@@ -22,7 +22,7 @@
 //
 // 追加カタログ（`+catalog`）について:
 //   シナリオ因子のように「445種のマスターには載らないが、因子画面には出るもの」は
-//   catalog-data/*.json に別カテゴリとして置いてある（C-29）。辞書名の末尾に `+catalog` を
+//   data/*.json に別カテゴリとして置いてある（C-29）。辞書名の末尾に `+catalog` を
 //   付けると、そのファイル群の名前を辞書に足す。
 //   **製品（exam.html）は照合のあと applyScenarioFactorStrictMatch() で「行にその名前が
 //   そのまま入っている」か「カタログの中で1つに絞れる1文字違い」だけに絞る**ので、
@@ -52,7 +52,7 @@ const OUTPUT_DIR = path.join(ROOT, 'output', 'ocr');
 const DECK_MASTER = path.join(ROOT, 'uma-skill-deck-skills.json');
 // 追加カタログ（マスター445種の外にあるもの）の正本の置き場。
 // ファイル名は列挙せずフォルダごと読む（カテゴリが増えても追従するため。B節ルール1の精神）。
-const CATALOG_DIR = path.join(ROOT, 'catalog-data');
+const CATALOG_DIR = path.join(ROOT, 'data');
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.bmp', '.webp']);
 
@@ -79,7 +79,7 @@ const ERRDICT = ERRDICT_ARG
 		)
 	: {};
 
-/** catalog-data/ の全カテゴリの名前（[{category, names}]）。フォルダが無ければ空。 */
+/** data/ の全カテゴリの名前（[{category, names}]）。フォルダが無ければ空。 */
 async function loadCatalogs() {
 	let files;
 	try {

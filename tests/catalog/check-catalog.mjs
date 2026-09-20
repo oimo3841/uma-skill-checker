@@ -1,4 +1,4 @@
-// catalog-data/ に置く6ファイル（拡張スキル・育成ウマ娘・サポートカード・
+// data/ に置く6ファイル（拡張スキル・育成ウマ娘・サポートカード・
 // サポートカードのイベントスキル・シナリオ因子・遺伝子）が、決めた形どおりかを確かめる。
 // （シナリオ因子は63セッション目・段1d に追加。それまでこのファイルだけ対象外だった。
 //   遺伝子は64セッション目・段A に新設と同時に追加）
@@ -41,7 +41,7 @@ function argValue(name) {
 	const a = args.find((x) => x.startsWith(p));
 	return a ? a.slice(p.length) : '';
 }
-const DIR = argValue('dir') || 'catalog-data';
+const DIR = argValue('dir') || 'data';
 const BASELINE_DIR = argValue('baseline');
 const MASTER_FILE = 'uma-skill-deck-skills.json';
 

@@ -24,11 +24,11 @@
 //   （SCENARIO_INHERITANCE_FACTORS）・遺伝子10種（APTITUDE_GENES）を持つ。ここでは
 //     - 足す5種の id がマスターにあり、normalizeText 後の名前が一致し、133種と重ならない
 //     - 外す12種の id がすべて133種にあり、重複が無い
-//     - シナリオ因子の写しが正本（catalog-data/scenario-inheritance-factors.json）と
+//     - シナリオ因子の写しが正本（data/scenario-inheritance-factors.json）と
 //       1文字も違わない（並び・件数も同じ）
-//     - 遺伝子の写しが正本（catalog-data/aptitude-genes.json）と 1文字も違わない（同上。段F）
+//     - 遺伝子の写しが正本（data/aptitude-genes.json）と 1文字も違わない（同上。段F）
 //
-// 4. 追加カタログ（catalog-data/）と uma-skill-deck-core.js の整合
+// 4. 追加カタログ（data/）と uma-skill-deck-core.js の整合
 //   正本の写しは exam.html（名前だけ）と core.js（id＋名前）の2か所にある。
 //   3者がズレると、Deck 側で名前を解決できなくなったり、保存済みの比較シートが
 //   行を見失ったりする。ここでは
@@ -62,14 +62,14 @@ const deckSkills = (master.skills || master).map((s) => ({ id: String(s.id), nam
 const deckNames = deckSkills.map((s) => s.name);
 
 /** シナリオ因子の正本。exam.html が持つのはこの写し（file:// でも動かすため） */
-const scenarioFile = path.join(ROOT, 'catalog-data', 'scenario-inheritance-factors.json');
+const scenarioFile = path.join(ROOT, 'data', 'scenario-inheritance-factors.json');
 const scenarioMaster = JSON.parse(await fs.readFile(scenarioFile, 'utf-8'));
 const scenarioMasterEntries = scenarioMaster.entries || [];
 const scenarioMasterNames = scenarioMasterEntries.map((f) => f.name);
 const scenarioMasterIds = (scenarioMaster.entries || []).map((f) => f.id);
 
 /** 遺伝子の正本。exam.html が持つのはこの写し（シナリオ因子とまったく同じ扱い。段F） */
-const geneFile = path.join(ROOT, 'catalog-data', 'aptitude-genes.json');
+const geneFile = path.join(ROOT, 'data', 'aptitude-genes.json');
 const geneMaster = JSON.parse(await fs.readFile(geneFile, 'utf-8'));
 const geneMasterNames = (geneMaster.entries || []).map((g) => g.name);
 
@@ -374,14 +374,14 @@ console.log('    外す12種: ' + scope.curatedNames.join(' / '));
 check(scope.counts.default === 133 && scope.counts.expanded === 138 && scope.counts.curated === 121,
 	'3つのモードの種数が 133 / 138 / 121', scope.counts);
 check(scope.factorMismatch.length === 0,
-	'exam.html のシナリオ因子が正本（catalog-data/scenario-inheritance-factors.json）と一致', scope.factorMismatch);
+	'exam.html のシナリオ因子が正本（data/scenario-inheritance-factors.json）と一致', scope.factorMismatch);
 console.log(`    シナリオ因子: ${scope.factorSize}種`);
 check(scope.factorCollisions.length === 0, 'シナリオ因子どうしが正規化後に衝突しない', scope.factorCollisions);
 check(scope.factorVsSkill.length === 0, 'シナリオ因子とスキル名（133＋5）が正規化後に衝突しない', scope.factorVsSkill);
 check(scope.factorWithSkillId.length === 0, 'シナリオ因子は白スキルのIDを持たない', scope.factorWithSkillId);
 // 遺伝子（軸3・段F）。exam.html は core を読まないので写しを持つ ―― 正本とのズレはここで捕まえる。
 check(scope.geneMismatch.length === 0,
-	'exam.html の遺伝子が正本（catalog-data/aptitude-genes.json）と一致', scope.geneMismatch);
+	'exam.html の遺伝子が正本（data/aptitude-genes.json）と一致', scope.geneMismatch);
 console.log(`    遺伝子: ${scope.geneSize}種`);
 check(scope.geneCollisions.length === 0, '遺伝子どうしが正規化後に衝突しない', scope.geneCollisions);
 check(scope.geneVsSkill.length === 0, '遺伝子とスキル名（133＋5）が正規化後に衝突しない', scope.geneVsSkill);
@@ -389,7 +389,7 @@ check(scope.geneWithSkillId.length === 0, '遺伝子は白スキルのIDを持�
 check(scope.geneVsFactor.length === 0, '遺伝子とシナリオ因子が正規化後に衝突しない', scope.geneVsFactor);
 console.log('');
 
-console.log('■ 追加カタログ（catalog-data/）と uma-skill-deck-core.js の整合');
+console.log('■ 追加カタログ（data/）と uma-skill-deck-core.js の整合');
 console.log('    取得元: ' + catalogReport.sources.map((x) => `${x.category} ← ${x.path}`).join(' / '));
 console.log('    読み込み: ' + catalogReport.meta.sources
 	.map((x) => `${x.category} ${x.count}件（${x.from}${x.version ? '・' + x.version : ''}）`).join(' / '));

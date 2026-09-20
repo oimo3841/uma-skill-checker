@@ -1971,7 +1971,7 @@ const browser = await chromium.launch();
 
 	// 既定から動かした人は scope の名前が「技能試験（調整あり）」。
 	// 対象を広げ、シナリオ因子も足す。シナリオ因子は白スキル445種のマスターには無いが、
-	// Deck は追加カタログ（catalog-data/）から引くので、警告を出さずに取り込める。
+	// Deck は追加カタログ（data/）から引くので、警告を出さずに取り込める。
 	await page.evaluate(() => { setTargetScopeMode('expanded'); setScenarioFactorsAll(true); });
 	await seedExam();
 	await page.waitForTimeout(400);

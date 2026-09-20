@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-20e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21a';
 
 	/* ============================================================
 	 * 定数
@@ -41,7 +41,7 @@
 	 * カテゴリを増やすときは同じ形のJSONをもう1つ作ってこの配列に並べるだけにする
 	 * （読み込み・キャッシュ・組み込みの写しは、どのカテゴリでも同じ経路を通る）。
 	 *
-	 * ファイルの形（catalog-data/*.json）:
+	 * ファイルの形（data/*.json）:
 	 *   { dataVersion, category, entries: [{ id, name }] }
 	 * category はファイル単位。読み込んだ各エントリに category を押して、
 	 * findSkill() が返すオブジェクトの kind になる。
@@ -51,15 +51,15 @@
 	 * ------------------------------------------------------------ */
 	const STORAGE_KEY_EXTRA_CATALOG = 'umaSkillDeck:extraCatalogCache';
 	const EXTRA_CATALOG_SOURCES = [
-		{ category: 'scenarioFactor', path: 'catalog-data/scenario-inheritance-factors.json' },
+		{ category: 'scenarioFactor', path: 'data/scenario-inheritance-factors.json' },
 		// 遺伝子（C-67）。**tags を持たないので「条件でスキルを検索」の母集団には入らない**
 		// （母集団に入るかどうかは tags の有無で決まる。C-64 の2節）。ここに並べるのは、
 		// findSkill() で名前を引けるようにするため ―― 入れないと、保存済みの比較シートの
 		// 遺伝子の行が「（不明なスキル：…）」に化ける。シナリオ因子とまったく同じ扱い。
-		{ category: 'geneFactor', path: 'catalog-data/aptitude-genes.json' },
+		{ category: 'geneFactor', path: 'data/aptitude-genes.json' },
 		// マスター445種の外にあるスキル（C-48・C-49）。件数が多いので EMBEDDED_EXTRA_CATALOG に
 		// 写しは持たない（取得もキャッシュも駄目だったときは、黙って劣化させず知らせる）。
-		{ category: 'extendedSkill', path: 'catalog-data/extended-skills.json' }
+		{ category: 'extendedSkill', path: 'data/extended-skills.json' }
 		// 育成ウマ娘・サポートカードはここに入れない。スキルではないので、入れると
 		// findSkill() と名前の索引にカード名・ウマ娘名が混ざる（C-49）。
 	];
@@ -240,7 +240,7 @@
 	/* フェッチもキャッシュも駄目だったときに使う、追加カタログの組み込みの写し。
 	   カタログが1件も無いと、保存済みの比較シートの行が「（不明なスキル：…）」に化けるので、
 	   マスターのサンプルと違ってこちらは**全件**を持つ。
-	   正本は catalog-data/ の各JSON。写しとの食い違いは npm run test:norm が見張る。 */
+	   正本は data/ の各JSON。写しとの食い違いは npm run test:norm が見張る。 */
 	const EMBEDDED_EXTRA_CATALOG = {
 		scenarioFactor: [
 			{ id: 'sf-ura', name: 'URAシナリオ' },
@@ -683,9 +683,9 @@
 	 * 保存済みのデータが化けることはない）。
 	 * ============================================================ */
 	const TRAINING_SOURCES = [
-		{ key: 'trainingUmamusume', path: 'catalog-data/training-umamusume.json' },
-		{ key: 'supportCard', path: 'catalog-data/support-cards.json' },
-		{ key: 'supportCardEventSkill', path: 'catalog-data/support-card-event-skills.json' }
+		{ key: 'trainingUmamusume', path: 'data/training-umamusume.json' },
+		{ key: 'supportCard', path: 'data/support-cards.json' },
+		{ key: 'supportCardEventSkill', path: 'data/support-card-event-skills.json' }
 	];
 
 	/**

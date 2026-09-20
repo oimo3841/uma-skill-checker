@@ -153,7 +153,7 @@ OCR の結果は `output/ocr/<ケース名>/result.json`（`rawLines` に**照�
 ### シナリオ因子（追加カタログ）も照合したいとき
 
 ```bash
-npm run test:ocr -- --dict=deck+catalog              # 445種 ＋ catalog-data/*.json
+npm run test:ocr -- --dict=deck+catalog              # 445種 ＋ data/*.json
 npm run test:ocr -- --dict=deck+catalog --stitched   # 結合してから
 ```
 
