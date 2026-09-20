@@ -2060,7 +2060,40 @@ const browser = await chromium.launch();
 		'deck: 取り込んだシートでカタログ由来の行に◆が付き、白スキルの行には付かない', factorRow);
 	await frame.evaluate(() => closeRecordEditor());
 	await page.waitForTimeout(300);
-	await page.evaluate(() => { setScenarioFactorsAll(false); setTargetScopeMode('default'); });
+
+	/* --- 検出数は**遺伝子も ON にしたうえで**もスキルだけ（68セッション目に追加）---
+	   すぐ上の factorSplit は「シナリオ因子だけ ON・遺伝子 OFF」の状態で走っているので、
+	   **遺伝子が検出数に混ざる回帰は、これまでどの検査でも捕まらなかった**
+	   （68セッション目の下見で判明。実装は正しかったが、正しさを固定する検査が無かった）。
+	   ここでは遺伝子も ON にし、**skillList の全部を検出した状態**を作る ――
+	   それでも検出数が skillOnlyList の数のままなら、因子も遺伝子も数えていないと言い切れる。
+	   件数はこのファイルに書かず、製品側の3本立て（skillOnlyList / factorOnlyList /
+	   geneOnlyList）から取る（収録データが増えても直さなくてよい）。 */
+	await page.evaluate(() => setAptitudeGenesAll(true));
+	await seedExam();
+	await page.waitForTimeout(400);
+	const geneCountSplit = await page.evaluate(() => ({
+		skillOnly: skillOnlyList.length, factorOnly: factorOnlyList.length, geneOnly: geneOnlyList.length,
+		all: skillList.length,
+		statTotal: document.getElementById('stat-total').textContent,
+		statFound1: document.getElementById('stat-found-1').textContent,
+		statFactor: document.getElementById('stat-total-factor').textContent,
+		detected0: countDetected(0),
+		// 親Aは skillList を丸ごと検出させてある（因子・遺伝子の行も含めて全部）
+		detectedAll: skillList.filter((s) => personResults[0].detectedSkills.has(s)).length
+	}));
+	assert(geneCountSplit.geneOnly === GENE_COUNT && geneCountSplit.factorOnly > 0
+		&& geneCountSplit.all === geneCountSplit.skillOnly + geneCountSplit.factorOnly + geneCountSplit.geneOnly
+		&& geneCountSplit.detectedAll === geneCountSplit.all
+		&& geneCountSplit.detected0 === geneCountSplit.skillOnly
+		&& geneCountSplit.statFound1 === String(geneCountSplit.skillOnly)
+		&& geneCountSplit.statTotal === String(geneCountSplit.skillOnly)
+		&& geneCountSplit.statFactor === '＋シナリオ因子' + geneCountSplit.factorOnly + '種＋遺伝子' + geneCountSplit.geneOnly + '種',
+		'exam: 遺伝子も ON にして全部検出しても、検出数と対象スキル数はスキルだけ（遺伝子込みなら skillList の数になるところ）',
+		geneCountSplit);
+
+	// 遺伝子もここで戻す（上の検査で ON にしたため）
+	await page.evaluate(() => { setScenarioFactorsAll(false); setAptitudeGenesAll(false); setTargetScopeMode('default'); });
 
 	/* --- シナリオ因子の絞り込み（applyScenarioFactorStrictMatch。47セッション目） ---
 	   完全一致に加えて「カタログの中で1つに絞れる1文字違い」も採る。
@@ -7136,7 +7169,8 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	const both = await page.evaluate(() => {
 		const names = UmaSkillDeckCore.getCatalogEntries('scenarioFactor').map(e => e.name);
 		const genes = UmaSkillDeckCore.getCatalogEntries('geneFactor').map(e => e.name);
-		const lines = skillOnlyList.slice(0, 3).concat([names[0], genes[0], genes[1]])
+		const hitSkills = skillOnlyList.slice(0, 3);
+		const lines = hitSkills.concat([names[0], genes[0], genes[1]])
 			.map((t, i) => ({ text: t, stars: (i % 3) + 1, starsReliable: true, rowKey: 'r' + i }));
 		personResults[0] = applyFactorStrictMatch(
 			matchAllSkillsWithStars(lines, skillList, skillIndex, {}), lines);
@@ -7160,6 +7194,10 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 			wantHeartD: STITCH_DIAMOND_PATH_D_24,
 			// 検出したのは 因子1種＋遺伝子2種
 			detectedGenes: genes.filter(n => personResults[0].detectedSkills.has(n)).length,
+			// **スキルの検出数**（遺伝子が混ざっていないか。68セッション目に追加）。
+			// 期待値はこのファイルに書かず、仕込んだスキルの数から取る。
+			found: document.getElementById('stat-found-1').textContent,
+			wantFound: hitSkills.length,
 			twoScopes, oneScope,
 			// 段F-2: 2つの節が並んで書かれるか。数え分けの合計が factorOnlyList と合うか。
 			nFactor: names.length, nGene: genes.length,
@@ -7272,6 +7310,14 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		{ deck: deckHeart ? deckHeart[1] : '(見つからない)', stitch: both.wantHeartD });
 	assert(both.detectedGenes === 2,
 		'段G(special): 遺伝子は完全一致で検出できている（印の分離が検出に影響していない）', both.detectedGenes);
+	/* **スキルの検出数に遺伝子が混ざらない**（68セッション目に追加）。
+	   ここまで遺伝子 ON で見ていたのは並記のほう（stat-found-factor-1）だけで、
+	   **スキルの検出数そのもの（stat-found-1）は遺伝子 ON の状態で一度も見ていなかった** ――
+	   「遺伝子が検出数に混ざる」回帰を捕まえる検査がどこにも無かった（68セッション目の下見で判明）。
+	   仕込みは スキル3種＋シナリオ因子1種＋遺伝子2種 なので、混ざれば 3 が 5 や 6 になる。 */
+	assert(both.found === String(both.wantFound) && both.detectedGenes > 0,
+		'段F-2(special): 遺伝子を検出していても、スキルの検出数には入らない（別勘定）',
+		{ found: both.found, want: both.wantFound, 検出した遺伝子: both.detectedGenes });
 	assert(both.twoScopes > both.oneScope,
 		'段G(special): 凡例の帯は、含めている節のぶんだけ印の行が増える', both);
 	assert(errors.length === 0, 'C-2b: special でコンソールエラーが出ない', errors.slice(0, 3));
