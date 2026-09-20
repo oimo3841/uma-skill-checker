@@ -27,7 +27,7 @@
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html / exam.html で共有） -->
 	<script src="js/common.js?v=2026-09-17a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-20d"></script>
+	<script src="js/stitch.js?v=2026-09-20e"></script>
 	<style>
 		/* このツールの色（青）。**見出し・バッジ・淡い地・枠などの装飾にだけ使う。**
 		   押せる部品（ボタン・チェック・選択中のタブ）は色を持たず、3ツール共通の黒
@@ -2113,9 +2113,14 @@
 		})();
 
 		/** 遺伝子の印の SVG（**白抜き**の菱形）。輪郭は js/stitch.js の stitchDiamondPathD() が出す。
-		    線の太さは viewBox（24）に対する比で、結合画像の stitchOutlineWidth(d) と同じ 0.10。
 		    中は塗らない ―― 画面では地が白か淡い色なので、透かしたままで「空いている」と読める
-		    （結合画像はスキルパネルの灰色の〇の上に載るので、あちらは白で塗る）。 */
+		    （結合画像はスキルパネルの灰色の〇の上に載るので、あちらは白で塗る）。
+
+		    **線の太さ（2.4）は結合画像の stitchOutlineWidth() とは別物。** 同じ数を入れても
+		    揃わない ―― あちらの d は「元の灰色の〇の直径」で、菱形の幅はその 1.4 倍
+		    （drawSkillMark の r = d * 0.70）。こちらは viewBox 24 に対して菱形の幅が 18。
+		    菱形の幅に対する比でいうと、2.4 ÷ 18 = 0.133。段J-1 で結合画像を 0.16（幅比 0.114）に
+		    太くしたが、**画面のほうは指摘が出ていないので据え置いた**（画面のほうが元から太い）。 */
 		function geneMarkSvg() {
 			return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"'
 				+ ' stroke-linejoin="round" aria-hidden="true">'

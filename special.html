@@ -33,7 +33,7 @@
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-20d"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-20d"></script>
+	<script src="js/stitch.js?v=2026-09-20e"></script>
 	<style>
 		/* Deck連携モードの①のタブ（本育成編成）の見出し行（C-51 の11節①②）。
 		   ①〜③はステップのタブ（css/shell.css の .step-tab）に載せたので、ここには Step の枠は無い。
@@ -2070,14 +2070,25 @@
 		}
 
 		/**
-		 * 印そのものを描く。中心 (cx, cy)・差し渡し d。**線だけで塗りつぶさない。**
+		 * 印そのものを描く。中心 (cx, cy)・差し渡し d。
+		 * **◆（シナリオ因子）だけ中を塗り、あとは線だけ**（段I-5）。
 		 * 地の明るさがまちまちなので、色の線の外側に白いふち取りを入れる
 		 * （白で太く描いてから、その上に色で細く描く）。形の比率は core.js の
 		 * tiers.markHtml()（画面側のSVG）と同じ値にしてある。
+		 *
+		 * **線の太さは js/stitch.js の stitchOutlineWidth() から取る**（段J-1）。
+		 * それまでは自前で max(1.2, d * 0.08) を持っていて、exam の ◇（0.10）と
+		 * **太さが揃っていなかった** ―― 2つのツールで枠線の印の見え方が違う原因だった。
+		 *
+		 * **白いふち取りの幅は線の太さに依らない。** 白を (line + halo)、色を line で
+		 * 重ねるので、外にはみ出す白は常に halo ÷ 2（＝ d の 7.5%）になる。
+		 * 段J-1 で線を 0.08 → 0.16 に太くしたとき、ふち取りを一緒に太らせるかを
+		 * 実際に描いて見比べ、**据え置きにした**（線が太くなったぶん白の比率は下がるが、
+		 * 白を足すと印が膨らんで隣の段に近づく。地から浮かせる役目は果たせている）。
 		 */
 		function drawTierMark(ctx, tier, cx, cy, d, colors) {
 			const r = d / 2;
-			const line = Math.max(1.2, d * 0.08);
+			const line = stitchOutlineWidth(d);
 			const halo = Math.max(2, d * 0.15);
 			const paths = [];
 			let filled = false;          // 段I-5: ◆（シナリオ因子）だけ中を塗る
