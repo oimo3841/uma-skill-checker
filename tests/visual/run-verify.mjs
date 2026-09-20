@@ -256,6 +256,14 @@ const INTENTIONALLY_REMOVED = {
 	// `' + id + '` は、24件を組み立てていた文字列連結（id="' + id + '"）を
 	// この検査が id と読んでいたもの（core.js の value="' + esc(...) + '" と同じ引っかかり方）。
 	// `64fe133` に commit したので免除は空に戻した。
+	// 2026-09-20（65セッション目・C-2c）: ②の B・C を**1行に畳んだ**ので、C-2a で入れた
+	// 折りたたみの節（見出しのボタン data-usd-act="scope-toggle" と、中身の入れ物の
+	// id="usd-scope-body-<key>"）が消えた。`' + bodyId + '` は、その id を組み立てていた
+	// 文字列連結（id="' + bodyId + '"）をこの検査が id と読んでいたもの
+	// （段D の `' + id + '` と同じ引っかかり方）。
+	// チェックそのもの（data-usd-act="scope-check"）と節の入れ物（data-usd-scope-section）は残っている。
+	// **commit したら免除は空に戻すこと**（残すと本当の事故を見逃す口になる）。
+	'js/uma-skill-deck-core.js': ["' + bodyId + '"],
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

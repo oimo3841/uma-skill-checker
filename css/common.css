@@ -31,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-09-20c";
+	--uma-components-css-version: "2026-09-20d";
 }
 
 /* ============================================================
@@ -227,6 +227,9 @@ html:not(.uma-tw-ready) .hidden { display: none; }
  * 常時出すほどではない説明は、見出しの脇の丸い「?」の中に入れ、押したときだけ
  * その直下に .uma-help-box をインラインで出す。ホバー依存のツールチップにしない
  * （タッチ端末で出せない）。別の層（ポップオーバー・ダイアログ）にもしない。
+ * **例外（C-2c）**: 中身が文ではなく**何十行かの一覧**のときだけ、ミニウィンドウで開く。
+ * ②の B・C の「?」（因子24種・遺伝子10種の一覧）がこれで、インラインに出すと
+ * その下の中身を画面外へ押し出してしまう。押して選ぶものではない（見るだけ）。
  * 説明ではなく一覧（項目の列挙）や状態の注記を隠すときは「?」ではなく .uma-disclose
  * （押した先が分かる語の文字ボタン。押した状態は塗りつぶし）。色は --uma-disclose-color で
  * 文脈に合わせる（既定は通知・注意の赤）。
@@ -264,8 +267,10 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 /* ============================================================
  * 節（見出し＋中身。C-2a）
  *
- * 1つの画面の中を意味のまとまりに分ける。中身を畳めるものは見出しを <button> にして
- * aria-expanded を付け、中身は hidden 属性で開閉する（畳まないものは <p> のまま）。
+ * 1つの画面の中を意味のまとまりに分ける。見出しは <p>、畳めるようにするときだけ
+ * <button> ＋ aria-expanded にして、中身を hidden 属性で開閉する。
+ * **いまは畳める節が無い**（C-2a で入れた B・C は C-2c で1行に畳んだ）。畳む必要が出たら
+ * <button> にして、開閉の向きを示す印はそのときに足す。
  * **.uma-disclose とは役割が違う** ―― あちらは「一覧をちょっと開く」小さな文字ボタンで、
  * 赤い丸ピル1個ぶんの大きさしかない。こちらは節そのものの見出しで、横幅いっぱいに置く。
  *
@@ -281,42 +286,38 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 }
 button.uma-section-head { cursor: pointer; }
 button.uma-section-head:hover { color: var(--uma-text-heading); }
-/* 開閉の向き。閉じているとき右、開くと下（<details> の chevron と同じ読み方） */
-.uma-section-mark { flex: none; transition: transform var(--uma-transition); }
-.uma-section-head[aria-expanded="true"] .uma-section-mark { transform: rotate(90deg); }
 .uma-section-body { display: flex; flex-direction: column; gap: var(--uma-sp-3); }
 .uma-section-body[hidden] { display: none; }
 
+
 /* ============================================================
- * チェックの付いた白いカード（C-2a）
+ * 1行のチェック（C-2c）
  *
- * 「これを対象に含める」のような、1行では言い切れない選択肢。見出しの下に、
- * なぜそうなるのかの注記を添えられる。面ごと押せるように <label> で包む。
+ * 「☑ シナリオ因子 24種 ?」のように、チェック・呼び名・件数・「?」が横1行に並ぶもの。
+ * **special の②の B・C と exam のシナリオ因子が同じ形**なので共通部品にした
+ * （どちらも「この一群をまとめて対象に含めるか」という同じ問いで、説明を読ませずに
+ *   件数と「?」の一覧で足りる）。
  *
- * exam.html の「対象スキルの範囲」の3択と「シナリオ因子を対象に含める」が同じ形を
- * Tailwind の直書きで持っている。**段C では special だけがこのクラスを使い、
- * exam を寄せるのは段F のついで**（段E-3 のとおり、枠と余白を動かすと狭い画面の
- * 折り返しが変わるため、exam を触る段でまとめて確かめる）。
+ * C-2a では見出しで畳める節＋白いカード（.uma-checkcard）＋説明文の形だったが、
+ * C-2c で**1行に畳んだ**（冗長という判断）。カードのクラスは使い手がいなくなったので消してある。
  * ============================================================ */
-.uma-checkcard {
-	display: flex; align-items: flex-start; gap: var(--uma-sp-2);
-	padding: var(--uma-sp-2-5);
-	border: 1px solid var(--uma-border); border-radius: var(--uma-r-md);
-	background: var(--uma-surface); cursor: pointer;
-	transition: border-color var(--uma-transition);
+.uma-checkrow { display: flex; align-items: center; gap: var(--uma-sp-2); flex-wrap: wrap; }
+.uma-checkrow-label {
+	display: inline-flex; align-items: center; gap: var(--uma-sp-2); cursor: pointer;
+	font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600; color: var(--uma-text);
 }
-.uma-checkcard:hover { border-color: var(--uma-control-border); }
-.uma-checkcard > input[type="checkbox"],
-.uma-checkcard > input[type="radio"] {
-	flex: none; margin: 2px 0 0; accent-color: var(--uma-control); cursor: pointer;
+.uma-checkrow-label > input { accent-color: var(--uma-control); cursor: pointer; }
+
+/* 「?」で開く、**見るだけ**の名前の一覧。押して選ぶものではないので、候補のボタン
+   （core の .usd-name-hit）ではなく素の箱にする。件数が多いので列は幅に合わせて増やす。 */
+.uma-namelist {
+	list-style: none; margin: 0; padding: 0; display: grid; gap: var(--uma-sp-1);
+	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 }
-.uma-checkcard-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.uma-checkcard-title {
-	font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm);
-	font-weight: 600; color: var(--uma-text);
-}
-.uma-checkcard-note {
-	font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle);
+.uma-namelist > li {
+	padding: var(--uma-sp-1) var(--uma-sp-2); border-radius: var(--uma-r-sm);
+	background: var(--uma-surface-sunken);
+	font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text);
 }
 
 /* 絞り込みなどの切り替えボタン。

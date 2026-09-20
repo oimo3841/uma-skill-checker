@@ -17,9 +17,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20c" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-20c" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-20c" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20d" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-20d" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-20d" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -533,6 +533,26 @@
 			<div id="old-help-slot"></div>
 		</div>
 
+		<!-- シナリオ因子の一覧（C-2c）。1行に畳んだチェックの「?」から開く**見るだけ**のミニウィンドウ。
+		     押して選ぶものではないので、候補のボタンではなく素の一覧（.uma-namelist）にする。
+		     中身は renderFactorList() が正本のデータから書く（1件ずつ手書きしない）。
+		     骨格は使い方ガイドと同じ .uma-overlay / .uma-overlay-backdrop。 -->
+		<div id="factor-list-backdrop" class="uma-overlay-backdrop" hidden onclick="closeFactorList()"></div>
+		<div id="factor-list-box" class="uma-overlay notice-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="factor-list-title">
+			<div class="help-head">
+				<h2 id="factor-list-title" class="help-title">
+					<i data-lucide="clapperboard" class="w-4 h-4 text-[var(--uma-mark-catalog)]"></i>
+					<span>シナリオ因子（<span id="factor-list-count">24</span>種）</span>
+				</h2>
+				<button id="factor-list-close" type="button" onclick="closeFactorList()" aria-label="閉じる" class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer">
+					<i data-lucide="x" class="w-5 h-5"></i>
+				</button>
+			</div>
+			<div class="help-body">
+				<ul id="factor-list-names" class="uma-namelist"></ul>
+			</div>
+		</div>
+
 		<!-- 画面の切り替えの告知。初回だけ自動で出て、以後は右上の「新UI」バッジから読み直せる。
 		     ✕・OK・背景・Esc のどれで閉じても既読になる（special の C-16 と同じ作法）。
 		     上の段はこのページの青、＜新機能＞の段は Deck の色（.deck-accent）の枠で囲み、
@@ -679,15 +699,17 @@
 				<!-- シナリオ因子は**まとめて1つのチェック**（64セッション目・段D）。
 				     それまでは24種の個別選択だったが、1種ずつ選び分ける実体的な需要が無かった。
 				     種数は renderScenarioFactorToggle() が正本のデータから書く（1件ずつ手書きしない）。
-				     上の3択と同じ「白いカード」の見え方に揃えてある。 -->
-				<div class="mt-2">
-					<label for="scenario-factors-all" class="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 cursor-pointer hover:border-[var(--uma-control-border)] transition-all">
-						<input type="checkbox" id="scenario-factors-all" class="mt-0.5 accent-[var(--uma-control)] cursor-pointer shrink-0" onchange="setScenarioFactorsAll(this.checked)" />
-						<span>
-							<span class="block text-xs font-semibold text-slate-800">シナリオ因子<span id="scenario-factors-count">24</span>種を対象に含める</span>
-							<span class="block text-[11px] text-slate-500 leading-relaxed mt-0.5">シナリオ因子はスキルではないので、<span class="font-semibold">対象スキル数・検出数には含めず</span>、別に数えます。一覧・結果では <span class="text-[var(--uma-mark-catalog)] font-bold">◆</span> が付きます</span>
-						</span>
+				     **1行に畳んである**（C-2c。special の②の B・C と同じ形）: 「☑ シナリオ因子 24種 ?」。
+				     白いカードも「因子はスキルではないので別に数える」の説明文も置かない（冗長という判断）。
+				     何が対象になるのかは「?」の一覧（#factor-list-box）で見る。 -->
+				<div class="uma-checkrow mt-2.5">
+					<label for="scenario-factors-all" class="uma-checkrow-label">
+						<input type="checkbox" id="scenario-factors-all" onchange="setScenarioFactorsAll(this.checked)" />
+						<span>シナリオ因子</span>
 					</label>
+					<span id="scenario-factors-badge" class="uma-badge"><span id="scenario-factors-count">24種</span></span>
+					<button type="button" class="uma-help-btn" aria-expanded="false" id="factor-list-btn"
+						onclick="openFactorList()" aria-label="シナリオ因子の一覧を見る" title="シナリオ因子の一覧を見る">?</button>
 				</div>
 
 				<p id="target-scope-note" class="text-[11px] text-slate-400 mt-2.5">ここで選んだ内容はこのブラウザに保存され、次回も使われます。変えたあとは、もう一度判定してください。</p>
@@ -1955,7 +1977,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20c';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20d';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],
@@ -2235,10 +2257,52 @@
 		 * 一切触らずに済む。種数はデータから書く（正本が増減しても直さなくてよい）。
 		 * ------------------------------------------------------------ */
 		function renderScenarioFactorToggle() {
+			// バッジは1つの文字列で書く（数と「種」を別の要素にすると .uma-badge の gap で間が空く）
 			const total = document.getElementById('scenario-factors-count');
-			if (total) total.textContent = String(SCENARIO_INHERITANCE_FACTORS.length);
+			if (total) total.textContent = SCENARIO_INHERITANCE_FACTORS.length + '種';
 			const box = document.getElementById('scenario-factors-all');
-			if (box) box.checked = (selectedScenarioFactors.size > 0);
+			const on = selectedScenarioFactors.size > 0;
+			if (box) box.checked = on;
+			// 対象に含めている間だけ、件数のバッジを淡い強調色にする（special の②と同じ）
+			const badge = document.getElementById('scenario-factors-badge');
+			if (badge) badge.classList.toggle('uma-badge--accent', on);
+		}
+
+		/* ------------------------------------------------------------
+		 * シナリオ因子の一覧（C-2c）。1行に畳んだチェックの「?」から開く**見るだけ**の
+		 * ミニウィンドウ。チェックは付かない（選ぶものではない）。
+		 * 骨格・閉じ方（✕・背景・Esc）は使い方ガイドと同じ。
+		 * ------------------------------------------------------------ */
+		let factorListOpen = false;
+		let factorListReturnFocus = null;
+
+		function openFactorList() {
+			if (factorListOpen) return;
+			factorListOpen = true;
+			factorListReturnFocus = document.activeElement;
+			document.getElementById('factor-list-count').textContent = String(SCENARIO_INHERITANCE_FACTORS.length);
+			document.getElementById('factor-list-names').innerHTML =
+				SCENARIO_INHERITANCE_FACTORS.map(n => '<li>' + escapeHtml(n) + '</li>').join('');
+			document.getElementById('factor-list-backdrop').hidden = false;
+			document.getElementById('factor-list-box').hidden = false;
+			document.getElementById('factor-list-btn').setAttribute('aria-expanded', 'true');
+			document.body.style.overflow = 'hidden';
+			if (window.lucide) lucide.createIcons();
+			document.getElementById('factor-list-close').focus();
+		}
+
+		function closeFactorList() {
+			if (!factorListOpen) return;
+			factorListOpen = false;
+			document.getElementById('factor-list-backdrop').hidden = true;
+			document.getElementById('factor-list-box').hidden = true;
+			document.getElementById('factor-list-btn').setAttribute('aria-expanded', 'false');
+			document.body.style.overflow = '';
+			// **preventScroll を付ける。** 付けないと、フォーカスを戻すだけで画面が動く（C-65 と同じ）
+			if (factorListReturnFocus && typeof factorListReturnFocus.focus === 'function') {
+				try { factorListReturnFocus.focus({ preventScroll: true }); } catch (e) { factorListReturnFocus.focus(); }
+			}
+			factorListReturnFocus = null;
 		}
 
 		function setScenarioFactorsAll(on) {
@@ -5333,6 +5397,7 @@
 			if (e.key !== 'Escape') return;
 			// 「結合画像の設定」のパネルは、引き出しより手前にあるので先に閉じる
 			if (stitchSettingsOpen) closeStitchSettings();
+			else if (factorListOpen) closeFactorList();
 			else if (uiNoticeOpen) closeUiNotice();
 			else if (helpOpen) closeHelp();
 			else if (openDrawerKey) closeDrawer();
@@ -5361,7 +5426,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-20c';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-20d';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;

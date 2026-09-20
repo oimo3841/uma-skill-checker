@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-20b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-20c';
 
 	/* ============================================================
 	 * 定数
@@ -1713,7 +1713,10 @@
 		// ここに置くのは「節どうしの間隔」だけ ―― B・C が並ぶときだけ意味を持つので、
 		// 1つも無ければ入れ物ごと高さを持たない
 		'.usd-tm-scopes:empty { display: none; }',
-		'.usd-tm-scopes { display: flex; flex-direction: column; gap: var(--uma-sp-3); }',
+		// B・C …（C-2c で1行に畳んだ）。1行そのものの見た目は css/common.css の
+		// .uma-checkrow（exam も同じ形を使うので共通部品にした）。ここは並べ方だけ。
+		// 節どうしは近いので、A と B・C の間より詰める
+		'.usd-tm-scopes { display: flex; flex-direction: column; gap: var(--uma-sp-2); }',
 		// 名前欄（①の編成名・②のスキルセット名）。欄は行いっぱい（.uma-input の width: 100%）で、
 		// 保存／複製／削除はその下の行に折り返す（②も①と同じ並び。C-55 の (3)。それまで②だけ欄と
 		// ボタンが同じ行だった）。文字は本文より一段大きく太くして、いま開いているセットの名前として読める大きさにする（C-55 の (6)）。
@@ -1885,6 +1888,7 @@
 		'.usd-roster-alert { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-danger-text); }',
 		'.usd-roster-unconf--alert li { border-color: var(--uma-danger-text); color: var(--uma-danger-text); }',
 		// カード・育成ウマ娘を選ぶミニウィンドウ
+		'.usd-roster-modal[hidden] { display: none; }',
 		'.usd-roster-modal { position: fixed; inset: 0; z-index: 60; display: flex;',
 		'  align-items: center; justify-content: center; padding: var(--uma-sp-3); }',
 		'.usd-roster-modal-back { position: absolute; inset: 0; background: rgba(15, 23, 43, 0.4); }',
@@ -3594,8 +3598,8 @@
 		 * 渡さなければ節は1つも出ない（Deck 単体ページ・card-event-input.html）。
 		 */
 		const extraScopes = (Array.isArray(opts.extraScopes) ? opts.extraScopes : []).filter(s => s && s.key);
-		// どの節を開いているか。**保存しない**（既定は閉じる。開き直すと閉じた状態に戻る）
-		const openScopes = {};
+		// 「?」で一覧を開いている節（C-2c）。保存しない（開き直すと閉じている）
+		let scopeHelpKey = null;
 
 		// 選択中のID。null／DRAFT_SELECTION_ID＝「＋ 新規」（ドラフト＝未保存）、それ以外はテンプレートID。
 		// **編集対象＝タブで選んでいるもの**（C-53）。別画面の編集ビューと「開く」は無く、選んだものをその場で編集する。
@@ -3697,8 +3701,10 @@
 			else if (act === 'mode-reclass') setMode('reclass');
 			else if (act === 'mode-delete') setMode('delete');
 			else if (act === 'tier-move') moveSkillTier(btn.dataset.skillId, Number(btn.dataset.tier));
-			// B・C …（C-2a）: 節の開閉。チェックそのものは change で受ける（label の中なので click は2回来る）
-			else if (act === 'scope-toggle') toggleScopeSection(btn.dataset.scope);
+			// B・C …（C-2a／C-2c）: 「?」で見るだけの一覧を開く。チェックそのものは change で受ける
+			// （label の中なので click は2回来る）
+			else if (act === 'scope-help') openScopeList(btn.dataset.scope);
+			else if (act === 'scope-help-close') closeScopeList();
 		});
 		container.addEventListener('change', (e) => {
 			const box = e.target;
@@ -3710,6 +3716,12 @@
 		});
 		container.addEventListener('keydown', (e) => {
 			if (e.target && e.target.closest && e.target.closest('.uma-subtabs')) tabStripKeydown(e, (id) => selectTab(id));
+		});
+		// 「?」の一覧は Esc でも閉じる（ミニウィンドウの作法。手前に別の層があればそちらが先に処理する）
+		document.addEventListener('keydown', (e) => {
+			if (e.key !== 'Escape' || e.defaultPrevented || !scopeHelpKey) return;
+			closeScopeList();
+			e.preventDefault();
 		});
 
 		function fireChange() {
@@ -3778,36 +3790,75 @@
 			el.innerHTML = extraScopes.map(s => {
 				const on = cur[s.key] === true;
 				const n = typeof s.count === 'function' ? s.count() : s.count;
-				const bodyId = 'usd-scope-body-' + s.key;
-				const open = !!openScopes[s.key];
-				return '<div class="uma-section" data-usd-scope-section="' + esc(s.key) + '">' +
-					'<button type="button" class="uma-section-head" data-usd-act="scope-toggle" data-scope="' + esc(s.key) + '"' +
-						' aria-expanded="' + (open ? 'true' : 'false') + '" aria-controls="' + bodyId + '">' +
-						'<i data-lucide="chevron-right" class="uma-section-mark w-3 h-3"></i>' +
+				return '<div class="uma-checkrow" data-usd-scope-section="' + esc(s.key) + '">' +
+					'<label class="uma-checkrow-label">' +
+						'<input type="checkbox" data-usd-act="scope-check" data-scope="' + esc(s.key) + '"' + (on ? ' checked' : '') + '>' +
 						'<span>' + esc(s.label) + '</span>' +
-						(typeof n === 'number'
-							? '<span class="uma-badge' + (on ? ' uma-badge--accent' : '') + '" data-usd-scope-badge="' + esc(s.key) + '">'
-								+ n + '種' + (on ? 'を対象' : '') + '</span>'
-							: '') +
-					'</button>' +
-					'<div class="uma-section-body" id="' + bodyId + '"' + (open ? '' : ' hidden') + '>' +
-						'<label class="uma-checkcard">' +
-							'<input type="checkbox" data-usd-act="scope-check" data-scope="' + esc(s.key) + '"' + (on ? ' checked' : '') + '>' +
-							'<span class="uma-checkcard-text">' +
-								'<span class="uma-checkcard-title">' + esc(s.checkLabel || 'すべて対象にする') + '</span>' +
-								(s.note ? '<span class="uma-checkcard-note">' + esc(s.note) + '</span>' : '') +
-							'</span>' +
-						'</label>' +
-					'</div>' +
+					'</label>' +
+					(typeof n === 'number'
+						? '<span class="uma-badge' + (on ? ' uma-badge--accent' : '') + '" data-usd-scope-badge="' + esc(s.key) + '">' + n + '種</span>'
+						: '') +
+					// 「?」は見るだけの一覧を開く（チェックは付かない）。説明を隠す「?」と同じ部品
+					'<button type="button" class="uma-help-btn" data-usd-act="scope-help" data-scope="' + esc(s.key) + '"' +
+						' aria-expanded="' + (scopeHelpKey === s.key ? 'true' : 'false') + '"' +
+						' aria-label="' + esc(s.label) + 'の一覧を見る" title="' + esc(s.label) + 'の一覧を見る">?</button>' +
 				'</div>';
 			}).join('');
-			refreshIcons();
 		}
 
-		function toggleScopeSection(key) {
-			if (!extraScopes.some(s => s.key === key)) return;
-			openScopes[key] = !openScopes[key];
+		/**
+		 * 「?」で開く、**見るだけ**の一覧のミニウィンドウ（C-2c）。
+		 * 押して選ぶものではないので、候補のボタン（.usd-name-hit）ではなく素の一覧にする。
+		 * 中身（名前の配列）は呼び出し元が opts.extraScopes の names() で渡す
+		 * ―― core はここに何が並ぶのかを知らない。
+		 *
+		 * **置き場所は document.body の直下。** パネルの中に置くと画面の外へ出てしまう ――
+		 * special の②を包む `.glass-card` が `backdrop-filter` を持っていて、
+		 * **子孫の `position: fixed` が「画面」ではなく「そのカード」を基準にする**
+		 * （実測: 375px で箱の上端が -121px、1280px で -19px。C-2c の項目3の調査で判明）。
+		 * 全画面に重ねるものは body 直下、というのは special の撮影ガイドと同じ作法。
+		 */
+		let scopeListEl = null;
+
+		function openScopeList(key) {
+			const s = extraScopes.find(x => x.key === key);
+			if (!s) return;
+			const names = (typeof s.names === 'function' ? s.names() : s.names) || [];
+			if (!scopeListEl) {
+				scopeListEl = global.document.createElement('div');
+				scopeListEl.className = 'usd-roster-modal';
+				scopeListEl.setAttribute('data-usd-el', 'scope-list-modal');
+				scopeListEl.addEventListener('click', (e) => {
+					// 背景（箱の外）と×のどちらでも閉じる
+					if (e.target === scopeListEl || (e.target.closest && e.target.closest('[data-usd-act="scope-help-close"]'))) closeScopeList();
+				});
+				global.document.body.appendChild(scopeListEl);
+			}
+			scopeListEl.innerHTML =
+				'<div class="usd-roster-modal-back" data-usd-act="scope-help-close"></div>' +
+				'<div class="usd-roster-modal-box" role="dialog" aria-modal="true" aria-label="' + esc(s.label) + 'の一覧">' +
+					'<div class="usd-roster-modal-head"><span class="usd-roster-h">' + esc(s.label) + '（' + names.length + '種）</span>' +
+						'<button type="button" class="uma-icon-btn" data-usd-act="scope-help-close" data-usd-el="scope-list-close" aria-label="閉じる">×</button></div>' +
+					'<div class="usd-roster-hits"><ul class="uma-namelist">' +
+						names.map(nm => '<li>' + esc(nm) + '</li>').join('') + '</ul></div>' +
+				'</div>';
+			scopeListEl.hidden = false;
+			scopeHelpKey = key;
+			renderExtraScopes();   // 「?」の aria-expanded を true にする
+			const close = scopeListEl.querySelector('[data-usd-el="scope-list-close"]');
+			// **preventScroll を付ける。** 付けないと、フォーカスを移すだけで画面が動く（C-65 と同じ）
+			if (close) { try { close.focus({ preventScroll: true }); } catch (e) { close.focus(); } }
+		}
+
+		function closeScopeList() {
+			if (!scopeHelpKey) return;
+			const key = scopeHelpKey;
+			scopeHelpKey = null;
+			if (scopeListEl) { scopeListEl.hidden = true; scopeListEl.innerHTML = ''; }
 			renderExtraScopes();
+			// 開く前に押したボタンへフォーカスを戻す（画面は動かさない）
+			const again = container.querySelector('[data-usd-act="scope-help"][data-scope="' + key.replace(/"/g, '\\"') + '"]');
+			if (again) { try { again.focus({ preventScroll: true }); } catch (e) { /* 古いブラウザ */ } }
 		}
 
 		/**
@@ -3821,7 +3872,9 @@
 			const next = Object.assign({}, scopesOf(target));
 			if (on) next[key] = true; else delete next[key];
 			if (!writeScopes(target, next)) return;
-			renderTabs();
+			// **renderTabs() は呼ばない。** 帯のタブが出しているのはスキルの数で、ここでは変わらない。
+			// 呼ぶと revealSelectedTab() の scrollIntoView が走り、**帯まで画面が戻る**
+			// （B・C は帯より下にあるので、押した場所が動く。C-2c の項目3。実測 1280px で +106px／375px で +238px）。
 			renderExtraScopes();
 			if (isSelected(target)) fireSelection();
 			fireChange();

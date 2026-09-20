@@ -1432,6 +1432,56 @@ const browser = await chromium.launch();
 	await page.evaluate(() => setScenarioFactorsAll(true));
 	assert(await page.evaluate(() => document.getElementById('badge-scenario-factors-text').textContent) === 'シナリオ因子：24種',
 		'exam: シナリオ因子を ON にすると「シナリオ因子：24種」のバッジが出る');
+	// 件数は正本から取る（テストに数字を書かない）
+	const SCENARIO_FACTOR_COUNT = await page.evaluate(() => SCENARIO_INHERITANCE_FACTORS.length);
+	/* C-2c: exam のシナリオ因子も special の②と同じ1行の形（☑ シナリオ因子 24種 ?）。
+	   白いカードも「因子はスキルではないので別に数える」の説明文も置かない。
+	   「?」は**見るだけ**の一覧をミニウィンドウで開く（チェックは付かない）。 */
+	const examRow = await page.evaluate(() => {
+		const row = document.getElementById('scenario-factors-all').closest('.uma-checkrow');
+		const badge = document.getElementById('scenario-factors-badge');
+		const btn = document.getElementById('factor-list-btn');
+		return {
+			row: !!row, height: row ? Math.round(row.getBoundingClientRect().height) : null,
+			label: row ? row.querySelector('.uma-checkrow-label span').textContent : null,
+			badge: badge ? badge.textContent : null,
+			accent: badge ? badge.classList.contains('uma-badge--accent') : null,
+			help: !!btn, helpOpen: btn ? btn.getAttribute('aria-expanded') : null,
+			// 説明文（白いカードの中にあったもの）はもう無い
+			noCard: !document.querySelector('.uma-checkcard'),
+			noNote: !document.body.textContent.includes('はスキルではないので、対象スキル数・検出数には含めず')
+		};
+	});
+	assert(examRow.row && examRow.label === 'シナリオ因子' && examRow.height <= 40 && examRow.help,
+		'C-2c(exam): シナリオ因子は1行（☑ 呼び名 N種 ?）', examRow);
+	assert(examRow.badge === SCENARIO_FACTOR_COUNT + '種' && examRow.accent === true,
+		'C-2c(exam): 件数のバッジが出て、ON のあいだは色が変わる', examRow);
+	assert(examRow.noCard && examRow.noNote,
+		'C-2c(exam): 白いカードも「因子はスキルではない」の説明文も無い', examRow);
+	await page.click('#factor-list-btn');
+	await page.waitForTimeout(400);
+	const examList = await page.evaluate(() => ({
+		open: !document.getElementById('factor-list-box').hidden,
+		backdrop: !document.getElementById('factor-list-backdrop').hidden,
+		count: document.getElementById('factor-list-count').textContent,
+		names: Array.from(document.querySelectorAll('#factor-list-names > li')).map(li => li.textContent),
+		helpOpen: document.getElementById('factor-list-btn').getAttribute('aria-expanded'),
+		checked: document.getElementById('scenario-factors-all').checked
+	}));
+	assert(examList.open && examList.backdrop && examList.helpOpen === 'true'
+		&& examList.names.length === SCENARIO_FACTOR_COUNT && examList.count === String(SCENARIO_FACTOR_COUNT),
+		'C-2c(exam): 「?」で一覧のミニウィンドウが開く（件数は正本から）', { n: examList.names.length, count: examList.count });
+	assert(examList.checked === true,
+		'C-2c(exam): 一覧は見るだけ（開いてもチェックの状態は変わらない）', examList.checked);
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
+	const examClosed = await page.evaluate(() => ({
+		open: !document.getElementById('factor-list-box').hidden,
+		helpOpen: document.getElementById('factor-list-btn').getAttribute('aria-expanded')
+	}));
+	assert(!examClosed.open && examClosed.helpOpen === 'false',
+		'C-2c(exam): Esc で一覧が閉じる', examClosed);
+
 	// シナリオ因子はスキルではないので、「スキル」と付く数には入れない。
 	// 並び（照合・一覧・表）には従来どおり入る＝skillList は 121+24 のまま。
 	const splitCounts = await page.evaluate(() => {
@@ -5848,12 +5898,12 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 /* ============================================================
  * ②の B・C ―― シナリオ因子と遺伝子を対象に含める（C-2a）
  *
- *   - 既定で閉じていて、閉じたままでも ON かどうかがバッジで分かる
+ *   - 1行（☑ 呼び名 N種 ?）。ON のあいだはバッジの色が変わる（C-2c で1行に畳んだ）
+ *   - 「?」は**見るだけ**の一覧をミニウィンドウで開く（チェックは付かない）
  *   - 種数はカタログから数える（ソースに数字を書かない）
  *   - scopes を持たない既存のデータ（fixtures は schemaVersion 2）は両方 OFF で読める
  *   - ON にすると template.scopes が書かれ schemaVersion が 5 に上がる。OFF に戻すと項目ごと消える
  *   - 複製で写り、書き出し・取り込みで残る
- *   - 注記の1文は exam.html と同じ（片方だけ直したら落ちる）
  * ============================================================ */
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
@@ -5864,24 +5914,26 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	const sc = () => page.evaluate(() => {
 		const r = '#deck-template-panel';
 		const secs = Array.from(document.querySelectorAll(r + ' [data-usd-scope-section]')).map(s => {
-			const head = s.querySelector('.uma-section-head');
-			const body = s.querySelector('.uma-section-body');
 			const badge = s.querySelector('[data-usd-scope-badge]');
+			const help = s.querySelector('[data-usd-act="scope-help"]');
 			return {
 				key: s.getAttribute('data-usd-scope-section'),
-				label: head.querySelector('span').textContent,
-				open: head.getAttribute('aria-expanded'), bodyHidden: body.hidden,
+				row: s.className,
+				label: s.querySelector('.uma-checkrow-label span').textContent,
 				badge: badge ? badge.textContent : null, badgeAccent: badge ? badge.classList.contains('uma-badge--accent') : null,
 				checked: s.querySelector('input[type="checkbox"]').checked,
-				check: s.querySelector('.uma-checkcard-title').textContent,
-				note: s.querySelector('.uma-checkcard-note').textContent
+				help: !!help, helpOpen: help ? help.getAttribute('aria-expanded') : null,
+				// C-2c: 折りたたみの見出しも、入れ子のカードも、説明文も置かない
+				noHead: !s.querySelector('.uma-section-head'), noCard: !s.querySelector('.uma-checkcard'),
+				height: Math.round(s.getBoundingClientRect().height)
 			};
 		});
 		const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
 		return { secs, schema: d.schemaVersion, scopes: d.templates[0].scopes,
-			sel: (window.deckTemplateManager ? null : null),
-			// A の見出しと B・C が同じ形の見出しで並んでいるか（C-1 の「単独で浮いて見える」への答え）
-			heads: Array.from(document.querySelectorAll(r + ' .uma-section > .uma-section-head')).map(h => h.tagName + ':' + h.textContent.replace(/\s+/g, '').slice(0, 12)) };
+			// ミニウィンドウは body 直下（.glass-card の backdrop-filter が fixed を殺すため。C-2c）
+			modal: !!document.querySelector('[data-usd-el="scope-list-modal"]:not([hidden])'),
+			names: Array.from(document.querySelectorAll('[data-usd-el="scope-list-modal"] .uma-namelist > li')).map(li => li.textContent),
+			modalTitle: (document.querySelector('[data-usd-el="scope-list-modal"] .usd-roster-h') || {}).textContent || null };
 	});
 	// 種数はカタログから数えた値と突き合わせる（期待値をここに書かない）
 	const catalogCounts = await page.evaluate(() => ({
@@ -5890,32 +5942,39 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	}));
 	const s0 = await sc();
 	assert(s0.secs.length === 2 && s0.secs[0].key === 'scenarioFactors' && s0.secs[1].key === 'genes'
-		&& s0.secs[0].label === 'シナリオ因子を対象に含める' && s0.secs[1].label === '遺伝子を対象に含める',
-		'C-2a: ②に B（シナリオ因子）と C（遺伝子）の節が並ぶ', s0.secs.map(x => x.key + '/' + x.label));
-	assert(s0.secs.every(x => x.open === 'false' && x.bodyHidden) && s0.secs.every(x => x.checked === false),
-		'C-2a: どちらも既定で閉じていて、チェックは OFF', s0.secs);
+		&& s0.secs[0].label === 'シナリオ因子' && s0.secs[1].label === '遺伝子',
+		'C-2a: ②に B（シナリオ因子）と C（遺伝子）が並ぶ。呼び名に「〜を対象」を付けない', s0.secs.map(x => x.key + '/' + x.label));
+	assert(s0.secs.every(x => x.checked === false && x.row === 'uma-checkrow' && x.noHead && x.noCard && x.help),
+		'C-2c: 1行（チェック・呼び名・件数・?）だけ。折りたたみの見出しも入れ子のカードも無い', s0.secs);
+	assert(s0.secs.every(x => x.height <= 40),
+		'C-2c: 1行に収まっている（高さが2行ぶんを超えない）', s0.secs.map(x => x.height));
 	assert(s0.secs[0].badge === catalogCounts.scenarioFactors + '種' && s0.secs[1].badge === catalogCounts.genes + '種'
 		&& s0.secs.every(x => x.badgeAccent === false),
-		'C-2a: 閉じていても種数が見える（数はカタログから数える）', { badges: s0.secs.map(x => x.badge), catalogCounts });
+		'C-2a: 種数が見える（数はカタログから数える）', { badges: s0.secs.map(x => x.badge), catalogCounts });
 	assert(s0.scopes === undefined && s0.schema === USER_DATA.schemaVersion,
 		'C-2a: scopes を持たない既存のデータは、開いただけでは姿が変わらない', { scopes: s0.scopes, schema: s0.schema });
-	assert(s0.heads.length === 3 && s0.heads[0].startsWith('P:スキルセット') && s0.heads[1].startsWith('BUTTON:') && s0.heads[2].startsWith('BUTTON:'),
-		'C-2a: A・B・C が同じ形の見出しで3つ並ぶ（A だけ畳めないので <p>）', s0.heads);
-	// 開く → チェックを入れる
-	await page.click('#deck-template-panel [data-usd-act="scope-toggle"][data-scope="scenarioFactors"]');
-	await page.waitForTimeout(200);
-	const s1 = await sc();
-	assert(s1.secs[0].open === 'true' && !s1.secs[0].bodyHidden && s1.secs[1].bodyHidden,
-		'C-2a: 見出しを押した節だけ開く', s1.secs.map(x => x.open));
-	assert(s1.secs[0].check === 'すべて対象にする' && s1.secs[0].note.startsWith('シナリオ因子は'),
-		'C-2a: 中身は「すべて対象にする」のチェックと注記', s1.secs[0]);
+	// 「?」＝見るだけの一覧（チェックは付かない）
+	await page.click('#deck-template-panel [data-usd-act="scope-help"][data-scope="scenarioFactors"]');
+	await page.waitForTimeout(300);
+	const help = await sc();
+	assert(help.modal && help.names.length === catalogCounts.scenarioFactors
+		&& help.modalTitle === 'シナリオ因子（' + catalogCounts.scenarioFactors + '種）'
+		&& help.secs[0].helpOpen === 'true',
+		'C-2c: 「?」で一覧のミニウィンドウが開く（件数はカタログから）', { n: help.names.length, title: help.modalTitle });
+	assert(help.names.every(n => n && n.length > 0) && help.secs.every(x => x.checked === false),
+		'C-2c: 一覧は見るだけ（開いてもチェックは付かない）', { first: help.names[0], checked: help.secs.map(x => x.checked) });
+	// 閉じる口は2つある（背景と×）。背景は箱の下に敷いてあるので、×のほうを押す
+	await page.click('[data-usd-el="scope-list-close"]');
+	await page.waitForTimeout(250);
+	const closed = await sc();
+	assert(!closed.modal && closed.secs[0].helpOpen === 'false', 'C-2c: 「?」の一覧は閉じられる', closed.modal);
 	await page.click('#deck-template-panel [data-usd-act="scope-check"][data-scope="scenarioFactors"]');
 	await page.waitForTimeout(300);
 	const s2 = await sc();
 	assert(s2.secs[0].checked && JSON.stringify(s2.scopes) === JSON.stringify({ scenarioFactors: true }) && s2.schema === 5,
 		'C-2a: ON にすると scopes が書かれ、schemaVersion が 5 に上がる', { scopes: s2.scopes, schema: s2.schema });
-	assert(s2.secs[0].badge === catalogCounts.scenarioFactors + '種を対象' && s2.secs[0].badgeAccent === true,
-		'C-2a: ON のあいだはバッジの文言と色が変わる（畳んでも分かる）', s2.secs[0]);
+	assert(s2.secs[0].badge === catalogCounts.scenarioFactors + '種' && s2.secs[0].badgeAccent === true,
+		'C-2c: ON のあいだはバッジの色が変わる（件数の文言は変えない）', s2.secs[0]);
 	// 複製すると写る
 	await page.click('#deck-template-panel [data-usd-act="template-duplicate"]');
 	await page.waitForTimeout(400);
@@ -5926,8 +5985,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	});
 	assert(JSON.stringify(dup.scopes) === JSON.stringify({ scenarioFactors: true }),
 		'C-2a: 複製すると scopes も写る（tiers と同じ）', dup);
-	// OFF に戻すと項目ごと消える（全部 OFF のセットは scopes を持たない＝旧データと同じ姿）。
-	// B の節は開いたまま（開閉は描き直しで閉じない）なので、そのままチェックを外せる
+	// OFF に戻すと項目ごと消える（全部 OFF のセットは scopes を持たない＝旧データと同じ姿）
 	await page.click('#deck-template-panel [data-usd-act="scope-check"][data-scope="scenarioFactors"]');
 	await page.waitForTimeout(300);
 	const off = await page.evaluate(() => {
@@ -5940,8 +5998,6 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	// （複製したときに選択が複製側へ移っている）
 	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
 	await page.waitForTimeout(300);
-	await page.click('#deck-template-panel [data-usd-act="scope-toggle"][data-scope="genes"]');
-	await page.waitForTimeout(200);
 	await page.click('#deck-template-panel [data-usd-act="scope-check"][data-scope="genes"]');
 	await page.waitForTimeout(300);
 	const savedJson = await page.evaluate(() => localStorage.getItem('umaSkillDeck:userData'));
@@ -5970,17 +6026,20 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		const s = document.querySelector(r + ' [data-usd-scope-section="genes"]');
 		const b = document.querySelector(r + ' [data-usd-scope-section="scenarioFactors"]');
 		return { checked: s ? s.querySelector('input[type="checkbox"]').checked : null,
-			badge: s ? s.querySelector('[data-usd-scope-badge]').textContent : null,
-			open: s ? s.querySelector('.uma-section-head').getAttribute('aria-expanded') : null,
+			accent: s ? s.querySelector('[data-usd-scope-badge]').classList.contains('uma-badge--accent') : null,
+			// 「?」の一覧は開いていない（開閉は保存しない）
+			helpOpen: s ? s.querySelector('[data-usd-act="scope-help"]').getAttribute('aria-expanded') : null,
+			modal: !!document.querySelector('[data-usd-el="scope-list-modal"]:not([hidden])'),
 			otherChecked: b ? b.querySelector('input[type="checkbox"]').checked : null,
 			// 呼び出し元へ渡す選択にも scopes が乗る（C-2b の照合はこれを見る）
 			sel: deckTemplateManager ? deckTemplateManager.getSelection().scopes : null };
 	});
 	// 元のセットは B を ON にしたあと複製しているので、B・C とも ON のまま
 	// （OFF に戻したのは複製したほうで、そちらは scopes ごと消えている）
-	assert(back.checked === true && back.badge.endsWith('種を対象') && back.otherChecked === true,
+	assert(back.checked === true && back.accent === true && back.otherChecked === true,
 		'C-2a: 開き直しても ON のまま', back);
-	assert(back.open === 'false', 'C-2a: 開閉は保存しない（開き直すと閉じた状態に戻る）', back.open);
+	assert(back.helpOpen === 'false' && !back.modal,
+		'C-2c: 「?」の一覧は開いた状態を保存しない', { helpOpen: back.helpOpen, modal: back.modal });
 	assert(JSON.stringify(back.sel) === JSON.stringify({ scenarioFactors: true, genes: true }),
 		'C-2a: getSelection() の戻り値に scopes が入る', back.sel);
 	assert(errors2.length === 0, 'C-2a: 開き直した special でコンソールエラーが出ない', errors2.slice(0, 3));
@@ -6022,19 +6081,11 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, 'C-2a(deck): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
-{
-	// 「因子はスキルではない」の1文は exam.html と special.html で同じ（片方だけ直したら落ちる）
-	const fs = await import('node:fs');
-	const SHARED = 'はスキルではないので、対象スキル数・検出数には含めず、別に数えます。';
-	// exam 側は「対象スキル数・検出数には含めず」だけ太字にしてあるので、**タグを外してから**比べる
-	// （見比べるのは利用者が読む文であって、飾りではない）。special 側は core の esc() を通るので素のまま
-	const strip = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8').replace(/<[^>]+>/g, '');
-	const inExam = strip('../../exam.html').includes(SHARED);
-	const inSpecial = strip('../../special.html').includes(SHARED);
-	assert(inExam && inSpecial,
-		'C-2a: 「因子はスキルではない」の1文が exam.html と special.html の両方にある（言い回しを分けない）',
-		{ exam: inExam, special: inSpecial });
-}
+/* **外した検査（C-2c）**: 「『◯◯はスキルではないので、対象スキル数・検出数には含めず、
+   別に数えます。』の1文が exam.html と special.html の両方にある」（C-2a で足した）。
+   C-2c で**この説明文そのものを両方から消した**ため（冗長という判断。おいもさん）、
+   見張る対象が無くなった。**文言が食い違ったのではなく、文言が無くなったので外した。**
+   説明を復活させるなら、この検査も一緒に戻すこと。 */
 
 /* ============================================================
  * 因子を照合の対象に含める（C-2b）
@@ -6062,9 +6113,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		&& off.note.indexOf('因子') === -1,
 		'C-2b: OFF のときは因子が1つも混ざらない（今までどおり）', off);
 
-	// B（シナリオ因子）を ON にする
-	await page.click('#deck-template-panel [data-usd-act="scope-toggle"][data-scope="scenarioFactors"]');
-	await page.waitForTimeout(200);
+	// B（シナリオ因子）を ON にする（C-2c で1行になったので、そのままチェックを押せる）
 	await page.click('#deck-template-panel [data-usd-act="scope-check"][data-scope="scenarioFactors"]');
 	await page.waitForTimeout(400);
 	const nFactor = await page.evaluate(() => UmaSkillDeckCore.getCatalogEntries('scenarioFactor').length);
