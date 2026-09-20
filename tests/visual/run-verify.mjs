@@ -283,8 +283,17 @@ const INTENTIONALLY_REMOVED = {
 	// 中身は一覧と同じ材料（SCREEN_MARK と rows）から作られる ―― 手書きだったせいで
 	// 'plain' の黒丸が凡例にも印にも無いまま残っていたのが段I で直した症状なので、
 	// 「凡例と一覧が一対一」を作りとして保証する形に置き換えた。
+	// `f7397af` に commit したので免除は空に戻した（残すと本当の事故を見逃す口になる）。
+	// 2026-09-20（67セッション目・段K）: ②の1行から**件数のバッジを外した**ので、
+	// core.js の data-usd-scope-badge が消えた。「スキルセット」「シナリオ因子」「遺伝子」を
+	// 375px でも1行に並べるための判断で、バッジ2つで 101px あり、字を小さくしても収まらなかった。
+	// **種数が見えること自体は失っていない** ―― 「?」の一覧の見出し（「シナリオ因子（24種）」）が
+	// 引き続き出している。チェックそのもの（data-usd-act="scope-check"）と
+	// 節の入れ物（data-usd-scope-section）は残っている。
+	// **exam.html の同じ1行にはバッジが残っている**（#scenario-factors-badge / #genes-badge。
+	// 段K では exam を触らないと決めたため）。
 	// **次の commit で免除は空に戻すこと**（残すと本当の事故を見逃す口になる）。
-	'exam.html': ['registry-legend-gene'],
+	'js/uma-skill-deck-core.js': ['data-usd-scope-badge'],
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-20d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-20e';
 
 	/* ============================================================
 	 * 定数
@@ -1710,13 +1710,17 @@
 		// スキルセット（テンプレート管理。C-53）の1画面の骨格
 		'.usd-tm { display: flex; flex-direction: column; gap: var(--uma-sp-3); }',
 		// 節（A／B／C）の骨格は css/common.css の .uma-section（C-2a で共通部品にした）。
-		// ここに置くのは「節どうしの間隔」だけ ―― B・C が並ぶときだけ意味を持つので、
-		// 1つも無ければ入れ物ごと高さを持たない
+		// **段K で縦並び（A の下に B・C）から横並び（同じ行に3つ）へ変えた**ので、
+		// 並びの行そのもの（.uma-section-row）と出っ張りの見た目も css/common.css が持つ。
+		// ここに残るのは「B・C を入れる器の並べ方」だけ。1つも無ければ入れ物ごと高さを持たない
 		'.usd-tm-scopes:empty { display: none; }',
-		// B・C …（C-2c で1行に畳んだ）。1行そのものの見た目は css/common.css の
-		// .uma-checkrow（exam も同じ形を使うので共通部品にした）。ここは並べ方だけ。
-		// 節どうしは近いので、A と B・C の間より詰める
-		'.usd-tm-scopes { display: flex; flex-direction: column; gap: var(--uma-sp-2); }',
+		// B・C …（C-2c で1行に畳み、段K で A と同じ行へ移した）。1行そのものの見た目は
+		// css/common.css の .uma-checkrow（exam も同じ形を使うので共通部品にした）。ここは並べ方だけ。
+		// **並びの行は折り返さない**（出っ張りが枠から離れるため）ので、
+		// 入りきらないぶんは**この器の中だけ**で折り返す（→ 幅による並べ替えが起きない。段K）。
+		'.usd-tm-scopes { display: flex; flex: 1 1 auto; min-width: 0;',
+		'  flex-direction: row; flex-wrap: wrap; align-items: center;',
+		'  column-gap: var(--uma-section-row-gap); row-gap: 0; }',
 		// 名前欄（①の編成名・②のスキルセット名）。欄は行いっぱい（.uma-input の width: 100%）で、
 		// 保存／複製／削除はその下の行に折り返す（②も①と同じ並び。C-55 の (3)。それまで②だけ欄と
 		// ボタンが同じ行だった）。文字は本文より一段大きく太くして、いま開いているセットの名前として読める大きさにする（C-55 の (6)）。
@@ -3579,25 +3583,36 @@
 		// このセットの呼び名（DEFAULT_SET_LABEL の説明を読むこと）。Deck 単体ページは既定の
 		// 「スキルセット」、special の②は「因子セット」。**呼び名を出すところは必ずこれを通す。**
 		const setLabel = opts.setLabel || DEFAULT_SET_LABEL;
-		// A（スキルセット）に見出しを出すか。**B・C が並ぶ画面（special の②）だけ出す。**
-		// Deck 単体ページは A しか無く、入れ物も「スキルセット」なので、出すと
-		// 「スキルセット（0／10件）」の下にもう一度「スキルセット」が出て二重に見える（実機で確認）。
-		const sectionHeadings = !!opts.sectionHeadings;
+		// A（スキルセット）を「同じ層に並ぶ選択肢の1つ」として見せるか。**B・C が並ぶ画面（special の②）だけ真。**
+		// 真のときは (1) A に見出し「スキルセット」を出し (2) それを枠の左上に接する出っ張りにして
+		// (3) A の中身を枠で囲う（段K）。Deck 単体ページは A しか無く、入れ物も「スキルセット」なので、
+		// 出すと「スキルセット（0／10件）」の下にもう一度「スキルセット」が出て二重に見える（実機で確認）。
+		// **C-69 では `sectionHeadings`（見出しを出すか）だった。** 段K で枠と出っ張りも同じ条件で出る
+		// ようになり、名前が実態より狭くなったので改名した（F-59 と同じ考え方。opts の鍵であって
+		// 保存データではないので、改名の影響は core・special.html・smoke に閉じる）。
+		const sectionGrouping = !!opts.sectionGrouping;
 		/**
-		 * **A（スキルセット）の下に並べる、ON/OFF だけの節**（C-2a）。中身は呼び出し元が渡す
-		 * （`opts.screenshotEntry` と同じ手口）。**core は「何を ON にしているのか」を知らない。**
+		 * **A（スキルセット）と同じ行に並べる、ON/OFF だけの節**（C-2a。段K で A の下から同じ行へ移した）。
+		 * 中身は呼び出し元が渡す（`opts.screenshotEntry` と同じ手口）。
+		 * **core は「何を ON にしているのか」を知らない。**
 		 *
-		 *   { key, label, checkLabel, note, count }
-		 *     key       … 保存データの鍵。**保存済みのセットが指し続けるので後から変えない。**
-		 *     label     … 節の見出し（例「シナリオ因子を対象に含める」）
-		 *     checkLabel… チェックの文（例「すべて対象にする」）
-		 *     note      … チェックの下の注記（省略可）
-		 *     count     … 種数。数か、描くたびに呼ぶ関数。**画面にもここにも数字を書かない**ので、
-		 *                 呼び出し元がデータから数えて渡す
+		 *   { key, label, names }
+		 *     key   … 保存データの鍵。**保存済みのセットが指し続けるので後から変えない。**
+		 *     label … 節の呼び名（例「シナリオ因子」）
+		 *     names … 「?」で開く一覧に並べる名前の配列。配列か、開くたびに呼ぶ関数。
+		 *             **画面にもここにも名前を書かない**ので、呼び出し元がデータから作って渡す
+		 *
+		 * **種数（`count`）は段K で廃した。** 1行に件数のバッジを出していたが、375px で
+		 * 「スキルセット・シナリオ因子・遺伝子」の3つを1行に収めるには、バッジ2つぶんの
+		 * 101px が入らなかった（字を小さくしても埋まらない）。種数は「?」の一覧の見出し
+		 * （「シナリオ因子（24種）」）が引き続き出している。
 		 *
 		 * 渡さなければ節は1つも出ない（Deck 単体ページ・card-event-input.html）。
 		 */
 		const extraScopes = (Array.isArray(opts.extraScopes) ? opts.extraScopes : []).filter(s => s && s.key);
+		// 並びの行（A の見出し＋ B・C）を出すか。**どちらか一方でもあれば出す** ――
+		// extraScopes だけ渡して sectionGrouping を渡さなかったときに、節が黙って消えないようにする。
+		const grouped = sectionGrouping || extraScopes.length > 0;
 		// 「?」で一覧を開いている節（C-2c）。保存しない（開き直すと閉じている）
 		let scopeHelpKey = null;
 
@@ -3627,14 +3642,28 @@
 					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="template-duplicate" data-usd-el="dup-btn">複製</button>' +
 					'<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="template-delete" data-usd-el="del-btn">削除</button>' +
 				'</div>' +
-				// ここから下が **A（スキルセット）** のひとまとまり（C-1）。special の②では、この下に
-				// B（シナリオ因子）と C（遺伝子）が並ぶ（C-2a）。**囲んだだけで `data-usd-el` は
-				// 1つも変えていない** ので、renderNameRow / renderTabs / renderTierRow /
-				// renderSelectedList は無変更（どれも q(container, '…') で引くだけで深さを見ない）。
+				// ここから下が **A（スキルセット）** のひとまとまり（C-1）。special の②では、
+				// **A と同じ行に B（シナリオ因子）・C（遺伝子）が並ぶ**（C-2a ＋ 段K）。
+				// **囲んだだけで `data-usd-el` は1つも変えていない** ので、renderNameRow / renderTabs /
+				// renderTierRow / renderSelectedList は無変更（どれも q(container, '…') で引くだけで深さを見ない）。
 				// 見出しの呼び名は setLabel を通さない ―― A は special でも「スキルセット」のままで、
 				// 入れ物（因子セット）の呼び名とは別（DEFAULT_SET_LABEL の説明を読むこと）。
-				'<div data-usd-el="section-a" class="uma-section">' +
-					(sectionHeadings ? '<p class="uma-section-head">スキルセット</p>' : '') +
+				//
+				// **段K の組み替え**: 「スキルセット」「☑ シナリオ因子 ?」「☑ 遺伝子 ?」を同じ行に並べ、
+				// A の中身だけを枠で囲い、「スキルセット」をその枠の左上に接する出っ張りにした。
+				// それまでは A → B → C の縦並びで、**セットを切り替えたときに B・C のチェックが
+				// スキルの一覧の下（40種のセットで 700〜1300px 下）にあって見えなかった**（C-71 の10節）。
+				// 枠と出っ張りの見た目は css/common.css の .uma-section--framed / .uma-section-row。
+				'<div data-usd-el="section-a" class="uma-section' + (grouped ? ' uma-section--framed' : '') + '">' +
+					// 並びの行（A の見出し＋ B・C）。**3つとも無い画面では行ごと出さない**
+					// ―― 出すと .uma-section の gap のぶんだけ Deck 単体ページの見た目が動く。
+					(grouped ?
+						'<div class="uma-section-row">' +
+							(sectionGrouping ? '<p class="uma-section-head">スキルセット</p>' : '') +
+							// B・C …（opts.extraScopes。無ければ空のまま）。中身は renderExtraScopes() が描く
+							'<div data-usd-el="extra-scopes" class="usd-tm-scopes"></div>' +
+						'</div>'
+					: '') +
 					'<div class="uma-section-body">' +
 					// スキルを足す入口は3つ（＋呼び出し元が渡せば4つ目）。以前は「スキルを追加」1つだけを出し、
 					// 中の畳んだ見出しで3つに分かれていたが、それだと「テキストで検索」も
@@ -3678,8 +3707,6 @@
 					'<div data-usd-el="selected-list" class="usd-panels"></div>' +
 					'</div>' +
 				'</div>' +
-				// B・C …（opts.extraScopes。無ければ空のまま）。中身は renderExtraScopes() が描く
-				'<div data-usd-el="extra-scopes" class="usd-tm-scopes"></div>' +
 				// 最下段の注記（「スキルの追加・削除はすぐに保存されます…」／「保存すると名前を付けて残せます…」）は
 				// C-62 の (7) で削除した。どちらも保存の作法を言うだけで、名前欄と「保存」がその場に見えている
 				// 画面では読む意味が無かった（renderNote() ごと外したので、描く対象も無い）。
@@ -3782,10 +3809,15 @@
 		/* ---------- B・C …（opts.extraScopes。C-2a） ---------- */
 
 		/**
-		 * 節（B・C …）を描く。**既定は閉じる。**
-		 * 閉じたままでも ON かどうかが分かるよう、見出しの脇に種数のバッジを置き、
-		 * ON のときだけ文言と色を変える（「N種」→「N種を対象」・淡い強調色）。
-		 * 閉じている節の状態が見えないと、押して開くまで分からない。
+		 * 節（B・C …）を描く。**1行（チェック・呼び名・「?」）だけ**（C-2c）。
+		 *
+		 * **種数のバッジは段K で外した。** 「スキルセット」「シナリオ因子」「遺伝子」を
+		 * 375px でも1行に並べるため ―― バッジ2つで 101px あり、字を小さくしても
+		 * 収まらなかった（実測は同期フォルダの `special-stage-k-step0.md` の13節）。
+		 * **ON かどうかはチェックの四角そのもの**で読む（C-2c は「件数バッジの色で示す」
+		 * と決めていたが、その手がかりはここで無くなる）。**種数は「?」の一覧の見出し**
+		 * （「シナリオ因子（24種）」）が引き続き出している。
+		 * **exam の同じ1行にはバッジが残っている**（段K では exam を触らないと決めたため）。
 		 */
 		function renderExtraScopes() {
 			const el = q(container, 'extra-scopes');
@@ -3794,15 +3826,11 @@
 			const cur = scopesOf(currentTarget());
 			el.innerHTML = extraScopes.map(s => {
 				const on = cur[s.key] === true;
-				const n = typeof s.count === 'function' ? s.count() : s.count;
 				return '<div class="uma-checkrow" data-usd-scope-section="' + esc(s.key) + '">' +
 					'<label class="uma-checkrow-label">' +
 						'<input type="checkbox" data-usd-act="scope-check" data-scope="' + esc(s.key) + '"' + (on ? ' checked' : '') + '>' +
 						'<span>' + esc(s.label) + '</span>' +
 					'</label>' +
-					(typeof n === 'number'
-						? '<span class="uma-badge' + (on ? ' uma-badge--accent' : '') + '" data-usd-scope-badge="' + esc(s.key) + '">' + n + '種</span>'
-						: '') +
 					// 「?」は見るだけの一覧を開く（チェックは付かない）。説明を隠す「?」と同じ部品
 					'<button type="button" class="uma-help-btn" data-usd-act="scope-help" data-scope="' + esc(s.key) + '"' +
 						' aria-expanded="' + (scopeHelpKey === s.key ? 'true' : 'false') + '"' +

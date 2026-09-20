@@ -14,9 +14,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20h" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-20h" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-20h" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20i" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-20i" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-20i" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-20d"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-20e"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-20e"></script>
 	<style>
@@ -859,7 +859,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20h';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20i';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -2701,12 +2701,16 @@
 		 * B・C は ON/OFF だけで、**1種ずつ選び分けられるようにはしない**
 		 * （exam が段D で個別24件をやめて総括チェック1つにしたのと同じ。C-68 の5節）。
 		 *
-		 * **1行に畳んである**（C-2c）: 「☑ シナリオ因子 24種 ?」。
+		 * **1行に畳んである**（C-2c）: 「☑ シナリオ因子 ?」。
 		 * 折りたたみの見出しも、入れ子の白いカードも、「因子はスキルではないので別に数える」の
 		 * 説明文も置かない（冗長という判断。おいもさん）。何が対象になるのかは「?」の一覧で見る。
+		 *
+		 * **段K で A（スキルセット）と同じ行に移し、件数のバッジ（「24種」「10種」）を外した。**
+		 * 375px で3つを1行に収めるため（バッジ2つで 101px あり、字を小さくしても埋まらなかった）。
+		 * **種数は「?」の一覧の見出し**（「シナリオ因子（24種）」）が引き続き出している。
 		 * ------------------------------------------------------------ */
 		// key は保存データ（template.scopes）の鍵。**保存済みのセットが指し続けるので後から変えない。**
-		// category は core の追加カタログのカテゴリ（種数・名前をここから取る。ソースに書かない）。
+		// category は core の追加カタログのカテゴリ（名前をここから取る。ソースに書かない）。
 		const FACTOR_SCOPES = [
 			{ key: 'scenarioFactors', category: 'scenarioFactor', label: 'シナリオ因子' },
 			{ key: 'genes', category: 'geneFactor', label: '遺伝子' }
@@ -2714,8 +2718,7 @@
 			key: s.key,
 			label: s.label,
 			category: s.category,
-			// 描くたび・開くたびに数える／並べる（収録データが増減しても直さなくてよい）
-			count: () => UmaSkillDeckCore.getCatalogEntries(s.category).length,
+			// 「?」を開くたびに並べ直す（収録データが増減しても直さなくてよい）
 			names: () => UmaSkillDeckCore.getCatalogEntries(s.category).map(e => e.name)
 		}));
 
@@ -2978,9 +2981,11 @@
 						// ②の呼び名。**core の既定は「スキルセット」**（Deck 単体ページのタブ。C-66 の5節）で、
 						// ここだけ「因子セット」にする。スキルセット・シナリオ因子・遺伝子を束ねた入れ物という意味（C-1）。
 						setLabel: '因子セット',
-						// A（スキルセット）に見出しを出す。②には B（シナリオ因子）・C（遺伝子）が並ぶので、
-						// どこまでが A なのかが要る。Deck 単体ページは A しか無いので出さない。
-						sectionHeadings: true,
+						// A（スキルセット）を「同じ層に並ぶ選択肢の1つ」として見せる（見出し＋出っ張り＋枠。段K）。
+						// ②には B（シナリオ因子）・C（遺伝子）が同じ行に並ぶので、どこまでが A なのかが要る。
+						// Deck 単体ページは A しか無いので渡さない（枠も出っ張りも出ない）。
+						// **C-69 では `sectionHeadings` という名前だった**（見出しだけを指していた。段K で改名）。
+						sectionGrouping: true,
 						// B・C（C-2a）。A の下に並ぶ、ON/OFF だけの節。**中身はここが渡す**
 						// （core は「因子セット」も「シナリオ因子」も知らない。opts で差し込む）。
 						// 種数はカタログから数える（数字をここに書かない。恒久ルール1）。
@@ -3154,7 +3159,8 @@
 			skillOnlyList = skillList.filter(n => !factorNormSet.has(normalizeText(n)));
 			factorOnlyList = skillList.filter(n => factorNormSet.has(normalizeText(n)));
 
-			// ②のタブのバッジは**スキルの数だけ**（因子の数は B・C の節のバッジが別に出す）。
+			// ②のタブのバッジは**スキルの数だけ**（因子の数は下の選択の注記が別に出す。
+			// 段K までは B・C の行の件数バッジも出していたが、375px で3つを1行に並べるために外した）。
 			// ここに「＋因子N種」を足すと、375px でタブの折り返しが変わる（段E-2 で直した箇所）
 			badge.textContent = skillOnlyList.length + '種';
 			badge.classList.remove('hidden');
@@ -3423,7 +3429,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-20h';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-20i';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {

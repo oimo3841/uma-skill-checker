@@ -306,6 +306,8 @@ const browser = await chromium.launch();
 			entryInA: !!(secA && secA.querySelector('.usd-entry-row')),
 			bodyGap: body ? getComputedStyle(body).rowGap : null,
 			headGap: secA ? getComputedStyle(secA).rowGap : null,
+			// 段K: A は枠で囲い、見出しはその枠の左上に接する出っ張りにする
+			framed: !!(secA && secA.classList.contains('uma-section--framed')),
 			// 名前の行（保存・複製・削除）は A の外＝セット全体の操作
 			nameRowOutside: !!p.querySelector('.usd-tm-name-row') && !(secA && secA.querySelector('.usd-tm-name-row'))
 		};
@@ -316,8 +318,15 @@ const browser = await chromium.launch();
 		'C-1: ②の中の A の見出しは「スキルセット」（入れ物の呼び名とは別。setLabel を通さない）', c1.secAHead);
 	assert(c1.inA && c1.entryInA && c1.nameRowOutside,
 		'C-1: 入口・分類・スキルパネルは [data-usd-el="section-a"] の中、名前の行はその外', c1);
-	assert(c1.headGap === '8px' && c1.bodyGap === '12px',
-		'C-1: 見出しと中身の間（8px）は、中身どうしの間（12px）より詰まっている', c1);
+	/* **差し替えた検査（段K）**: それまでは
+	     「C-1: 見出しと中身の間（8px）は、中身どうしの間（12px）より詰まっている」
+	     （`c1.headGap === '8px' && c1.bodyGap === '12px'`）
+	   を見ていた。**段K で見出しが枠に接する出っ張りになり、間は 0px になった**ので成り立たない。
+	   ただし**検査の意図（見出しと中身の結びつきを、中身どうしより強く見せる）は 0px のほうが
+	   強く満たす**ので、外すのではなく「0px・枠で囲っている」に差し替える。
+	   **枠をやめて見出しを普通の <p> に戻すなら、上の 8px の検査へ戻すこと。** */
+	assert(c1.headGap === '0px' && c1.bodyGap === '12px' && c1.framed,
+		'段K: A は枠で囲い（.uma-section--framed）、見出しは枠に接する（間 0px・中身どうしは 12px）', c1);
 	const clearBtn = await page.evaluate(() => {
 		const btn = document.querySelector('#deck-template-panel [data-usd-el="clear-skills"]');
 		const entryRow = document.querySelector('#deck-template-panel .usd-entry-row');
@@ -4547,10 +4556,14 @@ const browser = await chromium.launch();
 			head: head ? head.textContent.replace(/\s+/g, '').replace(/\d+/g, 'N') : null,
 			placeholder: p.querySelector('[data-usd-el="name-input"]').placeholder,
 			tabsAria: p.querySelector('.uma-subtabs').getAttribute('aria-label'),
-			// A の枠は Deck にもできるが、**見出しは出さない**（opts.sectionHeadings）。
-			// Deck は A しか無く入れ物も「スキルセット」なので、出すと二重に見える
+			// A のまとまりは Deck にもできるが、**見出しも枠も出さない**（opts.sectionGrouping を渡さない）。
+			// Deck は A しか無く入れ物も「スキルセット」なので、出すと二重に見える。
+			// **段K で「枠と出っ張り」も同じフラグで出るようになった**ので、それが Deck に
+			// 漏れていないことも見る（.uma-section--framed と .uma-section-row が無いこと）
 			secA: !!p.querySelector('[data-usd-el="section-a"]'),
 			secAHead: !!p.querySelector('[data-usd-el="section-a"] .uma-section-head'),
+			secAFramed: !!p.querySelector('[data-usd-el="section-a"].uma-section--framed'),
+			secARow: !!p.querySelector('[data-usd-el="section-a"] .uma-section-row'),
 			// B・C は special だけ（opts.extraScopes を渡さない画面には出ない）
 			scopes: p.querySelectorAll('[data-usd-scope-section]').length
 		};
@@ -4559,7 +4572,9 @@ const browser = await chromium.launch();
 		&& deckLabel.placeholder === '新しいスキルセットの名前' && deckLabel.tabsAria === 'スキルセット',
 		'C-1(deck): Deck 単体ページの呼び名は「スキルセット」のまま（special だけ setLabel で「因子セット」）', deckLabel);
 	assert(deckLabel.secA && !deckLabel.secAHead,
-		'C-1(deck): A の枠はあるが見出しは出さない（A しか無い画面で「スキルセット」が二重に見えるため）', deckLabel);
+		'C-1(deck): A のまとまりはあるが見出しは出さない（A しか無い画面で「スキルセット」が二重に見えるため）', deckLabel);
+	assert(!deckLabel.secAFramed && !deckLabel.secARow,
+		'段K(deck): 枠も出っ張りも並びの行も出ない（Deck 単体ページの見た目を段K で動かさない）', deckLabel);
 	assert(deckLabel.scopes === 0,
 		'C-2a(deck): B・C の節は出ない（opts.extraScopes を渡していないため）', deckLabel.scopes);
 	await page.evaluate((id) => templateManager.openEditor(id), USER_DATA.templates[0].templateId);
@@ -6586,9 +6601,9 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 /* ============================================================
  * ②の B・C ―― シナリオ因子と遺伝子を対象に含める（C-2a）
  *
- *   - 1行（☑ 呼び名 N種 ?）。ON のあいだはバッジの色が変わる（C-2c で1行に畳んだ）
+ *   - 1行（☑ 呼び名 ?）。C-2c で1行に畳み、**段K で件数バッジを外した**
  *   - 「?」は**見るだけ**の一覧をミニウィンドウで開く（チェックは付かない）
- *   - 種数はカタログから数える（ソースに数字を書かない）
+ *   - 種数は「?」の一覧の見出しに出る。カタログから数える（ソースに数字を書かない）
  *   - scopes を持たない既存のデータ（fixtures は schemaVersion 2）は両方 OFF で読める
  *   - ON にすると template.scopes が書かれ schemaVersion が 5 に上がる。OFF に戻すと項目ごと消える
  *   - 複製で写り、書き出し・取り込みで残る
@@ -6633,12 +6648,20 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		&& s0.secs[0].label === 'シナリオ因子' && s0.secs[1].label === '遺伝子',
 		'C-2a: ②に B（シナリオ因子）と C（遺伝子）が並ぶ。呼び名に「〜を対象」を付けない', s0.secs.map(x => x.key + '/' + x.label));
 	assert(s0.secs.every(x => x.checked === false && x.row === 'uma-checkrow' && x.noHead && x.noCard && x.help),
-		'C-2c: 1行（チェック・呼び名・件数・?）だけ。折りたたみの見出しも入れ子のカードも無い', s0.secs);
+		'C-2c: 1行（チェック・呼び名・?）だけ。折りたたみの見出しも入れ子のカードも無い', s0.secs);
 	assert(s0.secs.every(x => x.height <= 40),
 		'C-2c: 1行に収まっている（高さが2行ぶんを超えない）', s0.secs.map(x => x.height));
-	assert(s0.secs[0].badge === catalogCounts.scenarioFactors + '種' && s0.secs[1].badge === catalogCounts.genes + '種'
-		&& s0.secs.every(x => x.badgeAccent === false),
-		'C-2a: 種数が見える（数はカタログから数える）', { badges: s0.secs.map(x => x.badge), catalogCounts });
+	/* **差し替えた検査（段K・その1）**: それまでは
+	     「C-2a: 種数が見える（数はカタログから数える）」
+	     （`s0.secs[0].badge === … + '種'` ほか）
+	   を見ていた。**段K で件数バッジを外した**（375px で「スキルセット・シナリオ因子・遺伝子」を
+	   1行に収めるため。バッジ2つで 101px あり、字を小さくしても埋まらなかった）。
+	   **種数が見えること自体は失っていない** ―― 「?」の一覧の見出しが「シナリオ因子（24種）」と
+	   出しており、それは下の `C-2c: 「?」で一覧のミニウィンドウが開く（件数はカタログから）` が
+	   見張っている。ここではバッジが**無いこと**を固定する（戻ってきたら 1行に収まらなくなる）。
+	   **バッジを復活させるなら、上の文言の検査も戻すこと。** */
+	assert(s0.secs.every(x => x.badge === null),
+		'段K: 1行に件数のバッジを出さない（種数は「?」の一覧の見出しが出す）', s0.secs.map(x => x.badge));
 	assert(s0.scopes === undefined && s0.schema === USER_DATA.schemaVersion,
 		'C-2a: scopes を持たない既存のデータは、開いただけでは姿が変わらない', { scopes: s0.scopes, schema: s0.schema });
 	// 「?」＝見るだけの一覧（チェックは付かない）
@@ -6661,8 +6684,15 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	const s2 = await sc();
 	assert(s2.secs[0].checked && JSON.stringify(s2.scopes) === JSON.stringify({ scenarioFactors: true }) && s2.schema === 5,
 		'C-2a: ON にすると scopes が書かれ、schemaVersion が 5 に上がる', { scopes: s2.scopes, schema: s2.schema });
-	assert(s2.secs[0].badge === catalogCounts.scenarioFactors + '種' && s2.secs[0].badgeAccent === true,
-		'C-2c: ON のあいだはバッジの色が変わる（件数の文言は変えない）', s2.secs[0]);
+	/* **差し替えた検査（段K・その2）**: それまでは
+	     「C-2c: ON のあいだはバッジの色が変わる（件数の文言は変えない）」
+	     （`s2.secs[0].badgeAccent === true`）
+	   を見ていた。**段K でバッジごと外した**ので、ON の手がかりは**チェックの四角そのもの**だけになる。
+	   ON/OFF が画面から読めること自体は失わないよう、ここでチェックの状態を固定する。
+	   **exam の同じ1行にはバッジが残っている**（段K では exam を触らないと決めたため。
+	   `C-2c(exam):` の検査はそのまま生きている）。 */
+	assert(s2.secs[0].checked === true && s2.secs[0].badge === null && s2.secs[1].checked === false,
+		'段K: ON かどうかはチェックの四角で読む（バッジは無い）', s2.secs.map(x => x.key + ':' + x.checked));
 	// 複製すると写る
 	await page.click('#deck-template-panel [data-usd-act="template-duplicate"]');
 	await page.waitForTimeout(400);
@@ -6714,7 +6744,8 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		const s = document.querySelector(r + ' [data-usd-scope-section="genes"]');
 		const b = document.querySelector(r + ' [data-usd-scope-section="scenarioFactors"]');
 		return { checked: s ? s.querySelector('input[type="checkbox"]').checked : null,
-			accent: s ? s.querySelector('[data-usd-scope-badge]').classList.contains('uma-badge--accent') : null,
+			// 段K: 件数バッジは無い（ON の手がかりはチェックの四角そのもの）
+			noBadge: s ? !s.querySelector('[data-usd-scope-badge]') : null,
 			// 「?」の一覧は開いていない（開閉は保存しない）
 			helpOpen: s ? s.querySelector('[data-usd-act="scope-help"]').getAttribute('aria-expanded') : null,
 			modal: !!document.querySelector('[data-usd-el="scope-list-modal"]:not([hidden])'),
@@ -6724,8 +6755,8 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	});
 	// 元のセットは B を ON にしたあと複製しているので、B・C とも ON のまま
 	// （OFF に戻したのは複製したほうで、そちらは scopes ごと消えている）
-	assert(back.checked === true && back.accent === true && back.otherChecked === true,
-		'C-2a: 開き直しても ON のまま', back);
+	assert(back.checked === true && back.noBadge === true && back.otherChecked === true,
+		'C-2a: 開き直しても ON のまま（段K: 件数バッジは無い。以前は accent の色で見ていた）', back);
 	assert(back.helpOpen === 'false' && !back.modal,
 		'C-2c: 「?」の一覧は開いた状態を保存しない', { helpOpen: back.helpOpen, modal: back.modal });
 	assert(JSON.stringify(back.sel) === JSON.stringify({ scenarioFactors: true, genes: true }),
@@ -6774,6 +6805,110 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
    C-2c で**この説明文そのものを両方から消した**ため（冗長という判断。おいもさん）、
    見張る対象が無くなった。**文言が食い違ったのではなく、文言が無くなったので外した。**
    説明を復活させるなら、この検査も一緒に戻すこと。 */
+
+/* ============================================================
+ * 段K ―― ②の画面構成（スキルセット／シナリオ因子／遺伝子を同じ層の選択肢として並べる）
+ *
+ *   - 3つが**同じ行**に並び、**文字の高さがそろう**（中心のずれ 1px 以内）
+ *   - 「スキルセット」は枠の左上に**接する**（隙間 0）
+ *   - **セットを切り替えた直後に、チェックの状態が画面内にある**（段K の目的そのもの）
+ *     40種のセットで測る ―― 小さいセットだと組み替えなくても見えてしまう（C-71 の10節）
+ *   - 枠を足しても**入口の折り返しとスキルパネルの列数は変わらない**
+ * ============================================================ */
+{
+	// 実用的な大きさのセットを2つ作る（A は B・C とも ON、B は scopes を持たない）。
+	// **切り替えるとチェックが外れる**のは C-2a で決めた仕様で、それが見えることを確かめる。
+	const bigData = {
+		schemaVersion: 5,
+		templates: [
+			{ templateId: 'tpl_k_a', name: '周回セットA', skillIds: PICK.map(p => p.id), tiers: {},
+				scopes: { scenarioFactors: true, genes: true },
+				createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-20T00:00:00.000Z' },
+			{ templateId: 'tpl_k_b', name: '周回セットB', skillIds: PICK.map(p => p.id), tiers: {},
+				createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-20T00:00:00.000Z' },
+		],
+		records: [], customSkills: [],
+	};
+	// 代表データ（12件）だけだと一覧が短く、組み替えなくても画面に入ってしまうので、
+	// **マスターから40件**に膨らませる（数はここに書かず、下で ids から取る）。
+	for (const w of [1280, 375]) {
+		const ctx = await browser.newContext({ viewport: { width: w, height: w === 1280 ? 900 : 812 } });
+		const page = await ctx.newPage();
+		const errs = [];
+		page.on('pageerror', (e) => errs.push(String(e)));
+		page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
+		await page.addInitScript((d) => localStorage.setItem('umaSkillDeck:userData', JSON.stringify(d)), bigData);
+		await page.goto(base + '/special.html', { waitUntil: 'networkidle', timeout: 60000 });
+		await page.waitForTimeout(1500);
+		if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+		await page.waitForTimeout(300);
+		// マスターの先頭40件に入れ替える（代表データの12件では一覧が短すぎる）
+		await page.evaluate(() => {
+			const ids = UmaSkillDeckCore.getMasterSkills().slice(0, 40).map(s => s.id);
+			const d = UmaSkillDeckCore.getUserData();
+			d.templates.forEach(t => { t.skillIds = ids.slice(); });
+			UmaSkillDeckCore.saveUserData();
+		});
+		await page.reload({ waitUntil: 'networkidle', timeout: 60000 });
+		await page.waitForTimeout(1500);
+		if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+		await page.waitForTimeout(300);
+		await page.click('#deck-template-panel .uma-subtab[data-tab-id="tpl_k_a"]');
+		await page.waitForTimeout(500);
+
+		const read = () => page.evaluate(() => {
+			const p = document.getElementById('deck-template-panel');
+			const secA = p.querySelector('[data-usd-el="section-a"]');
+			const row = secA.querySelector('.uma-section-row');
+			const head = row && row.querySelector('.uma-section-head');
+			const body = secA.querySelector('.uma-section-body');
+			const secs = Array.from(p.querySelectorAll('[data-usd-scope-section]'));
+			// 文字そのものの中心（枠ではなく中身の範囲で見る）
+			const textMid = (el) => { if (!el) return null; const r = document.createRange(); r.selectNodeContents(el);
+				const b = r.getBoundingClientRect(); return (b.top + b.bottom) / 2; };
+			const inView = (el) => { const r = el.getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight; };
+			const mids = [textMid(head)].concat(secs.map(s => textMid(s.querySelector('.uma-checkrow-label span'))));
+			const tops = [head].concat(secs).map(el => Math.round(el.getBoundingClientRect().top));
+			const panels = Array.from(p.querySelectorAll('[data-usd-el="selected-list"] > *'));
+			const firstY = panels.length ? Math.round(panels[0].getBoundingClientRect().top) : null;
+			return {
+				// 3つが同じ行か（出っ張りは margin-bottom: -1px のぶん 1px 下がる）
+				sameRow: Math.max.apply(null, tops) - Math.min.apply(null, tops) <= 1,
+				tops,
+				// 文字の高さのずれ
+				midGap: Math.round(Math.max.apply(null, mids) - Math.min.apply(null, mids)),
+				// 出っ張りと枠の隙間（接していれば 0。枠線1本ぶんの重なりで -1 になる）
+				tabToBody: Math.round(body.getBoundingClientRect().top - head.getBoundingClientRect().bottom),
+				// チェックが画面内にあるか
+				checksInView: secs.every(inView),
+				checked: secs.map(s => s.querySelector('input[type="checkbox"]').checked),
+				entryLines: new Set(Array.from(p.querySelectorAll('.usd-entry-row > button'))
+					.map(e => Math.round(e.getBoundingClientRect().top))).size,
+				cols: panels.filter(x => Math.round(x.getBoundingClientRect().top) === firstY).length,
+			};
+		});
+
+		const before = await read();
+		assert(before.sameRow && before.midGap <= 1,
+			'段K(' + w + 'px): スキルセット・シナリオ因子・遺伝子が同じ行に並び、文字の高さがそろう', before);
+		assert(before.tabToBody <= 0 && before.tabToBody >= -1,
+			'段K(' + w + 'px): 「スキルセット」は枠の左上に接している（隙間 0）', before.tabToBody);
+		assert(before.checked.every(Boolean) && before.checksInView,
+			'段K(' + w + 'px): ON のチェックが画面内にある', before);
+
+		// **セットを切り替える。** B は scopes を持たないのでチェックが外れる（C-2a の仕様）。
+		// その変化が**画面に入っていること**が段K の目的。
+		await page.click('#deck-template-panel .uma-subtab[data-tab-id="tpl_k_b"]');
+		await page.waitForTimeout(600);
+		const after = await read();
+		assert(after.checked.every(v => v === false) && after.checksInView,
+			'段K(' + w + 'px): セットを切り替えた直後、外れたチェックが画面内で見える', after);
+		assert(after.entryLines === before.entryLines && after.cols === before.cols && after.cols >= 2,
+			'段K(' + w + 'px): 入口の折り返しとスキルパネルの列数は切り替えで変わらない', { before, after });
+		assert(errs.length === 0, '段K(' + w + 'px): コンソールエラーが出ない', errs.slice(0, 3));
+		await ctx.close();
+	}
+}
 
 /* ============================================================
  * 追加済みスキルの一括削除（C-3）
