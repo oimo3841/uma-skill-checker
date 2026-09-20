@@ -247,7 +247,11 @@ const INTENTIONALLY_REMOVED = {
 	// #deck-roster-help-btn と #deck-roster-help が消えた。中身は「選ぶと…得られるスキルが
 	// 分かります」という、下の表を見れば分かることの言い換えだった。使い方は「使い方ガイド」にある。
 	// （#deck-roster-alpha-btn は `748aa64` に commit したので免除から外した。）
-	'special.html': ['data-tier', 'deck-roster-help-btn', 'deck-roster-help'],
+	// **上の3件（data-tier / #deck-roster-help-btn / #deck-roster-help）の免除も空に戻した**
+	// （2026-09-21・68セッション目）。data-tier は `2a2cdf3`、「?」の2つは `5a97ef8` に
+	// commit 済みで、**どれも HEAD 側に無い**＝この検査（git show HEAD: と作業ツリーの比較）は
+	// 免除が無くても落ちない。残すと本当の事故（意図せず id が消えた）を見逃す口になる。
+	// 何を消したかの記録は上のコメントと commit に残っている。
 	// 2026-09-19（64セッション目・段D）: exam のシナリオ因子を24種の個別選択から
 	// **総括チェック1つ**（#scenario-factors-all）へ変えたので、開閉のパネル
 	// （#scenario-factors-details）・選んだ件数のバッジ（#scenario-factors-badge）・
