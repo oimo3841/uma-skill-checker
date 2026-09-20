@@ -33,7 +33,7 @@
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-20d"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-20b"></script>
+	<script src="js/stitch.js?v=2026-09-20c"></script>
 	<style>
 		/* Deck連携モードの①のタブ（本育成編成）の見出し行（C-51 の11節①②）。
 		   ①〜③はステップのタブ（css/shell.css の .step-tab）に載せたので、ここには Step の枠は無い。
@@ -2095,6 +2095,8 @@
 				// **輪郭は js/stitch.js の stitchHeartPath()**（exam と同じ形にするため。
 				// あちらは塗りつぶすが、輪郭そのものは1か所で持つ。画面の SVG も同じ元）。
 				// ◆ と同じく ○ の外接円より少しだけ大きく取る（線だけなので小さく見えるため）。
+				// **段I-4 で輪郭を描き直した**ので、同じ 1.06 でも前より1割ほど小さく広がる
+				// （前の輪郭は渡した半径の 1.109 倍まではみ出していた）。
 				paths.push(() => stitchHeartPath(ctx, cx, cy, r * 1.06));
 			} else {                   // ▲ 単穴（外接円は ○ の 1.12 倍。塗りが無いぶん小さく見えるため）
 				const rr = r * 1.12;
@@ -3405,7 +3407,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-20f';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-20g';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {

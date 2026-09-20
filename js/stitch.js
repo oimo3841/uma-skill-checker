@@ -15,7 +15,7 @@
 
 // このファイルの版。B節ルール4の3点一致（内部定数・各HTMLの ?v=・npm run test:verify）の対象。
 // 中身を変更したらこの日付も更新すること。
-const STITCH_JS_VERSION = '2026-09-20b';
+const STITCH_JS_VERSION = '2026-09-20c';
 
 // 画像結合用の簡易ログ。既存の開発ログ（devGeometry）に相乗りさせることで、
 // 「開発ログを表示」チェックを入れれば結合処理の詳細も確認できるようにする。
@@ -630,24 +630,62 @@ const STITCH_NOTE_RULE_COLOR = '#d0d0d0';
  *   (2) **画面と結合画像が同じ形であることを、作りとして保証するため**
  * （special の ◎○▲ ＝ uma-skill-deck-core.js の tierMarkHtml() が先にこの作法を採っている）。
  *
- * 中心 (cx, cy)・半径 r の**外接円に収まる**ようにしてある。印はスキルパネルの
+ * 中心 (cx, cy)・半径 r の**外接円にちょうど接する**。印はスキルパネルの
  * 灰色の〇の中に置くので、はみ出すと隣の段にかかる。
  * 色も塗り／線も呼び出し側が決める ―― ここは輪郭だけを返す。
+ *
+ * **66セッション目（段I-4）に輪郭を描き直した。** 前の輪郭には2つの不具合があった:
+ *   (1) 縦長（高さ÷幅 = 1.21）で左右のふくらみがトゲになり、18px では凹みが 1px しか
+ *       残らず、ハートとして読めなかった。**大きく焼いたときは肩に「こぶ」が出ていた**
+ *       ―― 制御点の置き方が原因で、ふくらみの頂が平らになり内側に段が付いていた。
+ *   (2) 「外接円に収まる」と書きながら、**実際は r の 1.109 倍まではみ出していた**。
  * ============================================================ */
+
+/* 輪郭の正規化した形（中心 (0,0)・下向きが +y）。**形を決めるのはこの表だけ。**
+   大きさはここで決めない ―― 下の HEART_FIT が「外接円にちょうど接する」倍率を
+   輪郭から計算するので、**この表を描き替えれば円への収まりは自動で付いてくる**
+   （前の輪郭が知らないうちにはみ出していたのは、倍率を手で置いていたから）。 */
+const HEART_UNIT = {
+	start: [0, -0.22],                                // 上の凹みの底
+	curves: [
+		[-0.30, -1.22, -1.16, -0.86, -1.16, -0.08],   // 凹み → 左のふくらみの頂 → 左の張り出し
+		[-1.16, 0.38, -0.50, 0.58, 0, 1.12],          // 左の張り出し → 下の尖り
+		[0.50, 0.58, 1.16, 0.38, 1.16, -0.08],        // 下の尖り → 右の張り出し
+		[1.16, -0.86, 0.30, -1.22, 0, -0.22]          // 右の張り出し → 右のふくらみの頂 → 凹み
+	]
+};
+
+/** 正規化した輪郭を刻んで、中心からいちばん遠い点までの距離を返す。 */
+function heartUnitMaxRadius() {
+	const STEPS = 48;
+	let max = 0, p0 = HEART_UNIT.start;
+	const at = (a, b, c, d, t) => {
+		const mt = 1 - t;
+		return mt * mt * mt * a + 3 * mt * mt * t * b + 3 * mt * t * t * c + t * t * t * d;
+	};
+	for (const c of HEART_UNIT.curves) {
+		for (let i = 0; i <= STEPS; i++) {
+			const t = i / STEPS;
+			const x = at(p0[0], c[0], c[2], c[4], t);
+			const y = at(p0[1], c[1], c[3], c[5], t);
+			max = Math.max(max, Math.hypot(x, y));
+		}
+		p0 = [c[4], c[5]];
+	}
+	return max;
+}
+/** 外接円にちょうど接するための倍率（輪郭から毎回計算する。値を手で書かない）。 */
+const HEART_FIT = 1 / heartUnitMaxRadius();
 
 /** ハートの輪郭を「始点＋3次ベジェ4本」で返す。下の2つの出口が共通で使う。 */
 function stitchHeartSegments(cx, cy, r) {
-	const w = r * 0.98;          // 横の張り出し
-	const top = cy - r * 0.62;   // 左右のふくらみの中心の高さ
-	const lobe = r * 0.50;       // ふくらみの半径
+	const k = r * HEART_FIT;
+	const m = (x, y) => [cx + x * k, cy + y * k];
 	return {
-		start: [cx, cy + r * 0.92],   // 下の尖り
-		curves: [
-			[cx - w, cy + r * 0.05, cx - w, top - lobe * 1.1, cx - lobe * 0.62, top - lobe * 0.62],
-			[cx - lobe * 0.12, top - lobe * 1.02, cx, cy - r * 0.42, cx, cy - r * 0.30],
-			[cx, cy - r * 0.42, cx + lobe * 0.12, top - lobe * 1.02, cx + lobe * 0.62, top - lobe * 0.62],
-			[cx + w, top - lobe * 1.1, cx + w, cy + r * 0.05, cx, cy + r * 0.92]
-		]
+		start: m(HEART_UNIT.start[0], HEART_UNIT.start[1]),
+		curves: HEART_UNIT.curves.map(c => [
+			...m(c[0], c[1]), ...m(c[2], c[3]), ...m(c[4], c[5])
+		])
 	};
 }
 

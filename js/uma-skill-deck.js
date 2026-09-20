@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-20f';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-20g';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -190,7 +190,7 @@ const CATALOG_CATEGORY_LABELS = { scenarioFactor: 'シナリオ因子', geneFact
    Deck は stitch.js を読まないのでここに写しを持っている。
    食い違ったら tests/visual/run-smoke.mjs が落とす（向こうで計算した値と突き合わせる）ので、
    **どちらかを直したらもう片方も直すこと**。 */
-const HEART_PATH_D_24 = 'M12 20.28C3.18 12.45 3.18 1.47 9.21 3.63C11.46 1.83 12 8.22 12 9.3C12 8.22 12.54 1.83 14.79 3.63C20.82 1.47 20.82 12.45 12 20.28Z';
+const HEART_PATH_D_24 = 'M12 10.32C9.71 2.67 3.13 5.42 3.13 11.39C3.13 14.91 8.18 16.44 12 20.57C15.82 16.44 20.87 14.91 20.87 11.39C20.87 5.42 14.29 2.67 12 10.32Z';
 const CATALOG_CATEGORY_GLYPHS = {
 	scenarioFactor: '◆',
 	geneFactor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"'

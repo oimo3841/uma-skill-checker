@@ -2182,6 +2182,86 @@ const browser = await chromium.launch();
 	assert(!!geneMark.印の色 && geneMark.凡例の呼び名 === '遺伝子',
 		'段H(exam): 結合画像の印の色と凡例の呼び名が引ける（凡例に「遺伝子」の行が出る条件）', geneMark);
 
+	/* ------------------------------------------------------------
+	 * 段I-4: ハートの輪郭そのものを見る2本
+	 *
+	 * **なぜ足したか。** F-63 は「画面と結合画像が同じ形であることを、作りとして
+	 * 保証する」と書いたが、**それを確かめる検査は無かった** ―― あったのは
+	 * 「画面の SVG の d が STITCH_HEART_PATH_D_24 と同じ文字列か」と
+	 * 「Deck の写しが同じ文字列か」の2本で、**どちらも SVG どうしの突き合わせ**。
+	 * Canvas（stitchHeartPath）は1度も比べられていなかった。
+	 * 66セッション目に「結合画像だけ形が違って見える」と疑われたとき、
+	 * 検査は何も言えなかった（実測した結果、形は一致していて原因は別だった）。
+	 *
+	 * (1) Canvas と SVG を**同じ大きさで実際に描いて画素で突き合わせる**。
+	 *     文字列ではなく塗りを比べるので、出口のどちらかが壊れれば落ちる。
+	 * (2) 輪郭が**外接円からはみ出さない**。前の輪郭は「収まる」と書きながら
+	 *     1.109 倍まで出ていた（倍率を手で置いていたため、誰も気づかなかった）。
+	 * ------------------------------------------------------------ */
+	const outline = await page.evaluate(async () => {
+		const S = 400, CX = 200, CY = 200, R = 150;
+		// Canvas 側（製品の関数をそのまま呼ぶ）
+		const c1 = document.createElement('canvas'); c1.width = S; c1.height = S;
+		const x1 = c1.getContext('2d');
+		stitchHeartPath(x1, CX, CY, R);
+		x1.fillStyle = '#000'; x1.fill();
+		// SVG 側（製品の関数が返す d を、同じ座標系でラスタライズ）
+		const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + S + '" height="' + S + '"'
+			+ ' viewBox="0 0 ' + S + ' ' + S + '"><path d="' + stitchHeartPathD(CX, CY, R) + '" fill="#000"/></svg>';
+		const img = new Image();
+		img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+		await img.decode();
+		const c2 = document.createElement('canvas'); c2.width = S; c2.height = S;
+		c2.getContext('2d').drawImage(img, 0, 0);
+		const mask = (c) => {
+			const d = c.getContext('2d').getImageData(0, 0, S, S).data;
+			const m = new Uint8Array(S * S);
+			for (let i = 0, j = 0; i < d.length; i += 4, j++) m[j] = d[i + 3] > 127 ? 1 : 0;
+			return m;
+		};
+		const m1 = mask(c1), m2 = mask(c2);
+		let inter = 0, uni = 0, onlyCanvas = 0, onlySvg = 0;
+		for (let i = 0; i < m1.length; i++) {
+			if (m1[i] & m2[i]) inter++;
+			if (m1[i] | m2[i]) uni++;
+			if (m1[i] && !m2[i]) onlyCanvas++;
+			if (!m1[i] && m2[i]) onlySvg++;
+		}
+		// 外接円からのはみ出し（輪郭を刻んで中心からの距離を見る）
+		const seg = stitchHeartSegments(CX, CY, R);
+		const at = (a, b, c, d, t) => { const mt = 1 - t;
+			return mt * mt * mt * a + 3 * mt * mt * t * b + 3 * mt * t * t * c + t * t * t * d; };
+		let maxR = 0, p0 = seg.start;
+		for (const c of seg.curves) {
+			for (let i = 0; i <= 200; i++) {
+				const t = i / 200;
+				maxR = Math.max(maxR, Math.hypot(at(p0[0], c[0], c[2], c[4], t) - CX, at(p0[1], c[1], c[3], c[5], t) - CY));
+			}
+			p0 = [c[4], c[5]];
+		}
+		return {
+			iou: inter / uni, onlyCanvas, onlySvg, ink: inter,
+			外接円に対する最大半径: maxR / R,
+			曲線の本数: seg.curves.length,
+			各曲線の数値の数: seg.curves.map((c) => c.length),
+		};
+	});
+	/* **ぴったり0画素にはしない。** SVG の d は座標を小数第2位で丸めて文字列にするので
+	   （stitchHeartPathD の n()）、r=150 で描くと最大 0.005 × (150/9) ≒ 0.08px ずれ、
+	   輪郭上の画素が1つ2つ入れ替わる。**形が違えば数千画素の単位で食い違う**ので、
+	   塗りの 0.1% までを丸めの許容とする。0 に固定すると丸めのせいで落ち続ける。 */
+	const outlineSlack = Math.max(4, Math.round(outline.ink * 0.001));
+	assert(outline.ink > 1000 && outline.iou > 0.999
+		&& (outline.onlyCanvas + outline.onlySvg) <= outlineSlack,
+		'段I-4: ハートの輪郭は Canvas（結合画像）と SVG（画面）で一致する（差は d の丸めぶんだけ。'
+		+ 'F-63 の「作りとして保証する」の実地の裏づけ）',
+		Object.assign({ 許容: outlineSlack }, outline));
+	assert(outline.曲線の本数 === 4 && outline.各曲線の数値の数.every((n) => n === 6),
+		'段I-4: 輪郭は3次ベジェ4本（直線に落ちていない）', outline);
+	// はみ出さないこと。ちょうど接していること（縮みすぎて小さくなっていないこと）も見る
+	assert(outline.外接円に対する最大半径 <= 1.001 && outline.外接円に対する最大半径 >= 0.999,
+		'段I-4: 輪郭が外接円にちょうど接する（はみ出さない・縮みすぎない）', outline.外接円に対する最大半径);
+
 	// Esc は開いているものを1つ閉じる（引き出し → FAB の順）。
 	// 直前まで iframe の中を操作していたので、キーは親の文書に戻してから送る
 	// （iframe の中で押した Esc は親には届かない。special の Deck 引き出しも同じ）。

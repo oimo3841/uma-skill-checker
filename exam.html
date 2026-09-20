@@ -27,7 +27,7 @@
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html / exam.html で共有） -->
 	<script src="js/common.js?v=2026-09-17a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-20b"></script>
+	<script src="js/stitch.js?v=2026-09-20c"></script>
 	<style>
 		/* このツールの色（青）。**見出し・バッジ・淡い地・枠などの装飾にだけ使う。**
 		   押せる部品（ボタン・チェック・選択中のタブ）は色を持たず、3ツール共通の黒
@@ -4536,11 +4536,13 @@
 				ctx.closePath();
 				ctx.fill();
 			} else if (kind === 'gene') {
-				// ハート（段G）。◆ と同じ「スキルではないもの」だが、形の系統を変えて区別する。
-				// **輪郭は js/stitch.js の stitchHeartPath()**（special と同じ形にするため。
-				// あちらは線だけで描くが、輪郭そのものは1か所で持つ）。
-				// 外接円は 0.78（★と同じ）―― 塗りの面積が円より小さいので、同じ差し渡しだと
-				// 一段小さく見えるため。それでも元の灰色の〇の内側に収まる。
+				// ハート（形は段G、輪郭の描き直しは段I-4）。◆ と同じ「スキルではないもの」だが、
+				// 形の系統を変えて区別する。**輪郭は js/stitch.js の stitchHeartPath()**
+				// （special と同じ形にするため。あちらは線だけで描くが、輪郭は1か所で持つ）。
+				// 渡す 0.78 は★と同じ。**段I-4 で輪郭が外接円にちょうど接するようになったので、
+				// 印の実際の広がりは前より1割小さい**（前の輪郭は r の 1.109 倍まで出ていた）。
+				// それでも一段小さく見えないのは、新しい輪郭のほうが円を素直に使うから
+				// ―― 塗りの面積は前とほぼ同じ（◆に対して 1.18 → 1.21）。
 				stitchHeartPath(ctx, cx, cy, d * 0.78);
 				ctx.fill();
 			} else if (kind === 'added') {
@@ -5885,7 +5887,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-20f';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-20g';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;
