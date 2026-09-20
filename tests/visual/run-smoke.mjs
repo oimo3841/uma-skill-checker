@@ -1433,6 +1433,93 @@ const browser = await chromium.launch();
 		&& document.getElementById('badge-scope-removed-text').textContent === '除外12種'
 		&& document.querySelectorAll('#skill-registry-list .registry-removed').length === 12),
 		'exam: 対象を絞ると「除外12種」のバッジが出て、一覧には取り消し線で残る');
+	/* --- 段I: 一覧の凡例と一覧が一対一 ---
+	   凡例は renderSkillRegistryList() が**一覧と同じ材料**から組み立てる。
+	   見るのは2方向:
+	     ① 一覧のどの行にも、印か（下線／取り消し線）のどちらかが付いている
+	        ―― 段H まで 'plain'（その他の対象スキル）に印が無く、74行が裸だった
+	     ② 凡例に、一覧に出ていない区分の説明が残っていない
+	   設定を変えるたびに両方を見る（区分の出入りが設定で変わるため）。 */
+	const readLegendPair = () => page.evaluate(() => {
+		const rows = [...document.querySelectorAll('#skill-registry-list > div')];
+		const bare = rows.filter((d) => {
+			const mark = d.firstElementChild;
+			const hasMark = !!(mark.textContent.trim() || mark.querySelector('svg'));
+			return !hasMark && !d.querySelector('.registry-added, .registry-removed');
+		});
+		const legend = document.getElementById('registry-legend');
+		const text = legend.textContent.replace(/\s+/g, ' ').trim();
+		// 凡例が名乗っている区分（listTitle の文字列で引く）
+		const named = Object.keys(SCREEN_MARK).filter((k) => text.includes(SCREEN_MARK[k].listTitle));
+		// 一覧に実際に出ている区分
+		const present = new Set();
+		rows.forEach((d) => {
+			const k = skillMarkKind(d.lastElementChild.textContent);
+			if (k && SCREEN_MARK[k]) present.add(k);
+		});
+		return {
+			rows: rows.length, bare: bare.length,
+			bareSample: bare.slice(0, 3).map((d) => d.textContent.trim()),
+			named: named.sort(), present: [...present].sort(),
+			// 並びは MARK_KIND_ORDER と同じ（結合画像の凡例と揃える）
+			order: MARK_KIND_ORDER.filter((k) => named.includes(k)).join(',')
+				=== named.slice().sort((x, y) => MARK_KIND_ORDER.indexOf(x) - MARK_KIND_ORDER.indexOf(y)).join(','),
+			underline: text.includes('下線'), strike: text.includes('取り消し線'),
+			text: text,
+		};
+	});
+	for (const [label, setup] of [
+		['既定', () => { setScenarioFactorsAll(false); setAptitudeGenesAll(false); setTargetScopeMode('default'); }],
+		['因子＋遺伝子', () => { setScenarioFactorsAll(true); setAptitudeGenesAll(true); setTargetScopeMode('default'); }],
+		['対象を広げる', () => { setScenarioFactorsAll(true); setAptitudeGenesAll(true); setTargetScopeMode('expanded'); }],
+		['対象を絞る', () => { setScenarioFactorsAll(false); setAptitudeGenesAll(false); setTargetScopeMode('curated'); }],
+	]) {
+		await page.evaluate(setup);
+		await page.waitForTimeout(150);
+		const p = await readLegendPair();
+		assert(p.bare === 0, '段I(' + label + '): 一覧に印も線も無い行が残っていない', p);
+		assert(p.named.join(',') === p.present.join(','),
+			'段I(' + label + '): 凡例が名乗る区分と一覧に出ている区分が一致する', { 凡例: p.named, 一覧: p.present });
+		assert(p.order, '段I(' + label + '): 凡例の並びが MARK_KIND_ORDER と同じ', p.text);
+		assert(p.underline === (label === '対象を広げる') && p.strike === (label === '対象を絞る'),
+			'段I(' + label + '): 下線／取り消し線の説明は、その行が実際に出ているときだけ', p);
+	}
+	// 'plain' の黒丸そのもの。一覧と判定結果の表の**両方**に出て、緑の ● とは色が違う
+	const plainMark = await page.evaluate(() => {
+		setScenarioFactorsAll(false); setAptitudeGenesAll(false); setTargetScopeMode('default');
+		const mk = matchAllSkillsWithStars(
+			skillList.map((s, i) => ({ text: s, stars: (i % 3) + 1, starsReliable: true, rowKey: 'r' + i })),
+			skillList, skillIndex, {});
+		personResults = PERSON_LABELS.map(() => null);
+		personResults[0] = mk;
+		renderResults();
+		const title = SCREEN_MARK.plain.listTitle;
+		const inList = document.querySelector('#skill-registry-list [title="' + title + '"]');
+		const inTable = document.querySelector('#result-tbody [title="' + title + '"]');
+		const green = document.querySelector('#skill-registry-list [title="' + SCREEN_MARK.green.listTitle + '"]');
+		const root = getComputedStyle(document.documentElement);
+		const toRgb = (x) => 'rgb(' + [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16)).join(', ') + ')';
+		return {
+			title: title,
+			listGlyph: inList ? inList.textContent : null, tableGlyph: inTable ? inTable.textContent : null,
+			listColor: inList ? getComputedStyle(inList).color : null,
+			tableColor: inTable ? getComputedStyle(inTable).color : null,
+			greenColor: green ? getComputedStyle(green).color : null,
+			want: toRgb(root.getPropertyValue('--uma-text').trim()),
+			// 結合画像が使うトークンと同じものを指しているか
+			stitchToken: ATTR_MARK_TOKEN.plain,
+		};
+	});
+	assert(plainMark.listGlyph === '●' && plainMark.tableGlyph === '●',
+		'段I: その他の対象スキルの黒丸が一覧と判定結果の表の両方に出る', plainMark);
+	assert(plainMark.listColor === plainMark.want && plainMark.tableColor === plainMark.want
+		&& plainMark.listColor !== plainMark.greenColor && plainMark.stitchToken === '--uma-text',
+		'段I: 黒丸の色は結合画像と同じ --uma-text で、緑の ● とは違う色', plainMark);
+	assert(/^その他の対象スキル（\d+種）$/.test(plainMark.title),
+		'段I: 呼び名に種数が付く（数は定数から出す）', plainMark.title);
+	// この先の検査は「対象を絞る」のまま続く（上の段I の掃きで一時的に動かしたので戻す）
+	await page.evaluate(() => setTargetScopeMode('curated'));
+
 	// 64セッション目（段D）に、24種の個別選択から**総括チェック1つ**へ変えた。
 	// ON にすると24種すべてが対象に入る（内部の Set は「24種全部」か「空」の2択）。
 	await page.evaluate(() => setScenarioFactorsAll(true));
@@ -1610,11 +1697,45 @@ const browser = await chromium.launch();
 	assert(splitCounts.copyHint === '対象スキル全121種＋シナリオ因子24種（登録順・範囲とカスタム設定を反映） ・ 145行'
 		&& splitCounts.copyLines === 145,
 		'exam: スキル名のコピーの見出しは種数を分けて書き、行数は実際の145行のまま', splitCounts);
-	await page.evaluate(() => { setScenarioFactorsAll(false); setTargetScopeMode('default'); });
+	await page.evaluate(() => { setScenarioFactorsAll(false); setAptitudeGenesAll(false); setTargetScopeMode('default'); });
 	assert(await page.textContent('#step1-skill-badge') === '133種', 'exam: 調整を戻すとバッジも「133種」に戻る');
-	assert(await page.evaluate(() => ['badge-scope-added', 'badge-scope-removed', 'badge-scenario-factors']
+	assert(await page.evaluate(() => ['badge-scope-added', 'badge-scope-removed', 'badge-scenario-factors', 'badge-genes']
 		.every((id) => document.getElementById(id).classList.contains('hidden'))),
-		'exam: 既定に戻すと3つの追加バッジは出ない');
+		'exam: 既定に戻すと4つの追加バッジは出ない');
+
+	/* --- 段I: 遺伝子のバッジ（段F の積み残し）---
+	   シナリオ因子のバッジと同じ形で、**その右隣**に置く。数は合算せず並記（C-70 の13節）。
+	   色は印と同じ系統（因子＝--uma-catalog-*／遺伝子＝--uma-gene-*）で、
+	   帯を見ただけでどちらの話かが分かること。 */
+	const geneBadge = await page.evaluate(() => {
+		setScenarioFactorsAll(true); setAptitudeGenesAll(true);
+		const strip = document.getElementById('badge-sp70-count').closest('.flex-wrap');
+		const shown = [...strip.children].filter((e) => !e.classList.contains('hidden'));
+		const el = document.getElementById('badge-genes');
+		const fac = document.getElementById('badge-scenario-factors');
+		const cs = getComputedStyle(el), csf = getComputedStyle(fac);
+		const root = getComputedStyle(document.documentElement);
+		const toRgb = (x) => 'rgb(' + [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16)).join(', ') + ')';
+		return {
+			text: document.getElementById('badge-genes-text').textContent,
+			order: shown.map((e) => e.id || 'static'),
+			// シナリオ因子のすぐ右
+			afterFactor: el.previousElementSibling === fac,
+			bg: cs.backgroundColor, color: cs.color,
+			wantBg: toRgb(root.getPropertyValue('--uma-gene-soft').trim()),
+			wantColor: toRgb(root.getPropertyValue('--uma-gene-text').trim()),
+			// 因子のバッジとは別の色（帯の中で区別が付く）
+			differsFromFactor: cs.backgroundColor !== csf.backgroundColor && cs.color !== csf.color,
+			icon: el.querySelector('svg') ? el.querySelector('svg').classList.contains('lucide-dna') : null,
+		};
+	});
+	assert(geneBadge.text === '遺伝子：10種' && geneBadge.afterFactor,
+		'段I: 遺伝子のバッジがシナリオ因子の右隣に出る（数は並記）', geneBadge);
+	assert(geneBadge.bg === geneBadge.wantBg && geneBadge.color === geneBadge.wantColor && geneBadge.differsFromFactor,
+		'段I: 遺伝子のバッジの色が --uma-gene-* から当たり、因子のバッジと区別できる', geneBadge);
+	assert(await page.evaluate(() => { setAptitudeGenesAll(false); return document.getElementById('badge-genes').classList.contains('hidden'); }),
+		'段I: 遺伝子を外すとバッジも消える');
+	await page.evaluate(() => { setScenarioFactorsAll(false); setAptitudeGenesAll(false); });
 
 	/* --- UmaSkill Deck への受け渡し（手順3）---
 	   OCRを回さずに、合成した行を本物の照合関数に通して結果を作る（special と同じ考え方）。
@@ -5762,8 +5883,8 @@ const browser = await chromium.launch();
 				? listGene.querySelector('svg path').getAttribute('d') : null : null,
 			listGeneCls: listGene ? listGene.className : null,
 			listMarkGlyph: listMark ? listMark.textContent : null,
-			// 凡例の行にも同じ SVG が入る
-			legendGeneSvg: !!document.querySelector('#registry-legend-gene svg path'),
+			// 凡例の行にも同じ SVG が入る（段I で凡例そのものを JS が組み立てるようになった）
+			legendGeneSvg: !!document.querySelector('#registry-legend svg path'),
 			// 大きさと縦位置が ◆ とそろっているか（.uma-glyph-mark の役目）。
 			// **箱の寸法そのものは一致しない** ―― 文字の記号の箱は行の高さ（16px）と
 			// 字送り（12px）で決まり、SVG の箱は 1.2em の正方形（14.4px）だから。
@@ -6650,6 +6771,29 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		{ diamond: res.diamondGlyphs.slice(0, 3), heart: res.heartGlyphs.slice(0, 1) });
 	assert(res.copyLines === off.skills + nFactor,
 		'C-2b: コピー用データには因子の行も入る（表と同じ並び）', { copyLines: res.copyLines, expect: off.skills + nFactor });
+
+	/* --- 段I(special): 判定結果の表に「印の無い行」が出ない ---
+	   exam では 'plain'（その他の対象スキル）に印が無く、74行が裸だった（段I で直した）。
+	   special は `tiers.of()` が既定（○）を返すので**セットに入っている行には必ず ◎○▲ が付く**。
+	   ここはその前提が崩れていないかを見る番人 ―― 崩れたら exam と同じ症状が出る。
+	   印の形は区分でばらばら（◆＝文字／♡と◎○▲＝SVG）なので、
+	   **名前の前に <span> が置かれているか**で数える。 */
+	const spBare = await page.evaluate(() => {
+		const rows = [...document.querySelectorAll('#result-tbody tr')].filter(r => r.querySelector('td'));
+		const bare = rows.filter(r => {
+			const first = r.querySelector('td').firstElementChild;
+			return !first || first.tagName !== 'SPAN';
+		});
+		return {
+			rows: rows.length, bare: bare.length,
+			sample: bare.slice(0, 3).map(r => r.querySelector('td').textContent.replace(/\s+/g, ' ').trim().slice(0, 24)),
+			// セットに入っているスキルは全部 deckTierByName を持つ（既定が返るので抜けない）
+			tierNames: Object.keys(deckTierByName).length,
+			tierMissing: skillOnlyList.filter(n => !deckTierByName[n]).length,
+		};
+	});
+	assert(spBare.bare === 0 && spBare.tierMissing === 0,
+		'段I(special): 判定結果の表に印の無い行が無い（tiers.of() が既定を返すので抜けない）', spBare);
 
 	// 結合画像の凡例に◆の行が増える
 	const legend = await page.evaluate(() => {

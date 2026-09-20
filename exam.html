@@ -276,9 +276,14 @@
 		 * **3枚のときだけ**、640px 以上で3列に横並びにする。
 		 *   シナリオ因子だけ … 1 / 1 / 1.7。**3列目だけ広くする**のは、因子の行が
 		 *     「名前＋：★N」の2つで1行なので、等分だと PC 幅でも名前が省略されるため。
-		 *     1.7 は 1280px でいちばん長い名前が入る最小の比率＋余裕（実測）。
-		 *   遺伝子だけ … 等分の3列で足りる（**実測**）。遺伝子の名前は最長7字なので、
+		 *     1.7 は 1280px で**そのときの最長の因子名**が入る最小の比率＋余裕（実測）。
+		 *   遺伝子だけ … 等分の3列で足りる（**実測**）。遺伝子の名前は因子よりずっと短く、
 		 *     1280px の等分＝153px に対して必要なのは約118px。広げる理由が無い。
+		 *
+		 * **最長の名前はカタログが増えれば変わる**（実際、1.7 を決めたときの最長は
+		 * すでに最長ではない）。だからここに名前も字数も書かない ―― 比率を見直すときは
+		 * `factorOnlyList` / `geneOnlyList` から**そのときの最長を取り直して測る**。
+		 * 何字まで入るかは幅と字体で決まるので、測らずに字数から逆算しない。
 		 *
 		 * **4枚（因子と遺伝子の両方）のときは、どの幅でも 2列 × 2段のまま**にする。
 		 * 横に4枚並べるのは**どの幅でも成立しなかった**（実測。1行4列にすると）:
@@ -670,8 +675,9 @@
 			     （ここまで可変にすると、既定が何種なのかが画面のどこにも残らないため）。 -->
 			<p class="text-xs text-slate-500 mb-3">技能試験で有利な対象スキルをあらかじめ既定として133種登録しています。対象の広さは下の「対象スキルの範囲」で調整可能です。</p>
 
-			<!-- 今の設定のバッジ。sp70緑・緑59種は常時、あとの3つは
-			     その設定を選んでいるときだけ出す（updateCategoryBadges が出し入れする）。 -->
+			<!-- 今の設定のバッジ。sp70緑・緑59種は常時、あとの4つは
+			     その設定を選んでいるときだけ出す（updateCategoryBadges が出し入れする）。
+			     追加と除外は排他（軸1の3択）なので、同時に出るのは最大5つ。 -->
 			<div class="flex flex-wrap gap-2 mb-4">
 				<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
 					<i data-lucide="star" class="w-3 h-3"></i>
@@ -692,6 +698,15 @@
 				<span id="badge-scenario-factors" class="hidden items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-[var(--uma-catalog-soft)] text-[var(--uma-catalog-text)]">
 					<i data-lucide="clapperboard" class="w-3 h-3"></i>
 					<span id="badge-scenario-factors-text">シナリオ因子：0種</span>
+				</span>
+				<!-- 遺伝子（段I。段F の積み残し）。**シナリオ因子の右隣**に置く ―― 帯は
+				     「常時2つ → 選んだときだけ出る4つ」の順で、後ろの4つは②の並び
+				     （追加／除外 → シナリオ因子 → 遺伝子）に合わせてある。色は印と同じ系統
+				     （因子＝--uma-catalog-*／遺伝子＝--uma-gene-*）なので、帯を見ただけで
+				     どちらの話かが分かる。アイコンは「?」の一覧の見出しと同じ dna。 -->
+				<span id="badge-genes" class="hidden items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-[var(--uma-gene-soft)] text-[var(--uma-gene-text)]">
+					<i data-lucide="dna" class="w-3 h-3"></i>
+					<span id="badge-genes-text">遺伝子：0種</span>
 				</span>
 			</div>
 
@@ -781,16 +796,12 @@
 					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
 				</summary>
 				<div class="p-4 pt-2 border-t border-slate-200/60">
-					<p class="text-[11px] text-slate-500 mb-2">
-						<span class="text-amber-500 font-bold">★</span> = sp70緑（17種） ／
-						<span class="text-emerald-500 font-bold">●</span> = その他緑（42種） ／
-						<span class="text-[var(--uma-mark-catalog)] font-bold">◆</span> = シナリオ因子 ／
-						<!-- 遺伝子の印は SVG（段G-2）。中身は renderSkillRegistryList() が入れる
-						     ―― 形を1か所（js/stitch.js）から取るため、ここには書かない。 -->
-						<span id="registry-legend-gene" class="uma-glyph-mark text-[var(--uma-mark-gene)]"></span> = 遺伝子<br />
-						<span class="registry-added">下線</span> = 「対象を広げる」で足したスキル ／
-						<span class="registry-removed">取り消し線</span> = 「対象を絞る」で対象から外したスキル（判定には使いません）
-					</p>
+					<!-- 凡例は **renderSkillRegistryList() が下の一覧と同じ材料から組み立てる**（段I）。
+					     手で書いていたときは、印を足しても凡例に足し忘れる／選んでいない区分の
+					     説明が残る、のどちらも起きた（'plain' の黒丸が凡例にも印にも無かったのがそれ）。
+					     いまは**一覧に実際に出ている区分だけ**が凡例に並ぶ（凡例と一覧が一対一）。
+					     記号そのものも SCREEN_MARK から出すので、色や形が2か所に分かれない。 -->
+					<p id="registry-legend" class="text-[11px] text-slate-500 mb-2"></p>
 					<div id="skill-registry-list" class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-xs text-slate-600 max-h-72 overflow-y-auto"></div>
 				</div>
 			</details>
@@ -2046,10 +2057,10 @@
 		}
 
 		/**
-		 * 画面（一覧・判定結果の表）に出す記号。**4種だけ**で、
-		 * 'plain' / 'added' / 'removed' には記号を出さない（画面の見た目は従来どおり。
-		 * 足した5種・外した12種は赤＋下線／赤＋打ち消し線で示していて、記号は使っていない）。
-		 * 結果画像のほうは7種すべてを描く（段H で遺伝子が加わった）。
+		 * 画面（一覧・判定結果の表）に出す記号。**5種**で、'added' / 'removed' にだけ
+		 * 記号を出さない（足した5種・外した12種は赤＋下線／赤＋打ち消し線で示していて、
+		 * 記号は使っていない）。結果画像のほうは7種すべてを描く
+		 * （'gene' は段H、'plain' は画面側が段I で追いついた）。
 		 */
 		/* 区分の呼び名と並び順。**画面（一覧・判定結果の表）と結果画像の凡例で同じ語を使う。**
 		   ここに置いてあるのは、呼び名が「区分そのもの」の属性だから（描画側の都合ではない）。 */
@@ -2070,11 +2081,18 @@
 		// 「緑59種」とだけ書くと ★ の17種を含むのか42種のことなのか区別できないため、数を添える。
 		// 「緑59種」は**緑全体を数える場所にだけ**使う（①のタブのバッジなど）。
 		// 優劣を想起させる語（「高コスパ」など）は使わない（軸1の呼び名と同じ基準）。
+		//
+		// **'plain'（その他の対象スキル）も入っている**（段I）。段H まで screen 側だけ
+		// 抜けていて、一覧と判定結果の表に**印の無い行**が並び、凡例にも説明が無かった
+		// ―― 結合画像のほうには最初から黒丸で出ていたので、画面と画像で食い違っていた。
+		// 色は結合画像と同じ ATTR_MARK_TOKEN.plain（--uma-text）。
 		const SCREEN_MARK = (function () {
 			const sp70Count = SP70_GREEN_17_SET.size;
 			const greenOnlyCount = GREEN_59_SET.size - sp70Count;
+			const plainCount = EXAM_SKILL_NAMES.length - GREEN_59_SET.size;
 			const sp70Title = MARK_LEGEND_LABEL.sp70 + '（' + sp70Count + '種）';
 			const greenTitle = MARK_LEGEND_LABEL.green + '（' + greenOnlyCount + '種）';
+			const plainTitle = MARK_LEGEND_LABEL.plain + '（' + plainCount + '種）';
 			return {
 				factor: { glyph: '◆', color: 'text-[var(--uma-mark-catalog)]', listTitle: MARK_LEGEND_LABEL.factor, tableTitle: MARK_LEGEND_LABEL.factor },
 				// 遺伝子は**紫のハート**（形は段G、色は段G-2）。◆と同じ「スキルではないもの」の
@@ -2086,7 +2104,10 @@
 				gene: { svg: true, color: 'uma-glyph-mark text-[var(--uma-mark-gene)]',
 					listTitle: MARK_LEGEND_LABEL.gene, tableTitle: MARK_LEGEND_LABEL.gene },
 				sp70: { glyph: '★', color: 'text-amber-500', listTitle: sp70Title, tableTitle: sp70Title },
-				green: { glyph: '●', color: 'text-emerald-500', listTitle: greenTitle, tableTitle: greenTitle }
+				green: { glyph: '●', color: 'text-emerald-500', listTitle: greenTitle, tableTitle: greenTitle },
+				// その他の対象スキル（段I）。緑の ● と**形が同じで色だけ違う**のは、
+				// 結合画像がすでにそうしているため（色＝どの区分か。F-62）。
+				plain: { glyph: '●', color: 'text-[var(--uma-text)]', listTitle: plainTitle, tableTitle: plainTitle }
 			};
 		})();
 
@@ -2325,12 +2346,41 @@
 			return rows;
 		}
 
+		/* ------------------------------------------------------------
+		 * 一覧の上の凡例（段I）。**一覧に実際に出ている区分だけ**を並べる。
+		 *
+		 * 材料は下の一覧とまったく同じ rows。結合画像の凡例が「実際に描いた区分」から
+		 * 作られているのと同じ考え方で、**凡例と中身が一対一**になる。
+		 * 並びは MARK_KIND_ORDER（結合画像の凡例と同じ順）。
+		 * 下線・取り消し線は印ではないが、一覧の読み方であることは同じなので、
+		 * 「対象を広げる／絞る」でその行が実際に出ているときだけ添える。
+		 * ------------------------------------------------------------ */
+		function buildSkillRegistryLegend(rows) {
+			const kinds = new Set();
+			let hasAdded = false, hasRemoved = false;
+			rows.forEach(row => {
+				const kind = skillMarkKind(row.name);
+				if (kind && SCREEN_MARK[kind]) kinds.add(kind);
+				if (row.state === 'scopeAdded') hasAdded = true;
+				if (row.state === 'scopeRemoved') hasRemoved = true;
+			});
+			const marks = MARK_KIND_ORDER.filter(k => kinds.has(k)).map(k => {
+				const m = SCREEN_MARK[k];
+				return screenMarkHtml(m, m.listTitle) + ' = ' + escapeHtml(m.listTitle);
+			});
+			const styles = [];
+			if (hasAdded) styles.push('<span class="registry-added">下線</span> = 「対象を広げる」で足したスキル');
+			if (hasRemoved) styles.push('<span class="registry-removed">取り消し線</span> = 「対象を絞る」で対象から外したスキル（判定には使いません）');
+			// 印の行と線の行は別の段にする（印の並びが長いので、続けて書くと読みにくい）
+			return [marks.join(' ／ '), styles.join(' ／ ')].filter(Boolean).join('<br />');
+		}
+
 		function renderSkillRegistryList() {
-			// 一覧の上の凡例に出す遺伝子の印も、同じ SVG を入れる（形を2か所に書かない）
-			const legendGene = document.getElementById('registry-legend-gene');
-			if (legendGene && !legendGene.firstChild) legendGene.innerHTML = geneMarkSvg();
+			const rows = buildSkillRegistryRows();
+			const legend = document.getElementById('registry-legend');
+			if (legend) legend.innerHTML = buildSkillRegistryLegend(rows);
 			const box = document.getElementById('skill-registry-list');
-			box.innerHTML = buildSkillRegistryRows().map(row => {
+			box.innerHTML = rows.map(row => {
 				const skill = row.name;
 				const m = SCREEN_MARK[skillMarkKind(skill)];
 				const mark = m
@@ -2418,6 +2468,9 @@
 			const factorCount = activeScenarioFactors().length;
 			show('badge-scenario-factors', 'badge-scenario-factors-text', factorCount > 0,
 				'シナリオ因子：' + factorCount + '種');
+			// 遺伝子も同じ形で出す（段I）。因子と**合算しない**（並記。C-70 の13節）
+			const geneCount = activeAptitudeGenes().length;
+			show('badge-genes', 'badge-genes-text', geneCount > 0, '遺伝子：' + geneCount + '種');
 		}
 
 		/* ============================================================
@@ -3718,7 +3771,8 @@
 				'<span class="star-cell text-slate-300">' + '★'.repeat(3 - stars) + '</span>';
 		}
 
-		// スキル名の前に付けるカテゴリバッジ（sp70緑=★ / その他緑=● / シナリオ因子=◆ / 遺伝子=ハート）。
+		// スキル名の前に付けるカテゴリバッジ。記号と色は SCREEN_MARK が持つ1組だけで、
+		// **一覧・判定結果の表・結果画像が同じものを見る**（段I で 'plain' の黒丸も揃った）。
 		// 区分の判定は skillMarkKind() に一本化してある（一覧・結果画像と共有）。
 		function categoryBadge(skill) {
 			const m = SCREEN_MARK[skillMarkKind(skill)];
@@ -4214,6 +4268,11 @@
 				// 「シナリオ因子・遺伝子」は1つのチェックで両方の行を持つ（段H）。帯の中では
 				// 因子の行の下に遺伝子の行が続き、区別は色で付くので、消すときも一緒でよい。
 				item('scenario', "setStitchShow('scenario', this.checked)", 'シナリオ因子・遺伝子', '（各列の該当状況）') +
+				// 括弧の中の記号の並びは**文字のまま**にしてある（♥ を含む）。F-63 は
+				// 「**印そのもの**を文字で置くとフォント次第で形が変わる」という話で、
+				// 印は画面も結合画像も SVG／Canvas で描いている。ここは項目名に添えた
+				// **参考表示**なので、豆腐になっても何の項目かは読める。SVG を混ぜると
+				// 項目名の行の中で大きさとベースラインを別に面倒みることになるので割に合わない。
 				item('marks', 'setAttrIcons(this.checked)', '印', '（★●◆♥✕）') +
 				item('legend', "setStitchShow('legend', this.checked)", '凡例', '（印の見かた）', true) +
 				item('conditions', "setStitchShow('conditions', this.checked)", '集計条件', '（追加／除外スキル・シナリオ因子・遺伝子一覧）');

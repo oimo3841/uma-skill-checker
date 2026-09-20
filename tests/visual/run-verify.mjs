@@ -276,8 +276,15 @@ const INTENTIONALLY_REMOVED = {
 	// 作りかけの状態を指していたもので、段H で反映したので用が済んだ（おいもさんの決定）。
 	// 精度の話は冒頭の「※ OCR・★判定の精度は完全ではありません」が受け持つ。
 	// **special の #deck-roster-alpha は別の話**（データの不完全さ）なので残っている。
+	// `8c2805b` に commit したので免除は空に戻した（残すと本当の事故を見逃す口になる）。
+	// 2026-09-20（66セッション目・段I）: exam の一覧の凡例を**手書きの HTML から
+	// renderSkillRegistryList() の組み立てへ**変えたので、遺伝子の印を入れる器だった
+	// #registry-legend-gene が消えた。凡例そのものは #registry-legend（新設）に入り、
+	// 中身は一覧と同じ材料（SCREEN_MARK と rows）から作られる ―― 手書きだったせいで
+	// 'plain' の黒丸が凡例にも印にも無いまま残っていたのが段I で直した症状なので、
+	// 「凡例と一覧が一対一」を作りとして保証する形に置き換えた。
 	// **次の commit で免除は空に戻すこと**（残すと本当の事故を見逃す口になる）。
-	'exam.html': ['genes-alpha'],
+	'exam.html': ['registry-legend-gene'],
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
