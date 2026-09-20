@@ -240,8 +240,11 @@
 		.stitch-wire-card--b { background: #fffaf0; border-color: #f5dfae; color: #a9720b; }
 		.stitch-wire-card b { display: block; width: 40%; height: 7px; border-radius: 2px; background: currentColor; }
 		/* シナリオ因子の行（カードとは別の帯。個別に消せる） */
-		.stitch-wire-factors { padding: 0 0 2px; }
+		/* 帯の「シナリオ因子・遺伝子」の行。**2本**あるのは、1つのチェックが
+		   因子の行と遺伝子の行の両方を持つため（段H）。色でどちらかが分かる。 */
+		.stitch-wire-factors { display: flex; flex-direction: column; gap: 2px; padding: 0 0 2px; }
 		.stitch-wire-factor { display: block; width: 70%; height: 4px; border-radius: 2px; background: var(--uma-mark-catalog); }
+		.stitch-wire-factor--gene { width: 52%; background: var(--uma-mark-gene); }
 		.stitch-wire-countnote { display: flex; justify-content: flex-end; padding: 0 0 2px; }
 		.stitch-wire-countnote b { display: block; width: 55%; height: 3px; border-radius: 2px; background: var(--uma-border-strong); }
 		.stitch-wire-shots { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 4px; padding: 3px; background: var(--uma-surface-sunken); }
@@ -253,6 +256,7 @@
 		.stitch-wire-mark.is-on[data-stitch-mark="green"] { background: var(--uma-mark-green-skill); }
 		.stitch-wire-mark.is-on[data-stitch-mark="plain"] { background: var(--uma-text); }
 		.stitch-wire-mark.is-on[data-stitch-mark="factor"] { background: var(--uma-mark-catalog); }
+		.stitch-wire-mark.is-on[data-stitch-mark="gene"] { background: var(--uma-mark-gene); }
 		.stitch-wire-mark.is-on[data-stitch-mark="removed"] { background: var(--uma-danger-text); }
 		.stitch-wire-notes { display: flex; flex-direction: column; gap: 3px; padding: 4px 2px 1px; border-top: 1px solid var(--uma-border-strong); }
 		.stitch-wire-line { display: flex; align-items: center; gap: 2px; }
@@ -265,18 +269,32 @@
 		 * ハイライトの「人物のまとまり」の中のカードの段組み
 		 *
 		 * **どの幅でも2列以上の格子**にする。639px 以下は 2列に固定で、
-		 * 1行目に sp70緑・緑、2行目の左にシナリオ因子が入り、**右下は空いたまま**。
-		 * ここは将来の4枚目のパネルの置き場所なので、**カード側に幅の指定を持たせない**
-		 * （因子だけ col-span-2 で全幅にすると、4枚目を足すとき並びを組み直すことになる）。
+		 * 1行目に sp70緑・緑、2行目にシナリオ因子・遺伝子が入る（**2列 × 2段**）。
+		 * **カード側に幅の指定を持たせない**ので、枚数が変わっても並びを組み直さなくてよい
+		 * （3枚のときは右下が空くだけ。66セッション目に遺伝子が4枚目に入った）。
 		 *
-		 * 640px 以上は3列。**3列目（シナリオ因子）だけ広くする**のは、因子の行が
-		 * 「名前＋：★N」の2つで1行なので、等分だと PC 幅でも名前が省略されてしまうため
-		 * （1.7 は、1280px で「グランドマスターズシナリオ」が省略されずに入る最小の比率から
-		 *   少し余裕を見た値。実測で決めている）。数字だけの sp70緑・緑は狭くても困らない。
+		 * **3枚のときだけ**、640px 以上で3列に横並びにする。
+		 *   シナリオ因子だけ … 1 / 1 / 1.7。**3列目だけ広くする**のは、因子の行が
+		 *     「名前＋：★N」の2つで1行なので、等分だと PC 幅でも名前が省略されるため。
+		 *     1.7 は 1280px でいちばん長い名前が入る最小の比率＋余裕（実測）。
+		 *   遺伝子だけ … 等分の3列で足りる（**実測**）。遺伝子の名前は最長7字なので、
+		 *     1280px の等分＝153px に対して必要なのは約118px。広げる理由が無い。
+		 *
+		 * **4枚（因子と遺伝子の両方）のときは、どの幅でも 2列 × 2段のまま**にする。
+		 * 横に4枚並べるのは**どの幅でも成立しなかった**（実測。1行4列にすると）:
+		 *   ・1024px 以上 … まとまりが横2つ並びで半分の幅になるため、1024〜1151px では
+		 *     いちばん長い因子名と遺伝子名の**両方が入る比率が存在しない**
+		 *     （必要 因子150px＋遺伝子118px に対し、使えるのは升目4つで計393px）。
+		 *   ・640px 未満と 1024px 以上 … sp70緑・緑が88〜93pxまで痩せ、
+		 *     見出し「緑（実質53種）」が**2行に折り返す**。
+		 * 2列 × 2段なら 640px で246px・1280px で233px あり、375〜1280px のどこでも
+		 * 名前の省略も見出しの折り返しも起きない（375px で長い因子名が省略されるのは
+		 * 3枚のときと同じで、段H で悪くなった点ではない）。
 		 * ============================================================ */
 		.hl-cards { display: grid; gap: var(--uma-sp-2); grid-template-columns: repeat(2, minmax(0, 1fr)); }
 		@media (min-width: 640px) {
-			.hl-cards--factors { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.7fr); }
+			.hl-cards--factors:not(.hl-cards--genes) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.7fr); }
+			.hl-cards--genes:not(.hl-cards--factors) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 		}
 		/* sp70緑・緑のカードは「見出し＋数字」の2行しか中身が無い。格子の升目は同じ行の
 		   いちばん高いカードに合わせて伸びる（stretch）ので、隣にシナリオ因子の一覧が並ぶと
@@ -733,11 +751,13 @@
 						onclick="openFactorList()" aria-label="シナリオ因子の一覧を見る" title="シナリオ因子の一覧を見る">?</button>
 				</div>
 
-				<!-- 遺伝子（66セッション目・段F。**αテスト中**）。上のシナリオ因子と同じ1行の形。
+				<!-- 遺伝子（66セッション目・段F）。上のシナリオ因子と同じ1行の形。
 				     種数は renderAptitudeGeneToggle() が写しから書く（1件ずつ手書きしない）。
-				     αであることは**常時表示の注記**で示す ―― 告知ダイアログは一度閉じると
-				     出ないので、作りかけの機能の断りには向かない（C-67 の9節）。
-				     注記は**この行の直下**に置く。3択やシナリオ因子にはかからない。 -->
+				     **αの注記（#genes-alpha）は段H で削除した。** α という断りは
+				     「結合画像にはまだ反映されない」作りかけの状態を指していたもので、
+				     段H で反映したので用が済んだ。精度の話は冒頭の
+				     「※ OCR・★判定の精度は完全ではありません」が受け持つ。
+				     Special 側の「一部αテスト中」は**データの不完全さ**を指す別の話なので触らない。 -->
 				<div class="uma-checkrow mt-2.5">
 					<label for="genes-all" class="uma-checkrow-label">
 						<input type="checkbox" id="genes-all" onchange="setAptitudeGenesAll(this.checked)" />
@@ -747,7 +767,6 @@
 					<button type="button" class="uma-help-btn" aria-expanded="false" id="gene-list-btn"
 						onclick="openGeneList()" aria-label="遺伝子の一覧を見る" title="遺伝子の一覧を見る">?</button>
 				</div>
-				<p id="genes-alpha" class="uma-help-box uma-help-box--alpha mt-2">遺伝子の読み取りは<strong>αテスト中</strong>です。まだ作りかけで、<strong>結合画像には反映されません</strong>。</p>
 			</div>
 
 			<!-- 対象スキルの一覧（確認用・折りたたみ） -->
@@ -916,11 +935,11 @@
 					<div id="stitch-progress-bar" class="h-full bg-[var(--uma-deco)] rounded-full transition-all duration-300" style="width:0%"></div>
 				</div>
 			</div>
-			<!-- 「結合画像の表示」（結果画像に何を焼き込むか。検出数カード／シナリオ因子／印／凡例／集計条件）。
+			<!-- 「結合画像の表示」（結果画像に何を焼き込むか。検出数カード／シナリオ因子・遺伝子／印／凡例／集計条件）。
 			     ここに置いてあるのは、切り替えを効かせるには結合をやり直す必要があるから
 			     （結果画像の引き出しに置くと、切り替えてもその場では何も変わらない）。
 			     開発用の設定ではないので、「高度な解析オプション」の中には入れていない。
-			     中身（チェック4つ＋結合画像の模式図）は renderStitchShowPanel() が作る。
+			     中身（チェック5つ＋結合画像の模式図）は renderStitchShowPanel() が作る。
 			     印のチェック（#opt-attr-icons。保存キー uma-exam-attr-icons）もこの中に入る。 -->
 			<div id="stitch-show-panel"></div>
 			<!-- 「高度な解析オプション」で出るもの（切り出しプレビュー・開発ログ）の置き場。
@@ -1095,7 +1114,7 @@
 				<!-- サマリーカード（アップロード人数に応じてJSで生成） -->
 				<div id="stat-grid" class="grid grid-cols-4 gap-3 mb-6"></div>
 	
-				<!-- ハイライト（sp70緑・緑59種・シナリオ因子）。
+				<!-- ハイライト（sp70緑・緑59種・シナリオ因子・遺伝子）。
 				     以前は「緑スキルハイライト」だったが、緑スキル以外（シナリオ因子）も
 				     並べるようになったので、上位の呼び方「ハイライト」にしてある。 -->
 				<div id="exam-highlight" class="hidden rounded-xl border border-[var(--uma-deco-border)] bg-[var(--uma-deco-soft)]/50 p-4 md:p-5 mb-6">
@@ -1991,9 +2010,8 @@
 		 *
 		 * 軸1は排他なので、'added' と 'removed' が同時に現れることはない。
 		 *
-		 * **'gene' は画面（一覧・判定結果の表）にだけ出す。結合画像には焼かない**
-		 * ―― 段F では結合画像での示し方を決めていないため。落としているのは
-		 * 下の stitchMarkKind() の1か所で、そこに理由を書いてある。
+		 * **'gene' も画面と結合画像の両方に出す**（段H）。段F のあいだは結合画像だけ
+		 * 落としていたが、示し方が決まった（紫のハート）ので落とすのをやめた。
 		 * ------------------------------------------------------------ */
 		// run … 押した時点のスナップショット（captureRun）。結合画像の側はこれを渡し、画面の側は渡さない。
 		function skillMarkKind(name, run) {
@@ -2012,32 +2030,29 @@
 		}
 
 		/**
-		 * **結合画像**に焼く区分。画面（skillMarkKind）との違いは**遺伝子だけ**で、
-		 * 段F では「結合画像での示し方は決めない。パネルを置くだけ」と決めたため
-		 * null を返して描かせない（画面の一覧・判定結果の表には ◆ が出る）。
+		 * **結合画像**に焼く区分。**いまは画面（skillMarkKind）と同じものを返す。**
 		 *
+		 * 段F のあいだはここで 'gene' だけ null に落としていた（結合画像での示し方を
+		 * 決めていなかったため）。段H で示し方が決まったので落とすのをやめた。
 		 * 凡例は「実際に描いた区分」から作る（drawAttrIconsOnPerson の戻り値 kinds）ので、
-		 * ここで落とせば凡例の行も自動的に出ない。帯と脚注は activeScenarioFactors() を
-		 * 見ているので、遺伝子は元から入らない。
+		 * 落とすのをやめただけで**ハートと凡例の行が同時に出る**。
 		 *
-		 * **決まったらこの1行を外す**（外すだけで ◆ と凡例の行が同時に出る）。
-		 * 落とす場所を関数にしてあるのは、描画の途中の分岐にすると検査から見えないため。
+		 * **関数そのものは残す。** 画面と結合画像で区分を違えたくなったときに手を入れる
+		 * 場所がここ1つに決まっていて、描画の途中の分岐と違って検査から見える
+		 * （smoke が「2つが一致すること」を毎回確かめている）。
 		 */
 		function stitchMarkKind(name, run) {
-			const kind = skillMarkKind(name, run);
-			return kind === 'gene' ? null : kind;
+			return skillMarkKind(name, run);
 		}
 
 		/**
 		 * 画面（一覧・判定結果の表）に出す記号。**4種だけ**で、
 		 * 'plain' / 'added' / 'removed' には記号を出さない（画面の見た目は従来どおり。
 		 * 足した5種・外した12種は赤＋下線／赤＋打ち消し線で示していて、記号は使っていない）。
-		 * 結果画像のほうは 'gene' を除く6種を描く（段F。結合画像での示し方は未定）。
+		 * 結果画像のほうは7種すべてを描く（段H で遺伝子が加わった）。
 		 */
 		/* 区分の呼び名と並び順。**画面（一覧・判定結果の表）と結果画像の凡例で同じ語を使う。**
-		   ここに置いてあるのは、呼び名が「区分そのもの」の属性だから（描画側の都合ではない）。
-		   'gene' も並びに入れてあるが、結合画像では描かないので凡例にも出てこない
-		   （凡例は「実際に描いた区分」から作るため。drawAttrIconsOnPerson の戻り値 kinds）。 */
+		   ここに置いてあるのは、呼び名が「区分そのもの」の属性だから（描画側の都合ではない）。 */
 		const MARK_KIND_ORDER = ['sp70', 'green', 'plain', 'factor', 'gene', 'added', 'removed'];
 		const MARK_LEGEND_LABEL = {
 			sp70: 'sp70緑',
@@ -2643,7 +2658,7 @@
 			// 「スキル名のコピー」が開いている場合に備え、表示中のリストも再計算する
 			renderSkillCopyTextarea();
 			updateProcessBtn();
-			// 「結合画像の表示」のシナリオ因子のチェックは、1件も選んでいなければ灰色にする
+			// 「結合画像の表示」の「シナリオ因子・遺伝子」のチェックは、どちらも1件も選んでいなければ灰色にする
 			syncStitchShowUi();
 			if (window.lucide) lucide.createIcons();
 			if (activePersonIndexes().length > 0) {
@@ -3379,23 +3394,26 @@
 		}
 
 		/* ------------------------------------------------------------
-		 * ハイライトに出すシナリオ因子の行（「因子名：★の数」）を組み立てる。
+		 * ハイライトに出す一覧の行（「名前：★の数」）を組み立てる。
+		 * **シナリオ因子と遺伝子が同じ規則を共有する**（66セッション目・段H）。
 		 *
 		 * **出すのは検出したものだけ**（64セッション目・段E）。検出が3種以下ならその全部を
 		 * 1行ずつ、4種以上なら★の多い上位3種を出し、他があることを「他」の1文字で添える
-		 * （件数などの数字は付けない）。★が同数のときは正本（24件）の並び順を保つ。
+		 * （件数などの数字は付けない）。★が同数のときは正本（因子24件／遺伝子10件）の
+		 * 並び順を保つ。
 		 *
 		 * 以前は**選んだ**因子を並べ、未検出は「−」で最下位に沈めていた。24種をまとめて
 		 * 対象にする形（段D）にしたので、大半が常に未検出になり、「選んだのに出なかった」
 		 * という情報の値打ちが消えた。残り枠が「−」で埋まるだけなので出さない。
 		 *
 		 * 画面のカードと結果画像で同じ並び・同じ文字列を使うため、ここに1本化してある。
+		 * **カテゴリごとに規則を書き分けない**（段H で遺伝子を足したとき、上位3種・「他」の
+		 * 規則を写すのではなくこの関数を共有した。片方だけ直る取りこぼしを作らないため）。
 		 *
 		 * 戻り値: null（1種も選んでいない／1種も検出していない）
 		 *         ／{ items: [{name, stars, text}], more: boolean }
 		 * ------------------------------------------------------------ */
-		function scenarioFactorHighlight(personIdx, run) {
-			const selected = activeScenarioFactors(run);
+		function catalogHighlightRows(selected, personIdx) {
 			if (selected.length === 0) return null;
 			// 検出したが★を読めなかったものは ★?（表の「?」と同じ意味）。
 			// 未検出（undefined）はそもそも並べないので、「−」はもう使わない。
@@ -3414,6 +3432,12 @@
 			const top = found.slice().sort((a, b) => (rank(b.stars) - rank(a.stars)) || (a.order - b.order)).slice(0, 3);
 			return { items: top.map(shape), more: true };
 		}
+		function scenarioFactorHighlight(personIdx, run) {
+			return catalogHighlightRows(activeScenarioFactors(run), personIdx);
+		}
+		function aptitudeGeneHighlight(personIdx, run) {
+			return catalogHighlightRows(activeAptitudeGenes(run), personIdx);
+		}
 
 		function renderExamHighlight(used) {
 			const wrap = document.getElementById('exam-highlight');
@@ -3428,6 +3452,7 @@
 			// 実質53種モードだと「緑59種 18/53」と、見出しと分母が食い違って見えていた。
 			const greenLabel = equivalence ? ('緑（実質' + green59Max + '種）') : ('緑（' + green59Max + '種個別）');
 			const factorCount = activeScenarioFactors().length;
+			const geneCount = activeAptitudeGenes().length;
 
 			const grid = document.getElementById('exam-highlight-grid');
 			// セット単位（親A/親B）で縦に並べる。
@@ -3447,10 +3472,10 @@
 			 * なったことで目立つようになった）。
 			 *
 			 * 段組みの区切り（Tailwind の sm / lg をそのまま使う）:
-			 *   〜639px … まとまりは縦に積む。まとまりの中は sp70緑・緑を横に2枚、
-			 *              シナリオ因子はその下に全幅（`col-span-2`）。
-			 *   640px〜 … まとまりの中は3枚を横並び。まとまりはまだ縦に積む
-			 *              （3枚を横に並べるとまとまり1つで幅を使い切るため）。
+			 *   〜639px … まとまりは縦に積む。まとまりの中は2列（3枚なら右下が空き、
+			 *              4枚なら1段目に sp70緑・緑、2段目にシナリオ因子・遺伝子）。
+			 *   640px〜 … 3枚なら横並び、4枚なら2列 × 2段のまま（理由は上の .hl-cards の但し書き）。
+			 *              まとまりはまだ縦に積む（横に並べるとまとまり1つで幅を使い切るため）。
 			 *   1024px〜… まとまりを横に2つずつ並べる（従来の見た目に近い）。
 			 *
 			 * まとまりの区別は**白い面**で付ける。セットの箱が既に色付きの2px枠なので、
@@ -3464,8 +3489,11 @@
 			used.forEach(i => bySet[Math.floor(i / 3)].push(i));
 
 			// まとまりの中の段組み（規則は上の <style> の .hl-cards）。
-			// シナリオ因子が無ければ2枚なので、どの幅でも2列のまま。
-			const innerCols = factorCount > 0 ? 'hl-cards hl-cards--factors' : 'hl-cards';
+			// 一覧を持つカード（シナリオ因子・遺伝子）が出ているぶんだけ修飾子を足す。
+			// どちらも無ければ2枚なので、どの幅でも2列のまま。
+			const innerCols = 'hl-cards'
+				+ (factorCount > 0 ? ' hl-cards--factors' : '')
+				+ (geneCount > 0 ? ' hl-cards--genes' : '');
 
 			let html = '';
 			bySet.forEach((indices, setIdx) => {
@@ -3488,35 +3516,42 @@
 								<p class="text-[11px] font-medium text-emerald-700 mb-0.5">${greenLabel}</p>
 								<p class="text-base md:text-xl font-extrabold text-emerald-600">${greenCount}<span class="text-xs font-medium text-emerald-400">/${green59Max}</span></p>
 							</div>`;
-					const factors = scenarioFactorHighlight(i);
-					if (factors) {
-						/* 因子の行は「名前の列」と「：★N の列」の2列で組む。
-						   **1つの grid に全行の升目を入れる**のが肝で、行ごとに別の箱
-						   （flex の <p>）にすると2列目の幅が行ごとに決まり、★の縦位置が揃わない。
-						   grid-template-columns: minmax(0, 1fr) max-content
-						     1列目 … 残りの幅を全部使う。min が 0 なので中身より狭くなれて、
-						             `truncate` が効く（`auto` のままだと縮まず溢れる）。
-						     2列目 … **そのカードの中でいちばん長い「：★N」に合わせた1つの幅**。
-						             max-content は列単位で決まるので、全行が同じ幅になる。
-						             中身は**左に寄せる**（右に寄せると短い「：★?」だけ右へ流れて
-						             「：」の位置が行ごとにずれる。左に寄せれば「：」も★も揃う）。
-						   行は折り返さない。溢れたときに削るのは**名前だけ**（末尾を「…」に）。
-						   省略した名前の全文は title で出す（PC は hover、スマホは長押し。
-						   ①の一覧は総括チェック1つになったので、そちらでは確認できない）。 */
-						const cells = factors.items.map(it =>
+					/* 一覧を持つカード（シナリオ因子・遺伝子）。**2つで同じ組み方を共有する**
+					   （段H。色とカテゴリ名だけが違う。写すと片方だけ直る取りこぼしが出る）。
+
+					   行は「名前の列」と「：★N の列」の2列で組む。
+					   **1つの grid に全行の升目を入れる**のが肝で、行ごとに別の箱
+					   （flex の <p>）にすると2列目の幅が行ごとに決まり、★の縦位置が揃わない。
+					   grid-template-columns: minmax(0, 1fr) max-content
+					     1列目 … 残りの幅を全部使う。min が 0 なので中身より狭くなれて、
+					             `truncate` が効く（`auto` のままだと縮まず溢れる）。
+					     2列目 … **そのカードの中でいちばん長い「：★N」に合わせた1つの幅**。
+					             max-content は列単位で決まるので、全行が同じ幅になる。
+					             中身は**左に寄せる**（右に寄せると短い「：★?」だけ右へ流れて
+					             「：」の位置が行ごとにずれる。左に寄せれば「：」も★も揃う）。
+					   行は折り返さない。溢れたときに削るのは**名前だけ**（末尾を「…」に）。
+					   省略した名前の全文は title で出す（PC は hover、スマホは長押し。
+					   ①の一覧は総括チェック1つになったので、そちらでは確認できない）。 */
+					const listCard = (rows, heading, tokens, kind) => {
+						if (!rows) return '';
+						const cells = rows.items.map(it =>
 							`<span class="truncate" title="${escapeHtml(it.text)}">${escapeHtml(it.name)}</span>`
 							+ `<span class="pl-0.5 text-left">：${escapeHtml(it.stars)}</span>`
 						).join('');
 						// 「他」は★の列と重ならないよう、格子の外に出してカードの右下へ置く
-						const more = factors.more
-							? '<p class="text-right text-[11px] font-bold text-[var(--uma-mark-catalog)] leading-snug">他</p>' : '';
-						cardsHtml += `
-							<div class="rounded-lg border border-[var(--uma-catalog-border)] bg-[var(--uma-catalog-soft)]/60 p-2 sm:p-2.5">
-								<p class="text-[11px] font-medium text-[var(--uma-catalog-text)] mb-0.5 text-center">シナリオ因子</p>
-								<div class="grid items-baseline text-[11px] text-[var(--uma-catalog-text)] leading-snug" style="grid-template-columns: minmax(0, 1fr) max-content;">${cells}</div>
+						const more = rows.more
+							? `<p class="text-right text-[11px] font-bold text-[var(${tokens.mark})] leading-snug">他</p>` : '';
+						return `
+							<div class="rounded-lg border border-[var(${tokens.border})] bg-[var(${tokens.soft})]/60 p-2 sm:p-2.5" data-hl-card="${kind}">
+								<p class="text-[11px] font-medium text-[var(${tokens.text})] mb-0.5 text-center">${heading}</p>
+								<div class="grid items-baseline text-[11px] text-[var(${tokens.text})] leading-snug" style="grid-template-columns: minmax(0, 1fr) max-content;">${cells}</div>
 								${more}
 							</div>`;
-					}
+					};
+					cardsHtml += listCard(scenarioFactorHighlight(i), 'シナリオ因子',
+						{ border: '--uma-catalog-border', soft: '--uma-catalog-soft', text: '--uma-catalog-text', mark: '--uma-mark-catalog' }, 'factor');
+					cardsHtml += listCard(aptitudeGeneHighlight(i), '遺伝子',
+						{ border: '--uma-gene-border', soft: '--uma-gene-soft', text: '--uma-gene-text', mark: '--uma-mark-gene' }, 'gene');
 					groupsHtml += `
 						<div class="rounded-xl bg-white/70 p-2 sm:p-2.5" data-person-group="${i}">
 							<p class="text-[11px] font-bold mb-1.5" style="color:${colors.text}">${label}</p>
@@ -3974,15 +4009,17 @@
 			syncStitchShowUi();
 		}
 
-		// 合成が実際に使う値。凡例は印が OFF なら OFF に、シナリオ因子は1件も選んでいなければ OFF に倒す。
+		// 合成が実際に使う値。凡例は印が OFF なら OFF に、「シナリオ因子・遺伝子」は
+		// **どちらも1件も選んでいなければ** OFF に倒す（段H。片方だけでも行は出る）。
 		// run（下の captureRun() の戻り値）を渡せばその時点の値で、渡さなければ今の画面の値で答える。
 		function stitchShowEffective(run) {
 			const show = run ? run.show : stitchShow;
 			const marks = run ? run.attrIcons : attrIconsEnabled;
 			const factorCount = run ? run.factors.size : selectedScenarioFactors.size;
+			const geneCount = run ? (run.genes ? run.genes.size : 0) : selectedGenes.size;
 			return {
 				banner: !!show.banner,
-				scenario: !!show.scenario && factorCount > 0,
+				scenario: !!show.scenario && (factorCount + geneCount) > 0,
 				legend: !!show.legend && !!marks,
 				conditions: !!show.conditions
 			};
@@ -4174,14 +4211,18 @@
 			// 「検出数カード」の内部名は banner（分割前の「集計バナー」から引き継いだ。保存キーも同じ）
 			const list =
 				item('banner', "setStitchShow('banner', this.checked)", '検出数カード', '（検出数・sp70緑）') +
-				item('scenario', "setStitchShow('scenario', this.checked)", 'シナリオ因子', '（各列の該当状況）') +
-				item('marks', 'setAttrIcons(this.checked)', '印', '（★●◆✕）') +
+				// 「シナリオ因子・遺伝子」は1つのチェックで両方の行を持つ（段H）。帯の中では
+				// 因子の行の下に遺伝子の行が続き、区別は色で付くので、消すときも一緒でよい。
+				item('scenario', "setStitchShow('scenario', this.checked)", 'シナリオ因子・遺伝子', '（各列の該当状況）') +
+				item('marks', 'setAttrIcons(this.checked)', '印', '（★●◆♥✕）') +
 				item('legend', "setStitchShow('legend', this.checked)", '凡例', '（印の見かた）', true) +
-				item('conditions', "setStitchShow('conditions', this.checked)", '集計条件', '（追加／除外スキル・シナリオ因子一覧）');
+				item('conditions', "setStitchShow('conditions', this.checked)", '集計条件', '（追加／除外スキル・シナリオ因子・遺伝子一覧）');
 
-			// 模式図。スクショの段は「左右2列 × 4段」で、印の色は区分ごと（順は結果画像で目にする頻度）
+			// 模式図。スクショの段は「左右2列 × 4段」で、印の色は区分ごと（順は結果画像で目にする頻度）。
+			// 段H で遺伝子を足したが、**升目は8つのまま**にした（2列 × 4段の形を崩さないため）。
+			// 重複していた2つ目の 'green' を 'gene' に替えている。
 			const shotRow = (kind) => '<span class="stitch-wire-row"><i class="stitch-wire-mark" data-stitch-mark="' + kind + '" data-stitch-part="marks"></i><b></b></span>';
-			const shotKinds = ['sp70', 'green', 'plain', 'factor', 'green', 'removed', 'sp70', 'plain'];
+			const shotKinds = ['sp70', 'green', 'plain', 'factor', 'gene', 'removed', 'sp70', 'plain'];
 			const legendMark = (kind) => '<i class="stitch-wire-mark is-on" data-stitch-mark="' + kind + '"></i>';
 			const wire =
 				'<div class="stitch-wire" aria-hidden="true"><div class="stitch-wire-sheet">' +
@@ -4190,11 +4231,14 @@
 						'<span class="stitch-wire-card stitch-wire-card--a"><small>検出</small><b></b></span>' +
 						'<span class="stitch-wire-card stitch-wire-card--b"><small>sp70緑</small><b></b></span>' +
 					'</div>' +
-					'<div class="stitch-wire-factors" data-stitch-part="scenario"><span class="stitch-wire-factor"></span></div>' +
+					'<div class="stitch-wire-factors" data-stitch-part="scenario">' +
+						'<span class="stitch-wire-factor"></span>' +
+						'<span class="stitch-wire-factor stitch-wire-factor--gene"></span>' +
+					'</div>' +
 					'<div class="stitch-wire-countnote" data-stitch-part="banner"><b></b></div>' +
 					'<div class="stitch-wire-shots" data-stitch-part="shots">' + shotKinds.map(shotRow).join('') + '</div>' +
 					'<div class="stitch-wire-notes" data-stitch-part="notebar">' +
-						'<span class="stitch-wire-line" data-stitch-part="legend">' + legendMark('sp70') + legendMark('green') + legendMark('factor') + '<b></b></span>' +
+						'<span class="stitch-wire-line" data-stitch-part="legend">' + legendMark('sp70') + legendMark('green') + legendMark('factor') + legendMark('gene') + '<b></b></span>' +
 						'<span class="stitch-wire-line" data-stitch-part="conditions"><b style="width:92%"></b></span>' +
 						'<span class="stitch-wire-line" data-stitch-part="conditions"><b style="width:74%"></b></span>' +
 					'</div>' +
@@ -4223,9 +4267,11 @@
 					const key = input.getAttribute('data-stitch-show');
 					input.checked = (key === 'marks') ? attrIconsEnabled : !!stitchShow[key];
 					// 凡例は印の子。印が OFF の間は選べない（保存値は残し、印を戻せばそのまま効く）。
-					// シナリオ因子は1件も選んでいなければ選べない（出す行が無い。同じく保存値は残す）。
+					// 「シナリオ因子・遺伝子」は**どちらも1件も選んでいなければ**選べない
+					// （出す行が無い。同じく保存値は残す）。片方だけ選んでいれば選べる ――
+					// 1つのチェックが両方の行を持つようになったため（段H）。
 					const off = ((key === 'legend') && !attrIconsEnabled) ||
-						((key === 'scenario') && selectedScenarioFactors.size === 0);
+						((key === 'scenario') && selectedScenarioFactors.size === 0 && selectedGenes.size === 0);
 					input.disabled = off;
 					const label = input.closest('.stitch-show-item');
 					if (label) label.classList.toggle('is-off', off);
@@ -4339,9 +4385,7 @@
 			green: '--uma-mark-green-skill',
 			plain: '--uma-text',
 			factor: '--uma-mark-catalog',
-			// 遺伝子（段G）。**形と色をここで用意しておくが、結合画像に出るのは段H から**
-			// ―― いまは stitchMarkKind() が 'gene' を落としているので、この行は使われない。
-			// 用意だけ先にするのは、印の形と色を1つの段でまとめて決めるため。
+			// 遺伝子（色は段G-2、結合画像に出るようになったのは段H）
 			gene: '--uma-mark-gene',
 			added: '--uma-danger-text',
 			removed: '--uma-danger-text'
@@ -4386,9 +4430,12 @@
 			return v || STITCH_NOTE_COLOR;
 		}
 
-		// 結合画像のシナリオ因子の行に使うトークン（名前だけ。値は css/tokens.css）
+		// 結合画像の帯の「名前：★N」の行に使うトークン（名前だけ。値は css/tokens.css）。
+		// シナリオ因子と遺伝子で**色だけ**が違う（段H。印と同じで、色＝どのカテゴリか。F-62）。
 		const STITCH_FACTOR_TEXT_TOKEN = '--uma-catalog-text';
 		const STITCH_FACTOR_MORE_TOKEN = '--uma-mark-catalog';
+		const STITCH_GENE_TEXT_TOKEN = '--uma-gene-text';
+		const STITCH_GENE_MORE_TOKEN = '--uma-mark-gene';
 
 		/**
 		 * 印そのものを描く。中心 (cx, cy)・差し渡し d。
@@ -4529,7 +4576,8 @@
 			};
 			res.detectedSkills.forEach(name => {
 				// **画面の区分（skillMarkKind）ではなく結合画像の区分（stitchMarkKind）を使う。**
-				// 違うのは遺伝子だけで、段F のあいだは null が返って描かれない（理由はその関数に）。
+				// いまは両者が同じものを返す（段H で遺伝子を落とすのをやめた）。違えたく
+				// なったときに手を入れる場所を1つに決めてあるだけ（理由はその関数に）。
 				const kind = stitchMarkKind(name, run);
 				if (kind) assign(res.skillSources[name], kind);
 			});
@@ -4635,27 +4683,38 @@
 		// ①-7：ハイライトバナー（検出数・sp70緑のシンプルな表示。
 		// 現行UIの「照合結果」カードと同じ配色：検出＝青系、sp70緑＝黄色/オレンジ系）
 		//
-		// factors … scenarioFactorHighlight() の戻り値（1件も選んでいなければ null）。
-		// 渡されたときは、カードの下に「因子名：★の数」を画面のハイライトと同じ並び・
-		// 同じ文字列で1行ずつ焼き込む（4種以上選んでいれば最後に「他」）。
+		// factors / genes … scenarioFactorHighlight() / aptitudeGeneHighlight() の戻り値
+		//   （1件も選んでいない・1件も検出していなければ null）。
+		// 渡されたときは、カードの下に「名前：★の数」を画面のハイライトと同じ並び・
+		// 同じ文字列で1行ずつ焼き込む（4種以上検出していれば最後に「他」）。
+		// **因子の行の下に遺伝子の行が続く**（段H）。区別は**色**で付ける ―― 画面の印と同じで、
+		// 色＝どのカテゴリか（F-62）。間に空きを入れないのは、帯が縦に伸びると
+		// スクショの上に載る余白が増えるため。
 		// opts.cards   … false なら検出数・sp70緑のカードを省く（検出数カード OFF のとき）。
-		// opts.factors … false ならシナリオ因子の行を省く（シナリオ因子 OFF のとき）。
-		//   見出し（親A など）は両方 OFF でも常に出す。カード OFF・因子 ON なら、見出しの下に因子の行だけを
+		// opts.factors … false なら因子・遺伝子の行をまとめて省く（「シナリオ因子・遺伝子」OFF のとき）。
+		//   見出し（親A など）は両方 OFF でも常に出す。カード OFF・一覧 ON なら、見出しの下に一覧の行だけを
 		//   詰めて置く（行数は同じ run の中で全員同じなので、セット内の帯の高さは揃う）。
-		function stitchDrawPersonBanner(width, groupLabel, totalDetected, sp70Count, factors, opts) {
+		function stitchDrawPersonBanner(width, groupLabel, totalDetected, sp70Count, factors, genes, opts) {
 			const withCards = !(opts && opts.cards === false);
 			const withFactors = !(opts && opts.factors === false);
 			const pad = Math.round(width * 0.03);
 			const titleH = Math.round(width * 0.065);
 			const cardH = Math.round(width * 0.185);
 			const gapY = Math.round(width * 0.02);
-			// 「他」は行を増やさず、最後の行の右端に添える（画面のハイライトと同じ形）
-			const factorLines = (withFactors && factors) ? factors.items.map(it => it.text) : [];
-			const factorMore = withFactors && !!(factors && factors.more);
-			const factorFont = Math.round(cardH * 0.26);
-			const factorLineH = Math.round(factorFont * 1.55);
-			const factorBlockH = factorLines.length ? (gapY + factorLines.length * factorLineH) : 0;
-			const barHeight = pad * 2 + titleH + (withCards ? gapY + cardH : 0) + factorBlockH;
+			// 「他」は行を増やさず、その区分の最後の行の右端に添える（画面のハイライトと同じ形）。
+			// 区分ごとに1つのまとまりにして、色とトークンをそのまとまりが持つ。
+			const listBlocks = [];
+			const pushBlock = (h, textToken, moreToken) => {
+				if (!withFactors || !h) return;
+				listBlocks.push({ lines: h.items.map(it => it.text), more: !!h.more, textToken: textToken, moreToken: moreToken });
+			};
+			pushBlock(factors, STITCH_FACTOR_TEXT_TOKEN, STITCH_FACTOR_MORE_TOKEN);
+			pushBlock(genes, STITCH_GENE_TEXT_TOKEN, STITCH_GENE_MORE_TOKEN);
+			const listLineCount = listBlocks.reduce((n, b) => n + b.lines.length, 0);
+			const listFont = Math.round(cardH * 0.26);
+			const listLineH = Math.round(listFont * 1.55);
+			const listBlockH = listLineCount ? (gapY + listLineCount * listLineH) : 0;
+			const barHeight = pad * 2 + titleH + (withCards ? gapY + cardH : 0) + listBlockH;
 
 			const c = document.createElement('canvas');
 			c.width = width;
@@ -4677,7 +4736,7 @@
 			ctx.font = 'bold ' + titleH + 'px sans-serif';
 			ctx.textBaseline = 'top';
 			ctx.fillText(groupLabel, pad, y);
-			if (!withCards && !factorLines.length) return c; // 見出しだけの帯（下の区切り線は上で引いてある）
+			if (!withCards && !listLineCount) return c; // 見出しだけの帯（下の区切り線は上で引いてある）
 			y += titleH + gapY;
 
 			if (withCards) {
@@ -4730,35 +4789,40 @@
 				ctx.fillText(String(sp70Count), x2 + cardW * 0.08, y + cardH * 0.36);
 			}
 
-			if (factorLines.length) {
+			if (listLineCount) {
 				// カードがあればその下、無ければ見出しのすぐ下（y は見出しの下端＋余白のまま）
 				if (withCards) y += cardH + gapY;
-				// 幅に収まらない行があれば、全体を縮めて桁を揃える（行ごとに大きさが変わらないように）。
-				// 最後の行は右端の「他」と重ならないよう、そのぶん狭い幅で見る。
+				// 幅に収まらない行があれば、**全部のまとまりをまとめて**縮めて桁を揃える
+				// （区分ごとに大きさを決めると、因子と遺伝子で字の大きさが変わってしまう）。
+				// 各まとまりの最後の行は、右端の「他」と重ならないようそのぶん狭い幅で見る。
 				const moreText = '他';
-				let fs = factorFont;
+				let fs = listFont;
 				const maxW = width - pad * 2;
 				const fits = () => {
 					ctx.font = 'bold ' + fs + 'px sans-serif';
-					const moreW = factorMore ? ctx.measureText(moreText).width + fs * 0.6 : 0;
-					return factorLines.every((t, i) => {
-						const limit = (factorMore && i === factorLines.length - 1) ? maxW - moreW : maxW;
+					const moreW = ctx.measureText(moreText).width + fs * 0.6;
+					return listBlocks.every(b => b.lines.every((t, i) => {
+						const limit = (b.more && i === b.lines.length - 1) ? maxW - moreW : maxW;
 						return ctx.measureText(t).width <= limit;
-					});
+					}));
 				};
 				while (fs > 9 && !fits()) fs -= 1;
 				ctx.font = 'bold ' + fs + 'px sans-serif';
 				ctx.textBaseline = 'top';
-				ctx.textAlign = 'left';
-				ctx.fillStyle = stitchTokenColor(STITCH_FACTOR_TEXT_TOKEN);
-				factorLines.forEach((t, i) => ctx.fillText(t, pad, y + i * factorLineH));
-				if (factorMore) {
-					// 「他」だけは薄い色にして、因子名の並びの続きだと分かるようにする
-					ctx.fillStyle = stitchTokenColor(STITCH_FACTOR_MORE_TOKEN);
-					ctx.textAlign = 'right';
-					ctx.fillText(moreText, width - pad, y + (factorLines.length - 1) * factorLineH);
+				let row = 0;
+				listBlocks.forEach(b => {
 					ctx.textAlign = 'left';
-				}
+					ctx.fillStyle = stitchTokenColor(b.textToken);
+					b.lines.forEach((t, i) => ctx.fillText(t, pad, y + (row + i) * listLineH));
+					if (b.more) {
+						// 「他」だけは薄い色にして、その区分の並びの続きだと分かるようにする
+						ctx.fillStyle = stitchTokenColor(b.moreToken);
+						ctx.textAlign = 'right';
+						ctx.fillText(moreText, width - pad, y + (row + b.lines.length - 1) * listLineH);
+						ctx.textAlign = 'left';
+					}
+					row += b.lines.length;
+				});
 			}
 
 			return c;
@@ -4770,26 +4834,30 @@
 		 * シナリオ因子の「因子名：★の数」は人ごとの値なので、各人のバナーに焼く
 		 * （stitchDrawPersonBanner）。ここは全員に共通する「何を対象にしたか」だけを書く。
 		 * ------------------------------------------------------------ */
-		// run（captureRun）を渡せば、押した時点の範囲・シナリオ因子で書く（結合画像の側が使う）。
+		// run（captureRun）を渡せば、押した時点の範囲・シナリオ因子・遺伝子で書く（結合画像の側が使う）。
 		// personIdxs … この画像に入っている人（省略時は結果のある人すべて）。
-		//   シナリオ因子の行は**この人たちの誰かが検出したものだけ**を並べる。
+		//   シナリオ因子・遺伝子の行は**この人たちの誰かが検出したものだけ**を並べる。
 		function buildTargetAdjustmentNotes(run, personIdxs) {
 			const notes = [];
 			const scope = run ? run.scope : targetScopeMode;
 			const added = (scope === 'expanded') ? EXPANDED_EXTRA_SKILL_NAMES.slice() : [];
 			const removed = (scope === 'curated')
 				? CURATED_EXCLUDED_IDS.map(id => EXAM_NAME_BY_ID[id]).filter(Boolean) : [];
-			// **検出したシナリオ因子だけ**を並べる（64セッション目・段E）。以前は選んだ全件を
+			// **検出したものだけ**を並べる（64セッション目・段E）。以前は選んだ全件を
 			// 1行に並べていたが、24種をまとめて対象にする形（段D）では常に24種になり、
 			// 長大なうえ「対象にした」ことしか伝えない。**帯＝人ごとの上位3種／
 			// この脚注＝画像に入っている人の全検出分**、という役割分担にする。
+			// **遺伝子も同じ規則で1行足す**（段H）。因子と合算せず**並記**にするのは、
+			// 選ぶときに分けているから（C-70 の13節）。
 			const seen = (personIdxs && personIdxs.length) ? personIdxs : activePersonIndexes();
-			const factors = activeScenarioFactors(run)
-				.filter(name => seen.some(i => starsFor(i, name) !== undefined));
+			const detected = (names) => names.filter(name => seen.some(i => starsFor(i, name) !== undefined));
+			const factors = detected(activeScenarioFactors(run));
+			const genes = detected(activeAptitudeGenes(run));
 			if (added.length) notes.push('追加スキル（' + added.length + '種）：' + added.join('・'));
 			if (removed.length) notes.push('除外スキル（' + removed.length + '種）：' + removed.join('・'));
 			// 数は「対象にした数」ではなく「検出した数」なので、そう分かる書き方にする。
 			if (factors.length) notes.push('検出したシナリオ因子（' + factors.length + '種）：' + factors.join('・'));
+			if (genes.length) notes.push('検出した遺伝子（' + genes.length + '種）：' + genes.join('・'));
 			return notes;
 		}
 
@@ -4832,9 +4900,9 @@
 		//   （欄そのものを置かない。区切り線だけが取り残されないように）。
 		// show … { legend, conditions }。どちらも省略時は true（stitchShowEffective() の値を渡す）。
 		//   legend が false なら印にまつわる行（見かた・無い行の説明・付けなかった理由）を全部省く。
-		//   conditions が false なら集計条件（追加／除外スキル・シナリオ因子）の行を省く。
-		// run … 押した時点のスナップショット（captureRun）。集計条件の行はこの範囲・シナリオ因子で書く。
-		// personIdxs … この画像に入っている人。シナリオ因子の行を「誰かが検出したぶん」に絞るのに使う。
+		//   conditions が false なら集計条件（追加／除外スキル・シナリオ因子・遺伝子）の行を省く。
+		// run … 押した時点のスナップショット（captureRun）。集計条件の行はこの範囲・シナリオ因子・遺伝子で書く。
+		// personIdxs … この画像に入っている人。シナリオ因子・遺伝子の行を「誰かが検出したぶん」に絞るのに使う。
 		function stitchDrawSharedNoteBar(totalWidth, referenceWidth, markInfo, show, run, personIdxs) {
 			const s = Object.assign({ legend: true, conditions: true }, show || {});
 			// 測るための ctx（帯そのものは js/stitch.js の stitchDrawNoteBar が別のCanvasに描く）。
@@ -4863,13 +4931,13 @@
 					stitchWrapText(ctx, text, maxTextWidth).forEach(line => markNotes.push(line));
 				});
 
-			// 何を対象にしたか（追加スキル → 除外スキル → シナリオ因子）。
+			// 何を対象にしたか（追加スキル → 除外スキル → シナリオ因子 → 遺伝子）。
 			const adjustNotes = [];
 			(s.conditions ? buildTargetAdjustmentNotes(run, personIdxs) : []).forEach(t => {
 				stitchWrapText(ctx, t, maxTextWidth).forEach(line => adjustNotes.push(line));
 			});
 
-			// 行の順は「印の見かた → 印の無い行の説明 → 追加 → 除外 → シナリオ因子」。
+			// 行の順は「印の見かた → 印の無い行の説明 → 追加 → 除外 → シナリオ因子 → 遺伝子」。
 			// 画像を見た人がまず知りたいのは記号の意味なので、凡例を先頭に置き、
 			// 対象スキルをどう調整したかは後ろにまとめる。
 			// 記号の部品は、描き方（drawSkillMark と色）を包んで骨格へ渡す。
@@ -4940,8 +5008,9 @@
 				const detected = countDetected(idx, run);
 				const sp70Count = countCategory(idx, sp70Ids, false);
 				const greenCount = countCategory(idx, greenIds, equivalence);
-				// 検出数カード・シナリオ因子は個別に省ける。両方 OFF でも列見出し（親A など）の帯は出す
-				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count, scenarioFactorHighlight(idx, run),
+				// 検出数カード・「シナリオ因子・遺伝子」は個別に省ける。両方 OFF でも列見出し（親A など）の帯は出す
+				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count,
+					scenarioFactorHighlight(idx, run), aptitudeGeneHighlight(idx, run),
 					{ cards: show.banner, factors: show.scenario });
 				bannerCanvases.push(banner);
 				contentCanvases.push(contentCanvas);

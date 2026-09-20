@@ -1488,8 +1488,9 @@ const browser = await chromium.launch();
 	assert(!examClosed.open && examClosed.helpOpen === 'false',
 		'C-2c(exam): Esc で一覧が閉じる', examClosed);
 
-	/* --- 遺伝子の1行（段F。**αテスト中**） ---
+	/* --- 遺伝子の1行（段F） ---
 	   シナリオ因子とまったく同じ形。件数は正本の写しから取る（テストに数字を書かない）。
+	   **αの注記（#genes-alpha）は段H で消した**ので、無いことを見る（C-70 の段H）。
 	   ミニウィンドウが .glass-card（backdrop-filter を持つ）の子孫に入っていないことも見る
 	   ―― 入ると position: fixed の基準が画面ではなくカードになり、箱が画面の外へ出る（F-61）。 */
 	const GENE_COUNT = await page.evaluate(() => APTITUDE_GENES.length);
@@ -1497,35 +1498,26 @@ const browser = await chromium.launch();
 	const geneRow = await page.evaluate(() => {
 		const row = document.getElementById('genes-all').closest('.uma-checkrow');
 		const badge = document.getElementById('genes-badge');
-		const alpha = document.getElementById('genes-alpha');
 		return {
 			row: !!row, height: row ? Math.round(row.getBoundingClientRect().height) : null,
 			label: row ? row.querySelector('.uma-checkrow-label span').textContent : null,
 			badge: badge ? badge.textContent : null,
 			accent: badge ? badge.classList.contains('uma-badge--accent') : null,
 			help: !!document.getElementById('gene-list-btn'),
-			// αの注記は**常時表示**（hidden も開閉のボタンも無い）。共通CSSの修飾子から色が当たる。
-			alphaShown: !!alpha && !alpha.hidden,
-			alphaCls: alpha ? alpha.className : null,
-			alphaColor: alpha ? getComputedStyle(alpha).backgroundColor : null,
-			alphaText: alpha ? alpha.textContent : null,
-			// 注記は遺伝子の行の直下（3択やシナリオ因子にはかからない）
-			alphaAfterRow: !!alpha && alpha.previousElementSibling === row,
+			// 段H: αの注記は消した。箱そのものも、αを名乗る文言も残っていないこと。
+			alphaGone: !document.getElementById('genes-alpha'),
+			noAlphaBox: !document.querySelector('.uma-help-box--alpha'),
+			noAlphaText: document.body.textContent.indexOf('結合画像には反映されません') === -1,
+			// Special 側と違い、exam には α を名乗る文言がもう無い
+			noAlphaWord: document.getElementById('step-panel-1').textContent.indexOf('αテスト') === -1,
 		};
 	});
 	assert(geneRow.row && geneRow.label === '遺伝子' && geneRow.height <= 40 && geneRow.help,
 		'段F(exam): 遺伝子は1行（☑ 遺伝子 N種 ?）', geneRow);
 	assert(geneRow.badge === GENE_COUNT + '種' && geneRow.accent === true,
 		'段F(exam): 件数のバッジが出て、ON のあいだは色が変わる', geneRow);
-	assert(geneRow.alphaShown && geneRow.alphaAfterRow
-		&& geneRow.alphaCls.includes('uma-help-box--alpha')
-		&& geneRow.alphaText.includes('αテスト中')
-		&& geneRow.alphaText.includes('結合画像には反映されません'),
-		'段F(exam): αテスト中の注記が遺伝子の行の直下に常時出ている', geneRow);
-	// 共通CSS（css/common.css の .uma-help-box--alpha）から色が当たっているか。
-	// 当たらないと注記がただの薄い箱になり、αであることが目立たない。
-	assert(geneRow.alphaColor === 'rgb(254, 242, 242)',
-		'段F(exam): αの注記の色が共通CSSから当たっている（--uma-danger-bg）', geneRow.alphaColor);
+	assert(geneRow.alphaGone && geneRow.noAlphaBox && geneRow.noAlphaText && geneRow.noAlphaWord,
+		'段H(exam): αの注記は消えている（結合画像に反映したので用が済んだ）', geneRow);
 	await page.click('#gene-list-btn');
 	await page.waitForTimeout(400);
 	const geneList = await page.evaluate(() => {
@@ -2039,25 +2031,35 @@ const browser = await chromium.launch();
 		'exam: 遺伝子は1文字違いでも採用しない（上限が0のため）', geneStrict);
 	assert(geneStrict.keepPairA === true && geneStrict.keepPairB === true && geneStrict.crossAB === false,
 		'exam: 距離1で並ぶ2つ（短距離／中距離）を取り違えない', geneStrict);
-	/* **画面には ◆ を出すが、結合画像には焼かない**（段F。示し方を決めていないので描かない）。
-	   印を描く側は stitchMarkKind() を通すので、そこが null を返すことが「描かれない」の実体。
-	   凡例も「実際に描いた区分」から作るので、null なら凡例の行も出ない。
-	   決めたら stitchMarkKind() の1行を外すことになる ―― そのとき**この検査が落ちる**ので、
-	   外し忘れ・外しっぱなしのどちらにも気づける。 */
+	/* --- 段H: 遺伝子の印は**画面にも結合画像にも**出す ---
+	   段F のあいだは stitchMarkKind() が 'gene' を null に落としていて、この検査は
+	   「結合画像には焼かない」ことを見ていた。段H で落とすのをやめたので、**意図のほうを**
+	   書き換えてある ―― いまは「画面と結合画像で区分が一致する」ことを見る。
+	   凡例は「実際に描いた区分」から作る（drawAttrIconsOnPerson の戻り値 kinds）ので、
+	   区分が返るということは**凡例の行も増える**ということ。そこは下の凡例の検査で見る。
+	   ここが落ちるのは「また落とし始めた」「スキルまで落ちた」のどちらか。 */
 	const geneMark = await page.evaluate(() => {
 		const g = APTITUDE_GENES[0], s = EXAM_SKILL_NAMES[0];
+		const kinds = [g, s].concat(SCENARIO_INHERITANCE_FACTORS.slice(0, 1));
 		return {
 			画面の区分: skillMarkKind(g), 結合画像の区分: stitchMarkKind(g),
 			記号: SCREEN_MARK.gene ? (SCREEN_MARK.gene.svg ? 'svg' : SCREEN_MARK.gene.glyph) : null,
 			呼び名: SCREEN_MARK.gene ? SCREEN_MARK.gene.tableTitle : null,
-			// スキルのほうは画面でも結合画像でも同じ区分のまま（遺伝子だけを落としている）
+			// どの区分でも画面と結合画像が食い違わない（遺伝子だけでなく全部を見る）
+			一致: kinds.every((n) => skillMarkKind(n) === stitchMarkKind(n)),
 			スキルの画面: skillMarkKind(s), スキルの結合画像: stitchMarkKind(s),
+			// 結合画像に焼く色（Canvas は CSS が効かないので実行時にトークンから引く）
+			印の色: (attrMarkColors() || {}).gene || null,
+			凡例の呼び名: MARK_LEGEND_LABEL.gene,
 		};
 	});
 	assert(geneMark.画面の区分 === 'gene' && geneMark.記号 === 'svg' && geneMark.呼び名 === '遺伝子',
 		'段G-2(exam): 遺伝子は画面ではハートの SVG（区分は gene・呼び名は「遺伝子」）', geneMark);
-	assert(geneMark.結合画像の区分 === null && geneMark.スキルの画面 === geneMark.スキルの結合画像,
-		'段F(exam): 結合画像には遺伝子の印を焼かない（落とすのは遺伝子だけ。スキルは素通り）', geneMark);
+	assert(geneMark.結合画像の区分 === 'gene' && geneMark.一致 === true
+		&& geneMark.スキルの画面 === geneMark.スキルの結合画像,
+		'段H(exam): 結合画像にも遺伝子の印を焼く（画面と結合画像の区分が一致する）', geneMark);
+	assert(!!geneMark.印の色 && geneMark.凡例の呼び名 === '遺伝子',
+		'段H(exam): 結合画像の印の色と凡例の呼び名が引ける（凡例に「遺伝子」の行が出る条件）', geneMark);
 
 	// Esc は開いているものを1つ閉じる（引き出し → FAB の順）。
 	// 直前まで iframe の中を操作していたので、キーは親の文書に戻してから送る
@@ -4582,6 +4584,12 @@ const browser = await chromium.launch();
 			banner: q('banner').checked, marks: q('marks').checked, legend: q('legend').checked, conditions: q('conditions').checked,
 			scenario: q('scenario').checked, scenarioDisabled: q('scenario').disabled,
 			scenarioGrey: q('scenario').closest('.stitch-show-item').classList.contains('is-off'),
+			// 段H: 1つのチェックが因子と遺伝子の両方を持つので、呼び名も両方を名乗る
+			scenarioLabel: q('scenario').closest('.stitch-show-item').querySelector('.stitch-show-text').textContent,
+			marksLabel: q('marks').closest('.stitch-show-item').querySelector('.stitch-show-text').textContent,
+			// 模式図の帯は因子・遺伝子の2本
+			scenarioBars: Array.from(document.querySelectorAll('#stitch-show-panel [data-stitch-part="scenario"] .stitch-wire-factor'))
+				.map((el) => getComputedStyle(el).backgroundColor),
 			order: Array.from(document.querySelectorAll('#stitch-show-panel input[data-stitch-show]')).map((i) => i.getAttribute('data-stitch-show')).join(','),
 			legendDisabled: q('legend').disabled,
 			legendGrey: q('legend').closest('.stitch-show-item').classList.contains('is-off'),
@@ -4594,10 +4602,16 @@ const browser = await chromium.launch();
 
 	let s = await stateOf();
 	assert(s.inPanel2 && s.inputs === 5 && s.marksIsOptAttrIcons, '結合画像の表示: ②にチェック5つのパネルがあり、印は既存の #opt-attr-icons のまま', s);
-	assert(s.order === 'banner,scenario,marks,legend,conditions', '結合画像の表示: 並びは 検出数カード → シナリオ因子 → 印 → 凡例 → 集計条件', s.order);
+	assert(s.order === 'banner,scenario,marks,legend,conditions', '結合画像の表示: 並びは 検出数カード → シナリオ因子・遺伝子 → 印 → 凡例 → 集計条件', s.order);
 	assert(s.banner && s.scenario && !s.marks && s.legend && s.conditions, '結合画像の表示: 既定は検出数カード・シナリオ因子・凡例・集計条件が ON、印が OFF', s);
 	assert(s.scenarioDisabled && s.scenarioGrey && s.eff.scenario === false && s.wire.scenario.every((h) => h),
-		'結合画像の表示: シナリオ因子を1件も選んでいなければ、チェックは灰色で選べず、模式図の帯も出ない', s);
+		'結合画像の表示: シナリオ因子も遺伝子も1件も選んでいなければ、チェックは灰色で選べず、模式図の帯も出ない', s);
+	/* 段H: 項目の呼び名。1つのチェックが因子と遺伝子の両方を持つので、呼び名も両方を名乗る。
+	   印の記号の並びにもハートが入る（★●◆♥✕）。模式図の帯は区分ごとに2本。 */
+	assert(s.scenarioLabel.startsWith('シナリオ因子・遺伝子'), '段H: 項目の呼び名が「シナリオ因子・遺伝子」になっている', s.scenarioLabel);
+	assert(s.marksLabel.indexOf('♥') !== -1, '段H: 印の項目の記号の並びにハートが入る', s.marksLabel);
+	assert(s.scenarioBars.length === 2 && s.scenarioBars[0] !== s.scenarioBars[1],
+		'段H: 模式図の「シナリオ因子・遺伝子」の帯は2本で、色が違う', s.scenarioBars);
 	assert(s.legendDisabled && s.legendGrey && s.eff.legend === false, '結合画像の表示: 印が OFF の間、凡例は選べず灰色になり、合成にも効かない', s);
 	assert(s.wire.header.every((h) => !h) && s.wire.banner.every((h) => !h) && s.wire.legend.every((h) => h) && s.wire.conditions.every((h) => !h) && s.wire.notebar.every((h) => !h),
 		'結合画像の表示: 模式図は列見出し・バナー・集計条件が出て、凡例だけ消えている', s.wire);
@@ -4620,6 +4634,18 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(200);
 	s = await stateOf();
 	assert(s.scenario && s.scenarioDisabled && s.stored[4] === '1', '結合画像の表示: 因子を全部外すとまた灰色になるが、チェックの状態は保たれる', s);
+
+	// 段H: **遺伝子だけ**でも選べるようになる（1つのチェックが両方を持つため）
+	await page.evaluate(() => setAptitudeGenesAll(true));
+	await page.waitForTimeout(200);
+	s = await stateOf();
+	assert(!s.scenarioDisabled && !s.scenarioGrey && s.eff.scenario === true,
+		'段H: 遺伝子だけを選んでも「シナリオ因子・遺伝子」が選べるようになる', s);
+	await page.evaluate(() => setAptitudeGenesAll(false));
+	await page.waitForTimeout(200);
+	s = await stateOf();
+	assert(s.scenarioDisabled && s.eff.scenario === false,
+		'段H: どちらも外すとまた選べなくなる', s);
 
 	// 印を ON にすると凡例が選べるようになり、模式図の〇に色が付き、凡例の帯が出る
 	await page.click('#opt-attr-icons');
@@ -4686,8 +4712,8 @@ const browser = await chromium.launch();
 
 	// 合成の分岐（OCR は回さず、描画関数を直接呼ぶ）
 	const draw = await page.evaluate(() => {
-		const withCards = stitchDrawPersonBanner(600, '親A', 12, 3, null);
-		const headerOnly = stitchDrawPersonBanner(600, '親A', 12, 3, null, { cards: false });
+		const withCards = stitchDrawPersonBanner(600, '親A', 12, 3, null, null);
+		const headerOnly = stitchDrawPersonBanner(600, '親A', 12, 3, null, null, { cards: false });
 		// 補足欄。集計条件の行が出る状態（対象を絞る＝除外スキル12種）で見る
 		const prevScope = targetScopeMode;
 		setTargetScopeMode('curated');
@@ -4713,16 +4739,71 @@ const browser = await chromium.launch();
 	// 列見出しの帯: 検出数カードとシナリオ因子の行を個別に省ける。カード OFF・因子 ON なら見出しの下に因子の行を詰める
 	const band = await page.evaluate(() => {
 		const factors = { items: [{ text: 'URAシナリオ：★2' }, { text: 'アオハル杯シナリオ：−' }], more: false };
-		const h = (opts) => stitchDrawPersonBanner(600, '親A', 12, 3, factors, opts).height;
+		const h = (opts, genes) => stitchDrawPersonBanner(600, '親A', 12, 3, factors, genes || null, opts).height;
 		const full = h(undefined), noCards = h({ cards: false }), noFactors = h({ factors: false }), none = h({ cards: false, factors: false });
 		// 因子を渡さなければ（1件も選んでいない）、因子 ON でも見出し＋カードだけ
-		const noneSelected = stitchDrawPersonBanner(600, '親A', 12, 3, null, { cards: true, factors: true }).height;
+		const noneSelected = stitchDrawPersonBanner(600, '親A', 12, 3, null, null, { cards: true, factors: true }).height;
 		return { full, noCards, noFactors, none, noneSelected, factorBlockSame: (full - noFactors) === (noCards - none) };
 	});
 	assert(band.full > band.noCards && band.noCards > band.none && band.full > band.noFactors && band.noFactors > band.none,
 		'結合画像の表示: 列見出しの帯はカード・因子の行を個別に省ける', band);
 	assert(band.factorBlockSame && band.noneSelected === band.noFactors,
 		'結合画像の表示: カード OFF でも因子の行の高さは同じで、因子を1件も選んでいなければ行は出ない', band);
+
+	/* --- 段H: 帯には遺伝子の行も焼く（因子の行の下に続く） ---
+	   行が増えたぶん帯が高くなること、因子だけ・遺伝子だけ・両方の高さが噛み合うこと、
+	   そして**色が区分ごとに違う**（因子＝--uma-catalog-text／遺伝子＝--uma-gene-text）ことを見る。
+	   色は焼いた画素から読む（トークンを引き直すだけだと「描くとき使った」ことの確認にならない）。 */
+	const geneBand = await page.evaluate(() => {
+		const factors = { items: [{ text: 'URAシナリオ：★2' }, { text: 'アオハル杯シナリオ：★1' }], more: false };
+		const genes = { items: [{ text: '芝の遺伝子：★3' }], more: true };
+		const h = (f, g) => stitchDrawPersonBanner(600, '親A', 12, 3, f, g, undefined).height;
+		const only = h(factors, null), both = h(factors, genes), geneOnly = h(null, genes), neither = h(null, null);
+		// 行1本ぶんの高さ。**まとまりの手前に余白が1つ入る**ので、「行が1本増えたときの差」で測る
+		// （高さ ＝ 見出し＋カード ＋ 余白1つ ＋ 行数 × 行の高さ。行数で割ると余白のぶんずれる）。
+		const perLine = both - only;
+		// OFF（factors: false）にすると遺伝子の行も消える（1つのチェックが両方を持つ）
+		const off = stitchDrawPersonBanner(600, '親A', 12, 3, factors, genes, { factors: false }).height;
+		// 焼いた画素の色。因子の行と遺伝子の行の帯から、それぞれ濃い画素を1つ拾う
+		const c = stitchDrawPersonBanner(600, '親A', 12, 3, factors, genes, { cards: false });
+		const ctx = c.getContext('2d');
+		const px = c.width * 4;
+		const rowInk = (y0, y1) => {
+			const d = ctx.getImageData(0, y0, c.width, y1 - y0).data;
+			const seen = {};
+			for (let i = 0; i < d.length; i += 4) {
+				if (d[i + 3] < 200) continue;
+				const k = d[i] + ',' + d[i + 1] + ',' + d[i + 2];
+				if (k === '255,255,255') continue;
+				seen[k] = (seen[k] || 0) + 1;
+			}
+			return Object.entries(seen).sort((a, b) => b[1] - a[1]).slice(0, 3).map((e) => e[0]);
+		};
+		const lineH = perLine;
+		const top = neither - 0; // 見出しだけの帯の高さ＝1行目の上端のおおよそ
+		const hex = (t) => getComputedStyle(document.documentElement).getPropertyValue(t).trim();
+		const toRgb = (x) => [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16)).join(',');
+		return {
+			only, both, geneOnly, neither, off, perLine,
+			// 遺伝子1行ぶん増えていること
+			gainOne: both - only,
+			factorInk: rowInk(Math.round(c.height - lineH * 3), Math.round(c.height - lineH * 2)),
+			geneInk: rowInk(Math.round(c.height - lineH), c.height - 1),
+			wantFactor: toRgb(hex('--uma-catalog-text')), wantGene: toRgb(hex('--uma-gene-text')),
+			px: px,
+		};
+	});
+	assert(geneBand.both > geneBand.only && geneBand.perLine > 0,
+		'段H: 帯に遺伝子の行が1本増える', geneBand);
+	assert(geneBand.only - geneBand.geneOnly === geneBand.perLine,
+		'段H: 行1本ぶんの高さは因子でも遺伝子でも同じ（同じ組み立てを共有している）', geneBand);
+	assert(geneBand.geneOnly > geneBand.neither,
+		'段H: 遺伝子だけでも帯に行が出る（因子を1件も選んでいなくてよい）', geneBand);
+	assert(geneBand.off === geneBand.neither,
+		'段H: 「シナリオ因子・遺伝子」を OFF にすると、遺伝子の行も一緒に消える', geneBand);
+	assert(geneBand.factorInk.includes(geneBand.wantFactor) && geneBand.geneInk.includes(geneBand.wantGene)
+		&& geneBand.wantFactor !== geneBand.wantGene,
+		'段H: 帯の因子の行と遺伝子の行が別の色で焼かれている（トークンの値そのもの）', geneBand);
 
 	/* --- 帯と脚注は「検出したものだけ」（64セッション目・段E） ---
 	   帯（人ごと）＝検出の上位3種＋「他」／脚注（画像全体）＝全検出分、の役割分担。
@@ -5768,12 +5849,14 @@ const browser = await chromium.launch();
 	// ハイライトを引き出しごと開いて、人物ごとのまとまりを作る
 	// factorsOn … シナリオ因子の総括チェック（ON なら24種すべてが対象）。
 	// detectFactors … 因子を検出したことにするか。false なら「対象にしたが1種も出なかった」状態。
+	// genesOn … 遺伝子の総括チェック（段H で4枚目のカードが増えた）。既定は OFF＝従来の3枚。
 	// 戻り値の longest は「いちばん長い因子名」。**名前をこのファイルに書かず**に
 	// 「長い名前が省略される／広い幅では全部出る」を確かめるために返す。
-	const seedHighlight = (page, factorsOn, detectFactors = true) => page.evaluate((o) => {
+	const seedHighlight = (page, factorsOn, detectFactors = true, genesOn = false) => page.evaluate((o) => {
 		if (typeof closeUiNotice === 'function') closeUiNotice();
 		document.querySelectorAll('.uma-overlay-backdrop, .uma-overlay').forEach((el) => { el.hidden = true; });
 		setScenarioFactorsAll(o.on);
+		setAptitudeGenesAll(o.genes);
 		const mk = (names, offset) => matchAllSkillsWithStars(
 			names.map((s, i) => ({ text: s, stars: ((i + offset) % 3) + 1, starsReliable: true, rowKey: 'r' + i })),
 			skillList, skillIndex, {});
@@ -5783,16 +5866,21 @@ const browser = await chromium.launch();
 		const longest = factorOnlyList.slice().sort((a, b) => b.length - a.length)[0] || null;
 		const hit = (o.detect && longest)
 			? [longest].concat(factorOnlyList.filter((n) => n !== longest).slice(0, 3)) : [];
+		// 遺伝子も同じ作り方（段H）。4種検出＝上位3種＋「他」。
+		const longestGene = geneOnlyList.slice().sort((a, b) => b.length - a.length)[0] || null;
+		const geneHit = (o.detect && longestGene)
+			? [longestGene].concat(geneOnlyList.filter((n) => n !== longestGene).slice(0, 3)) : [];
 		const STARS = [3, 3, 2, 1];
 		personResults = PERSON_LABELS.map(() => null);
 		for (let p = 0; p < 3; p++) {
-			personResults[p] = mk(skillList.slice(0, 120 - p * 10).concat(hit), p);
+			personResults[p] = mk(skillList.slice(0, 120 - p * 10).concat(hit, geneHit), p);
 			hit.forEach((n, i) => { personResults[p].skillStars[n] = STARS[i]; });
+			geneHit.forEach((n, i) => { personResults[p].skillStars[n] = STARS[i]; });
 		}
 		renderResults();
 		openDrawer('result');
-		return { longest: longest, hit: hit };
-	}, { on: factorsOn, detect: detectFactors });
+		return { longest: longest, hit: hit, longestGene: longestGene, geneHit: geneHit };
+	}, { on: factorsOn, detect: detectFactors, genes: genesOn });
 	const readGroups = (page) => page.evaluate(() => {
 		const groups = [...document.querySelectorAll('#exam-highlight-grid [data-person-group]')];
 		const box = document.getElementById('exam-highlight');
@@ -5817,8 +5905,9 @@ const browser = await chromium.launch();
 	/* シナリオ因子のカードの行を読む。
 	   名前の升目（title 付き）と「：★N」の升目が交互に並ぶ1つの grid なので、
 	   2つずつ組にして1行として見る。★の縦位置は「：★N」の升目の左端で確かめる。 */
-	const readFactorRows = (page) => page.evaluate(() => {
-		const card = document.querySelector('#exam-highlight-grid [data-person-group] div.grid[style*="minmax"]');
+	const readFactorRows = (page, kind = 'factor') => page.evaluate((k) => {
+		const wrap = document.querySelector('#exam-highlight-grid [data-person-group] [data-hl-card="' + k + '"]');
+		const card = wrap ? wrap.querySelector('div.grid') : null;
 		if (!card) return null;
 		const cells = [...card.children];
 		const rows = [];
@@ -5840,11 +5929,15 @@ const browser = await chromium.launch();
 		const moreEl = card.parentElement.querySelector(':scope > p.text-right');
 		return {
 			rows,
+			heading: card.parentElement.querySelector(':scope > p:first-child').textContent,
+			// 文字の色は区分ごとに違う（因子＝--uma-catalog-text／遺伝子＝--uma-gene-text）
+			color: getComputedStyle(card).color,
+			moreColor: moreEl ? getComputedStyle(moreEl).color : null,
 			// 「他」は格子の外・カードの右下
 			moreText: moreEl ? moreEl.textContent : null,
 			moreBelowGrid: moreEl ? moreEl.getBoundingClientRect().top >= card.getBoundingClientRect().bottom - 1 : null
 		};
-	});
+	}, kind);
 
 	// --- 375px（スマホ幅）・シナリオ因子あり ---
 	{
@@ -5946,6 +6039,81 @@ const browser = await chromium.launch();
 		});
 		assert(swapped.join('|') === 'sp70緑|緑（59種個別）|シナリオ因子',
 			'ハイライト: 数え方を切り替えると緑のカードの見出しも変わる', swapped);
+		await ctx.close();
+	}
+
+	/* ------------------------------------------------------------
+	 * 段H: 遺伝子のカード（4枚目）
+	 *
+	 * 規則は因子と同じ（検出したものだけ・上位3種・4種以上は「他」）。
+	 * **4枚のときはどの幅でも 2列 × 2段**にしてある ―― 横に4枚並べると、
+	 * 1024px 以上でまとまりが半分の幅になり、いちばん長い因子名と遺伝子名の
+	 * 両方が入る比率が存在しない（実測）。640px 未満と 1024px 以上では
+	 * sp70緑・緑の見出しも2行に折り返す。ここではその形と、
+	 * 「名前が省略されない・見出しが折り返さない」ことを幅ごとに見る。
+	 * ------------------------------------------------------------ */
+	for (const [w, h] of [[375, 1800], [640, 1800], [1280, 1800]]) {
+		const { ctx, page, errors } = await openPage(browser, base, 'exam.html', { width: w, height: h });
+		const seeded = await seedHighlight(page, true, true, true);
+		await page.waitForTimeout(700);
+		const g = await readGroups(page);
+		const tag = '段H: ' + w + 'px ';
+		assert(g.cardCounts.every((n) => n === 4), tag + 'まとまりの中は4枚（sp70緑・緑・シナリオ因子・遺伝子）', g.cardCounts);
+		assert(g.cardHeads.every((x) => x[2] === 'シナリオ因子' && x[3] === '遺伝子'),
+			tag + '4枚目の見出しは「遺伝子」', g.cardHeads[0]);
+		// 2列 × 2段。1段目の2枚と2段目の2枚がそれぞれ同じ上端で、2段目は下にある
+		assert(g.innerTops.every((t) => t[0] === t[1] && t[2] === t[3] && t[2] > t[1]),
+			tag + '2列 × 2段（1段目 sp70緑・緑／2段目 シナリオ因子・遺伝子）', g.innerTops[0]);
+		assert(g.innerWidths.every((x) => new Set(x).size === 1),
+			tag + '4枚とも同じ幅', g.innerWidths[0]);
+		assert(!g.overflow && !g.docOverflow, tag + '横スクロールが出ない', g);
+
+		const gr = await readFactorRows(page, 'gene');
+		assert(gr && gr.rows.length === 3 && gr.moreText === '他' && gr.moreBelowGrid,
+			tag + '遺伝子の行は検出分の上位3種＋「他」（因子と同じ規則）', gr && gr.rows.length);
+		assert(gr.rows.every((r) => r.height <= r.lineHeight + 1) && gr.rows.every((r) => !r.starsClipped),
+			tag + '遺伝子の各行が1行に収まり、「：★N」も切れない', gr.rows.map((r) => [r.height, r.lineHeight]));
+		assert(new Set(gr.rows.map((r) => r.starsLeft)).size === 1,
+			tag + '遺伝子でも「：★N」の左端が全行で揃う', gr.rows.map((r) => r.starsLeft));
+		// 色は区分ごとに違う（色＝どのカテゴリか。F-62）
+		const fr2 = await readFactorRows(page, 'factor');
+		assert(fr2.color !== gr.color && fr2.moreColor !== gr.moreColor,
+			tag + 'シナリオ因子と遺伝子でカードの文字色・「他」の色が違う',
+			{ factor: [fr2.color, fr2.moreColor], gene: [gr.color, gr.moreColor] });
+		// 名前の省略。4枚でも 640px 以上なら遺伝子名は省略されない。
+		// 375px で長い因子名が省略されるのは3枚のときと同じ（段H で悪くなった点ではない）。
+		assert(gr.rows.every((r) => !r.clipped) && gr.rows.some((r) => r.name === seeded.longestGene),
+			tag + '遺伝子の名前は省略されない', gr.rows.map((r) => r.name));
+		if (w >= 640) {
+			assert(fr2.rows.every((r) => !r.clipped),
+				tag + '4枚でも因子の名前は省略されない', fr2.rows.map((r) => r.name));
+			// sp70緑・緑の見出しが1行に収まる（横に4枚並べると折り返していた）
+			const heads = await page.evaluate(() => {
+				const g0 = document.querySelector('#exam-highlight-grid [data-person-group] .hl-cards');
+				return [...g0.children].slice(0, 2).map((d) => {
+					const p = d.querySelector('p');
+					return [Math.round(p.getBoundingClientRect().height), Math.round(parseFloat(getComputedStyle(p).lineHeight))];
+				});
+			});
+			assert(heads.every(([hh, lh]) => hh <= lh + 1), tag + 'sp70緑・緑の見出しが1行に収まる', heads);
+		}
+		assert(errors.length === 0, tag + 'コンソールエラーが出ない', errors.slice(0, 3));
+		await ctx.close();
+	}
+
+	// --- 段H: 遺伝子だけ（3枚）のときは 640px 以上で横並びの3列 ---
+	{
+		const { ctx, page } = await openPage(browser, base, 'exam.html', { width: 1280, height: 1400 });
+		const seeded = await seedHighlight(page, false, true, true);
+		await page.waitForTimeout(700);
+		const g = await readGroups(page);
+		assert(g.cardCounts.every((n) => n === 3) && g.cardHeads.every((x) => x[2] === '遺伝子'),
+			'段H: 遺伝子だけなら3枚目が遺伝子', g.cardHeads[0]);
+		assert(g.innerTops.every((t) => t[0] === t[1] && t[1] === t[2]),
+			'段H: 遺伝子だけの3枚は 1280px で横並び', g.innerTops[0]);
+		const gr = await readFactorRows(page, 'gene');
+		assert(gr.rows.every((r) => !r.clipped) && gr.rows.some((r) => r.name === seeded.longestGene),
+			'段H: 遺伝子だけの3枚（等分の3列）でも名前が省略されない', gr.rows.map((r) => r.name));
 		await ctx.close();
 	}
 }
