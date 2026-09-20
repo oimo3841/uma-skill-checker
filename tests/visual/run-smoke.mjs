@@ -1488,6 +1488,104 @@ const browser = await chromium.launch();
 	assert(!examClosed.open && examClosed.helpOpen === 'false',
 		'C-2c(exam): Esc で一覧が閉じる', examClosed);
 
+	/* --- 遺伝子の1行（段F。**αテスト中**） ---
+	   シナリオ因子とまったく同じ形。件数は正本の写しから取る（テストに数字を書かない）。
+	   ミニウィンドウが .glass-card（backdrop-filter を持つ）の子孫に入っていないことも見る
+	   ―― 入ると position: fixed の基準が画面ではなくカードになり、箱が画面の外へ出る（F-61）。 */
+	const GENE_COUNT = await page.evaluate(() => APTITUDE_GENES.length);
+	await page.evaluate(() => setAptitudeGenesAll(true));
+	const geneRow = await page.evaluate(() => {
+		const row = document.getElementById('genes-all').closest('.uma-checkrow');
+		const badge = document.getElementById('genes-badge');
+		const alpha = document.getElementById('genes-alpha');
+		return {
+			row: !!row, height: row ? Math.round(row.getBoundingClientRect().height) : null,
+			label: row ? row.querySelector('.uma-checkrow-label span').textContent : null,
+			badge: badge ? badge.textContent : null,
+			accent: badge ? badge.classList.contains('uma-badge--accent') : null,
+			help: !!document.getElementById('gene-list-btn'),
+			// αの注記は**常時表示**（hidden も開閉のボタンも無い）。共通CSSの修飾子から色が当たる。
+			alphaShown: !!alpha && !alpha.hidden,
+			alphaCls: alpha ? alpha.className : null,
+			alphaColor: alpha ? getComputedStyle(alpha).backgroundColor : null,
+			alphaText: alpha ? alpha.textContent : null,
+			// 注記は遺伝子の行の直下（3択やシナリオ因子にはかからない）
+			alphaAfterRow: !!alpha && alpha.previousElementSibling === row,
+		};
+	});
+	assert(geneRow.row && geneRow.label === '遺伝子' && geneRow.height <= 40 && geneRow.help,
+		'段F(exam): 遺伝子は1行（☑ 遺伝子 N種 ?）', geneRow);
+	assert(geneRow.badge === GENE_COUNT + '種' && geneRow.accent === true,
+		'段F(exam): 件数のバッジが出て、ON のあいだは色が変わる', geneRow);
+	assert(geneRow.alphaShown && geneRow.alphaAfterRow
+		&& geneRow.alphaCls.includes('uma-help-box--alpha')
+		&& geneRow.alphaText.includes('αテスト中')
+		&& geneRow.alphaText.includes('結合画像には反映されません'),
+		'段F(exam): αテスト中の注記が遺伝子の行の直下に常時出ている', geneRow);
+	// 共通CSS（css/common.css の .uma-help-box--alpha）から色が当たっているか。
+	// 当たらないと注記がただの薄い箱になり、αであることが目立たない。
+	assert(geneRow.alphaColor === 'rgb(254, 242, 242)',
+		'段F(exam): αの注記の色が共通CSSから当たっている（--uma-danger-bg）', geneRow.alphaColor);
+	await page.click('#gene-list-btn');
+	await page.waitForTimeout(400);
+	const geneList = await page.evaluate(() => {
+		const box = document.getElementById('gene-list-box');
+		const r = box.getBoundingClientRect();
+		// 祖先に包含ブロックを作るもの（F-61）が無いこと
+		let anc = box.parentElement, blockers = [];
+		while (anc && anc !== document.documentElement) {
+			const cs = getComputedStyle(anc);
+			if ([cs.transform, cs.filter, cs.backdropFilter, cs.perspective, cs.contain]
+				.some((v) => v && v !== 'none')) blockers.push(anc.id || anc.className);
+			anc = anc.parentElement;
+		}
+		return {
+			open: !box.hidden,
+			backdrop: !document.getElementById('gene-list-backdrop').hidden,
+			count: document.getElementById('gene-list-count').textContent,
+			names: Array.from(document.querySelectorAll('#gene-list-names > li')).map((li) => li.textContent),
+			helpOpen: document.getElementById('gene-list-btn').getAttribute('aria-expanded'),
+			checked: document.getElementById('genes-all').checked,
+			top: Math.round(r.top), bottom: Math.round(r.bottom), vh: window.innerHeight,
+			blockers: blockers,
+		};
+	});
+	assert(geneList.open && geneList.backdrop && geneList.helpOpen === 'true'
+		&& geneList.names.length === GENE_COUNT && geneList.count === String(GENE_COUNT),
+		'段F(exam): 「?」で遺伝子の一覧が開く（件数は写しから）', { n: geneList.names.length, count: geneList.count });
+	assert(geneList.checked === true,
+		'段F(exam): 一覧は見るだけ（開いてもチェックの状態は変わらない）', geneList.checked);
+	assert(geneList.blockers.length === 0 && geneList.top >= 0 && geneList.bottom <= geneList.vh,
+		'段F(exam): 一覧の箱が画面に収まる（.glass-card の子孫に置いていない。F-61）',
+		{ top: geneList.top, bottom: geneList.bottom, vh: geneList.vh, blockers: geneList.blockers });
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
+	assert(await page.evaluate(() => document.getElementById('gene-list-box').hidden
+		&& document.getElementById('gene-list-btn').getAttribute('aria-expanded') === 'false'),
+		'段F(exam): Esc で遺伝子の一覧が閉じる');
+	// 数え分けは**並記**（合算しない）。片方だけ ON のときはその片方だけを書く。
+	const geneSplit = await page.evaluate(() => {
+		const read = () => ({ note: extraCountNote(), all: skillList.length,
+			skill: skillOnlyList.length, factor: factorOnlyList.length, gene: geneOnlyList.length });
+		const both = read();
+		setAptitudeGenesAll(false);
+		const factorOnly = read();
+		setScenarioFactorsAll(false); setAptitudeGenesAll(true);
+		const geneOnly = read();
+		setAptitudeGenesAll(false);
+		const none = read();
+		setScenarioFactorsAll(true); setAptitudeGenesAll(true);
+		return { both, factorOnly, geneOnly, none };
+	});
+	assert(geneSplit.both.note === '＋シナリオ因子24種＋遺伝子10種'
+		&& geneSplit.both.skill === 121 && geneSplit.both.factor === 24 && geneSplit.both.gene === 10
+		&& geneSplit.both.all === 155,
+		'段F(exam): 両方 ON なら「＋シナリオ因子24種＋遺伝子10種」と並記する（合算しない）', geneSplit.both);
+	assert(geneSplit.factorOnly.note === '＋シナリオ因子24種' && geneSplit.geneOnly.note === '＋遺伝子10種'
+		&& geneSplit.none.note === '',
+		'段F(exam): 片方だけ ON ならその片方だけ／どちらも OFF なら何も足さない', geneSplit);
+	await page.evaluate(() => setAptitudeGenesAll(false));
+
 	// シナリオ因子はスキルではないので、「スキル」と付く数には入れない。
 	// 並び（照合・一覧・表）には従来どおり入る＝skillList は 121+24 のまま。
 	const splitCounts = await page.evaluate(() => {
@@ -1894,6 +1992,72 @@ const browser = await chromium.launch();
 		'exam: 距離2は候補が一意でも採用しない', strict);
 	assert(strict.keepExact === true,
 		'exam: 完全一致は従来どおり採用する', strict);
+
+	/* --- 遺伝子10種の誤マッチのガード（段F） ---
+	   上限は数値で書かず**カタログから毎回計算する**ので、収録データが増えて名前どうしが
+	   近づけば上限が変わる。いまは「短距離の遺伝子」と「中距離の遺伝子」が距離1しか離れて
+	   いないため、上限は 0 ＝ **完全一致のみ**になる。ここが変わったら前提が崩れているので落とす。
+	   （special 側の同じ検査は C-2b のところにある。exam は core を読まないので実体が別） */
+	const geneStrict = await page.evaluate(() => {
+		const d = (a, b) => levenshtein(a, b);
+		const N = APTITUDE_GENES.map((n) => ({ raw: n, norm: normalizeText(n) }));
+		// 「その遺伝子だけが検出されている」状態を作って絞り込みを通す（採用されれば残る）
+		const keep = (lineText, geneName) => {
+			const res = { detectedSkills: new Set([geneName]), matchReasons: {}, skillSources: {}, skillStars: {} };
+			applyAptitudeGeneStrictMatch(res, [{ text: lineText }], { genes: new Set(APTITUDE_GENES) });
+			return res.detectedSkills.has(geneName);
+		};
+		// 1文字崩した行（2文字目を別の字に替える）
+		const target = N[0];
+		const broken = target.raw.slice(0, 1) + 'ヌ' + target.raw.slice(2);
+		// 距離1の組（短距離／中距離のような組）が実在することも見る
+		let nearPair = null;
+		for (let i = 0; i < N.length && !nearPair; i++) {
+			for (let j = i + 1; j < N.length && !nearPair; j++) {
+				if (d(N[i].norm, N[j].norm) === APTITUDE_GENE_MIN_DISTANCE) nearPair = [N[i].raw, N[j].raw];
+			}
+		}
+		return {
+			size: APTITUDE_GENES.length,
+			min: APTITUDE_GENE_MIN_DISTANCE,
+			limit: APTITUDE_GENE_NEAR_LIMIT,
+			nearPair: nearPair,
+			dBroken: d(normalizeText(broken), target.norm),
+			keepBroken: keep(broken, target.raw),
+			keepExact: keep(target.raw, target.raw),
+			// 距離1で並ぶ2つを、それぞれ自分の名前そのままで採れること（取り違えないこと）
+			keepPairA: nearPair ? keep(nearPair[0], nearPair[0]) : null,
+			keepPairB: nearPair ? keep(nearPair[1], nearPair[1]) : null,
+			// 片方の行に対して、もう片方の名前は採らない
+			crossAB: nearPair ? keep(nearPair[0], nearPair[1]) : null,
+		};
+	});
+	assert(geneStrict.min === 1 && geneStrict.limit === 0,
+		'exam: 遺伝子10種の最小距離は1・許す「ずれ」の上限は0＝完全一致のみ（カタログが増えて離れたら落ちる）', geneStrict);
+	assert(geneStrict.keepExact === true, 'exam: 遺伝子は完全一致なら採用する', geneStrict);
+	assert(geneStrict.dBroken === 1 && geneStrict.keepBroken === false,
+		'exam: 遺伝子は1文字違いでも採用しない（上限が0のため）', geneStrict);
+	assert(geneStrict.keepPairA === true && geneStrict.keepPairB === true && geneStrict.crossAB === false,
+		'exam: 距離1で並ぶ2つ（短距離／中距離）を取り違えない', geneStrict);
+	/* **画面には ◆ を出すが、結合画像には焼かない**（段F。示し方を決めていないので描かない）。
+	   印を描く側は stitchMarkKind() を通すので、そこが null を返すことが「描かれない」の実体。
+	   凡例も「実際に描いた区分」から作るので、null なら凡例の行も出ない。
+	   決めたら stitchMarkKind() の1行を外すことになる ―― そのとき**この検査が落ちる**ので、
+	   外し忘れ・外しっぱなしのどちらにも気づける。 */
+	const geneMark = await page.evaluate(() => {
+		const g = APTITUDE_GENES[0], s = EXAM_SKILL_NAMES[0];
+		return {
+			画面の区分: skillMarkKind(g), 結合画像の区分: stitchMarkKind(g),
+			記号: SCREEN_MARK.gene ? SCREEN_MARK.gene.glyph : null,
+			呼び名: SCREEN_MARK.gene ? SCREEN_MARK.gene.tableTitle : null,
+			// スキルのほうは画面でも結合画像でも同じ区分のまま（遺伝子だけを落としている）
+			スキルの画面: skillMarkKind(s), スキルの結合画像: stitchMarkKind(s),
+		};
+	});
+	assert(geneMark.画面の区分 === 'gene' && geneMark.記号 === '◆' && geneMark.呼び名 === '遺伝子',
+		'段F(exam): 遺伝子は画面では ◆（区分は gene・呼び名は「遺伝子」）', geneMark);
+	assert(geneMark.結合画像の区分 === null && geneMark.スキルの画面 === geneMark.スキルの結合画像,
+		'段F(exam): 結合画像には遺伝子の印を焼かない（落とすのは遺伝子だけ。スキルは素通り）', geneMark);
 
 	// Esc は開いているものを1つ閉じる（引き出し → FAB の順）。
 	// 直前まで iframe の中を操作していたので、キーは親の文書に戻してから送る

@@ -14,9 +14,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20d" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-20d" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-20d" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20e" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-20e" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-20e" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -45,7 +45,9 @@
 		.deck-panel-opt { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; padding: 2px 8px; border-radius: 999px;
 			border: 1px solid var(--uma-border-strong); background: var(--uma-surface-muted); color: var(--uma-text-heading); }
 		.deck-panel-note { margin: 0 0 var(--uma-sp-2); }
-		.deck-panel-note--alpha { border-color: var(--uma-danger-border); background: var(--uma-danger-bg); color: var(--uma-danger-text); }
+		/* 赤い配色（旧 .deck-panel-note--alpha）は css/common.css の .uma-help-box--alpha へ移した
+		   （段F で exam の遺伝子の行も使うようになったため。C-62 の (9) と同じ運び）。
+		   ここに残るのは、このパネルの余白だけ。 */
 		/* タイトルの脇の「一部αテスト中」（C-62 の (4)）。「新UI」バッジと同じ大きさで、色は注意の赤。 */
 		.alpha-badge { font-size: 10px; line-height: 1.4; font-weight: 700; padding: var(--uma-sp-1) var(--uma-sp-2); border-radius: 999px;
 			border: 1px solid var(--uma-danger-border); background: var(--uma-danger-bg); color: var(--uma-danger-text); }
@@ -539,7 +541,7 @@
 					     ここに残るのは項目名・「任意」・αテスト中の注記だけ。使い方は「使い方ガイド」にある。
 					     **αテスト中の注記は常時表示**（C-62 の (4)）。 -->
 				</div>
-				<p id="deck-roster-alpha" class="uma-help-box deck-panel-note deck-panel-note--alpha">αテスト中の機能です。まだ作りかけで、<strong>結果が正しくないことがあります</strong>。確かめながらお使いください。</p>
+				<p id="deck-roster-alpha" class="uma-help-box uma-help-box--alpha deck-panel-note">αテスト中の機能です。まだ作りかけで、<strong>結果が正しくないことがあります</strong>。確かめながらお使いください。</p>
 				<div id="deck-roster-panel"></div>
 			</div>
 
@@ -853,7 +855,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20d';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20e';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],

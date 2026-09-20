@@ -17,9 +17,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20d" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-20d" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-20d" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20e" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-20e" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-20e" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -553,6 +553,27 @@
 			</div>
 		</div>
 
+		<!-- 遺伝子の一覧（段F）。上のシナリオ因子の一覧とまったく同じ作り。
+		     **ここ（ページの外枠の直下）に置くのが要点。** .glass-card は backdrop-filter を
+		     持つので、その子孫に置くと position: fixed の基準が画面ではなくカードになり、
+		     箱が画面の外へ出る（F-61）。①②のカード（#new-step-card 以降）より前に置いてある。
+		     中身は openGeneList() が正本の写しから書く（1件ずつ手書きしない）。 -->
+		<div id="gene-list-backdrop" class="uma-overlay-backdrop" hidden onclick="closeGeneList()"></div>
+		<div id="gene-list-box" class="uma-overlay notice-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="gene-list-title">
+			<div class="help-head">
+				<h2 id="gene-list-title" class="help-title">
+					<i data-lucide="dna" class="w-4 h-4 text-[var(--uma-mark-catalog)]"></i>
+					<span>遺伝子（<span id="gene-list-count">10</span>種）</span>
+				</h2>
+				<button id="gene-list-close" type="button" onclick="closeGeneList()" aria-label="閉じる" class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer">
+					<i data-lucide="x" class="w-5 h-5"></i>
+				</button>
+			</div>
+			<div class="help-body">
+				<ul id="gene-list-names" class="uma-namelist"></ul>
+			</div>
+		</div>
+
 		<!-- 画面の切り替えの告知。初回だけ自動で出て、以後は右上の「新UI」バッジから読み直せる。
 		     ✕・OK・背景・Esc のどれで閉じても既読になる（special の C-16 と同じ作法）。
 		     上の段はこのページの青、＜新機能＞の段は Deck の色（.deck-accent）の枠で囲み、
@@ -711,6 +732,22 @@
 					<button type="button" class="uma-help-btn" aria-expanded="false" id="factor-list-btn"
 						onclick="openFactorList()" aria-label="シナリオ因子の一覧を見る" title="シナリオ因子の一覧を見る">?</button>
 				</div>
+
+				<!-- 遺伝子（66セッション目・段F。**αテスト中**）。上のシナリオ因子と同じ1行の形。
+				     種数は renderAptitudeGeneToggle() が写しから書く（1件ずつ手書きしない）。
+				     αであることは**常時表示の注記**で示す ―― 告知ダイアログは一度閉じると
+				     出ないので、作りかけの機能の断りには向かない（C-67 の9節）。
+				     注記は**この行の直下**に置く。3択やシナリオ因子にはかからない。 -->
+				<div class="uma-checkrow mt-2.5">
+					<label for="genes-all" class="uma-checkrow-label">
+						<input type="checkbox" id="genes-all" onchange="setAptitudeGenesAll(this.checked)" />
+						<span>遺伝子</span>
+					</label>
+					<span id="genes-badge" class="uma-badge"><span id="genes-count">10種</span></span>
+					<button type="button" class="uma-help-btn" aria-expanded="false" id="gene-list-btn"
+						onclick="openGeneList()" aria-label="遺伝子の一覧を見る" title="遺伝子の一覧を見る">?</button>
+				</div>
+				<p id="genes-alpha" class="uma-help-box uma-help-box--alpha mt-2">遺伝子の読み取りは<strong>αテスト中</strong>です。まだ作りかけで、<strong>結合画像には反映されません</strong>。</p>
 			</div>
 
 			<!-- 対象スキルの一覧（確認用・折りたたみ） -->
@@ -728,7 +765,7 @@
 					<p class="text-[11px] text-slate-500 mb-2">
 						<span class="text-amber-500 font-bold">★</span> = sp70緑（17種） ／
 						<span class="text-emerald-500 font-bold">●</span> = その他緑（42種） ／
-						<span class="text-[var(--uma-mark-catalog)] font-bold">◆</span> = シナリオ因子<br />
+						<span class="text-[var(--uma-mark-catalog)] font-bold">◆</span> = シナリオ因子・遺伝子（スキルではないもの）<br />
 						<span class="registry-added">下線</span> = 「対象を広げる」で足したスキル ／
 						<span class="registry-removed">取り消し線</span> = 「対象を絞る」で対象から外したスキル（判定には使いません）
 					</p>
@@ -1745,6 +1782,124 @@
 			return res;
 		}
 
+		/* ------------------------------------------------------------
+		 * 遺伝子（10種・軸3。66セッション目・段F。**αテスト中**）
+		 *
+		 * 正本は catalog-data/aptitude-genes.json（シナリオ因子と同じ追加カタログの置き場）。
+		 * ここにあるのはその写しで、exam.html が file:// でも単体で動く性質を保つため
+		 * （133種・シナリオ因子24種を埋め込んでいるのと同じ理由。冒頭のコメント参照）。
+		 * **exam は uma-skill-deck-core.js を読まないので、10件のために fetch の配線を
+		 * 増やすのは割に合わない**という判断（C-67 の7節 (5)）。正本との食い違いは
+		 * npm run test:norm が見張る。
+		 * ※ ここも名前だけを持つ。id は Deck 側（保存済みシートが指す鍵）の都合なので
+		 *   正本と core だけが持ち、exam は名前で受け渡す。
+		 *
+		 * 白スキル445種のマスターとは別カテゴリなので examSkillId() では引けない
+		 * （＝ sp70緑・緑59種の集計には一切入らない）。シナリオ因子とも別枠で数える
+		 * （並記。「対象スキル133種＋シナリオ因子24種＋遺伝子10種」）。
+		 *
+		 * **照合は完全一致のみ**。理由は下の APTITUDE_GENE_NEAR_LIMIT を参照。
+		 * ------------------------------------------------------------ */
+		const APTITUDE_GENES = [
+			'芝の遺伝子',
+			'ダートの遺伝子',
+			'逃げの遺伝子',
+			'先行の遺伝子',
+			'差しの遺伝子',
+			'追込の遺伝子',
+			'短距離の遺伝子',
+			'マイルの遺伝子',
+			'中距離の遺伝子',
+			'長距離の遺伝子'
+		];
+
+		// 遺伝子かどうか（正規化後の文字列で判定する）。白スキルのIDは持たない。
+		const APTITUDE_GENE_NORM_SET = new Set(APTITUDE_GENES.map(n => normalizeText(n)));
+		function isAptitudeGene(name) {
+			return APTITUDE_GENE_NORM_SET.has(normalizeText(name));
+		}
+
+		const APTITUDE_GENE_NORMS = APTITUDE_GENES.map(n => ({ raw: n, norm: normalizeText(n) }));
+
+		/* ------------------------------------------------------------
+		 * 遺伝子の照合で許す「ずれ」の上限 ―― **0（完全一致のみ）になる**
+		 *
+		 * シナリオ因子と**まったく同じ式**で出す（SCENARIO_FACTOR_NEAR_LIMIT の導出を参照）。
+		 * 上限 = floor(その集合の最小距離 / 2)、さらに 1 で頭打ち。
+		 *
+		 * 遺伝子は「短距離の遺伝子」と「中距離の遺伝子」が**編集距離1**しか離れていない
+		 * ので、最小距離が 1 → 上限は 0 になる。**つまり完全一致だけを採る。**
+		 * js/common.js の allowedDistance() は長さ6〜9で距離2まで許すため、この後処理が
+		 * 無いと片方をもう片方として検出しうる。
+		 *
+		 * **数値をここに書かず、カタログから毎回計算する**のもシナリオ因子と同じ
+		 * （収録データが増えて名前どうしが近づいたとき、前提が黙って崩れないように）。
+		 * 「最小距離1・上限0」であることは tests/visual/run-smoke.mjs が見張る。
+		 * ------------------------------------------------------------ */
+		const APTITUDE_GENE_MIN_DISTANCE = (function () {
+			let min = Infinity;
+			for (let i = 0; i < APTITUDE_GENE_NORMS.length; i++) {
+				for (let j = i + 1; j < APTITUDE_GENE_NORMS.length; j++) {
+					const d = levenshtein(APTITUDE_GENE_NORMS[i].norm, APTITUDE_GENE_NORMS[j].norm);
+					if (d < min) min = d;
+				}
+			}
+			return min === Infinity ? 0 : min;
+		})();
+		const APTITUDE_GENE_NEAR_LIMIT = Math.min(1, Math.floor(APTITUDE_GENE_MIN_DISTANCE / 2));
+
+		/**
+		 * 1つのOCR行が、遺伝子のどれか1つに「近い」と言い切れるか。
+		 * nearestScenarioFactor() と同じ作り（候補は選択に関係なく10種すべてを相手にする）。
+		 * **上限が 0 のあいだ、この関数が返すのは「完全一致した行」だけ**になる。
+		 */
+		function nearestAptitudeGene(lineNorm) {
+			if (!lineNorm) return null;
+			let bestRaw = null, bestD = Infinity, tie = 0;
+			for (let i = 0; i < APTITUDE_GENE_NORMS.length; i++) {
+				const d = levenshtein(lineNorm, APTITUDE_GENE_NORMS[i].norm);
+				if (d < bestD) { bestD = d; bestRaw = APTITUDE_GENE_NORMS[i].raw; tie = 1; }
+				else if (d === bestD) tie++;
+			}
+			if (bestRaw === null || bestD > APTITUDE_GENE_NEAR_LIMIT || tie > 1) return null;
+			return bestRaw;
+		}
+
+		/**
+		 * 遺伝子だけ「その遺伝子だと言い切れる行がある」ものに絞り込む（照合の後処理）。
+		 * applyScenarioFactorStrictMatch() と同じ形の別関数にしてある ―― 判定に使う上限が
+		 * 違う（因子は1、遺伝子は0）ので、1つにまとめると条件分岐が中に入り込む。
+		 *
+		 * **白スキルの判定には一切触らない。** js/common.js は凍結中なので、照合の中では
+		 * なく照合の後で落としている（シナリオ因子と同じ手口）。
+		 */
+		// run … 押した時点のスナップショット（captureRun）。渡されればその遺伝子の選択を見る。
+		function applyAptitudeGeneStrictMatch(res, lines, run) {
+			const genes = run ? run.genes : selectedGenes;
+			if (!genes || genes.size === 0) return res;
+			const lineNorms = [];
+			(lines || []).forEach(l => {
+				const n = normalizeText(l.text);
+				if (n) lineNorms.push(n);
+			});
+			const nearHits = new Set();
+			lineNorms.forEach(n => {
+				const hit = nearestAptitudeGene(n);
+				if (hit) nearHits.add(normalizeText(hit));
+			});
+			Array.from(res.detectedSkills).forEach(name => {
+				if (!isAptitudeGene(name)) return;
+				const norm = normalizeText(name);
+				if (lineNorms.some(n => n.indexOf(norm) !== -1)) return; // ① 完全一致
+				if (nearHits.has(norm)) return;                          // ② 上限以内で一意（上限0のあいだは①と同義）
+				res.detectedSkills.delete(name);
+				delete res.matchReasons[name];
+				delete res.skillSources[name];
+				if (res.skillStars) delete res.skillStars[name];
+			});
+			return res;
+		}
+
 		const SP70_GREEN_17_SET = new Set(SP70_GREEN_17_IDS);
 		const GREEN_59_SET = new Set(GREEN_59_IDS);
 
@@ -1757,13 +1912,17 @@
 		})();
 
 		/* 状態変数（このツール固有。共通ロジック・共通定数は js/common.js を参照） */
-		// skillList     … 照合・一覧・表の**並び**に使う（対象スキル → シナリオ因子）。
-		// skillOnlyList … 「スキル」と付く数を数えるのはこちら（シナリオ因子を含めない）。
+		// skillList     … 照合・一覧・表の**並び**に使う（対象スキル → シナリオ因子 → 遺伝子）。
+		// skillOnlyList … 「スキル」と付く数を数えるのはこちら（因子も遺伝子も含めない）。
 		// factorOnlyList… 選んでいるシナリオ因子だけ。因子の数はここから出す。
-		// 3つは rebuildSkillList() が同時に作り直す（片方だけ古い、が起きないように）。
+		// geneOnlyList  … 選んでいる遺伝子だけ。遺伝子の数はここから出す（段F）。
+		// **数え分けは合算せず並記する**（「対象スキル133種＋シナリオ因子24種＋遺伝子10種」）。
+		// 選ぶときに2つに分けているのだから、数えるときも分ける。
+		// 4つは rebuildSkillList() が同時に作り直す（片方だけ古い、が起きないように）。
 		let skillList = EXAM_SKILL_NAMES.slice();
 		let skillOnlyList = EXAM_SKILL_NAMES.slice();
 		let factorOnlyList = [];
+		let geneOnlyList = [];
 		let skillIndex = [];
 		let currentFilter = 'all';
 		let previewCanvases = [];
@@ -1802,8 +1961,12 @@
 		// 軸2は総括チェック1つ（ON＝24種すべて／OFF＝空）。**中身は Set のまま**にして
 		// あるので、下流は「選ばれている因子の集合」として従来どおり読める（段D）。
 		let selectedScenarioFactors = new Set();
+		// 軸3（遺伝子）も同じ形の総括チェック1つ（ON＝10種すべて／OFF＝空）。**αテスト中**。
+		// 既定は OFF。保存値は今回が初めてなので、読み替え（移行）は要らない。
+		let selectedGenes = new Set();
 		const TARGET_SCOPE_STORAGE_KEY = 'uma-exam-target-scope';
 		const SCENARIO_FACTORS_STORAGE_KEY = 'uma-exam-scenario-factors';
+		const APTITUDE_GENES_STORAGE_KEY = 'uma-exam-genes';
 
 		const CURATED_EXCLUDED_ID_SET = new Set(CURATED_EXCLUDED_IDS);
 		const EXPANDED_EXTRA_ID_SET = new Set(EXPANDED_EXTRA_SKILL_LIST.map(s => s.id));
@@ -1818,16 +1981,22 @@
 		 *   'green'   … 緑スキル（SP70以外）42種
 		 *   'plain'   … その他の対象スキル 74種
 		 *   'factor'  … シナリオ因子 24種
+		 *   'gene'    … 遺伝子 10種（段F）
 		 *   'added'   … 「対象を広げる」で足した5種（そのモードのときだけ）
 		 *   'removed' … 「対象を絞る」で外した12種（そのモードのときだけ）
 		 *   null      … 133種の外・選んでいないシナリオ因子など（印を付けない）
 		 *
 		 * 軸1は排他なので、'added' と 'removed' が同時に現れることはない。
+		 *
+		 * **'gene' は画面（一覧・判定結果の表）にだけ出す。結合画像には焼かない**
+		 * ―― 段F では結合画像での示し方を決めていないため。落としているのは
+		 * 下の stitchMarkKind() の1か所で、そこに理由を書いてある。
 		 * ------------------------------------------------------------ */
 		// run … 押した時点のスナップショット（captureRun）。結合画像の側はこれを渡し、画面の側は渡さない。
 		function skillMarkKind(name, run) {
 			const scope = run ? run.scope : targetScopeMode;
 			if (isScenarioFactor(name)) return 'factor';
+			if (isAptitudeGene(name)) return 'gene';
 			const id = examSkillId(name);
 			if (!id) return null;
 			if (SP70_GREEN_17_SET.has(id)) return 'sp70';
@@ -1840,19 +2009,39 @@
 		}
 
 		/**
-		 * 画面（一覧・判定結果の表）に出す記号。**3種だけ**で、
+		 * **結合画像**に焼く区分。画面（skillMarkKind）との違いは**遺伝子だけ**で、
+		 * 段F では「結合画像での示し方は決めない。パネルを置くだけ」と決めたため
+		 * null を返して描かせない（画面の一覧・判定結果の表には ◆ が出る）。
+		 *
+		 * 凡例は「実際に描いた区分」から作る（drawAttrIconsOnPerson の戻り値 kinds）ので、
+		 * ここで落とせば凡例の行も自動的に出ない。帯と脚注は activeScenarioFactors() を
+		 * 見ているので、遺伝子は元から入らない。
+		 *
+		 * **決まったらこの1行を外す**（外すだけで ◆ と凡例の行が同時に出る）。
+		 * 落とす場所を関数にしてあるのは、描画の途中の分岐にすると検査から見えないため。
+		 */
+		function stitchMarkKind(name, run) {
+			const kind = skillMarkKind(name, run);
+			return kind === 'gene' ? null : kind;
+		}
+
+		/**
+		 * 画面（一覧・判定結果の表）に出す記号。**4種だけ**で、
 		 * 'plain' / 'added' / 'removed' には記号を出さない（画面の見た目は従来どおり。
 		 * 足した5種・外した12種は赤＋下線／赤＋打ち消し線で示していて、記号は使っていない）。
-		 * 結果画像のほうは6種すべてを描く。
+		 * 結果画像のほうは 'gene' を除く6種を描く（段F。結合画像での示し方は未定）。
 		 */
 		/* 区分の呼び名と並び順。**画面（一覧・判定結果の表）と結果画像の凡例で同じ語を使う。**
-		   ここに置いてあるのは、呼び名が「区分そのもの」の属性だから（描画側の都合ではない）。 */
-		const MARK_KIND_ORDER = ['sp70', 'green', 'plain', 'factor', 'added', 'removed'];
+		   ここに置いてあるのは、呼び名が「区分そのもの」の属性だから（描画側の都合ではない）。
+		   'gene' も並びに入れてあるが、結合画像では描かないので凡例にも出てこない
+		   （凡例は「実際に描いた区分」から作るため。drawAttrIconsOnPerson の戻り値 kinds）。 */
+		const MARK_KIND_ORDER = ['sp70', 'green', 'plain', 'factor', 'gene', 'added', 'removed'];
 		const MARK_LEGEND_LABEL = {
 			sp70: 'sp70緑',
 			green: 'その他緑',
 			plain: 'その他の対象スキル',
 			factor: 'シナリオ因子',
+			gene: '遺伝子',
 			added: '追加したスキル',
 			removed: '除外したスキル'
 		};
@@ -1870,6 +2059,9 @@
 			const greenTitle = MARK_LEGEND_LABEL.green + '（' + greenOnlyCount + '種）';
 			return {
 				factor: { glyph: '◆', color: 'text-[var(--uma-mark-catalog)]', listTitle: MARK_LEGEND_LABEL.factor, tableTitle: MARK_LEGEND_LABEL.factor },
+				// 遺伝子も「スキルではないもの」なので因子と同じ◆（段A-2 の基準。C-68 の2節）。
+				// 呼び名だけ分けてあるので、どちらの◆かは title で読める。
+				gene: { glyph: '◆', color: 'text-[var(--uma-mark-catalog)]', listTitle: MARK_LEGEND_LABEL.gene, tableTitle: MARK_LEGEND_LABEL.gene },
 				sp70: { glyph: '★', color: 'text-amber-500', listTitle: sp70Title, tableTitle: sp70Title },
 				green: { glyph: '●', color: 'text-emerald-500', listTitle: greenTitle, tableTitle: greenTitle }
 			};
@@ -1894,6 +2086,13 @@
 			return SCENARIO_INHERITANCE_FACTORS.filter(n => selected.has(n));
 		}
 
+		// 軸3で選ばれている遺伝子。並びは正本（10種）の順のまま。
+		function activeAptitudeGenes(run) {
+			const selected = run ? run.genes : selectedGenes;
+			if (!selected) return [];
+			return APTITUDE_GENES.filter(n => selected.has(n));
+		}
+
 		// 軸1を反映した基準リスト（ID）。sp70緑・緑59種の集計母数はこれで動的に縮む。
 		// run（captureRun）を渡せば、押した時点の範囲で答える（結合画像の側が使う）。
 		function effectiveBaseIds(ids, run) {
@@ -1907,22 +2106,24 @@
 		}
 
 		// 実際に照合・表示・コピーで使う対象スキル。
-		// 並びは「軸1の基準リスト → シナリオ因子」。既定の133種の並びは動かさない
+		// 並びは「軸1の基準リスト → シナリオ因子 → 遺伝子」。既定の133種の並びは動かさない
 		// （利用者のスプレッドシート側の照合が黙って外れないため）。
-		// シナリオ因子はスキルではないので、**数える用の配列は分けて持つ**
-		// （「スキル◯種」と書いてある数に因子が混ざると、表記と食い違って誤解を生む）。
+		// シナリオ因子も遺伝子もスキルではないので、**数える用の配列は分けて持つ**
+		// （「スキル◯種」と書いてある数に混ざると、表記と食い違って誤解を生む）。
+		// **因子と遺伝子も互いに合算しない**（並記。選ぶときに分けているので数えるときも分ける）。
 		// 照合・一覧・表の並びには従来どおり結合した skillList を使う。
 		function rebuildSkillList() {
 			skillOnlyList = scopeBaseNames();
 			factorOnlyList = activeScenarioFactors();
-			skillList = skillOnlyList.concat(factorOnlyList);
+			geneOnlyList = activeAptitudeGenes();
+			skillList = skillOnlyList.concat(factorOnlyList, geneOnlyList);
 			skillIndex = skillList.map(raw => ({ raw: raw, norm: normalizeText(raw) }));
 		}
 
-		// 既定（133種・シナリオ因子なし）から離れているか。
+		// 既定（133種・シナリオ因子なし・遺伝子なし）から離れているか。
 		// ①のタブのバッジと Deck への受け渡し名で「調整あり」を出すのに使う。
 		function isTargetAdjusted() {
-			return targetScopeMode !== 'default' || selectedScenarioFactors.size > 0;
+			return targetScopeMode !== 'default' || selectedScenarioFactors.size > 0 || selectedGenes.size > 0;
 		}
 
 		/* ------------------------------------------------------------
@@ -1975,7 +2176,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20d';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20e';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],
@@ -2083,6 +2284,7 @@
 				EXPANDED_EXTRA_SKILL_NAMES.forEach(name => rows.push({ name: name, state: 'scopeAdded' }));
 			}
 			activeScenarioFactors().forEach(name => rows.push({ name: name, state: 'normal' }));
+			activeAptitudeGenes().forEach(name => rows.push({ name: name, state: 'normal' }));
 			return rows;
 		}
 
@@ -2105,9 +2307,23 @@
 		/* ============================================================
 		 * ヘッダー・バッジ類の件数表示を、現在のskillOnlyList（除外・追加反映後）に同期する
 		 *
-		 * 数えるのは**スキルだけ**（シナリオ因子は含めない）。因子の数は
+		 * 数えるのは**スキルだけ**（シナリオ因子も遺伝子も含めない）。因子の数は
 		 * 「シナリオ因子：N種」のバッジ（updateCategoryBadges）が別に出す。
 		 * ============================================================ */
+		/**
+		 * スキルの数に添える「スキルではないもの」の内訳。**合算せず並記する**（段F）。
+		 *   両方 ON … '＋シナリオ因子24種＋遺伝子10種'
+		 *   片方だけ … その片方だけ（0種の項目は書かない）
+		 *   両方 OFF … ''（空文字。呼び出し側は「何も足さない」として扱える）
+		 * run（captureRun）を渡せば、押した時点の選択で答える。
+		 * **1か所にまとめてあるのは、同じ書き方を5か所で使うため**（片方だけ古くならないように）。
+		 */
+		function extraCountNote(run) {
+			const f = (run ? run.factorOnlyList : factorOnlyList).length;
+			const g = (run ? run.geneOnlyList : geneOnlyList).length;
+			return (f ? '＋シナリオ因子' + f + '種' : '') + (g ? '＋遺伝子' + g + '種' : '');
+		}
+
 		function updateSkillCountDisplays() {
 			const total = skillOnlyList.length;
 			// 見出しの種数（#header-skill-count）はこの一覧から外した。見出しには
@@ -2116,9 +2332,11 @@
 				const el = document.getElementById(id);
 				if (el) el.textContent = String(total);
 			});
-			// 一覧と全種の書き出しには**シナリオ因子の行も入る**ので、数は分けて添える
+			// 一覧と全種の書き出しには**シナリオ因子と遺伝子の行も入る**ので、数は分けて添える
 			// （数だけ「スキル」に寄せて、行が減ったように見えるのを防ぐ）。
-			const factorNote = factorOnlyList.length ? '＋シナリオ因子' + factorOnlyList.length + '種' : '';
+			// **合算せず並記する**（「＋シナリオ因子24種＋遺伝子10種」）。選ぶときに分けているので。
+			// 片方だけ ON のときは、その片方だけを書く（0種の項目は出さない）。
+			const factorNote = extraCountNote();
 			['registry-factor-count', 'copylist-all133-factor'].forEach(id => {
 				const el = document.getElementById(id);
 				if (el) el.textContent = factorNote;
@@ -2172,6 +2390,7 @@
 			try {
 				localStorage.setItem(TARGET_SCOPE_STORAGE_KEY, targetScopeMode);
 				localStorage.setItem(SCENARIO_FACTORS_STORAGE_KEY, JSON.stringify(activeScenarioFactors()));
+				localStorage.setItem(APTITUDE_GENES_STORAGE_KEY, JSON.stringify(activeAptitudeGenes()));
 			} catch (e) {}
 		}
 
@@ -2199,6 +2418,16 @@
 				}
 				selectedScenarioFactors = factorsOn ? new Set(SCENARIO_INHERITANCE_FACTORS) : new Set();
 			} catch (e) { selectedScenarioFactors = new Set(); }
+			try {
+				// 軸3（遺伝子）の保存値は今回が初めてなので、読み替え（移行）は無い。
+				// 無い＝OFF。名前の配列として読み、1件でも入っていれば ON にする
+				// （因子と同じ流儀。将来また形が変わっても「黙って失わせない」側に倒れる）。
+				const raw = localStorage.getItem(APTITUDE_GENES_STORAGE_KEY);
+				const names = raw === null ? [] : JSON.parse(raw);
+				const genesOn = (Array.isArray(names) ? names : [])
+					.some(n => APTITUDE_GENES.indexOf(n) !== -1);
+				selectedGenes = genesOn ? new Set(APTITUDE_GENES) : new Set();
+			} catch (e) { selectedGenes = new Set(); }
 		}
 
 		// ラジオ・チェックボックスの状態と、各選択肢に出す種数を現在の値に合わせる。
@@ -2212,6 +2441,7 @@
 			});
 			renderScopeDetail();
 			renderScenarioFactorToggle();
+			renderAptitudeGeneToggle();
 		}
 
 		/* ------------------------------------------------------------
@@ -2309,6 +2539,61 @@
 			refreshAfterTargetChange();
 		}
 
+		/* ------------------------------------------------------------
+		 * 遺伝子の総括チェックと一覧（66セッション目・段F。**αテスト中**）
+		 *
+		 * シナリオ因子と**同じ作り**（1行のチェック＋件数のバッジ＋「?」の一覧）。
+		 * 内部の状態も Set のまま（ON＝10種すべて／OFF＝空）。
+		 * 種数はデータから書く（正本が増減しても直さなくてよい。恒久ルール1）。
+		 * ------------------------------------------------------------ */
+		function renderAptitudeGeneToggle() {
+			const total = document.getElementById('genes-count');
+			if (total) total.textContent = APTITUDE_GENES.length + '種';
+			const box = document.getElementById('genes-all');
+			const on = selectedGenes.size > 0;
+			if (box) box.checked = on;
+			const badge = document.getElementById('genes-badge');
+			if (badge) badge.classList.toggle('uma-badge--accent', on);
+		}
+
+		let geneListOpen = false;
+		let geneListReturnFocus = null;
+
+		function openGeneList() {
+			if (geneListOpen) return;
+			geneListOpen = true;
+			geneListReturnFocus = document.activeElement;
+			document.getElementById('gene-list-count').textContent = String(APTITUDE_GENES.length);
+			document.getElementById('gene-list-names').innerHTML =
+				APTITUDE_GENES.map(n => '<li>' + escapeHtml(n) + '</li>').join('');
+			document.getElementById('gene-list-backdrop').hidden = false;
+			document.getElementById('gene-list-box').hidden = false;
+			document.getElementById('gene-list-btn').setAttribute('aria-expanded', 'true');
+			document.body.style.overflow = 'hidden';
+			if (window.lucide) lucide.createIcons();
+			document.getElementById('gene-list-close').focus();
+		}
+
+		function closeGeneList() {
+			if (!geneListOpen) return;
+			geneListOpen = false;
+			document.getElementById('gene-list-backdrop').hidden = true;
+			document.getElementById('gene-list-box').hidden = true;
+			document.getElementById('gene-list-btn').setAttribute('aria-expanded', 'false');
+			document.body.style.overflow = '';
+			// **preventScroll を付ける。** 付けないと、フォーカスを戻すだけで画面が動く（C-65 と同じ）
+			if (geneListReturnFocus && typeof geneListReturnFocus.focus === 'function') {
+				try { geneListReturnFocus.focus({ preventScroll: true }); } catch (e) { geneListReturnFocus.focus(); }
+			}
+			geneListReturnFocus = null;
+		}
+
+		function setAptitudeGenesAll(on) {
+			selectedGenes = on ? new Set(APTITUDE_GENES) : new Set();
+			saveTargetScope();
+			refreshAfterTargetChange();
+		}
+
 		function setTargetScopeMode(mode) {
 			if (TARGET_SCOPE_MODES.indexOf(mode) === -1 || mode === targetScopeMode) return;
 			targetScopeMode = mode;
@@ -2319,7 +2604,7 @@
 			refreshAfterTargetChange();
 		}
 
-		// 軸1・軸2が変わったときに、影響するすべての表示をまとめて更新する。
+		// 軸1・軸2・軸3が変わったときに、影響するすべての表示をまとめて更新する。
 		// 判定済みの結果（personResults）は消さない（アップロードした画像も残る）が、
 		// 照合そのものはやり直さないと新しい対象に対する結果にならない。
 		// 表は次の判定まで前のままになるので、結果が出ている状態で切り替えたときだけ
@@ -2393,10 +2678,9 @@
 					? '緑59種・実質' + effectiveGreen59EquivalenceMax() + '種（目覚め系は対応スキルにまとめています）'
 					: '緑59種（除外反映後' + list.length + '種・目覚め系も独立して含みます）';
 			} else {
-				// 書き出す行はシナリオ因子も含む（従来どおり）。種数だけスキルと因子に分けて書く。
+				// 書き出す行はシナリオ因子・遺伝子も含む（従来どおり）。種数だけ3つに分けて書く。
 				list = skillList;
-				hint = '対象スキル全' + skillOnlyList.length + '種'
-					+ (factorOnlyList.length ? '＋シナリオ因子' + factorOnlyList.length + '種' : '')
+				hint = '対象スキル全' + skillOnlyList.length + '種' + extraCountNote()
 					+ '（登録順・範囲とカスタム設定を反映）';
 			}
 			document.getElementById('skill-copy-textarea').value = list.join('\n');
@@ -2893,8 +3177,12 @@
 					if (result.lines.length > 0) anySuccess = true;
 					if (result.skipped.length > 0) skippedAll.push.apply(skippedAll, result.skipped);
 					if (result.warned.length > 0) warnedAll.push.apply(warnedAll, result.warned);
-					personResults[p] = applyScenarioFactorStrictMatch(
-						matchAllSkillsWithStars(result.lines, run.skillList, run.skillIndex, {}), result.lines, run);
+					// 因子と遺伝子だけを後処理で絞り込む（許す「ずれ」の上限が違うので2本立て）。
+					// どちらも白スキルの判定には触らない。
+					personResults[p] = applyAptitudeGeneStrictMatch(
+						applyScenarioFactorStrictMatch(
+							matchAllSkillsWithStars(result.lines, run.skillList, run.skillIndex, {}), result.lines, run),
+						result.lines, run);
 					// 結果画像の印を焼くのに使う（判定・集計には一切関わらない）
 					personLines[p] = result.lines;
 					personGeometry[p] = result.geometry;
@@ -3325,11 +3613,11 @@
 			used.forEach(i => { foundCounts[i] = 0; });
 			const copyRows = [];
 
-			// 並び（表・コピー用データ）は従来どおり skillList＝スキル→シナリオ因子。
-			// **検出数はスキルの行だけ数える**（シナリオ因子はスキルではないため）。
+			// 並び（表・コピー用データ）は従来どおり skillList＝スキル→シナリオ因子→遺伝子。
+			// **検出数はスキルの行だけ数える**（因子も遺伝子もスキルではないため）。
 			skillList.forEach(skill => {
 				const rowVals = used.map(p => starsFor(p, skill));
-				if (!isScenarioFactor(skill)) {
+				if (!isScenarioFactor(skill) && !isAptitudeGene(skill)) {
 					rowVals.forEach((v, idx) => { if (v !== undefined) foundCounts[used[idx]]++; });
 				}
 				// ★を計測できなかった場合（null）は、誤った数字を貼らないよう空欄にする。
@@ -3340,8 +3628,10 @@
 			document.getElementById('stat-total').textContent = skillOnlyList.length;
 			const statFactor = document.getElementById('stat-total-factor');
 			if (statFactor) {
-				statFactor.hidden = (factorOnlyList.length === 0);
-				statFactor.textContent = factorOnlyList.length ? '＋シナリオ因子' + factorOnlyList.length + '種' : '';
+				// **合算せず並記**（「＋シナリオ因子24種＋遺伝子10種」）。どちらも無ければ行ごと出さない。
+				const note = extraCountNote();
+				statFactor.hidden = (note === '');
+				statFactor.textContent = note;
 			}
 			used.forEach(i => {
 				document.getElementById('stat-found-' + (i + 1)).textContent = foundCounts[i];
@@ -3688,11 +3978,12 @@
 		 *
 		 * 控えるもの:
 		 *   show / attrIcons … 結合画像の表示（検出数カード・シナリオ因子・凡例・集計条件／印）
-		 *   scope / factors / countMode … 集計に関わる設定（範囲・シナリオ因子（Set は複製）・集計モード）
+		 *   scope / factors / genes / countMode … 集計に関わる設定
+		 *     （範囲・シナリオ因子・遺伝子（Set はどちらも複製）・集計モード）
 		 *   setB … 親Bセットを開いているか（結合するセットの範囲）
 		 *   files … 各人物の画像（File の参照の配列を複製。枚数と並び順を固定する）
 		 *   skillList / skillIndex … 照合に使う対象スキル（rebuildSkillList は配列を作り直すので参照で足りる）
-		 *   skillOnlyList / factorOnlyList … 数える用（スキルだけ／シナリオ因子だけ）。同上
+		 *   skillOnlyList / factorOnlyList / geneOnlyList … 数える用（スキルだけ／因子だけ／遺伝子だけ）。同上
 		 * ------------------------------------------------------------ */
 		let runSeq = 0;
 		function captureRun() {
@@ -3702,12 +3993,14 @@
 				attrIcons: attrIconsEnabled,
 				scope: targetScopeMode,
 				factors: new Set(selectedScenarioFactors),
+				genes: new Set(selectedGenes),
 				countMode: countMode,
 				setB: setBVisible,
 				files: persons.map(p => p.files.slice()),
 				skillList: skillList,
 				skillOnlyList: skillOnlyList,
 				factorOnlyList: factorOnlyList,
+				geneOnlyList: geneOnlyList,
 				skillIndex: skillIndex
 			};
 		}
@@ -4198,7 +4491,9 @@
 				});
 			};
 			res.detectedSkills.forEach(name => {
-				const kind = skillMarkKind(name, run);
+				// **画面の区分（skillMarkKind）ではなく結合画像の区分（stitchMarkKind）を使う。**
+				// 違うのは遺伝子だけで、段F のあいだは null が返って描かれない（理由はその関数に）。
+				const kind = stitchMarkKind(name, run);
 				if (kind) assign(res.skillSources[name], kind);
 			});
 			const removed = curatedRemovedSources(lines, run);
@@ -5396,6 +5691,7 @@
 			// 「結合画像の設定」のパネルは、引き出しより手前にあるので先に閉じる
 			if (stitchSettingsOpen) closeStitchSettings();
 			else if (factorListOpen) closeFactorList();
+			else if (geneListOpen) closeGeneList();
 			else if (uiNoticeOpen) closeUiNotice();
 			else if (helpOpen) closeHelp();
 			else if (openDrawerKey) closeDrawer();
@@ -5505,13 +5801,17 @@
 			title.textContent = done ? 'この結果はUmaSkill Deckに取り込み済みです' : 'この結果をUmaSkill Deckに取り込めます';
 			title.className = 'text-xs font-bold ' + (done ? 'text-green-900' : 'deck-note-title');
 			const detail = document.getElementById('deck-handoff-detail');
-			// 渡す中身は従来どおり（スキル＋シナリオ因子）。**数だけ**分けて書く。
-			// 数えるのは payload の中身（古い版が書いた payload でも同じ結果になる）。
+			// 渡す中身は従来どおり（スキル＋シナリオ因子＋遺伝子）。**数だけ**分けて書く。
+			// **合算しない**（画面のほかの数え方と同じ。段F）。
+			// 数えるのは payload の中身（古い版が書いた payload でも同じ結果になる
+			// ―― 遺伝子を知らない版が書いた payload には遺伝子の行が無いので 0 件になるだけ）。
 			const names = payload.skillNames || [];
 			const handoffFactors = names.filter(n => isScenarioFactor(n)).length;
-			const handoffSkills = names.length - handoffFactors;
+			const handoffGenes = names.filter(n => isAptitudeGene(n)).length;
+			const handoffSkills = names.length - handoffFactors - handoffGenes;
 			detail.textContent = who + ' の' + payload.persons.length + '人分・スキル' + handoffSkills + '件'
-				+ (handoffFactors ? '・シナリオ因子' + handoffFactors + '件' : '') + 'を渡しました'
+				+ (handoffFactors ? '・シナリオ因子' + handoffFactors + '件' : '')
+				+ (handoffGenes ? '・遺伝子' + handoffGenes + '件' : '') + 'を渡しました'
 				+ (payload.scope && payload.scope.name ? '（対象：' + payload.scope.name + '）' : '') + '。'
 				+ (done ? '' : 'UmaSkill Deckを開き、「読み込む」から保存先の比較シートと候補を選んでください。');
 			detail.className = 'text-[11px] mt-0.5 leading-relaxed ' + (done ? 'text-green-800/80' : 'deck-note-text');

@@ -31,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-09-20d";
+	--uma-components-css-version: "2026-09-20e";
 }
 
 /* ============================================================
@@ -255,6 +255,14 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 	font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); color: var(--uma-text);
 }
 .uma-help-box[hidden] { display: none; }
+/* αテスト中であることの常時表示の注記（C-62 の (4)・段F）。告知ダイアログは一度閉じると
+   出ないので、作りかけの機能にはこちらを使う。色は注意の赤（tokens.css の --uma-danger-*）。
+   **2ページ目が出たので共通部品にした**（special の #deck-roster-alpha と exam の遺伝子の行。
+   C-62 の (9) で shell.css へ移したのと同じ運び）。special 側の .deck-panel-note は
+   あのパネルの余白の都合なので、あちらに残す。 */
+.uma-help-box--alpha {
+	border-color: var(--uma-danger-border); background: var(--uma-danger-bg); color: var(--uma-danger-text);
+}
 .uma-disclose {
 	--uma-disclose-color: var(--uma-danger-text);
 	font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);
