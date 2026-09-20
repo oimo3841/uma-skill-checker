@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21b';
 
 	/* ============================================================
 	 * 定数
@@ -3057,6 +3057,32 @@
 
 		function computed() { return computeRosterSkills(roster); }
 
+		/* ------------------------------------------------------------
+		 * ミニウィンドウの置き場所（F-61。69セッション目に直した）
+		 *
+		 * **全画面に重ねるものは document.body の直下に置く。** パネルの中に置くと、
+		 * special の②を包む `.glass-card` が `backdrop-filter` を持っているために
+		 * **子孫の `position: fixed` が「画面」ではなく「そのカード」を基準にする**
+		 * （実測: `.usd-roster-modal` の上端が 375px で -210px、1280px で -52px）。
+		 * いままでは箱が小さくて画面に収まっていただけで、項目が増えれば画面外へ出る。
+		 * **C-2c の「?」の一覧（openScopeList）と同じ作法**に揃えた。
+		 *
+		 * 中身（`searchHtml()` / `scopeChooserHtml()`）は render() が作り直す。
+		 * 置き場所が container の外になるので、**同じ click / input のハンドラを
+		 * こちらにも付ける**（`onPanelClick` / `onPanelInput` を共有する）。
+		 * ------------------------------------------------------------ */
+		let modalHost = null;
+		function ensureModalHost() {
+			if (!modalHost) {
+				modalHost = global.document.createElement('div');
+				modalHost.setAttribute('data-usd-el', 'roster-modal-host');
+				global.document.body.appendChild(modalHost);
+				modalHost.addEventListener('click', onPanelClick);
+				modalHost.addEventListener('input', onPanelInput);
+			}
+			return modalHost;
+		}
+
 		/** ドラフト（未保存の編成）を保存先から戻す。無ければ空の編成。 */
 		function restoreDraftRoster() {
 			const d = draftKey ? loadDraftRoster(draftKey) : null;
@@ -3220,7 +3246,7 @@
 		}
 
 		function renderHits() {
-			const box = q(container, 'hits');
+			const box = modalHost ? q(modalHost, 'hits') : null;
 			if (!box || !picking) return;
 			const hits = searchEntries(picking.kind, pickQuery, picking.kind === 'card' ? pickType : '');
 			if (hits.length === 0) { box.innerHTML = '<p class="usd-roster-note">見つかりません。</p>'; return; }
@@ -3340,8 +3366,8 @@
 			h += '</div></div>';
 			h += '</div>';
 
-			h += searchHtml();
-			h += scopeChooserHtml(res);
+			// ミニウィンドウ（選ぶ・除外先を選ぶ）は container には入れない。
+			// body 直下の器へ出す（すぐ下の container.innerHTML のあと）。理由は ensureModalHost。
 
 			// 得られるスキル（★取り表。C-51 の10節⑥・11節⑤〜⑧・C-54）。左の列にスキル名、見出し行に編成の並び
 			// （育成ウマ娘は「♦」、サポートカードは枠の順の番号 1〜）を置き、どのメンバーから得られるかを黒い輪郭の丸で示す（C-57 の作業A）。
@@ -3401,11 +3427,13 @@
 			h += '</div>';
 
 			container.innerHTML = h;
+			const host = ensureModalHost();
+			host.innerHTML = searchHtml() + scopeChooserHtml(res);
 			refreshIcons();
 			// 選んでいる編成のタブが帯の外（スワイプの先）にあっても見える位置に寄せる
 			revealSelectedTab(container);
 			if (picking) {
-				const input = q(container, 'find');
+				const input = q(host, 'find');
 				if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
 			}
 		}
@@ -3461,9 +3489,9 @@
 			notifyOverlap();
 		}
 
-		container.addEventListener('click', function (ev) {
+		function onPanelClick(ev) {
 			const btn = ev.target.closest('[data-usd-act]');
-			if (!btn || !container.contains(btn)) return;
+			if (!btn || !(container.contains(btn) || (modalHost && modalHost.contains(btn)))) return;
 			const act = btn.getAttribute('data-usd-act');
 			if (act === 'pick-uma') { picking = { kind: 'uma' }; pickQuery = ''; pickType = ''; render(); renderHits(); }
 			else if (act === 'pick-card') {
@@ -3547,12 +3575,13 @@
 				selectedId = '';
 				loadSelected('');
 			}
-		});
+		}
+		container.addEventListener('click', onPanelClick);
 		container.addEventListener('keydown', function (ev) {
 			if (ev.target && ev.target.closest && ev.target.closest('.uma-subtabs')) tabStripKeydown(ev, (id) => loadSelected(id || ''));
 		});
 
-		container.addEventListener('input', function (ev) {
+		function onPanelInput(ev) {
 			const el = ev.target;
 			const act = el.getAttribute && el.getAttribute('data-usd-act');
 			if (act === 'find') {
@@ -3564,7 +3593,8 @@
 				// 「＋ 新規」の名前はドラフトごと残す（保存済みの名前は「保存」かタブを離れるときに反映）
 				if (!selectedId && draftKey) saveDraftRoster(draftKey, snapshot(roster));
 			}
-		});
+		}
+		container.addEventListener('input', onPanelInput);
 
 		render();
 		return {

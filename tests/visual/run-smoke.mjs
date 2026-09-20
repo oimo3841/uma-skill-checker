@@ -7691,8 +7691,36 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	/* --- (1) ミニウィンドウの候補の色 --- */
 	await page.click('#deck-roster-panel [data-usd-act="pick-card"][data-index="0"]');
 	await page.waitForTimeout(400);
+
+	/* --- F-61: ミニウィンドウは画面を基準に出る（69セッション目に直した）---
+	   パネルの中に置くと、special の②を包む `.glass-card` の `backdrop-filter` のせいで
+	   `position: fixed` の基準が「画面」ではなく「そのカード」になり、箱が画面の上へはみ出す
+	   （直す前の実測: 上端が 375px で -210px、1280px で -52px）。**置き場所を body 直下へ移した**
+	   ので、覆う矩形が画面とぴったり重なる。**箱の大きさではなく置き場所の問題**なので、
+	   「いまは小さいから収まっている」では確かめたことにならない ―― 覆いの矩形そのものを測る。 */
+	const modalBox = await page.evaluate(() => {
+		const host = document.querySelector('[data-usd-el="roster-modal-host"]');
+		const back = host && host.querySelector('.usd-roster-modal');
+		const box = host && host.querySelector('.usd-roster-modal-box');
+		if (!back || !box) return { missing: true };
+		const r = back.getBoundingClientRect(), b = box.getBoundingClientRect();
+		return {
+			hostIsBodyChild: host.parentElement === document.body,
+			inPanel: !!document.querySelector('#deck-roster-panel .usd-roster-modal'),
+			覆い: { top: Math.round(r.top), left: Math.round(r.left), w: Math.round(r.width), h: Math.round(r.height) },
+			箱の上端: Math.round(b.top),
+			画面: { w: window.innerWidth, h: window.innerHeight },
+		};
+	});
+	assert(!modalBox.missing && modalBox.hostIsBodyChild && !modalBox.inPanel
+		&& modalBox.覆い.top === 0 && modalBox.覆い.left === 0
+		&& modalBox.覆い.w === modalBox.画面.w && modalBox.覆い.h === modalBox.画面.h
+		&& modalBox.箱の上端 >= 0,
+		'F-61: 編成のミニウィンドウは body 直下に出て、覆いが画面とぴったり重なる（カードを基準にしない）',
+		modalBox);
+
 	const pills = await page.evaluate(() => {
-		const list = Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-pill'));
+		const list = Array.from(document.querySelectorAll('[data-usd-el="roster-modal-host"] .usd-roster-pill'));
 		return list.map((b) => ({
 			all: b.classList.contains('usd-roster-pill--all'),
 			typed: b.classList.contains('usd-roster-pill--typed'),
@@ -7714,7 +7742,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 
 	/* --- (1) 候補の**行**も種類ごとの色（緑一色ではない）。絞り込みを押した後も同じ --- */
 	const cardHits = await page.evaluate(() => {
-		const rows = [...document.querySelectorAll('#deck-roster-panel .usd-name-hit')];
+		const rows = [...document.querySelectorAll('[data-usd-el="roster-modal-host"] .usd-name-hit')];
 		return rows.slice(0, 10).map((b) => ({
 			typed: b.classList.contains('usd-name-hit--typed'),
 			order: b.dataset.typeOrder || null,
@@ -7726,31 +7754,31 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(new Set(cardHits.map((h) => h.bg)).size >= 3,
 		'C-62 (1): 候補の行が緑一色ではない（種類ぶんの色が混ざる）', [...new Set(cardHits.map((h) => h.bg))]);
 	// 絞り込みを1つ押すと、その種類の色だけになる
-	await page.click('#deck-roster-panel .usd-roster-pill:nth-of-type(2)');
+	await page.click('[data-usd-el="roster-modal-host"] .usd-roster-pill:nth-of-type(2)');
 	await page.waitForTimeout(400);
 	// マウスが候補の上に乗っていると hover の地色が混ざるので、端へ逃がしてから読む
 	await page.mouse.move(1, 1);
 	await page.waitForTimeout(200);
 	const filtered = await page.evaluate(() => {
-		const rows = [...document.querySelectorAll('#deck-roster-panel .usd-name-hit')];
+		const rows = [...document.querySelectorAll('[data-usd-el="roster-modal-host"] .usd-name-hit')];
 		return [...new Set(rows.map((b) => getComputedStyle(b).backgroundColor))];
 	});
 	assert(filtered.length === 1 && filtered[0] !== 'rgba(0, 0, 0, 0)',
 		'C-62 (1): 絞り込んだ後も色は残り、その種類の1色になる', filtered);
-	await page.click('#deck-roster-panel .usd-roster-pill:nth-of-type(1)');
+	await page.click('[data-usd-el="roster-modal-host"] .usd-roster-pill:nth-of-type(1)');
 	await page.waitForTimeout(400);
 
 	// 別々の種類のカードを2枚選ぶ（1枠目＝いちばん小さい番号、2枠目＝その次）
 	const takeCard = async (slot, pillIndex) => {
 		await page.click('#deck-roster-panel [data-usd-act="pick-card"][data-index="' + slot + '"]');
 		await page.waitForTimeout(300);
-		await page.click('#deck-roster-panel .usd-roster-pill:nth-of-type(' + (pillIndex + 1) + ')');
+		await page.click('[data-usd-el="roster-modal-host"] .usd-roster-pill:nth-of-type(' + (pillIndex + 1) + ')');
 		await page.waitForTimeout(300);
-		await page.click('#deck-roster-panel [data-usd-act="take"]');
+		await page.click('[data-usd-el="roster-modal-host"] [data-usd-act="take"]');
 		await page.waitForTimeout(500);
 	};
 	// 開いているミニウィンドウは×（閉じる）で閉じてから次へ（背景が押下を遮るため）
-	await page.click('#deck-roster-panel .usd-roster-modal-head .uma-icon-btn');
+	await page.click('[data-usd-el="roster-modal-host"] .usd-roster-modal-head .uma-icon-btn');
 	await page.waitForTimeout(300);
 	await takeCard(0, 1);
 	await takeCard(1, 2);
@@ -7822,8 +7850,8 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	await page.click('#deck-roster-panel [data-usd-act="exclude"]');
 	await page.waitForTimeout(600);
 	// 除外先を選ぶミニウィンドウが出たら、いま選んでいるほうを選ぶ
-	if (await page.isVisible('#deck-roster-panel [data-usd-el="scope-modal"]')) {
-		await page.click('#deck-roster-panel [data-usd-act="exclude-into"]');
+	if (await page.isVisible('[data-usd-el="roster-modal-host"] [data-usd-el="scope-modal"]')) {
+		await page.click('[data-usd-el="roster-modal-host"] [data-usd-act="exclude-into"]');
 		await page.waitForTimeout(600);
 	}
 	const after = (await page.textContent('#deck-roster-excluded')).trim();
