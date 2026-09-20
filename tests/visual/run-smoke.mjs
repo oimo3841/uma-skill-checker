@@ -2300,6 +2300,51 @@ const browser = await chromium.launch();
 	assert(!isWhite(hollow.塗りの中央),
 		'段I-5: 塗りの ◆ は中まで色が入っている（白抜きと取り違えない）', hollow.塗りの中央);
 
+	/* ------------------------------------------------------------
+	 * 段J-2(exam): **スキルの検出が0件でも、因子・遺伝子の印は付く**
+	 *
+	 * 因子と遺伝子はスキルとは別勘定（並記して数える）なので、
+	 * 印を付けるかどうかがスキルの検出数に左右されてはいけない。
+	 * 実素材で OCR を回すのは遅いので、**印を置くのに必要な材料だけ**を組んで
+	 * 製品の drawAttrIconsOnPerson() をそのまま呼び、置いた数を数える。
+	 * ------------------------------------------------------------ */
+	const zeroSkill = await page.evaluate(() => {
+		setScenarioFactorsAll(true); setAptitudeGenesAll(true); setAttrIcons(true);
+		const factor = SCENARIO_INHERITANCE_FACTORS[0], gene = APTITUDE_GENES[0];
+		const skill = EXAM_SKILL_NAMES[0];
+		// 印を置くのに要るのは「対応が分かっている画面サイズ」「列が2本」「行」だけ
+		const geo = [{ naturalW: 900, naturalH: 1530, scale: 1, columnXs: [100, 300],
+			rows: [{ y: 10, h: 24, col: 0 }, { y: 50, h: 24, col: 1 }, { y: 90, h: 24, col: 0 }] }];
+		const lines = [{ text: factor, rowKey: '0:0' }, { text: gene, rowKey: '0:1' }, { text: skill, rowKey: '0:2' }];
+		const mk = (names) => ({
+			detectedSkills: new Set(names),
+			skillSources: Object.fromEntries(names.map((n) => [n, [lines.findIndex((l) => l.text === n)]])),
+			skillStars: {}, matchReasons: {},
+		});
+		const prev = { g: personGeometry[0], l: personLines[0], r: personResults[0] };
+		personGeometry[0] = geo; personLines[0] = lines;
+		const run = captureRun();
+		const count = (names) => {
+			personResults[0] = mk(names);
+			const c = document.createElement('canvas');
+			c.width = 600; c.height = 400;
+			c._sourcePlacements = [];
+			const out = drawAttrIconsOnPerson(c, 0, run);
+			return { kinds: out.kinds.slice().sort(), suppressed: out.suppressed, drawn: out.drawn };
+		};
+		const both = count([factor, gene, skill]);
+		const zero = count([factor, gene]);          // スキルの検出0件
+		const onlySkill = count([skill]);
+		personGeometry[0] = prev.g; personLines[0] = prev.l; personResults[0] = prev.r;
+		return { both, zero, onlySkill };
+	});
+	assert(zeroSkill.zero.kinds.join(',') === 'factor,gene' && zeroSkill.zero.suppressed === null,
+		'段J-2(exam): スキルの検出が0件でも、因子と遺伝子の印は付く（別勘定なので検出数に左右されない）', zeroSkill);
+	assert(zeroSkill.both.kinds.join(',').includes('factor') && zeroSkill.both.kinds.join(',').includes('gene'),
+		'段J-2(exam): スキルも検出しているときも、因子と遺伝子の印は付く', zeroSkill.both);
+	assert(!zeroSkill.onlySkill.kinds.includes('factor') && !zeroSkill.onlySkill.kinds.includes('gene'),
+		'段J-2(exam): 逆に、因子・遺伝子を検出していなければ、その印は出ない', zeroSkill.onlySkill);
+
 	// Esc は開いているものを1つ閉じる（引き出し → FAB の順）。
 	// 直前まで iframe の中を操作していたので、キーは親の文書に戻してから送る
 	// （iframe の中で押した Esc は親には届かない。special の Deck 引き出しも同じ）。
@@ -6914,6 +6959,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(spBare.bare === 0 && spBare.tierMissing === 0,
 		'段I(special): 判定結果の表に印の無い行が無い（tiers.of() が既定を返すので抜けない）', spBare);
 
+
 	// 結合画像の凡例に◆の行が増える
 	const legend = await page.evaluate(() => {
 		const rowsOf = () => {
@@ -6969,6 +7015,45 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		&& both.diamonds.length > 0 && both.hearts.length > 0,
 		'段I-5(special): ◆と白抜きの◇が同じ表に並び、塗り方が混ざらない',
 		{ diamonds: both.diamonds.length, hearts: both.hearts.length });
+	/* ------------------------------------------------------------
+	 * 段J-2(special): **スキルの検出が0件でも、因子・遺伝子の印は付く**
+	 *
+	 * exam 側と同じ考え方。印を置くのに要る材料だけを組んで、製品の
+	 * drawTierMarksOnPerson() をそのまま呼び、置いた数を数える。
+	 * special は tierCircleMetrics() が「列がちょうど2本」を要求するので、
+	 * columnXs を2本だけ持たせる。
+	 * ------------------------------------------------------------ */
+	const spZero = await page.evaluate(() => {
+		const factor = factorOnlyList.find((n) => factorMarkByNorm.get(normalizeText(n)) === 'factor');
+		const gene = factorOnlyList.find((n) => factorMarkByNorm.get(normalizeText(n)) === 'gene');
+		const skill = skillOnlyList.find((n) => deckTierByName[n]);
+		const geo = [{ scale: 1, columnXs: [100, 300],
+			rows: [{ y: 10, h: 24, col: 0 }, { y: 50, h: 24, col: 1 }, { y: 90, h: 24, col: 0 }] }];
+		const lines = [{ text: factor, rowKey: '0:0' }, { text: gene, rowKey: '0:1' }, { text: skill, rowKey: '0:2' }];
+		const mk = (names) => ({
+			detectedSkills: new Set(names.filter(Boolean)),
+			skillSources: Object.fromEntries(names.filter(Boolean).map((n) => [n, [lines.findIndex((l) => l.text === n)]])),
+			skillStars: {}, matchReasons: {},
+		});
+		const prev = { g: personGeometry[0], l: personLines[0], r: personResults[0], t: tierMarksEnabled };
+		personGeometry[0] = geo; personLines[0] = lines; tierMarksEnabled = true;
+		const count = (names) => {
+			personResults[0] = mk(names);
+			const c = document.createElement('canvas');
+			c.width = 600; c.height = 400;
+			c._sourcePlacements = [];
+			return drawTierMarksOnPerson(c, 0);
+		};
+		const both = count([factor, gene, skill]);
+		const zero = count([factor, gene]);
+		const onlySkill = count([skill]);
+		personGeometry[0] = prev.g; personLines[0] = prev.l; personResults[0] = prev.r; tierMarksEnabled = prev.t;
+		return { both, zero, onlySkill, 使った名前: { factor, gene, skill } };
+	});
+	assert(spZero.zero === 2,
+		'段J-2(special): スキルの検出が0件でも、因子と遺伝子の印は付く（別勘定なので検出数に左右されない）', spZero);
+	assert(spZero.both === 3 && spZero.onlySkill === 1,
+		'段J-2(special): スキルも一緒に検出していれば3つとも付き、スキルだけなら1つ', spZero);
 	/* **Deck が持つ菱形の写しが、stitch.js の計算と同じか**（段G-2・段I-5）。
 	   Deck は stitch.js を読まないので js/uma-skill-deck.js に同じ文字列を写してある。
 	   片方だけ直すと、Deck の比較シートだけ形が違う印になる。 */
