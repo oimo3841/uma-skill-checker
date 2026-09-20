@@ -10,14 +10,14 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20e" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-20e" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-20e" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20f" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-20f" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-20f" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-20d"></script>
-	<script src="js/uma-skill-deck.js?v=2026-09-20d"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-20e"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -192,10 +192,13 @@
 		   漢字6文字=84px(=6em) / 東京レース場○(7文字)=86px / 漢字7文字=98px。
 		   6.4em(89.6px)だと7文字の「東京レース場○」まで収まってしまい、
 		   フェードが一度も効かなかった。 */
-		/* 追加カタログ（シナリオ因子など）の行に付く印。OCRツール側の一覧・結果と同じ◆。
+		/* 追加カタログ（シナリオ因子・遺伝子）の行に付く印。OCRツール側の一覧・結果と同じ形と色。
 		   .deck-name-clip の**外**に置く。中に入れると印のぶんだけ名前が早く切れ、
-		   「6em ＝ 全角6文字ぶん」という上のクリップ幅の前提が崩れる。 */
+		   「6em ＝ 全角6文字ぶん」という上のクリップ幅の前提が崩れる。
+		   **カテゴリごとに色が違う**（段G）。形は js/uma-skill-deck.js の CATALOG_CATEGORY_GLYPHS。
+		   素の .deck-catalog-mark の色は、知らないカテゴリが来たときの既定。 */
 		.deck-catalog-mark { flex: 0 0 auto; color: var(--uma-mark-catalog); font-weight: 700; }
+		.deck-catalog-mark--geneFactor { color: var(--uma-mark-gene); }
 		.deck-name-clip {
 			display: block; max-width: 6em;
 			overflow: hidden; white-space: nowrap;

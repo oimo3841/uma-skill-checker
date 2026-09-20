@@ -15,7 +15,7 @@
 
 // このファイルの版。B節ルール4の3点一致（内部定数・各HTMLの ?v=・npm run test:verify）の対象。
 // 中身を変更したらこの日付も更新すること。
-const STITCH_JS_VERSION = '2026-09-18a';
+const STITCH_JS_VERSION = '2026-09-20a';
 
 // 画像結合用の簡易ログ。既存の開発ログ（devGeometry）に相乗りさせることで、
 // 「開発ログを表示」チェックを入れれば結合処理の詳細も確認できるようにする。
@@ -617,6 +617,30 @@ function stitchConcatHorizontallyTopAligned(canvasList, gap) {
 // 補助テキストの文字色と、区切り線の色。記号だけが区分の色を持ち、説明文はこの色で揃える。
 const STITCH_NOTE_COLOR = '#555555';
 const STITCH_NOTE_RULE_COLOR = '#d0d0d0';
+
+/**
+ * ハートの輪郭を現在のパスに積む（遺伝子の印。段G・66セッション目）。
+ *
+ * **exam と special が同じ形を使うのでここに置く。** exam は塗りつぶし（♥）、
+ * special は線だけ（♡）で描き方は違うが、**輪郭そのものは同じ**にしたい
+ * （2か所で別々に持つと、片方だけ直したときに形が食い違う）。
+ * 色も塗り／線も呼び出し側が決める ―― ここは path を積むだけで、fill も stroke もしない。
+ *
+ * 中心 (cx, cy)・半径 r の**外接円に収まる**ようにしてある。印はスキルパネルの
+ * 灰色の〇の中に置くので、はみ出すと隣の段にかかる。
+ */
+function stitchHeartPath(ctx, cx, cy, r) {
+	const w = r * 0.98;          // 横の張り出し
+	const top = cy - r * 0.62;   // 左右のふくらみの中心の高さ
+	const lobe = r * 0.50;       // ふくらみの半径
+	ctx.beginPath();
+	ctx.moveTo(cx, cy + r * 0.92);                                  // 下の尖り
+	ctx.bezierCurveTo(cx - w, cy + r * 0.05, cx - w, top - lobe * 1.1, cx - lobe * 0.62, top - lobe * 0.62);
+	ctx.bezierCurveTo(cx - lobe * 0.12, top - lobe * 1.02, cx, cy - r * 0.42, cx, cy - r * 0.30);
+	ctx.bezierCurveTo(cx, cy - r * 0.42, cx + lobe * 0.12, top - lobe * 1.02, cx + lobe * 0.62, top - lobe * 0.62);
+	ctx.bezierCurveTo(cx + w, top - lobe * 1.1, cx + w, cy + r * 0.05, cx, cy + r * 0.92);
+	ctx.closePath();
+}
 
 /** 1行に収まらない文字列を、収まる幅で折り返す（日本語なので1文字ずつで足りる）。 */
 function stitchWrapText(ctx, text, maxWidth) {

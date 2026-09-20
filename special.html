@@ -14,9 +14,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20e" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-20e" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-20e" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20f" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-20f" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-20f" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -33,7 +33,7 @@
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
 	<script src="js/uma-skill-deck-core.js?v=2026-09-20d"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-18a"></script>
+	<script src="js/stitch.js?v=2026-09-20a"></script>
 	<style>
 		/* Deck連携モードの①のタブ（本育成編成）の見出し行（C-51 の11節①②）。
 		   ①〜③はステップのタブ（css/shell.css の .step-tab）に載せたので、ここには Step の枠は無い。
@@ -812,8 +812,12 @@
 		let skillList = [];
 		let skillOnlyList = [];
 		let factorOnlyList = [];
-		// 因子の名前（正規化後）。◆を出すかどうかと、誤マッチのガードの判定に使う
+		// 因子の名前（正規化後）。印を出すかどうかと、誤マッチのガードの判定に使う
 		let factorNormSet = new Set();
+		// 因子の名前（正規化後）→ 印の種類（'factor' / 'gene'）。段G で印を節ごとに分けたので、
+		// 「因子かどうか」だけでは足りず、**どちらの節か**を引く必要が出た。
+		// 数え方（factorOnlyList）は1本のままで、変えるのは印だけ。
+		let factorMarkByNorm = new Map();
 		let skillIndex = [];
 		let currentFilter = 'all';
 		let previewCanvases = [];
@@ -855,7 +859,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20e';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20f';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -1058,6 +1062,7 @@
 			skillOnlyList = skillList.slice();
 			factorOnlyList = [];
 			factorNormSet = new Set();
+			factorMarkByNorm = new Map();
 			skillIndex = skillList.map(raw => ({ raw: raw, norm: normalizeText(raw) }));
 
 			document.getElementById('skill-count').textContent = '✓ ' + skillList.length + '個解析完了';
@@ -1799,8 +1804,10 @@
 				// 因子には分類が付かない（deckTierByName に載らない）ので、同じ左の欄に◆を置く（C-2b）。
 				// ◆＝スキルではないもの、という基準は段A-2 で決めたもの。exam・Deck と同じ印・同じ色。
 				const tier = deckTierByName[skill];
-				const tierMark = factorNormSet.has(normalizeText(skill))
-					? CATALOG_MARK_HTML + ' '
+				// 因子は節ごとに印が違う（段G）。◆＝シナリオ因子／♡＝遺伝子
+				const factorMark = factorMarkByNorm.get(normalizeText(skill));
+				const tierMark = factorMark
+					? CATALOG_MARK_HTML[factorMark] + ' '
 					: (tier ? UmaSkillDeckCore.tiers.markHtml(tier) + ' ' : '');
 				tableHtml += `<tr class="transition-colors">
 					<td class="font-medium text-slate-800">${tierMark}${escapeHtml(skill)}</td>
@@ -1989,13 +1996,32 @@
 		const TIER_CIRCLE_D_OVER_PITCH = 0.0738;
 		const TIER_CIRCLE_CX_OVER_PITCH = 0.0725;
 		const TIER_MARK_SCALE = 1.20;
-		/* 因子の印（◆。C-2b）。分類（1/2/3）と同じ仕組みに乗せるので、印の種類を表す値を1つ足す。
+		/* 因子の印。分類（1/2/3）と同じ仕組みに乗せるので、印の種類を表す値を足す。
 		   **数字と混ざらない文字列**にしてあるので、tiers の値（1/2/3）と取り違えない。
-		   画面の表に出すぶんはこの HTML、結合画像に焼くぶんは drawTierMark() が描く菱形。
-		   色は exam・Deck と同じ --uma-mark-catalog（◆＝スキルではないもの。段A-2）。 */
-		const CATALOG_MARK = 'factor';
-		const CATALOG_MARK_HTML = '<span class="text-[var(--uma-mark-catalog)] font-bold" title="スキルではないもの（因子）">◆</span>';
-		const CATALOG_MARK_LEGEND = '因子';
+		   画面の表に出すぶんは html、結合画像に焼くぶんは drawTierMark() が描く。
+
+		   **段G で節ごとに分けた。** C-2b では両方 ◆（--uma-mark-catalog）を共用していたが、
+		   それだと凡例を見ても「この◆はシナリオ因子か遺伝子か」が分からない。
+		   **形も色も分ける** ―― シナリオ因子は紫の菱形、遺伝子は赤いハート。
+		   Special の印は**線だけで塗りつぶさない**決まりなので、ハートも輪郭だけ（♡）。
+		   キーは FACTOR_SCOPES の key と同じにしてある（節 → 印 を引けるようにするため）。 */
+		const CATALOG_MARKS = {
+			scenarioFactors: { mark: 'factor', legend: 'シナリオ因子', token: '--uma-mark-catalog', glyph: '◆',
+				cls: 'text-[var(--uma-mark-catalog)]' },
+			genes:           { mark: 'gene',   legend: '遺伝子',      token: '--uma-mark-gene',    glyph: '♡',
+				cls: 'text-[var(--uma-mark-gene)]' }
+		};
+		// 色は cls（Tailwind の任意値）で当てる。**token と同じ変数を指すよう、書き分けずに1か所で持つ。**
+		// 素の style= で書くと、exam 側（同じ形の SCREEN_MARK）と書き方が食い違う。
+		const CATALOG_MARK_HTML = {};
+		Object.values(CATALOG_MARKS).forEach(m => {
+			CATALOG_MARK_HTML[m.mark] = '<span class="' + m.cls + ' font-bold" title="'
+				+ 'スキルではないもの（' + m.legend + '）">' + m.glyph + '</span>';
+		});
+		// 印の種類（'factor' / 'gene'）の一覧。凡例の並びもこの順。
+		const CATALOG_MARK_KEYS = Object.values(CATALOG_MARKS).map(m => m.mark);
+		const CATALOG_MARK_BY_KEY = {};
+		Object.values(CATALOG_MARKS).forEach(m => { CATALOG_MARK_BY_KEY[m.mark] = m; });
 
 		function tierCircleMetrics(g) {
 			const xs = g.columnXs || [];
@@ -2019,10 +2045,12 @@
 				if (!v) return null;
 				out[t] = v;
 			}
-			// ◆（因子。C-2b）。exam・Deck と同じトークンを使う
-			const f = css.getPropertyValue('--uma-mark-catalog').trim();
-			if (!f) return null;
-			out[CATALOG_MARK] = f;
+			// 因子の印（段G で節ごとに分けた）。トークンの名前は CATALOG_MARKS が持つ
+			for (const m of Object.values(CATALOG_MARKS)) {
+				const v = css.getPropertyValue(m.token).trim();
+				if (!v) return null;
+				out[m.mark] = v;
+			}
 			return out;
 		}
 
@@ -2042,7 +2070,7 @@
 				paths.push(() => { ctx.beginPath(); ctx.arc(cx, cy, r * 0.42, 0, Math.PI * 2); });
 			} else if (tier === 2) {     // ○ 対抗
 				paths.push(() => { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); });
-			} else if (tier === CATALOG_MARK) {   // ◆ スキルではないもの（因子。C-2b）
+			} else if (tier === 'factor') {   // ◆ シナリオ因子（C-2b）
 				// ○ と同じ外接円に内接する菱形。◎○▲ とは形の系統を変えて、
 				// 「分類の段」ではなく「種類が違う」ことを示す
 				const rr = r * 1.10;
@@ -2054,7 +2082,12 @@
 					ctx.lineTo(cx - rr * 0.82, cy);
 					ctx.closePath();
 				});
-			} else {                     // ▲ 単穴（外接円は ○ の 1.12 倍。塗りが無いぶん小さく見えるため）
+			} else if (tier === 'gene') {     // ♡ 遺伝子（段G）
+				// **輪郭は js/stitch.js の stitchHeartPath()**（exam と同じ形にするため。
+				// あちらは塗りつぶすが、輪郭そのものは1か所で持つ）。
+				// ◆ と同じく ○ の外接円より少しだけ大きく取る（線だけなので小さく見えるため）。
+				paths.push(() => stitchHeartPath(ctx, cx, cy, r * 1.06));
+			} else {                   // ▲ 単穴（外接円は ○ の 1.12 倍。塗りが無いぶん小さく見えるため）
 				const rr = r * 1.12;
 				paths.push(() => {
 					ctx.beginPath();
@@ -2112,8 +2145,9 @@
 			// rowKey（"画像の番号:行の番号"）→ 印（分類 1/2/3 または ◆）
 			const tierByRowKey = {};
 			res.detectedSkills.forEach(name => {
-				// 因子には分類が付かないので◆を置く（C-2b）。◆が付くのはスキルではないものだけ（段A-2）
-				const tier = factorNormSet.has(normalizeText(name)) ? CATALOG_MARK : deckTierByName[name];
+				// 因子には分類が付かないので専用の印を置く（C-2b）。印が付くのはスキルではないものだけ（段A-2）。
+				// **節ごとに違う印**（段G）: ◆＝シナリオ因子／♡＝遺伝子
+				const tier = factorMarkByNorm.get(normalizeText(name)) || deckTierByName[name];
 				if (!tier) return;
 				(res.skillSources[name] || []).forEach(li => {
 					const l = lines[li];
@@ -2200,12 +2234,16 @@
 			const rows = [];
 			// ◆（因子）は、B・C を対象に含めているときだけ足す（C-2b）。
 			// 含めていないときに出すと、画面に出ない印の説明が1行増えるだけになる。
-			const marks = [1, 2, 3].concat(factorOnlyList.length > 0 ? [CATALOG_MARK] : []);
+			// 因子の印は**節ごとに1行ずつ**（段G）。実際に対象へ含めている節のぶんだけ出す
+			// （含めていない節の印の説明を出しても、画像に出てこない印の話が増えるだけ）。
+			const usedFactorMarks = CATALOG_MARK_KEYS.filter(k => factorOnlyList
+				.some(n => factorMarkByNorm.get(normalizeText(n)) === k));
+			const marks = [1, 2, 3].concat(usedFactorMarks);
 			marks.forEach((tier, i) => {
 				// 2行目からは見出しの幅だけ空けて、記号の左端を1行目とそろえる
 				const row = [{ type: 'text', text: i === 0 ? TIER_LEGEND_HEAD : '', w: headW }];
 				row.push({ type: 'mark', w: glyphW, draw: (c, cx, cy, d) => drawTierMark(c, tier, cx, cy, d, colors) });
-				const label = ' ' + (tier === CATALOG_MARK ? CATALOG_MARK_LEGEND : TIER_LEGEND_LABEL[tier]);
+				const label = ' ' + (CATALOG_MARK_BY_KEY[tier] ? CATALOG_MARK_BY_KEY[tier].legend : TIER_LEGEND_LABEL[tier]);
 				row.push({ type: 'text', text: label, w: ctx.measureText(label).width });
 				rows.push(row);
 			});
@@ -3046,6 +3084,7 @@
 				skillOnlyList = [];
 				factorOnlyList = [];
 				factorNormSet = new Set();
+				factorMarkByNorm = new Map();
 				skillIndex = [];
 				clearActiveSkillDictionary();
 				badge.classList.add('hidden');
@@ -3074,6 +3113,17 @@
 			// スキルと同じ名前の因子があったらスキルの側として数える（先に入っているほう）。
 			const skillNorms = new Set(skillNames.map(n => normalizeText(n)));
 			factorNormSet = new Set(factorNames.map(n => normalizeText(n)).filter(n => !skillNorms.has(n)));
+			// **どちらの節の因子か**を引けるようにする（段G。印を節ごとに分けるため）。
+			// 数え方は変えない ―― factorOnlyList は下でこれまでどおり1本のまま作る。
+			factorMarkByNorm = new Map();
+			FACTOR_SCOPES.forEach(s => {
+				const m = CATALOG_MARKS[s.key];
+				if (!m || scopes[s.key] !== true) return;
+				UmaSkillDeckCore.getCatalogEntries(s.category).forEach(e => {
+					const n = normalizeText(e.name);
+					if (factorNormSet.has(n)) factorMarkByNorm.set(n, m.mark);
+				});
+			});
 			skillOnlyList = skillList.filter(n => !factorNormSet.has(normalizeText(n)));
 			factorOnlyList = skillList.filter(n => factorNormSet.has(normalizeText(n)));
 
@@ -3346,7 +3396,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-20d';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-20e';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {

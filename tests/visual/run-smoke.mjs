@@ -2054,8 +2054,8 @@ const browser = await chromium.launch();
 			スキルの画面: skillMarkKind(s), スキルの結合画像: stitchMarkKind(s),
 		};
 	});
-	assert(geneMark.画面の区分 === 'gene' && geneMark.記号 === '◆' && geneMark.呼び名 === '遺伝子',
-		'段F(exam): 遺伝子は画面では ◆（区分は gene・呼び名は「遺伝子」）', geneMark);
+	assert(geneMark.画面の区分 === 'gene' && geneMark.記号 === '♥' && geneMark.呼び名 === '遺伝子',
+		'段G(exam): 遺伝子は画面では ♥（区分は gene・呼び名は「遺伝子」）', geneMark);
 	assert(geneMark.結合画像の区分 === null && geneMark.スキルの画面 === geneMark.スキルの結合画像,
 		'段F(exam): 結合画像には遺伝子の印を焼かない（落とすのは遺伝子だけ。スキルは素通り）', geneMark);
 
@@ -5615,11 +5615,13 @@ const browser = await chromium.launch();
 
 
 /* ============================================================
- * シナリオ因子の色＝赤紫（2026-09-15・44セッション目）
+ * シナリオ因子の色＝紫／遺伝子の色＝赤（2026-09-15・44セッション目。段G で遺伝子を追加）
  *
  * 場所ごとに別の値（sky-50〜900・canvas の直書き）だったものを、4つの役割に
  * まとめた。**どの箇所もトークンと同じ値で描かれている**ことを見る。
  * 因子の総括チェックだけは「操作できる部品は黒」の例外ではなく原則どおり黒。
+ * **段G で印の色を #b02aa8 → #a42fb8 へ微調整し、遺伝子の4本組を新設した。**
+ * 遺伝子の♥がシナリオ因子の◆と同じ色に戻っていないことも、ここで見張る。
  * ============================================================ */
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
@@ -5628,6 +5630,8 @@ const browser = await chromium.launch();
 		document.querySelectorAll('.uma-overlay-backdrop, .uma-overlay').forEach((el) => { el.hidden = true; });
 		// 因子を ON にする（24種。3種以下だとハイライトの「他」が出ない）
 		setScenarioFactorsAll(true);
+		// 遺伝子も ON にする（段G。◆と♥が同じ画面に並ぶ状態で色と形を見る）
+		setAptitudeGenesAll(true);
 		const mk = (names, offset) => matchAllSkillsWithStars(
 			names.map((n, i) => ({ text: n, stars: ((i + offset) % 3) + 1, starsReliable: true, rowKey: 'r' + i })),
 			skillList, skillIndex, {});
@@ -5637,7 +5641,8 @@ const browser = await chromium.launch();
 		document.querySelectorAll('#step-panel-1 details').forEach((d) => { d.open = true; });
 	});
 	await page.waitForTimeout(400);
-	const MARK = 'rgb(176, 42, 168)';   // --uma-mark-catalog  #b02aa8
+	const MARK = 'rgb(164, 47, 184)';   // --uma-mark-catalog  #a42fb8（段G で微調整）
+	const GENE = 'rgb(200, 30, 78)';    // --uma-mark-gene     #c81e4e（段G で新設）
 	const TEXT = 'rgb(118, 19, 111)';   // --uma-catalog-text  #76136f
 	const SOFT = 'rgb(251, 231, 248)';  // --uma-catalog-soft  #fbe7f8
 	const BORDER = 'rgb(240, 171, 232)';// --uma-catalog-border #f0abe8
@@ -5647,6 +5652,8 @@ const browser = await chromium.launch();
 		const root = getComputedStyle(document.documentElement);
 		const listMark = document.querySelector('#skill-registry-list [title="シナリオ因子"]');
 		const tableMark = document.querySelector('#result-tbody [title="シナリオ因子"]');
+		const listGene = document.querySelector('#skill-registry-list [title="遺伝子"]');
+		const tableGene = document.querySelector('#result-tbody [title="遺伝子"]');
 		const card = [...document.querySelectorAll('#exam-highlight-grid div')]
 			.find((d) => d.className.includes('--uma-catalog-border'));
 		// カードの中は 見出しの<p> → 因子の行の格子（<div class="grid">）→「他」の<p>
@@ -5660,6 +5667,16 @@ const browser = await chromium.launch();
 				soft: root.getPropertyValue('--uma-catalog-soft').trim(),
 				border: root.getPropertyValue('--uma-catalog-border').trim()
 			},
+			geneTokens: {
+				mark: root.getPropertyValue('--uma-mark-gene').trim(),
+				text: root.getPropertyValue('--uma-gene-text').trim(),
+				soft: root.getPropertyValue('--uma-gene-soft').trim(),
+				border: root.getPropertyValue('--uma-gene-border').trim()
+			},
+			listGene: cs(listGene, 'color'),
+			tableGene: cs(tableGene, 'color'),
+			listGeneGlyph: listGene ? listGene.textContent : null,
+			listMarkGlyph: listMark ? listMark.textContent : null,
 			badgeBg: cs(document.getElementById('badge-scenario-factors'), 'backgroundColor'),
 			badgeText: cs(document.getElementById('badge-scenario-factors'), 'color'),
 			listMark: cs(listMark, 'color'),
@@ -5675,17 +5692,27 @@ const browser = await chromium.launch();
 			stitchMore: stitchTokenColor(STITCH_FACTOR_MORE_TOKEN)
 		};
 	});
-	assert(c.tokens.mark === '#b02aa8' && c.tokens.text === '#76136f'
+	assert(c.tokens.mark === '#a42fb8' && c.tokens.text === '#76136f'
 		&& c.tokens.soft === '#fbe7f8' && c.tokens.border === '#f0abe8',
-		'シナリオ因子の色: 4つの役割のトークンが赤紫の確定値', c.tokens);
+		'シナリオ因子の色: 4つの役割のトークンが紫の確定値（印は段G で微調整）', c.tokens);
+	assert(c.geneTokens.mark === '#c81e4e' && c.geneTokens.text === '#7d0f33'
+		&& c.geneTokens.soft === '#fff0f3' && c.geneTokens.border === '#f7aebe',
+		'段G: 遺伝子の色も4つの役割のトークンを持つ（赤の確定値）', c.geneTokens);
+	assert(c.geneTokens.mark !== c.tokens.mark,
+		'段G: 遺伝子の印とシナリオ因子の印が同じ色に戻っていない', { gene: c.geneTokens.mark, factor: c.tokens.mark });
 	assert(c.listMark === MARK && c.tableMark === MARK && c.cardMore === MARK && c.wireBar === MARK,
 		'シナリオ因子の色: 一覧と表の◆・ハイライトの「他」・模式図の帯が印の色', c);
 	assert(c.badgeText === TEXT && c.cardHead === TEXT && c.cardLine === TEXT,
 		'シナリオ因子の色: バッジの文字・カードの見出しと行が文字の色', c);
 	assert(c.badgeBg === SOFT && c.cardBorder === BORDER,
 		'シナリオ因子の色: バッジの地が淡い地、カードの枠が枠の色', c);
-	assert(c.stitchText === '#76136f' && c.stitchMore === '#b02aa8',
+	assert(c.stitchText === '#76136f' && c.stitchMore === '#a42fb8',
 		'シナリオ因子の色: 結合画像が読むトークンも文字と印の色', c);
+	assert(c.listGene === GENE && c.tableGene === GENE,
+		'段G: 一覧と表の遺伝子の印が遺伝子の色', { listGene: c.listGene, tableGene: c.tableGene, want: GENE });
+	assert(c.listGeneGlyph === '♥' && c.listMarkGlyph === '◆',
+		'段G: 遺伝子は♥・シナリオ因子は◆（形も分かれている）',
+		{ gene: c.listGeneGlyph, factor: c.listMarkGlyph });
 	assert(c.check === CONTROL,
 		'シナリオ因子の色: 因子の総括チェックだけは操作の色（黒）', c.check);
 	assert(errors.length === 0, 'シナリオ因子の色: コンソールエラーが出ない', errors.slice(0, 3));
@@ -6382,9 +6409,16 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 			found: document.getElementById('stat-found-1').textContent,
 			foundFactor: document.getElementById('stat-found-factor-1').textContent,
 			rowCount: rows.length,
-			// ◆が付いている行の名前と、◎○▲ が付いている行の名前
+			// ◆（シナリオ因子）／♡（遺伝子）が付いている行と、◎○▲ が付いている行
+			// **段G で印を分けた。** 以前はどちらも ◆（--uma-mark-catalog）だった。
 			diamond: rows.filter(r => r.querySelector('td .text-\\[var\\(--uma-mark-catalog\\)\\]'))
 				.map(r => r.querySelector('td').textContent.replace(/^◆\s*/, '').trim()),
+			heart: rows.filter(r => r.querySelector('td .text-\\[var\\(--uma-mark-gene\\)\\]'))
+				.map(r => r.querySelector('td').textContent.replace(/^♡\s*/, '').trim()),
+			diamondGlyphs: rows.filter(r => r.querySelector('td .text-\\[var\\(--uma-mark-catalog\\)\\]'))
+				.map(r => r.querySelector('td .text-\\[var\\(--uma-mark-catalog\\)\\]').textContent),
+			heartGlyphs: rows.filter(r => r.querySelector('td .text-\\[var\\(--uma-mark-gene\\)\\]'))
+				.map(r => r.querySelector('td .text-\\[var\\(--uma-mark-gene\\)\\]').textContent),
 			tierMarked: rows.filter(r => r.querySelector('td .uma-tier-mark')).length,
 			copyLines: document.getElementById('copy-data').value.split('\n').length,
 			kept: [names[0], names[1]].filter(n => factorSet.has(n)),
@@ -6398,8 +6432,15 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		'C-2b: 完全一致と「距離1で一意」の因子は残り、距離2の崩れは落ちる', { detected: res.detected, expect: res.expectKept, dropped: res.dropped });
 	assert(res.found === '4' && res.foundFactor === '＋ 因子 2',
 		'C-2b: 検出数もスキルと因子で分けて数える', { found: res.found, foundFactor: res.foundFactor });
-	assert(res.diamond.length === nFactor && res.tierMarked > 0,
-		'C-2b: 因子の行には◆、スキルの行には◎○▲（左の同じ欄）', { diamond: res.diamond.length, tier: res.tierMarked });
+	// 段G: 印は節ごとに分かれた（◆＝シナリオ因子／♡＝遺伝子）。
+	// **この検査で見ているのはシナリオ因子だけを ON にした状態**（上の scopes の作り方による）。
+	// 合計が因子の数と合い、遺伝子の♡は1つも出ていないこと。
+	assert(res.diamond.length + res.heart.length === nFactor && res.tierMarked > 0,
+		'C-2b: 因子の行には印、スキルの行には◎○▲（左の同じ欄）',
+		{ diamond: res.diamond.length, heart: res.heart.length, tier: res.tierMarked });
+	assert(res.diamondGlyphs.every(g => g === '◆') && res.heartGlyphs.every(g => g === '♡'),
+		'段G(special): シナリオ因子は◆・遺伝子は♡（形が混ざらない）',
+		{ diamond: res.diamondGlyphs.slice(0, 3), heart: res.heartGlyphs.slice(0, 3) });
 	assert(res.copyLines === off.skills + nFactor,
 		'C-2b: コピー用データには因子の行も入る（表と同じ並び）', { copyLines: res.copyLines, expect: off.skills + nFactor });
 
@@ -6418,6 +6459,47 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	});
 	assert(legend.withFactor > legend.withoutFactor,
 		'C-2b: 因子を含めているときは、凡例の帯に◆の行が増える', legend);
+
+	/* --- 段G: 遺伝子も ON にして、◆と♡が**同時に**出ることを見る ---
+	   C-2b の段では節が1つしか ON になっていないので、2つの印が混ざらないことは確かめられない。
+	   凡例は「含めている節のぶんだけ」行が増えるので、2節 ON なら1節 ON より高くなる。 */
+	await page.click('#deck-template-panel [data-usd-act="scope-check"][data-scope="genes"]');
+	await page.waitForTimeout(400);
+	const both = await page.evaluate(() => {
+		const names = UmaSkillDeckCore.getCatalogEntries('scenarioFactor').map(e => e.name);
+		const genes = UmaSkillDeckCore.getCatalogEntries('geneFactor').map(e => e.name);
+		const lines = skillOnlyList.slice(0, 3).concat([names[0], genes[0], genes[1]])
+			.map((t, i) => ({ text: t, stars: (i % 3) + 1, starsReliable: true, rowKey: 'r' + i }));
+		personResults[0] = applyFactorStrictMatch(
+			matchAllSkillsWithStars(lines, skillList, skillIndex, {}), lines);
+		personLines[0] = lines;
+		renderResults();
+		const rows = Array.from(document.querySelectorAll('#result-tbody tr'));
+		const glyphs = (sel) => rows.map(r => r.querySelector('td ' + sel))
+			.filter(Boolean).map(el => el.textContent);
+		const legendH = () => { const b = buildTierLegendBar(600, 600, true); return b ? b.height : 0; };
+		const twoScopes = legendH();
+		const keep = factorMarkByNorm;
+		// 遺伝子の印を引けなくすると、凡例は◆の行だけになる（＝行数が減る）
+		factorMarkByNorm = new Map([...keep].filter(([, v]) => v === 'factor'));
+		const oneScope = legendH();
+		factorMarkByNorm = keep;
+		return {
+			diamonds: glyphs('.text-\\[var\\(--uma-mark-catalog\\)\\]'),
+			hearts: glyphs('.text-\\[var\\(--uma-mark-gene\\)\\]'),
+			// 検出したのは 因子1種＋遺伝子2種
+			detectedGenes: genes.filter(n => personResults[0].detectedSkills.has(n)).length,
+			twoScopes, oneScope
+		};
+	});
+	assert(both.diamonds.every(g => g === '◆') && both.hearts.every(g => g === '♡')
+		&& both.diamonds.length > 0 && both.hearts.length > 0,
+		'段G(special): ◆と♡が同じ表に並び、形が混ざらない',
+		{ diamonds: both.diamonds.length, hearts: both.hearts.length });
+	assert(both.detectedGenes === 2,
+		'段G(special): 遺伝子は完全一致で検出できている（印の分離が検出に影響していない）', both.detectedGenes);
+	assert(both.twoScopes > both.oneScope,
+		'段G(special): 凡例の帯は、含めている節のぶんだけ印の行が増える', both);
 	assert(errors.length === 0, 'C-2b: special でコンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }

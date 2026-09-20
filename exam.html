@@ -17,9 +17,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20e" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-20e" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-20e" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-09-20f" />
+	<link rel="stylesheet" href="css/common.css?v=2026-09-20f" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-09-20f" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
@@ -27,7 +27,7 @@
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html / exam.html で共有） -->
 	<script src="js/common.js?v=2026-09-17a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
-	<script src="js/stitch.js?v=2026-09-18a"></script>
+	<script src="js/stitch.js?v=2026-09-20a"></script>
 	<style>
 		/* このツールの色（青）。**見出し・バッジ・淡い地・枠などの装飾にだけ使う。**
 		   押せる部品（ボタン・チェック・選択中のタブ）は色を持たず、3ツール共通の黒
@@ -562,7 +562,7 @@
 		<div id="gene-list-box" class="uma-overlay notice-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="gene-list-title">
 			<div class="help-head">
 				<h2 id="gene-list-title" class="help-title">
-					<i data-lucide="dna" class="w-4 h-4 text-[var(--uma-mark-catalog)]"></i>
+					<i data-lucide="dna" class="w-4 h-4 text-[var(--uma-mark-gene)]"></i>
 					<span>遺伝子（<span id="gene-list-count">10</span>種）</span>
 				</h2>
 				<button id="gene-list-close" type="button" onclick="closeGeneList()" aria-label="閉じる" class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer">
@@ -765,7 +765,8 @@
 					<p class="text-[11px] text-slate-500 mb-2">
 						<span class="text-amber-500 font-bold">★</span> = sp70緑（17種） ／
 						<span class="text-emerald-500 font-bold">●</span> = その他緑（42種） ／
-						<span class="text-[var(--uma-mark-catalog)] font-bold">◆</span> = シナリオ因子・遺伝子（スキルではないもの）<br />
+						<span class="text-[var(--uma-mark-catalog)] font-bold">◆</span> = シナリオ因子 ／
+						<span class="text-[var(--uma-mark-gene)] font-bold">♥</span> = 遺伝子<br />
 						<span class="registry-added">下線</span> = 「対象を広げる」で足したスキル ／
 						<span class="registry-removed">取り消し線</span> = 「対象を絞る」で対象から外したスキル（判定には使いません）
 					</p>
@@ -2059,9 +2060,10 @@
 			const greenTitle = MARK_LEGEND_LABEL.green + '（' + greenOnlyCount + '種）';
 			return {
 				factor: { glyph: '◆', color: 'text-[var(--uma-mark-catalog)]', listTitle: MARK_LEGEND_LABEL.factor, tableTitle: MARK_LEGEND_LABEL.factor },
-				// 遺伝子も「スキルではないもの」なので因子と同じ◆（段A-2 の基準。C-68 の2節）。
-				// 呼び名だけ分けてあるので、どちらの◆かは title で読める。
-				gene: { glyph: '◆', color: 'text-[var(--uma-mark-catalog)]', listTitle: MARK_LEGEND_LABEL.gene, tableTitle: MARK_LEGEND_LABEL.gene },
+				// 遺伝子は**赤いハート**（段G）。◆と同じ「スキルではないもの」の仲間だが、
+				// 同じ記号を共用していると凡例を見ても両者の区別がつかないので、形も色も分けた。
+				// Exam の印は塗りつぶしなので ♥（Special は線だけなので ♡）。
+				gene: { glyph: '♥', color: 'text-[var(--uma-mark-gene)]', listTitle: MARK_LEGEND_LABEL.gene, tableTitle: MARK_LEGEND_LABEL.gene },
 				sp70: { glyph: '★', color: 'text-amber-500', listTitle: sp70Title, tableTitle: sp70Title },
 				green: { glyph: '●', color: 'text-emerald-500', listTitle: greenTitle, tableTitle: greenTitle }
 			};
@@ -2176,7 +2178,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20e';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-09-20f';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],
@@ -4314,6 +4316,10 @@
 			green: '--uma-mark-green-skill',
 			plain: '--uma-text',
 			factor: '--uma-mark-catalog',
+			// 遺伝子（段G）。**形と色をここで用意しておくが、結合画像に出るのは段H から**
+			// ―― いまは stitchMarkKind() が 'gene' を落としているので、この行は使われない。
+			// 用意だけ先にするのは、印の形と色を1つの段でまとめて決めるため。
+			gene: '--uma-mark-gene',
 			added: '--uma-danger-text',
 			removed: '--uma-danger-text'
 		};
@@ -4399,6 +4405,14 @@
 				ctx.lineTo(cx, cy + r);
 				ctx.lineTo(cx - r, cy);
 				ctx.closePath();
+				ctx.fill();
+			} else if (kind === 'gene') {
+				// ハート（段G）。◆ と同じ「スキルではないもの」だが、形の系統を変えて区別する。
+				// **輪郭は js/stitch.js の stitchHeartPath()**（special と同じ形にするため。
+				// あちらは線だけで描くが、輪郭そのものは1か所で持つ）。
+				// 外接円は 0.78（★と同じ）―― 塗りの面積が円より小さいので、同じ差し渡しだと
+				// 一段小さく見えるため。それでも元の灰色の〇の内側に収まる。
+				stitchHeartPath(ctx, cx, cy, d * 0.78);
 				ctx.fill();
 			} else if (kind === 'added') {
 				// 辺の真ん中が〇の半径より内側に入らないよう 0.78 → 0.96（対角はへこみとほぼ同じ）
@@ -5720,7 +5734,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-20d';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-20e';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;
