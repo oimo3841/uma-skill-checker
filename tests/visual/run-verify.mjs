@@ -291,9 +291,9 @@ const INTENTIONALLY_REMOVED = {
 	// 引き続き出している。チェックそのもの（data-usd-act="scope-check"）と
 	// 節の入れ物（data-usd-scope-section）は残っている。
 	// **exam.html の同じ1行にはバッジが残っている**（#scenario-factors-badge / #genes-badge。
-	// 段K では exam を触らないと決めたため）。
-	// **次の commit で免除は空に戻すこと**（残すと本当の事故を見逃す口になる）。
-	'js/uma-skill-deck-core.js': ['data-usd-scope-badge'],
+	// 段K では exam を触らないと決めたため）。**special の②には復活していない**
+	// ―― 外したままが段K の結論で、exam に残っているのは別の id の別のバッジ。
+	// `da32a71` に commit したので免除は空に戻した（残すと本当の事故を見逃す口になる）。
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
