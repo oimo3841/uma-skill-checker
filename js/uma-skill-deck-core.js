@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21f';
 
 	/* ============================================================
 	 * 定数
@@ -191,6 +191,27 @@
 		]},
 		{ key: 'coursePos', label: 'コース位置', options: [
 			{ v: 'corner', t: 'コーナー' }, { v: 'straight', t: '直線' }, { v: 'uphill', t: '上り坂' }, { v: 'downhill', t: '下り坂' }
+		]},
+		/* 70セッション目・段3 で足した2軸（キーは段2 でマスターへ先行投入済み。タブはコース位置に続く）。
+		 *
+		 * **どちらも emptyMeansNone。** レアリティも共通/継承も「どのスキルも必ずどちらか一方に当たる」
+		 * 排他的な区分で、「どちらでもある（万能）」というスキルは原理的に存在しない。
+		 * だから空は「万能」ではなく「**まだタグを付けていない**」を意味する。
+		 * それを万能と読ませると、絞り込んだのに1件も減らない（445件が居座る）ことになる。
+		 * **タグを付け終わったあとも印はそのままでよい**（付け忘れがあれば、その行が出ないことで気づける）。
+		 *
+		 * **いまは全445件が空なので、この2軸で絞ると0件になる。** それは想定どおりで、
+		 * 「まだ付いていない」ことが分かるほうがよいという判断。画面には
+		 * emptyMeansNone の軸に出る既存の注記（「この軸のタグが無いスキルは出ない」）が付く。
+		 * **「まだタグを付けていません」という専用の注記は、いまは出していない**（文言の追加は未承認）。
+		 * `inherited` というキーは `getSkillMeta()` が返す `kind`（カタログのカテゴリ）との
+		 * 語の衝突を避けたもの。値の `inherited` と同じ綴りになるが、軸と値なので混ざらない。
+		 */
+		{ key: 'rarity', label: 'レアリティ', emptyMeansNone: true, options: [
+			{ v: 'normal', t: 'ノーマル' }, { v: 'rare', t: 'レア' }
+		]},
+		{ key: 'inherited', label: '共通/継承', emptyMeansNone: true, options: [
+			{ v: 'common', t: '共通' }, { v: 'inherited', t: '継承' }
 		]},
 		{ key: 'environment', label: 'レース環境', options: [
 			{ v: 'ground_good', t: '良バ場' }, { v: 'ground_bad', t: '道悪' },
@@ -1502,7 +1523,20 @@
 		// 既存の .glass-card 相当（テンプレート編集パネル・モーダルの下地）
 		'.usd-modal { position: fixed; inset: 0; background: rgba(15,23,42,.4); z-index: 80; display: flex; align-items: flex-end; justify-content: center; }',
 		'.usd-modal[hidden] { display: none !important; }',
-		'.usd-modal-panel { background: var(--uma-glass-bg); backdrop-filter: var(--uma-glass-blur); width: 100%; max-width: 42rem;',
+		/* 幅は 42rem（672px）→ **47rem（752px）**（70セッション目・段3）。
+		 * 軸が10本になると、タブを1行に並べるのに **701px** 要る（10枚の max-content ＋ 隙間 ＋ 余白の実測）。
+		 * 本文の使える幅は「モーダルの幅 − 左右の余白 32px」なので、
+		 *   42rem → 640px（61px 足りない）／44rem → 672px（29px）／**45rem → 688px（13px 足りない）**
+		 *   46rem → 704px（**余り 3px**）／**47rem → 720px（余り 19px）**
+		 * **Step 0 の見立て（45rem で足りる）は外れた。** 下見では2本目の軸のラベルを「種類」(50px)
+		 * と仮置きして測っており、実際の「共通/継承」は 79px で、**その差 29px がそのまま不足になった**
+		 * （701 − 672 = 29）。46rem でも収まるが**余りが 3px しか無く**、
+		 * 文字の描かれ方が少し違うだけで静かに格子へ落ちるので、余裕のある 47rem にした。
+		 * ねらいは C-14 の「フォルダの見出し風」（data-usd-rows="1"）を PC で保つこと。
+		 * **この余裕も軸1本ぶんには足りない。** もう1本足すときは、広げ続けるのではなく
+		 * 「PC でも格子にする」を選ぶこと（幅を広げ続けると一覧と選択肢の見え方も動く）。
+		 * 1行に収まっているかは run-smoke が**実際のレイアウトから**見張っている（幅の値は書いていない）。 */
+		'.usd-modal-panel { background: var(--uma-glass-bg); backdrop-filter: var(--uma-glass-blur); width: 100%; max-width: 47rem;',
 		'  border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }',
 		'@media (min-width: 768px) { .usd-modal-panel { border-radius: var(--uma-r-xl); margin-bottom: var(--uma-sp-6); } }',
 		// モーダル下部に固定するフッター（追加ボタンと選択数）。パネルの3段目なので

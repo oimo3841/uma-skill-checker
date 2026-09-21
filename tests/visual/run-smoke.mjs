@@ -3081,8 +3081,12 @@ const browser = await chromium.launch();
 		&& !document.querySelector('[data-usd-act="filter-jump"]')),
 		'deck: 「すべて解除」でバッジと「絞り込み中」が消える');
 
-	/* --- 8軸すべてが常に見えていること（横スクロールも「端へ」操作も要らない） ---
-	   1行に収まるかどうかはJSが実測して data-usd-rows を切り替える。 */
+	/* --- 全部の軸が常に見えていること（横スクロールも「端へ」操作も要らない） ---
+	   1行に収まるかどうかはJSが実測して data-usd-rows を切り替える。
+	   **軸の本数はここに書かない**（70セッション目・段3 で 8→10 になった）。
+	   製品の `TAG_AXES` から取る ―― 数を決め打ちすると、軸を足したこと自体で落ちてしまい、
+	   「1枚も欠けずに全部見えているか」という狙いが果たせない。 */
+	const axisCount = await page.evaluate(() => UmaSkillDeckCore.TAG_AXES.length);
 	const tabLayout = () => page.evaluate(() => {
 		const bar = document.querySelector('.usd-tablist');
 		const tabs = [...document.querySelectorAll('.usd-tab')];
@@ -3090,6 +3094,9 @@ const browser = await chromium.launch();
 		return {
 			rows: document.querySelector('[data-usd-el="tabbar"]').getAttribute('data-usd-rows'),
 			count: tabs.length,
+			// 段数は**下端**の種類で数える。1行のときは選択中だけ上端が持ち上がる（--usd-tab-lift）
+			// ので、上端で数えると1行でも2になる。行は下ぞろえなので下端は揃う。
+			bandRows: new Set(tabs.map((t) => Math.round(t.getBoundingClientRect().bottom))).size,
 			// 1枚でも枠から食み出していたら「全部は見えていない」
 			clipped: tabs.filter((t) => {
 				const r = t.getBoundingClientRect();
@@ -3100,16 +3107,29 @@ const browser = await chromium.launch();
 		};
 	});
 	const pcTabs = await tabLayout();
-	assert(pcTabs.rows === '1' && pcTabs.count === 8 && pcTabs.clipped === 0 && !pcTabs.hScroll,
-		'deck: PC幅では8タブが1行に収まり、どれも欠けない', pcTabs);
+	assert(pcTabs.rows === '1' && pcTabs.count === axisCount && pcTabs.clipped === 0 && !pcTabs.hScroll,
+		'deck: PC幅では全' + axisCount + '軸のタブが1行に収まり、どれも欠けない', pcTabs);
+
+	/* **「1行に収まっている」ことを、属性だけでなく実際の並びからも見る**（70セッション目・段3）。
+	   軸を足したりラベルを長くしたりして入りきらなくなると、製品側が
+	   `data-usd-rows="multi"`（角丸ボタンの格子）へ落とすので、上の `rows === '1'` が落ちる。
+	   ここではさらに**下端が1種類しか無い＝本当に1段**であることも見る
+	   （属性だけ '1' のまま折り返している、という食い違いを捕まえるため）。
+	   **幅の px はこの検査に1つも書かない。** モーダルの幅も、タブのラベルの長さも、
+	   軸の本数も変わりうるので、書き写すと必ず古くなる。見るのは「いま画面がどう並んでいるか」だけ。
+	   ―― 段3 で `max-width` を 42rem から広げたのは、まさにこれを保つため。
+	   Step 0 の見立て（45rem）では 13px 足りず、実測して 47rem にした経緯がある。 */
+	assert(pcTabs.bandRows === 1,
+		'deck: PC幅のタブは本当に1段に並んでいる（下端が1種類）', pcTabs);
 
 	// --- 375px：1行に入らないので角丸ボタンの多段へ切り替わる ---
 	await page.setViewportSize({ width: 375, height: 812 });
 	await page.waitForTimeout(600);
 	const narrowTabs = await tabLayout();
 	assert(narrowTabs.rows === 'multi', 'deck: 375px では多段レイアウトに切り替わる', narrowTabs);
-	assert(narrowTabs.count === 8 && narrowTabs.clipped === 0 && !narrowTabs.hScroll,
-		'deck: 375px でも8タブすべてが見えていて横スクロールしない', narrowTabs);
+	assert(narrowTabs.count === axisCount && narrowTabs.clipped === 0 && !narrowTabs.hScroll,
+		'deck: 375px でも全' + axisCount + '軸のタブが見えていて横スクロールしない', narrowTabs);
+	assert(narrowTabs.bandRows > 1, 'deck: 375px では実際に複数段になっている', narrowTabs);
 	assert(narrowTabs.pageSw === narrowTabs.pageCw,
 		'deck: 375px でモーダルを開いてもページは横スクロールしない', narrowTabs);
 	// 多段でもタブとして機能する
@@ -3372,9 +3392,13 @@ const browser = await chromium.launch();
 	assert((await page.evaluate(() =>
 		document.querySelector('[data-usd-el="picker-footer"]').getBoundingClientRect().height)) === 0,
 		'deck: 手入力のときはフッターごと出さない');
-	const customAxes = await page.evaluate(() =>
-		new Set([...document.querySelectorAll('[data-usd-el="custom-tag"]')].map((el) => el.dataset.axis)).size);
-	assert(customAxes === 8, 'deck: 手入力にも8軸ぶんのタグ入力が出る', customAxes);
+	// **軸の本数を書かない**（段3 で 8→10）。製品の TAG_AXES から取って、画面が追随しているかを見る。
+	const customAxes = await page.evaluate(() => ({
+		画面: new Set([...document.querySelectorAll('[data-usd-el="custom-tag"]')].map((el) => el.dataset.axis)).size,
+		軸: UmaSkillDeckCore.TAG_AXES.length,
+	}));
+	assert(customAxes.画面 === customAxes.軸 && customAxes.軸 > 0,
+		'deck: 手入力にも全軸ぶんのタグ入力が出る', customAxes);
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);
 
