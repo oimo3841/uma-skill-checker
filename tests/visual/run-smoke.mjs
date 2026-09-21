@@ -3316,7 +3316,17 @@ const browser = await chromium.launch();
 		const tab = document.querySelector('.usd-tab[aria-selected="true"]');
 		const results = document.querySelector('[data-usd-el="results"]');
 		const body = document.querySelector('[data-usd-el="picker-body"]');
-		const rr = results.getBoundingClientRect(), br = body.getBoundingClientRect();
+		const modal = document.querySelector('.usd-modal-panel');
+		const rr = results.getBoundingClientRect(), br = body.getBoundingClientRect(), mr = modal.getBoundingClientRect();
+		/* **見えている行を数える。** 高さの px ではなく「一度に何件見えるか」がこの機能の目的
+		   （選択肢パネルを畳んで、スキルを一度に多く見られるようにする）。
+		   一覧の箱にも、本文のスクロール域にも、丸ごと収まっている行だけを数える。 */
+		const rows = [...results.querySelectorAll('.usd-row')];
+		const top = Math.max(rr.top, br.top), bottom = Math.min(rr.bottom, br.bottom);
+		const visibleRows = rows.filter((r) => {
+			const q = r.getBoundingClientRect();
+			return q.top >= top - 1 && q.bottom <= bottom + 1;
+		}).length;
 		return {
 			open: box.getAttribute('data-usd-open'),
 			expanded: tab.getAttribute('aria-expanded'),
@@ -3328,9 +3338,13 @@ const browser = await chromium.launch();
 				.map((b) => b.dataset.usdAxis + ':' + b.textContent),
 			summary: document.querySelector('[data-usd-el="filter-summary"]').textContent.replace(/\s+/g, ' ').trim(),
 			summaryH: Math.round(document.querySelector('[data-usd-el="filter-summary"]').getBoundingClientRect().height),
-			// 一覧のうち、本文のスクロール域の中で実際に見えている高さ
-			listVisible: Math.max(0, Math.round(Math.min(rr.bottom, br.bottom) - Math.max(rr.top, br.top))),
-			listTop: Math.round(rr.top),
+			// 一覧のうち、本文のスクロール域の中で実際に見えている高さ／見えている行数／箱そのものの高さ
+			listVisible: Math.max(0, Math.round(bottom - top)),
+			listBoxH: Math.round(rr.height),
+			visibleRows,
+			rowCount: rows.length,
+			// モーダルが動いていないか（押すたびに上下すると落ち着かない）
+			modal: { top: Math.round(mr.top), bottom: Math.round(mr.bottom), h: Math.round(mr.height) },
 		};
 	});
 	// 条件を1つ入れてから畳む（閉じても効いたままかを見る）。距離は既定で開いている軸
@@ -3351,10 +3365,22 @@ const browser = await chromium.launch();
 		'deck(畳み): 閉じてもタブの件数バッジは見えている', panelClosed375.badges);
 	assert(panelClosed375.summary === panelOpen375.summary && panelClosed375.summaryH > 0,
 		'deck(畳み): 閉じても「絞り込み中」の行は見えている', panelClosed375.summary);
-	// 狭い画面では、閉じたぶんだけ一覧が実際に広く見える
-	assert(panelClosed375.listVisible > panelOpen375.listVisible && panelClosed375.listTop < panelOpen375.listTop,
-		'deck(畳み): 375px では閉じると一覧が実際に広く見える',
-		{ 開: panelOpen375.listVisible, 閉: panelClosed375.listVisible, 上がった: panelOpen375.listTop - panelClosed375.listTop });
+	/* **閉じたら「一度に見えるスキルの件数」が増えること。**
+	   これがこの機能の目的なので、高さの px ではなく**行数**で見る。
+	   px は検査に書かない（開く前と閉じたあとの実測どうしを比べる）。 */
+	assert(panelClosed375.visibleRows > panelOpen375.visibleRows && panelClosed375.listBoxH > panelOpen375.listBoxH,
+		'deck(畳み): 375px では閉じると一覧が広がり、一度に見える件数が増える',
+		{ 開: panelOpen375.visibleRows + '行', 閉: panelClosed375.visibleRows + '行',
+			箱: panelOpen375.listBoxH + '→' + panelClosed375.listBoxH });
+	/* **モーダルの高さと位置が動かないこと。**
+	   素の作りではモーダルは下ぞろえで中身の量で高さが決まるので、選択肢パネルが消えたぶん
+	   **モーダルが縮むだけ**で一覧は広がらなかった（最初の実装がそれで、実機で分かった）。
+	   いまは消えたぶんを一覧の上限へ足しているので、中身の合計が変わらず、上端も下端も動かない。 */
+	assert(panelClosed375.modal.h === panelOpen375.modal.h
+		&& panelClosed375.modal.top === panelOpen375.modal.top
+		&& panelClosed375.modal.bottom === panelOpen375.modal.bottom,
+		'deck(畳み): 375px で閉じてもモーダルの高さと上下の位置が動かない',
+		{ 開: panelOpen375.modal, 閉: panelClosed375.modal });
 	// (2) 閉じた状態から別のタブを押すと、そのタブが選ばれて開く
 	await page.click('.usd-tab[data-usd-axis="style"]');
 	await page.waitForTimeout(400);
@@ -3403,12 +3429,16 @@ const browser = await chromium.launch();
 	const panelClosed1280 = await panelState();
 	assert(panelClosed1280.open === 'false' && panelClosed1280.panelsH === 0,
 		'deck(畳み): 1280px でも閉じられる', panelClosed1280);
-	/* **1280px では一覧の見える高さは変わらない。** モーダルは下ぞろえ（align-items: flex-end）なので、
-	   中身が減るとモーダル自体が縮み、一覧はその場に留まる。そもそも一覧は max-height いっぱいまで
-	   見えていたので、広がる余地が無い。**畳んで得をするのは狭い画面**（上の 375px の検査）。 */
-	assert(panelClosed1280.listVisible === panelOpen1280.listVisible,
-		'deck(畳み): 1280px では一覧の見える高さは変わらない（モーダルのほうが縮む）',
-		{ 開: panelOpen1280.listVisible, 閉: panelClosed1280.listVisible });
+	// PC幅でも同じ ―― 一度に見える件数が増え、モーダルの高さと位置は動かない
+	assert(panelClosed1280.visibleRows > panelOpen1280.visibleRows && panelClosed1280.listBoxH > panelOpen1280.listBoxH,
+		'deck(畳み): 1280px でも閉じると一覧が広がり、一度に見える件数が増える',
+		{ 開: panelOpen1280.visibleRows + '行', 閉: panelClosed1280.visibleRows + '行',
+			箱: panelOpen1280.listBoxH + '→' + panelClosed1280.listBoxH });
+	assert(panelClosed1280.modal.h === panelOpen1280.modal.h
+		&& panelClosed1280.modal.top === panelOpen1280.modal.top
+		&& panelClosed1280.modal.bottom === panelOpen1280.modal.bottom,
+		'deck(畳み): 1280px で閉じてもモーダルの高さと上下の位置が動かない',
+		{ 開: panelOpen1280.modal, 閉: panelClosed1280.modal });
 	// 開いた状態に戻して先へ進む（このあとの検査は開いている前提）。
 	// **絞り込みの条件は (4) でモーダルを開き直した時点で消えている**ので、ここでは何も解除しない。
 	await page.click('.usd-tab[data-usd-axis="' + panelClosed1280.axis + '"]');

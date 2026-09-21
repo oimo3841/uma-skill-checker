@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22a';
 
 	/* ============================================================
 	 * 定数
@@ -1761,7 +1761,21 @@
 		'[data-usd-open="false"] [data-usd-rows="1"] .usd-tab[aria-selected="true"] {',
 		'  margin-top: var(--usd-tab-lift); min-height: 3.1rem;',
 		'  border-bottom-color: var(--uma-border); box-shadow: inset 0 3px 0 var(--uma-control); }',
-		'[data-usd-open="false"] .usd-active-summary { margin-top: var(--uma-sp-2); }',
+
+		/* 絞り込み結果の一覧。**畳んで空いたぶんをここが受け取る。**
+		 *
+		 * 畳んでも**モーダル全体の高さが変わらない**のが狙い。素の作りでは、モーダルは
+		 * 下ぞろえ（`.usd-modal` の align-items: flex-end）で高さが中身で決まるので、
+		 * 選択肢パネルが消えたぶん**モーダルが縮むだけ**で、一覧の箱は 280px のまま
+		 * ―― 一度に見える行数が増えない（実測: 1280px で 9行 → 9行）。
+		 * そこで、**消えた選択肢パネルの高さ（--usd-results-extra）を一覧の上限に足す**。
+		 * 足し引きが同じ量なので中身の合計は変わらず、**モーダルの高さも上端も動かない。**
+		 * 値は JS が実測して入れる（setPickerAxisPanelOpen）。開いているときは 0。
+		 *
+		 * **一覧の中身が上限より短いときは、そのぶんモーダルは縮む。** 埋めるものが無いので当然で、
+		 * 「広げても見えるものが無い」状態にわざわざ空白を作らない。 */
+		'.usd-results { border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg);',
+		'  max-height: calc(280px + var(--usd-results-extra, 0px)); overflow: auto; }',
 
 		// 選択肢チップ。中身は本物の checkbox のままなので、既存のJSとテストがそのまま掴める
 		// （.usd-chip はテンプレートのスキル名チップで使用済みのため .usd-opt にしてある）
@@ -2116,7 +2130,10 @@
 							'</label>' +
 							'<p class="text-xs text-slate-500">絞り込み結果（<span data-usd-el="result-count">0件</span>）</p>' +
 						'</div>' +
-						'<div data-usd-el="results" style="border:1px solid #e2e8f0;border-radius:.75rem;max-height:280px;overflow:auto;"></div>' +
+						// 高さは .usd-results（下の CORE_STYLES）。**インラインの style をやめた** ――
+						// 選択肢パネルを畳んだぶんをここへ足すのに、CSS 変数で足し算する必要があるため。
+						// 罫線の色もトークン（--uma-border。値は同じ #e2e8f0）へ移した。
+						'<div class="usd-results" data-usd-el="results"></div>' +
 					'</div>' +
 					// ---- テキストで検索 ----
 					// 枠も見出しも説明文も持たせない。何を貼ればよいかはプレースホルダー1行で足りる
@@ -2358,7 +2375,43 @@
 		if (box) box.setAttribute('data-usd-open', String(pickerAxisPanelOpen));
 		const tab = pickerEl.querySelector('.usd-tab[aria-selected="true"]');
 		if (tab) tab.setAttribute('aria-expanded', String(pickerAxisPanelOpen));
+		syncResultsExtra();
 		if (pickerAxisPanelOpen) updatePickerFilterLayout();
+	}
+
+	/**
+	 * 選択肢パネルの高さを測る。**畳んでいるときは一瞬だけ開いた指定を当てて読む。**
+	 *
+	 * 畳んだ状態でモーダルを開き直したときにも「いくら空いたか」が要るので、
+	 * 開いているときの値を覚えておくのではなく、要るたびに測り直す
+	 * （幅が変わればタブの段数も選択肢の段数も変わるため、覚えた値はすぐ古くなる）。
+	 * 属性を戻すまでの間に描画は挟まらないので、画面はちらつかない。
+	 */
+	function measureTabPanelsHeight() {
+		const box = q(pickerEl, 'axis-tabs');
+		const panels = q(pickerEl, 'tabpanels');
+		if (!box || !panels) return 0;
+		const was = box.getAttribute('data-usd-open');
+		if (was !== 'true') box.setAttribute('data-usd-open', 'true');
+		const h = panels.offsetHeight;
+		if (was !== 'true') box.setAttribute('data-usd-open', was);
+		return h;
+	}
+
+	/**
+	 * 畳んで空いたぶんを、絞り込み結果の一覧の上限へ足す（`--usd-results-extra`）。
+	 * 足し引きが同じ量になるので、**モーダルの高さも上端も動かないまま、一覧だけが広がる。**
+	 * 開いているときは 0 に戻す。**値が変わるときだけ書く**（ResizeObserver から
+	 * 何度も呼ばれるので、毎回書くと測り直しが連鎖する）。
+	 */
+	function syncResultsExtra() {
+		const results = q(pickerEl, 'results');
+		if (!results) return;
+		const next = pickerAxisPanelOpen ? '' : measureTabPanelsHeight() + 'px';
+		const now = results.style.getPropertyValue('--usd-results-extra');
+		if (now === next) return;
+		if (next) results.style.setProperty('--usd-results-extra', next);
+		else results.style.removeProperty('--usd-results-extra');
 	}
 
 	/**
@@ -2396,6 +2449,8 @@
 		if (chip && chip.offsetHeight && tabs) tabs.style.setProperty('--usd-opt-row', chip.offsetHeight + 'px');
 
 		pickerEl.querySelectorAll('.usd-opts').forEach(updateOptionsMore);
+		// 幅が変われば選択肢の段数も変わる＝畳んで空く量も変わるので、測り直す（畳んでいるときだけ動く）
+		syncResultsExtra();
 	}
 
 	/**
