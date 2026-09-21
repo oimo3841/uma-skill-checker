@@ -31,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-09-20i";
+	--uma-components-css-version: "2026-09-21a";
 }
 
 /* ============================================================
@@ -124,6 +124,7 @@ html:not(.uma-tw-ready) .hidden { display: none; }
  *   --primary   塗り（そのツールのアクセント）
  *   --secondary 白地＋罫線
  *   --ghost     文字だけ
+ *   --danger    まとめて消す操作（淡い赤地＋赤い文字）
  *   --lg        主要導線用の大きいボタン
  * ============================================================ */
 .uma-btn {
@@ -194,6 +195,18 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 	color: var(--uma-control);
 }
 .uma-btn--accent-outline:hover:not(:disabled) { background: var(--uma-control-soft); }
+
+/* まとめて消す・元に戻しにくい操作。**押せるときだけ赤く名乗る**（70セッション目・段1）。
+   **文字だけ赤くする（--ghost の色替え）ではなく面を塗る。** disabled は .uma-btn の
+   opacity:.4 で薄くなるので、文字だけ赤だと薄赤になって、隣に並ぶ灰色の文字ボタンと
+   見分けが付かなくなる。面で塗れば、押せない状態も「薄い赤の札」としてはっきり別物に見える。
+   色は tokens.css の --uma-danger-*（.uma-help-box--alpha ・ shell.css の注意の箱と同じ3本）。 */
+.uma-btn--danger {
+	background: var(--uma-danger-bg);
+	border-color: var(--uma-danger-border);
+	color: var(--uma-danger-text);
+}
+.uma-btn--danger:hover:not(:disabled) { background: var(--uma-danger-border); }
 
 .uma-btn--lg {
 	padding: var(--uma-sp-3-5) var(--uma-sp-4);

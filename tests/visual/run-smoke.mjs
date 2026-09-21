@@ -335,13 +335,17 @@ const browser = await chromium.launch();
 		const reclass = document.querySelector('#deck-template-panel [data-usd-el="mode-reclass"]');
 		return { exists: !!btn, hidden: btn ? btn.hidden : null, disabled: btn ? btn.disabled : null, count: n,
 			label: btn ? btn.textContent.trim() : null,
+			danger: !!(btn && btn.classList.contains('uma-btn--danger')),
 			inEntryRow: !!(btn && entryRow && entryRow.contains(btn)),
 			modes: !!del && !!reclass, modesOff: del && reclass && del.getAttribute('aria-pressed') === 'false' && reclass.getAttribute('aria-pressed') === 'false',
 			modesDisabled: del && reclass && del.disabled && reclass.disabled };
 	});
-	// C-3: 「− 追加済みスキルを全て削除」は A の入口の並びに**常時見えている**（削除モードに入らない）
-	assert(clearBtn.exists && !clearBtn.hidden && clearBtn.label === '追加済みスキルを全て削除' && clearBtn.inEntryRow,
+	// C-3: 「まとめてリセット」は A の入口の並びに**常時見えている**（削除モードに入らない）。
+	// 70セッション目・段1 で呼び名を「− 追加済みスキルを全て削除」から変え、
+	// 見た目を .uma-btn--ghost から .uma-btn--danger（赤）へ変えた（⑪）。
+	assert(clearBtn.exists && !clearBtn.hidden && clearBtn.label === 'まとめてリセット' && clearBtn.inEntryRow,
 		'C-3: 一括削除は A の入口の並びに常時見えている', clearBtn);
+	assert(clearBtn.danger, '段1(⑪): 「まとめてリセット」は .uma-btn--danger（赤）で出る', clearBtn);
 	assert(clearBtn.modes && clearBtn.modesOff, 'special: 「再分類」「削除」のモードのボタンがあり、既定は両方 OFF', clearBtn);
 	assert(clearBtn.count === 0 && clearBtn.modesDisabled && clearBtn.disabled,
 		'C-3: 0種のときはモードのボタンも一括削除も押せない', clearBtn);
@@ -6979,6 +6983,27 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	}, TEMPLATE_ID);
 	assert(before.n > 0 && !before.disabled && JSON.stringify(before.scopes) === JSON.stringify({ scenarioFactors: true }),
 		'C-3: 中身のある保存済みのセットでは一括削除が押せる', before);
+
+	/* 段1(⑪): 押せる状態のとき赤い。**クラス名ではなく実際に描かれた色**で見る
+	   （variant の名前を変えても、トークンを差し替えても、赤でなくなれば落ちる）。
+	   色の値は検査に書かず、:root の --uma-danger-* を同じページから読んで突き合わせる。 */
+	const clearColor = await page.evaluate(() => {
+		const btn = document.querySelector('#deck-template-panel [data-usd-el="clear-skills"]');
+		const cs = getComputedStyle(btn);
+		const probe = document.createElement('span');
+		probe.style.cssText = 'position:absolute;left:-9999px';
+		document.body.appendChild(probe);
+		const resolve = (v) => { probe.style.color = 'var(' + v + ')'; return getComputedStyle(probe).color; };
+		const want = { text: resolve('--uma-danger-text'), bg: resolve('--uma-danger-bg'), border: resolve('--uma-danger-border') };
+		probe.remove();
+		// 面の色は background-color、枠は border-top-color（4辺とも同じ指定）
+		return { disabled: btn.disabled, got: { text: cs.color, bg: cs.backgroundColor, border: cs.borderTopColor }, want };
+	});
+	assert(!clearColor.disabled
+		&& clearColor.got.text === clearColor.want.text
+		&& clearColor.got.bg === clearColor.want.bg
+		&& clearColor.got.border === clearColor.want.border,
+		'段1(⑪): 押せる状態の「まとめてリセット」は --uma-danger-* の赤で描かれている', clearColor);
 	await page.click('#deck-template-panel [data-usd-el="clear-skills"]');
 	await page.waitForTimeout(400);
 	const after = await page.evaluate((tid) => {

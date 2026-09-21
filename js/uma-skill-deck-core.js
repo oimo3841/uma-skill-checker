@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21d';
 
 	/* ============================================================
 	 * 定数
@@ -176,7 +176,7 @@
 			{ v: 'nige', t: '逃げ' }, { v: 'senko', t: '先行' }, { v: 'sashi', t: '差し' }, { v: 'oikomi', t: '追込' }
 		]},
 		{ key: 'effect', label: '効果タイプ', options: [
-			{ v: 'target_speed_up', t: '速度アップ' }, { v: 'accel_up', t: '加速度アップ' }, { v: 'move_forward', t: '前に出る' }, { v: 'extend', t: '伸び' },
+			{ v: 'target_speed_up', t: '速度上昇' }, { v: 'accel_up', t: '加速度上昇' }, { v: 'move_forward', t: '前に出る' }, { v: 'extend', t: '伸び' },
 			{ v: 'stamina', t: '持久力回復' }, { v: 'stamina_down', t: '持久力減少' }, { v: 'speed_down', t: '速度ダウン' }, { v: 'start_good', t: 'スタート得意' }, { v: 'course_sense', t: 'コース取り' },
 			{ v: 'lane_change', t: 'レーン移動' }, { v: 'temptation_time', t: '掛かり時間' }, { v: 'vision', t: '視野' },
 			{ v: 'speed_up', t: 'スピードアップ' }, { v: 'stamina_up', t: 'スタミナアップ' }, { v: 'power_up', t: 'パワーアップ' },
@@ -3720,10 +3720,12 @@
 						'</button>' +
 						// 追加済みスキルの一括削除（C-3）。**A（スキルセット）の中に置く** ―― 名前の行に
 						// 置くと、名前や B・C まで消えるように読める。消すのはスキルだけなので、
-						// 消す範囲が位置から分かるここに置く。「外す」ではなく「削除」で、
-						// 隣の分類の行にある「削除」とも語がそろう。
-						'<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="editor-clear-skills" data-usd-el="clear-skills">' +
-							'<i data-lucide="minus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 追加済みスキルを全て削除' +
+						// 消す範囲が位置から分かるここに置く。
+						// **押せるときだけ赤く名乗る**（段1・⑪）。まとめて消すのは取り消しの効く操作だが
+						// （Undo に積む）、いちばん多い操作（スキルを足す）と同じ並びに居るので、
+						// 他の入口と同じ見た目だと押し間違える。0種のときは disabled で薄くなる。
+						'<button type="button" class="uma-btn uma-btn--danger" data-usd-act="editor-clear-skills" data-usd-el="clear-skills">' +
+							'<i data-lucide="minus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> まとめてリセット' +
 						'</button>' +
 					'</div>' +
 					// 分類の切り替え（超優先／優先／通常。C-57 の (7)）。追加の入口はいま選んでいる分類に足す
