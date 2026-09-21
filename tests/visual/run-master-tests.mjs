@@ -1,11 +1,19 @@
-// UmaSkill Deck マスターデータ（uma-skill-deck-skills.json）と8軸タグの自動検証。
+// UmaSkill Deck マスターデータ（uma-skill-deck-skills.json）とタグの軸の自動検証。
 //
 //   npm run test:master
 //
 // 2026-09-11 のマスターデータ拡張（3件）を対象にする:
 //   ① 効果タイプ「持久力」を「持久力回復」(stamina) と「持久力減少」(stamina_down) に分割
 //   ② 「〇〇の目覚め」系6件を追加（439→445件）
-//   ③ 8軸目「⑧その他3（シナリオスキル）」を新設
+//   ③ 軸「その他」（当時は8本目。シナリオスキル）を新設
+//
+// 2026-09-21（70セッション目・段2）に足したもの:
+//   ②(ア)A 6値を「能力上昇」(stat_up) へ統合／②(ア)D 2値を「デバフ」(debuff) へ統合
+//   ⑥ レアリティ(rarity) ・ 共通/継承(inherited) のキーを先行投入（UIにはまだ出さない）
+//   廃した値が残るカスタムスキルの読み替え（保存データは書き換えない）
+//
+// **軸の本数はこのファイルに書かない。** 8→10 のように増えるので、数を決め打ちすると
+// 「増やしたこと自体」で落ちてしまい、取りこぼしを見るという狙いが果たせない。
 //
 // 必ずHTTP経由で開く（startServer）。`file://` では fetch が禁止されていて
 // マスターデータの取得に失敗し、組み込みサンプル3件へ黙ってフォールバックする（F-16）。
@@ -24,13 +32,45 @@ const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 const master = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'uma-skill-deck-skills.json'), 'utf8'));
 
-/** ①で「持久力減少」へ付け替えた14件 */
+/**
+ * ①で「持久力減少」(stamina_down) へ付け替えた14件。
+ *
+ * **70セッション目・段2 で `stamina_down` という値そのものは無くなった**（`debuff` へ統合）。
+ * それでも名簿を残しているのは、①の検査の意味 ――「サブ効果が持久力消費の14件は
+ * 持久力回復を持たない」が**統合後も成り立っていること**を見るため。
+ * `debuff` は速度ダウンも含む広い値なので、`debuff` 全体では回復と同時に持つ2件がある
+ * （展開窺い・マイペース。どちらも元から `speed_down` ＋ `stamina` で、これは正しい）。
+ * **だから①の意味は `debuff` では書けず、この名簿でしか書けない。**
+ */
 const STAMINA_DOWN = [
 	'トリック（前）', 'トリック（後）',
 	'逃げけん制', '逃げ焦り', '先行けん制', '先行焦り',
 	'差しけん制', '差し焦り', '追込けん制', '追込焦り',
 	'抜け駆け禁止', 'ささやき', 'スタミナイーター', '鋭い眼光',
 ];
+
+/**
+ * ②(ア)D で「デバフ」(debuff) へ統合した31件
+ * （持久力減少 stamina_down の14件 ＋ 速度ダウン speed_down の17件。重なりは0件）。
+ * 70セッション目・段2。
+ */
+const DEBUFF = [
+	'展開窺い', 'トリック（前）', 'トリック（後）',
+	'逃げけん制', '逃げ焦り', '逃げためらい', '先行けん制', '先行焦り', '先行ためらい',
+	'差しけん制', '差し焦り', '差しためらい', '追込けん制', '追込焦り', '追込ためらい',
+	'後方釘付', '抜け駆け禁止', 'スピードイーター', '束縛', 'ささやき', 'スタミナイーター',
+	'鋭い眼光', 'まなざし', 'マイペース', '気迫を込めて', '土煙', '圧迫感', 'プレッシャー',
+	'切り崩し', '鬼気迫って', '切り替え上手',
+];
+
+/** ②(ア)A で「能力上昇」(stat_up) へ統合した6つの値と、D で「デバフ」へ統合した2つの値。 */
+const RETIRED_EFFECT_VALUES = [
+	'speed_up', 'stamina_up', 'power_up', 'guts_up', 'wisdom_up', 'all_up',   // → stat_up
+	'stamina_down', 'speed_down',                                             // → debuff
+];
+
+/** ⑥でキーだけ先行投入した2軸（70セッション目・段2。この段ではUIに出さないので値は空） */
+const DATA_ONLY_AXES = ['rarity', 'inherited'];
 
 /**
  * サブ効果が持久力消費のため、効果タイプから持久力を外した14件。
@@ -81,17 +121,31 @@ console.log('=== 1. マスターデータ（uma-skill-deck-skills.json） ===');
 	const names = master.skills.map((s) => s.name);
 	assert(new Set(names).size === names.length, 'スキル名に重複がない');
 
-	// 8軸すべてのキーが全件に揃っていること（軸を増やしたときの取りこぼし防止）
-	const AXIS_KEYS = ['distance', 'style', 'phase', 'coursePos', 'environment', 'trackVenue', 'effect', 'scenario'];
-	const missing = master.skills.filter((s) => AXIS_KEYS.some((k) => !Array.isArray(s.tags[k])));
-	assert(missing.length === 0, '全445件が8軸すべてのキーを配列で持つ', missing.map((s) => s.name).slice(0, 5));
+	// 軸のキーが全件に揃っていること（軸を増やしたときの取りこぼし防止）。
+	// **軸の顔ぶれをここに書かない**（70セッション目・段2 で 8→10 になった）。1件目から読んで、
+	// 445件すべてが**同じ顔ぶれ**を持つかを見る。数を決め打ちすると、軸を足すたびに
+	// 「足したこと自体」で落ちてしまい、取りこぼしを見るという狙いが果たせない。
+	const AXIS_KEYS = Object.keys(master.skills[0].tags);
+	const axisSig = AXIS_KEYS.slice().sort().join(',');
+	const missing = master.skills.filter((s) => Object.keys(s.tags).slice().sort().join(',') !== axisSig);
+	assert(missing.length === 0, '全445件が同じ軸（' + AXIS_KEYS.length + '本）のキーを持つ: ' + AXIS_KEYS.join('/'),
+		missing.map((s) => s.name).slice(0, 5));
+	const notArray = master.skills.filter((s) => AXIS_KEYS.some((k) => !Array.isArray(s.tags[k])));
+	assert(notArray.length === 0, '全445件が全軸のタグを配列で持つ', notArray.map((s) => s.name).slice(0, 5));
 
-	// ① 持久力回復 / 持久力減少
+	// ⑥ キーだけ先行投入した2軸（段2）。**この段ではUIに出さないので、値は空のはず。**
+	// 空でない値が入っていたら、どこからも選べない値になる（check:catalog の 4-3 と同じ狙い）。
+	const dataOnlyPresent = DATA_ONLY_AXES.filter((k) => AXIS_KEYS.includes(k));
+	assert(eq(dataOnlyPresent, DATA_ONLY_AXES), '⑥先行投入した2軸のキーがマスターにある', dataOnlyPresent);
+	const dataOnlyFilled = master.skills.filter((s) => DATA_ONLY_AXES.some((k) => (s.tags[k] || []).length > 0));
+	assert(dataOnlyFilled.length === 0, '⑥先行投入した2軸はまだ空（タグ未紐づけ）', dataOnlyFilled.map((s) => s.name).slice(0, 5));
+
+	// ① 持久力回復 ／ ②(ア)D デバフ
 	const rec = master.skills.filter((s) => s.tags.effect.includes('stamina'));
-	const dec = master.skills.filter((s) => s.tags.effect.includes('stamina_down'));
-	assert(dec.length === 14, '①持久力減少(stamina_down)が14件', dec.length);
-	assert(eq(dec.map((s) => s.name).sort(), STAMINA_DOWN.slice().sort()),
-		'①持久力減少の内訳が指定の14件と一致', dec.map((s) => s.name));
+	const dec = master.skills.filter((s) => s.tags.effect.includes('debuff'));
+	assert(dec.length === 31, '②D デバフ(debuff)が31件（旧 持久力減少14＋速度ダウン17）', dec.length);
+	assert(eq(dec.map((s) => s.name).sort(), DEBUFF.slice().sort()),
+		'②D デバフの内訳が指定の31件と一致', dec.map((s) => s.name));
 	assert(rec.length === 42, '①持久力回復(stamina)が42件（メイン回復33＋サブ回復9）', rec.length);
 	const stillStamina = SUB_CONSUME_NO_STAMINA.filter((n) => byName.get(n).tags.effect.includes('stamina'));
 	assert(stillStamina.length === 0, '①サブ効果が持久力消費の14件は持久力を持たない', stillStamina);
@@ -99,8 +153,22 @@ console.log('=== 1. マスターデータ（uma-skill-deck-skills.json） ===');
 	assert(emptied.length === 0, '①持久力を外しても効果タイプが空にならない', emptied);
 	const lostRecover = SUB_RECOVER_KEEP.filter((n) => !byName.get(n).tags.effect.includes('stamina'));
 	assert(lostRecover.length === 0, '①サブ効果が持久力回復の9件は持久力回復のまま', lostRecover);
-	assert(!master.skills.some((s) => s.tags.effect.includes('stamina') && s.tags.effect.includes('stamina_down')),
-		'①回復と減少を同時に持つスキルはない');
+	// 統合後、①の「回復と減少を同時に持たない」は **debuff では書けない**（速度ダウンを含むため。
+	// 展開窺い・マイペースは元から speed_down ＋ stamina で、これは正しい）。名簿の側で見る。
+	const recAndDec = STAMINA_DOWN.filter((n) => byName.get(n).tags.effect.includes('stamina'));
+	assert(recAndDec.length === 0, '①持久力減少だった14件は持久力回復を持たない（統合後も成り立つ）', recAndDec);
+
+	// ②(ア)A 能力上昇への統合と、廃した8値が1件も残っていないこと
+	const statUp = master.skills.filter((s) => s.tags.effect.includes('stat_up'));
+	assert(statUp.length === 67, '②A 能力上昇(stat_up)が67件（6値を統合。2つ以上持っていた5件は1つに潰れる）', statUp.length);
+	const retired = master.skills
+		.filter((s) => s.tags.effect.some((v) => RETIRED_EFFECT_VALUES.includes(v)))
+		.map((s) => s.name);
+	assert(retired.length === 0, '②廃した8つの値がマスターに1件も残っていない', retired.slice(0, 5));
+	const emptyEffect = master.skills.filter((s) => s.tags.effect.length === 0);
+	assert(emptyEffect.length === 0, '②統合しても効果タイプが空になったスキルは無い', emptyEffect.map((s) => s.name).slice(0, 5));
+	const dupEffect = master.skills.filter((s) => new Set(s.tags.effect).size !== s.tags.effect.length);
+	assert(dupEffect.length === 0, '②統合で同じ値が二重に入ったスキルは無い', dupEffect.map((s) => s.name).slice(0, 5));
 
 	// ② 目覚め系6件
 	AWAKENINGS.forEach(([newName, srcName]) => {
@@ -109,7 +177,7 @@ console.log('=== 1. マスターデータ（uma-skill-deck-skills.json） ===');
 		assert(!!a, '②「' + newName + '」が存在する');
 		assert(!!b, '②コピー元「' + srcName + '」が存在する');
 		if (a && b) {
-			assert(eq(a.tags, b.tags), '②「' + newName + '」の8軸タグがコピー元「' + srcName + '」と一致', a.tags);
+			assert(eq(a.tags, b.tags), '②「' + newName + '」のタグがコピー元「' + srcName + '」と一致', a.tags);
 		}
 	});
 	const awakeIds = AWAKENINGS.map(([n]) => byName.get(n)).filter(Boolean).map((s) => Number(s.id));
@@ -129,7 +197,7 @@ console.log('=== 1. マスターデータ（uma-skill-deck-skills.json） ===');
 /* ============================================================
  * 2. 画面（HTTP経由で実際に読み込ませる）
  * ============================================================ */
-console.log('\n=== 2. スキル選択モーダル・8軸フィルター（HTTP経由） ===');
+console.log('\n=== 2. スキル選択モーダル・軸ごとのフィルター（HTTP経由） ===');
 const { base, close } = await startServer();
 const browser = await chromium.launch();
 {
@@ -140,26 +208,43 @@ const browser = await chromium.launch();
 	assert(meta.version === master.masterVersion,
 		'HTTP経由でマスターデータを読めている（組み込みサンプルではない）', meta);
 
-	// 8軸になっている
+	// 軸の顔ぶれ。**本数を決め打ちしない**（70セッション目・段2 でマスターは10軸になった）。
+	// 見るのは「`TAG_AXES` の軸がすべてマスターの tags に実在するか」＝**画面が
+	// データに無い軸を出していないか**。逆向き（マスターにあってUIに出ていない軸）は、
+	// データだけ先に入れる段があるので落とさず、§1 が「値が空か」で見張っている。
 	const axes = await page.evaluate(() => UmaSkillDeckCore.TAG_AXES.map((a) => ({ key: a.key, label: a.label, flag: !!a.emptyMeansNone, opts: a.options.map((o) => o.v) })));
-	assert(axes.length === 8, 'タグ軸が8本ある', axes.length);
+	const masterAxisKeys = Object.keys(master.skills[0].tags);
+	const notInMaster = axes.filter((a) => !masterAxisKeys.includes(a.key)).map((a) => a.key);
+	assert(axes.length > 0 && notInMaster.length === 0,
+		'TAG_AXES の軸（' + axes.length + '本）がすべてマスターの tags に実在する', { notInMaster, masterAxisKeys });
+	const notInUi = masterAxisKeys.filter((k) => !axes.some((a) => a.key === k));
+	if (notInUi.length) console.log('     （情報）マスターにあってUIにまだ出ていない軸: ' + notInUi.join(' / '));
+
 	// 63セッション目（第2波）: ⑧を「その他」（入手経路）に広げ、値を3つにした。
-	// **空配列の意味が他の7軸と逆**（空＝該当なし）なのは変わらないので、印の名前だけ
+	// **空配列の意味が他の軸と逆**（空＝該当なし）なのは変わらないので、印の名前だけ
 	// flagAxis → emptyMeansNone に改めた（選択肢の数とは関係がない印なので）。
 	// 軸のラベルからは通し番号と「その他N」を外した（タブで選ぶので番号が要らない）。
-	assert(axes[7] && axes[7].key === 'scenario' && axes[7].label === 'その他' && axes[7].flag,
-		'8軸目が「その他」で、空を「該当なし」と読む軸', axes[7]);
+	// **添字（axes[7]）ではなく key で引く** ―― 軸を足すと並びが変わるため。
+	const scenarioAxis = axes.find((a) => a.key === 'scenario');
+	assert(scenarioAxis && scenarioAxis.label === 'その他' && scenarioAxis.flag,
+		'「その他」の軸があり、空を「該当なし」と読む', scenarioAxis);
 	assert(axes.every((a) => !/^[①-⑳]/.test(a.label)) && axes.every((a) => !/その他[0-9]/.test(a.label)),
 		'軸のラベルに通し番号と「その他N」が残っていない', axes.map((a) => a.label));
-	assert(eq(axes[7].opts, ['scenario', 'scenario_factor', 'gene']),
-		'⑧の選択肢がシナリオスキル／シナリオ因子／遺伝子の3つ', axes[7].opts);
+	assert(eq(scenarioAxis.opts, ['scenario', 'scenario_factor', 'gene']),
+		'「その他」の選択肢がシナリオスキル／シナリオ因子／遺伝子の3つ', scenarioAxis.opts);
 
-	// 効果タイプの選択肢に「持久力回復」「持久力減少」が別々に並ぶ
+	// 効果タイプの選択肢（70セッション目・段2 で 18 → 12 になった）
 	const effectOpts = await page.evaluate(() =>
 		UmaSkillDeckCore.TAG_AXES.find((a) => a.key === 'effect').options.map((o) => o.v + ':' + o.t));
 	assert(effectOpts.includes('stamina:持久力回復'), '効果タイプに「持久力回復」がある', effectOpts.filter((o) => o.startsWith('stamina')));
-	assert(effectOpts.includes('stamina_down:持久力減少'), '効果タイプに「持久力減少」がある');
+	assert(effectOpts.includes('debuff:デバフ'), '②D 効果タイプに「デバフ」がある', effectOpts);
+	assert(effectOpts.includes('stat_up:能力上昇'), '②A 効果タイプに「能力上昇」がある', effectOpts);
+	assert(effectOpts.includes('target_speed_up:速度上昇') && effectOpts.includes('accel_up:加速度上昇'),
+		'段1 ラベルが「速度上昇」「加速度上昇」になっている（キーは据え置き）', effectOpts.slice(0, 2));
 	assert(!effectOpts.some((o) => o.endsWith(':持久力')), '旧ラベル「持久力」は残っていない');
+	const retiredInUi = effectOpts.filter((o) => RETIRED_EFFECT_VALUES.includes(o.split(':')[0]));
+	assert(retiredInUi.length === 0, '②廃した8つの値が選択肢に残っていない', retiredInUi);
+	assert(effectOpts.length === 12, '②効果タイプの選択肢が12個（18個から6個減った）', effectOpts.length);
 
 	// --- スキル選択モーダルを、除外なし（新規テンプレート相当）で開く ---
 	await page.evaluate(() => UmaSkillDeckCore.openSkillPicker([], () => {}));
@@ -183,25 +268,33 @@ const browser = await chromium.launch();
 		await page.waitForTimeout(300);
 	};
 
-	// ① 持久力回復 / 持久力減少 が別カテゴリとして効く
+	// ① 持久力回復 ／ ②D デバフ が別カテゴリとして効く
 	await tick('effect', 'stamina');
 	const recCount = await readCount();
 	assert(recCount === 42, '「持久力回復」で絞ると42件', recCount);
 	await tick('effect', 'stamina');
 
-	await tick('effect', 'stamina_down');
+	await tick('effect', 'debuff');
 	const decCount = await readCount();
 	const decNames = await listedNames();
-	assert(decCount === 14, '「持久力減少」で絞ると14件', decCount);
-	assert(eq(decNames.slice().sort(), STAMINA_DOWN.slice().sort()),
-		'「持久力減少」の内訳が指定の14件', decNames);
-	// 回復側と減少側が排他（同じスキルが両方に出ない）
+	assert(decCount === 31, '②D「デバフ」で絞ると31件', decCount);
+	assert(eq(decNames.slice().sort(), DEBUFF.slice().sort()),
+		'②D「デバフ」の内訳が指定の31件', decNames);
+	// 軸内OR。**42+31=73 ではなく71** ―― 展開窺い・マイペースが両方に出る
+	// （元から speed_down ＋ stamina を持つ。統合前の「回復と減少は排他」は
+	//   持久力減少に限った話で、速度ダウンまで含む debuff では重なりうる）。
 	await tick('effect', 'stamina');
 	const bothCount = await readCount();
-	assert(bothCount === 56, '両方チェックすると軸内ORで56件（42+14で重複なし）', bothCount);
+	assert(bothCount === 71, '両方チェックすると軸内ORで71件（42+31のうち2件が重なる）', bothCount);
 	await tick('effect', 'stamina');
-	await tick('effect', 'stamina_down');
+	await tick('effect', 'debuff');
 	assert(await readCount() === 445, 'チェックを外すと445件に戻る', await readCount());
+
+	// ②A 能力上昇（6値を統合したので、6つを別々に選んだときの和と同じ件数になる）
+	await tick('effect', 'stat_up');
+	const statUpCount = await readCount();
+	assert(statUpCount === 67, '②A「能力上昇」で絞ると67件', statUpCount);
+	await tick('effect', 'stat_up');
 
 	// ③ シナリオスキルのフラグ絞り込み
 	await tick('scenario', 'scenario');
@@ -236,7 +329,7 @@ const browser = await chromium.launch();
 		AWAKENINGS.map(([n]) => n));
 	assert(awakeListed === true, '②新規6件がモーダルの一覧に並ぶ', awakeListed);
 
-	// カスタムスキル入力欄にも8軸目が出る（TAG_AXES駆動になっていることの確認）。
+	// カスタムスキル入力欄にも「その他」の軸が出る（TAG_AXES駆動になっていることの確認）。
 	// 件数は決め打ちせず、**製品の pickableOptions() から取る** ―― 選択肢が増えたとき、
 	// UI が追随していることこそ見たいので、決め打ちだと「追随した」こと自体で落ちてしまう。
 	//
@@ -258,6 +351,65 @@ const browser = await chromium.launch();
 
 	await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
 	await page.waitForTimeout(300);
+
+	/* ==========================================================
+	 * ② 廃した値が残るカスタムスキルの読み替え（70セッション目・段2）
+	 *
+	 * マスターは付け替え済みだが、**利用者が作ったカスタムスキル**には古い値が残る。
+	 * 見るのは2つ ―― (1) 読み替えが効いて「能力上昇」の絞り込みに出てくること、
+	 * (2) **localStorage の中身は1バイトも書き換わっていないこと**（このファイルの
+	 * 「読み込み側は分岐せず、後から補わない」という原則を崩していないこと）。
+	 *
+	 * **読み替えの表は検査に書き写さない。** 仕込む旧値だけを書き、
+	 * 読み替え先は製品の `withLegacyTagsMapped()` に聞く（pickableOptions と同じ考え方）。
+	 * ========================================================== */
+	const LEGACY_ID = 'custom_legacy_probe';
+	const LEGACY_NAME = '旧値が残ったカスタムスキル（検査用）';
+	const LEGACY_EFFECT = ['speed_up', 'power_up'];   // どちらも段2 で廃した値（2つとも同じ新値へ潰れる）
+	{
+		const seeded = await page.evaluate(([id, name, effect]) => {
+			const data = UmaSkillDeckCore.getUserData();
+			const tags = {};
+			UmaSkillDeckCore.TAG_AXES.forEach((a) => { tags[a.key] = []; });
+			tags.effect = effect.slice();
+			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
+			data.customSkills.push({ customId: id, name: name, tags: tags, createdAt: new Date().toISOString() });
+			UmaSkillDeckCore.replaceUserData(data);
+			return UmaSkillDeckCore.withLegacyTagsMapped(tags).effect;
+		}, [LEGACY_ID, LEGACY_NAME, LEGACY_EFFECT]);
+		// 6値→1値なので、2つの旧値は1つに潰れる（重複が残らないこと）
+		assert(seeded.length === 1 && seeded[0] !== LEGACY_EFFECT[0],
+			'②旧値2つが読み替えで1つに潰れる（withLegacyTagsMapped）', seeded);
+
+		await page.evaluate(() => UmaSkillDeckCore.openSkillPicker([], () => {}));
+		await page.waitForTimeout(500);
+		const allCount = await readCount();
+		assert(allCount === 446, '②カスタムスキル1件を足したので母集団は446件', allCount);
+		await tick('effect', seeded[0]);
+		const hit = await listedNames();
+		assert(hit.includes(LEGACY_NAME),
+			'②旧値のままのカスタムスキルも「能力上昇」の絞り込みに出る（読むときに読み替える）', hit.length);
+		assert((await readCount()) === 68, '②その絞り込みは 67件＋カスタム1件 の68件', await readCount());
+		await tick('effect', seeded[0]);
+		await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
+		await page.waitForTimeout(300);
+
+		// (2) 保存データは書き換わっていない
+		const stored = await page.evaluate((id) => {
+			const raw = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
+			const c = (raw.customSkills || []).find((x) => x.customId === id);
+			return c ? c.tags.effect : null;
+		}, LEGACY_ID);
+		assert(eq(stored, LEGACY_EFFECT),
+			'②保存データの旧値はそのまま（読み込み時に書き換えていない）', stored);
+
+		// 後片付け（この ctx はこのあと閉じるが、意図を残すために明示的に外す）
+		await page.evaluate((id) => {
+			const data = UmaSkillDeckCore.getUserData();
+			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
+			UmaSkillDeckCore.replaceUserData(data);
+		}, LEGACY_ID);
+	}
 
 	assert(errors.length === 0, 'コンソールエラーなし', errors);
 	await ctx.close();

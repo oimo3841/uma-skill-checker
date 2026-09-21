@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21e';
 
 	/* ============================================================
 	 * 定数
@@ -175,12 +175,16 @@
 		{ key: 'style', label: '脚質', options: [
 			{ v: 'nige', t: '逃げ' }, { v: 'senko', t: '先行' }, { v: 'sashi', t: '差し' }, { v: 'oikomi', t: '追込' }
 		]},
+		// 70セッション目・段2 で選択肢を 18 → 12 に減らした（②(ア)A・D）。
+		//   能力上昇（stat_up）  … speed_up / stamina_up / power_up / guts_up / wisdom_up / all_up の6値を統合（67件）
+		//   デバフ（debuff）     … stamina_down / speed_down の2値を統合（31件）
+		// **統合後は個別の絞り込みができなくなる。これは承知のうえの決定。**
+		// 持久力回復（stamina）は据え置き（42件）。旧値の読み替えは LEGACY_EFFECT_VALUES を読むこと。
 		{ key: 'effect', label: '効果タイプ', options: [
 			{ v: 'target_speed_up', t: '速度上昇' }, { v: 'accel_up', t: '加速度上昇' }, { v: 'move_forward', t: '前に出る' }, { v: 'extend', t: '伸び' },
-			{ v: 'stamina', t: '持久力回復' }, { v: 'stamina_down', t: '持久力減少' }, { v: 'speed_down', t: '速度ダウン' }, { v: 'start_good', t: 'スタート得意' }, { v: 'course_sense', t: 'コース取り' },
+			{ v: 'stamina', t: '持久力回復' }, { v: 'debuff', t: 'デバフ' }, { v: 'start_good', t: 'スタート得意' }, { v: 'course_sense', t: 'コース取り' },
 			{ v: 'lane_change', t: 'レーン移動' }, { v: 'temptation_time', t: '掛かり時間' }, { v: 'vision', t: '視野' },
-			{ v: 'speed_up', t: 'スピードアップ' }, { v: 'stamina_up', t: 'スタミナアップ' }, { v: 'power_up', t: 'パワーアップ' },
-			{ v: 'guts_up', t: '根性アップ' }, { v: 'wisdom_up', t: '賢さアップ' }, { v: 'all_up', t: '全てアップ' }
+			{ v: 'stat_up', t: '能力上昇' }
 		]},
 		{ key: 'phase', label: 'フェーズ', options: [
 			{ v: 'early', t: '序盤' }, { v: 'mid', t: '中盤' }, { v: 'late', t: '終盤' }, { v: 'lastspurt', t: 'ラストスパート' }
@@ -237,6 +241,50 @@
 		return axis.options.filter(o => !o.internalOnly);
 	}
 
+	/**
+	 * **廃した値 → いまの値** の読み替え（70セッション目・段2）。
+	 *
+	 * マスターの445件は付け替え済みだが、**利用者が自分で作ったカスタムスキル**
+	 * （`userData.customSkills[].tags`）には古い値が残る。そのままだと
+	 * `matchesFilters()` は値どうしを比べるだけなので、「能力上昇」で絞っても出てこない。
+	 *
+	 * **保存データは書き換えない。** このファイルは「読み込み側は分岐せず、後から補わない」
+	 * （`loadUserData()` の説明）を原則にしていて、開いただけで保存データの姿が変わるのを避けている。
+	 * 代わりに**読むときに通す**（`getFilteredPickerPool()` の1か所）。利用者が次にその
+	 * カスタムスキルを作り直したときには、自然に新しい値で保存される。
+	 *
+	 * **軸ごとに持つ**（`{ 軸キー: { 旧値: 新値 } }`）―― 値の名前は軸をまたいで一意とは限らない。
+	 * 読み替え先が無い値（打ち間違いなど）はそのまま通す。**選択肢に無い値は、どの条件にも
+	 * 当たらないだけで害は無い**（画面にタグを出す場所が無いので、生の値が見えることもない）。
+	 */
+	const LEGACY_EFFECT_VALUES = {
+		speed_up: 'stat_up', stamina_up: 'stat_up', power_up: 'stat_up',
+		guts_up: 'stat_up', wisdom_up: 'stat_up', all_up: 'stat_up',
+		stamina_down: 'debuff', speed_down: 'debuff'
+	};
+	const LEGACY_TAG_VALUES = { effect: LEGACY_EFFECT_VALUES };
+
+	/** タグの組を読み替えたものを返す。読み替えるものが1つも無ければ、元のオブジェクトをそのまま返す。 */
+	function withLegacyTagsMapped(tags) {
+		if (!tags) return tags;
+		let changed = false;
+		const out = {};
+		for (const axisKey of Object.keys(tags)) {
+			const table = LEGACY_TAG_VALUES[axisKey];
+			const values = tags[axisKey];
+			if (!table || !Array.isArray(values)) { out[axisKey] = values; continue; }
+			const mapped = [];
+			for (const v of values) {
+				const next = Object.prototype.hasOwnProperty.call(table, v) ? table[v] : v;
+				if (next !== v) changed = true;
+				if (mapped.indexOf(next) === -1) mapped.push(next);   // 6値が1値に潰れるので重複を除く
+			}
+			if (mapped.length !== values.length) changed = true;
+			out[axisKey] = mapped;
+		}
+		return changed ? out : tags;
+	}
+
 	/* フェッチもキャッシュも駄目だったときに使う、追加カタログの組み込みの写し。
 	   カタログが1件も無いと、保存済みの比較シートの行が「（不明なスキル：…）」に化けるので、
 	   マスターのサンプルと違ってこちらは**全件**を持つ。
@@ -284,10 +332,14 @@
 
 	// フェッチに失敗した場合のみ使うサンプルデータ（uma-skill-deck-skills.json が
 	// まだ未公開/未配置の環境でも動作確認できるようにするための最終フォールバック）。
+	// **軸の顔ぶれは正本（uma-skill-deck-skills.json）と揃えること。** 70セッション目・段2 で
+	// rarity / inherited を足し、effect の廃した値（speed_up）を stat_up へ直した。
+	// このサンプルは正本を取れなかったときにしか使われないので検査が当たりにくい ――
+	// 揃っていないと、その状況でだけ絞り込みの結果が変わる。
 	const SAMPLE_MASTER_SKILLS = { masterVersion: 'embedded-sample', skills: [
-		{ id: '1', name: '右回り○', tags: { distance: [], style: [], phase: [], coursePos: [], environment: ['right_turn'], trackVenue: [], effect: ['speed_up'], scenario: [] } },
-		{ id: '21', name: '積極策', tags: { distance: ['mile'], style: [], phase: ['mid'], coursePos: [], environment: [], trackVenue: [], effect: ['target_speed_up'], scenario: [] } },
-		{ id: '26', name: '集中力', tags: { distance: [], style: [], phase: [], coursePos: [], environment: [], trackVenue: [], effect: ['start_good'], scenario: [] } }
+		{ id: '1', name: '右回り○', tags: { distance: [], style: [], phase: [], coursePos: [], rarity: [], inherited: [], environment: ['right_turn'], trackVenue: [], effect: ['stat_up'], scenario: [] } },
+		{ id: '21', name: '積極策', tags: { distance: ['mile'], style: [], phase: ['mid'], coursePos: [], rarity: [], inherited: [], environment: [], trackVenue: [], effect: ['target_speed_up'], scenario: [] } },
+		{ id: '26', name: '集中力', tags: { distance: [], style: [], phase: [], coursePos: [], rarity: [], inherited: [], environment: [], trackVenue: [], effect: ['start_good'], scenario: [] } }
 	]};
 
 	/* ============================================================
@@ -2316,9 +2368,12 @@
 	//
 	// 名前で探す側（findSkillsByNameFragment → buildSkillTextIndex）には、タグの有無に関係なく
 	// 全件が入っている（名前で引くだけなら万能スキル扱いの問題が起きないため）。
+	//
+	// **カスタムスキルだけ `withLegacyTagsMapped()` を通す**（段2）。マスターと追加カタログは
+	// リポジトリの中にあって付け替え済みなので、通す必要が無い（通すと毎回445件ぶん無駄に回る）。
 	function getFilteredPickerPool() {
 		const pool = masterSkills
-			.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name, tags: c.tags })))
+			.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name, tags: withLegacyTagsMapped(c.tags) })))
 			.concat(extraCatalog.filter(x => x.tags).map(x => ({ id: x.id, name: x.name, tags: x.tags })));
 		const hidden = new Set(pickerHiddenIds);
 		return pool.filter(s => !picker.excludeIds.includes(s.id) && !hidden.has(s.id) && matchesFilters(s, picker.filters));
@@ -4882,6 +4937,12 @@
 		 * `test:master` が落ちていたのがこれ）。**同じ規則を検査の側で書き写さない。**
 		 */
 		pickableOptions: pickableOptions,
+		/**
+		 * 廃した値をいまの値へ読み替えたタグの組（70セッション目・段2）。
+		 * カスタムスキルを読むときに通している。**検査が読み替えの表を書き写さずに
+		 * 済むよう**公開してある（`pickableOptions` と同じ考え方）。
+		 */
+		withLegacyTagsMapped: withLegacyTagsMapped,
 
 		// スキル参照
 		findSkill: findSkill,

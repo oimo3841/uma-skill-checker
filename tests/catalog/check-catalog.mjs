@@ -496,19 +496,21 @@ console.log('\n=== 4. スキルの参照 ===');
    効くスキルは、これからも出てきうるため。逆に、名前に地名が出ているのにタグが空のものは
    **付け忘れの疑い**として警告に留める（いまは0件）。 */
 
+/** core.js の TAG_AXES から、1つの軸の選択肢（[{v, t}]）を読む。 */
+function readAxisOptions(src, key) {
+	const block = new RegExp("\\{ key: '" + key + "',[\\s\\S]*?options: \\[([\\s\\S]*?)\\n\\t\\t\\]").exec(src);
+	if (!block) return null;   // その軸が TAG_AXES に無い（null と「選択肢0件」を区別する）
+	// キーのあとに空白を許してから コロン を書く。**キー1文字＋コロン＋円記号**の並びを
+	// 作らないため ―― `check:privacy` がそれを Windows のドライブのパスと読んで落ちる（偽陽性）。
+	// 免除リストへ足すより、その並びを書かないほうがよい（検査の精度を落とさない）。
+	// `internalOnly` の値も拾う ―― 利用者に選ばせないだけで、**データの側は持ってよい値**。
+	return [...block[1].matchAll(/\{\s*v\s*:\s*'([^']+)'\s*,\s*t\s*:\s*'([^']+)'/g)].map((m) => ({ v: m[1], t: m[2] }));
+}
+const coreSrc = fs.readFileSync(path.join(REPO_ROOT, 'js/uma-skill-deck-core.js'), 'utf8');
+
 console.log('\n=== 4-2. マスターのタグと名前の突き合わせ ===');
 {
-	/** core.js の TAG_AXES から、1つの軸の選択肢（[{v, t}]）を読む。 */
-	function readAxisOptions(src, key) {
-		const block = new RegExp("\\{ key: '" + key + "',[\\s\\S]*?options: \\[([\\s\\S]*?)\\n\\t\\t\\]").exec(src);
-		if (!block) return [];
-		// キーのあとに空白を許してから コロン を書く。**キー1文字＋コロン＋円記号**の並びを
-		// 作らないため ―― `check:privacy` がそれを Windows のドライブのパスと読んで落ちる（偽陽性）。
-		// 免除リストへ足すより、その並びを書かないほうがよい（検査の精度を落とさない）。
-		return [...block[1].matchAll(/\{\s*v\s*:\s*'([^']+)'\s*,\s*t\s*:\s*'([^']+)'/g)].map((m) => ({ v: m[1], t: m[2] }));
-	}
-	const coreSrc = fs.readFileSync(path.join(REPO_ROOT, 'js/uma-skill-deck-core.js'), 'utf8');
-	const venueOpts = readAxisOptions(coreSrc, 'trackVenue');
+	const venueOpts = readAxisOptions(coreSrc, 'trackVenue') || [];
 	check(venueOpts.length > 0, 'core.js の TAG_AXES から「レース場」の選択肢を読めた（' + venueOpts.length + '件）');
 
 	if (venueOpts.length > 0) {
@@ -529,6 +531,80 @@ console.log('\n=== 4-2. マスターのタグと名前の突き合わせ ===');
 		none(unknownValue, 'マスターの trackVenue の値が TAG_AXES の選択肢に実在する');
 		none(mismatch, 'マスターの trackVenue のタグがスキル名の地名と一致する');
 		if (namedButNoTag.length) warn('名前に地名が出ているのに trackVenue のタグが空（付け忘れの疑い）', namedButNoTag);
+	}
+}
+
+/* **選択肢を減らしたときの取りこぼしを捕まえる検査**（70セッション目・段2 で新設）。
+
+   段2 で効果タイプの選択肢を 18 → 12 に減らした（6値を `stat_up` へ、2値を `debuff` へ統合）。
+   このとき**マスターに旧値が1件でも残ると、その行はどの条件でも出てこなくなる** ――
+   `matchesFilters()` は選択肢を見ずに値どうしを比べるだけなので、**画面にも検査にも
+   何も出ないまま静かに消える**。4-2 の trackVenue で既に同じ形の検査をしていたので、
+   それを**全軸へ広げた**もの。
+
+   **`test:master` ではなくこちらに置いた**（4-2 と同じ理由。`test:master` は毎セッションの
+   手順にも pre-push にも入っていない。`check:catalog` は `test:verify` の §10 から呼ばれる）。
+
+   **値も軸名もこのファイルに書かない。** 軸はマスターから、選択肢は core.js の `TAG_AXES` から読む。
+
+   **`TAG_AXES` にまだ無い軸**（段2 で先行投入した `rarity` / `inherited` のように、
+   データだけ先に入れてUIには出していないもの）は、**値が空であることだけを見る** ――
+   選択肢が1つも無い軸に値が入っていたら、それはどこからも選べない値なので必ず誤り。 */
+
+console.log('\n=== 4-3. マスターのタグの値が TAG_AXES の選択肢に実在するか（全軸） ===');
+{
+	const uiAxes = [], dataOnlyAxes = [], unknownValue = [], valueInDataOnlyAxis = [];
+	const optionsByAxis = new Map();
+	for (const axis of TAG_AXES) {
+		const opts = readAxisOptions(coreSrc, axis);
+		if (opts === null) { dataOnlyAxes.push(axis); continue; }
+		uiAxes.push(axis + '(' + opts.length + ')');
+		optionsByAxis.set(axis, new Set(opts.map((o) => o.v)));
+	}
+	check(uiAxes.length > 0, 'core.js の TAG_AXES から選択肢を読めた: ' + uiAxes.join(' / '));
+	if (dataOnlyAxes.length) {
+		console.log('     TAG_AXES にまだ無い軸（データだけ先行）: ' + dataOnlyAxes.join(' / '));
+	}
+	masterSkills.forEach((s) => {
+		const tags = s.tags || {};
+		for (const axis of TAG_AXES) {
+			const values = isArr(tags[axis]) ? tags[axis] : [];
+			const known = optionsByAxis.get(axis);
+			if (!known) {
+				values.forEach((v) => valueInDataOnlyAxis.push(s.id + '（' + s.name + '）: ' + axis + ' = ' + v));
+				continue;
+			}
+			values.forEach((v) => { if (!known.has(v)) unknownValue.push(s.id + '（' + s.name + '）: ' + axis + ' = ' + v); });
+		}
+	});
+	none(unknownValue, 'マスターの全軸のタグの値が TAG_AXES の選択肢に実在する（廃した値が残っていない）');
+	none(valueInDataOnlyAxis, 'TAG_AXES にまだ無い軸には値が入っていない（どこからも選べない値にならない）');
+
+	/* core.js の組み込みサンプル（SAMPLE_MASTER_SKILLS）も同じ規則で見る。
+	   これは**正本を取れなかったときにしか使われない**（F-16）ので、ふだんの操作でも
+	   他の検査でも当たらない。揃っていないと、その状況でだけ絞り込みの結果が変わる。
+	   実際、段2 で本体を付け替えたときにここだけ旧値（speed_up）が残っていた。 */
+	const sampleBlock = /SAMPLE_MASTER_SKILLS\s*=\s*\{[\s\S]*?\n\t\]\};/.exec(coreSrc);
+	check(!!sampleBlock, 'core.js から組み込みサンプル（SAMPLE_MASTER_SKILLS）を読めた');
+	if (sampleBlock) {
+		const entries = [...sampleBlock[0].matchAll(/tags:\s*\{([^}]*)\}/g)].map((m) => m[1]);
+		check(entries.length > 0, '組み込みサンプルの件数（' + entries.length + '件）');
+		const badAxes = [], badValues = [];
+		entries.forEach((body, i) => {
+			const pairs = [...body.matchAll(/(\w+)\s*:\s*\[([^\]]*)\]/g)];
+			const keys = pairs.map((p) => p[1]);
+			if (keys.slice().sort().join(',') !== TAG_AXES.slice().sort().join(',')) {
+				badAxes.push('サンプル[' + i + ']: ' + keys.join('/'));
+			}
+			pairs.forEach(([, axis, inner]) => {
+				const known = optionsByAxis.get(axis);
+				[...inner.matchAll(/'([^']+)'/g)].map((m) => m[1]).forEach((v) => {
+					if (!known || !known.has(v)) badValues.push('サンプル[' + i + ']: ' + axis + ' = ' + v);
+				});
+			});
+		});
+		none(badAxes, '組み込みサンプルの軸の顔ぶれがマスターと同じ');
+		none(badValues, '組み込みサンプルの値も TAG_AXES の選択肢に実在する');
 	}
 }
 
