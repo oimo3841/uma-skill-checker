@@ -314,8 +314,7 @@ const INTENTIONALLY_REMOVED = {
 	// （`.usd-opts-more` / `data-usd-el="opts-more"` / `data-more`）へ替えたので `data-more-below` を消した。
 	// 重ねている限り「いちばん下の行がかすんで読めない」が高さを変えても消えないため
 	// （覗いていた 24px のうち 20px がその帯の下にあった）。
-	// **push してコミットが進んだら、この免除は空に戻すこと**（下の 2026-09-11 の申し送りと同じ扱い）。
-	'js/uma-skill-deck-core.js': ['data-more-below'],
+	// `01e9d24` まで push したので免除は空に戻した（残すと本当の事故を見逃す口になる）。
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
