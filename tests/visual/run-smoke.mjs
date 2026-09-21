@@ -3194,13 +3194,27 @@ const browser = await chromium.launch();
 		};
 	}, axis);
 
+	/* **その軸のタブを「選ばれていて、かつ開いている」状態にする。**
+	   選択中のタブをもう一度押すと選択肢パネルが閉じるので、無条件に押すと
+	   「開いている軸を押して閉じ、見えない選択肢を測る」ことになる（実際にそれで落ちた）。
+	   押すのは「まだ選ばれていない」か「閉じている」ときだけ。判定は製品の属性をそのまま読む。 */
+	const ensureAxisOpen = async (axis) => {
+		const st = await page.evaluate((a) => {
+			const tab = document.querySelector('.usd-tab[data-usd-axis="' + a + '"]');
+			const box = document.querySelector('[data-usd-el="axis-tabs"]');
+			return { selected: tab.getAttribute('aria-selected') === 'true', open: box.getAttribute('data-usd-open') === 'true' };
+		}, axis);
+		if (st.selected && st.open) return;
+		await page.click('.usd-tab[data-usd-axis="' + axis + '"]');
+		await page.waitForTimeout(150);
+	};
+
 	/* 軸ごとの選択肢の数は **TAG_AXES から取る**（件数を検査に書き写さない）。
 	   選択肢が3段に入りきらない軸＝合図が出るはずの軸、を実測で割り出して突き合わせる。 */
 	const perAxis = await page.evaluate(() => UmaSkillDeckCore.TAG_AXES.map((a) => a.key));
 	const optsAll = [];
 	for (const key of perAxis) {
-		await page.click('.usd-tab[data-usd-axis="' + key + '"]');
-		await page.waitForTimeout(120);
+		await ensureAxisOpen(key);
 		optsAll.push({ key, ...(await optState(key)) });
 	}
 	// (1) どの軸も、3段までは丸ごと見えている（3段に満たない軸はその段数ぶん全部）
@@ -3235,8 +3249,7 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(700);
 	const narrowOpts = [];
 	for (const key of perAxis) {
-		await page.click('.usd-tab[data-usd-axis="' + key + '"]');
-		await page.waitForTimeout(120);
+		await ensureAxisOpen(key);
 		narrowOpts.push({ key, ...(await optState(key)) });
 	}
 	const narrowSignal = narrowOpts.filter((o) => o.moreVisible);
@@ -3262,8 +3275,7 @@ const browser = await chromium.launch();
 		console.log('     （合図が1つも出ていないので、押したときの動きの検査は飛ばした）');
 	} else {
 	const signalAxis = narrowSignal.slice().sort((a, b) => b.hiddenBelow - a.hiddenBelow)[0].key;
-	await page.click('.usd-tab[data-usd-axis="' + signalAxis + '"]');
-	await page.waitForTimeout(200);
+	await ensureAxisOpen(signalAxis);
 	const before = await optState(signalAxis);
 	await page.click('[data-usd-act="opts-more"][data-usd-axis="' + signalAxis + '"]');
 	await page.waitForTimeout(300);
@@ -3293,10 +3305,115 @@ const browser = await chromium.launch();
 		'deck(段4): 合図が消えても場所は残る（下の一覧が跳ねない）', { boxBefore, boxAfter });
 	}
 
+	/* --- 選択中のタブをもう一度押すと、選択肢パネルが畳める（70セッション目・段4 の続き） ---
+	   段4 で選択肢を3段にしたぶん、狭い画面で下のスキル一覧が押し下げられるので畳めるようにした。
+	   見るのは4つ ―― 閉じる／別のタブで開く／閉じている間も条件が効いたまま／開き直して復元される。
+	   **閉じている間も「どの軸に何が入っているか」が読めること**（タブの件数バッジと
+	   「絞り込み中」の行）も、選択肢が見えなくなるぶん一緒に見る。 */
+	const panelState = () => page.evaluate(() => {
+		const box = document.querySelector('[data-usd-el="axis-tabs"]');
+		const panels = document.querySelector('[data-usd-el="tabpanels"]');
+		const tab = document.querySelector('.usd-tab[aria-selected="true"]');
+		const results = document.querySelector('[data-usd-el="results"]');
+		const body = document.querySelector('[data-usd-el="picker-body"]');
+		const rr = results.getBoundingClientRect(), br = body.getBoundingClientRect();
+		return {
+			open: box.getAttribute('data-usd-open'),
+			expanded: tab.getAttribute('aria-expanded'),
+			panelsH: Math.round(panels.getBoundingClientRect().height),
+			axis: tab.dataset.usdAxis,
+			count: document.querySelector('[data-usd-el="result-count"]').textContent,
+			// 閉じている間も見えていてほしいもの
+			badges: [...document.querySelectorAll('[data-usd-el="axis-count"]')].filter((b) => !b.hidden)
+				.map((b) => b.dataset.usdAxis + ':' + b.textContent),
+			summary: document.querySelector('[data-usd-el="filter-summary"]').textContent.replace(/\s+/g, ' ').trim(),
+			summaryH: Math.round(document.querySelector('[data-usd-el="filter-summary"]').getBoundingClientRect().height),
+			// 一覧のうち、本文のスクロール域の中で実際に見えている高さ
+			listVisible: Math.max(0, Math.round(Math.min(rr.bottom, br.bottom) - Math.max(rr.top, br.top))),
+			listTop: Math.round(rr.top),
+		};
+	});
+	// 条件を1つ入れてから畳む（閉じても効いたままかを見る）。距離は既定で開いている軸
+	await ensureAxisOpen('distance');
+	await page.click('[data-usd-el="filter-check"][data-axis="distance"][data-value="long"]');
+	await page.waitForTimeout(400);
+	const panelOpen375 = await panelState();
+	// (1) 選択中のタブをもう一度押すと閉じる
+	await page.click('.usd-tab[data-usd-axis="distance"]');
+	await page.waitForTimeout(400);
+	const panelClosed375 = await panelState();
+	assert(panelClosed375.open === 'false' && panelClosed375.panelsH === 0 && panelClosed375.expanded === 'false',
+		'deck(畳み): 選択中のタブをもう一度押すと選択肢パネルが閉じる', panelClosed375);
+	// (3) 閉じても条件は効いたまま。件数・バッジ・「絞り込み中」の行が変わらない
+	assert(panelClosed375.count === panelOpen375.count && panelOpen375.count !== '445件',
+		'deck(畳み): 閉じても絞り込みの結果は変わらない', { 開: panelOpen375.count, 閉: panelClosed375.count });
+	assert(JSON.stringify(panelClosed375.badges) === JSON.stringify(panelOpen375.badges) && panelClosed375.badges.length > 0,
+		'deck(畳み): 閉じてもタブの件数バッジは見えている', panelClosed375.badges);
+	assert(panelClosed375.summary === panelOpen375.summary && panelClosed375.summaryH > 0,
+		'deck(畳み): 閉じても「絞り込み中」の行は見えている', panelClosed375.summary);
+	// 狭い画面では、閉じたぶんだけ一覧が実際に広く見える
+	assert(panelClosed375.listVisible > panelOpen375.listVisible && panelClosed375.listTop < panelOpen375.listTop,
+		'deck(畳み): 375px では閉じると一覧が実際に広く見える',
+		{ 開: panelOpen375.listVisible, 閉: panelClosed375.listVisible, 上がった: panelOpen375.listTop - panelClosed375.listTop });
+	// (2) 閉じた状態から別のタブを押すと、そのタブが選ばれて開く
+	await page.click('.usd-tab[data-usd-axis="style"]');
+	await page.waitForTimeout(400);
+	const panelReopen = await panelState();
+	assert(panelReopen.open === 'true' && panelReopen.axis === 'style' && panelReopen.panelsH > 0,
+		'deck(畳み): 閉じた状態から別のタブを押すと、そのタブが選ばれて開く', panelReopen);
+	// 開いたときに「▼ ほか N件」が正しい状態へ戻る（畳んでいる間は測れないので測り直している）
+	// **合図が出る軸を実測から選ぶ**（軸の名前を検査に決め打ちしない）。出る軸が無ければ飛ばす。
+	const reopenAxis = narrowSignal.length
+		? narrowSignal.slice().sort((a, b) => b.hiddenBelow - a.hiddenBelow)[0].key
+		: panelReopen.axis;
+	await ensureAxisOpen(reopenAxis);
+	if (narrowSignal.length) {
+		// この軸は上の検査で下まで送ってあるので、先頭へ戻してから見る
+		// （「開き直したときに測り直せているか」を見たいのであって、送った先の状態を見たいのではない）
+		await page.evaluate((a) => {
+			document.querySelector('.usd-tabpanel[data-usd-axis="' + a + '"] .usd-opts').scrollTop = 0;
+		}, reopenAxis);
+		await page.waitForTimeout(300);
+		const moreAfterReopen = await optState(reopenAxis);
+		assert(moreAfterReopen.moreVisible && moreAfterReopen.moreText === '▼ ほか ' + moreAfterReopen.hiddenBelow + '件',
+			'deck(畳み): 開き直したあとも合図の件数が実測と合う', moreAfterReopen);
+	}
+	// (4) 閉じたままモーダルを閉じて開き直すと、閉じた状態が復元される
+	await page.click('.usd-tab[data-usd-axis="' + reopenAxis + '"]');   // 選択中を押して閉じる
+	await page.waitForTimeout(300);
+	await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
+	await page.waitForTimeout(300);
+	// **開き直しは呼び出し元の入口から**（`openSkillPicker([], …)` を直に呼ぶと、
+	// 比較シートが渡している除外IDが消えて、このあとの「総数がボタンに出る」検査が狂う）。
+	await page.click('button[onclick="openRecordSkillPicker()"]');
+	await page.waitForTimeout(900);
+	const panelAfterReopenModal = await panelState();
+	assert(panelAfterReopenModal.open === 'false' && panelAfterReopenModal.panelsH === 0,
+		'deck(畳み): 閉じた状態はモーダルを開き直しても復元される', panelAfterReopenModal);
+	// 開いた状態に戻して先へ進む（このあとの検査は開いている前提）
+	await page.click('.usd-tab[data-usd-axis="distance"]');
+	await page.waitForTimeout(400);
+	assert((await panelState()).open === 'true', 'deck(畳み): もう一度押すと開き直せる');
+
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await page.waitForTimeout(600);
-	await page.click('.usd-tab[data-usd-axis="distance"]');
-	await page.waitForTimeout(200);
+	const panelOpen1280 = await panelState();
+	await page.click('.usd-tab[data-usd-axis="' + panelOpen1280.axis + '"]');
+	await page.waitForTimeout(400);
+	const panelClosed1280 = await panelState();
+	assert(panelClosed1280.open === 'false' && panelClosed1280.panelsH === 0,
+		'deck(畳み): 1280px でも閉じられる', panelClosed1280);
+	/* **1280px では一覧の見える高さは変わらない。** モーダルは下ぞろえ（align-items: flex-end）なので、
+	   中身が減るとモーダル自体が縮み、一覧はその場に留まる。そもそも一覧は max-height いっぱいまで
+	   見えていたので、広がる余地が無い。**畳んで得をするのは狭い画面**（上の 375px の検査）。 */
+	assert(panelClosed1280.listVisible === panelOpen1280.listVisible,
+		'deck(畳み): 1280px では一覧の見える高さは変わらない（モーダルのほうが縮む）',
+		{ 開: panelOpen1280.listVisible, 閉: panelClosed1280.listVisible });
+	// 開いた状態に戻して先へ進む（このあとの検査は開いている前提）。
+	// **絞り込みの条件は (4) でモーダルを開き直した時点で消えている**ので、ここでは何も解除しない。
+	await page.click('.usd-tab[data-usd-axis="' + panelClosed1280.axis + '"]');
+	await page.waitForTimeout(400);
+	await ensureAxisOpen('distance');
 
 	/* --- 「条件でスキルを検索」のときは8軸フィルターだけが出ている --- */
 	const modeState = () => page.evaluate(() => {

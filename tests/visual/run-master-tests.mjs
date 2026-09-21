@@ -71,13 +71,17 @@ const RETIRED_EFFECT_VALUES = [
 
 /**
  * ⑥で足した2軸（レアリティ／共通/継承）。
- * 70セッション目・**段2 でキーだけマスターへ先行投入**し、**段3 で TAG_AXES に出した**。
- * **タグ付けはまだ行っていない**ので、445件すべて値は空。
- * どちらも `emptyMeansNone` なので、いまこの軸で絞ると0件になる（想定どおり）。
- * ここに残しているのは「**まだ付いていない**」を明示するため ―― 付け始めたら、
- * 下の `UNTAGGED_AXES はまだ空` が落ちるので、そのときに検査の意図ごと見直す。
+ *
+ * 70セッション目・**段2 でキーだけマスターへ入れ**、**段3 でいったん TAG_AXES に出したが、
+ * 段4 のあとに「この画面にこの2軸は要らない」と決まって外した**。
+ * **マスターのキーは残したまま**（別の用途で要る分類なので消さない）、
+ * **絞り込みの軸としては出さない**、という状態。
+ *
+ * だから **`TAG_AXES` とマスターの `tags` の軸は顔ぶれが一致しない。**
+ * ここで見るのは (1) マスターにキーがあること (2) 値がまだ入っていないこと (3) UIには出ていないこと。
+ * タグ付けを始めたら (2) が落ちるので、そのときに検査の意図ごと見直す。
  */
-const UNTAGGED_AXES = ['rarity', 'inherited'];
+const DATA_ONLY_AXES = ['rarity', 'inherited'];
 
 /**
  * サブ効果が持久力消費のため、効果タイプから持久力を外した14件。
@@ -140,11 +144,11 @@ console.log('=== 1. マスターデータ（uma-skill-deck-skills.json） ===');
 	const notArray = master.skills.filter((s) => AXIS_KEYS.some((k) => !Array.isArray(s.tags[k])));
 	assert(notArray.length === 0, '全445件が全軸のタグを配列で持つ', notArray.map((s) => s.name).slice(0, 5));
 
-	// ⑥ 段2 でキーを入れ、段3 で TAG_AXES へ出した2軸。**タグ付けはまだなので値は空のはず。**
-	const untaggedPresent = UNTAGGED_AXES.filter((k) => AXIS_KEYS.includes(k));
-	assert(eq(untaggedPresent, UNTAGGED_AXES), '⑥レアリティ／共通・継承のキーがマスターにある', untaggedPresent);
-	const untaggedFilled = master.skills.filter((s) => UNTAGGED_AXES.some((k) => (s.tags[k] || []).length > 0));
-	assert(untaggedFilled.length === 0, '⑥その2軸はまだ空（タグ付けは未着手）', untaggedFilled.map((s) => s.name).slice(0, 5));
+	// ⑥ マスターだけが持つ2軸。**絞り込みには出さないが、キーは残す。** タグ付けはまだなので値は空。
+	const dataOnlyPresent = DATA_ONLY_AXES.filter((k) => AXIS_KEYS.includes(k));
+	assert(eq(dataOnlyPresent, DATA_ONLY_AXES), '⑥レアリティ／共通・継承のキーがマスターにある', dataOnlyPresent);
+	const dataOnlyFilled = master.skills.filter((s) => DATA_ONLY_AXES.some((k) => (s.tags[k] || []).length > 0));
+	assert(dataOnlyFilled.length === 0, '⑥その2軸はまだ空（タグ付けは未着手）', dataOnlyFilled.map((s) => s.name).slice(0, 5));
 
 	// ① 持久力回復 ／ ②(ア)D デバフ
 	const rec = master.skills.filter((s) => s.tags.effect.includes('stamina'));
@@ -228,20 +232,15 @@ const browser = await chromium.launch();
 		? '     （情報）マスターにあってUIにまだ出ていない軸: ' + notInUi.join(' / ')
 		: '     （情報）マスターの軸とUIの軸は同じ顔ぶれ（先行しているものは無い）');
 
-	// ⑥ 段3 で足した2軸が、UIにも出て emptyMeansNone になっていること。
-	// **空＝「まだタグを付けていない」**であって「万能」ではない（どのスキルも必ず
-	// どちらか一方に当たる排他的な区分なので、「どちらでもある」は原理的に無い）。
-	UNTAGGED_AXES.forEach((key) => {
-		const a = axes.find((x) => x.key === key);
-		assert(!!a && a.flag === true, '⑥ 軸「' + key + '」がUIにあり、空を「該当なし」と読む', a);
-		assert(!!a && a.opts.length === 2, '⑥ 軸「' + key + '」の選択肢が2つ', a && a.opts);
-	});
-	// タブの並びは「コース位置」に続く（仕様）
+	// ⑥ レアリティ／共通/継承は**絞り込みの軸として出さない**（段4 のあとの決定）。
+	// マスターにはキーが残っている（上の §1 で見た）ので、**「データにはあるがUIには出ない」**という
+	// 食い違いが意図どおりであることを、両側から見て固定しておく。
+	const inUi = DATA_ONLY_AXES.filter((k) => axes.some((a) => a.key === k));
+	assert(inUi.length === 0, '⑥レアリティ／共通・継承は絞り込みのタブに出ない', inUi);
+	// 並びは「コース位置 → レース環境」が地続き（間に何も挟まっていない）
 	const order = axes.map((a) => a.key);
-	assert(order.indexOf('rarity') === order.indexOf('coursePos') + 1
-		&& order.indexOf('inherited') === order.indexOf('rarity') + 1
-		&& order.indexOf('environment') === order.indexOf('inherited') + 1,
-		'⑥ タブの並びが コース位置 → レアリティ → 共通/継承 → レース環境 の順', order);
+	assert(order.indexOf('environment') === order.indexOf('coursePos') + 1,
+		'⑥ タブの並びは コース位置 → レース環境 が地続き', order);
 
 	// 63セッション目（第2波）: ⑧を「その他」（入手経路）に広げ、値を3つにした。
 	// **空配列の意味が他の軸と逆**（空＝該当なし）なのは変わらないので、印の名前だけ
@@ -284,9 +283,27 @@ const browser = await chromium.launch();
 	// フィルターのチェックボックスを実際にクリックして絞り込む（UIの配線ごと確かめる）。
 	// 軸はタブに分かれていて、選んでいないタブのパネルは visibility:hidden で
 	// Playwright から押せない。実際の操作と同じく、該当タブを押してからチェックする。
-	const tick = async (axis, value) => {
+	/* **その軸のタブを「選ばれていて、かつ開いている」状態にしてから**チェックする。
+	   70セッション目・段4 の続きで、**選択中のタブをもう一度押すと選択肢パネルが閉じる**ように
+	   なったので、無条件に押すと「開いている軸を押して閉じ、見えないチェックを押そうとする」
+	   ことになる（実際にそれで止まった）。押すのは「まだ選ばれていない」か「閉じている」ときだけ。
+	   ―― この判定は製品の属性（aria-selected / data-usd-open）をそのまま読むので、
+	   検査の側に開閉の規則を書き写さずに済む。 */
+	const ensureAxisOpen = async (axis) => {
+		const st = await page.evaluate((a) => {
+			const tab = document.querySelector('.usd-tab[data-usd-axis="' + a + '"]');
+			const box = document.querySelector('[data-usd-el="axis-tabs"]');
+			return {
+				selected: tab.getAttribute('aria-selected') === 'true',
+				open: box.getAttribute('data-usd-open') === 'true',
+			};
+		}, axis);
+		if (st.selected && st.open) return;
 		await page.click('.usd-tab[data-usd-axis="' + axis + '"]');
 		await page.waitForTimeout(150);
+	};
+	const tick = async (axis, value) => {
+		await ensureAxisOpen(axis);
 		await page.click('[data-usd-el="filter-check"][data-axis="' + axis + '"][data-value="' + value + '"]');
 		await page.waitForTimeout(300);
 	};

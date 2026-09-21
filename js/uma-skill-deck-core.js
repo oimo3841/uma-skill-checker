@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21h';
 
 	/* ============================================================
 	 * 定数
@@ -192,27 +192,19 @@
 		{ key: 'coursePos', label: 'コース位置', options: [
 			{ v: 'corner', t: 'コーナー' }, { v: 'straight', t: '直線' }, { v: 'uphill', t: '上り坂' }, { v: 'downhill', t: '下り坂' }
 		]},
-		/* 70セッション目・段3 で足した2軸（キーは段2 でマスターへ先行投入済み。タブはコース位置に続く）。
+		/* **`rarity`（レアリティ）と `inherited`（共通/継承）はここに入れない。**
 		 *
-		 * **どちらも emptyMeansNone。** レアリティも共通/継承も「どのスキルも必ずどちらか一方に当たる」
-		 * 排他的な区分で、「どちらでもある（万能）」というスキルは原理的に存在しない。
-		 * だから空は「万能」ではなく「**まだタグを付けていない**」を意味する。
-		 * それを万能と読ませると、絞り込んだのに1件も減らない（445件が居座る）ことになる。
-		 * **タグを付け終わったあとも印はそのままでよい**（付け忘れがあれば、その行が出ないことで気づける）。
+		 * 70セッション目の段2 でマスター445件にキーを入れ（値は空）、段3 でいったんタブとして
+		 * 出したが、**段4 のあとに「この画面にこの2軸は要らない」と決まって外した**。
+		 * **データのキーは残したまま**（別の用途で要る分類なので消さない）、
+		 * **絞り込みの軸としては出さない**、という状態。
 		 *
-		 * **いまは全445件が空なので、この2軸で絞ると0件になる。** それは想定どおりで、
-		 * 「まだ付いていない」ことが分かるほうがよいという判断。画面には
-		 * emptyMeansNone の軸に出る既存の注記（「この軸のタグが無いスキルは出ない」）が付く。
-		 * **「まだタグを付けていません」という専用の注記は、いまは出していない**（文言の追加は未承認）。
-		 * `inherited` というキーは `getSkillMeta()` が返す `kind`（カタログのカテゴリ）との
-		 * 語の衝突を避けたもの。値の `inherited` と同じ綴りになるが、軸と値なので混ざらない。
+		 * だから `TAG_AXES` とマスターの `tags` の軸は**顔ぶれが一致しない**。
+		 * それを前提にしている場所が2つあるので、片方だけ直さないこと:
+		 *   - `check:catalog` の §4-3 … 「TAG_AXES に無い軸には値が入っていないこと」を見る
+		 *   - `test:master` … マスター側のキーの有無と、値が空であることを見る
+		 * `matchesFilters()` は `TAG_AXES` を回すだけなので、この2軸はマッチングに一切関わらない。
 		 */
-		{ key: 'rarity', label: 'レアリティ', emptyMeansNone: true, options: [
-			{ v: 'normal', t: 'ノーマル' }, { v: 'rare', t: 'レア' }
-		]},
-		{ key: 'inherited', label: '共通/継承', emptyMeansNone: true, options: [
-			{ v: 'common', t: '共通' }, { v: 'inherited', t: '継承' }
-		]},
 		{ key: 'environment', label: 'レース環境', options: [
 			{ v: 'ground_good', t: '良バ場' }, { v: 'ground_bad', t: '道悪' },
 			{ v: 'surface_turf', t: '芝' }, { v: 'surface_dirt', t: 'ダート' },
@@ -1523,20 +1515,19 @@
 		// 既存の .glass-card 相当（テンプレート編集パネル・モーダルの下地）
 		'.usd-modal { position: fixed; inset: 0; background: rgba(15,23,42,.4); z-index: 80; display: flex; align-items: flex-end; justify-content: center; }',
 		'.usd-modal[hidden] { display: none !important; }',
-		/* 幅は 42rem（672px）→ **47rem（752px）**（70セッション目・段3）。
-		 * 軸が10本になると、タブを1行に並べるのに **701px** 要る（10枚の max-content ＋ 隙間 ＋ 余白の実測）。
-		 * 本文の使える幅は「モーダルの幅 − 左右の余白 32px」なので、
-		 *   42rem → 640px（61px 足りない）／44rem → 672px（29px）／**45rem → 688px（13px 足りない）**
-		 *   46rem → 704px（**余り 3px**）／**47rem → 720px（余り 19px）**
-		 * **Step 0 の見立て（45rem で足りる）は外れた。** 下見では2本目の軸のラベルを「種類」(50px)
-		 * と仮置きして測っており、実際の「共通/継承」は 79px で、**その差 29px がそのまま不足になった**
-		 * （701 − 672 = 29）。46rem でも収まるが**余りが 3px しか無く**、
-		 * 文字の描かれ方が少し違うだけで静かに格子へ落ちるので、余裕のある 47rem にした。
+		/* 幅は **42rem（672px）**。70セッション目の段3 で軸が10本になったとき 47rem へ広げたが、
+		 * 段4 のあとに**2軸を絞り込みから外して8本へ戻した**ので、幅も元に戻した。
+		 *
+		 * 実測（1行の指定を当てた状態での「要る幅」と「使える幅＝モーダルの幅 − 左右の余白 32px」）:
+		 *   8軸で要るのは **544px**。34rem→512px（32px 足りない）／**36rem→544px（ちょうど）**／
+		 *   **42rem→640px（余り 96px）**。
+		 * 最小は 36rem だが**余りが 0**。42rem なら**タブ1枚ぶん（74〜77px）より広い余裕**があり、
+		 * ラベルが多少伸びても静かに格子へ落ちない。**元の幅でもあるので、戻すのが素直。**
+		 * （参考: 10軸のときは 701px 要り、45rem＝688px では 13px 足りず、46rem は余り 3px、47rem で余り 19px だった。）
+		 *
 		 * ねらいは C-14 の「フォルダの見出し風」（data-usd-rows="1"）を PC で保つこと。
-		 * **この余裕も軸1本ぶんには足りない。** もう1本足すときは、広げ続けるのではなく
-		 * 「PC でも格子にする」を選ぶこと（幅を広げ続けると一覧と選択肢の見え方も動く）。
 		 * 1行に収まっているかは run-smoke が**実際のレイアウトから**見張っている（幅の値は書いていない）。 */
-		'.usd-modal-panel { background: var(--uma-glass-bg); backdrop-filter: var(--uma-glass-blur); width: 100%; max-width: 47rem;',
+		'.usd-modal-panel { background: var(--uma-glass-bg); backdrop-filter: var(--uma-glass-blur); width: 100%; max-width: 42rem;',
 		'  border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }',
 		'@media (min-width: 768px) { .usd-modal-panel { border-radius: var(--uma-r-xl); margin-bottom: var(--uma-sp-6); } }',
 		// モーダル下部に固定するフッター（追加ボタンと選択数）。パネルの3段目なので
@@ -1759,6 +1750,18 @@
 		'  background: var(--uma-surface-muted); color: var(--uma-text-muted); cursor: pointer; }',
 		'.usd-opts-more-btn:hover { background: var(--uma-border); color: var(--uma-text-heading); }',
 		'.usd-opts-more[data-more="none"] { visibility: hidden; }',
+
+		/* 選択肢パネルを畳んだ状態（70セッション目・段4 の続き）。
+		 * 選択中のタブをもう一度押すと閉じ、下のスキル一覧の場所がそのぶん広がる。
+		 * **「絞り込み中」の行は畳まない** ―― 閉じている間も、どの軸に何が入っているかが読めるように。
+		 * 畳んだときは**選択中のタブの下辺の色を戻して、タブ帯の下の線をつなげる**
+		 * （開いているときは下辺を面の色で塗ってパネルと地続きに見せているので、
+		 *   そのままだと「開いているのに中身が無い」ように見える）。 */
+		'[data-usd-open="false"] .usd-tabpanels { display: none; }',
+		'[data-usd-open="false"] [data-usd-rows="1"] .usd-tab[aria-selected="true"] {',
+		'  margin-top: var(--usd-tab-lift); min-height: 3.1rem;',
+		'  border-bottom-color: var(--uma-border); box-shadow: inset 0 3px 0 var(--uma-control); }',
+		'[data-usd-open="false"] .usd-active-summary { margin-top: var(--uma-sp-2); }',
 
 		// 選択肢チップ。中身は本物の checkbox のままなので、既存のJSとテストがそのまま掴める
 		// （.usd-chip はテンプレートのスキル名チップで使用済みのため .usd-opt にしてある）
@@ -2039,6 +2042,20 @@
 	 * 件数には一切使わない。モーダルを開き直しても残るよう、picker とは別に持つ。
 	 */
 	let pickerHiddenIds = [];
+	/**
+	 * 選択肢パネルを開いているか（70セッション目・段4 の続き）。
+	 *
+	 * **選択中のタブをもう一度押すと閉じる。** 段4 で選択肢を3段にしたぶん、特に狭い画面で
+	 * 下のスキル一覧が押し下げられるので、要らないときは畳めるようにした。
+	 * **閉じるのは表示だけ** ―― `picker.filters` には触らないので、絞り込みの結果は変わらない。
+	 *
+	 * **`picker` の中ではなく外に持つ**（`pickerHiddenIds` と同じ理由）。`openPicker()` は
+	 * `picker` の中身を作り直すので、中に置くと開き直すたびに開いた状態へ戻ってしまう。
+	 * 寿命は**そのページを開いている間**（`localStorage` には保存しない）。
+	 * これは C-14 の `picker.activeAxis` と同じ寿命で、⑦（段6）でチェックの状態を
+	 * 同じ寿命にする予定なので、そこで揃う。
+	 */
+	let pickerAxisPanelOpen = true;
 	// 一括貼り付けの照合結果。各行に chosenId（採用したスキルID）を後から書き込む。
 	let pasteRows = [];
 	// 貼り付け／画像から読み取る の報告に対する呼び出し元からの口（31セッション目）。
@@ -2172,9 +2189,10 @@
 			if (!btn || !pickerEl.contains(btn)) return;
 			const act = btn.dataset.usdAct;
 			if (act === 'picker-close') closePicker();
-			else if (act === 'filter-tab') selectPickerAxisTab(btn.dataset.usdAxis, false);
+			else if (act === 'filter-tab') onPickerAxisTabClick(btn.dataset.usdAxis);
 			// 「絞り込み中」から飛ぶときは、どのタブへ移ったかが分かるようフォーカスも移す。
-			else if (act === 'filter-jump') selectPickerAxisTab(btn.dataset.usdAxis, true);
+			// **閉じていたら開く** ―― 見にいくために押しているので、閉じたままでは用を成さない。
+			else if (act === 'filter-jump') { selectPickerAxisTab(btn.dataset.usdAxis, true); setPickerAxisPanelOpen(true); }
 			else if (act === 'filter-clear-axis') clearPickerAxisFilter(btn.dataset.usdAxis);
 			else if (act === 'filter-clear-all') clearAllPickerFilters();
 			// 「▼ ほか N件」（段4）。1段ぶん下へ送る
@@ -2228,8 +2246,11 @@
 		const tabs = TAG_AXES.map(axis => {
 			const isActive = axis.key === picker.activeAxis;
 			return '' +
+			// aria-expanded は「このタブのパネルが出ているか」（role="tab" が取れる状態）。
+			// 選択中のタブをもう一度押すと畳めるので、選ばれているかどうかとは別に要る。
 			'<button type="button" role="tab" class="usd-tab" id="usd-tab-' + axis.key + '"' +
 				' aria-controls="usd-panel-' + axis.key + '" aria-selected="' + isActive + '"' +
+				' aria-expanded="' + (isActive && pickerAxisPanelOpen) + '"' +
 				' tabindex="' + (isActive ? 0 : -1) + '" data-usd-act="filter-tab" data-usd-axis="' + axis.key + '">' +
 				'<span class="usd-tab-main">' + esc(axis.label) + '</span>' +
 				'<span class="usd-tab-count" data-usd-el="axis-count" data-usd-axis="' + axis.key + '" hidden></span>' +
@@ -2272,8 +2293,11 @@
 			'</section>';
 		}).join('');
 
+		// data-usd-open は選択肢パネルの開閉。**「絞り込み中」の行（filter-summary）は
+		// 畳まない** ―― 閉じている間も「どの軸に何が入っているか」が読めるようにするため
+		// （タブの件数バッジと、この行の2つで補う）。
 		el.innerHTML = '' +
-			'<div class="usd-axis-tabs">' +
+			'<div class="usd-axis-tabs" data-usd-el="axis-tabs" data-usd-open="' + pickerAxisPanelOpen + '">' +
 				'<div class="usd-tabbar" data-usd-el="tabbar" data-usd-rows="1">' +
 					'<div class="usd-tablist" role="tablist" aria-label="絞り込みの軸">' + tabs + '</div>' +
 				'</div>' +
@@ -2304,18 +2328,48 @@
 		if (global.ResizeObserver) new global.ResizeObserver(updatePickerFilterLayout).observe(tablist);
 	}
 
-	/* タブの切り替えは aria-selected・tabindex・is-active を揃えて付け替えるだけ。 */
+	/* タブの切り替えは aria-selected・aria-expanded・tabindex・is-active を揃えて付け替えるだけ。 */
 	function selectPickerAxisTab(axisKey, focus) {
 		picker.activeAxis = axisKey;
 		pickerEl.querySelectorAll('.usd-tab').forEach(tab => {
 			const on = tab.dataset.usdAxis === axisKey;
 			tab.setAttribute('aria-selected', String(on));
+			tab.setAttribute('aria-expanded', String(on && pickerAxisPanelOpen));
 			tab.tabIndex = on ? 0 : -1;
 			if (on && focus) tab.focus({ preventScroll: true });
 		});
 		pickerEl.querySelectorAll('.usd-tabpanel').forEach(panel => {
 			panel.classList.toggle('is-active', panel.dataset.usdAxis === axisKey);
 		});
+	}
+
+	/**
+	 * 選択肢パネルを開く／閉じる（段4 の続き）。
+	 *
+	 * **閉じるのは表示だけ。** `picker.filters` には触らないので、絞り込みの結果は変わらない
+	 * （チェックの状態も残ったままで、開き直すとそのまま見える）。
+	 * 開いたときは `updatePickerFilterLayout()` を通す ―― 閉じている間はパネルが
+	 * `display: none` で、チップの高さも箱の高さも 0 として読めるため、
+	 * 開いた直後に測り直さないと「▼ ほか N件」が出鱈目な数のまま残る。
+	 */
+	function setPickerAxisPanelOpen(open) {
+		pickerAxisPanelOpen = !!open;
+		const box = q(pickerEl, 'axis-tabs');
+		if (box) box.setAttribute('data-usd-open', String(pickerAxisPanelOpen));
+		const tab = pickerEl.querySelector('.usd-tab[aria-selected="true"]');
+		if (tab) tab.setAttribute('aria-expanded', String(pickerAxisPanelOpen));
+		if (pickerAxisPanelOpen) updatePickerFilterLayout();
+	}
+
+	/**
+	 * タブを押したとき。**いま開いている軸のタブをもう一度押すと閉じる**（それ以外は選んで開く）。
+	 * キーボードの ←→・Home・End は必ず別の軸へ移るので、あちらは selectPickerAxisTab のまま
+	 * （移動と同時に開く。閉じているときに矢印で移ったら開くのが自然）。
+	 */
+	function onPickerAxisTabClick(axisKey) {
+		if (axisKey === picker.activeAxis && pickerAxisPanelOpen) { setPickerAxisPanelOpen(false); return; }
+		selectPickerAxisTab(axisKey, false);
+		setPickerAxisPanelOpen(true);
 	}
 
 	/**
@@ -2359,6 +2413,9 @@
 		const panel = wrap && wrap.parentElement;
 		const box = panel && panel.querySelector('[data-usd-el="opts-more"]');
 		if (!box) return;
+		// パネルを畳んでいる間は測れない（display:none で高さが 0 になり、全部が「隠れている」
+		// と数えられてしまう）。開いたときに測り直すので、ここでは何もしない。
+		if (opts.clientHeight === 0) return;
 		const bottom = opts.scrollTop + opts.clientHeight;
 		const hidden = [...opts.children].filter(c => c.offsetTop + c.offsetHeight > bottom + 1).length;
 		box.setAttribute('data-more', hidden > 0 ? 'below' : 'none');
@@ -2422,6 +2479,9 @@
 		pickerEl.querySelectorAll('[data-usd-el="filter-check"]').forEach(el => { el.checked = false; });
 		pickerEl.querySelectorAll('.usd-opts').forEach(el => { el.scrollTop = 0; });
 		selectPickerAxisTab(TAG_AXES[0].key, false);
+		// **開閉だけは初期化しない**（閉じていたら閉じたまま開き直す）。
+		// ここで属性を入れ直すのは、モーダルを開くたびに DOM と変数を揃えるため。
+		setPickerAxisPanelOpen(pickerAxisPanelOpen);
 		refreshPickerFilterUi();
 		updatePickerFilterLayout();
 	}

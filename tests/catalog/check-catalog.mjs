@@ -562,12 +562,13 @@ console.log('\n=== 4-3. マスターのタグの値が TAG_AXES の選択肢に�
 		optionsByAxis.set(axis, new Set(opts.map((o) => o.v)));
 	}
 	check(uiAxes.length > 0, 'core.js の TAG_AXES から選択肢を読めた: ' + uiAxes.join(' / '));
-	// **データだけ先行している軸が有るか無いかを、毎回はっきり出す。**
-	// 70セッション目・段3 で rarity / inherited を TAG_AXES へ出したので、いまは0本。
-	// 黙って通ると「先行の軸はもう無い」のか「検査が見ていない」のかが読めなくなる。
+	// **マスターだけが持つ軸（絞り込みには出さない軸）が有るか無いかを、毎回はっきり出す。**
+	// 70セッション目: 段2 で rarity / inherited のキーを入れ、段3 でいったん TAG_AXES へ出したが、
+	// 段4 のあとに**絞り込みからは外した**（データのキーは残す）。だからいまは2本。
+	// 黙って通ると「そういう軸はもう無い」のか「検査が見ていない」のかが読めなくなる。
 	console.log(dataOnlyAxes.length
-		? '     TAG_AXES にまだ無い軸（データだけ先行）: ' + dataOnlyAxes.join(' / ')
-		: '     TAG_AXES にまだ無い軸は無い（マスターの軸はすべてUIに出ている）');
+		? '     TAG_AXES に無い軸（マスターだけが持つ・絞り込みには出さない）: ' + dataOnlyAxes.join(' / ')
+		: '     TAG_AXES に無い軸は無い（マスターの軸はすべて絞り込みに出ている）');
 	masterSkills.forEach((s) => {
 		const tags = s.tags || {};
 		for (const axis of TAG_AXES) {
@@ -585,9 +586,9 @@ console.log('\n=== 4-3. マスターのタグの値が TAG_AXES の選択肢に�
 	// **その状態をそう名乗る** ―― 通ったことに意味がある検査と、見るものが無い検査を、
 	// 同じ [OK] の行で混ぜない（F-56「まだ0件だから通る検査は、通ったことに意味が無い」）。
 	if (dataOnlyAxes.length) {
-		none(valueInDataOnlyAxis, 'TAG_AXES にまだ無い軸には値が入っていない（どこからも選べない値にならない）');
+		none(valueInDataOnlyAxis, 'TAG_AXES に無い軸には値が入っていない（どこからも選べない値にならない）');
 	} else {
-		console.log('     （先行している軸が無いので「まだ無い軸に値が入っていないか」は見ていない）');
+		console.log('     （そういう軸が無いので「TAG_AXES に無い軸に値が入っていないか」は見ていない）');
 	}
 
 	/* core.js の組み込みサンプル（SAMPLE_MASTER_SKILLS）も同じ規則で見る。
