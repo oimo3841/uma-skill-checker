@@ -1,5 +1,5 @@
 {
- "masterVersion": "2026-09-11b",
+ "masterVersion": "2026-09-21a",
  "skills": [
   {
    "id": "1",
@@ -173,7 +173,7 @@
     "coursePos": [],
     "environment": [],
     "trackVenue": [
-     "track_niigata"
+     "track_fukushima"
     ],
     "effect": [
      "stamina_up"
@@ -191,7 +191,7 @@
     "coursePos": [],
     "environment": [],
     "trackVenue": [
-     "track_fukushima"
+     "track_niigata"
     ],
     "effect": [
      "stamina_up"

@@ -27,6 +27,12 @@
 //      落とさず警告にする。
 //   4. **判定は id を鍵に行い、併記の name は照合の控えとして突き合わせるだけ。**
 //      name が指す先とずれていたら落とす（手で書き足すときの取り違えをここで捕まえる）。
+//
+// ■ data/ の6ファイル以外に見ているもの
+//   §4-2 だけは**マスター（uma-skill-deck-skills.json）のタグ**を見る。決めごと4 と同じ
+//   「手で書くときの取り違え」の検査で、69セッション目に実際の取り違え（レース場のタグの
+//   入れ替わり2件）を見つけたのを機に足した。`test:master` は毎セッションの手順にも
+//   pre-push の関門にも入っていないので、そちらではなくここに置いてある。
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -467,6 +473,63 @@ console.log('\n=== 4. スキルの参照 ===');
 		.filter((x) => !cardIds.has(x.id))
 		.map((x) => 'supportCardEventSkill[' + x.i + ']: ' + x.id);
 	none(unknownCard, 'イベントスキルの cardId がサポートカードに実在する');
+}
+
+/* ──────────────────────── 4-2. マスターのタグと名前の突き合わせ ──────────────────────── */
+
+/* **なぜここに置くか**: 決めごと4（「併記の name が指す先とずれていたら落とす」）と同じ種類の検査
+   ―― 手で書くときの**取り違え**を捕まえるもの。69セッション目に、マスターの
+   `福島レース場○` に `track_niigata`、`新潟レース場○` に `track_fukushima` と、
+   **2件のタグが入れ替わったまま**入っていたのを見つけたので足した（条件検索で「福島」を選ぶと
+   新潟のスキルが出る、という実害が出ていた）。
+
+   **`test:master` ではなくこちらに置いた。** `test:master` は毎セッションの手順にも
+   pre-push の関門にも入っていないので、そこに置くと「再発しても落ちない」検査になる
+   （`check:catalog` は `test:verify` の §10 から呼ばれる）。
+
+   **レース場の名前をこのファイルに1つも書かない**（決めごと1）。選択肢の値と表示名は
+   `js/uma-skill-deck-core.js` の `TAG_AXES` から読む（`test:norm` が
+   `EMBEDDED_EXTRA_CATALOG` を読んでいるのと同じ手口）。
+
+   **見るのは「名前に出ている選択肢が、タグにも入っているか」だけ**（名前 ⊆ タグ）。
+   タグにしか無いものは落とさない ―― 名前に地名が出ていないのに特定のレース場でだけ
+   効くスキルは、これからも出てきうるため。逆に、名前に地名が出ているのにタグが空のものは
+   **付け忘れの疑い**として警告に留める（いまは0件）。 */
+
+console.log('\n=== 4-2. マスターのタグと名前の突き合わせ ===');
+{
+	/** core.js の TAG_AXES から、1つの軸の選択肢（[{v, t}]）を読む。 */
+	function readAxisOptions(src, key) {
+		const block = new RegExp("\\{ key: '" + key + "',[\\s\\S]*?options: \\[([\\s\\S]*?)\\n\\t\\t\\]").exec(src);
+		if (!block) return [];
+		// キーのあとに空白を許してから コロン を書く。**キー1文字＋コロン＋円記号**の並びを
+		// 作らないため ―― `check:privacy` がそれを Windows のドライブのパスと読んで落ちる（偽陽性）。
+		// 免除リストへ足すより、その並びを書かないほうがよい（検査の精度を落とさない）。
+		return [...block[1].matchAll(/\{\s*v\s*:\s*'([^']+)'\s*,\s*t\s*:\s*'([^']+)'/g)].map((m) => ({ v: m[1], t: m[2] }));
+	}
+	const coreSrc = fs.readFileSync(path.join(REPO_ROOT, 'js/uma-skill-deck-core.js'), 'utf8');
+	const venueOpts = readAxisOptions(coreSrc, 'trackVenue');
+	check(venueOpts.length > 0, 'core.js の TAG_AXES から「レース場」の選択肢を読めた（' + venueOpts.length + '件）');
+
+	if (venueOpts.length > 0) {
+		const known = new Set(venueOpts.map((o) => o.v));
+		const unknownValue = [], mismatch = [], namedButNoTag = [];
+		masterSkills.forEach((s) => {
+			const name = String(s.name);
+			const tags = ((s.tags || {}).trackVenue) || [];
+			tags.forEach((v) => { if (!known.has(v)) unknownValue.push(s.id + '（' + name + '）: ' + v); });
+			// 名前に表示名が出ている選択肢
+			const named = venueOpts.filter((o) => name.includes(o.t));
+			if (named.length === 0) return;
+			if (tags.length === 0) { namedButNoTag.push(s.id + '（' + name + '）'); return; }
+			named.filter((o) => !tags.includes(o.v)).forEach((o) => {
+				mismatch.push(s.id + '（' + name + '）: 名前は ' + o.t + ' だがタグは [' + tags.join(', ') + ']');
+			});
+		});
+		none(unknownValue, 'マスターの trackVenue の値が TAG_AXES の選択肢に実在する');
+		none(mismatch, 'マスターの trackVenue のタグがスキル名の地名と一致する');
+		if (namedButNoTag.length) warn('名前に地名が出ているのに trackVenue のタグが空（付け忘れの疑い）', namedButNoTag);
+	}
 }
 
 /* ──────────────────────── 5. ★・覚醒レベル・状態 ──────────────────────── */
