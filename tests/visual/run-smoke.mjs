@@ -3445,6 +3445,80 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(400);
 	await ensureAxisOpen('distance');
 
+	/* --- 段5（③④⑤・決6）絞り込みの規則が効いていること ---
+	   件数の突き合わせは `npm run test:master` が持つ（マスターの生データから期待値を組み立てる）。
+	   ここでは**性質だけ**を見る ―― `test:master` は pre-push の関門に入っていないので、
+	   規則が丸ごと外れたことにはこちらでも気づけるようにしておく。
+	   **軸のキーも値も検査に書かない。** 製品の `TAG_AXES` の印から取る。 */
+	{
+		const marks = await page.evaluate(() => UmaSkillDeckCore.TAG_AXES.map((a) => ({
+			key: a.key, label: a.label, emptyNone: !!a.emptyMeansNone, optIn: !!a.optIn,
+			opts: a.options.map((o) => o.v),
+		})));
+		assert(marks.filter((a) => a.emptyNone).length >= marks.filter((a) => a.optIn).length
+			&& marks.filter((a) => a.optIn).every((a) => a.emptyNone),
+			'deck(段5): オプトインの軸は「空＝該当なし」でもある',
+			{ 空は該当なし: marks.filter((a) => a.emptyNone).map((a) => a.key), オプトイン: marks.filter((a) => a.optIn).map((a) => a.key) });
+
+		// 一覧に並んでいるスキルのタグを、製品の getSkillTags() から引いて性質を見る
+		const listedTags = (key) => page.evaluate((k) => {
+			const names = [...document.querySelectorAll('[data-usd-el="results"] .usd-row span')].map((el) => el.textContent);
+			const byName = new Map(UmaSkillDeckCore.getMasterSkills().map((s) => [s.name, s]));
+			return names.map((n) => {
+				const s = byName.get(n);
+				return { name: n, vals: s ? (UmaSkillDeckCore.getSkillTags(s.id)[k] || []) : [] };
+			});
+		}, key);
+
+		// ③④ 空を「該当なし」と読む軸（オプトインでないもの）を1つ選ぶと、その軸が空のスキルは出ない
+		const emptyNoneAxis = marks.find((a) => a.emptyNone && !a.optIn && a.key !== 'scenario');
+		if (emptyNoneAxis) {
+			await ensureAxisOpen(emptyNoneAxis.key);
+			await page.click('[data-usd-el="filter-check"][data-axis="' + emptyNoneAxis.key + '"][data-value="' + emptyNoneAxis.opts[0] + '"]');
+			await page.waitForTimeout(400);
+			const rows = await listedTags(emptyNoneAxis.key);
+			const blank = rows.filter((r) => r.vals.length === 0).map((r) => r.name);
+			assert(rows.length > 0 && blank.length === 0,
+				'deck(段5③④): ' + emptyNoneAxis.label + ' を選ぶと、その軸のタグが空のスキルは出ない',
+				{ 出た件数: rows.length, 空のまま出たもの: blank.slice(0, 5) });
+			// ⑤ 同時に、オプトインの軸のタグを持つスキルも出ていない（門番）
+			for (const opt of marks.filter((a) => a.optIn)) {
+				const leaked = (await listedTags(opt.key)).filter((r) => r.vals.length > 0).map((r) => r.name);
+				assert(leaked.length === 0,
+					'deck(段5⑤): 他の軸で絞ると ' + opt.label + ' のタグを持つスキルは出ない', leaked.slice(0, 5));
+			}
+			await page.click('[data-usd-el="filter-check"][data-axis="' + emptyNoneAxis.key + '"][data-value="' + emptyNoneAxis.opts[0] + '"]');
+			await page.waitForTimeout(400);
+		}
+		/* 決6 オプトインの軸だけを選んだときも、そのタグを持つものだけが出る。
+		   **このモーダルは比較シートから開いていて、既に入っているスキルは一覧から除かれる**ので、
+		   軸によっては0件になりうる（レース場のタグを持つのは1件だけで、それが除外されていると0件）。
+		   だから「必ず1件以上出る」とは書けない ―― 見るのは**出たものが全部そのタグを持つこと**で、
+		   空振りでないことは「2軸のうち少なくとも一方は実際に出た」で担保する。 */
+		let sawOptInRows = false;
+		for (const opt of marks.filter((a) => a.optIn)) {
+			// **いちばん多くのスキルが持っている値**を選ぶ（除外で0件になりにくいほうから見る）
+			const used = await page.evaluate(([k, vs]) => {
+				const skills = UmaSkillDeckCore.getMasterSkills();
+				const n = (v) => skills.filter((s) => (UmaSkillDeckCore.getSkillTags(s.id)[k] || []).includes(v)).length;
+				return vs.map((v) => ({ v: v, n: n(v) })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n).map((x) => x.v)[0] || null;
+			}, [opt.key, opt.opts]);
+			if (!used) continue;
+			await ensureAxisOpen(opt.key);
+			await page.click('[data-usd-el="filter-check"][data-axis="' + opt.key + '"][data-value="' + used + '"]');
+			await page.waitForTimeout(400);
+			const rows = await listedTags(opt.key);
+			if (rows.length > 0) sawOptInRows = true;
+			assert(rows.every((r) => r.vals.includes(used)),
+				'deck(段5決6): ' + opt.label + ' 単独で選んでも、そのタグを持つスキルだけが出る',
+				{ 出た件数: rows.length, はみ出し: rows.filter((r) => !r.vals.includes(used)).map((r) => r.name).slice(0, 5) });
+			await page.click('[data-usd-el="filter-check"][data-axis="' + opt.key + '"][data-value="' + used + '"]');
+			await page.waitForTimeout(400);
+		}
+		assert(sawOptInRows, 'deck(段5決6): オプトインの軸の少なくとも一方で実際にスキルが出た（空振りではない）');
+		await ensureAxisOpen('distance');
+	}
+
 	/* --- 「条件でスキルを検索」のときは8軸フィルターだけが出ている --- */
 	const modeState = () => page.evaluate(() => {
 		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
