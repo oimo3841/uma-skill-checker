@@ -3141,42 +3141,162 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(600);
 	assert((await tabLayout()).rows === '1', 'deck: PC幅へ戻すと1行レイアウトに戻る');
 
-	/* --- 選択肢は2行で頭打ち。続きがあることをフェードで示し、スクロールで読める --- */
+	/* --- 選択肢は**3段**で頭打ち。続きは**箱の外**の「▼ ほか N件」で示す（70セッション目・段4） ---
+
+	   それまでは「2行＋3行目が4分の3ほど覗く」高さで、続きは**箱の下端に重なる半透明の帯**
+	   （data-more-below のフェード）で示していた。**覗いている 24px のうち 20px がその帯の下**にあり、
+	   素の色で見えていたのは上から 4px だけで、いちばん下の選択肢が読めなかった。
+	   段4 で (1) 高さを3段ちょうどにし (2) 合図を箱の外へ出した。
+	   **ここで見るのは「高さが何 px か」ではなく「読める状態か」**
+	   ―― px を書き写すと、チップの余白を触った瞬間に嘘になる。 */
 	const optState = (axis) => page.evaluate((a) => {
-		const opts = document.querySelector('.usd-tabpanel[data-usd-axis="' + a + '"] .usd-opts');
+		const panel = document.querySelector('.usd-tabpanel[data-usd-axis="' + a + '"]');
+		const opts = panel.querySelector('.usd-opts');
+		const box = panel.querySelector('[data-usd-el="opts-more"]');
+		const btn = box.querySelector('.usd-opts-more-btn');
+		const optsRect = opts.getBoundingClientRect();
 		const rowTop = (c) => Math.round(c.offsetTop);
+		const bottom = opts.scrollTop + opts.clientHeight;
+		// いま「丸ごと」見えている段（上にも下にもはみ出していないもの）
+		const shown = [...opts.children].filter((c) =>
+			c.offsetTop >= opts.scrollTop - 1 && c.offsetTop + c.offsetHeight <= bottom + 1);
+		// いちばん下に見えている段のチップが、箱の矩形からはみ出していないか（切れて読めないか）
+		const lastTop = shown.length ? Math.max(...shown.map(rowTop)) : null;
+		const lastRow = shown.filter((c) => rowTop(c) === lastTop);
+		const clippedAtBottom = lastRow.filter((c) =>
+			c.getBoundingClientRect().bottom > optsRect.bottom + 1).length;
+		// 最下段のチップに何かが重なっていないか（真ん中の点を拾って、自分自身か中の要素であること）。
+		const overlapped = lastRow.filter((c) => {
+			const r = c.getBoundingClientRect();
+			const el = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.bottom - 4));
+			return !(el === c || c.contains(el));
+		}).length;
+		/* **重なりの検査はこれだけでは足りない。** もとの不具合（段4 で直したもの）は
+		   `.usd-opts-wrap::after` の半透明の帯で、`pointer-events: none` だったので
+		   `elementFromPoint` には**引っかからない**（実際、この検査だけでは当時の状態を捕まえられない）。
+		   擬似要素は DOM から引けないので、箱とその親の ::before / ::after を直接見て、
+		   「見えている中身を持つ擬似要素が無いこと」を確かめる。 */
+		const overlay = [[opts, '::before'], [opts, '::after'], [opts.parentElement, '::before'], [opts.parentElement, '::after']]
+			.filter(([el, sel]) => {
+				const cs = getComputedStyle(el, sel);
+				return cs.content !== 'none' && cs.visibility !== 'hidden'
+					&& cs.display !== 'none' && parseFloat(cs.height || '0') > 0;
+			})
+			.map(([el, sel]) => (el === opts ? '.usd-opts' : '.usd-opts-wrap') + sel);
 		return {
-			more: opts.parentElement.hasAttribute('data-more-below'),
-			clipped: Math.round(opts.clientHeight), full: Math.round(opts.scrollHeight),
 			totalRows: new Set([...opts.children].map(rowTop)).size,
-			// 枠の中に丸ごと収まっている行だけを数える
-			visibleRows: new Set([...opts.children]
-				.filter((c) => c.offsetTop + c.offsetHeight <= opts.clientHeight + 1).map(rowTop)).size
+			visibleRows: new Set(shown.map(rowTop)).size,
+			hiddenBelow: [...opts.children].filter((c) => c.offsetTop + c.offsetHeight > bottom + 1).length,
+			moreState: box.getAttribute('data-more'),
+			moreVisible: getComputedStyle(box).visibility === 'visible',
+			moreText: btn.textContent.trim(),
+			clippedAtBottom, overlapped, overlay,
 		};
 	}, axis);
-	const venue = await optState('trackVenue');
-	assert(venue.visibleRows === 2 && venue.totalRows > 2 && venue.full > venue.clipped + 2,
-		'deck: 選択肢の多い軸は2行までに抑えられ、続きは隠れている', venue);
-	assert(venue.more === true, 'deck: 続きがある軸は下端にフェードが出る', venue);
 
-	const distance = await optState('distance');
-	assert(distance.more === false, 'deck: 1行で収まる軸にはフェードが出ない', distance);
+	/* 軸ごとの選択肢の数は **TAG_AXES から取る**（件数を検査に書き写さない）。
+	   選択肢が3段に入りきらない軸＝合図が出るはずの軸、を実測で割り出して突き合わせる。 */
+	const perAxis = await page.evaluate(() => UmaSkillDeckCore.TAG_AXES.map((a) => a.key));
+	const optsAll = [];
+	for (const key of perAxis) {
+		await page.click('.usd-tab[data-usd-axis="' + key + '"]');
+		await page.waitForTimeout(120);
+		optsAll.push({ key, ...(await optState(key)) });
+	}
+	// (1) どの軸も、3段までは丸ごと見えている（3段に満たない軸はその段数ぶん全部）
+	const rowsOk = optsAll.filter((o) => o.visibleRows !== Math.min(3, o.totalRows));
+	assert(rowsOk.length === 0, 'deck(段4): どの軸も3段（それ未満の軸は全段）が丸ごと見えている',
+		optsAll.map((o) => o.key + ':' + o.visibleRows + '/' + o.totalRows));
+	// (2) いちばん下に見えている段が、切れても何かに重なられてもいない
+	const unreadable = optsAll.filter((o) => o.clippedAtBottom > 0 || o.overlapped > 0 || o.overlay.length > 0);
+	assert(unreadable.length === 0, 'deck(段4): 最下段の選択肢が切れず、何にも重なられていない',
+		unreadable.map((o) => o.key + ' 切れ' + o.clippedAtBottom + ' 重なり' + o.overlapped + ' 覆い' + o.overlay.join(',')));
+	// (3) 続きがある軸にだけ合図が出る（出る／出ないを実測の「隠れ件数」と突き合わせる）
+	const signalWrong = optsAll.filter((o) => (o.hiddenBelow > 0) !== o.moreVisible);
+	assert(signalWrong.length === 0, 'deck(段4): 続きがある軸にだけ「▼ ほか N件」が出る',
+		optsAll.map((o) => o.key + ':隠れ' + o.hiddenBelow + (o.moreVisible ? '→' + o.moreText : '→出ない')));
+	// (4) 合図の N は、実際に隠れている件数と一致する
+	const countWrong = optsAll.filter((o) => o.moreVisible && o.moreText !== '▼ ほか ' + o.hiddenBelow + '件');
+	assert(countWrong.length === 0, 'deck(段4): 合図の件数が実際に隠れている数と一致する',
+		optsAll.filter((o) => o.moreVisible).map((o) => o.key + ':' + o.moreText + '（実測' + o.hiddenBelow + '）'));
 
-	// パネルの高さは2行ぶんで一定（切り替えても下のスキル一覧が跳ねない）
+	// パネルの高さは軸をまたいで一定（切り替えても下のスキル一覧が跳ねない）。
+	// **合図は場所を取ったまま見えなくなる**ので、出る軸と出ない軸で高さが変わらない。
 	const heightOnVenue = await page.evaluate(() => Math.round(document.querySelector('.usd-tabpanels').getBoundingClientRect().height));
 	await page.click('.usd-tab[data-usd-axis="distance"]');
 	await page.waitForTimeout(300);
 	const heightOnDistance = await page.evaluate(() => Math.round(document.querySelector('.usd-tabpanels').getBoundingClientRect().height));
 	assert(heightOnVenue === heightOnDistance, 'deck: 軸を替えてもパネルの高さは変わらない', { heightOnVenue, heightOnDistance });
 
-	// 下までスクロールするとフェードが消える
-	await page.evaluate(() => {
-		const opts = document.querySelector('.usd-tabpanel[data-usd-axis="trackVenue"] .usd-opts');
-		opts.scrollTop = opts.scrollHeight;
-	});
+	/* --- 375px：ここで初めて3段に入りきらない軸が出るので、合図の出方と押したときの動きを見る ---
+	   **PC幅では合図が1つも出ない**（3段に全部収まる）ので、上の (3)(4) は広い幅では
+	   「出ないことの確認」しかしていない。**出る側**は狭い幅でしか通らない。 */
+	await page.setViewportSize({ width: 375, height: 812 });
+	await page.waitForTimeout(700);
+	const narrowOpts = [];
+	for (const key of perAxis) {
+		await page.click('.usd-tab[data-usd-axis="' + key + '"]');
+		await page.waitForTimeout(120);
+		narrowOpts.push({ key, ...(await optState(key)) });
+	}
+	const narrowSignal = narrowOpts.filter((o) => o.moreVisible);
+	assert(narrowSignal.length > 0, 'deck(段4): 375px では合図が出る軸が実際にある',
+		narrowSignal.map((o) => o.key + ':' + o.moreText));
+	const narrowRowsNg = narrowOpts.filter((o) => o.visibleRows !== Math.min(3, o.totalRows));
+	assert(narrowRowsNg.length === 0, 'deck(段4): 375px でも3段（それ未満の軸は全段）が丸ごと見えている',
+		narrowOpts.map((o) => o.key + ':' + o.visibleRows + '/' + o.totalRows));
+	const narrowUnreadable = narrowOpts.filter((o) => o.clippedAtBottom > 0 || o.overlapped > 0 || o.overlay.length > 0);
+	assert(narrowUnreadable.length === 0, 'deck(段4): 375px でも最下段が切れず、何にも重なられていない',
+		narrowUnreadable.map((o) => o.key + ' 切れ' + o.clippedAtBottom + ' 重なり' + o.overlapped + ' 覆い' + o.overlay.join(',')));
+	const narrowWrong = narrowOpts.filter((o) => (o.hiddenBelow > 0) !== o.moreVisible);
+	assert(narrowWrong.length === 0, 'deck(段4): 375px でも続きがある軸にだけ合図が出る',
+		narrowOpts.map((o) => o.key + ':隠れ' + o.hiddenBelow + (o.moreVisible ? '→' + o.moreText : '→出ない')));
+
+	// 合図を押すと1段ぶん送られて、残りの件数が減る。最後まで送ると合図が消える（場所は残る）。
+	// **隠れている数がいちばん多い軸**を選ぶ ―― 1回押しただけで残り0になる軸だと
+	// 「押すたびに1段ずつ送られる」ことを確かめられない（選択肢の数は検査に書かないので、実測で選ぶ）。
+	// **合図が1つも出ていないときは、ここから先は確かめようがない**ので飛ばす
+	// （上の「合図が出る軸が実際にある」が既に落ちている。ここで落ちるのではなく
+	//   例外で止まると、後続の検査がまとめて走らなくなる）。
+	if (narrowSignal.length === 0) {
+		console.log('     （合図が1つも出ていないので、押したときの動きの検査は飛ばした）');
+	} else {
+	const signalAxis = narrowSignal.slice().sort((a, b) => b.hiddenBelow - a.hiddenBelow)[0].key;
+	await page.click('.usd-tab[data-usd-axis="' + signalAxis + '"]');
+	await page.waitForTimeout(200);
+	const before = await optState(signalAxis);
+	await page.click('[data-usd-act="opts-more"][data-usd-axis="' + signalAxis + '"]');
 	await page.waitForTimeout(300);
-	assert((await optState('trackVenue')).more === false,
-		'deck: 下までスクロールするとフェードが消える');
+	const after = await optState(signalAxis);
+	assert(after.hiddenBelow < before.hiddenBelow && after.hiddenBelow > 0,
+		'deck(段4): 合図を押すと1段ぶん送られ、残りが減る', { 軸: signalAxis, 前: before.moreText, 後: after.moreText });
+	assert(after.moreText === '▼ ほか ' + after.hiddenBelow + '件',
+		'deck(段4): 送ったあとも件数が実測と合っている', after.moreText);
+	assert(after.clippedAtBottom === 0 && after.overlapped === 0 && after.overlay.length === 0,
+		'deck(段4): 送った先でも最下段が切れず、何にも重なられていない', after);
+	const moreBox = () => page.evaluate((a) => {
+		const box = document.querySelector('.usd-tabpanel[data-usd-axis="' + a + '"] [data-usd-el="opts-more"]');
+		const r = box.getBoundingClientRect();
+		return { visibility: getComputedStyle(box).visibility, height: Math.round(r.height) };
+	}, signalAxis);
+	const boxBefore = await moreBox();
+	await page.evaluate((a) => {
+		const opts = document.querySelector('.usd-tabpanel[data-usd-axis="' + a + '"] .usd-opts');
+		opts.scrollTop = opts.scrollHeight;
+	}, signalAxis);
+	await page.waitForTimeout(300);
+	const end = await optState(signalAxis);
+	const boxAfter = await moreBox();
+	assert(end.hiddenBelow === 0 && !end.moreVisible,
+		'deck(段4): 下まで送ると合図が消える', end);
+	assert(boxAfter.height === boxBefore.height && boxAfter.height > 0,
+		'deck(段4): 合図が消えても場所は残る（下の一覧が跳ねない）', { boxBefore, boxAfter });
+	}
+
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.waitForTimeout(600);
+	await page.click('.usd-tab[data-usd-axis="distance"]');
+	await page.waitForTimeout(200);
 
 	/* --- 「条件でスキルを検索」のときは8軸フィルターだけが出ている --- */
 	const modeState = () => page.evaluate(() => {

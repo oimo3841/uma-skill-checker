@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-21g';
 
 	/* ============================================================
 	 * 定数
@@ -1720,23 +1720,45 @@
 		'  background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }',
 		'.usd-link-btn:disabled { color: var(--uma-border-strong); text-decoration: none; cursor: default; }',
 
-		// 選択肢の置き場。2行ぶんで頭打ちにして、続きはこの中だけを縦スクロールさせる。
-		// 選択肢が最多の軸（⑦レース場17個）に高さを合わせると、それだけでモーダルが埋まるため。
-		// 続きがあることは下端のフェードで示す（data-more-below はJSが付け外しする）。
+		/* 選択肢の置き場。**3段ぶんで頭打ち**にして、続きはこの中だけを縦スクロールさせる。
+		 * 選択肢が最多の軸（レース環境21個）に高さを合わせると、それだけでモーダルが埋まるため。
+		 *
+		 * **70セッション目・段4 で作り直した。**
+		 * それまでは「2行ぶん＋3行目が4分の3ほど覗く」高さ（`* 2.75`）で、続きがあることは
+		 * **箱の下端に重なる半透明の帯（フェード）**で示していた。これが読めなかった ――
+		 * 覗いている 24px のうち **20px がフェードの下**にあり、素の色で見えているのは
+		 * **上から 4px だけ**だった（実測）。設計では3行目は「覗かせる行」だったが、
+		 * 利用者は「3段目の選択肢」として読もうとする。
+		 *
+		 * 直し方は2つ組み合わせている:
+		 *   (1) 高さを**3段ちょうど**にする（`* 3 + 隙間 * 2`）。半端に切れる行が出ない。
+		 *   (2) **重なる合図をやめ、箱の外に出す**（`.usd-opts-more`）。
+		 *       重ねている限り「いちばん下の行がかすむ」ことは高さを変えても消えないため。
+		 *       外に出した合図は**あと何件あるか**まで言えるので、フェード（「まだある」だけ）より
+		 *       読み取れることが多い。
+		 * 高さは px で書かず、**チップの実測値**（--usd-opt-row。updatePickerFilterLayout が入れる）
+		 * と隙間のトークンから出す。チップの余白を触った瞬間に半端な高さへずれるのを避けるため。 */
 		'.usd-opts-wrap { position: relative; }',
-		'.usd-opts-wrap::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 20px;',
-		'  pointer-events: none; visibility: hidden;',
-		'  background: linear-gradient(to top, var(--uma-surface), transparent); }',
-		'.usd-opts-wrap[data-more-below]::after { visibility: visible; }',
-		// 2行ぶん＋3行目が4分の3ほど覗く高さ。ちょうど2行で切ると、フェードが2行目に
-		// かかって「2行目が切れている」としか見えず、続きの合図にならない。逆に覗きが
-		// 数pxだと、ただの余白に見えて続きがあることが伝わらない。半分でもまだ気付き
-		// にくかったので、チップの丸みが見分けられるところまで出してある。覗き（24px）は
-		// フェードの高さ（20px）より大きくし、覗いた行の上端は素の色で見えるようにする。
 		'.usd-opts { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2);',
-		'  max-height: calc(var(--usd-opt-row) * 2.75 + var(--uma-sp-2) * 2);',
+		'  max-height: calc(var(--usd-opt-row) * 3 + var(--uma-sp-2) * 2);',
 		'  overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: none; }',
 		'.usd-opts::-webkit-scrollbar { display: none; }',
+
+		/* 続きがあることの合図。**箱の外**（下）に1行ぶんの場所を常に取る。
+		 * **`hidden` で消さず `visibility` で消す** ―― 消すと、スクロールして続きが無くなった
+		 * 瞬間にこの行のぶんだけ下のスキル一覧が跳ねる。場所は取ったまま中身だけ消す。
+		 * 押すと1段ぶんスクロールする（段の高さは実測から出す。JS側を読むこと）。 */
+		// **高さは文字の有無に関わらず一定**にする。中のボタンは見えないとき文字が空になるので、
+		// min-height を置かないと 4px まで縮んで、合図が出た軸と出ない軸でパネルの高さが変わる
+		// （＝下のスキル一覧が跳ねる）。値は書かず、中のボタンと同じ組み方（行の高さ＋上下の余白）で出す。
+		'.usd-opts-more { display: flex; align-items: center; justify-content: flex-end;',
+		'  margin-top: var(--uma-sp-1-5); min-height: calc(var(--uma-lh-xs) + var(--uma-sp-0-5) * 2); }',
+		'.usd-opts-more-btn { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
+		'  display: inline-flex; align-items: center; gap: var(--uma-sp-1);',
+		'  padding: var(--uma-sp-0-5) var(--uma-sp-2); border: 0; border-radius: var(--uma-r-full);',
+		'  background: var(--uma-surface-muted); color: var(--uma-text-muted); cursor: pointer; }',
+		'.usd-opts-more-btn:hover { background: var(--uma-border); color: var(--uma-text-heading); }',
+		'.usd-opts-more[data-more="none"] { visibility: hidden; }',
 
 		// 選択肢チップ。中身は本物の checkbox のままなので、既存のJSとテストがそのまま掴める
 		// （.usd-chip はテンプレートのスキル名チップで使用済みのため .usd-opt にしてある）
@@ -2155,6 +2177,8 @@
 			else if (act === 'filter-jump') selectPickerAxisTab(btn.dataset.usdAxis, true);
 			else if (act === 'filter-clear-axis') clearPickerAxisFilter(btn.dataset.usdAxis);
 			else if (act === 'filter-clear-all') clearAllPickerFilters();
+			// 「▼ ほか N件」（段4）。1段ぶん下へ送る
+			else if (act === 'opts-more') scrollOptionsByRow(btn.dataset.usdAxis);
 			else if (act === 'picker-add') addCheckedSkills();
 			else if (act === 'custom-add') addCustomSkillFromPicker();
 			else if (act === 'paste-run') runPasteMatch();
@@ -2239,6 +2263,12 @@
 				'<div class="usd-opts-wrap">' +
 					'<div class="usd-opts" data-usd-el="axis-options">' + opts + '</div>' +
 				'</div>' +
+				// 続きがあることの合図（段4）。**箱の外**に置くので、選択肢に重ならない。
+				// 中身（件数）は updateOptionsMore() が入れる。3段に収まる軸では
+				// data-more="none" が付いて見えなくなる（場所は取ったまま）。
+				'<div class="usd-opts-more" data-usd-el="opts-more" data-usd-axis="' + axis.key + '" data-more="none">' +
+					'<button type="button" class="usd-opts-more-btn" data-usd-act="opts-more" data-usd-axis="' + axis.key + '"></button>' +
+				'</div>' +
 			'</section>';
 		}).join('');
 
@@ -2269,7 +2299,7 @@
 		// scroll はバブリングしないので、選択肢の縦スクロールは捕捉フェーズで1本だけ張る
 		// （軸ごとに8本張らずに済む）。
 		q(pickerEl, 'tabpanels').addEventListener('scroll', (e) => {
-			if (e.target.classList && e.target.classList.contains('usd-opts')) updateOptionFade(e.target);
+			if (e.target.classList && e.target.classList.contains('usd-opts')) updateOptionsMore(e.target);
 		}, true);
 		if (global.ResizeObserver) new global.ResizeObserver(updatePickerFilterLayout).observe(tablist);
 	}
@@ -2304,22 +2334,54 @@
 		const overflows = tablist.scrollWidth > tablist.clientWidth + 1;
 		bar.setAttribute('data-usd-rows', overflows ? 'multi' : '1');
 
-		// 選択肢を「2行ぶん」で頭打ちにする高さは、チップの実測値から決める。
+		// 選択肢を「3段ぶん」で頭打ちにする高さは、チップの実測値から決める（段4 で 2.75段 → 3段）。
 		// px を決め打ちすると、チップの余白や中の checkbox の寸法を触った瞬間に
-		// 2行目が半分だけ見える状態へ静かにずれる（実際に踏んだ）。
+		// 3段目が半分だけ見える状態へ静かにずれる（実際に踏んだ）。
 		const chip = pickerEl.querySelector('.usd-opt');
 		const tabs = pickerEl.querySelector('.usd-axis-tabs');
 		if (chip && chip.offsetHeight && tabs) tabs.style.setProperty('--usd-opt-row', chip.offsetHeight + 'px');
 
-		pickerEl.querySelectorAll('.usd-opts').forEach(updateOptionFade);
+		pickerEl.querySelectorAll('.usd-opts').forEach(updateOptionsMore);
 	}
 
-	/* 選択肢が2行に収まりきらないとき、続きがあることを下端のフェードで示す。 */
-	function updateOptionFade(opts) {
+	/**
+	 * 選択肢が3段に収まりきらないとき、**箱の外**に「▼ ほか N件」を出す（70セッション目・段4）。
+	 *
+	 * **N は「いま下に隠れている選択肢の数」**（段の数ではなく件数）。スクロールするたびに減る。
+	 * 数え方は「その選択肢の下端が、見えている範囲の下端より下にあるか」だけ。
+	 * 上へスクロールして隠れたぶんは数えない ―― 合図が指しているのは**下の続き**なので。
+	 *
+	 * **場所は常に取ったまま、見えなくするだけ**（`data-more="none"` ＋ CSS の visibility）。
+	 * `hidden` で消すと、スクロールし切った瞬間にこの行のぶんだけ下のスキル一覧が跳ねる。
+	 */
+	function updateOptionsMore(opts) {
 		const wrap = opts.parentElement;
-		if (!wrap) return;
-		const more = opts.scrollHeight - opts.clientHeight - opts.scrollTop > 2;
-		wrap.toggleAttribute('data-more-below', more);
+		const panel = wrap && wrap.parentElement;
+		const box = panel && panel.querySelector('[data-usd-el="opts-more"]');
+		if (!box) return;
+		const bottom = opts.scrollTop + opts.clientHeight;
+		const hidden = [...opts.children].filter(c => c.offsetTop + c.offsetHeight > bottom + 1).length;
+		box.setAttribute('data-more', hidden > 0 ? 'below' : 'none');
+		const btn = box.querySelector('.usd-opts-more-btn');
+		if (!btn) return;
+		btn.textContent = hidden > 0 ? '▼ ほか ' + hidden + '件' : '';
+		// 見えていないときはタブ移動でも拾わせない（場所は取ったままなので tabindex で外す）
+		btn.tabIndex = hidden > 0 ? 0 : -1;
+		btn.setAttribute('aria-hidden', hidden > 0 ? 'false' : 'true');
+	}
+
+	/**
+	 * 「▼ ほか N件」を押したときに1段ぶんスクロールする。
+	 * **段の高さは実測から出す**（チップの高さも隙間もトークン次第で変わるため）。
+	 * 段が1つしか無いときはここへ来ない（そのときは合図が出ていない）。
+	 */
+	function scrollOptionsByRow(axisKey) {
+		const opts = pickerEl.querySelector('.usd-tabpanel[data-usd-axis="' + axisKey + '"] .usd-opts');
+		if (!opts) return;
+		const tops = [...new Set([...opts.children].map(c => c.offsetTop))].sort((a, b) => a - b);
+		const pitch = tops.length > 1 ? tops[1] - tops[0] : opts.clientHeight;
+		opts.scrollTop = opts.scrollTop + pitch;
+		updateOptionsMore(opts);
 	}
 
 	/**
