@@ -9,6 +9,8 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 import { startServer, REPO_ROOT } from './lib/serve.mjs';
 import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA } from './lib/fixtures.mjs';
+// スクリーンショットの画素から**実際に描かれている色**を読む（段11 ⑨。半透明の重なりの結果を見るため）
+import { avgColor, deltaE, contrastRatio, hexOf } from './lib/pixels.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -9264,24 +9266,75 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		const probe = document.createElement('span');
 		probe.style.cssText = 'position:absolute;left:-9999px';
 		document.body.appendChild(probe);
-		probe.style.color = 'var(--uma-surface-sunken)';
-		const sunken = getComputedStyle(probe).color;
+		probe.style.color = 'var(--uma-surface-group)';
+		const group = getComputedStyle(probe).color;
 		probe.style.color = 'var(--uma-surface)';
 		const surface = getComputedStyle(probe).color;
 		probe.remove();
 		const read = (el) => { const cs = getComputedStyle(el); return { bg: cs.backgroundColor, bw: cs.borderTopWidth + '/' + cs.borderBottomWidth }; };
-		return { framed: secA.classList.contains('uma-section--framed'), 本体: read(body), 札: read(tab), カード: getComputedStyle(card).backgroundColor, 沈めた面: sunken, 素の面: surface };
+		return { framed: secA.classList.contains('uma-section--framed'), 本体: read(body), 札: read(tab), カード: getComputedStyle(card).backgroundColor, まとまりの面: group, 素の面: surface };
 	});
-	assert(look.framed && look.本体.bg === look.沈めた面 && look.本体.bw === '0px/0px',
-		'段11(⑨): A の中身は枠線を持たず、--uma-surface-sunken の面で塗られている', look);
+	assert(look.framed && look.本体.bg === look.まとまりの面 && look.本体.bw === '0px/0px',
+		'段11(⑨): A の中身は枠線を持たず、--uma-surface-group の面で塗られている', look);
 	assert(look.札.bg === look.本体.bg && look.札.bw === '0px/0px',
 		'段11(⑨): 出っ張り（札）も枠線を持たず、本体とまったく同じ面の色（線ではなく色で一体に見せる）', look);
-	/* **空振り防止。** 面の色が素の白（`--uma-surface`）と同じなら、
-	   塗ったつもりでも周りのカードと見分けが付かない（枠も無いので何も残らない）。
-	   **周りのカードの地（rgba）と比べるのでは足りない** ―― 半透明なので
-	   トークンを白にしても文字列は一致せず、素通りする。**トークンどうしで比べる。** */
-	assert(look.沈めた面 !== look.素の面 && look.本体.bg !== look.素の面,
-		'段11(⑨): その面は素の白（--uma-surface）とは違う色（塗ったのに見分けが付かない、にならない）', look);
+
+	/* **「色は変わっているのに、変わったと分からない」を捕まえる**（72セッション目・段11 ⑨ のやり直し）。
+	 *
+	 * 上の2本は「札と本体が同じ値」「素の白ではない」しか見ていないので、
+	 * **薄すぎて領域として読めない**状態を素通りした（実機で指摘を受けたのがこれ）。
+	 * ここでは**スクリーンショットの画素**を読んで、パネルと**その周り**の色差を見る。
+	 * `getComputedStyle` の値では足りない ―― `.glass-card` は `rgba(255,255,255,.9)` ＋
+	 * `backdrop-filter` で、その下にページの地（グラデーション）があり、
+	 * **周りの実際の色は真っ白ではない**（測ると #fbfbfa〜#ffffff）。
+	 *
+	 * **物差しは ΔE（CIE76）。** WCAG のコントラスト比は文字の読みやすさ用で、
+	 * 明るい色どうしでは鈍い（今回の候補はどれも 1.01〜1.23 の範囲に潰れる）。
+	 * ΔE は「並べたときに違って見えるか」の目安がはっきりしている:
+	 *   〜2.3 … 見分けが付かない ／ 3〜5 … 近くで見れば分かる ／ 5〜 … はっきり違う
+	 *
+	 * **閾値は 5.0。** 実測で
+	 *   slate-50（最初の版・薄すぎると言われた） … 1.72〜2.21
+	 *   slate-100                                … 3.66〜4.40
+	 *   slate-200（いまの --uma-surface-group）  … 8.50〜9.43
+	 * なので、**「薄すぎる」と言われた値と、選んだ値のあいだ**に閾値が入る。
+	 * いまの値には 1.7倍の余裕があり、周りの地を多少動かしても落ちない。
+	 *
+	 * 測る点は**文字もボタンも載っていない余白**を2つ ―― パネルの左の内側の余白と、
+	 * 札の行のすぐ上の帯（カードの地がそのまま出ているところ）。**悪いほうで判定する。** */
+	const CONTRAST_MIN_DELTA_E = 5.0;
+	for (const [w, h] of [[1280, 900], [375, 812]]) {
+		await page.setViewportSize({ width: w, height: h });
+		await page.waitForTimeout(500);
+		const pts = await page.evaluate(() => {
+			const secA = document.querySelector('#deck-template-panel [data-usd-el="section-a"]');
+			secA.scrollIntoView({ block: 'center' });
+			const body = secA.querySelector(':scope > .uma-section-body');
+			const tabEl = secA.querySelector('.uma-section-row > .uma-section-head');
+			const card = secA.closest('.glass-card');
+			const b = body.getBoundingClientRect(), t = tabEl.getBoundingClientRect(), c = card.getBoundingClientRect();
+			return {
+				パネル: { x: Math.round(b.left + 3), y: Math.round(b.top + b.height / 2) },
+				カード左: { x: Math.round((c.left + b.left) / 2), y: Math.round(b.top + b.height / 2) },
+				カード上: { x: Math.round(t.left + t.width / 2), y: Math.round(t.top - 6) },
+			};
+		});
+		await page.waitForTimeout(300);
+		const sample = async (p) => avgColor(await page.screenshot({ clip: { x: p.x - 1, y: p.y - 1, width: 3, height: 3 } }));
+		const パネル = await sample(pts.パネル);
+		const 周り = { 左: await sample(pts.カード左), 上: await sample(pts.カード上) };
+		const 差 = { 左: deltaE(パネル, 周り.左), 上: deltaE(パネル, 周り.上) };
+		const 最小 = Math.min(差.左, 差.上);
+		assert(最小 >= CONTRAST_MIN_DELTA_E,
+			'段11(⑨): ' + w + 'px でパネルと周りの色差が ΔE ' + CONTRAST_MIN_DELTA_E + ' 以上（見ただけで領域が分かる）',
+			{
+				パネル: hexOf(パネル), 周り: { 左: hexOf(周り.左), 上: hexOf(周り.上) },
+				ΔE: { 左: 差.左.toFixed(2), 上: 差.上.toFixed(2), 最小: 最小.toFixed(2) },
+				参考のコントラスト比: { 左: contrastRatio(パネル, 周り.左).toFixed(3), 上: contrastRatio(パネル, 周り.上).toFixed(3) },
+			});
+	}
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.waitForTimeout(400);
 
 	/* ---- ⑩ 入口の開閉 ---- */
 	const entryState = () => page.evaluate(() => {

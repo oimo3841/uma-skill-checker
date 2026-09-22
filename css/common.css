@@ -31,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-09-22b";
+	--uma-components-css-version: "2026-09-22c";
 }
 
 /* ============================================================
@@ -334,7 +334,7 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
  * 影を付けると層が深く見えて関係が読みにくくなる（.uma-help-box など既存の枠も影を持たない）。
  *
  * **72セッション目・段11 ⑨ で、枠線をやめて「わずかなグレーの面」に変えた。**
- * 出っ張りと中身が**同じ面の色（--uma-surface-sunken）**で繋がっていることだけで、
+ * 出っ張りと中身が**同じ面の色（--uma-surface-group）**で繋がっていることだけで、
  * 上の「どれのものか」を示す。**2か所の background は必ず同じ値にすること。**
  * （それ以前は、白い面＋1pxの枠で、出っ張りの下で枠の上辺を消す作りだった。
  *   .glass-card の地が rgba(255,255,255,.9) なので、白い箱が白い地に乗っていて
@@ -354,12 +354,16 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
 /* **72セッション目・段11 ⑨: 枠線をやめ、わずかなグレーの面に変えた。**
    それまでは白い面＋1pxの枠で、**.glass-card の白い地の上に白い箱**が乗っている状態だった
    （境目は 1px の線だけ）。面に色を付けると、線を引かなくても「ここからここまで」が読める。
-   色は `--uma-surface-sunken`（slate-50＝「一段沈めた面」。この用途そのもののトークン）。
+   色は `--uma-surface-group`（slate-200）。**最初は slate-50 にしたが、実機で
+   「周りのカードとの差がほとんど無い」と指摘された** ―― 囲む相手が半透明の .glass-card なので、
+   周りの実際の画素は真っ白ではなく、slate-50 との色差（ΔE）は 1.7〜2.2 しか出ていなかった
+   （＝並べても見分けが付かない範囲）。いまは 8.5〜9.4。値の根拠は css/tokens.css の
+   --uma-surface-group のコメント。**差そのものを run-smoke が見張っている。**
    **出っ張りも同じ色にする**（下の .uma-section-row > .uma-section-head）。
    枠を無くしたので、**札と枠の一体感は色の一致だけで保つ** ―― 段K の狙い
    （「この枠は並んでいるうちのどれのものか」）は、同じ色の面が繋がって見えることで残る。 */
 .uma-section--framed > .uma-section-body {
-	background: var(--uma-surface-sunken);
+	background: var(--uma-surface-group);
 	/* 左上だけ角を立てる（出っ張りがそこに接するため） */
 	border-radius: 0 var(--uma-r-lg) var(--uma-r-lg) var(--uma-r-lg);
 	padding: var(--uma-sp-3);
@@ -369,7 +373,7 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
 	column-gap: var(--uma-section-row-gap);
 }
 /* 出っ張り。同じ行に並ぶ選択肢の中でこれが主役なので、**一段大きい字**にする。
-   **72セッション目・段11 ⑨: 枠線をやめ、面を下の本体と同じ `--uma-surface-sunken` にした。**
+   **72セッション目・段11 ⑨: 枠線をやめ、面を下の本体と同じ `--uma-surface-group` にした。**
    枠が無くなったので、**札と本体は色が一致していることだけで地続きに見える** ――
    ここと `.uma-section--framed > .uma-section-body` の `background` は**必ず同じ値**にすること
    （片方だけ変えると札が浮いて、段K の「どの枠のものか」が読めなくなる）。
@@ -383,7 +387,7 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
 	padding: 0 var(--uma-sp-3);
 	font-size: var(--uma-fs-md); line-height: var(--uma-lh-md);
 	letter-spacing: 0; color: var(--uma-text);
-	background: var(--uma-surface-sunken);
+	background: var(--uma-surface-group);
 	border-radius: var(--uma-r-md) var(--uma-r-md) 0 0;
 	position: relative; z-index: 1;
 }
