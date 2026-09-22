@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-22b"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-22c"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-20e"></script>
 	<style>
@@ -311,7 +311,9 @@
 			<div class="help-head">
 				<h2 id="skillset-guide-title" class="help-title">
 					<i data-lucide="upload-cloud" class="w-4 h-4 text-green-600"></i>
-					<span>スキルセットのスクショで追加</span>
+					<!-- 71セッション目・段6: 入口のボタンと同じ文言に揃える（「スキルセットのスクショで追加」→「スクショで追加」）。
+					     ボタン側は core の既定（opts.screenshotEntry.label を省くとこの文字列が出る）を使っている。 -->
+					<span>スクショで追加</span>
 				</h2>
 				<button id="skillset-guide-close" type="button" class="uma-icon-btn" onclick="closeSkillsetGuide()" aria-label="閉じる">
 					<i data-lucide="x" class="w-5 h-5"></i>
@@ -596,7 +598,7 @@
 					     読み取れなかった行が1つ以上あるときだけ出す（0のときは見出しごと出さない）。 -->
 					<div id="deck-ocr-panels" class="hidden mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
 						<p class="text-xs font-semibold text-slate-700">文字を読み取れなかったスキルパネル</p>
-						<p class="mt-1 text-[11px] text-slate-500">すでに追加済みのものが含まれることがあります。必要なものは「テキストで検索」または「条件でスキルを検索」から追加してください。</p>
+						<p class="mt-1 text-[11px] text-slate-500">すでに追加済みのものが含まれることがあります。必要なものは「テキストで検索」または「条件で検索」から追加してください。</p>
 						<div id="deck-ocr-panels-list" class="mt-2 flex flex-wrap gap-2"></div>
 					</div>
 				</div>
@@ -3082,7 +3084,9 @@
 						// 押すと撮影ガイド（＝アップロードの画面）を開き、その中の「スクショを選ぶ」からファイル選択へ。
 						// ガイドは毎回出す（初回だけにしない）。「スキルセット画面」がどの画面かはこの機能の最大の躓きどころで、
 						// 「?」も外したので後から見る手段がガイド自身しか無いため（おいもさんの判断。F-43）。
-						screenshotEntry: { label: 'スキルセットのスクショで追加', onClick: openSkillsetGuide }
+						// 71セッション目・段6: ラベルを渡すのをやめた。core の既定が「スクショで追加」なので、
+						// 同じ文字列を2か所に持たずに済む（撮影ガイドの見出しは special 側にあるので、そちらは直接直した）。
+						screenshotEntry: { onClick: openSkillsetGuide }
 					}
 				);
 				// 編成パネル（C-51）。収録データ（育成ウマ娘・サポートカード）は
@@ -3499,7 +3503,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-21a';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-22a';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {

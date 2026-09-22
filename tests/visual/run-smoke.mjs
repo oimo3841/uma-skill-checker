@@ -340,12 +340,13 @@ const browser = await chromium.launch();
 			modes: !!del && !!reclass, modesOff: del && reclass && del.getAttribute('aria-pressed') === 'false' && reclass.getAttribute('aria-pressed') === 'false',
 			modesDisabled: del && reclass && del.disabled && reclass.disabled };
 	});
-	// C-3: 「まとめてリセット」は A の入口の並びに**常時見えている**（削除モードに入らない）。
+	// C-3: 「リセット」は A の入口の並びに**常時見えている**（削除モードに入らない）。
 	// 70セッション目・段1 で呼び名を「− 追加済みスキルを全て削除」から変え、
 	// 見た目を .uma-btn--ghost から .uma-btn--danger（赤）へ変えた（⑪）。
-	assert(clearBtn.exists && !clearBtn.hidden && clearBtn.label === 'まとめてリセット' && clearBtn.inEntryRow,
+	// 71セッション目・段6 で「まとめてリセット」→「リセット」（文言だけ。動きも見た目も変えていない）。
+	assert(clearBtn.exists && !clearBtn.hidden && clearBtn.label === 'リセット' && clearBtn.inEntryRow,
 		'C-3: 一括削除は A の入口の並びに常時見えている', clearBtn);
-	assert(clearBtn.danger, '段1(⑪): 「まとめてリセット」は .uma-btn--danger（赤）で出る', clearBtn);
+	assert(clearBtn.danger, '段1(⑪): 「リセット」は .uma-btn--danger（赤）で出る', clearBtn);
 	assert(clearBtn.modes && clearBtn.modesOff, 'special: 「再分類」「削除」のモードのボタンがあり、既定は両方 OFF', clearBtn);
 	assert(clearBtn.count === 0 && clearBtn.modesDisabled && clearBtn.disabled,
 		'C-3: 0種のときはモードのボタンも一括削除も押せない', clearBtn);
@@ -817,8 +818,9 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(300);
 	await page.waitForFunction(() => UmaSkillDeckCore.matchPastedSkillText('右回り○').rows[0].kind === 'exact', null, { timeout: 15000 });
 
-	// 入口は編集画面の入口の並びに出る（改訂: 「テキストで検索」と「収録されていないスキルを追加」の間。
-	// ラベル「スキルセットのスクショで追加」、アイコンはアップロード枠と同じ upload-cloud、隣に「?」＝撮影ガイド）。
+	// 入口は編集画面の入口の並びに出る（改訂: 「テキストで検索」と「未収録スキルを追加」の間。
+	// ラベル「スクショで追加」、アイコンはアップロード枠と同じ upload-cloud、隣に「?」＝撮影ガイド）。
+	// 71セッション目・段6: special が渡していたラベルを外し、core の既定「スクショで追加」を使う形にした。
 	// 一覧の画面には無い。ドラフトの編集を開いてから見る。
 	// 編集画面のマークアップは一覧と同じコンテナに hidden で同居するので、「見えているか」で見る
 	// 入口は常に見えている（C-53: 別画面の編集ビューは無く、タブで選んだものをその場で編集する）
@@ -861,8 +863,8 @@ const browser = await chromium.launch();
 	// 「?」は外した（入口を押せば必ずガイドが出るので情報を足さず、スマホ幅で並びが崩れたため）
 	// C-3 で末尾に一括削除（editor-clear-skills）が並んだ
 	assert(entry.order.join(',') === 'editor-pick,editor-pick-text,editor-pick-screenshot,editor-pick-custom,editor-clear-skills'
-		&& entry.label === 'スキルセットのスクショで追加' && entry.cls.includes('uma-btn--secondary') && entry.noHelp,
-		'special/ocr入口: 「テキストで検索」と「収録されていないスキルを追加」の間に、同じ見た目で「スキルセットのスクショで追加」が出る（「?」は無い）', { order: entry.order, label: entry.label });
+		&& entry.label === 'スクショで追加' && entry.cls.includes('uma-btn--secondary') && entry.noHelp,
+		'special/ocr入口: 「テキストで検索」と「未収録スキルを追加」の間に、同じ見た目で「スクショで追加」が出る（「?」は無い）', { order: entry.order, label: entry.label });
 	assert(entry.icon === 'upload-cloud' || String(entry.icon).includes('lucide-upload-cloud'),
 		'special/ocr入口: アイコンはアップロード枠と同じ upload-cloud（雲＋上矢印）', entry.icon);
 	assert(!entry.before && entry.opened && entry.openedWithoutPicker === 0
@@ -969,7 +971,7 @@ const browser = await chromium.launch();
 		return { goldOnly, nothing };
 	});
 	assert(empty.goldOnly.open && empty.goldOnly.noteEl === false && empty.goldOnly.warnHidden
-		&& empty.goldOnly.summary === '金スキル（約3種）が見つかりましたが、白スキルはありませんでした。\n金スキルは対象外です。金スキルに対応する白スキルを探す機能は、まだありません。\n白スキルは「テキストで検索」または「条件でスキルを検索」から追加してください。',
+		&& empty.goldOnly.summary === '金スキル（約3種）が見つかりましたが、白スキルはありませんでした。\n金スキルは対象外です。金スキルに対応する白スキルを探す機能は、まだありません。\n白スキルは「テキストで検索」または「条件で検索」から追加してください。',
 		'special/ocr入口: 白0件＋金N件は文面3で、注記の枠は無い', empty.goldOnly);
 	assert(!empty.nothing.open && empty.nothing.warn === null,
 		'special/ocr入口: 読み取った白も金も無いときはピッカーを開かず、廃止した4aも枠に出ない', empty.nothing);
@@ -1006,7 +1008,7 @@ const browser = await chromium.launch();
 	assert(panels.hidden === false && panels.images === 2 && panels.fallbacks.length === 1,
 		'special/ocr入口: 読み取れなかった行があると区画が出て、画像2つと画像なし1件の枠が並ぶ', panels);
 	assert(panels.heading === '文字を読み取れなかったスキルパネル'
-		&& panels.note === 'すでに追加済みのものが含まれることがあります。必要なものは「テキストで検索」または「条件でスキルを検索」から追加してください。'
+		&& panels.note === 'すでに追加済みのものが含まれることがあります。必要なものは「テキストで検索」または「条件で検索」から追加してください。'
 		&& panels.hasCount === false,
 		'special/ocr入口: 区画の見出しと注意書きは確定文面のとおりで、数は出さない', { heading: panels.heading, note: panels.note, hasCount: panels.hasCount });
 	assert(panels.fallbacks[0] === '3つ目のスキルパネル（画像を用意できませんでした）',
@@ -3445,6 +3447,83 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(400);
 	await ensureAxisOpen('distance');
 
+	/* --- 段6【3】絞り込み結果が少なくても、モーダルの縦幅が動かない（71セッション目） ---
+
+	   直す前は `.usd-results` が `max-height` だったので、**中身が上限より短いと箱ごと縮み、
+	   モーダルは下ぞろえなので上端だけがせり上がった**（実測: 1280px で 445件 757px → 1件 508px）。
+	   件数が変わるたびに窓の大きさが変わるのが読みにくい、という指摘を受けて `height` にした。
+
+	   **件数は検査に書かない。** いま一覧に出ているものを `setPickerHiddenIds` で人工的に減らし、
+	   **減らす前と後の実測どうし**を比べる（マスターが増減しても落ちない）。
+	   減らす件数は「1行の高さ × これ」より確実に短くなるところまで下げれば足りる。 */
+	{
+		/* 一覧の先頭 n 件だけを残して、残りを隠す。
+		   **`setPickerHiddenIds` は置き換えであって足し算ではない**ので、
+		   毎回いったん隠しを空に戻してから、**母集団の全件**を読んで隠し直す
+		   （前回の結果から数えると、前に隠したものが戻ってきて数が合わない）。
+		   **開き直しは呼び出し元の関数から**（openSkillPicker([], …) を直に呼ぶと除外IDが消える）。 */
+		const shrinkTo = async (n) => {
+			await page.evaluate((k) => {
+				const listed = () => [...document.querySelectorAll('[data-usd-el="results"] [data-usd-el="skill-check"]')]
+					.map((e) => e.value);
+				UmaSkillDeckCore.setPickerHiddenIds([]);
+				openRecordSkillPicker();          // 母集団を全件描き直す
+				UmaSkillDeckCore.setPickerHiddenIds(listed().slice(k));
+				openRecordSkillPicker();          // 残す k 件で描き直す
+			}, n);
+			await page.waitForTimeout(400);
+		};
+		const restore = async () => {
+			await page.evaluate(() => { UmaSkillDeckCore.setPickerHiddenIds([]); openRecordSkillPicker(); });
+			await page.waitForTimeout(400);
+		};
+
+		for (const width of [1280, 375]) {
+			await page.setViewportSize({ width, height: 900 });
+			await page.waitForTimeout(400);
+			await restore();
+			await ensureAxisOpen('distance');
+			const full = await panelState();
+			assert(full.rowCount > 20, 'deck(段6【3】): ' + width + 'px の基準は一覧が上限まで埋まっている状態', full.rowCount + '行');
+
+			// 6件・1件・0件のどれでも、モーダルの高さ・上端・下端と、一覧の箱の高さが基準と同じ
+			for (const n of [6, 1, 0]) {
+				await shrinkTo(n);
+				const few = await panelState();
+				assert(few.rowCount === n, 'deck(段6【3】): ' + width + 'px で一覧を ' + n + '件まで減らせた', few.rowCount);
+				assert(few.modal.h === full.modal.h && few.modal.top === full.modal.top && few.modal.bottom === full.modal.bottom,
+					'deck(段6【3】): ' + width + 'px で結果が ' + n + '件でもモーダルの高さと上下の位置が動かない',
+					{ 基準: full.modal, 件数を減らした後: few.modal });
+				assert(few.listBoxH === full.listBoxH,
+					'deck(段6【3】): ' + width + 'px で結果が ' + n + '件でも一覧の箱の高さが動かない',
+					{ 基準: full.listBoxH, 減らした後: few.listBoxH });
+			}
+
+			/* **段4 の「畳んだぶんを一覧が受け取る」仕組みと競合しないこと。**
+			   `--usd-results-extra` の足し算は残したままなので、**結果が少なくても畳めば箱は広がり、
+			   モーダルは動かない**。ここが崩れると、高さを固定した副作用で畳みの意味が消える。 */
+			await shrinkTo(1);
+			const fewOpen = await panelState();
+			await page.click('.usd-tab[data-usd-axis="' + fewOpen.axis + '"]');   // 選択中を押して畳む
+			await page.waitForTimeout(400);
+			const fewClosed = await panelState();
+			assert(fewClosed.open === 'false' && fewClosed.listBoxH > fewOpen.listBoxH,
+				'deck(段6【3】): ' + width + 'px で結果が1件でも、畳めば一覧の箱は広がる（--usd-results-extra が効いている）',
+				{ 箱: fewOpen.listBoxH + '→' + fewClosed.listBoxH });
+			assert(fewClosed.modal.h === fewOpen.modal.h && fewClosed.modal.top === fewOpen.modal.top,
+				'deck(段6【3】): ' + width + 'px で結果が1件でも、畳んでモーダルは動かない',
+				{ 開: fewOpen.modal, 閉: fewClosed.modal });
+			await page.click('.usd-tab[data-usd-axis="' + fewClosed.axis + '"]');   // 開き直す
+			await page.waitForTimeout(400);
+		}
+
+		// 片付け（このあとの検査は 1280px・隠しなし・開いている前提）
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await page.waitForTimeout(400);
+		await restore();
+		await ensureAxisOpen('distance');
+	}
+
 	/* --- 段5（③④⑤・決6）絞り込みの規則が効いていること ---
 	   件数の突き合わせは `npm run test:master` が持つ（マスターの生データから期待値を組み立てる）。
 	   ここでは**性質だけ**を見る ―― `test:master` は pre-push の関門に入っていないので、
@@ -3533,7 +3612,7 @@ const browser = await chromium.launch();
 	const filterMode = await modeState();
 	assert(filterMode.filter && !filterMode.paste && !filterMode.custom && filterMode.commit,
 		'deck: 条件で検索のときは8軸フィルターだけが出る', filterMode);
-	assert(/条件でスキルを検索/.test(filterMode.title), 'deck: 見出しが「条件でスキルを検索」', filterMode.title);
+	assert(/^条件で検索/.test(filterMode.title), 'deck: 見出しが「条件で検索」', filterMode.title);
 
 	/* --- 追加ボタンはスクロール領域の外（フッター）に置き、脇に選択数を出す ---
 	   一覧をいくら下まで見にいってもボタンが画面外へ出ず、最後の行も隠れないこと。 */
@@ -3633,12 +3712,14 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(400);
 	assert(!(await page.isVisible('.usd-modal')), 'deck: モーダルが閉じる');
 
-	/* --- スキルを足す入口は3つ。それぞれ別のモードでモーダルが開く --- */
+	/* --- スキルを足す入口は3つ。それぞれ別のモードでモーダルが開く ---
+	   **この並びは uma-skill-deck.html が自前で持っている**（core の .usd-entry-row を通らない）ので、
+	   文言を変えるときに core 側だけ直すと、ここで気づける（71セッション目・段6 で実際に両方直した）。 */
 	const entries = await page.evaluate(() =>
 		[...document.querySelectorAll('#record-editor-view .uma-btn')]
-			.map((b) => b.textContent.trim()).filter((t) => /検索|収録されていない/.test(t)));
-	assert(entries.length === 3 && entries[0] === '条件でスキルを検索'
-		&& entries[1] === 'テキストで検索' && entries[2] === '収録されていないスキルを追加',
+			.map((b) => b.textContent.trim()).filter((t) => /検索|未収録/.test(t)));
+	assert(entries.length === 3 && entries[0] === '条件で検索'
+		&& entries[1] === 'テキストで検索' && entries[2] === '未収録スキルを追加',
 		'deck: 比較シート編集に3つの入口ボタンが並ぶ', entries);
 
 	await page.click('button[onclick="openRecordTextPicker()"]');
@@ -3726,8 +3807,8 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(700);
 	const customMode = await modeState();
 	assert(!customMode.filter && !customMode.paste && customMode.custom,
-		'deck: 「収録されていないスキルを追加」は手入力欄だけを出す', customMode);
-	assert(customMode.title === '収録されていないスキルを追加', 'deck: 見出しが「収録されていないスキルを追加」', customMode.title);
+		'deck: 「未収録スキルを追加」は手入力欄だけを出す', customMode);
+	assert(customMode.title === '未収録スキルを追加', 'deck: 見出しが「未収録スキルを追加」', customMode.title);
 	// 作ったその場で対象セットへ入るので、下の確定ボタンは出さない（フッターごと畳む）
 	assert(customMode.commit === false, 'deck: 手入力のときは下の確定ボタンを出さない', customMode);
 	assert((await page.evaluate(() =>
@@ -7368,7 +7449,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		&& clearColor.got.text === clearColor.want.text
 		&& clearColor.got.bg === clearColor.want.bg
 		&& clearColor.got.border === clearColor.want.border,
-		'段1(⑪): 押せる状態の「まとめてリセット」は --uma-danger-* の赤で描かれている', clearColor);
+		'段1(⑪): 押せる状態の「リセット」は --uma-danger-* の赤で描かれている', clearColor);
 	await page.click('#deck-template-panel [data-usd-el="clear-skills"]');
 	await page.waitForTimeout(400);
 	const after = await page.evaluate((tid) => {

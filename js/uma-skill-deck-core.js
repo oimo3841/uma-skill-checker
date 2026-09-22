@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22c';
 
 	/* ============================================================
 	 * 定数
@@ -1809,10 +1809,19 @@
 		 * 足し引きが同じ量なので中身の合計は変わらず、**モーダルの高さも上端も動かない。**
 		 * 値は JS が実測して入れる（setPickerAxisPanelOpen）。開いているときは 0。
 		 *
-		 * **一覧の中身が上限より短いときは、そのぶんモーダルは縮む。** 埋めるものが無いので当然で、
-		 * 「広げても見えるものが無い」状態にわざわざ空白を作らない。 */
+		 * **71セッション目・段6【3】: `max-height` をやめて `height` にした。**
+		 * それまでは「中身が上限より短いときは、埋めるものが無いのでモーダルは縮む」作りだったが、
+		 * **絞り込んだ件数が変わるたびにモーダルの高さが動くのが読みにくい**（下ぞろえなので
+		 * 下端は動かず、**上端だけがせり上がったり下りたりする**）。実測:
+		 *   1280px … 445/20/10件は 757px で不動。**7件で 682px、5件で 624px、1件で 508px**
+		 *   375px  … 7件までは 765px（本文がまだスクロールしている）。**6件で 736px、1件で 591px**
+		 * `height` にすると箱が常に 280px＋extra になるので、**件数が何件でもモーダルは動かない。**
+		 * 0件・1件のときは空白の箱になるが、**「結果が少ない」ことは件数の表示（絞り込み結果 N件）が
+		 * 言っている**ので、高さでそれを表す必要は無い。
+		 * **`--usd-results-extra`（畳んだぶんを受け取る足し算）はそのまま効く** ――
+		 * 上限が固定値になっただけで、式は変えていない。 */
 		'.usd-results { border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg);',
-		'  max-height: calc(280px + var(--usd-results-extra, 0px)); overflow: auto; }',
+		'  height: calc(280px + var(--usd-results-extra, 0px)); overflow: auto; }',
 
 		// 選択肢チップ。中身は本物の checkbox のままなので、既存のJSとテストがそのまま掴める
 		// （.usd-chip はテンプレートのスキル名チップで使用済みのため .usd-opt にしてある）
@@ -2132,12 +2141,18 @@
 	const PICKER_COMMIT_LABEL = 'チェックしたスキルを追加';
 
 	const PICKER_MODES = {
-		filter: { title: '条件でスキルを検索（軸間はAND・軸内はOR）', commit: true },
+		// 71セッション目・段6: 「条件でスキルを検索」→「条件で検索」（利用者向けの文言だけ。
+		// 識別子 `filter` と、コード内の説明の「条件でスキルを検索」は変えない＝恒久ルール19）。
+		// **括弧の中（軸間はAND・軸内はOR）は段6 では触らない** ―― いまはどの軸も軸内ORなので
+		// この文は正しく、**段8 でバ場（排他）が入った時点で初めて事実と合わなくなる**。
+		// 替える文はバ場の軸の注記の書き方と一緒に決めるものなので、段8 でまとめて直す。
+		filter: { title: '条件で検索（軸間はAND・軸内はOR）', commit: true },
 		paste: { title: 'テキストで検索', commit: true },
 		// 32セッション目: 利用者向けの語を「収録されていない」に統一（「マスター」も「一覧」も
 		// 画面上に存在しないものを指していて、利用者は見たことのない何かを参照させられていた）。
 		// **コード内部の識別子・変数名・開発ログの「マスター」は変えない。**
-		custom: { title: '収録されていないスキルを追加', commit: false },
+		// 71セッション目・段6: 「収録されていないスキルを追加」→「未収録スキルを追加」（文言だけ）。
+		custom: { title: '未収録スキルを追加', commit: false },
 		// 4つ目（スキルセットOCR・フェーズa コミット3）。外で照合を済ませた行（ID付きの候補一覧）を受け取って、
 		// 「テキストで検索」と同じ報告（候補チップ・取り消し・確定）を出す。貼り付け欄と照合ボタンは出さない。
 		// 照合は common.js 側（CHAR_CONFUSION_MAP が効く経路）で行い、ここは見せるだけ＝C-24 調査4 の推奨。
@@ -2149,7 +2164,7 @@
 		return '' +
 			'<div class="usd-modal-panel">' +
 				'<div class="flex items-center justify-between p-4 border-b border-slate-200" style="flex-shrink:0;">' +
-					'<p class="text-sm font-semibold text-slate-700" data-usd-el="picker-title">条件でスキルを検索</p>' +
+					'<p class="text-sm font-semibold text-slate-700" data-usd-el="picker-title">条件で検索</p>' +
 					'<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="picker-close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>' +
 				'</div>' +
 				// ヘッダー／スクロール領域／フッターの3段。真ん中だけが伸び縮みするので、
@@ -3297,7 +3312,7 @@
 		if (n === 0 && m > 0) {
 			lines.push('金スキル（約' + m + '種）が見つかりましたが、白スキルはありませんでした。');
 			lines.push('金スキルは対象外です。金スキルに対応する白スキルを探す機能は、まだありません。');
-			lines.push('白スキルは「テキストで検索」または「条件でスキルを検索」から追加してください。');
+			lines.push('白スキルは「テキストで検索」または「条件で検索」から追加してください。');
 		} else {
 			lines.push('白スキル ' + n + '種を読み取りました。' + (m > 0 ? '金スキル（約' + m + '種）は対象外です。' : ''));
 		}
@@ -4005,7 +4020,7 @@
 					// 「マスターにないスキルを追加」も、開いてみるまで在ることが分からなかった。
 					'<div class="usd-entry-row">' +
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
-							'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件でスキルを検索' +
+							'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件で検索' +
 						'</button>' +
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-text">' +
 							'<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索' +
@@ -4021,7 +4036,7 @@
 							'</button>'
 						: '') +
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-custom">' +
-							'<i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 収録されていないスキルを追加' +
+							'<i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 未収録スキルを追加' +
 						'</button>' +
 						// 追加済みスキルの一括削除（C-3）。**A（スキルセット）の中に置く** ―― 名前の行に
 						// 置くと、名前や B・C まで消えるように読める。消すのはスキルだけなので、
@@ -4030,7 +4045,7 @@
 						// （Undo に積む）、いちばん多い操作（スキルを足す）と同じ並びに居るので、
 						// 他の入口と同じ見た目だと押し間違える。0種のときは disabled で薄くなる。
 						'<button type="button" class="uma-btn uma-btn--danger" data-usd-act="editor-clear-skills" data-usd-el="clear-skills">' +
-							'<i data-lucide="minus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> まとめてリセット' +
+							'<i data-lucide="minus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> リセット' +
 						'</button>' +
 					'</div>' +
 					// 分類の切り替え（超優先／優先／通常。C-57 の (7)）。追加の入口はいま選んでいる分類に足す
