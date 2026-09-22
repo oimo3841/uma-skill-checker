@@ -3027,13 +3027,20 @@ const browser = await chromium.launch();
 	   パネルの出し分けは .is-active の付け外し＋visibility で、Tailwind の hidden は使わない（F-13）。
 	   タブ化で他の軸に入れた条件が視界から消えるため、バッジと「絞り込み中」で補えているかも見る。 */
 	const panelShown = (axis) => page.isVisible('.usd-tabpanel[data-usd-axis="' + axis + '"]');
-	assert(await panelShown('distance') && !(await panelShown('trackVenue')),
-		'deck: 初期表示は①のパネルだけが見えている');
+	/* 切り替え先の軸は**製品が出している並びの最後**から取る（71セッション目・段8）。
+	   以前は 'trackVenue' を名指ししていたが、その軸は段8 で絞り込みから隠したので押せない。
+	   **軸のキーを検査に書かない**ようにしておけば、次に軸が入れ替わっても直さずに済む。 */
+	const otherAxis = await page.evaluate(() => {
+		const keys = UmaSkillDeckCore.pickableAxes().map((a) => a.key);
+		return keys[keys.length - 1];
+	});
+	assert(await panelShown('distance') && !(await panelShown(otherAxis)),
+		'deck: 初期表示は①のパネルだけが見えている', otherAxis);
 
-	await page.click('.usd-tab[data-usd-axis="trackVenue"]');
+	await page.click('.usd-tab[data-usd-axis="' + otherAxis + '"]');
 	await page.waitForTimeout(300);
-	assert(!(await panelShown('distance')) && await panelShown('trackVenue'),
-		'deck: タブを押すと表示パネルが入れ替わる');
+	assert(!(await panelShown('distance')) && await panelShown(otherAxis),
+		'deck: タブを押すと表示パネルが入れ替わる', otherAxis);
 
 	// パネルの高さは全軸で共通（切り替えても下のスキル一覧が上下に跳ねない）
 	const panelHeights = await page.evaluate(() => {
@@ -3088,7 +3095,8 @@ const browser = await chromium.launch();
 	   **軸の本数はここに書かない**（70セッション目・段3 で 8→10 になった）。
 	   製品の `TAG_AXES` から取る ―― 数を決め打ちすると、軸を足したこと自体で落ちてしまい、
 	   「1枚も欠けずに全部見えているか」という狙いが果たせない。 */
-	const axisCount = await page.evaluate(() => UmaSkillDeckCore.TAG_AXES.length);
+	// 71セッション目・段8: 隠す軸ができたので、数えるのは pickableAxes()（＝画面に出る軸）。
+	const axisCount = await page.evaluate(() => UmaSkillDeckCore.pickableAxes().length);
 	const tabLayout = () => page.evaluate(() => {
 		const bar = document.querySelector('.usd-tablist');
 		const tabs = [...document.querySelectorAll('.usd-tab')];
@@ -3135,9 +3143,9 @@ const browser = await chromium.launch();
 	assert(narrowTabs.pageSw === narrowTabs.pageCw,
 		'deck: 375px でモーダルを開いてもページは横スクロールしない', narrowTabs);
 	// 多段でもタブとして機能する
-	await page.click('.usd-tab[data-usd-axis="trackVenue"]');
+	await page.click('.usd-tab[data-usd-axis="' + otherAxis + '"]');
 	await page.waitForTimeout(300);
-	assert(await panelShown('trackVenue'), 'deck: 375px の多段タブでも切り替えられる');
+	assert(await panelShown(otherAxis), 'deck: 375px の多段タブでも切り替えられる', otherAxis);
 
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await page.waitForTimeout(600);
@@ -3213,7 +3221,7 @@ const browser = await chromium.launch();
 
 	/* 軸ごとの選択肢の数は **TAG_AXES から取る**（件数を検査に書き写さない）。
 	   選択肢が3段に入りきらない軸＝合図が出るはずの軸、を実測で割り出して突き合わせる。 */
-	const perAxis = await page.evaluate(() => UmaSkillDeckCore.TAG_AXES.map((a) => a.key));
+	const perAxis = await page.evaluate(() => UmaSkillDeckCore.pickableAxes().map((a) => a.key));
 	const optsAll = [];
 	for (const key of perAxis) {
 		await ensureAxisOpen(key);
@@ -3282,10 +3290,17 @@ const browser = await chromium.launch();
 	await page.click('[data-usd-act="opts-more"][data-usd-axis="' + signalAxis + '"]');
 	await page.waitForTimeout(300);
 	const after = await optState(signalAxis);
-	assert(after.hiddenBelow < before.hiddenBelow && after.hiddenBelow > 0,
+	/* **「残り0にならない」は、もう前提にできない**（71セッション目・段8）。
+	   段5 までは選択肢が21個（レース環境）・17個（レース場）の軸があり、1回送っても必ず残った。
+	   段8 でその2軸を絞り込みから隠し、いちばん多い軸でも11個（効果タイプ）になったので、
+	   **375px では1回の送りで残り0になる**。見るのは「減ること」と「表示が実測と合うこと」。 */
+	assert(after.hiddenBelow < before.hiddenBelow,
 		'deck(段4): 合図を押すと1段ぶん送られ、残りが減る', { 軸: signalAxis, 前: before.moreText, 後: after.moreText });
-	assert(after.moreText === '▼ ほか ' + after.hiddenBelow + '件',
-		'deck(段4): 送ったあとも件数が実測と合っている', after.moreText);
+	assert(after.hiddenBelow > 0
+		? after.moreText === '▼ ほか ' + after.hiddenBelow + '件'
+		: !after.moreVisible,
+		'deck(段4): 送ったあとも表示が実測と合っている（残り0なら合図が消える）',
+		{ 残り: after.hiddenBelow, 文字: after.moreText, 見えている: after.moreVisible });
 	assert(after.clippedAtBottom === 0 && after.overlapped === 0 && after.overlay.length === 0,
 		'deck(段4): 送った先でも最下段が切れず、何にも重なられていない', after);
 	const moreBox = () => page.evaluate((a) => {
@@ -3548,20 +3563,33 @@ const browser = await chromium.launch();
 		await ensureAxisOpen('distance');
 	}
 
-	/* --- 段5（③④⑤・決6）絞り込みの規則が効いていること ---
+	/* --- 段8 絞り込みの規則が効いていること ---
 	   件数の突き合わせは `npm run test:master` が持つ（マスターの生データから期待値を組み立てる）。
 	   ここでは**性質だけ**を見る ―― `test:master` は pre-push の関門に入っていないので、
 	   規則が丸ごと外れたことにはこちらでも気づけるようにしておく。
-	   **軸のキーも値も検査に書かない。** 製品の `TAG_AXES` の印から取る。 */
+	   **軸のキーも値も検査に書かない。** 製品の `TAG_AXES` の印から取る。
+
+	   **ここには 70セッション目・段5 の⑤（オプトイン）の検査があった。**
+	   71セッション目・段8 で門番の仕組みごと廃したので外した（黙って消さず記録を残す）。 */
 	{
 		const marks = await page.evaluate(() => UmaSkillDeckCore.TAG_AXES.map((a) => ({
-			key: a.key, label: a.label, emptyNone: !!a.emptyMeansNone, optIn: !!a.optIn,
+			key: a.key, label: a.label, emptyNone: !!a.emptyMeansNone,
+			exclusive: !!a.exclusive, hidden: !!a.hiddenAxis, poolExcluded: !!a.poolExcluded,
 			opts: a.options.map((o) => o.v),
 		})));
-		assert(marks.filter((a) => a.emptyNone).length >= marks.filter((a) => a.optIn).length
-			&& marks.filter((a) => a.optIn).every((a) => a.emptyNone),
-			'deck(段5): オプトインの軸は「空＝該当なし」でもある',
-			{ 空は該当なし: marks.filter((a) => a.emptyNone).map((a) => a.key), オプトイン: marks.filter((a) => a.optIn).map((a) => a.key) });
+		assert(marks.every((a) => a.optIn === undefined), 'deck(段8): optIn（段5 の門番）の印はもう無い');
+		// 隠すのと母集団から外すのは別物（印を1つにまとめたら落ちる）
+		const hidden = marks.filter((a) => a.hidden);
+		const excluded = marks.filter((a) => a.poolExcluded);
+		assert(hidden.length > excluded.length && excluded.every((a) => a.hidden),
+			'deck(段8): 母集団から外す軸は隠す軸の一部（両者は別の印）',
+			{ 隠す: hidden.map((a) => a.key), 外す: excluded.map((a) => a.key) });
+
+		// 隠す軸はタブにもチェックにも出ない
+		const shownKeys = await page.evaluate(() =>
+			[...document.querySelectorAll('.usd-tab')].map((t) => t.dataset.usdAxis));
+		assert(hidden.every((a) => !shownKeys.includes(a.key)),
+			'deck(段8): 隠す軸はタブに出ない', { 隠す: hidden.map((a) => a.key), 出ている: shownKeys });
 
 		// 一覧に並んでいるスキルのタグを、製品の getSkillTags() から引いて性質を見る
 		const listedTags = (key) => page.evaluate((k) => {
@@ -3573,8 +3601,17 @@ const browser = await chromium.launch();
 			});
 		}, key);
 
-		// ③④ 空を「該当なし」と読む軸（オプトインでないもの）を1つ選ぶと、その軸が空のスキルは出ない
-		const emptyNoneAxis = marks.find((a) => a.emptyNone && !a.optIn && a.key !== 'scenario');
+		/* (a) 母集団から外した軸のスキルは、条件を何も入れていなくても1件も出ない */
+		for (const ex of excluded) {
+			const leaked = (await listedTags(ex.key)).filter((r) => r.vals.length > 0).map((r) => r.name);
+			assert(leaked.length === 0,
+				'deck(段8): ' + ex.label + ' のスキルは「条件で検索」に1件も出ない', leaked.slice(0, 5));
+		}
+		const excludedCount = await page.evaluate(() => UmaSkillDeckCore.getPoolExcludedSkills().length);
+		assert(excludedCount > 0, 'deck(段8): 母集団から外したスキルが実在する（空振りの検査ではない）', excludedCount);
+
+		/* (b) ③④ 空を「該当なし」と読む軸を1つ選ぶと、その軸が空のスキルは出ない */
+		const emptyNoneAxis = marks.find((a) => a.emptyNone && !a.hidden && a.key !== 'scenario');
 		if (emptyNoneAxis) {
 			await ensureAxisOpen(emptyNoneAxis.key);
 			await page.click('[data-usd-el="filter-check"][data-axis="' + emptyNoneAxis.key + '"][data-value="' + emptyNoneAxis.opts[0] + '"]');
@@ -3582,43 +3619,37 @@ const browser = await chromium.launch();
 			const rows = await listedTags(emptyNoneAxis.key);
 			const blank = rows.filter((r) => r.vals.length === 0).map((r) => r.name);
 			assert(rows.length > 0 && blank.length === 0,
-				'deck(段5③④): ' + emptyNoneAxis.label + ' を選ぶと、その軸のタグが空のスキルは出ない',
+				'deck(段8③④): ' + emptyNoneAxis.label + ' を選ぶと、その軸のタグが空のスキルは出ない',
 				{ 出た件数: rows.length, 空のまま出たもの: blank.slice(0, 5) });
-			// ⑤ 同時に、オプトインの軸のタグを持つスキルも出ていない（門番）
-			for (const opt of marks.filter((a) => a.optIn)) {
-				const leaked = (await listedTags(opt.key)).filter((r) => r.vals.length > 0).map((r) => r.name);
-				assert(leaked.length === 0,
-					'deck(段5⑤): 他の軸で絞ると ' + opt.label + ' のタグを持つスキルは出ない', leaked.slice(0, 5));
-			}
 			await page.click('[data-usd-el="filter-check"][data-axis="' + emptyNoneAxis.key + '"][data-value="' + emptyNoneAxis.opts[0] + '"]');
 			await page.waitForTimeout(400);
 		}
-		/* 決6 オプトインの軸だけを選んだときも、そのタグを持つものだけが出る。
-		   **このモーダルは比較シートから開いていて、既に入っているスキルは一覧から除かれる**ので、
-		   軸によっては0件になりうる（レース場のタグを持つのは1件だけで、それが除外されていると0件）。
-		   だから「必ず1件以上出る」とは書けない ―― 見るのは**出たものが全部そのタグを持つこと**で、
-		   空振りでないことは「2軸のうち少なくとも一方は実際に出た」で担保する。 */
-		let sawOptInRows = false;
-		for (const opt of marks.filter((a) => a.optIn)) {
-			// **いちばん多くのスキルが持っている値**を選ぶ（除外で0件になりにくいほうから見る）
-			const used = await page.evaluate(([k, vs]) => {
-				const skills = UmaSkillDeckCore.getMasterSkills();
-				const n = (v) => skills.filter((s) => (UmaSkillDeckCore.getSkillTags(s.id)[k] || []).includes(v)).length;
-				return vs.map((v) => ({ v: v, n: n(v) })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n).map((x) => x.v)[0] || null;
-			}, [opt.key, opt.opts]);
-			if (!used) continue;
-			await ensureAxisOpen(opt.key);
-			await page.click('[data-usd-el="filter-check"][data-axis="' + opt.key + '"][data-value="' + used + '"]');
-			await page.waitForTimeout(400);
-			const rows = await listedTags(opt.key);
-			if (rows.length > 0) sawOptInRows = true;
-			assert(rows.every((r) => r.vals.includes(used)),
-				'deck(段5決6): ' + opt.label + ' 単独で選んでも、そのタグを持つスキルだけが出る',
-				{ 出た件数: rows.length, はみ出し: rows.filter((r) => !r.vals.includes(used)).map((r) => r.name).slice(0, 5) });
-			await page.click('[data-usd-el="filter-check"][data-axis="' + opt.key + '"][data-value="' + used + '"]');
-			await page.waitForTimeout(400);
+
+		/* (c) バ場の排他 ―― 片方を選ぶと、もう片方の値を持つスキルが1件も出ない。
+		   その軸のタグが**無い**スキルは出る（空を「該当なし」と読む軸との違い）。 */
+		/* **空振りにしないための見張り。** 排他の軸を隠してしまうと下のループが0周になり、
+		   壊れていても素通りする（段8 の破壊確認で実際にそうなった）。 */
+		const exclusiveShown = marks.filter((a) => a.exclusive && !a.hidden);
+		assert(exclusiveShown.length > 0, 'deck(段8): 排他の軸が画面に出ている（空振りの検査ではない）',
+			marks.filter((a) => a.exclusive).map((a) => a.key + (a.hidden ? '（隠れている）' : '')));
+		for (const ex of exclusiveShown) {
+			assert(ex.opts.length >= 2, 'deck(段8): 排他の軸に選択肢が2つ以上ある', ex);
+			for (const pick of ex.opts) {
+				await ensureAxisOpen(ex.key);
+				await page.click('[data-usd-el="filter-check"][data-axis="' + ex.key + '"][data-value="' + pick + '"]');
+				await page.waitForTimeout(400);
+				const rows = await listedTags(ex.key);
+				const others = ex.opts.filter((v) => v !== pick);
+				const leaked = rows.filter((r) => r.vals.some((v) => others.includes(v))).map((r) => r.name);
+				assert(leaked.length === 0,
+					'deck(段8排他): ' + ex.label + '＝' + pick + ' を選ぶと、それ以外の値を持つスキルは出ない',
+					leaked.slice(0, 5));
+				assert(rows.some((r) => r.vals.length === 0),
+					'deck(段8排他): ' + ex.label + ' のタグが無いスキルは出る（' + pick + '）', rows.length);
+				await page.click('[data-usd-el="filter-check"][data-axis="' + ex.key + '"][data-value="' + pick + '"]');
+				await page.waitForTimeout(400);
+			}
 		}
-		assert(sawOptInRows, 'deck(段5決6): オプトインの軸の少なくとも一方で実際にスキルが出た（空振りではない）');
 		await ensureAxisOpen('distance');
 	}
 
@@ -3838,13 +3869,18 @@ const browser = await chromium.launch();
 	assert((await page.evaluate(() =>
 		document.querySelector('[data-usd-el="picker-footer"]').getBoundingClientRect().height)) === 0,
 		'deck: 手入力のときはフッターごと出さない');
-	// **軸の本数を書かない**（段3 で 8→10）。製品の TAG_AXES から取って、画面が追随しているかを見る。
+	/* **軸の本数を書かない**（段3 で 8→10、段8 で隠す軸ができた）。
+	   数えるのは pickableAxes()＝利用者に出す軸。隠す軸（レース環境・レース場・パッシブ）の
+	   タグは、利用者が自分のカスタムスキルに付けるものではないので出さない。 */
 	const customAxes = await page.evaluate(() => ({
 		画面: new Set([...document.querySelectorAll('[data-usd-el="custom-tag"]')].map((el) => el.dataset.axis)).size,
-		軸: UmaSkillDeckCore.TAG_AXES.length,
+		出す軸: UmaSkillDeckCore.pickableAxes().length,
+		全軸: UmaSkillDeckCore.TAG_AXES.length,
 	}));
-	assert(customAxes.画面 === customAxes.軸 && customAxes.軸 > 0,
-		'deck: 手入力にも全軸ぶんのタグ入力が出る', customAxes);
+	assert(customAxes.画面 === customAxes.出す軸 && customAxes.出す軸 > 0,
+		'deck: 手入力にも、出す軸ぶんのタグ入力が出る', customAxes);
+	assert(customAxes.全軸 > customAxes.出す軸,
+		'段8: 隠す軸は手入力にも出ない（全軸より少ない）', customAxes);
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);
 

@@ -200,6 +200,28 @@ console.log('=== 1. マスターデータ（uma-skill-deck-skills.json） ===');
 		'③シナリオスキルの内訳が指定の27件と一致', scen.map((s) => s.name));
 	assert(scen.every((s) => eq(s.tags.scenario, ['scenario'])), '③27件の値はいまのところ ["scenario"] だけ（シナリオ因子・遺伝子は未収録）');
 
+	/* 段8 ―― パッシブとバ場（マスターの生データ側） */
+	const passiveSkills = master.skills.filter((s) => (s.tags.passive || []).length > 0);
+	assert(passiveSkills.length === 67, '段8: パッシブが67件', passiveSkills.length);
+	assert(passiveSkills.every((s) => eq(s.tags.passive, ['passive'])), '段8: パッシブの値は ["passive"] だけ');
+	// 隠す2軸のタグは、いまパッシブの中だけに閉じている（段8 の実測。増えたら気づけるように固定する）
+	for (const k of ['environment', 'trackVenue']) {
+		const outside = master.skills.filter((s) => (s.tags.passive || []).length === 0 && (s.tags[k] || []).length > 0);
+		assert(outside.length === 0, '段8: ' + k + ' のタグを持つのはパッシブだけ', outside.map((s) => s.name).slice(0, 5));
+	}
+	// バ場：値は turf / dirt だけ。芝とダートを両方持つスキルは無い。environment には残っていない
+	const surfVals = new Set(master.skills.flatMap((s) => s.tags.surface || []));
+	assert(eq([...surfVals].sort(), ['dirt', 'turf']), '段8: バ場の値は turf / dirt だけ', [...surfVals]);
+	assert(master.skills.every((s) => !((s.tags.surface || []).includes('turf') && (s.tags.surface || []).includes('dirt'))),
+		'段8: 芝とダートを両方持つスキルは無い');
+	assert(master.skills.every((s) => !(s.tags.environment || []).some((v) => /^surface_/.test(v))),
+		'段8: environment に surface_* が残っていない',
+		master.skills.filter((s) => (s.tags.environment || []).some((v) => /^surface_/.test(v))).map((s) => s.name));
+	// 能力上昇を持つ67件は、すべてパッシブ（＝選択肢から外した根拠）
+	const statUpAll = master.skills.filter((s) => s.tags.effect.includes('stat_up'));
+	assert(statUpAll.length === 67 && statUpAll.every((s) => (s.tags.passive || []).length > 0),
+		'段8: 能力上昇を持つ67件はすべてパッシブ', statUpAll.filter((s) => (s.tags.passive || []).length === 0).map((s) => s.name));
+
 	assert(master.masterVersion !== '2026-09-09a' && /^\d{4}-\d{2}-\d{2}[a-z]$/.test(master.masterVersion),
 		'masterVersion が更新されている', master.masterVersion);
 }
@@ -222,7 +244,13 @@ const browser = await chromium.launch();
 	// 見るのは「`TAG_AXES` の軸がすべてマスターの tags に実在するか」＝**画面が
 	// データに無い軸を出していないか**。逆向き（マスターにあってUIに出ていない軸）は、
 	// データだけ先に入れる段があるので落とさず、§1 が「値が空か」で見張っている。
-	const axes = await page.evaluate(() => UmaSkillDeckCore.TAG_AXES.map((a) => ({ key: a.key, label: a.label, flag: !!a.emptyMeansNone, optIn: !!a.optIn, opts: a.options.map((o) => o.v) })));
+	const axes = await page.evaluate(() => UmaSkillDeckCore.TAG_AXES.map((a) => ({
+		key: a.key, label: a.label, flag: !!a.emptyMeansNone,
+		exclusive: !!a.exclusive, hidden: !!a.hiddenAxis, poolExcluded: !!a.poolExcluded,
+		opts: a.options.map((o) => o.v),
+	})));
+	// 利用者の絞り込みに出る軸（製品の pickableAxes()。検査に「どれを隠すか」を書き写さない）
+	const uiAxes = await page.evaluate(() => UmaSkillDeckCore.pickableAxes().map((a) => a.key));
 	const masterAxisKeys = Object.keys(master.skills[0].tags);
 	const notInMaster = axes.filter((a) => !masterAxisKeys.includes(a.key)).map((a) => a.key);
 	assert(axes.length > 0 && notInMaster.length === 0,
@@ -237,30 +265,61 @@ const browser = await chromium.launch();
 	// 食い違いが意図どおりであることを、両側から見て固定しておく。
 	const inUi = DATA_ONLY_AXES.filter((k) => axes.some((a) => a.key === k));
 	assert(inUi.length === 0, '⑥レアリティ／共通・継承は絞り込みのタブに出ない', inUi);
-	// 並びは「コース位置 → レース環境」が地続き（間に何も挟まっていない）
-	const order = axes.map((a) => a.key);
-	assert(order.indexOf('environment') === order.indexOf('coursePos') + 1,
-		'⑥ タブの並びは コース位置 → レース環境 が地続き', order);
+	/* 71セッション目・段8: 並びの検査を「バ場は脚質の次」に置き換えた。
+	   もとは「コース位置 → レース環境 が地続き」だったが、レース環境を隠したので成り立たない。
+	   見るのは利用者に出る並び（uiAxes）で、バ場が距離・脚質と同じ層にあることを固定する。 */
+	assert(uiAxes.indexOf('surface') === uiAxes.indexOf('style') + 1,
+		'段8: タブの並びは 脚質 → バ場 が地続き', uiAxes);
+	assert(uiAxes[0] === 'distance' && uiAxes[1] === 'style',
+		'段8: 先頭は 距離 → 脚質 のまま', uiAxes);
 
 	/* ==========================================================
-	 * 段5（③④⑤・決6）― 絞り込みの規則が変わった軸の印
+	 * 段8 ― 軸に付く印
 	 *
 	 * 印の付きかたそのものをここで固定する。**以降の件数の検査は、この印と
 	 * マスターの生データから期待値を組み立てる**ので、ここがずれると全部ずれる。
+	 *
+	 * 71セッション目・段8 で「optIn」（門番）を廃し、「hiddenAxis」「poolExcluded」「exclusive」
+	 * を足した。**「hiddenAxis」と「poolExcluded」は別物**で、まとめると
+	 * 「隠す軸にタグを持つが、パッシブではないスキル」まで母集団から消える ―― それを下で固定する。
 	 * ========================================================== */
-	const EMPTY_NONE_AXES = ['phase', 'coursePos', 'environment', 'trackVenue', 'scenario'];
-	const OPT_IN_AXES = ['environment', 'trackVenue'];
+	const EMPTY_NONE_AXES = ['phase', 'coursePos', 'scenario'];
+	const HIDDEN_AXES = ['environment', 'trackVenue', 'passive'];
+	const POOL_EXCLUDED_AXES = ['passive'];
+	const EXCLUSIVE_AXES = ['surface'];
 	const flagged = axes.filter((a) => a.flag).map((a) => a.key);
-	const optIns = axes.filter((a) => a.optIn).map((a) => a.key);
+	const hidden = axes.filter((a) => a.hidden).map((a) => a.key);
+	const excluded = axes.filter((a) => a.poolExcluded).map((a) => a.key);
+	const exclusive = axes.filter((a) => a.exclusive).map((a) => a.key);
 	assert(eq(flagged.slice().sort(), EMPTY_NONE_AXES.slice().sort()),
-		'段5: 空を「該当なし」と読む軸は5本（フェーズ・コース位置・レース環境・レース場・その他）', flagged);
-	assert(eq(optIns.slice().sort(), OPT_IN_AXES.slice().sort()),
-		'段5⑤: オプトインの軸はレース環境・レース場の2本', optIns);
-	assert(optIns.every((k) => flagged.includes(k)),
-		'段5決6: オプトインの軸は、空を「該当なし」とも読む', { optIns, flagged });
-	const nonOptIn = axes.filter((a) => !a.optIn).map((a) => a.key);
-	assert(nonOptIn.length > 0 && !nonOptIn.some((k) => OPT_IN_AXES.includes(k)),
-		'段5⑤: 門番を働かせる側（オプトインでない軸）が残っている', nonOptIn);
+		'段8: 空を「該当なし」と読む軸は3本（フェーズ・コース位置・その他）', flagged);
+	assert(eq(hidden.slice().sort(), HIDDEN_AXES.slice().sort()),
+		'段8: 絞り込みに出さない軸は3本（レース環境・レース場・パッシブ）', hidden);
+	assert(eq(excluded.slice().sort(), POOL_EXCLUDED_AXES.slice().sort()),
+		'段8: 母集団から外す軸はパッシブ1本だけ', excluded);
+	assert(eq(exclusive.slice().sort(), EXCLUSIVE_AXES.slice().sort()),
+		'段8: 軸内が許可リストなのはバ場1本だけ', exclusive);
+	assert(axes.every((a) => a.optIn === undefined), '段8: optIn（段5 の門番）の印はもう無い',
+		axes.filter((a) => a.optIn !== undefined).map((a) => a.key));
+	/* **印を分けた目的そのもの** ―― 隠す軸のうち、母集団から外すのはパッシブだけ。
+	   1つにまとめると environment / trackVenue にタグを持つスキルまで消える。 */
+	assert(hidden.filter((k) => !excluded.includes(k)).length === 2,
+		'段8: 隠すだけで母集団には居る軸が2本ある（hiddenAxis と poolExcluded を分けた目的）',
+		hidden.filter((k) => !excluded.includes(k)));
+	assert(eq(uiAxes.slice().sort(), axes.filter((a) => !a.hidden).map((a) => a.key).slice().sort()),
+		'段8: 画面に出る軸＝隠す印が付いていない軸', { uiAxes, hidden });
+	// バ場の選択肢
+	const surfaceAxis = axes.find((a) => a.key === 'surface');
+	assert(surfaceAxis && surfaceAxis.label === 'バ場' && eq(surfaceAxis.opts, ['turf', 'dirt']),
+		'段8: バ場の軸があり、選択肢は 芝 / ダートの2つ', surfaceAxis);
+	// 能力上昇は選択肢から外れている（値そのものは残す）
+	const effOptsUi = await page.evaluate(() =>
+		UmaSkillDeckCore.pickableOptions(UmaSkillDeckCore.TAG_AXES.find((a) => a.key === 'effect')).map((o) => o.v));
+	const effOptsAll = axes.find((a) => a.key === 'effect').opts;
+	assert(!effOptsUi.includes('stat_up'), '段8: 効果タイプの選択肢に「能力上昇」が出ない', effOptsUi);
+	assert(effOptsAll.includes('stat_up'), '段8: それでも値としては残っている（データと tagLabel のため）', effOptsAll);
+	const statUpLabel = await page.evaluate(() => UmaSkillDeckCore.tagLabel('effect', 'stat_up'));
+	assert(statUpLabel === '能力上昇', '段8: tagLabel は「能力上昇」を返せる（生の値が画面に出ない）', statUpLabel);
 
 	/* 期待値の組み立て。**製品の `matchesFilters()` は使わない** ――
 	   使うと「製品が製品と一致する」だけの検査になる。マスターの生のJSONに対して、
@@ -274,18 +333,21 @@ const browser = await chromium.launch();
 	const axisHit = (skill, key, values) => {
 		const vals = axisValues(skill, key);
 		if (vals.length === 0) return !EMPTY_NONE_AXES.includes(key);
-		return vals.some((v) => values.includes(v));
+		// 許可リストの軸（バ場）は「持っている値が全部選ばれている」ものだけ通す
+		return EXCLUSIVE_AXES.includes(key)
+			? vals.every((v) => values.includes(v))
+			: vals.some((v) => values.includes(v));
 	};
-	/** 仕様どおりに絞った期待値（名前の配列）。`f` は `{ 軸キー: [値…] }`。 */
+	/** 「条件で検索」の母集団（パッシブを外したもの）。名簿ではなく印とタグから導く。 */
+	const inPool = (s) => POOL_EXCLUDED_AXES.every((k) => axisValues(s, k).length === 0);
+	const POOL = master.skills.filter(inPool);
+	/** 仕様どおりに絞った期待値（名前の配列）。f は { 軸キー: [値…] }。 */
 	const expectNames = (f) => {
 		const keys = Object.keys(f).filter((k) => (f[k] || []).length > 0);
-		const triggered = keys.some((k) => !OPT_IN_AXES.includes(k));
-		let list = master.skills.filter((s) => keys.every((k) => axisHit(s, k, f[k])));
-		if (triggered) {
-			list = list.filter((s) => OPT_IN_AXES.every((k) => keys.includes(k) || axisValues(s, k).length === 0));
-		}
-		return list.map((s) => s.name);
+		return POOL.filter((s) => keys.every((k) => axisHit(s, k, f[k]))).map((s) => s.name);
 	};
+	assert(POOL.length === 378 && master.skills.length - POOL.length === 67,
+		'段8: 母集団は 445 − パッシブ67 = 378件', { 母集団: POOL.length, パッシブ: master.skills.length - POOL.length });
 
 	// 63セッション目（第2波）: ⑧を「その他」（入手経路）に広げ、値を3つにした。
 	// **空配列の意味が他の軸と逆**（空＝該当なし）なのは変わらないので、印の名前だけ
@@ -323,7 +385,26 @@ const browser = await chromium.launch();
 	const listedNames = () => page.evaluate(() =>
 		[...document.querySelectorAll('[data-usd-el="results"] .usd-row span')].map((el) => el.textContent));
 
-	assert(await readCount() === 445, 'モーダルに445件が表示される', await readCount());
+	assert(await readCount() === POOL.length,
+		'モーダルに母集団の ' + POOL.length + '件が表示される（パッシブは出ない）', await readCount());
+	/* **パッシブ67件が1件も出ていないこと**（段8 の狙いそのもの）。
+	   名簿を検査に書かず、マスターの生データから「パッシブの名前」を作って突き合わせる。 */
+	{
+		const listed = new Set(await listedNames());
+		const passiveNames = master.skills.filter((s) => !inPool(s)).map((s) => s.name);
+		const leaked = passiveNames.filter((n) => listed.has(n));
+		assert(passiveNames.length === 67 && leaked.length === 0,
+			'段8: パッシブ67件は「条件で検索」の一覧に1件も出ない', leaked.slice(0, 5));
+		/* **隠す軸と母集団は別**であることの実データでの裏取り。
+		   隠す軸（レース環境・レース場）にタグを持っていても、パッシブでなければ一覧に出る。
+		   印を1つにまとめると、ここが必ず落ちる。 */
+		const hiddenButInPool = POOL.filter((s) => ['environment', 'trackVenue']
+			.some((k) => axisValues(s, k).length > 0));
+		const alsoListed = hiddenButInPool.filter((s) => listed.has(s.name));
+		assert(alsoListed.length === hiddenButInPool.length,
+			'段8: 隠す軸にタグを持っていても、パッシブでなければ母集団に出る',
+			{ 該当: hiddenButInPool.length, 出た: alsoListed.length });
+	}
 
 	// フィルターのチェックボックスを実際にクリックして絞り込む（UIの配線ごと確かめる）。
 	// 軸はタブに分かれていて、選んでいないタブのパネルは visibility:hidden で
@@ -361,14 +442,10 @@ const browser = await chromium.launch();
 	 * 件数は書かずに `expectNames()`（マスターの生データ＋軸の印から組み立てる）から取る。
 	 * §1 はマスター側の 42件／31件／67件をそのまま見ているので、**「データの件数」と
 	 * 「絞り込んだときに出る件数」の両方が固定されている。** */
-	const gateDropped = (f) => master.skills.filter((s) => f.effect.some((v) => s.tags.effect.includes(v))).length - expectNames(f).length;
-
 	await tick('effect', 'stamina');
 	const recCount = await readCount();
 	const recExpect = expectNames({ effect: ['stamina'] });
-	assert(recCount === recExpect.length, '「持久力回復」で絞ると ' + recExpect.length + '件（⑤の門番で落ちたぶんを除く）', recCount);
-	assert(gateDropped({ effect: ['stamina'] }) > 0,
-		'段5⑤: その絞り込みで、レース環境・レース場のタグを持つスキルが実際に落ちている', gateDropped({ effect: ['stamina'] }));
+	assert(recCount === recExpect.length, '「持久力回復」で絞ると ' + recExpect.length + '件', recCount);
 	await tick('effect', 'stamina');
 
 	await tick('effect', 'debuff');
@@ -377,11 +454,7 @@ const browser = await chromium.launch();
 	const decExpect = expectNames({ effect: ['debuff'] });
 	assert(decCount === decExpect.length, '②D「デバフ」で絞ると ' + decExpect.length + '件', decCount);
 	assert(eq(decNames.slice().sort(), decExpect.slice().sort()),
-		'②D「デバフ」の内訳が、31件から⑤の門番で落ちたぶんを除いたものと一致', decNames);
-	// 門番で落ちたのが DEBUFF の名簿の中身であること（別のものが混ざって帳尻が合っているのではない）
-	const decGated = DEBUFF.filter((n) => !decExpect.includes(n));
-	assert(decGated.length > 0 && decGated.every((n) => DEBUFF.includes(n)),
-		'②D 落ちたのは31件の名簿の中のスキル', decGated);
+		'②D「デバフ」の内訳が31件と一致（デバフにパッシブは1件も無い）', decNames);
 	// 軸内OR。**重なりがあるので単純な和にはならない** ―― 展開窺い・マイペースが両方に出る
 	// （元から speed_down ＋ stamina を持つ。統合前の「回復と減少は排他」は
 	//   持久力減少に限った話で、速度ダウンまで含む debuff では重なりうる）。
@@ -395,14 +468,109 @@ const browser = await chromium.launch();
 		{ 回復: recExpect.length, デバフ: decExpect.length, 両方: bothExpect.length });
 	await tick('effect', 'stamina');
 	await tick('effect', 'debuff');
-	assert(await readCount() === 445, 'チェックを外すと445件に戻る（門番も働かない）', await readCount());
+	assert(await readCount() === POOL.length, 'チェックを外すと母集団の件数に戻る', await readCount());
 
-	// ②A 能力上昇（6値を統合したので、6つを別々に選んだときの和と同じ件数になる）
-	await tick('effect', 'stat_up');
-	const statUpCount = await readCount();
-	const statUpExpect = expectNames({ effect: ['stat_up'] });
-	assert(statUpCount === statUpExpect.length, '②A「能力上昇」で絞ると ' + statUpExpect.length + '件', statUpCount);
-	await tick('effect', 'stat_up');
+	/* ②A「能力上昇」の絞り込みは段8 で無くなった（選択肢から外した）。
+	   押せるものが無いことを、チェックボックスの有無で見る。 */
+	{
+		const box = await page.$('[data-usd-el="filter-check"][data-axis="effect"][data-value="stat_up"]');
+		assert(box === null, '段8: 「能力上昇」のチェックボックスが画面に無い');
+		const statUpInPool = expectNames({ effect: ['stat_up'] });
+		assert(statUpInPool.length === 0,
+			'段8: 仮に絞れたとしても母集団に「能力上昇」は0件（選択肢から外した根拠）', statUpInPool);
+	}
+
+	/* 段8 ―― バ場の排他 */
+	{
+		const surf = (s, v) => axisValues(s, 'surface').includes(v);
+		const turfOnly = master.skills.filter((s) => surf(s, 'turf'));
+		const dirtOnly = master.skills.filter((s) => surf(s, 'dirt'));
+		assert(turfOnly.length > 0 && dirtOnly.length > 0,
+			'段8: マスターに芝・ダートのタグを持つスキルが実在する', { 芝: turfOnly.length, ダート: dirtOnly.length });
+
+		await tick('surface', 'turf');
+		const turfNames = await listedNames();
+		const turfExpect = expectNames({ surface: ['turf'] });
+		assert(await readCount() === turfExpect.length,
+			'段8: 「芝」で絞ると ' + turfExpect.length + '件', await readCount());
+		assert(turfNames.every((n) => !dirtOnly.some((s) => s.name === n)),
+			'段8: 「芝」を選ぶとダートのタグを持つスキルは1件も出ない',
+			turfNames.filter((n) => dirtOnly.some((s) => s.name === n)).slice(0, 5));
+		assert(turfNames.some((n) => POOL.some((s) => s.name === n && axisValues(s, 'surface').length === 0)),
+			'段8: バ場のタグが無いスキルは「芝」でも出る（空を「該当なし」と読む軸ではない）');
+		await tick('surface', 'turf');
+
+		await tick('surface', 'dirt');
+		const dirtNames = await listedNames();
+		assert(dirtNames.every((n) => !turfOnly.some((s) => s.name === n)),
+			'段8: 「ダート」を選ぶと芝のタグを持つスキルは1件も出ない',
+			dirtNames.filter((n) => turfOnly.some((s) => s.name === n)).slice(0, 5));
+		await tick('surface', 'dirt');
+
+		await tick('surface', 'turf');
+		await tick('surface', 'dirt');
+		assert(await readCount() === POOL.length,
+			'段8: 芝とダートを両方選ぶと、バ場では1件も落ちない', await readCount());
+		await tick('surface', 'turf');
+		await tick('surface', 'dirt');
+	}
+
+	assert(await readCount() === POOL.length, '段8: バ場のチェックを外すと母集団の件数に戻る', await readCount());
+
+	/* 段8 ―― **排他が軸内ORと違うことを確かめる。**
+	   いまのマスターでは、バ場のタグを持つスキルは必ず片方だけなので、
+	   **some（軸内OR）と every（許可リスト）は同じ結果になる** ―― つまり上の検査だけでは、
+	   排他を OR に戻して壊しても素通りする（破壊確認で実際にそうなった）。
+	   両方のタグを持つスキルを仕込むと、初めて2つの規則が分かれる:
+	     片方だけ選ぶ … OR なら出る／許可リストなら出ない
+	     両方選ぶ     … どちらでも出る
+	   **値も軸のキーも書かない**（製品の印から、排他の軸とその選択肢を引く）。 */
+	{
+		const EX_ID = 'custom_exclusive_probe';
+		const EX_NAME = '排他の軸の値を両方持つ検査用スキル';
+		const exAxis = axes.find((a) => a.exclusive && !a.hidden);
+		assert(!!exAxis && exAxis.opts.length >= 2, '段8: 排他の軸と選択肢2つが実在する', exAxis && exAxis.key);
+
+		const seedEx = await page.evaluate(([id, name, key]) => {
+			const data = UmaSkillDeckCore.getUserData();
+			const tags = {};
+			UmaSkillDeckCore.TAG_AXES.forEach((a) => { tags[a.key] = []; });
+			const axis = UmaSkillDeckCore.TAG_AXES.find((a) => a.key === key);
+			tags[key] = axis.options.map((o) => o.v);      // その軸の値を**全部**持たせる
+			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
+			data.customSkills.push({ customId: id, name: name, tags: tags, createdAt: new Date().toISOString() });
+			UmaSkillDeckCore.replaceUserData(data);
+			UmaSkillDeckCore.openSkillPicker([], () => {});
+			return tags[key];
+		}, [EX_ID, EX_NAME, exAxis.key]);
+		assert(seedEx.length === exAxis.opts.length && seedEx.length >= 2,
+			'段8: 仕込んだスキルは排他の軸の値を全部持っている', seedEx);
+		await page.waitForTimeout(300);
+
+		const listedHas = async () => (await listedNames()).includes(EX_NAME);
+		assert(await listedHas(), '段8: 条件なしなら、その仕込んだスキルは一覧に出る');
+
+		// 片方だけ選ぶ → **出ない**（軸内ORに戻すと出てしまう＝壊れたことが分かる）
+		await tick(exAxis.key, exAxis.opts[0]);
+		assert(!(await listedHas()),
+			'段8排他: 片方だけ選ぶと、両方の値を持つスキルは出ない（軸内ORとの違い）', { 選んだ: exAxis.opts[0], 一覧の件数: (await listedNames()).length });
+		// 両方選ぶ → 出る
+		await tick(exAxis.key, exAxis.opts[1]);
+		assert(await listedHas(),
+			'段8排他: 選択肢を全部選べば、両方の値を持つスキルも出る');
+		await tick(exAxis.key, exAxis.opts[0]);
+		await tick(exAxis.key, exAxis.opts[1]);
+
+		// 後片付け
+		await page.evaluate((id) => {
+			const data = UmaSkillDeckCore.getUserData();
+			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
+			UmaSkillDeckCore.replaceUserData(data);
+			UmaSkillDeckCore.openSkillPicker([], () => {});
+		}, EX_ID);
+		await page.waitForTimeout(300);
+		assert(await readCount() === POOL.length, '段8排他: 検査用スキルを片付けると母集団の件数に戻る', await readCount());
+	}
 
 	// ③ シナリオスキルのフラグ絞り込み
 	await tick('scenario', 'scenario');
@@ -410,8 +578,13 @@ const browser = await chromium.launch();
 	const scenNames = await listedNames();
 	// 「この軸だけ」ではなくなった（段5 で5本になった）。件数が27のままなのは、シナリオスキル27件が
 	// レース環境・レース場のタグを1つも持たないから ―― 門番は働いているが落ちるものが無い。
-	assert(scenCount === 27, '⑧「シナリオスキル」で絞ると27件（タグ無しが万能扱いにならない軸）', scenCount);
-	assert(eq(scenNames.slice().sort(), SCENARIO.slice().sort()), '⑧シナリオスキルの内訳が指定の27件', scenNames.length);
+	/* 71セッション目・段8: 27件 → 母集団に残るぶんだけになった（レースの真髄・心がパッシブ）。
+	   件数は書かず、名簿からパッシブを引いたものと突き合わせる。 */
+	const scenExpect = SCENARIO.filter((n) => POOL.some((s) => s.name === n));
+	assert(scenCount === scenExpect.length,
+		'⑧「シナリオスキル」で絞ると ' + scenExpect.length + '件（27件のうちパッシブを除く）', scenCount);
+	assert(scenExpect.length === 26, '段8: 27件のうち1件（レースの真髄・心）がパッシブになった', scenExpect.length);
+	assert(eq(scenNames.slice().sort(), scenExpect.slice().sort()), '⑧シナリオスキルの内訳が一致', scenNames.length);
 
 	// 軸間ANDも壊れていないこと（シナリオ × 持久力回復）
 	await tick('effect', 'stamina');
@@ -463,85 +636,115 @@ const browser = await chromium.launch();
 		await tick(key, two);
 		await tick(key, one);
 	}
-	assert(await readCount() === 445, '段5③④ チェックを全部外すと445件に戻る', await readCount());
+	assert(await readCount() === POOL.length, '段5③④ チェックを全部外すと母集団の件数に戻る', await readCount());
 
 	/* ==========================================================
-	 * 段5 ―― ⑤ レース環境・レース場のオプトイン
-	 * ========================================================== */
-	console.log('\n--- 段5 ⑤ レース環境・レース場のオプトイン ---');
-	{
-		// 門番を働かせる軸（optIn でない軸）を1つ選ぶ。**軸と値は実測から取る**
-		// ―― 「その軸で絞ると、optIn の軸のタグを持つスキルが実際に落ちる」ものを探す。
-		const gateProbe = (() => {
-			for (const a of axes.filter((x) => !x.optIn)) {
-				for (const v of a.opts) {
-					const raw = master.skills.filter((s) => axisHit(s, a.key, [v]));
-					const dropped = raw.filter((s) => OPT_IN_AXES.some((k) => axisValues(s, k).length > 0));
-					if (dropped.length > 0) return { key: a.key, label: a.label, value: v, dropped: dropped.map((s) => s.name) };
-				}
-			}
-			return null;
-		})();
-		assert(!!gateProbe, '段5⑤ 門番が実際に効く組み合わせがマスターに実在する（空振りの検査ではない）',
-			gateProbe && { 軸: gateProbe.label, 値: gateProbe.value, 落ちる: gateProbe.dropped.length + '件' });
-
-		await tick(gateProbe.key, gateProbe.value);
-		const gotGate = await listedNames();
-		const wantGate = expectNames({ [gateProbe.key]: [gateProbe.value] });
-		assert(eq(gotGate.slice().sort(), wantGate.slice().sort()),
-			'段5⑤ ' + gateProbe.label + '＝' + gateProbe.value + ' の結果が仕様どおり（' + wantGate.length + '件）', gotGate.length);
-		const stillThere = gotGate.filter((n) => gateProbe.dropped.includes(n));
-		assert(stillThere.length === 0,
-			'段5⑤ 他の軸で絞ると、レース環境・レース場のタグを持つスキルは出ない', stillThere.slice(0, 5));
-
-		// その軸を**明示的にチェックすると出てくる**（オプトイン）。
-		// 落ちていたスキルの1件が持っている値をそのまま選ぶ（値を検査に書かない）。
-		const victim = master.skills.find((s) => s.name === gateProbe.dropped[0]);
-		const optInKey = OPT_IN_AXES.find((k) => axisValues(victim, k).length > 0);
-		const optInValue = axisValues(victim, optInKey)[0];
-		await tick(optInKey, optInValue);
-		const gotOptIn = await listedNames();
-		const wantOptIn = expectNames({ [gateProbe.key]: [gateProbe.value], [optInKey]: [optInValue] });
-		assert(eq(gotOptIn.slice().sort(), wantOptIn.slice().sort()),
-			'段5⑤ その軸を明示的に選ぶと、仕様どおりの結果になる（' + wantOptIn.length + '件）', gotOptIn.length);
-		assert(gotOptIn.includes(victim.name),
-			'段5⑤ 明示的に選べば、そのタグを持つスキルが出てくる（オプトイン）', victim.name);
-		// もう一方のオプトイン軸は、選んでいないので門番が効いたまま
-		const otherOptIn = OPT_IN_AXES.find((k) => k !== optInKey);
-		const otherLeak = gotOptIn.filter((n) => axisValues(master.skills.find((s) => s.name === n) || {}, otherOptIn).length > 0);
-		assert(otherLeak.length === 0,
-			'段5⑤ 選んでいないほうのオプトイン軸は、門番が効いたまま', otherLeak.slice(0, 5));
-		await tick(optInKey, optInValue);
-		await tick(gateProbe.key, gateProbe.value);
-
-		// 「他の軸に何もチェックが無いとき」は門番が働かない＝全件のまま
-		assert(await readCount() === 445, '段5⑤ 他の軸に何もチェックが無いときは全件のまま（門番は働かない）', await readCount());
-	}
-
-	/* ==========================================================
-	 * 段5 ―― 決6 オプトインの2軸も「空＝該当なし」
+	 * 段8 ―― 隠す軸（レース環境・レース場・パッシブ）
 	 *
-	 * これが無いと、この2軸だけをチェックしたとき（他の軸が空なので門番が働かない）に
-	 * 「万能扱い」で全件近くが残る。**チェックしたら、そのタグを持つものだけ**が出ること。
+	 * **ここには 70セッション目・段5 の「⑤ オプトイン」と「決6」の2つの塊があった。**
+	 * 71セッション目・段8 で **optIn（門番）の仕組みごと廃した**ので、検査も外した
+	 * （黙って消さず、何をなぜ外したかをここに残す。恒久ルール20 と同じ扱い）。
+	 *   - 外したもの: 「門番が効く組み合わせが実在する」「他の軸で絞るとオプトイン軸のタグを持つ
+	 *     スキルが出ない」「明示的に選べば出てくる」「オプトイン軸単独でも絞れる」など計10項目
+	 *   - なぜ: レース環境・レース場を**絞り込みから隠した**ので、そもそも選べない。
+	 *     門番が働く前提（「その軸を明示的にチェックする」）が画面から無くなった。
+	 * 代わりに、**隠れていること**と**母集団との関係**をここで見る。
 	 * ========================================================== */
-	console.log('\n--- 段5 決6 オプトインの2軸も空＝該当なし ---');
-	for (const key of OPT_IN_AXES) {
-		const axis = axes.find((a) => a.key === key);
-		// 実際にマスターで使われている値を1つ選ぶ（値を検査に書かない）
-		const value = axis.opts.find((v) => master.skills.some((s) => axisValues(s, key).includes(v)));
-		assert(!!value, '段5決6 ' + axis.label + ' に、マスターで実際に使われている値がある', value);
-		await tick(key, value);
-		const got = await listedNames();
-		const want = expectNames({ [key]: [value] });
-		assert(eq(got.slice().sort(), want.slice().sort()),
-			'段5決6 ' + axis.label + '＝' + value + ' 単独の結果が仕様どおり（' + want.length + '件）', got.length);
-		assert(got.every((n) => axisValues(master.skills.find((s) => s.name === n) || {}, key).includes(value)),
-			'段5決6 ' + axis.label + ' 単独で選んでも、そのタグを持つスキルだけが出る', got.length);
-		assert(got.length < master.skills.length,
-			'段5決6 ' + axis.label + ' 単独でも絞れている（万能扱いで全件残らない）', got.length);
-		await tick(key, value);
+	console.log('\n--- 段8 隠す軸と母集団 ---');
+	{
+		// (1) 隠す軸は、タブにもパネルにもチェックボックスにも出ない
+		for (const key of HIDDEN_AXES) {
+			const found = await page.evaluate((k) => ({
+				tab: !!document.querySelector('.usd-tab[data-usd-axis="' + k + '"]'),
+				panel: !!document.querySelector('.usd-tabpanel[data-usd-axis="' + k + '"]'),
+				checks: document.querySelectorAll('[data-usd-el="filter-check"][data-axis="' + k + '"]').length,
+				custom: document.querySelectorAll('[data-usd-el="custom-tag"][data-axis="' + k + '"]').length,
+			}), key);
+			assert(!found.tab && !found.panel && found.checks === 0 && found.custom === 0,
+				'段8: ' + key + ' は絞り込みにもカスタムスキル入力にも出ない', found);
+		}
+		// 出ている軸の数が pickableAxes() と合っている（隠したぶんだけ減っている）
+		const shown = await page.evaluate(() => document.querySelectorAll('.usd-tab').length);
+		assert(shown === uiAxes.length && shown === axes.length - HIDDEN_AXES.length,
+			'段8: タブの数は 全軸 − 隠す軸', { タブ: shown, 全軸: axes.length, 隠す: HIDDEN_AXES.length });
+
+		// (2) 隠しても、その軸のタグを持つスキルが母集団から消えるわけではない
+		//     （**印を1つにまとめると、ここが落ちる**）
+		const hiddenOnly = HIDDEN_AXES.filter((k) => !POOL_EXCLUDED_AXES.includes(k));
+		const withHiddenTag = POOL.filter((s) => hiddenOnly.some((k) => axisValues(s, k).length > 0));
+		const listedAll = new Set(await listedNames());
+		const shownOfThem = withHiddenTag.filter((s) => listedAll.has(s.name));
+		assert(shownOfThem.length === withHiddenTag.length,
+			'段8: 隠す軸のタグを持っていても、パッシブでなければ一覧に出る',
+			{ 該当: withHiddenTag.length, 出た: shownOfThem.length,
+				出なかった: withHiddenTag.filter((s) => !listedAll.has(s.name)).map((s) => s.name).slice(0, 5) });
+
+		// (3) 母集団から外す軸のスキルは、名前の索引からは引ける（段9 の入口が使う）
+		const excludedSkills = await page.evaluate(() => UmaSkillDeckCore.getPoolExcludedSkills().map((s) => s.name));
+		const expectExcluded = master.skills.filter((s) => !inPool(s)).map((s) => s.name);
+		assert(eq(excludedSkills.slice().sort(), expectExcluded.slice().sort()),
+			'段8: getPoolExcludedSkills() がパッシブ67件をそのまま返す（段9 の一覧の母集団）',
+			{ 製品: excludedSkills.length, 期待: expectExcluded.length });
+		assert(excludedSkills.every((n) => !listedAll.has(n)),
+			'段8: その67件は「条件で検索」の一覧には1件も出ていない');
+
+		/* (4) **印を1つにまとめたら落ちる検査。**
+		   いまのマスターでは、隠す軸にタグを持つスキルは**全部パッシブ**なので
+		   （目覚め6種も決2 でパッシブに入った）、印をまとめて壊しても実データは何も変わらない。
+		   ＝ (2) の検査は**いまは空振り**（該当0件）で、守りになっていない。
+		   そこで「隠す軸のタグだけを持ち、パッシブではないもの」を**カスタムスキルとして仕込み**、
+		   母集団に残ることを見る。**これは印の意味そのものの検査**で、データが変わっても効き続ける。 */
+		const PROBE_ID = 'custom_hidden_axis_probe';
+		const probe = await page.evaluate(([id, hiddenOnly]) => {
+			const data = UmaSkillDeckCore.getUserData();
+			const tags = {};
+			UmaSkillDeckCore.TAG_AXES.forEach((a) => { tags[a.key] = []; });
+			// 隠すだけの軸に、その軸の**最初の選択肢**を1つずつ入れる（値を検査に書かない）
+			hiddenOnly.forEach((k) => {
+				const axis = UmaSkillDeckCore.TAG_AXES.find((a) => a.key === k);
+				tags[k] = [axis.options[0].v];
+			});
+			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
+			data.customSkills.push({ customId: id, name: '隠す軸のタグだけを持つ検査用スキル', tags: tags, createdAt: new Date().toISOString() });
+			UmaSkillDeckCore.replaceUserData(data);
+			UmaSkillDeckCore.openSkillPicker([], () => {});
+			return {
+				name: '隠す軸のタグだけを持つ検査用スキル',
+				tags: tags,
+				出た: [...document.querySelectorAll('[data-usd-el="results"] .usd-row span')]
+					.some((el) => el.textContent === '隠す軸のタグだけを持つ検査用スキル'),
+			};
+		}, [PROBE_ID, hiddenOnly]);
+		assert(hiddenOnly.length > 0 && hiddenOnly.every((k) => probe.tags[k].length === 1),
+			'段8: 仕込んだスキルは、隠すだけの軸にタグを持っている', { 軸: hiddenOnly, タグ: probe.tags });
+		assert(probe.tags.passive.length === 0, '段8: 仕込んだスキルはパッシブではない', probe.tags.passive);
+		assert(probe.出た === true,
+			'段8: 隠す軸のタグだけを持つスキルは母集団に出る（印を1つにまとめたらここが落ちる）', probe);
+
+		// 同じスキルにパッシブの印を足すと、今度は消える（poolExcluded 側が効いていることの裏取り）
+		const probe2 = await page.evaluate((id) => {
+			const data = UmaSkillDeckCore.getUserData();
+			const c = data.customSkills.find((x) => x.customId === id);
+			const axis = UmaSkillDeckCore.TAG_AXES.find((a) => a.poolExcluded);
+			c.tags[axis.key] = [axis.options[0].v];
+			UmaSkillDeckCore.replaceUserData(data);
+			UmaSkillDeckCore.openSkillPicker([], () => {});
+			return [...document.querySelectorAll('[data-usd-el="results"] .usd-row span')]
+				.some((el) => el.textContent === '隠す軸のタグだけを持つ検査用スキル');
+		}, PROBE_ID);
+		assert(probe2 === false,
+			'段8: 同じスキルにパッシブの印を足すと母集団から消える（母集団から外す側が効いている）', probe2);
+
+		// 後片付け（このあとの件数の検査に混ざらないよう必ず消す）
+		await page.evaluate((id) => {
+			const data = UmaSkillDeckCore.getUserData();
+			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
+			UmaSkillDeckCore.replaceUserData(data);
+			UmaSkillDeckCore.openSkillPicker([], () => {});
+		}, PROBE_ID);
+		await page.waitForTimeout(300);
+		assert(await readCount() === POOL.length, '段8: 検査用スキルを片付けると母集団の件数に戻る', await readCount());
 	}
-	assert(await readCount() === 445, '段5決6 チェックを外すと445件に戻る', await readCount());
 
 	// ② 新規6件がモーダルに出て、タグがコピー元と一致している
 	for (const [newName, srcName] of AWAKENINGS) {
@@ -554,10 +757,16 @@ const browser = await chromium.launch();
 		}, [newName, srcName]);
 		assert(same && same.ok, '②画面上でも「' + newName + '」のタグがコピー元と一致', same);
 	}
+	/* 71セッション目・段8: 目覚め6種は**パッシブに入った**（決2）ので、
+	   「条件で検索」の一覧には**並ばない**のが正しい姿になった。
+	   タグがコピー元と一致していること（上の6項目）は変わらず見ている。 */
 	const awakeListed = await page.evaluate((names) =>
-		names.every((n) => [...document.querySelectorAll('[data-usd-el="results"] .usd-row span')].some((el) => el.textContent === n)),
+		names.filter((n) => [...document.querySelectorAll('[data-usd-el="results"] .usd-row span')].some((el) => el.textContent === n)),
 		AWAKENINGS.map(([n]) => n));
-	assert(awakeListed === true, '②新規6件がモーダルの一覧に並ぶ', awakeListed);
+	assert(awakeListed.length === 0, '段8: 目覚め6件はパッシブなので一覧に並ばない', awakeListed);
+	const awakeAllPassive = AWAKENINGS.map(([n]) => n)
+		.filter((n) => (master.skills.find((s) => s.name === n).tags.passive || []).length === 0);
+	assert(awakeAllPassive.length === 0, '段8: 目覚め6件はマスターでもパッシブ', awakeAllPassive);
 
 	// カスタムスキル入力欄にも「その他」の軸が出る（TAG_AXES駆動になっていることの確認）。
 	// 件数は決め打ちせず、**製品の pickableOptions() から取る** ―― 選択肢が増えたとき、
@@ -595,7 +804,10 @@ const browser = await chromium.launch();
 	 * ========================================================== */
 	const LEGACY_ID = 'custom_legacy_probe';
 	const LEGACY_NAME = '旧値が残ったカスタムスキル（検査用）';
-	const LEGACY_EFFECT = ['speed_up', 'power_up'];   // どちらも段2 で廃した値（2つとも同じ新値へ潰れる）
+	/* どちらも段2 で廃した値（2つとも同じ新値 debuff へ潰れる）。
+	   **71セッション目・段8 で speed_up / power_up から替えた** ―― あちらの新値（stat_up）は
+	   段8 で絞り込みの選択肢から外れたので、「読み替えた結果が絞り込みに出る」ことを確かめられない。 */
+	const LEGACY_EFFECT = ['stamina_down', 'speed_down'];
 	{
 		const seeded = await page.evaluate(([id, name, effect]) => {
 			const data = UmaSkillDeckCore.getUserData();
@@ -614,15 +826,16 @@ const browser = await chromium.launch();
 		await page.evaluate(() => UmaSkillDeckCore.openSkillPicker([], () => {}));
 		await page.waitForTimeout(500);
 		const allCount = await readCount();
-		assert(allCount === 446, '②カスタムスキル1件を足したので母集団は446件', allCount);
+		assert(allCount === POOL.length + 1,
+			'②カスタムスキル1件を足したので母集団は ' + (POOL.length + 1) + '件', allCount);
 		await tick('effect', seeded[0]);
 		const hit = await listedNames();
 		assert(hit.includes(LEGACY_NAME),
-			'②旧値のままのカスタムスキルも「能力上昇」の絞り込みに出る（読むときに読み替える）', hit.length);
-		// マスター側の期待値は段5 の門番を通したもの（`statUpExpect`）＋ 仕込んだカスタム1件。
-		// カスタムスキルはレース環境・レース場のタグが空なので門番では落ちない。
-		assert((await readCount()) === statUpExpect.length + 1,
-			'②その絞り込みは ' + statUpExpect.length + '件＋カスタム1件 の' + (statUpExpect.length + 1) + '件', await readCount());
+			'②旧値のままのカスタムスキルも、読み替え先の絞り込みに出る（読むときに読み替える）', hit.length);
+		// マスター側の期待値（母集団から絞ったぶん）＋ 仕込んだカスタム1件
+		const legacyExpect = expectNames({ effect: [seeded[0]] });
+		assert((await readCount()) === legacyExpect.length + 1,
+			'②その絞り込みは ' + legacyExpect.length + '件＋カスタム1件 の' + (legacyExpect.length + 1) + '件', await readCount());
 		await tick('effect', seeded[0]);
 		await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
 		await page.waitForTimeout(300);

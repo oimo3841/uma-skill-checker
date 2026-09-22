@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22f';
 
 	/* ============================================================
 	 * 定数
@@ -45,7 +45,7 @@
 	 * **`data/` の6ファイルにも同じ問題がある**（どれも `?v=` が付かない）。
 	 * そちらを対象に入れるかはまだ決めていない。
 	 */
-	const MASTER_JSON_VERSION = '2026-09-21b';
+	const MASTER_JSON_VERSION = '2026-09-22a';
 
 	/**
 	 * **`data/` の6ファイルの版**（71セッション目・段7の続き）。
@@ -237,7 +237,21 @@
 	 */
 	const DEFAULT_SET_LABEL = 'スキルセット';
 
-	// 8軸のタグ辞書。フィルターパネル・タグ表示・カスタムスキル入力で共有する。
+	/* タグ辞書。フィルターパネル・タグ表示・カスタムスキル入力・タグ付け画面で共有する。
+	 *
+	 * **軸に付く印は4つ**（71セッション目・段8 で `optIn` を廃し、`hiddenAxis` / `poolExcluded` /
+	 * `exclusive` を足した）:
+	 *   `emptyMeansNone` … 空配列を「万能」ではなく「該当しない」と読む
+	 *   `exclusive`      … 軸内が OR ではなく**許可リスト**。持っている値が選んだ値に全部収まるものだけ通す
+	 *   `hiddenAxis`     … **利用者の絞り込みには出さない**（タブにもカスタムスキル入力にも出さない）。
+	 *                       データとしては残り、`card-event-input.html` のタグ付け画面には出る
+	 *   `poolExcluded`   … **この軸に値を持つスキルを「条件で検索」の母集団に入れない**
+	 *
+	 * **`hiddenAxis` と `poolExcluded` は別物。まとめてはいけない。**
+	 * レース環境・レース場は「隠すが母集団には居る」、パッシブは「隠すうえに母集団から外す」。
+	 * 1つの印にすると、`environment` にタグを持つスキル（＝いまはパッシブ67件だけだが、
+	 * 将来そうとは限らない）まで母集団から消える。
+	 */
 	const TAG_AXES = [
 		{ key: 'distance', label: '距離', options: [
 			{ v: 'short', t: '短距離' }, { v: 'mile', t: 'マイル' }, { v: 'medium', t: '中距離' }, { v: 'long', t: '長距離' }
@@ -245,16 +259,46 @@
 		{ key: 'style', label: '脚質', options: [
 			{ v: 'nige', t: '逃げ' }, { v: 'senko', t: '先行' }, { v: 'sashi', t: '差し' }, { v: 'oikomi', t: '追込' }
 		]},
+		/* 71セッション目・段8。**距離・脚質と同等の扱いの軸**（指示）なので脚質の次に置く。
+		 * 値は `environment` の `surface_turf` / `surface_dirt` から移した（マスターも同じ段で更新）。
+		 *
+		 * **この軸だけ軸内が OR ではない（`exclusive`）。**
+		 * 「芝」を選んだらダートのタグを持つスキルを落とし、「ダート」を選んだら芝のタグを持つものを落とす。
+		 * バ場を持たないスキル（＝どちらでも走れるもの）は、どちらを選んでも通る。
+		 * **「芝を選ぶと芝のスキルだけが出る」ではない**ことに注意 ―― それは `emptyMeansNone` の読み方で、
+		 * この軸ではバ場の指定が無い大多数のスキルが消えてしまう。
+		 *
+		 * **「ダート」を選んでも1件も減らない。** 芝のタグを持つ唯一のスキル（衝動）がパッシブで
+		 * 母集団に居ないため。**ゲーム設計上やむを得ないものとして、このままにする**（決7）。
+		 */
+		{ key: 'surface', label: 'バ場', exclusive: true, options: [
+			{ v: 'turf', t: '芝' }, { v: 'dirt', t: 'ダート' }
+		]},
 		// 70セッション目・段2 で選択肢を 18 → 12 に減らした（②(ア)A・D）。
 		//   能力上昇（stat_up）  … speed_up / stamina_up / power_up / guts_up / wisdom_up / all_up の6値を統合（67件）
 		//   デバフ（debuff）     … stamina_down / speed_down の2値を統合（31件）
 		// **統合後は個別の絞り込みができなくなる。これは承知のうえの決定。**
 		// 持久力回復（stamina）は据え置き（42件）。旧値の読み替えは LEGACY_EFFECT_VALUES を読むこと。
+		//
+		// **71セッション目・段8: `stat_up`（能力上昇）に `hiddenOption` を付けて、絞り込みの選択肢から外した。**
+		// パッシブ67件を母集団から外すと、`stat_up` を持つスキルは**母集団に1件も残らない**
+		// （67件すべてがパッシブ）。選んでも必ず0件になる選択肢を出す意味が無い（決3）。
+		//
+		// **値そのものはデータにも選択肢の並びにも残す**（消さない）。理由は3つ:
+		//   (1) 消すと67件のうち63件の `effect` が空になる。`effect` は `emptyMeansNone` ではないので
+		//       空は「万能」の意味になり、`test:master` の「効果タイプが空になったスキルは無い」も失われる
+		//   (2) `check:catalog` の「マスターの値が選択肢に実在する」が効き続ける
+		//   (3) `tagLabel()` が「能力上昇」を返せる。段12（⑧ 追加済みスキルのタグボタン群）で
+		//       パッシブのタグを出すときに、生の値（`stat_up`）が画面に出ない
+		//
+		// **`internalOnly` ではなく `hiddenOption`。** `internalOnly` は「スキルではないものの値」で、
+		// `card-event-input.html` ではそういう枠に入れて「ふつうのスキルには付けません」と注記される。
+		// `stat_up` は**パッシブに付ける値**なので、タグ付け画面には他の値と並べて出す必要がある。
 		{ key: 'effect', label: '効果タイプ', options: [
 			{ v: 'target_speed_up', t: '速度上昇' }, { v: 'accel_up', t: '加速度上昇' }, { v: 'move_forward', t: '前に出る' }, { v: 'extend', t: '伸び' },
 			{ v: 'stamina', t: '持久力回復' }, { v: 'debuff', t: 'デバフ' }, { v: 'start_good', t: 'スタート得意' }, { v: 'course_sense', t: 'コース取り' },
 			{ v: 'lane_change', t: 'レーン移動' }, { v: 'temptation_time', t: '掛かり時間' }, { v: 'vision', t: '視野' },
-			{ v: 'stat_up', t: '能力上昇' }
+			{ v: 'stat_up', t: '能力上昇', hiddenOption: true }
 		]},
 		// 70セッション目・段5（③④）。**空配列を「万能」ではなく「該当なし」と読む。**
 		// 「中盤」を選んだとき、中盤にも発動しうるが序盤・終盤にも発動しうるスキル（phase が空）は
@@ -278,29 +322,41 @@
 		 *   - `check:catalog` の §4-3 … 「TAG_AXES に無い軸には値が入っていないこと」を見る
 		 *   - `test:master` … マスター側のキーの有無と、値が空であることを見る
 		 * `matchesFilters()` は `TAG_AXES` を回すだけなので、この2軸はマッチングに一切関わらない。
-		 */
-		/* 70セッション目・段5（⑤と決6）。この2軸には印が2つ付く。
 		 *
-		 * **`optIn`** … 他の軸（`optIn` でない軸）で1つでも絞っているとき、この軸のタグを持つスキルは、
-		 *   **この軸を明示的にチェックしていない限り出さない**。レース場・レース環境の限定が付いた
-		 *   スキルは、そのレースを走らなければ発動しないので、「距離＝長距離」のような一般的な
-		 *   絞り込みの結果に混ざると邪魔になる。**探しているときだけ出てくればよい。**
-		 *
-		 * **`emptyMeansNone`** … 決6。`optIn` だけだと、**この2軸だけをチェックしたときに門番が
-		 *   働かない**（他の軸が空なので）。そのとき「レース場＝東京」は 429件（タグを持つ1件＋
-		 *   万能扱いの428件）になり、選んだ意味がほとんど無かった。空を「該当なし」と読むことで、
-		 *   **チェックしたときはそのタグを持つスキルだけ**が出る。
+		 * **`hiddenAxis`（レース環境・レース場・パッシブ）とは別物。** あちらは `TAG_AXES` に**在って**
+		 * タブに出さないだけなので、値の検査は効き続ける。こちらは `TAG_AXES` に**無い**ので、
+		 * 「値が入っていないこと」しか見られない。タグを付け始めたら `TAG_AXES` へ出すか、
+		 * `hiddenAxis` として入れるかを決めることになる。
 		 */
-		{ key: 'environment', label: 'レース環境', emptyMeansNone: true, optIn: true, options: [
+		/* **71セッション目・段8: この2軸は `hiddenAxis`（絞り込みのタブに出さない）にした。**
+		 *
+		 * 70セッション目・段5 で `optIn`（門番）＋`emptyMeansNone` にしたが、**実機で機能しなかった。**
+		 * 原因は、この2軸に**パッシブスキル（ゲーム内の緑スキル）の条件が混ざっていた**こと ――
+		 * 「東京レース場○」のようなパッシブは、アクティブスキルの発動条件を絞る軸の中に居るべきものではない。
+		 * **絞り込みの軸は「アクティブスキルの発動条件」を表すものに限る**という方針に変えた（決5）。
+		 *
+		 * **軸ごと消さずに「隠す」。** 消すと `check:catalog` の2つの検査
+		 * （§4-2 レース場の値の実在／§4-3 全軸の値が選択肢に実在）が**読むものを失って落ちる**ので、
+		 * 値の見張りが外れてしまう。隠すだけならどちらもそのまま効く。
+		 * `card-event-input.html` のタグ付け画面には引き続き出る（おいもさんが付ける値なので）。
+		 *
+		 * **`optIn`（門番）は段8 で仕組みごと消した。** 付く軸が0本になり、`matchesFilters()` の
+		 * 先頭のブロックが必ず何もしない死にコードになるため。**`emptyMeansNone` も外した** ――
+		 * 隠した軸は選べないので働かず、印は「見える軸のもの」に揃えたほうが読み違えない。
+		 *
+		 * **いまこの2軸にタグを持つのは、パッシブ67件だけ**（段8 のマスター更新後に実測）。
+		 * ただし `poolExcluded` はこちらには付けない ―― 「隠す」と「母集団から外す」は別物で、
+		 * 将来この軸にタグを持つ**アクティブ**スキルが増えたときに、黙って消えてしまうため。
+		 */
+		{ key: 'environment', label: 'レース環境', hiddenAxis: true, options: [
 			{ v: 'ground_good', t: '良バ場' }, { v: 'ground_bad', t: '道悪' },
-			{ v: 'surface_turf', t: '芝' }, { v: 'surface_dirt', t: 'ダート' },
 			{ v: 'right_turn', t: '右回り' }, { v: 'left_turn', t: '左回り' }, { v: 'small_track', t: '小回り' }, { v: 'straight_course', t: '直線コース' },
 			{ v: 'weather_sunny', t: '晴れ' }, { v: 'weather_cloudy', t: '曇り' }, { v: 'weather_rain', t: '雨' }, { v: 'weather_snow', t: '雪' },
 			{ v: 'season_spring', t: '春' }, { v: 'season_summer', t: '夏' }, { v: 'season_autumn', t: '秋' }, { v: 'season_winter', t: '冬' },
 			{ v: 'time_day', t: '昼' }, { v: 'time_evening', t: '夕方' }, { v: 'time_night', t: 'ナイター' },
 			{ v: 'distance_basis', t: '根幹距離' }, { v: 'distance_nonbasis', t: '非根幹距離' }
 		]},
-		{ key: 'trackVenue', label: 'レース場', emptyMeansNone: true, optIn: true, options: [
+		{ key: 'trackVenue', label: 'レース場', hiddenAxis: true, options: [
 			{ v: 'track_sapporo', t: '札幌' }, { v: 'track_hakodate', t: '函館' }, { v: 'track_fukushima', t: '福島' }, { v: 'track_niigata', t: '新潟' },
 			{ v: 'track_nakayama', t: '中山' }, { v: 'track_tokyo', t: '東京' }, { v: 'track_chukyo', t: '中京' }, { v: 'track_kyoto', t: '京都' },
 			{ v: 'track_hanshin', t: '阪神' }, { v: 'track_kokura', t: '小倉' },
@@ -320,6 +376,24 @@
 			{ v: 'scenario', t: 'シナリオスキル' },
 			{ v: 'scenario_factor', t: 'シナリオ因子', internalOnly: true },
 			{ v: 'gene', t: '遺伝子', internalOnly: true }
+		]},
+		/* **パッシブ（ゲーム内の緑スキル）。71セッション目・段8 で新設。**
+		 *
+		 * パッシブは**発動条件で絞るものではない** ―― レースの前から効いていて、
+		 * 距離・脚質・フェーズ・コース位置のような「いつ出るか」を持たない。
+		 * だから「条件でスキルを検索」の母集団から外し（`poolExcluded`）、
+		 * **名前で直接選ぶ専用の入口**（段9「緑スキルを追加」）から足す。
+		 *
+		 * **軸として持つ理由**（`tags` の外や別のキーにしない）:
+		 *   - `check:catalog` の「マスターの値が選択肢に実在する」「全件が同じ軸を持つ」がそのまま効く
+		 *   - `card-event-input.html` のタグ付け画面に自動で出る（533件のタグ付けで要る）
+		 *   - 緑スキルの一覧も `poolExcluded` の印から作れるので、**軸のキーをコードに書かずに済む**
+		 *
+		 * **`hiddenAxis` と `poolExcluded` の両方が付くのはこの軸だけ。**
+		 * いまは67件（おいもさんがゲームの仕様に基づいて挙げた61件＋「目覚め」6種。決1・決2）。
+		 */
+		{ key: 'passive', label: 'パッシブ', hiddenAxis: true, poolExcluded: true, options: [
+			{ v: 'passive', t: 'パッシブ' }
 		]}
 	];
 
@@ -337,7 +411,24 @@
 	 *   - `card-event-input.html` のタグ付け … おいもさんが**付ける**値なので全部出す
 	 */
 	function pickableOptions(axis) {
-		return axis.options.filter(o => !o.internalOnly);
+		return axis.options.filter(o => !o.internalOnly && !o.hiddenOption);
+	}
+
+	/**
+	 * **利用者の絞り込みに出す軸**だけを返す（`hiddenAxis` の軸を落とす）。
+	 *
+	 * `pickableOptions()` の軸版（71セッション目・段8）。タブ・カスタムスキル入力の
+	 * タグ欄・キーボード移動・既定のタブが、どれも同じ判断を使えるようにしてある。
+	 *
+	 * **通してはいけないもの**:
+	 *   - `matchesFilters()` … 隠した軸の `filters` は常に空なので通す必要が無く、
+	 *     通すとむしろ「隠した軸のタグは無視する」という別の意味になってしまう
+	 *   - `emptyTagSet()` / `addCustomSkillFromPicker()` … **全軸のキーを揃える**のが仕事なので、
+	 *     隠した軸のキーも空配列で持たせる（マスターと顔ぶれを合わせるため）
+	 *   - `card-event-input.html` のタグ付け … おいもさんが**付ける**値なので全軸を出す
+	 */
+	function pickableAxes() {
+		return TAG_AXES.filter(a => !a.hiddenAxis);
 	}
 
 	/**
@@ -436,9 +527,9 @@
 	// このサンプルは正本を取れなかったときにしか使われないので検査が当たりにくい ――
 	// 揃っていないと、その状況でだけ絞り込みの結果が変わる。
 	const SAMPLE_MASTER_SKILLS = { masterVersion: 'embedded-sample', skills: [
-		{ id: '1', name: '右回り○', tags: { distance: [], style: [], phase: [], coursePos: [], rarity: [], inherited: [], environment: ['right_turn'], trackVenue: [], effect: ['stat_up'], scenario: [] } },
-		{ id: '21', name: '積極策', tags: { distance: ['mile'], style: [], phase: ['mid'], coursePos: [], rarity: [], inherited: [], environment: [], trackVenue: [], effect: ['target_speed_up'], scenario: [] } },
-		{ id: '26', name: '集中力', tags: { distance: [], style: [], phase: [], coursePos: [], rarity: [], inherited: [], environment: [], trackVenue: [], effect: ['start_good'], scenario: [] } }
+		{ id: '1', name: '右回り○', tags: { distance: [], style: [], surface: [], phase: [], coursePos: [], rarity: [], inherited: [], environment: ['right_turn'], trackVenue: [], effect: ['stat_up'], scenario: [], passive: ['passive'] } },
+		{ id: '21', name: '積極策', tags: { distance: ['mile'], style: [], surface: [], phase: ['mid'], coursePos: [], rarity: [], inherited: [], environment: [], trackVenue: [], effect: ['target_speed_up'], scenario: [], passive: [] } },
+		{ id: '26', name: '集中力', tags: { distance: [], style: [], surface: [], phase: [], coursePos: [], rarity: [], inherited: [], environment: [], trackVenue: [], effect: ['start_good'], scenario: [], passive: [] } }
 	]};
 
 	/* ============================================================
@@ -1243,28 +1334,28 @@
 	 * （フェーズ・コース位置・レース環境・レース場・その他）。逆でないのは
 	 * 距離・脚質・効果タイプの3軸だけ。
 	 *
-	 * **門番（`optIn` の軸）** ―― 70セッション目・段5（⑤）。
-	 * `optIn` でない軸で1つでも絞っているとき、`optIn` の軸のタグを持つスキルは、
-	 * **その軸を明示的にチェックしていない限り落とす**。
-	 * 他の軸に1つもチェックが無いときは門番は働かない（＝いままでどおり全件出る）。
+	 * **`exclusive` の軸（バ場）だけ、軸内が OR ではない** ―― 71セッション目・段8。
+	 * 「持っている値が、選んだ値に全部収まっているものだけ通す」＝**許可リスト**。
+	 * 芝を選べばダートのタグを持つスキルが落ち、ダートを選べば芝のタグを持つスキルが落ちる。
+	 * **その軸のタグを持たないスキルは通る**（どちらでも走れるので、排除する理由が無い）。
+	 * `emptyMeansNone` とは別の規則なので、空の扱いを先に済ませてから分岐する。
 	 *
-	 * **軸のキーをここに書かない。** 性質は `TAG_AXES` の印（`optIn` / `emptyMeansNone`）が持ち、
+	 * **70セッション目・段5 の門番（`optIn`）は 71セッション目・段8 で廃した。**
+	 * レース環境・レース場を絞り込みから隠したことで付く軸が0本になり、
+	 * 必ず何もしない死にコードになるため（決5）。
+	 *
+	 * **軸のキーをここに書かない。** 性質は `TAG_AXES` の印（`emptyMeansNone` / `exclusive`）が持ち、
 	 * この関数は印を読むだけ。軸が増減しても追従する（恒久ルール1の精神）。
 	 */
 	function matchesFilters(skill, filters) {
-		const picked = axis => (filters[axis.key] || []).length > 0;
-		if (TAG_AXES.some(a => !a.optIn && picked(a))) {
-			for (const a of TAG_AXES) {
-				if (!a.optIn || picked(a)) continue;   // 明示的に選んでいる軸は、下の通常判定に任せる
-				if (((skill.tags && skill.tags[a.key]) || []).length > 0) return false;
-			}
-		}
 		return TAG_AXES.every(axis => {
 			const selected = filters[axis.key] || [];
 			if (selected.length === 0) return true; // その軸で絞り込みしていない
 			const skillValues = (skill.tags && skill.tags[axis.key]) || [];
 			if (skillValues.length === 0) return !axis.emptyMeansNone; // 万能スキル（入手経路の軸だけは該当なし）
-			return skillValues.some(v => selected.includes(v));
+			return axis.exclusive
+				? skillValues.every(v => selected.includes(v))   // 許可リスト（選んでいない値を持つものは落とす）
+				: skillValues.some(v => selected.includes(v));   // 軸内 OR
 		});
 	}
 
@@ -2209,7 +2300,7 @@
 	let pickerEl = null;
 	// activeAxis は「モーダルを開いている間だけ」覚える。openSkillPicker() で毎回
 	// 先頭の軸に戻すので、localStorage には保存しない（以前の axisOpen と同じ寿命）。
-	let picker = { mode: 'filter', filters: {}, checked: new Set(), onAdd: null, excludeIds: [], activeAxis: TAG_AXES[0].key };
+	let picker = { mode: 'filter', filters: {}, checked: new Set(), onAdd: null, excludeIds: [], activeAxis: pickableAxes()[0].key };
 	/**
 	 * 一覧から隠すスキル（編成で得られるもの。C-51）。
 	 *
@@ -2260,10 +2351,12 @@
 	const PICKER_MODES = {
 		// 71セッション目・段6: 「条件でスキルを検索」→「条件で検索」（利用者向けの文言だけ。
 		// 識別子 `filter` と、コード内の説明の「条件でスキルを検索」は変えない＝恒久ルール19）。
-		// **括弧の中（軸間はAND・軸内はOR）は段6 では触らない** ―― いまはどの軸も軸内ORなので
-		// この文は正しく、**段8 でバ場（排他）が入った時点で初めて事実と合わなくなる**。
-		// 替える文はバ場の軸の注記の書き方と一緒に決めるものなので、段8 でまとめて直す。
-		filter: { title: '条件で検索（軸間はAND・軸内はOR）', commit: true },
+		//
+		// **段8: 括弧から「軸内はOR」を落とした。** バ場（`exclusive`）が入り、軸内の読み方が
+		// 軸ごとに3通り（OR／OR＋空は該当なし／許可リスト）になったので、**見出しで一律には言えない**。
+		// 軸内の読み方は**その軸のパネルの注記**が言う（renderPickerFilterAxes の hint）ので、
+		// 見出しには**全軸に共通して成り立つこと＝軸間はAND**だけを残した。
+		filter: { title: '条件で検索（軸間はAND）', commit: true },
 		paste: { title: 'テキストで検索', commit: true },
 		// 32セッション目: 利用者向けの語を「収録されていない」に統一（「マスター」も「一覧」も
 		// 画面上に存在しないものを指していて、利用者は見たことのない何かを参照させられていた）。
@@ -2429,7 +2522,8 @@
 	function renderPickerFilterAxes() {
 		const el = q(pickerEl, 'filter-axes');
 
-		const tabs = TAG_AXES.map(axis => {
+		// **隠す軸（hiddenAxis）はタブにもパネルにも出さない**（71セッション目・段8）。
+		const tabs = pickableAxes().map(axis => {
 			const isActive = axis.key === picker.activeAxis;
 			return '' +
 			// aria-expanded は「このタブのパネルが出ているか」（role="tab" が取れる状態）。
@@ -2443,7 +2537,7 @@
 			'</button>';
 		}).join('');
 
-		const panels = TAG_AXES.map(axis => {
+		const panels = pickableAxes().map(axis => {
 			const isActive = axis.key === picker.activeAxis;
 			// 選択肢の見た目だけチップにする。中身は従来どおり本物の checkbox で、
 			// data-usd-el / data-axis / data-value もそのまま残してある。
@@ -2454,9 +2548,17 @@
 					'<span>' + esc(o.t) + '</span>' +
 				'</label>'
 			).join('');
-			const hint = axis.emptyMeansNone
-				? '選んだもののいずれかに一致（OR）。この軸のタグが無いスキルは出ない'
-				: '選んだもののいずれかに一致（OR）';
+			/* 軸の注記。**軸内の読み方が軸ごとに違う**ので、その軸の規則をその場で言う。
+			 * 71セッション目・段8 で `exclusive`（バ場）が加わり、3通りになった。
+			 * **モーダルの見出しの括弧（「軸間はAND・軸内はOR」）は、この注記と役割が重なる**
+			 * ので、見出しからは軸内の話を落とした（見出しは軸間だけ、軸内はここ）。 */
+			// **軸の名前をここに書かない**（恒久ルール1）。印だけを見て文を選ぶので、
+			// 同じ印の軸が増えても、この関数は書き換えずに済む。
+			const hint = axis.exclusive
+				? '選んだもの以外を持つスキルは出ない（この軸のタグが無いスキルは出る）'
+				: axis.emptyMeansNone
+					? '選んだもののいずれかに一致（OR）。この軸のタグが無いスキルは出ない'
+					: '選んだもののいずれかに一致（OR）';
 			return '' +
 			'<section role="tabpanel" class="usd-tabpanel' + (isActive ? ' is-active' : '') + '"' +
 				' id="usd-panel-' + axis.key + '" aria-labelledby="usd-tab-' + axis.key + '"' +
@@ -2494,7 +2596,7 @@
 		const tablist = el.querySelector('.usd-tablist');
 		// WAI-ARIA のタブの作法：←→で隣へ、Home/Endで端へ（移動と同時に切り替える）。
 		tablist.addEventListener('keydown', (e) => {
-			const keys = TAG_AXES.map(a => a.key);
+			const keys = pickableAxes().map(a => a.key);
 			const i = keys.indexOf(picker.activeAxis);
 			const next = {
 				ArrowRight: (i + 1) % keys.length,
@@ -2671,7 +2773,7 @@
 	 */
 	function refreshPickerFilterUi() {
 		if (!pickerEl) return;
-		TAG_AXES.forEach(axis => {
+		pickableAxes().forEach(axis => {
 			const n = picker.filters[axis.key].length;
 			const badge = pickerEl.querySelector('[data-usd-el="axis-count"][data-usd-axis="' + axis.key + '"]');
 			if (badge) { badge.hidden = n === 0; badge.textContent = n; }
@@ -2683,7 +2785,7 @@
 
 		const summary = q(pickerEl, 'filter-summary');
 		if (!summary) return;
-		const active = TAG_AXES.filter(a => picker.filters[a.key].length > 0);
+		const active = pickableAxes().filter(a => picker.filters[a.key].length > 0);
 		if (active.length === 0) {
 			summary.innerHTML = '<span>条件なし（すべてのスキルを表示）</span>';
 			return;
@@ -2702,7 +2804,7 @@
 	function resetPickerFilterUi() {
 		pickerEl.querySelectorAll('[data-usd-el="filter-check"]').forEach(el => { el.checked = false; });
 		pickerEl.querySelectorAll('.usd-opts').forEach(el => { el.scrollTop = 0; });
-		selectPickerAxisTab(TAG_AXES[0].key, false);
+		selectPickerAxisTab(pickableAxes()[0].key, false);
 		// **開閉だけは初期化しない**（閉じていたら閉じたまま開き直す）。
 		// ここで属性を入れ直すのは、モーダルを開くたびに DOM と変数を揃えるため。
 		setPickerAxisPanelOpen(pickerAxisPanelOpen);
@@ -2758,7 +2860,24 @@
 			.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name, tags: withLegacyTagsMapped(c.tags) })))
 			.concat(extraCatalog.filter(x => x.tags).map(x => ({ id: x.id, name: x.name, tags: x.tags })));
 		const hidden = new Set(pickerHiddenIds);
-		return pool.filter(s => !picker.excludeIds.includes(s.id) && !hidden.has(s.id) && matchesFilters(s, picker.filters));
+		return pool.filter(s => !picker.excludeIds.includes(s.id) && !hidden.has(s.id)
+			&& !isPoolExcluded(s) && !isPoolExcluded(s) && matchesFilters(s, picker.filters));
+	}
+
+	/**
+	 * **「条件で検索」の母集団から外すもの**（71セッション目・段8）。
+	 * いまはパッシブ（緑スキル）だけ。**軸のキーは書かない** ―― `TAG_AXES` の
+	 * `poolExcluded` の印が付いた軸に値を持つかどうかだけを見る（恒久ルール1）。
+	 * 外したものは、段9 の「緑スキルを追加」で名前から直接選ぶ。
+	 */
+	function isPoolExcluded(skill) {
+		return TAG_AXES.some(a => a.poolExcluded && (((skill.tags && skill.tags[a.key]) || []).length > 0));
+	}
+
+	/** 逆向き：`poolExcluded` の軸に値を持つものだけを返す（段9 の「緑スキルを追加」の一覧の母集団）。 */
+	function getPoolExcludedSkills() {
+		return masterSkills.concat(extraCatalog.filter(x => x.tags).map(x => ({ id: x.id, name: x.name, tags: x.tags })))
+			.filter(isPoolExcluded);
 	}
 
 	function renderPickerResults() {
@@ -2870,7 +2989,8 @@
 	function renderCustomSkillTagInputs() {
 		const el = q(pickerEl, 'custom-tags');
 		if (!el) return;
-		el.innerHTML = TAG_AXES.map(axis =>
+		// 手入力のタグ欄も、利用者に出す軸だけ（隠す軸のタグは付けさせない。71セッション目・段8）。
+		el.innerHTML = pickableAxes().map(axis =>
 			'<div class="mb-2">' +
 				'<p class="text-[11px] text-slate-500 mb-1">' + axis.label + '</p>' +
 				'<div class="flex flex-wrap gap-1.5">' +
@@ -5323,6 +5443,17 @@
 		 * `test:master` が落ちていたのがこれ）。**同じ規則を検査の側で書き写さない。**
 		 */
 		pickableOptions: pickableOptions,
+		/**
+		 * **利用者の絞り込みに出す軸**（`hiddenAxis` を落としたもの）。71セッション目・段8。
+		 * `pickableOptions` と同じ考え方で、**検査の側に「どの軸を隠すか」を書き写さずに済む**ように公開する。
+		 */
+		pickableAxes: pickableAxes,
+		/**
+		 * **「条件で検索」の母集団から外すスキル**（`poolExcluded` の軸に値を持つもの＝いまはパッシブ67件）。
+		 * 段9 の「緑スキルを追加」の一覧がここから作られる。検査もこれを使って
+		 * 「母集団に出ない」「緑スキルの一覧には出る」の両方を、軸のキーを書かずに見られる。
+		 */
+		getPoolExcludedSkills: getPoolExcludedSkills,
 		/**
 		 * 廃した値をいまの値へ読み替えたタグの組（70セッション目・段2）。
 		 * カスタムスキルを読むときに通している。**検査が読み替えの表を書き写さずに
