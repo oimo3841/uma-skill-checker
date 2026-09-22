@@ -133,6 +133,14 @@ const skillsetOcrVer = /SKILLSET_OCR_JS_VERSION = '([^']+)'/.exec(read('js/skill
    これを付けた理由（公開先の Cache-Control: max-age=600）は core.js の定数の説明にある。 */
 const masterJsonVer = /MASTER_JSON_VERSION = '([^']+)'/.exec(read('js/uma-skill-deck-core.js'))[1];
 const masterVer = /"masterVersion"\s*:\s*"([^"]+)"/.exec(read('uma-skill-deck-skills.json'))[1];
+/* data/ の6ファイルも同じ扱い（71セッション目・段7の続き）。
+   core.js の DATA_JSON_VERSIONS（パス → 版の表）を読み、各 JSON の dataVersion と突き合わせる。
+   **「表に在るものが合っているか」だけでは足りない** ―― 足し忘れたファイルは表に無いので
+   素通りしてしまう。so `data/` に実在する JSON の顔ぶれとも突き合わせる。 */
+const dataVerTable = Object.fromEntries(
+	[...read('js/uma-skill-deck-core.js').matchAll(/'(data\/[a-z0-9-]+\.json)':\s*'([0-9a-z-]+)'/g)]
+		.map((m) => [m[1], m[2]]));
+const dataFiles = fs.readdirSync(path.join(REPO_ROOT, 'data')).filter((f) => f.endsWith('.json')).sort();
 console.log('     内部定数:  common.js=%s / core=%s / deck=%s / stitch=%s / skillset-cards=%s / skillset-ocr=%s / css=%s', commonVer, coreVer, deckVer, stitchVer, skillsetVer, skillsetOcrVer, cssVer);
 for (const [p, pat, ver, name] of [
 	['special.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
@@ -157,6 +165,20 @@ for (const [p, pat, ver, name] of [
 check(masterJsonVer === masterVer,
 	'js/uma-skill-deck-core.js の MASTER_JSON_VERSION がマスターの masterVersion と一致',
 	{ 'core.js': masterJsonVer, 'uma-skill-deck-skills.json': masterVer });
+// (1) 表の顔ぶれが data/ の実ファイルと同じ（足し忘れ・消し忘れを落とす）
+check(JSON.stringify(Object.keys(dataVerTable).sort()) === JSON.stringify(dataFiles.map((f) => 'data/' + f)),
+	'core.js の DATA_JSON_VERSIONS が data/ の JSON すべてを網羅している（' + dataFiles.length + '件）',
+	{ 表: Object.keys(dataVerTable).sort(), 実ファイル: dataFiles.map((f) => 'data/' + f) });
+// (2) 表の版が各 JSON の dataVersion と一致
+{
+	const ng = [];
+	for (const p of Object.keys(dataVerTable).sort()) {
+		const m = /"dataVersion"\s*:\s*"([^"]+)"/.exec(read(p));
+		const actual = m ? m[1] : '(読めない)';
+		if (actual !== dataVerTable[p]) ng.push(p + ': core.js=' + dataVerTable[p] + ' / JSON=' + actual);
+	}
+	check(ng.length === 0, 'DATA_JSON_VERSIONS の版が data/ の各 dataVersion と一致（' + Object.keys(dataVerTable).length + '件）', ng);
+}
 
 /* --- 凍結中のファイル。不一致でも落とさず、警告として必ず一覧に出す ---
    index.html は C-1 で更新終了・凍結。?v= の更新対象から外れ続けた結果、
@@ -187,6 +209,9 @@ const VERSIONED = [
 	// マスターは JSON の中の masterVersion が版。**中身を変えたのに版を据え置く**と
 	// ?v= も動かず、公開側の10分キャッシュに古い本文が残り続ける（71セッション目・段7）。
 	['uma-skill-deck-skills.json', masterVer, /"masterVersion"\s*:\s*"([^"]+)"/],
+	// data/ の6ファイルも同じ（中身を変えたのに dataVersion を据え置くと、?v= も動かず
+	// 公開側の10分キャッシュに古い本文が残る）。71セッション目・段7の続き。
+	...dataFiles.map((f) => ['data/' + f, dataVerTable['data/' + f], /"dataVersion"\s*:\s*"([^"]+)"/]),
 ];
 const today = new Date().toLocaleDateString('sv-SE');  // ローカル時刻の YYYY-MM-DD
 console.log('     版の日付の検査: 今日は %s', today);

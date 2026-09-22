@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22e';
 
 	/* ============================================================
 	 * 定数
@@ -47,9 +47,42 @@
 	 */
 	const MASTER_JSON_VERSION = '2026-09-21b';
 
+	/**
+	 * **`data/` の6ファイルの版**（71セッション目・段7の続き）。
+	 *
+	 * マスターとまったく同じ理屈 ―― **公開先は `data/*.json` にも `Cache-Control: max-age=600`
+	 * を付けて返す**ので、版を付けないと更新してから10分間は古い本文が返る。
+	 *
+	 * **版の正本は各 JSON の `dataVersion`。ここはその写し。**
+	 * **ズレていたら `npm run test:verify` の §1 が落とす**（ファイルを1つでも足し忘れても落ちる）。
+	 * **`dataVersion` を上げたら、必ずここも上げる。**
+	 *
+	 * **1つの表にまとめてある**理由 ―― 取得の入口が2つに分かれている
+	 * （`EXTRA_CATALOG_SOURCES` ＝ スキルを供給される側／`TRAINING_SOURCES` ＝ 供給する側）ので、
+	 * そちらに版を持たせると**片方だけ足し忘れても気づけない**。パスで引く1枚の表にして、
+	 * 検査が「`data/` に在る JSON の顔ぶれ」と突き合わせられるようにした。
+	 */
+	const DATA_JSON_VERSIONS = {
+		'data/scenario-inheritance-factors.json': '2026-09-15a',
+		'data/aptitude-genes.json': '2026-09-19a',
+		'data/extended-skills.json': '2026-09-18a',
+		'data/training-umamusume.json': '2026-09-18a',
+		'data/support-cards.json': '2026-09-18b',
+		'data/support-card-event-skills.json': '2026-09-18a'
+	};
+
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
 	function withQuery(url, key, value) {
 		return url + (url.indexOf('?') === -1 ? '?' : '&') + key + '=' + encodeURIComponent(value);
+	}
+
+	/**
+	 * `data/` のパスに版（`?v=`）を付ける。表に無いパスはそのまま返す
+	 * （足し忘れをここで握りつぶさないよう、**検査のほうで落とす**）。
+	 */
+	function withDataVersion(path) {
+		const v = DATA_JSON_VERSIONS[path];
+		return v ? withQuery(path, 'v', v) : path;
 	}
 
 	/**
@@ -719,7 +752,7 @@
 			const src = EXTRA_CATALOG_SOURCES[i];
 			let data = null, from = '';
 			try {
-				data = await fetchMasterJson(src.path, !!forceRefresh);
+				data = await fetchMasterJson(withDataVersion(src.path), !!forceRefresh);
 				from = '取得';
 			} catch (e) {
 				if (cached && cached.data && cached.data[src.category]) { data = cached.data[src.category]; from = 'キャッシュ'; }
@@ -756,6 +789,27 @@
 				+ '通信できないときは、ページを開き直すと直ることがあります。';
 			try { global.console.warn('[UmaSkillDeck] ' + msg); } catch (e) {}
 			toast(msg);
+		} else {
+			/* **取れなかったが、写しがあったので中身は埋まった** ―― という場合を知らせる
+			 * （71セッション目・段7の続き）。
+			 *
+			 * **ここが抜けていた。** 上の検査は「1件も読めなかったカテゴリ」しか見ていないので、
+			 *   - シナリオ因子・遺伝子 … 組み込みの写しを持つので、取れなくても件数は埋まる
+			 *   - 拡張スキル           … `localStorage` の写しがあれば埋まる
+			 * のどちらも**黙って古い写しで動いていた**。マスターで直したのと同じ穴が、
+			 * 「マスターより先に手当てされていたはず」の側に残っていた。
+			 *
+			 * カテゴリ名（`scenarioFactor` など）は**開発側の語**なので、利用者向けの文面には出さず
+			 * 開発ログにだけ出す。文面はマスターのものと揃える。 */
+			const stale = sources.filter(s => s.from !== '取得');
+			if (stale.length > 0) {
+				try {
+					global.console.warn('[UmaSkillDeck] 収録データを取得できなかった: '
+						+ stale.map(s => s.category + '←' + s.from).join(' / '));
+				} catch (e) {}
+				toast('収録データを取得できなかったので、前に読み込んだものを使っています。'
+					+ '通信できないときは、ページを開き直すと直ることがあります。');
+			}
 		}
 		try {
 			global.localStorage.setItem(STORAGE_KEY_EXTRA_CATALOG, JSON.stringify({ data: nextCache, fetchedAt: nowIso() }));
@@ -837,7 +891,7 @@
 		for (let i = 0; i < TRAINING_SOURCES.length; i++) {
 			const src = TRAINING_SOURCES[i];
 			try {
-				const data = await fetchMasterJson(src.path, !!forceRefresh);
+				const data = await fetchMasterJson(withDataVersion(src.path), !!forceRefresh);
 				next[src.key] = data;
 				sources.push({ key: src.key, count: (data && data.entries ? data.entries.length : 0), version: (data && data.dataVersion) || '', ok: true });
 			} catch (e) {
@@ -5182,6 +5236,8 @@
 		MASTER_JSON_PATH: MASTER_JSON_PATH,
 		// マスターの版（取得URLの ?v=）。検査が「JSON の masterVersion と揃っているか」を見る。
 		MASTER_JSON_VERSION: MASTER_JSON_VERSION,
+		// data/ の6ファイルの版（同上。正本は各 JSON の dataVersion）。
+		DATA_JSON_VERSIONS: DATA_JSON_VERSIONS,
 		TEMPLATE_LIMIT: TEMPLATE_LIMIT,
 		RECORD_LIMIT: RECORD_LIMIT,
 		CUSTOM_SKILL_SOFT_CAP: CUSTOM_SKILL_SOFT_CAP,

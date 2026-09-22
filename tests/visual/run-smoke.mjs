@@ -8666,6 +8666,64 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(urls.length > 0 && urls.every((u) => u.includes('v=' + vers.定数) && u.includes('&t=')),
 		'段7: 再取得のときは ?v= の後ろに &t= が付く', urls.slice(0, 2));
 
+	/* (a-2) data/ の6ファイルにも ?v= が付いている（71セッション目・段7の続き）。
+	   マスターとまったく同じ理屈（公開先が max-age=600 で返すので、版を付けないと
+	   更新から10分間は古い本文が返る）。**版は検査に書かない** ―― 製品が持つ
+	   DATA_JSON_VERSIONS（パス → 版の表）を画面から読んで、取得URLと突き合わせる。
+	   表そのものが各 JSON の dataVersion と合っているかは run-verify が見る。 */
+	{
+		const dataUrls = [];
+		page.on('request', (r) => { if (/\/data\/[a-z0-9-]+\.json/.test(r.url())) dataUrls.push(r.url()); });
+		const table = await page.evaluate(() => UmaSkillDeckCore.DATA_JSON_VERSIONS);
+		// 追加カタログ（3本）と収録データ（3本）は入口が別なので、両方を読ませる
+		await page.evaluate(() => UmaSkillDeckCore.loadMasterSkills(false));
+		await page.evaluate(() => UmaSkillDeckCore.loadTrainingSources(true));
+		await page.waitForTimeout(500);
+
+		const paths = Object.keys(table);
+		assert(paths.length === 6, '段7の続き: 版の表が data/ の6ファイルぶんある', paths);
+		const 取れた = paths.filter((k) => dataUrls.some((u) => u.includes('/' + k)));
+		assert(取れた.length === paths.length,
+			'段7の続き: 6ファイルとも実際に取得された（検査が空振りでない）',
+			{ 取れた: 取れた.length, 表: paths.length, 未取得: paths.filter((k) => !取れた.includes(k)) });
+		const 版が無い = paths.filter((k) =>
+			dataUrls.filter((u) => u.includes('/' + k)).some((u) => !u.includes('v=' + table[k])));
+		assert(版が無い.length === 0,
+			'段7の続き: data/ の6ファイルの取得URLに ?v=<dataVersion> が付いている',
+			{ 付いていない: 版が無い, 例: dataUrls.slice(0, 3) });
+		assert(!dataUrls.some((u) => /\?[^?]*\?/.test(u)),
+			'段7の続き: data/ の取得URLに「?」が2つ現れない（?v= と ?t= が衝突していない）', dataUrls.slice(0, 3));
+		// forceRefresh を通した収録データ（3本）は ?v= の後ろに &t= が付く
+		const 収録 = dataUrls.filter((u) => /training-umamusume|support-cards|support-card-event-skills/.test(u));
+		assert(収録.length > 0 && 収録.every((u) => u.includes('v=') && u.includes('&t=')),
+			'段7の続き: 再取得のときは data/ でも ?v= の後ろに &t= が付く', 収録.slice(0, 3));
+	}
+
+	/* (a-3) 追加カタログが古い写しへ落ちたときも知らせる（71セッション目・段7の続き）。
+	   **ここが抜けていた** ―― 既存の知らせは「1件も読めなかったカテゴリ」しか見ておらず、
+	   組み込みの写し（シナリオ因子・遺伝子）や localStorage の写し（拡張スキル）で
+	   件数が埋まると、黙って古いもので動いていた。 */
+	{
+		const toastNow = () => page.evaluate(() => document.getElementById('toast-message').textContent.trim());
+		await page.evaluate(() => { document.getElementById('toast-message').textContent = ''; });
+		await page.route('**/data/*.json*', (route) => route.abort());
+		const meta = await page.evaluate(() => UmaSkillDeckCore.loadExtraCatalog(true));
+		await page.waitForTimeout(300);
+		const 落ちた = (meta.sources || []).filter((x) => x.from !== '取得');
+		assert(落ちた.length === (meta.sources || []).length && 落ちた.length > 0,
+			'段7の続き: 通信を塞ぐと追加カタログは全カテゴリが写しへ落ちる', meta.sources);
+		assert((meta.sources || []).every((x) => x.count > 0),
+			'段7の続き: 写しへ落ちても件数は埋まる（＝黙って通ってしまう形だった）', meta.sources);
+		const t = await toastNow();
+		assert(t.length > 0, '段7の続き: 写しへ落ちたことを利用者に知らせる', t);
+		await page.unroute('**/data/*.json*');
+		// 通信を戻せば知らせは出ない（上の検査が「常に出る」ではないことの担保）
+		await page.evaluate(() => { document.getElementById('toast-message').textContent = ''; });
+		await page.evaluate(() => UmaSkillDeckCore.loadExtraCatalog(true));
+		await page.waitForTimeout(400);
+		assert((await toastNow()) === '', '段7の続き: ふつうに取れたときは知らせを出さない', await toastNow());
+	}
+
 	/* (b) 取りに行けなかったら、古い写しを使ったことを知らせる。
 	   ここまでの取得で localStorage に写しが入っているので、通信だけを塞ぐ。 */
 	const toastState = () => page.evaluate(() => {
