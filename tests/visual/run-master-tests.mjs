@@ -735,6 +735,23 @@ const browser = await chromium.launch();
 		assert(probe2 === false,
 			'段8: 同じスキルにパッシブの印を足すと母集団から消える（母集団から外す側が効いている）', probe2);
 
+		/* 72セッション目・段9 ―― **母集団から外したものは、必ず「緑スキルを追加」に出る。**
+		   ここが成り立たないと、**どこからも選べないスキル**が生まれる。
+		   いまのマスターでは実データで差が出ない（カスタムスキルにパッシブの印は付けられない
+		   ＝段8 で隠す軸を手入力から外したため）ので、**上で仕込んだカスタムスキルで見る。**
+		   段8 の時点では実際にここが抜けていて、この検査で見つかった。 */
+		const probe3 = await page.evaluate((id) => {
+			UmaSkillDeckCore.openPassiveSkillPicker([], () => {});
+			const names = [...document.querySelectorAll('[data-usd-el="passive-results"] .usd-row span')]
+				.map((el) => el.textContent);
+			const c = UmaSkillDeckCore.getUserData().customSkills.find((x) => x.customId === id);
+			return { listed: names.includes(c.name), fromHelper: UmaSkillDeckCore.getPoolExcludedSkills().some((s) => s.id === id) };
+		}, PROBE_ID);
+		assert(probe3.listed && probe3.fromHelper,
+			'段9: 母集団から消えたスキルは「緑スキルを追加」の一覧に出る（どこからも選べないものを作らない）', probe3);
+		await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
+		await page.waitForTimeout(200);
+
 		// 後片付け（このあとの件数の検査に混ざらないよう必ず消す）
 		await page.evaluate((id) => {
 			const data = UmaSkillDeckCore.getUserData();

@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-22b';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-22c';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -794,6 +794,12 @@ function openRecordSkillPicker() {
 
 function openRecordTextPicker() {
 	Core.openTextSkillPicker(draftRecord.skillIds, recordSkillSink());
+}
+
+// 緑スキルを追加（72セッション目・段9）。受け皿は他の入口と同じものを使うので、
+// チェックを外す操作（remove）もそのまま通る。
+function openRecordPassivePicker() {
+	Core.openPassiveSkillPicker(draftRecord.skillIds, recordSkillSink());
 }
 
 function openRecordCustomSkill() {

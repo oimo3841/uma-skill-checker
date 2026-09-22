@@ -16,8 +16,8 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-22f"></script>
-	<script src="js/uma-skill-deck.js?v=2026-09-22b"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-22g"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-22c"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -413,11 +413,17 @@
 					<span class="text-slate-500 whitespace-nowrap">スキルセット：</span>
 					<select id="record-template-select" onchange="switchRecordTemplate(this.value)" class="uma-input" style="width:auto;"></select>
 				</div>
-				<!-- スキルを足す入口はテンプレート編集画面と同じ3つ（条件／テキスト／手入力）。
-				     片方だけ1ボタンのままにすると、この画面からテキスト検索と手入力へ行けなくなる。 -->
+				<!-- スキルを足す入口はテンプレート編集画面と同じ4つ（条件／緑スキル／テキスト／手入力）。
+				     片方だけ1ボタンのままにすると、この画面からテキスト検索と手入力へ行けなくなる。
+				     **この並びは共有モジュールの .usd-entry-row を通らない自前のもの**なので、
+				     core 側だけ直すと画面の中で入口の顔ぶれが割れる（71セッション目・段6 で文言のときに踏んだ）。
+				     72セッション目・段9 で「緑スキルを追加」を足したときも同じ手当てが要った。 -->
 				<div class="flex flex-wrap gap-2 mb-2">
 					<button onclick="openRecordSkillPicker()" class="uma-btn uma-btn--secondary deck-pill-btn">
 						<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件で検索
+					</button>
+					<button onclick="openRecordPassivePicker()" class="uma-btn uma-btn--secondary deck-pill-btn">
+						<i data-lucide="sprout" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 緑スキルを追加
 					</button>
 					<button onclick="openRecordTextPicker()" class="uma-btn uma-btn--secondary deck-pill-btn">
 						<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索

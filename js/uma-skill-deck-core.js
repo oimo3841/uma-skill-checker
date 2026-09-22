@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22g';
 
 	/* ============================================================
 	 * 定数
@@ -2030,6 +2030,13 @@
 		 * 0件のときだけ `<p>` が1つ（renderPickerResults）。**JS 側に印を足さずに済む。**
 		 * `:has()` はこのファイルで既に使っている（.usd-opt:has(input:checked)）。 */
 		'.usd-results:has(> p) { display: flex; align-items: center; justify-content: center; }',
+		/* 「緑スキルを追加」の一覧（72セッション目・段9）。
+		 * このモードには上に選択肢パネルが無いので、280px のままだとモーダルが半分ほどの高さになり、
+		 * 67件を9行ずつ送ることになる。**高さだけを上書きする** ―― 罫線も 0件の中央ぞろえも
+		 * .usd-results のものをそのまま使う。
+		 * **固定値なのは「条件で検索」と同じ理由**（段6【3】）で、件数でモーダルの高さを動かさないため。
+		 * `min()` の上限（560px）は、`.usd-modal-panel` の max-height: 85vh に余裕を持って収まる値。 */
+		'.usd-results--tall { height: min(60vh, 560px); }',
 
 		// 選択肢チップ。中身は本物の checkbox のままなので、既存のJSとテストがそのまま掴める
 		// （.usd-chip はテンプレートのスキル名チップで使用済みのため .usd-opt にしてある）
@@ -2367,7 +2374,18 @@
 		// 「テキストで検索」と同じ報告（候補チップ・取り消し・確定）を出す。貼り付け欄と照合ボタンは出さない。
 		// 照合は common.js 側（CHAR_CONFUSION_MAP が効く経路）で行い、ここは見せるだけ＝C-24 調査4 の推奨。
 		// 入口（special.html のボタン）はコミット4、Deck 単体ページの入口は後続。この段は口だけ。
-		ocr: { title: '画像から読み取る', commit: true }
+		ocr: { title: '画像から読み取る', commit: true },
+		/* 5つ目（72セッション目・段9）。**パッシブ（ゲーム内の緑スキル）を名前で選ぶ入口。**
+		 * 段8 で `poolExcluded` の軸に値を持つものを「条件で検索」の母集団から外したので、
+		 * その67件はどの入口からも選べなくなっていた。ここがその受け皿。
+		 *
+		 * **`commit: false`＝フッターの確定ボタンを出さない。** チェックした瞬間にセットへ入り、
+		 * 外した瞬間に抜ける（手入力＝`custom` に前例がある）。理由は2つ ――
+		 *   (1) 一覧が「いま入っているか」をそのまま映すので、確定という段が入ると
+		 *       「チェックは付いているがまだ入っていない」状態が生まれて読めなくなる。
+		 *   (2) 外す操作は確定ボタンでは表せない（あちらは足すことしかできない）。
+		 * **Undo には積まない**（1件ずつの操作で、押し直せば戻るため。§10 D の15）。 */
+		passive: { title: '緑スキルを追加', commit: false }
 	};
 
 	function pickerMarkup() {
@@ -2418,6 +2436,21 @@
 						// 報告と入れ替えで出すので、狭い画面でもキーボードの上に入力欄と候補一覧が収まる。
 						// 中身は renderPasteNamePanel() が組み立てる。画像は row.panelImage があるときだけ。
 						'<div data-usd-el="paste-name" hidden></div>' +
+					'</div>' +
+					// ---- 緑スキルを追加（72セッション目・段9） ----
+					// 絞り込みの軸は持たない。**パッシブは「発動条件」を持たないスキル**なので、
+					// 軸で絞る意味が無く、名前で探すしかない（だから母集団からも外してある）。
+					// 一覧の箱は「条件で検索」と同じ .usd-results（件数で高さが動かない・0件は中央）。
+					// 高さだけ .usd-results--tall で上書きする（上に選択肢パネルが無いぶん広く取れる）。
+					'<div class="usd-mode" data-usd-el="mode-passive" hidden>' +
+						// 数の単位は**背後の見出し（追加済みスキル（N種））と揃えて「種」**にする
+						// （「絞り込み結果（N件）」は別の数なので、そちらの「件」に引きずられない）。
+						// 「このうち」で、数えているのが**この一覧の中の何件か**であることを言う。
+						'<p class="text-xs text-slate-500 mb-2" data-usd-el="passive-note">' +
+							'チェックするとその場で追加済みスキルに入り、外すと抜けます' +
+							'（このうち<span data-usd-el="passive-count">0種</span>が追加済み）' +
+						'</p>' +
+						'<div class="usd-results usd-results--tall" data-usd-el="passive-results"></div>' +
 					'</div>' +
 					// ---- マスターにないスキルを追加 ----
 					'<div class="usd-mode" data-usd-el="mode-custom" hidden>' +
@@ -2493,6 +2526,8 @@
 			if (el.dataset.usdAct === 'picker-select-all') { togglePickerSelectAll(el.checked); return; }
 			if (el.dataset.usdEl === 'filter-check') { onPickerFilterChange(el); return; }
 			if (el.dataset.usdEl === 'skill-check') { onPickerCheck(el.value, el.checked); return; }
+			// 緑スキル（段9）は確定ボタンを通さず、押したその場で受け皿へ流す
+			if (el.dataset.usdEl === 'passive-check') { onPassiveCheck(el.value, el.checked); return; }
 		});
 		renderCustomSkillTagInputs();
 		// 軸は実行中に増減しないので、タブとパネルは1回だけ組み立てて使い回す。
@@ -2855,13 +2890,22 @@
 	//
 	// **カスタムスキルだけ `withLegacyTagsMapped()` を通す**（段2）。マスターと追加カタログは
 	// リポジトリの中にあって付け替え済みなので、通す必要が無い（通すと毎回445件ぶん無駄に回る）。
-	function getFilteredPickerPool() {
-		const pool = masterSkills
+	//
+	// **72セッション目・段9: 顔ぶれを組み立てる部分を `taggedSkillPool()` へ出した。**
+	// ここと「緑スキルを追加」の一覧（`getPoolExcludedSkills`）は**表と裏**で、
+	// 片方から外したものはもう片方に出る、が成り立っていないと**どこからも選べないスキル**が生まれる。
+	// 顔ぶれを2か所で組み立てていると、片方にだけ足し忘れてそれが起きる
+	// （実際、段8 の時点では**カスタムスキルが母集団からは消えるのに緑スキルの一覧には出ない**状態だった）。
+	function taggedSkillPool() {
+		return masterSkills
 			.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name, tags: withLegacyTagsMapped(c.tags) })))
 			.concat(extraCatalog.filter(x => x.tags).map(x => ({ id: x.id, name: x.name, tags: x.tags })));
+	}
+
+	function getFilteredPickerPool() {
 		const hidden = new Set(pickerHiddenIds);
-		return pool.filter(s => !picker.excludeIds.includes(s.id) && !hidden.has(s.id)
-			&& !isPoolExcluded(s) && !isPoolExcluded(s) && matchesFilters(s, picker.filters));
+		return taggedSkillPool().filter(s => !picker.excludeIds.includes(s.id) && !hidden.has(s.id)
+			&& !isPoolExcluded(s) && matchesFilters(s, picker.filters));
 	}
 
 	/**
@@ -2874,14 +2918,22 @@
 		return TAG_AXES.some(a => a.poolExcluded && (((skill.tags && skill.tags[a.key]) || []).length > 0));
 	}
 
-	/** 逆向き：`poolExcluded` の軸に値を持つものだけを返す（段9 の「緑スキルを追加」の一覧の母集団）。 */
+	/**
+	 * 逆向き：`poolExcluded` の軸に値を持つものだけを返す（段9 の「緑スキルを追加」の一覧の母集団）。
+	 * **`getFilteredPickerPool()` と同じ顔ぶれ（`taggedSkillPool`）から取る。**
+	 * 絞り込みが外したものは必ずここに出る ―― どちらからも漏れるスキルを作らないため。
+	 */
 	function getPoolExcludedSkills() {
-		return masterSkills.concat(extraCatalog.filter(x => x.tags).map(x => ({ id: x.id, name: x.name, tags: x.tags })))
-			.filter(isPoolExcluded);
+		return taggedSkillPool().filter(isPoolExcluded);
 	}
 
 	function renderPickerResults() {
 		if (!pickerEl) return;
+		// 緑スキルの一覧も同じ合図で作り直す（72セッション目・段9）。
+		// **再描画の入口を増やさない**のが狙い ―― `pickerSinkFor().remove()` のように
+		// 「背後のセットが変わったら一覧を作り直す」経路が既にいくつかあり、
+		// そちらに緑スキル用の呼び出しを足して回ると、足し忘れた経路でチェックがズレる。
+		renderPassiveList();
 		const el = q(pickerEl, 'results');
 		if (!el) return;
 		const filtered = getFilteredPickerPool();
@@ -2899,6 +2951,82 @@
 				'<span>' + esc(s.name) + '</span>' +
 			'</label>'
 		).join('');
+	}
+
+	/* ------------------------------------------------------------
+	 * 緑スキルを追加（72セッション目・段9）
+	 *
+	 * **独立した選択の状態を持たない。** チェックが入っているかどうかは、そのつど
+	 * `picker.excludeIds`（＝いま編集しているセットの中身）から作る。
+	 * これで「追加済みスキルから消したのに、開き直すとチェックが残っている」が
+	 * 構造として起こらない ―― 覚えている状態が無いので、食い違いようが無い。
+	 * **モーダル（z-index:80）が追加済みスキルの一覧を覆う**ので、2つが同時に見える場面も無い。
+	 *
+	 * 並び順は**マスターの並びのまま**（`getPoolExcludedSkills()` が返す順）。
+	 * 「条件で検索」の一覧と同じ順なので、2つの入口で同じスキルが違う場所に出ることが無い。
+	 * ------------------------------------------------------------ */
+
+	function renderPassiveList() {
+		if (!pickerEl || picker.mode !== 'passive') return;
+		const el = q(pickerEl, 'passive-results');
+		if (!el) return;
+		const list = getPoolExcludedSkills();
+		const chosen = new Set(picker.excludeIds);
+		const countEl = q(pickerEl, 'passive-count');
+		if (countEl) countEl.textContent = list.filter(s => chosen.has(s.id)).length + '種';
+		if (list.length === 0) {
+			// 実データでは起きない（マスターに67件ある）が、収録データを読めなかったときに
+			// 空の箱だけが出るのは何が起きたのか分からないので、文を1つ置く。
+			el.innerHTML = '<p class="text-xs text-slate-400 p-3">追加できる緑スキルがありません。</p>';
+			return;
+		}
+		/* スクロールの位置を持ち越す。1件チェックするたびに一覧ごと作り直すため。
+		 *
+		 * **【実測・72セッション目】いまの作りでは、この2行が無くても位置は保たれる。**
+		 * Chrome は「同じ高さの中身で innerHTML を入れ替えただけ」なら scrollTop を動かさない
+		 * （`output/scratch/step9-scroll-probe.mjs` で 1405px のまま。ただし**いったん空にすると 0 に戻る**）。
+		 * **チェックの前後で行数が変わらない**ので、そこに救われている。
+		 * 残してあるのは保険 ―― 一覧の行数が変わる作りにした瞬間（絞り込みを足す、
+		 * 追加済みを隠す、など）に、**下のほうを押すたび先頭へ飛ぶ**形で表に出る種類の不具合で、
+		 * 押した本人には原因が見えない。**この2行には効いていることを示す検査が無い**
+		 * （行数が変わらない以上、壊しても落ちない）。消すときは上の事情を承知のうえで。 */
+		const keep = el.scrollTop;
+		el.innerHTML = list.map(s =>
+			'<label class="usd-row">' +
+				'<input type="checkbox" data-usd-el="passive-check" value="' + esc(s.id) + '"' + (chosen.has(s.id) ? ' checked' : '') + '/>' +
+				'<span>' + esc(s.name) + '</span>' +
+			'</label>'
+		).join('');
+		el.scrollTop = keep;
+	}
+
+	/**
+	 * 緑スキルのチェックを押したとき。**その場で受け皿へ流す**（確定ボタンを経由しない）。
+	 * 受け皿は他の入口とまったく同じもの（`pickerSinkFor` / deck 側の `recordSkillSink`）なので、
+	 * `saveUserData()` と背後の再描画まで既に通っている経路に乗る。
+	 * **Undo には積まない** ―― 1件ずつの操作で、押し直せば戻るため（§10 D の15）。
+	 */
+	function onPassiveCheck(skillId, checked) {
+		const sink = picker.onAdd;
+		if (!sink) return;
+		if (checked) {
+			if (typeof sink === 'object' && typeof sink.add === 'function') sink.add([skillId]);
+			else if (typeof sink === 'function') sink([skillId]);
+			if (picker.excludeIds.indexOf(skillId) === -1) picker.excludeIds.push(skillId);
+		} else {
+			// 関数を渡す旧い形の受け皿は「足す」しかできないので、外す操作は受けられない。
+			// 黙って何も起きないと壊れて見えるので、チェックを戻して知らせる。
+			if (!(typeof sink === 'object' && typeof sink.remove === 'function')) {
+				toast('この画面では緑スキルを外せません');
+				renderPassiveList();
+				return;
+			}
+			sink.remove([skillId]);
+			// `pickerSinkFor().remove()` は自分でも掃除するが、Deck の比較シート側の受け皿は
+			// 掃除しない。**どちらから来ても合うように、ここでも落とす**（二重に落としても害は無い）。
+			picker.excludeIds = picker.excludeIds.filter(id => id !== skillId);
+		}
+		renderPassiveList();
 	}
 
 	function togglePickerSelectAll(checked) {
@@ -3461,6 +3589,7 @@
 		q(pickerEl, 'mode-filter').hidden = picker.mode !== 'filter';
 		q(pickerEl, 'mode-paste').hidden = !(picker.mode === 'paste' || isOcr);
 		q(pickerEl, 'mode-custom').hidden = picker.mode !== 'custom';
+		q(pickerEl, 'mode-passive').hidden = picker.mode !== 'passive';
 		q(pickerEl, 'paste-input-wrap').hidden = isOcr;
 		const summaryEl = q(pickerEl, 'paste-summary');
 		summaryEl.hidden = true;
@@ -3486,6 +3615,8 @@
 	function openTextSkillPicker(existingSkillIds, onAdd) { openPicker('paste', existingSkillIds, onAdd); }
 	// マスターにないスキルを追加（名前＋8軸タグの手入力）。
 	function openCustomSkillPicker(existingSkillIds, onAdd) { openPicker('custom', existingSkillIds, onAdd); }
+	// 緑スキルを追加（パッシブを名前で選ぶ。72セッション目・段9）。
+	function openPassiveSkillPicker(existingSkillIds, onAdd) { openPicker('passive', existingSkillIds, onAdd); }
 
 	/**
 	 * 外で照合を済ませた行を受け取って、候補の選択と確定だけをするモーダルを開く（スキルセットOCR・フェーズa コミット3）。
@@ -4259,6 +4390,13 @@
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
 							'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件で検索' +
 						'</button>' +
+						// 「条件で検索」と「テキストで検索」の間（72セッション目・段9。おいもさんの指示）。
+						// 段8 でパッシブを「条件で検索」の母集団から外したので、**ここが唯一の入口**になる。
+						// 条件で選べないものを条件の隣に置くのは、利用者から見れば
+						// 「条件で探す／緑は名前で選ぶ／テキストで探す」という探し方の並びだから。
+						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-passive">' +
+							'<i data-lucide="sprout" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 緑スキルを追加' +
+						'</button>' +
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-text">' +
 							'<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索' +
 						'</button>' +
@@ -4312,6 +4450,7 @@
 			else if (act === 'template-duplicate') duplicateTemplate(currentTemplateId());
 			else if (act === 'template-delete') deleteTemplate(currentTemplateId());
 			else if (act === 'editor-pick') openEditorPicker('filter');
+			else if (act === 'editor-pick-passive') openEditorPicker('passive');
 			else if (act === 'editor-pick-text') openEditorPicker('paste');
 			else if (act === 'editor-pick-custom') openEditorPicker('custom');
 			else if (act === 'editor-pick-screenshot') { if (opts.screenshotEntry && typeof opts.screenshotEntry.onClick === 'function') opts.screenshotEntry.onClick(); }
@@ -5502,6 +5641,8 @@
 		openTextSkillPicker: openTextSkillPicker,
 		openSkillRowsPicker: openSkillRowsPicker,
 		openCustomSkillPicker: openCustomSkillPicker,
+		// 緑スキルを追加（72セッション目・段9）。Deck 単体ページの比較シート編集が自前の並びから呼ぶ。
+		openPassiveSkillPicker: openPassiveSkillPicker,
 		closeSkillPicker: closePicker,
 		renderPickerResults: renderPickerResults,
 

@@ -391,6 +391,151 @@ const browser = await chromium.launch();
 		'special: 中身ができたドラフトはそのまま照合対象になり、②のタブにも同じ数が出る', draftPicked);
 	assert(draftPicked.tab === '＋ 新規（ドラフト）1種', 'special: 「＋ 新規（ドラフト）」のタブに件数が出る', draftPicked);
 
+	/* --- 段9 「緑スキルを追加」（72セッション目） -------------------------------------
+	   段8 で `poolExcluded` の軸に値を持つスキル（＝パッシブ＝ゲーム内の緑スキル）を
+	   「条件で検索」の母集団から外したので、**この入口が唯一の選び方**になった。
+
+	   **件数も軸のキーもここに書かない。** 並ぶべき顔ぶれは製品の `getPoolExcludedSkills()`
+	   （TAG_AXES の印から作られる）から取り、母集団に残っているスキルが混ざっていないことは
+	   「印を持たないスキルが1件も並んでいない」で見る。マスターが増減しても落ちない。
+
+	   ここに入る時点で、ドラフトには「右回り○」が1件入っている（上の貼り付けの検査）。
+	   **これはパッシブなので、開いた時点でチェックが1つ付いている**はずで、
+	   「チェックは現在のセットから作る」ことがそのまま確かめられる。 */
+	{
+		const passiveState = () => page.evaluate(() => {
+			const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
+			const rows = [...document.querySelectorAll('[data-usd-el="passive-check"]')];
+			return {
+				title: el('picker-title').textContent,
+				mode: { filter: !el('mode-filter').hidden, paste: !el('mode-paste').hidden,
+					custom: !el('mode-custom').hidden, passive: !el('mode-passive').hidden },
+				footH: el('picker-footer').getBoundingClientRect().height,
+				ids: rows.map((r) => r.value),
+				checked: rows.filter((r) => r.checked).map((r) => r.value),
+				// 背後のセット（＝チェックの正解）。**保存されたものを読む**ので、
+				// 画面だけ動いて保存されていない場合はここで食い違う。
+				saved: JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{}').skillIds || [],
+				panelCount: document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent,
+				note: el('passive-note').textContent,
+				noteCount: el('passive-count').textContent,
+			};
+		});
+
+		// (1) 入口の位置 ―― 「条件で検索」と「テキストで検索」の間
+		const entryOrder = await page.evaluate(() =>
+			[...document.querySelectorAll('#deck-template-panel .usd-entry-row button')]
+				.map((b) => ({ act: b.dataset.usdAct, label: b.textContent.trim() })));
+		const iFilter = entryOrder.findIndex((b) => b.act === 'editor-pick');
+		const iPassive = entryOrder.findIndex((b) => b.act === 'editor-pick-passive');
+		const iText = entryOrder.findIndex((b) => b.act === 'editor-pick-text');
+		assert(iFilter >= 0 && iPassive === iFilter + 1 && iText === iPassive + 1
+			&& entryOrder[iPassive].label === '緑スキルを追加',
+			'段9: 入口は「条件で検索」と「テキストで検索」の間に「緑スキルを追加」',
+			entryOrder.map((b) => b.label));
+
+		// (2) 開いたときの姿
+		await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
+		await page.waitForTimeout(700);
+		const p0 = await passiveState();
+		assert(p0.mode.passive && !p0.mode.filter && !p0.mode.paste && !p0.mode.custom,
+			'段9: 「緑スキルを追加」は緑スキルの一覧だけを出す', p0.mode);
+		assert(p0.title === '緑スキルを追加', '段9: 見出しが「緑スキルを追加」', p0.title);
+		assert(p0.footH === 0,
+			'段9: 確定ボタン（フッター）は出さない（チェックがその場で効くため）', p0.footH);
+
+		// (3) 並ぶ顔ぶれ ―― 製品の印から作った一覧と、順序まで同じ。母集団のスキルは1件も出ない
+		const expect = await page.evaluate(() => {
+			const axes = UmaSkillDeckCore.TAG_AXES.filter((a) => a.poolExcluded).map((a) => a.key);
+			const has = (s) => axes.some((k) => ((s.tags && s.tags[k]) || []).length > 0);
+			return {
+				axes,
+				listed: UmaSkillDeckCore.getPoolExcludedSkills().map((s) => String(s.id)),
+				pool: UmaSkillDeckCore.getMasterSkills().filter((s) => !has(s)).map((s) => String(s.id)),
+			};
+		});
+		assert(expect.axes.length > 0 && expect.listed.length > 0 && expect.pool.length > 0,
+			'段9: 母集団から外す印を持つ軸・外したスキル・残ったスキルがどれも実在する（空振りの検査ではない）',
+			{ 軸: expect.axes, 外した: expect.listed.length, 母集団: expect.pool.length });
+		assert(p0.ids.join() === expect.listed.join(),
+			'段9: 一覧に並ぶのは「母集団から外した」スキルだけ（順序も含めて一致）',
+			{ 画面: p0.ids.length, 期待: expect.listed.length });
+		const leaked = p0.ids.filter((id) => expect.pool.includes(id));
+		assert(leaked.length === 0,
+			'段9: 「条件で検索」の母集団に残っているスキルは、この一覧に1件も出ない', leaked.slice(0, 5));
+
+		// (4) チェックは「いまセットに入っているか」から作る（独立した状態を持たない）
+		const already = p0.ids.filter((id) => p0.saved.includes(id));
+		assert(already.length > 0 && p0.checked.join() === already.join(),
+			'段9: 開いた時点のチェックは、いまセットに入っている緑スキルと一致する',
+			{ チェック: p0.checked, セット: p0.saved });
+		/* 注記の数え方 ―― **単位は背後の見出し（追加済みスキル（N種））と同じ「種」**。
+		   「絞り込み結果（N件）」の「件」に引きずられていないことも一緒に見る。 */
+		assert(p0.noteCount === already.length + '種'
+			&& p0.note === 'チェックするとその場で追加済みスキルに入り、外すと抜けます（このうち'
+				+ already.length + '種が追加済み）',
+			'段9: 注記は「このうちN種が追加済み」で、単位は追加済みスキルの見出しと揃っている', p0.note);
+
+		// (5) チェックするとその場でセットへ入る（確定ボタンを押さない）
+		const target = p0.ids.find((id) => !p0.checked.includes(id));
+		await page.click('[data-usd-el="passive-check"][value="' + target + '"]');
+		await page.waitForTimeout(400);
+		const p1 = await passiveState();
+		assert(p1.saved.includes(target) && p1.saved.length === p0.saved.length + 1
+			&& p1.checked.includes(target) && p1.panelCount === String(p0.saved.length + 1),
+			'段9: チェックするとその場で追加済みスキルに入り、保存される',
+			{ 前: p0.saved, 後: p1.saved, 見出し: p1.panelCount });
+
+		// (6) 外すとその場でセットから抜ける
+		await page.click('[data-usd-el="passive-check"][value="' + target + '"]');
+		await page.waitForTimeout(400);
+		const p2 = await passiveState();
+		assert(!p2.saved.includes(target) && p2.saved.join() === p0.saved.join()
+			&& !p2.checked.includes(target),
+			'段9: チェックを外すとその場で追加済みスキルから抜ける', { 後: p2.saved });
+
+		// (7) 閉じて開き直しても、チェックは現在のセットのまま
+		await page.click('[data-usd-el="passive-check"][value="' + target + '"]');
+		await page.waitForTimeout(400);
+		await page.click('[data-usd-act="picker-close"]');
+		await page.waitForTimeout(400);
+		await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
+		await page.waitForTimeout(700);
+		const p3 = await passiveState();
+		assert(p3.checked.join() === p3.ids.filter((id) => p3.saved.includes(id)).join()
+			&& p3.checked.includes(target) && p3.checked.length === already.length + 1,
+			'段9: 開き直してもチェックは現在のセットと一致する', { チェック: p3.checked, セット: p3.saved });
+
+		/* (8) **追加済みスキルから消したら、次に開いたときチェックも外れている。**
+		   消すのはモーダルの外（追加済みスキルのパネルの×）なので、モーダルを閉じてから行う。
+		   × は削除モードのときだけ出る（C-57 の (9)）。 */
+		await page.click('[data-usd-act="picker-close"]');
+		await page.waitForTimeout(400);
+		await page.evaluate((id) => {
+			const del = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
+			if (del.getAttribute('aria-pressed') !== 'true') del.click();
+			document.querySelector('#deck-template-panel [data-usd-act="template-skill-remove"][data-skill-id="' + id + '"]').click();
+		}, target);
+		await page.waitForTimeout(400);
+		await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
+		await page.waitForTimeout(700);
+		const p4 = await passiveState();
+		assert(!p4.saved.includes(target) && !p4.checked.includes(target)
+			&& p4.checked.join() === already.join(),
+			'段9: 追加済みスキルから消すと、次に開いたときチェックも外れている',
+			{ 消したもの: target, チェック: p4.checked, セット: p4.saved });
+
+		// 片付け（このあとの検査は「ドラフトに右回り○が1件」「削除モードは OFF」「Undo は空」を前提にする）
+		await page.click('[data-usd-act="picker-close"]');
+		await page.waitForTimeout(400);
+		await page.evaluate(() => {
+			const del = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
+			if (del.getAttribute('aria-pressed') === 'true') del.click();
+			UmaSkillDeckCore.clearUndo();
+		});
+		await page.waitForTimeout(300);
+	}
+
 	// Deck まわりはここまで。以降は旧UIに戻して確かめる。
 	// 片道化（C-32）で新UIから旧UIへは入れないので、保存値 'old' で開き直す
 	// （ここから先の検査は仕込んだ結果に依存しない）。
@@ -862,7 +1007,8 @@ const browser = await chromium.launch();
 	});
 	// 「?」は外した（入口を押せば必ずガイドが出るので情報を足さず、スマホ幅で並びが崩れたため）
 	// C-3 で末尾に一括削除（editor-clear-skills）が並んだ
-	assert(entry.order.join(',') === 'editor-pick,editor-pick-text,editor-pick-screenshot,editor-pick-custom,editor-clear-skills'
+	// 72セッション目・段9 で2番目に「緑スキルを追加」（editor-pick-passive）が入った
+	assert(entry.order.join(',') === 'editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot,editor-pick-custom,editor-clear-skills'
 		&& entry.label === 'スクショで追加' && entry.cls.includes('uma-btn--secondary') && entry.noHelp,
 		'special/ocr入口: 「テキストで検索」と「未収録スキルを追加」の間に、同じ見た目で「スクショで追加」が出る（「?」は無い）', { order: entry.order, label: entry.label });
 	assert(entry.icon === 'upload-cloud' || String(entry.icon).includes('lucide-upload-cloud'),
@@ -3767,15 +3913,18 @@ const browser = await chromium.launch();
 	await page.waitForTimeout(400);
 	assert(!(await page.isVisible('.usd-modal')), 'deck: モーダルが閉じる');
 
-	/* --- スキルを足す入口は3つ。それぞれ別のモードでモーダルが開く ---
+	/* --- スキルを足す入口は4つ。それぞれ別のモードでモーダルが開く ---
 	   **この並びは uma-skill-deck.html が自前で持っている**（core の .usd-entry-row を通らない）ので、
-	   文言を変えるときに core 側だけ直すと、ここで気づける（71セッション目・段6 で実際に両方直した）。 */
+	   文言を変えるときに core 側だけ直すと、ここで気づける（71セッション目・段6 で実際に両方直した）。
+	   72セッション目・段9 で「緑スキルを追加」が2番目に入った（core の並びと同じ位置）。
+
+	   **拾い方を「入口の行に居るボタン」に変えた。** それまでは文字列の当てはめ（/検索|未収録/）で
+	   拾っていたので、**「緑スキルを追加」を足しても1つも引っかからず、検査は3件のまま通った**
+	   ―― 新しい入口を足したことに気づけない形だった（段9 で実際にそうなった）。 */
 	const entries = await page.evaluate(() =>
-		[...document.querySelectorAll('#record-editor-view .uma-btn')]
-			.map((b) => b.textContent.trim()).filter((t) => /検索|未収録/.test(t)));
-	assert(entries.length === 3 && entries[0] === '条件で検索'
-		&& entries[1] === 'テキストで検索' && entries[2] === '未収録スキルを追加',
-		'deck: 比較シート編集に3つの入口ボタンが並ぶ', entries);
+		[...document.querySelectorAll('#record-editor-view .uma-btn.deck-pill-btn')].map((b) => b.textContent.trim()));
+	assert(entries.join(',') === '条件で検索,緑スキルを追加,テキストで検索,未収録スキルを追加',
+		'deck: 比較シート編集に4つの入口ボタンが並ぶ（core の .usd-entry-row と同じ顔ぶれ・同じ順）', entries);
 
 	await page.click('button[onclick="openRecordTextPicker()"]');
 	await page.waitForTimeout(700);
@@ -3855,6 +4004,49 @@ const browser = await chromium.launch();
 		&& deckFinder.afterEsc.xHidden === false,
 		'deck: Deck 単体ページでもサブ画面を開いている間は×が隠れ、Esc は一覧へ戻るだけ', { xHidden: deckFinder.xHidden, afterEsc: deckFinder.afterEsc });
 
+	await page.click('[data-usd-act="picker-close"]');
+	await page.waitForTimeout(400);
+
+	/* 段9: 比較シート編集の「緑スキルを追加」も同じモードで開き、その場でシートへ入る。
+	   **入口は uma-skill-deck.html の自前の並び**なので、core 側に足しただけでは動かない。 */
+	await page.click('button[onclick="openRecordPassivePicker()"]');
+	await page.waitForTimeout(700);
+	/* **チェックの前後は別の呼び出しに分ける。** 1つの evaluate の中で押して読むと、
+	   その間にレイアウトが走らないので**スクロール位置が崩れていても崩れて見えない**
+	   （実際、段9 の破壊確認で「スクロールを戻す1行を消しても素通り」した）。 */
+	const deckSheet = () => page.evaluate(() => UmaSkillDeckCore.findRecord(draftRecord.recordId).skillIds.slice());
+	const passiveBox = () => page.evaluate(() => ({
+		scroll: document.querySelector('[data-usd-el="passive-results"]').scrollTop,
+		listed: document.querySelectorAll('[data-usd-el="passive-check"]').length,
+		expect: UmaSkillDeckCore.getPoolExcludedSkills().length,
+		title: document.querySelector('[data-usd-el="picker-title"]').textContent,
+	}));
+	// 一覧の下端まで送ってから、そこに居るスキルを押す（67件あるので、先頭へ戻ると実害が大きい）
+	const passiveTarget = await page.evaluate(() => {
+		const box = document.querySelector('[data-usd-el="passive-results"]');
+		box.scrollTop = box.scrollHeight;
+		const rows = [...document.querySelectorAll('[data-usd-el="passive-check"]')];
+		return (rows.reverse().find((r) => !r.checked) || {}).value;
+	});
+	const deckBefore = await deckSheet();
+	const boxBefore = await passiveBox();
+	await page.click('[data-usd-el="passive-check"][value="' + passiveTarget + '"]');
+	await page.waitForTimeout(400);
+	const deckAdded = await deckSheet();
+	// **押すたびに一覧を作り直す**ので、外すときは要素を引き直す（掴んだままだと2度目が効かない）
+	await page.click('[data-usd-el="passive-check"][value="' + passiveTarget + '"]');
+	await page.waitForTimeout(400);
+	const deckRemoved = await deckSheet();
+	assert(boxBefore.title === '緑スキルを追加' && boxBefore.listed === boxBefore.expect
+		&& deckAdded.length === deckBefore.length + 1 && deckAdded.includes(passiveTarget)
+		&& deckRemoved.join() === deckBefore.join(),
+		'deck(段9): 比較シート編集の「緑スキルを追加」でも、チェックがその場でシートへ効く',
+		{ 一覧: boxBefore, 前: deckBefore.length, 後: deckAdded.length, 戻し: deckRemoved.length });
+	/* **スクロール位置の検査はここに置かない。**
+	   押しても位置が保たれることは実測したが（1405px のまま）、**壊しても落ちない**
+	   ―― Chrome は「同じ高さの中身で innerHTML を入れ替えただけ」では scrollTop を動かさないので、
+	   core 側で位置を戻す2行を消しても結果が変わらない（`output/scratch/step9-scroll-probe.mjs`）。
+	   **通るだけの検査になるので足さない。** 事情は core の renderPassiveList のコメント。 */
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);
 
