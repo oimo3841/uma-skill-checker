@@ -248,7 +248,7 @@
 	</div>
 </div>
 
-<script src="js/uma-skill-deck-core.js?v=2026-09-22c"></script>
+<script src="js/uma-skill-deck-core.js?v=2026-09-22d"></script>
 <script>
 (function () {
 	'use strict';
@@ -1113,7 +1113,11 @@
 
 		Core.configure({ toast: toast });
 		// マスター445種＋追加カタログ（拡張スキル・シナリオ因子）。名前で探すために要る。
-		Core.loadMasterSkills(false).then(function () {
+		// **戻り値を捨てない**（71セッション目・段7）。このページは**タグを付ける**画面なので、
+		// 古い写しに落ちたまま作業すると、いま無いスキルに付けたり、増えたスキルが見えなかったりする。
+		// 利用者への知らせは core がトーストで出す（このページも Core.configure で toast を渡している）。
+		Core.loadMasterSkills(false).then(function (masterLoad) {
+			if (!masterLoad.ok) console.warn('[card-event-input] 収録スキルデータは ' + masterLoad.source + ' から読んだ', masterLoad);
 			return Core.loadTrainingSources(false);
 		}).then(function () {
 			var src = Core.getTrainingSources();

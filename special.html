@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-22c"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-22d"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-20e"></script>
 	<style>
@@ -3054,7 +3054,10 @@
 				UmaSkillDeckCore.onUndoChanged(renderDeckUndoButton);
 				// マスタースキルデータ（439件）は、このモードに入ったときだけ取りに行く。
 				// 既定の動作では読み込まないため、通常利用の初期表示は今までどおり。
-				await UmaSkillDeckCore.loadMasterSkills(false);
+				// **戻り値を捨てない**（71セッション目・段7）。古い写しや組み込みサンプルに
+				// 落ちたことは core がトーストで知らせるので、ここは開発ログに残すだけ。
+				const masterLoad = await UmaSkillDeckCore.loadMasterSkills(false);
+				if (!masterLoad.ok) console.warn('[UmaStar] Deck連携の収録スキルデータは ' + masterLoad.source + ' から読んだ', masterLoad);
 				deckMasterLoaded = true;
 				deckTemplateManager = UmaSkillDeckCore.createTemplateManager(
 					document.getElementById('deck-template-panel'),
@@ -3503,7 +3506,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-22a';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-22b';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {

@@ -127,6 +127,12 @@ const stitchVer = /STITCH_JS_VERSION = '([^']+)'/.exec(read('js/stitch.js'))[1];
 const skillsetVer = /SKILLSET_CARDS_JS_VERSION = '([^']+)'/.exec(read('js/skillset-cards.js'))[1];
 // コミット2: 読み取りの本体 js/skillset-ocr.js も同じ運用（special.html だけが読む）。
 const skillsetOcrVer = /SKILLSET_OCR_JS_VERSION = '([^']+)'/.exec(read('js/skillset-ocr.js'))[1];
+/* 71セッション目・段7: マスター（uma-skill-deck-skills.json）の取得URLに ?v= が付いた。
+   ここだけ形が違う ―― 版の正本は**JSONの中の masterVersion**（ファイル名には版が付かない）で、
+   core.js の MASTER_JSON_VERSION がそれを写して ?v= に使う。**写し間違いを落とす。**
+   これを付けた理由（公開先の Cache-Control: max-age=600）は core.js の定数の説明にある。 */
+const masterJsonVer = /MASTER_JSON_VERSION = '([^']+)'/.exec(read('js/uma-skill-deck-core.js'))[1];
+const masterVer = /"masterVersion"\s*:\s*"([^"]+)"/.exec(read('uma-skill-deck-skills.json'))[1];
 console.log('     内部定数:  common.js=%s / core=%s / deck=%s / stitch=%s / skillset-cards=%s / skillset-ocr=%s / css=%s', commonVer, coreVer, deckVer, stitchVer, skillsetVer, skillsetOcrVer, cssVer);
 for (const [p, pat, ver, name] of [
 	['special.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
@@ -148,6 +154,9 @@ for (const [p, pat, ver, name] of [
 	const q = [...read(p).matchAll(pat)].map((m) => m[1]);
 	check(q.length === 1 && q[0] === ver, `${p} の ${name} の ?v= が ${ver}`, q);
 }
+check(masterJsonVer === masterVer,
+	'js/uma-skill-deck-core.js の MASTER_JSON_VERSION がマスターの masterVersion と一致',
+	{ 'core.js': masterJsonVer, 'uma-skill-deck-skills.json': masterVer });
 
 /* --- 凍結中のファイル。不一致でも落とさず、警告として必ず一覧に出す ---
    index.html は C-1 で更新終了・凍結。?v= の更新対象から外れ続けた結果、
@@ -175,6 +184,9 @@ const VERSIONED = [
 	['js/skillset-cards.js', skillsetVer, /SKILLSET_CARDS_JS_VERSION = '([^']+)'/],
 	['js/skillset-ocr.js', skillsetOcrVer, /SKILLSET_OCR_JS_VERSION = '([^']+)'/],
 	['css/tokens.css', cssVer, /--common-css-version:\s*"([^"]+)"/],
+	// マスターは JSON の中の masterVersion が版。**中身を変えたのに版を据え置く**と
+	// ?v= も動かず、公開側の10分キャッシュに古い本文が残り続ける（71セッション目・段7）。
+	['uma-skill-deck-skills.json', masterVer, /"masterVersion"\s*:\s*"([^"]+)"/],
 ];
 const today = new Date().toLocaleDateString('sv-SE');  // ローカル時刻の YYYY-MM-DD
 console.log('     版の日付の検査: 今日は %s', today);

@@ -3497,6 +3497,30 @@ const browser = await chromium.launch();
 				assert(few.listBoxH === full.listBoxH,
 					'deck(段6【3】): ' + width + 'px で結果が ' + n + '件でも一覧の箱の高さが動かない',
 					{ 基準: full.listBoxH, 減らした後: few.listBoxH });
+
+				/* 0件のときは「条件に一致するスキルがありません。」を**箱の中央**に置く（段7・案ア）。
+				   高さを固定したぶん、文が上端に張り付くと下に 240px の空白が残るため。
+				   **px は書かない** ―― 文の中心と箱の中心のズレで見る（フォントが変わっても成り立つ）。 */
+				if (n === 0) {
+					const empty = await page.evaluate(() => {
+						const box = document.querySelector('[data-usd-el="results"]');
+						const msg = box.querySelector('p');
+						if (!msg) return null;
+						const b = box.getBoundingClientRect(), m = msg.getBoundingClientRect();
+						return {
+							text: msg.textContent.trim(),
+							ズレ: Math.round(Math.abs((m.top + m.bottom) / 2 - (b.top + b.bottom) / 2)),
+							上の空き: Math.round(m.top - b.top),
+							下の空き: Math.round(b.bottom - m.bottom),
+							箱: Math.round(b.height),
+						};
+					});
+					assert(empty && empty.text.length > 0, 'deck(段7 案ア): ' + width + 'px で0件のときは文が1つだけ出る', empty);
+					assert(empty && empty.ズレ <= 2,
+						'deck(段7 案ア): ' + width + 'px で0件の文が箱の中央にある', empty);
+					assert(empty && empty.上の空き > 20 && empty.下の空き > 20,
+						'deck(段7 案ア): ' + width + 'px で空白が上下に分かれている（上端に張り付いていない）', empty);
+				}
 			}
 
 			/* **段4 の「畳んだぶんを一覧が受け取る」仕組みと競合しないこと。**
@@ -8603,6 +8627,91 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	await ctx.close();
 }
 
+
+/* ============================================================
+ * 段7【5】収録スキルデータ（マスター）の取り回し（71セッション目）
+ *
+ * 70セッション目にレース場のタグを足した直後、実機で「福島を選ぶと0件」になり F5 で直った。
+ * 原因は公開先の HTTP キャッシュ（Cache-Control: max-age=600）で、**更新から10分間は
+ * 古い本文が再検証なしで返る**。版を ?v= に付けて避ける。あわせて、取りに行けなかったときに
+ * **黙って古い写しで動かない**ようにした（それまで追加カタログ側にだけ知らせがあった）。
+ *
+ * **版の値は検査に書かない。** 画面から MASTER_JSON_VERSION と masterVersion を読んで突き合わせる。
+ * ============================================================ */
+{
+	const { ctx, page } = await openPage(browser, base, 'uma-skill-deck.html');
+
+	// (a) 取得URLに ?v= が付いていて、値がマスターの masterVersion と同じ
+	const urls = [];
+	page.on('request', (r) => { if (r.url().includes('uma-skill-deck-skills.json')) urls.push(r.url()); });
+	const first = await page.evaluate(() => UmaSkillDeckCore.loadMasterSkills(false));
+	await page.waitForTimeout(300);
+	const vers = await page.evaluate(() => ({
+		定数: UmaSkillDeckCore.MASTER_JSON_VERSION,
+		読んだ版: UmaSkillDeckCore.getMasterMeta().version,
+		source: UmaSkillDeckCore.getMasterMeta().source,
+	}));
+	assert(first.ok && first.source === 'network', '段7: ふだんの取得はネットワークから成功する', first);
+	assert(vers.定数 === vers.読んだ版,
+		'段7: core の MASTER_JSON_VERSION が、実際に読めた masterVersion と同じ', vers);
+	assert(urls.length > 0 && urls.every((u) => u.includes('v=' + vers.定数)),
+		'段7: マスターの取得URLに ?v=<masterVersion> が付いている', urls.slice(0, 2));
+	assert(!urls.some((u) => /\?[^?]*\?/.test(u)),
+		'段7: 取得URLに「?」が2つ現れない（?v= と ?t= が衝突していない）', urls.slice(0, 2));
+
+	// forceRefresh のときは ?v= に加えて &t= が付く（? を2つにしない）
+	urls.length = 0;
+	await page.evaluate(() => UmaSkillDeckCore.loadMasterSkills(true));
+	await page.waitForTimeout(300);
+	assert(urls.length > 0 && urls.every((u) => u.includes('v=' + vers.定数) && u.includes('&t=')),
+		'段7: 再取得のときは ?v= の後ろに &t= が付く', urls.slice(0, 2));
+
+	/* (b) 取りに行けなかったら、古い写しを使ったことを知らせる。
+	   ここまでの取得で localStorage に写しが入っているので、通信だけを塞ぐ。 */
+	const toastState = () => page.evaluate(() => {
+		const t = document.getElementById('toast');
+		return {
+			text: document.getElementById('toast-message').textContent.trim(),
+			見えている: !t.classList.contains('opacity-0'),
+		};
+	});
+	await page.evaluate(() => { document.getElementById('toast-message').textContent = ''; });
+	await page.route('**/uma-skill-deck-skills.json*', (route) => route.abort());
+	const fell = await page.evaluate(() => UmaSkillDeckCore.loadMasterSkills(true));
+	await page.waitForTimeout(300);
+	const fellToast = await toastState();
+	assert(fell.ok === false && fell.source === 'cache',
+		'段7: 取りに行けないときは localStorage の写しへ落ちる', fell);
+	assert(fellToast.見えている && fellToast.text.length > 0,
+		'段7: 写しへ落ちたことを利用者に知らせる（黙って古いデータで動かない）', fellToast);
+	assert(/（キャッシュ）$/.test(await page.evaluate(() => UmaSkillDeckCore.getMasterMeta().version)),
+		'段7: データ管理タブに出る版にも「（キャッシュ）」が付く');
+	assert(fell.count > 0, '段7: 写しへ落ちてもスキルは読めている（件数が0にならない）', fell.count);
+
+	/* (c) 「再取得」は、取れなかったときに「更新しました」と言わない。
+	   それまでは戻り値を見ていなかったので、通信できなくても成功の文だけが出ていた。 */
+	await page.evaluate(() => { document.getElementById('toast-message').textContent = ''; });
+	await page.evaluate(() => refreshMasterData());
+	await page.waitForTimeout(400);
+	const ngToast = await toastState();
+	assert(!/更新しました/.test(ngToast.text),
+		'段7: 再取得に失敗したときは「更新しました」と出ない', ngToast);
+	assert(ngToast.見えている && ngToast.text.length > 0,
+		'段7: 失敗したときも、何が起きたかは知らせる', ngToast);
+
+	// 通信を戻せば、ふつうに「更新しました」と出る（上の検査が「常に出ない」ではないことの担保）
+	await page.unroute('**/uma-skill-deck-skills.json*');
+	await page.evaluate(() => { document.getElementById('toast-message').textContent = ''; });
+	await page.evaluate(() => refreshMasterData());
+	await page.waitForTimeout(600);
+	const okToast = await toastState();
+	assert(/更新しました/.test(okToast.text),
+		'段7: 取れたときは「更新しました」と出る（失敗の検査が空振りでない）', okToast);
+	assert((await page.evaluate(() => UmaSkillDeckCore.getMasterMeta().source)) === 'network',
+		'段7: 再取得に成功するとネットワークの版に戻る');
+
+	await ctx.close();
+}
 
 await browser.close();
 await close();

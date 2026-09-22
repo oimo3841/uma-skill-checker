@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22d';
 
 	/* ============================================================
 	 * 定数
@@ -28,6 +28,43 @@
 	const STORAGE_KEY_USER = 'umaSkillDeck:userData';
 	const STORAGE_KEY_MASTER = 'umaSkillDeck:masterCache';
 	const MASTER_JSON_PATH = 'uma-skill-deck-skills.json';
+
+	/**
+	 * **マスターの版。`uma-skill-deck-skills.json` の `masterVersion` と必ず同じ値にする。**
+	 * 取得するURLに `?v=` として付ける。**恒久ルール4・18 の「3点一致」の対象**で、
+	 * ズレていたら `npm run test:verify` の §1 が落とす（ファイル名の代わりに JSON の中の
+	 * `masterVersion` が「ファイル名に付ける版」の役目をしている）。
+	 *
+	 * **なぜ要るか（71セッション目・段7）** ―― 公開先（GitHub Pages）はこのファイルを
+	 * **`Cache-Control: max-age=600`** で返す（実測）。版を付けないと、**更新してから10分間、
+	 * ブラウザが再検証なしで古い本文を返す**。70セッション目にレース場のタグを足した直後、
+	 * 実機で「福島を選ぶと0件」になり **F5 で直った** ―― その症状がこれだった。
+	 * （`localStorage` の写しは `fetch` が失敗したときにしか使われず、F5 では消えないので、
+	 *   F5 で直ったこととは辻褄が合わない。）
+	 *
+	 * **`data/` の6ファイルにも同じ問題がある**（どれも `?v=` が付かない）。
+	 * そちらを対象に入れるかはまだ決めていない。
+	 */
+	const MASTER_JSON_VERSION = '2026-09-21b';
+
+	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
+	function withQuery(url, key, value) {
+		return url + (url.indexOf('?') === -1 ? '?' : '&') + key + '=' + encodeURIComponent(value);
+	}
+
+	/**
+	 * マスターを取りに行けなかったときの知らせ（71セッション目・段7）。
+	 *
+	 * それまでは**黙って古い写しへ落ちていた** ―― 追加カタログ（`loadExtraCatalog`）には
+	 * 「読み込めませんでした」のトーストがあるのに、マスターには無いという非対称があった。
+	 * 利用者向けの語は **「収録スキルデータ」**（データ管理タブの見出しと同じ。32セッション目）。
+	 */
+	const MASTER_FALLBACK_NOTICE = {
+		cache: '収録スキルデータを取得できなかったので、前に読み込んだものを使っています。'
+			+ '通信できないときは、ページを開き直すと直ることがあります。',
+		sample: '収録スキルデータを読み込めませんでした。ごく一部のスキルしか出ません。'
+			+ '通信できる状態でページを開き直してください。'
+	};
 
 	/* ------------------------------------------------------------
 	 * 追加カタログ（マスター445種の外にある、比較の対象にできるもの）
@@ -376,7 +413,9 @@
 	 * ============================================================ */
 	let userData = null;
 	let masterSkills = [];
-	let masterMeta = { version: '', fetchedAt: '' };
+	// source … 'network'（取れた）／'cache'（localStorage の写し）／'sample'（組み込みサンプル）。
+	// 71セッション目・段7 で足した。呼び出し側が「新しいものを見ているのか」を判定できるようにするため。
+	let masterMeta = { version: '', fetchedAt: '', source: '' };
 	// 追加カタログ（全カテゴリを1本の配列にまとめたもの）。各要素は正本の1件＋ category。
 	let extraCatalog = [];
 	let extraCatalogMeta = { entryCount: 0, sources: [] };
@@ -622,7 +661,9 @@
 		if (typeof global.fetchSkillMasterJson === 'function') {
 			return await global.fetchSkillMasterJson(url, { cacheBust: cacheBust });
 		}
-		const res = await global.fetch(cacheBust ? (url + '?t=' + Date.now()) : url);
+		// **`?` で繋ぎ足さない** ―― 71セッション目・段7 でマスターのURLに `?v=` が付いたので、
+		// `url + '?t='` だと `?v=…?t=…` になって壊れる（common.js 側は元から `&` で繋いでいる）。
+		const res = await global.fetch(cacheBust ? withQuery(url, 't', Date.now()) : url);
 		if (!res.ok) throw new Error('HTTP ' + res.status);
 		return await res.json();
 	}
@@ -730,27 +771,42 @@
 	 */
 	async function loadMasterSkills(forceRefresh, masterJsonPath) {
 		await loadExtraCatalog(forceRefresh);
-		const url = masterJsonPath || MASTER_JSON_PATH;
+		// **`?v=` を付ける**（71セッション目・段7。MASTER_JSON_VERSION の説明を読むこと）。
+		// forceRefresh のときは fetchMasterJson がさらに `&t=` を足してキャッシュを完全に避ける。
+		const url = withQuery(masterJsonPath || MASTER_JSON_PATH, 'v', MASTER_JSON_VERSION);
 		try {
 			const data = await fetchMasterJson(url, !!forceRefresh);
 			masterSkills = data.skills || [];
-			masterMeta = { version: data.masterVersion || '', fetchedAt: nowIso() };
+			masterMeta = { version: data.masterVersion || '', fetchedAt: nowIso(), source: 'network' };
 			try { global.localStorage.setItem(STORAGE_KEY_MASTER, JSON.stringify({ data: data, fetchedAt: masterMeta.fetchedAt })); } catch (e) {}
-			return true;
+			return { ok: true, source: 'network', version: masterMeta.version, count: masterSkills.length };
 		} catch (e) {
 			// フェッチ失敗時はキャッシュ→組み込みサンプルの順でフォールバックする。
+			// **どちらに落ちたかを必ず知らせる**（71セッション目・段7）。それまでは黙って
+			// 古い写しで動いていたので、「実装が間違っている」のか「古いものを見ている」のかを
+			// 利用者も開発者も切り分けられなかった。追加カタログ側と同じ形（console.warn ＋ toast）。
 			try {
 				const cached = JSON.parse(global.localStorage.getItem(STORAGE_KEY_MASTER) || 'null');
 				if (cached && cached.data) {
 					masterSkills = cached.data.skills || [];
-					masterMeta = { version: (cached.data.masterVersion || '') + '（キャッシュ）', fetchedAt: cached.fetchedAt || '' };
-					return false;
+					masterMeta = { version: (cached.data.masterVersion || '') + '（キャッシュ）', fetchedAt: cached.fetchedAt || '', source: 'cache' };
+					noticeMasterFallback('cache');
+					return { ok: false, source: 'cache', version: masterMeta.version, count: masterSkills.length };
 				}
 			} catch (e2) {}
 			masterSkills = SAMPLE_MASTER_SKILLS.skills;
-			masterMeta = { version: SAMPLE_MASTER_SKILLS.masterVersion + '（組み込みサンプル）', fetchedAt: nowIso() };
-			return false;
+			masterMeta = { version: SAMPLE_MASTER_SKILLS.masterVersion + '（組み込みサンプル）', fetchedAt: nowIso(), source: 'sample' };
+			noticeMasterFallback('sample');
+			return { ok: false, source: 'sample', version: masterMeta.version, count: masterSkills.length };
 		}
+	}
+
+	/** 古い写し・組み込みサンプルに落ちたことを、開発ログと利用者の両方へ出す。 */
+	function noticeMasterFallback(source) {
+		const msg = MASTER_FALLBACK_NOTICE[source];
+		if (!msg) return;
+		try { global.console.warn('[UmaSkillDeck] ' + msg + '（source=' + source + '）'); } catch (e) {}
+		toast(msg);
 	}
 
 	/* ============================================================
@@ -1822,6 +1878,13 @@
 		 * 上限が固定値になっただけで、式は変えていない。 */
 		'.usd-results { border: 1px solid var(--uma-border); border-radius: var(--uma-r-lg);',
 		'  height: calc(280px + var(--usd-results-extra, 0px)); overflow: auto; }',
+		/* 1件も当たらなかったとき（71セッション目・段7、案(ア)）。
+		 * 高さを固定したので、文だけが上端に張り付いて下に 240px の空白が残っていた。
+		 * **文を箱の中央に置く**と、空白が上下に分かれて「空の箱」として読める。
+		 * 見分けは中身の形で付ける ―― 当たったときは `<label class="usd-row">` が並び、
+		 * 0件のときだけ `<p>` が1つ（renderPickerResults）。**JS 側に印を足さずに済む。**
+		 * `:has()` はこのファイルで既に使っている（.usd-opt:has(input:checked)）。 */
+		'.usd-results:has(> p) { display: flex; align-items: center; justify-content: center; }',
 
 		// 選択肢チップ。中身は本物の checkbox のままなので、既存のJSとテストがそのまま掴める
 		// （.usd-chip はテンプレートのスキル名チップで使用済みのため .usd-opt にしてある）
@@ -5117,6 +5180,8 @@
 		STORAGE_KEY_USER: STORAGE_KEY_USER,
 		STORAGE_KEY_MASTER: STORAGE_KEY_MASTER,
 		MASTER_JSON_PATH: MASTER_JSON_PATH,
+		// マスターの版（取得URLの ?v=）。検査が「JSON の masterVersion と揃っているか」を見る。
+		MASTER_JSON_VERSION: MASTER_JSON_VERSION,
 		TEMPLATE_LIMIT: TEMPLATE_LIMIT,
 		RECORD_LIMIT: RECORD_LIMIT,
 		CUSTOM_SKILL_SOFT_CAP: CUSTOM_SKILL_SOFT_CAP,

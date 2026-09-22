@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-22a';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-22b';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -899,8 +899,14 @@ async function refreshMasterData() {
 	// 32セッション目: 利用者向けの語は「収録スキルデータ」（設定の見出しと同じ）。関数名や
 	// Core の API の「マスター」は開発側の語なので変えない。
 	showToast('収録スキルデータを再取得しています…');
-	await Core.loadMasterSkills(true);
+	const res = await Core.loadMasterSkills(true);
 	renderDataTab();
+	// **取れていないのに「更新しました」と言わない**（71セッション目・段7）。
+	// それまでは戻り値を見ていなかったので、通信できないときでも成功の文だけが出て、
+	// 「再取得したのに古いまま」であることに気づけなかった。
+	// 失敗したときの理由は core がトーストで知らせている（MASTER_FALLBACK_NOTICE）ので、
+	// ここでは重ねない ―― トーストは1枠しかなく、後から出したほうが理由を打ち消してしまう。
+	if (!res.ok) return;
 	showToast('収録スキルデータを更新しました（' + Core.getMasterSkills().length + '件）');
 }
 
@@ -1343,7 +1349,10 @@ async function initApp() {
 	Core.configure({ toast: showToast });
 	Core.onUndoChanged(renderUndoButton);
 	userData = Core.getUserData();
-	await Core.loadMasterSkills(false);
+	// **戻り値を捨てない**（71セッション目・段7）。利用者への知らせは core が出すので、
+	// ここは開発ログにどこから読んだかを残すだけ（データ管理タブの版にも「（キャッシュ）」が付く）。
+	const masterLoad = await Core.loadMasterSkills(false);
+	if (!masterLoad.ok) console.warn('[UmaSkillDeck] 起動時の収録スキルデータは ' + masterLoad.source + ' から読んだ', masterLoad);
 	templateManager = Core.createTemplateManager(document.getElementById('template-panel-root'), {
 		// 「＋ 新規」の中身（未保存のスキルセット）をこのページ用に残す（C-53。special の 'special' とは別）
 		draftScopeKey: 'deck',
