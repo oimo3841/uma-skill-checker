@@ -299,7 +299,10 @@ const browser = await chromium.launch();
 			head: head ? head.textContent.replace(/\s+/g, '').replace(/\d+/g, 'N') : null,
 			tabsAria: p.querySelector('.uma-subtabs') ? p.querySelector('.uma-subtabs').getAttribute('aria-label') : null,
 			// A の見出しは setLabel を通さない（special でも「スキルセット」のまま）
-			secAHead: secA ? secA.querySelector('.uma-section-head').textContent : null,
+			// **出っ張りだけを見る**（.uma-section-row の直下）。72セッション目・段11 ⑩ で
+			// 入口の並びにも畳むための .uma-section-head（button）が増えたので、
+			// ただの .uma-section-head ではそちらを拾ってしまう。
+			secAHead: secA ? secA.querySelector('.uma-section-row > .uma-section-head').textContent : null,
 			// 囲んだだけで、中身の data-usd-el は section-a の下に全部そろっている
 			inA: secA ? ['tier-row', 'selected-list', 'mode-delete', 'mode-reclass', 'selected-count', 'clear-skills']
 				.every(k => !!secA.querySelector('[data-usd-el="' + k + '"]')) : false,
@@ -433,16 +436,18 @@ const browser = await chromium.launch();
 		const iPassive = entryOrder.findIndex((b) => b.act === 'editor-pick-passive');
 		const iText = entryOrder.findIndex((b) => b.act === 'editor-pick-text');
 		assert(iFilter >= 0 && iPassive === iFilter + 1 && iText === iPassive + 1
-			&& entryOrder[iPassive].label === '緑スキルを追加',
-			'段9: 入口は「条件で検索」と「テキストで検索」の間に「緑スキルを追加」',
+			&& entryOrder[iPassive].label === '緑スキル',
+			'段9: 入口は「条件で検索」と「テキストで検索」の間に「緑スキル」',
 			entryOrder.map((b) => b.label));
 
-		/* (1b) **緑で名乗る**（段9 の追加）。クラス名ではなく**実際に描かれた色**で見る
-		   ―― variant の名前を変えても、トークンを差し替えても、緑でなくなれば落ちる。
-		   **色の値は検査に書かず、:root の --uma-green-skill 系を同じページから読む**
-		   （段1 で赤い「リセット」に対して行ったのと同じ形）。
-		   **空振り防止**: 隣の「テキストで検索」（灰色の二次ボタン）と**同じ色ではない**ことも見る。
-		   トークンが面の既定色と同じ値になったら、色だけ見る検査は素通りしてしまう。 */
+		/* (1b) **色で名乗るのは草の芽のアイコンだけ**（段9 の追加のやり直し）。
+		   いったん面・枠・文字を緑で塗ったが、実機で他のボタンより大きく見えたので取りやめた。
+		   見るのは2つ ――
+		   - ボタンの地・枠・文字が**隣の「テキストで検索」とまったく同じ**（黒系統に戻っている）
+		   - **アイコン（svg）だけ**が `--uma-green-skill` の緑
+		   **色の値は検査に書かず、:root から同じページで解決する**（段1 で赤い「リセット」に
+		   対して行ったのと同じ形）。**空振り防止**として、アイコンの緑が
+		   **ボタンの文字の色と違う**ことも見る（トークンが黒と同じ値になったら落ちる）。 */
 		const passiveColor = await page.evaluate(() => {
 			const btn = document.querySelector('#deck-template-panel [data-usd-act="editor-pick-passive"]');
 			const plain = document.querySelector('#deck-template-panel [data-usd-act="editor-pick-text"]');
@@ -450,20 +455,25 @@ const browser = await chromium.launch();
 			probe.style.cssText = 'position:absolute;left:-9999px';
 			document.body.appendChild(probe);
 			const resolve = (v) => { probe.style.color = 'var(' + v + ')'; return getComputedStyle(probe).color; };
-			const want = { text: resolve('--uma-green-skill'), bg: resolve('--uma-green-skill-soft'), border: resolve('--uma-green-skill-border') };
+			const want = resolve('--uma-green-skill');
 			probe.remove();
 			const read = (el) => { const cs = getComputedStyle(el); return { text: cs.color, bg: cs.backgroundColor, border: cs.borderTopColor }; };
-			return { disabled: btn.disabled, got: read(btn), want, 隣: read(plain) };
+			const icon = btn.querySelector('svg, i');
+			return {
+				disabled: btn.disabled, got: read(btn), 隣: read(plain),
+				アイコン: { 色: getComputedStyle(icon).color, 印: icon.getAttribute('data-lucide') || icon.getAttribute('class') },
+				緑: want,
+			};
 		});
 		assert(!passiveColor.disabled
-			&& passiveColor.got.text === passiveColor.want.text
-			&& passiveColor.got.bg === passiveColor.want.bg
-			&& passiveColor.got.border === passiveColor.want.border,
-			'段9: 「緑スキルを追加」は --uma-green-skill 系の緑（面・枠・文字）で描かれている', passiveColor);
-		assert(passiveColor.got.text !== passiveColor.隣.text
-			&& passiveColor.got.bg !== passiveColor.隣.bg
-			&& passiveColor.got.border !== passiveColor.隣.border,
-			'段9: 隣の二次ボタンとは面も枠も文字も違う（トークンが既定色と同じになったら落ちる）', passiveColor);
+			&& passiveColor.got.text === passiveColor.隣.text
+			&& passiveColor.got.bg === passiveColor.隣.bg
+			&& passiveColor.got.border === passiveColor.隣.border,
+			'段9: 「緑スキル」の地・枠・文字は隣の入口と同じ（面を塗る形はやめた）', passiveColor);
+		assert(passiveColor.アイコン.色 === passiveColor.緑
+			&& passiveColor.アイコン.色 !== passiveColor.got.text
+			&& /sprout/.test(passiveColor.アイコン.印),
+			'段9: 草の芽のアイコンだけが --uma-green-skill の緑（ボタンの文字の色とは違う）', passiveColor);
 
 		// (2) 開いたときの姿
 		await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
@@ -576,10 +586,16 @@ const browser = await chromium.launch();
 		await page.waitForTimeout(400);
 		await page.click('[data-usd-act="picker-close"]');
 		await page.waitForTimeout(400);
+		/* 件数は**タブと同じ数字バッジ**（段9 のやり直し。括弧書きはボタンを横へ広げすぎた）。
+		   **「同じバッジ」であること自体を見る** ―― 見た目は `.usd-tab-count` と1か所で
+		   定義してあるので、片方だけ色や大きさが変われば食い違う。
+		   軸のタブのバッジを実際に1つ出し（`filter-check` を1つ押す）、**描かれた値どうし**を比べる。 */
 		const addedLabel = () => page.evaluate(() => {
 			const el = document.querySelector('#deck-template-panel [data-usd-el="passive-added"]');
+			const cs = getComputedStyle(el);
 			return {
-				text: el.textContent, cls: el.className,
+				text: el.textContent, hidden: el.hidden, cls: el.className,
+				見た目: { bg: cs.backgroundColor, color: cs.color, r: cs.borderTopLeftRadius, h: cs.height, fs: cs.fontSize, w: cs.fontWeight },
 				セット: JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{}').skillIds || [],
 			};
 		});
@@ -588,16 +604,33 @@ const browser = await chromium.launch();
 		assert(want1 > 0 && lab1.セット.length > want1,
 			'段9: セットの中に緑スキルとそうでないものが混ざっている（件数の検査が空振りしない形）',
 			{ セット: lab1.セット, 緑: want1 });
-		assert(lab1.text === '（' + want1 + '種追加済み）' && lab1.cls === 'usd-foot-added',
-			'段9: 入口に「（N種追加済み）」が出て、数は追加済みスキルのうち緑スキルの数と一致する',
+		assert(lab1.text === String(want1) && !lab1.hidden,
+			'段9: 入口に件数が出て、数は追加済みスキルのうち緑スキルの数と一致する',
 			{ 出ている: lab1.text, 期待: want1, セット: lab1.セット });
 
-		/* (10) **0種のときは出さない。**「リセット」でセットごと空にして見る。 */
+		/* (9b) **「条件で検索」のタブに出るのと同じバッジ**であること（段9 のやり直しの指示）。
+		   軸のタブのバッジを実際に1つ出して、**描かれた見た目どうし**を突き合わせる
+		   ―― クラス名の一致ではなく計算後の値で見るので、
+		   片方だけ色や大きさを変えたら落ちる。 */
+		const badgeSame = await page.evaluate(() => {
+			const read = (el) => { const cs = getComputedStyle(el); return { bg: cs.backgroundColor, color: cs.color, r: cs.borderTopLeftRadius, h: cs.height, fs: cs.fontSize, w: cs.fontWeight }; };
+			const axis = UmaSkillDeckCore.pickableAxes()[0];
+			const tabBadge = document.querySelector('[data-usd-el="axis-count"][data-usd-axis="' + axis.key + '"]');
+			return { タブ: read(tabBadge), 入口: read(document.querySelector('#deck-template-panel [data-usd-el="passive-added"]')) };
+		});
+		assert(JSON.stringify(badgeSame.タブ) === JSON.stringify(badgeSame.入口)
+			&& badgeSame.入口.bg !== 'rgba(0, 0, 0, 0)',
+			'段9: 件数は「条件で検索」のタブに出るのと同じ数字バッジの形（地・文字色・角・高さ・字）', badgeSame);
+
+		/* (10) **0種のときは出さない。**「リセット」でセットごと空にして見る。
+		   **`hidden` 属性で見る** ―― 中身が空文字かどうかではなく、実際に消えているか。 */
 		await page.click('#deck-template-panel [data-usd-el="clear-skills"]');
 		await page.waitForTimeout(400);
 		const lab0 = await addedLabel();
-		assert(lab0.セット.length === 0 && lab0.text === '' && lab0.cls === '',
-			'段9: 緑スキルが0種のときは「（N種追加済み）」を出さない', lab0);
+		const shown0 = await page.evaluate(() =>
+			document.querySelector('#deck-template-panel [data-usd-el="passive-added"]').offsetParent !== null);
+		assert(lab0.セット.length === 0 && lab0.hidden && !shown0,
+			'段9: 緑スキルが0種のときは件数のバッジを出さない', { ...lab0, 見えている: shown0 });
 
 		// 片付け（このあとの検査は「ドラフトに右回り○が1件」「Undo は空」を前提にする）
 		await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
@@ -607,8 +640,8 @@ const browser = await chromium.launch();
 		await page.click('[data-usd-act="picker-close"]');
 		await page.waitForTimeout(400);
 		const back = await addedLabel();
-		assert(back.セット.join() === p0.saved.join() && back.text === '（' + want1 + '種追加済み）',
-			'段9: 入れ直すと件数も元に戻る（0種の検査が「いつも空」ではないことの担保）', back);
+		assert(back.セット.join() === p0.saved.join() && !back.hidden && back.text === String(want1),
+			'段9: 入れ直すと件数も元に戻る（0種の検査が「いつも消えている」ではないことの担保）', back);
 		await page.evaluate(() => UmaSkillDeckCore.clearUndo());
 		await page.waitForTimeout(300);
 	}
@@ -4004,7 +4037,7 @@ const browser = await chromium.launch();
 			const added = b.querySelector('#record-passive-added');
 			return b.textContent.replace(added ? added.textContent : '', '').trim();
 		}));
-	assert(entries.join(',') === '条件で検索,緑スキルを追加,テキストで検索,未収録スキルを追加',
+	assert(entries.join(',') === '条件で検索,緑スキル,テキストで検索,未収録スキルを追加',
 		'deck: 比較シート編集に4つの入口ボタンが並ぶ（core の .usd-entry-row と同じ顔ぶれ・同じ順）', entries);
 
 	await page.click('button[onclick="openRecordTextPicker()"]');
@@ -5387,7 +5420,9 @@ const browser = await chromium.launch();
 			// **段K で「枠と出っ張り」も同じフラグで出るようになった**ので、それが Deck に
 			// 漏れていないことも見る（.uma-section--framed と .uma-section-row が無いこと）
 			secA: !!p.querySelector('[data-usd-el="section-a"]'),
-			secAHead: !!p.querySelector('[data-usd-el="section-a"] .uma-section-head'),
+			// 同上 ―― 出っ張り（.uma-section-row の直下の見出し）だけを見る。
+			// 段11 ⑩ の入口の畳む見出しは Deck 単体ページにも出るので、ここで拾うと常に true になる。
+			secAHead: !!p.querySelector('[data-usd-el="section-a"] .uma-section-row > .uma-section-head'),
 			secAFramed: !!p.querySelector('[data-usd-el="section-a"].uma-section--framed'),
 			secARow: !!p.querySelector('[data-usd-el="section-a"] .uma-section-row'),
 			// B・C は special だけ（opts.extraScopes を渡さない画面には出ない）
@@ -9200,6 +9235,118 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		{ 条件を入れる前: bare.keys, リロード後: afterReload.keys });
 
 	assert(errors.length === 0, '段10: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
+ * 段11（⑨⑩）― A の地色と枠 ／ 入口の並びの開閉（72セッション目）
+ *
+ * ⑨ 「スキルセット」の枠を**わずかなグレーの面**に変え、**枠線を無くした**。
+ *    出っ張り（札）も同じ色にして、線ではなく**色の一致**で一体に見せる。
+ * ⑩ 入口の並び（条件で検索〜リセット）を**まとめて畳めるように**した。
+ *    既定は開く。開閉は `entryRowOpen`（モジュールの変数＝ページを開いている間だけ。
+ *    段10 の `pickerFilters` と同じ寿命）。
+ *
+ * **このページだけを開く独立した塊にしてある**（途中で reload するため）。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(500);
+
+	/* ---- ⑨ 地色と枠 ----
+	   **色の値は検査に書かず、:root から同じページで解決する**（段1・段9 と同じ形）。 */
+	const look = await page.evaluate(() => {
+		const secA = document.querySelector('#deck-template-panel [data-usd-el="section-a"]');
+		const body = secA.querySelector(':scope > .uma-section-body');
+		const tab = secA.querySelector('.uma-section-row > .uma-section-head');
+		const card = secA.closest('.glass-card');
+		const probe = document.createElement('span');
+		probe.style.cssText = 'position:absolute;left:-9999px';
+		document.body.appendChild(probe);
+		probe.style.color = 'var(--uma-surface-sunken)';
+		const sunken = getComputedStyle(probe).color;
+		probe.style.color = 'var(--uma-surface)';
+		const surface = getComputedStyle(probe).color;
+		probe.remove();
+		const read = (el) => { const cs = getComputedStyle(el); return { bg: cs.backgroundColor, bw: cs.borderTopWidth + '/' + cs.borderBottomWidth }; };
+		return { framed: secA.classList.contains('uma-section--framed'), 本体: read(body), 札: read(tab), カード: getComputedStyle(card).backgroundColor, 沈めた面: sunken, 素の面: surface };
+	});
+	assert(look.framed && look.本体.bg === look.沈めた面 && look.本体.bw === '0px/0px',
+		'段11(⑨): A の中身は枠線を持たず、--uma-surface-sunken の面で塗られている', look);
+	assert(look.札.bg === look.本体.bg && look.札.bw === '0px/0px',
+		'段11(⑨): 出っ張り（札）も枠線を持たず、本体とまったく同じ面の色（線ではなく色で一体に見せる）', look);
+	/* **空振り防止。** 面の色が素の白（`--uma-surface`）と同じなら、
+	   塗ったつもりでも周りのカードと見分けが付かない（枠も無いので何も残らない）。
+	   **周りのカードの地（rgba）と比べるのでは足りない** ―― 半透明なので
+	   トークンを白にしても文字列は一致せず、素通りする。**トークンどうしで比べる。** */
+	assert(look.沈めた面 !== look.素の面 && look.本体.bg !== look.素の面,
+		'段11(⑨): その面は素の白（--uma-surface）とは違う色（塗ったのに見分けが付かない、にならない）', look);
+
+	/* ---- ⑩ 入口の開閉 ---- */
+	const entryState = () => page.evaluate(() => {
+		const p = document.getElementById('deck-template-panel');
+		const btn = p.querySelector('[data-usd-el="entry-toggle"]');
+		const row = p.querySelector('.usd-entry-row');
+		const caret = btn.querySelector('.uma-section-caret');
+		return {
+			label: btn.textContent.trim(),
+			expanded: btn.getAttribute('aria-expanded'),
+			見えている: row.offsetParent !== null,
+			高さ: Math.round(row.getBoundingClientRect().height),
+			印の向き: caret ? getComputedStyle(caret).transform : null,
+			ボタン数: row.querySelectorAll('button').length,
+		};
+	});
+	const e0 = await entryState();
+	assert(e0.expanded === 'true' && e0.見えている && e0.高さ > 0 && e0.ボタン数 > 1,
+		'段11(⑩): 入口の並びは既定で開いていて、6つの入口が見えている', e0);
+	assert(e0.label === 'スキルの追加・リセット',
+		'段11(⑩): 畳む見出しは「スキルの追加・リセット」', e0.label);
+
+	await page.click('#deck-template-panel [data-usd-el="entry-toggle"]');
+	await page.waitForTimeout(400);
+	const e1 = await entryState();
+	assert(e1.expanded === 'false' && !e1.見えている && e1.高さ === 0,
+		'段11(⑩): 押すと入口の並びごと畳める', e1);
+	assert(e1.印の向き !== e0.印の向き && e1.印の向き !== 'none',
+		'段11(⑩): 開いているときと閉じているときで、向きの印が変わる', { 開: e0.印の向き, 閉: e1.印の向き });
+
+	/* **畳んだ状態は描き直しをまたいで残る。** 別のセットのタブへ移って戻る
+	   （`render()` が走る）あいだも閉じたまま。 */
+	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
+	await page.waitForTimeout(400);
+	const e2 = await entryState();
+	await page.click('#deck-template-panel .uma-subtab[data-tab-id="__draft__"]');
+	await page.waitForTimeout(400);
+	const e3 = await entryState();
+	assert(e2.expanded === 'false' && !e2.見えている && e3.expanded === 'false' && !e3.見えている,
+		'段11(⑩): 因子セットを切り替えても畳んだままでいる', { 移った先: e2, 戻った: e3 });
+
+	await page.click('#deck-template-panel [data-usd-el="entry-toggle"]');
+	await page.waitForTimeout(400);
+	const e4 = await entryState();
+	assert(e4.expanded === 'true' && e4.見えている && e4.高さ === e0.高さ,
+		'段11(⑩): もう一度押すと元どおり開く（高さも畳む前と同じ）', { 前: e0.高さ, 後: e4.高さ });
+
+	/* **寿命は段10 と揃える** ―― 畳んだままリロードすると、開いた状態に戻る。
+	   `localStorage` に保存先を増やしていないことも見る。 */
+	const keysBefore = await page.evaluate(() => Object.keys(localStorage).sort().join(','));
+	await page.click('#deck-template-panel [data-usd-el="entry-toggle"]');
+	await page.waitForTimeout(400);
+	assert((await entryState()).expanded === 'false', '段11(⑩): リロードの前は畳んである');
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await page.waitForTimeout(2500);
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(400);
+	const e5 = await entryState();
+	const keysAfter = await page.evaluate(() => Object.keys(localStorage).sort().join(','));
+	assert(e5.expanded === 'true' && e5.見えている,
+		'段11(⑩): リロードすると開いた状態に戻る（寿命はページ内だけ＝段10 と同じ）', e5);
+	assert(keysAfter === keysBefore,
+		'段11(⑩): 開閉のために localStorage のキーを増やしていない', { 前: keysBefore, 後: keysAfter });
+
+	assert(errors.length === 0, '段11: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
 

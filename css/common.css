@@ -31,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-09-22a";
+	--uma-components-css-version: "2026-09-22b";
 }
 
 /* ============================================================
@@ -208,20 +208,6 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 }
 .uma-btn--danger:hover:not(:disabled) { background: var(--uma-danger-border); }
 
-/* 緑スキル（ゲーム内のパッシブ）だけを扱う操作。**構造も理由も --danger と同じ**
-   （72セッション目・段9 の追加。おいもさんの指示）。
-   **文字だけ緑にするのではなく面を塗る。** disabled は .uma-btn の opacity:.4 で薄くなるので、
-   文字だけ緑だと薄緑になり、隣に並ぶ灰色の文字ボタンと見分けが付かない。
-   面で塗れば、押せない状態も「薄い緑の札」としてはっきり別物に見える。
-   色は tokens.css の --uma-green-skill 系3本（「緑スキル」という区分そのものを表す色。
-   --uma-danger-bg / -border / -text と同じ並びで、面 -soft ／ 枠 -border ／ 文字 無印）。 */
-.uma-btn--green-skill {
-	background: var(--uma-green-skill-soft);
-	border-color: var(--uma-green-skill-border);
-	color: var(--uma-green-skill);
-}
-.uma-btn--green-skill:hover:not(:disabled) { background: var(--uma-green-skill-border); }
-
 .uma-btn--lg {
 	padding: var(--uma-sp-3-5) var(--uma-sp-4);
 	font-size: var(--uma-fs-md);
@@ -322,9 +308,13 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 }
 button.uma-section-head { cursor: pointer; }
 button.uma-section-head:hover { color: var(--uma-text-heading); }
+/* 畳める節の向きの印（72セッション目・段11 ⑩）。上の「畳む必要が出たら <button> にして、
+   開閉の向きを示す印はそのときに足す」がこれ。**開いているとき下向き／閉じていると右向き。**
+   印そのもの（lucide の chevron-down）は使う側が置く。ここは向きだけを受け持つ。 */
+.uma-section-caret { transition: transform var(--uma-transition); }
+.uma-section-head[aria-expanded="false"] .uma-section-caret { transform: rotate(-90deg); }
 .uma-section-body { display: flex; flex-direction: column; gap: var(--uma-sp-3); }
 .uma-section-body[hidden] { display: none; }
-
 
 /* ============================================================
  * 枠で囲った節と、その上の並びの行（段K）
@@ -343,8 +333,12 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
  * **影は付けない。** special の②はすでに .glass-card の中で、これはその中のもう一段の枠。
  * 影を付けると層が深く見えて関係が読みにくくなる（.uma-help-box など既存の枠も影を持たない）。
  *
- * **出っ張りの地は枠の中と同じ白**（--uma-surface）で、枠の上辺を出っ張りの下で消している。
- * .glass-card の地は rgba(255,255,255,.9) ＋ ぼかしで純白ではないが、6倍に拡大しても段差は出ない（実測）。
+ * **72セッション目・段11 ⑨ で、枠線をやめて「わずかなグレーの面」に変えた。**
+ * 出っ張りと中身が**同じ面の色（--uma-surface-sunken）**で繋がっていることだけで、
+ * 上の「どれのものか」を示す。**2か所の background は必ず同じ値にすること。**
+ * （それ以前は、白い面＋1pxの枠で、出っ張りの下で枠の上辺を消す作りだった。
+ *   .glass-card の地が rgba(255,255,255,.9) なので、白い箱が白い地に乗っていて
+ *   領域の見分けが線1本に頼っていた。）
  *
  * **並びの行そのものは折り返さない**（flex-wrap: nowrap）。折り返すと出っ張りが枠から離れて宙に浮く。
  * 入りきらないぶんは中の器（core の .usd-tm-scopes）の中だけで折り返すので、
@@ -357,8 +351,15 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
 	--uma-section-row-gap: var(--uma-sp-6);
 	gap: 0;   /* 出っ張りが枠に接する（.uma-section の 8px は空けない） */
 }
+/* **72セッション目・段11 ⑨: 枠線をやめ、わずかなグレーの面に変えた。**
+   それまでは白い面＋1pxの枠で、**.glass-card の白い地の上に白い箱**が乗っている状態だった
+   （境目は 1px の線だけ）。面に色を付けると、線を引かなくても「ここからここまで」が読める。
+   色は `--uma-surface-sunken`（slate-50＝「一段沈めた面」。この用途そのもののトークン）。
+   **出っ張りも同じ色にする**（下の .uma-section-row > .uma-section-head）。
+   枠を無くしたので、**札と枠の一体感は色の一致だけで保つ** ―― 段K の狙い
+   （「この枠は並んでいるうちのどれのものか」）は、同じ色の面が繋がって見えることで残る。 */
 .uma-section--framed > .uma-section-body {
-	border: 1px solid var(--uma-border);
+	background: var(--uma-surface-sunken);
 	/* 左上だけ角を立てる（出っ張りがそこに接するため） */
 	border-radius: 0 var(--uma-r-lg) var(--uma-r-lg) var(--uma-r-lg);
 	padding: var(--uma-sp-3);
@@ -367,17 +368,24 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
 	display: flex; flex-wrap: nowrap; align-items: flex-end;
 	column-gap: var(--uma-section-row-gap);
 }
-/* 出っ張り。同じ行に並ぶ選択肢の中でこれが主役なので、**一段大きい字**にする */
+/* 出っ張り。同じ行に並ぶ選択肢の中でこれが主役なので、**一段大きい字**にする。
+   **72セッション目・段11 ⑨: 枠線をやめ、面を下の本体と同じ `--uma-surface-sunken` にした。**
+   枠が無くなったので、**札と本体は色が一致していることだけで地続きに見える** ――
+   ここと `.uma-section--framed > .uma-section-body` の `background` は**必ず同じ値**にすること
+   （片方だけ変えると札が浮いて、段K の「どの枠のものか」が読めなくなる）。
+   枠線を消したぶん高さが 2px 縮むので、`--uma-section-tab-h`（枠線ぶんの +2px を含む）と
+   `margin-bottom: -1px`（枠の上辺を消すためのもの）も要らなくなったが、
+   **行は下ぞろえで、並ぶチェックの高さもこの変数に揃えている**ので、
+   高さの定義はそのまま残す（見た目の段差を作らないため）。 */
 .uma-section-row > .uma-section-head {
 	flex: none; box-sizing: border-box; justify-content: center;
 	min-height: var(--uma-section-tab-h);
 	padding: 0 var(--uma-sp-3);
 	font-size: var(--uma-fs-md); line-height: var(--uma-lh-md);
 	letter-spacing: 0; color: var(--uma-text);
-	background: var(--uma-surface);
-	border: 1px solid var(--uma-border); border-bottom-color: var(--uma-surface);
+	background: var(--uma-surface-sunken);
 	border-radius: var(--uma-r-md) var(--uma-r-md) 0 0;
-	margin-bottom: -1px; position: relative; z-index: 1;
+	position: relative; z-index: 1;
 }
 /* 並ぶ側のチェックは出っ張りと同じ高さにする（行は下ぞろえなので、高さが同じ＝文字の高さも同じ） */
 .uma-section-row .uma-checkrow { min-height: var(--uma-section-tab-h); }
@@ -386,7 +394,6 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
 	/* 狭い幅は余白に余裕が無いので詰める。**並び順は変えない**（上の説明を読むこと） */
 	.uma-section--framed { --uma-section-row-gap: var(--uma-sp-2); }
 }
-
 
 /* ============================================================
  * 1行のチェック（C-2c）

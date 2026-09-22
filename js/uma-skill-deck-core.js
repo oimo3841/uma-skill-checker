@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22i';
 
 	/* ============================================================
 	 * 定数
@@ -1926,12 +1926,21 @@
 		'  border-color: var(--uma-control); box-shadow: inset 0 2px 0 var(--uma-control); }',
 		'[data-usd-rows="multi"] .usd-tabpanels { border-radius: 0 0 var(--uma-r-lg) var(--uma-r-lg); }',
 
-		// 条件が入っている軸の件数バッジ（他のタブに隠れた条件を見落とさないため）
-		'.usd-tab-count { position: absolute; top: 3px; right: var(--uma-sp-1); min-width: 17px; height: 17px;',
+		/* 件数バッジ（C-14）。条件が入っている軸のタブの角に出して、
+		   他のタブに隠れた条件を見落とさないようにするためのもの。
+		   **72セッション目・段9 のやり直しで、入口のボタンの中（`.usd-entry-count`）にも同じものを使う。**
+		   見た目の定義は**1か所にまとめてある** ―― 「タブと同じバッジ」を意図しているので、
+		   片方だけ色や大きさが変わると意図が崩れる。違うのは置き方（角に浮かせるか、文字の後ろに並べるか）だけ。 */
+		'.usd-tab-count, .usd-entry-count { min-width: 17px; height: 17px;',
 		'  padding: 0 5px; border-radius: var(--uma-r-full); font-size: var(--uma-fs-2xs); font-weight: 700;',
 		'  line-height: 17px; text-align: center; color: var(--uma-text-inverse); background: var(--uma-accent); }',
+		'.usd-tab-count { position: absolute; top: 3px; right: var(--uma-sp-1); }',
+		'.usd-entry-count { display: inline-block; margin-left: var(--uma-sp-1-5); vertical-align: 1px; }',
 		'[data-usd-rows="1"] .usd-tab[aria-selected="true"] .usd-tab-count { top: 7px; }',
-		'.usd-tab-count[hidden] { display: none; }',
+		'.usd-tab-count[hidden], .usd-entry-count[hidden] { display: none; }',
+		// 「緑スキル」の入口の草の芽。**色で名乗るのはこのアイコンだけ**（段9 のやり直し）。
+		// lucide は <i> のクラスを <svg> へ引き継ぐので、stroke="currentColor" がこの色を拾う。
+		'.usd-green-icon { color: var(--uma-green-skill); }',
 
 		// 共通パネル。全軸を同じグリッドのマスに重ね、切り替えても下のスキル一覧が上下に跳ねないようにする
 		'.usd-tabpanels { display: grid; background: var(--uma-surface); border: 1px solid var(--uma-border);',
@@ -2347,6 +2356,17 @@
 	 * 同じ寿命にする予定なので、そこで揃う。
 	 */
 	let pickerAxisPanelOpen = true;
+	/**
+	 * 入口の並び（条件で検索〜リセット）を開いているか。⑩・72セッション目・段11。
+	 *
+	 * **既定は開く。** 閉じて始めると、初めて開いた人には
+	 * 「スキルを足す手段が1つも見えない画面」になる。
+	 * **寿命は `pickerAxisPanelOpen` / `pickerFilters` と同じ**（そのページを開いている間だけ）。
+	 * 畳むのは「もう足し終えて追加済みスキルを眺めたい」ときなので、その間は畳んだままでいてほしいが、
+	 * 次に開いたときまで覚えている必要は無い。**`localStorage` は使わない。**
+	 * **`createTemplateManager` の外に置く**のは、描き直し（`render()`）で作り直されないため。
+	 */
+	let entryRowOpen = true;
 	// 一括貼り付けの照合結果。各行に chosenId（採用したスキルID）を後から書き込む。
 	let pasteRows = [];
 	// 貼り付け／画像から読み取る の報告に対する呼び出し元からの口（31セッション目）。
@@ -4420,9 +4440,31 @@
 						'</div>'
 					: '') +
 					'<div class="uma-section-body">' +
-					// スキルを足す入口は3つ（＋呼び出し元が渡せば4つ目）。以前は「スキルを追加」1つだけを出し、
-					// 中の畳んだ見出しで3つに分かれていたが、それだと「テキストで検索」も
-					// 「マスターにないスキルを追加」も、開いてみるまで在ることが分からなかった。
+					/* 入口の並び（72セッション目・段11 ⑩ で畳めるようにした）。
+					 *
+					 * **以前は「スキルを追加」1つだけを出し、中の畳んだ見出しで3つに分かれていた。**
+					 * それだと「テキストで検索」も「未収録スキルを追加」も、開いてみるまで在ることが
+					 * 分からなかったので、**6つを並べて常時見せる**形にしてあった。
+					 * 段9 で入口が6つになり、**375px では3段**（行の高さ 130px）を占めるようになったので、
+					 * **まとめて畳めるように**した。**畳めるのは並び全体で、中の6つは畳んでも分かれない**
+					 * ―― 昔の作りへ戻すのではなく、「全部見せる」と「全部しまう」の2択にしてある。
+					 *
+					 * **既定は開く。** 閉じて始めると、初めて開いた人には
+					 * 「スキルを足す手段が1つも見えない画面」になる。
+					 * **開閉は覚える**（`entryRowOpen`。モジュールの変数＝ページを開いている間だけ。
+					 * 段10 の `pickerFilters` と同じ寿命）。畳むのは「もう足し終えて追加済みを眺めたい」
+					 * ときなので、その間ずっと畳んだままでいてほしい。
+					 *
+					 * 畳む仕掛けは共通部品の `.uma-section`（`css/common.css`）をそのまま使う
+					 * ―― あちらのコメントの「畳む必要が出たら <button> にして、開閉の向きを示す印を足す」が
+					 * これ。印は `.uma-section-caret`（向きだけ common.css が受け持つ）。 */
+					'<div class="uma-section usd-entry-section">' +
+						'<button type="button" class="uma-section-head" data-usd-act="entry-toggle" data-usd-el="entry-toggle"' +
+							' aria-expanded="' + entryRowOpen + '">' +
+							'<i data-lucide="chevron-down" class="w-3.5 h-3.5 uma-section-caret"></i>' +
+							'スキルの追加・リセット' +
+						'</button>' +
+						'<div class="uma-section-body" data-usd-el="entry-body"' + (entryRowOpen ? '' : ' hidden') + '>' +
 					'<div class="usd-entry-row">' +
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
 							'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件で検索' +
@@ -4431,13 +4473,17 @@
 						// 段8 でパッシブを「条件で検索」の母集団から外したので、**ここが唯一の入口**になる。
 						// 条件で選べないものを条件の隣に置くのは、利用者から見れば
 						// 「条件で探す／緑は名前で選ぶ／テキストで探す」という探し方の並びだから。
-						// **緑で名乗る**（72セッション目・段9 の追加）。赤い「リセット」（`.uma-btn--danger`）と
-						// 同じ組み方で、文字だけでなく面を塗る（理由は css/common.css の .uma-btn--green-skill）。
-						// 後ろに「（N種追加済み）」を出す ―― **数えるのは追加済みスキルのうちパッシブであるもの。**
-						// **0種のときは出さない**（下の確定ボタンと同じ考え方。数える意味が無い）。
-						'<button type="button" class="uma-btn uma-btn--green-skill" data-usd-act="editor-pick-passive">' +
-							'<i data-lucide="sprout" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 緑スキルを追加' +
-							'<span data-usd-el="passive-added"></span>' +
+						/* **色で名乗るのは草の芽のアイコン1つだけ**（72セッション目・段9 の追加のやり直し）。
+						   いったん面・枠・文字を緑で塗る形（`.uma-btn--danger` と同じ組み方）にしたが、
+						   **実機で他のボタンより明らかに大きく見えた** ―― 膨張色に加えて
+						   「緑スキルを追加（N種追加済み）」という長い文字でボタン自体が横に広がり、
+						   375px では入口の段数まで増えた（3段→4段）。
+						   いまは **地・枠・文字は他の入口と同じ黒系統**、呼び名も「緑スキル」に短くし、
+						   件数は**タブと同じ数字バッジ**（`.usd-entry-count`）にしてある。
+						   **0種のときは出さない**（数える意味が無い）。 */
+						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-passive">' +
+							'<i data-lucide="sprout" class="w-3.5 h-3.5 usd-green-icon" style="display:inline;vertical-align:-2px;"></i> 緑スキル' +
+							'<span class="usd-entry-count" data-usd-el="passive-added" hidden></span>' +
 						'</button>' +
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-text">' +
 							'<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索' +
@@ -4465,6 +4511,8 @@
 							'<i data-lucide="minus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> リセット' +
 						'</button>' +
 					'</div>' +
+						'</div>' +   // .uma-section-body（入口の並びの中身。畳むのはここ）
+					'</div>' +       // .usd-entry-section
 					// 分類の切り替え（超優先／優先／通常。C-57 の (7)）。追加の入口はいま選んでいる分類に足す
 					'<div class="usd-tier-row" data-usd-el="tier-row"></div>' +
 					'<div class="usd-mode-row">' +
@@ -4492,6 +4540,7 @@
 			else if (act === 'template-duplicate') duplicateTemplate(currentTemplateId());
 			else if (act === 'template-delete') deleteTemplate(currentTemplateId());
 			else if (act === 'editor-pick') openEditorPicker('filter');
+			else if (act === 'entry-toggle') setEntryRowOpen(!entryRowOpen);
 			else if (act === 'editor-pick-passive') openEditorPicker('passive');
 			else if (act === 'editor-pick-text') openEditorPicker('paste');
 			else if (act === 'editor-pick-custom') openEditorPicker('custom');
@@ -4700,6 +4749,17 @@
 			revealSelectedTab(container);
 		}
 
+		/* 入口の並びの開閉（72セッション目・段11 ⑩）。
+		   **`entryRowOpen` が正**で、DOM はその写し。`render()` は HTML を作り直さない
+		   （入口の並びは一度きりの組み立て）ので、ここで属性を付け替える。 */
+		function setEntryRowOpen(open) {
+			entryRowOpen = !!open;
+			const btn = q(container, 'entry-toggle');
+			const body = q(container, 'entry-body');
+			if (btn) btn.setAttribute('aria-expanded', String(entryRowOpen));
+			if (body) body.hidden = !entryRowOpen;
+		}
+
 		function renderNameRow() {
 			const target = currentTarget();
 			nameInput.value = target.kind === 'template' ? (target.obj.name || '') : (draftScope.name || '');
@@ -4735,15 +4795,15 @@
 			// （削除モードのときだけ出る隠れた導線より、常時見えるほうが分かりやすい）
 			const clear = q(container, 'clear-skills');
 			clear.disabled = count === 0;
-			/* 「緑スキルを追加」の脇の件数（72セッション目・段9 の追加）。
+			/* 「緑スキル」の入口の件数バッジ（72セッション目・段9 の追加 → やり直しで括弧書きから
+			   **タブと同じ数字バッジ**へ変えた。括弧書きはボタンを横に広げすぎた）。
 			   **数えるのは追加済みスキルのうちパッシブであるもの**で、`count`（全体の種数）ではない。
-			   **0種のときは出さない**（下の確定ボタンの「（N種追加済み）」と同じ考え方）。
-			   言い回しと単位もそちらに揃える ―― 背後の見出しは「追加済みスキル（N種）」。 */
+			   **0種のときは出さない。** */
 			const passiveAdded = q(container, 'passive-added');
 			if (passiveAdded) {
 				const n = countPassiveSkills(editingSkillIds());
-				passiveAdded.className = n > 0 ? 'usd-foot-added' : '';
-				passiveAdded.textContent = n > 0 ? '（' + n + '種追加済み）' : '';
+				passiveAdded.hidden = n === 0;
+				passiveAdded.textContent = String(n);
 			}
 		}
 
