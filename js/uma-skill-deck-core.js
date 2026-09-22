@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22h';
 
 	/* ============================================================
 	 * 定数
@@ -2307,7 +2307,23 @@
 	let pickerEl = null;
 	// activeAxis は「モーダルを開いている間だけ」覚える。openSkillPicker() で毎回
 	// 先頭の軸に戻すので、localStorage には保存しない（以前の axisOpen と同じ寿命）。
-	let picker = { mode: 'filter', filters: {}, checked: new Set(), onAdd: null, excludeIds: [], activeAxis: pickableAxes()[0].key };
+	let picker = { mode: 'filter', checked: new Set(), onAdd: null, excludeIds: [], activeAxis: pickableAxes()[0].key };
+	/**
+	 * 「条件で検索」で入れたチェック（軸ごとに選んだ値の配列）。⑦・72セッション目・段10。
+	 *
+	 * **`picker` の中ではなく外に持つ**（`pickerHiddenIds` / `pickerAxisPanelOpen` と同じ理由）。
+	 * `openPicker()` は `picker` の中身を作り直すので、中に置くと**開き直すたびに白紙へ戻る。**
+	 * それが段10 の前の姿だった ―― 3件だけ足したくて閉じると、次に開くときは条件を入れ直しになる。
+	 *
+	 * **寿命はそのページを開いている間**（`localStorage` には保存しない）。
+	 * `pickerAxisPanelOpen`（選択肢パネルの開閉）と**同じ寿命**にしてある。
+	 * **どのセットを編集していても同じ条件が残る** ―― 条件は「どんなスキルを探しているか」であって
+	 * セットの持ち物ではないので、セットを移っても引き継ぐほうが手数が減る。
+	 * **リロードで白紙に戻る**ので、残り続けて困ることも起きない。
+	 * 意図して消したいときは「すべて解除」（`filter-clear-all`）。
+	 */
+	let pickerFilters = {};
+	TAG_AXES.forEach(a => { pickerFilters[a.key] = []; });
 	/**
 	 * 一覧から隠すスキル（編成で得られるもの。C-51）。
 	 *
@@ -2322,7 +2338,7 @@
 	 *
 	 * **選択中のタブをもう一度押すと閉じる。** 段4 で選択肢を3段にしたぶん、特に狭い画面で
 	 * 下のスキル一覧が押し下げられるので、要らないときは畳めるようにした。
-	 * **閉じるのは表示だけ** ―― `picker.filters` には触らないので、絞り込みの結果は変わらない。
+	 * **閉じるのは表示だけ** ―― `pickerFilters` には触らないので、絞り込みの結果は変わらない。
 	 *
 	 * **`picker` の中ではなく外に持つ**（`pickerHiddenIds` と同じ理由）。`openPicker()` は
 	 * `picker` の中身を作り直すので、中に置くと開き直すたびに開いた状態へ戻ってしまう。
@@ -2669,7 +2685,7 @@
 	/**
 	 * 選択肢パネルを開く／閉じる（段4 の続き）。
 	 *
-	 * **閉じるのは表示だけ。** `picker.filters` には触らないので、絞り込みの結果は変わらない
+	 * **閉じるのは表示だけ。** `pickerFilters` には触らないので、絞り込みの結果は変わらない
 	 * （チェックの状態も残ったままで、開き直すとそのまま見える）。
 	 * 開いたときは `updatePickerFilterLayout()` を通す ―― 閉じている間はパネルが
 	 * `display: none` で、チップの高さも箱の高さも 0 として読めるため、
@@ -2809,7 +2825,7 @@
 	function refreshPickerFilterUi() {
 		if (!pickerEl) return;
 		pickableAxes().forEach(axis => {
-			const n = picker.filters[axis.key].length;
+			const n = pickerFilters[axis.key].length;
 			const badge = pickerEl.querySelector('[data-usd-el="axis-count"][data-usd-axis="' + axis.key + '"]');
 			if (badge) { badge.hidden = n === 0; badge.textContent = n; }
 			const tab = pickerEl.querySelector('.usd-tab[data-usd-axis="' + axis.key + '"]');
@@ -2820,7 +2836,7 @@
 
 		const summary = q(pickerEl, 'filter-summary');
 		if (!summary) return;
-		const active = pickableAxes().filter(a => picker.filters[a.key].length > 0);
+		const active = pickableAxes().filter(a => pickerFilters[a.key].length > 0);
 		if (active.length === 0) {
 			summary.innerHTML = '<span>条件なし（すべてのスキルを表示）</span>';
 			return;
@@ -2829,15 +2845,22 @@
 			active.map(a =>
 				'<button type="button" class="usd-summary-item" data-usd-act="filter-jump" data-usd-axis="' + a.key + '" title="このタブを開く">' +
 					'<b>' + esc(a.label) + '</b>' +
-					esc(picker.filters[a.key].map(v => tagLabel(a.key, v)).join('・')) +
+					esc(pickerFilters[a.key].map(v => tagLabel(a.key, v)).join('・')) +
 				'</button>'
 			).join('') +
 			'<button type="button" class="usd-link-btn" data-usd-act="filter-clear-all">すべて解除</button>';
 	}
 
-	/* モーダルを開き直したときに、チェックと選択中のタブを初期状態へ戻す。 */
+	/* モーダルを開き直したときに、選択肢パネルの見た目を `pickerFilters` と揃え直す。
+	 *
+	 * **72セッション目・段10 で「初期状態へ戻す」のをやめた。**
+	 * それまではここで全部のチェックを外していたので、**開き直すたびに条件が白紙**になっていた。
+	 * いまは `pickerFilters`（ページを開いている間だけ残る）を DOM へ写す。
+	 * **DOM ではなく `pickerFilters` が正**（チェックの有無はモーダルが閉じている間も変数だけが持つ）。 */
 	function resetPickerFilterUi() {
-		pickerEl.querySelectorAll('[data-usd-el="filter-check"]').forEach(el => { el.checked = false; });
+		pickerEl.querySelectorAll('[data-usd-el="filter-check"]').forEach(el => {
+			el.checked = (pickerFilters[el.dataset.axis] || []).indexOf(el.dataset.value) !== -1;
+		});
 		pickerEl.querySelectorAll('.usd-opts').forEach(el => { el.scrollTop = 0; });
 		selectPickerAxisTab(pickableAxes()[0].key, false);
 		// **開閉だけは初期化しない**（閉じていたら閉じたまま開き直す）。
@@ -2849,7 +2872,7 @@
 
 	function onPickerFilterChange(input) {
 		const axis = input.dataset.axis, value = input.dataset.value;
-		const arr = picker.filters[axis];
+		const arr = pickerFilters[axis];
 		const idx = arr.indexOf(value);
 		if (input.checked && idx === -1) arr.push(value);
 		if (!input.checked && idx !== -1) arr.splice(idx, 1);
@@ -2858,14 +2881,14 @@
 	}
 
 	function clearPickerAxisFilter(axisKey) {
-		picker.filters[axisKey].length = 0;
+		pickerFilters[axisKey].length = 0;
 		pickerEl.querySelectorAll('[data-usd-el="filter-check"][data-axis="' + axisKey + '"]').forEach(el => { el.checked = false; });
 		refreshPickerFilterUi();
 		renderPickerResults();
 	}
 
 	function clearAllPickerFilters() {
-		TAG_AXES.forEach(a => { picker.filters[a.key].length = 0; });
+		TAG_AXES.forEach(a => { pickerFilters[a.key].length = 0; });
 		pickerEl.querySelectorAll('[data-usd-el="filter-check"]').forEach(el => { el.checked = false; });
 		refreshPickerFilterUi();
 		renderPickerResults();
@@ -2905,7 +2928,7 @@
 	function getFilteredPickerPool() {
 		const hidden = new Set(pickerHiddenIds);
 		return taggedSkillPool().filter(s => !picker.excludeIds.includes(s.id) && !hidden.has(s.id)
-			&& !isPoolExcluded(s) && matchesFilters(s, picker.filters));
+			&& !isPoolExcluded(s) && matchesFilters(s, pickerFilters));
 	}
 
 	/**
@@ -2925,6 +2948,16 @@
 	 */
 	function getPoolExcludedSkills() {
 		return taggedSkillPool().filter(isPoolExcluded);
+	}
+
+	/**
+	 * 渡したIDのうち、**パッシブ（＝緑スキルの一覧に並ぶもの）が何種あるか**（段9 の追加）。
+	 * 入口のボタンの「（N種追加済み）」と、モーダルの注記の「このうちN種が追加済み」が
+	 * **必ず同じ数**になるよう、数え方をここ1か所に置く。**軸のキーは書かない**（恒久ルール1）。
+	 */
+	function countPassiveSkills(ids) {
+		const set = new Set(getPoolExcludedSkills().map(s => s.id));
+		return (ids || []).filter(id => set.has(id)).length;
 	}
 
 	function renderPickerResults() {
@@ -2973,7 +3006,8 @@
 		const list = getPoolExcludedSkills();
 		const chosen = new Set(picker.excludeIds);
 		const countEl = q(pickerEl, 'passive-count');
-		if (countEl) countEl.textContent = list.filter(s => chosen.has(s.id)).length + '種';
+		// 数え方は入口のボタンの「（N種追加済み）」と同じ関数を通す（食い違わないため）
+		if (countEl) countEl.textContent = countPassiveSkills(picker.excludeIds) + '種';
 		if (list.length === 0) {
 			// 実データでは起きない（マスターに67件ある）が、収録データを読めなかったときに
 			// 空の箱だけが出るのは何が起きたのか分からないので、文を1つ置く。
@@ -3559,8 +3593,11 @@
 	function openPicker(mode, existingSkillIds, onAdd) {
 		ensurePicker();
 		picker.mode = PICKER_MODES[mode] ? mode : 'filter';
-		picker.filters = {};
-		TAG_AXES.forEach(a => { picker.filters[a.key] = []; });
+		// **絞り込みのチェック（pickerFilters）はここで消さない**（72セッション目・段10）。
+		// 開き直したときも前に入れた条件のまま出す。**選択肢パネルの開閉と同じ寿命**
+		// （どちらもモジュールの変数＝ページを開いている間だけ）。
+		// **チェックしたスキル（picker.checked）は別**で、こちらは毎回空に戻す ――
+		// 追加は閉じる前に確定しているので、持ち越すと「もう入っているものにチェックが付いたまま」になる。
 		picker.checked = new Set();
 		picker.excludeIds = (existingSkillIds || []).slice();
 		picker.onAdd = onAdd;
@@ -4394,8 +4431,13 @@
 						// 段8 でパッシブを「条件で検索」の母集団から外したので、**ここが唯一の入口**になる。
 						// 条件で選べないものを条件の隣に置くのは、利用者から見れば
 						// 「条件で探す／緑は名前で選ぶ／テキストで探す」という探し方の並びだから。
-						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-passive">' +
+						// **緑で名乗る**（72セッション目・段9 の追加）。赤い「リセット」（`.uma-btn--danger`）と
+						// 同じ組み方で、文字だけでなく面を塗る（理由は css/common.css の .uma-btn--green-skill）。
+						// 後ろに「（N種追加済み）」を出す ―― **数えるのは追加済みスキルのうちパッシブであるもの。**
+						// **0種のときは出さない**（下の確定ボタンと同じ考え方。数える意味が無い）。
+						'<button type="button" class="uma-btn uma-btn--green-skill" data-usd-act="editor-pick-passive">' +
 							'<i data-lucide="sprout" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 緑スキルを追加' +
+							'<span data-usd-el="passive-added"></span>' +
 						'</button>' +
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-text">' +
 							'<i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> テキストで検索' +
@@ -4693,6 +4735,16 @@
 			// （削除モードのときだけ出る隠れた導線より、常時見えるほうが分かりやすい）
 			const clear = q(container, 'clear-skills');
 			clear.disabled = count === 0;
+			/* 「緑スキルを追加」の脇の件数（72セッション目・段9 の追加）。
+			   **数えるのは追加済みスキルのうちパッシブであるもの**で、`count`（全体の種数）ではない。
+			   **0種のときは出さない**（下の確定ボタンの「（N種追加済み）」と同じ考え方）。
+			   言い回しと単位もそちらに揃える ―― 背後の見出しは「追加済みスキル（N種）」。 */
+			const passiveAdded = q(container, 'passive-added');
+			if (passiveAdded) {
+				const n = countPassiveSkills(editingSkillIds());
+				passiveAdded.className = n > 0 ? 'usd-foot-added' : '';
+				passiveAdded.textContent = n > 0 ? '（' + n + '種追加済み）' : '';
+			}
 		}
 
 		function renderSelectedList() {
@@ -5593,6 +5645,11 @@
 		 * 「母集団に出ない」「緑スキルの一覧には出る」の両方を、軸のキーを書かずに見られる。
 		 */
 		getPoolExcludedSkills: getPoolExcludedSkills,
+		/**
+		 * 渡したIDのうちパッシブが何種あるか（段9 の追加）。入口のボタンの「（N種追加済み）」用。
+		 * **Deck 単体ページの比較シート編集も自前の入口を持つ**ので、数え方を借りられるように公開する。
+		 */
+		countPassiveSkills: countPassiveSkills,
 		/**
 		 * 廃した値をいまの値へ読み替えたタグの組（70セッション目・段2）。
 		 * カスタムスキルを読むときに通している。**検査が読み替えの表を書き写さずに

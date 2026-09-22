@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-09-21a";
+	--common-css-version: "2026-09-22a";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -173,7 +173,11 @@
 	   **「操作できる部品は黒」の例外**: 緑スキルの数え方の切り替え（「実質53種（既定）」／
 	   「59種個別」）は押せる部品だが、**何を数えるのか＝緑スキル**を色が示しているので、
 	   ここの緑で塗る（通知の赤と同じ扱い。2026-09-15・43セッション目）。
-	   値は Tailwind v4.1.11 の emerald の実測。 */
+	   値は Tailwind v4.1.11 の emerald の実測。
+
+	   **72セッション目・段9 の追加**: 入口の「緑スキルを追加」（`.uma-btn--green-skill`）も、
+	   この3本を **面 `-soft` ／ 枠 `-border` ／ 文字（無印）** の組み合わせで使う
+	   （`--uma-danger-bg` / `-border` / `-text` と同じ並び。**緑系は既にこの3本があるので足していない**）。 */
 	--uma-green-skill: #007a55;        /* emerald-700 : 選択中の地（白文字と 5.36）・未選択の文字 */
 	--uma-green-skill-hover: #006045;  /* emerald-800 : 選択中の hover（白文字と 7.61） */
 	--uma-green-skill-soft: #ecfdf5;   /* emerald-50  : 未選択の hover の面 */

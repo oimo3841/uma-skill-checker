@@ -31,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-09-21a";
+	--uma-components-css-version: "2026-09-22a";
 }
 
 /* ============================================================
@@ -207,6 +207,20 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 	color: var(--uma-danger-text);
 }
 .uma-btn--danger:hover:not(:disabled) { background: var(--uma-danger-border); }
+
+/* 緑スキル（ゲーム内のパッシブ）だけを扱う操作。**構造も理由も --danger と同じ**
+   （72セッション目・段9 の追加。おいもさんの指示）。
+   **文字だけ緑にするのではなく面を塗る。** disabled は .uma-btn の opacity:.4 で薄くなるので、
+   文字だけ緑だと薄緑になり、隣に並ぶ灰色の文字ボタンと見分けが付かない。
+   面で塗れば、押せない状態も「薄い緑の札」としてはっきり別物に見える。
+   色は tokens.css の --uma-green-skill 系3本（「緑スキル」という区分そのものを表す色。
+   --uma-danger-bg / -border / -text と同じ並びで、面 -soft ／ 枠 -border ／ 文字 無印）。 */
+.uma-btn--green-skill {
+	background: var(--uma-green-skill-soft);
+	border-color: var(--uma-green-skill-border);
+	color: var(--uma-green-skill);
+}
+.uma-btn--green-skill:hover:not(:disabled) { background: var(--uma-green-skill-border); }
 
 .uma-btn--lg {
 	padding: var(--uma-sp-3-5) var(--uma-sp-4);

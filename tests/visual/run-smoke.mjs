@@ -423,9 +423,12 @@ const browser = await chromium.launch();
 		});
 
 		// (1) 入口の位置 ―― 「条件で検索」と「テキストで検索」の間
+		//     ラベルは**件数の脇（passive-added）を抜いた本体**で見る（件数は下で別に見る）
 		const entryOrder = await page.evaluate(() =>
-			[...document.querySelectorAll('#deck-template-panel .usd-entry-row button')]
-				.map((b) => ({ act: b.dataset.usdAct, label: b.textContent.trim() })));
+			[...document.querySelectorAll('#deck-template-panel .usd-entry-row button')].map((b) => {
+				const added = b.querySelector('[data-usd-el="passive-added"]');
+				return { act: b.dataset.usdAct, label: b.textContent.replace(added ? added.textContent : '', '').trim() };
+			}));
 		const iFilter = entryOrder.findIndex((b) => b.act === 'editor-pick');
 		const iPassive = entryOrder.findIndex((b) => b.act === 'editor-pick-passive');
 		const iText = entryOrder.findIndex((b) => b.act === 'editor-pick-text');
@@ -433,6 +436,34 @@ const browser = await chromium.launch();
 			&& entryOrder[iPassive].label === '緑スキルを追加',
 			'段9: 入口は「条件で検索」と「テキストで検索」の間に「緑スキルを追加」',
 			entryOrder.map((b) => b.label));
+
+		/* (1b) **緑で名乗る**（段9 の追加）。クラス名ではなく**実際に描かれた色**で見る
+		   ―― variant の名前を変えても、トークンを差し替えても、緑でなくなれば落ちる。
+		   **色の値は検査に書かず、:root の --uma-green-skill 系を同じページから読む**
+		   （段1 で赤い「リセット」に対して行ったのと同じ形）。
+		   **空振り防止**: 隣の「テキストで検索」（灰色の二次ボタン）と**同じ色ではない**ことも見る。
+		   トークンが面の既定色と同じ値になったら、色だけ見る検査は素通りしてしまう。 */
+		const passiveColor = await page.evaluate(() => {
+			const btn = document.querySelector('#deck-template-panel [data-usd-act="editor-pick-passive"]');
+			const plain = document.querySelector('#deck-template-panel [data-usd-act="editor-pick-text"]');
+			const probe = document.createElement('span');
+			probe.style.cssText = 'position:absolute;left:-9999px';
+			document.body.appendChild(probe);
+			const resolve = (v) => { probe.style.color = 'var(' + v + ')'; return getComputedStyle(probe).color; };
+			const want = { text: resolve('--uma-green-skill'), bg: resolve('--uma-green-skill-soft'), border: resolve('--uma-green-skill-border') };
+			probe.remove();
+			const read = (el) => { const cs = getComputedStyle(el); return { text: cs.color, bg: cs.backgroundColor, border: cs.borderTopColor }; };
+			return { disabled: btn.disabled, got: read(btn), want, 隣: read(plain) };
+		});
+		assert(!passiveColor.disabled
+			&& passiveColor.got.text === passiveColor.want.text
+			&& passiveColor.got.bg === passiveColor.want.bg
+			&& passiveColor.got.border === passiveColor.want.border,
+			'段9: 「緑スキルを追加」は --uma-green-skill 系の緑（面・枠・文字）で描かれている', passiveColor);
+		assert(passiveColor.got.text !== passiveColor.隣.text
+			&& passiveColor.got.bg !== passiveColor.隣.bg
+			&& passiveColor.got.border !== passiveColor.隣.border,
+			'段9: 隣の二次ボタンとは面も枠も文字も違う（トークンが既定色と同じになったら落ちる）', passiveColor);
 
 		// (2) 開いたときの姿
 		await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
@@ -525,14 +556,60 @@ const browser = await chromium.launch();
 			'段9: 追加済みスキルから消すと、次に開いたときチェックも外れている',
 			{ 消したもの: target, チェック: p4.checked, セット: p4.saved });
 
-		// 片付け（このあとの検査は「ドラフトに右回り○が1件」「削除モードは OFF」「Undo は空」を前提にする）
+		/* (9) 入口のボタンの「（N種追加済み）」（段9 の追加）。
+		   **期待値は実データから導く** ―― いまセットに入っているIDのうち、
+		   (3) で `TAG_AXES` の印から作った「緑スキルの顔ぶれ」に居るものの数。
+		   **件数も軸のキーも検査に書かない。**
+
+		   **先にパッシブでないスキルを1件足す。** ここまでのセットは「右回り○」1件だけで、
+		   それがパッシブなので、**「緑スキルの数」と「セット全体の種数」が同じ 1 になる**
+		   ―― その状態だと、数え方を全体の種数に取り違えても検査が素通りする
+		   （段9 の破壊確認で実際に素通りした）。**母集団の先頭の1件**を足せば2つの数が割れる
+		   （「条件で検索」の一覧にはパッシブが出ないので、何を選んでも必ずパッシブでない）。 */
 		await page.click('[data-usd-act="picker-close"]');
 		await page.waitForTimeout(400);
-		await page.evaluate(() => {
-			const del = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
-			if (del.getAttribute('aria-pressed') === 'true') del.click();
-			UmaSkillDeckCore.clearUndo();
+		await page.click('#deck-template-panel [data-usd-act="editor-pick"]');
+		await page.waitForTimeout(700);
+		await page.click('[data-usd-el="results"] .usd-row input');
+		await page.waitForTimeout(300);
+		await page.click('[data-usd-act="picker-add"]');
+		await page.waitForTimeout(400);
+		await page.click('[data-usd-act="picker-close"]');
+		await page.waitForTimeout(400);
+		const addedLabel = () => page.evaluate(() => {
+			const el = document.querySelector('#deck-template-panel [data-usd-el="passive-added"]');
+			return {
+				text: el.textContent, cls: el.className,
+				セット: JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{}').skillIds || [],
+			};
 		});
+		const lab1 = await addedLabel();
+		const want1 = lab1.セット.filter((id) => expect.listed.includes(id)).length;
+		assert(want1 > 0 && lab1.セット.length > want1,
+			'段9: セットの中に緑スキルとそうでないものが混ざっている（件数の検査が空振りしない形）',
+			{ セット: lab1.セット, 緑: want1 });
+		assert(lab1.text === '（' + want1 + '種追加済み）' && lab1.cls === 'usd-foot-added',
+			'段9: 入口に「（N種追加済み）」が出て、数は追加済みスキルのうち緑スキルの数と一致する',
+			{ 出ている: lab1.text, 期待: want1, セット: lab1.セット });
+
+		/* (10) **0種のときは出さない。**「リセット」でセットごと空にして見る。 */
+		await page.click('#deck-template-panel [data-usd-el="clear-skills"]');
+		await page.waitForTimeout(400);
+		const lab0 = await addedLabel();
+		assert(lab0.セット.length === 0 && lab0.text === '' && lab0.cls === '',
+			'段9: 緑スキルが0種のときは「（N種追加済み）」を出さない', lab0);
+
+		// 片付け（このあとの検査は「ドラフトに右回り○が1件」「Undo は空」を前提にする）
+		await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
+		await page.waitForTimeout(700);
+		await page.click('[data-usd-el="passive-check"][value="' + already[0] + '"]');
+		await page.waitForTimeout(400);
+		await page.click('[data-usd-act="picker-close"]');
+		await page.waitForTimeout(400);
+		const back = await addedLabel();
+		assert(back.セット.join() === p0.saved.join() && back.text === '（' + want1 + '種追加済み）',
+			'段9: 入れ直すと件数も元に戻る（0種の検査が「いつも空」ではないことの担保）', back);
+		await page.evaluate(() => UmaSkillDeckCore.clearUndo());
 		await page.waitForTimeout(300);
 	}
 
@@ -3922,7 +3999,11 @@ const browser = await chromium.launch();
 	   拾っていたので、**「緑スキルを追加」を足しても1つも引っかからず、検査は3件のまま通った**
 	   ―― 新しい入口を足したことに気づけない形だった（段9 で実際にそうなった）。 */
 	const entries = await page.evaluate(() =>
-		[...document.querySelectorAll('#record-editor-view .uma-btn.deck-pill-btn')].map((b) => b.textContent.trim()));
+		[...document.querySelectorAll('#record-editor-view .uma-btn.deck-pill-btn')].map((b) => {
+			// 件数の脇（#record-passive-added）は抜いた本体で見る（件数は下で別に見る）
+			const added = b.querySelector('#record-passive-added');
+			return b.textContent.replace(added ? added.textContent : '', '').trim();
+		}));
 	assert(entries.join(',') === '条件で検索,緑スキルを追加,テキストで検索,未収録スキルを追加',
 		'deck: 比較シート編集に4つの入口ボタンが並ぶ（core の .usd-entry-row と同じ顔ぶれ・同じ順）', entries);
 
@@ -8996,6 +9077,129 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert((await page.evaluate(() => UmaSkillDeckCore.getMasterMeta().source)) === 'network',
 		'段7: 再取得に成功するとネットワークの版に戻る');
 
+	await ctx.close();
+}
+
+/* ============================================================
+ * 段10（⑦）― 「条件で検索」のチェックを、モーダルを閉じても維持する（72セッション目）
+ *
+ * 段10 の前は `openPicker()` が `picker.filters` を毎回作り直していたので、
+ * **閉じて開き直すたびに条件が白紙**になっていた（3件足して閉じると入れ直し）。
+ * いまは `pickerFilters`（モジュールの変数）に持たせ、
+ * **選択肢パネルの開閉（`pickerAxisPanelOpen`）と同じ寿命**にしてある
+ * ―― どちらも**そのページを開いている間だけ**で、リロードで白紙に戻る。
+ *
+ * **このページだけを開く独立した塊にしてある。** 途中で `reload()` して
+ * 「寿命がページ内だけ」を確かめるので、他の検査の状態を壊さないため。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
+	await page.waitForTimeout(1500);
+	await page.evaluate((id) => templateManager.openEditor(id), TEMPLATE_ID);
+	await page.waitForTimeout(400);
+
+	const openFilter = async () => {
+		await page.click('#template-panel-root [data-usd-act="editor-pick"]');
+		await page.waitForTimeout(700);
+	};
+	const closeModal = async () => {
+		await page.click('[data-usd-act="picker-close"]');
+		await page.waitForTimeout(400);
+	};
+	/* 見るのは4つ。**軸のキーも値も件数も検査に書かない**（製品の pickableAxes から取る）。
+	   - checked … いま入っているチェック（軸.値 の組）
+	   - count   … 絞り込み結果の件数（チェックが本当に効いているかは、これが動くことで見る）
+	   - open    … 選択肢パネルが開いているか（段4 の続き。寿命を揃えた相手）
+	   - keys    … localStorage の顔ぶれ（新しい保存先を作っていないことの確認） */
+	const filterState = () => page.evaluate(() => ({
+		checked: [...document.querySelectorAll('[data-usd-el="filter-check"]')]
+			.filter((el) => el.checked).map((el) => el.dataset.axis + '.' + el.dataset.value),
+		count: document.querySelector('[data-usd-el="result-count"]').textContent,
+		open: document.querySelector('[data-usd-el="axis-tabs"]').getAttribute('data-usd-open'),
+		summary: document.querySelector('[data-usd-el="filter-summary"]').textContent.trim(),
+		keys: Object.keys(localStorage).sort().join(','),
+	}));
+
+	await openFilter();
+	const bare = await filterState();
+	// 1つ目の軸の1つ目の選択肢を押す（値は製品から取る）
+	const pick = await page.evaluate(() => {
+		const a = UmaSkillDeckCore.pickableAxes()[0];
+		return { axis: a.key, value: UmaSkillDeckCore.pickableOptions(a)[0].v };
+	});
+	await page.click('[data-usd-el="filter-check"][data-axis="' + pick.axis + '"][data-value="' + pick.value + '"]');
+	await page.waitForTimeout(400);
+	const picked = await filterState();
+	/* **空振り防止。** チェックしても件数が動かない値を選んでいたら、
+	   このあとの「維持されている」は何も守らない（件数が同じままでも通ってしまう）。 */
+	assert(picked.checked.length === 1 && picked.count !== bare.count,
+		'段10: 検査で選んだ条件は、実際に絞り込み結果を動かしている（空振りの検査ではない）',
+		{ 条件: pick, 件数: bare.count + '→' + picked.count });
+
+	// (1) 閉じて開き直しても、チェックも件数も残る
+	await closeModal();
+	await openFilter();
+	const again = await filterState();
+	assert(again.checked.join() === picked.checked.join() && again.count === picked.count
+		&& again.summary === picked.summary,
+		'段10: モーダルを閉じて開き直しても「条件で検索」のチェックが残る',
+		{ 前: picked, 後: again });
+
+	// (2) 選択肢パネルの開閉と**同じ寿命**。畳んで閉じて開き直すと、両方そのまま
+	await page.click('.usd-tab[data-usd-axis="' + pick.axis + '"]');   // 選択中を押して畳む
+	await page.waitForTimeout(400);
+	const folded = await filterState();
+	assert(folded.open === 'false' && folded.checked.join() === picked.checked.join(),
+		'段10: 畳んでもチェックは消えない（閉じるのは表示だけ）', folded);
+	await closeModal();
+	await openFilter();
+	const both = await filterState();
+	assert(both.open === 'false' && both.checked.join() === picked.checked.join(),
+		'段10: 開き直したとき、チェックも選択肢パネルの開閉もそのまま（寿命が揃っている）',
+		{ 畳み: both.open, チェック: both.checked });
+
+	// (3) 「すべて解除」で消え、消えたまま開き直る（残り続けて困らない逃げ道がある）
+	await page.click('[data-usd-act="filter-clear-all"]');
+	await page.waitForTimeout(400);
+	await closeModal();
+	await openFilter();
+	const cleared = await filterState();
+	assert(cleared.checked.length === 0 && cleared.count === bare.count,
+		'段10: 「すべて解除」で消え、開き直しても消えたまま', cleared);
+
+	/* (4) **寿命はそのページを開いている間だけ。** リロードすると
+	   **チェックも選択肢パネルの開閉も、そろって初期状態へ戻る**（これが「揃っている」の裏側）。
+	   新しい保存先（localStorage のキー）を作っていないことも見る。 */
+	/* **チェックを押す前に選択肢パネルを開く。** (3) のあとは畳んだままなので、
+	   畳んだ状態の checkbox は見えず、そのまま押しにいくと待ちきれずに落ちる（実際に落ちた）。 */
+	if ((await filterState()).open === 'false') {
+		await page.click('.usd-tab[data-usd-axis="' + pick.axis + '"]');
+		await page.waitForTimeout(300);
+	}
+	await page.click('[data-usd-el="filter-check"][data-axis="' + pick.axis + '"][data-value="' + pick.value + '"]');
+	await page.waitForTimeout(300);
+	await page.click('.usd-tab[data-usd-axis="' + pick.axis + '"]');   // 畳んだ状態にしてから
+	await page.waitForTimeout(300);
+	const beforeReload = await filterState();
+	assert(beforeReload.checked.length === 1 && beforeReload.open === 'false',
+		'段10: リロードの前は、チェックが入っていて選択肢パネルは畳んである', beforeReload);
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.waitForTimeout(2000);
+	await page.evaluate((id) => templateManager.openEditor(id), TEMPLATE_ID);
+	await page.waitForTimeout(400);
+	await openFilter();
+	const afterReload = await filterState();
+	assert(afterReload.checked.length === 0 && afterReload.open === 'true'
+		&& afterReload.count === bare.count,
+		'段10: リロードするとチェックも開閉もそろって初期状態に戻る（寿命はページ内だけ）', afterReload);
+	/* **比べる相手は「条件を1つも入れていなかったとき」の顔ぶれ**（`bare`）。
+	   リロードの直前と比べると、**保存先を増やす壊し方をしても両方に同じキーが在って素通りする**
+	   （段10 の破壊確認で実際に素通りした）。 */
+	assert(afterReload.keys === bare.keys,
+		'段10: 絞り込みの状態のために localStorage のキーを増やしていない',
+		{ 条件を入れる前: bare.keys, リロード後: afterReload.keys });
+
+	assert(errors.length === 0, '段10: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
 

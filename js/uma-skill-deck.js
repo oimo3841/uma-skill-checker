@@ -15,12 +15,12 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-22c';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-22d';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
 // 「直したはずなのに直っていない」状態になるため、起動時に照合する。
-const EXPECTED_COMMON_CSS_VERSION = '2026-09-21a';
+const EXPECTED_COMMON_CSS_VERSION = '2026-09-22a';
 // このページが読む共通CSSと、それぞれが :root に持つ版の印
 const COMMON_CSS_FILES = [
 	['css/tokens.css', '--common-css-version'],
@@ -653,6 +653,15 @@ function renderRecordGrid() {
 	const enabledCountEl = document.getElementById('record-enabled-count');
 	if (enabledCountEl) enabledCountEl.textContent = '有効な候補：' + countEnabledCandidates() + '/' + MAX_ENABLED_CANDIDATES + '人（候補は' + draftRecord.candidates.length + '人登録中）';
 	document.querySelectorAll('.row-filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === recordRowFilter));
+	/* 「緑スキルを追加」の脇の件数（72セッション目・段9 の追加）。数え方は core に借りる
+	   （テンプレート編集の入口と食い違わないため）。**0種のときは出さない。**
+	   スキルが0種のときはこの下で早く抜けるので、**抜ける前に**入れておく。 */
+	const passiveAddedEl = document.getElementById('record-passive-added');
+	if (passiveAddedEl) {
+		const n = Core.countPassiveSkills(draftRecord.skillIds);
+		passiveAddedEl.className = n > 0 ? 'usd-foot-added' : '';
+		passiveAddedEl.textContent = n > 0 ? '（' + n + '種追加済み）' : '';
+	}
 	hideNameRevealTip();
 	setRecordGridNote('');
 	if (draftRecord.skillIds.length === 0) {
