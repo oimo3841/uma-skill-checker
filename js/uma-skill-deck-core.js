@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-22i';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-23a';
 
 	/* ============================================================
 	 * 定数
@@ -429,6 +429,35 @@
 	 */
 	function pickableAxes() {
 		return TAG_AXES.filter(a => !a.hiddenAxis);
+	}
+
+	/**
+	 * **その軸の中の読み方を1文で言ったもの**（73セッション目に1か所へまとめた）。
+	 *
+	 * 軸内の読み方は**軸に付いた印だけ**で決まる（`exclusive` ／ `emptyMeansNone` ／ どちらも無い）。
+	 * **軸のキーは書かない**（恒久ルール1）ので、印が同じ軸が増えても直さずに済む。
+	 *
+	 * **2か所が同じ文を使う**（恒久ルール19 の棚卸しで、同じことを別の言い方で言っていたのを揃えた）:
+	 *   - 「条件で検索」のモーダルの、軸のパネルの注記（`renderPickerFilterAxes`）
+	 *   - `card-event-input.html` のタグ付け画面の、軸ごとの注記
+	 * あちらは**タグを付ける側**の画面だが、「空にしたらどう扱われるか」を知りたいのは
+	 * 結局**絞り込みでどうなるか**なので、同じ文で足りる。
+	 */
+	function axisRuleHint(axis) {
+		return axis.exclusive
+			? '選んだもの以外を持つスキルは出ない（この軸のタグが無いスキルは出る）'
+			: axis.emptyMeansNone
+				? '選んだもののいずれかに一致（OR）。この軸のタグが無いスキルは出ない'
+				: '選んだもののいずれかに一致（OR）';
+	}
+
+	/**
+	 * その軸が**ふつうの読み方（軸内OR・タグが無ければどの条件でも出る）と違う**か。
+	 * **本数を数えない** ―― 「1つの軸だけ」と書いた文が、印の付く軸が増えるたびに嘘になった
+	 * （段5 で3軸、段8 で排他が1軸。`card-event-input.html` の文面が長く事実と合わないままだった）。
+	 */
+	function axisHasSpecialRule(axis) {
+		return !!(axis.exclusive || axis.emptyMeansNone);
 	}
 
 	/**
@@ -2625,11 +2654,7 @@
 			 * ので、見出しからは軸内の話を落とした（見出しは軸間だけ、軸内はここ）。 */
 			// **軸の名前をここに書かない**（恒久ルール1）。印だけを見て文を選ぶので、
 			// 同じ印の軸が増えても、この関数は書き換えずに済む。
-			const hint = axis.exclusive
-				? '選んだもの以外を持つスキルは出ない（この軸のタグが無いスキルは出る）'
-				: axis.emptyMeansNone
-					? '選んだもののいずれかに一致（OR）。この軸のタグが無いスキルは出ない'
-					: '選んだもののいずれかに一致（OR）';
+			const hint = axisRuleHint(axis);
 			return '' +
 			'<section role="tabpanel" class="usd-tabpanel' + (isActive ? ' is-active' : '') + '"' +
 				' id="usd-panel-' + axis.key + '" aria-labelledby="usd-tab-' + axis.key + '"' +
@@ -4410,12 +4435,28 @@
 			'<div class="usd-tm">' +
 				// 見出しと帯のタブ（保存したスキルセットを選ぶ。先頭は「＋ 新規」＝ドラフト）
 				'<div class="uma-subtabs-row" data-usd-el="head"></div>' +
-				// 名前と保存・複製・削除（編成パネルと同じ並び。C-53）
+				/* 名前と 保存・リセット・複製・セットを削除（編成パネルと同じ並び。C-53）。
+				 *
+				 * **73セッション目: 「リセット」を入口の並びからここへ移した。**
+				 * あちらは「スキルを足す入口」の並びで、リセットだけが**足すのではなく消す**操作だった。
+				 * ここは**セットそのものを扱う行**（保存・複製・セットを削除）なので、
+				 * 「このタイトルのセットを作り直す」というリセットの位置づけと揃う。
+				 *
+				 * **「削除」→「セットを削除」。** 拡張後のリセット（中身を空にする）との差が
+				 * 読み取れるようにした。**同じパネルに「削除」が2つあった**
+				 * （ここと、下段の「追加済みスキルを消すモード」）ので、その衝突も解消する。
+				 * **下段の「削除」（モード）は変えない。** */
 				'<div class="usd-roster-row usd-tm-name-row">' +
 					'<input type="text" class="usd-input uma-input usd-name-input" data-usd-el="name-input" placeholder="' + esc('新しい' + setLabel + 'の名前') + '"/>' +
 					'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="template-save">保存</button>' +
+					// **押せるときだけ赤く名乗る**（70セッション目・段1・⑪）。取り消しの効く操作だが、
+					// 保存の隣に居るので、他と同じ見た目だと押し間違える。
+					// 消すものが1つも無いときは disabled で薄くなる（renderResetBtn）。
+					'<button type="button" class="uma-btn uma-btn--danger" data-usd-act="editor-clear-skills" data-usd-el="clear-skills">' +
+						'<i data-lucide="minus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> リセット' +
+					'</button>' +
 					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="template-duplicate" data-usd-el="dup-btn">複製</button>' +
-					'<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="template-delete" data-usd-el="del-btn">削除</button>' +
+					'<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="template-delete" data-usd-el="del-btn">セットを削除</button>' +
 				'</div>' +
 				// ここから下が **A（スキルセット）** のひとまとまり（C-1）。special の②では、
 				// **A と同じ行に B（シナリオ因子）・C（遺伝子）が並ぶ**（C-2a ＋ 段K）。
@@ -4462,7 +4503,9 @@
 						'<button type="button" class="uma-section-head" data-usd-act="entry-toggle" data-usd-el="entry-toggle"' +
 							' aria-expanded="' + entryRowOpen + '">' +
 							'<i data-lucide="chevron-down" class="w-3.5 h-3.5 uma-section-caret"></i>' +
-							'スキルの追加・リセット' +
+							// 73セッション目に「スキルの追加・リセット」から。リセットが外へ出て、
+							// 中身がスキルを足す入口だけになったため。
+							'スキルの追加' +
 						'</button>' +
 						'<div class="uma-section-body" data-usd-el="entry-body"' + (entryRowOpen ? '' : ' hidden') + '>' +
 					'<div class="usd-entry-row">' +
@@ -4501,15 +4544,10 @@
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-custom">' +
 							'<i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 未収録スキルを追加' +
 						'</button>' +
-						// 追加済みスキルの一括削除（C-3）。**A（スキルセット）の中に置く** ―― 名前の行に
-						// 置くと、名前や B・C まで消えるように読める。消すのはスキルだけなので、
-						// 消す範囲が位置から分かるここに置く。
-						// **押せるときだけ赤く名乗る**（段1・⑪）。まとめて消すのは取り消しの効く操作だが
-						// （Undo に積む）、いちばん多い操作（スキルを足す）と同じ並びに居るので、
-						// 他の入口と同じ見た目だと押し間違える。0種のときは disabled で薄くなる。
-						'<button type="button" class="uma-btn uma-btn--danger" data-usd-act="editor-clear-skills" data-usd-el="clear-skills">' +
-							'<i data-lucide="minus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> リセット' +
-						'</button>' +
+						/* **「リセット」はここから名前の行へ移した**（73セッション目）。
+						   C-3 では「消す範囲が位置から分かる」ようにA の中へ置いていたが、
+						   **消す範囲が B・C（シナリオ因子・遺伝子）まで広がった**ので、
+						   A の中に居ると逆に範囲が狭く読める。**名前の行＝セットそのものを扱う行**が正しい場所。 */
 					'</div>' +
 						'</div>' +   // .uma-section-body（入口の並びの中身。畳むのはここ）
 					'</div>' +       // .usd-entry-section
@@ -4728,6 +4766,8 @@
 			// 呼ぶと revealSelectedTab() の scrollIntoView が走り、**帯まで画面が戻る**
 			// （B・C は帯より下にあるので、押した場所が動く。C-2c の項目3。実測 1280px で +106px／375px で +238px）。
 			renderExtraScopes();
+			// チェックが「リセット」の押せる条件に入った（73セッション目）ので、ここでも見直す
+			renderResetBtn();
 			if (isSelected(target)) fireSelection();
 			fireChange();
 		}
@@ -4783,6 +4823,21 @@
 				'<span class="usd-tier-total">設定数 <span data-usd-el="tier-total">' + ids.length + '</span></span>';
 		}
 
+		/* 「リセット」の押せる／押せない（73セッション目に条件を広げた）。
+		 * **消すものが1つも無いときだけ押せない。** スキルが0種でも、
+		 * B・C（シナリオ因子・遺伝子）のどちらかにチェックが入っていれば消すものは在る。
+		 * **`renderModes()` からだけでなく `setScope()` からも呼ぶ** ――
+		 * チェックの付け外しでは `renderSelectedList()` が走らないので、
+		 * ここを呼ばないと「チェックを入れたのに押せないまま」になる。
+		 * B・C を持たない画面（Deck 単体ページ）では `scopesOf()` が常に空なので、条件は従来どおり。 */
+		function renderResetBtn() {
+			const clear = q(container, 'clear-skills');
+			if (!clear) return;
+			const n = (editingSkillIds() || []).length;
+			const scopes = Object.keys(scopesOf(currentTarget())).length;
+			clear.disabled = n === 0 && scopes === 0;
+		}
+
 		// モードのボタンの押した状態（C-57 の (9)）。「すべて外す」は削除モードのときだけ出す
 		function renderModes(count) {
 			const reclass = q(container, 'mode-reclass');
@@ -4791,10 +4846,7 @@
 			del.setAttribute('aria-pressed', mode === 'delete' ? 'true' : 'false');
 			reclass.disabled = count === 0;
 			del.disabled = count === 0;
-			// 一括削除（C-3）は**常に見えている**。0種のときは押せない
-			// （削除モードのときだけ出る隠れた導線より、常時見えるほうが分かりやすい）
-			const clear = q(container, 'clear-skills');
-			clear.disabled = count === 0;
+			renderResetBtn();
 			/* 「緑スキル」の入口の件数バッジ（72セッション目・段9 の追加 → やり直しで括弧書きから
 			   **タブと同じ数字バッジ**へ変えた。括弧書きはボタンを横に広げすぎた）。
 			   **数えるのは追加済みスキルのうちパッシブであるもの**で、`count`（全体の種数）ではない。
@@ -5050,40 +5102,51 @@
 		}
 
 		/**
-		 * 編集中のセットの追加済みスキルを全て削除する（C-3）。
+		 * 編集中のセットの中身をリセットする（C-3 ＋ **73セッション目に消す範囲を広げた**）。
 		 *
-		 * **消すのはスキルと分類だけ。** セットの名前も、B・C（節の ON/OFF）も触らない
-		 * ―― チェックはもう一度押せば戻せるが、スキルは1件ずつ消すのに手数がかかる。
-		 * 消したいのはスキルのほうなので、そこに限る。
+		 * **消すのは 追加済みスキル・その分類・B と C（節の ON/OFF）。**
+		 * **名前には触らない** ―― ドラフトのタブ名も、名前の入力欄の中身も、保存済みセットの名前も残す。
+		 * **「このタイトルのセットを作り直す」操作**という位置づけ（おいもさんの決定）。
 		 *
-		 * ドラフトでもテンプレートでも同じ操作にしてある（見た目が同じなので、
+		 * **C-69 の9節で決めた「消すのはスキルと分類だけ」は、この再設計で取り下げた。**
+		 * あちらは「チェックはもう一度押せば戻せるから、消したいスキルのほうに限る」という判断だったが、
+		 * **作り直すときにチェックだけ残るのは、残したかったのか消し忘れたのかが読めない。**
+		 *
+		 * ドラフトでもテンプレートでも**同じ動き**（見た目が同じなので、
 		 * 片方だけ出来ないと「なぜここには無いのか」を考えさせることになる）。
 		 * 破壊的な操作は確認ダイアログではなく「即実行＋元に戻す」で統一する方針に従う。
-		 * probe / apply が見るのも**スキルと分類だけ**（名前と B・C は変わらないので混ぜない
-		 * ―― 混ぜると、正しく戻せても「戻っていない」と判定してしまう）。
+		 * **probe は「消す対象」をすべて含める**（名前は含めない。変わらないものを混ぜると、
+		 * 正しく戻せても「戻っていない」と判定してしまう）。
 		 */
 		function clearEditingSkills() {
 			const target = currentTarget();
 			const ids = skillIdsOf(target);
-			if (!ids || ids.length === 0) return;
+			const prevScopes = snapshot(scopesOf(target));
+			// **消すものが1つも無いときだけ何もしない。** スキルが0種でも、B・C のどちらかに
+			// チェックが入っていれば消すものは在る（73セッション目に押せる条件を広げた）。
+			if (!ids || (ids.length === 0 && Object.keys(prevScopes).length === 0)) return;
 			const prev = snapshot(ids);
 			const prevTiers = snapshot(tiersOf(target));   // 分類（C-57）も一緒に戻す
 			// 状態を変える前に積む。積んだ時点の probe() が「戻るべき姿」になる。
 			pushUndo({
 				scope: 'list',
-				// 数えているのはスキルの種類数なので単位は「種」。取り消し側は実行時と別の文にする
-				// （「元に戻しました」に実行時の文を連結すると「戻した結果、消えた」とも読めるため）。
-				doneLabel: '追加済みスキル' + prev.length + '種を削除しました',
-				undoneLabel: '削除した追加済みスキル' + prev.length + '種を戻しました',
-				probe: () => probeOf(skillIdsOf(target)),
+				/* 文面は**何を消したかを数えずに言う** ―― 消す対象がスキル・分類・B・C と
+				   複数の種類にまたがるので、「N種」だけを出すと B・C が消えたことが伝わらない。
+				   **「名前はそのままです」を添える**のは、名前まで消えたと読まれないため
+				   （この操作でいちばん誤解されやすいのがそこ）。 */
+				doneLabel: '中身をリセットしました（名前はそのままです）',
+				undoneLabel: 'リセットを取り消しました',
+				probe: () => probeOf(skillIdsOf(target)) + '|' + JSON.stringify(scopesOf(target)),
 				apply: () => {
 					if (!writeSkillIds(target, snapshot(prev), snapshot(prevTiers))) return false;
+					if (!writeScopes(target, snapshot(prevScopes))) return false;
 					picker.excludeIds = picker.excludeIds.concat(prev.filter(id => picker.excludeIds.indexOf(id) === -1));
 					afterEditingSkillsChanged(target);
 					return true;
 				}
 			});
 			if (!writeSkillIds(target, [], tiersWithout(prevTiers, prev))) return;
+			writeScopes(target, {});
 			picker.excludeIds = picker.excludeIds.filter(id => prev.indexOf(id) === -1);
 			afterEditingSkillsChanged(target);
 		}
@@ -5699,6 +5762,13 @@
 		 * `pickableOptions` と同じ考え方で、**検査の側に「どの軸を隠すか」を書き写さずに済む**ように公開する。
 		 */
 		pickableAxes: pickableAxes,
+		/**
+		 * 軸内の読み方の1文と、「ふつうと違う軸か」（73セッション目）。
+		 * **`card-event-input.html` が同じ文を使う**ために公開する ――
+		 * 2か所で違うことを言わないため、かつ軸のキーを向こうに書かせないため。
+		 */
+		axisRuleHint: axisRuleHint,
+		axisHasSpecialRule: axisHasSpecialRule,
 		/**
 		 * **「条件で検索」の母集団から外すスキル**（`poolExcluded` の軸に値を持つもの＝いまはパッシブ67件）。
 		 * 段9 の「緑スキルを追加」の一覧がここから作られる。検査もこれを使って

@@ -306,8 +306,12 @@ const browser = await chromium.launch();
 			// ただの .uma-section-head ではそちらを拾ってしまう。
 			secAHead: secA ? secA.querySelector('.uma-section-row > .uma-section-head').textContent : null,
 			// 囲んだだけで、中身の data-usd-el は section-a の下に全部そろっている
-			inA: secA ? ['tier-row', 'selected-list', 'mode-delete', 'mode-reclass', 'selected-count', 'clear-skills']
+			// **73セッション目に clear-skills（リセット）をここから外した** ―― 名前の行へ移したので、
+			// A の中に在ってはいけない（下の resetOutsideA で「外に在る」ことを見る）。
+			inA: secA ? ['tier-row', 'selected-list', 'mode-delete', 'mode-reclass', 'selected-count']
 				.every(k => !!secA.querySelector('[data-usd-el="' + k + '"]')) : false,
+			resetOutsideA: !!p.querySelector('.usd-tm-name-row [data-usd-el="clear-skills"]')
+				&& !(secA && secA.querySelector('[data-usd-el="clear-skills"]')),
 			entryInA: !!(secA && secA.querySelector('.usd-entry-row')),
 			bodyGap: body ? getComputedStyle(body).rowGap : null,
 			headGap: secA ? getComputedStyle(secA).rowGap : null,
@@ -323,6 +327,8 @@ const browser = await chromium.launch();
 		'C-1: ②の中の A の見出しは「スキルセット」（入れ物の呼び名とは別。setLabel を通さない）', c1.secAHead);
 	assert(c1.inA && c1.entryInA && c1.nameRowOutside,
 		'C-1: 入口・分類・スキルパネルは [data-usd-el="section-a"] の中、名前の行はその外', c1);
+	assert(c1.resetOutsideA,
+		'73: 「リセット」は A の外（名前の行）に在る ―― 消す範囲が B・C まで広がったため', c1);
 	/* **差し替えた検査（段K）**: それまでは
 	     「C-1: 見出しと中身の間（8px）は、中身どうしの間（12px）より詰まっている」
 	     （`c1.headGap === '8px' && c1.bodyGap === '12px'`）
@@ -334,25 +340,40 @@ const browser = await chromium.launch();
 		'段K: A は枠で囲い（.uma-section--framed）、見出しは枠に接する（間 0px・中身どうしは 12px）', c1);
 	const clearBtn = await page.evaluate(() => {
 		const btn = document.querySelector('#deck-template-panel [data-usd-el="clear-skills"]');
-		const entryRow = document.querySelector('#deck-template-panel .usd-entry-row');
+		const nameRow = document.querySelector('#deck-template-panel .usd-tm-name-row');
 		const n = Number(document.querySelector('#deck-template-panel [data-usd-el="selected-count"]').textContent);
 		const del = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
 		const reclass = document.querySelector('#deck-template-panel [data-usd-el="mode-reclass"]');
 		return { exists: !!btn, hidden: btn ? btn.hidden : null, disabled: btn ? btn.disabled : null, count: n,
 			label: btn ? btn.textContent.trim() : null,
 			danger: !!(btn && btn.classList.contains('uma-btn--danger')),
-			inEntryRow: !!(btn && entryRow && entryRow.contains(btn)),
+			inNameRow: !!(btn && nameRow && nameRow.contains(btn)),
+			// 名前の行の並び（73セッション目: 保存 → リセット → 複製 → セットを削除）
+			行: nameRow ? [...nameRow.querySelectorAll('button')].map((b) => b.textContent.trim()) : null,
 			modes: !!del && !!reclass, modesOff: del && reclass && del.getAttribute('aria-pressed') === 'false' && reclass.getAttribute('aria-pressed') === 'false',
 			modesDisabled: del && reclass && del.disabled && reclass.disabled };
 	});
-	// C-3: 「リセット」は A の入口の並びに**常時見えている**（削除モードに入らない）。
-	// 70セッション目・段1 で呼び名を「− 追加済みスキルを全て削除」から変え、
-	// 見た目を .uma-btn--ghost から .uma-btn--danger（赤）へ変えた（⑪）。
-	// 71セッション目・段6 で「まとめてリセット」→「リセット」（文言だけ。動きも見た目も変えていない）。
-	assert(clearBtn.exists && !clearBtn.hidden && clearBtn.label === 'リセット' && clearBtn.inEntryRow,
-		'C-3: 一括削除は A の入口の並びに常時見えている', clearBtn);
+	/* C-3: 「リセット」は**常時見えている**（削除モードに入らない）。
+	   70セッション目・段1 で呼び名を「− 追加済みスキルを全て削除」から変え、
+	   見た目を .uma-btn--ghost から .uma-btn--danger（赤）へ変えた（⑪）。
+	   71セッション目・段6 で「まとめてリセット」→「リセット」（文言だけ）。
+	   **73セッション目に置き場所が A の入口の並び → 名前の行へ移った**
+	   （消す範囲が B・C まで広がり、A の中では範囲が狭く読めるため）。 */
+	assert(clearBtn.exists && !clearBtn.hidden && clearBtn.label === 'リセット' && clearBtn.inNameRow,
+		'C-3: 「リセット」は名前の行に常時見えている', clearBtn);
+	assert(clearBtn.行.join(',') === '保存,リセット,複製,セットを削除',
+		'73: 名前の行は 保存 → リセット → 複製 → セットを削除 の順', clearBtn.行);
 	assert(clearBtn.danger, '段1(⑪): 「リセット」は .uma-btn--danger（赤）で出る', clearBtn);
 	assert(clearBtn.modes && clearBtn.modesOff, 'special: 「再分類」「削除」のモードのボタンがあり、既定は両方 OFF', clearBtn);
+	/* **下段の「削除」（追加済みスキルを消すモード）は変えていない**（73セッション目）。
+	   上の「セットを削除」への言い換えを、**同じ語だからと一律に置き換えていないこと**を見る。
+	   ここが「セットを削除」になっていたら、2つの「削除」を混同した印。 */
+	const modeLabels = await page.evaluate(() => ({
+		del: document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]').textContent.trim(),
+		reclass: document.querySelector('#deck-template-panel [data-usd-el="mode-reclass"]').textContent.trim(),
+	}));
+	assert(modeLabels.del === '削除' && modeLabels.reclass === '再分類',
+		'73: 下段のモードの「削除」「再分類」はそのまま（セットを消すほうだけ言い換えた）', modeLabels);
 	assert(clearBtn.count === 0 && clearBtn.modesDisabled && clearBtn.disabled,
 		'C-3: 0種のときはモードのボタンも一括削除も押せない', clearBtn);
 
@@ -1119,8 +1140,9 @@ const browser = await chromium.launch();
 	});
 	// 「?」は外した（入口を押せば必ずガイドが出るので情報を足さず、スマホ幅で並びが崩れたため）
 	// C-3 で末尾に一括削除（editor-clear-skills）が並んだ
-	// 72セッション目・段9 で2番目に「緑スキルを追加」（editor-pick-passive）が入った
-	assert(entry.order.join(',') === 'editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot,editor-pick-custom,editor-clear-skills'
+	// 72セッション目・段9 で2番目に「緑スキル」（editor-pick-passive）が入り、
+	// 73セッション目に末尾の「リセット」（editor-clear-skills）が名前の行へ抜けた
+	assert(entry.order.join(',') === 'editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot,editor-pick-custom'
 		&& entry.label === 'スクショで追加' && entry.cls.includes('uma-btn--secondary') && entry.noHelp,
 		'special/ocr入口: 「テキストで検索」と「未収録スキルを追加」の間に、同じ見た目で「スクショで追加」が出る（「?」は無い）', { order: entry.order, label: entry.label });
 	assert(entry.icon === 'upload-cloud' || String(entry.icon).includes('lucide-upload-cloud'),
@@ -5036,8 +5058,10 @@ const browser = await chromium.launch();
 		'undo: 一括削除で0種になり、保存先も空になる', cleared);
 	assert(cleared.btn && cleared.badge === '1' && cleared.stack === 1 && cleared.scope === 'list',
 		'undo: 「元に戻す ①」が出る（scope は list）', cleared);
-	assert(cleared.toast === '追加済みスキル' + PICK.length + '種を削除しました',
-		'undo: 実行時のトーストは doneLabel（単位は「種」・C-3 で「削除」に）', cleared.toast);
+	/* 73セッション目に文面を変えた ―― 消す対象がスキル・分類・B・C にまたがるので、
+	   「N種」だけでは B・C が消えたことが伝わらない。**数えずに言い、名前が残ることを添える。** */
+	assert(cleared.toast === '中身をリセットしました（名前はそのままです）',
+		'undo: 実行時のトーストは doneLabel', cleared.toast);
 	// 1') 「元に戻す」は画面左下に固定（css/shell.css の .uma-undo-fab。C-55 の (4)(5)）。
 	//     ②のパネルの中ではないので、①のタブへ移っても同じ場所に見える。引き出しを開いている間は隠れる。
 	await page.click('#step-tab-0');
@@ -5069,8 +5093,8 @@ const browser = await chromium.launch();
 	assert((await storedDraft()).join() === PICK.map((s) => s.id).join(),
 		'undo: 保存先（localStorage）にも元の12種が同じ順で戻る');
 	assert(!restored.btn && restored.stack === 0, 'undo: 戻せたのでボタンが消える', restored);
-	assert(restored.toast === '削除した追加済みスキル' + PICK.length + '種を戻しました',
-		'undo: 戻したときのトーストは undoneLabel（削除した追加済みスキルN種を戻しました）', restored.toast);
+	assert(restored.toast === 'リセットを取り消しました',
+		'undo: 戻したときのトーストは undoneLabel', restored.toast);
 
 	// 2) 永続化。リロードしても戻した状態のまま
 	await page.reload({ waitUntil: 'networkidle' });
@@ -7835,12 +7859,16 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	}, TEMPLATE_ID);
 	assert(after.n === 0 && after.count === '0' && after.tiers === undefined,
 		'C-3: 保存済みのセットでもスキルと分類が消える', after);
-	assert(after.name === before.name && after.nameInput === before.nameInput
-		&& JSON.stringify(after.scopes) === JSON.stringify(before.scopes) && after.checked === true,
-		'C-3: **名前と B・C は消えない**（消すのはスキルだけ）', { name: after.name, scopes: after.scopes, checked: after.checked });
-	assert(after.disabled && after.undo === 1
-		&& after.toast === '追加済みスキル' + before.n + '種を削除しました',
-		'C-3: 0種になると押せなくなり、「元に戻す」に1件積まれる', after);
+	/* **73セッション目に消す範囲が広がった。**
+	   それまでは「名前と B・C は消えない」を見ていたが、**B・C（シナリオ因子・遺伝子）も消す**
+	   ようになったので、その検査は**消える側へ移した**（C-69 の9節を取り下げた再設計）。
+	   **名前だけは残る** ―― ドラフトのタブ名も、入力欄の中身も、保存済みセットの名前も。 */
+	assert(after.scopes === undefined && after.checked === false,
+		'73: リセットで B・C（シナリオ因子・遺伝子）のチェックも外れる', { scopes: after.scopes, checked: after.checked });
+	assert(after.name === before.name && after.nameInput === before.nameInput,
+		'73: リセットしても名前は消えない（このタイトルのセットを作り直す操作）', { name: after.name, nameInput: after.nameInput });
+	assert(after.disabled && after.undo === 1 && after.toast === '中身をリセットしました（名前はそのままです）',
+		'C-3: 消すものが無くなると押せなくなり、「元に戻す」に1件積まれる', after);
 	await page.click('#deck-undo-btn');
 	await page.waitForTimeout(400);
 	const back = await page.evaluate((tid) => {
@@ -7850,11 +7878,10 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 			toast: document.getElementById('toast-message').textContent,
 			undo: UmaSkillDeckCore.undoCount() };
 	}, TEMPLATE_ID);
-	assert(back.n === before.n && back.undo === 0
-		&& back.toast === '削除した追加済みスキル' + before.n + '種を戻しました',
+	assert(back.n === before.n && back.undo === 0 && back.toast === 'リセットを取り消しました',
 		'C-3: 「元に戻す」でスキルが戻る', back);
-	assert(back.name === before.name && JSON.stringify(back.scopes) === JSON.stringify(before.scopes),
-		'C-3: 戻したあとも名前と B・C はそのまま', back);
+	assert(JSON.stringify(back.scopes) === JSON.stringify(before.scopes) && back.name === before.name,
+		'73: 「元に戻す」で B・C のチェックも戻る（名前は最初から動いていない）', back);
 	assert(errors.length === 0, 'C-3: special でコンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
@@ -9354,8 +9381,8 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	const e0 = await entryState();
 	assert(e0.expanded === 'true' && e0.見えている && e0.高さ > 0 && e0.ボタン数 > 1,
 		'段11(⑩): 入口の並びは既定で開いていて、6つの入口が見えている', e0);
-	assert(e0.label === 'スキルの追加・リセット',
-		'段11(⑩): 畳む見出しは「スキルの追加・リセット」', e0.label);
+	assert(e0.label === 'スキルの追加',
+		'段11(⑩): 畳む見出しは「スキルの追加」（73セッション目にリセットが外へ出たため）', e0.label);
 
 	await page.click('#deck-template-panel [data-usd-el="entry-toggle"]');
 	await page.waitForTimeout(400);
@@ -9400,6 +9427,139 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		'段11(⑩): 開閉のために localStorage のキーを増やしていない', { 前: keysBefore, 後: keysAfter });
 
 	assert(errors.length === 0, '段11: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
+ * 73セッション目 ― 「リセット」の押せる条件（消すものが1つも無いときだけ押せない）
+ *
+ * 消す対象が**スキル・分類・B・C**に広がったので、
+ * **スキルが0種でも B か C にチェックが入っていれば押せる**。
+ * ここはドラフト（保存していないセット）で見る ―― C-3 の塊は保存済みのセットを見ているので、
+ * **ドラフトと保存済みで動きが分かれていない**ことも一緒に確かめられる。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(500);
+
+	const resetState = () => page.evaluate(() => {
+		const p = document.getElementById('deck-template-panel');
+		const d = JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{}');
+		return {
+			disabled: p.querySelector('[data-usd-el="clear-skills"]').disabled,
+			スキル: (d.skillIds || []).length,
+			節: d.scopes || {},
+			タブ: p.querySelector('.uma-subtab[data-tab-id="__draft__"]').textContent.trim(),
+			名前欄: p.querySelector('[data-usd-el="name-input"]').value,
+		};
+	});
+	// 節（B・C）のキーは**製品から取る**（検査に書かない）
+	const scopeKeys = await page.evaluate(() =>
+		[...document.querySelectorAll('#deck-template-panel [data-usd-act="scope-check"]')].map((el) => el.dataset.scope));
+	assert(scopeKeys.length >= 2, '73: この画面には B・C（節）が2つ以上ある（空振りの検査ではない）', scopeKeys);
+
+	const r0 = await resetState();
+	assert(r0.スキル === 0 && Object.keys(r0.節).length === 0 && r0.disabled,
+		'73: 何も入っていないドラフトでは「リセット」を押せない', r0);
+
+	// スキルは0種のまま、B（シナリオ因子）だけチェックする → 押せるようになる
+	await page.click('#deck-template-panel [data-usd-act="scope-check"][data-scope="' + scopeKeys[0] + '"]');
+	await page.waitForTimeout(400);
+	const r1 = await resetState();
+	assert(r1.スキル === 0 && r1.節[scopeKeys[0]] === true && !r1.disabled,
+		'73: スキル0種でも、節のどちらかにチェックが入れば「リセット」を押せる', r1);
+
+	// 名前も入れておく（リセットで消えないことを見るため）
+	await page.fill('#deck-template-panel [data-usd-el="name-input"]', 'リセットの検査');
+	await page.waitForTimeout(300);
+	await page.click('#deck-template-panel [data-usd-el="clear-skills"]');
+	await page.waitForTimeout(500);
+	const r2 = await resetState();
+	const afterToast = await page.evaluate(() => document.getElementById('toast-message').textContent);
+	assert(Object.keys(r2.節).length === 0 && r2.disabled,
+		'73: 押すと節のチェックが外れ、消すものが無くなるので押せなくなる', r2);
+	assert(r2.名前欄 === 'リセットの検査' && r2.タブ.includes('新規（ドラフト）'),
+		'73: ドラフトでも名前と「新規（ドラフト）」のタブ名は残る（保存済みと動きを分けない）', r2);
+	assert(afterToast === '中身をリセットしました（名前はそのままです）',
+		'73: ドラフトでも同じ文面のトーストが出る', afterToast);
+
+	/* **押せる条件がスキル側でも効いていること**（節だけ見るようになっていたら落ちる）。
+	   節のチェックは外れたままで、スキルだけ1件入れる。 */
+	await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
+	await page.waitForTimeout(700);
+	await page.click('[data-usd-el="passive-check"]');
+	await page.waitForTimeout(400);
+	await page.click('[data-usd-act="picker-close"]');
+	await page.waitForTimeout(400);
+	const r3 = await resetState();
+	assert(r3.スキル === 1 && Object.keys(r3.節).length === 0 && !r3.disabled,
+		'73: 節が全部 OFF でも、スキルが1種でも入っていれば押せる', r3);
+
+	assert(errors.length === 0, '73(リセット): コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* ============================================================
+ * 73セッション目 ― card-event-input.html の軸のルールの注記
+ *
+ * それまでは **(1)「1つの軸だけ決まりが逆です」**（`emptyMeansNone` が3軸あるので嘘）
+ * **(2)「この軸だけ決まりが逆です。」が3か所に並ぶ**（「だけ」が成り立たない）
+ * **(3) バ場（排他）には注記が無い**（軸内が OR ではないのに何も言っていない）という状態だった。
+ *
+ * いまは**どの軸に出すかも、何と書くかも core の印から決める**
+ * （`axisHasSpecialRule` / `axisRuleHint`）。**モーダル側とまったく同じ文**になる。
+ * ============================================================ */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'card-event-input.html');
+	await page.waitForTimeout(1500);
+	await page.click('#cei-tab-tags');
+	await page.waitForTimeout(1500);
+	await page.waitForSelector('[data-act="tag-open"]', { timeout: 20000 });
+	await page.click('[data-act="tag-open"]');
+	await page.waitForTimeout(600);
+
+	const notes = await page.evaluate(() => {
+		const box = document.querySelector('.cei-tagbox');
+		const head = box.querySelector('.cei-axis-note');
+		// 軸の見出し → その軸に付いた注記（「読み方が違います」のもの）の文
+		const perAxis = {};
+		box.querySelectorAll('.cei-axis').forEach((ax) => {
+			const label = ax.querySelector('.cei-axis-label').textContent;
+			const n = [...ax.querySelectorAll(':scope > .cei-axis-note')]
+				.find((el) => el.textContent.includes('読み方が違います'));
+			if (n) perAxis[label] = n.textContent;
+		});
+		// 期待値は**製品の印から**作る（軸のキーも本数も検査に書かない）
+		const 期待 = {};
+		UmaSkillDeckCore.TAG_AXES.forEach((a) => {
+			if (UmaSkillDeckCore.axisHasSpecialRule(a)) 期待[a.label] = UmaSkillDeckCore.axisRuleHint(a);
+		});
+		return {
+			先頭の注記: head ? head.textContent : null,
+			画面: perAxis, 期待: 期待,
+			排他の軸: UmaSkillDeckCore.TAG_AXES.filter((a) => a.exclusive).map((a) => a.label),
+			軸の数: box.querySelectorAll('.cei-axis').length,
+		};
+	});
+	assert(notes.軸の数 > Object.keys(notes.期待).length && Object.keys(notes.期待).length > 1,
+		'73(card-event): 読み方が違う軸は2本以上あり、全部の軸よりは少ない（「1つだけ」も「全部」も成り立たない）',
+		{ 全軸: notes.軸の数, 違う軸: Object.keys(notes.期待) });
+	assert(!/1つの軸だけ/.test(notes.先頭の注記) && /読み方が違う軸があります/.test(notes.先頭の注記),
+		'73(card-event): 先頭の注記は本数を書かず「読み方が違う軸があります」と言う', notes.先頭の注記);
+	assert(Object.keys(notes.画面).sort().join(',') === Object.keys(notes.期待).sort().join(','),
+		'73(card-event): 注記が付くのは、core の印で「読み方が違う」軸だけ',
+		{ 画面: Object.keys(notes.画面), 期待: Object.keys(notes.期待) });
+	assert(notes.排他の軸.length > 0 && notes.排他の軸.every((l) => !!notes.画面[l]),
+		'73(card-event): 排他の軸（バ場）にも注記が出る（以前は何も言っていなかった）', notes.排他の軸);
+	const ズレ = Object.keys(notes.期待).filter((l) => !(notes.画面[l] || '').includes(notes.期待[l]));
+	assert(ズレ.length === 0,
+		'73(card-event): 各軸の文はモーダル側と同じ（core の axisRuleHint をそのまま出している）',
+		{ ズレ: ズレ, 画面: notes.画面, 期待: notes.期待 });
+	assert(!/この軸だけ決まりが逆です/.test(await page.evaluate(() => document.body.textContent)),
+		'73(card-event): 古い「この軸だけ決まりが逆です」は残っていない');
+
+	assert(errors.length === 0, '73(card-event): コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
 
