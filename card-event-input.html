@@ -15,17 +15,21 @@
 		                      → 出力 B ＝ data/extended-skills.json
 		イベントの画面で選んだスキルにもその場でタグを付けられるが、**タグの行き先は
 		つねに出力 B**（タグはスキルの属性で、カードの属性ではないため）。
-		**一覧に無いスキルをその場で起こしたぶんも出力 B**（新しい行＋進めた nextSerial）で、
-		出力 A に入るのはその skillId だけ。
 		**A と B を1つのテキストに混ぜない。**
 
-		■ 採番（一覧に無いスキルを起こしたとき）
-		- 正本の nextSerial から番号を取り、1回の作業で複数起こせば連番で振る。
-		  接頭辞も桁数も nextSerial から読み取る（このファイルに書かない）。
-		- **出力 B を貼るまで、その採番はこのブラウザにしかない。** 貼らずに次の作業を
-		  始めると同じ番号を振り直すので、画面の上に採番の現在地を常に出している。
-
 		■ このページがしないこと
+		- **新しい独自ID（`ex-NNNN`）を起こさない。採番の処理を一切持たない**（C-77）。
+		  スキルは**登録済みのもの**（マスター445件＋`data/extended-skills.json`）から選ぶだけ。
+		  スキルの正本と独自IDの採番は正本の側が持つので、ここで起こすと**二重採番**になる。
+		  一覧に出てこないスキルは、正本へ入ってから（＝`extended-skills.json` に載ってから）選ぶ。
+		  **`nextSerial` は読み込んだ値をそのまま出力 B へ引き継ぐだけ**で、進めない。
+		  【INTENTIONALLY_REMOVED・2026-09-24（74セッション目・C-77）】それまでこのページは
+		  「新しく起こす」（`data-act="new-skill"` / `data-act="new-skill-remove"`）と採番（`parseSerial` /
+		  `formatSerial` / `nextNewId`）・採番の現在地の表示（`#cei-serial`）・同名の確認
+		  （`findSameName`）・起こしたぶんの置き場（`umaCardEventInput:newSkills`）を持っていた。
+		  **`umaCardEventInput:newSkills` に残った途中経過は、消さずに無視する**
+		  （起動時に1度だけ知らせる）。それを選んでいるイベントの行は、出力 A が
+		  「参照できない id」として一覧に出し、出力からは外す。
 		- ファイルへの書き込みはしない（ブラウザからはできない）。出力をコピーして貼る。
 		- **カスタムスキルを作らない・使わない。** 名前を探すときの母集団には
 		  利用者のカスタムスキルも含まれるが、このページはそれを新しく作らないし、
@@ -135,15 +139,9 @@
 		}
 		.cei-tagrow:first-child { border-top: 0; }
 		.cei-taglist { margin-top: 8px; }
-		/* 採番の現在地。貼り忘れたまま次の作業を始めると巻き戻るので、常に見える位置に置く。 */
-		.cei-serial {
-			margin: 0 0 12px; padding: 8px 12px;
-			border: 1px solid var(--uma-border); border-radius: var(--uma-r-sm);
-			background: var(--uma-surface); color: var(--uma-text-muted);
-			font-size: var(--uma-fs-xs); line-height: var(--uma-lh-sm);
-		}
-		.cei-serial code { font-family: var(--uma-font-mono); }
-		.cei-warn-text { color: var(--uma-warn-text); }
+		/* 【INTENTIONALLY_REMOVED・2026-09-24（74セッション目・C-77）】採番の現在地の帯
+		   （`.cei-serial` / `.cei-serial code` / `.cei-warn-text`）を消した。採番そのものを
+		   やめたので、出すものが無い（このページで独自IDを起こさなくなった）。 */
 		.cei-tagname { font-size: var(--uma-fs-sm); flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
 		.cei-tagsum { font-size: var(--uma-fs-xs); color: var(--uma-text-subtle); overflow-wrap: anywhere; }
 		.cei-find { margin-top: 8px; }
@@ -167,8 +165,6 @@
 		このページはツール本体の一部ではありません。
 	</p>
 
-	<p id="cei-serial" class="cei-serial">読み込み中…</p>
-
 	<div class="cei-tabs" role="tablist" aria-label="作業の種類">
 		<button id="cei-tab-event" type="button" class="cei-tab" role="tab" aria-selected="true" data-act="tab" data-tab="event">イベントスキル</button>
 		<button id="cei-tab-tags" type="button" class="cei-tab" role="tab" aria-selected="false" data-act="tab" data-tab="tags">スキルのタグ付け</button>
@@ -179,10 +175,10 @@
 		<ol class="cei-steps">
 			<li><strong>このページは簡易サーバー経由で開いてください。</strong> ファイルを直接開く（<code>file://</code>）と、データを読み込めません。</li>
 			<li>下の一覧から1枚ずつ、<strong>スキルがあれば「スキルを選ぶ」</strong>、<strong>見て回って無ければ「イベント無し」</strong>を押します。</li>
-			<li><strong>探しても出てこないスキル</strong>（イベントでしか得られない金スキルなど）は、その場で<strong>「新しく起こす」</strong>と収録データに足せます。番号は自動で振られます。</li>
+			<li><strong>探しても出てこないスキル</strong>は、このページでは足せません。<strong>スキルの正本に入ってから</strong>（＝<code>data/extended-skills.json</code> に載ってから）選んでください。</li>
 			<li>選んだスキルが<strong>まだタグの付いていないもの</strong>なら、その場でタグを付けられます（付けなくても構いません）。</li>
 			<li>区切りのよいところで、下の出力を<strong>コピー</strong>します。<strong>出力は貼り先ごとに分かれています。</strong></li>
-			<li><code>data/support-card-event-skills.json</code> に A を、<code>data/extended-skills.json</code> に B を貼って<strong>上書き</strong>します（どちらもファイル全体を出しているので、そのまま置き換えられます）。<strong>新しく起こしたスキルは B に入ります。</strong></li>
+			<li><code>data/support-card-event-skills.json</code> に A を、<code>data/extended-skills.json</code> に B を貼って<strong>上書き</strong>します（どちらもファイル全体を出しているので、そのまま置き換えられます）。</li>
 			<li><code>npm run check:catalog</code> を回して、形が正しいことを確かめます。</li>
 		</ol>
 		<p class="cei-note">
@@ -279,14 +275,11 @@
 	var tagDraft = {};     // skillId → { 軸: [値] }。**触った分だけ**持つ
 	var openTagIds = {};   // タグ編集欄を開いている skillId（複数同時に開ける）
 
-	/* ---------- 一覧に無いスキルを起こす ----------
-	   イベントでしか得られない金スキルは extended-skills.json に入っていないので、
-	   入力中に候補が出ない。その場で新しい行として起こせるようにする。
-	   起こしたものは**出力 B（extended-skills.json）の末尾**に入り、
-	   出力 A からは skillId で参照される。 */
-	var NEW_SKILLS_KEY = 'umaCardEventInput:newSkills';
-	var newSkills = [];    // [{ id, name, tagsPending: true }] 起こした順
-	var newById = {};      // id → 上の1件
+	/* ---------- もう使わない置き場（C-77） ----------
+	   「新しく起こす」をやめる前に、このページで起こした独自IDを置いていたキー。
+	   **読むのは「残っているかどうか」を1度知らせるためだけ**で、採番にも出力にも使わない。
+	   **消さない**（貼っていない作業の控えを黙って捨てないため）。 */
+	var LEGACY_NEW_SKILLS_KEY = 'umaCardEventInput:newSkills';
 
 	function $(id) { return document.getElementById(id); }
 	function esc(s) {
@@ -321,139 +314,41 @@
 	}
 
 	/* ==========================================================
-	 * 一覧に無いスキルを起こす（採番・名前の解決）
+	 * スキル名の解決
+	 *
+	 * **登録済みのスキルしか扱わない**（C-77）。参照してよいのは、マスター445種と
+	 * `data/extended-skills.json` に載っているスキルだけ（判定は core の
+	 * `isReferableSkillId()` に置いてある。シナリオ因子・遺伝子・利用者のカスタムスキルは対象外）。
+	 *
+	 * 【INTENTIONALLY_REMOVED・2026-09-24（74セッション目・C-77）】ここには
+	 * 「一覧に無いスキルをその場で起こす」ための一式があった ――
+	 * `parseSerial` / `formatSerial` / `nextNewId`（`nextSerial` から接頭辞・桁数を読んで採番）、
+	 * `createNewSkill` / `removeNewSkill`、`findSameName`（同名・表記ゆれの確認）、
+	 * `loadNewSkills` / `saveNewSkills` / `reindexNewSkills` / `pruneNewSkills`、
+	 * `isNewSkill` / `isUsableSkillId`、`renderSerialBar`（採番の現在地の帯）。
+	 * **独自IDの採番は正本の側が持つ**ので、ここに残すと二重採番になる。
 	 * ========================================================== */
 
-	/**
-	 * `ex-0534` のような id を「接頭辞・番号・桁数」に分ける。
-	 * **接頭辞をこのファイルに書かない**ため、正本の nextSerial から読み取る（恒久ルール1）。
-	 */
-	function parseSerial(s) {
-		var m = /^(.*?)(\d+)$/.exec(String(s == null ? '' : s));
-		return m ? { prefix: m[1], num: Number(m[2]), width: m[2].length } : null;
-	}
-	function formatSerial(base, num) {
-		var s = String(num);
-		while (s.length < base.width) s = '0' + s;
-		return base.prefix + s;
-	}
-	/** 次に振る id。正本の nextSerial から始め、すでに起こしたぶんだけ先へ進める。 */
-	function nextNewId() {
-		var base = parseSerial(extDoc && extDoc.nextSerial);
-		if (!base) return '';
-		var n = base.num;
-		newSkills.forEach(function (s) {
-			var p = parseSerial(s.id);
-			if (p && p.num >= n) n = p.num + 1;
-		});
-		return formatSerial(base, n);
-	}
-	function isNewSkill(id) { return !!newById[id]; }
-	/** 出力に載せてよい参照か（マスター・拡張スキル・このページで起こしたもの）。 */
-	function isUsableSkillId(id) { return Core.isReferableSkillId(id) || isNewSkill(id); }
-	/** 表示名。起こしたばかりのものは core が知らないので、こちらを先に見る。 */
+	/** 表示名。登録済みのスキルから引く（引けなければそう言う）。 */
 	function skillNameOf(id) {
-		if (newById[id]) return newById[id].name;
 		var sk = Core.findSkill(id);
 		return sk ? sk.name : '（引けません：' + id + '）';
 	}
-	/** タグの状態を見るときの1件（正本の行か、起こした行か）。 */
-	function tagEntryOf(id) { return extById[id] || newById[id] || null; }
+	/** タグの状態を見るときの1件（`extended-skills.json` の行）。 */
+	function tagEntryOf(id) { return extById[id] || null; }
 
 	/**
-	 * 同じ名前がすでにあるか。
-	 * **完全一致の重複は check:catalog が落とす**（「スキル名がマスターと拡張スキルを
-	 * またいで重複しない」）ので、ここで止める。表記ゆれだけの違いは落ちないが、
-	 * 名前で引く索引が一意に決まらなくなるので確認を求める。
+	 * もう使えない独自IDの控えが残っていたら、起動時に1度だけ知らせる（C-77）。
+	 * **消さない・採番に使わない。** 黙って無視すると、イベントの行がなぜ出力から
+	 * 外れるのかが分からなくなる（出力 A の警告には id が出るが、理由が出ない）。
 	 */
-	function findSameName(name) {
-		var raw = String(name).trim();
-		var norm = Core.normalizeSkillText(raw);
-		var exact = null, near = null;
-		var scan = function (id, n, where) {
-			if (exact) return;
-			if (n === raw) exact = { id: id, name: n, where: where };
-			else if (!near && Core.normalizeSkillText(n) === norm) near = { id: id, name: n, where: where };
-		};
-		Core.getMasterSkills().forEach(function (s) { scan(s.id, s.name, 'マスター'); });
-		((extDoc && extDoc.entries) || []).forEach(function (e) { scan(e.id, e.name, '収録済み'); });
-		newSkills.forEach(function (e) { scan(e.id, e.name, 'このページで起こしたもの'); });
-		return { exact: exact, near: near };
-	}
-
-	function loadNewSkills() {
-		try { newSkills = JSON.parse(localStorage.getItem(NEW_SKILLS_KEY) || '[]') || []; } catch (e) { newSkills = []; }
-		if (!Array.isArray(newSkills)) newSkills = [];
-		reindexNewSkills();
-	}
-	function saveNewSkills() {
-		try { localStorage.setItem(NEW_SKILLS_KEY, JSON.stringify(newSkills)); } catch (e) {}
-		reindexNewSkills();
-	}
-	function reindexNewSkills() {
-		newById = {};
-		newSkills.forEach(function (e) { newById[e.id] = e; });
-	}
-	/** 正本に取り込まれた分（同じ id が extended-skills.json に入った分）は落とす。 */
-	function pruneNewSkills() {
-		var before = newSkills.length;
-		newSkills = newSkills.filter(function (e) { return !extById[e.id]; });
-		if (newSkills.length !== before) saveNewSkills();
-		return before - newSkills.length;
-	}
-
-	/**
-	 * 名前を1つ起こす。採番して newSkills に足し、その id を返す（中止したら '')。
-	 * **タグは付けずに tagsPending: true で作る。** 付けるかどうかはこのあとの操作で決める
-	 * （check:catalog は tags と tagsPending のどちらか一方を必ず持つことを求める）。
-	 */
-	function createNewSkill(name) {
-		var trimmed = String(name || '').trim();
-		if (!trimmed) { toast('スキル名を入力してください'); return ''; }
-		if (!extDoc) { toast('収録データを読み込めていないので、新しく起こせません'); return ''; }
-		var same = findSameName(trimmed);
-		if (same.exact) {
-			toast('「' + same.exact.name + '」は' + same.exact.where + 'にあります（' + same.exact.id + '）。そちらを選んでください');
-			return '';
-		}
-		if (same.near && !confirm('「' + same.near.name + '」（' + same.near.where + '・' + same.near.id + '）と、'
-			+ '記号や全角半角の違いだけの名前です。\n別のスキルとして起こしますか。')) return '';
-		var id = nextNewId();
-		if (!id) { toast('採番できませんでした（nextSerial を読めていません）'); return ''; }
-		newSkills.push({ id: id, name: trimmed, tagsPending: true });
-		saveNewSkills();
-		return id;
-	}
-	/** 起こしたものを取り消す。イベント側から参照していれば一緒に外す。 */
-	function removeNewSkill(id) {
-		var used = [];
-		Object.keys(draft).forEach(function (cardId) {
-			if ((draft[cardId].skillIds || []).indexOf(id) !== -1) used.push(cardId);
-		});
-		var msg = '「' + skillNameOf(id) + '」（' + id + '）を取り消します。';
-		if (used.length) msg += '\n' + used.length + '枚のカードで選んでいるので、そちらからも外します。';
-		if (!confirm(msg)) return false;
-		used.forEach(function (cardId) {
-			draft[cardId].skillIds = draft[cardId].skillIds.filter(function (x) { return x !== id; });
-		});
-		if (used.length) saveDraft();
-		newSkills = newSkills.filter(function (e) { return e.id !== id; });
-		delete tagDraft[id];
-		delete openTagIds[id];
-		saveNewSkills();
-		saveTagDraft();
-		return true;
-	}
-
-	/** 採番の現在地。**貼り忘れたまま次の作業を始めると巻き戻る**ので、常に見えるようにする。 */
-	function renderSerialBar() {
-		var el = $('cei-serial');
-		if (!extDoc) { el.textContent = '収録データを読み込めていません'; return; }
-		el.innerHTML = '読み込んだ <code>nextSerial</code>：<strong>' + esc(String(extDoc.nextSerial)) + '</strong>'
-			+ '　／　次に振る番号：<strong>' + esc(nextNewId()) + '</strong>'
-			+ '　／　このページで起こしたもの：<strong>' + newSkills.length + '件</strong>'
-			+ (newSkills.length ? '<br><span class="cei-warn-text">出力 B を貼るまで、この採番はこのブラウザにしかありません。'
-				+ '貼らずに次の作業を始めると同じ番号を振り直してしまいます。</span>' : '');
+	function noticeLegacyNewSkills() {
+		var left = [];
+		try { left = JSON.parse(localStorage.getItem(LEGACY_NEW_SKILLS_KEY) || '[]') || []; } catch (e) { left = []; }
+		if (!Array.isArray(left) || left.length === 0) return;
+		console.warn('[card-event-input] このページで起こした独自IDの控えが残っている（もう使えない。消さずに残してある）', left);
+		toast('このページで起こした ' + left.length + '件の独自IDは、もう使えません（採番は正本が持ちます）。'
+			+ 'それを選んでいる行は出力 A の警告に出ます。');
 	}
 
 	/* ==========================================================
@@ -546,7 +441,7 @@
 		var dropped = 0;
 		Object.keys(tagDraft).forEach(function (id) {
 			var e = tagEntryOf(id);
-			if (!e) { delete tagDraft[id]; dropped++; return; }   // もう拡張スキルにも起こしたものにも無い
+			if (!e) { delete tagDraft[id]; dropped++; return; }   // もう拡張スキルに無い
 			if (e.tags && JSON.stringify(copyTags(e.tags)) === JSON.stringify(copyTags(tagDraft[id]))) {
 				delete tagDraft[id]; dropped++;
 			}
@@ -639,15 +534,14 @@
 		var h = '<div class="cei-tagrow-wrap" data-tagrow="' + esc(skillId) + '">';
 		h += '<div class="cei-tagrow">';
 		h += '<span class="cei-tagname">' + esc(name) + '</span>';
-		if (isNewSkill(skillId)) h += '<span class="uma-badge uma-badge--accent">新規 ' + esc(skillId) + '</span>';
 		h += '<span data-tagbadge="' + esc(skillId) + '">' + tagBadgeHtml(skillId) + '</span>';
 		if (st) {
 			h += '<button type="button" class="uma-btn uma-btn--secondary" data-act="tag-open" data-skill="' + esc(skillId) + '">'
 				+ (open ? '閉じる' : (st === 'pending' ? 'タグを付ける' : 'タグを見直す')) + '</button>';
 		}
-		if (isNewSkill(skillId)) {
-			h += '<button type="button" class="uma-btn uma-btn--ghost" data-act="new-skill-remove" data-skill="' + esc(skillId) + '">起こしたのを取り消す</button>';
-		}
+		// 【INTENTIONALLY_REMOVED・C-77】「新規 <id>」の印と「起こしたのを取り消す」
+		// （`data-act="new-skill-remove"`）を消した。このページで起こすものが無くなったので、
+		// 一覧に並ぶのは**正本に載っている行だけ**になった。
 		h += '</div>';
 		if (st && !open) {
 			var sum = tagSummary(skillId);
@@ -697,9 +591,7 @@
 	}
 
 	function chipHtml(cardId, skillId) {
-		// 起こしたばかりのスキルは core の索引に無いので skillNameOf() で引く。
 		return '<span class="cei-chip">' + esc(skillNameOf(skillId))
-			+ (isNewSkill(skillId) ? '<span class="uma-badge uma-badge--accent">新規</span>' : '')
 			+ '<button type="button" class="uma-icon-btn" data-act="drop" data-card="' + esc(cardId)
 			+ '" data-skill="' + esc(skillId) + '" aria-label="外す">×</button></span>';
 	}
@@ -761,8 +653,8 @@
 	function visibleExtSkills() {
 		var q = Core.normalizeSkillText($('cei-tag-q').value || '');
 		var onlyPending = $('cei-tag-only-pending').checked;
-		// 起こしたものも同じ一覧に出す（どちらも出力 B に入るので、扱いを分けない）。
-		return ((extDoc && extDoc.entries) || []).concat(newSkills).filter(function (e) {
+		// 並ぶのは**正本（extended-skills.json）に載っている行だけ**（C-77）。
+		return ((extDoc && extDoc.entries) || []).filter(function (e) {
 			// 開いている行は絞り込みの条件にかかわらず残す（チェックを入れた瞬間に
 			// 「未設定だけ」から外れて行ごと消えるのを防ぐ）。
 			if (openTagIds[e.id]) return true;
@@ -772,14 +664,12 @@
 		});
 	}
 	function renderTagCounts() {
-		var all = ((extDoc && extDoc.entries) || []).concat(newSkills);
+		var all = (extDoc && extDoc.entries) || [];
 		var n = { pending: 0, universal: 0, tagged: 0 };
 		all.forEach(function (e) { var s = tagStateOf(e.id); if (n[s] !== undefined) n[s]++; });
 		$('cei-tag-counts').textContent = extDoc
 			? '全' + all.length + '件：タグあり ' + n.tagged + ' / 万能 ' + n.universal + ' / 未設定 ' + n.pending
-				+ (newSkills.length ? '（うちこのページで起こしたもの ' + newSkills.length + '件）' : '')
 			: '読み込めませんでした（簡易サーバー経由で開いていますか）';
-		renderSerialBar();
 	}
 	function renderTagPane() {
 		var list = visibleExtSkills();
@@ -846,29 +736,22 @@
 		// 収録データから参照してよいのは、マスターのスキルと拡張スキルだけ。
 		// シナリオ因子や利用者のカスタムスキルは対象外（判定は core 側に置いてある）。
 		var hits = res.hits.filter(function (h) { return Core.isReferableSkillId(h.id); });
-		// このページで起こしたものは core の索引に入っていないので、こちらで足す。
-		// **足さないと、同じスキルが別のカードにも出てきたときに二重に起こしてしまう。**
-		var norm = Core.normalizeSkillText(text);
-		newSkills.forEach(function (e) {
-			if (Core.normalizeSkillText(e.name).indexOf(norm) !== -1) hits.unshift({ id: e.id, name: e.name });
-		});
 		var have = skillIdsOf(cardId);
-		var exact = hits.some(function (h) { return Core.normalizeSkillText(h.name) === norm; });
 		var h = hits.map(function (x) {
 			var added = have.indexOf(x.id) !== -1;
 			return '<button type="button" class="uma-btn uma-btn--ghost cei-hit" data-act="pick" data-card="' + esc(cardId)
 				+ '" data-skill="' + esc(x.id) + '"' + (added ? ' disabled' : '') + '>'
-				+ esc(x.name) + (isNewSkill(x.id) ? '（新規）' : '') + (added ? '（追加済み）' : '') + '</button>';
+				+ esc(x.name) + (added ? '（追加済み）' : '') + '</button>';
 		}).join('');
-		if (hits.length === 0) h += '<p class="cei-empty">見つかりません。</p>';
-		else if (res.more > 0) h += '<p class="cei-empty">ほか ' + res.more + '件。もう少し入力してください。</p>';
-		// 一覧に無いスキル（イベントでしか得られない金スキルなど）をその場で起こす。
-		// **打った名前がそのまま登録名になる**ので、完全に一致する候補が既にあるときは出さない。
-		if (!exact && extDoc) {
-			h += '<p class="cei-empty">この名前のスキルが一覧にありませんか？'
-				+ '<br>収録データに<strong>新しい行として起こす</strong>と、次に振る番号は <strong>' + esc(nextNewId()) + '</strong> です。</p>'
-				+ '<button type="button" class="uma-btn uma-btn--secondary cei-hit" data-act="new-skill" data-card="' + esc(cardId) + '">'
-				+ '「' + esc(text.trim()) + '」を新しく起こす</button>';
+		/* 見つからないときに何をすればよいかを言う。
+		   【INTENTIONALLY_REMOVED・C-77】ここには「『◯◯』を新しく起こす」のボタン
+		   （`data-act="new-skill"`）と、次に振る番号の案内（`nextNewId()`）があった。
+		   **独自IDの採番は正本の側が持つ**ので、このページでは起こさない。 */
+		if (hits.length === 0) {
+			h += '<p class="cei-empty">見つかりません。'
+				+ 'このページで新しいスキルを起こすことはできません（スキルの正本に入ってから選べます）。</p>';
+		} else if (res.more > 0) {
+			h += '<p class="cei-empty">ほか ' + res.more + '件。もう少し入力してください。</p>';
 		}
 		box.innerHTML = h;
 	}
@@ -889,8 +772,9 @@
 			if (!d) return;
 			var skills = (d.skillIds || []).map(function (id) {
 				// 名前は出力を作るたびに引き直す（併記の name が正本と必ず一致する）。
-				// このページで起こしたものも参照してよい（出力 B に同じ id で入るため）。
-				if (!isUsableSkillId(id)) { unresolved.push(id); return null; }
+				// **参照してよいのは登録済みのスキルだけ**（C-77）。もう使えない独自ID
+				// （このページで起こしたものの控え）を選んでいる行は、ここで外して警告に出す。
+				if (!Core.isReferableSkillId(id)) { unresolved.push(id); return null; }
 				return { skillId: id, name: skillNameOf(id) };
 			}).filter(Boolean);
 			entries.push({ cardId: c.id, status: d.status, skills: skills });
@@ -932,9 +816,9 @@
 		var out = {};
 		Object.keys(extDoc).forEach(function (k) { if (k !== 'entries') out[k] = extDoc[k]; });
 		out.dataVersion = $('cei-ext-version').value || todayVersion();
-		// **採番を進める。** 起こしたものが無ければ読み込んだ値のまま
-		// （check:catalog は「nextSerial が使用済みの最大より大きい」ことを求める）。
-		if (nextNewId()) out.nextSerial = nextNewId();
+		/* **`nextSerial` は読み込んだ値のまま**（上のキーの写しで引き継がれる）。
+		   【INTENTIONALLY_REMOVED・C-77】ここには `if (nextNewId()) out.nextSerial = nextNewId();` が
+		   あり、このページで起こしたぶんだけ採番を進めていた。**採番は正本の側が持つ**ので進めない。 */
 		var changed = 0;
 		var withTags = function (e) {
 			var t = tagDraft[e.id];
@@ -946,9 +830,10 @@
 			next.tags = copyTags(t);
 			return next;
 		};
-		// 既存の行の並びは保ち、**起こしたものは末尾に足す**（C-48 の更新の運用）。
-		out.entries = (extDoc.entries || []).map(withTags).concat(newSkills.map(withTags));
-		return { text: JSON.stringify(out, null, '\t') + '\n', changed: changed, added: newSkills.length, error: '' };
+		// 行の顔ぶれは読み込んだものと同じ（増やさない・減らさない・並べ替えない。C-48 の更新の運用）。
+		// このページが変えるのは `dataVersion` と、下書きのある行の `tags` だけ。
+		out.entries = (extDoc.entries || []).map(withTags);
+		return { text: JSON.stringify(out, null, '\t') + '\n', changed: changed, error: '' };
 	}
 
 	function renderExtOutput() {
@@ -958,9 +843,7 @@
 		if (r.error) { warn.hidden = false; warn.textContent = r.error; }
 		else { warn.hidden = true; }
 		var n = Object.keys(tagDraft).length;
-		$('cei-ext-info').textContent = (n > 0 ? 'タグの途中経過 ' + n + '件' : 'タグの途中経過なし')
-			+ ' ／ ' + (newSkills.length > 0 ? '起こしたスキル ' + newSkills.length + '件' : '起こしたスキルなし');
-		renderSerialBar();
+		$('cei-ext-info').textContent = n > 0 ? 'タグの途中経過 ' + n + '件' : 'タグの途中経過なし';
 	}
 
 	/* ---------- 操作 ---------- */
@@ -1022,25 +905,11 @@
 			delete tagDraft[btn.getAttribute('data-skill')];
 			saveTagDraft();
 			refreshTagRows(btn.getAttribute('data-skill'));
-		} else if (act === 'new-skill') {
-			// 探している欄に打った文字をそのまま名前にして起こし、そのカードに足す。
-			var input = document.querySelector('[data-act="find"][data-card="' + cardId + '"]');
-			var newId = createNewSkill(input ? input.value : '');
-			if (!newId) return;
-			var nd = draft[cardId] || (draft[cardId] = { status: 'done', skillIds: [] });
-			nd.status = 'done';
-			if (nd.skillIds.indexOf(newId) === -1) nd.skillIds.push(newId);
-			saveDraft();
-			// 起こした直後は「探す」の欄を空にする（同じ名前をもう一度起こさないため）。
-			render();
-			var back = document.querySelector('[data-act="find"][data-card="' + cardId + '"]');
-			if (back) { back.value = ''; renderHits(cardId, ''); back.focus(); }
-			toast('「' + skillNameOf(newId) + '」を ' + newId + ' として起こしました（タグは未設定です）');
-		} else if (act === 'new-skill-remove') {
-			if (!removeNewSkill(btn.getAttribute('data-skill'))) return;
-			if (pane === 'tags') renderTagPane();
-			render();
 		}
+		/* 【INTENTIONALLY_REMOVED・2026-09-24（74セッション目・C-77）】
+		   `new-skill`（探している欄の文字をそのまま名前にして起こし、そのカードに足す）と
+		   `new-skill-remove`（起こしたのを取り消す）の2つの枝を消した。
+		   **独自IDの採番は正本の側が持つ**ので、このページからは起こさない（二重採番になる）。 */
 	});
 
 	/* タグのチェック。**一覧ごと作り直さない**（開いた編集欄と読んでいる位置が飛ぶため）。 */
@@ -1147,21 +1016,19 @@
 			((extDoc && extDoc.entries) || []).forEach(function (e) { extById[e.id] = e; });
 			loadDraft();
 			loadTagDraft();
-			loadNewSkills();
 			var dropped = pruneDraft();
-			var newDropped = pruneNewSkills();
 			var tagDropped = pruneTagDraft();
 			render();
 			renderTagCounts();
 			renderExtOutput();
-			renderSerialBar();
 			if (cards.length === 0) {
 				$('cei-counts').textContent = 'カードを読み込めませんでした（簡易サーバー経由で開いていますか）';
 			} else if (dropped > 0) {
 				toast('ファイルに入っている ' + dropped + '枚ぶんを途中経過から外しました');
 			}
 			if (tagDropped > 0) toast('ファイルに入った ' + tagDropped + '件ぶんのタグを途中経過から外しました');
-			if (newDropped > 0) toast('ファイルに入った ' + newDropped + '件ぶんの新しいスキルを途中経過から外しました');
+			// もう使えない独自IDの控えが残っていたら知らせる（C-77。消さない）。
+			noticeLegacyNewSkills();
 		}).catch(function (e) {
 			$('cei-counts').textContent = '読み込みに失敗しました: ' + (e && e.message ? e.message : e);
 		});

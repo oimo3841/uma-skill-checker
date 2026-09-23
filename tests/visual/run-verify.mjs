@@ -360,6 +360,24 @@ const INTENTIONALLY_REMOVED = {
 	// **免除の登録は要らなかった** ―― この検査が見ているのは **data-* の「属性の名前」**で、
 	// `data-usd-el` / `data-usd-act` という名前自体は他の場所で使われ続けているため、
 	// 値だけが消えても落ちない。**記録として残すためにここへ書いている。**
+	//
+	// 2026-09-24（74セッション目・C-77）: `card-event-input.html` から**「新しく起こす」
+	// （拡張スキルを新しい独自IDで起こす経路）を丸ごと消した**。スキルの正本と独自ID
+	// （`ex-NNNN`）の採番は正本の側が持つことになったので、
+	// 入力ページに残すと**二重採番**になる。消したのは
+	//   - 採番: `parseSerial` / `formatSerial` / `nextNewId`（`nextSerial` から接頭辞と桁数を読む）と、
+	//     出力 B で `nextSerial` を進めていた1行（いまは**読み込んだ値をそのまま引き継ぐ**）
+	//   - 操作: `data-act="new-skill"` /  `data-act="new-skill-remove"` の2つの枝と、
+	//     `createNewSkill` / `removeNewSkill` / `findSameName`（同名・表記ゆれの確認）
+	//   - 置き場: `umaCardEventInput:newSkills`（`loadNewSkills` / `saveNewSkills` /
+	//     `reindexNewSkills` / `pruneNewSkills` / `isNewSkill` / `isUsableSkillId`）。
+	//     **localStorage に残った控えは消さない**（貼っていない作業を黙って捨てないため）。
+	//     起動時に1度だけ知らせ、それを選んでいる行は出力 A が「参照できない id」として外す。
+	//   - 画面: 採番の現在地の帯（`#cei-serial` / `.cei-serial` / `.cei-warn-text` / `renderSerialBar`）、
+	//     「新規」の印、「起こしたのを取り消す」、探した結果の下の「新しく起こす」ボタン。
+	// **免除の登録は要らない** ―― §3 が見るのは `TARGETS`（special / exam / deck / core / deck.js）だけで、
+	// `card-event-input.html` は入っていない。**記録として残すためにここへ書いている。**
+	// イベントスキルの出力（登録済みスキルを選んで紐づけ、出力 A を作る）はそのまま動く。
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
