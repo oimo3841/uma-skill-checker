@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-23a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-23b';
 
 	/* ============================================================
 	 * 定数
@@ -2108,8 +2108,27 @@
 
 		// スキルを足す3つの入口。モーダルは選ばれた1つぶんだけを出す
 		'.usd-mode[hidden] { display: none; }',
-		// 呼び出し元の画面に並べる入口ボタン
-		'.usd-entry-row { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2); margin-bottom: var(--uma-sp-3); }',
+		/* 呼び出し元の画面に並べる入口ボタン。
+		   **折り返さず、横に送る**（73セッション目）。収まるときは普通の1行のままで、
+		   **収まらないときだけ横スクロールになる** ―― C-14 の絞り込みタブ（css/shell.css の
+		   `.uma-subtabs`）と同じ考え方で、**幅の px は決め打ちしない**（収まるかどうかで決まる）。
+		   **端でボタンが切れて見えること自体が「続きがある」合図**なので、
+		   **霞み・矢印・「端へ移動」・スクロールバーは付けない。**
+		   並び順は使用頻度の高い順（条件で検索 → 緑スキル → テキストで検索 → スクショで追加 →
+		   未収録スキルを追加）なので、画面の外へ出るのは使用頻度の低いほうになる。 */
+		'.usd-entry-row { display: flex; flex-wrap: nowrap; gap: var(--uma-sp-2); margin-bottom: var(--uma-sp-3);',
+		'  min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none;',
+		/* スマホで横に振り切ったときにブラウザの「戻る」が出ないようにする */
+		'  overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }',
+		'.usd-entry-row::-webkit-scrollbar { display: none; }',
+		// 縮まない・文字も折らない（折り返しをやめたので、縮むと文字が潰れる）
+		'.usd-entry-row > * { flex: none; white-space: nowrap; }',
+		/* フォーカスの枠は**内側に**描く。overflow-y: hidden なので、既定の outline-offset: 2px の
+		   ままだと上下がこの行に切られて見えなくなる（`.uma-subtab` が同じ理由で内側にしている）。 */
+		'.usd-entry-row > *:focus-visible { outline-offset: -2px; }',
+		/* Deck の比較シート編集の入口は uma-skill-deck.html が自前で持っていて core の描画を通らない。
+		   同じ振る舞いにするため同じクラスを当てるが、**下の余白だけそちらの元の値（8px）に合わせる**。 */
+		'.usd-entry-row--inline { margin-bottom: var(--uma-sp-2); }',
 		'@media (prefers-reduced-motion: reduce) { .usd-tab, .usd-opt { transition: none; } }',
 
 		// 編成パネル（C-51）

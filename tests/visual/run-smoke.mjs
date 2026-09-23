@@ -7920,8 +7920,11 @@ await block('段K ―― ②の画面構成（スキルセット／シナリオ�
 		const after = await read();
 		assert(after.checked.every(v => v === false) && after.checksInView,
 			'段K(' + w + 'px): セットを切り替えた直後、外れたチェックが画面内で見える', after);
-		assert(after.entryLines === before.entryLines && after.cols === before.cols && after.cols >= 2,
-			'段K(' + w + 'px): 入口の折り返しとスキルパネルの列数は切り替えで変わらない', { before, after });
+		/* **73セッション目に言い方を変えた。** 入口の並びは折り返さなくなった（横に送る形）ので、
+		   「切り替えで段数が変わらない」は**どう転んでも通る検査**になった。
+		   段数は**常に1**であることを直接言う形にして、意味を持たせている。 */
+		assert(before.entryLines === 1 && after.entryLines === 1 && after.cols === before.cols && after.cols >= 2,
+			'段K(' + w + 'px): 入口は常に1段（折り返さない）で、スキルパネルの列数は切り替えで変わらない', { before, after });
 		assert(errs.length === 0, '段K(' + w + 'px): コンソールエラーが出ない', errs.slice(0, 3));
 		await ctx.close();
 	}
@@ -9531,8 +9534,11 @@ await block('段11（⑨⑩）― A の地色と枠 ／ 入口の並びの開閉
 		};
 	});
 	const e0 = await entryState();
-	assert(e0.expanded === 'true' && e0.見えている && e0.高さ > 0 && e0.ボタン数 > 1,
-		'段11(⑩): 入口の並びは既定で開いていて、6つの入口が見えている', e0);
+	/* **73セッション目に「6つ」→「5つ」へ直した。** 段9 で「緑スキル」を足したときに数え直さず
+	   6 と書いたままだった（判定が `> 1` だったので落ちずに残った）。**数そのものを見る形にした**ので、
+	   入口が1つ減っても気づける。 */
+	assert(e0.expanded === 'true' && e0.見えている && e0.高さ > 0 && e0.ボタン数 === 5,
+		'段11(⑩): 入口の並びは既定で開いていて、5つの入口が見えている', e0);
 	assert(e0.label === 'スキルの追加',
 		'段11(⑩): 畳む見出しは「スキルの追加」（73セッション目にリセットが外へ出たため）', e0.label);
 
@@ -9716,6 +9722,203 @@ await block('73セッション目 ― card-event-input.html の軸のルール�
 		'73(card-event): 古い「この軸だけ決まりが逆です」は残っていない');
 
 	assert(errors.length === 0, '73(card-event): コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+});
+
+/* ============================================================
+ * 73セッション目 ― 入口の並びを狭い幅で横1行にする（スワイプ）
+ *
+ * **幅の px を期待値に書かない。** 「その幅で収まっているか」（scrollWidth と clientWidth の関係）を
+ * 先に読み、収まっているとき／いないときで見るものを変える。幅は**標本にすぎない**ので、
+ * 端末やフォントで折り返し位置が変わってもこの検査の意味は変わらない（段3 でタブの1行を見たときと同じ考え方）。
+ *
+ * **空振り防止**（71セッション目の申し送り）―― 試した幅の中に**収まる幅と収まらない幅が両方あること**を
+ * 見る。片側しか起きていなければ、条件分岐のどちらかが一度も通っていないことになる。
+ *
+ * **緑スキルの件数バッジの有無**でも測る。バッジが出るとボタンが横に広がり、
+ * **前は 768px で段が増えていた**（1段→2段）ので、そこが直ったことを見るため。
+ * ============================================================ */
+await block('73セッション目 ― 入口の並びを狭い幅で横1行にする（スワイプ）', async () => {
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(400);
+
+	const SEL = '#deck-template-panel .usd-entry-row';
+	const read = (sel) => page.evaluate((s) => {
+		const row = document.querySelector(s);
+		if (!row) return null;
+		const btns = [...row.querySelectorAll('button')];
+		const cs = getComputedStyle(row);
+		const rect = row.getBoundingClientRect();
+		return {
+			段数: new Set(btns.map((b) => Math.round(b.offsetTop))).size,
+			ボタン数: btns.length,
+			子の顔ぶれ: [...new Set([...row.children].map((c) => c.tagName))],
+			収まっている: row.scrollWidth <= row.clientWidth + 1,
+			あふれ: Math.round(row.scrollWidth - row.clientWidth),
+			// 行の右端をまたいでいる＝途中で切れて見えているボタンの数
+			端で切れている: btns.filter((b) => {
+				const r = b.getBoundingClientRect();
+				return r.left < rect.right - 0.5 && r.right > rect.right + 0.5;
+			}).length,
+			折り返し: cs.flexWrap,
+			横: cs.overflowX,
+			縦: cs.overflowY,
+			// スクロールバーを出していれば、境界の厚みとして出る
+			バーの厚み: row.offsetHeight - row.clientHeight,
+			霞み: cs.maskImage + '/' + cs.backgroundImage,
+			高さ: Math.round(rect.height),
+		};
+	}, sel);
+
+	/** 幅を変えながら読む。幅は標本で、期待値には使わない。 */
+	const sweep = async (sel, widths) => {
+		const out = [];
+		for (const [w, h] of widths) {
+			await page.setViewportSize({ width: w, height: h });
+			await page.waitForTimeout(350);
+			out.push({ 幅: w, ...(await read(sel)) });
+		}
+		return out;
+	};
+
+	const WIDTHS = [[1280, 900], [768, 1024], [375, 812]];
+
+	for (const バッジ of ['無し', '有り']) {
+		if (バッジ === '有り') {
+			// 緑スキルを4件足して件数バッジを出す（描き直しをまたいで残る本物の経路で）
+			await page.setViewportSize({ width: 1280, height: 900 });
+			await page.waitForTimeout(300);
+			await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
+			await page.waitForTimeout(700);
+			const ids = await page.evaluate(() =>
+				[...document.querySelectorAll('[data-usd-el="passive-check"]')].filter((c) => !c.checked).slice(0, 4).map((c) => c.value));
+			for (const id of ids) {
+				await page.click('[data-usd-el="passive-check"][value="' + id + '"]');
+				await page.waitForTimeout(150);
+			}
+			await page.click('[data-usd-act="picker-close"]');
+			await page.waitForTimeout(500);
+			assert(await page.evaluate(() => !document.querySelector('#deck-template-panel [data-usd-el="passive-added"]').hidden),
+				'段12(バッジ有り): 緑スキルの件数バッジが出ている状態を作れた');
+		}
+
+		const got = await sweep(SEL, WIDTHS);
+		const 収まる = got.filter((g) => g.収まっている);
+		const 収まらない = got.filter((g) => !g.収まっている);
+
+		// (1) どの幅でも 1段。折り返さない。＝ バッジの有無で段が増えない（前は 768px で 1→2段になった）
+		assert(got.every((g) => g.段数 === 1 && g.折り返し === 'nowrap'),
+			'段12(バッジ' + バッジ + '): どの幅でも入口は1段で、折り返さない',
+			got.map((g) => ({ 幅: g.幅, 段数: g.段数, 高さ: g.高さ })));
+		assert(new Set(got.map((g) => g.高さ)).size === 1,
+			'段12(バッジ' + バッジ + '): 行の高さが幅によって変わらない', got.map((g) => ({ 幅: g.幅, 高さ: g.高さ })));
+
+		// (2) 空振り防止 ―― 収まる幅と収まらない幅が両方あること
+		assert(収まる.length > 0 && 収まらない.length > 0,
+			'段12(バッジ' + バッジ + '): 試した幅に「収まる」と「収まらない」が両方ある（片側だけなら下の判定が空振り）',
+			{ 収まる: 収まる.map((g) => g.幅), 収まらない: 収まらない.map((g) => g.幅) });
+
+		// (3) 収まるときは、いままでどおりの普通の1行（横に送るものが無い・切れない）
+		assert(収まる.every((g) => g.あふれ === 0 && g.端で切れている === 0),
+			'段12(バッジ' + バッジ + '): 収まる幅では普通の1行のまま（あふれ0・切れているボタン0）',
+			収まる.map((g) => ({ 幅: g.幅, あふれ: g.あふれ, 切れ: g.端で切れている })));
+
+		// (4) 収まらないときは横に送れて、端でボタンが切れて見える（＝続きがある合図）
+		assert(収まらない.every((g) => g.あふれ > 0 && g.端で切れている >= 1),
+			'段12(バッジ' + バッジ + '): 収まらない幅では横に送れて、端でボタンが切れて見える（切れていることが合図）',
+			収まらない.map((g) => ({ 幅: g.幅, あふれ: g.あふれ, 切れ: g.端で切れている })));
+
+		// (5) 霞み・矢印・「端へ移動」・スクロールバーは付けない
+		assert(got.every((g) => g.バーの厚み === 0),
+			'段12(バッジ' + バッジ + '): スクロールバーを出さない', got.map((g) => ({ 幅: g.幅, 厚み: g.バーの厚み })));
+		assert(got.every((g) => g.霞み === 'none/none'),
+			'段12(バッジ' + バッジ + '): 端に霞み（マスク・背景グラデーション）を付けていない', got.map((g) => g.霞み));
+		assert(got.every((g) => g.子の顔ぶれ.length === 1 && g.子の顔ぶれ[0] === 'BUTTON' && g.ボタン数 === 5),
+			'段12(バッジ' + バッジ + '): 並びの中身は入口のボタン5つだけ（矢印や「端へ移動」を足していない）',
+			got.map((g) => ({ 幅: g.幅, 子: g.子の顔ぶれ, 数: g.ボタン数 })));
+	}
+
+	// (6) 実際に末尾まで送れる（送った先に最後の入口がある）
+	await page.setViewportSize({ width: 375, height: 812 });
+	await page.waitForTimeout(350);
+	const 送った = await page.evaluate((s) => {
+		const row = document.querySelector(s);
+		const last = row.querySelector('button:last-child');
+		row.scrollLeft = row.scrollWidth;
+		const rect = row.getBoundingClientRect();
+		const r = last.getBoundingClientRect();
+		return {
+			末尾まで行けた: Math.round(row.scrollLeft + row.clientWidth) >= row.scrollWidth - 1,
+			最後のボタンが丸ごと見える: r.left >= rect.left - 0.5 && r.right <= rect.right + 0.5,
+			ラベル: last.textContent.trim(),
+		};
+	}, SEL);
+	assert(送った.末尾まで行けた && 送った.最後のボタンが丸ごと見える,
+		'段12: 横に送ると末尾まで行けて、最後の入口が丸ごと見える', 送った);
+
+	// (7) 並び順は変えていない（使用頻度の高いものが先頭）
+	const 並び = await page.evaluate((s) =>
+		[...document.querySelectorAll(s + ' button')].map((b) => b.dataset.usdAct), SEL);
+	assert(並び.join(',') === 'editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot,editor-pick-custom',
+		'段12: 入口の並び順は変えていない', 並び);
+
+	assert(errors.length === 0, '段12: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+
+/* --- Deck の比較シート編集の入口（uma-skill-deck.html が自前で持っている並び） ---
+   **core の .usd-entry-row を通らない**ので、core 側だけ直すと画面の中で振る舞いが割れる
+   （71セッション目・段6 で文言のときに実際に踏んだ）。同じ形になっていることを見る。 */
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
+	await page.waitForTimeout(400);
+	await page.click('#tab-btn-record');
+	await page.waitForTimeout(400);
+	await page.evaluate((id) => openRecordEditor(id), RECORD_ID);
+	await page.waitForTimeout(800);
+
+	const SEL = '#record-editor-view .usd-entry-row';
+	assert(await page.evaluate((s) => !!document.querySelector(s), SEL),
+		'段12(deck): 比較シート編集の入口にも .usd-entry-row が当たっている（core 側だけ直していない）');
+
+	const got = [];
+	for (const [w, h] of [[1280, 900], [375, 812]]) {
+		await page.setViewportSize({ width: w, height: h });
+		await page.waitForTimeout(350);
+		got.push({ 幅: w, ...(await page.evaluate((s) => {
+			const row = document.querySelector(s);
+			const btns = [...row.querySelectorAll('button')];
+			const rect = row.getBoundingClientRect();
+			const cs = getComputedStyle(row);
+			return {
+				段数: new Set(btns.map((b) => Math.round(b.offsetTop))).size,
+				収まっている: row.scrollWidth <= row.clientWidth + 1,
+				あふれ: Math.round(row.scrollWidth - row.clientWidth),
+				端で切れている: btns.filter((b) => {
+					const r = b.getBoundingClientRect();
+					return r.left < rect.right - 0.5 && r.right > rect.right + 0.5;
+				}).length,
+				折り返し: cs.flexWrap,
+				バーの厚み: row.offsetHeight - row.clientHeight,
+				下の余白: cs.marginBottom,
+			};
+		}, SEL)) });
+	}
+	assert(got.every((g) => g.段数 === 1 && g.折り返し === 'nowrap' && g.バーの厚み === 0),
+		'段12(deck): 比較シート編集の入口も1段・折り返さない・スクロールバーを出さない', got);
+	assert(got.some((g) => g.収まっている) && got.some((g) => !g.収まっている),
+		'段12(deck): 収まる幅と収まらない幅が両方ある（空振り防止）', got.map((g) => ({ 幅: g.幅, 収まっている: g.収まっている })));
+	assert(got.filter((g) => !g.収まっている).every((g) => g.あふれ > 0 && g.端で切れている >= 1),
+		'段12(deck): 収まらない幅では横に送れて、端でボタンが切れて見える', got);
+	/* **下の余白は元のまま（8px）。** core の既定（12px）をそのまま当てると、
+	   この画面だけ余白が広がってしまうので `--inline` で戻している。 */
+	assert(got.every((g) => g.下の余白 === '8px'),
+		'段12(deck): 下の余白は元の 8px のまま（--inline が効いている）', got.map((g) => g.下の余白));
+
+	assert(errors.length === 0, '段12(deck): コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
 });
