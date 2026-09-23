@@ -9422,17 +9422,17 @@ await block('段10（⑦）― 「条件で検索」のチェックを、モー�
 });
 
 /* ============================================================
- * 段11（⑨⑩）― A の地色と枠 ／ 入口の並びの開閉（72セッション目）
+ * 段11（⑨）― A の地色と枠 ／ 入口の並びが常に見えている（72→73セッション目）
  *
  * ⑨ 「スキルセット」の枠を**わずかなグレーの面**に変え、**枠線を無くした**。
  *    出っ張り（札）も同じ色にして、線ではなく**色の一致**で一体に見せる。
- * ⑩ 入口の並び（条件で検索〜リセット）を**まとめて畳めるように**した。
- *    既定は開く。開閉は `entryRowOpen`（モジュールの変数＝ページを開いている間だけ。
- *    段10 の `pickerFilters` と同じ寿命）。
+ * ⑩（廃止）入口の並びを畳む見出し「スキルの追加」は、**73セッション目に外した**。
+ *    入れた理由（375px で3段・130px を占める）が、並びを横に送る形にして1段（30px）に
+ *    収めたことで消えたため。**いまは入口が常に見えている**ことを見る。
  *
  * **このページだけを開く独立した塊にしてある**（途中で reload するため）。
  * ============================================================ */
-await block('段11（⑨⑩）― A の地色と枠 ／ 入口の並びの開閉（72セッション目）', async () => {
+await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見えている（72→73セッション目）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
@@ -9518,71 +9518,55 @@ await block('段11（⑨⑩）― A の地色と枠 ／ 入口の並びの開閉
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await page.waitForTimeout(400);
 
-	/* ---- ⑩ 入口の開閉 ---- */
+	/* ---- ⑩（廃止）入口の並びは常に見えている ----
+	   **73セッション目に、畳む見出し「スキルの追加」を外した。**
+	   入れた理由（375px で3段・130px）が、横に送る形にして1段（30px）に収めたことで消えたため。
+	   **「開く操作をしなくても最初から5つある」**ことを見る。 */
 	const entryState = () => page.evaluate(() => {
 		const p = document.getElementById('deck-template-panel');
-		const btn = p.querySelector('[data-usd-el="entry-toggle"]');
 		const row = p.querySelector('.usd-entry-row');
-		const caret = btn.querySelector('.uma-section-caret');
 		return {
-			label: btn.textContent.trim(),
-			expanded: btn.getAttribute('aria-expanded'),
 			見えている: row.offsetParent !== null,
 			高さ: Math.round(row.getBoundingClientRect().height),
-			印の向き: caret ? getComputedStyle(caret).transform : null,
 			ボタン数: row.querySelectorAll('button').length,
+			// 畳む仕掛けの名残が1つも残っていないこと
+			畳む見出し: !!p.querySelector('[data-usd-el="entry-toggle"]'),
+			畳む入れ物: !!p.querySelector('[data-usd-el="entry-body"]'),
+			見出しの文字: /スキルの追加/.test(p.textContent),
+			向きの印: !!p.querySelector('.usd-entry-row .uma-section-caret'),
 		};
 	});
 	const e0 = await entryState();
-	/* **73セッション目に「6つ」→「5つ」へ直した。** 段9 で「緑スキル」を足したときに数え直さず
-	   6 と書いたままだった（判定が `> 1` だったので落ちずに残った）。**数そのものを見る形にした**ので、
-	   入口が1つ減っても気づける。 */
-	assert(e0.expanded === 'true' && e0.見えている && e0.高さ > 0 && e0.ボタン数 === 5,
-		'段11(⑩): 入口の並びは既定で開いていて、5つの入口が見えている', e0);
-	assert(e0.label === 'スキルの追加',
-		'段11(⑩): 畳む見出しは「スキルの追加」（73セッション目にリセットが外へ出たため）', e0.label);
+	/* **数そのものを見る**（73セッション目に「6つ」→「5つ」へ直した。段9 で「緑スキル」を
+	   足したときに数え直さず 6 と書いたままで、判定が `> 1` だったので落ちずに残っていた）。 */
+	assert(e0.見えている && e0.高さ > 0 && e0.ボタン数 === 5,
+		'段11(⑩): 入口の並びは、開く操作をしなくても最初から5つ見えている', e0);
+	assert(!e0.畳む見出し && !e0.畳む入れ物 && !e0.見出しの文字 && !e0.向きの印,
+		'段11(⑩): 畳む見出し「スキルの追加」と開閉の仕掛けは残っていない', e0);
 
-	await page.click('#deck-template-panel [data-usd-el="entry-toggle"]');
-	await page.waitForTimeout(400);
-	const e1 = await entryState();
-	assert(e1.expanded === 'false' && !e1.見えている && e1.高さ === 0,
-		'段11(⑩): 押すと入口の並びごと畳める', e1);
-	assert(e1.印の向き !== e0.印の向き && e1.印の向き !== 'none',
-		'段11(⑩): 開いているときと閉じているときで、向きの印が変わる', { 開: e0.印の向き, 閉: e1.印の向き });
-
-	/* **畳んだ状態は描き直しをまたいで残る。** 別のセットのタブへ移って戻る
-	   （`render()` が走る）あいだも閉じたまま。 */
+	/* **描き直しをまたいでも消えない。** 別のセットのタブへ移って戻る（`render()` が走る）。 */
 	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
 	await page.waitForTimeout(400);
 	const e2 = await entryState();
 	await page.click('#deck-template-panel .uma-subtab[data-tab-id="__draft__"]');
 	await page.waitForTimeout(400);
 	const e3 = await entryState();
-	assert(e2.expanded === 'false' && !e2.見えている && e3.expanded === 'false' && !e3.見えている,
-		'段11(⑩): 因子セットを切り替えても畳んだままでいる', { 移った先: e2, 戻った: e3 });
+	assert(e2.見えている && e2.ボタン数 === 5 && e3.見えている && e3.ボタン数 === 5,
+		'段11(⑩): 因子セットを切り替えても入口は見えたまま', { 移った先: e2, 戻った: e3 });
 
-	await page.click('#deck-template-panel [data-usd-el="entry-toggle"]');
-	await page.waitForTimeout(400);
-	const e4 = await entryState();
-	assert(e4.expanded === 'true' && e4.見えている && e4.高さ === e0.高さ,
-		'段11(⑩): もう一度押すと元どおり開く（高さも畳む前と同じ）', { 前: e0.高さ, 後: e4.高さ });
-
-	/* **寿命は段10 と揃える** ―― 畳んだままリロードすると、開いた状態に戻る。
-	   `localStorage` に保存先を増やしていないことも見る。 */
+	/* **開き直しても同じ。** 状態を持たなくなったので、リロードで変わるものが無い。
+	   `localStorage` に保存先を増やしていないことも、そのまま見張り続ける。 */
 	const keysBefore = await page.evaluate(() => Object.keys(localStorage).sort().join(','));
-	await page.click('#deck-template-panel [data-usd-el="entry-toggle"]');
-	await page.waitForTimeout(400);
-	assert((await entryState()).expanded === 'false', '段11(⑩): リロードの前は畳んである');
 	await page.reload({ waitUntil: 'domcontentloaded' });
 	await page.waitForTimeout(2500);
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
 	await page.waitForTimeout(400);
 	const e5 = await entryState();
 	const keysAfter = await page.evaluate(() => Object.keys(localStorage).sort().join(','));
-	assert(e5.expanded === 'true' && e5.見えている,
-		'段11(⑩): リロードすると開いた状態に戻る（寿命はページ内だけ＝段10 と同じ）', e5);
+	assert(e5.見えている && e5.ボタン数 === 5 && e5.高さ === e0.高さ,
+		'段11(⑩): リロードしても入口は最初から5つ見えていて、高さも同じ', { 前: e0, 後: e5 });
 	assert(keysAfter === keysBefore,
-		'段11(⑩): 開閉のために localStorage のキーを増やしていない', { 前: keysBefore, 後: keysAfter });
+		'段11(⑩): 入口の並びのために localStorage のキーを増やしていない', { 前: keysBefore, 後: keysAfter });
 
 	assert(errors.length === 0, '段11: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();

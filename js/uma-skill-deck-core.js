@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-23c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-23d';
 
 	/* ============================================================
 	 * 定数
@@ -2443,7 +2443,6 @@
 	 * 次に開いたときまで覚えている必要は無い。**`localStorage` は使わない。**
 	 * **`createTemplateManager` の外に置く**のは、描き直し（`render()`）で作り直されないため。
 	 */
-	let entryRowOpen = true;
 	// 一括貼り付けの照合結果。各行に chosenId（採用したスキルID）を後から書き込む。
 	let pasteRows = [];
 	// 貼り付け／画像から読み取る の報告に対する呼び出し元からの口（31セッション目）。
@@ -4623,33 +4622,15 @@
 						'</div>'
 					: '') +
 					'<div class="uma-section-body">' +
-					/* 入口の並び（72セッション目・段11 ⑩ で畳めるようにした）。
+					/* 入口の並び。**常に見えている。**
 					 *
-					 * **以前は「スキルを追加」1つだけを出し、中の畳んだ見出しで3つに分かれていた。**
-					 * それだと「テキストで検索」も「未収録スキルを追加」も、開いてみるまで在ることが
-					 * 分からなかったので、**6つを並べて常時見せる**形にしてあった。
-					 * 段9 で入口が6つになり、**375px では3段**（行の高さ 130px）を占めるようになったので、
-					 * **まとめて畳めるように**した。**畳めるのは並び全体で、中の6つは畳んでも分かれない**
-					 * ―― 昔の作りへ戻すのではなく、「全部見せる」と「全部しまう」の2択にしてある。
-					 *
-					 * **既定は開く。** 閉じて始めると、初めて開いた人には
-					 * 「スキルを足す手段が1つも見えない画面」になる。
-					 * **開閉は覚える**（`entryRowOpen`。モジュールの変数＝ページを開いている間だけ。
-					 * 段10 の `pickerFilters` と同じ寿命）。畳むのは「もう足し終えて追加済みを眺めたい」
-					 * ときなので、その間ずっと畳んだままでいてほしい。
-					 *
-					 * 畳む仕掛けは共通部品の `.uma-section`（`css/common.css`）をそのまま使う
-					 * ―― あちらのコメントの「畳む必要が出たら <button> にして、開閉の向きを示す印を足す」が
-					 * これ。印は `.uma-section-caret`（向きだけ common.css が受け持つ）。 */
-					'<div class="uma-section usd-entry-section">' +
-						'<button type="button" class="uma-section-head" data-usd-act="entry-toggle" data-usd-el="entry-toggle"' +
-							' aria-expanded="' + entryRowOpen + '">' +
-							'<i data-lucide="chevron-down" class="w-3.5 h-3.5 uma-section-caret"></i>' +
-							// 73セッション目に「スキルの追加・リセット」から。リセットが外へ出て、
-							// 中身がスキルを足す入口だけになったため。
-							'スキルの追加' +
-						'</button>' +
-						'<div class="uma-section-body" data-usd-el="entry-body"' + (entryRowOpen ? '' : ' hidden') + '>' +
+					 * **「スキルの追加」の畳む見出しは 73セッション目に外した**（段11 ⑩ で入れたもの）。
+					 * 入れた理由は「段9 で入口が増え、375px で3段・行の高さ 130px を占めた」こと。
+					 * その後、**並びを折り返さず横に送る形にして1段（30px）に収めた**ので、
+					 * 畳む理由が無くなった。**畳めること自体が、入口を一時的に隠せてしまう**ので、
+					 * 理由が無いなら置かないほうがよい（初めて開いた人に「足す手段が見えない画面」を
+					 * 作り得る）。開閉の状態（`entryRowOpen`）も一緒に取り除いた ――
+					 * **保存先は持っていなかった**ので、残る値の後始末は要らない。 */
 					'<div class="usd-entry-row">' +
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
 							'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件で検索' +
@@ -4690,9 +4671,7 @@
 						   C-3 では「消す範囲が位置から分かる」ようにA の中へ置いていたが、
 						   **消す範囲が B・C（シナリオ因子・遺伝子）まで広がった**ので、
 						   A の中に居ると逆に範囲が狭く読める。**名前の行＝セットそのものを扱う行**が正しい場所。 */
-					'</div>' +
-						'</div>' +   // .uma-section-body（入口の並びの中身。畳むのはここ）
-					'</div>' +       // .usd-entry-section
+					'</div>' +       // .usd-entry-row
 					// 分類の切り替え（超優先／優先／通常。C-57 の (7)）。追加の入口はいま選んでいる分類に足す
 					'<div class="usd-tier-row" data-usd-el="tier-row"></div>' +
 					'<div class="usd-mode-row">' +
@@ -4720,7 +4699,6 @@
 			else if (act === 'template-duplicate') duplicateTemplate(currentTemplateId());
 			else if (act === 'template-delete') deleteTemplate(currentTemplateId());
 			else if (act === 'editor-pick') openEditorPicker('filter');
-			else if (act === 'entry-toggle') setEntryRowOpen(!entryRowOpen);
 			else if (act === 'editor-pick-passive') openEditorPicker('passive');
 			else if (act === 'editor-pick-text') openEditorPicker('paste');
 			else if (act === 'editor-pick-custom') openEditorPicker('custom');
@@ -4933,19 +4911,6 @@
 				'<p class="usd-roster-h usd-roster-h--top">' + esc(setLabel) + '（<span data-usd-el="count-badge">' + list.length + '</span>／' + TEMPLATE_LIMIT + '件）</p>' +
 				tabStripHtml(items, { act: 'template-tab', ariaLabel: setLabel, el: 'tabs' });
 			revealSelectedTab(container);
-		}
-
-		/* 入口の並びの開閉（72セッション目・段11 ⑩）。
-		   **`entryRowOpen` が正**で、DOM はその写し。`render()` は HTML を作り直さない
-		   （入口の並びは一度きりの組み立て）ので、ここで属性を付け替える。 */
-		function setEntryRowOpen(open) {
-			entryRowOpen = !!open;
-			const btn = q(container, 'entry-toggle');
-			const body = q(container, 'entry-body');
-			if (btn) btn.setAttribute('aria-expanded', String(entryRowOpen));
-			if (body) body.hidden = !entryRowOpen;
-			// 畳んでいる間は測れない（幅が 0）。開いたところで測り直す
-			if (entryRowOpen) scanEntryRows();
 		}
 
 		function renderNameRow() {
