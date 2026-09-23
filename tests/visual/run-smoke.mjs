@@ -1,6 +1,9 @@
 // 外観を変えたあと、操作が壊れていないかを確認する機能スモークテスト。
 //
-//   npm run test:visual
+//   npm run test:visual                       … 41塊すべて（commit の前はこれ）
+//   npm run test:visual -- --list             … 番号と見出しの一覧だけを出す
+//   npm run test:visual -- --only=段11        … 見出しに「段11」を含む塊だけ
+//   npm run test:visual -- --only=6,段11      … 番号と見出しを混ぜてよい（カンマ区切り。--only を並べてもよい）
 //
 // 特に「JSがクラスを付け外しする箇所」「hidden の付け外し」を通す。
 // 見た目の統一作業で最も壊れやすいのがここで、目視では気付きにくい。
@@ -18,12 +21,59 @@ function assert(cond, label, extra) {
 	console.log((cond ? '[OK] ' : '[NG] ') + label + (extra !== undefined ? '  ' + JSON.stringify(extra) : ''));
 }
 
+/* ------------------------------------------------------------
+ * 塊（見出しごとのまとまり）の回し方
+ *
+ * **塊は互いに何も引き継がない。** モジュール直下にあるのは fails / assert / base,close /
+ * browser だけで、各塊が自前で openPage して ctx.close() する。だからどれを選んでも単独で成り立つ。
+ *
+ * ■ --only（73セッション目）
+ *   実装中と破壊確認では、触っている塊だけを回す。全部で9分かかるものが10〜30秒で済む。
+ *   **部分実行のときは最後の行に「N塊中M塊のみ」を必ず出す**（「全項目OK」だけを見て
+ *   全部通ったと誤解しないため）。**--only に当たる塊が1つも無いときは NG にして止める**
+ *   （0塊で「全項目OK」と出ると、綴りを間違えただけで通ったことになってしまう）。
+ *
+ * ■ try/catch（73セッション目）
+ *   **投げてもその塊だけを [NG] にして次へ進む。** ここで握らないと、例外で全体が止まり
+ *   [NG] が1件も出ないまま終わるので、破壊確認のときに「壊したのに素通りした」のか
+ *   「途中で死んだ」のかが区別できない。実際に「入口を既定で閉じる」に壊したときが
+ *   これで、1番目の塊のクリックが30秒待って投げ、39番目にある本命の項目まで届かなかった。
+ * ------------------------------------------------------------ */
+const ARGV = process.argv.slice(2);
+const LIST_ONLY = ARGV.includes('--list');
+const ONLY = ARGV.filter((a) => a.startsWith('--only='))
+	.flatMap((a) => a.slice('--only='.length).split(','))
+	.map((s) => s.trim())
+	.filter(Boolean);
+
+let blockCount = 0;
+let ranCount = 0;
+const listed = [];
+
+/** 見出しごとのまとまりを1つ回す。番号でも見出しの部分一致でも選べる。 */
+async function block(title, fn) {
+	blockCount++;
+	const no = blockCount;
+	if (LIST_ONLY) { listed.push(no + '\t' + title); return; }
+	if (ONLY.length > 0 && !ONLY.some((t) => t === String(no) || title.includes(t))) return;
+	ranCount++;
+	try {
+		await fn();
+	} catch (e) {
+		fails++;
+		console.log('[NG] ' + title + ': 例外で止まった  ' + String((e && e.message) || e).split('\n')[0]);
+	}
+}
+
+if (ONLY.length > 0) console.log('--only=' + ONLY.join(',') + ' に当たる塊だけを回す\n');
+
 const { base, close } = await startServer();
 const browser = await chromium.launch();
 
 /* ============================================================
  * special.html（UmaStar OCR）
  * ============================================================ */
+await block('special.html（UmaStar OCR）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 
@@ -868,6 +918,7 @@ const browser = await chromium.launch();
 	assert(errors.length === 0, 'special: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * special.html — 「画像から読み取る」の口（openSkillRowsPicker。スキルセットOCR フェーズa コミット3）
@@ -876,6 +927,7 @@ const browser = await chromium.launch();
  * （候補チップ・取り消し・確定）が動くことを見る。入口のボタンはコミット4なので、ここでは口を直接呼ぶ。
  * 行の形は matchPastedSkillText() と同じ。autoAccepted:true の review 行は最初から選択に入る（決定 B-2）。
  * ============================================================ */
+await block('special.html — 「画像から読み取る」の口（openSkillRowsPicker。スキルセットOCR フェーズa コミット3）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	await page.waitForTimeout(2500);
@@ -1081,6 +1133,7 @@ const browser = await chromium.launch();
 	assert(errors.length === 0, 'special/ocr口: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * special.html — ステップ①の入口「スキルセット画面のスクショから読み取る」（スキルセットOCR フェーズa コミット4）
@@ -1089,6 +1142,7 @@ const browser = await chromium.launch();
  * showSkillsetScreenshotResult に直接渡し、押す → ピッカーが ocr モードで開く → 追加が対象スキルセット（ドラフト）に入る
  * → 「元に戻す」で戻る、を見る。文面は Chat が確定したもの（HANDOFF C-24「確定した文面4件」）と一字一句同じであること。
  * ============================================================ */
+await block('special.html — ステップ①の入口「スキルセット画面のスクショから読み取る」（スキルセットOCR フェーズa コミット4）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	await page.waitForTimeout(2500);
@@ -1528,6 +1582,7 @@ const browser = await chromium.launch();
 	assert(errors.length === 0, 'special/ocr入口: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * special.html — 既定は新UI／切り替えの告知モーダル
@@ -1536,6 +1591,7 @@ const browser = await chromium.launch();
  * まっさらな文脈を使って通しで見る。閉じ方が4通りあり、どれで閉じても既読に
  * なることが仕様の肝なので、そこは文脈を分けて1通りずつ確かめる。
  * ============================================================ */
+await block('special.html — 既定は新UI／切り替えの告知モーダル', async () => {
 {
 	// 画面の状態をまとめて読む。どのUIで開いたかは①の見出しで判る。
 	const uiState = (page) => page.evaluate(() => ({
@@ -1654,6 +1710,7 @@ const browser = await chromium.launch();
 		await ctx.close();
 	}
 }
+});
 
 /* ============================================================
  * exam.html（UmaExam OCR）— 最小ブロック
@@ -1662,6 +1719,7 @@ const browser = await chromium.launch();
  * ところに受け皿を作った。読み込める・コンソールエラー0・375px で横スクロール無し、
  * に加えて「組み込み133種が登録されて見えている」ことだけを見る。
  * ============================================================ */
+await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
 
@@ -2850,10 +2908,12 @@ const browser = await chromium.launch();
 	assert(errors.length === 0, 'exam: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * uma-skill-deck.html（UmaSkill Deck）
  * ============================================================ */
+await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
 
@@ -4249,6 +4309,7 @@ const browser = await chromium.launch();
 	assert(errors.length === 0, 'deck: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * exam.html — 既定は新UI／切り替えの告知モーダル／旧UIとの往復
@@ -4258,6 +4319,7 @@ const browser = await chromium.launch();
  * 置き場の間を移る。「どちらのUIで開くか」と「既読か」が localStorage に残るので、
  * まっさらな文脈を使って通しで見る。閉じ方4通りは文脈を分けて1通りずつ確かめる。
  * ============================================================ */
+await block('exam.html — 既定は新UI／切り替えの告知モーダル／旧UIとの往復', async () => {
 {
 	const uiState = (page) => page.evaluate(() => ({
 		notice: !document.getElementById('ui-notice').hidden,
@@ -4499,6 +4561,7 @@ const browser = await chromium.launch();
 		await ctx.close();
 	}
 }
+});
 
 /* ============================================================
  * exam.html — 最後に使ったステップのタブを覚える
@@ -4507,6 +4570,7 @@ const browser = await chromium.launch();
  * 操作するので、次に開いたときは最後のタブから始める。
  * 保存が残るかどうかを見るので、まっさらな文脈を使う。
  * ============================================================ */
+await block('exam.html — 最後に使ったステップのタブを覚える', async () => {
 {
 	const tabState = (page) => page.evaluate(() => ({
 		tab1: document.getElementById('step-tab-1').getAttribute('aria-selected'),
@@ -4546,6 +4610,7 @@ const browser = await chromium.launch();
 		await ctx.close();
 	}
 }
+});
 
 /* ============================================================
  * uma-skill-deck.html — OCR受け取り口（2ソース: special / exam）
@@ -4556,6 +4621,7 @@ const browser = await chromium.launch();
  * createdAt が新しい方が先に出て、読み込む／閉じるともう一方が続けて出る。
  * special からの受け渡しそのものは special のブロックで見ている。
  * ============================================================ */
+await block('uma-skill-deck.html — OCR受け取り口（2ソース: special / exam）', async () => {
 {
 	const KEY_SPECIAL = 'umaSkillDeck:ocrHandoff:special';
 	const KEY_EXAM = 'umaSkillDeck:ocrHandoff:exam';
@@ -4707,10 +4773,12 @@ const browser = await chromium.launch();
 		await ctx.close();
 	}
 }
+});
 
 /* ============================================================
  * 失敗時の案内（版ずれ・CDN遮断）が実際に出るか
  * ============================================================ */
+await block('失敗時の案内（版ずれ・CDN遮断）が実際に出るか', async () => {
 {
 	// 1) 共通CSSの版がずれている場合（3ファイルのうち shell.css だけが古い、という取り残しも捕まえる）
 	const ctx = await browser.newContext();
@@ -4745,6 +4813,7 @@ const browser = await chromium.launch();
 	assert(hiddenWorks === true, 'CDN遮断時も hidden の保険が効いている', hiddenWorks);
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * 画質の警告帯の文面（common.js の buildImageQualityNotice）
@@ -4754,6 +4823,7 @@ const browser = await chromium.launch();
  * 文面そのものが利用者への対処方法（ウィンドウを大きくする）を運んでいるので、
  * 崩れても例外が出ず気付けない。ここで本文の作られ方を直接押さえる。
  * ============================================================ */
+await block('画質の警告帯の文面（common.js の buildImageQualityNotice）', async () => {
 {
 	const ctx = await browser.newContext();
 	const page = await ctx.newPage();
@@ -4809,6 +4879,7 @@ const browser = await chromium.launch();
 
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * 画像結合の中止文（js/stitch.js の stitchBuildAbortNotice / stitchClassifyScreenshotMismatch）
@@ -4819,6 +4890,7 @@ const browser = await chromium.launch();
  * どうすれば直るかも書いていなかった（2026-09-13・25セッション目に分岐させた）。
  * 文面そのものが対処方法を運んでいて、崩れても例外が出ないので、ここで直接押さえる。
  * ============================================================ */
+await block('画像結合の中止文（js/stitch.js の stitchBuildAbortNotice / stitchClassifyScreenshotMismatch）', async () => {
 {
 	const ctx = await browser.newContext();
 	const page = await ctx.newPage();
@@ -4927,6 +4999,7 @@ const browser = await chromium.launch();
 
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * 画像結合の結末の伝え方（special.html）
@@ -4937,6 +5010,7 @@ const browser = await chromium.launch();
  * 成功・全滅・一部成功で出し分けるようにした（2026-09-13・25セッション目）。
  * 引き出しはどの結末でも開く（中止の理由を読めるように）が、未読の印は成功したときだけ。
  * ============================================================ */
+await block('画像結合の結末の伝え方（special.html）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	await page.waitForTimeout(1500);
@@ -5010,6 +5084,7 @@ const browser = await chromium.launch();
 	assert(unexpected.length === 0, 'special 結合の結末: 想定外のコンソールエラーが出ない', unexpected);
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * 「元に戻す」の契約（special.html のドラフト／uma-skill-deck.html の各操作）
@@ -5019,6 +5094,7 @@ const browser = await chromium.launch();
  * ここでは Undo 対象の各操作について「実行 → 元に戻す → 実行前と一致」の往復と永続化、
  * そして「戻せなかったときに成功を名乗らない・スタックを減らさない」ことを見る。
  * ============================================================ */
+await block('「元に戻す」の契約（special.html のドラフト／uma-skill-deck.html の各操作）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	await page.waitForTimeout(2500);
@@ -5512,6 +5588,7 @@ const browser = await chromium.launch();
 		.filter((p) => fs.readFileSync(path.join(REPO_ROOT, p), 'utf8').includes('元に戻しました：'));
 	assert(leftover.length === 0, 'undo: 「元に戻しました：」という接頭辞がソースに残っていない', leftover);
 }
+});
 
 /* ============================================================
  * 結合画像を保存するときのファイル名（special / exam 共通・js/stitch.js）
@@ -5520,6 +5597,7 @@ const browser = await chromium.launch();
  * 組み立てそのもの（純粋な関数）と、実際の保存リンクに付く名前の両方を見る。
  * 通し番号は全ツール共通の1キー（uma-shared-save-seq）で、指定名称はツールごと。
  * ============================================================ */
+await block('結合画像を保存するときのファイル名（special / exam 共通・js/stitch.js）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
@@ -5742,6 +5820,7 @@ const browser = await chromium.launch();
 	assert(errors.length === 0, 'ファイル名(exam): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * exam.html — 「結合画像の表示」（集計バナー／印／凡例／集計条件）の設定パネルと合成の分岐
@@ -5752,6 +5831,7 @@ const browser = await chromium.launch();
  *   3. 模式図の帯がチェックに追従する（印 OFF なら凡例の帯も消える／両方 OFF なら区切り線ごと消える）
  *   4. 合成の分岐: 列見出しだけの帯 / 補足欄の行の出し分け（OCR は回さず、描画関数を直接呼ぶ）
  * ============================================================ */
+await block('exam.html — 「結合画像の表示」（集計バナー／印／凡例／集計条件）の設定パネルと合成の分岐', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
 	await page.waitForTimeout(800);
@@ -6113,6 +6193,7 @@ const browser = await chromium.launch();
 	assert(errors.length === 0, '結合画像の表示: コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * exam.html — 結果画像の引き出しからの「画像を更新」（③）: 状態の判定
@@ -6123,6 +6204,7 @@ const browser = await chromium.launch();
  *   stale（画像の足し引き・範囲・シナリオ因子・集計モード・親Bセットの開閉・OCR だけ回した）→ 戻せば same
  * と、refreshStitchedImages() が OCR を回さずに作り直し、未読の印を立てないこと。
  * ============================================================ */
+await block('exam.html — 結果画像の引き出しからの「画像を更新」（③）: 状態の判定', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
 	await page.waitForTimeout(800);
@@ -6256,6 +6338,7 @@ const browser = await chromium.launch();
 	assert(errors.length === 0, '画像を更新: コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * exam.html — 結果画像の引き出しの「表示を変更」（③）: 引き出しのUI
@@ -6265,6 +6348,7 @@ const browser = await chromium.launch();
  *   「画像を更新」は表示設定が違うときだけ押せ、作り直せないときは案内が出る／
  *   375px で崩れず横スクロールが出ない／旧UIには出ない
  * ============================================================ */
+await block('exam.html — 結果画像の引き出しの「表示を変更」（③）: 引き出しのUI', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
 	await page.waitForTimeout(800);
@@ -6346,18 +6430,44 @@ const browser = await chromium.launch();
 	// 丸ボタンだけが見え、パネルは押すまで見えない。押すと丸ボタンの真上に開き、✕にフォーカスが移る
 	assert(await page.isVisible('#stitch-drawer-fab') && !(await page.isVisible('#stitch-drawer-pop')) && !(await page.isVisible('#stitch-refresh-btn')),
 		'表示を変更: 結合画像ができると引き出しの右下に丸ボタンが出る（パネルは閉じている）');
-	// 本文をスクロールしても丸ボタンの画面上の位置は変わらない
+	/* 本文をスクロールしても丸ボタンの画面上の位置は変わらない
+	 *
+	 * **73セッション目に3か所を直した。** この項目は72セッション目に**1回だけ落ちて、同条件の
+	 * 再実行で通った**（以後は再発せず）。原因は特定できなかったが、**落ち方のほうを潰した。**
+	 *
+	 * (1) **引き出しからの相対で測る。** 以前は画面上の絶対座標どうしを比べていた。丸ボタンは
+	 *     引き出し（position:fixed）の中の position:absolute なので、**引き出しごと動けば
+	 *     スクロールと関係なく絶対座標が変わる**（画面の縦スクロールバーが出入りすれば
+	 *     right:0 の引き出しは横にずれる）。相対なら引き出しが動いても影響を受けない。
+	 * (2) **実際にスクロールできたことを判定に入れる。** 以前は scrolled を戻り値に入れるだけで
+	 *     見ていなかったので、**本文がまだ伸びておらず scrollTop が 0 のままでも通っていた**
+	 *     ＝何も確かめないまま [OK] が出る穴があった。
+	 * (3) **結合画像が入って本文が伸びきるのを待ってから測る**（(2) を空振りさせないため）。 */
+	await page.waitForFunction(() => {
+		const body = document.querySelector('#result-drawer .uma-drawer-body');
+		if (!body) return false;
+		if ([...body.querySelectorAll('img')].some((i) => !i.complete)) return false;
+		return body.scrollHeight > body.clientHeight + 200;
+	});
 	const pinned = await page.evaluate(async () => {
 		const body = document.querySelector('#result-drawer .uma-drawer-body');
-		const before = document.getElementById('stitch-drawer-fab').getBoundingClientRect();
+		const drawer = document.getElementById('result-drawer');
+		// 引き出しの左上を原点にした丸ボタンの位置
+		const rel = () => {
+			const f = document.getElementById('stitch-drawer-fab').getBoundingClientRect();
+			const d = drawer.getBoundingClientRect();
+			return { top: f.top - d.top, left: f.left - d.left };
+		};
+		const before = rel();
 		body.scrollTop = 200;
 		await new Promise((r) => requestAnimationFrame(r));
-		const after = document.getElementById('stitch-drawer-fab').getBoundingClientRect();
+		const after = rel();
 		const scrolled = body.scrollTop;
 		body.scrollTop = 0;
-		return { same: before.top === after.top && before.left === after.left, scrolled };
+		return { same: before.top === after.top && before.left === after.left, scrolled, before, after };
 	});
-	assert(pinned.same, '表示を変更: 引き出しの本文をスクロールしても丸ボタンの位置は変わらない', pinned);
+	assert(pinned.same && pinned.scrolled > 0,
+		'表示を変更: 引き出しの本文をスクロールしても丸ボタンの位置は変わらない（本文が実際にスクロールしたことも見る）', pinned);
 	await page.click('#stitch-drawer-fab');
 	await page.waitForTimeout(300);
 	const opened = await page.evaluate(() => {
@@ -6526,6 +6636,7 @@ const browser = await chromium.launch();
 	assert(errors.length === 0, '表示を変更: コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * exam.html — 右下のボタン群の「結合画像の設定」
@@ -6534,6 +6645,7 @@ const browser = await chromium.launch();
  *   ここで変えた設定は②と引き出しのパネル・保存に映る／✕・暗転・Esc で閉じ、フォーカスはメインボタンへ戻る／
  *   375px では下からのシート（高さは画面の半分まで）で、横スクロールが出ない
  * ============================================================ */
+await block('exam.html — 右下のボタン群の「結合画像の設定」', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
 	await page.waitForTimeout(800);
@@ -6643,6 +6755,7 @@ const browser = await chromium.launch();
 	assert(errors.length === 0, '結合画像の設定: コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * トーストと「結合画像の設定」のパネルの重なり（2026-09-15・43セッション目）
@@ -6651,6 +6764,7 @@ const browser = await chromium.launch();
  * パネルが開いている間だけ、トーストをパネルの上辺より上へ逃がす（--uma-toast-lift）。
  * 閉じたら元の位置へ戻す。あわせて、パネルの見出しが1つだけであることも見る。
  * ============================================================ */
+await block('トーストと「結合画像の設定」のパネルの重なり（2026-09-15・43セッション目）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
 	await page.evaluate(() => { if (typeof closeUiNotice === 'function') closeUiNotice(); });
@@ -6717,6 +6831,7 @@ const browser = await chromium.launch();
 	assert(errors.length === 0, '重なり: コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * 未読の丸（2026-09-15・43セッション目）
@@ -6727,6 +6842,7 @@ const browser = await chromium.launch();
  *   回る動きは付けない。開いたら隠し、閉じたら（未読が残っていれば）出す。
  * ・reduced-motion では脈動しない。
  * ============================================================ */
+await block('未読の丸（2026-09-15・43セッション目）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
 	await page.evaluate(() => { if (typeof closeUiNotice === 'function') closeUiNotice(); });
@@ -6837,6 +6953,7 @@ const browser = await chromium.launch();
 	assert(errors.length === 0, '未読の丸: special でコンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 
 /* ============================================================
@@ -6845,6 +6962,7 @@ const browser = await chromium.launch();
  * 「操作できる部品は黒」の例外。何を数えるのか（＝緑スキル）を色が示すので緑で塗る。
  * 選択中＝緑の地に白い文字（白とのコントラスト 5.36）、未選択＝緑の文字、枠も緑。
  * ============================================================ */
+await block('緑スキルの数え方の切り替え（2026-09-15・43セッション目）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
 	await page.evaluate(() => { if (typeof closeUiNotice === 'function') closeUiNotice(); });
@@ -6880,6 +6998,7 @@ const browser = await chromium.launch();
 	assert(errors.length === 0, '数え方の切り替え: コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 
 /* ============================================================
@@ -6891,6 +7010,7 @@ const browser = await chromium.launch();
  * **段G で印の色を #b02aa8 → #a42fb8 へ微調整し、遺伝子の4本組を新設した。**
  * 遺伝子の♥がシナリオ因子の◆と同じ色に戻っていないことも、ここで見張る。
  * ============================================================ */
+await block('シナリオ因子の色＝紫／遺伝子の色＝赤（2026-09-15・44セッション目。段G で遺伝子を追加）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
 	await page.evaluate(() => {
@@ -7022,6 +7142,7 @@ const browser = await chromium.launch();
 	assert(errors.length === 0, 'シナリオ因子の色: コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 
 /* ============================================================
@@ -7032,6 +7153,7 @@ const browser = await chromium.launch();
  * 人物の区切りが行の途中に入るのを無くすのが目的。
  * 区切りの幅は sm（640px）＝まとまりの中を3枚横並びに、lg（1024px）＝まとまりを2列に。
  * ============================================================ */
+await block('ハイライトの人物ごとのまとまり（2026-09-16・45セッション目）', async () => {
 {
 	// ハイライトを引き出しごと開いて、人物ごとのまとまりを作る
 	// factorsOn … シナリオ因子の総括チェック（ON なら24種すべてが対象）。
@@ -7304,6 +7426,7 @@ const browser = await chromium.launch();
 		await ctx.close();
 	}
 }
+});
 
 
 /* ============================================================
@@ -7312,6 +7435,7 @@ const browser = await chromium.launch();
  * いちばん長いラベルのボタンに、ほかのボタンの幅が揃う（ピクセルでは固定しない）。
  * ラベルは左揃え、アイコンの丸は右端。PC と 375px の両方で見る。
  * ============================================================ */
+await block('右下のボタン群の幅（2026-09-15・43セッション目）', async () => {
 for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], ['special.html', 1280, 900]]) {
 	const { ctx, page, errors } = await openPage(browser, base, file, { width: w, height: h });
 	await page.evaluate(() => { if (typeof closeUiNotice === 'function') closeUiNotice(); });
@@ -7342,6 +7466,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, 'ボタン群の幅: ' + label + ' でコンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * スキルセットの分類（超優先／優先／通常。C-57）
@@ -7351,6 +7476,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  *   - モード（再分類／削除）は同時に ON にならず、× と移動先ボタンはモードのときだけ出る
  *   - Deck の書き出しに tiers が入り、取り込み直しても残る。tiers の無いデータを取り込んでも壊れない
  * ============================================================ */
+await block('スキルセットの分類（超優先／優先／通常。C-57）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
@@ -7484,6 +7610,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, 'tiers(deck): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * ②の B・C ―― シナリオ因子と遺伝子を対象に含める（C-2a）
@@ -7495,6 +7622,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  *   - ON にすると template.scopes が書かれ schemaVersion が 5 に上がる。OFF に戻すと項目ごと消える
  *   - 複製で写り、書き出し・取り込みで残る
  * ============================================================ */
+await block('②の B・C ―― シナリオ因子と遺伝子を対象に含める（C-2a）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
@@ -7687,6 +7815,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, 'C-2a(deck): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 /* **外した検査（C-2c）**: 「『◯◯はスキルではないので、対象スキル数・検出数には含めず、
    別に数えます。』の1文が exam.html と special.html の両方にある」（C-2a で足した）。
    C-2c で**この説明文そのものを両方から消した**ため（冗長という判断。おいもさん）、
@@ -7702,6 +7831,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  *     40種のセットで測る ―― 小さいセットだと組み替えなくても見えてしまう（C-71 の10節）
  *   - 枠を足しても**入口の折り返しとスキルパネルの列数は変わらない**
  * ============================================================ */
+await block('段K ―― ②の画面構成（スキルセット／シナリオ因子／遺伝子を同じ層の選択肢として並べる）', async () => {
 {
 	// 実用的な大きさのセットを2つ作る（A は B・C とも ON、B は scopes を持たない）。
 	// **切り替えるとチェックが外れる**のは C-2a で決めた仕様で、それが見えることを確かめる。
@@ -7796,6 +7926,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 		await ctx.close();
 	}
 }
+});
 
 /* ============================================================
  * 追加済みスキルの一括削除（C-3）
@@ -7805,6 +7936,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  *   - 保存済みの因子セットでも同じように使える
  *   - 「元に戻す」で戻る
  * ============================================================ */
+await block('追加済みスキルの一括削除（C-3）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
@@ -7885,6 +8017,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, 'C-3: special でコンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * 因子を照合の対象に含める（C-2b）
@@ -7895,6 +8028,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  *   - 結果の表では因子の行に◆が付く（分類の◎○▲ とは別）
  *   - コピー用データには因子の行も入る
  * ============================================================ */
+await block('因子を照合の対象に含める（C-2b）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
@@ -8245,6 +8379,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, 'C-2b: ガードの確認でコンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * special と exam の操作感を揃える（59セッション目・C-59 の段0〜段3）
@@ -8256,6 +8391,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  * 段2 … exam に結合の進捗バーが付いた。
  * 段3 … special の結合画像に凡例の帯。骨格は js/stitch.js（exam と共通）。
  * ============================================================ */
+await block('special と exam の操作感を揃える（59セッション目・C-59 の段0〜段3）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
@@ -8377,6 +8513,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, '段0〜3(special): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * special の「OCR処理＋画像結合を開始する（高負荷）」（60セッション目・C-61）
@@ -8392,6 +8529,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  * OCR そのものは回さない（Tesseract の言語データと実画像が要る）。実素材での通しは
  * output/scratch の使い捨てスクリプトで別に確認している。
  * ============================================================ */
+await block('special の「OCR処理＋画像結合を開始する（高負荷）」（60セッション目・C-61）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
@@ -8497,6 +8635,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, 'C-61: コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * C-62（61セッション目）: 棚卸しで挙がった11件
@@ -8511,6 +8650,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  *   (9) 引き出しの中のタブで、照合結果と結合画像を行き来できる
  * (7)(8) は上のブロック（②のパネル・③のボタン）で見ている。
  * ============================================================ */
+await block('C-62（61セッション目）: 棚卸しで挙がった11件', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
@@ -8733,6 +8873,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, 'C-62 (1)〜(6): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * C-62 の (9): 結合画像への導線（引き出しの中のタブ）
@@ -8741,6 +8882,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  * 段5（1引き出し＋タブへ統合）は引き続き見送り中なので、
  * #result-drawer と #stitch-drawer が両方あることも一緒に見ておく。
  * ============================================================ */
+await block('C-62 の (9): 結合画像への導線（引き出しの中のタブ）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
@@ -8821,6 +8963,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, 'C-62 (9): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * C-62 の (11): 改修中の告知
@@ -8830,6 +8973,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  *   - layout を既読の人 … 改修中のほうが1度だけ出る
  *   - 閉じたあと … もう出ない
  * ============================================================ */
+await block('C-62 の (11): 改修中の告知', async () => {
 {
 	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 	// layout の告知だけ既読にして開く＝改修中の告知が出るはずの状態
@@ -8879,10 +9023,12 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, 'C-62 (11): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * C-62 の (11・裏）: 初めて開く人には layout だけ
  * ============================================================ */
+await block('C-62 の (11・裏）: 初めて開く人には layout だけ', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	await page.waitForTimeout(500);
@@ -8999,6 +9145,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, '段1〜2(exam): コンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 
 /* ============================================================
@@ -9011,6 +9158,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  *
  * **版の値は検査に書かない。** 画面から MASTER_JSON_VERSION と masterVersion を読んで突き合わせる。
  * ============================================================ */
+await block('段7【5】収録スキルデータ（マスター）の取り回し（71セッション目）', async () => {
 {
 	const { ctx, page } = await openPage(browser, base, 'uma-skill-deck.html');
 
@@ -9143,6 +9291,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * 段10（⑦）― 「条件で検索」のチェックを、モーダルを閉じても維持する（72セッション目）
@@ -9156,6 +9305,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  * **このページだけを開く独立した塊にしてある。** 途中で `reload()` して
  * 「寿命がページ内だけ」を確かめるので、他の検査の状態を壊さないため。
  * ============================================================ */
+await block('段10（⑦）― 「条件で検索」のチェックを、モーダルを閉じても維持する（72セッション目）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
 	await page.waitForTimeout(1500);
@@ -9266,6 +9416,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, '段10: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * 段11（⑨⑩）― A の地色と枠 ／ 入口の並びの開閉（72セッション目）
@@ -9278,6 +9429,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  *
  * **このページだけを開く独立した塊にしてある**（途中で reload するため）。
  * ============================================================ */
+await block('段11（⑨⑩）― A の地色と枠 ／ 入口の並びの開閉（72セッション目）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
@@ -9429,6 +9581,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, '段11: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * 73セッション目 ― 「リセット」の押せる条件（消すものが1つも無いときだけ押せない）
@@ -9438,6 +9591,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  * ここはドラフト（保存していないセット）で見る ―― C-3 の塊は保存済みのセットを見ているので、
  * **ドラフトと保存済みで動きが分かれていない**ことも一緒に確かめられる。
  * ============================================================ */
+await block('73セッション目 ― 「リセット」の押せる条件（消すものが1つも無いときだけ押せない）', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
@@ -9499,6 +9653,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, '73(リセット): コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 /* ============================================================
  * 73セッション目 ― card-event-input.html の軸のルールの注記
@@ -9510,6 +9665,7 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
  * いまは**どの軸に出すかも、何と書くかも core の印から決める**
  * （`axisHasSpecialRule` / `axisRuleHint`）。**モーダル側とまったく同じ文**になる。
  * ============================================================ */
+await block('73セッション目 ― card-event-input.html の軸のルールの注記', async () => {
 {
 	const { ctx, page, errors } = await openPage(browser, base, 'card-event-input.html');
 	await page.waitForTimeout(1500);
@@ -9562,8 +9718,24 @@ for (const [file, w, h] of [['exam.html', 1280, 900], ['exam.html', 375, 812], [
 	assert(errors.length === 0, '73(card-event): コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
+});
 
 await browser.close();
 await close();
-console.log('\n' + (fails === 0 ? '=== スモークテスト: 全項目OK ===' : '=== スモークテスト: ' + fails + '件 NG ==='));
+
+if (LIST_ONLY) {
+	console.log('塊は ' + blockCount + '個。--only=<番号> か --only=<見出しの一部> で選ぶ（カンマ区切りで複数可）。\n');
+	console.log(listed.join('\n'));
+	process.exit(0);
+}
+// 綴りを間違えて0塊になったときに「全項目OK」と出すと、通ったことになってしまう。
+if (ONLY.length > 0 && ranCount === 0) {
+	console.log('\n=== スモークテスト: --only=' + ONLY.join(',') + ' に当たる塊が1つも無い（--list で見出しを確認する） ===');
+	process.exit(1);
+}
+// **部分実行のときは必ず範囲を出す。**「全項目OK」だけを見て全部通ったと誤解しないため。
+const scope = ranCount === blockCount ? '' : '（' + blockCount + '塊中' + ranCount + '塊のみ）';
+console.log('\n' + (fails === 0
+	? '=== スモークテスト' + scope + ': 全項目OK ==='
+	: '=== スモークテスト' + scope + ': ' + fails + '件 NG ==='));
 process.exit(fails === 0 ? 0 : 1);

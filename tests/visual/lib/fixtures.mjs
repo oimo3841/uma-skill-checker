@@ -86,12 +86,34 @@ export const USER_DATA = {
 export async function openPage(browser, base, file, viewport = { width: 1280, height: 900 }) {
 	const ctx = await browser.newContext({ viewport });
 	const page = await ctx.newPage();
+	// **Playwright の既定は30秒。** 在るはずの要素は5秒あれば必ず揃うので、そこまで待つ意味は無い。
+	// 一方、壊して「在るはずのものが無い」状態を作ったときは、30秒待たれると破壊確認が進まない
+	// （実際に「入口を既定で閉じる」に壊したとき、1番目の塊で30秒待って例外になった）。
+	page.setDefaultTimeout(5000);
+	// ページの読み込みだけは別枠にする（実測で 0.7〜1.3秒だが、ここは待ちを縮める話ではない）。
+	page.setDefaultNavigationTimeout(30000);
 	const errors = [];
 	page.on('pageerror', (e) => errors.push(String(e)));
 	page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 	await page.addInitScript((d) => localStorage.setItem('umaSkillDeck:userData', JSON.stringify(d)), USER_DATA);
 	await page.goto(base + '/' + file, { waitUntil: 'networkidle', timeout: 60000 });
-	await page.waitForTimeout(1500);
+	/* **時間ではなく「整ったこと」で待つ。**（73セッション目）
+	 *
+	 * ここは長く 1.5秒の固定待ちだった。51回開くので**それだけで76.5秒**、スモーク全体の14%。
+	 * 何を待っているのかを実測したところ、**networkidle の時点ですでに整っていた** ――
+	 * `.uma-tw-ready` は 0ms で付いており（Tailwind の生成は読み込みの中で終わっている）、
+	 * **networkidle のあと3秒間、DOM の変化は0回**（4ページ×3回とも）。
+	 * そこで、待つ理由を条件として書き、落ち着くぶんだけを短く取る形にした。
+	 *
+	 * lucide は合図に使えない（生成した <svg> にも data-lucide が残るので、
+	 * 「data-lucide が消える」では永久に待つことになる）。 */
+	await page.waitForFunction(() => {
+		if (document.readyState !== 'complete') return false;
+		// Tailwind を読むページだけ、生成が済んだ印を待つ（card-event-input.html は読まない）
+		const needsTw = !!document.querySelector('script[src*="tailwindcss-browser"]');
+		return !needsTw || document.documentElement.classList.contains('uma-tw-ready');
+	}, null, { timeout: 15000 });
+	await page.waitForTimeout(200);
 	return { ctx, page, errors };
 }
 
