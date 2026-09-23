@@ -9730,14 +9730,17 @@ await block('73セッション目 ― card-event-input.html の軸のルール�
  * 73セッション目 ― 入口の並びを狭い幅で横1行にする（スワイプ）
  *
  * **幅の px を期待値に書かない。** 「その幅で収まっているか」（scrollWidth と clientWidth の関係）を
- * 先に読み、収まっているとき／いないときで見るものを変える。幅は**標本にすぎない**ので、
- * 端末やフォントで折り返し位置が変わってもこの検査の意味は変わらない（段3 でタブの1行を見たときと同じ考え方）。
+ * 先に読み、収まっているとき／いないときで見るものを変える。幅は**標本にすぎない**。
  *
  * **空振り防止**（71セッション目の申し送り）―― 試した幅の中に**収まる幅と収まらない幅が両方あること**を
- * 見る。片側しか起きていなければ、条件分岐のどちらかが一度も通っていないことになる。
+ * 見る。片側しか起きていなければ、条件分岐のどちらかが一度も通っていない。
  *
- * **緑スキルの件数バッジの有無**でも測る。バッジが出るとボタンが横に広がり、
- * **前は 768px で段が増えていた**（1段→2段）ので、そこが直ったことを見るため。
+ * **手直し（73セッション目・実機の指摘を受けて）**
+ *   実機で「次の入口があることに気づけない幅」が見つかった。ボタンの境目と表示範囲の右端が
+ *   **ぴったり一致する幅が、境目の数だけ現れる**（320〜1280px を 2px 刻みで測ると、あふれる幅の1割強）。
+ *   ① 切り詰め（`--usd-entry-trim`）で、その幅では直前のボタンが必ず切れて見えるようにした。
+ *   ② 隠れている側にだけフェードを出す（`data-usd-fade`）。
+ *   そのため、**前にあった「端に霞みを付けていない」は仕様と逆になったので作り直した。**
  * ============================================================ */
 await block('73セッション目 ― 入口の並びを狭い幅で横1行にする（スワイプ）', async () => {
 {
@@ -9746,39 +9749,52 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 	await page.waitForTimeout(400);
 
 	const SEL = '#deck-template-panel .usd-entry-row';
+	// 幅を変えたあと、ResizeObserver と resize の後始末が済むまで待つ
+	const settle = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+
 	const read = (sel) => page.evaluate((s) => {
 		const row = document.querySelector(s);
 		if (!row) return null;
-		const btns = [...row.querySelectorAll('button')];
+		const btns = [...row.children].filter((c) => c.tagName === 'BUTTON');
 		const cs = getComputedStyle(row);
 		const rect = row.getBoundingClientRect();
+		// 右端をまたいでいる＝途中で切れて見えているボタン
+		let 見えている幅 = 0, 隠れている幅 = 0, 切れているボタン = null;
+		for (const b of btns) {
+			const r = b.getBoundingClientRect();
+			if (r.left < rect.right - 0.5 && r.right > rect.right + 0.5) {
+				見えている幅 = Math.round((rect.right - r.left) * 10) / 10;
+				隠れている幅 = Math.round((r.right - rect.right) * 10) / 10;
+				切れているボタン = b.textContent.trim();
+				break;
+			}
+		}
 		return {
 			段数: new Set(btns.map((b) => Math.round(b.offsetTop))).size,
 			ボタン数: btns.length,
 			子の顔ぶれ: [...new Set([...row.children].map((c) => c.tagName))],
 			収まっている: row.scrollWidth <= row.clientWidth + 1,
 			あふれ: Math.round(row.scrollWidth - row.clientWidth),
-			// 行の右端をまたいでいる＝途中で切れて見えているボタンの数
-			端で切れている: btns.filter((b) => {
-				const r = b.getBoundingClientRect();
-				return r.left < rect.right - 0.5 && r.right > rect.right + 0.5;
-			}).length,
+			見えている幅, 隠れている幅, 切れているボタン,
 			折り返し: cs.flexWrap,
 			横: cs.overflowX,
-			縦: cs.overflowY,
-			// スクロールバーを出していれば、境界の厚みとして出る
+			// **スクロールバーは「描かれていないこと」ではなく「隠す指定が効いていること」で見る。**
+			// ヘッドレスの Chrome は既定でバーを描かないので、厚みだけ見ても何も確かめたことにならない。
+			バーを隠す指定: cs.scrollbarWidth,
 			バーの厚み: row.offsetHeight - row.clientHeight,
-			霞み: cs.maskImage + '/' + cs.backgroundImage,
+			フェード: row.getAttribute('data-usd-fade'),
+			マスク: (cs.maskImage && cs.maskImage !== 'none') || (cs.webkitMaskImage && cs.webkitMaskImage !== 'none'),
+			切り詰め: Math.round(parseFloat(cs.getPropertyValue('--usd-entry-trim')) || 0),
 			高さ: Math.round(rect.height),
+			ボタンの高さ: btns[0] ? Math.round(btns[0].getBoundingClientRect().height) : 0,
 		};
 	}, sel);
 
-	/** 幅を変えながら読む。幅は標本で、期待値には使わない。 */
 	const sweep = async (sel, widths) => {
 		const out = [];
 		for (const [w, h] of widths) {
 			await page.setViewportSize({ width: w, height: h });
-			await page.waitForTimeout(350);
+			await settle();
 			out.push({ 幅: w, ...(await read(sel)) });
 		}
 		return out;
@@ -9788,7 +9804,7 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 
 	for (const バッジ of ['無し', '有り']) {
 		if (バッジ === '有り') {
-			// 緑スキルを4件足して件数バッジを出す（描き直しをまたいで残る本物の経路で）
+			// 緑スキルを4件足して件数バッジを出す（本物の経路で）
 			await page.setViewportSize({ width: 1280, height: 900 });
 			await page.waitForTimeout(300);
 			await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
@@ -9802,70 +9818,119 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 			await page.click('[data-usd-act="picker-close"]');
 			await page.waitForTimeout(500);
 			assert(await page.evaluate(() => !document.querySelector('#deck-template-panel [data-usd-el="passive-added"]').hidden),
-				'段12(バッジ有り): 緑スキルの件数バッジが出ている状態を作れた');
+				'横1行(バッジ有り): 緑スキルの件数バッジが出ている状態を作れた');
 		}
 
 		const got = await sweep(SEL, WIDTHS);
 		const 収まる = got.filter((g) => g.収まっている);
 		const 収まらない = got.filter((g) => !g.収まっている);
 
-		// (1) どの幅でも 1段。折り返さない。＝ バッジの有無で段が増えない（前は 768px で 1→2段になった）
+		// (1) どの幅でも1段。折り返さない。＝バッジの有無で段が増えない（前は 768px で 1→2段になった）
 		assert(got.every((g) => g.段数 === 1 && g.折り返し === 'nowrap'),
-			'段12(バッジ' + バッジ + '): どの幅でも入口は1段で、折り返さない',
+			'横1行(バッジ' + バッジ + '): どの幅でも入口は1段で、折り返さない',
 			got.map((g) => ({ 幅: g.幅, 段数: g.段数, 高さ: g.高さ })));
 		assert(new Set(got.map((g) => g.高さ)).size === 1,
-			'段12(バッジ' + バッジ + '): 行の高さが幅によって変わらない', got.map((g) => ({ 幅: g.幅, 高さ: g.高さ })));
+			'横1行(バッジ' + バッジ + '): 行の高さが幅によって変わらない', got.map((g) => ({ 幅: g.幅, 高さ: g.高さ })));
+		// **ボタンの大きさは幅で切り替えない**（境目の幅で揺れないように、どの幅でも同じ寸法）
+		assert(new Set(got.map((g) => g.ボタンの高さ)).size === 1,
+			'横1行(バッジ' + バッジ + '): ボタンの大きさは幅で切り替えない（狭いときだけ詰める形にしない）',
+			got.map((g) => ({ 幅: g.幅, ボタンの高さ: g.ボタンの高さ })));
 
 		// (2) 空振り防止 ―― 収まる幅と収まらない幅が両方あること
 		assert(収まる.length > 0 && 収まらない.length > 0,
-			'段12(バッジ' + バッジ + '): 試した幅に「収まる」と「収まらない」が両方ある（片側だけなら下の判定が空振り）',
+			'横1行(バッジ' + バッジ + '): 試した幅に「収まる」と「収まらない」が両方ある（片側だけなら下の判定が空振り）',
 			{ 収まる: 収まる.map((g) => g.幅), 収まらない: 収まらない.map((g) => g.幅) });
 
-		// (3) 収まるときは、いままでどおりの普通の1行（横に送るものが無い・切れない）
-		assert(収まる.every((g) => g.あふれ === 0 && g.端で切れている === 0),
-			'段12(バッジ' + バッジ + '): 収まる幅では普通の1行のまま（あふれ0・切れているボタン0）',
-			収まる.map((g) => ({ 幅: g.幅, あふれ: g.あふれ, 切れ: g.端で切れている })));
+		// (3) 収まるときは、いままでどおりの普通の1行（送るものが無い・切れない・フェードも出ない）
+		assert(収まる.every((g) => g.あふれ === 0 && g.切れているボタン === null && g.切り詰め === 0),
+			'横1行(バッジ' + バッジ + '): 収まる幅では普通の1行のまま（あふれ0・切れているボタン無し・切り詰め0）',
+			収まる.map((g) => ({ 幅: g.幅, あふれ: g.あふれ, 切れ: g.切れているボタン, 切り詰め: g.切り詰め })));
+		assert(収まる.every((g) => !g.フェード && !g.マスク),
+			'横1行(バッジ' + バッジ + '): 収まる幅ではどちらの端にもフェードを出さない',
+			収まる.map((g) => ({ 幅: g.幅, フェード: g.フェード, マスク: g.マスク })));
 
 		// (4) 収まらないときは横に送れて、端でボタンが切れて見える（＝続きがある合図）
-		assert(収まらない.every((g) => g.あふれ > 0 && g.端で切れている >= 1),
-			'段12(バッジ' + バッジ + '): 収まらない幅では横に送れて、端でボタンが切れて見える（切れていることが合図）',
-			収まらない.map((g) => ({ 幅: g.幅, あふれ: g.あふれ, 切れ: g.端で切れている })));
+		assert(収まらない.every((g) => g.あふれ > 0 && g.切れているボタン !== null),
+			'横1行(バッジ' + バッジ + '): 収まらない幅では横に送れて、端でボタンが切れて見える',
+			収まらない.map((g) => ({ 幅: g.幅, あふれ: g.あふれ, 切れ: g.切れているボタン })));
+		// **初期状態（左端）では右だけにフェード。** 隠れているのは右側だけだから。
+		assert(収まらない.every((g) => g.フェード === 'right' && g.マスク),
+			'横1行(バッジ' + バッジ + '): 収まらない幅の初期状態では、隠れている右側にだけフェードが出る',
+			収まらない.map((g) => ({ 幅: g.幅, フェード: g.フェード })));
 
-		// (5) 霞み・矢印・「端へ移動」・スクロールバーは付けない
-		assert(got.every((g) => g.バーの厚み === 0),
-			'段12(バッジ' + バッジ + '): スクロールバーを出さない', got.map((g) => ({ 幅: g.幅, 厚み: g.バーの厚み })));
-		assert(got.every((g) => g.霞み === 'none/none'),
-			'段12(バッジ' + バッジ + '): 端に霞み（マスク・背景グラデーション）を付けていない', got.map((g) => g.霞み));
+		// (5) 矢印・「端へ移動」は足さない／スクロールバーは**隠す指定**が効いている
+		assert(got.every((g) => g.バーを隠す指定 === 'none'),
+			'横1行(バッジ' + バッジ + '): スクロールバーを隠す指定（scrollbar-width: none）が効いている',
+			got.map((g) => ({ 幅: g.幅, 指定: g.バーを隠す指定, 厚み: g.バーの厚み })));
 		assert(got.every((g) => g.子の顔ぶれ.length === 1 && g.子の顔ぶれ[0] === 'BUTTON' && g.ボタン数 === 5),
-			'段12(バッジ' + バッジ + '): 並びの中身は入口のボタン5つだけ（矢印や「端へ移動」を足していない）',
+			'横1行(バッジ' + バッジ + '): 並びの中身は入口のボタン5つだけ（矢印や「端へ移動」を足していない）',
 			got.map((g) => ({ 幅: g.幅, 子: g.子の顔ぶれ, 数: g.ボタン数 })));
 	}
 
-	// (6) 実際に末尾まで送れる（送った先に最後の入口がある）
-	await page.setViewportSize({ width: 375, height: 812 });
-	await page.waitForTimeout(350);
-	const 送った = await page.evaluate((s) => {
-		const row = document.querySelector(s);
-		const last = row.querySelector('button:last-child');
-		row.scrollLeft = row.scrollWidth;
-		const rect = row.getBoundingClientRect();
-		const r = last.getBoundingClientRect();
-		return {
-			末尾まで行けた: Math.round(row.scrollLeft + row.clientWidth) >= row.scrollWidth - 1,
-			最後のボタンが丸ごと見える: r.left >= rect.left - 0.5 && r.right <= rect.right + 0.5,
-			ラベル: last.textContent.trim(),
-		};
-	}, SEL);
-	assert(送った.末尾まで行けた && 送った.最後のボタンが丸ごと見える,
-		'段12: 横に送ると末尾まで行けて、最後の入口が丸ごと見える', 送った);
+	/* (6) **幅を細かく変えても、右端で必ずボタンが切れて見える。**
+	   ここが今回の手直しの本体。**ぴったり一致する幅を作らない**ことを、
+	   細かい刻みで実際に確かめる（幅は標本で、期待値には使わない）。
+	   刻みは、切り詰めが働く幅の並び（20px ほど続く）を跨げる程度に細かく取る。 */
+	const MIN見え = 12;    // 切れているボタンが、これだけは見えていること
+	const MIN隠れ = 6;     // かつ、これだけは隠れていること（＝切れているとはっきり分かる）
+	const 細かい = [];
+	for (let w = 320; w <= 700; w += 7) {
+		await page.setViewportSize({ width: w, height: 812 });
+		await settle();
+		細かい.push({ 幅: w, ...(await read(SEL)) });
+	}
+	const あふれた = 細かい.filter((g) => !g.収まっている);
+	const 気づけない = あふれた.filter((g) => g.切れているボタン === null || g.見えている幅 < MIN見え || g.隠れている幅 < MIN隠れ);
+	assert(あふれた.length > 10,
+		'横1行: 細かく測った幅のうち、あふれる幅が十分な数ある（空振り防止）', { 測った: 細かい.length, あふれた: あふれた.length });
+	assert(気づけない.length === 0,
+		'横1行: 幅を細かく変えても、初期状態で右端のボタンが必ず切れて見える（続きがあると分かる）',
+		気づけない.slice(0, 6).map((g) => ({ 幅: g.幅, 見え: g.見えている幅, 隠れ: g.隠れている幅, 切り詰め: g.切り詰め })));
+	// 切り詰めは「必要なときだけ」働く（いつも入っていたら、ただの余白になってしまう）
+	assert(あふれた.some((g) => g.切り詰め > 0) && あふれた.some((g) => g.切り詰め === 0),
+		'横1行: 切り詰めは必要な幅でだけ働く（いつも入っている／一度も入らない のどちらでもない）',
+		{ 働いた: あふれた.filter((g) => g.切り詰め > 0).length, 働かない: あふれた.filter((g) => g.切り詰め === 0).length });
 
-	// (7) 並び順は変えていない（使用頻度の高いものが先頭）
+	// (7) フェードは「隠れている側だけ」。送るにつれて右→両側→左と変わる
+	await page.setViewportSize({ width: 375, height: 812 });
+	await settle();
+	const フェードの動き = await page.evaluate(async (s) => {
+		const row = document.querySelector(s);
+		const wait = () => new Promise((r) => setTimeout(r, 150));
+		const out = {};
+		row.scrollLeft = 0; await wait(); out.初期 = row.getAttribute('data-usd-fade');
+		row.scrollLeft = Math.round((row.scrollWidth - row.clientWidth) / 2); await wait(); out.途中 = row.getAttribute('data-usd-fade');
+		row.scrollLeft = row.scrollWidth; await wait(); out.末尾 = row.getAttribute('data-usd-fade');
+		const last = row.querySelector('button:last-child').getBoundingClientRect();
+		const rect = row.getBoundingClientRect();
+		out.末尾で最後の入口が丸ごと見える = last.left >= rect.left - 0.5 && last.right <= rect.right + 0.5;
+		row.scrollLeft = 0; await wait();
+		return out;
+	}, SEL);
+	assert(フェードの動き.初期 === 'right' && フェードの動き.途中 === 'both' && フェードの動き.末尾 === 'left',
+		'横1行: フェードは隠れている側にだけ出る（初期＝右／途中＝両側／末尾＝左）', フェードの動き);
+	assert(フェードの動き.末尾で最後の入口が丸ごと見える,
+		'横1行: 横に送ると末尾まで行けて、最後の入口が丸ごと見える（切り詰めは末尾では邪魔をしない）', フェードの動き);
+
+	// (8) ボタンを詰めた ―― 同じ画面の他の .uma-btn より小さい（px は書かない）
+	const 大きさ = await page.evaluate((s) => {
+		const e = document.querySelector(s + ' .uma-btn');
+		const o = document.querySelector('#deck-template-panel [data-usd-act="template-save"]');
+		const r = (x) => { const c = getComputedStyle(x); return { 高さ: Math.round(x.getBoundingClientRect().height), 文字: parseFloat(c.fontSize), 左右の余白: parseFloat(c.paddingLeft) }; };
+		return { 入口: r(e), ほかのボタン: r(o) };
+	}, SEL);
+	assert(大きさ.入口.高さ < 大きさ.ほかのボタン.高さ
+		&& 大きさ.入口.文字 < 大きさ.ほかのボタン.文字
+		&& 大きさ.入口.左右の余白 < 大きさ.ほかのボタン.左右の余白,
+		'横1行: 入口のボタンは、同じ画面の他のボタンより縦も横も文字も小さい', 大きさ);
+
+	// (9) 並び順は変えていない（使用頻度の高いものが先頭）
 	const 並び = await page.evaluate((s) =>
 		[...document.querySelectorAll(s + ' button')].map((b) => b.dataset.usdAct), SEL);
 	assert(並び.join(',') === 'editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot,editor-pick-custom',
-		'段12: 入口の並び順は変えていない', 並び);
+		'横1行: 入口の並び順は変えていない', 並び);
 
-	assert(errors.length === 0, '段12: コンソールエラーなし', errors.slice(0, 3));
+	assert(errors.length === 0, '横1行: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
 
@@ -9881,44 +9946,58 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 	await page.waitForTimeout(800);
 
 	const SEL = '#record-editor-view .usd-entry-row';
+	const settle = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
 	assert(await page.evaluate((s) => !!document.querySelector(s), SEL),
-		'段12(deck): 比較シート編集の入口にも .usd-entry-row が当たっている（core 側だけ直していない）');
+		'横1行(deck): 比較シート編集の入口にも .usd-entry-row が当たっている（core 側だけ直していない）');
 
 	const got = [];
 	for (const [w, h] of [[1280, 900], [375, 812]]) {
 		await page.setViewportSize({ width: w, height: h });
-		await page.waitForTimeout(350);
+		await settle();
 		got.push({ 幅: w, ...(await page.evaluate((s) => {
 			const row = document.querySelector(s);
-			const btns = [...row.querySelectorAll('button')];
+			const btns = [...row.children].filter((c) => c.tagName === 'BUTTON');
 			const rect = row.getBoundingClientRect();
 			const cs = getComputedStyle(row);
+			let 見えている幅 = 0, 隠れている幅 = 0, 切れ = null;
+			for (const b of btns) {
+				const r = b.getBoundingClientRect();
+				if (r.left < rect.right - 0.5 && r.right > rect.right + 0.5) {
+					見えている幅 = Math.round((rect.right - r.left) * 10) / 10;
+					隠れている幅 = Math.round((r.right - rect.right) * 10) / 10;
+					切れ = b.textContent.trim(); break;
+				}
+			}
 			return {
 				段数: new Set(btns.map((b) => Math.round(b.offsetTop))).size,
 				収まっている: row.scrollWidth <= row.clientWidth + 1,
 				あふれ: Math.round(row.scrollWidth - row.clientWidth),
-				端で切れている: btns.filter((b) => {
-					const r = b.getBoundingClientRect();
-					return r.left < rect.right - 0.5 && r.right > rect.right + 0.5;
-				}).length,
+				見えている幅, 隠れている幅, 切れ,
 				折り返し: cs.flexWrap,
-				バーの厚み: row.offsetHeight - row.clientHeight,
+				バーを隠す指定: cs.scrollbarWidth,
+				フェード: row.getAttribute('data-usd-fade'),
+				マスク: (cs.maskImage && cs.maskImage !== 'none') || (cs.webkitMaskImage && cs.webkitMaskImage !== 'none'),
 				下の余白: cs.marginBottom,
+				ボタンの高さ: btns[0] ? Math.round(btns[0].getBoundingClientRect().height) : 0,
 			};
 		}, SEL)) });
 	}
-	assert(got.every((g) => g.段数 === 1 && g.折り返し === 'nowrap' && g.バーの厚み === 0),
-		'段12(deck): 比較シート編集の入口も1段・折り返さない・スクロールバーを出さない', got);
+	assert(got.every((g) => g.段数 === 1 && g.折り返し === 'nowrap' && g.バーを隠す指定 === 'none'),
+		'横1行(deck): 比較シート編集の入口も1段・折り返さない・スクロールバーを隠す指定が効いている', got);
 	assert(got.some((g) => g.収まっている) && got.some((g) => !g.収まっている),
-		'段12(deck): 収まる幅と収まらない幅が両方ある（空振り防止）', got.map((g) => ({ 幅: g.幅, 収まっている: g.収まっている })));
-	assert(got.filter((g) => !g.収まっている).every((g) => g.あふれ > 0 && g.端で切れている >= 1),
-		'段12(deck): 収まらない幅では横に送れて、端でボタンが切れて見える', got);
+		'横1行(deck): 収まる幅と収まらない幅が両方ある（空振り防止）', got.map((g) => ({ 幅: g.幅, 収まっている: g.収まっている })));
+	assert(got.filter((g) => !g.収まっている).every((g) => g.あふれ > 0 && g.切れ !== null && g.フェード === 'right' && g.マスク),
+		'横1行(deck): 収まらない幅では端でボタンが切れ、右側にだけフェードが出る', got);
+	assert(got.filter((g) => g.収まっている).every((g) => !g.フェード && !g.マスク),
+		'横1行(deck): 収まる幅ではフェードを出さない', got);
+	assert(new Set(got.map((g) => g.ボタンの高さ)).size === 1,
+		'横1行(deck): ボタンの大きさは幅で切り替えない', got.map((g) => ({ 幅: g.幅, 高さ: g.ボタンの高さ })));
 	/* **下の余白は元のまま（8px）。** core の既定（12px）をそのまま当てると、
 	   この画面だけ余白が広がってしまうので `--inline` で戻している。 */
 	assert(got.every((g) => g.下の余白 === '8px'),
-		'段12(deck): 下の余白は元の 8px のまま（--inline が効いている）', got.map((g) => g.下の余白));
+		'横1行(deck): 下の余白は元の 8px のまま（--inline が効いている）', got.map((g) => g.下の余白));
 
-	assert(errors.length === 0, '段12(deck): コンソールエラーなし', errors.slice(0, 3));
+	assert(errors.length === 0, '横1行(deck): コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
 });

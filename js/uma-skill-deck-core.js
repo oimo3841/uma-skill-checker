@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-23b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-23c';
 
 	/* ============================================================
 	 * 定数
@@ -2123,6 +2123,35 @@
 		'.usd-entry-row::-webkit-scrollbar { display: none; }',
 		// 縮まない・文字も折らない（折り返しをやめたので、縮むと文字が潰れる）
 		'.usd-entry-row > * { flex: none; white-space: nowrap; }',
+		/* **入口のボタンだけ小さくする**（73セッション目の手直し）。
+		   上下・左右の余白と文字を一段落とす。**どの幅でも同じ大きさ**にする ――
+		   狭いときだけ切り替えると、境目の幅でボタンの大きさが変わって揺れるため。
+		   `.uma-btn` そのものは触らない（他の画面のボタンに波及させない）。 */
+		'.usd-entry-row > .uma-btn { padding: var(--uma-sp-1-5) var(--uma-sp-2-5); gap: var(--uma-sp-1);',
+		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
+		/* **次の入口を必ず覗かせるための切り詰め**（73セッション目の手直し）。
+		   実測すると、**ボタンの境目が表示範囲の右端とぴったり一致する幅が、境目の数だけ現れる**
+		   （320〜1280px を 2px 刻みで測ると、あふれる幅のうち 1割強がそれ）。
+		   ボタンを小さくしても**境目が増えるだけで無くならない**ので、大きさでは解決しない。
+		   そこで、その幅のときだけ**表示範囲の右端をわずかに内側へ寄せて**、
+		   直前のボタンが必ず切れて見えるようにする。値は JS が実測して入れる（F-28 と同じ考え方）。
+		   **横に送りきったときは影響しない**（表示範囲が狭くなるぶん送れる量も増えるので、
+		   最後の入口は丸ごと見える）。 */
+		'.usd-entry-row { margin-inline-end: var(--usd-entry-trim, 0px); }',
+		/* **隠れている側にだけ、わずかなフェード**（73セッション目の手直し）。
+		   端で切れているだけでは、切れ目の位置が幅で動くので気づけない幅がある。
+		   **文字が読めなくなるほど濃くしない**（端で 0.3 まで。完全には消さない）。
+		   矢印・「端へ移動」・スクロールバーは引き続き出さない。 */
+		'.usd-entry-row[data-usd-fade="right"], .usd-entry-row[data-usd-fade="both"] {',
+		'  --usd-fade-r: rgba(0,0,0,.3) 100%; }',
+		'.usd-entry-row[data-usd-fade="left"], .usd-entry-row[data-usd-fade="both"] {',
+		'  --usd-fade-l: rgba(0,0,0,.3) 0; }',
+		'.usd-entry-row[data-usd-fade] {',
+		'  -webkit-mask-image: linear-gradient(to right, var(--usd-fade-l, #000 0), #000 var(--usd-entry-fade-w),',
+		'    #000 calc(100% - var(--usd-entry-fade-w)), var(--usd-fade-r, #000 100%));',
+		'  mask-image: linear-gradient(to right, var(--usd-fade-l, #000 0), #000 var(--usd-entry-fade-w),',
+		'    #000 calc(100% - var(--usd-entry-fade-w)), var(--usd-fade-r, #000 100%)); }',
+		'.usd-entry-row { --usd-entry-fade-w: 26px; }',
 		/* フォーカスの枠は**内側に**描く。overflow-y: hidden なので、既定の outline-offset: 2px の
 		   ままだと上下がこの行に切られて見えなくなる（`.uma-subtab` が同じ理由で内側にしている）。 */
 		'.usd-entry-row > *:focus-visible { outline-offset: -2px; }',
@@ -2809,6 +2838,100 @@
 		if (axisKey === picker.activeAxis && pickerAxisPanelOpen) { setPickerAxisPanelOpen(false); return; }
 		selectPickerAxisTab(axisKey, false);
 		setPickerAxisPanelOpen(true);
+	}
+
+	/* ------------------------------------------------------------
+	 * 入口の並び（.usd-entry-row）の「続きがある」の見せ方（73セッション目の手直し）
+	 *
+	 * 折り返さず横に送る形にしたあと、**実機で「次の入口があることに気づけない幅」**が見つかった。
+	 * 原因は、ボタンの境目と表示範囲の右端が**ぴったり一致する幅がある**こと。
+	 * 320〜1280px を 2px 刻みで測ると、あふれる幅のうち1割強でそうなる（境目の数だけ現れる）。
+	 *
+	 * 直し方は2つ重ねる。
+	 *   (1) **覗かせ** ―― その幅のときだけ表示範囲の右端をわずかに内側へ寄せ（--usd-entry-trim）、
+	 *       直前のボタンが必ず切れて見えるようにする。
+	 *   (2) **フェード** ―― 隠れている側にだけ薄くかける（data-usd-fade）。
+	 *
+	 * **どちらも px を決め打ちしない。** 実際の座標から決める（F-28・C-14 と同じ考え方）。
+	 * ------------------------------------------------------------ */
+	// 右端で切れているボタンは、これだけ見えていて、
+	const ENTRY_MIN_PEEK = 12;
+	// これだけ隠れていること（数pxしか隠れていないと、切れていることに気づけない）
+	const ENTRY_MIN_CUT = 8;
+	// 探す幅の上限。だめな帯は「隠れ＋ボタンのすきま＋見え」ぶんしか無いので、これで足りる
+	const ENTRY_MAX_TRIM = 40;
+
+	/**
+	 * 切り詰めを測って当てる。**幅が変わったときだけ**呼ぶ。
+	 *
+	 * **送っている最中に測り直してはいけない。** 切り詰めを変えると表示範囲の幅が変わり、
+	 * 送りきったかどうかの判定（scrollLeft と scrollWidth の関係）がその場でずれる。
+	 * 実際、フェードが末尾で「左だけ」にならず「両側」のまま残る揺れが出た。
+	 */
+	function measureEntryRowTrim(row) {
+		if (!row || !row.isConnected || !row.offsetParent) return;
+		const btns = [...row.children].filter((c) => c.tagName === 'BUTTON');
+		if (btns.length === 0) return;
+
+		/* (1) 覗かせ ―― いったん切り詰めを外して素の座標で測る。
+		   **欲しいのは「右端をまたいでいるボタンが1つあって、見えている幅も隠れている幅も
+		   それぞれ十分にある」状態。** 片方だけでは足りない ――
+		   隠れているのが数pxだと、ボタンが切れていることに気づけない（実測で 1.6〜3.8px の幅があった）。
+		   表示範囲の右端は**内側へしか動かせない**ので、条件を満たす切り詰めを 1px ずつ探す。
+		   ボタンの境目の前後の「だめな帯」は 隠れ+すきま+見え ぶんしか無いので、必ず見つかる。 */
+		row.style.setProperty('--usd-entry-trim', '0px');
+		let trim = 0;
+		if (row.scrollWidth > row.clientWidth + 1) {
+			const base = row.getBoundingClientRect().left - row.scrollLeft;
+			const 端 = btns.map((b) => {
+				const r = b.getBoundingClientRect();
+				return { 左: r.left - base, 右: r.right - base };
+			});
+			const よい = (right) => 端.some((e) => e.左 <= right - ENTRY_MIN_PEEK && e.右 >= right + ENTRY_MIN_CUT);
+			const right0 = row.clientWidth;
+			for (let t = 0; t <= ENTRY_MAX_TRIM; t++) {
+				if (よい(right0 - t)) { trim = t; break; }
+			}
+			row.style.setProperty('--usd-entry-trim', trim + 'px');
+		}
+	}
+
+	/** (2) フェード ―― 隠れている側にだけ。収まっているときはどちらにも付けない。送るたびに呼ぶ。 */
+	function updateEntryRowFade(row) {
+		if (!row || !row.isConnected || !row.offsetParent) return;
+		const max = row.scrollWidth - row.clientWidth;
+		if (max <= 1) row.removeAttribute('data-usd-fade');
+		else {
+			const 左に隠れている = row.scrollLeft > 1;
+			const 右に隠れている = row.scrollLeft < max - 1;
+			row.setAttribute('data-usd-fade',
+				左に隠れている && 右に隠れている ? 'both' : 左に隠れている ? 'left' : 右に隠れている ? 'right' : 'none');
+			if (!左に隠れている && !右に隠れている) row.removeAttribute('data-usd-fade');
+		}
+	}
+
+	/** 画面にある入口の並びを全部見る。見張りは1度だけ付ける。 */
+	function scanEntryRows() {
+		document.querySelectorAll('.usd-entry-row').forEach((row) => {
+			if (!row.dataset.usdEntryWatched) {
+				row.dataset.usdEntryWatched = '1';
+				// 送るたびに変わるのは**フェードだけ**（切り詰めは測り直さない。上の注意）
+				row.addEventListener('scroll', () => updateEntryRowFade(row), { passive: true });
+				// 幅が変わったとき・隠れていたものが出てきたとき（Deck の比較シート編集）
+				if (typeof ResizeObserver === 'function') new ResizeObserver(() => {
+					measureEntryRowTrim(row);
+					updateEntryRowFade(row);
+				}).observe(row);
+			}
+			measureEntryRowTrim(row);
+			updateEntryRowFade(row);
+		});
+	}
+
+	if (typeof window !== 'undefined') {
+		window.addEventListener('resize', scanEntryRows);
+		if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scanEntryRows);
+		else scanEntryRows();
 	}
 
 	/**
@@ -4679,6 +4802,10 @@
 			renderNameRow();
 			renderSelectedList();
 			renderExtraScopes();
+			/* 入口の並びの「続きがある」の見せ方を測り直す（73セッション目の手直し）。
+			   **ここで呼ばないと、読み込んだ幅のままでは一度も測られない** ――
+			   window の resize でしか走らないので、その幅で開いた人には何も当たらなかった。 */
+			scanEntryRows();
 			fireViewChange('list');
 		}
 
@@ -4817,6 +4944,8 @@
 			const body = q(container, 'entry-body');
 			if (btn) btn.setAttribute('aria-expanded', String(entryRowOpen));
 			if (body) body.hidden = !entryRowOpen;
+			// 畳んでいる間は測れない（幅が 0）。開いたところで測り直す
+			if (entryRowOpen) scanEntryRows();
 		}
 
 		function renderNameRow() {
