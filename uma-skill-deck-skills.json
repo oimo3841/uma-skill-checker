@@ -1,5 +1,5 @@
 {
- "masterVersion": "2026-09-22a",
+ "masterVersion": "2026-09-24a",
  "skills": [
   {
    "id": "1",
@@ -990,8 +990,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "accel_up",
-     "course_sense"
+     "accel_up"
     ],
     "scenario": [],
     "passive": []
@@ -1445,8 +1444,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina",
-     "debuff"
+     "stamina"
     ],
     "scenario": [],
     "passive": []
@@ -2194,7 +2192,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "accel_up",
      "debuff"
     ],
     "scenario": [],
@@ -2360,7 +2357,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "accel_up"
+     "debuff"
     ],
     "scenario": [],
     "passive": []
@@ -2670,7 +2667,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "debuff"
+     "stamina"
     ],
     "scenario": [],
     "passive": []
@@ -2861,7 +2858,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "accel_up"
+     "debuff"
     ],
     "scenario": [],
     "passive": []
@@ -3554,7 +3551,9 @@
     "distance": [],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "early"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -3574,7 +3573,9 @@
     "distance": [],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "mid"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -3594,7 +3595,9 @@
     "distance": [],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "late"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -3773,7 +3776,9 @@
     ],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "late"
+    ],
     "coursePos": [
      "straight"
     ],
@@ -3946,8 +3951,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina",
-     "debuff"
+     "stamina"
     ],
     "scenario": [],
     "passive": []
@@ -4091,8 +4095,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "target_speed_up",
-     "debuff"
+     "target_speed_up"
     ],
     "scenario": [],
     "passive": []
@@ -4679,7 +4682,9 @@
     ],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "late"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -5004,8 +5009,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "target_speed_up",
-     "debuff"
+     "target_speed_up"
     ],
     "scenario": [],
     "passive": []
@@ -5074,8 +5078,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "stamina",
-     "target_speed_up"
+     "stamina"
     ],
     "scenario": [],
     "passive": []
@@ -5358,7 +5361,9 @@
      "senko"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "late"
+    ],
     "coursePos": [
      "corner"
     ],
@@ -5628,6 +5633,7 @@
      "dirt"
     ],
     "phase": [
+     "late",
      "mid"
     ],
     "coursePos": [],
@@ -5726,7 +5732,9 @@
      "oikomi"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "late"
+    ],
     "coursePos": [
      "corner"
     ],
@@ -5831,8 +5839,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "target_speed_up",
-     "debuff"
+     "target_speed_up"
     ],
     "scenario": [],
     "passive": []
@@ -5904,8 +5911,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "target_speed_up",
-     "debuff"
+     "target_speed_up"
     ],
     "scenario": [],
     "passive": []
@@ -6042,7 +6048,9 @@
      "oikomi"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "late"
+    ],
     "coursePos": [
      "corner"
     ],
@@ -6454,7 +6462,7 @@
     "style": [],
     "surface": [],
     "phase": [
-     "early"
+     "late"
     ],
     "coursePos": [],
     "rarity": [],
@@ -6462,8 +6470,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "move_forward",
-     "debuff"
+     "move_forward"
     ],
     "scenario": [],
     "passive": []
@@ -6610,7 +6617,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "move_forward",
      "stamina"
     ],
     "scenario": [],
@@ -6870,7 +6876,9 @@
     ],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "late"
+    ],
     "coursePos": [
      "corner"
     ],
@@ -6896,7 +6904,9 @@
      "nige"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "late"
+    ],
     "coursePos": [
      "corner"
     ],
@@ -7887,6 +7897,7 @@
     "style": [],
     "surface": [],
     "phase": [
+     "late",
      "mid"
     ],
     "coursePos": [],
@@ -7939,7 +7950,9 @@
      "sashi"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "late"
+    ],
     "coursePos": [
      "straight"
     ],
@@ -8709,7 +8722,10 @@
    "id": "366",
    "name": "あふれる活力",
    "tags": {
-    "distance": [],
+    "distance": [
+     "long",
+     "medium"
+    ],
     "style": [],
     "surface": [],
     "phase": [],
@@ -8758,7 +8774,10 @@
    "name": "押しの一手",
    "tags": {
     "distance": [],
-    "style": [],
+    "style": [
+     "nige",
+     "senko"
+    ],
     "surface": [],
     "phase": [],
     "coursePos": [],
@@ -8976,7 +8995,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "extend",
      "move_forward"
     ],
     "scenario": [],
@@ -9107,7 +9125,10 @@
    "id": "383",
    "name": "阿吽の呼吸",
    "tags": {
-    "distance": [],
+    "distance": [
+     "medium",
+     "mile"
+    ],
     "style": [],
     "surface": [],
     "phase": [
@@ -9204,7 +9225,10 @@
    "name": "大立ち回り",
    "tags": {
     "distance": [],
-    "style": [],
+    "style": [
+     "sashi",
+     "senko"
+    ],
     "surface": [],
     "phase": [
      "mid"
@@ -9226,7 +9250,10 @@
    "name": "流れに任せて",
    "tags": {
     "distance": [],
-    "style": [],
+    "style": [
+     "sashi",
+     "senko"
+    ],
     "surface": [],
     "phase": [
      "mid"
@@ -9269,7 +9296,10 @@
    "id": "390",
    "name": "息抜き上手",
    "tags": {
-    "distance": [],
+    "distance": [
+     "long",
+     "medium"
+    ],
     "style": [],
     "surface": [],
     "phase": [
@@ -9281,7 +9311,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "move_forward",
      "stamina"
     ],
     "scenario": [],
@@ -9479,7 +9508,6 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "move_forward",
      "target_speed_up"
     ],
     "scenario": [],
@@ -10096,7 +10124,9 @@
     "distance": [],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "late"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],

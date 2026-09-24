@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-24a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-24b';
 
 	/* ============================================================
 	 * 定数
@@ -45,7 +45,7 @@
 	 * **`data/` の6ファイルにも同じ問題がある**（どれも `?v=` が付かない）。
 	 * そちらを対象に入れるかはまだ決めていない。
 	 */
-	const MASTER_JSON_VERSION = '2026-09-22a';
+	const MASTER_JSON_VERSION = '2026-09-24a';
 
 	/**
 	 * **`data/` の6ファイルの版**（71セッション目・段7の続き）。

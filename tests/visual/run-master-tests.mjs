@@ -47,26 +47,33 @@ const extendedSkills = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/ext
  * `debuff` は速度ダウンも含む広い値なので、`debuff` 全体では回復と同時に持つ2件がある
  * （展開窺い・マイペース。どちらも元から `speed_down` ＋ `stamina` で、これは正しい）。
  * **だから①の意味は `debuff` では書けず、この名簿でしか書けない。**
+ *
+ * **第2回の段2 で 14→13件**。スタミナイーターは効果タイプが `debuff` → `stamina`
+ * （持久力回復）に直ったので、この名簿（持久力回復を持たないもの）から外した。
+ * 展開窺い・マイペースも `debuff` を外れたので、上の「回復と同時に持つ2件」は今は0件。
  */
 const STAMINA_DOWN = [
 	'トリック（前）', 'トリック（後）',
 	'逃げけん制', '逃げ焦り', '先行けん制', '先行焦り',
 	'差しけん制', '差し焦り', '追込けん制', '追込焦り',
-	'抜け駆け禁止', 'ささやき', 'スタミナイーター', '鋭い眼光',
+	'抜け駆け禁止', 'ささやき', '鋭い眼光',
 ];
 
 /**
  * ②(ア)D で「デバフ」(debuff) へ統合した31件
  * （持久力減少 stamina_down の14件 ＋ 速度ダウン speed_down の17件。重なりは0件）。
  * 70セッション目・段2。
+ *
+ * **第2回の段2（公開マスターのタグの修正）で 31→25件**。布石・リスタートを加え、
+ * 展開窺い・スタミナイーター・マイペース・気迫を込めて・プレッシャー・切り崩し・
+ * 鬼気迫って・切り替え上手を外した。
  */
 const DEBUFF = [
-	'展開窺い', 'トリック（前）', 'トリック（後）',
+	'トリック（前）', 'トリック（後）',
 	'逃げけん制', '逃げ焦り', '逃げためらい', '先行けん制', '先行焦り', '先行ためらい',
 	'差しけん制', '差し焦り', '差しためらい', '追込けん制', '追込焦り', '追込ためらい',
-	'後方釘付', '抜け駆け禁止', 'スピードイーター', '束縛', 'ささやき', 'スタミナイーター',
-	'鋭い眼光', 'まなざし', 'マイペース', '気迫を込めて', '土煙', '圧迫感', 'プレッシャー',
-	'切り崩し', '鬼気迫って', '切り替え上手',
+	'後方釘付', '抜け駆け禁止', 'スピードイーター', '束縛', 'ささやき',
+	'鋭い眼光', 'まなざし', '土煙', '圧迫感', '布石', 'リスタート',
 ];
 
 /** ②(ア)A で「能力上昇」(stat_up) へ統合した6つの値と、D で「デバフ」へ統合した2つの値。 */
@@ -99,7 +106,10 @@ const SUB_CONSUME_NO_STAMINA = [
 	'アグレッシブ', 'ハイピッチ', 'なりふり構わず', '猛プッシュ', '大立ち回り', '元気バクハツ', 'レースの真髄・体',
 ];
 
-/** サブ効果が持久力回復のため、持久力回復のまま残す9件（スタミナイーターはメインが減少なので別扱い） */
+/**
+ * サブ効果が持久力回復のため、持久力回復のまま残す9件（スタミナイーターはメインが減少なので別扱い）。
+ * 第2回の段2 でスタミナイーターも持久力回復になったが、「サブ効果が回復」の9件とは理由が違うので、ここには入れない。
+ */
 const SUB_RECOVER_KEEP = [
 	'闘争心', '快速', 'バイブス上昇', '克己心', '裏腹なキモチ', '覇気十分', '張り切り', '存在感', '綺羅星',
 ];
@@ -159,10 +169,10 @@ console.log('=== 1. マスターデータ（uma-skill-deck-skills.json） ===');
 	// ① 持久力回復 ／ ②(ア)D デバフ
 	const rec = master.skills.filter((s) => s.tags.effect.includes('stamina'));
 	const dec = master.skills.filter((s) => s.tags.effect.includes('debuff'));
-	assert(dec.length === 31, '②D デバフ(debuff)が31件（旧 持久力減少14＋速度ダウン17）', dec.length);
+	assert(dec.length === 25, '②D デバフ(debuff)が25件（統合時の31件から第2回の段2で +2 −8）', dec.length);
 	assert(eq(dec.map((s) => s.name).sort(), DEBUFF.slice().sort()),
-		'②D デバフの内訳が指定の31件と一致', dec.map((s) => s.name));
-	assert(rec.length === 42, '①持久力回復(stamina)が42件（メイン回復33＋サブ回復9）', rec.length);
+		'②D デバフの内訳が指定の25件と一致', dec.map((s) => s.name));
+	assert(rec.length === 43, '①持久力回復(stamina)が43件（メイン回復33＋サブ回復9＋第2回の段2でスタミナイーター）', rec.length);
 	const stillStamina = SUB_CONSUME_NO_STAMINA.filter((n) => byName.get(n).tags.effect.includes('stamina'));
 	assert(stillStamina.length === 0, '①サブ効果が持久力消費の14件は持久力を持たない', stillStamina);
 	const emptied = SUB_CONSUME_NO_STAMINA.filter((n) => byName.get(n).tags.effect.length === 0);
@@ -172,7 +182,7 @@ console.log('=== 1. マスターデータ（uma-skill-deck-skills.json） ===');
 	// 統合後、①の「回復と減少を同時に持たない」は **debuff では書けない**（速度ダウンを含むため。
 	// 展開窺い・マイペースは元から speed_down ＋ stamina で、これは正しい）。名簿の側で見る。
 	const recAndDec = STAMINA_DOWN.filter((n) => byName.get(n).tags.effect.includes('stamina'));
-	assert(recAndDec.length === 0, '①持久力減少だった14件は持久力回復を持たない（統合後も成り立つ）', recAndDec);
+	assert(recAndDec.length === 0, '①持久力減少だった13件は持久力回復を持たない（統合後も成り立つ）', recAndDec);
 
 	// ②(ア)A 能力上昇への統合と、廃した8値が1件も残っていないこと
 	const statUp = master.skills.filter((s) => s.tags.effect.includes('stat_up'));
@@ -469,7 +479,7 @@ const browser = await chromium.launch();
 	 * `effect` は `optIn` でない軸なので、チェックを入れると⑤の門番が働き、
 	 * **レース環境・レース場のタグを持つスキルが落ちる**（例: 持久力回復は 42 → 39件）。
 	 * 件数は書かずに `expectNames()`（マスターの生データ＋軸の印から組み立てる）から取る。
-	 * §1 はマスター側の 42件／31件／67件をそのまま見ているので、**「データの件数」と
+	 * §1 はマスター側の 43件／25件／67件をそのまま見ているので、**「データの件数」と
 	 * 「絞り込んだときに出る件数」の両方が固定されている。** */
 	await tick('effect', 'stamina');
 	const recCount = await readCount();
@@ -483,20 +493,24 @@ const browser = await chromium.launch();
 	const decExpect = expectNames({ effect: ['debuff'] });
 	assert(decCount === decExpect.length, '②D「デバフ」で絞ると ' + decExpect.length + '件', decCount);
 	assert(eq(decNames.slice().sort(), decExpect.slice().sort()),
-		'②D「デバフ」の内訳が31件と一致（デバフにパッシブは1件も無い）', decNames);
-	// 軸内OR。**重なりがあるので単純な和にはならない** ―― 展開窺い・マイペースが両方に出る
-	// （元から speed_down ＋ stamina を持つ。統合前の「回復と減少は排他」は
-	//   持久力減少に限った話で、速度ダウンまで含む debuff では重なりうる）。
+		'②D「デバフ」の内訳が25件と一致（デバフにパッシブは1件も無い）', decNames);
+	await tick('effect', 'debuff');
+	// 軸内OR。**重なりがあるので単純な和にはならない** ―― 闘争心・克己心などが両方に出る。
+	// **第2回の段2 まではここを「持久力回復＋デバフ」で見ていた**（展開窺い・マイペースが重なっていた）。
+	// 2件とも debuff を外れて重なりが0件になり、この検査の意味（重なるぶんを二重に数えない）が
+	// 書けなくなったので、重なりのある「持久力回復＋目標速度」へ替えた。
+	await tick('effect', 'target_speed_up');
 	await tick('effect', 'stamina');
 	const bothCount = await readCount();
-	const bothExpect = expectNames({ effect: ['stamina', 'debuff'] });
+	const tsuExpect = expectNames({ effect: ['target_speed_up'] });
+	const bothExpect = expectNames({ effect: ['stamina', 'target_speed_up'] });
 	assert(bothCount === bothExpect.length,
 		'両方チェックすると軸内ORで ' + bothExpect.length + '件（重なるぶんは二重に数えない）', bothCount);
-	assert(bothExpect.length < recExpect.length + decExpect.length,
+	assert(bothExpect.length < recExpect.length + tsuExpect.length,
 		'両方チェックしたときの件数が単純な和より少ない（重なりがある）',
-		{ 回復: recExpect.length, デバフ: decExpect.length, 両方: bothExpect.length });
+		{ 回復: recExpect.length, 目標速度: tsuExpect.length, 両方: bothExpect.length });
 	await tick('effect', 'stamina');
-	await tick('effect', 'debuff');
+	await tick('effect', 'target_speed_up');
 	assert(await readCount() === POOL.length, 'チェックを外すと母集団の件数に戻る', await readCount());
 
 	/* ②A「能力上昇」の絞り込みは段8 で無くなった（選択肢から外した）。
