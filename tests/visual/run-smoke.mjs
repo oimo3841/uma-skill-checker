@@ -9646,69 +9646,22 @@ await block('73セッション目 ― 「リセット」の押せる条件（消
 });
 
 /* ============================================================
- * 73セッション目 ― card-event-input.html の軸のルールの注記
+ * 【INTENTIONALLY_REMOVED・2026-09-24（74セッション目・第2回の段1）】
+ * 「73セッション目 ― card-event-input.html の軸のルールの注記」の塊（7項目）を消した。
  *
- * それまでは **(1)「1つの軸だけ決まりが逆です」**（`emptyMeansNone` が3軸あるので嘘）
- * **(2)「この軸だけ決まりが逆です。」が3か所に並ぶ**（「だけ」が成り立たない）
- * **(3) バ場（排他）には注記が無い**（軸内が OR ではないのに何も言っていない）という状態だった。
+ * **`card-event-input.html` の「スキルのタグ付け」の画面を撤去したので、見る対象そのものが無くなった。**
+ * タグの正本は外部データの取得・整形の専用フォルダにあるマスターのブックで、説明文から規則で作る
+ * （C-75・C-76）。ツール側で手でタグを付ける画面を残すと正本が2つになるため、画面ごとやめた。
  *
- * いまは**どの軸に出すかも、何と書くかも core の印から決める**
- * （`axisHasSpecialRule` / `axisRuleHint`）。**モーダル側とまったく同じ文**になる。
+ * **消した塊が見ていたもの**: タグ編集欄の軸ごとの注記が `core` の印（`axisHasSpecialRule` /
+ * `axisRuleHint`）から作られていること／先頭の注記が本数を書かないこと／排他の軸にも注記が出ること／
+ * 文がモーダル側とまったく同じであること。
+ *
+ * **失っていない検査**: `axisRuleHint()` / `axisHasSpecialRule()` そのものは
+ * 「条件で検索」のモーダル側（`renderPickerFilterAxes`）でも使っており、
+ * **同じ文が出ることは `test:master` の軸の印の検査と、モーダルの注記で引き続き見ている。**
+ * `card-event-input.html` が構文エラー無しで読めることは `test:verify` の §5 が見る。
  * ============================================================ */
-await block('73セッション目 ― card-event-input.html の軸のルールの注記', async () => {
-{
-	const { ctx, page, errors } = await openPage(browser, base, 'card-event-input.html');
-	await page.waitForTimeout(1500);
-	await page.click('#cei-tab-tags');
-	await page.waitForTimeout(1500);
-	await page.waitForSelector('[data-act="tag-open"]', { timeout: 20000 });
-	await page.click('[data-act="tag-open"]');
-	await page.waitForTimeout(600);
-
-	const notes = await page.evaluate(() => {
-		const box = document.querySelector('.cei-tagbox');
-		const head = box.querySelector('.cei-axis-note');
-		// 軸の見出し → その軸に付いた注記（「読み方が違います」のもの）の文
-		const perAxis = {};
-		box.querySelectorAll('.cei-axis').forEach((ax) => {
-			const label = ax.querySelector('.cei-axis-label').textContent;
-			const n = [...ax.querySelectorAll(':scope > .cei-axis-note')]
-				.find((el) => el.textContent.includes('読み方が違います'));
-			if (n) perAxis[label] = n.textContent;
-		});
-		// 期待値は**製品の印から**作る（軸のキーも本数も検査に書かない）
-		const 期待 = {};
-		UmaSkillDeckCore.TAG_AXES.forEach((a) => {
-			if (UmaSkillDeckCore.axisHasSpecialRule(a)) 期待[a.label] = UmaSkillDeckCore.axisRuleHint(a);
-		});
-		return {
-			先頭の注記: head ? head.textContent : null,
-			画面: perAxis, 期待: 期待,
-			排他の軸: UmaSkillDeckCore.TAG_AXES.filter((a) => a.exclusive).map((a) => a.label),
-			軸の数: box.querySelectorAll('.cei-axis').length,
-		};
-	});
-	assert(notes.軸の数 > Object.keys(notes.期待).length && Object.keys(notes.期待).length > 1,
-		'73(card-event): 読み方が違う軸は2本以上あり、全部の軸よりは少ない（「1つだけ」も「全部」も成り立たない）',
-		{ 全軸: notes.軸の数, 違う軸: Object.keys(notes.期待) });
-	assert(!/1つの軸だけ/.test(notes.先頭の注記) && /読み方が違う軸があります/.test(notes.先頭の注記),
-		'73(card-event): 先頭の注記は本数を書かず「読み方が違う軸があります」と言う', notes.先頭の注記);
-	assert(Object.keys(notes.画面).sort().join(',') === Object.keys(notes.期待).sort().join(','),
-		'73(card-event): 注記が付くのは、core の印で「読み方が違う」軸だけ',
-		{ 画面: Object.keys(notes.画面), 期待: Object.keys(notes.期待) });
-	assert(notes.排他の軸.length > 0 && notes.排他の軸.every((l) => !!notes.画面[l]),
-		'73(card-event): 排他の軸（バ場）にも注記が出る（以前は何も言っていなかった）', notes.排他の軸);
-	const ズレ = Object.keys(notes.期待).filter((l) => !(notes.画面[l] || '').includes(notes.期待[l]));
-	assert(ズレ.length === 0,
-		'73(card-event): 各軸の文はモーダル側と同じ（core の axisRuleHint をそのまま出している）',
-		{ ズレ: ズレ, 画面: notes.画面, 期待: notes.期待 });
-	assert(!/この軸だけ決まりが逆です/.test(await page.evaluate(() => document.body.textContent)),
-		'73(card-event): 古い「この軸だけ決まりが逆です」は残っていない');
-
-	assert(errors.length === 0, '73(card-event): コンソールエラーなし', errors.slice(0, 3));
-	await ctx.close();
-}
-});
 
 /* ============================================================
  * 73セッション目 ― 入口の並びを狭い幅で横1行にする（スワイプ）

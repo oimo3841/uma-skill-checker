@@ -378,6 +378,28 @@ const INTENTIONALLY_REMOVED = {
 	// **免除の登録は要らない** ―― §3 が見るのは `TARGETS`（special / exam / deck / core / deck.js）だけで、
 	// `card-event-input.html` は入っていない。**記録として残すためにここへ書いている。**
 	// イベントスキルの出力（登録済みスキルを選んで紐づけ、出力 A を作る）はそのまま動く。
+	//
+	// 2026-09-24（74セッション目・第2回の段1）: **`card-event-input.html` から「スキルのタグ付け」の
+	// 画面を丸ごと撤去した**（画面が1つになった）。**タグの正本は外部データの取得・整形の専用フォルダに
+	// あるマスターのブックで、説明文から規則で作ると決まっている**（C-75・C-76）ので、ツール側に手で
+	// 付ける画面を残すと**正本が2つになる**。消したのは
+	//   - 画面: 画面を切り替える帯（`#cei-tab-event` / `#cei-tab-tags` / `.cei-tabs` / `.cei-tab` /
+	//     `data-act="tab"` / `data-pane` / `.cei-panel[hidden]`）、タグ付けの一覧（`#cei-tag-q` /
+	//     `#cei-tag-only-pending` / `#cei-tag-counts` / `#cei-tag-list`）、**出力 B**（`#cei-ext-version` /
+	//     `#cei-ext-copy` / `#cei-tag-clear` / `#cei-ext-info` / `#cei-ext-out` / `#cei-ext-warn`）、
+	//     タグ編集欄（`data-tagbox` / `data-tagrow` / `data-tagbadge` / `data-tagsum` /
+	//     `data-act="tag"` / `tag-open` / `tag-close` / `tag-universal` / `tag-reset`）
+	//   - JS: `copyTags` / `isAllEmpty` / `tagStateOf` / `tagBadgeHtml` / `tagSummary` / `currentTags` /
+	//     `ensureTagDraft` / `loadTagDraft` / `saveTagDraft` / `pruneTagDraft` / `tagBoxHtml` /
+	//     `tagRowHtml` / `swapTagRows` / `refreshTagRows` / `toggleTagBox` / `setPane` /
+	//     `visibleExtSkills` / `renderTagCounts` / `renderTagPane` / `buildExtOutput` / `renderExtOutput`
+	//   - CSS: `.cei-tagbox` ほかタグ編集欄一式（ページの `<style>` にコメントで残してある）
+	// **`umaCardEventInput:tagDraft` の途中経過は消さない**（`newSkills` と同じ扱い。起動時に1度知らせる）。
+	// **`bc5c369` で記録した「`copyTags()` が10軸でタグを作る」申し送りは、撤去によって解消**した
+	// （直す対象そのものが無くなった）。
+	// **`run-smoke.mjs` の塊「73セッション目 ― card-event-input.html の軸のルールの注記」（7項目）も消した**
+	// ―― 見る対象が無くなったため。理由と「失っていない検査」は、その場所にコメントで残してある。
+	// **免除の登録は要らない**（§3 の `TARGETS` に入っていないページなので）。
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
