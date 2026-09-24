@@ -3959,9 +3959,20 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 		const excludedCount = await page.evaluate(() => UmaSkillDeckCore.getPoolExcludedSkills().length);
 		assert(excludedCount > 0, 'deck(段8): 母集団から外したスキルが実在する（空振りの検査ではない）', excludedCount);
 
-		/* (b) ③④ 空を「該当なし」と読む軸を1つ選ぶと、その軸が空のスキルは出ない */
-		const emptyNoneAxis = marks.find((a) => a.emptyNone && !a.hidden && a.key !== 'scenario');
-		if (emptyNoneAxis) {
+		/* (b) ③④ 空を「該当なし」と読む軸を1つ選ぶと、その軸が空のスキルは出ない。
+		   **2026-09-25（C-89）: 印の付いた軸を全部回す形にした**（効果タイプ・フェーズ・コース位置・その他）。
+		   それまでは最初の1本（フェーズ）しか見ておらず、効果タイプに印を足すと見る軸が入れ替わるだけだった。
+		   **回す軸は製品の印ではなく、ここに持つ名簿から選ぶ**（`test:master` の `EMPTY_NONE_AXES` と同じ理由）。
+		   製品の印から選ぶと、印を外して壊したときにその軸が回す対象から消えるだけで、検査が空振りする
+		   （実際、フェーズの印を外しても落ちなかった）。この塊で軸のキーを書くのはここだけ。 */
+		const EMPTY_NONE_KEYS = ['effect', 'phase', 'coursePos', 'scenario'];
+		const flaggedKeys = marks.filter((a) => a.emptyNone).map((a) => a.key);
+		assert(EMPTY_NONE_KEYS.slice().sort().join() === flaggedKeys.slice().sort().join(),
+			'deck(段8③④): 空を「該当なし」と読む印が付いた軸が名簿と一致', { 名簿: EMPTY_NONE_KEYS, 製品: flaggedKeys });
+		const emptyNoneAxes = marks.filter((a) => EMPTY_NONE_KEYS.includes(a.key) && !a.hidden);
+		assert(emptyNoneAxes.length === EMPTY_NONE_KEYS.length,
+			'deck(段8③④): 名簿の軸がどれも画面に出ている（空振りの検査ではない）', emptyNoneAxes.map((a) => a.key));
+		for (const emptyNoneAxis of emptyNoneAxes) {
 			await ensureAxisOpen(emptyNoneAxis.key);
 			await page.click('[data-usd-el="filter-check"][data-axis="' + emptyNoneAxis.key + '"][data-value="' + emptyNoneAxis.opts[0] + '"]');
 			await page.waitForTimeout(400);

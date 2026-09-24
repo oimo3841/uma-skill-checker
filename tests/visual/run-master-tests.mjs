@@ -299,7 +299,8 @@ const browser = await chromium.launch();
 	 * を足した。**「hiddenAxis」と「poolExcluded」は別物**で、まとめると
 	 * 「隠す軸にタグを持つが、パッシブではないスキル」まで母集団から消える ―― それを下で固定する。
 	 * ========================================================== */
-	const EMPTY_NONE_AXES = ['phase', 'coursePos', 'scenario'];
+	// 2026-09-25（C-89）: 効果タイプも空を「該当なし」と読むようにした（3本 → 4本）。
+	const EMPTY_NONE_AXES = ['effect', 'phase', 'coursePos', 'scenario'];
 	const HIDDEN_AXES = ['environment', 'trackVenue', 'passive'];
 	const POOL_EXCLUDED_AXES = ['passive'];
 	const EXCLUSIVE_AXES = ['surface'];
@@ -308,7 +309,7 @@ const browser = await chromium.launch();
 	const excluded = axes.filter((a) => a.poolExcluded).map((a) => a.key);
 	const exclusive = axes.filter((a) => a.exclusive).map((a) => a.key);
 	assert(eq(flagged.slice().sort(), EMPTY_NONE_AXES.slice().sort()),
-		'段8: 空を「該当なし」と読む軸は3本（フェーズ・コース位置・その他）', flagged);
+		'段8・C-89: 空を「該当なし」と読む軸は4本（効果タイプ・フェーズ・コース位置・その他）', flagged);
 	assert(eq(hidden.slice().sort(), HIDDEN_AXES.slice().sort()),
 		'段8: 絞り込みに出さない軸は3本（レース環境・レース場・パッシブ）', hidden);
 	assert(eq(excluded.slice().sort(), POOL_EXCLUDED_AXES.slice().sort()),
@@ -526,6 +527,85 @@ const browser = await chromium.launch();
 	await tick('effect', 'stamina');
 	await tick('effect', 'target_speed_up');
 	assert(await readCount() === POOL.length, 'チェックを外すと母集団の件数に戻る', await readCount());
+
+	/* **C-89（2026-09-25）: 効果タイプも空を「該当なし」と読む。**
+	   効果タイプを1つでも選ぶと、効果タイプが空のスキルは出ない。何も選ばなければ出る。
+	   選ぶ値は製品の選択肢の先頭から取る（値を検査に書かない）。 */
+	{
+		const effPick = await page.evaluate(() => {
+			const C = UmaSkillDeckCore;
+			return C.pickableOptions(C.TAG_AXES.find((a) => a.key === 'effect'))[0].v;
+		});
+
+		// (a) 母集団で効果タイプが空のスキル（データから探す。いまは大逃げ1件）
+		const effEmpty = POOL.filter((s) => axisValues(s, 'effect').length === 0).map((s) => s.name);
+		if (effEmpty.length === 0) console.log('     [情報] C-89(a): 母集団に効果タイプが空のスキルは0件（この検査は空振り。(b) の仕込みで見る）');
+		else console.log('     [情報] C-89(a): 母集団で効果タイプが空のスキル ' + effEmpty.length + '件: ' + effEmpty.join('、'));
+		await tick('effect', effPick);
+		const onA = new Set(await listedNames());
+		await tick('effect', effPick);
+		const offA = new Set(await listedNames());
+		assert(effEmpty.every((n) => !onA.has(n)),
+			'C-89(a): 効果タイプを1つ選ぶと、効果タイプが空のスキル（' + effEmpty.length + '件）は出ない',
+			effEmpty.filter((n) => onA.has(n)));
+		assert(effEmpty.every((n) => offA.has(n)),
+			'C-89(a): 効果タイプの選択を外すと、それらは出る', effEmpty.filter((n) => !offA.has(n)));
+
+		// (b) 効果タイプが空の検査用カスタムスキルを仕込む（全軸が空＝「名前を入れて探す」から作ったものと同じ形）。
+		//     データが変わっても、印の意味そのものを見続けるため（段8 の隠す軸の検査と同じ作り）。
+		const EFF_PROBE_ID = 'custom_effect_empty_probe';
+		const EFF_PROBE_NAME = '効果タイプが空の検査用スキル';
+		await page.evaluate(([id, name]) => {
+			const data = UmaSkillDeckCore.getUserData();
+			const tags = {};
+			UmaSkillDeckCore.TAG_AXES.forEach((a) => { tags[a.key] = []; });
+			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
+			data.customSkills.push({ customId: id, name: name, tags: tags, createdAt: new Date().toISOString() });
+			UmaSkillDeckCore.replaceUserData(data);
+			UmaSkillDeckCore.openSkillPicker([], () => {});
+		}, [EFF_PROBE_ID, EFF_PROBE_NAME]);
+		await page.waitForTimeout(300);
+		const offB = (await listedNames()).includes(EFF_PROBE_NAME);
+		await tick('effect', effPick);
+		const onB = (await listedNames()).includes(EFF_PROBE_NAME);
+		await tick('effect', effPick);
+		const offB2 = (await listedNames()).includes(EFF_PROBE_NAME);
+		assert(offB === true, 'C-89(b): 効果タイプが空のカスタムスキルは、何も選ばなければ出る', offB);
+		assert(onB === false, 'C-89(b): 効果タイプを1つ選ぶと、効果タイプが空のカスタムスキルは出ない', onB);
+		assert(offB2 === true, 'C-89(b): 選択を外すと、また出る', offB2);
+		await page.evaluate((id) => {
+			const data = UmaSkillDeckCore.getUserData();
+			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
+			UmaSkillDeckCore.replaceUserData(data);
+			UmaSkillDeckCore.openSkillPicker([], () => {});
+		}, EFF_PROBE_ID);
+		await page.waitForTimeout(300);
+		assert(await readCount() === POOL.length, 'C-89(b): 検査用スキルを片付けると母集団の件数に戻る', await readCount());
+
+		// (c) マスター分の結果は変わらない。マスターには効果タイプが空のスキルが無いので、
+		//     「空＝万能」（変更前）と「空＝該当なし」（変更後）の読み方で、選択肢ごとの結果が一致する。
+		//     あわせて、画面に出たマスター分が変更後の読み方と一致することを1つの値で確かめる。
+		const effValues = await page.evaluate(() => {
+			const C = UmaSkillDeckCore;
+			return C.pickableOptions(C.TAG_AXES.find((a) => a.key === 'effect')).map((o) => o.v);
+		});
+		const differ = effValues.filter((v) => {
+			const before = MASTER_POOL.filter((s) => axisValues(s, 'effect').length === 0 || axisValues(s, 'effect').includes(v)).length;
+			const after = MASTER_POOL.filter((s) => axisValues(s, 'effect').includes(v)).length;
+			return before !== after;
+		});
+		assert(differ.length === 0,
+			'C-89(c): マスター分は、効果タイプの ' + effValues.length + '個の選択肢すべてで変更の前と後の結果が同じ', differ);
+		await tick('effect', effPick);
+		const masterNames = new Set(MASTER_POOL.map((s) => s.name));
+		const shownMaster = (await listedNames()).filter((n) => masterNames.has(n));
+		const expectMaster = MASTER_POOL.filter((s) => axisValues(s, 'effect').includes(effPick)).map((s) => s.name);
+		await tick('effect', effPick);
+		assert(eq(shownMaster.slice().sort(), expectMaster.slice().sort()),
+			'C-89(c): 効果タイプ（' + effPick + '）で絞ったときのマスター分 ' + expectMaster.length + '件が期待値と一致',
+			{ 画面: shownMaster.length, 期待: expectMaster.length });
+		assert(await readCount() === POOL.length, 'C-89: 選択を外すと母集団の件数に戻る', await readCount());
+	}
 
 	/* ②A「能力上昇」の絞り込みは段8 で無くなった（選択肢から外した）。
 	   押せるものが無いことを、チェックボックスの有無で見る。 */
