@@ -549,9 +549,17 @@ console.log('\n=== 4-2. マスターのタグと名前の突き合わせ ===');
 
    **`TAG_AXES` にまだ無い軸**（段2 で先行投入した `rarity` / `inherited` のように、
    データだけ先に入れてUIには出していないもの）は、**値が空であることだけを見る** ――
-   選択肢が1つも無い軸に値が入っていたら、それはどこからも選べない値なので必ず誤り。 */
+   選択肢が1つも無い軸に値が入っていたら、それはどこからも選べない値なので必ず誤り。
 
-console.log('\n=== 4-3. マスターのタグの値が TAG_AXES の選択肢に実在するか（全軸） ===');
+   **【74セッション目・第2回の段1】タグを持つ拡張スキルも同じ規則で見るようにした。**
+   それまでこの節は `masterSkills` だけを回しており、**拡張スキルのタグの値は誰も見ていなかった**
+   （Step 0 で実測 ―― `distance: ["BOGUS_VALUE"]` を入れても総合 OK のまま通った）。
+   マスターと同じで、綴りを間違えた値は**画面にも検査にも何も出ないまま
+   「その条件では永久に出てこないスキル」**になる。第2回で拡張スキルにタグが入るので、
+   入る前にここを広げておく。**マスターと拡張スキルで規則は同じ**なので、
+   同じ1つのループで回す（どちらの行かは報告のときに名乗る）。 */
+
+console.log('\n=== 4-3. タグの値が TAG_AXES の選択肢に実在するか（マスター＋拡張スキル・全軸） ===');
 {
 	const uiAxes = [], dataOnlyAxes = [], unknownValue = [], valueInDataOnlyAxis = [];
 	const optionsByAxis = new Map();
@@ -569,24 +577,40 @@ console.log('\n=== 4-3. マスターのタグの値が TAG_AXES の選択肢に�
 	console.log(dataOnlyAxes.length
 		? '     TAG_AXES に無い軸（マスターだけが持つ・絞り込みには出さない）: ' + dataOnlyAxes.join(' / ')
 		: '     TAG_AXES に無い軸は無い（マスターの軸はすべて絞り込みに出ている）');
-	masterSkills.forEach((s) => {
+	/* 見る対象。**マスター全件＋タグを持つ拡張スキル**（`tagsPending` の行は tags を持たないので
+	   自然に外れる）。カテゴリ名も件数もここに書かず、読んだファイルから作る。 */
+	const taggedExtended = docs.extendedSkill.entries.filter((e) => isObj(e.tags));
+	const targets = masterSkills.map((s) => ({ where: 'マスター', id: s.id, name: s.name, tags: s.tags || {} }))
+		.concat(taggedExtended.map((e) => ({ where: '拡張スキル', id: e.id, name: e.name, tags: e.tags })));
+	targets.forEach((s) => {
 		const tags = s.tags || {};
+		const at = s.where + ' ' + s.id + '（' + s.name + '）';
 		for (const axis of TAG_AXES) {
 			const values = isArr(tags[axis]) ? tags[axis] : [];
 			const known = optionsByAxis.get(axis);
 			if (!known) {
-				values.forEach((v) => valueInDataOnlyAxis.push(s.id + '（' + s.name + '）: ' + axis + ' = ' + v));
+				values.forEach((v) => valueInDataOnlyAxis.push(at + ': ' + axis + ' = ' + v));
 				continue;
 			}
-			values.forEach((v) => { if (!known.has(v)) unknownValue.push(s.id + '（' + s.name + '）: ' + axis + ' = ' + v); });
+			values.forEach((v) => { if (!known.has(v)) unknownValue.push(at + ': ' + axis + ' = ' + v); });
 		}
 	});
-	none(unknownValue, 'マスターの全軸のタグの値が TAG_AXES の選択肢に実在する（廃した値が残っていない）');
+	none(unknownValue, '全軸のタグの値が TAG_AXES の選択肢に実在する（廃した値が残っていない）'
+		+ '［マスター' + masterSkills.length + '件＋タグ付きの拡張スキル' + taggedExtended.length + '件］');
+	/* **拡張スキルのぶんが0件のときは、そう名乗る。** タグ付けはこれから（第2回の段3）なので、
+	   いまは「マスターだけを見て通った」状態。0件のまま通ったことを [OK] に紛れさせない
+	   （F-56「まだ0件だから通る検査は、通ったことに意味が無い」）。 */
+	console.log(taggedExtended.length
+		? '     拡張スキルは ' + taggedExtended.length + '件にタグが付いている（値も上の検査の対象）'
+		: '     拡張スキルはまだ1件もタグが付いていない（＝上の検査は、いまはマスターだけを見ている）');
 	// 先行している軸が1本も無いときは、この検査は見るものが無い（0件だから通る検査になる）。
 	// **その状態をそう名乗る** ―― 通ったことに意味がある検査と、見るものが無い検査を、
-	// 同じ [OK] の行で混ぜない（F-56「まだ0件だから通る検査は、通ったことに意味が無い」）。
+	// 同じ [OK] の行で混ぜない（F-56）。
+	// **74セッション目: 対象をマスターだけから「マスター＋タグ付きの拡張スキル」へ広げた。**
+	// `rarity` / `inherited` は**どちらの側でも空**（受け取りの形の決まり）。
 	if (dataOnlyAxes.length) {
-		none(valueInDataOnlyAxis, 'TAG_AXES に無い軸には値が入っていない（どこからも選べない値にならない）');
+		none(valueInDataOnlyAxis, 'TAG_AXES に無い軸（' + dataOnlyAxes.join(' / ')
+			+ '）には、マスターにも拡張スキルにも値が入っていない（どこからも選べない値にならない）');
 	} else {
 		console.log('     （そういう軸が無いので「TAG_AXES に無い軸に値が入っていないか」は見ていない）');
 	}

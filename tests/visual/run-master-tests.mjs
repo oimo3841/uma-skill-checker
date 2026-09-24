@@ -31,6 +31,12 @@ function assert(cond, label, extra) {
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 const master = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'uma-skill-deck-skills.json'), 'utf8'));
+/* **【74セッション目・第2回の段1】拡張スキルも読む。**
+ * 「条件で検索」の母集団は製品の `taggedSkillPool()` が決めており、**マスターだけではない**
+ * ―― タグが付いた拡張スキルも入る（`tagsPending` のものは入らない）。
+ * 第2回でタグが入ると、マスター単独で組み立てた期待値は必ず食い違うので、
+ * ここで材料を広げておく。**カテゴリ名も件数もこのファイルに書かない**（ファイルから読む）。 */
+const extendedSkills = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/extended-skills.json'), 'utf8'));
 
 /**
  * ①で「持久力減少」(stamina_down) へ付け替えた14件。
@@ -340,14 +346,37 @@ const browser = await chromium.launch();
 	};
 	/** 「条件で検索」の母集団（パッシブを外したもの）。名簿ではなく印とタグから導く。 */
 	const inPool = (s) => POOL_EXCLUDED_AXES.every((k) => axisValues(s, k).length === 0);
-	const POOL = master.skills.filter(inPool);
+	/* **【74セッション目・第2回の段1】母集団の材料を「マスター＋タグ付きの拡張スキル」へ広げた。**
+	 *
+	 * 製品の `taggedSkillPool()` は マスター＋カスタムスキル＋**タグを持つ追加カタログ** を足す。
+	 * それまでこのファイルは `master.skills` だけで期待値を組み立てていたので、
+	 * **第2回で拡張スキルにタグが入った瞬間、件数も名簿も全部食い違って落ちる**状態だった。
+	 *
+	 * **検査は1つも弱めていない** ―― 突き合わせはこれまでどおり「完全一致」で、
+	 * 材料が1種類増えただけ。マスター側だけを見たい検査（パッシブ67件・シナリオ27件など）は
+	 * `MASTER_POOL` / `master.skills` を使い続ける。
+	 * カスタムスキルは各塊が自分で仕込むので、そのつど +1 して数える（従来どおり）。 */
+	const MASTER_POOL = master.skills.filter(inPool);
+	/** タグが付いた拡張スキル（`tagsPending` の行は `tags` を持たないので自然に外れる）。 */
+	const CATALOG_TAGGED = extendedSkills.entries.filter((e) => e.tags);
+	const CATALOG_POOL = CATALOG_TAGGED.filter(inPool);
+	const POOL = MASTER_POOL.concat(CATALOG_POOL);
 	/** 仕様どおりに絞った期待値（名前の配列）。f は { 軸キー: [値…] }。 */
 	const expectNames = (f) => {
 		const keys = Object.keys(f).filter((k) => (f[k] || []).length > 0);
 		return POOL.filter((s) => keys.every((k) => axisHit(s, k, f[k]))).map((s) => s.name);
 	};
-	assert(POOL.length === 378 && master.skills.length - POOL.length === 67,
-		'段8: 母集団は 445 − パッシブ67 = 378件', { 母集団: POOL.length, パッシブ: master.skills.length - POOL.length });
+	assert(MASTER_POOL.length === 378 && master.skills.length - MASTER_POOL.length === 67,
+		'段8: マスターの母集団は 445 − パッシブ67 = 378件',
+		{ 母集団: MASTER_POOL.length, パッシブ: master.skills.length - MASTER_POOL.length });
+	/* **拡張スキルのぶんが0件のときは、そう名乗る。** タグ付けは第2回の段3 なので、
+	   いまは「マスターだけの母集団」を見て通っている状態（F-56: 0件だから通る検査と、
+	   通ったことに意味がある検査を混ぜない）。 */
+	console.log(CATALOG_TAGGED.length
+		? '     [情報] タグ付きの拡張スキル ' + CATALOG_TAGGED.length + '件（うち母集団に入るのは '
+			+ CATALOG_POOL.length + '件・パッシブは ' + (CATALOG_TAGGED.length - CATALOG_POOL.length) + '件）'
+			+ ' → 母集団は ' + POOL.length + '件'
+		: '     [情報] 拡張スキルはまだ1件もタグが付いていない（母集団はマスターの ' + POOL.length + '件だけ）');
 
 	// 63セッション目（第2波）: ⑧を「その他」（入手経路）に広げ、値を3つにした。
 	// **空配列の意味が他の軸と逆**（空＝該当なし）なのは変わらないので、印の名前だけ
@@ -590,9 +619,17 @@ const browser = await chromium.launch();
 	await tick('effect', 'stamina');
 	const andCount = await readCount();
 	const andNames = await listedNames();
-	assert(eq(andNames.slice().sort(), ['アオハル点火・体', '綺羅星'].sort()),
-		'⑧×③のAND絞り込みが効く', andNames);
-	assert(andCount === 2, '⑧シナリオ × 持久力回復 は2件（レースの真髄・体はサブ消費で外れた）', andCount);
+	/* **74セッション目: 名前の決め打ちをやめ、期待値から作るようにした。**
+	   タグ付きの拡張スキルが母集団に入ると、この組み合わせに当たるものが増えうるため。
+	   **マスター側の2件（アオハル点火・体／綺羅星）は別の assert で据え置き**にしてあるので、
+	   「具体的にどれが出るか」の検査は失っていない。 */
+	const andExpect = expectNames({ scenario: ['scenario'], effect: ['stamina'] });
+	assert(eq(andNames.slice().sort(), andExpect.slice().sort()),
+		'⑧×③のAND絞り込みが効く（' + andExpect.length + '件）', { 画面: andNames, 期待: andExpect });
+	assert(andCount === andExpect.length, '⑧シナリオ × 持久力回復 の件数が期待値と一致', andCount);
+	const andMaster = andExpect.filter((n) => MASTER_POOL.some((s) => s.name === n));
+	assert(eq(andMaster.slice().sort(), ['アオハル点火・体', '綺羅星'].sort()),
+		'⑧×③ のうちマスター由来は2件（レースの真髄・体はサブ消費で外れた）', andMaster);
 	await tick('effect', 'stamina');
 	await tick('scenario', 'scenario');
 
@@ -681,9 +718,13 @@ const browser = await chromium.launch();
 
 		// (3) 母集団から外す軸のスキルは、名前の索引からは引ける（段9 の入口が使う）
 		const excludedSkills = await page.evaluate(() => UmaSkillDeckCore.getPoolExcludedSkills().map((s) => s.name));
-		const expectExcluded = master.skills.filter((s) => !inPool(s)).map((s) => s.name);
+		/* **74セッション目: 期待値に「タグ付きの拡張スキルのパッシブ」も足した。**
+		   母集団と緑スキルの一覧は表と裏なので、母集団の材料を広げたらこちらも同じだけ広げる
+		   （片方だけ直すと「どこからも選べないスキル」を見逃す）。 */
+		const expectExcluded = master.skills.filter((s) => !inPool(s))
+			.concat(CATALOG_TAGGED.filter((s) => !inPool(s))).map((s) => s.name);
 		assert(eq(excludedSkills.slice().sort(), expectExcluded.slice().sort()),
-			'段8: getPoolExcludedSkills() がパッシブ67件をそのまま返す（段9 の一覧の母集団）',
+			'段8: getPoolExcludedSkills() がパッシブ' + expectExcluded.length + '件をそのまま返す（段9 の一覧の母集団）',
 			{ 製品: excludedSkills.length, 期待: expectExcluded.length });
 		assert(excludedSkills.every((n) => !listedAll.has(n)),
 			'段8: その67件は「条件で検索」の一覧には1件も出ていない');

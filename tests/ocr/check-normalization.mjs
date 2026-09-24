@@ -281,12 +281,39 @@ const catalogReport = await deckPage.evaluate(({ masterIds, wantByCategory }) =>
 		// カテゴリ（シナリオ因子）」の2種類だが、どちらも tags の有無だけで判定できるので、
 		// **このテストにもカテゴリ名を書かない**（恒久ルール1）。
 		// 両方向を見る ―― タグ付きが入っていない場合も、タグ無しが入っている場合も落とす。
+		//
+		// **【74セッション目・第2回の段1】`poolExcluded` を考慮するようにした。**
+		// それまでは「タグを持つ ⇔ 母集団に居る」だけを見ていたので、**パッシブ（緑スキル）の
+		// タグが付いた拡張スキルが来ると、仕様どおりに母集団から外れているのに落ちた**
+		// （第2回では ◎スキルなどに `passive` が付く）。正しい期待は
+		// **「タグを持ち、かつ `poolExcluded` の軸に値を持たないものが母集団に居る」**。
+		// **軸のキーはここに書かない** ―― 製品の `isPoolExcluded()` と同じく `TAG_AXES` の
+		// `poolExcluded` の印から判定する（恒久ルール1）。
 		pickerPoolProblems: (function () {
 			C.openSkillPicker([], () => {});
 			const ids = new Set(Array.from(document.querySelectorAll('[data-usd-el="skill-check"]')).map((el) => el.value));
 			C.closeSkillPicker();
-			return cat.filter((e) => !!e.tags !== ids.has(e.id))
-				.map((e) => e.id + (e.tags ? '（タグ付きなのに母集団に無い）' : '（タグが無いのに母集団に居る）'));
+			const poolExcludedAxes = C.TAG_AXES.filter((a) => a.poolExcluded).map((a) => a.key);
+			const excluded = (e) => poolExcludedAxes.some((k) => ((e.tags && e.tags[k]) || []).length > 0);
+			return cat.filter((e) => {
+				const want = !!e.tags && !excluded(e);
+				return want !== ids.has(e.id);
+			}).map((e) => e.id + (e.tags
+				? (excluded(e) ? '（母集団から外れるはずなのに居る）' : '（タグ付きなのに母集団に無い）')
+				: '（タグが無いのに母集団に居る）'));
+		})(),
+		/* **外れたぶんが「緑スキルを追加」の側に出ているか**（74セッション目・第2回の段1）。
+		   母集団と緑スキルの一覧は表と裏で、**片方から外したものはもう片方に出る**が成り立たないと
+		   「どこからも選べないスキル」が生まれる。上の検査だけだと「外れていること」しか見ないので、
+		   **受け皿の側（画面に実際に並ぶ行）**をここで見る。 */
+		passiveListProblems: (function () {
+			const poolExcludedAxes = C.TAG_AXES.filter((a) => a.poolExcluded).map((a) => a.key);
+			const excluded = (e) => poolExcludedAxes.some((k) => ((e.tags && e.tags[k]) || []).length > 0);
+			const want = cat.filter((e) => !!e.tags && excluded(e)).map((e) => e.id);
+			C.openPassiveSkillPicker([], () => {});
+			const listed = new Set(Array.from(document.querySelectorAll('[data-usd-el="passive-check"]')).map((el) => el.value));
+			C.closeSkillPicker();
+			return { want: want.length, missing: want.filter((id) => !listed.has(id)), listed: listed.size };
 		})(),
 		// 内訳（情報。検査には使わない）。タグ付けの進み具合がここに出る。
 		pickerPoolCounts: (function () {
@@ -411,7 +438,20 @@ check(catalogReport.findProblems.length === 0,
 check(catalogReport.resolveProblems.length === 0,
 	'名前から同じ id へ解決する（OCRツールから渡った名前が当たる）', catalogReport.resolveProblems);
 check(catalogReport.pickerPoolProblems.length === 0,
-	'「条件でスキルを検索」の母集団に入るのはタグ付きのものだけ', catalogReport.pickerPoolProblems);
+	'「条件でスキルを検索」の母集団に入るのは、タグ付きでパッシブでないものだけ', catalogReport.pickerPoolProblems);
+/* パッシブ付きのカタログのスキルは「緑スキルを追加」の側に居る（74セッション目）。
+   **いまは0件**（拡張スキルのタグ付けは第2回の段3）なので、**0件であることをそう名乗る** ――
+   通ったことに意味がある検査と、見るものが無い検査を同じ [OK] で混ぜない（F-56）。 */
+{
+	const p = catalogReport.passiveListProblems;
+	if (p.want === 0) {
+		console.log('  ―― パッシブのタグが付いたカタログのスキルはまだ0件（緑スキルの一覧の検査は、いまは見るものが無い）'
+			+ '／一覧に並んでいるのは ' + p.listed + '件（マスター由来）');
+	} else {
+		check(p.missing.length === 0,
+			'パッシブが付いたカタログのスキル' + p.want + '件が「緑スキルを追加」の一覧に出る', p.missing);
+	}
+}
 console.log('    母集団の内訳:', JSON.stringify(catalogReport.pickerPoolCounts));
 // core の組み込みの写し（フェッチもキャッシュも駄目なときの最後の砦）。カテゴリごとに見る。
 const embeddedDiff = [];
