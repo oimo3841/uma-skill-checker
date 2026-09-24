@@ -1,7 +1,7 @@
 {
-	"dataVersion": "2026-09-18a",
+	"dataVersion": "2026-09-24a",
 	"category": "extendedSkill",
-	"nextSerial": "ex-0534",
+	"nextSerial": "ex-0985",
 	"note": "マスター（uma-skill-deck-skills.json）の445種に無いスキル。name はゲーム画面の表示そのまま（全角・半角・中黒「・」を含めて変えない）。id は保存済みの比較シートが指し続ける不変の鍵なので、表記を直しても id は変えない。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。tagsPending が付いている間は8軸のタグが未設定で、条件での絞り込みの母集団には入れない（8軸すべてが空のタグは「条件を持たない＝万能スキル」という別の意味になるため、未設定はこの印で示す）。tagsPending と tags はどちらか一方だけを持つ。形は npm run check:catalog が確かめる。",
 	"entries": [
 		{
@@ -2667,6 +2667,901 @@
 		{
 			"id": "ex-0533",
 			"name": "気勢を上げて",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0534",
+			"name": "右回り◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0535",
+			"name": "左回り◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0536",
+			"name": "東京レース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0537",
+			"name": "中山レース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0538",
+			"name": "阪神レース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0539",
+			"name": "京都レース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0540",
+			"name": "中京レース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0541",
+			"name": "札幌レース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0542",
+			"name": "函館レース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0543",
+			"name": "福島レース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0544",
+			"name": "新潟レース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0545",
+			"name": "小倉レース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0546",
+			"name": "根幹距離◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0547",
+			"name": "非根幹距離◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0548",
+			"name": "良バ場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0549",
+			"name": "道悪◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0550",
+			"name": "春ウマ娘◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0551",
+			"name": "夏ウマ娘◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0552",
+			"name": "青嵐",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0553",
+			"name": "秋ウマ娘◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0554",
+			"name": "冬ウマ娘◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0555",
+			"name": "凍て風",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0556",
+			"name": "晴れの日◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0557",
+			"name": "曇りの日◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0558",
+			"name": "雨の日◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0559",
+			"name": "雪の日◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0560",
+			"name": "内枠得意◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0561",
+			"name": "外枠得意◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0562",
+			"name": "おひとり様◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0563",
+			"name": "対抗意識◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0564",
+			"name": "徹底マーク◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0565",
+			"name": "伏兵◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0566",
+			"name": "火事場のバ鹿力",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0567",
+			"name": "大井レース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0568",
+			"name": "短距離直線◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0569",
+			"name": "短距離コーナー◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0570",
+			"name": "紫電円刃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0571",
+			"name": "プランX",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0572",
+			"name": "逃亡禁止令",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0573",
+			"name": "マイル直線◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0574",
+			"name": "豪風一閃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0575",
+			"name": "マイルコーナー◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0576",
+			"name": "スピードグリード",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0577",
+			"name": "中距離直線◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0578",
+			"name": "中距離コーナー◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0579",
+			"name": "長距離直線◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0580",
+			"name": "長距離コーナー◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0581",
+			"name": "烈風円刃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0582",
+			"name": "逃げ直線◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0583",
+			"name": "逃げコーナー◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0584",
+			"name": "シックスセンス",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0585",
+			"name": "再燃焼",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0586",
+			"name": "先行直線◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0587",
+			"name": "先行コーナー◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0588",
+			"name": "くじけぬ精神",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0589",
+			"name": "差し直線◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0590",
+			"name": "鋭脚一閃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0591",
+			"name": "差しコーナー◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0592",
+			"name": "鋭脚円刃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0593",
+			"name": "追込直線◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0594",
+			"name": "追込コーナー◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0595",
+			"name": "月影円刃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0596",
+			"name": "天命士",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0597",
+			"name": "逃げのコツ◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0598",
+			"name": "先行のコツ◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0599",
+			"name": "差しのコツ◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0600",
+			"name": "追込のコツ◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0601",
+			"name": "大逃げ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0602",
+			"name": "川崎レース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0603",
+			"name": "船橋レース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0604",
+			"name": "盛岡レース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0605",
+			"name": "ナイター◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0606",
+			"name": "小回り◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0607",
+			"name": "交流重賞◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0608",
+			"name": "明鏡止水",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0609",
+			"name": "爆走モード！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0610",
+			"name": "泥遊び◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0611",
+			"name": "砂上の舞姫",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0612",
+			"name": "油断大敵",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0614",
+			"name": "ロンシャンレース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0615",
+			"name": "ロンシャンの申し子",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0616",
+			"name": "時中の妙",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0617",
+			"name": "機先の勝負",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0618",
+			"name": "砂の妙手",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0619",
+			"name": "ロケットスタート",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0620",
+			"name": "心頭滅却",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0621",
+			"name": "直線コース◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0622",
+			"name": "電迅速攻",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0623",
+			"name": "風翔",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0624",
+			"name": "砂塵一閃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0625",
+			"name": "ダート直線◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0626",
+			"name": "砂塵円刃",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0627",
+			"name": "ダートコーナー◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0628",
+			"name": "怜悧清澄",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0629",
+			"name": "本能の解放",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0630",
+			"name": "豪胆無比",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0631",
+			"name": "連鎖反応",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0632",
+			"name": "烈火の如く",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0633",
+			"name": "熾烈の極み",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0634",
+			"name": "閃光",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0635",
+			"name": "勇猛果敢",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0636",
+			"name": "真骨頂",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0637",
+			"name": "飛竜乗雲",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0638",
+			"name": "正々堂々",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0639",
+			"name": "丁々発止",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0640",
+			"name": "英俊豪傑",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0641",
+			"name": "一所懸命",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0642",
+			"name": "突破口",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0643",
+			"name": "独立独歩",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0644",
+			"name": "曙光",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0645",
+			"name": "パスファインダー",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0646",
+			"name": "悠久走破",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0647",
+			"name": "秘めた闘魂",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0648",
+			"name": "残影",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0649",
+			"name": "即断即決",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0650",
+			"name": "自由奔放",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0651",
+			"name": "問答無用",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0652",
+			"name": "至宝の輝き",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0653",
+			"name": "不抜の気概",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0654",
+			"name": "迸る気迫",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0655",
+			"name": "千鍛万錬",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0656",
+			"name": "錦上添花",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0657",
+			"name": "元気溌剌",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0658",
+			"name": "前人未到",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0659",
+			"name": "イノベーション",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0660",
+			"name": "サンタアニタパークレース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0661",
+			"name": "デルマーレース場◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0662",
+			"name": "匠のステアリング",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0663",
+			"name": "超長距離回復◎",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0664",
+			"name": "圧倒",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0665",
+			"name": "継続は力なり",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0666",
+			"name": "一騎当千",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0667",
+			"name": "光輝燦然",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0668",
+			"name": "悠々自適",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0669",
+			"name": "聖女の試練",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0670",
+			"name": "レースメイカー",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0671",
+			"name": "一石二鳥",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0672",
+			"name": "当機立断",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0673",
+			"name": "清麗高雅",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0674",
+			"name": "純真無垢",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0675",
+			"name": "開けろ風穴！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0676",
+			"name": "堅忍果決",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0677",
+			"name": "素質の証明",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0678",
+			"name": "アオハル燃焼・速",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0679",
+			"name": "アオハル燃焼・体",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0680",
+			"name": "アオハル燃焼・力",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0681",
+			"name": "アオハル燃焼・根",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0682",
+			"name": "アオハル燃焼・賢",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0683",
+			"name": "一番星",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0684",
+			"name": "キミと勝ちたい",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0685",
+			"name": "限界の先へ",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0686",
+			"name": "太陽の叡智",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0687",
+			"name": "大海の叡智",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0688",
+			"name": "大地の叡智",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0689",
+			"name": "最高峰の夢",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0690",
+			"name": "爆熱のキラメキ！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0691",
+			"name": "アスリート魂",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0692",
+			"name": "私たちの走る道程",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0693",
+			"name": "もう少しだけ、いい景色",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0694",
+			"name": "新たな伝説を築く者",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0695",
+			"name": "本能の懸け橋",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0696",
+			"name": "保養が導く奇跡",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0697",
+			"name": "情熱と挑戦の先の栄光",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0698",
+			"name": "極上の感謝を！",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0968",
+			"name": "L'Arcの希望",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0969",
+			"name": "凱旋門賞連覇の夢",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0970",
+			"name": "レースの真髄・速+",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0971",
+			"name": "レースの真髄・体+",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0972",
+			"name": "レースの真髄・力+",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0973",
+			"name": "レースの真髄・根+",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0974",
+			"name": "レースの真髄・賢+",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0975",
+			"name": "レースの真髄・心+",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0976",
+			"name": "アオハル点火・速+",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0977",
+			"name": "アオハル点火・体+",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0978",
+			"name": "アオハル点火・力+",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0979",
+			"name": "アオハル点火・根+",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0980",
+			"name": "アオハル点火・賢+",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0982",
+			"name": "エパヌイスマンの大号令",
+			"tagsPending": true
+		},
+		{
+			"id": "ex-0984",
+			"name": "励声一番",
 			"tagsPending": true
 		}
 	]

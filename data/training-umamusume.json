@@ -1,7 +1,7 @@
 {
-	"dataVersion": "2026-09-18a",
+	"dataVersion": "2026-09-24a",
 	"category": "trainingUmamusume",
-	"nextSerial": "uma-0268",
+	"nextSerial": "uma-0269",
 	"note": "育成ウマ娘（勝負服ごと）。initialSkills は★ごとの初期スキルで、minStar が現在の★以下の行のうち minStar が最大のものを使う（各行はその★での全部であって、前の行との差分ではない）。awakeningSkills は覚醒レベルごと。スキルの参照は skillId が本体で、name は照合のための控え（表示には使わない）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。dataStatus は done（確かめて載せた）／none（無いと確かめた）／pending（未確認）。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。形は npm run check:catalog が確かめる。",
 	"entries": [
 		{
@@ -20575,6 +20575,82 @@
 						{
 							"skillId": "ex-0532",
 							"name": "剣抜弩張"
+						}
+					]
+				}
+			],
+			"dataStatus": {
+				"initial": "done",
+				"awakening": "done"
+			}
+		},
+		{
+			"id": "uma-0268",
+			"title": "Éclat de Roseraie",
+			"charaName": "ローズキングダム",
+			"initialStar": 3,
+			"initialSkills": [
+				{
+					"minStar": 3,
+					"skills": [
+						{
+							"skillId": "ex-0982",
+							"name": "エパヌイスマンの大号令"
+						}
+					]
+				}
+			],
+			"awakeningSkills": [
+				{
+					"level": 0,
+					"skills": [
+						{
+							"skillId": "232",
+							"name": "品行方正"
+						},
+						{
+							"skillId": "348",
+							"name": "気丈な姿勢"
+						},
+						{
+							"skillId": "229",
+							"name": "会心の一歩"
+						}
+					]
+				},
+				{
+					"level": 2,
+					"skills": [
+						{
+							"skillId": "360",
+							"name": "余勢を駆って"
+						}
+					]
+				},
+				{
+					"level": 3,
+					"skills": [
+						{
+							"skillId": "ex-0409",
+							"name": "十全十美"
+						}
+					]
+				},
+				{
+					"level": 4,
+					"skills": [
+						{
+							"skillId": "213",
+							"name": "しとやかな足取り"
+						}
+					]
+				},
+				{
+					"level": 5,
+					"skills": [
+						{
+							"skillId": "ex-0653",
+							"name": "不抜の気概"
 						}
 					]
 				}
