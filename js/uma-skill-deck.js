@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-23a';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-24a';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -595,14 +595,32 @@ function setStar(skillId, candidateId, next) {
  * グリッドは overflow:auto なので、セル内に absolute で置くと
  * 最上行のツールチップが枠に切られてしまう。
  * ------------------------------------------------------------ */
+/* **読みを全部先に、書きをあとでまとめて行う（二段）。74セッション目に直した。**
+ *
+ * **1行ずつ「読む→書く」を交互に行うと、書くたびにレイアウトが無効になり、
+ * 次の読み（`scrollWidth`）でその場で再計算が走る。** 行数が増えるほど1回の再計算も重くなるので、
+ * 伸び方が二次曲線になる ―― 母集団を 1,090件にして測ると、比較シートの新規作成 6,282ms のうち
+ * **6,227ms（99%）がこの関数**だった（`findSkill()` は 2,180回で 58ms＝0.3%で、主因ではない。C-87）。
+ * **同じ DOM で二段に分けると 4,784ms → 68ms**（約70倍）で、はみ出しと判定された行は**同一**。
+ *
+ * **判定も、クラスと disabled の付け方も変えていない。** 分けたのは順番だけ。
+ * 書き（`.is-truncated` のマスクと `disabled`）は**レイアウトを変えない**ので、
+ * 先にまとめて読んでも結果は変わらない（マスクは描画だけ、`disabled` はボタンの箱を変えない）。
+ * **この形を崩さないこと** ―― 「ついでにここで書いてしまう」を1行足すと、二次曲線に戻る（F-68）。
+ */
 function markTruncatedSkillNames() {
+	// 段1: 読むだけ（レイアウトを一度も無効にしない）
+	const rows = [];
 	document.querySelectorAll('#record-grid-wrap .deck-name-wrap').forEach(wrap => {
 		const clip = wrap.querySelector('.deck-name-clip');
 		if (!clip) return;
-		const truncated = clip.scrollWidth > clip.clientWidth + 1;
-		wrap.classList.toggle('is-truncated', truncated);
+		rows.push({ wrap: wrap, clip: clip, truncated: clip.scrollWidth > clip.clientWidth + 1 });
+	});
+	// 段2: 書くだけ
+	rows.forEach(r => {
+		r.wrap.classList.toggle('is-truncated', r.truncated);
 		// はみ出していない名前は押しても何も起きない（ツールチップも出さない）。
-		clip.disabled = !truncated;
+		r.clip.disabled = !r.truncated;
 	});
 }
 
