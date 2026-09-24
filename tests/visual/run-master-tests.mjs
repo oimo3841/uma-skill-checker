@@ -434,6 +434,20 @@ const browser = await chromium.launch();
 		const leaked = passiveNames.filter((n) => listed.has(n));
 		assert(passiveNames.length === 67 && leaked.length === 0,
 			'段8: パッシブ67件は「条件で検索」の一覧に1件も出ない', leaked.slice(0, 5));
+		/* **第2回の段3: パッシブの見張りをタグ付きの拡張スキルへ広げた**（おいもさんの決定）。
+		   パッシブを持つスキル（マスター＋タグ付きカタログ）は、どれも「条件で検索」の一覧に居らず、
+		   どれも「緑スキルを追加」の一覧（getPoolExcludedSkills）に居る。件数はデータから数える。
+		   **データの passive を外しても、この検査は落ちない**（期待値も同じデータから作るので一緒に動く）。
+		   ここが守るのは「データと画面の食い違い」＝製品の側の壊れ。データの側の付け外しの誤りは、
+		   能力上昇の検査（パッシブは能力上昇だけを持つ）と正本側の確認で見る。 */
+		const passiveAll = master.skills.concat(CATALOG_TAGGED).filter((s) => !inPool(s));
+		const greenNames = new Set(await page.evaluate(() => UmaSkillDeckCore.getPoolExcludedSkills().map((s) => s.name)));
+		const passiveLeaked = passiveAll.filter((s) => listed.has(s.name)).map((s) => s.name);
+		const passiveMissing = passiveAll.filter((s) => !greenNames.has(s.name)).map((s) => s.name);
+		assert(passiveLeaked.length === 0 && passiveMissing.length === 0,
+			'段3: パッシブ ' + passiveAll.length + '件（マスター ' + (master.skills.length - MASTER_POOL.length)
+				+ '＋拡張 ' + (CATALOG_TAGGED.length - CATALOG_POOL.length) + '）は条件で検索に居らず、緑スキルの一覧に居る',
+			{ 条件で検索に出た: passiveLeaked.slice(0, 5), 緑の一覧に無い: passiveMissing.slice(0, 5) });
 		/* **隠す軸と母集団は別**であることの実データでの裏取り。
 		   隠す軸（レース環境・レース場）にタグを持っていても、パッシブでなければ一覧に出る。
 		   印を1つにまとめると、ここが必ず落ちる。 */
@@ -518,9 +532,18 @@ const browser = await chromium.launch();
 	{
 		const box = await page.$('[data-usd-el="filter-check"][data-axis="effect"][data-value="stat_up"]');
 		assert(box === null, '段8: 「能力上昇」のチェックボックスが画面に無い');
-		const statUpInPool = expectNames({ effect: ['stat_up'] });
-		assert(statUpInPool.length === 0,
-			'段8: 仮に絞れたとしても母集団に「能力上昇」は0件（選択肢から外した根拠）', statUpInPool);
+		/* **第2回の段3 で根拠を置き換えた。** それまでは「母集団に能力上昇は0件」を根拠にしていたが、
+		   パッシブでない拡張スキルに能力上昇を持つものが入った（おいもさんの決定で、選択肢は外したまま）。
+		   新しい根拠は **「母集団で能力上昇を持つスキルは、どれも能力上昇以外の効果タイプを1つ以上持つ」**
+		   ＝ 能力上昇で絞れなくても、他の効果タイプで見つかる。件数も名前も決め打ちせず、データから数える。
+		   `expectNames()` を使わないのは、効果タイプが空のスキル（万能扱い）まで当たってしまうため。 */
+		const statUpInPool = POOL.filter((s) => axisValues(s, 'effect').includes('stat_up'));
+		const statUpOnly = statUpInPool.filter((s) => !axisValues(s, 'effect').some((v) => v !== 'stat_up'));
+		console.log('     [情報] 母集団で能力上昇を持つスキル ' + statUpInPool.length + '件: '
+			+ statUpInPool.map((s) => s.name).join('、'));
+		assert(statUpOnly.length === 0,
+			'段8: 母集団で能力上昇を持つ ' + statUpInPool.length + '件は、どれも他の効果タイプを持つ（選択肢から外した根拠）',
+			statUpOnly.map((s) => s.name));
 	}
 
 	/* 段8 ―― バ場の排他 */
@@ -622,11 +645,18 @@ const browser = await chromium.launch();
 	// 「この軸だけ」ではなくなった（段5 で5本になった）。件数が27のままなのは、シナリオスキル27件が
 	// レース環境・レース場のタグを1つも持たないから ―― 門番は働いているが落ちるものが無い。
 	/* 71セッション目・段8: 27件 → 母集団に残るぶんだけになった（レースの真髄・心がパッシブ）。
-	   件数は書かず、名簿からパッシブを引いたものと突き合わせる。 */
-	const scenExpect = SCENARIO.filter((n) => POOL.some((s) => s.name === n));
+	   件数は書かず、名簿からパッシブを引いたものと突き合わせる。
+	   **第2回の段3: タグ付きの拡張スキルにもシナリオスキルがある**ので、画面と突き合わせる期待値は
+	   `expectNames()` から作る（下の AND と同じ形）。**マスター側の26件は名簿で据え置き**にして、
+	   「具体的にどれが出るか」の検査は失わない。 */
+	const scenExpect = expectNames({ scenario: ['scenario'] });
 	assert(scenCount === scenExpect.length,
-		'⑧「シナリオスキル」で絞ると ' + scenExpect.length + '件（27件のうちパッシブを除く）', scenCount);
-	assert(scenExpect.length === 26, '段8: 27件のうち1件（レースの真髄・心）がパッシブになった', scenExpect.length);
+		'⑧「シナリオスキル」で絞ると ' + scenExpect.length + '件（マスター・拡張スキルとも、パッシブを除く）', scenCount);
+	const scenMasterExpect = SCENARIO.filter((n) => POOL.some((s) => s.name === n));
+	assert(scenMasterExpect.length === 26, '段8: 27件のうち1件（レースの真髄・心）がパッシブになった', scenMasterExpect.length);
+	const scenMaster = scenExpect.filter((n) => MASTER_POOL.some((s) => s.name === n));
+	assert(eq(scenMaster.slice().sort(), scenMasterExpect.slice().sort()),
+		'⑧シナリオスキルのうちマスター由来は名簿の26件と一致', scenMaster);
 	assert(eq(scenNames.slice().sort(), scenExpect.slice().sort()), '⑧シナリオスキルの内訳が一致', scenNames.length);
 
 	// 軸間ANDも壊れていないこと（シナリオ × 持久力回復）

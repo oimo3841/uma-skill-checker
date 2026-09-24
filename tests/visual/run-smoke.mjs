@@ -3932,14 +3932,23 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 			'deck(段8): 隠す軸はタブに出ない', { 隠す: hidden.map((a) => a.key), 出ている: shownKeys });
 
 		// 一覧に並んでいるスキルのタグを、製品の getSkillTags() から引いて性質を見る
+		// **第2回の段3: タグ付きの拡張スキルも母集団に入った**ので、名前はマスターと拡張スキルの両方から引く。
+		// マスターだけから引いていたときは、拡張スキルが「タグが空」に見えて (b) が誤って落ち、
+		// 逆に (a) は拡張スキルのパッシブを素通りしていた。引けない名前は `found: false` で返して (c) で落とす。
 		const listedTags = (key) => page.evaluate((k) => {
 			const names = [...document.querySelectorAll('[data-usd-el="results"] .usd-row span')].map((el) => el.textContent);
 			const byName = new Map(UmaSkillDeckCore.getMasterSkills().map((s) => [s.name, s]));
+			for (const x of UmaSkillDeckCore.getExtraCatalog()) if (x.tags && !byName.has(x.name)) byName.set(x.name, x);
 			return names.map((n) => {
 				const s = byName.get(n);
-				return { name: n, vals: s ? (UmaSkillDeckCore.getSkillTags(s.id)[k] || []) : [] };
+				return { name: n, found: !!s, vals: s ? (UmaSkillDeckCore.getSkillTags(s.id)[k] || []) : [] };
 			});
 		}, key);
+		/* (c) 一覧のスキルは、どれもマスターかタグ付きの拡張スキルとして引ける（引けないと (a)(b) が空振りする） */
+		{
+			const notFound = (await listedTags('passive')).filter((r) => !r.found).map((r) => r.name);
+			assert(notFound.length === 0, 'deck(段8): 「条件で検索」の一覧のスキルは、どれもタグを引ける', notFound.slice(0, 5));
+		}
 
 		/* (a) 母集団から外した軸のスキルは、条件を何も入れていなくても1件も出ない */
 		for (const ex of excluded) {
