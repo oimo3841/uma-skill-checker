@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-25b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-25c';
 
 	/* ============================================================
 	 * 定数
@@ -1087,6 +1087,30 @@
 		return skillCatalogKind(skillId) === REFERABLE_CATALOG_CATEGORY;
 	}
 
+	/**
+	 * **検索に出してよい拡張スキルの id の一覧**（2026-09-25・C-91。おいもさんの決定）。
+	 *
+	 * 拡張スキルのうち、**マスター445件と同じ独自カテゴリに当たるもの**だけ。それ以外の拡張スキルは
+	 * 今後の機能拡張のために収録しているもので、いまの検索（条件で検索・緑スキルを追加・テキストで検索・
+	 * 名前を入れて探す）には出さない。一覧はスキルの正本の独自カテゴリから作ったもの
+	 * （元の一覧は7件）。**カテゴリの判断はここでしない**（id を持つだけ）。
+	 *
+	 * **外すのは検索だけ。** 次の経路はこの一覧を見ない（全件のまま）:
+	 *   - `findSkill()`（保存済みのセット・テンプレートの id の解決）
+	 *   - 編成の「この編成で得られるスキル」（`computeRosterSkills()`。C-51・C-81）
+	 *   - `isReferableSkillId()`（収録データの入力ページでの選択。C-82）
+	 *   - `findSkillsByNameFragment()` / `matchPastedSkillText()` の既定の呼び方
+	 *     （収録データの入力ページと、Deck の OCR の受け取り口が使う。検索のモーダルだけが `searchableOnly` を渡す）
+	 */
+	const SEARCHABLE_EXTENDED_SKILL_IDS = new Set([
+		'ex-0521', 'ex-0531', 'ex-0533', 'ex-0669', 'ex-0691', 'ex-0968', 'ex-0969'
+	]);
+
+	/** 追加カタログの行を、検索（条件で検索・緑スキル・テキストで検索・名前を入れて探す）に出してよいか。 */
+	function isSearchableCatalogEntry(x) {
+		return x.category !== REFERABLE_CATALOG_CATEGORY || SEARCHABLE_EXTENDED_SKILL_IDS.has(x.id);
+	}
+
 	/* ============================================================
 	 * 編成（育成ウマ娘1人＋サポートカード6枚）
 	 *
@@ -1497,10 +1521,16 @@
 	// 解決できるようにするため。「条件でスキルを検索」の母集団（getFilteredPickerPool）には
 	// 入れない — カタログのエントリはタグを持たず、条件検索では「万能スキル」として
 	// どの条件にも当たってしまうため。
-	function buildSkillTextIndex() {
+	//
+	// **2026-09-25（C-91）: `opts.searchableOnly` を渡すと、拡張スキルは検索に出してよいもの
+	// （`SEARCHABLE_EXTENDED_SKILL_IDS`）だけになる。** 渡すのは「条件で検索」のモーダルの中の
+	// テキストで検索と名前を入れて探すだけ。既定（渡さない）は全件のまま ―― 収録データの入力ページと
+	// Deck の OCR の受け取り口は、これまでどおり全件で引く。
+	function buildSkillTextIndex(opts) {
+		const searchableOnly = !!(opts && opts.searchableOnly);
 		const pool = masterSkills.map(sk => ({ id: sk.id, name: sk.name }))
 			.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name })))
-			.concat(extraCatalog.map(x => ({ id: x.id, name: x.name })));
+			.concat(extraCatalog.filter(x => !searchableOnly || isSearchableCatalogEntry(x)).map(x => ({ id: x.id, name: x.name })));
 		return pool.map(p => ({ id: p.id, name: p.name, norm: normalizeSkillText(p.name) }));
 	}
 
@@ -1526,11 +1556,11 @@
 	 *
 	 * @returns {{ query:string, hits:Array<{id,name,norm}>, total:number, more:number }}
 	 */
-	function findSkillsByNameFragment(text) {
+	function findSkillsByNameFragment(text, opts) {
 		const query = normalizeSkillText(text);
 		if (!query) return { query: '', hits: [], total: 0, more: 0 };
 		const starts = [], contains = [];
-		buildSkillTextIndex().forEach(p => {
+		buildSkillTextIndex(opts).forEach(p => {
 			if (!p.norm) return;
 			const at = p.norm.indexOf(query);
 			if (at === 0) starts.push(p);
@@ -1562,8 +1592,8 @@
 	 * 距離1のものを自動採用しないのは、実データに
 	 * 「1文字だけ違う別スキル」の組が多数あるため（左右の回り、季節、系統違い等）。
 	 */
-	function matchPastedSkillText(text) {
-		const index = buildSkillTextIndex();
+	function matchPastedSkillText(text, opts) {
+		const index = buildSkillTextIndex(opts);
 		const rows = [];
 		const seenBase = new Set();
 		const seenId = new Set();
@@ -3118,7 +3148,9 @@
 	function taggedSkillPool() {
 		return masterSkills
 			.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name, tags: withLegacyTagsMapped(c.tags) })))
-			.concat(extraCatalog.filter(x => x.tags).map(x => ({ id: x.id, name: x.name, tags: x.tags })));
+			// C-91: 拡張スキルは検索に出してよいもの（`SEARCHABLE_EXTENDED_SKILL_IDS`）だけ。
+			// 母集団と「緑スキルを追加」の一覧の両方がここから作られるので、ここで外せば両方から外れる。
+			.concat(extraCatalog.filter(x => x.tags && isSearchableCatalogEntry(x)).map(x => ({ id: x.id, name: x.name, tags: x.tags })));
 	}
 
 	function getFilteredPickerPool() {
@@ -3446,7 +3478,7 @@
 		const input = q(pickerEl, 'paste-input');
 		const text = input ? input.value : '';
 		if (!text.trim()) { toast('貼り付けたテキストがありません'); return; }
-		const result = matchPastedSkillText(text);
+		const result = matchPastedSkillText(text, { searchableOnly: true });   // C-91
 		applyPasteRows(result.rows);
 		const c = result.counts;
 		toast(c.exact + '件が一致しました' + ((c.review + c.none) > 0 ? '／要確認 ' + (c.review + c.none) + '件' : '') + (c.error > 0 ? '／エラー ' + c.error + '件' : ''));
@@ -3576,7 +3608,7 @@
 		const input = q(pickerEl, 'find-input');
 		const out = q(pickerEl, 'find-results');
 		if (!input || !out) return;
-		const found = findSkillsByNameFragment(input.value);
+		const found = findSkillsByNameFragment(input.value, { searchableOnly: true });   // C-91
 		if (!found.query) { out.innerHTML = ''; return; }
 		if (found.total === 0) {
 			// 候補0件でも**自動でカスタム登録へ進ませない**（入力し直せる状態を保つ）。
@@ -5872,6 +5904,8 @@
 		listCardTypes: listCardTypes,
 		cardTypeOf: cardTypeOf,
 		isReferableSkillId: isReferableSkillId,
+		/** 検索に出してよい拡張スキルの id（C-91）。検査が自分の名簿と突き合わせるために出す。 */
+		getSearchableExtendedSkillIds: function () { return Array.from(SEARCHABLE_EXTENDED_SKILL_IDS); },
 		skillCatalogKind: skillCatalogKind,
 		/**
 		 * その軸で**利用者に選ばせる選択肢**（`internalOnly` を落としたもの）。

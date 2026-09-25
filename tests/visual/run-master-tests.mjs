@@ -37,6 +37,8 @@ const master = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'uma-skill-deck-s
  * 第2回でタグが入ると、マスター単独で組み立てた期待値は必ず食い違うので、
  * ここで材料を広げておく。**カテゴリ名も件数もこのファイルに書かない**（ファイルから読む）。 */
 const extendedSkills = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/extended-skills.json'), 'utf8'));
+/** 育成ウマ娘（C-91 の (3)「編成には検索に出さない拡張スキルも引き続き出る」を見るのに使う）。 */
+const trainingUmas = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/training-umamusume.json'), 'utf8'));
 
 /**
  * ①で「持久力減少」(stamina_down) へ付け替えた14件。
@@ -368,8 +370,15 @@ const browser = await chromium.launch();
 	 * `MASTER_POOL` / `master.skills` を使い続ける。
 	 * カスタムスキルは各塊が自分で仕込むので、そのつど +1 して数える（従来どおり）。 */
 	const MASTER_POOL = master.skills.filter(inPool);
-	/** タグが付いた拡張スキル（`tagsPending` の行は `tags` を持たないので自然に外れる）。 */
-	const CATALOG_TAGGED = extendedSkills.entries.filter((e) => e.tags);
+	/* **C-91（2026-09-25）: 検索に出してよい拡張スキルは、名簿にあるものだけ。**
+	   マスター445件と同じ独自カテゴリの拡張スキルで、スキルの正本の独自カテゴリから作った一覧（7件）。
+	   **名簿は製品から読まずにここに持つ** ―― 製品の一覧を読むと、一覧から1件抜いて壊したときに
+	   期待値も一緒に動いて、「一覧にあるものが出る」の検査が落ちなくなる。製品の一覧とは下で突き合わせる。 */
+	const SEARCHABLE_EXT_IDS = ['ex-0521', 'ex-0531', 'ex-0533', 'ex-0669', 'ex-0691', 'ex-0968', 'ex-0969'];
+	/** タグが付いた拡張スキルのすべて（検索に出さないものを含む。C-91 の「出ない」の検査に使う）。 */
+	const CATALOG_TAGGED_ALL = extendedSkills.entries.filter((e) => e.tags);
+	/** タグが付いた拡張スキルのうち、検索に出してよいもの（`tagsPending` の行は `tags` を持たないので自然に外れる）。 */
+	const CATALOG_TAGGED = CATALOG_TAGGED_ALL.filter((e) => SEARCHABLE_EXT_IDS.includes(e.id));
 	const CATALOG_POOL = CATALOG_TAGGED.filter(inPool);
 	const POOL = MASTER_POOL.concat(CATALOG_POOL);
 	/** 仕様どおりに絞った期待値（名前の配列）。f は { 軸キー: [値…] }。 */
@@ -527,6 +536,102 @@ const browser = await chromium.launch();
 	await tick('effect', 'stamina');
 	await tick('effect', 'target_speed_up');
 	assert(await readCount() === POOL.length, 'チェックを外すと母集団の件数に戻る', await readCount());
+
+	/* ==========================================================
+	 * C-91（2026-09-25）―― 検索に出してよい拡張スキルは、名簿（SEARCHABLE_EXT_IDS）にあるものだけ。
+	 * 外すのは検索（条件で検索・緑スキルを追加・テキストで検索・名前を入れて探す）だけで、
+	 * 編成と id の解決（findSkill）は全件のまま。
+	 * ========================================================== */
+	console.log('\n--- C-91 検索に出す拡張スキルの範囲 ---');
+	{
+		const productIds = await page.evaluate(() => UmaSkillDeckCore.getSearchableExtendedSkillIds());
+		assert(eq(productIds.slice().sort(), SEARCHABLE_EXT_IDS.slice().sort()),
+			'C-91: 製品の「検索に出してよい拡張スキル」の一覧が、検査の名簿と一致', { 製品: productIds, 名簿: SEARCHABLE_EXT_IDS });
+		const extById = new Map(extendedSkills.entries.map((e) => [e.id, e]));
+		const missingInData = SEARCHABLE_EXT_IDS.filter((id) => !extById.has(id));
+		assert(missingInData.length === 0, 'C-91: 名簿の id はどれも公開データに実在する', missingInData);
+		const listed = extendedSkills.entries.filter((e) => SEARCHABLE_EXT_IDS.includes(e.id));
+		const unlisted = extendedSkills.entries.filter((e) => !SEARCHABLE_EXT_IDS.includes(e.id));
+		console.log('     [情報] 拡張スキル ' + extendedSkills.entries.length + '件のうち、検索に出すもの ' + listed.length
+			+ '件・出さないもの ' + unlisted.length + '件');
+
+		const inCondition = new Set(await listedNames());
+		const inGreen = new Set(await page.evaluate(() => UmaSkillDeckCore.getPoolExcludedSkills().map((s) => s.name)));
+
+		// テキストで検索（モーダルに実際に貼って照合する。関数だけでなく、モーダルの呼び方まで見るため）。
+		// 「選択 N件」＝完全一致で選ばれた数。
+		const pasteSelected = (names) => page.evaluate(async (lines) => {
+			const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+			UmaSkillDeckCore.openTextSkillPicker([], () => {});
+			await wait(300);
+			const ta = document.querySelector('[data-usd-el="paste-input"]');
+			ta.value = lines.join('\n');
+			document.querySelector('[data-usd-act="paste-run"]').click();
+			await wait(300);
+			const ok = document.querySelector('[data-usd-el="paste-report"] .usd-paste-ok');
+			const n = ok ? parseInt(ok.textContent.replace(/[^0-9]/g, ''), 10) : NaN;
+			UmaSkillDeckCore.closeSkillPicker();
+			await wait(200);
+			return n;
+		}, names);
+		// 名前を入れて探す（関数をモーダルと同じ呼び方で呼ぶ。候補の名前に入っているか）
+		const finderHits = (names, opts) => page.evaluate(([ns, o]) =>
+			ns.filter((n) => UmaSkillDeckCore.findSkillsByNameFragment(n, o).hits.some((h) => h.name === n)), [names, opts]);
+
+		// (1) 名簿にない拡張スキルは、どの検索にも出ない
+		const unlistedNames = unlisted.map((e) => e.name);
+		const leakCond = unlistedNames.filter((n) => inCondition.has(n));
+		const leakGreen = unlistedNames.filter((n) => inGreen.has(n));
+		const leakPaste = await pasteSelected(unlistedNames);
+		const leakFinder = await finderHits(unlistedNames, { searchableOnly: true });
+		assert(unlisted.length > 0 && leakCond.length === 0 && leakGreen.length === 0 && leakPaste === 0 && leakFinder.length === 0,
+			'C-91(1): 名簿にない拡張スキル ' + unlisted.length + '件は、条件で検索・緑スキルを追加・テキストで検索・名前を入れて探すのどれにも出ない',
+			{ 条件で検索: leakCond.slice(0, 3), 緑スキル: leakGreen.slice(0, 3), テキストで検索の選択: leakPaste, 名前を入れて探す: leakFinder.slice(0, 3) });
+
+		// (2) 名簿にある拡張スキルは、条件で検索（パッシブなし）か緑スキルを追加（パッシブあり）に出て、テキストで検索でも当たる
+		const isPassive = (e) => e.tags && (e.tags.passive || []).length > 0;
+		const notShown = listed.filter((e) => !(isPassive(e) ? inGreen.has(e.name) : inCondition.has(e.name))).map((e) => e.name);
+		const listedPaste = await pasteSelected(listed.map((e) => e.name));
+		const listedFinder = await finderHits(listed.map((e) => e.name), { searchableOnly: true });
+		assert(listed.length > 0 && notShown.length === 0,
+			'C-91(2): 名簿にある拡張スキル ' + listed.length + '件は、条件で検索か緑スキルを追加に出る', notShown);
+		assert(listedPaste === listed.length && listedFinder.length === listed.length,
+			'C-91(2): 名簿にある拡張スキルは、テキストで検索と名前を入れて探すでも当たる',
+			{ テキストで検索の選択: listedPaste, 名前を入れて探す: listedFinder.length, 名簿: listed.length });
+
+		// 既定の呼び方（収録データの入力ページ・Deck の OCR の受け取り口）は全件のまま
+		const defaultFinder = await finderHits(unlistedNames.slice(0, 20), undefined);
+		assert(defaultFinder.length === Math.min(20, unlistedNames.length),
+			'C-91: 名前の検索の既定の呼び方（入力ページが使う）は、名簿にない拡張スキルも引ける', defaultFinder.length);
+
+		// (3) 編成の「この編成で得られるスキル」には、名簿にない拡張スキル（固有など）が引き続き出る
+		const uma = trainingUmas.entries.find((u) => (u.initialSkills || []).some((g) =>
+			(g.skills || []).some((s) => String(s.skillId).startsWith('ex-') && !SEARCHABLE_EXT_IDS.includes(s.skillId))));
+		const umaSkill = uma && uma.initialSkills.flatMap((g) => g.skills || [])
+			.find((s) => String(s.skillId).startsWith('ex-') && !SEARCHABLE_EXT_IDS.includes(s.skillId));
+		// 育成ウマ娘・サポートカードは編成を開いたときに読むものなので、ここで読み込んでから数える
+		const roster = uma ? await page.evaluate(async (umaId) => {
+			await UmaSkillDeckCore.loadTrainingSources();
+			return UmaSkillDeckCore.computeRosterSkills({ umaId: umaId, cardIds: [] }).skillIds;
+		}, uma.id) : [];
+		assert(!!umaSkill && roster.includes(umaSkill.skillId),
+			'C-91(3): 編成の「この編成で得られるスキル」に、検索に出さない拡張スキルが引き続き出る',
+			{ ウマ娘: uma && uma.id, スキル: umaSkill, 出た件数: roster.length });
+
+		// (4) 保存済みのセットにある、名簿にない拡張スキルの id は findSkill で引ける
+		const probeId = unlisted[0] && unlisted[0].id;
+		const resolved = await page.evaluate((id) => {
+			const s = UmaSkillDeckCore.findSkill(id);
+			return { found: !!s, name: s ? s.name : null, label: UmaSkillDeckCore.getSkillName(id) };
+		}, probeId);
+		assert(resolved.found && resolved.name === unlisted[0].name && resolved.label === unlisted[0].name,
+			'C-91(4): 名簿にない拡張スキルの id も findSkill で引ける（保存済みのセット・テンプレートが壊れない）', resolved);
+
+		// 後続の検査のため、条件で検索のモーダルを開き直す
+		await page.evaluate(() => UmaSkillDeckCore.openSkillPicker([], () => {}));
+		await page.waitForTimeout(600);
+		assert(await readCount() === POOL.length, 'C-91: 条件で検索のモーダルを開き直すと母集団の件数', await readCount());
+	}
 
 	/* **C-89（2026-09-25）: 効果タイプも空を「該当なし」と読む。**
 	   効果タイプを1つでも選ぶと、効果タイプが空のスキルは出ない。何も選ばなければ出る。

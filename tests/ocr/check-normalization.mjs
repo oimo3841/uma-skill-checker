@@ -289,17 +289,24 @@ const catalogReport = await deckPage.evaluate(({ masterIds, wantByCategory }) =>
 		// **「タグを持ち、かつ `poolExcluded` の軸に値を持たないものが母集団に居る」**。
 		// **軸のキーはここに書かない** ―― 製品の `isPoolExcluded()` と同じく `TAG_AXES` の
 		// `poolExcluded` の印から判定する（恒久ルール1）。
+		//
+		// **【2026-09-25・C-91】検索に出してよい拡張スキルは、製品の一覧にあるものだけ。**
+		// 一覧にない拡張スキルは、タグが付いていても母集団にも緑スキルの一覧にも出ない（期待どおり）。
+		// 拡張スキルかどうかは `isReferableSkillId()`（収録データが参照してよい id＝マスターか拡張スキル）で見る
+		// ―― カテゴリ名をここに書かないため。一覧そのものの突き合わせは `test:master` が自分の名簿で行う。
 		pickerPoolProblems: (function () {
 			C.openSkillPicker([], () => {});
 			const ids = new Set(Array.from(document.querySelectorAll('[data-usd-el="skill-check"]')).map((el) => el.value));
 			C.closeSkillPicker();
 			const poolExcludedAxes = C.TAG_AXES.filter((a) => a.poolExcluded).map((a) => a.key);
 			const excluded = (e) => poolExcludedAxes.some((k) => ((e.tags && e.tags[k]) || []).length > 0);
+			const searchableIds = new Set(C.getSearchableExtendedSkillIds());
+			const searchable = (e) => !C.isReferableSkillId(e.id) || searchableIds.has(e.id);
 			return cat.filter((e) => {
-				const want = !!e.tags && !excluded(e);
+				const want = !!e.tags && !excluded(e) && searchable(e);
 				return want !== ids.has(e.id);
 			}).map((e) => e.id + (e.tags
-				? (excluded(e) ? '（母集団から外れるはずなのに居る）' : '（タグ付きなのに母集団に無い）')
+				? (!searchable(e) ? '（検索に出さないはずなのに居る）' : excluded(e) ? '（母集団から外れるはずなのに居る）' : '（タグ付きなのに母集団に無い）')
 				: '（タグが無いのに母集団に居る）'));
 		})(),
 		/* **外れたぶんが「緑スキルを追加」の側に出ているか**（74セッション目・第2回の段1）。
@@ -309,11 +316,14 @@ const catalogReport = await deckPage.evaluate(({ masterIds, wantByCategory }) =>
 		passiveListProblems: (function () {
 			const poolExcludedAxes = C.TAG_AXES.filter((a) => a.poolExcluded).map((a) => a.key);
 			const excluded = (e) => poolExcludedAxes.some((k) => ((e.tags && e.tags[k]) || []).length > 0);
-			const want = cat.filter((e) => !!e.tags && excluded(e)).map((e) => e.id);
+			const searchableIds = new Set(C.getSearchableExtendedSkillIds());
+			const searchable = (e) => !C.isReferableSkillId(e.id) || searchableIds.has(e.id);   // C-91
+			const want = cat.filter((e) => !!e.tags && excluded(e) && searchable(e)).map((e) => e.id);
+			const notWanted = cat.filter((e) => !!e.tags && excluded(e) && !searchable(e)).map((e) => e.id);
 			C.openPassiveSkillPicker([], () => {});
 			const listed = new Set(Array.from(document.querySelectorAll('[data-usd-el="passive-check"]')).map((el) => el.value));
 			C.closeSkillPicker();
-			return { want: want.length, missing: want.filter((id) => !listed.has(id)), listed: listed.size };
+			return { want: want.length, missing: want.filter((id) => !listed.has(id)), leaked: notWanted.filter((id) => listed.has(id)), listed: listed.size };
 		})(),
 		// 内訳（情報。検査には使わない）。タグ付けの進み具合がここに出る。
 		pickerPoolCounts: (function () {
@@ -451,6 +461,8 @@ check(catalogReport.pickerPoolProblems.length === 0,
 		check(p.missing.length === 0,
 			'パッシブが付いたカタログのスキル' + p.want + '件が「緑スキルを追加」の一覧に出る', p.missing);
 	}
+	// C-91: 検索に出さない拡張スキルは、パッシブが付いていても「緑スキルを追加」の一覧に出ない
+	check(p.leaked.length === 0, '検索に出さない拡張スキルは「緑スキルを追加」の一覧に出ない（C-91）', p.leaked.slice(0, 5));
 }
 console.log('    母集団の内訳:', JSON.stringify(catalogReport.pickerPoolCounts));
 // core の組み込みの写し（フェッチもキャッシュも駄目なときの最後の砦）。カテゴリごとに見る。
