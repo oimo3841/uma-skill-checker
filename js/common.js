@@ -21,7 +21,7 @@
 // このファイルの版。ツールの開発用ログの先頭に表示される。
 // 「どの版の common.js がブラウザで実際に動いているか」を確認するための目印。
 // 中身を変更したらこの日付も更新すること。
-const COMMON_JS_VERSION = '2026-09-17a';
+const COMMON_JS_VERSION = '2026-09-26a';
 
 const MAX_SIDE_PX = 3000;
 const CONF_THRESHOLD = 55;
@@ -827,6 +827,7 @@ function detectSkillRows(baseCanvas, diag) {
 	}
 
 	let listTop = 0, listBottom = H;
+	let fallbackCandidates = null; // フォールバックで境界の候補にした緑帯（下の取り直しで使う）
 	if (uniqueSkillBands.length > 0) {
 		const first = uniqueSkillBands[0];
 		listTop = Math.min(H - 1, first.b + Math.round(H * 0.004));
@@ -849,6 +850,7 @@ function detectSkillRows(baseCanvas, diag) {
 			diag.push('全幅帯（継承履歴バー等）をタブ境界候補から除外: ' + (thickGreen.length - narrowGreen.length) + '件');
 		}
 		const tab = candidates[candidates.length - 1];
+		fallbackCandidates = candidates;
 		listTop = Math.min(H - 1, tab.b + Math.round(H * 0.004));
 		diag.push('固有スキル帯を検出できず → 従来ロジックにフォールバック');
 		diag.push('緑帯 ' + thickGreen.length + '本 / タブ下端 y=' + tab.b + ' → リスト上端 y=' + listTop);
@@ -863,6 +865,20 @@ function detectSkillRows(baseCanvas, diag) {
 	const rowMergeGap = Math.max(6, Math.round(H * 0.004));
 	let bands = findRuns(dRows, rowThreshold, rowMergeGap, listTop, listBottom);
 	diag.push('文字帯の候補 ' + bands.length + '本（しきい値 ' + rowThreshold + 'px / 結合gap ' + rowMergeGap + 'px）');
+
+	// フォールバックで選んだ境界の下に文字帯が3本未満しか無いときは、1つ上の緑帯を境界にして取り直す。
+	// 固有スキル帯もタブも写らない画面（例: 「因子一覧」ポップアップをスクロールした2枚目）では、
+	// 緑帯が「タイトル帯」と「画面下端の背景の緑」の全幅帯しか残らず、上の候補選びが全幅帯に戻って
+	// 最後の帯＝画像の下端を境界に選んでしまう（リスト上端が画像の底になり、行が1本も取れず★が読めない）。
+	// 下の「3本未満で中止」と同じ基準で、行が取れる境界が見つかるまで上へたどる。
+	// いま読めている画面は最初の境界で3本以上取れるので、この取り直しには入らない。
+	if (fallbackCandidates && bands.length < 3) {
+		for (let i = fallbackCandidates.length - 2; i >= 0 && bands.length < 3; i--) {
+			listTop = Math.min(H - 1, fallbackCandidates[i].b + Math.round(H * 0.004));
+			bands = findRuns(dRows, rowThreshold, rowMergeGap, listTop, listBottom);
+			diag.push('境界の下に文字帯がほぼ無いため、1つ上の緑帯で取り直し → リスト上端 y=' + listTop + ' / 文字帯 ' + bands.length + '本');
+		}
+	}
 
 	if (bands.length < 3) { diag.push('文字帯が少なすぎるため中止'); return null; }
 
