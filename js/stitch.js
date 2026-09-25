@@ -15,7 +15,7 @@
 
 // このファイルの版。B節ルール4の3点一致（内部定数・各HTMLの ?v=・npm run test:verify）の対象。
 // 中身を変更したらこの日付も更新すること。
-const STITCH_JS_VERSION = '2026-09-20e';
+const STITCH_JS_VERSION = '2026-09-26a';
 
 // 画像結合用の簡易ログ。既存の開発ログ（devGeometry）に相乗りさせることで、
 // 「開発ログを表示」チェックを入れれば結合処理の詳細も確認できるようにする。
@@ -455,13 +455,54 @@ function stitchClipPlacements(placements, cutY) {
 	return out;
 }
 
+// ── キャラクターの情報の欄（C-93）──────────────────────────────
+// 「因子一覧」のポップアップは、上から「タイトル帯（全幅の緑）→ アイコン・勝負服名・名前 →
+// 所持因子の緑帯 → リスト」の順で、1枚目にだけキャラクターの情報が写る。結合は動かない
+// ヘッダー（headerEnd より上）を捨て、さらに最初の青いパネルまで飛ばすので、そのままでは
+// 誰の因子か分からない画像になる。
+//
+// 見分け方: 結合の上端（headerEnd）より上にある**最後の緑帯**の横幅を見る。
+//   ・継承画面 … 最後の緑帯は「継承」タブ（横幅の約31〜32%。実測10ケース）
+//   ・因子一覧 … タブが無く、最後の緑帯はタイトル帯（同 約98%。実測4ケース）
+// 全幅（70%超）ならタブの無い画面とみなし、その帯の下端の次の行から最初の青いパネルの手前までを
+// ヘッダーとして結合画像の先頭に残す。帯の定義（横幅の12%以上・高さ0.8%以上・全幅は70%超）は
+// common.js の detectSkillRows() と同じにし、緑の判定もそちらの関数（greenMaskOf ほか）を使う。
+// 「上端のすぐ下に全幅の緑帯（所持因子）がある」は見分けに使えない ―― 継承画面にも同じ位置に
+// 全幅の帯が出るケースがある（2026-09-16_1 など）。
+//
+// タブの無い別の画面が来た場合も、結合画像の先頭に欄が付くだけで、OCR には影響しない
+// （製品の OCR は元画像を1枚ずつ読み、結合画像は読まない。結合画像を読ませても、欄は
+// リストの上端より上にあるので行として切り出されない）。
+const STITCH_PROFILE_WIDE_RATIO = 0.7;
+
+// 戻り値: { kept, top, ratio } ―― kept が true なら top 行（元画像の座標）から残す。
+// ratio は判定に使った帯の横幅の割合（帯が無ければ null）。
+function stitchDetectProfileHeader(canvas, headerEnd) {
+	const W = canvas.width, H = canvas.height;
+	if (headerEnd <= 0) return { kept: false, top: headerEnd, ratio: null };
+	const imageData = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, headerEnd);
+	const green = greenMaskOf(imageData);
+	const rows = rowCountsOf(green, W, headerEnd);
+	const bands = findRuns(rows, Math.round(W * 0.12), 4, 0, headerEnd).filter(b => (b.b - b.a) >= H * 0.008);
+	if (bands.length === 0) return { kept: false, top: headerEnd, ratio: null };
+	const last = bands[bands.length - 1];
+	const cols = colCountsOf(green, W, last.a, last.b);
+	let covered = 0;
+	for (let x = 0; x < W; x++) { if (cols[x] > 0) covered++; }
+	const ratio = Math.round((covered / W) * 100) / 100;
+	return { kept: (covered / W) > STITCH_PROFILE_WIDE_RATIO, top: last.b + 1, ratio: ratio };
+}
+
 // 1人分の画像配列を縦結合し、結果Canvasを返す。
 // ヘッダー/フッターは完全除外し、スキルパネル自体のみを出力する。
+// ただし「因子一覧」のようにタブの無い画面では、1枚目のキャラクターの情報の欄を先頭に残す（C-93）。
 //
 // 戻り値のCanvasには、_stitchWarnings（継ぎ目の警告）に加えて
 // **_sourcePlacements**（[{ fileIndex, srcY0, srcY1, outY0 }]）を添える。
 // 「元画像のこのy範囲が、結合後のここに入った」という対応表で、
 // 結合が終わったあとに印などを重ねたい呼び出し元（exam.html の属性アイコン）が使う。
+// **_profileHeader**（{ kept, ratio, height }）は、キャラクターの情報の欄を残したか・判定に使った
+// 帯の横幅の割合・残した高さ（C-93）。画面は使わず、検査（tests/stitch）が期待値との照合に使う。
 // **印は必ず結合の「後」に焼くこと。** 結合の前に元画像へ描き込むと、継ぎ目を
 // 画素の突き合わせで決めている stitchResolveOrder / stitchMeasureSeam がその描き込みに
 // 引きずられ、結合位置がズレる（34セッション目の Step 0 で実測。
@@ -535,7 +576,20 @@ async function stitchOnePerson(files, groupLabel) {
 	for (const ov of overlaps) totalContentHeight += (contentHeight - ov);
 
 	const firstPanelTop = stitchDetectFirstSkillPanelTop(canvasesForStitch[0], headerEnd);
-	const skipFirst = Math.max(0, firstPanelTop - headerEnd);
+	let skipFirst = Math.max(0, firstPanelTop - headerEnd);
+
+	// キャラクターの情報の欄（C-93）。残すときは1枚目の描き始めを欄の上端まで繰り上げる
+	// （skipFirst が負＝上へ広げる）。1枚目の中の連続した範囲なので新しい継ぎ目はできない。2枚目以降は変えない。
+	const profile = stitchDetectProfileHeader(canvasesForStitch[0], headerEnd);
+	let profileHeight = 0;
+	if (profile.kept) {
+		skipFirst = profile.top - headerEnd;
+		profileHeight = firstPanelTop - profile.top;
+		stitchLog(groupLabel + ': キャラクターの情報の欄を残す（上端より上の最後の緑帯の幅 ' + profile.ratio + ' ＞ ' + STITCH_PROFILE_WIDE_RATIO + '）: 行' + profile.top + '〜' + (firstPanelTop - 1) + '（' + profileHeight + 'px）');
+	} else {
+		stitchLog(groupLabel + ': キャラクターの情報の欄は残さない（上端より上の最後の緑帯の幅 ' + (profile.ratio === null ? '帯なし' : profile.ratio) + '）');
+	}
+	const profileInfo = { kept: profile.kept, ratio: profile.ratio, height: profileHeight };
 
 	const totalHeight = totalContentHeight - skipFirst;
 
@@ -563,7 +617,9 @@ async function stitchOnePerson(files, groupLabel) {
 		cursorY += drawH;
 	}
 
-	const searchStartY = Math.round(w0 * 0.15);
+	// 末尾の打ち切りの探索は、欄を残したときはその高さぶん下から始める（C-93）。
+	// ずらさないと、アイコンの下の白地や所持因子の緑帯を「リストの終わり」と誤って、画像を数百pxに切り詰める。
+	const searchStartY = Math.round(w0 * 0.15) + profileHeight;
 	const cutY = stitchFindTrailingCutY(out, searchStartY);
 	if (cutY < out.height) {
 		const trimmed = document.createElement('canvas');
@@ -572,12 +628,14 @@ async function stitchOnePerson(files, groupLabel) {
 		trimmed.getContext('2d').drawImage(out, 0, 0, w0, cutY, 0, 0, w0, cutY);
 		trimmed._stitchWarnings = warnings;
 		trimmed._sourcePlacements = stitchClipPlacements(placements, cutY);
+		trimmed._profileHeader = profileInfo;
 		stitchLog(groupLabel + ': 縦結合完了(末尾トリミング後): ' + w0 + ' x ' + cutY);
 		return trimmed;
 	}
 
 	out._stitchWarnings = warnings;
 	out._sourcePlacements = placements;
+	out._profileHeader = profileInfo;
 	stitchLog(groupLabel + ': 縦結合完了: ' + w0 + ' x ' + totalHeight);
 	return out;
 }

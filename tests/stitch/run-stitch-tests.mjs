@@ -8,6 +8,10 @@
 // 1枚に並べた比較画像を output/<case>/comparison.png に出力し、
 // 全ケースをまとめて見られる output/index.html も生成する。
 //
+// 合否はケースごとの期待値 test-images/<ケース>/expect.json で決める（書き方は test-images/README.md）。
+// 期待値の無いケースは合格にせず「期待値なし」と目立つ形で出す。不一致が1件でもあるか、
+// 期待値と照合できたケースが0件なら exit 1。
+//
 // 使い方:
 //   npm run test:stitch
 //
@@ -44,7 +48,7 @@ async function discoverCases() {
 		const files = (await fs.readdir(dir))
 			.filter((f) => IMAGE_EXTENSIONS.has(path.extname(f).toLowerCase()))
 			.sort((a, b) => a.localeCompare(b));
-		if (files.length > 0) cases.push({ name: e.name, files: files.map((f) => path.join(dir, f)) });
+		if (files.length > 0) cases.push({ name: e.name, files: files.map((f) => path.join(dir, f)), expect: await readExpect(dir) });
 	}
 	return cases;
 }
@@ -76,10 +80,20 @@ async function runStitchInPage({ files, groupLabel }) {
 	let out;
 	try {
 		const canvas = await stitchOnePerson(fileObjs, groupLabel);
+		// 期待値との照合用: 画素（RGBA）そのもののハッシュ。PNG の符号化の揺れを避けるため、
+		// 書き出したファイルではなく getImageData の中身を量る。
+		const px = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+		const digest = await crypto.subtle.digest('SHA-1', px);
+		const sha1 = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
 		out = {
 			ok: true,
 			dataUrl: canvas.toDataURL('image/png'),
 			warnings: canvas._stitchWarnings || [],
+			width: canvas.width,
+			height: canvas.height,
+			sha1,
+			// キャラクターの情報の欄を残したか（C-93。stitchOnePerson が添える。古い版では無い）
+			profileHeader: canvas._profileHeader || null,
 		};
 	} catch (e) {
 		out = { ok: false, error: e && e.message ? e.message : String(e) };
@@ -134,7 +148,60 @@ async function runCase(page, testCase) {
 		warnings: result.warnings || [],
 		elapsedMs,
 		comparisonPath: path.join(caseOutDir, 'comparison.png'),
+		width: result.width,
+		height: result.height,
+		sha1: result.sha1,
+		profileHeader: result.profileHeader,
+		verdict: judgeExpect(testCase.expect, result),
 	};
+}
+
+// ケースごとの期待値（test-images/<ケース>/expect.json）。書き方は test-images/README.md。
+// **スクリプトにケース名は書かない**（期待値はケースのフォルダが持つ）。
+async function readExpect(caseDir) {
+	let text;
+	try {
+		text = await fs.readFile(path.join(caseDir, 'expect.json'), 'utf-8');
+	} catch {
+		return null;
+	}
+	try {
+		return JSON.parse(text);
+	} catch (e) {
+		return { _parseError: e.message };
+	}
+}
+
+// 期待値と照合する。戻り値: { status: 'OK' | 'NG' | 'NONE', reasons: [...] }
+// 期待値が無いケースは**合格にしない**（NONE）。test-images は失われても困らない扱いなので、
+// 期待値のファイルだけが消えたときに黙って通らないようにする。
+function judgeExpect(expect, result) {
+	if (!expect) return { status: 'NONE', reasons: ['期待値なし（expect.json が無い）'] };
+	if (expect._parseError) return { status: 'NG', reasons: ['expect.json を読めない: ' + expect._parseError] };
+	const reasons = [];
+	if (!result.ok) {
+		reasons.push('結合に失敗した: ' + result.error);
+		return { status: 'NG', reasons };
+	}
+	const header = result.profileHeader;
+	const kept = !!(header && header.kept);
+	if (typeof expect.profileHeader === 'boolean' && kept !== expect.profileHeader) {
+		reasons.push(`キャラクターの情報の欄: 期待 ${expect.profileHeader ? '残す' : '残さない'} / 実際 ${kept ? '残した' : '残さなかった'}`);
+	}
+	if (expect.profileHeader === true && kept) {
+		if (!(header.height > 0)) reasons.push('残したはずの欄の高さが 0');
+		// 残す前の高さ（baseHeight）が書いてあれば、ちょうど欄の高さぶん増えたことを見る
+		if (typeof expect.baseHeight === 'number' && result.height !== expect.baseHeight + header.height) {
+			reasons.push(`高さ: 期待 ${expect.baseHeight} + 欄 ${header.height} = ${expect.baseHeight + header.height} / 実際 ${result.height}`);
+		}
+	}
+	if (typeof expect.sha1 === 'string' && expect.sha1 !== result.sha1) {
+		reasons.push(`結合画像の画素が変わった（sha1 期待 ${expect.sha1.slice(0, 12)}… / 実際 ${String(result.sha1).slice(0, 12)}…）`);
+	}
+	if (typeof expect.height === 'number' && expect.height !== result.height) {
+		reasons.push(`高さ: 期待 ${expect.height} / 実際 ${result.height}`);
+	}
+	return { status: reasons.length ? 'NG' : 'OK', reasons };
 }
 
 async function writeIndexHtml(results) {
@@ -145,11 +212,17 @@ async function writeIndexHtml(results) {
 		const warn = r.warnings.length
 			? `<span style="color:#8a6100;font-weight:600"> / ⚠ ${r.warnings.length}件警告</span>`
 			: '';
+		const v = r.verdict;
+		const verdict = v.status === 'OK'
+			? ' / <span style="color:#1e7a1e;font-weight:600">期待値と一致</span>'
+			: v.status === 'NG'
+				? ` / <span style="color:#b31e1e;font-weight:600">期待値と不一致: ${escapeHtml(v.reasons.join(' / '))}</span>`
+				: ' / <span style="color:#fff;background:#b31e1e;font-weight:600;padding:0 6px;">期待値なし（未照合）</span>';
 		const relImg = path.relative(OUTPUT_DIR, r.comparisonPath).split(path.sep).join('/');
 		return `
     <section style="margin-bottom:32px;border-bottom:1px solid #ddd;padding-bottom:24px;">
       <h2 style="font-family:sans-serif;font-size:18px;">
-        ${escapeHtml(r.name)} &mdash; ${status}${warn}
+        ${escapeHtml(r.name)} &mdash; ${status}${warn}${verdict}
         <span style="font-weight:400;color:#666;font-size:14px;">
           (${r.nInputs} inputs, ${r.elapsedMs}ms)
         </span>
@@ -197,6 +270,13 @@ async function main() {
 		process.stdout.write(`[実行中] ${c.name} (${c.files.length}枚) ... `);
 		const r = await runCase(page, c);
 		console.log(r.ok ? `OK (${r.elapsedMs}ms)${r.warnings.length ? ` [⚠${r.warnings.length}]` : ''}` : `ERROR: ${r.error}`);
+		if (r.ok) {
+			const h = r.profileHeader;
+			const hs = h ? (h.kept ? `残した（${h.height}px・帯の幅 ${h.ratio}）` : `残さない（帯の幅 ${h.ratio === null ? '帯なし' : h.ratio}）`) : '情報なし';
+			console.log(`    ${r.width}x${r.height} / sha1 ${r.sha1} / キャラクターの情報の欄: ${hs}`);
+		}
+		const mark = r.verdict.status === 'OK' ? '[OK]' : r.verdict.status === 'NG' ? '[NG]' : '[期待値なし]';
+		console.log(`    ${mark} ${r.verdict.status === 'OK' ? '期待値と一致' : r.verdict.reasons.join(' / ')}`);
 		results.push(r);
 	}
 
@@ -205,8 +285,31 @@ async function main() {
 
 	const nError = results.filter((r) => !r.ok).length;
 	const nWarn = results.filter((r) => r.ok && r.warnings.length).length;
+	const nOk = results.filter((r) => r.verdict.status === 'OK').length;
+	const ng = results.filter((r) => r.verdict.status === 'NG');
+	const none = results.filter((r) => r.verdict.status === 'NONE');
 	console.log(`\n完了: ${results.length}ケース中 ${nError}件エラー, ${nWarn}件警告あり`);
+	console.log(`期待値との照合: 一致 ${nOk} / 不一致 ${ng.length} / 期待値なし ${none.length}`);
+	if (none.length) {
+		console.log('');
+		console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+		console.log(`!! 期待値なし ${none.length}件（合格にしていない）: ${none.map((r) => r.name).join(', ')}`);
+		console.log('!! test-images/<ケース>/expect.json を置くこと（書き方は test-images/README.md）');
+		console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+	}
 	console.log(`レポート: ${path.join(OUTPUT_DIR, 'index.html')}`);
+	// 総合の判定: 不一致が1件でもあれば NG。期待値の無いケースは合格にしないが、それだけでは落とさない
+	// （sample_* の合成ケースや、置いたばかりのケースがあるため）。**ただし全ケースに期待値が無ければ NG**
+	// ―― 何も照合していないのに通ったことにしないため（期待値のファイルがまとめて失われた場合など）。
+	if (ng.length) {
+		console.log(`\n=== 画像結合の検査: NG（不一致 ${ng.length}件: ${ng.map((r) => r.name).join(', ')}） ===`);
+		process.exit(1);
+	}
+	if (nOk === 0) {
+		console.log('\n=== 画像結合の検査: NG（期待値と照合できたケースが0件） ===');
+		process.exit(1);
+	}
+	console.log(`\n=== 画像結合の検査: OK（${nOk}件が期待値と一致${none.length ? `・期待値なし ${none.length}件は未照合` : ''}） ===`);
 }
 
 main().catch((err) => {
