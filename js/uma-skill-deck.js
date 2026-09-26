@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-09-27a';
+const UMA_SKILL_DECK_JS_VERSION = '2026-09-27b';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -91,7 +91,6 @@ const Core = window.UmaSkillDeckCore;
 
 const TEMPLATE_LIMIT = Core.TEMPLATE_LIMIT;
 const RECORD_LIMIT = Core.RECORD_LIMIT;
-const CUSTOM_SKILL_SOFT_CAP = Core.CUSTOM_SKILL_SOFT_CAP;
 const STAR_MIN = Core.STAR_MIN;
 const STAR_MAX = Core.STAR_MAX;
 const MAX_ENABLED_CANDIDATES = Core.MAX_ENABLED_CANDIDATES;
@@ -872,7 +871,7 @@ function renderDataTab() {
 	const masterMeta = Core.getMasterMeta();
 	document.getElementById('data-template-count').textContent = userData.templates.length + '/' + TEMPLATE_LIMIT;
 	document.getElementById('data-record-count').textContent = userData.records.length + '/' + RECORD_LIMIT;
-	document.getElementById('data-custom-count').textContent = (userData.customSkills || []).length + '/' + CUSTOM_SKILL_SOFT_CAP;
+	// 「カスタムスキル：N/50」は 2026-09-27 に消した（C-100。作る手段を廃止したため。保存済みのものは消していない）
 	document.getElementById('data-master-version').textContent = masterMeta.version || '(未取得)';
 	document.getElementById('data-master-fetched').textContent = masterMeta.fetchedAt ? masterMeta.fetchedAt.replace('T', ' ').slice(0, 19) : '-';
 }

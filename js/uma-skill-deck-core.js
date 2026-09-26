@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-27a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-27b';
 
 	/* ============================================================
 	 * 定数
@@ -172,9 +172,8 @@
 	const ROSTER_LIMIT = 5;
 	const ROSTER_CARD_SLOTS = 6;
 	const RECORD_LIMIT = 10;
-	// カスタムスキルを作る手段は 2026-09-27 に廃止した（C-100）。この値を読むのは、
-	// いまはデータ管理タブの件数の表示（「カスタムスキル：N/50」）だけ。
-	const CUSTOM_SKILL_SOFT_CAP = 50;
+	// （カスタムスキルのソフトキャップ `CUSTOM_SKILL_SOFT_CAP`（50件）は、作る手段とデータ管理タブの件数の表示を
+	//   2026-09-27 に廃止したので外した。C-100）
 	const STAR_MIN = 0;
 	const STAR_MAX = 3;
 	const MAX_ENABLED_CANDIDATES = 6;
@@ -5980,7 +5979,6 @@
 		DATA_JSON_VERSIONS: DATA_JSON_VERSIONS,
 		TEMPLATE_LIMIT: TEMPLATE_LIMIT,
 		RECORD_LIMIT: RECORD_LIMIT,
-		CUSTOM_SKILL_SOFT_CAP: CUSTOM_SKILL_SOFT_CAP,
 		STAR_MIN: STAR_MIN,
 		STAR_MAX: STAR_MAX,
 		MAX_ENABLED_CANDIDATES: MAX_ENABLED_CANDIDATES,

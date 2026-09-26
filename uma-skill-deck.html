@@ -16,8 +16,8 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
-	<script src="js/uma-skill-deck-core.js?v=2026-09-27a"></script>
-	<script src="js/uma-skill-deck.js?v=2026-09-27a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-09-27b"></script>
+	<script src="js/uma-skill-deck.js?v=2026-09-27b"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -461,7 +461,8 @@
 		<section id="tab-panel-data" class="hidden">
 			<div class="glass-card mb-4">
 				<p class="text-sm font-semibold text-slate-700 mb-2">保存件数</p>
-				<p class="text-xs text-slate-500">スキルセット：<span id="data-template-count"></span>／比較シート：<span id="data-record-count"></span>／カスタムスキル：<span id="data-custom-count"></span></p>
+				<p class="text-xs text-slate-500">スキルセット：<span id="data-template-count"></span>／比較シート：<span id="data-record-count"></span></p>
+				<!-- 「／カスタムスキル：N/50」は 2026-09-27 に消した（C-100） -->
 			</div>
 			<div class="glass-card mb-4">
 				<!-- 32セッション目: 利用者向けの語を「収録」で統一。「収録されていないスキル」と対になり、

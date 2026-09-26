@@ -400,6 +400,12 @@ const INTENTIONALLY_REMOVED = {
 	// **`run-smoke.mjs` の塊「73セッション目 ― card-event-input.html の軸のルールの注記」（7項目）も消した**
 	// ―― 見る対象が無くなったため。理由と「失っていない検査」は、その場所にコメントで残してある。
 	// **免除の登録は要らない**（§3 の `TARGETS` に入っていないページなので）。
+	// 2026-09-27（C-100・カスタムスキルの廃止 commit 3）: データ管理タブの「カスタムスキル：N/50」を消したので、
+	// その入れ物の id `data-custom-count` が uma-skill-deck.html と、それを書いていた js/uma-skill-deck.js から消えた
+	// （id の値が data- で始まるので、この検査は data-* として数える）。スキルセット・比較シートの件数は残っている。
+	// commit が進めば免除は要らなくなるので、次に触るときに空に戻す（残すと本当の事故を見逃す口になる）。
+	'uma-skill-deck.html': ['data-custom-count'],
+	'js/uma-skill-deck.js': ['data-custom-count'],
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

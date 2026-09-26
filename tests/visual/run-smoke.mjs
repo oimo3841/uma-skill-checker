@@ -10141,9 +10141,17 @@ await block('カスタムスキルの廃止 ―― 保存済みのものは入�
 			'C-100 deck: 比較シートに自作スキルが同じ名前で出て、★（3＋2）もそのまま', sheet[0]);
 		assert(sheet[1].name && sheet[1].name.includes(C2.name), 'C-100 deck: タグなしの自作スキルも比較シートに出る', sheet[1]);
 
-		// 書き出し: customSkills を含む
+		// データ管理タブ: 「カスタムスキル：N/50」は出ない（スキルセット・比較シートの件数は残る）。commit 3
 		await page.click('#tab-btn-data');
 		await page.waitForTimeout(300);
+		const dataTab = await page.evaluate(() => ({
+			el: !!document.getElementById('data-custom-count'),
+			text: document.getElementById('data-template-count').closest('p').textContent,
+		}));
+		assert(!dataTab.el && !/カスタムスキル/.test(dataTab.text) && dataTab.text === 'スキルセット：1/10／比較シート：1/10',
+			'C-100 deck: データ管理タブにカスタムスキルの件数は出ない（スキルセット・比較シートの件数は残る）', dataTab);
+
+		// 書き出し: customSkills を含む
 		await page.click('button[onclick="exportData()"]');
 		await page.waitForTimeout(200);
 		const exported = JSON.parse(await page.inputValue('#export-textarea'));
@@ -10170,6 +10178,39 @@ await block('カスタムスキルの廃止 ―― 保存済みのものは入�
 
 		assert(errors.length === 0, 'C-100 deck: コンソールエラーなし', errors.slice(0, 3));
 		await ctx.close();
+	}
+
+	/* ---- Deck のスキルセット編集の入口の並び（ボタンが3つになったあとの測り直し）----
+	   **340px 以上では3つが1行に収まり、横に送らない**（フェードも付かない）。
+	   **320px ではまだ 9px あふれる**ので、73セッション目の「覗かせ」（`measureEntryRowTrim()`）が働いて
+	   右端のボタンが「12px 以上見えて 8px 以上隠れている」状態になっていること（規則は core の ENTRY_MIN_PEEK / ENTRY_MIN_CUT）。
+	   **新しい仕掛けは足していない** ―― 既存の切り詰めとフェードの分担のまま、幅だけが変わった。 */
+	{
+		const rowAt = async (width) => {
+			const { ctx, page } = await openPage(browser, base, 'uma-skill-deck.html', { width, height: 900 });
+			await page.waitForTimeout(300);
+			const r = await page.evaluate(() => {
+				const row = document.querySelector('#template-panel-root .usd-entry-row');
+				const rect = row.getBoundingClientRect();
+				const btns = [...row.children].filter((c) => c.tagName === 'BUTTON');
+				let peek = null;
+				for (const b of btns) {
+					const x = b.getBoundingClientRect();
+					if (x.left < rect.right - 0.5 && x.right > rect.right + 0.5) { peek = { 見えている: rect.right - x.left, 隠れている: x.right - rect.right }; break; }
+				}
+				return { ボタン数: btns.length, あふれ: Math.round(row.scrollWidth - row.clientWidth), fade: row.getAttribute('data-usd-fade'), peek };
+			});
+			await ctx.close();
+			return r;
+		};
+		const narrow = await rowAt(320);
+		assert(narrow.ボタン数 === 3 && narrow.あふれ > 0 && narrow.fade === 'right' && narrow.peek
+			&& narrow.peek.見えている >= 12 && narrow.peek.隠れている >= 8,
+			'C-100 deck(320px): 3つでもあふれ、右端のボタンは12px以上見えて8px以上隠れている（覗かせが働く）', narrow);
+		const fits = [];
+		for (const w of [340, 375, 430]) fits.push(Object.assign({ 幅: w }, await rowAt(w)));
+		assert(fits.every((f) => f.ボタン数 === 3 && f.あふれ === 0 && f.fade === null && f.peek === null),
+			'C-100 deck(340〜430px): 3つが1行に収まり、横に送らない（フェードも付かない）', fits);
 	}
 
 	/* ---- special（周回因子セット・照合の辞書） ---- */
