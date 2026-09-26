@@ -156,6 +156,11 @@
 		.old-ui-end-note-nb { white-space: nowrap; }  /* 「新UIへ」の途中で折り返さない（375px） */
 		/* 告知の文面の改行位置を整える（exam.html と同じ .nb。C-62 の (11)） */
 		.nb { white-space: nowrap; }
+		/* 収録の告知（C-100）が layout／alpha の告知と同じモーダルに並ぶときは、線で区切って印を出さない。
+		   special だけの節なので共通CSS（shell.css）には置かない。 */
+		.notice-catalog--with { margin-top: var(--uma-sp-4); padding-top: var(--uma-sp-4); border-top: 1px solid var(--uma-border); }
+		.notice-catalog--with .notice-icon { display: none; }
+		.notice-catalog--with .notice-title { margin-bottom: 0; font-size: var(--uma-fs-md); }
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-green-600 selection:text-white">
@@ -476,6 +481,18 @@
 					<p class="notice-text"><span class="nb">この画面は</span><span class="nb">いま大幅な改修の途中</span>（<span class="nb">αテスト中</span>）<span class="nb">です。</span></p>
 					<p class="notice-text"><span class="nb">改修が終わるまで、</span><span class="nb">一部の機能が</span><span class="nb">不安定になったり、</span><span class="nb">結果が正しくなかったり</span><span class="nb">することがあります。</span></p>
 					<p class="notice-text"><span class="nb">あらかじめ</span><span class="nb">ご了承ください。</span></p>
+				</div>
+
+				<!-- 収録の告知（C-100・2026-09-27）。**special だけに出す**（exam と Deck には出さない＝おいもさんの決定）。
+				     既読の印は layout・alpha とは**別のキー**なので、前の告知を閉じた人にも1度だけ出る。
+				     **モーダルは1回の読み込みで1枚だけ**（initUiMode の決まり）なので、layout か alpha を出す読み込みでは、
+				     この節を**同じモーダルの下に並べて**出す（線で区切り、印は出さない＝.notice-catalog--with）。
+				     それ以外の読み込みでは、これだけを1枚で出す。 -->
+				<div id="ui-notice-body-catalog" class="notice-catalog" hidden>
+					<div class="notice-icon" aria-hidden="true">
+						<i data-lucide="book-open" class="w-6 h-6"></i>
+					</div>
+					<h2 class="notice-title" id="ui-notice-title-catalog"><span class="nb">最新のスキルまで</span><span class="nb">収録しました</span><span class="nb">（2026年9月27日時点）。</span></h2>
 				</div>
 			</div>
 			<div class="notice-foot">
@@ -2905,6 +2922,10 @@
 		// してあるので、そちらを既読にした人にもこれは1度だけ出る（exam の TARGET_NOTICE と同じ作法）。
 		const ALPHA_NOTICE_STORAGE_KEY = 'uma-special-alpha-notice';
 		const ALPHA_NOTICE_ID = '2026-09-18-alpha-rework';
+		// 最新のスキルまで収録したことの告知（C-100。2026-09-27）。これも**別のキー**なので、
+		// layout・alpha を既読にした人にも1度だけ出る。special だけに出す（exam と Deck には出さない）。
+		const CATALOG_NOTICE_STORAGE_KEY = 'uma-special-catalog-notice';
+		const CATALOG_NOTICE_ID = '2026-09-27-skills-up-to-date';
 		// 分類の印を結合画像に焼くか（C-58 の作業C）。**保存値が無ければ ON**（理由はチェックの脇のコメント）
 		const TIER_MARKS_STORAGE_KEY = 'uma-special-tier-marks';
 
@@ -2930,6 +2951,13 @@
 			if (hasSeenAlphaNotice()) return;
 			writeStored(ALPHA_NOTICE_STORAGE_KEY, ALPHA_NOTICE_ID);
 		}
+		function hasSeenCatalogNotice() {
+			return readStored(CATALOG_NOTICE_STORAGE_KEY) === CATALOG_NOTICE_ID;
+		}
+		function markCatalogNoticeSeen() {
+			if (hasSeenCatalogNotice()) return;
+			writeStored(CATALOG_NOTICE_STORAGE_KEY, CATALOG_NOTICE_ID);
+		}
 		function saveUiModeChoice() {
 			writeStored(UI_MODE_STORAGE_KEY, deckMode ? 'new' : 'old');
 		}
@@ -2951,31 +2979,42 @@
 			   画面の切り替えの告知が未読の人（＝このツールを初めて開く人）にはそちらだけを見せ、
 			   改修中の断りは「見たこと」にする ―― 初めての人には「改修前」が無いので、
 			   「改修中です」と言っても比べる相手が無いため。 */
+			/* 収録の告知（C-100）は、**初めての人にも**出す（改修中の断りと違い、初めての人にも意味がある）。
+			   2枚目のモーダルは重ねない ―― layout か alpha を出す読み込みでは、同じモーダルの下に並べる。 */
+			const withCatalog = !hasSeenCatalogNotice();
 			if (!seen) {
 				markAlphaNoticeSeen();
-				openUiNotice('layout');
+				openUiNotice('layout', withCatalog);
 			} else if (!hasSeenAlphaNotice()) {
-				openUiNotice('alpha');
+				openUiNotice('alpha', withCatalog);
+			} else if (withCatalog) {
+				openUiNotice('catalog');
 			}
 		}
 
 		/* ---------- 告知モーダル（使い方ガイドと同じ作法） ---------- */
 		let uiNoticeOpen = false;
 		let uiNoticeKind = 'layout';
+		let uiNoticeWithCatalog = false;   // 収録の告知（C-100）を下に並べているか
 		let uiNoticeReturnFocus = null;
 
-		function openUiNotice(kind) {
+		// kind: 'layout' | 'alpha' | 'catalog'。withCatalog を渡すと、layout／alpha の下に収録の告知を並べる。
+		function openUiNotice(kind, withCatalog) {
 			if (uiNoticeOpen) return;
 			// 引き出しやガイドが開いている上には重ねない
 			if (helpOpen || openDrawerKey) return;
-			// 出すのはどちらか一方だけ（C-62 の (11)）
-			uiNoticeKind = (kind === 'alpha') ? 'alpha' : 'layout';
-			const isAlpha = (uiNoticeKind === 'alpha');
-			document.getElementById('ui-notice-body-layout').hidden = isAlpha;
-			document.getElementById('ui-notice-body-alpha').hidden = !isAlpha;
-			// 読み上げの見出しも、出している方の見出しに向ける
+			// layout と alpha は出すのはどちらか一方だけ（C-62 の (11)）
+			uiNoticeKind = (kind === 'alpha' || kind === 'catalog') ? kind : 'layout';
+			uiNoticeWithCatalog = uiNoticeKind !== 'catalog' && !!withCatalog;
+			document.getElementById('ui-notice-body-layout').hidden = uiNoticeKind !== 'layout';
+			document.getElementById('ui-notice-body-alpha').hidden = uiNoticeKind !== 'alpha';
+			const catalogBody = document.getElementById('ui-notice-body-catalog');
+			catalogBody.hidden = !(uiNoticeKind === 'catalog' || uiNoticeWithCatalog);
+			catalogBody.classList.toggle('notice-catalog--with', uiNoticeWithCatalog);
+			// 読み上げの見出しも、出している方（並べているときは上の方）の見出しに向ける
 			document.getElementById('ui-notice').setAttribute('aria-labelledby',
-				isAlpha ? 'ui-notice-title-alpha' : 'ui-notice-title');
+				uiNoticeKind === 'alpha' ? 'ui-notice-title-alpha'
+					: uiNoticeKind === 'catalog' ? 'ui-notice-title-catalog' : 'ui-notice-title');
 			uiNoticeOpen = true;
 			uiNoticeReturnFocus = document.activeElement;
 			document.getElementById('ui-notice-backdrop').hidden = false;
@@ -2993,7 +3032,11 @@
 			document.getElementById('ui-notice-backdrop').hidden = true;
 			document.getElementById('ui-notice').hidden = true;
 			document.body.style.overflow = '';
-			if (uiNoticeKind === 'alpha') markAlphaNoticeSeen(); else markUiNoticeSeen();
+			if (uiNoticeKind === 'alpha') markAlphaNoticeSeen();
+			else if (uiNoticeKind === 'layout') markUiNoticeSeen();
+			// 収録の告知（C-100）は、1枚で出したときも下に並べたときも、閉じたら既読
+			if (uiNoticeKind === 'catalog' || uiNoticeWithCatalog) markCatalogNoticeSeen();
+			uiNoticeWithCatalog = false;
 			// 読み直した場合は開いた元（右上のバッジ）へ、初回表示なら元の位置へ返す
 			if (uiNoticeReturnFocus && typeof uiNoticeReturnFocus.focus === 'function') uiNoticeReturnFocus.focus();
 			uiNoticeReturnFocus = null;

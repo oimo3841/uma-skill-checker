@@ -10245,6 +10245,110 @@ await block('カスタムスキルの廃止 ―― 保存済みのものは入�
 }
 });
 
+/* ============================================================
+ * 収録の告知（2026-09-27・C-100 の追加の指示）
+ *
+ * special を開いたときのお知らせのモーダルに「最新のスキルまで収録しました（2026年9月27日時点）。」を足した。
+ * **special だけ**（exam と Deck には出さない）。既読の印は layout・alpha とは別のキー（uma-special-catalog-notice）。
+ * モーダルは1回の読み込みで1枚だけなので、layout か alpha を出す読み込みでは同じモーダルの下に並べ、
+ * それ以外の読み込みでは1枚で出す。見るのは:
+ *   (1) 初めて開いたときに、この文が出る（layout の下に並ぶ）
+ *   (2) 閉じたあとにもう一度開くと出ない
+ *   (3) 前のお知らせ（layout・alpha）を閉じた状態の保存データで開くと、この1件だけが出る
+ *   (3b) alpha だけ未読なら、alpha の下に並ぶ
+ *   (4) exam を開いても出ない
+ * ============================================================ */
+await block('収録の告知 ―― special のお知らせのモーダルにだけ1度出る（C-100）', async () => {
+{
+	const TEXT = '最新のスキルまで収録しました（2026年9月27日時点）。';
+	const KEYS = { layout: ['uma-special-ui-notice', '2026-09-new-ui-default'], alpha: ['uma-special-alpha-notice', '2026-09-18-alpha-rework'],
+		catalog: ['uma-special-catalog-notice', '2026-09-27-skills-up-to-date'] };
+	const state = (page) => page.evaluate((text) => {
+		const d = document.getElementById('ui-notice');
+		const vis = (id) => { const el = document.getElementById(id); return !!el && !el.hidden && el.offsetParent !== null; };
+		return {
+			出ている: !!d && !d.hidden,
+			layout: vis('ui-notice-body-layout'), alpha: vis('ui-notice-body-alpha'), catalog: vis('ui-notice-body-catalog'),
+			文: !!d && !d.hidden && d.innerText.includes(text),
+			並べ: !!document.querySelector('#ui-notice-body-catalog.notice-catalog--with'),
+			印: (() => { const i = document.querySelector('#ui-notice-body-catalog .notice-icon'); return !!i && i.offsetParent !== null; })(),
+			見出し: d ? d.getAttribute('aria-labelledby') : null,
+			既読: localStorage.getItem('uma-special-catalog-notice'),
+		};
+	}, TEXT);
+	const reopen = async (page) => {
+		await page.reload({ waitUntil: 'networkidle' });
+		await page.waitForTimeout(1200);
+	};
+
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	await page.waitForTimeout(600);
+	// (1) 初めて開いた（告知の既読が1つも無い）→ layout の下に並んで出る
+	const s1 = await state(page);
+	assert(s1.出ている && s1.layout && !s1.alpha && s1.catalog && s1.文 && s1.並べ && !s1.印 && s1.見出し === 'ui-notice-title' && s1.既読 === null,
+		'収録の告知(1): 初めて開くと、layout の下に並んで「' + TEXT + '」が出る（1枚だけ・印は出さない）', s1);
+	await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	const afterClose = await page.evaluate((k) => ({ 収録: localStorage.getItem(k.catalog[0]), 画面: localStorage.getItem(k.layout[0]),
+		次のモーダル: !document.getElementById('ui-notice').hidden }), KEYS);
+	assert(afterClose.収録 === KEYS.catalog[1] && afterClose.画面 === KEYS.layout[1] && !afterClose.次のモーダル,
+		'収録の告知(1): OK で閉じると収録の告知も既読になり、2枚目のモーダルは出ない', afterClose);
+
+	// (2) もう一度開くと出ない
+	await reopen(page);
+	const s2 = await state(page);
+	assert(!s2.出ている && !s2.文, '収録の告知(2): 閉じたあとにもう一度開くと出ない', s2);
+
+	// (3) 前のお知らせ（layout・alpha）を閉じた保存データ・収録の告知だけ未読 → これだけが1枚で出る
+	await page.evaluate((k) => { localStorage.setItem(k.layout[0], k.layout[1]); localStorage.setItem(k.alpha[0], k.alpha[1]); localStorage.removeItem(k.catalog[0]); }, KEYS);
+	await reopen(page);
+	const s3 = await state(page);
+	assert(s3.出ている && !s3.layout && !s3.alpha && s3.catalog && s3.文 && !s3.並べ && s3.印 && s3.見出し === 'ui-notice-title-catalog',
+		'収録の告知(3): 前のお知らせを閉じた人にも、この1件だけが1枚で出る', s3);
+	await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	await reopen(page);
+	const s3b = await state(page);
+	assert(!s3b.出ている && s3b.既読 === KEYS.catalog[1], '収録の告知(3): 閉じたあとは出ない', s3b);
+
+	// (3b) alpha だけ未読 → alpha の下に並ぶ（2枚目は出さない）
+	await page.evaluate((k) => { localStorage.removeItem(k.alpha[0]); localStorage.removeItem(k.catalog[0]); }, KEYS);
+	await reopen(page);
+	const s4 = await state(page);
+	assert(s4.出ている && !s4.layout && s4.alpha && s4.catalog && s4.並べ && s4.見出し === 'ui-notice-title-alpha',
+		'収録の告知(3b): 改修中の告知が未読なら、その下に並んで出る', s4);
+	await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(300);
+	const s4after = await page.evaluate((k) => ({ alpha: localStorage.getItem(k.alpha[0]), 収録: localStorage.getItem(k.catalog[0]),
+		次のモーダル: !document.getElementById('ui-notice').hidden }), KEYS);
+	assert(s4after.alpha === KEYS.alpha[1] && s4after.収録 === KEYS.catalog[1] && !s4after.次のモーダル,
+		'収録の告知(3b): 閉じると両方とも既読になる', s4after);
+
+	// 右上の「新UI」バッジからの読み直しでは、収録の告知は並べない（読み直すのは画面の切り替えの告知だけ）
+	await page.click('#ui-mode-badge');
+	await page.waitForTimeout(300);
+	const s5 = await state(page);
+	assert(s5.出ている && s5.layout && !s5.catalog, '収録の告知: 「新UI」バッジからの読み直しには並ばない', s5);
+	await page.click('[data-act="notice-ok"]');
+	await page.waitForTimeout(200);
+	assert(errors.length === 0, '収録の告知: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+
+	// (4) exam を開いても出ない（初めて開いた状態で）
+	{
+		const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+		await page.waitForTimeout(600);
+		const ex = await page.evaluate((text) => ({
+			文: document.body.innerText.includes(text) || document.documentElement.outerHTML.includes(text),
+			節: !!document.getElementById('ui-notice-body-catalog'),
+			キー: localStorage.getItem('uma-special-catalog-notice'),
+		}), TEXT);
+		assert(!ex.文 && !ex.節 && ex.キー === null, '収録の告知(4): exam を開いても出ない（文も節も無い）', ex);
+		assert(errors.length === 0, '収録の告知(4): exam のコンソールエラーなし', errors.slice(0, 3));
+		await ctx.close();
+	}
+}
+});
 await browser.close();
 await close();
 
