@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-09-26a",
+	"dataVersion": "2026-09-26b",
 	"category": "extendedSkill",
 	"nextSerial": "ex-0985",
 	"note": "マスター（uma-skill-deck-skills.json）の445種に無いスキル。name はゲーム画面の表示そのまま（全角・半角・中黒「・」を含めて変えない）。id は保存済みの比較シートが指し続ける不変の鍵なので、表記を直しても id は変えない。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。tagsPending が付いている間は8軸のタグが未設定で、条件での絞り込みの母集団には入れない（8軸すべてが空のタグは「条件を持たない＝万能スキル」という別の意味になるため、未設定はこの印で示す）。tagsPending と tags はどちらか一方だけを持つ。形は npm run check:catalog が確かめる。",
@@ -443,6 +443,11 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"min": 2400,
+				"max": 2400,
+				"scope": "part"
 			}
 		},
 		{
@@ -616,6 +621,11 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"min": 2400,
+				"max": 2500,
+				"scope": "part"
 			}
 		},
 		{
@@ -998,9 +1008,7 @@
 				"coursePos": [],
 				"rarity": [],
 				"inherited": [],
-				"environment": [
-					"distance_basis"
-				],
+				"environment": [],
 				"trackVenue": [],
 				"effect": [
 					"move_forward",
@@ -1009,6 +1017,11 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"standardDistance": true,
+				"scope": "part",
+				"distanceTagScope": "part"
 			}
 		},
 		{
@@ -1994,9 +2007,7 @@
 				"coursePos": [],
 				"rarity": [],
 				"inherited": [],
-				"environment": [
-					"distance_nonbasis"
-				],
+				"environment": [],
 				"trackVenue": [],
 				"effect": [
 					"target_speed_up"
@@ -2006,6 +2017,10 @@
 				"distanceMark": [
 					"remain_400"
 				]
+			},
+			"raceDistance": {
+				"standardDistance": false,
+				"scope": "part"
 			}
 		},
 		{
@@ -2412,6 +2427,11 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"min": 2400,
+				"max": 2400,
+				"scope": "part"
 			}
 		},
 		{
@@ -4602,6 +4622,11 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"min": 2400,
+				"max": 2400,
+				"scope": "part"
 			}
 		},
 		{
@@ -4877,6 +4902,11 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"min": 2400,
+				"max": 2400,
+				"scope": "part"
 			}
 		},
 		{
@@ -6284,6 +6314,12 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"min": 2500,
+				"max": 2500,
+				"scope": "part",
+				"distanceTagScope": "part"
 			}
 		},
 		{
@@ -8429,6 +8465,11 @@
 				"distanceMark": [
 					"remain_800"
 				]
+			},
+			"raceDistance": {
+				"min": 2400,
+				"max": 2400,
+				"scope": "part"
 			}
 		},
 		{
@@ -9986,6 +10027,10 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"min": 2400,
+				"scope": "part"
 			}
 		},
 		{
@@ -10040,6 +10085,11 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"max": 2999,
+				"scope": "part",
+				"distanceTagScope": "all"
 			}
 		},
 		{
@@ -10151,6 +10201,11 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"min": 2000,
+				"max": 2000,
+				"scope": "part"
 			}
 		},
 		{
@@ -11441,6 +11496,10 @@
 				"distanceMark": [
 					"remain_800"
 				]
+			},
+			"raceDistance": {
+				"standardDistance": true,
+				"scope": "part"
 			}
 		},
 		{
@@ -11570,6 +11629,11 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"min": 2200,
+				"max": 2200,
+				"scope": "part"
 			}
 		},
 		{
@@ -12088,6 +12152,11 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"min": 1600,
+				"max": 2000,
+				"scope": "part"
 			}
 		},
 		{
@@ -12576,6 +12645,10 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"min": 2000,
+				"scope": "part"
 			}
 		},
 		{
@@ -12808,6 +12881,10 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"min": 2000,
+				"scope": "part"
 			}
 		},
 		{
@@ -13308,9 +13385,7 @@
 				"coursePos": [],
 				"rarity": [],
 				"inherited": [],
-				"environment": [
-					"distance_basis"
-				],
+				"environment": [],
 				"trackVenue": [],
 				"effect": [
 					"stat_up"
@@ -13320,6 +13395,10 @@
 					"passive"
 				],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"standardDistance": true,
+				"scope": "all"
 			}
 		},
 		{
@@ -13333,9 +13412,7 @@
 				"coursePos": [],
 				"rarity": [],
 				"inherited": [],
-				"environment": [
-					"distance_nonbasis"
-				],
+				"environment": [],
 				"trackVenue": [],
 				"effect": [
 					"stat_up"
@@ -13345,6 +13422,10 @@
 					"passive"
 				],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"standardDistance": false,
+				"scope": "all"
 			}
 		},
 		{
@@ -16222,6 +16303,10 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			},
+			"raceDistance": {
+				"min": 3000,
+				"scope": "all"
 			}
 		},
 		{

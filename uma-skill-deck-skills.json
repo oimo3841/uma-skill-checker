@@ -1,5 +1,5 @@
 {
- "masterVersion": "2026-09-26a",
+ "masterVersion": "2026-09-26b",
  "skills": [
   {
    "id": "1",
@@ -312,9 +312,7 @@
     "coursePos": [],
     "rarity": [],
     "inherited": [],
-    "environment": [
-     "distance_basis"
-    ],
+    "environment": [],
     "trackVenue": [],
     "effect": [
      "stat_up"
@@ -324,6 +322,10 @@
      "passive"
     ],
     "distanceMark": []
+   },
+   "raceDistance": {
+    "standardDistance": true,
+    "scope": "all"
    }
   },
   {
@@ -337,9 +339,7 @@
     "coursePos": [],
     "rarity": [],
     "inherited": [],
-    "environment": [
-     "distance_nonbasis"
-    ],
+    "environment": [],
     "trackVenue": [],
     "effect": [
      "stat_up"
@@ -349,6 +349,10 @@
      "passive"
     ],
     "distanceMark": []
+   },
+   "raceDistance": {
+    "standardDistance": false,
+    "scope": "all"
    }
   },
   {
@@ -9513,6 +9517,10 @@
     "scenario": [],
     "passive": [],
     "distanceMark": []
+   },
+   "raceDistance": {
+    "min": 3000,
+    "scope": "all"
    }
   },
   {

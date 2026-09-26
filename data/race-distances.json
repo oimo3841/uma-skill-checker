@@ -1,0 +1,186 @@
+{
+	"dataVersion": "2026-09-26a",
+	"category": "raceDistance",
+	"note": "ゲームに登場するレースの距離の一覧。distances は実在する距離とその区分（distanceCategories の境目で付けたもの）と、その距離があるバ場。目標の距離から区分を決め、その距離のレースがあるか・選んだ区分と合うかを確かめるために使う。レース場・レース名は持たない。",
+	"distanceCategories": [
+		{
+			"key": "short",
+			"name": "短距離",
+			"maxDistance": 1400
+		},
+		{
+			"key": "mile",
+			"name": "マイル",
+			"minDistance": 1401,
+			"maxDistance": 1800
+		},
+		{
+			"key": "medium",
+			"name": "中距離",
+			"minDistance": 1801,
+			"maxDistance": 2400
+		},
+		{
+			"key": "long",
+			"name": "長距離",
+			"minDistance": 2401
+		}
+	],
+	"distances": [
+		{
+			"distance": 1000,
+			"category": "short",
+			"surfaces": [
+				"turf",
+				"dirt"
+			]
+		},
+		{
+			"distance": 1150,
+			"category": "short",
+			"surfaces": [
+				"dirt"
+			]
+		},
+		{
+			"distance": 1200,
+			"category": "short",
+			"surfaces": [
+				"turf",
+				"dirt"
+			]
+		},
+		{
+			"distance": 1300,
+			"category": "short",
+			"surfaces": [
+				"dirt"
+			]
+		},
+		{
+			"distance": 1400,
+			"category": "short",
+			"surfaces": [
+				"turf",
+				"dirt"
+			]
+		},
+		{
+			"distance": 1500,
+			"category": "mile",
+			"surfaces": [
+				"turf"
+			]
+		},
+		{
+			"distance": 1600,
+			"category": "mile",
+			"surfaces": [
+				"turf",
+				"dirt"
+			]
+		},
+		{
+			"distance": 1700,
+			"category": "mile",
+			"surfaces": [
+				"dirt"
+			]
+		},
+		{
+			"distance": 1800,
+			"category": "mile",
+			"surfaces": [
+				"turf",
+				"dirt"
+			]
+		},
+		{
+			"distance": 1900,
+			"category": "medium",
+			"surfaces": [
+				"dirt"
+			]
+		},
+		{
+			"distance": 2000,
+			"category": "medium",
+			"surfaces": [
+				"turf",
+				"dirt"
+			]
+		},
+		{
+			"distance": 2100,
+			"category": "medium",
+			"surfaces": [
+				"dirt"
+			]
+		},
+		{
+			"distance": 2200,
+			"category": "medium",
+			"surfaces": [
+				"turf"
+			]
+		},
+		{
+			"distance": 2300,
+			"category": "medium",
+			"surfaces": [
+				"turf"
+			]
+		},
+		{
+			"distance": 2400,
+			"category": "medium",
+			"surfaces": [
+				"turf",
+				"dirt"
+			]
+		},
+		{
+			"distance": 2500,
+			"category": "long",
+			"surfaces": [
+				"turf",
+				"dirt"
+			]
+		},
+		{
+			"distance": 2600,
+			"category": "long",
+			"surfaces": [
+				"turf"
+			]
+		},
+		{
+			"distance": 3000,
+			"category": "long",
+			"surfaces": [
+				"turf"
+			]
+		},
+		{
+			"distance": 3200,
+			"category": "long",
+			"surfaces": [
+				"turf"
+			]
+		},
+		{
+			"distance": 3400,
+			"category": "long",
+			"surfaces": [
+				"turf"
+			]
+		},
+		{
+			"distance": 3600,
+			"category": "long",
+			"surfaces": [
+				"turf"
+			]
+		}
+	]
+}

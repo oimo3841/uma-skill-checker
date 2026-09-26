@@ -39,6 +39,8 @@ const master = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'uma-skill-deck-s
 const extendedSkills = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/extended-skills.json'), 'utf8'));
 /** 育成ウマ娘（C-91 の (3)「編成には検索に出さない拡張スキルも引き続き出る」を見るのに使う）。 */
 const trainingUmas = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/training-umamusume.json'), 'utf8'));
+/** レースの距離の一覧（C-97。目標のレースの距離の判定の材料。区分の境目も実在する距離もここから読む）。 */
+const raceDistances = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/race-distances.json'), 'utf8'));
 
 /**
  * ①で「持久力減少」(stamina_down) へ付け替えた14件。
@@ -1243,6 +1245,212 @@ const browser = await chromium.launch();
 			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
 			UmaSkillDeckCore.replaceUserData(data);
 		}, LEGACY_ID);
+	}
+
+	/* ==========================================================
+	 * C-96・C-97（2026-09-26）―― 目標のレースの距離
+	 *
+	 * 距離のタブの入力欄に d を入れると、区分は d の区分（レースの一覧の境目から決まる）として、
+	 * スキルごとに次で判定する（製品の `matchesDistanceAxis()`）:
+	 *   1. raceDistance の scope が "all" … d が限定に当たるときだけ出す
+	 *   2. それ以外 … a. 距離のタグが無い→出す／b. タグに d の区分がある→出す／
+	 *                c. 限定が d に当たり distanceTagScope が "part"→出す／d. どれでもない→出さない
+	 *   d が無く区分だけ … "all" は選んだ区分に実在する距離のどれかが限定に当たれば出す。それ以外は今までどおり。
+	 *   エラー（数字でない・レースが無い・区分と合わない）… 入力欄の下に文を出し、d を使わずに絞る。
+	 *
+	 * **期待値は製品の関数を使わず、ここに書いた同じ規則で組み立てる**（規則を2か所に持つのは意図的 ――
+	 * 製品を壊したときに期待値まで一緒に動かないため）。**いまの検索の範囲で raceDistance を持つのは
+	 * 1件だけ**（scope "all"）なので、決定の表にある形の仮のスキルをカスタムスキルで仕込んで、形ごとの出方を見る。
+	 * ========================================================== */
+	console.log('\n--- C-97 目標のレースの距離 ---');
+	{
+		// (0) 材料。レースの一覧を読めている／距離の軸の選択肢＝区分／レース環境から根幹・非根幹が消えている
+		const rdMeta = await page.evaluate(() => UmaSkillDeckCore.getRaceDistancesMeta());
+		assert(rdMeta.ok && rdMeta.version === raceDistances.dataVersion, 'C-97: レースの一覧（race-distances.json）を読めている（版が一致）', rdMeta);
+		const distAxis = axes.find((a) => a.key === 'distance');
+		assert(eq(distAxis.opts, raceDistances.distanceCategories.map((c) => c.key)),
+			'C-97: 距離の軸の選択肢が、レースの一覧の区分と同じ顔ぶれ・並び', { 選択肢: distAxis.opts, 区分: raceDistances.distanceCategories.map((c) => c.key) });
+		const envOpts = axes.find((a) => a.key === 'environment').opts;
+		assert(!envOpts.some((v) => /^distance_/.test(v)), 'C-97: レース環境の選択肢に根幹距離・非根幹距離が無い（raceDistance へ一本化）', envOpts);
+		const envLeft = master.skills.concat(CATALOG_TAGGED_ALL).filter((s) => axisValues(s, 'environment').some((v) => /^distance_/.test(v)));
+		assert(envLeft.length === 0, 'C-97: データにも distance_basis / distance_nonbasis が残っていない', envLeft.map((s) => s.name));
+
+		// (1) 検査の側の規則
+		const categoryOf = (d) => raceDistances.distanceCategories.find((c) =>
+			(c.minDistance === undefined || d >= c.minDistance) && (c.maxDistance === undefined || d <= c.maxDistance));
+		const distancesIn = (keys) => raceDistances.distances.filter((x) => keys.includes(x.category)).map((x) => x.distance);
+		const limitHit = (rd, d) => (typeof rd.standardDistance === 'boolean')
+			? (d % 400 === 0) === rd.standardDistance
+			: (rd.min === undefined || d >= rd.min) && (rd.max === undefined || d <= rd.max);
+		/** d（数値か null）と選んだ区分で、そのスキルが出るか。 */
+		const showsFor = (s, d, selected) => {
+			const rd = s.raceDistance || null;
+			const tags = axisValues(s, 'distance');
+			if (d !== null) {
+				if (rd && rd.scope === 'all') return limitHit(rd, d);
+				if (tags.length === 0) return true;
+				if (tags.includes(categoryOf(d).key)) return true;
+				return !!(rd && rd.distanceTagScope === 'part' && limitHit(rd, d));
+			}
+			if (selected.length === 0) return true;
+			if (rd && rd.scope === 'all') return distancesIn(selected).some((x) => limitHit(rd, x));
+			if (tags.length === 0) return true;
+			return tags.some((v) => selected.includes(v));
+		};
+
+		// (2) 決定の表にある形の仮のスキル（8つ）。**名前も限定もここに持つ**（データが変わっても形ごとの出方を見続けるため）
+		const PROBES = [
+			{ key: 'p13', name: '根幹距離の検査用（全体）', distance: [], rd: { standardDistance: true, scope: 'all' } },
+			{ key: 'p355', name: '2400mの検査用（一部）', distance: [], rd: { min: 2400, max: 2400, scope: 'part' } },
+			{ key: 'p474', name: '根幹距離の検査用（一部）', distance: [], rd: { standardDistance: true, scope: 'part' } },
+			{ key: 'p262', name: '2500mと中距離の検査用', distance: ['medium'], rd: { min: 2500, max: 2500, scope: 'part', distanceTagScope: 'part' } },
+			{ key: 'p419', name: '3000m未満と長距離の検査用', distance: ['long'], rd: { max: 2999, scope: 'part', distanceTagScope: 'all' } },
+			{ key: 'p483', name: '中距離と長距離の検査用', distance: ['medium', 'long'], rd: null },
+			{ key: 'p337', name: '短距離とマイルの検査用', distance: ['short', 'mile'], rd: null },
+			{ key: 'pNone', name: '距離の条件が無い検査用', distance: [], rd: null },
+		];
+		const probeId = (p) => 'custom_c97_' + p.key;
+		await page.evaluate((probes) => {
+			const data = UmaSkillDeckCore.getUserData();
+			const ids = probes.map((p) => p.id);
+			data.customSkills = (data.customSkills || []).filter((c) => !ids.includes(c.customId));
+			for (const p of probes) {
+				const tags = {};
+				UmaSkillDeckCore.TAG_AXES.forEach((a) => { tags[a.key] = []; });
+				tags.distance = p.distance;
+				const row = { customId: p.id, name: p.name, tags: tags, createdAt: new Date().toISOString() };
+				if (p.rd) row.raceDistance = p.rd;
+				data.customSkills.push(row);
+			}
+			UmaSkillDeckCore.replaceUserData(data);
+			UmaSkillDeckCore.openSkillPicker([], () => {});
+		}, PROBES.map((p) => ({ id: probeId(p), name: p.name, distance: p.distance, rd: p.rd })));
+		await page.waitForTimeout(400);
+		const POOL_C97 = POOL.concat(PROBES.map((p) => ({ name: p.name, tags: { distance: p.distance }, raceDistance: p.rd || undefined })));
+		const expectDist = (d, selected) => POOL_C97.filter((s) => showsFor(s, d, selected)).map((s) => s.name);
+		assert(await readCount() === POOL_C97.length, 'C-97: 仮のスキル8件を足した母集団は ' + POOL_C97.length + '件', await readCount());
+		const allScoped = POOL.filter((s) => s.raceDistance && s.raceDistance.scope === 'all');
+		const partScoped = POOL.filter((s) => s.raceDistance && s.raceDistance.scope === 'part');
+		console.log('     [情報] 検索の範囲で raceDistance を持つスキル: 全体にかかる ' + allScoped.length + '件（'
+			+ allScoped.map((s) => s.name + ' ' + JSON.stringify(s.raceDistance)).join('、') + '）／一部にかかる ' + partScoped.length + '件');
+		assert(allScoped.length > 0, 'C-97: 検索の範囲に、全体にかかる限定を持つスキルが実在する（空振りの検査ではない）', allScoped.length);
+
+		const setDistance = async (text) => {
+			await ensureAxisOpen('distance');
+			await page.fill('[data-usd-el="target-distance"]', text);
+			await page.waitForTimeout(300);
+		};
+		const errorState = () => page.evaluate(() => {
+			const el = document.querySelector('[data-usd-el="target-distance-error"]');
+			const input = document.querySelector('[data-usd-el="target-distance"]');
+			const badge = document.querySelector('[data-usd-el="axis-count"][data-usd-axis="distance"]');
+			return { shown: el.getAttribute('data-shown') === 'true', text: el.textContent, invalid: input.getAttribute('aria-invalid'),
+				badge: badge.hidden ? '' : badge.textContent, summary: document.querySelector('[data-usd-el="filter-summary"]').textContent };
+		});
+		const byName = new Map(PROBES.map((p) => [p.key, p.name]));
+
+		/* (3) 決定の表（Chat がスキルの説明文と決まりで当てたもの。ex-0419 の「3000 → 出る」は 2026-09-26 に訂正済み）。
+		   仮のスキルの出る／出ないを表のとおりに見て、あわせて一覧の全件を上の規則の期待値と完全一致で突き合わせる。 */
+		const TABLE = [
+			{ d: '3000', shown: ['p355', 'p474', 'p419', 'p483', 'pNone'], hidden: ['p13', 'p262', 'p337'] },
+			{ d: '3200', shown: ['p13', 'p355', 'p474', 'p419', 'p483', 'pNone'], hidden: ['p262', 'p337'] },
+			{ d: '2500', shown: ['p355', 'p474', 'p262', 'p419', 'p483', 'pNone'], hidden: ['p13', 'p337'] },
+			{ d: '2400', shown: ['p13', 'p355', 'p474', 'p262', 'p483', 'pNone'], hidden: ['p419', 'p337'] },
+			{ d: '2000', shown: ['p13', 'p355', 'p474', 'p262', 'p483', 'pNone'], hidden: ['p419', 'p337'] },
+			{ d: '2200', shown: ['p355', 'p474', 'p262', 'p483', 'pNone'], hidden: ['p13', 'p419', 'p337'] },
+			{ d: '1600', shown: ['p13', 'p355', 'p474', 'p337', 'pNone'], hidden: ['p262', 'p419', 'p483'] },
+			{ d: '1800', shown: ['p355', 'p474', 'p337', 'pNone'], hidden: ['p13', 'p262', 'p419', 'p483'] },
+			{ d: '2600', shown: ['p355', 'p474', 'p419', 'p483', 'pNone'], hidden: ['p13', 'p262', 'p337'] },
+			{ d: '1200', shown: ['p13', 'p355', 'p474', 'p337', 'pNone'], hidden: ['p262', 'p419', 'p483'] },
+			{ cat: 'long', shown: ['p13', 'p355', 'p474', 'p419', 'p483', 'pNone'], hidden: ['p262', 'p337'] },
+			{ cat: 'medium', shown: ['p13', 'p355', 'p474', 'p262', 'p483', 'pNone'], hidden: ['p419', 'p337'] },
+			{ cat: 'short', shown: ['p13', 'p355', 'p474', 'p337', 'pNone'], hidden: ['p262', 'p419', 'p483'] },
+			{ cat: 'mile', shown: ['p13', 'p355', 'p474', 'p337', 'pNone'], hidden: ['p262', 'p419', 'p483'] },
+		];
+		for (const row of TABLE) {
+			const label = row.d !== undefined ? '「' + row.d + '」' : '区分「' + row.cat + '」だけ';
+			if (row.d !== undefined) await setDistance(row.d); else await tick('distance', row.cat);
+			const names = await listedNames();
+			const st = await errorState();
+			assert(!st.shown, 'C-97 ' + label + ': エラーは出ない', st);
+			const wrongShown = row.shown.filter((k) => !names.includes(byName.get(k)));
+			const wrongHidden = row.hidden.filter((k) => names.includes(byName.get(k)));
+			assert(wrongShown.length === 0 && wrongHidden.length === 0,
+				'C-97 ' + label + ': 仮のスキルの出方が決定の表のとおり（出る ' + row.shown.length + '・出ない ' + row.hidden.length + '）',
+				{ 出るはずが出ない: wrongShown, 出ないはずが出た: wrongHidden });
+			const want = row.d !== undefined ? expectDist(Number(row.d), []) : expectDist(null, [row.cat]);
+			assert(eq(names.slice().sort(), want.slice().sort()),
+				'C-97 ' + label + ': 一覧の全件が規則の期待値と一致（' + want.length + '件）', { 画面: names.length, 期待: want.length });
+			// 全体にかかる限定を持つ実データ（超長距離の回復）が、限定どおりに出る／出ない
+			if (row.d !== undefined) {
+				const dNum = Number(row.d);
+				const wrongAll = allScoped.filter((s) => names.includes(s.name) !== limitHit(s.raceDistance, dNum)).map((s) => s.name);
+				assert(wrongAll.length === 0, 'C-97 ' + label + ': 全体にかかる限定を持つ実データが限定どおり', wrongAll);
+			}
+			if (row.d !== undefined) await setDistance(''); else await tick('distance', row.cat);
+		}
+		assert(await readCount() === POOL_C97.length, 'C-97: 表を回し終えると母集団の件数に戻る', await readCount());
+
+		/* (4) エラー。文が入力欄の下に出て、d を使わずに絞る */
+		await setDistance('1350');
+		let st = await errorState();
+		assert(st.shown && st.text === 'この距離のレースはありません' && st.invalid === 'true',
+			'C-97 「1350」: 「この距離のレースはありません」が出る', st);
+		assert(await readCount() === POOL_C97.length && st.badge === '', 'C-97 「1350」: 区分を選んでいなければ絞らない（バッジも出ない）', { 件数: await readCount(), st });
+		await setDistance('abc');
+		st = await errorState();
+		assert(st.shown && st.text === '距離は数字で入れてください', 'C-97 「abc」: 「距離は数字で入れてください」が出る', st);
+		await setDistance('２４００ｍ');
+		st = await errorState();
+		assert(!st.shown && eq((await listedNames()).slice().sort(), expectDist(2400, []).slice().sort()) && st.badge === '1' && /2400m/.test(st.summary),
+			'C-97 「２４００ｍ」（全角・m 付き）: 2400 と同じに読み、バッジ1・「絞り込み中」に 2400m', st);
+		await setDistance('2400');
+		await tick('distance', 'mile');
+		st = await errorState();
+		assert(st.shown && st.text === '2400m は中距離のレースです。選んだ区分（マイル）と合いません',
+			'C-97 マイル＋「2400」: 区分と合わない文が出る', st);
+		assert(eq((await listedNames()).slice().sort(), expectDist(null, ['mile']).slice().sort()) && st.badge === '1' && !/2400m/.test(st.summary),
+			'C-97 マイル＋「2400」: 「マイル」だけで絞る（バッジは1・「絞り込み中」に 2400m は出ない）', st);
+		await tick('distance', 'medium');
+		st = await errorState();
+		assert(st.shown && /（マイル）/.test(st.text) && eq((await listedNames()).slice().sort(), expectDist(null, ['mile', 'medium']).slice().sort()),
+			'C-97 マイル＋中距離＋「2400」: エラーのまま、マイル・中距離で絞る', st);
+		await tick('distance', 'mile');
+		st = await errorState();
+		assert(!st.shown && eq((await listedNames()).slice().sort(), expectDist(2400, []).slice().sort()) && st.badge === '2',
+			'C-97 中距離＋「2400」: エラーにせず「2400」だけと同じ出方（バッジは2）', st);
+
+		/* (5) 解除。「この軸を解除」と「すべて解除」で d も消える */
+		await page.click('[data-usd-act="filter-clear-axis"][data-usd-axis="distance"]');
+		await page.waitForTimeout(300);
+		let inputVal = await page.$eval('[data-usd-el="target-distance"]', (el) => el.value);
+		assert(inputVal === '' && await readCount() === POOL_C97.length, 'C-97: 「この軸を解除」で目標の距離も消え、母集団の件数に戻る', { inputVal, 件数: await readCount() });
+		await setDistance('3000');
+		await tick('effect', 'stamina');
+		await page.click('[data-usd-act="filter-clear-all"]');
+		await page.waitForTimeout(300);
+		inputVal = await page.$eval('[data-usd-el="target-distance"]', (el) => el.value);
+		assert(inputVal === '' && await readCount() === POOL_C97.length, 'C-97: 「すべて解除」で目標の距離も消え、母集団の件数に戻る', { inputVal, 件数: await readCount() });
+		// 開き直しても d が残る（pickerFilters と同じ寿命）
+		await setDistance('2000');
+		await page.evaluate(() => { UmaSkillDeckCore.closeSkillPicker(); });
+		await page.waitForTimeout(200);
+		await page.evaluate(() => UmaSkillDeckCore.openSkillPicker([], () => {}));
+		await page.waitForTimeout(400);
+		inputVal = await page.$eval('[data-usd-el="target-distance"]', (el) => el.value);
+		assert(inputVal === '2000' && eq((await listedNames()).slice().sort(), expectDist(2000, []).slice().sort()),
+			'C-97: 開き直しても目標の距離が残り、同じ絞り込みになる', inputVal);
+		await setDistance('');
+
+		// 後片付け
+		await page.evaluate((ids) => {
+			const data = UmaSkillDeckCore.getUserData();
+			data.customSkills = (data.customSkills || []).filter((c) => !ids.includes(c.customId));
+			UmaSkillDeckCore.replaceUserData(data);
+			UmaSkillDeckCore.openSkillPicker([], () => {});
+		}, PROBES.map(probeId));
+		await page.waitForTimeout(300);
+		assert(await readCount() === POOL.length, 'C-97: 仮のスキルを片付けると母集団の件数に戻る', await readCount());
 	}
 
 	assert(errors.length === 0, 'コンソールエラーなし', errors);

@@ -1,7 +1,9 @@
-// data/ に置く6ファイル（拡張スキル・育成ウマ娘・サポートカード・
-// サポートカードのイベントスキル・シナリオ因子・遺伝子）が、決めた形どおりかを確かめる。
+// data/ に置く7ファイル（拡張スキル・育成ウマ娘・サポートカード・
+// サポートカードのイベントスキル・シナリオ因子・遺伝子・レースの距離の一覧）が、決めた形どおりかを確かめる。
 // （シナリオ因子は63セッション目・段1d に追加。それまでこのファイルだけ対象外だった。
-//   遺伝子は64セッション目・段A に新設と同時に追加）
+//   遺伝子は64セッション目・段A に新設と同時に追加。
+//   レースの距離の一覧は 2026-09-26・C-97 に新設と同時に追加 ―― `entries` を持たない形なので
+//   FILES のループには入れず、§8 で独自に見る）
 //
 //   npm run check:catalog        … 単体で回す
 //   npm run test:verify          … 納品前チェックの §10 からも呼ばれる
@@ -91,7 +93,8 @@ const TOP_KEYS = {
 };
 
 const ENTRY_KEYS = {
-	extendedSkill: { need: ['id', 'name'], opt: ['tags', 'tagsPending'] },
+	// raceDistance（レースの距離の限定）は 2026-09-26・C-97 で許可した（おいもさんの承認）。中身の形は RACE_DISTANCE_KEYS と §2-2
+	extendedSkill: { need: ['id', 'name'], opt: ['tags', 'tagsPending', 'raceDistance'] },
 	trainingUmamusume: { need: ['id', 'title', 'charaName', 'initialStar', 'initialSkills', 'awakeningSkills', 'dataStatus'], opt: [] },
 	// type（種類）と typeOrder（ゲーム内で扱われる順番）は、どちらもデータが持つ値。
 	// **名前も番号もこのスクリプトに書かない**（恒久ルール1）。見るのは値どうしの整合だけ。
@@ -104,6 +107,24 @@ const ENTRY_KEYS = {
 	// 許可リストに入れていないので、うっかり足せばここで落ちる。
 	geneFactor: { need: ['id', 'name'], opt: [] },
 };
+
+/* **マスターの行のキー**（2026-09-26・C-97 に新設）。それまでマスターの行のキーを見る検査は無く、
+   `raceDistance` を受け入れるのを機に、拡張スキルと同じ許可リスト方式にした。 */
+const MASTER_ENTRY_KEYS = { need: ['id', 'name', 'tags'], opt: ['raceDistance'] };
+/* **raceDistance（レースの距離の限定。C-96・C-97）の中身。**
+   - min・max … 両端を含む整数（「3000m未満」は max 2999）。少なくとも一方を持つ
+   - standardDistance … 根幹距離 true／非根幹距離 false。**min・max とは排他**（数字を持つ行には書かない）
+   - scope … "all"（限定がスキル全体にかかる）／"part"（一部にかかる）。**必ず書く**
+   - distanceTagScope … "all"／"part"。**距離のタグと raceDistance の両方を持つ行にだけ**書く */
+const RACE_DISTANCE_KEYS = { need: ['scope'], opt: ['min', 'max', 'standardDistance', 'distanceTagScope'] };
+const SCOPE_VALUES = ['all', 'part'];
+/* レースの距離の一覧（data/race-distances.json。C-97）。区分の境目と実在する距離。
+   `entries` を持たないので FILES には入れず、§8 で見る。 */
+const RACE_FILE = 'race-distances.json';
+const RACE_TOP_KEYS = { need: ['dataVersion', 'category', 'distanceCategories', 'distances'], opt: ['note'] };
+const RACE_CATEGORY_KEYS = { need: ['key', 'name'], opt: ['minDistance', 'maxDistance'] };
+const RACE_ROW_KEYS = { need: ['distance', 'category', 'surfaces'], opt: [] };
+const RACE_CATEGORY_NAME = 'raceDistance';
 
 const SKILL_REF_KEYS = { need: ['skillId', 'name'], opt: [] };
 const STAR_ROW_KEYS = { need: ['minStar', 'skills'], opt: [] };
@@ -347,6 +368,51 @@ docs.supportCardEventSkill.entries.forEach((e, i) => {
 none(unknownKeys, '知らないキーが無い（許可リストどおり）');
 none(missingKeys, '必須のキーが揃っている');
 none(badTypes, '値が決めた形になっている');
+
+/* ──────────────────────── 2-2. マスターの行のキーと raceDistance ──────────────────────── */
+
+console.log('\n=== 2-2. マスターの行のキーと raceDistance（マスター＋拡張スキル） ===');
+{
+	const unknown = [], missing = [], bad = [];
+	masterSkills.forEach((s, i) => {
+		const w = 'マスター[' + i + ']';
+		if (!checkKeys(s, MASTER_ENTRY_KEYS, w, unknown, missing)) return;
+		if (!isObj(s.tags)) bad.push(w + ': tags はオブジェクト');
+	});
+	none(unknown, 'マスターの行に知らないキーが無い（' + MASTER_ENTRY_KEYS.need.concat(MASTER_ENTRY_KEYS.opt).join(' / ') + '）');
+	none(missing, 'マスターの行に必須のキーが揃っている');
+
+	/* raceDistance の中身。マスターと拡張スキルで規則は同じなので1つのループで回す。 */
+	const rows = masterSkills.map((s, i) => ({ where: 'マスター[' + i + ']', e: s }))
+		.concat(docs.extendedSkill.entries.map((e, i) => ({ where: 'extendedSkill[' + i + ']', e: e })));
+	let count = 0, withTagAndLimit = 0;
+	rows.forEach(({ where, e }) => {
+		if (!Object.prototype.hasOwnProperty.call(e, 'raceDistance')) return;
+		count++;
+		const w = where + '.raceDistance';
+		const rd = e.raceDistance;
+		if (!checkKeys(rd, RACE_DISTANCE_KEYS, w, unknown, missing)) return;
+		const hasMin = rd.min !== undefined, hasMax = rd.max !== undefined, hasStd = rd.standardDistance !== undefined;
+		if (hasMin && (!isInt(rd.min) || rd.min < 1)) bad.push(w + ': min は1以上の整数');
+		if (hasMax && (!isInt(rd.max) || rd.max < 1)) bad.push(w + ': max は1以上の整数');
+		if (hasMin && hasMax && isInt(rd.min) && isInt(rd.max) && rd.min > rd.max) bad.push(w + ': min が max より大きい');
+		if (hasStd && typeof rd.standardDistance !== 'boolean') bad.push(w + ': standardDistance は true / false');
+		if (hasStd === (hasMin || hasMax)) bad.push(w + ': min・max と standardDistance はどちらか一方だけ持つ');
+		if (!SCOPE_VALUES.includes(rd.scope)) bad.push(w + ': scope は ' + SCOPE_VALUES.join(' / '));
+		const hasDistanceTag = isObj(e.tags) && isArr(e.tags.distance) && e.tags.distance.length > 0;
+		const hasTagScope = rd.distanceTagScope !== undefined;
+		if (hasTagScope && !SCOPE_VALUES.includes(rd.distanceTagScope)) bad.push(w + ': distanceTagScope は ' + SCOPE_VALUES.join(' / '));
+		if (hasTagScope !== hasDistanceTag) bad.push(w + ': distanceTagScope は距離のタグを持つ行にだけ書く（タグ' + (hasDistanceTag ? 'あり' : 'なし') + '・印' + (hasTagScope ? 'あり' : 'なし') + '）');
+		if (hasDistanceTag) withTagAndLimit++;
+		// tagsPending の行（タグ未設定）には限定も付けない
+		if (e.tagsPending) bad.push(where + ': tagsPending の行に raceDistance がある');
+	});
+	none(unknown, 'raceDistance に知らないキーが無い（' + RACE_DISTANCE_KEYS.need.concat(RACE_DISTANCE_KEYS.opt).join(' / ') + '）［' + count + '件］');
+	none(missing, 'raceDistance に scope がある');
+	none(bad, 'raceDistance の値が決めた形（min・max は両端を含む整数／standardDistance とは排他／distanceTagScope は距離のタグを持つ行だけ）');
+	console.log('     raceDistance を持つ行: ' + count + '件（うち距離のタグも持つ行 ' + withTagAndLimit + '件）'
+		+ (count === 0 ? '（0件なので上の検査は見るものが無い）' : ''));
+}
 
 /* ──────────────────────── 3. ID ──────────────────────── */
 
@@ -640,6 +706,74 @@ console.log('\n=== 4-3. タグの値が TAG_AXES の選択肢に実在するか�
 		});
 		none(badAxes, '組み込みサンプルの軸の顔ぶれがマスターと同じ');
 		none(badValues, '組み込みサンプルの値も TAG_AXES の選択肢に実在する');
+	}
+}
+
+/* ──────────────────────── 8. レースの距離の一覧 ──────────────────────── */
+
+console.log('\n=== 8. レースの距離の一覧（' + RACE_FILE + '） ===');
+/* 目標のレースの距離（C-97）の判定の材料。区分の境目と、実在する距離。
+   **数字はここに1つも書かない** ―― 境目どうしが隙間なく重ならずつながっているか、距離が範囲の中にあって
+   その範囲の区分と一致しているか、を値どうしで見る。区分のキーは core の距離の軸の選択肢、
+   surfaces の値はバ場の軸の選択肢と突き合わせる（キーの語を2か所で持たない）。 */
+{
+	const abs = path.join(REPO_ROOT, DIR, RACE_FILE);
+	const r = fs.existsSync(abs) ? readJsonFile(abs) : { ok: false, error: 'ファイルが無い' };
+	check(r.ok, RACE_FILE + ' が読める', r.ok ? undefined : r.error);
+	if (r.ok) {
+		const doc = r.data;
+		const unknown = [], missing = [], bad = [];
+		checkKeys(doc, RACE_TOP_KEYS, RACE_FILE, unknown, missing);
+		if (doc.category !== RACE_CATEGORY_NAME) bad.push('category が ' + JSON.stringify(doc.category));
+		if (!DATA_VERSION_RE.test(String(doc.dataVersion))) bad.push('dataVersion が「YYYY-MM-DD＋英小文字1字」の形でない: ' + String(doc.dataVersion));
+		const cats = isArr(doc.distanceCategories) ? doc.distanceCategories : [];
+		const rows = isArr(doc.distances) ? doc.distances : [];
+		if (!isArr(doc.distanceCategories)) bad.push('distanceCategories が配列でない');
+		if (!isArr(doc.distances)) bad.push('distances が配列でない');
+
+		// 区分: キーは core の距離の軸の選択肢と同じ顔ぶれ・同じ並び。境目は隙間なく重ならない
+		const distOpts = (readAxisOptions(coreSrc, 'distance') || []).map((o) => o.v);
+		cats.forEach((c, i) => {
+			const w = 'distanceCategories[' + i + ']';
+			if (!checkKeys(c, RACE_CATEGORY_KEYS, w, unknown, missing)) return;
+			if (!isStr(c.key) || !isStr(c.name)) bad.push(w + ': key / name は空でない文字列');
+			if (c.minDistance !== undefined && (!isInt(c.minDistance) || c.minDistance < 1)) bad.push(w + ': minDistance は1以上の整数');
+			if (c.maxDistance !== undefined && (!isInt(c.maxDistance) || c.maxDistance < 1)) bad.push(w + ': maxDistance は1以上の整数');
+			if (i === 0 && c.minDistance !== undefined) bad.push(w + ': 最初の区分は minDistance を持たない（下に開いている）');
+			if (i === cats.length - 1 && c.maxDistance !== undefined) bad.push(w + ': 最後の区分は maxDistance を持たない（上に開いている）');
+			if (i > 0) {
+				const prev = cats[i - 1];
+				if (!isInt(prev.maxDistance) || !isInt(c.minDistance) || c.minDistance !== prev.maxDistance + 1) {
+					bad.push(w + ': 前の区分の maxDistance＋1 から始まっていない（隙間か重なりがある）');
+				}
+			}
+		});
+		check(distOpts.length > 0 && JSON.stringify(cats.map((c) => c.key)) === JSON.stringify(distOpts),
+			'distanceCategories のキーが core の距離の軸の選択肢と同じ顔ぶれ・並び', { 一覧: cats.map((c) => c.key), 選択肢: distOpts });
+
+		// 距離: 昇順・重複なし・区分は境目から決まるものと一致・surfaces はバ場の選択肢の値
+		const surfOpts = new Set((readAxisOptions(coreSrc, 'surface') || []).map((o) => o.v));
+		const categoryOf = (d) => cats.find((c) => (c.minDistance === undefined || d >= c.minDistance) && (c.maxDistance === undefined || d <= c.maxDistance));
+		const seen = new Set();
+		rows.forEach((row, i) => {
+			const w = 'distances[' + i + ']';
+			if (!checkKeys(row, RACE_ROW_KEYS, w, unknown, missing)) return;
+			if (!isInt(row.distance) || row.distance < 1) { bad.push(w + ': distance は1以上の整数'); return; }
+			if (seen.has(row.distance)) bad.push(w + ': 距離 ' + row.distance + ' が重複');
+			seen.add(row.distance);
+			if (i > 0 && isInt(rows[i - 1].distance) && rows[i - 1].distance >= row.distance) bad.push(w + ': 昇順でない');
+			const c = categoryOf(row.distance);
+			if (!c) bad.push(w + ': ' + row.distance + ' はどの区分の範囲にも入らない');
+			else if (c.key !== row.category) bad.push(w + ': category が ' + JSON.stringify(row.category) + ' だが境目からは ' + c.key);
+			if (!isArr(row.surfaces) || row.surfaces.length === 0 || !row.surfaces.every((s) => surfOpts.has(s))) {
+				bad.push(w + ': surfaces はバ場の選択肢の値の配列（1つ以上）');
+			}
+		});
+		none(unknown, RACE_FILE + ' に知らないキーが無い');
+		none(missing, RACE_FILE + ' の必須のキーが揃っている');
+		none(bad, RACE_FILE + ' の値が決めた形（境目が隙間なくつながる／距離は昇順・重複なし・区分が境目と一致）');
+		const perCat = cats.map((c) => c.name + ' ' + rows.filter((x) => x.category === c.key).length).join(' / ');
+		console.log('     区分 ' + cats.length + '・距離 ' + rows.length + '種類（' + perCat + '）');
 	}
 }
 

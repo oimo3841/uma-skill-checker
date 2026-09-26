@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-26b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-26c';
 
 	/* ============================================================
 	 * 定数
@@ -45,7 +45,7 @@
 	 * **`data/` の6ファイルにも同じ問題がある**（どれも `?v=` が付かない）。
 	 * そちらを対象に入れるかはまだ決めていない。
 	 */
-	const MASTER_JSON_VERSION = '2026-09-26a';
+	const MASTER_JSON_VERSION = '2026-09-26b';
 
 	/**
 	 * **`data/` の6ファイルの版**（71セッション目・段7の続き）。
@@ -65,10 +65,13 @@
 	const DATA_JSON_VERSIONS = {
 		'data/scenario-inheritance-factors.json': '2026-09-15a',
 		'data/aptitude-genes.json': '2026-09-19a',
-		'data/extended-skills.json': '2026-09-26a',
+		'data/extended-skills.json': '2026-09-26b',
 		'data/training-umamusume.json': '2026-09-24a',
 		'data/support-cards.json': '2026-09-18b',
-		'data/support-card-event-skills.json': '2026-09-18a'
+		'data/support-card-event-skills.json': '2026-09-18a',
+		// レースの距離の一覧（C-97・2026-09-26）。7本目。スキルではないので EXTRA_CATALOG_SOURCES にも
+		// TRAINING_SOURCES にも入れず、loadRaceDistances() が読む。
+		'data/race-distances.json': '2026-09-26a'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
@@ -254,7 +257,11 @@
 	 * 将来そうとは限らない）まで母集団から消える。
 	 */
 	const TAG_AXES = [
-		{ key: 'distance', label: '距離', options: [
+		/* **`targetDistance`（目標のレースの距離。C-96・C-97・2026-09-26）**: この軸のパネルにだけ
+		 * 「目標のレースの距離」の入力欄が付き、`matchesFilters()` はこの軸だけ、区分のタグに加えて
+		 * スキルの `raceDistance`（レースの距離の限定）とレースの一覧（`data/race-distances.json`）で判定する。
+		 * 選択肢の値（short …）は、レースの一覧の `distanceCategories[].key` と同じ語（`check:catalog` が突き合わせる）。 */
+		{ key: 'distance', label: '距離', targetDistance: true, options: [
 			{ v: 'short', t: '短距離' }, { v: 'mile', t: 'マイル' }, { v: 'medium', t: '中距離' }, { v: 'long', t: '長距離' }
 		]},
 		{ key: 'style', label: '脚質', options: [
@@ -389,8 +396,10 @@
 			{ v: 'right_turn', t: '右回り' }, { v: 'left_turn', t: '左回り' }, { v: 'small_track', t: '小回り' }, { v: 'straight_course', t: '直線コース' },
 			{ v: 'weather_sunny', t: '晴れ' }, { v: 'weather_cloudy', t: '曇り' }, { v: 'weather_rain', t: '雨' }, { v: 'weather_snow', t: '雪' },
 			{ v: 'season_spring', t: '春' }, { v: 'season_summer', t: '夏' }, { v: 'season_autumn', t: '秋' }, { v: 'season_winter', t: '冬' },
-			{ v: 'time_day', t: '昼' }, { v: 'time_evening', t: '夕方' }, { v: 'time_night', t: 'ナイター' },
-			{ v: 'distance_basis', t: '根幹距離' }, { v: 'distance_nonbasis', t: '非根幹距離' }
+			{ v: 'time_day', t: '昼' }, { v: 'time_evening', t: '夕方' }, { v: 'time_night', t: 'ナイター' }
+			// **根幹距離・非根幹距離（`distance_basis` / `distance_nonbasis`）は 2026-09-26（C-97）にこの軸から外した。**
+			// レースの距離の限定は、スキルの `raceDistance`（`standardDistance: true/false`）に一本化した。
+			// データからも同じ commit で外してある（`check:catalog` §4-3 が、残っていれば落とす）。
 		]},
 		{ key: 'trackVenue', label: 'レース場', hiddenAxis: true, options: [
 			{ v: 'track_sapporo', t: '札幌' }, { v: 'track_hakodate', t: '函館' }, { v: 'track_fukushima', t: '福島' }, { v: 'track_niigata', t: '新潟' },
@@ -615,6 +624,14 @@
 	let extraCatalogDocs = {};
 	let trainingSources = { };
 	let trainingMeta = { loaded: false, sources: [] };
+	/**
+	 * レースの距離の一覧（`data/race-distances.json`。C-97・2026-09-26）。
+	 * `{ dataVersion, distanceCategories: [{ key, name, minDistance?, maxDistance? }], distances: [{ distance, category, surfaces }] }`。
+	 * **区分の境目も、実在する距離も、コードに数字で書かない** ―― 目標のレースの距離から区分を決めるのも、
+	 * その距離のレースがあるかを見るのも、ここから読む。**写しは持たない**（読めなければ入力欄を無効にして知らせる）。
+	 */
+	let raceDistances = null;
+	let raceDistancesMeta = { loaded: false, ok: false, version: '' };
 
 	// 呼び出し元ページから差し込む入出力（トースト・確認ダイアログ）。
 	// 既定値を持たせておくことで、設定し忘れても動作は壊れない。
@@ -982,6 +999,7 @@
 	 */
 	async function loadMasterSkills(forceRefresh, masterJsonPath) {
 		await loadExtraCatalog(forceRefresh);
+		await loadRaceDistances(forceRefresh);
 		// **`?v=` を付ける**（71セッション目・段7。MASTER_JSON_VERSION の説明を読むこと）。
 		// forceRefresh のときは fetchMasterJson がさらに `&t=` を足してキャッシュを完全に避ける。
 		const url = withQuery(masterJsonPath || MASTER_JSON_PATH, 'v', MASTER_JSON_VERSION);
@@ -1010,6 +1028,89 @@
 			noticeMasterFallback('sample');
 			return { ok: false, source: 'sample', version: masterMeta.version, count: masterSkills.length };
 		}
+	}
+
+	/* ============================================================
+	 * レースの距離の一覧（`data/race-distances.json`。C-97）
+	 *
+	 * 「目標のレースの距離」の判定に使う。スキルではないので EXTRA_CATALOG_SOURCES にも
+	 * TRAINING_SOURCES にも入れない（findSkill() と名前の索引に混ぜないため）。
+	 * 写しもキャッシュも持たない ―― 読めなかったときは `raceDistances` を null のままにし、
+	 * 入力欄を無効にして知らせる（黙って古いものや決め打ちの数字で動かない）。
+	 * ============================================================ */
+	const RACE_DISTANCES_PATH = 'data/race-distances.json';
+	/** 根幹距離の定義（400m の倍数）。競馬の一般用語で、ゲームのスキル説明文にも明示がある（C-95）。 */
+	const STANDARD_DISTANCE_UNIT = 400;
+
+	async function loadRaceDistances(forceRefresh) {
+		try {
+			const data = await fetchMasterJson(withDataVersion(RACE_DISTANCES_PATH), !!forceRefresh);
+			const cats = (data && Array.isArray(data.distanceCategories)) ? data.distanceCategories : [];
+			const dists = (data && Array.isArray(data.distances)) ? data.distances : [];
+			if (cats.length === 0 || dists.length === 0) throw new Error('empty');
+			raceDistances = { distanceCategories: cats, distances: dists };
+			raceDistancesMeta = { loaded: true, ok: true, version: data.dataVersion || '' };
+		} catch (e) {
+			raceDistances = null;
+			raceDistancesMeta = { loaded: true, ok: false, version: '' };
+			try { global.console.warn('[UmaSkillDeck] レースの距離の一覧を読み込めなかった（目標のレースの距離は使えない）'); } catch (e2) {}
+		}
+		return raceDistancesMeta;
+	}
+
+	/** 距離 d の区分（`distanceCategories` の境目から決める）。無ければ null。 */
+	function categoryOfDistance(d) {
+		if (!raceDistances) return null;
+		return raceDistances.distanceCategories.find(c =>
+			(c.minDistance == null || d >= c.minDistance) && (c.maxDistance == null || d <= c.maxDistance)) || null;
+	}
+
+	/** 選んだ区分に実在する距離の一覧（区分だけを選んだときに、全体にかかる限定と突き合わせる相手）。 */
+	function distancesInCategories(categoryKeys) {
+		if (!raceDistances) return [];
+		return raceDistances.distances.filter(x => categoryKeys.includes(x.category)).map(x => x.distance);
+	}
+
+	/** スキルの `raceDistance`（レースの距離の限定）に、距離 d が当たるか。min・max は両端を含む。 */
+	function raceDistanceMatches(rd, d) {
+		if (!rd) return false;
+		if (typeof rd.standardDistance === 'boolean') return (d % STANDARD_DISTANCE_UNIT === 0) === rd.standardDistance;
+		return (rd.min == null || d >= rd.min) && (rd.max == null || d <= rd.max);
+	}
+
+	/**
+	 * 「目標のレースの距離」の入力を評価する（C-97）。
+	 * 返すのは `{ state, distance, category, message }`。state は
+	 *   'empty'       … 何も入っていない（条件なし）
+	 *   'unavailable' … レースの一覧を読めていない（入力欄は無効）
+	 *   'invalid'     … 数字でない
+	 *   'noRace'      … その距離のレースが無い
+	 *   'mismatch'    … 選んだ区分と合わない（マイル＋2400 など）
+	 *   'ok'          … 使える（distance・category が入る）
+	 * **エラーのときは d を使わずに絞る**（呼び出し側は state が 'ok' のときだけ d を渡す）。
+	 * 正規化: 全角の数字・「m」・カンマ・空白を落とす。数字を自由に入れる形で、ゲームの距離の範囲では弾かない
+	 * （実在するかはレースの一覧で見る）。
+	 */
+	function evaluateTargetDistance(text, selectedCategoryKeys) {
+		const raw = String(text == null ? '' : text);
+		if (raw.trim() === '') return { state: 'empty', distance: null, category: null, message: '' };
+		if (!raceDistances) return { state: 'unavailable', distance: null, category: null, message: 'レースの一覧を読み込めなかったので、目標の距離は使えません' };
+		const digits = raw.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30))
+			.replace(/[mMｍＭ,，、\s]/g, '');
+		if (!/^\d+$/.test(digits)) return { state: 'invalid', distance: null, category: null, message: '距離は数字で入れてください' };
+		const d = Number(digits);
+		if (!raceDistances.distances.some(x => x.distance === d)) return { state: 'noRace', distance: d, category: null, message: 'この距離のレースはありません' };
+		const category = categoryOfDistance(d);
+		if (!category) return { state: 'noRace', distance: d, category: null, message: 'この距離のレースはありません' };
+		const selected = selectedCategoryKeys || [];
+		const others = selected.filter(k => k !== category.key);
+		if (others.length > 0) {
+			const axis = TAG_AXES.find(a => a.targetDistance);
+			const names = others.map(k => (axis ? tagLabel(axis.key, k) : k)).join('・');
+			return { state: 'mismatch', distance: d, category: category,
+				message: d + 'm は' + category.name + 'のレースです。選んだ区分（' + names + '）と合いません' };
+		}
+		return { state: 'ok', distance: d, category: category, message: '' };
 	}
 
 	/** 古い写し・組み込みサンプルに落ちたことを、開発ログと利用者の両方へ出す。 */
@@ -1438,9 +1539,11 @@
 	 * **軸のキーをここに書かない。** 性質は `TAG_AXES` の印（`emptyMeansNone` / `exclusive`）が持ち、
 	 * この関数は印を読むだけ。軸が増減しても追従する（恒久ルール1の精神）。
 	 */
-	function matchesFilters(skill, filters) {
+	function matchesFilters(skill, filters, target) {
 		return TAG_AXES.every(axis => {
 			const selected = filters[axis.key] || [];
+			// 目標のレースの距離が付く軸（距離）だけ、判定を分ける（C-97）
+			if (axis.targetDistance) return matchesDistanceAxis(skill, selected, axis, target);
 			if (selected.length === 0) return true; // その軸で絞り込みしていない
 			const skillValues = (skill.tags && skill.tags[axis.key]) || [];
 			if (skillValues.length === 0) return !axis.emptyMeansNone; // 万能スキル（emptyMeansNone の軸では該当なし）
@@ -1448,6 +1551,45 @@
 				? skillValues.every(v => selected.includes(v))   // 許可リスト（選んでいない値を持つものは落とす）
 				: skillValues.some(v => selected.includes(v));   // 軸内 OR
 		});
+	}
+
+	/**
+	 * 距離の軸の判定（C-97・2026-09-26）。区分のタグに加えて、スキルの `raceDistance`（レースの距離の限定）を見る。
+	 *
+	 * `target` は `evaluateTargetDistance()` の結果で **state が 'ok' のときだけ渡される**（d が有効なとき）。
+	 * エラーのときは呼び出し側が null を渡すので、ここでは「区分だけ」の判定になる（＝ d を使わずに絞る）。
+	 *
+	 * **d が有効なとき**（区分は d の区分として判定する。区分を選んでいれば d の区分と一致していることは呼び出し側が確かめ済み）:
+	 *   1. `scope` が "all"（限定がスキル全体にかかる）… d が限定に当たるときだけ出す
+	 *   2. それ以外（限定が無い、または "part"）…
+	 *      a. 距離のタグが無い → 出す（万能）
+	 *      b. タグに d の区分がある → 出す
+	 *      c. 限定が d に当たり、`distanceTagScope` が "part"（タグは追加の効果だけにかかる）→ 出す
+	 *      d. どれでもない → 出さない
+	 * **d が無く区分だけ選んでいるとき**:
+	 *   "all" のスキルは、選んだ区分に実在する距離のどれかが限定に当たれば出す。
+	 *   それ以外は今までどおり（タグが空なら出す／タグに選んだ区分があれば出す）。
+	 * **どちらも無い** … 絞らない。
+	 *
+	 * レースの一覧を読めていないときは d が有効になることが無い（'unavailable'）。区分だけのときの "all" は、
+	 * 実在する距離が分からないので**タグだけで判定する**（＝タグが無ければ出す。限定の無かった頃の動き）。
+	 */
+	function matchesDistanceAxis(skill, selected, axis, target) {
+		const rd = skill.raceDistance || null;
+		const tagValues = (skill.tags && skill.tags[axis.key]) || [];
+		if (target && target.state === 'ok') {
+			const d = target.distance;
+			if (rd && rd.scope === 'all') return raceDistanceMatches(rd, d);
+			if (tagValues.length === 0) return true;
+			if (tagValues.includes(target.category.key)) return true;
+			return !!(rd && rd.distanceTagScope === 'part' && raceDistanceMatches(rd, d));
+		}
+		if (selected.length === 0) return true;
+		if (rd && rd.scope === 'all' && raceDistances) {
+			return distancesInCategories(selected).some(d => raceDistanceMatches(rd, d));
+		}
+		if (tagValues.length === 0) return true;
+		return tagValues.some(v => selected.includes(v));
 	}
 
 	function tagLabel(axisKey, value) {
@@ -2073,6 +2215,19 @@
 		 *       読み取れることが多い。
 		 * 高さは px で書かず、**チップの実測値**（--usd-opt-row。updatePickerFilterLayout が入れる）
 		 * と隙間のトークンから出す。チップの余白を触った瞬間に半端な高さへずれるのを避けるため。 */
+		// 目標のレースの距離（C-97）。選択肢の下・合図の行の下に置く。エラーの文は1行まるごと（flex-basis:100%）
+		'.usd-target-distance { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-1) var(--uma-sp-2);',
+		'  margin-top: var(--uma-sp-1); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		'.usd-target-distance-label { font-weight: 600; color: var(--uma-text-heading); }',
+		'.usd-target-distance-field { display: inline-flex; align-items: center; gap: var(--uma-sp-1); }',
+		'.usd-target-distance-input { width: 6.5em; padding: var(--uma-sp-0-5) var(--uma-sp-1-5); font-size: var(--uma-fs-sm); }',
+		'.usd-target-distance-input[aria-invalid="true"] { border-color: var(--uma-danger-text); }',
+		'.usd-target-distance-hint { flex-basis: 100%; margin: 0; }',
+		// エラーの文は**場所を常に取る**（1行ぶんの min-height ＋ visibility）。hidden で消すと、
+		// 文が出た瞬間にパネルが伸びて下のスキル一覧が跳ねる（375px で実測 230→236px）
+		'.usd-target-distance-error { flex-basis: 100%; margin: 0; min-height: var(--uma-lh-xs); visibility: hidden;',
+		'  color: var(--uma-danger-text); font-weight: 600; }',
+		'.usd-target-distance-error[data-shown="true"] { visibility: visible; }',
 		'.usd-opts-wrap { position: relative; }',
 		'.usd-opts { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2);',
 		'  max-height: calc(var(--usd-opt-row) * 3 + var(--uma-sp-2) * 2);',
@@ -2479,6 +2634,12 @@
 	let pickerFilters = {};
 	TAG_AXES.forEach(a => { pickerFilters[a.key] = []; });
 	/**
+	 * 「目標のレースの距離」の入力欄の文字（C-96・C-97）。**寿命は `pickerFilters` と同じ**
+	 * （ページを開いている間だけ。スキルセットには保存しない）。評価は `evaluateTargetDistance()` が
+	 * そのつど行う（数字でない・レースが無い・区分と合わない、はここには持たない）。
+	 */
+	let pickerTargetDistanceText = '';
+	/**
 	 * 一覧から隠すスキル（編成で得られるもの。C-51）。
 	 *
 	 * **`picker.excludeIds` を流用しないこと。** あちらは「一覧から隠す」と
@@ -2709,6 +2870,11 @@
 			// 緑スキル（段9）は確定ボタンを通さず、押したその場で受け皿へ流す
 			if (el.dataset.usdEl === 'passive-check') { onPassiveCheck(el.value, el.checked); return; }
 		});
+		// 目標のレースの距離（C-97）。1文字ごとに評価して絞り直す（確定の操作は無い）
+		pickerEl.addEventListener('input', (e) => {
+			const el = e.target;
+			if (el && el.dataset && el.dataset.usdEl === 'target-distance') onTargetDistanceInput(el);
+		});
 		renderCustomSkillTagInputs();
 		// 軸は実行中に増減しないので、タブとパネルは1回だけ組み立てて使い回す。
 		// 開き直すたびの初期化は resetPickerFilterUi() が担う。
@@ -2789,6 +2955,21 @@
 				'<div class="usd-opts-more" data-usd-el="opts-more" data-usd-axis="' + axis.key + '" data-more="none">' +
 					'<button type="button" class="usd-opts-more-btn" data-usd-act="opts-more" data-usd-axis="' + axis.key + '"></button>' +
 				'</div>' +
+				/* 目標のレースの距離（C-96・C-97）。**この印が付く軸（距離）のパネルにだけ**入力欄を出す。
+				 * 数字を自由に入れる形（`type="text"` ＋ `inputmode="numeric"`。`number` はホイールで値が動き「e」も通るので使わない）。
+				 * エラーの文は入力欄の下（`role="alert"`）。使えないとき（レースの一覧を読めていない）は無効にして同じ場所で知らせる。
+				 * 有効・無効とエラーの文は `refreshPickerFilterUi()` が入れる（開き直すたびに揃える）。 */
+				(axis.targetDistance ? '' +
+				'<div class="usd-target-distance" data-usd-el="target-distance-box" data-usd-axis="' + axis.key + '">' +
+					'<label class="usd-target-distance-label" for="usd-target-distance-input">目標のレースの距離</label>' +
+					'<span class="usd-target-distance-field">' +
+						'<input class="uma-input usd-target-distance-input" type="text" inputmode="numeric" autocomplete="off"' +
+							' id="usd-target-distance-input" data-usd-el="target-distance" data-usd-axis="' + axis.key + '" placeholder="例: 2400"/>' +
+						'<span>m</span>' +
+					'</span>' +
+					'<p class="usd-target-distance-hint">入れると、その距離のレースで発動するスキルに絞る（区分は距離から決まる）</p>' +
+					'<p class="usd-target-distance-error" data-usd-el="target-distance-error" role="alert" data-shown="false"></p>' +
+				'</div>' : '') +
 			'</section>';
 		}).join('');
 
@@ -3078,19 +3259,38 @@
 	 */
 	function refreshPickerFilterUi() {
 		if (!pickerEl) return;
+		// 目標のレースの距離（C-97）。件数バッジ・「この軸を解除」・「絞り込み中」に d を含める。
+		// 評価は1回だけ行い、下の3か所で使い回す。
+		const target = currentTargetDistance();
+		const targetOk = target.state === 'ok';
+		{
+			const input = q(pickerEl, 'target-distance');
+			const err = q(pickerEl, 'target-distance-error');
+			if (input) {
+				input.disabled = !raceDistances;
+				input.setAttribute('aria-invalid', String(['invalid', 'noRace', 'mismatch'].includes(target.state)));
+			}
+			if (err) {
+				// 使えないとき（読めていない）は、入力が空でも知らせる
+				const msg = !raceDistances ? evaluateTargetDistance('0', []).message : (targetOk || target.state === 'empty' ? '' : target.message);
+				err.textContent = msg;
+				err.setAttribute('data-shown', String(msg !== ''));
+			}
+		}
 		pickableAxes().forEach(axis => {
-			const n = pickerFilters[axis.key].length;
+			const n = pickerFilters[axis.key].length + (axis.targetDistance && targetOk ? 1 : 0);
 			const badge = pickerEl.querySelector('[data-usd-el="axis-count"][data-usd-axis="' + axis.key + '"]');
 			if (badge) { badge.hidden = n === 0; badge.textContent = n; }
 			const tab = pickerEl.querySelector('.usd-tab[data-usd-axis="' + axis.key + '"]');
 			if (tab) tab.setAttribute('aria-label', axis.label + (n ? '（' + n + '件選択中）' : ''));
 			const clearBtn = pickerEl.querySelector('[data-usd-act="filter-clear-axis"][data-usd-axis="' + axis.key + '"]');
-			if (clearBtn) clearBtn.disabled = n === 0;
+			// 入力欄にエラーの文字が残っているときも「この軸を解除」で消せるようにする
+			if (clearBtn) clearBtn.disabled = n === 0 && !(axis.targetDistance && pickerTargetDistanceText !== '');
 		});
 
 		const summary = q(pickerEl, 'filter-summary');
 		if (!summary) return;
-		const active = pickableAxes().filter(a => pickerFilters[a.key].length > 0);
+		const active = pickableAxes().filter(a => pickerFilters[a.key].length > 0 || (a.targetDistance && targetOk));
 		if (active.length === 0) {
 			summary.innerHTML = '<span>条件なし（すべてのスキルを表示）</span>';
 			return;
@@ -3099,7 +3299,8 @@
 			active.map(a =>
 				'<button type="button" class="usd-summary-item" data-usd-act="filter-jump" data-usd-axis="' + a.key + '" title="このタブを開く">' +
 					'<b>' + esc(a.label) + '</b>' +
-					esc(pickerFilters[a.key].map(v => tagLabel(a.key, v)).join('・')) +
+					esc(pickerFilters[a.key].map(v => tagLabel(a.key, v))
+						.concat(a.targetDistance && targetOk ? [target.distance + 'm'] : []).join('・')) +
 				'</button>'
 			).join('') +
 			'<button type="button" class="usd-link-btn" data-usd-act="filter-clear-all">すべて解除</button>';
@@ -3116,6 +3317,9 @@
 			el.checked = (pickerFilters[el.dataset.axis] || []).indexOf(el.dataset.value) !== -1;
 		});
 		pickerEl.querySelectorAll('.usd-opts').forEach(el => { el.scrollTop = 0; });
+		// 目標のレースの距離も `pickerTargetDistanceText` が正（DOM へ写す）
+		const targetInput = q(pickerEl, 'target-distance');
+		if (targetInput) targetInput.value = pickerTargetDistanceText;
 		selectPickerAxisTab(pickableAxes()[0].key, false);
 		// **開閉だけは初期化しない**（閉じていたら閉じたまま開き直す）。
 		// ここで属性を入れ直すのは、モーダルを開くたびに DOM と変数を揃えるため。
@@ -3134,9 +3338,24 @@
 		renderPickerResults();
 	}
 
+	function onTargetDistanceInput(input) {
+		pickerTargetDistanceText = input.value;
+		refreshPickerFilterUi();
+		renderPickerResults();
+	}
+
+	/** 目標のレースの距離を空にする（変数と入力欄の両方）。「この軸を解除」「すべて解除」から。 */
+	function clearTargetDistance() {
+		pickerTargetDistanceText = '';
+		const input = q(pickerEl, 'target-distance');
+		if (input) input.value = '';
+	}
+
 	function clearPickerAxisFilter(axisKey) {
 		pickerFilters[axisKey].length = 0;
 		pickerEl.querySelectorAll('[data-usd-el="filter-check"][data-axis="' + axisKey + '"]').forEach(el => { el.checked = false; });
+		const axis = TAG_AXES.find(a => a.key === axisKey);
+		if (axis && axis.targetDistance) clearTargetDistance();
 		refreshPickerFilterUi();
 		renderPickerResults();
 	}
@@ -3144,6 +3363,7 @@
 	function clearAllPickerFilters() {
 		TAG_AXES.forEach(a => { pickerFilters[a.key].length = 0; });
 		pickerEl.querySelectorAll('[data-usd-el="filter-check"]').forEach(el => { el.checked = false; });
+		clearTargetDistance();
 		refreshPickerFilterUi();
 		renderPickerResults();
 		const tab = pickerEl.querySelector('.usd-tab[data-usd-axis="' + picker.activeAxis + '"]');
@@ -3173,18 +3393,29 @@
 	// 片方から外したものはもう片方に出る、が成り立っていないと**どこからも選べないスキル**が生まれる。
 	// 顔ぶれを2か所で組み立てていると、片方にだけ足し忘れてそれが起きる
 	// （実際、段8 の時点では**カスタムスキルが母集団からは消えるのに緑スキルの一覧には出ない**状態だった）。
+	// **`raceDistance`（レースの距離の限定。C-97）も一緒に通す** ―― ここで `{id, name, tags}` に削ると、
+	// 距離の軸の判定に限定が届かない。カスタムスキルにも通す（画面から付ける手段は無いが、検査の仮のスキルが持つ）。
 	function taggedSkillPool() {
 		return masterSkills
-			.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name, tags: withLegacyTagsMapped(c.tags) })))
+			.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name, tags: withLegacyTagsMapped(c.tags), raceDistance: c.raceDistance })))
 			// C-91: 拡張スキルは検索に出してよいもの（`SEARCHABLE_EXTENDED_SKILL_IDS`）だけ。
 			// 母集団と「緑スキルを追加」の一覧の両方がここから作られるので、ここで外せば両方から外れる。
-			.concat(extraCatalog.filter(x => x.tags && isSearchableCatalogEntry(x)).map(x => ({ id: x.id, name: x.name, tags: x.tags })));
+			.concat(extraCatalog.filter(x => x.tags && isSearchableCatalogEntry(x)).map(x => ({ id: x.id, name: x.name, tags: x.tags, raceDistance: x.raceDistance })));
+	}
+
+	/** いまの「目標のレースの距離」の評価（入力の文字と、距離の軸で選んでいる区分から）。 */
+	function currentTargetDistance() {
+		const axis = TAG_AXES.find(a => a.targetDistance);
+		return evaluateTargetDistance(pickerTargetDistanceText, axis ? (pickerFilters[axis.key] || []) : []);
 	}
 
 	function getFilteredPickerPool() {
 		const hidden = new Set(pickerHiddenIds);
+		const target = currentTargetDistance();
+		// エラー（数字でない・レースが無い・区分と合わない）のときは d を使わずに絞る（C-97）
+		const usable = target.state === 'ok' ? target : null;
 		return taggedSkillPool().filter(s => !picker.excludeIds.includes(s.id) && !hidden.has(s.id)
-			&& !isPoolExcluded(s) && matchesFilters(s, pickerFilters));
+			&& !isPoolExcluded(s) && matchesFilters(s, pickerFilters, usable));
 	}
 
 	/**
@@ -5978,6 +6209,10 @@
 		getSkillTags: getSkillTags,
 		getSkillEntries: getSkillEntries,
 		matchesFilters: matchesFilters,
+		// 目標のレースの距離（C-97）。検査が判定の材料（レースの一覧・評価）を読むために公開する
+		evaluateTargetDistance: evaluateTargetDistance,
+		getRaceDistances: function () { return raceDistances; },
+		getRaceDistancesMeta: function () { return raceDistancesMeta; },
 		tagLabel: tagLabel,
 
 		// 一括貼り付けテキストのマッチング（UIを持たない純粋なロジック）

@@ -3430,6 +3430,50 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 		&& !document.querySelector('[data-usd-act="filter-jump"]')),
 		'deck: 「すべて解除」でバッジと「絞り込み中」が消える');
 
+	/* --- 目標のレースの距離（C-96・C-97・2026-09-26）。距離のタブの中の入力欄 ---
+	   件数の突き合わせと判定の規則は `test:master` が持つ。ここでは**配線と見た目**だけ ――
+	   入力欄が距離のパネルの中にあって、エラーの文が入力欄の下に出て、「すべて解除」で消えること。 */
+	const targetState = () => page.evaluate(() => {
+		const panels = document.querySelector('[data-usd-el="tabpanels"]');
+		const box = document.querySelector('[data-usd-el="target-distance-box"]');
+		const input = document.querySelector('[data-usd-el="target-distance"]');
+		const err = document.querySelector('[data-usd-el="target-distance-error"]');
+		if (!box || !input || !err) return null;
+		const pr = panels.getBoundingClientRect(), br = box.getBoundingClientRect(), ir = input.getBoundingClientRect(), er = err.getBoundingClientRect();
+		return {
+			axis: box.dataset.usdAxis, disabled: input.disabled, value: input.value,
+			inPanel: br.top >= pr.top - 1 && br.bottom <= pr.bottom + 1 && br.left >= pr.left - 1 && br.right <= pr.right + 1,
+			errBelowInput: er.top >= ir.bottom - 1,
+			errShown: err.getAttribute('data-shown') === 'true' && getComputedStyle(err).visibility === 'visible', errText: err.textContent,
+			badge: (() => { const b = document.querySelector('[data-usd-el="axis-count"][data-usd-axis="distance"]'); return b.hidden ? '' : b.textContent; })(),
+			count: document.querySelector('[data-usd-el="result-count"]').textContent,
+		};
+	});
+	// 距離のタブを「選ばれていて、開いている」状態にする（下で定義する ensureAxisOpen と同じ判定。ここはその前なので直に書く）
+	await page.evaluate(() => {
+		const tab = document.querySelector('.usd-tab[data-usd-axis="distance"]');
+		const box = document.querySelector('[data-usd-el="axis-tabs"]');
+		if (!(tab.getAttribute('aria-selected') === 'true' && box.getAttribute('data-usd-open') === 'true')) tab.click();
+	});
+	await page.waitForTimeout(200);
+	const t0 = await targetState();
+	assert(t0 && t0.axis === 'distance' && !t0.disabled && t0.inPanel && !t0.errShown,
+		'deck(C-97): 目標のレースの距離の入力欄が距離のパネルの中にあり、使える状態（レースの一覧を読めている）', t0);
+	await page.fill('[data-usd-el="target-distance"]', '1350');
+	await page.waitForTimeout(300);
+	const t1 = await targetState();
+	assert(t1.errShown && t1.errText.length > 0 && t1.errBelowInput && t1.inPanel && t1.badge === '' && t1.count === t0.count,
+		'deck(C-97): レースの無い距離を入れると、入力欄の下にエラーの文が出て、絞り込みには使われない', t1);
+	await page.fill('[data-usd-el="target-distance"]', '2400');
+	await page.waitForTimeout(300);
+	const t2 = await targetState();
+	assert(!t2.errShown && t2.badge === '1' && t2.count !== t0.count && await page.isVisible('[data-usd-act="filter-jump"][data-usd-axis="distance"]'),
+		'deck(C-97): 実在する距離を入れると、エラーが消えてバッジが1になり、絞り込まれる', t2);
+	await page.click('[data-usd-act="filter-clear-all"]');
+	await page.waitForTimeout(300);
+	const t3 = await targetState();
+	assert(t3.value === '' && t3.badge === '' && t3.count === t0.count, 'deck(C-97): 「すべて解除」で目標の距離も消える', t3);
+
 	/* --- 全部の軸が常に見えていること（横スクロールも「端へ」操作も要らない） ---
 	   1行に収まるかどうかはJSが実測して data-usd-rows を切り替える。
 	   **軸の本数はここに書かない**（70セッション目・段3 で 8→10 になった）。
@@ -9240,10 +9284,13 @@ await block('段7【5】収録スキルデータ（マスター）の取り回�
 		await page.waitForTimeout(500);
 
 		const paths = Object.keys(table);
-		assert(paths.length === 6, '段7の続き: 版の表が data/ の6ファイルぶんある', paths);
+		// **本数は data/ の実ファイルから数える**（2026-09-26・C-97 でレースの距離の一覧が7本目に入ったとき、
+		// ここが「6」の決め打ちで落ちた。顔ぶれの一致そのものは run-verify §1 が見る）
+		const dataFileCount = fs.readdirSync(path.join(REPO_ROOT, 'data')).filter((f) => f.endsWith('.json')).length;
+		assert(paths.length === dataFileCount, '段7の続き: 版の表が data/ の' + dataFileCount + 'ファイルぶんある', paths);
 		const 取れた = paths.filter((k) => dataUrls.some((u) => u.includes('/' + k)));
 		assert(取れた.length === paths.length,
-			'段7の続き: 6ファイルとも実際に取得された（検査が空振りでない）',
+			'段7の続き: ' + paths.length + 'ファイルとも実際に取得された（検査が空振りでない）',
 			{ 取れた: 取れた.length, 表: paths.length, 未取得: paths.filter((k) => !取れた.includes(k)) });
 		const 版が無い = paths.filter((k) =>
 			dataUrls.filter((u) => u.includes('/' + k)).some((u) => !u.includes('v=' + table[k])));
