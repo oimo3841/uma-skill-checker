@@ -240,6 +240,30 @@ console.log('=== 1. マスターデータ（uma-skill-deck-skills.json） ===');
 	assert(statUpAll.length === 67 && statUpAll.every((s) => (s.tags.passive || []).length > 0),
 		'段8: 能力上昇を持つ67件はすべてパッシブ', statUpAll.filter((s) => (s.tags.passive || []).length === 0).map((s) => s.name));
 
+	/* **C-90 (ii)(iii)・C-94・C-95（2026-09-26・commit 2）: 新しい値の当たりと、親と子の重なりを数えて表示する。**
+	   **件数を表示するだけで、合否にしない**（C-90 の決定）。当たりの数はデータの側の判断で動くので、
+	   ここで固定すると、正しいデータのほうが落ちる。0件の値があれば、それも見えるように全部並べる。 */
+	{
+		const NEW_VALUES = {
+			phase: ['start', 'first_half', 'midpoint', 'second_half', 'final_stage'],
+			coursePos: ['third_corner', 'final_corner', 'backstretch', 'final_straight'],
+			distanceMark: ['remain_150', 'remain_200', 'remain_300', 'remain_350', 'remain_400', 'remain_600', 'remain_650',
+				'remain_777', 'remain_800', 'remain_1000', 'goal_far', 'furlong_2', 'furlong_3', 'furlong_4'],
+		};
+		const PARENT_OF = { second_half: 'late', final_stage: 'late', third_corner: 'corner', final_corner: 'corner',
+			backstretch: 'straight', final_straight: 'straight' };
+		for (const [axis, values] of Object.entries(NEW_VALUES)) {
+			const hits = values.map((v) => v + ':' + master.skills.filter((s) => (s.tags[axis] || []).includes(v)).length);
+			console.log('     [情報] マスターで ' + axis + ' の新しい値の当たり: ' + hits.join(' '));
+		}
+		const overlaps = Object.entries(PARENT_OF).map(([child, parent]) => {
+			const axis = Object.keys(NEW_VALUES).find((k) => NEW_VALUES[k].includes(child));
+			return parent + '+' + child + ':' + master.skills.filter((s) =>
+				(s.tags[axis] || []).includes(parent) && (s.tags[axis] || []).includes(child)).length;
+		});
+		console.log('     [情報] マスターで親と子の両方を持つスキル（重なり）: ' + overlaps.join(' '));
+	}
+
 	assert(master.masterVersion !== '2026-09-09a' && /^\d{4}-\d{2}-\d{2}[a-z]$/.test(master.masterVersion),
 		'masterVersion が更新されている', master.masterVersion);
 }
@@ -302,7 +326,8 @@ const browser = await chromium.launch();
 	 * 「隠す軸にタグを持つが、パッシブではないスキル」まで母集団から消える ―― それを下で固定する。
 	 * ========================================================== */
 	// 2026-09-25（C-89）: 効果タイプも空を「該当なし」と読むようにした（3本 → 4本）。
-	const EMPTY_NONE_AXES = ['effect', 'phase', 'coursePos', 'scenario'];
+	// 2026-09-26（C-94・C-95）: 距離の目安を足した（4本 → 5本）。
+	const EMPTY_NONE_AXES = ['effect', 'phase', 'coursePos', 'distanceMark', 'scenario'];
 	const HIDDEN_AXES = ['environment', 'trackVenue', 'passive'];
 	const POOL_EXCLUDED_AXES = ['passive'];
 	const EXCLUSIVE_AXES = ['surface'];
@@ -311,7 +336,7 @@ const browser = await chromium.launch();
 	const excluded = axes.filter((a) => a.poolExcluded).map((a) => a.key);
 	const exclusive = axes.filter((a) => a.exclusive).map((a) => a.key);
 	assert(eq(flagged.slice().sort(), EMPTY_NONE_AXES.slice().sort()),
-		'段8・C-89: 空を「該当なし」と読む軸は4本（効果タイプ・フェーズ・コース位置・その他）', flagged);
+		'段8・C-89・C-94: 空を「該当なし」と読む軸は5本（効果タイプ・フェーズ・コース位置・距離の目安・その他）', flagged);
 	assert(eq(hidden.slice().sort(), HIDDEN_AXES.slice().sort()),
 		'段8: 絞り込みに出さない軸は3本（レース環境・レース場・パッシブ）', hidden);
 	assert(eq(excluded.slice().sort(), POOL_EXCLUDED_AXES.slice().sort()),

@@ -1,5 +1,5 @@
 {
- "masterVersion": "2026-09-24a",
+ "masterVersion": "2026-09-26a",
  "skills": [
   {
    "id": "1",
@@ -22,7 +22,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -46,7 +47,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -70,7 +72,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -94,7 +97,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -118,7 +122,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -142,7 +147,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -166,7 +172,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -190,7 +197,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -214,7 +222,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -238,7 +247,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -262,7 +272,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -286,7 +297,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -310,7 +322,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -334,7 +347,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -358,7 +372,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -382,7 +397,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -406,7 +422,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -430,7 +447,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -454,7 +472,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -478,7 +497,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -502,7 +522,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -526,7 +547,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -550,7 +572,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -574,7 +597,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -596,7 +620,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -618,7 +643,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -640,7 +666,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -662,7 +689,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -684,7 +712,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -706,7 +735,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -728,7 +758,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -750,7 +781,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -774,7 +806,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -796,7 +829,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -818,7 +852,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -842,7 +877,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -862,7 +898,8 @@
      "start_good"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -872,7 +909,10 @@
     "distance": [],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "early",
+     "mid"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -883,7 +923,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -905,7 +946,8 @@
      "course_sense"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -927,7 +969,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -949,7 +992,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -971,7 +1015,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -993,7 +1038,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1015,7 +1061,8 @@
      "course_sense"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1026,6 +1073,7 @@
     "style": [],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -1037,7 +1085,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1049,7 +1098,9 @@
      "nige"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "start"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -1059,7 +1110,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1083,7 +1135,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1097,7 +1150,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "final_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -1107,7 +1160,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1120,7 +1174,7 @@
     ],
     "surface": [],
     "phase": [
-     "early"
+     "mid"
     ],
     "coursePos": [],
     "rarity": [],
@@ -1131,7 +1185,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1155,7 +1210,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1169,7 +1225,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "final_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -1179,7 +1235,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1203,7 +1260,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1227,7 +1285,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1241,7 +1300,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "final_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -1251,7 +1310,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1275,7 +1335,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1288,6 +1349,7 @@
     ],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -1299,7 +1361,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1325,7 +1388,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1349,7 +1413,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1374,7 +1439,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1399,7 +1465,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1412,7 +1479,7 @@
     "style": [],
     "surface": [],
     "phase": [
-     "early"
+     "mid"
     ],
     "coursePos": [],
     "rarity": [],
@@ -1423,7 +1490,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1436,7 +1504,7 @@
     "style": [],
     "surface": [],
     "phase": [
-     "early"
+     "mid"
     ],
     "coursePos": [],
     "rarity": [],
@@ -1447,7 +1515,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1471,7 +1540,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1495,7 +1565,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1519,7 +1590,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1533,7 +1605,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "final_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -1544,7 +1616,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1568,7 +1641,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1582,7 +1656,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "final_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -1592,7 +1666,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1614,7 +1689,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1636,7 +1712,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1658,7 +1735,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1678,7 +1756,8 @@
      "temptation_time"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1698,7 +1777,8 @@
      "temptation_time"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1718,7 +1798,8 @@
      "temptation_time"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1738,7 +1819,8 @@
      "temptation_time"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1760,7 +1842,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1782,7 +1865,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1804,7 +1888,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1826,7 +1911,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1848,7 +1934,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1870,7 +1957,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1892,7 +1980,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1914,7 +2003,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1936,7 +2026,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1958,7 +2049,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -1980,7 +2072,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2002,7 +2095,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2026,7 +2120,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -2050,7 +2145,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2074,7 +2170,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2098,7 +2195,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2122,7 +2220,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2147,7 +2246,8 @@
      "course_sense"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2171,7 +2271,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2195,7 +2296,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2219,7 +2321,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2243,7 +2346,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2267,7 +2371,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2279,7 +2384,9 @@
     ],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -2289,7 +2396,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2311,7 +2419,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2332,11 +2441,12 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "target_speed_up",
-     "debuff"
+     "debuff",
+     "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2360,7 +2470,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2384,7 +2495,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2408,7 +2520,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2432,7 +2545,8 @@
      "vision"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2457,7 +2571,8 @@
      "course_sense"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2479,7 +2594,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2503,7 +2619,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2527,7 +2644,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2551,7 +2669,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2575,7 +2694,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2599,7 +2719,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2621,7 +2742,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2646,7 +2768,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2670,7 +2793,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2694,7 +2818,8 @@
      "vision"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2718,7 +2843,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2742,7 +2868,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2767,7 +2894,8 @@
      "lane_change"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2779,7 +2907,10 @@
      "nige"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "early",
+     "mid"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -2789,7 +2920,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2813,7 +2945,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2837,7 +2970,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2861,7 +2995,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2885,7 +3020,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2909,7 +3045,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2931,7 +3068,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2955,7 +3093,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -2979,7 +3118,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3003,7 +3143,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3027,7 +3168,8 @@
      "vision"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3051,7 +3193,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3075,7 +3218,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3097,7 +3241,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3121,7 +3266,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3145,7 +3291,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3169,7 +3316,8 @@
      "vision"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3193,7 +3341,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3217,7 +3366,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3241,7 +3391,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3263,7 +3414,8 @@
      "vision"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3287,7 +3439,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3309,7 +3462,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3333,7 +3487,8 @@
      "vision"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3357,7 +3512,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3376,13 +3532,14 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "vision",
-     "stat_up"
+     "stat_up",
+     "vision"
     ],
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -3401,13 +3558,14 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "vision",
-     "stat_up"
+     "stat_up",
+     "vision"
     ],
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -3426,13 +3584,14 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "vision",
-     "stat_up"
+     "stat_up",
+     "vision"
     ],
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -3451,13 +3610,14 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "vision",
-     "stat_up"
+     "stat_up",
+     "vision"
     ],
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -3479,7 +3639,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -3499,7 +3660,10 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": [
+     "remain_777"
+    ]
    }
   },
   {
@@ -3521,7 +3685,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3541,7 +3706,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3563,7 +3729,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3585,7 +3752,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3607,7 +3775,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3629,7 +3798,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -3651,7 +3821,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -3671,7 +3842,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3691,7 +3863,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3715,7 +3888,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3740,7 +3914,8 @@
      "course_sense"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3753,7 +3928,7 @@
     ],
     "surface": [],
     "phase": [
-     "early"
+     "mid"
     ],
     "coursePos": [],
     "rarity": [],
@@ -3764,7 +3939,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3780,7 +3956,7 @@
      "late"
     ],
     "coursePos": [
-     "straight"
+     "final_straight"
     ],
     "rarity": [],
     "inherited": [],
@@ -3790,7 +3966,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3814,7 +3991,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3838,7 +4016,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3862,7 +4041,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3886,7 +4066,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3896,7 +4077,9 @@
     "distance": [],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -3906,7 +4089,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3930,7 +4114,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3954,7 +4139,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -3978,7 +4164,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4003,7 +4190,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4027,7 +4215,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4041,7 +4230,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "final_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -4051,7 +4240,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4063,7 +4253,9 @@
      "sashi"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -4074,7 +4266,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4098,7 +4291,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4122,7 +4316,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4144,7 +4339,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -4166,7 +4362,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4192,7 +4389,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4216,7 +4414,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -4240,7 +4439,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -4264,7 +4464,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -4288,7 +4489,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -4312,7 +4514,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -4334,7 +4537,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -4358,7 +4562,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4382,7 +4587,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4395,6 +4601,7 @@
      "dirt"
     ],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -4406,7 +4613,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4430,7 +4638,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4452,7 +4661,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4476,7 +4686,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4500,7 +4711,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4524,7 +4736,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -4550,7 +4763,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -4574,7 +4788,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4586,7 +4801,9 @@
     "surface": [
      "dirt"
     ],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -4596,7 +4813,8 @@
      "debuff"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4620,7 +4838,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4645,7 +4864,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4669,7 +4889,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4694,7 +4915,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4718,7 +4940,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4744,7 +4967,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4771,7 +4995,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4793,7 +5018,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -4807,7 +5033,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "straight"
+     "final_straight"
     ],
     "rarity": [],
     "inherited": [],
@@ -4817,7 +5043,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4831,7 +5058,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "straight"
+     "final_straight"
     ],
     "rarity": [],
     "inherited": [],
@@ -4841,7 +5068,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4854,7 +5082,9 @@
      "senko"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -4864,7 +5094,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4890,7 +5121,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4914,7 +5146,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4938,7 +5171,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4953,7 +5187,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "third_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -4963,7 +5197,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -4988,7 +5223,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5002,7 +5238,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "final_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -5012,7 +5248,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5022,7 +5259,9 @@
     "distance": [],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -5033,7 +5272,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5057,7 +5297,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5081,7 +5322,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5107,7 +5349,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5129,7 +5372,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5142,7 +5386,7 @@
     ],
     "surface": [],
     "phase": [
-     "early"
+     "mid"
     ],
     "coursePos": [],
     "rarity": [],
@@ -5153,7 +5397,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5177,7 +5422,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5201,7 +5447,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5226,7 +5473,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -5251,7 +5499,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5275,7 +5524,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5300,7 +5550,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5312,7 +5563,9 @@
     ],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "start"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -5322,7 +5575,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5348,7 +5602,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -5365,7 +5620,7 @@
      "late"
     ],
     "coursePos": [
-     "corner"
+     "final_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -5375,7 +5630,10 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": [
+     "goal_far"
+    ]
    }
   },
   {
@@ -5399,7 +5657,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5423,7 +5682,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -5438,7 +5698,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "third_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -5448,7 +5708,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5472,7 +5733,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5496,7 +5758,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5522,7 +5785,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5544,7 +5808,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5555,7 +5820,7 @@
     "style": [],
     "surface": [],
     "phase": [
-     "early"
+     "mid"
     ],
     "coursePos": [],
     "rarity": [],
@@ -5566,7 +5831,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5592,7 +5858,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5620,7 +5887,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5646,7 +5914,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5670,7 +5939,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5696,7 +5966,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5708,7 +5979,9 @@
     ],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "start"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -5718,7 +5991,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5736,7 +6010,7 @@
      "late"
     ],
     "coursePos": [
-     "corner"
+     "final_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -5746,7 +6020,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5760,7 +6035,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "straight"
+     "final_straight"
     ],
     "rarity": [],
     "inherited": [],
@@ -5770,7 +6045,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5783,7 +6059,7 @@
     ],
     "surface": [],
     "phase": [
-     "early"
+     "mid"
     ],
     "coursePos": [],
     "rarity": [],
@@ -5794,7 +6070,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5818,7 +6095,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5832,7 +6110,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "final_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -5842,7 +6120,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5866,7 +6145,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5878,7 +6158,9 @@
      "oikomi"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -5888,7 +6170,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5914,7 +6197,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5927,7 +6211,7 @@
      "dirt"
     ],
     "phase": [
-     "early"
+     "mid"
     ],
     "coursePos": [],
     "rarity": [],
@@ -5938,7 +6222,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5962,7 +6247,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -5988,7 +6274,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6012,7 +6299,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6036,7 +6324,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -6062,7 +6351,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6086,7 +6376,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6110,7 +6401,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6132,7 +6424,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6157,7 +6450,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6181,7 +6475,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6205,7 +6500,10 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": [
+     "furlong_2"
+    ]
    }
   },
   {
@@ -6229,7 +6527,10 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": [
+     "furlong_3"
+    ]
    }
   },
   {
@@ -6255,7 +6556,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6279,7 +6581,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6303,7 +6606,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6327,7 +6631,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6353,7 +6658,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6367,7 +6673,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "straight"
+     "final_straight"
     ],
     "rarity": [],
     "inherited": [],
@@ -6377,7 +6683,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6402,7 +6709,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6425,7 +6733,10 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": [
+     "remain_200"
+    ]
    }
   },
   {
@@ -6449,7 +6760,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6473,7 +6785,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6498,7 +6811,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6522,7 +6836,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6538,7 +6853,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "straight"
+     "final_straight"
     ],
     "rarity": [],
     "inherited": [],
@@ -6548,7 +6863,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6572,7 +6888,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6585,7 +6902,7 @@
     ],
     "surface": [],
     "phase": [
-     "early"
+     "mid"
     ],
     "coursePos": [],
     "rarity": [],
@@ -6596,7 +6913,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6620,7 +6938,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6645,7 +6964,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6671,7 +6991,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6684,7 +7005,7 @@
     ],
     "surface": [],
     "phase": [
-     "early"
+     "mid"
     ],
     "coursePos": [],
     "rarity": [],
@@ -6695,7 +7016,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6719,7 +7041,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6743,7 +7066,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6767,7 +7091,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6791,7 +7116,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6817,7 +7143,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6841,7 +7168,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6863,7 +7191,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6880,7 +7209,7 @@
      "late"
     ],
     "coursePos": [
-     "corner"
+     "final_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -6890,7 +7219,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6908,7 +7238,7 @@
      "late"
     ],
     "coursePos": [
-     "corner"
+     "final_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -6918,7 +7248,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6934,7 +7265,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "third_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -6944,7 +7275,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6970,7 +7302,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -6996,7 +7329,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7009,6 +7343,7 @@
     ],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -7020,7 +7355,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7033,6 +7369,7 @@
     "style": [],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -7044,7 +7381,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7070,7 +7408,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7096,7 +7435,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7108,7 +7448,9 @@
      "nige"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -7118,7 +7460,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7141,7 +7484,10 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": [
+     "remain_200"
+    ]
    }
   },
   {
@@ -7167,7 +7513,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7193,7 +7540,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7215,7 +7563,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7241,7 +7590,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7267,7 +7617,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7291,7 +7642,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7315,7 +7667,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7339,7 +7692,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7352,6 +7706,7 @@
     "style": [],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -7363,7 +7718,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7387,7 +7743,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7411,7 +7768,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7424,6 +7782,7 @@
     ],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -7435,7 +7794,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7457,7 +7817,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7470,6 +7831,7 @@
      "dirt"
     ],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -7481,7 +7843,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7509,7 +7872,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7521,7 +7885,9 @@
     ],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -7531,7 +7897,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7556,7 +7923,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7581,7 +7949,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7606,7 +7975,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7631,7 +8001,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7657,7 +8028,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7683,7 +8055,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7709,7 +8082,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7734,7 +8108,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7748,7 +8123,9 @@
      "sashi"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [
      "corner"
     ],
@@ -7760,7 +8137,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7784,7 +8162,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7797,6 +8176,7 @@
     ],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -7808,7 +8188,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7832,7 +8213,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7858,7 +8240,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -7873,7 +8256,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "third_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -7883,7 +8266,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7910,7 +8294,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7936,7 +8321,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -7954,7 +8340,7 @@
      "late"
     ],
     "coursePos": [
-     "straight"
+     "final_straight"
     ],
     "rarity": [],
     "inherited": [],
@@ -7964,7 +8350,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -7990,7 +8377,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8014,7 +8402,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8036,7 +8425,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8048,7 +8438,10 @@
     ],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "early",
+     "mid"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -8058,7 +8451,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8080,7 +8474,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8104,7 +8499,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8130,7 +8526,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8154,7 +8551,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8180,7 +8578,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8204,7 +8603,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8228,7 +8628,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8253,7 +8654,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8278,7 +8680,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -8304,7 +8707,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8328,7 +8732,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8342,7 +8747,7 @@
     ],
     "phase": [],
     "coursePos": [
-     "corner"
+     "third_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -8352,7 +8757,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8377,7 +8783,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8389,7 +8796,10 @@
      "senko"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "early",
+     "mid"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -8399,7 +8809,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8423,7 +8834,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8449,7 +8861,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8475,7 +8888,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8497,7 +8911,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8522,7 +8937,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8538,7 +8954,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "third_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -8548,7 +8964,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8570,7 +8987,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8594,7 +9012,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8618,7 +9037,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8642,7 +9062,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8667,7 +9088,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8681,7 +9103,7 @@
      "lastspurt"
     ],
     "coursePos": [
-     "straight"
+     "final_straight"
     ],
     "rarity": [],
     "inherited": [],
@@ -8691,7 +9113,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8715,7 +9138,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8740,7 +9164,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -8766,7 +9191,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8779,7 +9205,9 @@
      "senko"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "late"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -8789,7 +9217,10 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": [
+     "remain_600"
+    ]
    }
   },
   {
@@ -8802,6 +9233,7 @@
     "style": [],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -8813,7 +9245,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8835,7 +9268,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8859,7 +9293,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8884,7 +9319,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -8908,7 +9344,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8930,7 +9367,8 @@
      "extend"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -8954,7 +9392,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -8978,7 +9417,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -8998,7 +9438,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9022,7 +9463,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9046,7 +9488,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9056,7 +9499,9 @@
     "distance": [],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "midpoint"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -9066,7 +9511,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9094,7 +9540,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9118,7 +9565,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9143,7 +9591,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9167,7 +9616,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9191,7 +9641,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9217,7 +9668,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9242,7 +9694,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9267,7 +9720,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9279,7 +9733,9 @@
     ],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -9289,7 +9745,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9314,7 +9771,8 @@
      "stamina"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9338,7 +9796,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9364,7 +9823,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9388,7 +9848,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9401,7 +9862,7 @@
     "style": [],
     "surface": [],
     "phase": [
-     "early"
+     "mid"
     ],
     "coursePos": [],
     "rarity": [],
@@ -9412,7 +9873,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9427,7 +9889,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "third_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -9437,7 +9899,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9463,7 +9926,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9487,7 +9951,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9511,7 +9976,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9537,7 +10003,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9561,7 +10028,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9585,7 +10053,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9611,7 +10080,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9624,6 +10094,7 @@
     ],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -9635,7 +10106,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9661,7 +10133,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -9673,7 +10146,9 @@
      "senko"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -9683,7 +10158,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9705,7 +10181,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9719,7 +10196,9 @@
      "oikomi"
     ],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [
      "corner"
     ],
@@ -9731,7 +10210,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9745,7 +10225,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "corner"
+     "final_corner"
     ],
     "rarity": [],
     "inherited": [],
@@ -9755,7 +10235,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9779,7 +10260,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9803,7 +10285,8 @@
      "accel_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9827,7 +10310,8 @@
      "target_speed_up"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9849,7 +10333,8 @@
      "move_forward"
     ],
     "scenario": [],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9873,7 +10358,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9897,7 +10383,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9921,7 +10408,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9946,7 +10434,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9971,7 +10460,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -9981,7 +10471,9 @@
     "distance": [],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -9995,7 +10487,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10005,7 +10498,9 @@
     "distance": [],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -10018,7 +10513,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10029,6 +10525,7 @@
     "style": [],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -10042,7 +10539,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10066,7 +10564,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10077,6 +10576,7 @@
     "style": [],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -10090,7 +10590,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10101,6 +10602,7 @@
     "style": [],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -10114,7 +10616,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10138,7 +10641,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10148,7 +10652,9 @@
     "distance": [],
     "style": [],
     "surface": [],
-    "phase": [],
+    "phase": [
+     "second_half"
+    ],
     "coursePos": [],
     "rarity": [],
     "inherited": [],
@@ -10160,7 +10666,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10184,7 +10691,8 @@
     ],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -10208,7 +10716,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10232,7 +10741,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10256,7 +10766,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10268,7 +10779,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "straight"
+     "final_straight"
     ],
     "rarity": [],
     "inherited": [],
@@ -10280,7 +10791,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10307,7 +10819,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10321,6 +10834,7 @@
     "style": [],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -10334,7 +10848,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10361,7 +10876,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10376,7 +10892,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "straight"
+     "final_straight"
     ],
     "rarity": [],
     "inherited": [],
@@ -10388,7 +10904,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10399,6 +10916,7 @@
     "style": [],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -10412,7 +10930,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10427,7 +10946,7 @@
     "surface": [],
     "phase": [],
     "coursePos": [
-     "straight"
+     "final_straight"
     ],
     "rarity": [],
     "inherited": [],
@@ -10439,7 +10958,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10450,6 +10970,7 @@
     "style": [],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -10463,7 +10984,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10474,6 +10996,7 @@
     "style": [],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -10487,7 +11010,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10498,6 +11022,7 @@
     "style": [],
     "surface": [],
     "phase": [
+     "final_stage",
      "lastspurt"
     ],
     "coursePos": [],
@@ -10511,7 +11036,8 @@
     "scenario": [
      "scenario"
     ],
-    "passive": []
+    "passive": [],
+    "distanceMark": []
    }
   },
   {
@@ -10535,7 +11061,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -10559,7 +11086,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -10583,7 +11111,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -10607,7 +11136,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -10631,7 +11161,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   },
   {
@@ -10655,7 +11186,8 @@
     "scenario": [],
     "passive": [
      "passive"
-    ]
+    ],
+    "distanceMark": []
    }
   }
  ]

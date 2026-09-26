@@ -3965,7 +3965,8 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 		   **回す軸は製品の印ではなく、ここに持つ名簿から選ぶ**（`test:master` の `EMPTY_NONE_AXES` と同じ理由）。
 		   製品の印から選ぶと、印を外して壊したときにその軸が回す対象から消えるだけで、検査が空振りする
 		   （実際、フェーズの印を外しても落ちなかった）。この塊で軸のキーを書くのはここだけ。 */
-		const EMPTY_NONE_KEYS = ['effect', 'phase', 'coursePos', 'scenario'];
+		// 2026-09-26（C-94・C-95）: 距離の目安を足した。
+		const EMPTY_NONE_KEYS = ['effect', 'phase', 'coursePos', 'distanceMark', 'scenario'];
 		const flaggedKeys = marks.filter((a) => a.emptyNone).map((a) => a.key);
 		assert(EMPTY_NONE_KEYS.slice().sort().join() === flaggedKeys.slice().sort().join(),
 			'deck(段8③④): 空を「該当なし」と読む印が付いた軸が名簿と一致', { 名簿: EMPTY_NONE_KEYS, 製品: flaggedKeys });

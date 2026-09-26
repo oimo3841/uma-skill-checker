@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-26a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-26b';
 
 	/* ============================================================
 	 * 定数
@@ -45,7 +45,7 @@
 	 * **`data/` の6ファイルにも同じ問題がある**（どれも `?v=` が付かない）。
 	 * そちらを対象に入れるかはまだ決めていない。
 	 */
-	const MASTER_JSON_VERSION = '2026-09-24a';
+	const MASTER_JSON_VERSION = '2026-09-26a';
 
 	/**
 	 * **`data/` の6ファイルの版**（71セッション目・段7の続き）。
@@ -65,7 +65,7 @@
 	const DATA_JSON_VERSIONS = {
 		'data/scenario-inheritance-factors.json': '2026-09-15a',
 		'data/aptitude-genes.json': '2026-09-19a',
-		'data/extended-skills.json': '2026-09-25a',
+		'data/extended-skills.json': '2026-09-26a',
 		'data/training-umamusume.json': '2026-09-24a',
 		'data/support-cards.json': '2026-09-18b',
 		'data/support-card-event-skills.json': '2026-09-18a'
@@ -331,6 +331,21 @@
 			{ v: 'straight', t: '直線' }, { v: 'backstretch', t: '向正面' }, { v: 'final_straight', t: '最終直線' },
 			{ v: 'uphill', t: '上り坂' }, { v: 'downhill', t: '下り坂' }
 		]},
+		/* **距離の目安（2026-09-26・C-94・C-95）。** 説明文の「残り200m」「2ハロン目」のような、
+		 * レースの中の**地点**の条件。フェーズ・コース位置とは別の概念で、互いに読み替えない。
+		 * 並びは、残りの距離の小さい順 → ゴールまで遠い → ハロン目。
+		 * 「ゴールまで遠い」には「ゴールまですごく遠い」も含む（別の値にしない）。
+		 *
+		 * **空は「該当なし」と読む。**「残りXXXm」を選ぶ人は、その地点で発動するスキルだけを
+		 * 調べたい ―― それより前に発動する可能性のある万能のスキルは除外したい（おいもさんの意図）。
+		 * 375px では5段になり「▼ ほか N件」が出る。1280px は3段で収まる。 */
+		{ key: 'distanceMark', label: '距離の目安', emptyMeansNone: true, options: [
+			{ v: 'remain_150', t: '残り150m' }, { v: 'remain_200', t: '残り200m' }, { v: 'remain_300', t: '残り300m' },
+			{ v: 'remain_350', t: '残り350m' }, { v: 'remain_400', t: '残り400m' }, { v: 'remain_600', t: '残り600m' },
+			{ v: 'remain_650', t: '残り650m' }, { v: 'remain_777', t: '残り777m' }, { v: 'remain_800', t: '残り800m' },
+			{ v: 'remain_1000', t: '残り1000m' }, { v: 'goal_far', t: 'ゴールまで遠い' },
+			{ v: 'furlong_2', t: '2ハロン目' }, { v: 'furlong_3', t: '3ハロン目' }, { v: 'furlong_4', t: '4ハロン目' }
+		]},
 		/* **`rarity`（レアリティ）と `inherited`（共通/継承）はここに入れない。**
 		 *
 		 * 70セッション目の段2 でマスター445件にキーを入れ（値は空）、段3 でいったんタブとして
@@ -578,9 +593,9 @@
 	// このサンプルは正本を取れなかったときにしか使われないので検査が当たりにくい ――
 	// 揃っていないと、その状況でだけ絞り込みの結果が変わる。
 	const SAMPLE_MASTER_SKILLS = { masterVersion: 'embedded-sample', skills: [
-		{ id: '1', name: '右回り○', tags: { distance: [], style: [], surface: [], phase: [], coursePos: [], rarity: [], inherited: [], environment: ['right_turn'], trackVenue: [], effect: ['stat_up'], scenario: [], passive: ['passive'] } },
-		{ id: '21', name: '積極策', tags: { distance: ['mile'], style: [], surface: [], phase: ['mid'], coursePos: [], rarity: [], inherited: [], environment: [], trackVenue: [], effect: ['target_speed_up'], scenario: [], passive: [] } },
-		{ id: '26', name: '集中力', tags: { distance: [], style: [], surface: [], phase: [], coursePos: [], rarity: [], inherited: [], environment: [], trackVenue: [], effect: ['start_good'], scenario: [], passive: [] } }
+		{ id: '1', name: '右回り○', tags: { distance: [], style: [], surface: [], phase: [], coursePos: [], distanceMark: [], rarity: [], inherited: [], environment: ['right_turn'], trackVenue: [], effect: ['stat_up'], scenario: [], passive: ['passive'] } },
+		{ id: '21', name: '積極策', tags: { distance: ['mile'], style: [], surface: [], phase: ['mid'], coursePos: [], distanceMark: [], rarity: [], inherited: [], environment: [], trackVenue: [], effect: ['target_speed_up'], scenario: [], passive: [] } },
+		{ id: '26', name: '集中力', tags: { distance: [], style: [], surface: [], phase: [], coursePos: [], distanceMark: [], rarity: [], inherited: [], environment: [], trackVenue: [], effect: ['start_good'], scenario: [], passive: [] } }
 	]};
 
 	/* ============================================================
