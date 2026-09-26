@@ -82,8 +82,8 @@ export const USER_DATA = {
 	customSkills: [],
 };
 
-/** 保存データを仕込んだページを開く */
-export async function openPage(browser, base, file, viewport = { width: 1280, height: 900 }) {
+/** 保存データを仕込んだページを開く。userData を渡すと USER_DATA の代わりにそれを仕込む（2026-09-27・C-100）。 */
+export async function openPage(browser, base, file, viewport = { width: 1280, height: 900 }, userData = USER_DATA) {
 	const ctx = await browser.newContext({ viewport });
 	const page = await ctx.newPage();
 	// **Playwright の既定は30秒。** 在るはずの要素は5秒あれば必ず揃うので、そこまで待つ意味は無い。
@@ -95,7 +95,7 @@ export async function openPage(browser, base, file, viewport = { width: 1280, he
 	const errors = [];
 	page.on('pageerror', (e) => errors.push(String(e)));
 	page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-	await page.addInitScript((d) => localStorage.setItem('umaSkillDeck:userData', JSON.stringify(d)), USER_DATA);
+	await page.addInitScript((d) => localStorage.setItem('umaSkillDeck:userData', JSON.stringify(d)), userData);
 	await page.goto(base + '/' + file, { waitUntil: 'networkidle', timeout: 60000 });
 	/* **時間ではなく「整ったこと」で待つ。**（73セッション目）
 	 *

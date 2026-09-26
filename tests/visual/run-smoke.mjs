@@ -485,7 +485,7 @@ await block('special.html（UmaStar OCR）', async () => {
 			return {
 				title: el('picker-title').textContent,
 				mode: { filter: !el('mode-filter').hidden, paste: !el('mode-paste').hidden,
-					custom: !el('mode-custom').hidden, passive: !el('mode-passive').hidden },
+					custom: !!el('mode-custom'), passive: !el('mode-passive').hidden },
 				footH: el('picker-footer').getBoundingClientRect().height,
 				ids: rows.map((r) => r.value),
 				checked: rows.filter((r) => r.checked).map((r) => r.value),
@@ -958,7 +958,7 @@ await block('special.html — 「画像から読み取る」の口（openSkillRo
 		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
 		return {
 			title: el('picker-title').textContent,
-			paste: !el('mode-paste').hidden, filter: !el('mode-filter').hidden, custom: !el('mode-custom').hidden,
+			paste: !el('mode-paste').hidden, filter: !el('mode-filter').hidden, custom: !!el('mode-custom'),
 			inputHidden: el('paste-input-wrap').hidden,
 			summary: el('paste-summary').hidden ? null : el('paste-summary').textContent,
 			// 注記（paste-note）は 31セッション目に撤去した。枠ごと無いことを見る
@@ -1196,9 +1196,10 @@ await block('special.html — ステップ①の入口「スキルセット画�
 	// C-3 で末尾に一括削除（editor-clear-skills）が並んだ
 	// 72セッション目・段9 で2番目に「緑スキル」（editor-pick-passive）が入り、
 	// 73セッション目に末尾の「リセット」（editor-clear-skills）が名前の行へ抜けた
-	assert(entry.order.join(',') === 'editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot,editor-pick-custom'
+	// 2026-09-27（C-100）に末尾の「未収録スキルを追加」（editor-pick-custom）を廃止した
+	assert(entry.order.join(',') === 'editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot'
 		&& entry.label === 'スクショで追加' && entry.cls.includes('uma-btn--secondary') && entry.noHelp,
-		'special/ocr入口: 「テキストで検索」と「未収録スキルを追加」の間に、同じ見た目で「スクショで追加」が出る（「?」は無い）', { order: entry.order, label: entry.label });
+		'special/ocr入口: 「テキストで検索」の後ろ（並びの最後）に、同じ見た目で「スクショで追加」が出る（「?」は無い）', { order: entry.order, label: entry.label });
 	assert(entry.icon === 'upload-cloud' || String(entry.icon).includes('lucide-upload-cloud'),
 		'special/ocr入口: アイコンはアップロード枠と同じ upload-cloud（雲＋上矢印）', entry.icon);
 	assert(!entry.before && entry.opened && entry.openedWithoutPicker === 0
@@ -1491,8 +1492,8 @@ await block('special.html — ステップ①の入口「スキルセット画�
 		'special/ocr入口: 名前の一部を入れると部分一致で候補が出る', { hits: finder.hits.slice(0, 5), target: finder.targetName });
 	assert(finder.none.hits === 0
 		&& finder.none.message === '一致するスキルがありません。入力に誤りがないかご確認ください。新しく追加されたスキルなど、このツールに収録されていないスキルの可能性もあります。'
-		&& finder.none.customLabel === '収録されていないスキルとして追加' && finder.none.customIsChip === false,
-		'special/ocr入口: 打ち間違いでは候補が出ず（あいまい照合なし）、確定文面と控えめな登録の導線だけが出る', finder.none);
+		&& finder.none.customLabel === null && finder.none.customIsChip === false,
+		'special/ocr入口: 打ち間違いでは候補が出ず（あいまい照合なし）、確定文面だけが出る（C-100: 「収録されていないスキルとして追加」は廃止）', finder.none);
 
 	/* ------------------------------------------------------------
 	 * サブ画面を開いている間の閉じる手段（32セッション目・実機で見つかった不具合）
@@ -4079,7 +4080,7 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 			title: el('picker-title').textContent,
 			filter: !el('mode-filter').hidden,
 			paste: !el('mode-paste').hidden,
-			custom: !el('mode-custom').hidden,
+			custom: !!el('mode-custom'),
 			commit: !el('picker-commit').hidden
 		};
 	});
@@ -4186,7 +4187,7 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 	await page.waitForTimeout(400);
 	assert(!(await page.isVisible('.usd-modal')), 'deck: モーダルが閉じる');
 
-	/* --- スキルを足す入口は4つ。それぞれ別のモードでモーダルが開く ---
+	/* --- スキルを足す入口は3つ（2026-09-27 に「未収録スキルを追加」を廃止）。それぞれ別のモードでモーダルが開く ---
 	   **この並びは uma-skill-deck.html が自前で持っている**（core の .usd-entry-row を通らない）ので、
 	   文言を変えるときに core 側だけ直すと、ここで気づける（71セッション目・段6 で実際に両方直した）。
 	   72セッション目・段9 で「緑スキルを追加」が2番目に入った（core の並びと同じ位置）。
@@ -4200,8 +4201,9 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 			const added = b.querySelector('#record-passive-added');
 			return b.textContent.replace(added ? added.textContent : '', '').trim();
 		}));
-	assert(entries.join(',') === '条件で検索,緑スキル,テキストで検索,未収録スキルを追加',
-		'deck: 比較シート編集に4つの入口ボタンが並ぶ（core の .usd-entry-row と同じ顔ぶれ・同じ順）', entries);
+	// 2026-09-27（C-100）に4つ目の「未収録スキルを追加」を廃止した（core の並びと同時に）
+	assert(entries.join(',') === '条件で検索,緑スキル,テキストで検索',
+		'deck: 比較シート編集に3つの入口ボタンが並ぶ（core の .usd-entry-row と同じ顔ぶれ・同じ順）', entries);
 
 	await page.click('button[onclick="openRecordTextPicker()"]');
 	await page.waitForTimeout(700);
@@ -4327,31 +4329,11 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);
 
-	await page.click('button[onclick="openRecordCustomSkill()"]');
-	await page.waitForTimeout(700);
-	const customMode = await modeState();
-	assert(!customMode.filter && !customMode.paste && customMode.custom,
-		'deck: 「未収録スキルを追加」は手入力欄だけを出す', customMode);
-	assert(customMode.title === '未収録スキルを追加', 'deck: 見出しが「未収録スキルを追加」', customMode.title);
-	// 作ったその場で対象セットへ入るので、下の確定ボタンは出さない（フッターごと畳む）
-	assert(customMode.commit === false, 'deck: 手入力のときは下の確定ボタンを出さない', customMode);
-	assert((await page.evaluate(() =>
-		document.querySelector('[data-usd-el="picker-footer"]').getBoundingClientRect().height)) === 0,
-		'deck: 手入力のときはフッターごと出さない');
-	/* **軸の本数を書かない**（段3 で 8→10、段8 で隠す軸ができた）。
-	   数えるのは pickableAxes()＝利用者に出す軸。隠す軸（レース環境・レース場・パッシブ）の
-	   タグは、利用者が自分のカスタムスキルに付けるものではないので出さない。 */
-	const customAxes = await page.evaluate(() => ({
-		画面: new Set([...document.querySelectorAll('[data-usd-el="custom-tag"]')].map((el) => el.dataset.axis)).size,
-		出す軸: UmaSkillDeckCore.pickableAxes().length,
-		全軸: UmaSkillDeckCore.TAG_AXES.length,
-	}));
-	assert(customAxes.画面 === customAxes.出す軸 && customAxes.出す軸 > 0,
-		'deck: 手入力にも、出す軸ぶんのタグ入力が出る', customAxes);
-	assert(customAxes.全軸 > customAxes.出す軸,
-		'段8: 隠す軸は手入力にも出ない（全軸より少ない）', customAxes);
-	await page.click('[data-usd-act="picker-close"]');
-	await page.waitForTimeout(400);
+	/* 【INTENTIONALLY_REMOVED・2026-09-27（C-100）】ここには「未収録スキルを追加」（手入力でカスタムスキルを作る）
+	   の検査があった（手入力欄だけを出す・見出し・確定ボタンとフッターを出さない・出す軸ぶんのタグ入力・隠す軸は出ない）。
+	   入口ごと廃止した。廃止したこと（ボタンも手入力の枠も無いこと）は、上の入口の並びと「カスタムスキルの廃止」の塊が見る。 */
+	assert(!(await page.$('button[onclick="openRecordCustomSkill()"]')) && !(await page.$('[data-usd-el="mode-custom"]')),
+		'deck(C-100): 「未収録スキルを追加」のボタンも、手入力の枠も無い');
 
 	// データ管理
 	await page.click('#tab-btn-data');
@@ -9603,7 +9585,7 @@ await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見
 	/* ---- ⑩（廃止）入口の並びは常に見えている ----
 	   **73セッション目に、畳む見出し「スキルの追加」を外した。**
 	   入れた理由（375px で3段・130px）が、横に送る形にして1段（30px）に収めたことで消えたため。
-	   **「開く操作をしなくても最初から5つある」**ことを見る。 */
+	   **「開く操作をしなくても最初から4つある」**ことを見る（2026-09-27・C-100 で「未収録スキルを追加」を廃止して5→4）。 */
 	const entryState = () => page.evaluate(() => {
 		const p = document.getElementById('deck-template-panel');
 		const row = p.querySelector('.usd-entry-row');
@@ -9621,8 +9603,8 @@ await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見
 	const e0 = await entryState();
 	/* **数そのものを見る**（73セッション目に「6つ」→「5つ」へ直した。段9 で「緑スキル」を
 	   足したときに数え直さず 6 と書いたままで、判定が `> 1` だったので落ちずに残っていた）。 */
-	assert(e0.見えている && e0.高さ > 0 && e0.ボタン数 === 5,
-		'段11(⑩): 入口の並びは、開く操作をしなくても最初から5つ見えている', e0);
+	assert(e0.見えている && e0.高さ > 0 && e0.ボタン数 === 4,
+		'段11(⑩): 入口の並びは、開く操作をしなくても最初から4つ見えている', e0);
 	assert(!e0.畳む見出し && !e0.畳む入れ物 && !e0.見出しの文字 && !e0.向きの印,
 		'段11(⑩): 畳む見出し「スキルの追加」と開閉の仕掛けは残っていない', e0);
 
@@ -9633,7 +9615,7 @@ await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見
 	await page.click('#deck-template-panel .uma-subtab[data-tab-id="__draft__"]');
 	await page.waitForTimeout(400);
 	const e3 = await entryState();
-	assert(e2.見えている && e2.ボタン数 === 5 && e3.見えている && e3.ボタン数 === 5,
+	assert(e2.見えている && e2.ボタン数 === 4 && e3.見えている && e3.ボタン数 === 4,
 		'段11(⑩): 因子セットを切り替えても入口は見えたまま', { 移った先: e2, 戻った: e3 });
 
 	/* **開き直しても同じ。** 状態を持たなくなったので、リロードで変わるものが無い。
@@ -9645,8 +9627,8 @@ await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見
 	await page.waitForTimeout(400);
 	const e5 = await entryState();
 	const keysAfter = await page.evaluate(() => Object.keys(localStorage).sort().join(','));
-	assert(e5.見えている && e5.ボタン数 === 5 && e5.高さ === e0.高さ,
-		'段11(⑩): リロードしても入口は最初から5つ見えていて、高さも同じ', { 前: e0, 後: e5 });
+	assert(e5.見えている && e5.ボタン数 === 4 && e5.高さ === e0.高さ,
+		'段11(⑩): リロードしても入口は最初から4つ見えていて、高さも同じ', { 前: e0, 後: e5 });
 	assert(keysAfter === keysBefore,
 		'段11(⑩): 入口の並びのために localStorage のキーを増やしていない', { 前: keysBefore, 後: keysAfter });
 
@@ -9881,8 +9863,8 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 		assert(got.every((g) => g.バーを隠す指定 === 'none'),
 			'横1行(バッジ' + バッジ + '): スクロールバーを隠す指定（scrollbar-width: none）が効いている',
 			got.map((g) => ({ 幅: g.幅, 指定: g.バーを隠す指定, 厚み: g.バーの厚み })));
-		assert(got.every((g) => g.子の顔ぶれ.length === 1 && g.子の顔ぶれ[0] === 'BUTTON' && g.ボタン数 === 5),
-			'横1行(バッジ' + バッジ + '): 並びの中身は入口のボタン5つだけ（矢印や「端へ移動」を足していない）',
+		assert(got.every((g) => g.子の顔ぶれ.length === 1 && g.子の顔ぶれ[0] === 'BUTTON' && g.ボタン数 === 4),
+			'横1行(バッジ' + バッジ + '): 並びの中身は入口のボタン4つだけ（矢印や「端へ移動」を足していない。C-100 で5→4）',
 			got.map((g) => ({ 幅: g.幅, 子: g.子の顔ぶれ, 数: g.ボタン数 })));
 	}
 
@@ -9946,7 +9928,8 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 	// (9) 並び順は変えていない（使用頻度の高いものが先頭）
 	const 並び = await page.evaluate((s) =>
 		[...document.querySelectorAll(s + ' button')].map((b) => b.dataset.usdAct), SEL);
-	assert(並び.join(',') === 'editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot,editor-pick-custom',
+	// 2026-09-27（C-100）に末尾の「未収録スキルを追加」（editor-pick-custom）を廃止した。残りの順は変えていない
+	assert(並び.join(',') === 'editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot',
 		'横1行: 入口の並び順は変えていない', 並び);
 
 	assert(errors.length === 0, '横1行: コンソールエラーなし', errors.slice(0, 3));
@@ -10018,6 +10001,206 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 
 	assert(errors.length === 0, '横1行(deck): コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
+}
+});
+
+/* ============================================================
+ * カスタムスキルの廃止（2026-09-27・C-100）
+ *
+ * 作る手段は無くしたが、**保存済みのカスタムスキルは消さず・書き換えず、入っている場所でだけ使える**。
+ * 検索の一覧（条件で検索・緑スキル・テキストで検索・入力して探す）からは外す。
+ * 利用者への知らせは出さない（おいもさんの決定）。
+ *
+ * 保存データにカスタムスキル2件と、それを含むスキルセット・比較シートを仕込んで、次を見る:
+ *   - スキルセット（Deck・special の周回因子セット）と比較シートに、同じ名前・同じ分け方で出る
+ *   - special の照合の辞書に入る
+ *   - Deck の読み取り結果の受け取り口（名前 → id）では今までどおり引ける（外すと、カスタムスキルの
+ *     入ったセットで読み取った結果を Deck へ渡したとき、その行だけ落ちる）
+ *   - 条件で検索・緑スキル・テキストで検索・入力して探すには出ない
+ *   - 書き出しに customSkills が含まれる／古いバックアップを読み込める
+ *   - 起動しても保存データが書き換わらない
+ * ============================================================ */
+await block('カスタムスキルの廃止 ―― 保存済みのものは入っている場所でだけ使える（C-100）', async () => {
+{
+	const C1 = { customId: 'custom_c100a', name: '検査用の自作スキル（中距離）', tags: { distance: ['medium'], effect: ['target_speed_up'] }, createdAt: '2026-09-01T00:00:00.000Z' };
+	const C2 = { customId: 'custom_c100b', name: '検査用の自作スキル（タグなし）', tags: {}, createdAt: '2026-09-02T00:00:00.000Z' };
+	const TPL = 'tpl_c100';
+	const REC = 'rec_c100';
+	const SEED = {
+		schemaVersion: 5,
+		templates: [
+			{ templateId: TPL, name: '自作スキル入りのセット', skillIds: [PICK[0].id, C1.customId, PICK[1].id, C2.customId],
+				tiers: { [C1.customId]: 1 }, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-02T00:00:00.000Z' },
+		],
+		records: [
+			{ recordId: REC, name: '自作スキル入りの比較', sourceTemplateId: TPL,
+				skillIds: [PICK[0].id, C1.customId, PICK[1].id, C2.customId],
+				candidates: [{ candidateId: 'c_a', label: '親A', enabled: true }, { candidateId: 'c_b', label: '親B', enabled: true }],
+				cells: { [PICK[0].id]: { c_a: 1 }, [C1.customId]: { c_a: 3, c_b: 2 } }, ocrCells: {},
+				createdAt: '2026-09-02T00:00:00.000Z', updatedAt: '2026-09-03T00:00:00.000Z' },
+		],
+		customSkills: [C1, C2],
+	};
+	const SEED_TEXT = JSON.stringify(SEED);
+	const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+	const stored = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:userData'));
+
+	/* ---- Deck ---- */
+	{
+		const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html', undefined, SEED);
+		await page.waitForTimeout(300);
+		assert(await stored(page) === SEED_TEXT, 'C-100 deck: 起動しても保存データは1バイトも書き換わらない');
+
+		// スキルセット: 名前・分類（超優先）がそのまま
+		await page.click('#template-panel-root .uma-subtab[data-tab-id="' + TPL + '"]');
+		await page.waitForTimeout(400);
+		const tier = (t) => page.evaluate((x) => document.querySelector('#template-panel-root [data-usd-el="tier-count-' + x + '"]').textContent, t);
+		const panelsOf = async (t) => {
+			await page.click('#template-panel-root [data-usd-act="tier-tab"][data-tier="' + t + '"]');
+			await page.waitForTimeout(250);
+			return page.evaluate(() => [...document.querySelectorAll('#template-panel-root .usd-panel')].map((p) => ({
+				id: p.dataset.skillId, name: p.querySelector('.usd-panel-name').textContent,
+				tier: (p.querySelector('.uma-tier-mark') || {}).dataset ? p.querySelector('.uma-tier-mark').dataset.tier : null })));
+		};
+		const counts = [await tier(1), await tier(2), await tier(3)];
+		const t1 = await panelsOf(1);
+		const t2 = await panelsOf(2);
+		assert(counts.join() === '1,3,0', 'C-100 deck: スキルセットの分け方が変わらない（超優先1・優先3）', counts);
+		assert(t1.length === 1 && t1[0].id === C1.customId && t1[0].name === C1.name && t1[0].tier === '1',
+			'C-100 deck: 超優先に入れた自作スキルが、同じ名前で超優先に出る', t1);
+		assert(eq(t2.map((p) => p.name), [PICK[0].name, PICK[1].name, C2.name]),
+			'C-100 deck: 優先の並びはセットの中の順のまま、タグなしの自作スキルも同じ名前で出る', t2.map((p) => p.name));
+		assert(!t1.concat(t2).some((p) => /不明なスキル/.test(p.name)), 'C-100 deck: 「不明なスキル」にならない');
+
+		// 検索の一覧には出ない（条件で検索・緑スキル）
+		const inSearch = await page.evaluate(([a, b]) => {
+			const C = UmaSkillDeckCore;
+			C.openSkillPicker([], () => {});
+			const listed = [...document.querySelectorAll('[data-usd-el="results"] .usd-row span')].map((el) => el.textContent);
+			const green = C.getPoolExcludedSkills().map((s) => s.id);
+			C.closeSkillPicker();
+			return { filter: listed.filter((n) => n === a.name || n === b.name), listed: listed.length,
+				green: green.filter((id) => id === a.customId || id === b.customId) };
+		}, [C1, C2]);
+		assert(inSearch.listed > 0 && inSearch.filter.length === 0,
+			'C-100 deck: 条件で検索（条件なし）の一覧に自作スキルは出ない', inSearch);
+		assert(inSearch.green.length === 0, 'C-100 deck: 緑スキルの一覧にも出ない', inSearch.green);
+
+		// テキストで検索・入力して探す（どちらも searchableOnly で引く）には出ない。
+		// 受け取り口（既定の呼び方）では今までどおり引ける。
+		const byName = await page.evaluate(([a]) => {
+			const C = UmaSkillDeckCore;
+			const s = C.matchPastedSkillText(a.name, { searchableOnly: true }).rows[0];
+			const d = C.matchPastedSkillText(a.name).rows[0];
+			const f = C.findSkillsByNameFragment(a.name.slice(0, 6), { searchableOnly: true });
+			return { search: { kind: s.kind, id: s.matchedId || null }, handoff: { kind: d.kind, id: d.matchedId || null },
+				finder: f.hits.map((h) => h.id) };
+		}, [C1]);
+		assert(!(byName.search.kind === 'exact' && byName.search.id === C1.customId) && byName.finder.length === 0,
+			'C-100 deck: テキストで検索・入力して探すの母集団に自作スキルは入らない', byName);
+		assert(byName.handoff.kind === 'exact' && byName.handoff.id === C1.customId,
+			'C-100 deck: 読み取り結果の受け取り口（名前 → id）では今までどおり引ける', byName.handoff);
+
+		// 画面の「テキストで検索」でも、貼った名前は確定しない。「入力して探す」でも候補に出ない
+		await page.click('#template-panel-root [data-usd-act="editor-pick-text"]');
+		await page.waitForTimeout(500);
+		await page.fill('[data-usd-el="paste-input"]', C1.name);
+		await page.click('[data-usd-act="paste-run"]');
+		await page.waitForTimeout(400);
+		const pasteUi = await page.evaluate(() => ({
+			count: document.querySelector('[data-usd-el="picker-checked-count"]').textContent,
+			finders: document.querySelectorAll('[data-usd-el="paste-report"] [data-usd-act="paste-find"]').length,
+		}));
+		assert(pasteUi.count === '0種選択' && pasteUi.finders === 1,
+			'C-100 deck: 画面のテキストで検索で自作スキルの名前を貼っても確定せず、要確認の行になる', pasteUi);
+		await page.click('[data-usd-el="paste-report"] [data-usd-act="paste-find"]');
+		await page.waitForTimeout(300);
+		await page.fill('[data-usd-el="find-input"]', C1.name);
+		await page.waitForTimeout(400);
+		const finderUi = await page.evaluate((name) => ({
+			hits: [...document.querySelectorAll('.usd-name-hit')].map((e) => e.textContent).filter((t) => t.includes(name)),
+			none: !!document.querySelector('.usd-name-none'),
+			button: !!document.querySelector('[data-usd-act="name-custom"]'),
+		}), C1.name);
+		assert(finderUi.hits.length === 0 && finderUi.none && !finderUi.button,
+			'C-100 deck: 入力して探すでも自作スキルは候補に出ず、0件の文だけが出る（作るボタンは無い）', finderUi);
+		await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
+		await page.waitForTimeout(300);
+
+		// 比較シート: 同じ名前・★もそのまま
+		await page.click('#tab-btn-record');
+		await page.waitForTimeout(300);
+		await page.evaluate((id) => openRecordEditor(id), REC);
+		await page.waitForTimeout(500);
+		const sheet = await page.evaluate((ids) => ids.map((id) => {
+			const row = document.getElementById('row-' + id);
+			const sum = document.getElementById('sum-' + id);
+			return { id, name: row ? row.textContent.trim() : null, sum: sum ? sum.textContent.trim() : null };
+		}), [C1.customId, C2.customId]);
+		assert(sheet[0].name && sheet[0].name.includes(C1.name) && sheet[0].sum === '5',
+			'C-100 deck: 比較シートに自作スキルが同じ名前で出て、★（3＋2）もそのまま', sheet[0]);
+		assert(sheet[1].name && sheet[1].name.includes(C2.name), 'C-100 deck: タグなしの自作スキルも比較シートに出る', sheet[1]);
+
+		// 書き出し: customSkills を含む
+		await page.click('#tab-btn-data');
+		await page.waitForTimeout(300);
+		await page.click('button[onclick="exportData()"]');
+		await page.waitForTimeout(200);
+		const exported = JSON.parse(await page.inputValue('#export-textarea'));
+		assert(eq(exported.customSkills, SEED.customSkills), 'C-100 deck: 書き出しに customSkills がそのまま含まれる', exported.customSkills);
+		assert(await stored(page) === SEED_TEXT, 'C-100 deck: 見て回っただけでは保存データは書き換わらない');
+
+		// 古いバックアップ（schemaVersion 2・自作スキル入り）を読み込める
+		const OLD = { schemaVersion: 2,
+			templates: [{ templateId: 'tpl_old', name: '古いバックアップのセット', skillIds: [PICK[2].id, 'custom_old01'], createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' }],
+			records: [], customSkills: [{ customId: 'custom_old01', name: '古いバックアップの自作スキル', tags: { effect: ['speed_up'] }, createdAt: '2026-08-01T00:00:00.000Z' }] };
+		await page.fill('#import-textarea', JSON.stringify(OLD));
+		page.once('dialog', (d) => d.accept());
+		await page.click('button[onclick="importData()"]');
+		await page.waitForTimeout(500);
+		const afterImport = await page.evaluate(() => ({
+			custom: UmaSkillDeckCore.getUserData().customSkills.map((c) => c.customId),
+			name: UmaSkillDeckCore.getSkillName('custom_old01'),
+			templates: UmaSkillDeckCore.getUserData().templates.map((t) => t.templateId),
+		}));
+		assert(eq(afterImport.custom, ['custom_old01']) && afterImport.name === '古いバックアップの自作スキル' && eq(afterImport.templates, ['tpl_old']),
+			'C-100 deck: 古いバックアップ（自作スキル入り）を読み込め、名前も引ける', afterImport);
+		const oldStored = JSON.parse(await stored(page));
+		assert(eq(oldStored.customSkills, OLD.customSkills), 'C-100 deck: 読み込んだ自作スキルは旧値のタグも含めて書き換えずに保存される', oldStored.customSkills);
+
+		assert(errors.length === 0, 'C-100 deck: コンソールエラーなし', errors.slice(0, 3));
+		await ctx.close();
+	}
+
+	/* ---- special（周回因子セット・照合の辞書） ---- */
+	{
+		const { ctx, page, errors } = await openPage(browser, base, 'special.html', undefined, SEED);
+		if (await page.isVisible('#ui-notice')) await page.click('[data-act="notice-ok"]');
+		await page.waitForTimeout(300);
+		assert(await stored(page) === SEED_TEXT, 'C-100 special: 起動しても保存データは1バイトも書き換わらない');
+		await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TPL + '"]');
+		await page.waitForTimeout(500);
+		const sp = await page.evaluate(([a, b]) => ({
+			dict: skillList.filter((n) => n === a.name || n === b.name),
+			total: skillList.length,
+			tier1: (document.querySelector('#deck-template-panel [data-usd-el="tier-count-1"]') || {}).textContent || null,
+		}), [C1, C2]);
+		assert(eq(sp.dict.slice().sort(), [C1.name, C2.name].sort()) && sp.total === 4,
+			'C-100 special: 自作スキル入りのセットを選ぶと、照合の辞書に自作スキルが同じ名前で入る', sp);
+		assert(sp.tier1 === '1', 'C-100 special: 周回因子セットでも分け方（超優先1）が変わらない', sp.tier1);
+		await page.click('#deck-template-panel [data-usd-act="tier-tab"][data-tier="1"]');
+		await page.waitForTimeout(250);
+		const panel = await page.evaluate((id) => {
+			const p = document.querySelector('#deck-template-panel .usd-panel[data-skill-id="' + id + '"]');
+			return p ? p.querySelector('.usd-panel-name').textContent : null;
+		}, C1.customId);
+		assert(panel === C1.name, 'C-100 special: 周回因子セットに自作スキルが同じ名前で出る', panel);
+		assert(!(await page.$('#deck-template-panel [data-usd-act="editor-pick-custom"]')),
+			'C-100 special: 周回因子セットに「未収録スキルを追加」は無い');
+		assert(await stored(page) === SEED_TEXT, 'C-100 special: セットを選んだだけでは保存データは書き換わらない');
+		assert(errors.length === 0, 'C-100 special: コンソールエラーなし', errors.slice(0, 3));
+		await ctx.close();
+	}
 }
 });
 

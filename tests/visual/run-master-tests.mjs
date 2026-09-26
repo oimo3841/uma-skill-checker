@@ -11,6 +11,7 @@
 //   ②(ア)A 6値を「能力上昇」(stat_up) へ統合／②(ア)D 2値を「デバフ」(debuff) へ統合
 //   ⑥ レアリティ(rarity) ・ 共通/継承(inherited) のキーを先行投入（UIにはまだ出さない）
 //   廃した値が残るカスタムスキルの読み替え（保存データは書き換えない）
+//     → 2026-09-27（C-100）にカスタムスキルを検索の一覧から外し、読み替えごと消した。検査も外した
 //
 // **軸の本数はこのファイルに書かない。** 8→10 のように増えるので、数を決め打ちすると
 // 「増やしたこと自体」で落ちてしまい、取りこぼしを見るという狙いが果たせない。
@@ -406,7 +407,7 @@ const browser = await chromium.launch();
 	const inPool = (s) => POOL_EXCLUDED_AXES.every((k) => axisValues(s, k).length === 0);
 	/* **【74セッション目・第2回の段1】母集団の材料を「マスター＋タグ付きの拡張スキル」へ広げた。**
 	 *
-	 * 製品の `taggedSkillPool()` は マスター＋カスタムスキル＋**タグを持つ追加カタログ** を足す。
+	 * 製品の `taggedSkillPool()` は マスター＋**タグを持つ追加カタログ** を足す（カスタムスキルは 2026-09-27 から入らない）。
 	 * それまでこのファイルは `master.skills` だけで期待値を組み立てていたので、
 	 * **第2回で拡張スキルにタグが入った瞬間、件数も名簿も全部食い違って落ちる**状態だった。
 	 *
@@ -1072,10 +1073,10 @@ const browser = await chromium.launch();
 				tab: !!document.querySelector('.usd-tab[data-usd-axis="' + k + '"]'),
 				panel: !!document.querySelector('.usd-tabpanel[data-usd-axis="' + k + '"]'),
 				checks: document.querySelectorAll('[data-usd-el="filter-check"][data-axis="' + k + '"]').length,
-				custom: document.querySelectorAll('[data-usd-el="custom-tag"][data-axis="' + k + '"]').length,
 			}), key);
-			assert(!found.tab && !found.panel && found.checks === 0 && found.custom === 0,
-				'段8: ' + key + ' は絞り込みにもカスタムスキル入力にも出ない', found);
+			// （2026-09-27 まではカスタムスキル入力のタグ欄にも出ないことを見ていた。入力ごと廃止した。C-100）
+			assert(!found.tab && !found.panel && found.checks === 0,
+				'段8: ' + key + ' は絞り込みに出ない', found);
 		}
 		// 出ている軸の数が pickableAxes() と合っている（隠したぶんだけ減っている）
 		const shown = await page.evaluate(() => document.querySelectorAll('.usd-tab').length);
@@ -1178,94 +1179,32 @@ const browser = await chromium.launch();
 		.filter((n) => (master.skills.find((s) => s.name === n).tags.passive || []).length === 0);
 	assert(awakeAllPassive.length === 0, '段8: 目覚め6件はマスターでもパッシブ', awakeAllPassive);
 
-	// カスタムスキル入力欄にも「その他」の軸が出る（TAG_AXES駆動になっていることの確認）。
+	// 「その他」の軸の選択肢が、製品の pickableOptions() と同じ数だけ画面に出る（TAG_AXES駆動の確認）。
 	// 件数は決め打ちせず、**製品の pickableOptions() から取る** ―― 選択肢が増えたとき、
 	// UI が追随していることこそ見たいので、決め打ちだと「追随した」こと自体で落ちてしまう。
+	// `internalOnly`（`scenario_factor` と `gene`。段B・C-68 の3節）は出さないので、`options` とは数が合わない。
 	//
-	// **見る先を options から pickableOptions() へ変えた**（69セッション目）。
-	// 段B（C-68 の3節）で `internalOnly` を入れ、**カスタムスキル入力から
-	// `scenario_factor` と `gene` を隠した**ので、`options` をそのまま数えると必ず食い違う
-	// （画面 1 / core 3 で落ちていた）。**隠したのは意図どおり**なので、直すのは検査の意図のほう。
-	// 同じ規則をここに書き写すと片方が古くなるので、**製品の関数をそのまま借りる**。
-	const customScenario = await page.evaluate(() => {
+	// **2026-09-27（C-100）: 見る先をカスタムスキル入力のタグ欄から、条件で検索のチェックボックスへ移した。**
+	// カスタムスキル入力を廃止したため。どちらも同じ pickableOptions() を通していた。
+	const scenarioChecks = await page.evaluate(() => {
 		const axis = UmaSkillDeckCore.TAG_AXES.find((a) => a.key === 'scenario');
 		return {
-			画面: document.querySelectorAll('[data-usd-el="custom-tag"][data-axis="scenario"]').length,
+			画面: document.querySelectorAll('[data-usd-el="filter-check"][data-axis="scenario"]').length,
 			選ばせる: UmaSkillDeckCore.pickableOptions(axis).length,
 			軸の全部: axis.options.length,
 		};
 	});
-	assert(customScenario.画面 === customScenario.選ばせる && customScenario.選ばせる > 0,
-		'カスタムスキル入力の⑧の選択肢が pickableOptions() と同じ数（internalOnly は出さない）', customScenario);
+	assert(scenarioChecks.画面 === scenarioChecks.選ばせる && scenarioChecks.選ばせる > 0 && scenarioChecks.選ばせる < scenarioChecks.軸の全部,
+		'「その他」の選択肢が pickableOptions() と同じ数（internalOnly は出さない）', scenarioChecks);
 
 	await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
 	await page.waitForTimeout(300);
 
-	/* ==========================================================
-	 * ② 廃した値が残るカスタムスキルの読み替え（70セッション目・段2）
-	 *
-	 * マスターは付け替え済みだが、**利用者が作ったカスタムスキル**には古い値が残る。
-	 * 見るのは2つ ―― (1) 読み替えが効いて「能力上昇」の絞り込みに出てくること、
-	 * (2) **localStorage の中身は1バイトも書き換わっていないこと**（このファイルの
-	 * 「読み込み側は分岐せず、後から補わない」という原則を崩していないこと）。
-	 *
-	 * **読み替えの表は検査に書き写さない。** 仕込む旧値だけを書き、
-	 * 読み替え先は製品の `withLegacyTagsMapped()` に聞く（pickableOptions と同じ考え方）。
-	 * ========================================================== */
-	const LEGACY_ID = 'custom_legacy_probe';
-	const LEGACY_NAME = '旧値が残ったカスタムスキル（検査用）';
-	/* どちらも段2 で廃した値（2つとも同じ新値 debuff へ潰れる）。
-	   **71セッション目・段8 で speed_up / power_up から替えた** ―― あちらの新値（stat_up）は
-	   段8 で絞り込みの選択肢から外れたので、「読み替えた結果が絞り込みに出る」ことを確かめられない。 */
-	const LEGACY_EFFECT = ['stamina_down', 'speed_down'];
-	{
-		const seeded = await page.evaluate(([id, name, effect]) => {
-			const data = UmaSkillDeckCore.getUserData();
-			const tags = {};
-			UmaSkillDeckCore.TAG_AXES.forEach((a) => { tags[a.key] = []; });
-			tags.effect = effect.slice();
-			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
-			data.customSkills.push({ customId: id, name: name, tags: tags, createdAt: new Date().toISOString() });
-			UmaSkillDeckCore.replaceUserData(data);
-			return UmaSkillDeckCore.withLegacyTagsMapped(tags).effect;
-		}, [LEGACY_ID, LEGACY_NAME, LEGACY_EFFECT]);
-		// 6値→1値なので、2つの旧値は1つに潰れる（重複が残らないこと）
-		assert(seeded.length === 1 && seeded[0] !== LEGACY_EFFECT[0],
-			'②旧値2つが読み替えで1つに潰れる（withLegacyTagsMapped）', seeded);
-
-		await page.evaluate(() => UmaSkillDeckCore.openSkillPicker([], () => {}));
-		await page.waitForTimeout(500);
-		const allCount = await readCount();
-		assert(allCount === POOL.length + 1,
-			'②カスタムスキル1件を足したので母集団は ' + (POOL.length + 1) + '件', allCount);
-		await tick('effect', seeded[0]);
-		const hit = await listedNames();
-		assert(hit.includes(LEGACY_NAME),
-			'②旧値のままのカスタムスキルも、読み替え先の絞り込みに出る（読むときに読み替える）', hit.length);
-		// マスター側の期待値（母集団から絞ったぶん）＋ 仕込んだカスタム1件
-		const legacyExpect = expectNames({ effect: [seeded[0]] });
-		assert((await readCount()) === legacyExpect.length + 1,
-			'②その絞り込みは ' + legacyExpect.length + '件＋カスタム1件 の' + (legacyExpect.length + 1) + '件', await readCount());
-		await tick('effect', seeded[0]);
-		await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
-		await page.waitForTimeout(300);
-
-		// (2) 保存データは書き換わっていない
-		const stored = await page.evaluate((id) => {
-			const raw = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
-			const c = (raw.customSkills || []).find((x) => x.customId === id);
-			return c ? c.tags.effect : null;
-		}, LEGACY_ID);
-		assert(eq(stored, LEGACY_EFFECT),
-			'②保存データの旧値はそのまま（読み込み時に書き換えていない）', stored);
-
-		// 後片付け（この ctx はこのあと閉じるが、意図を残すために明示的に外す）
-		await page.evaluate((id) => {
-			const data = UmaSkillDeckCore.getUserData();
-			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
-			UmaSkillDeckCore.replaceUserData(data);
-		}, LEGACY_ID);
-	}
+	/* 【INTENTIONALLY_REMOVED・2026-09-27（C-100）】ここには「② 廃した値が残るカスタムスキルの読み替え」
+	   （70セッション目・段2。`withLegacyTagsMapped()` が旧値を読み替えて「条件で検索」に出すこと、保存データは
+	   書き換えないこと）の検査があった。カスタムスキルを検索の一覧から外し、読み替え自体を製品から消したので外した。
+	   保存済みのカスタムスキルが入っている場所で今までどおり使えることは、run-smoke.mjs の
+	   「カスタムスキルの廃止」の塊が見る。 */
 
 	/* ==========================================================
 	 * C-96・C-97（2026-09-26）―― 目標のレースの距離

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-26d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-27a';
 
 	/* ============================================================
 	 * 定数
@@ -172,6 +172,8 @@
 	const ROSTER_LIMIT = 5;
 	const ROSTER_CARD_SLOTS = 6;
 	const RECORD_LIMIT = 10;
+	// カスタムスキルを作る手段は 2026-09-27 に廃止した（C-100）。この値を読むのは、
+	// いまはデータ管理タブの件数の表示（「カスタムスキル：N/50」）だけ。
 	const CUSTOM_SKILL_SOFT_CAP = 50;
 	const STAR_MIN = 0;
 	const STAR_MAX = 3;
@@ -180,8 +182,6 @@
 
 	// 一度にこの数以上のスキルを足したときだけ「元に戻す」に積む。
 	// 1種だけの追加はチップの×で消せるのでUndoの出番が薄く、スタックを埋める害のほうが大きい。
-	// （手入力の「マスターにないスキルを追加」は構造上つねに1種ずつなので、この線引きで自動的に外れる。
-	//   ただしカスタムスキルそのものは×で外してもマスターに残り続ける。削除UIが無い点はD節の課題）
 	const UNDO_MIN_BULK_ADD = 2;
 
 	// 一括貼り付けでスキル名を照合するときのしきい値。
@@ -240,14 +240,14 @@
 	 */
 	const DEFAULT_SET_LABEL = 'スキルセット';
 
-	/* タグ辞書。フィルターパネル・タグ表示・カスタムスキル入力・タグ付け画面で共有する。
+	/* タグ辞書。フィルターパネル・タグ表示・タグ付け画面で共有する。
 	 *
 	 * **軸に付く印は4つ**（71セッション目・段8 で `optIn` を廃し、`hiddenAxis` / `poolExcluded` /
 	 * `exclusive` を足した）:
 	 *   `emptyMeansNone` … 空配列を「万能」ではなく「該当しない」と読む
 	 *                       （効果タイプ・フェーズ・コース位置・その他。印の無い距離・脚質だけが空を「万能」と読む）
 	 *   `exclusive`      … 軸内が OR ではなく**許可リスト**。持っている値が選んだ値に全部収まるものだけ通す
-	 *   `hiddenAxis`     … **利用者の絞り込みには出さない**（タブにもカスタムスキル入力にも出さない）。
+	 *   `hiddenAxis`     … **利用者の絞り込みには出さない**（タブに出さない）。
 	 *                       データとしては残り、`card-event-input.html` のタグ付け画面には出る
 	 *   `poolExcluded`   … **この軸に値を持つスキルを「条件で検索」の母集団に入れない**
 	 *
@@ -307,7 +307,7 @@
 		// `card-event-input.html` ではそういう枠に入れて「ふつうのスキルには付けません」と注記される。
 		// `stat_up` は**パッシブに付ける値**なので、タグ付け画面には他の値と並べて出す必要がある。
 		// **2026-09-25（C-89）: 空配列を「万能」ではなく「該当なし」と読むようにした**（フェーズ・コース位置と同じ）。
-		// 効果タイプが空のスキル（規則で効果タイプを付けない拡張スキル・タグを付けずに作ったカスタムスキル）が、
+		// 効果タイプが空のスキル（規則で効果タイプを付けない拡張スキル）が、
 		// どの効果タイプで絞っても出てしまい、絞った意味が無くなるため。マスターには効果タイプが空のスキルは無い。
 		//
 		// **2026-09-26（C-98）: 「掛かり時間」を「デバフ」に、「レーン移動」を「コース取り」にまとめた**（おいもさんの要望）。
@@ -455,7 +455,7 @@
 	 * `internalOnly` は「絞り込みに出さない」という**用途**ではなく、
 	 * 「利用者が選ぶ値ではなく、データの側だけが持つ」という**性質**の印（F-59）。
 	 * だから、利用者に値を選ばせる画面はどれもこれを通す
-	 * （いまは条件検索の絞り込みと、カスタムスキル入力のタグの2か所）。
+	 * （いまは条件検索の絞り込み。2026-09-27 にカスタムスキルの入力を廃止するまでは、そのタグ欄も通していた）。
 	 *
 	 * **通してはいけないもの**:
 	 *   - `tagLabel()` … 値 → 表示名の変換。通すと画面に生の値（`scenario_factor`）が出る
@@ -480,13 +480,13 @@
 	/**
 	 * **利用者の絞り込みに出す軸**だけを返す（`hiddenAxis` の軸を落とす）。
 	 *
-	 * `pickableOptions()` の軸版（71セッション目・段8）。タブ・カスタムスキル入力の
-	 * タグ欄・キーボード移動・既定のタブが、どれも同じ判断を使えるようにしてある。
+	 * `pickableOptions()` の軸版（71セッション目・段8）。タブ・キーボード移動・既定のタブが、
+	 * どれも同じ判断を使えるようにしてある。
 	 *
 	 * **通してはいけないもの**:
 	 *   - `matchesFilters()` … 隠した軸の `filters` は常に空なので通す必要が無く、
 	 *     通すとむしろ「隠した軸のタグは無視する」という別の意味になってしまう
-	 *   - `emptyTagSet()` / `addCustomSkillFromPicker()` … **全軸のキーを揃える**のが仕事なので、
+	 *   - `emptyTagSet()` … **全軸のキーを揃える**のが仕事なので、
 	 *     隠した軸のキーも空配列で持たせる（マスターと顔ぶれを合わせるため）
 	 *   - `card-event-input.html` のタグ付け … おいもさんが**付ける**値なので全軸を出す
 	 */
@@ -523,49 +523,10 @@
 		return !!(axis.exclusive || axis.emptyMeansNone);
 	}
 
-	/**
-	 * **廃した値 → いまの値** の読み替え（70セッション目・段2）。
-	 *
-	 * マスターの445件は付け替え済みだが、**利用者が自分で作ったカスタムスキル**
-	 * （`userData.customSkills[].tags`）には古い値が残る。そのままだと
-	 * `matchesFilters()` は値どうしを比べるだけなので、「能力上昇」で絞っても出てこない。
-	 *
-	 * **保存データは書き換えない。** このファイルは「読み込み側は分岐せず、後から補わない」
-	 * （`loadUserData()` の説明）を原則にしていて、開いただけで保存データの姿が変わるのを避けている。
-	 * 代わりに**読むときに通す**（`getFilteredPickerPool()` の1か所）。利用者が次にその
-	 * カスタムスキルを作り直したときには、自然に新しい値で保存される。
-	 *
-	 * **軸ごとに持つ**（`{ 軸キー: { 旧値: 新値 } }`）―― 値の名前は軸をまたいで一意とは限らない。
-	 * 読み替え先が無い値（打ち間違いなど）はそのまま通す。**選択肢に無い値は、どの条件にも
-	 * 当たらないだけで害は無い**（画面にタグを出す場所が無いので、生の値が見えることもない）。
-	 */
-	const LEGACY_EFFECT_VALUES = {
-		speed_up: 'stat_up', stamina_up: 'stat_up', power_up: 'stat_up',
-		guts_up: 'stat_up', wisdom_up: 'stat_up', all_up: 'stat_up',
-		stamina_down: 'debuff', speed_down: 'debuff'
-	};
-	const LEGACY_TAG_VALUES = { effect: LEGACY_EFFECT_VALUES };
-
-	/** タグの組を読み替えたものを返す。読み替えるものが1つも無ければ、元のオブジェクトをそのまま返す。 */
-	function withLegacyTagsMapped(tags) {
-		if (!tags) return tags;
-		let changed = false;
-		const out = {};
-		for (const axisKey of Object.keys(tags)) {
-			const table = LEGACY_TAG_VALUES[axisKey];
-			const values = tags[axisKey];
-			if (!table || !Array.isArray(values)) { out[axisKey] = values; continue; }
-			const mapped = [];
-			for (const v of values) {
-				const next = Object.prototype.hasOwnProperty.call(table, v) ? table[v] : v;
-				if (next !== v) changed = true;
-				if (mapped.indexOf(next) === -1) mapped.push(next);   // 6値が1値に潰れるので重複を除く
-			}
-			if (mapped.length !== values.length) changed = true;
-			out[axisKey] = mapped;
-		}
-		return changed ? out : tags;
-	}
+	/* 【INTENTIONALLY_REMOVED・2026-09-27（カスタムスキルの廃止）】ここには、廃した効果タイプの値を
+	   いまの値へ読み替える `LEGACY_EFFECT_VALUES` / `withLegacyTagsMapped()`（70セッション目・段2）があった。
+	   読み替えるのは**利用者が作ったカスタムスキルのタグだけ**で、使い道は「条件で検索」の母集団だけだった。
+	   カスタムスキルを検索の一覧から外したので、読む場所が無くなった（保存データは元から書き換えていない）。 */
 
 	/* フェッチもキャッシュも駄目だったときに使う、追加カタログの組み込みの写し。
 	   カタログが1件も無いと、保存済みの比較シートの行が「（不明なスキル：…）」に化けるので、
@@ -668,10 +629,6 @@
 		return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 	}
 
-	function normalizeForDup(s) {
-		return String(s).normalize('NFKC').replace(/[\s　]/g, '').toLowerCase();
-	}
-
 	function nowIso() {
 		return new Date().toISOString();
 	}
@@ -715,6 +672,8 @@
 			if (!parsed || typeof parsed !== 'object') return createEmptyUserData();
 			parsed.templates = parsed.templates || [];
 			parsed.records = parsed.records || [];
+			// customSkills は、作る手段を 2026-09-27 に廃止した（C-100）。保存済みのものは消さず・書き換えず、
+			// 入っているスキルセット・比較シートで名前を引くためにだけ読む（`findSkill()`）。補う処理も従来のまま。
 			parsed.customSkills = parsed.customSkills || [];
 			// **rosters はここで補わない。** 補うと、編成を1件も作っていない人でも
 			// ページを開いただけで保存データの姿が変わってしまう（次の保存で
@@ -1493,6 +1452,9 @@
 	function findSkill(skillId) {
 		const m = masterSkills.find(s => s.id === skillId);
 		if (m) return m;
+		// 保存済みのカスタムスキル（作る手段は 2026-09-27 に廃止。C-100）。入っているセット・比較シート・
+		// special の照合では今と同じ名前で出すため、ここでは引き続き引く。検索の一覧には出さない
+		// （`taggedSkillPool()` には入れず、`buildSkillTextIndex()` は searchableOnly のときに外す）。
 		const c = (ensureUserData().customSkills || []).find(s => s.customId === skillId);
 		if (c) return { id: c.customId, name: c.name, tags: c.tags };
 		// 追加カタログ（シナリオ因子・拡張スキルなど）。
@@ -1711,10 +1673,11 @@
 		return prev[lb];
 	}
 
-	// 照合対象のプール（マスター＋カスタムスキル）。
+	// 照合対象のプール。
 	// スキル選択パネルの一覧と同じ母集団にしておくことで、
 	// 「一覧には出ているのに貼り付けでは当たらない」というズレを避ける。
-	// 名前で引くための索引。母集団は「マスター＋利用者のカスタムスキル＋追加カタログ」。
+	// 名前で引くための索引。母集団は「マスター＋利用者のカスタムスキル＋追加カタログ」
+	// （カスタムスキルは searchableOnly のときは入れない。下の 2026-09-27 の段落）。
 	// カタログを入れているのは、OCRツールから渡ってきた名前（シナリオ因子など）を
 	// 解決できるようにするため。「条件でスキルを検索」の母集団（getFilteredPickerPool）には
 	// 入れない — カタログのエントリはタグを持たず、条件検索では「万能スキル」として
@@ -1724,10 +1687,16 @@
 	// （`SEARCHABLE_EXTENDED_SKILL_IDS`）だけになる。** 渡すのは「条件で検索」のモーダルの中の
 	// テキストで検索と名前を入れて探すだけ。既定（渡さない）は全件のまま ―― 収録データの入力ページと
 	// Deck の OCR の受け取り口は、これまでどおり全件で引く。
+	//
+	// **2026-09-27（C-100）: カスタムスキルも、searchableOnly のときは入れない**（作る手段の廃止に合わせて、
+	// 検索の一覧から外した）。**既定の呼び方には残す** ―― Deck の OCR の受け取り口（`resolveHandoffSkills`）は
+	// special が読み取った**名前**を id へ戻すので、ここから外すと、カスタムスキルが入ったセットで読み取った結果を
+	// Deck へ渡したときにその行だけ落ちる（入っている場所では今までどおり使える、という決定に反する）。
+	// 収録データの入力ページは `isReferableSkillId()` で外しているので、残しても影響は無い。
 	function buildSkillTextIndex(opts) {
 		const searchableOnly = !!(opts && opts.searchableOnly);
 		const pool = masterSkills.map(sk => ({ id: sk.id, name: sk.name }))
-			.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name })))
+			.concat(searchableOnly ? [] : (ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name })))
 			.concat(extraCatalog.filter(x => !searchableOnly || isSearchableCatalogEntry(x)).map(x => ({ id: x.id, name: x.name })));
 		return pool.map(p => ({ id: p.id, name: p.name, norm: normalizeSkillText(p.name) }));
 	}
@@ -1747,8 +1716,8 @@
 	 * - 並びは**前方一致を先に、それ以外の部分一致を後に**。同じ組の中では短い名前を先に（入力に近い順）。
 	 * - 入力が空なら何も返さない。
 	 *
-	 * 母集団は `buildSkillTextIndex()`＝**マスター＋利用者のカスタムスキル**。「条件でスキルを検索」の一覧と同じ
-	 * 顔ぶれにしてある（過去に登録したカスタムスキルを二重に作らずに済む）。
+	 * 母集団は `buildSkillTextIndex()`。検索のモーダルからは `searchableOnly` で呼ぶので、「条件でスキルを検索」の一覧と同じ
+	 * 顔ぶれになる（カスタムスキルは 2026-09-27 から入らない）。
 	 * **ただし「条件で検索」と違い、追加済みのものも落とさずに返す**（呼び出し側で「追加済み」と示して選べなくする。
 	 * 一覧から消すと利用者が「打ち間違えたのか」と迷うため）。
 	 *
@@ -2132,7 +2101,6 @@
 		'.usd-name-hit--added:hover { background: var(--uma-surface-sunken); }',
 		'.usd-name-added { flex-shrink: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
 		'.usd-name-none { margin-bottom: var(--uma-sp-2); }',
-		'.usd-name-custom { display: inline-block; }',
 
 		/* ------------------------------------------------------------
 		 * 8軸フィルターのタブ（見出しタブ＋共通パネル1枚）
@@ -2715,7 +2683,7 @@
 	// スキルを足す入口は3つあり、どれも同じモーダルの中身を差し替えて出す。
 	//   filter … 条件でスキルを検索（8軸フィルター＋絞り込み結果）
 	//   paste  … テキストで検索（貼り付けたテキストとマスターの照合）
-	//   custom … マスターにないスキルを追加（名前＋8軸タグの手入力）
+	//   （ほかに緑スキル・画像から読み取るの2つ。2026-09-27 に「未収録スキルを追加」（custom）を廃止した）
 	// 以前は3つを1枚のモーダルに縦に積んでいたが、実際には「今どれをやるか」は
 	// 最初に決まっているので、選ばなかった2つは畳まれた見出しとして場所を取るだけだった。
 	// 入口を呼び出し元の画面（テンプレート編集・比較シート編集）へ出し、
@@ -2734,11 +2702,8 @@
 		// 見出しには**全軸に共通して成り立つこと＝軸間はAND**だけを残した。
 		filter: { title: '条件で検索（軸間はAND）', commit: true },
 		paste: { title: 'テキストで検索', commit: true },
-		// 32セッション目: 利用者向けの語を「収録されていない」に統一（「マスター」も「一覧」も
-		// 画面上に存在しないものを指していて、利用者は見たことのない何かを参照させられていた）。
-		// **コード内部の識別子・変数名・開発ログの「マスター」は変えない。**
-		// 71セッション目・段6: 「収録されていないスキルを追加」→「未収録スキルを追加」（文言だけ）。
-		custom: { title: '未収録スキルを追加', commit: false },
+		// 【INTENTIONALLY_REMOVED・2026-09-27（C-100）】3つ目の `custom`（「未収録スキルを追加」＝名前とタグを
+		// 手入力してカスタムスキルを作る画面）は、カスタムスキルを作る手段ごと廃止した。
 		// 4つ目（スキルセットOCR・フェーズa コミット3）。外で照合を済ませた行（ID付きの候補一覧）を受け取って、
 		// 「テキストで検索」と同じ報告（候補チップ・取り消し・確定）を出す。貼り付け欄と照合ボタンは出さない。
 		// 照合は common.js 側（CHAR_CONFUSION_MAP が効く経路）で行い、ここは見せるだけ＝C-24 調査4 の推奨。
@@ -2749,7 +2714,7 @@
 		 * その67件はどの入口からも選べなくなっていた。ここがその受け皿。
 		 *
 		 * **`commit: false`＝フッターの確定ボタンを出さない。** チェックした瞬間にセットへ入り、
-		 * 外した瞬間に抜ける（手入力＝`custom` に前例がある）。理由は2つ ――
+		 * 外した瞬間に抜ける（当時は手入力＝`custom` に前例があった。2026-09-27 に廃止）。理由は2つ ――
 		 *   (1) 一覧が「いま入っているか」をそのまま映すので、確定という段が入ると
 		 *       「チェックは付いているがまだ入っていない」状態が生まれて読めなくなる。
 		 *   (2) 外す操作は確定ボタンでは表せない（あちらは足すことしかできない）。
@@ -2821,12 +2786,6 @@
 						'</p>' +
 						'<div class="usd-results usd-results--tall" data-usd-el="passive-results"></div>' +
 					'</div>' +
-					// ---- マスターにないスキルを追加 ----
-					'<div class="usd-mode" data-usd-el="mode-custom" hidden>' +
-						'<input type="text" class="usd-input uma-input mb-3" data-usd-el="custom-name" placeholder="スキル名"/>' +
-						'<div data-usd-el="custom-tags"></div>' +
-						'<button type="button" class="w-full uma-btn uma-btn--primary mt-2" data-usd-act="custom-add">カスタムスキルとして追加</button>' +
-					'</div>' +
 				'</div>' +
 				// 追加ボタンはスクロール領域の外（フッター）に置く。以前は一覧の下に流れていたので、
 				// 絞り込み結果を下まで見にいくとボタンが画面外へ出て、押すために戻る必要があった。
@@ -2879,14 +2838,12 @@
 			// 「▼ ほか N件」（段4）。1段ぶん下へ送る
 			else if (act === 'opts-more') scrollOptionsByRow(btn.dataset.usdAxis);
 			else if (act === 'picker-add') addCheckedSkills();
-			else if (act === 'custom-add') addCustomSkillFromPicker();
 			else if (act === 'paste-run') runPasteMatch();
 			else if (act === 'paste-clear') clearPaste();
 			else if (act === 'paste-pick') choosePasteCandidate(Number(btn.dataset.row), btn.dataset.skillId);
 			else if (act === 'paste-find') openPasteNameFinder(Number(btn.dataset.row));
 			else if (act === 'name-back') closePasteNameFinder();
 			else if (act === 'name-pick') pickPasteNameResult(btn.dataset.skillId);
-			else if (act === 'name-custom') createCustomFromName();
 			else if (act === 'name-zoom') zoomPasteNameImage();
 			else if (act === 'paste-skip') skipPasteRow(Number(btn.dataset.row));
 		});
@@ -2903,7 +2860,6 @@
 			const el = e.target;
 			if (el && el.dataset && el.dataset.usdEl === 'target-distance') onTargetDistanceInput(el);
 		});
-		renderCustomSkillTagInputs();
 		// 軸は実行中に増減しないので、タブとパネルは1回だけ組み立てて使い回す。
 		// 開き直すたびの初期化は resetPickerFilterUi() が担う。
 		renderPickerFilterAxes();
@@ -3398,8 +3354,9 @@
 		if (tab) tab.focus();
 	}
 
-	// 「条件でスキルを検索」の母集団。マスター＋利用者のカスタムスキル＋
-	// **タグが付いた追加カタログのもの**（段1b）。
+	// 「条件でスキルを検索」の母集団。マスター＋**タグが付いた追加カタログのもの**（段1b）。
+	// **利用者のカスタムスキルは 2026-09-27（C-100）から入れない**（作る手段の廃止に合わせて検索の一覧から外した。
+	// 保存済みのものは、入っているセット・比較シートで `findSkill()` から名前を引くだけ）。
 	//
 	// **タグを持たないものは入れない。** matchesFilters() では、空配列を「万能（どの条件にも当たる）」と
 	// 読む軸（距離・脚質）が残っているので、タグ未設定のものを入れると、
@@ -3413,19 +3370,15 @@
 	// 名前で探す側（findSkillsByNameFragment → buildSkillTextIndex）には、タグの有無に関係なく
 	// 全件が入っている（名前で引くだけなら万能スキル扱いの問題が起きないため）。
 	//
-	// **カスタムスキルだけ `withLegacyTagsMapped()` を通す**（段2）。マスターと追加カタログは
-	// リポジトリの中にあって付け替え済みなので、通す必要が無い（通すと毎回445件ぶん無駄に回る）。
-	//
 	// **72セッション目・段9: 顔ぶれを組み立てる部分を `taggedSkillPool()` へ出した。**
 	// ここと「緑スキルを追加」の一覧（`getPoolExcludedSkills`）は**表と裏**で、
 	// 片方から外したものはもう片方に出る、が成り立っていないと**どこからも選べないスキル**が生まれる。
 	// 顔ぶれを2か所で組み立てていると、片方にだけ足し忘れてそれが起きる
 	// （実際、段8 の時点では**カスタムスキルが母集団からは消えるのに緑スキルの一覧には出ない**状態だった）。
 	// **`raceDistance`（レースの距離の限定。C-97）も一緒に通す** ―― ここで `{id, name, tags}` に削ると、
-	// 距離の軸の判定に限定が届かない。カスタムスキルにも通す（画面から付ける手段は無いが、検査の仮のスキルが持つ）。
+	// 距離の軸の判定に限定が届かない。
 	function taggedSkillPool() {
 		return masterSkills
-			.concat((ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name, tags: withLegacyTagsMapped(c.tags), raceDistance: c.raceDistance })))
 			// C-91: 拡張スキルは検索に出してよいもの（`SEARCHABLE_EXTENDED_SKILL_IDS`）だけ。
 			// 母集団と「緑スキルを追加」の一覧の両方がここから作られるので、ここで外せば両方から外れる。
 			.concat(extraCatalog.filter(x => x.tags && isSearchableCatalogEntry(x)).map(x => ({ id: x.id, name: x.name, tags: x.tags, raceDistance: x.raceDistance })));
@@ -3625,7 +3578,7 @@
 
 	/**
 	 * チェックしたスキルを、開いた側の受け皿へ足す。
-	 * 3つのモード（条件で検索・テキストで検索・手入力）はどれもここへ合流するので、
+	 * 確定ボタンを持つモード（条件で検索・テキストで検索・画像から読み取る）はどれもここへ合流するので、
 	 * 「一度に2種以上足したらUndoに積む」の判定もここ1か所で済む。
 	 *
 	 * 受け皿（openPicker の第3引数）は次の形のオブジェクトで渡す:
@@ -3663,76 +3616,16 @@
 		}
 	}
 
-	function renderCustomSkillTagInputs() {
-		const el = q(pickerEl, 'custom-tags');
-		if (!el) return;
-		// 手入力のタグ欄も、利用者に出す軸だけ（隠す軸のタグは付けさせない。71セッション目・段8）。
-		el.innerHTML = pickableAxes().map(axis =>
-			'<div class="mb-2">' +
-				'<p class="text-[11px] text-slate-500 mb-1">' + axis.label + '</p>' +
-				'<div class="flex flex-wrap gap-1.5">' +
-					// 利用者が自分のスキルに付ける値だけを出す（pickableOptions）。
-					pickableOptions(axis).map(o =>
-						'<label class="usd-pill">' +
-							'<input type="checkbox" data-usd-el="custom-tag" data-axis="' + axis.key + '" data-value="' + esc(o.v) + '"/>' +
-							'<span>' + esc(o.t) + '</span>' +
-						'</label>'
-					).join('') +
-				'</div>' +
-			'</div>'
-		).join('');
-	}
-
 	function emptyTagSet() {
 		const tags = {};
 		TAG_AXES.forEach(axis => { tags[axis.key] = []; });
 		return tags;
 	}
 
-	/**
-	 * カスタムスキルを1件作って選択状態に加える（手入力フォーム・一括貼り付けの共通処理）。
-	 * 同名が既にあれば、そちらを使うかどうかを尋ねて既存IDを返す。
-	 * 戻り値: 追加/採用したスキルID。中止した場合は null。
-	 */
-	function createCustomSkill(name, tags) {
-		const trimmed = String(name || '').trim();
-		if (!trimmed) { toast('スキル名を入力してください'); return null; }
-		const data = ensureUserData();
-		const dupe = (data.customSkills || []).find(c => normalizeForDup(c.name) === normalizeForDup(trimmed));
-		if (dupe) {
-			if (!confirmDialog('「' + dupe.name + '」という同名のカスタムスキルが既にあります。既存のものを追加対象に使いますか？')) return null;
-			picker.checked.add(dupe.customId);
-			return dupe.customId;
-		}
-		if ((data.customSkills || []).length >= CUSTOM_SKILL_SOFT_CAP) {
-			if (!confirmDialog('カスタムスキルが' + CUSTOM_SKILL_SOFT_CAP + '件に達しています。それでも追加しますか？（不要なものの整理をおすすめします）')) return null;
-		}
-		const customId = uid('custom');
-		data.customSkills.push({ customId: customId, name: trimmed, tags: tags || emptyTagSet(), createdAt: nowIso() });
-		saveUserData();
-		picker.checked.add(customId);
-		return customId;
-	}
-
-	function addCustomSkillFromPicker() {
-		const nameInput = q(pickerEl, 'custom-name');
-		const name = (nameInput.value || '').trim();
-		const tags = {};
-		TAG_AXES.forEach(axis => {
-			tags[axis.key] = Array.from(pickerEl.querySelectorAll('[data-usd-el="custom-tag"][data-axis="' + axis.key + '"]'))
-				.filter(el => el.checked).map(el => el.dataset.value);
-		});
-		const id = createCustomSkill(name, tags);
-		if (!id) { renderPickerResults(); return; }
-		nameInput.value = '';
-		pickerEl.querySelectorAll('[data-usd-el="custom-tag"]').forEach(el => { el.checked = false; });
-		// 作ったその場で対象セットへ入れる。ここは1件ずつ作る画面なので、
-		// 「作る」と「足す」を分けても押す手間が増えるだけになる。
-		// モーダルは開いたままにして、続けて何件でも作れるようにしてある。
-		if (picker.mode === 'custom') addCheckedSkills();
-		renderPickerResults();
-		toast('カスタムスキル「' + name + '」を追加しました');
-	}
+	/* 【INTENTIONALLY_REMOVED・2026-09-27（C-100）】ここには、カスタムスキルを作る処理
+	   （`createCustomSkill()`・`addCustomSkillFromPicker()`・`renderCustomSkillTagInputs()`。同名の確認・
+	   ソフトキャップ50件の確認・作ったときのトーストを含む）があった。作る手段ごと廃止した。
+	   保存済みのカスタムスキルは消さずに、入っている場所でだけ名前を引く（`findSkill()`）。 */
 
 	/* ------------------------------------------------------------
 	 * 一括貼り付けのUI
@@ -3898,10 +3791,10 @@
 		const found = findSkillsByNameFragment(input.value, { searchableOnly: true });   // C-91
 		if (!found.query) { out.innerHTML = ''; return; }
 		if (found.total === 0) {
-			// 候補0件でも**自動でカスタム登録へ進ませない**（入力し直せる状態を保つ）。
-			// 登録の導線は押しやすいボタンではなくリンク相当にして、控えめに置く。
-			out.innerHTML = '<p class="usd-paste-hint usd-name-none">一致するスキルがありません。入力に誤りがないかご確認ください。新しく追加されたスキルなど、このツールに収録されていないスキルの可能性もあります。</p>' +
-				'<button type="button" class="usd-paste-skip usd-name-custom" data-usd-act="name-custom">収録されていないスキルとして追加</button>';
+			// 文はそのまま。2026-09-27（C-100）までは下に「収録されていないスキルとして追加」
+			// （カスタムスキルを作る導線）を置いていたが、作る手段ごと廃止したので外した。
+			// その行を足さないときは、報告の「無視」で飛ばせる。
+			out.innerHTML = '<p class="usd-paste-hint usd-name-none">一致するスキルがありません。入力に誤りがないかご確認ください。新しく追加されたスキルなど、このツールに収録されていないスキルの可能性もあります。</p>';
 			return;
 		}
 		const excluded = new Set(picker.excludeIds);
@@ -3927,27 +3820,6 @@
 		if (rowIndex < 0 || !skillId) return;
 		closePasteNameFinder();
 		choosePasteCandidate(rowIndex, skillId);
-	}
-
-	/**
-	 * 収録されていないスキルとして登録する（32セッション目）。
-	 * **利用者が入力した文字列がそのまま登録名になる。** 以前の `createCustomFromPasteRow()` は
-	 * `row.norm`（OCRの読みを正規化した文字列）を登録名にしていたため、画面に出ている文字と
-	 * 登録される名前が食い違うことがあった。その関数ごと置き換えた。
-	 */
-	function createCustomFromName() {
-		const rowIndex = pasteName.row;
-		const input = pickerEl ? q(pickerEl, 'find-input') : null;
-		const name = input ? String(input.value || '').trim() : '';
-		if (rowIndex < 0 || !pasteRows[rowIndex]) return;
-		if (!name) { toast('スキル名を入力してください'); return; }
-		const id = createCustomSkill(name, emptyTagSet());
-		if (!id) return;
-		pasteRows[rowIndex].chosenId = id;
-		closePasteNameFinder();
-		renderPasteReport();
-		renderPickerResults();
-		toast('「' + name + '」を収録されていないスキルとして追加しました（タグは未設定です）');
 	}
 
 	/** サブ画面の中の画像を押したとき。原寸で見せる作りは呼び出し元が持つ（special.html の .uma-overlay）。 */
@@ -4130,9 +4002,6 @@
 		if (closeBtnReset) closeBtnReset.hidden = false;
 		const pasteInput = q(pickerEl, 'paste-input');
 		if (pasteInput) pasteInput.value = '';
-		const customName = q(pickerEl, 'custom-name');
-		if (customName) customName.value = '';
-		pickerEl.querySelectorAll('[data-usd-el="custom-tag"]').forEach(el => { el.checked = false; });
 
 		const spec = PICKER_MODES[picker.mode];
 		q(pickerEl, 'picker-title').textContent = spec.title;
@@ -4140,7 +4009,6 @@
 		const isOcr = picker.mode === 'ocr';
 		q(pickerEl, 'mode-filter').hidden = picker.mode !== 'filter';
 		q(pickerEl, 'mode-paste').hidden = !(picker.mode === 'paste' || isOcr);
-		q(pickerEl, 'mode-custom').hidden = picker.mode !== 'custom';
 		q(pickerEl, 'mode-passive').hidden = picker.mode !== 'passive';
 		q(pickerEl, 'paste-input-wrap').hidden = isOcr;
 		const summaryEl = q(pickerEl, 'paste-summary');
@@ -4157,7 +4025,7 @@
 		renderPickerResults();
 		renderPasteReport();
 		refreshIcons();
-		const focusTarget = picker.mode === 'paste' ? pasteInput : (picker.mode === 'custom' ? customName : null);
+		const focusTarget = picker.mode === 'paste' ? pasteInput : null;
 		if (focusTarget) focusTarget.focus();
 	}
 
@@ -4165,8 +4033,6 @@
 	function openSkillPicker(existingSkillIds, onAdd) { openPicker('filter', existingSkillIds, onAdd); }
 	// テキストで検索（貼り付けたテキストとマスターの照合）。
 	function openTextSkillPicker(existingSkillIds, onAdd) { openPicker('paste', existingSkillIds, onAdd); }
-	// マスターにないスキルを追加（名前＋8軸タグの手入力）。
-	function openCustomSkillPicker(existingSkillIds, onAdd) { openPicker('custom', existingSkillIds, onAdd); }
 	// 緑スキルを追加（パッシブを名前で選ぶ。72セッション目・段9）。
 	function openPassiveSkillPicker(existingSkillIds, onAdd) { openPicker('passive', existingSkillIds, onAdd); }
 
@@ -4258,7 +4124,7 @@
 	 *                       一覧の先頭に出し、その内容を localStorage に永続化する。
 	 *                       省略すると従来どおりテンプレートだけを扱う（uma-skill-deck.html はこちら）。
 	 *   onSelectionChange … 選択が変わったとき fn(selection|null)。selection は getSelection() と同じ形。
-	 *   onChange          … テンプレート/ドラフト/カスタムスキルが変化したとき fn()
+	 *   onChange          … テンプレート/ドラフトが変化したとき fn()
 	 *   onViewChange      … 一覧⇄編集が切り替わったとき fn('list'|'editor')
 	 *   screenshotEntry   … { label, onClick } を渡すと、編集画面の入口の並び（「テキストで検索」と
 	 *                       「マスターにないスキルを追加」の間）に4つ目の入口「スクショから読み取る」を出す。
@@ -4993,9 +4859,7 @@
 								'<i data-lucide="upload-cloud" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> ' + esc(opts.screenshotEntry.label || 'スクショで追加') +
 							'</button>'
 						: '') +
-						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick-custom">' +
-							'<i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 未収録スキルを追加' +
-						'</button>' +
+						// 「未収録スキルを追加」（editor-pick-custom）は 2026-09-27 に廃止した（C-100）
 						/* **「リセット」はここから名前の行へ移した**（73セッション目）。
 						   C-3 では「消す範囲が位置から分かる」ようにA の中へ置いていたが、
 						   **消す範囲が B・C（シナリオ因子・遺伝子）まで広がった**ので、
@@ -5030,7 +4894,6 @@
 			else if (act === 'editor-pick') openEditorPicker('filter');
 			else if (act === 'editor-pick-passive') openEditorPicker('passive');
 			else if (act === 'editor-pick-text') openEditorPicker('paste');
-			else if (act === 'editor-pick-custom') openEditorPicker('custom');
 			else if (act === 'editor-pick-screenshot') { if (opts.screenshotEntry && typeof opts.screenshotEntry.onClick === 'function') opts.screenshotEntry.onClick(); }
 			else if (act === 'template-skill-remove') removeSkillFromEditing(btn.dataset.skillId);
 			else if (act === 'editor-clear-skills') clearEditingSkills();
@@ -6077,6 +5940,7 @@
 	 * - カスタムスキル           … OCRの照合辞書は対象スキルセットの名前から作られ、
 	 *                              マスター由来かカスタムかを区別しない。つまり
 	 *                              カスタムスキルもOCRで読まれる。特別扱いはしない
+	 *                              （作る手段は 2026-09-27 に廃止したが、保存済みのものがセットに入っていれば今も読まれる）
 	 *                              （常に手動扱いにすると、OCRが正しく読めた列まで
 	 *                                永久に枠が付いてノイズになる）
 	 */
@@ -6224,12 +6088,6 @@
 		 * **Deck 単体ページの比較シート編集も自前の入口を持つ**ので、数え方を借りられるように公開する。
 		 */
 		countPassiveSkills: countPassiveSkills,
-		/**
-		 * 廃した値をいまの値へ読み替えたタグの組（70セッション目・段2）。
-		 * カスタムスキルを読むときに通している。**検査が読み替えの表を書き写さずに
-		 * 済むよう**公開してある（`pickableOptions` と同じ考え方）。
-		 */
-		withLegacyTagsMapped: withLegacyTagsMapped,
 
 		// スキル参照
 		findSkill: findSkill,
@@ -6277,7 +6135,6 @@
 		openSkillPicker: openSkillPicker,
 		openTextSkillPicker: openTextSkillPicker,
 		openSkillRowsPicker: openSkillRowsPicker,
-		openCustomSkillPicker: openCustomSkillPicker,
 		// 緑スキルを追加（72セッション目・段9）。Deck 単体ページの比較シート編集が自前の並びから呼ぶ。
 		openPassiveSkillPicker: openPassiveSkillPicker,
 		closeSkillPicker: closePicker,
