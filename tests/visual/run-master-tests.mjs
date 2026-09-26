@@ -367,6 +367,21 @@ const browser = await chromium.launch();
 	const statUpLabel = await page.evaluate(() => UmaSkillDeckCore.tagLabel('effect', 'stat_up'));
 	assert(statUpLabel === '能力上昇', '段8: tagLabel は「能力上昇」を返せる（生の値が画面に出ない）', statUpLabel);
 
+	/* **C-98（2026-09-26）: 効果タイプの2つの値を、まとめ先の選択肢に含める。**
+	   掛かり時間（temptation_time）→ デバフ（debuff）／レーン移動（lane_change）→ コース取り（course_sense）。
+	   **データの値は変えない**（値は残り、選択肢に出さず、まとめ先を選ぶと一緒に当たる）。
+	   **まとめの表は製品から読まずにここに持つ** ―― 製品の印から作ると、印を外して壊したときに期待値も一緒に動く。 */
+	const MERGED = { effect: { temptation_time: 'debuff', lane_change: 'course_sense' } };
+	for (const [from, to] of Object.entries(MERGED.effect)) {
+		assert(!effOptsUi.includes(from), 'C-98: 効果タイプの選択肢に「' + from + '」が出ない（「' + to + '」にまとめた）', effOptsUi);
+		assert(effOptsUi.includes(to), 'C-98: まとめ先の「' + to + '」は選択肢に出る', effOptsUi);
+		assert(effOptsAll.includes(from), 'C-98: 「' + from + '」は値としては残っている（データと check:catalog §4-3 のため）', effOptsAll);
+		const labels = await page.evaluate(([f, t]) => ({ from: UmaSkillDeckCore.tagLabel('effect', f), to: UmaSkillDeckCore.tagLabel('effect', t),
+			both: UmaSkillDeckCore.tagLabels('effect', [t, f]) }), [from, to]);
+		assert(labels.from === labels.to && eq(labels.both, [labels.to]),
+			'C-98: 「' + from + '」の表示名はまとめ先と同じ（' + labels.to + '）で、両方を持つスキルでも1つだけ', labels);
+	}
+
 	/* 期待値の組み立て。**製品の `matchesFilters()` は使わない** ――
 	   使うと「製品が製品と一致する」だけの検査になる。マスターの生のJSONに対して、
 	   §3-2 の仕様文をそのまま書き下す。**軸のキーは上の実測（axes）から取る**ので、
@@ -379,10 +394,13 @@ const browser = await chromium.launch();
 	const axisHit = (skill, key, values) => {
 		const vals = axisValues(skill, key);
 		if (vals.length === 0) return !EMPTY_NONE_AXES.includes(key);
+		// C-98: まとめた値は、まとめ先を選んだときに一緒に当たる（表は上の MERGED）
+		const merged = MERGED[key] || {};
+		const wanted = values.concat(Object.keys(merged).filter((v) => values.includes(merged[v])));
 		// 許可リストの軸（バ場）は「持っている値が全部選ばれている」ものだけ通す
 		return EXCLUSIVE_AXES.includes(key)
-			? vals.every((v) => values.includes(v))
-			: vals.some((v) => values.includes(v));
+			? vals.every((v) => wanted.includes(v))
+			: vals.some((v) => wanted.includes(v));
 	};
 	/** 「条件で検索」の母集団（パッシブを外したもの）。名簿ではなく印とタグから導く。 */
 	const inPool = (s) => POOL_EXCLUDED_AXES.every((k) => axisValues(s, k).length === 0);
@@ -544,8 +562,57 @@ const browser = await chromium.launch();
 	const decExpect = expectNames({ effect: ['debuff'] });
 	assert(decCount === decExpect.length, '②D「デバフ」で絞ると ' + decExpect.length + '件', decCount);
 	assert(eq(decNames.slice().sort(), decExpect.slice().sort()),
-		'②D「デバフ」の内訳が25件と一致（デバフにパッシブは1件も無い）', decNames);
+		'②D・C-98「デバフ」の内訳が期待値と一致（デバフ ' + MASTER_POOL.filter((s) => axisValues(s, 'effect').includes('debuff')).length
+			+ '件＋掛かり時間だけのもの。デバフにパッシブは1件も無い）', decNames);
 	await tick('effect', 'debuff');
+
+	/* C-98: まとめたことの出方。**掛かり時間・レーン移動だけを持ち、まとめ先の値を持たないもの**が、まとめ先を選ぶと出る。
+	   データの側（いまは掛かり時間だけのものが4件・レーン移動だけのものが0件）に頼らないよう、仮のスキルも2つ仕込む。 */
+	console.log('\n--- C-98 効果タイプのまとめ ---');
+	{
+		const onlyFrom = (from, to) => POOL.filter((s) => axisValues(s, 'effect').includes(from) && !axisValues(s, 'effect').includes(to));
+		const PROBES = Object.entries(MERGED.effect).map(([from, to]) => ({ id: 'custom_c98_' + from, name: from + 'だけの検査用スキル', from, to }));
+		await page.evaluate((probes) => {
+			const data = UmaSkillDeckCore.getUserData();
+			const ids = probes.map((p) => p.id);
+			data.customSkills = (data.customSkills || []).filter((c) => !ids.includes(c.customId));
+			for (const p of probes) {
+				const tags = {};
+				UmaSkillDeckCore.TAG_AXES.forEach((a) => { tags[a.key] = []; });
+				tags.effect = [p.from];
+				data.customSkills.push({ customId: p.id, name: p.name, tags: tags, createdAt: new Date().toISOString() });
+			}
+			UmaSkillDeckCore.replaceUserData(data);
+			UmaSkillDeckCore.openSkillPicker([], () => {});
+		}, PROBES);
+		await page.waitForTimeout(400);
+		for (const p of PROBES) {
+			const real = onlyFrom(p.from, p.to).map((s) => s.name);
+			await tick('effect', p.to);
+			const names = await listedNames();
+			const want = expectNames({ effect: [p.to] }).concat(PROBES.filter((q) => q.to === p.to).map((q) => q.name));
+			const missing = real.concat([p.name]).filter((n) => !names.includes(n));
+			assert(missing.length === 0,
+				'C-98:「' + p.to + '」を選ぶと、' + p.from + ' だけを持つスキル（実データ ' + real.length + '件＋仮1件）も出る', missing);
+			assert(eq(names.slice().sort(), want.slice().sort()),
+				'C-98:「' + p.to + '」の一覧の全件が期待値と一致（' + want.length + '件）', { 画面: names.length, 期待: want.length });
+			console.log('     [情報] 「' + p.to + '」を選んだときの件数: まとめる前 '
+				+ POOL.filter((s) => axisValues(s, 'effect').includes(p.to)).length + '件 → まとめた後 ' + (want.length - 1) + '件（検索の範囲。仮のスキルを除く）');
+			const summary = await page.evaluate(() => document.querySelector('[data-usd-el="filter-summary"]').textContent);
+			const label = await page.evaluate((t) => UmaSkillDeckCore.tagLabel('effect', t), p.to);
+			assert(summary.includes(label) && !summary.includes(await page.evaluate((f) => UmaSkillDeckCore.TAG_AXES.find((a) => a.key === 'effect').options.find((o) => o.v === f).t, p.from)),
+				'C-98:「絞り込み中」には「' + label + '」だけが出る', summary);
+			await tick('effect', p.to);
+		}
+		await page.evaluate((ids) => {
+			const data = UmaSkillDeckCore.getUserData();
+			data.customSkills = (data.customSkills || []).filter((c) => !ids.includes(c.customId));
+			UmaSkillDeckCore.replaceUserData(data);
+			UmaSkillDeckCore.openSkillPicker([], () => {});
+		}, PROBES.map((p) => p.id));
+		await page.waitForTimeout(300);
+		assert(await readCount() === POOL.length, 'C-98: 仮のスキルを片付けると母集団の件数に戻る', await readCount());
+	}
 	// 軸内OR。**重なりがあるので単純な和にはならない** ―― 闘争心・克己心などが両方に出る。
 	// **第2回の段2 まではここを「持久力回復＋デバフ」で見ていた**（展開窺い・マイペースが重なっていた）。
 	// 2件とも debuff を外れて重なりが0件になり、この検査の意味（重なるぶんを二重に数えない）が

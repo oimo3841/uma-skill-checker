@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-26c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-26d';
 
 	/* ============================================================
 	 * 定数
@@ -309,10 +309,16 @@
 		// **2026-09-25（C-89）: 空配列を「万能」ではなく「該当なし」と読むようにした**（フェーズ・コース位置と同じ）。
 		// 効果タイプが空のスキル（規則で効果タイプを付けない拡張スキル・タグを付けずに作ったカスタムスキル）が、
 		// どの効果タイプで絞っても出てしまい、絞った意味が無くなるため。マスターには効果タイプが空のスキルは無い。
+		//
+		// **2026-09-26（C-98）: 「掛かり時間」を「デバフ」に、「レーン移動」を「コース取り」にまとめた**（おいもさんの要望）。
+		// 掛かり時間はデバフの下位概念、レーン移動はいまは危険回避だけで、コース取りとの線引きが難しいため。
+		// **データの値（`temptation_time` / `lane_change`）は変えない。** 値は有効なまま残し（`check:catalog` §4-3 のため）、
+		// `mergedInto` を付けて**選択肢には出さず**（`pickableOptions()`）、**まとめ先を選んだときに一緒に当たる**ようにする
+		// （`expandMergedValues()`）。表示名も `tagLabel()` がまとめ先の名前を返す。
 		{ key: 'effect', label: '効果タイプ', emptyMeansNone: true, options: [
 			{ v: 'target_speed_up', t: '速度上昇' }, { v: 'accel_up', t: '加速度上昇' }, { v: 'move_forward', t: '前に出る' }, { v: 'extend', t: '伸び' },
 			{ v: 'stamina', t: '持久力回復' }, { v: 'debuff', t: 'デバフ' }, { v: 'start_good', t: 'スタート得意' }, { v: 'course_sense', t: 'コース取り' },
-			{ v: 'lane_change', t: 'レーン移動' }, { v: 'temptation_time', t: '掛かり時間' }, { v: 'vision', t: '視野' },
+			{ v: 'lane_change', t: 'レーン移動', mergedInto: 'course_sense' }, { v: 'temptation_time', t: '掛かり時間', mergedInto: 'debuff' }, { v: 'vision', t: '視野' },
 			{ v: 'stat_up', t: '能力上昇', hiddenOption: true }
 		]},
 		// 70セッション目・段5（③④）。**空配列を「万能」ではなく「該当なし」と読む。**
@@ -457,7 +463,18 @@
 	 *   - `card-event-input.html` のタグ付け … おいもさんが**付ける**値なので全部出す
 	 */
 	function pickableOptions(axis) {
-		return axis.options.filter(o => !o.internalOnly && !o.hiddenOption);
+		// `mergedInto`（C-98）は、まとめ先の選択肢に含めて選ぶので、単独では出さない
+		return axis.options.filter(o => !o.internalOnly && !o.hiddenOption && !o.mergedInto);
+	}
+
+	/**
+	 * 選んだ値に、そこへまとめた値（`mergedInto` がその値を指すもの）を足して返す（C-98）。
+	 * 「デバフ」を選べば掛かり時間のタグのスキルも、「コース取り」を選べばレーン移動のタグのスキルも当たる。
+	 * **軸の名前も値もここに書かない**（印を読むだけ）。まとめる値が無い軸では、選んだ値をそのまま返す。
+	 */
+	function expandMergedValues(axis, selected) {
+		const extra = axis.options.filter(o => o.mergedInto && selected.includes(o.mergedInto)).map(o => o.v);
+		return extra.length ? selected.concat(extra) : selected;
 	}
 
 	/**
@@ -1547,9 +1564,10 @@
 			if (selected.length === 0) return true; // その軸で絞り込みしていない
 			const skillValues = (skill.tags && skill.tags[axis.key]) || [];
 			if (skillValues.length === 0) return !axis.emptyMeansNone; // 万能スキル（emptyMeansNone の軸では該当なし）
+			const wanted = expandMergedValues(axis, selected);   // まとめた値も一緒に当てる（C-98）
 			return axis.exclusive
-				? skillValues.every(v => selected.includes(v))   // 許可リスト（選んでいない値を持つものは落とす）
-				: skillValues.some(v => selected.includes(v));   // 軸内 OR
+				? skillValues.every(v => wanted.includes(v))   // 許可リスト（選んでいない値を持つものは落とす）
+				: skillValues.some(v => wanted.includes(v));   // 軸内 OR
 		});
 	}
 
@@ -1596,7 +1614,17 @@
 		const axis = TAG_AXES.find(a => a.key === axisKey);
 		if (!axis) return value;
 		const opt = axis.options.find(o => o.v === value);
+		if (opt && opt.mergedInto) return tagLabel(axisKey, opt.mergedInto);   // まとめた値はまとめ先の名前で出す（C-98）
 		return opt ? opt.t : value;
+	}
+
+	/**
+	 * スキルが持つ値を、画面に出す名前の並びにする（C-98）。まとめた値はまとめ先の名前になり、
+	 * **同じ名前は1つだけ**（デバフと掛かり時間を両方持つスキルでも「デバフ」は1回）。
+	 * いまこれを使う画面は無い（スキルの行にタグを出す場所が無い）が、出すときはこれを通すこと。
+	 */
+	function tagLabels(axisKey, values) {
+		return [...new Set((values || []).map(v => tagLabel(axisKey, v)))];
 	}
 
 	/* ============================================================
@@ -6214,6 +6242,8 @@
 		getRaceDistances: function () { return raceDistances; },
 		getRaceDistancesMeta: function () { return raceDistancesMeta; },
 		tagLabel: tagLabel,
+		tagLabels: tagLabels,
+		expandMergedValues: expandMergedValues,
 
 		// 一括貼り付けテキストのマッチング（UIを持たない純粋なロジック）
 		matchPastedSkillText: matchPastedSkillText,
