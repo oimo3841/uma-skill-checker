@@ -875,8 +875,14 @@ const browser = await chromium.launch();
 		const emptyNames = master.skills.filter((s) => axisValues(s, key).length === 0).map((s) => s.name);
 		assert(emptyNames.length > 0, '段5③④ ' + axis.label + ' のタグが空のスキルがマスターに実在する', emptyNames.length + '件');
 
-		// 例1: 1つ選ぶ
-		const one = axis.opts[Math.min(1, axis.opts.length - 1)];   // 「中盤」「直線」相当（先頭以外を1つ）
+		/* **2026-09-25（C-90）: 選ぶ値を、選択肢の位置ではなく「データに当たりがある値」から選ぶ形にした。**
+		   それまでは `opts[1]` と先頭を選んでいたので、当たりの無い値（足したばかりでデータがまだ無い値）が
+		   その位置に来ると「全件でも0件でもない」「2つ目を足すと件数が増える」が落ちた。並び順と検査を切り離す。 */
+		const hits = axis.opts.filter((v) => expectNames({ [key]: [v] }).length > 0);
+		assert(hits.length >= 2, '段5③④ ' + axis.label + ' に、データに当たりがある値が2つ以上ある', hits);
+
+		// 例1: 1つ選ぶ（当たりがある値のうち、先頭以外を1つ。「中盤」「直線」相当）
+		const one = hits[Math.min(1, hits.length - 1)];
 		await tick(key, one);
 		const gotOne = await listedNames();
 		const wantOne = expectNames({ [key]: [one] });
@@ -889,7 +895,9 @@ const browser = await chromium.launch();
 			'段5③④ ' + axis.label + ' の絞り込みが実際に効いている（全件でも0件でもない）', gotOne.length);
 
 		// 例2: 2つ選ぶ（軸内OR。どちらも持たないものは、万能であっても出ない）
-		const two = axis.opts.find((v) => v !== one);
+		// 2つ目は、足すと件数が実際に増える値を選ぶ（当たりが1つ目と全部重なる値だと「増える」を確かめられない）
+		const two = hits.find((v) => v !== one && expectNames({ [key]: [one, v] }).length > wantOne.length);
+		assert(two !== undefined, '段5③④ ' + axis.label + ' に、足すと件数が増える2つ目の値がある', hits);
 		await tick(key, two);
 		const gotTwo = await listedNames();
 		const wantTwo = expectNames({ [key]: [one, two] });
@@ -903,6 +911,74 @@ const browser = await chromium.launch();
 		await tick(key, one);
 	}
 	assert(await readCount() === POOL.length, '段5③④ チェックを全部外すと母集団の件数に戻る', await readCount());
+
+	/* **C-90（2026-09-25）・C-94（2026-09-26）(i): 新しい値は、親の値とは別の概念。互いに読み替えない。**
+	   組の表の「親」だけを選ぶと「子」だけを持つスキルは出ず、親と子の両方を持つものは出る。
+	   データにまだ当たりが無くても見られるよう、組ごとに検査用カスタムスキルを2つ仕込む。
+	   **組の表は製品から作らずにここに持つ** ―― 製品の選択肢から作ると、値を消して壊したときに組も一緒に消えて、
+	   検査が空振りする。表にある値が画面にチェックボックスとして在ることは、組ごとに見る。 */
+	{
+		const PAIRS = [
+			{ axis: 'phase', parent: 'late', child: 'second_half', 親: '終盤', 子: '後半' },
+			{ axis: 'phase', parent: 'late', child: 'final_stage', 親: '終盤', 子: '最終盤' },
+			{ axis: 'coursePos', parent: 'corner', child: 'final_corner', 親: 'コーナー', 子: '最終コーナー' },
+			{ axis: 'coursePos', parent: 'corner', child: 'third_corner', 親: 'コーナー', 子: '第3コーナー' },
+			{ axis: 'coursePos', parent: 'straight', child: 'final_straight', 親: '直線', 子: '最終直線' },
+			{ axis: 'coursePos', parent: 'straight', child: 'backstretch', 親: '直線', 子: '向正面' },
+		];
+		const probesOf = (p) => ({
+			only: { id: 'custom_pair_' + p.child + '_only', name: p.子 + 'だけの検査用スキル', axis: p.axis, values: [p.child] },
+			both: { id: 'custom_pair_' + p.parent + '_' + p.child, name: p.親 + 'と' + p.子 + 'の検査用スキル', axis: p.axis, values: [p.parent, p.child] },
+		});
+		const allProbes = PAIRS.flatMap((p) => { const x = probesOf(p); return [x.only, x.both]; });
+		const hasBox = async (axis, v) => !!(await page.$('[data-usd-el="filter-check"][data-axis="' + axis + '"][data-value="' + v + '"]'));
+		await page.evaluate((probes) => {
+			const data = UmaSkillDeckCore.getUserData();
+			const ids = probes.map((p) => p.id);
+			data.customSkills = (data.customSkills || []).filter((c) => !ids.includes(c.customId));
+			for (const p of probes) {
+				const tags = {};
+				UmaSkillDeckCore.TAG_AXES.forEach((a) => { tags[a.key] = []; });
+				tags[p.axis] = p.values;
+				data.customSkills.push({ customId: p.id, name: p.name, tags: tags, createdAt: new Date().toISOString() });
+			}
+			UmaSkillDeckCore.replaceUserData(data);
+			UmaSkillDeckCore.openSkillPicker([], () => {});
+		}, allProbes);
+		await page.waitForTimeout(300);
+		for (const p of PAIRS) {
+			const { only, both } = probesOf(p);
+			const label = '「' + p.親 + '」と「' + p.子 + '」';
+			await ensureAxisOpen(p.axis);
+			const boxes = { 親: await hasBox(p.axis, p.parent), 子: await hasBox(p.axis, p.child) };
+			assert(boxes.親 && boxes.子, 'C-94(i): ' + label + 'のチェックボックスがある', boxes);
+			if (!(boxes.親 && boxes.子)) continue;
+			const seen = async () => { const n = await listedNames(); return { 子だけ: n.includes(only.name), 親と子: n.includes(both.name) }; };
+			await tick(p.axis, p.parent);
+			const parentOnly = await seen();
+			await tick(p.axis, p.parent);
+			await tick(p.axis, p.child);
+			const childOnly = await seen();
+			await tick(p.axis, p.parent);
+			const parentAndChild = await seen();
+			await tick(p.axis, p.parent);
+			await tick(p.axis, p.child);
+			assert(parentOnly.子だけ === false && parentOnly.親と子 === true,
+				'C-94(i): 「' + p.親 + '」だけを選ぶと、' + p.子 + 'だけのスキルは出ず、両方を持つスキルは出る', parentOnly);
+			assert(childOnly.子だけ && childOnly.親と子,
+				'C-94(i): 「' + p.子 + '」だけを選ぶと、両方出る', childOnly);
+			assert(parentAndChild.子だけ && parentAndChild.親と子,
+				'C-94(i): 「' + p.親 + '」＋「' + p.子 + '」を選ぶと、両方出る', parentAndChild);
+		}
+		await page.evaluate((ids) => {
+			const data = UmaSkillDeckCore.getUserData();
+			data.customSkills = (data.customSkills || []).filter((c) => !ids.includes(c.customId));
+			UmaSkillDeckCore.replaceUserData(data);
+			UmaSkillDeckCore.openSkillPicker([], () => {});
+		}, allProbes.map((p) => p.id));
+		await page.waitForTimeout(300);
+		assert(await readCount() === POOL.length, 'C-94(i): 検査用スキルを片付けると母集団の件数に戻る', await readCount());
+	}
 
 	/* ==========================================================
 	 * 段8 ―― 隠す軸（レース環境・レース場・パッシブ）

@@ -3974,15 +3974,29 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 			'deck(段8③④): 名簿の軸がどれも画面に出ている（空振りの検査ではない）', emptyNoneAxes.map((a) => a.key));
 		for (const emptyNoneAxis of emptyNoneAxes) {
 			await ensureAxisOpen(emptyNoneAxis.key);
-			await page.click('[data-usd-el="filter-check"][data-axis="' + emptyNoneAxis.key + '"][data-value="' + emptyNoneAxis.opts[0] + '"]');
-			await page.waitForTimeout(400);
-			const rows = await listedTags(emptyNoneAxis.key);
+			/* **2026-09-25（C-90）: 選ぶ値を `opts[0]` 固定から「一覧に1件以上出る最初の値」に変えた。**
+			   足したばかりでデータにまだ当たりが無い値が先頭に来ると、`rows.length > 0` が落ちていた。
+			   画面にチェックボックスが無い値（利用者に選ばせない値）は飛ばす。並び順と検査を切り離す。 */
+			let picked = null;
+			let rows = [];
+			for (const v of emptyNoneAxis.opts) {
+				const sel = '[data-usd-el="filter-check"][data-axis="' + emptyNoneAxis.key + '"][data-value="' + v + '"]';
+				if (!(await page.$(sel))) continue;
+				await page.click(sel);
+				await page.waitForTimeout(400);
+				rows = await listedTags(emptyNoneAxis.key);
+				if (rows.length > 0) { picked = sel; break; }
+				await page.click(sel);
+				await page.waitForTimeout(400);
+			}
 			const blank = rows.filter((r) => r.vals.length === 0).map((r) => r.name);
-			assert(rows.length > 0 && blank.length === 0,
+			assert(picked !== null && rows.length > 0 && blank.length === 0,
 				'deck(段8③④): ' + emptyNoneAxis.label + ' を選ぶと、その軸のタグが空のスキルは出ない',
-				{ 出た件数: rows.length, 空のまま出たもの: blank.slice(0, 5) });
-			await page.click('[data-usd-el="filter-check"][data-axis="' + emptyNoneAxis.key + '"][data-value="' + emptyNoneAxis.opts[0] + '"]');
-			await page.waitForTimeout(400);
+				{ 選んだ: picked && picked.replace(/.*data-value="([^"]+)".*/, '$1'), 出た件数: rows.length, 空のまま出たもの: blank.slice(0, 5) });
+			if (picked) {
+				await page.click(picked);
+				await page.waitForTimeout(400);
+			}
 		}
 
 		/* (c) バ場の排他 ―― 片方を選ぶと、もう片方の値を持つスキルが1件も出ない。
