@@ -413,7 +413,7 @@ const browser = await chromium.launch();
 	 * **検査は1つも弱めていない** ―― 突き合わせはこれまでどおり「完全一致」で、
 	 * 材料が1種類増えただけ。マスター側だけを見たい検査（パッシブ67件・シナリオ27件など）は
 	 * `MASTER_POOL` / `master.skills` を使い続ける。
-	 * カスタムスキルは各塊が自分で仕込むので、そのつど +1 して数える（従来どおり）。 */
+	 * 仮のスキル（`seedProbes`）は各塊が自分で入れるので、そのつど +N して数える。 */
 	const MASTER_POOL = master.skills.filter(inPool);
 	/* **C-91（2026-09-25）: 検索に出してよい拡張スキルは、名簿にあるものだけ。**
 	   マスター445件と同じ独自カテゴリの拡張スキルで、スキルの正本の独自カテゴリから作った一覧（7件）。
@@ -542,6 +542,54 @@ const browser = await chromium.launch();
 		await page.waitForTimeout(300);
 	};
 
+	/* **検査の中だけで使う仮のスキル**（2026-09-27・カスタムスキルの廃止に合わせて入れ方を移した）。
+	   データにまだ当たりが無い形（バ場の値を2つ持つもの・隠す軸にだけタグを持つものなど）を作って、
+	   印や規則の意味そのものを見るためのもの。**以前はカスタムスキルとして userData に書いていた**が、
+	   いまは製品の `getMasterSkills()` が返す配列（**製品の中の配列そのもの**）へ入れ、塊の終わりに取り除く。
+	   localStorage には何も書かない（マスターのキャッシュは読み込んだときにしか書かれない）。
+	   id は `probe-…` の文字列にする（マスターの id は数字なので衝突しない）。
+	   **空振りを防ぐ**: 入れたあとに「母集団が +N 件」と「条件なしなら全部一覧に出る」を必ず確かめる
+	   （入れ方が効いていないのに、「出ない」側の検査だけが通ってしまうのを防ぐ）。
+	   probes: [{ id, name, tags: { 軸キー: [値…] }, raceDistance? }]。tags に無い軸は空配列で揃える。 */
+	const seedProbes = async (label, probes) => {
+		const before = await page.evaluate(() => { UmaSkillDeckCore.openSkillPicker([], () => {}); return true; })
+			.then(() => page.waitForTimeout(300)).then(() => readCount());
+		await page.evaluate((ps) => {
+			const C = UmaSkillDeckCore;
+			const arr = C.getMasterSkills();
+			for (const p of ps) {
+				const i = arr.findIndex((s) => s.id === p.id);
+				if (i >= 0) arr.splice(i, 1);
+				const tags = {};
+				C.TAG_AXES.forEach((a) => { tags[a.key] = []; });
+				Object.assign(tags, p.tags || {});
+				const row = { id: p.id, name: p.name, tags: tags };
+				if (p.raceDistance) row.raceDistance = p.raceDistance;
+				arr.push(row);
+			}
+			C.openSkillPicker([], () => {});
+		}, probes);
+		await page.waitForTimeout(400);
+		const after = await readCount();
+		const names = await listedNames();
+		const missing = probes.map((p) => p.name).filter((n) => !names.includes(n));
+		assert(after === before + probes.length,
+			label + ': 仮のスキルが入った（母集団が +' + probes.length + '件）', { 前: before, 後: after });
+		assert(missing.length === 0, label + ': 条件なしなら、仮のスキルは全部一覧に出る', missing);
+	};
+	/** 仮のスキルを取り除く（塊の終わりに必ず呼ぶ）。 */
+	const removeProbes = async (ids) => {
+		await page.evaluate((xs) => {
+			const arr = UmaSkillDeckCore.getMasterSkills();
+			for (const id of xs) {
+				const i = arr.findIndex((s) => s.id === id);
+				if (i >= 0) arr.splice(i, 1);
+			}
+			UmaSkillDeckCore.openSkillPicker([], () => {});
+		}, ids);
+		await page.waitForTimeout(300);
+	};
+
 	/* ① 持久力回復 ／ ②D デバフ が別カテゴリとして効く
 	 *
 	 * **70セッション目・段5 で、ここの件数はマスターのタグの件数と一致しなくなった。**
@@ -571,21 +619,8 @@ const browser = await chromium.launch();
 	console.log('\n--- C-98 効果タイプのまとめ ---');
 	{
 		const onlyFrom = (from, to) => POOL.filter((s) => axisValues(s, 'effect').includes(from) && !axisValues(s, 'effect').includes(to));
-		const PROBES = Object.entries(MERGED.effect).map(([from, to]) => ({ id: 'custom_c98_' + from, name: from + 'だけの検査用スキル', from, to }));
-		await page.evaluate((probes) => {
-			const data = UmaSkillDeckCore.getUserData();
-			const ids = probes.map((p) => p.id);
-			data.customSkills = (data.customSkills || []).filter((c) => !ids.includes(c.customId));
-			for (const p of probes) {
-				const tags = {};
-				UmaSkillDeckCore.TAG_AXES.forEach((a) => { tags[a.key] = []; });
-				tags.effect = [p.from];
-				data.customSkills.push({ customId: p.id, name: p.name, tags: tags, createdAt: new Date().toISOString() });
-			}
-			UmaSkillDeckCore.replaceUserData(data);
-			UmaSkillDeckCore.openSkillPicker([], () => {});
-		}, PROBES);
-		await page.waitForTimeout(400);
+		const PROBES = Object.entries(MERGED.effect).map(([from, to]) => ({ id: 'probe-c98-' + from, name: from + 'だけの検査用スキル', from, to }));
+		await seedProbes('C-98', PROBES.map((p) => ({ id: p.id, name: p.name, tags: { effect: [p.from] } })));
 		for (const p of PROBES) {
 			const real = onlyFrom(p.from, p.to).map((s) => s.name);
 			await tick('effect', p.to);
@@ -604,13 +639,7 @@ const browser = await chromium.launch();
 				'C-98:「絞り込み中」には「' + label + '」だけが出る', summary);
 			await tick('effect', p.to);
 		}
-		await page.evaluate((ids) => {
-			const data = UmaSkillDeckCore.getUserData();
-			data.customSkills = (data.customSkills || []).filter((c) => !ids.includes(c.customId));
-			UmaSkillDeckCore.replaceUserData(data);
-			UmaSkillDeckCore.openSkillPicker([], () => {});
-		}, PROBES.map((p) => p.id));
-		await page.waitForTimeout(300);
+		await removeProbes(PROBES.map((p) => p.id));
 		assert(await readCount() === POOL.length, 'C-98: 仮のスキルを片付けると母集団の件数に戻る', await readCount());
 	}
 	// 軸内OR。**重なりがあるので単純な和にはならない** ―― 闘争心・克己心などが両方に出る。
@@ -750,35 +779,20 @@ const browser = await chromium.launch();
 		assert(effEmpty.every((n) => offA.has(n)),
 			'C-89(a): 効果タイプの選択を外すと、それらは出る', effEmpty.filter((n) => !offA.has(n)));
 
-		// (b) 効果タイプが空の検査用カスタムスキルを仕込む（全軸が空＝「名前を入れて探す」から作ったものと同じ形）。
-		//     データが変わっても、印の意味そのものを見続けるため（段8 の隠す軸の検査と同じ作り）。
-		const EFF_PROBE_ID = 'custom_effect_empty_probe';
+		// (b) 効果タイプが空の仮のスキルを入れる（全軸が空）。いまの検索の範囲には効果タイプが空のスキルが無く
+		//     (a) は空振りなので、データが変わっても印の意味そのものを見続けるため（段8 の隠す軸の検査と同じ作り）。
+		const EFF_PROBE_ID = 'probe-effect-empty';
 		const EFF_PROBE_NAME = '効果タイプが空の検査用スキル';
-		await page.evaluate(([id, name]) => {
-			const data = UmaSkillDeckCore.getUserData();
-			const tags = {};
-			UmaSkillDeckCore.TAG_AXES.forEach((a) => { tags[a.key] = []; });
-			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
-			data.customSkills.push({ customId: id, name: name, tags: tags, createdAt: new Date().toISOString() });
-			UmaSkillDeckCore.replaceUserData(data);
-			UmaSkillDeckCore.openSkillPicker([], () => {});
-		}, [EFF_PROBE_ID, EFF_PROBE_NAME]);
-		await page.waitForTimeout(300);
+		await seedProbes('C-89(b)', [{ id: EFF_PROBE_ID, name: EFF_PROBE_NAME, tags: {} }]);
 		const offB = (await listedNames()).includes(EFF_PROBE_NAME);
 		await tick('effect', effPick);
 		const onB = (await listedNames()).includes(EFF_PROBE_NAME);
 		await tick('effect', effPick);
 		const offB2 = (await listedNames()).includes(EFF_PROBE_NAME);
-		assert(offB === true, 'C-89(b): 効果タイプが空のカスタムスキルは、何も選ばなければ出る', offB);
-		assert(onB === false, 'C-89(b): 効果タイプを1つ選ぶと、効果タイプが空のカスタムスキルは出ない', onB);
+		assert(offB === true, 'C-89(b): 効果タイプが空の仮のスキルは、何も選ばなければ出る', offB);
+		assert(onB === false, 'C-89(b): 効果タイプを1つ選ぶと、効果タイプが空の仮のスキルは出ない', onB);
 		assert(offB2 === true, 'C-89(b): 選択を外すと、また出る', offB2);
-		await page.evaluate((id) => {
-			const data = UmaSkillDeckCore.getUserData();
-			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
-			UmaSkillDeckCore.replaceUserData(data);
-			UmaSkillDeckCore.openSkillPicker([], () => {});
-		}, EFF_PROBE_ID);
-		await page.waitForTimeout(300);
+		await removeProbes([EFF_PROBE_ID]);
 		assert(await readCount() === POOL.length, 'C-89(b): 検査用スキルを片付けると母集団の件数に戻る', await readCount());
 
 		// (c) マスター分の結果は変わらない。マスターには効果タイプが空のスキルが無いので、
@@ -871,26 +885,15 @@ const browser = await chromium.launch();
 	     両方選ぶ     … どちらでも出る
 	   **値も軸のキーも書かない**（製品の印から、排他の軸とその選択肢を引く）。 */
 	{
-		const EX_ID = 'custom_exclusive_probe';
+		const EX_ID = 'probe-exclusive';
 		const EX_NAME = '排他の軸の値を両方持つ検査用スキル';
 		const exAxis = axes.find((a) => a.exclusive && !a.hidden);
 		assert(!!exAxis && exAxis.opts.length >= 2, '段8: 排他の軸と選択肢2つが実在する', exAxis && exAxis.key);
 
-		const seedEx = await page.evaluate(([id, name, key]) => {
-			const data = UmaSkillDeckCore.getUserData();
-			const tags = {};
-			UmaSkillDeckCore.TAG_AXES.forEach((a) => { tags[a.key] = []; });
-			const axis = UmaSkillDeckCore.TAG_AXES.find((a) => a.key === key);
-			tags[key] = axis.options.map((o) => o.v);      // その軸の値を**全部**持たせる
-			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
-			data.customSkills.push({ customId: id, name: name, tags: tags, createdAt: new Date().toISOString() });
-			UmaSkillDeckCore.replaceUserData(data);
-			UmaSkillDeckCore.openSkillPicker([], () => {});
-			return tags[key];
-		}, [EX_ID, EX_NAME, exAxis.key]);
-		assert(seedEx.length === exAxis.opts.length && seedEx.length >= 2,
-			'段8: 仕込んだスキルは排他の軸の値を全部持っている', seedEx);
-		await page.waitForTimeout(300);
+		// その軸の値を**全部**持たせる（値は製品の選択肢から取り、検査に書かない）
+		const seedEx = exAxis.opts.slice();
+		await seedProbes('段8排他', [{ id: EX_ID, name: EX_NAME, tags: { [exAxis.key]: seedEx } }]);
+		assert(seedEx.length >= 2, '段8: 仕込んだスキルは排他の軸の値を全部持っている', seedEx);
 
 		const listedHas = async () => (await listedNames()).includes(EX_NAME);
 		assert(await listedHas(), '段8: 条件なしなら、その仕込んだスキルは一覧に出る');
@@ -907,13 +910,7 @@ const browser = await chromium.launch();
 		await tick(exAxis.key, exAxis.opts[1]);
 
 		// 後片付け
-		await page.evaluate((id) => {
-			const data = UmaSkillDeckCore.getUserData();
-			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
-			UmaSkillDeckCore.replaceUserData(data);
-			UmaSkillDeckCore.openSkillPicker([], () => {});
-		}, EX_ID);
-		await page.waitForTimeout(300);
+		await removeProbes([EX_ID]);
 		assert(await readCount() === POOL.length, '段8排他: 検査用スキルを片付けると母集団の件数に戻る', await readCount());
 	}
 
@@ -961,7 +958,7 @@ const browser = await chromium.launch();
 	 *
 	 * **件数は書かない。** 「その軸のタグが空のスキルが1件も出ていない」という**性質**と、
 	 * `expectNames()` が組み立てた期待値との突き合わせで見る。
-	 * 母集団がマスターだけになるよう、ここまでにカスタムスキルは作っていない。
+	 * 仮のスキル（`seedProbes`）は各塊の終わりに取り除いているので、ここには混ざらない。
 	 * ========================================================== */
 	console.log('\n--- 段5 ③④ フェーズ・コース位置（空＝該当なし） ---');
 	for (const key of ['phase', 'coursePos']) {
@@ -1008,7 +1005,7 @@ const browser = await chromium.launch();
 
 	/* **C-90（2026-09-25）・C-94（2026-09-26）(i): 新しい値は、親の値とは別の概念。互いに読み替えない。**
 	   組の表の「親」だけを選ぶと「子」だけを持つスキルは出ず、親と子の両方を持つものは出る。
-	   データにまだ当たりが無くても見られるよう、組ごとに検査用カスタムスキルを2つ仕込む。
+	   データにまだ当たりが無くても見られるよう、組ごとに仮のスキルを2つ入れる（`seedProbes`）。
 	   **組の表は製品から作らずにここに持つ** ―― 製品の選択肢から作ると、値を消して壊したときに組も一緒に消えて、
 	   検査が空振りする。表にある値が画面にチェックボックスとして在ることは、組ごとに見る。 */
 	{
@@ -1021,25 +1018,12 @@ const browser = await chromium.launch();
 			{ axis: 'coursePos', parent: 'straight', child: 'backstretch', 親: '直線', 子: '向正面' },
 		];
 		const probesOf = (p) => ({
-			only: { id: 'custom_pair_' + p.child + '_only', name: p.子 + 'だけの検査用スキル', axis: p.axis, values: [p.child] },
-			both: { id: 'custom_pair_' + p.parent + '_' + p.child, name: p.親 + 'と' + p.子 + 'の検査用スキル', axis: p.axis, values: [p.parent, p.child] },
+			only: { id: 'probe-pair-' + p.child + '-only', name: p.子 + 'だけの検査用スキル', axis: p.axis, values: [p.child] },
+			both: { id: 'probe-pair-' + p.parent + '-' + p.child, name: p.親 + 'と' + p.子 + 'の検査用スキル', axis: p.axis, values: [p.parent, p.child] },
 		});
 		const allProbes = PAIRS.flatMap((p) => { const x = probesOf(p); return [x.only, x.both]; });
 		const hasBox = async (axis, v) => !!(await page.$('[data-usd-el="filter-check"][data-axis="' + axis + '"][data-value="' + v + '"]'));
-		await page.evaluate((probes) => {
-			const data = UmaSkillDeckCore.getUserData();
-			const ids = probes.map((p) => p.id);
-			data.customSkills = (data.customSkills || []).filter((c) => !ids.includes(c.customId));
-			for (const p of probes) {
-				const tags = {};
-				UmaSkillDeckCore.TAG_AXES.forEach((a) => { tags[a.key] = []; });
-				tags[p.axis] = p.values;
-				data.customSkills.push({ customId: p.id, name: p.name, tags: tags, createdAt: new Date().toISOString() });
-			}
-			UmaSkillDeckCore.replaceUserData(data);
-			UmaSkillDeckCore.openSkillPicker([], () => {});
-		}, allProbes);
-		await page.waitForTimeout(300);
+		await seedProbes('C-94(i)', allProbes.map((p) => ({ id: p.id, name: p.name, tags: { [p.axis]: p.values } })));
 		for (const p of PAIRS) {
 			const { only, both } = probesOf(p);
 			const label = '「' + p.親 + '」と「' + p.子 + '」';
@@ -1064,13 +1048,7 @@ const browser = await chromium.launch();
 			assert(parentAndChild.子だけ && parentAndChild.親と子,
 				'C-94(i): 「' + p.親 + '」＋「' + p.子 + '」を選ぶと、両方出る', parentAndChild);
 		}
-		await page.evaluate((ids) => {
-			const data = UmaSkillDeckCore.getUserData();
-			data.customSkills = (data.customSkills || []).filter((c) => !ids.includes(c.customId));
-			UmaSkillDeckCore.replaceUserData(data);
-			UmaSkillDeckCore.openSkillPicker([], () => {});
-		}, allProbes.map((p) => p.id));
-		await page.waitForTimeout(300);
+		await removeProbes(allProbes.map((p) => p.id));
 		assert(await readCount() === POOL.length, 'C-94(i): 検査用スキルを片付けると母集団の件数に戻る', await readCount());
 	}
 
@@ -1132,42 +1110,24 @@ const browser = await chromium.launch();
 		   いまのマスターでは、隠す軸にタグを持つスキルは**全部パッシブ**なので
 		   （目覚め6種も決2 でパッシブに入った）、印をまとめて壊しても実データは何も変わらない。
 		   ＝ (2) の検査は**いまは空振り**（該当0件）で、守りになっていない。
-		   そこで「隠す軸のタグだけを持ち、パッシブではないもの」を**カスタムスキルとして仕込み**、
+		   そこで「隠す軸のタグだけを持ち、パッシブではないもの」を**仮のスキルとして入れ**（`seedProbes`）、
 		   母集団に残ることを見る。**これは印の意味そのものの検査**で、データが変わっても効き続ける。 */
-		const PROBE_ID = 'custom_hidden_axis_probe';
-		const probe = await page.evaluate(([id, hiddenOnly]) => {
-			const data = UmaSkillDeckCore.getUserData();
-			const tags = {};
-			UmaSkillDeckCore.TAG_AXES.forEach((a) => { tags[a.key] = []; });
-			// 隠すだけの軸に、その軸の**最初の選択肢**を1つずつ入れる（値を検査に書かない）
-			hiddenOnly.forEach((k) => {
-				const axis = UmaSkillDeckCore.TAG_AXES.find((a) => a.key === k);
-				tags[k] = [axis.options[0].v];
-			});
-			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
-			data.customSkills.push({ customId: id, name: '隠す軸のタグだけを持つ検査用スキル', tags: tags, createdAt: new Date().toISOString() });
-			UmaSkillDeckCore.replaceUserData(data);
-			UmaSkillDeckCore.openSkillPicker([], () => {});
-			return {
-				name: '隠す軸のタグだけを持つ検査用スキル',
-				tags: tags,
-				出た: [...document.querySelectorAll('[data-usd-el="results"] .usd-row span')]
-					.some((el) => el.textContent === '隠す軸のタグだけを持つ検査用スキル'),
-			};
-		}, [PROBE_ID, hiddenOnly]);
-		assert(hiddenOnly.length > 0 && hiddenOnly.every((k) => probe.tags[k].length === 1),
-			'段8: 仕込んだスキルは、隠すだけの軸にタグを持っている', { 軸: hiddenOnly, タグ: probe.tags });
-		assert(probe.tags.passive.length === 0, '段8: 仕込んだスキルはパッシブではない', probe.tags.passive);
-		assert(probe.出た === true,
-			'段8: 隠す軸のタグだけを持つスキルは母集団に出る（印を1つにまとめたらここが落ちる）', probe);
+		const PROBE_ID = 'probe-hidden-axis';
+		const PROBE_NAME = '隠す軸のタグだけを持つ検査用スキル';
+		// 隠すだけの軸に、その軸の**最初の選択肢**を1つずつ入れる（値を検査に書かない）
+		const probeTags = {};
+		hiddenOnly.forEach((k) => { probeTags[k] = [axes.find((a) => a.key === k).opts[0]]; });
+		assert(hiddenOnly.length > 0 && hiddenOnly.every((k) => probeTags[k].length === 1),
+			'段8: 仕込んだスキルは、隠すだけの軸にタグを持っている', { 軸: hiddenOnly, タグ: probeTags });
+		assert(!POOL_EXCLUDED_AXES.some((k) => probeTags[k]), '段8: 仕込んだスキルはパッシブではない', probeTags);
+		// seedProbes が「条件なしなら一覧に出る」を確かめる ＝ 隠す軸のタグだけを持つスキルは母集団に出る（印を1つにまとめたらここが落ちる）
+		await seedProbes('段8 隠す軸', [{ id: PROBE_ID, name: PROBE_NAME, tags: probeTags }]);
 
 		// 同じスキルにパッシブの印を足すと、今度は消える（poolExcluded 側が効いていることの裏取り）
 		const probe2 = await page.evaluate((id) => {
-			const data = UmaSkillDeckCore.getUserData();
-			const c = data.customSkills.find((x) => x.customId === id);
+			const c = UmaSkillDeckCore.getMasterSkills().find((x) => x.id === id);
 			const axis = UmaSkillDeckCore.TAG_AXES.find((a) => a.poolExcluded);
 			c.tags[axis.key] = [axis.options[0].v];
-			UmaSkillDeckCore.replaceUserData(data);
 			UmaSkillDeckCore.openSkillPicker([], () => {});
 			return [...document.querySelectorAll('[data-usd-el="results"] .usd-row span')]
 				.some((el) => el.textContent === '隠す軸のタグだけを持つ検査用スキル');
@@ -1177,14 +1137,13 @@ const browser = await chromium.launch();
 
 		/* 72セッション目・段9 ―― **母集団から外したものは、必ず「緑スキルを追加」に出る。**
 		   ここが成り立たないと、**どこからも選べないスキル**が生まれる。
-		   いまのマスターでは実データで差が出ない（カスタムスキルにパッシブの印は付けられない
-		   ＝段8 で隠す軸を手入力から外したため）ので、**上で仕込んだカスタムスキルで見る。**
-		   段8 の時点では実際にここが抜けていて、この検査で見つかった。 */
+		   段8 の時点では、当時のカスタムスキルが母集団からは消えるのに緑スキルの一覧に出ず、この検査で見つかった。
+		   **上で入れた仮のスキル**（途中でパッシブの印を足したもの）で見る。 */
 		const probe3 = await page.evaluate((id) => {
 			UmaSkillDeckCore.openPassiveSkillPicker([], () => {});
 			const names = [...document.querySelectorAll('[data-usd-el="passive-results"] .usd-row span')]
 				.map((el) => el.textContent);
-			const c = UmaSkillDeckCore.getUserData().customSkills.find((x) => x.customId === id);
+			const c = UmaSkillDeckCore.getMasterSkills().find((x) => x.id === id);
 			return { listed: names.includes(c.name), fromHelper: UmaSkillDeckCore.getPoolExcludedSkills().some((s) => s.id === id) };
 		}, PROBE_ID);
 		assert(probe3.listed && probe3.fromHelper,
@@ -1193,13 +1152,7 @@ const browser = await chromium.launch();
 		await page.waitForTimeout(200);
 
 		// 後片付け（このあとの件数の検査に混ざらないよう必ず消す）
-		await page.evaluate((id) => {
-			const data = UmaSkillDeckCore.getUserData();
-			data.customSkills = (data.customSkills || []).filter((c) => c.customId !== id);
-			UmaSkillDeckCore.replaceUserData(data);
-			UmaSkillDeckCore.openSkillPicker([], () => {});
-		}, PROBE_ID);
-		await page.waitForTimeout(300);
+		await removeProbes([PROBE_ID]);
 		assert(await readCount() === POOL.length, '段8: 検査用スキルを片付けると母集団の件数に戻る', await readCount());
 	}
 
@@ -1327,7 +1280,7 @@ const browser = await chromium.launch();
 	 *
 	 * **期待値は製品の関数を使わず、ここに書いた同じ規則で組み立てる**（規則を2か所に持つのは意図的 ――
 	 * 製品を壊したときに期待値まで一緒に動かないため）。**いまの検索の範囲で raceDistance を持つのは
-	 * 1件だけ**（scope "all"）なので、決定の表にある形の仮のスキルをカスタムスキルで仕込んで、形ごとの出方を見る。
+	 * 1件だけ**（scope "all"）なので、決定の表にある形の仮のスキルを入れて（`seedProbes`）、形ごとの出方を見る。
 	 * ========================================================== */
 	console.log('\n--- C-97 目標のレースの距離 ---');
 	{
@@ -1376,23 +1329,8 @@ const browser = await chromium.launch();
 			{ key: 'p337', name: '短距離とマイルの検査用', distance: ['short', 'mile'], rd: null },
 			{ key: 'pNone', name: '距離の条件が無い検査用', distance: [], rd: null },
 		];
-		const probeId = (p) => 'custom_c97_' + p.key;
-		await page.evaluate((probes) => {
-			const data = UmaSkillDeckCore.getUserData();
-			const ids = probes.map((p) => p.id);
-			data.customSkills = (data.customSkills || []).filter((c) => !ids.includes(c.customId));
-			for (const p of probes) {
-				const tags = {};
-				UmaSkillDeckCore.TAG_AXES.forEach((a) => { tags[a.key] = []; });
-				tags.distance = p.distance;
-				const row = { customId: p.id, name: p.name, tags: tags, createdAt: new Date().toISOString() };
-				if (p.rd) row.raceDistance = p.rd;
-				data.customSkills.push(row);
-			}
-			UmaSkillDeckCore.replaceUserData(data);
-			UmaSkillDeckCore.openSkillPicker([], () => {});
-		}, PROBES.map((p) => ({ id: probeId(p), name: p.name, distance: p.distance, rd: p.rd })));
-		await page.waitForTimeout(400);
+		const probeId = (p) => 'probe-c97-' + p.key;
+		await seedProbes('C-97', PROBES.map((p) => ({ id: probeId(p), name: p.name, tags: { distance: p.distance }, raceDistance: p.rd || undefined })));
 		const POOL_C97 = POOL.concat(PROBES.map((p) => ({ name: p.name, tags: { distance: p.distance }, raceDistance: p.rd || undefined })));
 		const expectDist = (d, selected) => POOL_C97.filter((s) => showsFor(s, d, selected)).map((s) => s.name);
 		assert(await readCount() === POOL_C97.length, 'C-97: 仮のスキル8件を足した母集団は ' + POOL_C97.length + '件', await readCount());
@@ -1510,13 +1448,7 @@ const browser = await chromium.launch();
 		await setDistance('');
 
 		// 後片付け
-		await page.evaluate((ids) => {
-			const data = UmaSkillDeckCore.getUserData();
-			data.customSkills = (data.customSkills || []).filter((c) => !ids.includes(c.customId));
-			UmaSkillDeckCore.replaceUserData(data);
-			UmaSkillDeckCore.openSkillPicker([], () => {});
-		}, PROBES.map(probeId));
-		await page.waitForTimeout(300);
+		await removeProbes(PROBES.map(probeId));
 		assert(await readCount() === POOL.length, 'C-97: 仮のスキルを片付けると母集団の件数に戻る', await readCount());
 	}
 
