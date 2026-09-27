@@ -14,7 +14,7 @@ import { startServer, REPO_ROOT } from './lib/serve.mjs';
 import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA } from './lib/fixtures.mjs';
 // スクリーンショットの画素から**実際に描かれている色**を読む（段11 ⑨。半透明の重なりの結果を見るため）
 import { avgColor, deltaE, contrastRatio, hexOf } from './lib/pixels.mjs';
-import { buildEventFixture } from './lib/event-fixture.mjs';
+import { buildEventFixture, buildCharacterFixture } from './lib/event-fixture.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -10689,8 +10689,10 @@ await block('編成パネル ―― サポートカードのイベントの●�
 		'イベント(5): 同じスキルが別のカードで確定なら全体では●で、列ごとの印はその列の強さ（B は△・C は●）', item(2));
 	assert(item(10) && !sure(10) && item(10).sureMembers.length === 0,
 		'イベント(6): シートから取り込んだまま（seeded）のスキルは△', item(10));
-	assert(res.unconfirmed.length === 1 && res.unconfirmed[0] === fx.cardIds[5] + ':イベント',
-		'イベント(7): イベントが「未確認」になるのは行の無いカードだけ（seeded・none は未確認に数えない）', res.unconfirmed);
+	// 連続イベントの未確認だけを見る（キャラクター共通のイベントの未確認は、区切り3 の塊で見る）
+	const chainUnconfirmed = res.unconfirmed.filter((u) => u.endsWith(':イベント'));
+	assert(chainUnconfirmed.length === 1 && chainUnconfirmed[0] === fx.cardIds[5] + ':イベント',
+		'イベント(7): イベントが「未確認」になるのは行の無いカードだけ（seeded・none は未確認に数えない）', chainUnconfirmed);
 	assert(res.missing.length === 0, 'イベント(8): 引けないスキルは無い', res.missing);
 
 	/* 表の印と、除外で渡る id（パネルを実際に描いて押す） */
@@ -10770,6 +10772,81 @@ await block('編成パネル ―― サポートカードのイベントの●�
 }
 });
 /* ============================================================
+ * 編成パネル ―― キャラクター共通のイベントの当てはめ（C-102・区切り3）
+ *
+ * 仕込みは tests/visual/lib/event-fixture.mjs の buildCharacterFixture()（カード名・スキル名は書かない）。
+ * 見ること：
+ *   - グループでないカードには、その charaName の共通イベント
+ *   - グループのカードには、groupMembers の全員ぶん（代表者でないメンバーの分も当たる）
+ *   - 同じキャラクターが2枚（グループのカードとそのメンバーのカード）から当たるとき、スキルは1行で、印は両方の列
+ *   - ●・△の決まりは連続イベントと同じ（2択は△、確定・結果の先頭は●）
+ *   - 共通イベントが未入力のキャラクターは「未確認」に出る（none は出ない）
+ * ============================================================ */
+await block('編成パネル ―― キャラクター共通のイベントの当てはめ（C-102・区切り3）', async () => {
+{
+	const fx = buildCharacterFixture();
+	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
+	await page.route('**/data/character-event-skills.json*', (route) => route.fulfill({
+		status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(fx.doc) }));
+	const res = await page.evaluate(async ({ cardIds }) => {
+		const Core = window.UmaSkillDeckCore;
+		await Core.loadTrainingSources(true);
+		const r = Core.computeRosterSkills({ umaId: '', cardIds: cardIds });
+		const cards = Core.getTrainingSources().supportCard.entries;
+		return {
+			entries: (Core.getTrainingSources().characterEventSkill || {}).entries.length,
+			charsOfGroup: Core.charactersOfCard(cards.find((c) => c.id === cardIds[1])),
+			charsWithoutMark: Core.charactersOfCard(Object.assign({}, cards.find((c) => c.id === cardIds[0]), { isGroup: undefined })),
+			skillIds: r.skillIds,
+			items: r.items.map((it) => ({ id: it.skillId, members: it.members.slice().sort(), sureMembers: it.sureMembers.slice().sort() })),
+			unconfirmed: r.unconfirmed.map((u) => u.cardId + ':' + u.what),
+		};
+	}, { cardIds: fx.cardIds });
+	assert(res.entries === fx.doc.entries.length, '共通(0): 仕込んだ共通イベントのデータが読まれている', res.entries);
+	const T = fx.T;
+	const item = (i) => res.items.find((it) => it.id === T[i]) || null;
+	const sure = (i) => res.skillIds.includes(T[i]);
+	// 列の key：1=A（グループでない）、2=G（グループ）、3=N（G のメンバー M のカード）、4=D（none）
+	assert(item(0) && sure(0) && item(0).members.join() === '1',
+		'共通(1): グループでないカードには、その charaName の共通イベントが当たる（A の列に●）', item(0));
+	assert(JSON.stringify(res.charsOfGroup) === JSON.stringify(fx.group.members) && item(4) && sure(4) && item(4).members.join() === '2',
+		'共通(2): グループのカードには groupMembers の全員ぶんが当たる（代表者でないメンバーの分も G の列に●）', { chars: res.charsOfGroup, t4: item(4) });
+	assert(item(3) && sure(3) && item(3).members.join() === '2,3' && item(3).sureMembers.join() === '2,3',
+		'共通(3): 同じキャラクターが2枚から当たるとき、スキルは1行で、G と N の両方の列に●', item(3));
+	assert(item(1) && item(2) && !sure(1) && !sure(2) && item(1).members.join() === '2,3' && item(1).sureMembers.length === 0,
+		'共通(4): 2択の共通イベントは△（どちらの列も△。除外には入らない）', { t1: item(1), t2: item(2) });
+	const charaUnconf = res.unconfirmed.filter((u) => u.includes('共通イベント'));
+	assert(charaUnconf.includes(fx.cardIds[1] + ':共通イベント（' + fx.group.representative + '）')
+		&& !charaUnconf.some((u) => u.includes('（' + fx.M + '）') || u.includes('（' + fx.M2 + '）') || u.includes('（' + fx.C + '）') || u.includes('（' + fx.D + '）')),
+		'共通(5): 共通イベントが未入力のキャラクターは「未確認」に出て、入力済み・none のキャラクターは出ない', charaUnconf);
+	assert(res.charsWithoutMark.length === 0, '共通(6): グループかどうかの印（isGroup）が無いカードには当てはめない', res.charsWithoutMark);
+
+	/* 表の印（グループのカードとメンバーのカードの両方の列） */
+	const marks = await page.evaluate(async ({ cardIds, T }) => {
+		const Core = window.UmaSkillDeckCore;
+		localStorage.setItem('umaSkillDeck:draftRoster:smoke-chara', JSON.stringify({ umaId: '', cardIds: cardIds }));
+		const host = document.createElement('div');
+		document.body.appendChild(host);
+		Core.createRosterPanel(host, { draftKey: 'smoke-chara' });
+		const rows = Array.from(host.querySelectorAll('.usd-roster-grow')).slice(1);
+		const nameOf = (id) => (Core.findSkill(id) || {}).name;
+		const out = {};
+		T.forEach((id, i) => {
+			const row = rows.find((r) => r.querySelector('.usd-roster-gc--name').textContent === nameOf(id));
+			out[i] = row ? Array.from(row.querySelectorAll('[role="cell"]')).map((c) =>
+				c.querySelector('.usd-roster-got') ? '●' : c.querySelector('.usd-roster-maybe') ? '△' : '').join('|') : null;
+		});
+		host.remove();
+		return out;
+	}, { cardIds: fx.cardIds, T: T });
+	// 並びは 育成ウマ娘|1|2|3|4|5|6
+	assert(marks[3] === '||●|●|||' && marks[1] === '||△|△|||' && marks[4] === '||●||||' && marks[0] === '|●|||||',
+		'共通(7): 表では、同じ共通イベントがグループのカードとメンバーのカードの両方の列に出る', marks);
+	assert(errors.length === 0, '共通: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+});
+/* ============================================================
  * card-event-input.html ―― 回の箱を最初から並べる入力と出力 A（C-102・区切り1。2026-09-27 に画面を作り直した）
  *
  * 作業用ページだが、出力 A はそのまま data/ に貼るものなので、**出力が check:catalog を通る**ことまで見る
@@ -10792,7 +10869,8 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 	// 最初は「最後のカード」で決め打ちにしていて、そのカードが実際にファイルに入った日に検査が落ちた（2026-09-27）。
 	const eventDoc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/support-card-event-skills.json'), 'utf8'));
 	const inFile = new Set(eventDoc.entries.map((e) => e.cardId));
-	const card = cardsDoc.entries.slice().reverse().find((c) => !inFile.has(c.id));
+	// 「SSR だけ」が既定で効く（2026-09-27 にカードのデータへレアリティが入った）ので、SSR のカードを使う
+	const card = cardsDoc.entries.slice().reverse().find((c) => !inFile.has(c.id) && c.rarity === 'SSR');
 	// 名前の一部で探して1件に絞れるスキルを3つ（拡張スキル1・マスター2）。名前はデータから拾う
 	const allNames = masterDoc.skills.map((s) => s.name).concat(extDoc.entries.map((e) => e.name));
 	const unique = (s) => allNames.filter((n) => n.includes(s.name)).length === 1;
@@ -10850,7 +10928,13 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 		const { ctx, page, errors, warns, dialogs } = await openCei(null);
 		assert(warns.some((w) => w.includes('前の形の途中経過')) && await page.evaluate(() => localStorage.getItem('umaCardEventInput:draft') !== null),
 			'入力(0): 前の形の途中経過は消さずに、起動時に知らせる', warns);
-		assert(await page.isVisible('#cei-focus-note'), '入力(1): レアリティが入っていない間は「SSR だけ」が効かないと言う（全部出る）');
+		// レアリティがカードのデータに入ったので、「SSR だけ」が効く（効かないという注記は出ない）
+		const focus = await page.evaluate(() => ({
+			note: !document.getElementById('cei-focus-note').hidden,
+			rows: document.querySelectorAll('.cei-row').length,
+		}));
+		const ssrPending = cardsDoc.entries.filter((c) => c.rarity === 'SSR' && !inFile.has(c.id)).length;
+		assert(!focus.note && focus.rows === ssrPending, '入力(1): 「SSR だけ」が既定で効き、未確認の SSR のカードだけが並ぶ', { focus, ssrPending });
 
 		await openCard(page);
 		const first = await page.evaluate((r) => {

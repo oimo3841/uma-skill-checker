@@ -48,3 +48,51 @@ export function buildEventFixture() {
 		names: S.map((s) => s.name),
 	};
 }
+
+/**
+ * キャラクター共通のイベント（C-102 の区切り3）の仕込み。カードとキャラクターは実データから拾う:
+ *   - G … グループのカード（isGroup が true の最初の1枚）
+ *   - M … G のメンバーのうち、グループでないカードも持つ人（その1枚が N）。**代表者（先頭）は避ける**
+ *         （代表者の名前だけで引いても当たってしまい、メンバー全員ぶんを見たことにならないため）
+ *   - M2 … G のメンバーで、M とも代表者とも違う人
+ *   - A … グループのメンバーにいないキャラクター C のカード（グループでない）
+ * スキルは、これらのカードの練習ヒントにも連続イベントの仕込みにも入っていないものを使う。
+ * 共通イベント:
+ *   - C  … 確定で T0 → A の列に●
+ *   - M  … 2択（T1／T2）と確定の T3 → T1・T2 は△、T3 は●。G と N の**両方の列**に出て、スキルは1行
+ *   - M2 … 確定で T4 → G の列に●（代表者ではないメンバーの分が当たっている証拠）
+ *   - 代表者 … 行を作らない（未入力）→ G は「共通イベント（代表者）」が未確認に出る
+ *   - D  … 見て回って無かった（none）→ 何も出ず、未確認にも数えない
+ */
+export function buildCharacterFixture() {
+	const cards = read('data/support-cards.json').entries;
+	const master = read('uma-skill-deck-skills.json').skills;
+	const G = cards.find((c) => c.isGroup === true);
+	const solo = cards.filter((c) => c.isGroup === false);
+	const members = G.groupMembers;
+	const M = members.slice(1).find((n) => solo.some((c) => c.charaName === n));
+	const N = solo.find((c) => c.charaName === M);
+	const M2 = members.slice(1).find((n) => n !== M);
+	const inAnyGroup = new Set(cards.filter((c) => c.isGroup).flatMap((c) => c.groupMembers));
+	const A = solo.find((c) => !inAnyGroup.has(c.charaName));
+	const Dcard = solo.find((c) => !inAnyGroup.has(c.charaName) && c.charaName !== A.charaName);
+	const hinted = new Set([G, N, A, Dcard].flatMap((c) => (c.hintSkills || []).map((s) => s.skillId)));
+	const avoid = new Set(buildEventFixture().S);
+	const T = master.filter((s) => !hinted.has(s.id) && !avoid.has(s.id)).slice(0, 5).map((s) => ({ skillId: s.id, name: s.name }));
+	const ref = (i, lv) => ({ skillId: T[i].skillId, name: T[i].name, hintLevel: lv || 1 });
+	const entries = [
+		{ charaName: A.charaName, status: 'done', events: [{ choices: [{ skills: [ref(0)] }] }] },
+		{ charaName: M, status: 'done', events: [
+			{ choices: [{ skills: [ref(1)] }, { skills: [ref(2)] }] },
+			{ choices: [{ skills: [ref(3, 2)] }] }] },
+		{ charaName: M2, status: 'done', events: [{ choices: [{ results: [[ref(4)], []] }] }] },
+		{ charaName: Dcard.charaName, status: 'none' },
+	];
+	return {
+		doc: { dataVersion: '2026-09-27a', category: 'characterEventSkill', note: 'テスト用の仕込み', entries },
+		cardIds: [A.id, G.id, N.id, Dcard.id],
+		group: { id: G.id, representative: members[0], members: members.slice() },
+		M, M2, C: A.charaName, D: Dcard.charaName,
+		T: T.map((s) => s.skillId),
+	};
+}

@@ -66,6 +66,9 @@ const FILES = [
 	{ category: 'supportCard', file: 'support-cards.json', prefix: 'card-', key: 'id', idTail: 'serial' },
 	// イベントスキルは独自の id を振らず、サポートカードの id（card-）を鍵にする
 	{ category: 'supportCardEventSkill', file: 'support-card-event-skills.json', prefix: 'card-', key: 'cardId', idTail: 'serial' },
+	// キャラクター共通のイベント（C-102 の区切り3・2026-09-27）。独自の id を振らず、キャラクター名（charaName）を鍵にする。
+	// idTail 'name' … 接頭辞も番号も無い「名前」の鍵。空でないこと・重複しないことだけを見る（名前の実在は §3-2）
+	{ category: 'characterEventSkill', file: 'character-event-skills.json', prefix: '', key: 'charaName', idTail: 'name' },
 	// シナリオ因子（C-29）。63セッション目（段1d）に検査の対象へ入れた。
 	// それまでこのファイルだけ入口に関門が無く、core 側の normalizeCatalogEntries() が
 	// 「{id, name, category} に削ぎ落とす」ことで**偶然**想定外のキーを止めていた。
@@ -84,6 +87,7 @@ const TOP_KEYS = {
 	trainingUmamusume: { need: ['dataVersion', 'category', 'nextSerial', 'entries'], opt: ['note'] },
 	supportCard: { need: ['dataVersion', 'category', 'nextSerial', 'entries'], opt: ['note'] },
 	supportCardEventSkill: { need: ['dataVersion', 'category', 'entries'], opt: ['note'] },
+	characterEventSkill: { need: ['dataVersion', 'category', 'entries'], opt: ['note'] },
 	// シナリオ因子は採番しない（id が語）ので nextSerial を持たない。
 	// idNote / schemaNote はこのファイルだけが持つ覚え書き（C-29 のときからある）。
 	scenarioFactor: { need: ['dataVersion', 'category', 'entries'], opt: ['note', 'idNote', 'schemaNote'] },
@@ -99,10 +103,14 @@ const ENTRY_KEYS = {
 	trainingUmamusume: { need: ['id', 'title', 'charaName', 'initialStar', 'initialSkills', 'awakeningSkills', 'dataStatus'], opt: [] },
 	// type（種類）と typeOrder（ゲーム内で扱われる順番）は、どちらもデータが持つ値。
 	// **名前も番号もこのスクリプトに書かない**（恒久ルール1）。見るのは値どうしの整合だけ。
-	supportCard: { need: ['id', 'title', 'charaName', 'type', 'typeOrder', 'hintSkills', 'dataStatus'], opt: [] },
+	// rarity・isGroup・groupMembers は 2026-09-27（C-102 の区切り3）に data-work の公開用データで入った。
+	// groupMembers はグループのカード（isGroup が true）の行にだけある（§2 で見る）
+	supportCard: { need: ['id', 'title', 'charaName', 'type', 'typeOrder', 'hintSkills', 'dataStatus', 'rarity', 'isGroup'], opt: ['groupMembers'] },
 	// 2026-09-27・C-102 で形を作り替えた（それまでは { cardId, status, skills } の平たい一覧。行は0件だった）。
 	// chain（確かめた形）と unplaced（シートから取り込んだまま）は status でどちらを持つかが決まる（§5）
 	supportCardEventSkill: { need: ['cardId', 'status'], opt: ['chain', 'unplaced'] },
+	// キャラクター共通のイベント（C-102 の区切り3）。回の番号が無いだけで、中身の形は連続イベントと同じ
+	characterEventSkill: { need: ['charaName', 'status'], opt: ['events', 'unplaced'] },
 	// **いまの形をそのまま許可リストにする。** tags / 説明文など、今後足す予定のキーは
 	// まだ入れない（実際に足すときに、形も運用も決めたうえでここへ入れる）。
 	scenarioFactor: { need: ['id', 'name'], opt: [] },
@@ -152,6 +160,11 @@ const SKILL_REF_KEYS = { need: ['skillId', 'name'], opt: [] };
    - 参照 … { skillId, name, hintLevel }。hintLevel はヒントのレベル（1以上の整数。上限は決めない）
    同じ枠（1つの skills・1つの結果）の中で同じスキルが2回出たら落とす。 */
 const EVENT_KEYS = { need: ['step', 'choices'], opt: [] };
+// キャラクター共通のイベントの1つ（回の番号を持たない）
+const CHARA_EVENT_KEYS = { need: ['choices'], opt: [] };
+// サポートカードのレアリティ（C-102 の区切り3）。**ゲームにある3つの区分そのもの**なので、値の集合をここに持つ
+// （スキル名・カード名ではない。増えたらここを足す）
+const RARITY_VALUES = ['R', 'SR', 'SSR'];
 const EVENT_SKILL_REF_KEYS = { need: ['skillId', 'name', 'hintLevel'], opt: [] };
 const EVENT_CHOICE_FORMS = ['skills', 'results'];
 const STAR_ROW_KEYS = { need: ['minStar', 'skills'], opt: [] };
@@ -322,13 +335,15 @@ function checkNoDupInBucket(list, where) {
 }
 
 /** サポートカードの連続イベント（C-102。形の決まりは EVENT_KEYS の上のコメント）。 */
-function readEventChain(chain, where) {
+/* withStep が偽なら、キャラクター共通のイベント（回の番号を持たない。C-102 の区切り3）として見る。 */
+function readEventChain(chain, where, withStep = true) {
 	if (!isArr(chain)) { badTypes.push(where + ': 配列でない'); return; }
 	let prevStep = 0;
 	chain.forEach((ev, i) => {
 		const w = where + '[' + i + ']';
-		if (!checkKeys(ev, EVENT_KEYS, w, unknownKeys, missingKeys)) return;
-		if (!isInt(ev.step) || ev.step < 1) badTypes.push(w + '.step: 1以上の整数');
+		if (!checkKeys(ev, withStep ? EVENT_KEYS : CHARA_EVENT_KEYS, w, unknownKeys, missingKeys)) return;
+		if (!withStep) { /* 回の番号は持たない */ }
+		else if (!isInt(ev.step) || ev.step < 1) badTypes.push(w + '.step: 1以上の整数');
 		else {
 			if (ev.step <= prevStep) badTypes.push(w + '.step: 昇順・重複なし（前の回は ' + prevStep + '）');
 			prevStep = ev.step;
@@ -362,7 +377,7 @@ function readEventChain(chain, where) {
 				if (isArr(b.list)) skillCount += b.list.length;
 			});
 		});
-		if (skillCount === 0) badTypes.push(w + ': スキルが1つも無い（スキルが得られる回だけを書く）');
+		if (skillCount === 0) badTypes.push(w + ': スキルが1つも無い（スキルが得られる' + (withStep ? '回' : 'イベント') + 'だけを書く）');
 	});
 }
 
@@ -441,6 +456,18 @@ docs.supportCard.entries.forEach((e, i) => {
 	if (checkKeys(e.dataStatus, DATA_STATUS_KEYS.supportCard, w + '.dataStatus', unknownKeys, missingKeys)) {
 		if (!STATUS_VALUES.includes(e.dataStatus.hint)) badTypes.push(w + '.dataStatus.hint: ' + JSON.stringify(e.dataStatus.hint));
 	}
+	// レアリティとグループ（C-102 の区切り3）。groupMembers はグループのカードにだけあり、空でなく、
+	// 先頭が代表者＝その行の charaName。同じ名前が2回出ない
+	if (e.rarity !== undefined && !RARITY_VALUES.includes(e.rarity)) badTypes.push(w + '.rarity: ' + JSON.stringify(e.rarity) + '（' + RARITY_VALUES.join('・') + ' のどれか）');
+	if (e.isGroup !== undefined && typeof e.isGroup !== 'boolean') badTypes.push(w + '.isGroup: 真偽値');
+	if (e.isGroup === true) {
+		const gm = e.groupMembers;
+		if (!isArr(gm) || gm.length === 0 || !gm.every(isStr)) badTypes.push(w + '.groupMembers: 空でない、名前の配列');
+		else {
+			if (gm[0] !== e.charaName) badTypes.push(w + '.groupMembers: 先頭が charaName（代表者）でない');
+			if (new Set(gm).size !== gm.length) badTypes.push(w + '.groupMembers: 同じ名前が2回ある');
+		}
+	} else if (e.groupMembers !== undefined) badTypes.push(w + '.groupMembers: グループでないカードは持たない');
 });
 
 // サポートカードのイベントスキル
@@ -450,6 +477,19 @@ docs.supportCardEventSkill.entries.forEach((e, i) => {
 	if (!isStr(e.cardId)) badTypes.push(w + ': cardId は空でない文字列');
 	if (!EVENT_STATUS_VALUES.includes(e.status)) badTypes.push(w + '.status: ' + JSON.stringify(e.status));
 	if (e.chain !== undefined) readEventChain(e.chain, w + '.chain');
+	if (e.unplaced !== undefined) {
+		readSkillRefs(e.unplaced, w + '.unplaced');
+		checkNoDupInBucket(e.unplaced, w + '.unplaced');
+	}
+});
+
+// キャラクター共通のイベント（C-102 の区切り3）。中身の形は連続イベントと同じで、回の番号だけが無い
+docs.characterEventSkill.entries.forEach((e, i) => {
+	const w = 'characterEventSkill[' + i + ']';
+	if (!checkKeys(e, ENTRY_KEYS.characterEventSkill, w, unknownKeys, missingKeys)) return;
+	if (!isStr(e.charaName)) badTypes.push(w + ': charaName は空でない文字列');
+	if (!EVENT_STATUS_VALUES.includes(e.status)) badTypes.push(w + '.status: ' + JSON.stringify(e.status));
+	if (e.events !== undefined) readEventChain(e.events, w + '.events', false);
 	if (e.unplaced !== undefined) {
 		readSkillRefs(e.unplaced, w + '.unplaced');
 		checkNoDupInBucket(e.unplaced, w + '.unplaced');
@@ -549,6 +589,15 @@ const otherCatalogNames = new Map();
 		const doc = docs[f.category];
 		const ids = doc.entries.map((e) => String(e[f.key] || ''));
 		let maxSerial = 0;
+		// 名前の鍵（キャラクター名）は、空でないことと、ファイルの中で重複しないことだけを見る
+		if (f.idTail === 'name') {
+			const s = new Set();
+			ids.forEach((id, i) => {
+				if (!id) { badForm.push(f.category + '[' + i + ']: 鍵（' + f.key + '）が空'); return; }
+				if (s.has(id)) dup.push(id + '（' + f.category + ' に重複）'); else s.add(id);
+			});
+			continue;
+		}
 		ids.forEach((id, i) => {
 			const where = f.category + '[' + i + ']';
 			if (!id.startsWith(f.prefix)) { badForm.push(where + ': ' + id); return; }
@@ -630,6 +679,20 @@ console.log('\n=== 4. スキルの参照 ===');
 		.filter((x) => !cardIds.has(x.id))
 		.map((x) => 'supportCardEventSkill[' + x.i + ']: ' + x.id);
 	none(unknownCard, 'イベントスキルの cardId がサポートカードに実在する');
+
+	// キャラクター共通のイベントの charaName が、共通イベントの当てはまるキャラクターか（C-102 の区切り3）。
+	// 当てはまるのは、グループでないカードの charaName と、グループのカードの groupMembers。
+	// **グループのカードの charaName（代表者）は、それだけでは数えない**（メンバーの一覧に入っているので同じことになる）
+	const charaNames = new Set();
+	docs.supportCard.entries.forEach((e) => {
+		if (e.isGroup === true) (isArr(e.groupMembers) ? e.groupMembers : []).forEach((n) => charaNames.add(String(n)));
+		else if (e.isGroup === false) charaNames.add(String(e.charaName));
+	});
+	const unknownChara = docs.characterEventSkill.entries
+		.map((e, i) => ({ i, name: String(e.charaName || '') }))
+		.filter((x) => !charaNames.has(x.name))
+		.map((x) => 'characterEventSkill[' + x.i + ']: ' + x.name);
+	none(unknownChara, '共通イベントの charaName が、グループでないカードの charaName か groupMembers に出る名前（' + charaNames.size + '人）');
 }
 
 /* ──────────────────────── 4-2. マスターのタグと名前の突き合わせ ──────────────────────── */
@@ -991,6 +1054,21 @@ console.log('\n=== 5. ★・覚醒レベル・状態・種類 ===');
 			if (has('chain') || has('unplaced')) statusProblems.push(w + '.status: none なのに chain か unplaced がある');
 		}
 	});
+	// キャラクター共通のイベントも同じ決まり（chain の代わりに events）
+	docs.characterEventSkill.entries.forEach((e, i) => {
+		const w = 'characterEventSkill[' + i + ']';
+		const has = (k) => Object.prototype.hasOwnProperty.call(e, k);
+		const len = (k) => isArr(e[k]) ? e[k].length : 0;
+		if (e.status === 'done') {
+			if (len('events') === 0) statusProblems.push(w + '.status: done なのに events が無い（空）');
+			if (has('unplaced')) statusProblems.push(w + '.status: done なのに unplaced がある');
+		} else if (e.status === 'seeded') {
+			if (len('unplaced') === 0) statusProblems.push(w + '.status: seeded なのに unplaced が無い（空）');
+			if (has('events')) statusProblems.push(w + '.status: seeded なのに events がある');
+		} else if (e.status === 'none') {
+			if (has('events') || has('unplaced')) statusProblems.push(w + '.status: none なのに events か unplaced がある');
+		}
+	});
 
 	none(starProblems, 'minStar が初期の★以上で、昇順・重複なし');
 	none(levelProblems, '覚醒レベルが昇順・重複なし');
@@ -1086,6 +1164,16 @@ console.log('\n=== 7. 進み具合（情報。検査には影響しない） ===
 		+ ' / seeded（取り込んだまま） ' + ev.filter((e) => e.status === 'seeded').length
 		+ ' / none ' + ev.filter((e) => e.status === 'none').length
 		+ ' / 未記載（未確認） ' + Math.max(0, cards.length - ev.length));
+	{
+		const byRarity = {};
+		cards.forEach((e) => { const k = e.rarity || '(なし)'; byRarity[k] = (byRarity[k] || 0) + 1; });
+		console.log('       レアリティ: ' + Object.keys(byRarity).map((k) => k + ' ' + byRarity[k]).join(' / ')
+			+ '／グループのカード ' + cards.filter((e) => e.isGroup === true).length + '枚');
+		const ce = docs.characterEventSkill.entries;
+		console.log('     キャラクター共通のイベント: done ' + ce.filter((e) => e.status === 'done').length
+			+ ' / seeded ' + ce.filter((e) => e.status === 'seeded').length
+			+ ' / none ' + ce.filter((e) => e.status === 'none').length);
+	}
 }
 
 if (warnings.length > 0) {

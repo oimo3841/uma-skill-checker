@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-27d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-27e';
 
 	/* ============================================================
 	 * 定数
@@ -67,8 +67,10 @@
 		'data/aptitude-genes.json': '2026-09-19a',
 		'data/extended-skills.json': '2026-09-26b',
 		'data/training-umamusume.json': '2026-09-24a',
-		'data/support-cards.json': '2026-09-18b',
+		'data/support-cards.json': '2026-09-27a',
 		'data/support-card-event-skills.json': '2026-09-27b',
+		// キャラクター共通のイベント（C-102 の区切り3・2026-09-27）。9本目
+		'data/character-event-skills.json': '2026-09-27a',
 		// レースの距離の一覧（C-97・2026-09-26）。7本目。スキルではないので EXTRA_CATALOG_SOURCES にも
 		// TRAINING_SOURCES にも入れず、loadRaceDistances() が読む。
 		'data/race-distances.json': '2026-09-26a'
@@ -1110,7 +1112,9 @@
 	const TRAINING_SOURCES = [
 		{ key: 'trainingUmamusume', path: 'data/training-umamusume.json' },
 		{ key: 'supportCard', path: 'data/support-cards.json' },
-		{ key: 'supportCardEventSkill', path: 'data/support-card-event-skills.json' }
+		{ key: 'supportCardEventSkill', path: 'data/support-card-event-skills.json' },
+		// キャラクター共通のイベント（C-102 の区切り3）。キャラクター名（charaName）を鍵に、1人に1回だけ書く
+		{ key: 'characterEventSkill', path: 'data/character-event-skills.json' }
 	];
 
 	/**
@@ -1204,7 +1208,14 @@
 	 * 同じスキルが複数のイベントから来たら、どこか1つでも●なら●。
 	 */
 	function getEventSkillsOf(cardId) {
-		const row = findEventRow(cardId);
+		return eventRowSkills(findEventRow(cardId), 'chain');
+	}
+
+	/**
+	 * イベントの行（カードの連続イベントの行・キャラクター共通のイベントの行）から、編成の見方でスキルを引く。
+	 * eventsKey は回の並びを持つキー（カードは 'chain'、キャラクターは 'events'）。回の中身の形と●・△の決まりは同じ。
+	 */
+	function eventRowSkills(row, eventsKey) {
 		if (!row) return [];
 		const out = new Map();
 		const put = (ref, sure) => {
@@ -1216,7 +1227,7 @@
 		if (row.status === 'seeded') {
 			(row.unplaced || []).forEach(ref => put(ref, false));
 		} else if (row.status === 'done') {
-			(row.chain || []).forEach(ev => {
+			(row[eventsKey] || []).forEach(ev => {
 				const sides = ((ev && ev.choices) || []).map(eventChoiceSuccessSkills);
 				if (sides.length === 1) { sides[0].forEach(ref => put(ref, true)); return; }
 				const inEvery = id => sides.every(side => side.some(ref => ref && ref.skillId === id));
@@ -1224,6 +1235,35 @@
 			});
 		}
 		return Array.from(out.values());
+	}
+
+	/* ---- キャラクター共通のイベント（C-102 の区切り3） ----
+	   同じキャラクターのサポートカードに共通するイベント。キャラクター名を鍵に1人に1回だけ書き、
+	   そのキャラクターのカード全部（R・SR・SSR）に当てはめる。**グループのカードはメンバー全員ぶん**。 */
+	function findCharacterEventRow(charaName) {
+		const doc = trainingSources.characterEventSkill;
+		const rows = (doc && doc.entries) || [];
+		return rows.find(r => r && r.charaName === charaName) || null;
+	}
+	/** 'done' / 'none' / 'seeded' / 'pending'（行が無い＝未確認） */
+	function characterEventStatusOf(charaName) {
+		const row = findCharacterEventRow(charaName);
+		return row ? row.status : 'pending';
+	}
+	/** そのキャラクターの共通イベントで得られるスキル（[{ skillId, name, sure }]。決まりは連続イベントと同じ） */
+	function getCharacterEventSkillsOf(charaName) {
+		return eventRowSkills(findCharacterEventRow(charaName), 'events');
+	}
+	/**
+	 * そのカードに共通イベントが当てはまるキャラクター。グループでないカードはその charaName の1人、
+	 * グループのカードは groupMembers の全員（charaName は代表者1人なので使わない）。
+	 * **グループかどうかの印（isGroup）が無いカードには当てはめない**（C-102 の決定(4)。
+	 * 印が無いまま charaName で引くと、グループのカードに代表者1人ぶんだけが当たってしまう）。
+	 */
+	function charactersOfCard(card) {
+		if (!card || typeof card.isGroup !== 'boolean') return [];
+		if (card.isGroup) return Array.isArray(card.groupMembers) ? card.groupMembers.slice() : [];
+		return card.charaName ? [card.charaName] : [];
 	}
 
 	/**
@@ -1463,6 +1503,17 @@
 			const evStatus = eventStatusOf(cardId);
 			if (evStatus === 'pending') unconfirmed.push({ cardId: cardId, label: label, what: 'イベント' });
 			else getEventSkillsOf(cardId).forEach(s => add(s, label + ' のイベント' + (s.sure ? '' : '（確定でない）'), key, s.sure));
+
+			// キャラクター共通のイベント（C-102 の区切り3）。そのカードの列に出す。同じキャラクターが
+			// 2枚のカードから当たっても、スキルは items の1行（skillId が鍵）で、印が両方の列に付く。
+			charactersOfCard(card).forEach(name => {
+				if (characterEventStatusOf(name) === 'pending') {
+					unconfirmed.push({ cardId: cardId, label: label, what: '共通イベント（' + name + '）' });
+					return;
+				}
+				getCharacterEventSkillsOf(name).forEach(s =>
+					add(s, label + ' の共通イベント（' + name + '）' + (s.sure ? '' : '（確定でない）'), key, s.sure));
+			});
 		});
 
 		const list = Array.from(items.values()).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
@@ -6116,6 +6167,9 @@
 		formatEntryLabel: formatEntryLabel,
 		eventStatusOf: eventStatusOf,
 		getEventSkillsOf: getEventSkillsOf,
+		characterEventStatusOf: characterEventStatusOf,
+		getCharacterEventSkillsOf: getCharacterEventSkillsOf,
+		charactersOfCard: charactersOfCard,
 		// サポートカードの種類。データに type が入るまでは空配列を返す（C-51 の修正2）。
 		listCardTypes: listCardTypes,
 		cardTypeOf: cardTypeOf,
