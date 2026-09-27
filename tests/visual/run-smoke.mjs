@@ -10719,6 +10719,16 @@ await block('編成パネル ―― サポートカードのイベントの●�
 		[0, 1, 2, 3, 4, 5, 6, 8, 9, 10].forEach((i) => { out.marks[i] = marks(i); });
 		const note = host.querySelector('[data-usd-el="maybe-note"]');
 		out.note = note ? note.textContent : '';
+		const maybe = host.querySelector('.usd-roster-maybe');
+		const got = host.querySelector('.usd-roster-got');
+		const ms = maybe ? getComputedStyle(maybe) : null;
+		const r = maybe ? maybe.getBoundingClientRect() : null;
+		out.look = ms ? {
+			w: r.width, h: r.height,
+			mask: ms.webkitMaskImage || ms.maskImage || 'none',
+			color: ms.backgroundColor,
+			gotColor: got ? getComputedStyle(got).borderTopColor : '',
+		} : null;
 		host.querySelector('[data-usd-act="exclude"]').click();
 		await new Promise((r) => setTimeout(r, 50));
 		out.removed = window.__smokeRemoved;
@@ -10734,6 +10744,9 @@ await block('編成パネル ―― サポートカードのイベントの●�
 	assert(m[5] && m[5][2] === '●' && m[6] === null && m[9] === null, 'イベント(12): 結果の先頭は●、失敗側の行は表に無い', { m5: m[5], m6: m[6], m9: m[9] });
 	assert(m[8] && m[8][3] === '△' && m[10] && m[10][4] === '△', 'イベント(13): 成否ありの選択肢の成功側と、取り込んだままのスキルは△', { m8: m[8], m10: m[10] });
 	assert(panel.note.includes('△') && panel.note.includes('除外'), 'イベント(14): △があるときは表の下に△の説明が出る', panel.note);
+	const look = panel.look || {};
+	assert(look.w >= 10 && look.w <= 16 && look.h >= 10 && look.h <= 16 && look.mask.includes('svg') && look.color && look.color === look.gotColor,
+		'イベント(18・見た目): △の印は●とほぼ同じ大きさで、SVG のマスクで描き、色は●の線と同じ', look);
 	const onlySure = (ids) => Array.isArray(ids) && ids.slice().sort().join() === res.skillIds.slice().sort().join();
 	assert(onlySure(panel.removed) && !panel.removed.includes(S[3]) && !panel.removed.includes(S[8]) && !panel.removed.includes(S[10]),
 		'イベント(15): 「本育成スキルを除外する」で外すのは●だけ（△は外さない）', panel.removed);

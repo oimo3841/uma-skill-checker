@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-27c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-27d';
 
 	/* ============================================================
 	 * 定数
@@ -2597,6 +2597,12 @@
 		// 文字ではなく CSS で描く（フォントで太さや大きさが変わらないように）
 		'.usd-roster-got { display: inline-block; width: 11px; height: 11px; border-radius: var(--uma-r-full);',
 		'  border: 1.5px solid var(--uma-text-heading); box-sizing: border-box; }',
+		// イベントの選択肢しだいで得られるもの（C-102）は**輪郭の△**。●（輪郭の丸）と同じ色・同じ線の太さ・
+		// ほぼ同じ大きさにして、形だけで見分ける。△の線は SVG をマスクにして CSS の色で塗る
+		// （文字の「△」はフォントで大きさと太さが変わるので使わない。●と同じ考え方）
+		'.usd-roster-maybe { display: inline-block; width: 13px; height: 12px; background: var(--uma-text-heading); vertical-align: middle;',
+		'  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 13 12%27%3E%3Cpath d=%27M6.5 1.2 12 10.9H1z%27 fill=%27none%27 stroke=%27%23000%27 stroke-width=%271.5%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center / contain no-repeat;',
+		'  mask: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 13 12%27%3E%3Cpath d=%27M6.5 1.2 12 10.9H1z%27 fill=%27none%27 stroke=%27%23000%27 stroke-width=%271.5%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center / contain no-repeat; }',
 		// 育成ウマ娘の見出しと凡例の印は**白い ♦（正方形を 45 度回したもの）**（C-57 の作業A。◎ → ● → ♦）。
 		// 見出しと同じ濃い地のチップに白い ♦ を CSS で描く（見出しの中では地が同じなので ♦ だけが見える）。
 		'.usd-roster-umamark { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 16px;',
