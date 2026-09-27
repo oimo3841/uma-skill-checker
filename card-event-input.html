@@ -88,20 +88,38 @@
 		   （`.cei-serial` / `.cei-serial code` / `.cei-warn-text`）を消した。 */
 		/* 【INTENTIONALLY_REMOVED・2026-09-24（74セッション目・第2回の段1）】タグ付けの画面のCSS
 		   （`.cei-tabs` / `.cei-tab` / `.cei-tagbox` ほか）を消した。 */
-		/* 1枚ぶんの入力（C-102）：回 → 選択肢 → 結果 の入れ子。段ごとに左の線で見分ける */
-		.cei-body { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-		.cei-event { align-self: stretch; border-left: 3px solid var(--uma-accent); padding: 4px 0 4px 10px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-		.cei-event-head, .cei-choice-head, .cei-result-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-		.cei-step { font-size: var(--uma-fs-sm); font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
-		.cei-step-input { width: 4.5em; }
-		.cei-choice { align-self: stretch; border-left: 2px solid var(--uma-border-strong); padding: 2px 0 2px 10px; }
-		.cei-choice-no, .cei-result-no { font-size: var(--uma-fs-xs); font-weight: 700; color: var(--uma-text-subtle); }
-		.cei-result { border-left: 1px dashed var(--uma-border-strong); padding: 2px 0 2px 10px; margin-top: 4px; }
+		/* 1枚ぶんの入力（C-102。2026-09-27 に作り直し）。
+		   **入れ子を線や字下げだけで表さない。** 回は見出しの帯つきの箱、選択肢と結果は見出しつきの枠。
+		   どの枠にも「それが何か」の見出しを付け、スキルを足す入口（＋ スキル）は枠ごとに1つだけ置く。 */
+		.cei-row--open { border-color: var(--uma-border-strong); }
+		.cei-summary { margin: 6px 0 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); overflow-wrap: anywhere; }
+		.cei-body { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+		.cei-round { border: 1px solid var(--uma-border); border-radius: var(--uma-r-sm); background: var(--uma-surface); overflow: hidden; }
+		.cei-round-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 6px 10px; background: var(--uma-surface-sunken); border-bottom: 1px solid var(--uma-border); }
+		.cei-round-title { font-size: var(--uma-fs-md); font-weight: 700; min-width: 3.5em; }
+		.cei-round--empty .cei-round-title { color: var(--uma-text-subtle); }
+		.cei-forms { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+		.cei-form { font-size: var(--uma-fs-xs); padding: 2px 10px; }
+		.cei-round-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+		.cei-choice { border: 1px solid var(--uma-border); border-radius: var(--uma-r-sm); padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; }
+		.cei-choice-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+		.cei-choice-title { font-size: var(--uma-fs-sm); font-weight: 700; }
+		.cei-frame-title { font-size: var(--uma-fs-xs); font-weight: 700; color: var(--uma-text-subtle); }
+		.cei-frame--result { border-left: 3px solid var(--uma-border-strong); padding-left: 8px; }
+		.cei-more { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+		.cei-faint { font-size: var(--uma-fs-xs); color: var(--uma-text-faint); }
+		/* ふだんは目立たせない操作（なくす・分ける・カードの入力をやめる）は、枠線の無い文字だけのボタン */
+		.cei-link { background: none; border: 0; padding: 2px 0; font: inherit; font-size: var(--uma-fs-xs); color: var(--uma-text-subtle); text-decoration: underline; cursor: pointer; }
+		.cei-link:hover { color: var(--uma-text); }
+		.cei-link--danger { color: var(--uma-danger-text); }
+		.cei-card-foot { display: flex; flex-wrap: wrap; gap: 8px 20px; padding-top: 8px; border-top: 1px dashed var(--uma-border); }
+		.cei-stray { border: 1px solid var(--uma-warn-border, var(--uma-border-strong)); border-radius: var(--uma-r-sm); padding: 6px 8px; background: var(--uma-surface-sunken); }
 		.cei-lv { display: inline-flex; align-items: center; gap: 2px; font-size: var(--uma-fs-xs); color: var(--uma-text-subtle); }
-		.cei-lv-input { width: 3.5em; padding: 0 4px; min-height: 0; height: 24px; font-size: var(--uma-fs-xs); }
+		.cei-lv-input { width: 3.2em; padding: 0 4px; min-height: 0; height: 24px; font-size: var(--uma-fs-xs); }
+		.cei-chip-x { width: 22px; height: 22px; min-height: 0; }
 		.cei-small { font-size: var(--uma-fs-xs); min-height: 0; padding: 2px 8px; }
 		.cei-problems { margin: 0; padding-left: 1.3em; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-danger-text); }
-		.cei-find { margin-top: 6px; align-self: stretch; }
+		.cei-find { margin-top: 6px; }
 		.cei-hits { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; max-height: 240px; overflow-y: auto; }
 		.cei-hit { text-align: left; font-size: var(--uma-fs-sm); }
 		.cei-empty { font-size: var(--uma-fs-sm); color: var(--uma-text-subtle); padding: 12px 0; }
@@ -125,11 +143,12 @@
 		<h2 class="cei-h2">使い方</h2>
 		<ol class="cei-steps">
 			<li><strong>このページは簡易サーバー経由で開いてください。</strong> ファイルを直接開く（<code>file://</code>）と、データを読み込めません。</li>
-			<li>下の一覧でカードを探し、<strong>「入力する」</strong>を押します。スキルが得られる<strong>回ごとに</strong>「何回目」を入れます（スキルが得られない回は書きません。「＋ 回を足す」で増やせます）。</li>
-			<li>その回の<strong>選択肢を上から</strong>並べます（「＋ 選択肢を足す」）。選択肢が無いイベントは「選択肢なし」のまま。<strong>スキルが得られない選択肢も、空のまま残してください</strong>（選択肢の番号をゲームとそろえるため）。</li>
-			<li>成功・失敗などで<strong>結果が分かれる</strong>ときは、「結果が分かれる」に印を付け、<strong>いちばん良い結果（成功）を結果1</strong>に、ほかを結果2・3…に入れます。</li>
-			<li>「＋ スキル」でスキルを足し、<strong>ヒントのレベル（Lv）</strong>を入れます。</li>
-			<li>見て回ってスキルが無ければ<strong>「イベント無し」</strong>を押します。</li>
+			<li>下の一覧でカードを探し、<strong>「入力する」</strong>を押します。<strong>「1回目」「2回目」「3回目」の箱</strong>が並びます。</li>
+			<li>スキルが得られた回の箱で<strong>「＋ スキル」</strong>を押し、名前の一部を入れて選びます。<strong>ヒントのレベル（Lv）</strong>は 1 が入るので、違えば直します。スキルの無い回は、箱を空のままにします（出力には書かれません）。</li>
+			<li>その回が<strong>選択肢で分かれる</strong>ときは、箱の見出しで「選択肢で分かれる」を選びます。「選択肢1」「選択肢2」の枠が出るので、<strong>ゲームの選択肢の上から順に</strong>入れます。スキルが得られない選択肢も、空のまま残します（番号をゲームとそろえるため）。選択肢の中で成功・失敗に分かれるときは「成功・失敗に分ける」を押します。</li>
+			<li>選択肢が無く、<strong>前の回の成否で結果が分かれる</strong>（連続イベントの最後の回など）ときは「結果で分かれる」を選び、<strong>いちばん良い結果（成功）を結果1</strong>に、ほかを結果2・3…に入れます。</li>
+			<li>4回目以降がある（グループのカードなど）ときは、いちばん下の「＋ 4回目を足す」で箱を増やします。</li>
+			<li>見て回ってスキルが無いカードは、開いた箱のいちばん下の<strong>「イベント無しにする」</strong>を押します。</li>
 			<li><strong>探しても出てこないスキル</strong>は、このページでは足せません。<strong>スキルの正本に入ってから</strong>（＝<code>data/extended-skills.json</code> に載ってから）選んでください。</li>
 			<li>区切りのよいところで、下の<strong>出力 A</strong> を<strong>コピー</strong>します。入力が足りないカードは出力に入らず、理由がそのカードの下に赤字で出ます。</li>
 			<li><code>data/support-card-event-skills.json</code> に貼って<strong>上書き</strong>します（ファイル全体を出しているので、そのまま置き換えられます）。</li>
@@ -177,19 +196,24 @@
 	var DRAFT_KEY = 'umaCardEventInput:draft2';
 	var FIND_DEBOUNCE_MS = 120;
 
-	/* 優先して入力するレアリティ（C-102 の決定(3)。このページに1か所だけ書いてよい、とおいもさんが決めた）。
+	/* 優先して入力するレアリティ（C-102 の決定(3)。このページに書いてよい、とおいもさんが決めた）。
 	   カードのデータにレアリティが入るまでは、絞り込みは効かない（全部出る）。
 	   **項目名は data-work が決める**ので、届いたら rarityOf() の中だけを合わせる。 */
 	var FOCUS_RARITY = 'SSR';
 	function rarityOf(card) { return card && typeof card.rarity === 'string' ? card.rarity : ''; }
+	/* カードを開いたときに最初から並べる回の数（連続イベントの回数の目安。SSR はおおむね3回・SR は2回）。
+	   レアリティが分からないカードは3つ。回の多いカード（グループのカードなど）は「N回目を足す」で増やす。
+	   **上限ではない**（C-102 の説明「上限は決め打ちしない」）。 */
+	var DEFAULT_ROWS_BY_RARITY = { SSR: 3, SR: 2 };
+	var DEFAULT_ROWS = 3;
 
 	var Core = window.UmaSkillDeckCore;
 	var cards = [];        // サポートカードの行
 	var fileRows = {};     // すでにファイルに入っている分（cardId → 行）
 	var fileDoc = null;    // ファイルそのもの（note などを引き継ぐため）
 	var draft = {};        // cardId → 途中経過（下の「途中経過の形」）
-	var openCardId = '';   // いま編集を開いている行
-	var findAt = null;     // いまスキルを探している枠 { cardId, e, c, r }（r は結果の番号。skills の形なら -1）
+	var openCardId = '';   // いま開いているカード
+	var findAt = null;     // いまスキルを探している枠 { cardId, step, c, r }
 	var findTimer = 0;
 
 	/* ---------- もう使わない置き場 ----------
@@ -215,22 +239,59 @@
 		document.body.appendChild(el);
 		setTimeout(function () { el.remove(); }, 2600);
 	}
+	function isPosInt(v) { return typeof v === 'number' && v >= 1 && Math.floor(v) === v; }
 
 	/* ==========================================================
 	 * 途中経過の形（ファイルの形とほぼ同じ。名前は持たず、出力を作るときに引き直す）
 	 *
-	 *   { status: 'done' | 'none', chain: [ 回, … ] }
+	 *   { status: 'done' | 'none', chain: [ 回, … ], rows?: 数, stray?: [ 参照, … ] }
 	 *   回     … { step: 数, choices: [ 選択肢, … ] }
 	 *   選択肢 … { skills: [ 参照, … ] }                 ← 成否に分かれない
 	 *            { results: [ [ 参照, … ], [ … ], … ] }  ← 結果が分かれる（先頭が成功）
 	 *   参照   … { skillId, hintLevel }
+	 *   rows   … 画面に並べる回の数（「N回目を足す」で増やしたぶん。出力には出ない）
+	 *   stray  … 回が決まっていないスキル（前の画面で、回の番号を空のまま・同じ番号を2つ入れたもの。出力には出ない）
+	 *
+	 * **画面では「1回目・2回目・3回目」の行を最初から並べる**（2026-09-27 の作り直し）。
+	 * 途中経過の chain には、スキルを入れた回（または形を選んだ回）だけがある。スキルの無い回は出力に書かない。
 	 * ========================================================== */
 	function loadDraft() {
 		try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}') || {}; } catch (e) { draft = {}; }
 		if (typeof draft !== 'object' || draft === null || Array.isArray(draft)) draft = {};
+		Object.keys(draft).forEach(function (id) { normalizeDraft(draft[id]); });
 	}
 	function saveDraft() {
 		try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (e) {}
+	}
+
+	/**
+	 * 前の画面（回の番号を手で打つ作り）で入れた途中経過を、今の画面で読める形にそろえる。
+	 * - 回の番号が空・1未満・整数でない回 → そのスキルを「回が決まっていないスキル」（stray）へ
+	 * - 同じ番号の回が2つ → どちらも「確定」の形ならスキルをまとめる。そうでなければ後ろの回のスキルを stray へ
+	 * **スキルを黙って捨てない。** stray は画面の上に出し、回へ移すか外すまで出力に入れない。
+	 */
+	function normalizeDraft(d) {
+		if (!d || typeof d !== 'object' || d.status !== 'done') return;
+		var byStep = {};
+		var chain = [];
+		var stray = Array.isArray(d.stray) ? d.stray.slice() : [];
+		(Array.isArray(d.chain) ? d.chain : []).forEach(function (ev) {
+			if (!ev || !Array.isArray(ev.choices)) return;
+			if (!isPosInt(ev.step)) { stray = stray.concat(allRefs(ev)); return; }
+			var cur = byStep[ev.step];
+			if (!cur) { byStep[ev.step] = ev; chain.push(ev); return; }
+			if (formOf(cur) === 'fixed' && formOf(ev) === 'fixed') {
+				ev.choices[0].skills.forEach(function (ref) {
+					if (!cur.choices[0].skills.some(function (x) { return x.skillId === ref.skillId; })) cur.choices[0].skills.push(ref);
+				});
+			} else {
+				stray = stray.concat(allRefs(ev));
+			}
+		});
+		var seen = {};
+		d.stray = stray.filter(function (ref) { if (!ref || seen[ref.skillId]) return false; seen[ref.skillId] = true; return true; });
+		if (d.stray.length === 0) delete d.stray;
+		d.chain = chain.sort(function (a, b) { return a.step - b.step; });
 	}
 
 	/** ファイルの行 → 途中経過（名前を落とす）。「直す」で使う。 */
@@ -244,9 +305,7 @@
 				return {
 					step: ev.step,
 					choices: (ev.choices || []).map(function (c) {
-						return Array.isArray(c.results)
-							? { results: c.results.map(refs) }
-							: { skills: refs(c.skills) };
+						return Array.isArray(c.results) ? { results: c.results.map(refs) } : { skills: refs(c.skills) };
 					})
 				};
 			})
@@ -255,15 +314,15 @@
 
 	/**
 	 * ファイル側に入った分は、途中経過から落とす（二重に持たない）。
-	 * 「直す」でファイルの行から始めた途中経過は、**ファイルと同じ中身に戻っていれば**落とす
-	 * （直して貼り終えたか、直さなかったか。どちらも途中経過として持つ意味が無い）。
+	 * 「直す」でファイルの行から始めた途中経過は、**ファイルと同じ中身に戻っていれば**落とす。
 	 */
 	function pruneDraft() {
 		var dropped = 0;
 		Object.keys(draft).forEach(function (id) {
 			var inFile = fileRows[id];
+			var d = draft[id];
 			if (!cards.some(function (c) { return c.id === id; })) { delete draft[id]; dropped++; return; }
-			if (inFile && JSON.stringify(entryOf(id, draft[id]).entry) === JSON.stringify(fileEntryOf(inFile))) {
+			if (inFile && !(d.stray && d.stray.length) && JSON.stringify(entryOf(id, d).entry) === JSON.stringify(fileEntryOf(inFile))) {
 				delete draft[id]; dropped++;
 			}
 		});
@@ -277,9 +336,7 @@
 		return sk ? sk.name : '（引けません：' + id + '）';
 	}
 
-	/**
-	 * **もう使わない置き場**に控えが残っていたら、起動時に1度だけ知らせる。**どれも消さない。**
-	 */
+	/** **もう使わない置き場**に控えが残っていたら、起動時に1度だけ知らせる。**どれも消さない。** */
 	function noticeLegacyDrafts() {
 		var read = function (key) {
 			try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; }
@@ -304,6 +361,33 @@
 		}
 	}
 
+	/* ---------- 回の形 ---------- */
+	// 'fixed'（確定＝選択肢なし）/ 'choice'（選択肢で分かれる）/ 'result'（結果で分かれる＝選択肢なし）
+	function formOf(ev) {
+		var ch = (ev && ev.choices) || [];
+		if (ch.length >= 2) return 'choice';
+		if (ch.length === 1 && Array.isArray(ch[0].results)) return 'result';
+		return 'fixed';
+	}
+	function bucketsOf(choice) { return Array.isArray(choice.results) ? choice.results : [choice.skills || []]; }
+	function allRefs(ev) {
+		var out = [];
+		((ev && ev.choices) || []).forEach(function (c) { bucketsOf(c).forEach(function (l) { out = out.concat(l || []); }); });
+		return out;
+	}
+	function countRefs(ev) { return allRefs(ev).length; }
+	function eventAt(d, step) { return ((d && d.chain) || []).filter(function (ev) { return ev.step === step; })[0] || null; }
+	function ensureEvent(d, step) {
+		var ev = eventAt(d, step);
+		if (ev) return ev;
+		ev = { step: step, choices: [{ skills: [] }] };
+		d.chain = (d.chain || []).concat([ev]).sort(function (a, b) { return a.step - b.step; });
+		return ev;
+	}
+	function maxStepOf(d) { return ((d && d.chain) || []).reduce(function (m, ev) { return Math.max(m, ev.step || 0); }, 0); }
+	function defaultRowsOf(card) { return DEFAULT_ROWS_BY_RARITY[rarityOf(card)] || DEFAULT_ROWS; }
+	function rowsOf(d, card) { return Math.max(defaultRowsOf(card), maxStepOf(d), (d && d.rows) || 0); }
+
 	/* ---------- 状態 ---------- */
 	// 'done'（確かめた）/ 'none'（無い）/ 'seeded'（取り込んだまま）/ 'pending'（未確認）
 	function stateOf(cardId) {
@@ -313,7 +397,39 @@
 	}
 	function isFromFile(cardId) { return !!fileRows[cardId] && !draft[cardId]; }
 
-	var STATE_LABEL = { done: '済', none: 'イベント無し', seeded: '取り込んだまま', pending: '未確認' };
+	var STATE_LABEL = { done: '入力あり', none: 'イベント無し', seeded: '取り込んだまま', pending: '未確認' };
+
+	/* ---------- 要約の1行 ----------
+	   例：「2回目：ここ一番 Lv1 ／ 3回目：突撃魂 Lv1・励声一番 Lv2」
+	   回と回の区切りは「 ／ 」、選択肢・結果どうしは「、」、スキルどうしは「・」。
+	   成功・失敗に分けた選択肢は「選択肢1［成功 スキルA Lv1｜失敗 なし］」。 */
+	function refsText(list) {
+		return (list || []).length ? list.map(function (r) { return skillNameOf(r.skillId) + ' Lv' + (r.hintLevel == null ? '?' : r.hintLevel); }).join('・') : 'なし';
+	}
+	function splitText(choice) {
+		return choice.results.map(function (l, i) { return resultLabelInChoice(i) + ' ' + refsText(l); }).join('｜');
+	}
+	function eventText(ev) {
+		var f = formOf(ev);
+		var head = ev.step ? ev.step + '回目：' : '';
+		if (f === 'fixed') return head + refsText(ev.choices[0].skills);
+		if (f === 'result') return head + ev.choices[0].results.map(function (l, i) { return '結果' + (i + 1) + ' ' + refsText(l); }).join('、');
+		return head + ev.choices.map(function (c, i) {
+			return '選択肢' + (i + 1) + (Array.isArray(c.results) ? '［' + splitText(c) + '］' : ' ' + refsText(c.skills));
+		}).join('、');
+	}
+	function summaryOf(cardId) {
+		var d = draft[cardId];
+		var row = fileRows[cardId];
+		var src = d || row;
+		if (!src) return '';
+		if (src.status === 'none') return 'イベント無し（イベントでスキルを得ない）';
+		if (src.status === 'seeded') return '取り込んだまま：' + refsText(src.unplaced).replace(/ Lv\?/g, '');
+		var parts = (src.chain || []).filter(function (ev) { return countRefs(ev) > 0; })
+			.slice().sort(function (a, b) { return a.step - b.step; }).map(eventText);
+		if (d && d.stray && d.stray.length) parts.unshift('回が決まっていない：' + refsText(d.stray));
+		return parts.length ? parts.join(' ／ ') : 'まだ何も入っていません';
+	}
 
 	/* ---------- 一覧 ---------- */
 	function hasRarity() { return cards.some(function (c) { return !!rarityOf(c); }); }
@@ -323,11 +439,9 @@
 		var onlyPending = $('cei-only-pending').checked;
 		var onlyFocus = $('cei-only-focus').checked && hasRarity();
 		return cards.filter(function (c) {
-			// いま開いている行は、絞り込みの条件にかかわらず残す（押した時点で状態が変わり、
-			// 「未確認だけ」の絞り込みで行ごと消えてしまうため。C-50）。
+			// いま開いている行は、絞り込みの条件にかかわらず残す（C-50）。
 			if (c.id === openCardId) return true;
 			// 「未確認・入力中だけ」… まだ確かめていないカードと、途中経過がある（ファイルにまだ入っていない）カード。
-			// 途中経過のカードは状態が「済」になるが、貼るまでは作業の途中なので一覧から消さない。
 			if (onlyPending && !draft[c.id] && stateOf(c.id) !== 'pending' && stateOf(c.id) !== 'seeded') return false;
 			if (onlyFocus && rarityOf(c) !== FOCUS_RARITY) return false;
 			if (!q) return true;
@@ -338,92 +452,138 @@
 	function renderCounts() {
 		var n = { done: 0, none: 0, seeded: 0, pending: 0 };
 		cards.forEach(function (c) { var s = stateOf(c.id); n[s] = (n[s] || 0) + 1; });
-		$('cei-counts').textContent = '全' + cards.length + '枚：済 ' + n.done
+		$('cei-counts').textContent = '全' + cards.length + '枚：入力あり ' + n.done
 			+ ' / イベント無し ' + n.none + ' / 取り込んだまま ' + n.seeded + ' / 未確認 ' + n.pending;
-		var focusLabel = $('cei-only-focus-label');
-		focusLabel.title = hasRarity() ? '' : 'カードのデータにレアリティがまだ入っていないので、いまは効きません';
 		$('cei-focus-note').hidden = hasRarity();
 	}
 
-	/* ---------- 1枚ぶんの編集 ---------- */
+	/* ---------- 1枚ぶんの入力 ---------- */
 	function attrs(o) {
 		return Object.keys(o).map(function (k) { return ' data-' + k + '="' + esc(o[k]) + '"'; }).join('');
 	}
+	function resultLabelInChoice(i) { return i === 0 ? '成功' : (i === 1 ? '失敗' : '結果' + (i + 1)); }
 
-	/** 1つの枠（skills か1つの結果）。チップ（名前＋Lv）と「＋ スキル」。 */
-	function bucketHtml(cardId, e, c, r, list, editable) {
-		var at = { card: cardId, e: e, c: c, r: r };
-		var h = '<div class="cei-chips">';
+	/** 1つの枠。見出し・スキルのチップ（名前＋Lv＋×）・「＋ スキル」・その場で開く検索。 */
+	function frameHtml(title, at, list, cls) {
+		var h = '<div class="cei-frame' + (cls ? ' ' + cls : '') + '" data-c="' + at.c + '" data-r="' + at.r + '">';
+		if (title) h += '<div class="cei-frame-title">' + esc(title) + '</div>';
+		h += '<div class="cei-chips">';
 		(list || []).forEach(function (ref, i) {
-			h += '<span class="cei-chip">' + esc(skillNameOf(ref.skillId));
-			if (editable) {
-				h += '<label class="cei-lv">Lv<input type="number" min="1" step="1" class="uma-input cei-lv-input" value="'
-					+ esc(ref.hintLevel == null ? '' : ref.hintLevel) + '" data-act="lv"' + attrs(at) + ' data-i="' + i + '" /></label>';
-				h += '<button type="button" class="uma-icon-btn" data-act="drop"' + attrs(at) + ' data-i="' + i + '" aria-label="外す">×</button>';
-			} else {
-				h += ' <span class="cei-lv">Lv' + esc(ref.hintLevel) + '</span>';
-			}
-			h += '</span>';
+			h += '<span class="cei-chip">' + esc(skillNameOf(ref.skillId))
+				+ '<label class="cei-lv">Lv<input type="number" min="1" step="1" class="uma-input cei-lv-input" value="'
+				+ esc(ref.hintLevel == null ? '' : ref.hintLevel) + '" data-act="lv"' + attrs(at) + ' data-i="' + i + '" aria-label="'
+				+ esc(skillNameOf(ref.skillId)) + ' のヒントのレベル" /></label>'
+				+ '<button type="button" class="uma-icon-btn cei-chip-x" data-act="drop"' + attrs(at) + ' data-i="' + i + '" aria-label="'
+				+ esc(skillNameOf(ref.skillId)) + ' を外す">×</button></span>';
 		});
-		if (editable) h += '<button type="button" class="uma-btn uma-btn--ghost cei-small" data-act="find-open"' + attrs(at) + '>＋ スキル</button>';
-		if (!(list || []).length && !editable) h += '<span class="cei-counts">（スキルなし）</span>';
+		// 空の枠の「なし」は、選択肢・結果の枠でだけ出す（確定の回は見出しの「スキルなし」で足りる）
+		if (!(list || []).length && (title || cls)) h += '<span class="cei-faint">なし</span>';
+		h += '<button type="button" class="uma-btn uma-btn--secondary cei-small" data-act="find-open"' + attrs(at) + '>＋ スキル</button>';
 		h += '</div>';
-		var isFinding = findAt && findAt.cardId === cardId && findAt.e === e && findAt.c === c && findAt.r === r;
-		if (editable && isFinding) {
+		var isFinding = findAt && findAt.cardId === at.card && findAt.step === at.step && findAt.c === at.c && findAt.r === at.r;
+		if (isFinding) {
 			h += '<div class="cei-find">';
 			h += '<input class="uma-input" type="search" data-act="find" placeholder="スキル名の一部を入れて探す" />';
 			h += '<div class="cei-hits" data-hits="1"></div>';
 			h += '</div>';
 		}
+		h += '</div>';
 		return h;
 	}
 
-	function choiceHtml(cardId, e, c, choice, editable, count) {
-		var isResults = Array.isArray(choice.results);
-		var at = { card: cardId, e: e, c: c };
-		var h = '<div class="cei-choice">';
-		h += '<div class="cei-choice-head"><span class="cei-choice-no">' + (count === 1 ? '選択肢なし' : '選択肢 ' + (c + 1)) + '</span>';
-		if (editable) {
-			h += '<label class="cei-check"><input type="checkbox" data-act="toggle-results"' + attrs(at) + (isResults ? ' checked' : '')
-				+ ' /> 結果が分かれる（成功・失敗など）</label>';
-			if (count > 1) h += '<button type="button" class="uma-btn uma-btn--ghost cei-small" data-act="drop-choice"' + attrs(at) + '>この選択肢を消す</button>';
-		}
-		h += '</div>';
-		if (isResults) {
-			choice.results.forEach(function (list, r) {
-				h += '<div class="cei-result"><div class="cei-result-head"><span class="cei-result-no">'
-					+ (r === 0 ? '結果1（いちばん良い結果・成功）' : '結果' + (r + 1)) + '</span>';
-				if (editable && choice.results.length > 2) {
-					h += '<button type="button" class="uma-btn uma-btn--ghost cei-small" data-act="drop-result"' + attrs(at) + ' data-r="' + r + '">この結果を消す</button>';
-				}
-				h += '</div>' + bucketHtml(cardId, e, c, r, list, editable) + '</div>';
+	var FORM_LABEL = { fixed: '確定（選択肢なし）', choice: '選択肢で分かれる', result: '結果で分かれる（選択肢なし）' };
+
+	function roundHtml(card, d, step) {
+		var ev = eventAt(d, step);
+		var form = formOf(ev);
+		var n = ev ? countRefs(ev) : 0;
+		var base = { card: card.id, step: step };
+		var h = '<section class="cei-round' + (n === 0 ? ' cei-round--empty' : '') + '" data-step="' + step + '">';
+		h += '<div class="cei-round-head"><span class="cei-round-title">' + step + '回目</span>';
+		h += '<span class="cei-forms" role="group" aria-label="' + step + '回目の形">';
+		['fixed', 'choice', 'result'].forEach(function (f) {
+			h += '<button type="button" class="uma-pill cei-form' + (form === f ? ' active' : '') + '" aria-pressed="' + (form === f) + '"'
+				+ ' data-act="form" data-form="' + f + '"' + attrs(base) + '>' + FORM_LABEL[f] + '</button>';
+		});
+		h += '</span>';
+		if (n === 0) h += '<span class="cei-faint">スキルなし</span>';
+		h += '</div><div class="cei-round-body">';
+		if (form === 'fixed') {
+			h += frameHtml('', { card: card.id, step: step, c: 0, r: -1 }, ev ? ev.choices[0].skills : []);
+		} else if (form === 'result') {
+			ev.choices[0].results.forEach(function (list, r) {
+				h += frameHtml(r === 0 ? '結果1（いちばん良い＝成功）' : '結果' + (r + 1), { card: card.id, step: step, c: 0, r: r }, list, 'cei-frame--result');
 			});
-			if (editable) h += '<button type="button" class="uma-btn uma-btn--ghost cei-small" data-act="add-result"' + attrs(at) + '>＋ 結果を足す</button>';
+			var nr = ev.choices[0].results.length;
+			h += '<div class="cei-more">';
+			h += '<button type="button" class="uma-btn uma-btn--ghost cei-small" data-act="add-result"' + attrs(base) + ' data-c="0">＋ 結果' + (nr + 1) + 'を足す</button>';
+			if (nr > 2) h += '<button type="button" class="cei-link" data-act="drop-result"' + attrs(base) + ' data-c="0" data-r="' + (nr - 1) + '">結果' + nr + 'をなくす</button>';
+			h += '</div>';
 		} else {
-			h += bucketHtml(cardId, e, c, -1, choice.skills, editable);
+			ev.choices.forEach(function (choice, c) {
+				var split = Array.isArray(choice.results);
+				h += '<div class="cei-choice"><div class="cei-choice-head"><span class="cei-choice-title">選択肢' + (c + 1) + '</span>'
+					+ '<button type="button" class="cei-link" data-act="split"' + attrs(base) + ' data-c="' + c + '">'
+					+ (split ? '成功・失敗に分けない' : '成功・失敗に分ける') + '</button></div>';
+				if (split) {
+					choice.results.forEach(function (list, r) {
+						h += frameHtml(resultLabelInChoice(r), { card: card.id, step: step, c: c, r: r }, list, 'cei-frame--result');
+					});
+				} else {
+					h += frameHtml('', { card: card.id, step: step, c: c, r: -1 }, choice.skills, 'cei-frame--choice');
+				}
+				h += '</div>';
+			});
+			var nc = ev.choices.length;
+			h += '<div class="cei-more">';
+			h += '<button type="button" class="uma-btn uma-btn--ghost cei-small" data-act="add-choice"' + attrs(base) + '>＋ 選択肢' + (nc + 1) + 'を足す</button>';
+			if (nc > 2) h += '<button type="button" class="cei-link" data-act="drop-choice"' + attrs(base) + ' data-c="' + (nc - 1) + '">選択肢' + nc + 'をなくす</button>';
+			h += '</div>';
 		}
-		h += '</div>';
+		h += '</div></section>';
 		return h;
 	}
 
-	function chainHtml(cardId, chain, editable) {
-		var h = '';
-		(chain || []).forEach(function (ev, e) {
-			var at = { card: cardId, e: e };
-			h += '<div class="cei-event"><div class="cei-event-head">';
-			if (editable) {
-				h += '<label class="cei-step"><input type="number" min="1" step="1" class="uma-input cei-step-input" value="' + esc(ev.step)
-					+ '" data-act="step"' + attrs(at) + ' /> 回目</label>';
-				h += '<button type="button" class="uma-btn uma-btn--ghost cei-small" data-act="drop-event"' + attrs(at) + '>この回を消す</button>';
-			} else {
-				h += '<span class="cei-step">' + esc(ev.step) + ' 回目</span>';
+	function strayHtml(card, d) {
+		var rows = rowsOf(d, card);
+		var h = '<div class="cei-stray"><div class="cei-frame-title">回が決まっていないスキル（前の画面で入れたもの。回へ移すか、外してください）</div><div class="cei-chips">';
+		d.stray.forEach(function (ref, i) {
+			h += '<span class="cei-chip">' + esc(skillNameOf(ref.skillId)) + ' <span class="cei-faint">Lv' + esc(ref.hintLevel == null ? '?' : ref.hintLevel) + '</span>';
+			for (var s = 1; s <= rows; s++) {
+				h += '<button type="button" class="cei-link" data-act="stray-move" data-card="' + esc(card.id) + '" data-i="' + i + '" data-step="' + s + '">' + s + '回目へ</button>';
+			}
+			h += '<button type="button" class="uma-icon-btn cei-chip-x" data-act="stray-drop" data-card="' + esc(card.id) + '" data-i="' + i + '" aria-label="外す">×</button></span>';
+		});
+		h += '</div></div>';
+		return h;
+	}
+
+	function bodyHtml(card) {
+		var d = draft[card.id];
+		var h = '<div class="cei-body">';
+		if (d.status === 'none') {
+			h += '<p class="cei-note">このカードは「イベント無し」（イベントでスキルを得ない）として記録しています。</p>';
+			h += '<div><button type="button" class="uma-btn uma-btn--secondary" data-act="undo-none" data-card="' + esc(card.id) + '">スキルを入力する</button></div>';
+		} else {
+			if (d.stray && d.stray.length) h += strayHtml(card, d);
+			var rows = rowsOf(d, card);
+			for (var s = 1; s <= rows; s++) h += roundHtml(card, d, s);
+			h += '<div class="cei-more">';
+			h += '<button type="button" class="uma-btn uma-btn--ghost cei-small" data-act="add-row" data-card="' + esc(card.id) + '">＋ ' + (rows + 1) + '回目を足す</button>';
+			// 足した回（最初に並べた数より後ろ）が空のときだけ、なくせる
+			var last = eventAt(d, rows);
+			if (rows > defaultRowsOf(card) && (!last || countRefs(last) === 0)) {
+				h += '<button type="button" class="cei-link" data-act="drop-row" data-card="' + esc(card.id) + '">' + rows + '回目をなくす</button>';
 			}
 			h += '</div>';
-			var count = (ev.choices || []).length;
-			(ev.choices || []).forEach(function (choice, c) { h += choiceHtml(cardId, e, c, choice, editable, count); });
-			if (editable) h += '<button type="button" class="uma-btn uma-btn--ghost cei-small" data-act="add-choice"' + attrs(at) + '>＋ 選択肢を足す</button>';
-			h += '</div>';
-		});
+			var problems = problemsOf(d);
+			if (problems.length) h += '<ul class="cei-problems">' + problems.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul>';
+		}
+		h += '<div class="cei-card-foot">';
+		if (d.status !== 'none') h += '<button type="button" class="cei-link" data-act="none" data-card="' + esc(card.id) + '">イベント無しにする（このカードはイベントでスキルを得ない）</button>';
+		h += '<button type="button" class="cei-link cei-link--danger" data-act="reset" data-card="' + esc(card.id) + '">このカードの入力をやめる（途中経過を消す）</button>';
+		h += '</div>';
+		h += '</div>';
 		return h;
 	}
 
@@ -431,42 +591,28 @@
 		var st = stateOf(card.id);
 		var locked = isFromFile(card.id);
 		var open = openCardId === card.id && !locked;
-		var d = draft[card.id];
-		var h = '<div class="cei-row" data-card-id="' + esc(card.id) + '" data-state="' + st + '">';
+		var h = '<div class="cei-row' + (open ? ' cei-row--open' : '') + '" data-card-id="' + esc(card.id) + '" data-state="' + st + '">';
 		h += '<div class="cei-head">';
 		h += '<span class="cei-label">' + esc(Core.formatEntryLabel(card))
-			+ (rarityOf(card) ? ' <span class="cei-counts">' + esc(rarityOf(card)) + '</span>' : '') + '</span>';
-		h += '<span class="uma-badge' + (st === 'done' ? ' uma-badge--accent' : (st === 'none' ? '' : ' uma-badge--warn'))
-			+ '">' + STATE_LABEL[st] + '</span>';
+			+ (rarityOf(card) ? ' <span class="cei-counts">' + esc(rarityOf(card)) + '</span>' : '')
+			+ ' <span class="uma-badge' + (st === 'done' ? ' uma-badge--accent' : (st === 'none' ? '' : ' uma-badge--warn')) + '">' + STATE_LABEL[st] + '</span></span>';
 		if (locked) {
 			h += '<span class="cei-counts">ファイルに入っています</span>';
 			h += '<button type="button" class="uma-btn uma-btn--ghost" data-act="edit-file" data-card="' + esc(card.id) + '">直す</button>';
 		} else {
-			h += '<button type="button" class="uma-btn uma-btn--secondary" data-act="open" data-card="' + esc(card.id) + '">'
+			h += '<button type="button" class="uma-btn ' + (open ? 'uma-btn--ghost' : 'uma-btn--secondary') + '" data-act="open" data-card="' + esc(card.id) + '">'
 				+ (open ? '閉じる' : '入力する') + '</button>';
-			h += '<button type="button" class="uma-btn uma-btn--neutral" data-act="none" data-card="' + esc(card.id) + '">イベント無し</button>';
-			if (d) h += '<button type="button" class="uma-btn uma-btn--ghost" data-act="reset" data-card="' + esc(card.id) + '">取り消す</button>';
 		}
 		h += '</div>';
-		if (locked && fileRows[card.id].status === 'done') {
-			h += '<div class="cei-body">' + chainHtml(card.id, fileRows[card.id].chain, false) + '</div>';
-		} else if (locked && fileRows[card.id].status === 'seeded') {
-			h += '<div class="cei-body">' + bucketHtml(card.id, -1, -1, -1, fileRows[card.id].unplaced, false) + '</div>';
-		} else if (d && d.status === 'done') {
-			h += '<div class="cei-body">' + chainHtml(card.id, d.chain, open);
-			if (open) h += '<button type="button" class="uma-btn uma-btn--secondary cei-small" data-act="add-event" data-card="' + esc(card.id) + '">＋ 回を足す</button>';
-			var problems = problemsOf(d);
-			if (problems.length) {
-				h += '<ul class="cei-problems">' + problems.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul>';
-			}
-			h += '</div>';
-		}
+		var sum = summaryOf(card.id);
+		if (sum) h += '<p class="cei-summary">' + esc(sum) + '</p>';
+		if (open) h += bodyHtml(card);
 		h += '</div>';
 		return h;
 	}
 
 	/*
-	 * **描き直しを入れ子にしない。** 数値の欄（回・Lv）に入れたまま別のボタンを押すと、
+	 * **描き直しを入れ子にしない。** 数値の欄（Lv）に入れたまま別のボタンを押すと、
 	 * 描き直しで一覧の中身を置き換えた瞬間にその欄のフォーカスが外れ、そこで change が起きて
 	 * もう一度 render() が呼ばれる。置き換えの途中でさらに置き換えると、ブラウザが
 	 * 「消そうとした要素がもう無い」（NotFoundError）で止まる。入れ子の呼び出しは、
@@ -496,47 +642,38 @@
 	}
 
 	/* ---------- 入力の不足（出力から外す理由） ----------
-	   check:catalog が落とすものを、貼る前にここで言う（EVENT_KEYS の決まりと同じ）。 */
+	   check:catalog が落とすもののうち、画面から起こりうるものを、貼る前にここで言う。
+	   スキルの無い回は「書かない回」なので不足ではない（出力で落とす）。 */
 	function problemsOf(d) {
 		var out = [];
 		if (!d || d.status !== 'done') return out;
-		var chain = d.chain || [];
-		if (chain.length === 0) out.push('回が1つもありません（スキルが無いなら「イベント無し」を押してください）');
-		var seen = {};
-		chain.forEach(function (ev) {
-			var label = ev.step + ' 回目';
-			if (!(typeof ev.step === 'number' && ev.step >= 1 && Math.floor(ev.step) === ev.step)) out.push(label + '：回の番号は1以上の整数にしてください');
-			else if (seen[ev.step]) out.push(label + '：同じ回が2つあります');
-			seen[ev.step] = true;
-			var total = 0;
+		if (d.stray && d.stray.length) out.push('回が決まっていないスキルがあります（上の枠から回へ移すか、外してください）');
+		var total = 0;
+		(d.chain || []).forEach(function (ev) {
+			var label = ev.step + '回目';
+			total += countRefs(ev);
 			(ev.choices || []).forEach(function (choice, c) {
-				var name = (ev.choices.length === 1 ? '' : '選択肢 ' + (c + 1) + '：');
-				var lists = Array.isArray(choice.results) ? choice.results : [choice.skills || []];
-				if (Array.isArray(choice.results) && choice.results.length < 2) out.push(label + '：' + name + '結果は2つ以上にしてください');
-				if (!Array.isArray(choice.results) && ev.choices.length === 1 && (choice.skills || []).length === 0) {
-					out.push(label + '：選択肢が1つなら、スキルを入れてください');
-				}
-				lists.forEach(function (list) {
+				var where = formOf(ev) === 'choice' ? '選択肢' + (c + 1) + '：' : '';
+				bucketsOf(choice).forEach(function (list) {
 					var ids = {};
 					(list || []).forEach(function (ref) {
-						total++;
-						if (!(typeof ref.hintLevel === 'number' && ref.hintLevel >= 1 && Math.floor(ref.hintLevel) === ref.hintLevel)) {
-							out.push(label + '：' + name + skillNameOf(ref.skillId) + ' のレベル（1以上の整数）が入っていません');
-						}
-						if (ids[ref.skillId]) out.push(label + '：' + name + skillNameOf(ref.skillId) + ' が同じ所に2回あります');
+						if (!isPosInt(ref.hintLevel)) out.push(label + '：' + where + skillNameOf(ref.skillId) + ' のレベル（1以上の整数）が入っていません');
+						if (ids[ref.skillId]) out.push(label + '：' + where + skillNameOf(ref.skillId) + ' が同じ所に2回あります');
 						ids[ref.skillId] = true;
 					});
 				});
 			});
-			if (total === 0) out.push(label + '：スキルが1つもありません（スキルが得られる回だけを書きます）');
 		});
+		if (total === 0 && !(d.stray && d.stray.length)) out.push('スキルが1つも入っていません（スキルが無いカードなら、下の「イベント無しにする」を押してください）');
 		return out;
 	}
 
 	/* ---------- スキルを探す ---------- */
-	function bucketAt(at) {
+	/** 枠のスキルの配列。create が真なら、まだ無い回を「確定」の形で作る。 */
+	function bucketAt(at, create) {
 		var d = draft[at.cardId];
-		var ev = d && d.chain && d.chain[at.e];
+		if (!d) return null;
+		var ev = create ? ensureEvent(d, at.step) : eventAt(d, at.step);
 		var choice = ev && ev.choices && ev.choices[at.c];
 		if (!choice) return null;
 		return at.r >= 0 ? (choice.results && choice.results[at.r]) : choice.skills;
@@ -549,7 +686,7 @@
 		var res = Core.findSkillsByNameFragment(text);
 		// 収録データから参照してよいのは、マスターのスキルと拡張スキルだけ（判定は core 側）。
 		var hits = res.hits.filter(function (h) { return Core.isReferableSkillId(h.id); });
-		var have = (bucketAt(findAt) || []).map(function (s) { return s.skillId; });
+		var have = (bucketAt(findAt, false) || []).map(function (s) { return s.skillId; });
 		var h = hits.map(function (x) {
 			var added = have.indexOf(x.id) !== -1;
 			return '<button type="button" class="uma-btn uma-btn--ghost cei-hit" data-act="pick" data-skill="' + esc(x.id) + '"'
@@ -591,7 +728,7 @@
 	/**
 	 * 途中経過 1枚ぶん → ファイルの行。名前は出力を作るたびに引き直す（併記の name が正本と必ず一致する）。
 	 * **参照してよいのは登録済みのスキルだけ**（C-77）。引けない id はここで外して知らせる。
-	 * 回は番号の順に並べ直す（入力した順ではなく、ファイルの決まり＝昇順）。
+	 * **スキルの無い回は書かない**（C-102 (1)）。回は番号の順。
 	 */
 	function entryOf(cardId, d) {
 		var unresolved = [];
@@ -603,11 +740,12 @@
 		};
 		var entry = { cardId: cardId, status: d.status };
 		if (d.status === 'done') {
-			entry.chain = (d.chain || []).slice().sort(function (a, b) { return a.step - b.step; }).map(function (ev) {
-				return { step: ev.step, choices: (ev.choices || []).map(function (c) {
-					return Array.isArray(c.results) ? { results: c.results.map(refs) } : { skills: refs(c.skills) };
-				}) };
-			});
+			entry.chain = (d.chain || []).filter(function (ev) { return countRefs(ev) > 0; })
+				.slice().sort(function (a, b) { return a.step - b.step; }).map(function (ev) {
+					return { step: ev.step, choices: (ev.choices || []).map(function (c) {
+						return Array.isArray(c.results) ? { results: c.results.map(refs) } : { skills: refs(c.skills) };
+					}) };
+				});
 		}
 		return { entry: entry, unresolved: unresolved };
 	}
@@ -621,8 +759,7 @@
 		cards.forEach(function (c) {
 			var d = draft[c.id];
 			if (!d) return;
-			var problems = problemsOf(d);
-			if (problems.length) { held.push(Core.formatEntryLabel(c)); return; }
+			if (problemsOf(d).length) { held.push(Core.formatEntryLabel(c)); return; }
 			var r = entryOf(c.id, d);
 			unresolved = unresolved.concat(r.unresolved);
 			var at = -1;
@@ -648,10 +785,26 @@
 		$('cei-draft-info').textContent = n > 0 ? 'このブラウザに ' + n + '枚ぶんの途中経過があります' : '途中経過はありません';
 	}
 
+	/* ---------- 形の切り替え ---------- */
+	/** 回の形を変える。**いちばん上の枠のスキルは新しい形の最初の枠へ引き継ぐ。** ほかの枠のスキルが消えるときは先に確かめる。 */
+	function switchForm(d, step, form) {
+		var ev = ensureEvent(d, step);
+		var cur = formOf(ev);
+		if (cur === form) return false;
+		var first = bucketsOf(ev.choices[0])[0] || [];
+		var lost = countRefs(ev) - first.length;
+		if (lost > 0 && !confirm(step + '回目の形を「' + FORM_LABEL[form] + '」に変えると、いちばん上の枠以外のスキル ' + lost + '個が消えます。よろしいですか。')) return false;
+		var keep = first.slice();
+		if (form === 'fixed') ev.choices = [{ skills: keep }];
+		else if (form === 'choice') ev.choices = [{ skills: keep }, { skills: [] }];
+		else ev.choices = [{ results: [keep, []] }];
+		return true;
+	}
+
 	/* ---------- 操作 ---------- */
 	function numAttr(el, name) { var v = el.getAttribute('data-' + name); return v === null ? -1 : Number(v); }
-	function atOf(el) { return { cardId: el.getAttribute('data-card'), e: numAttr(el, 'e'), c: numAttr(el, 'c'), r: numAttr(el, 'r') }; }
-	function nextStep(d) { return (d.chain || []).reduce(function (m, ev) { return Math.max(m, Number(ev.step) || 0); }, 0) + 1; }
+	function atOf(el) { return { cardId: el.getAttribute('data-card'), step: numAttr(el, 'step'), c: numAttr(el, 'c'), r: numAttr(el, 'r') }; }
+	function cardOf(id) { return cards.filter(function (c) { return c.id === id; })[0] || null; }
 
 	document.addEventListener('click', function (ev) {
 		var btn = ev.target.closest ? ev.target.closest('[data-act]') : null;
@@ -660,44 +813,65 @@
 		var at = atOf(btn);
 		var cardId = at.cardId;
 		var d = cardId ? draft[cardId] : null;
-		var choice = d && d.chain && d.chain[at.e] && d.chain[at.e].choices ? d.chain[at.e].choices[at.c] : null;
+		var evt = d && at.step > 0 ? eventAt(d, at.step) : null;
 		if (act === 'open') {
 			openCardId = (openCardId === cardId) ? '' : cardId;
 			findAt = null;
-			if (openCardId && (!draft[cardId] || draft[cardId].status !== 'done')) {
-				draft[cardId] = { status: 'done', chain: [{ step: 1, choices: [{ skills: [] }] }] };
-			}
+			if (openCardId && !draft[cardId]) draft[cardId] = { status: 'done', chain: [] };
 		} else if (act === 'edit-file') {
 			draft[cardId] = draftFromFileRow(fileRows[cardId]);
 			openCardId = cardId; findAt = null;
 		} else if (act === 'none') {
+			if (d && d.status === 'done' && ((d.chain || []).some(function (e) { return countRefs(e) > 0; }) || (d.stray && d.stray.length))
+				&& !confirm('入れてあるスキルを消して、このカードを「イベント無し」にします。よろしいですか。')) return;
 			draft[cardId] = { status: 'none' };
-			if (openCardId === cardId) openCardId = '';
 			findAt = null;
 			toast('「イベント無し」として記録しました');
+		} else if (act === 'undo-none') {
+			draft[cardId] = { status: 'done', chain: [] };
 		} else if (act === 'reset') {
+			if (!confirm('このカードの入力をやめて、途中経過を消します。よろしいですか。')) return;
 			delete draft[cardId];
 			if (openCardId === cardId) openCardId = '';
 			findAt = null;
-		} else if (act === 'add-event') {
-			d.chain = d.chain || [];
-			d.chain.push({ step: nextStep(d), choices: [{ skills: [] }] });
-		} else if (act === 'drop-event') {
-			d.chain.splice(at.e, 1); findAt = null;
+		} else if (act === 'form') {
+			if (!switchForm(d, at.step, btn.getAttribute('data-form'))) return;
+			findAt = null;
+		} else if (act === 'split') {
+			var choice = evt.choices[at.c];
+			if (Array.isArray(choice.results)) {
+				var lostN = choice.results.slice(1).reduce(function (n, l) { return n + l.length; }, 0);
+				if (lostN > 0 && !confirm('「' + resultLabelInChoice(1) + '」などのスキル ' + lostN + '個が消えます（「成功」のスキルは残します）。よろしいですか。')) return;
+				evt.choices[at.c] = { skills: choice.results[0].slice() };
+			} else {
+				evt.choices[at.c] = { results: [choice.skills.slice(), []] };
+			}
+			findAt = null;
 		} else if (act === 'add-choice') {
-			d.chain[at.e].choices.push({ skills: [] });
+			evt.choices.push({ skills: [] });
 		} else if (act === 'drop-choice') {
-			d.chain[at.e].choices.splice(at.c, 1); findAt = null;
+			if (countRefs({ choices: [evt.choices[at.c]] }) > 0 && !confirm('選択肢' + (at.c + 1) + 'のスキルも消えます。よろしいですか。')) return;
+			evt.choices.splice(at.c, 1); findAt = null;
 		} else if (act === 'add-result') {
-			choice.results.push([]);
+			evt.choices[0].results.push([]);
 		} else if (act === 'drop-result') {
-			choice.results.splice(at.r, 1); findAt = null;
+			var rl = evt.choices[0].results[at.r] || [];
+			if (rl.length > 0 && !confirm('結果' + (at.r + 1) + 'のスキルも消えます。よろしいですか。')) return;
+			evt.choices[0].results.splice(at.r, 1); findAt = null;
+		} else if (act === 'add-row') {
+			d.rows = rowsOf(d, cardOf(cardId)) + 1;
+		} else if (act === 'drop-row') {
+			var rows = rowsOf(d, cardOf(cardId));
+			d.chain = (d.chain || []).filter(function (e) { return e.step !== rows; });
+			d.rows = rows - 1;
+			findAt = null;
 		} else if (act === 'find-open') {
-			var same = findAt && findAt.cardId === at.cardId && findAt.e === at.e && findAt.c === at.c && findAt.r === at.r;
+			var same = findAt && findAt.cardId === at.cardId && findAt.step === at.step && findAt.c === at.c && findAt.r === at.r;
 			findAt = same ? null : at;
 		} else if (act === 'pick') {
-			var list = findAt ? bucketAt(findAt) : null;
+			var list = findAt ? bucketAt(findAt, true) : null;
 			var sid = btn.getAttribute('data-skill');
+			// レベルは足した時点で 1 を入れておく（違えばその場で直す）
 			if (list && !list.some(function (s) { return s.skillId === sid; })) list.push({ skillId: sid, hintLevel: 1 });
 			saveDraft();
 			var keep = document.querySelector('[data-act="find"]');
@@ -707,8 +881,17 @@
 			if (again) { again.value = text; renderHits(text); }
 			return;
 		} else if (act === 'drop') {
-			var from = bucketAt(at);
+			var from = bucketAt(at, false);
 			if (from) from.splice(numAttr(btn, 'i'), 1);
+		} else if (act === 'stray-move') {
+			var ref = d.stray.splice(numAttr(btn, 'i'), 1)[0];
+			var target = ensureEvent(d, at.step);
+			var into = bucketsOf(target.choices[0])[0];
+			if (ref && !into.some(function (s) { return s.skillId === ref.skillId; })) into.push(ref);
+			if (!d.stray.length) delete d.stray;
+		} else if (act === 'stray-drop') {
+			d.stray.splice(numAttr(btn, 'i'), 1);
+			if (!d.stray.length) delete d.stray;
 		} else {
 			return;
 		}
@@ -717,29 +900,11 @@
 
 	document.addEventListener('change', function (ev) {
 		var el = ev.target;
-		var act = el.getAttribute && el.getAttribute('data-act');
-		if (!act) return;
-		var at = atOf(el);
-		var d = draft[at.cardId];
-		if (!d) return;
-		if (act === 'toggle-results') {
-			var ch = d.chain[at.e].choices;
-			var cur = ch[at.c];
-			// 形を切り替えるときは、いま入っているスキルを先頭（成功）へ移す（黙って捨てない）
-			ch[at.c] = el.checked ? { results: [(cur.skills || []).slice(), []] } : { skills: (cur.results && cur.results[0] || []).slice() };
-			if (!el.checked && cur.results && cur.results.slice(1).some(function (l) { return l.length > 0; })) {
-				toast('結果2以降のスキルは外しました（結果1のスキルを残しています）');
-			}
-			findAt = null;
-		} else if (act === 'step') {
-			d.chain[at.e].step = el.value === '' ? null : Number(el.value);
-		} else if (act === 'lv') {
-			var list = bucketAt(at);
-			var ref = list && list[numAttr(el, 'i')];
-			if (ref) ref.hintLevel = el.value === '' ? null : Number(el.value);
-		} else {
-			return;
-		}
+		if (!el.getAttribute || el.getAttribute('data-act') !== 'lv') return;
+		var list = bucketAt(atOf(el), false);
+		var ref = list && list[numAttr(el, 'i')];
+		if (!ref) return;
+		ref.hintLevel = el.value === '' ? null : Number(el.value);
 		saveDraft(); render();
 	});
 
@@ -773,7 +938,7 @@
 		$('cei-version').addEventListener('input', renderOutput);
 		wireCopy('cei-copy', 'cei-out', 'support-card-event-skills.json');
 		$('cei-clear').addEventListener('click', function () {
-			if (!confirm('このブラウザに残っている「イベントスキル」の途中経過を捨てます。よろしいですか。')) return;
+			if (!confirm('このブラウザに残っている「イベントスキル」の途中経過を、すべてのカードぶん捨てます。よろしいですか。')) return;
 			draft = {}; openCardId = ''; findAt = null;
 			saveDraft(); render();
 		});
