@@ -8,9 +8,13 @@
 		data/ の中身を、ゲーム画面を見ながら手で埋めていくための作業用ページ。
 		**ツール本体には組み込まない**（css/styleguide.html と同じ扱い。どのページからもリンクしない）。
 
-		■ 画面は1つ
-		- 「イベントスキル」… サポートカードの連続イベントで得られるスキルを1枚ずつ記録する。
+		■ 画面は帯のタブで2つ（2026-09-27・C-102 の区切り3 で2つめを足した）
+		- 「カード（連続イベント）」… サポートカードの連続イベントで得られるスキルを1枚ずつ記録する。
 		                      → 出力 A ＝ data/support-card-event-skills.json
+		- 「キャラクター（共通イベント）」… 同じキャラクターのカードに共通するイベントで得られるスキルを、1人に1回だけ記録する。
+		  キャラクターは、グループでないカードの charaName と、グループのカードの groupMembers（core の charactersOfCard()）。
+		  箱の中の作りはカードの「N回目」と同じで、回の番号が無いだけ（「共通イベント1・2…」は並びの位置）。
+		                      → 出力 B ＝ data/character-event-skills.json
 		  2026-09-27（C-102・区切り1）に、記録の形を「何回目 → 選択肢 → 結果」に作り替えた。
 		  1つの選択肢は「成否に分かれない（skills）」か「結果が分かれる（results。先頭が成功）」のどちらか。
 		  スキルごとにヒントのレベルを持つ。形の決まりはファイルの note と check:catalog の EVENT_KEYS の上のコメント。
@@ -150,8 +154,9 @@
 			<li>4回目以降がある（グループのカードなど）ときは、いちばん下の「＋ 4回目を足す」で箱を増やします。</li>
 			<li>見て回ってスキルが無いカードは、開いた箱のいちばん下の<strong>「イベント無しにする」</strong>を押します。</li>
 			<li><strong>探しても出てこないスキル</strong>は、このページでは足せません。<strong>スキルの正本に入ってから</strong>（＝<code>data/extended-skills.json</code> に載ってから）選んでください。</li>
-			<li>区切りのよいところで、下の<strong>出力 A</strong> を<strong>コピー</strong>します。入力が足りないカードは出力に入らず、理由がそのカードの下に赤字で出ます。</li>
-			<li><code>data/support-card-event-skills.json</code> に貼って<strong>上書き</strong>します（ファイル全体を出しているので、そのまま置き換えられます）。</li>
+			<li><strong>キャラクター共通のイベント</strong>は、上の帯の<strong>「キャラクター（共通イベント）」</strong>のタブで、キャラクターごとに1回だけ入れます（同じキャラクターのカード全部に当てはまります。グループのカードにはメンバー全員ぶん）。カードを開いたときの「共通イベント：○○（未入力）」を押しても、その人の入力へ移れます。箱は「＋ 共通イベント2を足す」で増やします。</li>
+			<li>区切りのよいところで、下の<strong>出力 A</strong>（カード）と<strong>出力 B</strong>（キャラクター）を<strong>コピー</strong>します。入力が足りないものは出力に入らず、理由がその行の下に赤字で出ます。</li>
+			<li>出力 A は <code>data/support-card-event-skills.json</code>、出力 B は <code>data/character-event-skills.json</code> に貼って<strong>上書き</strong>します（ファイル全体を出しているので、そのまま置き換えられます）。</li>
 			<li><code>npm run check:catalog</code> を回して、形が正しいことを確かめます。</li>
 		</ol>
 		<p class="cei-note">
@@ -162,6 +167,10 @@
 	</div>
 
 	<div class="cei-panel">
+		<div class="cei-tabs" role="tablist" aria-label="入力するもの">
+			<button type="button" class="uma-pill active" role="tab" aria-selected="true" data-act="tab" data-tab="card">カード（連続イベント）</button>
+			<button type="button" class="uma-pill" role="tab" aria-selected="false" data-act="tab" data-tab="chara">キャラクター（共通イベント）</button>
+		</div>
 		<div class="cei-bar">
 			<input id="cei-q" class="uma-input" type="search" placeholder="二つ名・ウマ娘名で絞り込む" />
 			<label class="cei-check"><input id="cei-only-pending" type="checkbox" checked /> 未確認・入力中だけ</label>
@@ -177,11 +186,23 @@
 		<div class="cei-bar">
 			<label class="cei-check">版 <input id="cei-version" class="uma-input" type="text" size="12" /></label>
 			<button id="cei-copy" type="button" class="uma-btn uma-btn--primary">A をコピー</button>
-			<button id="cei-clear" type="button" class="uma-btn uma-btn--ghost">イベントの途中経過を捨てる</button>
+			<button id="cei-clear" type="button" class="uma-btn uma-btn--ghost">カードの途中経過を捨てる</button>
 			<span id="cei-draft-info" class="cei-counts"></span>
 		</div>
 		<textarea id="cei-out" readonly spellcheck="false"></textarea>
 		<p id="cei-out-warn" class="cei-note" hidden></p>
+	</div>
+
+	<div class="cei-panel">
+		<h2 class="cei-h2">出力 B（<code>character-event-skills.json</code> のファイル全体）</h2>
+		<div class="cei-bar">
+			<label class="cei-check">版 <input id="cei-version-b" class="uma-input" type="text" size="12" /></label>
+			<button id="cei-copy-b" type="button" class="uma-btn uma-btn--primary">B をコピー</button>
+			<button id="cei-clear-b" type="button" class="uma-btn uma-btn--ghost">キャラクターの途中経過を捨てる</button>
+			<span id="cei-draft-info-b" class="cei-counts"></span>
+		</div>
+		<textarea id="cei-out-b" readonly spellcheck="false"></textarea>
+		<p id="cei-out-b-warn" class="cei-note" hidden></p>
 	</div>
 </div>
 
@@ -194,17 +215,17 @@
 	// （Deck の書き出し・取り込みに混ざらないようにするため）。
 	// 2026-09-27（C-102）にデータの形を「回 → 選択肢 → 結果」に作り替えたので、キーも新しくした。
 	var DRAFT_KEY = 'umaCardEventInput:draft2';
+	// キャラクター共通のイベントの途中経過（C-102 の区切り3）。キャラクター名 → 途中経過
+	var CHARA_DRAFT_KEY = 'umaCardEventInput:charaDraft';
 	var FIND_DEBOUNCE_MS = 120;
 
-	/* 優先して入力するレアリティ（C-102 の決定(3)。このページに書いてよい、とおいもさんが決めた）。
-	   カードのデータにレアリティが入るまでは、絞り込みは効かない（全部出る）。
-	   **項目名は data-work が決める**ので、届いたら rarityOf() の中だけを合わせる。 */
+	/* 優先して入力するレアリティ（C-102 の決定(3)。このページに書いてよい、とおいもさんが決めた）。 */
 	var FOCUS_RARITY = 'SSR';
 	function rarityOf(card) { return card && typeof card.rarity === 'string' ? card.rarity : ''; }
-	/* カードを開いたときに最初から並べる回の数（連続イベントの回数の目安。SSR はおおむね3回・SR は2回）。
-	   レアリティが分からないカードは3つ。回の多いカード（グループのカードなど）は「N回目を足す」で増やす。
-	   **上限ではない**（C-102 の説明「上限は決め打ちしない」）。 */
-	var DEFAULT_ROWS_BY_RARITY = { SSR: 3, SR: 2 };
+	/* カードを開いたときに最初から並べる回の数（連続イベントの回数の目安。SSR はおおむね3回・SR は2回。
+	   R に連続イベントがあるかは確かめていないので1つだけ並べる）。グループのカードとレアリティが分からない
+	   カードは3つ。回の多いカードは「＋ N回目を足す」で増やす。**上限ではない**（C-102「上限は決め打ちしない」）。 */
+	var DEFAULT_ROWS_BY_RARITY = { SSR: 3, SR: 2, R: 1 };
 	var DEFAULT_ROWS = 3;
 
 	var Core = window.UmaSkillDeckCore;
@@ -212,8 +233,14 @@
 	var fileRows = {};     // すでにファイルに入っている分（cardId → 行）
 	var fileDoc = null;    // ファイルそのもの（note などを引き継ぐため）
 	var draft = {};        // cardId → 途中経過（下の「途中経過の形」）
+	var charas = [];       // キャラクターの一覧（共通イベントが当てはまる人。{ name, solo: [カード], groups: [カード] }）
+	var charaFileRows = {};// キャラクター名 → ファイルの行
+	var charaFileDoc = null;
+	var charaDraft = {};   // キャラクター名 → 途中経過
+	var tab = 'card';      // 'card'（連続イベント）/ 'chara'（共通イベント）
 	var openCardId = '';   // いま開いているカード
-	var findAt = null;     // いまスキルを探している枠 { cardId, step, c, r }
+	var openChara = '';    // いま開いているキャラクター
+	var findAt = null;     // いまスキルを探している枠 { kind, id, step, c, r }
 	var findTimer = 0;
 
 	/* ---------- もう使わない置き場 ----------
@@ -244,25 +271,37 @@
 	/* ==========================================================
 	 * 途中経過の形（ファイルの形とほぼ同じ。名前は持たず、出力を作るときに引き直す）
 	 *
+	 * カード（連続イベント）:
 	 *   { status: 'done' | 'none', chain: [ 回, … ], rows?: 数, stray?: [ 参照, … ] }
 	 *   回     … { step: 数, choices: [ 選択肢, … ] }
+	 * キャラクター（共通イベント。C-102 の区切り3）:
+	 *   { status: 'done' | 'none', events: [ { choices: [ 選択肢, … ] }, … ] }
+	 *   画面の「共通イベント1・2…」は events の並びの位置（番号はデータに持たない）
+	 * 共通:
 	 *   選択肢 … { skills: [ 参照, … ] }                 ← 成否に分かれない
 	 *            { results: [ [ 参照, … ], [ … ], … ] }  ← 結果が分かれる（先頭が成功）
 	 *   参照   … { skillId, hintLevel }
 	 *   rows   … 画面に並べる回の数（「N回目を足す」で増やしたぶん。出力には出ない）
 	 *   stray  … 回が決まっていないスキル（前の画面で、回の番号を空のまま・同じ番号を2つ入れたもの。出力には出ない）
 	 *
-	 * **画面では「1回目・2回目・3回目」の行を最初から並べる**（2026-09-27 の作り直し）。
-	 * 途中経過の chain には、スキルを入れた回（または形を選んだ回）だけがある。スキルの無い回は出力に書かない。
+	 * **画面では「1回目・2回目・3回目」の箱を最初から並べる**（2026-09-27 の作り直し）。
+	 * スキルの無い回・共通イベントは出力に書かない。
 	 * ========================================================== */
+	function readJson(key) {
+		try { var v = JSON.parse(localStorage.getItem(key) || '{}') || {}; return (typeof v === 'object' && !Array.isArray(v)) ? v : {}; }
+		catch (e) { return {}; }
+	}
 	function loadDraft() {
-		try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}') || {}; } catch (e) { draft = {}; }
-		if (typeof draft !== 'object' || draft === null || Array.isArray(draft)) draft = {};
+		draft = readJson(DRAFT_KEY);
 		Object.keys(draft).forEach(function (id) { normalizeDraft(draft[id]); });
+		charaDraft = readJson(CHARA_DRAFT_KEY);
 	}
 	function saveDraft() {
 		try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (e) {}
+		try { localStorage.setItem(CHARA_DRAFT_KEY, JSON.stringify(charaDraft)); } catch (e) {}
 	}
+	function drafts(kind) { return kind === 'chara' ? charaDraft : draft; }
+	function fileRowsOf(kind) { return kind === 'chara' ? charaFileRows : fileRows; }
 
 	/**
 	 * 前の画面（回の番号を手で打つ作り）で入れた途中経過を、今の画面で読める形にそろえる。
@@ -295,35 +334,40 @@
 	}
 
 	/** ファイルの行 → 途中経過（名前を落とす）。「直す」で使う。 */
-	function draftFromFileRow(row) {
+	function draftFromFileRow(kind, row) {
 		var refs = function (list) {
 			return (list || []).map(function (s) { return { skillId: s.skillId, hintLevel: s.hintLevel }; });
 		};
-		return {
-			status: row.status === 'none' ? 'none' : 'done',
-			chain: (row.chain || []).map(function (ev) {
-				return {
-					step: ev.step,
-					choices: (ev.choices || []).map(function (c) {
-						return Array.isArray(c.results) ? { results: c.results.map(refs) } : { skills: refs(c.skills) };
-					})
-				};
-			})
+		var choicesOf = function (ev) {
+			return (ev.choices || []).map(function (c) {
+				return Array.isArray(c.results) ? { results: c.results.map(refs) } : { skills: refs(c.skills) };
+			});
 		};
+		var d = { status: row.status === 'none' ? 'none' : 'done' };
+		if (kind === 'chara') d.events = (row.events || []).map(function (ev) { return { choices: choicesOf(ev) }; });
+		else d.chain = (row.chain || []).map(function (ev) { return { step: ev.step, choices: choicesOf(ev) }; });
+		return d;
 	}
 
 	/**
 	 * ファイル側に入った分は、途中経過から落とす（二重に持たない）。
 	 * 「直す」でファイルの行から始めた途中経過は、**ファイルと同じ中身に戻っていれば**落とす。
 	 */
-	function pruneDraft() {
+	function pruneDrafts() {
 		var dropped = 0;
 		Object.keys(draft).forEach(function (id) {
 			var inFile = fileRows[id];
 			var d = draft[id];
 			if (!cards.some(function (c) { return c.id === id; })) { delete draft[id]; dropped++; return; }
-			if (inFile && !(d.stray && d.stray.length) && JSON.stringify(entryOf(id, d).entry) === JSON.stringify(fileEntryOf(inFile))) {
+			if (inFile && !(d.stray && d.stray.length) && JSON.stringify(entryOf('card', id, d).entry) === JSON.stringify(fileEntryOf('card', inFile))) {
 				delete draft[id]; dropped++;
+			}
+		});
+		Object.keys(charaDraft).forEach(function (name) {
+			var inFile = charaFileRows[name];
+			if (!charaOf(name)) { delete charaDraft[name]; dropped++; return; }
+			if (inFile && JSON.stringify(entryOf('chara', name, charaDraft[name]).entry) === JSON.stringify(fileEntryOf('chara', inFile))) {
+				delete charaDraft[name]; dropped++;
 			}
 		});
 		if (dropped > 0) saveDraft();
@@ -361,6 +405,26 @@
 		}
 	}
 
+	/* ---------- キャラクターの一覧（C-102 の区切り3） ----------
+	   共通イベントが当てはまるのは、グループでないカードの charaName と、グループのカードの groupMembers。
+	   **グループのカードの charaName（代表者）は、メンバーの一覧に入っているので別に数えない。**
+	   並びはカードのデータに初めて出てきた順。 */
+	function buildCharas() {
+		var byName = {};
+		var list = [];
+		var get = function (name) {
+			if (!byName[name]) { byName[name] = { name: name, solo: [], groups: [] }; list.push(byName[name]); }
+			return byName[name];
+		};
+		cards.forEach(function (c) {
+			Core.charactersOfCard(c).forEach(function (name) {
+				if (c.isGroup) get(name).groups.push(c); else get(name).solo.push(c);
+			});
+		});
+		return list;
+	}
+	function charaOf(name) { return charas.filter(function (x) { return x.name === name; })[0] || null; }
+
 	/* ---------- 回の形 ---------- */
 	// 'fixed'（確定＝選択肢なし）/ 'choice'（選択肢で分かれる）/ 'result'（結果で分かれる＝選択肢なし）
 	function formOf(ev) {
@@ -376,28 +440,48 @@
 		return out;
 	}
 	function countRefs(ev) { return allRefs(ev).length; }
-	function eventAt(d, step) { return ((d && d.chain) || []).filter(function (ev) { return ev.step === step; })[0] || null; }
-	function ensureEvent(d, step) {
-		var ev = eventAt(d, step);
+	/** その箱のイベント。カードは回の番号（step）で、キャラクターは並びの位置（1から）で引く。 */
+	function eventAt(kind, d, slot) {
+		if (kind === 'chara') return ((d && d.events) || [])[slot - 1] || null;
+		return ((d && d.chain) || []).filter(function (ev) { return ev.step === slot; })[0] || null;
+	}
+	function ensureEvent(kind, d, slot) {
+		var ev = eventAt(kind, d, slot);
 		if (ev) return ev;
-		ev = { step: step, choices: [{ skills: [] }] };
+		if (kind === 'chara') {
+			d.events = d.events || [];
+			while (d.events.length < slot) d.events.push({ choices: [{ skills: [] }] });
+			return d.events[slot - 1];
+		}
+		ev = { step: slot, choices: [{ skills: [] }] };
 		d.chain = (d.chain || []).concat([ev]).sort(function (a, b) { return a.step - b.step; });
 		return ev;
 	}
+	function eventsOf(kind, d) { return kind === 'chara' ? ((d && d.events) || []) : ((d && d.chain) || []); }
 	function maxStepOf(d) { return ((d && d.chain) || []).reduce(function (m, ev) { return Math.max(m, ev.step || 0); }, 0); }
-	function defaultRowsOf(card) { return DEFAULT_ROWS_BY_RARITY[rarityOf(card)] || DEFAULT_ROWS; }
-	function rowsOf(d, card) { return Math.max(defaultRowsOf(card), maxStepOf(d), (d && d.rows) || 0); }
+	function defaultRowsOf(card) {
+		if (card && card.isGroup) return DEFAULT_ROWS;
+		return DEFAULT_ROWS_BY_RARITY[rarityOf(card)] || DEFAULT_ROWS;
+	}
+	/** 並べる箱の数。カードは最初から回の数だけ、キャラクターは入れた数（最低1つ） */
+	function boxesOf(kind, d, card) {
+		if (kind === 'chara') return Math.max(1, ((d && d.events) || []).length);
+		return Math.max(defaultRowsOf(card), maxStepOf(d), (d && d.rows) || 0);
+	}
+	function slotLabel(kind, slot) { return kind === 'chara' ? '共通イベント' + slot : slot + '回目'; }
 
 	/* ---------- 状態 ---------- */
 	// 'done'（確かめた）/ 'none'（無い）/ 'seeded'（取り込んだまま）/ 'pending'（未確認）
-	function stateOf(cardId) {
-		if (draft[cardId]) return draft[cardId].status;
-		var row = fileRows[cardId];
+	function stateOf(kind, id) {
+		var d = drafts(kind)[id];
+		if (d) return d.status;
+		var row = fileRowsOf(kind)[id];
 		return row ? row.status : 'pending';
 	}
-	function isFromFile(cardId) { return !!fileRows[cardId] && !draft[cardId]; }
+	function isFromFile(kind, id) { return !!fileRowsOf(kind)[id] && !drafts(kind)[id]; }
 
 	var STATE_LABEL = { done: '入力あり', none: 'イベント無し', seeded: '取り込んだまま', pending: '未確認' };
+	var CHARA_STATE_LABEL = { done: '入力済み', none: 'イベント無し', seeded: '取り込んだまま', pending: '未入力' };
 
 	/* ---------- 要約の1行 ----------
 	   例：「2回目：ここ一番 Lv1 ／ 3回目：突撃魂 Lv1・励声一番 Lv2」
@@ -406,33 +490,43 @@
 	function refsText(list) {
 		return (list || []).length ? list.map(function (r) { return skillNameOf(r.skillId) + ' Lv' + (r.hintLevel == null ? '?' : r.hintLevel); }).join('・') : 'なし';
 	}
+	function resultLabelInChoice(i) { return i === 0 ? '成功' : (i === 1 ? '失敗' : '結果' + (i + 1)); }
 	function splitText(choice) {
 		return choice.results.map(function (l, i) { return resultLabelInChoice(i) + ' ' + refsText(l); }).join('｜');
 	}
-	function eventText(ev) {
+	function eventText(ev, head) {
 		var f = formOf(ev);
-		var head = ev.step ? ev.step + '回目：' : '';
 		if (f === 'fixed') return head + refsText(ev.choices[0].skills);
 		if (f === 'result') return head + ev.choices[0].results.map(function (l, i) { return '結果' + (i + 1) + ' ' + refsText(l); }).join('、');
 		return head + ev.choices.map(function (c, i) {
 			return '選択肢' + (i + 1) + (Array.isArray(c.results) ? '［' + splitText(c) + '］' : ' ' + refsText(c.skills));
 		}).join('、');
 	}
-	function summaryOf(cardId) {
-		var d = draft[cardId];
-		var row = fileRows[cardId];
-		var src = d || row;
+	function summaryOf(kind, id) {
+		var d = drafts(kind)[id];
+		var src = d || fileRowsOf(kind)[id];
 		if (!src) return '';
 		if (src.status === 'none') return 'イベント無し（イベントでスキルを得ない）';
 		if (src.status === 'seeded') return '取り込んだまま：' + refsText(src.unplaced).replace(/ Lv\?/g, '');
-		var parts = (src.chain || []).filter(function (ev) { return countRefs(ev) > 0; })
-			.slice().sort(function (a, b) { return a.step - b.step; }).map(eventText);
-		if (d && d.stray && d.stray.length) parts.unshift('回が決まっていない：' + refsText(d.stray));
+		var parts;
+		if (kind === 'chara') {
+			parts = [];
+			(src.events || []).forEach(function (ev, i) { if (countRefs(ev) > 0) parts.push(eventText(ev, slotLabel('chara', i + 1) + '：')); });
+		} else {
+			parts = (src.chain || []).filter(function (ev) { return countRefs(ev) > 0; })
+				.slice().sort(function (a, b) { return a.step - b.step; })
+				.map(function (ev) { return eventText(ev, ev.step + '回目：'); });
+			if (d && d.stray && d.stray.length) parts.unshift('回が決まっていない：' + refsText(d.stray));
+		}
 		return parts.length ? parts.join(' ／ ') : 'まだ何も入っていません';
 	}
 
 	/* ---------- 一覧 ---------- */
 	function hasRarity() { return cards.some(function (c) { return !!rarityOf(c); }); }
+	function isPendingLike(kind, id) {
+		var s = stateOf(kind, id);
+		return !!drafts(kind)[id] || s === 'pending' || s === 'seeded';
+	}
 
 	function visibleCards() {
 		var q = Core.normalizeSkillText($('cei-q').value || '');
@@ -442,46 +536,65 @@
 			// いま開いている行は、絞り込みの条件にかかわらず残す（C-50）。
 			if (c.id === openCardId) return true;
 			// 「未確認・入力中だけ」… まだ確かめていないカードと、途中経過がある（ファイルにまだ入っていない）カード。
-			if (onlyPending && !draft[c.id] && stateOf(c.id) !== 'pending' && stateOf(c.id) !== 'seeded') return false;
+			if (onlyPending && !isPendingLike('card', c.id)) return false;
 			if (onlyFocus && rarityOf(c) !== FOCUS_RARITY) return false;
 			if (!q) return true;
 			return Core.normalizeSkillText(Core.formatEntryLabel(c)).indexOf(q) !== -1;
 		});
 	}
+	/** キャラクターの絞り込み。「SSR だけ」は、そのキャラクターが SSR のカード（グループのカードを含む）を持つかで見る。 */
+	function visibleCharas() {
+		var q = Core.normalizeSkillText($('cei-q').value || '');
+		var onlyPending = $('cei-only-pending').checked;
+		var onlyFocus = $('cei-only-focus').checked && hasRarity();
+		return charas.filter(function (x) {
+			if (x.name === openChara) return true;
+			if (onlyPending && !isPendingLike('chara', x.name)) return false;
+			if (onlyFocus && !x.solo.concat(x.groups).some(function (c) { return rarityOf(c) === FOCUS_RARITY; })) return false;
+			if (!q) return true;
+			return Core.normalizeSkillText(x.name).indexOf(q) !== -1;
+		});
+	}
 
 	function renderCounts() {
 		var n = { done: 0, none: 0, seeded: 0, pending: 0 };
-		cards.forEach(function (c) { var s = stateOf(c.id); n[s] = (n[s] || 0) + 1; });
-		$('cei-counts').textContent = '全' + cards.length + '枚：入力あり ' + n.done
-			+ ' / イベント無し ' + n.none + ' / 取り込んだまま ' + n.seeded + ' / 未確認 ' + n.pending;
+		if (tab === 'chara') {
+			charas.forEach(function (x) { var s = stateOf('chara', x.name); n[s] = (n[s] || 0) + 1; });
+			$('cei-counts').textContent = '全' + charas.length + '人：入力済み ' + n.done
+				+ ' / イベント無し ' + n.none + ' / 取り込んだまま ' + n.seeded + ' / 未入力 ' + n.pending;
+		} else {
+			cards.forEach(function (c) { var s = stateOf('card', c.id); n[s] = (n[s] || 0) + 1; });
+			$('cei-counts').textContent = '全' + cards.length + '枚：入力あり ' + n.done
+				+ ' / イベント無し ' + n.none + ' / 取り込んだまま ' + n.seeded + ' / 未確認 ' + n.pending;
+		}
 		$('cei-focus-note').hidden = hasRarity();
 	}
 
-	/* ---------- 1枚ぶんの入力 ---------- */
+	/* ---------- 1枚ぶん・1人ぶんの入力 ---------- */
 	function attrs(o) {
 		return Object.keys(o).map(function (k) { return ' data-' + k + '="' + esc(o[k]) + '"'; }).join('');
 	}
-	function resultLabelInChoice(i) { return i === 0 ? '成功' : (i === 1 ? '失敗' : '結果' + (i + 1)); }
+	function sameAt(a, b) { return a && b && a.kind === b.kind && a.id === b.id && a.step === b.step && a.c === b.c && a.r === b.r; }
 
 	/** 1つの枠。見出し・スキルのチップ（名前＋Lv＋×）・「＋ スキル」・その場で開く検索。 */
 	function frameHtml(title, at, list, cls) {
+		var da = { kind: at.kind, card: at.id, step: at.step, c: at.c, r: at.r };
 		var h = '<div class="cei-frame' + (cls ? ' ' + cls : '') + '" data-c="' + at.c + '" data-r="' + at.r + '">';
 		if (title) h += '<div class="cei-frame-title">' + esc(title) + '</div>';
 		h += '<div class="cei-chips">';
 		(list || []).forEach(function (ref, i) {
 			h += '<span class="cei-chip">' + esc(skillNameOf(ref.skillId))
 				+ '<label class="cei-lv">Lv<input type="number" min="1" step="1" class="uma-input cei-lv-input" value="'
-				+ esc(ref.hintLevel == null ? '' : ref.hintLevel) + '" data-act="lv"' + attrs(at) + ' data-i="' + i + '" aria-label="'
+				+ esc(ref.hintLevel == null ? '' : ref.hintLevel) + '" data-act="lv"' + attrs(da) + ' data-i="' + i + '" aria-label="'
 				+ esc(skillNameOf(ref.skillId)) + ' のヒントのレベル" /></label>'
-				+ '<button type="button" class="uma-icon-btn cei-chip-x" data-act="drop"' + attrs(at) + ' data-i="' + i + '" aria-label="'
+				+ '<button type="button" class="uma-icon-btn cei-chip-x" data-act="drop"' + attrs(da) + ' data-i="' + i + '" aria-label="'
 				+ esc(skillNameOf(ref.skillId)) + ' を外す">×</button></span>';
 		});
 		// 空の枠の「なし」は、選択肢・結果の枠でだけ出す（確定の回は見出しの「スキルなし」で足りる）
 		if (!(list || []).length && (title || cls)) h += '<span class="cei-faint">なし</span>';
-		h += '<button type="button" class="uma-btn uma-btn--secondary cei-small" data-act="find-open"' + attrs(at) + '>＋ スキル</button>';
+		h += '<button type="button" class="uma-btn uma-btn--secondary cei-small" data-act="find-open"' + attrs(da) + '>＋ スキル</button>';
 		h += '</div>';
-		var isFinding = findAt && findAt.cardId === at.card && findAt.step === at.step && findAt.c === at.c && findAt.r === at.r;
-		if (isFinding) {
+		if (sameAt(findAt, at)) {
 			h += '<div class="cei-find">';
 			h += '<input class="uma-input" type="search" data-act="find" placeholder="スキル名の一部を入れて探す" />';
 			h += '<div class="cei-hits" data-hits="1"></div>';
@@ -493,14 +606,16 @@
 
 	var FORM_LABEL = { fixed: '確定（選択肢なし）', choice: '選択肢で分かれる', result: '結果で分かれる（選択肢なし）' };
 
-	function roundHtml(card, d, step) {
-		var ev = eventAt(d, step);
+	/** 1つの箱（カードの「N回目」・キャラクターの「共通イベントN」）。中の作りは同じ。 */
+	function boxHtml(kind, id, d, slot) {
+		var ev = eventAt(kind, d, slot);
 		var form = formOf(ev);
 		var n = ev ? countRefs(ev) : 0;
-		var base = { card: card.id, step: step };
-		var h = '<section class="cei-round' + (n === 0 ? ' cei-round--empty' : '') + '" data-step="' + step + '">';
-		h += '<div class="cei-round-head"><span class="cei-round-title">' + step + '回目</span>';
-		h += '<span class="cei-forms" role="group" aria-label="' + step + '回目の形">';
+		var base = { kind: kind, card: id, step: slot };
+		var at = function (c, r) { return { kind: kind, id: id, step: slot, c: c, r: r }; };
+		var h = '<section class="cei-round' + (n === 0 ? ' cei-round--empty' : '') + '" data-step="' + slot + '">';
+		h += '<div class="cei-round-head"><span class="cei-round-title">' + esc(slotLabel(kind, slot)) + '</span>';
+		h += '<span class="cei-forms" role="group" aria-label="' + esc(slotLabel(kind, slot)) + 'の形">';
 		['fixed', 'choice', 'result'].forEach(function (f) {
 			h += '<button type="button" class="uma-pill cei-form' + (form === f ? ' active' : '') + '" aria-pressed="' + (form === f) + '"'
 				+ ' data-act="form" data-form="' + f + '"' + attrs(base) + '>' + FORM_LABEL[f] + '</button>';
@@ -509,10 +624,10 @@
 		if (n === 0) h += '<span class="cei-faint">スキルなし</span>';
 		h += '</div><div class="cei-round-body">';
 		if (form === 'fixed') {
-			h += frameHtml('', { card: card.id, step: step, c: 0, r: -1 }, ev ? ev.choices[0].skills : []);
+			h += frameHtml('', at(0, -1), ev ? ev.choices[0].skills : []);
 		} else if (form === 'result') {
 			ev.choices[0].results.forEach(function (list, r) {
-				h += frameHtml(r === 0 ? '結果1（いちばん良い＝成功）' : '結果' + (r + 1), { card: card.id, step: step, c: 0, r: r }, list, 'cei-frame--result');
+				h += frameHtml(r === 0 ? '結果1（いちばん良い＝成功）' : '結果' + (r + 1), at(0, r), list, 'cei-frame--result');
 			});
 			var nr = ev.choices[0].results.length;
 			h += '<div class="cei-more">';
@@ -526,11 +641,9 @@
 					+ '<button type="button" class="cei-link" data-act="split"' + attrs(base) + ' data-c="' + c + '">'
 					+ (split ? '成功・失敗に分けない' : '成功・失敗に分ける') + '</button></div>';
 				if (split) {
-					choice.results.forEach(function (list, r) {
-						h += frameHtml(resultLabelInChoice(r), { card: card.id, step: step, c: c, r: r }, list, 'cei-frame--result');
-					});
+					choice.results.forEach(function (list, r) { h += frameHtml(resultLabelInChoice(r), at(c, r), list, 'cei-frame--result'); });
 				} else {
-					h += frameHtml('', { card: card.id, step: step, c: c, r: -1 }, choice.skills, 'cei-frame--choice');
+					h += frameHtml('', at(c, -1), choice.skills, 'cei-frame--choice');
 				}
 				h += '</div>';
 			});
@@ -545,68 +658,123 @@
 	}
 
 	function strayHtml(card, d) {
-		var rows = rowsOf(d, card);
+		var rows = boxesOf('card', d, card);
 		var h = '<div class="cei-stray"><div class="cei-frame-title">回が決まっていないスキル（前の画面で入れたもの。回へ移すか、外してください）</div><div class="cei-chips">';
 		d.stray.forEach(function (ref, i) {
 			h += '<span class="cei-chip">' + esc(skillNameOf(ref.skillId)) + ' <span class="cei-faint">Lv' + esc(ref.hintLevel == null ? '?' : ref.hintLevel) + '</span>';
 			for (var s = 1; s <= rows; s++) {
-				h += '<button type="button" class="cei-link" data-act="stray-move" data-card="' + esc(card.id) + '" data-i="' + i + '" data-step="' + s + '">' + s + '回目へ</button>';
+				h += '<button type="button" class="cei-link" data-act="stray-move" data-kind="card" data-card="' + esc(card.id) + '" data-i="' + i + '" data-step="' + s + '">' + s + '回目へ</button>';
 			}
-			h += '<button type="button" class="uma-icon-btn cei-chip-x" data-act="stray-drop" data-card="' + esc(card.id) + '" data-i="' + i + '" aria-label="外す">×</button></span>';
+			h += '<button type="button" class="uma-icon-btn cei-chip-x" data-act="stray-drop" data-kind="card" data-card="' + esc(card.id) + '" data-i="' + i + '" aria-label="外す">×</button></span>';
 		});
 		h += '</div></div>';
 		return h;
 	}
 
-	function bodyHtml(card) {
-		var d = draft[card.id];
+	/** 開いた箱の中身（カード・キャラクター共通）。 */
+	function bodyHtml(kind, id, card) {
+		var d = drafts(kind)[id];
+		var who = { kind: kind, card: id };
 		var h = '<div class="cei-body">';
 		if (d.status === 'none') {
-			h += '<p class="cei-note">このカードは「イベント無し」（イベントでスキルを得ない）として記録しています。</p>';
-			h += '<div><button type="button" class="uma-btn uma-btn--secondary" data-act="undo-none" data-card="' + esc(card.id) + '">スキルを入力する</button></div>';
+			h += '<p class="cei-note">' + (kind === 'chara' ? 'このキャラクター' : 'このカード') + 'は「イベント無し」（イベントでスキルを得ない）として記録しています。</p>';
+			h += '<div><button type="button" class="uma-btn uma-btn--secondary" data-act="undo-none"' + attrs(who) + '>スキルを入力する</button></div>';
 		} else {
-			if (d.stray && d.stray.length) h += strayHtml(card, d);
-			var rows = rowsOf(d, card);
-			for (var s = 1; s <= rows; s++) h += roundHtml(card, d, s);
+			if (kind === 'card' && d.stray && d.stray.length) h += strayHtml(card, d);
+			var boxes = boxesOf(kind, d, card);
+			for (var s = 1; s <= boxes; s++) h += boxHtml(kind, id, d, s);
 			h += '<div class="cei-more">';
-			h += '<button type="button" class="uma-btn uma-btn--ghost cei-small" data-act="add-row" data-card="' + esc(card.id) + '">＋ ' + (rows + 1) + '回目を足す</button>';
-			// 足した回（最初に並べた数より後ろ）が空のときだけ、なくせる
-			var last = eventAt(d, rows);
-			if (rows > defaultRowsOf(card) && (!last || countRefs(last) === 0)) {
-				h += '<button type="button" class="cei-link" data-act="drop-row" data-card="' + esc(card.id) + '">' + rows + '回目をなくす</button>';
+			h += '<button type="button" class="uma-btn uma-btn--ghost cei-small" data-act="add-row"' + attrs(who) + '>＋ '
+				+ esc(slotLabel(kind, boxes + 1)) + 'を足す</button>';
+			// 足した箱（カードは最初に並べた数より後ろ、キャラクターは2つめ以降）が空のときだけ、なくせる
+			var last = eventAt(kind, d, boxes);
+			var floor = kind === 'chara' ? 1 : defaultRowsOf(card);
+			if (boxes > floor && (!last || countRefs(last) === 0)) {
+				h += '<button type="button" class="cei-link" data-act="drop-row"' + attrs(who) + '>' + esc(slotLabel(kind, boxes)) + 'をなくす</button>';
 			}
 			h += '</div>';
-			var problems = problemsOf(d);
+			var problems = problemsOf(kind, d);
 			if (problems.length) h += '<ul class="cei-problems">' + problems.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul>';
 		}
+		var subject = kind === 'chara' ? 'このキャラクター' : 'このカード';
 		h += '<div class="cei-card-foot">';
-		if (d.status !== 'none') h += '<button type="button" class="cei-link" data-act="none" data-card="' + esc(card.id) + '">イベント無しにする（このカードはイベントでスキルを得ない）</button>';
-		h += '<button type="button" class="cei-link cei-link--danger" data-act="reset" data-card="' + esc(card.id) + '">このカードの入力をやめる（途中経過を消す）</button>';
+		if (d.status !== 'none') h += '<button type="button" class="cei-link" data-act="none"' + attrs(who) + '>イベント無しにする（' + subject + 'は' + (kind === 'chara' ? '共通イベントで' : 'イベントで') + 'スキルを得ない）</button>';
+		h += '<button type="button" class="cei-link cei-link--danger" data-act="reset"' + attrs(who) + '>' + subject + 'の入力をやめる（途中経過を消す）</button>';
 		h += '</div>';
 		h += '</div>';
 		return h;
 	}
 
-	function rowHtml(card) {
-		var st = stateOf(card.id);
-		var locked = isFromFile(card.id);
+	/** カードを開いたときに出す「共通イベント：○○（入力済み）」の1行。押すとキャラクターのタブのその人へ移る。 */
+	function charaLinksHtml(card) {
+		var names = Core.charactersOfCard(card);
+		if (!names.length) return '';
+		var h = '<p class="cei-charas"><span class="cei-charas-label">共通イベント' + (card.isGroup ? '（グループのメンバー全員ぶん）' : '') + '：</span>';
+		h += names.map(function (name) {
+			var st = stateOf('chara', name);
+			return '<button type="button" class="cei-link cei-chara-link" data-act="goto-chara" data-name="' + esc(name) + '">'
+				+ esc(name) + '（' + CHARA_STATE_LABEL[st] + '）</button>';
+		}).join('<span class="cei-faint">・</span>');
+		h += '</p>';
+		return h;
+	}
+
+	function cardRowHtml(card) {
+		var st = stateOf('card', card.id);
+		var locked = isFromFile('card', card.id);
 		var open = openCardId === card.id && !locked;
 		var h = '<div class="cei-row' + (open ? ' cei-row--open' : '') + '" data-card-id="' + esc(card.id) + '" data-state="' + st + '">';
 		h += '<div class="cei-head">';
 		h += '<span class="cei-label">' + esc(Core.formatEntryLabel(card))
-			+ (rarityOf(card) ? ' <span class="cei-counts">' + esc(rarityOf(card)) + '</span>' : '')
+			+ (rarityOf(card) ? ' <span class="cei-counts">' + esc(rarityOf(card)) + (card.isGroup ? '・グループ' : '') + '</span>' : '')
 			+ ' <span class="uma-badge' + (st === 'done' ? ' uma-badge--accent' : (st === 'none' ? '' : ' uma-badge--warn')) + '">' + STATE_LABEL[st] + '</span></span>';
 		if (locked) {
 			h += '<span class="cei-counts">ファイルに入っています</span>';
-			h += '<button type="button" class="uma-btn uma-btn--ghost" data-act="edit-file" data-card="' + esc(card.id) + '">直す</button>';
+			h += '<button type="button" class="uma-btn uma-btn--ghost" data-act="edit-file" data-kind="card" data-card="' + esc(card.id) + '">直す</button>';
 		} else {
-			h += '<button type="button" class="uma-btn ' + (open ? 'uma-btn--ghost' : 'uma-btn--secondary') + '" data-act="open" data-card="' + esc(card.id) + '">'
+			h += '<button type="button" class="uma-btn ' + (open ? 'uma-btn--ghost' : 'uma-btn--secondary') + '" data-act="open" data-kind="card" data-card="' + esc(card.id) + '">'
 				+ (open ? '閉じる' : '入力する') + '</button>';
 		}
 		h += '</div>';
-		var sum = summaryOf(card.id);
+		var sum = summaryOf('card', card.id);
 		if (sum) h += '<p class="cei-summary">' + esc(sum) + '</p>';
-		if (open) h += bodyHtml(card);
+		if (open || (openCardId === card.id)) h += charaLinksHtml(card);
+		if (open) h += bodyHtml('card', card.id, card);
+		h += '</div>';
+		return h;
+	}
+
+	/** キャラクターのカードの内訳（「カード 3枚（SSR 2・SR 1）」と、メンバーになっているグループのカード） */
+	function charaCardsText(x) {
+		var by = {};
+		x.solo.forEach(function (c) { var r = rarityOf(c) || '―'; by[r] = (by[r] || 0) + 1; });
+		var order = ['SSR', 'SR', 'R', '―'];
+		var parts = order.filter(function (r) { return by[r]; }).map(function (r) { return r + ' ' + by[r]; });
+		var t = x.solo.length ? 'カード ' + x.solo.length + '枚（' + parts.join('・') + '）' : 'グループ以外のカードなし';
+		if (x.groups.length) t += '／グループのカードのメンバー：' + x.groups.map(function (c) { return '［' + c.title + '］'; }).join('・');
+		return t;
+	}
+
+	function charaRowHtml(x) {
+		var st = stateOf('chara', x.name);
+		var locked = isFromFile('chara', x.name);
+		var open = openChara === x.name && !locked;
+		var h = '<div class="cei-row' + (open ? ' cei-row--open' : '') + '" data-chara="' + esc(x.name) + '" data-state="' + st + '">';
+		h += '<div class="cei-head">';
+		h += '<span class="cei-label">' + esc(x.name)
+			+ ' <span class="uma-badge' + (st === 'done' ? ' uma-badge--accent' : (st === 'none' ? '' : ' uma-badge--warn')) + '">' + CHARA_STATE_LABEL[st] + '</span></span>';
+		if (locked) {
+			h += '<span class="cei-counts">ファイルに入っています</span>';
+			h += '<button type="button" class="uma-btn uma-btn--ghost" data-act="edit-file" data-kind="chara" data-card="' + esc(x.name) + '">直す</button>';
+		} else {
+			h += '<button type="button" class="uma-btn ' + (open ? 'uma-btn--ghost' : 'uma-btn--secondary') + '" data-act="open" data-kind="chara" data-card="' + esc(x.name) + '">'
+				+ (open ? '閉じる' : '入力する') + '</button>';
+		}
+		h += '</div>';
+		h += '<p class="cei-summary cei-summary--cards">' + esc(charaCardsText(x)) + '</p>';
+		var sum = summaryOf('chara', x.name);
+		if (sum) h += '<p class="cei-summary">' + esc(sum) + '</p>';
+		if (open) h += bodyHtml('chara', x.name, null);
 		h += '</div>';
 		return h;
 	}
@@ -628,10 +796,16 @@
 	}
 
 	function renderNow() {
-		var list = visibleCards();
+		Array.prototype.forEach.call(document.querySelectorAll('[data-act="tab"]'), function (b) {
+			var on = b.getAttribute('data-tab') === tab;
+			b.classList.toggle('active', on);
+			b.setAttribute('aria-selected', on ? 'true' : 'false');
+		});
+		$('cei-q').placeholder = tab === 'chara' ? 'キャラクター名で絞り込む' : '二つ名・ウマ娘名で絞り込む';
+		var list = tab === 'chara' ? visibleCharas() : visibleCards();
 		$('cei-list').innerHTML = list.length
-			? list.map(rowHtml).join('')
-			: '<p class="cei-empty">当てはまるカードがありません。</p>';
+			? list.map(tab === 'chara' ? charaRowHtml : cardRowHtml).join('')
+			: '<p class="cei-empty">当てはまる' + (tab === 'chara' ? 'キャラクター' : 'カード') + 'がありません。</p>';
 		renderCounts();
 		renderOutput();
 		if (findAt) {
@@ -643,14 +817,14 @@
 
 	/* ---------- 入力の不足（出力から外す理由） ----------
 	   check:catalog が落とすもののうち、画面から起こりうるものを、貼る前にここで言う。
-	   スキルの無い回は「書かない回」なので不足ではない（出力で落とす）。 */
-	function problemsOf(d) {
+	   スキルの無い回・共通イベントは「書かないもの」なので不足ではない（出力で落とす）。 */
+	function problemsOf(kind, d) {
 		var out = [];
 		if (!d || d.status !== 'done') return out;
-		if (d.stray && d.stray.length) out.push('回が決まっていないスキルがあります（上の枠から回へ移すか、外してください）');
+		if (kind === 'card' && d.stray && d.stray.length) out.push('回が決まっていないスキルがあります（上の枠から回へ移すか、外してください）');
 		var total = 0;
-		(d.chain || []).forEach(function (ev) {
-			var label = ev.step + '回目';
+		eventsOf(kind, d).forEach(function (ev, i) {
+			var label = kind === 'chara' ? slotLabel('chara', i + 1) : ev.step + '回目';
 			total += countRefs(ev);
 			(ev.choices || []).forEach(function (choice, c) {
 				var where = formOf(ev) === 'choice' ? '選択肢' + (c + 1) + '：' : '';
@@ -664,16 +838,18 @@
 				});
 			});
 		});
-		if (total === 0 && !(d.stray && d.stray.length)) out.push('スキルが1つも入っていません（スキルが無いカードなら、下の「イベント無しにする」を押してください）');
+		if (total === 0 && !(d.stray && d.stray.length)) {
+			out.push('スキルが1つも入っていません（スキルが無い' + (kind === 'chara' ? 'キャラクター' : 'カード') + 'なら、下の「イベント無しにする」を押してください）');
+		}
 		return out;
 	}
 
 	/* ---------- スキルを探す ---------- */
-	/** 枠のスキルの配列。create が真なら、まだ無い回を「確定」の形で作る。 */
+	/** 枠のスキルの配列。create が真なら、まだ無い箱を「確定」の形で作る。 */
 	function bucketAt(at, create) {
-		var d = draft[at.cardId];
+		var d = drafts(at.kind)[at.id];
 		if (!d) return null;
-		var ev = create ? ensureEvent(d, at.step) : eventAt(d, at.step);
+		var ev = create ? ensureEvent(at.kind, d, at.step) : eventAt(at.kind, d, at.step);
 		var choice = ev && ev.choices && ev.choices[at.c];
 		if (!choice) return null;
 		return at.r >= 0 ? (choice.results && choice.results[at.r]) : choice.skills;
@@ -707,30 +883,30 @@
 		var p = function (n) { return (n < 10 ? '0' : '') + n; };
 		return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'a';
 	}
+	function choicesOut(ev, refs) {
+		return (ev.choices || []).map(function (c) {
+			return Array.isArray(c.results) ? { results: c.results.map(refs) } : { skills: refs(c.skills) };
+		});
+	}
 
 	/** ファイルの行を、比べるための形にそろえる（キーの順をそろえる）。 */
-	function fileEntryOf(row) {
+	function fileEntryOf(kind, row) {
 		var refs = function (list) {
 			return (list || []).map(function (s) { return { skillId: s.skillId, name: s.name, hintLevel: s.hintLevel }; });
 		};
-		var e = { cardId: row.cardId, status: row.status };
-		if (row.chain) {
-			e.chain = row.chain.map(function (ev) {
-				return { step: ev.step, choices: (ev.choices || []).map(function (c) {
-					return Array.isArray(c.results) ? { results: c.results.map(refs) } : { skills: refs(c.skills) };
-				}) };
-			});
-		}
+		var e = kind === 'chara' ? { charaName: row.charaName, status: row.status } : { cardId: row.cardId, status: row.status };
+		if (kind === 'card' && row.chain) e.chain = row.chain.map(function (ev) { return { step: ev.step, choices: choicesOut(ev, refs) }; });
+		if (kind === 'chara' && row.events) e.events = row.events.map(function (ev) { return { choices: choicesOut(ev, refs) }; });
 		if (row.unplaced) e.unplaced = row.unplaced.map(function (s) { return { skillId: s.skillId, name: s.name }; });
 		return e;
 	}
 
 	/**
-	 * 途中経過 1枚ぶん → ファイルの行。名前は出力を作るたびに引き直す（併記の name が正本と必ず一致する）。
+	 * 途中経過 1つぶん → ファイルの行。名前は出力を作るたびに引き直す（併記の name が正本と必ず一致する）。
 	 * **参照してよいのは登録済みのスキルだけ**（C-77）。引けない id はここで外して知らせる。
-	 * **スキルの無い回は書かない**（C-102 (1)）。回は番号の順。
+	 * **スキルの無い回・共通イベントは書かない**（C-102 (1)）。カードの回は番号の順。
 	 */
-	function entryOf(cardId, d) {
+	function entryOf(kind, id, d) {
 		var unresolved = [];
 		var refs = function (list) {
 			return (list || []).map(function (ref) {
@@ -738,62 +914,69 @@
 				return { skillId: ref.skillId, name: skillNameOf(ref.skillId), hintLevel: ref.hintLevel };
 			}).filter(Boolean);
 		};
-		var entry = { cardId: cardId, status: d.status };
+		var entry = kind === 'chara' ? { charaName: id, status: d.status } : { cardId: id, status: d.status };
 		if (d.status === 'done') {
-			entry.chain = (d.chain || []).filter(function (ev) { return countRefs(ev) > 0; })
-				.slice().sort(function (a, b) { return a.step - b.step; }).map(function (ev) {
-					return { step: ev.step, choices: (ev.choices || []).map(function (c) {
-						return Array.isArray(c.results) ? { results: c.results.map(refs) } : { skills: refs(c.skills) };
-					}) };
-				});
+			var evs = eventsOf(kind, d).filter(function (ev) { return countRefs(ev) > 0; });
+			if (kind === 'chara') entry.events = evs.map(function (ev) { return { choices: choicesOut(ev, refs) }; });
+			else entry.chain = evs.slice().sort(function (a, b) { return a.step - b.step; })
+				.map(function (ev) { return { step: ev.step, choices: choicesOut(ev, refs) }; });
 		}
 		return { entry: entry, unresolved: unresolved };
 	}
 
-	function buildOutput() {
-		// 既存の行の並びは保ち、新しいものは末尾に足す（C-48 の更新の運用）。
-		// 「直す」で途中経過にしたファイルの行は、その場所で置き換える。
-		var entries = (fileDoc && Array.isArray(fileDoc.entries) ? fileDoc.entries : []).map(fileEntryOf);
+	/** 出力 A（カード）・出力 B（キャラクター）。既存の行の並びは保ち、新しいものは末尾に足す（C-48）。 */
+	function buildOutput(kind) {
+		var doc = kind === 'chara' ? charaFileDoc : fileDoc;
+		var keyOf = function (x) { return kind === 'chara' ? x.charaName : x.cardId; };
+		var entries = (doc && Array.isArray(doc.entries) ? doc.entries : []).map(function (r) { return fileEntryOf(kind, r); });
 		var unresolved = [];
 		var held = [];
-		cards.forEach(function (c) {
-			var d = draft[c.id];
+		var ids = kind === 'chara' ? charas.map(function (x) { return x.name; }) : cards.map(function (c) { return c.id; });
+		ids.forEach(function (id) {
+			var d = drafts(kind)[id];
 			if (!d) return;
-			if (problemsOf(d).length) { held.push(Core.formatEntryLabel(c)); return; }
-			var r = entryOf(c.id, d);
+			if (problemsOf(kind, d).length) { held.push(kind === 'chara' ? id : Core.formatEntryLabel(cards.filter(function (c) { return c.id === id; })[0])); return; }
+			var r = entryOf(kind, id, d);
 			unresolved = unresolved.concat(r.unresolved);
 			var at = -1;
-			entries.forEach(function (x, i) { if (x.cardId === c.id) at = i; });
+			entries.forEach(function (x, i) { if (keyOf(x) === id) at = i; });
 			if (at >= 0) entries[at] = r.entry; else entries.push(r.entry);
 		});
-		var out = { dataVersion: $('cei-version').value || todayVersion(), category: 'supportCardEventSkill' };
-		if (fileDoc && fileDoc.note) out.note = fileDoc.note;
+		var out = {
+			dataVersion: $(kind === 'chara' ? 'cei-version-b' : 'cei-version').value || todayVersion(),
+			category: kind === 'chara' ? 'characterEventSkill' : 'supportCardEventSkill'
+		};
+		if (doc && doc.note) out.note = doc.note;
 		out.entries = entries;
 		return { text: JSON.stringify(out, null, '\t') + '\n', unresolved: unresolved, held: held };
 	}
 
 	function renderOutput() {
-		var r = buildOutput();
-		$('cei-out').value = r.text;
-		var warn = $('cei-out-warn');
-		var lines = [];
-		if (r.held.length) lines.push('入力が足りないので、出力に入れていないカードがあります（一覧のそのカードに理由が出ています）: ' + r.held.join(' / '));
-		if (r.unresolved.length) lines.push('スキルとして参照できない id が含まれています（出力から外しました）: ' + r.unresolved.join(' / '));
-		warn.hidden = lines.length === 0;
-		warn.textContent = lines.join('\n');
+		[['card', 'cei-out', 'cei-out-warn', 'カード'], ['chara', 'cei-out-b', 'cei-out-b-warn', 'キャラクター']].forEach(function (x) {
+			var r = buildOutput(x[0]);
+			$(x[1]).value = r.text;
+			var warn = $(x[2]);
+			var lines = [];
+			if (r.held.length) lines.push('入力が足りないので、出力に入れていない' + x[3] + 'があります（一覧のその' + x[3] + 'に理由が出ています）: ' + r.held.join(' / '));
+			if (r.unresolved.length) lines.push('スキルとして参照できない id が含まれています（出力から外しました）: ' + r.unresolved.join(' / '));
+			warn.hidden = lines.length === 0;
+			warn.textContent = lines.join('\n');
+		});
 		var n = Object.keys(draft).length;
+		var m = Object.keys(charaDraft).length;
 		$('cei-draft-info').textContent = n > 0 ? 'このブラウザに ' + n + '枚ぶんの途中経過があります' : '途中経過はありません';
+		$('cei-draft-info-b').textContent = m > 0 ? 'このブラウザに ' + m + '人ぶんの途中経過があります' : '途中経過はありません';
 	}
 
 	/* ---------- 形の切り替え ---------- */
-	/** 回の形を変える。**いちばん上の枠のスキルは新しい形の最初の枠へ引き継ぐ。** ほかの枠のスキルが消えるときは先に確かめる。 */
-	function switchForm(d, step, form) {
-		var ev = ensureEvent(d, step);
+	/** 箱の形を変える。**いちばん上の枠のスキルは新しい形の最初の枠へ引き継ぐ。** ほかの枠のスキルが消えるときは先に確かめる。 */
+	function switchForm(kind, d, slot, form) {
+		var ev = ensureEvent(kind, d, slot);
 		var cur = formOf(ev);
 		if (cur === form) return false;
 		var first = bucketsOf(ev.choices[0])[0] || [];
 		var lost = countRefs(ev) - first.length;
-		if (lost > 0 && !confirm(step + '回目の形を「' + FORM_LABEL[form] + '」に変えると、いちばん上の枠以外のスキル ' + lost + '個が消えます。よろしいですか。')) return false;
+		if (lost > 0 && !confirm(slotLabel(kind, slot) + 'の形を「' + FORM_LABEL[form] + '」に変えると、いちばん上の枠以外のスキル ' + lost + '個が消えます。よろしいですか。')) return false;
 		var keep = first.slice();
 		if (form === 'fixed') ev.choices = [{ skills: keep }];
 		else if (form === 'choice') ev.choices = [{ skills: keep }, { skills: [] }];
@@ -803,39 +986,67 @@
 
 	/* ---------- 操作 ---------- */
 	function numAttr(el, name) { var v = el.getAttribute('data-' + name); return v === null ? -1 : Number(v); }
-	function atOf(el) { return { cardId: el.getAttribute('data-card'), step: numAttr(el, 'step'), c: numAttr(el, 'c'), r: numAttr(el, 'r') }; }
+	function atOf(el) {
+		return { kind: el.getAttribute('data-kind') || 'card', id: el.getAttribute('data-card'),
+			step: numAttr(el, 'step'), c: numAttr(el, 'c'), r: numAttr(el, 'r') };
+	}
 	function cardOf(id) { return cards.filter(function (c) { return c.id === id; })[0] || null; }
+	function scrollToRow(sel) {
+		var el = document.querySelector(sel);
+		if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
+	}
 
 	document.addEventListener('click', function (ev) {
 		var btn = ev.target.closest ? ev.target.closest('[data-act]') : null;
 		if (!btn || btn.tagName === 'INPUT') return;
 		var act = btn.getAttribute('data-act');
 		var at = atOf(btn);
-		var cardId = at.cardId;
-		var d = cardId ? draft[cardId] : null;
-		var evt = d && at.step > 0 ? eventAt(d, at.step) : null;
-		if (act === 'open') {
-			openCardId = (openCardId === cardId) ? '' : cardId;
+		var kind = at.kind;
+		var id = at.id;
+		var ds = drafts(kind);
+		var d = id ? ds[id] : null;
+		var evt = d && at.step > 0 ? eventAt(kind, d, at.step) : null;
+		var subject = kind === 'chara' ? 'このキャラクター' : 'このカード';
+		if (act === 'tab') {
+			tab = btn.getAttribute('data-tab');
 			findAt = null;
-			if (openCardId && !draft[cardId]) draft[cardId] = { status: 'done', chain: [] };
+		} else if (act === 'goto-chara') {
+			// カードのタブから、その人の共通イベントの入力へ移る
+			var name = btn.getAttribute('data-name');
+			tab = 'chara';
+			openChara = name;
+			$('cei-q').value = name;
+			if (!charaDraft[name] && !charaFileRows[name]) charaDraft[name] = { status: 'done', events: [] };
+			findAt = null;
+			saveDraft(); render();
+			scrollToRow('.cei-row[data-chara="' + name.replace(/"/g, '\\"') + '"]');
+			return;
+		} else if (act === 'open') {
+			if (kind === 'chara') openChara = (openChara === id) ? '' : id;
+			else openCardId = (openCardId === id) ? '' : id;
+			findAt = null;
+			var opened = kind === 'chara' ? openChara : openCardId;
+			if (opened && !ds[id]) ds[id] = kind === 'chara' ? { status: 'done', events: [] } : { status: 'done', chain: [] };
 		} else if (act === 'edit-file') {
-			draft[cardId] = draftFromFileRow(fileRows[cardId]);
-			openCardId = cardId; findAt = null;
+			ds[id] = draftFromFileRow(kind, fileRowsOf(kind)[id]);
+			if (kind === 'chara') openChara = id; else openCardId = id;
+			findAt = null;
 		} else if (act === 'none') {
-			if (d && d.status === 'done' && ((d.chain || []).some(function (e) { return countRefs(e) > 0; }) || (d.stray && d.stray.length))
-				&& !confirm('入れてあるスキルを消して、このカードを「イベント無し」にします。よろしいですか。')) return;
-			draft[cardId] = { status: 'none' };
+			if (d && d.status === 'done' && (eventsOf(kind, d).some(function (e) { return countRefs(e) > 0; }) || (d.stray && d.stray.length))
+				&& !confirm('入れてあるスキルを消して、' + subject + 'を「イベント無し」にします。よろしいですか。')) return;
+			ds[id] = { status: 'none' };
 			findAt = null;
 			toast('「イベント無し」として記録しました');
 		} else if (act === 'undo-none') {
-			draft[cardId] = { status: 'done', chain: [] };
+			ds[id] = kind === 'chara' ? { status: 'done', events: [] } : { status: 'done', chain: [] };
 		} else if (act === 'reset') {
-			if (!confirm('このカードの入力をやめて、途中経過を消します。よろしいですか。')) return;
-			delete draft[cardId];
-			if (openCardId === cardId) openCardId = '';
+			if (!confirm(subject + 'の入力をやめて、途中経過を消します。よろしいですか。')) return;
+			delete ds[id];
+			if (kind === 'chara' && openChara === id) openChara = '';
+			if (kind === 'card' && openCardId === id) openCardId = '';
 			findAt = null;
 		} else if (act === 'form') {
-			if (!switchForm(d, at.step, btn.getAttribute('data-form'))) return;
+			if (!switchForm(kind, d, at.step, btn.getAttribute('data-form'))) return;
 			findAt = null;
 		} else if (act === 'split') {
 			var choice = evt.choices[at.c];
@@ -859,15 +1070,16 @@
 			if (rl.length > 0 && !confirm('結果' + (at.r + 1) + 'のスキルも消えます。よろしいですか。')) return;
 			evt.choices[0].results.splice(at.r, 1); findAt = null;
 		} else if (act === 'add-row') {
-			d.rows = rowsOf(d, cardOf(cardId)) + 1;
+			// キャラクターは「いま見えている箱の数＋1」番目まで events を作る（空の1つめも作られる）
+			if (kind === 'chara') ensureEvent('chara', d, boxesOf('chara', d, null) + 1);
+			else d.rows = boxesOf('card', d, cardOf(id)) + 1;
 		} else if (act === 'drop-row') {
-			var rows = rowsOf(d, cardOf(cardId));
-			d.chain = (d.chain || []).filter(function (e) { return e.step !== rows; });
-			d.rows = rows - 1;
+			var boxes = boxesOf(kind, d, cardOf(id));
+			if (kind === 'chara') d.events = (d.events || []).slice(0, boxes - 1);
+			else { d.chain = (d.chain || []).filter(function (e) { return e.step !== boxes; }); d.rows = boxes - 1; }
 			findAt = null;
 		} else if (act === 'find-open') {
-			var same = findAt && findAt.cardId === at.cardId && findAt.step === at.step && findAt.c === at.c && findAt.r === at.r;
-			findAt = same ? null : at;
+			findAt = sameAt(findAt, at) ? null : at;
 		} else if (act === 'pick') {
 			var list = findAt ? bucketAt(findAt, true) : null;
 			var sid = btn.getAttribute('data-skill');
@@ -885,7 +1097,7 @@
 			if (from) from.splice(numAttr(btn, 'i'), 1);
 		} else if (act === 'stray-move') {
 			var ref = d.stray.splice(numAttr(btn, 'i'), 1)[0];
-			var target = ensureEvent(d, at.step);
+			var target = ensureEvent('card', d, at.step);
 			var into = bucketsOf(target.choices[0])[0];
 			if (ref && !into.some(function (s) { return s.skillId === ref.skillId; })) into.push(ref);
 			if (!d.stray.length) delete d.stray;
@@ -935,11 +1147,19 @@
 		$('cei-only-pending').addEventListener('change', render);
 		$('cei-only-focus').addEventListener('change', render);
 		$('cei-version').value = todayVersion();
+		$('cei-version-b').value = todayVersion();
 		$('cei-version').addEventListener('input', renderOutput);
+		$('cei-version-b').addEventListener('input', renderOutput);
 		wireCopy('cei-copy', 'cei-out', 'support-card-event-skills.json');
+		wireCopy('cei-copy-b', 'cei-out-b', 'character-event-skills.json');
 		$('cei-clear').addEventListener('click', function () {
-			if (!confirm('このブラウザに残っている「イベントスキル」の途中経過を、すべてのカードぶん捨てます。よろしいですか。')) return;
+			if (!confirm('このブラウザに残っている「カード（連続イベント）」の途中経過を、すべてのカードぶん捨てます。よろしいですか。')) return;
 			draft = {}; openCardId = ''; findAt = null;
+			saveDraft(); render();
+		});
+		$('cei-clear-b').addEventListener('click', function () {
+			if (!confirm('このブラウザに残っている「キャラクター（共通イベント）」の途中経過を、すべてのキャラクターぶん捨てます。よろしいですか。')) return;
+			charaDraft = {}; openChara = ''; findAt = null;
 			saveDraft(); render();
 		});
 
@@ -958,13 +1178,17 @@
 			fileDoc = src.supportCardEventSkill || null;
 			fileRows = {};
 			((fileDoc && fileDoc.entries) || []).forEach(function (r) { fileRows[r.cardId] = r; });
+			charaFileDoc = src.characterEventSkill || null;
+			charaFileRows = {};
+			((charaFileDoc && charaFileDoc.entries) || []).forEach(function (r) { charaFileRows[r.charaName] = r; });
+			charas = buildCharas();
 			loadDraft();
-			var dropped = pruneDraft();
+			var dropped = pruneDrafts();
 			render();
 			if (cards.length === 0) {
 				$('cei-counts').textContent = 'カードを読み込めませんでした（簡易サーバー経由で開いていますか）';
 			} else if (dropped > 0) {
-				toast('ファイルに入っている ' + dropped + '枚ぶんを途中経過から外しました');
+				toast('ファイルに入っている ' + dropped + '件ぶんを途中経過から外しました');
 			}
 			// もう使えない置き場に控えが残っていたら知らせる（消さない）。
 			noticeLegacyDrafts();

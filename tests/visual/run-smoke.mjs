@@ -10911,9 +10911,10 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 	const addSkill = async (page, frameSel, skill, lv) => {
 		const btn = frameSel + ' [data-act="find-open"]';
 		await page.click(btn);
-		await page.fill(row + ' [data-act="find"]', skill.name);
-		await page.waitForSelector(row + ' [data-act="pick"]');
-		await page.click(row + ' [data-act="pick"]:not([disabled])');
+		// 検索欄は同時に1つしか開かない（カードの行でもキャラクターの行でも）ので、ページ全体から探す
+		await page.fill('[data-act="find"]', skill.name);
+		await page.waitForSelector('[data-act="pick"]');
+		await page.click('[data-act="pick"]:not([disabled])');
 		if (lv) {
 			const inputs = await page.$$(frameSel + ' [data-act="lv"]');
 			const last = inputs[inputs.length - 1];
@@ -11060,6 +11061,103 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 			'入力(14): 「2回目へ」で回へ移せる。同じ番号の「確定」の回が2つあったものは1つにまとめる', moved);
 		assert(errors.length === 0, '入力: コンソールエラーなし（前の途中経過）', errors.slice(0, 3));
 		await ctx.close();
+	}
+
+	/* --- キャラクター共通のイベント（C-102・区切り3）：キャラクターのタブ・出力 B・カードのタブの表示・最初に並べる回の数 --- */
+	{
+		const G = cardsDoc.entries.find((c) => c.isGroup === true);
+		const M = G.groupMembers.slice(1).find((n) => cardsDoc.entries.some((c) => c.isGroup === false && c.charaName === n));
+		const N = cardsDoc.entries.find((c) => c.isGroup === false && c.charaName === M);
+		const charaCount = new Set(cardsDoc.entries.flatMap((c) => c.isGroup ? c.groupMembers : [c.charaName])).size;
+		const SR = cardsDoc.entries.find((c) => c.rarity === 'SR' && !c.isGroup && !inFile.has(c.id));
+		const R = cardsDoc.entries.find((c) => c.rarity === 'R' && !c.isGroup && !inFile.has(c.id));
+		const { ctx, page, errors } = await openCei(null);
+		// 最初に並べる回の数：SSR 3・SR 2・R 1・グループ 3
+		await page.uncheck('#cei-only-focus');
+		const boxesOf = async (c) => {
+			await page.fill('#cei-q', c.title);
+			const sel = '.cei-row[data-card-id="' + c.id + '"]';
+			await page.click(sel + ' [data-act="open"]');
+			const n = await page.$$eval(sel + ' .cei-round', (x) => x.length);
+			const links = await page.$$eval(sel + ' [data-act="goto-chara"]', (x) => x.map((b) => b.getAttribute('data-name') + '|' + b.textContent));
+			await page.click(sel + ' [data-act="open"]');
+			return { n, links };
+		};
+		const bSSR = await boxesOf(card), bSR = await boxesOf(SR), bR = await boxesOf(R), bG = await boxesOf(G);
+		assert(bSSR.n === 3 && bSR.n === 2 && bR.n === 1 && bG.n === 3,
+			'共通入力(1): 最初に並べる回の数は SSR 3・SR 2・R 1・グループのカード 3', { ssr: bSSR.n, sr: bSR.n, r: bR.n, group: bG.n });
+		assert(bG.links.map((l) => l.split('|')[0]).join() === G.groupMembers.join() && bG.links.every((l) => l.includes('（未入力）'))
+			&& bSSR.links.length === 1 && bSSR.links[0].startsWith(card.charaName + '|'),
+			'共通入力(2): カードを開くと当てはまる共通イベントのキャラクターが出る（グループのカードはメンバー全員・未入力）', { group: bG.links, ssr: bSSR.links });
+
+		// カードのタブの「共通イベント：M（未入力）」を押すと、キャラクターのタブのその人の入力へ移る
+		await page.fill('#cei-q', N.title);
+		const nSel = '.cei-row[data-card-id="' + N.id + '"]';
+		await page.click(nSel + ' [data-act="open"]');
+		await page.click(nSel + ' [data-act="goto-chara"][data-name="' + M + '"]');
+		const cSel = '.cei-row[data-chara="' + M + '"]';
+		const moved = await page.evaluate((s) => ({
+			tab: (document.querySelector('[data-act="tab"].active') || {}).getAttribute('data-tab'),
+			open: !!document.querySelector(s + ' .cei-round'),
+			boxes: Array.from(document.querySelectorAll(s + ' .cei-round-title')).map((e) => e.textContent),
+			cards: (document.querySelector(s + ' .cei-summary--cards') || {}).textContent,
+			counts: document.getElementById('cei-counts').textContent,
+		}), cSel);
+		assert(moved.tab === 'chara' && moved.open && moved.boxes.join() === '共通イベント1'
+			&& moved.cards.includes('グループのカードのメンバー：［' + G.title + '］') && moved.counts.startsWith('全' + charaCount + '人'),
+			'共通入力(3): 押すとキャラクターのタブに移り、その人の「共通イベント1」の箱が開く（カードの枚数・グループのメンバーであることも出る）', moved);
+
+		// 共通イベント1：確定で m1／共通イベント2：選択肢で分かれる（選択肢1 に m2・選択肢2 はなし）
+		await addSkill(page, cSel + ' .cei-round[data-step="1"]', m1, 2);
+		await page.click(cSel + ' [data-act="add-row"]');
+		await page.click(cSel + ' .cei-round[data-step="2"] [data-act="form"][data-form="choice"]');
+		await addSkill(page, cSel + ' .cei-round[data-step="2"] .cei-frame[data-c="0"]', m2);
+		const outB = JSON.parse(await page.inputValue('#cei-out-b'));
+		const mineB = outB.entries.find((e) => e.charaName === M);
+		assert(outB.category === 'characterEventSkill' && typeof outB.note === 'string' && JSON.stringify(mineB) === JSON.stringify({ charaName: M, status: 'done', events: [
+			{ choices: [{ skills: [ref(m1, 2)] }] },
+			{ choices: [{ skills: [ref(m2, 1)] }, { skills: [] }] }] }),
+			'共通入力(4): 出力 B は { charaName, status, events: [{ choices }] }（回の番号を持たない）', mineB);
+		{
+			const tmp = path.join(REPO_ROOT, 'output', 'scratch', 'smoke-cei-catalog-b');
+			fs.rmSync(tmp, { recursive: true, force: true });
+			fs.cpSync(path.join(REPO_ROOT, 'data'), tmp, { recursive: true });
+			fs.writeFileSync(path.join(tmp, 'character-event-skills.json'), await page.inputValue('#cei-out-b'));
+			const { spawnSync } = await import('node:child_process');
+			const r = spawnSync(process.execPath, ['tests/catalog/check-catalog.mjs', '--dir=' + path.relative(REPO_ROOT, tmp).split(path.sep).join('/')],
+				{ cwd: REPO_ROOT, encoding: 'utf8' });
+			fs.rmSync(tmp, { recursive: true, force: true });
+			assert(r.status === 0, '共通入力(5): 出力 B を貼ると check:catalog が通る', (r.stdout || '').split('\n').filter((l) => l.startsWith('[NG]')));
+		}
+
+		// カードのタブへ戻ると、M のカードでは「入力済み」になる（1回入力すれば、同じキャラクターのほかのカードでも入力済み）
+		await page.click('[data-act="tab"][data-tab="card"]');
+		await page.fill('#cei-q', N.title);
+		const after = await page.$$eval(nSel + ' [data-act="goto-chara"]', (x) => x.map((b) => b.textContent));
+		assert(after.length === 1 && after[0] === M + '（入力済み）',
+			'共通入力(6): キャラクターに入力すると、そのキャラクターのカードでは「入力済み」と出る', after);
+		assert(errors.length === 0, '共通入力: コンソールエラーなし', errors.slice(0, 3));
+		await ctx.close();
+
+		// グループのカードは5枚とも SSR なので、実データでは「グループは3つ」と「SSR は3つ」を見分けられない。
+		// 取得するカードのデータでグループのカードを SR に差し替えて、それでも3つ並ぶことを見る
+		{
+			const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+			const page2 = await ctx2.newPage();
+			page2.setDefaultTimeout(5000);
+			const altered = JSON.parse(JSON.stringify(cardsDoc));
+			altered.entries.find((c) => c.id === G.id).rarity = 'SR';
+			await page2.route('**/data/support-cards.json*', (route) => route.fulfill({
+				status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(altered) }));
+			await page2.goto(base + '/card-event-input.html', { waitUntil: 'networkidle' });
+			await page2.waitForFunction(() => /全\d+枚/.test(document.getElementById('cei-counts').textContent));
+			await page2.uncheck('#cei-only-focus');
+			await page2.fill('#cei-q', G.title);
+			await page2.click('.cei-row[data-card-id="' + G.id + '"] [data-act="open"]');
+			const n = await page2.$$eval('.cei-row[data-card-id="' + G.id + '"] .cei-round', (x) => x.length);
+			assert(n === 3, '共通入力(7): グループのカードは、レアリティが SR でも3つ並べる', n);
+			await ctx2.close();
+		}
 	}
 }
 });
