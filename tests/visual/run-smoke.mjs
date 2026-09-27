@@ -11158,6 +11158,25 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 			assert(n === 3, '共通入力(7): グループのカードは、レアリティが SR でも3つ並べる', n);
 			await ctx2.close();
 		}
+
+		// 見た目：375px の幅で、キャラクターのタブが横にはみ出さない（件数の1行が長いので折り返す）
+		{
+			const ctx3 = await browser.newContext({ viewport: { width: 375, height: 800 } });
+			const page3 = await ctx3.newPage();
+			page3.setDefaultTimeout(5000);
+			await page3.goto(base + '/card-event-input.html', { waitUntil: 'networkidle' });
+			await page3.waitForFunction(() => /全\d+枚/.test(document.getElementById('cei-counts').textContent));
+			await page3.click('[data-act="tab"][data-tab="chara"]');
+			await page3.waitForTimeout(400); // 色の切り替え（.uma-pill の transition）が終わってから測る
+			const look = await page3.evaluate(() => ({
+				scrollW: document.documentElement.scrollWidth,
+				tabActive: getComputedStyle(document.querySelector('[data-act="tab"].active')).backgroundColor,
+				tabIdle: getComputedStyle(document.querySelector('[data-act="tab"]:not(.active)')).backgroundColor,
+			}));
+			assert(look.scrollW <= 375 && look.tabActive !== look.tabIdle,
+				'共通入力(8・見た目): 375px でキャラクターのタブが横にはみ出さず、選んでいるタブが見分けられる', look);
+			await ctx3.close();
+		}
 	}
 }
 });

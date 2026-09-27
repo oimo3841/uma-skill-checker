@@ -127,7 +127,18 @@
 		.cei-hits { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; max-height: 240px; overflow-y: auto; }
 		.cei-hit { text-align: left; font-size: var(--uma-fs-sm); }
 		.cei-empty { font-size: var(--uma-fs-sm); color: var(--uma-text-subtle); padding: 12px 0; }
-		#cei-out { width: 100%; box-sizing: border-box; min-height: 260px; font-family: var(--uma-font-mono); font-size: var(--uma-fs-xs); }
+		#cei-out, #cei-out-b { width: 100%; box-sizing: border-box; min-height: 260px; font-family: var(--uma-font-mono); font-size: var(--uma-fs-xs); }
+		/* 帯のタブ（カード／キャラクター。C-102 の区切り3）。一覧の上に横並び、選んでいるほうを濃く */
+		.cei-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; padding-bottom: 10px; border-bottom: 1px solid var(--uma-border); }
+		.cei-tabs .uma-pill { font-size: var(--uma-fs-sm); padding: 6px 14px; }
+		/* カードを開いたときの「共通イベント：○○（入力済み）」の1行。押すとキャラクターのタブへ移る */
+		.cei-charas { margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: baseline; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }
+		.cei-charas-label { color: var(--uma-text-subtle); font-weight: 700; }
+		.cei-chara-link { color: var(--uma-accent); }
+		/* キャラクターの行の「カード N枚（SSR …）／グループのカードのメンバー：…」 */
+		.cei-summary--cards { color: var(--uma-text-faint); }
+		/* 件数の1行は長くなったので（キャラクターのタブは5つの数を並べる）、狭い幅では折り返す */
+		#cei-counts { white-space: normal; }
 		.cei-toast {
 			position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
 			background: var(--uma-surface-inverse); color: #fff; padding: 8px 14px;
