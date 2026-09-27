@@ -10788,7 +10788,11 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 	const cardsDoc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/support-cards.json'), 'utf8'));
 	const extDoc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/extended-skills.json'), 'utf8'));
 	const masterDoc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'uma-skill-deck-skills.json'), 'utf8'));
-	const card = cardsDoc.entries[cardsDoc.entries.length - 1];
+	// **ファイルにまだ入っていないカード**を使う（入っているカードは「入力する」ではなく「直す」が出る）。
+	// 最初は「最後のカード」で決め打ちにしていて、そのカードが実際にファイルに入った日に検査が落ちた（2026-09-27）。
+	const eventDoc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/support-card-event-skills.json'), 'utf8'));
+	const inFile = new Set(eventDoc.entries.map((e) => e.cardId));
+	const card = cardsDoc.entries.slice().reverse().find((c) => !inFile.has(c.id));
 	// 名前の一部で探して1件に絞れるスキルを3つ（拡張スキル1・マスター2）。名前はデータから拾う
 	const allNames = masterDoc.skills.map((s) => s.name).concat(extDoc.entries.map((e) => e.name));
 	const unique = (s) => allNames.filter((n) => n.includes(s.name)).length === 1;
@@ -10822,6 +10826,8 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 	const row = '.cei-row[data-card-id="' + card.id + '"]';
 	const round = (step) => row + ' .cei-round[data-step="' + step + '"]';
 	const outOf = async (page) => JSON.parse(await page.inputValue('#cei-out'));
+	// 出力の中の、このカードの行（ファイルにすでに入っている行は前に並ぶので、位置では探さない）
+	const mine = (out) => out.entries.find((e) => e.cardId === card.id) || null;
 	const openCard = async (page) => { await page.fill('#cei-q', card.title); await page.click(row + ' [data-act="open"]'); };
 	/** 枠の「＋ スキル」→ 名前で探して選ぶ → Lv を直す（lv を渡したときだけ）→ 探す欄を閉じる */
 	const addSkill = async (page, frameSel, skill, lv) => {
@@ -10871,10 +10877,10 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 		await addSkill(page, round(3), m2);
 		const sum1 = await page.textContent(row + ' .cei-summary');
 		let out = await outOf(page);
-		assert(lv1 === '1' && JSON.stringify(out.entries[0]) === JSON.stringify({ cardId: card.id, status: 'done', chain: [
+		assert(lv1 === '1' && JSON.stringify(mine(out)) === JSON.stringify({ cardId: card.id, status: 'done', chain: [
 			{ step: 2, choices: [{ skills: [ref(m1, 1)] }] },
 			{ step: 3, choices: [{ skills: [ref(exSkill, 2), ref(m2, 1)] }] }] }),
-			'入力(3): 2回目の箱に足したスキルは2回目に入り、Lv は最初から 1。スキルの無い1回目は出力に書かない', { lv1, entry: out.entries[0] });
+			'入力(3): 2回目の箱に足したスキルは2回目に入り、Lv は最初から 1。スキルの無い1回目は出力に書かない', { lv1, entry: mine(out) });
 		assert(sum1 === '2回目：' + m1.name + ' Lv1 ／ 3回目：' + exSkill.name + ' Lv2・' + m2.name + ' Lv1',
 			'入力(4): カードの見出しの下に、いま入っている内容の要約が1行で出る', sum1);
 
@@ -10904,8 +10910,8 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 			{ step: 2, choices: [{ skills: [ref(m1, 1)] }] },
 			{ step: 3, choices: [{ skills: [ref(exSkill, 2), ref(m2, 1)] }] },
 			{ step: 4, choices: [{ results: [[ref(exSkill, 3)], [ref(exSkill, 2)], [ref(m1, 1)]] }] }] };
-		assert(out.entries.length === 1 && JSON.stringify(out.entries[0]) === JSON.stringify(want),
-			'入力(7): 出力 A は「回 → 選択肢 → 結果」の形で、空の選択肢も残り、結果の並び（先頭が成功）とレベルが入る', { got: out.entries[0], want });
+		assert(out.entries.length === eventDoc.entries.length + 1 && JSON.stringify(mine(out)) === JSON.stringify(want),
+			'入力(7): 出力 A は「回 → 選択肢 → 結果」の形で、空の選択肢も残り、結果の並び（先頭が成功）とレベルが入る', { got: mine(out), want });
 		assert(out.category === 'supportCardEventSkill' && /^\d{4}-\d{2}-\d{2}[a-z]$/.test(out.dataVersion) && typeof out.note === 'string',
 			'入力(8): 出力 A はファイル全体（category・dataVersion・note を引き継ぐ）', { category: out.category, dataVersion: out.dataVersion });
 		// 出力をそのまま貼ったと見なして check:catalog に通す
@@ -10932,15 +10938,15 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 		dialogs.length = 0;
 		await page.click(round(4) + ' [data-act="form"][data-form="fixed"]');
 		out = await outOf(page);
-		assert(dialogs.length === 1 && JSON.stringify(out.entries[0].chain[3]) === JSON.stringify({ step: 4, choices: [{ skills: [ref(exSkill, 3)] }] }),
-			'入力(11): 形を「確定」に戻すと、いちばん上の枠のスキルを残し、消えるスキルがあれば先に確かめる', { dialogs, ev: out.entries[0].chain[3] });
+		assert(dialogs.length === 1 && JSON.stringify(mine(out).chain[3]) === JSON.stringify({ step: 4, choices: [{ skills: [ref(exSkill, 3)] }] }),
+			'入力(11): 形を「確定」に戻すと、いちばん上の枠のスキルを残し、消えるスキルがあれば先に確かめる', { dialogs, ev: mine(out).chain[3] });
 
 		// 「このカードの入力をやめる」は確かめる（いいえなら何も消えない）。「イベント無しにする」も確かめてから
 		page.__dismissNext = true;
 		await page.click(row + ' [data-act="reset"]');
-		const kept = (await outOf(page)).entries.length;
+		const kept = mine(await outOf(page)) ? 1 : 0;
 		await page.click(row + ' [data-act="none"]');
-		const none = (await outOf(page)).entries[0];
+		const none = mine(await outOf(page));
 		assert(kept === 1 && JSON.stringify(none) === JSON.stringify({ cardId: card.id, status: 'none' }),
 			'入力(12): 「入力をやめる」は「いいえ」なら消えない。「イベント無しにする」は chain を持たない行になる', { kept, none });
 		assert(errors.length === 0, '入力: コンソールエラーなし（1枚目）', errors.slice(0, 3));
@@ -10959,11 +10965,11 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 			stray: Array.from(document.querySelectorAll(r + ' .cei-stray .cei-chip')).map((c) => c.textContent),
 			problems: Array.from(document.querySelectorAll(r + ' .cei-problems li')).map((li) => li.textContent),
 		}), row);
-		const held = (await outOf(page)).entries.length;
+		const held = mine(await outOf(page)) ? 1 : 0;
 		assert(st.stray.length === 1 && st.stray[0].includes(m1.name) && st.problems.some((p) => p.includes('回が決まっていない')) && held === 0,
 			'入力(13): 回の番号が空のスキルは捨てずに「回が決まっていないスキル」に出し、回へ移すまで出力に入れない', { st, held });
 		await page.click(row + ' .cei-stray [data-act="stray-move"][data-step="2"]');
-		const moved = (await outOf(page)).entries[0];
+		const moved = mine(await outOf(page));
 		assert(JSON.stringify(moved) === JSON.stringify({ cardId: card.id, status: 'done', chain: [
 			{ step: 2, choices: [{ skills: [ref(m1, 1)] }] },
 			{ step: 3, choices: [{ skills: [ref(exSkill, 1), ref(m2, 2)] }] }] }),

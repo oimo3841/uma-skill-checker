@@ -68,7 +68,7 @@
 		'data/extended-skills.json': '2026-09-26b',
 		'data/training-umamusume.json': '2026-09-24a',
 		'data/support-cards.json': '2026-09-18b',
-		'data/support-card-event-skills.json': '2026-09-27a',
+		'data/support-card-event-skills.json': '2026-09-27b',
 		// レースの距離の一覧（C-97・2026-09-26）。7本目。スキルではないので EXTRA_CATALOG_SOURCES にも
 		// TRAINING_SOURCES にも入れず、loadRaceDistances() が読む。
 		'data/race-distances.json': '2026-09-26a'
