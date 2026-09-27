@@ -16,6 +16,10 @@
 //   npm run test:ocr -- --no-catalog-exact-only … 追加カタログの後段の絞り込みを外す（調査用）
 //   npm run test:ocr -- --expect=連綿,存在感  … 検出されるべきスキルを指定し、合否を判定する
 //   npm run test:ocr -- --errdict=連締=連綿   … special.html の「読み替え辞書」と同じ補正を効かせる
+//   npm run test:ocr -- --no-melop            … 最後に続けて回す tests/ocr/run-melop-tests.mjs（C-101）を外す
+//
+// exam.html を元画像で回したときは、最後に tests/ocr/run-melop-tests.mjs（めろっぷ！【LTC】専用拡張モードの
+// 「いちばん上の段」の読み取り。期待値は各ケースの expect.json の melopTop）も続けて回し、落ちればこれごと落とす。
 //
 // 同じオプションを2回渡したときは後のものが勝つ（npm script が付ける既定の --dict=exam を、
 // `npm run test:ocr -- --dict=deck` のように上書きできるようにするため）。
@@ -44,6 +48,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -423,6 +428,15 @@ async function main() {
 	await browser.close();
 	console.log(`結果JSON/整形画像: ${OUTPUT_DIR}`);
 	if (failed > 0) process.exitCode = 1;
+
+	// めろっぷ！【LTC】専用拡張モード（exam.html・C-101）の「いちばん上の段」の読み取りも続けて見る。
+	// exam を元画像で回したときだけ（--stitched・--page=special・--no-melop のときは回さない）。
+	// 期待値（各ケースの expect.json の melopTop）と食い違えば、この npm script ごと落とす。
+	if (PAGE_NAME === 'exam.html' && !USE_STITCHED && !process.argv.includes('--no-melop')) {
+		console.log('\n--- 続けて: tests/ocr/run-melop-tests.mjs（--no-melop で外せる）---\n');
+		const r = spawnSync(process.execPath, [path.join(__dirname, 'run-melop-tests.mjs')], { cwd: ROOT, stdio: 'inherit' });
+		if (r.status !== 0) process.exitCode = 1;
+	}
 }
 
 main().catch((err) => {

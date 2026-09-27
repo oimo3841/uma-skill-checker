@@ -954,6 +954,18 @@
 			     中身（チェック5つ＋結合画像の模式図）は renderStitchShowPanel() が作る。
 			     印のチェック（#opt-attr-icons。保存キー uma-exam-attr-icons）もこの中に入る。 -->
 			<div id="stitch-show-panel"></div>
+			<!-- めろっぷ！【LTC】専用拡張モード（βテスト・C-101）。入れて判定すると、判定の結果の画面に
+			     めろっぷ！【LTC】さんの因子管理シートへそのまま貼れる★の数のコピーボタンが増える
+			     （いまの「★の数をコピー」の中身と出方は変えない）。状態はブラウザに覚える（uma-exam-melop-mode）。
+			     切っているあいだは、読み取りも表示もコピーも今までと1文字も変わらない（拡張モードの処理を一切通らない）。 -->
+			<div id="melop-mode-wrap" class="mt-3">
+				<label class="flex items-start gap-2.5 cursor-pointer">
+					<input id="opt-melop" type="checkbox" onchange="setMelopMode(this.checked)" class="mt-0.5 w-4 h-4" />
+					<span class="text-xs font-semibold text-slate-800">めろっぷ！【LTC】専用拡張モード（βテスト）</span>
+				</label>
+			</div>
+				</label>
+			</div>
 			<!-- 「高度な解析オプション」で出るもの（切り出しプレビュー・開発ログ）の置き場。
 			     以前は照合結果のいちばん下にあったが、オプションを入れた場所から遠く、結果を読む
 			     流れの邪魔でもあったので、新UIでは処理を始めるボタンの下へ移した。
@@ -1173,12 +1185,22 @@
 				<!-- ★の数をコピーするボタン。以前は引き出しの見出し（「閉じる」の左）にあり、
 				     実機で気づかれなかったので、結果の一覧のすぐ上へ移した。
 				     旧UIではカードの見出し（#old-copy-slot）へ戻る（placeSections）。 -->
-				<div id="result-copy-slot" class="flex justify-end mb-2">
+				<div id="result-copy-slot" class="flex flex-wrap justify-end gap-2 mb-2">
+					<!-- めろっぷ！【LTC】専用拡張モード（C-101）のコピー。拡張モードを入れて判定したときだけ出す
+					     （親Bセットのほうは、親Bセットの結果があるときだけ）。出し入れは renderMelopCopyButtons()。 -->
+					<button type="button" id="melop-copy-btn-A" onclick="copyMelopSet(0)" hidden class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">
+						<span>めろっぷ用に★をコピー（親Aセット）</span>
+					</button>
+					<button type="button" id="melop-copy-btn-B" onclick="copyMelopSet(1)" hidden class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">
+						<span>めろっぷ用に★をコピー（親Bセット）</span>
+					</button>
 					<button type="button" id="result-copy-btn" onclick="copyToClipboard()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all shadow-xs cursor-pointer">
 						<i data-lucide="copy" class="w-3.5 h-3.5"></i>
 						<span id="copy-btn-label">★の数をコピー</span>
 					</button>
 				</div>
+				<!-- めろっぷ用のコピーの注意（いちばん上の段が読めなかった人など）。無ければ出さない。 -->
+				<p id="melop-copy-note" class="text-[11px] text-right mb-2 whitespace-pre-line" hidden></p>
 	
 				<!-- テーブル -->
 				<div class="overflow-x-auto rounded-xl border border-slate-200 mb-6">
@@ -2332,6 +2354,7 @@
 			// 右下のボタン群から開く「結合画像の設定」にも（模式図・注記・見出しなし。id は fab- で分ける）
 			renderStitchShowPanel(document.getElementById('stitch-show-panel-fab'), { idPrefix: 'fab-', wire: false, note: false, title: false });
 			restoreAttrIcons();
+			restoreMelopMode();
 			restoreStitchShow();
 			initStitchSaveName();
 			selectCopyList('all133');
@@ -3257,6 +3280,7 @@
 			personResults = PERSON_LABELS.map(() => null);
 			personLines = PERSON_LABELS.map(() => null);
 			personGeometry = PERSON_LABELS.map(() => null);
+			personMelop = PERSON_LABELS.map(() => null);
 			// これ以降の personResults 等はこの run のもの
 			lastOcrRun = run;
 
@@ -3277,6 +3301,17 @@
 			let anySuccess = false;
 			const skippedAll = [];
 			const warnedAll = [];
+
+			// めろっぷ！【LTC】専用拡張モード（C-101）のときだけ、行の並びのデータを読む。
+			// 読めなければこの回は拡張モードなしで判定する（いつもの判定には影響しない）。
+			if (run.melop) {
+				try { await loadMelopSheet(); }
+				catch (err) {
+					console.warn('めろっぷ用の行の並びを読み込めませんでした', err);
+					run.melop = false;
+					showToast('めろっぷ用のデータを読み込めなかったため、拡張モードなしで判定します');
+				}
+			}
 
 			try {
 				setProgress(0, 'OCRエンジンを初期化中…');
@@ -3306,6 +3341,16 @@
 					// 結果画像の印を焼くのに使う（判定・集計には一切関わらない）
 					personLines[p] = result.lines;
 					personGeometry[p] = result.geometry;
+					// めろっぷ！【LTC】専用拡張モード（C-101）。上の判定の結果には触らず、別に持つ
+					if (run.melop) {
+						const top = await readMelopTopRow(worker, files, melopSheet);
+						personMelop[p] = { top: top, res: matchMelopLines(result.lines.concat(top.extraLines), melopSheet) };
+						devGeometry.push('【めろっぷ ' + PERSON_LABELS[p] + '】' + (top.found
+							? (top.file + ' / 青 ' + (top.blue ? (top.blue.name || '読めず「' + top.blue.text + '」') + '★' + top.blue.stars : 'なし') +
+								' / 赤 ' + (top.red ? (top.red.name || '読めず「' + top.red.text + '」') + '★' + top.red.stars : 'なし') +
+								' / 固有★' + top.uniqueStars + ' / 右隣 ' + top.extraLines.map(l => l.text).join('｜'))
+							: 'いちばん上の段が見つからない'));
+					}
 				}
 			} catch (err) {
 				console.error(err);
@@ -3747,6 +3792,7 @@
 			renderTableSetToggle(used);
 			renderTableHeader(tableUsed);
 			updateCopyLabels(used);
+			renderMelopCopyButtons();
 			updateFilterLabels(tableUsed);
 
 			const foundCounts = {};
@@ -3994,13 +4040,405 @@
 			try { el.select(); document.execCommand('copy'); } catch (e) {}
 		}
 
-		/* めろっぷ！【LTC】専用拡張モード（βテスト・C-101）の行の並び（data/melop-sheet-rows.json）の版。
-		   exam は core を読まないので、この1本の版は exam が持つ（dataVersion と揃える。test:verify §1 が見る）。
-		   読み取り・出力はこの後の commit で足す。 */
+		/* ============================================================
+		 * めろっぷ！【LTC】専用拡張モード（βテスト・C-101）
+		 *
+		 * めろっぷ！【LTC】さんのブック「因子入力等（因子管理シート）」は、★の数を
+		 * H38:J599（562行 × H＝親／I＝祖1／J＝祖2）に貼ると、G列で継承の可能性を計算する。
+		 * このモードでは、判定の結果からその欄へそのまま貼れるデータ（562行 × 3列・タブ区切り）を
+		 * 親Aセット・親Bセットごとに作る（1つの因子の欄は3列で、6列まとめて貼ると
+		 * あいだの式を上書きするため、セットごとに分ける）。
+		 *
+		 * - 行の並びは data/melop-sheet-rows.json（シートの行番号・区分・名前・独自ID）。
+		 *   シートが更新されたらこのファイルを直す。ここには並びを書かない。
+		 * - 持っていない行は空欄。名前は読めたが★が読めなかった行は「?」
+		 *   （シートの G 列がエラーになり、貼った人が気づける）。
+		 * - 継承固有（slot: unique）は名前を問わず固有の★だけ。親の行は親の列、祖1の行は祖1の列、
+		 *   祖2の行は祖2の列にだけ入れる（シートの式がそうなっている）。
+		 * - 青因子・赤因子・固有は画面のいちばん上の段にあり、いつもの読み取り（detectSkillRows の
+		 *   listTop より下）では読まない。**このモードのときだけ** readMelopTopRow() が別に読む。
+		 *   固有の右隣の1枠（同じ理由で読まれていなかった）もここで読み、下の照合に混ぜる。
+		 * - 照合はいつもの判定（personResults）とは別に、562行の名前の辞書でもう一度行う
+		 *   （matchMelopLines）。**いつもの判定・表示・「★の数をコピー」には一切触らない。**
+		 * - **モードが切れて判定したときは、読み取り・照合・出力の関数は1つも呼ばれない**（processImages の中の
+		 *   run.melop の分岐だけが入口）。呼ばれるのはボタンを隠したままにする renderMelopCopyButtons() だけ。
+		 *   検査は tests/visual/run-smoke.mjs の「めろっぷ」の塊。
+		 * ============================================================ */
 		// data/ のうち exam.html だけが読むものの版（dataVersion と揃える。test:verify §1 が見る）
 		const EXAM_DATA_JSON_VERSIONS = {
 			'data/melop-sheet-rows.json': '2026-09-27a'
 		};
+		const MELOP_SHEET_PATH = 'data/melop-sheet-rows.json';
+		const MELOP_MODE_STORAGE_KEY = 'uma-exam-melop-mode';
+		let melopModeEnabled = false;   // 保存値が無いときは OFF
+		let melopSheet = null;          // prepareMelopSheet() の戻り値（読み込めたら持ち続ける）
+		let personMelop = PERSON_LABELS.map(() => null); // 人ごとの { res, top }（拡張モードで判定したときだけ）
+
+		function restoreMelopMode() {
+			melopModeEnabled = readStored(MELOP_MODE_STORAGE_KEY) === '1';
+			const el = document.getElementById('opt-melop');
+			if (el) el.checked = melopModeEnabled;
+		}
+		function setMelopMode(on) {
+			melopModeEnabled = !!on;
+			writeStored(MELOP_MODE_STORAGE_KEY, melopModeEnabled ? '1' : '0');
+		}
+
+		/* 名前の末尾の「+」の扱い。normalizeText() は「+」を落とすので、
+		   「レースの真髄・速」と「レースの真髄・速+」（どちらもシートに別の行がある）が同じ文字列になる。
+		   照合の前に、名前の末尾の「+」と、OCR の行の末尾の「+」「＋」「十」（「+」の読み違い）を、
+		   正規化で消えない印の1文字に置き換えて区別する。行の途中の「十」（十万バリキ など）は触らない。 */
+		const MELOP_PLUS_MARK = '卌';
+		function melopMarkPlusName(name) {
+			return String(name).replace(/\+$/, MELOP_PLUS_MARK);
+		}
+		function melopMarkPlusLine(text) {
+			return String(text == null ? '' : text).replace(/[+＋十](?=[^\p{L}\p{N}]*$)/u, MELOP_PLUS_MARK);
+		}
+
+		/* 読み込んだ並びのデータから、照合と出力に使う形を作る。
+		   listDict … いちばん上の段以外の行の名前の辞書（buildSkillDictionary の形。名前は「+」を印に置き換えたもの）
+		   rowByDictName … 辞書の名前 → 行 */
+		function prepareMelopSheet(json) {
+			const rows = (json && Array.isArray(json.rows)) ? json.rows : [];
+			const listRows = rows.filter(r => !r.slot);
+			const rowByDictName = {};
+			listRows.forEach(r => { rowByDictName[melopMarkPlusName(r.name)] = r; });
+			return {
+				dataVersion: json && json.dataVersion,
+				rows: rows,
+				blueRows: rows.filter(r => r.slot === 'blue'),
+				redRows: rows.filter(r => r.slot === 'red'),
+				uniqueRows: rows.filter(r => r.slot === 'unique'),
+				listDict: buildSkillDictionary(listRows.map(r => melopMarkPlusName(r.name))),
+				rowByDictName: rowByDictName
+			};
+		}
+
+		async function loadMelopSheet() {
+			if (melopSheet) return melopSheet;
+			const v = EXAM_DATA_JSON_VERSIONS[MELOP_SHEET_PATH];
+			const res = await fetch(MELOP_SHEET_PATH + (v ? '?v=' + encodeURIComponent(v) : ''));
+			if (!res.ok) throw new Error('HTTP ' + res.status);
+			melopSheet = prepareMelopSheet(await res.json());
+			return melopSheet;
+		}
+
+		/* 562行の名前でもう一度照合する。シナリオ因子と遺伝子は、いつもの判定と同じ絞り込みを
+		   24種・10種すべてを相手に掛ける（選択には関係なく。シートには全部の行がある）。 */
+		const MELOP_ALL_FACTORS = new Set(SCENARIO_INHERITANCE_FACTORS);
+		const MELOP_ALL_GENES = new Set(APTITUDE_GENES);
+		function matchMelopLines(lines, sheet) {
+			const marked = (lines || []).map(l => Object.assign({}, l, { text: melopMarkPlusLine(l.text) }));
+			let res = matchAllSkillsWithStars(marked, sheet.listDict.list, sheet.listDict.index, {});
+			res = applyScenarioFactorStrictMatch(res, marked, { factors: MELOP_ALL_FACTORS });
+			res = applyAptitudeGeneStrictMatch(res, marked, { genes: MELOP_ALL_GENES });
+			return res;
+		}
+
+		/* ------------------------------------------------------------
+		 * いちばん上の段（青因子・赤因子・固有・固有の右隣）の読み取り
+		 *
+		 * detectSkillRows()（common.js・凍結中）と同じ手がかり ――「青い帯のすぐ下に、全幅でない緑の帯」――
+		 * で1段目（青・赤）と2段目（固有・右隣）の位置を決める。common.js は変えない。
+		 * 位置は帯の高さ（h）を単位にして決める（機種で幅が違っても、チップの高さに対する配置は同じ）。
+		 *   文字 … チップの左端から 0.76h（丸いアイコンの右）から、上端から 0.08h〜0.76h（★の上）
+		 *   ★   … チップの左端から 1.0h（固有の金色のアイコンを避ける）より右、上端から 0.7h〜1.3h
+		 * 青・赤の文字は白抜きなので、白い画素だけを黒にして読む。名前は青5語・赤10語から選ぶ。
+		 * ★は、赤のチップの淡いピンクを金色と取り違えないよう、青みの少ない金色だけを数える。
+		 * ------------------------------------------------------------ */
+		function melopPinkMaskOf(imageData) {
+			const d = imageData.data;
+			const n = imageData.width * imageData.height;
+			const mask = new Uint8Array(n);
+			for (let i = 0, p = 0; i < n; i++, p += 4) {
+				const r = d[p], g = d[p + 1], b = d[p + 2];
+				const max = Math.max(r, g, b), min = Math.min(r, g, b);
+				const delta = max - min;
+				if (delta === 0 || max < 90) continue;
+				if (delta / max < 0.35) continue;
+				if (max !== r) continue;
+				let h = 60 * (((g - b) / delta) % 6);
+				if (h < 0) h += 360;
+				if (h >= 300 && h <= 355) mask[i] = 1;
+			}
+			return mask;
+		}
+
+		function melopStarMaskOf(imageData) {
+			const d = imageData.data;
+			const n = imageData.width * imageData.height;
+			const mask = new Uint8Array(n);
+			for (let i = 0, p = 0; i < n; i++, p += 4) {
+				const r = d[p], g = d[p + 1], b = d[p + 2];
+				if (r > 200 && g > 140 && (r - b) > 60 && b < 140) mask[i] = 1;
+			}
+			return mask;
+		}
+
+		function melopWidestRun(mask, W, y0, y1, minFrac) {
+			const cols = colCountsOf(mask, W, y0, y1);
+			const need = Math.max(1, Math.round((y1 - y0 + 1) * minFrac));
+			const runs = findRuns(cols, need, 3, 0, W);
+			let best = null;
+			runs.forEach(r => { if (!best || (r.b - r.a) > (best.b - best.a)) best = r; });
+			return best;
+		}
+
+		function findMelopTopLayout(base) {
+			const W = base.width, H = base.height;
+			const imageData = getPixels(base);
+			const green = greenMaskOf(imageData);
+			const gRows = rowCountsOf(green, W, H);
+			const thickGreen = findRuns(gRows, Math.round(W * 0.12), 4, 0, H).filter(b => (b.b - b.a) >= H * 0.008);
+			const blue = blueMaskOf(imageData);
+			const bRows = rowCountsOf(blue, W, H);
+			const blueBands = findRuns(bRows, Math.round(W * 0.08), 4, 0, H).filter(b => (b.b - b.a) >= H * 0.008);
+			const gapLimit = Math.round(H * 0.02);
+			function isWide(g) {
+				const c = colCountsOf(green, W, g.a, g.b);
+				let covered = 0;
+				for (let x = 0; x < W; x++) if (c[x] > 0) covered++;
+				return covered / W > 0.7;
+			}
+			for (const bb of blueBands) {
+				const g = thickGreen.find(t => t.a - bb.b >= 0 && t.a - bb.b <= gapLimit && !isWide(t));
+				if (!g) continue;
+				const blueRun = melopWidestRun(blue, W, bb.a, bb.b, 0.5);
+				if (!blueRun) continue;
+				const pinkRun = melopWidestRun(melopPinkMaskOf(imageData), W, bb.a, bb.b, 0.5);
+				const chipW = blueRun.b - blueRun.a;
+				return {
+					imageData: imageData, W: W, H: H,
+					h: bb.b - bb.a + 1,
+					row1: bb.a, row2: g.a,
+					// 左の列（青・固有）は青いチップの幅。右の列（赤・右隣）はピンクの右端から同じ幅
+					// （ピンクの左端はグラデーションで欠けることがあるため）。
+					left: { x0: blueRun.a, x1: blueRun.b },
+					right: pinkRun ? { x0: Math.max(blueRun.b + 1, pinkRun.b - chipW), x1: pinkRun.b } : null
+				};
+			}
+			return null;
+		}
+
+		function melopChipStars(L, mask, col, top) {
+			return countGoldBlobs(mask, L.W, Math.round(col.x0 + L.h * 1.0), col.x1 + 1,
+				Math.round(top + L.h * 0.7), Math.min(L.H, Math.round(top + L.h * 1.3)));
+		}
+
+		function melopTextCanvas(base, L, col, top, whiteText) {
+			const h = L.h;
+			const cx0 = Math.round(col.x0 + h * 0.76);
+			const cx1 = Math.min(col.x1, Math.round(cx0 + h * 4.2));
+			const cy0 = Math.round(top + h * 0.08);
+			const cy1 = Math.round(top + h * 0.76);
+			const w = cx1 - cx0 + 1, hh = cy1 - cy0 + 1;
+			const scale = Math.max(1, Math.min(4, 64 / hh));
+			const pad = 24;
+			const canvas = document.createElement('canvas');
+			canvas.width = Math.round(w * scale) + pad * 2;
+			canvas.height = Math.round(hh * scale) + pad * 2;
+			const ctx = canvas.getContext('2d');
+			ctx.fillStyle = '#FFFFFF';
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			ctx.imageSmoothingEnabled = true;
+			ctx.imageSmoothingQuality = 'high';
+			ctx.drawImage(base, cx0, cy0, w, hh, pad, pad, Math.round(w * scale), Math.round(hh * scale));
+			if (!whiteText) return canvas;
+			// 白抜きの文字だけを黒に、それ以外（チップの色・余白）を白にする
+			const img = ctx.getImageData(pad, pad, canvas.width - pad * 2, canvas.height - pad * 2);
+			const d = img.data;
+			for (let p = 0; p < d.length; p += 4) {
+				const v = Math.min(d[p], d[p + 1], d[p + 2]) > 215 ? 0 : 255;
+				d[p] = d[p + 1] = d[p + 2] = v;
+			}
+			ctx.putImageData(img, pad, pad);
+			return canvas;
+		}
+
+		/* 固有の右隣（白いチップ・濃い文字）の文字の切り出し。いつもの読み取り（detectSkillRows → stackRowsWithMeta）と
+		   同じく、暗い画素の塊をぴったり囲んで（上下左右に4px）、行の高さを揃えて積む形にする
+		   （決まった大きさの枠で切ると、チップの斜めの光沢を文字として読んでしまう）。 */
+		function melopDarkTextCanvas(base, L, col, top) {
+			const W = L.W, h = L.h;
+			const gray = toGray(L.imageData);
+			const dark = darkMaskOf(gray, DARK_LEVEL);
+			const x0 = Math.round(col.x0 + h * 0.6), x1 = col.x1;
+			const y0 = Math.round(top + h * 0.05), y1 = Math.min(L.H - 1, Math.round(top + h * 0.76));
+			// 行: 暗い画素のある行の範囲
+			let ya = -1, yb = -1;
+			for (let y = y0; y <= y1; y++) {
+				let c = 0;
+				for (let x = x0; x <= x1; x++) c += dark[y * W + x];
+				if (c >= 2) { if (ya < 0) ya = y; yb = y; }
+			}
+			if (ya < 0) return melopTextCanvas(base, L, col, top, false);
+			// 列: 暗い画素のある列の塊（いつもの読み取りと同じ隙間の許し方）のうち、最初のもの
+			const counts = new Int32Array(W);
+			for (let y = ya; y <= yb; y++) for (let x = x0; x <= x1; x++) counts[x] += dark[y * W + x];
+			const runs = findRuns(counts, 1, Math.max(18, Math.round(W * 0.03)), x0, x1 + 1)
+				.filter(r => r.b - r.a + 1 >= Math.max(10, Math.round(W * 0.02)));
+			if (!runs.length) return melopTextCanvas(base, L, col, top, false);
+			const pad = 4;
+			const rx = Math.max(0, runs[0].a - pad), ry = Math.max(0, ya - pad);
+			const rect = { x: rx, y: ry, w: Math.min(W - rx, runs[0].b - runs[0].a + 1 + pad * 2), h: Math.min(L.H - ry, yb - ya + 1 + pad * 2) };
+			return stackRowsWithMeta(base, [rect]).canvas;
+		}
+
+		// OCR の文字列を候補の名前（青5語・赤10語）のどれかに決める。決められなければ null。
+		function melopPickName(text, candidates) {
+			const norm = normalizeText(text);
+			if (!norm) return null;
+			const cands = candidates.map(c => ({ raw: c, norm: normalizeText(c) }));
+			const contained = cands.filter(c => norm.indexOf(c.norm) !== -1)
+				.sort((a, b) => b.norm.length - a.norm.length);
+			if (contained.length === 1 || (contained.length > 1 && contained[0].norm.length > contained[1].norm.length)) {
+				return contained[0].raw;
+			}
+			let best = null, bestD = Infinity, tie = 0;
+			cands.forEach(c => {
+				const d = levenshtein(norm, c.norm);
+				if (d < bestD) { bestD = d; best = c; tie = 1; }
+				else if (d === bestD) tie++;
+			});
+			if (!best || tie > 1 || bestD >= best.norm.length) return null;
+			return best.raw;
+		}
+
+		async function melopRecognizeName(worker, canvas, candidates) {
+			const res = await worker.recognize(canvas);
+			const text = ((res.data && res.data.text) || '').replace(/\s+/g, '');
+			return { text: text, name: melopPickName(text, candidates) };
+		}
+
+		/* 1人分の画像から、いちばん上の段を読む。見つかった最初の画像だけを使う。
+		   戻り値 { found, file, blue: {name, text, stars}|null, red: 同, uniqueStars, extraLines }
+		   extraLines … 固有の右隣の1枠の OCR 行（matchMelopLines に混ぜる。stars・rowKey 付き） */
+		async function readMelopTopRow(worker, files, sheet) {
+			const out = { found: false, file: null, blue: null, red: null, uniqueStars: null, extraLines: [] };
+			const blueNames = sheet.blueRows.map(r => r.name);
+			const redNames = sheet.redRows.map(r => r.name);
+			for (let i = 0; i < files.length; i++) {
+				let base;
+				try {
+					base = toBaseCanvas(await loadImage(files[i]));
+				} catch (e) { continue; }
+				if (!assessImageQuality(base).ok) continue;
+				const L = findMelopTopLayout(base);
+				if (!L) continue;
+				out.found = true;
+				out.file = files[i].name;
+				const stars = melopStarMaskOf(L.imageData);
+				const b = await melopRecognizeName(worker, melopTextCanvas(base, L, L.left, L.row1, true), blueNames);
+				out.blue = { name: b.name, text: b.text, stars: melopChipStars(L, stars, L.left, L.row1) };
+				out.uniqueStars = melopChipStars(L, stars, L.left, L.row2);
+				if (L.right) {
+					const r = await melopRecognizeName(worker, melopTextCanvas(base, L, L.right, L.row1, true), redNames);
+					out.red = { name: r.name, text: r.text, stars: melopChipStars(L, stars, L.right, L.row1) };
+					const rightStars = melopChipStars(L, stars, L.right, L.row2);
+					const variants = preprocessVariants(melopDarkTextCanvas(base, L, L.right, L.row2), true);
+					for (let v = 0; v < variants.length; v++) {
+						const res = await worker.recognize(variants[v]);
+						extractLines(res.data).forEach(l => out.extraLines.push({
+							text: l.text, conf: l.conf, stars: rightStars, starsReliable: true, rowKey: 'melop-top:' + i
+						}));
+					}
+				}
+				break;
+			}
+			return out;
+		}
+
+		/* ------------------------------------------------------------
+		 * 出力（562行 × 3列）
+		 * ------------------------------------------------------------ */
+		function melopStarText(stars) {
+			return (stars === null || stars === undefined || stars === 0) ? '?' : String(stars);
+		}
+
+		// 1人分の「行番号 → 入れる値」。持っていない行は入れない（＝空欄）。
+		function melopPersonValues(personIdx, sheet) {
+			const out = {};
+			const m = personMelop[personIdx];
+			if (!m) return out;
+			m.res.detectedSkills.forEach(name => {
+				const row = sheet.rowByDictName[name];
+				if (row) out[row.row] = melopStarText(m.res.skillStars[name]);
+			});
+			const top = m.top;
+			if (top && top.found) {
+				[[top.blue, sheet.blueRows], [top.red, sheet.redRows]].forEach(([hit, rows]) => {
+					if (!hit || !hit.name) return;
+					const row = rows.find(r => r.name === hit.name);
+					if (row) out[row.row] = melopStarText(hit.stars);
+				});
+				// 継承固有は、この人の列（親＝0・祖1＝1・祖2＝2）の行にだけ入れる
+				const uniqueRow = sheet.uniqueRows.find(r => r.column === personIdx % 3);
+				if (uniqueRow) out[uniqueRow.row] = melopStarText(top.uniqueStars);
+			}
+			return out;
+		}
+
+		// セット（0＝親A・1＝親B）の貼り付け用の文字列。562行 × 3列（親・祖1・祖2）のタブ区切り。
+		function buildMelopCopyText(setIdx, sheet) {
+			const cols = [0, 1, 2].map(k => melopPersonValues(setIdx * 3 + k, sheet));
+			return sheet.rows.map(r => cols.map(c => (c[r.row] !== undefined ? c[r.row] : '')).join('\t')).join('\n');
+		}
+
+		function melopRunReady() {
+			return !!(lastOcrRun && lastOcrRun.melop && melopSheet);
+		}
+
+		function renderMelopCopyButtons() {
+			const ready = melopRunReady();
+			const hasB = ready && [3, 4, 5].some(i => personResults[i]);
+			const a = document.getElementById('melop-copy-btn-A');
+			const b = document.getElementById('melop-copy-btn-B');
+			if (a) a.hidden = !ready;
+			if (b) b.hidden = !hasB;
+			const note = document.getElementById('melop-copy-note');
+			if (!note) return;
+			const msgs = [];
+			if (ready) {
+				PERSON_LABELS.forEach((label, i) => {
+					if (!personResults[i]) return;
+					const top = personMelop[i] && personMelop[i].top;
+					if (!top || !top.found) {
+						msgs.push(label + '：いちばん上の段（青・赤・固有）が見つからなかったため、めろっぷ用ではその行が空欄です');
+						return;
+					}
+					const lost = [];
+					if (!top.blue || !top.blue.name) lost.push('青因子');
+					if (!top.red || !top.red.name) lost.push('赤因子');
+					if (lost.length) msgs.push(label + '：' + lost.join('・') + 'の名前が読めなかったため、めろっぷ用ではその行が空欄です');
+				});
+			}
+			note.textContent = msgs.join('\n');
+			note.hidden = msgs.length === 0;
+		}
+
+		function copyMelopSet(setIdx) {
+			if (!melopRunReady()) return;
+			const text = buildMelopCopyText(setIdx, melopSheet);
+			const label = PERSON_SETS[setIdx].label;
+			const done = () => showToast('めろっぷ用の★（' + label + '）をクリップボードにコピーしました');
+			const legacy = () => {
+				const ta = document.createElement('textarea');
+				ta.value = text;
+				ta.setAttribute('readonly', '');
+				ta.style.position = 'fixed';
+				ta.style.opacity = '0';
+				document.body.appendChild(ta);
+				legacyCopy(ta);
+				ta.remove();
+				done();
+			};
+			if (navigator.clipboard && navigator.clipboard.writeText) {
+				navigator.clipboard.writeText(text).then(done, legacy);
+				return;
+			}
+			legacy();
+		}
 
 		function copyDevLog() {
 			const text = document.getElementById('dev-log').textContent;
@@ -4152,7 +4590,9 @@
 				skillOnlyList: skillOnlyList,
 				factorOnlyList: factorOnlyList,
 				geneOnlyList: geneOnlyList,
-				skillIndex: skillIndex
+				skillIndex: skillIndex,
+				// めろっぷ！【LTC】専用拡張モード（C-101）。押した時点の状態で決める
+				melop: melopModeEnabled
 			};
 		}
 		// 最後に OCR を回したときの run。personResults / personLines / personGeometry はこれに対応する。

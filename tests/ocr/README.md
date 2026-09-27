@@ -65,6 +65,21 @@ OCRエンジン(tesseract.js)と日本語辞書は CDN から取得するため*
 出力の `うち追加カタログ(N件)` は、検出スキルのうちカタログ由来のものの一覧
 （`result.json` の `catalogDetected`）。スキルの検出結果には影響しない。
 
+## めろっぷ！【LTC】専用拡張モードの「いちばん上の段」（run-melop-tests.mjs・C-101）
+
+```bash
+node tests/ocr/run-melop-tests.mjs                                   # 直下のケース（expect.json の melopTop と照合）
+node tests/ocr/run-melop-tests.mjs --truth=<JSON>                    # 期待値を別のファイルから（Archive の素材で精度を測るとき）
+```
+
+`npm run test:ocr`（exam・元画像）の最後にも続けて回る（`--no-melop` で外せる）。
+
+画面のいちばん上の段（青因子・赤因子・固有・固有の右隣）は、いつもの読み取り（`detectSkillRows()` の
+`listTop` より下）では読まない。exam.html の拡張モードのときだけ `readMelopTopRow()` が別に読むので、
+その関数をそのまま呼んで、1ケースにつき7項目（青・赤の名前と★・固有の★・固有の右隣の名前と★）を
+各ケースの `expect.json` の `melopTop` と比べる（書き方は `test-images/README.md`）。
+並びのデータ（`data/melop-sheet-rows.json`）を fetch するので http で開く。
+
 ## 文字正規化の安全確認
 
 ```bash

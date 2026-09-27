@@ -10358,6 +10358,203 @@ await block('収録の告知 ―― special のお知らせのモーダルにだ
 }
 });
 
+/* ============================================================
+ * exam.html — めろっぷ！【LTC】専用拡張モード（βテスト・C-101）
+ *
+ * OCR は回さない。行は並びのデータ（data/melop-sheet-rows.json）の名前から作り、本物の照合関数
+ * （matchMelopLines）と本物の出力（buildMelopCopyText）に通す。**スキル名はここに書かない**
+ * （どの行を使うかはデータから選ぶ）。いちばん上の段の読み取りそのもの（実画像）は
+ * tests/ocr/run-melop-tests.mjs（npm run test:ocr から回る）が見る。
+ * ============================================================ */
+await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101）', async () => {
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+	await page.waitForTimeout(600);
+	if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
+	await page.waitForTimeout(200);
+
+	// (1) 入口: チェックボックスの文言・既定はオフ・ブラウザに覚える
+	const entry = await page.evaluate(() => ({
+		label: document.querySelector('#melop-mode-wrap label span').textContent,
+		checked: document.getElementById('opt-melop').checked,
+		afterStitchPanel: document.getElementById('stitch-show-panel').nextElementSibling === document.getElementById('melop-mode-wrap'),
+		btnA: document.getElementById('melop-copy-btn-A').textContent.trim(),
+		btnB: document.getElementById('melop-copy-btn-B').textContent.trim(),
+	}));
+	assert(entry.label === 'めろっぷ！【LTC】専用拡張モード（βテスト）' && !entry.checked && entry.afterStitchPanel,
+		'めろっぷ(1): 「結合画像の設定」の下にチェックボックスがあり、既定はオフ', entry);
+	assert(entry.btnA === 'めろっぷ用に★をコピー（親Aセット）' && entry.btnB === 'めろっぷ用に★をコピー（親Bセット）',
+		'めろっぷ(1): ボタンの文言', entry);
+	// チェックボックスは②（画像の入力）のタブにある
+	await page.evaluate(() => selectStepTab(2));
+	await page.check('#opt-melop');
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.waitForTimeout(600);
+	await page.evaluate(() => selectStepTab(2));
+	const kept = await page.evaluate(() => ({ checked: document.getElementById('opt-melop').checked, stored: localStorage.getItem('uma-exam-melop-mode'), mode: melopModeEnabled }));
+	assert(kept.checked && kept.stored === '1' && kept.mode === true, 'めろっぷ(1): 入れた状態は開き直しても残る', kept);
+	await page.uncheck('#opt-melop');
+	assert(await page.evaluate(() => localStorage.getItem('uma-exam-melop-mode') === '0' && melopModeEnabled === false),
+		'めろっぷ(1): 外すと保存値も「0」になる');
+
+	// (2) 並びのデータを読み、照合の辞書に正規化で潰れる名前が無い
+	const sheet = await page.evaluate(async () => {
+		const s = await loadMelopSheet();
+		const listRows = s.rows.filter((r) => !r.slot);
+		const plusRows = listRows.filter((r) => /\+$/.test(r.name));
+		return {
+			version: s.dataVersion, table: EXAM_DATA_JSON_VERSIONS['data/melop-sheet-rows.json'],
+			rows: s.rows.length, listRows: listRows.length, dict: s.listDict.list.length,
+			markSurvives: normalizeText('a' + MELOP_PLUS_MARK) === 'a' + MELOP_PLUS_MARK,
+			plusPairs: plusRows.map((r) => ({ plus: r.row, base: (listRows.find((b) => b.name === r.name.replace(/\+$/, '')) || {}).row })),
+		};
+	});
+	assert(sheet.rows === 562 && sheet.version === sheet.table, 'めろっぷ(2): 562行を読める・版が exam の表と一致', sheet);
+	assert(sheet.dict === sheet.listRows, 'めろっぷ(2): いちばん上の段以外の ' + sheet.listRows + '行の名前が、照合の辞書で1つも潰れない（「+」の有無も区別できる）',
+		{ 辞書: sheet.dict, 行: sheet.listRows });
+	assert(sheet.markSurvives && sheet.plusPairs.length > 0 && sheet.plusPairs.every((p) => p.base),
+		'めろっぷ(2): 「+」の印は正規化で消えず、「+」の付く行にはどれも付かない行がある', sheet.plusPairs);
+
+	// (3) 「+」の付く行と付かない行を、OCR の行の末尾の「+」「＋」「十」で振り分ける
+	const plus = await page.evaluate((pair) => {
+		const s = melopSheet;
+		const byRow = (n) => s.rows.find((r) => r.row === n);
+		const base = byRow(pair.base).name, plusName = byRow(pair.plus).name;
+		const hit = (text) => {
+			const res = matchMelopLines([{ text: text, stars: 2, starsReliable: true, rowKey: 'x:0' }], s);
+			return Array.from(res.detectedSkills).map((n) => s.rowByDictName[n].row);
+		};
+		return {
+			plusAscii: hit(plusName), plusFull: hit(base + '＋'), plusKanji: hit(base + '十 _'), base: hit(base),
+			want: pair,
+		};
+	}, sheet.plusPairs[0]);
+	assert(JSON.stringify(plus.plusAscii) === JSON.stringify([plus.want.plus]) && JSON.stringify(plus.plusFull) === JSON.stringify([plus.want.plus])
+		&& JSON.stringify(plus.plusKanji) === JSON.stringify([plus.want.plus]) && JSON.stringify(plus.base) === JSON.stringify([plus.want.base]),
+		'めろっぷ(3): 末尾の「+」「＋」「十」は「+」の行へ、付かないものは付かない行へ入る', plus);
+
+	// (4) 出力の形: 562行 × 3列・空欄・「?」・継承固有の斜めの置き方・いちばん上の段
+	const out = await page.evaluate(() => {
+		const s = melopSheet;
+		const list = s.rows.filter((r) => !r.slot);
+		// 人ごとに、データの並びから違う行を選ぶ（i 番目の人は i, i+7, i+14 … の行）
+		const seed = (p, withTop) => {
+			const picked = list.filter((_, k) => k % 7 === p).slice(0, 12);
+			const lines = picked.map((r, k) => ({ text: r.name, stars: (k % 3) + 1, starsReliable: true, rowKey: 'r' + p + ':' + k }));
+			const res = matchMelopLines(lines, s);
+			// 1件目は「名前は読めたが★が読めなかった」
+			res.skillStars[melopMarkPlusName(picked[0].name)] = null;
+			personMelop[p] = {
+				res: res,
+				top: withTop ? { found: true, blue: { name: s.blueRows[p % s.blueRows.length].name, stars: 2 },
+					red: { name: s.redRows[p % s.redRows.length].name, stars: p === 1 ? 0 : 3 }, uniqueStars: (p % 3) + 1, extraLines: [] }
+					: { found: false, blue: null, red: null, uniqueStars: null, extraLines: [] },
+			};
+			return picked.map((r, k) => ({ row: r.row, want: k === 0 ? '?' : String((k % 3) + 1) }));
+		};
+		const want = [0, 1, 2, 3, 4].map((p) => seed(p, p !== 4));
+		personMelop[5] = null;
+		const a = buildMelopCopyText(0, s).split('\n'), b = buildMelopCopyText(1, s).split('\n');
+		const cell = (lines, row, col) => lines[s.rows.findIndex((r) => r.row === row)].split('\t')[col];
+		const listOk = want.every((w, p) => w.every((x) => cell(p < 3 ? a : b, x.row, p % 3) === x.want));
+		const u = s.uniqueRows;
+		return {
+			linesA: a.length, linesB: b.length,
+			tabsOk: a.concat(b).every((l) => l.split('\t').length === 3),
+			listOk: listOk,
+			blankOk: cell(a, list[6].row, 0) === '' && cell(b, list[5].row, 2) === '',
+			uniqueA: u.map((r) => [0, 1, 2].map((c) => cell(a, r.row, c)).join(',')),
+			uniqueB: u.map((r) => [0, 1, 2].map((c) => cell(b, r.row, c)).join(',')),
+			blueA0: cell(a, s.blueRows[0].row, 0), redA1: cell(a, s.redRows[1].row, 1),
+			blueB1: cell(b, s.blueRows[4 % s.blueRows.length].row, 1), redB1: cell(b, s.redRows[4 % s.redRows.length].row, 1),
+			noName: a.concat(b).every((l) => /^[123?]?\t[123?]?\t[123?]?$/.test(l)),
+		};
+	});
+	assert(out.linesA === 562 && out.linesB === 562 && out.tabsOk && out.noName,
+		'めろっぷ(4): A・B それぞれ562行 × 3列（タブ区切り・スキル名は含まない・値は 1〜3 か「?」か空欄）', out);
+	assert(out.listOk, 'めろっぷ(4): 読めた行はその人の列に★の数、★が読めなかった行は「?」', out);
+	assert(out.blankOk, 'めろっぷ(4): 持っていない行は空欄', out);
+	assert(JSON.stringify(out.uniqueA) === JSON.stringify(['1,,', ',2,', ',,3']),
+		'めろっぷ(4): 継承固有は親の行は親の列、祖1の行は祖1の列、祖2の行は祖2の列にだけ入る（親Aセット）', out.uniqueA);
+	assert(JSON.stringify(out.uniqueB) === JSON.stringify(['1,,', ',,', ',,']),
+		'めろっぷ(4): 親Bセットも同じ（いちばん上の段が見つからなかった祖B1・結果の無い祖B2は空欄）', out.uniqueB);
+	assert(out.blueA0 === '2' && out.redA1 === '?' && out.blueB1 === '' && out.redB1 === '',
+		'めろっぷ(4): 青・赤はその名前の行のその人の列（★が0なら「?」・段が見つからなければ空欄）', out);
+
+	// (5) ボタン: 拡張モードで判定したときだけ。親Bセットのボタンは親Bセットの結果があるときだけ
+	const buttons = await page.evaluate(() => {
+		const st = () => ({ A: !document.getElementById('melop-copy-btn-A').hidden, B: !document.getElementById('melop-copy-btn-B').hidden,
+			note: document.getElementById('melop-copy-note').hidden ? '' : document.getElementById('melop-copy-note').textContent });
+		const mk = () => matchAllSkillsWithStars([{ text: skillList[0], stars: 1, starsReliable: true, rowKey: 'z:0' }], skillList, skillIndex, {});
+		personResults = PERSON_LABELS.map(() => null);
+		personResults[0] = mk();
+		setMelopMode(true);
+		lastOcrRun = captureRun();
+		renderResults();
+		const onlyA = st();
+		personResults[3] = mk();
+		renderResults();
+		const withB = st();
+		lastOcrRun = Object.assign({}, lastOcrRun, { melop: false });
+		renderResults();
+		const off = st();
+		setMelopMode(false);
+		return { onlyA, withB, off };
+	});
+	assert(buttons.onlyA.A && !buttons.onlyA.B, 'めろっぷ(5): 親Bセットの結果が無いときは親Aセットのボタンだけ', buttons.onlyA);
+	assert(buttons.withB.A && buttons.withB.B, 'めろっぷ(5): 親Bセットの結果があれば親Bセットのボタンも出る', buttons.withB);
+	assert(!buttons.off.A && !buttons.off.B && buttons.off.note === '', 'めろっぷ(5): 拡張モードなしで判定した結果にはボタンも注意も出ない', buttons.off);
+	// 見えるボタンの並び（左から A → B → いつもの「★の数をコピー」）
+	assert(await page.evaluate(() => [...document.querySelectorAll('#result-copy-slot > button')].map((b) => b.id).join(',')
+		=== 'melop-copy-btn-A,melop-copy-btn-B,result-copy-btn'), 'めろっぷ(5): ボタンはいつもの「★の数をコピー」の左に並ぶ');
+
+	// (6) 判定の流れ: オフでは拡張モードの処理を1つも通らず、オンでもいつもの結果・コピーは同じ
+	const flow = await page.evaluate(async () => {
+		const calls = { load: 0, top: 0, match: 0 };
+		const orig = { load: loadMelopSheet, top: readMelopTopRow, match: matchMelopLines, ppi: processPersonImages, tess: window.Tesseract };
+		loadMelopSheet = async () => { calls.load++; return orig.load(); };
+		readMelopTopRow = async () => { calls.top++; return { found: true, file: 'a.png', blue: { name: melopSheet.blueRows[0].name, text: '', stars: 3 },
+			red: { name: melopSheet.redRows[0].name, text: '', stars: 1 }, uniqueStars: 2, extraLines: [] }; };
+		matchMelopLines = (lines, s) => { calls.match++; return orig.match(lines, s); };
+		// OCR の代わり: いつもの判定に渡る行を固定する（対象スキルの先頭10件）
+		processPersonImages = async () => ({
+			lines: skillList.slice(0, 10).map((n, i) => ({ text: n, stars: (i % 3) + 1, starsReliable: true, rowKey: '0:' + i })),
+			skipped: [], warned: [], geometry: [null],
+		});
+		window.Tesseract = { createWorker: async () => ({ loadLanguage: async () => {}, initialize: async () => {}, setParameters: async () => {},
+			recognize: async () => ({ data: { text: '', lines: [] } }), terminate: async () => {} }) };
+		persons.forEach((p) => { p.files = []; });
+		persons[0].files = [new File(['x'], 'a.png', { type: 'image/png' })];
+		const snap = () => ({
+			copy: document.getElementById('copy-data').value,
+			table: document.getElementById('result-tbody').innerText,
+			stats: document.getElementById('stat-grid').innerText,
+			detected: Array.from(personResults[0].detectedSkills).sort().join('|'),
+		});
+		setMelopMode(false);
+		await processImages({ keepClosed: true });
+		const off = { calls: Object.assign({}, calls), snap: snap(), melop: personMelop.every((m) => m === null),
+			btn: !document.getElementById('melop-copy-btn-A').hidden, log: devGeometry.some((l) => l.startsWith('【めろっぷ')) };
+		setMelopMode(true);
+		await processImages({ keepClosed: true });
+		const on = { calls: Object.assign({}, calls), snap: snap(), melop: !!personMelop[0], btn: !document.getElementById('melop-copy-btn-A').hidden };
+		setMelopMode(false);
+		loadMelopSheet = orig.load; readMelopTopRow = orig.top; matchMelopLines = orig.match; processPersonImages = orig.ppi; window.Tesseract = orig.tess;
+		return { off, on };
+	});
+	assert(flow.off.calls.load === 0 && flow.off.calls.top === 0 && flow.off.calls.match === 0 && flow.off.melop && !flow.off.btn && !flow.off.log,
+		'めろっぷ(6): オフで判定すると、並びのデータの読み込み・いちばん上の段・562行の照合を1つも通らない',
+		{ calls: flow.off.calls, melop: flow.off.melop, btn: flow.off.btn, log: flow.off.log });
+	assert(flow.on.calls.top === 1 && flow.on.calls.match === 1 && flow.on.melop && flow.on.btn,
+		'めろっぷ(6): オンで判定すると、1人につき1回ずつ読み取りと照合を通り、ボタンが出る', flow.on.calls);
+	assert(JSON.stringify(flow.on.snap) === JSON.stringify(flow.off.snap) && flow.off.snap.copy.length > 0,
+		'めろっぷ(6): オンでも、いつもの判定・表・集計・「★の数をコピー」の中身はオフと1文字も変わらない',
+		{ 同じ: JSON.stringify(flow.on.snap) === JSON.stringify(flow.off.snap) });
+
+	assert(errors.length === 0, 'めろっぷ: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+});
 await browser.close();
 await close();
 
