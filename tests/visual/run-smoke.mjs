@@ -9268,8 +9268,16 @@ await block('段7【5】収録スキルデータ（マスター）の取り回�
 		const paths = Object.keys(table);
 		// **本数は data/ の実ファイルから数える**（2026-09-26・C-97 でレースの距離の一覧が7本目に入ったとき、
 		// ここが「6」の決め打ちで落ちた。顔ぶれの一致そのものは run-verify §1 が見る）
-		const dataFileCount = fs.readdirSync(path.join(REPO_ROOT, 'data')).filter((f) => f.endsWith('.json')).length;
-		assert(paths.length === dataFileCount, '段7の続き: 版の表が data/ の' + dataFileCount + 'ファイルぶんある', paths);
+		// **exam.html だけが読むもの**（めろっぷ用の行の並び。C-101）は exam の EXAM_DATA_JSON_VERSIONS が版を持ち、
+		// core は読まないので、core の表の本数からは除く（両方の表で data/ を網羅していることは run-verify §1 が見る）
+		const examOnly = (() => {
+			const m = /const EXAM_DATA_JSON_VERSIONS = \{([\s\S]*?)\};/.exec(fs.readFileSync(path.join(REPO_ROOT, 'exam.html'), 'utf8'));
+			return m ? [...m[1].matchAll(/'(data\/[a-z0-9-]+\.json)'/g)].map((x) => x[1]) : [];
+		})();
+		const dataFileCount = fs.readdirSync(path.join(REPO_ROOT, 'data')).filter((f) => f.endsWith('.json') && !examOnly.includes('data/' + f)).length;
+		assert(examOnly.length > 0 && !paths.some((k) => examOnly.includes(k)),
+			'段7の続き: exam だけが読む data/ のファイル（' + examOnly.join('・') + '）は core の表に載っていない', examOnly);
+		assert(paths.length === dataFileCount, '段7の続き: 版の表が data/ の' + dataFileCount + 'ファイル（exam だけが読むものを除く）ぶんある', paths);
 		const 取れた = paths.filter((k) => dataUrls.some((u) => u.includes('/' + k)));
 		assert(取れた.length === paths.length,
 			'段7の続き: ' + paths.length + 'ファイルとも実際に取得された（検査が空振りでない）',
@@ -10349,6 +10357,7 @@ await block('収録の告知 ―― special のお知らせのモーダルにだ
 	}
 }
 });
+
 await browser.close();
 await close();
 

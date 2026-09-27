@@ -140,6 +140,19 @@ const masterVer = /"masterVersion"\s*:\s*"([^"]+)"/.exec(read('uma-skill-deck-sk
 const dataVerTable = Object.fromEntries(
 	[...read('js/uma-skill-deck-core.js').matchAll(/'(data\/[a-z0-9-]+\.json)':\s*'([0-9a-z-]+)'/g)]
 		.map((m) => [m[1], m[2]]));
+/* 2026-09-27（C-101）: data/ のうち **exam.html だけが読むもの**（めろっぷ！【LTC】専用拡張モードの行の並び）は、
+   exam.html の EXAM_DATA_JSON_VERSIONS が版を持つ（exam は core を読まないので、core の表には載せない）。
+   顔ぶれの検査は「core の表 ＋ exam の表」を data/ の実ファイルと突き合わせる。同じファイルが両方の表に
+   載っていたら落とす（版を2か所に持つと片方が古くなる）。 */
+const examDataVerTable = (() => {
+	const m = /const EXAM_DATA_JSON_VERSIONS = \{([\s\S]*?)\};/.exec(read('exam.html'));
+	return m ? Object.fromEntries([...m[1].matchAll(/'(data\/[a-z0-9-]+\.json)':\s*'([0-9a-z-]+)'/g)].map((x) => [x[1], x[2]])) : {};
+})();
+const dataVerOwner = {};
+for (const k of Object.keys(dataVerTable)) dataVerOwner[k] = 'core.js';
+for (const k of Object.keys(examDataVerTable)) dataVerOwner[k] = 'exam.html';
+const bothTables = Object.keys(examDataVerTable).filter((k) => k in dataVerTable);
+Object.assign(dataVerTable, examDataVerTable);
 const dataFiles = fs.readdirSync(path.join(REPO_ROOT, 'data')).filter((f) => f.endsWith('.json')).sort();
 console.log('     内部定数:  common.js=%s / core=%s / deck=%s / stitch=%s / skillset-cards=%s / skillset-ocr=%s / css=%s', commonVer, coreVer, deckVer, stitchVer, skillsetVer, skillsetOcrVer, cssVer);
 for (const [p, pat, ver, name] of [
@@ -166,8 +179,10 @@ check(masterJsonVer === masterVer,
 	'js/uma-skill-deck-core.js の MASTER_JSON_VERSION がマスターの masterVersion と一致',
 	{ 'core.js': masterJsonVer, 'uma-skill-deck-skills.json': masterVer });
 // (1) 表の顔ぶれが data/ の実ファイルと同じ（足し忘れ・消し忘れを落とす）
+check(Object.keys(examDataVerTable).length > 0, 'exam.html の EXAM_DATA_JSON_VERSIONS が読めた（' + Object.keys(examDataVerTable).join('・') + '）', examDataVerTable);
+check(bothTables.length === 0, 'data/ の同じファイルが core.js と exam.html の両方の表に載っていない', bothTables);
 check(JSON.stringify(Object.keys(dataVerTable).sort()) === JSON.stringify(dataFiles.map((f) => 'data/' + f)),
-	'core.js の DATA_JSON_VERSIONS が data/ の JSON すべてを網羅している（' + dataFiles.length + '件）',
+	'core.js の DATA_JSON_VERSIONS と exam.html の EXAM_DATA_JSON_VERSIONS で data/ の JSON すべてを網羅している（' + dataFiles.length + '件）',
 	{ 表: Object.keys(dataVerTable).sort(), 実ファイル: dataFiles.map((f) => 'data/' + f) });
 // (2) 表の版が各 JSON の dataVersion と一致
 {
@@ -175,9 +190,9 @@ check(JSON.stringify(Object.keys(dataVerTable).sort()) === JSON.stringify(dataFi
 	for (const p of Object.keys(dataVerTable).sort()) {
 		const m = /"dataVersion"\s*:\s*"([^"]+)"/.exec(read(p));
 		const actual = m ? m[1] : '(読めない)';
-		if (actual !== dataVerTable[p]) ng.push(p + ': core.js=' + dataVerTable[p] + ' / JSON=' + actual);
+		if (actual !== dataVerTable[p]) ng.push(p + ': ' + dataVerOwner[p] + '=' + dataVerTable[p] + ' / JSON=' + actual);
 	}
-	check(ng.length === 0, 'DATA_JSON_VERSIONS の版が data/ の各 dataVersion と一致（' + Object.keys(dataVerTable).length + '件）', ng);
+	check(ng.length === 0, 'DATA_JSON_VERSIONS（＋exam の表）の版が data/ の各 dataVersion と一致（' + Object.keys(dataVerTable).length + '件）', ng);
 }
 
 /* --- 凍結中のファイル。不一致でも落とさず、警告として必ず一覧に出す ---
@@ -401,11 +416,8 @@ const INTENTIONALLY_REMOVED = {
 	// ―― 見る対象が無くなったため。理由と「失っていない検査」は、その場所にコメントで残してある。
 	// **免除の登録は要らない**（§3 の `TARGETS` に入っていないページなので）。
 	// 2026-09-27（C-100・カスタムスキルの廃止 commit 3）: データ管理タブの「カスタムスキル：N/50」を消したので、
-	// その入れ物の id `data-custom-count` が uma-skill-deck.html と、それを書いていた js/uma-skill-deck.js から消えた
-	// （id の値が data- で始まるので、この検査は data-* として数える）。スキルセット・比較シートの件数は残っている。
-	// commit が進めば免除は要らなくなるので、次に触るときに空に戻す（残すと本当の事故を見逃す口になる）。
-	'uma-skill-deck.html': ['data-custom-count'],
-	'js/uma-skill-deck.js': ['data-custom-count'],
+	// その入れ物の id `data-custom-count` が uma-skill-deck.html と js/uma-skill-deck.js から消えた。
+	// commit が進んだので免除は空に戻した（2026-09-27・C-101 のついでの片付け）。
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

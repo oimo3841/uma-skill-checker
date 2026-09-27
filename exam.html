@@ -3994,6 +3994,14 @@
 			try { el.select(); document.execCommand('copy'); } catch (e) {}
 		}
 
+		/* めろっぷ！【LTC】専用拡張モード（βテスト・C-101）の行の並び（data/melop-sheet-rows.json）の版。
+		   exam は core を読まないので、この1本の版は exam が持つ（dataVersion と揃える。test:verify §1 が見る）。
+		   読み取り・出力はこの後の commit で足す。 */
+		// data/ のうち exam.html だけが読むものの版（dataVersion と揃える。test:verify §1 が見る）
+		const EXAM_DATA_JSON_VERSIONS = {
+			'data/melop-sheet-rows.json': '2026-09-27a'
+		};
+
 		function copyDevLog() {
 			const text = document.getElementById('dev-log').textContent;
 			if (navigator.clipboard && navigator.clipboard.writeText) {

@@ -3,7 +3,8 @@
 // （シナリオ因子は63セッション目・段1d に追加。それまでこのファイルだけ対象外だった。
 //   遺伝子は64セッション目・段A に新設と同時に追加。
 //   レースの距離の一覧は 2026-09-26・C-97 に新設と同時に追加 ―― `entries` を持たない形なので
-//   FILES のループには入れず、§8 で独自に見る）
+//   FILES のループには入れず、§8 で独自に見る。
+//   めろっぷ用の行の並び（melop-sheet-rows.json）は 2026-09-27・C-101 に新設と同時に追加 ―― 同じく §9）
 //
 //   npm run check:catalog        … 単体で回す
 //   npm run test:verify          … 納品前チェックの §10 からも呼ばれる
@@ -125,6 +126,16 @@ const RACE_TOP_KEYS = { need: ['dataVersion', 'category', 'distanceCategories', 
 const RACE_CATEGORY_KEYS = { need: ['key', 'name'], opt: ['minDistance', 'maxDistance'] };
 const RACE_ROW_KEYS = { need: ['distance', 'category', 'surfaces'], opt: [] };
 const RACE_CATEGORY_NAME = 'raceDistance';
+/* めろっぷ用の行の並び（data/melop-sheet-rows.json。C-101）。めろっぷ！【LTC】さんの因子管理シートの
+   ★を貼る欄（H38:J599）の行の並び。`entries` を持たないので FILES には入れず、§9 で見る。
+   行番号の範囲は貼り先の形そのものなので、ここに数字で持つ（シートの欄が変わったら、こことデータを一緒に直す）。 */
+const MELOP_FILE = 'melop-sheet-rows.json';
+const MELOP_TOP_KEYS = { need: ['dataVersion', 'category', 'rows'], opt: ['note'] };
+const MELOP_ROW_KEYS = { need: ['row', 'group', 'name'], opt: ['id', 'slot', 'column'] };
+const MELOP_CATEGORY_NAME = 'melopSheetRows';
+const MELOP_SLOTS = ['blue', 'red', 'unique'];
+const MELOP_FIRST_ROW = 38;
+const MELOP_LAST_ROW = 599;
 
 const SKILL_REF_KEYS = { need: ['skillId', 'name'], opt: [] };
 const STAR_ROW_KEYS = { need: ['minStar', 'skills'], opt: [] };
@@ -774,6 +785,79 @@ console.log('\n=== 8. レースの距離の一覧（' + RACE_FILE + '） ===');
 		none(bad, RACE_FILE + ' の値が決めた形（境目が隙間なくつながる／距離は昇順・重複なし・区分が境目と一致）');
 		const perCat = cats.map((c) => c.name + ' ' + rows.filter((x) => x.category === c.key).length).join(' / ');
 		console.log('     区分 ' + cats.length + '・距離 ' + rows.length + '種類（' + perCat + '）');
+	}
+}
+
+/* ──────────────────────── 9. めろっぷ用の行の並び ──────────────────────── */
+
+console.log('\n=== 9. めろっぷ用の行の並び（' + MELOP_FILE + '） ===');
+/* exam.html の「めろっぷ！【LTC】専用拡張モード」（C-101）が、★の数をこの順で出す。
+   シート側（★を貼る欄 H38:J599）が更新されたときにずれに気づけるよう、**行数と行番号の並び**を見る
+   （シートの欄の範囲は、貼り先の形そのものなので、ここに数字で持つ。スキル名は書かない）。
+   あわせて、独自IDの参照先が実在し、その名前が行の名前と同じもの（〇と○の違い・全角半角だけを揃えて）かを見る。 */
+{
+	const abs = path.join(REPO_ROOT, DIR, MELOP_FILE);
+	const r = fs.existsSync(abs) ? readJsonFile(abs) : { ok: false, error: 'ファイルが無い' };
+	check(r.ok, MELOP_FILE + ' が読める', r.ok ? undefined : r.error);
+	if (r.ok) {
+		const doc = r.data;
+		const unknown = [], missing = [], bad = [];
+		checkKeys(doc, MELOP_TOP_KEYS, MELOP_FILE, unknown, missing);
+		if (doc.category !== MELOP_CATEGORY_NAME) bad.push('category が ' + JSON.stringify(doc.category));
+		if (!DATA_VERSION_RE.test(String(doc.dataVersion))) bad.push('dataVersion が「YYYY-MM-DD＋英小文字1字」の形でない: ' + String(doc.dataVersion));
+		const rows = isArr(doc.rows) ? doc.rows : [];
+		if (!isArr(doc.rows)) bad.push('rows が配列でない');
+		rows.forEach((row, i) => {
+			const w = 'rows[' + i + ']';
+			if (!checkKeys(row, MELOP_ROW_KEYS, w, unknown, missing)) return;
+			if (!isInt(row.row)) bad.push(w + ': row は整数');
+			if (!isStr(row.group) || !isStr(row.name)) bad.push(w + ': group / name は空でない文字列');
+			if (row.id !== undefined && !isStr(row.id)) bad.push(w + ': id は空でない文字列');
+			if (row.slot !== undefined && !MELOP_SLOTS.includes(row.slot)) bad.push(w + ': slot は ' + MELOP_SLOTS.join('・') + ' のどれか');
+			if (row.slot !== undefined && row.id !== undefined) bad.push(w + ': slot の行は id を持たない（名前ではなく画面の位置で読む）');
+			if ((row.column !== undefined) !== (row.slot === 'unique')) bad.push(w + ': column は slot が unique の行にだけ書く');
+		});
+		none(unknown, MELOP_FILE + ' に知らないキーが無い');
+		none(missing, MELOP_FILE + ' の必須のキーが揃っている');
+		none(bad, MELOP_FILE + ' の値が決めた形');
+
+		// 行数と行番号の並び（シートの欄と1対1）
+		const nums = rows.map((x) => x.row);
+		const expected = Array.from({ length: MELOP_LAST_ROW - MELOP_FIRST_ROW + 1 }, (_, i) => MELOP_FIRST_ROW + i);
+		check(rows.length === expected.length, '行数が ' + expected.length + '（シートの ' + MELOP_FIRST_ROW + '〜' + MELOP_LAST_ROW + '行目）', rows.length);
+		const firstDiff = expected.findIndex((n, i) => nums[i] !== n);
+		check(firstDiff === -1 && nums.length === expected.length, '行番号が ' + MELOP_FIRST_ROW + ' から1ずつ増えて ' + MELOP_LAST_ROW + ' で終わる（抜け・重なり・入れ替わりなし）',
+			firstDiff === -1 ? undefined : { 位置: firstDiff, 期待: expected[firstDiff], 実際: nums[firstDiff] });
+
+		// いちばん上の段から読む行: 青・赤は1行以上、継承固有は column 0・1・2 が1行ずつ
+		const bySlot = (s) => rows.filter((x) => x.slot === s);
+		check(bySlot('blue').length > 0 && bySlot('red').length > 0, 'slot: blue・red の行がある', { blue: bySlot('blue').length, red: bySlot('red').length });
+		check(JSON.stringify(bySlot('unique').map((x) => x.column).sort()) === JSON.stringify([0, 1, 2]),
+			'slot: unique の行が column 0・1・2 に1行ずつ', bySlot('unique').map((x) => x.row + ':' + x.column));
+
+		// 名前の重なり（シートの同じ名前が2行あると、どちらに入れるか決まらない）
+		const dupName = [];
+		const seenName = new Map();
+		rows.forEach((x) => { if (seenName.has(x.name)) dupName.push(x.row + ' と ' + seenName.get(x.name) + ': ' + x.name); else seenName.set(x.name, x.row); });
+		none(dupName, '行の名前が重ならない');
+
+		// 独自IDの参照先
+		const nameById = new Map(masterNameById);
+		[docs.extendedSkill, docs.scenarioFactor, docs.geneFactor].forEach((d) => (d.entries || []).forEach((e) => nameById.set(String(e.id), String(e.name))));
+		const loose = (s) => String(s).normalize('NFKC').replace(/〇/g, '○');
+		const noRef = [], nameDiff = [], dupId = [];
+		const seenId = new Map();
+		rows.filter((x) => x.id !== undefined).forEach((x) => {
+			const id = String(x.id);
+			if (seenId.has(id)) dupId.push(id + '（' + seenId.get(id) + ' と ' + x.row + '）'); else seenId.set(id, x.row);
+			if (!nameById.has(id)) { noRef.push(x.row + ': ' + id); return; }
+			if (loose(nameById.get(id)) !== loose(x.name)) nameDiff.push(x.row + ': ' + x.name + ' ≠ ' + id + ' ' + nameById.get(id));
+		});
+		none(noRef, '独自IDの参照先がマスター・拡張スキル・シナリオ因子・遺伝子に実在する');
+		none(nameDiff, '独自IDの指す名前が行の名前と同じ（〇／○・全角半角の違いだけを揃えて比べる）');
+		none(dupId, '同じ独自IDを2行が指していない');
+		console.log('     ' + rows.length + '行（独自IDあり ' + seenId.size + ' / なし ' + (rows.length - seenId.size)
+			+ '。いちばん上の段: 青 ' + bySlot('blue').length + '・赤 ' + bySlot('red').length + '・継承固有 ' + bySlot('unique').length + '）');
 	}
 }
 
