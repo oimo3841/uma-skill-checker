@@ -307,9 +307,15 @@
 		Object.keys(draft).forEach(function (id) { normalizeDraft(draft[id]); });
 		charaDraft = readJson(CHARA_DRAFT_KEY);
 	}
+	/** 保存する。**スキルを入れていない途中経過は保存しない**（開いただけのカードを残さない。2026-09-28） */
 	function saveDraft() {
-		try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (e) {}
-		try { localStorage.setItem(CHARA_DRAFT_KEY, JSON.stringify(charaDraft)); } catch (e) {}
+		var live = function (kind, all) {
+			var out = {};
+			Object.keys(all).forEach(function (id) { if (!isEmptyDraft(kind, all[id])) out[id] = all[id]; });
+			return out;
+		};
+		try { localStorage.setItem(DRAFT_KEY, JSON.stringify(live('card', draft))); } catch (e) {}
+		try { localStorage.setItem(CHARA_DRAFT_KEY, JSON.stringify(live('chara', charaDraft))); } catch (e) {}
 	}
 	function drafts(kind) { return kind === 'chara' ? charaDraft : draft; }
 	function fileRowsOf(kind) { return kind === 'chara' ? charaFileRows : fileRows; }
@@ -366,6 +372,8 @@
 	 */
 	function pruneDrafts() {
 		var dropped = 0;
+		Object.keys(draft).forEach(function (id) { if (isEmptyDraft('card', draft[id])) delete draft[id]; });
+		Object.keys(charaDraft).forEach(function (name) { if (isEmptyDraft('chara', charaDraft[name])) delete charaDraft[name]; });
 		Object.keys(draft).forEach(function (id) {
 			var inFile = fileRows[id];
 			var d = draft[id];
@@ -483,8 +491,23 @@
 
 	/* ---------- 状態 ---------- */
 	// 'done'（確かめた）/ 'none'（無い）/ 'seeded'（取り込んだまま）/ 'pending'（未確認）
+	/* **スキルを1つも入れていない途中経過は、無いのと同じに扱う**（2026-09-28）。
+	   それまでは開いただけで途中経過ができ、何も入れていないのに「入力あり」と出ていた。
+	   開いている間は形の選択などを持つためにメモリには置くが、状態・要約・出力・保存には出さない。 */
+	function emptyDraft(kind) { return kind === 'chara' ? { status: 'done', events: [] } : { status: 'done', chain: [] }; }
+	function isEmptyDraft(kind, d) {
+		return !!d && d.status === 'done' && !eventsOf(kind, d).some(function (e) { return countRefs(e) > 0; })
+			&& !(d.stray && d.stray.length);
+	}
+	/** 中身のある途中経過（空のものは null） */
+	function liveDraft(kind, id) { var d = drafts(kind)[id]; return d && !isEmptyDraft(kind, d) ? d : null; }
+	/** 書き込む操作の前に呼ぶ。無ければ空の途中経過を作る（スキルが入るまでは状態を変えない） */
+	function ensureDraft(kind, id) { var ds = drafts(kind); if (!ds[id]) ds[id] = emptyDraft(kind); return ds[id]; }
+	/** 閉じるときに呼ぶ。何も入れていなければ途中経過から消す */
+	function dropIfEmpty(kind, id) { var ds = drafts(kind); if (id && isEmptyDraft(kind, ds[id])) delete ds[id]; }
+
 	function stateOf(kind, id) {
-		var d = drafts(kind)[id];
+		var d = liveDraft(kind, id);
 		if (d) return d.status;
 		var row = fileRowsOf(kind)[id];
 		return row ? row.status : 'pending';
@@ -514,7 +537,7 @@
 		}).join('、');
 	}
 	function summaryOf(kind, id) {
-		var d = drafts(kind)[id];
+		var d = liveDraft(kind, id);
 		var src = d || fileRowsOf(kind)[id];
 		if (!src) return '';
 		if (src.status === 'none') return 'イベント無し（イベントでスキルを得ない）';
@@ -536,7 +559,7 @@
 	function hasRarity() { return cards.some(function (c) { return !!rarityOf(c); }); }
 	function isPendingLike(kind, id) {
 		var s = stateOf(kind, id);
-		return !!drafts(kind)[id] || s === 'pending' || s === 'seeded';
+		return !!liveDraft(kind, id) || s === 'pending' || s === 'seeded';
 	}
 
 	function visibleCards() {
@@ -684,7 +707,7 @@
 
 	/** 開いた箱の中身（カード・キャラクター共通）。 */
 	function bodyHtml(kind, id, card) {
-		var d = drafts(kind)[id];
+		var d = drafts(kind)[id] || emptyDraft(kind);
 		var who = { kind: kind, card: id };
 		var h = '<div class="cei-body">';
 		if (d.status === 'none') {
@@ -849,16 +872,16 @@
 				});
 			});
 		});
-		if (total === 0 && !(d.stray && d.stray.length)) {
-			out.push('スキルが1つも入っていません（スキルが無い' + (kind === 'chara' ? 'キャラクター' : 'カード') + 'なら、下の「イベント無しにする」を押してください）');
-		}
+		// 【2026-09-28】「スキルが1つも入っていません」は出さなくなった。スキルを入れていない途中経過は
+		// 無いのと同じに扱う（出力にも出ない）ので、足りないものではない。total は数えるだけ残す
+		void total;
 		return out;
 	}
 
 	/* ---------- スキルを探す ---------- */
 	/** 枠のスキルの配列。create が真なら、まだ無い箱を「確定」の形で作る。 */
 	function bucketAt(at, create) {
-		var d = drafts(at.kind)[at.id];
+		var d = create ? ensureDraft(at.kind, at.id) : drafts(at.kind)[at.id];
 		if (!d) return null;
 		var ev = create ? ensureEvent(at.kind, d, at.step) : eventAt(at.kind, d, at.step);
 		var choice = ev && ev.choices && ev.choices[at.c];
@@ -944,7 +967,7 @@
 		var held = [];
 		var ids = kind === 'chara' ? charas.map(function (x) { return x.name; }) : cards.map(function (c) { return c.id; });
 		ids.forEach(function (id) {
-			var d = drafts(kind)[id];
+			var d = liveDraft(kind, id);
 			if (!d) return;
 			if (problemsOf(kind, d).length) { held.push(kind === 'chara' ? id : Core.formatEntryLabel(cards.filter(function (c) { return c.id === id; })[0])); return; }
 			var r = entryOf(kind, id, d);
@@ -1015,7 +1038,8 @@
 		var kind = at.kind;
 		var id = at.id;
 		var ds = drafts(kind);
-		var d = id ? ds[id] : null;
+		var WRITES = ['form', 'split', 'add-choice', 'drop-choice', 'add-result', 'drop-result', 'add-row', 'drop-row', 'drop', 'stray-move', 'stray-drop'];
+		var d = !id ? null : (WRITES.indexOf(act) !== -1 ? ensureDraft(kind, id) : ds[id]);
 		var evt = d && at.step > 0 ? eventAt(kind, d, at.step) : null;
 		var subject = kind === 'chara' ? 'このキャラクター' : 'このカード';
 		if (act === 'tab') {
@@ -1027,17 +1051,14 @@
 			tab = 'chara';
 			openChara = name;
 			$('cei-q').value = name;
-			if (!charaDraft[name] && !charaFileRows[name]) charaDraft[name] = { status: 'done', events: [] };
 			findAt = null;
 			saveDraft(); render();
 			scrollToRow('.cei-row[data-chara="' + name.replace(/"/g, '\\"') + '"]');
 			return;
 		} else if (act === 'open') {
-			if (kind === 'chara') openChara = (openChara === id) ? '' : id;
-			else openCardId = (openCardId === id) ? '' : id;
+			if (kind === 'chara') { dropIfEmpty('chara', openChara); openChara = (openChara === id) ? '' : id; }
+			else { dropIfEmpty('card', openCardId); openCardId = (openCardId === id) ? '' : id; }
 			findAt = null;
-			var opened = kind === 'chara' ? openChara : openCardId;
-			if (opened && !ds[id]) ds[id] = kind === 'chara' ? { status: 'done', events: [] } : { status: 'done', chain: [] };
 		} else if (act === 'edit-file') {
 			ds[id] = draftFromFileRow(kind, fileRowsOf(kind)[id]);
 			if (kind === 'chara') openChara = id; else openCardId = id;

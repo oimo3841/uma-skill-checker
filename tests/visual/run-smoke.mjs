@@ -10951,6 +10951,29 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 			&& first.active.every((t) => t && t.startsWith('確定')),
 			'入力(2): 開くと1〜3回目の箱が最初から並び、形は「確定」、空の回は「スキルなし」。回の番号を打つ欄は無い', first);
 
+		// 【2026-09-28】開いて形だけ触り、スキルを入れずに閉じても「入力あり」にならず、途中経過にも出力にも残らない
+		await page.click(round(1) + ' [data-act="form"][data-form="choice"]');
+		// 開いたまま（閉じるときの片づけより前）でも、保存と出力 A には出ない
+		const whileOpenAll = await page.evaluate(({ r, id }) => ({
+			badge: document.querySelector(r + ' .uma-badge').textContent,
+			saved: Object.keys(JSON.parse(localStorage.getItem('umaCardEventInput:draft2') || '{}')).includes(id),
+			out: JSON.parse(document.getElementById('cei-out').value).entries.some((e) => e.cardId === id),
+			warn: document.getElementById('cei-out-warn').hidden ? '' : document.getElementById('cei-out-warn').textContent,
+		}), { r: row, id: card.id });
+		assert(!whileOpenAll.saved && !whileOpenAll.out && whileOpenAll.warn === '',
+			'入力(2a): 開いて形だけ触った（スキルを入れていない）カードは、開いたままでも保存・出力 A に出ない', whileOpenAll);
+		const whileOpen = whileOpenAll.badge;
+		await page.click(row + ' [data-act="open"]');
+		const closed = await page.evaluate(({ r, id }) => ({
+			badge: document.querySelector(r + ' .uma-badge').textContent,
+			summary: !!document.querySelector(r + ' .cei-summary'),
+			saved: Object.keys(JSON.parse(localStorage.getItem('umaCardEventInput:draft2') || '{}')).includes(id),
+			out: JSON.parse(document.getElementById('cei-out').value).entries.some((e) => e.cardId === id),
+			warn: document.getElementById('cei-out-warn').hidden ? '' : document.getElementById('cei-out-warn').textContent,
+		}), { r: row, id: card.id });
+		assert(whileOpen === '未確認' && closed.badge === '未確認' && !closed.summary && !closed.saved && !closed.out && closed.warn === '',
+			'入力(2b): 開いて何も入れずに閉じたカードは未確認のままで、途中経過・出力 A に残らない', { whileOpen, closed });
+		await openCard(page);
 		// 1回目の形を切り替えて戻す（空の回がデータにできる。それでも出力には書かない）
 		await page.click(round(1) + ' [data-act="form"][data-form="choice"]');
 		await page.click(round(1) + ' [data-act="form"][data-form="fixed"]');
