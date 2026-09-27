@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-27b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-27c';
 
 	/* ============================================================
 	 * 定数
@@ -68,7 +68,7 @@
 		'data/extended-skills.json': '2026-09-26b',
 		'data/training-umamusume.json': '2026-09-24a',
 		'data/support-cards.json': '2026-09-18b',
-		'data/support-card-event-skills.json': '2026-09-18a',
+		'data/support-card-event-skills.json': '2026-09-27a',
 		// レースの距離の一覧（C-97・2026-09-26）。7本目。スキルではないので EXTRA_CATALOG_SOURCES にも
 		// TRAINING_SOURCES にも入れず、loadRaceDistances() が読む。
 		'data/race-distances.json': '2026-09-26a'
@@ -1163,20 +1163,67 @@
 		return entry.charaName || formatEntryLabel(entry);
 	}
 
-	/** イベントスキルの状態。'done'（ある）/ 'none'（無い）/ 'pending'（未確認＝行が無い） */
-	function eventStatusOf(cardId) {
+	function findEventRow(cardId) {
 		const doc = trainingSources.supportCardEventSkill;
 		const rows = (doc && doc.entries) || [];
-		const row = rows.find(r => r && r.cardId === cardId);
+		return rows.find(r => r && r.cardId === cardId) || null;
+	}
+
+	/**
+	 * イベントスキルの状態。'done'（確かめた）/ 'none'（無いと確かめた）/
+	 * 'seeded'（シートから取り込んだまま。スキルは分かっているが、何回目か・選択肢・レベルは未確認）/
+	 * 'pending'（未確認＝行が無い）
+	 */
+	function eventStatusOf(cardId) {
+		const row = findEventRow(cardId);
 		return row ? row.status : 'pending';
 	}
 
-	/** そのカードのイベントスキルの参照（[{skillId, name}]）。未確認・無しなら空配列。 */
+	/**
+	 * イベントの1つの選択肢の「成功側」（C-102）。選択肢の形は2つ ――
+	 * (ア) `{ skills: [...] }`（成否に分かれない）と (イ) `{ results: [[...], [...], ...] }`
+	 * （結果が分かれる。**先頭がいちばん良い結果＝成功**）。(イ) の2番目以降（失敗側）は
+	 * 編成では使わない（失敗したときのスキルは基本的に下位のスキルで、利用者の関心の外。C-102 の問B）。
+	 */
+	function eventChoiceSuccessSkills(choice) {
+		if (!choice) return [];
+		if (Array.isArray(choice.skills)) return choice.skills;
+		if (Array.isArray(choice.results) && Array.isArray(choice.results[0])) return choice.results[0];
+		return [];
+	}
+
+	/**
+	 * そのカードのイベントで得られるスキルを、編成の見方で返す（C-102）。
+	 * 返り値は [{ skillId, name, sure }]。sure が true なら●（得られる。「本育成スキルを除外する」で外す）、
+	 * false なら△（出すが外さない）。未確認・無しなら空配列。
+	 *   - 選択肢が1つのイベント … 成功側が●
+	 *   - 選択肢が2つ以上のイベント … **どれを選ぶかを選ぶ仕組みはまだ無い**ので、いつも「選んでいない」扱い。
+	 *     各選択肢の成功側が△で、**すべての選択肢の成功側に入っているもの**だけ●（どれを選んでも得られる）
+	 *   - 'seeded'（取り込んだまま） … 全部△
+	 *   - 失敗側にだけあるスキルは出さない
+	 * 同じスキルが複数のイベントから来たら、どこか1つでも●なら●。
+	 */
 	function getEventSkillsOf(cardId) {
-		const doc = trainingSources.supportCardEventSkill;
-		const rows = (doc && doc.entries) || [];
-		const row = rows.find(r => r && r.cardId === cardId);
-		return (row && row.skills) ? row.skills.slice() : [];
+		const row = findEventRow(cardId);
+		if (!row) return [];
+		const out = new Map();
+		const put = (ref, sure) => {
+			if (!ref || !ref.skillId) return;
+			const cur = out.get(ref.skillId);
+			if (cur) { if (sure) cur.sure = true; return; }
+			out.set(ref.skillId, { skillId: ref.skillId, name: ref.name, sure: !!sure });
+		};
+		if (row.status === 'seeded') {
+			(row.unplaced || []).forEach(ref => put(ref, false));
+		} else if (row.status === 'done') {
+			(row.chain || []).forEach(ev => {
+				const sides = ((ev && ev.choices) || []).map(eventChoiceSuccessSkills);
+				if (sides.length === 1) { sides[0].forEach(ref => put(ref, true)); return; }
+				const inEvery = id => sides.every(side => side.some(ref => ref && ref.skillId === id));
+				sides.forEach(side => side.forEach(ref => put(ref, ref && inEvery(ref.skillId))));
+			});
+		}
+		return Array.from(out.values());
 	}
 
 	/**
@@ -1329,8 +1376,10 @@
 	 * 編成で得られるスキルを割り出す。
 	 *
 	 * 返り値:
-	 *   skillIds        … 得られると分かっているスキルのID（重複なし）
-	 *   items           … [{ skillId, name, origins: [由来の文言], members: [key] }]（表示用）
+	 *   skillIds        … 得られると分かっているスキルのID（重複なし）。**●のものだけ**（C-102）
+	 *   items           … [{ skillId, name, origins: [由来の文言], members: [key], sureMembers: [key], sure }]（表示用）。
+	 *                     △（イベントの選択肢しだいのもの）も含む。sure は●か（どこか1つでも●なら●）、
+	 *                     sureMembers は●で得られるメンバー（members のうち sureMembers に無いものは△）
 	 *   members         … [{ key, kind, no, label, typeOrder }] 編成の並び順（凡例・★取り表の列）。
 	 *                     key は並びの位置（0＝育成ウマ娘、1〜＝カードの枠）。kind は 'uma' | 'card'。
 	 *                     no は画面に出す番号で、育成ウマ娘は null（★で示す）、カードは枠の順に 1〜。
@@ -1343,19 +1392,24 @@
 	 *
 	 * **未確認のものは得られる側に入れない。** 除外しすぎて対象スキルセットから
 	 * 必要なスキルが落ちるほうが痛いので、「得られると分かっているもの」だけを返す。
+	 * イベントの選択肢しだいのもの（△。C-102）は items に入れて表に出すが、skillIds には入れない。
 	 */
 	function computeRosterSkills(roster) {
-		const items = new Map();   // skillId → { skillId, name, origins: [], members: [] }
+		const items = new Map();   // skillId → { skillId, name, origins: [], members: [], sureMembers: [], sure }
 		const unconfirmed = [];
 		const missing = [];
 		const members = [];
-		const add = (ref, origin, memberKey) => {
+		// sure は省略すると●（ヒント・初期・覚醒は必ず得られる）。△はイベントの選択肢しだいのものだけ
+		const add = (ref, origin, memberKey, sure) => {
 			if (!ref || !ref.skillId) return;
 			const sk = findSkill(ref.skillId);
 			if (!sk) { missing.push({ kind: 'skill', id: ref.skillId }); return; }
-			const cur = items.get(ref.skillId) || { skillId: ref.skillId, name: sk.name, origins: [], members: [] };
+			const isSure = sure !== false;
+			const cur = items.get(ref.skillId) || { skillId: ref.skillId, name: sk.name, origins: [], members: [], sureMembers: [], sure: false };
 			if (cur.origins.indexOf(origin) === -1) cur.origins.push(origin);
 			if (cur.members.indexOf(memberKey) === -1) cur.members.push(memberKey);
+			if (isSure && cur.sureMembers.indexOf(memberKey) === -1) cur.sureMembers.push(memberKey);
+			if (isSure) cur.sure = true;
 			items.set(ref.skillId, cur);
 		};
 
@@ -1407,12 +1461,12 @@
 			else if (hintStatus === 'pending') unconfirmed.push({ cardId: cardId, label: label, what: 'ヒント' });
 
 			const evStatus = eventStatusOf(cardId);
-			if (evStatus === 'done') getEventSkillsOf(cardId).forEach(s => add(s, label + ' のイベント', key));
-			else if (evStatus === 'pending') unconfirmed.push({ cardId: cardId, label: label, what: 'イベント' });
+			if (evStatus === 'pending') unconfirmed.push({ cardId: cardId, label: label, what: 'イベント' });
+			else getEventSkillsOf(cardId).forEach(s => add(s, label + ' のイベント' + (s.sure ? '' : '（確定でない）'), key, s.sure));
 		});
 
 		const list = Array.from(items.values()).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-		return { skillIds: list.map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing };
+		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing };
 	}
 
 	/* ---- 保存（userData.rosters） ---- */
@@ -4416,7 +4470,7 @@
 			if (typeof opts.onRemoveFromScope === 'function') {
 				h += '<div class="usd-roster-row">';
 				h += '<button type="button" class="uma-btn ' + (hide ? 'uma-btn--primary' : 'uma-btn--neutral') + '" data-usd-act="exclude"'
-					+ ' aria-pressed="' + (hide ? 'true' : 'false') + '"' + (res.items.length === 0 && !hide ? ' disabled' : '')
+					+ ' aria-pressed="' + (hide ? 'true' : 'false') + '"' + (res.skillIds.length === 0 && !hide ? ' disabled' : '')
 					+ '>' + (hide ? '除外を解除する' : '本育成スキルを除外する') + '</button>';
 				h += '</div>';
 			}
@@ -4513,11 +4567,18 @@
 					h += '<div class="usd-roster-grow" role="row">'
 						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader">' + esc(it.name) + '</div>'
 						+ members.map(m => '<div class="usd-roster-gc' + colClass(m) + '" role="cell">'
-							+ (it.members.indexOf(m.key) !== -1 ? '<span class="usd-roster-got" role="img" aria-label="得られる"></span>' : '')
+							+ (it.sureMembers.indexOf(m.key) !== -1 ? '<span class="usd-roster-got" role="img" aria-label="得られる"></span>'
+								: it.members.indexOf(m.key) !== -1 ? '<span class="usd-roster-maybe" role="img" aria-label="選択肢しだいで得られる"></span>' : '')
 							+ '</div>').join('')
 						+ '</div>';
 				});
 				h += '</div></div>';
+				// △（イベントの選択肢しだいのもの。C-102）があるときだけ、その意味を1行で言う。
+				// ●と違って「本育成スキルを除外する」では外さないことも、ここで言っておく。
+				if (res.items.some(it => it.members.length > it.sureMembers.length)) {
+					h += '<p class="usd-roster-note" data-usd-el="maybe-note">△ は、イベントの選択肢しだいで得られるスキルです。'
+						+ '「本育成スキルを除外する」では外しません。</p>';
+				}
 				// 「◆＝育成ウマ娘、1〜N＝サポートカード」の1行は C-63 の (5) で削除した
 				// （すぐ下に実際の一覧が並んでいるので、印と番号の意味はそちらで分かる）。
 				h += '<ol class="usd-roster-legend">' + members.map(m =>

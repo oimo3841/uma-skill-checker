@@ -1,6 +1,6 @@
 {
-	"dataVersion": "2026-09-18a",
+	"dataVersion": "2026-09-27a",
 	"category": "supportCardEventSkill",
-	"note": "サポートカードのイベントで得られるスキル。ゲーム画面を見ながら、確かめられたカードから1件ずつ足す。ここに無い cardId は「未確認」の扱いなので、560件ぶんの空の行をあらかじめ並べる必要はない。status は done（スキルがあった）／none（見て回って無かった）。cardId は support-cards.json の id。スキルの参照は skillId が本体で、name は照合のための控え（表示には使わない）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。既存の行は消さない。書き足したら dataVersion をその日の日付＋連番に上げて npm run check:catalog を回す。このファイルには独自の id を振らないので nextSerial は持たない（行の鍵は cardId）。",
+	"note": "サポートカードのイベント（そのカードの連続イベント）で得られるスキル。ゲーム画面を見ながら、確かめられたカードから1件ずつ足す。ここに無い cardId は「未確認」の扱いなので、全カードぶんの空の行をあらかじめ並べる必要はない。cardId は support-cards.json の id。行の鍵は cardId で、このファイルには独自の id を振らない（nextSerial は持たない）。status は done（確かめた。chain を持つ）／none（見て回ってスキルが無かった。chain も unplaced も持たない）／seeded（シートから取り込んだまま。スキルは分かっているが、何回目か・選択肢・レベルは未確認。unplaced にスキルの参照だけを持つ）。chain はスキルが得られる回だけを並べる（スキルの無い回は書かない）。1回ぶんは { step, choices }：step は何回目か（1以上の整数・昇順・重複なし・上限なし）、choices はゲームの選択肢の並び（上から）のままで、スキルを得ない選択肢も空の選択肢として書く（選択肢の無いイベントは choices が1つ）。1つの選択肢は次のどちらか一方の形：{ skills: [...] }（成否に分かれない）／{ results: [[...], [...], ...] }（結果が分かれる。結果は2つ以上。**並びの先頭がいちばん良い結果（成功）**で、2番目以降が失敗側（成功に近い順）。結果が空でもよい）。編成パネルは成功側（skills か results の先頭）だけを使い、失敗側のスキルは出さないが、データには記録する。スキルの参照は { skillId, name, hintLevel }：skillId が本体で、name は照合のための控え（表示には使わない）、hintLevel はヒントのレベル（1以上の整数）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。イベントの名前や本文は書かない。既存の行は消さない。書き足したら dataVersion をその日の日付＋連番に上げ、js/uma-skill-deck-core.js の DATA_JSON_VERSIONS も同じ値にして、npm run check:catalog を回す。",
 	"entries": []
 }

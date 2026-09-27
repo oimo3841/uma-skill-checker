@@ -14,6 +14,7 @@ import { startServer, REPO_ROOT } from './lib/serve.mjs';
 import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA } from './lib/fixtures.mjs';
 // スクリーンショットの画素から**実際に描かれている色**を読む（段11 ⑨。半透明の重なりの結果を見るため）
 import { avgColor, deltaE, contrastRatio, hexOf } from './lib/pixels.mjs';
+import { buildEventFixture } from './lib/event-fixture.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -10634,6 +10635,124 @@ await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101
 		'めろっぷ(8): 15語を含む下の段の名前（' + topWords.containing + '件）は、それぞれ自分の行にだけ入る', topWords);
 
 	assert(errors.length === 0, 'めろっぷ: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+});
+
+/* ============================================================
+ * 編成パネル ―― サポートカードのイベントの●・△（C-102・区切り1）
+ *
+ * 本物のイベントのデータは行が0件なので、`tests/visual/lib/event-fixture.mjs` の仕込みを
+ * 取得の途中で差し替えて読ませる（カード名・スキル名は書かず、実データから id で拾う）。
+ * 見ること：
+ *   - 選択肢が1つのイベントは成功側が●（確定・結果が3通りの先頭）
+ *   - 選択肢が2つ以上（選ぶ仕組みはまだ無い＝いつも「選んでいない」）は△。すべての選択肢に入っているものだけ●
+ *   - 失敗側（results の2番目以降）にだけあるスキルは出ない
+ *   - 同じスキルが別のカードで●なら、全体では●（その列ごとの印は列ごと）
+ *   - seeded は△、none は何も出ない、行の無いカードだけ「未確認」
+ *   - 「本育成スキルを除外する」と「隠す」に渡るのは●だけ（special.html との接点は同じ）
+ *   - △があるときだけ、表の下に△の説明が出る
+ * ============================================================ */
+await block('編成パネル ―― サポートカードのイベントの●・△（C-102・区切り1）', async () => {
+{
+	const fx = buildEventFixture();
+	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
+	await page.route('**/data/support-card-event-skills.json*', (route) => route.fulfill({
+		status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(fx.doc) }));
+
+	const res = await page.evaluate(async ({ cardIds }) => {
+		const Core = window.UmaSkillDeckCore;
+		await Core.loadTrainingSources(true);
+		const r = Core.computeRosterSkills({ umaId: '', cardIds: cardIds });
+		return {
+			entries: (Core.getTrainingSources().supportCardEventSkill || {}).entries.length,
+			skillIds: r.skillIds,
+			items: r.items.map((it) => ({ id: it.skillId, members: it.members, sureMembers: it.sureMembers, sure: it.sure })),
+			unconfirmed: r.unconfirmed.map((u) => u.cardId + ':' + u.what),
+			missing: r.missing,
+		};
+	}, { cardIds: fx.cardIds });
+	assert(res.entries === fx.doc.entries.length, 'イベント(0): 仕込んだイベントのデータが読まれている', res.entries);
+
+	const S = fx.S;
+	const item = (i) => res.items.find((it) => it.id === S[i]) || null;
+	const sure = (i) => res.skillIds.includes(S[i]);
+	// 列の key は 0＝育成ウマ娘、1〜＝カードの枠（A=1, B=2, C=3, D=4）
+	assert(sure(0) && sure(1), 'イベント(1): 選択肢の無い確定のイベントのスキルは●（除外の対象）', { s0: item(0), s1: item(1) });
+	assert(item(2) && item(3) && !sure(3) && sure(4),
+		'イベント(2): 2択のイベントは△で、両方の選択肢に入っているスキルだけ●', { s2: item(2), s3: item(3), s4: item(4) });
+	assert(sure(5) && !item(6) && !item(7),
+		'イベント(3): 結果が3通りのイベントは先頭（成功）だけが●で、失敗側のスキルは表に出ない', { s5: item(5), s6: item(6), s7: item(7) });
+	assert(item(8) && !sure(8) && !item(9),
+		'イベント(4): 2択の片方が成否ありのとき、成功側は△・失敗側は出ない', { s8: item(8), s9: item(9) });
+	assert(sure(2) && item(2).sureMembers.join() === '3' && item(2).members.slice().sort().join() === '2,3',
+		'イベント(5): 同じスキルが別のカードで確定なら全体では●で、列ごとの印はその列の強さ（B は△・C は●）', item(2));
+	assert(item(10) && !sure(10) && item(10).sureMembers.length === 0,
+		'イベント(6): シートから取り込んだまま（seeded）のスキルは△', item(10));
+	assert(res.unconfirmed.length === 1 && res.unconfirmed[0] === fx.cardIds[5] + ':イベント',
+		'イベント(7): イベントが「未確認」になるのは行の無いカードだけ（seeded・none は未確認に数えない）', res.unconfirmed);
+	assert(res.missing.length === 0, 'イベント(8): 引けないスキルは無い', res.missing);
+
+	/* 表の印と、除外で渡る id（パネルを実際に描いて押す） */
+	const panel = await page.evaluate(async ({ cardIds, S }) => {
+		const Core = window.UmaSkillDeckCore;
+		localStorage.setItem('umaSkillDeck:draftRoster:smoke-event', JSON.stringify({ umaId: '', cardIds: cardIds }));
+		const host = document.createElement('div');
+		host.id = 'smoke-event-roster';
+		document.body.appendChild(host);
+		window.__smokeRemoved = null; window.__smokeHidden = null;
+		Core.createRosterPanel(host, {
+			draftKey: 'smoke-event',
+			onRemoveFromScope: (ids) => { window.__smokeRemoved = ids; },
+			onHiddenIdsChange: (ids) => { window.__smokeHidden = ids; },
+		});
+		const grid = host.querySelector('.usd-roster-grid');
+		const rows = Array.from(grid.querySelectorAll('.usd-roster-grow')).slice(1);
+		const nameOf = (id) => (Core.findSkill(id) || {}).name;
+		const marks = (i) => {
+			const row = rows.find((r) => r.querySelector('.usd-roster-gc--name').textContent === nameOf(S[i]));
+			if (!row) return null;
+			return Array.from(row.querySelectorAll('[role="cell"]')).map((c) =>
+				c.querySelector('.usd-roster-got') ? '●' : c.querySelector('.usd-roster-maybe') ? '△' : '');
+		};
+		const out = { marks: {}, note: '' };
+		[0, 1, 2, 3, 4, 5, 6, 8, 9, 10].forEach((i) => { out.marks[i] = marks(i); });
+		const note = host.querySelector('[data-usd-el="maybe-note"]');
+		out.note = note ? note.textContent : '';
+		host.querySelector('[data-usd-act="exclude"]').click();
+		await new Promise((r) => setTimeout(r, 50));
+		out.removed = window.__smokeRemoved;
+		out.hidden = window.__smokeHidden;
+		host.remove();
+		return out;
+	}, { cardIds: fx.cardIds, S: S });
+	// 列は 育成ウマ娘・1〜6。A=1, B=2, C=3, D=4
+	const m = panel.marks;
+	assert(m[0] && m[0][1] === '●' && m[1] && m[1][1] === '●', 'イベント(9): 確定のスキルは A の列に●', { m0: m[0], m1: m[1] });
+	assert(m[3] && m[3][2] === '△' && m[4] && m[4][2] === '●', 'イベント(10): 2択は B の列に△、両方にあるスキルは●', { m3: m[3], m4: m[4] });
+	assert(m[2] && m[2][2] === '△' && m[2][3] === '●', 'イベント(11): 同じスキルでも列ごとに印が違う（B は△・C は●）', m[2]);
+	assert(m[5] && m[5][2] === '●' && m[6] === null && m[9] === null, 'イベント(12): 結果の先頭は●、失敗側の行は表に無い', { m5: m[5], m6: m[6], m9: m[9] });
+	assert(m[8] && m[8][3] === '△' && m[10] && m[10][4] === '△', 'イベント(13): 成否ありの選択肢の成功側と、取り込んだままのスキルは△', { m8: m[8], m10: m[10] });
+	assert(panel.note.includes('△') && panel.note.includes('除外'), 'イベント(14): △があるときは表の下に△の説明が出る', panel.note);
+	const onlySure = (ids) => Array.isArray(ids) && ids.slice().sort().join() === res.skillIds.slice().sort().join();
+	assert(onlySure(panel.removed) && !panel.removed.includes(S[3]) && !panel.removed.includes(S[8]) && !panel.removed.includes(S[10]),
+		'イベント(15): 「本育成スキルを除外する」で外すのは●だけ（△は外さない）', panel.removed);
+	assert(onlySure(panel.hidden), 'イベント(16): 隠す対象（onHiddenIdsChange）も●だけ', panel.hidden);
+
+	/* △が無い編成では説明を出さない（確定のカード1枚だけ） */
+	const noMaybe = await page.evaluate(async ({ cardId }) => {
+		const Core = window.UmaSkillDeckCore;
+		localStorage.setItem('umaSkillDeck:draftRoster:smoke-event2', JSON.stringify({ umaId: '', cardIds: [cardId] }));
+		const host = document.createElement('div');
+		document.body.appendChild(host);
+		Core.createRosterPanel(host, { draftKey: 'smoke-event2' });
+		const out = { note: !!host.querySelector('[data-usd-el="maybe-note"]'), maybe: host.querySelectorAll('.usd-roster-maybe').length };
+		host.remove();
+		return out;
+	}, { cardId: fx.cardIds[0] });
+	assert(!noMaybe.note && noMaybe.maybe === 0, 'イベント(17): △が無い編成では△の説明も印も出ない', noMaybe);
+
+	assert(errors.length === 0, 'イベント: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }
 });

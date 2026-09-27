@@ -100,7 +100,9 @@ const ENTRY_KEYS = {
 	// type（種類）と typeOrder（ゲーム内で扱われる順番）は、どちらもデータが持つ値。
 	// **名前も番号もこのスクリプトに書かない**（恒久ルール1）。見るのは値どうしの整合だけ。
 	supportCard: { need: ['id', 'title', 'charaName', 'type', 'typeOrder', 'hintSkills', 'dataStatus'], opt: [] },
-	supportCardEventSkill: { need: ['cardId', 'status', 'skills'], opt: [] },
+	// 2026-09-27・C-102 で形を作り替えた（それまでは { cardId, status, skills } の平たい一覧。行は0件だった）。
+	// chain（確かめた形）と unplaced（シートから取り込んだまま）は status でどちらを持つかが決まる（§5）
+	supportCardEventSkill: { need: ['cardId', 'status'], opt: ['chain', 'unplaced'] },
 	// **いまの形をそのまま許可リストにする。** tags / 説明文など、今後足す予定のキーは
 	// まだ入れない（実際に足すときに、形も運用も決めたうえでここへ入れる）。
 	scenarioFactor: { need: ['id', 'name'], opt: [] },
@@ -138,6 +140,20 @@ const MELOP_FIRST_ROW = 38;
 const MELOP_LAST_ROW = 599;
 
 const SKILL_REF_KEYS = { need: ['skillId', 'name'], opt: [] };
+/* **サポートカードのイベント（C-102）。** 1回ぶんは { step, choices }。
+   - step … 何回目か。1以上の整数・昇順・重複なし・上限なし。**スキルが得られる回だけ**を書くので、
+     どの回にもスキルが1つ以上ある
+   - choices … ゲームの選択肢の並び（上から）のまま。スキルを得ない選択肢も空の選択肢として書く。
+     1つの選択肢は次の**どちらか一方の形**だけ:
+       { skills: [参照] }              … 成否に分かれない
+       { results: [[参照], [参照], …] } … 結果が分かれる。結果は2つ以上。**並びの先頭がいちばん良い結果（成功）**で、
+                                         2番目以降が失敗側（成功に近い順）。編成パネルは先頭だけを使う
+     選択肢が1つで { skills } の形のものは確定のイベントなので、skills を空にしない
+   - 参照 … { skillId, name, hintLevel }。hintLevel はヒントのレベル（1以上の整数。上限は決めない）
+   同じ枠（1つの skills・1つの結果）の中で同じスキルが2回出たら落とす。 */
+const EVENT_KEYS = { need: ['step', 'choices'], opt: [] };
+const EVENT_SKILL_REF_KEYS = { need: ['skillId', 'name', 'hintLevel'], opt: [] };
+const EVENT_CHOICE_FORMS = ['skills', 'results'];
 const STAR_ROW_KEYS = { need: ['minStar', 'skills'], opt: [] };
 const LEVEL_ROW_KEYS = { need: ['level', 'skills'], opt: [] };
 const DATA_STATUS_KEYS = {
@@ -146,7 +162,8 @@ const DATA_STATUS_KEYS = {
 };
 
 const STATUS_VALUES = ['done', 'none', 'pending'];
-const EVENT_STATUS_VALUES = ['done', 'none'];
+// done（確かめた）／none（無いと確かめた）／seeded（シートから取り込んだまま。C-102）
+const EVENT_STATUS_VALUES = ['done', 'none', 'seeded'];
 const STAR_MIN = 1, STAR_MAX = 5;
 // 覚醒レベルに上限は設けない（0以上の整数・昇順・重複なし だけを見る）。
 // レベルの上限はゲーム側で変わりうるので、決め打ちにすると、増えたときに
@@ -280,13 +297,72 @@ const unknownKeys = [], missingKeys = [], badTypes = [];
 
 /** スキルの参照（{skillId, name}）。集めた参照は後段でまとめて突き合わせる。 */
 const refs = []; // { where, skillId, name }
-function readSkillRefs(list, where) {
+function readSkillRefs(list, where, spec) {
+	const keys = spec || SKILL_REF_KEYS;
 	if (!isArr(list)) { badTypes.push(where + ': 配列でない'); return; }
 	list.forEach((ref, i) => {
 		const w = where + '[' + i + ']';
-		if (!checkKeys(ref, SKILL_REF_KEYS, w, unknownKeys, missingKeys)) return;
+		if (!checkKeys(ref, keys, w, unknownKeys, missingKeys)) return;
 		if (!isStr(ref.skillId) || !isStr(ref.name)) { badTypes.push(w + ': skillId / name は空でない文字列'); return; }
+		if (keys.need.includes('hintLevel') && (!isInt(ref.hintLevel) || ref.hintLevel < 1)) badTypes.push(w + '.hintLevel: 1以上の整数');
 		refs.push({ where: w, skillId: ref.skillId, name: ref.name });
+	});
+}
+
+/** 1つの枠（skills か1つの結果）の中で、同じスキルが2回出ていないか。 */
+function checkNoDupInBucket(list, where) {
+	if (!isArr(list)) return;
+	const seen = new Set();
+	list.forEach((ref) => {
+		const id = ref && ref.skillId;
+		if (!id) return;
+		if (seen.has(id)) badTypes.push(where + ': 同じスキルが2回ある（' + id + '）');
+		seen.add(id);
+	});
+}
+
+/** サポートカードの連続イベント（C-102。形の決まりは EVENT_KEYS の上のコメント）。 */
+function readEventChain(chain, where) {
+	if (!isArr(chain)) { badTypes.push(where + ': 配列でない'); return; }
+	let prevStep = 0;
+	chain.forEach((ev, i) => {
+		const w = where + '[' + i + ']';
+		if (!checkKeys(ev, EVENT_KEYS, w, unknownKeys, missingKeys)) return;
+		if (!isInt(ev.step) || ev.step < 1) badTypes.push(w + '.step: 1以上の整数');
+		else {
+			if (ev.step <= prevStep) badTypes.push(w + '.step: 昇順・重複なし（前の回は ' + prevStep + '）');
+			prevStep = ev.step;
+		}
+		if (!isArr(ev.choices) || ev.choices.length === 0) { badTypes.push(w + '.choices: 1つ以上の配列'); return; }
+		let skillCount = 0;
+		ev.choices.forEach((c, j) => {
+			const cw = w + '.choices[' + j + ']';
+			if (!isObj(c)) { badTypes.push(cw + ': オブジェクトでない'); return; }
+			const keys = Object.keys(c);
+			if (keys.length !== 1 || !EVENT_CHOICE_FORMS.includes(keys[0])) {
+				badTypes.push(cw + ': キーは ' + EVENT_CHOICE_FORMS.join(' か ') + ' のどちらか1つだけ（いまは ' + (keys.join(', ') || 'なし') + '）');
+				return;
+			}
+			const buckets = [];
+			if (keys[0] === 'skills') {
+				buckets.push({ list: c.skills, w: cw + '.skills' });
+				if (ev.choices.length === 1 && isArr(c.skills) && c.skills.length === 0) {
+					badTypes.push(cw + '.skills: 選択肢が1つで成否に分かれないイベント（確定）なので、空にしない');
+				}
+			} else {
+				if (!isArr(c.results) || c.results.length < 2) {
+					badTypes.push(cw + '.results: 結果は2つ以上の配列（結果が1つなら skills の形で書く）');
+					return;
+				}
+				c.results.forEach((r, k) => buckets.push({ list: r, w: cw + '.results[' + k + ']' }));
+			}
+			buckets.forEach((b) => {
+				readSkillRefs(b.list, b.w, EVENT_SKILL_REF_KEYS);
+				checkNoDupInBucket(b.list, b.w);
+				if (isArr(b.list)) skillCount += b.list.length;
+			});
+		});
+		if (skillCount === 0) badTypes.push(w + ': スキルが1つも無い（スキルが得られる回だけを書く）');
 	});
 }
 
@@ -373,7 +449,11 @@ docs.supportCardEventSkill.entries.forEach((e, i) => {
 	if (!checkKeys(e, ENTRY_KEYS.supportCardEventSkill, w, unknownKeys, missingKeys)) return;
 	if (!isStr(e.cardId)) badTypes.push(w + ': cardId は空でない文字列');
 	if (!EVENT_STATUS_VALUES.includes(e.status)) badTypes.push(w + '.status: ' + JSON.stringify(e.status));
-	readSkillRefs(e.skills, w + '.skills');
+	if (e.chain !== undefined) readEventChain(e.chain, w + '.chain');
+	if (e.unplaced !== undefined) {
+		readSkillRefs(e.unplaced, w + '.unplaced');
+		checkNoDupInBucket(e.unplaced, w + '.unplaced');
+	}
 });
 
 none(unknownKeys, '知らないキーが無い（許可リストどおり）');
@@ -896,11 +976,20 @@ console.log('\n=== 5. ★・覚醒レベル・状態・種類 ===');
 		if (st.hint !== 'done' && n > 0) statusProblems.push(w + '.dataStatus.hint: done でないのに中身がある');
 	});
 
+	// イベントの状態と中身（C-102）。done は chain だけ・seeded は unplaced だけ・none はどちらも持たない
 	docs.supportCardEventSkill.entries.forEach((e, i) => {
 		const w = 'supportCardEventSkill[' + i + ']';
-		const n = isArr(e.skills) ? e.skills.length : 0;
-		if (e.status === 'done' && n === 0) statusProblems.push(w + '.status: done なのに1件も無い');
-		if (e.status === 'none' && n > 0) statusProblems.push(w + '.status: none なのに中身がある');
+		const has = (k) => Object.prototype.hasOwnProperty.call(e, k);
+		const len = (k) => isArr(e[k]) ? e[k].length : 0;
+		if (e.status === 'done') {
+			if (len('chain') === 0) statusProblems.push(w + '.status: done なのに chain が無い（空）');
+			if (has('unplaced')) statusProblems.push(w + '.status: done なのに unplaced がある（確かめたら全部 chain へ移す）');
+		} else if (e.status === 'seeded') {
+			if (len('unplaced') === 0) statusProblems.push(w + '.status: seeded なのに unplaced が無い（空）');
+			if (has('chain')) statusProblems.push(w + '.status: seeded なのに chain がある');
+		} else if (e.status === 'none') {
+			if (has('chain') || has('unplaced')) statusProblems.push(w + '.status: none なのに chain か unplaced がある');
+		}
 	});
 
 	none(starProblems, 'minStar が初期の★以上で、昇順・重複なし');
@@ -994,6 +1083,7 @@ console.log('\n=== 7. 進み具合（情報。検査には影響しない） ===
 	}
 	console.log('       ヒント: ' + countBy(cards, (e) => (e.dataStatus || {}).hint));
 	console.log('       イベント: done ' + ev.filter((e) => e.status === 'done').length
+		+ ' / seeded（取り込んだまま） ' + ev.filter((e) => e.status === 'seeded').length
 		+ ' / none ' + ev.filter((e) => e.status === 'none').length
 		+ ' / 未記載（未確認） ' + Math.max(0, cards.length - ev.length));
 }
