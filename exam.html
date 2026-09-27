@@ -4107,15 +4107,74 @@
 			const listRows = rows.filter(r => !r.slot);
 			const rowByDictName = {};
 			listRows.forEach(r => { rowByDictName[melopMarkPlusName(r.name)] = r; });
+			const listDict = buildSkillDictionary(listRows.map(r => melopMarkPlusName(r.name)));
+			// ほかの名前の中にそっくり含まれる名前 → それを含む長い名前の一覧（melopPreferContainingNames が使う）
+			const containedBy = [];
+			listDict.index.forEach(x => {
+				const longer = listDict.index.filter(y => y !== x && y.norm.indexOf(x.norm) !== -1);
+				if (longer.length) containedBy.push({ short: x, longer: longer });
+			});
 			return {
 				dataVersion: json && json.dataVersion,
 				rows: rows,
 				blueRows: rows.filter(r => r.slot === 'blue'),
 				redRows: rows.filter(r => r.slot === 'red'),
 				uniqueRows: rows.filter(r => r.slot === 'unique'),
-				listDict: buildSkillDictionary(listRows.map(r => melopMarkPlusName(r.name))),
+				listDict: listDict,
+				containedBy: containedBy,
 				rowByDictName: rowByDictName
 			};
+		}
+
+		/* ほかの名前の中にそっくり含まれる名前（マイルCS ⊂ マイルCS南部杯、根幹距離〇 ⊂ 非根幹距離〇、
+		   レースの真髄・速 ⊂ レースの真髄・速+ など。いまのシートで16組）の取り違えを防ぐ（C-101 の追記）。
+		   common.js の照合は、行の中に名前がそっくり入っていれば「完全一致」で採る。長い名前が1文字でも
+		   読み違えられると（「マイルCS南部祀」）、長い名前は完全一致にならず、中にある短い名前だけが完全一致に
+		   なって、**長い名前の★が短い名前の行にも入っていた**（ほかの行で長い名前が読めていれば2重に数える）。
+		   そこで照合の前に、行ごとに次を満たすときだけ、その行を長い名前として読む（行の文字を長い名前に置き換える）:
+		     - 短い名前が行の中にそっくり入っていて、それを含む長い名前はどれも行の中にそっくりは入っていない
+		     - 長い名前と行の距離が、短い名前と行の距離より**小さい**。同じ距離のときは、短い名前の外にある文字が
+		       長い名前の外の文字と同じ位置・同じ数で、1文字ずつ同じ種類（漢字／かな／英数字）のときだけ
+		       （「非根幹距離〇」の「非」を別の漢字に読み違えた行は長い名前へ、「を根幹距離〇」のように
+		       行の前に付いた余計なかなは短い名前のまま。**種類まで同じでない同点は、今までどおり短い名前**）
+		     - その距離が、長い名前に許される距離（allowedDistance）以内
+		   組は並びのデータから作る（名前をここに書かない）。いつもの判定には使わない（拡張モードの照合だけ）。 */
+		function melopCharKind(ch) {
+			if (/\p{Script=Han}/u.test(ch) || ch === MELOP_PLUS_MARK) return 'kanji';
+			if (/[\p{Script=Hiragana}\p{Script=Katakana}ー]/u.test(ch)) return 'kana';
+			if (/[\p{L}\p{N}]/u.test(ch)) return 'alnum';
+			return 'other';
+		}
+		// 同じ距離のとき: 短い名前を除いた残りが、行と長い名前で同じ形・同じ種類の文字か
+		function melopSameShapeOutside(n, shortNorm, longNorm) {
+			const i = n.indexOf(shortNorm), j = longNorm.indexOf(shortNorm);
+			const a = [n.slice(0, i), n.slice(i + shortNorm.length)];
+			const b = [longNorm.slice(0, j), longNorm.slice(j + shortNorm.length)];
+			for (let k = 0; k < 2; k++) {
+				const x = Array.from(a[k]), y = Array.from(b[k]);
+				if (x.length !== y.length) return false;
+				for (let m = 0; m < x.length; m++) if (melopCharKind(x[m]) !== melopCharKind(y[m])) return false;
+			}
+			return true;
+		}
+		function melopPreferContainingNames(lines, sheet) {
+			return lines.map(l => {
+				const n = normalizeText(l.text);
+				if (!n) return l;
+				let best = null;
+				sheet.containedBy.forEach(({ short, longer }) => {
+					if (n.indexOf(short.norm) === -1) return;
+					if (longer.some(y => n.indexOf(y.norm) !== -1)) return;
+					const dShort = levenshtein(n, short.norm);
+					longer.forEach(y => {
+						const d = levenshtein(n, y.norm);
+						if (d > allowedDistance(y.norm.length)) return;
+						if (d > dShort || (d === dShort && !melopSameShapeOutside(n, short.norm, y.norm))) return;
+						if (!best || d < best.d) best = { y: y, d: d };
+					});
+				});
+				return best ? Object.assign({}, l, { text: best.y.raw, melopReadAs: best.y.raw, melopOriginal: l.text }) : l;
+			});
 		}
 
 		async function loadMelopSheet() {
@@ -4132,7 +4191,8 @@
 		const MELOP_ALL_FACTORS = new Set(SCENARIO_INHERITANCE_FACTORS);
 		const MELOP_ALL_GENES = new Set(APTITUDE_GENES);
 		function matchMelopLines(lines, sheet) {
-			const marked = (lines || []).map(l => Object.assign({}, l, { text: melopMarkPlusLine(l.text) }));
+			const marked = melopPreferContainingNames(
+				(lines || []).map(l => Object.assign({}, l, { text: melopMarkPlusLine(l.text) })), sheet);
 			let res = matchAllSkillsWithStars(marked, sheet.listDict.list, sheet.listDict.index, {});
 			res = applyScenarioFactorStrictMatch(res, marked, { factors: MELOP_ALL_FACTORS });
 			res = applyAptitudeGeneStrictMatch(res, marked, { genes: MELOP_ALL_GENES });

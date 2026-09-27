@@ -79,6 +79,8 @@ node tests/ocr/run-melop-tests.mjs --truth=<JSON>                    # 期待値
 その関数をそのまま呼んで、1ケースにつき7項目（青・赤の名前と★・固有の★・固有の右隣の名前と★）を
 各ケースの `expect.json` の `melopTop` と比べる（書き方は `test-images/README.md`）。
 並びのデータ（`data/melop-sheet-rows.json`）を fetch するので http で開く。
+`expect.json` に任意の `melopRows` があるケースは、いつもの OCR の行まで読んで562行の照合を通し、指定の行の値も比べる
+（例: マイルCS南部杯の★がマイルCS の行に2重に入らないこと。C-101 の追記）。
 
 ## 文字正規化の安全確認
 

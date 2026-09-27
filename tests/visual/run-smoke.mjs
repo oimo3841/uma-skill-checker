@@ -10551,6 +10551,88 @@ await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101
 		'めろっぷ(6): オンでも、いつもの判定・表・集計・「★の数をコピー」の中身はオフと1文字も変わらない',
 		{ 同じ: JSON.stringify(flow.on.snap) === JSON.stringify(flow.off.snap) });
 
+	// (7) ほかの名前の中にそっくり含まれる名前（C-101 の追記。マイルCS ⊂ マイルCS南部杯 など）。
+	//     組は並びのデータから作る。実際の OCR の行の形（前後の余計な文字・1文字の読み違い・「+」の読み違い）で、
+	//     「長いほうだけ」「両方」「短いほうだけ」の3通りを見る。
+	const nested = await page.evaluate(() => {
+		const s = melopSheet;
+		const rowOf = (dictName) => s.rowByDictName[dictName].row;
+		const detect = (lines) => {
+			const res = matchMelopLines(lines.map((l, i) => ({ text: l.text, stars: l.stars, starsReliable: true, rowKey: 'n:' + i })), s);
+			const out = {};
+			res.detectedSkills.forEach((n) => { out[rowOf(n)] = res.skillStars[n]; });
+			return out;
+		};
+		const plain = (dictName) => dictName.replace(new RegExp(MELOP_PLUS_MARK + '$'), '+');
+		const swapChar = (str, idx, ch) => { const a = Array.from(str); a[idx] = ch; return a.join(''); };
+		const pairs = [];
+		const problems = [];
+		s.containedBy.forEach(({ short, longer }) => longer.forEach((long) => {
+			const shortName = plain(short.raw), longName = plain(long.raw);
+			const isPlus = long.raw.endsWith(MELOP_PLUS_MARK);
+			const at = Array.from(longName).length - Array.from(longName.replace(shortName, '')).length; // 使わない（読みやすさのため）
+			void at;
+			const shortPos = longName.indexOf(shortName);
+			const outside = longName.slice(0, shortPos) + longName.slice(shortPos + shortName.length);
+			// 長いほう: そのまま／前後に余計な文字／長い名前だけにある部分の読み違い／共通の部分の読み違い
+			const longForms = [longName, '[' + longName + ' _'];
+			if (isPlus) longForms.push(shortName + ' + ]', shortName + '十', '・' + shortName + '＋', swapChar(shortName, 1, '祀') + '+');
+			else {
+				const outChars = Array.from(outside);
+				const misOutside = outChars.length >= 2
+					? longName.replace(outside.slice(-1), '祀')                       // 例: マイルCS南部杯 → マイルCS南部祀
+					: longName.replace(outside, '韭');                                 // 例: 非根幹距離〇 → 韭根幹距離〇（1文字なら同じ種類の読み違い）
+				longForms.push(misOutside, swapChar(longName, shortPos + (Array.from(shortName).length > 2 ? 1 : 0), '祀'));
+			}
+			// 前に付く余計な文字は「|」（正規化で「ー」）。「を」は common.js が「左」に読み替える（左回り〇の読み違い）ので使わない
+			const shortForms = [shortName, '[' + shortName + ' _', '| ' + shortName];
+			const L = rowOf(long.raw), S = rowOf(short.raw);
+			const res = { short: shortName, long: longName, S: S, L: L, ok: true };
+			longForms.forEach((t) => {
+				const got = detect([{ text: t, stars: 3 }]);
+				if (JSON.stringify(got) !== JSON.stringify({ [L]: 3 })) { res.ok = false; problems.push({ 形: '長いほうだけ', 行: t, 読み: got, 期待: { [L]: 3 } }); }
+			});
+			shortForms.forEach((t) => {
+				const got = detect([{ text: t, stars: 1 }]);
+				if (JSON.stringify(got) !== JSON.stringify({ [S]: 1 })) { res.ok = false; problems.push({ 形: '短いほうだけ', 行: t, 読み: got, 期待: { [S]: 1 } }); }
+			});
+			// 両方: 長いほうは読み違いのある形、短いほうは余計な文字の付いた形
+			const both = detect([{ text: longForms[2], stars: 3 }, { text: shortForms[1], stars: 1 }]);
+			const wantBoth = { [S]: 1, [L]: 3 };
+			if (JSON.stringify(Object.keys(both).sort()) !== JSON.stringify(Object.keys(wantBoth).sort()) || both[S] !== 1 || both[L] !== 3) {
+				res.ok = false; problems.push({ 形: '両方', 行: [longForms[2], shortForms[1]], 読み: both, 期待: wantBoth });
+			}
+			pairs.push(res);
+		}));
+		return { count: pairs.length, pairs: pairs.map((p) => p.S + '⊂' + p.L + (p.ok ? '' : '（NG）')), problems };
+	});
+	assert(nested.count === 16, 'めろっぷ(7): 並びのデータの「ほかの名前の中にそっくり含まれる名前」は16組', nested.pairs);
+	assert(nested.problems.length === 0,
+		'めろっぷ(7): 16組とも、長いほうだけ→長い行だけ・短いほうだけ→短い行だけ・両方→それぞれの行にそれぞれの★（前後の余計な文字・1文字の読み違い・「+」の読み違いを含む）',
+		nested.problems.length ? nested.problems.slice(0, 6) : nested.pairs);
+
+	// (8) いちばん上の段の15語は、下の段の照合に紛れ込まない
+	const topWords = await page.evaluate(() => {
+		const s = melopSheet;
+		const slotNames = s.rows.filter((r) => r.slot).map((r) => r.name);
+		const inDict = s.listDict.list.filter((n) => slotNames.map((x) => normalizeText(x)).includes(normalizeText(n)));
+		const words = s.blueRows.concat(s.redRows).map((r) => r.name);
+		const res = matchMelopLines(words.map((w, i) => ({ text: w, stars: 2, starsReliable: true, rowKey: 'w:' + i })), s);
+		// 15語を含む下の段の名前（例: 〜の遺伝子・〜の目覚め）は、その名前の行に入る
+		const containing = s.rows.filter((r) => !r.slot && words.some((w) => r.name.includes(w)));
+		const res2 = matchMelopLines(containing.map((r, i) => ({ text: r.name, stars: 2, starsReliable: true, rowKey: 'c:' + i })), s);
+		const got2 = Array.from(res2.detectedSkills).map((n) => s.rowByDictName[n].row).sort((a, b) => a - b);
+		return {
+			inDict: inDict, wordHits: Array.from(res.detectedSkills),
+			containing: containing.length, sameRows: JSON.stringify(got2) === JSON.stringify(containing.map((r) => r.row).sort((a, b) => a - b)),
+			slotHit: got2.some((row) => s.rows.find((r) => r.row === row).slot),
+		};
+	});
+	assert(topWords.inDict.length === 0 && topWords.wordHits.length === 0,
+		'めろっぷ(8): いちばん上の段の15語は下の段の辞書に無く、15語だけの行はどの行にも入らない', topWords);
+	assert(topWords.containing > 0 && topWords.sameRows && !topWords.slotHit,
+		'めろっぷ(8): 15語を含む下の段の名前（' + topWords.containing + '件）は、それぞれ自分の行にだけ入る', topWords);
+
 	assert(errors.length === 0, 'めろっぷ: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
 }

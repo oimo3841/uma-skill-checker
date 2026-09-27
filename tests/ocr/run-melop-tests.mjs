@@ -12,6 +12,8 @@
 //
 // 期待値は各ケースの test-images/<ケース>/expect.json の melopTop（書き方は test-images/README.md）:
 //   { "blue": ["<名前>", ★], "red": ["<名前>", ★], "unique": ★, "right": ["<名前>", ★] }
+// 任意で melopRows（C-101 の追記）: { "<シートの行番号>": ★ か "?" か null } ―― いつもの OCR の行まで読んで
+//   562行の照合を通し、その行の値を見る（null はその行が空欄であること。例: マイルCS南部杯の★がマイルCS の行に入らない）。
 // **期待値の無いケースは合格にしない**（[期待値なし] と出す）。照合できたケースが0件なら NG。
 // ケース名・スキル名はこのファイルに書かない（test:stitch の expect.json と同じ考え方）。
 //
@@ -58,14 +60,18 @@ async function discoverCases() {
 		const dir = path.join(TEST_IMAGES_DIR, e.name);
 		const files = await imagesOf(dir);
 		if (files.length === 0) continue;
-		let expect = null;
-		try { expect = JSON.parse(await fs.readFile(path.join(dir, 'expect.json'), 'utf-8')).melopTop || null; } catch {}
-		out.push({ name: e.name, files, expect });
+		let expect = null, rows = null;
+		try {
+			const j = JSON.parse(await fs.readFile(path.join(dir, 'expect.json'), 'utf-8'));
+			expect = j.melopTop || null;
+			rows = j.melopRows || null;
+		} catch {}
+		out.push({ name: e.name, files, expect, rows });
 	}
 	return out;
 }
 
-async function runInPage({ files }) {
+async function runInPage({ files, rowsWanted }) {
 	const fileObjs = await Promise.all(files.map(async (f) => new File([await (await fetch(f.dataUrl)).blob()], f.name, { type: f.type })));
 	const sheet = await loadMelopSheet();
 	const worker = await Tesseract.createWorker();
@@ -77,8 +83,16 @@ async function runInPage({ files }) {
 		const top = await readMelopTopRow(worker, fileObjs, sheet);
 		const res = matchMelopLines(top.extraLines, sheet);
 		const right = Array.from(res.detectedSkills).map((n) => ({ name: sheet.rowByDictName[n].name, stars: res.skillStars[n] }));
+		// melopRows があるケースだけ、いつもの OCR の行も読んで 562行の照合まで通す（exam の processImages と同じ組み立て）
+		let rows = null;
+		if (rowsWanted) {
+			const ocr = await processPersonImages(worker, fileObjs, 'melop', true, true, false);
+			const all = matchMelopLines(ocr.lines.concat(top.extraLines), sheet);
+			rows = {};
+			all.detectedSkills.forEach((n) => { rows[sheet.rowByDictName[n].row] = all.skillStars[n] === null ? '?' : all.skillStars[n]; });
+		}
 		return { found: top.found, file: top.file, blue: top.blue, red: top.red, unique: top.uniqueStars, right,
-			rightText: top.extraLines.map((l) => l.text) };
+			rightText: top.extraLines.map((l) => l.text), rows };
 	} finally {
 		await worker.terminate();
 	}
@@ -106,7 +120,7 @@ for (const c of cases) {
 		const type = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.webp' ? 'image/webp' : 'image/png';
 		inputs.push({ name: path.basename(f), type, dataUrl: `data:${type};base64,${(await fs.readFile(f)).toString('base64')}` });
 	}
-	const r = await page.evaluate(runInPage, { files: inputs });
+	const r = await page.evaluate(runInPage, { files: inputs, rowsWanted: !!c.rows });
 	const got = {
 		blue: r.blue ? [r.blue.name, r.blue.stars] : null,
 		red: r.red ? [r.red.name, r.red.stars] : null,
@@ -128,6 +142,13 @@ for (const c of cases) {
 		['右隣の名前', Array.isArray(got.right) && typeof got.right[1] === 'number' ? got.right[0] : JSON.stringify(got.right), e.right[0]],
 		['右隣の★', Array.isArray(got.right) && typeof got.right[1] === 'number' ? got.right[1] : null, e.right[1]],
 	];
+	// melopRows: { "<行番号>": ★ か "?" か null（null＝その行は空欄であること） }
+	if (c.rows) {
+		for (const [row, want] of Object.entries(c.rows)) {
+			const g = r.rows[row] === undefined ? null : r.rows[row];
+			checks.push([row + '行目（562行の照合）', g, want]);
+		}
+	}
 	const ng = checks.filter(([, g, w]) => g !== w);
 	items += checks.length;
 	itemsOk += checks.length - ng.length;
@@ -139,7 +160,7 @@ for (const c of cases) {
 await browser.close();
 await srv.close();
 
-console.log(`\n項目 ${itemsOk}/${items}（${compared}ケース。青・赤の名前と★・固有の★・固有の右隣の名前と★の7項目ずつ）`);
+console.log(`\n項目 ${itemsOk}/${items}（${compared}ケース。青・赤の名前と★・固有の★・固有の右隣の名前と★の7項目ずつ。melopRows のあるケースはその行も）`);
 if (noExpect.length) console.log(`!! 期待値の無いケース（合格にしていない）: ${noExpect.join('・')} !!`);
 pageErrors.forEach((e) => console.log('[page error] ' + e));
 const ok = compared > 0 && failed.length === 0 && pageErrors.length === 0;
