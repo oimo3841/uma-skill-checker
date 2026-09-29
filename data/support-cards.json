@@ -1,7 +1,7 @@
 {
-	"dataVersion": "2026-09-27a",
+	"dataVersion": "2026-09-29a",
 	"category": "supportCard",
-	"nextSerial": "card-0560",
+	"nextSerial": "card-0561",
 	"note": "サポートカード。charaName はグループのカードでは代表者1人。hintSkills は練習のヒントで得られるスキルで、イベントで得られるスキルはこのファイルには書かない（support-card-event-skills.json に書く）。スキルの参照は skillId が本体で、name は照合のための控え（表示には使わない）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。dataStatus.hint は done（確かめて載せた）／none（ヒントを持たないと確かめた）／pending（未確認）。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。形は npm run check:catalog が確かめる。rarity はカードのレアリティで、\"R\"・\"SR\"・\"SSR\" のどれか。isGroup はグループのカード（複数のキャラクターが割り当てられたカード）なら true、それ以外は false。groupMembers はグループのカードの行にだけあり、割り当てられているキャラクターの名前の配列（先頭は charaName と同じ代表者）。",
 	"entries": [
 		{
@@ -23704,6 +23704,52 @@
 				{
 					"skillId": "ex-0533",
 					"name": "気勢を上げて"
+				}
+			],
+			"dataStatus": {
+				"hint": "done"
+			}
+		},
+		{
+			"id": "card-0560",
+			"title": "めぐるぐるぐるトレセン日和",
+			"charaName": "ライスシャワー",
+			"type": "根性",
+			"typeOrder": 4,
+			"rarity": "SSR",
+			"isGroup": false,
+			"hintSkills": [
+				{
+					"skillId": "6",
+					"name": "京都レース場○"
+				},
+				{
+					"skillId": "49",
+					"name": "スタミナキープ"
+				},
+				{
+					"skillId": "51",
+					"name": "抜け出し準備"
+				},
+				{
+					"skillId": "127",
+					"name": "直滑降"
+				},
+				{
+					"skillId": "146",
+					"name": "先行のコツ○"
+				},
+				{
+					"skillId": "151",
+					"name": "登山家"
+				},
+				{
+					"skillId": "152",
+					"name": "ウマ好み"
+				},
+				{
+					"skillId": "384",
+					"name": "実直な走り"
 				}
 			],
 			"dataStatus": {
