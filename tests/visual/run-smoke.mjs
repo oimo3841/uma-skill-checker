@@ -15,6 +15,7 @@ import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_I
 // スクリーンショットの画素から**実際に描かれている色**を読む（段11 ⑨。半透明の重なりの結果を見るため）
 import { avgColor, deltaE, contrastRatio, hexOf } from './lib/pixels.mjs';
 import { buildEventFixture, buildCharacterFixture } from './lib/event-fixture.mjs';
+import { buildDraftFixture } from './lib/draft-fixture.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -11201,6 +11202,243 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 			await ctx3.close();
 		}
 	}
+}
+});
+
+/* ============================================================
+ * card-event-input.html ―― 下書きの読み込み（C-104。2026-09-29）
+ *
+ * 本物の下書きは Git に入らないので、tests/visual/lib/draft-fixture.mjs で形だけを写した仮の下書きを組み、
+ * ファイル選択の欄に setInputFiles で渡す（ディスクに置かない）。イベントスキルのファイルも仮のもの（P4 の行だけ）に差し替える。
+ * カード名・スキル名は書かない（仕込みが実データから id で拾う）。
+ * 見ること（Step 0 の 8-2）：
+ *   - 読んだだけ・直しただけでは「入力あり」が増えず、出力 A・B がバイト単位で変わらない
+ *   - 下書きのあるカードは「下書き（未確認）」。スキルの無い下書きは下書きが無いのと同じ（イベント無しにしない）
+ *   - 一覧に無い名前があるあいだは「見比べた」を押せない。「ほかから選ぶ」はその名前を入れて検索を開き、同じ場所・同じ Lv で置き換える
+ *   - レベルの無いスキルは「レベルが入っていません」。直すと押せる
+ *   - 「見比べた」のあとだけ出力 A に入る。ファイルにあるカードは下書きで上書きし、見比べるまでファイルの行が出力に残る
+ *   - 目で確定するものに印。文から番号を外す。見比べるときに念を押す（いいえなら下書きのまま）
+ *   - 手の入力があるカードは置き換えない。読み直したとき、手を入れた下書きは残し、手を入れていない下書きは置き換える
+ *   - 公開データに無いカード・キャラクターは飛ばし、公開データに入ったあとの起動で当てはめる（後片付けで消えない）
+ *   - 共通イベント：自身の行を使い、グループの欄の行があることを1行出す／グループの欄の行だけのときはそれを使う
+ *   - umaSkillDeck: のキーに書かない・読み込みの間に通信しない・控えに許可していない項目が入らない
+ *   - 「下書きを消す」で見比べていない下書きと控えが消え、見比べたものは残る
+ *   - 375px ではみ出さない
+ * ============================================================ */
+await block('card-event-input.html ―― 下書きの読み込み（C-104）', async () => {
+{
+	const fx = buildDraftFixture();
+	const { P1, P2, P3, P4, P5, P6, P7, U } = fx.cards;
+	const { C1, C2, C3, CU } = fx.charas;
+	const S = fx.S;
+	const cardsDoc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/support-cards.json'), 'utf8'));
+	const fileOf = (v) => ({ name: 'draft.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(fx.draft(v)), 'utf8') });
+	let withU = false; // true にすると、公開データに U のカードが入った形で返す
+
+	const setup = async (ctx) => {
+		await ctx.route('**/data/support-card-event-skills.json*', (r) => r.fulfill({
+			status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(fx.file) }));
+		await ctx.route('**/data/support-cards.json*', (r) => {
+			if (!withU) return r.continue();
+			const doc = JSON.parse(JSON.stringify(cardsDoc));
+			const like = doc.entries.find((c) => c.id === P1);
+			doc.entries.push(Object.assign({}, like, { id: U, title: '（検査用）' + like.title }));
+			return r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(doc) });
+		});
+	};
+	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+	await setup(ctx);
+	const page = await ctx.newPage();
+	page.setDefaultTimeout(5000);
+	const errors = [];
+	const dialogs = [];
+	let dismissNext = false;
+	page.on('pageerror', (e) => errors.push(String(e)));
+	page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+	page.on('dialog', (d) => { dialogs.push(d.message()); if (dismissNext) { dismissNext = false; d.dismiss(); } else d.accept(); });
+	// P6 には手の入力を入れておく（下書きで置き換えないこと）
+	await page.addInitScript((d) => {
+		if (sessionStorage.getItem('smoke-cei-import-init')) return;
+		sessionStorage.setItem('smoke-cei-import-init', '1');
+		localStorage.setItem('umaCardEventInput:draft2', JSON.stringify(d));
+	}, { [P6]: { status: 'done', chain: [{ step: 1, choices: [{ skills: [{ skillId: S[7], hintLevel: 1 }] }] }] } });
+	await page.goto(base + '/card-event-input.html', { waitUntil: 'networkidle' });
+	await page.waitForFunction(() => /全\d+枚/.test(document.getElementById('cei-counts').textContent));
+
+	const doneCount = async () => Number((await page.textContent('#cei-counts')).match(/入力あり (\d+)/)[1]);
+	const stateOf = (id) => page.evaluate((i) => { const r = document.querySelector('.cei-row[data-card-id="' + i + '"]'); return r ? r.getAttribute('data-state') : null; }, id);
+	const charaState = (n) => page.evaluate((i) => { const r = Array.from(document.querySelectorAll('.cei-row[data-chara]')).find((x) => x.getAttribute('data-chara') === i); return r ? r.getAttribute('data-state') : null; }, n);
+	const outA = async () => JSON.parse(await page.inputValue('#cei-out'));
+	const rowA = async (id) => (await outA()).entries.find((e) => e.cardId === id) || null;
+	const openCard = async (id) => {
+		await page.fill('#cei-q', '');
+		await page.click('.cei-row[data-card-id="' + id + '"] [data-act="open"]');
+	};
+	const rowSel = (id) => '.cei-row[data-card-id="' + id + '"]';
+
+	const before = { outA: await page.inputValue('#cei-out'), outB: await page.inputValue('#cei-out-b'), done: await doneCount(),
+		deck: await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('umaSkillDeck:')).sort()) };
+	const requests = [];
+	page.on('request', (r) => requests.push(r.url()));
+	await page.setInputFiles('#cei-import-file', fileOf(1));
+	await page.waitForFunction(() => !document.getElementById('cei-import-result').hidden);
+	const netDuringImport = requests.slice();
+
+	/* --- 1・2 読んだだけでは入力ありにならない・出力は変わらない・状態 --- */
+	assert(await page.inputValue('#cei-out') === before.outA && await page.inputValue('#cei-out-b') === before.outB,
+		'下書き(1): 読んだだけでは出力 A・B がバイト単位で変わらない');
+	assert(await doneCount() === before.done - 2,
+		'下書き(1): 読んだだけでは「入力あり」が増えない（ファイルにだけあった P4・P7 は下書きで上書きされて2つ減る）', { before: before.done, after: await doneCount() });
+	const st = { P1: await stateOf(P1), P2: await stateOf(P2), P3: await stateOf(P3), P4: await stateOf(P4), P5: await stateOf(P5), P6: await stateOf(P6), P7: await stateOf(P7), U: await stateOf(U) };
+	assert(st.P1 === 'imported' && st.P2 === 'imported' && st.P3 === 'imported' && st.P4 === 'imported' && st.P7 === 'imported',
+		'下書き(2): 下書きのあるカードは「下書き（未確認）」（ファイルにある P4・P7 も、中身が同じでも上書き）', st);
+	assert(st.P5 === 'pending' && st.P6 === 'done' && st.U === null,
+		'下書き(2): スキルの無い下書きは未確認のまま（イベント無しにしない）／手の入力は置き換えない／公開データに無いカードは出ない', st);
+	const result = await page.textContent('#cei-import-result');
+	assert(result.includes(U) && result.includes('公開データにまだ無い') && result.includes('2件') && result.includes('スキルの無い下書き（カード 1枚・キャラクター 1人）'),
+		'下書き(2): 読み込んだときに、公開データに無いもの（カード・キャラクター 2件）とスキルの無い下書きを1回知らせる', result);
+	assert((await page.textContent(rowSel(P1) + ' .uma-badge')).trim() === '下書き（未確認）', '下書き(2): 一覧のしるしは「下書き（未確認）」');
+
+	/* --- 11 置き場・通信 --- */
+	const store = await page.evaluate(() => localStorage.getItem('umaCardEventInput:importDraft') || '');
+	const deckAfter = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('umaSkillDeck:')).sort());
+	assert(store.length > 0 && !store.includes('検査用の仮の下書き') && !store.includes('許可していない項目') && JSON.stringify(deckAfter) === JSON.stringify(before.deck),
+		'下書き(11): 控えは umaCardEventInput:importDraft にあり、説明文や許可していない項目は入らない。umaSkillDeck: のキーは増えない', { deckAfter, before: before.deck });
+	assert(netDuringImport.length === 0, '下書き(11): 読み込みの間に通信が起きない', netDuringImport);
+
+	/* --- 3・4 一覧に無い名前とレベルの無いスキル（P2） --- */
+	await openCard(P2);
+	const p2 = await page.$eval(rowSel(P2), (el) => ({
+		unlisted: Array.from(el.querySelectorAll('[data-unlisted]')).map((c) => c.textContent),
+		problems: Array.from(el.querySelectorAll('.cei-problems li')).map((l) => l.textContent),
+		disabled: el.querySelector('[data-act="check"]').disabled,
+		lead: (el.querySelector('.cei-imported-lead') || {}).textContent || '',
+	}));
+	assert(p2.unlisted.length === 1 && p2.unlisted[0].includes(fx.unlisted) && p2.unlisted[0].includes('一覧に無い名前') && p2.disabled
+		&& p2.problems.some((t) => t.includes(fx.unlisted) && t.includes('一覧に無い名前')) && p2.problems.some((t) => t.includes('レベル')),
+		'下書き(3・4): 一覧に無い名前とレベルの無いスキルは赤字の不足に出て、そのあいだは「見比べた」を押せない', p2);
+	assert(p2.lead.includes('ゲーム画面と見比べた'), '下書き(3): 開くと、下書きから入れた内容だという説明が出る', p2.lead);
+	await page.click(rowSel(P2) + ' [data-act="find-replace"]');
+	await page.waitForTimeout(300);
+	const findQ = await page.inputValue('[data-act="find"]');
+	const hitIds = await page.$$eval('[data-act="pick"]', (bs) => bs.map((b) => b.getAttribute('data-skill')));
+	assert(findQ === fx.unlisted && hitIds.includes(fx.X.id), '下書き(3): 「ほかから選ぶ」は、その名前を入れた状態で検索を開く', { findQ, hitIds });
+	await page.click('[data-act="pick"][data-skill="' + fx.X.id + '"]');
+	const r1 = await page.$eval(rowSel(P2) + ' .cei-round[data-step="1"]', (el) => ({
+		unlisted: el.querySelectorAll('[data-unlisted]').length,
+		chips: Array.from(el.querySelectorAll('.cei-chip')).map((c) => c.firstChild.textContent),
+		lv: (el.querySelector('.cei-lv-input') || {}).value,
+	}));
+	assert(r1.unlisted === 0 && r1.chips.join() === fx.X.name && r1.lv === '2',
+		'下書き(3): 選ぶと、同じ場所に同じレベル（Lv2）で入る', r1);
+	await page.fill(rowSel(P2) + ' .cei-round[data-step="2"] .cei-lv-input', '3');
+	await page.dispatchEvent(rowSel(P2) + ' .cei-round[data-step="2"] .cei-lv-input', 'change');
+	const p2b = await page.$eval(rowSel(P2), (el) => ({ disabled: el.querySelector('[data-act="check"]').disabled,
+		edited: Array.from(el.querySelectorAll('.cei-imported .cei-note')).some((p) => p.textContent.includes('直したところ')) }));
+	assert(!p2b.disabled && p2b.edited && await stateOf(P2) === 'imported' && await page.inputValue('#cei-out') === before.outA,
+		'下書き(4): 直すと押せるようになるが、直しただけでは「下書き（未確認）」のままで出力も変わらない', p2b);
+
+	/* --- 5 見比べた（P1）→ 出力 A に入る --- */
+	await openCard(P1);
+	await page.click(rowSel(P1) + ' [data-act="check"]');
+	const n = fx.nameOf;
+	const r = (i, lv) => ({ skillId: S[i], name: n(S[i]), hintLevel: lv || 1 });
+	const wantP1 = { cardId: P1, status: 'done', chain: [
+		{ step: 1, choices: [{ skills: [r(0)] }] },
+		{ step: 2, choices: [{ skills: [r(1)] }, { skills: [] }] },
+		{ step: 3, choices: [{ results: [[r(2, 3)], [r(2, 2)]] }] },
+		{ step: 4, choices: [{ results: [[r(3)], []] }, { skills: [r(4)] }] }] };
+	assert(await stateOf(P1) === 'done' && JSON.stringify(await rowA(P1)) === JSON.stringify(wantP1),
+		'下書き(5): 「見比べた」のあとだけ「入力あり」になり、出力 A に下書きの形のまま入る（4つの形・名前は引き直し）', await rowA(P1));
+
+	/* --- 6 ファイルにあるカード（P4）: 見比べるまでファイルの行が残る --- */
+	await openCard(P4);
+	const p4note = await page.$eval(rowSel(P4), (el) => Array.from(el.querySelectorAll('.cei-imported .cei-note')).map((p) => p.textContent).join('|'));
+	assert(JSON.stringify(await rowA(P4)) === JSON.stringify(fx.file.entries[0]) && p4note.includes('ファイルに入っている内容'),
+		'下書き(6): ファイルにあるカードは下書きで上書きされるが、見比べるまで出力 A にはファイルの行が残る', { row: await rowA(P4), p4note });
+
+	/* --- 10 読み直し：手を入れた P2 は残し、手を入れていない P3 は置き換える。見比べた P1・手の入力の P6 は触らない --- */
+	await page.setInputFiles('#cei-import-file', fileOf(2));
+	await page.waitForTimeout(400);
+	const sum = (id) => page.$eval(rowSel(id) + ' .cei-summary', (el) => el.textContent);
+	const re = { p2: await sum(P2), p3: await sum(P3), p1: await stateOf(P1), p6: await stateOf(P6), text: await page.textContent('#cei-import-result') };
+	assert(!re.p2.includes(n(S[9])) && re.p2.includes(fx.X.name) && re.p3.includes(n(S[8])) && !re.p3.includes(n(S[6]))
+		&& re.p1 === 'done' && re.p6 === 'done' && re.text.includes('置き換えていません'),
+		'下書き(10): 読み直すと、手を入れた下書きは残り、手を入れていない下書きは新しい中身になる（見比べたもの・手の入力はそのまま）', re);
+
+	/* --- 7 目で確定するもの（P3） --- */
+	await openCard(P3);
+	const eye = await page.$eval(rowSel(P3), (el) => ({ badge: (el.querySelector('.cei-eye') || {}).textContent || '', note: (el.querySelector('.cei-eye-note') || {}).textContent || '' }));
+	assert(eye.badge === '目で確定' && eye.note.includes('検査用の目で確定の文') && !eye.note.includes('(3)'),
+		'下書き(7): 目で確定するものに印が付き、文から番号を外して出す', eye);
+	dismissNext = true;
+	await page.click(rowSel(P3) + ' [data-act="check"]');
+	const askedEye = dialogs[dialogs.length - 1] || '';
+	assert(askedEye.includes('目で確定するものです') && askedEye.includes('ゲーム画面の形と同じですか') && await stateOf(P3) === 'imported',
+		'下書き(7): 見比べるときに念を押し、「いいえ」なら下書き（未確認）のまま', askedEye);
+	await page.click(rowSel(P3) + ' [data-act="check"]');
+	assert(await stateOf(P3) === 'done', '下書き(7): 「はい」で入力ありになる');
+
+	/* --- 6 の続き：P4 を見比べると、出力 A の行が下書きの中身に入れ替わる --- */
+	await openCard(P4);
+	await page.click(rowSel(P4) + ' [data-act="check"]');
+	assert(JSON.stringify(((await rowA(P4)) || {}).chain) === JSON.stringify([{ step: 1, choices: [{ skills: [r(8)] }] }]),
+		'下書き(6): 見比べると、ファイルの行が下書きの中身に入れ替わる', await rowA(P4));
+
+	/* --- 共通イベント・9 空の下書き --- */
+	await page.click('[data-act="tab"][data-tab="chara"]');
+	await page.fill('#cei-q', '');
+	const cs = { C1: await charaState(C1), C2: await charaState(C2), C3: await charaState(C3), CU: await charaState(CU) };
+	assert(cs.C1 === 'imported' && cs.C3 === 'imported' && cs.C2 === 'pending' && cs.CU === null,
+		'下書き(9): 共通イベントも「下書き（未確認）」。空の下書きは未入力のまま（イベント無しにしない）。公開データにいない人は出ない', cs);
+	const charaNotes = async (name) => {
+		await page.evaluate((nm) => { const b = Array.from(document.querySelectorAll('[data-act="open"][data-kind="chara"]')).find((x) => x.getAttribute('data-card') === nm); b.click(); }, name);
+		return page.evaluate((nm) => { const r = Array.from(document.querySelectorAll('.cei-row[data-chara]')).find((x) => x.getAttribute('data-chara') === nm);
+			return Array.from(r.querySelectorAll('.cei-imported .cei-note')).map((p) => p.textContent).join('|') + '|' + r.querySelector('.cei-summary:not(.cei-summary--cards)').textContent; }, name);
+	};
+	const c1 = await charaNotes(C1);
+	assert(c1.includes('の欄にも') && c1.includes('自身の欄') && c1.includes(n(S[0])) && !c1.includes(n(S[1])),
+		'下書き(共通): 同じ人の行が2つあるときは自身の行を使い、グループのカードの欄にもあったことを1行出す', c1);
+	const c3 = await charaNotes(C3);
+	assert(c3.includes('の欄から取った') && c3.includes(n(S[2])), '下書き(共通): グループのカードの欄の行だけのときは、それを使ったことを出す', c3);
+	assert(await page.inputValue('#cei-out-b') === before.outB, '下書き(共通): 見比べるまで出力 B は変わらない');
+	await page.click('[data-act="tab"][data-tab="card"]');
+
+	/* --- 8 公開データに入ったあとの起動で当てはめる。後片付けで下書きが消えない --- */
+	withU = true;
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.waitForFunction(() => /全\d+枚/.test(document.getElementById('cei-counts').textContent));
+	const afterReload = { U: await stateOf(U), P2: await stateOf(P2), P1: await stateOf(P1), P7: await stateOf(P7), rowP7: await rowA(P7) };
+	assert(afterReload.U === 'imported' && afterReload.P2 === 'imported' && afterReload.P1 === 'done',
+		'下書き(8): 公開データに入ったカードは、次の起動で「下書き（未確認）」になる。開き直しても下書き・入力は消えない', afterReload);
+	assert(afterReload.P7 === 'imported' && JSON.stringify(afterReload.rowP7) === JSON.stringify(fx.file.entries[1]),
+		'下書き(8): ファイルの行と同じ中身の下書きも、開き直したときの後片付けで消えない（出力 A にはファイルの行が残る）', afterReload);
+
+	/* --- 12 375px ではみ出さない --- */
+	{
+		const ctx3 = await browser.newContext({ viewport: { width: 375, height: 800 } });
+		await setup(ctx3);
+		const page3 = await ctx3.newPage();
+		page3.setDefaultTimeout(5000);
+		await page3.goto(base + '/card-event-input.html', { waitUntil: 'networkidle' });
+		await page3.waitForFunction(() => /全\d+枚/.test(document.getElementById('cei-counts').textContent));
+		await page3.setInputFiles('#cei-import-file', fileOf(1));
+		await page3.waitForFunction(() => !document.getElementById('cei-import-result').hidden);
+		await page3.click(rowSel(P2) + ' [data-act="open"]');
+		const w = await page3.evaluate(() => document.documentElement.scrollWidth);
+		assert(w <= 375, '下書き(12・見た目): 375px で、読み込みの欄と一覧に無い名前のチップが横にはみ出さない', w);
+		await ctx3.close();
+	}
+
+	/* --- 「下書きを消す」 --- */
+	await page.click('#cei-import-clear');
+	const cleared = { dialog: dialogs[dialogs.length - 1] || '', U: await stateOf(U), P2: await stateOf(P2), P1: await stateOf(P1), P6: await stateOf(P6),
+		store: await page.evaluate(() => localStorage.getItem('umaCardEventInput:importDraft')) };
+	assert(cleared.dialog.includes('まだ見比べていない下書き') && cleared.U === 'pending' && cleared.P2 === 'pending' && cleared.P1 === 'done' && cleared.P6 === 'done' && cleared.store === null,
+		'下書き: 「下書きを消す」で見比べていない下書き（手を入れたものも）と控えが消え、見比べたもの・手の入力は残る', cleared);
+
+	assert(errors.length === 0, '下書き: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
 }
 });
 await browser.close();
