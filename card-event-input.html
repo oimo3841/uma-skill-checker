@@ -21,6 +21,15 @@
 		  【INTENTIONALLY_REMOVED・2026-09-27（C-102）】それまでの「スキルを選ぶ」（カードごとにスキルの平たい一覧を持つ）を消した。
 		  途中経過のキーも `umaCardEventInput:draft` → `umaCardEventInput:draft2` に変えた（古いキーは消さず、中身があれば1度だけ知らせる）。
 
+		■ 下書きの読み込み（2026-09-29・C-104）
+		- 利用者の手元にある「下書きのファイル」（JSON）を、ファイル選択の欄で選んで読む。**読むのはブラウザの中だけで、どこにも送らない。**
+		  下書きはリポジトリに入れない・公開しない・このページに同梱しない。
+		- 読んだ下書きは、カード・キャラクターごとに途中経過へ入れ、状態を「下書き（未確認）」（imported）にする。
+		  **「ゲーム画面と見比べた」を押すまで「入力あり」にせず、出力 A・B にも入れない。** 直しただけでは入力ありにしない。
+		- 読んだ下書きの控えは umaCardEventInput:importDraft に置く（公開データにまだ無いカードを、入った日に当てはめるため）。
+		  当てはめの決まりは applyImportEntry() の上のコメント。
+		- 下書きのうち読む項目は許可したものだけ（cleanImportDoc()）。下書きの説明文（note）は読まない・出さない。
+
 		■ このページがしないこと
 		- **スキルにタグを付けない**（2026-09-24・74セッション目・第2回の段1 で撤去）。
 		  **タグの正本は、外部データの取得・整形の専用フォルダにあるマスターのブック**で、
@@ -158,6 +167,7 @@
 		<h2 class="cei-h2">使い方</h2>
 		<ol class="cei-steps">
 			<li><strong>このページは簡易サーバー経由で開いてください。</strong> ファイルを直接開く（<code>file://</code>）と、データを読み込めません。</li>
+			<li><strong>下書きのファイル</strong>があるときは、下の「下書きの読み込み」で選びます。下書きのあるカードは<strong>「下書き（未確認）」</strong>になり、開くと箱に下書きが入っています。ゲーム画面と見比べて違う所を直し、<strong>「ゲーム画面と見比べた」</strong>を押すと「入力あり」になります（押すまで出力には入りません）。</li>
 			<li>下の一覧でカードを探し、<strong>「入力する」</strong>を押します。<strong>「1回目」「2回目」「3回目」の箱</strong>が並びます。</li>
 			<li>スキルが得られた回の箱で<strong>「＋ スキル」</strong>を押し、名前の一部を入れて選びます。<strong>ヒントのレベル（Lv）</strong>は 1 が入るので、違えば直します。スキルの無い回は、箱を空のままにします（出力には書かれません）。</li>
 			<li>その回が<strong>選択肢で分かれる</strong>ときは、箱の見出しで「選択肢で分かれる」を選びます。「選択肢1」「選択肢2」の枠が出るので、<strong>ゲームの選択肢の上から順に</strong>入れます。スキルが得られない選択肢も、空のまま残します（番号をゲームとそろえるため）。選択肢の中で成功・失敗に分かれるときは「成功・失敗に分ける」を押します。</li>
@@ -175,6 +185,17 @@
 			貼り終わってから開き直すと、ファイル側に入った分は途中経過から自動で消えます。
 			ファイルに入っているカードは「直す」で入力に戻せます。
 		</p>
+	</div>
+
+	<div class="cei-panel" id="cei-import-panel">
+		<h2 class="cei-h2">下書きの読み込み</h2>
+		<div class="cei-bar">
+			<label class="uma-btn uma-btn--secondary cei-file">下書きのファイルを選ぶ<input id="cei-import-file" type="file" accept=".json,application/json" /></label>
+			<button id="cei-import-clear" type="button" class="uma-btn uma-btn--ghost">下書きを消す</button>
+			<span id="cei-import-info" class="cei-counts"></span>
+		</div>
+		<p id="cei-import-result" class="cei-note cei-import-result" hidden></p>
+		<p class="cei-note">読んだ下書きは、このブラウザの中にだけ置きます（どこにも送りません）。下書きから入れたカードは「下書き（未確認）」になり、「ゲーム画面と見比べた」を押すまで「入力あり」にならず、出力にも入りません。</p>
 	</div>
 
 	<div class="cei-panel">
@@ -228,6 +249,8 @@
 	var DRAFT_KEY = 'umaCardEventInput:draft2';
 	// キャラクター共通のイベントの途中経過（C-102 の区切り3）。キャラクター名 → 途中経過
 	var CHARA_DRAFT_KEY = 'umaCardEventInput:charaDraft';
+	// 読んだ下書きの控え（C-104）。形は下の「下書きの読み込み」のコメント
+	var IMPORT_KEY = 'umaCardEventInput:importDraft';
 	var FIND_DEBOUNCE_MS = 120;
 
 	/* 優先して入力するレアリティ（C-102 の決定(3)。このページに書いてよい、とおいもさんが決めた）。 */
@@ -251,7 +274,8 @@
 	var tab = 'card';      // 'card'（連続イベント）/ 'chara'（共通イベント）
 	var openCardId = '';   // いま開いているカード
 	var openChara = '';    // いま開いているキャラクター
-	var findAt = null;     // いまスキルを探している枠 { kind, id, step, c, r }
+	var findAt = null;     // いまスキルを探している枠 { kind, id, step, c, r, ri?, q? }（ri は置き換える位置・q は最初に入れる検索語）
+	var importStore = null;// 読んだ下書きの控え（無ければ null）
 	var findTimer = 0;
 
 	/* ---------- もう使わない置き場 ----------
@@ -292,7 +316,14 @@
 	 *   選択肢 … { skills: [ 参照, … ] }                 ← 成否に分かれない
 	 *            { results: [ [ 参照, … ], [ … ], … ] }  ← 結果が分かれる（先頭が成功）
 	 *   参照   … { skillId, hintLevel }
+	 *            下書きから来た「一覧に無い名前」だけは { skillId: null, name, hintLevel }（見比べる前に選び直すか外す）
 	 *   rows   … 画面に並べる回の数（「N回目を足す」で増やしたぶん。出力には出ない）
+	 * 下書きから入れたもの（C-104。どれも出力には出ない）:
+	 *   imported … true なら「下書き（未確認）」。「ゲーム画面と見比べた」で外す
+	 *   edited   … 下書きから入れたあと手を入れた（下書きを読み直しても置き換えない）
+	 *   eyeCheck … 目で確定するものの文（カードだけ）
+	 *   via      … その共通イベントを取ったグループのカードの id（キャラクターだけ）
+	 *   viaOthers… 同じキャラクターの下書きがほかにもあったグループのカードの id（入れたのは1つだけ。キャラクターだけ）
 	 *   stray  … 回が決まっていないスキル（前の画面で、回の番号を空のまま・同じ番号を2つ入れたもの。出力には出ない）
 	 *
 	 * **画面では「1回目・2回目・3回目」の箱を最初から並べる**（2026-09-27 の作り直し）。
@@ -378,6 +409,8 @@
 			var inFile = fileRows[id];
 			var d = draft[id];
 			if (!cards.some(function (c) { return c.id === id; })) { delete draft[id]; dropped++; return; }
+			// 下書き（未確認）はファイルと同じ中身でも消さない（ファイルの行を下書きで上書きして見比べ直すため。C-104 の決定6）
+			if (d.imported) return;
 			if (inFile && !(d.stray && d.stray.length) && JSON.stringify(entryOf('card', id, d).entry) === JSON.stringify(fileEntryOf('card', inFile))) {
 				delete draft[id]; dropped++;
 			}
@@ -385,6 +418,7 @@
 		Object.keys(charaDraft).forEach(function (name) {
 			var inFile = charaFileRows[name];
 			if (!charaOf(name)) { delete charaDraft[name]; dropped++; return; }
+			if (charaDraft[name].imported) return;
 			if (inFile && JSON.stringify(entryOf('chara', name, charaDraft[name]).entry) === JSON.stringify(fileEntryOf('chara', inFile))) {
 				delete charaDraft[name]; dropped++;
 			}
@@ -398,6 +432,9 @@
 		var sk = Core.findSkill(id);
 		return sk ? sk.name : '（引けません：' + id + '）';
 	}
+	/** 参照の表示名。下書きから来た「一覧に無い名前」（skillId が null）は、下書きの名前をそのまま出す。 */
+	function isUnlisted(ref) { return !!ref && !ref.skillId; }
+	function refName(ref) { return isUnlisted(ref) ? (ref.name || '（名前なし）') : skillNameOf(ref.skillId); }
 
 	/** **もう使わない置き場**に控えが残っていたら、起動時に1度だけ知らせる。**どれも消さない。** */
 	function noticeLegacyDrafts() {
@@ -443,6 +480,223 @@
 		return list;
 	}
 	function charaOf(name) { return charas.filter(function (x) { return x.name === name; })[0] || null; }
+
+	/* ==========================================================
+	 * 下書きの読み込み（C-104）
+	 *
+	 * 控え（umaCardEventInput:importDraft）の形:
+	 *   { loadedAt: 日時の文字列,
+	 *     cards:  { cardId: { chain: [ 回, … ], eyeCheck: [ 文, … ] } },
+	 *     charas: { キャラクター名: { events: [ { choices } … ], via: [ cardId ], viaOthers: [ cardId, … ] } },
+	 *     applied: { card: { id: true }, chara: { 名前: true } },   ← もう当てはめたもの（起動のたびに当て直さない）
+	 *     checked: { card: { id: true }, chara: { 名前: true } } }  ← このブラウザで「見比べた」を押したもの
+	 * 回・選択肢・参照の形は途中経過と同じ（参照は { skillId, hintLevel }、一覧に無い名前だけ { skillId: null, name, hintLevel }）。
+	 * ========================================================== */
+	function emptyMarks() { return { card: {}, chara: {} }; }
+	function loadImportStore() {
+		var v = readJson(IMPORT_KEY);
+		if (!v || typeof v.cards !== 'object' || typeof v.charas !== 'object' || !v.cards || !v.charas) { importStore = null; return; }
+		['applied', 'checked'].forEach(function (k) {
+			if (!v[k] || typeof v[k] !== 'object') v[k] = emptyMarks();
+			if (!v[k].card) v[k].card = {};
+			if (!v[k].chara) v[k].chara = {};
+		});
+		importStore = v;
+	}
+	function saveImportStore() {
+		try {
+			if (importStore) localStorage.setItem(IMPORT_KEY, JSON.stringify(importStore));
+			else localStorage.removeItem(IMPORT_KEY);
+		} catch (e) {
+			toast('下書きをこのブラウザに保存できませんでした（容量が足りない可能性があります）');
+		}
+	}
+	function clone(v) { return JSON.parse(JSON.stringify(v)); }
+
+	/**
+	 * 下書きのファイル → 控えの中身。**読む項目は許可したものだけ**（ほかの項目・説明文 note は読まない）。
+	 *   カード: cardId・chain（回: step・choices）・eyeCheck ／ キャラクター: charaName・events（choices）・viaCardId
+	 *   選択肢: skills か results ／ スキル: skillId・name・hintLevel
+	 * 参照できない独自ID は「一覧に無い名前」として持つ（名前は下書きのまま）。レベルは1以上の整数でなければ空。
+	 */
+	function cleanImportDoc(doc) {
+		if (!doc || typeof doc !== 'object' || (!Array.isArray(doc.chains) && !Array.isArray(doc.common))) {
+			throw new Error('下書きのファイルの形ではありません');
+		}
+		var cleanRef = function (s) {
+			if (!s || typeof s !== 'object') return null;
+			var name = typeof s.name === 'string' ? s.name.trim() : '';
+			var id = typeof s.skillId === 'string' && s.skillId ? s.skillId : null;
+			if (id && !Core.isReferableSkillId(id)) id = null;
+			if (!id && !name) return null;
+			var ref = { skillId: id, hintLevel: isPosInt(s.hintLevel) ? s.hintLevel : null };
+			if (!id) ref.name = name;
+			return ref;
+		};
+		var cleanList = function (l) { return (Array.isArray(l) ? l : []).map(cleanRef).filter(Boolean); };
+		var cleanChoices = function (list) {
+			var out = (Array.isArray(list) ? list : []).map(function (c) {
+				if (c && Array.isArray(c.results)) {
+					var rs = c.results.map(cleanList);
+					while (rs.length < 2) rs.push([]);
+					return { results: rs };
+				}
+				return { skills: cleanList(c && c.skills) };
+			});
+			return out.length ? out : [{ skills: [] }];
+		};
+		var out = { cards: {}, charas: {} };
+		(Array.isArray(doc.chains) ? doc.chains : []).forEach(function (e) {
+			if (!e || typeof e.cardId !== 'string' || !Array.isArray(e.chain) || out.cards[e.cardId]) return;
+			out.cards[e.cardId] = {
+				chain: e.chain.filter(function (st) { return st && isPosInt(st.step) && Array.isArray(st.choices); })
+					.map(function (st) { return { step: st.step, choices: cleanChoices(st.choices) }; }),
+				eyeCheck: (Array.isArray(e.eyeCheck) ? e.eyeCheck : []).filter(function (t) { return typeof t === 'string' && t; })
+			};
+		});
+		// 同じキャラクターの行が2つ以上あるとき（グループのカードの欄からも取った行）は、**そのキャラクター自身の行を使う**。
+		// 自身の行が無ければ、最初の行。ほかの行の取った先（グループのカード）は viaOthers に控えて、開いたときに1行出す。
+		var rowsByName = {};
+		var order = [];
+		(Array.isArray(doc.common) ? doc.common : []).forEach(function (e) {
+			if (!e || typeof e.charaName !== 'string' || !e.charaName || !Array.isArray(e.events)) return;
+			if (!rowsByName[e.charaName]) { rowsByName[e.charaName] = []; order.push(e.charaName); }
+			rowsByName[e.charaName].push(e);
+		});
+		var viaOf = function (e) { return typeof e.viaCardId === 'string' && e.viaCardId ? e.viaCardId : ''; };
+		order.forEach(function (name) {
+			var rows = rowsByName[name];
+			var main = rows.filter(function (e) { return !viaOf(e); })[0] || rows[0];
+			out.charas[name] = {
+				events: main.events.filter(function (ev) { return ev && Array.isArray(ev.choices); })
+					.map(function (ev) { return { choices: cleanChoices(ev.choices) }; }),
+				via: viaOf(main) ? [viaOf(main)] : [],
+				viaOthers: rows.filter(function (e) { return e !== main && viaOf(e); }).map(viaOf)
+			};
+		});
+		return out;
+	}
+
+	function importSource(kind) { return !importStore ? {} : (kind === 'chara' ? importStore.charas : importStore.cards); }
+	function knownOf(kind, id) { return kind === 'chara' ? !!charaOf(id) : !!cardOf(id); }
+	function draftFromImport(kind, src) {
+		var d = { status: 'done', imported: true };
+		if (kind === 'chara') {
+			d.events = clone(src.events);
+			if (src.via && src.via.length) d.via = src.via.slice();
+			if (src.viaOthers && src.viaOthers.length) d.viaOthers = src.viaOthers.slice();
+		} else {
+			d.chain = clone(src.chain);
+			if (src.eyeCheck && src.eyeCheck.length) d.eyeCheck = src.eyeCheck.slice();
+			normalizeDraft(d);
+		}
+		return d;
+	}
+	function markChecked(kind, id) {
+		if (!importStore) return;
+		importStore.checked[kind][id] = true;
+		saveImportStore();
+	}
+
+	/**
+	 * 1つのカード（キャラクター）に下書きを当てはめるかを決める（C-104 の決定4・6・7）。
+	 *   'empty'   … スキルが1つも無い下書き。当てはめない（「イベント無し」にもしない。決定7）
+	 *   'unknown' … 公開データにまだ無い。当てはめず、控えに残す（公開データに入った日の起動時に当てはめる。決定4）
+	 *   'replace' … 下書き（未確認）にする。前の下書きから来て手を入れていないもの・ファイルにだけあるもの・何も無いもの（決定6）
+	 *   'keep'    … 置き換えない。下書きから来て手を入れたもの・このブラウザの途中経過（手の入力・見比べたあと）・
+	 *               このブラウザで見比べ済みのもの（見比べた内容を、読み直しで戻さない）
+	 */
+	function importDecision(kind, id, src) {
+		if (!eventsOf(kind, src).some(function (e) { return countRefs(e) > 0; })) return 'empty';
+		if (!knownOf(kind, id)) return 'unknown';
+		var d = liveDraft(kind, id);
+		if (d && d.imported && !d.edited) return 'replace';
+		if (d) return 'keep';
+		if (importStore && importStore.checked[kind][id]) return 'keep';
+		return 'replace';
+	}
+	/** 当てはめる。戻り値は importDecision() と同じ語。'unknown' 以外は「当てはめ済み」に記録する。 */
+	function applyImportEntry(kind, id, src) {
+		var how = importDecision(kind, id, src);
+		if (how === 'replace') drafts(kind)[id] = draftFromImport(kind, src);
+		if (how !== 'unknown') importStore.applied[kind][id] = true;
+		return how;
+	}
+
+	/** 下書きのファイルを読んだとき。控えを新しい下書きに入れ替え、当てはめる。 */
+	function runImport(parsed) {
+		var prev = importStore;
+		importStore = {
+			loadedAt: new Date().toISOString(),
+			cards: parsed.cards, charas: parsed.charas,
+			applied: emptyMarks(),
+			checked: prev ? prev.checked : emptyMarks()
+		};
+		var tally = {};
+		['card', 'chara'].forEach(function (kind) {
+			var src = importSource(kind);
+			var t = tally[kind] = { replace: 0, keep: 0, empty: 0, unknown: [] };
+			// 前の下書きから来て手を入れていないもので、新しい下書きに無い（またはスキルが無くなった）ものは外す
+			var ds = drafts(kind);
+			Object.keys(ds).forEach(function (id) {
+				if (!ds[id] || !ds[id].imported || ds[id].edited) return;
+				if (!src[id] || !eventsOf(kind, src[id]).some(function (e) { return countRefs(e) > 0; })) delete ds[id];
+			});
+			Object.keys(src).forEach(function (id) {
+				var how = applyImportEntry(kind, id, src[id]);
+				if (how === 'unknown') t.unknown.push(id); else t[how]++;
+			});
+		});
+		saveImportStore();
+		saveDraft();
+		return tally;
+	}
+
+	/** 起動時。控えのうち、まだ当てはめていないもの（公開データに入ったばかりのカードなど）を当てはめる。 */
+	function applyPendingImports() {
+		if (!importStore) return 0;
+		var n = 0;
+		var changed = false;
+		['card', 'chara'].forEach(function (kind) {
+			var src = importSource(kind);
+			Object.keys(src).forEach(function (id) {
+				if (importStore.applied[kind][id] || !knownOf(kind, id)) return;
+				if (applyImportEntry(kind, id, src[id]) === 'replace') n++;
+				changed = true;
+			});
+		});
+		if (changed) { saveImportStore(); saveDraft(); }
+		return n;
+	}
+
+	function importedIds(kind) {
+		var ds = drafts(kind);
+		return Object.keys(ds).filter(function (id) { return ds[id] && ds[id].imported; });
+	}
+	function importResultText(t) {
+		var s = '下書きを読み込みました。カード ' + t.card.replace + '枚・キャラクター ' + t.chara.replace + '人を「下書き（未確認）」にしました。';
+		if (t.card.keep || t.chara.keep) {
+			s += '\n手で直したもの・このブラウザで見比べたものなど、カード ' + t.card.keep + '枚・キャラクター ' + t.chara.keep + '人は置き換えていません。';
+		}
+		var unknown = t.card.unknown.concat(t.chara.unknown);
+		if (unknown.length) {
+			s += '\n公開データにまだ無いカード・キャラクター ' + unknown.length + '件（' + unknown.join('・') + '）は、公開データに入ると一覧に出ます。';
+		}
+		if (t.card.empty || t.chara.empty) {
+			s += '\nスキルの無い下書き（カード ' + t.card.empty + '枚・キャラクター ' + t.chara.empty + '人）は、下書きが無いのと同じに扱いました。';
+		}
+		return s;
+	}
+	function renderImportInfo() {
+		var el = $('cei-import-info');
+		if (!el) return;
+		if (!importStore) { el.textContent = '下書きは読み込んでいません'; return; }
+		var at = new Date(importStore.loadedAt);
+		var p = function (n) { return (n < 10 ? '0' : '') + n; };
+		var when = isNaN(at.getTime()) ? '' : '（' + (at.getMonth() + 1) + '/' + at.getDate() + ' ' + p(at.getHours()) + ':' + p(at.getMinutes()) + ' に読み込み）';
+		el.textContent = '下書き：カード ' + Object.keys(importStore.cards).length + '枚・キャラクター ' + Object.keys(importStore.charas).length + '人' + when
+			+ '／下書き（未確認）：カード ' + importedIds('card').length + '枚・キャラクター ' + importedIds('chara').length + '人';
+	}
 
 	/* ---------- 回の形 ---------- */
 	// 'fixed'（確定＝選択肢なし）/ 'choice'（選択肢で分かれる）/ 'result'（結果で分かれる＝選択肢なし）
@@ -508,21 +762,22 @@
 
 	function stateOf(kind, id) {
 		var d = liveDraft(kind, id);
-		if (d) return d.status;
+		if (d) return d.imported ? 'imported' : d.status;
 		var row = fileRowsOf(kind)[id];
 		return row ? row.status : 'pending';
 	}
 	function isFromFile(kind, id) { return !!fileRowsOf(kind)[id] && !drafts(kind)[id]; }
 
-	var STATE_LABEL = { done: '入力あり', none: 'イベント無し', seeded: '取り込んだまま', pending: '未確認' };
-	var CHARA_STATE_LABEL = { done: '入力済み', none: 'イベント無し', seeded: '取り込んだまま', pending: '未入力' };
+	// imported … 下書きから入れて、まだゲーム画面と見比べていない（C-104）。出力には入らない
+	var STATE_LABEL = { done: '入力あり', imported: '下書き（未確認）', none: 'イベント無し', seeded: '取り込んだまま', pending: '未確認' };
+	var CHARA_STATE_LABEL = { done: '入力済み', imported: '下書き（未確認）', none: 'イベント無し', seeded: '取り込んだまま', pending: '未入力' };
 
 	/* ---------- 要約の1行 ----------
 	   例：「2回目：ここ一番 Lv1 ／ 3回目：突撃魂 Lv1・励声一番 Lv2」
 	   回と回の区切りは「 ／ 」、選択肢・結果どうしは「、」、スキルどうしは「・」。
 	   成功・失敗に分けた選択肢は「選択肢1［成功 スキルA Lv1｜失敗 なし］」。 */
 	function refsText(list) {
-		return (list || []).length ? list.map(function (r) { return skillNameOf(r.skillId) + ' Lv' + (r.hintLevel == null ? '?' : r.hintLevel); }).join('・') : 'なし';
+		return (list || []).length ? list.map(function (r) { return (isUnlisted(r) ? '⚠' : '') + refName(r) + ' Lv' + (r.hintLevel == null ? '?' : r.hintLevel); }).join('・') : 'なし';
 	}
 	function resultLabelInChoice(i) { return i === 0 ? '成功' : (i === 1 ? '失敗' : '結果' + (i + 1)); }
 	function splitText(choice) {
@@ -591,14 +846,14 @@
 	}
 
 	function renderCounts() {
-		var n = { done: 0, none: 0, seeded: 0, pending: 0 };
+		var n = { done: 0, imported: 0, none: 0, seeded: 0, pending: 0 };
 		if (tab === 'chara') {
 			charas.forEach(function (x) { var s = stateOf('chara', x.name); n[s] = (n[s] || 0) + 1; });
-			$('cei-counts').textContent = '全' + charas.length + '人：入力済み ' + n.done
+			$('cei-counts').textContent = '全' + charas.length + '人：入力済み ' + n.done + ' / 下書き（未確認） ' + n.imported
 				+ ' / イベント無し ' + n.none + ' / 取り込んだまま ' + n.seeded + ' / 未入力 ' + n.pending;
 		} else {
 			cards.forEach(function (c) { var s = stateOf('card', c.id); n[s] = (n[s] || 0) + 1; });
-			$('cei-counts').textContent = '全' + cards.length + '枚：入力あり ' + n.done
+			$('cei-counts').textContent = '全' + cards.length + '枚：入力あり ' + n.done + ' / 下書き（未確認） ' + n.imported
 				+ ' / イベント無し ' + n.none + ' / 取り込んだまま ' + n.seeded + ' / 未確認 ' + n.pending;
 		}
 		$('cei-focus-note').hidden = hasRarity();
@@ -617,12 +872,17 @@
 		if (title) h += '<div class="cei-frame-title">' + esc(title) + '</div>';
 		h += '<div class="cei-chips">';
 		(list || []).forEach(function (ref, i) {
-			h += '<span class="cei-chip">' + esc(skillNameOf(ref.skillId))
+			var nm = refName(ref);
+			var unlisted = isUnlisted(ref);
+			// 一覧に無い名前（下書きから来たもの。C-104）は、印と「ほかから選ぶ」を付ける。選び直すか外すまで見比べられない
+			h += '<span class="cei-chip' + (unlisted ? ' cei-chip--unlisted' : '') + '"' + (unlisted ? ' data-unlisted="1"' : '') + '>'
+				+ (unlisted ? '⚠ ' + esc(nm) + '<span class="cei-faint">（一覧に無い名前）</span>' : esc(nm))
 				+ '<label class="cei-lv">Lv<input type="number" min="1" step="1" class="uma-input cei-lv-input" value="'
 				+ esc(ref.hintLevel == null ? '' : ref.hintLevel) + '" data-act="lv"' + attrs(da) + ' data-i="' + i + '" aria-label="'
-				+ esc(skillNameOf(ref.skillId)) + ' のヒントのレベル" /></label>'
+				+ esc(nm) + ' のヒントのレベル" /></label>'
+				+ (unlisted ? '<button type="button" class="cei-link" data-act="find-replace"' + attrs(da) + ' data-i="' + i + '">ほかから選ぶ</button>' : '')
 				+ '<button type="button" class="uma-icon-btn cei-chip-x" data-act="drop"' + attrs(da) + ' data-i="' + i + '" aria-label="'
-				+ esc(skillNameOf(ref.skillId)) + ' を外す">×</button></span>';
+				+ esc(nm) + ' を外す">×</button></span>';
 		});
 		// 空の枠の「なし」は、選択肢・結果の枠でだけ出す（確定の回は見出しの「スキルなし」で足りる）
 		if (!(list || []).length && (title || cls)) h += '<span class="cei-faint">なし</span>';
@@ -710,6 +970,7 @@
 		var d = drafts(kind)[id] || emptyDraft(kind);
 		var who = { kind: kind, card: id };
 		var h = '<div class="cei-body">';
+		if (d.imported) h += importedNoteHtml(kind, id, d);
 		if (d.status === 'none') {
 			h += '<p class="cei-note">' + (kind === 'chara' ? 'このキャラクター' : 'このカード') + 'は「イベント無し」（イベントでスキルを得ない）として記録しています。</p>';
 			h += '<div><button type="button" class="uma-btn uma-btn--secondary" data-act="undo-none"' + attrs(who) + '>スキルを入力する</button></div>';
@@ -729,6 +990,12 @@
 			h += '</div>';
 			var problems = problemsOf(kind, d);
 			if (problems.length) h += '<ul class="cei-problems">' + problems.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul>';
+			// 下書き（未確認）は「見比べた」を押すまで入力ありにしない。足りないものがある間は押せない（押したのに出力に入らない、を無くす）
+			if (d.imported) {
+				h += '<div class="cei-check-row"><button type="button" class="uma-btn uma-btn--primary" data-act="check"' + attrs(who)
+					+ (problems.length ? ' disabled' : '') + '>ゲーム画面と見比べた</button>'
+					+ (problems.length ? '<span class="cei-faint">上の赤字を直すと押せます</span>' : '') + '</div>';
+			}
 		}
 		var subject = kind === 'chara' ? 'このキャラクター' : 'このカード';
 		h += '<div class="cei-card-foot">';
@@ -737,6 +1004,28 @@
 		h += '</div>';
 		h += '</div>';
 		return h;
+	}
+
+	/** 下書き（未確認）を開いたときの説明の枠（C-104）。 */
+	function importedNoteHtml(kind, id, d) {
+		var h = '<div class="cei-imported">';
+		h += '<p class="cei-imported-lead">下書きから入れた内容です。ゲーム画面と見比べて違う所を直してから、下の「ゲーム画面と見比べた」を押してください。'
+			+ '押すまで「' + (kind === 'chara' ? CHARA_STATE_LABEL.done : STATE_LABEL.done) + '」にならず、出力にも入りません。</p>';
+		if (d.eyeCheck && d.eyeCheck.length) h += '<p class="cei-eye-note">⚠ 目で確定するもの：' + esc(eyeCheckText(d.eyeCheck)) + '</p>';
+		var cardsText = function (ids) { return ids.map(function (cid) { var c = cardOf(cid); return c ? Core.formatEntryLabel(c) : cid; }).join('・'); };
+		if (d.via && d.via.length) h += '<p class="cei-note">グループのカード ' + cardsText(d.via) + ' の欄から取った下書きです。</p>';
+		if (d.viaOthers && d.viaOthers.length) {
+			h += '<p class="cei-note">グループのカード ' + cardsText(d.viaOthers) + ' の欄にも、このキャラクターの下書きがありました'
+				+ '（ここには' + (d.via && d.via.length ? '最初の欄' : 'このキャラクター自身の欄') + 'の下書きを入れています）。</p>';
+		}
+		if (fileRowsOf(kind)[id]) h += '<p class="cei-note">ファイルに入っている内容は、見比べるまで出力にそのまま残ります。</p>';
+		if (d.edited) h += '<p class="cei-note">下書きから直したところがあります（下書きを読み直しても、' + (kind === 'chara' ? 'このキャラクター' : 'このカード') + 'は置き換えません）。</p>';
+		h += '</div>';
+		return h;
+	}
+	/** 目で確定するものの文。**下書きの側の番号「(1)」などは外す**（下書きを作る側の中の番号で、読む人には意味が無い）。 */
+	function eyeCheckText(list) {
+		return list.map(function (t) { return String(t).replace(/^\s*[（(]\s*\d+\s*[)）]\s*/, ''); }).join(' ／ ');
 	}
 
 	/** カードを開いたときに出す「共通イベント：○○（入力済み）」の1行。押すとキャラクターのタブのその人へ移る。 */
@@ -761,7 +1050,9 @@
 		h += '<div class="cei-head">';
 		h += '<span class="cei-label">' + esc(Core.formatEntryLabel(card))
 			+ (rarityOf(card) ? ' <span class="cei-counts">' + esc(rarityOf(card)) + (card.isGroup ? '・グループ' : '') + '</span>' : '')
-			+ ' <span class="uma-badge' + (st === 'done' ? ' uma-badge--accent' : (st === 'none' ? '' : ' uma-badge--warn')) + '">' + STATE_LABEL[st] + '</span></span>';
+			+ ' <span class="uma-badge' + (st === 'done' ? ' uma-badge--accent' : (st === 'none' ? '' : ' uma-badge--warn')) + '">' + STATE_LABEL[st] + '</span>'
+			+ (st === 'imported' && (draft[card.id].eyeCheck || []).length ? ' <span class="uma-badge uma-badge--warn cei-eye">目で確定</span>' : '')
+			+ '</span>';
 		if (locked) {
 			h += '<span class="cei-counts">ファイルに入っています</span>';
 			h += '<button type="button" class="uma-btn uma-btn--ghost" data-act="edit-file" data-kind="card" data-card="' + esc(card.id) + '">直す</button>';
@@ -846,6 +1137,8 @@
 			// **preventScroll を付ける。** そのまま focus() すると画面がそこまで送られる（C-65）。
 			var input = document.querySelector('[data-act="find"]');
 			if (input) { try { input.focus({ preventScroll: true }); } catch (e) { input.focus(); } }
+			// 「ほかから選ぶ」で開いたときは、一覧に無い名前を検索語に入れておく（1回だけ）
+			if (input && findAt.q) { input.value = findAt.q; renderHits(findAt.q); findAt.q = ''; }
 		}
 	}
 
@@ -865,9 +1158,11 @@
 				bucketsOf(choice).forEach(function (list) {
 					var ids = {};
 					(list || []).forEach(function (ref) {
-						if (!isPosInt(ref.hintLevel)) out.push(label + '：' + where + skillNameOf(ref.skillId) + ' のレベル（1以上の整数）が入っていません');
-						if (ids[ref.skillId]) out.push(label + '：' + where + skillNameOf(ref.skillId) + ' が同じ所に2回あります');
-						ids[ref.skillId] = true;
+						if (isUnlisted(ref)) out.push(label + '：' + where + refName(ref) + ' は一覧に無い名前です（「ほかから選ぶ」で選び直すか、外してください）');
+						if (!isPosInt(ref.hintLevel)) out.push(label + '：' + where + refName(ref) + ' のレベル（1以上の整数）が入っていません');
+						var key = isUnlisted(ref) ? '?' + refName(ref) : ref.skillId;
+						if (ids[key]) out.push(label + '：' + where + refName(ref) + ' が同じ所に2回あります');
+						ids[key] = true;
 					});
 				});
 			});
@@ -968,7 +1263,8 @@
 		var ids = kind === 'chara' ? charas.map(function (x) { return x.name; }) : cards.map(function (c) { return c.id; });
 		ids.forEach(function (id) {
 			var d = liveDraft(kind, id);
-			if (!d) return;
+			// 下書き（未確認）は出力に入れない。ファイルに行があれば、見比べるまでそのまま残る（C-104）
+			if (!d || d.imported) return;
 			if (problemsOf(kind, d).length) { held.push(kind === 'chara' ? id : Core.formatEntryLabel(cards.filter(function (c) { return c.id === id; })[0])); return; }
 			var r = entryOf(kind, id, d);
 			unresolved = unresolved.concat(r.unresolved);
@@ -996,10 +1292,17 @@
 			warn.hidden = lines.length === 0;
 			warn.textContent = lines.join('\n');
 		});
-		var n = Object.keys(draft).length;
-		var m = Object.keys(charaDraft).length;
-		$('cei-draft-info').textContent = n > 0 ? 'このブラウザに ' + n + '枚ぶんの途中経過があります' : '途中経過はありません';
-		$('cei-draft-info-b').textContent = m > 0 ? 'このブラウザに ' + m + '人ぶんの途中経過があります' : '途中経過はありません';
+		var info = function (all, unit) {
+			var ids = Object.keys(all);
+			var imp = ids.filter(function (id) { return all[id] && all[id].imported; }).length;
+			var n = ids.length - imp;
+			if (!ids.length) return '途中経過はありません';
+			return 'このブラウザに ' + (n > 0 ? n + unit + 'ぶんの途中経過' : '')
+				+ (n > 0 && imp > 0 ? 'と、' : '') + (imp > 0 ? '下書き（未確認）' + imp + unit : '') + 'があります';
+		};
+		$('cei-draft-info').textContent = info(draft, '枚');
+		$('cei-draft-info-b').textContent = info(charaDraft, '人');
+		renderImportInfo();
 	}
 
 	/* ---------- 形の切り替え ---------- */
@@ -1040,6 +1343,8 @@
 		var ds = drafts(kind);
 		var WRITES = ['form', 'split', 'add-choice', 'drop-choice', 'add-result', 'drop-result', 'add-row', 'drop-row', 'drop', 'stray-move', 'stray-drop'];
 		var d = !id ? null : (WRITES.indexOf(act) !== -1 ? ensureDraft(kind, id) : ds[id]);
+		// 下書き（未確認）に手を入れたら印を付ける（読み直しても置き換えない。まだ入力ありにはしない。C-104）
+		if (d && d.imported && WRITES.indexOf(act) !== -1) d.edited = true;
 		var evt = d && at.step > 0 ? eventAt(kind, d, at.step) : null;
 		var subject = kind === 'chara' ? 'このキャラクター' : 'このカード';
 		if (act === 'tab') {
@@ -1066,9 +1371,25 @@
 		} else if (act === 'none') {
 			if (d && d.status === 'done' && (eventsOf(kind, d).some(function (e) { return countRefs(e) > 0; }) || (d.stray && d.stray.length))
 				&& !confirm('入れてあるスキルを消して、' + subject + 'を「イベント無し」にします。よろしいですか。')) return;
+			// 下書き（未確認）からでも「イベント無し」は明示の判断なので、見比べ済みとして扱う（読み直しで戻さない）
+			if (d && d.imported) markChecked(kind, id);
 			ds[id] = { status: 'none' };
 			findAt = null;
 			toast('「イベント無し」として記録しました');
+		} else if (act === 'check') {
+			if (!d || !d.imported || problemsOf(kind, d).length) return;
+			if (d.eyeCheck && d.eyeCheck.length
+				&& !confirm('目で確定するものです。ゲーム画面の形と同じですか。\n（' + eyeCheckText(d.eyeCheck) + '）')) return;
+			delete d.imported; delete d.edited; delete d.eyeCheck; delete d.via; delete d.viaOthers;
+			markChecked(kind, id);
+			findAt = null;
+			toast('見比べた内容を「' + (kind === 'chara' ? CHARA_STATE_LABEL.done : STATE_LABEL.done) + '」にしました');
+		} else if (act === 'find-replace') {
+			// 一覧に無い名前を選び直す。いまの「＋ スキル」の検索を、その名前を入れた状態で開く
+			var cur = bucketAt(at, false);
+			var old = cur && cur[numAttr(btn, 'i')];
+			if (!old) return;
+			findAt = { kind: at.kind, id: at.id, step: at.step, c: at.c, r: at.r, ri: numAttr(btn, 'i'), q: refName(old) };
 		} else if (act === 'undo-none') {
 			ds[id] = kind === 'chara' ? { status: 'done', events: [] } : { status: 'done', chain: [] };
 		} else if (act === 'reset') {
@@ -1115,6 +1436,17 @@
 		} else if (act === 'pick') {
 			var list = findAt ? bucketAt(findAt, true) : null;
 			var sid = btn.getAttribute('data-skill');
+			var picked = findAt ? drafts(findAt.kind)[findAt.id] : null;
+			if (picked && picked.imported) picked.edited = true;
+			var target = list && findAt.ri >= 0 ? list[findAt.ri] : null;
+			if (target && isUnlisted(target)) {
+				// 一覧に無い名前の置き換え：同じ場所に、同じレベルで入れる（すでにあれば一覧に無い名前を外すだけ）
+				if (list.some(function (s) { return s.skillId === sid; })) list.splice(findAt.ri, 1);
+				else list[findAt.ri] = { skillId: sid, hintLevel: target.hintLevel };
+				findAt = null;
+				saveDraft(); render();
+				return;
+			}
 			// レベルは足した時点で 1 を入れておく（違えばその場で直す）
 			if (list && !list.some(function (s) { return s.skillId === sid; })) list.push({ skillId: sid, hintLevel: 1 });
 			saveDraft();
@@ -1145,9 +1477,12 @@
 	document.addEventListener('change', function (ev) {
 		var el = ev.target;
 		if (!el.getAttribute || el.getAttribute('data-act') !== 'lv') return;
-		var list = bucketAt(atOf(el), false);
+		var at = atOf(el);
+		var list = bucketAt(at, false);
 		var ref = list && list[numAttr(el, 'i')];
 		if (!ref) return;
+		var owner = drafts(at.kind)[at.id];
+		if (owner && owner.imported) owner.edited = true;
 		ref.hintLevel = el.value === '' ? null : Number(el.value);
 		saveDraft(); render();
 	});
@@ -1189,6 +1524,45 @@
 			draft = {}; openCardId = ''; findAt = null;
 			saveDraft(); render();
 		});
+		// 下書きの読み込み（C-104）。**ファイルはこのブラウザの中で読むだけで、どこにも送らない。**
+		$('cei-import-file').addEventListener('change', function (ev) {
+			var input = ev.target;
+			var file = input.files && input.files[0];
+			if (!file) return;
+			var reader = new FileReader();
+			reader.onload = function () {
+				input.value = ''; // 同じファイルをもう1度選べるように
+				var parsed;
+				try { parsed = cleanImportDoc(JSON.parse(String(reader.result || ''))); }
+				catch (e) { toast('下書きを読めませんでした：' + (e && e.message ? e.message : e)); return; }
+				var t = runImport(parsed);
+				var res = $('cei-import-result');
+				res.textContent = importResultText(t);
+				res.hidden = false;
+				findAt = null;
+				render();
+				toast('下書きを読み込みました');
+			};
+			reader.onerror = function () { input.value = ''; toast('下書きのファイルを読めませんでした'); };
+			reader.readAsText(file, 'utf-8');
+		});
+		$('cei-import-clear').addEventListener('click', function () {
+			var nc = importedIds('card').length;
+			var nh = importedIds('chara').length;
+			if (!importStore && nc === 0 && nh === 0) { toast('下書きはありません'); return; }
+			if (!confirm('読み込んだ下書きと、まだ見比べていない下書き（カード ' + nc + '枚・キャラクター ' + nh + '人。手で直したものも含みます）を消します。'
+				+ '見比べたもの・手で入れたものは残します。よろしいですか。')) return;
+			importedIds('card').forEach(function (id) { delete draft[id]; });
+			importedIds('chara').forEach(function (name) { delete charaDraft[name]; });
+			if (openCardId && !draft[openCardId]) openCardId = '';
+			if (openChara && !charaDraft[openChara]) openChara = '';
+			importStore = null;
+			saveImportStore();
+			$('cei-import-result').hidden = true;
+			findAt = null;
+			saveDraft(); render();
+			toast('下書きを消しました');
+		});
 		$('cei-clear-b').addEventListener('click', function () {
 			if (!confirm('このブラウザに残っている「キャラクター（共通イベント）」の途中経過を、すべてのキャラクターぶん捨てます。よろしいですか。')) return;
 			charaDraft = {}; openChara = ''; findAt = null;
@@ -1216,7 +1590,11 @@
 			charas = buildCharas();
 			loadDraft();
 			var dropped = pruneDrafts();
+			// 読んだ下書きの控えのうち、公開データに入ったばかりのカードなどを当てはめる（C-104 の決定4）
+			loadImportStore();
+			var appliedNow = applyPendingImports();
 			render();
+			if (appliedNow > 0) toast('公開データに入ったカードなど ' + appliedNow + '件の下書きを「下書き（未確認）」にしました');
 			if (cards.length === 0) {
 				$('cei-counts').textContent = 'カードを読み込めませんでした（簡易サーバー経由で開いていますか）';
 			} else if (dropped > 0) {
