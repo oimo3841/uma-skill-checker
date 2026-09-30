@@ -11663,6 +11663,22 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	assert(afterClick.checkedCount === '0種選択' && afterClick.greyChecked === false,
 		'段3b①: 除外中の行を押しても選択に入らない', { checkedCount: afterClick.checkedCount });
 
+	/* 見た目（commit 2）: グレーアウトは**色**で表す（opacity は使わない。恒久ルール9）。理由は名前より濃い補助色 */
+	assert(s1.reasons[0] === '本育成で得るため除外中', '段3b①: 理由の文言は「本育成で得るため除外中」', s1.reasons[0]);
+	const look = await page.evaluate(() => {
+		const grey = document.querySelector('[data-usd-el="results"] [data-usd-excluded="1"]');
+		const normal = document.querySelector('[data-usd-el="results"] label.usd-row:not([data-usd-excluded])');
+		const cs = (e) => getComputedStyle(e);
+		const reason = grey.querySelector('[data-usd-el="excluded-reason"]');
+		return { greyColor: cs(grey).color, normalColor: cs(normal).color, greyOpacity: cs(grey).opacity, inputOpacity: cs(grey.querySelector('input')).opacity, reasonOpacity: cs(reason).opacity,
+			reasonColor: cs(reason).color, cursor: cs(grey).cursor, normalCursor: cs(normal).cursor };
+	});
+	assert(look.greyColor !== look.normalColor && look.reasonColor !== look.greyColor && look.greyColor !== look.reasonColor,
+		'段3b見た目: 除外中の行は名前の色が通常と違い（グレーアウト）、理由は名前とも違う色', look);
+	assert(look.greyOpacity === '1' && look.inputOpacity === '1' && look.reasonOpacity === '1',
+		'段3b見た目: グレーアウトは opacity を使わない（色だけで表す。sticky を使う表と同じ規則）', look);
+	assert(look.cursor === 'default' && look.normalCursor === 'pointer', '段3b見た目: 除外中の行はカーソルが押せる形にならない', look);
+
 	/* --- ② 「N件」に除外中を含めず、「除外中 M件」が別に出る --- */
 	assert(s1.count === (base0.activeIds.length - 3) + '件' && s1.activeIds.length === base0.activeIds.length - 3,
 		'段3b②: 「N件」は除外中の行を含めない', { count: s1.count, active: s1.activeIds.length, base: base0.activeIds.length });
@@ -11767,8 +11783,8 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	await openPassive();
 	const p1 = await passiveState();
 	assert(p1.total === passive.length && p1.greyIds.length === 3 && ph.every((id) => p1.greyIds.includes(id)) && p1.greyDisabled
-		&& p1.label === '除外中 3件' && p1.reasons.every((t) => t === s1.reasons[0]),
-		'段3b⑦: 緑スキルの一覧でも除外中は消えずにグレーアウト・チェック不可・同じ理由で、「除外中 3件」が出る', p1);
+		&& p1.label === '除外中 3種' && p1.reasons.every((t) => t === s1.reasons[0]),
+		'段3b⑦: 緑スキルの一覧でも除外中は消えずにグレーアウト・チェック不可・同じ理由で、「除外中 3種」が出る（単位は緑スキルの一覧の「種」）', p1);
 	await page.click('[data-usd-el="passive-results"] [data-usd-excluded="1"] >> nth=0', { force: true });
 	await page.waitForTimeout(200);
 	assert((await page.evaluate(() => window.__smokeAdded.length)) === 0,
@@ -11776,8 +11792,8 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	// 追加済み（チェックが入っている）ものは、除外中でも普通の行のまま（外せなくならない）
 	await openPassive([ph[0]]);
 	const p2 = await passiveState();
-	assert(!p2.greyIds.includes(ph[0]) && p2.checkedNormal.includes(ph[0]) && p2.greyIds.length === 2 && p2.label === '除外中 2件',
-		'段3b⑦: 追加済みの緑スキルは、除外中でも普通の行のまま（外せる）。除外中は2件に減る', p2);
+	assert(!p2.greyIds.includes(ph[0]) && p2.checkedNormal.includes(ph[0]) && p2.greyIds.length === 2 && p2.label === '除外中 2種',
+		'段3b⑦: 追加済みの緑スキルは、除外中でも普通の行のまま（外せる）。除外中は2種に減る', p2);
 	await page.setViewportSize({ width: 375, height: 800 });
 	await page.waitForTimeout(300);
 	await openPassive();

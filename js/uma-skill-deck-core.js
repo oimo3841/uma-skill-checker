@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30f';
 
 	/* ============================================================
 	 * 定数
@@ -2099,6 +2099,13 @@
 		'.usd-row { display: flex; align-items: center; gap: var(--uma-sp-2); padding: var(--uma-sp-1-5) var(--uma-sp-3);',
 		'  font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); border-bottom: 1px solid var(--uma-surface-muted); cursor: pointer; }',
 		'.usd-row:hover { background: var(--uma-surface-sunken); }',
+		// 除外中の行（段3b）。**色で表す**（opacity は使わない）。理由は読めるよう、名前より濃い補助色にする。
+		// 狭い幅では理由が名前の下へ折り返す（はみ出さない）。
+		'.usd-row--excluded { flex-wrap: wrap; color: var(--uma-text-faint); cursor: default; }',
+		'.usd-row--excluded:hover { background: transparent; }',
+		'.usd-row--excluded input { cursor: default; }',
+		'.usd-row-reason { margin-left: auto; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		'.usd-excluded-count { margin-left: var(--uma-sp-2); font-weight: 600; color: var(--uma-text-subtle); }',
 		'.usd-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
 		// 既存の .glass-card 相当（テンプレート編集パネル・モーダルの下地）
 		'.usd-modal { position: fixed; inset: 0; background: rgba(15,23,42,.4); z-index: 80; display: flex; align-items: flex-end; justify-content: center; }',
@@ -2814,7 +2821,7 @@
 	// 「本育成スキルを除外する」を押している間、編成で得られる●のスキルを追加の一覧で選べなくするときの理由の文言。
 	// **一覧から消さず、出したうえで選べなくして、理由を添える**（段3b・2026-09-30）。
 	// 「条件で検索」「緑スキルを追加」「名前を入れて探す」の3か所が同じ文言を使うので、ここ1か所に置く。
-	const PICKER_EXCLUDED_REASON = 'この編成で得られます';
+	const PICKER_EXCLUDED_REASON = '本育成で得るため除外中';
 
 	const PICKER_MODES = {
 		// 71セッション目・段6: 「条件でスキルを検索」→「条件で検索」（利用者向けの文言だけ。
@@ -3547,11 +3554,15 @@
 		return pickerHiddenIds.indexOf(skillId) !== -1;
 	}
 
-	/** 「除外中 M件」の表示を合わせる。M が0のときは出さない。 */
-	function setExcludedCountLabel(el, count) {
+	/**
+	 * 「除外中 M件」の表示を合わせる。M が0のときは出さない。
+	 * 単位は**その一覧の数え方に合わせる**: 「条件で検索」は「絞り込み結果（N件）」なので「件」、
+	 * 「緑スキルを追加」は「（このうちN種が追加済み）」や①のバッジ「除外N種」と同じ「種」。
+	 */
+	function setExcludedCountLabel(el, count, unit) {
 		if (!el) return;
 		el.hidden = count <= 0;
-		el.textContent = count > 0 ? '除外中 ' + count + '件' : '';
+		el.textContent = count > 0 ? '除外中 ' + count + unit : '';
 	}
 
 	/** 除外中の行（グレーアウト・チェックできない・理由つき）。条件で検索と緑スキルの一覧で共通。 */
@@ -3607,7 +3618,7 @@
 		const filtered = rows.filter(r => !r.excluded).map(r => r.skill);
 		const excludedCount = rows.length - filtered.length;
 		q(pickerEl, 'result-count').textContent = filtered.length + '件';
-		setExcludedCountLabel(q(pickerEl, 'result-excluded'), excludedCount);
+		setExcludedCountLabel(q(pickerEl, 'result-excluded'), excludedCount, '件');
 		const selectAllBox = pickerEl.querySelector('[data-usd-act="picker-select-all"]');
 		if (selectAllBox) selectAllBox.checked = filtered.length > 0 && filtered.every(s => picker.checked.has(s.id));
 		updatePickerCommitState();
@@ -3673,7 +3684,7 @@
 		 * **すでに追加済み（チェックが入っている）ものは普通の行のまま** ―― 無効にすると、外す操作までできなくなる。
 		 * 実データでも編成の●に緑スキルは入る（練習のヒント・育成ウマ娘の覚醒・イベントのいずれにも）ので、この一覧でも効かせる。 */
 		const isExcludedRow = (s) => !chosen.has(s.id) && isPickerExcluded(s.id);
-		setExcludedCountLabel(q(pickerEl, 'passive-excluded'), list.filter(isExcludedRow).length);
+		setExcludedCountLabel(q(pickerEl, 'passive-excluded'), list.filter(isExcludedRow).length, '種');
 		el.innerHTML = list.map(s => isExcludedRow(s)
 			? excludedRowHtml(s, 'passive-check-excluded')
 			: '<label class="usd-row">' +
