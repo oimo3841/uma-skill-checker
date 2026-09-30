@@ -11456,6 +11456,127 @@ await block('card-event-input.html ―― 下書きの読み込み（C-104）', 
 	await ctx.close();
 }
 });
+
+/* ============================================================
+ * グループのサポートカードの名前（2026-09-30）
+ *
+ * グループのカードの正式な名称はキャラクター名ではなくグループのサポートカード名（data の groupName）。
+ * 見ること：
+ *   - core：groupName のあるグループのカードは「[二つ名]groupName」と「groupName」。グループでないカードは今までどおり
+ *     「[二つ名]charaName」と「charaName」。groupName の無いグループのカード・グループでないのに groupName を持つ行は今までどおり
+ *   - charaName（代表者）の使い方は変わらない（共通イベントが当てはまるのは今までどおり groupMembers の全員）
+ *   - special の編成パネル：カードを選ぶ画面の候補・選んだ枠・表の列の見出し・凡例
+ *   - 入力のページの一覧の見出し
+ * カード名・グループ名は書かない（データから拾う）。
+ * ============================================================ */
+await block('グループのサポートカードの名前（2026-09-30）', async () => {
+{
+	const cardsDoc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/support-cards.json'), 'utf8'));
+	const groups = cardsDoc.entries.filter((c) => c.isGroup === true && typeof c.groupName === 'string' && c.groupName);
+	const G = groups[0];
+	const N = cardsDoc.entries.find((c) => c.isGroup === false && c.rarity === 'SSR');
+	assert(groups.length > 0 && G && N, '名前(0): groupName のあるグループのカードと、グループでない SSR のカードがデータにある', { groups: groups.length });
+
+	/* --- core --- */
+	{
+		const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
+		const res = await page.evaluate(async () => {
+			const Core = window.UmaSkillDeckCore;
+			await Core.loadTrainingSources(false);
+			const cards = Core.getTrainingSources().supportCard.entries;
+			const bad = [];
+			// 短い名前（formatEntryShortLabel）は公開していないので、下の編成パネルの画面で見る
+			cards.forEach((c) => {
+				const name = c.isGroup === true && c.groupName ? c.groupName : c.charaName;
+				const wantLabel = '[' + c.title + ']' + name;
+				if (Core.formatEntryLabel(c) !== wantLabel) bad.push({ id: c.id, label: Core.formatEntryLabel(c), want: wantLabel });
+			});
+			const g = cards.find((c) => c.isGroup === true && c.groupName);
+			const noName = Object.assign({}, g); delete noName.groupName;
+			const fakeSolo = Object.assign({}, cards.find((c) => c.isGroup === false), { groupName: '（検査用）グループ名' });
+			return {
+				bad, groups: cards.filter((c) => c.isGroup === true && c.groupName).length,
+				noName: [Core.formatEntryLabel(noName), '[' + g.title + ']' + g.charaName],
+				fakeSolo: [Core.formatEntryLabel(fakeSolo), '[' + fakeSolo.title + ']' + fakeSolo.charaName],
+				members: [Core.charactersOfCard(g).join(), g.groupMembers.join()],
+			};
+		});
+		assert(res.bad.length === 0 && res.groups === groups.length,
+			'名前(1): グループのカードは「[二つ名]groupName」、グループでないカードは今までどおり「[二つ名]charaName」（全' + cardsDoc.entries.length + '枚）', res.bad.slice(0, 3));
+		assert(res.noName[0] === res.noName[1],
+			'名前(2): groupName の無いグループのカードは、今までどおり代表者の名前で出る', res.noName);
+		assert(res.fakeSolo[0] === res.fakeSolo[1],
+			'名前(2): グループでないカードは、groupName を持っていても使わない', res.fakeSolo);
+		assert(res.members[0] === res.members[1], '名前(3): 共通イベントが当てはまるキャラクターは今までどおり groupMembers の全員', res.members);
+		assert(errors.length === 0, '名前: コンソールエラーなし（core）', errors.slice(0, 3));
+		await ctx.close();
+	}
+
+	/* --- special の編成パネル ---
+	   2枚目のグループのカード（G2）だけ groupName を外した写しを取得の途中で渡し、名前の無いグループのカードが
+	   今までどおり代表者の名前で出ることも画面で見る */
+	const G2 = groups[1];
+	{
+		const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+		const altered = JSON.parse(JSON.stringify(cardsDoc));
+		delete altered.entries.find((c) => c.id === G2.id).groupName;
+		await page.route('**/data/support-cards.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(altered) }));
+		await page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 3; i++) if (await page.isVisible('#ui-notice')) { await page.click('[data-act="notice-ok"]'); await page.waitForTimeout(300); }
+		await page.evaluate(() => selectStepTab(0));
+		await page.waitForTimeout(400);
+		const take = async (slot, c) => {
+			await page.click('#deck-roster-panel [data-usd-act="pick-card"][data-index="' + slot + '"]');
+			await page.waitForTimeout(300);
+			await page.fill('[data-usd-el="roster-modal-host"] [data-usd-el="find"]', c.title);
+			await page.waitForTimeout(300);
+			const btn = '[data-usd-el="roster-modal-host"] [data-usd-act="take"][data-entry-id="' + c.id + '"]';
+			const text = (await page.textContent(btn)).trim();
+			await page.click(btn);
+			await page.waitForTimeout(500);
+			return text;
+		};
+		const hitG = await take(0, G);
+		const hitN = await take(1, N);
+		const hitG2 = await take(2, G2);
+		const look = await page.evaluate(() => {
+			const panel = document.getElementById('deck-roster-panel');
+			const slot = (i) => panel.querySelector('[data-usd-act="pick-card"][data-index="' + i + '"]').textContent.trim();
+			return { slot0: slot(0), slot1: slot(1), slot2: slot(2),
+				heads: Array.from(panel.querySelectorAll('.usd-roster-gh-name')).map((e) => e.textContent), text: panel.textContent };
+		});
+		assert(hitG2 === '[' + G2.title + ']' + G2.charaName && look.slot2.includes(G2.charaName) && look.heads.includes(G2.charaName),
+			'名前(2): groupName の無いグループのカードは、候補・選んだ枠・列の見出しとも今までどおり代表者の名前', { hitG2, slot2: look.slot2 });
+		assert(hitG === '[' + G.title + ']' + G.groupName && hitN === '[' + N.title + ']' + N.charaName,
+			'名前(4): カードを選ぶ画面の候補は、グループのカードが「[二つ名]groupName」、ほかは今までどおり', { hitG, hitN });
+		assert(look.slot0.includes(G.groupName) && !look.slot0.includes(G.charaName) && look.slot1.includes(N.charaName),
+			'名前(5): 選んだ枠は、グループのカードが groupName（代表者の名前は出ない）', { slot0: look.slot0, slot1: look.slot1 });
+		assert(look.heads.includes(G.groupName) && look.heads.includes(N.charaName) && !look.heads.includes(G.charaName),
+			'名前(6): 表の列の見出しは、グループのカードが groupName', look.heads);
+		assert(look.text.includes('[' + G.title + ']' + G.groupName),
+			'名前(7): 凡例にも「[二つ名]groupName」で出る');
+		assert(errors.length === 0, '名前: コンソールエラーなし（special）', errors.slice(0, 3));
+		await ctx.close();
+	}
+
+	/* --- 入力のページの一覧 --- */
+	{
+		const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+		const page = await ctx.newPage();
+		page.setDefaultTimeout(5000);
+		await page.goto(base + '/card-event-input.html', { waitUntil: 'networkidle' });
+		await page.waitForFunction(() => /全\d+枚/.test(document.getElementById('cei-counts').textContent));
+		await page.uncheck('#cei-only-pending');
+		const labels = await page.evaluate((ids) => ids.map((id) => {
+			const r = document.querySelector('.cei-row[data-card-id="' + id + '"] .cei-label');
+			return r ? r.firstChild.textContent : null;
+		}), groups.map((c) => c.id).concat([N.id]));
+		const want = groups.map((c) => '[' + c.title + ']' + c.groupName).concat(['[' + N.title + ']' + N.charaName]);
+		assert(labels.every((l, i) => l && l.trim() === want[i]), '名前(8): 入力のページの一覧で、グループのカードは「[二つ名]groupName」（ほかは今までどおり）', { labels, want });
+		await ctx.close();
+	}
+}
+});
 await browser.close();
 await close();
 
