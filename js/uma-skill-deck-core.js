@@ -1154,7 +1154,7 @@
 	function formatEntryLabel(entry) {
 		if (!entry) return '';
 		const title = entry.title ? '[' + entry.title + ']' : '';
-		return title + (entry.charaName || '');
+		return title + (groupNameOf(entry) || entry.charaName || '');
 	}
 	/**
 	 * 選択済みの欄に出す短い名前＝**二つ名を落としてウマ娘名だけ**（C-51 の11節）。
@@ -1164,7 +1164,17 @@
 	 */
 	function formatEntryShortLabel(entry) {
 		if (!entry) return '';
-		return entry.charaName || formatEntryLabel(entry);
+		return groupNameOf(entry) || entry.charaName || formatEntryLabel(entry);
+	}
+	/**
+	 * グループのサポートカードの正式な名称（2026-09-30）。**グループのカードの名前はキャラクター名ではなく
+	 * グループのサポートカード名**なので、画面にはこれを出す（上の2つは「ウマ娘名」の代わりにこれを使う）。
+	 * `charaName`（代表者）は共通イベントとの紐づけに使っているので、データも使い方も変えない（表示にだけ使わない）。
+	 * グループでないカード・名称の入っていないグループのカードは空文字（＝今までどおり charaName を出す）。
+	 */
+	function groupNameOf(entry) {
+		if (!entry || entry.isGroup !== true || typeof entry.groupName !== 'string') return '';
+		return entry.groupName.trim();
 	}
 
 	function findEventRow(cardId) {
