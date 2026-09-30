@@ -1,6 +1,3228 @@
 {
-	"dataVersion": "2026-09-27a",
+	"dataVersion": "2026-09-30a",
 	"category": "characterEventSkill",
 	"note": "サポートカードの「キャラクター共通のイベント」で得られるスキル。同じキャラクターのサポートカードに共通するイベントなので、キャラクター名（charaName）を鍵に1人に1回だけ書き、そのキャラクターのカード全部（R・SR・SSR）に当てはめる。**グループのカード（support-cards.json の isGroup が true）には、groupMembers の全員ぶんを当てはめる**（charaName は代表者1人なので、それだけでは足りない）。charaName は、グループでないカードの charaName か、groupMembers に出る名前。独自の id は振らない（nextSerial は持たない）。ここに無いキャラクターは「未確認」の扱い。status は done（確かめた。events を持つ）／none（見て回ってスキルが無かった。events も unplaced も持たない）／seeded（シートから取り込んだまま。unplaced にスキルの参照だけを持つ）。events は共通イベントのうちスキルが得られるものだけを並べ、何回目という番号は持たない。1つのイベントは { choices }。choices と、その中の選択肢の形（{ skills } か { results }。results は先頭がいちばん良い結果＝成功）、スキルの参照 { skillId, name, hintLevel } の決まりは support-card-event-skills.json と同じ。イベントの名前や本文は書かない。既存の行は消さない。書き足したら dataVersion をその日の日付＋連番に上げ、js/uma-skill-deck-core.js の DATA_JSON_VERSIONS も同じ値にして、npm run check:catalog を回す。",
-	"entries": []
+	"entries": [
+		{
+			"charaName": "スペシャルウィーク",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "69",
+									"name": "別腹タンク",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "サイレンススズカ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "2",
+									"name": "左回り○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "トウカイテイオー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "124",
+									"name": "先行直線○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "マルゼンスキー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "46",
+									"name": "先駆け",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "オグリキャップ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "4",
+									"name": "中山レース場○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ゴールドシップ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "5",
+									"name": "阪神レース場○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ウオッカ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "43",
+									"name": "垂れウマ回避",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "タイキシャトル",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "256",
+									"name": "直線コース○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "51",
+									"name": "抜け出し準備",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "グラスワンダー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "73",
+									"name": "先行駆け引き",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "29",
+									"name": "徹底マーク○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "メジロマックイーン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "46",
+									"name": "先駆け",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "エルコンドルパサー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "21",
+									"name": "晴れの日○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "テイエムオペラオー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "14",
+									"name": "非根幹距離○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "シンボリルドルフ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "23",
+									"name": "雨の日○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "セイウンスカイ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "112",
+									"name": "リードキープ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ライスシャワー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "15",
+									"name": "良バ場○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ゴールドシチー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "135",
+									"name": "小休憩",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "サクラバクシンオー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "60",
+									"name": "詰め寄り",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "スーパークリーク",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "67",
+									"name": "深呼吸",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ハルウララ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "30",
+									"name": "伏兵○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "駿川たづな",
+			"status": "none"
+		},
+		{
+			"charaName": "ダイワスカーレット",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "49",
+									"name": "スタミナキープ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ヒシアマゾン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "87",
+									"name": "追込ためらい",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "エアグルーヴ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "44",
+									"name": "臨機応変",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "アグネスデジタル",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "23",
+									"name": "雨の日○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "16",
+									"name": "道悪○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "タマモクロス",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "42",
+									"name": "ウマ込み冷静",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ファインモーション",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "31",
+									"name": "コーナー巧者○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ビワハヤヒデ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "68",
+									"name": "内弁慶",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "マヤノトップガン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "34",
+									"name": "直線巧者",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "マンハッタンカフェ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "14",
+									"name": "非根幹距離○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ミホノブルボン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "37",
+									"name": "集中力",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "メジロライアン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "41",
+									"name": "ペースキープ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ユキノビジン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "32",
+									"name": "コーナー加速○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "アイネスフウジン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "47",
+									"name": "急ぎ足",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "アグネスタキオン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "147",
+									"name": "差しのコツ○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "エアシャカール",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "41",
+									"name": "ペースキープ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "エイシンフラッシュ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "29",
+									"name": "徹底マーク○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "スマートファルコン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "48",
+									"name": "押し切り準備",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ナリタタイシン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "114",
+									"name": "追い上げ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ニシノフラワー",
+			"status": "none"
+		},
+		{
+			"charaName": "ビコーペガサス",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "89",
+									"name": "短距離直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "マーベラスサンデー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "5",
+									"name": "阪神レース場○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "マチカネフクキタル",
+			"status": "none"
+		},
+		{
+			"charaName": "メイショウドトウ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "125",
+									"name": "先行コーナー○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "メジロドーベル",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "100",
+									"name": "負けん気",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ナイスネイチャ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "40",
+									"name": "ペースアップ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "キングヘイロー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "45",
+									"name": "末脚",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "フジキセキ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "51",
+									"name": "抜け出し準備",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "スイープトウショウ",
+			"status": "none"
+		},
+		{
+			"charaName": "ツインターボ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "46",
+									"name": "先駆け",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ダイタクヘリオス",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "30",
+									"name": "伏兵○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "イクノディクタス",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "71",
+									"name": "トリック（後）",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "メジロパーマー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "16",
+									"name": "道悪○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "キタサンブラック",
+			"status": "none"
+		},
+		{
+			"charaName": "サトノダイヤモンド",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "78",
+									"name": "逃げためらい",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "マチカネタンホイザ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "76",
+									"name": "逃げけん制",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ヤエノムテキ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "104",
+									"name": "中距離コーナー○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ゼンノロブロイ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "103",
+									"name": "中距離直線○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "樫本理子",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "40",
+									"name": "ペースアップ",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "157",
+									"name": "一匹狼",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "シーキングザパール",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "256",
+									"name": "直線コース○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "152",
+										"name": "ウマ好み",
+										"hintLevel": 3
+									}
+								],
+								[]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "サクラチヨノオー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "17",
+									"name": "春ウマ娘○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "カワカミプリンセス",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "66",
+									"name": "食い下がり",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ヒシアケボノ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "58",
+									"name": "スプリントギア",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "バンブーメモリー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "13",
+									"name": "根幹距離○",
+									"hintLevel": 5
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "シンコウウインディ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "100",
+									"name": "負けん気",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ナカヤマフェスタ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "4",
+									"name": "中山レース場○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "5",
+									"name": "阪神レース場○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "イナリワン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "6",
+									"name": "京都レース場○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "メジロアルダン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "81",
+									"name": "先行ためらい",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "トーセンジョーダン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "149",
+									"name": "ラッキーセブン",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ナリタブライアン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "157",
+									"name": "一匹狼",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "カレンチャン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "94",
+									"name": "後方釘付",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "アドマイヤベガ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "79",
+									"name": "先行けん制",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "メジロブライト",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "67",
+									"name": "深呼吸",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ナリタトップロード",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "65",
+									"name": "テンポアップ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ミスターシービー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "167",
+									"name": "早仕掛け",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ダイイチルビー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "60",
+									"name": "詰め寄り",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ケイエスミラクル",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "169",
+									"name": "軽い足取り",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ツルマルツヨシ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "133",
+									"name": "がんばり屋",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "シンボリクリスエス",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "22",
+									"name": "曇りの日○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ライトハロー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "27",
+									"name": "おひとり様○",
+									"hintLevel": 5
+								}
+							]
+						}
+					]
+				},
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "145",
+									"name": "逃げのコツ○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "146",
+									"name": "先行のコツ○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "タニノギムレット",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "148",
+									"name": "追込のコツ○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "サクラローレル",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "79",
+									"name": "先行けん制",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ヤマニンゼファー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "202",
+									"name": "向上心",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "アストンマーチャン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "169",
+									"name": "軽い足取り",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "メジロラモーヌ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "104",
+									"name": "中距離コーナー○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ジャングルポケット",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "203",
+									"name": "がむしゃら",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ホッコータルマエ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "160",
+									"name": "レコメンド",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "カツラギエース",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "153",
+									"name": "地固め",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "コパノリッキー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "187",
+									"name": "明るい兆し",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ワンダーアキュート",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "194",
+									"name": "踏み込み上手",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "佐岳メイ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "34",
+									"name": "直線巧者",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "157",
+									"name": "一匹狼",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "タップダンスシチー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "120",
+									"name": "先頭プライド",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "スティルインラブ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "213",
+									"name": "しとやかな足取り",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ヴィルシーナ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "61",
+									"name": "積極策",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "サウンズオブアース",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "216",
+									"name": "ロックオン",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ヴィブロス",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "131",
+									"name": "差し直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ドゥラメンテ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "219",
+									"name": "イグニッション",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ノースフライト",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "225",
+									"name": "心弾んで",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "オルフェーヴル",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "212",
+									"name": "型破り",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "都留岐涼花",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "28",
+									"name": "対抗意識○",
+									"hintLevel": 5
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "シュヴァルグラン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "234",
+									"name": "勝利に向かって",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ネオユニヴァース",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "221",
+									"name": "進出開始",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ヒシミラクル",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "170",
+									"name": "マイペース",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ダンツフレーム",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "208",
+									"name": "食らいつき",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "秋川理事長",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "34",
+									"name": "直線巧者",
+									"hintLevel": 5
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "エスポワールシチー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "241",
+									"name": "砂払い",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "バブルガムフェロー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "164",
+									"name": "真っ向勝負",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ジェンティルドンナ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "179",
+									"name": "下り坂巧者",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ラインクラフト",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "97",
+									"name": "マイルコーナー○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "シーザリオ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "229",
+									"name": "会心の一歩",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ブラストワンピース",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "110",
+									"name": "長距離直線○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ノーリーズン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "163",
+									"name": "ありったけ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ブエナビスタ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "220",
+									"name": "溢れる情熱",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ドリームジャーニー",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "247",
+									"name": "推力十分",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "デアリングタクト",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "290",
+									"name": "一歩ずつ前へ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "デアリングハート",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "278",
+									"name": "アグレッシブ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "アーモンドアイ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "232",
+									"name": "品行方正",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "グランアレグリア",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "96",
+									"name": "マイル直線○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "トランセンド",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "161",
+									"name": "前列狙い",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "カレンブーケドール",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "269",
+									"name": "さらなる高みへ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "エアメサイア",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "53",
+									"name": "差し切り体勢",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "タッカーブライン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "280",
+									"name": "端緒",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "36",
+									"name": "直線回復",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "フサイチパンドラ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "274",
+									"name": "切り替え上手",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ウインバリアシオン",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "111",
+									"name": "長距離コーナー○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ステイゴールド",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "34",
+									"name": "直線巧者",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "アドマイヤグルーヴ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "171",
+									"name": "ワンチャンス",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "クロノジェネシス",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "268",
+									"name": "正面突破",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "カルストンライトオ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "34",
+									"name": "直線巧者",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "256",
+									"name": "直線コース○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "デュランダル",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "312",
+									"name": "捕捉",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "保科健子",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "237",
+									"name": "序盤巧者",
+									"hintLevel": 5
+								}
+							]
+						}
+					]
+				},
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "236",
+									"name": "中盤巧者",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "フェノーメノ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "235",
+									"name": "狙いを定めて",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "フォーエバーヤング",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "357",
+									"name": "灯を胸に",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "カジノドライヴ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "152",
+									"name": "ウマ好み",
+									"hintLevel": 5
+								}
+							]
+						}
+					]
+				},
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "45",
+									"name": "末脚",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "レッドディザイア",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "321",
+									"name": "静かな熱",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ヴィクトワールピサ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "337",
+									"name": "心惹かれて",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "マルシュロレーヌ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "362",
+									"name": "轟く足音",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "キセキ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "16",
+									"name": "道悪○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "エフフォーリア",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "388",
+									"name": "流れに任せて",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "ルーラーシップ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "305",
+									"name": "覇気十分",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "サムソンビッグ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "260",
+									"name": "素直な一歩",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"charaName": "スピードシンボリ",
+			"status": "done",
+			"events": [
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "304",
+									"name": "比類なき",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "236",
+									"name": "中盤巧者",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "158",
+									"name": "スリップストリーム",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "31",
+									"name": "コーナー巧者○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "237",
+									"name": "序盤巧者",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "237",
+									"name": "序盤巧者",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "34",
+									"name": "直線巧者",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "224",
+									"name": "込み上げる熱",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "152",
+									"name": "ウマ好み",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+	]
 }

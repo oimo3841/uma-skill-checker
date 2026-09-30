@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-09-28a",
+	"dataVersion": "2026-09-30a",
 	"category": "supportCardEventSkill",
 	"note": "サポートカードのイベント（そのカードの連続イベント）で得られるスキル。ゲーム画面を見ながら、確かめられたカードから1件ずつ足す。ここに無い cardId は「未確認」の扱いなので、全カードぶんの空の行をあらかじめ並べる必要はない。cardId は support-cards.json の id。行の鍵は cardId で、このファイルには独自の id を振らない（nextSerial は持たない）。status は done（確かめた。chain を持つ）／none（見て回ってスキルが無かった。chain も unplaced も持たない）／seeded（シートから取り込んだまま。スキルは分かっているが、何回目か・選択肢・レベルは未確認。unplaced にスキルの参照だけを持つ）。chain はスキルが得られる回だけを並べる（スキルの無い回は書かない）。1回ぶんは { step, choices }：step は何回目か（1以上の整数・昇順・重複なし・上限なし）、choices はゲームの選択肢の並び（上から）のままで、スキルを得ない選択肢も空の選択肢として書く（選択肢の無いイベントは choices が1つ）。1つの選択肢は次のどちらか一方の形：{ skills: [...] }（成否に分かれない）／{ results: [[...], [...], ...] }（結果が分かれる。結果は2つ以上。**並びの先頭がいちばん良い結果（成功）**で、2番目以降が失敗側（成功に近い順）。結果が空でもよい）。編成パネルは成功側（skills か results の先頭）だけを使い、失敗側のスキルは出さないが、データには記録する。スキルの参照は { skillId, name, hintLevel }：skillId が本体で、name は照合のための控え（表示には使わない）、hintLevel はヒントのレベル（1以上の整数）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。イベントの名前や本文は書かない。既存の行は消さない。書き足したら dataVersion をその日の日付＋連番に上げ、js/uma-skill-deck-core.js の DATA_JSON_VERSIONS も同じ値にして、npm run check:catalog を回す。",
 	"entries": [
@@ -38,6 +38,12561 @@
 									"skillId": "ex-0984",
 									"name": "励声一番",
 									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0248",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "107",
+									"name": "軽やかステップ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "127",
+									"name": "直滑降",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0003",
+										"name": "全身全霊",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "45",
+										"name": "末脚",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0249",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "123",
+									"name": "リスタート",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "37",
+									"name": "集中力",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0013",
+									"name": "逃亡者",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0250",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0237",
+									"name": "一陣の風",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0251",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "167",
+									"name": "早仕掛け",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "148",
+									"name": "追込のコツ○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0045",
+									"name": "曲線のソムリエ",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "168",
+									"name": "あやしげな作戦",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0252",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "63",
+									"name": "上昇気流",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0062",
+									"name": "好転一息",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0253",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "108",
+									"name": "束縛",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "147",
+									"name": "差しのコツ○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0063",
+										"name": "豪脚",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0063",
+										"name": "豪脚",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0254",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "49",
+									"name": "スタミナキープ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0069",
+									"name": "キラーチューン",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0255",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "119",
+									"name": "危険回避",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "122",
+									"name": "二の矢",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0016",
+										"name": "脱出術",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "47",
+										"name": "急ぎ足",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0256",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "154",
+									"name": "尻尾上がり",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0006",
+									"name": "迅速果断",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0257",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0040",
+										"name": "スピードスター",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "51",
+										"name": "抜け出し準備",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0258",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0032",
+										"name": "じゃじゃウマ娘",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "121",
+										"name": "勢い任せ",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0259",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "133",
+									"name": "がんばり屋",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0080",
+									"name": "乗り換え上手",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0260",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "144",
+									"name": "まなざし",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "57",
+									"name": "直線一気",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0088",
+									"name": "勝利への執念",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0261",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "44",
+									"name": "臨機応変",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0221",
+									"name": "慧眼",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0262",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0217",
+									"name": "スプリントターボ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0263",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0107",
+									"name": "円弧のマエストロ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0264",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "153",
+									"name": "地固め",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "37",
+									"name": "集中力",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "160",
+									"name": "レコメンド",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0254",
+									"name": "注目の踊り子",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0265",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "92",
+									"name": "善後策",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0096",
+										"name": "ハヤテ一文字",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "34",
+										"name": "直線巧者",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0266",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0328",
+									"name": "どこ吹く風",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0267",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0571",
+									"name": "プランX",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0268",
+			"status": "done",
+			"chain": [
+				{
+					"step": 5,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0012",
+										"name": "コンセントレーション",
+										"hintLevel": 1
+									}
+								],
+								[
+									{
+										"skillId": "37",
+										"name": "集中力",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0269",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0082",
+										"name": "クールダウン",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "67",
+										"name": "深呼吸",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0270",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0566",
+									"name": "火事場のバ鹿力",
+									"hintLevel": 3
+								},
+								{
+									"skillId": "69",
+									"name": "別腹タンク",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0271",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "49",
+									"name": "スタミナキープ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "54",
+									"name": "外差し準備",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0063",
+									"name": "豪脚",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0272",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "155",
+									"name": "ふり絞り",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0002",
+										"name": "食いしん坊",
+										"hintLevel": 1
+									}
+								],
+								[
+									{
+										"skillId": "128",
+										"name": "栄養補給",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0273",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "120",
+										"name": "先頭プライド",
+										"hintLevel": 3
+									}
+								],
+								[]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0159",
+										"name": "先手必勝",
+										"hintLevel": 1
+									}
+								],
+								[
+									{
+										"skillId": "46",
+										"name": "先駆け",
+										"hintLevel": 3
+									}
+								]
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "62",
+									"name": "展開窺い",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0274",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "117",
+									"name": "逃げ直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "41",
+									"name": "ペースキープ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "145",
+									"name": "逃げのコツ○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0094",
+										"name": "先陣の心得",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "112",
+										"name": "リードキープ",
+										"hintLevel": 3
+									}
+								]
+							]
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "157",
+										"name": "一匹狼",
+										"hintLevel": 1
+									}
+								],
+								[
+									{
+										"skillId": "112",
+										"name": "リードキープ",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0275",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "34",
+										"name": "直線巧者",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "34",
+										"name": "直線巧者",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0112",
+										"name": "弧線のプロフェッサー",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0112",
+										"name": "弧線のプロフェッサー",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0276",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "163",
+									"name": "ありったけ",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0287",
+									"name": "鋼の意志",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0287",
+									"name": "鋼の意志",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0277",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0328",
+										"name": "どこ吹く風",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "42",
+										"name": "ウマ込み冷静",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0278",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "25",
+									"name": "内枠得意○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "128",
+									"name": "栄養補給",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0065",
+									"name": "ノンストップガール",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0065",
+									"name": "ノンストップガール",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0279",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "82",
+									"name": "差しけん制",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "84",
+									"name": "差しためらい",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "159",
+									"name": "遊びはおしまいっ！",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0007",
+										"name": "アガッてきた！",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0007",
+										"name": "アガッてきた！",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0280",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0003",
+									"name": "全身全霊",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0281",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "113",
+									"name": "パス上手",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0107",
+									"name": "円弧のマエストロ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0282",
+			"status": "done",
+			"chain": [
+				{
+					"step": 5,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0237",
+										"name": "一陣の風",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0237",
+										"name": "一陣の風",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0283",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "32",
+									"name": "コーナー加速○",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "31",
+									"name": "コーナー巧者○",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0107",
+										"name": "円弧のマエストロ",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0107",
+										"name": "円弧のマエストロ",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0284",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "49",
+									"name": "スタミナキープ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0040",
+										"name": "スピードスター",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0040",
+										"name": "スピードスター",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0285",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "108",
+									"name": "束縛",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0254",
+									"name": "注目の踊り子",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0286",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "21",
+									"name": "晴れの日○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "128",
+										"name": "栄養補給",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "128",
+										"name": "栄養補給",
+										"hintLevel": 2
+									}
+								]
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "60",
+									"name": "詰め寄り",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0584",
+										"name": "シックスセンス",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "119",
+										"name": "危険回避",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0287",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0321",
+									"name": "大局観",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0288",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "28",
+									"name": "対抗意識○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "45",
+										"name": "末脚",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						},
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "84",
+									"name": "差しためらい",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0104",
+										"name": "昇り龍",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "54",
+										"name": "外差し準備",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0289",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "152",
+									"name": "ウマ好み",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0203",
+										"name": "決死の覚悟",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "163",
+										"name": "ありったけ",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0290",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0588",
+									"name": "くじけぬ精神",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0291",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "57",
+										"name": "直線一気",
+										"hintLevel": 2
+									}
+								],
+								[]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0596",
+									"name": "天命士",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0292",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "150",
+									"name": "スリーセブン",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "134",
+									"name": "十万バリキ",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "103",
+									"name": "中距離直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "27",
+									"name": "おひとり様○",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0200",
+									"name": "努力家",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0293",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0023",
+										"name": "レースプランナー",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "50",
+										"name": "好位追走",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0294",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "146",
+									"name": "先行のコツ○",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0088",
+									"name": "勝利への執念",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0295",
+			"status": "done",
+			"chain": [
+				{
+					"step": 5,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0183",
+										"name": "お先に失礼っ！",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0183",
+										"name": "お先に失礼っ！",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0296",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "97",
+										"name": "マイルコーナー○",
+										"hintLevel": 2
+									}
+								],
+								[]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0033",
+									"name": "マイルの支配者",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0297",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0080",
+									"name": "乗り換え上手",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0298",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "73",
+									"name": "先行駆け引き",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0094",
+										"name": "先陣の心得",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0094",
+										"name": "先陣の心得",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0299",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "95",
+									"name": "抜け駆け禁止",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "152",
+									"name": "ウマ好み",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0295",
+										"name": "電撃の煌めき",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "60",
+										"name": "詰め寄り",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0300",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "110",
+									"name": "長距離直線○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0047",
+										"name": "内的体験",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "68",
+										"name": "内弁慶",
+										"hintLevel": 3
+									}
+								]
+							]
+						},
+						{
+							"results": [
+								[],
+								[]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0301",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0566",
+									"name": "火事場のバ鹿力",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0302",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0013",
+										"name": "逃亡者",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "48",
+										"name": "押し切り準備",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0303",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0069",
+										"name": "キラーチューン",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "65",
+										"name": "テンポアップ",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0304",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "33",
+										"name": "コーナー回復○",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0082",
+									"name": "クールダウン",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0305",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "128",
+									"name": "栄養補給",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "107",
+									"name": "軽やかステップ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0012",
+									"name": "コンセントレーション",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0306",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "44",
+									"name": "臨機応変",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0321",
+									"name": "大局観",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0307",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "16",
+									"name": "道悪○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0202",
+										"name": "百万バリキ",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0202",
+										"name": "百万バリキ",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0308",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "1",
+									"name": "右回り○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "2",
+									"name": "左回り○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0224",
+									"name": "潜伏態勢",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0309",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "121",
+									"name": "勢い任せ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0159",
+									"name": "先手必勝",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0311",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "95",
+										"name": "抜け駆け禁止",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "159",
+									"name": "遊びはおしまいっ！",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0167",
+										"name": "準備万全！",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "93",
+										"name": "仕掛け準備",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0312",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "65",
+										"name": "テンポアップ",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0096",
+									"name": "ハヤテ一文字",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0313",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "24",
+									"name": "雪の日○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "159",
+									"name": "遊びはおしまいっ！",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0045",
+									"name": "曲線のソムリエ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0314",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "46",
+									"name": "先駆け",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "125",
+									"name": "先行コーナー○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0016",
+										"name": "脱出術",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "47",
+										"name": "急ぎ足",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0315",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "164",
+										"name": "真っ向勝負",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						},
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "28",
+									"name": "対抗意識○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0032",
+									"name": "じゃじゃウマ娘",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0316",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "107",
+									"name": "軽やかステップ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "113",
+									"name": "パス上手",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0276",
+										"name": "眠れる獅子",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "55",
+										"name": "後方待機",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0317",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "22",
+									"name": "曇りの日○",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0006",
+										"name": "迅速果断",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "52",
+										"name": "位置取り押し上げ",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0318",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "111",
+										"name": "長距離コーナー○",
+										"hintLevel": 1
+									}
+								],
+								[
+									{
+										"skillId": "111",
+										"name": "長距離コーナー○",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0153",
+									"name": "スタミナグリード",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0319",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0160",
+									"name": "切り開く者",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0320",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "80",
+										"name": "先行焦り",
+										"hintLevel": 2
+									}
+								],
+								[]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0091",
+									"name": "強攻策",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0321",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0303",
+									"name": "スーパーラッキーセブン",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0303",
+									"name": "スーパーラッキーセブン",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "149",
+									"name": "ラッキーセブン",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0322",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "104",
+									"name": "中距離コーナー○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0069",
+										"name": "キラーチューン",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0069",
+										"name": "キラーチューン",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0325",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "98",
+									"name": "ギアシフト",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0134",
+									"name": "決意の直滑降",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0326",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "153",
+									"name": "地固め",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0231",
+										"name": "意気衝天",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "169",
+										"name": "軽い足取り",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0327",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0062",
+										"name": "好転一息",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "36",
+										"name": "直線回復",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0328",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "128",
+									"name": "栄養補給",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "37",
+									"name": "集中力",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0122",
+										"name": "狙うは最前列！",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0122",
+										"name": "狙うは最前列！",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "152",
+									"name": "ウマ好み",
+									"hintLevel": 5
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0329",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "146",
+									"name": "先行のコツ○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "114",
+									"name": "追い上げ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0375",
+									"name": "良バ場の鬼",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0330",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "167",
+									"name": "早仕掛け",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0009",
+									"name": "怒涛の追い上げ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0331",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "156",
+									"name": "シンパシー",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0224",
+										"name": "潜伏態勢",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "162",
+										"name": "静かな呼吸",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0332",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0566",
+									"name": "火事場のバ鹿力",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0333",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "107",
+									"name": "軽やかステップ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0354",
+									"name": "気炎万丈",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0335",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "173",
+									"name": "前のめり",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "138",
+									"name": "追込直線○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0191",
+									"name": "冷静沈着",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0336",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "166",
+									"name": "影打",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "65",
+									"name": "テンポアップ",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0026",
+									"name": "鍔迫り合い",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0337",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "52",
+									"name": "位置取り押し上げ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0291",
+										"name": "破竹の勢い",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "174",
+										"name": "気合十分",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0338",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "63",
+									"name": "上昇気流",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "169",
+									"name": "軽い足取り",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0267",
+									"name": "大胆不敵",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0339",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0088",
+									"name": "勝利への執念",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0340",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "33",
+										"name": "コーナー回復○",
+										"hintLevel": 2
+									}
+								],
+								[]
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "144",
+									"name": "まなざし",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0091",
+									"name": "強攻策",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0341",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0200",
+									"name": "努力家",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0342",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0085",
+										"name": "勇往邁進",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "177",
+										"name": "フルスロットル",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0343",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "6",
+									"name": "京都レース場○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0588",
+									"name": "くじけぬ精神",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0344",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "124",
+										"name": "先行直線○",
+										"hintLevel": 3
+									},
+									{
+										"skillId": "109",
+										"name": "ささやき",
+										"hintLevel": 1
+									}
+								],
+								[
+									{
+										"skillId": "124",
+										"name": "先行直線○",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0172",
+										"name": "アンストッパブル",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0172",
+										"name": "アンストッパブル",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0345",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0040",
+										"name": "スピードスター",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0040",
+										"name": "スピードスター",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0040",
+									"name": "スピードスター",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0346",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "40",
+										"name": "ペースアップ",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "83",
+										"name": "差し焦り",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0007",
+										"name": "アガッてきた！",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0007",
+										"name": "アガッてきた！",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "ex-0007",
+										"name": "アガッてきた！",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0347",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "136",
+									"name": "読解力",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "129",
+									"name": "まき直し",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0102",
+									"name": "千里眼",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0348",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "166",
+									"name": "影打",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "36",
+									"name": "直線回復",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0009",
+									"name": "怒涛の追い上げ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0349",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "175",
+									"name": "恐れぬ心",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "171",
+									"name": "ワンチャンス",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "63",
+									"name": "上昇気流",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0224",
+									"name": "潜伏態勢",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0350",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "37",
+										"name": "集中力",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0127",
+									"name": "トップランナー",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0351",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0271",
+										"name": "博打うち",
+										"hintLevel": 1
+									}
+								],
+								[
+									{
+										"skillId": "168",
+										"name": "あやしげな作戦",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0271",
+										"name": "博打うち",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "168",
+										"name": "あやしげな作戦",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0352",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0030",
+										"name": "アクセル全開！",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "99",
+										"name": "アクセラレーション",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0353",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0366",
+									"name": "泰然自若",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0354",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "50",
+									"name": "好位追走",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0112",
+									"name": "弧線のプロフェッサー",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0355",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"results": [
+								[],
+								[
+									{
+										"skillId": "159",
+										"name": "遊びはおしまいっ！",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0342",
+									"name": "出力1000％！",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0342",
+									"name": "出力1000％！",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0356",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "51",
+									"name": "抜け出し準備",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0141",
+									"name": "VIP顔パス",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0357",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "132",
+										"name": "差しコーナー○",
+										"hintLevel": 2
+									}
+								],
+								[]
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "58",
+									"name": "スプリントギア",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0406",
+									"name": "電光石火",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0358",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "113",
+									"name": "パス上手",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "118",
+									"name": "逃げコーナー○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0159",
+									"name": "先手必勝",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0159",
+									"name": "先手必勝",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0359",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "117",
+									"name": "逃げ直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "154",
+									"name": "尻尾上がり",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0318",
+									"name": "いいとこ入った！",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0318",
+									"name": "いいとこ入った！",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0360",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "189",
+									"name": "まっしぐら",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0241",
+									"name": "泥んこマイスター",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0361",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "28",
+									"name": "対抗意識○",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0346",
+									"name": "無我夢中",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0362",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0023",
+									"name": "レースプランナー",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0363",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "128",
+										"name": "栄養補給",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "2",
+										"name": "左回り○",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "2",
+										"name": "左回り○",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0069",
+										"name": "キラーチューン",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0069",
+										"name": "キラーチューン",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "ex-0069",
+										"name": "キラーチューン",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0364",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "47",
+									"name": "急ぎ足",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0160",
+									"name": "切り開く者",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0365",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "52",
+									"name": "位置取り押し上げ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"results": [
+								[],
+								[]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0590",
+										"name": "鋭脚一閃",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0590",
+										"name": "鋭脚一閃",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0366",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "209",
+									"name": "本領発揮",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0110",
+										"name": "猛追",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0110",
+										"name": "猛追",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0367",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "136",
+									"name": "読解力",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "41",
+									"name": "ペースキープ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0006",
+									"name": "迅速果断",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0368",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "162",
+									"name": "静かな呼吸",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0267",
+									"name": "大胆不敵",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0369",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "158",
+									"name": "スリップストリーム",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0382",
+										"name": "風雲の志",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0382",
+										"name": "風雲の志",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0370",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "170",
+									"name": "マイペース",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0065",
+									"name": "ノンストップガール",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0065",
+									"name": "ノンストップガール",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0371",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "144",
+										"name": "まなざし",
+										"hintLevel": 3
+									},
+									{
+										"skillId": "178",
+										"name": "自制心",
+										"hintLevel": 1
+									}
+								],
+								[
+									{
+										"skillId": "144",
+										"name": "まなざし",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0092",
+									"name": "抜群の切れ味",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0092",
+									"name": "抜群の切れ味",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0372",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "114",
+									"name": "追い上げ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0082",
+									"name": "クールダウン",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0373",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "32",
+									"name": "コーナー加速○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0026",
+									"name": "鍔迫り合い",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0374",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "36",
+									"name": "直線回復",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0288",
+									"name": "不屈の心",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0288",
+									"name": "不屈の心",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0375",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "74",
+									"name": "差し駆け引き",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "53",
+									"name": "差し切り体勢",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0592",
+									"name": "鋭脚円刃",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0376",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "21",
+									"name": "晴れの日○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0571",
+									"name": "プランX",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0377",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "100",
+									"name": "負けん気",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "172",
+									"name": "闘争心",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"results": [
+								[],
+								[]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0386",
+									"name": "優位形成",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0378",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "48",
+									"name": "押し切り準備",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0088",
+									"name": "勝利への執念",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0379",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "105",
+									"name": "ホークアイ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0354",
+									"name": "気炎万丈",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0381",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "154",
+									"name": "尻尾上がり",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "43",
+									"name": "垂れウマ回避",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0318",
+										"name": "いいとこ入った！",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0318",
+										"name": "いいとこ入った！",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0382",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "180",
+									"name": "抜かりなし",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "209",
+									"name": "本領発揮",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0144",
+										"name": "脱兎の先へ",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0144",
+										"name": "脱兎の先へ",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0383",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "125",
+									"name": "先行コーナー○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0020",
+									"name": "ライトニングステップ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0384",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "145",
+										"name": "逃げのコツ○",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "145",
+										"name": "逃げのコツ○",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0389",
+									"name": "盤石の構え",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0385",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "220",
+										"name": "溢れる情熱",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "220",
+										"name": "溢れる情熱",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0080",
+										"name": "乗り換え上手",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0080",
+										"name": "乗り換え上手",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0386",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "136",
+									"name": "読解力",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0200",
+									"name": "努力家",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0387",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0089",
+									"name": "疾風怒濤",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0388",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "150",
+										"name": "スリーセブン",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0418",
+										"name": "快進撃",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0418",
+										"name": "快進撃",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0389",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "163",
+										"name": "ありったけ",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0357",
+										"name": "昂る鼓動",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0357",
+										"name": "昂る鼓動",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0357",
+										"name": "昂る鼓動",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0390",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "47",
+									"name": "急ぎ足",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0071",
+									"name": "踏ませぬ影",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0391",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "94",
+									"name": "後方釘付",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "119",
+									"name": "危険回避",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0012",
+									"name": "コンセントレーション",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0012",
+									"name": "コンセントレーション",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0392",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "137",
+									"name": "鋭い眼光",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0202",
+									"name": "百万バリキ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0393",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0065",
+									"name": "ノンストップガール",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0065",
+										"name": "ノンストップガール",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0065",
+										"name": "ノンストップガール",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0394",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "67",
+									"name": "深呼吸",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "31",
+									"name": "コーナー巧者○",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0050",
+									"name": "怪物",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0096",
+									"name": "ハヤテ一文字",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0395",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "98",
+									"name": "ギアシフト",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0552",
+									"name": "青嵐",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0397",
+									"name": "ハイボルテージ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0396",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0336",
+									"name": "ブチ☆アゲ↑バイブス",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0336",
+										"name": "ブチ☆アゲ↑バイブス",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0336",
+										"name": "ブチ☆アゲ↑バイブス",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0397",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "156",
+									"name": "シンパシー",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0229",
+									"name": "圧倒的リード",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0398",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "154",
+									"name": "尻尾上がり",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0449",
+									"name": "優雅な砂浴び",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0449",
+									"name": "優雅な砂浴び",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0399",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "154",
+									"name": "尻尾上がり",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "132",
+									"name": "差しコーナー○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0346",
+									"name": "無我夢中",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0082",
+									"name": "クールダウン",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0400",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[],
+								[
+									{
+										"skillId": "ex-0431",
+										"name": "突撃魂",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0431",
+										"name": "突撃魂",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0431",
+										"name": "突撃魂",
+										"hintLevel": 2
+									}
+								]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0401",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "35",
+									"name": "直線加速",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0040",
+									"name": "スピードスター",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0402",
+			"status": "done",
+			"chain": [
+				{
+					"step": 5,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0238",
+										"name": "ネバーギブアップ",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0238",
+										"name": "ネバーギブアップ",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0403",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "65",
+										"name": "テンポアップ",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "65",
+										"name": "テンポアップ",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "66",
+									"name": "食い下がり",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0043",
+										"name": "王手",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0043",
+										"name": "王手",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0112",
+										"name": "弧線のプロフェッサー",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0112",
+										"name": "弧線のプロフェッサー",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0404",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "104",
+									"name": "中距離コーナー○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0191",
+									"name": "冷静沈着",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0405",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "172",
+										"name": "闘争心",
+										"hintLevel": 2
+									}
+								],
+								[]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0344",
+										"name": "右回りの鬼",
+										"hintLevel": 3
+									},
+									{
+										"skillId": "1",
+										"name": "右回り○",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "ex-0344",
+										"name": "右回りの鬼",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0406",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "139",
+									"name": "追込コーナー○",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "57",
+									"name": "直線一気",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0595",
+									"name": "月影円刃",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0058",
+									"name": "迫る影",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0407",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "157",
+									"name": "一匹狼",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0056",
+									"name": "高揚感",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0408",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "121",
+										"name": "勢い任せ",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "121",
+										"name": "勢い任せ",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0013",
+									"name": "逃亡者",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0016",
+									"name": "脱出術",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0409",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0027",
+									"name": "余裕綽々",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0410",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "168",
+									"name": "あやしげな作戦",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "139",
+									"name": "追込コーナー○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "138",
+									"name": "追込直線○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0121",
+									"name": "ウママニア",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0121",
+										"name": "ウママニア",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0121",
+										"name": "ウママニア",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0411",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "41",
+									"name": "ペースキープ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "177",
+									"name": "フルスロットル",
+									"hintLevel": 5
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0211",
+									"name": "光芒一閃",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0211",
+										"name": "光芒一閃",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0211",
+										"name": "光芒一閃",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0412",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0405",
+									"name": "威風堂々",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0325",
+									"name": "気骨稜稜",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0413",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0287",
+									"name": "鋼の意志",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0414",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "5",
+									"name": "阪神レース場○",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "234",
+									"name": "勝利に向かって",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0384",
+										"name": "かっとばせ！",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0384",
+										"name": "かっとばせ！",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0415",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "34",
+									"name": "直線巧者",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "36",
+									"name": "直線回復",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0096",
+									"name": "ハヤテ一文字",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0062",
+									"name": "好転一息",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0416",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "178",
+									"name": "自制心",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0291",
+									"name": "破竹の勢い",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0291",
+										"name": "破竹の勢い",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0291",
+										"name": "破竹の勢い",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0417",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "20",
+									"name": "冬ウマ娘○",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0555",
+									"name": "凍て風",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0418",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0200",
+									"name": "努力家",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0419",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "221",
+									"name": "進出開始",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0006",
+									"name": "迅速果断",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0224",
+									"name": "潜伏態勢",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0420",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0238",
+									"name": "ネバーギブアップ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0238",
+										"name": "ネバーギブアップ",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0238",
+										"name": "ネバーギブアップ",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0421",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "224",
+									"name": "込み上げる熱",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0085",
+									"name": "勇往邁進",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0354",
+									"name": "気炎万丈",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0423",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0127",
+									"name": "トップランナー",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0424",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "164",
+									"name": "真っ向勝負",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0259",
+									"name": "コール&レスポンス",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0259",
+										"name": "コール&レスポンス",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0259",
+										"name": "コール&レスポンス",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0425",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "206",
+									"name": "キレる脚",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0066",
+										"name": "トップギア",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0066",
+										"name": "トップギア",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0426",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "58",
+									"name": "スプリントギア",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0619",
+									"name": "ロケットスタート",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0570",
+									"name": "紫電円刃",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0427",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0029",
+									"name": "ギアチェンジ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0428",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "96",
+									"name": "マイル直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "103",
+									"name": "中距離直線○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0007",
+									"name": "アガッてきた！",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0429",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "215",
+									"name": "快速",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0042",
+									"name": "神速",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0042",
+										"name": "神速",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0042",
+										"name": "神速",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0430",
+			"status": "done",
+			"chain": [
+				{
+					"step": 5,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0617",
+										"name": "機先の勝負",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0617",
+										"name": "機先の勝負",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0431",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0160",
+									"name": "切り開く者",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0432",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0237",
+									"name": "一陣の風",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0433",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0328",
+									"name": "どこ吹く風",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0434",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0083",
+									"name": "リラックス",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0435",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0098",
+										"name": "真打",
+										"hintLevel": 2
+									},
+									{
+										"skillId": "166",
+										"name": "影打",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "166",
+										"name": "影打",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0098",
+										"name": "真打",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "ex-0098",
+										"name": "真打",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0436",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0172",
+									"name": "アンストッパブル",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0437",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "34",
+									"name": "直線巧者",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0217",
+									"name": "スプリントターボ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0217",
+									"name": "スプリントターボ",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0438",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "211",
+									"name": "向こう見ず",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0338",
+									"name": "遮二無二",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0439",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0207",
+									"name": "月影一閃",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0440",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "171",
+									"name": "ワンチャンス",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0266",
+									"name": "起死回生",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0266",
+										"name": "起死回生",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0266",
+										"name": "起死回生",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0441",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "216",
+									"name": "ロックオン",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0369",
+									"name": "一発必中",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0369",
+										"name": "一発必中",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0369",
+										"name": "一発必中",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0442",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0267",
+									"name": "大胆不敵",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0443",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "247",
+									"name": "推力十分",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "57",
+									"name": "直線一気",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0280",
+									"name": "飛翔脚",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0058",
+									"name": "迫る影",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0444",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "201",
+									"name": "一足飛び",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0406",
+									"name": "電光石火",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0406",
+									"name": "電光石火",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0445",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0056",
+									"name": "高揚感",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0446",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "227",
+									"name": "一番乗り",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0017",
+									"name": "誰より前へ！",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0017",
+										"name": "誰より前へ！",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0017",
+										"name": "誰より前へ！",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0447",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0574",
+									"name": "豪風一閃",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0448",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "154",
+									"name": "尻尾上がり",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0131",
+									"name": "尻尾の滝登り",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0449",
+			"status": "done",
+			"chain": [
+				{
+					"step": 5,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0121",
+										"name": "ウママニア",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0121",
+										"name": "ウママニア",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0450",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "261",
+									"name": "胸の高鳴り",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "260",
+									"name": "素直な一歩",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0510",
+										"name": "トキメキハート",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0510",
+										"name": "トキメキハート",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0138",
+										"name": "正攻法",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0138",
+										"name": "正攻法",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0451",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "262",
+									"name": "揺るがぬ信念",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0426",
+									"name": "初志貫徹",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0426",
+									"name": "初志貫徹",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0452",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "46",
+										"name": "先駆け",
+										"hintLevel": 2
+									},
+									{
+										"skillId": "ex-0159",
+										"name": "先手必勝",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "46",
+										"name": "先駆け",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0159",
+										"name": "先手必勝",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "ex-0159",
+										"name": "先手必勝",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0453",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "252",
+									"name": "パイオニア",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "241",
+									"name": "砂払い",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0390",
+									"name": "砂の開拓者",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0618",
+									"name": "砂の妙手",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0454",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0240",
+									"name": "全速前進！",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0455",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0024",
+									"name": "神業ステップ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0456",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "8",
+									"name": "札幌レース場○",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "268",
+									"name": "正面突破",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0514",
+										"name": "王道一途",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0514",
+										"name": "王道一途",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0457",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "272",
+									"name": "むきだしの情熱",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "271",
+									"name": "克己心",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0629",
+									"name": "本能の解放",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0628",
+									"name": "怜悧清澄",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0458",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0045",
+									"name": "曲線のソムリエ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0459",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0261",
+									"name": "光芒円刃",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0460",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "273",
+									"name": "後先恐れず",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0630",
+									"name": "豪胆無比",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0630",
+									"name": "豪胆無比",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0461",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "255",
+									"name": "飛躍の予感",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0189",
+									"name": "流星光底",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0189",
+									"name": "流星光底",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0462",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0047",
+									"name": "内的体験",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0463",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0002",
+									"name": "食いしん坊",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0464",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0442",
+									"name": "抜群の踏み込み",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0395",
+									"name": "清濁併呑",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0465",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "167",
+									"name": "早仕掛け",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0091",
+									"name": "強攻策",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0466",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0050",
+									"name": "怪物",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0377",
+									"name": "影従打破",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0467",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0592",
+									"name": "鋭脚円刃",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0468",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "280",
+									"name": "端緒",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "281",
+									"name": "急襲",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0631",
+									"name": "連鎖反応",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0632",
+									"name": "烈火の如く",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0469",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "117",
+									"name": "逃げ直線○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "166",
+									"name": "影打",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "47",
+									"name": "急ぎ足",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0150",
+										"name": "万里一空",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0150",
+										"name": "万里一空",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0127",
+										"name": "トップランナー",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0127",
+										"name": "トップランナー",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0470",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "203",
+									"name": "がむしゃら",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "222",
+									"name": "一歩から",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0346",
+									"name": "無我夢中",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0205",
+									"name": "千里の道",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0471",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "289",
+									"name": "ハイピッチ",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0635",
+										"name": "勇猛果敢",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "ex-0635",
+										"name": "勇猛果敢",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0472",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "162",
+										"name": "静かな呼吸",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "162",
+										"name": "静かな呼吸",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "221",
+									"name": "進出開始",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0431",
+									"name": "突撃魂",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0431",
+										"name": "突撃魂",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0431",
+										"name": "突撃魂",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0473",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0040",
+									"name": "スピードスター",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0474",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "296",
+									"name": "己を信じて",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "295",
+									"name": "地道に重ねて",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0049",
+									"name": "努力の結実",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0638",
+									"name": "正々堂々",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0475",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "229",
+									"name": "会心の一歩",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "158",
+									"name": "スリップストリーム",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0043",
+										"name": "王手",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0043",
+										"name": "王手",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0318",
+										"name": "いいとこ入った！",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0318",
+										"name": "いいとこ入った！",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0476",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0409",
+									"name": "十全十美",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0500",
+									"name": "幕引き",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0477",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0071",
+									"name": "踏ませぬ影",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0478",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "233",
+									"name": "ひたむき前進",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0325",
+									"name": "気骨稜稜",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0325",
+										"name": "気骨稜稜",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0325",
+										"name": "気骨稜稜",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0479",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "237",
+									"name": "序盤巧者",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0639",
+									"name": "丁々発止",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0012",
+									"name": "コンセントレーション",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0480",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "100",
+									"name": "負けん気",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0035",
+									"name": "姉御肌",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0481",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0083",
+									"name": "リラックス",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0482",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0006",
+									"name": "迅速果断",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0484",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0187",
+										"name": "シンギュラリティ",
+										"hintLevel": 2
+									},
+									{
+										"skillId": "ex-0424",
+										"name": "才気煥発",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "ex-0187",
+										"name": "シンギュラリティ",
+										"hintLevel": 1
+									},
+									{
+										"skillId": "ex-0424",
+										"name": "才気煥発",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0096",
+										"name": "ハヤテ一文字",
+										"hintLevel": 2
+									},
+									{
+										"skillId": "ex-0112",
+										"name": "弧線のプロフェッサー",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "ex-0096",
+										"name": "ハヤテ一文字",
+										"hintLevel": 1
+									},
+									{
+										"skillId": "ex-0112",
+										"name": "弧線のプロフェッサー",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0485",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0574",
+									"name": "豪風一閃",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0486",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0370",
+									"name": "一気呵成",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0487",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0590",
+									"name": "鋭脚一閃",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0642",
+									"name": "突破口",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0488",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "199",
+									"name": "打開策",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0281",
+									"name": "完全燃焼",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0489",
+									"name": "肉薄",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0489",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0581",
+									"name": "烈風円刃",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0490",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "213",
+									"name": "しとやかな足取り",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0643",
+									"name": "独立独歩",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0006",
+									"name": "迅速果断",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0491",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "252",
+									"name": "パイオニア",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0624",
+									"name": "砂塵一閃",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0244",
+									"name": "見事な砂蹴り",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0492",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0470",
+									"name": "君臨",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0056",
+									"name": "高揚感",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0493",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0255",
+									"name": "チャート急上昇！",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0494",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "207",
+									"name": "粘り腰",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0460",
+									"name": "勝負はここから！",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0016",
+									"name": "脱出術",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0495",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0029",
+									"name": "ギアチェンジ",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0397",
+									"name": "ハイボルテージ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0029",
+									"name": "ギアチェンジ",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0397",
+									"name": "ハイボルテージ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0496",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "211",
+									"name": "向こう見ず",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0338",
+									"name": "遮二無二",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0338",
+										"name": "遮二無二",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "ex-0338",
+										"name": "遮二無二",
+										"hintLevel": 2
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0497",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0202",
+									"name": "百万バリキ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0498",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "158",
+									"name": "スリップストリーム",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "237",
+									"name": "序盤巧者",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0042",
+									"name": "神速",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "ex-0636",
+									"name": "真骨頂",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0042",
+									"name": "神速",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "ex-0646",
+									"name": "悠久走破",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0499",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "319",
+									"name": "活路を拓く！",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 5,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0645",
+									"name": "パスファインダー",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0500",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0647",
+									"name": "秘めた闘魂",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0501",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0364",
+									"name": "勇迅円刃",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0502",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0633",
+									"name": "熾烈の極み",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0503",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "304",
+									"name": "比類なき",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0047",
+									"name": "内的体験",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0379",
+									"name": "エネルギッシュ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0504",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0280",
+									"name": "飛翔脚",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0648",
+									"name": "残影",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0505",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0291",
+									"name": "破竹の勢い",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0506",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "304",
+									"name": "比類なき",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0238",
+										"name": "ネバーギブアップ",
+										"hintLevel": 2
+									},
+									{
+										"skillId": "ex-0519",
+										"name": "好奇心",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "ex-0238",
+										"name": "ネバーギブアップ",
+										"hintLevel": 1
+									},
+									{
+										"skillId": "ex-0519",
+										"name": "好奇心",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0238",
+										"name": "ネバーギブアップ",
+										"hintLevel": 2
+									},
+									{
+										"skillId": "ex-0650",
+										"name": "自由奔放",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "ex-0238",
+										"name": "ネバーギブアップ",
+										"hintLevel": 1
+									},
+									{
+										"skillId": "ex-0650",
+										"name": "自由奔放",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0507",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "220",
+									"name": "溢れる情熱",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0492",
+									"name": "天賦の才",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0491",
+									"name": "才色兼備",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0508",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0069",
+									"name": "キラーチューン",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0509",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0651",
+									"name": "問答無用",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0231",
+									"name": "意気衝天",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0510",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "328",
+									"name": "追駆",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "201",
+									"name": "一足飛び",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0207",
+									"name": "月影一閃",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0406",
+									"name": "電光石火",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0207",
+									"name": "月影一閃",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0649",
+									"name": "即断即決",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0511",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0203",
+									"name": "決死の覚悟",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0512",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0652",
+									"name": "至宝の輝き",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0513",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0653",
+									"name": "不抜の気概",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0514",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0205",
+									"name": "千里の道",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0226",
+									"name": "陽炎",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "421",
+									"name": "レースの真髄・速",
+									"hintLevel": 5
+								},
+								{
+									"skillId": "420",
+									"name": "前だけ見据えて",
+									"hintLevel": 5
+								},
+								{
+									"skillId": "418",
+									"name": "綺羅星",
+									"hintLevel": 5
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0515",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0267",
+									"name": "大胆不敵",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0516",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0107",
+									"name": "円弧のマエストロ",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0454",
+									"name": "開花",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0517",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "304",
+									"name": "比類なき",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "297",
+									"name": "躍動",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0654",
+									"name": "迸る気迫",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "ex-0638",
+									"name": "正々堂々",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0654",
+									"name": "迸る気迫",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "ex-0638",
+									"name": "正々堂々",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0518",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "159",
+									"name": "遊びはおしまいっ！",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 5,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0183",
+									"name": "お先に失礼っ！",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0519",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "39",
+									"name": "ポジションセンス",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0159",
+									"name": "先手必勝",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0036",
+									"name": "傑出",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0520",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "254",
+									"name": "好機を捉えて",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						},
+						{
+							"results": [
+								[],
+								[]
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0058",
+									"name": "迫る影",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0620",
+									"name": "心頭滅却",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0521",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "295",
+									"name": "地道に重ねて",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0098",
+									"name": "真打",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0143",
+									"name": "一点集中",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0522",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0054",
+									"name": "下校後のスペシャリスト",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0523",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "218",
+									"name": "大急ぎ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0477",
+									"name": "用意周到",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0346",
+									"name": "無我夢中",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0524",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "317",
+									"name": "夢への挑戦",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "296",
+									"name": "己を信じて",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "287",
+									"name": "下準備",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0043",
+									"name": "王手",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "ex-0655",
+									"name": "千鍛万錬",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0655",
+									"name": "千鍛万錬",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "ex-0656",
+									"name": "錦上添花",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0525",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "260",
+									"name": "素直な一歩",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0384",
+									"name": "かっとばせ！",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0137",
+									"name": "順風満帆",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "359",
+									"name": "気持ちを乗せて",
+									"hintLevel": 5
+								},
+								{
+									"skillId": "422",
+									"name": "レースの真髄・体",
+									"hintLevel": 5
+								},
+								{
+									"skillId": "427",
+									"name": "陽の加護",
+									"hintLevel": 5
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0526",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0263",
+									"name": "勇迅一閃",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0527",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "313",
+									"name": "押し通る！",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0431",
+									"name": "突撃魂",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0433",
+									"name": "有志竟成",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0528",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0380",
+									"name": "快刀乱麻",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0529",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "290",
+									"name": "一歩ずつ前へ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0298",
+									"name": "ルミネセンス",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0628",
+									"name": "怜悧清澄",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0530",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0497",
+									"name": "陣風一閃",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0531",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "350",
+									"name": "バイタリティ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0259",
+										"name": "コール&レスポンス",
+										"hintLevel": 2
+									},
+									{
+										"skillId": "240",
+										"name": "二段構え",
+										"hintLevel": 5
+									},
+									{
+										"skillId": "ex-0659",
+										"name": "イノベーション",
+										"hintLevel": 2
+									},
+									{
+										"skillId": "371",
+										"name": "アプローチ",
+										"hintLevel": 5
+									}
+								],
+								[
+									{
+										"skillId": "ex-0259",
+										"name": "コール&レスポンス",
+										"hintLevel": 1
+									},
+									{
+										"skillId": "240",
+										"name": "二段構え",
+										"hintLevel": 1
+									},
+									{
+										"skillId": "ex-0659",
+										"name": "イノベーション",
+										"hintLevel": 1
+									},
+									{
+										"skillId": "371",
+										"name": "アプローチ",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0131",
+										"name": "尻尾の滝登り",
+										"hintLevel": 2
+									},
+									{
+										"skillId": "ex-0658",
+										"name": "前人未到",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "ex-0131",
+										"name": "尻尾の滝登り",
+										"hintLevel": 1
+									},
+									{
+										"skillId": "ex-0658",
+										"name": "前人未到",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0532",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "158",
+									"name": "スリップストリーム",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 5,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0318",
+									"name": "いいとこ入った！",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0533",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0645",
+									"name": "パスファインダー",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0534",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "337",
+									"name": "心惹かれて",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0449",
+									"name": "優雅な砂浴び",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0444",
+									"name": "点滴穿石",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0535",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "253",
+									"name": "滾る想い",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "311",
+									"name": "足がかり",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0438",
+									"name": "闘争本能",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0427",
+									"name": "燃ゆる魂",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0536",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "211",
+									"name": "向こう見ず",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "262",
+									"name": "揺るがぬ信念",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0386",
+									"name": "優位形成",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0409",
+									"name": "十全十美",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0537",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0364",
+									"name": "勇迅円刃",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0538",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "119",
+									"name": "危険回避",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "58",
+									"name": "スプリントギア",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0662",
+									"name": "匠のステアリング",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "ex-0664",
+									"name": "圧倒",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "382",
+									"name": "押せ押せムード",
+									"hintLevel": 5
+								},
+								{
+									"skillId": "428",
+									"name": "海の加護",
+									"hintLevel": 5
+								},
+								{
+									"skillId": "432",
+									"name": "いつまでも健やかに",
+									"hintLevel": 5
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0539",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "290",
+									"name": "一歩ずつ前へ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0085",
+									"name": "勇往邁進",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0666",
+									"name": "一騎当千",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0540",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "361",
+									"name": "逃げるが勝ち！",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0012",
+									"name": "コンセントレーション",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0127",
+									"name": "トップランナー",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0012",
+									"name": "コンセントレーション",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0637",
+									"name": "飛竜乗雲",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0127",
+									"name": "トップランナー",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "ex-0637",
+									"name": "飛竜乗雲",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0541",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0040",
+									"name": "スピードスター",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0542",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0486",
+									"name": "強者の証",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "ex-0665",
+									"name": "継続は力なり",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0543",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "289",
+									"name": "ハイピッチ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0511",
+									"name": "天真爛漫",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0657",
+									"name": "元気溌剌",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0544",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "203",
+									"name": "がむしゃら",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0631",
+									"name": "連鎖反応",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0641",
+									"name": "一所懸命",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0641",
+									"name": "一所懸命",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0667",
+									"name": "光輝燦然",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0545",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0110",
+									"name": "猛追",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0546",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "152",
+									"name": "ウマ好み",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0112",
+									"name": "弧線のプロフェッサー",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "ex-0645",
+									"name": "パスファインダー",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0645",
+									"name": "パスファインダー",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0644",
+									"name": "曙光",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0645",
+									"name": "パスファインダー",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0668",
+									"name": "悠々自適",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0547",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "159",
+									"name": "遊びはおしまいっ！",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 5,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0183",
+									"name": "お先に失礼っ！",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0548",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "321",
+									"name": "静かな熱",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0642",
+									"name": "突破口",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0647",
+									"name": "秘めた闘魂",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0549",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "282",
+									"name": "覚悟を決めて",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0150",
+									"name": "万里一空",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "ex-0670",
+									"name": "レースメイカー",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0336",
+									"name": "ブチ☆アゲ↑バイブス",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "ex-0670",
+									"name": "レースメイカー",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0550",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "274",
+									"name": "切り替え上手",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0507",
+									"name": "唯一無二",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0671",
+									"name": "一石二鳥",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0014",
+									"name": "左回りの鬼",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0507",
+									"name": "唯一無二",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0551",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0134",
+									"name": "決意の直滑降",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0552",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0056",
+									"name": "高揚感",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0553",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "359",
+									"name": "気持ちを乗せて",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0673",
+										"name": "清麗高雅",
+										"hintLevel": 2
+									},
+									{
+										"skillId": "401",
+										"name": "華麗な踏み込み",
+										"hintLevel": 5
+									},
+									{
+										"skillId": "ex-0677",
+										"name": "素質の証明",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "ex-0673",
+										"name": "清麗高雅",
+										"hintLevel": 1
+									},
+									{
+										"skillId": "401",
+										"name": "華麗な踏み込み",
+										"hintLevel": 1
+									},
+									{
+										"skillId": "ex-0677",
+										"name": "素質の証明",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0673",
+										"name": "清麗高雅",
+										"hintLevel": 2
+									},
+									{
+										"skillId": "ex-0677",
+										"name": "素質の証明",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "ex-0673",
+										"name": "清麗高雅",
+										"hintLevel": 1
+									},
+									{
+										"skillId": "ex-0677",
+										"name": "素質の証明",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0420",
+										"name": "ショーダウン",
+										"hintLevel": 2
+									},
+									{
+										"skillId": "324",
+										"name": "勇気の一歩",
+										"hintLevel": 5
+									},
+									{
+										"skillId": "ex-0677",
+										"name": "素質の証明",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "ex-0420",
+										"name": "ショーダウン",
+										"hintLevel": 1
+									},
+									{
+										"skillId": "324",
+										"name": "勇気の一歩",
+										"hintLevel": 1
+									},
+									{
+										"skillId": "ex-0677",
+										"name": "素質の証明",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0554",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "312",
+									"name": "捕捉",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "246",
+									"name": "不動の心",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0091",
+									"name": "強攻策",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0672",
+									"name": "当機立断",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0091",
+									"name": "強攻策",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0470",
+									"name": "君臨",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0091",
+									"name": "強攻策",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "ex-0155",
+									"name": "一網打尽",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0555",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0203",
+									"name": "決死の覚悟",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0556",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "188",
+									"name": "盛り返し",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0255",
+									"name": "チャート急上昇！",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "ex-0675",
+									"name": "開けろ風穴！",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0557",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "339",
+									"name": "弾ける足取り",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0325",
+									"name": "気骨稜稜",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0676",
+									"name": "堅忍果決",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "ex-0114",
+									"name": "初嵐",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "ex-0676",
+									"name": "堅忍果決",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0558",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0181",
+									"name": "陣風円刃",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0560",
+			"status": "done",
+			"chain": [
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0364",
+									"name": "勇迅円刃",
+									"hintLevel": 1
 								}
 							]
 						}
