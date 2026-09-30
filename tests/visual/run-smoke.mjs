@@ -12186,6 +12186,314 @@ await block('スキルPt ―― check:catalog の §11（届いたときの検�
 	assert(uniq.status === 0 && uniq.warn.some((w) => w.includes('unique')), 'Pt/catalog(5): rarity が unique なのに pt が0でない行は警告に出す', uniq.warn);
 }
 });
+/* ============================================================
+ * 編成パネル ―― スキルPt（段3・2026-10-01。設計は skill-pt-calculation-step0.md の 2-10）
+ *
+ * 実データのスキル名・基礎値に依存しない。イベントの仕込み（event-fixture）と、**仮の skill-pt.json**
+ * を取得の途中で差し替えて読ませる。期待値は、この塊の中で**独立に**（整数だけで）計算する:
+ * 割引率の表（10・20・30・35・40。状態は0・4・10）を直に書き、コア側の計算式は使わない。
+ *   ①  既定（なし・3）の●の行の Pt・合計・由来ごとの小計。小計の合計が合計と合う
+ *   ②  状態を替えると合計が変わる／排他（同時には選べない）
+ *   ③  覚醒レベル7のウマ娘だけ「5」を選べる。ほかは無効で理由が出る／ウマ娘が未選択なら行が無い
+ *   ④  保存して開き直しても残る（未保存のドラフト・保存した編成）。設定を触らなければ pt は保存されない。
+ *      選べなくなった 5 ・知らない状態は「なし」／3 として計算し、保存データは書き換えない
+ *   ⑤  Pt が未収録のスキルは合計に入れず件数を出す／pt:0 は「Pt 不要」で合計に0を足す
+ *   ⑥  △の行には Pt を出さない
+ *   ⑦  「理論値」のバッジと「?」。開くと説明の全文が出る
+ *   ⑧  データの読み込みに失敗してもパネルは壊れず、知らせが出る
+ *   ⑩  1280px と 375px で横にはみ出さない・コンソールのエラーが0件
+ * ============================================================ */
+await block('編成パネル ―― スキルPt（段3）', async () => {
+{
+	const fx = buildEventFixture();
+	const S = fx.S;
+	const DISC = [10, 20, 30, 35, 40];          // ヒントLv1〜5の割引率（％）
+	const STATUS = { none: 0, benkyo: 4, kire: 10 };
+	const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+	const routeEvents = async (page) => {
+		await page.route('**/data/support-card-event-skills.json*', (route) => route.fulfill({
+			status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(fx.doc) }));
+		await page.route('**/data/character-event-skills.json*', (route) => route.fulfill({
+			status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify({ dataVersion: '2026-09-30a', category: 'characterEventSkill', entries: [] }) }));
+	};
+	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
+	await routeEvents(page);
+
+	// 育成ウマ娘を実データから拾う（名前は書かない）: 覚醒レベルが 7 まであるもの／7 に届かないもの
+	const facts = await page.evaluate(async ({ cardIds }) => {
+		const Core = window.UmaSkillDeckCore;
+		await Core.loadTrainingSources(true);
+		const umas = (Core.getTrainingSources().trainingUmamusume || {}).entries || [];
+		const maxLv = (u) => (u.awakeningSkills || []).reduce((m, r) => (typeof r.level === 'number' && r.level > m ? r.level : m), 0);
+		const u7 = umas.find((u) => maxLv(u) >= 7);
+		const u5 = umas.find((u) => maxLv(u) < 7);
+		const r7 = Core.computeRosterSkills({ umaId: u7.id, cardIds: cardIds });
+		return {
+			u7: u7.id, u5: u5.id,
+			sources7: r7.sources.map((s) => ({ skillId: s.skillId, kind: s.kind, sure: s.sure, hintLevel: s.hintLevel, eventKey: s.eventKey })),
+			items7: r7.items.map((it) => ({ skillId: it.skillId, name: it.name, sure: it.sure })),
+			names: Object.fromEntries(r7.items.map((it) => [it.skillId, it.name])),
+		};
+	}, { cardIds: fx.cardIds });
+	assert(facts.u7 && facts.u5 && facts.u7 !== facts.u5, 'Pt(0): 覚醒レベル7のウマ娘と、届かないウマ娘が実データから拾えた', { u7: facts.u7, u5: facts.u5 });
+
+	// 仮の skill-pt.json。S[0] は行を作らない（未収録）、S[1] は pt:0（固有と同じ「Pt 不要」）、ほかは 90〜240 を巡回
+	const BASES = [90, 110, 130, 150, 180, 200, 240];
+	const sureIds = [...new Set(facts.sources7.filter((s) => s.sure).map((s) => s.skillId))].sort();
+	const allIds = facts.items7.map((it) => it.skillId).sort();
+	const baseOf = new Map();
+	let k = 0;
+	allIds.forEach((id) => {
+		if (id === S[0]) return;
+		baseOf.set(id, id === S[1] ? 0 : BASES[k++ % BASES.length]);
+	});
+	const ptDoc = { dataVersion: '2026-10-01a', category: 'skillPt', note: 'テスト用の仕込み',
+		entries: Array.from(baseOf.entries()).map(([skillId, pt]) => ({ skillId: skillId, pt: pt, rarity: pt === 0 ? 'unique' : 'white' })) };
+	await page.route('**/data/skill-pt.json*', (route) => route.fulfill({
+		status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(ptDoc) }));
+
+	// 独立の期待値（整数だけ）。umaLv は育成ウマ娘のレベル、status は状態の id
+	const expected = (umaLv, status) => {
+		const by = new Map();
+		facts.sources7.forEach((s) => {
+			if (!s.sure) return;
+			const e = by.get(s.skillId) || { P: false, U: false, ev: new Map() };
+			if (s.kind === 'hint') e.P = true;
+			else if (s.kind === 'uma') e.U = true;
+			else e.ev.set(s.eventKey, Math.max(e.ev.get(s.eventKey) || 0, s.hintLevel || 0));
+			by.set(s.skillId, e);
+		});
+		const rows = {}; const sub = { hint: 0, event: 0, uma: 0 }; let total = 0; let unpriced = 0;
+		by.forEach((e, id) => {
+			const evSum = Array.from(e.ev.values()).reduce((a, b) => a + b, 0);
+			const L = Math.min(5, (e.P ? 5 : 0) + evSum + (e.U ? umaLv : 0));
+			const primary = e.P ? 'hint' : evSum > 0 ? 'event' : 'uma';
+			if (!baseOf.has(id)) { rows[id] = 'Pt 未収録'; unpriced++; return; }
+			const base = baseOf.get(id);
+			if (base === 0) { rows[id] = 'Pt 不要'; return; }
+			const pt = Math.floor(base * (100 - DISC[L - 1] - STATUS[status]) / 100);
+			rows[id] = '基礎 ' + base + ' → ' + pt + ' Pt（Lv' + L + '）';
+			total += pt; sub[primary] += pt;
+		});
+		return { rows, sub, total, unpriced, L: (id) => { const e = by.get(id); return Math.min(5, (e.P ? 5 : 0) + Array.from(e.ev.values()).reduce((a, b) => a + b, 0) + (e.U ? umaLv : 0)); } };
+	};
+
+	const mount = async (hostId, roster, draftKey) => page.evaluate(async ({ hostId, roster, draftKey }) => {
+		localStorage.setItem('umaSkillDeck:draftRoster:' + draftKey, JSON.stringify(roster));
+		const host = document.createElement('div');
+		host.id = hostId; host.style.padding = '0 16px';
+		document.body.appendChild(host);
+		window.UmaSkillDeckCore.createRosterPanel(host, { draftKey: draftKey });
+		// 元データを読み終えるまで待つ（読み込み中は何も出さない）
+		for (let i = 0; i < 50 && !host.querySelector('[data-usd-el="pt-sum"],[data-usd-el="pt-error"]'); i++) await new Promise((r) => setTimeout(r, 50));
+	}, { hostId, roster, draftKey });
+	const read = (hostId) => page.evaluate((hostId) => {
+		const host = document.getElementById(hostId);
+		const t = (id) => { const e = host.querySelector('[data-usd-el="' + id + '"]'); return e ? e.textContent : null; };
+		const rows = Array.from(host.querySelectorAll('.usd-roster-grow')).slice(1).map((r) => ({
+			name: r.querySelector('.usd-roster-skillname').textContent,
+			pt: (r.querySelector('.usd-roster-pt') || {}).textContent || null,
+		}));
+		const checked = (act) => Array.from(host.querySelectorAll('input[data-usd-act="' + act + '"]:checked')).map((i) => i.value);
+		const radios = (act) => Array.from(host.querySelectorAll('input[data-usd-act="' + act + '"]')).map((i) => ({ v: i.value, disabled: i.disabled, checked: i.checked }));
+		return { rows, total: t('pt-total'), sub: t('pt-sub'), unpriced: t('pt-unpriced'), error: t('pt-error'),
+			theory: t('pt-theory'), settings: !!host.querySelector('[data-usd-el="pt-settings"]'),
+			statusChecked: checked('pt-status'), umaChecked: checked('pt-uma'), statusRadios: radios('pt-status'), umaRadios: radios('pt-uma'),
+			umaReason: t('pt-uma-reason'), labels: Array.from(host.querySelectorAll('[data-usd-el="pt-settings"] label')).map((l) => l.textContent.trim()),
+			ptLineCount: host.querySelectorAll('.usd-roster-pt').length };
+	}, hostId);
+	const rowText = (view, id) => (view.rows.find((r) => r.name === facts.names[id]) || {}).pt;
+
+	/* ① 既定（なし・3）。ウマ娘は覚醒レベル7のもの（5 も選べる） */
+	await mount('pt-a', { umaId: facts.u7, cardIds: fx.cardIds }, 'pt-a');
+	let v = await read('pt-a');
+	let e = expected(3, 'none');
+	const sureRows = sureIds.filter((id) => baseOf.has(id));
+	const mismatch = sureRows.filter((id) => rowText(v, id) !== e.rows[id]).map((id) => ({ name: facts.names[id], got: rowText(v, id), want: e.rows[id] }));
+	assert(sureRows.length >= 5 && mismatch.length === 0,
+		'Pt(1): 既定（なし・3）で、●の行すべて（' + sureRows.length + '行）の Pt が独立の期待値と一致する（名前セルの2行目「基礎 B → P Pt（LvL）」）', mismatch.slice(0, 3));
+	assert(v.total === fmt(e.total) && v.sub === 'ヒント ' + fmt(e.sub.hint) + ' ／ イベント ' + fmt(e.sub.event) + ' ／ 育成ウマ娘 ' + fmt(e.sub.uma),
+		'Pt(1): 合計と、由来ごとの小計「ヒント n ／ イベント n ／ 育成ウマ娘 n」（3つとも出す）が期待値と一致する', { got: [v.total, v.sub], want: [fmt(e.total), e.sub] });
+	assert(e.sub.hint + e.sub.event + e.sub.uma === e.total && e.sub.hint > 0 && e.sub.event > 0 && e.sub.uma > 0,
+		'Pt(1): 期待値の側で、小計の合計が合計と合い、3つとも0でない（空振りでない）', e);
+	// 手で決めた絶対値も1つ置く（計算式が期待値の側と同じ間違いをしていないか）。基礎180・Lv5・なし → 108（0.4割引でも切り捨てで 108）
+	const lvOf = (id) => e.L(id);
+	assert(lvOf(S[1]) === 2 && lvOf(S[5]) === 3 && lvOf(S[4]) === 1 && lvOf(S[2]) === 1,
+		'Pt(1): 仕込みのイベントのレベルが設計どおり（S1＝2・S5＝3・S4＝1 〔両方の選択肢に入っていても同じイベントは最大の1回〕・S2＝1）', { s1: lvOf(S[1]), s5: lvOf(S[5]), s4: lvOf(S[4]), s2: lvOf(S[2]) });
+	assert(v.labels.join('|') === ['なし', '勉強家 −4%', '切れ者 −10%', '3', '5'].join('|') && v.statusChecked.join() === 'none' && v.umaChecked.join() === '3',
+		'Pt(1): 状態のラジオは「なし」「勉強家 −4%」「切れ者 −10%」（割引率の表から作る）・育成ウマ娘のヒントLv は「3」「5」で、既定は「なし」・3', { labels: v.labels, s: v.statusChecked, u: v.umaChecked });
+
+	/* ② 状態 */
+	const totals = {};
+	for (const st of ['benkyo', 'kire']) {
+		await page.click('#pt-a input[data-usd-act="pt-status"][value="' + st + '"]');
+		v = await read('pt-a'); e = expected(3, st); totals[st] = v.total;
+		const mm = sureRows.filter((id) => rowText(v, id) !== e.rows[id]);
+		assert(v.total === fmt(e.total) && mm.length === 0 && v.statusChecked.join() === st,
+			'Pt(2): 状態「' + st + '」で、各行の Pt と合計が期待値どおりに変わる（合計 ' + e.total + '）', { got: v.total, want: fmt(e.total), mm: mm.length });
+	}
+	assert(totals.benkyo !== totals.kire && totals.kire !== fmt(expected(3, 'none').total), 'Pt(2): 状態ごとに合計が違う（空振りでない）', totals);
+	assert(v.statusChecked.length === 1 && v.statusRadios.filter((r) => r.checked).length === 1, 'Pt(2): 状態は排他（同時に選べるのは1つだけ。切れ者を選ぶと勉強家は外れる）', v.statusRadios);
+	await page.click('#pt-a input[data-usd-act="pt-status"][value="none"]');
+
+	/* ③ 育成ウマ娘のヒントLv */
+	assert(v.umaRadios.length === 2 && v.umaRadios.every((r) => !r.disabled) && v.umaReason === null,
+		'Pt(3): 覚醒レベル7のウマ娘では「3」「5」とも選べ、理由の表示は出ない', { r: v.umaRadios, reason: v.umaReason });
+	const before5 = expected(3, 'none');
+	await page.click('#pt-a input[data-usd-act="pt-uma"][value="5"]');
+	v = await read('pt-a'); e = expected(5, 'none');
+	const mm5 = sureRows.filter((id) => rowText(v, id) !== e.rows[id]);
+	assert(v.umaChecked.join() === '5' && v.total === fmt(e.total) && mm5.length === 0 && v.total !== fmt(before5.total),
+		'Pt(3): 「5」を選ぶと、育成ウマ娘の初期・覚醒スキルの Pt と合計が変わる', { got: v.total, want: fmt(e.total), before: fmt(before5.total), mm: mm5.length });
+	await mount('pt-b', { umaId: facts.u5, cardIds: fx.cardIds }, 'pt-b');
+	const vb = await read('pt-b');
+	assert(vb.umaRadios.length === 2 && vb.umaRadios.find((r) => r.v === '5').disabled && !vb.umaRadios.find((r) => r.v === '3').disabled && vb.umaChecked.join() === '3'
+		&& vb.umaReason === '覚醒Lv7のウマ娘のみ',
+		'Pt(3): 覚醒レベルが7に届かないウマ娘では「5」が無効で、理由「覚醒Lv7のウマ娘のみ」が出る', { r: vb.umaRadios, reason: vb.umaReason });
+	await mount('pt-c', { umaId: '', cardIds: fx.cardIds }, 'pt-c');
+	const vc = await read('pt-c');
+	assert(vc.umaRadios.length === 0 && vc.umaReason === null && vc.statusRadios.length === 3,
+		'Pt(3): 育成ウマ娘が未選択のときは、ヒントLv の行を出さない（状態の行は出る）', { u: vc.umaRadios.length, s: vc.statusRadios.length });
+
+	/* ④ 保存 */
+	// 未保存（ドラフト）: 設定を替えると localStorage のドラフトに pt が入る。同じ draftKey で作り直しても残る
+	await page.click('#pt-a input[data-usd-act="pt-status"][value="kire"]');
+	const draft = await page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:pt-a')).pt);
+	assert(draft && draft.status === 'kire' && draft.umaHintLevel === 5, 'Pt(4): 未保存の編成のドラフトに pt: { umaHintLevel, status } が保存される', draft);
+	await page.evaluate(() => document.getElementById('pt-a').remove());
+	await mount('pt-a2', JSON.parse(await page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:pt-a'))), 'pt-a');
+	v = await read('pt-a2'); e = expected(5, 'kire');
+	assert(v.statusChecked.join() === 'kire' && v.umaChecked.join() === '5' && v.total === fmt(e.total), 'Pt(4): 未保存の編成を開き直しても設定が残る（合計も同じ）', { s: v.statusChecked, u: v.umaChecked, total: v.total });
+	// 保存した編成
+	await page.click('#pt-a2 [data-usd-act="save"]');
+	const saved = await page.evaluate(() => window.UmaSkillDeckCore.listRosters().map((r) => ({ id: r.rosterId, pt: r.pt })));
+	assert(saved.length === 1 && saved[0].pt && saved[0].pt.status === 'kire' && saved[0].pt.umaHintLevel === 5, 'Pt(4): 保存した編成（userData.rosters）に pt が入る', saved);
+	await page.evaluate(() => document.getElementById('pt-a2').remove());
+	await mount('pt-d', { umaId: '', cardIds: new Array(6).fill(null) }, 'pt-d');
+	await page.click('#pt-d [data-usd-act="select-roster"][data-tab-id="' + saved[0].id + '"]');
+	v = await read('pt-d');
+	assert(v.statusChecked.join() === 'kire' && v.umaChecked.join() === '5' && v.total === fmt(e.total), 'Pt(4): 保存した編成を選び直しても設定が残る（合計も同じ）', { s: v.statusChecked, u: v.umaChecked, total: v.total });
+	// 設定を触らない編成には pt を足さない（読み込み時に補わない・保存データを勝手に変えない）
+	await mount('pt-g', { umaId: facts.u5, cardIds: fx.cardIds }, 'pt-g');
+	await page.click('#pt-g [data-usd-act="save"]');
+	const untouched = await page.evaluate(() => { const l = window.UmaSkillDeckCore.listRosters(); return { n: l.length, hasPt: 'pt' in l[l.length - 1] }; });
+	assert(untouched.n === 2 && untouched.hasPt === false, 'Pt(4): 設定を1度も触っていない編成を保存しても pt は足さない（既定は使うところで補う）', untouched);
+	await page.evaluate(() => document.getElementById('pt-g').remove());
+	// 選べなくなった 5・知らない状態は、計算は 3・「なし」、保存データはそのまま
+	await page.evaluate(() => document.getElementById('pt-d').remove());
+	await mount('pt-e', { umaId: facts.u5, cardIds: fx.cardIds, pt: { umaHintLevel: 5, status: 'zzz' } }, 'pt-e');
+	v = await read('pt-e');
+	// 同じウマ娘・同じ編成を「設定なし」で開いた基準（別のウマ娘なので、u7 の期待値ではなく、こちらと突き合わせる）
+	await mount('pt-h', { umaId: facts.u5, cardIds: fx.cardIds }, 'pt-h');
+	const vh = await read('pt-h');
+	const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:pt-e')).pt);
+	assert(v.umaChecked.join() === '3' && v.statusChecked.join() === 'none' && v.total === vh.total && JSON.stringify(v.rows) === JSON.stringify(vh.rows) && vh.ptLineCount > 0,
+		'Pt(4): 保存してある 5（覚醒 Lv が足りないウマ娘）と、知らない状態の値は、計算では 3・「なし」として扱う（設定の無い同じ編成と、各行・合計が同じ）', { u: v.umaChecked, s: v.statusChecked, total: v.total, base: vh.total });
+	assert(kept.umaHintLevel === 5 && kept.status === 'zzz', 'Pt(4): その保存データは書き換えない（開いて描いただけでは変わらない）', kept);
+	await page.click('#pt-e input[data-usd-act="pt-status"][value="benkyo"]');
+	const kept2 = await page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:pt-e')).pt);
+	assert(kept2.status === 'benkyo' && kept2.umaHintLevel === 5, 'Pt(4): 状態だけ替えたとき、もう一方の保存値（5）は書き換えない', kept2);
+	await page.evaluate(() => { document.getElementById('pt-e').remove(); document.getElementById('pt-h').remove(); });
+
+	/* ⑤ 未収録・Pt 不要 ／ ⑥ △ ／ ⑦ 理論値 */
+	await mount('pt-f', { umaId: facts.u7, cardIds: fx.cardIds }, 'pt-f');
+	v = await read('pt-f'); e = expected(3, 'none');
+	assert(e.unpriced === 1 && v.unpriced === '（Pt 未収録 1種は含めていません）' && rowText(v, S[0]) === 'Pt 未収録',
+		'Pt(5): Pt が未収録のスキル（S0）は行に「Pt 未収録」と出て、合計に入れず「（Pt 未収録 1種は含めていません）」が出る', { unpriced: v.unpriced, row: rowText(v, S[0]) });
+	assert(rowText(v, S[1]) === 'Pt 不要' && v.total === fmt(e.total),
+		'Pt(5): pt:0 の行（S1）は「Pt 不要」で、合計には0が足される（合計が期待値のまま）', { row: rowText(v, S[1]), total: v.total });
+	const maybeIds = facts.items7.filter((it) => !it.sure).map((it) => it.skillId);
+	assert(maybeIds.length >= 3 && maybeIds.every((id) => baseOf.has(id) && v.rows.find((r) => r.name === facts.names[id]) && rowText(v, id) === null),
+		'Pt(6): △だけの行（' + maybeIds.length + '行。Pt の行は仕込んである）には Pt の2行目が出ない', maybeIds.map((id) => ({ id: id, pt: rowText(v, id) })));
+	const helpInit = await page.evaluate(() => { const b = document.querySelector('#pt-f [data-usd-el="pt-help-btn"]'); const x = document.querySelector('#pt-f [data-usd-el="pt-help-box"]');
+		return { has: !!b && !!x, expanded: b && b.getAttribute('aria-expanded'), hidden: x && x.hidden, label: b && b.getAttribute('aria-label') }; });
+	assert(v.theory === '理論値' && helpInit.has && helpInit.expanded === 'false' && helpInit.hidden === true, 'Pt(7): 合計の行に「理論値」のバッジと「?」があり、説明は閉じている', { theory: v.theory, helpInit });
+	await page.click('#pt-f [data-usd-el="pt-help-btn"]');
+	const helpOpen = await page.evaluate(() => { const b = document.querySelector('#pt-f [data-usd-el="pt-help-btn"]'); const x = document.querySelector('#pt-f [data-usd-el="pt-help-box"]');
+		return { expanded: b.getAttribute('aria-expanded'), hidden: x.hidden, text: x.textContent, visible: x.getBoundingClientRect().height > 0, isHelpBox: x.classList.contains('uma-help-box') }; });
+	assert(helpOpen.expanded === 'true' && !helpOpen.hidden && helpOpen.visible && helpOpen.isHelpBox && helpOpen.text === '理論値（各スキルを最大のヒントレベルで得た場合のスキルPt）',
+		'Pt(7): 「?」を押すと、既存の .uma-help-box で説明の全文が出る（ホバーに依存しない）', helpOpen);
+	await page.click('#pt-f [data-usd-el="pt-help-btn"]');
+	assert(await page.evaluate(() => document.querySelector('#pt-f [data-usd-el="pt-help-box"]').hidden), 'Pt(7): もう一度押すと閉じる');
+
+	/* ⑩ 幅 ―― 1280px と 375px。名前セルの2行目が1行に収まり、横にはみ出さない */
+	const overflow = async (label) => {
+		const m = await page.evaluate(() => {
+			const host = document.getElementById('pt-f');
+			const wrap = host.querySelector('.usd-roster-grid-wrap');
+			const lines = Array.from(host.querySelectorAll('.usd-roster-pt'));
+			const cells = Array.from(host.querySelectorAll('.usd-roster-skillcell'));
+			return { page: document.documentElement.scrollWidth - window.innerWidth, wrap: wrap.scrollWidth - wrap.clientWidth,
+				lineOver: lines.filter((l) => l.scrollWidth > l.clientWidth + 1).length, cellOver: cells.filter((c) => c.scrollWidth > c.clientWidth + 1).length,
+				multiLine: lines.filter((l) => l.getBoundingClientRect().height > 16).length, lines: lines.length,
+				settings: (() => { const s = host.querySelector('[data-usd-el="pt-settings"]'); return s.scrollWidth - s.clientWidth; })(),
+				sum: (() => { const s = host.querySelector('[data-usd-el="pt-sum"]'); return s.scrollWidth - s.clientWidth; })() };
+		});
+		assert(m.page <= 0 && m.wrap <= 0 && m.lineOver === 0 && m.cellOver === 0 && m.settings <= 0 && m.sum <= 0 && m.lines > 0,
+			'Pt(10): ' + label + ' で、横にはみ出さない（ページ・表・名前セル・Pt の行・設定・合計）', m);
+		assert(m.multiLine === 0, 'Pt(10): ' + label + ' で、Pt の行（' + m.lines + '行）はすべて1行に収まる', { multiLine: m.multiLine });
+	};
+	await overflow('1280px');
+	await page.setViewportSize({ width: 375, height: 800 });
+	await overflow('375px');
+	await page.setViewportSize({ width: 1280, height: 900 });
+	assert(errors.length === 0, 'Pt: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+
+	/* ⑩の続き ―― 実際の special.html の①タブ（表の名前の列が狭い）。はみ出さず、Pt の行が1行に収まることを見る。
+	   375px では名前の列が約110pxしかない。メンバーの列を 28px → 24px にして、3桁どうしの「基礎 240 → 216 Pt（Lv1）」も1行に入れた。 */
+	for (const [w, h] of [[1280, 1000], [375, 900]]) {
+		const sp = await openPage(browser, base, 'special.html', { width: w, height: h });
+		const evCards = fx.doc.entries.filter((x) => x.status === 'done').map((x) => x.cardId);
+		await sp.page.evaluate(({ cardIds, umaId }) => localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: umaId, cardIds: cardIds })), { cardIds: fx.cardIds, umaId: facts.u7 });
+		await sp.page.route('**/data/support-card-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(fx.doc) }));
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.evaluate(() => selectStepTab(0));
+		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"]');
+		const g = await sp.page.evaluate(() => {
+			const host = document.getElementById('deck-roster-panel');
+			const wrap = host.querySelector('.usd-roster-grid-wrap');
+			const lines = Array.from(host.querySelectorAll('.usd-roster-pt'));
+			return { page: document.documentElement.scrollWidth - window.innerWidth, wrap: wrap.scrollWidth - wrap.clientWidth,
+				lineOver: lines.filter((l) => l.scrollWidth > l.clientWidth + 1).length, lines: lines.length,
+				maxLinesPerPt: Math.max(...lines.map((l) => Math.round(l.getBoundingClientRect().height / 14))),
+				settings: (() => { const s = host.querySelector('[data-usd-el="pt-settings"]'); return s.scrollWidth - s.clientWidth; })() };
+		});
+		assert(g.page <= 0 && g.wrap <= 0 && g.lineOver === 0 && g.settings <= 0 && g.lines > 0 && g.maxLinesPerPt === 1,
+			'Pt(10): 実際の special.html の①タブ（' + w + 'px）で、横にはみ出さず、Pt の行（' + g.lines + '行）はすべて1行に収まる', g);
+		const other = sp.errors.filter((m) => !/Failed to load resource|status of 404/.test(m));
+		assert(other.length === 0, 'Pt(10): special.html の①タブ（' + w + 'px）でコンソールエラーなし', other.slice(0, 3));
+		await sp.ctx.close();
+	}
+
+	/* ⑧ 読み込みの失敗。割引率の表・skill-pt.json のどちらが失敗してもパネルは壊れず、知らせが出て Pt は出ない */
+	for (const failing of ['skill-pt-rules.json', 'skill-pt.json']) {
+		const p2 = await openPage(browser, base, 'uma-skill-deck.html');
+		await routeEvents(p2.page);
+		await p2.page.route('**/data/skill-pt.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(ptDoc) }));
+		await p2.page.route('**/data/' + failing + '*', (route) => route.fulfill({ status: 500, body: 'error' }));
+		await p2.page.evaluate(async () => { await window.UmaSkillDeckCore.loadTrainingSources(true); });
+		await p2.page.evaluate(({ u7, cardIds }) => { localStorage.setItem('umaSkillDeck:draftRoster:pt-x2', JSON.stringify({ umaId: u7, cardIds: cardIds })); }, { u7: facts.u7, cardIds: fx.cardIds });
+		await p2.page.evaluate(async () => {
+			const host = document.createElement('div'); host.id = 'pt-y'; document.body.appendChild(host);
+			window.UmaSkillDeckCore.createRosterPanel(host, { draftKey: 'pt-x2' });
+			for (let i = 0; i < 50 && !host.querySelector('[data-usd-el="pt-error"]'); i++) await new Promise((r) => setTimeout(r, 50));
+		});
+		const f = await p2.page.evaluate(() => {
+			const host = document.getElementById('pt-y');
+			return { error: (host.querySelector('[data-usd-el="pt-error"]') || {}).textContent || null, ptLines: host.querySelectorAll('.usd-roster-pt').length,
+				sum: !!host.querySelector('[data-usd-el="pt-sum"]'), settings: !!host.querySelector('[data-usd-el="pt-settings"]'),
+				rows: host.querySelectorAll('.usd-roster-grow').length, marks: host.querySelectorAll('.usd-roster-got').length };
+		});
+		const other = p2.errors.filter((m) => !/Failed to load resource|status of 500/.test(m));
+		assert(f.error === 'Pt のデータを読み込めませんでした' && f.ptLines === 0 && !f.sum && !f.settings && f.rows > 5 && f.marks > 0 && other.length === 0,
+			'Pt(8): ' + failing + ' を読めなくても、パネルは壊れず（表は出る）、知らせが出て Pt は出ない（例外なし）', { f, other: other.slice(0, 2) });
+		await p2.ctx.close();
+	}
+}
+});
+
 await browser.close();
 await close();
 
