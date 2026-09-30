@@ -10722,7 +10722,7 @@ await block('編成パネル ―― サポートカードのイベントの●�
 		const rows = Array.from(grid.querySelectorAll('.usd-roster-grow')).slice(1);
 		const nameOf = (id) => (Core.findSkill(id) || {}).name;
 		const marks = (i) => {
-			const row = rows.find((r) => r.querySelector('.usd-roster-gc--name').textContent === nameOf(S[i]));
+			const row = rows.find((r) => r.querySelector('.usd-roster-skillname').textContent === nameOf(S[i]));
 			if (!row) return null;
 			return Array.from(row.querySelectorAll('[role="cell"]')).map((c) =>
 				c.querySelector('.usd-roster-got') ? '●' : c.querySelector('.usd-roster-maybe') ? '△' : '');
@@ -10842,7 +10842,7 @@ await block('編成パネル ―― キャラクター共通のイベントの�
 		const nameOf = (id) => (Core.findSkill(id) || {}).name;
 		const out = {};
 		T.forEach((id, i) => {
-			const row = rows.find((r) => r.querySelector('.usd-roster-gc--name').textContent === nameOf(id));
+			const row = rows.find((r) => r.querySelector('.usd-roster-skillname').textContent === nameOf(id));
 			out[i] = row ? Array.from(row.querySelectorAll('[role="cell"]')).map((c) =>
 				c.querySelector('.usd-roster-got') ? '●' : c.querySelector('.usd-roster-maybe') ? '△' : '').join('|') : null;
 		});

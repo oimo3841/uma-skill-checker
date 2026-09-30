@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30j';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-01a';
 
 	/* ============================================================
 	 * 定数
@@ -1867,6 +1867,32 @@
 		});
 		return { ok: true, items: items, total: total, subtotals: subtotals, unpriced: unpriced, unpricedCount: unpriced.length,
 			unknownLevelCount: unknownLevelCount, statusId: statusId || 'none', umaHintLevel: umaLevel };
+	}
+
+	/**
+	 * 編成の Pt の設定（roster.pt。段3）を、**計算に使う値**へ解く。**保存データは書き換えない**。
+	 *   - 状態: 保存した値が割引率の表（rules.statuses）に無ければ「なし」（取り込んだ知らない値も「なし」として計算する）
+	 *   - 育成ウマ娘のヒントLv: 選べる値（umaHintLevelChoices）に入っていなければ既定。
+	 *     保存した 5 が残っていても、選べない育成ウマ娘（覚醒 Lv が足りない）では既定で計算する
+	 * roster.pt は無いのが普通（読み込み時に補わない。使うところで既定として扱う）。
+	 * 返り値の umaChoices は、そのウマ娘で選べる値（画面が「5」を有効にするかの判定にも使う）。
+	 */
+	const PT_STATUS_DEFAULT = 'none';
+	function resolveRosterPtSettings(roster, rules) {
+		const r = roster || {};
+		const p = (r.pt && typeof r.pt === 'object') ? r.pt : {};
+		const uma = r.umaId ? findUma(r.umaId) : null;
+		const umaChoices = umaHintLevelChoices(uma ? maxAwakeningLevelOf(uma) : 0, rules);
+		return {
+			status: rules.statuses.some(s => s.id === p.status) ? p.status : PT_STATUS_DEFAULT,
+			umaHintLevel: umaChoices.indexOf(p.umaHintLevel) !== -1 ? p.umaHintLevel : rules.umaHintLevelDefault,
+			umaChoices: umaChoices
+		};
+	}
+
+	/** 3桁ごとの区切りを入れる（表示用。ロケールに依存させない）。 */
+	function formatPtNumber(n) {
+		return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 	}
 
 	/* ---- 保存（userData.rosters） ---- */
@@ -4701,6 +4727,123 @@
 		function computed() { return computeRosterSkills(roster); }
 
 		/* ------------------------------------------------------------
+		 * スキルPt（段3。設計は skill-pt-calculation-step0.md の 2-10）
+		 *
+		 * 元データ（割引率の表と skill-pt.json）は、この編成パネルを作ったときに読む
+		 * （special の①タブだけ。ほかのページの読み込みには増やさない）。読み終わったら描き直す。
+		 * 読めなかったときは Pt を出さず、表の近くに知らせを出す（パネルは壊さない）。
+		 * 計算は実装済みの computeRosterPt に任せ、ここは設定を渡して結果を並べるだけ。
+		 * ------------------------------------------------------------ */
+		const ptUid = uid('ptset');   // 育成の設定のラジオの name（同じページに複数のパネルがあっても混ざらないように）
+		let ptHelpOpen = false;       // 「理論値」の「?」の説明を開いているか（保存しない）
+		let ptFocusAfter = null;      // 設定を替えて描き直したあと、押していたラジオへフォーカスを戻す
+
+		/** 'loading'（まだ）／'ok'／'failed'（割引率の表か skill-pt.json を読めなかった）。 */
+		function ptDataStatus() {
+			const m = skillPtData.meta;
+			if (!m.loaded) return 'loading';
+			return (m.rules === 'ok' && m.skillPt !== 'failed') ? 'ok' : 'failed';
+		}
+
+		/** いまの設定（解いたあとの値）。データが使えないときは null。 */
+		function ptView0() {
+			return ptDataStatus() === 'ok' ? resolveRosterPtSettings(roster, skillPtData.rules) : null;
+		}
+
+		/** Pt の結果。データが使えないとき（読み込み中・失敗）は null。 */
+		function computePtView(res) {
+			if (ptDataStatus() !== 'ok') return null;
+			const rules = skillPtData.rules;
+			const settings = resolveRosterPtSettings(roster, rules);
+			const pt = computeRosterPt({
+				sources: res.sources, rules: rules, skillPt: skillPtData.skillPt, stepUp: skillPtData.stepUp,
+				statusId: settings.status, umaHintLevel: settings.umaHintLevel
+			});
+			if (!pt.ok) return null;
+			const byId = new Map();
+			pt.items.forEach(x => byId.set(x.skillId, x));
+			return { rules: rules, settings: settings, pt: pt, byId: byId };
+		}
+
+		/** 設定を1つ替えて保存する。保存するのは roster.pt（無いものは既定で補う。ほかのキーの保存値は書き換えない）。 */
+		function setPtSetting(key, value) {
+			const rules = skillPtData.rules;
+			if (!rules) return;
+			const cur = (roster.pt && typeof roster.pt === 'object') ? roster.pt : {};
+			roster.pt = {
+				umaHintLevel: cur.umaHintLevel !== undefined ? cur.umaHintLevel : rules.umaHintLevelDefault,
+				status: cur.status !== undefined ? cur.status : PT_STATUS_DEFAULT
+			};
+			roster.pt[key] = value;
+			persistNow();
+		}
+
+		function ptRadioHtml(name, act, value, label, checked, disabled) {
+			return '<label class="uma-checkrow-label' + (disabled ? ' usd-roster-radio--disabled' : '') + '">'
+				+ '<input type="radio" name="' + esc(name) + '" data-usd-act="' + act + '" value="' + esc(String(value)) + '"'
+				+ (checked ? ' checked' : '') + (disabled ? ' disabled' : '') + '><span>' + esc(label) + '</span></label>';
+		}
+
+		/** 育成の設定（状態・育成ウマ娘のヒントLv）。ラベルと割引率は割引率の表から作る（コードに値を書かない）。 */
+		function ptSettingsHtml(view) {
+			const rules = view.rules;
+			const s = view.settings;
+			let h = '<div class="usd-roster-settings" data-usd-el="pt-settings">';
+			h += '<p class="usd-roster-h usd-roster-h--sub">育成の設定</p>';
+			h += '<div class="usd-roster-setrow" role="radiogroup" aria-label="状態">'
+				+ '<span class="usd-roster-setlabel">状態</span>'
+				+ rules.statuses.map(st => ptRadioHtml(ptUid + '-status', 'pt-status', st.id,
+					st.label + (st.percent > 0 ? ' −' + st.percent + '%' : ''), st.id === s.status, false)).join('')
+				+ '</div>';
+			// 育成ウマ娘を選んでいないときは出さない（「5」を選べるかは、そのウマ娘の覚醒レベルで決まる）
+			if (roster.umaId) {
+				const levels = [rules.umaHintLevelDefault];
+				if (levels.indexOf(rules.umaHintLevelChoice) === -1 && isNonNegInt(rules.umaHintLevelChoice)) levels.push(rules.umaHintLevelChoice);
+				const blocked = levels.filter(lv => s.umaChoices.indexOf(lv) === -1);
+				h += '<div class="usd-roster-setrow" role="radiogroup" aria-label="育成ウマ娘のヒントLv">'
+					+ '<span class="usd-roster-setlabel">育成ウマ娘のヒントLv</span>'
+					+ levels.map(lv => ptRadioHtml(ptUid + '-uma', 'pt-uma', lv, String(lv), lv === s.umaHintLevel, s.umaChoices.indexOf(lv) === -1)).join('')
+					+ (blocked.length > 0 ? '<span class="usd-roster-note" data-usd-el="pt-uma-reason">覚醒Lv' + rules.umaHintLevelChoiceMinAwakening + 'のウマ娘のみ</span>' : '')
+					+ '</div>';
+			}
+			h += '</div>';
+			return h;
+		}
+
+		/** 合計の行（合計・「理論値」のバッジと「?」・由来ごとの小計・Pt 未収録の件数）。 */
+		function ptSummaryHtml(view) {
+			const pt = view.pt;
+			let h = '<div class="usd-roster-ptsum" data-usd-el="pt-sum">';
+			h += '<div class="usd-roster-ptsum-main">'
+				+ '<span class="usd-roster-ptsum-total">本育成のスキルPt 合計 <strong data-usd-el="pt-total">' + formatPtNumber(pt.total) + '</strong></span>'
+				+ '<span class="uma-badge uma-badge--accent" data-usd-el="pt-theory">理論値</span>'
+				+ '<button type="button" class="uma-help-btn" data-usd-act="pt-help" data-usd-el="pt-help-btn"'
+				+ ' aria-expanded="' + (ptHelpOpen ? 'true' : 'false') + '" aria-label="理論値とは" title="理論値とは">?</button>'
+				+ '</div>';
+			h += '<p class="uma-help-box" data-usd-el="pt-help-box"' + (ptHelpOpen ? '' : ' hidden') + '>理論値（各スキルを最大のヒントレベルで得た場合のスキルPt）</p>';
+			h += '<p class="usd-roster-note" data-usd-el="pt-sub">ヒント ' + formatPtNumber(pt.subtotals.hint)
+				+ ' ／ イベント ' + formatPtNumber(pt.subtotals.event)
+				+ ' ／ 育成ウマ娘 ' + formatPtNumber(pt.subtotals.uma) + '</p>';
+			if (pt.unpricedCount > 0) {
+				h += '<p class="usd-roster-note" data-usd-el="pt-unpriced">（Pt 未収録 ' + pt.unpricedCount + '種は含めていません）</p>';
+			}
+			h += '</div>';
+			return h;
+		}
+
+		/** 名前セルの2行目。●の行（確定で得られるスキル）だけに出す。△は出さない（有効化が入る段4 で出す）。 */
+		function ptLineHtml(view, it) {
+			if (!view || !it.sure) return '';
+			const x = view.byId.get(it.skillId);
+			if (!x) return '';
+			let text;
+			if (x.base === null) text = 'Pt 未収録';
+			else if (x.base === 0) text = 'Pt 不要';
+			else text = '基礎 ' + x.base + ' → ' + x.pt + ' Pt（Lv' + x.hintLevel + '）';
+			return '<span class="usd-roster-pt" data-usd-el="pt-line">' + esc(text) + '</span>';
+		}
+
+		/* ------------------------------------------------------------
 		 * ミニウィンドウの置き場所（F-61。69セッション目に直した）
 		 *
 		 * **全画面に重ねるものは document.body の直下に置く。** パネルの中に置くと、
@@ -4922,6 +5065,7 @@
 			const res = computed();
 			const saved = listRosters();
 			const overlap = overlapWithScope(res.skillIds);
+			const ptView = computePtView(res);
 
 			let h = '<div class="usd-roster">';
 
@@ -5039,6 +5183,9 @@
 				h += '<p class="usd-roster-note">育成ウマ娘とサポートカードを選ぶと、ここに出ます。</p>';
 			} else {
 				const members = res.members;
+				// スキルPt（段3）。設定と合計は表の上。読み込み中は何も出さず、読めなかったときだけ知らせる
+				if (ptView) h += ptSettingsHtml(ptView) + ptSummaryHtml(ptView);
+				else if (ptDataStatus() === 'failed') h += '<p class="usd-roster-alert" data-usd-el="pt-error">Pt のデータを読み込めませんでした</p>';
 				h += '<div class="usd-roster-grid-wrap"><div class="usd-roster-grid" role="table" aria-label="本育成で得られるスキル"'
 					+ ' style="--usd-roster-cols:' + members.length + '">';
 				h += '<div class="usd-roster-grow" role="row">'
@@ -5049,7 +5196,8 @@
 					+ '</div>';
 				res.items.forEach((it) => {
 					h += '<div class="usd-roster-grow" role="row">'
-						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader">' + esc(it.name) + '</div>'
+						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader"><div class="usd-roster-skillcell">'
+							+ '<span class="usd-roster-skillname">' + esc(it.name) + '</span>' + ptLineHtml(ptView, it) + '</div></div>'
 						+ members.map(m => '<div class="usd-roster-gc' + colClass(m) + '" role="cell">'
 							+ (it.sureMembers.indexOf(m.key) !== -1 ? '<span class="usd-roster-got" role="img" aria-label="得られる"></span>'
 								: it.members.indexOf(m.key) !== -1 ? '<span class="usd-roster-maybe" role="img" aria-label="選択肢しだいで得られる"></span>' : '')
@@ -5085,6 +5233,12 @@
 			if (picking) {
 				const input = q(host, 'find');
 				if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+			}
+			// 育成の設定のラジオを押して描き直したときは、押したラジオへフォーカスを戻す（矢印キーで続けて選べるように）
+			if (ptFocusAfter) {
+				const radio = container.querySelector('input[data-usd-act="' + ptFocusAfter.act + '"][value="' + ptFocusAfter.value + '"]');
+				if (radio) radio.focus();
+				ptFocusAfter = null;
 			}
 		}
 
@@ -5151,6 +5305,18 @@
 			}
 			else if (act === 'cancel-pick') { picking = null; render(); }
 			else if (act === 'toggle-unconf') { showUnconf = !showUnconf; render(); }
+			else if (act === 'pt-help') { ptHelpOpen = !ptHelpOpen; render(); }
+			else if (act === 'pt-status' || act === 'pt-uma') {
+				// 押したのが今の値なら何もしない（描き直すとフォーカスが飛ぶ）。育成ウマ娘の値は数として保存する
+				const isUma = act === 'pt-uma';
+				const value = isUma ? Number(btn.value) : btn.value;
+				if (btn.disabled) return;
+				const cur = ptView0();
+				if (cur && (isUma ? cur.umaHintLevel : cur.status) === value) return;
+				setPtSetting(isUma ? 'umaHintLevel' : 'status', value);
+				ptFocusAfter = { act: act, value: btn.value };
+				render();
+			}
 			else if (act === 'select-roster') { loadSelected(btn.getAttribute('data-tab-id') || ''); }
 			else if (act === 'type') { pickType = btn.getAttribute('data-value') || ''; render(); renderHits(); }
 			else if (act === 'clear-uma') { roster.umaId = ''; persistNow(); applyHidden(); render(); notifyOverlap(); }
@@ -5247,6 +5413,8 @@
 		container.addEventListener('input', onPanelInput);
 
 		render();
+		// スキルPt の元データがまだ読まれていなければ、読み終わったあとで描き直す（読めなくても描き直す＝知らせを出す）
+		if (!skillPtData.meta.loaded) loadSkillPtData(false).then(function () { render(); });
 		return {
 			render: render,
 			getRoster: function () { return snapshot(roster); },
@@ -6610,6 +6778,7 @@
 		buildSkillPtIndex: buildSkillPtIndex,
 		buildStepUpIndex: buildStepUpIndex,
 		computeRosterPt: computeRosterPt,
+		resolveRosterPtSettings: resolveRosterPtSettings,
 		charactersOfCard: charactersOfCard,
 		// サポートカードの種類。データに type が入るまでは空配列を返す（C-51 の修正2）。
 		listCardTypes: listCardTypes,
