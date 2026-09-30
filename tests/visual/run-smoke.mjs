@@ -12033,6 +12033,93 @@ await block('スキルPt ―― 段1: 純粋な計算とデータの受け取り
 });
 
 /* ============================================================
+ * スキルPt ―― 段2: computeRosterSkills の sources（由来の機械可読化）（2026-09-30）
+ *
+ * 既存の項目（skillIds・items・members・unconfirmed・missing）は変えない（既存の●・△の塊が通ること）。
+ * 足した sources で見ること：
+ *   - 由来の種類（hint／event／commonEvent／uma）・イベントごとの hintLevel・sure・memberKey・eventKey
+ *   - 同じイベントの中の複数の選択肢に同じスキルがあっても、出現は1つ（hintLevel は最大）
+ *   - 別のイベントに同じスキルがあれば、別の出現（加算の元）
+ *   - 失敗側（結果の2番目以降）にだけあるスキルは載らない（items と同じ）
+ * 仕込みは tests/visual/lib/event-fixture.mjs（カード名・スキル名は書かない。実データから id で拾う）と、
+ * 選択肢のレベルが違う例をこの塊で足す。
+ * ============================================================ */
+await block('スキルPt ―― 段2: sources（由来の機械可読化。2026-09-30）', async () => {
+{
+	const fx = buildEventFixture();
+	const cardsDoc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/support-cards.json'), 'utf8'));
+	const masterDoc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'uma-skill-deck-skills.json'), 'utf8'));
+	// レベルの違う選択肢の例：SR でも SSR でもよい、グループでないカード2枚と、ヒントに入っていないスキル
+	const [cx, cy] = cardsDoc.entries.filter((c) => !c.isGroup).slice(20, 22);
+	const hinted = new Set([cx, cy].flatMap((c) => (c.hintSkills || []).map((s) => s.skillId)));
+	const [sk, sk2] = masterDoc.skills.filter((s) => !hinted.has(s.id)).slice(30, 32);
+	const ref = (s, lv) => ({ skillId: s.id, name: s.name, hintLevel: lv });
+	const doc = JSON.parse(JSON.stringify(fx.doc));
+	doc.entries.push(
+		// 2択で、同じスキルがどちらの選択肢にもある（レベルは3と1）→ ●で、出現は1つ・レベルは最大の3
+		{ cardId: cx.id, status: 'done', chain: [{ step: 1, choices: [{ skills: [ref(sk, 3)] }, { skills: [ref(sk, 1)] }] }] },
+		// 別のカードの別のイベントにも同じスキル（Lv2）→ 別の出現
+		{ cardId: cy.id, status: 'done', chain: [{ step: 2, choices: [{ skills: [ref(sk, 2), ref(sk2, 1)] }] }] });
+	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
+	await page.route('**/data/support-card-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(doc) }));
+	await page.route('**/data/character-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify({ dataVersion: '2026-09-30a', category: 'characterEventSkill', entries: [] }) }));
+	const res = await page.evaluate(async ({ cardIds, cx, cy, sk, sk2 }) => {
+		const C = window.UmaSkillDeckCore;
+		await C.loadTrainingSources(true);
+		const r = C.computeRosterSkills({ umaId: '', cardIds: cardIds });
+		const r2 = C.computeRosterSkills({ umaId: '', cardIds: [cx, cy] });
+		// 育成ウマ娘だけの編成
+		const uma = (C.getTrainingSources().trainingUmamusume || {}).entries[0];
+		const r3 = C.computeRosterSkills({ umaId: uma.id, cardIds: [] });
+		const pack = (x) => x.sources.map((s) => Object.assign({}, s));
+		return { keys: Object.keys(r), sources: pack(r), sources2: pack(r2), items2: r2.items.map((i) => i.skillId), uma: pack(r3), umaItems: r3.items.map((i) => i.skillId),
+			skillIds: r.skillIds, itemIds: r.items.map((i) => i.skillId) };
+	}, { cardIds: fx.cardIds, cx: cx.id, cy: cy.id, sk: sk.id, sk2: sk2.id });
+	assert(['skillIds', 'items', 'members', 'unconfirmed', 'missing', 'sources'].every((k) => res.keys.includes(k)),
+		'sources(1): 返り値に sources が足されて、既存の項目（skillIds・items・members・unconfirmed・missing）は残っている', res.keys);
+	const S = fx.S; const [A, B, Cc, D] = fx.cardIds;
+	const of = (id) => res.sources.filter((s) => s.skillId === id);
+	const kindsOk = res.sources.every((s) => ['hint', 'event', 'commonEvent', 'uma'].includes(s.kind) && typeof s.sure === 'boolean' && Number.isInteger(s.memberKey)
+		&& (s.kind === 'event' || s.kind === 'commonEvent' ? typeof s.eventKey === 'string' : s.eventKey === null));
+	assert(kindsOk, 'sources(2): 由来の種類・sure・memberKey・eventKey（イベントだけが文字列）の形', res.sources.slice(0, 3));
+	assert(of(S[0]).length === 1 && of(S[0])[0].kind === 'event' && of(S[0])[0].hintLevel === 1 && of(S[0])[0].sure === true && of(S[0])[0].eventKey === 'card:' + A + '#0'
+		&& of(S[1])[0].hintLevel === 2 && of(S[1])[0].eventKey === 'card:' + A + '#0',
+		'sources(3): イベントごとの hintLevel が読める（確定のイベントの2つのスキル：Lv1・Lv2。同じイベント A の1回目）', { s0: of(S[0]), s1: of(S[1]) });
+	assert(of(S[4]).length === 1 && of(S[4])[0].sure === true && of(S[4])[0].eventKey === 'card:' + B + '#0',
+		'sources(4): 同じイベントの2つの選択肢に同じスキルがあっても、出現は1つ（●）', of(S[4]));
+	assert(of(S[2]).length === 2 && of(S[2]).filter((s) => s.sure).length === 1 && of(S[2]).filter((s) => !s.sure).length === 1
+		&& new Set(of(S[2]).map((s) => s.eventKey)).size === 2,
+		'sources(5): 別のカードの別のイベントに同じスキルがあれば、別の出現（B の1回目は△・C の3回目は●）', of(S[2]));
+	assert(of(S[5]).length === 1 && of(S[5])[0].hintLevel === 3 && of(S[6]).length === 0 && of(S[7]).length === 0,
+		'sources(6): 結果が3通りのイベントは先頭（成功）のレベル3だけ。失敗側にだけあるスキルは載らない（items と同じ）', { s5: of(S[5]), s6: of(S[6]), s7: of(S[7]) });
+	assert(of(S[10]).length === 1 && of(S[10])[0].sure === false && of(S[10])[0].hintLevel === null && of(S[10])[0].eventKey === 'card:' + D + '#seeded',
+		'sources(7): シートから取り込んだまま（seeded）のスキルは△で、レベルは null', of(S[10]));
+	// レベルの違う選択肢
+	const sx = res.sources2.filter((s) => s.skillId === sk.id);
+	assert(sx.length === 2 && sx.map((s) => s.hintLevel).sort().join() === '2,3' && sx.every((s) => s.sure) && new Set(sx.map((s) => s.eventKey)).size === 2,
+		'sources(8): 選択肢のレベルが違う（3と1）ときは最大の3で1つ。別のカードの別のイベント（2）は別の出現（＝加算の元）', sx);
+	// 既存の項目と sources の対応
+	assert(res.sources.every((s) => res.itemIds.includes(s.skillId)) && res.itemIds.every((id) => res.sources.some((s) => s.skillId === id)),
+		'sources(9): sources の skillId と items の skillId は同じ顔ぶれ（由来の無い行も、由来だけある行も無い）', { items: res.itemIds.length });
+	assert(res.uma.length > 0 && res.uma.every((s) => s.kind === 'uma' && s.sure === true && s.memberKey === 0 && s.hintLevel === null && s.eventKey === null && ['initial', 'awakening'].includes(s.part))
+		&& res.uma.some((s) => s.part === 'initial') && res.uma.some((s) => s.part === 'awakening') && new Set(res.uma.map((s) => s.skillId)).size <= res.umaItems.length,
+		'sources(10): 育成ウマ娘の初期・覚醒スキルは kind が uma・●・memberKey 0（part で初期／覚醒を分ける）', res.uma.slice(0, 3));
+	// 練習のヒント
+	const hint = await page.evaluate(async () => {
+		const C = window.UmaSkillDeckCore;
+		const card = ((C.getTrainingSources().supportCard || {}).entries || []).find((c) => c.dataStatus && c.dataStatus.hint === 'done' && (c.hintSkills || []).length >= 3);
+		const r = C.computeRosterSkills({ umaId: '', cardIds: [card.id] });
+		return { n: card.hintSkills.length, hint: r.sources.filter((s) => s.kind === 'hint').map((s) => s.skillId), want: card.hintSkills.map((s) => s.skillId),
+			ok: r.sources.filter((s) => s.kind === 'hint').every((s) => s.sure === true && s.hintLevel === null && s.eventKey === null && s.memberKey === 1) };
+	});
+	assert(hint.ok && hint.hint.slice().sort().join() === hint.want.slice().sort().join(),
+		'sources(11): 練習のヒントは kind が hint・●・memberKey はカードの枠（レベルは持たない。5 は計算側が rules から当てる）', hint);
+	assert(errors.length === 0, 'sources: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+});
+
+/* ============================================================
  * スキルPt ―― check:catalog の §11（段1）。実ファイルが届いたときの検査を、仮のファイルで確かめる（2026-09-30）
  *
  * 実ファイル（skill-pt.json・skill-step-up.json）はまだ無いので、`data/` の写しに仮のファイルを置いて
