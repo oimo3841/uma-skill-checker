@@ -1134,6 +1134,183 @@ console.log('\n=== 6. 以前の内容との突き合わせ（' + (BASELINE_DIR |
 
 /* ──────────────────────── 7. 進み具合（情報） ──────────────────────── */
 
+/* ──────────────────────── 11. スキルPt（段1・2026-09-30） ──────────────────────── */
+
+/* 割引率の表（skill-pt-rules.json）は、実ファイルがあるとき見る。
+   **skill-pt.json（基礎Pt・レアリティ）と skill-step-up.json（前段関係）は、実ファイルが届いたときだけ見る**
+   （無ければ何も言わない。届いたら、core の DATA_JSON_VERSIONS に足すと読まれる）。
+   **スキル名も記号（○・◎）もここに書かない**（恒久ルール1）。見るのは id どうしの関係だけ。 */
+const PT_RULES_FILE = 'skill-pt-rules.json';
+const PT_FILE = 'skill-pt.json';
+const STEP_UP_FILE = 'skill-step-up.json';
+const PT_RULES_TOP_KEYS = {
+	need: ['dataVersion', 'category', 'hintDiscountPercent', 'hintLevelMax', 'practiceHintLevel', 'umaHintLevelDefault', 'parentHintLevelDefault', 'statuses', 'rounding'],
+	opt: ['note', 'umaHintLevelChoice', 'umaHintLevelChoiceMinAwakening'],
+};
+const PT_STATUS_KEYS = { need: ['id', 'label', 'percent'], opt: [] };
+const PT_ROUNDING_VALUES = ['floor', 'round', 'ceil'];
+const PT_TOP_KEYS = { need: ['dataVersion', 'category', 'entries'], opt: ['note'] };
+const PT_ROW_KEYS = { need: ['skillId', 'pt', 'rarity'], opt: [] };
+const PT_RARITY_VALUES = ['white', 'gold', 'unique', 'evolved'];
+const STEP_UP_ROW_KEYS = { need: ['skillId', 'prevSkillIds'], opt: ['hintRootSkillId'] };
+console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT_FILE + '・' + STEP_UP_FILE + '） ===');
+{
+	const registered = new Set(masterNameById.keys());
+	docs.extendedSkill.entries.forEach((e) => registered.add(String(e.id)));
+	const readOpt = (name) => {
+		const abs = path.join(REPO_ROOT, DIR, name);
+		if (!fs.existsSync(abs)) return null;
+		return readJsonFile(abs);
+	};
+
+	/* --- 割引率の表 --- */
+	const rr = readOpt(PT_RULES_FILE);
+	if (rr === null) {
+		console.log('       ' + PT_RULES_FILE + ': まだ無い（無ければ見ない）');
+	} else {
+		check(rr.ok, PT_RULES_FILE + ' が読める', rr.ok ? undefined : rr.error);
+		if (rr.ok) {
+			const r = rr.data;
+			const unknown = [], missing = [], bad = [];
+			checkKeys(r, PT_RULES_TOP_KEYS, PT_RULES_FILE, unknown, missing);
+			none(unknown, PT_RULES_FILE + ': 知らないキーが無い');
+			none(missing, PT_RULES_FILE + ': 必須のキーが揃っている');
+			if (r.category !== 'skillPtRules') bad.push('category が ' + JSON.stringify(r.category));
+			if (!DATA_VERSION_RE.test(String(r.dataVersion))) bad.push('dataVersion が「YYYY-MM-DD＋英小文字1字」の形でない: ' + String(r.dataVersion));
+			const isPct = (v) => isInt(v) && v >= 0 && v <= 100;
+			if (!isInt(r.hintLevelMax) || r.hintLevelMax < 1) bad.push('hintLevelMax は1以上の整数');
+			// 割引率は整数の百分率（小数で持たない。浮動小数点の誤差が計算に入るため）。並びの位置＝レベル−1、長さ＝上限
+			if (!isArr(r.hintDiscountPercent) || !r.hintDiscountPercent.every(isPct)) bad.push('hintDiscountPercent は 0〜100 の整数の配列（小数は不可）');
+			else {
+				if (r.hintDiscountPercent.length !== r.hintLevelMax) bad.push('hintDiscountPercent の長さ（' + r.hintDiscountPercent.length + '）が hintLevelMax（' + r.hintLevelMax + '）と違う');
+				if (r.hintDiscountPercent.some((p, i) => i > 0 && p < r.hintDiscountPercent[i - 1])) bad.push('hintDiscountPercent が、レベルが上がるほど小さくなっている');
+			}
+			['practiceHintLevel', 'umaHintLevelDefault', 'parentHintLevelDefault', 'umaHintLevelChoice'].forEach((k) => {
+				if (r[k] !== undefined && !(isInt(r[k]) && r[k] >= 0 && r[k] <= r.hintLevelMax)) bad.push(k + ' は 0〜hintLevelMax の整数');
+			});
+			if (r.parentHintLevelDefault !== undefined && r.parentHintLevelDefault < 1) bad.push('parentHintLevelDefault は1以上（親由来のレベルに0は無い）');
+			if (r.umaHintLevelChoiceMinAwakening !== undefined && !(isInt(r.umaHintLevelChoiceMinAwakening) && r.umaHintLevelChoiceMinAwakening >= 1)) bad.push('umaHintLevelChoiceMinAwakening は1以上の整数');
+			if ((r.umaHintLevelChoice === undefined) !== (r.umaHintLevelChoiceMinAwakening === undefined)) bad.push('umaHintLevelChoice と umaHintLevelChoiceMinAwakening は、両方あるか両方無いか');
+			if (!PT_ROUNDING_VALUES.includes(r.rounding)) bad.push('rounding は ' + PT_ROUNDING_VALUES.join('／') + ' のどれか');
+			if (!isArr(r.statuses) || r.statuses.length === 0) bad.push('statuses は空でない配列');
+			const sUnknown = [], sMissing = [];
+			if (isArr(r.statuses) && r.statuses.length > 0) {
+				const ids = new Set();
+				r.statuses.forEach((s, i) => {
+					const w = 'statuses[' + i + ']';
+					if (!checkKeys(s, PT_STATUS_KEYS, w, sUnknown, sMissing)) return;
+					if (!isStr(s.id) || !isStr(s.label)) bad.push(w + ': id / label は空でない文字列');
+					if (!isPct(s.percent)) bad.push(w + '.percent は 0〜100 の整数（小数は不可）');
+					if (ids.has(s.id)) bad.push(w + ': id が重複（' + s.id + '）');
+					ids.add(s.id);
+				});
+				if (!r.statuses.some((s) => s && s.percent === 0)) bad.push('statuses に「割引なし（percent 0）」が無い');
+			}
+			none(sUnknown.concat(sMissing), PT_RULES_FILE + ': statuses の行のキーが揃っていて、知らないキーが無い');
+			none(bad, PT_RULES_FILE + ': 割引率が整数の百分率で、上限・状態・丸めの向きが決めた形');
+		}
+	}
+
+	/* --- 基礎Pt・レアリティ（届いたとき） --- */
+	const pr = readOpt(PT_FILE);
+	if (pr === null) {
+		console.log('       ' + PT_FILE + ': まだ届いていない（届いたら見る）');
+	} else {
+		check(pr.ok, PT_FILE + ' が読める', pr.ok ? undefined : pr.error);
+		if (pr.ok) {
+			const d = pr.data;
+			const unknown = [], missing = [], bad = [], dup = [], unregistered = [];
+			checkKeys(d, PT_TOP_KEYS, PT_FILE, unknown, missing);
+			if (d.category !== 'skillPt') bad.push('category が ' + JSON.stringify(d.category));
+			if (!DATA_VERSION_RE.test(String(d.dataVersion))) bad.push('dataVersion の形が違う: ' + String(d.dataVersion));
+			if (!isArr(d.entries)) bad.push('entries が配列でない');
+			const seen = new Set();
+			const uniqueNonZero = [];
+			(isArr(d.entries) ? d.entries : []).forEach((e, i) => {
+				const w = 'entries[' + i + ']';
+				if (!checkKeys(e, PT_ROW_KEYS, w, unknown, missing)) return;
+				if (!isStr(e.skillId)) { bad.push(w + '.skillId: 空でない文字列'); return; }
+				if (seen.has(e.skillId)) dup.push(w + ': ' + e.skillId); seen.add(e.skillId);
+				if (!registered.has(e.skillId)) unregistered.push(w + ': ' + e.skillId);
+				if (!isInt(e.pt) || e.pt < 0) bad.push(w + '.pt: 0以上の整数（固有スキルなどのPt不要は 0）');
+				if (!PT_RARITY_VALUES.includes(e.rarity)) bad.push(w + '.rarity: ' + PT_RARITY_VALUES.join('／') + ' のどれか');
+				if (e.rarity === 'unique' && e.pt !== 0) uniqueNonZero.push(w + ': ' + e.skillId + ' pt=' + e.pt);
+			});
+			none(unknown.concat(missing), PT_FILE + ': キーが決めた形（知らないキーが無く、必須が揃っている）');
+			none(bad, PT_FILE + ': category・版・pt（0以上の整数）・rarity（' + PT_RARITY_VALUES.join('／') + '）の形');
+			none(dup, PT_FILE + ': skillId が重複しない');
+			none(unregistered, PT_FILE + ': skillId がすべてマスターか拡張スキルで引ける');
+			if (uniqueNonZero.length) warn(PT_FILE + ': rarity が unique なのに pt が0でない行（固有スキルはデータで pt:0 として表す決まり）', uniqueNonZero);
+			// 編成で参照されるスキル（練習のヒント・イベント・育成ウマ娘）がすべて載っているか。載っていなければ警告→件数
+			const referenced = new Set(refs.map((r) => r.skillId));
+			const notListed = [...referenced].filter((id) => !seen.has(id));
+			if (notListed.length) warn(PT_FILE + ': 編成で参照されるスキルのうち、行が無いもの（画面では「Pt 未収録」になる）' + notListed.length + '種', notListed);
+			else console.log('       ' + PT_FILE + ': 編成で参照される ' + referenced.size + '種がすべて載っている');
+		}
+	}
+
+	/* --- 前段関係（届いたとき） --- */
+	const sr = readOpt(STEP_UP_FILE);
+	if (sr === null) {
+		console.log('       ' + STEP_UP_FILE + ': まだ届いていない（届いたら見る）');
+	} else {
+		check(sr.ok, STEP_UP_FILE + ' が読める', sr.ok ? undefined : sr.error);
+		if (sr.ok) {
+			const d = sr.data;
+			const unknown = [], missing = [], bad = [], dup = [], unregistered = [], selfPrev = [], dupPrev = [], cyc = [], badRoot = [];
+			checkKeys(d, PT_TOP_KEYS, STEP_UP_FILE, unknown, missing);
+			if (d.category !== 'skillStepUp') bad.push('category が ' + JSON.stringify(d.category));
+			if (!DATA_VERSION_RE.test(String(d.dataVersion))) bad.push('dataVersion の形が違う: ' + String(d.dataVersion));
+			if (!isArr(d.entries)) bad.push('entries が配列でない');
+			const rows = new Map();
+			(isArr(d.entries) ? d.entries : []).forEach((e, i) => {
+				const w = 'entries[' + i + ']';
+				if (!checkKeys(e, STEP_UP_ROW_KEYS, w, unknown, missing)) return;
+				if (!isStr(e.skillId)) { bad.push(w + '.skillId: 空でない文字列'); return; }
+				if (rows.has(e.skillId)) dup.push(w + ': ' + e.skillId);
+				if (!registered.has(e.skillId)) unregistered.push(w + ': ' + e.skillId);
+				if (!isArr(e.prevSkillIds) || e.prevSkillIds.length === 0 || !e.prevSkillIds.every(isStr)) { bad.push(w + '.prevSkillIds: 空でない、idの配列（前段の無いスキルは行を書かない）'); return; }
+				if (new Set(e.prevSkillIds).size !== e.prevSkillIds.length) dupPrev.push(w + ': ' + e.skillId);
+				e.prevSkillIds.forEach((p) => { if (p === e.skillId) selfPrev.push(w + ': ' + e.skillId); if (!registered.has(p)) unregistered.push(w + '.prevSkillIds: ' + p); });
+				if (e.hintRootSkillId !== undefined) {
+					if (!isStr(e.hintRootSkillId)) bad.push(w + '.hintRootSkillId: 空でない文字列');
+					else if (!registered.has(e.hintRootSkillId)) unregistered.push(w + '.hintRootSkillId: ' + e.hintRootSkillId);
+				}
+				rows.set(e.skillId, e);
+			});
+			// 循環しない（前段をさかのぼって自分に戻らない）。ヒントの根は、前段をさかのぼって行き着く祖先で、自身は根であること
+			const ancestors = (id) => {
+				const out = new Set(); const stack = [id];
+				while (stack.length) {
+					const cur = stack.pop();
+					const row = rows.get(cur);
+					(row ? row.prevSkillIds : []).forEach((p) => { if (!out.has(p)) { out.add(p); stack.push(p); } });
+				}
+				return out;
+			};
+			rows.forEach((e, id) => {
+				const anc = ancestors(id);
+				if (anc.has(id)) cyc.push(id);
+				if (e.hintRootSkillId !== undefined) {
+					if (!anc.has(e.hintRootSkillId)) badRoot.push(id + ': 根 ' + e.hintRootSkillId + ' が前段をさかのぼった祖先にない');
+					const rootRow = rows.get(e.hintRootSkillId);
+					if (rootRow && rootRow.hintRootSkillId !== undefined) badRoot.push(id + ': 根 ' + e.hintRootSkillId + ' 自身が別の根を指している（根は自分自身が根）');
+				}
+			});
+			none(unknown.concat(missing), STEP_UP_FILE + ': キーが決めた形（知らないキーが無く、必須が揃っている）');
+			none(bad, STEP_UP_FILE + ': category・版・prevSkillIds の形');
+			none(dup, STEP_UP_FILE + ': skillId が重複しない（1スキル1行）');
+			none(unregistered, STEP_UP_FILE + ': skillId・prevSkillIds・hintRootSkillId がすべてマスターか拡張スキルで引ける');
+			none(selfPrev, STEP_UP_FILE + ': 自分自身を前段にしない');
+			none(dupPrev, STEP_UP_FILE + ': prevSkillIds の中に重複が無い');
+			none(cyc, STEP_UP_FILE + ': 前段をさかのぼって自分に戻らない（循環しない）');
+			none(badRoot, STEP_UP_FILE + ': hintRootSkillId は前段をさかのぼった祖先で、自身は根');
+			const multi = [...rows.values()].filter((e) => isArr(e.prevSkillIds) && e.prevSkillIds.length >= 2).map((e) => e.skillId + '（前段 ' + e.prevSkillIds.length + '個）');
+			if (multi.length) warn(STEP_UP_FILE + ': 前段が2個以上のスキル（「すべて必要」か「どれか1つ」かは要確認）', multi);
+		}
+	}
+}
+
 console.log('\n=== 7. 進み具合（情報。検査には影響しない） ===');
 {
 	const ex = docs.extendedSkill.entries;

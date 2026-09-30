@@ -11858,6 +11858,244 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	await ctx.close();
 }
 });
+/* ============================================================
+ * スキルPt ―― 段1（純粋な計算・データの受け取り口）（2026-09-30）
+ *
+ * **画面を開かず、関数を直に呼ぶ**（DOM も保存も special も知らない関数なので）。スキル名は書かない
+ * （仮のスキルは id だけ。恒久ルール1）。期待値は Step 0 第4版の 0-S の表と 2-1 の例（手で決めた値）。
+ *   - 計算の表（基礎90＝○・基礎110＝◎の2段の系列。状態なし。切り捨て・1件ごと）。◎が○の L を援用する。金は独立
+ *   - 浮動小数点の罠（基礎90・L=3 が 63。62 ではない）と、1件ごとに丸める理由（基礎130・150・L=4 → 181。合計後なら182）
+ *   - 状態（勉強家4％・切れ者10％。排他）と、ヒントレベルの割引との加算（L=5＋切れ者＝50％）
+ *   - ヒントレベル: P があれば5／E の別イベントは加算／同じイベントの重なりは最大／U は既定3・選べば5／T・F／上限5
+ *   - pt:0 は合計に0を足す。Pt が未収録（行が無い）は合計に入れず、件数に出す
+ *   - 受け取り口: 割引率の表を読む。skill-pt.json・skill-step-up.json は載っていなければ取りに行かない（404 を出さない）
+ *   - 割引率の表が読めない・使えない形のときは、計算せず ok:false（既定値で黙って続けない）
+ * ============================================================ */
+await block('スキルPt ―― 段1: 純粋な計算とデータの受け取り口（2026-09-30）', async () => {
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
+	const requested = [];
+	const failedRes = [];
+	page.on('request', (r) => { if (/\/data\/skill-/.test(r.url())) requested.push(r.url().replace(/^.*\/data\//, '')); });
+	page.on('response', (r) => { if (r.status() >= 400 && r.url().includes('/data/')) failedRes.push(r.status() + ' ' + r.url().replace(/^.*\/uma-skill-checker\//, '')); });
+	await page.waitForTimeout(500);
+	const meta = await page.evaluate(async () => {
+		const m = await UmaSkillDeckCore.loadSkillPtData(true);
+		const d = UmaSkillDeckCore.getSkillPtData();
+		return { meta: m, hasRules: !!d.rules, valid: UmaSkillDeckCore.isValidSkillPtRules(d.rules), skillPt: d.skillPt, stepUp: d.stepUp, rules: d.rules };
+	});
+	assert(meta.meta.loaded && meta.meta.rules === 'ok' && meta.hasRules && meta.valid,
+		'Pt(受け取り口1): 割引率の表を読めて、使える形', meta.meta);
+	assert(meta.meta.skillPt === 'absent' && meta.meta.stepUp === 'absent' && meta.skillPt === null && meta.stepUp === null,
+		'Pt(受け取り口2): skill-pt.json・skill-step-up.json は実ファイルが届くまで「未収録」として扱う（無くても動く）', meta.meta);
+	assert(requested.length === 1 && requested[0].startsWith('skill-pt-rules.json') && failedRes.length === 0,
+		'Pt(受け取り口3): 取りに行くのは割引率の表だけで、404 などの失敗は出ない（届いていないファイルは取りに行かない）', { requested, failedRes });
+	assert(meta.rules.hintDiscountPercent.join() === '10,20,30,35,40' && meta.rules.hintLevelMax === 5 && meta.rules.rounding === 'floor'
+		&& meta.rules.statuses.map((s) => s.id + ':' + s.percent).join() === 'none:0,benkyo:4,kire:10',
+		'Pt(規則): 割引率は整数の百分率で 10・20・30・35・40。状態はなし0・勉強家4・切れ者10。丸めは切り捨て', meta.rules);
+
+	const R = await page.evaluate(() => {
+		const C = window.UmaSkillDeckCore;
+		const rules = C.getSkillPtData().rules;
+		const idx = (rows) => C.buildSkillPtIndex({ entries: rows.map(([skillId, pt, rarity]) => ({ skillId, pt, rarity })) });
+		const skillPt = idx([['probe-o', 90, 'white'], ['probe-d', 110, 'white'], ['probe-g', 200, 'gold'], ['probe-a', 130, 'white'], ['probe-b', 150, 'white'], ['probe-u', 0, 'unique']]);
+		const stepUp = C.buildStepUpIndex({ entries: [
+			{ skillId: 'probe-d', prevSkillIds: ['probe-o'], hintRootSkillId: 'probe-o' },
+			{ skillId: 'probe-g', prevSkillIds: ['probe-d'] }] });
+		const src = (id, kind, lv, key, sure) => ({ skillId: id, kind: kind, sure: sure !== false, memberKey: 1, hintLevel: lv, eventKey: key || null, part: null });
+		const ev = (id, lv, key, sure) => src(id, 'event', lv, key, sure);
+		const run = (sources, extra) => C.computeRosterPt(Object.assign({ sources, rules, skillPt, stepUp }, extra || {}));
+		const lvOf = (r, id) => (r.items.find((i) => i.skillId === id) || {}).hintLevel;
+		const out = {};
+		// (1) 計算の表：○と◎が同じ L。◎は○の L を援用する
+		out.table = [0, 1, 2, 3, 4, 5].map((L) => {
+			const r = run([ev('probe-o', L, 'e1'), ev('probe-d', L, 'e1')]);
+			const it = (id) => r.items.find((i) => i.skillId === id);
+			return { L, o: it('probe-o').pt, d: it('probe-d').pt, total: r.total };
+		});
+		// 援用：◎自身の由来にはレベルが無く（null）、○の由来だけがレベルを持つ。前段データがあれば◎も同じ L、無ければ◎は L=0
+		const borrow = (withStep) => {
+			const r = C.computeRosterPt({ sources: [ev('probe-o', 3, 'e1'), ev('probe-d', null, 'e2')], rules, skillPt, stepUp: withStep ? stepUp : null });
+			return { d: lvOf(r, 'probe-d'), o: lvOf(r, 'probe-o'), dPt: r.items.find((i) => i.skillId === 'probe-d').pt };
+		};
+		out.borrowWith = borrow(true); out.borrowWithout = borrow(false);
+		// 金は独立：○が L=5 でも、金は金自身の由来（Lv1）だけで決まる
+		const g = run([ev('probe-o', 5, 'e1'), ev('probe-g', 1, 'g1')]);
+		out.gold = { o: lvOf(g, 'probe-o'), g: lvOf(g, 'probe-g'), gPt: g.items.find((i) => i.skillId === 'probe-g').pt };
+		// (2) 1件ごとに丸める
+		const e = run([ev('probe-a', 4, 'x'), ev('probe-b', 4, 'y')]);
+		out.each = { a: e.items[0].pt, b: e.items[1].pt, total: e.total, totalFirst: Math.floor((130 + 150) * 65 / 100) };
+		// 浮動小数点の罠
+		out.trap = { l3: C.computeSkillPt(90, 3, 'none', rules), naive: Math.floor(90 * (1 - 0.3)), l4a: C.computeSkillPt(90, 4, 'none', rules), l4b: C.computeSkillPt(110, 4, 'none', rules) };
+		// (3) 状態（排他）と割引の加算
+		out.status = {
+			pct: { none: C.statusPercentOf('none', rules), benkyo: C.statusPercentOf('benkyo', rules), kire: C.statusPercentOf('kire', rules), both: C.statusPercentOf('kire+benkyo', rules), unset: C.statusPercentOf(undefined, rules) },
+			benkyo0: C.computeSkillPt(100, 0, 'benkyo', rules), kire0: C.computeSkillPt(100, 0, 'kire', rules),
+			kire5: C.computeSkillPt(180, 5, 'kire', rules), benkyo5: C.computeSkillPt(100, 5, 'benkyo', rules), none5: C.computeSkillPt(100, 5, 'none', rules),
+			l4benkyo: [C.computeSkillPt(90, 4, 'benkyo', rules), C.computeSkillPt(110, 4, 'benkyo', rules)],
+			unknown: C.computeSkillPt(100, 5, 'kire+benkyo', rules),
+			maxSaving: Math.max.apply(null, rules.statuses.map((s) => 100 - C.computeSkillPt(100, 5, s.id, rules))),
+		};
+		// (4) ヒントレベル
+		const L = (sources, extra) => lvOf(run(sources, extra), sources[0].skillId);
+		out.levels = {
+			practice: L([src('probe-a', 'hint', null, null), ev('probe-a', 1, 'e1')]),
+			practiceOnly: L([src('probe-a', 'hint', null, null)]),
+			addEvents: L([ev('probe-a', 1, 'e1'), ev('probe-a', 2, 'e2')]),
+			sameEventMax: L([ev('probe-a', 3, 'e1'), ev('probe-a', 1, 'e1')]),
+			capEvents: L([ev('probe-a', 3, 'e1'), ev('probe-a', 3, 'e2')]),
+			uma: L([src('probe-a', 'uma', null, null)]),
+			umaChoice5: L([src('probe-a', 'uma', null, null)], { umaHintLevel: 5 }),
+			umaPlusEvent: L([src('probe-a', 'uma', null, null), ev('probe-a', 1, 'e1')]),
+			umaCap: L([src('probe-a', 'uma', null, null), ev('probe-a', 3, 'e1')]),
+			// T：有効にした△は、出てくるイベントのうち最大のレベルを1回ぶん。有効にしていなければ足さない・含まれない
+			tOff: L([ev('probe-b', 1, 'ok', true), ev('probe-b', 2, 't1', false), ev('probe-b', 4, 't2', false)]),
+			tOn: L([ev('probe-b', 1, 'ok', true), ev('probe-b', 2, 't1', false), ev('probe-b', 4, 't2', false)], { enabledSkillIds: ['probe-b'] }),
+			tOnlyOff: run([ev('probe-b', 2, 't1', false)]).items.length,
+			tOnlyOn: (() => { const r = run([ev('probe-b', 2, 't1', false)], { enabledSkillIds: ['probe-b'] }); return { n: r.items.length, lv: r.items[0].hintLevel, enabled: r.items[0].enabled }; })(),
+			// F：親由来。既定5・4〜1。本育成の由来と足して上限5
+			fCap: L([ev('probe-a', 1, 'e1')], { parentHintLevels: { 'probe-a': 4 } }),
+			fSum: L([ev('probe-a', 1, 'e1')], { parentHintLevels: { 'probe-a': 2 } }),
+			// レベルが無い（null）イベントの由来は0として足し、件数に出す
+			unknownLevel: (() => { const r = run([ev('probe-a', null, 'e1')]); return { lv: r.items[0].hintLevel, n: r.unknownLevelCount }; })(),
+		};
+		// (5) pt:0 と Pt 未収録
+		const z = run([ev('probe-a', 2, 'e1'), ev('probe-u', 1, 'u1'), ev('probe-nope', 1, 'n1')]);
+		out.zero = { total: z.total, u: z.items.find((i) => i.skillId === 'probe-u').pt, unpriced: z.unpriced, unpricedCount: z.unpricedCount,
+			nopePt: z.items.find((i) => i.skillId === 'probe-nope').pt, aPt: z.items.find((i) => i.skillId === 'probe-a').pt,
+			subSum: Object.values(z.subtotals).reduce((s, v) => s + v, 0) };
+		// 表が無い／使えない形
+		out.noTable = (() => { const r = C.computeRosterPt({ sources: [ev('probe-a', 1, 'e1')], rules, skillPt: null, stepUp: null }); return { total: r.total, unpriced: r.unpricedCount, ok: r.ok }; })();
+		out.noRules = C.computeRosterPt({ sources: [ev('probe-a', 1, 'e1')], rules: null, skillPt, stepUp });
+		out.floatRules = C.isValidSkillPtRules(Object.assign({}, rules, { hintDiscountPercent: [10.5, 20, 30, 35, 40] }));
+		out.sumParts = C.sumHintLevel({ practice: false, eventLevels: [1, 1], enabledLevel: 0, umaLevel: 3, parentLevel: 0 }, rules);
+		out.choices = { normal: C.umaHintLevelChoices(5, rules), lv7: C.umaHintLevelChoices(7, rules) };
+		return out;
+	});
+	// 計算の表（Step 0 の 0-S）
+	const want = [[0, 90, 110, 200], [1, 81, 99, 180], [2, 72, 88, 160], [3, 63, 77, 140], [4, 58, 71, 129], [5, 54, 66, 120]];
+	assert(JSON.stringify(R.table.map((t) => [t.L, t.o, t.d, t.total])) === JSON.stringify(want),
+		'Pt(1): 基礎90（○）・基礎110（◎）の表：L=0 → 90・110・200／1 → 81・99・180／2 → 72・88・160／3 → 63・77・140／4 → 58・71・129／5 → 54・66・120', R.table);
+	assert(R.borrowWith.d === 3 && R.borrowWith.o === 3 && R.borrowWith.dPt === 77 && R.borrowWithout.d === 0 && R.borrowWithout.o === 3,
+		'Pt(1): ◎は前段データの根（○）の L を援用する（前段データが無ければ各スキルが自分自身を根とするので、◎は L=0）', { with: R.borrowWith, without: R.borrowWithout });
+	assert(R.gold.o === 5 && R.gold.g === 1 && R.gold.gPt === 180,
+		'Pt(1): 金は別の系列で、○が L=5 でも金自身の由来（Lv1）だけで L が決まる（基礎200 → 180）', R.gold);
+	assert(R.trap.l3 === 63 && R.trap.naive === 62,
+		'Pt(2): 基礎90・L=3 は 63（浮動小数点の `90 * (1 - 0.3)` を切り捨てると 62 になる。整数の百分率で計算している）', R.trap);
+	assert(R.trap.l4a === 58 && R.trap.l4b === 71, 'Pt(2): ゲームの表示と同じ：右回り○ 基礎90・L=4 → 58／右回り◎ 基礎110・L=4 → 71', R.trap);
+	assert(R.each.a === 84 && R.each.b === 97 && R.each.total === 181 && R.each.totalFirst === 182,
+		'Pt(2): 1件ごとに丸めてから足す：基礎130・150・L=4 → 84・97・合計181（合計してから切り捨てると182）', R.each);
+	assert(R.status.pct.none === 0 && R.status.pct.benkyo === 4 && R.status.pct.kire === 10 && R.status.pct.unset === 0 && R.status.pct.both === null,
+		'Pt(3): 状態は勉強家4％・切れ者10％の排他（「両方」という状態は無い＝知らない状態は null）', R.status.pct);
+	assert(R.status.benkyo0 === 96 && R.status.kire0 === 90 && R.status.kire5 === 90 && R.status.benkyo5 === 56 && R.status.none5 === 60,
+		'Pt(3): 勉強家 L=0 で基礎100→96／切れ者 L=0 で→90／L=5＋切れ者＝50％で基礎180→90（半額）／L=5＋勉強家＝44％で→56', R.status);
+	assert(R.status.maxSaving === 50 && R.status.unknown === 60,
+		'Pt(3): 同時に付く組み合わせは無い（割引は最大でも 40＋10＝50％）。知らない状態は「なし」として計算する', R.status);
+	assert(R.status.l4benkyo.join() === '54,67', 'Pt(3): L=4＋勉強家（39％）で基礎90・110 → 54・67（1件ごと）', R.status.l4benkyo);
+	const lv = R.levels;
+	assert(lv.practice === 5 && lv.practiceOnly === 5, 'Pt(4): 練習のヒントがあれば L=5（ほかの由来は関係ない）', { a: lv.practice, b: lv.practiceOnly });
+	assert(lv.addEvents === 3 && lv.capEvents === 5, 'Pt(4): 別のイベントは加算する（1＋2＝3）。上限5で止まる（3＋3→5）', { add: lv.addEvents, cap: lv.capEvents });
+	assert(lv.sameEventMax === 3, 'Pt(4): 同じイベントの中の重なりは最大の1つ（3と1 → 3。加算して4にしない）', lv.sameEventMax);
+	assert(lv.uma === 3 && lv.umaChoice5 === 5 && lv.umaPlusEvent === 4 && lv.umaCap === 5,
+		'Pt(4): 育成ウマ娘は既定3（Lv5 を選べば5）。ほかの由来と加算（3＋1＝4）・上限5（3＋3→5）', lv);
+	assert(lv.tOff === 1 && lv.tOn === 5 && lv.tOnlyOff === 0 && lv.tOnlyOn.n === 1 && lv.tOnlyOn.lv === 2 && lv.tOnlyOn.enabled === true,
+		'Pt(4): 有効にした△は、出てくるイベントのうち最大のレベルを1回ぶん足す（2と4 → 4。●の1と足して5）。有効にしていない△は含めない・足さない', lv);
+	assert(lv.fCap === 5 && lv.fSum === 3, 'Pt(4): 親由来 F は本育成の由来と足して上限5（4＋1→5、2＋1＝3）', { cap: lv.fCap, sum: lv.fSum });
+	assert(lv.unknownLevel.lv === 0 && lv.unknownLevel.n === 1, 'Pt(4): レベルを持たないイベントの由来は0として足し、件数に出す（黙って捨てない）', lv.unknownLevel);
+	assert(R.sumParts === 5 && R.choices.normal.join() === '3' && R.choices.lv7.join() === '3,5',
+		'Pt(4): レベルの合計は上限5。育成ウマ娘のレベルの選択肢は、覚醒 Lv7 まであるウマ娘だけ 3・5', { sum: R.sumParts, choices: R.choices });
+	assert(R.zero.u === 0 && R.zero.aPt === 104 && R.zero.total === 104 && R.zero.unpricedCount === 1 && R.zero.unpriced.join() === 'probe-nope' && R.zero.nopePt === null && R.zero.subSum === R.zero.total,
+		'Pt(5): pt:0 は合計に0を足す。Pt 未収録（行が無い）は合計に入れず、「未収録 N種」として数える（0として足さない）。小計の和は合計と一致', R.zero);
+	assert(R.noTable.ok && R.noTable.total === 0 && R.noTable.unpriced === 1 && R.noRules.ok === false && R.floatRules === false,
+		'Pt(受け取り口): skill-pt.json が無い間は全部「未収録」。割引率の表が使えない形（小数・欠け）なら計算せず ok:false', { noTable: R.noTable, noRules: R.noRules, float: R.floatRules });
+
+	// 割引率の表が読めない／使えない形のとき（既定値で黙って続けない）
+	for (const [label, handler, want2] of [
+		['404', (route) => route.fulfill({ status: 404, body: 'not found' }), 'failed'],
+		['小数の割引率', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify({ dataVersion: '2026-09-30a', category: 'skillPtRules', hintDiscountPercent: [0.1, 0.2, 0.3, 0.35, 0.4], hintLevelMax: 5, practiceHintLevel: 5, umaHintLevelDefault: 3, parentHintLevelDefault: 5, statuses: [{ id: 'none', label: 'なし', percent: 0 }], rounding: 'floor' }) }), 'invalid'],
+	]) {
+		const c2 = await browser.newContext();
+		const p2 = await c2.newPage();
+		await p2.route('**/data/skill-pt-rules.json*', handler);
+		await p2.goto(base + '/uma-skill-deck.html', { waitUntil: 'networkidle' });
+		const r2 = await p2.evaluate(async () => {
+			const m = await UmaSkillDeckCore.loadSkillPtData(true);
+			const d = UmaSkillDeckCore.getSkillPtData();
+			return { meta: m, rules: d.rules, calc: UmaSkillDeckCore.computeRosterPt({ sources: [], rules: d.rules }) };
+		});
+		assert(r2.meta.rules === want2 && r2.rules === null && r2.calc.ok === false,
+			'Pt(受け取り口): 割引率の表が「' + label + '」のとき、読めなかったことが分かり（meta）、計算しない', r2);
+		await c2.close();
+	}
+	assert(errors.length === 0, 'Pt(段1): コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+});
+
+/* ============================================================
+ * スキルPt ―― check:catalog の §11（段1）。実ファイルが届いたときの検査を、仮のファイルで確かめる（2026-09-30）
+ *
+ * 実ファイル（skill-pt.json・skill-step-up.json）はまだ無いので、`data/` の写しに仮のファイルを置いて
+ * `check:catalog --dir=` に通す。正しい形は通り、壊した形はそれぞれ落ちることを見る（値もキーも実データから拾う）。
+ * ============================================================ */
+await block('スキルPt ―― check:catalog の §11（届いたときの検査を仮のファイルで確かめる。2026-09-30）', async () => {
+{
+	const { spawnSync } = await import('node:child_process');
+	const master = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'uma-skill-deck-skills.json'), 'utf8')).skills;
+	const ext = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/extended-skills.json'), 'utf8')).entries;
+	const [m1, m2, m3] = master.slice(0, 3).map((s) => s.id);
+	const e1 = ext[0].id;
+	const rules = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/skill-pt-rules.json'), 'utf8'));
+	const ptDoc = (rows) => ({ dataVersion: '2026-09-30a', category: 'skillPt', entries: rows });
+	const stepDoc = (rows) => ({ dataVersion: '2026-09-30a', category: 'skillStepUp', entries: rows });
+	const goodPt = ptDoc([{ skillId: m1, pt: 90, rarity: 'white' }, { skillId: e1, pt: 110, rarity: 'white' }, { skillId: m2, pt: 0, rarity: 'unique' }]);
+	const goodStep = stepDoc([{ skillId: e1, prevSkillIds: [m1], hintRootSkillId: m1 }, { skillId: m3, prevSkillIds: [e1] }]);
+	const run = (files) => {
+		const tmp = path.join(REPO_ROOT, 'output', 'scratch', 'smoke-pt-catalog');
+		fs.rmSync(tmp, { recursive: true, force: true });
+		fs.cpSync(path.join(REPO_ROOT, 'data'), tmp, { recursive: true });
+		Object.entries(files).forEach(([name, doc]) => fs.writeFileSync(path.join(tmp, name), JSON.stringify(doc, null, '\t')));
+		const r = spawnSync(process.execPath, ['tests/catalog/check-catalog.mjs', '--dir=' + path.relative(REPO_ROOT, tmp).split(path.sep).join('/')], { cwd: REPO_ROOT, encoding: 'utf8' });
+		fs.rmSync(tmp, { recursive: true, force: true });
+		const lines = (r.stdout || '').split('\n');
+		return { status: r.status, ng: lines.filter((l) => l.startsWith('[NG]')).map((l) => l.slice(0, 120)), warn: lines.filter((l) => l.startsWith('[警告]')).map((l) => l.slice(0, 120)) };
+	};
+	const r0 = run({});
+	assert(r0.status === 0, 'Pt/catalog(0): 実ファイルが無い（いま）ときは、§11 は割引率の表だけを見て通る', r0.ng);
+	const r1 = run({ 'skill-pt.json': goodPt, 'skill-step-up.json': goodStep });
+	assert(r1.status === 0, 'Pt/catalog(1): 正しい形の skill-pt.json・skill-step-up.json が届いたら通る', r1.ng);
+	const cases = [
+		['rules: 小数の割引率', { 'skill-pt-rules.json': Object.assign({}, rules, { hintDiscountPercent: [10.5, 20, 30, 35, 40] }) }],
+		['rules: 割引率が100を超える', { 'skill-pt-rules.json': Object.assign({}, rules, { hintDiscountPercent: [10, 20, 30, 35, 140] }) }],
+		['rules: 長さと hintLevelMax が違う', { 'skill-pt-rules.json': Object.assign({}, rules, { hintDiscountPercent: [10, 20, 30, 35] }) }],
+		['rules: 状態の割引率が小数', { 'skill-pt-rules.json': Object.assign({}, rules, { statuses: [{ id: 'none', label: 'なし', percent: 0 }, { id: 'kire', label: '切れ者', percent: 0.1 }] }) }],
+		['rules: 丸めの向きが知らない値', { 'skill-pt-rules.json': Object.assign({}, rules, { rounding: 'banker' }) }],
+		['rules: 知らないキー', { 'skill-pt-rules.json': Object.assign({}, rules, { extra: 1 }) }],
+		['pt: skillId の重複', { 'skill-pt.json': ptDoc([{ skillId: m1, pt: 90, rarity: 'white' }, { skillId: m1, pt: 91, rarity: 'white' }]) }],
+		['pt: pt が小数', { 'skill-pt.json': ptDoc([{ skillId: m1, pt: 90.5, rarity: 'white' }]) }],
+		['pt: 知らない rarity', { 'skill-pt.json': ptDoc([{ skillId: m1, pt: 90, rarity: 'rare' }]) }],
+		['pt: 登録されていない skillId', { 'skill-pt.json': ptDoc([{ skillId: 'nope-0000', pt: 90, rarity: 'white' }]) }],
+		['step: 自分自身を前段にする', { 'skill-step-up.json': stepDoc([{ skillId: m1, prevSkillIds: [m1] }]) }],
+		['step: 循環する', { 'skill-step-up.json': stepDoc([{ skillId: m1, prevSkillIds: [m2] }, { skillId: m2, prevSkillIds: [m1] }]) }],
+		['step: skillId の重複', { 'skill-step-up.json': stepDoc([{ skillId: m1, prevSkillIds: [m2] }, { skillId: m1, prevSkillIds: [m3] }]) }],
+		['step: 前段に重複', { 'skill-step-up.json': stepDoc([{ skillId: m1, prevSkillIds: [m2, m2] }]) }],
+		['step: 根が祖先でない', { 'skill-step-up.json': stepDoc([{ skillId: m1, prevSkillIds: [m2], hintRootSkillId: m3 }]) }],
+		['step: 根自身が別の根を指す', { 'skill-step-up.json': stepDoc([{ skillId: m1, prevSkillIds: [m2], hintRootSkillId: m2 }, { skillId: m2, prevSkillIds: [m3], hintRootSkillId: m3 }]) }],
+		['step: 前段が空', { 'skill-step-up.json': stepDoc([{ skillId: m1, prevSkillIds: [] }]) }],
+	];
+	for (const [label, files] of cases) {
+		const r = run(files);
+		assert(r.status !== 0 && r.ng.length > 0, 'Pt/catalog(2): 「' + label + '」は落ちる', r);
+	}
+	const multi = run({ 'skill-step-up.json': stepDoc([{ skillId: m1, prevSkillIds: [m2, m3] }]) });
+	assert(multi.status === 0 && multi.warn.some((w) => w.includes('前段が2個以上')), 'Pt/catalog(3): 前段が2個以上のスキルは落とさず警告に出す', multi);
+	const uncovered = run({ 'skill-pt.json': ptDoc([{ skillId: m1, pt: 90, rarity: 'white' }]) });
+	assert(uncovered.status === 0 && uncovered.warn.some((w) => w.includes('行が無いもの')),
+		'Pt/catalog(4): 編成で参照されるスキルのうち行が無いものは、落とさず警告→件数に出す', uncovered.warn);
+	const uniq = run({ 'skill-pt.json': ptDoc([{ skillId: m1, pt: 50, rarity: 'unique' }]) });
+	assert(uniq.status === 0 && uniq.warn.some((w) => w.includes('unique')), 'Pt/catalog(5): rarity が unique なのに pt が0でない行は警告に出す', uniq.warn);
+}
+});
 await browser.close();
 await close();
 
