@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30i';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30j';
 
 	/* ============================================================
 	 * 定数
@@ -76,7 +76,9 @@
 		'data/race-distances.json': '2026-09-26a',
 		// スキルPt の割引率の表（段1・2026-09-30）。ゲームの公知の値で、スキル名を含まない。
 		// skill-pt.json・skill-step-up.json は実ファイルが届くまでここに載せない（載せると取りに行くため）。
-		'data/skill-pt-rules.json': '2026-09-30a'
+		'data/skill-pt-rules.json': '2026-09-30a',
+		// スキルの基礎Pt とレアリティ（2026-09-30 に実ファイルが届いたので載せた。載せると loadSkillPtData が読む）
+		'data/skill-pt.json': '2026-09-30a'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
