@@ -10882,7 +10882,17 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 	// キャラクター共通のイベントのファイルも、空の写しを渡す（実データで「入力済み」になった人がいても、この塊は未入力から始める）。
 	const card = cardsDoc.entries.slice().reverse().find((c) => c.rarity === 'SSR' && !c.isGroup && !realEventDoc.entries.some((e) => e.cardId === c.id))
 		|| cardsDoc.entries.slice().reverse().find((c) => c.rarity === 'SSR' && !c.isGroup);
-	const eventDoc = Object.assign({}, realEventDoc, { entries: realEventDoc.entries.filter((e) => e.cardId !== card.id) });
+	// 【2026-09-30・実データの入力状況に依存しない作りへ】この塊が使うカード（SSR・SR・R・グループのメンバーの1枚）は、
+	// **どれも実データの行を外した写しを渡して、ページから見て必ず未確認にする**。以前は SR・R・N を「実データで行が無いカード」から選んでいたので、
+	// SR や R が実データに入った日に落ちた（今後もデータを受け入れるたびに落ちる作りだった）。
+	// これで、実データに行の無いカードが残っていても（受け入れ前）、すべてのカードに行があっても（将来）、同じように通る。
+	const G = cardsDoc.entries.find((c) => c.isGroup === true);
+	const M = G.groupMembers.slice(1).find((n) => cardsDoc.entries.some((c) => c.isGroup === false && c.charaName === n));
+	const N = cardsDoc.entries.find((c) => c.isGroup === false && c.charaName === M);
+	const SR = cardsDoc.entries.find((c) => c.rarity === 'SR' && !c.isGroup);
+	const R = cardsDoc.entries.find((c) => c.rarity === 'R' && !c.isGroup);
+	const blanked = new Set([card.id, SR.id, R.id, N.id, G.id]);
+	const eventDoc = Object.assign({}, realEventDoc, { entries: realEventDoc.entries.filter((e) => !blanked.has(e.cardId)) });
 	const charaEventDoc = Object.assign({}, JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/character-event-skills.json'), 'utf8')), { entries: [] });
 	const inFile = new Set(eventDoc.entries.map((e) => e.cardId));
 	// 名前の一部で探して1件に絞れるスキルを3つ（拡張スキル1・マスター2）。名前はデータから拾う
@@ -11104,12 +11114,7 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 
 	/* --- キャラクター共通のイベント（C-102・区切り3）：キャラクターのタブ・出力 B・カードのタブの表示・最初に並べる回の数 --- */
 	{
-		const G = cardsDoc.entries.find((c) => c.isGroup === true);
-		const M = G.groupMembers.slice(1).find((n) => cardsDoc.entries.some((c) => c.isGroup === false && c.charaName === n));
-		const N = cardsDoc.entries.find((c) => c.isGroup === false && c.charaName === M);
 		const charaCount = new Set(cardsDoc.entries.flatMap((c) => c.isGroup ? c.groupMembers : [c.charaName])).size;
-		const SR = cardsDoc.entries.find((c) => c.rarity === 'SR' && !c.isGroup && !inFile.has(c.id));
-		const R = cardsDoc.entries.find((c) => c.rarity === 'R' && !c.isGroup && !inFile.has(c.id));
 		const { ctx, page, errors } = await openCei(null);
 		// 最初に並べる回の数：SSR 3・SR 2・R 1・グループ 3
 		await page.uncheck('#cei-only-focus');
