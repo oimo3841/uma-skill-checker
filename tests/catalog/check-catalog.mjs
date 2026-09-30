@@ -105,7 +105,8 @@ const ENTRY_KEYS = {
 	// **名前も番号もこのスクリプトに書かない**（恒久ルール1）。見るのは値どうしの整合だけ。
 	// rarity・isGroup・groupMembers は 2026-09-27（C-102 の区切り3）に data-work の公開用データで入った。
 	// groupMembers はグループのカード（isGroup が true）の行にだけある（§2 で見る）
-	supportCard: { need: ['id', 'title', 'charaName', 'type', 'typeOrder', 'hintSkills', 'dataStatus', 'rarity', 'isGroup'], opt: ['groupMembers'] },
+	// groupName（グループのサポートカードの正式な名称）は 2026-09-30 に入った。グループのカードの行にだけあってよい（§2 で見る）
+	supportCard: { need: ['id', 'title', 'charaName', 'type', 'typeOrder', 'hintSkills', 'dataStatus', 'rarity', 'isGroup'], opt: ['groupMembers', 'groupName'] },
 	// 2026-09-27・C-102 で形を作り替えた（それまでは { cardId, status, skills } の平たい一覧。行は0件だった）。
 	// chain（確かめた形）と unplaced（シートから取り込んだまま）は status でどちらを持つかが決まる（§5）
 	supportCardEventSkill: { need: ['cardId', 'status'], opt: ['chain', 'unplaced'] },
@@ -468,6 +469,11 @@ docs.supportCard.entries.forEach((e, i) => {
 			if (new Set(gm).size !== gm.length) badTypes.push(w + '.groupMembers: 同じ名前が2回ある');
 		}
 	} else if (e.groupMembers !== undefined) badTypes.push(w + '.groupMembers: グループでないカードは持たない');
+	// グループのサポートカードの正式な名称（2026-09-30）。無くてもよい（無ければ画面は今までの名前のまま）が、あれば空でない文字列
+	if (e.groupName !== undefined) {
+		if (e.isGroup !== true) badTypes.push(w + '.groupName: グループでないカードは持たない');
+		else if (!isStr(e.groupName) || !e.groupName.trim()) badTypes.push(w + '.groupName: 空でない文字列');
+	}
 });
 
 // サポートカードのイベントスキル

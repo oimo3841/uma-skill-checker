@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-09-30a",
+	"dataVersion": "2026-09-30b",
 	"category": "supportCard",
 	"nextSerial": "card-0564",
 	"note": "サポートカード。charaName はグループのカードでは代表者1人。hintSkills は練習のヒントで得られるスキルで、イベントで得られるスキルはこのファイルには書かない（support-card-event-skills.json に書く）。スキルの参照は skillId が本体で、name は照合のための控え（表示には使わない）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。dataStatus.hint は done（確かめて載せた）／none（ヒントを持たないと確かめた）／pending（未確認）。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。形は npm run check:catalog が確かめる。rarity はカードのレアリティで、\"R\"・\"SR\"・\"SSR\" のどれか。isGroup はグループのカード（複数のキャラクターが割り当てられたカード）なら true、それ以外は false。groupMembers はグループのカードの行にだけあり、割り当てられているキャラクターの名前の配列（先頭は charaName と同じ代表者）。",
@@ -12437,6 +12437,7 @@
 			"typeOrder": 6,
 			"rarity": "SSR",
 			"isGroup": true,
+			"groupName": "玉座に集いし者たち",
 			"groupMembers": [
 				"シンボリルドルフ",
 				"トウカイテイオー",
@@ -12940,6 +12941,7 @@
 			"typeOrder": 6,
 			"rarity": "SSR",
 			"isGroup": true,
+			"groupName": "チーム＜シリウス＞",
 			"groupMembers": [
 				"スペシャルウィーク",
 				"メジロマックイーン",
@@ -15294,6 +15296,7 @@
 			"typeOrder": 6,
 			"rarity": "SSR",
 			"isGroup": true,
+			"groupName": "祖にして導く者",
 			"groupMembers": [
 				"ダーレーアラビアン",
 				"ゴドルフィンバルブ",
@@ -17060,6 +17063,7 @@
 			"typeOrder": 6,
 			"rarity": "SSR",
 			"isGroup": true,
+			"groupName": "刻み続ける者たち",
 			"groupMembers": [
 				"キタサンブラック",
 				"トウカイテイオー",
@@ -19628,6 +19632,7 @@
 			"typeOrder": 6,
 			"rarity": "SSR",
 			"isGroup": true,
+			"groupName": "伝説の体現者",
 			"groupMembers": [
 				"スピードシンボリ",
 				"セントライト",

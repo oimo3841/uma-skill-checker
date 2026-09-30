@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30c';
 
 	/* ============================================================
 	 * 定数
@@ -67,7 +67,7 @@
 		'data/aptitude-genes.json': '2026-09-19a',
 		'data/extended-skills.json': '2026-09-30a',
 		'data/training-umamusume.json': '2026-09-24a',
-		'data/support-cards.json': '2026-09-30a',
+		'data/support-cards.json': '2026-09-30b',
 		'data/support-card-event-skills.json': '2026-09-30a',
 		// キャラクター共通のイベント（C-102 の区切り3・2026-09-27）。9本目
 		'data/character-event-skills.json': '2026-09-30a',
