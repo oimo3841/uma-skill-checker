@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30i';
 
 	/* ============================================================
 	 * 定数
@@ -1224,30 +1224,73 @@
 		return eventRowSkills(findEventRow(cardId), 'chain');
 	}
 
+	/** そのカードのイベントの、イベントごとの出現（スキルPt の由来。eventRowOccurrences を参照）。 */
+	function getEventOccurrencesOf(cardId) {
+		return eventRowOccurrences(findEventRow(cardId), 'chain', 'card:' + cardId);
+	}
+
 	/**
 	 * イベントの行（カードの連続イベントの行・キャラクター共通のイベントの行）から、編成の見方でスキルを引く。
 	 * eventsKey は回の並びを持つキー（カードは 'chain'、キャラクターは 'events'）。回の中身の形と●・△の決まりは同じ。
+	 *
+	 * **返り値の形と中身は、hintLevel を持ち回る前（段2 より前）と同じ**（skillId が鍵の1行・sure は「どこか1か所でも●なら●」）。
+	 * 元になる「イベントごとの出現」は eventRowOccurrences() が持つ。
 	 */
 	function eventRowSkills(row, eventsKey) {
-		if (!row) return [];
 		const out = new Map();
-		const put = (ref, sure) => {
-			if (!ref || !ref.skillId) return;
-			const cur = out.get(ref.skillId);
-			if (cur) { if (sure) cur.sure = true; return; }
-			out.set(ref.skillId, { skillId: ref.skillId, name: ref.name, sure: !!sure });
+		eventRowOccurrences(row, eventsKey, '').forEach(o => {
+			const cur = out.get(o.skillId);
+			if (cur) { if (o.sure) cur.sure = true; return; }
+			out.set(o.skillId, { skillId: o.skillId, name: o.name, sure: !!o.sure });
+		});
+		return Array.from(out.values());
+	}
+
+	/**
+	 * イベントの行から、**イベントごとの出現**を引く（段2・スキルPt の由来の機械可読化）。
+	 * 返り値は [{ skillId, name, sure, hintLevel, eventKey }]。
+	 *   - eventKey … どのイベントか（`keyBase + '#' + 回の並びの位置`。seeded は `keyBase + '#seeded'`）。
+	 *     **同じイベントの中の複数の選択肢に同じスキルがあっても、1行にまとめる**（hintLevel はその中の最大、sure は「どれかで●なら●」）。
+	 *     別のイベントに同じスキルがあれば、別の行（スキルPt では加算する）。
+	 *   - hintLevel … 数（0以上の整数）。取り込んだまま（seeded）など、レベルを持たないものは null。
+	 * ●・△の決まりは eventRowSkills と同じ（選択肢が1つなら成功側が●／2つ以上なら、すべての選択肢の成功側に入るものだけ●・ほかは△／
+	 * seeded は全部△）。
+	 */
+	function eventRowOccurrences(row, eventsKey, keyBase) {
+		if (!row) return [];
+		const out = [];
+		const levelOf = (ref) => (Number.isInteger(ref && ref.hintLevel) && ref.hintLevel >= 0 ? ref.hintLevel : null);
+		// 1つのイベントの中で、スキルごとに1行へまとめる
+		const pushEvent = (eventKey, refs) => {
+			const byId = new Map();
+			refs.forEach(({ ref, sure }) => {
+				if (!ref || !ref.skillId) return;
+				const cur = byId.get(ref.skillId);
+				const lv = levelOf(ref);
+				if (cur) {
+					if (sure) cur.sure = true;
+					if (lv !== null && (cur.hintLevel === null || lv > cur.hintLevel)) cur.hintLevel = lv;
+					return;
+				}
+				byId.set(ref.skillId, { skillId: ref.skillId, name: ref.name, sure: !!sure, hintLevel: lv, eventKey: eventKey });
+			});
+			byId.forEach(v => out.push(v));
 		};
 		if (row.status === 'seeded') {
-			(row.unplaced || []).forEach(ref => put(ref, false));
+			pushEvent(keyBase + '#seeded', (row.unplaced || []).map(ref => ({ ref: ref, sure: false })));
 		} else if (row.status === 'done') {
-			(row[eventsKey] || []).forEach(ev => {
+			(row[eventsKey] || []).forEach((ev, idx) => {
 				const sides = ((ev && ev.choices) || []).map(eventChoiceSuccessSkills);
-				if (sides.length === 1) { sides[0].forEach(ref => put(ref, true)); return; }
-				const inEvery = id => sides.every(side => side.some(ref => ref && ref.skillId === id));
-				sides.forEach(side => side.forEach(ref => put(ref, ref && inEvery(ref.skillId))));
+				const refs = [];
+				if (sides.length === 1) { sides[0].forEach(ref => refs.push({ ref: ref, sure: true })); }
+				else {
+					const inEvery = id => sides.every(side => side.some(ref => ref && ref.skillId === id));
+					sides.forEach(side => side.forEach(ref => refs.push({ ref: ref, sure: !!(ref && inEvery(ref.skillId)) })));
+				}
+				pushEvent(keyBase + '#' + idx, refs);
 			});
 		}
-		return Array.from(out.values());
+		return out;
 	}
 
 	/* ---- キャラクター共通のイベント（C-102 の区切り3） ----
@@ -1266,6 +1309,10 @@
 	/** そのキャラクターの共通イベントで得られるスキル（[{ skillId, name, sure }]。決まりは連続イベントと同じ） */
 	function getCharacterEventSkillsOf(charaName) {
 		return eventRowSkills(findCharacterEventRow(charaName), 'events');
+	}
+	/** そのキャラクターの共通イベントの、イベントごとの出現（スキルPt の由来）。同じキャラクターは何枚のカードから当たっても同じ eventKey。 */
+	function getCharacterEventOccurrencesOf(charaName) {
+		return eventRowOccurrences(findCharacterEventRow(charaName), 'events', 'chara:' + charaName);
 	}
 	/**
 	 * そのカードに共通イベントが当てはまるキャラクター。グループでないカードはその charaName の1人、
@@ -1439,6 +1486,12 @@
 	 *                     空いている枠は label が null。typeOrder はカードの種類の順番（無ければ null）
 	 *   unconfirmed     … [{ cardId, label, what }] まだ調べていないもの
 	 *   missing         … [{ kind, id }] id を引けなかったもの（行は消さずに知らせる）
+ *   sources         … 由来を**機械が読める形**で並べたもの（段2・スキルPt の計算が使う。items の origins は表示用の文字列）。
+ *                     [{ skillId, kind, sure, memberKey, hintLevel, eventKey, part }]
+ *                     kind は 'hint'（練習のヒント）| 'event'（カードの連続イベント）| 'commonEvent'（キャラクター共通のイベント）| 'uma'（育成ウマ娘の初期・覚醒）。
+ *                     hintLevel はイベントだけが持つ（そのイベントごとの数。持たないものは null）。
+ *                     eventKey はイベントの識別（同じイベントの中の複数の選択肢は、出現1つにまとめてある）。ほかの kind は null。
+ *                     part は 'uma' のときだけ 'initial' | 'awakening'。引けなかったスキルは載せない（missing に出る）
 	 *
 	 * **番号は編成の並び順で機械的に振る**（育成ウマ娘は★、サポートカードが枠の順に 1〜6。
 	 * C-51 の11節で「1〜7」から変えた）。名前も番号もコードに書かない（恒久ルール1）。
@@ -1449,15 +1502,18 @@
 	 */
 	function computeRosterSkills(roster) {
 		const items = new Map();   // skillId → { skillId, name, origins: [], members: [], sureMembers: [], sure }
+		const sources = [];        // 由来を機械が読める形で（段2）
 		const unconfirmed = [];
 		const missing = [];
 		const members = [];
 		// sure は省略すると●（ヒント・初期・覚醒は必ず得られる）。△はイベントの選択肢しだいのものだけ
-		const add = (ref, origin, memberKey, sure) => {
+		const add = (ref, origin, memberKey, sure, src) => {
 			if (!ref || !ref.skillId) return;
 			const sk = findSkill(ref.skillId);
 			if (!sk) { missing.push({ kind: 'skill', id: ref.skillId }); return; }
 			const isSure = sure !== false;
+			// src を渡された呼び出し（練習のヒント・育成ウマ娘）だけ、由来を1件足す（イベントは下の pushOccurrences）
+			if (src) sources.push(Object.assign({ skillId: ref.skillId, sure: isSure, memberKey: memberKey, hintLevel: null, eventKey: null, part: null }, src));
 			const cur = items.get(ref.skillId) || { skillId: ref.skillId, name: sk.name, origins: [], members: [], sureMembers: [], sure: false };
 			if (cur.origins.indexOf(origin) === -1) cur.origins.push(origin);
 			if (cur.members.indexOf(memberKey) === -1) cur.members.push(memberKey);
@@ -1465,6 +1521,12 @@
 			if (isSure) cur.sure = true;
 			items.set(ref.skillId, cur);
 		};
+
+		// イベントの出現（イベントごと）を由来へ足す。引けないスキルは載せない（items 側の add が missing に出す）
+		const pushOccurrences = (list, kind, memberKey) => list.forEach(o => {
+			if (!findSkill(o.skillId)) return;
+			sources.push({ skillId: o.skillId, kind: kind, sure: !!o.sure, memberKey: memberKey, hintLevel: o.hintLevel, eventKey: o.eventKey, part: null });
+		});
 
 		const r = roster || {};
 		// ── 育成ウマ娘（並びの先頭。番号ではなく★で示す） ──
@@ -1481,14 +1543,14 @@
 				// 選ばせる UI を削って認知負荷を下げた。保存済みの roster.star / awakeningLevel は
 				// ここでは**読まない**（画面から変えられないものを判定に混ぜない）。
 				const use = initialRowOf(uma);
-				if (use) (use.skills || []).forEach(s => add(s, '初期（★' + use.minStar + '）', UMA_KEY));
+				if (use) (use.skills || []).forEach(s => add(s, '初期（★' + use.minStar + '）', UMA_KEY, undefined, { kind: 'uma', part: 'initial' }));
 				// 覚醒スキル: level 0 は「覚醒のレベルに紐づかない枠」なので**常に含める**
 				// （画面では「最初から」と出す）。それ以外は、そのウマ娘の最大レベルまで全部。
 				const maxLv = maxAwakeningLevelOf(uma);
 				(uma.awakeningSkills || []).forEach(row => {
-					if (row.level === 0) (row.skills || []).forEach(s => add(s, '最初から', UMA_KEY));
+					if (row.level === 0) (row.skills || []).forEach(s => add(s, '最初から', UMA_KEY, undefined, { kind: 'uma', part: 'awakening' }));
 					else if (typeof row.level === 'number' && row.level <= maxLv) {
-						(row.skills || []).forEach(s => add(s, '覚醒 Lv' + row.level, UMA_KEY));
+						(row.skills || []).forEach(s => add(s, '覚醒 Lv' + row.level, UMA_KEY, undefined, { kind: 'uma', part: 'awakening' }));
 					}
 				});
 			}
@@ -1510,12 +1572,15 @@
 			const label = formatEntryLabel(card);
 			members.push({ key: key, kind: 'card', no: no, label: label, shortLabel: formatEntryShortLabel(card), typeOrder: cardTypeOrderOf(card) });
 			const hintStatus = (card.dataStatus && card.dataStatus.hint) || 'pending';
-			if (hintStatus === 'done') (card.hintSkills || []).forEach(s => add(s, label + ' のヒント', key));
+			if (hintStatus === 'done') (card.hintSkills || []).forEach(s => add(s, label + ' のヒント', key, undefined, { kind: 'hint' }));
 			else if (hintStatus === 'pending') unconfirmed.push({ cardId: cardId, label: label, what: 'ヒント' });
 
 			const evStatus = eventStatusOf(cardId);
 			if (evStatus === 'pending') unconfirmed.push({ cardId: cardId, label: label, what: 'イベント' });
-			else getEventSkillsOf(cardId).forEach(s => add(s, label + ' のイベント' + (s.sure ? '' : '（確定でない）'), key, s.sure));
+			else {
+				getEventSkillsOf(cardId).forEach(s => add(s, label + ' のイベント' + (s.sure ? '' : '（確定でない）'), key, s.sure));
+				pushOccurrences(getEventOccurrencesOf(cardId), 'event', key);
+			}
 
 			// キャラクター共通のイベント（C-102 の区切り3）。そのカードの列に出す。同じキャラクターが
 			// 2枚のカードから当たっても、スキルは items の1行（skillId が鍵）で、印が両方の列に付く。
@@ -1526,11 +1591,12 @@
 				}
 				getCharacterEventSkillsOf(name).forEach(s =>
 					add(s, label + ' の共通イベント（' + name + '）' + (s.sure ? '' : '（確定でない）'), key, s.sure));
+				pushOccurrences(getCharacterEventOccurrencesOf(name), 'commonEvent', key);
 			});
 		});
 
 		const list = Array.from(items.values()).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing };
+		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing, sources: sources };
 	}
 
 	/* ============================================================
@@ -6526,6 +6592,10 @@
 		formatEntryLabel: formatEntryLabel,
 		eventStatusOf: eventStatusOf,
 		getEventSkillsOf: getEventSkillsOf,
+		getEventOccurrencesOf: getEventOccurrencesOf,
+		characterEventStatusOf: characterEventStatusOf,
+		getCharacterEventSkillsOf: getCharacterEventSkillsOf,
+		getCharacterEventOccurrencesOf: getCharacterEventOccurrencesOf,
 		// スキルPt（段1。画面は持たない。設計は skill-pt-calculation-step0.md）
 		loadSkillPtData: loadSkillPtData,
 		getSkillPtData: function () { return skillPtData; },
@@ -6538,8 +6608,6 @@
 		buildSkillPtIndex: buildSkillPtIndex,
 		buildStepUpIndex: buildStepUpIndex,
 		computeRosterPt: computeRosterPt,
-		characterEventStatusOf: characterEventStatusOf,
-		getCharacterEventSkillsOf: getCharacterEventSkillsOf,
 		charactersOfCard: charactersOfCard,
 		// サポートカードの種類。データに type が入るまでは空配列を返す（C-51 の修正2）。
 		listCardTypes: listCardTypes,
