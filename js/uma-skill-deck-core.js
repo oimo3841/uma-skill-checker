@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30g';
 
 	/* ============================================================
 	 * 定数
@@ -68,9 +68,9 @@
 		'data/extended-skills.json': '2026-09-30a',
 		'data/training-umamusume.json': '2026-09-24a',
 		'data/support-cards.json': '2026-09-30b',
-		'data/support-card-event-skills.json': '2026-09-30b',
+		'data/support-card-event-skills.json': '2026-09-30c',
 		// キャラクター共通のイベント（C-102 の区切り3・2026-09-27）。9本目
-		'data/character-event-skills.json': '2026-09-30b',
+		'data/character-event-skills.json': '2026-09-30c',
 		// レースの距離の一覧（C-97・2026-09-26）。7本目。スキルではないので EXTRA_CATALOG_SOURCES にも
 		// TRAINING_SOURCES にも入れず、loadRaceDistances() が読む。
 		'data/race-distances.json': '2026-09-26a'

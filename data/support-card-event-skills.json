@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-09-30b",
+	"dataVersion": "2026-09-30c",
 	"category": "supportCardEventSkill",
 	"note": "サポートカードのイベント（そのカードの連続イベント）で得られるスキル。ゲーム画面を見ながら、確かめられたカードから1件ずつ足す。ここに無い cardId は「未確認」の扱いなので、全カードぶんの空の行をあらかじめ並べる必要はない。cardId は support-cards.json の id。行の鍵は cardId で、このファイルには独自の id を振らない（nextSerial は持たない）。status は done（確かめた。chain を持つ）／none（見て回ってスキルが無かった。chain も unplaced も持たない）／seeded（シートから取り込んだまま。スキルは分かっているが、何回目か・選択肢・レベルは未確認。unplaced にスキルの参照だけを持つ）。chain はスキルが得られる回だけを並べる（スキルの無い回は書かない）。1回ぶんは { step, choices }：step は何回目か（1以上の整数・昇順・重複なし・上限なし）、choices はゲームの選択肢の並び（上から）のままで、スキルを得ない選択肢も空の選択肢として書く（選択肢の無いイベントは choices が1つ）。1つの選択肢は次のどちらか一方の形：{ skills: [...] }（成否に分かれない）／{ results: [[...], [...], ...] }（結果が分かれる。結果は2つ以上。**並びの先頭がいちばん良い結果（成功）**で、2番目以降が失敗側（成功に近い順）。結果が空でもよい）。編成パネルは成功側（skills か results の先頭）だけを使い、失敗側のスキルは出さないが、データには記録する。スキルの参照は { skillId, name, hintLevel }：skillId が本体で、name は照合のための控え（表示には使わない）、hintLevel はヒントのレベル（1以上の整数）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。イベントの名前や本文は書かない。既存の行は消さない。書き足したら dataVersion をその日の日付＋連番に上げ、js/uma-skill-deck-core.js の DATA_JSON_VERSIONS も同じ値にして、npm run check:catalog を回す。",
 	"entries": [
@@ -12696,6 +12696,2538 @@
 								{
 									"skillId": "ex-0595",
 									"name": "月影円刃",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0001",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0002",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0003",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0004",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0148",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "129",
+									"name": "まき直し",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0149",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "56",
+									"name": "仕掛け抜群",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0150",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "35",
+										"name": "直線加速",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "35",
+										"name": "直線加速",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0151",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "75",
+									"name": "追込駆け引き",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0152",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "114",
+										"name": "追い上げ",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "114",
+										"name": "追い上げ",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0153",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "37",
+									"name": "集中力",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0154",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "136",
+									"name": "読解力",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0155",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "33",
+									"name": "コーナー回復○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "117",
+									"name": "逃げ直線○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0156",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "43",
+									"name": "垂れウマ回避",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0157",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "32",
+									"name": "コーナー加速○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0158",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "76",
+									"name": "逃げけん制",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0159",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "45",
+									"name": "末脚",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0160",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "140",
+									"name": "お見通し",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0161",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0162",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "1",
+										"name": "右回り○",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "1",
+										"name": "右回り○",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0163",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "51",
+									"name": "抜け出し準備",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0164",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "53",
+										"name": "差し切り体勢",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0165",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "69",
+									"name": "別腹タンク",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0166",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "45",
+									"name": "末脚",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0167",
+			"status": "done",
+			"chain": [
+				{
+					"step": 5,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "76",
+										"name": "逃げけん制",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "76",
+										"name": "逃げけん制",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0168",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "125",
+									"name": "先行コーナー○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "132",
+									"name": "差しコーナー○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0169",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "149",
+									"name": "ラッキーセブン",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "27",
+									"name": "おひとり様○",
+									"hintLevel": 5
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "142",
+									"name": "冷静",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "157",
+									"name": "一匹狼",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0170",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "127",
+										"name": "直滑降",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "127",
+										"name": "直滑降",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "62",
+									"name": "展開窺い",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0171",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "72",
+									"name": "逃げ駆け引き",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "75",
+									"name": "追込駆け引き",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0172",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "30",
+									"name": "伏兵○",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0173",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "34",
+									"name": "直線巧者",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "35",
+									"name": "直線加速",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0174",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "137",
+									"name": "鋭い眼光",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0175",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "149",
+									"name": "ラッキーセブン",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "98",
+									"name": "ギアシフト",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0176",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "103",
+									"name": "中距離直線○",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "156",
+									"name": "シンパシー",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "13",
+									"name": "根幹距離○",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "48",
+									"name": "押し切り準備",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0177",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "98",
+										"name": "ギアシフト",
+										"hintLevel": 3
+									}
+								],
+								[]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0178",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "88",
+									"name": "大井レース場○",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0179",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "125",
+									"name": "先行コーナー○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0180",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0181",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "40",
+										"name": "ペースアップ",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "40",
+										"name": "ペースアップ",
+										"hintLevel": 1
+									}
+								]
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0182",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "226",
+									"name": "バイブス上昇",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0183",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "66",
+									"name": "食い下がり",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0184",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[],
+								[]
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "126",
+									"name": "巧みなステップ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0185",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "97",
+										"name": "マイルコーナー○",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0186",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "131",
+									"name": "差し直線○",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0187",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "148",
+									"name": "追込のコツ○",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0188",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "154",
+									"name": "尻尾上がり",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0189",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "164",
+										"name": "真っ向勝負",
+										"hintLevel": 3
+									}
+								],
+								[]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0190",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "126",
+									"name": "巧みなステップ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "90",
+									"name": "短距離コーナー○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0191",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "120",
+									"name": "先頭プライド",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "160",
+									"name": "レコメンド",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0192",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "71",
+									"name": "トリック（後）",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "85",
+									"name": "追込けん制",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "138",
+									"name": "追込直線○",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0193",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "104",
+									"name": "中距離コーナー○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0194",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "16",
+									"name": "道悪○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0195",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "36",
+									"name": "直線回復",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "24",
+									"name": "雪の日○",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0196",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "84",
+									"name": "差しためらい",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "122",
+									"name": "二の矢",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0197",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "89",
+									"name": "短距離直線○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0198",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "131",
+										"name": "差し直線○",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0199",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "25",
+									"name": "内枠得意○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0200",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "50",
+									"name": "好位追走",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0201",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "93",
+									"name": "仕掛け準備",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "92",
+									"name": "善後策",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "27",
+									"name": "おひとり様○",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "94",
+									"name": "後方釘付",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "200",
+									"name": "しゃかりき",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0202",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "173",
+									"name": "前のめり",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "57",
+									"name": "直線一気",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0203",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "6",
+									"name": "京都レース場○",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0204",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "33",
+									"name": "コーナー回復○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0205",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "168",
+									"name": "あやしげな作戦",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0206",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "89",
+									"name": "短距離直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0207",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "168",
+									"name": "あやしげな作戦",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "148",
+									"name": "追込のコツ○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "68",
+									"name": "内弁慶",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "141",
+									"name": "下校の楽しみ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0208",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "100",
+									"name": "負けん気",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "119",
+									"name": "危険回避",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "97",
+									"name": "マイルコーナー○",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0209",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "120",
+									"name": "先頭プライド",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "118",
+									"name": "逃げコーナー○",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0210",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "185",
+									"name": "小回り○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "195",
+									"name": "泥遊び○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "194",
+									"name": "踏み込み上手",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0211",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "80",
+									"name": "先行焦り",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "53",
+										"name": "差し切り体勢",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "53",
+										"name": "差し切り体勢",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0212",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "111",
+									"name": "長距離コーナー○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0213",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "225",
+									"name": "心弾んで",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0214",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "45",
+									"name": "末脚",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0215",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "222",
+									"name": "一歩から",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0216",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "211",
+									"name": "向こう見ず",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0217",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "172",
+									"name": "闘争心",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0218",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "139",
+									"name": "追込コーナー○",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0219",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "208",
+									"name": "食らいつき",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0220",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "234",
+									"name": "勝利に向かって",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0221",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "207",
+									"name": "粘り腰",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0222",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "245",
+									"name": "たぎる血潮",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0223",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "204",
+									"name": "確かな足取り",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0224",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "14",
+									"name": "非根幹距離○",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0225",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "124",
+									"name": "先行直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0226",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "218",
+									"name": "大急ぎ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0227",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "198",
+									"name": "攻めの姿勢",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0228",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "270",
+									"name": "決定打",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0229",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "268",
+									"name": "正面突破",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0230",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "278",
+									"name": "アグレッシブ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0231",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "166",
+									"name": "影打",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0232",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "209",
+									"name": "本領発揮",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0233",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "273",
+									"name": "後先恐れず",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0234",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "65",
+									"name": "テンポアップ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0235",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "206",
+									"name": "キレる脚",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0236",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "261",
+									"name": "胸の高鳴り",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0237",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "317",
+									"name": "夢への挑戦",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0238",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "255",
+									"name": "飛躍の予感",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0239",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "175",
+									"name": "恐れぬ心",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0240",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "305",
+									"name": "覇気十分",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0241",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "221",
+									"name": "進出開始",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0242",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "348",
+									"name": "気丈な姿勢",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0243",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "237",
+									"name": "序盤巧者",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "284",
+									"name": "熱狂的",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0244",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "312",
+									"name": "捕捉",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0245",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "356",
+									"name": "華麗な足取り",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0246",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "89",
+									"name": "短距離直線○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0247",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "318",
+									"name": "光明",
 									"hintLevel": 1
 								}
 							]
