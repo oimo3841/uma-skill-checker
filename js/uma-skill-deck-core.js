@@ -2972,10 +2972,11 @@
 		'.usd-roster-grid-wrap { max-height: 320px; overflow-y: auto; overflow-x: hidden;',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm); background: var(--uma-surface); }',
 		// 列の幅は画面幅で自動で切り替える（C-54 の (6)(7)）:
-		//   狭い画面（既定）… スキル名の列は残りの幅（minmax(0, 1fr)）、メンバーの列は 28px 固定。見出しは印と番号だけ。
+		//   狭い画面（既定）… スキル名の列は残りの幅（minmax(0, 1fr)）、メンバーの列は 24px 固定。見出しは印と番号だけ。
+		//                     （28px → 24px は段3。名前セルの2行目「基礎 240 → 216 Pt（Lv1）」が 375px で1行に収まる幅を確保するため）
 		//   768px 以上      … メンバーの列を広げて見出しにウマ娘名（短い名前）も出す。スキル名の列は 140〜260px。
 		// 利用者が選ぶ切り替えにしなかった理由: 決め手は物理的な幅なので、幅で決めるほうが迷わせない（C-54）。
-		'.usd-roster-grid { display: grid; width: 100%; --usd-roster-colw: 28px;',
+		'.usd-roster-grid { display: grid; width: 100%; --usd-roster-colw: 24px;',
 		'  grid-template-columns: minmax(0, 1fr) repeat(var(--usd-roster-cols, 7), var(--usd-roster-colw)); }',
 		'.usd-roster-gh-name { display: none; }',
 		'@media (min-width: 768px) {',
@@ -3055,6 +3056,18 @@
 		'.usd-roster-legend--empty { color: var(--uma-text-faint); }',
 		'.usd-roster-note { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); margin: 0; }',
 		'.usd-roster-warn { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); margin: 0; }',
+		// スキルPt（段3）。育成の設定の箱・合計の行・名前セルの2行目。色と寸法はトークンだけで、共有の CSS には足していない
+		'.usd-roster-settings { display: flex; flex-direction: column; gap: var(--uma-sp-1-5); padding: var(--uma-sp-2) var(--uma-sp-3);',
+		'  background: var(--uma-surface-sunken); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm); }',
+		'.usd-roster-setrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-1) var(--uma-sp-3); }',
+		'.usd-roster-setlabel { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-roster-radio--disabled, .usd-roster-radio--disabled > input { cursor: not-allowed; }',
+		'.usd-roster-radio--disabled { color: var(--uma-text-faint); }',
+		'.usd-roster-ptsum { display: flex; flex-direction: column; gap: var(--uma-sp-1); }',
+		'.usd-roster-ptsum-main { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2); }',
+		'.usd-roster-ptsum-total { font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-roster-skillcell { display: flex; flex-direction: column; gap: 1px; min-width: 0; }',
+		'.usd-roster-pt { font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 400; color: var(--uma-text-subtle); }',
 		'.usd-roster-unconf { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1); margin: var(--uma-sp-1) 0 0; padding: 0; list-style: none; }',
 		'.usd-roster-unconf li { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
 		'  border: 1px dashed var(--uma-border); border-radius: var(--uma-r-full); padding: 0 var(--uma-sp-2); }',
