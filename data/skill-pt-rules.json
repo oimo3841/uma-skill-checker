@@ -1,0 +1,18 @@
+{
+	"dataVersion": "2026-09-30a",
+	"category": "skillPtRules",
+	"note": "スキルPt の計算の決まり（ゲームの公知の値。スキル名は含まない）。支払うPt = 丸め( 基礎値 × (100 − 割引率) ÷ 100 )。割引率（％）= ヒントの割引率 + 状態の割引率。**割引率は整数の百分率で持ち、整数だけで計算する**（0.30 のような小数で持たない。基礎90・Lv3 が 62 になる誤りを避けるため。正しくは 63）。1件ごとに丸めてから足す。hintDiscountPercent は、ヒントレベル1〜hintLevelMax の割引率（並びの位置＝レベル−1）。ヒントレベル0（ヒント無し）は0％。状態は排他（1つだけ）で、id を statuses から選ぶ（切れ者は勉強家の上位互換で、同時には付かない）。practiceHintLevel は練習のヒントで得られるスキルのレベル（育成終了時点ですべてこのレベルとみなす）。umaHintLevelDefault は育成ウマ娘の初期・覚醒スキルの既定のレベルで、覚醒 Lv が umaHintLevelChoiceMinAwakening 以上あるウマ娘だけ umaHintLevelChoice も選べる。parentHintLevelDefault は親（因子）由来のスキルの既定のレベル（利用者が1〜hintLevelMax で変えられる。0は無い）。rounding は丸めの向き（floor＝切り捨て。ゲームの表示で確認済み：基礎90・Lv4 → 58、基礎110・Lv4 → 71）。形は npm run check:catalog が確かめる。",
+	"hintDiscountPercent": [10, 20, 30, 35, 40],
+	"hintLevelMax": 5,
+	"practiceHintLevel": 5,
+	"umaHintLevelDefault": 3,
+	"umaHintLevelChoice": 5,
+	"umaHintLevelChoiceMinAwakening": 7,
+	"parentHintLevelDefault": 5,
+	"statuses": [
+		{ "id": "none", "label": "なし", "percent": 0 },
+		{ "id": "benkyo", "label": "勉強家", "percent": 4 },
+		{ "id": "kire", "label": "切れ者", "percent": 10 }
+	],
+	"rounding": "floor"
+}

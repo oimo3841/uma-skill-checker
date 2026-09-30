@@ -9268,6 +9268,8 @@ await block('段7【5】収録スキルデータ（マスター）の取り回�
 		// 追加カタログ（3本）と収録データ（3本）は入口が別なので、両方を読ませる
 		await page.evaluate(() => UmaSkillDeckCore.loadMasterSkills(false));
 		await page.evaluate(() => UmaSkillDeckCore.loadTrainingSources(true));
+		// スキルPt の割引率の表（2026-09-30・段1）も入口が別（必要な画面が呼ぶ）。表に載る data/ の JSON は、これも含めて読ませる
+		await page.evaluate(() => UmaSkillDeckCore.loadSkillPtData(true));
 		await page.waitForTimeout(500);
 
 		const paths = Object.keys(table);

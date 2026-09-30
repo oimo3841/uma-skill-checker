@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30h';
 
 	/* ============================================================
 	 * 定数
@@ -73,7 +73,10 @@
 		'data/character-event-skills.json': '2026-09-30c',
 		// レースの距離の一覧（C-97・2026-09-26）。7本目。スキルではないので EXTRA_CATALOG_SOURCES にも
 		// TRAINING_SOURCES にも入れず、loadRaceDistances() が読む。
-		'data/race-distances.json': '2026-09-26a'
+		'data/race-distances.json': '2026-09-26a',
+		// スキルPt の割引率の表（段1・2026-09-30）。ゲームの公知の値で、スキル名を含まない。
+		// skill-pt.json・skill-step-up.json は実ファイルが届くまでここに載せない（載せると取りに行くため）。
+		'data/skill-pt-rules.json': '2026-09-30a'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
@@ -1528,6 +1531,274 @@
 
 		const list = Array.from(items.values()).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
 		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing };
+	}
+
+	/* ============================================================
+	 * スキルPt の計算（段1・2026-09-30。設計は skill-pt-calculation-step0.md 第4版）
+	 *
+	 * **画面を持たない。** 純粋関数と、データの受け取り口だけ（画面は段3 以降）。
+	 * **DOM・保存・special を知らない**ので、単体で検査できる（tests/visual/run-smoke.mjs の塊が関数を直に呼ぶ）。
+	 * **スキル名も記号（○・◎）の規則も書かない**（恒久ルール1）。系列は前段データ（skill-step-up.json）の
+	 * `hintRootSkillId` で持ち、Pt が0の固有スキルは skill-pt.json の `pt: 0` で表す。
+	 *
+	 * 決まり（Step 0 の 2-1・2-2。おいもさん確認済み）:
+	 *   - 支払うPt = floor( 基礎値 × (100 − 割引率) ÷ 100 )。**割引率は整数の百分率**で持ち、**整数だけで計算する**
+	 *     （浮動小数点で `基礎値 * (1 - 0.3)` と書くと、基礎90・Lv3 が 62 になる。正しくは 63）。
+	 *     **1件ごとに丸めてから足す**。丸めの向きは data/skill-pt-rules.json の `rounding`（切り捨てで確定）の1か所。
+	 *   - 割引率 = ヒントの割引率[L] ＋ 状態の割引率（なし0／勉強家4／切れ者10。**排他**）
+	 *   - L = min(上限5, P + E + T + U + F)。**L の持ち主は系列の根だけ**（◎は根の○の L を援用する。金は自分が根）
+	 *       P 練習のヒント … 5 ／ E イベント … ●で出るイベントごとの hintLevel の合計（同じイベントの中の重なりは最大の1つ）
+	 *       T 有効にした△ … 出てくるイベントのうち最大のレベルを1回ぶん（段4 で使う）
+	 *       U 育成ウマ娘 … 既定3（覚醒 Lv7 のウマ娘で Lv5 を選んだら5）／ F 親（因子）由来 … 既定5（段5 で使う）
+	 * **前段を必要Ptに含める処理は入れていない**（段4b）。
+	 * ============================================================ */
+	const SKILL_PT_RULES_PATH = 'data/skill-pt-rules.json';
+	// 実ファイルが届くまでは DATA_JSON_VERSIONS に載せない（＝取りに行かない。404 を出さない）。
+	// 届いたら、DATA_JSON_VERSIONS に足すだけで読まれる（受け取り口は下の loadSkillPtData）。
+	const SKILL_PT_OPTIONAL_SOURCES = [
+		{ key: 'skillPt', path: 'data/skill-pt.json' },
+		{ key: 'skillStepUp', path: 'data/skill-step-up.json' }
+	];
+	const SKILL_PT_ROUNDING_MODES = ['floor', 'round', 'ceil'];
+
+	function isNonNegInt(n) { return typeof n === 'number' && Number.isInteger(n) && n >= 0; }
+
+	function emptySkillPtData() {
+		return {
+			rules: null,        // data/skill-pt-rules.json（読めなければ null）
+			skillPt: null,      // Map(skillId → { pt, rarity })。ファイルが無い間は null（＝全部「Pt 未収録」）
+			stepUp: null,       // 前段データの索引（buildStepUpIndex）。ファイルが無い間は null（＝各スキルが自分自身を根とする）
+			meta: { loaded: false, rules: 'absent', skillPt: 'absent', stepUp: 'absent' }
+		};
+	}
+	let skillPtData = emptySkillPtData();
+
+	/** 割引率の表（skill-pt-rules.json）として使える形か。使えなければ計算しない（既定値で黙って続けない）。 */
+	function isValidSkillPtRules(r) {
+		if (!r || typeof r !== 'object') return false;
+		if (!isNonNegInt(r.hintLevelMax) || r.hintLevelMax < 1) return false;
+		if (!Array.isArray(r.hintDiscountPercent) || r.hintDiscountPercent.length !== r.hintLevelMax) return false;
+		if (!r.hintDiscountPercent.every(p => isNonNegInt(p) && p <= 100)) return false;
+		if (!Array.isArray(r.statuses) || r.statuses.length === 0) return false;
+		if (!r.statuses.every(s => s && typeof s.id === 'string' && isNonNegInt(s.percent) && s.percent <= 100)) return false;
+		if (SKILL_PT_ROUNDING_MODES.indexOf(r.rounding) === -1) return false;
+		return isNonNegInt(r.practiceHintLevel) && isNonNegInt(r.umaHintLevelDefault) && isNonNegInt(r.parentHintLevelDefault);
+	}
+
+	/** ヒントレベル L の割引率（％）。L が0以下なら0、上限を超えたら上限。 */
+	function hintDiscountPercentOf(level, rules) {
+		const L = Math.min(Math.max(Math.trunc(Number(level) || 0), 0), rules.hintLevelMax);
+		return L <= 0 ? 0 : rules.hintDiscountPercent[L - 1];
+	}
+
+	/** 状態の割引率（％）。「なし」・未指定は0。**知らない状態は null**（呼び出し側が気づけるように。黙って0にしない）。 */
+	function statusPercentOf(statusId, rules) {
+		if (statusId === undefined || statusId === null || statusId === '') return 0;
+		const s = rules.statuses.find(x => x.id === statusId);
+		return s ? s.percent : null;
+	}
+
+	/** n（0以上の整数）÷100 を、rounding の向きで整数にする。**整数だけで計算する**（浮動小数点の誤差を持ち込まない）。 */
+	function divideBy100(n, rounding) {
+		const rest = n % 100;
+		const q = (n - rest) / 100;
+		if (rounding === 'ceil') return rest > 0 ? q + 1 : q;
+		if (rounding === 'round') return rest >= 50 ? q + 1 : q;
+		return q;   // floor
+	}
+
+	/**
+	 * 1件のスキルの、支払うPt。**基礎値は0以上の整数**（そうでなければ例外。黙って丸めない）。
+	 * 割引率が100％を超えるときは100％で止める。状態が知らない値のときは「なし」として計算する
+	 * （知らない状態かどうかは statusPercentOf が null で教える）。
+	 */
+	function computeSkillPt(base, hintLevel, statusId, rules) {
+		if (!isNonNegInt(base)) throw new TypeError('基礎値は0以上の整数');
+		const percent = Math.min(100, hintDiscountPercentOf(hintLevel, rules) + (statusPercentOf(statusId, rules) || 0));
+		return divideBy100(base * (100 - percent), rules.rounding);
+	}
+
+	/**
+	 * ヒントレベル L（上限つき）。parts は { practice: 真偽, eventLevels: [数…], enabledLevel: 数, umaLevel: 数, parentLevel: 数 }。
+	 * 数でないもの・負の数は0として足す。
+	 */
+	function sumHintLevel(parts, rules) {
+		const p = parts || {};
+		const n = (v) => (isNonNegInt(v) ? v : 0);
+		let sum = p.practice ? rules.practiceHintLevel : 0;
+		(p.eventLevels || []).forEach(v => { sum += n(v); });
+		sum += n(p.enabledLevel) + n(p.umaLevel) + n(p.parentLevel);
+		return Math.min(rules.hintLevelMax, sum);
+	}
+
+	/** 育成ウマ娘の初期・覚醒スキルに当てるレベルの選択肢。覚醒 Lv の最大が閾値以上のウマ娘だけ、上のレベルも選べる。 */
+	function umaHintLevelChoices(maxAwakeningLevel, rules) {
+		const out = [rules.umaHintLevelDefault];
+		if (isNonNegInt(rules.umaHintLevelChoice) && isNonNegInt(rules.umaHintLevelChoiceMinAwakening)
+			&& maxAwakeningLevel >= rules.umaHintLevelChoiceMinAwakening && out.indexOf(rules.umaHintLevelChoice) === -1) {
+			out.push(rules.umaHintLevelChoice);
+		}
+		return out;
+	}
+
+	/** skill-pt.json → Map(skillId → { pt, rarity })。形の悪い行は飛ばす（検査は check:catalog が持つ）。 */
+	function buildSkillPtIndex(doc) {
+		const map = new Map();
+		((doc && doc.entries) || []).forEach(e => {
+			if (e && typeof e.skillId === 'string' && isNonNegInt(e.pt)) map.set(e.skillId, { pt: e.pt, rarity: e.rarity });
+		});
+		return map;
+	}
+
+	/**
+	 * skill-step-up.json → 索引。`rootOf(skillId)` はヒントレベルの持ち主（最下位の○）の id で、
+	 * 行が無い・`hintRootSkillId` が無いスキルは**自分自身**。`prevOf(skillId)` は直前のスキルの配列（段4b が使う）。
+	 */
+	function buildStepUpIndex(doc) {
+		const roots = new Map();
+		const prevs = new Map();
+		((doc && doc.entries) || []).forEach(e => {
+			if (!e || typeof e.skillId !== 'string') return;
+			if (typeof e.hintRootSkillId === 'string' && e.hintRootSkillId) roots.set(e.skillId, e.hintRootSkillId);
+			if (Array.isArray(e.prevSkillIds)) prevs.set(e.skillId, e.prevSkillIds.filter(x => typeof x === 'string'));
+		});
+		return {
+			rootOf: (skillId) => roots.get(skillId) || skillId,
+			prevOf: (skillId) => (prevs.get(skillId) || []).slice()
+		};
+	}
+
+	/**
+	 * スキルPt の元データを読む（起動時には読まない。必要な画面が呼ぶ）。
+	 * 割引率の表は必ず取りに行く。**skill-pt.json・skill-step-up.json は DATA_JSON_VERSIONS に載っているときだけ**取りに行き、
+	 * 載っていなければ「未収録」として扱う（無くても動く）。読めなかったものは meta に残し、そのキーは空のまま返す。
+	 */
+	async function loadSkillPtData(forceRefresh) {
+		const next = emptySkillPtData();
+		try {
+			const doc = await fetchMasterJson(withDataVersion(SKILL_PT_RULES_PATH), !!forceRefresh);
+			if (isValidSkillPtRules(doc)) { next.rules = doc; next.meta.rules = 'ok'; }
+			else next.meta.rules = 'invalid';
+		} catch (e) { next.meta.rules = 'failed'; }
+		for (let i = 0; i < SKILL_PT_OPTIONAL_SOURCES.length; i++) {
+			const src = SKILL_PT_OPTIONAL_SOURCES[i];
+			if (!DATA_JSON_VERSIONS[src.path]) continue;   // 実ファイルが届くまでは取りに行かない
+			try {
+				const doc = await fetchMasterJson(withDataVersion(src.path), !!forceRefresh);
+				if (src.key === 'skillPt') next.skillPt = buildSkillPtIndex(doc);
+				else next.stepUp = buildStepUpIndex(doc);
+				next.meta[src.key] = 'ok';
+			} catch (e) { next.meta[src.key] = 'failed'; }
+		}
+		next.meta.loaded = true;
+		skillPtData = next;
+		if (next.meta.rules !== 'ok') {
+			try { global.console.warn('[UmaSkillDeck] スキルPt の割引率の表を読み込めませんでした（' + next.meta.rules + '）。'); } catch (e) {}
+		}
+		return next.meta;
+	}
+
+	/**
+	 * 本育成のスキルごとのPt・由来別の小計・合計。**前段は含めない**（段4b）。
+	 *
+	 * args:
+	 *   sources          … computeRosterSkills(roster).sources
+	 *   rules            … skill-pt-rules.json（isValidSkillPtRules を通るもの。通らなければ { ok:false }）
+	 *   skillPt          … Map(skillId → { pt, rarity })。無ければ null（＝全部「Pt 未収録」）
+	 *   stepUp           … buildStepUpIndex の結果。無ければ null（＝各スキルが自分自身を根とする）
+	 *   statusId         … 'none'|'benkyo'|'kire'（rules.statuses の id）。既定は「なし」
+	 *   umaHintLevel     … 育成ウマ娘の初期・覚醒スキルのレベル。既定は rules.umaHintLevelDefault
+	 *   enabledSkillIds  … 有効にした△のスキルid（段4 で使う。既定は空）
+	 *   parentHintLevels … { skillId: 親（因子）由来のレベル }（段5 で使う。既定は空）
+	 *
+	 * 「本育成のスキル」＝●（sure）のスキル ＋ 有効にした△。**Pt が未収録（skillPt に行が無い）のスキルは合計に入れず、
+	 * unpriced に出す**（0として足さない）。固有スキルなどのPt不要は、データの `pt: 0` で表す（合計には0が足される）。
+	 * 返り値の items は最初に出てきた順。subtotals は、スキルごとの「主な由来」（練習のヒント＞イベント＞育成ウマ娘＞親）で分けた小計。
+	 */
+	function computeRosterPt(args) {
+		const a = args || {};
+		const rules = a.rules;
+		if (!isValidSkillPtRules(rules)) return { ok: false, reason: 'rules' };
+		const rootOf = (a.stepUp && typeof a.stepUp.rootOf === 'function') ? a.stepUp.rootOf : (id => id);
+		const ptIndex = a.skillPt instanceof Map ? a.skillPt : null;
+		const enabled = new Set(a.enabledSkillIds || []);
+		const parentLevels = a.parentHintLevels || {};
+		const umaLevel = a.umaHintLevel !== undefined && a.umaHintLevel !== null ? a.umaHintLevel : rules.umaHintLevelDefault;
+		const statusId = a.statusId;
+
+		// 1. スキルごとに由来をまとめる（出てきた順）
+		const bySkill = new Map();
+		(a.sources || []).forEach(src => {
+			if (!src || !src.skillId) return;
+			const e = bySkill.get(src.skillId) || { skillId: src.skillId, sure: false, list: [] };
+			e.list.push(src);
+			if (src.sure) e.sure = true;
+			bySkill.set(src.skillId, e);
+		});
+		const included = Array.from(bySkill.values()).filter(e => e.sure || enabled.has(e.skillId));
+
+		// 2. 系列の根ごとに、P・E・T・U・F を集める（根に集約する）
+		const roots = new Map();
+		const rootEntry = (rootId) => {
+			if (!roots.has(rootId)) roots.set(rootId, { practice: false, uma: false, events: new Map(), enabledLevel: 0, parentLevel: 0 });
+			return roots.get(rootId);
+		};
+		let unknownLevelCount = 0;
+		included.forEach(e => {
+			const r = rootEntry(rootOf(e.skillId));
+			let tMax = -1;
+			e.list.forEach(src => {
+				if (src.kind === 'hint') { if (src.sure) r.practice = true; return; }
+				if (src.kind === 'uma') { if (src.sure) r.uma = true; return; }
+				// イベント（連続イベント・共通イベント）
+				const lv = isNonNegInt(src.hintLevel) ? src.hintLevel : null;
+				if (src.sure) {
+					// E: 同じイベントの中の重なりは、最大の1つにまとめる（イベントの識別 eventKey ごと）
+					const k = String(src.eventKey);
+					if (lv === null) unknownLevelCount++;
+					const cur = r.events.get(k);
+					r.events.set(k, Math.max(cur === undefined ? 0 : cur, lv === null ? 0 : lv));
+				} else if (enabled.has(e.skillId)) {
+					// T: 有効にした△は、出てくるイベントのうち最大のレベルを1回ぶん
+					if (lv === null) unknownLevelCount++;
+					tMax = Math.max(tMax, lv === null ? 0 : lv);
+				}
+			});
+			if (tMax > 0) r.enabledLevel += tMax;
+			const f = parentLevels[e.skillId];
+			if (isNonNegInt(f)) r.parentLevel = Math.max(r.parentLevel, f);
+		});
+
+		// 3. スキルごとのPt
+		const items = [];
+		const subtotals = { hint: 0, event: 0, uma: 0, parent: 0, none: 0 };
+		const unpriced = [];
+		let total = 0;
+		included.forEach(e => {
+			const rootId = rootOf(e.skillId);
+			const r = roots.get(rootId);
+			const eventSum = Array.from(r.events.values()).reduce((s, v) => s + v, 0);
+			const level = sumHintLevel({ practice: r.practice, eventLevels: Array.from(r.events.values()), enabledLevel: r.enabledLevel,
+				umaLevel: r.uma ? umaLevel : 0, parentLevel: r.parentLevel }, rules);
+			const primary = r.practice ? 'hint' : (eventSum > 0 || r.enabledLevel > 0) ? 'event' : r.uma ? 'uma' : r.parentLevel > 0 ? 'parent' : 'none';
+			const row = ptIndex ? ptIndex.get(e.skillId) : undefined;
+			const item = {
+				skillId: e.skillId, rootSkillId: rootId, hintLevel: level,
+				parts: { P: r.practice ? rules.practiceHintLevel : 0, E: eventSum, T: r.enabledLevel, U: r.uma ? umaLevel : 0, F: r.parentLevel },
+				primaryKind: primary, sure: e.sure, enabled: !e.sure && enabled.has(e.skillId),
+				base: row ? row.pt : null, rarity: row ? row.rarity : null, pt: null
+			};
+			if (row) {
+				item.pt = computeSkillPt(row.pt, level, statusId, rules);
+				total += item.pt;
+				subtotals[primary] += item.pt;
+			} else {
+				unpriced.push(e.skillId);
+			}
+			items.push(item);
+		});
+		return { ok: true, items: items, total: total, subtotals: subtotals, unpriced: unpriced, unpricedCount: unpriced.length,
+			unknownLevelCount: unknownLevelCount, statusId: statusId || 'none', umaHintLevel: umaLevel };
 	}
 
 	/* ---- 保存（userData.rosters） ---- */
@@ -6255,6 +6526,18 @@
 		formatEntryLabel: formatEntryLabel,
 		eventStatusOf: eventStatusOf,
 		getEventSkillsOf: getEventSkillsOf,
+		// スキルPt（段1。画面は持たない。設計は skill-pt-calculation-step0.md）
+		loadSkillPtData: loadSkillPtData,
+		getSkillPtData: function () { return skillPtData; },
+		isValidSkillPtRules: isValidSkillPtRules,
+		computeSkillPt: computeSkillPt,
+		sumHintLevel: sumHintLevel,
+		hintDiscountPercentOf: hintDiscountPercentOf,
+		statusPercentOf: statusPercentOf,
+		umaHintLevelChoices: umaHintLevelChoices,
+		buildSkillPtIndex: buildSkillPtIndex,
+		buildStepUpIndex: buildStepUpIndex,
+		computeRosterPt: computeRosterPt,
 		characterEventStatusOf: characterEventStatusOf,
 		getCharacterEventSkillsOf: getCharacterEventSkillsOf,
 		charactersOfCard: charactersOfCard,
