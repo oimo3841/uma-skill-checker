@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-09-30e';
 
 	/* ============================================================
 	 * 定数
@@ -2811,6 +2811,10 @@
 	// フッターの確定ボタンの見出し。押した実績があるときは
 	// 「（XXX種追加済み）」を後ろに足すので、文字列はここ1か所に置く。
 	const PICKER_COMMIT_LABEL = 'チェックしたスキルを追加';
+	// 「本育成スキルを除外する」を押している間、編成で得られる●のスキルを追加の一覧で選べなくするときの理由の文言。
+	// **一覧から消さず、出したうえで選べなくして、理由を添える**（段3b・2026-09-30）。
+	// 「条件で検索」「緑スキルを追加」「名前を入れて探す」の3か所が同じ文言を使うので、ここ1か所に置く。
+	const PICKER_EXCLUDED_REASON = 'この編成で得られます';
 
 	const PICKER_MODES = {
 		// 71セッション目・段6: 「条件でスキルを検索」→「条件で検索」（利用者向けの文言だけ。
@@ -2862,7 +2866,9 @@
 							'<label class="flex items-center gap-1.5 text-xs text-slate-600">' +
 								'<input type="checkbox" data-usd-act="picker-select-all"/> 表示中を全て選択' +
 							'</label>' +
-							'<p class="text-xs text-slate-500">絞り込み結果（<span data-usd-el="result-count">0件</span>）</p>' +
+							// 「除外中 M件」は M が0のときは出さない（renderPickerResults が hidden を切り替える）
+							'<p class="text-xs text-slate-500">絞り込み結果（<span data-usd-el="result-count">0件</span>）' +
+								'<span class="usd-excluded-count" data-usd-el="result-excluded" hidden></span></p>' +
 						'</div>' +
 						// 高さは .usd-results（下の CORE_STYLES）。**インラインの style をやめた** ――
 						// 選択肢パネルを畳んだぶんをここへ足すのに、CSS 変数で足し算する必要があるため。
@@ -2903,6 +2909,7 @@
 						'<p class="text-xs text-slate-500 mb-2" data-usd-el="passive-note">' +
 							'チェックするとその場で追加済みスキルに入り、外すと抜けます' +
 							'（このうち<span data-usd-el="passive-count">0種</span>が追加済み）' +
+							'<span class="usd-excluded-count" data-usd-el="passive-excluded" hidden></span>' +
 						'</p>' +
 						'<div class="usd-results usd-results--tall" data-usd-el="passive-results"></div>' +
 					'</div>' +
@@ -3510,13 +3517,50 @@
 		return evaluateTargetDistance(pickerTargetDistanceText, axis ? (pickerFilters[axis.key] || []) : []);
 	}
 
-	function getFilteredPickerPool() {
+	/**
+	 * 「条件で検索」の一覧の行（絞り込みに当たったもの全部）。**除外中のものも消さずに返し、`excluded` の印を付ける**
+	 * （段3b・2026-09-30）。除外中＝「本育成スキルを除外する」を押している間の、編成で得られる●のスキル
+	 * （`pickerHiddenIds`）。一覧では**グレーアウトで残し、チェックできず、理由を添える**。並びは元のまま。
+	 * 追加済み（`picker.excludeIds`）と、パッシブ（緑スキルの一覧のほうへ行く）は、これまでどおり一覧に出さない。
+	 * 返す `skill` は母集団の実体そのもの（印は行の側に付け、スキルの側は書き換えない）。
+	 */
+	function getPickerPoolRows() {
 		const hidden = new Set(pickerHiddenIds);
 		const target = currentTargetDistance();
 		// エラー（数字でない・レースが無い・区分と合わない）のときは d を使わずに絞る（C-97）
 		const usable = target.state === 'ok' ? target : null;
-		return taggedSkillPool().filter(s => !picker.excludeIds.includes(s.id) && !hidden.has(s.id)
-			&& !isPoolExcluded(s) && matchesFilters(s, pickerFilters, usable));
+		return taggedSkillPool().filter(s => !picker.excludeIds.includes(s.id)
+			&& !isPoolExcluded(s) && matchesFilters(s, pickerFilters, usable))
+			.map(s => ({ skill: s, excluded: hidden.has(s.id) }));
+	}
+
+	/**
+	 * 「条件で検索」で**追加できるスキル**（除外中を含まない）。「N件」・「表示中を全て選択」の対象はこれ。
+	 * 除外中の行の数は `getPickerPoolRows()` から数える（「除外中 M件」）。
+	 */
+	function getFilteredPickerPool() {
+		return getPickerPoolRows().filter(r => !r.excluded).map(r => r.skill);
+	}
+
+	/** いま除外中（「本育成スキルを除外する」で一覧から選べなくしている）か。 */
+	function isPickerExcluded(skillId) {
+		return pickerHiddenIds.indexOf(skillId) !== -1;
+	}
+
+	/** 「除外中 M件」の表示を合わせる。M が0のときは出さない。 */
+	function setExcludedCountLabel(el, count) {
+		if (!el) return;
+		el.hidden = count <= 0;
+		el.textContent = count > 0 ? '除外中 ' + count + '件' : '';
+	}
+
+	/** 除外中の行（グレーアウト・チェックできない・理由つき）。条件で検索と緑スキルの一覧で共通。 */
+	function excludedRowHtml(skill, checkEl) {
+		return '<label class="usd-row usd-row--excluded" data-usd-excluded="1" aria-disabled="true">' +
+			'<input type="checkbox" data-usd-el="' + checkEl + '" value="' + esc(skill.id) + '" disabled/>' +
+			'<span>' + esc(skill.name) + '</span>' +
+			'<span class="usd-row-reason" data-usd-el="excluded-reason">' + esc(PICKER_EXCLUDED_REASON) + '</span>' +
+		'</label>';
 	}
 
 	/**
@@ -3557,19 +3601,30 @@
 		renderPassiveList();
 		const el = q(pickerEl, 'results');
 		if (!el) return;
-		const filtered = getFilteredPickerPool();
+		// 除外中の行は消さずに残す（段3b）。「N件」と「表示中を全て選択」は追加できる行だけを数え、
+		// 除外中の行の数は「除外中 M件」として別に出す。
+		const rows = getPickerPoolRows();
+		const filtered = rows.filter(r => !r.excluded).map(r => r.skill);
+		const excludedCount = rows.length - filtered.length;
 		q(pickerEl, 'result-count').textContent = filtered.length + '件';
+		setExcludedCountLabel(q(pickerEl, 'result-excluded'), excludedCount);
 		const selectAllBox = pickerEl.querySelector('[data-usd-act="picker-select-all"]');
 		if (selectAllBox) selectAllBox.checked = filtered.length > 0 && filtered.every(s => picker.checked.has(s.id));
 		updatePickerCommitState();
-		if (filtered.length === 0) {
+		if (rows.length === 0) {
 			el.innerHTML = '<p class="text-xs text-slate-400 p-3">条件に一致するスキルがありません。</p>';
 			return;
 		}
-		el.innerHTML = filtered.map(s =>
-			'<label class="usd-row">' +
-				'<input type="checkbox" data-usd-el="skill-check" value="' + esc(s.id) + '"' + (picker.checked.has(s.id) ? ' checked' : '') + '/>' +
-				'<span>' + esc(s.name) + '</span>' +
+		// 追加できる行が0件で、除外中の行だけが残るときは、そのことを1行で言ってから除外中の行を並べる。
+		// **p にしない** ―― `.usd-results:has(> p)` は「0件の文を箱の中央に置く」ための規則で、
+		// 直下に p があると行の並びまで中央寄せになってしまう。
+		const lead = filtered.length === 0
+			? '<div class="text-xs text-slate-400 p-3" data-usd-el="results-none-addable">追加できるスキルがありません。</div>' : '';
+		el.innerHTML = lead + rows.map(r => r.excluded
+			? excludedRowHtml(r.skill, 'skill-check-excluded')
+			: '<label class="usd-row">' +
+				'<input type="checkbox" data-usd-el="skill-check" value="' + esc(r.skill.id) + '"' + (picker.checked.has(r.skill.id) ? ' checked' : '') + '/>' +
+				'<span>' + esc(r.skill.name) + '</span>' +
 			'</label>'
 		).join('');
 	}
@@ -3613,8 +3668,15 @@
 		 * 押した本人には原因が見えない。**この2行には効いていることを示す検査が無い**
 		 * （行数が変わらない以上、壊しても落ちない）。消すときは上の事情を承知のうえで。 */
 		const keep = el.scrollTop;
-		el.innerHTML = list.map(s =>
-			'<label class="usd-row">' +
+		/* 「本育成スキルを除外する」を押している間、編成で得られる●のスキルは**消さずにグレーアウト**して
+		 * 残し、チェックできず、理由を添える（段3b。「条件で検索」の一覧と同じ扱い）。
+		 * **すでに追加済み（チェックが入っている）ものは普通の行のまま** ―― 無効にすると、外す操作までできなくなる。
+		 * 実データでも編成の●に緑スキルは入る（練習のヒント・育成ウマ娘の覚醒・イベントのいずれにも）ので、この一覧でも効かせる。 */
+		const isExcludedRow = (s) => !chosen.has(s.id) && isPickerExcluded(s.id);
+		setExcludedCountLabel(q(pickerEl, 'passive-excluded'), list.filter(isExcludedRow).length);
+		el.innerHTML = list.map(s => isExcludedRow(s)
+			? excludedRowHtml(s, 'passive-check-excluded')
+			: '<label class="usd-row">' +
 				'<input type="checkbox" data-usd-el="passive-check" value="' + esc(s.id) + '"' + (chosen.has(s.id) ? ' checked' : '') + '/>' +
 				'<span>' + esc(s.name) + '</span>' +
 			'</label>'
@@ -3631,6 +3693,8 @@
 	function onPassiveCheck(skillId, checked) {
 		const sink = picker.onAdd;
 		if (!sink) return;
+		// 除外中（追加済みでないもの）は足さない（段3b。除外中の行のチェックは無効にしてあるので、保険）
+		if (checked && isPickerExcluded(skillId) && picker.excludeIds.indexOf(skillId) === -1) { renderPassiveList(); return; }
 		if (checked) {
 			if (typeof sink === 'object' && typeof sink.add === 'function') sink.add([skillId]);
 			else if (typeof sink === 'function') sink([skillId]);
@@ -3658,6 +3722,9 @@
 	}
 
 	function onPickerCheck(skillId, checked) {
+		// 除外中の行にはチェックを入れさせない（段3b）。除外中の行のチェックは無効にしてあるので、
+		// ここへは通常は来ない。**押せてしまう経路があっても足さない**ための保険。
+		if (checked && isPickerExcluded(skillId)) { renderPickerResults(); return; }
 		if (checked) picker.checked.add(skillId); else picker.checked.delete(skillId);
 		// 一覧は作り直さない（チェックだけの操作でフォーカスを飛ばさない）ので、
 		// フッターの数だけをここで更新する。
@@ -3928,7 +3995,7 @@
 				// 出したうえで選べなくする＝自分の入力が正しかったことは確認できる。
 				? '<span class="usd-name-hit usd-name-hit--added">' + esc(h.name) + '<span class="usd-name-added">追加済み</span></span>'
 				: (hidden.has(h.id)
-					? '<span class="usd-name-hit usd-name-hit--added">' + esc(h.name) + '<span class="usd-name-added">この編成で得られます</span></span>'
+					? '<span class="usd-name-hit usd-name-hit--added">' + esc(h.name) + '<span class="usd-name-added">' + esc(PICKER_EXCLUDED_REASON) + '</span></span>'
 					: '<button type="button" class="usd-name-hit" data-usd-act="name-pick" data-skill-id="' + esc(h.id) + '">' + esc(h.name) + '</button>')
 			).join('') + '</div>' +
 			(found.more > 0 ? '<p class="usd-paste-hint">ほかにも候補があります（全' + found.total + '件）。もう少し入力すると絞り込めます。</p>' : '');

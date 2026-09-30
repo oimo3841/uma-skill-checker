@@ -3855,23 +3855,26 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 	   モーダルは下ぞろえなので上端だけがせり上がった**（実測: 1280px で 445件 757px → 1件 508px）。
 	   件数が変わるたびに窓の大きさが変わるのが読みにくい、という指摘を受けて `height` にした。
 
-	   **件数は検査に書かない。** いま一覧に出ているものを `setPickerHiddenIds` で人工的に減らし、
+	   **件数は検査に書かない。** いま一覧に出ているものを「追加済み」として人工的に減らし、
 	   **減らす前と後の実測どうし**を比べる（マスターが増減しても落ちない）。
-	   減らす件数は「1行の高さ × これ」より確実に短くなるところまで下げれば足りる。 */
+	   減らす件数は「1行の高さ × これ」より確実に短くなるところまで下げれば足りる。
+
+	   【2026-09-30・段3b で手段を替えた】これまでは `setPickerHiddenIds`（「本育成スキルを除外する」で隠すID）で減らしていた。
+	   段3b で、除外中の行は**一覧から消えずにグレーアウトで残る**ようになり、隠しても行が減らなくなった。
+	   この検査の目的は「行数が変わっても窓の大きさが動かない」ことなので、**行数を実際に減らせる別の手段**
+	   （`openSkillPicker` に渡す「追加済みのID」。追加済みは一覧から消える）に替えた。目的は変わらない。 */
 	{
-		/* 一覧の先頭 n 件だけを残して、残りを隠す。
-		   **`setPickerHiddenIds` は置き換えであって足し算ではない**ので、
-		   毎回いったん隠しを空に戻してから、**母集団の全件**を読んで隠し直す
-		   （前回の結果から数えると、前に隠したものが戻ってきて数が合わない）。
-		   **開き直しは呼び出し元の関数から**（openSkillPicker([], …) を直に呼ぶと除外IDが消える）。 */
+		/* 一覧の先頭 n 件だけを残して、残りを「追加済み」として渡す（追加済みのものは一覧から消える）。
+		   毎回いったん全件を描き直してから読むので、前回の結果には引きずられない。
+		   受け皿は呼び出し元（deck.js）の `recordSkillSink()` をそのまま使う。 */
 		const shrinkTo = async (n) => {
 			await page.evaluate((k) => {
 				const listed = () => [...document.querySelectorAll('[data-usd-el="results"] [data-usd-el="skill-check"]')]
 					.map((e) => e.value);
 				UmaSkillDeckCore.setPickerHiddenIds([]);
 				openRecordSkillPicker();          // 母集団を全件描き直す
-				UmaSkillDeckCore.setPickerHiddenIds(listed().slice(k));
-				openRecordSkillPicker();          // 残す k 件で描き直す
+				const all = listed();
+				UmaSkillDeckCore.openSkillPicker(draftRecord.skillIds.concat(all.slice(k)), recordSkillSink());   // 残す k 件で描き直す
 			}, n);
 			await page.waitForTimeout(400);
 		};
@@ -11575,6 +11578,261 @@ await block('グループのサポートカードの名前（2026-09-30）', asy
 		assert(labels.every((l, i) => l && l.trim() === want[i]), '名前(8): 入力のページの一覧で、グループのカードは「[二つ名]groupName」（ほかは今までどおり）', { labels, want });
 		await ctx.close();
 	}
+}
+});
+/* ============================================================
+ * 段3b ―― 「本育成スキルを除外する」を押している間の、追加の一覧（2026-09-30）
+ *
+ * 除外中（＝編成で得られる●のスキル）は、一覧から**消さずにグレーアウトで残し、チェックできず、理由を添える**。
+ * 除外を解除すると、グレーアウトはすべて消えて通常の行に戻る。
+ * 見ること：
+ *   ① 「条件で検索」: 除外中の行が残る（並びは元のまま）・チェックできない・理由が出る
+ *   ② 「N件」に除外中を含めず、「除外中 M件」が別に出る（M が0のときは出さない）
+ *   ③ 「表示中を全て選択」が除外中の行を選ばず、追加しても除外中は足されない
+ *   ④ 除外を解除するとグレーアウトが消える
+ *   ⑤ 「名前を入れて探す」の候補の文言が、②の理由と揃っている
+ *   ⑥ 375px でも理由と「除外中 M件」がはみ出さない
+ *   ⑦ 「緑スキルを追加」の一覧にも同じ扱い（追加済みのものは普通の行のまま）
+ *   ⑧ 実際の編成パネルで「本育成スキルを除外する」を押した経路（隠す対象は●だけ）でも同じ
+ *   ⑨ 追加できる行が0件でも、除外中の行は残り「追加できるスキルがありません。」が出る
+ * **スキル名・件数は書かない**（一覧に出ている id から位置で拾う。恒久ルール1）。
+ * ============================================================ */
+await block('段3b ― 除外中の追加の一覧（グレーアウトで残す・追加できない・理由。2026-09-30）', async () => {
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
+	await page.waitForTimeout(600);
+	await page.evaluate(() => {
+		window.__smokeAdded = [];
+		window.__smokeSink = { scope: 'smoke-3b', add: (ids) => { window.__smokeAdded.push(...ids); return ids.slice(); }, remove: () => true, probe: () => String(window.__smokeAdded.length) };
+	});
+	const openFilter = async (existing) => {
+		await page.evaluate((ex) => { UmaSkillDeckCore.closeSkillPicker(); UmaSkillDeckCore.openSkillPicker(ex || [], window.__smokeSink); }, existing || []);
+		await page.waitForTimeout(350);
+	};
+	const listState = () => page.evaluate(() => {
+		const box = document.querySelector('[data-usd-el="results"]');
+		const active = [...box.querySelectorAll('[data-usd-el="skill-check"]')];
+		const grey = [...box.querySelectorAll('[data-usd-excluded="1"]')];
+		const ex = document.querySelector('[data-usd-el="result-excluded"]');
+		const sa = document.querySelector('[data-usd-act="picker-select-all"]');
+		const order = [...box.querySelectorAll('.usd-row input')].map((e) => e.value);
+		const br = box.getBoundingClientRect();
+		return {
+			activeIds: active.map((e) => e.value),
+			activeChecked: active.filter((e) => e.checked).length,
+			greyIds: grey.map((r) => r.querySelector('input').value),
+			greyDisabled: grey.every((r) => r.querySelector('input').disabled),
+			greyChecked: grey.some((r) => r.querySelector('input').checked),
+			reasons: grey.map((r) => (r.querySelector('[data-usd-el="excluded-reason"]') || {}).textContent || ''),
+			count: document.querySelector('[data-usd-el="result-count"]').textContent,
+			excludedLabel: ex ? (ex.hidden ? null : ex.textContent) : undefined,
+			selectAll: sa.checked,
+			order,
+			lead: !!box.querySelector('[data-usd-el="results-none-addable"]'),
+			checkedCount: document.querySelector('[data-usd-el="picker-checked-count"]').textContent,
+			boxOverflow: box.scrollWidth - box.clientWidth,
+			reasonsOutside: grey.filter((r) => { const q = r.querySelector('[data-usd-el="excluded-reason"]').getBoundingClientRect(); return q.right > br.right + 1 || q.left < br.left - 1; }).length,
+			labelInView: ex && !ex.hidden ? (() => { const q = ex.getBoundingClientRect(); return q.left >= 0 && q.right <= window.innerWidth + 1; })() : null,
+		};
+	});
+
+	/* --- 基準：除外なし。グレーアウトも「除外中」も出ない --- */
+	await page.evaluate(() => UmaSkillDeckCore.setPickerHiddenIds([]));
+	await openFilter();
+	const base0 = await listState();
+	assert(base0.activeIds.length > 20 && base0.greyIds.length === 0 && base0.excludedLabel === null && base0.count === base0.activeIds.length + '件',
+		'段3b(基準): 除外なしのときはグレーアウトも「除外中」も出ない', { active: base0.activeIds.length, grey: base0.greyIds.length, label: base0.excludedLabel, count: base0.count });
+
+	/* --- ① 除外中の行が残る（並びは元のまま）・チェックできない・理由が出る --- */
+	const hide = [base0.activeIds[0], base0.activeIds[2], base0.activeIds[5]];
+	await page.evaluate((ids) => UmaSkillDeckCore.setPickerHiddenIds(ids), hide);
+	await openFilter();
+	const s1 = await listState();
+	assert(s1.greyIds.length === 3 && hide.every((id) => s1.greyIds.includes(id)),
+		'段3b①: 除外中の3件が一覧に残っている（消えていない）', { grey: s1.greyIds, hide });
+	assert(s1.order.join() === base0.order.join(),
+		'段3b①: 並びは元のまま（除外中の行を末尾へ動かさない）', { before: base0.order.slice(0, 8), after: s1.order.slice(0, 8) });
+	assert(s1.greyDisabled && !s1.greyChecked,
+		'段3b①: 除外中の行のチェックは無効で、チェックが入っていない', { disabled: s1.greyDisabled, checked: s1.greyChecked });
+	assert(s1.reasons.length === 3 && s1.reasons.every((t) => t.trim().length > 0) && new Set(s1.reasons).size === 1,
+		'段3b①: 除外中の行には理由の文言が添えられている（3行とも同じ文言）', s1.reasons);
+	// 実際に押しても足されない（無効なチェックのラベルを押す）
+	await page.click('[data-usd-excluded="1"] >> nth=0', { force: true });
+	await page.waitForTimeout(150);
+	const afterClick = await listState();
+	assert(afterClick.checkedCount === '0種選択' && afterClick.greyChecked === false,
+		'段3b①: 除外中の行を押しても選択に入らない', { checkedCount: afterClick.checkedCount });
+
+	/* --- ② 「N件」に除外中を含めず、「除外中 M件」が別に出る --- */
+	assert(s1.count === (base0.activeIds.length - 3) + '件' && s1.activeIds.length === base0.activeIds.length - 3,
+		'段3b②: 「N件」は除外中の行を含めない', { count: s1.count, active: s1.activeIds.length, base: base0.activeIds.length });
+	assert(s1.excludedLabel === '除外中 3件', '段3b②: 「除外中 3件」が別に出る', s1.excludedLabel);
+
+	/* --- ③ 「表示中を全て選択」が除外中の行を選ばない。追加しても除外中は足されない --- */
+	await page.click('[data-usd-act="picker-select-all"]');
+	await page.waitForTimeout(250);
+	const s3 = await listState();
+	assert(s3.activeChecked === s3.activeIds.length && !s3.greyChecked && s3.checkedCount === s3.activeIds.length + '種選択',
+		'段3b③: 「表示中を全て選択」は追加できる行だけを選ぶ（除外中は選ばない）', { checked: s3.activeChecked, active: s3.activeIds.length, label: s3.checkedCount });
+	await page.click('[data-usd-el="picker-commit"]');
+	await page.waitForTimeout(250);
+	const added = await page.evaluate(() => window.__smokeAdded.slice());
+	assert(added.length === base0.activeIds.length - 3 && hide.every((id) => !added.includes(id)),
+		'段3b③: 追加を押しても除外中のスキルは足されない', { added: added.length, hidden添えられた: hide.filter((id) => added.includes(id)) });
+
+	/* --- ④ 除外を解除するとグレーアウトがすべて消える --- */
+	await page.evaluate(() => { window.__smokeAdded = []; UmaSkillDeckCore.setPickerHiddenIds([]); });
+	await openFilter();
+	const s4 = await listState();
+	assert(s4.greyIds.length === 0 && s4.excludedLabel === null && s4.activeIds.length === base0.activeIds.length && s4.count === base0.count,
+		'段3b④: 除外を解除するとグレーアウトも「除外中」も消えて、元の一覧に戻る', { grey: s4.greyIds.length, label: s4.excludedLabel, count: s4.count });
+
+	/* --- ⑤ 「名前を入れて探す」の候補の文言が、②の理由と揃っている --- */
+	await page.evaluate((ids) => UmaSkillDeckCore.setPickerHiddenIds(ids), hide);
+	const finderReason = await page.evaluate(async (id) => {
+		const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+		const el = (n) => document.querySelector('[data-usd-el="' + n + '"]');
+		const name = UmaSkillDeckCore.findSkill(id).name;
+		UmaSkillDeckCore.closeSkillPicker();
+		UmaSkillDeckCore.openSkillRowsPicker([], window.__smokeSink, [{ raw: '謎の読み', norm: '謎の読み', kind: 'none', matchedId: null, matchedName: null, distance: 3, candidates: [], reason: '' }], { white: 0, gold: 0 }, {});
+		await wait(250);
+		const btn = document.querySelector('[data-usd-el="paste-report"] [data-usd-act="paste-find"]');
+		if (!btn) return { error: 'paste-find が無い' };
+		btn.click();
+		const input = el('find-input');
+		input.value = name;
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		await wait(300);
+		const hit = [...document.querySelectorAll('.usd-name-hit--added')].find((h) => h.textContent.startsWith(name));
+		const out = { reason: hit ? (hit.querySelector('.usd-name-added') || {}).textContent : null };
+		UmaSkillDeckCore.closeSkillPicker();
+		return out;
+	}, hide[0]);
+	assert(finderReason.reason && finderReason.reason === s1.reasons[0],
+		'段3b⑤: 「名前を入れて探す」の候補の文言が、一覧の理由と同じ', { 名前で探す: finderReason.reason, 一覧: s1.reasons[0] });
+
+	/* --- ⑨ 追加できる行が0件でも、除外中の行は残り、「追加できるスキルがありません。」が出る --- */
+	await page.evaluate((ids) => UmaSkillDeckCore.setPickerHiddenIds(ids), base0.activeIds);
+	await openFilter();
+	const s9 = await listState();
+	assert(s9.activeIds.length === 0 && s9.greyIds.length === base0.activeIds.length && s9.count === '0件' && s9.lead
+		&& s9.excludedLabel === '除外中 ' + base0.activeIds.length + '件',
+		'段3b⑨: 全部が除外中でも行は残り、「0件」と「追加できるスキルがありません。」が出る', { active: s9.activeIds.length, grey: s9.greyIds.length, count: s9.count, lead: s9.lead, label: s9.excludedLabel });
+	await page.click('[data-usd-act="picker-select-all"]');
+	await page.waitForTimeout(200);
+	assert((await listState()).checkedCount === '0種選択', '段3b⑨: 追加できる行が無いときの「表示中を全て選択」は何も選ばない');
+
+	/* --- ⑥ 375px でも、理由と「除外中 M件」がはみ出さない --- */
+	await page.evaluate((ids) => UmaSkillDeckCore.setPickerHiddenIds(ids), hide);
+	await page.setViewportSize({ width: 375, height: 800 });
+	await page.waitForTimeout(400);
+	await openFilter();
+	const s6 = await listState();
+	assert(s6.greyIds.length === 3 && s6.boxOverflow <= 1 && s6.reasonsOutside === 0 && s6.labelInView === true,
+		'段3b⑥: 375px で、理由と「除外中 M件」が一覧の箱と画面からはみ出さない', { grey: s6.greyIds.length, overflow: s6.boxOverflow, reasonsOutside: s6.reasonsOutside, labelInView: s6.labelInView });
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.waitForTimeout(300);
+
+	/* --- ⑦ 「緑スキルを追加」の一覧。追加済みのものは普通の行のまま --- */
+	const passive = await page.evaluate(() => UmaSkillDeckCore.getPoolExcludedSkills().map((s) => s.id));
+	assert(passive.length >= 6, '段3b⑦(基準): 緑スキルの一覧の母集団がある', passive.length);
+	const ph = [passive[0], passive[1], passive[3]];
+	const passiveState = () => page.evaluate(() => {
+		const box = document.querySelector('[data-usd-el="passive-results"]');
+		const grey = [...box.querySelectorAll('[data-usd-excluded="1"]')];
+		const ex = document.querySelector('[data-usd-el="passive-excluded"]');
+		const br = box.getBoundingClientRect();
+		return {
+			total: box.querySelectorAll('.usd-row').length,
+			normal: box.querySelectorAll('[data-usd-el="passive-check"]').length,
+			greyIds: grey.map((r) => r.querySelector('input').value),
+			greyDisabled: grey.every((r) => r.querySelector('input').disabled),
+			reasons: grey.map((r) => (r.querySelector('[data-usd-el="excluded-reason"]') || {}).textContent || ''),
+			label: ex ? (ex.hidden ? null : ex.textContent) : undefined,
+			checkedNormal: [...box.querySelectorAll('[data-usd-el="passive-check"]')].filter((e) => e.checked).map((e) => e.value),
+			boxOverflow: box.scrollWidth - box.clientWidth,
+			reasonsOutside: grey.filter((r) => { const q = r.querySelector('[data-usd-el="excluded-reason"]').getBoundingClientRect(); return q.right > br.right + 1; }).length,
+		};
+	});
+	const openPassive = async (existing) => {
+		await page.evaluate((ex) => { UmaSkillDeckCore.closeSkillPicker(); UmaSkillDeckCore.openPassiveSkillPicker(ex || [], window.__smokeSink); }, existing || []);
+		await page.waitForTimeout(350);
+	};
+	await page.evaluate(() => UmaSkillDeckCore.setPickerHiddenIds([]));
+	await openPassive();
+	const p0 = await passiveState();
+	assert(p0.total === passive.length && p0.greyIds.length === 0 && p0.label === null,
+		'段3b⑦: 除外なしのときは、緑スキルの一覧にグレーアウトも「除外中」も出ない', { total: p0.total, grey: p0.greyIds.length, label: p0.label });
+	await page.evaluate((ids) => UmaSkillDeckCore.setPickerHiddenIds(ids), ph);
+	await openPassive();
+	const p1 = await passiveState();
+	assert(p1.total === passive.length && p1.greyIds.length === 3 && ph.every((id) => p1.greyIds.includes(id)) && p1.greyDisabled
+		&& p1.label === '除外中 3件' && p1.reasons.every((t) => t === s1.reasons[0]),
+		'段3b⑦: 緑スキルの一覧でも除外中は消えずにグレーアウト・チェック不可・同じ理由で、「除外中 3件」が出る', p1);
+	await page.click('[data-usd-el="passive-results"] [data-usd-excluded="1"] >> nth=0', { force: true });
+	await page.waitForTimeout(200);
+	assert((await page.evaluate(() => window.__smokeAdded.length)) === 0,
+		'段3b⑦: 除外中の緑スキルを押しても追加されない');
+	// 追加済み（チェックが入っている）ものは、除外中でも普通の行のまま（外せなくならない）
+	await openPassive([ph[0]]);
+	const p2 = await passiveState();
+	assert(!p2.greyIds.includes(ph[0]) && p2.checkedNormal.includes(ph[0]) && p2.greyIds.length === 2 && p2.label === '除外中 2件',
+		'段3b⑦: 追加済みの緑スキルは、除外中でも普通の行のまま（外せる）。除外中は2件に減る', p2);
+	await page.setViewportSize({ width: 375, height: 800 });
+	await page.waitForTimeout(300);
+	await openPassive();
+	const p3 = await passiveState();
+	assert(p3.greyIds.length === 3 && p3.boxOverflow <= 1 && p3.reasonsOutside === 0,
+		'段3b⑦⑥: 375px でも、緑スキルの一覧の理由がはみ出さない', p3);
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.waitForTimeout(300);
+
+	/* --- ⑧ 実際の編成パネルで「本育成スキルを除外する」を押した経路。隠す対象は●だけで、解除で全部戻る --- */
+	const flow = await page.evaluate(async () => {
+		const Core = window.UmaSkillDeckCore;
+		Core.setPickerHiddenIds([]);
+		await Core.loadTrainingSources(true);
+		// 実データから、●に「条件で検索」の母集団のスキルを3つ以上含むカードを1枚拾う
+		const pool = new Set(Core.getMasterSkills().map((s) => s.id));
+		const passiveIds = new Set(Core.getPoolExcludedSkills().map((s) => s.id));
+		const cards = (Core.getTrainingSources().supportCard || {}).entries || [];
+		const pick = cards.find((c) => {
+			const r = Core.computeRosterSkills({ umaId: '', cardIds: [c.id] });
+			return r.skillIds.filter((id) => pool.has(id) && !passiveIds.has(id)).length >= 3;
+		});
+		if (!pick) return { error: '該当するカードが無い' };
+		localStorage.setItem('umaSkillDeck:draftRoster:smoke-3b', JSON.stringify({ umaId: '', cardIds: [pick.id] }));
+		const host = document.createElement('div');
+		document.body.appendChild(host);
+		window.__smokeHiddenCalls = [];
+		Core.createRosterPanel(host, { draftKey: 'smoke-3b', onHiddenIdsChange: (ids) => window.__smokeHiddenCalls.push(ids.slice()), onRemoveFromScope: () => {} });
+		const sure = Core.computeRosterSkills({ umaId: '', cardIds: [pick.id] }).skillIds;
+		const btn = host.querySelector('[data-usd-act="exclude"]');
+		btn.click();
+		await new Promise((r) => setTimeout(r, 120));
+		const hiddenNow = Core.getPickerHiddenIds();
+		const sureInPool = sure.filter((id) => pool.has(id) && !passiveIds.has(id));
+		host.id = 'smoke-3b-host';
+		return { cardId: pick.id, sure, hiddenNow, sureInPool, calls: window.__smokeHiddenCalls.length };
+	});
+	assert(!flow.error, '段3b⑧(基準): ●に母集団のスキルを3つ以上含むカードがある', flow);
+	assert(flow.hiddenNow.slice().sort().join() === flow.sure.slice().sort().join() && flow.calls >= 1,
+		'段3b⑧: 「本育成スキルを除外する」で、隠す対象になるのは●だけ（onHiddenIdsChange の経路は変わらない）', { hidden: flow.hiddenNow.length, sure: flow.sure.length, calls: flow.calls });
+	await openFilter();
+	const s8 = await listState();
+	assert(flow.sureInPool.length >= 3 && flow.sureInPool.every((id) => s8.greyIds.includes(id)) && s8.greyIds.every((id) => flow.sure.includes(id)) && s8.excludedLabel === '除外中 ' + s8.greyIds.length + '件',
+		'段3b⑧: 実際の編成パネルの除外で、●のうち母集団にあるものがグレーアウトで残り（●でないものは残らない）、「除外中 M件」が出る', { grey: s8.greyIds.length, want: flow.sureInPool.length, label: s8.excludedLabel });
+	await page.evaluate(() => { document.getElementById('smoke-3b-host').querySelector('[data-usd-act="exclude"]').click(); });
+	await page.waitForTimeout(150);
+	const hiddenAfter = await page.evaluate(() => UmaSkillDeckCore.getPickerHiddenIds());
+	await openFilter();
+	const s8b = await listState();
+	assert(hiddenAfter.length === 0 && s8b.greyIds.length === 0 && s8b.excludedLabel === null,
+		'段3b⑧④: 「除外を解除する」を押すと、グレーアウトも「除外中」も消える', { hidden: hiddenAfter.length, grey: s8b.greyIds.length, label: s8b.excludedLabel });
+	await page.evaluate(() => { const h = document.getElementById('smoke-3b-host'); if (h) h.remove(); localStorage.removeItem('umaSkillDeck:draftRoster:smoke-3b'); });
+
+	assert(errors.length === 0, '段3b: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
 }
 });
 await browser.close();
