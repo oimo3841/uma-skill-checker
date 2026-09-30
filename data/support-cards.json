@@ -1,7 +1,7 @@
 {
-	"dataVersion": "2026-09-29a",
+	"dataVersion": "2026-09-30a",
 	"category": "supportCard",
-	"nextSerial": "card-0561",
+	"nextSerial": "card-0564",
 	"note": "サポートカード。charaName はグループのカードでは代表者1人。hintSkills は練習のヒントで得られるスキルで、イベントで得られるスキルはこのファイルには書かない（support-card-event-skills.json に書く）。スキルの参照は skillId が本体で、name は照合のための控え（表示には使わない）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。dataStatus.hint は done（確かめて載せた）／none（ヒントを持たないと確かめた）／pending（未確認）。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。形は npm run check:catalog が確かめる。rarity はカードのレアリティで、\"R\"・\"SR\"・\"SSR\" のどれか。isGroup はグループのカード（複数のキャラクターが割り当てられたカード）なら true、それ以外は false。groupMembers はグループのカードの行にだけあり、割り当てられているキャラクターの名前の配列（先頭は charaName と同じ代表者）。",
 	"entries": [
 		{
@@ -23750,6 +23750,192 @@
 				{
 					"skillId": "384",
 					"name": "実直な走り"
+				}
+			],
+			"dataStatus": {
+				"hint": "done"
+			}
+		},
+		{
+			"id": "card-0561",
+			"title": "晩餐",
+			"charaName": "ナリタブライアン",
+			"type": "賢さ",
+			"typeOrder": 5,
+			"rarity": "SSR",
+			"isGroup": false,
+			"hintSkills": [
+				{
+					"skillId": "124",
+					"name": "先行直線○"
+				},
+				{
+					"skillId": "125",
+					"name": "先行コーナー○"
+				},
+				{
+					"skillId": "146",
+					"name": "先行のコツ○"
+				},
+				{
+					"skillId": "198",
+					"name": "攻めの姿勢"
+				},
+				{
+					"skillId": "208",
+					"name": "食らいつき"
+				},
+				{
+					"skillId": "209",
+					"name": "本領発揮"
+				},
+				{
+					"skillId": "255",
+					"name": "飛躍の予感"
+				},
+				{
+					"skillId": "270",
+					"name": "決定打"
+				},
+				{
+					"skillId": "351",
+					"name": "目覚めの時"
+				},
+				{
+					"skillId": "360",
+					"name": "余勢を駆って"
+				},
+				{
+					"skillId": "363",
+					"name": "淀みなし"
+				},
+				{
+					"skillId": "367",
+					"name": "前進あるのみ"
+				},
+				{
+					"skillId": "374",
+					"name": "もう一踏ん張り"
+				},
+				{
+					"skillId": "387",
+					"name": "大立ち回り"
+				},
+				{
+					"skillId": "388",
+					"name": "流れに任せて"
+				}
+			],
+			"dataStatus": {
+				"hint": "done"
+			}
+		},
+		{
+			"id": "card-0562",
+			"title": "冷凜なるビスクドール",
+			"charaName": "アドマイヤグルーヴ",
+			"type": "賢さ",
+			"typeOrder": 5,
+			"rarity": "SSR",
+			"isGroup": false,
+			"hintSkills": [
+				{
+					"skillId": "19",
+					"name": "秋ウマ娘○"
+				},
+				{
+					"skillId": "43",
+					"name": "垂れウマ回避"
+				},
+				{
+					"skillId": "103",
+					"name": "中距離直線○"
+				},
+				{
+					"skillId": "104",
+					"name": "中距離コーナー○"
+				},
+				{
+					"skillId": "154",
+					"name": "尻尾上がり"
+				},
+				{
+					"skillId": "213",
+					"name": "しとやかな足取り"
+				},
+				{
+					"skillId": "223",
+					"name": "自信家"
+				},
+				{
+					"skillId": "332",
+					"name": "想い焦がれて"
+				},
+				{
+					"skillId": "337",
+					"name": "心惹かれて"
+				},
+				{
+					"skillId": "357",
+					"name": "灯を胸に"
+				},
+				{
+					"skillId": "364",
+					"name": "勝負を懸けて"
+				},
+				{
+					"skillId": "374",
+					"name": "もう一踏ん張り"
+				},
+				{
+					"skillId": "ex-0987",
+					"name": "怯むことなく"
+				}
+			],
+			"dataStatus": {
+				"hint": "done"
+			}
+		},
+		{
+			"id": "card-0563",
+			"title": "“最強”なる眷属",
+			"charaName": "ドゥラメンテ",
+			"type": "パワー",
+			"typeOrder": 3,
+			"rarity": "SSR",
+			"isGroup": false,
+			"hintSkills": [
+				{
+					"skillId": "45",
+					"name": "末脚"
+				},
+				{
+					"skillId": "142",
+					"name": "冷静"
+				},
+				{
+					"skillId": "199",
+					"name": "打開策"
+				},
+				{
+					"skillId": "245",
+					"name": "たぎる血潮"
+				},
+				{
+					"skillId": "249",
+					"name": "惜しみなし"
+				},
+				{
+					"skillId": "272",
+					"name": "むきだしの情熱"
+				},
+				{
+					"skillId": "327",
+					"name": "影を追って"
+				},
+				{
+					"skillId": "370",
+					"name": "巨歩"
 				}
 			],
 			"dataStatus": {
