@@ -10660,6 +10660,10 @@ await block('編成パネル ―― サポートカードのイベントの●�
 	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
 	await page.route('**/data/support-card-event-skills.json*', (route) => route.fulfill({
 		status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(fx.doc) }));
+	// 【2026-09-30】キャラクター共通のイベントの実データが入ったので、この塊では空にする（連続イベントの●・△だけを見るため。
+	// 共通イベントの当てはめは次の塊が仕込みで見る）
+	await page.route('**/data/character-event-skills.json*', (route) => route.fulfill({
+		status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify({ dataVersion: '2026-09-30a', category: 'characterEventSkill', entries: [] }) }));
 
 	const res = await page.evaluate(async ({ cardIds }) => {
 		const Core = window.UmaSkillDeckCore;
@@ -10868,10 +10872,16 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 	const masterDoc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'uma-skill-deck-skills.json'), 'utf8'));
 	// **ファイルにまだ入っていないカード**を使う（入っているカードは「入力する」ではなく「直す」が出る）。
 	// 最初は「最後のカード」で決め打ちにしていて、そのカードが実際にファイルに入った日に検査が落ちた（2026-09-27）。
-	const eventDoc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/support-card-event-skills.json'), 'utf8'));
+	const realEventDoc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/support-card-event-skills.json'), 'utf8'));
+	// 「SSR だけ」が既定で効く（2026-09-27 にカードのデータへレアリティが入った）ので、グループでない SSR のカードを使う。
+	// 【2026-09-30】実データに SSR の入力がほぼ全部入ったので、「ファイルにまだ入っていないカード」が無くなる日がある。
+	// そこで、使うカードの行をファイルから外した写しを取得の途中で渡す（ページから見て必ず未確認になる）。
+	// キャラクター共通のイベントのファイルも、空の写しを渡す（実データで「入力済み」になった人がいても、この塊は未入力から始める）。
+	const card = cardsDoc.entries.slice().reverse().find((c) => c.rarity === 'SSR' && !c.isGroup && !realEventDoc.entries.some((e) => e.cardId === c.id))
+		|| cardsDoc.entries.slice().reverse().find((c) => c.rarity === 'SSR' && !c.isGroup);
+	const eventDoc = Object.assign({}, realEventDoc, { entries: realEventDoc.entries.filter((e) => e.cardId !== card.id) });
+	const charaEventDoc = Object.assign({}, JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/character-event-skills.json'), 'utf8')), { entries: [] });
 	const inFile = new Set(eventDoc.entries.map((e) => e.cardId));
-	// 「SSR だけ」が既定で効く（2026-09-27 にカードのデータへレアリティが入った）ので、SSR のカードを使う
-	const card = cardsDoc.entries.slice().reverse().find((c) => !inFile.has(c.id) && c.rarity === 'SSR');
 	// 名前の一部で探して1件に絞れるスキルを3つ（拡張スキル1・マスター2）。名前はデータから拾う
 	const allNames = masterDoc.skills.map((s) => s.name).concat(extDoc.entries.map((e) => e.name));
 	const unique = (s) => allNames.filter((n) => n.includes(s.name)).length === 1;
@@ -10891,6 +10901,8 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 		// 確かめのダイアログは、既定では「はい」。page.__dismissNext を立てたときだけ「いいえ」
 		page.__dismissNext = false;
 		page.on('dialog', (dlg) => { dialogs.push(dlg.message()); if (page.__dismissNext) { page.__dismissNext = false; dlg.dismiss(); } else dlg.accept(); });
+		await page.route('**/data/support-card-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(eventDoc) }));
+		await page.route('**/data/character-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(charaEventDoc) }));
 		await page.addInitScript((d) => {
 			if (sessionStorage.getItem('smoke-cei-init')) return;
 			sessionStorage.setItem('smoke-cei-init', '1');
@@ -11238,6 +11250,9 @@ await block('card-event-input.html ―― 下書きの読み込み（C-104）', 
 	const setup = async (ctx) => {
 		await ctx.route('**/data/support-card-event-skills.json*', (r) => r.fulfill({
 			status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(fx.file) }));
+		// 【2026-09-30】共通イベントの実データが入ったので空にする（C2 が「ファイルに入っている」で一覧から消えないように）
+		await ctx.route('**/data/character-event-skills.json*', (r) => r.fulfill({
+			status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify({ dataVersion: '2026-09-30a', category: 'characterEventSkill', entries: [] }) }));
 		await ctx.route('**/data/support-cards.json*', (r) => {
 			if (!withU) return r.continue();
 			const doc = JSON.parse(JSON.stringify(cardsDoc));
