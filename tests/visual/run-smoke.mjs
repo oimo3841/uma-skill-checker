@@ -11882,17 +11882,17 @@ await block('スキルPt ―― 段1: 純粋な計算とデータの受け取り
 	const meta = await page.evaluate(async () => {
 		const m = await UmaSkillDeckCore.loadSkillPtData(true);
 		const d = UmaSkillDeckCore.getSkillPtData();
-		return { meta: m, hasRules: !!d.rules, valid: UmaSkillDeckCore.isValidSkillPtRules(d.rules), skillPtSize: d.skillPt ? d.skillPt.size : null, stepUp: d.stepUp, rules: d.rules };
+		return { meta: m, hasRules: !!d.rules, valid: UmaSkillDeckCore.isValidSkillPtRules(d.rules), skillPtSize: d.skillPt ? d.skillPt.size : null, stepUp: d.stepUp, stepUpFns: !!(d.stepUp && typeof d.stepUp.rootOf === 'function' && typeof d.stepUp.prevOf === 'function'), rules: d.rules };
 	});
 	assert(meta.meta.loaded && meta.meta.rules === 'ok' && meta.hasRules && meta.valid,
 		'Pt(受け取り口1): 割引率の表を読めて、使える形', meta.meta);
-	// 【2026-09-30】skill-pt.json が届いて DATA_JSON_VERSIONS に載ったので、読まれる。skill-step-up.json はまだ届いていない（載っていない）ので、
-	// 「未収録」として扱い、取りに行かない（無くても動く）。この2つの検査は、届いた順に合わせて期待を替えた（目的は同じ：載っていないものは取りに行かず、404 を出さない）
-	assert(meta.meta.skillPt === 'ok' && meta.skillPtSize > 1000 && meta.meta.stepUp === 'absent' && meta.stepUp === null,
-		'Pt(受け取り口2): 載っている skill-pt.json は読まれ、届いていない skill-step-up.json は「未収録」として扱う（無くても動く）', { meta: meta.meta, rows: meta.skillPtSize });
-	assert(requested.length === 2 && requested.some((u) => u.startsWith('skill-pt-rules.json')) && requested.some((u) => u.startsWith('skill-pt.json'))
-		&& !requested.some((u) => u.includes('step-up')) && failedRes.length === 0,
-		'Pt(受け取り口3): 取りに行くのは載っているもの（割引率の表・skill-pt.json）だけで、届いていない skill-step-up.json は取りに行かず、404 などの失敗は出ない', { requested, failedRes });
+	// 【2026-09-30】skill-pt.json が届いて DATA_JSON_VERSIONS に載ったので、読まれる。【2026-10-02】skill-step-up.json も届いて載ったので、読まれる。
+	// この2つの検査は、届いた順に合わせて期待を替えた（目的は同じ：載っているものは読み、404 などの失敗は出さない）
+	assert(meta.meta.skillPt === 'ok' && meta.skillPtSize > 1000 && meta.meta.stepUp === 'ok' && meta.stepUpFns,
+		'Pt(受け取り口2): 載っている skill-pt.json・skill-step-up.json は読まれ、前段の索引（rootOf・prevOf）ができる', { meta: meta.meta, rows: meta.skillPtSize });
+	assert(requested.length === 3 && requested.some((u) => u.startsWith('skill-pt-rules.json')) && requested.some((u) => u.startsWith('skill-pt.json'))
+		&& requested.some((u) => u.startsWith('skill-step-up.json')) && failedRes.length === 0,
+		'Pt(受け取り口3): 取りに行くのは載っているもの（割引率の表・skill-pt.json・skill-step-up.json）だけで、404 などの失敗は出ない', { requested, failedRes });
 	assert(meta.rules.hintDiscountPercent.join() === '10,20,30,35,40' && meta.rules.hintLevelMax === 5 && meta.rules.rounding === 'floor'
 		&& meta.rules.statuses.map((s) => s.id + ':' + s.percent).join() === 'none:0,benkyo:4,kire:10',
 		'Pt(規則): 割引率は整数の百分率で 10・20・30・35・40。状態はなし0・勉強家4・切れ者10。丸めは切り捨て', meta.rules);

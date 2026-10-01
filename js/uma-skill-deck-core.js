@@ -1761,8 +1761,8 @@
 				const doc = await fetchMasterJson(withDataVersion(src.path), !!forceRefresh);
 				if (src.key === 'skillPt') next.skillPt = buildSkillPtIndex(doc);
 				else next.stepUp = buildStepUpIndex(doc);
-				next.meta[src.key] = 'ok';
-			} catch (e) { next.meta[src.key] = 'failed'; }
+				next.meta[src.key === 'skillPt' ? 'skillPt' : 'stepUp'] = 'ok';   // meta のキーは emptySkillPtData() の rules・skillPt・stepUp（以前は skillStepUp で書いて stepUp が 'absent' のままだった）
+			} catch (e) { next.meta[src.key === 'skillPt' ? 'skillPt' : 'stepUp'] = 'failed'; }
 		}
 		next.meta.loaded = true;
 		skillPtData = next;
