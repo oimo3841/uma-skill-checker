@@ -3150,6 +3150,19 @@
 		// 有効にする（段4）。△の行の2行目の参考値は薄い色、3行目のボタンは既存の .uma-btn の大きさのまま。
 		// 「有効」の添え物は△の下に小さく（△は●と同じ色のまま）
 		'.usd-roster-pt--ref { color: var(--uma-text-faint); }',
+		// 周回因子セットの必要スキルPt（段5。special の②）。箱・見出しの行・3つの合計のチップ・親由来のレベルのセレクト。
+		// トークンと既存の部品（.uma-badge・.uma-help-btn・.uma-help-box・.uma-input）だけで、共有の CSS には足していない
+		'.usd-ptneed { display: flex; flex-direction: column; gap: var(--uma-sp-1); padding: var(--uma-sp-2) var(--uma-sp-3);',
+		'  background: var(--uma-surface-sunken); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm); }',
+		'.usd-ptneed[hidden] { display: none; }',
+		'.usd-ptneed-main { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-1-5) var(--uma-sp-2); }',
+		'.usd-ptneed-title { font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-ptneed-chips { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1-5); min-width: 0; }',
+		'.usd-ptneed-chip { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); padding: var(--uma-sp-0-5) var(--uma-sp-2-5);',
+		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text); white-space: nowrap; }',
+		'.usd-ptneed-chip strong { color: var(--uma-text-heading); }',
+		'.usd-ptneed-f { display: inline-flex; align-items: center; gap: var(--uma-sp-2); align-self: flex-start; }',
+		'.usd-ptneed-select { width: auto; min-width: 64px; padding: var(--uma-sp-1) var(--uma-sp-2); font-size: var(--uma-fs-sm); }',
 		'.usd-roster-enable { align-self: flex-start; margin-top: var(--uma-sp-1); font-weight: 600; }',
 		'.usd-roster-onwrap { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }',
 		'.usd-roster-on { font-size: var(--uma-fs-2xs); line-height: 1; font-weight: 700; color: var(--uma-text-heading); white-space: nowrap; }',
