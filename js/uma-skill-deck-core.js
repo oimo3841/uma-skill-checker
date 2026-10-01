@@ -3071,6 +3071,12 @@
 		'.usd-roster-ptsum-total { font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; color: var(--uma-text-heading); }',
 		'.usd-roster-skillcell { display: flex; flex-direction: column; gap: 1px; min-width: 0; }',
 		'.usd-roster-pt { font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 400; color: var(--uma-text-subtle); }',
+		// 有効にする（段4）。△の行の2行目の参考値は薄い色、3行目のボタンは既存の .uma-btn の大きさのまま。
+		// 「有効」の添え物は△の下に小さく（△は●と同じ色のまま）
+		'.usd-roster-pt--ref { color: var(--uma-text-faint); }',
+		'.usd-roster-enable { align-self: flex-start; margin-top: var(--uma-sp-1); font-weight: 600; }',
+		'.usd-roster-onwrap { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }',
+		'.usd-roster-on { font-size: var(--uma-fs-2xs); line-height: 1; font-weight: 700; color: var(--uma-text-heading); white-space: nowrap; }',
 		'.usd-roster-unconf { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1); margin: var(--uma-sp-1) 0 0; padding: 0; list-style: none; }',
 		'.usd-roster-unconf li { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
 		'  border: 1px dashed var(--uma-border); border-radius: var(--uma-r-full); padding: 0 var(--uma-sp-2); }',
