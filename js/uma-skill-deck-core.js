@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-01c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-01d';
 
 	/* ============================================================
 	 * 定数
@@ -1934,7 +1934,8 @@
 	 *   factorSkillIds … 因子セットのスキルid（シナリオ因子・遺伝子は skillIds に入らないので含まれない）
 	 *   tiers          … 因子セットの分類 { skillId: 1|2|3 }（無い id は優先）
 	 *   parentHintLevel… F（保存してある値。resolveParentHintLevel で解く）
-	 * 返り値: { ok, parentHintLevel, roster: { total, count, unpricedCount }, cuts: [{ tier, label, total, count, unpricedCount }…], unpricedCount }
+	 * 返り値: { ok, parentHintLevel, roster: { total, count, unpricedCount }, cuts: [{ tier, label, total, count, unpricedCount }…], unpricedCount, overlapRaisable }
+	 *   overlapRaisable … 本育成と因子セットの両方にあるスキルのうち、本育成の由来だけの L が上限未満のものの数（親から得ると安くなる）
 	 *   roster … 因子セットを足さない、本育成だけの計算（「うち本育成」。本育成パネルの合計と同じ値）
 	 */
 	function computeFactorSetPt(args) {
@@ -1950,6 +1951,10 @@
 			umaHintLevel: a.umaHintLevel, enabledSkillIds: a.enabledSkillIds, parentHintLevels: parents
 		});
 		const base = run({});
+		// 本育成と因子セットの両方にあるスキルのうち、本育成の由来だけの L（F を足す前。P・E・T・U の合計・上限5）が上限未満のもの。
+		// 親から得ると L が上がって安くなるので、画面が補足文を出すかの判定に使う（合計の値は変えない）
+		const inFactor = new Set(factorIds);
+		const overlapRaisable = base.items.filter(it => inFactor.has(it.skillId) && it.hintLevel < rules.hintLevelMax).length;
 		const cuts = TIERS.map((t, i) => {
 			const parents = {};
 			factorIds.forEach(id => { if (tierOf(a.tiers, id) <= t.id) parents[id] = F; });
@@ -1958,7 +1963,7 @@
 		});
 		return { ok: true, parentHintLevel: F,
 			roster: { total: base.total, count: base.items.length, unpricedCount: base.unpricedCount },
-			cuts: cuts, unpricedCount: cuts[cuts.length - 1].unpricedCount };
+			cuts: cuts, unpricedCount: cuts[cuts.length - 1].unpricedCount, overlapRaisable: overlapRaisable };
 	}
 
 	/**
@@ -6118,6 +6123,8 @@
 				+ '</span></div>';
 			h += '<p class="uma-help-box" data-usd-el="pt-need-help-box"' + (ptNeedHelpOpen ? '' : ' hidden') + '>理論値（各スキルを最大のヒントレベルで得た場合のスキルPt）</p>';
 			if (r.roster.count > 0) h += '<p class="usd-roster-note" data-usd-el="pt-need-roster">（うち本育成 ' + formatPtNumber(r.roster.total) + '）</p>';
+			// 重なるスキル（本育成と因子セットの両方）が、本育成だけでは L が上限未満のとき、合計が「超優先だけ」より小さくなりうることを説明する
+			if (r.roster.count > 0 && r.overlapRaisable > 0) h += '<p class="usd-roster-note" data-usd-el="pt-need-overlap">重なるスキルは、親から得ると、ヒントレベルが上がって安くなります。</p>';
 			if (r.unpricedCount > 0) h += '<p class="usd-roster-note" data-usd-el="pt-need-unpriced">（Pt 未収録 ' + r.unpricedCount + '種は含めていません）</p>';
 			h += '<label class="usd-ptneed-f"><span class="usd-roster-setlabel">親由来のレベル</span>'
 				+ '<select class="uma-input usd-ptneed-select" data-usd-act="pt-parent-level" data-usd-el="pt-parent-level" aria-label="親由来のレベル">'
