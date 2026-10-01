@@ -12403,8 +12403,9 @@ await block('編成パネル ―― スキルPt（段3）', async () => {
 	assert(rowText(v, S[1]) === 'Pt 不要' && v.total === fmt(e.total),
 		'Pt(5): pt:0 の行（S1）は「Pt 不要」で、合計には0が足される（合計が期待値のまま）', { row: rowText(v, S[1]), total: v.total });
 	const maybeIds = facts.items7.filter((it) => !it.sure).map((it) => it.skillId);
-	assert(maybeIds.length >= 3 && maybeIds.every((id) => baseOf.has(id) && v.rows.find((r) => r.name === facts.names[id]) && rowText(v, id) === null),
-		'Pt(6): △だけの行（' + maybeIds.length + '行。Pt の行は仕込んである）には Pt の2行目が出ない', maybeIds.map((id) => ({ id: id, pt: rowText(v, id) })));
+	// 段4（2026-10-01）: △の行の2行目は「有効にすると…」の参考値（有効にしたときの値）になった。●の行の形（基礎 B → P Pt）は出さない
+	assert(maybeIds.length >= 3 && maybeIds.every((id) => baseOf.has(id) && v.rows.find((r) => r.name === facts.names[id]) && /^有効にすると /.test(rowText(v, id) || '') && !/基礎/.test(rowText(v, id))),
+		'Pt(6): △だけの行（' + maybeIds.length + '行。Pt の行は仕込んである）の2行目は、●の行の形（基礎 B → P Pt）ではなく「有効にすると…」の参考値（段4）', maybeIds.map((id) => ({ id: id, pt: rowText(v, id) })));
 	const helpInit = await page.evaluate(() => { const b = document.querySelector('#pt-f [data-usd-el="pt-help-btn"]'); const x = document.querySelector('#pt-f [data-usd-el="pt-help-box"]');
 		return { has: !!b && !!x, expanded: b && b.getAttribute('aria-expanded'), hidden: x && x.hidden, label: b && b.getAttribute('aria-label') }; });
 	assert(v.theory === '理論値' && helpInit.has && helpInit.expanded === 'false' && helpInit.hidden === true, 'Pt(7): 合計の行に「理論値」のバッジと「?」があり、説明は閉じている', { theory: v.theory, helpInit });
@@ -12491,6 +12492,349 @@ await block('編成パネル ―― スキルPt（段3）', async () => {
 			'Pt(8): ' + failing + ' を読めなくても、パネルは壊れず（表は出る）、知らせが出て Pt は出ない（例外なし）', { f, other: other.slice(0, 2) });
 		await p2.ctx.close();
 	}
+}
+});
+
+/* ============================================================
+ * 編成パネル ―― △を有効にする（段4・2026-10-01。設計は skill-pt-calculation-step0.md の 0節・2-10・2-11）
+ *
+ * 実データに依存しない。カードは実データから id だけ拾い、イベントとスキルPt は**仮のデータ**を取得の途中で差し替える
+ * （スキルは、そのカードの練習ヒントに入っていないものを master から id で拾う。名前は書かない）。期待値はこの塊の中で独立に計算する。
+ *   仮のイベント: カードA … step1（3択: X0 Lv2・X1 Lv1／X0 Lv3／空）→ X0 は同じイベントで Lv2・3 → 最大の3／step2（2択: X0 Lv1／X2 Lv2）→ X0 は別のイベントで Lv1
+ *                          step3（確定: X3 Lv4）→ X3 は●
+ *                 カードB … step1（2択: X3 Lv3／空）→ X3 に△の出現も（●の行でも有効にできる）／step2（確定: X4 Lv1）／step3（2択: X4 Lv1／空）
+ *                 カードC … シートから取り込んだまま（seeded）で X5 → ヒントレベルが無い△
+ *   ①  △の行（参考値の2行目とボタン）／有効にすると●と同じ扱いで合計に入る／外すと戻る
+ *   ②  T の規則: 別々のイベントの△は最大の1つ（加算しない）・●のイベントにもあるスキルは E と別に加算・上限5
+ *   ③  除外の対象（隠す・special へ渡す id・重なりの数）に有効な△が入る／外すと出る
+ *   ⑤  保存（未保存・保存した編成）／いまの△に無い id は表示にも合計にも出ず、保存値を書き換えない
+ *   ⑥  ヒントレベルを持たない△は Lv0 で足され、知らせが出る（無いときは出ない）
+ *   ⑦  注記の文言
+ *   ④  除外中に有効にした△の因子セットからの自動の取り外しと「元に戻す」（実際の special.html。既存の Undo につながる）
+ *   ⑨  1280px と 375px で横にはみ出さない・ボタンの大きさ・コンソールエラー0件
+ * ============================================================ */
+await block('編成パネル ―― △を有効にする（段4）', async () => {
+{
+	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
+	const cardsAll = readJson('data/support-cards.json').entries;
+	const master = readJson('uma-skill-deck-skills.json').skills;
+	const [cA, cB, cC] = [cardsAll[0], cardsAll[1], cardsAll[2]];
+	const hinted = new Set([cA, cB, cC].flatMap((c) => (c.hintSkills || []).map((s) => s.skillId)));
+	const X = master.filter((s) => !hinted.has(s.id)).slice(0, 6).map((s) => ({ skillId: s.id, name: s.name }));
+	const ref = (i, lv) => ({ skillId: X[i].skillId, name: X[i].name, hintLevel: lv });
+	const evDoc = { dataVersion: '2026-10-01a', category: 'supportCardEventSkill', note: 'テスト用の仕込み', entries: [
+		{ cardId: cA.id, status: 'done', chain: [
+			{ step: 1, choices: [{ skills: [ref(0, 2), ref(1, 1)] }, { skills: [ref(0, 3)] }, { skills: [] }] },
+			{ step: 2, choices: [{ skills: [ref(0, 1)] }, { skills: [ref(2, 2)] }] },
+			{ step: 3, choices: [{ skills: [ref(3, 4)] }] }] },
+		{ cardId: cB.id, status: 'done', chain: [
+			{ step: 1, choices: [{ skills: [ref(3, 3)] }, { skills: [] }] },
+			{ step: 2, choices: [{ skills: [ref(4, 1)] }] },
+			{ step: 3, choices: [{ skills: [ref(4, 1)] }, { skills: [] }] }] },
+		{ cardId: cC.id, status: 'seeded', unplaced: [{ skillId: X[5].skillId, name: X[5].name }] },
+	] };
+	const cardIds = [cA.id, cB.id, cC.id, null, null, null];
+	const id = (i) => X[i].skillId;
+	const DISC = [10, 20, 30, 35, 40];
+	const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+	const routes = async (page, ptDoc) => {
+		await page.route('**/data/support-card-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(evDoc) }));
+		await page.route('**/data/character-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8',
+			body: JSON.stringify({ dataVersion: '2026-09-30a', category: 'characterEventSkill', entries: [] }) }));
+		if (ptDoc) await page.route('**/data/skill-pt.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(ptDoc) }));
+	};
+	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
+	await routes(page, null);
+	const facts = await page.evaluate(async ({ cardIds }) => {
+		const Core = window.UmaSkillDeckCore;
+		await Core.loadTrainingSources(true);
+		const r = Core.computeRosterSkills({ umaId: '', cardIds: cardIds });
+		return { sources: r.sources.map((s) => ({ skillId: s.skillId, kind: s.kind, sure: s.sure, hintLevel: s.hintLevel, eventKey: s.eventKey })),
+			items: r.items.map((it) => ({ skillId: it.skillId, name: it.name, sure: it.sure })) };
+	}, { cardIds: cardIds });
+	const names = Object.fromEntries(facts.items.map((it) => [it.skillId, it.name]));
+	const BASES = [90, 110, 130, 150, 180, 200, 240];
+	const baseOf = new Map();
+	facts.items.map((it) => it.skillId).sort().forEach((sid, k) => baseOf.set(sid, BASES[k % BASES.length]));
+	const ptDoc = { dataVersion: '2026-10-01a', category: 'skillPt', note: 'テスト用の仕込み',
+		entries: Array.from(baseOf.entries()).map(([skillId, pt]) => ({ skillId, pt, rarity: 'white' })) };
+	await page.route('**/data/skill-pt.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(ptDoc) }));
+
+	// 独立の期待値（整数だけ）。on は有効にしたスキルの id の配列。状態は「なし」・育成ウマ娘なし
+	const expected = (on, roster) => {
+		const use = roster || { cards: [cA.id, cB.id, cC.id] };
+		void use;
+		const by = new Map();
+		facts.sources.forEach((s) => {
+			const e = by.get(s.skillId) || { P: false, ev: new Map(), unsure: [] };
+			if (s.sure) { if (s.kind === 'hint') e.P = true; else e.ev.set(s.eventKey, Math.max(e.ev.get(s.eventKey) || 0, s.hintLevel || 0)); }
+			else e.unsure.push(s.hintLevel === null ? 0 : s.hintLevel);
+			by.set(s.skillId, e);
+		});
+		const rows = {}; const sub = { hint: 0, event: 0, uma: 0 }; let total = 0; const level = {}; let count = 0;
+		by.forEach((e, sid) => {
+			const sure = e.P || e.ev.size > 0;
+			const enabled = on.includes(sid) && e.unsure.length > 0;
+			if (!sure && !enabled) return;
+			const E = Array.from(e.ev.values()).reduce((a, b) => a + b, 0);
+			const T = enabled ? Math.max(...e.unsure) : 0;
+			const L = Math.min(5, (e.P ? 5 : 0) + E + T);
+			const primary = e.P ? 'hint' : (E > 0 || T > 0) ? 'event' : 'uma';
+			const base = baseOf.get(sid);
+			const pt = Math.floor(base * (100 - (L > 0 ? DISC[L - 1] : 0)) / 100);
+			rows[sid] = '基礎 ' + base + ' → ' + pt + ' Pt（Lv' + L + '）';
+			level[sid] = L; total += pt; sub[primary] += pt; count++;
+		});
+		return { rows, sub, total, level, count };
+	};
+	const refOf = (sid) => { const x = expected([sid]); const base = baseOf.get(sid); return '有効にすると ' + x.rows[sid].replace(/^基礎 \d+ → /, '') ; void base; };
+
+	const mount = async (hostId, roster, draftKey, withScope) => page.evaluate(async ({ hostId, roster, draftKey, withScope }) => {
+		localStorage.setItem('umaSkillDeck:draftRoster:' + draftKey, JSON.stringify(roster));
+		const host = document.createElement('div');
+		host.id = hostId; host.style.padding = '0 16px';
+		document.body.appendChild(host);
+		const o = { draftKey: draftKey };
+		if (withScope) {
+			window.__scope = withScope.slice(); window.__removed = []; window.__hidden = [];
+			o.getScopeSkillIds = () => window.__scope.slice();
+			o.onRemoveFromScope = (ids) => { window.__removed.push(ids.slice()); window.__scope = window.__scope.filter((x) => !ids.includes(x)); };
+			o.onHiddenIdsChange = (ids) => { window.__hidden = ids.slice(); };
+		}
+		window.UmaSkillDeckCore.createRosterPanel(host, o);
+		for (let i = 0; i < 50 && !host.querySelector('[data-usd-el="pt-sum"],[data-usd-el="pt-error"]'); i++) await new Promise((r) => setTimeout(r, 50));
+	}, { hostId, roster, draftKey, withScope });
+	const read = (hostId) => page.evaluate((hostId) => {
+		const host = document.getElementById(hostId);
+		const t = (i) => { const e = host.querySelector('[data-usd-el="' + i + '"]'); return e ? e.textContent : null; };
+		const rows = Array.from(host.querySelectorAll('.usd-roster-grow')).slice(1).map((r) => ({
+			name: r.querySelector('.usd-roster-skillname').textContent,
+			line: (r.querySelector('.usd-roster-pt') || {}).textContent || null,
+			ref: !!r.querySelector('.usd-roster-pt--ref'),
+			btn: (r.querySelector('[data-usd-act="pt-enable"]') || {}).textContent || null,
+			onTags: r.querySelectorAll('[data-usd-el="on-tag"]').length,
+			maybe: r.querySelectorAll('.usd-roster-maybe').length,
+		}));
+		return { rows, total: t('pt-total'), sub: t('pt-sub'), enabledNote: t('pt-enabled'), unknown: t('pt-unknown'), unpriced: t('pt-unpriced'),
+			heading: host.querySelector('.usd-roster-sec .usd-roster-h').textContent, note: t('maybe-note'),
+			autoNotice: t('auto-notice-text'), undoBtn: !!host.querySelector('[data-usd-act="undo-auto"]'),
+			warn: (host.querySelector('.usd-roster-warn:not([data-usd-el])') || {}).textContent || null };
+	}, hostId);
+	const row = (v, sid) => v.rows.find((r) => r.name === names[sid]);
+	const clickEnable = (hostId, sid) => page.click('#' + hostId + ' [data-usd-act="pt-enable"][data-skill-id="' + sid + '"]');
+	const subText = (e) => 'ヒント ' + fmt(e.sub.hint) + ' ／ イベント ' + fmt(e.sub.event) + ' ／ 育成ウマ娘 ' + fmt(e.sub.uma);
+
+	/* ① △の行・有効にする・外す */
+	await mount('s4a', { umaId: '', cardIds: cardIds }, 's4a');
+	let v = await read('s4a'); let e = expected([]);
+	const unsureIds = [id(0), id(1), id(2), id(3), id(4), id(5)];
+	assert(unsureIds.every((sid) => row(v, sid) && row(v, sid).btn === '有効にする') && v.rows.filter((r) => r.btn).length === 6,
+		'段4(1): △の出現があるスキル6つ（△だけ4・●のイベントにもあるもの2）の行に、3行目のボタン「有効にする」が出る。●だけの行（練習のヒント）には出ない', v.rows.filter((r) => r.btn).map((r) => r.name));
+	const onlyUnsure = [id(0), id(1), id(2), id(5)];
+	const refBad = onlyUnsure.filter((sid) => !(row(v, sid).ref && row(v, sid).line === refOf(sid)));
+	assert(refBad.length === 0, '段4(1): △だけの行の2行目に、有効にしたときの Pt の参考値「有効にすると P Pt（LvL）」が薄い色で出る', refBad.map((sid) => ({ got: row(v, sid).line, want: refOf(sid) })));
+	assert(row(v, id(3)).line === e.rows[id(3)] && !row(v, id(3)).ref && row(v, id(4)).line === e.rows[id(4)],
+		'段4(1): △のある●の行（X3・X4）の2行目は、●のぶんの Pt（有効にするまでは△のぶんを含めない）', { x3: row(v, id(3)).line, want3: e.rows[id(3)] });
+	assert(v.total === fmt(e.total) && v.enabledNote === null && /得られるスキル \d+種/.test(v.heading), '段4(1): 最初は合計に有効な△を含まず、「（有効な△ M種を含む）」も出ない', { total: v.total, want: fmt(e.total), note: v.enabledNote });
+	const head0 = v.heading;
+	await clickEnable('s4a', id(1));
+	v = await read('s4a'); e = expected([id(1)]);
+	assert(row(v, id(1)).btn === '有効を外す' && row(v, id(1)).line === e.rows[id(1)] && !row(v, id(1)).ref && row(v, id(1)).onTags === row(v, id(1)).maybe && row(v, id(1)).maybe > 0,
+		'段4(1): 有効にすると、その行の2行目は●と同じ形（基礎 B → P Pt（LvL））・ボタンは「有効を外す」・△の記号のそれぞれに小さく「有効」が添う', row(v, id(1)));
+	assert(v.total === fmt(e.total) && v.sub === subText(e) && v.enabledNote === '（有効な△ 1種を含む）' && v.heading === head0,
+		'段4(1): 合計と、由来ごとの小計（イベントに入る）が期待値のとおり増え、「（有効な△ 1種を含む）」が出る。見出しの種数は変わらない', { got: [v.total, v.sub, v.enabledNote], want: [fmt(e.total), subText(e)] });
+	assert(e.total > expected([]).total && e.sub.event > expected([]).sub.event, '段4(1): 期待値の側で、合計が増え、増えたぶんはイベントの小計（空振りでない）', e.sub);
+	await clickEnable('s4a', id(1));
+	v = await read('s4a'); e = expected([]);
+	assert(row(v, id(1)).btn === '有効にする' && row(v, id(1)).ref && row(v, id(1)).onTags === 0 && v.total === fmt(e.total) && v.enabledNote === null,
+		'段4(1): 「有効を外す」で元に戻る（参考値・ボタン・合計・添え物）', { total: v.total, want: fmt(e.total) });
+
+	/* ② T の規則 */
+	await clickEnable('s4a', id(0));
+	v = await read('s4a');
+	assert(/Lv3）$/.test(row(v, id(0)).line) && expected([id(0)]).level[id(0)] === 3,
+		'段4(2): 別々のイベントの△（Lv3 の同じイベント内の2択・別のイベントの Lv1）は、最大の3を1回だけ足す（4にならない）', { line: row(v, id(0)).line });
+	await clickEnable('s4a', id(3)); await clickEnable('s4a', id(4));
+	v = await read('s4a'); e = expected([id(0), id(3), id(4)]);
+	assert(/Lv5）$/.test(row(v, id(3)).line) && e.level[id(3)] === 5 && expected([]).level[id(3)] === 4,
+		'段4(2): ●のイベント（Lv4）にもあるスキルを有効にすると、E（4）と T（3）が別に足され、上限5で止まる（7にならない）', { line: row(v, id(3)).line, before: expected([]).level[id(3)] });
+	assert(/Lv2）$/.test(row(v, id(4)).line) && expected([]).level[id(4)] === 1 && e.level[id(4)] === 2,
+		'段4(2): ●（Lv1）にもあるスキルの△（Lv1）を有効にすると 1 → 2（E は別に加算される）', { line: row(v, id(4)).line });
+	assert(v.total === fmt(e.total) && v.sub === subText(e) && v.enabledNote === '（有効な△ 3種を含む）', '段4(2): 3つ有効にしたときの合計と小計が期待値と一致し、「（有効な△ 3種を含む）」', { got: [v.total, v.sub, v.enabledNote], want: [fmt(e.total), subText(e)] });
+
+	/* ⑤ 保存 */
+	const draft = await page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:s4a')).enabledSkillIds || []);
+	assert(JSON.stringify(draft.slice().sort()) === JSON.stringify([id(0), id(3), id(4)].sort()), '段4(5): 未保存の編成のドラフトに enabledSkillIds が保存される', draft);
+	await page.evaluate(() => document.getElementById('s4a').remove());
+	await mount('s4b', JSON.parse(await page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:s4a'))), 's4a');
+	v = await read('s4b');
+	assert(v.total === fmt(e.total) && v.enabledNote === '（有効な△ 3種を含む）' && row(v, id(0)).btn === '有効を外す', '段4(5): 未保存の編成を開き直しても有効の状態が残る', { total: v.total });
+	await page.click('#s4b [data-usd-act="save"]');
+	const saved = await page.evaluate(() => window.UmaSkillDeckCore.listRosters().map((r) => ({ id: r.rosterId, on: r.enabledSkillIds })));
+	assert(saved.length === 1 && (saved[0].on || []).length === 3, '段4(5): 保存した編成（userData.rosters）に enabledSkillIds が入る', saved);
+	await page.evaluate(() => document.getElementById('s4b').remove());
+	await mount('s4c', { umaId: '', cardIds: new Array(6).fill(null) }, 's4c');
+	await page.click('#s4c [data-usd-act="select-roster"][data-tab-id="' + saved[0].id + '"]');
+	v = await read('s4c');
+	assert(v.total === fmt(e.total) && v.enabledNote === '（有効な△ 3種を含む）', '段4(5): 保存した編成を選び直しても有効の状態が残る', { total: v.total });
+	await page.evaluate(() => document.getElementById('s4c').remove());
+	// いまの△に無い id（編成を変えた・知らない id）は無効。表示にも合計にも出ず、保存データは書き換えない
+	await mount('s4d', { umaId: '', cardIds: cardIds, enabledSkillIds: [id(1), 'zz-stale-9999'] }, 's4d');
+	v = await read('s4d'); e = expected([id(1)]);
+	assert(v.total === fmt(e.total) && v.enabledNote === '（有効な△ 1種を含む）' && !JSON.stringify(v).includes('zz-stale-9999'),
+		'段4(5): いまの△に無い id（知らない id）は無効として扱い、表示にも合計にも出ない', { total: v.total, note: v.enabledNote });
+	let keep = await page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:s4d')).enabledSkillIds || []);
+	assert(JSON.stringify(keep) === JSON.stringify([id(1), 'zz-stale-9999']), '段4(5): 開いて描いただけでは保存データを書き換えない', keep);
+	await clickEnable('s4d', id(2));
+	keep = await page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:s4d')).enabledSkillIds || []);
+	assert(JSON.stringify(keep) === JSON.stringify([id(1), 'zz-stale-9999', id(2)]), '段4(5): 別のスキルを有効にしても、無効な id はそのまま残し、足すだけ', keep);
+	await page.evaluate(() => document.getElementById('s4d').remove());
+	await mount('s4e', { umaId: '', cardIds: [cC.id, null, null, null, null, null], enabledSkillIds: [id(0), id(3)] }, 's4e');
+	v = await read('s4e');
+	assert(v.enabledNote === null && !row(v, id(0)) && !row(v, id(3)), '段4(5): カードを外して△が無くなったスキル（X0・X3）は、有効のまま保存されていても無効（行にも合計にも出ない）', { note: v.enabledNote });
+	await page.evaluate(() => document.getElementById('s4e').remove());
+
+	/* ⑥ ヒントレベルが無い△ */
+	await mount('s4f', { umaId: '', cardIds: cardIds }, 's4f');
+	v = await read('s4f');
+	assert(v.unknown === null, '段4(6): 有効にした△に、ヒントレベルが不明のスキルが無いときは、知らせが出ない', v.unknown);
+	await clickEnable('s4f', id(1));
+	assert((await read('s4f')).unknown === null, '段4(6): レベルのある△を有効にしても知らせは出ない');
+	await clickEnable('s4f', id(5));
+	v = await read('s4f'); e = expected([id(1), id(5)]);
+	assert(/Lv0）$/.test(row(v, id(5)).line) && e.level[id(5)] === 0 && v.unknown === 'ヒントレベルが不明なスキル 1種は Lv0 として計算しています' && v.total === fmt(e.total),
+		'段4(6): ヒントレベルを持たない△（seeded）を有効にすると Lv0 として足され（割引なし）、合計の近くに知らせが出る', { line: row(v, id(5)).line, unknown: v.unknown, total: v.total, want: fmt(e.total) });
+	await clickEnable('s4f', id(5));
+	assert((await read('s4f')).unknown === null, '段4(6): 有効を外すと知らせも消える');
+	await page.evaluate(() => document.getElementById('s4f').remove());
+
+	/* ⑦ 注記 */
+	await mount('s4g', { umaId: '', cardIds: cardIds }, 's4g');
+	v = await read('s4g');
+	assert(v.note === '△ は、イベントの選択肢しだいで得られるスキルです。「有効にする」を押したものは、本育成のスキルとして数え、「本育成スキルを除外する」の対象になります。',
+		'段4(7): △があるときの注記が、書き換えた文言になっている', v.note);
+	await page.evaluate(() => document.getElementById('s4g').remove());
+
+	/* ③ 除外の対象・重なりの数（special との接点は mock。形は変えていない） */
+	await mount('s4h', { umaId: '', cardIds: cardIds }, 's4h', [id(1)]);
+	const sureCount = facts.items.filter((it) => it.sure).length;
+	await clickEnable('s4h', id(1));
+	v = await read('s4h');
+	assert(/重なり|含まれています/.test(v.warn || '') && (v.warn || '').includes('1種'), '段4(3): 有効にした△が因子セットにあると、重なりの数（本育成で得られるスキル 1種）に入る', v.warn);
+	await page.click('#s4h [data-usd-act="exclude"]');
+	let st = await page.evaluate(() => ({ hidden: window.__hidden.slice(), removed: window.__removed.map((a) => a.slice()), picker: window.UmaSkillDeckCore.getPickerHiddenIds(), scope: window.__scope.slice() }));
+	assert(st.hidden.includes(id(1)) && !st.hidden.includes(id(0)) && !st.hidden.includes(id(2)) && st.hidden.length === sureCount + 1,
+		'段4(3): 除外を押すと、隠す対象（除外N種の数）は●＋有効な△（' + (sureCount + 1) + '種）で、有効にしていない△は入らない', { n: st.hidden.length, want: sureCount + 1 });
+	assert(st.removed.length === 1 && st.removed[0].includes(id(1)) && st.removed[0].length === sureCount + 1 && !st.scope.includes(id(1)) && st.picker.includes(id(1)),
+		'段4(3): special へ渡す id（onRemoveFromScope）にも有効な△が入り、除外中の追加の一覧（getPickerHiddenIds）でそのスキルがグレーアウトの対象になる', { removed: st.removed[0].length, picker: st.picker.includes(id(1)) });
+	await clickEnable('s4h', id(1));
+	st = await page.evaluate(() => ({ hidden: window.__hidden.slice(), picker: window.UmaSkillDeckCore.getPickerHiddenIds() }));
+	assert(!st.hidden.includes(id(1)) && !st.picker.includes(id(1)) && st.hidden.length === sureCount,
+		'段4(3): 有効を外すと、そのスキルは除外の対象から外れる（グレーアウトがその行だけ消える）。ほかは残る', { n: st.hidden.length, want: sureCount });
+	await page.click('#s4h [data-usd-act="exclude"]');
+	st = await page.evaluate(() => ({ hidden: window.__hidden.slice(), picker: window.UmaSkillDeckCore.getPickerHiddenIds() }));
+	assert(st.hidden.length === 0 && st.picker.length === 0, '段4(3): 除外を解除すると、隠す対象は空になる', st);
+	await clickEnable('s4h', id(2));
+	v = await read('s4h');
+	assert(row(v, id(2)).btn === '有効を外す' && v.enabledNote === '（有効な△ 1種を含む）', '段4(3): 除外を解除しても有効な△は有効のまま残る（解除後に有効にしたものも同じ）', v.enabledNote);
+	await page.evaluate(() => document.getElementById('s4h').remove());
+	assert(errors.length === 0, '段4: コンソールエラーなし（uma-skill-deck.html）', errors.slice(0, 3));
+	await ctx.close();
+
+	/* ④ 除外中に有効にした△の自動の取り外し ―― 実際の special.html（special の Undo につながる） */
+	const sp = await openPage(browser, base, 'special.html', { width: 1280, height: 1000 });
+	await routes(sp.page, ptDoc);
+	await sp.page.evaluate(({ cardIds, ids }) => {
+		localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: '', cardIds: cardIds }));
+		localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify({ skillIds: ids, name: '', updatedAt: '' }));
+	}, { cardIds: cardIds, ids: [id(1), id(0)] });
+	await sp.page.reload({ waitUntil: 'networkidle' });
+	for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+	await sp.page.evaluate(() => selectStepTab(0));
+	await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"]');
+	const scopeIds = () => sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{"skillIds":[]}').skillIds.slice());
+	const spRead = () => sp.page.evaluate(() => {
+		const h = document.getElementById('deck-roster-panel');
+		const t = (i) => { const e = h.querySelector('[data-usd-el="' + i + '"]'); return e ? e.textContent : null; };
+		return { notice: t('auto-notice-text'), undoBtn: !!h.querySelector('[data-usd-act="undo-auto"]'), fab: document.getElementById('deck-undo-btn').style.display,
+			fabCount: document.getElementById('deck-undo-count').textContent, excluded: document.getElementById('deck-roster-excluded').textContent.trim() };
+	});
+	const spEnable = (sid) => sp.page.click('#deck-roster-panel [data-usd-act="pt-enable"][data-skill-id="' + sid + '"]');
+	assert(JSON.stringify((await scopeIds()).sort()) === JSON.stringify([id(0), id(1)].sort()), '段4(4): （準備）因子セットに X0・X1 が入っている', await scopeIds());
+	// 除外を押していないときに有効にしても、因子セットは変わらない
+	await spEnable(id(0));
+	let s = await spRead();
+	assert(JSON.stringify((await scopeIds()).sort()) === JSON.stringify([id(0), id(1)].sort()) && s.notice === null,
+		'段4(4): 除外を押していないときに△を有効にしても、因子セットは変わらず、通知も出ない', { scope: await scopeIds(), notice: s.notice });
+	await spEnable(id(0));   // 有効を外す
+	// 除外を押す（除外先が複数あるときは選ぶミニウィンドウが開くので、先頭＝中身のあるドラフトを選ぶ）
+	await sp.page.click('#deck-roster-panel [data-usd-act="exclude"]');
+	const chooser = '[data-usd-el="roster-modal-host"] [data-usd-act="exclude-into"]';
+	if (await sp.page.isVisible(chooser)) await sp.page.click(chooser);
+	await sp.page.waitForTimeout(200);
+	// 因子セットに無いスキルを有効にしても、通知は出ない
+	await spEnable(id(2));
+	s = await spRead();
+	assert(s.notice === null && JSON.stringify((await scopeIds()).sort()) === JSON.stringify([id(0), id(1)].sort()),
+		'段4(4): 除外中に、因子セットに無いスキル（X2）を有効にしても、通知は出ず、因子セットも変わらない', s);
+	await spEnable(id(2));   // 外す
+	const fab0 = (await spRead()).fabCount;
+	// 因子セットにあるスキル（X1）を有効にすると、自動で外れる
+	await spEnable(id(1));
+	s = await spRead();
+	assert(JSON.stringify(await scopeIds()) === JSON.stringify([id(0)]),
+		'段4(4): 除外中に因子セットにあるスキル（X1）を有効にすると、そのスキルだけが因子セットから自動で外れる（X0 は残る）', await scopeIds());
+	assert(s.notice === '除外中のため、' + names[id(1)] + 'を周回因子セットから外しました' && s.undoBtn,
+		'段4(4): 通知の文言「除外中のため、{スキル名}を周回因子セットから外しました」（1種のときは「ほか N 種」が出ない）と「元に戻す」が出る', s.notice);
+	assert(s.fab !== 'none' && s.fabCount === String(Number(fab0 || 0) + 1), '段4(4): 外したことは special の既存の Undo（左下の「元に戻す」）に積まれる', { fab: s.fab, count: s.fabCount, before: fab0 });
+	await sp.page.click('#deck-roster-panel [data-usd-act="undo-auto"]');
+	s = await spRead();
+	assert(JSON.stringify((await scopeIds()).sort()) === JSON.stringify([id(0), id(1)].sort()) && s.notice === null && s.undoBtn === false,
+		'段4(4): 通知の「元に戻す」で、因子セットに X1 が戻り、通知は消える（既存の Undo につながっている）', { scope: await scopeIds(), notice: s.notice });
+	// 有効を外しても、因子セットへは自動で戻さない／もう一度有効にすると、また外れる
+	await spEnable(id(1));   // いま有効（Undo は因子セットだけを戻す）→ 外す
+	assert(JSON.stringify((await scopeIds()).sort()) === JSON.stringify([id(0), id(1)].sort()), '段4(4): 有効を外しても、因子セットは変わらない', await scopeIds());
+	await spEnable(id(1));   // また有効 → 因子セットにあるので外れる
+	assert(JSON.stringify(await scopeIds()) === JSON.stringify([id(0)]), '段4(4): もう一度有効にすると、また因子セットから外れる', await scopeIds());
+	await spEnable(id(1));   // 有効を外す
+	assert(JSON.stringify(await scopeIds()) === JSON.stringify([id(0)]), '段4(4): 有効を外しても、自動では因子セットへ追加し直さない', await scopeIds());
+	// 除外の対象には、有効な△が入る（「除外N種」）
+	await spEnable(id(1));
+	s = await spRead();
+	const sureN = facts.items.filter((it) => it.sure).length;
+	assert(s.excluded === '除外' + (sureN + 1) + '種', '段4(3): ①のタブの「除外N種」は、●＋有効な△の数（' + (sureN + 1) + '種）', s.excluded);
+	// 除外を解除すると、グレーアウトの対象は空になり、有効な△は有効のまま
+	await sp.page.click('#deck-roster-panel [data-usd-act="exclude"]');
+	s = await spRead();
+	assert(s.excluded === '除外0種' && (await sp.page.textContent('#deck-roster-panel [data-usd-act="pt-enable"][data-skill-id="' + id(1) + '"]')).trim() === '有効を外す',
+		'段4(4): 除外を解除すると「除外0種」になり、有効な△は有効のまま残る', s.excluded);
+
+	/* ⑨ 幅 ―― special.html の①タブ。ボタンと3行目を含めて横にはみ出さない */
+	await spEnable(id(3));
+	for (const [w, h] of [[1280, 1000], [375, 900]]) {
+		await sp.page.setViewportSize({ width: w, height: h });
+		const g = await sp.page.evaluate(() => {
+			const host = document.getElementById('deck-roster-panel');
+			const wrap = host.querySelector('.usd-roster-grid-wrap');
+			const btns = Array.from(host.querySelectorAll('[data-usd-act="pt-enable"]'));
+			const cells = Array.from(host.querySelectorAll('.usd-roster-skillcell'));
+			const rects = btns.map((b) => b.getBoundingClientRect());
+			const cellR = btns.map((b) => b.closest('.usd-roster-skillcell').getBoundingClientRect());
+			return { page: document.documentElement.scrollWidth - window.innerWidth, wrap: wrap.scrollWidth - wrap.clientWidth,
+				btnOutOfCell: btns.filter((b, i) => rects[i].right > cellR[i].right + 1 || rects[i].left < cellR[i].left - 1).length,
+				cellOver: cells.filter((c) => c.scrollWidth > c.clientWidth + 1).length,
+				minBtnH: Math.min(...rects.map((r) => r.height)), btnCount: btns.length,
+				plainBtnH: (() => { const b = document.querySelector('#deck-roster-panel [data-usd-act="save"]'); return b ? b.getBoundingClientRect().height : null; })(),
+				tags: host.querySelectorAll('[data-usd-el="on-tag"]').length };
+		});
+		assert(g.page <= 0 && g.wrap <= 0 && g.btnOutOfCell === 0 && g.cellOver === 0 && g.btnCount === 6 && g.tags > 0,
+			'段4(9): ' + w + 'px の①タブで、ボタン（' + g.btnCount + '個）・3行目・「有効」の添え物が横にはみ出さない', g);
+		assert(g.minBtnH >= 36 && g.minBtnH >= g.plainBtnH - 1,
+			'段4(9): ' + w + 'px で、ボタンは既存のボタン（保存）と同じ高さ以上のタップできる大きさ（' + g.minBtnH + 'px）', g);
+	}
+	const other = sp.errors.filter((m) => !/Failed to load resource|status of 404/.test(m));
+	assert(other.length === 0, '段4: コンソールエラーなし（special.html の①タブ）', other.slice(0, 3));
+	await sp.ctx.close();
 }
 });
 
