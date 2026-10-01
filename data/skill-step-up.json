@@ -1,0 +1,2424 @@
+{
+	"dataVersion": "2026-10-01c",
+	"category": "skillStepUp",
+	"note": "スキルのステップアップの前段（下書き・確認前）。prevSkillIds は直前のスキル。hintRootSkillId はヒントのレベルを共有する系列の根（○→◎ の行だけ）。ここに無い skillId は前段の無いスキルとして扱われる。",
+	"entries": [
+		{
+			"skillId": "ex-0002",
+			"prevSkillIds": [
+				"128"
+			]
+		},
+		{
+			"skillId": "ex-0003",
+			"prevSkillIds": [
+				"45"
+			]
+		},
+		{
+			"skillId": "ex-0004",
+			"prevSkillIds": [
+				"363"
+			]
+		},
+		{
+			"skillId": "ex-0006",
+			"prevSkillIds": [
+				"52"
+			]
+		},
+		{
+			"skillId": "ex-0007",
+			"prevSkillIds": [
+				"40"
+			]
+		},
+		{
+			"skillId": "ex-0009",
+			"prevSkillIds": [
+				"114"
+			]
+		},
+		{
+			"skillId": "ex-0012",
+			"prevSkillIds": [
+				"37"
+			]
+		},
+		{
+			"skillId": "ex-0013",
+			"prevSkillIds": [
+				"48"
+			]
+		},
+		{
+			"skillId": "ex-0014",
+			"prevSkillIds": [
+				"ex-0535"
+			]
+		},
+		{
+			"skillId": "ex-0016",
+			"prevSkillIds": [
+				"47"
+			]
+		},
+		{
+			"skillId": "ex-0017",
+			"prevSkillIds": [
+				"227"
+			]
+		},
+		{
+			"skillId": "ex-0019",
+			"prevSkillIds": [
+				"126"
+			]
+		},
+		{
+			"skillId": "ex-0020",
+			"prevSkillIds": [
+				"106"
+			]
+		},
+		{
+			"skillId": "ex-0021",
+			"prevSkillIds": [
+				"298"
+			]
+		},
+		{
+			"skillId": "ex-0023",
+			"prevSkillIds": [
+				"50"
+			]
+		},
+		{
+			"skillId": "ex-0024",
+			"prevSkillIds": [
+				"107"
+			]
+		},
+		{
+			"skillId": "ex-0026",
+			"prevSkillIds": [
+				"164"
+			]
+		},
+		{
+			"skillId": "ex-0027",
+			"prevSkillIds": [
+				"49"
+			]
+		},
+		{
+			"skillId": "ex-0029",
+			"prevSkillIds": [
+				"98"
+			]
+		},
+		{
+			"skillId": "ex-0030",
+			"prevSkillIds": [
+				"99"
+			]
+		},
+		{
+			"skillId": "ex-0032",
+			"prevSkillIds": [
+				"121"
+			]
+		},
+		{
+			"skillId": "ex-0033",
+			"prevSkillIds": [
+				"61"
+			]
+		},
+		{
+			"skillId": "ex-0035",
+			"prevSkillIds": [
+				"100"
+			]
+		},
+		{
+			"skillId": "ex-0036",
+			"prevSkillIds": [
+				"300"
+			]
+		},
+		{
+			"skillId": "ex-0039",
+			"prevSkillIds": [
+				"70"
+			]
+		},
+		{
+			"skillId": "ex-0040",
+			"prevSkillIds": [
+				"51"
+			]
+		},
+		{
+			"skillId": "ex-0042",
+			"prevSkillIds": [
+				"215"
+			]
+		},
+		{
+			"skillId": "ex-0043",
+			"prevSkillIds": [
+				"229"
+			]
+		},
+		{
+			"skillId": "ex-0045",
+			"prevSkillIds": [
+				"32"
+			]
+		},
+		{
+			"skillId": "ex-0047",
+			"prevSkillIds": [
+				"68"
+			]
+		},
+		{
+			"skillId": "ex-0049",
+			"prevSkillIds": [
+				"295"
+			]
+		},
+		{
+			"skillId": "ex-0050",
+			"prevSkillIds": [
+				"209"
+			]
+		},
+		{
+			"skillId": "ex-0053",
+			"prevSkillIds": [
+				"140"
+			]
+		},
+		{
+			"skillId": "ex-0054",
+			"prevSkillIds": [
+				"141"
+			]
+		},
+		{
+			"skillId": "ex-0056",
+			"prevSkillIds": [
+				"173"
+			]
+		},
+		{
+			"skillId": "ex-0058",
+			"prevSkillIds": [
+				"57"
+			]
+		},
+		{
+			"skillId": "ex-0059",
+			"prevSkillIds": [
+				"ex-0549"
+			]
+		},
+		{
+			"skillId": "ex-0062",
+			"prevSkillIds": [
+				"36"
+			]
+		},
+		{
+			"skillId": "ex-0063",
+			"prevSkillIds": [
+				"63"
+			]
+		},
+		{
+			"skillId": "ex-0065",
+			"prevSkillIds": [
+				"43"
+			]
+		},
+		{
+			"skillId": "ex-0066",
+			"prevSkillIds": [
+				"206"
+			]
+		},
+		{
+			"skillId": "ex-0069",
+			"prevSkillIds": [
+				"65"
+			]
+		},
+		{
+			"skillId": "ex-0071",
+			"prevSkillIds": [
+				"207"
+			]
+		},
+		{
+			"skillId": "ex-0075",
+			"prevSkillIds": [
+				"367"
+			]
+		},
+		{
+			"skillId": "ex-0076",
+			"prevSkillIds": [
+				"368"
+			]
+		},
+		{
+			"skillId": "ex-0079",
+			"prevSkillIds": [
+				"108"
+			]
+		},
+		{
+			"skillId": "ex-0080",
+			"prevSkillIds": [
+				"53"
+			]
+		},
+		{
+			"skillId": "ex-0082",
+			"prevSkillIds": [
+				"67"
+			]
+		},
+		{
+			"skillId": "ex-0083",
+			"prevSkillIds": [
+				"135"
+			]
+		},
+		{
+			"skillId": "ex-0085",
+			"prevSkillIds": [
+				"177"
+			]
+		},
+		{
+			"skillId": "ex-0086",
+			"prevSkillIds": [
+				"291"
+			]
+		},
+		{
+			"skillId": "ex-0088",
+			"prevSkillIds": [
+				"66"
+			]
+		},
+		{
+			"skillId": "ex-0089",
+			"prevSkillIds": [
+				"56"
+			]
+		},
+		{
+			"skillId": "ex-0091",
+			"prevSkillIds": [
+				"167"
+			]
+		},
+		{
+			"skillId": "ex-0092",
+			"prevSkillIds": [
+				"210"
+			]
+		},
+		{
+			"skillId": "ex-0094",
+			"prevSkillIds": [
+				"112"
+			]
+		},
+		{
+			"skillId": "ex-0096",
+			"prevSkillIds": [
+				"34"
+			]
+		},
+		{
+			"skillId": "ex-0098",
+			"prevSkillIds": [
+				"166"
+			]
+		},
+		{
+			"skillId": "ex-0099",
+			"prevSkillIds": [
+				"180"
+			]
+		},
+		{
+			"skillId": "ex-0102",
+			"prevSkillIds": [
+				"105"
+			]
+		},
+		{
+			"skillId": "ex-0104",
+			"prevSkillIds": [
+				"54"
+			]
+		},
+		{
+			"skillId": "ex-0107",
+			"prevSkillIds": [
+				"33"
+			]
+		},
+		{
+			"skillId": "ex-0110",
+			"prevSkillIds": [
+				"208"
+			]
+		},
+		{
+			"skillId": "ex-0112",
+			"prevSkillIds": [
+				"31"
+			]
+		},
+		{
+			"skillId": "ex-0114",
+			"prevSkillIds": [
+				"ex-0553"
+			]
+		},
+		{
+			"skillId": "ex-0117",
+			"prevSkillIds": [
+				"130"
+			]
+		},
+		{
+			"skillId": "ex-0118",
+			"prevSkillIds": [
+				"44"
+			]
+		},
+		{
+			"skillId": "ex-0121",
+			"prevSkillIds": [
+				"152"
+			]
+		},
+		{
+			"skillId": "ex-0122",
+			"prevSkillIds": [
+				"161"
+			]
+		},
+		{
+			"skillId": "ex-0124",
+			"prevSkillIds": [
+				"188"
+			]
+		},
+		{
+			"skillId": "ex-0127",
+			"prevSkillIds": [
+				"120"
+			]
+		},
+		{
+			"skillId": "ex-0129",
+			"prevSkillIds": [
+				"402"
+			]
+		},
+		{
+			"skillId": "ex-0131",
+			"prevSkillIds": [
+				"154"
+			]
+		},
+		{
+			"skillId": "ex-0134",
+			"prevSkillIds": [
+				"127"
+			]
+		},
+		{
+			"skillId": "ex-0137",
+			"prevSkillIds": [
+				"359"
+			]
+		},
+		{
+			"skillId": "ex-0138",
+			"prevSkillIds": [
+				"260"
+			]
+		},
+		{
+			"skillId": "ex-0141",
+			"prevSkillIds": [
+				"113"
+			]
+		},
+		{
+			"skillId": "ex-0143",
+			"prevSkillIds": [
+				"235"
+			]
+		},
+		{
+			"skillId": "ex-0144",
+			"prevSkillIds": [
+				"217"
+			]
+		},
+		{
+			"skillId": "ex-0148",
+			"prevSkillIds": [
+				"109"
+			]
+		},
+		{
+			"skillId": "ex-0150",
+			"prevSkillIds": [
+				"239"
+			]
+		},
+		{
+			"skillId": "ex-0151",
+			"prevSkillIds": [
+				"276"
+			]
+		},
+		{
+			"skillId": "ex-0153",
+			"prevSkillIds": [
+				"115"
+			]
+		},
+		{
+			"skillId": "ex-0155",
+			"prevSkillIds": [
+				"242"
+			]
+		},
+		{
+			"skillId": "ex-0157",
+			"prevSkillIds": [
+				"392"
+			]
+		},
+		{
+			"skillId": "ex-0159",
+			"prevSkillIds": [
+				"46"
+			]
+		},
+		{
+			"skillId": "ex-0160",
+			"prevSkillIds": [
+				"64"
+			]
+		},
+		{
+			"skillId": "ex-0165",
+			"prevSkillIds": [
+				"179"
+			]
+		},
+		{
+			"skillId": "ex-0167",
+			"prevSkillIds": [
+				"93"
+			]
+		},
+		{
+			"skillId": "ex-0169",
+			"prevSkillIds": [
+				"346"
+			]
+		},
+		{
+			"skillId": "ex-0172",
+			"prevSkillIds": [
+				"198"
+			]
+		},
+		{
+			"skillId": "ex-0176",
+			"prevSkillIds": [
+				"151"
+			]
+		},
+		{
+			"skillId": "ex-0177",
+			"prevSkillIds": [
+				"ex-0539"
+			]
+		},
+		{
+			"skillId": "ex-0179",
+			"prevSkillIds": [
+				"176"
+			]
+		},
+		{
+			"skillId": "ex-0181",
+			"prevSkillIds": [
+				"ex-0583"
+			]
+		},
+		{
+			"skillId": "ex-0183",
+			"prevSkillIds": [
+				"159"
+			]
+		},
+		{
+			"skillId": "ex-0187",
+			"prevSkillIds": [
+				"228"
+			]
+		},
+		{
+			"skillId": "ex-0189",
+			"prevSkillIds": [
+				"255"
+			]
+		},
+		{
+			"skillId": "ex-0191",
+			"prevSkillIds": [
+				"142"
+			]
+		},
+		{
+			"skillId": "ex-0193",
+			"prevSkillIds": [
+				"288"
+			]
+		},
+		{
+			"skillId": "ex-0194",
+			"prevSkillIds": [
+				"274"
+			]
+		},
+		{
+			"skillId": "ex-0196",
+			"prevSkillIds": [
+				"165"
+			]
+		},
+		{
+			"skillId": "ex-0200",
+			"prevSkillIds": [
+				"133"
+			]
+		},
+		{
+			"skillId": "ex-0202",
+			"prevSkillIds": [
+				"134"
+			]
+		},
+		{
+			"skillId": "ex-0203",
+			"prevSkillIds": [
+				"163"
+			]
+		},
+		{
+			"skillId": "ex-0205",
+			"prevSkillIds": [
+				"222"
+			]
+		},
+		{
+			"skillId": "ex-0207",
+			"prevSkillIds": [
+				"ex-0593"
+			]
+		},
+		{
+			"skillId": "ex-0211",
+			"prevSkillIds": [
+				"ex-0577"
+			]
+		},
+		{
+			"skillId": "ex-0213",
+			"prevSkillIds": [
+				"ex-0536"
+			]
+		},
+		{
+			"skillId": "ex-0215",
+			"prevSkillIds": [
+				"94"
+			]
+		},
+		{
+			"skillId": "ex-0217",
+			"prevSkillIds": [
+				"58"
+			]
+		},
+		{
+			"skillId": "ex-0221",
+			"prevSkillIds": [
+				"62"
+			]
+		},
+		{
+			"skillId": "ex-0223",
+			"prevSkillIds": [
+				"102"
+			]
+		},
+		{
+			"skillId": "ex-0224",
+			"prevSkillIds": [
+				"162"
+			]
+		},
+		{
+			"skillId": "ex-0226",
+			"prevSkillIds": [
+				"321"
+			]
+		},
+		{
+			"skillId": "ex-0229",
+			"prevSkillIds": [
+				"91"
+			]
+		},
+		{
+			"skillId": "ex-0231",
+			"prevSkillIds": [
+				"169"
+			]
+		},
+		{
+			"skillId": "ex-0232",
+			"prevSkillIds": [
+				"ex-0568"
+			]
+		},
+		{
+			"skillId": "ex-0234",
+			"prevSkillIds": [
+				"339"
+			]
+		},
+		{
+			"skillId": "ex-0237",
+			"prevSkillIds": [
+				"35"
+			]
+		},
+		{
+			"skillId": "ex-0238",
+			"prevSkillIds": [
+				"230"
+			]
+		},
+		{
+			"skillId": "ex-0240",
+			"prevSkillIds": [
+				"189"
+			]
+		},
+		{
+			"skillId": "ex-0241",
+			"prevSkillIds": [
+				"ex-0610"
+			]
+		},
+		{
+			"skillId": "ex-0243",
+			"prevSkillIds": [
+				"279"
+			]
+		},
+		{
+			"skillId": "ex-0244",
+			"prevSkillIds": [
+				"314"
+			]
+		},
+		{
+			"skillId": "ex-0246",
+			"prevSkillIds": [
+				"144"
+			]
+		},
+		{
+			"skillId": "ex-0248",
+			"prevSkillIds": [
+				"249"
+			]
+		},
+		{
+			"skillId": "ex-0254",
+			"prevSkillIds": [
+				"39"
+			]
+		},
+		{
+			"skillId": "ex-0255",
+			"prevSkillIds": [
+				"160"
+			]
+		},
+		{
+			"skillId": "ex-0257",
+			"prevSkillIds": [
+				"192"
+			]
+		},
+		{
+			"skillId": "ex-0259",
+			"prevSkillIds": [
+				"240"
+			]
+		},
+		{
+			"skillId": "ex-0261",
+			"prevSkillIds": [
+				"ex-0578"
+			]
+		},
+		{
+			"skillId": "ex-0263",
+			"prevSkillIds": [
+				"ex-0586"
+			]
+		},
+		{
+			"skillId": "ex-0266",
+			"prevSkillIds": [
+				"171"
+			]
+		},
+		{
+			"skillId": "ex-0267",
+			"prevSkillIds": [
+				"175"
+			]
+		},
+		{
+			"skillId": "ex-0269",
+			"prevSkillIds": [
+				"316"
+			]
+		},
+		{
+			"skillId": "ex-0271",
+			"prevSkillIds": [
+				"168"
+			]
+		},
+		{
+			"skillId": "ex-0272",
+			"prevSkillIds": [
+				"205"
+			]
+		},
+		{
+			"skillId": "ex-0273",
+			"prevSkillIds": [
+				"223"
+			]
+		},
+		{
+			"skillId": "ex-0276",
+			"prevSkillIds": [
+				"55"
+			]
+		},
+		{
+			"skillId": "ex-0278",
+			"prevSkillIds": [
+				"199"
+			]
+		},
+		{
+			"skillId": "ex-0280",
+			"prevSkillIds": [
+				"247"
+			]
+		},
+		{
+			"skillId": "ex-0281",
+			"prevSkillIds": [
+				"245"
+			]
+		},
+		{
+			"skillId": "ex-0284",
+			"prevSkillIds": [
+				"ex-0575"
+			]
+		},
+		{
+			"skillId": "ex-0287",
+			"prevSkillIds": [
+				"38"
+			]
+		},
+		{
+			"skillId": "ex-0288",
+			"prevSkillIds": [
+				"41"
+			]
+		},
+		{
+			"skillId": "ex-0291",
+			"prevSkillIds": [
+				"174"
+			]
+		},
+		{
+			"skillId": "ex-0295",
+			"prevSkillIds": [
+				"60"
+			]
+		},
+		{
+			"skillId": "ex-0298",
+			"prevSkillIds": [
+				"219"
+			]
+		},
+		{
+			"skillId": "ex-0299",
+			"prevSkillIds": [
+				"347"
+			]
+		},
+		{
+			"skillId": "ex-0302",
+			"prevSkillIds": [
+				"116"
+			]
+		},
+		{
+			"skillId": "ex-0303",
+			"prevSkillIds": [
+				"149"
+			]
+		},
+		{
+			"skillId": "ex-0306",
+			"prevSkillIds": [
+				"212"
+			]
+		},
+		{
+			"skillId": "ex-0308",
+			"prevSkillIds": [
+				"254"
+			]
+		},
+		{
+			"skillId": "ex-0312",
+			"prevSkillIds": [
+				"137"
+			]
+		},
+		{
+			"skillId": "ex-0318",
+			"prevSkillIds": [
+				"158"
+			]
+		},
+		{
+			"skillId": "ex-0321",
+			"prevSkillIds": [
+				"136"
+			]
+		},
+		{
+			"skillId": "ex-0323",
+			"prevSkillIds": [
+				"ex-0550"
+			]
+		},
+		{
+			"skillId": "ex-0325",
+			"prevSkillIds": [
+				"233"
+			]
+		},
+		{
+			"skillId": "ex-0328",
+			"prevSkillIds": [
+				"42"
+			]
+		},
+		{
+			"skillId": "ex-0335",
+			"prevSkillIds": [
+				"ex-0579"
+			]
+		},
+		{
+			"skillId": "ex-0336",
+			"prevSkillIds": [
+				"226"
+			]
+		},
+		{
+			"skillId": "ex-0338",
+			"prevSkillIds": [
+				"211"
+			]
+		},
+		{
+			"skillId": "ex-0342",
+			"prevSkillIds": [
+				"200"
+			]
+		},
+		{
+			"skillId": "ex-0344",
+			"prevSkillIds": [
+				"ex-0534"
+			]
+		},
+		{
+			"skillId": "ex-0346",
+			"prevSkillIds": [
+				"203"
+			]
+		},
+		{
+			"skillId": "ex-0351",
+			"prevSkillIds": [
+				"238"
+			]
+		},
+		{
+			"skillId": "ex-0354",
+			"prevSkillIds": [
+				"172"
+			]
+		},
+		{
+			"skillId": "ex-0357",
+			"prevSkillIds": [
+				"224"
+			]
+		},
+		{
+			"skillId": "ex-0364",
+			"prevSkillIds": [
+				"ex-0587"
+			]
+		},
+		{
+			"skillId": "ex-0366",
+			"prevSkillIds": [
+				"170"
+			]
+		},
+		{
+			"skillId": "ex-0369",
+			"prevSkillIds": [
+				"216"
+			]
+		},
+		{
+			"skillId": "ex-0370",
+			"prevSkillIds": [
+				"218"
+			]
+		},
+		{
+			"skillId": "ex-0373",
+			"prevSkillIds": [
+				"366"
+			]
+		},
+		{
+			"skillId": "ex-0375",
+			"prevSkillIds": [
+				"ex-0548"
+			]
+		},
+		{
+			"skillId": "ex-0377",
+			"prevSkillIds": [
+				"278"
+			]
+		},
+		{
+			"skillId": "ex-0379",
+			"prevSkillIds": [
+				"325"
+			]
+		},
+		{
+			"skillId": "ex-0380",
+			"prevSkillIds": [
+				"323"
+			]
+		},
+		{
+			"skillId": "ex-0382",
+			"prevSkillIds": [
+				"202"
+			]
+		},
+		{
+			"skillId": "ex-0384",
+			"prevSkillIds": [
+				"234"
+			]
+		},
+		{
+			"skillId": "ex-0386",
+			"prevSkillIds": [
+				"213"
+			]
+		},
+		{
+			"skillId": "ex-0387",
+			"prevSkillIds": [
+				"301"
+			]
+		},
+		{
+			"skillId": "ex-0389",
+			"prevSkillIds": [
+				"153"
+			]
+		},
+		{
+			"skillId": "ex-0390",
+			"prevSkillIds": [
+				"252"
+			]
+		},
+		{
+			"skillId": "ex-0392",
+			"prevSkillIds": [
+				"350"
+			]
+		},
+		{
+			"skillId": "ex-0394",
+			"prevSkillIds": [
+				"265"
+			]
+		},
+		{
+			"skillId": "ex-0395",
+			"prevSkillIds": [
+				"275"
+			]
+		},
+		{
+			"skillId": "ex-0397",
+			"prevSkillIds": [
+				"225"
+			]
+		},
+		{
+			"skillId": "ex-0399",
+			"prevSkillIds": [
+				"253"
+			]
+		},
+		{
+			"skillId": "ex-0405",
+			"prevSkillIds": [
+				"214"
+			]
+		},
+		{
+			"skillId": "ex-0406",
+			"prevSkillIds": [
+				"201"
+			]
+		},
+		{
+			"skillId": "ex-0409",
+			"prevSkillIds": [
+				"232"
+			]
+		},
+		{
+			"skillId": "ex-0413",
+			"prevSkillIds": [
+				"302"
+			]
+		},
+		{
+			"skillId": "ex-0416",
+			"prevSkillIds": [
+				"326"
+			]
+		},
+		{
+			"skillId": "ex-0418",
+			"prevSkillIds": [
+				"204"
+			]
+		},
+		{
+			"skillId": "ex-0420",
+			"prevSkillIds": [
+				"324"
+			]
+		},
+		{
+			"skillId": "ex-0424",
+			"prevSkillIds": [
+				"297"
+			]
+		},
+		{
+			"skillId": "ex-0426",
+			"prevSkillIds": [
+				"262"
+			]
+		},
+		{
+			"skillId": "ex-0427",
+			"prevSkillIds": [
+				"357"
+			]
+		},
+		{
+			"skillId": "ex-0431",
+			"prevSkillIds": [
+				"221"
+			]
+		},
+		{
+			"skillId": "ex-0433",
+			"prevSkillIds": [
+				"365"
+			]
+		},
+		{
+			"skillId": "ex-0435",
+			"prevSkillIds": [
+				"345"
+			]
+		},
+		{
+			"skillId": "ex-0438",
+			"prevSkillIds": [
+				"331"
+			]
+		},
+		{
+			"skillId": "ex-0439",
+			"prevSkillIds": [
+				"332"
+			]
+		},
+		{
+			"skillId": "ex-0441",
+			"prevSkillIds": [
+				"187"
+			]
+		},
+		{
+			"skillId": "ex-0442",
+			"prevSkillIds": [
+				"194"
+			]
+		},
+		{
+			"skillId": "ex-0444",
+			"prevSkillIds": [
+				"315"
+			]
+		},
+		{
+			"skillId": "ex-0445",
+			"prevSkillIds": [
+				"ex-0607"
+			]
+		},
+		{
+			"skillId": "ex-0449",
+			"prevSkillIds": [
+				"191"
+			]
+		},
+		{
+			"skillId": "ex-0451",
+			"prevSkillIds": [
+				"362"
+			]
+		},
+		{
+			"skillId": "ex-0454",
+			"prevSkillIds": [
+				"351"
+			]
+		},
+		{
+			"skillId": "ex-0457",
+			"prevSkillIds": [
+				"360"
+			]
+		},
+		{
+			"skillId": "ex-0460",
+			"prevSkillIds": [
+				"292"
+			]
+		},
+		{
+			"skillId": "ex-0461",
+			"prevSkillIds": [
+				"293"
+			]
+		},
+		{
+			"skillId": "ex-0464",
+			"prevSkillIds": [
+				"156"
+			]
+		},
+		{
+			"skillId": "ex-0470",
+			"prevSkillIds": [
+				"244"
+			]
+		},
+		{
+			"skillId": "ex-0477",
+			"prevSkillIds": [
+				"287"
+			]
+		},
+		{
+			"skillId": "ex-0482",
+			"prevSkillIds": [
+				"358"
+			]
+		},
+		{
+			"skillId": "ex-0484",
+			"prevSkillIds": [
+				"305"
+			]
+		},
+		{
+			"skillId": "ex-0486",
+			"prevSkillIds": [
+				"269"
+			]
+		},
+		{
+			"skillId": "ex-0489",
+			"prevSkillIds": [
+				"250"
+			]
+		},
+		{
+			"skillId": "ex-0491",
+			"prevSkillIds": [
+				"336"
+			]
+		},
+		{
+			"skillId": "ex-0492",
+			"prevSkillIds": [
+				"335"
+			]
+		},
+		{
+			"skillId": "ex-0494",
+			"prevSkillIds": [
+				"257"
+			]
+		},
+		{
+			"skillId": "ex-0497",
+			"prevSkillIds": [
+				"ex-0582"
+			]
+		},
+		{
+			"skillId": "ex-0500",
+			"prevSkillIds": [
+				"270"
+			]
+		},
+		{
+			"skillId": "ex-0504",
+			"prevSkillIds": [
+				"381"
+			]
+		},
+		{
+			"skillId": "ex-0506",
+			"prevSkillIds": [
+				"373"
+			]
+		},
+		{
+			"skillId": "ex-0507",
+			"prevSkillIds": [
+				"317"
+			]
+		},
+		{
+			"skillId": "ex-0510",
+			"prevSkillIds": [
+				"261"
+			]
+		},
+		{
+			"skillId": "ex-0511",
+			"prevSkillIds": [
+				"308"
+			]
+		},
+		{
+			"skillId": "ex-0514",
+			"prevSkillIds": [
+				"268"
+			]
+		},
+		{
+			"skillId": "ex-0518",
+			"prevSkillIds": [
+				"364"
+			]
+		},
+		{
+			"skillId": "ex-0519",
+			"prevSkillIds": [
+				"337"
+			]
+		},
+		{
+			"skillId": "ex-0522",
+			"prevSkillIds": [
+				"286"
+			]
+		},
+		{
+			"skillId": "ex-0524",
+			"prevSkillIds": [
+				"220"
+			]
+		},
+		{
+			"skillId": "ex-0525",
+			"prevSkillIds": [
+				"354"
+			]
+		},
+		{
+			"skillId": "ex-0527",
+			"prevSkillIds": [
+				"399"
+			]
+		},
+		{
+			"skillId": "ex-0532",
+			"prevSkillIds": [
+				"ex-0531"
+			]
+		},
+		{
+			"skillId": "ex-0534",
+			"prevSkillIds": [
+				"1"
+			],
+			"hintRootSkillId": "1"
+		},
+		{
+			"skillId": "ex-0535",
+			"prevSkillIds": [
+				"2"
+			],
+			"hintRootSkillId": "2"
+		},
+		{
+			"skillId": "ex-0536",
+			"prevSkillIds": [
+				"3"
+			],
+			"hintRootSkillId": "3"
+		},
+		{
+			"skillId": "ex-0537",
+			"prevSkillIds": [
+				"4"
+			],
+			"hintRootSkillId": "4"
+		},
+		{
+			"skillId": "ex-0538",
+			"prevSkillIds": [
+				"5"
+			],
+			"hintRootSkillId": "5"
+		},
+		{
+			"skillId": "ex-0539",
+			"prevSkillIds": [
+				"6"
+			],
+			"hintRootSkillId": "6"
+		},
+		{
+			"skillId": "ex-0540",
+			"prevSkillIds": [
+				"7"
+			],
+			"hintRootSkillId": "7"
+		},
+		{
+			"skillId": "ex-0541",
+			"prevSkillIds": [
+				"8"
+			],
+			"hintRootSkillId": "8"
+		},
+		{
+			"skillId": "ex-0542",
+			"prevSkillIds": [
+				"9"
+			],
+			"hintRootSkillId": "9"
+		},
+		{
+			"skillId": "ex-0543",
+			"prevSkillIds": [
+				"10"
+			],
+			"hintRootSkillId": "10"
+		},
+		{
+			"skillId": "ex-0544",
+			"prevSkillIds": [
+				"11"
+			],
+			"hintRootSkillId": "11"
+		},
+		{
+			"skillId": "ex-0545",
+			"prevSkillIds": [
+				"12"
+			],
+			"hintRootSkillId": "12"
+		},
+		{
+			"skillId": "ex-0546",
+			"prevSkillIds": [
+				"13"
+			],
+			"hintRootSkillId": "13"
+		},
+		{
+			"skillId": "ex-0547",
+			"prevSkillIds": [
+				"14"
+			],
+			"hintRootSkillId": "14"
+		},
+		{
+			"skillId": "ex-0548",
+			"prevSkillIds": [
+				"15"
+			],
+			"hintRootSkillId": "15"
+		},
+		{
+			"skillId": "ex-0549",
+			"prevSkillIds": [
+				"16"
+			],
+			"hintRootSkillId": "16"
+		},
+		{
+			"skillId": "ex-0550",
+			"prevSkillIds": [
+				"17"
+			],
+			"hintRootSkillId": "17"
+		},
+		{
+			"skillId": "ex-0551",
+			"prevSkillIds": [
+				"18"
+			],
+			"hintRootSkillId": "18"
+		},
+		{
+			"skillId": "ex-0552",
+			"prevSkillIds": [
+				"ex-0551"
+			]
+		},
+		{
+			"skillId": "ex-0553",
+			"prevSkillIds": [
+				"19"
+			],
+			"hintRootSkillId": "19"
+		},
+		{
+			"skillId": "ex-0554",
+			"prevSkillIds": [
+				"20"
+			],
+			"hintRootSkillId": "20"
+		},
+		{
+			"skillId": "ex-0555",
+			"prevSkillIds": [
+				"ex-0554"
+			]
+		},
+		{
+			"skillId": "ex-0556",
+			"prevSkillIds": [
+				"21"
+			],
+			"hintRootSkillId": "21"
+		},
+		{
+			"skillId": "ex-0557",
+			"prevSkillIds": [
+				"22"
+			],
+			"hintRootSkillId": "22"
+		},
+		{
+			"skillId": "ex-0558",
+			"prevSkillIds": [
+				"23"
+			],
+			"hintRootSkillId": "23"
+		},
+		{
+			"skillId": "ex-0559",
+			"prevSkillIds": [
+				"24"
+			],
+			"hintRootSkillId": "24"
+		},
+		{
+			"skillId": "ex-0560",
+			"prevSkillIds": [
+				"25"
+			],
+			"hintRootSkillId": "25"
+		},
+		{
+			"skillId": "ex-0561",
+			"prevSkillIds": [
+				"26"
+			],
+			"hintRootSkillId": "26"
+		},
+		{
+			"skillId": "ex-0562",
+			"prevSkillIds": [
+				"27"
+			],
+			"hintRootSkillId": "27"
+		},
+		{
+			"skillId": "ex-0563",
+			"prevSkillIds": [
+				"28"
+			],
+			"hintRootSkillId": "28"
+		},
+		{
+			"skillId": "ex-0564",
+			"prevSkillIds": [
+				"29"
+			],
+			"hintRootSkillId": "29"
+		},
+		{
+			"skillId": "ex-0565",
+			"prevSkillIds": [
+				"30"
+			],
+			"hintRootSkillId": "30"
+		},
+		{
+			"skillId": "ex-0566",
+			"prevSkillIds": [
+				"69"
+			]
+		},
+		{
+			"skillId": "ex-0567",
+			"prevSkillIds": [
+				"88"
+			],
+			"hintRootSkillId": "88"
+		},
+		{
+			"skillId": "ex-0568",
+			"prevSkillIds": [
+				"89"
+			],
+			"hintRootSkillId": "89"
+		},
+		{
+			"skillId": "ex-0569",
+			"prevSkillIds": [
+				"90"
+			],
+			"hintRootSkillId": "90"
+		},
+		{
+			"skillId": "ex-0570",
+			"prevSkillIds": [
+				"ex-0569"
+			]
+		},
+		{
+			"skillId": "ex-0571",
+			"prevSkillIds": [
+				"92"
+			]
+		},
+		{
+			"skillId": "ex-0573",
+			"prevSkillIds": [
+				"96"
+			],
+			"hintRootSkillId": "96"
+		},
+		{
+			"skillId": "ex-0574",
+			"prevSkillIds": [
+				"ex-0573"
+			]
+		},
+		{
+			"skillId": "ex-0575",
+			"prevSkillIds": [
+				"97"
+			],
+			"hintRootSkillId": "97"
+		},
+		{
+			"skillId": "ex-0577",
+			"prevSkillIds": [
+				"103"
+			],
+			"hintRootSkillId": "103"
+		},
+		{
+			"skillId": "ex-0578",
+			"prevSkillIds": [
+				"104"
+			],
+			"hintRootSkillId": "104"
+		},
+		{
+			"skillId": "ex-0579",
+			"prevSkillIds": [
+				"110"
+			],
+			"hintRootSkillId": "110"
+		},
+		{
+			"skillId": "ex-0580",
+			"prevSkillIds": [
+				"111"
+			],
+			"hintRootSkillId": "111"
+		},
+		{
+			"skillId": "ex-0581",
+			"prevSkillIds": [
+				"ex-0580"
+			]
+		},
+		{
+			"skillId": "ex-0582",
+			"prevSkillIds": [
+				"117"
+			],
+			"hintRootSkillId": "117"
+		},
+		{
+			"skillId": "ex-0583",
+			"prevSkillIds": [
+				"118"
+			],
+			"hintRootSkillId": "118"
+		},
+		{
+			"skillId": "ex-0584",
+			"prevSkillIds": [
+				"119"
+			]
+		},
+		{
+			"skillId": "ex-0586",
+			"prevSkillIds": [
+				"124"
+			],
+			"hintRootSkillId": "124"
+		},
+		{
+			"skillId": "ex-0587",
+			"prevSkillIds": [
+				"125"
+			],
+			"hintRootSkillId": "125"
+		},
+		{
+			"skillId": "ex-0588",
+			"prevSkillIds": [
+				"129"
+			]
+		},
+		{
+			"skillId": "ex-0589",
+			"prevSkillIds": [
+				"131"
+			],
+			"hintRootSkillId": "131"
+		},
+		{
+			"skillId": "ex-0590",
+			"prevSkillIds": [
+				"ex-0589"
+			]
+		},
+		{
+			"skillId": "ex-0591",
+			"prevSkillIds": [
+				"132"
+			],
+			"hintRootSkillId": "132"
+		},
+		{
+			"skillId": "ex-0592",
+			"prevSkillIds": [
+				"ex-0591"
+			]
+		},
+		{
+			"skillId": "ex-0593",
+			"prevSkillIds": [
+				"138"
+			],
+			"hintRootSkillId": "138"
+		},
+		{
+			"skillId": "ex-0594",
+			"prevSkillIds": [
+				"139"
+			],
+			"hintRootSkillId": "139"
+		},
+		{
+			"skillId": "ex-0595",
+			"prevSkillIds": [
+				"ex-0594"
+			]
+		},
+		{
+			"skillId": "ex-0596",
+			"prevSkillIds": [
+				"143"
+			]
+		},
+		{
+			"skillId": "ex-0597",
+			"prevSkillIds": [
+				"145"
+			],
+			"hintRootSkillId": "145"
+		},
+		{
+			"skillId": "ex-0598",
+			"prevSkillIds": [
+				"146"
+			],
+			"hintRootSkillId": "146"
+		},
+		{
+			"skillId": "ex-0599",
+			"prevSkillIds": [
+				"147"
+			],
+			"hintRootSkillId": "147"
+		},
+		{
+			"skillId": "ex-0600",
+			"prevSkillIds": [
+				"148"
+			],
+			"hintRootSkillId": "148"
+		},
+		{
+			"skillId": "ex-0602",
+			"prevSkillIds": [
+				"181"
+			],
+			"hintRootSkillId": "181"
+		},
+		{
+			"skillId": "ex-0603",
+			"prevSkillIds": [
+				"182"
+			],
+			"hintRootSkillId": "182"
+		},
+		{
+			"skillId": "ex-0604",
+			"prevSkillIds": [
+				"183"
+			],
+			"hintRootSkillId": "183"
+		},
+		{
+			"skillId": "ex-0605",
+			"prevSkillIds": [
+				"184"
+			],
+			"hintRootSkillId": "184"
+		},
+		{
+			"skillId": "ex-0606",
+			"prevSkillIds": [
+				"185"
+			],
+			"hintRootSkillId": "185"
+		},
+		{
+			"skillId": "ex-0607",
+			"prevSkillIds": [
+				"186"
+			],
+			"hintRootSkillId": "186"
+		},
+		{
+			"skillId": "ex-0610",
+			"prevSkillIds": [
+				"195"
+			],
+			"hintRootSkillId": "195"
+		},
+		{
+			"skillId": "ex-0614",
+			"prevSkillIds": [
+				"231"
+			],
+			"hintRootSkillId": "231"
+		},
+		{
+			"skillId": "ex-0615",
+			"prevSkillIds": [
+				"ex-0614"
+			]
+		},
+		{
+			"skillId": "ex-0616",
+			"prevSkillIds": [
+				"236"
+			]
+		},
+		{
+			"skillId": "ex-0617",
+			"prevSkillIds": [
+				"237"
+			]
+		},
+		{
+			"skillId": "ex-0618",
+			"prevSkillIds": [
+				"241"
+			]
+		},
+		{
+			"skillId": "ex-0619",
+			"prevSkillIds": [
+				"243"
+			]
+		},
+		{
+			"skillId": "ex-0620",
+			"prevSkillIds": [
+				"246"
+			]
+		},
+		{
+			"skillId": "ex-0621",
+			"prevSkillIds": [
+				"256"
+			],
+			"hintRootSkillId": "256"
+		},
+		{
+			"skillId": "ex-0622",
+			"prevSkillIds": [
+				"258"
+			]
+		},
+		{
+			"skillId": "ex-0623",
+			"prevSkillIds": [
+				"259"
+			]
+		},
+		{
+			"skillId": "ex-0624",
+			"prevSkillIds": [
+				"ex-0625"
+			]
+		},
+		{
+			"skillId": "ex-0625",
+			"prevSkillIds": [
+				"266"
+			],
+			"hintRootSkillId": "266"
+		},
+		{
+			"skillId": "ex-0626",
+			"prevSkillIds": [
+				"ex-0627"
+			]
+		},
+		{
+			"skillId": "ex-0627",
+			"prevSkillIds": [
+				"267"
+			],
+			"hintRootSkillId": "267"
+		},
+		{
+			"skillId": "ex-0628",
+			"prevSkillIds": [
+				"271"
+			]
+		},
+		{
+			"skillId": "ex-0629",
+			"prevSkillIds": [
+				"272"
+			]
+		},
+		{
+			"skillId": "ex-0630",
+			"prevSkillIds": [
+				"273"
+			]
+		},
+		{
+			"skillId": "ex-0631",
+			"prevSkillIds": [
+				"280"
+			]
+		},
+		{
+			"skillId": "ex-0632",
+			"prevSkillIds": [
+				"281"
+			]
+		},
+		{
+			"skillId": "ex-0633",
+			"prevSkillIds": [
+				"284"
+			]
+		},
+		{
+			"skillId": "ex-0634",
+			"prevSkillIds": [
+				"285"
+			]
+		},
+		{
+			"skillId": "ex-0635",
+			"prevSkillIds": [
+				"289"
+			]
+		},
+		{
+			"skillId": "ex-0636",
+			"prevSkillIds": [
+				"290"
+			]
+		},
+		{
+			"skillId": "ex-0637",
+			"prevSkillIds": [
+				"294"
+			]
+		},
+		{
+			"skillId": "ex-0638",
+			"prevSkillIds": [
+				"296"
+			]
+		},
+		{
+			"skillId": "ex-0639",
+			"prevSkillIds": [
+				"303"
+			]
+		},
+		{
+			"skillId": "ex-0641",
+			"prevSkillIds": [
+				"310"
+			]
+		},
+		{
+			"skillId": "ex-0642",
+			"prevSkillIds": [
+				"311"
+			]
+		},
+		{
+			"skillId": "ex-0643",
+			"prevSkillIds": [
+				"313"
+			]
+		},
+		{
+			"skillId": "ex-0644",
+			"prevSkillIds": [
+				"395"
+			]
+		},
+		{
+			"skillId": "ex-0645",
+			"prevSkillIds": [
+				"319"
+			]
+		},
+		{
+			"skillId": "ex-0646",
+			"prevSkillIds": [
+				"320"
+			]
+		},
+		{
+			"skillId": "ex-0647",
+			"prevSkillIds": [
+				"322"
+			]
+		},
+		{
+			"skillId": "ex-0648",
+			"prevSkillIds": [
+				"327"
+			]
+		},
+		{
+			"skillId": "ex-0649",
+			"prevSkillIds": [
+				"328"
+			]
+		},
+		{
+			"skillId": "ex-0650",
+			"prevSkillIds": [
+				"338"
+			]
+		},
+		{
+			"skillId": "ex-0651",
+			"prevSkillIds": [
+				"340"
+			]
+		},
+		{
+			"skillId": "ex-0652",
+			"prevSkillIds": [
+				"343"
+			]
+		},
+		{
+			"skillId": "ex-0653",
+			"prevSkillIds": [
+				"348"
+			]
+		},
+		{
+			"skillId": "ex-0654",
+			"prevSkillIds": [
+				"352"
+			]
+		},
+		{
+			"skillId": "ex-0655",
+			"prevSkillIds": [
+				"355"
+			]
+		},
+		{
+			"skillId": "ex-0656",
+			"prevSkillIds": [
+				"356"
+			]
+		},
+		{
+			"skillId": "ex-0657",
+			"prevSkillIds": [
+				"369"
+			]
+		},
+		{
+			"skillId": "ex-0658",
+			"prevSkillIds": [
+				"370"
+			]
+		},
+		{
+			"skillId": "ex-0659",
+			"prevSkillIds": [
+				"371"
+			]
+		},
+		{
+			"skillId": "ex-0660",
+			"prevSkillIds": [
+				"375"
+			],
+			"hintRootSkillId": "375"
+		},
+		{
+			"skillId": "ex-0661",
+			"prevSkillIds": [
+				"376"
+			],
+			"hintRootSkillId": "376"
+		},
+		{
+			"skillId": "ex-0662",
+			"prevSkillIds": [
+				"378"
+			]
+		},
+		{
+			"skillId": "ex-0663",
+			"prevSkillIds": [
+				"380"
+			],
+			"hintRootSkillId": "380"
+		},
+		{
+			"skillId": "ex-0664",
+			"prevSkillIds": [
+				"382"
+			]
+		},
+		{
+			"skillId": "ex-0665",
+			"prevSkillIds": [
+				"384"
+			]
+		},
+		{
+			"skillId": "ex-0666",
+			"prevSkillIds": [
+				"386"
+			]
+		},
+		{
+			"skillId": "ex-0667",
+			"prevSkillIds": [
+				"389"
+			]
+		},
+		{
+			"skillId": "ex-0668",
+			"prevSkillIds": [
+				"390"
+			]
+		},
+		{
+			"skillId": "ex-0670",
+			"prevSkillIds": [
+				"396"
+			]
+		},
+		{
+			"skillId": "ex-0671",
+			"prevSkillIds": [
+				"398"
+			]
+		},
+		{
+			"skillId": "ex-0672",
+			"prevSkillIds": [
+				"400"
+			]
+		},
+		{
+			"skillId": "ex-0673",
+			"prevSkillIds": [
+				"401"
+			]
+		},
+		{
+			"skillId": "ex-0674",
+			"prevSkillIds": [
+				"405"
+			]
+		},
+		{
+			"skillId": "ex-0675",
+			"prevSkillIds": [
+				"409"
+			]
+		},
+		{
+			"skillId": "ex-0676",
+			"prevSkillIds": [
+				"410"
+			]
+		},
+		{
+			"skillId": "ex-0677",
+			"prevSkillIds": [
+				"412"
+			]
+		},
+		{
+			"skillId": "ex-0678",
+			"prevSkillIds": [
+				"413"
+			]
+		},
+		{
+			"skillId": "ex-0679",
+			"prevSkillIds": [
+				"414"
+			]
+		},
+		{
+			"skillId": "ex-0680",
+			"prevSkillIds": [
+				"415"
+			]
+		},
+		{
+			"skillId": "ex-0681",
+			"prevSkillIds": [
+				"416"
+			]
+		},
+		{
+			"skillId": "ex-0682",
+			"prevSkillIds": [
+				"417"
+			]
+		},
+		{
+			"skillId": "ex-0683",
+			"prevSkillIds": [
+				"418"
+			]
+		},
+		{
+			"skillId": "ex-0685",
+			"prevSkillIds": [
+				"420"
+			]
+		},
+		{
+			"skillId": "ex-0686",
+			"prevSkillIds": [
+				"427"
+			]
+		},
+		{
+			"skillId": "ex-0687",
+			"prevSkillIds": [
+				"428"
+			]
+		},
+		{
+			"skillId": "ex-0688",
+			"prevSkillIds": [
+				"429"
+			]
+		},
+		{
+			"skillId": "ex-0689",
+			"prevSkillIds": [
+				"430"
+			]
+		},
+		{
+			"skillId": "ex-0690",
+			"prevSkillIds": [
+				"431"
+			]
+		},
+		{
+			"skillId": "ex-0692",
+			"prevSkillIds": [
+				"432"
+			]
+		},
+		{
+			"skillId": "ex-0693",
+			"prevSkillIds": [
+				"434"
+			]
+		},
+		{
+			"skillId": "ex-0694",
+			"prevSkillIds": [
+				"435"
+			]
+		},
+		{
+			"skillId": "ex-0695",
+			"prevSkillIds": [
+				"436"
+			]
+		},
+		{
+			"skillId": "ex-0696",
+			"prevSkillIds": [
+				"437"
+			]
+		},
+		{
+			"skillId": "ex-0698",
+			"prevSkillIds": [
+				"439"
+			]
+		},
+		{
+			"skillId": "ex-0984",
+			"prevSkillIds": [
+				"ex-0533"
+			]
+		},
+		{
+			"skillId": "ex-0986",
+			"prevSkillIds": [
+				"ex-0987"
+			]
+		}
+	]
+}
