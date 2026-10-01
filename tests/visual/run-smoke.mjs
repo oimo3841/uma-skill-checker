@@ -12838,6 +12838,332 @@ await block('編成パネル ―― △を有効にする（段4）', async () =
 }
 });
 
+/* ============================================================
+ * 周回因子セットの必要スキルPt（段5・2026-10-01。設計は skill-pt-calculation-step0.md の 0節・2-5・2-10）
+ *
+ * 実際の special.html の②タブ。実データに依存しない: カードは実データから id だけ拾い、イベント・スキルPt・因子セットは仮のデータ
+ * （スキルは、そのカードの練習ヒントに入っていないものを master から id で拾う。名前は書かない）。
+ * 期待値はこの塊の中で、整数だけで独立に計算する（割引率 10・20・30・35・40・状態 0・4・10 を直に書く）。
+ *   仮のイベント: カードA … step1（3択: X0 Lv2・X1 Lv1／X0 Lv3／空）／step2（2択: X0 Lv1／X2 Lv2）／step3（確定: X3 Lv4）／step4（確定: X6 Lv2）
+ *                 カードB … step1（2択: X3 Lv3／空）／step2（確定: X4 Lv1）／step3（2択: X4 Lv1／空）　カードC … seeded で X5
+ *   仮の因子セット: Y0（超優先）・Y1（優先）・Y2・Y3（通常）・Y4（優先。Pt の行なし＝未収録）・Y5（超優先。Pt 不要＝pt:0）・X6（優先。本育成の●と重なる）
+ *   ①  3つの合計が期待値と一致し、累積（超優先だけ ＜ 優先まで ＜ 通常まで）。分類を変えると変わる
+ *   ②  因子セットだけのスキルは F の割引（既定5＝40%）。F を替えると変わる。保存して開き直しても残る（未保存・保存した因子セット）
+ *   ③  本育成と因子セットの両方にあるスキルは1回だけ・L = min(5, 本育成の由来 + F)（イベント Lv2・F 3 → 5／F 1 → 3）
+ *   ④  状態を本育成パネルで替えると、因子セットのスキルの Pt も変わる
+ *   ⑤  △を有効にすると本育成のぶんが増える／除外中に有効にして自動で外れたスキルは因子セットのぶんから減る
+ *   ⑥  Pt 未収録は合計に入れず件数／pt:0 は0を足す
+ *   ⑦  Deck 単体ページには出ない
+ *   ⑧  「理論値」のバッジと「?」　⑨ 読み込みの失敗　⑩ 本育成が0のとき「うち本育成」が出ない
+ *   ⑪  1280px と 375px で横にはみ出さない・コンソールエラー0件
+ * ============================================================ */
+await block('周回因子セットの必要スキルPt（段5）', async () => {
+{
+	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
+	const cardsAll = readJson('data/support-cards.json').entries;
+	const master = readJson('uma-skill-deck-skills.json').skills;
+	const [cA, cB, cC] = [cardsAll[0], cardsAll[1], cardsAll[2]];
+	const hinted = new Set([cA, cB, cC].flatMap((c) => (c.hintSkills || []).map((s) => s.skillId)));
+	const pool = master.filter((s) => !hinted.has(s.id));
+	const X = pool.slice(0, 7).map((s) => ({ skillId: s.id, name: s.name }));
+	const Y = pool.slice(7, 13).map((s) => ({ skillId: s.id, name: s.name }));
+	const ref = (i, lv) => ({ skillId: X[i].skillId, name: X[i].name, hintLevel: lv });
+	const evDoc = { dataVersion: '2026-10-01a', category: 'supportCardEventSkill', note: 'テスト用の仕込み', entries: [
+		{ cardId: cA.id, status: 'done', chain: [
+			{ step: 1, choices: [{ skills: [ref(0, 2), ref(1, 1)] }, { skills: [ref(0, 3)] }, { skills: [] }] },
+			{ step: 2, choices: [{ skills: [ref(0, 1)] }, { skills: [ref(2, 2)] }] },
+			{ step: 3, choices: [{ skills: [ref(3, 4)] }] },
+			{ step: 4, choices: [{ skills: [ref(6, 2)] }] }] },
+		{ cardId: cB.id, status: 'done', chain: [
+			{ step: 1, choices: [{ skills: [ref(3, 3)] }, { skills: [] }] },
+			{ step: 2, choices: [{ skills: [ref(4, 1)] }] },
+			{ step: 3, choices: [{ skills: [ref(4, 1)] }, { skills: [] }] }] },
+		{ cardId: cC.id, status: 'seeded', unplaced: [{ skillId: X[5].skillId, name: X[5].name }] },
+	] };
+	const cardIds = [cA.id, cB.id, cC.id, null, null, null];
+	const x = (i) => X[i].skillId;
+	const y = (i) => Y[i].skillId;
+	const DISC = [10, 20, 30, 35, 40];
+	const STATUS = { none: 0, benkyo: 4, kire: 10 };
+	const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+	const routes = async (page, ptDoc, rulesFail) => {
+		await page.route('**/data/support-card-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(evDoc) }));
+		await page.route('**/data/character-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8',
+			body: JSON.stringify({ dataVersion: '2026-09-30a', category: 'characterEventSkill', entries: [] }) }));
+		if (ptDoc) await page.route('**/data/skill-pt.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(ptDoc) }));
+		if (rulesFail) await page.route('**/data/skill-pt-rules.json*', (route) => route.fulfill({ status: 500, body: 'error' }));
+	};
+
+	// 本育成の由来（sources）を先に求める（Deck 単体ページで。panel は作らない）
+	const first = await openPage(browser, base, 'uma-skill-deck.html');
+	await routes(first.page, null);
+	const facts = await first.page.evaluate(async ({ cardIds }) => {
+		const Core = window.UmaSkillDeckCore;
+		await Core.loadTrainingSources(true);
+		const r = Core.computeRosterSkills({ umaId: '', cardIds: cardIds });
+		return { sources: r.sources.map((s) => ({ skillId: s.skillId, kind: s.kind, sure: s.sure, hintLevel: s.hintLevel, eventKey: s.eventKey })), ids: r.items.map((it) => it.skillId) };
+	}, { cardIds: cardIds });
+	await first.ctx.close();
+
+	// 仮の skill-pt.json: Y4 は行なし（未収録）、Y5 は pt:0、ほかは 90〜240 を巡回
+	const BASES = [90, 110, 130, 150, 180, 200, 240];
+	const baseOf = new Map();
+	[...new Set(facts.ids.concat([y(0), y(1), y(2), y(3), y(5), x(6)]))].sort().forEach((sid, k) => baseOf.set(sid, sid === y(5) ? 0 : BASES[k % BASES.length]));
+	const ptDoc = { dataVersion: '2026-10-01a', category: 'skillPt', note: 'テスト用の仕込み',
+		entries: Array.from(baseOf.entries()).map(([skillId, pt]) => ({ skillId, pt, rarity: pt === 0 ? 'unique' : 'white' })) };
+	const SCOPE_IDS = [y(0), y(1), y(2), y(3), y(4), y(5), x(6)];
+	const SCOPE_TIERS = { [y(0)]: 1, [y(5)]: 1, [y(2)]: 3, [y(3)]: 3 };
+
+	// 独立の期待値。st = { on: 有効な△の id, status, F, ids: 因子セットの id, tiers }
+	const expectedNeed = (st) => {
+		const by = new Map();
+		facts.sources.forEach((s) => {
+			const e = by.get(s.skillId) || { P: false, ev: new Map(), unsure: [] };
+			if (s.sure) { if (s.kind === 'hint') e.P = true; else e.ev.set(s.eventKey, Math.max(e.ev.get(s.eventKey) || 0, s.hintLevel || 0)); }
+			else e.unsure.push(s.hintLevel === null ? 0 : s.hintLevel);
+			by.set(s.skillId, e);
+		});
+		const tierOf = (sid) => (st.tiers && [1, 2, 3].includes(st.tiers[sid])) ? st.tiers[sid] : 2;
+		const calc = (cut) => {
+			const ids = new Set(by.keys());
+			(st.ids || []).forEach((sid) => { if (tierOf(sid) <= cut) ids.add(sid); });
+			let total = 0; let unpriced = 0; const levels = {};
+			ids.forEach((sid) => {
+				const e = by.get(sid);
+				const inFactor = (st.ids || []).includes(sid) && tierOf(sid) <= cut;
+				const roster = e && (e.P || e.ev.size > 0 || ((st.on || []).includes(sid) && e.unsure.length > 0));
+				if (!roster && !inFactor) return;
+				const E = e ? Array.from(e.ev.values()).reduce((a, b) => a + b, 0) : 0;
+				const T = e && (st.on || []).includes(sid) && e.unsure.length > 0 ? Math.max(...e.unsure) : 0;
+				const L = Math.min(5, (e && e.P ? 5 : 0) + E + T + (inFactor ? st.F : 0));
+				levels[sid] = L;
+				if (!baseOf.has(sid)) { unpriced++; return; }
+				total += Math.floor(baseOf.get(sid) * (100 - (L > 0 ? DISC[L - 1] : 0) - STATUS[st.status || 'none']) / 100);
+			});
+			return { total, unpriced, levels };
+		};
+		const rosterOnly = calc(0);
+		const cuts = [1, 2, 3].map(calc);
+		return { A: cuts[0].total, B: cuts[1].total, C: cuts[2].total, unpriced: cuts[2].unpriced, roster: rosterOnly.total, levels: cuts[2].levels, rosterCount: Array.from(by.keys()).filter((sid) => { const e = by.get(sid); return e.P || e.ev.size > 0 || ((st.on || []).includes(sid) && e.unsure.length > 0); }).length };
+	};
+
+	/* special を開く（①の編成と、②の因子セットのドラフトを仕込む） */
+	const openSpecial = async (o) => {
+		const sp = await openPage(browser, base, 'special.html', { width: o.w || 1280, height: o.h || 1000 }, o.userData);
+		await routes(sp.page, ptDoc, o.rulesFail);
+		await sp.page.evaluate(({ roster, scope }) => {
+			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster));
+			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope));
+		}, { roster: o.roster === undefined ? { umaId: '', cardIds: cardIds } : o.roster, scope: o.scope === undefined ? { skillIds: SCOPE_IDS, name: '', tiers: SCOPE_TIERS, updatedAt: '' } : o.scope });
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.evaluate(() => selectStepTab(0));
+		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"],#deck-roster-panel [data-usd-el="pt-error"]', { timeout: 10000 }).catch(() => {});
+		return sp;
+	};
+	const readNeed = (page) => page.evaluate(() => {
+		const el = document.querySelector('[data-usd-el="pt-need"]');
+		const num = (s) => Number((s || '').replace(/[^0-9]/g, ''));
+		const chip = (n) => { const e = el.querySelector('[data-usd-el="pt-need-' + n + '"]'); return e ? { label: e.firstChild.textContent.trim(), n: num(e.querySelector('strong').textContent) } : null; };
+		const t = (i) => { const e = el.querySelector('[data-usd-el="' + i + '"]'); return e ? e.textContent : null; };
+		const sel = el.querySelector('[data-usd-el="pt-parent-level"]');
+		return { hidden: el.hidden, empty: el.innerHTML === '', chips: [chip(1), chip(2), chip(3)], roster: t('pt-need-roster'), unpriced: t('pt-need-unpriced'), error: t('pt-need-error'),
+			theory: t('pt-need-theory'), F: sel ? Number(sel.value) : null, options: sel ? Array.from(sel.options).map((o) => o.value) : [] };
+	});
+	const readScope = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{"skillIds":[]}'));
+	const sameNeed = (v, e) => v.chips[0] && v.chips[0].n === e.A && v.chips[1].n === e.B && v.chips[2].n === e.C;
+	const base0 = { on: [], status: 'none', F: 5, ids: SCOPE_IDS, tiers: SCOPE_TIERS };
+
+	/* ① 3つの合計・累積・分類の変更 ／ ⑧ ／ ⑥ */
+	let sp = await openSpecial({});
+	let v = await readNeed(sp.page);
+	let e = expectedNeed(base0);
+	assert(!v.hidden && sameNeed(v, e), '段5(1): 3つの合計（超優先だけ・優先まで・通常まで）が、独立の期待値と一致する', { got: v.chips.map((c) => c && c.n), want: [e.A, e.B, e.C] });
+	assert(v.chips.map((c) => c.label).join('|') === '超優先だけ|優先まで|通常まで' && e.A < e.B && e.B < e.C && v.chips[0].n < v.chips[1].n && v.chips[1].n < v.chips[2].n,
+		'段5(1): 並びと名前は「超優先だけ」「優先まで」「通常まで」で、累積（＜）になっている（期待値の側でも3つとも増える＝空振りでない）', { chips: v.chips, e: [e.A, e.B, e.C] });
+	assert(v.theory === '理論値', '段5(8): 「理論値」のバッジがある', v.theory);
+	await sp.page.evaluate(() => selectStepTab(1));
+	await sp.page.click('[data-usd-el="pt-need-help-btn"]');
+	const help = await sp.page.evaluate(() => { const b = document.querySelector('[data-usd-el="pt-need-help-btn"]'); const x = document.querySelector('[data-usd-el="pt-need-help-box"]');
+		return b ? { expanded: b.getAttribute('aria-expanded'), hidden: x.hidden, text: x.textContent, cls: x.classList.contains('uma-help-box') } : null; });
+	assert(help && help.expanded === 'true' && !help.hidden && help.cls && help.text === '理論値（各スキルを最大のヒントレベルで得た場合のスキルPt）',
+		'段5(8): 「?」を押すと、既存の .uma-help-box で説明の全文が出る', help);
+	assert(v.unpriced === '（Pt 未収録 1種は含めていません）' && e.unpriced === 1,
+		'段5(6): Pt が未収録のスキル（Y4）は合計に入れず、「（Pt 未収録 1種は含めていません）」が出る（pt:0 の Y5 は未収録に数えない）', { unpriced: v.unpriced });
+	assert(v.roster === '（うち本育成 ' + fmt(e.roster) + '）' && e.roster > 0, '段5(1): 「（うち本育成 X）」は本育成のぶんの合計', { got: v.roster, want: e.roster });
+	// 分類を変える（優先の Y1 を超優先へ）→ 超優先だけ・優先までが増え、通常までは変わらない
+	await sp.page.click('[data-usd-act="mode-reclass"]');
+	await sp.page.click('[data-usd-act="tier-move"][data-skill-id="' + y(1) + '"][data-tier="1"]');
+	v = await readNeed(sp.page);
+	const tiers2 = Object.assign({}, SCOPE_TIERS, { [y(1)]: 1 });
+	e = expectedNeed(Object.assign({}, base0, { tiers: tiers2 }));
+	assert(sameNeed(v, e) && e.A > expectedNeed(base0).A && e.C === expectedNeed(base0).C && (await readScope(sp.page)).tiers[y(1)] === 1,
+		'段5(1): 分類を変える（Y1 を超優先へ）と、超優先だけが増え、通常までは変わらない', { got: v.chips.map((c) => c.n), want: [e.A, e.B, e.C] });
+
+	/* ② F ・保存 ／ ④ 状態 */
+	assert(v.F === 5 && v.options.join() === '5,4,3,2,1', '段5(2): 親由来のレベルは 5・4・3・2・1 から選べ、既定は 5（0 は無い）', { F: v.F, options: v.options });
+	await sp.page.selectOption('[data-usd-el="pt-parent-level"]', '3');
+	v = await readNeed(sp.page);
+	const ex3 = expectedNeed(Object.assign({}, base0, { tiers: tiers2, F: 3 }));
+	assert(sameNeed(v, ex3) && ex3.C !== e.C && v.F === 3, '段5(2): F を 3 に替えると、因子セットだけのスキルは L=3（35%引き）で計算され、合計が変わる', { got: v.chips.map((c) => c.n), want: [ex3.A, ex3.B, ex3.C] });
+	const draft = await readScope(sp.page);
+	assert(draft.parentHintLevel === 3, '段5(2): 未保存の因子セットのドラフトに parentHintLevel が保存される', draft.parentHintLevel);
+	// 状態（①の本育成パネル）。因子セットだけのスキルの Pt も変わる
+	await sp.page.evaluate(() => selectStepTab(0));
+	await sp.page.click('#deck-roster-panel input[data-usd-act="pt-status"][value="kire"]');
+	v = await readNeed(sp.page);
+	const exK = expectedNeed(Object.assign({}, base0, { tiers: tiers2, F: 3, status: 'kire' }));
+	assert(sameNeed(v, exK) && exK.A < ex3.A, '段5(4): 状態（切れ者）を本育成パネルで替えると、因子セットだけのスキルを含めて合計が変わる（10%引きが加わる）', { got: v.chips.map((c) => c.n), want: [exK.A, exK.B, exK.C] });
+	await sp.page.click('#deck-roster-panel input[data-usd-act="pt-status"][value="none"]');
+	// 開き直し（未保存）
+	await sp.page.reload({ waitUntil: 'networkidle' });
+	for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+	await sp.page.waitForSelector('[data-usd-el="pt-need"]:not([hidden])');
+	v = await readNeed(sp.page);
+	assert(v.F === 3 && sameNeed(v, ex3), '段5(2): 未保存の因子セットを開き直しても F が残る（合計も同じ）', { F: v.F, got: v.chips.map((c) => c.n) });
+	// 保存した因子セット
+	await sp.page.evaluate(() => selectStepTab(1));
+	await sp.page.fill('[data-usd-el="name-input"]', '段5の検査');
+	await sp.page.click('[data-usd-act="template-save"]');
+	const savedRaw = await sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:userData')).templates.map((t) => ({ id: t.templateId, F: t.parentHintLevel, tiers: t.tiers })));
+	assert(savedRaw.length >= 1 && savedRaw[savedRaw.length - 1].F === 3, '段5(2): 保存した因子セット（template）に parentHintLevel が入る', savedRaw);
+	// 開き直し: 保存した因子セット（userData の template。parentHintLevel を持つ）を別のページで開いて選ぶ
+	// （openPage は読み込みのたびに userData を仕込み直すので、同じページの reload では保存が消える。保存の形は上で見た）
+	await sp.ctx.close();
+	const UD = Object.assign({}, USER_DATA, { templates: USER_DATA.templates.concat([{ templateId: 'tpl_s5', name: '段5', skillIds: SCOPE_IDS, tiers: tiers2, parentHintLevel: 3,
+		createdAt: '2026-10-01T00:00:00.000Z', updatedAt: '2026-10-01T00:00:00.000Z' }]) });
+	sp = await openSpecial({ userData: UD, scope: { skillIds: [], name: '', updatedAt: '' } });
+	await sp.page.evaluate(() => selectStepTab(1));
+	await sp.page.evaluate(() => document.querySelector('[data-usd-act="template-tab"][data-tab-id="tpl_s5"]').click());
+	v = await readNeed(sp.page);
+	assert(v.F === 3 && sameNeed(v, ex3), '段5(2): 保存した因子セットを選ぶと、保存してある F（3）で表示・計算される（合計も同じ）', { F: v.F, got: v.chips.map((c) => c.n), want: [ex3.A, ex3.B, ex3.C] });
+	await sp.page.evaluate(() => document.querySelector('[data-usd-act="template-tab"][data-tab-id="tpl_demo01"]').click());
+	await sp.page.evaluate(() => document.querySelector('[data-usd-act="template-tab"][data-tab-id="tpl_s5"]').click());
+	v = await readNeed(sp.page);
+	assert(v.F === 3, '段5(2): ほかのセットへ移って戻っても F が残る', v.F);
+	// 設定を触らない因子セットには parentHintLevel を足さない（既定は使うところで補う）
+	const noF = await openSpecial({});
+	const rawScope = await readScope(noF.page);
+	assert(!('parentHintLevel' in rawScope), '段5(2): F を1度も触っていない因子セットのドラフトに parentHintLevel を足さない（読み込み時に補わない）', rawScope);
+	// 知らない値は 5 として計算し、保存データは書き換えない
+	await noF.page.evaluate((ids) => localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify({ skillIds: ids, name: '', parentHintLevel: 9, updatedAt: '' })), SCOPE_IDS);
+	await noF.page.reload({ waitUntil: 'networkidle' });
+	for (let i = 0; i < 2; i++) if (await noF.page.isVisible('#ui-notice')) await noF.page.click('[data-act="notice-ok"]');
+	await noF.page.waitForSelector('[data-usd-el="pt-need"]:not([hidden])');
+	v = await readNeed(noF.page);
+	const keep = await readScope(noF.page);
+	assert(v.F === 5 && sameNeed(v, expectedNeed({ on: [], status: 'none', F: 5, ids: SCOPE_IDS, tiers: {} })) && keep.parentHintLevel === 9,
+		'段5(2): 知らない値（9）は 5 として計算し、保存データは書き換えない', { F: v.F, kept: keep.parentHintLevel });
+	await noF.ctx.close();
+
+	/* ⑤ △の有効化・除外中の自動の取り外し（同じ special。F=3・分類は仕込みどおりのドラフトで） */
+	await sp.ctx.close();
+	sp = await openSpecial({ scope: { skillIds: SCOPE_IDS.concat([x(1)]), name: '', tiers: SCOPE_TIERS, parentHintLevel: 3, updatedAt: '' } });
+	const ids5 = SCOPE_IDS.concat([x(1)]);
+	e = expectedNeed({ on: [], status: 'none', F: 3, ids: ids5, tiers: SCOPE_TIERS });
+	v = await readNeed(sp.page);
+	assert(sameNeed(v, e), '段5(5): （準備）X1（△だけ）も因子セットに入れた状態の3つの合計が期待値と一致する', { got: v.chips.map((c) => c.n), want: [e.A, e.B, e.C] });
+	await sp.page.click('#deck-roster-panel [data-usd-act="pt-enable"][data-skill-id="' + x(1) + '"]');
+	v = await readNeed(sp.page);
+	const e5 = expectedNeed({ on: [x(1)], status: 'none', F: 3, ids: ids5, tiers: SCOPE_TIERS });
+	assert(sameNeed(v, e5) && e5.roster > e.roster && e5.C !== e.C && v.roster === '（うち本育成 ' + fmt(e5.roster) + '）',
+		'段5(5): 本育成の△を有効にすると、本育成のぶん（うち本育成）が増え、3つの合計も変わる（X1 は本育成の T と親の F が足される）', { got: v.chips.map((c) => c.n), want: [e5.A, e5.B, e5.C], roster: v.roster });
+	await sp.page.click('#deck-roster-panel [data-usd-act="pt-enable"][data-skill-id="' + x(1) + '"]');   // 有効を外す
+	// 除外を押してから有効にする → X1 は因子セットから自動で外れ、因子セットのぶんから減る
+	await sp.page.click('#deck-roster-panel [data-usd-act="exclude"]');
+	const chooser = '[data-usd-el="roster-modal-host"] [data-usd-act="exclude-into"]';
+	if (await sp.page.isVisible(chooser)) await sp.page.click(chooser);
+	const afterExclude = await readScope(sp.page);
+	await sp.page.click('#deck-roster-panel [data-usd-act="pt-enable"][data-skill-id="' + x(1) + '"]');
+	const scope5 = await readScope(sp.page);
+	v = await readNeed(sp.page);
+	const e5b = expectedNeed({ on: [x(1)], status: 'none', F: 3, ids: scope5.skillIds, tiers: scope5.tiers || {} });
+	assert(afterExclude.skillIds.includes(x(1)) && !scope5.skillIds.includes(x(1)) && sameNeed(v, e5b),
+		'段5(5): 除外中に有効にした X1 は因子セットから自動で外れ、3つの合計は因子セットのぶんから減った値になる（本育成の T だけが残る）', { got: v.chips.map((c) => c.n), want: [e5b.A, e5b.B, e5b.C], scope: scope5.skillIds.length });
+	await sp.ctx.close();
+
+	/* ③ 重なったスキルは1回だけ・L = min(5, 本育成の由来 + F)。因子セットは X6（本育成のイベント Lv2 の●）だけ */
+	const roster0 = expectedNeed({ on: [], status: 'none', F: 5, ids: [], tiers: {} });
+	const lvTotal = (sid, L) => Math.floor(baseOf.get(sid) * (100 - DISC[L - 1]) / 100);
+	sp = await openSpecial({ scope: { skillIds: [x(6)], name: '', updatedAt: '' } });
+	await sp.page.evaluate(() => selectStepTab(1));
+	v = await readNeed(sp.page);
+	let want = roster0.C - lvTotal(x(6), 2) + lvTotal(x(6), 5);
+	assert(v.chips[0].n === roster0.C && v.chips[1].n === want && v.chips[2].n === want && want !== roster0.C && roster0.levels[x(6)] === 2,
+		'段5(3): 本育成のイベント（Lv2）と因子セット（F 5）の両方にある X6 は1回だけ数え、L = min(5, 2+5) = 5（二重に足さない）。分類が優先なので、超優先だけには親のぶんが入らない', { got: v.chips.map((c) => c.n), want, rosterOnly: roster0.C });
+	await sp.page.selectOption('[data-usd-el="pt-parent-level"]', '3');
+	v = await readNeed(sp.page);
+	want = roster0.C - lvTotal(x(6), 2) + lvTotal(x(6), 5);
+	assert(v.chips[0].n === roster0.C && v.chips[1].n === want && v.chips[2].n === want, '段5(3): F 3 → L = min(5, 2+3) = 5', { got: v.chips.map((c) => c.n), want });
+	await sp.page.selectOption('[data-usd-el="pt-parent-level"]', '1');
+	v = await readNeed(sp.page);
+	want = roster0.C - lvTotal(x(6), 2) + lvTotal(x(6), 3);
+	assert(v.chips[0].n === roster0.C && v.chips[1].n === want && v.chips[2].n === want && lvTotal(x(6), 3) !== lvTotal(x(6), 5), '段5(3): F 1 → L = min(5, 2+1) = 3', { got: v.chips.map((c) => c.n), want });
+	await sp.ctx.close();
+
+	/* ⑩ 本育成のスキルが0のとき、「うち本育成」の行が出ない（因子セットだけの合計）／両方空なら出ない */
+	sp = await openSpecial({ roster: { umaId: '', cardIds: new Array(6).fill(null) } });
+	v = await readNeed(sp.page);
+	e = expectedNeed({ on: [], status: 'none', F: 5, ids: [], tiers: {} });
+	const factorOnly = (cut) => SCOPE_IDS.filter((sid) => (SCOPE_TIERS[sid] || 2) <= cut && baseOf.has(sid)).reduce((a, sid) => a + Math.floor(baseOf.get(sid) * 60 / 100), 0);
+	assert(!v.hidden && v.roster === null && v.chips[0].n === factorOnly(1) && v.chips[1].n === factorOnly(2) && v.chips[2].n === factorOnly(3),
+		'段5(10): 本育成のスキルが0のときは「うち本育成」の行が出ず、合計は因子セットだけのスキル（L=F=5）の Pt', { roster: v.roster, got: v.chips.map((c) => c && c.n) });
+	await sp.ctx.close();
+	sp = await openSpecial({ roster: { umaId: '', cardIds: new Array(6).fill(null) }, scope: { skillIds: [], name: '', updatedAt: '' } });
+	v = await readNeed(sp.page);
+	assert(v.hidden && v.empty, '段5(10): 本育成も因子セットも空のときは、必要スキルPt を出さない', v);
+	await sp.ctx.close();
+
+	/* ⑨ 読み込みの失敗 */
+	sp = await openSpecial({ rulesFail: true });
+	v = await readNeed(sp.page);
+	const brokenRows = await sp.page.evaluate(() => document.querySelectorAll('#deck-roster-panel .usd-roster-grow').length);
+	const failErrs = sp.errors.filter((m) => !/Failed to load resource|status of 500|404/.test(m));
+	assert(!v.hidden && v.error === 'Pt のデータを読み込めませんでした' && v.chips.every((c) => c === null) && v.F === null && brokenRows > 3 && failErrs.length === 0,
+		'段5(9): Pt のデータを読み込めなくても、パネルは壊れず（①の表は出る）、②に知らせが出て、必要Ptは出さない（例外なし）', { v, brokenRows, failErrs: failErrs.slice(0, 2) });
+	await sp.ctx.close();
+
+	/* ⑦ Deck 単体ページには出ない */
+	const dk = await openPage(browser, base, 'uma-skill-deck.html');
+	const dkReqs = []; dk.page.on('request', (r) => { if (/skill-pt|skill-step-up/.test(r.url())) dkReqs.push(r.url()); });
+	await routes(dk.page, ptDoc);
+	const dkv = await dk.page.evaluate(async ({ cardIds }) => {
+		await window.UmaSkillDeckCore.loadTrainingSources(true);
+		const host = document.createElement('div'); document.body.appendChild(host);
+		localStorage.setItem('umaSkillDeck:draftRoster:dk', JSON.stringify({ umaId: '', cardIds: cardIds }));
+		window.UmaSkillDeckCore.createRosterPanel(host, { draftKey: 'dk' });
+		for (let i = 0; i < 40 && !host.querySelector('[data-usd-el="pt-sum"]'); i++) await new Promise((r) => setTimeout(r, 50));
+		const el = document.querySelector('[data-usd-el="pt-need"]');
+		return { has: !!el, hidden: el ? el.hidden : null, empty: el ? el.innerHTML === '' : null, select: !!document.querySelector('[data-usd-el="pt-parent-level"]'),
+			tierRow: !!document.querySelector('[data-usd-el="tier-row"]') };
+	}, { cardIds: cardIds });
+	assert(dkv.hidden === true && dkv.empty === true && !dkv.select && dkv.tierRow,
+		'段5(7): Deck 単体ページには、必要スキルPt も親由来のレベルの選択も出ない（編成パネルを置いても。分類の行は従来どおり出る）', dkv);
+	await dk.ctx.close();
+	const dk2 = await openPage(browser, base, 'uma-skill-deck.html');
+	const dk2Reqs = []; dk2.page.on('request', (r) => { if (/skill-pt|skill-step-up/.test(r.url())) dk2Reqs.push(r.url()); });
+	await dk2.page.reload({ waitUntil: 'networkidle' });
+	assert(dk2Reqs.length === 0, '段5(7): Deck 単体ページの読み込みでは skill-pt.json を取りに行かない', dk2Reqs);
+	await dk2.ctx.close();
+
+	/* ⑪ 幅 */
+	for (const [w, h] of [[1280, 1000], [375, 900]]) {
+		sp = await openSpecial({ w, h });
+		await sp.page.evaluate(() => selectStepTab(1));
+		const g = await sp.page.evaluate(() => {
+			const el = document.querySelector('[data-usd-el="pt-need"]');
+			const chips = Array.from(el.querySelectorAll('.usd-ptneed-chip'));
+			return { hidden: el.hidden, page: document.documentElement.scrollWidth - window.innerWidth, box: el.scrollWidth - el.clientWidth,
+				chipOut: chips.filter((c) => c.getBoundingClientRect().right > el.getBoundingClientRect().right + 1).length, chips: chips.length };
+		});
+		assert(!g.hidden && g.page <= 0 && g.box <= 0 && g.chipOut === 0 && g.chips === 3, '段5(11): ' + w + 'px の②タブで、必要スキルPt（3つの合計のチップ・親由来のレベル）が横にはみ出さない', g);
+		const other = sp.errors.filter((m) => !/Failed to load resource|status of 404/.test(m));
+		assert(other.length === 0, '段5(11): ' + w + 'px でコンソールエラーなし', other.slice(0, 3));
+		await sp.ctx.close();
+	}
+}
+});
+
 await browser.close();
 await close();
 
