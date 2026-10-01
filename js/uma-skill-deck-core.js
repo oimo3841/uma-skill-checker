@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-02a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-02b';
 
 	/* ============================================================
 	 * 定数
@@ -1882,7 +1882,51 @@
 			}
 			items.push(item);
 		});
+
+		// 4. 前段（段4b）。本育成のスキル（●＋有効な△）と因子セットのスキル（included）それぞれの前段を、前段データ（stepUp.prevOf）で
+		//    さかのぼって全部たどり、included に無いものを「前段として必要」として1回だけ数える。**total は前段を含めない**
+		//    （段3・段4 の合計の意味を変えない）。前段データが無い（stepUp が null）ときは何もしない＝段5 までの動きのまま。
+		//    前段の Pt は各段で独立に計算する: L は系列の根（rootOf）の L を使い（◎は○の L を援用・金は金自身の L）、
+		//    根に由来が無ければ L=0。すでに included にあるもの（ほかの由来・因子セット）は前段として数えず（二重にしない）、chains に印だけ残す。
+		const prevOf = (a.stepUp && typeof a.stepUp.prevOf === 'function') ? a.stepUp.prevOf : null;
+		const prevItems = [];
+		const prevUnpriced = [];
+		const chains = [];
+		let prevTotal = 0;
+		if (prevOf) {
+			const inIncluded = new Set(included.map(e => e.skillId));
+			const counted = new Map();
+			// さかのぼった前段を、古い順（根に近いほうが先）に並べる。循環があっても止まる
+			const ancestorsOf = (id) => {
+				const out = [];
+				const seen = new Set([id]);
+				const walk = (x) => { prevOf(x).forEach(p => { if (seen.has(p)) return; seen.add(p); walk(p); out.push(p); }); };
+				walk(id);
+				return out;
+			};
+			included.forEach(e => {
+				const anc = ancestorsOf(e.skillId);
+				if (anc.length === 0) return;
+				chains.push({ skillId: e.skillId, ancestors: anc.map(id => ({ skillId: id, inTable: inIncluded.has(id) })) });
+				anc.forEach(id => {
+					if (inIncluded.has(id)) return;
+					if (counted.has(id)) { counted.get(id).neededFor.push(e.skillId); return; }
+					const rootId = rootOf(id);
+					const r = roots.get(rootId);
+					const level = r ? sumHintLevel({ practice: r.practice, eventLevels: Array.from(r.events.values()), enabledLevel: r.enabledLevel,
+						umaLevel: r.uma ? umaLevel : 0, parentLevel: r.parentLevel }, rules) : 0;
+					const row = ptIndex ? ptIndex.get(id) : undefined;
+					const item = { skillId: id, rootSkillId: rootId, hintLevel: level, base: row ? row.pt : null, rarity: row ? row.rarity : null, pt: null, neededFor: [e.skillId] };
+					if (row) { item.pt = computeSkillPt(row.pt, level, statusId, rules); prevTotal += item.pt; }
+					else prevUnpriced.push(id);
+					counted.set(id, item);
+					prevItems.push(item);
+				});
+			});
+		}
 		return { ok: true, items: items, total: total, subtotals: subtotals, unpriced: unpriced, unpricedCount: unpriced.length,
+			prevItems: prevItems, prevTotal: prevTotal, prevUnpriced: prevUnpriced, chains: chains,
+			totalWithPrev: total + prevTotal, allUnpricedCount: unpriced.length + prevUnpriced.length,
 			unknownLevelCount: unknownLevelCount, unknownLevelSkillIds: Array.from(unknownSkillIds), statusId: statusId || 'none', umaHintLevel: umaLevel };
 	}
 
@@ -1961,10 +2005,11 @@
 			const parents = {};
 			factorIds.forEach(id => { if (tierOf(a.tiers, id) <= t.id) parents[id] = F; });
 			const r = run(parents);
-			return { tier: t.id, label: t.label + (i === 0 ? 'だけ' : 'まで'), total: r.total, count: r.items.length, unpricedCount: r.unpricedCount };
+			return { tier: t.id, label: t.label + (i === 0 ? 'だけ' : 'まで'), total: r.totalWithPrev, count: r.items.length, unpricedCount: r.allUnpricedCount, prevCount: r.prevItems.length, prevTotal: r.prevTotal };
 		});
 		return { ok: true, parentHintLevel: F,
-			roster: { total: base.total, count: base.items.length, unpricedCount: base.unpricedCount },
+			// total は前段を含む値（本育成パネルの「前段を含む合計」と同じ）。本育成のスキルだけの値は own
+			roster: { total: base.totalWithPrev, own: base.total, count: base.items.length, unpricedCount: base.allUnpricedCount, prevCount: base.prevItems.length, prevTotal: base.prevTotal },
 			cuts: cuts, unpricedCount: cuts[cuts.length - 1].unpricedCount, overlapRaisable: overlapRaisable };
 	}
 
@@ -4960,6 +5005,43 @@
 			return h;
 		}
 
+		/**
+		 * 前段として必要（段4b）。「前段として必要 K種 P Pt」・各スキルの名前と Pt（最大5つ。残りは「ほか N 種」）・「前段を含む合計 T Pt」。
+		 * 前段が無いときは何も出さない。連鎖が2段以上のときは段の順を「→」で示し、途中の段が本育成の表にあるものは「（本育成）」を添えて Pt は数えない。
+		 */
+		function prevHtml(view) {
+			const pt = view.pt;
+			if (!pt.prevItems || pt.prevItems.length === 0) return '';
+			const byId = new Map(pt.prevItems.map(x => [x.skillId, x]));
+			const text = (x) => getSkillName(x.skillId) + ' ' + (x.base === null ? 'Pt 未収録' : x.pt);
+			const shown = new Set();
+			const parts = [];
+			let shownCount = 0;
+			const LIMIT = 5;
+			pt.chains.forEach(c => {
+				// この連鎖で、まだ出していない前段（Pt を数えたもの）が無ければ飛ばす
+				const fresh = c.ancestors.filter(a => !a.inTable && byId.has(a.skillId) && !shown.has(a.skillId));
+				if (fresh.length === 0 || shownCount >= LIMIT) return;
+				const seq = c.ancestors.filter(a => a.inTable || (byId.has(a.skillId) && !shown.has(a.skillId)));
+				const room = LIMIT - shownCount;
+				let used = 0;
+				const seg = [];
+				seq.forEach(a => {
+					if (a.inTable) { seg.push(getSkillName(a.skillId) + '（本育成）'); return; }
+					if (used >= room) return;
+					used++; shown.add(a.skillId); seg.push(text(byId.get(a.skillId)));
+				});
+				shownCount += used;
+				parts.push(seg.join(' → '));
+			});
+			const rest = pt.prevItems.length - shownCount;
+			let h = '<p class="usd-roster-prev" data-usd-el="pt-prev">前段として必要 <strong data-usd-el="pt-prev-count">' + pt.prevItems.length + '</strong>種 <strong data-usd-el="pt-prev-total">'
+				+ formatPtNumber(pt.prevTotal) + '</strong> Pt</p>';
+			h += '<p class="usd-roster-note" data-usd-el="pt-prev-list">（' + esc(parts.join(' ／ ')) + (rest > 0 ? (parts.length ? ' ／ ' : '') + 'ほか ' + rest + '種' : '') + '）</p>';
+			h += '<p class="usd-roster-prev" data-usd-el="pt-with-prev">前段を含む合計 <strong data-usd-el="pt-with-prev-total">' + formatPtNumber(pt.totalWithPrev) + '</strong> Pt</p>';
+			return h;
+		}
+
 		/** 合計の行（合計・「理論値」のバッジと「?」・由来ごとの小計・Pt 未収録の件数）。 */
 		function ptSummaryHtml(view) {
 			const pt = view.pt;
@@ -4974,12 +5056,14 @@
 			h += '<p class="usd-roster-note" data-usd-el="pt-sub">ヒント ' + formatPtNumber(pt.subtotals.hint)
 				+ ' ／ イベント ' + formatPtNumber(pt.subtotals.event)
 				+ ' ／ 育成ウマ娘 ' + formatPtNumber(pt.subtotals.uma) + '</p>';
+			h += prevHtml(view);
 			if (view.res.enabledIds.length > 0) {
 				h += '<p class="usd-roster-note" data-usd-el="pt-enabled">（有効な△ ' + view.res.enabledIds.length + '種を含む）</p>';
 			}
-			if (pt.unpricedCount > 0) {
-				h += '<p class="usd-roster-note" data-usd-el="pt-unpriced">（Pt 未収録 ' + pt.unpricedCount + '種は含めていません）</p>';
+			if (pt.allUnpricedCount > 0) {
+				h += '<p class="usd-roster-note" data-usd-el="pt-unpriced">（Pt 未収録 ' + pt.allUnpricedCount + '種は含めていません）</p>';
 			}
+			if (skillPtData.meta.stepUp === 'failed') h += '<p class="usd-roster-note" data-usd-el="pt-prev-error">前段のデータを読み込めませんでした</p>';
 			if (pt.unknownLevelSkillIds.length > 0) {
 				h += '<p class="usd-roster-note" data-usd-el="pt-unknown">ヒントレベルが不明なスキル ' + pt.unknownLevelSkillIds.length + '種は Lv0 として計算しています</p>';
 			}
@@ -6128,6 +6212,7 @@
 			// 重なるスキル（本育成と因子セットの両方）が、本育成だけでは L が上限未満のとき、合計が「超優先だけ」より小さくなりうることを説明する
 			if (r.roster.count > 0 && r.overlapRaisable > 0) h += '<p class="usd-roster-note" data-usd-el="pt-need-overlap">重なるスキルは、親から得ると、ヒントレベルが上がって安くなります。</p>';
 			if (r.unpricedCount > 0) h += '<p class="usd-roster-note" data-usd-el="pt-need-unpriced">（Pt 未収録 ' + r.unpricedCount + '種は含めていません）</p>';
+			if (skillPtData.meta.stepUp === 'failed') h += '<p class="usd-roster-note" data-usd-el="pt-need-prev-error">前段のデータを読み込めませんでした</p>';
 			h += '<label class="usd-ptneed-f"><span class="usd-roster-setlabel">親由来のレベル</span>'
 				+ '<select class="uma-input usd-ptneed-select" data-usd-act="pt-parent-level" data-usd-el="pt-parent-level" aria-label="親由来のレベル">'
 				+ parentHintLevelChoices(rules).map(lv => '<option value="' + lv + '"' + (lv === F ? ' selected' : '') + '>' + lv + '</option>').join('')
