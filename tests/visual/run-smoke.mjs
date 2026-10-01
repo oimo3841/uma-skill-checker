@@ -13146,6 +13146,64 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	assert(dk2Reqs.length === 0, '段5(7): Deck 単体ページの読み込みでは skill-pt.json を取りに行かない', dk2Reqs);
 	await dk2.ctx.close();
 
+	/* ⑬ 「うち本育成」の補足文: 本育成と因子セットの両方にあるスキルのうち、本育成の由来だけの L が 5 未満のものが1つ以上あるときだけ出る */
+	const NOTE = '重なるスキルは、親から得ると、ヒントレベルが上がって安くなります。';
+	const hintId = [cA, cB, cC].flatMap((c) => (c.dataStatus && c.dataStatus.hint === 'done') ? (c.hintSkills || []).map((s) => s.skillId) : []).find((sid) => baseOf.has(sid));
+	const readOverlap = (page) => page.evaluate(() => {
+		const el = document.querySelector('[data-usd-el="pt-need"]');
+		const n = el.querySelector('[data-usd-el="pt-need-overlap"]');
+		const ro = el.querySelector('[data-usd-el="pt-need-roster"]');
+		return { note: n ? n.textContent : null, roster: ro ? ro.textContent : null, chips: [1, 2, 3].map((k) => Number(el.querySelector('[data-usd-el="pt-need-' + k + '"] strong').textContent.replace(/[^0-9]/g, ''))) };
+	});
+	// (1) 重なるスキル X6（本育成のイベント Lv2 → L2）がある → 出る。値は変わらない（うち本育成・3つの合計）
+	sp = await openSpecial({ scope: { skillIds: [x(6)], name: '', updatedAt: '' } });
+	await sp.page.evaluate(() => selectStepTab(1));
+	v = await readOverlap(sp.page);
+	assert(hintId && v.note === NOTE && v.roster === '（うち本育成 ' + fmt(roster0.C) + '）' && v.chips[0] === roster0.C,
+		'段5(13): 重なるスキル（本育成のイベント Lv2）があるとき、「うち本育成」の下に補足文「' + NOTE + '」が出る。「うち本育成」の値と3つの合計は変わらない', v);
+	const noteStyle = await sp.page.evaluate(() => { const n = document.querySelector('[data-usd-el="pt-need-overlap"]'); const ro = document.querySelector('[data-usd-el="pt-need-roster"]');
+		const cs = getComputedStyle(n); const cr = getComputedStyle(ro);
+		return { sameClass: n.className === ro.className, order: !!(ro.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING), size: cs.fontSize, color: cs.color, sizeRoster: cr.fontSize, colorRoster: cr.color }; });
+	assert(noteStyle.sameClass && noteStyle.order && noteStyle.size === noteStyle.sizeRoster && noteStyle.color === noteStyle.colorRoster,
+		'段5(13): 補足文は「うち本育成」の行の下に、同じ小さく薄い色で出る', noteStyle);
+	await sp.ctx.close();
+	// (2) 重なるスキルが、本育成だけで L=5（練習のヒント）のもの → 出ない
+	sp = await openSpecial({ scope: { skillIds: [hintId], name: '', updatedAt: '' } });
+	await sp.page.evaluate(() => selectStepTab(1));
+	v = await readOverlap(sp.page);
+	assert(v.roster !== null && v.note === null, '段5(13): 重なるスキルがすべて本育成だけで L=5（練習のヒント）のときは、補足文が出ない', v);
+	await sp.ctx.close();
+	// (3) 重なりが無い → 出ない
+	sp = await openSpecial({ scope: { skillIds: [y(0)], name: '', updatedAt: '' } });
+	await sp.page.evaluate(() => selectStepTab(1));
+	v = await readOverlap(sp.page);
+	assert(v.roster !== null && v.note === null, '段5(13): 重なるスキルが無いときは、補足文が出ない', v);
+	await sp.ctx.close();
+	// (4) L=5 のものと L<5 のものが混ざる → 出る
+	sp = await openSpecial({ scope: { skillIds: [hintId, x(6)], name: '', updatedAt: '' } });
+	await sp.page.evaluate(() => selectStepTab(1));
+	v = await readOverlap(sp.page);
+	assert(v.note === NOTE, '段5(13): L=5 のものと L が 5 未満のものが混ざるときは、1つでも 5 未満があれば出る', v);
+	await sp.ctx.close();
+	// (5) 本育成のスキルが0 → 「うち本育成」の行も補足文も出ない
+	sp = await openSpecial({ roster: { umaId: '', cardIds: new Array(6).fill(null) }, scope: { skillIds: [x(6)], name: '', updatedAt: '' } });
+	await sp.page.evaluate(() => selectStepTab(1));
+	v = await readOverlap(sp.page);
+	assert(v.roster === null && v.note === null, '段5(13): 本育成のスキルが0のときは、「うち本育成」の行も補足文も出ない', v);
+	await sp.ctx.close();
+	// (6) 375px: 折り返してはみ出さない
+	sp = await openSpecial({ w: 375, h: 900, scope: { skillIds: [x(6)], name: '', updatedAt: '' } });
+	await sp.page.evaluate(() => selectStepTab(1));
+	const g13 = await sp.page.evaluate(() => {
+		const el = document.querySelector('[data-usd-el="pt-need"]');
+		const n = el.querySelector('[data-usd-el="pt-need-overlap"]');
+		const r = n.getBoundingClientRect(); const b = el.getBoundingClientRect();
+		return { page: document.documentElement.scrollWidth - window.innerWidth, box: el.scrollWidth - el.clientWidth, noteOver: n.scrollWidth - n.clientWidth,
+			inside: r.right <= b.right + 1 && r.left >= b.left - 1, lines: Math.round(r.height / parseFloat(getComputedStyle(n).lineHeight)) };
+	});
+	assert(g13.page <= 0 && g13.box <= 0 && g13.noteOver <= 0 && g13.inside, '段5(13): 375px で、補足文が折り返して（' + g13.lines + '行）、横にはみ出さない', g13);
+	await sp.ctx.close();
+
 	/* ⑪ 幅 */
 	for (const [w, h] of [[1280, 1000], [375, 900]]) {
 		sp = await openSpecial({ w, h });
