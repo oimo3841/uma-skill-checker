@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-01b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-01c';
 
 	/* ============================================================
 	 * 定数
@@ -741,6 +741,8 @@
 			const out = { skillIds: parsed.skillIds.slice(), name: typeof parsed.name === 'string' ? parsed.name : '', updatedAt: parsed.updatedAt || '' };
 			if (parsed.tiers && typeof parsed.tiers === 'object') out.tiers = Object.assign({}, parsed.tiers);
 			if (parsed.scopes && typeof parsed.scopes === 'object') out.scopes = Object.assign({}, parsed.scopes);
+			// 親由来のレベル F（段5）。持っているときだけ写す（無い古い形に補わない。知らない値もそのまま写し、使うときに既定へ解く）
+			if (typeof parsed.parentHintLevel === 'number') out.parentHintLevel = parsed.parentHintLevel;
 			return out;
 		} catch (e) {
 			return { skillIds: [], name: '', updatedAt: '' };
@@ -748,12 +750,14 @@
 	}
 
 	// label … 失敗を知らせるときの呼び名（呼び出し元の setLabel）。渡さなければ既定の呼び名
-	function saveDraftScope(scopeKey, skillIds, name, tiers, label, scopes) {
+	function saveDraftScope(scopeKey, skillIds, name, tiers, label, scopes, parentHintLevel) {
 		const payload = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
 		// 空の tiers は書かない（分類を変えていないドラフトの姿を変えない）
 		if (tiers && typeof tiers === 'object' && Object.keys(tiers).length > 0) payload.tiers = Object.assign({}, tiers);
 		// scopes（節の ON/OFF。C-2a）も同じ ―― 全部 OFF なら書かない
 		if (scopes && typeof scopes === 'object' && Object.keys(scopes).length > 0) payload.scopes = Object.assign({}, scopes);
+		// 親由来のレベル F（段5）も同じ流儀 ―― 選んでいなければ書かない
+		if (typeof parentHintLevel === 'number') payload.parentHintLevel = parentHintLevel;
 		try {
 			global.localStorage.setItem(draftStorageKey(scopeKey), JSON.stringify(payload));
 		} catch (e) {
@@ -1803,7 +1807,15 @@
 			if (src.sure) e.sure = true;
 			bySkill.set(src.skillId, e);
 		});
-		const included = Array.from(bySkill.values()).filter(e => e.sure || enabled.has(e.skillId));
+		// 親（因子）だけにあるスキル（段5。周回因子セットのスキルのうち、本育成には無いもの）。由来は親だけ＝L は F
+		// 本育成の△にだけ出てくる（有効にしていない）スキルが因子セットにあるときも、親から得るので数える（その△の出現は L に効かない）
+		Object.keys(parentLevels).forEach(id => {
+			if (!(isNonNegInt(parentLevels[id]) && parentLevels[id] > 0)) return;
+			const cur = bySkill.get(id);
+			if (!cur) bySkill.set(id, { skillId: id, sure: false, parentOnly: true, list: [] });
+			else if (!cur.sure) cur.parentOnly = true;
+		});
+		const included = Array.from(bySkill.values()).filter(e => e.sure || e.parentOnly || enabled.has(e.skillId));
 
 		// 2. 系列の根ごとに、P・E・T・U・F を集める（根に集約する）
 		const roots = new Map();
@@ -1896,6 +1908,70 @@
 	/** 3桁ごとの区切りを入れる（表示用。ロケールに依存させない）。 */
 	function formatPtNumber(n) {
 		return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+	}
+
+	/**
+	 * 親由来のレベル F（段5）の、選べる値と、計算に使う値。選べるのは hintLevelMax〜1（0 は無い。既定は rules.parentHintLevelDefault）。
+	 * 保存してある値が範囲の外・数でないときは既定として計算する（**保存データは書き換えない**）。
+	 */
+	function parentHintLevelChoices(rules) {
+		const out = [];
+		for (let lv = rules.hintLevelMax; lv >= 1; lv--) out.push(lv);
+		return out;
+	}
+	function resolveParentHintLevel(raw, rules) {
+		return (isNonNegInt(raw) && raw >= 1 && raw <= rules.hintLevelMax) ? raw : rules.parentHintLevelDefault;
+	}
+
+	/**
+	 * 周回因子セットの必要スキルPt（段5）。**画面・保存・special を知らない純粋関数。**
+	 * 本育成のスキル（●＋有効な△）は3つのどれにも常に含み、因子セットのスキルを分類（tierOf。設定していないものは優先）の
+	 * 「その分類まで」で足す（超優先だけ／優先まで／通常まで＝累積）。**同じスキルは1回だけ数え**、そのスキルの L は
+	 * 本育成の由来（P・E・T・U）に、その分類まで含まれる因子セットのスキルなら親由来 F を足して上限5（computeRosterPt の規則そのまま）。
+	 * 因子セットだけにあるスキルは L = F。Pt が未収録のスキルは合計に入れず、widest（通常まで）で数えた件数を unpricedCount に出す。
+	 *
+	 * args は computeRosterPt の args（sources・rules・skillPt・stepUp・statusId・umaHintLevel・enabledSkillIds）に、
+	 *   factorSkillIds … 因子セットのスキルid（シナリオ因子・遺伝子は skillIds に入らないので含まれない）
+	 *   tiers          … 因子セットの分類 { skillId: 1|2|3 }（無い id は優先）
+	 *   parentHintLevel… F（保存してある値。resolveParentHintLevel で解く）
+	 * 返り値: { ok, parentHintLevel, roster: { total, count, unpricedCount }, cuts: [{ tier, label, total, count, unpricedCount }…], unpricedCount }
+	 *   roster … 因子セットを足さない、本育成だけの計算（「うち本育成」。本育成パネルの合計と同じ値）
+	 */
+	function computeFactorSetPt(args) {
+		const a = args || {};
+		const rules = a.rules;
+		if (!isValidSkillPtRules(rules)) return { ok: false, reason: 'rules' };
+		const F = resolveParentHintLevel(a.parentHintLevel, rules);
+		const seen = new Set();
+		const factorIds = [];
+		(a.factorSkillIds || []).forEach(id => { if (typeof id === 'string' && id && !seen.has(id)) { seen.add(id); factorIds.push(id); } });
+		const run = (parents) => computeRosterPt({
+			sources: a.sources, rules: rules, skillPt: a.skillPt, stepUp: a.stepUp, statusId: a.statusId,
+			umaHintLevel: a.umaHintLevel, enabledSkillIds: a.enabledSkillIds, parentHintLevels: parents
+		});
+		const base = run({});
+		const cuts = TIERS.map((t, i) => {
+			const parents = {};
+			factorIds.forEach(id => { if (tierOf(a.tiers, id) <= t.id) parents[id] = F; });
+			const r = run(parents);
+			return { tier: t.id, label: t.label + (i === 0 ? 'だけ' : 'まで'), total: r.total, count: r.items.length, unpricedCount: r.unpricedCount };
+		});
+		return { ok: true, parentHintLevel: F,
+			roster: { total: base.total, count: base.items.length, unpricedCount: base.unpricedCount },
+			cuts: cuts, unpricedCount: cuts[cuts.length - 1].unpricedCount };
+	}
+
+	/**
+	 * 編成パネル（①）が計算した「本育成のぶん」を、スキルセットのパネル（②。special だけ）へ渡す内部の受け渡し（段5）。
+	 * 編成パネルは作るときに自分を登録し（rosterPtSource.getInputs() は呼ぶたびに現在の値を返す）、描き直すたびに
+	 * emitRosterPtChange() で知らせる。スキルセットのパネルはそれを受けて必要Ptを描き直す。
+	 * **special.html の接点は足していない**（core の中だけで足りる）。編成パネルが無い画面（Deck 単体ページ）では
+	 * rosterPtSource が null のままなので、必要Ptは出ない。
+	 */
+	let rosterPtSource = null;
+	const rosterPtListeners = [];
+	function emitRosterPtChange() {
+		rosterPtListeners.forEach(fn => { try { fn(); } catch (e) { if (global.console) global.console.error('[UmaSkillDeckCore] 必要Ptの更新で例外', e); } });
 	}
 
 	/* ---- 保存（userData.rosters） ---- */
@@ -5377,6 +5453,8 @@
 				if (radio) radio.focus();
 				ptFocusAfter = null;
 			}
+			// 本育成のぶんが変わったことを、②の必要Ptへ知らせる（段5）
+			emitRosterPtChange();
 		}
 
 		/**
@@ -5559,6 +5637,15 @@
 		}
 		container.addEventListener('input', onPanelInput);
 
+		// 周回因子セットの必要Pt（②）へ、本育成のぶんを渡す（段5。special.html の接点は足さず、core の中で受け渡す）
+		rosterPtSource = {
+			getInputs: function () {
+				const res = computed();
+				const status = ptDataStatus();
+				return { status: status, sources: res.sources, enabledIds: res.enabledIds,
+					settings: status === 'ok' ? resolveRosterPtSettings(roster, skillPtData.rules) : null };
+			}
+		};
 		render();
 		// スキルPt の元データがまだ読まれていなければ、読み終わったあとで描き直す（読めなくても描き直す＝知らせを出す）
 		if (!skillPtData.meta.loaded) loadSkillPtData(false).then(function () { render(); });
@@ -5625,6 +5712,8 @@
 		let currentTier = TIER_DEFAULT;
 		// モード（C-57 の (9)）: null（両方 OFF）／'reclass'（再分類）／'delete'（削除）。保存しない（開き直すと OFF）
 		let mode = null;
+		// 「理論値」の「?」の説明を開いているか（段5。保存しない）
+		let ptNeedHelpOpen = false;
 
 		container.innerHTML = '' +
 			'<div class="usd-tm">' +
@@ -5726,6 +5815,8 @@
 					'</div>' +       // .usd-entry-row
 					// 分類の切り替え（超優先／優先／通常。C-57 の (7)）。追加の入口はいま選んでいる分類に足す
 					'<div class="usd-tier-row" data-usd-el="tier-row"></div>' +
+					// 周回因子セットの必要スキルPt（段5。special の②だけ。中身は renderPtNeed()）
+					'<div class="usd-ptneed" data-usd-el="pt-need" hidden></div>' +
 					'<div class="usd-mode-row">' +
 						'<p class="text-xs text-slate-500">追加済みスキル（<span data-usd-el="selected-count">0</span>種）</p>' +
 						// 「再分類」「削除」のモード（C-57 の (9)）。既定は両方 OFF＝パネルに操作が出ない（ゲームと同じ見え方）
@@ -5741,6 +5832,8 @@
 			'</div>';
 
 		const nameInput = q(container, 'name-input');
+		// 編成パネル（①）が描き直したとき、必要Ptも描き直す（本育成のぶんが変わるため）。段5
+		rosterPtListeners.push(function () { if (container.isConnected) renderPtNeed(); });
 
 		container.addEventListener('click', (e) => {
 			const btn = e.target.closest('[data-usd-act]');
@@ -5765,10 +5858,14 @@
 			// （label の中なので click は2回来る）
 			else if (act === 'scope-help') openScopeList(btn.dataset.scope);
 			else if (act === 'scope-help-close') closeScopeList();
+			else if (act === 'pt-need-help') { ptNeedHelpOpen = !ptNeedHelpOpen; renderPtNeed(); }
 		});
 		container.addEventListener('change', (e) => {
 			const box = e.target;
-			if (!box || !box.getAttribute || box.getAttribute('data-usd-act') !== 'scope-check') return;
+			if (!box || !box.getAttribute) return;
+			const act = box.getAttribute('data-usd-act');
+			if (act === 'pt-parent-level') { setParentHintLevel(Number(box.value)); return; }
+			if (act !== 'scope-check') return;
 			setScope(box.dataset.scope, box.checked);
 		});
 		container.addEventListener('input', (e) => {
@@ -5971,6 +6068,60 @@
 			q(container, 'del-btn').hidden = target.kind !== 'template';
 		}
 
+		/**
+		 * 周回因子セットの必要スキルPt（段5）。**special の②だけ**（grouped）で、**本育成のぶんを渡す編成パネル（①）があるときだけ**出す
+		 * （Deck 単体ページには出ない）。3つの合計（超優先だけ／優先まで／通常まで）・うち本育成・Pt 未収録の件数・親由来のレベル F。
+		 * 計算は純粋関数 computeFactorSetPt。読み込み中は何も出さず、読めなかったときだけ知らせる。
+		 */
+		function renderPtNeed() {
+			const el = q(container, 'pt-need');
+			if (!el) return;
+			const hideIt = () => { el.hidden = true; el.innerHTML = ''; };
+			if (!grouped || !rosterPtSource) { hideIt(); return; }
+			const inp = rosterPtSource.getInputs();
+			if (inp.status === 'loading') { hideIt(); return; }
+			if (inp.status === 'failed') {
+				el.hidden = false;
+				el.innerHTML = '<p class="usd-roster-alert" data-usd-el="pt-need-error">Pt のデータを読み込めませんでした</p>';
+				return;
+			}
+			const target = currentTarget();
+			const ids = skillIdsOf(target) || [];
+			const rules = skillPtData.rules;
+			const F = resolveParentHintLevel(parentHintLevelOf(target), rules);
+			const r = computeFactorSetPt({
+				sources: inp.sources, rules: rules, skillPt: skillPtData.skillPt, stepUp: skillPtData.stepUp,
+				statusId: inp.settings.status, umaHintLevel: inp.settings.umaHintLevel, enabledSkillIds: inp.enabledIds,
+				factorSkillIds: ids, tiers: tiersOf(target), parentHintLevel: F
+			});
+			if (!r.ok || (ids.length === 0 && r.roster.count === 0)) { hideIt(); return; }
+			let h = '<div class="usd-ptneed-main">'
+				+ '<span class="usd-ptneed-title">必要スキルPt</span>'
+				+ '<span class="uma-badge uma-badge--accent" data-usd-el="pt-need-theory">理論値</span>'
+				+ '<button type="button" class="uma-help-btn" data-usd-act="pt-need-help" data-usd-el="pt-need-help-btn"'
+				+ ' aria-expanded="' + (ptNeedHelpOpen ? 'true' : 'false') + '" aria-label="理論値とは" title="理論値とは">?</button>'
+				+ '<span class="usd-ptneed-chips">'
+				+ r.cuts.map(c => '<span class="usd-ptneed-chip" data-usd-el="pt-need-' + c.tier + '">' + esc(c.label) + ' <strong>' + formatPtNumber(c.total) + '</strong></span>').join('')
+				+ '</span></div>';
+			h += '<p class="uma-help-box" data-usd-el="pt-need-help-box"' + (ptNeedHelpOpen ? '' : ' hidden') + '>理論値（各スキルを最大のヒントレベルで得た場合のスキルPt）</p>';
+			if (r.roster.count > 0) h += '<p class="usd-roster-note" data-usd-el="pt-need-roster">（うち本育成 ' + formatPtNumber(r.roster.total) + '）</p>';
+			if (r.unpricedCount > 0) h += '<p class="usd-roster-note" data-usd-el="pt-need-unpriced">（Pt 未収録 ' + r.unpricedCount + '種は含めていません）</p>';
+			h += '<label class="usd-ptneed-f"><span class="usd-roster-setlabel">親由来のレベル</span>'
+				+ '<select class="uma-input usd-ptneed-select" data-usd-act="pt-parent-level" data-usd-el="pt-parent-level" aria-label="親由来のレベル">'
+				+ parentHintLevelChoices(rules).map(lv => '<option value="' + lv + '"' + (lv === F ? ' selected' : '') + '>' + lv + '</option>').join('')
+				+ '</select></label>';
+			el.hidden = false;
+			el.innerHTML = h;
+		}
+
+		// 親由来のレベル F を替えて保存する（因子セット＝選んでいるセット側に持つ）。「元に戻す」には積まない（選び直せば戻る設定）
+		function setParentHintLevel(level) {
+			const rules = skillPtData.rules;
+			if (!rules || !(parentHintLevelChoices(rules).indexOf(level) !== -1)) return;
+			if (!writeParentHintLevel(currentTarget(), level)) return;
+			renderPtNeed();
+		}
+
 		// 分類の切り替え（超優先／優先／通常）と合計（C-57 の (7)）
 		function renderTierRow() {
 			const ids = editingSkillIds();
@@ -5985,6 +6136,7 @@
 					+ esc(t.label) + '<span class="usd-tier-count" data-usd-el="tier-count-' + t.id + '">' + counts[t.id] + '</span></button>').join('') +
 				'</div>' +
 				'<span class="usd-tier-total">設定数 <span data-usd-el="tier-total">' + ids.length + '</span></span>';
+			renderPtNeed();
 		}
 
 		/* 「リセット」の押せる／押せない（73セッション目に条件を広げた）。
@@ -6143,13 +6295,15 @@
 
 		// tiers（分類。C-57）と scopes（節の ON/OFF。C-2a）は持っているときだけ残す（空なら書かない）。
 		// **渡されなければ今のものを引き継ぐ**（片方を書き換えるときにもう片方を消さないため）
-		function persistDraft(skillIds, name, tiers, scopes) {
+		function persistDraft(skillIds, name, tiers, scopes, parentHintLevel) {
 			const nextTiers = tiers !== undefined ? tiers : draftScope.tiers;
 			const nextScopes = scopes !== undefined ? scopes : draftScope.scopes;
-			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, nextTiers, setLabel, nextScopes);
+			const nextParent = parentHintLevel !== undefined ? parentHintLevel : draftScope.parentHintLevel;   // null で消す（段5）
+			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, nextTiers, setLabel, nextScopes, nextParent);
 			const out = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
 			if (nextTiers && typeof nextTiers === 'object' && Object.keys(nextTiers).length > 0) out.tiers = Object.assign({}, nextTiers);
 			if (nextScopes && typeof nextScopes === 'object' && Object.keys(nextScopes).length > 0) out.scopes = Object.assign({}, nextScopes);
+			if (typeof nextParent === 'number') out.parentHintLevel = nextParent;
 			return out;
 		}
 
@@ -6180,11 +6334,12 @@
 			// （「優先」だけなら tiers は持たない／全部 OFF なら scopes は持たない）
 			setTemplateTiers(t, draftScope.tiers || {});
 			setTemplateScopes(t, draftScope.scopes || {});
+			if (typeof draftScope.parentHintLevel === 'number') t.parentHintLevel = draftScope.parentHintLevel;   // 親由来のレベル F（段5）
 			data.templates.push(t);
 			saveUserData();
 			// 中身はテンプレートへ移ったので、ドラフトは空にする（二重管理を避ける）。
 			// **{} を渡して明示的に消す** ―― persistDraft は undefined を「今のものを引き継ぐ」と読む
-			draftScope = persistDraft([], '', {}, {});
+			draftScope = persistDraft([], '', {}, {}, null);
 			selectedId = t.templateId;
 			render();
 			fireSelection();
@@ -6377,6 +6532,28 @@
 			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
 			return (t && t.scopes) || {};
 		}
+		/**
+		 * 対象の「今の」親由来のレベル F（段5。周回因子セットの必要Ptで使う）。持っていなければ undefined（＝使うところで既定として扱う）。
+		 * **tiers・scopes と同じ流儀**: 無い古いデータに補わない／schemaVersion は上げない（無いのが既定の姿）。
+		 */
+		function parentHintLevelOf(target) {
+			if (!target) return undefined;
+			if (target.kind === 'draft') return draftScope.parentHintLevel;
+			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
+			return t ? t.parentHintLevel : undefined;
+		}
+		function writeParentHintLevel(target, level) {
+			if (target.kind === 'draft') {
+				draftScope = persistDraft(draftScope.skillIds, draftScope.name, draftScope.tiers, draftScope.scopes, level);
+				return true;
+			}
+			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
+			if (!t) return false;
+			t.parentHintLevel = level;
+			t.updatedAt = nowIso();
+			saveUserData();
+			return true;
+		}
 		// この画面が知っている節のうち、ON のものだけを残す（OFF は書かない＝全部 OFF なら項目ごと消える）
 		function cleanScopes(scopes) {
 			const out = {};
@@ -6466,6 +6643,7 @@
 			const copy = { templateId: uid('tpl'), name: t.name + '（コピー）', skillIds: t.skillIds.slice(), createdAt: nowIso(), updatedAt: nowIso() };
 			if (t.tiers) copy.tiers = Object.assign({}, t.tiers);   // 分類（C-57）も写す
 			if (t.scopes) copy.scopes = Object.assign({}, t.scopes); // 節の ON/OFF（C-2a）も写す
+			if (typeof t.parentHintLevel === 'number') copy.parentHintLevel = t.parentHintLevel;   // 親由来のレベル F（段5）も写す
 			data.templates.push(copy);
 			saveUserData();
 			// 複製したものをそのまま選ぶ（続けて名前を直せるように）
@@ -6926,6 +7104,9 @@
 		buildStepUpIndex: buildStepUpIndex,
 		computeRosterPt: computeRosterPt,
 		resolveRosterPtSettings: resolveRosterPtSettings,
+		computeFactorSetPt: computeFactorSetPt,
+		resolveParentHintLevel: resolveParentHintLevel,
+		parentHintLevelChoices: parentHintLevelChoices,
 		charactersOfCard: charactersOfCard,
 		// サポートカードの種類。データに type が入るまでは空配列を返す（C-51 の修正2）。
 		listCardTypes: listCardTypes,
