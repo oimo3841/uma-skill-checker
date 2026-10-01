@@ -12251,6 +12251,8 @@ await block('編成パネル ―― スキルPt（段3）', async () => {
 		entries: Array.from(baseOf.entries()).map(([skillId, pt]) => ({ skillId: skillId, pt: pt, rarity: pt === 0 ? 'unique' : 'white' })) };
 	await page.route('**/data/skill-pt.json*', (route) => route.fulfill({
 		status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(ptDoc) }));
+	// 前段データは空に差し替える（段4b 以降、実データの前段が本育成の「前段として必要」に出るため。ここは前段を含めない段3 の期待値を見る塊）
+	await page.route('**/data/skill-step-up.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify({ dataVersion: '2026-10-02a', category: 'skillStepUp', note: 'テスト用の仕込み（前段なし）', entries: [] }) }));
 
 	// 独立の期待値（整数だけ）。umaLv は育成ウマ娘のレベル、status は状態の id
 	const expected = (umaLv, status) => {
@@ -12542,6 +12544,7 @@ await block('編成パネル ―― △を有効にする（段4）', async () =
 		await page.route('**/data/character-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8',
 			body: JSON.stringify({ dataVersion: '2026-09-30a', category: 'characterEventSkill', entries: [] }) }));
 		if (ptDoc) await page.route('**/data/skill-pt.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(ptDoc) }));
+		await page.route('**/data/skill-step-up.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify({ dataVersion: '2026-10-02a', category: 'skillStepUp', note: 'テスト用の仕込み（前段なし）', entries: [] }) }));   // 前段なし（段4b 以降の実データの前段に左右されない）
 	};
 	const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
 	await routes(page, null);
@@ -12559,6 +12562,7 @@ await block('編成パネル ―― △を有効にする（段4）', async () =
 	const ptDoc = { dataVersion: '2026-10-01a', category: 'skillPt', note: 'テスト用の仕込み',
 		entries: Array.from(baseOf.entries()).map(([skillId, pt]) => ({ skillId, pt, rarity: 'white' })) };
 	await page.route('**/data/skill-pt.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(ptDoc) }));
+	await page.route('**/data/skill-step-up.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify({ dataVersion: '2026-10-02a', category: 'skillStepUp', note: 'テスト用の仕込み（前段なし）', entries: [] }) }));   // 前段なし（段4b 以降の実データの前段に左右されない）
 
 	// 独立の期待値（整数だけ）。on は有効にしたスキルの id の配列。状態は「なし」・育成ウマ娘なし
 	const expected = (on, roster) => {
@@ -12892,6 +12896,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 			body: JSON.stringify({ dataVersion: '2026-09-30a', category: 'characterEventSkill', entries: [] }) }));
 		if (ptDoc) await page.route('**/data/skill-pt.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(ptDoc) }));
 		if (rulesFail) await page.route('**/data/skill-pt-rules.json*', (route) => route.fulfill({ status: 500, body: 'error' }));
+		await page.route('**/data/skill-step-up.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify({ dataVersion: '2026-10-02a', category: 'skillStepUp', note: 'テスト用の仕込み（前段なし）', entries: [] }) }));   // 前段なし（段4b 以降の実データの前段に左右されない）
 	};
 
 	// 本育成の由来（sources）を先に求める（Deck 単体ページで。panel は作らない）
@@ -13217,6 +13222,289 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 		assert(!g.hidden && g.page <= 0 && g.box <= 0 && g.chipOut === 0 && g.chips === 3, '段5(11): ' + w + 'px の②タブで、必要スキルPt（3つの合計のチップ・親由来のレベル）が横にはみ出さない', g);
 		const other = sp.errors.filter((m) => !/Failed to load resource|status of 404/.test(m));
 		assert(other.length === 0, '段5(11): ' + w + 'px でコンソールエラーなし', other.slice(0, 3));
+		await sp.ctx.close();
+	}
+}
+});
+
+/* ============================================================
+ * 前段の必要Pt（段4b・2026-10-02。設計は skill-pt-calculation-step0.md の 2-3・2-4・2-5・0-S）
+ *
+ * 実データに依存しない。カードは実データから id だけ拾い、イベント・スキルPt・**前段データ**は仮のデータを取得の途中で差し替える
+ * （スキルは、そのカードの練習ヒントに入っていないものを master から id で拾う。名前は書かない）。期待値はこの塊の中で整数だけで独立に計算する。
+ *   仮の前段: ○→◎（Z0→Z1）／○→◎→金（Z3→Z2→Z4）／○→金（Z6→Z5。因子セット）／○→金（Z9→Z8。因子セット）／○→金が4組（Z14〜17→Z10〜13）
+ *   ①  0-S の表（基礎90の○・基礎110の◎・L=0〜5 → 必要Pt 200・180・160・140・129・120）＝純粋関数で。◎を本育成にもつと、前段の○が○の L で出る
+ *   ②  金を本育成にもつと、直前の◎・その前の○がさかのぼって全部出る（3段）。L は系列の根の L・金は金自身の L
+ *   ③  前段が本育成の表にあるときは数えない（「（本育成）」の添え書き）
+ *   ④  因子セットのスキルの前段が、その分類の合計から含まれる。重なる前段は1回だけ
+ *   ⑤  前段の行が無いスキルは前段なし／前段が無いときは「前段として必要」「前段を含む合計」が出ない
+ *   ⑥  前段データを読み込めないとき、前段を含めず知らせが出る
+ *   ⑦  Pt が未収録の前段は合計に入れず、未収録の件数に含まれる
+ *   ⑧  前段は除外の対象に入らない
+ *   ⑨  「前段を含む合計」・「うち本育成」が前段を含む値に揃う
+ *   ⑩  一覧は最大5つ（ほか N 種）・1280px と 375px で横にはみ出さない・コンソールエラー0件
+ * ============================================================ */
+await block('前段の必要Pt（段4b）', async () => {
+{
+	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
+	const cardsAll = readJson('data/support-cards.json').entries;
+	const master = readJson('uma-skill-deck-skills.json').skills;
+	const [cA, cB, cC, cD] = [cardsAll[0], cardsAll[1], cardsAll[2], cardsAll[3]];
+	const hinted = new Set([cA, cB, cC, cD].flatMap((c) => (c.hintSkills || []).map((s) => s.skillId)));
+	const pool = master.filter((s) => !hinted.has(s.id));
+	const Z = pool.slice(0, 18).map((s) => ({ skillId: s.id, name: s.name }));
+	const z = (i) => Z[i].skillId;
+	const ref = (i, lv) => ({ skillId: Z[i].skillId, name: Z[i].name, hintLevel: lv });
+	const evDoc = { dataVersion: '2026-10-02a', category: 'supportCardEventSkill', note: 'テスト用の仕込み', entries: [
+		{ cardId: cA.id, status: 'done', chain: [
+			{ step: 1, choices: [{ skills: [ref(1, 2)] }] },     // ◎ Z1 ●（L=2）
+			{ step: 2, choices: [{ skills: [ref(4, 1)] }] },     // 金 Z4 ●（L=1）
+			{ step: 3, choices: [{ skills: [ref(7, 1)] }] }] },  // 前段の行の無い Z7 ●
+		{ cardId: cB.id, status: 'done', chain: [{ step: 1, choices: [{ skills: [ref(3, 3)] }] }] },   // ○ Z3 ●（L=3）
+		{ cardId: cD.id, status: 'done', chain: [
+			{ step: 1, choices: [{ skills: [ref(10, 1)] }] }, { step: 2, choices: [{ skills: [ref(11, 1)] }] },
+			{ step: 3, choices: [{ skills: [ref(12, 1)] }] }, { step: 4, choices: [{ skills: [ref(13, 1)] }] }] },
+	] };
+	// 仮の前段データ（行が無い＝前段の無い単独のスキル）
+	const stepRows = [
+		{ skillId: z(1), prevSkillIds: [z(0)], hintRootSkillId: z(0) },
+		{ skillId: z(2), prevSkillIds: [z(3)], hintRootSkillId: z(3) },
+		{ skillId: z(4), prevSkillIds: [z(2)] },
+		{ skillId: z(5), prevSkillIds: [z(6)] },
+		{ skillId: z(8), prevSkillIds: [z(9)] },
+		{ skillId: z(10), prevSkillIds: [z(14)] }, { skillId: z(11), prevSkillIds: [z(15)] },
+		{ skillId: z(12), prevSkillIds: [z(16)] }, { skillId: z(13), prevSkillIds: [z(17)] },
+	];
+	const stepDoc = { dataVersion: '2026-10-02a', category: 'skillStepUp', note: 'テスト用の仕込み', entries: stepRows };
+	const BASE = { [z(0)]: 90, [z(1)]: 110, [z(2)]: 150, [z(3)]: 130, [z(4)]: 240, [z(5)]: 200, [z(6)]: 100, [z(7)]: 120, [z(8)]: 180, [z(9)]: 120,
+		[z(10)]: 230, [z(11)]: 230, [z(12)]: 230, [z(13)]: 230, [z(14)]: 100, [z(15)]: 110, [z(16)]: 120, [z(17)]: 130 };
+	const DISC = [10, 20, 30, 35, 40];
+	const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+	const EMPTY_STEP = { dataVersion: '2026-10-02a', category: 'skillStepUp', note: 'テスト用の仕込み（前段なし）', entries: [] };
+
+	const routes = async (page, o) => {
+		o = o || {};
+		await page.route('**/data/support-card-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(evDoc) }));
+		await page.route('**/data/character-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8',
+			body: JSON.stringify({ dataVersion: '2026-09-30a', category: 'characterEventSkill', entries: [] }) }));
+		const ptEntries = (o.ptBase || BASE);
+		await page.route('**/data/skill-pt.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8',
+			body: JSON.stringify({ dataVersion: '2026-10-02a', category: 'skillPt', note: 'テスト用の仕込み', entries: Object.keys(ptEntries).map((skillId) => ({ skillId, pt: ptEntries[skillId], rarity: 'white' })) }) }));
+		await page.route('**/data/skill-step-up.json*', (route) => o.stepFail ? route.fulfill({ status: 500, body: 'error' })
+			: route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(o.stepDoc || stepDoc) }));
+	};
+
+	/* 本育成の由来（sources）を先に求める（Deck 単体ページで）。名前も取る */
+	const sourcesOf = async (cardIds) => {
+		const first = await openPage(browser, base, 'uma-skill-deck.html');
+		await routes(first.page);
+		const f = await first.page.evaluate(async ({ cardIds }) => {
+			const Core = window.UmaSkillDeckCore;
+			await Core.loadTrainingSources(true);
+			const r = Core.computeRosterSkills({ umaId: '', cardIds: cardIds });
+			return { sources: r.sources.map((s) => ({ skillId: s.skillId, kind: s.kind, sure: s.sure, hintLevel: s.hintLevel, eventKey: s.eventKey })), names: Object.fromEntries(r.items.map((it) => [it.skillId, it.name])) };
+		}, { cardIds });
+		await first.ctx.close();
+		return f;
+	};
+
+	/* ① 0-S の表（純粋関数。基礎90の○・基礎110の◎・状態なし）。◎の L は系列の根の○の L を援用する */
+	{
+		const { ctx, page, errors } = await openPage(browser, base, 'uma-skill-deck.html');
+		const t = await page.evaluate(async () => {
+			const C = window.UmaSkillDeckCore;
+			const rules = await fetch('data/skill-pt-rules.json').then((r) => r.json());
+			const idx = new Map([['o', { pt: 90, rarity: 'white' }], ['g', { pt: 110, rarity: 'white' }]]);
+			const step = C.buildStepUpIndex({ entries: [{ skillId: 'g', prevSkillIds: ['o'], hintRootSkillId: 'o' }] });
+			const out = [];
+			// L=0（△を有効にしたがヒントレベルが無い）・1〜4（イベント）・5（練習のヒント）
+			const run = (sources, enabled) => C.computeRosterPt({ sources, rules, skillPt: idx, stepUp: step, statusId: 'none', enabledSkillIds: enabled || [] });
+			const r0 = run([{ skillId: 'g', kind: 'event', sure: false, hintLevel: null, eventKey: 'e' }], ['g']);
+			out.push({ L: r0.items[0].hintLevel, own: r0.total, prev: r0.prevTotal, all: r0.totalWithPrev, prevIds: r0.prevItems.map((x) => x.skillId) });
+			[1, 2, 3, 4].forEach((lv) => { const r = run([{ skillId: 'g', kind: 'event', sure: true, hintLevel: lv, eventKey: 'e' }]); out.push({ L: r.items[0].hintLevel, own: r.total, prev: r.prevTotal, all: r.totalWithPrev }); });
+			const r5 = run([{ skillId: 'g', kind: 'hint', sure: true, hintLevel: null, eventKey: null }]); out.push({ L: r5.items[0].hintLevel, own: r5.total, prev: r5.prevTotal, all: r5.totalWithPrev });
+			const none = C.computeRosterPt({ sources: [{ skillId: 'g', kind: 'hint', sure: true, hintLevel: null, eventKey: null }], rules, skillPt: idx, stepUp: null, statusId: 'none' });
+			return { out, noStep: { total: none.total, prev: none.prevTotal, all: none.totalWithPrev, n: none.prevItems.length } };
+		});
+		assert(t.out.map((o) => o.L).join() === '0,1,2,3,4,5' && t.out.map((o) => o.all).join() === '200,180,160,140,129,120' && t.out.every((o) => o.all === o.own + o.prev),
+			'段4b(1): 0-S の表（基礎90の○・基礎110の◎・L=0〜5）で、前段の○を含めた必要Ptが 200・180・160・140・129・120（◎と○は同じ L を共有。前段を含まない値 own と前段 prev の和）', t.out);
+		const t3 = await page.evaluate(async () => {
+			const C = window.UmaSkillDeckCore;
+			const rules = await fetch('data/skill-pt-rules.json').then((r) => r.json());
+			const idx = new Map([['o', { pt: 90, rarity: 'white' }], ['g', { pt: 110, rarity: 'white' }], ['k', { pt: 240, rarity: 'gold' }]]);
+			const step = C.buildStepUpIndex({ entries: [{ skillId: 'g', prevSkillIds: ['o'], hintRootSkillId: 'o' }, { skillId: 'k', prevSkillIds: ['g'] }] });
+			// 本育成: ○（o）が練習のヒント以外のイベントで L3・金（k）が L1。前段として必要なのは◎（g）だけ（○は本育成の表にある）
+			const r = C.computeRosterPt({ sources: [{ skillId: 'o', kind: 'event', sure: true, hintLevel: 3, eventKey: 'e1' }, { skillId: 'k', kind: 'event', sure: true, hintLevel: 1, eventKey: 'e2' }],
+				rules, skillPt: idx, stepUp: step, statusId: 'none' });
+			return { prevIds: r.prevItems.map((x) => x.skillId), prevLevel: r.prevItems.map((x) => x.hintLevel), prevPt: r.prevTotal, chain: r.chains.map((c) => c.skillId + ':' + c.ancestors.map((a) => a.skillId + (a.inTable ? '*' : '')).join('>')) };
+		});
+		assert(t3.prevIds.join() === 'g' && t3.prevLevel.join() === '3' && t3.prevPt === Math.floor(110 * 70 / 100) && t3.chain.includes('k:o*>g'),
+			'段4b(1): ◎（g）が前段になるとき、◎の Pt は系列の根の○の L（3）で計算される（110 の 30%引き = 77）。○は本育成の表にあるので前段に数えない（chains に印だけ残る）', t3);
+		assert(t.out[0].prevIds.join() === 'o' && t.noStep.n === 0 && t.noStep.all === t.noStep.total,
+			'段4b(1): 前段データが無い（stepUp なし）ときは、前段を含めず、合計は前段なしのまま', t.noStep);
+		assert(errors.length === 0, '段4b(1): コンソールエラーなし', errors.slice(0, 3));
+		await ctx.close();
+	}
+
+	/* 独立の期待値。cards の由来（sources）・因子セット（ids・tiers・F）から、前段を含めた合計を整数だけで求める */
+	const need = (sources, opt) => {
+		opt = opt || {};
+		const rows = new Map((opt.stepRows === undefined ? stepRows : opt.stepRows).map((r) => [r.skillId, r]));
+		const base = opt.base || BASE;
+		const rootOf = (id) => (rows.get(id) && rows.get(id).hintRootSkillId) || id;
+		const tierOf = (id) => ((opt.tiers || {})[id]) || 2;
+		const calc = (cut) => {
+			const roster = new Set(sources.filter((s) => s.sure).map((s) => s.skillId));
+			const factor = new Set((opt.ids || []).filter((id) => tierOf(id) <= cut));
+			const included = new Set([...roster, ...factor]);
+			const agg = new Map();
+			included.forEach((id) => {
+				const e = agg.get(rootOf(id)) || { P: false, ev: new Map(), F: 0 };
+				sources.filter((s) => s.skillId === id && s.sure).forEach((s) => { if (s.kind === 'hint') e.P = true; else e.ev.set(s.eventKey, Math.max(e.ev.get(s.eventKey) || 0, s.hintLevel || 0)); });
+				if (factor.has(id)) e.F = Math.max(e.F, opt.F || 5);
+				agg.set(rootOf(id), e);
+			});
+			const L = (id) => { const e = agg.get(rootOf(id)); if (!e) return 0; return Math.min(5, (e.P ? 5 : 0) + Array.from(e.ev.values()).reduce((a, b) => a + b, 0) + e.F); };
+			const ptOf = (id) => Math.floor(base[id] * (100 - (L(id) > 0 ? DISC[L(id) - 1] : 0)) / 100);
+			let own = 0; let prev = 0; const prevIds = []; const unpriced = [];
+			included.forEach((id) => { if (base[id] === undefined) unpriced.push(id); else own += ptOf(id); });
+			const anc = (id) => { const out = []; const seen = new Set([id]); const walk = (x) => ((rows.get(x) || {}).prevSkillIds || []).forEach((p) => { if (seen.has(p)) return; seen.add(p); walk(p); out.push(p); }); walk(id); return out; };
+			included.forEach((id) => anc(id).forEach((p) => { if (included.has(p) || prevIds.includes(p)) return; prevIds.push(p); if (base[p] === undefined) unpriced.push(p); else prev += ptOf(p); }));
+			return { own, prev, all: own + prev, prevIds, unpriced: new Set(unpriced).size, inTable: (id) => included.has(id) };
+		};
+		const roster0 = calc(0);
+		return { roster: roster0, A: calc(1).all, B: calc(2).all, C: calc(3).all, unpricedC: calc(3).unpriced, cut3: calc(3) };
+	};
+
+	const openSpecial = async (o) => {
+		const sp = await openPage(browser, base, 'special.html', { width: o.w || 1280, height: o.h || 1000 });
+		await routes(sp.page, o);
+		await sp.page.evaluate(({ roster, scope }) => {
+			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster));
+			localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope));
+		}, { roster: { umaId: '', cardIds: o.cards.concat(new Array(6 - o.cards.length).fill(null)) }, scope: o.scope || { skillIds: [], name: '', updatedAt: '' } });
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.evaluate(() => selectStepTab(0));
+		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"],#deck-roster-panel [data-usd-el="pt-error"]', { timeout: 10000 }).catch(() => {});
+		return sp;
+	};
+	const readPanel = (page) => page.evaluate(() => {
+		const h = document.getElementById('deck-roster-panel');
+		const t = (i) => { const e = h.querySelector('[data-usd-el="' + i + '"]'); return e ? e.textContent : null; };
+		const n = (s) => (s === null ? null : Number(s.replace(/[^0-9]/g, '')));
+		return { total: n(t('pt-total')), prevCount: n(t('pt-prev-count')), prevTotal: n(t('pt-prev-total')), list: t('pt-prev-list'), withPrev: n(t('pt-with-prev-total')),
+			hasPrevRow: !!h.querySelector('[data-usd-el="pt-prev"]'), hasWithPrev: !!h.querySelector('[data-usd-el="pt-with-prev"]'), unpriced: t('pt-unpriced'), prevError: t('pt-prev-error'), theory: t('pt-theory') };
+	});
+	const readNeed = (page) => page.evaluate(() => {
+		const el = document.querySelector('[data-usd-el="pt-need"]');
+		const num = (s) => Number((s || '').replace(/[^0-9]/g, ''));
+		const t = (i) => { const e = el.querySelector('[data-usd-el="' + i + '"]'); return e ? e.textContent : null; };
+		return { hidden: el.hidden, chips: [1, 2, 3].map((k) => { const c = el.querySelector('[data-usd-el="pt-need-' + k + '"] strong'); return c ? num(c.textContent) : null; }),
+			roster: t('pt-need-roster'), unpriced: t('pt-need-unpriced'), prevError: t('pt-need-prev-error') };
+	});
+
+	/* ② 3段（○→◎→金）と ①の画面（◎の前段の○）。roster [cA]: ◎ Z1（L2）・金 Z4（L1）・Z7（前段なし） */
+	const fA = await sourcesOf([cA.id]);
+	let sp = await openSpecial({ cards: [cA.id] });
+	let v = await readPanel(sp.page);
+	let e = need(fA.sources);
+	assert(e.roster.prevIds.length === 3 && v.prevCount === 3 && v.prevTotal === e.roster.prev && v.withPrev === e.roster.all && v.total === e.roster.own,
+		'段4b(2): ◎を本育成にもつと前段の○が、金を本育成にもつと直前の◎・その前の○が、さかのぼって全部「前段として必要」に出る（3種）。Pt は期待値のとおり（○の L2 は系列の根の L・金は金自身の L1）', { got: [v.prevCount, v.prevTotal, v.withPrev, v.total], want: [3, e.roster.prev, e.roster.all, e.roster.own] });
+	assert(v.hasPrevRow && v.hasWithPrev && v.withPrev === v.total + v.prevTotal && v.theory === '理論値',
+		'段4b(9): 「前段として必要 K種 P Pt」と「前段を含む合計 T Pt」が出る（T = 本育成の合計 + 前段）。本育成の合計は前段を含めない値のまま。「理論値」は合計の行にだけある', v);
+	// 一覧に、各スキルの名前と Pt が出る（名前は実データのスキル名。Z0＝右下の○ など。連鎖は「→」）
+	const nm = async (id) => sp.page.evaluate((id) => window.UmaSkillDeckCore.getSkillName(id), id);
+	const n0 = await nm(z(0)); const n3 = await nm(z(3)); const n2 = await nm(z(2));
+	assert(v.list.includes(n0) && v.list.includes(n3) && v.list.includes(n2) && v.list.includes(' → ') && v.list.startsWith('（') && v.list.endsWith('）'),
+		'段4b(2): 一覧に、前段のスキルの名前と Pt が並び、連鎖は「→」で示される', v.list);
+	// ⑧ 除外: 前段は除外の対象に入らない
+	await sp.page.click('#deck-roster-panel [data-usd-act="exclude"]');
+	const chooser = '[data-usd-el="roster-modal-host"] [data-usd-act="exclude-into"]';
+	if (await sp.page.isVisible(chooser)) await sp.page.click(chooser);
+	const hidden = await sp.page.evaluate(() => window.UmaSkillDeckCore.getPickerHiddenIds());
+	assert(hidden.length > 0 && hidden.includes(z(1)) && hidden.includes(z(4)) && ![z(0), z(2), z(3)].some((id) => hidden.includes(id)),
+		'段4b(8): 「本育成スキルを除外する」を押しても、前段（Z0・Z2・Z3）は除外の対象（グレーアウト）に入らない。本育成のスキル（Z1・Z4）は入る', { n: hidden.length });
+	v = await readPanel(sp.page);
+	assert(v.prevCount === 3, '段4b(8): 除外中も「前段として必要」はそのまま', v.prevCount);
+	await sp.ctx.close();
+
+	/* ③ 前段が本育成の表にあるとき（Z3＝○が card B の●）: 数えず「（本育成）」 */
+	const fAB = await sourcesOf([cA.id, cB.id]);
+	sp = await openSpecial({ cards: [cA.id, cB.id] });
+	v = await readPanel(sp.page);
+	e = need(fAB.sources);
+	const n3b = await sp.page.evaluate((id) => window.UmaSkillDeckCore.getSkillName(id), z(3));
+	assert(e.roster.prevIds.join() === [z(0), z(2)].join() && e.roster.inTable(z(3)) && v.prevCount === 2 && v.prevTotal === e.roster.prev && v.withPrev === e.roster.all && v.total === e.roster.own,
+		'段4b(3): 前段（Z3＝○）がほかの由来ですでに本育成の表にあるときは、前段として数えず（2種）、二重にならない。◎ Z2 は系列の根（Z3）の L3 で計算される', { got: [v.prevCount, v.prevTotal, v.withPrev], want: [2, e.roster.prev, e.roster.all] });
+	assert(v.list.includes(n3b + '（本育成）') && v.list.includes(' → '), '段4b(3): 途中の段が本育成の表にあるときは、その段に「（本育成）」を添える（Pt は数えない）', v.list);
+	await sp.ctx.close();
+
+	/* ④ 因子セットの前段（roster [cA]。因子セット: Z3＝超優先・Z5＝優先（金。前段 Z6）・Z8＝通常（金。前段 Z9）。F 5） */
+	const ids4 = [z(3), z(5), z(8)]; const tiers4 = { [z(3)]: 1, [z(8)]: 3 };
+	sp = await openSpecial({ cards: [cA.id], scope: { skillIds: ids4, name: '', tiers: tiers4, updatedAt: '' } });
+	await sp.page.evaluate(() => selectStepTab(1));
+	v = await readNeed(sp.page);
+	e = need(fA.sources, { ids: ids4, tiers: tiers4, F: 5 });
+	const rp = await readPanel(sp.page);
+	assert(v.chips[0] === e.A && v.chips[1] === e.B && v.chips[2] === e.C && e.A < e.B && e.B < e.C,
+		'段4b(4): 因子セットのスキルの前段が、そのスキルの分類まで進んだ合計から含まれる（Z5 の前段 Z6 は「優先まで」から、Z8 の前段 Z9 は「通常まで」から）。3つの合計が期待値と一致する', { got: v.chips, want: [e.A, e.B, e.C] });
+	assert(e.cut3.prevIds.filter((id) => id === z(3)).length === 0 && e.cut3.inTable(z(3)),
+		'段4b(4): 本育成の金 Z4 の前段 Z3 は、因子セットにも入っている（重なる）ので1回だけ数える（前段としては数えず、F を足した L で計算される）', e.cut3.prevIds);
+	assert(v.roster === '（うち本育成 ' + fmt(rp.withPrev) + '）' && rp.withPrev === need(fA.sources).roster.all,
+		'段4b(9): 「うち本育成」は、本育成パネルの「前段を含む合計」と同じ値（前段が無いときは本育成の合計のまま）', { roster: v.roster, withPrev: rp.withPrev });
+	await sp.ctx.close();
+
+	/* ⑤ 前段の行が無いスキルだけ（card B の○ Z3。行が無い）→ 前段の行が出ない */
+	const fB = await sourcesOf([cB.id]);
+	sp = await openSpecial({ cards: [cB.id] });
+	v = await readPanel(sp.page);
+	e = need(fB.sources);
+	assert(!v.hasPrevRow && !v.hasWithPrev && v.total === e.roster.own && e.roster.prevIds.length === 0,
+		'段4b(5): 前段の行が無いスキルだけのときは、「前段として必要」も「前段を含む合計」も出ない', v);
+	await sp.ctx.close();
+
+	/* ⑥ 前段データを読み込めない → 前段を含めず、知らせが出る（段5 までの動き）。②のパネルにも */
+	sp = await openSpecial({ cards: [cA.id], stepFail: true, scope: { skillIds: ids4, name: '', tiers: tiers4, updatedAt: '' } });
+	v = await readPanel(sp.page);
+	await sp.page.evaluate(() => selectStepTab(1));
+	const vn = await readNeed(sp.page);
+	const eN = need(fA.sources, { ids: ids4, tiers: tiers4, F: 5, stepRows: [] });
+	assert(!v.hasPrevRow && !v.hasWithPrev && v.prevError === '前段のデータを読み込めませんでした' && v.total === eN.roster.own
+		&& vn.chips[0] === eN.A && vn.chips[1] === eN.B && vn.chips[2] === eN.C && vn.prevError === '前段のデータを読み込めませんでした',
+		'段4b(6): 前段データを読み込めないときは、前段を含めず（段5 までの動き）、本育成パネルと因子セットのパネルに「前段のデータを読み込めませんでした」が出る', { v, vn, want: [eN.A, eN.B, eN.C] });
+	const stepErr = sp.errors.filter((m) => !/Failed to load resource|status of 500|404/.test(m));
+	assert(stepErr.length === 0, '段4b(6): 例外は出ない', stepErr.slice(0, 2));
+	await sp.ctx.close();
+
+	/* ⑦ Pt が未収録の前段（Z0 の行を外す） → 合計に入らず、未収録の件数に含まれる */
+	const baseNo0 = Object.assign({}, BASE); delete baseNo0[z(0)];
+	sp = await openSpecial({ cards: [cA.id], ptBase: baseNo0 });
+	v = await readPanel(sp.page);
+	e = need(fA.sources, { base: baseNo0 });
+	const eFull = need(fA.sources);
+	assert(v.prevCount === 3 && v.prevTotal === e.roster.prev && v.withPrev === e.roster.all && e.roster.prev < eFull.roster.prev
+		&& e.roster.unpriced === eFull.roster.unpriced + 1 && v.unpriced === '（Pt 未収録 ' + e.roster.unpriced + '種は含めていません）' && v.list.includes(n0 + ' Pt 未収録'),
+		'段4b(7): Pt が未収録の前段（Z0）は合計に入れず、「Pt 未収録」と一覧に出て、未収録の件数に含まれる（本育成の未収録と重複を除いて合算。Z0 を未収録にすると件数が1つ増える）', { v, want: [e.roster.prev, e.roster.all, e.roster.unpriced] });
+	await sp.ctx.close();
+
+	/* ⑩ 一覧は最大5つ（残りは「ほか N 種」）。roster [cA, cD]: 前段 3 + 4 = 7種 → 5つ + ほか 2種。1280px と 375px */
+	const fAD = await sourcesOf([cA.id, cD.id]);
+	for (const [w, h] of [[1280, 1000], [375, 900]]) {
+		sp = await openSpecial({ cards: [cA.id, cD.id], w, h });
+		v = await readPanel(sp.page);
+		e = need(fAD.sources);
+		const g = await sp.page.evaluate(() => {
+			const host = document.getElementById('deck-roster-panel');
+			const l = host.querySelector('[data-usd-el="pt-prev-list"]');
+			const p = host.querySelector('[data-usd-el="pt-prev"]');
+			const sum = host.querySelector('[data-usd-el="pt-sum"]');
+			return { page: document.documentElement.scrollWidth - window.innerWidth, list: l.scrollWidth - l.clientWidth, prev: p.scrollWidth - p.clientWidth, sum: sum.scrollWidth - sum.clientWidth };
+		});
+		assert(e.roster.prevIds.length === 7 && v.prevCount === 7 && v.list.includes('ほか 2種') && v.withPrev === e.roster.all && g.page <= 0 && g.list <= 0 && g.prev <= 0 && g.sum <= 0,
+			'段4b(10): ' + w + 'px で、前段が7種あるとき一覧は5つ＋「ほか 2種」で、横にはみ出さない（前段の一覧を含む）', { v: v.list, g });
+		const other = sp.errors.filter((m) => !/Failed to load resource|status of 404/.test(m));
+		assert(other.length === 0, '段4b(10): ' + w + 'px でコンソールエラーなし', other.slice(0, 3));
 		await sp.ctx.close();
 	}
 }
