@@ -3201,6 +3201,8 @@
 		'.usd-roster-pt { font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 400; color: var(--uma-text-subtle); }',
 		// 有効にする（段4）。△の行の2行目の参考値は薄い色、3行目のボタンは既存の .uma-btn の大きさのまま。
 		// 「有効」の添え物は△の下に小さく（△は●と同じ色のまま）
+		'.usd-roster-prev { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); color: var(--uma-text); overflow-wrap: anywhere; }',
+		'.usd-roster-prev strong { color: var(--uma-text-heading); }',
 		'.usd-roster-pt--ref { color: var(--uma-text-faint); }',
 		// 周回因子セットの必要スキルPt（段5。special の②）。箱・見出しの行・3つの合計のチップ・親由来のレベルのセレクト。
 		// トークンと既存の部品（.uma-badge・.uma-help-btn・.uma-help-box・.uma-input）だけで、共有の CSS には足していない
