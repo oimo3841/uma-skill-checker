@@ -1,7 +1,7 @@
 {
-	"dataVersion": "2026-10-01c",
+	"dataVersion": "2026-10-02b",
 	"category": "skillStepUp",
-	"note": "スキルのステップアップの前段（下書き・確認前）。prevSkillIds は直前のスキル。hintRootSkillId はヒントのレベルを共有する系列の根（○→◎ の行だけ）。ここに無い skillId は前段の無いスキルとして扱われる。",
+	"note": "ゲーム内で確認できるスキルのステップアップの関係（直前のスキルと、ヒントレベルの根）。ゲーム画面で確認した関係と突き合わせ済み。",
 	"entries": [
 		{
 			"skillId": "ex-0002",
@@ -2082,6 +2082,12 @@
 			]
 		},
 		{
+			"skillId": "ex-0640",
+			"prevSkillIds": [
+				"304"
+			]
+		},
+		{
 			"skillId": "ex-0641",
 			"prevSkillIds": [
 				"310"
@@ -2102,7 +2108,7 @@
 		{
 			"skillId": "ex-0644",
 			"prevSkillIds": [
-				"395"
+				"318"
 			]
 		},
 		{
@@ -2337,6 +2343,12 @@
 			]
 		},
 		{
+			"skillId": "ex-0684",
+			"prevSkillIds": [
+				"419"
+			]
+		},
+		{
 			"skillId": "ex-0685",
 			"prevSkillIds": [
 				"420"
@@ -2400,6 +2412,12 @@
 			"skillId": "ex-0696",
 			"prevSkillIds": [
 				"437"
+			]
+		},
+		{
+			"skillId": "ex-0697",
+			"prevSkillIds": [
+				"438"
 			]
 		},
 		{

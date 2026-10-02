@@ -1,8 +1,8 @@
 {
-	"dataVersion": "2026-09-30a",
+	"dataVersion": "2026-10-02a",
 	"category": "extendedSkill",
 	"nextSerial": "ex-0988",
-	"note": "マスター（uma-skill-deck-skills.json）の445種に無いスキル。name はゲーム画面の表示そのまま（全角・半角・中黒「・」を含めて変えない）。id は保存済みの比較シートが指し続ける不変の鍵なので、表記を直しても id は変えない。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。tagsPending が付いている間は8軸のタグが未設定で、条件での絞り込みの母集団には入れない（8軸すべてが空のタグは「条件を持たない＝万能スキル」という別の意味になるため、未設定はこの印で示す）。tagsPending と tags はどちらか一方だけを持つ。形は npm run check:catalog が確かめる。",
+	"note": "マスター（uma-skill-deck-skills.json）の445種に無いスキル。name はゲーム画面の表示そのまま（全角・半角・中黒「・」を含めて変えない）。id は保存済みの比較シートが指し続ける不変の鍵なので、表記を直しても id は変えない。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない（ただし、ゲームに未実装と分かったスキルは、おいもさんの指示で除く〔2026-10-02〕）。tagsPending が付いている間は8軸のタグが未設定で、条件での絞り込みの母集団には入れない（8軸すべてが空のタグは「条件を持たない＝万能スキル」という別の意味になるため、未設定はこの印で示す）。tagsPending と tags はどちらか一方だけを持つ。形は npm run check:catalog が確かめる。",
 	"entries": [
 		{
 			"id": "ex-0001",
@@ -14016,31 +14016,6 @@
 			}
 		},
 		{
-			"id": "ex-0572",
-			"name": "逃亡禁止令",
-			"tags": {
-				"distance": [
-					"short"
-				],
-				"style": [],
-				"surface": [],
-				"phase": [
-					"early"
-				],
-				"coursePos": [],
-				"rarity": [],
-				"inherited": [],
-				"environment": [],
-				"trackVenue": [],
-				"effect": [
-					"debuff"
-				],
-				"scenario": [],
-				"passive": [],
-				"distanceMark": []
-			}
-		},
-		{
 			"id": "ex-0573",
 			"name": "マイル直線◎",
 			"tags": {
@@ -14108,32 +14083,6 @@
 				"environment": [],
 				"trackVenue": [],
 				"effect": [
-					"target_speed_up"
-				],
-				"scenario": [],
-				"passive": [],
-				"distanceMark": []
-			}
-		},
-		{
-			"id": "ex-0576",
-			"name": "スピードグリード",
-			"tags": {
-				"distance": [
-					"mile"
-				],
-				"style": [],
-				"surface": [],
-				"phase": [
-					"mid"
-				],
-				"coursePos": [],
-				"rarity": [],
-				"inherited": [],
-				"environment": [],
-				"trackVenue": [],
-				"effect": [
-					"debuff",
 					"target_speed_up"
 				],
 				"scenario": [],
@@ -14336,31 +14285,6 @@
 				"effect": [
 					"course_sense",
 					"lane_change"
-				],
-				"scenario": [],
-				"passive": [],
-				"distanceMark": []
-			}
-		},
-		{
-			"id": "ex-0585",
-			"name": "再燃焼",
-			"tags": {
-				"distance": [],
-				"style": [
-					"nige"
-				],
-				"surface": [],
-				"phase": [
-					"late"
-				],
-				"coursePos": [],
-				"rarity": [],
-				"inherited": [],
-				"environment": [],
-				"trackVenue": [],
-				"effect": [
-					"accel_up"
 				],
 				"scenario": [],
 				"passive": [],
@@ -14916,56 +14840,6 @@
 			}
 		},
 		{
-			"id": "ex-0608",
-			"name": "明鏡止水",
-			"tags": {
-				"distance": [],
-				"style": [],
-				"surface": [
-					"dirt"
-				],
-				"phase": [
-					"mid"
-				],
-				"coursePos": [],
-				"rarity": [],
-				"inherited": [],
-				"environment": [],
-				"trackVenue": [],
-				"effect": [
-					"target_speed_up"
-				],
-				"scenario": [],
-				"passive": [],
-				"distanceMark": []
-			}
-		},
-		{
-			"id": "ex-0609",
-			"name": "爆走モード！",
-			"tags": {
-				"distance": [],
-				"style": [],
-				"surface": [
-					"dirt"
-				],
-				"phase": [
-					"late"
-				],
-				"coursePos": [],
-				"rarity": [],
-				"inherited": [],
-				"environment": [],
-				"trackVenue": [],
-				"effect": [
-					"accel_up"
-				],
-				"scenario": [],
-				"passive": [],
-				"distanceMark": []
-			}
-		},
-		{
 			"id": "ex-0610",
 			"name": "泥遊び◎",
 			"tags": {
@@ -14989,56 +14863,6 @@
 				"passive": [
 					"passive"
 				],
-				"distanceMark": []
-			}
-		},
-		{
-			"id": "ex-0611",
-			"name": "砂上の舞姫",
-			"tags": {
-				"distance": [],
-				"style": [],
-				"surface": [
-					"dirt"
-				],
-				"phase": [
-					"early"
-				],
-				"coursePos": [],
-				"rarity": [],
-				"inherited": [],
-				"environment": [],
-				"trackVenue": [],
-				"effect": [
-					"debuff"
-				],
-				"scenario": [],
-				"passive": [],
-				"distanceMark": []
-			}
-		},
-		{
-			"id": "ex-0612",
-			"name": "油断大敵",
-			"tags": {
-				"distance": [],
-				"style": [],
-				"surface": [
-					"dirt"
-				],
-				"phase": [
-					"second_half"
-				],
-				"coursePos": [],
-				"rarity": [],
-				"inherited": [],
-				"environment": [],
-				"trackVenue": [],
-				"effect": [
-					"debuff"
-				],
-				"scenario": [],
-				"passive": [],
 				"distanceMark": []
 			}
 		},
