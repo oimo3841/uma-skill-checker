@@ -1104,6 +1104,13 @@ console.log('\n=== 6. 以前の内容との突き合わせ（' + (BASELINE_DIR |
 {
 	const lost = [], renamed = [], serialBack = [];
 	let compared = 0;
+	// 意図して公開データから除いた id（理由を必ず添える。黙って増やさない。免除は実行のたびに表示する）。
+	// 2026-10-02：ゲームに未実装の金スキル7件（おいもさんの指示。外部データの項目9）。独自IDは欠番のまま使い回さない。
+	const INTENTIONALLY_REMOVED_IDS = new Set([
+		'extendedSkill: ex-0572', 'extendedSkill: ex-0576', 'extendedSkill: ex-0585', 'extendedSkill: ex-0608',
+		'extendedSkill: ex-0609', 'extendedSkill: ex-0611', 'extendedSkill: ex-0612'
+	]);
+	const exempted = [];
 	for (const f of FILES) {
 		const prev = readPrevious(f.file);
 		if (!prev || !isArr(prev.entries)) continue;
@@ -1113,7 +1120,11 @@ console.log('\n=== 6. 以前の内容との突き合わせ（' + (BASELINE_DIR |
 			const id = String(pe[f.key] || '');
 			if (!id) return;
 			const cur = now.get(id);
-			if (!cur) { lost.push(f.category + ': ' + id); return; }
+			if (!cur) {
+				const key = f.category + ': ' + id;
+				if (INTENTIONALLY_REMOVED_IDS.has(key)) exempted.push(key); else lost.push(key);
+				return;
+			}
 			// 表記の修正は正当なので落とさない。ただし黙って通さない。
 			['name', 'title', 'charaName'].forEach((k) => {
 				if (pe[k] !== undefined && cur[k] !== undefined && pe[k] !== cur[k]) renamed.push(f.category + ': ' + id + ' の ' + k);
@@ -1127,6 +1138,7 @@ console.log('\n=== 6. 以前の内容との突き合わせ（' + (BASELINE_DIR |
 	if (compared === 0) console.log('[--] 以前の内容が見つからないので、この節は行わない（今回が初回）');
 	else {
 		none(lost, '以前あった id が1つも消えていない（' + compared + 'ファイルを突き合わせ）');
+		if (exempted.length) console.log('[免除] 意図して除いた id（ゲームに未実装のため。2026-10-02）: ' + exempted.join(', '));
 		none(serialBack, 'nextSerial が戻っていない');
 		if (renamed.length) warn('名前・二つ名が変わった行がある（表記の修正なら問題ない）', renamed);
 	}
@@ -1246,6 +1258,36 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 			const notListed = [...referenced].filter((id) => !seen.has(id));
 			if (notListed.length) warn(PT_FILE + ': 編成で参照されるスキルのうち、行が無いもの（画面では「Pt 未収録」になる）' + notListed.length + '種', notListed);
 			else console.log('       ' + PT_FILE + ': 編成で参照される ' + referenced.size + '種がすべて載っている');
+		}
+	}
+
+	/* --- 公式の説明文（届いたとき。ⓘ・長押しを開いたときだけ読むファイル。段6） --- */
+	const DESC_FILE = 'skill-descriptions.json';
+	const dr = readOpt(DESC_FILE);
+	if (dr === null) {
+		console.log('       ' + DESC_FILE + ': まだ届いていない（届いたら見る）');
+	} else {
+		check(dr.ok, DESC_FILE + ' が読める', dr.ok ? undefined : dr.error);
+		if (dr.ok) {
+			const d = dr.data;
+			const unknown = [], missing = [], bad = [], dup = [], unregistered = [];
+			checkKeys(d, PT_TOP_KEYS, DESC_FILE, unknown, missing);
+			if (d.category !== 'skillDescription') bad.push('category が ' + JSON.stringify(d.category));
+			if (!DATA_VERSION_RE.test(String(d.dataVersion))) bad.push('dataVersion の形が違う: ' + String(d.dataVersion));
+			if (!isArr(d.entries)) bad.push('entries が配列でない');
+			const seen = new Set();
+			(isArr(d.entries) ? d.entries : []).forEach((e, i) => {
+				const w = 'entries[' + i + ']';
+				if (!checkKeys(e, { need: ['skillId', 'text'], opt: [] }, w, unknown, missing)) return;
+				if (!isStr(e.skillId)) { bad.push(w + '.skillId: 空でない文字列'); return; }
+				if (seen.has(e.skillId)) dup.push(w + ': ' + e.skillId); seen.add(e.skillId);
+				if (!registered.has(e.skillId)) unregistered.push(w + ': ' + e.skillId);
+				if (!isStr(e.text)) bad.push(w + '.text: 空でない文字列');
+			});
+			none(unknown.concat(missing), DESC_FILE + ': キーが決めた形（知らないキーが無く、必須が揃っている）');
+			none(bad, DESC_FILE + ': category・版・text（空でない文字列）の形');
+			none(dup, DESC_FILE + ': skillId が重複しない');
+			none(unregistered, DESC_FILE + ': skillId がすべてマスターか拡張スキルで引ける');
 		}
 	}
 

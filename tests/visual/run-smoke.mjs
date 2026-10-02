@@ -9285,10 +9285,16 @@ await block('段7【5】収録スキルデータ（マスター）の取り回�
 		assert(examOnly.length > 0 && !paths.some((k) => examOnly.includes(k)),
 			'段7の続き: exam だけが読む data/ のファイル（' + examOnly.join('・') + '）は core の表に載っていない', examOnly);
 		assert(paths.length === dataFileCount, '段7の続き: 版の表が data/ の' + dataFileCount + 'ファイル（exam だけが読むものを除く）ぶんある', paths);
+		// 必要になったときだけ読む data/（ⓘ・長押しを開いたとき。段6・2026-10-02）。ここ（ページの読み込みと各入口の呼び出し）では
+		// 取りに行かないのが正しい。**ほかの全ファイルが取得されること**と、**これらが取得されていないこと**を別々に見る。
+		const 遅延 = ['data/skill-descriptions.json'];
 		const 取れた = paths.filter((k) => dataUrls.some((u) => u.includes('/' + k)));
-		assert(取れた.length === paths.length,
-			'段7の続き: ' + paths.length + 'ファイルとも実際に取得された（検査が空振りでない）',
-			{ 取れた: 取れた.length, 表: paths.length, 未取得: paths.filter((k) => !取れた.includes(k)) });
+		const 対象 = paths.filter((k) => !遅延.includes(k));
+		assert(遅延.every((k) => paths.includes(k)) && !遅延.some((k) => 取れた.includes(k)),
+			'段7の続き: 必要になったときだけ読む data/（' + 遅延.join('・') + '）は、ページの読み込みや各入口の呼び出しでは取得されない', { 遅延, 取れた: 取れた.filter((k) => 遅延.includes(k)) });
+		assert(対象.every((k) => 取れた.includes(k)),
+			'段7の続き: ' + 対象.length + 'ファイル（必要になったときだけ読むものを除く）とも実際に取得された（検査が空振りでない）',
+			{ 取れた: 取れた.length, 表: paths.length, 未取得: 対象.filter((k) => !取れた.includes(k)) });
 		const 版が無い = paths.filter((k) =>
 			dataUrls.filter((u) => u.includes('/' + k)).some((u) => !u.includes('v=' + table[k])));
 		assert(版が無い.length === 0,
