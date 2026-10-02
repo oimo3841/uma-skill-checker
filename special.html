@@ -533,10 +533,9 @@
 					aria-controls="step-panel-0" aria-selected="false" tabindex="-1" onclick="selectStepTab(0)" hidden>
 					<span class="step-tab-num" aria-hidden="true">1</span>
 					<span class="step-tab-label">本育成編成</span>
-					<!-- いま除外しているスキルの数（C-62 の (5) → C-63 の (2) でここへ移した）。
-					     ②の件数バッジと同じ位置・同じ形で、色だけ赤（「何かを外している」ことの印）。
-					     **除外を解除している間も「除外0種」と出す** ―― 数が消えると、効いていないのか
-					     そもそも機能が無いのかが区別できない。 -->
+					<!-- 本育成で得るスキルの数（表に出ている●の数。段7の (2) で「除外X種」→「X種」に）。
+					     C-62 の (5) → C-63 の (2) でここへ移した。②の件数バッジと同じ位置・同じ形で、色だけ赤。
+					     値は編成パネルの onSureCountChange が入れる。 -->
 					<span id="deck-roster-excluded" class="step-tab-badge step-tab-badge--alert" hidden></span>
 				</button>
 				<button type="button" role="tab" class="step-tab" id="step-tab-1"
@@ -3079,10 +3078,10 @@
 			btn.hidden = true;
 			document.getElementById('old-ui-end-note').hidden = true;
 			document.getElementById('ui-mode-badge').hidden = false;
-			// 「一部αテスト中」と「除外N種」は新UIだけの表示（C-62 の (4)(5)）。
-			// 除外の数は編成パネルが描けたところで onHiddenIdsChange が入れ直す。
+			// 「一部αテスト中」と「N種」は新UIだけの表示（C-62 の (4)(5)）。
+			// 数は編成パネルが描けたところで onSureCountChange が入れ直す。
 			document.getElementById('alpha-badge').hidden = false;
-			updateExcludedBadge(0);
+			updateRosterBadge(0);
 			updateDeckEntryVisibility();
 			saveUiModeChoice();
 			// ①の中身が入れ替わるので、隠れたまま気付かれないことがないよう①を開いておく
@@ -3149,25 +3148,13 @@
 				deckRosterPanel = UmaSkillDeckCore.createRosterPanel(
 					document.getElementById('deck-roster-panel'),
 					{
-						// Step 2 でいま選んでいるスキルセットの中身。編成を触ったときに
-						// 「もう選んであるものと重なっています」と知らせるために使う（C-51 の修正5）。
-						getScopeSkillIds: () => {
-							const sel = deckTemplateManager.getSelection();
-							return sel ? sel.skillIds : [];
-						},
-						// 「＋ 新規」の中身（未保存の編成）をブラウザに残す（C-53。タブを切り替えても消えない）
+						// 「＋新規」の中身（未保存の編成）をブラウザに残す（C-53。タブを切り替えても消えない）
 						draftKey: DECK_DRAFT_SCOPE_KEY,
-						// 除外先のスキルセットを選べるようにする（C-54 の (3)）。候補は②の因子セット
-						getScopeChoices: () => deckTemplateManager.listSelections(),
-						// いま除外しているスキルの数を①のタブの項目名の脇に出す（C-62 の (5)）
-						onHiddenIdsChange: (ids) => updateExcludedBadge(ids.length),
-						onRemoveFromScope: (ids, choiceId) => {
-							// 選んだ因子セットを②の選択にしてから外す（照合対象もそれになる）
-							if (choiceId) deckTemplateManager.setSelectedId(choiceId);
-							const n = deckTemplateManager.removeSkillsFromSelection(ids);
-							// 外せたときのトーストは core の Undo（doneLabel）が出す。ここで重ねて出さない。
-							if (n === 0) showToast('外すものはありませんでした');
-						}
+						// 表に出ている●の数を①のタブの項目名の脇に出す（C-62 の (5) → 段7の (2)）
+						onSureCountChange: (n) => updateRosterBadge(n)
+						// **段7（2026-10-03）で getScopeSkillIds・getScopeChoices・onRemoveFromScope・onHiddenIdsChange を外した。**
+						// ①の「本育成スキルを除外する」は廃止し、②の各セットの「本育成編成」（core の中で完結）に置き換えたため。
+						// 本育成のぶんの受け渡しは core の中（rosterPtSource）で行う（段5 と同じ）。
 					}
 				);
 			} else {
@@ -3225,17 +3212,15 @@
 		// （「αテスト」は C-62 の (4) で常時表示に、「?」は C-63 の (3) で削除）。
 
 		/* ------------------------------------------------------------
-		 * いま除外しているスキルの数（C-62 の (5)）
+		 * 本育成で得るスキルの数（C-62 の (5) → 段7の (2)）
 		 *
-		 * ①の「本育成スキルを除外する」を押している間、②のスキルセットから外した
-		 * スキルが何種あるかを、①のタブの項目名の脇に出す。**除外を解除している間も
-		 * 「除外0種」と出す** ―― 数そのものが消えると、効いていないのか機能が無いのかが
-		 * 区別できない。編成パネルの onHiddenIdsChange から呼ばれる。
+		 * ①の表に出ている●の数（絞り込み中はその中の数）を、①のタブの項目名の脇に出す。
+		 * 編成パネルの onSureCountChange から呼ばれる。0種でも「0種」と出す。
 		 * ------------------------------------------------------------ */
-		function updateExcludedBadge(count) {
+		function updateRosterBadge(count) {
 			const el = document.getElementById('deck-roster-excluded');
 			if (!el) return;
-			el.textContent = '除外' + count + '種';
+			el.textContent = count + '種';
 			el.hidden = false;
 		}
 

@@ -749,6 +749,8 @@
 			if (parsed.scopes && typeof parsed.scopes === 'object') out.scopes = Object.assign({}, parsed.scopes);
 			// 親由来のレベル F（段5）。持っているときだけ写す（無い古い形に補わない。知らない値もそのまま写し、使うときに既定へ解く）
 			if (typeof parsed.parentHintLevel === 'number') out.parentHintLevel = parsed.parentHintLevel;
+			// 「本育成編成」の ON（段7の E）。持っているときだけ写す
+			if (parsed.withRoster === true) out.withRoster = true;
 			return out;
 		} catch (e) {
 			return { skillIds: [], name: '', updatedAt: '' };
@@ -756,7 +758,7 @@
 	}
 
 	// label … 失敗を知らせるときの呼び名（呼び出し元の setLabel）。渡さなければ既定の呼び名
-	function saveDraftScope(scopeKey, skillIds, name, tiers, label, scopes, parentHintLevel) {
+	function saveDraftScope(scopeKey, skillIds, name, tiers, label, scopes, parentHintLevel, withRoster) {
 		const payload = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
 		// 空の tiers は書かない（分類を変えていないドラフトの姿を変えない）
 		if (tiers && typeof tiers === 'object' && Object.keys(tiers).length > 0) payload.tiers = Object.assign({}, tiers);
@@ -764,6 +766,8 @@
 		if (scopes && typeof scopes === 'object' && Object.keys(scopes).length > 0) payload.scopes = Object.assign({}, scopes);
 		// 親由来のレベル F（段5）も同じ流儀 ―― 選んでいなければ書かない
 		if (typeof parentHintLevel === 'number') payload.parentHintLevel = parentHintLevel;
+		// 「本育成編成」の ON（段7の E）も同じ流儀 ―― OFF なら書かない
+		if (withRoster === true) payload.withRoster = true;
 		try {
 			global.localStorage.setItem(draftStorageKey(scopeKey), JSON.stringify(payload));
 		} catch (e) {
@@ -3418,6 +3422,11 @@
 		'.usd-roster-choicelabel { flex: none; font-weight: 700; color: var(--uma-text-heading); }',
 		'.usd-roster-choiceskills { display: inline-flex; flex-wrap: wrap; gap: var(--uma-sp-1) var(--uma-sp-2); min-width: 0; }',
 		'.usd-roster-choiceskill--dim, .usd-roster-choiceskill--none { color: var(--uma-text-faint); }',
+		// ②の「本育成編成」（E）
+		'.usd-roster-link { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-1-5) var(--uma-sp-2); }',
+		'.usd-roster-link[hidden] { display: none; }',
+		'.usd-roster-link .usd-roster-note { flex: 1 1 100%; }',
+		'.usd-roster-linkbtn[aria-pressed="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
 		// セルの中の横スクロール（名前と Pt）の「続きがある側のフェード」。入口の並びと同じ仕組み（data-usd-fade）
 		'.usd-hscroll[data-usd-fade="right"], .usd-hscroll[data-usd-fade="both"] { --usd-fade-r: rgba(0,0,0,.3) 100%; }',
 		'.usd-hscroll[data-usd-fade="left"], .usd-hscroll[data-usd-fade="both"] { --usd-fade-l: rgba(0,0,0,.3) 0; }',
@@ -3525,7 +3534,7 @@
 	// 「本育成スキルを除外する」を押している間、編成で得られる●のスキルを追加の一覧で選べなくするときの理由の文言。
 	// **一覧から消さず、出したうえで選べなくして、理由を添える**（段3b・2026-09-30）。
 	// 「条件で検索」「緑スキルを追加」「名前を入れて探す」の3か所が同じ文言を使うので、ここ1か所に置く。
-	const PICKER_EXCLUDED_REASON = '本育成で得るため除外中';
+	const PICKER_EXCLUDED_REASON = '本育成で得るため選べません';   // 段7（2026-10-03）: 「除外」の語を使わない
 
 	const PICKER_MODES = {
 		// 71セッション目・段6: 「条件でスキルを検索」→「条件で検索」（利用者向けの文言だけ。
@@ -4267,7 +4276,7 @@
 	function setExcludedCountLabel(el, count, unit) {
 		if (!el) return;
 		el.hidden = count <= 0;
-		el.textContent = count > 0 ? '除外中 ' + count + unit : '';
+		el.textContent = count > 0 ? '本育成で得るため選べない ' + count + '件' : '';   // 段7（旧3）: 行の数なので「件」
 	}
 
 	/** 除外中の行（グレーアウト・チェックできない・理由つき）。条件で検索と緑スキルの一覧で共通。 */
@@ -4490,7 +4499,9 @@
 	 */
 	function addCheckedSkills() {
 		if (picker.checked.size === 0) { toast('スキルにチェックを入れてください'); return; }
-		const ids = Array.from(picker.checked);
+		// 本育成で得るスキル（「本育成編成」が ON のセット）は、どの経路からも足さない（段7の 旧4。保険）
+		const ids = Array.from(picker.checked).filter(id => !isPickerExcluded(id));
+		if (ids.length === 0) { picker.checked.clear(); renderPickerResults(); renderPasteReport(); return; }
 		const sink = picker.onAdd;
 		const undoable = sink && typeof sink === 'object' && typeof sink.add === 'function';
 		// 足す前の姿を控えておく。実際に何種足りたかは足してみないと分からないので、
@@ -4551,7 +4562,8 @@
 			const accept = r.kind === 'exact' || (r.autoAccepted === true && r.matchedId);
 			if (!accept) return;
 			r.chosenId = r.matchedId;
-			if (picker.excludeIds.indexOf(r.matchedId) === -1) picker.checked.add(r.matchedId);
+			// 本育成で得るスキル（「本育成編成」が ON のセット）は選択に入れない（段7の 旧4。報告に「追加しなかったもの」として数える）
+			if (picker.excludeIds.indexOf(r.matchedId) === -1 && !isPickerExcluded(r.matchedId)) picker.checked.add(r.matchedId);
 		});
 		renderPasteReport();
 		renderPickerResults();
@@ -4581,7 +4593,7 @@
 		row.chosenId = skillId;
 		// 選び直した場合、前に選んでいたスキルを他の行も使っていなければ選択から外す
 		if (prev && prev !== skillId) releaseIfUnused(prev);
-		if (picker.excludeIds.indexOf(skillId) === -1) picker.checked.add(skillId);
+		if (picker.excludeIds.indexOf(skillId) === -1 && !isPickerExcluded(skillId)) picker.checked.add(skillId);   // 本育成で得るものは足さない（段7の 旧4）
 		renderPasteReport();
 		renderPickerResults();
 	}
@@ -4796,14 +4808,17 @@
 		// 完全一致していたスキルを選んだ場合など）、行数で出すと実際より多く見える。
 		const resolvedIds = new Set(resolved.map(r => r.chosenId));
 		const alreadyIds = new Set(resolved.filter(r => excluded.has(r.chosenId)).map(r => r.chosenId));
+		// 本育成で得るため追加しなかったもの（段7の 旧4。「本育成編成」が ON のセットで、一致した行）。0種のときは出さない
+		const blockedIds = new Set(resolved.filter(r => !excluded.has(r.chosenId) && isPickerExcluded(r.chosenId)).map(r => r.chosenId));
 
 		let html = '<div class="usd-paste-summary">' +
-			'<span class="usd-paste-ok">選択 ' + resolvedIds.size + '件</span>' +
+			'<span class="usd-paste-ok">選択 ' + (resolvedIds.size - blockedIds.size) + '件</span>' +
 			(alreadyIds.size > 0 ? '<span class="usd-paste-muted">（うち追加済み ' + alreadyIds.size + '件）</span>' : '') +
+			(blockedIds.size > 0 ? '<span class="usd-paste-muted" data-usd-el="paste-blocked">本育成で得るため追加しなかったもの ' + blockedIds.size + '種</span>' : '') +
 			(pending.length > 0 ? '<span class="usd-paste-warn">要確認 ' + pending.length + '件</span>' : '') +
 			(errors.length > 0 ? '<span class="usd-paste-err">エラー ' + errors.length + '件</span>' : '') +
 		'</div>';
-		if (resolvedIds.size > alreadyIds.size) {
+		if (resolvedIds.size - blockedIds.size > alreadyIds.size) {
 			html += '<p class="usd-paste-hint">下の「チェックしたスキルを追加」を押すと確定します。</p>';
 		}
 
@@ -6497,6 +6512,8 @@
 						   A の中に居ると逆に範囲が狭く読める。**名前の行＝セットそのものを扱う行**が正しい場所。 */
 					'</div>' +       // .usd-entry-row
 					// 分類の切り替え（超優先／優先／通常。C-57 の (7)）。追加の入口はいま選んでいる分類に足す
+					// 「本育成編成」（段7の E。special の②だけ。中身は renderRosterLink()）
+					'<div class="usd-roster-link" data-usd-el="roster-link" hidden></div>' +
 					'<div class="usd-tier-row" data-usd-el="tier-row"></div>' +
 					// 周回因子セットの必要スキルPt（段5。special の②だけ。中身は renderPtNeed()）
 					'<div class="usd-ptneed" data-usd-el="pt-need" hidden></div>' +
@@ -6516,7 +6533,8 @@
 
 		const nameInput = q(container, 'name-input');
 		// 編成パネル（①）が描き直したとき、必要Ptも描き直す（本育成のぶんが変わるため）。段5
-		rosterPtListeners.push(function () { if (container.isConnected) renderPtNeed(); });
+		// 編成（①）が変わったら、必要Ptと「本育成編成」の重なり・追加の一覧のグレーアウトも描き直す（段7の E・旧5。モーダルが開いたままでも映す）
+		rosterPtListeners.push(function () { if (!container.isConnected) return; renderPtNeed(); renderRosterLink(); applyRosterHidden(); });
 
 		container.addEventListener('click', (e) => {
 			const btn = e.target.closest('[data-usd-act]');
@@ -6542,6 +6560,8 @@
 			else if (act === 'scope-help') openScopeList(btn.dataset.scope);
 			else if (act === 'scope-help-close') closeScopeList();
 			else if (act === 'pt-need-help') { ptNeedHelpOpen = !ptNeedHelpOpen; renderPtNeed(); }
+			else if (act === 'roster-link') toggleRosterLink();
+			else if (act === 'roster-link-undo') undoRosterLink();
 		});
 		container.addEventListener('change', (e) => {
 			const box = e.target;
@@ -6611,6 +6631,8 @@
 			renderNameRow();
 			renderSelectedList();
 			renderExtraScopes();
+			renderRosterLink();
+			applyRosterHidden();
 			/* 入口の並びの「続きがある」の見せ方を測り直す（73セッション目の手直し）。
 			   **ここで呼ばないと、読み込んだ幅のままでは一度も測られない** ――
 			   window の resize でしか走らないので、その幅で開いた人には何も当たらなかった。 */
@@ -6751,6 +6773,106 @@
 			q(container, 'del-btn').hidden = target.kind !== 'template';
 		}
 
+		/* ------------------------------------------------------------
+		 * 「本育成編成」（段7の E・2026-10-03）。special の②（grouped）で、編成パネル（①）があるときだけ出す。
+		 * ON の状態はそのセットごとに保存する（template.withRoster / ドラフトの withRoster。触らなければ足さない・読み込み時に補わない）。
+		 * 効かせる相手は①で選択中の編成の●（絞り込みなし＝rosterPtSource の sureIds）。
+		 *   - ON にした時点で、そのセットのスキルのうち本育成で得るものを外す（通知と「元に戻す」）
+		 *   - ON の間は、追加の一覧（条件で検索・緑スキル・名前を入れて探す・貼り付け・画像取り込み）で本育成で得るスキルを
+		 *     グレーアウトで残して追加できなくする（pickerHiddenIds）
+		 *   - ON のあとに編成が変わって新しく重なっても自動では外さず、重なりの数を小さく出す（OFF のときも出す）
+		 * ------------------------------------------------------------ */
+		let rosterLinkNotice = null;   // ON で外したときの知らせ { text, undoable, count }（保存しない。次の操作で消える）
+		function withRosterOf(target) {
+			if (!target) return false;
+			if (target.kind === 'draft') return draftScope.withRoster === true;
+			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
+			return !!(t && t.withRoster === true);
+		}
+		function writeWithRoster(target, on) {
+			if (target.kind === 'draft') {
+				draftScope = persistDraft(draftScope.skillIds, draftScope.name, draftScope.tiers, draftScope.scopes, undefined, on ? true : null);
+				return true;
+			}
+			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
+			if (!t) return false;
+			if (on) t.withRoster = true; else delete t.withRoster;
+			t.updatedAt = nowIso();
+			saveUserData();
+			return true;
+		}
+		/** ①の編成の●（絞り込みなし）。編成パネルが無い画面では空。 */
+		function rosterSureIds() {
+			if (!grouped || !rosterPtSource) return [];
+			const inp = rosterPtSource.getInputs();
+			return Array.isArray(inp.sureIds) ? inp.sureIds.slice() : [];
+		}
+		/** 追加の一覧で選べなくするスキル（ON のセットを編集しているときだけ）。モーダルが開いていれば描き直す（旧5）。 */
+		function applyRosterHidden() {
+			const next = withRosterOf(currentTarget()) ? rosterSureIds() : [];
+			const changed = next.length !== pickerHiddenIds.length || next.some((id, i) => id !== pickerHiddenIds[i]);
+			pickerHiddenIds = next;
+			if (changed) { renderPickerResults(); renderPasteReport(); }
+		}
+		function renderRosterLink() {
+			const el = q(container, 'roster-link');
+			if (!el) return;
+			if (!grouped || !rosterPtSource) { el.hidden = true; el.innerHTML = ''; return; }
+			const target = currentTarget();
+			const on = withRosterOf(target);
+			const sure = new Set(rosterSureIds());
+			const overlap = (skillIdsOf(target) || []).filter(id => sure.has(id)).length;
+			let h = '<button type="button" class="uma-btn uma-btn--secondary usd-roster-linkbtn" data-usd-act="roster-link" data-usd-el="roster-link-btn" aria-pressed="' + (on ? 'true' : 'false') + '">本育成編成</button>';
+			if (overlap > 0) h += '<span class="usd-roster-note" data-usd-el="roster-link-overlap">このセットには、本育成で得るスキルが' + overlap + '種含まれています</span>';
+			if (rosterLinkNotice) {
+				h += '<span class="usd-roster-note" data-usd-el="roster-link-notice">' + esc(rosterLinkNotice.text) + '</span>'
+					+ (rosterLinkNotice.undoable ? '<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="roster-link-undo">元に戻す</button>' : '');
+			}
+			el.hidden = false;
+			el.innerHTML = h;
+		}
+		function toggleRosterLink() {
+			const target = currentTarget();
+			const on = !withRosterOf(target);
+			rosterLinkNotice = null;
+			if (!writeWithRoster(target, on)) return;
+			if (on) {
+				// ON にした時点で、本育成で得るもの（●）を外す（いまの除外と同じ処理・同じ Undo）
+				const sure = new Set(rosterSureIds());
+				const before = skillIdsOf(target) || [];
+				const drop = before.filter(id => sure.has(id));
+				if (drop.length > 0) {
+					const undoBefore = undoCount();
+					const prev = snapshot(before);
+					const prevTiers = snapshot(tiersOf(target));
+					const text = '本育成編成で得るため、' + getSkillName(drop[0]) + (drop.length > 1 ? 'ほか' + (drop.length - 1) + '種' : '') + 'を周回因子セットから外しました';
+					pushUndo({
+						scope: 'list',
+						doneLabel: text,
+						undoneLabel: '外した' + drop.length + '種を周回因子セットに戻しました',
+						probe: () => probeOf(skillIdsOf(target)),
+						apply: () => {
+							if (!writeSkillIds(target, snapshot(prev), snapshot(prevTiers))) return false;
+							picker.excludeIds = picker.excludeIds.concat(prev.filter(id => picker.excludeIds.indexOf(id) === -1));
+							afterEditingSkillsChanged(target);
+							return true;
+						}
+					});
+					if (writeSkillIds(target, before.filter(id => !sure.has(id)), tiersWithout(prevTiers, drop))) {
+						picker.excludeIds = picker.excludeIds.filter(id => drop.indexOf(id) === -1);
+						const count = undoCount();
+						rosterLinkNotice = { text: text, undoable: count === undoBefore + 1, count: count };
+					}
+				}
+			}
+			afterEditingSkillsChanged(target);
+		}
+		function undoRosterLink() {
+			const n = rosterLinkNotice;
+			rosterLinkNotice = null;
+			if (n && n.undoable && undoCount() === n.count) performUndo();
+			render();
+		}
 		/**
 		 * 周回因子セットの必要スキルPt（段5）。**special の②だけ**（grouped）で、**本育成のぶんを渡す編成パネル（①）があるときだけ**出す
 		 * （Deck 単体ページには出ない）。3つの合計（超優先だけ／優先まで／通常まで）・うち本育成・Pt 未収録の件数・親由来のレベル F。
@@ -6790,7 +6912,7 @@
 			if (r.roster.count > 0) h += '<p class="usd-roster-note" data-usd-el="pt-need-roster">（うち本育成 ' + formatPtNumber(r.roster.total) + '）</p>';
 			// 重なるスキル（本育成と因子セットの両方）が、本育成だけでは L が上限未満のとき、合計が「超優先だけ」より小さくなりうることを説明する
 			if (r.roster.count > 0 && r.overlapRaisable > 0) h += '<p class="usd-roster-note" data-usd-el="pt-need-overlap">重なるスキルは、親から得ると、ヒントレベルが上がって安くなります。</p>';
-			if (r.unpricedCount > 0) h += '<p class="usd-roster-note" data-usd-el="pt-need-unpriced">（Pt 未収録 ' + r.unpricedCount + '種は含めていません）</p>';
+			if (r.unpricedCount > 0) h += '<p class="usd-roster-note" data-usd-el="pt-need-unpriced">（Pt未収録' + r.unpricedCount + '種は含めていません）</p>';
 			if (skillPtData.meta.stepUp === 'failed') h += '<p class="usd-roster-note" data-usd-el="pt-need-prev-error">前段のデータを読み込めませんでした</p>';
 			h += '<label class="usd-ptneed-f"><span class="usd-roster-setlabel">親由来のレベル</span>'
 				+ '<select class="uma-input usd-ptneed-select" data-usd-act="pt-parent-level" data-usd-el="pt-parent-level" aria-label="親由来のレベル">'
@@ -6983,15 +7105,17 @@
 
 		// tiers（分類。C-57）と scopes（節の ON/OFF。C-2a）は持っているときだけ残す（空なら書かない）。
 		// **渡されなければ今のものを引き継ぐ**（片方を書き換えるときにもう片方を消さないため）
-		function persistDraft(skillIds, name, tiers, scopes, parentHintLevel) {
+		function persistDraft(skillIds, name, tiers, scopes, parentHintLevel, withRoster) {
 			const nextTiers = tiers !== undefined ? tiers : draftScope.tiers;
 			const nextScopes = scopes !== undefined ? scopes : draftScope.scopes;
 			const nextParent = parentHintLevel !== undefined ? parentHintLevel : draftScope.parentHintLevel;   // null で消す（段5）
-			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, nextTiers, setLabel, nextScopes, nextParent);
+			const nextWith = withRoster !== undefined ? withRoster : draftScope.withRoster;   // null で消す（段7の E）
+			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, nextTiers, setLabel, nextScopes, nextParent, nextWith);
 			const out = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
 			if (nextTiers && typeof nextTiers === 'object' && Object.keys(nextTiers).length > 0) out.tiers = Object.assign({}, nextTiers);
 			if (nextScopes && typeof nextScopes === 'object' && Object.keys(nextScopes).length > 0) out.scopes = Object.assign({}, nextScopes);
 			if (typeof nextParent === 'number') out.parentHintLevel = nextParent;
+			if (nextWith === true) out.withRoster = true;
 			return out;
 		}
 
@@ -7023,11 +7147,12 @@
 			setTemplateTiers(t, draftScope.tiers || {});
 			setTemplateScopes(t, draftScope.scopes || {});
 			if (typeof draftScope.parentHintLevel === 'number') t.parentHintLevel = draftScope.parentHintLevel;   // 親由来のレベル F（段5）
+			if (draftScope.withRoster === true) t.withRoster = true;   // 「本育成編成」（段7の E）
 			data.templates.push(t);
 			saveUserData();
 			// 中身はテンプレートへ移ったので、ドラフトは空にする（二重管理を避ける）。
 			// **{} を渡して明示的に消す** ―― persistDraft は undefined を「今のものを引き継ぐ」と読む
-			draftScope = persistDraft([], '', {}, {}, null);
+			draftScope = persistDraft([], '', {}, {}, null, null);
 			selectedId = t.templateId;
 			render();
 			fireSelection();
@@ -7332,6 +7457,7 @@
 			if (t.tiers) copy.tiers = Object.assign({}, t.tiers);   // 分類（C-57）も写す
 			if (t.scopes) copy.scopes = Object.assign({}, t.scopes); // 節の ON/OFF（C-2a）も写す
 			if (typeof t.parentHintLevel === 'number') copy.parentHintLevel = t.parentHintLevel;   // 親由来のレベル F（段5）も写す
+			if (t.withRoster === true) copy.withRoster = true;   // 「本育成編成」（段7の E）も写す
 			data.templates.push(copy);
 			saveUserData();
 			// 複製したものをそのまま選ぶ（続けて名前を直せるように）
