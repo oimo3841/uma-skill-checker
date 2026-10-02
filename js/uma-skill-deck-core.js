@@ -3257,7 +3257,23 @@
 		'  background: var(--uma-surface); border: 1px solid var(--uma-border);',
 		'  border-radius: var(--uma-r-md); padding: var(--uma-card-pad); box-shadow: var(--uma-shadow-lg, 0 10px 30px rgba(0,0,0,.2)); }',
 		'.usd-roster-modal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); }',
-		'.usd-roster-hits { overflow-y: auto; }'
+		'.usd-roster-hits { overflow-y: auto; }',
+		// スキルの説明（ⓘ・長押し。段6）。器は共有の .uma-overlay .uma-popover（css/shell.css）。ここは中身と ⓘ だけ。
+		'.usd-info-line { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; }',
+		'.usd-info-target { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }',
+		'.usd-info-btn { flex: none; }',
+		'.usd-info-btn::before { content: "i"; font-style: italic; font-family: Georgia, "Times New Roman", serif; }',
+		'.usd-info-back { position: fixed; inset: 0; z-index: 110; background: rgba(15, 23, 43, 0.25); }',
+		'.usd-info-back[hidden] { display: none; }',
+		'.usd-info-body { display: flex; flex-direction: column; gap: var(--uma-sp-2); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); color: var(--uma-text); overflow-wrap: anywhere; }',
+		'.usd-info-body p { margin: 0; }',
+		'.usd-info-rarity { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-subtle); }',
+		'.usd-info-desc { white-space: pre-line; }',
+		'.usd-info-desc--pending { color: var(--uma-text-subtle); }',
+		'.usd-info-self { color: var(--uma-text-heading); }',
+		'.usd-roster-line2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--uma-sp-2); }',
+		'.usd-roster-share { font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); color: var(--uma-text-subtle); }',
+		'@media (max-width: 600px) { .usd-roster-share { display: none; } }'
 	].join('\n');
 
 	let stylesInjected = false;
