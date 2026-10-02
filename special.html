@@ -40,10 +40,7 @@
 		   見出し・「任意」・「?」（説明。C-52）・「αテスト」（注記。C-52 の文字ボタン）を1行に並べ、
 		   押したものの箱がその直下にインラインで開く。任意であることは「任意」の印だけで示し、
 		   文字を小さくしたり薄くしたりしない（おまけに見えると使われないため）。 */
-		.deck-panel-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2, 8px); margin-bottom: var(--uma-sp-2); }
-		.deck-panel-title { font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; }
-		.deck-panel-opt { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; padding: 2px 8px; border-radius: 999px;
-			border: 1px solid var(--uma-border-strong); background: var(--uma-surface-muted); color: var(--uma-text-heading); }
+		/* .deck-panel-head / -title / -opt は段7（2026-10-03）で見出しの行ごと削除した */
 		.deck-panel-note { margin: 0 0 var(--uma-sp-2); }
 		/* 赤い配色（旧 .deck-panel-note--alpha）は css/common.css の .uma-help-box--alpha へ移した
 		   （段F で exam の遺伝子の行も使うようになったため。C-62 の (9) と同じ運び）。
@@ -220,9 +217,8 @@
 					     以前は「親Aセット（親A+祖A1+祖A2）の因子スクリーンショットから…」と
 					     画面の構造を先に説明していたが、初見には読み解けない語が多かった。 -->
 					<p class="mt-1.5 text-xs md:text-sm text-slate-500">ゲーム画面のスクリーンショットから、スキルの★の数を判定</p>
-					<p class="mt-1.5 text-[11px] text-amber-700">※ OCR・★判定の精度は完全ではありません。</p>
-					<p class="mt-0.5 text-[11px] text-amber-700">※ 解像度不足の画像はエラーとなる場合があります。</p>
-					<p class="mt-0.5 text-[11px] text-amber-700">※ 加工された画像は適切に判定できない場合があります。</p>
+					<!-- 3行の注意書き（OCR の精度・解像度・加工画像）は、段7（2026-10-03）に「使い方・注意」のポップアップの
+					     「注意」の欄へ移した（ヘッダーを短くするため。文言は変えていない）。 -->
 				</div>
 
 				<!-- 右側：アクションボタン群 -->
@@ -292,10 +288,10 @@
 						<span id="deck-mode-btn-label">旧UIへ</span>
 					</button>
 
-					<!-- 使い方ガイドボタン -->
+					<!-- 使い方・注意（段7で「使い方ガイド」から改名。ヘッダーにあった3行の注意書きもこの中に入れた） -->
 					<button type="button" onclick="toggleHelp()" class="uma-btn uma-btn--secondary">
 						<i data-lucide="help-circle" class="w-4 h-4"></i>
-						<span>使い方ガイド</span>
+						<span>使い方・注意</span>
 					</button>
 				</div>
 			</div>
@@ -385,7 +381,7 @@
 							<!-- ①の中身は旧UIと新UIで違うので、開いたときに片方だけ出す（data-help-mode） -->
 							<p class="help-step-text" data-help-mode="old">旧UIにこの手順はありません。タブ①へ進んでください。</p>
 							<p class="help-step-text" data-help-mode="new">タブ①で、育成するウマ娘と、使うサポートカード（最大6枚）を選びます。その編成のカードと覚醒で<strong>得られるスキル</strong>が表になり、どのカードから得られるかが列の印で分かります。サポートカードの種類は色で見分けられます（欄・候補・表の見出し・凡例の番号がすべて同じ色）。</p>
-							<p class="help-step-text" data-help-mode="new">「本育成スキルを除外する」を押すと、そこで得られるスキルを②のスキルセットから外せます（元に戻せます）。いま何種を外しているかは、タブ①の見出しの脇に<strong>「除外◯種」</strong>と出ます。選ばなくても②だけで使えます。</p>
+							<p class="help-step-text" data-help-mode="new">②の各セットの<strong>「本育成編成」</strong>を押すと、そのセットから本育成で得るスキルを外し、以後その一覧でも選べなくなります（元に戻せます）。タブ①の見出しの脇には、本育成で得るスキルの数が<strong>「◯種」</strong>と出ます。選ばなくても②だけで使えます。</p>
 						</div>
 					</li>
 					<li>
@@ -444,6 +440,19 @@
 					<ul>
 						<li>スキル一覧の部分だけを写します。見出しや前後のキャラクターの行が混ざると誤判定のもとになります。</li>
 						<li>スキル名と★が同じ画像に収まるように撮ります。一番下の行は★が切れやすいので、少しずらしてもう1枚撮っておくと安心です。</li>
+					</ul>
+				</div>
+
+				<!-- 注意（段7・2026-10-03）。ヘッダーにあった3行をここへまとめた（文言は変えていない） -->
+				<div class="help-tips" id="help-cautions">
+					<p class="help-tips-title">
+						<i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+						<span>注意</span>
+					</p>
+					<ul>
+						<li>※ OCR・★判定の精度は完全ではありません。</li>
+						<li>※ 解像度不足の画像はエラーとなる場合があります。</li>
+						<li>※ 加工された画像は適切に判定できない場合があります。</li>
 					</ul>
 				</div>
 			</div>
@@ -551,17 +560,12 @@
 			<!-- ① 本育成編成（Deck連携モードだけ。C-51）。中身（編成パネル）は js/uma-skill-deck-core.js の
 			     createRosterPanel() が #deck-roster-panel に描画する。選ばなくても②だけで使える（任意）。 -->
 			<div id="step-panel-0" class="step-panel" role="tabpanel" aria-labelledby="step-tab-0" hidden>
-				<div class="deck-panel-head">
-					<span class="deck-panel-title">本育成のウマ娘/サポートカードの編成</span>
-					<span class="deck-panel-opt">任意</span>
-					<!-- **「?」（説明）は C-63 の (3) で削除した。** 中身は「選ぶと、その編成のカードと覚醒で
-					     得られるスキルが分かります」という、画面を見れば分かることの言い換えだった
-					     （得られるスキルは表になって下に出ている）。説明の入口そのものを消したので、
-					     ここに残るのは項目名・「任意」・αテスト中の注記だけ。使い方は「使い方ガイド」にある。
-					     **αテスト中の注記は常時表示**（C-62 の (4)）。 -->
-				</div>
+				<!-- 見出しの行（「本育成のウマ娘/サポートカードの編成」「任意」）は段7（2026-10-03）で削除した
+				     （任意かどうかは示さない。パネルの名前は下の aria-label に残す）。
+				     **「?」（説明）は C-63 の (3) で削除した。** 使い方は「使い方・注意」にある。
+				     **αテスト中の注記は常時表示**（C-62 の (4)）。 -->
 				<p id="deck-roster-alpha" class="uma-help-box uma-help-box--alpha deck-panel-note">αテスト中の機能です。まだ作りかけで、<strong>結果が正しくないことがあります</strong>。確かめながらお使いください。</p>
-				<div id="deck-roster-panel"></div>
+				<div id="deck-roster-panel" aria-label="本育成のウマ娘/サポートカードの編成"></div>
 			</div>
 
 			<div id="step-panel-1" class="step-panel" role="tabpanel" aria-labelledby="step-tab-1">
