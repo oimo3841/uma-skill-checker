@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-02c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-02d';
 
 	/* ============================================================
 	 * 定数
@@ -1733,14 +1733,20 @@
 	function buildStepUpIndex(doc) {
 		const roots = new Map();
 		const prevs = new Map();
+		const nexts = new Map();   // 直前のスキル → それを前段に持つスキル（段6の「系列」の表示が使う）
 		((doc && doc.entries) || []).forEach(e => {
 			if (!e || typeof e.skillId !== 'string') return;
 			if (typeof e.hintRootSkillId === 'string' && e.hintRootSkillId) roots.set(e.skillId, e.hintRootSkillId);
-			if (Array.isArray(e.prevSkillIds)) prevs.set(e.skillId, e.prevSkillIds.filter(x => typeof x === 'string'));
+			if (Array.isArray(e.prevSkillIds)) {
+				const list = e.prevSkillIds.filter(x => typeof x === 'string');
+				prevs.set(e.skillId, list);
+				list.forEach(p => { if (!nexts.has(p)) nexts.set(p, []); if (nexts.get(p).indexOf(e.skillId) === -1) nexts.get(p).push(e.skillId); });
+			}
 		});
 		return {
 			rootOf: (skillId) => roots.get(skillId) || skillId,
-			prevOf: (skillId) => (prevs.get(skillId) || []).slice()
+			prevOf: (skillId) => (prevs.get(skillId) || []).slice(),
+			nextOf: (skillId) => (nexts.get(skillId) || []).slice()
 		};
 	}
 
@@ -4864,6 +4870,313 @@
 	 * 呼び出し元がテンプレートIDやドラフトの区別を意識しなくて済むよう、
 	 * 選択結果は getSelection() が返す { kind, id, name, skillIds } に統一している。
 	 */
+	/* ============================================================
+	 * スキルの説明（ⓘ と名前の長押し。段6。設計は skill-pt-calculation-step0.md の 2-6・2-9・2-10）
+	 *
+	 * **要素に付ける部品**（`attachSkillInfo(el, { skillId, getLine })`）。編成パネル・周回因子セットの描画コードには
+	 * 埋め込まず、描いたあとに「名前の要素」へ付ける（Deck の改修で別の画面にも差せるように）。
+	 *   ・ⓘ ボタン（名前のそば）と名前の長押し（約0.5秒）は、どちらも同じ説明を開く。
+	 *   ・説明の器は共有の `.uma-overlay .uma-popover`（css/shell.css。640px 以下は下端固定のボトムシート）。
+	 *   ・中身：名前／レアリティ（skill-pt.json）／公式の説明文（skill-descriptions.json）／基礎Pt／系列（skill-step-up.json）。
+	 *   ・説明文は**開いたときに1回だけ**読む（ページの読み込みでは取りに行かない）。読めなくても開いて、基礎Pt などは出す。
+	 *   ・説明文・名前は textContent で入れる（HTML として解釈しない）。
+	 * 基礎Pt・レアリティ・前段は、段3 の loadSkillPtData が読んだものを共有する（二重に取りに行かない）。
+	 * ============================================================ */
+	const SKILL_RARITY_LABELS = { white: '白スキル', gold: '金スキル', unique: '固有スキル', evolved: '進化スキル' };
+	const SKILL_DESCRIPTIONS_PATH = 'data/skill-descriptions.json';
+	const SKILL_INFO_LONG_PRESS_MS = 500;
+	const SKILL_INFO_CANCEL_MOVE_PX = 10;
+	let skillDescState = { status: 'idle', map: null, promise: null };   // idle／loading／ok／failed
+	let skillInfoUi = null;        // { back, pop, title, body, closeBtn }（最初に開いたときに作る共有の器）
+	let skillInfoCur = null;       // 開いているもの { skillId, btn, opener, token }
+	let skillInfoToken = 0;
+	let skillInfoKeyBound = false;
+
+	/** 説明文を読む。**1回だけ**（成功したら読み直さない。読み込み中は同じ約束を返す）。失敗したら次に開いたときにもう一度試す。 */
+	function loadSkillDescriptions() {
+		if (skillDescState.status === 'ok' || skillDescState.status === 'loading') return skillDescState.promise;
+		const st = { status: 'loading', map: null, promise: null };
+		skillDescState = st;
+		st.promise = (async () => {
+			try {
+				const doc = await fetchMasterJson(withDataVersion(SKILL_DESCRIPTIONS_PATH), false);
+				const map = new Map();
+				((doc && doc.entries) || []).forEach(e => {
+					if (e && typeof e.skillId === 'string' && typeof e.text === 'string' && e.text) map.set(e.skillId, e.text);
+				});
+				st.map = map;
+				st.status = 'ok';
+			} catch (e) { st.status = 'failed'; }
+			return st.status;
+		})();
+		return st.promise;
+	}
+
+	/**
+	 * 系列（前段データから）。前へはたどれる限り（前段が複数のときは先頭）、後ろへは次のスキルが1つのあいだたどる
+	 * （次が複数なら、そこで束ねて止める）。関係が無ければ null。**名前や記号は見ない**（id の関係だけ）。
+	 */
+	function skillSeriesOf(skillId, stepUp) {
+		if (!stepUp || typeof stepUp.prevOf !== 'function' || typeof stepUp.nextOf !== 'function') return null;
+		const seen = new Set([skillId]);
+		const back = [];
+		for (let cur = skillId; ;) {
+			const p = stepUp.prevOf(cur).filter(x => !seen.has(x))[0];
+			if (!p) break;
+			seen.add(p); back.unshift(p); cur = p;
+		}
+		const fwd = [];
+		for (let cur = skillId; ;) {
+			const n = stepUp.nextOf(cur).filter(x => !seen.has(x));
+			if (n.length === 0) break;
+			fwd.push(n);
+			if (n.length > 1) break;
+			seen.add(n[0]); cur = n[0];
+		}
+		if (back.length === 0 && fwd.length === 0) return null;
+		return { back: back, fwd: fwd, rootId: stepUp.rootOf(skillId) };
+	}
+
+	function infoEl(tag, cls, text) {
+		const e = global.document.createElement(tag);
+		if (cls) e.className = cls;
+		if (text !== undefined && text !== null) e.textContent = text;
+		return e;
+	}
+
+	/** 説明文の欄を、いまの読み込みの状態に合わせて整える。行が無いスキルは欄ごと外す。 */
+	function settleSkillInfoDesc(skillId, el) {
+		const st = skillDescState.status;
+		if (st === 'ok') {
+			const t = skillDescState.map.get(skillId);
+			if (t) { el.textContent = t; el.classList.remove('usd-info-desc--pending'); } else if (el.parentNode) el.parentNode.removeChild(el);
+		} else if (st === 'failed') {
+			el.textContent = '説明文は準備中です';
+			el.classList.add('usd-info-desc--pending');
+		} else {
+			el.textContent = '読み込み中…';
+			el.classList.add('usd-info-desc--pending');
+		}
+	}
+
+	/** 説明の本文を作る。line は呼び出し元が渡す「いまの設定」の1行（無ければ null）。 */
+	function fillSkillInfo(skillId, line) {
+		const ui = skillInfoUi;
+		ui.title.textContent = getSkillName(skillId);
+		const body = ui.body;
+		body.textContent = '';
+		const pd = skillPtData;
+		const row = pd.skillPt instanceof Map ? pd.skillPt.get(skillId) : null;
+		if (row && SKILL_RARITY_LABELS[row.rarity]) {
+			const r = infoEl('p', 'usd-info-rarity', SKILL_RARITY_LABELS[row.rarity]);
+			r.setAttribute('data-usd-el', 'info-rarity');
+			body.appendChild(r);
+		}
+		const desc = infoEl('p', 'usd-info-desc', '');
+		desc.setAttribute('data-usd-el', 'info-desc');
+		body.appendChild(desc);
+		settleSkillInfoDesc(skillId, desc);
+		if (pd.meta.loaded) {
+			let t;
+			if (!(pd.skillPt instanceof Map)) t = pd.meta.skillPt === 'failed' ? 'Pt のデータを読み込めませんでした' : 'Pt 未収録';
+			else if (!row) t = 'Pt 未収録';
+			else if (row.pt === 0) t = 'Pt 不要';
+			else t = '基礎 ' + row.pt + ' Pt';
+			const p = infoEl('p', 'usd-info-pt', t);
+			p.setAttribute('data-usd-el', 'info-pt');
+			body.appendChild(p);
+			if (line) {
+				const n = infoEl('p', 'usd-info-pt usd-info-pt--now', line);
+				n.setAttribute('data-usd-el', 'info-pt-now');
+				body.appendChild(n);
+			}
+		}
+		const ser = skillSeriesOf(skillId, pd.stepUp);
+		if (ser) {
+			const p = infoEl('p', 'usd-info-series', '系列：');
+			p.setAttribute('data-usd-el', 'info-series');
+			const parts = [];
+			ser.back.forEach(id => parts.push({ text: getSkillName(id) }));
+			parts.push({ text: getSkillName(skillId), self: true });
+			ser.fwd.forEach(group => parts.push({ text: group.map(getSkillName).join('／') }));
+			parts.forEach((x, i) => {
+				if (i > 0) p.appendChild(global.document.createTextNode(' → '));
+				p.appendChild(x.self ? infoEl('strong', 'usd-info-self', x.text) : global.document.createTextNode(x.text));
+			});
+			body.appendChild(p);
+			if (ser.rootId !== skillId) {
+				const rt = infoEl('p', 'usd-info-root', 'Lv は ' + getSkillName(ser.rootId) + ' のものです');
+				rt.setAttribute('data-usd-el', 'info-root');
+				body.appendChild(rt);
+			}
+		}
+	}
+
+	function ensureSkillInfoUi() {
+		if (skillInfoUi) return skillInfoUi;
+		const doc = global.document;
+		const back = infoEl('div', 'usd-info-back');
+		back.setAttribute('data-usd-el', 'info-back');
+		back.hidden = true;
+		const pop = infoEl('div', 'uma-overlay uma-popover usd-info-pop');
+		pop.setAttribute('data-usd-el', 'info-pop');
+		pop.setAttribute('role', 'dialog');
+		pop.hidden = true;
+		const titleId = uid('usdinfotitle');
+		pop.setAttribute('aria-labelledby', titleId);
+		const head = infoEl('div', 'uma-popover-head');
+		const title = infoEl('h2', 'uma-popover-title');
+		title.id = titleId;
+		const closeBtn = infoEl('button', 'uma-popover-close', '×');
+		closeBtn.type = 'button';
+		closeBtn.setAttribute('aria-label', '閉じる');
+		closeBtn.setAttribute('data-usd-el', 'info-close');
+		head.appendChild(title);
+		head.appendChild(closeBtn);
+		const bodyWrap = infoEl('div', 'uma-popover-body');
+		const body = infoEl('div', 'usd-info-body');
+		body.setAttribute('data-usd-el', 'info-body');
+		bodyWrap.appendChild(body);
+		pop.appendChild(head);
+		pop.appendChild(bodyWrap);
+		doc.body.appendChild(back);
+		doc.body.appendChild(pop);
+		back.addEventListener('click', () => closeSkillInfo());
+		closeBtn.addEventListener('click', () => closeSkillInfo());
+		if (!skillInfoKeyBound) {
+			skillInfoKeyBound = true;
+			// Escape で閉じる。開いているときだけ効き、ほかの Escape の処理（ミニウィンドウなど）へは回さない
+			doc.addEventListener('keydown', (e) => {
+				if (e.key !== 'Escape' || !skillInfoCur) return;
+				e.preventDefault();
+				e.stopPropagation();
+				closeSkillInfo();
+			}, true);
+		}
+		skillInfoUi = { back: back, pop: pop, title: title, body: body, closeBtn: closeBtn };
+		return skillInfoUi;
+	}
+
+	function closeSkillInfo() {
+		const cur = skillInfoCur;
+		if (!cur || !skillInfoUi) return;
+		skillInfoCur = null;
+		skillInfoToken++;
+		skillInfoUi.pop.hidden = true;
+		skillInfoUi.back.hidden = true;
+		if (cur.btn) cur.btn.setAttribute('aria-expanded', 'false');
+		// 開いたきっかけの要素へフォーカスを戻す（画面が描き直されて無くなっていたら、同じスキルの ⓘ を探す）
+		let target = cur.opener && cur.opener.isConnected ? cur.opener : (cur.btn && cur.btn.isConnected ? cur.btn : null);
+		if (!target) {
+			const all = global.document.querySelectorAll('[data-usd-el="skill-info-btn"]');
+			for (let i = 0; i < all.length; i++) if (all[i].getAttribute('data-skill-id') === cur.skillId) { target = all[i]; break; }
+		}
+		if (target && typeof target.focus === 'function') target.focus();
+	}
+
+	function openSkillInfo(skillId, line, btn, opener) {
+		const ui = ensureSkillInfoUi();
+		if (skillInfoCur && skillInfoCur.btn) skillInfoCur.btn.setAttribute('aria-expanded', 'false');
+		const token = ++skillInfoToken;
+		skillInfoCur = { skillId: skillId, btn: btn, opener: opener || btn, token: token };
+		fillSkillInfo(skillId, line);
+		ui.back.hidden = false;
+		ui.pop.hidden = false;
+		if (btn) btn.setAttribute('aria-expanded', 'true');
+		ui.closeBtn.focus();
+		// 説明文は、最初に開いたときに1回だけ読む。読み終わったとき、まだ同じ説明が開いていれば欄を整える
+		if (skillDescState.status !== 'ok') {
+			loadSkillDescriptions().then(() => {
+				if (!skillInfoCur || skillInfoCur.token !== token) return;
+				const el = ui.body.querySelector('[data-usd-el="info-desc"]');
+				if (el) settleSkillInfoDesc(skillId, el);
+			});
+		}
+	}
+
+	/**
+	 * 名前の要素 el に、ⓘ ボタン（el の直後）と長押しを付ける。戻り値は { button, detach }。
+	 *   opts.skillId … 必須。
+	 *   opts.getLine … 開く直前に呼ぶ。「いまの設定」の1行（例：「いまの設定: 108 Pt（Lv5）」）か null。
+	 * 長押し：約0.5秒押し続けると開く。10px 以上動いたら・スクロールが始まったら取り消す。端末標準の長押し
+	 * （文字の選択・コンテキストメニュー・iOS の呼び出し）は、-webkit-touch-callout／user-select と contextmenu の抑止で避ける。
+	 */
+	function attachSkillInfo(el, opts) {
+		const o = opts || {};
+		if (!el || !el.parentNode || o.skillId === undefined || o.skillId === null || o.skillId === '') return null;
+		injectStyles();
+		const skillId = String(o.skillId);
+		const doc = global.document;
+		const btn = infoEl('button', 'uma-help-btn usd-info-btn');
+		btn.type = 'button';
+		btn.setAttribute('data-usd-el', 'skill-info-btn');
+		btn.setAttribute('data-skill-id', skillId);
+		btn.setAttribute('aria-label', getSkillName(skillId) + 'の説明を開く');
+		btn.setAttribute('aria-expanded', 'false');
+		btn.title = '説明を開く';
+		el.parentNode.insertBefore(btn, el.nextSibling);
+		el.classList.add('usd-info-target');
+		const lineOf = () => { try { return typeof o.getLine === 'function' ? (o.getLine() || null) : null; } catch (e) { return null; } };
+		btn.addEventListener('click', () => {
+			if (skillInfoCur && skillInfoCur.btn === btn) closeSkillInfo(); else openSkillInfo(skillId, lineOf(), btn, btn);
+		});
+
+		let timer = 0, sx = 0, sy = 0, active = false;
+		const onScroll = () => cancel();
+		function cancel() {
+			if (timer) { global.clearTimeout(timer); timer = 0; }
+			active = false;
+			doc.removeEventListener('scroll', onScroll, true);
+		}
+		const onDown = (e) => {
+			if (e.pointerType === 'mouse' && e.button !== 0) return;
+			cancel();
+			sx = e.clientX; sy = e.clientY; active = true;
+			doc.addEventListener('scroll', onScroll, true);
+			timer = global.setTimeout(() => {
+				timer = 0;
+				if (!active) return;
+				cancel();
+				openSkillInfo(skillId, lineOf(), btn, el);
+			}, SKILL_INFO_LONG_PRESS_MS);
+		};
+		const onMove = (e) => {
+			if (!active) return;
+			if (Math.hypot(e.clientX - sx, e.clientY - sy) >= SKILL_INFO_CANCEL_MOVE_PX) cancel();
+		};
+		const onCtx = (e) => e.preventDefault();
+		el.addEventListener('pointerdown', onDown);
+		el.addEventListener('pointermove', onMove);
+		el.addEventListener('pointerup', cancel);
+		el.addEventListener('pointercancel', cancel);
+		el.addEventListener('pointerleave', cancel);
+		el.addEventListener('contextmenu', onCtx);
+		return {
+			button: btn,
+			detach: function () {
+				cancel();
+				el.removeEventListener('pointerdown', onDown);
+				el.removeEventListener('pointermove', onMove);
+				el.removeEventListener('pointerup', cancel);
+				el.removeEventListener('pointercancel', cancel);
+				el.removeEventListener('pointerleave', cancel);
+				el.removeEventListener('contextmenu', onCtx);
+				if (btn.parentNode) btn.parentNode.removeChild(btn);
+				el.classList.remove('usd-info-target');
+			}
+		};
+	}
+
+	/** root の中の [data-usd-info="<skillId>"] すべてに attachSkillInfo を付ける（描き直すたびに呼ぶ。古い要素は捨てられる）。 */
+	function attachSkillInfoIn(root, makeOpts) {
+		if (!root) return;
+		const els = root.querySelectorAll('[data-usd-info]');
+		for (let i = 0; i < els.length; i++) {
+			const id = els[i].getAttribute('data-usd-info');
+			attachSkillInfo(els[i], makeOpts(id));
+		}
+	}
+
 	/**
 	 * 編成パネル（C-51）。**呼び出し元に依存しない**形にしてあるので、
 	 * いまは special.html の Deck の引き出しだけに置いているが、
@@ -5076,6 +5389,42 @@
 		}
 
 		/**
+		 * 系列の共有の注記（段6）。同じパネルの中に、ヒントレベルを共有する相手が居るときだけ：
+		 *   自分が持ち主（最下位の○）で、そのレベルを援用する◎が居る → 「◎と共有」／
+		 *   自分が◎で、持ち主の○が居る → 「○のレベル」。相手が居なければ ''。画面が狭い（600px 以下）ときは CSS が隠す。
+		 */
+		function shareNoteOf(skillId, res) {
+			const su = skillPtData.stepUp;
+			if (!su || typeof su.rootOf !== 'function') return '';
+			const ids = res.items.map(x => x.skillId);
+			const root = su.rootOf(skillId);
+			if (root !== skillId) return ids.indexOf(root) !== -1 ? '○のレベル' : '';
+			return ids.some(id => id !== skillId && su.rootOf(id) === skillId) ? '◎と共有' : '';
+		}
+
+		/**
+		 * ⓘ・長押しの説明に添える「いまの設定」の1行。行の2行目の値と同じ（●・有効な△＝「いまの設定: P Pt（LvL）」、
+		 * 有効にしていない△＝「有効にすると P Pt（LvL）」）。Pt 不要・Pt 未収録・データが使えないときは null。
+		 */
+		function infoLineFor(skillId) {
+			const res = computed();
+			const view = computePtView(res);
+			if (!view) return null;
+			const it = res.items.find(x => x.skillId === skillId);
+			if (!it) return null;
+			const on = res.enabledIds.indexOf(skillId) !== -1;
+			if (it.sure || on) {
+				const x = view.byId.get(skillId);
+				return x && x.base !== null && x.base !== 0 ? 'いまの設定: ' + x.pt + ' Pt（Lv' + x.hintLevel + '）' : null;
+			}
+			if (res.unsureIds.has(skillId)) {
+				const x = ptReferenceOf(view, skillId);
+				return x && x.base !== null && x.base !== 0 ? '有効にすると ' + x.pt + ' Pt（Lv' + x.hintLevel + '）' : null;
+			}
+			return null;
+		}
+
+		/**
 		 * 名前セルの2行目と3行目。
 		 *   ●の行・有効にした△の行 … 2行目＝「基礎 B → P Pt（LvL）」（Pt 不要・Pt 未収録も同じ）。
 		 *   有効にしていない△の行   … 2行目＝「有効にすると P Pt（LvL）」（参考値。薄い色）
@@ -5085,6 +5434,11 @@
 		function ptLineHtml(view, it, res) {
 			const unsure = res.unsureIds.has(it.skillId);
 			const on = res.enabledIds.indexOf(it.skillId) !== -1;
+			const note = view ? shareNoteOf(it.skillId, res) : '';
+			// 系列の共有の注記は、2行目（Pt の行）のそばに添える。注記があるときだけ包む（無いときの構造は従来のまま）
+			const withNote = (span) => note
+				? '<span class="usd-roster-line2">' + span + '<span class="usd-roster-share" data-usd-el="share-note">' + esc(note) + '</span></span>'
+				: span;
 			let h = '';
 			if (view && (it.sure || on)) {
 				const x = view.byId.get(it.skillId);
@@ -5093,13 +5447,13 @@
 					if (x.base === null) text = 'Pt 未収録';
 					else if (x.base === 0) text = 'Pt 不要';
 					else text = '基礎 ' + x.base + ' → ' + x.pt + ' Pt（Lv' + x.hintLevel + '）';
-					h += '<span class="usd-roster-pt" data-usd-el="pt-line">' + esc(text) + '</span>';
+					h += withNote('<span class="usd-roster-pt" data-usd-el="pt-line">' + esc(text) + '</span>');
 				}
 			} else if (view && unsure) {
 				const x = ptReferenceOf(view, it.skillId);
 				if (x) {
 					const text = x.base === null ? 'Pt 未収録' : x.base === 0 ? 'Pt 不要' : '有効にすると ' + x.pt + ' Pt（Lv' + x.hintLevel + '）';
-					h += '<span class="usd-roster-pt usd-roster-pt--ref" data-usd-el="pt-ref">' + esc(text) + '</span>';
+					h += withNote('<span class="usd-roster-pt usd-roster-pt--ref" data-usd-el="pt-ref">' + esc(text) + '</span>');
 				}
 			}
 			if (unsure) {
@@ -5513,7 +5867,8 @@
 					const on = res.enabledIds.indexOf(it.skillId) !== -1;
 					h += '<div class="usd-roster-grow" role="row">'
 						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader"><div class="usd-roster-skillcell">'
-							+ '<span class="usd-roster-skillname">' + esc(it.name) + '</span>' + ptLineHtml(ptView, it, res) + '</div></div>'
+							+ '<span class="usd-info-line"><span class="usd-roster-skillname" data-usd-info="' + esc(it.skillId) + '">' + esc(it.name) + '</span></span>'
+							+ ptLineHtml(ptView, it, res) + '</div></div>'
 						+ members.map(m => '<div class="usd-roster-gc' + colClass(m) + '" role="cell">'
 							+ (it.sureMembers.indexOf(m.key) !== -1 ? '<span class="usd-roster-got" role="img" aria-label="得られる"></span>'
 								: it.members.indexOf(m.key) !== -1
@@ -5546,6 +5901,8 @@
 			h += '</div>';
 
 			container.innerHTML = h;
+			// 名前に ⓘ と長押しを付ける（段6。部品は attachSkillInfo）。「いまの設定」の1行は開く直前に求める
+			attachSkillInfoIn(container, (id) => ({ skillId: id, getLine: () => infoLineFor(id) }));
 			const host = ensureModalHost();
 			host.innerHTML = searchHtml() + scopeChooserHtml(res);
 			refreshIcons();
@@ -6319,10 +6676,12 @@
 				}
 				return '<div class="usd-panel' + (mode === 'reclass' ? ' usd-panel--reclass' : '') + '" data-skill-id="' + esc(id) + '">'
 					+ tierMarkHtml(tier)
-					+ '<span class="usd-panel-name">' + esc(getSkillName(id)) + '</span>'
+					+ '<span class="usd-panel-name"' + (grouped ? ' data-usd-info="' + esc(id) + '"' : '') + '>' + esc(getSkillName(id)) + '</span>'
 					+ (ops ? '<span class="usd-panel-ops">' + ops + '</span>' : '')
 					+ '</div>';
 			}).join('');
+			// 周回因子セット（special の②）の行にも ⓘ と長押し。基礎Pt だけ（「いまの設定」は本育成の行にだけ）
+			if (grouped) attachSkillInfoIn(el, (id) => ({ skillId: id }));
 			refreshIcons();
 		}
 
@@ -7213,6 +7572,11 @@
 		umaHintLevelChoices: umaHintLevelChoices,
 		buildSkillPtIndex: buildSkillPtIndex,
 		buildStepUpIndex: buildStepUpIndex,
+		// スキルの説明（段6）。名前の要素に ⓘ と長押しを付ける部品と、説明文の読み込み
+		attachSkillInfo: attachSkillInfo,
+		closeSkillInfo: closeSkillInfo,
+		loadSkillDescriptions: loadSkillDescriptions,
+		SKILL_RARITY_LABELS: SKILL_RARITY_LABELS,
 		computeRosterPt: computeRosterPt,
 		resolveRosterPtSettings: resolveRosterPtSettings,
 		computeFactorSetPt: computeFactorSetPt,
