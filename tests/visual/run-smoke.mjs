@@ -13516,6 +13516,348 @@ await block('前段の必要Pt（段4b）', async () => {
 }
 });
 
+/* ============================================================
+ * スキルの説明（ⓘ と名前の長押し。段6・2026-10-02。設計は skill-pt-calculation-step0.md の 2-6・2-9・2-10）
+ *
+ * 実際の special.html。実データに依存しない: カードは実データから id だけ拾い、イベント・スキルPt・前段・説明文は仮のデータ
+ * （スキルは、そのカードの練習ヒントに入っていないものを master から id で拾う。名前は書かない＝名前は master から読む）。
+ * 期待値はこの塊の中で、整数だけで独立に計算する（割引率 10・20・30・35・40 を直に書く）。
+ *   仮のイベント: カードA … X0（Lv2）・X1（Lv1）・X6（Lv1）・X3（Lv3）・X4（Lv1）・X5（Lv1）が確定、X2（Lv1）が選択肢しだい（△）
+ *                 カードB … Y1（Lv2）が確定
+ *   仮の前段: X1 は X0 の次（ヒントレベルは X0 のもの）、X6（金）は X1 の次、Y1 は Y0 の次（Y0 は編成に居ない）
+ *   仮の Pt: X3 は pt:0（固有）、X4 は行なし（未収録）、ほかは 100〜200。仮の説明文: X5・Y 以外にある。X0 のものは HTML の記号と改行を含む
+ *   ①  ⓘ で名前・レアリティ・説明文・基礎Pt・（本育成の行では）いまの設定が出る。周回因子セットの行では基礎Pt だけ
+ *   ②  名前の長押し（0.5秒）で同じ表示。短い・10px 動く・スクロールが始まると開かない
+ *   ③  Escape で閉じ、フォーカスが戻る。Enter／Space で開く。aria-expanded が開閉で変わる
+ *   ④  Pt 不要・Pt 未収録・説明文が無い
+ *   ⑤  系列と「Lv は …のものです」。○と◎が同じパネルにあるときだけ行の注記（600px 以下では出ない）
+ *   ⑥  説明文の読み込みは ⓘ を最初に開いたときだけ1回。失敗しても基礎Pt が出て「説明文は準備中です」
+ *   ⑦  説明文の HTML の記号はそのまま文字として見える
+ *   ⑧  シナリオ因子・遺伝子には出ない。Deck 単体・exam・index・card-event-input には ⓘ も説明文の読み込みも出ない
+ *   ⑨  375px はボトムシート・1280px も、はみ出さない・コンソールエラー0件
+ * ============================================================ */
+await block('スキルの説明（ⓘ・長押し。段6）', async () => {
+{
+	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
+	const cardsAll = readJson('data/support-cards.json').entries;
+	const master = readJson('uma-skill-deck-skills.json').skills;
+	const nameOf = new Map(master.map((s) => [s.id, s.name]));
+	const [cA, cB] = [cardsAll[0], cardsAll[1]];
+	const hinted = new Set([cA, cB].flatMap((c) => (c.hintSkills || []).map((s) => s.skillId)));
+	const pool = master.filter((s) => !hinted.has(s.id));
+	const X = pool.slice(0, 8).map((s) => s.id);
+	const Y = pool.slice(8, 10).map((s) => s.id);
+	const ref = (id, lv) => ({ skillId: id, name: nameOf.get(id), hintLevel: lv });
+	const evDoc = { dataVersion: '2026-10-02a', category: 'supportCardEventSkill', note: 'テスト用の仕込み', entries: [
+		{ cardId: cA.id, status: 'done', chain: [
+			{ step: 1, choices: [{ skills: [ref(X[0], 2)] }] },
+			{ step: 2, choices: [{ skills: [ref(X[1], 1)] }] },
+			{ step: 3, choices: [{ skills: [ref(X[6], 1)] }] },
+			{ step: 4, choices: [{ skills: [ref(X[2], 1)] }, { skills: [] }] },
+			{ step: 5, choices: [{ skills: [ref(X[3], 3)] }] },
+			{ step: 6, choices: [{ skills: [ref(X[4], 1)] }] },
+			{ step: 7, choices: [{ skills: [ref(X[5], 1)] }] }] },
+		{ cardId: cB.id, status: 'done', chain: [
+			{ step: 1, choices: [{ skills: [ref(Y[1], 2)] }] }] },
+	] };
+	const BASE_PT = { [X[0]]: 100, [X[1]]: 120, [X[2]]: 140, [X[3]]: 0, [X[5]]: 150, [X[6]]: 200, [X[7]]: 160, [Y[0]]: 90, [Y[1]]: 130 };
+	const RARITY = { [X[3]]: 'unique', [X[6]]: 'gold' };
+	const RARITY_LABEL = { white: '白スキル', gold: '金スキル', unique: '固有スキル', evolved: '進化スキル' };
+	const rarityOf = (id) => RARITY[id] || 'white';
+	const ptDoc = { dataVersion: '2026-10-02a', category: 'skillPt', note: 'テスト用の仕込み',
+		entries: Object.entries(BASE_PT).map(([skillId, pt]) => ({ skillId, pt, rarity: rarityOf(skillId) })) };
+	const stepDoc = { dataVersion: '2026-10-02b', category: 'skillStepUp', note: 'テスト用の仕込み', entries: [
+		{ skillId: X[1], prevSkillIds: [X[0]], hintRootSkillId: X[0] },
+		{ skillId: X[6], prevSkillIds: [X[1]] },
+		{ skillId: Y[1], prevSkillIds: [Y[0]], hintRootSkillId: Y[0] }] };
+	const HTML_TEXT = 'テスト<b>太字</b> & <script>x</script>\n二行目';
+	const descText = (id) => id === X[0] ? HTML_TEXT : '説明 ' + id;
+	const descDoc = { dataVersion: '2026-10-02a', category: 'skillDescription', note: 'テスト用の仕込み',
+		entries: [X[0], X[1], X[2], X[3], X[4], X[6], X[7], Y[0]].map((skillId) => ({ skillId, text: descText(skillId) })) };
+	const DISC = [10, 20, 30, 35, 40];
+	const payPt = (base, L) => Math.floor(base * (100 - (L > 0 ? DISC[L - 1] : 0)) / 100);
+	// X0 と X1 は系列を共有する: ヒントレベルは X0 に集まる（X0 の Lv2 ＋ X1 の Lv1 ＝ 3）。X6（金）は自分の由来だけ（Lv1）
+	const L_X0 = Math.min(5, 2 + 1);
+	const NOW = { [X[0]]: 'いまの設定: ' + payPt(100, L_X0) + ' Pt（Lv' + L_X0 + '）', [X[1]]: 'いまの設定: ' + payPt(120, L_X0) + ' Pt（Lv' + L_X0 + '）',
+		[X[6]]: 'いまの設定: ' + payPt(200, 1) + ' Pt（Lv1）' };
+	const json = (body) => ({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(body) });
+
+	const open = async (o = {}) => {
+		const sp = await openPage(browser, base, 'special.html', { width: o.w || 1280, height: o.h || 900 });
+		const descReqs = [];
+		sp.page.on('request', (r) => { if (r.url().includes('skill-descriptions.json')) descReqs.push(r.url()); });
+		await sp.page.route('**/data/support-card-event-skills.json*', (route) => route.fulfill(json(evDoc)));
+		await sp.page.route('**/data/character-event-skills.json*', (route) => route.fulfill(json({ dataVersion: '2026-09-30a', category: 'characterEventSkill', entries: [] })));
+		await sp.page.route('**/data/skill-pt.json*', (route) => route.fulfill(json(ptDoc)));
+		await sp.page.route('**/data/skill-step-up.json*', (route) => route.fulfill(json(stepDoc)));
+		if (o.descFail) await sp.page.route('**/data/skill-descriptions.json*', (route) => route.fulfill({ status: 500, body: 'error' }));
+		else await sp.page.route('**/data/skill-descriptions.json*', (route) => route.fulfill(json(descDoc)));
+		await sp.page.evaluate(({ roster, scope }) => {
+			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster));
+			localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope));
+		}, { roster: { umaId: '', cardIds: [o.card || cA.id, null, null, null, null, null] }, scope: { skillIds: [X[7], X[3]], name: '', tiers: {}, updatedAt: '' } });
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.evaluate(() => { selectStepTab(0); document.body.style.paddingBottom = '2400px'; });
+		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"]', { timeout: 10000 });
+		sp.descReqs = descReqs;
+		return sp;
+	};
+	const btnSel = (id) => '[data-usd-el="skill-info-btn"][data-skill-id="' + id + '"]';
+	const rosterBtn = (id) => '#deck-roster-panel ' + btnSel(id);
+	const read = (page) => page.evaluate(() => {
+		const pop = document.querySelector('[data-usd-el="info-pop"]');
+		if (!pop) return { exists: false, open: false };
+		const t = (s) => { const e = pop.querySelector('[data-usd-el="' + s + '"]'); return e ? e.textContent : null; };
+		const d = pop.querySelector('[data-usd-el="info-desc"]');
+		const r = pop.getBoundingClientRect();
+		const order = Array.from(pop.querySelectorAll('[data-usd-el]')).map((e) => e.getAttribute('data-usd-el')).filter((n) => n.startsWith('info-') && n !== 'info-pop' && n !== 'info-body' && n !== 'info-close');
+		return { exists: true, open: !pop.hidden, title: pop.querySelector('.uma-popover-title').textContent, rarity: t('info-rarity'), desc: d ? d.textContent : null,
+			descHasChildEl: d ? d.children.length : null, pt: t('info-pt'), now: t('info-pt-now'), series: t('info-series'), root: t('info-root'), order,
+			active: document.activeElement ? (document.activeElement.getAttribute('data-usd-el') || document.activeElement.tagName) + ':' + (document.activeElement.getAttribute('data-skill-id') || '') : '',
+			rect: { l: r.left, r: r.right, t: r.top, b: r.bottom }, vw: window.innerWidth, vh: window.innerHeight, hscroll: document.documentElement.scrollWidth - window.innerWidth };
+	});
+	const press = async (page, sel, o) => {
+		// 押す場所が画面の中にあること（外だと何も起きず、「開かない」ことを確かめる項目が空振りになる）
+		await page.locator(sel).scrollIntoViewIfNeeded();
+		await page.waitForTimeout(350);
+		const box = await page.locator(sel).boundingBox();
+		assert(box.y >= 0 && box.y + box.height <= page.viewportSize().height, '段6(2): 押す場所（' + sel.slice(-24) + '）は画面の中にある（検査が空振りでない）', box);
+		const x = box.x + 2, y = box.y + box.height / 2;
+		await page.mouse.move(x, y);
+		await page.mouse.down();
+		if (o.move) await page.mouse.move(x + o.move, y, { steps: 3 });
+		if (o.scroll) await page.evaluate(() => window.scrollBy(0, 40));
+		// 要素が動かないスクロールの合図（実際のスクロールでは要素がポインタの下から外れて別の経路でも取り消されるので、取り消しそのものを見る）
+		if (o.scrollEvent) await page.evaluate(() => document.dispatchEvent(new Event('scroll')));
+		await page.waitForTimeout(o.hold);
+		await page.mouse.up();
+		await page.waitForTimeout(o.after === undefined ? 350 : o.after);
+	};
+	const closeIt = async (page) => { await page.keyboard.press('Escape'); await page.waitForTimeout(80); };
+	const nameSel = (id) => '#deck-roster-panel [data-usd-info="' + id + '"]';
+	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
+
+	/* ① ⓘ で出る内容（本育成の行） ／ ⑦ HTML の記号 ／ ⑥ 読み込みは最初に開いたとき1回 */
+	let sp = await open();
+	assert(sp.descReqs.length === 0, '段6(6): ページの読み込みでは説明文を取りに行かない（ⓘ を開く前）', sp.descReqs);
+	const btnCount = await sp.page.$$eval('#deck-roster-panel [data-usd-el="skill-info-btn"]', (bs) => bs.length);
+	const nameCount = await sp.page.$$eval('#deck-roster-panel [data-usd-info]', (bs) => bs.length);
+	assert(btnCount > 0 && btnCount === nameCount, '段6(1): 本育成の表のスキルの名前ごとに ⓘ が付く（名前の数と同じ。空振りでない）', { btnCount, nameCount });
+	const labelOk = await sp.page.evaluate((id) => { const b = document.querySelector('#deck-roster-panel [data-usd-el="skill-info-btn"][data-skill-id="' + id + '"]'); return b ? { label: b.getAttribute('aria-label'), tag: b.tagName, type: b.type, exp: b.getAttribute('aria-expanded') } : null; }, X[0]);
+	assert(labelOk && labelOk.label === nameOf.get(X[0]) + 'の説明を開く' && labelOk.tag === 'BUTTON' && labelOk.exp === 'false', '段6(3): ⓘ は button で、aria-label は「{スキル名}の説明を開く」・閉じているときの aria-expanded は false', labelOk);
+	await sp.page.click(rosterBtn(X[0]));
+	await sp.page.waitForFunction(() => { const e = document.querySelector('[data-usd-el="info-desc"]'); return e && !/読み込み中/.test(e.textContent); });
+	let v = await read(sp.page);
+	assert(v.open && v.title === nameOf.get(X[0]) && v.rarity === RARITY_LABEL.white && v.desc === descText(X[0]) && v.pt === '基礎 100 Pt' && v.now === NOW[X[0]],
+		'段6(1): ⓘ を押すと、名前・レアリティの表示名・説明文・基礎Pt・いまの設定が出る（本育成の行）', { v, want: { now: NOW[X[0]] } });
+	assert(v.order.join('|').startsWith('info-rarity|info-desc|info-pt|info-pt-now'), '段6(1): 並びは 名前（見出し）→レアリティ→説明文→基礎Pt→いまの設定→系列', v.order);
+	assert(v.descHasChildEl === 0 && v.desc.includes('<b>太字</b>') && v.desc.includes('<script>x</script>') && v.desc.includes('&') && v.desc.includes('\n'),
+		'段6(7): 説明文の < > & はそのまま文字として見える（HTML として解釈されない）。改行も残る', { has: v.descHasChildEl, desc: v.desc });
+	const wrap = await sp.page.evaluate(() => getComputedStyle(document.querySelector('[data-usd-el="info-desc"]')).whiteSpace);
+	assert(wrap === 'pre-line', '段6(1): 説明文の改行（\\n）は改行として見せる（white-space: pre-line）', wrap);
+	assert(sp.descReqs.length === 1 && /v=2026-10-02a/.test(sp.descReqs[0]), '段6(6): 説明文の読み込みは ⓘ を最初に開いたときの1回で、?v=<版> が付く', sp.descReqs);
+	await closeIt(sp.page);
+	await sp.page.click(rosterBtn(X[1]));
+	await sp.page.waitForTimeout(150);
+	v = await read(sp.page);
+	assert(v.open && v.desc === descText(X[1]) && sp.descReqs.length === 1, '段6(6): 2つ目を開いても説明文は読み直さない（まだ1回）', { desc: v.desc, reqs: sp.descReqs.length });
+	await closeIt(sp.page);
+
+	/* ③ Escape・フォーカス・aria-expanded・Enter／Space */
+	await sp.page.focus(rosterBtn(X[0]));
+	await sp.page.keyboard.press('Enter');
+	await sp.page.waitForTimeout(100);
+	v = await read(sp.page);
+	let ex = await sp.page.getAttribute(rosterBtn(X[0]), 'aria-expanded');
+	assert(v.open && ex === 'true', '段6(3): ⓘ に Enter で開き、aria-expanded が true になる', { open: v.open, ex });
+	await sp.page.keyboard.press('Escape');
+	await sp.page.waitForTimeout(100);
+	v = await read(sp.page);
+	ex = await sp.page.getAttribute(rosterBtn(X[0]), 'aria-expanded');
+	assert(!v.open && ex === 'false' && v.active === 'skill-info-btn:' + X[0], '段6(3): Escape で閉じ、aria-expanded が false に戻り、開いたきっかけの ⓘ にフォーカスが戻る', { open: v.open, ex, active: v.active });
+	await sp.page.keyboard.press('Space');
+	await sp.page.waitForTimeout(100);
+	v = await read(sp.page);
+	assert(v.open, '段6(3): ⓘ に Space でも開く', v.open);
+	await sp.page.click('[data-usd-el="info-close"]');
+	await sp.page.waitForTimeout(100);
+	v = await read(sp.page);
+	assert(!v.open && v.active === 'skill-info-btn:' + X[0], '段6(3): 閉じるボタンでも閉じ、フォーカスが戻る', v.active);
+
+	/* ② 名前の長押し */
+	await press(sp.page, nameSel(X[0]), { hold: 700 });
+	v = await read(sp.page);
+	assert(v.open && v.title === nameOf.get(X[0]) && v.pt === '基礎 100 Pt' && v.now === NOW[X[0]] && v.desc === descText(X[0]),
+		'段6(2): 名前を0.5秒より長く押し続けると、ⓘ と同じ表示が開く', v);
+	await closeIt(sp.page);
+	await press(sp.page, nameSel(X[0]), { hold: 250, after: 500 });
+	v = await read(sp.page);
+	assert(!v.open, '段6(2): 0.5秒より短い押下では開かない（離したあとに待っても開かない）', v.open);
+	await press(sp.page, nameSel(X[0]), { hold: 700, move: 12 });
+	v = await read(sp.page);
+	assert(!v.open, '段6(2): 押している間に10px以上動くと取り消される（開かない）', v.open);
+	await press(sp.page, nameSel(X[0]), { hold: 5, move: 5 });
+	await press(sp.page, nameSel(X[0]), { hold: 700, move: 4 });
+	v = await read(sp.page);
+	assert(v.open, '段6(2): 4px 程度の動きは取り消さない（10px 未満。取り消しが効きすぎていない）', v.open);
+	await closeIt(sp.page);
+	const y0 = await sp.page.evaluate(() => window.scrollY);
+	await press(sp.page, nameSel(X[0]), { hold: 700, scroll: true });
+	v = await read(sp.page);
+	const y1 = await sp.page.evaluate(() => window.scrollY);
+	assert(!v.open && y1 > y0, '段6(2): 押している間にスクロールが始まると取り消される（実際にスクロールしている）', { open: v.open, y0, y1 });
+	await sp.page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+	await sp.page.waitForFunction(() => window.scrollY === 0);
+	await sp.page.waitForTimeout(300);
+	await press(sp.page, nameSel(X[0]), { hold: 700, scrollEvent: true });
+	v = await read(sp.page);
+	assert(!v.open, '段6(2): スクロールの合図が来ると、要素が動かなくても取り消される（開かない）', v.open);
+	const dev = await sp.page.evaluate((sel) => {
+		const el = document.querySelector(sel);
+		const cs = getComputedStyle(el);
+		const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+		el.dispatchEvent(ev);
+		return { callout: cs.getPropertyValue('-webkit-touch-callout') || cs.webkitTouchCallout, userSelect: cs.userSelect, prevented: ev.defaultPrevented };
+	}, nameSel(X[0]));
+	assert(dev.userSelect === 'none' && dev.prevented, '段6(2): 長押しの対象は user-select: none で、contextmenu は抑止される（端末標準の長押しと衝突しない）', dev);
+
+	/* ④ Pt 不要・Pt 未収録・説明文なし ／ ⑤ 系列 */
+	const cases = [];
+	for (const id of [X[3], X[4], X[5], X[1], X[0], X[6], X[2]]) {
+		await sp.page.click(rosterBtn(id));
+		await sp.page.waitForTimeout(120);
+		cases.push(Object.assign({ id }, await read(sp.page)));
+		await closeIt(sp.page);
+	}
+	const by = (id) => cases.find((c) => c.id === id);
+	assert(by(X[3]).pt === 'Pt 不要' && by(X[3]).rarity === RARITY_LABEL.unique && by(X[3]).now === null && by(X[3]).desc === descText(X[3]),
+		'段6(4): pt が 0 のスキルは「Pt 不要」（レアリティは固有スキル。いまの設定の行は出ない）', by(X[3]));
+	assert(by(X[4]).pt === 'Pt 未収録' && by(X[4]).rarity === null && by(X[4]).now === null,
+		'段6(4): Pt が未収録のスキルは「Pt 未収録」（行が無いのでレアリティも出さない）', by(X[4]));
+	assert(by(X[5]).desc === null && by(X[5]).pt === '基礎 150 Pt' && by(X[5]).open === true,
+		'段6(4): 説明文の行が無いスキルは説明文の欄が出ない（基礎Pt は出る）', by(X[5]));
+	assert(by(X[3]).series === null && by(X[3]).root === null && by(X[5]).series === null, '段6(5): 系列に関係が無いスキルには「系列：」も「Lv は」も出ない', { a: by(X[3]).series, b: by(X[5]).series });
+	const chain = [X[0], X[1], X[6]].map((i) => nameOf.get(i)).join(' → ');
+	assert(by(X[0]).series === '系列：' + chain && by(X[0]).root === null, '段6(5): ○（持ち主）は「系列：○ → ◎ → 金」で、「Lv は」は出ない（持ち主が自分自身）', { s: by(X[0]).series, r: by(X[0]).root });
+	assert(by(X[1]).series === '系列：' + chain && by(X[1]).root === 'Lv は ' + nameOf.get(X[0]) + ' のものです', '段6(5): ◎は同じ系列と、「Lv は {持ち主の名前} のものです」が出る', { s: by(X[1]).series, r: by(X[1]).root });
+	assert(by(X[6]).series === '系列：' + chain && by(X[6]).root === null && by(X[6]).rarity === RARITY_LABEL.gold && by(X[6]).now === NOW[X[6]],
+		'段6(5): 金は系列を前段までさかのぼって出し、持ち主は自分自身なので「Lv は」は出ない（金スキル・自分のレベルのいまの設定）', by(X[6]));
+	const strong = await sp.page.evaluate(async (id) => { document.querySelector('#deck-roster-panel [data-usd-el="skill-info-btn"][data-skill-id="' + id + '"]').click(); await new Promise((r) => setTimeout(r, 120));
+		const s = document.querySelector('[data-usd-el="info-series"] strong'); const t = s ? s.textContent : null; document.querySelector('[data-usd-el="info-close"]').click(); return t; }, X[1]);
+	assert(strong === nameOf.get(X[1]), '段6(5): 系列の中の、このスキルの位置に印（強調）が付く', strong);
+	const refRow = by(X[2]);
+	assert(refRow.now === '有効にすると ' + payPt(140, 1) + ' Pt（Lv1）' && refRow.pt === '基礎 140 Pt', '段6(1): 有効にしていない△は、行の2行目と同じ「有効にすると …」を添える', refRow);
+
+	/* ⑤ 行の注記 */
+	const notes = await sp.page.evaluate(() => {
+		const out = {};
+		document.querySelectorAll('#deck-roster-panel [data-usd-info]').forEach((n) => {
+			const cell = n.closest('.usd-roster-skillcell');
+			const s = cell ? cell.querySelector('[data-usd-el="share-note"]') : null;
+			out[n.getAttribute('data-usd-info')] = s ? { text: s.textContent, display: getComputedStyle(s).display } : null;
+		});
+		return out;
+	});
+	assert(notes[X[0]] && notes[X[0]].text === '◎と共有' && notes[X[1]] && notes[X[1]].text === '○のレベル' && notes[X[0]].display !== 'none'
+		&& [X[3], X[4], X[6], X[2]].every((i) => notes[i] === null), '段6(5): ○と◎が同じパネルにあるとき、○の行に「◎と共有」・◎の行に「○のレベル」が出て、ほかの行には出ない（1280px）', notes);
+	await sp.ctx.close();
+
+	/* ⑤ ◎だけが居る編成（持ち主の○は居ない）では注記が出ない ／ ⑧ 周回因子セットの行 */
+	sp = await open({ card: cB.id });
+	const alone = await sp.page.evaluate(() => document.querySelectorAll('#deck-roster-panel [data-usd-el="share-note"]').length);
+	assert(alone === 0, '段6(5): 相手（持ち主の○）が同じパネルに居ないときは、行の注記を出さない', alone);
+	await sp.page.click(rosterBtn(Y[1]));
+	await sp.page.waitForTimeout(120);
+	v = await read(sp.page);
+	assert(v.root === 'Lv は ' + nameOf.get(Y[0]) + ' のものです' && v.series === '系列：' + nameOf.get(Y[0]) + ' → ' + nameOf.get(Y[1]),
+		'段6(5): 注記が無くても、ⓘ には系列と「Lv は …」が出る（相手が編成に居なくても）', { s: v.series, r: v.root });
+	await closeIt(sp.page);
+	await sp.page.evaluate(() => selectStepTab(1));
+	await sp.page.waitForSelector('.usd-panel[data-skill-id="' + X[7] + '"]');
+	const panelBtns = await sp.page.evaluate(() => {
+		const rows = Array.from(document.querySelectorAll('.usd-panel[data-skill-id]'));
+		return { rows: rows.length, withBtn: rows.filter((r) => r.querySelector('[data-usd-el="skill-info-btn"]')).length,
+			stray: Array.from(document.querySelectorAll('[data-usd-el="skill-info-btn"]')).filter((b) => !b.closest('.usd-panel') && !b.closest('#deck-roster-panel')).length };
+	});
+	assert(panelBtns.rows === 2 && panelBtns.withBtn === 2 && panelBtns.stray === 0, '段6(1)(8): 周回因子セットの各スキルの行に ⓘ が付く（行の数と同じ）。それ以外の場所には付かない', panelBtns);
+	await sp.page.click('.usd-panel[data-skill-id="' + X[7] + '"] [data-usd-el="skill-info-btn"]');
+	await sp.page.waitForTimeout(150);
+	v = await read(sp.page);
+	assert(v.open && v.title === nameOf.get(X[7]) && v.rarity === RARITY_LABEL.white && v.desc === descText(X[7]) && v.pt === '基礎 160 Pt' && v.now === null,
+		'段6(1): 周回因子セットの行では、名前・レアリティ・説明文・基礎Pt だけが出る（いまの設定は出ない）', v);
+	await closeIt(sp.page);
+	await press(sp.page, '.usd-panel[data-skill-id="' + X[7] + '"] .usd-panel-name', { hold: 700 });
+	v = await read(sp.page);
+	assert(v.open && v.title === nameOf.get(X[7]), '段6(2): 周回因子セットの行でも、名前の長押しで同じ表示が開く', v.title);
+	await closeIt(sp.page);
+	const sections = await sp.page.evaluate(() => {
+		// シナリオ因子・遺伝子の節（extraScopes。data-usd-scope-section）。ⓘ・長押しの対象 [data-usd-info] を持たない
+		const sec = Array.from(document.querySelectorAll('[data-usd-scope-section]'));
+		return { n: sec.length, keys: sec.map((e) => e.getAttribute('data-usd-scope-section')), btns: sec.reduce((a, e) => a + e.querySelectorAll('[data-usd-el="skill-info-btn"],[data-usd-info]').length, 0) };
+	});
+	assert(sections.n >= 2 && sections.btns === 0, '段6(8): シナリオ因子・遺伝子の節（' + sections.n + '個。空振りでない）には ⓘ も長押しの対象も無い', sections);
+	// 「?」で開く見るだけの一覧（名前が並ぶ）にも無い
+	const lists = [];
+	for (const key of sections.keys) {
+		await sp.page.click('[data-usd-act="scope-help"][data-scope="' + key + '"]');
+		await sp.page.waitForTimeout(150);
+		lists.push(await sp.page.evaluate(() => { const m = Array.from(document.querySelectorAll('.usd-roster-modal')).filter((e) => !e.hidden)[0];
+			return m ? { text: m.textContent.length, btns: m.querySelectorAll('[data-usd-el="skill-info-btn"],[data-usd-info]').length } : null; }));
+		await sp.page.keyboard.press('Escape');
+		await sp.page.waitForTimeout(100);
+	}
+	assert(lists.length >= 2 && lists.every((l) => l && l.text > 0 && l.btns === 0), '段6(8): 「?」で開くシナリオ因子・遺伝子の一覧（名前が並んでいる）にも、ⓘ も長押しの対象も無い', lists);
+	await sp.ctx.close();
+
+	/* ⑥ 読み込みの失敗 */
+	sp = await open({ descFail: true });
+	await sp.page.click(rosterBtn(X[0]));
+	await sp.page.waitForFunction(() => { const e = document.querySelector('[data-usd-el="info-desc"]'); return e && !/読み込み中/.test(e.textContent); });
+	v = await read(sp.page);
+	assert(v.open && v.desc === '説明文は準備中です' && v.pt === '基礎 100 Pt' && v.now === NOW[X[0]] && v.rarity === RARITY_LABEL.white && v.title === nameOf.get(X[0]),
+		'段6(6): 説明文を読み込めなくても開いて、名前・レアリティ・基礎Pt・いまの設定を出し、説明文の欄に「説明文は準備中です」を出す', v);
+	assert(jsErrors(sp.errors).length === 0, '段6(6): 読み込みに失敗してもコンソールに例外は出ない', jsErrors(sp.errors).slice(0, 3));
+	await sp.ctx.close();
+
+	/* ⑨ 画面の幅 */
+	for (const [w, h] of [[1280, 900], [375, 700]]) {
+		sp = await open({ w, h });
+		await sp.page.click(rosterBtn(X[1]));
+		await sp.page.waitForFunction(() => { const e = document.querySelector('[data-usd-el="info-desc"]'); return e && !/読み込み中/.test(e.textContent); });
+		v = await read(sp.page);
+		const geo = await sp.page.evaluate(() => { const r = document.querySelector('[data-usd-el="info-pop"]').getBoundingClientRect(); const bs = document.querySelector('[data-usd-el="info-body"]'); return { bottomGap: window.innerHeight - r.bottom, width: r.width, vw: window.innerWidth, bodyOver: bs.scrollWidth - bs.clientWidth }; });
+		const inView = v.rect.l >= -0.5 && v.rect.r <= v.vw + 0.5 && v.rect.t >= -0.5 && v.rect.b <= v.vh + 0.5;
+		if (w <= 640) assert(Math.abs(geo.bottomGap) <= 1.5 && Math.abs(geo.width - geo.vw) <= 1.5, '段6(9): ' + w + 'px では下端に固定されたボトムシートで開く', geo);
+		else assert(geo.bottomGap > 1.5 && geo.width <= 381, '段6(9): ' + w + 'px では中央のポップオーバーで開く（幅 380px まで）', geo);
+		assert(inView && v.hscroll <= 0 && geo.bodyOver <= 0, '段6(9): ' + w + 'px で、説明は画面に収まり、横にはみ出さない', { rect: v.rect, hscroll: v.hscroll, bodyOver: geo.bodyOver });
+		await closeIt(sp.page);
+		const notes2 = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="share-note"]')).map((s) => getComputedStyle(s).display));
+		if (w <= 600) assert(notes2.length === 2 && notes2.every((d) => d === 'none'), '段6(5): ' + w + 'px では行の注記を出さない（ⓘ にだけ出す）', notes2);
+		else assert(notes2.length === 2 && notes2.every((d) => d !== 'none'), '段6(5): ' + w + 'px では行の注記が見える', notes2);
+		const row = await sp.page.evaluate((id) => { const n = document.querySelector('#deck-roster-panel [data-usd-info="' + id + '"]'); const b = n.nextElementSibling; const a = n.getBoundingClientRect(); const c = b.getBoundingClientRect();
+			return { adjacent: b.getAttribute('data-usd-el') === 'skill-info-btn', sameLine: Math.abs((a.top + a.bottom) / 2 - (c.top + c.bottom) / 2) < 8, right: c.left >= a.right - 1, page: document.documentElement.scrollWidth - window.innerWidth }; }, X[0]);
+		assert(row.adjacent && row.sameLine && row.right && row.page <= 0, '段6(9): ' + w + 'px で、ⓘ は名前のそば（右隣・同じ行）に付き、ページが横にはみ出さない', row);
+		assert(jsErrors(sp.errors).length === 0, '段6(9): ' + w + 'px でコンソールエラーなし', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	}
+
+	/* ⑧ ほかのページには出ない・説明文も取りに行かない */
+	for (const file of ['uma-skill-deck.html', 'exam.html', 'index.html', 'card-event-input.html']) {
+		const reqs = [];
+		const pg = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+		const page = await pg.newPage();
+		page.setDefaultTimeout(5000);
+		page.on('request', (r) => { if (r.url().includes('skill-descriptions.json')) reqs.push(r.url()); });
+		await page.goto(base + '/' + file, { waitUntil: 'networkidle', timeout: 60000 });
+		await page.waitForTimeout(600);
+		const n = await page.evaluate(() => ({ btns: document.querySelectorAll('[data-usd-el="skill-info-btn"]').length, targets: document.querySelectorAll('[data-usd-info]').length, pop: !!document.querySelector('[data-usd-el="info-pop"]') }));
+		assert(n.btns === 0 && n.targets === 0 && !n.pop && reqs.length === 0, '段6(8): ' + file + ' には ⓘ も長押しの対象も説明の器も無く、説明文の読み込みも出ない', { n, reqs });
+		await pg.close();
+	}
+}
+});
+
 await browser.close();
 await close();
 
