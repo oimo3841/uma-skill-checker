@@ -13821,7 +13821,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 		v = await readPanel(sp.page);
 		const tops = new Set(v.tabs.map((t) => Math.round(t.top)));
 		const strip = await sp.page.evaluate(() => { const s = document.querySelector('#deck-roster-panel [data-usd-el="roster-tabs"]'); return { over: s.scrollWidth - s.clientWidth, h: s.getBoundingClientRect().height, fade: s.getAttribute('data-usd-fade') }; });
-		assert(v.tabs.length === 11 && tops.size === 1 && (w === 1280 || strip.over > 10), '段7(4)(5): ' + w + 'px: 10件目を保存できる。タブは11個（＋新規と10件）が1行に並び' + (w === 375 ? '、横スクロールになる' : ''), { tabs: v.tabs.length, rows: tops.size, strip });
+		assert(v.tabs.length === 11 && tops.size === 1 && (w === 1280 || (strip.over > 10 && ['left', 'right', 'both'].includes(strip.fade))), '段7(4)(5): ' + w + 'px: 10件目を保存できる。タブは11個（＋新規と10件）が1行に並び' + (w === 375 ? '、横スクロールになり、隠れている側に薄いフェードが付く（入口の並びと同じ仕組み。選んだタブを見える位置へ送るので、隠れるのは左側）' : ''), { tabs: v.tabs.length, rows: tops.size, strip });
 		assert(v.tabs[0].full && v.tabs[10].selected, '段7(4): 10件に達すると「＋新規」は薄く押せない見た目', v.tabs[0]);
 		await sp.page.click(P + '[data-usd-el="roster-tabs"] .uma-subtab[data-tab-id=""]');
 		v = await readPanel(sp.page);
