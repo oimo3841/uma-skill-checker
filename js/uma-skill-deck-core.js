@@ -3428,6 +3428,7 @@
 		'.usd-roster-link .usd-roster-note { flex: 1 1 100%; }',
 		'.usd-roster-linkbtn[aria-pressed="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
 		// セルの中の横スクロール（名前と Pt）の「続きがある側のフェード」。入口の並びと同じ仕組み（data-usd-fade）
+		'.usd-hscroll { margin-inline-end: var(--usd-entry-trim, 0px); }',
 		'.usd-hscroll[data-usd-fade="right"], .usd-hscroll[data-usd-fade="both"] { --usd-fade-r: rgba(0,0,0,.3) 100%; }',
 		'.usd-hscroll[data-usd-fade="left"], .usd-hscroll[data-usd-fade="both"] { --usd-fade-l: rgba(0,0,0,.3) 0; }',
 		'.usd-hscroll[data-usd-fade] { --usd-entry-fade-w: 14px;',
@@ -6043,6 +6044,9 @@
 			const host = ensureModalHost();
 			host.innerHTML = searchHtml() + confirmHtml();
 			refreshIcons();
+			// 編成のタブ（(5)）: 入口の並びと同じ仕組み（幅を実測して切り詰め・続きがある側に薄いフェード）を、帯のタブに当てる
+			const strip = q(container, 'roster-tabs');
+			if (strip) strip.classList.add('usd-hscroll');
 			revealSelectedTab(container);
 			scanEntryRows();
 			if (picking) {
