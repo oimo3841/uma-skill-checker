@@ -418,6 +418,14 @@ const INTENTIONALLY_REMOVED = {
 	// 2026-09-27（C-100・カスタムスキルの廃止 commit 3）: データ管理タブの「カスタムスキル：N/50」を消したので、
 	// その入れ物の id `data-custom-count` が uma-skill-deck.html と js/uma-skill-deck.js から消えた。
 	// commit が進んだので免除は空に戻した（2026-09-27・C-101 のついでの片付け）。
+	// 2026-10-03（段7・C-113）: ①の「本育成スキルを除外する」と除外先を選ぶミニウィンドウを廃止し、
+	// ②の各セットの「本育成編成」に置き換えたので、除外先の候補が持っていた `data-choice-id`
+	// （data-usd-act="exclude-into" のボタン）が core.js から消えた。同じ段で消えた値（data-usd-act の
+	// exclude / exclude-into / cancel-scope / pt-enable / undo-auto / save / duplicate / delete と、
+	// data-usd-el の pt-settings / pt-help-box / pt-theory / pt-enabled / pt-unknown の一部 / auto-notice /
+	// scope-modal / maybe-note / share-note / on-tag）は**属性の名前ではなく値**なので、この検査には当たらない
+	// （記録として残す）。commit が進んだら免除は空に戻す。
+	'js/uma-skill-deck-core.js': ['data-choice-id'],
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
