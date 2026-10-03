@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-03s"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-03t"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<style>
@@ -87,6 +87,28 @@
 			/* 旧UIの注記など、ヘッダーの下に出る箱も左右の余白は main-card と揃える */
 			.old-ui-end-note { margin-inline: var(--uma-sp-1); }
 		}
+		/* ===== 段9（C-121）: ①②の帯・設定の枠・スキルのまとまりの色（変数）=====
+		   色や形の追加は共有の CSS（tokens／common／shell）ではなく、このページの変数でやる（core の .usd-bandbox などが読む）。
+		     --uma-band       … ①②の「Pt／種」の薄い帯の地
+		     --uma-dash       … ②の設定の枠の破線（アイコンの無い丸の破線も同じ色）
+		     --uma-group-bg   … ②のスキルのまとまり（白い枠）の面　／　--uma-group-line … その枠の線
+		   既定がライト。**ダークは html[data-theme="dark"] で同じ名前を差し替えるだけ**（将来のダークモード切替の足場。いまは製品のどこにも
+		   data-theme を付けない＝ライトのまま）。ダークの面・文字・線は、共有の tokens にダークが無いので、このページが使うぶんをここで補う
+		   （帯 #2d4160／設定の枠は一段沈めた面と破線／まとまりは背景より一段明るい面と線 → 濃淡と線の種類の両方で見分ける）。 */
+		:root { --uma-band: #e9eef6; --uma-dash: #b9c2d0; --uma-group-bg: #ffffff; --uma-group-line: #cad5e2; }
+		:root[data-theme="dark"] {
+			--uma-band: #2d4160; --uma-dash: #5f6e86; --uma-group-bg: #222a35; --uma-group-line: #3b4555;
+			--uma-surface: #171d26; --uma-glass-bg: rgba(23, 29, 38, .92); --uma-surface-sunken: #1c2430; --uma-surface-muted: #263041;
+			--uma-surface-group: #263041; --uma-surface-inverse: #e2e8f0;
+			--uma-text: #e2e8f0; --uma-text-heading: #f1f5f9; --uma-text-muted: #cbd5e1; --uma-text-subtle: #aab6c8; --uma-text-faint: #8f9cb0; --uma-text-inverse: #0f1318;
+			--uma-border: #2a3441; --uma-border-strong: #3b4555;
+			--uma-danger-bg: #3a1c1f; --uma-danger-border: #6b2d33; --uma-danger-text: #ff9a9a;
+			--uma-table-rule: #2a3441; --uma-table-rule-strong: #3b4555; --uma-table-head-bg: #263041; --uma-table-col-alt: #1c2430; --uma-table-col-key: #22304a;
+			--uma-skillpanel-bg: linear-gradient(90deg, #1f2733 0%, #27303f 46%, #2f3a4c 100%); --uma-skillpanel-border: #3b4555; --uma-skillpanel-shadow: none;
+			--uma-control: #e2e8f0; --uma-control-hover: #f1f5f9; --uma-control-soft: #263041; --uma-control-border: #3b4555; --uma-control-border-strong: #52607a;
+			--uma-control-disabled: #6b778b; --uma-control-disabled-bg: #222a35;
+		}
+		:root[data-theme="dark"] body { background: #0f1318; color: var(--uma-text); }
 		/* 段8・B（C-120）: 共通の見出しの帯。カードの左右の端まで伸ばし、スクロールしても画面の上に残す（ヘッダーは残さない）。
 		   中身の並びと文字の大きさは core（.usd-setbar）。ここは置き場だけ */
 		.deck-set-bar { position: sticky; top: 0; z-index: 40; margin: calc(-1 * var(--uma-card-pad)) calc(-1 * var(--uma-card-pad)) var(--uma-sp-2);

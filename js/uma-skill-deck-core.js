@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03s';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03t';
 
 	/* ============================================================
 	 * 定数
