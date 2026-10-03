@@ -425,12 +425,12 @@ const INTENTIONALLY_REMOVED = {
 	// data-usd-el の pt-settings / pt-help-box / pt-theory / pt-enabled / pt-unknown の一部 / auto-notice /
 	// scope-modal / maybe-note / share-note / on-tag）は**属性の名前ではなく値**なので、この検査には当たらない
 	// （記録として残す）。commit が進んだら免除は空に戻す。
-	'js/uma-skill-deck-core.js': ['data-choice-id'],
+	// → 段7c の commit のときに空に戻した（HEAD 側にこの値は無い＝免除が無くても落ちない）。
 	// 2026-10-03（段7c の L・C-115）: ①のタブの赤い注意書き（「αテスト中の機能です。まだ作りかけで、結果が正しくないことがあります。
 	// 確かめながらお使いください。」）を、おいもさんの指示で削除した。同じ段で消えた値（core の data-usd-el の pt-filtering〔「絞り込み中」の印〕と、
 	// 表の最下段の凡例 .usd-roster-legend）は、属性の名前ではなく値・class なのでこの検査には当たらない（記録として残す）。
 	// commit が進んだら免除は空に戻す。
-	'special.html': ['deck-roster-alpha'],
+	// → 段7c の commit（db56879）で HEAD から消えたので、免除は空に戻した（残すと本当の事故を見逃す口になる）。
 };
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
