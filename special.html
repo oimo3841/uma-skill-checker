@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-03k"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-03l"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<style>
@@ -86,6 +86,15 @@
 			.main-card .step-tabs { gap: 2px; }
 			/* 旧UIの注記など、ヘッダーの下に出る箱も左右の余白は main-card と揃える */
 			.old-ui-end-note { margin-inline: var(--uma-sp-1); }
+		}
+		/* 段8・B（C-120）: 共通の見出しの帯。カードの左右の端まで伸ばし、スクロールしても画面の上に残す（ヘッダーは残さない）。
+		   中身の並びと文字の大きさは core（.usd-setbar）。ここは置き場だけ */
+		.deck-set-bar { position: sticky; top: 0; z-index: 40; margin: calc(-1 * var(--uma-card-pad)) calc(-1 * var(--uma-card-pad)) var(--uma-sp-2);
+			padding: 1px var(--uma-card-pad); background: var(--uma-surface); border-bottom: 1px solid var(--uma-border);
+			border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; }
+		.deck-set-bar[hidden] { display: none; }
+		@media (max-width: 640px) {
+			.deck-set-bar { margin: calc(-1 * var(--uma-sp-1-5)) calc(-1 * var(--uma-sp-1-5)) var(--uma-sp-1); padding: 1px var(--uma-sp-2); border-radius: var(--uma-r-lg) var(--uma-r-lg) 0 0; }
 		}
 		/* 狭い端末（322px 以下）でタイトルとピルがツール切替・？と並ばないときは、ピルの文字を「2nd」だけにする（323px 以上は全部入って1行に収まる。実測。それより狭いとピルが次の行へ回りヘッダーが高くなる） */
 		@media (max-width: 322px) { .header-edition-sub { display: none; } }
@@ -553,6 +562,9 @@
 			       step-tab-2 … ③ 画像をアップロード
 			     ①を後から足したので id は 0 始まり。id を振り直すと既存の処理と検査の参照が全部変わるため、
 			     画面の番号（丸数字の中身）は enterDeckMode / exitDeckMode が見えるタブの順に付け直す。 -->
+			<!-- 段8・B（C-120）: 共通の見出しの帯（セット名・✎・一覧・合計）。①②③の上に置き、スクロールしても画面の上に残す（sticky）。
+			     中身は core の createTemplateManager（setBar）が描く。新UIだけ（旧UIでは hidden） -->
+			<div id="deck-set-bar" class="deck-set-bar" hidden></div>
 			<div class="step-tabs" role="tablist" aria-label="入力の手順" onkeydown="onStepTabKeydown(event)">
 				<button type="button" role="tab" class="step-tab" id="step-tab-0"
 					aria-controls="step-panel-0" aria-selected="false" tabindex="-1" onclick="selectStepTab(0)" hidden>
@@ -3105,6 +3117,7 @@
 			document.getElementById('step1-title').textContent = '因子周回';
 			// ①本育成編成のタブは Deck連携モードだけ出す（C-51 の11節①）。丸数字は見えているタブの順に付け直す
 			document.getElementById('step-tab-0').hidden = false;
+			document.getElementById('deck-set-bar').hidden = false;   // 段8・B: 共通の見出しの帯
 			renumberStepTabs();
 			const btn = document.getElementById('deck-mode-btn');
 			btn.classList.add('is-on');  // 点灯（Deck の色。css/shell.css の .uma-btn.is-on）
@@ -3151,6 +3164,8 @@
 						tabNoun: '因子周回',
 						// 段8（C-120）: 因子周回と本育成編成（①）を1つの「セット」として扱う（①は選んでいる因子周回の編成を開く）
 						setMode: true,
+						// 段8・B: 共通の見出しの帯（セット名・一覧・合計）の置き場。ステップのタブの上（sticky）
+						setBar: document.getElementById('deck-set-bar'),
 						// A（スキルセット）を「同じ層に並ぶ選択肢の1つ」として見せる（見出し＋出っ張り＋枠。段K）。
 						// ②には B（シナリオ因子）・C（遺伝子）が同じ行に並ぶので、どこまでが A なのかが要る。
 						// Deck 単体ページは A しか無いので渡さない（枠も出っ張りも出ない）。
@@ -3214,6 +3229,7 @@
 			document.getElementById('manual-skill-body').classList.remove('hidden');
 			document.getElementById('step1-title').textContent = 'スキルリストを入力';
 			document.getElementById('step-tab-0').hidden = true;
+			document.getElementById('deck-set-bar').hidden = true;
 			renumberStepTabs();
 			const btn = document.getElementById('deck-mode-btn');
 			btn.classList.remove('is-on');

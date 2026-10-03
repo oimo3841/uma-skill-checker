@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03k';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03l';
 
 	/* ============================================================
 	 * 定数
@@ -4150,6 +4150,33 @@
 		'.usd-link-opt--on { border-color: var(--uma-control); box-shadow: inset 0 0 0 1px var(--uma-control); background: var(--uma-control-soft); }',
 		'.usd-link-opt input { flex: none; width: 18px; height: 18px; margin: 0; }',
 		'.usd-link-name { min-width: 0; overflow-wrap: anywhere; font-weight: 600; color: var(--uma-text-heading); }',
+		'.usd-link-opt--off { cursor: not-allowed; color: var(--uma-text-faint); background: var(--uma-surface-sunken); }',
+		'.usd-link-opt--off .usd-link-name { color: var(--uma-text-faint); }',
+		'.usd-setlist-ops { display: flex; justify-content: flex-end; margin-top: var(--uma-sp-3); }',
+		// 共通の見出しの帯（段8・B）。1行・高さ 36px。左＝セット名・✎・「3／10 ▾」、右＝合計（数字 19px 太字・ほか 11〜12px）と ?
+		'.usd-setbar { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); min-height: 36px; }',
+		'.usd-setbar-l { display: flex; align-items: center; gap: 2px; min-width: 0; flex: 1 1 auto; }',
+		'.usd-setbar-r { display: flex; align-items: center; gap: var(--uma-sp-1); flex: none; }',
+		'.usd-setbar-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-setbar-name--new { color: var(--uma-text-muted); }',
+		'.usd-setbar-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: var(--uma-r-full); background: transparent; color: var(--uma-text-muted); cursor: pointer; }',
+		'.usd-setbar-btn:hover { background: var(--uma-surface-muted); color: var(--uma-text-heading); }',
+		'.usd-setbar-btn:disabled { cursor: not-allowed; color: var(--uma-text-faint); background: transparent; }',
+		'.usd-setbar-btn:focus-visible, .usd-setbar-list:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
+		'.usd-setbar-list { flex: none; display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 var(--uma-sp-2); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
+		'  background: var(--uma-surface); color: var(--uma-text); font: inherit; font-size: 12px; line-height: 1; font-weight: 600; cursor: pointer; white-space: nowrap; }',
+		'.usd-setbar-list:hover { background: var(--uma-surface-muted); }',
+		'.usd-setbar-caret { font-size: 10px; color: var(--uma-text-muted); }',
+		'.usd-setbar-input { min-width: 0; flex: 1 1 auto; height: 28px; padding: 0 var(--uma-sp-2); border: 1px solid var(--uma-control); border-radius: var(--uma-r-md); font: inherit; font-size: var(--uma-fs-sm); background: var(--uma-surface); color: var(--uma-text-heading); }',
+		'.usd-setbar-sum { display: inline-flex; align-items: baseline; gap: var(--uma-sp-1); white-space: nowrap; color: var(--uma-text); }',
+		'.usd-setbar-sumline { display: inline-flex; align-items: baseline; gap: 2px; }',
+		'.usd-setbar-k { font-size: 12px; line-height: 1; }',
+		'.usd-setbar-num { font-size: 19px; line-height: 1.15; font-weight: 800; color: var(--uma-text-heading); font-variant-numeric: tabular-nums; }',
+		'.usd-setbar-sub { font-size: 11px; line-height: 1.1; color: var(--uma-text-muted); }',
+		// 狭い幅では、かっこ書きを数字の下に重ねる（2行。高さは帯の 36px の中）
+		'@media (max-width: 480px) {',
+		'  .usd-setbar-sum { flex-direction: column; align-items: flex-end; gap: 0; }',
+		'}',
 		// セルの中の横スクロール（名前と Pt）の「続きがある側のフェード」。入口の並びと同じ仕組み（data-usd-fade）
 		'.usd-hscroll { margin-inline-end: var(--usd-entry-trim, 0px); }',
 		'.usd-hscroll[data-usd-fade="right"], .usd-hscroll[data-usd-fade="both"] { --usd-fade-r: rgba(0,0,0,.3) 100%; }',
@@ -7448,6 +7475,8 @@
 		// セット（段8・C-120。special だけ）。真のときは、選んでいる因子周回とその本育成編成（①）を1つの「セット」として扱う
 		// （①は setHub で選択に従う。②の「本育成編成」の小窓は無く、相手は常に同じセットの①）。Deck 単体ページは渡さない
 		const setBased = grouped && !!opts.setMode;
+		// 共通の見出しの帯の置き場（段8・B。中身は renderSetBar()）
+		const setBarEl = setBased && opts.setBar && opts.setBar.nodeType === 1 ? opts.setBar : null;
 		// 「?」で一覧を開いている節（C-2c）。保存しない（開き直すと閉じている）
 		let scopeHelpKey = null;
 
@@ -7600,7 +7629,7 @@
 		const nameInput = grouped ? null : q(container, 'name-input');
 		// 編成パネル（①）が描き直したとき、必要Ptも描き直す（本育成のぶんが変わるため）。段5
 		// 編成（①）が変わったら、必要Ptと「本育成編成」の重なり・追加の一覧のグレーアウトも描き直す（段7の E・旧5。モーダルが開いたままでも映す）
-		rosterPtListeners.push(function () { if (!container.isConnected) return; renderPtNeed(); renderRosterLink(); applyRosterHidden(); });
+		rosterPtListeners.push(function () { if (!container.isConnected) return; renderPtNeed(); renderRosterLink(); applyRosterHidden(); if (setBased) { renderSetBar(); renderSelectedList(); } });
 		onSkillPtLoaded(function () { if (!container.isConnected || !grouped) return; renderTabs(); renderSelectedList(); });
 
 		container.addEventListener('click', (e) => {
@@ -7646,6 +7675,30 @@
 			else if (act === 'pt-need-help') { ptNeedHelpOpen = !ptNeedHelpOpen; renderPtNeed(); }
 			else if (act === 'pt-total-help') openPtTotalPopover(btn);
 			else if (act === 'roster-link') openRosterLinkPopover(btn);
+			// 段8: 共通の見出しの帯
+			else if (act === 'set-list') openPopover({ key: 'set-list:' + draftScopeKey, title: 'セット', build: fillSetList, btn: btn, opener: btn, refocus: '[data-usd-act="set-list"]' });
+			else if (act === 'set-total-help') openPopover({ key: 'set-total:' + draftScopeKey, title: '合計', build: fillSetTotalInfo, btn: btn, opener: btn, refocus: '[data-usd-act="set-total-help"]' });
+		}
+		// 段8: 帯（setBarEl）の操作も同じ処理へ渡す（名前の入力・確定・取り消し・一覧・合計の?）
+		if (setBarEl) {
+			setBarEl.addEventListener('click', (e) => {
+				const b = e.target.closest('[data-usd-act]');
+				if (!b || !setBarEl.contains(b)) return;
+				const act = b.dataset.usdAct;
+				if (act === 'name') return;
+				onTmAct(b, act);
+			});
+			setBarEl.addEventListener('input', (e) => {
+				if (!e.target || e.target.getAttribute('data-usd-act') !== 'name') return;
+				if (nameEdit) nameEdit.value = e.target.value;
+				const commit = q(setBarEl, 'name-commit');
+				if (commit) commit.disabled = !currentTemplateId() && !e.target.value.trim();
+			});
+			setBarEl.addEventListener('keydown', (e) => {
+				if (!e.target || e.target.getAttribute('data-usd-act') !== 'name') return;
+				if (e.key === 'Enter') { e.preventDefault(); commitNameEdit(); }
+				else if (e.key === 'Escape' && nameEdit) { e.preventDefault(); e.stopPropagation(); nameEdit = null; render(); }
+			});
 		}
 		container.addEventListener('change', (e) => {
 			const box = e.target;
@@ -7853,6 +7906,8 @@
 		function renderTabs() {
 			const list = ensureUserData().templates;
 			const onDraft = !currentTemplateId();
+			// 段8（setBased）: ②のタブの帯は無い（セットの名前・切り替え・合計は、ステップのタブの上の共通の帯＝renderSetBar）
+			if (setBased) { q(container, 'head').innerHTML = ''; renderSetBar(); return; }
 			const items = [{
 				id: DRAFT_SELECTION_ID, label: '＋ ' + DRAFT_LABEL, isNew: true, selected: onDraft,
 				count: draftScope.skillIds.length > 0 ? countSkillKinds(draftScope.skillIds) + '種' : null,
@@ -7885,6 +7940,104 @@
 				'<p class="usd-roster-h usd-roster-h--top">' + esc(setLabel) + '（<span data-usd-el="count-badge">' + list.length + '</span>／' + TEMPLATE_LIMIT + '件）</p>' +
 				tabStripHtml(items, { act: 'template-tab', ariaLabel: setLabel, el: 'tabs' });
 			revealSelectedTab(container);
+		}
+
+		/* ------------------------------------------------------------
+		 * 共通の見出しの帯（段8・B。special だけ＝setBased で opts.setBar を渡したとき）
+		 *   左：セット名・✎（名前の入力。Enter＝確定・Esc＝取り消し）・「3／10 ▾」（保存済みのセットの数／上限。押すと一覧の小窓）
+		 *   右：「合計 N Pt（切れ者、①＋②）」と ?（式「合計 ＝ ① X ＋ ② Y」）
+		 * 帯の置き場（sticky）は呼び出し元のページが決める。中身はここが描く
+		 * ------------------------------------------------------------ */
+		function setNameOf(target) {
+			if (target.kind === 'template') return target.obj.name || '（名称未設定）';
+			return '＋新規';
+		}
+		function renderSetBar() {
+			if (!setBarEl) return;
+			const target = currentTarget();
+			const list = ensureUserData().templates;
+			const sum = setSummaryOf(target);
+			const icon = (name) => '<i data-lucide="' + name + '" class="w-4 h-4" aria-hidden="true"></i>';
+			const btn = (act, el, label, inner, extra) => '<button type="button" class="usd-setbar-btn" data-usd-act="' + act + '" data-usd-el="' + el + '" aria-label="' + esc(label) + '" title="' + esc(label) + '"' + (extra || '') + '>' + inner + '</button>';
+			let left;
+			if (nameEdit) {
+				const value = String(nameEdit.value || '');
+				left = '<input class="usd-setbar-input" type="text" data-usd-el="name" data-usd-act="name" value="' + esc(value) + '" placeholder="セットの名前" aria-label="セットの名前" />'
+					+ btn('name-commit', 'name-commit', target.kind === 'template' ? '名前を確定' : 'セットを保存', icon('check'), target.kind !== 'template' && !value.trim() ? ' disabled' : '')
+					+ btn('name-cancel', 'name-cancel', '編集を取り消す', icon('undo-2'));
+			} else {
+				const name = setNameOf(target);
+				left = '<span class="usd-setbar-name' + (target.kind === 'template' ? '' : ' usd-setbar-name--new') + '" data-usd-el="set-name" title="' + esc(name) + '">' + esc(name) + '</span>'
+					+ btn('name-edit', 'name-edit', target.kind === 'template' ? 'セットの名前を変える' : '名前を付けて保存', icon('pencil'))
+					+ '<button type="button" class="usd-setbar-list" data-usd-act="set-list" data-usd-el="set-list-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="セットの一覧（' + list.length + '／' + TEMPLATE_LIMIT + '件）">'
+					+ '<span data-usd-el="set-count">' + list.length + '／' + TEMPLATE_LIMIT + '</span><span class="usd-setbar-caret" aria-hidden="true">▾</span></button>';
+			}
+			let right = '';
+			if (sum) {
+				const sub = '（' + (sum.statusLabel ? sum.statusLabel + '、' : '') + '①＋②）';
+				right = '<span class="usd-setbar-sum" data-usd-el="set-total" data-total="' + sum.total + '">'
+					+ '<span class="usd-setbar-sumline"><span class="usd-setbar-k">合計</span> <strong class="usd-setbar-num" data-usd-el="set-total-num">' + formatPtNumber(sum.total) + '</strong> <span class="usd-setbar-k">Pt</span></span>'
+					+ '<span class="usd-setbar-sub" data-usd-el="set-total-sub">' + esc(sub) + '</span></span>'
+					+ '<button type="button" class="uma-help-btn" data-usd-act="set-total-help" data-usd-el="set-total-help" aria-haspopup="dialog" aria-expanded="false" aria-label="合計の式" title="合計の式">?</button>';
+			}
+			setBarEl.innerHTML = '<div class="usd-setbar" data-usd-el="setbar"><div class="usd-setbar-l">' + left + '</div><div class="usd-setbar-r">' + right + '</div></div>';
+			refreshIcons();
+			if (nameEdit) {
+				const input = q(setBarEl, 'name');
+				if (input && global.document.activeElement !== input) { focusNoScroll(input); input.setSelectionRange(input.value.length, input.value.length); }
+			}
+		}
+		/** 合計の式の小窓（?）。「合計 ＝ ① X ＋ ② Y」 */
+		function fillSetTotalInfo(body) {
+			const sum = setSummaryOf(currentTarget());
+			if (!sum) { body.appendChild(infoEl('p', 'usd-info-desc--pending', 'Pt のデータを読み込めませんでした')); return; }
+			const p = infoEl('p', '', '合計 ＝ ① ' + formatPtNumber(sum.rosterPt) + ' ＋ ② ' + formatPtNumber(sum.factorPt));
+			p.setAttribute('data-usd-el', 'set-total-formula');
+			body.appendChild(p);
+		}
+		/** セットの一覧の小窓（ラジオで切り替え・＋新規・選んだセットの削除） */
+		function fillSetList(body) {
+			const data = ensureUserData();
+			const curId = currentTemplateId() || '';
+			const full = data.templates.length >= TEMPLATE_LIMIT;
+			const group = infoEl('div', 'usd-link-list');
+			group.setAttribute('role', 'radiogroup');
+			group.setAttribute('aria-label', 'セット');
+			group.setAttribute('data-usd-el', 'set-list');
+			const items = [{ id: '', name: '＋新規' }].concat(data.templates.map(t => ({ id: t.templateId, name: t.name || '（名称未設定）' })));
+			items.forEach(o => {
+				const on = o.id === curId;
+				const blocked = !o.id && full && !on;   // 上限のときは「＋新規」へ移れない
+				const lab = infoEl('label', 'usd-link-opt' + (on ? ' usd-link-opt--on' : '') + (blocked ? ' usd-link-opt--off' : ''));
+				const input = infoEl('input');
+				input.type = 'radio';
+				input.name = 'usd-set-list';
+				input.value = o.id;
+				input.checked = on;
+				input.disabled = blocked;
+				input.setAttribute('data-usd-el', 'set-radio');
+				input.addEventListener('change', () => {
+					if (!input.checked) return;
+					closeSkillInfo();
+					selectTab(o.id || DRAFT_SELECTION_ID);
+				});
+				lab.appendChild(input);
+				lab.appendChild(infoEl('span', 'usd-link-name', o.name));
+				group.appendChild(lab);
+			});
+			body.appendChild(group);
+			if (full) {
+				const warn = infoEl('p', 'usd-roster-warn', 'セットは' + TEMPLATE_LIMIT + '件までです。新しく作るには、いまのセットを削除してください。');
+				warn.setAttribute('data-usd-el', 'limit-notice');
+				body.appendChild(warn);
+			}
+			const row = infoEl('div', 'usd-setlist-ops');
+			const del = infoEl('button', 'uma-btn uma-btn--danger', '削除');
+			del.type = 'button';
+			del.setAttribute('data-usd-el', 'set-delete');
+			del.addEventListener('click', () => { closeSkillInfo(); askResetTab(); });
+			row.appendChild(del);
+			body.appendChild(row);
 		}
 
 		function renderNameRow() {
@@ -8083,7 +8236,10 @@
 			const linkedRoster = linkedRosterOf(target);
 			const inp = linkedRoster ? rosterPtInputsOf(linkedRoster) : emptyRosterPtInputs();
 			if (inp.status !== 'ok') return { inp: inp };
-			const ids = skillIdsOf(target) || [];
+			const allIds = skillIdsOf(target) || [];
+			// 段8（setBased）: ①で得るスキル（①の表に出ている●でオンのもの）は②の Pt と種に数えない（因子セットから除いて計算する。自動では外さない）
+			const taken = setBased ? new Set(inp.sureIds || []) : new Set();
+			const ids = allIds.filter(id => !taken.has(id));
 			const rules = skillPtData.rules;
 			const F = resolveParentHintLevel(parentHintLevelOf(target), rules);
 			const r = computeFactorSetPt({
@@ -8091,7 +8247,33 @@
 				statusId: inp.settings.status, umaHintLevel: inp.settings.umaHintLevel, enabledSkillIds: inp.enabledIds, offSkillIds: inp.offIds || [],
 				factorSkillIds: ids, tiers: tiersOf(target), parentHintLevel: F, inheritedUnique: inheritedUniqueOf(target) || {}
 			});
-			return { inp: inp, ids: ids, rules: rules, F: F, r: r };
+			return { inp: inp, ids: ids, takenIds: allIds.filter(id => taken.has(id)), rules: rules, F: F, r: r };
+		}
+		/** ランクの ON/OFF（段8・D。template.ptRanks: { high, mid, low }。無い・true 以外でない値は ON） */
+		const PT_RANK_KEYS = { 1: 'high', 2: 'mid', 3: 'low' };
+		function ptRanksOf(target) {
+			const raw = target && target.kind === 'template' ? target.obj.ptRanks : draftScope.ptRanks;
+			const out = {};
+			TIERS.forEach(t => { out[t.id] = !(raw && typeof raw === 'object' && raw[PT_RANK_KEYS[t.id]] === false); });
+			return out;
+		}
+		/**
+		 * セットの数字（段8・B／D）。②の X ＝ 継承固有 ＋ ON のランクの Pt（チップの値の和）、N ＝ ON のランクの種（金と前段の白は1種・①で得るものは除く）＋ 継承固有の種類数。
+		 * ①の値は、同じセットの①の「X Pt/N種」と同じ（前段込み）。合計 ＝ ① ＋ ②。元データが使えないときは null。
+		 */
+		function setSummaryOf(target) {
+			const st = factorPtState(target);
+			if (!st || !st.r || !st.r.ok) return null;
+			const r = st.r, on = ptRanksOf(target);
+			const uq = resolveInheritedUnique(inheritedUniqueOf(target), st.rules);
+			const kinds = kindCountsOf(st.ids, tiersOf(target));
+			let factorPt = r.inheritedUniquePt, factorKinds = uq.count;
+			r.cuts.forEach(c => { if (on[c.tier]) { factorPt += c.own; factorKinds += kinds.byTier[c.tier]; } });
+			const linked = linkedRosterOf(target);
+			const rs = linked ? rosterPtSummaryOf(linked) : null;
+			const rosterPt = rs ? rs.total : 0;
+			return { rosterPt: rosterPt, statusLabel: rs ? rs.statusLabel : '', factorPt: factorPt, factorKinds: factorKinds,
+				total: rosterPt + factorPt, ranks: on, takenIds: st.takenIds, unpricedCount: r.unpricedCount, st: st };
 		}
 		/** ②の各行の Pt を描き直す（⑬）。行の Pt は、必要スキルPt に数えている値（親由来のレベルと本育成編成の割引を反映したもの） */
 		function renderPanelPts() {
@@ -8128,6 +8310,8 @@
 		function renderPtNeed() {
 			const el = q(container, 'pt-need');
 			if (!el) return;
+			// 段8: 帯の合計も同じ数字から出すので、ここで描き直す（継承固有・ヒントLv・ランクの ON/OFF の変更でも追随する）
+			if (setBased) renderSetBar();
 			const slot = q(container, 'pt-total-row');
 			const hideIt = () => { el.hidden = true; el.innerHTML = ''; if (slot) slot.innerHTML = ''; };
 			const st = factorPtState(currentTarget());
@@ -8397,7 +8581,7 @@
 		}
 		/** ✓。保存済みは名前を変えるだけ。「＋新規」は保存済みの因子周回として保存し、そのタブを選ぶ（「＋新規」の中身は残す）。 */
 		function commitNameEdit() {
-			const input = q(container, 'name');
+			const input = (setBarEl && q(setBarEl, 'name')) || q(container, 'name');
 			const value = input ? input.value : (nameEdit ? nameEdit.value : '');
 			const target = currentTarget();
 			if (target.kind === 'template') {
@@ -8418,6 +8602,16 @@
 		/** ×。「＋新規」は中身を空に戻し、保存済みはその因子周回を削除する。確認の小窓は共有の openConfirmModal */
 		function askResetTab() {
 			const isDelete = !!currentTemplateId();
+			if (setBased) {
+				// 段8: セットの削除は①②の両方を消す。「＋新規」は中身（①②の下書き）を空にする
+				const t = currentTarget();
+				openConfirmModal({
+					ariaLabel: isDelete ? 'セットの削除' : '＋新規を空にする',
+					text: isDelete ? 'セット「' + (t.kind === 'template' ? (t.obj.name || '（名称未設定）') : '') + '」を削除しますか？' : '＋新規の中身を空にしますか？',
+					onOk: () => { nameEdit = null; if (isDelete) deleteTemplate(currentTemplateId()); else resetDraft(); }
+				});
+				return;
+			}
 			openConfirmModal({
 				ariaLabel: tabNoun + 'のリセット',
 				text: isDelete ? tabNoun + 'をリセットしますか？ この' + tabNoun + 'は削除され、タブが1つ減ります。' : tabNoun + 'をリセットしますか？',
