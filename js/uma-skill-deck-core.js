@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03h';
 
 	/* ============================================================
 	 * 定数
@@ -2362,6 +2362,9 @@
 			const r = run(parents);
 			return { tier: t.id, label: t.label + (i === 0 ? 'だけ' : 'まで'), total: r.totalWithPrev + uniqPt, count: r.items.length, unpricedCount: r.allUnpricedCount, prevCount: r.prevItems.length, prevTotal: r.prevTotal, items: r.items };
 		});
+		// ランクごとの Pt（段7d の追加・A）。そのランクを足したことで増える分（前段を含む）。「通常まで」の合計 ＝ 本育成編成 ＋ 継承固有 ＋ 超優先 ＋ 優先 ＋ 通常
+		// になるよう、累計の差で出す。本育成と因子セットの両方にあるスキルは、親由来のレベルで安くなるぶん、そのランクの値が小さく（まれに負に）なる
+		cuts.forEach((c, i) => { c.own = c.total - (i === 0 ? base.totalWithPrev + uniqPt : cuts[i - 1].total); });
 		// 行の Pt（段7d の ⑬）。②に追加したスキルの Pt は、必要スキルPt に数えている値＝いちばん広い（通常まで）の計算の値
 		// （親由来のレベルと本育成編成の割引を反映。因子セットのスキルはすべて親由来 F を足す）
 		const skillPts = new Map();
@@ -3721,10 +3724,20 @@
 		'.usd-ptneed[hidden] { display: none; }',
 		'.usd-ptneed-main { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-1-5) var(--uma-sp-2); }',
 		'.usd-ptneed-title { font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); }',
-		'.usd-ptneed-chips { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1-5); min-width: 0; }',
+		'.usd-ptneed-chips { display: flex; flex-wrap: nowrap; gap: var(--uma-sp-1-5); min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; }',
+		'.usd-ptneed-chips::-webkit-scrollbar { display: none; }',
+		'.usd-ptneed-chip { flex: none; white-space: nowrap; }',
 		'.usd-ptneed-chip { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); padding: var(--uma-sp-0-5) var(--uma-sp-2-5);',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text); white-space: nowrap; }',
 		'.usd-ptneed-chip strong { color: var(--uma-text-heading); }',
+		// 必要スキルPt の合計「合計：N Pt ?」（段7d の追加・A）。広い幅は「スキルセット　□シナリオ因子 ?　□遺伝子 ?」の行の右（.usd-ptsum-slot）、
+		// 520px 以下は見出しの行の右端（.usd-ptsum--head）。どちらも中身は同じで、CSS が片方だけ見せる（行は増やさない）
+		'.usd-ptsum-slot { flex: none; align-self: flex-end; display: flex; align-items: center; min-height: var(--uma-section-tab-h); }',
+		'.usd-ptsum-slot:empty { display: none; }',
+		'.usd-ptsum { display: inline-flex; align-items: center; gap: var(--uma-sp-1); white-space: nowrap; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text); }',
+		'.usd-ptsum strong { color: var(--uma-text-heading); font-size: var(--uma-fs-sm); }',
+		'.usd-ptsum--head { display: none; margin-left: auto; }',
+		'@media (max-width: 520px) { .usd-ptsum-slot { display: none; } .usd-ptsum--head { display: inline-flex; } }',
 		'.usd-ptneed-f { display: inline-flex; align-items: center; gap: var(--uma-sp-2); align-self: flex-start; }',
 		'.usd-ptneed-select { width: auto; min-width: 64px; padding: var(--uma-sp-1) var(--uma-sp-2); font-size: var(--uma-fs-sm); }',
 		'.usd-roster-enable { align-self: flex-start; margin-top: var(--uma-sp-1); font-weight: 600; }',
@@ -7287,6 +7300,8 @@
 							(sectionGrouping ? '<p class="uma-section-head">スキルセット</p>' : '') +
 							// B・C …（opts.extraScopes。無ければ空のまま）。中身は renderExtraScopes() が描く
 							'<div data-usd-el="extra-scopes" class="usd-tm-scopes"></div>' +
+							// 必要スキルPt の合計（段7d の追加・A。special の②だけ。中身は renderPtNeed()）。広い幅だけここに出す（狭い幅は見出しの行の右端）
+							'<div class="usd-ptsum-slot" data-usd-el="pt-total-row"></div>' +
 						'</div>'
 					: '') +
 					'<div class="uma-section-body">' +
@@ -7406,6 +7421,7 @@
 			else if (act === 'scope-help') openScopeList(btn.dataset.scope);
 			else if (act === 'scope-help-close') closeScopeList();
 			else if (act === 'pt-need-help') { ptNeedHelpOpen = !ptNeedHelpOpen; renderPtNeed(); }
+			else if (act === 'pt-total-help') openPtTotalPopover(btn);
 			else if (act === 'roster-link') openRosterLinkPopover(btn);
 		}
 		container.addEventListener('change', (e) => {
@@ -7860,16 +7876,37 @@
 			});
 			scanEntryRows();
 		}
+		/** 必要スキルPt の合計「合計：N Pt ?」（段7d の追加・A）。合計は「通常まで」の累計＝本育成編成 ＋ 継承固有 ＋ 超優先 ＋ 優先 ＋ 通常。（?）で内訳の小窓を開く */
+		function ptTotalHtml(r, el) {
+			const total = r.cuts[r.cuts.length - 1].total;
+			return '<span class="usd-ptsum' + (el === 'pt-total-head' ? ' usd-ptsum--head' : '') + '" data-usd-el="' + el + '">合計：<strong data-usd-el="pt-total-num">' + formatPtNumber(total) + '</strong> Pt'
+				+ '<button type="button" class="uma-help-btn" data-usd-act="pt-total-help" aria-haspopup="dialog" aria-expanded="false" aria-label="合計の内訳" title="合計の内訳">?</button></span>';
+		}
+		function fillPtTotalInfo(body) {
+			const st = factorPtState(currentTarget());
+			const line = (text, el) => { const p = infoEl('p', '', text); p.setAttribute('data-usd-el', el); body.appendChild(p); };
+			if (!st || !st.r || !st.r.ok) { body.appendChild(infoEl('p', 'usd-info-desc--pending', 'Pt のデータを読み込めませんでした')); return; }
+			const r = st.r, fmt = formatPtNumber;
+			const parts = ['本育成編成 ' + fmt(r.roster.total) + (r.roster.prevTotal > 0 ? '（うち前段 ' + fmt(r.roster.prevTotal) + '）' : ''), '継承固有 ' + fmt(r.inheritedUniquePt)]
+				.concat(r.cuts.map(c => tierLabel(c.tier) + ' ' + fmt(c.own)));
+			line('合計 ＝ ' + parts.join(' ＋ '), 'info-total-formula');
+			line(r.cuts.map(c => tierLabel(c.tier) + 'まで ' + fmt(c.total)).join('／'), 'info-total-cumulative');
+		}
+		function openPtTotalPopover(btn) {
+			openPopover({ key: 'pt-total:' + draftScopeKey, title: '必要スキルPtの合計', build: fillPtTotalInfo, btn: btn, opener: btn, refocus: '[data-usd-act="pt-total-help"]' });
+		}
 		function renderPtNeed() {
 			const el = q(container, 'pt-need');
 			if (!el) return;
-			const hideIt = () => { el.hidden = true; el.innerHTML = ''; };
+			const slot = q(container, 'pt-total-row');
+			const hideIt = () => { el.hidden = true; el.innerHTML = ''; if (slot) slot.innerHTML = ''; };
 			const st = factorPtState(currentTarget());
 			if (!st) { hideIt(); return; }
 			if (st.inp.status === 'loading') { hideIt(); return; }
 			if (st.inp.status === 'failed') {
 				el.hidden = false;
 				el.innerHTML = '<p class="usd-roster-alert" data-usd-el="pt-need-error">Pt のデータを読み込めませんでした</p>';
+				if (slot) slot.innerHTML = '';
 				return;
 			}
 			const ids = st.ids, rules = st.rules, F = st.F, r = st.r;
@@ -7879,9 +7916,15 @@
 				+ '<span class="uma-badge uma-badge--accent" data-usd-el="pt-need-theory">理論値</span>'
 				+ '<button type="button" class="uma-help-btn" data-usd-act="pt-need-help" data-usd-el="pt-need-help-btn"'
 				+ ' aria-expanded="' + (ptNeedHelpOpen ? 'true' : 'false') + '" aria-label="理論値とは" title="理論値とは">?</button>'
+				// 合計（段7d の追加・A）。広い幅では「スキルセット　□シナリオ因子 ?　□遺伝子 ?」の行の右（スロット）に、狭い幅（CSS の @media）では
+				// この見出しの行の右端に出す。どちらも同じ内容で、CSS が片方だけ見せる（行は増やさない）
+				+ ptTotalHtml(r, 'pt-total-head')
+				// チップ: 継承固有 → ＋超優先 → ＋優先 → ＋通常（段7d の追加・A。それぞれそのランクのぶんだけ。本育成編成は含めない）。収まらないときはこの行だけ横に送る
 				+ '<span class="usd-ptneed-chips">'
-				+ r.cuts.map(c => '<span class="usd-ptneed-chip" data-usd-el="pt-need-' + c.tier + '">＋' + esc(tierLabel(c.tier)) + '：<strong>' + formatPtNumber(c.total) + '</strong> Pt</span>').join('')
+				+ '<span class="usd-ptneed-chip" data-usd-el="pt-need-uniq">継承固有：<strong>' + formatPtNumber(r.inheritedUniquePt) + '</strong> Pt</span>'
+				+ r.cuts.map(c => '<span class="usd-ptneed-chip" data-usd-el="pt-need-' + c.tier + '" data-cum="' + c.total + '">＋' + esc(tierLabel(c.tier)) + '：<strong>' + formatPtNumber(c.own) + '</strong> Pt</span>').join('')
 				+ '</span></div>';
+			if (slot) slot.innerHTML = ptTotalHtml(r, 'pt-total-row');
 			// 段7c の O の (4)：「（うち本育成 X）」の行は削除した（値の計算は変えていない）。補足文は（?）の中へ移した
 			// （重なるスキル〔本育成と因子セットの両方〕が、本育成だけでは L が上限未満のとき、合計が「超優先だけ」より小さくなりうることの説明。出る条件は今のまま）
 			h += '<p class="uma-help-box" data-usd-el="pt-need-help-box"' + (ptNeedHelpOpen ? '' : ' hidden') + '>理論値（各スキルを最大のヒントレベルで得た場合のスキルPt）'
