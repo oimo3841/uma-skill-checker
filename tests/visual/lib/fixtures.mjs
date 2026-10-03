@@ -96,6 +96,17 @@ export async function openPage(browser, base, file, viewport = { width: 1280, he
 	page.on('pageerror', (e) => errors.push(String(e)));
 	page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 	await page.addInitScript((d) => localStorage.setItem('umaSkillDeck:userData', JSON.stringify(d)), userData);
+	// 前回開いていたタブ（段7d の ③）。special は保存値が無いと①「本育成編成」を開くようになったが、段7c より前の検査は
+	// 「開いたら②（因子周回）が見えている」ことを前提に書かれている。このタブ（sessionStorage の印で最初の1回だけ）に限り、保存値を②にしておく。
+	// 再読み込みでは仕込み直さない（段7d の検査は、この保存値を消して・書き換えて、再読み込みの動きを見る）
+	await page.addInitScript(() => {
+		try {
+			if (!sessionStorage.getItem('__fxStepTab')) {
+				sessionStorage.setItem('__fxStepTab', '1');
+				if (localStorage.getItem('umaSkillDeck:stepTab') === null) localStorage.setItem('umaSkillDeck:stepTab', '1');
+			}
+		} catch (e) {}
+	});
 	// シナリオの固定イベント（段7c の N）の実データは、編成の表に7列目と確定のスキルを足す。段7c より前の検査は
 	// 「カード6枚＋育成ウマ娘」の表を前提にしているので、既定では中身が空のファイルを返す（＝列が出ない）。
 	// 段7c の検査は、自分で page.route を足して実データ（またはテスト用の中身）に差し替える（後から足した route が先に効く）。

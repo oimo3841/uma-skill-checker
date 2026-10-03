@@ -18,6 +18,8 @@ import { buildEventFixture, buildCharacterFixture } from './lib/event-fixture.mj
 import { buildDraftFixture } from './lib/draft-fixture.mjs';
 // 段7c（2026-10-03・C-115）の検査は別ファイル（塊の見出しはすべて「段7c」を含む）
 import { register7c } from './blocks-7c.mjs';
+// 段7d（2026-10-03・C-116）の検査
+import { register7d } from './blocks-7d.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -73,6 +75,25 @@ if (ONLY.length > 0) console.log('--only=' + ONLY.join(',') + ' に当たる塊�
 
 const { base, close } = await startServer();
 const browser = await chromium.launch();
+// 前回開いていたタブ（段7d の ③）。special は保存値が無いと①「本育成編成」を開くようになったが、段7c より前の検査は
+// 「開いたら②（因子周回）が見えている」ことを前提に書かれている。openPage を通さず自前で context を作る検査も含めて、
+// どの context でも、最初の読み込みに限って保存値を②にしておく（sessionStorage の印で1回だけ。再読み込みでは仕込み直さない。
+// 段7d の検査は、この保存値を消して・書き換えて、再読み込みの動きを見る）
+{
+	const newContext = browser.newContext.bind(browser);
+	browser.newContext = async (o) => {
+		const ctx = await newContext(o);
+		await ctx.addInitScript(() => {
+			try {
+				if (!sessionStorage.getItem('__fxStepTab')) {
+					sessionStorage.setItem('__fxStepTab', '1');
+					if (localStorage.getItem('umaSkillDeck:stepTab') === null) localStorage.setItem('umaSkillDeck:stepTab', '1');
+				}
+			} catch (e) {}
+		});
+		return ctx;
+	};
+}
 
 /* ============================================================
  * special.html（UmaStar OCR）
@@ -329,7 +350,7 @@ await block('special.html（UmaStar OCR）', async () => {
 			hasOld: !!p.querySelector('[data-usd-act="template-open"], [data-usd-act="draft-open"], [data-usd-el="template-radio"]'),
 			// 段7b の ⑫: 名前の入力欄・保存・リセット・セットを削除は無くなった（名前・保存・削除はタブの ✎ ✓ ↩ ×）。残るのは「複製」の行だけ（保存済みのときだけ出る）
 			nameInput: !!p.querySelector('[data-usd-el="name-input"]'), delBtn: !!p.querySelector('[data-usd-el="del-btn"]'),
-			actionsHidden: p.querySelector('[data-usd-el="tm-actions"]').hidden,
+			actionsHidden: !p.querySelector('[data-usd-el="tm-actions"]'),   // 段7d の ⑮：「複製」の行ごと無い
 			// 最下段の注記は C-62 の (7) で削除した。要素ごと無いことを見る
 			note: !!p.querySelector('[data-usd-el="editor-note"]')
 		};
@@ -341,7 +362,7 @@ await block('special.html（UmaStar OCR）', async () => {
 	// **ここが「スキルセット」に戻ったら、core の文字列を一律置換してしまった印。**
 	// （段7b の ⑫で、名前欄の呼び名「新しい因子セットの名前」の検査は、タブの ✎ の入力欄（プレースホルダ「因子周回の名前」）へ移った。新しい塊で見ている）
 	assert(!draftTab.nameInput && !draftTab.delBtn && draftTab.actionsHidden,
-		'special: 名前の入力欄・「セットを削除」は無く、「＋ 新規（ドラフト）」では「複製」の行も出ない', draftTab);
+		'special: 名前の入力欄・「セットを削除」・「複製」の行は無い（段7d の ⑮ で「複製」を削除）', draftTab);
 	assert(draftTab.note === false, 'special: ②のパネル最下段の注記は無い（C-62 の (7) で削除）', draftTab.note);
 
 	/* --- C-1: 改称と枠組み（②＝「因子セット」／その中の A＝「スキルセット」） ---
@@ -373,7 +394,7 @@ await block('special.html（UmaStar OCR）', async () => {
 			// 段K: A は枠で囲い、見出しはその枠の左上に接する出っ張りにする
 			framed: !!(secA && secA.classList.contains('uma-section--framed')),
 			// 名前の行（保存・複製・削除）は A の外＝セット全体の操作
-			nameRowOutside: !!p.querySelector('.usd-tm-name-row') && !(secA && secA.querySelector('.usd-tm-name-row'))
+			nameRowOutside: !p.querySelector('.usd-tm-name-row')   // 段7d の ⑮：名前の行には「複製」しか残っていなかったので、行ごと無くなった（A の外にも中にも無い）
 		};
 	});
 	// 段7b の ⑫：②の見出し「因子セット（N／N件）」は無くした。帯のタブの呼び名は「因子周回」（special が渡す tabNoun）
@@ -382,7 +403,7 @@ await block('special.html（UmaStar OCR）', async () => {
 	assert(c1.secAHead === 'スキルセット',
 		'C-1: ②の中の A の見出しは「スキルセット」（入れ物の呼び名とは別。setLabel を通さない）', c1.secAHead);
 	assert(c1.inA && c1.entryInA && c1.nameRowOutside,
-		'C-1: 入口・分類・スキルパネルは [data-usd-el="section-a"] の中、名前の行はその外', c1);
+		'C-1: 入口・分類・スキルパネルは [data-usd-el="section-a"] の中。名前の行は無い（段7d の ⑮ で「複製」を削除）', c1);
 	// 73 の「リセット」の置き場所の検査は、段7b の ⑫で「リセット」ボタン自体が無くなった（「＋新規」の × が確認つきで同じことをする）ので、下の検査へ差し替えた
 	assert(c1.noClearBtn, '段7b(⑫): ②に「リセット」のボタンは無い（「＋新規」の × → 確認の小窓 → OK が、同じく中身を空に戻す）', c1);
 	/* **差し替えた検査（段K）**: それまでは
@@ -406,7 +427,7 @@ await block('special.html（UmaStar OCR）', async () => {
 			modes: !!del && !!reclass, modesOff: del && reclass && del.getAttribute('aria-pressed') === 'false' && reclass.getAttribute('aria-pressed') === 'false',
 			modesDisabled: del && reclass && del.disabled && reclass.disabled };
 	});
-	assert(!clearBtn.exists && clearBtn.行.join(',') === '複製', '段7b(⑫): 名前の行に残るのは「複製」だけ（保存・リセット・セットを削除は無い）', clearBtn);
+	assert(!clearBtn.exists && clearBtn.行 === null, '段7b(⑫)→段7d(⑮): 名前の行は無い（保存・リセット・セットを削除に加えて、「複製」も削除した。Deck 単体ページには残る）', clearBtn);
 	assert(clearBtn.modes && clearBtn.modesOff, 'special: 「再分類」「削除」のモードのボタンがあり、既定は両方 OFF', clearBtn);
 	/* **下段の「削除」（追加済みスキルを消すモード）は変えていない**（73セッション目）。 */
 	const modeLabels = await page.evaluate(() => ({
@@ -7764,28 +7785,18 @@ await block('②の B・C ―― シナリオ因子と遺伝子を対象に含�
 	   `C-2c(exam):` の検査はそのまま生きている）。 */
 	assert(s2.secs[0].checked === true && s2.secs[0].badge === null && s2.secs[1].checked === false,
 		'段K: ON かどうかはチェックの四角で読む（バッジは無い）', s2.secs.map(x => x.key + ':' + x.checked));
-	// 複製すると写る
-	await page.click('#deck-template-panel [data-usd-act="template-duplicate"]');
-	await page.waitForTimeout(400);
-	const dup = await page.evaluate(() => {
-		const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
-		const last = d.templates[d.templates.length - 1];
-		return { name: last.name, scopes: last.scopes, tiers: last.tiers };
-	});
-	assert(JSON.stringify(dup.scopes) === JSON.stringify({ scenarioFactors: true }),
-		'C-2a: 複製すると scopes も写る（tiers と同じ）', dup);
+	// （段7d の ⑮：special の②から「複製」のボタンを削除したので、「複製すると scopes も写る」の検査は外した。複製の処理そのものは Deck 単体ページのために core に残っている）
 	// OFF に戻すと項目ごと消える（全部 OFF のセットは scopes を持たない＝旧データと同じ姿）
 	await page.click('#deck-template-panel [data-usd-act="scope-check"][data-scope="scenarioFactors"]');
 	await page.waitForTimeout(300);
-	const off = await page.evaluate(() => {
+	const off = await page.evaluate((tid) => {
 		const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
-		const last = d.templates[d.templates.length - 1];
-		return { scopes: last.scopes, has: Object.prototype.hasOwnProperty.call(last, 'scopes') };
-	});
+		const t = d.templates.find((x) => x.templateId === tid);
+		return { scopes: t.scopes, has: Object.prototype.hasOwnProperty.call(t, 'scopes') };
+	}, TEMPLATE_ID);
 	assert(!off.has, 'C-2a: 全部 OFF に戻すと scopes は項目ごと消える', off);
-	// **元のセットのタブに戻してから** C を ON にして、保存された JSON を取っておく
-	// （複製したときに選択が複製側へ移っている）
-	await page.click('#deck-template-panel .uma-subtab[data-tab-id="' + TEMPLATE_ID + '"]');
+	// B を ON に戻し、C も ON にして、保存された JSON を取っておく
+	await page.click('#deck-template-panel [data-usd-act="scope-check"][data-scope="scenarioFactors"]');
 	await page.waitForTimeout(300);
 	await page.click('#deck-template-panel [data-usd-act="scope-check"][data-scope="genes"]');
 	await page.waitForTimeout(300);
@@ -7824,8 +7835,7 @@ await block('②の B・C ―― シナリオ因子と遺伝子を対象に含�
 			// 呼び出し元へ渡す選択にも scopes が乗る（C-2b の照合はこれを見る）
 			sel: deckTemplateManager ? deckTemplateManager.getSelection().scopes : null };
 	});
-	// 元のセットは B を ON にしたあと複製しているので、B・C とも ON のまま
-	// （OFF に戻したのは複製したほうで、そちらは scopes ごと消えている）
+	// 元のセットは B・C とも ON のまま
 	assert(back.checked === true && back.noBadge === true && back.otherChecked === true,
 		'C-2a: 開き直しても ON のまま（段K: 件数バッジは無い。以前は accent の色で見ていた）', back);
 	assert(back.helpOpen === 'false' && !back.modal,
@@ -10087,7 +10097,7 @@ await block('カスタムスキルの廃止 ―― 保存済みのものは入�
 		await page.waitForTimeout(250);
 		const panel = await page.evaluate((id) => {
 			const p = document.querySelector('#deck-template-panel .usd-panel[data-skill-id="' + id + '"]');
-			return p ? p.querySelector('.usd-panel-name').textContent : null;
+			return p ? p.querySelector('.usd-panel-namebtn').textContent : null;   // 段7d の ⑬：名前は button（Pt を添えた span の中）
 		}, C1.customId);
 		assert(panel === C1.name, 'C-100 special: 周回因子セットに自作スキルが同じ名前で出る', panel);
 		assert(!(await page.$('#deck-template-panel [data-usd-act="editor-pick-custom"]')),
@@ -12349,6 +12359,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	const y = (i) => Y[i].skillId;
 	const DISC = [10, 20, 30, 35, 40];
 	const STATUS = { none: 0, benkyo: 4, kire: 10 };
+	const UQ = (st) => 6 * Math.floor(200 * (100 - DISC[2] - STATUS[st || 'none']) / 100);   // 継承固有 6種×基礎200・Lv3
 	const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 	const routes = async (page, ptDoc, rulesFail) => {
 		await page.route('**/data/support-card-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(evDoc) }));
@@ -12406,7 +12417,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 				if (!baseOf.has(sid)) { unpriced++; return; }
 				total += Math.floor(baseOf.get(sid) * (100 - (L > 0 ? DISC[L - 1] : 0) - STATUS[st.status || 'none']) / 100);
 			});
-			return { total, unpriced, levels };
+			return { total: total + UQ(st.status), unpriced, levels };
 		};
 		const rosterOnly = calc(0);
 		const cuts = [1, 2, 3].map(calc);
@@ -12415,22 +12426,28 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 
 	/* special を開く（①の編成と、②の因子セットのドラフトを仕込む） */
 	const openSpecial = async (o) => {
-		const sp = await openPage(browser, base, 'special.html', { width: o.w || 1280, height: o.h || 1000 }, o.userData);
+		const rosterObj = o.roster === undefined ? { umaId: '', cardIds: cardIds } : o.roster;
+		const saved = Object.assign({ rosterId: 'r5', name: '本育成', umaId: '', star: 0, awakeningLevel: 0, createdAt: '2026-10-03T00:00:00.000Z', updatedAt: '2026-10-03T00:00:00.000Z' }, rosterObj);
+		const sp = await openPage(browser, base, 'special.html', { width: o.w || 1280, height: o.h || 1000 }, Object.assign({}, o.userData || USER_DATA, { rosters: [saved] }));
 		await routes(sp.page, ptDoc, o.rulesFail);
+		const scopeObj = o.scope === undefined ? { skillIds: SCOPE_IDS, name: '', tiers: SCOPE_TIERS, updatedAt: '' } : o.scope;
 		await sp.page.evaluate(({ roster, scope }) => {
 			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster));
 			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope));
-		}, { roster: o.roster === undefined ? { umaId: '', cardIds: cardIds } : o.roster, scope: o.scope === undefined ? { skillIds: SCOPE_IDS, name: '', tiers: SCOPE_TIERS, updatedAt: '' } : o.scope });
+		}, { roster: rosterObj, scope: scopeObj ? Object.assign({ baseRosterId: 'r5' }, scopeObj) : scopeObj });
 		await sp.page.reload({ waitUntil: 'networkidle' });
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate(() => selectStepTab(0));
 		await sp.page.waitForSelector('#deck-roster-panel [data-usd-el="pt-sum"],#deck-roster-panel [data-usd-el="pt-error"]', { timeout: 10000 }).catch(() => {});
+		// ①は保存した編成 r5 を開く（①で状態などを替えると、②の本育成編成に選んだ r5 に保存されて②に効く）
+		await sp.page.click('#deck-roster-panel [data-usd-act="select-roster"][data-tab-id="r5"]').catch(() => {});
+		await sp.page.waitForTimeout(150);
 		return sp;
 	};
 	const readNeed = (page) => page.evaluate(() => {
 		const el = document.querySelector('[data-usd-el="pt-need"]');
 		const num = (s) => Number((s || '').replace(/[^0-9]/g, ''));
-		const chip = (n) => { const e = el.querySelector('[data-usd-el="pt-need-' + n + '"]'); return e ? { label: e.firstChild.textContent.trim(), n: num(e.querySelector('strong').textContent) } : null; };
+		const chip = (n) => { const e = el.querySelector('[data-usd-el="pt-need-' + n + '"]'); return e ? { label: e.textContent.trim(), n: num(e.querySelector('strong').textContent) } : null; };
 		const t = (i) => { const e = el.querySelector('[data-usd-el="' + i + '"]'); return e ? e.textContent : null; };
 		const sel = el.querySelector('[data-usd-el="pt-parent-level"]');
 		return { hidden: el.hidden, empty: el.innerHTML === '', chips: [chip(1), chip(2), chip(3)], roster: t('pt-need-roster'), unpriced: t('pt-need-unpriced'), error: t('pt-need-error'),
@@ -12445,8 +12462,8 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	let v = await readNeed(sp.page);
 	let e = expectedNeed(base0);
 	assert(!v.hidden && sameNeed(v, e), '段5(1): 3つの合計（超優先だけ・優先まで・通常まで）が、独立の期待値と一致する', { got: v.chips.map((c) => c && c.n), want: [e.A, e.B, e.C] });
-	assert(v.chips.map((c) => c.label).join('|') === '超優先だけ|優先まで|通常まで' && e.A < e.B && e.B < e.C && v.chips[0].n < v.chips[1].n && v.chips[1].n < v.chips[2].n,
-		'段5(1): 並びと名前は「超優先だけ」「優先まで」「通常まで」で、累積（＜）になっている（期待値の側でも3つとも増える＝空振りでない）', { chips: v.chips, e: [e.A, e.B, e.C] });
+	assert(v.chips.map((c) => c.label.replace(/[0-9,]+/, 'N')).join('|') === '＋超優先：N Pt|＋優先：N Pt|＋通常：N Pt' && e.A < e.B && e.B < e.C && v.chips[0].n < v.chips[1].n && v.chips[1].n < v.chips[2].n,
+		'段5(1)→段7d(⑨): 並びと名前は「＋超優先：N Pt」「＋優先：N Pt」「＋通常：N Pt」で、累積（＜）になっている（期待値の側でも3つとも増える＝空振りでない）', { chips: v.chips, e: [e.A, e.B, e.C] });
 	assert(v.theory === '理論値', '段5(8): 「理論値」のバッジがある', v.theory);
 	await sp.page.evaluate(() => selectStepTab(1));
 	await sp.page.click('[data-usd-el="pt-need-help-btn"]');
@@ -12484,6 +12501,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	// 開き直し（未保存）
 	await sp.page.reload({ waitUntil: 'networkidle' });
 	for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+	await sp.page.evaluate(() => selectStepTab(1));   // 段7d の ③：再読み込みすると前回のタブ（①）が開くので、②へ移ってから待つ
 	await sp.page.waitForSelector('[data-usd-el="pt-need"]:not([hidden])');
 	v = await readNeed(sp.page);
 	assert(v.F === 3 && sameNeed(v, ex3), '段5(2): 未保存の因子セットを開き直しても F が残る（合計も同じ）', { F: v.F, got: v.chips.map((c) => c.n) });
@@ -12499,7 +12517,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	// 開き直し: 保存した因子セット（userData の template。parentHintLevel を持つ）を別のページで開いて選ぶ
 	// （openPage は読み込みのたびに userData を仕込み直すので、同じページの reload では保存が消える。保存の形は上で見た）
 	await sp.ctx.close();
-	const UD = Object.assign({}, USER_DATA, { templates: USER_DATA.templates.concat([{ templateId: 'tpl_s5', name: '段5', skillIds: SCOPE_IDS, tiers: tiers2, parentHintLevel: 3,
+	const UD = Object.assign({}, USER_DATA, { templates: USER_DATA.templates.concat([{ templateId: 'tpl_s5', name: '段5', skillIds: SCOPE_IDS, tiers: tiers2, parentHintLevel: 3, baseRosterId: 'r5',
 		createdAt: '2026-10-01T00:00:00.000Z', updatedAt: '2026-10-01T00:00:00.000Z' }]) });
 	sp = await openSpecial({ userData: UD, scope: { skillIds: [], name: '', updatedAt: '' } });
 	await sp.page.evaluate(() => selectStepTab(1));
@@ -12515,9 +12533,10 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	const rawScope = await readScope(noF.page);
 	assert(!('parentHintLevel' in rawScope), '段5(2): F を1度も触っていない因子セットのドラフトに parentHintLevel を足さない（読み込み時に補わない）', rawScope);
 	// 知らない値は 5 として計算し、保存データは書き換えない
-	await noF.page.evaluate((ids) => localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify({ skillIds: ids, name: '', parentHintLevel: 9, updatedAt: '' })), SCOPE_IDS);
+	await noF.page.evaluate((ids) => localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify({ skillIds: ids, name: '', parentHintLevel: 9, baseRosterId: 'r5', updatedAt: '' })), SCOPE_IDS);
 	await noF.page.reload({ waitUntil: 'networkidle' });
 	for (let i = 0; i < 2; i++) if (await noF.page.isVisible('#ui-notice')) await noF.page.click('[data-act="notice-ok"]');
+	await noF.page.evaluate(() => selectStepTab(1));   // 段7d の ③（同上）
 	await noF.page.waitForSelector('[data-usd-el="pt-need"]:not([hidden])');
 	v = await readNeed(noF.page);
 	const keep = await readScope(noF.page);
@@ -12551,7 +12570,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	sp = await openSpecial({ roster: { umaId: '', cardIds: new Array(6).fill(null) } });
 	v = await readNeed(sp.page);
 	e = expectedNeed({ on: [], status: 'none', F: 5, ids: [], tiers: {} });
-	const factorOnly = (cut) => SCOPE_IDS.filter((sid) => (SCOPE_TIERS[sid] || 2) <= cut && baseOf.has(sid)).reduce((a, sid) => a + Math.floor(baseOf.get(sid) * 60 / 100), 0);
+	const factorOnly = (cut) => UQ('none') + SCOPE_IDS.filter((sid) => (SCOPE_TIERS[sid] || 2) <= cut && baseOf.has(sid)).reduce((a, sid) => a + Math.floor(baseOf.get(sid) * 60 / 100), 0);
 	assert(!v.hidden && v.roster === null && v.chips[0].n === factorOnly(1) && v.chips[1].n === factorOnly(2) && v.chips[2].n === factorOnly(3),
 		'段5(10): 本育成のスキルが0のときは「うち本育成」の行が出ず、合計は因子セットだけのスキル（L=F=5）の Pt', { roster: v.roster, got: v.chips.map((c) => c && c.n) });
 	await sp.ctx.close();
@@ -12814,16 +12833,19 @@ await block('前段の必要Pt（段4b）', async () => {
 			return { own, prev, all: own + prev, prevIds, unpriced: new Set(unpriced).size, inTable: (id) => included.has(id) };
 		};
 		const roster0 = calc(0);
-		return { roster: roster0, A: calc(1).all, B: calc(2).all, C: calc(3).all, unpricedC: calc(3).unpriced, cut3: calc(3) };
+		// 継承固有（段7d の ⑪。既定 6種・Lv3・状態なし）= 6 × floor(200 × 70 / 100) = 840 が3つの合計に足される
+		return { roster: roster0, A: calc(1).all + 840, B: calc(2).all + 840, C: calc(3).all + 840, unpricedC: calc(3).unpriced, cut3: calc(3) };
 	};
 
 	const openSpecial = async (o) => {
-		const sp = await openPage(browser, base, 'special.html', { width: o.w || 1280, height: o.h || 1000 });
+		const cardIds4 = o.cards.concat(new Array(6 - o.cards.length).fill(null));
+		const saved4 = { rosterId: 'r4b', name: '本育成', umaId: '', star: 0, awakeningLevel: 0, cardIds: cardIds4, createdAt: '2026-10-03T00:00:00.000Z', updatedAt: '2026-10-03T00:00:00.000Z' };
+		const sp = await openPage(browser, base, 'special.html', { width: o.w || 1280, height: o.h || 1000 }, Object.assign({}, USER_DATA, { rosters: [saved4] }));
 		await routes(sp.page, o);
 		await sp.page.evaluate(({ roster, scope }) => {
 			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster));
 			localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope));
-		}, { roster: { umaId: '', cardIds: o.cards.concat(new Array(6 - o.cards.length).fill(null)) }, scope: o.scope || { skillIds: [], name: '', updatedAt: '' } });
+		}, { roster: { umaId: '', cardIds: cardIds4 }, scope: Object.assign({ baseRosterId: 'r4b' }, o.scope || { skillIds: [], name: '', updatedAt: '' }) });
 		await sp.page.reload({ waitUntil: 'networkidle' });
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate(() => selectStepTab(0));
@@ -12834,8 +12856,14 @@ await block('前段の必要Pt（段4b）', async () => {
 		const h = document.getElementById('deck-roster-panel');
 		const t = (i) => { const e = h.querySelector('[data-usd-el="' + i + '"]'); return e ? e.textContent : null; };
 		const n = (s) => (s === null ? null : Number(s.replace(/[^0-9]/g, '')));
-		return { total: n(t('pt-total')), prevCount: n(t('pt-prev-count')), prevTotal: n(t('pt-prev-total')), list: t('pt-prev-list'), withPrev: n(t('pt-with-prev-total')),
-			hasPrevRow: !!h.querySelector('[data-usd-el="pt-prev"]'), hasWithPrev: !!h.querySelector('[data-usd-el="pt-with-prev"]'), unpriced: t('pt-unpriced'), prevError: t('pt-prev-error'), theory: h.querySelector('[data-usd-el="pt-help-btn"]') ? '理論値' : null };
+		// 段7d の ②: 前段は「ヒントLv0：名前 Pt・名前 Pt／ヒントLv2：…」の1行。合計（pt-total）は前段を含む額。
+		// ここでは従来の見方に直す: prevCount＝行の件数、prevTotal＝行の Pt の和、withPrev＝表示の合計、total＝前段を含めない合計（表示の合計 − prevTotal）
+		const line = t('pt-prev');
+		const entries = line ? line.split('／').flatMap((g) => g.replace(/^ヒントLv\d+：/, '').split('・')) : [];
+		const prevTotal = entries.reduce((s, x) => s + (/ (\d+)$/.test(x) ? Number(/ (\d+)$/.exec(x)[1]) : 0), 0);
+		const shown = n(t('pt-total'));
+		return { total: shown - prevTotal, prevCount: line ? entries.length : null, prevTotal: line ? prevTotal : null, list: line, withPrev: line ? shown : null,
+			hasPrevRow: !!line, hasWithPrev: !!line, unpriced: t('pt-unpriced'), prevError: t('pt-prev-error'), theory: h.querySelector('[data-usd-el="pt-help-btn"]') ? '理論値' : null };
 	});
 	const readNeed = (page) => page.evaluate(() => {
 		const el = document.querySelector('[data-usd-el="pt-need"]');
@@ -12853,12 +12881,12 @@ await block('前段の必要Pt（段4b）', async () => {
 	assert(e.roster.prevIds.length === 3 && v.prevCount === 3 && v.prevTotal === e.roster.prev && v.withPrev === e.roster.all && v.total === e.roster.own,
 		'段4b(2): ◎を本育成にもつと前段の○が、金を本育成にもつと直前の◎・その前の○が、さかのぼって全部「前段として必要」に出る（3種）。Pt は期待値のとおり（○の L2 は系列の根の L・金は金自身の L1）', { got: [v.prevCount, v.prevTotal, v.withPrev, v.total], want: [3, e.roster.prev, e.roster.all, e.roster.own] });
 	assert(v.hasPrevRow && v.hasWithPrev && v.withPrev === v.total + v.prevTotal && v.theory === '理論値',
-		'段4b(9): 「前段として必要 K種 P Pt」と「前段を含む合計 T Pt」が出る（T = 本育成の合計 + 前段）。本育成の合計は前段を含めない値のまま。理論値の説明は合計の行の（?）にある', v);
+		'段4b(9)→段7d(②): 前段は「ヒントLv0：名前 Pt」の1行で出て、合計の「X Pt/N種」は前段を含む額（本育成の合計 + 前段）。理論値の説明は合計の行の（?）にある', v);
 	// 一覧に、各スキルの名前と Pt が出る（名前は実データのスキル名。Z0＝右下の○ など。連鎖は「→」）
 	const nm = async (id) => sp.page.evaluate((id) => window.UmaSkillDeckCore.getSkillName(id), id);
 	const n0 = await nm(z(0)); const n3 = await nm(z(3)); const n2 = await nm(z(2));
-	assert(v.list.includes(n0) && v.list.includes(n3) && v.list.includes(n2) && v.list.includes(' → ') && v.list.startsWith('（') && v.list.endsWith('）'),
-		'段4b(2): 一覧に、前段のスキルの名前と Pt が並び、連鎖は「→」で示される', v.list);
+	assert(v.list.includes(n0) && v.list.includes(n3) && v.list.includes(n2) && v.list.startsWith('ヒントLv') && !v.list.includes(' → ') && !v.list.includes('（'),
+		'段4b(2)→段7d(②): 1行に、前段のスキルの名前と Pt が並ぶ（ヒントレベルごとに「ヒントLv0：…」。連鎖の「→」と括弧は無い）', v.list);
 	// ⑧→段7: 前段は②の「本育成編成」の対象（追加の一覧で選べなくするもの）に入らない。渡す id は●だけ
 	// （段7b の ⑬）対象は保存した編成なので、この編成を保存して、②でその編成を選ぶ
 	await sp.page.click('#deck-roster-panel [data-usd-el="name-edit"]');
@@ -12886,7 +12914,7 @@ await block('前段の必要Pt（段4b）', async () => {
 	const n3b = await sp.page.evaluate((id) => window.UmaSkillDeckCore.getSkillName(id), z(3));
 	assert(e.roster.prevIds.join() === [z(0), z(2)].join() && e.roster.inTable(z(3)) && v.prevCount === 2 && v.prevTotal === e.roster.prev && v.withPrev === e.roster.all && v.total === e.roster.own,
 		'段4b(3): 前段（Z3＝○）がほかの由来ですでに本育成の表にあるときは、前段として数えず（2種）、二重にならない。◎ Z2 は系列の根（Z3）の L3 で計算される', { got: [v.prevCount, v.prevTotal, v.withPrev], want: [2, e.roster.prev, e.roster.all] });
-	assert(v.list.includes(n3b + '（本育成）') && v.list.includes(' → '), '段4b(3): 途中の段が本育成の表にあるときは、その段に「（本育成）」を添える（Pt は数えない）', v.list);
+	assert(!v.list.includes(n3b) && !v.list.includes('（本育成）'), '段4b(3)→段7d(②): 本育成の表にあるスキル（Z3）は、前段の1行に出さない（「（本育成）」の添え書きはやめた。Pt は数えない）', v.list);
 	await sp.ctx.close();
 
 	/* ④ 因子セットの前段（roster [cA]。因子セット: Z3＝超優先・Z5＝優先（金。前段 Z6）・Z8＝通常（金。前段 Z9）。F 5） */
@@ -12938,7 +12966,7 @@ await block('前段の必要Pt（段4b）', async () => {
 	e = need(fA.sources, { base: baseNo0 });
 	const eFull = need(fA.sources);
 	assert(v.prevCount === 3 && v.prevTotal === e.roster.prev && v.withPrev === e.roster.all && e.roster.prev < eFull.roster.prev
-		&& e.roster.unpriced === eFull.roster.unpriced + 1 && v.unpriced === '（Pt未収録' + e.roster.unpriced + '種は含めていません）' && v.list.includes(n0 + ' Pt 未収録'),
+		&& e.roster.unpriced === eFull.roster.unpriced + 1 && v.unpriced === '（Pt未収録' + e.roster.unpriced + '種は含めていません）' && v.list.includes(n0 + ' Pt未収録'),
 		'段4b(7): Pt が未収録の前段（Z0）は合計に入れず、「Pt 未収録」と一覧に出て、未収録の件数に含まれる（本育成の未収録と重複を除いて合算。Z0 を未収録にすると件数が1つ増える）', { v, want: [e.roster.prev, e.roster.all, e.roster.unpriced] });
 	await sp.ctx.close();
 
@@ -12950,13 +12978,12 @@ await block('前段の必要Pt（段4b）', async () => {
 		e = need(fAD.sources);
 		const g = await sp.page.evaluate(() => {
 			const host = document.getElementById('deck-roster-panel');
-			const l = host.querySelector('[data-usd-el="pt-prev-list"]');
-			const p = host.querySelector('[data-usd-el="pt-prev"]');
+			const p = host.querySelector('[data-usd-el="pt-prev"]');   // 前段の1行（段7d の ②）は、長いときその行だけ横に送るので、行そのものの横幅は測らない
 			const sum = host.querySelector('[data-usd-el="pt-sum"]');
-			return { page: document.documentElement.scrollWidth - window.innerWidth, list: l.scrollWidth - l.clientWidth, prev: p.scrollWidth - p.clientWidth, sum: sum.scrollWidth - sum.clientWidth };
+			return { page: document.documentElement.scrollWidth - window.innerWidth, list: 0, prev: p.getBoundingClientRect().right - host.getBoundingClientRect().right, sum: sum.scrollWidth - sum.clientWidth };
 		});
-		assert(e.roster.prevIds.length === 7 && v.prevCount === 7 && v.list.includes('ほか2種') && v.withPrev === e.roster.all && g.page <= 0 && g.list <= 0 && g.prev <= 0 && g.sum <= 0,
-			'段4b(10): ' + w + 'px で、前段が7種あるとき一覧は5つ＋「ほか2種」で、横にはみ出さない（前段の一覧を含む）', { v: v.list, g });
+		assert(e.roster.prevIds.length === 7 && v.prevCount === 7 && v.withPrev === e.roster.all && g.page <= 0 && g.list <= 0 && g.prev <= 0 && g.sum <= 0,
+			'段4b(10)→段7d: ' + w + 'px で、前段が7種あるとき、7種とも1行に並び（長いときはその行だけ横に送る）、横にはみ出さない', { v: v.list, g });
 		const other = sp.errors.filter((m) => !/Failed to load resource|status of 404/.test(m));
 		assert(other.length === 0, '段4b(10): ' + w + 'px でコンソールエラーなし', other.slice(0, 3));
 		await sp.ctx.close();
@@ -13175,46 +13202,31 @@ await block('スキルの説明（ⓘ・長押し。段6）', async () => {
 	await closeIt(sp.page);
 	await sp.page.evaluate(() => selectStepTab(1));
 	await sp.page.waitForSelector('.usd-panel[data-skill-id="' + X[7] + '"]');
+	// 段7d の ⑬：②の行も①と同じく、名前（button）を押すと開く。ⓘ と長押しはやめた（以前はここで ⓘ・長押し・取り消し・user-select を見ていた）
 	const panelBtns = await sp.page.evaluate(() => {
 		const rows = Array.from(document.querySelectorAll('.usd-panel[data-skill-id]'));
-		return { rows: rows.length, withBtn: rows.filter((r) => r.querySelector('[data-usd-el="skill-info-btn"].usd-info-btn')).length,
+		return { rows: rows.length, withName: rows.filter((r) => r.querySelector('button.usd-panel-namebtn[data-usd-el="skill-info-btn"][data-skill-id]')).length,
+			withInfoBtn: rows.filter((r) => r.querySelector('.usd-info-btn')).length,
 			stray: Array.from(document.querySelectorAll('[data-usd-el="skill-info-btn"]')).filter((b) => !b.closest('.usd-panel') && !b.closest('#deck-roster-panel')).length };
 	});
-	assert(panelBtns.rows === 2 && panelBtns.withBtn === 2 && panelBtns.stray === 0, '段6(1)(8): 周回因子セットの各スキルの行に ⓘ が付く（行の数と同じ。段7でも変えていない）。それ以外の場所には付かない', panelBtns);
-	await sp.page.click('.usd-panel[data-skill-id="' + X[7] + '"] [data-usd-el="skill-info-btn"]');
+	assert(panelBtns.rows === 2 && panelBtns.withName === 2 && panelBtns.withInfoBtn === 0 && panelBtns.stray === 0, '段6(1)(8)→段7d(⑬): 周回因子セットの各スキルの行は、名前（button）を押して開く（行の数と同じ）。ⓘ は付かない。それ以外の場所には付かない', panelBtns);
+	await sp.page.click('.usd-panel[data-skill-id="' + X[7] + '"] button.usd-panel-namebtn');
 	await sp.page.waitForTimeout(150);
 	v = await read(sp.page);
 	assert(v.open && v.title === nameOf.get(X[7]) && v.rarity === RARITY_LABEL.white && v.desc === descText(X[7]) && v.pt === '基礎 160 Pt' && v.now === null,
 		'段6(1): 周回因子セットの行では、名前・レアリティ・説明文・基礎Pt だけが出る（いまの設定は出ない）', v);
 	await closeIt(sp.page);
-	await press(sp.page, '.usd-panel[data-skill-id="' + X[7] + '"] .usd-panel-name', { hold: 700 });
+	// 長押しでは開かない（押している間は閉じたまま。離したときのクリックで開く）
+	await sp.page.locator('.usd-panel[data-skill-id="' + X[7] + '"] button.usd-panel-namebtn').scrollIntoViewIfNeeded();
+	const nb = await sp.page.locator('.usd-panel[data-skill-id="' + X[7] + '"] button.usd-panel-namebtn').boundingBox();
+	await sp.page.mouse.move(nb.x + 2, nb.y + nb.height / 2);
+	await sp.page.mouse.down();
+	await sp.page.waitForTimeout(800);
 	v = await read(sp.page);
-	assert(v.open && v.title === nameOf.get(X[7]), '段6(2): 周回因子セットの行では、名前の長押しで同じ表示が開く', v.title);
+	assert(!v.open, '段7d(⑬): 名前を押し続けても（0.8秒）、押している間は開かない（長押しはやめた）', v.open);
+	await sp.page.mouse.up();
+	await sp.page.waitForTimeout(150);
 	await closeIt(sp.page);
-	await press(sp.page, '.usd-panel[data-skill-id="' + X[7] + '"] .usd-panel-name', { hold: 250, after: 500 });
-	v = await read(sp.page);
-	assert(!v.open, '段6(2): 0.5秒より短い押下では開かない（離したあとに待っても開かない）', v.open);
-	await press(sp.page, '.usd-panel[data-skill-id="' + X[7] + '"] .usd-panel-name', { hold: 700, move: 12 });
-	v = await read(sp.page);
-	assert(!v.open, '段6(2): 押している間に10px以上動くと取り消される（開かない）', v.open);
-	await press(sp.page, '.usd-panel[data-skill-id="' + X[7] + '"] .usd-panel-name', { hold: 700, move: 4 });
-	v = await read(sp.page);
-	assert(v.open, '段6(2): 4px 程度の動きは取り消さない（10px 未満。取り消しが効きすぎていない）', v.open);
-	await closeIt(sp.page);
-	await sp.page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-	await sp.page.waitForFunction(() => window.scrollY === 0);
-	await sp.page.waitForTimeout(300);
-	await press(sp.page, '.usd-panel[data-skill-id="' + X[7] + '"] .usd-panel-name', { hold: 700, scrollEvent: true });
-	v = await read(sp.page);
-	assert(!v.open, '段6(2): スクロールの合図が来ると、要素が動かなくても取り消される（開かない）', v.open);
-	const dev = await sp.page.evaluate((sel) => {
-		const el = document.querySelector(sel);
-		const cs = getComputedStyle(el);
-		const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
-		el.dispatchEvent(ev);
-		return { userSelect: cs.userSelect, prevented: ev.defaultPrevented };
-	}, '.usd-panel[data-skill-id="' + X[7] + '"] .usd-panel-name');
-	assert(dev.userSelect === 'none' && dev.prevented, '段6(2): 長押しの対象は user-select: none で、contextmenu は抑止される（端末標準の長押しと衝突しない）', dev);
 	const sections = await sp.page.evaluate(() => {
 		const sec = Array.from(document.querySelectorAll('[data-usd-scope-section]'));
 		return { n: sec.length, keys: sec.map((e) => e.getAttribute('data-usd-scope-section')), btns: sec.reduce((a, e) => a + e.querySelectorAll('[data-usd-el="skill-info-btn"],[data-usd-info]').length, 0) };
@@ -13561,7 +13573,10 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	await sp.page.click('[data-usd-el="link-list"] label:nth-child(2)');
 	await sp.page.waitForTimeout(300);
 	const hiddenWhileFiltered = await sp.page.evaluate(() => window.UmaSkillDeckCore.getPickerHiddenIds());
-	assert(hiddenWhileFiltered.slice().sort().join() === allSure.concat([W[0]]).sort().join(), '段7(17): 絞り込み中でも、②に渡す本育成のスキル（本育成編成の対象）は絞り込みなしの●の全件', { n: hiddenWhileFiltered.length, want: allSure.length + 1 });
+	// 段7d の ⑥：②に渡す本育成のスキルは、①の表に出ている●（絞り込みに当たるもの。取得しないスキルを除く）と同じ。絞り込みなしの全件ではない（段7 の決めを置き換えた）
+	const visibleSure = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-grow[data-skill-id]')).filter((r) => r.querySelector('.usd-roster-got') && !r.hasAttribute('data-usd-off')).map((r) => r.getAttribute('data-skill-id')));
+	assert(visibleSure.length > 0 && visibleSure.length < allSure.length + 1 && hiddenWhileFiltered.slice().sort().join() === visibleSure.slice().sort().join(),
+		'段7(17)→段7d(⑥): 絞り込み中は、②に渡す本育成のスキル（本育成編成の対象）も、①の表に出ている●だけ（絞り込みなしの全件ではない）', { n: hiddenWhileFiltered.length, visible: visibleSure.length, all: allSure.length + 1 });
 	await sp.page.evaluate(() => selectStepTab(0));
 	await sp.page.click(P + '.uma-subtab[data-tab-id=""]');   // 「＋新規」（ドラフト）へ戻る
 	await sp.page.waitForTimeout(200);
@@ -13638,7 +13653,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 		const el = document.querySelector('[data-usd-el="roster-link"]');
 		const b = el && el.querySelector('[data-usd-el="roster-link-btn"]');
 		return { hidden: el ? el.hidden : null, pressed: b ? b.getAttribute('aria-pressed') : null, overlap: (el && el.querySelector('[data-usd-el="roster-link-overlap"]') || {}).textContent || null,
-			notice: (el && el.querySelector('[data-usd-el="roster-link-notice"]') || {}).textContent || null, undo: !!(el && el.querySelector('[data-usd-act="roster-link-undo"]')),
+			notice: (el && el.querySelector('[data-usd-el="roster-link-notice"]') || {}).textContent || null, undo: !!(el && el.querySelector('[data-usd-act="roster-link-undo"]')), undoCount: (document.getElementById('deck-undo-count') || {}).textContent || '',
 			scope: JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{}'), hidden2: window.UmaSkillDeckCore.getPickerHiddenIds(), toast: (document.getElementById('toast-message') || {}).textContent };
 	});
 	// ①で保存した編成（AB）を選んでおく（旧5: モーダルを開いたまま、その編成が変わったときの描き直しを見るため）
@@ -13650,8 +13665,8 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 		'段7(E)→段7b(⑬): ②のセットに「本育成編成」のボタン（対象なし）があり、対象が無いあいだは重なりの数もグレーアウトも出ない', lk);
 	await linkTo(sp.page, 2);
 	lk = await readLink(sp.page);
-	assert(lk.pressed === 'true' && lk.scope.baseRosterId === 'r7b_ab' && lk.scope.skillIds.join() === W[8] && lk.notice === '本育成編成で得るため、' + nameOf(W[2]) + 'ほか1種を因子周回から外しました' && lk.undo && lk.overlap === null && lk.hidden2.slice().sort().join() === allSure.slice().sort().join(),
-		'段7(E)→段7b(⑬): 編成を選ぶと、その編成で得るスキル（●）がセットから外れ、通知と「元に戻す」が出て、追加の一覧で選べなくする対象になる（●の全件・絞り込みなし）', lk);
+	assert(lk.pressed === 'true' && lk.scope.baseRosterId === 'r7b_ab' && lk.scope.skillIds.join() === W[8] && lk.notice === null && lk.undo === false && lk.undoCount === '1' && lk.overlap === null && lk.hidden2.slice().sort().join() === allSure.slice().sort().join(),
+		'段7(E)→段7d(⑭): 編成を選ぶと、その編成で得るスキル（●）がセットから外れ、右下の「元に戻す」（Undo）が1つ増える（行の下の知らせと「元に戻す」ボタンは削除）。追加の一覧で選べなくする対象になる（●の全件・絞り込みなし）', lk);
 	// 追加の一覧（条件で検索）: グレーアウト・理由・件数
 	await sp.page.click('[data-usd-act="editor-pick"]');
 	await sp.page.waitForTimeout(400);
@@ -13693,8 +13708,8 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	await sp.page.evaluate(() => selectStepTab(1));
 	await linkTo(sp.page, 2);
 	lk = await readLink(sp.page);
-	assert(lk.notice === '本育成編成で得るため、' + nameOf(W[7]) + 'を因子周回から外しました' && lk.scope.skillIds.join() === W[8], '段7(E): 1種のときは「ほかN種」が付かない', lk.notice);
-	await sp.page.click('[data-usd-act="roster-link-undo"]');
+	assert(lk.notice === null && lk.scope.skillIds.join() === W[8], '段7(E)→段7d(⑭): 1種のときも外れる（知らせの文は削除。「ほかN種」の文言は Undo の通知の側にだけ残る）', lk.scope.skillIds);
+	await sp.page.evaluate(() => window.UmaSkillDeckCore.performUndo());   // 行の下の「元に戻す」ボタンは削除したので、右下の Undo と同じ処理を呼ぶ
 	await sp.page.waitForTimeout(200);
 	lk = await readLink(sp.page);
 	assert(lk.scope.skillIds.slice().sort().join() === [W[8], W[7]].sort().join() && lk.pressed === 'true' && lk.overlap === 'このセットには、本育成で得るスキルが1種含まれています' && lk.notice === null,
@@ -13733,7 +13748,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	await sp.page.keyboard.press('Escape');
 	await sp.page.evaluate(() => selectStepTab(1));
 	const row2 = await sp.page.evaluate(() => { const r = document.querySelector('.usd-panel[data-skill-id]'); const b = r && r.querySelector('[data-usd-el="skill-info-btn"]'); return { btn: !!b, isInfo: b && b.classList.contains('usd-info-btn'), nameIsBtn: r && r.querySelector('.usd-panel-name').tagName }; });
-	assert(row2.btn && row2.isInfo && row2.nameIsBtn === 'SPAN', '段7(14): ②の行は ⓘ（名前の隣のボタン）のまま変わっていない', row2);
+	assert(row2.btn && !row2.isInfo && row2.nameIsBtn === 'SPAN', '段7(14)→段7d(⑬): ②の行も、名前（button）を押して開く形になった（ⓘ の別ボタンは無い）', row2);
 	await sp.ctx.close();
 	for (const file of ['exam.html', 'index.html', 'card-event-input.html']) {
 		const pg = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -14037,8 +14052,8 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 				helpAria: document.querySelector('.help-open-btn').getAttribute('aria-label'), helpTitle: document.querySelector('.help-open-btn').title, helpText: document.querySelector('.help-open-btn').textContent.trim(),
 				badges: [!!document.getElementById('ui-mode-badge'), !!document.getElementById('alpha-badge')], alphaNote: !!document.getElementById('deck-roster-alpha'), helpBtns: document.querySelectorAll('[onclick="toggleHelp()"]').length };
 		});
-		assert(!hd.text.includes('ゲーム画面のスクリーンショットから') && hd.h1.endsWith('2nd edition β版') && !hd.h1.includes('α') && hd.title.includes('2nd edition β版') && !hd.badges[0] && !hd.badges[1] && !hd.alphaNote,
-			tag + '副題が無い・「2nd edition β版」（段7c の L。「α版」を置き換え）・「新UI」「一部αテスト中」のバッジが無い・①の中の赤い注意書きも無い', { h1: hd.h1, title: hd.title, badges: hd.badges, alphaNote: hd.alphaNote });
+		assert(!hd.text.includes('ゲーム画面のスクリーンショットから') && hd.h1.endsWith('β版（2nd Edition）') && !hd.h1.includes('α') && hd.title.includes('2nd Edition') && !hd.badges[0] && !hd.badges[1] && !hd.alphaNote,
+			tag + '副題が無い・「β版（2nd Edition）」（段7d の ⑦。「α版」を置き換え）・「新UI」「一部αテスト中」のバッジが無い・①の中の赤い注意書きも無い', { h1: hd.h1, title: hd.title, badges: hd.badges, alphaNote: hd.alphaNote });
 		assert(hd.helpText === '?' && hd.helpAria === '使い方・注意' && hd.helpTitle === '使い方・注意' && hd.helpr.w <= 36 && hd.helpBtns === 1, tag + '「使い方・注意」は「？」だけの丸いボタン（aria-label と title が「使い方・注意」。横幅は最小）', { w: hd.helpr.w, aria: hd.helpAria });
 		const oneRow = Math.abs(hd.h1r.t + hd.h1r.h / 2 - (hd.toolr.t + hd.toolr.h / 2)) < 12 && Math.abs(hd.toolr.t + hd.toolr.h / 2 - (hd.helpr.t + hd.helpr.h / 2)) < 12 && hd.h1r.h < 50;
 		assert(oneRow, tag + 'タイトル・ツール切替・？ が1行に並ぶ（タイトルは1行）', { h1: hd.h1r, tool: hd.toolr, help: hd.helpr });
@@ -14347,7 +14362,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			const sp = await openTab({ w, h: 900, tab: 1, userData: baseUser({ rosters: [rosterB, rosterC] }), roster: { umaId: '', cardIds: [cC.id, null, null, null, null, null] }, scope: scopeB });
 			const T = '#deck-template-panel ';
 			const BTN = T + '[data-usd-el="roster-link-btn"]';
-			const style = () => sp.page.evaluate((BTN) => { const b = document.querySelector(BTN); const c = getComputedStyle(b); return { pressed: b.getAttribute('aria-pressed'), text: b.textContent.trim(), fg: c.color, bg: c.backgroundColor, border: c.borderTopColor }; }, BTN);
+			const style = () => sp.page.evaluate((BTN) => { const b = document.querySelector(BTN); const c = getComputedStyle(b); return { pressed: b.getAttribute('aria-pressed'), text: b.textContent.trim(), title: b.title, fg: c.color, bg: c.backgroundColor, border: c.borderTopColor }; }, BTN);
 			const readable = (s) => cr(rgb(s.fg), rgb(s.bg)) >= 4.5;
 			// 対象なし: 輪郭だけ・どの状態でも読める
 			let s0 = await style();
@@ -14375,11 +14390,11 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			const afterStore = await stored(sp.page);
 			const sureB = await sp.page.evaluate(() => 0);
 			const s1 = await style();
-			const notice = await sp.page.textContent(T + '[data-usd-el="roster-link-notice"]').catch(() => null);
+			const notice = await sp.page.textContent(T + '[data-usd-el="roster-link-notice"]', { timeout: 300 }).catch(() => null);
 			assert(!(await popoverOpen(sp.page)) && afterStore.draftScope.baseRosterId === 'r_b0' && afterStore.draftScope.skillIds.length < beforeStore.draftScope.skillIds.length && !afterStore.draftScope.skillIds.includes(hintIds[0]) && afterStore.draftScope.skillIds.includes(W[8]),
 				tag + '編成を選ぶと小窓が閉じ、その編成の●（練習のヒントのスキル）がこのセットから外れる。対象はセットごとに baseRosterId で保存', { scope: afterStore.draftScope });
-			assert(/^本育成編成で得るため、.+(ほか\d+種)?を因子周回から外しました$/.test(notice || '') && !/周回因子セット/.test(notice || ''), tag + '通知「本育成編成で得るため、{スキル名}ほかN種を因子周回から外しました」', { notice });
-			assert(s1.pressed === 'true' && /^本育成編成（[0-9,]+Pt）：編成1$/.test(s1.text) && lumOf(rgb(s1.bg)) < 0.1 && readable(s1), tag + '対象あり: 暗い塗りで「本育成編成（XXXXPt）：編成1」（段7c の O。aria-pressed=true）', s1);
+			assert(notice === null, tag + '行の下の知らせ「…を因子周回から外しました」は出ない（段7d の ⑭で削除。外した事実は右下の「元に戻す」〔Undo〕が示す）', { notice });
+			assert(s1.pressed === 'true' && /^本育成編成：[0-9,]+ Pt$/.test(s1.text) && lumOf(rgb(s1.bg)) < 0.1 && readable(s1), tag + '対象あり: 暗い塗りで「本育成編成：X,XXX Pt」（段7d の ⑩。編成の名前は出さない。aria-pressed=true）', s1);
 			await sp.page.hover(BTN); await sp.page.waitForTimeout(350);
 			const sH1 = await style();
 			await sp.page.mouse.move(0, 0); await sp.page.waitForTimeout(300);
@@ -14388,10 +14403,10 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			assert(readable(sH1) && readable(sF1) && lumOf(rgb(sH1.bg)) < 0.2, tag + '対象あり: ホバー・フォーカスでも文字が読める（広い幅のホバーで真っ白にならない）', { hover: sH1, focus: sF1, ratio: [cr(rgb(sH1.fg), rgb(sH1.bg)), cr(rgb(sF1.fg), rgb(sF1.bg))].map((x) => Math.round(x * 10) / 10) });
 			await sp.page.evaluate(() => document.activeElement.blur());
 			// Undo
-			await sp.page.click(T + '[data-usd-act="roster-link-undo"]');
+			await sp.page.evaluate(() => window.UmaSkillDeckCore.performUndo());   // 行の下のボタンは削除（段7d の ⑭）。右下の Undo と同じ処理
 			await sp.page.waitForTimeout(300);
 			const undone = await stored(sp.page);
-			assert(undone.draftScope.skillIds.length === beforeStore.draftScope.skillIds.length && undone.draftScope.baseRosterId === 'r_b0', tag + '「元に戻す」で外したスキルが戻る（対象はそのまま）', undone.draftScope);
+			assert(undone.draftScope.skillIds.length === beforeStore.draftScope.skillIds.length && undone.draftScope.baseRosterId === 'r_b0', tag + '右下の「元に戻す」（Undo）で外したスキルが戻る（対象はそのまま）', undone.draftScope);
 			// 対象がある間、追加の一覧で対象の編成の●を選べない
 			await sp.page.click(T + '[data-usd-act="editor-pick"]');
 			await sp.page.waitForTimeout(400);
@@ -14418,7 +14433,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			await sp.page.waitForSelector(BTN);
 			await sp.page.waitForTimeout(400);
 			const re = await style();
-			assert(re.pressed === 'true' && /^本育成編成（[0-9,]+Pt）：編成2$/.test(re.text), tag + '開き直しても、選んだ編成が対象のまま（保存はセットごと）', re);
+			assert(re.pressed === 'true' && /^本育成編成：[0-9,]+ Pt$/.test(re.text) && re.title.includes('編成2'), tag + '開き直しても、選んだ編成が対象のまま（保存はセットごと。段7d の ⑩：名前はボタンに出さず title に残る）', re);
 			// 指す編成が無くなった（①で削除）→ 対象なしとして扱い、保存値は書き換えない
 			await sp.page.evaluate(() => selectStepTab(0));
 			await sp.page.waitForTimeout(250);
@@ -14487,6 +14502,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 });
 
 await register7c({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register7d({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

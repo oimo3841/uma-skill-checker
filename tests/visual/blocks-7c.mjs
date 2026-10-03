@@ -28,6 +28,7 @@ export async function register7c(env) {
 	// 整数だけで計算（浮動小数点の誤差を持ち込まない。切り捨て）
 	const pay = (base0, L, stId) => Math.floor(base0 * (100 - (L > 0 ? DISC[Math.min(L, DISC.length) - 1] : 0) - (STATUS[stId] || 0)) / 100);
 	const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+	const UNIQ = (st) => 6 * pay(200, 3, st);   // 継承固有（段7d の ⑪）の既定: 6種×基礎200・Lv3・状態の割引つき
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	const esc = async (page) => { await page.keyboard.press('Escape'); await page.waitForTimeout(80); };
 	const SP = (page) => page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth, y: window.scrollY, h: document.documentElement.scrollHeight, ih: window.innerHeight }));
@@ -90,6 +91,10 @@ export async function register7c(env) {
 		const h = document.getElementById('deck-roster-panel');
 		const t = (i) => { const e = h.querySelector('[data-usd-el="' + i + '"]'); return e ? e.textContent.trim() : null; };
 		const num = (s) => (s === null ? null : Number(s.replace(/[^0-9]/g, '')));
+			const prevLine = t('pt-prev');
+			const prevEntries = prevLine ? prevLine.split('／').flatMap((g) => g.replace(/^ヒントLv\d+：/, '').split('・')) : [];
+			const prevSum = prevEntries.reduce((s, x) => s + (/ (\d+)$/.test(x) ? Number(/ (\d+)$/.exec(x)[1]) : 0), 0);
+			const shownTotal = num(t('pt-total'));
 		const rows = Array.from(h.querySelectorAll('.usd-roster-grow[data-skill-id]')).map((r) => {
 			const box = r.querySelector('input[data-usd-act="take-skill"]');
 			const nm = r.querySelector('.usd-roster-skillname');
@@ -99,8 +104,9 @@ export async function register7c(env) {
 				marks: Array.from(r.querySelectorAll('[role="cell"]')).map((c) => c.querySelector('.usd-roster-got') ? '●' : c.querySelector('.usd-roster-maybe') ? '△' : ''),
 				got: Array.from(r.querySelectorAll('.usd-roster-got')).map((g) => getComputedStyle(g).borderTopColor), name: nm ? nm.textContent : null };
 		});
-		return { total: num(t('pt-total')), count: num(t('pt-count')), rows, ids: rows.map((r) => r.id), badge: (document.getElementById('deck-roster-excluded') || {}).textContent,
-			prevCount: num(t('pt-prev-count')), prevTotal: num(t('pt-prev-total')), prevList: t('pt-prev-list'), withPrev: num(t('pt-with-prev-total')),
+		return { total: shownTotal - prevSum, count: num(t('pt-count')), rows, ids: rows.map((r) => r.id), badge: (document.getElementById('deck-roster-excluded') || {}).textContent,
+			// 前段は1行（段7d の ②）。prevCount＝行の件数、prevTotal＝行の Pt の和、withPrev＝表示の合計（前段を含む額）。上の total は「前段を含めない合計」（表示の合計 − prevTotal）に直す
+			prevCount: prevLine ? prevEntries.length : null, prevTotal: prevLine ? prevSum : null, prevList: prevLine, withPrev: prevLine ? shownTotal : null,
 			events: Array.from(h.querySelectorAll('button[data-usd-act="events"]')).map((b) => ({ key: b.getAttribute('data-member-key'), label: b.getAttribute('aria-label'), dot: b.textContent.trim() === '!', unselected: b.getAttribute('data-unselected'), hasSvg: !!b.querySelector('svg') })),
 			heads: Array.from(h.querySelectorAll('.usd-roster-gh')).length, hscroll: document.documentElement.scrollWidth - window.innerWidth, filtering: t('pt-filtering'), alpha: !!document.getElementById('deck-roster-alpha'),
 			legend: !!h.querySelector('.usd-roster-legend') };
@@ -136,8 +142,8 @@ export async function register7c(env) {
 				const hd = document.querySelector('header');
 				return { title: document.title, h1: document.querySelector('header h1').textContent.replace(/\s+/g, ' ').trim(), badge: b ? b.textContent.trim() : null, badgeSize: b ? parseFloat(getComputedStyle(b).fontSize) : null, hdH: hd.getBoundingClientRect().height };
 			});
-			assert(hd.badge === '2nd edition β版' && hd.h1.endsWith('2nd edition β版') && !hd.h1.includes('α版') && hd.title.includes('2nd edition β版'),
-				tag + 'ヘッダーのバッジは「2nd edition β版」（「α版」ではない）', hd);
+			assert(hd.badge === 'β版（2nd Edition）' && hd.h1.endsWith('β版（2nd Edition）') && !hd.h1.includes('α版') && hd.title.includes('2nd Edition'),
+				tag + 'ヘッダーのバッジは「β版（2nd Edition）」（段7d の ⑦。「α版」でも「2nd edition β版」でもない）', hd);
 			if (w <= 640) assert(hd.badgeSize <= 11.5, tag + 'スマホではバッジの文字を 11px にする', { size: hd.badgeSize });
 			assert(!v.alpha && !(await sp.page.textContent('#step-panel-0')).includes('結果が正しくないことがあります'), tag + '①のタブの赤い注意書き「αテスト中の機能です…」は出ない');
 			assert(v.filtering === null && !(await sp.page.textContent(P + '[data-usd-el="pt-sum"]')).includes('絞り込み中'), tag + '絞り込み中でも、合計の下に「絞り込み中」の印は出ない', { filtering: v.filtering });
@@ -256,7 +262,7 @@ export async function register7c(env) {
 				assert(lk.hidden.length === 0 && lk.offIds.length === 0 && lk.off === null, tag + '本育成編成を選んでいないセットでは、オフのスキルも選べなくならない・知らせも出ない', lk);
 				await link(2);
 				lk = await readLink();
-				assert(lk.scope.baseRosterId === 'r7c0' && lk.scope.skillIds.slice().sort().join() === [W[8], W[2], W[7]].sort().join() && lk.notice === '本育成編成で得るため、' + nameOf(W[3]) + 'を因子周回から外しました',
+				assert(lk.scope.baseRosterId === 'r7c0' && lk.scope.skillIds.slice().sort().join() === [W[8], W[2], W[7]].sort().join() && lk.notice === null,   // 行の下の知らせは段7d の ⑭で削除（外す動きは同じ）
 					tag + '編成を選ぶと、オンの●（W3）だけがセットから外れ、オフにしたスキル（W2・W7）は自動では外さない', { scope: lk.scope.skillIds, notice: lk.notice });
 				assert(lk.off === 'このセットには、本育成編成で不要にしたスキルが2種含まれています' && lk.overlap === null,
 					tag + '重なりの知らせの隣に「このセットには、本育成編成で不要にしたスキルがN種含まれています」が小さく出る（オンの●は重ならないので重なりの知らせは出ない）', lk);
@@ -490,7 +496,7 @@ export async function register7c(env) {
 			const oldUi = await fetched('special.html', true);
 			assert(oldUi.length === 0, tag + 'special の旧UI（編成パネルを作らない）でも取りに行かない', oldUi);
 			const newUi = await fetched('special.html');
-			assert(newUi.length === 1 && /\?v=2026-10-03a$/.test(newUi[0]), tag + 'special の新UI（編成パネルを作る）では1回だけ、版つきで取りに行く', newUi);
+			assert(newUi.length === 1 && newUi[0].endsWith('?v=' + scenReal.dataVersion), tag + 'special の新UI（編成パネルを作る）では1回だけ、版つきで取りに行く', newUi);
 		}
 	});
 
@@ -521,14 +527,14 @@ export async function register7c(env) {
 		// (4) 「うち本育成」の行は無い。補足文は（?）の中（出る条件は今のまま）
 		{
 			const tag = '段7c(O)(4): ';
-			let sp = await open({ tab: 1, scope: { skillIds: [W[2]], name: '', tiers: {}, updatedAt: '' } });
+			let sp = await open({ tab: 1, userData: baseUser({ rosters: [mkSaved('none')] }), scope: { skillIds: [W[2]], baseRosterId: 'r7c0', name: '', tiers: {}, updatedAt: '' } });   // 本育成編成に編成を選んである（段7d の ⑥(b)。選んでいないセットには本育成のスキルが無いので、重なりも無い）
 			let n = await readNeed(sp.page);
 			assert(!n.hidden && !n.roster && n.overlapInBox && !n.outside && n.overlapText === '重なるスキルは、親から得ると、ヒントレベルが上がって安くなります。',
 				tag + '「（うち本育成 X）」の行は無く、重なるスキルがあるときの補足文は必要スキルPt の（?）の説明の箱の中にある', n);
 			await sp.page.click('[data-usd-el="pt-need-help-btn"]');
 			assert(await sp.page.isVisible(T + '[data-usd-el="pt-need-overlap"]'), tag + '（?）を押すと補足文が見える');
 			await sp.ctx.close();
-			sp = await open({ tab: 1, scope: scopeW8 });
+			sp = await open({ tab: 1, userData: baseUser({ rosters: [mkSaved('none')] }), scope: Object.assign({ baseRosterId: 'r7c0' }, scopeW8) });
 			n = await readNeed(sp.page);
 			assert(!n.hidden && !n.roster && !n.overlapInBox, tag + '重なるスキルが無いときは、補足文は出ない（出る条件は変えていない）', n);
 			await sp.ctx.close();
@@ -538,25 +544,25 @@ export async function register7c(env) {
 		for (const w of [1280, 390]) {
 			const tag = '段7c(O) ' + w + 'px: ';
 			const UD = baseUser({ rosters: [mkSaved('kire', { name: '切れ者の編成' }), mkRoster(1, [cA.id, null, null, null, null, null], { name: '勉強家の編成', pt: { umaHintLevel: 3, status: 'benkyo' } }),
-				mkRoster(2, [cB.id, null, null, null, null, null], { name: 'なしの編成', pt: { umaHintLevel: 3, status: 'none' }, offSkillIds: [W[6]], skillFilter: { distance: 'long' } })] });
+				mkRoster(2, [cB.id, null, null, null, null, null], { name: 'なしの編成', pt: { umaHintLevel: 3, status: 'none' }, offSkillIds: [W[6]] })] });
 			const sp = await open({ w, h: w === 1280 ? 900 : 844, tab: 1, userData: UD, scope: scopeW8 });
 			let b = await linkBtn(sp.page);
 			assert(b.text === '本育成編成' && b.pressed === 'false', tag + '編成を選んでいないときは「本育成編成」だけ', b);
 			await link(sp.page, 2);
 			b = await linkBtn(sp.page);
-			const want1 = '本育成編成（切れ者_' + fmt(rosterTotal('kire')) + 'Pt）：切れ者の編成';
-			assert(b.text === want1 && b.pressed === 'true' && b.title === want1, tag + '切れ者の編成: 「' + want1 + '」（千の位のカンマあり。全文は title）', { got: b.text, want: want1 });
+			const want1 = '本育成編成：切れ者_' + fmt(rosterTotal('kire')) + ' Pt';
+			assert(b.text === want1 && b.pressed === 'true' && b.title === want1 + '（切れ者の編成）', tag + '切れ者の編成: 「' + want1 + '」（千の位のカンマあり。編成の名前は出さず、title にだけ残る）', { got: b.text, want: want1, title: b.title });
 			await link(sp.page, 3);
 			b = await linkBtn(sp.page);
 			const hintsA = cA.hintSkills.map((s) => s.skillId);
 			const totalA = (st) => [[W[2], 3], [W[3], 1]].reduce((s, [id, l]) => s + pay(BASE[id], l, st), 0) + [...new Set(hintsA)].length * pay(50, 5, st) + pay(BASE[W[8]], 0, st);
-			assert(b.text === '本育成編成（勉強家_' + fmt(totalA('benkyo')) + 'Pt）：勉強家の編成', tag + '勉強家の編成: 「勉強家_」が付く', { got: b.text, want: fmt(totalA('benkyo')) });
+			assert(b.text === '本育成編成：勉強家_' + fmt(totalA('benkyo')) + ' Pt', tag + '勉強家の編成: 「勉強家_」が付く', { got: b.text, want: fmt(totalA('benkyo')) });
 			await link(sp.page, 4);
 			b = await linkBtn(sp.page);
-			// 絞り込み（距離=長距離）は掛けない・取得しないスキル（W6）は除く
+			// 取得しないスキル（W6）は除く。絞り込みの決まりは①と同じ（段7d の ⑥。絞り込みの検査は段7d の塊が持つ）
 			const hintsB = [...new Set(cB.hintSkills.map((s) => s.skillId))];
 			const totalB = pay(BASE[W[7]], 1, 'none') + hintsB.length * pay(50, 5, 'none');
-			assert(b.text === '本育成編成（' + fmt(totalB) + 'Pt）：なしの編成', tag + '状態が「なし」のときは状態と「_」を省く。絞り込みなし・取得しないスキルを除いた合計', { got: b.text, want: fmt(totalB) });
+			assert(b.text === '本育成編成：' + fmt(totalB) + ' Pt', tag + '状態が「なし」のときは状態と「_」を省く。取得しないスキルを除いた合計', { got: b.text, want: fmt(totalB) });
 			await sp.ctx.close();
 			// 長い名前は省略記号で切る（全文は title）。最初から長い名前で開く
 			const long = '長い名前の編成'.repeat(16);
@@ -564,11 +570,11 @@ export async function register7c(env) {
 			await link(sp2.page, 2);
 			b = await linkBtn(sp2.page);
 			const hs = await SP(sp2.page);
-			assert(b.ellipsis === 'ellipsis' && b.overflow && b.title.includes(long) && hs.sw <= hs.iw, tag + '長い名前は省略記号で切り、全文は title。横にはみ出さない', { ell: b.ellipsis, over: b.overflow, hs });
+			assert(!b.overflow && b.title.includes(long) && !b.text.includes(long) && hs.sw <= hs.iw, tag + '長い名前でも、ボタンには名前を出さない（全文は title）。横にはみ出さない', { over: b.overflow, hs });
 			await sp2.ctx.close();
 		}
 
-		// (5) 勉強家・切れ者の割引が、本育成パネルと同じ整数の百分率で因子周回の Pt にかかる。状態の出どころは「本育成編成に選んだ編成」。選んでいないときは①で選択中の編成
+		// (5) 勉強家・切れ者の割引が、本育成パネルと同じ整数の百分率で因子周回の Pt にかかる。状態の出どころは「本育成編成に選んだ編成」。選んでいないとき（なし）は編成の Pt を 0 として数える（段7d の ⑥(b)）
 		{
 			const tag = '段7c(O)(5): ';
 			// 例: 基礎180・L=5（40%）に切れ者（10%）で 50% → 90
@@ -578,20 +584,21 @@ export async function register7c(env) {
 				await link(sp.page, 2);
 				const n = await readNeed(sp.page);
 				// 超優先だけ: 因子セットの W8 はまだ含めない（W3 の前段として L=0 で数える）。優先まで: W8 を親から得る（L=F=5）
-				const want1 = rosterItems(st) + pay(BASE[W[8]], 0, st), want2 = rosterItems(st) + pay(BASE[W[8]], 5, st);
+				const u = UNIQ(st);   // 継承固有（段7d の ⑪。既定 6種・Lv3）が3つの合計に足される
+				const want1 = rosterItems(st) + pay(BASE[W[8]], 0, st) + u, want2 = rosterItems(st) + pay(BASE[W[8]], 5, st) + u;
 				assert(n.chips[0] === want1 && n.chips[1] === want2, tag + '状態「' + st + '」: 必要スキルPt の 超優先だけ／優先まで が割引率どおり（優先まで＝本育成＋基礎180のスキルを L=5 で ' + pay(BASE[W[8]], 5, st) + ' Pt）', { got: n.chips, want: [want1, want2] });
 				await sp.ctx.close();
 			}
-			// 出どころ: ①で選択中の編成は「勉強家」、②のセットの本育成編成は「切れ者」→ 切れ者の割引が使われる。本育成編成を選んでいないときは①の「勉強家」
+			// 出どころ: ①で選択中の編成は「勉強家」、②のセットの本育成編成は「切れ者」→ 切れ者の割引が使われる。本育成編成を選んでいないときは編成の Pt は 0（①の「勉強家」は読まない）
 			const sp = await open({ tab: 1, userData: baseUser({ rosters: [mkSaved('kire')] }), scope: scopeW8, roster: { umaId: '', cardIds: [cA.id, cB.id, null, null, null, null], pt: { umaHintLevel: 3, status: 'benkyo' } } });
 			let n = await readNeed(sp.page);
-			assert(n.chips[1] === rosterItems('benkyo') + pay(BASE[W[8]], 5, 'benkyo'), tag + '本育成編成を選んでいないセットは、①で選択中の編成の設定（勉強家）を読む', n.chips);
+			assert(n.chips[1] === pay(BASE[W[8]], 5, 'none') + UNIQ('none') && n.chips[0] === UNIQ('none'), tag + '本育成編成を選んでいないセットは、①で選択中の編成（勉強家）を読まず、編成の Pt を 0 として数える（因子のスキル W8 と継承固有だけ）', n.chips);
 			await link(sp.page, 2);
 			n = await readNeed(sp.page);
-			assert(n.chips[1] === rosterItems('kire') + pay(BASE[W[8]], 5, 'kire'), tag + '本育成編成に選んだ編成の設定（切れ者）を読む（①の勉強家ではない）', n.chips);
+			assert(n.chips[1] === rosterItems('kire') + pay(BASE[W[8]], 5, 'kire') + UNIQ('kire'), tag + '本育成編成に選んだ編成の設定（切れ者）を読む（①の勉強家ではない）', n.chips);
 			await link(sp.page, 1);
 			n = await readNeed(sp.page);
-			assert(n.chips[1] === rosterItems('benkyo') + pay(BASE[W[8]], 5, 'benkyo'), tag + '「なし」に戻すと、また①で選択中の編成の設定を読む', n.chips);
+			assert(n.chips[1] === pay(BASE[W[8]], 5, 'none') + UNIQ('none'), tag + '「なし」に戻すと、編成の Pt は 0 に戻る（①で選択中の編成は読まない）', n.chips);
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		}
