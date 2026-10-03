@@ -3,6 +3,7 @@
 //
 //   (1) 並び … 金スキルの直下にその前段の白スキル（既定の並び・並べ替え・前段が表に無いとき・複数の金スキルの前段になる白・字下げ）
 //   (2)〜(5) 色 … 回復／パッシブ／デバフ／固有／金と、その重なり（実データの編成で全行を独立に判定し、重なる例は仮のタグで固める）
+//   段8（C-120）で、回復の行の水色の地と前段の行の 4px の字下げをやめた（回復は名前の青だけ・前段は名前の前に「└」）。該当する検査はその形に直した
 //   (6) コントラスト比 4.5 以上（実際に描かれた色で）／行の高さ・表より上の高さが増えていないこと
 //
 // 判定の期待値は、データ（マスター・拡張スキルの tags と skill-pt.json の rarity と skill-step-up.json）から検査の側で独立に求める。
@@ -66,6 +67,7 @@ export async function register7e(env) {
 		return { id: r.getAttribute('data-skill-id'), cls: r.className, nameCls: nm.className, nameColor: getComputedStyle(nm).color, ptColor: pt && !pt.classList.contains('usd-roster-pt--ref') ? getComputedStyle(pt).color : null,   // 薄い△の参考値（--ref）は対象外
 			bgs: cells.map((c) => getComputedStyle(c).backgroundColor), padL: parseFloat(cs.paddingLeft), h: Math.round(first.getBoundingClientRect().height * 10) / 10, off: r.classList.contains('usd-roster-grow--off'),
 			marks: cells.slice(1).map((c) => (c.querySelector('.usd-roster-got') ? '●' : c.querySelector('.usd-roster-maybe') ? '△' : '')),
+			prevMark: (r.querySelector('[data-usd-el="prev-mark"]') || {}).textContent || null,   // 段8: 前段の白の行の名前の前の「└」
 			rowBgImage: rcs.backgroundImage, outline: rcs.outlineStyle + ' ' + rcs.outlineWidth + ' ' + rcs.outlineColor, outlineOffset: rcs.outlineOffset, rowDisplay: rcs.display,
 			rect: (() => { const b = r.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; })() };
 	}));
@@ -144,11 +146,11 @@ export async function register7e(env) {
 			assert(idx(W[7]) === idx(W[3]) + 1 || idx(W[7]) === idx(W[6]) + 1, tag + '金 W3 と W6 の両方の前段になる白 W7 は、先に出る金スキルの直下に1回だけ出る', { w3: idx(W[3]), w6: idx(W[6]), w7: idx(W[7]), n: rows.filter((r) => r.id === W[7]).length });
 			assert(idx(W[8]) === idx(W[1]) + 1, tag + '金 W1 の直下に前段の白 W8', { w1: idx(W[1]), w8: idx(W[8]) });
 			assert(rows.length === baseRows.length && new Set(rows.map((r) => r.id)).size === rows.length, tag + '行は増えも減りもしない（' + rows.length + '行）');
-			// 前段の行の見た目: 名前を左へ 4px 字下げするだけ（クラス --prev）。ほかは変えない
+			// 前段の行の見た目（クラス --prev）。段8（C-120）で 4px の字下げをやめ、名前の前に「└」（prev-mark）を置く形にした。左の余白・行の高さは変えない
 			const prevRows = rows.filter((r) => r.cls.includes('usd-roster-grow--prev'));
 			const normal = rows.find((r) => !r.cls.includes('usd-roster-grow--prev'));
-			assert(prevRows.map((r) => r.id).sort().join() === Array.from(exp.moved).sort().join() && prevRows.every((r) => Math.abs(r.padL - normal.padL - 4) < 0.5 && r.h === normal.h),
-				tag + '動かした前段の白の行だけ名前が 4px 字下げ（左の余白 ' + normal.padL + 'px → ' + (prevRows[0] && prevRows[0].padL) + 'px）。行の高さは同じ（' + normal.h + 'px）', { prev: prevRows.map((r) => [r.id, r.padL, r.h]), normal: [normal.padL, normal.h] });
+			assert(prevRows.map((r) => r.id).sort().join() === Array.from(exp.moved).sort().join() && prevRows.every((r) => r.prevMark === '└' && Math.abs(r.padL - normal.padL) < 0.5 && r.h === normal.h) && normal.prevMark === null,
+				tag + '動かした前段の白の行だけ名前の前に「└」が付く（左の余白は同じ ' + normal.padL + 'px）。行の高さは同じ（' + normal.h + 'px）', { prev: prevRows.map((r) => [r.id, r.prevMark, r.padL, r.h]), normal: [normal.padL, normal.h] });
 			// 並べ替え（↕）でも隣り合わせ: B の列（キー '2'）を押す。W3（A の列）と前段 W7（B の列）の組は、W7 に○があるので組ごと上へ
 			const colMarks = (rs, k) => new Map(rs.map((r) => [r.id, r.marks[k]]));   // k: 0=育成ウマ娘の列, 1=カード1, 2=カード2 …
 			const mark = colMarks(rows, 2);
@@ -238,9 +240,8 @@ export async function register7e(env) {
 					if (!(r.rowBgImage.includes('linear-gradient') && r.bgs.every((b) => b === 'rgba(0, 0, 0, 0)') && r.outline === 'solid 1px ' + COLORS.uniqEdge)) bad.push([r.id, 'unique', r.rowBgImage.slice(0, 40), r.outline]);
 				} else if (k.rarity === 'gold') {
 					if (!r.bgs.every((b) => b === stitch)) bad.push([r.id, 'gold-bg', r.bgs[0]]);
-				} else if (k.heal) {
-					if (!r.bgs.every((b) => rgb(b).join() === COLORS.healBg.join())) bad.push([r.id, 'heal-bg', r.bgs[0]]);
-				} else if (r.bgs.some((b) => b === stitch || rgb(b).join() === COLORS.healBg.join())) bad.push([r.id, 'plain-bg', r.bgs[0]]);
+				// 段8（C-120）で回復の行の水色の地をやめた（名前の青だけ）。回復の行もほかの行と同じく、金の地・水色の地を持たない
+				} else if (r.bgs.some((b) => b === stitch || rgb(b).join() === COLORS.healBg.join())) bad.push([r.id, k.heal ? 'heal-bg' : 'plain-bg', r.bgs[0]]);
 				if (r.rowDisplay === 'grid' && k.rarity !== 'unique') bad.push([r.id, 'grid']);
 				void cellBg;
 				kinds[k.rarity === 'unique' ? 'unique' : k.rarity === 'gold' ? (k.heal ? 'goldHeal' : 'gold') : k.heal ? 'heal' : k.debuff ? 'debuff' : k.passive ? 'passive' : 'plain']++;
@@ -289,7 +290,8 @@ export async function register7e(env) {
 			const defaultName = rows.find((r) => !SPEC[r.id] && !r.off).nameColor;
 			assert(R(W[0]).rowBgImage.includes('linear-gradient') && R(W[0]).bgs.every((b) => b === 'rgba(0, 0, 0, 0)') && isText(R(W[0]), COLORS.healText), tag + '固有で回復: 地は固有のグラデーション（回復の水色ではない）、名前は青', R(W[0]) && [R(W[0]).nameColor, R(W[0]).rowBgImage.slice(0, 30)]);
 			assert(R(W[1]).bgs.every((b) => b === stitch) && isText(R(W[1]), COLORS.healText), tag + '金で回復: 地は金のまま、名前だけ青', [R(W[1]).bgs[0], R(W[1]).nameColor]);
-			assert(R(W[2]).bgs.every((b) => rgb(b).join() === COLORS.healBg.join()) && isText(R(W[2]), COLORS.healText), tag + '回復でデバフ: 地は水色、名前は 回復 > デバフ で青', [R(W[2]).bgs[0], R(W[2]).nameColor]);
+			// 段8（C-120）で回復の行の水色の地をやめたので、地は白（名前の青だけで示す）
+			assert(R(W[2]).bgs.every((b, i) => b === R(W[3]).bgs[i] && rgb(b).join() !== COLORS.healBg.join()) && isText(R(W[2]), COLORS.healText), tag + '回復でデバフ: 地は色の付かない行と同じ（段8 で水色をやめた）、名前は 回復 > デバフ で青', [R(W[2]).bgs[0], R(W[3]).bgs[0], R(W[2]).nameColor]);
 			assert(isText(R(W[3]), COLORS.debuffText) && R(W[3]).bgs.every((b) => b !== stitch && rgb(b).join() !== COLORS.healBg.join() && b !== 'rgba(0, 0, 0, 0)'), tag + 'デバフでパッシブ: 名前は デバフ > パッシブ で赤（地は変えない）', [R(W[3]).nameColor, R(W[3]).bgs[0]]);
 			assert(isText(R(W[4]), COLORS.passiveText), tag + 'パッシブだけ: 名前は緑', R(W[4]).nameColor);
 			assert(R(W[5]).bgs.every((b) => b === stitch) && isText(R(W[5]), COLORS.passiveText), tag + '金でパッシブ: 地は金、名前は緑', [R(W[5]).bgs[0], R(W[5]).nameColor]);
@@ -326,12 +328,13 @@ export async function register7e(env) {
 			rows.forEach((row) => {
 				if (row.off) return;
 				const kd = kindOf(row.id);
-				const bgs = kd.rarity === 'unique' ? [COLORS.uniqFrom, COLORS.uniqMid, COLORS.uniqTo] : kd.rarity === 'gold' ? [stitchRgb] : kd.heal ? [COLORS.healBg] : [[255, 255, 255]];
+				// 段8（C-120）で回復の行の水色の地をやめたので、回復の行の地は白
+				const bgs = kd.rarity === 'unique' ? [COLORS.uniqFrom, COLORS.uniqMid, COLORS.uniqTo] : kd.rarity === 'gold' ? [stitchRgb] : [[255, 255, 255]];
 				add('名前', rgb(row.nameColor), bgs);
 				if (row.ptColor) add('Pt', rgb(row.ptColor), bgs);
 			});
-			// 色の付く文字は、それぞれが乗りうるすべての地（白・金・水色・固有の3色）で確かめる
-			const allBgs = [[255, 255, 255], stitchRgb, COLORS.healBg, COLORS.uniqFrom, COLORS.uniqMid, COLORS.uniqTo];
+			// 色の付く文字は、それぞれが乗りうるすべての地（白・金・固有の3色。段8 で水色の地は無くなった）で確かめる
+			const allBgs = [[255, 255, 255], stitchRgb, COLORS.uniqFrom, COLORS.uniqMid, COLORS.uniqTo];
 			add('回復の青', COLORS.healText, allBgs);
 			add('パッシブの緑', COLORS.passiveText, [[255, 255, 255], stitchRgb]);
 			add('デバフの赤', COLORS.debuffText, [[255, 255, 255], stitchRgb]);

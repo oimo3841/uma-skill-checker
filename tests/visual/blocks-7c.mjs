@@ -239,44 +239,39 @@ export async function register7c(env) {
 			await sp.ctx.close();
 		}
 
-		/* ② 因子周回: オフのスキルは追加できない（本育成編成に選んだ編成の offSkillIds）。編成を選んでいないセットでは効かない */
+		/* ② 因子周回: オフのスキルは追加できない（同じセットの①の offSkillIds）。①が空のセットでは効かない
+		   段8（C-120）で②の「本育成編成」のボタンと小窓を無くし、②の相手は常に同じセットの①になった。
+		   ここでは「＋新規」の①（下書きの編成）に offSkillIds を仕込み、「①が空のセット」には①の無い保存済みのセット（USER_DATA の先頭）を使う。
+		   編成を選んだときに●を外す動きと、知らせ「…不要にしたスキルがN種含まれています」（roster-link-off）は無くなったので、その検査は外した */
 		{
-			const rosterOff = mkRoster(0, [cA.id, cB.id, null, null, null, null], { offSkillIds: [W[2], W[7]] });
-			const UD = baseUser({ rosters: [rosterOff] });
 			const allSureOn = [W[3], W[6]].concat(hintIds);
+			const rosterOffDraft = { umaId: '', cardIds: [cA.id, cB.id, null, null, null, null], offSkillIds: [W[2], W[7]] };
+			const noRosterSet = USER_DATA.templates[0].templateId;   // baseRosterId を持たない＝①が空のセット
 			const mk = async (skillIds) => {
-				const sp = await open({ userData: UD, tab: 1, scope: { skillIds: skillIds, name: '', tiers: {}, updatedAt: '' } });
-				const link = async (n) => { await sp.page.click('[data-usd-el="roster-link-btn"]'); await sp.page.waitForTimeout(150); await sp.page.click('[data-usd-el="link-list"] label:nth-child(' + n + ')'); await sp.page.waitForTimeout(300); };
-				const readLink = () => sp.page.evaluate(() => {
-					const el = document.querySelector('[data-usd-el="roster-link"]');
-					const t = (i) => (el.querySelector('[data-usd-el="' + i + '"]') || {}).textContent || null;
-					return { overlap: t('roster-link-overlap'), off: t('roster-link-off'), notice: t('roster-link-notice'), scope: JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{}'),
-						hidden: window.UmaSkillDeckCore.getPickerHiddenIds(), offIds: window.UmaSkillDeckCore.getPickerOffIds() };
-				});
-				return { sp, link, readLink };
+				const sp = await open({ tab: 1, roster: rosterOffDraft, scope: { skillIds: skillIds, name: '', tiers: {}, updatedAt: '' } });
+				const select = async (id) => { await sp.page.evaluate((id) => deckTemplateManager.setSelectedId(id), id); await sp.page.waitForTimeout(300); };
+				const readLink = () => sp.page.evaluate(() => ({ scope: JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{}'),
+					hidden: window.UmaSkillDeckCore.getPickerHiddenIds(), offIds: window.UmaSkillDeckCore.getPickerOffIds() }));
+				return { sp, select, readLink };
 			};
 			// (1) セットに、オフにしたスキル（W2・W7）とオンの●（W3）が入っている
 			{
 				const tag = '段7c(M) ②(1): ';
-				const { sp, link, readLink } = await mk([W[8], W[2], W[3], W[7]]);
+				const { sp, select, readLink } = await mk([W[8], W[2], W[3], W[7]]);
 				let lk = await readLink();
-				assert(lk.hidden.length === 0 && lk.offIds.length === 0 && lk.off === null, tag + '本育成編成を選んでいないセットでは、オフのスキルも選べなくならない・知らせも出ない', lk);
-				await link(2);
-				lk = await readLink();
-				assert(lk.scope.baseRosterId === 'r7c0' && lk.scope.skillIds.slice().sort().join() === [W[8], W[2], W[7]].sort().join() && lk.notice === null,   // 行の下の知らせは段7d の ⑭で削除（外す動きは同じ）
-					tag + '編成を選ぶと、オンの●（W3）だけがセットから外れ、オフにしたスキル（W2・W7）は自動では外さない', { scope: lk.scope.skillIds, notice: lk.notice });
-				assert(lk.off === 'このセットには、本育成編成で不要にしたスキルが2種含まれています' && lk.overlap === null,
-					tag + '重なりの知らせの隣に「このセットには、本育成編成で不要にしたスキルがN種含まれています」が小さく出る（オンの●は重ならないので重なりの知らせは出ない）', lk);
+				assert(lk.scope.skillIds.slice().sort().join() === [W[8], W[2], W[3], W[7]].sort().join(),
+					tag + '同じセットの①で得るスキル（W3）も、オフにしたスキル（W2・W7）も、セットから自動では外さない', { scope: lk.scope.skillIds });
 				assert(lk.offIds.slice().sort().join() === [W[2], W[7]].sort().join() && lk.hidden.slice().sort().join() === allSureOn.concat([W[2], W[7]]).sort().join(),
 					tag + '追加の一覧で選べなくする対象は「本育成で得るもの（オンの●）」＋「不要にしているもの（オフ）」。オフはその内訳としても持つ', { hidden: lk.hidden, off: lk.offIds });
-				// 選んだ編成の「取得しない」を後から戻すと、一覧の対象も追従する（自動で外すことはしない）
+				await select(noRosterSet);
+				lk = await readLink();
+				assert(lk.hidden.length === 0 && lk.offIds.length === 0, tag + '①が空のセットでは、オフのスキルも選べなくならない', lk);
 				await sp.ctx.close();
 			}
 			// (2) セットにオフのスキルが入っていない: 追加の一覧・貼り付け
 			{
 				const tag = '段7c(M) ②(2): ';
-				const { sp, link, readLink } = await mk([W[8]]);
-				await link(2);
+				const { sp, select, readLink } = await mk([W[8]]);
 				await sp.page.click('[data-usd-act="editor-pick"]');
 				await sp.page.waitForTimeout(400);
 				const pick = await sp.page.evaluate(() => {
@@ -311,10 +306,10 @@ export async function register7c(env) {
 				await sp.page.waitForTimeout(300);
 				assert((await sp.page.$('[data-usd-el="paste-blocked"]')) === null, tag + '追加しなかったものが0種のときは、その表示を出さない');
 				await sp.page.evaluate(() => window.UmaSkillDeckCore.closeSkillPicker());
-				// 「名前を入れて探す」でも、オフのスキルは理由つきで選べない（一覧からは消さない）
-				await link(1);
+				// 段8: 「なし」の代わりに、①が空のセットへ移る
+				await select(noRosterSet);
 				const lk2 = await readLink();
-				assert(lk2.hidden.length === 0 && lk2.offIds.length === 0, tag + '「なし」にすると、オフのスキルも選べるようになる', lk2);
+				assert(lk2.hidden.length === 0 && lk2.offIds.length === 0, tag + '①が空のセットへ移ると、オフのスキルも選べるようになる', lk2);
 				await sp.ctx.close();
 			}
 		}
@@ -519,74 +514,26 @@ export async function register7c(env) {
 			return { hidden: false, chips, roster: !!el.querySelector('[data-usd-el="pt-need-roster"]'), overlapInBox: !!(box && box.querySelector('[data-usd-el="pt-need-overlap"]')), overlapText: box && box.querySelector('[data-usd-el="pt-need-overlap"]') ? box.querySelector('[data-usd-el="pt-need-overlap"]').textContent : null,
 				outside: !!Array.from(el.querySelectorAll('[data-usd-el="pt-need-overlap"]')).find((n) => !box || !box.contains(n)) };
 		});
-		const linkBtn = (page) => page.evaluate(() => { const b = document.querySelector('[data-usd-el="roster-link-btn"]'); const n = b.querySelector('.usd-roster-linkname'); const c = getComputedStyle(n);
-			return { text: b.textContent.trim(), title: b.title, pressed: b.getAttribute('aria-pressed'), ellipsis: c.textOverflow, overflow: n.scrollWidth > n.clientWidth }; });
 		// 本育成の合計（状態 st・取得しないスキルを除く・絞り込みなし）。前段（W3 の前段 W8）を含む。W8 が因子セットに無いときだけ前段として数える
 		const sureL = [[W[2], 3], [W[3], 1], [W[6], 1], [W[7], 1]];
 		const rosterItems = (st, offs) => sureL.filter(([id]) => !(offs || []).includes(id)).reduce((s, [id, l]) => s + pay(BASE[id], l, st), 0) + hintIds.length * pay(50, 5, st);
 		const rosterTotal = (st, offs) => rosterItems(st, offs) + ((offs || []).includes(W[3]) ? 0 : pay(BASE[W[8]], 0, st));
 		const mkSaved = (st, extra) => mkRoster(0, [cA.id, cB.id, null, null, null, null], Object.assign({ pt: { umaHintLevel: 3, status: st } }, extra || {}));
 		const scopeW8 = { skillIds: [W[8]], name: '', tiers: {}, updatedAt: '' };
-		const link = async (page, n) => { await page.click('[data-usd-el="roster-link-btn"]'); await page.waitForTimeout(150); await page.click('[data-usd-el="link-list"] label:nth-child(' + n + ')'); await page.waitForTimeout(300); };
+		const draftRosterOf = (st) => ({ umaId: '', cardIds: [cA.id, cB.id, null, null, null, null], pt: { umaHintLevel: 3, status: st } });
 
-		// (4) 「うち本育成」の行は無い。補足文は（?）の中（出る条件は今のまま）
-		{
-			const tag = '段7c(O)(4): ';
-			let sp = await open({ tab: 1, userData: baseUser({ rosters: [mkSaved('none')] }), scope: { skillIds: [W[2]], baseRosterId: 'r7c0', name: '', tiers: {}, updatedAt: '' } });   // 本育成編成に編成を選んである（段7d の ⑥(b)。選んでいないセットには本育成のスキルが無いので、重なりも無い）
-			let n = await readNeed(sp.page);
-			assert(!n.hidden && !n.roster && n.overlapInBox && !n.outside && n.overlapText === '重なるスキルは、親から得ると、ヒントレベルが上がって安くなります。',
-				tag + '「（うち本育成 X）」の行は無く、重なるスキルがあるときの補足文は必要スキルPt の（?）の説明の箱の中にある', n);
-			await sp.page.click('[data-usd-el="pt-need-help-btn"]');
-			assert(await sp.page.isVisible(T + '[data-usd-el="pt-need-overlap"]'), tag + '（?）を押すと補足文が見える');
-			await sp.ctx.close();
-			sp = await open({ tab: 1, userData: baseUser({ rosters: [mkSaved('none')] }), scope: Object.assign({ baseRosterId: 'r7c0' }, scopeW8) });
-			n = await readNeed(sp.page);
-			assert(!n.hidden && !n.roster && !n.overlapInBox, tag + '重なるスキルが無いときは、補足文は出ない（出る条件は変えていない）', n);
-			await sp.ctx.close();
-		}
+		/* 段8（C-120）で外した検査:
+		   - (4) 重なるスキルの補足文（pt-need-overlap）と説明の箱（pt-need-help-box）。①で得るスキルは②に数えなくなり、重なりが起きないので、補足文ごと無くした
+		   - 「本育成編成」のボタンの文言（「本育成編成：切れ者_X,XXX Pt」・長い名前は title だけ）。ボタンと一覧の小窓を無くし、①の合計は共通の見出しの帯の合計（① ＋ ②）に入った
+		   新しい仕様は blocks-8.mjs の段8(B)(D)。(5) の割引は、②の相手が同じセットの①になったので、その形で見る */
 
-		// 本育成編成のボタン: 「本育成編成（{状態}_{XXXX}Pt）：{編成名}」。状態が「なし」なら状態と「_」を省く。選んでいないときは「本育成編成」だけ
-		for (const w of [1280, 390]) {
-			const tag = '段7c(O) ' + w + 'px: ';
-			const UD = baseUser({ rosters: [mkSaved('kire', { name: '切れ者の編成' }), mkRoster(1, [cA.id, null, null, null, null, null], { name: '勉強家の編成', pt: { umaHintLevel: 3, status: 'benkyo' } }),
-				mkRoster(2, [cB.id, null, null, null, null, null], { name: 'なしの編成', pt: { umaHintLevel: 3, status: 'none' }, offSkillIds: [W[6]] })] });
-			const sp = await open({ w, h: w === 1280 ? 900 : 844, tab: 1, userData: UD, scope: scopeW8 });
-			let b = await linkBtn(sp.page);
-			assert(b.text === '本育成編成' && b.pressed === 'false', tag + '編成を選んでいないときは「本育成編成」だけ', b);
-			await link(sp.page, 2);
-			b = await linkBtn(sp.page);
-			const want1 = '本育成編成：切れ者_' + fmt(rosterTotal('kire')) + ' Pt';
-			assert(b.text === want1 && b.pressed === 'true' && b.title === want1 + '（切れ者の編成）', tag + '切れ者の編成: 「' + want1 + '」（千の位のカンマあり。編成の名前は出さず、title にだけ残る）', { got: b.text, want: want1, title: b.title });
-			await link(sp.page, 3);
-			b = await linkBtn(sp.page);
-			const hintsA = cA.hintSkills.map((s) => s.skillId);
-			const totalA = (st) => [[W[2], 3], [W[3], 1]].reduce((s, [id, l]) => s + pay(BASE[id], l, st), 0) + [...new Set(hintsA)].length * pay(50, 5, st) + pay(BASE[W[8]], 0, st);
-			assert(b.text === '本育成編成：勉強家_' + fmt(totalA('benkyo')) + ' Pt', tag + '勉強家の編成: 「勉強家_」が付く', { got: b.text, want: fmt(totalA('benkyo')) });
-			await link(sp.page, 4);
-			b = await linkBtn(sp.page);
-			// 取得しないスキル（W6）は除く。絞り込みの決まりは①と同じ（段7d の ⑥。絞り込みの検査は段7d の塊が持つ）
-			const hintsB = [...new Set(cB.hintSkills.map((s) => s.skillId))];
-			const totalB = pay(BASE[W[7]], 1, 'none') + hintsB.length * pay(50, 5, 'none');
-			assert(b.text === '本育成編成：' + fmt(totalB) + ' Pt', tag + '状態が「なし」のときは状態と「_」を省く。取得しないスキルを除いた合計', { got: b.text, want: fmt(totalB) });
-			await sp.ctx.close();
-			// 長い名前は省略記号で切る（全文は title）。最初から長い名前で開く
-			const long = '長い名前の編成'.repeat(16);
-			const sp2 = await open({ w, h: w === 1280 ? 900 : 844, tab: 1, userData: baseUser({ rosters: [mkRoster(0, [cA.id, cB.id, null, null, null, null], { name: long })] }), scope: scopeW8 });
-			await link(sp2.page, 2);
-			b = await linkBtn(sp2.page);
-			const hs = await SP(sp2.page);
-			assert(!b.overflow && b.title.includes(long) && !b.text.includes(long) && hs.sw <= hs.iw, tag + '長い名前でも、ボタンには名前を出さない（全文は title）。横にはみ出さない', { over: b.overflow, hs });
-			await sp2.ctx.close();
-		}
-
-		// (5) 勉強家・切れ者の割引が、本育成パネルと同じ整数の百分率で因子周回の Pt にかかる。状態の出どころは「本育成編成に選んだ編成」。選んでいないとき（なし）は編成の Pt を 0 として数える（段7d の ⑥(b)）
+		// (5) 勉強家・切れ者の割引が、本育成パネルと同じ整数の百分率で因子周回の Pt にかかる。状態の出どころは同じセットの①（段8）。①が空のセットは編成の Pt を 0 として数える
 		{
 			const tag = '段7c(O)(5): ';
 			// 例: 基礎180・L=5（40%）に切れ者（10%）で 50% → 90
 			assert(pay(180, 5, 'kire') === 90 && pay(180, 5, 'benkyo') === 100 && pay(180, 5, 'none') === 108, tag + '前提: 基礎180・L=5 は、なし 108／勉強家（4%）100／切れ者（10%）90', [pay(180, 5, 'none'), pay(180, 5, 'benkyo'), pay(180, 5, 'kire')]);
 			for (const st of ['none', 'benkyo', 'kire']) {
-				const sp = await open({ tab: 1, userData: baseUser({ rosters: [mkSaved(st)] }), scope: scopeW8 });
-				await link(sp.page, 2);
+				const sp = await open({ tab: 1, roster: draftRosterOf(st), scope: scopeW8 });   // 段8: ＋新規の①（下書きの編成）がこの状態
 				const n = await readNeed(sp.page);
 				// 超優先だけ: 因子セットの W8 はまだ含めない（W3 の前段として L=0 で数える）。優先まで: W8 を親から得る（L=F=5）
 				const u = UNIQ(st);   // 継承固有（段7d の ⑪。既定 6種・Lv3）が3つの合計に足される
@@ -594,16 +541,20 @@ export async function register7c(env) {
 				assert(n.chips[0] === want1 && n.chips[1] === want2, tag + '状態「' + st + '」: 必要スキルPt の 超優先だけ／優先まで が割引率どおり（優先まで＝本育成＋基礎180のスキルを L=5 で ' + pay(BASE[W[8]], 5, st) + ' Pt）', { got: n.chips, want: [want1, want2] });
 				await sp.ctx.close();
 			}
-			// 出どころ: ①で選択中の編成は「勉強家」、②のセットの本育成編成は「切れ者」→ 切れ者の割引が使われる。本育成編成を選んでいないときは編成の Pt は 0（①の「勉強家」は読まない）
-			const sp = await open({ tab: 1, userData: baseUser({ rosters: [mkSaved('kire')] }), scope: scopeW8, roster: { umaId: '', cardIds: [cA.id, cB.id, null, null, null, null], pt: { umaHintLevel: 3, status: 'benkyo' } } });
+			// 出どころ（段8）: ＋新規の①（下書きの編成）は「勉強家」、保存したセット tpl_o5 の①（baseRosterId の r7c0）は「切れ者」→ 選んでいるセットの①の割引が使われる。
+			// ①が空のセット（baseRosterId を持たない USER_DATA の先頭）は編成の Pt を 0 として数える
+			const UD = baseUser({ rosters: [mkSaved('kire')], templates: USER_DATA.templates.concat([{ templateId: 'tpl_o5', name: '切れ者のセット', skillIds: [W[8]], baseRosterId: 'r7c0', createdAt: '2026-10-03T00:00:00.000Z', updatedAt: '2026-10-03T00:00:00.000Z' }]) });
+			const sp = await open({ tab: 1, userData: UD, scope: scopeW8, roster: draftRosterOf('benkyo') });
 			let n = await readNeed(sp.page);
-			assert(n.chips[1] === pay(BASE[W[8]], 5, 'none') + UNIQ('none') && n.chips[0] === UNIQ('none'), tag + '本育成編成を選んでいないセットは、①で選択中の編成（勉強家）を読まず、編成の Pt を 0 として数える（因子のスキル W8 と継承固有だけ）', n.chips);
-			await link(sp.page, 2);
+			assert(n.chips[1] === rosterItems('benkyo') + pay(BASE[W[8]], 5, 'benkyo') + UNIQ('benkyo'), tag + '＋新規のセットは、同じセットの①（下書きの編成・勉強家）の設定を読む', n.chips);
+			await sp.page.evaluate(() => deckTemplateManager.setSelectedId('tpl_o5'));
+			await sp.page.waitForTimeout(300);
 			n = await readNeed(sp.page);
-			assert(n.chips[1] === rosterItems('kire') + pay(BASE[W[8]], 5, 'kire') + UNIQ('kire'), tag + '本育成編成に選んだ編成の設定（切れ者）を読む（①の勉強家ではない）', n.chips);
-			await link(sp.page, 1);
+			assert(n.chips[1] === rosterItems('kire') + pay(BASE[W[8]], 5, 'kire') + UNIQ('kire'), tag + '保存したセットは、そのセットの①（切れ者）の設定を読む（＋新規の①の勉強家ではない）', n.chips);
+			await sp.page.evaluate((id) => deckTemplateManager.setSelectedId(id), USER_DATA.templates[0].templateId);
+			await sp.page.waitForTimeout(300);
 			n = await readNeed(sp.page);
-			assert(n.chips[1] === pay(BASE[W[8]], 5, 'none') + UNIQ('none'), tag + '「なし」に戻すと、編成の Pt は 0 に戻る（①で選択中の編成は読まない）', n.chips);
+			assert(n.chips[0] === UNIQ('none'), tag + '①が空のセットは、編成の Pt を 0 として数える（超優先だけ＝継承固有だけ・状態の割引なし）', n.chips);
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		}
@@ -739,20 +690,11 @@ export async function register7c(env) {
 				await sp.page.waitForTimeout(250);
 				const y1 = await sp.page.evaluate(() => window.scrollY);
 				rows.push({ label: w + 'px （?）の「すべて取得に戻す」', dy: y1 - y0, dtop: 0, ok: Math.abs(y1 - y0) <= 2 });
-				// ②の本育成編成の一覧
-				await sp.page.evaluate(() => selectStepTab(1));
-				await sp.page.waitForTimeout(250);
-				const LB = '#deck-template-panel [data-usd-el="roster-link-btn"]';
-				await run('②本育成編成（一覧の小窓を開く）', LB, () => sp.page.click(LB));
-				const yl = await sp.page.evaluate(() => window.scrollY);
-				await sp.page.click('[data-usd-el="link-list"] label:nth-child(2)');
-				await sp.page.waitForTimeout(300);
-				const yl2 = await meas(LB);
-				rows.push({ label: w + 'px ②小窓で編成を選ぶ', dy: yl2.y - yl, dtop: 0, ok: Math.abs(yl2.y - yl) <= 2 });
+				// 段8（C-120）で②の「本育成編成」のボタンと一覧の小窓を無くしたので、その2行（小窓を開く・編成を選ぶ）は外した
 				await sp.ctx.close();
 			}
 			console.log('段7c(P) 操作前後の差:\n' + rows.map((r) => '       ' + r.label + ': Δスクロール ' + r.dy + 'px・Δ位置 ' + r.dtop + 'px' + (r.ok ? '' : '  ← NG')).join('\n'));
-			assert(rows.length >= 12 && rows.every((r) => r.ok), '段7c(P): 新しいボタン（チェック・シナリオの「!」・小窓の選択肢・「すべて取得に戻す」・②の本育成編成の一覧）を押しても、ページの位置と押したボタンの画面上の位置の差が 2px 以内。' + rows.length + '件', rows.filter((r) => !r.ok));
+			assert(rows.length >= 10 && rows.every((r) => r.ok), '段7c(P): 新しいボタン（チェック・シナリオの「!」・小窓の選択肢・「すべて取得に戻す」）を押しても、ページの位置と押したボタンの画面上の位置の差が 2px 以内。' + rows.length + '件', rows.filter((r) => !r.ok));
 		}
 	});
 }
