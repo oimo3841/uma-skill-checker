@@ -509,7 +509,10 @@ export async function register7c(env) {
 			const el = document.querySelector('[data-usd-el="pt-need"]');
 			if (!el || el.hidden) return { hidden: true };
 			const num = (s) => Number((s || '').replace(/[^0-9]/g, ''));
-			const chips = [1, 2, 3].map((k) => { const e = el.querySelector('[data-usd-el="pt-need-' + k + '"]'); return e ? Number(e.getAttribute('data-cum')) : null; });   // 累計（チップの表示はそのランクのぶんだけ。段7d の追加・A）
+			// 段9（C-121）: ランクのチップは無い。分類ごとの累計は帯の data-cuts（検査用。画面には出さない）から読む
+			const band = el.querySelector('[data-usd-el="set-head"]');
+			const cuts = band ? JSON.parse(band.getAttribute('data-cuts')) : null;
+			const chips = [1, 2, 3].map((k) => (cuts ? cuts[k - 1].total : null));
 			const box = el.querySelector('[data-usd-el="pt-need-help-box"]');
 			return { hidden: false, chips, roster: !!el.querySelector('[data-usd-el="pt-need-roster"]'), overlapInBox: !!(box && box.querySelector('[data-usd-el="pt-need-overlap"]')), overlapText: box && box.querySelector('[data-usd-el="pt-need-overlap"]') ? box.querySelector('[data-usd-el="pt-need-overlap"]').textContent : null,
 				outside: !!Array.from(el.querySelectorAll('[data-usd-el="pt-need-overlap"]')).find((n) => !box || !box.contains(n)) };

@@ -6,7 +6,7 @@
 //   (A) データの移行（schemaVersion 5 → 6）と、書き出し・読み込みの往復
 //   (B) 共通の見出しの帯（sticky・セット名・✎・一覧の小窓・削除・合計と?）
 //   (C) ①の並び（合計 → パネル → 前段 → 絞り込み → 表）・回復の地・前段の「└」
-//   (D) ②の白いパネル・チップの ON/OFF・X と N・①で取得
+//   (D) ②の白いパネル（段9 で外した。blocks-9.mjs の段9(C)(D)(E) へ）
 //   (E) シナリオ因子／遺伝子のチェックは③の先頭
 //   375px の高さ（帯・①の表の上端・②の一覧の上端・行の高さ）と合計の整合
 export async function register8(env) {
@@ -120,7 +120,8 @@ export async function register8(env) {
 			});
 			assert(g.shown && g.beforeTabs && (w !== 375 || g.h <= 40), tag + '帯はステップのタブの上にあり、375px で高さ 40px 以下（' + g.h + 'px）', g);
 			assert(!g.rosterTabs && !g.tmTabs, tag + '①②のタブの帯（＋新規／保存済みのチップ）は無い', g);
-			assert(g.numFs === '19px' && Number(g.numFw) >= 700 && ['11px', '12px'].includes(g.subFs), tag + '合計の数字は 19px の太字、かっこ書きは 11〜12px', g);
+			// 段9（C-121）: 数字は 18px（太字）、2行目は 10.5px。見出しの帯の細かい形は blocks-9.mjs の段9(D)
+				assert(g.numFs === '18px' && Number(g.numFw) >= 700 && g.subFs === '10.5px', tag + '合計の数字は 18px の太字、2行目は 10.5px', g);
 			let b = await barNums(sp.page);
 			assert(b.name === '＋新規' && b.count === '2／10', tag + '左：セット名（＋新規）と「保存数／10」', b);
 			// sticky: 下へスクロールしても帯は画面の上に残る（ヘッダーは残らない）
@@ -141,7 +142,7 @@ export async function register8(env) {
 			const r1 = await sp.page.evaluate(() => ({ uma: document.querySelector('#deck-roster-panel .usd-roster-umabox').textContent, rosterPt: Number(document.querySelector('#deck-roster-panel [data-usd-el="pt-total"]').textContent.replace(/[^0-9]/g, '')),
 				factorPt: Number((document.querySelector('#deck-template-panel [data-usd-el="factor-pt"]') || {}).textContent.replace(/[^0-9]/g, '')) }));
 			b = await barNums(sp.page);
-			assert(/スペシャルウィーク/.test(r1.uma) && b.name === '中距離・差し 想定' && b.sub === '（切れ者、①＋②）', tag + 'セットを切り替えると①はそのセットの編成。かっこ書きは①の割引（切れ者）', { r1, b });
+			assert(/スペシャルウィーク/.test(r1.uma) && b.name === '中距離・差し 想定' && b.sub === '切れ者・①＋②', tag + 'セットを切り替えると①はそのセットの編成。2行目は①の割引（切れ者）', { r1, b });
 			assert(b.total === r1.rosterPt + r1.factorPt && num(b.totalText) === b.total, tag + '見出しの合計 ＝ ①の X ＋ ②の X（' + r1.rosterPt + ' ＋ ' + r1.factorPt + '）', { b, r1 });
 			await sp.page.click(BAR + '[data-usd-act="set-total-help"]');
 			const formula = await sp.page.evaluate(() => (document.querySelector('[data-usd-el="set-total-formula"]') || {}).textContent);
@@ -252,76 +253,10 @@ export async function register8(env) {
 	});
 
 	/* ====================================================================
-	 * (D) ②因子周回
+	 * (D) ②因子周回 ―― 段9（C-121）で外した。②は「帯・設定の枠・スキルのまとまり」の3つに組み直し、ランク（超優先／優先／通常）のチップと
+	 * その ON/OFF（ptRanks）・分類のタブ・再分類・削除のモードをやめたので、見張る対象が無くなった。
+	 * 新しい仕様は blocks-9.mjs の段9(C)（②の合計・①で取得・継承固有）・段9(D)（帯・設定の枠・まとまり・パレット・行）・段9(E)（リセット）。
 	 * ==================================================================== */
-	await block('段8(D) ②の白いパネル・チップの ON/OFF・X と N・①で取得', async () => {
-		// ①で得るスキルを②にも入れる（重なり）。ほかに、①で得ない白スキルを各ランクに
-		const probe = await openSet({ tab: 0 });
-		const taken = await takenOf(probe.page);
-		await probe.ctx.close();
-		const takenSet = new Set(taken);
-		const free = master.filter((s) => !takenSet.has(s.id) && rarityOf.get(s.id) === 'white' && !(s.tags.passive || []).length).slice(0, 6).map((s) => s.id);
-		const pick = taken.filter((id) => rarityOf.get(id) === 'white').slice(0, 2);
-		assert(pick.length === 2 && free.length === 6, '前提: ①で得るスキル2つと、①で得ないスキル6つを用意できる', { pick, free });
-		const scope = { skillIds: pick.concat(free), name: '', updatedAt: '', tiers: { [free[0]]: 1, [free[1]]: 1, [free[4]]: 3, [free[5]]: 3, [pick[0]]: 1 } };
-		for (const w of [375, 1280]) {
-			const tag = '段8(D) ' + w + 'px: ';
-			const sp = await openSet({ w, h: w === 375 ? 812 : 900, tab: 1, scope });
-			const g = await sp.page.evaluate(() => {
-				const q = (s) => document.querySelector('#deck-template-panel ' + s);
-				const top = (s) => { const e = q(s); return e && e.getClientRects().length ? e.getBoundingClientRect().top : null; };
-				const sec = q('[data-usd-el="section-a"]');
-				return { framed: sec.classList.contains('uma-section--framed'), bodyBg: getComputedStyle(sec.querySelector('.uma-section-body')).backgroundColor,
-					gone: ['pt-total-row', 'pt-need-theory', 'tier-total', 'selected-count', 'roster-link-btn', 'extra-scopes', 'tabs', 'pt-parent-level-old'].filter((k) => q('[data-usd-el="' + k + '"]')),
-					heading: !!q('.uma-section-head'), overlapNote: !!q('[data-usd-el="roster-link-overlap"]'),
-					order: [top('[data-usd-el="set-head"]'), top('[data-usd-el="roster-link-row"]'), top('.usd-entry-row'), top('[data-usd-el="tier-row"]'), top('[data-usd-el="selected-list"]')],
-					parentLabel: (q('[data-usd-el="parent-level-group"]') || {}).textContent || '', ops: !!q('[data-usd-el="tier-row"] [data-usd-el="mode-reclass"]') && !!q('[data-usd-el="tier-row"] [data-usd-el="mode-delete"]') };
-			});
-			assert(!g.framed && (g.bodyBg === 'rgba(0, 0, 0, 0)' || g.bodyBg === 'rgb(255, 255, 255)') && !g.heading, tag + '青灰色の枠と見出し「スキルセット」は無い（白いパネル）', g);
-			assert(g.gone.length === 0 && !g.overlapNote, tag + '合計のスロット・理論値のバッジ・設定数・追加済みスキル（N種）・本育成編成のボタン・②のチェック・タブの帯・重なりの注記は無い', g.gone);
-			assert(g.order.every((v, i) => v !== null && (i === 0 || v > g.order[i - 1])), tag + '並びは X Pt/N種とチップ → 継承固有・共通スキルのヒントLv → 入口 → ランクと再分類・削除 → 一覧', g.order);
-			assert(/^共通スキルのヒントLv/.test(g.parentLabel) && g.ops, tag + '「親由来のレベル」は「共通スキルのヒントLv」。再分類・削除はランクの行の右端', g);
-			const read = () => sp.page.evaluate(() => {
-				const q = (s) => document.querySelector(s);
-				const chips = Array.from(document.querySelectorAll('#deck-template-panel [data-usd-el="pt-chips"] .usd-ptneed-chip')).map((c) => ({ el: c.getAttribute('data-usd-el'), pt: Number(c.getAttribute('data-pt')), on: c.getAttribute('aria-pressed'), color: getComputedStyle(c).color }));
-				const panels = Array.from(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]')).map((p) => ({ id: p.getAttribute('data-skill-id'), taken: p.classList.contains('usd-panel--taken'), pt: (p.querySelector('[data-usd-el="panel-pt"]') || {}).textContent }));
-				return { x: Number(q('[data-usd-el="factor-pt"]').textContent.replace(/[^0-9-]/g, '')), n: Number(q('[data-usd-el="factor-count"]').textContent), chips, panels,
-					dot: q('[data-usd-el="pt-need-help-btn"]').classList.contains('usd-help-dot'), badge: q('#skill-count-badge').textContent, total: Number(q('#deck-set-bar [data-usd-el="set-total"]').getAttribute('data-total')),
-					sep: getComputedStyle(q('[data-usd-el="pt-need-uniq"] .usd-chip-sep')).display, unit: getComputedStyle(q('[data-usd-el="pt-need-uniq"] .usd-chip-unit')).display,
-					tiers: [1, 2, 3].map((t) => Number(q('[data-usd-el="tier-count-' + t + '"]').textContent)),
-					ranks: (JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')) || {}).ptRanks };
-			});
-			let v = await read();
-			const sumOn = (x) => x.chips.reduce((a, c) => a + (c.on === 'false' ? 0 : c.pt), 0);
-			assert(v.chips.map((c) => c.el).join() === 'pt-need-uniq,pt-need-1,pt-need-2,pt-need-3' && v.chips.slice(1).every((c) => c.on === 'true') && v.ranks === undefined,
-				tag + 'チップは［継承固有］［＋超優先］［＋優先］［＋通常］。ランクは既定ですべて ON（触るまで ptRanks を書かない）', v.chips);
-			assert(v.x === sumOn(v), tag + '②の X ＝ 継承固有 ＋ ON のランクのチップの和（' + v.x + '）', { x: v.x, sum: sumOn(v) });
-			// N ＝ ON のランクの種（①で得るものを除く）＋ 継承固有の種類数（既定 6）
-			assert(v.n === free.length + 6 && v.badge === v.n + '種', tag + '②の N ＝ ①で得ないスキルの種（' + free.length + '）＋ 継承固有 6。②のタブの「N種」も同じ', { n: v.n, badge: v.badge });
-			assert(w === 1280 ? (v.sep !== 'none' && v.unit !== 'none') : (v.sep === 'none' && v.unit === 'none'), tag + (w === 1280 ? '641px 以上は「：」と「Pt」を付ける' : '640px 以下は「継承固有 720」の形'), { sep: v.sep, unit: v.unit });
-			// ①で取得：②に数えず、行は「①で取得」。?に赤い点
-			const tk = v.panels.filter((p) => pick.includes(p.id));
-			assert(tk.every((p) => p.taken && p.pt === '①で取得') && v.panels.filter((p) => !pick.includes(p.id)).every((p) => !p.taken && /Pt/.test(p.pt || '')) && v.dot,
-				tag + '①で得るスキルは薄くして Pt の代わりに「①で取得」。?に赤い点（重なりがあるとき）', { tk, dot: v.dot });
-			await sp.page.click('#deck-template-panel [data-usd-act="pt-need-help"]');
-			const help = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el^="factor-help"]')).map((p) => p.getAttribute('data-usd-el') + ':' + p.textContent));
-			assert(help.some((s) => /factor-help-theory:.*理論値/.test(s)) && help.some((s) => /factor-help-formula:② ＝ 継承固有/.test(s)) && help.some((s) => s === 'factor-help-taken:①で取得するスキル 1種は数えていません' || s === 'factor-help-taken:①で取得するスキル 2種は数えていません'),
-				tag + '?の中：理論値の説明・式・①で取得するスキルは数えていない', help);
-			await sp.page.keyboard.press('Escape');
-			// OFF にしたランクは X と N に入らない。見出しの合計も下がる。触ると ptRanks を書く
-			const before = v;
-			await sp.page.click('#deck-template-panel [data-usd-act="pt-rank"][data-tier="1"]');
-			await sp.page.waitForTimeout(150);
-			v = await read();
-			const c1 = before.chips.find((c) => c.el === 'pt-need-1');
-			assert(v.chips.find((c) => c.el === 'pt-need-1').on === 'false' && v.x === before.x - c1.pt && v.x === sumOn(v) && v.n === before.n - 2 && v.total === before.total - c1.pt,
-				tag + 'OFF にした超優先は X・N・見出しの合計に入らない', { before: [before.x, before.n, before.total], after: [v.x, v.n, v.total], c1: c1.pt });
-			assert(JSON.stringify(v.ranks) === JSON.stringify({ high: false, mid: true, low: true }) && v.chips.find((c) => c.el === 'pt-need-1').color !== v.chips.find((c) => c.el === 'pt-need-2').color,
-				tag + 'OFF のチップは薄く表示し、触ったときに ptRanks を書く', { ranks: v.ranks });
-			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
-			await sp.ctx.close();
-		}
-	});
 
 	/* ====================================================================
 	 * (E) シナリオ因子／遺伝子のチェックは③の先頭

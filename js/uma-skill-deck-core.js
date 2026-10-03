@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03u';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-04a';
 
 	/* ============================================================
 	 * 定数
@@ -739,12 +739,12 @@
 
 	/**
 	 * schemaVersion 6 以前 → 7 の移行（段9・C-121）。tiers（超優先→◎、優先〔無い id も〕→○、通常→△）を skillIcons に写し、ptRanks は捨てる。
-	 *   - **読み込み時（all なし）**: tiers か ptRanks を持つセットだけを写す（持たないセットは触らない＝「開いただけで姿を変えない」流儀。
-	 *     skillIcons を持たないセットは、使うところで tiers から導いて読むので、見え方は同じ）。写したものがあれば schemaVersion を 7 にして保存し直す。
-	 *   - **取り込み時（all あり）**: skillIcons を持たないセットのうち、スキルを持つものすべてに写す。schemaVersion は 7 にする。
+	 * **読み込み時も取り込み時も同じ**: tiers か ptRanks を持つセットだけを写す（持たないセットは触らない＝「開いただけ・取り込んだだけで姿を変えない」流儀。
+	 * skillIcons を持たないセットは、使うところで tiers から導いて読むので、見え方は同じ。Deck の「インポートを元に戻す」が、取り込み前の
+	 * データを同じ関数で戻しても、中身が変わらないためにもこうしてある）。写したものがあれば schemaVersion を 7 にする（読み込み時は保存し直す）。
 	 * tiers は消さない（Deck・結合画像の印が読む）。返り値: { changed }。data をその場で書き換える。
 	 */
-	function migrateUserDataToIcons(data, all) {
+	function migrateUserDataToIcons(data) {
 		const out = { changed: false };
 		if (!data || typeof data !== 'object' || data.schemaVersion >= 7) return out;
 		const templates = Array.isArray(data.templates) ? data.templates : [];
@@ -754,11 +754,11 @@
 			if ('ptRanks' in t) { delete t.ptRanks; out.changed = true; }
 			if (t.skillIcons && typeof t.skillIcons === 'object') return;
 			const ids = Array.isArray(t.skillIds) ? t.skillIds : [];
-			if (ids.length === 0 || !(hasTiers || all)) return;
+			if (ids.length === 0 || !hasTiers) return;
 			t.skillIcons = iconsFromTiers(ids, t.tiers);
 			out.changed = true;
 		});
-		if (out.changed || (all && templates.length > 0)) { data.schemaVersion = 7; out.changed = true; }
+		if (out.changed) data.schemaVersion = 7;
 		return out;
 	}
 
@@ -843,7 +843,7 @@
 			// 段8（C-120）: 5 以前の編成をセットへ振り分ける（1回だけ。移したときだけ保存し直す）
 			const mig = migrateUserDataToSets(parsed);
 			// 段9（C-121）: 6 以前のランク（tiers）をアイコンへ写す（1回だけ。写したときだけ保存し直す）
-			const migI = migrateUserDataToIcons(parsed, false);
+			const migI = migrateUserDataToIcons(parsed);
 			if (mig.changed || migI.changed) {
 				if (mig.changed) noteMigration(mig);
 				try { global.localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(parsed)); } catch (e) { /* 保存は次の書き込みで */ }
@@ -876,8 +876,8 @@
 		// 段8（C-120）: 取り込んだデータが 5 以前なら、読み込みと同じ移行を通す（6 のデータは何も変わらない）
 		const mig = migrateUserDataToSets(userData);
 		if (mig.changed) { noteMigration(mig); flushMigrationNotice(); }
-		// 段9（C-121）: 6 以前の書き出しファイルは、スキルを持つセットすべてにアイコンを写す（7 のデータは何も変わらない）
-		migrateUserDataToIcons(userData, true);
+		// 段9（C-121）: 6 以前の書き出しファイルも、読み込みと同じ移行を通す（7 のデータ・tiers も ptRanks も無いデータは何も変わらない）
+		migrateUserDataToIcons(userData);
 		saveUserData();
 	}
 
@@ -8725,7 +8725,10 @@
 			const fmt = formatPtNumber;
 			const tag = (el2, name, pt, kinds, extra) => '<span class="usd-band-tag" data-usd-el="' + el2 + '" data-pt="' + pt + '" data-kinds="' + kinds + '">'
 				+ '<span class="usd-band-tagname">' + esc(name) + '</span> <strong>' + fmt(pt) + '</strong> Pt／' + kinds + '種</span>';
-			el.innerHTML = '<div class="usd-setband usd-bandbox" data-usd-el="set-head">'
+			// data-cuts は検査用（画面には出さない）。分類（アイコンから導いた tiers）ごとの「そのランクのぶん」と「そのランクまでの累計」。
+			// 計算（computeFactorSetPt）の検証に使う。合計・種の表示には使わない（共通スキルはアイコンに関係なく全部数える）
+			const cuts = JSON.stringify(r.cuts.map(c => ({ tier: c.tier, own: c.own, total: c.total })));
+			el.innerHTML = '<div class="usd-setband usd-bandbox" data-usd-el="set-head" data-cuts="' + esc(cuts) + '">'
 				+ '<div class="usd-band-main">'
 				+ '<span class="usd-band-sum" data-usd-el="factor-sum">' + bandSumHtml(sum.factorPt, sum.factorKinds, 'factor-pt', 'factor-count') + '</span>'
 				+ '<button type="button" class="uma-help-btn usd-band-help' + (taken > 0 ? ' usd-help-dot' : '') + '" data-usd-act="pt-need-help" data-usd-el="pt-need-help-btn" data-taken="' + taken + '"'

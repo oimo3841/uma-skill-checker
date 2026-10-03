@@ -23,6 +23,7 @@ import { register7d } from './blocks-7d.mjs';
 import { register7f } from './blocks-7f.mjs';
 import { register7e } from './blocks-7e.mjs';
 import { register8 } from './blocks-8.mjs';
+import { register9 } from './blocks-9.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -394,7 +395,7 @@ await block('special.html（UmaStar OCR）', async () => {
 			// **73セッション目に clear-skills（リセット）をここから外した** ―― 名前の行へ移したので、
 			// A の中に在ってはいけない（下の resetOutsideA で「外に在る」ことを見る）。
 			// 段8（C-120）で「追加済みスキル（N種）」の行（selected-count）を無くしたので、並びから外した
-			inA: secA ? ['tier-row', 'selected-list', 'mode-delete', 'mode-reclass']
+			inA: secA ? ['tier-row', 'selected-list']
 				.every(k => !!secA.querySelector('[data-usd-el="' + k + '"]')) : false,
 			noClearBtn: !p.querySelector('[data-usd-el="clear-skills"]'),
 			entryInA: !!(secA && secA.querySelector('.usd-entry-row')),
@@ -428,7 +429,7 @@ await block('special.html（UmaStar OCR）', async () => {
 	const clearBtn = await page.evaluate(() => {
 		const nameRow = document.querySelector('#deck-template-panel .usd-tm-name-row');
 		// 段8（C-120）で「追加済みスキル（N種）」を無くしたので、種類数は分類のタブの数の合計（同じ kindCountsOf の値）で見る
-		const n = [...document.querySelectorAll('#deck-template-panel [data-usd-el^="tier-count-"]')].reduce((a, e) => a + Number(e.textContent), 0);
+		const n = document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]').length;
 		const del = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
 		const reclass = document.querySelector('#deck-template-panel [data-usd-el="mode-reclass"]');
 		return { exists: !!document.querySelector('#deck-template-panel [data-usd-el="clear-skills"]'), count: n,
@@ -437,16 +438,11 @@ await block('special.html（UmaStar OCR）', async () => {
 			modesDisabled: del && reclass && del.disabled && reclass.disabled };
 	});
 	assert(!clearBtn.exists && clearBtn.行 === null, '段7b(⑫)→段7d(⑮): 名前の行は無い（保存・リセット・セットを削除に加えて、「複製」も削除した。Deck 単体ページには残る）', clearBtn);
-	assert(clearBtn.modes && clearBtn.modesOff, 'special: 「再分類」「削除」のモードのボタンがあり、既定は両方 OFF', clearBtn);
-	/* **下段の「削除」（追加済みスキルを消すモード）は変えていない**（73セッション目）。 */
-	const modeLabels = await page.evaluate(() => ({
-		del: document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]').textContent.trim(),
-		reclass: document.querySelector('#deck-template-panel [data-usd-el="mode-reclass"]').textContent.trim(),
-	}));
-	assert(modeLabels.del === '削除' && modeLabels.reclass === '再分類',
-		'73: 下段のモードの「削除」「再分類」はそのまま', modeLabels);
-	assert(clearBtn.count === 0 && clearBtn.modesDisabled,
-		'C-3: 0種のときはモードのボタンが押せない', clearBtn);
+	// 段9（C-121）: 「再分類」「削除」のモードのボタンは無くした（超優先／優先／通常はアイコンに置き換わり、削除は各行の × になった。新しい仕様は blocks-9.mjs の段9(D)）
+	assert(!clearBtn.modes, 'special: 段9 で「再分類」「削除」のモードのボタンは無い（行ごとに × がある）', clearBtn);
+	/* 73セッション目の「下段のモードの『削除』『再分類』はそのまま」の検査は、段9（C-121）でモードのボタンを無くしたので外した */
+	assert(clearBtn.count === 0,
+		'C-3→段9: 0種のときは一覧に行が無い', clearBtn);
 
 	/* 選んだときに出る名前（getSelection().name）もタブと揃っていること。
 	   ドラフトは空だと選べないので、「テキストで検索」で実際に1件入れてから確かめる
@@ -463,14 +459,14 @@ await block('special.html（UmaStar OCR）', async () => {
 	// 段8（C-120）で見出し「追加済みスキル（N種）」を無くしたので、その検査は外し、数は分類のタブの数の合計と比べる
 	const draftFoot = await page.evaluate(() => ({
 		label: document.querySelector('[data-usd-el="picker-commit"]').textContent,
-		n: String([...document.querySelectorAll('#deck-template-panel [data-usd-el^="tier-count-"]')].reduce((a, e) => a + Number(e.textContent), 0))
+		n: String(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]').length)
 	}));
 	assert(draftFoot.n === '1' && draftFoot.label === 'チェックしたスキルを追加（' + draftFoot.n + '種追加済み）',
 		'special: ボタンの「XX種追加済み」が背後の見出しと同じ数', draftFoot);
 	await page.click('[data-usd-act="picker-close"]');
 	await page.waitForTimeout(400);
 	const draftPicked = await page.evaluate(() => ({
-		count: String([...document.querySelectorAll('#deck-template-panel [data-usd-el^="tier-count-"]')].reduce((a, e) => a + Number(e.textContent), 0)),
+		count: String(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]').length),
 		// 選択の注記（#deck-selected-note）は68セッション目に削除した。「そのまま照合対象になる」ことは
 		// **照合に使う実体**（skillOnlyList）と②のタブのバッジで見る（文言ではなく効果で見る）。
 		skills: skillOnlyList.length,
@@ -509,7 +505,7 @@ await block('special.html（UmaStar OCR）', async () => {
 				// 画面だけ動いて保存されていない場合はここで食い違う。
 				saved: JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{}').skillIds || [],
 				// 段8（C-120）で「追加済みスキル（N種）」を無くしたので、分類のタブの数の合計で見る
-				panelCount: String([...document.querySelectorAll('#deck-template-panel [data-usd-el^="tier-count-"]')].reduce((a, e) => a + Number(e.textContent), 0)),
+				panelCount: String(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]').length),
 				note: el('passive-note').textContent,
 				noteCount: el('passive-count').textContent,
 			};
@@ -644,7 +640,7 @@ await block('special.html（UmaStar OCR）', async () => {
 		await page.waitForTimeout(400);
 		await page.evaluate((id) => {
 			const del = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
-			if (del.getAttribute('aria-pressed') !== 'true') del.click();
+			if (del && del.getAttribute('aria-pressed') !== 'true') del.click();   // 段9: special の② は × が常に出る（削除モードは無い）
 			document.querySelector('#deck-template-panel [data-usd-act="template-skill-remove"][data-skill-id="' + id + '"]').click();
 		}, target);
 		await page.waitForTimeout(400);
@@ -5199,7 +5195,7 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 	const storedDraft = () => page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds);
 	const undoUi = () => page.evaluate(() => ({
 		// 段8（C-120）で「追加済みスキル（N種）」を無くしたので、分類のタブの数の合計で見る
-		count: [...document.querySelectorAll('#deck-template-panel [data-usd-el^="tier-count-"]')].reduce((a, e) => a + Number(e.textContent), 0),
+		count: document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]').length,
 		btn: getComputedStyle(document.getElementById('deck-undo-btn')).display !== 'none',
 		badge: document.getElementById('deck-undo-count').textContent,
 		toast: document.getElementById('toast-message').textContent,
@@ -5211,7 +5207,7 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 	// 一括削除（C-3）は削除モードに関係なく押せる
 	const ensureDeleteMode = () => page.evaluate(() => {
 		const b = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
-		if (b.getAttribute('aria-pressed') !== 'true') b.click();
+		if (b && b.getAttribute('aria-pressed') !== 'true') b.click();   // 段9: special の② は × が常に出る（モードのボタンは無い）
 	});
 
 	// 1) 追加済みスキルを全て削除 → 元に戻す。件数・保存先・ボタンの3つが揃って戻ること
@@ -5269,7 +5265,7 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 	await page.evaluate(() => deckTemplateManager.setSelectedId('__draft__'));
 	await page.waitForTimeout(400);
 	const afterReload = await page.evaluate(() =>
-		[...document.querySelectorAll('#deck-template-panel [data-usd-el^="tier-count-"]')].reduce((a, e) => a + Number(e.textContent), 0) + '種');
+		document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]').length + '種');
 	assert(/12種/.test(afterReload), 'undo: リロードしても戻した12種が保たれている', afterReload);
 
 	// 3) 個別に外す → 元に戻す。位置も含めて実行前と一致すること
@@ -5277,7 +5273,7 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 		const read = () => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds;
 		const before = read();
 		const del = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
-		if (del.getAttribute('aria-pressed') !== 'true') del.click();   // × は削除モードのときだけ出る（C-57）
+		if (del && del.getAttribute('aria-pressed') !== 'true') del.click();   // × は削除モードのときだけ出る（C-57）。段9: special の② は常に出る
 		document.querySelectorAll('#deck-template-panel [data-usd-act="template-skill-remove"]')[3].click();
 		const removedLen = read().length;
 		const ok = UmaSkillDeckCore.performUndo();
@@ -5379,7 +5375,7 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 	};
 	// 段8（C-120）で「追加済みスキル（N種）」を無くしたので、分類のタブの数の合計で見る
 	const draftCount = () => page.evaluate(() =>
-		[...document.querySelectorAll('#deck-template-panel [data-usd-el^="tier-count-"]')].reduce((a, e) => a + Number(e.textContent), 0));
+		document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]').length);
 
 	// 1) 複数種の追加 → 元に戻す → 追加前の件数に戻る
 	const before3 = await draftCount();
@@ -7578,27 +7574,25 @@ await block('スキルセットの分類（超優先／優先／通常。C-57）
 	// 段8（C-120）で②のタブの帯を無くしたので、セットは deckTemplateManager.setSelectedId で選ぶ
 	await page.evaluate((id) => deckTemplateManager.setSelectedId(id), TEMPLATE_ID);
 	await page.waitForTimeout(400);
+	/* 段9（C-121）: special の②は、超優先／優先／通常の分類のタブ・再分類・削除のモードをやめ、スキルごとのアイコン（◎○△◇★✕）に置き換えた。
+	   tiers は Deck・結合画像の印のために残り、アイコンから導く（新しい仕様は blocks-9.mjs の段9(A)(B)）。
+	   ここに残すのは、tiers を持たない既存のデータを開いても保存データが変わらないことと、スキルパネルの質感・列数（Deck と共通）。 */
 	const ui = () => page.evaluate(() => {
 		const r = '#deck-template-panel';
 		const q = (s) => document.querySelector(r + ' ' + s);
 		return {
-			counts: [1, 2, 3].map(t => q('[data-usd-el="tier-count-' + t + '"]').textContent),
-			// 段8（C-120）で special の「設定数」（tier-total）を無くしたので、分類のタブの数の合計で見る
-			total: String([1, 2, 3].reduce((a, t) => a + Number(q('[data-usd-el="tier-count-' + t + '"]').textContent), 0)),
 			panels: document.querySelectorAll(r + ' .usd-panel').length,
-			marks: Array.from(document.querySelectorAll(r + ' .usd-panel .uma-tier-mark')).map(m => m.dataset.tier).join(''),
+			icons: Array.from(document.querySelectorAll(r + ' .usd-panel [data-usd-act="skill-icon"]')).map(b => b.dataset.icon || '').join(''),
+			tabs: document.querySelectorAll(r + ' .usd-tier-tab').length,
+			modes: !!q('[data-usd-el="mode-reclass"]') || !!q('[data-usd-el="mode-delete"]'),
 			dels: document.querySelectorAll(r + ' .usd-panel-del').length,
-			moves: document.querySelectorAll(r + ' .usd-panel-move').length,
-			reclass: q('[data-usd-el="mode-reclass"]').getAttribute('aria-pressed'),
-			del: q('[data-usd-el="mode-delete"]').getAttribute('aria-pressed'),
 			cols: getComputedStyle(q('[data-usd-el="selected-list"]')).gridTemplateColumns.split(' ').length,
-			schema: JSON.parse(localStorage.getItem('umaSkillDeck:userData')).schemaVersion,
-			tiers: JSON.parse(localStorage.getItem('umaSkillDeck:userData')).templates[0].tiers,
 		};
 	});
 	const t0 = await ui();
-	assert(t0.counts.join() === '0,' + PICK.length + ',0' && t0.total === String(PICK.length) && t0.panels === PICK.length && t0.marks === '2'.repeat(PICK.length),
-		'tiers: tiers を持たないデータのスキルは全部「優先」に入る', t0);
+	assert(t0.panels === PICK.length && t0.icons === 'b'.repeat(PICK.length),
+		'tiers→段9: tiers を持たないデータのスキルは全部「優先」＝○のアイコンで出る', t0);
+	assert(t0.tabs === 0 && !t0.modes && t0.dels === PICK.length, '段9: 分類のタブと再分類・削除のモードは無い。各行に × がある', t0);
 	// 印は競馬の印（◎○▲）を**線で**描いた SVG（C-58 の作業B）。塗りつぶさないので fill は none
 	const markShape = await page.evaluate(() => {
 		const one = (t) => {
@@ -7622,43 +7616,8 @@ await block('スキルセットの分類（超優先／優先／通常。C-57）
 	});
 	assert(panelLook.bg.startsWith('linear-gradient(') && panelLook.shadows === 3,
 		'tiers: スキルパネルは横方向のグラデーション＋影3つ（板の質感。C-58 の作業A）', panelLook);
-	assert(t0.dels === 0 && t0.moves === 0 && t0.reclass === 'false' && t0.del === 'false',
-		'tiers: 既定は両方のモードが OFF（× も移動先も出ない）', t0);
 	assert(t0.cols > 2, 'tiers: 1280px ではパネルの列が画面幅に合わせて増える', t0.cols);
-	await page.click('#deck-template-panel [data-usd-act="tier-tab"][data-tier="1"]');
-	await page.waitForTimeout(200);
-	const t1 = await ui();
-	assert(t1.panels === 0 && (await stored()) === before, 'tiers: 分類のタブを切り替えても保存データは変わらない（tiers は書き足されない）', t1);
-	await page.click('#deck-template-panel [data-usd-act="tier-tab"][data-tier="2"]');
-	await page.click('#deck-template-panel [data-usd-el="mode-reclass"]');
-	await page.waitForTimeout(200);
-	const t2 = await ui();
-	assert(t2.reclass === 'true' && t2.del === 'false' && t2.moves === PICK.length * 2 && t2.dels === 0,
-		'tiers: 再分類モードでは各パネルに移動先の2つ（超優先・通常）が出て、× は出ない', t2);
-	await page.click('#deck-template-panel [data-usd-el="mode-delete"]');
-	await page.waitForTimeout(200);
-	const t3 = await ui();
-	assert(t3.reclass === 'false' && t3.del === 'true' && t3.dels === PICK.length && t3.moves === 0,
-		'tiers: 削除モードにすると再分類は OFF になり、× が出る', t3);
-	await page.click('#deck-template-panel [data-usd-el="mode-reclass"]');
-	await page.waitForTimeout(200);
-	await page.click('#deck-template-panel .usd-panel .usd-panel-move[data-tier="1"]');
-	await page.waitForTimeout(300);
-	const t4 = await ui();
-	assert(t4.counts.join() === '1,' + (PICK.length - 1) + ',0' && t4.schema === 4 && JSON.stringify(t4.tiers) === JSON.stringify({ [PICK[0].id]: 1 }),
-		'tiers: 再分類で tiers が書かれ、schemaVersion が 4 に上がる', t4);
-	assert((await page.evaluate(() => document.getElementById('toast-message').textContent)) === '「' + PICK[0].name + '」を超優先へ移しました'
-		&& (await page.evaluate(() => UmaSkillDeckCore.undoCount())) === 1,
-		'tiers: 再分類は「元に戻す」に積まれ、トーストが出る');
-	await page.click('#deck-template-panel [data-usd-act="tier-tab"][data-tier="1"]');
-	await page.waitForTimeout(200);
-	const t5 = await ui();
-	assert(t5.panels === 1 && t5.marks === '1', 'tiers: 超優先のタブに移したスキルが金の★で出る', t5);
-	await page.click('#deck-undo-btn');
-	await page.waitForTimeout(300);
-	const t6 = await ui();
-	assert(t6.tiers === undefined && t6.counts.join() === '0,' + PICK.length + ',0' && (await page.evaluate(() => UmaSkillDeckCore.undoCount())) === 0,
-		'tiers: 「元に戻す」で分類が元に戻り、tiers は消える', t6);
+	assert((await stored()) === before, 'tiers: 開いてセットを選んだだけでは保存データは変わらない（tiers も skillIcons も書き足されない）');
 	assert(errors.length === 0, 'tiers: special でコンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
 }
@@ -7681,10 +7640,11 @@ await block('スキルセットの分類（超優先／優先／通常。C-57）
 		document.getElementById('import-textarea').value = json;
 		const realConfirm = window.confirm; window.confirm = () => true; importData(); window.confirm = realConfirm;
 		const d = JSON.parse(localStorage.getItem('umaSkillDeck:userData'));
-		return { schema: d.schemaVersion, tiers: d.templates[0].tiers };
+		return { schema: d.schemaVersion, tiers: d.templates[0].tiers, icons: d.templates[0].skillIcons };
 	}, exported);
-	assert(roundtrip.schema === 4 && JSON.stringify(roundtrip.tiers) === JSON.stringify({ [PICK[0].id]: 3 }),
-		'tiers(deck): 取り込み直しても tiers が残る', roundtrip);
+	// 段9（C-121）: tiers を持つ書き出しの取り込みは、schemaVersion 7 へ移行して skillIcons を写す（tiers はそのまま残る）
+	assert(roundtrip.schema === 7 && JSON.stringify(roundtrip.tiers) === JSON.stringify({ [PICK[0].id]: 3 }),
+		'tiers(deck): 取り込み直しても tiers が残る（schemaVersion は 7 へ移行）', roundtrip);
 	const legacy = await page.evaluate((json) => {
 		document.getElementById('import-textarea').value = json;
 		const realConfirm = window.confirm; window.confirm = () => true; importData(); window.confirm = realConfirm;
@@ -8008,7 +7968,8 @@ await block('段K ―― ②の画面構成（スキルセット／シナリオ�
 		/* **73セッション目に言い方を変えた。** 入口の並びは折り返さなくなった（横に送る形）ので、
 		   「切り替えで段数が変わらない」は**どう転んでも通る検査**になった。
 		   段数は**常に1**であることを直接言う形にして、意味を持たせている。 */
-		assert(before.entryLines === 1 && after.entryLines === 1 && after.cols === before.cols && after.cols >= 2,
+		assert(before.entryLines === 1 && after.entryLines === 1 && after.cols === before.cols && after.cols >= 1,   // 段9: 375px の一覧は1列（アイコンと × が入るので。2列から変えた）
+		
 			'段K(' + w + 'px): 入口は常に1段（折り返さない）で、スキルパネルの列数は切り替えで変わらない', { before, after });
 		assert(errs.length === 0, '段K(' + w + 'px): コンソールエラーが出ない', errs.slice(0, 3));
 		await ctx.close();
@@ -9884,7 +9845,10 @@ await block('カスタムスキルの廃止 ―― 保存済みのものは入�
 	};
 	const SEED_TEXT = JSON.stringify(SEED);
 	const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-	const stored = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:userData'));
+	/* 段9（C-121）: この SEED は tiers を持つ（schemaVersion 5）ので、読み込み時の移行（tiers → skillIcons。schemaVersion 7）が1回だけ走って保存し直される。
+	   「起動しても1バイトも書き換わらない」は、**移行で足されるもの（skillIcons・schemaVersion）を除いて**、自作スキル・比較シート・tiers がそのまま、として見る。 */
+	const unmigrate = (text) => { const d = JSON.parse(text); d.schemaVersion = 5; d.templates.forEach((t) => { delete t.skillIcons; }); return JSON.stringify(d); };
+	const stored = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:userData')).then((t) => (t === null ? t : unmigrate(t)));
 
 	/* ---- Deck ---- */
 	{
@@ -10065,13 +10029,11 @@ await block('カスタムスキルの廃止 ―― 保存済みのものは入�
 		const sp = await page.evaluate(([a, b]) => ({
 			dict: skillList.filter((n) => n === a.name || n === b.name),
 			total: skillList.length,
-			tier1: (document.querySelector('#deck-template-panel [data-usd-el="tier-count-1"]') || {}).textContent || null,
+			tier1: ((document.querySelector('#deck-template-panel [data-usd-act="skill-icon"][data-skill-id="custom_c100a"]') || {}).dataset || {}).icon || null,
 		}), [C1, C2]);
 		assert(eq(sp.dict.slice().sort(), [C1.name, C2.name].sort()) && sp.total === 4,
 			'C-100 special: 自作スキル入りのセットを選ぶと、照合の辞書に自作スキルが同じ名前で入る', sp);
-		assert(sp.tier1 === '1', 'C-100 special: 周回因子セットでも分け方（超優先1）が変わらない', sp.tier1);
-		await page.click('#deck-template-panel [data-usd-act="tier-tab"][data-tier="1"]');
-		await page.waitForTimeout(250);
+		assert(sp.tier1 === 'a', 'C-100 special: 周回因子セットでも分け方が変わらない（超優先 → ◎のアイコン）', sp.tier1);
 		const panel = await page.evaluate((id) => {
 			const p = document.querySelector('#deck-template-panel .usd-panel[data-skill-id="' + id + '"]');
 			return p ? p.querySelector('.usd-panel-namebtn').textContent : null;   // 段7d の ⑬：名前は button（Pt を添えた span の中）
@@ -12115,7 +12077,7 @@ await block('編成パネル ―― スキルPt（段3）', async () => {
 	const lvOf = (id) => e.L(id);
 	assert(lvOf(S[1]) === 2 && lvOf(S[5]) === 3 && lvOf(S[4]) === 1 && lvOf(S[2]) === 1,
 		'Pt(1): 仕込みのイベントのレベルが設計どおり（S1＝2・S5＝3・S4＝1 〔両方の選択肢に入っていても同じイベントは最大の1回〕・S2＝1）', { s1: lvOf(S[1]), s5: lvOf(S[5]), s4: lvOf(S[4]), s2: lvOf(S[2]) });
-	assert(v.labels.join('|') === ['勉強家', '切れ者', '覚醒ヒントLv5'].join('|') && v.statusChecked.join() === 'none' && v.umaChecked.join() === ''
+	assert(v.labels.join('|') === ['勉強家', '切れ者', '覚醒Lv5'].join('|') && v.statusChecked.join() === 'none' && v.umaChecked.join() === ''
 		&& v.statusBtns.map((b) => b.title).join('|') === '勉強家 −4%|切れ者 −10%',
 		'Pt(1): 状態のボタンは「勉強家」「切れ者」（割引率は title。割引率の表から作る）・育成ウマ娘は「覚醒ヒントLv5」だけ（押していない＝Lv3＝既定。段7b の ⑤）・状態は「なし」', { labels: v.labels, s: v.statusChecked, u: v.umaChecked });
 
@@ -12427,7 +12389,10 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	const readNeed = (page) => page.evaluate(() => {
 		const el = document.querySelector('[data-usd-el="pt-need"]');
 		const num = (s) => Number((s || '').replace(/[^0-9]/g, ''));
-		const chip = (n) => { const e = el.querySelector('[data-usd-el="pt-need-' + n + '"]'); return e ? { label: e.textContent.trim(), n: Number(e.getAttribute('data-cum')) } : null; };   // n は「そのランクまで」の累計（チップの表示はそのランクのぶんだけ。段7d の追加・A）
+		// 段9（C-121）: ランクごとのチップは無くなった。分類（アイコンから導いた tiers）ごとの累計は、帯の data-cuts（検査用。画面には出さない）から読む
+		const band = el.querySelector('[data-usd-el="set-head"]');
+		const cuts = band ? JSON.parse(band.getAttribute('data-cuts')) : null;
+		const chip = (n) => (cuts ? { label: '', n: cuts[n - 1].total } : null);
 		const t = (i) => { const e = el.querySelector('[data-usd-el="' + i + '"]'); return e ? e.textContent : null; };
 		// 段8・D（C-120）: 親由来のレベル（「共通スキルのヒントLv」）の選択は、pt-need の外の②の2行目（roster-link-row）へ移った
 		const sel = document.querySelector('#deck-template-panel [data-usd-el="pt-parent-level"]');
@@ -12444,8 +12409,8 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	let e = expectedNeed(base0);
 	assert(!v.hidden && sameNeed(v, e), '段5(1): 3つの合計（超優先だけ・優先まで・通常まで）が、独立の期待値と一致する', { got: v.chips.map((c) => c && c.n), want: [e.A, e.B, e.C] });
 	// 段8・D（C-120）: チップの表示はそのランク自身の Pt（「＋超優先： N Pt」。1280px では「：」のあとに空白）。累積は data-cum で見る
-	assert(v.chips.map((c) => c.label.replace(/[0-9,]+/, 'N')).join('|') === '＋超優先： N Pt|＋優先： N Pt|＋通常： N Pt' && e.A < e.B && e.B < e.C && v.chips[0].n < v.chips[1].n && v.chips[1].n < v.chips[2].n,
-		'段5(1)→段8(D): 並びと名前は「＋超優先： N Pt」「＋優先： N Pt」「＋通常： N Pt」で、累積（＜）になっている（期待値の側でも3つとも増える＝空振りでない）', { chips: v.chips, e: [e.A, e.B, e.C] });
+	assert(e.A < e.B && e.B < e.C && v.chips[0].n < v.chips[1].n && v.chips[1].n < v.chips[2].n,
+		'段5(1)→段9: 分類ごとの累計（画面には出さず、帯の data-cuts が持つ検査用の値）は 超優先だけ＜優先まで＜通常まで（期待値の側でも3つとも増える＝空振りでない）', { chips: v.chips, e: [e.A, e.B, e.C] });
 	// 段8（C-120）で「理論値」のバッジ（pt-need-theory）と説明の箱（pt-need-help-box）を無くしたので、バッジの検査は外した。
 	// 「理論値」の説明は「?」の小窓の1行目（factor-help-theory）に移ったので、そちらを見る（新しい仕様は blocks-8.mjs の段8(D)）
 	await sp.page.evaluate(() => selectStepTab(1));
@@ -12461,8 +12426,9 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 		'段5(6): Pt が未収録のスキル（Y4）は合計に入れず、「?」の小窓に「Pt 未収録のスキル 1種は数えていません」が出る（pt:0 の Y5 は未収録に数えない）', { unpriced: help.unpriced });
 	assert(v.roster === null && e.roster > 0, '段5(1)→段7c(O): 「（うち本育成 X）」の行は削除した（表示だけ。X の計算は変えていない）', { got: v.roster, want: e.roster });
 	// 分類を変える（優先の Y1 を超優先へ）→ 超優先だけ・優先までが増え、通常までは変わらない
-	await sp.page.click('[data-usd-act="mode-reclass"]');
-	await sp.page.click('[data-usd-act="tier-move"][data-skill-id="' + y(1) + '"][data-tier="1"]');
+	// 段9: 再分類のモードは無い。パレットで ◎ を選び、その行のアイコンを押すと超優先（tiers が 1）になる
+	await sp.page.click('#deck-template-panel [data-usd-el="palette-a"]');
+	await sp.page.click('#deck-template-panel .usd-panel[data-skill-id="' + y(1) + '"] [data-usd-act="skill-icon"]');
 	v = await readNeed(sp.page);
 	const tiers2 = Object.assign({}, SCOPE_TIERS, { [y(1)]: 1 });
 	e = expectedNeed(Object.assign({}, base0, { tiers: tiers2 }));
@@ -12564,8 +12530,8 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	v = await readNeed(sp.page);
 	// 段8・D（C-120）: ②の先頭は「X Pt/N種」を常に出す（X ＝ 継承固有 ＋ ON のランクの Pt）。空のセットでも継承固有のぶんだけが出る
 	// （それまでの「必要スキルPt を出さない」は、②の先頭が常に出るようになったので成り立たない）
-	assert(!v.hidden && v.chips.every((c) => c && c.n === UQ('none') && /＋.+： 0 Pt/.test(c.label)),
-		'段5(10)→段8(D): 本育成も因子セットも空のときは、3つのチップは 0 Pt で、累計は継承固有のぶんだけ', v);
+	assert(!v.hidden && v.chips.every((c) => c && c.n === UQ('none')),
+		'段5(10)→段9: 本育成も因子セットも空のときは、3つの累計（検査用の data-cuts）は継承固有のぶんだけ', v);
 	await sp.ctx.close();
 
 	/* ⑨ 読み込みの失敗 */
@@ -12610,11 +12576,11 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 		await sp.page.evaluate(() => selectStepTab(1));
 		const g = await sp.page.evaluate(() => {
 			const el = document.querySelector('[data-usd-el="pt-need"]');
-			const chips = Array.from(el.querySelectorAll('.usd-ptneed-chip'));
+			const chips = Array.from(el.querySelectorAll('.usd-band-tag'));   // 段9: ランクのチップはタグ2つ［継承固有］［共通スキル］に置き換わった
 			return { hidden: el.hidden, page: document.documentElement.scrollWidth - window.innerWidth, box: el.scrollWidth - el.clientWidth,
 				tops: new Set(chips.map((c) => Math.round(c.getBoundingClientRect().top))).size, chips: chips.length };
 		});
-		assert(!g.hidden && g.page <= 0 && g.box <= 0 && g.tops === 1 && g.chips === 4, '段5(11)→段7d の追加(A): ' + w + 'px の②タブで、必要スキルPt（継承固有と3つのチップは1行〔収まらないときはその行だけ横に送る〕・親由来のレベル）が、ページも箱も横にはみ出さない', g);
+		assert(!g.hidden && g.page <= 0 && g.box <= 0 && g.tops === 1 && g.chips === 2, '段5(11)→段7d の追加(A): ' + w + 'px の②タブで、必要スキルPt（継承固有と3つのチップは1行〔収まらないときはその行だけ横に送る〕・親由来のレベル）が、ページも箱も横にはみ出さない', g);
 		const other = sp.errors.filter((m) => !/Failed to load resource|status of 404/.test(m));
 		assert(other.length === 0, '段5(11): ' + w + 'px でコンソールエラーなし', other.slice(0, 3));
 		await sp.ctx.close();
@@ -12804,7 +12770,9 @@ await block('前段の必要Pt（段4b）', async () => {
 		const el = document.querySelector('[data-usd-el="pt-need"]');
 		const num = (s) => Number((s || '').replace(/[^0-9]/g, ''));
 		const t = (i) => { const e = el.querySelector('[data-usd-el="' + i + '"]'); return e ? e.textContent : null; };
-		return { hidden: el.hidden, chips: [1, 2, 3].map((k) => { const c = el.querySelector('[data-usd-el="pt-need-' + k + '"]'); return c ? Number(c.getAttribute('data-cum')) : null; }),
+		const band = el.querySelector('[data-usd-el="set-head"]');   // 段9: 分類ごとの累計は帯の data-cuts（検査用）から読む
+		const cuts = band ? JSON.parse(band.getAttribute('data-cuts')) : null;
+		return { hidden: el.hidden, chips: [1, 2, 3].map((k) => (cuts ? cuts[k - 1].total : null)),
 			roster: t('pt-need-roster'), unpriced: t('pt-need-unpriced'), prevError: t('pt-need-prev-error') };
 	});
 
@@ -13365,7 +13333,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 		'段7(8)(14): 金スキルの行に金の印（クラス）が付き、名前の右の Pt は「P Pt」。△の行は薄い色の参考値', { gold: row(W[3]), white: row(W[2]), maybe: row(W[0]) });
 	const goldLook = await sp.page.evaluate((id) => { const r = document.querySelector('#deck-roster-panel .usd-roster-grow[data-skill-id="' + id + '"] .usd-roster-gc'); const w = document.querySelector('#deck-roster-panel .usd-roster-grow:not(.usd-roster-grow--gold) .usd-roster-gc'); return { gold: getComputedStyle(r).backgroundColor, white: getComputedStyle(w).backgroundColor }; }, W[3]);
 	assert(goldLook.gold !== goldLook.white, '段7(18): 金スキルの行の地の色が、ほかの行と違う', goldLook);
-	assert(v.status.map((b) => b.label).join('|') === '勉強家|切れ者' && v.status.every((b) => b.pressed === 'false') && v.uma.map((b) => b.label).join('|') === '覚醒ヒントLv5' && v.uma[0].pressed === 'false' && v.uma[0].disabled,
+	assert(v.status.map((b) => b.label).join('|') === '勉強家|切れ者' && v.status.every((b) => b.pressed === 'false') && v.uma.map((b) => b.label).join('|') === '覚醒Lv5' && v.uma[0].pressed === 'false' && v.uma[0].disabled,
 		'段7(12)(13)→段7b(⑤): ［勉強家］［切れ者］は押していない、［覚醒ヒントLv5］は押していない（＝Lv3）で、育成ウマ娘が居ないので押せない', { status: v.status, uma: v.uma });
 	await sp.page.click(P + 'button[data-usd-act="pt-status"][data-value="kire"]');
 	v = await readPanel(sp.page);
@@ -13653,8 +13621,8 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	assert(help.open && help.caution.includes('OCR・★判定の精度は完全ではありません') && help.caution.includes('解像度不足') && help.caution.includes('加工された画像'), '段7(1): 「使い方・注意」のポップアップの「注意」の欄に3行がある', help);
 	await sp.page.keyboard.press('Escape');
 	await sp.page.evaluate(() => selectStepTab(1));
-	const row2 = await sp.page.evaluate(() => { const r = document.querySelector('.usd-panel[data-skill-id]'); const b = r && r.querySelector('[data-usd-el="skill-info-btn"]'); return { btn: !!b, isInfo: b && b.classList.contains('usd-info-btn'), nameIsBtn: r && r.querySelector('.usd-panel-name').tagName }; });
-	assert(row2.btn && !row2.isInfo && row2.nameIsBtn === 'SPAN', '段7(14)→段7d(⑬): ②の行も、名前（button）を押して開く形になった（ⓘ の別ボタンは無い）', row2);
+	const row2 = await sp.page.evaluate(() => { const r = document.querySelector('.usd-panel[data-skill-id]'); const b = r && r.querySelector('[data-usd-el="skill-info-btn"]'); return { btn: !!b, isInfo: b && b.classList.contains('usd-info-btn'), nameIsBtn: r && r.querySelector('.usd-panel-namebtn').tagName }; });   // 段9（C-121）: 行は「アイコン／名前（button）／Pt／×」で、名前を包む span は無い
+	assert(row2.btn && !row2.isInfo && row2.nameIsBtn === 'BUTTON', '段7(14)→段7d(⑬)→段9: ②の行も、名前（button）を押して開く形になった（ⓘ の別ボタンは無い）', row2);
 	await sp.ctx.close();
 	for (const file of ['exam.html', 'index.html', 'card-event-input.html']) {
 		const pg = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -13854,7 +13822,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		assert(top.slots.length === 6 && top.slots.slice(0, 3).every((s, i) => s.badge === String(i + 1) && s.title.length >= s.name.length && s.aria === (i + 1) + '枚目：' + s.title && s.ellipsis === 'ellipsis' && s.clear)
 			&& top.slots.slice(3).every((s, i) => s.badge === String(i + 4) && s.name === 'サポカを選ぶ'),
 			tag + 'カードの欄の名前の前に 1〜6 のバッジ（空きは「サポカを選ぶ」）。名前は省略記号で切り、全文は title と aria-label', top.slots.map((s) => [s.badge, s.name]));
-		assert(top.umaToggles.length === 1 && top.umaToggles[0].text === '覚醒ヒントLv5' && top.statusToggles.join('|') === '勉強家|切れ者' && !top.umaToggles[0].disabled && top.umaToggles[0].pressed === 'false',
+		assert(top.umaToggles.length === 1 && top.umaToggles[0].text === '覚醒Lv5' && top.statusToggles.join('|') === '勉強家|切れ者' && !top.umaToggles[0].disabled && top.umaToggles[0].pressed === 'false',
 			tag + '「ヒントLv3」のボタンは無く、「覚醒ヒントLv5」だけ（覚醒レベル7のウマ娘なので押せる・既定は押していない＝Lv3）。「勉強家」「切れ者」はそのまま', top.umaToggles);
 		assert(top.legendShown === null, tag + '表の最下段の凡例（育成ウマ娘・カード名の一覧）は、どの幅でも出さない（段7c の L。段7b の「広い幅は残す」を置き換え）', { legendShown: top.legendShown });
 		// 覚醒ヒントLv5 の入れ替え
@@ -14075,8 +14043,9 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		await sp.page.evaluate(() => selectStepTab(1));
 		await sp.page.waitForTimeout(300);
 		const T = '#deck-template-panel ';
-		await run('②再分類', T + '[data-usd-el="mode-reclass"]', click(T + '[data-usd-el="mode-reclass"]'));
-		await run('②再分類（解除）', T + '[data-usd-el="mode-reclass"]', click(T + '[data-usd-el="mode-reclass"]'));
+		// 段9（C-121）: ②の再分類のモードは無くなった。代わりにアイコンのパレット（選択を替えるだけで、ページは動かない）
+		await run('②パレット（○）', T + '[data-usd-el="palette-b"]', click(T + '[data-usd-el="palette-b"]'));
+		await run('②パレット（◎）', T + '[data-usd-el="palette-a"]', click(T + '[data-usd-el="palette-a"]'));
 		const table = rows.map((r) => r.label + ': Δスクロール ' + r.dy + 'px・Δボタン位置 ' + r.dtop + 'px' + (r.ok ? '' : '  ← NG')).join('\n');
 		console.log('段7b(⑥) 操作前後の差（375px）:\n' + table);
 		assert(rows.length >= 15 && rows.every((r) => r.ok), '段7b(⑥): 375px で表を画面の途中に置いて各ボタンを押しても、ページの位置（window.scrollY）と押したボタンの画面上の位置の差が 2px 以内（小窓の中の位置も変わらない）。' + rows.length + '件', rows.filter((r) => !r.ok));
@@ -14142,6 +14111,7 @@ await register7d({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register7f({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register7e({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register8({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register9({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
