@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-03t"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-03u"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<style>
@@ -92,12 +92,13 @@
 		     --uma-band       … ①②の「Pt／種」の薄い帯の地
 		     --uma-dash       … ②の設定の枠の破線（アイコンの無い丸の破線も同じ色）
 		     --uma-group-bg   … ②のスキルのまとまり（白い枠）の面　／　--uma-group-line … その枠の線
+		     --uma-config-bg  … ②の設定の枠（破線）の地（ダークで、まとまりの面とも濃淡で見分けるため、設定の枠だけ別に持つ）
 		   既定がライト。**ダークは html[data-theme="dark"] で同じ名前を差し替えるだけ**（将来のダークモード切替の足場。いまは製品のどこにも
 		   data-theme を付けない＝ライトのまま）。ダークの面・文字・線は、共有の tokens にダークが無いので、このページが使うぶんをここで補う
 		   （帯 #2d4160／設定の枠は一段沈めた面と破線／まとまりは背景より一段明るい面と線 → 濃淡と線の種類の両方で見分ける）。 */
-		:root { --uma-band: #e9eef6; --uma-dash: #b9c2d0; --uma-group-bg: #ffffff; --uma-group-line: #cad5e2; }
+		:root { --uma-band: #e9eef6; --uma-dash: #b9c2d0; --uma-group-bg: #ffffff; --uma-group-line: #cad5e2; --uma-config-bg: #f8fafc; }
 		:root[data-theme="dark"] {
-			--uma-band: #2d4160; --uma-dash: #5f6e86; --uma-group-bg: #222a35; --uma-group-line: #3b4555;
+			--uma-band: #2d4160; --uma-dash: #5f6e86; --uma-group-bg: #222a35; --uma-group-line: #3b4555; --uma-config-bg: #12171f;
 			--uma-surface: #171d26; --uma-glass-bg: rgba(23, 29, 38, .92); --uma-surface-sunken: #1c2430; --uma-surface-muted: #263041;
 			--uma-surface-group: #263041; --uma-surface-inverse: #e2e8f0;
 			--uma-text: #e2e8f0; --uma-text-heading: #f1f5f9; --uma-text-muted: #cbd5e1; --uma-text-subtle: #aab6c8; --uma-text-faint: #8f9cb0; --uma-text-inverse: #0f1318;
@@ -119,7 +120,7 @@
 		.deck-scopes-bar { margin-bottom: var(--uma-sp-2); padding-top: var(--uma-sp-1); }
 		.deck-scopes-bar[hidden] { display: none; }
 		@media (max-width: 640px) {
-			.deck-set-bar { margin: calc(-1 * var(--uma-sp-1-5)) calc(-1 * var(--uma-sp-1-5)) var(--uma-sp-1); padding: 1px var(--uma-sp-2); border-radius: var(--uma-r-lg) var(--uma-r-lg) 0 0; }
+			.deck-set-bar { margin: calc(-1 * var(--uma-sp-1-5)) calc(-1 * var(--uma-sp-1-5)) var(--uma-sp-1); padding: 0 var(--uma-sp-2); border-radius: var(--uma-r-lg) var(--uma-r-lg) 0 0; }
 		}
 		/* 狭い端末（322px 以下）でタイトルとピルがツール切替・？と並ばないときは、ピルの文字を「2nd」だけにする（323px 以上は全部入って1行に収まる。実測。それより狭いとピルが次の行へ回りヘッダーが高くなる） */
 		@media (max-width: 322px) { .header-edition-sub { display: none; } }

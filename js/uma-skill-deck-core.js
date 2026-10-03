@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03t';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03u';
 
 	/* ============================================================
 	 * 定数
@@ -4278,7 +4278,7 @@
 		'.usd-band-pt { font-size: 22px; line-height: 1.1; font-weight: 800; font-variant-numeric: tabular-nums; }',
 		'.usd-band-unit { margin-left: 1px; font-size: 12px; font-weight: 700; }',
 		'.usd-band-slash, .usd-band-kinds { font-size: 14px; font-weight: 800; }',
-		'.usd-band-kunit { margin-left: 1px; font-size: 11px; font-weight: 400; color: var(--uma-text-subtle); }',
+		'.usd-band-kunit { margin-left: 1px; font-size: 11px; font-weight: 400; color: var(--uma-text-muted); }',
 		'.usd-band-main { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }',
 		'.usd-band-main .uma-help-btn { flex: none; }',
 		'.usd-band-tags { order: 5; flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }',
@@ -4297,8 +4297,8 @@
 		'.usd-reset-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
 		'.usd-reset-btn:disabled { color: var(--uma-text-faint); background: transparent; border-style: dashed; cursor: not-allowed; }',
 		// 設定の枠（破線・薄い地・角丸10px）
-		'.usd-setbody .usd-roster-link { padding: 6px 8px; border: 1px dashed var(--uma-dash, #b9c2d0); border-radius: 10px; background: var(--uma-surface-sunken); }',
-		'.usd-setcfg { flex: none; }',
+		'.usd-setbody .usd-roster-link { padding: 6px 8px; border: 1px dashed var(--uma-dash, #b9c2d0); border-radius: 10px; background: var(--uma-config-bg, var(--uma-surface-sunken)); min-width: 0; }',
+		'.usd-setcfg { flex: 1 1 100%; }',
 		// スキルのまとまり（白い枠・線あり・角丸10px・横8px）: 入口 → パレット → 一覧
 		'.usd-skillgroup { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid var(--uma-group-line, var(--uma-border-strong)); border-radius: 10px;',
 		'  background: var(--uma-group-bg, var(--uma-surface)); min-width: 0; }',
@@ -4364,10 +4364,10 @@
 		'.usd-setbar-sum { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0; white-space: nowrap; color: var(--uma-text); }',
 		'.usd-setbar-sumline { display: inline-flex; align-items: baseline; gap: 2px; }',
 		'.usd-setbar-k { font-size: 12px; line-height: 1; font-weight: 700; color: var(--uma-text-heading); }',
-		'.usd-setbar-num { font-size: 18px; line-height: 1.1; font-weight: 800; color: var(--uma-text-heading); font-variant-numeric: tabular-nums; }',
+		'.usd-setbar-num { font-size: 18px; line-height: 1.05; font-weight: 800; color: var(--uma-text-heading); font-variant-numeric: tabular-nums; }',
 		'.usd-setbar-subline { display: inline-flex; align-items: center; gap: 4px; }',
 		'.usd-setbar-sub { font-size: 10.5px; line-height: 1.1; color: var(--uma-text-subtle); }',
-		'.usd-setbar-subline .uma-help-btn { width: 18px; height: 18px; font-size: 11px; }',
+		'.usd-setbar-subline .uma-help-btn { width: 16px; height: 16px; font-size: 10px; }',
 		// セルの中の横スクロール（名前と Pt）の「続きがある側のフェード」。入口の並びと同じ仕組み（data-usd-fade）
 		'.usd-hscroll { margin-inline-end: var(--usd-entry-trim, 0px); }',
 		'.usd-hscroll[data-usd-fade="right"], .usd-hscroll[data-usd-fade="both"] { --usd-fade-r: rgba(0,0,0,.3) 100%; }',
