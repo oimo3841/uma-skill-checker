@@ -13456,7 +13456,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 				fontMin: fs, ghMin: Math.min(...ghbtns.map((r) => Math.min(r.width, r.height))), iconMin: Math.min(...icons.map((r) => Math.min(r.width, r.height))) };
 		});
 		assert(g.page <= 0, '段7(1): ' + w + 'px で横にはみ出さない', { page: g.page });
-		assert(g.fontMin >= 11 && g.ghMin >= 28 && g.iconMin >= 28, '段7(13)(16)(6)→段7b: ' + w + 'px で、合計の行のボタンの文字は 11px 以上・列見出しの漏斗は 28px 以上・タブの ✎ ✓ ↩ ×とカードの × は 28px 以上', g);
+		assert(g.fontMin >= 11 && g.ghMin >= (w <= 640 ? 24 : 28) && g.iconMin >= 28, '段7(13)(16)(6)→段7b→段7c: ' + w + 'px で、合計の行のボタンの文字は 11px 以上・列見出しの漏斗は ' + (w <= 640 ? 24 : 28) + 'px 以上（スマホはアイコンなので 24px を許す。段7c）・タブの ✎ ✓ ↩ ×とカードの × は 28px 以上', g);
 		if (w === 375) {
 			assert(g.slotRows === 2 && g.slotsPerRow === 3, '段7(10): 375px でサポートカードの欄は3列×2行', { rows: g.slotRows, perRow: g.slotsPerRow });
 			assert(g.nameRatio > 0.3 && g.nameRatio < 0.37, '段7(15): 375px でスキル名の列は表の幅の約 1/3（メンバーの列の全体が約 2/3）', { ratio: g.nameRatio });
@@ -14131,7 +14131,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		let cols = await hd();
 		// 並び: ◇（育成ウマ娘）／1（A: 未選択のイベントあり）／2（B: 未選択のイベントあり）／3（C: 選ぶ必要のあるイベント無し）／4〜6（空き）
 		const [colU, c1, c2, c3, c4] = cols;
-		assert(cols.every((c) => c.twoRows && !c.triangle && c.svg && c.sortW >= 28 && c.sortH >= 28 && c.sortText === ''), tag + '列見出しは2行（上＝バッジ／！、下＝漏斗）。「▼」は無く、漏斗は SVG で 28px 以上', cols.map((c) => [c.twoRows, c.sortW, c.sortH]));
+		assert(cols.every((c) => c.twoRows && !c.triangle && c.svg && c.sortW >= 24 && c.sortH >= 24 && (w > 640 ? c.sortH >= 28 : true) && c.sortText === ''), tag + '列見出しは2行（上＝バッジ／！、下＝漏斗）。「▼」は無く、漏斗は SVG で 28px 以上（スマホは高さ 24px 以上を許す。段7c）', cols.map((c) => [c.twoRows, c.sortW, c.sortH]));
 		assert(c1.ev && c1.ev.tag === 'BUTTON' && c1.ev.text === '!' && c1.ev.aria === '1番のカードのイベントを選ぶ（未選択1件）' && c2.ev && c2.ev.text === '!' && c2.ev.aria === '2番のカードのイベントを選ぶ（未選択1件）',
 			tag + '選ぶ必要のあるイベントがあり未選択が残るカードの列は、バッジの代わりに「!」のボタン（aria-label「N番のカードのイベントを選ぶ（未選択M件）」）', { c1: c1.ev, c2: c2.ev });
 		assert(!colU.ev && colU.firstTag === 'SPAN' && !c3.ev && c3.firstTag === 'SPAN' && c3.firstText === '3' && !c4.ev && c4.firstText === '4',

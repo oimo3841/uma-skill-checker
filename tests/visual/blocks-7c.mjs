@@ -596,4 +596,151 @@ export async function register7c(env) {
 			await sp.ctx.close();
 		}
 	});
+
+	/* ============================================================
+	 * P. 画面の最終調整（スマホの1画面化・デスクトップの表の拡大）と、押しても画面の位置が動かないこと
+	 * ============================================================ */
+	await block('段7c(P) 画面の最終調整（スマホの1画面化・デスクトップの表の拡大・画面の位置）', async () => {
+		const stepEmpty = { dataVersion: '2026-10-03a', category: 'skillStepUp', note: 'テスト用の仕込み', entries: [] };
+		const measure = (page) => page.evaluate(() => {
+			const r = (sel) => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { t: Math.round(b.top), b: Math.round(b.bottom), l: Math.round(b.left), r: Math.round(b.right), h: Math.round(b.height * 10) / 10, w: Math.round(b.width) }; };
+			const hd = document.querySelector('header');
+			const cs = getComputedStyle(hd);
+			const fab = document.querySelector('.uma-fab-toggle');
+			const grid = document.querySelector('#deck-roster-panel .usd-roster-grid-wrap');
+			const gr = grid.getBoundingClientRect(), fr = fab.getBoundingClientRect();
+			const ix = Math.max(0, Math.min(gr.right, fr.right) - Math.max(gr.left, fr.left)), iy = Math.max(0, Math.min(gr.bottom, fr.bottom) - Math.max(gr.top, fr.top));
+			const lower = document.querySelector('#deck-roster-panel .usd-roster-lower');
+			const subs = Array.from(lower.querySelectorAll('.usd-roster-sub')).map((e) => parseFloat(getComputedStyle(e).borderTopWidth));
+			const rows = Array.from(grid.querySelectorAll('.usd-roster-grow[data-skill-id] .usd-roster-gc--name')).filter((c) => { const b = c.getBoundingClientRect(); return b.top >= gr.top && b.bottom <= gr.bottom + 0.5 && b.top >= 0 && b.bottom <= innerHeight; }).length;
+			const small = Array.from(document.querySelectorAll('#deck-roster-panel button, #deck-roster-panel select, #deck-roster-panel .usd-roster-pt, #deck-roster-panel .usd-roster-gh-name')).filter((e) => e.getClientRects().length > 0 && e.textContent.trim().length > 0 && parseFloat(getComputedStyle(e).fontSize) < 11).length;
+			const taps = Array.from(document.querySelectorAll('#deck-roster-panel .usd-ntab-btn, #deck-roster-panel .usd-roster-clearbtn, #deck-roster-panel .usd-roster-togglebtn, #deck-roster-panel .usd-roster-skillname--btn, #deck-roster-panel .usd-roster-pickbtn, #deck-roster-panel select'))
+				.filter((e) => e.getClientRects().length > 0).map((e) => { const b = e.getBoundingClientRect(); return Math.min(b.width, b.height); });
+			const iconTaps = Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-ghbtn, #deck-roster-panel .usd-roster-take')).filter((e) => e.getClientRects().length > 0).map((e) => { const b = e.getBoundingClientRect(); return Math.min(b.width, b.height); });
+			return { vw: innerWidth, vh: innerHeight, docH: document.documentElement.scrollHeight, docW: document.documentElement.scrollWidth, scrollY: window.scrollY,
+				header: r('header'), headerRadius: cs.borderTopLeftRadius, headerBorderL: cs.borderLeftWidth, step: r('.step-tabs'), top: r('#deck-roster-panel .usd-roster-top'), lower: r('#deck-roster-panel .usd-roster-lower'), lowerSubBorders: subs,
+				sum: r('#deck-roster-panel [data-usd-el="pt-sumrow"]'), filter: r('#deck-roster-panel [data-usd-el="filter-row"]'), grid: r('#deck-roster-panel .usd-roster-grid-wrap'), fab: r('.uma-fab-toggle'),
+				fabOverlap: Math.round(ix * iy), fabOverlapRatio: Math.round(100 * ix * iy / (gr.width * gr.height) * 10) / 10, fullRows: rows, smallFonts: small, minTap: taps.length ? Math.round(Math.min(...taps) * 10) / 10 : null, minIcon: iconTaps.length ? Math.round(Math.min(...iconTaps) * 10) / 10 : null,
+				rowH: (() => { const c = document.querySelector('#deck-roster-panel .usd-roster-grow[data-skill-id] .usd-roster-gc'); return c ? Math.round(c.getBoundingClientRect().height) : null; })() };
+		});
+		/* (6) スマホ: ①本育成編成を1画面（スクロールなし）に収める。表（列見出しを含む）の割合を実測する */
+		const phone = [];
+		for (const [w, h] of [[390, 844], [375, 667], [320, 640]]) {
+			for (const withPrev of [false, true]) {
+				const tag = '段7c(P)(6) ' + w + '×' + h + (withPrev ? '（前段あり）' : '（前段なし）') + ': ';
+				const sp = await open({ w, h, routes: { stepDoc: withPrev ? undefined : stepEmpty }, roster: { umaId: umaLv7.id, cardIds: [cA.id, cB.id, null, null, null, null] } });
+				await sp.page.waitForTimeout(250);
+				const m = await measure(sp.page);
+				const share = Math.round(1000 * m.grid.h / m.vh) / 10;
+				phone.push({ w, h, withPrev, share, header: m.header.h, step: m.step.h, top: m.top.h, lower: m.lower.h, sum: m.sum.h, filter: m.filter.h, grid: m.grid.h, rowH: m.rowH, docH: m.docH, fab: m.fabOverlapRatio });
+				if (w === 320) {
+					assert(m.docW <= m.vw && jsErrors(sp.errors).length === 0, tag + '横にはみ出さない（320px でも崩れない）・コンソールのエラー0', { docW: m.docW, vw: m.vw, errors: jsErrors(sp.errors).slice(0, 2) });
+				} else {
+					const need = w === 390 ? 50 : (withPrev ? 40 : 45);
+					assert(share >= need, tag + '表（列見出しを含む）が画面の高さの ' + need + '% 以上（実測 ' + share + '%）', { share, grid: m.grid.h, vh: m.vh });
+					assert(m.grid.b <= m.vh && m.docH <= m.vh + 1, tag + 'スクロールなしで1画面に収まる（表の下端 ' + m.grid.b + 'px・ページの高さ ' + m.docH + 'px）', { gridB: m.grid.b, docH: m.docH, vh: m.vh });
+					assert(m.docW <= m.vw && jsErrors(sp.errors).length === 0, tag + '横にはみ出さない・コンソールのエラー0', { docW: m.docW, errors: jsErrors(sp.errors).slice(0, 2) });
+					if (!withPrev && w === 390) {
+						assert(m.header.l === 0 && m.header.r === m.vw && m.headerRadius === '0px' && m.headerBorderL === '0px' && m.header.h <= 48,
+							tag + 'ヘッダーは画面の両端まで伸びる帯（角丸なし・左右の枠なし）で、高さは 48px 以下（実測 ' + m.header.h + 'px）', { l: m.header.l, r: m.header.r, radius: m.headerRadius, h: m.header.h });
+						assert(m.lowerSubBorders.every((x) => x === 0), tag + '育成ウマ娘とサポートカードのパネルは1つの帯（内側の枠なし）にまとまっている', m.lowerSubBorders);
+						assert(m.smallFonts === 0 && m.minTap >= 28 && m.minIcon >= 24, tag + '文字は 11px 以上・タップの領域は 28px 以上（アイコンは 24px 以上）', { smallFonts: m.smallFonts, minTap: m.minTap, minIcon: m.minIcon });
+						assert(m.fab.w === 44 && m.fab.r >= m.vw - 8 - 1, tag + '右下のボタン（FAB）は 44px・右下の端に寄せる（表を覆う量 ' + m.fabOverlapRatio + '%）', m.fab);
+					}
+				}
+				await sp.ctx.close();
+			}
+		}
+		console.log('     [実測] スマホの1画面（表の割合・各部品の高さ px）:');
+		phone.forEach((p) => console.log('       ' + p.w + '×' + p.h + (p.withPrev ? ' 前段あり' : ' 前段なし') + ': 表 ' + p.share + '%（' + p.grid + 'px）・ヘッダー ' + p.header + '・タブ ' + p.step + '・編成のタブ ' + p.top + '・育成ウマ娘とカード ' + p.lower + '・合計の行 ' + p.sum + '・セレクト ' + p.filter + '・行の高さ ' + p.rowH + '・FABが表を覆う ' + p.fab + '%'));
+
+		/* ②因子周回の画面も、同じ部品・同じ余白の決まりで（文言は変えない）。横にはみ出さない */
+		for (const [w, h] of [[390, 844], [320, 640]]) {
+			const sp = await open({ w, h, tab: 1, scope: { skillIds: [W[2], W[8]], name: '', tiers: {}, updatedAt: '' } });
+			const m = await sp.page.evaluate(() => ({ docW: document.documentElement.scrollWidth, vw: innerWidth, headerL: document.querySelector('header').getBoundingClientRect().left, card: document.querySelector('.main-card').getBoundingClientRect().left }));
+			assert(m.docW <= m.vw && m.headerL === 0 && m.card <= 6 && jsErrors(sp.errors).length === 0, '段7c(P)(6) ②因子周回 ' + w + 'px: 同じ余白の決まり（ヘッダーは両端まで・カードの左右は 6px 以内）で、横にはみ出さない', m);
+			await sp.ctx.close();
+		}
+
+		/* (7) デスクトップ: ①のタブで下端までスクロールしたとき、表の表示面積が最大になる */
+		for (const [w, h] of [[1280, 900], [1024, 768], [1280, 500]]) {
+			const tag = '段7c(P)(7) ' + w + '×' + h + ': ';
+			const sp = await open({ w, h, roster: { umaId: umaLv7.id, cardIds: [cA.id, cB.id, null, null, null, null] } });
+			await sp.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+			await sp.page.waitForTimeout(300);
+			const m = await measure(sp.page);
+			const want = Math.max(360, m.vh - 96 - 24);
+			if (h >= 768) assert(m.fullRows >= (h === 900 ? 18 : 12), tag + '下端までスクロールすると、表の行が ' + (h === 900 ? 18 : 12) + ' 行以上見える（実測 ' + m.fullRows + ' 行。以前は7行）', { rows: m.fullRows });
+			assert(Math.abs(m.grid.h - want) <= 24 && m.grid.b <= m.vh, tag + '表の高さは「画面の高さ − FAB の置き場 − わずかな余白」（最小 360px）。実測 ' + m.grid.h + 'px・表の下端 ' + m.grid.b + 'px は画面の下端 ' + m.vh + 'px に収まる', { h: m.grid.h, want, b: m.grid.b });
+			assert(m.fabOverlap === 0, tag + '右下のボタン（FAB）が表（縦スクロールバーと最後の列）を覆わない', { overlap: m.fabOverlap, fab: m.fab, grid: m.grid });
+			assert(m.docW <= m.vw && jsErrors(sp.errors).length === 0, tag + '横にはみ出さない・コンソールのエラー0', { docW: m.docW, errors: jsErrors(sp.errors).slice(0, 2) });
+			if (h === 900) console.log('     [実測] ' + w + '×' + h + ' 下端までスクロール: 表 ' + m.grid.h + 'px（行が ' + m.fullRows + ' 行・行の高さ ' + m.rowH + 'px）・表の下端 ' + m.grid.b + 'px');
+			await sp.ctx.close();
+		}
+		/* ②③のタブでは、下の余白（FAB を開いたときの高さ）は今までどおり */
+		{
+			const sp = await open({ w: 1280, h: 900, tab: 1 });
+			const m = await sp.page.evaluate(() => ({ pb: parseFloat(getComputedStyle(document.querySelector('.page-wrap')).paddingBottom) }));
+			assert(m.pb >= 280, '段7c(P)(7) ②のタブでは本文の下の余白は今までどおり（FAB を開いたとき最後が隠れない。実測 ' + m.pb + 'px）', m);
+			await sp.ctx.close();
+		}
+
+		/* 押しても画面の位置が動かない（段7b の ⑥ の決まりを、新しいボタンにも）。スクロールの差0〜2px */
+		{
+			const rosterOff = mkRoster(0, [cA.id, cB.id, null, null, null, null], { offSkillIds: [W[2]] });
+			const rosterOn = mkRoster(1, [cA.id, cB.id, null, null, null, null]);
+			const UD = baseUser({ rosters: [rosterOff, rosterOn] });
+			const rows = [];
+			for (const [w, h] of [[375, 480], [1280, 600]]) {
+				const sp = await open({ w, h, userData: UD, routes: { scenDoc: scenReal }, roster: { umaId: umaLv7.id, cardIds: [cA.id, cB.id, null, null, null, null] } });
+				const meas = (sel) => sp.page.evaluate((sel) => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { y: window.scrollY, top: b.top }; }, sel);
+				const run = async (label, sel, act) => {
+					// 対象を画面の途中に置く（ページをスクロールしてから測る）
+					await sp.page.evaluate((sel) => { const e = document.querySelector(sel); e.scrollIntoView({ block: 'center' }); }, sel);
+					await sp.page.waitForTimeout(120);
+					const a = await meas(sel);
+					await act();
+					await sp.page.waitForTimeout(250);
+					const b = await meas(sel);
+					const ok = !!a && !!b && Math.abs(b.y - a.y) <= 2 && Math.abs(b.top - a.top) <= 2;
+					rows.push({ label: w + 'px ' + label, dy: b ? b.y - a.y : null, dtop: b ? Math.round(b.top - a.top) : null, ok });
+				};
+				const ROW = (id) => P + '.usd-roster-grow[data-skill-id="' + id + '"] input[data-usd-act="take-skill"]';
+				await run('チェック（取得しない）', ROW(W[6]), () => sp.page.click(ROW(W[6])));
+				await run('チェック（取得する）', ROW(W[6]), () => sp.page.click(ROW(W[6])));
+				await run('シナリオの列の「!」（小窓を開く）', P + 'button[data-usd-act="events"][data-member-key="scenario"]', () => sp.page.click(P + 'button[data-usd-act="events"][data-member-key="scenario"]'));
+				// 小窓の中の選択肢（ページの位置と小窓の中の位置が変わらない）
+				const before = await sp.page.evaluate(() => ({ y: window.scrollY, l: (document.querySelector('[data-usd-el="info-pop"] [data-usd-el="events-pane-events"]') || {}).scrollTop || 0 }));
+				await sp.page.click('[data-usd-el="event-choice"][data-event-key="scenario:トレセン軒#0"][data-choice="1"]');
+				await sp.page.waitForTimeout(250);
+				const after = await sp.page.evaluate(() => ({ y: window.scrollY, l: (document.querySelector('[data-usd-el="info-pop"] [data-usd-el="events-pane-events"]') || {}).scrollTop || 0 }));
+				rows.push({ label: w + 'px 小窓の中の選択肢', dy: after.y - before.y, dtop: after.l - before.l, ok: after.y === before.y && after.l === before.l });
+				await sp.page.keyboard.press('Escape');
+				await sp.page.waitForTimeout(200);
+				// （?）の「すべて取得に戻す」
+				await sp.page.click(ROW(W[2]));
+				await sp.page.evaluate((sel) => document.querySelector(sel).scrollIntoView({ block: 'center' }), P + '[data-usd-el="pt-help-btn"]');
+				await sp.page.waitForTimeout(100);
+				const y0 = await sp.page.evaluate(() => window.scrollY);
+				await sp.page.click(P + '[data-usd-el="pt-help-btn"]');
+				await sp.page.click('[data-usd-el="info-pop"] [data-usd-el="info-off-reset"]');
+				await sp.page.waitForTimeout(250);
+				const y1 = await sp.page.evaluate(() => window.scrollY);
+				rows.push({ label: w + 'px （?）の「すべて取得に戻す」', dy: y1 - y0, dtop: 0, ok: Math.abs(y1 - y0) <= 2 });
+				// ②の本育成編成の一覧
+				await sp.page.evaluate(() => selectStepTab(1));
+				await sp.page.waitForTimeout(250);
+				const LB = '#deck-template-panel [data-usd-el="roster-link-btn"]';
+				await run('②本育成編成（一覧の小窓を開く）', LB, () => sp.page.click(LB));
+				const yl = await sp.page.evaluate(() => window.scrollY);
+				await sp.page.click('[data-usd-el="link-list"] label:nth-child(2)');
+				await sp.page.waitForTimeout(300);
+				const yl2 = await meas(LB);
+				rows.push({ label: w + 'px ②小窓で編成を選ぶ', dy: yl2.y - yl, dtop: 0, ok: Math.abs(yl2.y - yl) <= 2 });
+				await sp.ctx.close();
+			}
+			console.log('段7c(P) 操作前後の差:\n' + rows.map((r) => '       ' + r.label + ': Δスクロール ' + r.dy + 'px・Δ位置 ' + r.dtop + 'px' + (r.ok ? '' : '  ← NG')).join('\n'));
+			assert(rows.length >= 12 && rows.every((r) => r.ok), '段7c(P): 新しいボタン（チェック・シナリオの「!」・小窓の選択肢・「すべて取得に戻す」・②の本育成編成の一覧）を押しても、ページの位置と押したボタンの画面上の位置の差が 2px 以内。' + rows.length + '件', rows.filter((r) => !r.ok));
+		}
+	});
 }

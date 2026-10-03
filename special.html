@@ -53,10 +53,39 @@
 			.tool-switch-label, .tool-switch-chev { display: none; }
 			#tool-dropdown-btn { padding-inline: var(--uma-sp-2); }
 		}
-		/* バッジ「2nd edition β版」（段7c の L）。タイトルの右に小さく置く。スマホでは 11px */
+		/* ===== 段7c（2026-10-03・C-115）: 画面の最終調整 =====
+		   (6) スマホ（640px 以下）: ①本育成編成を1画面（スクロールなし）に収める。ヘッダーは画面の両端まで伸びる帯にし、余白を詰める。
+		   (7) デスクトップ（641px 以上）: ①のタブで下端までスクロールしたとき、表が画面いっぱいになる。
+		   共有の CSS（tokens／common／shell）は触らず、このページの上書きだけで行う。 */
+		/* 右下のメインボタン（FAB）の置き場（高さ）。ボタンの寸法の変数から計算する */
+		:root { --usd-fab-dock: calc(var(--uma-fab-size) + var(--uma-fab-edge) + var(--uma-sp-2) + env(safe-area-inset-bottom, 0px)); }
+		.page-wrap { padding-bottom: calc(var(--uma-fab-reserve) + env(safe-area-inset-bottom, 0px)); }
+		/* バッジ「2nd edition β版」。タイトルの右に小さく置く */
 		.header-edition { font-size: var(--uma-fs-sm); line-height: 1.2; white-space: nowrap; }
 		@media (min-width: 768px) { .header-edition { font-size: var(--uma-fs-base); } }
-		@media (max-width: 640px) { .header-edition { font-size: 11px; line-height: 1.05; margin-left: var(--uma-sp-1); } }
+		/* ①のタブ（デスクトップ）: 本文の最後は表。表の下の余白は FAB の置き場だけにして、下端までスクロールしたとき表が画面いっぱいに見える。
+		   FAB（右下）は表の下の置き場に収まるので、表の縦スクロールバーと最後の列を覆わない */
+		body[data-step-tab="0"] .page-wrap { padding-bottom: max(0px, calc(var(--usd-fab-dock) - var(--uma-card-pad))); }
+		body[data-step-tab="0"] .main-card { margin-bottom: 0; }
+		@media (max-width: 640px) {
+			/* FAB を小さく・端に寄せて、表を覆う量を減らす */
+			:root { --uma-fab-size: 44px; --uma-fab-edge: 8px; }
+			.page-wrap { padding: 0 0 calc(var(--uma-fab-reserve) + env(safe-area-inset-bottom, 0px)); }
+			/* ①のタブ: 1画面に収める。FAB は表の右下に重なる（置き場は空けない） */
+			body[data-step-tab="0"] .page-wrap { padding-bottom: 0; }
+			/* ヘッダーは画面の両端まで伸びる帯。タイトルは左、右にツール切替と？だけ。上下の余白は最小 */
+			.site-header { margin-bottom: var(--uma-sp-1); padding: var(--uma-sp-1) var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
+			.site-header h1 { font-size: 1.25rem; line-height: 1.2; }
+			.header-edition { font-size: 11px; line-height: 1.05; margin-left: var(--uma-sp-1); }
+			.main-card { margin: 0 var(--uma-sp-1); padding: var(--uma-sp-1-5); border-radius: var(--uma-r-lg); }
+			.main-card .step-tabs { margin-bottom: var(--uma-sp-1); }
+			.main-card .step-tab { padding: var(--uma-sp-1) 2px; }
+			.main-card .step-tabs { gap: 2px; }
+			/* 旧UIの注記など、ヘッダーの下に出る箱も左右の余白は main-card と揃える */
+			.old-ui-end-note { margin-inline: var(--uma-sp-1); }
+		}
+		/* 狭い端末（350px 以下）でタイトルとバッジが並ばないときは、バッジを2行の小さい箱にする */
+		@media (max-width: 350px) { .header-edition { white-space: normal; display: inline-block; max-width: 5.2em; vertical-align: middle; } }
 		/* 親A／親Bセットのタブ（③）の色。結果の表と同じ変数（.person-col-blue / .person-col-red）を、
 		   共有部品の色付きタブ（css/shell.css の .uma-subtab--tinted）の変数へ写す。 */
 		.uma-subtab.person-col-blue, .uma-subtab.person-col-red {
@@ -193,11 +222,10 @@
 	     量は --uma-fab-reserve（スマホ18rem / PC20rem）。サブボタンの実高は
 	     アイコン丸＋上下パディング＋罫線で決まり、44px より大きくなる点に注意。
 	     実際に足りているかは tests/visual の「最下部で本文がFABに被らない」で機械的に見ている。 -->
-	<div class="w-full max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12"
-		style="padding-bottom: calc(var(--uma-fab-reserve) + env(safe-area-inset-bottom, 0px));">
+	<div class="page-wrap w-full max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12">
 
 		<!-- ヘッダー -->
-		<header class="relative mb-8 md:mb-10 rounded-3xl border border-green-100 bg-gradient-to-br from-green-50/90 via-white/70 to-white p-5 md:p-8 shadow-sm">
+		<header class="site-header relative mb-8 md:mb-10 rounded-3xl border border-green-100 bg-gradient-to-br from-green-50/90 via-white/70 to-white p-5 md:p-8 shadow-sm">
 			<div aria-hidden="true" class="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
 				<div class="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-green-200/40 blur-3xl"></div>
 				<div class="absolute -bottom-20 -left-10 w-48 h-48 rounded-full bg-amber-200/30 blur-3xl"></div>
@@ -513,7 +541,7 @@
 
 		<!-- ステップ1・2。別々のカードで縦に並べていたものを1枚に重ね、タブで切り替える。
 		     ①は一度用意したら触らないのに、②へ行くたびに①の全高を通り過ぎる必要があったため。 -->
-		<div class="glass-card shadow-xs mb-6">
+		<div class="main-card glass-card shadow-xs mb-6">
 			<!-- タブの id と画面の番号（C-51 の11節①）:
 			       step-tab-0 … ① 本育成編成（Deck連携モードだけ。旧UIでは hidden）
 			       step-tab-1 … ② 周回因子セット（旧UIでは「スキルリストを入力」）
@@ -1319,6 +1347,8 @@
 			return STEP_TAB_IDS.filter(k => { const t = document.getElementById('step-tab-' + k); return t && !t.hidden; });
 		}
 		function selectStepTab(n) {
+			// どのタブを見ているかの印（段7c の P。CSS が①のタブだけ、本文の下の余白を詰めて表を画面いっぱいにする）
+			document.body.setAttribute('data-step-tab', String(n));
 			STEP_TAB_IDS.forEach(k => {
 				const on = k === Number(n);
 				const tab = document.getElementById('step-tab-' + k);

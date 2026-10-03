@@ -3839,6 +3839,37 @@
 		'.usd-roster-evbtn--scen { display: inline-flex; align-items: center; justify-content: center; }',
 		'.usd-roster-choicestate { flex: none; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 600; padding: 0 var(--uma-sp-1-5);',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); color: var(--uma-text-subtle); }',
+		// ───── 段7c（2026-10-03）: 画面の最終調整（P） ─────
+		// (7) デスクトップ（641px 以上）: 表の高さを、画面の高さから FAB の置き場（ページが --usd-fab-dock に入れる）とわずかな余白を引いた値にする。
+		// ①のタブは本文の最後が表なので、ページを下端までスクロールすると表が画面いっぱいに見える（最小 360px）
+		'@media (min-width: 641px) { .usd-roster-grid-wrap { max-height: max(360px, calc(100dvh - var(--usd-fab-dock, 96px) - var(--uma-sp-6))); } }',
+		// (6) スマホ（640px 以下）: 操作と情報を1画面に収める。余白を詰め、育成ウマ娘とサポートカードを1つの帯にまとめ、
+		// 表を残りの高さいっぱいに広げる（表の上端の位置は JS が --usd-grid-top に入れる。入るまでの既定は 380px）
+		'@media (max-width: 640px) {',
+		'  .usd-roster { gap: var(--uma-sp-1); }',
+		'  .usd-roster-sec { gap: var(--uma-sp-1); }',
+		'  .usd-roster-top { gap: var(--uma-sp-1); padding-bottom: var(--uma-sp-1); border-bottom-width: 1px; }',
+		'  .usd-ntabs { padding-bottom: 0; }',
+		'  .usd-roster-lower { gap: 0; padding: var(--uma-sp-1) var(--uma-sp-1-5); background: var(--uma-surface-sunken);',
+		'    border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm); }',
+		'  .usd-roster-lower .usd-roster-sub { background: transparent; border: 0; border-radius: 0; padding: 0; gap: var(--uma-sp-1); }',
+		'  .usd-roster-lower .usd-roster-sub + .usd-roster-sub { margin-top: var(--uma-sp-1); }',
+		'  .usd-roster-pickbox, .usd-roster-slot { min-height: 30px; }',
+		'  .usd-roster-pickbtn { padding-block: var(--uma-sp-1); }',
+		'  .usd-roster-clearbtn { min-height: 28px; }',
+		'  .usd-roster-sumrow { gap: 0 var(--uma-sp-2); }',
+		'  .usd-roster-ptsum { gap: 0; }',
+		'  .usd-roster-prev { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
+		'  .usd-roster-filtersel { padding-block: var(--uma-sp-0-5); min-height: 28px; }',
+		'  .usd-roster-pt { font-size: 11px; line-height: 1.2; }',
+		'  .usd-roster-skillname--btn { min-width: 28px; }',
+		'  .usd-roster-filterrow { gap: var(--uma-sp-1); }',
+		// 表: 行を詰める（チェック・名前・Pt が1行に収まる範囲。文字は 11px 以上・タップの領域は 28px 以上。漏斗は 24px 以上）
+		'  .usd-roster-gc { padding-block: 1px; }',
+		'  .usd-roster-gh { padding: var(--uma-sp-0-5); }',
+		'  .usd-roster-ghbtn { height: 24px; }',
+		'  .usd-roster-grid-wrap { max-height: max(180px, calc(100dvh - var(--usd-grid-top, 380px) - var(--uma-sp-2))); }',
+		'}'
 	].join('\n');
 
 	let stylesInjected = false;
@@ -6191,6 +6222,20 @@
 			if (typeof opts.onSureCountChange === 'function') opts.onSureCountChange(res.visibleSureCount);
 		}
 
+		/**
+		 * 表の上端の位置（ページの先頭からの px）を --usd-grid-top に入れる（段7c の P の (6)）。スマホで、表の高さを「画面の高さ − 表の上端」にして
+		 * 1画面に収めるための値（CSS が使う。デスクトップでは使わない）。パネルが見えていないとき（②③のタブを見ているとき）は測れないので何もしない
+		 * （見えるようになったとき、下の ResizeObserver が測り直す）。
+		 */
+		function fitGrid() {
+			const wrap = container.querySelector('.usd-roster-grid-wrap');
+			if (!wrap || container.getClientRects().length === 0) return;
+			const top = Math.round(wrap.getBoundingClientRect().top + (global.pageYOffset || 0)) + 'px';
+			if (wrap.style.getPropertyValue('--usd-grid-top') !== top) wrap.style.setProperty('--usd-grid-top', top);
+		}
+		if (typeof global.ResizeObserver === 'function') new global.ResizeObserver(function () { fitGrid(); }).observe(container);
+		global.addEventListener('resize', function () { fitGrid(); });
+
 		function labelOfUma() {
 			if (!roster.umaId) return '育成ウマ娘を選ぶ';
 			const uma = findUma(roster.umaId);
@@ -6502,6 +6547,7 @@
 			}
 			// イベントを選ぶ小窓が開いていれば、中身を作り直す（選んだ結果をその場で映す）
 			if (eventsFor !== null) refreshEventsPopover(res);
+			fitGrid();
 			notifySureCount(res);
 			// 本育成のぶんが変わったことを、②へ知らせる（段5・段7）
 			emitRosterPtChange();
