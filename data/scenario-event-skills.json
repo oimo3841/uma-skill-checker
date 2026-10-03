@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-03a",
+	"dataVersion": "2026-10-03b",
 	"category": "scenarioEventSkills",
 	"note": "ゲーム内で確認できるシナリオの固定イベントで得られるスキルとヒントレベル。シナリオごとに events を持ち、type は choice（選択式。choices から1つ選ぶ）か fixed（選択なし。skills をすべて得る）。choice の選択肢が charaNames を持つときは、そのキャラクターが編成（育成ウマ娘かサポートカードの charaName）にいれば linked、いなければ unlinked のスキルが得られる（charaNames の どれか1人でもいれば編成にいるものとして扱う）。charaNames を持たない選択肢は skills を得る。hintLevel は得られるヒントレベル（1以上の整数）。skillId は登録済みのスキルの id。このファイルには独自の id を振らない。",
 	"entries": [
@@ -54,7 +54,7 @@
 					"type": "choice",
 					"choices": [
 						{ "skills": [{ "skillId": "ex-0566", "hintLevel": 2 }] },
-						{ "skills": [] },
+						{ "skills": [{ "skillId": "ex-0318", "hintLevel": 2 }] },
 						{ "skills": [{ "skillId": "ex-0519", "hintLevel": 2 }] }
 					]
 				},

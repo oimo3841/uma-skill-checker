@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03d';
 
 	/* ============================================================
 	 * 定数
@@ -84,7 +84,7 @@
 		// スキルの公式の説明文（2026-10-02）。ページの読み込みでは取りに行かない（ⓘ・長押しを最初に開いたときだけ。段6）
 		'data/skill-descriptions.json': '2026-10-02a',
 		// シナリオの固定イベントで得られるスキルとヒントレベル（段7c・2026-10-03）。編成パネルを作るときにだけ読む（ほかのページの読み込みでは取りに行かない）
-		'data/scenario-event-skills.json': '2026-10-03a'
+		'data/scenario-event-skills.json': '2026-10-03b'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
@@ -3716,6 +3716,8 @@
 		'.usd-roster-filterrow { display: flex; flex-wrap: nowrap; gap: var(--uma-sp-1-5); min-width: 0; }',
 		'.usd-roster-filter { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 0; }',
 		'.usd-roster-filterlabel { font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); color: var(--uma-text-subtle); font-weight: 600; }',
+		'.usd-roster-filtersel.usd-roster-filtersel--on { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
+		'.usd-roster-filtersel option { background: var(--uma-surface); color: var(--uma-text); }',
 		'.usd-roster-filtersel { width: 100%; min-width: 0; padding: var(--uma-sp-1) var(--uma-sp-1-5); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
 		// 表（(14)(15)(16)(18)）: 狭い幅ではスキル名の列を 1/3、メンバーの列の全体を 2/3 に。名前と Pt は1行（nowrap）で、セルの中だけ横に送る
 		'.usd-roster-namescroll { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; width: 100%; white-space: nowrap;',
@@ -3862,7 +3864,9 @@
 		'  .usd-roster-prev { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
 		'  .usd-roster-filtersel { padding-block: var(--uma-sp-0-5); min-height: 28px; }',
 		'  .usd-roster-pt { font-size: 11px; line-height: 1.2; }',
-		'  .usd-roster-skillname--btn { min-width: 28px; }',
+		// 2文字の名前（22px）は min-width:28px だと中央寄せで左右に 3px ずつ空き、半角スペースが入ったように見えた（段7d の ⑧）。
+		// タップの領域は同じ 28px のまま、余白を負のマージンで外へ出して文字の位置を動かさない
+		'  .usd-roster-skillname--btn { padding-inline: 3px; margin-inline: -3px; }',
 		'  .usd-roster-filterrow { gap: var(--uma-sp-1); }',
 		// 表: 行を詰める（チェック・名前・Pt が1行に収まる範囲。文字は 11px 以上・タップの領域は 28px 以上。漏斗は 24px 以上）
 		'  .usd-roster-gc { padding-block: 1px; }',
@@ -6464,7 +6468,7 @@
 				filterAxes().forEach(axis => {
 					// 段7b の ④：ラベルの行は無し。「指定なし」は「距離指定なし」のように軸の名前を含める
 					h += '<label class="usd-roster-filter">'
-						+ '<select class="uma-input usd-roster-filtersel" data-usd-act="filter" data-axis="' + esc(axis.key) + '" aria-label="' + esc(axis.label + 'で絞り込む') + '">'
+						+ '<select class="uma-input usd-roster-filtersel' + (sel[axis.key] ? ' usd-roster-filtersel--on' : '') + '" data-usd-act="filter" data-axis="' + esc(axis.key) + '" aria-label="' + esc(axis.label + 'で絞り込む') + '">'
 						+ '<option value=""' + (sel[axis.key] ? '' : ' selected') + '>' + esc(axis.label + '指定なし') + '</option>'
 						+ pickableOptions(axis).map(o => '<option value="' + esc(o.v) + '"' + (sel[axis.key] === o.v ? ' selected' : '') + '>' + esc(o.t) + '</option>').join('')
 						+ '</select></label>';

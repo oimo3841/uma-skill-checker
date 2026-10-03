@@ -6,7 +6,7 @@
 	     読めるようにするために必要。これが無いと env() は常に 0 を返し、
 	     ノッチ端末のホームバーにFABが潜り込む。 -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-	<title>UmaStar OCR（2nd edition β版）</title>
+	<title>UmaStar OCR（β版（2nd Edition））</title>
 	<!-- 共通スタイル（3ファイル・版は1つ）。Tailwindより先に読み込む。
 	       tokens.css … デザイントークン（変数だけ）
 	       common.css … 共通部品（ボタン・入力欄・バッジ・カード）
@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-03c"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-03d"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<style>
@@ -60,9 +60,8 @@
 		/* 右下のメインボタン（FAB）の置き場（高さ）。ボタンの寸法の変数から計算する */
 		:root { --usd-fab-dock: calc(var(--uma-fab-size) + var(--uma-fab-edge) + var(--uma-sp-2) + env(safe-area-inset-bottom, 0px)); }
 		.page-wrap { padding-bottom: calc(var(--uma-fab-reserve) + env(safe-area-inset-bottom, 0px)); }
-		/* バッジ「2nd edition β版」。タイトルの右に小さく置く */
-		.header-edition { font-size: var(--uma-fs-sm); line-height: 1.2; white-space: nowrap; }
-		@media (min-width: 768px) { .header-edition { font-size: var(--uma-fs-base); } }
+		/* バッジ「β版（2nd Edition）」。タイトルの右に置く。大きさ・作りは exam.html の「β版」と同じ（text-sm／md:text-base。段7d の ⑦） */
+		.header-edition { white-space: nowrap; }
 		/* ①のタブ（デスクトップ）: 本文の最後は表。表の下の余白は FAB の置き場だけにして、下端までスクロールしたとき表が画面いっぱいに見える。
 		   FAB（右下）は表の下の置き場に収まるので、表の縦スクロールバーと最後の列を覆わない */
 		body[data-step-tab="0"] .page-wrap { padding-bottom: max(0px, calc(var(--usd-fab-dock) - var(--uma-card-pad))); }
@@ -76,7 +75,7 @@
 			/* ヘッダーは画面の両端まで伸びる帯。タイトルは左、右にツール切替と？だけ。上下の余白は最小 */
 			.site-header { margin-bottom: var(--uma-sp-1); padding: var(--uma-sp-1) var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
 			.site-header h1 { font-size: 1.25rem; line-height: 1.2; }
-			.header-edition { font-size: 11px; line-height: 1.05; margin-left: var(--uma-sp-1); }
+			.site-header .header-edition { font-size: 11px; line-height: 1.05; margin-left: var(--uma-sp-1); }
 			.main-card { margin: 0 var(--uma-sp-1); padding: var(--uma-sp-1-5); border-radius: var(--uma-r-lg); }
 			.main-card .step-tabs { margin-bottom: var(--uma-sp-1); }
 			.main-card .step-tab { padding: var(--uma-sp-1) 2px; }
@@ -84,8 +83,8 @@
 			/* 旧UIの注記など、ヘッダーの下に出る箱も左右の余白は main-card と揃える */
 			.old-ui-end-note { margin-inline: var(--uma-sp-1); }
 		}
-		/* 狭い端末（350px 以下）でタイトルとバッジが並ばないときは、バッジを2行の小さい箱にする */
-		@media (max-width: 350px) { .header-edition { white-space: normal; display: inline-block; max-width: 5.2em; vertical-align: middle; } }
+		/* 狭い端末（350px 以下）でタイトルとバッジが並ばないときは、バッジを「β版」だけにする */
+		@media (max-width: 350px) { .header-edition-sub { display: none; } }
 		/* 親A／親Bセットのタブ（③）の色。結果の表と同じ変数（.person-col-blue / .person-col-red）を、
 		   共有部品の色付きタブ（css/shell.css の .uma-subtab--tinted）の変数へ写す。 */
 		.uma-subtab.person-col-blue, .uma-subtab.person-col-red {
@@ -237,7 +236,7 @@
 					<!-- タイトルの右に「新UI」バッジを並べる（exam と同じ位置）。
 					     狭い画面ではバッジが次の行へ回るよう flex-wrap にしてある。 -->
 					<div class="flex items-center flex-wrap gap-x-2 gap-y-1">
-						<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR<span class="header-edition ml-2 align-middle font-semibold text-slate-400">2nd edition β版</span></h1>
+						<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR<span class="header-edition ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">β版<span class="header-edition-sub">（2nd Edition）</span></span></h1>
 					</div>
 					<!-- 3行の注意書き（OCR の精度・解像度・加工画像）は、段7（2026-10-03）に「使い方・注意」のポップアップの
 					     「注意」の欄へ移した（ヘッダーを短くするため。文言は変えていない）。 -->
@@ -1346,7 +1345,11 @@
 		function visibleStepTabs() {
 			return STEP_TAB_IDS.filter(k => { const t = document.getElementById('step-tab-' + k); return t && !t.hidden; });
 		}
-		function selectStepTab(n) {
+		// 前回開いていたタブ（段7d の ③）。F5 で戻る。書き出しの対象外（umaSkillDeck:userData の外）。初めての訪問は①（本育成編成）
+		const STEP_TAB_STORAGE_KEY = 'umaSkillDeck:stepTab';
+		// opts.noSave … 画面の組み替え（新UI／旧UIの切り替えの途中）で自動に開くときは、記憶を書き換えない
+		function selectStepTab(n, opts) {
+			if (deckMode && !(opts && opts.noSave) && STEP_TAB_IDS.indexOf(Number(n)) !== -1) writeStored(STEP_TAB_STORAGE_KEY, String(Number(n)));
 			// どのタブを見ているかの印（段7c の P。CSS が①のタブだけ、本文の下の余白を詰めて表を画面いっぱいにする）
 			document.body.setAttribute('data-step-tab', String(n));
 			STEP_TAB_IDS.forEach(k => {
@@ -2992,7 +2995,13 @@
 			// 未読なら保存値を見ずに新UI。既読なら最後の選択に従う（既定は新UI）。
 			const startNew = seen ? readStored(UI_MODE_STORAGE_KEY) !== 'old' : true;
 			try {
-				if (startNew) await enterDeckMode();
+				if (startNew) {
+					await enterDeckMode();
+					// 前回開いていたタブへ（段7d の ③）。無い・壊れている・見えないタブのときは①（本育成編成）
+					const savedTab = readStored(STEP_TAB_STORAGE_KEY);
+					const want = STEP_TAB_IDS.find(k => String(k) === savedTab);
+					selectStepTab(want !== undefined && visibleStepTabs().indexOf(want) !== -1 ? want : 0, { noSave: true });
+				}
 				else exitDeckMode();
 			} catch (e) {
 				// 新UIの準備（マスターデータの取得など）に失敗しても、告知だけは出す。
@@ -3104,7 +3113,7 @@
 			updateDeckEntryVisibility();
 			saveUiModeChoice();
 			// ①の中身が入れ替わるので、隠れたまま気付かれないことがないよう①を開いておく
-			selectStepTab(1);
+			selectStepTab(1, { noSave: true });
 
 			// 選択が済むまでは照合対象が無い状態にする
 			deckScope = null;
@@ -3206,7 +3215,7 @@
 			document.getElementById('deck-roster-excluded').hidden = true;
 			updateDeckEntryVisibility();
 			saveUiModeChoice();
-			selectStepTab(1);
+			selectStepTab(1, { noSave: true });
 
 			clearActiveSkillDictionary();
 			deckTierByName = {};   // 手貼りのリストには分類が無い（印を出さない）
