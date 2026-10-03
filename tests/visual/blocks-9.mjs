@@ -545,6 +545,80 @@ export async function register9(env) {
 	});
 
 	/* ====================================================================
+	 * (A2) schemaVersion 5 から 7 へ1回で移す（段8 のセット振り分け＋段9 のアイコン移行）・何度かけても同じ・インポートの「元に戻す」（ルール28）
+	 *   経路は2つ: (1) エクスポートファイルとして読み込む（replaceUserData）／(2) localStorage に置いてページを開く
+	 * ==================================================================== */
+	await block('段9(A2) 5→7 の直接移行（取り込み・ページを開く）・移行済みを再度かけても同じ・インポートの「元に戻す」', async () => {
+		const R = (id, name, uma) => ({ rosterId: id, name, umaId: uma, star: 3, awakeningLevel: 5, cardIds: ['card-0248', null, null, null, null, null], createdAt: 'x', updatedAt: 'x' });
+		const Tp = (id, name, ids, extra) => Object.assign({ templateId: id, name, skillIds: ids, createdAt: 'x', updatedAt: 'x' }, extra || {});
+		// 実際の5の形: tiers・ptRanks あり（roster を指す）／tiers なし／同じ roster を指す2件目／どこからも指されない roster
+		const V5 = { schemaVersion: 5, records: [], customSkills: [],
+			templates: [
+				Tp('t1', 'A', ['1', '2', '3', '4'], { tiers: { '1': 1, '2': 3 }, ptRanks: { high: false, mid: true, low: true }, baseRosterId: 'r1' }),
+				Tp('t2', 'B', ['5', '6']),
+				Tp('t3', 'C', ['7'], { baseRosterId: 'r1' })],
+			rosters: [R('r1', '旧名1', 'uma-0001'), R('r2', 'どこからも指されない編成', 'uma-0002')] };
+		const check = (d, tag) => {
+			const t = (id) => d.templates.find((x) => x.templateId === id);
+			const rs = (id) => d.rosters.find((x) => x.rosterId === id);
+			const orphan = d.templates.find((x) => x.baseRosterId === 'r2');
+			assert(d.schemaVersion === 7, tag + 'schemaVersion が 7 になる（6 を経由しない）', d.schemaVersion);
+			assert(t('t1').baseRosterId === 'r1' && rs('r1').name === 'A' && t('t3').baseRosterId !== 'r1' && rs(t('t3').baseRosterId) && rs(t('t3').baseRosterId).name === 'C' && rs(t('t3').baseRosterId).umaId === 'uma-0001'
+				&& orphan && orphan.name === 'どこからも指されない編成' && orphan.skillIds.length === 0 && !('baseRosterId' in t('t2')),
+				tag + '段8のセット振り分け: 指す編成は名前を揃える／2件目は写し／どこからも指されない編成は新しいセットに／編成の無いセットは触らない', d.templates.map((x) => x.name + ':' + x.baseRosterId));
+			assert(JSON.stringify(t('t1').skillIcons) === JSON.stringify({ '1': 'a', '2': 'c', '3': 'b', '4': 'b' }) && !('ptRanks' in t('t1')) && JSON.stringify(t('t1').tiers) === JSON.stringify({ '1': 1, '2': 3 })
+				&& !('skillIcons' in t('t2')) && !('skillIcons' in t('t3')), tag + '段9のアイコン移行: tiers を持つセットだけ写し（超優先→◎・通常→△・書かれていない→○）、ptRanks は捨て、tiers は残す。持たないセットは触らない', t('t1'));
+		};
+		// (1) 取り込み
+		let sp = await openSet({ userData: { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] }, tab: 1, roster: null });
+		const imp = await sp.page.evaluate((v) => { UmaSkillDeckCore.replaceUserData(JSON.parse(JSON.stringify(v))); return JSON.parse(localStorage.getItem('umaSkillDeck:userData')); }, V5);
+		check(imp, '段9(A2) 取り込み: ');
+		// 移行済みのデータをもう一度取り込んでも、結果が変わらない（何度かけても同じ）
+		const again = await sp.page.evaluate((v) => { UmaSkillDeckCore.replaceUserData(JSON.parse(JSON.stringify(v))); return JSON.parse(localStorage.getItem('umaSkillDeck:userData')); }, imp);
+		assert(JSON.stringify(again) === JSON.stringify(imp) && imp.templates.length === 4 && imp.rosters.length === 3, '段9(A2) 取り込み: 移行済みのデータを再度取り込んでも結果が変わらない（テンプレート4・編成3のまま）', { a: again.templates.length, b: imp.templates.length });
+		await sp.ctx.close();
+		// (2) localStorage に置いてページを開く
+		sp = await openSet({ userData: V5, tab: 1, roster: null });
+		const opened = await ud(sp.page);
+		check(opened, '段9(A2) ページを開く: ');
+		assert(JSON.stringify(opened) === JSON.stringify(imp) || JSON.stringify(opened.templates.map((x) => x.name)) === JSON.stringify(imp.templates.map((x) => x.name)), '段9(A2) 2つの経路で、セットの顔ぶれは同じ', opened.templates.map((x) => x.name));
+		assert(jsErrors(sp.errors).length === 0, '段9(A2) ページを開く: コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+		// 移行済みの保存データでもう一度開いても、保存データは1バイトも変わらない
+		sp = await openSet({ userData: imp, tab: 1, roster: null });
+		const raw2 = await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:userData'));
+		assert(raw2 === JSON.stringify(imp), '段9(A2) 移行済みの保存データを開いても、1バイトも変わらない', raw2.length);
+		await sp.ctx.close();
+		// (c) Deck のインポート → 元に戻す: tiers を持つ5のデータを開いた状態から、別の5のデータを取り込み、戻す。メモリと保存先が取り込み前と一致（ルール28）
+		const dk = await openPage(browser, base, 'uma-skill-deck.html', { width: 1280, height: 900 }, V5);
+		await dk.page.click('#tab-btn-data');
+		await dk.page.waitForTimeout(300);
+		const state = () => dk.page.evaluate(() => JSON.stringify(UmaSkillDeckCore.getUserData()) + '|' + localStorage.getItem('umaSkillDeck:userData'));
+		const before = await state();
+		const hasIcons = await dk.page.evaluate(() => !!UmaSkillDeckCore.getUserData().templates[0].skillIcons);
+		const V5b = Object.assign({}, V5, { templates: [Tp('u1', 'U', ['9', '10'], { tiers: { '9': 3 }, ptRanks: { high: true } })], rosters: [] });
+		const done = await dk.page.evaluate((v) => { document.getElementById('import-textarea').value = JSON.stringify(v); const c = window.confirm; window.confirm = () => true; importData(); window.confirm = c; const d = UmaSkillDeckCore.getUserData(); return { n: d.templates.length, v: d.schemaVersion, icons: d.templates[0].skillIcons }; }, V5b);
+		assert(hasIcons && done.n === 1 && done.v === 7 && JSON.stringify(done.icons) === JSON.stringify({ '9': 'c', '10': 'b' }), '段9(A2) Deck: tiers を持つ5のデータの読み込み・取り込みが移行される（前提。空振りでない）', { hasIcons, done });
+		const un = await dk.page.evaluate(() => ({ ok: performUndo(), toast: document.getElementById('toast-message').textContent }));
+		await dk.page.waitForTimeout(300);
+		assert(un.ok && un.toast === 'インポート前のデータに戻しました' && (await state()) === before, '段9(A2) Deck: インポートの「元に戻す」で、復元したデータが移行で書き換わらない（メモリと保存先が取り込み前と一致）', un);
+		assert(dk.errors.length === 0, '段9(A2) Deck: コンソールのエラー0', dk.errors.slice(0, 3));
+		await dk.ctx.close();
+		// 移行が要らない古いデータ（tiers も ptRanks も無い。スキルを持つセットあり）から取り込み → 元に戻す: 復元したデータにアイコンを足さない（本番で見つけた不具合の再発防止）
+		const dk2 = await openPage(browser, base, 'uma-skill-deck.html', { width: 1280, height: 900 }, USER_DATA);
+		await dk2.page.click('#tab-btn-data');
+		await dk2.page.waitForTimeout(300);
+		const state2 = () => dk2.page.evaluate(() => JSON.stringify(UmaSkillDeckCore.getUserData()) + '|' + localStorage.getItem('umaSkillDeck:userData'));
+		const before2 = await state2();
+		const old = await dk2.page.evaluate(() => UmaSkillDeckCore.getUserData().templates.filter((t) => t.skillIds.length > 0 && !t.tiers && !('skillIcons' in t)).length);
+		await dk2.page.evaluate((v) => { document.getElementById('import-textarea').value = JSON.stringify(v); const c = window.confirm; window.confirm = () => true; importData(); window.confirm = c; }, V5b);
+		const un2 = await dk2.page.evaluate(() => ({ ok: performUndo() }));
+		await dk2.page.waitForTimeout(300);
+		assert(old >= 1 && un2.ok && (await state2()) === before2 && !before2.includes('skillIcons'), '段9(A2) Deck: tiers の無い古いデータからの取り込み→「元に戻す」で、復元したデータにアイコンが足されない（取り込み前と一致。' + old + 'セットで確認）', { old, ok: un2.ok });
+		await dk2.ctx.close();
+	});
+
+	/* ====================================================================
 	 * 375px の高さ
 	 * ==================================================================== */
 	await block('段9 375px の高さ（帯 40px 以下・①の表の上端 351px 以下・②の一覧の上端 400px 以下・行 31px）', async () => {
