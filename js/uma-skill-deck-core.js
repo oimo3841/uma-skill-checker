@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03i';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03h';
 
 	/* ============================================================
 	 * 定数
@@ -2402,6 +2402,25 @@
 		return list.filter(it => !moved.has(it.skillId)).map(it => [it].concat(under.get(it.skillId) || []));
 	}
 	/**
+	 * 表の行の色分け（段7e の (2)〜(5)）。判定はマスターの tags だけ（スキル名は決め打ちしない）。
+	 *   heal    … 効果タイプが回復（持久力回復）／ debuff … 効果タイプがデバフ（掛かり時間を含む）／ passive … パッシブのタグがある
+	 * 重なったときの優先は呼び出し側で決める（地は 固有 > 金 > 回復。文字は 回復 > デバフ > パッシブ）。
+	 */
+	const ROW_HEAL_EFFECTS = ['stamina'];
+	const ROW_DEBUFF_EFFECTS = ['debuff'];
+	function rowToneOf(skillId) {
+		const tags = getSkillTags(skillId) || {};
+		const eff = Array.isArray(tags.effect) ? tags.effect : [];
+		const effectAxis = TAG_AXES.find(a => a.key === 'effect');
+		const debuffValues = expandMergedValues(effectAxis, ROW_DEBUFF_EFFECTS);
+		return {
+			heal: eff.some(v => ROW_HEAL_EFFECTS.indexOf(v) !== -1),
+			debuff: eff.some(v => debuffValues.indexOf(v) !== -1),
+			passive: Array.isArray(tags.passive) && tags.passive.length > 0
+		};
+	}
+
+	/**
 	 * 種数の数え方（段7d の ⑫）。**金スキルと、その前段の白スキルの両方を取る（ids に両方ある）ときは、合わせて1種**に数える
 	 * （ゲームでは金を取ると下位は表示されなくなるため）。返り値は「金と組になって数えない白スキルの id」の Set。
 	 * 前段は前段データ（skill-step-up.json）を最下位までさかのぼる。レアリティは skill-pt.json の rarity。
@@ -3909,8 +3928,26 @@
 		'.usd-roster-evbtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
 		'.usd-roster-evbtn--alert { background: var(--uma-danger-text); border-color: var(--uma-danger-text); color: var(--uma-text-inverse); }',
 		// 金スキルの行（(18)）: 淡い金の地（結合画像の琥珀と同じトークン）。名前は読める濃さのまま
+		// 行の色分け（段7e の (2)〜(6)）。色は core の中のこの変数にまとめる（共有の tokens／common／shell は触らない）。
+		// 地の優先は 固有 > 金 > 回復（CSS の並び順で決める＝回復 → 金 → 固有）、文字の優先は 回復 > デバフ > パッシブ（JS が1つだけクラスを付ける）。
+		// 文字と地の組み合わせは、すべてコントラスト比 4.5 以上（検査が実際の色で見る）
+		'.usd-roster-grid { --usd-skill-heal-bg: #e6f3fd; --usd-skill-heal-text: #0b5fa5; --usd-skill-passive-text: #1b7a3a; --usd-skill-debuff-text: #b3261e; --usd-skill-pt-text: #546580;',
+		'  --usd-skill-unique-from: #e3f6e6; --usd-skill-unique-mid: #dff1fb; --usd-skill-unique-to: #fbe3f1; --usd-skill-unique-edge: #f0a8d0; }',
+		'.usd-roster-grow--heal > .usd-roster-gc, .usd-roster-grow--heal > .usd-roster-gc--uma { background: var(--usd-skill-heal-bg); }',
 		'.usd-roster-grow--gold > .usd-roster-gc { background: var(--uma-stitch-soft); }',
 		'.usd-roster-grow--gold > .usd-roster-gc--uma { background: var(--uma-stitch-soft); }',
+		// 固有スキル: 行全体を左から右へ 淡い緑 → 空色 → 淡いピンク のグラデーション＋1px のピンクの縁（ゲームの固有スキルの虹色の枠の印象）。
+		// 行は display: contents なので、この行だけ箱にして列を引き継ぐ（subgrid）。縁は outline（高さを変えない）
+		'.usd-roster-grow--unique { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid;',
+		'  background: linear-gradient(90deg, var(--usd-skill-unique-from), var(--usd-skill-unique-mid), var(--usd-skill-unique-to));',
+		'  outline: 1px solid var(--usd-skill-unique-edge); outline-offset: -1px; }',
+		'.usd-roster-grow--unique > .usd-roster-gc, .usd-roster-grow--unique > .usd-roster-gc--uma { background: transparent; }',
+		// 得られる●の行の Pt の文字は、金・回復・固有の地の上で 4.5 以上になる少し濃い色にする（薄い△の参考値はそのまま）
+		'.usd-roster-grow--gold:not(.usd-roster-grow--off) .usd-roster-pt:not(.usd-roster-pt--ref), .usd-roster-grow--heal:not(.usd-roster-grow--off) .usd-roster-pt:not(.usd-roster-pt--ref),',
+		'  .usd-roster-grow--unique:not(.usd-roster-grow--off) .usd-roster-pt:not(.usd-roster-pt--ref) { color: var(--usd-skill-pt-text); }',
+		'.usd-roster-skillname--heal { color: var(--usd-skill-heal-text); }',
+		'.usd-roster-skillname--debuff { color: var(--usd-skill-debuff-text); }',
+		'.usd-roster-skillname--passive { color: var(--usd-skill-passive-text); }',
 		// 前段の白スキルの行（金スキルの直下に動かしたもの）: 名前を左へ 4px 字下げするだけ。ほかは変えない
 		'.usd-roster-grow--prev > .usd-roster-gc--name { padding-left: calc(var(--uma-sp-2) + 4px); }',
 		// × の確認の小窓（(6)）
@@ -6684,9 +6721,13 @@
 						? '<label class="usd-roster-take"><input type="checkbox" data-usd-act="take-skill" data-skill-id="' + esc(it.skillId) + '"'
 							+ (isOff ? '' : ' checked') + ' aria-label="' + esc(it.name + 'を取得する') + '" /></label>'
 						: '';
-					h += '<div class="usd-roster-grow' + (rarity === 'gold' ? ' usd-roster-grow--gold' : '') + (prevRowIds.has(it.skillId) ? ' usd-roster-grow--prev' : '') + (isOff ? ' usd-roster-grow--off' : '') + '" role="row" data-skill-id="' + esc(it.skillId) + '"' + (isOff ? ' data-usd-off="1"' : '') + '>'
+					// 色分け（段7e の (2)〜(5)）。取得しない（オフ）の行は今までの見た目のまま（地も文字も薄い色）
+					const tone = rowToneOf(it.skillId);
+					const nameTone = isOff ? '' : tone.heal ? ' usd-roster-skillname--heal' : tone.debuff ? ' usd-roster-skillname--debuff' : tone.passive ? ' usd-roster-skillname--passive' : '';
+					h += '<div class="usd-roster-grow' + (rarity === 'gold' ? ' usd-roster-grow--gold' : '') + (rarity === 'unique' ? ' usd-roster-grow--unique' : '') + (tone.heal ? ' usd-roster-grow--heal' : '')
+						+ (prevRowIds.has(it.skillId) ? ' usd-roster-grow--prev' : '') + (isOff ? ' usd-roster-grow--off' : '') + '" role="row" data-skill-id="' + esc(it.skillId) + '"' + (isOff ? ' data-usd-off="1"' : '') + '>'
 						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader">' + takeBox + '<div class="usd-roster-namescroll usd-hscroll" data-usd-no-trim="1">'
-							+ '<button type="button" class="usd-roster-skillname usd-roster-skillname--btn' + (isOff ? ' usd-roster-skillname--off' : '') + '" data-usd-info="' + esc(it.skillId) + '">' + esc(it.name) + '</button>'
+							+ '<button type="button" class="usd-roster-skillname usd-roster-skillname--btn' + (isOff ? ' usd-roster-skillname--off' : '') + nameTone + '" data-usd-info="' + esc(it.skillId) + '">' + esc(it.name) + '</button>'
 							+ ptCellHtml(ptView, it, isOff) + '</div></div>'
 						+ members.map(m => '<div class="usd-roster-gc' + colClass(m) + '" role="cell">'
 							+ (it.sureMembers.indexOf(m.key) !== -1 ? '<span class="usd-roster-got" role="img" aria-label="得られる"></span>'
