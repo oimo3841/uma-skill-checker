@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03r';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03s';
 
 	/* ============================================================
 	 * 定数
@@ -4335,6 +4335,8 @@
 		'.usd-skillgroup .usd-panel-namebtn { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; }',
 		'.usd-skillgroup .usd-panel-pt { flex: none; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); white-space: nowrap; }',
 		'.usd-skillgroup .usd-panel-del { flex: none; width: 24px; height: 24px; }',
+		'.usd-reset-ops { display: flex; flex-direction: column; gap: 8px; }',
+		'.usd-reset-ops .uma-btn { width: 100%; justify-content: center; }',
 		'.usd-panel--taken .usd-panel-namebtn, .usd-panel--taken .usd-panel-pt { color: var(--uma-text-faint); }',
 		'.usd-panel--taken { background: var(--uma-surface-sunken); }',
 		'.usd-panel--taken .usd-icon { opacity: .4; }',
@@ -7534,6 +7536,57 @@
 			else if (act === 'name-cancel') { nameEdit = null; render(); }
 			else if (act === 'name-commit') { commitName(); }
 			else if (act === 'name-reset') { askReset(); }
+			else if (act === 'roster-reset') openRosterResetPopover(btn);
+		}
+
+		/**
+		 * ①のリセット（段9・C-121）。帯の右端の「↺」で小窓を開き、縦2つのボタン「中身をすべて消す」（赤）／「やめる」。
+		 * 消すのは育成ウマ娘・サポートカード・イベントの選択・スキルのオン/オフ（ROSTER_RESET_KEYS）。**絞り込み（距離・脚質・バ場）・
+		 * 勉強家／切れ者／覚醒Lv の押しボタン・セット名・②は触らない。** 実行したら右下の「元に戻す」で戻せる。
+		 */
+		function openRosterResetPopover(btn) {
+			if (btn && btn.disabled) return;
+			openPopover({ key: 'roster-reset:' + uidBase, title: '① 本育成編成をリセット', build: fillRosterReset, btn: btn, opener: btn, refocus: '[data-usd-act="roster-reset"]' });
+		}
+		function fillRosterReset(body) {
+			const col = infoEl('div', 'usd-reset-ops');
+			col.setAttribute('data-usd-el', 'roster-reset-ops');
+			const add = (cls, el, text, fn) => {
+				const b = infoEl('button', 'uma-btn ' + cls, text);
+				b.type = 'button';
+				b.setAttribute('data-usd-el', el);
+				b.addEventListener('click', () => { closeSkillInfo(); fn(); });
+				col.appendChild(b);
+			};
+			add('uma-btn--danger', 'roster-reset-all', '中身をすべて消す', runRosterResetContent);
+			add('uma-btn--ghost', 'roster-reset-cancel', 'やめる', () => {});
+			body.appendChild(col);
+		}
+		function runRosterResetContent() {
+			if (!rosterResettable(roster)) return;
+			const rid = roster.rosterId;
+			const pickKeys = (r) => { const o = {}; ROSTER_RESET_KEYS.forEach(k => { if (r[k] !== undefined) o[k] = snapshot(r[k]); }); return o; };
+			const prev = pickKeys(roster);
+			pushUndo({
+				scope: 'list',
+				doneLabel: '本育成編成の中身を消しました',
+				undoneLabel: '消した本育成編成を戻しました',
+				// 見るのは「消す対象の項目」だけ（別の編成を開いているときは空＝戻せない扱い）
+				probe: () => roster.rosterId === rid ? probeOf(pickKeys(roster)) : '',
+				apply: () => {
+					if (roster.rosterId !== rid) return false;
+					ROSTER_RESET_KEYS.forEach(k => { delete roster[k]; });
+					Object.assign(roster, snapshot(prev));
+					persistNow();
+					render();
+					return true;
+				}
+			});
+			ROSTER_RESET_KEYS.forEach(k => { delete roster[k]; });
+			roster.umaId = '';
+			roster.cardIds = new Array(ROSTER_CARD_SLOTS).fill(null);
+			persistNow();
+			render();
 		}
 
 		/**
@@ -7934,6 +7987,7 @@
 			// 段9: アイコンのパレットと、行の先頭のアイコン
 			else if (act === 'palette-pick') pickPalette(btn.dataset.icon);
 			else if (act === 'skill-icon') toggleSkillIcon(btn.dataset.skillId);
+			else if (act === 'factor-reset') openFactorResetPopover(btn);
 			else if (act === 'roster-link') openRosterLinkPopover(btn);
 			// 段8: 共通の見出しの帯
 			else if (act === 'set-list') openPopover({ key: 'set-list:' + draftScopeKey, title: 'セット', build: fillSetList, btn: btn, opener: btn, refocus: '[data-usd-act="set-list"]' });
@@ -8671,7 +8725,7 @@
 			const fmt = formatPtNumber;
 			const tag = (el2, name, pt, kinds, extra) => '<span class="usd-band-tag" data-usd-el="' + el2 + '" data-pt="' + pt + '" data-kinds="' + kinds + '">'
 				+ '<span class="usd-band-tagname">' + esc(name) + '</span> <strong>' + fmt(pt) + '</strong> Pt／' + kinds + '種</span>';
-			el.innerHTML = '<div class="usd-setband" data-usd-el="set-head">'
+			el.innerHTML = '<div class="usd-setband usd-bandbox" data-usd-el="set-head">'
 				+ '<div class="usd-band-main">'
 				+ '<span class="usd-band-sum" data-usd-el="factor-sum">' + bandSumHtml(sum.factorPt, sum.factorKinds, 'factor-pt', 'factor-count') + '</span>'
 				+ '<button type="button" class="uma-help-btn usd-band-help' + (taken > 0 ? ' usd-help-dot' : '') + '" data-usd-act="pt-need-help" data-usd-el="pt-need-help-btn" data-taken="' + taken + '"'
@@ -8843,6 +8897,61 @@
 			// 周回因子セット（special の②）の行は、①と同じく名前（button）を押すと説明の小窓（段7d の ⑬。ⓘ と長押しはやめた）。基礎Pt だけ（「いまの設定」は本育成の行にだけ）
 			if (grouped) { attachSkillInfoIn(el, (id) => ({ skillId: id, trigger: 'self' })); renderPanelPts(); }
 			refreshIcons();
+		}
+
+		/**
+		 * ②のリセット（段9・C-121）。帯の右端の「↺」で小窓を開き、縦3つのボタン「スキル○種をすべて消す」（赤）／「アイコンだけすべて外す」／「やめる」。
+		 * **消すのは②のスキルの一覧とアイコンだけ**（継承固有の設定・共通スキルのヒントLv・シナリオ因子／遺伝子のチェック・セット名・①は触らない）。
+		 * ○は消える共通スキルの種（継承固有は含めない）。実行したら右下の「元に戻す」で戻せる。
+		 */
+		function openFactorResetPopover(btn) {
+			if (btn && btn.disabled) return;
+			openPopover({ key: 'factor-reset:' + draftScopeKey, title: '② 因子周回をリセット', build: fillFactorReset, btn: btn, opener: btn, refocus: '[data-usd-act="factor-reset"]' });
+		}
+		function fillFactorReset(body) {
+			const target = currentTarget();
+			const ids = skillIdsOf(target) || [];
+			const iconCount = Object.keys(iconsOf(target)).length;
+			const col = infoEl('div', 'usd-reset-ops');
+			col.setAttribute('data-usd-el', 'factor-reset-ops');
+			const add = (cls, el, text, disabled, fn) => {
+				const b = infoEl('button', 'uma-btn ' + cls, text);
+				b.type = 'button';
+				b.setAttribute('data-usd-el', el);
+				b.disabled = !!disabled;
+				b.addEventListener('click', () => { closeSkillInfo(); fn(); });
+				col.appendChild(b);
+			};
+			add('uma-btn--danger', 'factor-reset-all', 'スキル' + countSkillKinds(ids) + '種をすべて消す', ids.length === 0, () => resetFactor('all'));
+			add('uma-btn--secondary', 'factor-reset-icons', 'アイコンだけすべて外す', iconCount === 0, () => resetFactor('icons'));
+			add('uma-btn--ghost', 'factor-reset-cancel', 'やめる', false, () => {});
+			body.appendChild(col);
+		}
+		/** kind: 'all'＝スキルとアイコンを消す／'icons'＝アイコンだけ外す（スキルは残す）。「元に戻す」に積む */
+		function resetFactor(kind) {
+			const target = currentTarget();
+			const prevIds = snapshot(skillIdsOf(target) || []);
+			const prevIcons = snapshot(iconsOf(target));
+			const isAll = kind === 'all';
+			if (isAll ? prevIds.length === 0 : Object.keys(prevIcons).length === 0) return;
+			const n = countSkillKinds(prevIds);
+			pushUndo({
+				scope: 'list',
+				doneLabel: isAll ? 'スキル' + n + '種を消しました' : 'アイコンをすべて外しました',
+				undoneLabel: isAll ? '消した' + n + '種を戻しました' : '外したアイコンを戻しました',
+				probe: () => probeOf({ ids: skillIdsOf(target) || [], icons: iconsOf(target) }),
+				apply: () => {
+					if (!writeSkillState(target, snapshot(prevIds), snapshot(prevIcons))) return false;
+					if (isAll) picker.excludeIds = picker.excludeIds.concat(prevIds.filter(id => picker.excludeIds.indexOf(id) === -1));
+					afterEditingSkillsChanged(target);
+					return true;
+				}
+			});
+			if (isAll) {
+				if (!writeSkillState(target, [], {})) return;
+				picker.excludeIds = picker.excludeIds.filter(id => prevIds.indexOf(id) === -1);
+			} else if (!writeSkillState(target, prevIds, {})) return;
+			afterEditingSkillsChanged(target);
 		}
 
 		/** 行の先頭のアイコンのボタン（押す範囲は 32px 以上）。アイコンの無いスキルは破線の丸（中は空） */
