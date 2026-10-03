@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03i';
 
 	/* ============================================================
 	 * 定数
@@ -2376,6 +2376,32 @@
 	}
 
 	/**
+	 * 表の並び（段7e の (1)）。**金スキルの直下に、その前段の白スキルを置く。** 前段は前段データ（skill-step-up.json の「金 → 直前のスキル」）の直前だけを見る
+	 * （金かどうかは skill-pt.json の rarity）。前段の白が同じ表に出ているときだけ動かし、出ていなければ何もしない。
+	 * 1つの白スキルが複数の金スキルの前段になっているときは、先に出る金スキルの直下に置く。
+	 * 返り値は「単位」の配列。単位は [先頭の行, ...その直下に置く前段の白の行]。順序は元の並び（金スキルの位置）のまま。
+	 * データが読めていない画面（Deck 単体ページなど）では、1行ずつの単位（並びは変わらない）。
+	 */
+	function arrangeStepUnits(items) {
+		const list = Array.isArray(items) ? items : [];
+		const su = skillPtData.stepUp, pt = skillPtData.skillPt;
+		if (!su || typeof su.prevOf !== 'function' || !(pt instanceof Map)) return list.map(it => [it]);
+		const isGold = (id) => { const row = pt.get(id); return !!row && row.rarity === 'gold'; };
+		const byId = new Map(list.map(it => [it.skillId, it]));
+		const moved = new Set();
+		const under = new Map();
+		list.forEach(it => {
+			if (!isGold(it.skillId)) return;
+			const ws = [];
+			su.prevOf(it.skillId).forEach(p => {
+				const w = byId.get(p);
+				if (w && !isGold(p) && !moved.has(p)) { moved.add(p); ws.push(w); }
+			});
+			if (ws.length > 0) under.set(it.skillId, ws);
+		});
+		return list.filter(it => !moved.has(it.skillId)).map(it => [it].concat(under.get(it.skillId) || []));
+	}
+	/**
 	 * 種数の数え方（段7d の ⑫）。**金スキルと、その前段の白スキルの両方を取る（ids に両方ある）ときは、合わせて1種**に数える
 	 * （ゲームでは金を取ると下位は表示されなくなるため）。返り値は「金と組になって数えない白スキルの id」の Set。
 	 * 前段は前段データ（skill-step-up.json）を最下位までさかのぼる。レアリティは skill-pt.json の rarity。
@@ -3885,6 +3911,8 @@
 		// 金スキルの行（(18)）: 淡い金の地（結合画像の琥珀と同じトークン）。名前は読める濃さのまま
 		'.usd-roster-grow--gold > .usd-roster-gc { background: var(--uma-stitch-soft); }',
 		'.usd-roster-grow--gold > .usd-roster-gc--uma { background: var(--uma-stitch-soft); }',
+		// 前段の白スキルの行（金スキルの直下に動かしたもの）: 名前を左へ 4px 字下げするだけ。ほかは変えない
+		'.usd-roster-grow--prev > .usd-roster-gc--name { padding-left: calc(var(--uma-sp-2) + 4px); }',
 		// × の確認の小窓（(6)）
 		'.usd-roster-modal-box--confirm { width: min(360px, 100%); }',
 		'.usd-roster-confirm-text { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-md); color: var(--uma-text-heading); }',
@@ -6625,12 +6653,16 @@
 				h += '</div>';
 				// 「絞り込み中」の印は段7c（L）で削除した（条件は（?）の小窓に残る）。セレクトの行の高さは絞り込みで変わらない
 				// 並べ替え（段7の (16)）: 押した列のメンバーが得るスキルを上へ（安定ソート）
-				let rows = res.visibleItems.slice();
+				// 並び（段7e の (1)）: 金スキルと、その直前の白スキルが同じ表にあるときは、金スキルの直下に前段の白を置く（単位として動かす）。
+				// 並べ替えも単位ごと: 組のどちらかにその列の○があれば組ごと上へ寄せる（安定ソート）
+				let units = arrangeStepUnits(res.visibleItems);
 				if (sortKey !== null && members.some(m => m.key === sortKey)) {
-					const top = rows.filter(it => it.members.indexOf(sortKey) !== -1);
-					const rest = rows.filter(it => it.members.indexOf(sortKey) === -1);
-					rows = top.concat(rest);
+					const hit = (u) => u.some(it => it.members.indexOf(sortKey) !== -1);
+					units = units.filter(hit).concat(units.filter(u => !hit(u)));
 				}
+				const prevRowIds = new Set();
+				units.forEach(u => u.slice(1).forEach(it => prevRowIds.add(it.skillId)));
+				const rows = [].concat.apply([], units);
 				h += '<div class="usd-roster-grid-wrap"><div class="usd-roster-grid" role="table" aria-label="本育成で得られるスキル"'
 					+ ' style="--usd-roster-cols:' + members.length + '">';
 				h += '<div class="usd-roster-grow" role="row">'
@@ -6652,7 +6684,7 @@
 						? '<label class="usd-roster-take"><input type="checkbox" data-usd-act="take-skill" data-skill-id="' + esc(it.skillId) + '"'
 							+ (isOff ? '' : ' checked') + ' aria-label="' + esc(it.name + 'を取得する') + '" /></label>'
 						: '';
-					h += '<div class="usd-roster-grow' + (rarity === 'gold' ? ' usd-roster-grow--gold' : '') + (isOff ? ' usd-roster-grow--off' : '') + '" role="row" data-skill-id="' + esc(it.skillId) + '"' + (isOff ? ' data-usd-off="1"' : '') + '>'
+					h += '<div class="usd-roster-grow' + (rarity === 'gold' ? ' usd-roster-grow--gold' : '') + (prevRowIds.has(it.skillId) ? ' usd-roster-grow--prev' : '') + (isOff ? ' usd-roster-grow--off' : '') + '" role="row" data-skill-id="' + esc(it.skillId) + '"' + (isOff ? ' data-usd-off="1"' : '') + '>'
 						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader">' + takeBox + '<div class="usd-roster-namescroll usd-hscroll" data-usd-no-trim="1">'
 							+ '<button type="button" class="usd-roster-skillname usd-roster-skillname--btn' + (isOff ? ' usd-roster-skillname--off' : '') + '" data-usd-info="' + esc(it.skillId) + '">' + esc(it.name) + '</button>'
 							+ ptCellHtml(ptView, it, isOff) + '</div></div>'
