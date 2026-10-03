@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03e';
 
 	/* ============================================================
 	 * 定数
@@ -1494,7 +1494,12 @@
 			if (!choices.some(c => c.skills.length > 0)) return;
 			const eventKey = keyBase + '#' + idx;
 			const pick = resolveEventChoice(sides, eventKey, evOpts);
+			// 選ぶ必要があるか（段7d の ⑤）。絞り込み後に残るスキルを成功側に持つ選択肢が2つ以上あるイベントだけ「選ぶ必要あり」。
+			// 1つなら自動（resolveEventChoice）、0なら不要。pending は「選ぶ必要があるのに、まだ選んでいない」（「!」と「未選択N件」に数える）
+			const isWanted = evOpts && typeof evOpts.isWanted === 'function' ? evOpts.isWanted : null;
+			const wantedChoices = choices.filter(c => c.skills.some(s => !isWanted || isWanted(s.skillId))).length;
 			out.push({ eventKey: eventKey, index: idx, step: (ev && Number.isInteger(ev.step)) ? ev.step : null, choices: choices,
+				wantedChoices: wantedChoices, pending: !pick && wantedChoices >= 2,
 				name: (ev && typeof ev.name === 'string') ? ev.name : null, when: (ev && typeof ev.when === 'string') ? ev.when : null,
 				chosen: pick ? pick.index : null, auto: !!(pick && pick.auto) });
 		});
@@ -2064,6 +2069,7 @@
 		}
 		next.meta.loaded = true;
 		skillPtData = next;
+		skillPtLoadListeners.forEach(fn => { try { fn(); } catch (e) { if (global.console) global.console.error('[UmaSkillDeckCore] スキルPt の読み込み後の更新で例外', e); } });
 		if (next.meta.rules !== 'ok') {
 			try { global.console.warn('[UmaSkillDeck] スキルPt の割引率の表を読み込めませんでした（' + next.meta.rules + '）。'); } catch (e) {}
 		}
@@ -2320,6 +2326,41 @@
 			cuts: cuts, unpricedCount: cuts[cuts.length - 1].unpricedCount, overlapRaisable: overlapRaisable };
 	}
 
+	/**
+	 * 種数の数え方（段7d の ⑫）。**金スキルと、その前段の白スキルの両方を取る（ids に両方ある）ときは、合わせて1種**に数える
+	 * （ゲームでは金を取ると下位は表示されなくなるため）。返り値は「金と組になって数えない白スキルの id」の Set。
+	 * 前段は前段データ（skill-step-up.json）を最下位までさかのぼる。レアリティは skill-pt.json の rarity。
+	 * データが読めていない（Deck 単体ページなど）・金スキルが無いときは空。
+	 */
+	function pairedWhiteIds(ids) {
+		const out = new Set();
+		const su = skillPtData.stepUp, pt = skillPtData.skillPt;
+		const list = Array.from(new Set(ids || []));
+		if (!su || typeof su.prevOf !== 'function' || !(pt instanceof Map) || list.length < 2) return out;
+		const inList = new Set(list);
+		const isGold = (id) => { const row = pt.get(id); return !!row && row.rarity === 'gold'; };
+		list.forEach(id => {
+			if (!isGold(id)) return;
+			const seen = new Set([id]);
+			const walk = (x) => su.prevOf(x).forEach(prev => {
+				if (seen.has(prev)) return;
+				seen.add(prev);
+				if (inList.has(prev) && !isGold(prev)) out.add(prev);
+				walk(prev);
+			});
+			walk(id);
+		});
+		return out;
+	}
+	/** 種数（ids の重なりは1つに数える）。金スキルと前段の白スキルの組は1種（pairedWhiteIds）。 */
+	function countSkillKinds(ids) {
+		const list = Array.from(new Set(ids || []));
+		return list.length - pairedWhiteIds(list).size;
+	}
+	/** スキルPt の元データを読み終えたときに知らせる（種数の数え方が変わるため、画面が数え直す）。 */
+	const skillPtLoadListeners = [];
+	function onSkillPtLoaded(fn) { if (typeof fn === 'function') skillPtLoadListeners.push(fn); }
+
 	/** 'loading'（まだ）／'ok'／'failed'（割引率の表か skill-pt.json を読めなかった）。編成パネル（①）と周回因子セット（②）で共有。 */
 	function skillPtDataStatus() {
 		const m = skillPtData.meta;
@@ -2336,10 +2377,17 @@
 		copy.cardIds = (copy.cardIds || []).slice(0, ROSTER_CARD_SLOTS);
 		while (copy.cardIds.length < ROSTER_CARD_SLOTS) copy.cardIds.push(null);
 		const res = rosterSkillResultOf(copy);
-		const off = validOffIdsOf(copy, res.skillIds);
+		// 段7d の ⑥：①のパネルと同じ「表に出す部分」（絞り込みに当たる行の由来・取得しないスキルを除いた●）を渡す
+		const vp = visiblePartOf(copy, res);
 		const status = skillPtDataStatus();
-		return { status: status, sources: res.sources, enabledIds: [], sureIds: res.skillIds.filter(id => off.indexOf(id) === -1), offIds: off,
+		return { status: status, sources: vp.visibleSources, enabledIds: [], sureIds: vp.takenIds, offIds: vp.offList,
 			settings: status === 'ok' ? resolveRosterPtSettings(copy, skillPtData.rules) : null };
+	}
+	/** 本育成編成が「なし」のときの材料（段7d の ⑥(b)）。編成の Pt は 0 として数える。①で選択中の編成には戻らない */
+	function emptyRosterPtInputs() {
+		const status = skillPtDataStatus();
+		return { status: status, sources: [], enabledIds: [], sureIds: [], offIds: [],
+			settings: status === 'ok' ? resolveRosterPtSettings({}, skillPtData.rules) : null };
 	}
 	/**
 	 * 保存した編成の本育成の Pt の合計（前段を含む・絞り込みなし・取得しないにしたスキルを除く。「本育成編成」のボタンに出す値）。
@@ -2441,6 +2489,23 @@
 		const out = [];
 		stored.forEach(id => { if (typeof id === 'string' && sure.has(id) && out.indexOf(id) === -1) out.push(id); });
 		return out;
+	}
+
+	/**
+	 * 編成の「表に出す部分」（段7d の ⑥）。絞り込みに当たる行とその由来・取得しないスキル・実際に取る●。
+	 * **①のパネルの computed() と、②の「本育成編成」（rosterPtInputsOf）が同じ関数を通る**ので、
+	 * ①の「X Pt/N種」と②が本育成編成として数える Pt は、絞り込み・取得しないスキル・イベントの選択・状態・ヒントLv・前段の扱いまで同じになる。
+	 * res は rosterSkillResultOf(r) の結果。
+	 */
+	function visiblePartOf(r, res) {
+		const wanted = filterPredicateOf(r);
+		const visibleItems = wanted ? res.items.filter(it => wanted(it.skillId)) : res.items.slice();
+		const vis = new Set(visibleItems.map(it => it.skillId));
+		const visibleSources = wanted ? res.sources.filter(s => vis.has(s.skillId)) : res.sources;
+		const offList = validOffIdsOf(r, res.skillIds);
+		const off = new Set(offList);
+		const takenIds = visibleItems.filter(it => it.sure && !off.has(it.skillId)).map(it => it.skillId);
+		return { wanted: wanted, visibleItems: visibleItems, visibleSources: visibleSources, offList: offList, takenIds: takenIds };
 	}
 
 	/* ============================================================
@@ -3587,6 +3652,9 @@
 		// 「有効」の添え物は△の下に小さく（△は●と同じ色のまま）
 		'.usd-roster-prev { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); color: var(--uma-text); overflow-wrap: anywhere; }',
 		'.usd-roster-prev strong { color: var(--uma-text-heading); }',
+		// 前段の1行（段7d の ②）: 折り返さず、長いときだけ横に送る（スクロールバーは出さない。続きがある側に薄いフェード）
+		'.usd-roster-prevline { white-space: nowrap; overflow-x: auto; overflow-y: hidden; overflow-wrap: normal; scrollbar-width: none; overscroll-behavior-x: contain; }',
+		'.usd-roster-prevline::-webkit-scrollbar { display: none; }',
 		'.usd-roster-pt--ref { color: var(--uma-text-faint); }',
 		// 周回因子セットの必要スキルPt（段5。special の②）。箱・見出しの行・3つの合計のチップ・親由来のレベルのセレクト。
 		// トークンと既存の部品（.uma-badge・.uma-help-btn・.uma-help-box・.uma-input）だけで、共有の CSS には足していない
@@ -5950,13 +6018,17 @@
 			r.unsureIds = unsure;
 			r.enabledIds = [];
 			r.filtered = !!wanted;
-			r.visibleItems = wanted ? r.items.filter(it => wanted(it.skillId)) : r.items.slice();
-			const vis = new Set(r.visibleItems.map(it => it.skillId));
-			r.visibleSources = wanted ? r.sources.filter(s => vis.has(s.skillId)) : r.sources;
-			// 取得しないにしたスキル（段7c の M）。合計・種数・小計・前段・②へ渡す値から外す。絞り込みで隠れていても「取得しない」のまま
-			r.offList = validOffIdsOf(roster, r.skillIds);
+			// 表に出す部分は、②の「本育成編成」と同じ関数で求める（段7d の ⑥）。取得しないにしたスキル（段7c の M）は、
+			// 合計・種数・小計・前段・②へ渡す値から外す。絞り込みで隠れていても「取得しない」のまま
+			const vp = visiblePartOf(roster, r);
+			r.visibleItems = vp.visibleItems;
+			r.visibleSources = vp.visibleSources;
+			r.offList = vp.offList;
 			r.offIds = new Set(r.offList);
-			r.visibleSureCount = r.visibleItems.filter(it => it.sure && !r.offIds.has(it.skillId)).length;
+			r.takenIds = vp.takenIds;
+			r.visibleSureCount = vp.takenIds.length;
+			// 種数（段7d の ⑫）。金スキルと、その前段の白スキルを両方取るときは合わせて1種
+			r.kindCount = countSkillKinds(vp.takenIds);
 			return r;
 		}
 
@@ -6019,39 +6091,18 @@
 		}
 
 		/**
-		 * 前段として必要（段4b）。「前段として必要 K種 P Pt」・各スキルの名前と Pt（最大5つ。残りは「ほかN種」）・「前段を含む合計 T Pt」。
-		 * 前段が無いときは何も出さない。連鎖が2段以上のときは段の順を「→」で示し、途中の段が本育成の表にあるものは「（本育成）」を添えて Pt は数えない。
+		 * 前段として必要なスキル（段4b → 段7d の ②）。「前段として必要 K種 P Pt」「（内訳）」「前段を含む合計 T Pt」の3行は廃止した。
+		 * 合計の「X Pt/N種」が前段のPt を含む額になったので、ここには**前段のスキルと Pt の1行**だけを出す（長いときはこの行だけ横に送る。縦には増やさない）。
+		 * 形は「ヒントLv0：折れない心 162・曙光 170」。前段のヒントレベルが違うものは「／」で分ける。前段が無いときは何も出さない。
 		 */
 		function prevHtml(view) {
 			const pt = view.pt;
 			if (!pt.prevItems || pt.prevItems.length === 0) return '';
-			const byId = new Map(pt.prevItems.map(x => [x.skillId, x]));
-			const text = (x) => getSkillName(x.skillId) + ' ' + (x.base === null ? 'Pt 未収録' : x.pt);
-			const shown = new Set();
-			const parts = [];
-			let shownCount = 0;
-			const LIMIT = 5;
-			pt.chains.forEach(c => {
-				const fresh = c.ancestors.filter(a => !a.inTable && byId.has(a.skillId) && !shown.has(a.skillId));
-				if (fresh.length === 0 || shownCount >= LIMIT) return;
-				const seq = c.ancestors.filter(a => a.inTable || (byId.has(a.skillId) && !shown.has(a.skillId)));
-				const room = LIMIT - shownCount;
-				let used = 0;
-				const seg = [];
-				seq.forEach(a => {
-					if (a.inTable) { seg.push(getSkillName(a.skillId) + '（本育成）'); return; }
-					if (used >= room) return;
-					used++; shown.add(a.skillId); seg.push(text(byId.get(a.skillId)));
-				});
-				shownCount += used;
-				parts.push(seg.join(' → '));
-			});
-			const rest = pt.prevItems.length - shownCount;
-			let h = '<p class="usd-roster-prev" data-usd-el="pt-prev">前段として必要 <strong data-usd-el="pt-prev-count">' + pt.prevItems.length + '</strong>種 <strong data-usd-el="pt-prev-total">'
-				+ formatPtNumber(pt.prevTotal) + '</strong> Pt</p>';
-			h += '<p class="usd-roster-note" data-usd-el="pt-prev-list">（' + esc(parts.join(' ／ ')) + (rest > 0 ? (parts.length ? ' ／ ' : '') + 'ほか' + rest + '種' : '') + '）</p>';
-			h += '<p class="usd-roster-prev" data-usd-el="pt-with-prev">前段を含む合計 <strong data-usd-el="pt-with-prev-total">' + formatPtNumber(pt.totalWithPrev) + '</strong> Pt</p>';
-			return h;
+			const groups = new Map();
+			pt.prevItems.forEach(x => { const lv = x.hintLevel || 0; if (!groups.has(lv)) groups.set(lv, []); groups.get(lv).push(x); });
+			const text = (x) => getSkillName(x.skillId) + ' ' + (x.base === null ? 'Pt未収録' : x.pt);
+			const line = Array.from(groups.keys()).sort((p, q2) => p - q2).map(lv => 'ヒントLv' + lv + '：' + groups.get(lv).map(text).join('・')).join('／');
+			return '<p class="usd-roster-prev usd-roster-prevline usd-hscroll" data-usd-el="pt-prev" data-usd-no-trim="1">' + esc(line) + '</p>';
 		}
 
 		/**
@@ -6066,7 +6117,7 @@
 			let h = '<div class="usd-roster-ptsum" data-usd-el="pt-sum">';
 			h += '<div class="usd-roster-sumrow" data-usd-el="pt-sumrow">';
 			h += '<span class="usd-roster-sumhead">'
-				+ '<span class="usd-roster-ptsum-total"><strong data-usd-el="pt-total">' + formatPtNumber(pt.total) + '</strong> Pt/<strong data-usd-el="pt-count">' + res.visibleSureCount + '</strong>種</span>'
+				+ '<span class="usd-roster-ptsum-total"><strong data-usd-el="pt-total">' + formatPtNumber(pt.totalWithPrev) + '</strong> Pt/<strong data-usd-el="pt-count">' + res.kindCount + '</strong>種</span>'
 				+ '<button type="button" class="uma-help-btn" data-usd-act="pt-help" data-usd-el="pt-help-btn" aria-expanded="false" aria-label="合計の説明を開く" title="合計の説明を開く">?</button>'
 				+ '</span>';
 			h += '<span class="usd-roster-sumbtns" data-usd-el="pt-sumbtns">';
@@ -6101,7 +6152,8 @@
 			const pt = view.pt;
 			const line = (cls, text, el) => { const p = infoEl('p', cls, text); if (el) p.setAttribute('data-usd-el', el); body.appendChild(p); };
 			line('', '理論値（各スキルを最大のヒントレベルで得た場合のスキルPt）', 'info-theory');
-			line('', 'ヒント ' + formatPtNumber(pt.subtotals.hint) + ' Pt／イベント ' + formatPtNumber(pt.subtotals.event) + ' Pt／育成ウマ娘 ' + formatPtNumber(pt.subtotals.uma) + ' Pt', 'info-subtotals');
+			line('', 'ヒント ' + formatPtNumber(pt.subtotals.hint) + ' Pt／イベント ' + formatPtNumber(pt.subtotals.event) + ' Pt／育成ウマ娘 ' + formatPtNumber(pt.subtotals.uma) + ' Pt'
+				+ (pt.prevTotal > 0 ? '／前段 ' + formatPtNumber(pt.prevTotal) + ' Pt' : ''), 'info-subtotals');
 			const sel = resolvedFilter();
 			const keys = Object.keys(sel);
 			if (keys.length > 0) {
@@ -6223,7 +6275,7 @@
 
 		/** ①のタブの脇に出す数（表に出ている●の数）を呼び出し元へ知らせる（段7の (2)）。 */
 		function notifySureCount(res) {
-			if (typeof opts.onSureCountChange === 'function') opts.onSureCountChange(res.visibleSureCount);
+			if (typeof opts.onSureCountChange === 'function') opts.onSureCountChange(res.kindCount);
 		}
 
 		/**
@@ -6333,7 +6385,7 @@
 
 		/** イベントを選ぶ小窓を開いている列の、未選択の数（段7の (19)。▼の点に使う）。 */
 		function unselectedCountOf(res, memberKey) {
-			return res.events.filter(e => e.memberKey === memberKey && e.chosen === null).length;
+			return res.events.filter(e => e.memberKey === memberKey && e.pending).length;
 		}
 
 		function render() {
@@ -6434,7 +6486,7 @@
 				const evs = ((m.kind === 'card' && m.label) || m.kind === 'scenario') ? res.events.filter(e => e.memberKey === m.key) : [];
 				const typedAttrs = (m.typeOrder !== null && m.typeOrder !== undefined) ? ' usd-roster-typed" data-type-order="' + m.typeOrder + '" style="' + cardTypeColorVars(m.typeOrder) : '';
 				if (evs.length > 0) {
-					const unsel = evs.filter(e => e.chosen === null).length;
+					const unsel = evs.filter(e => e.pending).length;
 					const label = (m.kind === 'scenario' ? m.label : m.no + '番のカード') + 'のイベントを選ぶ' + (unsel > 0 ? '（未選択' + unsel + '件）' : '');
 					s += '<button type="button" class="usd-roster-legend-no usd-roster-evbtn' + (m.kind === 'scenario' ? ' usd-roster-evbtn--scen' : '') + (unsel > 0 ? ' usd-roster-evbtn--alert' : typedAttrs) + '"'
 						+ ' data-usd-act="events" data-member-key="' + m.key + '" data-usd-el="events-btn" data-unselected="' + unsel + '"'
@@ -6605,7 +6657,7 @@
 		function fillEventsInfo(body, res, memberKey) {
 			const wanted = filterPredicate();
 			const list = res.events.filter(e => e.memberKey === memberKey);
-			const unsel = list.filter(e => e.chosen === null).length;
+			const unsel = list.filter(e => e.pending).length;
 			const panes = infoEl('div', 'usd-ev-panes');
 			panes.setAttribute('data-usd-el', 'events-panes');
 			const left = infoEl('section', 'usd-ev-pane usd-ev-pane--events');
@@ -7022,7 +7074,7 @@
 			getInputs: function () {
 				const res = computed();
 				const status = ptDataStatus();
-				return { status: status, sources: res.sources, enabledIds: [], sureIds: res.skillIds.filter(id => !res.offIds.has(id)), offIds: res.offList.slice(),
+				return { status: status, sources: res.visibleSources, enabledIds: [], sureIds: res.takenIds.slice(), offIds: res.offList.slice(),
 					settings: status === 'ok' ? resolveRosterPtSettings(roster, skillPtData.rules) : null };
 			}
 		};
@@ -7231,6 +7283,7 @@
 		// 編成パネル（①）が描き直したとき、必要Ptも描き直す（本育成のぶんが変わるため）。段5
 		// 編成（①）が変わったら、必要Ptと「本育成編成」の重なり・追加の一覧のグレーアウトも描き直す（段7の E・旧5。モーダルが開いたままでも映す）
 		rosterPtListeners.push(function () { if (!container.isConnected) return; renderPtNeed(); renderRosterLink(); applyRosterHidden(); });
+		onSkillPtLoaded(function () { if (!container.isConnected || !grouped) return; renderTabs(); renderSelectedList(); });
 
 		container.addEventListener('click', (e) => {
 			const btn = e.target.closest('[data-usd-act]');
@@ -7480,11 +7533,11 @@
 			const onDraft = !currentTemplateId();
 			const items = [{
 				id: DRAFT_SELECTION_ID, label: '＋ ' + DRAFT_LABEL, isNew: true, selected: onDraft,
-				count: draftScope.skillIds.length > 0 ? draftScope.skillIds.length + '種' : null,
+				count: draftScope.skillIds.length > 0 ? countSkillKinds(draftScope.skillIds) + '種' : null,
 				title: DRAFT_LABEL + '：保存していない' + setLabel
 			}].concat(list.map(t => ({
 				id: t.templateId, label: t.name || '（名称未設定）', title: t.name || '（名称未設定）',
-				selected: t.templateId === selectedId, count: t.skillIds.length + '種'
+				selected: t.templateId === selectedId, count: countSkillKinds(t.skillIds) + '種'
 			})));
 			if (grouped) {
 				// 段7b の ⑫：見出し「因子セット（X／10件）」を無くし、①と同じ名前つきのタブ（共有の namedTabsHtml）にした。
@@ -7703,9 +7756,9 @@
 			if (!grouped || !rosterPtSource) { hideIt(); return; }
 			const target = currentTarget();
 			// 段7c の O の (5)：状態（勉強家・切れ者）・育成ウマ娘のレベル・本育成のスキルは、**そのセットの「本育成編成」に選んだ編成**から読む
-			// （選んでいないときは、①で選択中の編成。段5 の決定のとおり）。これまでは常に①で選択中の編成を読んでいた
+			// 段7d の ⑥(b)：選んでいないとき（本育成編成が「なし」）は、編成の Pt を 0 として数える（①で選択中の編成には戻らない。段5 の決定を置き換えた）
 			const linkedRoster = linkedRosterOf(target);
-			const inp = linkedRoster ? rosterPtInputsOf(linkedRoster) : rosterPtSource.getInputs();
+			const inp = linkedRoster ? rosterPtInputsOf(linkedRoster) : emptyRosterPtInputs();
 			if (inp.status === 'loading') { hideIt(); return; }
 			if (inp.status === 'failed') {
 				el.hidden = false;
@@ -7753,19 +7806,27 @@
 		}
 
 		// 分類の切り替え（超優先／優先／通常）と合計（C-57 の (7)）
+		// 種数（段7d の ⑫）。金スキルと前段の白スキルの組は1種で、**組は金の分類の側で数える**（白スキルの分類では数えない）
+		function kindCountsOf(ids, tiers) {
+			const paired = pairedWhiteIds(ids);
+			const byTier = {};
+			TIERS.forEach(t => { byTier[t.id] = 0; });
+			let total = 0;
+			ids.forEach(id => { if (paired.has(id)) return; byTier[tierOf(tiers, id)]++; total++; });
+			return { byTier: byTier, total: total };
+		}
 		function renderTierRow() {
 			const ids = editingSkillIds();
 			const tiers = tiersOf(currentTarget());
-			const counts = {};
-			TIERS.forEach(t => { counts[t.id] = 0; });
-			ids.forEach(id => { counts[tierOf(tiers, id)]++; });
+			const kinds = kindCountsOf(ids, tiers);
+			const counts = kinds.byTier;
 			q(container, 'tier-row').innerHTML =
 				'<div class="usd-tier-tabs" role="tablist" aria-label="スキルセットの分類">' +
 				TIERS.map(t => '<button type="button" role="tab" class="uma-pill usd-tier-tab' + (t.id === currentTier ? ' active' : '') + '"'
 					+ ' data-usd-act="tier-tab" data-tier="' + t.id + '" aria-selected="' + (t.id === currentTier ? 'true' : 'false') + '">'
 					+ esc(t.label) + '<span class="usd-tier-count" data-usd-el="tier-count-' + t.id + '">' + counts[t.id] + '</span></button>').join('') +
 				'</div>' +
-				'<span class="usd-tier-total">設定数 <span data-usd-el="tier-total">' + ids.length + '</span></span>';
+				'<span class="usd-tier-total">設定数 <span data-usd-el="tier-total">' + kinds.total + '</span></span>';
 			renderPtNeed();
 		}
 
@@ -7811,7 +7872,7 @@
 			const tiers = tiersOf(target);
 			const el = q(container, 'selected-list');
 			// 件数はセット全体（分類ごとの件数は分類の切り替えの側に出す）
-			q(container, 'selected-count').textContent = String(ids.length);
+			q(container, 'selected-count').textContent = String(kindCountsOf(ids, tiers).total);
 			if (ids.length === 0 && mode) mode = null;
 			renderTierRow();
 			renderModes(ids.length);
@@ -8810,6 +8871,8 @@
 		computeRosterPt: computeRosterPt,
 		resolveRosterPtSettings: resolveRosterPtSettings,
 		computeFactorSetPt: computeFactorSetPt,
+		countSkillKinds: countSkillKinds,
+		onSkillPtLoaded: onSkillPtLoaded,
 		resolveParentHintLevel: resolveParentHintLevel,
 		parentHintLevelChoices: parentHintLevelChoices,
 		charactersOfCard: charactersOfCard,

@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-03d"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-03e"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<style>
@@ -3314,11 +3314,21 @@
 			// 段K までは B・C の行の件数バッジも出していたが、375px で3つを1行に並べるために外した）。
 			// ここに「＋シナリオ因子N種＋遺伝子N種」を足すと、375px でタブの折り返しが変わる
 			// （段E-2 で直した箇所）
-			badge.textContent = skillOnlyList.length + '種';
+			updateSkillCountBadge();
 			badge.classList.remove('hidden');
 			parseOcrDictionary(); // 辞書に書かれたスキル名がリストに存在するか再確認する
 			updateProcessBtn();
 		}
+
+		// ②のタブの「N種」（段7d の ⑫）。金スキルと、その前段の白スキルを両方取るときは合わせて1種に数える。
+		// 前段のデータは本育成編成のパネルが読むので、読み終えたときにも数え直す（UmaSkillDeckCore.onSkillPtLoaded）
+		function updateSkillCountBadge() {
+			const badge = document.getElementById('skill-count-badge');
+			if (!badge || !deckMode || !deckScope) return;
+			const ids = UmaSkillDeckCore.getSkillEntries(deckScope.skillIds).filter(e => !factorNormSet.has(normalizeText(e.name))).map(e => e.id);
+			badge.textContent = (skillOnlyList.length - (ids.length - UmaSkillDeckCore.countSkillKinds(ids))) + '種';
+		}
+		if (UmaSkillDeckCore.onSkillPtLoaded) UmaSkillDeckCore.onSkillPtLoaded(updateSkillCountBadge);
 
 		/* ============================================================
 		 * スキルセット画面のスクショから読み取る（スキルセットOCR フェーズa コミット4）
