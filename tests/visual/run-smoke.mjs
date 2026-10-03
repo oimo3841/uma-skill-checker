@@ -9179,7 +9179,7 @@ await block('段7【5】収録スキルデータ（マスター）の取り回�
 		assert(paths.length === dataFileCount, '段7の続き: 版の表が data/ の' + dataFileCount + 'ファイル（exam だけが読むものを除く）ぶんある', paths);
 		// 必要になったときだけ読む data/（ⓘ・長押しを開いたとき。段6・2026-10-02）。ここ（ページの読み込みと各入口の呼び出し）では
 		// 取りに行かないのが正しい。**ほかの全ファイルが取得されること**と、**これらが取得されていないこと**を別々に見る。
-		const 遅延 = ['data/skill-descriptions.json'];
+		const 遅延 = ['data/skill-descriptions.json', 'data/scenario-event-skills.json'];   // シナリオの固定イベント（段7c）は special が編成パネルを作るときにだけ読む
 		const 取れた = paths.filter((k) => dataUrls.some((u) => u.includes('/' + k)));
 		const 対象 = paths.filter((k) => !遅延.includes(k));
 		assert(遅延.every((k) => paths.includes(k)) && !遅延.some((k) => 取れた.includes(k)),
@@ -11519,7 +11519,7 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	/* --- ② 「N件」に除外中を含めず、「除外中 M件」が別に出る --- */
 	assert(s1.count === (base0.activeIds.length - 3) + '件' && s1.activeIds.length === base0.activeIds.length - 3,
 		'段3b②: 「N件」は除外中の行を含めない', { count: s1.count, active: s1.activeIds.length, base: base0.activeIds.length });
-	assert(s1.excludedLabel === '本育成で得るため選べない 3件', '段3b②: 「本育成で得るため選べない 3件」が別に出る（段7の文言）', s1.excludedLabel);
+	assert(s1.excludedLabel === '本育成編成のため選べない 3件', '段3b②: 「本育成編成のため選べない 3件」が別に出る（段7の文言）', s1.excludedLabel);
 
 	/* --- ③ 「表示中を全て選択」が除外中の行を選ばない。追加しても除外中は足されない --- */
 	await page.click('[data-usd-act="picker-select-all"]');
@@ -11569,7 +11569,7 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	await openFilter();
 	const s9 = await listState();
 	assert(s9.activeIds.length === 0 && s9.greyIds.length === base0.activeIds.length && s9.count === '0件' && s9.lead
-		&& s9.excludedLabel === '本育成で得るため選べない ' + base0.activeIds.length + '件',
+		&& s9.excludedLabel === '本育成編成のため選べない ' + base0.activeIds.length + '件',
 		'段3b⑨: 全部が除外中でも行は残り、「0件」と「追加できるスキルがありません。」が出る', { active: s9.activeIds.length, grey: s9.greyIds.length, count: s9.count, lead: s9.lead, label: s9.excludedLabel });
 	await page.click('[data-usd-act="picker-select-all"]');
 	await page.waitForTimeout(200);
@@ -11620,8 +11620,8 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	await openPassive();
 	const p1 = await passiveState();
 	assert(p1.total === passive.length && p1.greyIds.length === 3 && ph.every((id) => p1.greyIds.includes(id)) && p1.greyDisabled
-		&& p1.label === '本育成で得るため選べない 3件' && p1.reasons.every((t) => t === s1.reasons[0]),
-		'段3b⑦: 緑スキルの一覧でも消えずにグレーアウト・チェック不可・同じ理由で、「本育成で得るため選べない 3件」が出る（段7の旧3: 行の数なので「件」）', p1);
+		&& p1.label === '本育成編成のため選べない 3件' && p1.reasons.every((t) => t === s1.reasons[0]),
+		'段3b⑦: 緑スキルの一覧でも消えずにグレーアウト・チェック不可・同じ理由で、「本育成編成のため選べない 3件」が出る（段7の旧3: 行の数なので「件」）', p1);
 	await page.click('[data-usd-el="passive-results"] [data-usd-excluded="1"] >> nth=0', { force: true });
 	await page.waitForTimeout(200);
 	assert((await page.evaluate(() => window.__smokeAdded.length)) === 0,
@@ -11629,7 +11629,7 @@ await block('段3b ― 除外中の追加の一覧（グレーアウトで残す
 	// 追加済み（チェックが入っている）ものは、除外中でも普通の行のまま（外せなくならない）
 	await openPassive([ph[0]]);
 	const p2 = await passiveState();
-	assert(!p2.greyIds.includes(ph[0]) && p2.checkedNormal.includes(ph[0]) && p2.greyIds.length === 2 && p2.label === '本育成で得るため選べない 2件',
+	assert(!p2.greyIds.includes(ph[0]) && p2.checkedNormal.includes(ph[0]) && p2.greyIds.length === 2 && p2.label === '本育成編成のため選べない 2件',
 		'段3b⑦: 追加済みの緑スキルは、選べないものでも普通の行のまま（外せる）。選べない行は2件に減る', p2);
 	await page.setViewportSize({ width: 375, height: 800 });
 	await page.waitForTimeout(300);
@@ -12452,11 +12452,11 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	await sp.page.click('[data-usd-el="pt-need-help-btn"]');
 	const help = await sp.page.evaluate(() => { const b = document.querySelector('[data-usd-el="pt-need-help-btn"]'); const x = document.querySelector('[data-usd-el="pt-need-help-box"]');
 		return b ? { expanded: b.getAttribute('aria-expanded'), hidden: x.hidden, text: x.textContent, cls: x.classList.contains('uma-help-box') } : null; });
-	assert(help && help.expanded === 'true' && !help.hidden && help.cls && help.text === '理論値（各スキルを最大のヒントレベルで得た場合のスキルPt）',
+	assert(help && help.expanded === 'true' && !help.hidden && help.cls && help.text.startsWith('理論値（各スキルを最大のヒントレベルで得た場合のスキルPt）'),
 		'段5(8): 「?」を押すと、既存の .uma-help-box で説明の全文が出る', help);
 	assert(v.unpriced === '（Pt未収録1種は含めていません）' && e.unpriced === 1,
 		'段5(6): Pt が未収録のスキル（Y4）は合計に入れず、「（Pt未収録1種は含めていません）」が出る（pt:0 の Y5 は未収録に数えない）', { unpriced: v.unpriced });
-	assert(v.roster === '（うち本育成 ' + fmt(e.roster) + '）' && e.roster > 0, '段5(1): 「（うち本育成 X）」は本育成のぶんの合計', { got: v.roster, want: e.roster });
+	assert(v.roster === null && e.roster > 0, '段5(1)→段7c(O): 「（うち本育成 X）」の行は削除した（表示だけ。X の計算は変えていない）', { got: v.roster, want: e.roster });
 	// 分類を変える（優先の Y1 を超優先へ）→ 超優先だけ・優先までが増え、通常までは変わらない
 	await sp.page.click('[data-usd-act="mode-reclass"]');
 	await sp.page.click('[data-usd-act="tier-move"][data-skill-id="' + y(1) + '"][data-tier="1"]');
@@ -12605,25 +12605,24 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	sp = await openSpecial({ scope: { skillIds: [x(6)], name: '', updatedAt: '' } });
 	await sp.page.evaluate(() => selectStepTab(1));
 	v = await readOverlap(sp.page);
-	assert(hintId && v.note === NOTE && v.roster === '（うち本育成 ' + fmt(roster0.C) + '）' && v.chips[0] === roster0.C,
-		'段5(13): 重なるスキル（本育成のイベント Lv2）があるとき、「うち本育成」の下に補足文「' + NOTE + '」が出る。「うち本育成」の値と3つの合計は変わらない', v);
-	const noteStyle = await sp.page.evaluate(() => { const n = document.querySelector('[data-usd-el="pt-need-overlap"]'); const ro = document.querySelector('[data-usd-el="pt-need-roster"]');
-		const cs = getComputedStyle(n); const cr = getComputedStyle(ro);
-		return { sameClass: n.className === ro.className, order: !!(ro.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING), size: cs.fontSize, color: cs.color, sizeRoster: cr.fontSize, colorRoster: cr.color }; });
-	assert(noteStyle.sameClass && noteStyle.order && noteStyle.size === noteStyle.sizeRoster && noteStyle.color === noteStyle.colorRoster,
-		'段5(13): 補足文は「うち本育成」の行の下に、同じ小さく薄い色で出る', noteStyle);
+	assert(hintId && v.note === NOTE && v.roster === null && v.chips[0] === roster0.C,
+		'段5(13)→段7c(O): 重なるスキル（本育成のイベント Lv2）があるとき、補足文「' + NOTE + '」が出る（場所は（?）の中に移った）。3つの合計は変わらない', v);
+	const noteStyle = await sp.page.evaluate(() => { const n = document.querySelector('[data-usd-el="pt-need-overlap"]'); const box = document.querySelector('[data-usd-el="pt-need-help-box"]');
+		return { inBox: !!box && box.contains(n), boxHidden: box.hidden, roster: !!document.querySelector('[data-usd-el="pt-need-roster"]') }; });
+	assert(noteStyle.inBox && noteStyle.boxHidden && !noteStyle.roster,
+		'段5(13)→段7c(O): 補足文は必要スキルPt の（?）の説明の箱の中にあり（押すまでは隠れている）、「うち本育成」の行は無い', noteStyle);
 	await sp.ctx.close();
 	// (2) 重なるスキルが、本育成だけで L=5（練習のヒント）のもの → 出ない
 	sp = await openSpecial({ scope: { skillIds: [hintId], name: '', updatedAt: '' } });
 	await sp.page.evaluate(() => selectStepTab(1));
 	v = await readOverlap(sp.page);
-	assert(v.roster !== null && v.note === null, '段5(13): 重なるスキルがすべて本育成だけで L=5（練習のヒント）のときは、補足文が出ない', v);
+	assert(v.roster === null && v.note === null, '段5(13): 重なるスキルがすべて本育成だけで L=5（練習のヒント）のときは、補足文が出ない', v);
 	await sp.ctx.close();
 	// (3) 重なりが無い → 出ない
 	sp = await openSpecial({ scope: { skillIds: [y(0)], name: '', updatedAt: '' } });
 	await sp.page.evaluate(() => selectStepTab(1));
 	v = await readOverlap(sp.page);
-	assert(v.roster !== null && v.note === null, '段5(13): 重なるスキルが無いときは、補足文が出ない', v);
+	assert(v.roster === null && v.note === null, '段5(13): 重なるスキルが無いときは、補足文が出ない', v);
 	await sp.ctx.close();
 	// (4) L=5 のものと L<5 のものが混ざる → 出る
 	sp = await openSpecial({ scope: { skillIds: [hintId, x(6)], name: '', updatedAt: '' } });
@@ -12635,11 +12634,12 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	sp = await openSpecial({ roster: { umaId: '', cardIds: new Array(6).fill(null) }, scope: { skillIds: [x(6)], name: '', updatedAt: '' } });
 	await sp.page.evaluate(() => selectStepTab(1));
 	v = await readOverlap(sp.page);
-	assert(v.roster === null && v.note === null, '段5(13): 本育成のスキルが0のときは、「うち本育成」の行も補足文も出ない', v);
+	assert(v.roster === null && v.note === null, '段5(13): 本育成のスキルが0のときは、補足文も出ない（「うち本育成」の行は段7c で削除）', v);
 	await sp.ctx.close();
 	// (6) 375px: 折り返してはみ出さない
 	sp = await openSpecial({ w: 375, h: 900, scope: { skillIds: [x(6)], name: '', updatedAt: '' } });
 	await sp.page.evaluate(() => selectStepTab(1));
+	await sp.page.click('[data-usd-el="pt-need-help-btn"]');
 	const g13 = await sp.page.evaluate(() => {
 		const el = document.querySelector('[data-usd-el="pt-need"]');
 		const n = el.querySelector('[data-usd-el="pt-need-overlap"]');
@@ -12900,7 +12900,7 @@ await block('前段の必要Pt（段4b）', async () => {
 		'段4b(4): 因子セットのスキルの前段が、そのスキルの分類まで進んだ合計から含まれる（Z5 の前段 Z6 は「優先まで」から、Z8 の前段 Z9 は「通常まで」から）。3つの合計が期待値と一致する', { got: v.chips, want: [e.A, e.B, e.C] });
 	assert(e.cut3.prevIds.filter((id) => id === z(3)).length === 0 && e.cut3.inTable(z(3)),
 		'段4b(4): 本育成の金 Z4 の前段 Z3 は、因子セットにも入っている（重なる）ので1回だけ数える（前段としては数えず、F を足した L で計算される）', e.cut3.prevIds);
-	assert(v.roster === '（うち本育成 ' + fmt(rp.withPrev) + '）' && rp.withPrev === need(fA.sources).roster.all,
+	assert(v.roster === null && rp.withPrev === need(fA.sources).roster.all,
 		'段4b(9): 「うち本育成」は、本育成パネルの「前段を含む合計」と同じ値（前段が無いときは本育成の合計のまま）', { roster: v.roster, withPrev: rp.withPrev });
 	await sp.ctx.close();
 
@@ -13534,8 +13534,8 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	v = await readPanel(sp.page);
 	const d5 = await draft(sp.page);
 	const hintShort = hintIds.filter(wantedShort);
-	assert(v.ids.includes(W[0]) && !v.ids.includes(W[1]) && v.ids.includes(W[6]) && v.ids.includes(W[2]) && v.filtering === '絞り込み中' && hintIds.every((id) => v.ids.includes(id) === wantedShort(id)),
-		'段7(17): 距離を短距離にすると、長距離のスキルが消え、短距離・万能・タグ未設定のスキルは残る（練習のヒントも同じ決まり）。「絞り込み中」の印が出る', { ids: v.ids, filtering: v.filtering });
+	assert(v.ids.includes(W[0]) && !v.ids.includes(W[1]) && v.ids.includes(W[6]) && v.ids.includes(W[2]) && v.filtering === null && hintIds.every((id) => v.ids.includes(id) === wantedShort(id)),
+		'段7(17): 距離を短距離にすると、長距離のスキルが消え、短距離・万能・タグ未設定のスキルは残る（練習のヒントも同じ決まり）。「絞り込み中」の印は出ない（段7c の L。条件は（?）の中）', { ids: v.ids, filtering: v.filtering });
 	const COUNT_SHORT = 5 + hintShort.length;
 	const TOTAL_SHORT = eventTotal + pay(100, 2) + hintShort.length * pay(50, 5);
 	assert(v.rows.find((r) => r.id === W[0]).marks[1] === '●' && v.count === COUNT_SHORT && v.total === TOTAL_SHORT && v.badge === COUNT_SHORT + '種',
@@ -13661,8 +13661,8 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 		const ex = document.querySelector('[data-usd-el="result-excluded"]');
 		return { greyIds: grey.map((r) => r.querySelector('input').value), reasons: [...new Set(grey.map((r) => r.querySelector('[data-usd-el="excluded-reason"]').textContent))], label: ex && !ex.hidden ? ex.textContent : null };
 	});
-	assert(pick.greyIds.length >= 1 && pick.greyIds.every((id) => allSure.includes(id)) && pick.greyIds.includes(W[2]) && pick.reasons.join() === '本育成で得るため選べません' && pick.label === '本育成で得るため選べない ' + pick.greyIds.length + '件',
-		'段7(E)(旧3): 対象があるあいだ、「条件で検索」で本育成で得るスキルはグレーアウトで残り、理由「本育成で得るため選べません」と「本育成で得るため選べない M件」が出る', pick);
+	assert(pick.greyIds.length >= 1 && pick.greyIds.every((id) => allSure.includes(id)) && pick.greyIds.includes(W[2]) && pick.reasons.join() === '本育成で得るため選べません' && pick.label === '本育成編成のため選べない ' + pick.greyIds.length + '件',
+		'段7(E)(旧3): 対象があるあいだ、「条件で検索」で本育成で得るスキルはグレーアウトで残り、理由「本育成で得るため選べません」と「本育成編成のため選べない M件」が出る', pick);
 	// 旧5: モーダルを開いたまま、選んだ編成（AB）が変わる（カード A を外す）と、一覧が描き直される
 	await sp.page.evaluate(() => { document.querySelector('#deck-roster-panel [data-usd-act="clear-card"][data-index="0"]').click(); });
 	await sp.page.waitForTimeout(300);
@@ -13677,7 +13677,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	await sp.page.click('[data-usd-act="paste-run"]');
 	await sp.page.waitForTimeout(400);
 	const paste = await sp.page.evaluate(() => ({ blocked: (document.querySelector('[data-usd-el="paste-blocked"]') || {}).textContent || null, checked: document.querySelector('[data-usd-el="picker-checked-count"]').textContent, summary: document.querySelector('.usd-paste-ok').textContent }));
-	assert(paste.blocked === '本育成で得るため追加しなかったもの 1種' && paste.checked === '1種選択' && paste.summary === '選択 1件', '段7(旧4): 貼り付けで一致した行のうち本育成で得るものは選択に入らず、「本育成で得るため追加しなかったもの N種」が出る', paste);
+	assert(paste.blocked === '本育成編成のため追加しなかったもの 1種' && paste.checked === '1種選択' && paste.summary === '選択 1件', '段7(旧4): 貼り付けで一致した行のうち本育成で得るものは選択に入らず、「本育成編成のため追加しなかったもの N種」が出る', paste);
 	await sp.page.click('[data-usd-el="picker-commit"]');
 	await sp.page.waitForTimeout(300);
 	lk = await readLink(sp.page);
@@ -14379,7 +14379,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			assert(!(await popoverOpen(sp.page)) && afterStore.draftScope.baseRosterId === 'r_b0' && afterStore.draftScope.skillIds.length < beforeStore.draftScope.skillIds.length && !afterStore.draftScope.skillIds.includes(hintIds[0]) && afterStore.draftScope.skillIds.includes(W[8]),
 				tag + '編成を選ぶと小窓が閉じ、その編成の●（練習のヒントのスキル）がこのセットから外れる。対象はセットごとに baseRosterId で保存', { scope: afterStore.draftScope });
 			assert(/^本育成編成で得るため、.+(ほか\d+種)?を因子周回から外しました$/.test(notice || '') && !/周回因子セット/.test(notice || ''), tag + '通知「本育成編成で得るため、{スキル名}ほかN種を因子周回から外しました」', { notice });
-			assert(s1.pressed === 'true' && s1.text === '本育成編成：編成1' && lumOf(rgb(s1.bg)) < 0.1 && readable(s1), tag + '対象あり: 暗い塗りで「本育成編成：編成1」（aria-pressed=true）', s1);
+			assert(s1.pressed === 'true' && /^本育成編成（[0-9,]+Pt）：編成1$/.test(s1.text) && lumOf(rgb(s1.bg)) < 0.1 && readable(s1), tag + '対象あり: 暗い塗りで「本育成編成（XXXXPt）：編成1」（段7c の O。aria-pressed=true）', s1);
 			await sp.page.hover(BTN); await sp.page.waitForTimeout(350);
 			const sH1 = await style();
 			await sp.page.mouse.move(0, 0); await sp.page.waitForTimeout(300);
@@ -14418,7 +14418,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			await sp.page.waitForSelector(BTN);
 			await sp.page.waitForTimeout(400);
 			const re = await style();
-			assert(re.pressed === 'true' && re.text === '本育成編成：編成2', tag + '開き直しても、選んだ編成が対象のまま（保存はセットごと）', re);
+			assert(re.pressed === 'true' && /^本育成編成（[0-9,]+Pt）：編成2$/.test(re.text), tag + '開き直しても、選んだ編成が対象のまま（保存はセットごと）', re);
 			// 指す編成が無くなった（①で削除）→ 対象なしとして扱い、保存値は書き換えない
 			await sp.page.evaluate(() => selectStepTab(0));
 			await sp.page.waitForTimeout(250);
@@ -14432,7 +14432,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			const gone = await style();
 			const goneStore = await stored(sp.page);
 			assert(gone.pressed === 'false' && gone.text === '本育成編成' && goneStore.draftScope.baseRosterId === 'r_b1', tag + '指す編成が無くなったら対象なしとして扱い、保存値は書き換えない', { gone, base: goneStore.draftScope.baseRosterId });
-			assert(grey.n >= 1 && grey.label === '本育成で得るため選べない ' + grey.n + '件', tag + '対象がある間、追加の一覧（条件で検索）で対象の編成の●はグレーアウトで残り、「本育成で得るため選べない M件」が出る', grey);
+			assert(grey.n >= 1 && grey.label === '本育成編成のため選べない ' + grey.n + '件', tag + '対象がある間、追加の一覧（条件で検索）で対象の編成の●はグレーアウトで残り、「本育成編成のため選べない M件」が出る', grey);
 			const sz = await SP(sp.page);
 			assert(sz.sw <= sz.iw && jsErrors(sp.errors).length === 0, tag + '横はみ出し0・コンソールのエラー0', { sz, errors: jsErrors(sp.errors) });
 			await sp.ctx.close();

@@ -1291,6 +1291,86 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 		}
 	}
 
+	/* --- シナリオの固定イベント（段7c の N・2026-10-03。編成パネルを作るときにだけ読むファイル） ---
+	   形は許可リスト方式（知らないキーは落とす）。skillId は登録済み・hintLevel は1以上の整数・重複なし。
+	   シナリオ名・イベント名・スキル名・キャラクター名はここに書かない（恒久ルール1）。見るのは形と id の実在だけ。 */
+	const SCEN_FILE = 'scenario-event-skills.json';
+	const scr = readOpt(SCEN_FILE);
+	if (scr === null) {
+		console.log('       ' + SCEN_FILE + ': まだ無い（無ければ見ない）');
+	} else {
+		check(scr.ok, SCEN_FILE + ' が読める', scr.ok ? undefined : scr.error);
+		if (scr.ok) {
+			const d = scr.data;
+			const unknown = [], missing = [], bad = [], dup = [], unregistered = [], badLevel = [];
+			checkKeys(d, PT_TOP_KEYS, SCEN_FILE, unknown, missing);
+			if (d.category !== 'scenarioEventSkills') bad.push('category が ' + JSON.stringify(d.category));
+			if (!DATA_VERSION_RE.test(String(d.dataVersion))) bad.push('dataVersion の形が違う: ' + String(d.dataVersion));
+			if (!isArr(d.entries) || d.entries.length === 0) bad.push('entries が空でない配列でない');
+			const refOk = (ref, w) => {
+				if (!checkKeys(ref, { need: ['skillId', 'hintLevel'], opt: [] }, w, unknown, missing)) return null;
+				if (!isStr(ref.skillId)) { bad.push(w + '.skillId: 空でない文字列'); return null; }
+				if (!registered.has(ref.skillId)) unregistered.push(w + ': ' + ref.skillId);
+				if (!isInt(ref.hintLevel) || ref.hintLevel < 1) badLevel.push(w + '.hintLevel: 1以上の整数（' + String(ref.hintLevel) + '）');
+				return ref.skillId;
+			};
+			const refsOk = (list, w, ids) => {
+				if (!isArr(list)) { bad.push(w + ': 配列'); return; }
+				list.forEach((ref, i) => { const id = refOk(ref, w + '[' + i + ']'); if (id !== null) ids.push(id); });
+			};
+			const scenarios = new Set();
+			(isArr(d.entries) ? d.entries : []).forEach((en, i) => {
+				const w = 'entries[' + i + ']';
+				if (!checkKeys(en, { need: ['scenario', 'events'], opt: [] }, w, unknown, missing)) return;
+				if (!isStr(en.scenario)) bad.push(w + '.scenario: 空でない文字列');
+				else { if (scenarios.has(en.scenario)) dup.push(w + ': シナリオ名の重複'); scenarios.add(en.scenario); }
+				if (!isArr(en.events) || en.events.length === 0) { bad.push(w + '.events: 空でない配列'); return; }
+				const eventNames = new Set();
+				en.events.forEach((ev, j) => {
+					const we = w + '.events[' + j + ']';
+					if (!ev || typeof ev !== 'object') { bad.push(we + ': オブジェクト'); return; }
+					if (ev.type === 'fixed') {
+						if (!checkKeys(ev, { need: ['name', 'type', 'skills'], opt: ['when'] }, we, unknown, missing)) return;
+						const ids = [];
+						refsOk(ev.skills, we + '.skills', ids);
+						if (new Set(ids).size !== ids.length) dup.push(we + '.skills: スキルの重複');
+					} else if (ev.type === 'choice') {
+						if (!checkKeys(ev, { need: ['name', 'type', 'choices'], opt: ['when'] }, we, unknown, missing)) return;
+						if (!isArr(ev.choices) || ev.choices.length < 2) { bad.push(we + '.choices: 選択肢が2つ以上の配列'); return; }
+						ev.choices.forEach((c, k) => {
+							const wc = we + '.choices[' + k + ']';
+							if (c && c.charaNames !== undefined) {
+								if (!checkKeys(c, { need: ['label', 'charaNames', 'linked', 'unlinked'], opt: [] }, wc, unknown, missing)) return;
+								if (!isStr(c.label)) bad.push(wc + '.label: 空でない文字列');
+								if (!isArr(c.charaNames) || c.charaNames.length === 0 || !c.charaNames.every(isStr)) bad.push(wc + '.charaNames: 空でない文字列の配列');
+								const a = [], b = [];
+								refsOk(c.linked, wc + '.linked', a);
+								refsOk(c.unlinked, wc + '.unlinked', b);
+								if (new Set(a).size !== a.length) dup.push(wc + '.linked: スキルの重複');
+								if (new Set(b).size !== b.length) dup.push(wc + '.unlinked: スキルの重複');
+							} else {
+								if (!checkKeys(c, { need: ['skills'], opt: ['label'] }, wc, unknown, missing)) return;
+								const ids = [];
+								refsOk(c.skills, wc + '.skills', ids);
+								if (new Set(ids).size !== ids.length) dup.push(wc + '.skills: スキルの重複');
+							}
+						});
+					} else {
+						bad.push(we + '.type: choice か fixed');
+						return;
+					}
+					if (!isStr(ev.name)) bad.push(we + '.name: 空でない文字列');
+					else { if (eventNames.has(ev.name)) dup.push(we + ': イベント名の重複'); eventNames.add(ev.name); }
+				});
+			});
+			none(unknown.concat(missing), SCEN_FILE + ': キーが決めた形（知らないキーが無く、必須が揃っている）');
+			none(bad, SCEN_FILE + ': category・版・type・選択肢・名前の形');
+			none(dup, SCEN_FILE + ': シナリオ・イベント・同じ組の中のスキルが重複しない');
+			none(unregistered, SCEN_FILE + ': skillId がすべてマスターか拡張スキルで引ける');
+			none(badLevel, SCEN_FILE + ': hintLevel は1以上の整数');
+		}
+	}
+
 	/* --- 前段関係（届いたとき） --- */
 	const sr = readOpt(STEP_UP_FILE);
 	if (sr === null) {

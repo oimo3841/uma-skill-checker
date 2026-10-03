@@ -96,6 +96,11 @@ export async function openPage(browser, base, file, viewport = { width: 1280, he
 	page.on('pageerror', (e) => errors.push(String(e)));
 	page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 	await page.addInitScript((d) => localStorage.setItem('umaSkillDeck:userData', JSON.stringify(d)), userData);
+	// シナリオの固定イベント（段7c の N）の実データは、編成の表に7列目と確定のスキルを足す。段7c より前の検査は
+	// 「カード6枚＋育成ウマ娘」の表を前提にしているので、既定では中身が空のファイルを返す（＝列が出ない）。
+	// 段7c の検査は、自分で page.route を足して実データ（またはテスト用の中身）に差し替える（後から足した route が先に効く）。
+	await page.route('**/data/scenario-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8',
+		body: JSON.stringify({ dataVersion: '2026-10-03a', category: 'scenarioEventSkills', note: 'テスト用の空のファイル', entries: [] }) }));
 	await page.goto(base + '/' + file, { waitUntil: 'networkidle', timeout: 60000 });
 	/* **時間ではなく「整ったこと」で待つ。**（73セッション目）
 	 *

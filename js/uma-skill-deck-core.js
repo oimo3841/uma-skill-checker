@@ -82,7 +82,9 @@
 		// スキルのステップアップの前段（2026-10-01c。2026-10-02 に実ファイルが届いたので載せた。loadSkillPtData が skill-pt.json と一緒に読む）
 		'data/skill-step-up.json': '2026-10-02b',
 		// スキルの公式の説明文（2026-10-02）。ページの読み込みでは取りに行かない（ⓘ・長押しを最初に開いたときだけ。段6）
-		'data/skill-descriptions.json': '2026-10-02a'
+		'data/skill-descriptions.json': '2026-10-02a',
+		// シナリオの固定イベントで得られるスキルとヒントレベル（段7c・2026-10-03）。編成パネルを作るときにだけ読む（ほかのページの読み込みでは取りに行かない）
+		'data/scenario-event-skills.json': '2026-10-03a'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
@@ -1480,12 +1482,20 @@
 		(row[eventsKey] || []).forEach((ev, idx) => {
 			const sides = ((ev && ev.choices) || []).map(eventChoiceSuccessSkills);
 			if (sides.length < 2) return;
-			const choices = sides.map((side, i) => ({ index: i, skills: side.filter(ref => ref && ref.skillId && findSkill(ref.skillId))
-				.map(ref => ({ skillId: ref.skillId, name: ref.name, hintLevel: (Number.isInteger(ref.hintLevel) && ref.hintLevel >= 0) ? ref.hintLevel : null })) }));
+			const choices = sides.map((side, i) => {
+				const raw = (ev.choices || [])[i] || {};
+				const c = { index: i, skills: side.filter(ref => ref && ref.skillId && findSkill(ref.skillId))
+					.map(ref => ({ skillId: ref.skillId, name: ref.name, hintLevel: (Number.isInteger(ref.hintLevel) && ref.hintLevel >= 0) ? ref.hintLevel : null })) };
+				// シナリオのイベント（段7c の N）の選択肢は、名前（キャラクター）と、編成にいるかどうか（linked／unlinked）を持つ
+				if (typeof raw.label === 'string' && raw.label) c.label = raw.label;
+				if (raw.state === 'linked' || raw.state === 'unlinked') c.state = raw.state;
+				return c;
+			});
 			if (!choices.some(c => c.skills.length > 0)) return;
 			const eventKey = keyBase + '#' + idx;
 			const pick = resolveEventChoice(sides, eventKey, evOpts);
 			out.push({ eventKey: eventKey, index: idx, step: (ev && Number.isInteger(ev.step)) ? ev.step : null, choices: choices,
+				name: (ev && typeof ev.name === 'string') ? ev.name : null, when: (ev && typeof ev.when === 'string') ? ev.when : null,
 				chosen: pick ? pick.index : null, auto: !!(pick && pick.auto) });
 		});
 		return out;
@@ -1557,6 +1567,74 @@
 	/** 追加カタログの行を、検索（条件で検索・緑スキル・テキストで検索・名前を入れて探す）に出してよいか。 */
 	function isSearchableCatalogEntry(x) {
 		return x.category !== REFERABLE_CATALOG_CATEGORY || SEARCHABLE_EXTENDED_SKILL_IDS.has(x.id);
+	}
+
+	/* ============================================================
+	 * シナリオの固定イベント（段7c の N・2026-10-03）
+	 *
+	 * ゲーム内で確認できるシナリオの固定イベントで得られるスキルとヒントレベル（data/scenario-event-skills.json）。
+	 * **編成パネルを作るときにだけ読む**（ほかのページの読み込みでは取りに行かない）。各イベントを、カードのイベントと同じ
+	 * 「回 → 選択肢 → 成功側」の形（chain）に直して、既存の計算（eventRowOccurrences など）に載せる。
+	 * 選択肢の成功側は編成を見て決める（charaNames を持つ選択肢は、そのキャラクターが編成にいれば linked、いなければ unlinked）。
+	 * メンバーのキーは 'scenario'（表の7列目）。シナリオ名・スキル名・キャラクター名はコードに書かない（データから読む）。
+	 * ============================================================ */
+	const SCENARIO_EVENT_PATH = 'data/scenario-event-skills.json';
+	const SCENARIO_KEY = 'scenario';
+	let scenarioEventState = { status: 'idle', doc: null, promise: null };   // idle／loading／ok／failed／absent
+
+	/** 読み込める形か（最小限。細かい形は check:catalog が固める）。使うシナリオは先頭の1件。 */
+	function scenarioEntryOf(doc) {
+		const e = doc && Array.isArray(doc.entries) ? doc.entries[0] : null;
+		return (e && typeof e.scenario === 'string' && e.scenario && Array.isArray(e.events)) ? e : null;
+	}
+	function loadScenarioEvents(forceRefresh) {
+		if (!DATA_JSON_VERSIONS[SCENARIO_EVENT_PATH]) { scenarioEventState = { status: 'absent', doc: null, promise: null }; return Promise.resolve('absent'); }
+		if (scenarioEventState.status === 'ok' || scenarioEventState.status === 'loading') return scenarioEventState.promise;
+		const st = { status: 'loading', doc: null, promise: null };
+		scenarioEventState = st;
+		st.promise = (async () => {
+			try {
+				const doc = await fetchMasterJson(withDataVersion(SCENARIO_EVENT_PATH), !!forceRefresh);
+				st.doc = scenarioEntryOf(doc) ? doc : null;
+				st.status = st.doc ? 'ok' : 'failed';
+			} catch (e) { st.status = 'failed'; }
+			return st.status;
+		})();
+		return st.promise;
+	}
+	/** 編成にいるキャラクターの名前（育成ウマ娘の charaName と、サポートカードのキャラクター。グループのカードはメンバー全員） */
+	function rosterCharaNames(r) {
+		const names = new Set();
+		const uma = r && r.umaId ? findUma(r.umaId) : null;
+		if (uma && uma.charaName) names.add(uma.charaName);
+		((r && r.cardIds) || []).forEach(id => { if (id) charactersOfCard(findCard(id)).forEach(n => names.add(n)); });
+		return names;
+	}
+	/**
+	 * シナリオのイベントを、カードのイベントの行と同じ形（{ status:'done', chain:[…] }）に直す。編成にいるキャラクターの名前（Set）を見て、
+	 * charaNames を持つ選択肢の成功側を linked／unlinked から決める。返り値は { name, row, events }（events は画面用の並び）。データが無ければ null。
+	 */
+	function scenarioRowFor(charaNames) {
+		const entry = scenarioEventState.status === 'ok' ? scenarioEntryOf(scenarioEventState.doc) : null;
+		if (!entry) return null;
+		const refOf = (x) => ({ skillId: x.skillId, name: (findSkill(x.skillId) || {}).name || '', hintLevel: x.hintLevel });
+		const events = [];
+		const chain = entry.events.map((ev, idx) => {
+			if (ev.type === 'fixed') {
+				const skills = (ev.skills || []).map(refOf);
+				events.push({ index: idx, type: 'fixed', name: ev.name || '', when: ev.when || null, eventKey: 'scenario:' + entry.scenario + '#' + idx, skills: skills });
+				return { name: ev.name, when: ev.when, choices: [{ skills: skills }] };
+			}
+			events.push({ index: idx, type: 'choice', name: ev.name || '', when: ev.when || null, eventKey: 'scenario:' + entry.scenario + '#' + idx });
+			return { name: ev.name, when: ev.when, choices: (ev.choices || []).map(c => {
+				if (Array.isArray(c.charaNames)) {
+					const linked = c.charaNames.some(n => charaNames.has(n));
+					return { label: c.label, state: linked ? 'linked' : 'unlinked', skills: ((linked ? c.linked : c.unlinked) || []).map(refOf) };
+				}
+				return { label: c.label, skills: (c.skills || []).map(refOf) };
+			}) };
+		});
+		return { name: entry.scenario, row: { status: 'done', chain: chain }, events: events };
 	}
 
 	/* ============================================================
@@ -1685,7 +1763,7 @@
 	 *   missing         … [{ kind, id }] id を引けなかったもの（行は消さずに知らせる）
  *   sources         … 由来を**機械が読める形**で並べたもの（段2・スキルPt の計算が使う。items の origins は表示用の文字列）。
  *                     [{ skillId, kind, sure, memberKey, hintLevel, eventKey, part }]
- *                     kind は 'hint'（練習のヒント）| 'event'（カードの連続イベント）| 'commonEvent'（キャラクター共通のイベント）| 'uma'（育成ウマ娘の初期・覚醒）。
+ *                     kind は 'hint'（練習のヒント）| 'event'（カードの連続イベント）| 'scenarioEvent'（シナリオの固定イベント。段7c）| 'commonEvent'（キャラクター共通のイベント）| 'uma'（育成ウマ娘の初期・覚醒）。
  *                     hintLevel はイベントだけが持つ（そのイベントごとの数。持たないものは null）。
  *                     eventKey はイベントの識別（同じイベントの中の複数の選択肢は、出現1つにまとめてある）。ほかの kind は null。
  *                     part は 'uma' のときだけ 'initial' | 'awakening'。引けなかったスキルは載せない（missing に出る）
@@ -1801,8 +1879,24 @@
 			});
 		});
 
+		// ── シナリオの固定イベント（段7c の N。表の7列目 'scenario'）。編成が空でないときだけ。データが読めていなければ列ごと出さない ──
+		let scenario = null;
+		if (r.umaId || cardIds.some(Boolean)) {
+			const scen = scenarioRowFor(rosterCharaNames(r));
+			if (scen) {
+				const base = 'scenario:' + scen.name;
+				const label = 'シナリオ『' + scen.name + '』';
+				members.push({ key: SCENARIO_KEY, kind: 'scenario', no: null, label: label, shortLabel: scen.name, typeOrder: null, scenarioName: scen.name });
+				const scenOpts = Object.assign({}, evOpts, { keyBase: base });
+				eventRowSkills(scen.row, 'chain', scenOpts).forEach(sk => add(sk, label + ' のイベント' + (sk.sure ? '' : '（確定でない）'), SCENARIO_KEY, sk.sure));
+				pushOccurrences(eventRowOccurrences(scen.row, 'chain', base, evOpts), 'scenarioEvent', SCENARIO_KEY);
+				eventRowChoiceEvents(scen.row, 'chain', base, evOpts).forEach(e => events.push(Object.assign({ memberKey: SCENARIO_KEY, kind: 'scenarioEvent', cardId: null, charaName: null }, e)));
+				scenario = { key: SCENARIO_KEY, name: scen.name, label: label, events: scen.events };
+			}
+		}
+
 		const list = Array.from(items.values()).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing, sources: sources, events: events };
+		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing, sources: sources, events: events, scenario: scenario };
 	}
 
 	/* ============================================================
@@ -1988,6 +2082,10 @@
 	 *   umaHintLevel     … 育成ウマ娘の初期・覚醒スキルのレベル。既定は rules.umaHintLevelDefault
 	 *   enabledSkillIds  … 有効にした△のスキルid（段4 で使う。既定は空）
 	 *   parentHintLevels … { skillId: 親（因子）由来のレベル }（段5 で使う。既定は空）
+	 *   offSkillIds      … 本育成で「取得しない」にしたスキルの id（段7c の M。既定は空）。**そのスキルは数えない**
+	 *                      （items・合計・小計・未収録の件数に入らず、そのスキルを取るための前段も数えない）。
+	 *                      **イベントのヒントレベルへの寄与（E・T）は変えない**（イベントは起きるので、系列の根の L は変わらない）。
+	 *                      ほかのスキルのための前段としては数える。因子セットにあるスキルなら、親から得るので数える（L は親由来 F ＋ 本育成の由来）
 	 *
 	 * 「本育成のスキル」＝●（sure）のスキル ＋ 有効にした△。**Pt が未収録（skillPt に行が無い）のスキルは合計に入れず、
 	 * unpriced に出す**（0として足さない）。固有スキルなどのPt不要は、データの `pt: 0` で表す（合計には0が足される）。
@@ -2001,6 +2099,7 @@
 		const ptIndex = a.skillPt instanceof Map ? a.skillPt : null;
 		const enabled = new Set(a.enabledSkillIds || []);
 		const parentLevels = a.parentHintLevels || {};
+		const off = new Set(a.offSkillIds || []);
 		const umaLevel = a.umaHintLevel !== undefined && a.umaHintLevel !== null ? a.umaHintLevel : rules.umaHintLevelDefault;
 		const statusId = a.statusId;
 
@@ -2019,9 +2118,12 @@
 			if (!(isNonNegInt(parentLevels[id]) && parentLevels[id] > 0)) return;
 			const cur = bySkill.get(id);
 			if (!cur) bySkill.set(id, { skillId: id, sure: false, parentOnly: true, list: [] });
-			else if (!cur.sure) cur.parentOnly = true;
+			else if (!cur.sure || off.has(id)) cur.parentOnly = true;   // 取得しないにした●も、因子セットにあれば親から得る（段7c の M）
 		});
-		const included = Array.from(bySkill.values()).filter(e => e.sure || e.parentOnly || enabled.has(e.skillId));
+		// contributors … 系列の根の L に寄与するスキル（取得しないにしたスキルも含む。イベントは起きるので E・T は変えない）。
+		// included … 実際に数えるスキル（取得しないにしたスキルを除く。因子セットにあって親から得るものは数える）
+		const contributors = Array.from(bySkill.values()).filter(e => e.sure || e.parentOnly || enabled.has(e.skillId));
+		const included = contributors.filter(e => !off.has(e.skillId) || e.parentOnly);
 
 		// 2. 系列の根ごとに、P・E・T・U・F を集める（根に集約する）
 		const roots = new Map();
@@ -2031,7 +2133,7 @@
 		};
 		let unknownLevelCount = 0;
 		const unknownSkillIds = new Set();   // ヒントレベルが不明（hintLevel が無い）出現を数えに入れたスキル（段4。画面が「Lv0 として計算」と知らせる）
-		included.forEach(e => {
+		contributors.forEach(e => {
 			const r = rootEntry(rootOf(e.skillId));
 			let tMax = -1;
 			e.list.forEach(src => {
@@ -2042,7 +2144,7 @@
 				if (src.sure) {
 					// E: 同じイベントの中の重なりは、最大の1つにまとめる（イベントの識別 eventKey ごと）
 					const k = String(src.eventKey);
-					if (lv === null) { unknownLevelCount++; unknownSkillIds.add(e.skillId); }
+					if (lv === null && !off.has(e.skillId)) { unknownLevelCount++; unknownSkillIds.add(e.skillId); }
 					const cur = r.events.get(k);
 					r.events.set(k, Math.max(cur === undefined ? 0 : cur, lv === null ? 0 : lv));
 				} else if (enabled.has(e.skillId)) {
@@ -2182,6 +2284,7 @@
 	 *
 	 * args は computeRosterPt の args（sources・rules・skillPt・stepUp・statusId・umaHintLevel・enabledSkillIds）に、
 	 *   factorSkillIds … 因子セットのスキルid（シナリオ因子・遺伝子は skillIds に入らないので含まれない）
+	 *   offSkillIds    … 本育成で「取得しない」にしたスキル（段7c の M。computeRosterPt を参照）
 	 *   tiers          … 因子セットの分類 { skillId: 1|2|3 }（無い id は優先）
 	 *   parentHintLevel… F（保存してある値。resolveParentHintLevel で解く）
 	 * 返り値: { ok, parentHintLevel, roster: { total, count, unpricedCount }, cuts: [{ tier, label, total, count, unpricedCount }…], unpricedCount, overlapRaisable }
@@ -2198,7 +2301,7 @@
 		(a.factorSkillIds || []).forEach(id => { if (typeof id === 'string' && id && !seen.has(id)) { seen.add(id); factorIds.push(id); } });
 		const run = (parents) => computeRosterPt({
 			sources: a.sources, rules: rules, skillPt: a.skillPt, stepUp: a.stepUp, statusId: a.statusId,
-			umaHintLevel: a.umaHintLevel, enabledSkillIds: a.enabledSkillIds, parentHintLevels: parents
+			umaHintLevel: a.umaHintLevel, enabledSkillIds: a.enabledSkillIds, offSkillIds: a.offSkillIds, parentHintLevels: parents
 		});
 		const base = run({});
 		// 本育成と因子セットの両方にあるスキルのうち、本育成の由来だけの L（F を足す前。P・E・T・U の合計・上限5）が上限未満のもの。
@@ -2215,6 +2318,42 @@
 			// total は前段を含む値（本育成パネルの「前段を含む合計」と同じ）。本育成のスキルだけの値は own
 			roster: { total: base.totalWithPrev, own: base.total, count: base.items.length, unpricedCount: base.allUnpricedCount, prevCount: base.prevItems.length, prevTotal: base.prevTotal },
 			cuts: cuts, unpricedCount: cuts[cuts.length - 1].unpricedCount, overlapRaisable: overlapRaisable };
+	}
+
+	/** 'loading'（まだ）／'ok'／'failed'（割引率の表か skill-pt.json を読めなかった）。編成パネル（①）と周回因子セット（②）で共有。 */
+	function skillPtDataStatus() {
+		const m = skillPtData.meta;
+		if (!m.loaded) return 'loading';
+		return (m.rules === 'ok' && m.skillPt !== 'failed') ? 'ok' : 'failed';
+	}
+	/**
+	 * **保存した編成**の、スキルPt の計算に渡す材料（段7c の O の (5)）。②の「本育成編成」に選んだ編成の Pt を、
+	 * ①でその編成を開いていなくても数えられるようにする。決まりは①のパネルと同じ（イベントの選択・絞り込みから決まる既定の選択・
+	 * 取得しないにしたスキル・状態の設定）。返り値は rosterPtSource.getInputs() と同じ形に offIds を加えたもの。
+	 */
+	function rosterPtInputsOf(r) {
+		const copy = snapshot(r);
+		copy.cardIds = (copy.cardIds || []).slice(0, ROSTER_CARD_SLOTS);
+		while (copy.cardIds.length < ROSTER_CARD_SLOTS) copy.cardIds.push(null);
+		const res = rosterSkillResultOf(copy);
+		const off = validOffIdsOf(copy, res.skillIds);
+		const status = skillPtDataStatus();
+		return { status: status, sources: res.sources, enabledIds: [], sureIds: res.skillIds.filter(id => off.indexOf(id) === -1), offIds: off,
+			settings: status === 'ok' ? resolveRosterPtSettings(copy, skillPtData.rules) : null };
+	}
+	/**
+	 * 保存した編成の本育成の Pt の合計（前段を含む・絞り込みなし・取得しないにしたスキルを除く。「本育成編成」のボタンに出す値）。
+	 * 元データが使えないときは null。{ total, statusId, statusLabel }。statusLabel は「なし」のとき ''。
+	 */
+	function rosterPtSummaryOf(r) {
+		const inp = rosterPtInputsOf(r);
+		if (inp.status !== 'ok') return null;
+		const rules = skillPtData.rules;
+		const pt = computeRosterPt({ sources: inp.sources, rules: rules, skillPt: skillPtData.skillPt, stepUp: skillPtData.stepUp,
+			statusId: inp.settings.status, umaHintLevel: inp.settings.umaHintLevel, offSkillIds: inp.offIds });
+		if (!pt.ok) return null;
+		const st = rules.statuses.find(x => x.id === inp.settings.status);
+		return { total: pt.totalWithPrev, statusId: inp.settings.status, statusLabel: (st && inp.settings.status !== PT_STATUS_DEFAULT) ? String(st.label || '') : '' };
 	}
 
 	/**
@@ -2289,6 +2428,19 @@
 	/** 編成で得られるスキル（イベントの選択と、絞り込みから決まる既定の選択を効かせる。①のパネルの computed() の元） */
 	function rosterSkillResultOf(r) {
 		return computeRosterSkills(r, { eventChoices: r.eventChoices, autoChoose: true, isWanted: filterPredicateOf(r) });
+	}
+	/**
+	 * 本育成で「取得しない」にしたスキル（段7c の M。編成の offSkillIds）。**いま●のスキルに当たるものだけ**が有効
+	 * （指す先が無い id〔イベントの選択が変わって●でなくなった・収録データが変わった〕は無視する。**保存値は書き換えない**）。
+	 * 触らなければ offSkillIds は無い（読み込み時に補わない）。skillIds は rosterSkillResultOf(r).skillIds（絞り込みなしの●）。
+	 */
+	function validOffIdsOf(r, skillIds) {
+		const stored = (r && Array.isArray(r.offSkillIds)) ? r.offSkillIds : [];
+		if (stored.length === 0) return [];
+		const sure = new Set(skillIds || []);
+		const out = [];
+		stored.forEach(id => { if (typeof id === 'string' && sure.has(id) && out.indexOf(id) === -1) out.push(id); });
+		return out;
 	}
 
 	/* ============================================================
@@ -2836,7 +2988,7 @@
 		'.usd-row--excluded:hover { background: transparent; }',
 		'.usd-row--excluded input { cursor: default; }',
 		'.usd-row-reason { margin-left: auto; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
-		'.usd-excluded-count { margin-left: var(--uma-sp-2); font-weight: 600; color: var(--uma-text-subtle); }',
+		'.usd-excluded-count { margin-left: var(--uma-sp-2); font-weight: 600; color: var(--uma-text-subtle); white-space: nowrap; }',
 		'.usd-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
 		// 既存の .glass-card 相当（テンプレート編集パネル・モーダルの下地）
 		'.usd-modal { position: fixed; inset: 0; background: rgba(15,23,42,.4); z-index: 80; display: flex; align-items: flex-end; justify-content: center; }',
@@ -3666,7 +3818,27 @@
 		'.usd-hscroll[data-usd-fade="left"], .usd-hscroll[data-usd-fade="both"] { --usd-fade-l: rgba(0,0,0,.3) 0; }',
 		'.usd-hscroll[data-usd-fade] { --usd-entry-fade-w: 14px;',
 		'  -webkit-mask-image: linear-gradient(to right, var(--usd-fade-l, #000 0), #000 var(--usd-entry-fade-w), #000 calc(100% - var(--usd-entry-fade-w)), var(--usd-fade-r, #000 100%));',
-		'  mask-image: linear-gradient(to right, var(--usd-fade-l, #000 0), #000 var(--usd-entry-fade-w), #000 calc(100% - var(--usd-entry-fade-w)), var(--usd-fade-r, #000 100%)); }'
+		'  mask-image: linear-gradient(to right, var(--usd-fade-l, #000 0), #000 var(--usd-entry-fade-w), #000 calc(100% - var(--usd-entry-fade-w)), var(--usd-fade-r, #000 100%)); }',
+		// ───── 段7c（2026-10-03）: スキルごとのオン/オフ（M） ─────
+		// ●の行の名前セルの左の小さなチェック（24px 以上のタップ領域）。オフの行は、名前に取り消し線・全体を薄く（色だけで表す。opacity は使わない＝
+		// position:sticky の表で重なり順が壊れるため。F-7）・Pt は「—」・○は薄く残す
+		'.usd-roster-take { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; min-height: 28px; margin-inline-start: -2px; cursor: pointer; }',
+		'.usd-roster-take input { width: 16px; height: 16px; margin: 0; cursor: pointer; accent-color: var(--uma-control); }',
+		'.usd-roster-take:has(input:focus-visible) { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }',
+		'.usd-roster-skillname--off { text-decoration: line-through; color: var(--uma-text-faint); text-decoration-color: var(--uma-text-faint); }',
+		'.usd-roster-grow--off > .usd-roster-gc { background: var(--uma-surface-sunken); color: var(--uma-text-faint); }',
+		'.usd-roster-grow--off .usd-roster-pt { color: var(--uma-text-faint); }',
+		'.usd-roster-grow--off .usd-roster-got, .usd-roster-grow--off .usd-roster-maybe { border-color: var(--uma-text-faint); }',
+		'.usd-roster-grow--off .usd-roster-maybe { background: var(--uma-text-faint); }',
+		'.usd-info-offrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); }',
+		'.usd-ptneed-boxline { display: block; margin-top: var(--uma-sp-1); }',
+		// ───── 段7c（2026-10-03）: シナリオの固定イベントの列（N） ─────
+		'.usd-roster-bowl { display: block; width: 14px; height: 14px; }',
+		'.usd-roster-bowl path { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }',
+		'.usd-roster-scenmark { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; color: var(--uma-text-heading); }',
+		'.usd-roster-evbtn--scen { display: inline-flex; align-items: center; justify-content: center; }',
+		'.usd-roster-choicestate { flex: none; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 600; padding: 0 var(--uma-sp-1-5);',
+		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); color: var(--uma-text-subtle); }',
 	].join('\n');
 
 	let stylesInjected = false;
@@ -3719,6 +3891,12 @@
 	 */
 	let pickerHiddenIds = [];
 	/**
+	 * `pickerHiddenIds` のうち、**本育成編成で「取得しない」にしているスキル**（段7c の M。理由の文言が違う）。
+	 * `pickerHiddenIds`（選べなくする全部＝本育成で得るもの＋不要にしているもの）の部分集合で、行ごとの理由の出し分けと、
+	 * 「本育成編成のため選べない M件」の内訳にだけ使う。
+	 */
+	let pickerOffIds = [];
+	/**
 	 * 選択肢パネルを開いているか（70セッション目・段4 の続き）。
 	 *
 	 * **選択中のタブをもう一度押すと閉じる。** 段4 で選択肢を3段にしたぶん、特に狭い画面で
@@ -3769,6 +3947,13 @@
 	// **一覧から消さず、出したうえで選べなくして、理由を添える**（段3b・2026-09-30）。
 	// 「条件で検索」「緑スキルを追加」「名前を入れて探す」の3か所が同じ文言を使うので、ここ1か所に置く。
 	const PICKER_EXCLUDED_REASON = '本育成で得るため選べません';   // 段7（2026-10-03）: 「除外」の語を使わない
+	// 本育成編成で「取得しない」にしているスキル（段7c の M。利用者が明示的に不要と判断したスキルを、因子周回で再び選べるのは不自然なため）
+	const PICKER_OFF_REASON = '本育成編成で不要にしているため選べません';
+	/** そのスキルを選べなくしている理由（選べるなら空）。不要にしているものは、本育成で得るものとは別の理由 */
+	function pickerBlockReasonOf(skillId) {
+		if (pickerHiddenIds.indexOf(skillId) === -1) return '';
+		return pickerOffIds.indexOf(skillId) !== -1 ? PICKER_OFF_REASON : PICKER_EXCLUDED_REASON;
+	}
 
 	const PICKER_MODES = {
 		// 71セッション目・段6: 「条件でスキルを検索」→「条件で検索」（利用者向けの文言だけ。
@@ -3816,8 +4001,8 @@
 						// 8軸フィルター。中身（タブ＋共通パネル）は renderPickerFilterAxes() が
 						// ensurePicker() のときに1回だけ組み立てる。
 						'<div data-usd-el="filter-axes"></div>' +
-						'<div class="flex items-center justify-between mb-1">' +
-							'<label class="flex items-center gap-1.5 text-xs text-slate-600">' +
+						'<div class="flex items-center justify-between flex-wrap gap-x-2 mb-1">' +
+							'<label class="flex items-center gap-1.5 text-xs text-slate-600 whitespace-nowrap">' +
 								'<input type="checkbox" data-usd-act="picker-select-all"/> 表示中を全て選択' +
 							'</label>' +
 							// 「除外中 M件」は M が0のときは出さない（renderPickerResults が hidden を切り替える）
@@ -4510,7 +4695,7 @@
 	function setExcludedCountLabel(el, count, unit) {
 		if (!el) return;
 		el.hidden = count <= 0;
-		el.textContent = count > 0 ? '本育成で得るため選べない ' + count + '件' : '';   // 段7（旧3）: 行の数なので「件」
+		el.textContent = count > 0 ? '本育成編成のため選べない ' + count + '件' : '';   // 段7（旧3）: 行の数なので「件」。段7c の M: 本育成で得るためと、不要にしているための両方を合わせた件数
 	}
 
 	/** 除外中の行（グレーアウト・チェックできない・理由つき）。条件で検索と緑スキルの一覧で共通。 */
@@ -4518,7 +4703,7 @@
 		return '<label class="usd-row usd-row--excluded" data-usd-excluded="1" aria-disabled="true">' +
 			'<input type="checkbox" data-usd-el="' + checkEl + '" value="' + esc(skill.id) + '" disabled/>' +
 			'<span>' + esc(skill.name) + '</span>' +
-			'<span class="usd-row-reason" data-usd-el="excluded-reason">' + esc(PICKER_EXCLUDED_REASON) + '</span>' +
+			'<span class="usd-row-reason" data-usd-el="excluded-reason">' + esc(pickerBlockReasonOf(skill.id) || PICKER_EXCLUDED_REASON) + '</span>' +
 		'</label>';
 	}
 
@@ -4957,7 +5142,7 @@
 				// 出したうえで選べなくする＝自分の入力が正しかったことは確認できる。
 				? '<span class="usd-name-hit usd-name-hit--added">' + esc(h.name) + '<span class="usd-name-added">追加済み</span></span>'
 				: (hidden.has(h.id)
-					? '<span class="usd-name-hit usd-name-hit--added">' + esc(h.name) + '<span class="usd-name-added">' + esc(PICKER_EXCLUDED_REASON) + '</span></span>'
+					? '<span class="usd-name-hit usd-name-hit--added">' + esc(h.name) + '<span class="usd-name-added">' + esc(pickerBlockReasonOf(h.id) || PICKER_EXCLUDED_REASON) + '</span></span>'
 					: '<button type="button" class="usd-name-hit" data-usd-act="name-pick" data-skill-id="' + esc(h.id) + '">' + esc(h.name) + '</button>')
 			).join('') + '</div>' +
 			(found.more > 0 ? '<p class="usd-paste-hint">ほかにも候補があります（全' + found.total + '件）。もう少し入力すると絞り込めます。</p>' : '');
@@ -5048,7 +5233,7 @@
 		let html = '<div class="usd-paste-summary">' +
 			'<span class="usd-paste-ok">選択 ' + (resolvedIds.size - blockedIds.size) + '件</span>' +
 			(alreadyIds.size > 0 ? '<span class="usd-paste-muted">（うち追加済み ' + alreadyIds.size + '件）</span>' : '') +
-			(blockedIds.size > 0 ? '<span class="usd-paste-muted" data-usd-el="paste-blocked">本育成で得るため追加しなかったもの ' + blockedIds.size + '種</span>' : '') +
+			(blockedIds.size > 0 ? '<span class="usd-paste-muted" data-usd-el="paste-blocked">本育成編成のため追加しなかったもの ' + blockedIds.size + '種</span>' : '') +
 			(pending.length > 0 ? '<span class="usd-paste-warn">要確認 ' + pending.length + '件</span>' : '') +
 			(errors.length > 0 ? '<span class="usd-paste-err">エラー ' + errors.length + '件</span>' : '') +
 		'</div>';
@@ -5671,6 +5856,7 @@
 		let limitNotice = false;      // 「編成は10件までです…」を出しているか（段7の (4)。次の操作で消える）
 		let sortKey = null;           // 並べ替えている列のメンバー（段7の (16)。保存しない）
 		let eventsFor = null;         // イベントを選ぶ小窓を開いている列のメンバー（段7の (19)。保存しない）
+		let gridScrollReset = false;  // 次の描き直しで、表の中のスクロールを先頭へ戻すか（並べ替え・絞り込みのとき。段7c の M）
 		const uidBase = uid('roster');
 
 		/* ------------------------------------------------------------
@@ -5694,6 +5880,27 @@
 		}
 
 		/**
+		 * スキルごとのオン/オフ（段7c の M）。オフにしたスキルは「取得しない」として扱う。保存は編成の offSkillIds（skillId の配列）。
+		 * 触らなければ足さない・読み込み時に補わない。**切り替えるのはその 1 つの id だけ**で、指す先が無くなった古い id は書き換えない。
+		 */
+		function setSkillTaken(skillId, taken) {
+			const cur = Array.isArray(roster.offSkillIds) ? roster.offSkillIds.slice() : [];
+			const i = cur.indexOf(skillId);
+			if (taken && i !== -1) cur.splice(i, 1);
+			else if (!taken && i === -1) cur.push(skillId);
+			if (cur.length === 0) delete roster.offSkillIds; else roster.offSkillIds = cur;
+			persistNow();
+		}
+		/** 「すべて取得に戻す」。いま有効な（●の）オフだけを外し、指す先が無い古い id は残す */
+		function clearOffSkills() {
+			const res = computed();
+			const cur = (Array.isArray(roster.offSkillIds) ? roster.offSkillIds : []).filter(id => !res.offIds.has(id));
+			if (cur.length === 0) delete roster.offSkillIds; else roster.offSkillIds = cur;
+			persistNow();
+			render();
+		}
+
+		/**
 		 * 編成で得られるスキル。**skillIds は●だけ**（段7で「有効にした△」は廃止。保存済みの enabledSkillIds は読まない）。
 		 * イベントの選択（roster.eventChoices）と、絞り込みから決まる既定の選択（autoChoose）を効かせる。
 		 *   visibleItems … 表に出す行（絞り込み中はそれに当たるもの。並べ替えはここでは行わない）
@@ -5711,7 +5918,10 @@
 			r.visibleItems = wanted ? r.items.filter(it => wanted(it.skillId)) : r.items.slice();
 			const vis = new Set(r.visibleItems.map(it => it.skillId));
 			r.visibleSources = wanted ? r.sources.filter(s => vis.has(s.skillId)) : r.sources;
-			r.visibleSureCount = r.visibleItems.filter(it => it.sure).length;
+			// 取得しないにしたスキル（段7c の M）。合計・種数・小計・前段・②へ渡す値から外す。絞り込みで隠れていても「取得しない」のまま
+			r.offList = validOffIdsOf(roster, r.skillIds);
+			r.offIds = new Set(r.offList);
+			r.visibleSureCount = r.visibleItems.filter(it => it.sure && !r.offIds.has(it.skillId)).length;
 			return r;
 		}
 
@@ -5720,11 +5930,7 @@
 		 * （special の①タブだけ）。計算は computeRosterPt に任せ、ここは設定を渡して結果を並べるだけ。
 		 * ------------------------------------------------------------ */
 		/** 'loading'（まだ）／'ok'／'failed'（割引率の表か skill-pt.json を読めなかった）。 */
-		function ptDataStatus() {
-			const m = skillPtData.meta;
-			if (!m.loaded) return 'loading';
-			return (m.rules === 'ok' && m.skillPt !== 'failed') ? 'ok' : 'failed';
-		}
+		function ptDataStatus() { return skillPtDataStatus(); }
 
 		/** いまの設定（解いたあとの値）。データが使えないときは null。 */
 		function ptView0() {
@@ -5738,7 +5944,7 @@
 			const settings = resolveRosterPtSettings(roster, rules);
 			const pt = computeRosterPt({
 				sources: res.visibleSources, rules: rules, skillPt: skillPtData.skillPt, stepUp: skillPtData.stepUp,
-				statusId: settings.status, umaHintLevel: settings.umaHintLevel
+				statusId: settings.status, umaHintLevel: settings.umaHintLevel, offSkillIds: res.offList
 			});
 			if (!pt.ok) return null;
 			const byId = new Map();
@@ -5869,6 +6075,20 @@
 			if (pt.allUnpricedCount > 0) line('', '（Pt未収録' + pt.allUnpricedCount + '種は含めていません）', 'info-unpriced');
 			const reason = umaLevelBlockedReason(view);
 			if (reason) line('', reason, 'info-uma-reason');
+			// 取得しないスキル（段7c の M）。0種のときは出さない。押すとすべてオンに戻る
+			if (res.offList.length > 0) {
+				const row = infoEl('div', 'usd-info-offrow');
+				row.setAttribute('data-usd-el', 'info-off');
+				const t = infoEl('span', '', '取得しないスキル ' + res.offList.length + '種');
+				t.setAttribute('data-usd-el', 'info-off-count');
+				row.appendChild(t);
+				const btn = infoEl('button', 'usd-roster-togglebtn', 'すべて取得に戻す');
+				btn.type = 'button';
+				btn.setAttribute('data-usd-el', 'info-off-reset');
+				btn.addEventListener('click', () => { closeSkillInfo(); clearOffSkills(); });
+				row.appendChild(btn);
+				body.appendChild(row);
+			}
 		}
 
 		/** 育成ウマ娘の（i）の小窓の中身（段7の (7)）。 */
@@ -5895,6 +6115,7 @@
 			if (!view) return null;
 			const it = res.items.find(x => x.skillId === skillId);
 			if (!it) return null;
+			if (it.sure && res.offIds.has(skillId)) return '取得しない設定です';   // 段7c の M
 			if (it.sure) {
 				const x = view.byId.get(skillId);
 				return x && x.base !== null && x.base !== 0 ? 'いまの設定：' + x.pt + ' Pt（Lv' + x.hintLevel + '）' : null;
@@ -5904,8 +6125,10 @@
 		}
 
 		/** 名前の右の Pt（段7の (14)）。●＝「P Pt」（Pt 不要・Pt 未収録はそのまま）、△＝薄い色の参考値。データが使えないときは出さない。 */
-		function ptCellHtml(view, it) {
+		function ptCellHtml(view, it, off) {
 			if (!view) return '';
+			// 取得しないにした行は Pt を「—」にする（段7c の M）
+			if (off) return '<span class="usd-roster-pt" data-usd-el="pt-line">—</span>';
 			const x = it.sure ? view.byId.get(it.skillId) : ptReferenceOf(view, it.skillId);
 			if (!x) return '';
 			const text = x.base === null ? 'Pt 未収録' : x.base === 0 ? 'Pt 不要' : x.pt + ' Pt';
@@ -6146,11 +6369,11 @@
 			h += '</div>';
 
 			/* ── 得られるスキルの表 ── */
-			const colClass = (m) => m.kind === 'uma' ? ' usd-roster-gc--uma' : (m.no % 2 === 0 ? ' usd-roster-gc--alt' : '');
+			const colClass = (m) => m.kind === 'uma' ? ' usd-roster-gc--uma' : m.kind === 'scenario' ? '' : (m.no % 2 === 0 ? ' usd-roster-gc--alt' : '');
 			const colStyle = (m) => (m.kind === 'card' && m.typeOrder !== null && m.typeOrder !== undefined)
 				? ' data-type-order="' + m.typeOrder + '" style="' + cardTypeColorVars(m.typeOrder) + '"' : '';
 			const colTypedClass = (m) => (m.kind === 'card' && m.typeOrder !== null && m.typeOrder !== undefined) ? ' usd-roster-typed' : '';
-			const colName = (m) => (m.kind === 'uma' ? '育成ウマ娘' : String(m.no)) + (m.label ? '：' + esc(m.label) : '（空き）');
+			const colName = (m) => m.kind === 'scenario' ? esc(m.label) : (m.kind === 'uma' ? '育成ウマ娘' : String(m.no)) + (m.label ? '：' + esc(m.label) : '（空き）');
 			// 並べ替えのボタンの絵（段7b の ⑧）: 漏斗。押していない＝輪郭、押している＝塗りつぶし（インラインの SVG。色は currentColor）
 			const funnelSvg = '<svg class="usd-roster-funnel" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2 2.5h12L9.8 8v4.7L6.2 14.5V8z"/></svg>';
 			// 列見出し（段7b の ⑧⑨）: 2行。上＝バッジ／！、下＝漏斗（並べ替え）。「▼」は廃止。
@@ -6159,23 +6382,25 @@
 			// ◇（育成ウマ娘）と、選ぶ必要のあるイベントが無いカードの番号は、ボタンにしない
 			const colHead = (m) => {
 				let s = '<div class="usd-roster-ghbtns">';
-				const evs = (m.kind === 'card' && m.label) ? res.events.filter(e => e.memberKey === m.key) : [];
+				const evs = ((m.kind === 'card' && m.label) || m.kind === 'scenario') ? res.events.filter(e => e.memberKey === m.key) : [];
 				const typedAttrs = (m.typeOrder !== null && m.typeOrder !== undefined) ? ' usd-roster-typed" data-type-order="' + m.typeOrder + '" style="' + cardTypeColorVars(m.typeOrder) : '';
 				if (evs.length > 0) {
 					const unsel = evs.filter(e => e.chosen === null).length;
-					const label = m.no + '番のカードのイベントを選ぶ' + (unsel > 0 ? '（未選択' + unsel + '件）' : '');
-					s += '<button type="button" class="usd-roster-legend-no usd-roster-evbtn' + (unsel > 0 ? ' usd-roster-evbtn--alert' : typedAttrs) + '"'
+					const label = (m.kind === 'scenario' ? m.label : m.no + '番のカード') + 'のイベントを選ぶ' + (unsel > 0 ? '（未選択' + unsel + '件）' : '');
+					s += '<button type="button" class="usd-roster-legend-no usd-roster-evbtn' + (m.kind === 'scenario' ? ' usd-roster-evbtn--scen' : '') + (unsel > 0 ? ' usd-roster-evbtn--alert' : typedAttrs) + '"'
 						+ ' data-usd-act="events" data-member-key="' + m.key + '" data-usd-el="events-btn" data-unselected="' + unsel + '"'
 						+ ' aria-label="' + esc(label) + '" title="' + esc(label) + '" aria-expanded="' + (eventsFor === m.key ? 'true' : 'false') + '">'
-						+ (unsel > 0 ? '!' : String(m.no)) + '</button>';
+						+ (unsel > 0 ? '!' : (m.kind === 'scenario' ? bowlSvg : String(m.no))) + '</button>';
 				} else if (m.kind === 'uma') {
 					s += umaChip;
+				} else if (m.kind === 'scenario') {
+					s += '<span class="usd-roster-legend-no usd-roster-scenmark" role="img" aria-label="' + esc(m.label) + '">' + bowlSvg + '</span>';
 				} else {
 					s += cardBadge(m.no, m.typeOrder);
 				}
 				s += '<button type="button" class="usd-roster-ghbtn" data-usd-act="sort" data-member-key="' + m.key + '" data-usd-el="sort-btn"'
 					+ ' aria-pressed="' + (sortKey === m.key ? 'true' : 'false') + '"'
-					+ ' aria-label="' + esc((m.kind === 'uma' ? '育成ウマ娘' : m.no + '枚目') + 'が得るスキルを上に寄せる') + '" title="並べ替え">' + funnelSvg + '</button>';
+					+ ' aria-label="' + esc((m.kind === 'uma' ? '育成ウマ娘' : m.kind === 'scenario' ? m.label : m.no + '枚目') + 'が得るスキルを上に寄せる') + '" title="並べ替え">' + funnelSvg + '</button>';
 				s += '</div>';
 				s += (m.shortLabel ? '<span class="usd-roster-gh-name">' + esc(m.shortLabel) + '</span>' : '');
 				return s;
@@ -6221,12 +6446,18 @@
 						+ members.map(m => '<div class="usd-roster-gc' + colClass(m) + '" role="cell"></div>').join('') + '</div>';
 				}
 				rows.forEach((it) => {
+					const isOff = it.sure && res.offIds.has(it.skillId);
 					const x = ptView ? ptView.byId.get(it.skillId) : null;
 					const rarity = x ? x.rarity : (skillPtData.skillPt instanceof Map && skillPtData.skillPt.get(it.skillId) ? skillPtData.skillPt.get(it.skillId).rarity : null);
-					h += '<div class="usd-roster-grow' + (rarity === 'gold' ? ' usd-roster-grow--gold' : '') + '" role="row" data-skill-id="' + esc(it.skillId) + '">'
-						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader"><div class="usd-roster-namescroll usd-hscroll" data-usd-no-trim="1">'
-							+ '<button type="button" class="usd-roster-skillname usd-roster-skillname--btn" data-usd-info="' + esc(it.skillId) + '">' + esc(it.name) + '</button>'
-							+ ptCellHtml(ptView, it) + '</div></div>'
+					// ●の行の名前セルの左に、取得するかどうかの小さなチェック（段7c の M。既定はオン。△の行には付けない）
+					const takeBox = it.sure
+						? '<label class="usd-roster-take"><input type="checkbox" data-usd-act="take-skill" data-skill-id="' + esc(it.skillId) + '"'
+							+ (isOff ? '' : ' checked') + ' aria-label="' + esc(it.name + 'を取得する') + '" /></label>'
+						: '';
+					h += '<div class="usd-roster-grow' + (rarity === 'gold' ? ' usd-roster-grow--gold' : '') + (isOff ? ' usd-roster-grow--off' : '') + '" role="row" data-skill-id="' + esc(it.skillId) + '"' + (isOff ? ' data-usd-off="1"' : '') + '>'
+						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader">' + takeBox + '<div class="usd-roster-namescroll usd-hscroll" data-usd-no-trim="1">'
+							+ '<button type="button" class="usd-roster-skillname usd-roster-skillname--btn' + (isOff ? ' usd-roster-skillname--off' : '') + '" data-usd-info="' + esc(it.skillId) + '">' + esc(it.name) + '</button>'
+							+ ptCellHtml(ptView, it, isOff) + '</div></div>'
 						+ members.map(m => '<div class="usd-roster-gc' + colClass(m) + '" role="cell">'
 							+ (it.sureMembers.indexOf(m.key) !== -1 ? '<span class="usd-roster-got" role="img" aria-label="得られる"></span>'
 								: it.members.indexOf(m.key) !== -1
@@ -6241,7 +6472,16 @@
 			h += '</div>';
 			h += '</div>';
 
+			// 表の中のスクロール位置を描き直しても保つ（段7c の M。チェックを押したとき、表の途中の行が先頭へ戻って見えなくなるため）。
+			// 並べ替え・絞り込みのときだけ先頭へ戻す（行の顔ぶれ・並びが変わるので、先頭から見せる）
+			const oldWrap = container.querySelector('.usd-roster-grid-wrap');
+			const keepGrid = oldWrap && !gridScrollReset ? { top: oldWrap.scrollTop, left: oldWrap.scrollLeft } : null;
+			gridScrollReset = false;
 			container.innerHTML = h;
+			if (keepGrid) {
+				const nw = container.querySelector('.usd-roster-grid-wrap');
+				if (nw) { nw.scrollTop = keepGrid.top; nw.scrollLeft = keepGrid.left; }
+			}
 			// 名前を押すと説明の小窓（段7の (14)。ⓘ と長押しはやめた）。「いまの設定」の1行と系列の注記は開く直前に求める
 			attachSkillInfoIn(container, (id) => ({ skillId: id, trigger: 'self', getLine: () => infoLineFor(id), getNote: () => shareNoteOf(id, computed()) }));
 			const host = ensureModalHost();
@@ -6272,7 +6512,13 @@
 		 * 同じキャラクターの共通イベントを並べ、選択肢を1つ選べる（もう一度押すと未選択）。既定（絞り込み後に
 		 * 残るスキルを成功側に持つ選択肢が1つだけ）は「自動」と添える。保存するのは利用者が選んだものだけ（roster.eventChoices）。
 		 * ------------------------------------------------------------ */
+		/** 列見出しの data-member-key の値をメンバーのキーに戻す（育成ウマ娘・カードは数、シナリオは 'scenario'）。 */
+		function memberKeyOf(attr) { return attr === SCENARIO_KEY ? SCENARIO_KEY : Number(attr); }
+		/** ラーメンのどんぶり（シナリオ『トレセン軒』の列のアイコン。インラインの SVG・色は currentColor） */
+		const bowlSvg = '<svg class="usd-roster-bowl" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">'
+			+ '<path d="M1.8 7.2h12.4a6.2 6.2 0 0 1-12.4 0z"/><path d="M5.5 14.6h5"/><path d="M5.2 4.6c0-1 1-1.3 1-2.3M8.2 4.6c0-1 1-1.3 1-2.3M11 5c.3-.7 1-1 1-1.8"/></svg>';
 		function eventTitle(e) {
+			if (e.kind === 'scenarioEvent') return (e.name || '') + (e.when ? '（' + e.when + '）' : '');
 			if (e.kind === 'commonEvent') return '共通イベント' + (isNonNegInt(e.step) ? ' ' + e.step + '回目' : ' ' + (e.index + 1));
 			return isNonNegInt(e.step) ? e.step + '回目' : (e.index + 1) + 'つ目';
 		}
@@ -6328,7 +6574,7 @@
 				p.setAttribute('data-usd-el', 'events-none');
 				left.appendChild(p);
 			}
-			list.forEach(e => {
+			const addChoiceEvent = (e) => {
 				const box = infoEl('div', 'usd-roster-event');
 				box.setAttribute('data-usd-el', 'event');
 				box.setAttribute('data-event-key', e.eventKey);
@@ -6352,8 +6598,14 @@
 					btn.setAttribute('data-usd-el', 'event-choice');
 					btn.setAttribute('data-event-key', e.eventKey);
 					btn.setAttribute('data-choice', String(c.index));
-					const lab = infoEl('span', 'usd-roster-choicelabel', '選択肢' + (c.index + 1));
+					const lab = infoEl('span', 'usd-roster-choicelabel', c.label || ('選択肢' + (c.index + 1)));
 					btn.appendChild(lab);
+					// シナリオのイベント（段7c の N）: 編成にいるキャラクターのときの選択肢か、いないときのものかを添える
+					if (c.state) {
+						const st = infoEl('span', 'usd-roster-choicestate', c.state === 'linked' ? '編成時' : '非編成時');
+						st.setAttribute('data-usd-el', 'event-choice-state');
+						btn.appendChild(st);
+					}
 					const ul = infoEl('span', 'usd-roster-choiceskills');
 					if (c.skills.length === 0) ul.appendChild(infoEl('span', 'usd-roster-choiceskill usd-roster-choiceskill--none', 'スキルなし'));
 					c.skills.forEach(s => {
@@ -6369,7 +6621,36 @@
 				});
 				box.appendChild(group);
 				left.appendChild(box);
-			});
+			};
+			// 確定のイベント（選択肢なし。シナリオの固定イベント）: 得るスキルとヒントレベルを並べるだけ
+			const addFixedEvent = (fe) => {
+				const box = infoEl('div', 'usd-roster-event');
+				box.setAttribute('data-usd-el', 'event-fixed');
+				const t = infoEl('p', 'usd-roster-eventtitle', fe.name + (fe.when ? '（' + fe.when + '）' : ''));
+				const tag = infoEl('span', 'usd-roster-autotag', '確定');
+				tag.setAttribute('data-usd-el', 'event-fixed-tag');
+				t.appendChild(global.document.createTextNode(' '));
+				t.appendChild(tag);
+				box.appendChild(t);
+				const ul = infoEl('div', 'usd-roster-choiceskills');
+				fe.skills.filter(x => findSkill(x.skillId)).forEach(x => {
+					const sp = infoEl('span', 'usd-roster-choiceskill', getSkillName(x.skillId) + (isNonNegInt(x.hintLevel) ? ' Lv' + x.hintLevel : ''));
+					sp.setAttribute('data-usd-el', 'event-fixed-skill');
+					ul.appendChild(sp);
+				});
+				box.appendChild(ul);
+				left.appendChild(box);
+			};
+			if (memberKey === SCENARIO_KEY && res.scenario) {
+				// シナリオは、データの並び（イベント1・2・3…）のまま。選択式は選択肢のボタン、確定は一覧
+				res.scenario.events.forEach(se => {
+					if (se.type === 'fixed') { addFixedEvent(se); return; }
+					const ce = list.find(x => x.eventKey === se.eventKey);
+					if (ce) addChoiceEvent(ce);
+				});
+			} else {
+				list.forEach(addChoiceEvent);
+			}
 			// ── 右：取得できるスキル。いまの選択（自動を含む）で得るもの（●）を先に、未選択のイベントしだいのもの（△）を薄く「未選択」の印つきで後ろに。
 			//    絞り込みで外れるスキルは灰色で残す。選択を変えるたびに描き直す ──
 			const h3 = infoEl('p', 'usd-ev-skills-title', '取得できるスキル');
@@ -6427,6 +6708,7 @@
 			render();
 		}
 		function eventsTitleHtml(m) {
+			if (m.kind === 'scenario') return '<span class="usd-roster-legend-no usd-roster-scenmark" aria-hidden="true">' + bowlSvg + '</span> <span class="usd-ev-title-text">' + esc(m.label || '') + '</span>';
 			const typed = m.typeOrder !== null && m.typeOrder !== undefined;
 			return '<span class="usd-roster-legend-no' + (typed ? ' usd-roster-typed' : '') + '"' + (typed ? ' data-type-order="' + m.typeOrder + '" style="' + cardTypeColorVars(m.typeOrder) + '"' : '') + '>' + m.no + '</span>'
 				+ ' <span class="usd-ev-title-text">' + esc(m.label || '') + '</span>';
@@ -6564,12 +6846,13 @@
 				render();
 			}
 			else if (act === 'sort') {
-				const key = Number(btn.getAttribute('data-member-key'));
+				const key = memberKeyOf(btn.getAttribute('data-member-key'));
 				sortKey = sortKey === key ? null : key;
+				gridScrollReset = true;
 				render();
 			}
 			else if (act === 'events') {
-				const key = Number(btn.getAttribute('data-member-key'));
+				const key = memberKeyOf(btn.getAttribute('data-member-key'));
 				if (eventsFor === key) { closeSkillInfo(); return; }
 				openEventsPopover(key);
 			}
@@ -6645,9 +6928,20 @@
 		});
 		container.addEventListener('change', function (ev) {
 			const el = ev.target;
+			if (el && el.getAttribute && el.getAttribute('data-usd-act') === 'take-skill') {
+				// 取得するかどうかの切り替え（段7c の M）。押したチェックが画面の中で動かないようにする（段7b の ⑥ と同じ決まり）
+				const anchor = captureAnchor(el);
+				const id = el.getAttribute('data-skill-id');
+				setSkillTaken(id, el.checked);
+				render();
+				restoreAnchor(anchor, [container, modalHost]);
+				focusNoScroll(container.querySelector('input[data-usd-act="take-skill"][data-skill-id="' + id + '"]'));
+				return;
+			}
 			if (el && el.getAttribute && el.getAttribute('data-usd-act') === 'filter') {
 				// 絞り込み中の印などで上の行の高さが変わっても、押したセレクトが画面の中で動かないようにする（段7b の ⑥）
 				const anchor = captureAnchor(el);
+				gridScrollReset = true;
 				setFilter(el.getAttribute('data-axis'), el.value || '');
 				render();
 				restoreAnchor(anchor, [container, modalHost]);
@@ -6678,13 +6972,15 @@
 			getInputs: function () {
 				const res = computed();
 				const status = ptDataStatus();
-				return { status: status, sources: res.sources, enabledIds: [], sureIds: res.skillIds.slice(),
+				return { status: status, sources: res.sources, enabledIds: [], sureIds: res.skillIds.filter(id => !res.offIds.has(id)), offIds: res.offList.slice(),
 					settings: status === 'ok' ? resolveRosterPtSettings(roster, skillPtData.rules) : null };
 			}
 		};
 		render();
 		// スキルPt の元データがまだ読まれていなければ、読み終わったあとで描き直す（読めなくても描き直す＝知らせを出す）
 		if (!skillPtData.meta.loaded) loadSkillPtData(false).then(function () { render(); });
+		// シナリオの固定イベント（段7c の N）。編成パネルを作るときにだけ読む。読み終わったら描き直す（読めなければ列を出さない）
+		if (scenarioEventState.status === 'idle' || scenarioEventState.status === 'failed') loadScenarioEvents(false).then(function () { render(); });
 		return {
 			render: render,
 			getRoster: function () { return snapshot(roster); },
@@ -7218,18 +7514,24 @@
 		function rosterSureIdsOf(rosterId) {
 			if (!grouped || !rosterPtSource || !rosterId) return [];
 			const r = findRoster(rosterId);
-			if (!r) return [];
-			const copy = snapshot(r);
-			copy.cardIds = (copy.cardIds || []).slice(0, ROSTER_CARD_SLOTS);
-			while (copy.cardIds.length < ROSTER_CARD_SLOTS) copy.cardIds.push(null);
-			return rosterSkillResultOf(copy).skillIds.slice();
+			return r ? rosterPtInputsOf(r).sureIds : [];
+		}
+		/** 選んだ編成で「取得しない」にしたスキル（段7c の M。いま●のものだけ）。追加の一覧では、本育成で得るものとは別の理由で選べなくする */
+		function rosterOffIdsOf(rosterId) {
+			if (!grouped || !rosterPtSource || !rosterId) return [];
+			const r = findRoster(rosterId);
+			return r ? rosterPtInputsOf(r).offIds : [];
 		}
 		/** 追加の一覧で選べなくするスキル（対象があるセットを編集しているときだけ）。モーダルが開いていれば描き直す（旧5）。 */
 		function applyRosterHidden() {
 			const linked = linkedRosterOf(currentTarget());
-			const next = linked ? rosterSureIdsOf(linked.rosterId) : [];
-			const changed = next.length !== pickerHiddenIds.length || next.some((id, i) => id !== pickerHiddenIds[i]);
+			const sure = linked ? rosterSureIdsOf(linked.rosterId) : [];
+			const off = linked ? rosterOffIdsOf(linked.rosterId).filter(id => sure.indexOf(id) === -1) : [];
+			const next = sure.concat(off);
+			const changed = next.length !== pickerHiddenIds.length || next.some((id, i) => id !== pickerHiddenIds[i])
+				|| off.length !== pickerOffIds.length || off.some((id, i) => id !== pickerOffIds[i]);
 			pickerHiddenIds = next;
+			pickerOffIds = off;
 			if (changed) { renderPickerResults(); renderPasteReport(); }
 		}
 		function renderRosterLink() {
@@ -7239,15 +7541,24 @@
 			const target = currentTarget();
 			const linked = linkedRosterOf(target);
 			const sure = new Set(linked ? rosterSureIdsOf(linked.rosterId) : []);
+			const offSet = new Set(linked ? rosterOffIdsOf(linked.rosterId) : []);
 			const overlap = linked ? (skillIdsOf(target) || []).filter(id => sure.has(id)).length : 0;
+			const offIn = linked ? (skillIdsOf(target) || []).filter(id => offSet.has(id)).length : 0;
 			// 対象なし＝輪郭だけ（aria-pressed=false）。対象あり＝暗い塗りで「本育成編成：{編成の名前}」（長ければ省略記号。aria-pressed=true）。
 			// 共有の .uma-btn--secondary は使わない（その :hover が押している状態の暗い地を上書きして、白い文字が白地に消えていた。段7b の ⑬）
+			// 段7c の O：選んだ編成の本育成の Pt をボタンに入れる。「本育成編成（{状態}_{XXXX}Pt）：{編成名}」（状態が「なし」のときは状態と「_」を省く）。
+			// 元データが使えないとき（読み込み中・失敗）は、かっこの中身を出さない。編成を選んでいないときは「本育成編成」だけ
 			const name = linked ? (linked.name || '（名称未設定）') : '';
-			const label = linked ? '本育成編成：' + name : '本育成編成';
+			const sum = linked ? rosterPtSummaryOf(linked) : null;
+			const label = linked
+				? '本育成編成' + (sum ? '（' + (sum.statusLabel ? sum.statusLabel + '_' : '') + formatPtNumber(sum.total) + 'Pt）' : '') + '：' + name
+				: '本育成編成';
 			let h = '<button type="button" class="usd-roster-linkbtn" data-usd-act="roster-link" data-usd-el="roster-link-btn"'
 				+ ' aria-pressed="' + (linked ? 'true' : 'false') + '" aria-haspopup="dialog" aria-expanded="false" title="' + esc(label) + '">'
 				+ '<span class="usd-roster-linkname">' + esc(label) + '</span></button>';
 			if (overlap > 0) h += '<span class="usd-roster-note" data-usd-el="roster-link-overlap">このセットには、本育成で得るスキルが' + overlap + '種含まれています</span>';
+			// 取得しないにしたスキルがセットに入っているとき（段7c の M。自動では外さない）。0種なら出さない
+			if (offIn > 0) h += '<span class="usd-roster-note" data-usd-el="roster-link-off">このセットには、本育成編成で不要にしたスキルが' + offIn + '種含まれています</span>';
 			if (rosterLinkNotice) {
 				h += '<span class="usd-roster-note" data-usd-el="roster-link-notice">' + esc(rosterLinkNotice.text) + '</span>'
 					+ (rosterLinkNotice.undoable ? '<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="roster-link-undo">元に戻す</button>' : '');
@@ -7340,20 +7651,23 @@
 			if (!el) return;
 			const hideIt = () => { el.hidden = true; el.innerHTML = ''; };
 			if (!grouped || !rosterPtSource) { hideIt(); return; }
-			const inp = rosterPtSource.getInputs();
+			const target = currentTarget();
+			// 段7c の O の (5)：状態（勉強家・切れ者）・育成ウマ娘のレベル・本育成のスキルは、**そのセットの「本育成編成」に選んだ編成**から読む
+			// （選んでいないときは、①で選択中の編成。段5 の決定のとおり）。これまでは常に①で選択中の編成を読んでいた
+			const linkedRoster = linkedRosterOf(target);
+			const inp = linkedRoster ? rosterPtInputsOf(linkedRoster) : rosterPtSource.getInputs();
 			if (inp.status === 'loading') { hideIt(); return; }
 			if (inp.status === 'failed') {
 				el.hidden = false;
 				el.innerHTML = '<p class="usd-roster-alert" data-usd-el="pt-need-error">Pt のデータを読み込めませんでした</p>';
 				return;
 			}
-			const target = currentTarget();
 			const ids = skillIdsOf(target) || [];
 			const rules = skillPtData.rules;
 			const F = resolveParentHintLevel(parentHintLevelOf(target), rules);
 			const r = computeFactorSetPt({
 				sources: inp.sources, rules: rules, skillPt: skillPtData.skillPt, stepUp: skillPtData.stepUp,
-				statusId: inp.settings.status, umaHintLevel: inp.settings.umaHintLevel, enabledSkillIds: inp.enabledIds,
+				statusId: inp.settings.status, umaHintLevel: inp.settings.umaHintLevel, enabledSkillIds: inp.enabledIds, offSkillIds: inp.offIds || [],
 				factorSkillIds: ids, tiers: tiersOf(target), parentHintLevel: F
 			});
 			if (!r.ok || (ids.length === 0 && r.roster.count === 0)) { hideIt(); return; }
@@ -7365,10 +7679,11 @@
 				+ '<span class="usd-ptneed-chips">'
 				+ r.cuts.map(c => '<span class="usd-ptneed-chip" data-usd-el="pt-need-' + c.tier + '">' + esc(c.label) + ' <strong>' + formatPtNumber(c.total) + '</strong></span>').join('')
 				+ '</span></div>';
-			h += '<p class="uma-help-box" data-usd-el="pt-need-help-box"' + (ptNeedHelpOpen ? '' : ' hidden') + '>理論値（各スキルを最大のヒントレベルで得た場合のスキルPt）</p>';
-			if (r.roster.count > 0) h += '<p class="usd-roster-note" data-usd-el="pt-need-roster">（うち本育成 ' + formatPtNumber(r.roster.total) + '）</p>';
-			// 重なるスキル（本育成と因子セットの両方）が、本育成だけでは L が上限未満のとき、合計が「超優先だけ」より小さくなりうることを説明する
-			if (r.roster.count > 0 && r.overlapRaisable > 0) h += '<p class="usd-roster-note" data-usd-el="pt-need-overlap">重なるスキルは、親から得ると、ヒントレベルが上がって安くなります。</p>';
+			// 段7c の O の (4)：「（うち本育成 X）」の行は削除した（値の計算は変えていない）。補足文は（?）の中へ移した
+			// （重なるスキル〔本育成と因子セットの両方〕が、本育成だけでは L が上限未満のとき、合計が「超優先だけ」より小さくなりうることの説明。出る条件は今のまま）
+			h += '<p class="uma-help-box" data-usd-el="pt-need-help-box"' + (ptNeedHelpOpen ? '' : ' hidden') + '>理論値（各スキルを最大のヒントレベルで得た場合のスキルPt）'
+				+ (r.roster.count > 0 && r.overlapRaisable > 0 ? '<span class="usd-ptneed-boxline" data-usd-el="pt-need-overlap">重なるスキルは、親から得ると、ヒントレベルが上がって安くなります。</span>' : '')
+				+ '</p>';
 			if (r.unpricedCount > 0) h += '<p class="usd-roster-note" data-usd-el="pt-need-unpriced">（Pt未収録' + r.unpricedCount + '種は含めていません）</p>';
 			if (skillPtData.meta.stepUp === 'failed') h += '<p class="usd-roster-note" data-usd-el="pt-need-prev-error">前段のデータを読み込めませんでした</p>';
 			h += '<label class="usd-ptneed-f"><span class="usd-roster-setlabel">親由来のレベル</span>'
@@ -8525,8 +8840,12 @@
 		tiers: { list: TIERS.map(t => ({ id: t.id, label: t.label })), defaultTier: TIER_DEFAULT, of: tierOf, label: tierLabel, markHtml: tierMarkHtml },
 		listRosters: listRosters,
 		computeRosterSkills: computeRosterSkills,
+		loadScenarioEvents: loadScenarioEvents,
+		getScenarioEventStatus: function () { return scenarioEventState.status; },
 		getPickerHiddenIds: function () { return pickerHiddenIds.slice(); },
 		setPickerHiddenIds: function (ids) { pickerHiddenIds = (ids || []).slice(); },
+		getPickerOffIds: function () { return pickerOffIds.slice(); },
+		setPickerOffIds: function (ids) { pickerOffIds = (ids || []).slice(); },
 
 		// スキル選択モーダル
 		openSkillPicker: openSkillPicker,

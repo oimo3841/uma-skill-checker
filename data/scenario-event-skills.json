@@ -1,0 +1,74 @@
+{
+	"dataVersion": "2026-10-03a",
+	"category": "scenarioEventSkills",
+	"note": "ゲーム内で確認できるシナリオの固定イベントで得られるスキルとヒントレベル。シナリオごとに events を持ち、type は choice（選択式。choices から1つ選ぶ）か fixed（選択なし。skills をすべて得る）。choice の選択肢が charaNames を持つときは、そのキャラクターが編成（育成ウマ娘かサポートカードの charaName）にいれば linked、いなければ unlinked のスキルが得られる（charaNames の どれか1人でもいれば編成にいるものとして扱う）。charaNames を持たない選択肢は skills を得る。hintLevel は得られるヒントレベル（1以上の整数）。skillId は登録済みのスキルの id。このファイルには独自の id を振らない。",
+	"entries": [
+		{
+			"scenario": "トレセン軒",
+			"events": [
+				{
+					"name": "貴方と私とラーメンと",
+					"when": "シニア級9月前半",
+					"type": "choice",
+					"choices": [
+						{
+							"label": "ファインモーション",
+							"charaNames": ["ファインモーション"],
+							"linked": [{ "skillId": "ex-0263", "hintLevel": 1 }],
+							"unlinked": [{ "skillId": "124", "hintLevel": 1 }]
+						},
+						{
+							"label": "ナリタトップロード",
+							"charaNames": ["ナリタトップロード"],
+							"linked": [{ "skillId": "ex-0335", "hintLevel": 1 }],
+							"unlinked": [{ "skillId": "110", "hintLevel": 1 }]
+						},
+						{
+							"label": "カルストンライトオ",
+							"charaNames": ["カルストンライトオ"],
+							"linked": [{ "skillId": "ex-0234", "hintLevel": 1 }],
+							"unlinked": [{ "skillId": "339", "hintLevel": 1 }]
+						},
+						{
+							"label": "メイショウドトウ",
+							"charaNames": ["メイショウドトウ"],
+							"linked": [{ "skillId": "ex-0238", "hintLevel": 1 }],
+							"unlinked": [{ "skillId": "230", "hintLevel": 1 }]
+						},
+						{
+							"label": "ナイスネイチャ",
+							"charaNames": ["ナイスネイチャ"],
+							"linked": [{ "skillId": "ex-0211", "hintLevel": 1 }],
+							"unlinked": [{ "skillId": "103", "hintLevel": 1 }]
+						},
+						{
+							"label": "駿川たづな ＆ ライトハロー",
+							"charaNames": ["駿川たづな", "ライトハロー"],
+							"linked": [{ "skillId": "ex-0640", "hintLevel": 1 }],
+							"unlinked": [{ "skillId": "304", "hintLevel": 1 }]
+						}
+					]
+				},
+				{
+					"name": "シニア級12月後半",
+					"type": "choice",
+					"choices": [
+						{ "skills": [{ "skillId": "ex-0566", "hintLevel": 2 }] },
+						{ "skills": [] },
+						{ "skills": [{ "skillId": "ex-0519", "hintLevel": 2 }] }
+					]
+				},
+				{
+					"name": "確定で得られるスキル",
+					"type": "fixed",
+					"skills": [
+						{ "skillId": "439", "hintLevel": 3 },
+						{ "skillId": "236", "hintLevel": 3 },
+						{ "skillId": "41", "hintLevel": 2 },
+						{ "skillId": "67", "hintLevel": 2 }
+					]
+				}
+			]
+		}
+	]
+}
