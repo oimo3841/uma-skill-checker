@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03o';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03p';
 
 	/* ============================================================
 	 * 定数
@@ -179,6 +179,61 @@
 		return '<span class="uma-tier-mark" data-tier="' + t + '" role="img" aria-label="' + esc(tierLabel(t)) + '">'
 			+ '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true">'
 			+ shape + '</svg></span>';
+	}
+	/**
+	 * スキルに付けるアイコン（段9・C-121）。special の②だけ。**Pt・種・合計には一切影響しない（メモ用）。**
+	 * 超優先／優先／通常のランクに置き換わった。表はここ1か所（差し替えやすくする。後でゲームの画像に差し替えるときは、
+	 * この表と skillIconHtml() だけを直す）。保存は template.skillIcons（{ スキルID: アイコンID }。下書きは同じ名前の項目）。
+	 * 色（ライト／ダーク）は CSS の変数（--usd-icon-<id>）になる。記号の色は --usd-icon-fg。
+	 */
+	const SKILL_ICONS = [
+		{ id: 'a', mark: '◎', light: '#d7263d', dark: '#ff6b7f' },
+		{ id: 'b', mark: '○', light: '#e8890c', dark: '#ffb04d' },
+		{ id: 'c', mark: '△', light: '#1f6fd1', dark: '#6aa8ff' },
+		{ id: 'd', mark: '◇', light: '#1f9d55', dark: '#5fd28f' },
+		{ id: 'e', mark: '★', light: '#8a4fd1', dark: '#c29bff' },
+		{ id: 'f', mark: '✕', light: '#5b6575', dark: '#9aa4b3' }
+	];
+	const SKILL_ICON_FG = { light: '#ffffff', dark: '#10151c' };
+	const SKILL_ICON_DEFAULT = 'a';   // パレットの初期の選択
+	function isSkillIconId(v) { return typeof v === 'string' && SKILL_ICONS.some(i => i.id === v); }
+	/** 保存してある skillIcons から、知らないアイコン・文字でない値を除く（ids を渡したときは、その中のスキルだけ残す） */
+	function cleanSkillIcons(icons, ids) {
+		const out = {};
+		if (!icons || typeof icons !== 'object') return out;
+		const keep = Array.isArray(ids) ? new Set(ids) : null;
+		Object.keys(icons).forEach(id => { if (isSkillIconId(icons[id]) && (!keep || keep.has(id))) out[id] = icons[id]; });
+		return out;
+	}
+	/** アイコン → 従来の分類（Deck・結合画像の印との互換）。◎＝超優先（1）、○＝優先（2）、それ以外とアイコン無し＝通常（3） */
+	function iconTier(iconId) { return iconId === 'a' ? 1 : iconId === 'b' ? 2 : 3; }
+	const ICON_FOR_TIER = { 1: 'a', 2: 'b', 3: 'c' };
+	/** skillIcons から tiers を導く（優先〔2〕は既定なので書かない）。ids は並びの元になるスキルの id */
+	function tiersFromIcons(ids, icons) {
+		const out = {};
+		(ids || []).forEach(id => { const t = icons && icons[id] ? iconTier(icons[id]) : 3; if (t !== TIER_DEFAULT) out[id] = t; });
+		return out;
+	}
+	/** tiers から skillIcons を作る（超優先→◎、優先〔無い id も〕→○、通常→△）。移行と、skillIcons を持たないセットの読み取りに使う */
+	function iconsFromTiers(ids, tiers) {
+		const out = {};
+		(ids || []).forEach(id => { out[id] = ICON_FOR_TIER[tierOf(tiers, id)]; });
+		return out;
+	}
+	/** アイコンの丸（18px。丸い塗りに記号）。iconId が無い・知らないときは破線の丸（中は空） */
+	function skillIconHtml(iconId, extraClass) {
+		const ic = SKILL_ICONS.find(i => i.id === iconId);
+		const cls = 'usd-icon' + (ic ? '' : ' usd-icon--none') + (extraClass ? ' ' + extraClass : '');
+		return '<span class="' + cls + '"' + (ic ? ' data-icon="' + ic.id + '"' : '') + ' aria-hidden="true">' + (ic ? esc(ic.mark) : '') + '</span>';
+	}
+	function iconStyleLines() {
+		const light = SKILL_ICONS.map(i => '--usd-icon-' + i.id + ': ' + i.light + ';').join(' ');
+		const dark = SKILL_ICONS.map(i => '--usd-icon-' + i.id + ': ' + i.dark + ';').join(' ');
+		return [
+			// 色は変数にしてある。ダークは将来の切り替え（html[data-theme="dark"]）で差し替わる（いまはまだ何も付けない）
+			':root { ' + light + ' --usd-icon-fg: ' + SKILL_ICON_FG.light + '; }',
+			':root[data-theme="dark"] { ' + dark + ' --usd-icon-fg: ' + SKILL_ICON_FG.dark + '; }'
+		].concat(SKILL_ICONS.map(i => '.usd-icon[data-icon="' + i.id + '"] { background: var(--usd-icon-' + i.id + '); }'));
 	}
 	// 編成（育成ウマ娘1人＋サポートカード6枚）。テンプレート・比較シートと同じく
 	// 「利用者が作ったもの」なので userData に置き、書き出し／取り込みの対象にする（C-51）。
@@ -677,7 +732,34 @@
 		// 「どの節も OFF」＝含めない、として読む。既定が OFF なので移行は要らない）。
 		// schemaVersion 6（段8・C-120）で「セット」＝ template ＋ その baseRosterId が指す roster 1件、になった。
 		// 5 以前の編成（roster）は migrateUserDataToSets() が読み込み時に1回だけセットへ振り分ける。
-		return { schemaVersion: 6, templates: [], records: [], customSkills: [], rosters: [] };
+		// schemaVersion 7（段9・C-121）で超優先／優先／通常のランクがアイコンに置き換わった（template.skillIcons。ptRanks は廃止）。
+		// 6 以前の tiers は migrateUserDataToIcons() が写す（読み込み時と取り込み時に1回だけ。tiers は Deck・結合画像の印のために残る）。
+		return { schemaVersion: 7, templates: [], records: [], customSkills: [], rosters: [] };
+	}
+
+	/**
+	 * schemaVersion 6 以前 → 7 の移行（段9・C-121）。tiers（超優先→◎、優先〔無い id も〕→○、通常→△）を skillIcons に写し、ptRanks は捨てる。
+	 *   - **読み込み時（all なし）**: tiers か ptRanks を持つセットだけを写す（持たないセットは触らない＝「開いただけで姿を変えない」流儀。
+	 *     skillIcons を持たないセットは、使うところで tiers から導いて読むので、見え方は同じ）。写したものがあれば schemaVersion を 7 にして保存し直す。
+	 *   - **取り込み時（all あり）**: skillIcons を持たないセットのうち、スキルを持つものすべてに写す。schemaVersion は 7 にする。
+	 * tiers は消さない（Deck・結合画像の印が読む）。返り値: { changed }。data をその場で書き換える。
+	 */
+	function migrateUserDataToIcons(data, all) {
+		const out = { changed: false };
+		if (!data || typeof data !== 'object' || data.schemaVersion >= 7) return out;
+		const templates = Array.isArray(data.templates) ? data.templates : [];
+		templates.forEach(t => {
+			if (!t || typeof t !== 'object') return;
+			const hasTiers = !!(t.tiers && typeof t.tiers === 'object' && Object.keys(t.tiers).length > 0);
+			if ('ptRanks' in t) { delete t.ptRanks; out.changed = true; }
+			if (t.skillIcons && typeof t.skillIcons === 'object') return;
+			const ids = Array.isArray(t.skillIds) ? t.skillIds : [];
+			if (ids.length === 0 || !(hasTiers || all)) return;
+			t.skillIcons = iconsFromTiers(ids, t.tiers);
+			out.changed = true;
+		});
+		if (out.changed || (all && templates.length > 0)) { data.schemaVersion = 7; out.changed = true; }
+		return out;
 	}
 
 	/**
@@ -760,8 +842,10 @@
 			// 受けるので、持たない古い形（schemaVersion 2 以前）のままで正しく動く。
 			// 段8（C-120）: 5 以前の編成をセットへ振り分ける（1回だけ。移したときだけ保存し直す）
 			const mig = migrateUserDataToSets(parsed);
-			if (mig.changed) {
-				noteMigration(mig);
+			// 段9（C-121）: 6 以前のランク（tiers）をアイコンへ写す（1回だけ。写したときだけ保存し直す）
+			const migI = migrateUserDataToIcons(parsed, false);
+			if (mig.changed || migI.changed) {
+				if (mig.changed) noteMigration(mig);
 				try { global.localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(parsed)); } catch (e) { /* 保存は次の書き込みで */ }
 			}
 			return parsed;
@@ -792,6 +876,8 @@
 		// 段8（C-120）: 取り込んだデータが 5 以前なら、読み込みと同じ移行を通す（6 のデータは何も変わらない）
 		const mig = migrateUserDataToSets(userData);
 		if (mig.changed) { noteMigration(mig); flushMigrationNotice(); }
+		// 段9（C-121）: 6 以前の書き出しファイルは、スキルを持つセットすべてにアイコンを写す（7 のデータは何も変わらない）
+		migrateUserDataToIcons(userData, true);
 		saveUserData();
 	}
 
@@ -830,8 +916,9 @@
 			if (typeof parsed.baseRosterId === 'string' && parsed.baseRosterId) out.baseRosterId = parsed.baseRosterId;
 			// 継承固有（段7d の ⑪）。持っているときだけ写す（無い古い形に補わない。知らない値は使うときに既定へ解く）
 			if (parsed.inheritedUnique && typeof parsed.inheritedUnique === 'object') out.inheritedUnique = Object.assign({}, parsed.inheritedUnique);
-			// ランクの ON/OFF（段8・D）。持っているときだけ写す
-			if (parsed.ptRanks && typeof parsed.ptRanks === 'object') out.ptRanks = Object.assign({}, parsed.ptRanks);
+			// アイコン（段9・C-121。skillIcons。ランクの ON/OFF の ptRanks は廃止したので読まない）。持っているときだけ写す
+			// （中身が空でも「持っている」＝利用者がすべて外した姿。持たないものは使うところで tiers から導く）
+			if (parsed.skillIcons && typeof parsed.skillIcons === 'object') out.skillIcons = cleanSkillIcons(parsed.skillIcons);
 			return out;
 		} catch (e) {
 			return { skillIds: [], name: '', updatedAt: '' };
@@ -839,7 +926,7 @@
 	}
 
 	// label … 失敗を知らせるときの呼び名（呼び出し元の setLabel）。渡さなければ既定の呼び名
-	function saveDraftScope(scopeKey, skillIds, name, tiers, label, scopes, parentHintLevel, baseRosterId, inheritedUnique, ptRanks) {
+	function saveDraftScope(scopeKey, skillIds, name, tiers, label, scopes, parentHintLevel, baseRosterId, inheritedUnique, skillIcons) {
 		const payload = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
 		// 空の tiers は書かない（分類を変えていないドラフトの姿を変えない）
 		if (tiers && typeof tiers === 'object' && Object.keys(tiers).length > 0) payload.tiers = Object.assign({}, tiers);
@@ -851,8 +938,8 @@
 		if (typeof baseRosterId === 'string' && baseRosterId) payload.baseRosterId = baseRosterId;
 		// 継承固有（段7d の ⑪）も同じ流儀 ―― 触っていなければ書かない
 		if (inheritedUnique && typeof inheritedUnique === 'object' && Object.keys(inheritedUnique).length > 0) payload.inheritedUnique = Object.assign({}, inheritedUnique);
-		// ランクの ON/OFF（段8・D）も同じ流儀 ―― 触っていなければ書かない
-		if (ptRanks && typeof ptRanks === 'object') payload.ptRanks = Object.assign({}, ptRanks);
+		// アイコン（段9）。持っているときは中身が空でも書く（「すべて外した」と「まだ触っていない」を分けるため）
+		if (skillIcons && typeof skillIcons === 'object') payload.skillIcons = Object.assign({}, skillIcons);
 		try {
 			global.localStorage.setItem(draftStorageKey(scopeKey), JSON.stringify(payload));
 		} catch (e) {
@@ -3243,7 +3330,7 @@
 	// このモジュールが生成するマークアップ専用のクラス。既存ページのクラス名
 	// （.list-card / .chip 等）と衝突させないため usd- を接頭辞にする。
 	// 見た目は uma-skill-deck.html の既存デザインと同一。
-	const CORE_STYLES = [
+	const CORE_STYLES = [].concat(iconStyleLines(), [
 		// 見た目の値は css/common.css のトークンから取る。ここに色や寸法を直書きすると、
 		// Tailwind v4 のパレット（oklch）と微妙にズレた色が並ぶことになる。
 		// ボタン・入力欄そのものの形は共通部品（.uma-btn / .uma-icon-btn / .uma-input）に
@@ -4277,7 +4364,7 @@
 		'  .usd-roster-ghbtn { height: 24px; }',
 		'  .usd-roster-grid-wrap { max-height: max(180px, calc(100dvh - var(--usd-grid-top, 380px) - var(--uma-sp-2))); }',
 		'}'
-	].join('\n');
+	]).join('\n');
 
 	let stylesInjected = false;
 	function injectStyles() {
@@ -7749,7 +7836,6 @@
 			else if (act === 'scope-help-close') closeScopeList();
 			else if (act === 'pt-need-help' && setBased) openPopover({ key: 'factor-help:' + draftScopeKey, title: '②の Pt', build: fillFactorHelp, btn: btn, opener: btn, refocus: '[data-usd-act="pt-need-help"]' });
 			else if (act === 'pt-need-help') { ptNeedHelpOpen = !ptNeedHelpOpen; renderPtNeed(); }
-			else if (act === 'pt-rank') setPtRank(Number(btn.dataset.tier));
 			else if (act === 'pt-total-help') openPtTotalPopover(btn);
 			else if (act === 'roster-link') openRosterLinkPopover(btn);
 			// 段8: 共通の見出しの帯
@@ -8353,31 +8439,32 @@
 			});
 			return { inp: inp, ids: ids, takenIds: allIds.filter(id => taken.has(id)), rules: rules, F: F, r: r };
 		}
-		/** ランクの ON/OFF（段8・D。template.ptRanks: { high, mid, low }。無い・true 以外でない値は ON） */
-		const PT_RANK_KEYS = { 1: 'high', 2: 'mid', 3: 'low' };
-		function ptRanksOf(target) {
-			const raw = target && target.kind === 'template' ? target.obj.ptRanks : draftScope.ptRanks;
-			const out = {};
-			TIERS.forEach(t => { out[t.id] = !(raw && typeof raw === 'object' && raw[PT_RANK_KEYS[t.id]] === false); });
-			return out;
-		}
 		/**
-		 * セットの数字（段8・B／D）。②の X ＝ 継承固有 ＋ ON のランクの Pt（チップの値の和）、N ＝ ON のランクの種（金と前段の白は1種・①で得るものは除く）＋ 継承固有の種類数。
-		 * ①の値は、同じセットの①の「X Pt/N種」と同じ（前段込み）。合計 ＝ ① ＋ ②。元データが使えないときは null。
+		 * セットの数字（段9・C-121。段8・B／D を置き換えた）。**ここ1か所**で数える（①の帯・②の帯・見出しの帯・「?」がすべてこの値を読む）。
+		 *   ②の Pt ＝ 継承固有 ＋ 共通スキル。共通スキルは**アイコンの有無に関係なく全部**数える（アイコンはメモ用。ランクの ON/OFF は廃止）。
+		 *   ②の種 ＝ 継承固有の種類数 ＋ 共通スキルの種（金と前段の白は1種）。**①で取得するスキルは②に数えない**（因子セットから除いて計算する。自動では外さない）。
+		 *   見出しの合計 ＝ ① ＋ ②（Pt も種も。①で取得するものは②から除いてあるので、重複して数えない）。
+		 * 共通スキルの Pt は、通常まで（＝すべて）を数えた累計から本育成編成と継承固有を引いた値（分類の割り振りに依らない）。
+		 * 元データが使えないときは null。
 		 */
 		function setSummaryOf(target) {
 			const st = factorPtState(target);
 			if (!st || !st.r || !st.r.ok) return null;
-			const r = st.r, on = ptRanksOf(target);
+			const r = st.r;
 			const uq = resolveInheritedUnique(inheritedUniqueOf(target), st.rules);
-			const kinds = kindCountsOf(st.ids, tiersOf(target));
-			let factorPt = r.inheritedUniquePt, factorKinds = uq.count;
-			r.cuts.forEach(c => { if (on[c.tier]) { factorPt += c.own; factorKinds += kinds.byTier[c.tier]; } });
+			const uniqPt = r.inheritedUniquePt, uniqKinds = uq.count;
+			const commonPt = r.cuts[r.cuts.length - 1].total - r.roster.total - uniqPt;
+			const commonKinds = countSkillKinds(st.ids);
 			const linked = linkedRosterOf(target);
 			const rs = linked ? rosterPtSummaryOf(linked) : null;
 			const rosterPt = rs ? rs.total : 0;
-			return { rosterPt: rosterPt, statusLabel: rs ? rs.statusLabel : '', factorPt: factorPt, factorKinds: factorKinds,
-				total: rosterPt + factorPt, ranks: on, takenIds: st.takenIds, unpricedCount: r.unpricedCount, st: st };
+			const rosterKinds = countSkillKinds((st.inp && st.inp.sureIds) || []);
+			const factorPt = uniqPt + commonPt, factorKinds = uniqKinds + commonKinds;
+			return { rosterPt: rosterPt, rosterKinds: rosterKinds, statusLabel: rs ? rs.statusLabel : '',
+				uniqPt: uniqPt, uniqKinds: uniqKinds, commonPt: commonPt, commonKinds: commonKinds,
+				factorPt: factorPt, factorKinds: factorKinds,
+				total: rosterPt + factorPt, totalKinds: rosterKinds + factorKinds,
+				takenIds: st.takenIds, unpricedCount: r.unpricedCount, st: st };
 		}
 		/** ②の各行の Pt を描き直す（⑬）。行の Pt は、必要スキルPt に数えている値（親由来のレベルと本育成編成の割引を反映したもの） */
 		function renderPanelPts() {
@@ -8467,34 +8554,39 @@
 		}
 
 		/**
-		 * ②の1行目（段8・D）：「X Pt/N種 ?」＋チップ4つ［継承固有］［＋超優先］［＋優先］［＋通常］。
-		 * 超優先・優先・通常のチップは ON/OFF の切り替え（aria-pressed。既定は ON。OFF は薄く、X と N に入れない）。
-		 * 641px 以上は「継承固有：720 Pt」、640px 以下は「継承固有 720」（CSS が「：」「Pt」と空白を出し分ける）。収まらなければチップの並びだけ横に送る
+		 * ②の帯（段9・C-121。段8・D の1行目を置き換えた）。薄い帯の中に、1段目「X Pt／N種 ?」と右端の「↺」（リセット。E）、
+		 * 2段目にタグ2つ［継承固有 720 Pt／6種］［共通スキル 7,693 Pt／98種］（押せない表示）。広い幅（641px 以上）ではタグも1段目に並べる。
+		 * 「?」の小窓には、理論値の説明・式・数えていないスキルの注記を入れる（①と重なるものがあるときだけ赤い点）。
 		 */
 		function renderSetHead(el, st) {
 			const r = st.r;
 			if (!r || !r.ok) { el.hidden = true; el.innerHTML = ''; return; }
 			const sum = setSummaryOf(currentTarget());
-			const chipText = (label, n) => esc(label) + '<span class="usd-chip-sep">：</span><span class="usd-chip-sp"> </span><strong>' + formatPtNumber(n) + '</strong><span class="usd-chip-unit"> Pt</span>';
-			const taken = sum ? sum.takenIds.length : 0;
-			el.innerHTML = '<div class="usd-sethead" data-usd-el="set-head">'
-				+ '<span class="usd-sethead-sum" data-usd-el="factor-sum"><strong data-usd-el="factor-pt">' + formatPtNumber(sum ? sum.factorPt : 0) + '</strong> Pt/<strong data-usd-el="factor-count">' + (sum ? sum.factorKinds : 0) + '</strong>種</span>'
-				+ '<button type="button" class="uma-help-btn usd-sethead-help' + (taken > 0 ? ' usd-help-dot' : '') + '" data-usd-act="pt-need-help" data-usd-el="pt-need-help-btn" data-taken="' + taken + '"'
+			if (!sum) { el.hidden = true; el.innerHTML = ''; return; }
+			const taken = sum.takenIds.length;
+			const fmt = formatPtNumber;
+			const tag = (el2, name, pt, kinds, extra) => '<span class="usd-band-tag" data-usd-el="' + el2 + '" data-pt="' + pt + '" data-kinds="' + kinds + '">'
+				+ '<span class="usd-band-tagname">' + esc(name) + '</span> <strong>' + fmt(pt) + '</strong> Pt／' + kinds + '種</span>';
+			el.innerHTML = '<div class="usd-setband" data-usd-el="set-head">'
+				+ '<div class="usd-band-main">'
+				+ '<span class="usd-band-sum" data-usd-el="factor-sum">' + bandSumHtml(sum.factorPt, sum.factorKinds, 'factor-pt', 'factor-count') + '</span>'
+				+ '<button type="button" class="uma-help-btn usd-band-help' + (taken > 0 ? ' usd-help-dot' : '') + '" data-usd-act="pt-need-help" data-usd-el="pt-need-help-btn" data-taken="' + taken + '"'
 				+ ' aria-haspopup="dialog" aria-expanded="false" aria-label="②の Pt の説明' + (taken > 0 ? '（①で取得するスキルあり）' : '') + '" title="②の Pt の説明">?</button>'
-				+ '<span class="usd-ptneed-chips usd-hscroll" data-usd-no-trim="1" data-usd-el="pt-chips">'
-				+ '<span class="usd-ptneed-chip" data-usd-el="pt-need-uniq" data-pt="' + r.inheritedUniquePt + '">' + chipText('継承固有', r.inheritedUniquePt) + '</span>'
-				+ r.cuts.map(c => {
-					const on = sum ? sum.ranks[c.tier] : true;
-					return '<button type="button" class="usd-ptneed-chip usd-ptneed-chip--rank' + (on ? '' : ' usd-ptneed-chip--off') + '" data-usd-act="pt-rank" data-tier="' + c.tier + '"'
-						+ ' data-usd-el="pt-need-' + c.tier + '" data-cum="' + c.total + '" data-pt="' + c.own + '" aria-pressed="' + (on ? 'true' : 'false') + '"'
-						+ ' title="' + esc(tierLabel(c.tier) + 'を数える（押すと切り替え）') + '">' + chipText('＋' + tierLabel(c.tier), c.own) + '</button>';
-				}).join('')
-				+ '</span></div>';
+				+ '<span class="usd-band-tags" data-usd-no-trim="1" data-usd-el="pt-chips">'
+				+ tag('pt-need-uniq', '継承固有', sum.uniqPt, sum.uniqKinds)
+				+ tag('pt-need-common', '共通スキル', sum.commonPt, sum.commonKinds)
+				+ '</span>'
+				+ '</div></div>';
 			el.hidden = false;
 			renderPanelPts();
 			scanEntryRows();
 		}
-		/** ②の「?」の小窓（段8・D）。理論値の説明・式・数えていないもの */
+		/** 帯の「X Pt／N種」（①②で同じ形。数字 22px・Pt 12px・／N 14px・種 11px の薄い字は CSS が決める） */
+		function bandSumHtml(pt, kinds, ptEl, kindsEl) {
+			return '<strong class="usd-band-pt" data-usd-el="' + ptEl + '">' + formatPtNumber(pt) + '</strong><span class="usd-band-unit">Pt</span>'
+				+ '<span class="usd-band-slash">／</span><strong class="usd-band-kinds" data-usd-el="' + kindsEl + '">' + kinds + '</strong><span class="usd-band-kunit">種</span>';
+		}
+		/** ②の「?」の小窓（段9）。理論値の説明・式・数えていないもの */
 		function fillFactorHelp(body) {
 			const target = currentTarget();
 			const sum = setSummaryOf(target);
@@ -8502,32 +8594,12 @@
 			if (!sum) { body.appendChild(infoEl('p', 'usd-info-desc--pending', 'Pt のデータを読み込めませんでした')); return; }
 			const r = sum.st.r, fmt = formatPtNumber;
 			line('理論値です。親から得るスキルは、共通スキルのヒントLv（いま ' + sum.st.F + '）で得たものとして計算しています。', 'factor-help-theory');
-			const parts = ['継承固有 ' + fmt(r.inheritedUniquePt)].concat(r.cuts.filter(c => sum.ranks[c.tier]).map(c => tierLabel(c.tier) + ' ' + fmt(c.own)));
-			const offs = r.cuts.filter(c => !sum.ranks[c.tier]).map(c => tierLabel(c.tier));
-			line('② ＝ ' + parts.join(' ＋ ') + (offs.length ? '（' + offs.join('・') + 'は数えない）' : ''), 'factor-help-formula');
+			line('② ＝ 継承固有 ' + fmt(sum.uniqPt) + ' ＋ 共通スキル ' + fmt(sum.commonPt), 'factor-help-formula');
+			line('アイコンは数え方に関係しません（メモ用です）。', 'factor-help-icons');
 			if (r.unpricedCount > 0) line('Pt 未収録のスキル ' + r.unpricedCount + '種は数えていません', 'factor-help-unpriced');
 			if (sum.takenIds.length > 0) line('①で取得するスキル ' + sum.takenIds.length + '種は数えていません', 'factor-help-taken');
 			if (skillPtData.meta.stepUp === 'failed') line('前段のデータを読み込めませんでした', 'factor-help-prev-error');
 		}
-		/** ランクの ON/OFF を切り替えて保存する（段8・D。template.ptRanks／下書きの ptRanks。触ったときだけ書く。「元に戻す」には積まない） */
-		function setPtRank(tier) {
-			const target = currentTarget();
-			const cur = ptRanksOf(target);
-			if (cur[tier] === undefined) return;
-			cur[tier] = !cur[tier];
-			const v = { high: cur[1], mid: cur[2], low: cur[3] };
-			if (target.kind === 'template') {
-				target.obj.ptRanks = v;
-				target.obj.updatedAt = nowIso();
-				const data = ensureUserData();
-				if (!(data.schemaVersion >= 6)) data.schemaVersion = 6;
-				saveUserData();
-			} else {
-				draftScope = persistDraft(draftScope.skillIds, draftScope.name, undefined, undefined, undefined, undefined, undefined, v);
-			}
-			renderPtNeed();
-		}
-
 		// 親由来のレベル F を替えて保存する（因子セット＝選んでいるセット側に持つ）。「元に戻す」には積まない（選び直せば戻る設定）
 		function setParentHintLevel(level) {
 			const rules = skillPtData.rules;
@@ -8731,21 +8803,21 @@
 
 		// tiers（分類。C-57）と scopes（節の ON/OFF。C-2a）は持っているときだけ残す（空なら書かない）。
 		// **渡されなければ今のものを引き継ぐ**（片方を書き換えるときにもう片方を消さないため）
-		function persistDraft(skillIds, name, tiers, scopes, parentHintLevel, baseRosterId, inheritedUnique, ptRanks) {
-			const nextRanks = ptRanks !== undefined ? ptRanks : draftScope.ptRanks;   // ランクの ON/OFF（段8・D）。null で消す
+		function persistDraft(skillIds, name, tiers, scopes, parentHintLevel, baseRosterId, inheritedUnique, skillIcons) {
+			const nextIcons = skillIcons !== undefined ? skillIcons : draftScope.skillIcons;   // アイコン（段9）。null で消す（持たない＝まだ触っていない）
 			const nextTiers = tiers !== undefined ? tiers : draftScope.tiers;
 			const nextScopes = scopes !== undefined ? scopes : draftScope.scopes;
 			const nextParent = parentHintLevel !== undefined ? parentHintLevel : draftScope.parentHintLevel;   // null で消す（段5）
 			const nextBase = baseRosterId !== undefined ? baseRosterId : draftScope.baseRosterId;   // null で消す（段7b の ⑬）
 			const nextUniq = inheritedUnique !== undefined ? inheritedUnique : draftScope.inheritedUnique;   // null で消す（段7d の ⑪）
-			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, nextTiers, setLabel, nextScopes, nextParent, nextBase, nextUniq, nextRanks);
+			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, nextTiers, setLabel, nextScopes, nextParent, nextBase, nextUniq, nextIcons);
 			const out = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
 			if (nextTiers && typeof nextTiers === 'object' && Object.keys(nextTiers).length > 0) out.tiers = Object.assign({}, nextTiers);
 			if (nextScopes && typeof nextScopes === 'object' && Object.keys(nextScopes).length > 0) out.scopes = Object.assign({}, nextScopes);
 			if (typeof nextParent === 'number') out.parentHintLevel = nextParent;
 			if (typeof nextBase === 'string' && nextBase) out.baseRosterId = nextBase;
 			if (nextUniq && typeof nextUniq === 'object' && Object.keys(nextUniq).length > 0) out.inheritedUnique = Object.assign({}, nextUniq);
-			if (nextRanks && typeof nextRanks === 'object') out.ptRanks = Object.assign({}, nextRanks);
+			if (nextIcons && typeof nextIcons === 'object') out.skillIcons = Object.assign({}, nextIcons);
 			return out;
 		}
 
@@ -8844,7 +8916,8 @@
 			setTemplateScopes(t, draftScope.scopes || {});
 			if (typeof draftScope.parentHintLevel === 'number') t.parentHintLevel = draftScope.parentHintLevel;   // 親由来のレベル F（段5）
 			if (draftScope.inheritedUnique && typeof draftScope.inheritedUnique === 'object') t.inheritedUnique = Object.assign({}, draftScope.inheritedUnique);   // 継承固有（段7d の ⑪）
-			if (draftScope.ptRanks && typeof draftScope.ptRanks === 'object') t.ptRanks = Object.assign({}, draftScope.ptRanks);   // ランクの ON/OFF（段8・D）
+			// アイコン（段9）。下書きが持たない（まだ触っていない）ときは tiers から導いた姿を写す
+			if (setBased) { t.skillIcons = cleanSkillIcons(iconsOf({ kind: 'draft' }), t.skillIds); if (!(data.schemaVersion >= 7)) data.schemaVersion = 7; }
 			if (setBased) {
 				// 段8: 下書きの①（編成）に中身があれば、写し（新しい rosterId・名前はセット名）を作ってこのセットに付ける。下書きの①はそのまま残す
 				const dr = draftScopeKey ? loadDraftRoster(draftScopeKey) : null;
@@ -9008,6 +9081,7 @@
 			if (idx === -1) return;
 			const name = getSkillName(skillId);
 			const prevTier = tierOf(tiersOf(target), skillId);   // 分類（C-57）も一緒に戻す
+			const prevIcon = setBased ? iconsOf(target)[skillId] : undefined;   // アイコン（段9）も一緒に戻す
 			pushUndo({
 				scope: 'list',
 				doneLabel: 'スキル「' + name + '」を外しました',
@@ -9023,7 +9097,8 @@
 					next.splice(Math.min(idx, next.length), 0, skillId);
 					const nextTiers = tiersWithout(tiersOf(target), [skillId]);
 					if (prevTier !== TIER_DEFAULT) nextTiers[skillId] = prevTier;
-					if (!writeSkillIds(target, next, nextTiers)) return false;
+					const nextIcons = setBased ? Object.assign(iconsOf(target), prevIcon ? { [skillId]: prevIcon } : {}) : undefined;
+					if (!writeSkillIds(target, next, nextTiers, nextIcons)) return false;
 					if (picker.excludeIds.indexOf(skillId) === -1) picker.excludeIds.push(skillId);
 					afterEditingSkillsChanged(target);
 					return true;
@@ -9141,7 +9216,11 @@
 		// 対象のスキルID一覧を、保存先まで書き換える。**テンプレートは触った時点で保存**（C-53。元に戻せる）。
 		// tiers（分類）を渡したときはそれも書く。**渡さなければ tiers には触らない**（tiers を持たないデータに
 		// 空の tiers を書き足さない＝開いて触っただけでは保存データの姿が変わらない。C-51 の知見）。
-		function writeSkillIds(target, ids, tiers) {
+		// 段9（setBased）: スキルの並びが変わるときは、アイコン（skillIcons）も一緒に書き、tiers はアイコンから導いて書き直す
+		// （◎→超優先・○→優先・それ以外と無印→通常。Deck・結合画像の印との互換）。icons を渡さなければ、いまのアイコンを引き継ぐ
+		// （消えたスキルのアイコンは落とす。足したスキルにはアイコンを付けない）。tiers の引数は読まない。
+		function writeSkillIds(target, ids, tiers, icons) {
+			if (setBased) return writeSkillState(target, ids, cleanSkillIcons(icons !== undefined ? icons : iconsOf(target), ids));
 			if (target.kind === 'draft') {
 				draftScope = persistDraft(ids, draftScope.name, tiers !== undefined ? tiers : draftScope.tiers);
 				return true;
@@ -9154,15 +9233,60 @@
 			saveUserData();
 			return true;
 		}
+		/** setBased: スキルの並びとアイコンを書き、tiers をアイコンから導いて書く（下書きは下書きへ、テンプレートは保存まで） */
+		function writeSkillState(target, ids, icons) {
+			const derived = tiersFromIcons(ids, icons);
+			if (target.kind === 'draft') {
+				draftScope = persistDraft(ids, draftScope.name, derived, undefined, undefined, undefined, undefined, icons);
+				return true;
+			}
+			const data = ensureUserData();
+			const t = data.templates.find(x => x.templateId === target.obj.templateId);
+			if (!t) return false;
+			t.skillIds = ids.slice();
+			t.skillIcons = Object.assign({}, icons);
+			setTemplateTiers(t, derived);
+			if (!(data.schemaVersion >= 7)) data.schemaVersion = 7;
+			t.updatedAt = nowIso();
+			saveUserData();
+			return true;
+		}
+		/**
+		 * 対象の「今の」アイコン { スキルID: アイコンID }（段9。special の②だけ）。写しを返す。skillIcons を持たない対象
+		 * （まだ触っていない・Deck で作った）は、tiers から導く（超優先→◎・優先〔無い id も〕→○・通常→△）。
+		 */
+		function iconsOf(target) {
+			if (!target) return {};
+			const ids = skillIdsOf(target) || [];
+			const raw = target.kind === 'draft' ? draftScope.skillIcons : (ensureUserData().templates.find(x => x.templateId === target.obj.templateId) || {}).skillIcons;
+			if (raw && typeof raw === 'object') return cleanSkillIcons(raw, ids);
+			return iconsFromTiers(ids, tiersOf(target));
+		}
 		// テンプレートの tiers を書く。中身が空なら項目ごと消す（「優先」だけのセットは tiers を持たない＝旧データと同じ姿）。
 		// 初めて tiers を書くとき、保存データの schemaVersion を 4 に上げる（形が増えたことの記録。C-57）
 		function setTemplateTiers(t, tiers) {
 			const clean = {};
 			Object.keys(tiers || {}).forEach(id => { if (tiers[id] !== TIER_DEFAULT && TIERS.some(x => x.id === tiers[id])) clean[id] = tiers[id]; });
-			if (Object.keys(clean).length === 0) { delete t.tiers; return; }
-			t.tiers = clean;
-			const data = ensureUserData();
-			if (!(data.schemaVersion >= 4)) data.schemaVersion = 4;
+			if (Object.keys(clean).length === 0) delete t.tiers;
+			else {
+				t.tiers = clean;
+				const data = ensureUserData();
+				if (!(data.schemaVersion >= 4)) data.schemaVersion = 4;
+			}
+			// 段9: Deck（setBased でない画面）で分類を変えたとき、アイコンを持つセットは、分類に合うようにアイコンを寄せる
+			// （special を開き直したときに、special が tiers を書き直して Deck の変更を消さないため）
+			if (!setBased) reconcileIconsWithTiers(t);
+		}
+		/** アイコン（skillIcons）を持つセットだけ。分類（tiers）と食い違うスキルのアイコンを、分類の代表（超優先→◎・優先→○・通常→△）に直す。アイコン無しの通常は、そのまま */
+		function reconcileIconsWithTiers(t) {
+			if (!t || !t.skillIcons || typeof t.skillIcons !== 'object') return;
+			const next = {};
+			(Array.isArray(t.skillIds) ? t.skillIds : []).forEach(id => {
+				const have = t.skillIcons[id], want = tierOf(t.tiers, id);
+				if (isSkillIconId(have)) next[id] = iconTier(have) === want ? have : ICON_FOR_TIER[want];
+				else if (want !== 3) next[id] = ICON_FOR_TIER[want];
+			});
+			t.skillIcons = next;
 		}
 		// テンプレートの scopes を書く（C-2a）。setTemplateTiers とまったく同じ形。
 		// 中身が空なら項目ごと消す（全部 OFF のセットは scopes を持たない＝旧データと同じ姿）。
@@ -9202,6 +9326,7 @@
 			const copy = { templateId: uid('tpl'), name: t.name + '（コピー）', skillIds: t.skillIds.slice(), createdAt: nowIso(), updatedAt: nowIso() };
 			if (t.tiers) copy.tiers = Object.assign({}, t.tiers);   // 分類（C-57）も写す
 			if (t.scopes) copy.scopes = Object.assign({}, t.scopes); // 節の ON/OFF（C-2a）も写す
+			if (t.skillIcons && typeof t.skillIcons === 'object') copy.skillIcons = Object.assign({}, t.skillIcons);   // アイコン（段9）も写す
 			if (typeof t.parentHintLevel === 'number') copy.parentHintLevel = t.parentHintLevel;   // 親由来のレベル F（段5）も写す
 			if (t.inheritedUnique && typeof t.inheritedUnique === 'object') copy.inheritedUnique = Object.assign({}, t.inheritedUnique);   // 継承固有（段7d の ⑪）も写す
 			if (typeof t.baseRosterId === 'string' && t.baseRosterId) copy.baseRosterId = t.baseRosterId;   // 「本育成編成」の対象（段7b の ⑬）も写す
@@ -9312,13 +9437,14 @@
 			// （確認ダイアログは挟まない。C-51 の修正4）。状態を変える前に積む。
 			const prev = snapshot(before);
 			const prevTiers = snapshot(tiersOf(target));   // 分類（C-57）も一緒に戻す
+			const prevIcons = setBased ? snapshot(iconsOf(target)) : undefined;   // アイコン（段9）も一緒に戻す
 			pushUndo({
 				scope: 'list',
 				doneLabel: '本育成スキル' + n + '種をスキルセットから外しました',
 				undoneLabel: '外した' + n + '種をスキルセットに戻しました',
 				probe: () => probeOf(skillIdsOf(target)),
 				apply: () => {
-					if (!writeSkillIds(target, snapshot(prev), snapshot(prevTiers))) return false;
+					if (!writeSkillIds(target, snapshot(prev), snapshot(prevTiers), prevIcons ? snapshot(prevIcons) : undefined)) return false;
 					afterEditingSkillsChanged(target);
 					return true;
 				}
@@ -9766,6 +9892,8 @@
 		tabStrip: { html: tabStripHtml, reveal: revealSelectedTab, keydown: tabStripKeydown },
 		// スキルセットの分類（C-57）。呼び出し元（special の照合結果の表）が印を出すために使う
 		tiers: { list: TIERS.map(t => ({ id: t.id, label: t.label })), defaultTier: TIER_DEFAULT, of: tierOf, label: tierLabel, markHtml: tierMarkHtml },
+		// スキルのアイコン（段9・C-121）。表は SKILL_ICONS 1か所。tierOf は従来の分類への互換（◎＝1・○＝2・それ以外と無印＝3）
+		icons: { list: SKILL_ICONS.map(i => ({ id: i.id, mark: i.mark, light: i.light, dark: i.dark })), defaultIcon: SKILL_ICON_DEFAULT, tierOf: iconTier, html: skillIconHtml, fromTiers: iconsFromTiers, toTiers: tiersFromIcons },
 		listRosters: listRosters,
 		computeRosterSkills: computeRosterSkills,
 		loadScenarioEvents: loadScenarioEvents,
