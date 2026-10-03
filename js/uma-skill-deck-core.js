@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03m';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03n';
 
 	/* ============================================================
 	 * 定数
@@ -830,6 +830,8 @@
 			if (typeof parsed.baseRosterId === 'string' && parsed.baseRosterId) out.baseRosterId = parsed.baseRosterId;
 			// 継承固有（段7d の ⑪）。持っているときだけ写す（無い古い形に補わない。知らない値は使うときに既定へ解く）
 			if (parsed.inheritedUnique && typeof parsed.inheritedUnique === 'object') out.inheritedUnique = Object.assign({}, parsed.inheritedUnique);
+			// ランクの ON/OFF（段8・D）。持っているときだけ写す
+			if (parsed.ptRanks && typeof parsed.ptRanks === 'object') out.ptRanks = Object.assign({}, parsed.ptRanks);
 			return out;
 		} catch (e) {
 			return { skillIds: [], name: '', updatedAt: '' };
@@ -837,7 +839,7 @@
 	}
 
 	// label … 失敗を知らせるときの呼び名（呼び出し元の setLabel）。渡さなければ既定の呼び名
-	function saveDraftScope(scopeKey, skillIds, name, tiers, label, scopes, parentHintLevel, baseRosterId, inheritedUnique) {
+	function saveDraftScope(scopeKey, skillIds, name, tiers, label, scopes, parentHintLevel, baseRosterId, inheritedUnique, ptRanks) {
 		const payload = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
 		// 空の tiers は書かない（分類を変えていないドラフトの姿を変えない）
 		if (tiers && typeof tiers === 'object' && Object.keys(tiers).length > 0) payload.tiers = Object.assign({}, tiers);
@@ -849,6 +851,8 @@
 		if (typeof baseRosterId === 'string' && baseRosterId) payload.baseRosterId = baseRosterId;
 		// 継承固有（段7d の ⑪）も同じ流儀 ―― 触っていなければ書かない
 		if (inheritedUnique && typeof inheritedUnique === 'object' && Object.keys(inheritedUnique).length > 0) payload.inheritedUnique = Object.assign({}, inheritedUnique);
+		// ランクの ON/OFF（段8・D）も同じ流儀 ―― 触っていなければ書かない
+		if (ptRanks && typeof ptRanks === 'object') payload.ptRanks = Object.assign({}, ptRanks);
 		try {
 			global.localStorage.setItem(draftStorageKey(scopeKey), JSON.stringify(payload));
 		} catch (e) {
@@ -4150,6 +4154,32 @@
 		'.usd-link-opt--on { border-color: var(--uma-control); box-shadow: inset 0 0 0 1px var(--uma-control); background: var(--uma-control-soft); }',
 		'.usd-link-opt input { flex: none; width: 18px; height: 18px; margin: 0; }',
 		'.usd-link-name { min-width: 0; overflow-wrap: anywhere; font-weight: 600; color: var(--uma-text-heading); }',
+		// ②因子周回（段8・D。special だけ＝.usd-setbody）: 白いパネル。1行目「X Pt/N種 ? とチップ」、2行目 継承固有・共通スキルのヒントLv、入口、ランクと再分類・削除、一覧
+		'.usd-setbody > .uma-section-body { gap: var(--uma-sp-2); }',
+		'.usd-setbody .usd-ptneed { padding: 0; background: transparent; border: 0; border-radius: 0; }',
+		'.usd-sethead { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; }',
+		'.usd-sethead-sum { flex: none; white-space: nowrap; font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-sethead .uma-help-btn { flex: none; }',
+		'.usd-sethead .usd-ptneed-chips { flex: 1 1 auto; }',
+		'.usd-help-dot { position: relative; }',
+		'.usd-help-dot::after { content: ""; position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--uma-danger-text); border: 1px solid var(--uma-surface); }',
+		'.usd-ptneed-chip--rank { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); cursor: pointer; }',
+		'.usd-ptneed-chip--rank:hover { border-color: var(--uma-text-subtle); }',
+		'.usd-ptneed-chip--rank:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
+		'.usd-ptneed-chip--off { color: var(--uma-text-faint); border-style: dashed; background: var(--uma-surface-sunken); }',
+		'.usd-ptneed-chip--off strong { color: var(--uma-text-faint); }',
+		'.usd-chip-sp { display: none; }',
+		'@media (max-width: 640px) {',
+		'  .usd-chip-sep, .usd-chip-unit { display: none; }',
+		'  .usd-chip-sp { display: inline; }',
+		'  .usd-sethead .usd-ptneed-chip { padding-inline: var(--uma-sp-2); }',
+		'  .usd-sethead .usd-ptneed-chips { gap: var(--uma-sp-1); }',
+		'}',
+		'.usd-setcfg { flex: none; }',
+		'.usd-tier-ops { display: inline-flex; gap: var(--uma-sp-1-5); margin-left: auto; }',
+		'.usd-setbody .usd-tier-row { flex-wrap: nowrap; }',
+		'.usd-panel--taken .usd-panel-namebtn, .usd-panel--taken .usd-panel-pt { color: var(--uma-text-faint); }',
+		'.usd-panel--taken { background: var(--uma-surface-sunken); }',
 		'.usd-link-opt--off { cursor: not-allowed; color: var(--uma-text-faint); background: var(--uma-surface-sunken); }',
 		'.usd-link-opt--off .usd-link-name { color: var(--uma-text-faint); }',
 		'.usd-setlist-ops { display: flex; justify-content: flex-end; margin-top: var(--uma-sp-3); }',
@@ -7639,6 +7669,23 @@
 				// 画面では読む意味が無かった（renderNote() ごと外したので、描く対象も無い）。
 			'</div>';
 
+		// 段8・D（setBased）: 青灰色の枠をやめて①と同じ白いパネルにし、並びを組み替える。
+		//   「X Pt/N種 ? とチップ4つ」（pt-need）→ 継承固有・共通スキルのヒントLv（roster-link）→ 入口 → ランクと再分類・削除（tier-row）→ 一覧。
+		// 見出し「スキルセット」・合計のスロット・「追加済みスキル（N種）」の行は無い（再分類・削除は tier-row の右端に描く）。
+		// シナリオ因子／遺伝子のチェック（extra-scopes）は③の先頭の1行へ移す（段8・E。opts.scopesBar）
+		if (setBased) {
+			const sec = q(container, 'section-a');
+			const body = sec.querySelector('.uma-section-body');
+			sec.classList.remove('uma-section--framed');
+			sec.classList.add('usd-setbody');
+			const row = sec.querySelector('.uma-section-row');
+			const scopesEl = q(container, 'extra-scopes');
+			if (scopesEl && opts.scopesBar && opts.scopesBar.nodeType === 1) opts.scopesBar.appendChild(scopesEl);
+			if (row) row.parentNode.removeChild(row);
+			const modeRow = body.querySelector('.usd-mode-row');
+			if (modeRow) modeRow.parentNode.removeChild(modeRow);
+			['pt-need', 'roster-link'].forEach(k => { const el = q(container, k); body.insertBefore(el, body.firstChild ? body.querySelector('.usd-entry-row') : null); });
+		}
 		// grouped（special の②）には名前の入力欄が無い（名前はタブの中で編集する）
 		const nameInput = grouped ? null : q(container, 'name-input');
 		// 編成パネル（①）が描き直したとき、必要Ptも描き直す（本育成のぶんが変わるため）。段5
@@ -7686,7 +7733,9 @@
 			// （label の中なので click は2回来る）
 			else if (act === 'scope-help') openScopeList(btn.dataset.scope);
 			else if (act === 'scope-help-close') closeScopeList();
+			else if (act === 'pt-need-help' && setBased) openPopover({ key: 'factor-help:' + draftScopeKey, title: '②の Pt', build: fillFactorHelp, btn: btn, opener: btn, refocus: '[data-usd-act="pt-need-help"]' });
 			else if (act === 'pt-need-help') { ptNeedHelpOpen = !ptNeedHelpOpen; renderPtNeed(); }
+			else if (act === 'pt-rank') setPtRank(Number(btn.dataset.tier));
 			else if (act === 'pt-total-help') openPtTotalPopover(btn);
 			else if (act === 'roster-link') openRosterLinkPopover(btn);
 			// 段8: 共通の見出しの帯
@@ -7996,6 +8045,8 @@
 			}
 			setBarEl.innerHTML = '<div class="usd-setbar" data-usd-el="setbar"><div class="usd-setbar-l">' + left + '</div><div class="usd-setbar-r">' + right + '</div></div>';
 			refreshIcons();
+			// ②のタブの脇の「N種」は②の先頭の N と同じ値（special が受け取って出す）
+			if (typeof opts.onSetSummary === 'function') { try { opts.onSetSummary(sum); } catch (e) { /* 呼び出し元の不具合で帯を止めない */ } }
 			if (nameEdit) {
 				const input = q(setBarEl, 'name');
 				if (input && global.document.activeElement !== input) { focusNoScroll(input); input.setSelectionRange(input.value.length, input.value.length); }
@@ -8134,6 +8185,30 @@
 			if (!el) return;
 			if (!grouped || !rosterPtSource) { el.hidden = true; el.innerHTML = ''; return; }
 			const target = currentTarget();
+			if (setBased) {
+				// 段8・D: ②の2行目［継承固有 6種▾ Lv3▾］［共通スキルのヒントLv 5▾］（「親由来のレベル」を改名。保存は今のまま）。
+				// 継承固有の Pt は1行目のチップに出すので、ここには出さない。重なり・不要にしたスキルの知らせは出さない（①で取得するものは②に数えない）
+				const rules = skillPtData.rules;
+				const uq0 = resolveInheritedUnique(inheritedUniqueOf(target), rules);
+				const opt = (list, cur, fmt) => list.map(v => '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + fmt(v) + '</option>').join('');
+				let s = '<div class="usd-roster-linkrow usd-setcfg usd-hscroll" data-usd-no-trim="1" data-usd-el="roster-link-row">'
+					+ '<span class="usd-uniq" role="group" aria-label="継承固有" data-usd-el="uniq">'
+					+ '<span class="usd-uniq-label">継承固有</span>'
+					+ '<select class="usd-uniq-sel" data-usd-act="uniq-count" data-usd-el="uniq-count" aria-label="継承固有の種類">' + opt(inheritedUniqueCountChoices(), uq0.count, v => v + '種') + '</select>'
+					+ '<select class="usd-uniq-sel" data-usd-act="uniq-level" data-usd-el="uniq-level" aria-label="継承固有のヒントレベル">' + opt(inheritedUniqueLevelChoices(rules), uq0.hintLevel, v => 'Lv' + v) + '</select>'
+					+ '</span>';
+				if (rules) {
+					const F = resolveParentHintLevel(parentHintLevelOf(target), rules);
+					s += '<span class="usd-uniq" role="group" aria-label="共通スキルのヒントLv" data-usd-el="parent-level-group">'
+						+ '<span class="usd-uniq-label">共通スキルのヒントLv</span>'
+						+ '<select class="usd-uniq-sel" data-usd-act="pt-parent-level" data-usd-el="pt-parent-level" aria-label="共通スキルのヒントLv">'
+						+ opt(parentHintLevelChoices(rules), F, v => String(v)) + '</select></span>';
+				}
+				el.hidden = false;
+				el.innerHTML = s + '</div>';
+				scanEntryRows();
+				return;
+			}
 			const linked = linkedRosterOf(target);
 			const sure = new Set(linked ? rosterSureIdsOf(linked) : []);
 			const offSet = new Set(linked ? rosterOffIdsOf(linked) : []);
@@ -8296,8 +8371,14 @@
 			const spans = list ? list.querySelectorAll('[data-usd-el="panel-pt"]') : [];
 			if (spans.length === 0) return;
 			const st = factorPtState(currentTarget());
+			const taken = new Set(st && st.takenIds ? st.takenIds : []);
 			spans.forEach(sp => {
-				const x = st && st.r && st.r.ok ? st.r.skillPts.get(sp.getAttribute('data-skill-id')) : null;
+				const id = sp.getAttribute('data-skill-id');
+				// 段8・D: ①で得るスキル（●でオン）は②に数えない。行は薄くして、Pt の代わりに「①で取得」（自動では外さない）
+				const panel = sp.closest ? sp.closest('.usd-panel') : null;
+				if (panel) panel.classList.toggle('usd-panel--taken', taken.has(id));
+				if (taken.has(id)) { sp.textContent = '①で取得'; return; }
+				const x = st && st.r && st.r.ok ? st.r.skillPts.get(id) : null;
 				sp.textContent = x ? (x.base === null ? 'Pt 未収録' : x.base === 0 ? 'Pt 不要' : x.pt + ' Pt') : '';
 			});
 			scanEntryRows();
@@ -8337,6 +8418,7 @@
 				if (slot) slot.innerHTML = '';
 				return;
 			}
+			if (setBased) { renderSetHead(el, st); return; }
 			const ids = st.ids, rules = st.rules, F = st.F, r = st.r;
 			if (!r.ok || (ids.length === 0 && r.roster.count === 0)) { hideIt(); return; }
 			let h = '<div class="usd-ptneed-main">'
@@ -8369,6 +8451,68 @@
 			renderPanelPts();
 		}
 
+		/**
+		 * ②の1行目（段8・D）：「X Pt/N種 ?」＋チップ4つ［継承固有］［＋超優先］［＋優先］［＋通常］。
+		 * 超優先・優先・通常のチップは ON/OFF の切り替え（aria-pressed。既定は ON。OFF は薄く、X と N に入れない）。
+		 * 641px 以上は「継承固有：720 Pt」、640px 以下は「継承固有 720」（CSS が「：」「Pt」と空白を出し分ける）。収まらなければチップの並びだけ横に送る
+		 */
+		function renderSetHead(el, st) {
+			const r = st.r;
+			if (!r || !r.ok) { el.hidden = true; el.innerHTML = ''; return; }
+			const sum = setSummaryOf(currentTarget());
+			const chipText = (label, n) => esc(label) + '<span class="usd-chip-sep">：</span><span class="usd-chip-sp"> </span><strong>' + formatPtNumber(n) + '</strong><span class="usd-chip-unit"> Pt</span>';
+			const taken = sum ? sum.takenIds.length : 0;
+			el.innerHTML = '<div class="usd-sethead" data-usd-el="set-head">'
+				+ '<span class="usd-sethead-sum" data-usd-el="factor-sum"><strong data-usd-el="factor-pt">' + formatPtNumber(sum ? sum.factorPt : 0) + '</strong> Pt/<strong data-usd-el="factor-count">' + (sum ? sum.factorKinds : 0) + '</strong>種</span>'
+				+ '<button type="button" class="uma-help-btn usd-sethead-help' + (taken > 0 ? ' usd-help-dot' : '') + '" data-usd-act="pt-need-help" data-usd-el="pt-need-help-btn" data-taken="' + taken + '"'
+				+ ' aria-haspopup="dialog" aria-expanded="false" aria-label="②の Pt の説明' + (taken > 0 ? '（①で取得するスキルあり）' : '') + '" title="②の Pt の説明">?</button>'
+				+ '<span class="usd-ptneed-chips usd-hscroll" data-usd-no-trim="1" data-usd-el="pt-chips">'
+				+ '<span class="usd-ptneed-chip" data-usd-el="pt-need-uniq" data-pt="' + r.inheritedUniquePt + '">' + chipText('継承固有', r.inheritedUniquePt) + '</span>'
+				+ r.cuts.map(c => {
+					const on = sum ? sum.ranks[c.tier] : true;
+					return '<button type="button" class="usd-ptneed-chip usd-ptneed-chip--rank' + (on ? '' : ' usd-ptneed-chip--off') + '" data-usd-act="pt-rank" data-tier="' + c.tier + '"'
+						+ ' data-usd-el="pt-need-' + c.tier + '" data-cum="' + c.total + '" data-pt="' + c.own + '" aria-pressed="' + (on ? 'true' : 'false') + '"'
+						+ ' title="' + esc(tierLabel(c.tier) + 'を数える（押すと切り替え）') + '">' + chipText('＋' + tierLabel(c.tier), c.own) + '</button>';
+				}).join('')
+				+ '</span></div>';
+			el.hidden = false;
+			renderPanelPts();
+			scanEntryRows();
+		}
+		/** ②の「?」の小窓（段8・D）。理論値の説明・式・数えていないもの */
+		function fillFactorHelp(body) {
+			const target = currentTarget();
+			const sum = setSummaryOf(target);
+			const line = (text, el) => { const p = infoEl('p', '', text); p.setAttribute('data-usd-el', el); body.appendChild(p); };
+			if (!sum) { body.appendChild(infoEl('p', 'usd-info-desc--pending', 'Pt のデータを読み込めませんでした')); return; }
+			const r = sum.st.r, fmt = formatPtNumber;
+			line('理論値です。親から得るスキルは、共通スキルのヒントLv（いま ' + sum.st.F + '）で得たものとして計算しています。', 'factor-help-theory');
+			const parts = ['継承固有 ' + fmt(r.inheritedUniquePt)].concat(r.cuts.filter(c => sum.ranks[c.tier]).map(c => tierLabel(c.tier) + ' ' + fmt(c.own)));
+			const offs = r.cuts.filter(c => !sum.ranks[c.tier]).map(c => tierLabel(c.tier));
+			line('② ＝ ' + parts.join(' ＋ ') + (offs.length ? '（' + offs.join('・') + 'は数えない）' : ''), 'factor-help-formula');
+			if (r.unpricedCount > 0) line('Pt 未収録のスキル ' + r.unpricedCount + '種は数えていません', 'factor-help-unpriced');
+			if (sum.takenIds.length > 0) line('①で取得するスキル ' + sum.takenIds.length + '種は数えていません', 'factor-help-taken');
+			if (skillPtData.meta.stepUp === 'failed') line('前段のデータを読み込めませんでした', 'factor-help-prev-error');
+		}
+		/** ランクの ON/OFF を切り替えて保存する（段8・D。template.ptRanks／下書きの ptRanks。触ったときだけ書く。「元に戻す」には積まない） */
+		function setPtRank(tier) {
+			const target = currentTarget();
+			const cur = ptRanksOf(target);
+			if (cur[tier] === undefined) return;
+			cur[tier] = !cur[tier];
+			const v = { high: cur[1], mid: cur[2], low: cur[3] };
+			if (target.kind === 'template') {
+				target.obj.ptRanks = v;
+				target.obj.updatedAt = nowIso();
+				const data = ensureUserData();
+				if (!(data.schemaVersion >= 6)) data.schemaVersion = 6;
+				saveUserData();
+			} else {
+				draftScope = persistDraft(draftScope.skillIds, draftScope.name, undefined, undefined, undefined, undefined, undefined, v);
+			}
+			renderPtNeed();
+		}
+
 		// 親由来のレベル F を替えて保存する（因子セット＝選んでいるセット側に持つ）。「元に戻す」には積まない（選び直せば戻る設定）
 		function setParentHintLevel(level) {
 			const rules = skillPtData.rules;
@@ -8398,7 +8542,12 @@
 					+ ' data-usd-act="tier-tab" data-tier="' + t.id + '" aria-selected="' + (t.id === currentTier ? 'true' : 'false') + '">'
 					+ esc(t.label) + '<span class="usd-tier-count" data-usd-el="tier-count-' + t.id + '">' + counts[t.id] + '</span></button>').join('') +
 				'</div>' +
-				'<span class="usd-tier-total">設定数 <span data-usd-el="tier-total">' + kinds.total + '</span></span>';
+				// 段8・D（setBased）: 「設定数」は無く、右端に「再分類」「削除」（「追加済みスキル（N種）」の行から移した）
+				(setBased
+					? '<span class="usd-tier-ops">'
+						+ '<button type="button" class="usd-mode-btn" data-usd-act="mode-reclass" data-usd-el="mode-reclass" aria-pressed="false">再分類</button>'
+						+ '<button type="button" class="usd-mode-btn" data-usd-act="mode-delete" data-usd-el="mode-delete" aria-pressed="false">削除</button></span>'
+					: '<span class="usd-tier-total">設定数 <span data-usd-el="tier-total">' + kinds.total + '</span></span>');
 			renderPtNeed();
 		}
 
@@ -8443,8 +8592,9 @@
 			const target = currentTarget();
 			const tiers = tiersOf(target);
 			const el = q(container, 'selected-list');
-			// 件数はセット全体（分類ごとの件数は分類の切り替えの側に出す）
-			q(container, 'selected-count').textContent = String(kindCountsOf(ids, tiers).total);
+			// 件数はセット全体（分類ごとの件数は分類の切り替えの側に出す）。段8（setBased）はこの行が無い
+			const selCount = q(container, 'selected-count');
+			if (selCount) selCount.textContent = String(kindCountsOf(ids, tiers).total);
 			if (ids.length === 0 && mode) mode = null;
 			renderTierRow();
 			renderModes(ids.length);
@@ -8566,19 +8716,21 @@
 
 		// tiers（分類。C-57）と scopes（節の ON/OFF。C-2a）は持っているときだけ残す（空なら書かない）。
 		// **渡されなければ今のものを引き継ぐ**（片方を書き換えるときにもう片方を消さないため）
-		function persistDraft(skillIds, name, tiers, scopes, parentHintLevel, baseRosterId, inheritedUnique) {
+		function persistDraft(skillIds, name, tiers, scopes, parentHintLevel, baseRosterId, inheritedUnique, ptRanks) {
+			const nextRanks = ptRanks !== undefined ? ptRanks : draftScope.ptRanks;   // ランクの ON/OFF（段8・D）。null で消す
 			const nextTiers = tiers !== undefined ? tiers : draftScope.tiers;
 			const nextScopes = scopes !== undefined ? scopes : draftScope.scopes;
 			const nextParent = parentHintLevel !== undefined ? parentHintLevel : draftScope.parentHintLevel;   // null で消す（段5）
 			const nextBase = baseRosterId !== undefined ? baseRosterId : draftScope.baseRosterId;   // null で消す（段7b の ⑬）
 			const nextUniq = inheritedUnique !== undefined ? inheritedUnique : draftScope.inheritedUnique;   // null で消す（段7d の ⑪）
-			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, nextTiers, setLabel, nextScopes, nextParent, nextBase, nextUniq);
+			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, nextTiers, setLabel, nextScopes, nextParent, nextBase, nextUniq, nextRanks);
 			const out = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
 			if (nextTiers && typeof nextTiers === 'object' && Object.keys(nextTiers).length > 0) out.tiers = Object.assign({}, nextTiers);
 			if (nextScopes && typeof nextScopes === 'object' && Object.keys(nextScopes).length > 0) out.scopes = Object.assign({}, nextScopes);
 			if (typeof nextParent === 'number') out.parentHintLevel = nextParent;
 			if (typeof nextBase === 'string' && nextBase) out.baseRosterId = nextBase;
 			if (nextUniq && typeof nextUniq === 'object' && Object.keys(nextUniq).length > 0) out.inheritedUnique = Object.assign({}, nextUniq);
+			if (nextRanks && typeof nextRanks === 'object') out.ptRanks = Object.assign({}, nextRanks);
 			return out;
 		}
 
@@ -8637,7 +8789,7 @@
 		}
 		function resetDraft() {
 			const prev = draftScope.skillIds.slice();
-			draftScope = persistDraft([], '', {}, {}, null, null, null);
+			draftScope = persistDraft([], '', {}, {}, null, null, null, null);
 			// 段8（setBased）: 「＋新規」は①の下書きと対なので、①も空に戻す（①を開き直させる）
 			if (setBased && draftScopeKey) { clearDraftRoster(draftScopeKey); setHubPublish('', true); }
 			picker.excludeIds = picker.excludeIds.filter(id => prev.indexOf(id) === -1);
@@ -8677,6 +8829,7 @@
 			setTemplateScopes(t, draftScope.scopes || {});
 			if (typeof draftScope.parentHintLevel === 'number') t.parentHintLevel = draftScope.parentHintLevel;   // 親由来のレベル F（段5）
 			if (draftScope.inheritedUnique && typeof draftScope.inheritedUnique === 'object') t.inheritedUnique = Object.assign({}, draftScope.inheritedUnique);   // 継承固有（段7d の ⑪）
+			if (draftScope.ptRanks && typeof draftScope.ptRanks === 'object') t.ptRanks = Object.assign({}, draftScope.ptRanks);   // ランクの ON/OFF（段8・D）
 			if (setBased) {
 				// 段8: 下書きの①（編成）に中身があれば、写し（新しい rosterId・名前はセット名）を作ってこのセットに付ける。下書きの①はそのまま残す
 				const dr = draftScopeKey ? loadDraftRoster(draftScopeKey) : null;
@@ -8700,7 +8853,7 @@
 			} else {
 				// 中身はテンプレートへ移ったので、ドラフトは空にする（二重管理を避ける）。
 				// **{} を渡して明示的に消す** ―― persistDraft は undefined を「今のものを引き継ぐ」と読む
-				draftScope = persistDraft([], '', {}, {}, null, null, null);
+				draftScope = persistDraft([], '', {}, {}, null, null, null, null);
 			}
 			nameEdit = null;
 			selectedId = t.templateId;
@@ -9171,6 +9324,8 @@
 			openEditor: function (templateId) { selectTab(templateId || DRAFT_SELECTION_ID); },
 			closeEditor: function () { flushPendingName(); render(); },
 			getSelection: getSelection,
+			// 段8: 選んでいるセットの数字（①・②・合計・②の N）。出せないときは null
+			getSetSummary: function () { return setBased ? setSummaryOf(currentTarget()) : null; },
 			setSelectedId: setSelectedId,
 			// スキルセットOCR（コミット4）: 照合済みの行を、いま扱っている対象スキルセットへ足すモーダル
 			openSkillRowsPickerForSelection: openSkillRowsPickerForSelection,
