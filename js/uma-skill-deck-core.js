@@ -830,7 +830,9 @@
 	}
 	/** 選んでいるタブが帯の外（スワイプの先）にあっても見える位置へ寄せる。 */
 	function revealSelectedTab(root, horizontalOnly) {
-		const cur = root && root.querySelector && root.querySelector('.uma-subtab[aria-selected="true"]');
+		// 名前を編集中のタブは、選んでいるタブの代わりに 入力欄・✓・↩ の丸になっている（.usd-ntab--edit）ので、そちらを見える位置へ寄せる
+		const editing = root && root.querySelector && root.querySelector('.usd-ntab--edit');
+		const cur = editing || (root && root.querySelector && root.querySelector('.uma-subtab[aria-selected="true"]'));
 		if (!horizontalOnly) {
 			// 従来の動き（Deck 単体ページのスキルセット）。横は「選んだタブを帯の左端に寄せる」（inline: 'start'）
 			if (cur && typeof cur.scrollIntoView === 'function') {
@@ -3511,7 +3513,7 @@
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text);',
 		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); min-height: 32px; }',
 		'.usd-ntabs .uma-subtab:focus-visible { border-radius: var(--uma-r-full); }',
-		'.usd-ntab { flex: none; display: inline-flex; align-items: center; min-height: 32px; border-radius: var(--uma-r-full); }',
+		'.usd-ntab { flex: none; display: inline-flex; align-items: center; min-height: 32px; border-radius: var(--uma-r-full); scroll-snap-align: start; }',
 		'.usd-ntab--sel { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
 		'.usd-ntabs .usd-ntab--sel .uma-subtab { background: transparent; border-color: transparent; color: inherit; max-width: 180px; padding-inline-end: var(--uma-sp-1); }',
 		'.usd-ntab--edit { background: var(--uma-surface); border: 1px solid var(--uma-control); padding-inline-start: var(--uma-sp-2); }',
@@ -3540,7 +3542,7 @@
 		'.usd-roster-slot .usd-roster-legend-no { min-width: 16px; font-size: var(--uma-fs-2xs); line-height: 1.3; }',
 		// 375px の3列では名前に残る幅が小さいので、カードの欄だけ余白と × の幅を詰める（名前の全文は title と aria-label）
 		'.usd-roster-slot .usd-roster-pickbtn { padding-inline: var(--uma-sp-1-5) var(--uma-sp-0-5); gap: 3px; }',
-		'.usd-roster-slot .usd-roster-clearbtn { width: 26px; }',
+		'.usd-roster-slot .usd-roster-clearbtn { width: 28px; }',
 		// 育成ウマ娘の欄（③⑦）: 欄の右隣に（i）。選んだ状態は白文字・黒背景（選んでいるタブと同じ暗い色のトークン）。× は欄の中の右端のまま
 		'.usd-roster-umarow { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; }',
 		'.usd-roster-umabox { flex: 1 1 auto; }',
@@ -5831,7 +5833,6 @@
 			h += '<div class="usd-roster-sumrow" data-usd-el="pt-sumrow">';
 			h += '<span class="usd-roster-sumhead">'
 				+ '<span class="usd-roster-ptsum-total"><strong data-usd-el="pt-total">' + formatPtNumber(pt.total) + '</strong> Pt/<strong data-usd-el="pt-count">' + res.visibleSureCount + '</strong>種</span>'
-				+ (res.filtered ? '<span class="uma-badge uma-badge--accent usd-roster-filtering" data-usd-el="pt-filtering">絞り込み中</span>' : '')
 				+ '<button type="button" class="uma-help-btn" data-usd-act="pt-help" data-usd-el="pt-help-btn" aria-expanded="false" aria-label="合計の説明を開く" title="合計の説明を開く">?</button>'
 				+ '</span>';
 			h += '<span class="usd-roster-sumbtns" data-usd-el="pt-sumbtns">';
@@ -6206,6 +6207,9 @@
 						+ '</select></label>';
 				});
 				h += '</div>';
+				// 絞り込み中の印は、セレクトの行の下に出す（段7b の ⑥）。合計の1行（375px でぎりぎり1行）に置くと、印の幅で2行に折り返し、
+				// セレクトを押すたびにセレクトの位置が28px 動いていた
+				if (res.filtered) h += '<p class="usd-roster-filternote"><span class="uma-badge uma-badge--accent usd-roster-filtering" data-usd-el="pt-filtering">絞り込み中</span></p>';
 				// 並べ替え（段7の (16)）: 押した列のメンバーが得るスキルを上へ（安定ソート）
 				let rows = res.visibleItems.slice();
 				if (sortKey !== null && members.some(m => m.key === sortKey)) {
@@ -6655,8 +6659,12 @@
 		container.addEventListener('change', function (ev) {
 			const el = ev.target;
 			if (el && el.getAttribute && el.getAttribute('data-usd-act') === 'filter') {
+				// 絞り込み中の印などで上の行の高さが変わっても、押したセレクトが画面の中で動かないようにする（段7b の ⑥）
+				const anchor = captureAnchor(el);
 				setFilter(el.getAttribute('data-axis'), el.value || '');
 				render();
+				restoreAnchor(anchor, [container, modalHost]);
+				focusNoScroll(container.querySelector('select[data-usd-act="filter"][data-axis="' + el.getAttribute('data-axis') + '"]'));
 			}
 		});
 
