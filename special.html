@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-03a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-03b"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<style>
@@ -377,7 +377,7 @@
 						<div>
 							<p class="help-step-title">照合するスキルを用意する</p>
 							<p class="help-step-text" data-help-mode="old">タブ①に、スキル名を1行1つで貼り付けて「リストを解析する」を押します。スプレッドシートの1列をそのまま貼り付けても読めます。</p>
-							<p class="help-step-text" data-help-mode="new">タブ②で周回因子セットを1つ選びます。無ければ「＋ 新規」に足していけば作れます（保存しなくても次回まで残ります）。繰り返し使うものは名前を付けて保存できます。</p>
+							<p class="help-step-text" data-help-mode="new">タブ②で因子周回を1つ選びます。無ければ「＋ 新規」に足していけば作れます（保存しなくても次回まで残ります）。繰り返し使うものは名前を付けて保存できます。</p>
 							<p class="help-step-text" data-help-mode="new">スキルは<strong>超優先・優先・通常</strong>の3つに分けられます。上の切り替えで分類を選んでから足すとその分類に入り、あとから「再分類」でも移せます。分類は照合結果の表と結合画像に<strong>◎超優先・○優先・▲通常</strong>の印として出ます。</p>
 						</div>
 					</li>
@@ -2690,7 +2690,7 @@
 				return { tone: 'warn', text: '分類の印は新UIでのみ付けられます。' };
 			}
 			if (Object.keys(deckTierByName).length === 0) {
-				return { tone: 'warn', text: '②で周回因子セットを選ぶと、分類の印を付けられるようになります。' };
+				return { tone: 'warn', text: '②で因子周回を選ぶと、分類の印を付けられるようになります。' };
 			}
 			return { tone: 'none', text: '' };
 		}
@@ -3054,7 +3054,7 @@
 
 			document.getElementById('manual-skill-body').classList.add('hidden');
 			document.getElementById('deck-skill-body').classList.remove('hidden');
-			document.getElementById('step1-title').textContent = '周回因子セット';
+			document.getElementById('step1-title').textContent = '因子周回';
 			// ①本育成編成のタブは Deck連携モードだけ出す（C-51 の11節①）。丸数字は見えているタブの順に付け直す
 			document.getElementById('step-tab-0').hidden = false;
 			renumberStepTabs();
@@ -3098,6 +3098,9 @@
 						// ②の呼び名。**core の既定は「スキルセット」**（Deck 単体ページのタブ。C-66 の5節）で、
 						// ここだけ「因子セット」にする。スキルセット・シナリオ因子・遺伝子を束ねた入れ物という意味（C-1）。
 						setLabel: '因子セット',
+						// 名前つきのタブ（✎ ✓ ↩ ×）の確認・ボタンの呼び名（段7b の ⑫。①の「編成」に当たる）。
+						// 因子セット（setLabel）は入れ物の呼び名のままで、画面の文言のうち「周回因子セット」だった所は「因子周回」にした（⑪）
+						tabNoun: '因子周回',
 						// A（スキルセット）を「同じ層に並ぶ選択肢の1つ」として見せる（見出し＋出っ張り＋枠。段K）。
 						// ②には B（シナリオ因子）・C（遺伝子）が同じ行に並ぶので、どこまでが A なのかが要る。
 						// Deck 単体ページは A しか無いので渡さない（枠も出っ張りも出ない）。

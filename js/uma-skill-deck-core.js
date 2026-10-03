@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03b';
 
 	/* ============================================================
 	 * 定数
@@ -828,14 +828,54 @@
 			+ '</div>';
 	}
 	/** 選んでいるタブが帯の外（スワイプの先）にあっても見える位置へ寄せる。 */
-	function revealSelectedTab(root) {
+	function revealSelectedTab(root, horizontalOnly) {
 		const cur = root && root.querySelector && root.querySelector('.uma-subtab[aria-selected="true"]');
-		if (cur && typeof cur.scrollIntoView === 'function') {
-			// 横は「選んだタブを帯の左端に寄せる」（inline: 'start'）。'nearest' だと、帯の scroll-snap
-			// （タブの先頭に吸着）が、右端を見せる位置から手前のタブの先頭へ引き戻してしまい、
-			// 幅を広げた選択中のタブの後半と件数が切れて見えた（C-55 の (2) で実測）。
-			try { cur.scrollIntoView({ block: 'nearest', inline: 'start' }); } catch (e) { /* 古いブラウザ */ }
+		if (!horizontalOnly) {
+			// 従来の動き（Deck 単体ページのスキルセット）。横は「選んだタブを帯の左端に寄せる」（inline: 'start'）
+			if (cur && typeof cur.scrollIntoView === 'function') {
+				try { cur.scrollIntoView({ block: 'nearest', inline: 'start' }); } catch (e) { /* 古いブラウザ */ }
+			}
+			return;
 		}
+		const strip = cur && cur.closest ? cur.closest('.uma-subtabs') : null;
+		if (!strip) return;
+		// 横は「選んだタブを帯の左端に寄せる」。'nearest' だと、帯の scroll-snap（タブの先頭に吸着）が、
+		// 右端を見せる位置から手前のタブの先頭へ引き戻してしまい、幅を広げた選択中のタブの後半と件数が
+		// 切れて見えた（C-55 の (2) で実測）。
+		// **scrollIntoView は使わない**（段7b の ⑥）。これは帯を含む祖先すべてをスクロールするので、
+		// 表まで下がっているときに、描き直すたびにページごと帯の位置まで戻ってしまっていた
+		// （実測: 375px で表を画面の途中に置いて並べ替えを押すと scrollY が 519 → 395）。
+		// 動かすのは帯の scrollLeft だけ（縦のスクロールは起こさない）。
+		const item = cur.closest('.usd-ntab') || cur;
+		const delta = item.getBoundingClientRect().left - strip.getBoundingClientRect().left;
+		if (Math.abs(delta) > 1) strip.scrollLeft += delta;
+	}
+	/** フォーカスを移す。**ページは動かさない**（段7b の ⑥。focus() の既定は、要素を画面に入れるためにスクロールする）。 */
+	function focusNoScroll(el) {
+		if (!el || typeof el.focus !== 'function') return;
+		try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
+	}
+	/**
+	 * 描き直しで押したボタンが画面の中で動かないようにする（段7b の ⑥）。
+	 * 押す前に、ボタンを探し直す手がかり（data- 属性）と画面上の位置を覚えておき、描き直したあとに同じボタンを探して、
+	 * 位置のずれのぶんだけページをスクロールして打ち消す。ボタンが無くなっていたら何もしない。
+	 */
+	const ANCHOR_ATTRS = ['data-usd-act', 'data-member-key', 'data-tab-id', 'data-index', 'data-axis', 'data-value', 'data-skill-id', 'data-usd-info', 'data-event-key', 'data-choice', 'data-tier', 'data-usd-el'];
+	function captureAnchor(el) {
+		if (!el || !el.getAttribute || !el.isConnected) return null;
+		// 小窓（画面に固定）の中のボタンは、ページの位置とは関係が無いので対象にしない
+		if (el.closest && el.closest('.uma-overlay, .usd-roster-modal')) return null;
+		let sel = el.tagName.toLowerCase();
+		ANCHOR_ATTRS.forEach(a => { const v = el.getAttribute(a); if (v !== null) sel += '[' + a + '="' + String(v).replace(/"/g, '\\"') + '"]'; });
+		return { sel: sel, top: el.getBoundingClientRect().top };
+	}
+	function restoreAnchor(anchor, roots) {
+		if (!anchor || !global.document) return;
+		let el = null;
+		for (let i = 0; i < roots.length && !el; i++) { if (roots[i]) el = roots[i].querySelector(anchor.sel); }
+		if (!el) return;
+		const d = el.getBoundingClientRect().top - anchor.top;
+		if (Math.abs(d) > 0.5 && typeof global.scrollBy === 'function') global.scrollBy(0, d);
 	}
 	/** WAI-ARIA のタブの作法（←→で隣へ、Home/End で端へ）。onSelect(id) を呼んだあと、選んだタブへフォーカスを戻す。 */
 	function tabStripKeydown(ev, onSelect) {
@@ -851,7 +891,100 @@
 		const root = strip.parentElement;
 		onSelect(id);
 		const again = root && root.querySelector ? root.querySelector('.uma-subtab[data-tab-id="' + id.replace(/"/g, '\\"') + '"]') : null;
-		if (again) again.focus();
+		if (again) focusNoScroll(again);
+	}
+
+	/**
+	 * 名前つきのタブの帯（段7b・G。①本育成編成と②因子周回で同じ部品を使う）。描くのは帯だけで、
+	 * 押したときの処理は呼び出し元が data-usd-act で受ける（部品はイベントを持たない）。
+	 *   選んでいるタブ … 名前の右に ✎（data-usd-act="name-edit"）と ×（"name-reset"）。選んでいないタブは名前だけ。
+	 *   編集中 … そのタブが 入力欄（data-usd-el="name"）・✓（"name-commit"）・↩（"name-cancel"）に変わる。
+	 * items: [{ id, label, count?, selected?, isNew?, title?, className? }]
+	 * o: { act, ariaLabel, el, noun（「編成」「因子周回」）, edit（編集中なら { value }）, placeholder }
+	 * ✓ は「＋新規」では名前が空のあいだ押せない。ボタンは 32px 以上。
+	 */
+	function namedTabsHtml(items, o) {
+		const opt = o || {};
+		const act = opt.act || 'tab';
+		const noun = opt.noun || '';
+		const icon = (name) => '<i data-lucide="' + name + '" class="w-4 h-4" aria-hidden="true"></i>';
+		const tab = (it) => '<button type="button" role="tab" class="uma-subtab' + (it.isNew ? ' uma-subtab--new' : '')
+			+ (it.className ? ' ' + esc(it.className) : '') + '"'
+			+ ' data-usd-act="' + esc(act) + '" data-tab-id="' + esc(String(it.id)) + '"'
+			+ ' aria-selected="' + (it.selected ? 'true' : 'false') + '" tabindex="' + (it.selected ? '0' : '-1') + '"'
+			+ (it.title ? ' title="' + esc(it.title) + '"' : '') + '>'
+			+ '<span class="uma-subtab-label">' + esc(it.label) + '</span>'
+			+ (it.count !== undefined && it.count !== null && it.count !== '' ? '<span class="uma-subtab-count">' + esc(String(it.count)) + '</span>' : '')
+			+ '</button>';
+		const iconBtn = (actName, el, label, inner, disabled) => '<button type="button" class="usd-ntab-btn" data-usd-act="' + actName + '" data-usd-el="' + el + '"'
+			+ ' aria-label="' + esc(label) + '" title="' + esc(label) + '"' + (disabled ? ' disabled' : '') + '>' + inner + '</button>';
+		let h = '<div class="uma-subtabs usd-ntabs" role="tablist"' + (opt.ariaLabel ? ' aria-label="' + esc(opt.ariaLabel) + '"' : '')
+			+ (opt.el ? ' data-usd-el="' + esc(opt.el) + '"' : '') + '>';
+		(items || []).forEach(it => {
+			if (!it.selected) { h += tab(it); return; }
+			if (opt.edit) {
+				const value = String(opt.edit.value === undefined || opt.edit.value === null ? '' : opt.edit.value);
+				const commitLabel = it.isNew ? noun + 'を保存' : '名前を確定';
+				h += '<span class="usd-ntab usd-ntab--edit" data-usd-el="tab-edit">'
+					+ '<input class="usd-ntab-input" type="text" data-usd-el="name" data-usd-act="name" value="' + esc(value) + '"'
+					+ ' placeholder="' + esc(opt.placeholder || '') + '" aria-label="' + esc(opt.placeholder || noun + 'の名前') + '" />'
+					+ iconBtn('name-commit', 'name-commit', commitLabel, icon('check'), it.isNew && !value.trim())
+					+ iconBtn('name-cancel', 'name-cancel', '編集を取り消す', icon('undo-2'))
+					+ '</span>';
+				return;
+			}
+			h += '<span class="usd-ntab usd-ntab--sel">' + tab(it)
+				+ iconBtn('name-edit', 'name-edit', '名前を編集', icon('pencil'))
+				+ iconBtn('name-reset', 'name-reset', noun + (it.isNew ? 'をリセット' : 'を削除'), '×')
+				+ '</span>';
+		});
+		return h + '</div>';
+	}
+
+	/**
+	 * 確認の小窓（段7b・G。①の × と②の × で共有。もとは①の中にあった confirmHtml を外へ出したもの）。
+	 * ページに1つだけ。背景・キャンセル・Esc で閉じ、OK で o.onOk を呼ぶ。置き場所は document.body の直下
+	 * （.glass-card の backdrop-filter が position: fixed の基準を変えてしまうため。F-61）。
+	 *   o: { text, ariaLabel, onOk, onCancel }
+	 */
+	let confirmModalEl = null;
+	let confirmModalKey = null;
+	function closeConfirmModal() {
+		if (confirmModalKey) { global.document.removeEventListener('keydown', confirmModalKey, true); confirmModalKey = null; }
+		if (confirmModalEl && confirmModalEl.parentNode) confirmModalEl.parentNode.removeChild(confirmModalEl);
+		confirmModalEl = null;
+	}
+	function openConfirmModal(o) {
+		injectStyles();
+		closeConfirmModal();
+		const doc = global.document;
+		const opener = doc.activeElement;
+		const el = doc.createElement('div');
+		el.className = 'usd-roster-modal';
+		el.setAttribute('data-usd-el', 'confirm-modal');
+		el.innerHTML = '<div class="usd-roster-modal-back" data-usd-act="confirm-cancel"></div>'
+			+ '<div class="usd-roster-modal-box usd-roster-modal-box--confirm" role="alertdialog" aria-modal="true" aria-label="' + esc(o.ariaLabel || '確認') + '">'
+			+ '<p class="usd-roster-confirm-text" data-usd-el="confirm-text">' + esc(o.text) + '</p>'
+			+ '<div class="usd-roster-row usd-roster-confirm-btns">'
+			+ '<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="confirm-cancel">キャンセル</button>'
+			+ '<button type="button" class="uma-btn uma-btn--danger" data-usd-act="confirm-ok" data-usd-el="confirm-ok">OK</button>'
+			+ '</div></div>';
+		doc.body.appendChild(el);
+		confirmModalEl = el;
+		const finish = (ok) => {
+			closeConfirmModal();
+			if (ok) { if (typeof o.onOk === 'function') o.onOk(); } else if (typeof o.onCancel === 'function') o.onCancel();
+			if (opener && opener.isConnected) focusNoScroll(opener);
+		};
+		el.addEventListener('click', (e) => {
+			const b = e.target.closest ? e.target.closest('[data-usd-act]') : null;
+			if (!b) return;
+			const a = b.getAttribute('data-usd-act');
+			if (a === 'confirm-cancel') finish(false); else if (a === 'confirm-ok') finish(true);
+		});
+		confirmModalKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); } };
+		doc.addEventListener('keydown', confirmModalKey, true);
+		focusNoScroll(el.querySelector('[data-usd-el="confirm-ok"]'));
 	}
 
 	/* ============================================================
@@ -3338,24 +3471,26 @@
 		// ───── 段7（2026-10-03）: 本育成パネルの見直し ─────
 		// 編成のタブ（(5)）: 1行の横スクロールのチップ。共有 CSS（shell.css の .uma-subtabs）は触らず、このパネルの中だけ上書きする
 		'.usd-roster-tabs { display: flex; min-width: 0; }',
-		'.usd-roster-tabs .uma-subtabs { border-bottom: 0; gap: var(--uma-sp-1-5); padding-bottom: 2px; flex-basis: auto; }',
-		'.usd-roster-tabs .uma-subtab { max-width: 160px; min-width: 0; width: auto; padding: var(--uma-sp-1) var(--uma-sp-2-5); margin-bottom: 0;',
+		// 名前つきのタブ（段7b・G。①本育成編成と②因子周回で共有の namedTabsHtml）。選んだタブは暗い丸の中に 名前・✎・×、編集中は 入力欄・✓・↩。ボタンは 32px 以上
+		'.usd-ntabs { border-bottom: 0; gap: var(--uma-sp-1-5); padding-bottom: 2px; flex-basis: auto; align-items: center; min-width: 0; }',
+		'.usd-ntabs .uma-subtab { max-width: 160px; min-width: 0; width: auto; padding: var(--uma-sp-1) var(--uma-sp-2-5); margin-bottom: 0;',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text);',
 		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); min-height: 32px; }',
-		'.usd-roster-tabs .uma-subtab[aria-selected="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); max-width: 200px; }',
-		'.usd-roster-tabs .uma-subtab:focus-visible { border-radius: var(--uma-r-full); }',
+		'.usd-ntabs .uma-subtab:focus-visible { border-radius: var(--uma-r-full); }',
+		'.usd-ntab { flex: none; display: inline-flex; align-items: center; min-height: 32px; border-radius: var(--uma-r-full); }',
+		'.usd-ntab--sel { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
+		'.usd-ntabs .usd-ntab--sel .uma-subtab { background: transparent; border-color: transparent; color: inherit; max-width: 180px; padding-inline-end: var(--uma-sp-1); }',
+		'.usd-ntab--edit { background: var(--uma-surface); border: 1px solid var(--uma-control); padding-inline-start: var(--uma-sp-2); }',
+		'.usd-ntab-input { width: 150px; max-width: 46vw; min-width: 0; height: 28px; padding: 0 var(--uma-sp-1-5); border: 0; outline: 0; background: transparent;',
+		'  color: var(--uma-text-heading); font: inherit; font-size: var(--uma-fs-sm); }',
+		'.usd-ntab-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0;',
+		'  border-radius: var(--uma-r-full); background: transparent; color: inherit; font: inherit; font-size: var(--uma-fs-md); line-height: 1; cursor: pointer; }',
+		'.usd-ntab-btn:hover:not(:disabled) { background: rgba(127,127,127,.22); }',
+		'.usd-ntab-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }',
+		'.usd-ntab-btn:disabled { opacity: .45; cursor: not-allowed; }',
+		'.usd-ntab-btn svg { width: 16px; height: 16px; }',
 		'.usd-roster-tab--full { opacity: 1; color: var(--uma-text-faint); border-style: dashed; cursor: not-allowed; }',
-		// 名前の行（(6)）: 名前・✎・× ／ 入力欄・✓・↩。アイコンのボタンは 32px 以上
-		'.usd-roster-namerow { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; }',
-		'.usd-roster-name { flex: 1 1 auto; min-width: 0; font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; color: var(--uma-text-heading);',
-		'  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
-		'.usd-roster-namerow .usd-name-input { flex: 1 1 auto; min-width: 0; }',
-		'.usd-roster-iconbtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0;',
-		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-md); background: var(--uma-surface); color: var(--uma-text-heading);',
-		'  font: inherit; font-size: var(--uma-fs-md); line-height: 1; cursor: pointer; }',
-		'.usd-roster-iconbtn:hover:not(:disabled) { background: var(--uma-surface-muted); }',
-		'.usd-roster-iconbtn:disabled { color: var(--uma-text-faint); cursor: not-allowed; }',
-		'.usd-roster-iconbtn svg { width: 16px; height: 16px; }',
+		'.usd-tm-name-row[hidden] { display: none; }',
 		// 育成ウマ娘の欄（(7)(8)）・サポートカードの欄（(9)(10)）: 選択欄の中の右端に ×
 		'.usd-roster-h--withinfo { display: flex; align-items: center; gap: var(--uma-sp-1-5); }',
 		'.usd-roster-pickbox { display: flex; align-items: stretch; min-width: 0; min-height: 36px;',
@@ -4200,7 +4335,7 @@
 		refreshPickerFilterUi();
 		renderPickerResults();
 		const tab = pickerEl.querySelector('.usd-tab[data-usd-axis="' + picker.activeAxis + '"]');
-		if (tab) tab.focus();
+		if (tab) focusNoScroll(tab);
 	}
 
 	// 「条件でスキルを検索」の母集団。マスター＋**タグが付いた追加カタログのもの**（段1b）。
@@ -4643,7 +4778,7 @@
 		renderPasteNamePanel();
 		togglePasteNameView(true);
 		const input = q(pickerEl, 'find-input');
-		if (input) input.focus();
+		if (input) focusNoScroll(input);
 	}
 
 	function closePasteNameFinder() {
@@ -4945,7 +5080,7 @@
 		renderPasteReport();
 		refreshIcons();
 		const focusTarget = picker.mode === 'paste' ? pasteInput : null;
-		if (focusTarget) focusTarget.focus();
+		if (focusTarget) focusNoScroll(focusTarget);
 	}
 
 	// 条件でスキルを検索（8軸フィルター）。従来の openSkillPicker と同じ呼び出し方。
@@ -5264,7 +5399,7 @@
 				if ((all[i].getAttribute('data-skill-id') || all[i].getAttribute('data-usd-info')) === cur.skillId) { target = all[i]; break; }
 			}
 		}
-		if (target && typeof target.focus === 'function') target.focus();
+		if (target && typeof target.focus === 'function') focusNoScroll(target);
 	}
 
 	/**
@@ -5285,7 +5420,7 @@
 		ui.back.hidden = false;
 		ui.pop.hidden = false;
 		if (o.btn) o.btn.setAttribute('aria-expanded', 'true');
-		ui.closeBtn.focus();
+		focusNoScroll(ui.closeBtn);
 		return token;
 	}
 
@@ -5422,9 +5557,8 @@
 		let pickType = '';            // ミニウィンドウの種類の絞り込み（'' はすべて）
 		let showUnconf = false;       // イベントスキル未収録のカード名の一覧を開いているか（既定は閉じる）
 		let findTimer = 0;
-		let nameEdit = null;          // 保存済みの編成の名前を編集中なら { value }（段7の (6)。確定するまで保存しない）
+		let nameEdit = null;          // 選んでいるタブの名前を編集中なら { value }（段7の (6)・段7b の ①。確定するまで保存しない）
 		let limitNotice = false;      // 「編成は10件までです…」を出しているか（段7の (4)。次の操作で消える）
-		let confirming = null;        // × の確認の小窓 { kind: 'reset' | 'delete' }（段7の (6)）
 		let sortKey = null;           // 並べ替えている列のメンバー（段7の (16)。保存しない）
 		let eventsFor = null;         // イベントを選ぶ小窓を開いている列のメンバー（段7の (19)。保存しない）
 		const uidBase = uid('roster');
@@ -5813,25 +5947,6 @@
 			return h;
 		}
 
-		/** × の確認の小窓（段7の (6)）。「＋新規」はリセット、保存済みの編成は削除。 */
-		function confirmHtml() {
-			if (!confirming) return '';
-			const isDelete = confirming.kind === 'delete';
-			const text = isDelete
-				? '編成をリセットしますか？ この編成は削除され、タブが1つ減ります。'
-				: '編成をリセットしますか？';
-			let h = '<div class="usd-roster-modal" data-usd-el="confirm-modal">';
-			h += '<div class="usd-roster-modal-back" data-usd-act="confirm-cancel"></div>';
-			h += '<div class="usd-roster-modal-box usd-roster-modal-box--confirm" role="alertdialog" aria-modal="true" aria-label="編成のリセット">';
-			h += '<p class="usd-roster-confirm-text" data-usd-el="confirm-text">' + esc(text) + '</p>';
-			h += '<div class="usd-roster-row usd-roster-confirm-btns">'
-				+ '<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="confirm-cancel">キャンセル</button>'
-				+ '<button type="button" class="uma-btn uma-btn--danger" data-usd-act="confirm-ok" data-usd-el="confirm-ok">OK</button>'
-				+ '</div>';
-			h += '</div></div>';
-			return h;
-		}
-
 		function renderHits() {
 			const box = modalHost ? q(modalHost, 'hits') : null;
 			if (!box || !picking) return;
@@ -5853,29 +5968,6 @@
 					: '<p class="usd-roster-note">' + hits.length + '件</p>');
 		}
 
-		/** 名前の行（段7の (6)）。保存済み（表示）／保存済み（編集中）／「＋新規」の3つの状態。 */
-		function nameRowHtml() {
-			const icon = (name) => '<i data-lucide="' + name + '" class="w-4 h-4" aria-hidden="true"></i>';
-			let h = '<div class="usd-roster-namerow" data-usd-el="name-row">';
-			if (selectedId && !nameEdit) {
-				h += '<span class="usd-roster-name" data-usd-el="name-text">' + esc(roster.name || '（名称未設定）') + '</span>'
-					+ '<button type="button" class="usd-roster-iconbtn" data-usd-act="name-edit" data-usd-el="name-edit" aria-label="名前を編集" title="名前を編集">' + icon('pencil') + '</button>'
-					+ '<button type="button" class="usd-roster-iconbtn" data-usd-act="reset" data-usd-el="name-reset" aria-label="編成をリセット" title="編成をリセット">×</button>';
-			} else {
-				const value = selectedId ? nameEdit.value : (roster.name || '');
-				h += '<input class="uma-input usd-name-input" type="text" data-usd-el="name" data-usd-act="name" placeholder="編成の名前" value="' + esc(value) + '" aria-label="編成の名前" />'
-					+ '<button type="button" class="usd-roster-iconbtn" data-usd-act="name-commit" data-usd-el="name-commit" aria-label="' + (selectedId ? '名前を確定' : '編成を保存') + '" title="' + (selectedId ? '名前を確定' : '編成を保存') + '"'
-					+ (!selectedId && !value.trim() ? ' disabled' : '') + '>' + icon('check') + '</button>';
-				if (selectedId) {
-					h += '<button type="button" class="usd-roster-iconbtn" data-usd-act="name-cancel" data-usd-el="name-cancel" aria-label="編集を取り消す" title="編集を取り消す">' + icon('undo-2') + '</button>';
-				} else {
-					h += '<button type="button" class="usd-roster-iconbtn" data-usd-act="reset" data-usd-el="name-reset" aria-label="編成をリセット" title="編成をリセット">×</button>';
-				}
-			}
-			h += '</div>';
-			return h;
-		}
-
 		/** イベントを選ぶ小窓を開いている列の、未選択の数（段7の (19)。▼の点に使う）。 */
 		function unselectedCountOf(res, memberKey) {
 			return res.events.filter(e => e.memberKey === memberKey && e.chosen === null).length;
@@ -5893,17 +5985,18 @@
 			const full = saved.length >= ROSTER_LIMIT;
 			// 編成のタブ（段7の (5)）。1行の横スクロール。選んだタブは見える位置まで送る（revealSelectedTab）。
 			// 上限に達したら「＋新規」は薄く押せない見た目（押すと知らせを出す）
+			// 段7b の ①：名前の入力欄・✓・× の行は無くした。選んでいるタブの名前の右に ✎ と ×、編集中はそのタブが 入力欄・✓・↩ に変わる
+			// （共有の部品 namedTabsHtml。②因子周回のタブも同じもの）
 			h += '<div class="usd-roster-tabs" data-usd-el="roster-tabs-wrap">';
-			h += tabStripHtml(
+			h += namedTabsHtml(
 				[{ id: '', label: '＋新規', isNew: true, selected: !selectedId, title: full ? '編成は' + ROSTER_LIMIT + '件までです' : '新しい編成（未保存）',
 					className: 'usd-roster-tab' + (full && selectedId ? ' usd-roster-tab--full' : '') }].concat(
 					saved.map(r => ({ id: r.rosterId, label: r.name || '（名称未設定）', title: r.name || '（名称未設定）', selected: r.rosterId === selectedId, className: 'usd-roster-tab' }))),
-				{ act: 'select-roster', ariaLabel: '保存した編成', el: 'roster-tabs' });
+				{ act: 'select-roster', ariaLabel: '保存した編成', el: 'roster-tabs', noun: '編成', edit: nameEdit, placeholder: '編成の名前' });
 			h += '</div>';
 			if (limitNotice) {
 				h += '<p class="usd-roster-warn" data-usd-el="limit-notice">編成は' + ROSTER_LIMIT + '件までです。新しい編成を作るには、いまの編成を削除してください（名前の横の×）。</p>';
 			}
-			h += nameRowHtml();
 			// イベントスキルの未確認は、αテスト中の明示として編成の層に赤字で**1行だけ**出す
 			if (res.unconfirmed.length > 0) {
 				const cardCount = new Set(res.unconfirmed.map(u => u.cardId)).size;
@@ -6042,20 +6135,20 @@
 			// 名前を押すと説明の小窓（段7の (14)。ⓘ と長押しはやめた）。「いまの設定」の1行と系列の注記は開く直前に求める
 			attachSkillInfoIn(container, (id) => ({ skillId: id, trigger: 'self', getLine: () => infoLineFor(id), getNote: () => shareNoteOf(id, computed()) }));
 			const host = ensureModalHost();
-			host.innerHTML = searchHtml() + confirmHtml();
+			host.innerHTML = searchHtml();
 			refreshIcons();
 			// 編成のタブ（(5)）: 入口の並びと同じ仕組み（幅を実測して切り詰め・続きがある側に薄いフェード）を、帯のタブに当てる
 			const strip = q(container, 'roster-tabs');
 			if (strip) strip.classList.add('usd-hscroll');
-			revealSelectedTab(container);
+			revealSelectedTab(container, true);
 			scanEntryRows();
 			if (picking) {
 				const input = q(host, 'find');
-				if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+				if (input) { focusNoScroll(input); input.setSelectionRange(input.value.length, input.value.length); }
 			}
 			if (nameEdit) {
 				const input = q(container, 'name');
-				if (input && global.document.activeElement !== input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+				if (input && global.document.activeElement !== input) { focusNoScroll(input); input.setSelectionRange(input.value.length, input.value.length); }
 			}
 			// イベントを選ぶ小窓が開いていれば、中身を作り直す（選んだ結果をその場で映す）
 			if (eventsFor !== null) refreshEventsPopover(res);
@@ -6170,16 +6263,25 @@
 			while (roster.cardIds.length < ROSTER_CARD_SLOTS) roster.cardIds.push(null);
 			picking = null;
 			nameEdit = null;
-			confirming = null;
 			sortKey = null;
 			render();
 		}
 
-		/** 「＋新規」の × ：選んだ育成ウマ娘とカードと設定を空に戻す（名前は残す）。保存済みの編成の × ：その編成を削除する。 */
-		function runConfirm() {
-			const kind = confirming ? confirming.kind : null;
-			confirming = null;
-			if (kind === 'delete') {
+		/**
+		 * × を押したとき（段7b の ①。確認の小窓は共有の openConfirmModal）。
+		 * 「＋新規」の × は、育成ウマ娘・カード・設定・絞り込み・イベントの選択を空に戻す。保存済みの編成の × は、その編成を削除する。
+		 */
+		function askReset() {
+			const isDelete = !!selectedId;
+			openConfirmModal({
+				ariaLabel: '編成のリセット',
+				text: isDelete ? '編成をリセットしますか？ この編成は削除され、タブが1つ減ります。' : '編成をリセットしますか？',
+				onOk: () => runReset(isDelete)
+			});
+		}
+		function runReset(isDelete) {
+			nameEdit = null;
+			if (isDelete) {
 				if (!selectedId) { render(); return; }
 				deleteRoster(selectedId);
 				toast('編成を削除しました');
@@ -6187,14 +6289,10 @@
 				loadSelected('');
 				return;
 			}
-			if (kind === 'reset') {
-				const name = roster.name || '';
-				roster = emptyRoster();
-				roster.name = name;
-				persistNow();
-				toast('編成をリセットしました');
-				render();
-			}
+			roster = emptyRoster();
+			persistNow();
+			toast('編成をリセットしました');
+			render();
 		}
 
 		function onPanelClick(ev) {
@@ -6202,6 +6300,12 @@
 			if (!btn || !(container.contains(btn) || (modalHost && modalHost.contains(btn)))) return;
 			const act = btn.getAttribute('data-usd-act');
 			if (act === 'name') return;   // 入力欄そのもの（input で受ける）
+			// 描き直しで押したボタンが画面の中で動かないようにする（段7b の ⑥）
+			const anchor = captureAnchor(btn);
+			try { dispatchAct(btn, act); } finally { restoreAnchor(anchor, [container, modalHost]); }
+		}
+
+		function dispatchAct(btn, act) {
 			// 「編成は10件までです」の知らせは、次の操作で消す
 			if (limitNotice && act !== 'select-roster') limitNotice = false;
 			if (act === 'pick-uma') { picking = { kind: 'uma' }; pickQuery = ''; pickType = ''; render(); renderHits(); }
@@ -6266,21 +6370,24 @@
 				render();
 			}
 			else if (act === 'name-edit') {
-				if (!selectedId) return;
-				nameEdit = { value: roster.name || '' };
+				// 保存済みの編成は今の名前から、「＋新規」は空から（段7b の ①）
+				nameEdit = { value: selectedId ? (roster.name || '') : '' };
 				render();
 			}
 			else if (act === 'name-cancel') { nameEdit = null; render(); }
 			else if (act === 'name-commit') { commitName(); }
-			else if (act === 'reset') { confirming = { kind: selectedId ? 'delete' : 'reset' }; render(); const ok = modalHost && q(modalHost, 'confirm-ok'); if (ok) ok.focus(); }
-			else if (act === 'confirm-cancel') { confirming = null; render(); }
-			else if (act === 'confirm-ok') { runConfirm(); }
+			else if (act === 'name-reset') { askReset(); }
 		}
 
-		/** ✓（段7の (6)）。「＋新規」なら編成を保存して保存済みのタブへ。保存済みなら名前を確定する。 */
+		/**
+		 * ✓（段7の (6)・段7b の ①②）。保存済みなら名前を確定するだけ。
+		 * 「＋新規」なら、いまの中身を新しい編成として保存し、そのタブを選ぶ。**「＋新規」の中身は空に戻さない**
+		 * （育成ウマ娘・カード・設定・絞り込み・イベントの選択はそのまま残る。空になるのは入力した名前だけ。
+		 * 空にするかどうかは、利用者が「＋新規」の × で決める）。保存した編成は別の rosterId を持つ別物。
+		 */
 		function commitName() {
 			const nameEl = q(container, 'name');
-			const value = nameEl ? nameEl.value : (nameEdit ? nameEdit.value : roster.name);
+			const value = nameEl ? nameEl.value : (nameEdit ? nameEdit.value : '');
 			if (selectedId) {
 				roster.name = value;
 				nameEdit = null;
@@ -6290,24 +6397,26 @@
 				return;
 			}
 			if (!String(value || '').trim()) return;
-			roster.name = value;
 			syncFixedFields();
-			if (saveRoster(snapshot(roster))) {
-				selectedId = roster.rosterId;
-				if (draftKey) clearDraftRoster(draftKey);
+			if (draftKey) { roster.name = ''; saveDraftRoster(draftKey, snapshot(roster)); }
+			const saved = snapshot(roster);
+			saved.rosterId = uid('roster');
+			saved.name = value;
+			if (saveRoster(saved)) {
 				toast('編成を保存しました');
-				render();
+				loadSelected(saved.rosterId);
 			}
 		}
 		container.addEventListener('click', onPanelClick);
 		container.addEventListener('keydown', function (ev) {
-			if (ev.target && ev.target.closest && ev.target.closest('.uma-subtabs')) { tabStripKeydown(ev, (id) => { if (id || selectedId) loadSelected(id || ''); }); return; }
 			const el = ev.target;
 			if (el && el.getAttribute && el.getAttribute('data-usd-act') === 'name') {
-				// Enter＝確定、Esc＝取り消し（保存済みの編集中だけ。「＋新規」の Esc は何もしない）
+				// Enter＝確定、Esc＝取り消し（編集中の「＋新規」も同じ）
 				if (ev.key === 'Enter') { ev.preventDefault(); commitName(); }
 				else if (ev.key === 'Escape' && nameEdit) { ev.preventDefault(); ev.stopPropagation(); nameEdit = null; render(); }
+				return;
 			}
+			if (ev.target && ev.target.closest && ev.target.closest('.uma-subtabs')) { tabStripKeydown(ev, (id) => { if (id || selectedId) loadSelected(id || ''); }); return; }
 		});
 		container.addEventListener('change', function (ev) {
 			const el = ev.target;
@@ -6325,13 +6434,8 @@
 				clearTimeout(findTimer);
 				findTimer = setTimeout(function () { renderHits(); }, NAME_FIND_DEBOUNCE_MS);
 			} else if (act === 'name') {
-				if (selectedId) {
-					// 保存済みの編集中: 確定するまで保存しない（✓ で反映、↩ で元に戻す）
-					if (nameEdit) nameEdit.value = el.value;
-				} else {
-					roster.name = el.value;   // 再描画せずに覚えるだけ（入力中に描き直すと文字が飛ぶ）
-					if (draftKey) saveDraftRoster(draftKey, snapshot(roster));
-				}
+				// 確定するまで保存しない（✓ で反映、↩ で取り消し）。再描画せずに覚えるだけ（入力中に描き直すと文字が飛ぶ）
+				if (nameEdit) nameEdit.value = el.value;
 				// ✓ の押せる／押せない（「＋新規」は空のあいだ押せない）
 				const commit = q(container, 'name-commit');
 				if (commit) commit.disabled = !selectedId && !el.value.trim();
@@ -6416,6 +6520,10 @@
 		let mode = null;
 		// 「理論値」の「?」の説明を開いているか（段5。保存しない）
 		let ptNeedHelpOpen = false;
+		// 名前つきのタブ（段7b の ⑫。special の②だけ）。tabNoun は確認・ボタンの呼び名（special は「因子周回」。無ければ setLabel）
+		const tabNoun = opts.tabNoun || setLabel;
+		let nameEdit = null;       // 選んでいるタブの名前を編集中なら { value }（確定するまで保存しない）
+		let limitNotice = false;   // 「…は10件までです」の知らせを出しているか（次の操作で消える）
 
 		container.innerHTML = '' +
 			'<div class="usd-tm">' +
@@ -6432,6 +6540,14 @@
 				 * 読み取れるようにした。**同じパネルに「削除」が2つあった**
 				 * （ここと、下段の「追加済みスキルを消すモード」）ので、その衝突も解消する。
 				 * **下段の「削除」（モード）は変えない。** */
+				// 段7b の ⑫：special の②（grouped）では、名前の入力欄・「保存」「リセット」「セットを削除」を無くした。
+				// 名前・保存・リセット・削除はタブの ✎ ✓ ↩ × に移した（①本育成編成と同じ部品）。残るのは「複製」だけ
+				// （新しい流れに当てはまらない操作。保存済みの因子周回を選んだときだけ出す）。
+				(grouped ?
+					'<div class="usd-roster-row usd-tm-name-row" data-usd-el="tm-actions">' +
+						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="template-duplicate" data-usd-el="dup-btn">複製</button>' +
+					'</div>'
+				:
 				'<div class="usd-roster-row usd-tm-name-row">' +
 					'<input type="text" class="usd-input uma-input usd-name-input" data-usd-el="name-input" placeholder="' + esc('新しい' + setLabel + 'の名前') + '"/>' +
 					'<button type="button" class="uma-btn uma-btn--primary" data-usd-act="template-save">保存</button>' +
@@ -6443,7 +6559,7 @@
 					'</button>' +
 					'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="template-duplicate" data-usd-el="dup-btn">複製</button>' +
 					'<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="template-delete" data-usd-el="del-btn">セットを削除</button>' +
-				'</div>' +
+				'</div>') +
 				// ここから下が **A（スキルセット）** のひとまとまり（C-1）。special の②では、
 				// **A と同じ行に B（シナリオ因子）・C（遺伝子）が並ぶ**（C-2a ＋ 段K）。
 				// **囲んだだけで `data-usd-el` は1つも変えていない** ので、renderNameRow / renderTabs /
@@ -6535,7 +6651,8 @@
 				// 画面では読む意味が無かった（renderNote() ごと外したので、描く対象も無い）。
 			'</div>';
 
-		const nameInput = q(container, 'name-input');
+		// grouped（special の②）には名前の入力欄が無い（名前はタブの中で編集する）
+		const nameInput = grouped ? null : q(container, 'name-input');
 		// 編成パネル（①）が描き直したとき、必要Ptも描き直す（本育成のぶんが変わるため）。段5
 		// 編成（①）が変わったら、必要Ptと「本育成編成」の重なり・追加の一覧のグレーアウトも描き直す（段7の E・旧5。モーダルが開いたままでも映す）
 		rosterPtListeners.push(function () { if (!container.isConnected) return; renderPtNeed(); renderRosterLink(); applyRosterHidden(); });
@@ -6544,7 +6661,24 @@
 			const btn = e.target.closest('[data-usd-act]');
 			if (!btn || !container.contains(btn)) return;
 			const act = btn.dataset.usdAct;
-			if (act === 'template-tab') selectTab(btn.dataset.tabId);
+			if (act === 'name') return;   // 入力欄そのもの（input で受ける）
+			// 「…は10件までです」の知らせは、次の操作で消す
+			if (limitNotice && act !== 'template-tab') limitNotice = false;
+			// 描き直しで押したボタンが画面の中で動かないようにする（段7b の ⑥。special の②だけ）
+			const anchor = grouped ? captureAnchor(btn) : null;
+			try { onTmAct(btn, act); } finally { if (anchor) restoreAnchor(anchor, [container]); }
+		});
+		function onTmAct(btn, act) {
+			if (act === 'template-tab') {
+				const id = btn.dataset.tabId;
+				// 上限に達しているとき、選んでいない「＋新規」は押せない（帯の下に知らせを出す。段7b の ⑫）
+				if (grouped && (id === DRAFT_SELECTION_ID || !id) && currentTemplateId() && ensureUserData().templates.length >= TEMPLATE_LIMIT) { limitNotice = true; nameEdit = null; render(); }
+				else selectTab(id);
+			}
+			else if (act === 'name-edit') startNameEdit();
+			else if (act === 'name-cancel') { nameEdit = null; render(); }
+			else if (act === 'name-commit') commitNameEdit();
+			else if (act === 'name-reset') askResetTab();
 			else if (act === 'template-save') saveCurrent();
 			else if (act === 'template-duplicate') duplicateTemplate(currentTemplateId());
 			else if (act === 'template-delete') deleteTemplate(currentTemplateId());
@@ -6566,7 +6700,7 @@
 			else if (act === 'pt-need-help') { ptNeedHelpOpen = !ptNeedHelpOpen; renderPtNeed(); }
 			else if (act === 'roster-link') toggleRosterLink();
 			else if (act === 'roster-link-undo') undoRosterLink();
-		});
+		}
 		container.addEventListener('change', (e) => {
 			const box = e.target;
 			if (!box || !box.getAttribute) return;
@@ -6576,9 +6710,22 @@
 			setScope(box.dataset.scope, box.checked);
 		});
 		container.addEventListener('input', (e) => {
-			if (e.target === nameInput) onNameInput();
+			if (nameInput && e.target === nameInput) onNameInput();
+			// 名前つきのタブの入力欄（段7b の ⑫）。確定するまで保存しない。✓ は「＋新規」が空のあいだ押せない
+			if (grouped && e.target && e.target.getAttribute && e.target.getAttribute('data-usd-act') === 'name') {
+				if (nameEdit) nameEdit.value = e.target.value;
+				const commit = q(container, 'name-commit');
+				if (commit) commit.disabled = !currentTemplateId() && !e.target.value.trim();
+			}
 		});
 		container.addEventListener('keydown', (e) => {
+			const el = e.target;
+			if (grouped && el && el.getAttribute && el.getAttribute('data-usd-act') === 'name') {
+				// Enter＝確定、Esc＝取り消し
+				if (e.key === 'Enter') { e.preventDefault(); commitNameEdit(); }
+				else if (e.key === 'Escape' && nameEdit) { e.preventDefault(); e.stopPropagation(); nameEdit = null; render(); }
+				return;
+			}
 			if (e.target && e.target.closest && e.target.closest('.uma-subtabs')) tabStripKeydown(e, (id) => selectTab(id));
 		});
 		// 「?」の一覧は Esc でも閉じる（ミニウィンドウの作法。手前に別の層があればそちらが先に処理する）
@@ -6764,6 +6911,26 @@
 				id: t.templateId, label: t.name || '（名称未設定）', title: t.name || '（名称未設定）',
 				selected: t.templateId === selectedId, count: t.skillIds.length + '種'
 			})));
+			if (grouped) {
+				// 段7b の ⑫：見出し「因子セット（X／10件）」を無くし、①と同じ名前つきのタブ（共有の namedTabsHtml）にした。
+				// 上限に達したら「＋新規」は薄く押せない見た目（選んでいるときは薄くしない）。押すと帯の下に知らせを出す
+				const full = list.length >= TEMPLATE_LIMIT;
+				items[0].className = 'usd-roster-tab' + (full && !onDraft ? ' usd-roster-tab--full' : '');
+				if (full && !onDraft) items[0].title = tabNoun + 'は' + TEMPLATE_LIMIT + '件までです';
+				items.forEach(it => { if (!it.className) it.className = 'usd-roster-tab'; });
+				q(container, 'head').innerHTML =
+					namedTabsHtml(items, { act: 'template-tab', ariaLabel: tabNoun, el: 'tabs', noun: tabNoun, edit: nameEdit, placeholder: tabNoun + 'の名前' }) +
+					(limitNotice ? '<p class="usd-roster-warn" data-usd-el="limit-notice">' + esc(tabNoun) + 'は' + TEMPLATE_LIMIT + '件までです。新しい' + esc(tabNoun) + 'を作るには、いまの' + esc(tabNoun) + 'を削除してください（名前の横の×）。</p>' : '');
+				const strip = q(container, 'tabs');
+				if (strip) strip.classList.add('usd-hscroll');
+				revealSelectedTab(container, true);
+				refreshIcons();
+				if (nameEdit) {
+					const input = q(container, 'name');
+					if (input && global.document.activeElement !== input) { focusNoScroll(input); input.setSelectionRange(input.value.length, input.value.length); }
+				}
+				return;
+			}
 			q(container, 'head').innerHTML =
 				'<p class="usd-roster-h usd-roster-h--top">' + esc(setLabel) + '（<span data-usd-el="count-badge">' + list.length + '</span>／' + TEMPLATE_LIMIT + '件）</p>' +
 				tabStripHtml(items, { act: 'template-tab', ariaLabel: setLabel, el: 'tabs' });
@@ -6772,9 +6939,14 @@
 
 		function renderNameRow() {
 			const target = currentTarget();
-			nameInput.value = target.kind === 'template' ? (target.obj.name || '') : (draftScope.name || '');
-			q(container, 'dup-btn').hidden = target.kind !== 'template';
-			q(container, 'del-btn').hidden = target.kind !== 'template';
+			if (nameInput) nameInput.value = target.kind === 'template' ? (target.obj.name || '') : (draftScope.name || '');
+			const dup = q(container, 'dup-btn');
+			const del = q(container, 'del-btn');
+			if (dup) dup.hidden = target.kind !== 'template';
+			if (del) del.hidden = target.kind !== 'template';
+			// grouped の「複製」の行（保存済みを選んでいるときだけ）
+			const actions = q(container, 'tm-actions');
+			if (actions) actions.hidden = target.kind !== 'template';
 		}
 
 		/* ------------------------------------------------------------
@@ -7076,6 +7248,7 @@
 		 * ドラフトの名前は入力のたびにドラフトごと覚えているので、ここではテンプレートだけ。
 		 */
 		function flushPendingName() {
+			if (!nameInput) return;   // grouped は名前の入力欄が無い（✓ で確定するまで保存しない）
 			const target = currentTarget();
 			if (target.kind !== 'template') return;
 			const name = nameInput.value;
@@ -7088,6 +7261,8 @@
 
 		function selectTab(id) {
 			flushPendingName();
+			nameEdit = null;
+			limitNotice = false;
 			if (id === DRAFT_SELECTION_ID || !id) {
 				selectedId = draftScope.skillIds.length > 0 ? DRAFT_SELECTION_ID : null;
 			} else {
@@ -7127,11 +7302,62 @@
 		 * 「保存」。テンプレートなら名前を反映するだけ（スキルは触った時点で保存済み）。
 		 * ドラフトなら、名前を付けてテンプレートを作り、そのタブへ移る（ドラフトは空になる＝二重管理を避ける）。
 		 */
-		function saveCurrent() {
+		/* ---- 名前つきのタブの操作（段7b の ⑫。special の②だけ） ---- */
+		function startNameEdit() {
+			const target = currentTarget();
+			// 保存済みは今の名前から、「＋新規」は空から
+			nameEdit = { value: target.kind === 'template' ? (target.obj.name || '') : '' };
+			render();
+		}
+		/** ✓。保存済みは名前を変えるだけ。「＋新規」は保存済みの因子周回として保存し、そのタブを選ぶ（「＋新規」の中身は残す）。 */
+		function commitNameEdit() {
+			const input = q(container, 'name');
+			const value = input ? input.value : (nameEdit ? nameEdit.value : '');
+			const target = currentTarget();
+			if (target.kind === 'template') {
+				target.obj.name = value;
+				target.obj.updatedAt = nowIso();
+				saveUserData();
+				nameEdit = null;
+				render();
+				fireSelection();
+				fireChange();
+				return;
+			}
+			if (!String(value || '').trim()) return;
+			saveCurrent(value);
+		}
+		/** ×。「＋新規」は中身を空に戻し、保存済みはその因子周回を削除する。確認の小窓は共有の openConfirmModal */
+		function askResetTab() {
+			const isDelete = !!currentTemplateId();
+			openConfirmModal({
+				ariaLabel: tabNoun + 'のリセット',
+				text: isDelete ? tabNoun + 'をリセットしますか？ この' + tabNoun + 'は削除され、タブが1つ減ります。' : tabNoun + 'をリセットしますか？',
+				onOk: () => {
+					nameEdit = null;
+					if (isDelete) deleteTemplate(currentTemplateId()); else resetDraft();
+				}
+			});
+		}
+		function resetDraft() {
+			const prev = draftScope.skillIds.slice();
+			draftScope = persistDraft([], '', {}, {}, null, null);
+			picker.excludeIds = picker.excludeIds.filter(id => prev.indexOf(id) === -1);
+			selectedId = null;
+			render();
+			renderPickerResults();
+			renderPasteReport();
+			fireSelection();
+			fireChange();
+			toast(tabNoun + 'をリセットしました');
+		}
+
+		function saveCurrent(nameValue) {
 			const target = currentTarget();
 			const data = ensureUserData();
+			const nameToSave = nameValue !== undefined ? nameValue : (nameInput ? nameInput.value : '');
 			if (target.kind === 'template') {
-				target.obj.name = nameInput.value;
+				target.obj.name = nameToSave;
 				target.obj.updatedAt = nowIso();
 				saveUserData();
 				render();
@@ -7145,7 +7371,7 @@
 				toast(setLabel + 'は最大' + TEMPLATE_LIMIT + '件までです。不要なものを削除してください');
 				return;
 			}
-			const t = { templateId: uid('tpl'), name: nameInput.value, skillIds: draftScope.skillIds.slice(), createdAt: nowIso(), updatedAt: nowIso() };
+			const t = { templateId: uid('tpl'), name: nameToSave, skillIds: draftScope.skillIds.slice(), createdAt: nowIso(), updatedAt: nowIso() };
 			// ドラフトの分類（C-57）と節の ON/OFF（C-2a）もテンプレートへ写す
 			// （「優先」だけなら tiers は持たない／全部 OFF なら scopes は持たない）
 			setTemplateTiers(t, draftScope.tiers || {});
@@ -7154,9 +7380,16 @@
 			if (draftScope.withRoster === true) t.withRoster = true;   // 「本育成編成」（段7の E）
 			data.templates.push(t);
 			saveUserData();
-			// 中身はテンプレートへ移ったので、ドラフトは空にする（二重管理を避ける）。
-			// **{} を渡して明示的に消す** ―― persistDraft は undefined を「今のものを引き継ぐ」と読む
-			draftScope = persistDraft([], '', {}, {}, null, null);
+			if (grouped) {
+				// 段7b の ②：「＋新規」の中身は空に戻さない。保存した因子周回は別のもの（写し）で、
+				// 空になるのは入力した名前だけ。空にするかどうかは、利用者が「＋新規」の × で決める
+				draftScope = persistDraft(draftScope.skillIds, '', draftScope.tiers);
+			} else {
+				// 中身はテンプレートへ移ったので、ドラフトは空にする（二重管理を避ける）。
+				// **{} を渡して明示的に消す** ―― persistDraft は undefined を「今のものを引き継ぐ」と読む
+				draftScope = persistDraft([], '', {}, {}, null, null);
+			}
+			nameEdit = null;
 			selectedId = t.templateId;
 			render();
 			fireSelection();
