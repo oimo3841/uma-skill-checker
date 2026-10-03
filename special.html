@@ -3365,8 +3365,9 @@
 			if (!badge || !deckMode) return;
 			// 段8・D（C-120）: ②のタブの脇の「N種」は、②の先頭の「X Pt/N種」の N（ON のランクの種＋継承固有。①で得るものは除く）と同じ値
 			const sum = setSum !== undefined ? setSum : (deckTemplateManager && deckTemplateManager.getSetSummary ? deckTemplateManager.getSetSummary() : null);
-			if (sum) { badge.textContent = sum.factorKinds + '種'; badge.classList.remove('hidden'); return; }
+			// ②にスキルが1つも無い（照合の対象が無い）ときは、従来どおり出さない
 			if (!deckScope) return;
+			if (sum) { badge.textContent = sum.factorKinds + '種'; badge.classList.remove('hidden'); return; }
 			const ids = UmaSkillDeckCore.getSkillEntries(deckScope.skillIds).filter(e => !factorNormSet.has(normalizeText(e.name))).map(e => e.id);
 			badge.textContent = (skillOnlyList.length - (ids.length - UmaSkillDeckCore.countSkillKinds(ids))) + '種';
 		}
