@@ -103,14 +103,14 @@ export async function register7d(env) {
 	 * A. ① いいとこ入った！／③ 前回のタブ／④ 絞り込みの色／⑦ バッジ／⑧ 2文字の名前
 	 * ============================================================ */
 	await block('段7d(A) いいとこ入った！・前回のタブ・絞り込みの色・バッジ・2文字の名前', async () => {
-		// ① 実データ: イベント2（シニア級12月後半）の選択肢2が「いいとこ入った！ Lv2」（ex-0318）。「時中の砂」は入れない（空のまま）
+		// ① 実データ: イベント2（シニア級12月後半）の選択肢2が「いいとこ入った！ Lv2」（ex-0318）。「時中の砂」（誤記）は使わない
 		{
 			const ev2 = scenReal.entries[0].events.find((e) => e.name === 'シニア級12月後半');
 			assert(ev2 && ev2.choices.length === 3 && JSON.stringify(ev2.choices[1].skills) === JSON.stringify([{ skillId: 'ex-0318', hintLevel: 2 }]) && nameOf('ex-0318') === 'いいとこ入った！',
 				'段7d(A)①: data/scenario-event-skills.json のイベント2の選択肢2は「いいとこ入った！」（ex-0318）Lv2', ev2 && ev2.choices[1]);
 			const ev3 = scenReal.entries[0].events.find((e) => e.type === 'fixed');
 			const names = ev3.skills.map((s) => nameOf(s.skillId));
-			assert(!names.includes('時中の砂') && !names.includes('時中の妙'), 'この段では「時中の砂」（正しくは時中の妙）はイベント3に入れない（空のまま。ゲーム画面で確認してから別の段）', names);
+			assert(!names.includes('時中の砂'), '「時中の砂」（誤記）はイベント3のどこにも使わない（時中の妙・極上の感謝を！は段7f で入れた。その検査は blocks-7f.mjs）', names);
 			const sp = await open({ w: 375, h: 812, routes: { scenDoc: scenReal } });
 			await sp.page.click(P + 'button[data-usd-act="events"][data-member-key="scenario"]');
 			await sp.page.waitForTimeout(300);

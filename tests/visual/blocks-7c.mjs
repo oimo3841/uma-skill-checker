@@ -406,9 +406,13 @@ export async function register7c(env) {
 			v = await readPanel(sp.page);
 			const firstMarks = v.rows.slice(0, 5).map(scenMark);
 			assert(firstMarks.every((m) => m === '●' || m === '△'), tag + 'シナリオの列の漏斗で、その列のスキルが上に寄る', firstMarks);
-			await sp.page.click(P + '.usd-roster-grow[data-skill-id="' + fixedIds[0] + '"] input[data-usd-act="take-skill"]');
+			// 金スキルとその前段の白が確定に両方ある組（段7f）は1種なので、片方をオフにしても種数は減らない。組に入っていない確定のスキルを選ぶ
+			const stepRows = readJson('data/skill-step-up.json').entries;
+			const inPair = (id) => stepRows.some((e) => (e.skillId === id && e.prevSkillIds.some((p) => fixedIds.includes(p))) || (e.prevSkillIds.includes(id) && fixedIds.includes(e.skillId)));
+			const offId = fixedIds.find((id) => !inPair(id));
+			await sp.page.click(P + '.usd-roster-grow[data-skill-id="' + offId + '"] input[data-usd-act="take-skill"]');
 			const vOff = await readPanel(sp.page);
-			assert(vOff.rows.find((r) => r.id === fixedIds[0]).off && scenMark(vOff.rows.find((r) => r.id === fixedIds[0])) === '●' && vOff.count === v.count - 1,
+			assert(!!offId && vOff.rows.find((r) => r.id === offId).off && scenMark(vOff.rows.find((r) => r.id === offId)) === '●' && vOff.count === v.count - 1,
 				tag + 'シナリオのスキルもオフにできる（○は薄く残り、種数から外れる）', { count: vOff.count, want: v.count - 1 });
 			const hadLong = v.ids.includes('67');
 			await sp.page.selectOption(P + 'select[data-axis="distance"]', 'short');
