@@ -536,7 +536,7 @@
 					<i data-lucide="layers" class="w-6 h-6"></i>
 				</div>
 				<h2 class="notice-title" id="ui-notice-title">スキルの選び方が新しくなりました</h2>
-				<p class="notice-text">スキル名を毎回貼り付けなくても、保存しておいた因子セットから選べます。作ったセットは次回も残り、UmaSkill Deck とも共有されます。</p>
+				<p class="notice-text">スキル名を毎回貼り付けなくても、保存しておいたセットから選べます。作ったセットは次回も残り、UmaSkill Deck とも共有されます。</p>
 				<!-- 「右上の『旧UIへ』から、いつでも元の画面に戻せます。」の一文は 2026-09-15 の片道化で削った
 				     （新UIからは旧UIへ行けなくなったので事実と食い違う）。告知の ID は据え置き＝既読の人には再表示されない。 -->
 				</div><!-- /#ui-notice-body-layout -->
@@ -3186,8 +3186,9 @@
 					{
 						selectable: true,
 						// ②の呼び名。**core の既定は「スキルセット」**（Deck 単体ページのタブ。C-66 の5節）で、
-						// ここだけ「因子セット」にする。スキルセット・シナリオ因子・遺伝子を束ねた入れ物という意味（C-1）。
-						setLabel: '因子セット',
+						// ここだけ「セット」にする（段9・C-121。段8から①②を1つの「セット」として扱い、見出しの帯も「セット」なので、
+						// 「因子セット」だった保存・削除・上限の知らせも揃えた）。中身はスキルセット・シナリオ因子・遺伝子を束ねた入れ物（C-1）。
+						setLabel: 'セット',
 						// 名前つきのタブ（✎ ✓ ↩ ×）の確認・ボタンの呼び名（段7b の ⑫。①の「編成」に当たる）。
 						// 因子セット（setLabel）は入れ物の呼び名のままで、画面の文言のうち「周回因子セット」だった所は「因子周回」にした（⑪）
 						tabNoun: '因子周回',
@@ -3267,7 +3268,7 @@
 			renumberStepTabs();
 			const btn = document.getElementById('deck-mode-btn');
 			btn.classList.remove('is-on');
-			btn.title = '新しいUIに切り替えます（因子セットをUmaSkill Deckから選べます）';
+			btn.title = '新しいUIに切り替えます（セットをUmaSkill Deckから選べます）';
 			document.getElementById('deck-mode-btn-label').textContent = '新UIへ';
 			// 片道化（2026-09-15）: 旧UIにいる間は「新UIへ」（出口）と更新終了の注記を必ず出す
 			btn.hidden = false;
