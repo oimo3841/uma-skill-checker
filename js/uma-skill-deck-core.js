@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03p';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03q';
 
 	/* ============================================================
 	 * 定数
@@ -2436,6 +2436,19 @@
 	function formatPtNumber(n) {
 		return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 	}
+	/**
+	 * 帯の「X Pt／N種」（段9・C-121。①の帯と②の帯で同じ形。数字 22px・Pt 12px・／N 14px・種 11px の薄い字は CSS が決める。
+	 * 数字と単位のあいだは詰める）。ptEl・kindsEl は数字の要素の data-usd-el。
+	 */
+	function bandSumHtml(pt, kinds, ptEl, kindsEl) {
+		return '<strong class="usd-band-pt" data-usd-el="' + ptEl + '">' + formatPtNumber(pt) + '</strong><span class="usd-band-unit">Pt</span>'
+			+ '<span class="usd-band-slash">／</span><strong class="usd-band-kinds" data-usd-el="' + kindsEl + '">' + kinds + '</strong><span class="usd-band-kunit">種</span>';
+	}
+	/** 帯の右端の丸い「↺」（リセット。①②で同じ形・28px）。消すものが無いときは disabled（薄くして押せない） */
+	function resetBtnHtml(act, el, label, disabled) {
+		return '<button type="button" class="usd-reset-btn" data-usd-act="' + act + '" data-usd-el="' + el + '" aria-haspopup="dialog" aria-expanded="false"'
+			+ ' aria-label="' + esc(label) + '" title="' + esc(label) + '"' + (disabled ? ' disabled' : '') + '>↺</button>';
+	}
 
 	/**
 	 * 継承固有（段7d の ⑪）。親から継承する固有スキルの Pt。1つの基礎Pt は 200（ゲームの仕様）。
@@ -2739,6 +2752,17 @@
 		if (!(data.schemaVersion >= 6)) data.schemaVersion = 6;
 		saveUserData();
 		return true;
+	}
+	/**
+	 * ①のリセットで消すもの（段9・C-121）。育成ウマ娘・サポートカード・イベントの選択・スキルのオン/オフ。
+	 * **絞り込み（距離・脚質・バ場）・勉強家／切れ者／覚醒Lv の押しボタン（roster.pt）・名前は触らない。**
+	 */
+	const ROSTER_RESET_KEYS = ['umaId', 'cardIds', 'eventChoices', 'offSkillIds'];
+	function rosterResettable(r) {
+		if (!r || typeof r !== 'object') return false;
+		if (r.umaId) return true;
+		if ((r.cardIds || []).some(Boolean)) return true;
+		return ['eventChoices', 'offSkillIds'].some(k => r[k] !== undefined && r[k] !== null && (typeof r[k] !== 'object' || Object.keys(r[k]).length > 0));
 	}
 	/** 編成に中身があるか（育成ウマ娘・カード・設定のどれかを触っているか）。下書きの①を保存するときに、写しを作るかの判定に使う */
 	function rosterHasContent(r) {
@@ -4096,9 +4120,12 @@
 		'.usd-roster-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--uma-sp-1-5); }',
 		'.usd-roster-slot { min-height: 36px; }',
 		// 合計の1行（(11)〜(13)）。375px で収まらないときは、ボタン4つが2行目に落ちる（.usd-roster-sumbtns を1つの塊にしてある）
-		'.usd-roster-sumrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-1) var(--uma-sp-2); }',
-		'.usd-roster-sumhead { display: inline-flex; align-items: center; gap: var(--uma-sp-1-5); white-space: nowrap; }',
-		'.usd-roster-sumbtns { display: inline-flex; flex-wrap: nowrap; gap: var(--uma-sp-1); }',
+		// 段9: ①の帯。左「X Pt／N種 ?」、中「勉強家 切れ者 覚醒Lv5」（足りなければ横スクロール。右に薄いフェード）、右端に「↺」
+		'.usd-roster-sumrow { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--uma-sp-1) var(--uma-sp-2); min-width: 0; }',
+		'.usd-roster-sumhead { flex: none; display: inline-flex; align-items: center; gap: var(--uma-sp-1-5); white-space: nowrap; }',
+		'.usd-roster-sumbtns { flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; flex-wrap: nowrap; gap: var(--uma-sp-1); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; }',
+		'.usd-roster-sumbtns::-webkit-scrollbar { display: none; }',
+		'.usd-roster-sumbtns > * { flex: none; white-space: nowrap; }',
 		'.usd-roster-togglebtn { font: inherit; font-size: 11px; line-height: 1.2; font-weight: 600; padding: var(--uma-sp-1) var(--uma-sp-1-5); min-height: 28px;',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text); cursor: pointer; white-space: nowrap; }',
 		'.usd-roster-togglebtn[aria-pressed="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
@@ -4241,59 +4268,104 @@
 		'.usd-link-opt--on { border-color: var(--uma-control); box-shadow: inset 0 0 0 1px var(--uma-control); background: var(--uma-control-soft); }',
 		'.usd-link-opt input { flex: none; width: 18px; height: 18px; margin: 0; }',
 		'.usd-link-name { min-width: 0; overflow-wrap: anywhere; font-weight: 600; color: var(--uma-text-heading); }',
-		// ②因子周回（段8・D。special だけ＝.usd-setbody）: 白いパネル。1行目「X Pt/N種 ? とチップ」、2行目 継承固有・共通スキルのヒントLv、入口、ランクと再分類・削除、一覧
+		// ②因子周回（段9・C-121。special だけ＝.usd-setbody）: 上から 帯（薄い地）→ 設定の枠（破線）→ スキルのまとまり（白い枠）。
+		// 帯・設定の枠・まとまりの色は special.html の変数（--uma-band・--uma-dash・--uma-group-bg・--uma-group-line。ダークは同じ名前の差し替え）。
+		// 変数が無い画面でも崩れないよう、値（ライト）を既定に書いておく
 		'.usd-setbody > .uma-section-body { gap: var(--uma-sp-2); }',
 		'.usd-setbody .usd-ptneed { padding: 0; background: transparent; border: 0; border-radius: 0; }',
-		'.usd-sethead { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; }',
-		'.usd-sethead-sum { flex: none; white-space: nowrap; font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); font-weight: 700; color: var(--uma-text-heading); }',
-		'.usd-sethead .uma-help-btn { flex: none; }',
-		'.usd-sethead .usd-ptneed-chips { flex: 1 1 auto; }',
+		'.usd-bandbox { background: var(--uma-band, #e9eef6); border-radius: 10px; padding: 8px 10px; }',
+		'.usd-band-sum { display: inline-flex; align-items: baseline; white-space: nowrap; color: var(--uma-text-heading); }',
+		'.usd-band-pt { font-size: 22px; line-height: 1.1; font-weight: 800; font-variant-numeric: tabular-nums; }',
+		'.usd-band-unit { margin-left: 1px; font-size: 12px; font-weight: 700; }',
+		'.usd-band-slash, .usd-band-kinds { font-size: 14px; font-weight: 800; }',
+		'.usd-band-kunit { margin-left: 1px; font-size: 11px; font-weight: 400; color: var(--uma-text-subtle); }',
+		'.usd-band-main { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }',
+		'.usd-band-main .uma-help-btn { flex: none; }',
+		'.usd-band-tags { order: 5; flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }',
+		'.usd-band-main .usd-reset-btn { order: 2; margin-left: auto; }',
+		'@media (min-width: 641px) { .usd-band-tags { order: 3; flex: 1 1 auto; } .usd-band-main .usd-reset-btn { order: 4; margin-left: 0; } }',
+		'.usd-band-tag { white-space: nowrap; font-size: 12px; line-height: 1.4; padding: 2px 8px; border: 1px solid var(--uma-border-strong); border-radius: 7px;',
+		'  background: var(--uma-surface); color: var(--uma-text); }',
+		'.usd-band-tag strong { color: var(--uma-text-heading); font-variant-numeric: tabular-nums; }',
+		'.usd-band-tagname { color: var(--uma-text-muted); }',
 		'.usd-help-dot { position: relative; }',
 		'.usd-help-dot::after { content: ""; position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--uma-danger-text); border: 1px solid var(--uma-surface); }',
-		'.usd-ptneed-chip--rank { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); cursor: pointer; }',
-		'.usd-ptneed-chip--rank:hover { border-color: var(--uma-text-subtle); }',
-		'.usd-ptneed-chip--rank:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
-		'.usd-ptneed-chip--off { color: var(--uma-text-faint); border-style: dashed; background: var(--uma-surface-sunken); }',
-		'.usd-ptneed-chip--off strong { color: var(--uma-text-faint); }',
-		'.usd-chip-sp { display: none; }',
-		'@media (max-width: 640px) {',
-		'  .usd-chip-sep, .usd-chip-unit { display: none; }',
-		'  .usd-chip-sp { display: inline; }',
-		'  .usd-sethead .usd-ptneed-chip { padding-inline: var(--uma-sp-2); }',
-		'  .usd-sethead .usd-ptneed-chips { gap: var(--uma-sp-1); }',
-		'}',
+		// リセットの「↺」（①②の帯の右端。28px の丸）。消すものが無いときは薄くして押せない
+		'.usd-reset-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 1px solid var(--uma-border-strong);',
+		'  border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text-heading); font: inherit; font-size: 17px; line-height: 1; cursor: pointer; }',
+		'.usd-reset-btn:hover:not(:disabled) { background: var(--uma-surface-muted); }',
+		'.usd-reset-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
+		'.usd-reset-btn:disabled { color: var(--uma-text-faint); background: transparent; border-style: dashed; cursor: not-allowed; }',
+		// 設定の枠（破線・薄い地・角丸10px）
+		'.usd-setbody .usd-roster-link { padding: 6px 8px; border: 1px dashed var(--uma-dash, #b9c2d0); border-radius: 10px; background: var(--uma-surface-sunken); }',
 		'.usd-setcfg { flex: none; }',
-		'.usd-tier-ops { display: inline-flex; gap: var(--uma-sp-1-5); margin-left: auto; }',
-		'.usd-setbody .usd-tier-row { flex-wrap: nowrap; }',
+		// スキルのまとまり（白い枠・線あり・角丸10px・横8px）: 入口 → パレット → 一覧
+		'.usd-skillgroup { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid var(--uma-group-line, var(--uma-border-strong)); border-radius: 10px;',
+		'  background: var(--uma-group-bg, var(--uma-surface)); min-width: 0; }',
+		'.usd-skillgroup-head { display: flex; flex-direction: column; gap: 6px; min-width: 0; }',
+		'.usd-skillgroup-head .usd-entry-row { margin-bottom: 0; }',
+		'@media (min-width: 641px) {',
+		'  .usd-skillgroup-head { flex-direction: row; align-items: center; gap: 12px; }',
+		'  .usd-skillgroup-head .usd-entry-row { flex: 0 1 auto; min-width: 0; }',
+		'  .usd-skillgroup-head .usd-palette { margin-left: auto; }',
+		'}',
+		// パレット「◎ ○ △ ◇ ★ ✕ │ 解除」: 24px の丸を1行（足りなければ横スクロール）。選択中は外側に 2px の輪
+		'.usd-palette { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 5px 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; }',
+		'.usd-palette::-webkit-scrollbar { display: none; }',
+		'.usd-palette > * { flex: none; }',
+		'.usd-palette-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }',
+		'.usd-palette-btn .usd-icon { width: 24px; height: 24px; font-size: 14px; }',
+		'.usd-palette-btn[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--uma-group-bg, var(--uma-surface)), 0 0 0 4px var(--uma-text-heading); }',
+		'.usd-palette-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 3px; }',
+		'.usd-palette-sep { width: 1px; height: 18px; background: var(--uma-border-strong); }',
+		'.usd-palette-clear { font: inherit; font-size: 12px; line-height: 1.4; font-weight: 600; padding: 2px 10px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
+		'  background: var(--uma-surface); color: var(--uma-text-heading); cursor: pointer; white-space: nowrap; }',
+		'.usd-palette-clear[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--uma-group-bg, var(--uma-surface)), 0 0 0 4px var(--uma-text-heading); }',
+		'.usd-palette-clear:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 3px; }',
+		// アイコン（18px の丸。丸い塗りに記号。無いときは破線の丸）。色は --usd-icon-<id>（表は core の SKILL_ICONS）
+		'.usd-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 18px; height: 18px; border-radius: 50%;',
+		'  font-size: 11px; line-height: 1; font-weight: 700; color: var(--usd-icon-fg, #fff); background: var(--uma-text-faint); }',
+		'.usd-icon--none { background: transparent; border: 1.5px dashed var(--uma-dash, #b9c2d0); }',
+		'.usd-skillgroup .usd-panels { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }',
+		'@media (max-width: 520px) { .usd-skillgroup .usd-panels { grid-template-columns: minmax(0, 1fr); } }',
+		'@media (min-width: 521px) and (max-width: 900px) { .usd-skillgroup .usd-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
+		'.usd-skillgroup .usd-panel { gap: 2px; padding: 0 6px 0 0; min-height: 36px; }',
+		'.usd-panel-iconbtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: var(--uma-r-sm); }',
+		'.usd-panel-iconbtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }',
+		'.usd-skillgroup .usd-panel-namebtn { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; }',
+		'.usd-skillgroup .usd-panel-pt { flex: none; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); white-space: nowrap; }',
+		'.usd-skillgroup .usd-panel-del { flex: none; width: 24px; height: 24px; }',
 		'.usd-panel--taken .usd-panel-namebtn, .usd-panel--taken .usd-panel-pt { color: var(--uma-text-faint); }',
 		'.usd-panel--taken { background: var(--uma-surface-sunken); }',
+		'.usd-panel--taken .usd-icon { opacity: .4; }',
 		'.usd-link-opt--off { cursor: not-allowed; color: var(--uma-text-faint); background: var(--uma-surface-sunken); }',
 		'.usd-link-opt--off .usd-link-name { color: var(--uma-text-faint); }',
 		'.usd-setlist-ops { display: flex; justify-content: flex-end; margin-top: var(--uma-sp-3); }',
-		// 共通の見出しの帯（段8・B）。1行・高さ 36px。左＝セット名・✎・「3／10 ▾」、右＝合計（数字 19px 太字・ほか 11〜12px）と ?
+		// 共通の見出しの帯（段9・C-121。段8・B を置き換えた）。左＝セット名（16px・太字）と「✎ 3／10 ▾」の丸い札（11px・線・薄い地）、
+		// 右＝2行（1行目「16,230 Pt／169種」＝18px・太字＋12px、2行目「切れ者・①＋②」10.5px の薄い字＋ ?）。375px で高さ 40px 以下
 		'.usd-setbar { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); min-height: 36px; }',
-		'.usd-setbar-l { display: flex; align-items: center; gap: 2px; min-width: 0; flex: 1 1 auto; }',
+		'.usd-setbar-l { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 auto; }',
 		'.usd-setbar-r { display: flex; align-items: center; gap: var(--uma-sp-1); flex: none; }',
-		'.usd-setbar-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-setbar-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; line-height: 1.25; font-weight: 800; color: var(--uma-text-heading); }',
 		'.usd-setbar-name--new { color: var(--uma-text-muted); }',
 		'.usd-setbar-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: var(--uma-r-full); background: transparent; color: var(--uma-text-muted); cursor: pointer; }',
 		'.usd-setbar-btn:hover { background: var(--uma-surface-muted); color: var(--uma-text-heading); }',
 		'.usd-setbar-btn:disabled { cursor: not-allowed; color: var(--uma-text-faint); background: transparent; }',
 		'.usd-setbar-btn:focus-visible, .usd-setbar-list:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
-		'.usd-setbar-list { flex: none; display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 var(--uma-sp-2); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
-		'  background: var(--uma-surface); color: var(--uma-text); font: inherit; font-size: 12px; line-height: 1; font-weight: 600; cursor: pointer; white-space: nowrap; }',
-		'.usd-setbar-list:hover { background: var(--uma-surface-muted); }',
-		'.usd-setbar-caret { font-size: 10px; color: var(--uma-text-muted); }',
+		'.usd-setbar-pill { flex: none; display: inline-flex; align-items: center; height: 24px; border: 1px solid var(--uma-border-strong); border-radius: 999px; background: var(--uma-surface-muted); }',
+		'.usd-setbar-pill .usd-setbar-btn { width: 24px; height: 22px; }',
+		'.usd-setbar-list { flex: none; display: inline-flex; align-items: center; gap: 2px; height: 22px; padding: 0 8px 0 2px; border: 0; border-radius: var(--uma-r-full);',
+		'  background: transparent; color: var(--uma-text); font: inherit; font-size: 11px; line-height: 1; font-weight: 600; cursor: pointer; white-space: nowrap; }',
+		'.usd-setbar-list:hover { background: var(--uma-surface); }',
+		'.usd-setbar-caret { font-size: 9px; color: var(--uma-text-muted); }',
 		'.usd-setbar-input { min-width: 0; flex: 1 1 auto; height: 28px; padding: 0 var(--uma-sp-2); border: 1px solid var(--uma-control); border-radius: var(--uma-r-md); font: inherit; font-size: var(--uma-fs-sm); background: var(--uma-surface); color: var(--uma-text-heading); }',
-		'.usd-setbar-sum { display: inline-flex; align-items: baseline; gap: var(--uma-sp-1); white-space: nowrap; color: var(--uma-text); }',
+		'.usd-setbar-sum { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0; white-space: nowrap; color: var(--uma-text); }',
 		'.usd-setbar-sumline { display: inline-flex; align-items: baseline; gap: 2px; }',
-		'.usd-setbar-k { font-size: 12px; line-height: 1; }',
-		'.usd-setbar-num { font-size: 19px; line-height: 1.15; font-weight: 800; color: var(--uma-text-heading); font-variant-numeric: tabular-nums; }',
-		'.usd-setbar-sub { font-size: 11px; line-height: 1.1; color: var(--uma-text-muted); }',
-		// 狭い幅では、かっこ書きを数字の下に重ねる（2行。高さは帯の 36px の中）
-		'@media (max-width: 480px) {',
-		'  .usd-setbar-sum { flex-direction: column; align-items: flex-end; gap: 0; }',
-		'}',
+		'.usd-setbar-k { font-size: 12px; line-height: 1; font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-setbar-num { font-size: 18px; line-height: 1.1; font-weight: 800; color: var(--uma-text-heading); font-variant-numeric: tabular-nums; }',
+		'.usd-setbar-subline { display: inline-flex; align-items: center; gap: 4px; }',
+		'.usd-setbar-sub { font-size: 10.5px; line-height: 1.1; color: var(--uma-text-subtle); }',
+		'.usd-setbar-subline .uma-help-btn { width: 18px; height: 18px; font-size: 11px; }',
 		// セルの中の横スクロール（名前と Pt）の「続きがある側のフェード」。入口の並びと同じ仕組み（data-usd-fade）
 		'.usd-hscroll { margin-inline-end: var(--usd-entry-trim, 0px); }',
 		'.usd-hscroll[data-usd-fade="right"], .usd-hscroll[data-usd-fade="both"] { --usd-fade-r: rgba(0,0,0,.3) 100%; }',
@@ -6539,27 +6611,30 @@
 			const rules = view.rules;
 			const s = view.settings;
 			const pt = view.pt;
-			let h = '<div class="usd-roster-ptsum" data-usd-el="pt-sum">';
+			// 薄い帯（段9・C-121）: 左「X Pt／N種 ?」、中「勉強家 切れ者 覚醒Lv5」（足りなければ横スクロール。右に薄いフェード）、右端に「↺」（リセット）
+			let h = '<div class="usd-roster-ptsum usd-bandbox" data-usd-el="pt-sum">';
 			h += '<div class="usd-roster-sumrow" data-usd-el="pt-sumrow">';
 			h += '<span class="usd-roster-sumhead">'
-				+ '<span class="usd-roster-ptsum-total"><strong data-usd-el="pt-total">' + formatPtNumber(pt.totalWithPrev) + '</strong> Pt/<strong data-usd-el="pt-count">' + res.kindCount + '</strong>種</span>'
+				+ '<span class="usd-band-sum" data-usd-el="roster-sum">' + bandSumHtml(pt.totalWithPrev, res.kindCount, 'pt-total', 'pt-count') + '</span>'
 				+ '<button type="button" class="uma-help-btn" data-usd-act="pt-help" data-usd-el="pt-help-btn" aria-expanded="false" aria-label="合計の説明を開く" title="合計の説明を開く">?</button>'
 				+ '</span>';
-			h += '<span class="usd-roster-sumbtns" data-usd-el="pt-sumbtns">';
+			h += '<span class="usd-roster-sumbtns usd-hscroll" data-usd-no-trim="1" data-usd-el="pt-sumbtns">';
 			rules.statuses.filter(st => st.id !== PT_STATUS_DEFAULT).forEach(st => {
 				h += '<button type="button" class="usd-roster-togglebtn" data-usd-act="pt-status" data-value="' + esc(st.id) + '"'
 					+ ' aria-pressed="' + (st.id === s.status ? 'true' : 'false') + '" title="' + esc(st.label + (st.percent > 0 ? ' −' + st.percent + '%' : '')) + '">' + esc(st.label) + '</button>';
 			});
-			// 段7b の ⑤：「ヒントLv3」のボタンは無し。「覚醒ヒントLv5」だけ（押している＝Lv5、押していない＝Lv3＝既定）。
+			// 段7b の ⑤：「ヒントLv3」のボタンは無し。「覚醒Lv5」だけ（押している＝Lv5、押していない＝Lv3＝既定。段9で「覚醒ヒントLv5」から短くした）。
 			// 覚醒レベルが足りないウマ娘のときは押せない（理由は title と（?）の中）。Lv の数字は割引率の表から
 			const choice = rules.umaHintLevelChoice;
 			if (isNonNegInt(choice) && choice !== rules.umaHintLevelDefault) {
 				const blocked = s.umaChoices.indexOf(choice) === -1;
 				h += '<button type="button" class="usd-roster-togglebtn" data-usd-act="pt-uma" data-value="' + choice + '"'
 					+ ' aria-pressed="' + (s.umaHintLevel === choice ? 'true' : 'false') + '"' + (blocked ? ' disabled' : '')
-					+ ' title="' + esc(blocked ? umaLevelBlockedReason(view) : '育成ウマ娘の覚醒ヒントLv' + choice) + '">覚醒ヒントLv' + choice + '</button>';
+					+ ' title="' + esc(blocked ? umaLevelBlockedReason(view) : '育成ウマ娘の覚醒ヒントLv' + choice) + '">覚醒Lv' + choice + '</button>';
 			}
-			h += '</span></div>';
+			h += '</span>';
+			h += resetBtnHtml('roster-reset', 'roster-reset', '①本育成編成をリセット', !rosterResettable(roster));
+			h += '</div>';
 			h += '</div>';
 			return h;
 		}
@@ -6889,7 +6964,8 @@
 			h += '</div>';
 
 			/* ── 合計の1行（段8・C で、育成ウマ娘とカードのパネルの上へ移した）。読み込み中は何も出さず、読めなかったときだけ知らせる ── */
-			if (res.items.length > 0) {
+			// 段9: 帯には「↺」（リセット）があるので、編成が空でも出す（押せないだけ）
+			if (res.items.length > 0 || ptView) {
 				if (ptView) h += ptSummaryHtml(ptView, res);
 				else if (ptDataStatus() === 'failed') h += '<p class="usd-roster-alert" data-usd-el="pt-error">Pt のデータを読み込めませんでした</p>';
 			}
@@ -8121,7 +8197,7 @@
 			const target = currentTarget();
 			const list = ensureUserData().templates;
 			const sum = setSummaryOf(target);
-			const icon = (name) => '<i data-lucide="' + name + '" class="w-4 h-4" aria-hidden="true"></i>';
+			const icon = (name, cls) => '<i data-lucide="' + name + '" class="' + (cls || 'w-4 h-4') + '" aria-hidden="true"></i>';
 			const btn = (act, el, label, inner, extra) => '<button type="button" class="usd-setbar-btn" data-usd-act="' + act + '" data-usd-el="' + el + '" aria-label="' + esc(label) + '" title="' + esc(label) + '"' + (extra || '') + '>' + inner + '</button>';
 			let left;
 			if (nameEdit) {
@@ -8131,18 +8207,22 @@
 					+ btn('name-cancel', 'name-cancel', '編集を取り消す', icon('undo-2'));
 			} else {
 				const name = setNameOf(target);
+				// 名前（16px・太字）と、「✎ 3／10 ▾」の丸い札（11px・1pxの線・薄い地）。札は名前と区別するためのもの
 				left = '<span class="usd-setbar-name' + (target.kind === 'template' ? '' : ' usd-setbar-name--new') + '" data-usd-el="set-name" title="' + esc(name) + '">' + esc(name) + '</span>'
-					+ btn('name-edit', 'name-edit', target.kind === 'template' ? 'セットの名前を変える' : '名前を付けて保存', icon('pencil'))
+					+ '<span class="usd-setbar-pill" data-usd-el="set-pill">'
+					+ btn('name-edit', 'name-edit', target.kind === 'template' ? 'セットの名前を変える' : '名前を付けて保存', icon('pencil', 'w-3 h-3'))
 					+ '<button type="button" class="usd-setbar-list" data-usd-act="set-list" data-usd-el="set-list-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="セットの一覧（' + list.length + '／' + TEMPLATE_LIMIT + '件）">'
-					+ '<span data-usd-el="set-count">' + list.length + '／' + TEMPLATE_LIMIT + '</span><span class="usd-setbar-caret" aria-hidden="true">▾</span></button>';
+					+ '<span data-usd-el="set-count">' + list.length + '／' + TEMPLATE_LIMIT + '</span><span class="usd-setbar-caret" aria-hidden="true">▾</span></button></span>';
 			}
 			let right = '';
 			if (sum) {
-				const sub = '（' + (sum.statusLabel ? sum.statusLabel + '、' : '') + '①＋②）';
-				right = '<span class="usd-setbar-sum" data-usd-el="set-total" data-total="' + sum.total + '">'
-					+ '<span class="usd-setbar-sumline"><span class="usd-setbar-k">合計</span> <strong class="usd-setbar-num" data-usd-el="set-total-num">' + formatPtNumber(sum.total) + '</strong> <span class="usd-setbar-k">Pt</span></span>'
-					+ '<span class="usd-setbar-sub" data-usd-el="set-total-sub">' + esc(sub) + '</span></span>'
-					+ '<button type="button" class="uma-help-btn" data-usd-act="set-total-help" data-usd-el="set-total-help" aria-haspopup="dialog" aria-expanded="false" aria-label="合計の式" title="合計の式">?</button>';
+				// 1行目「16,230 Pt／169種」、2行目「切れ者・①＋②」＋ ?（式「合計 ＝ ① X ＋ ② Y」）
+				const sub = (sum.statusLabel ? sum.statusLabel + '・' : '') + '①＋②';
+				right = '<span class="usd-setbar-sum" data-usd-el="set-total" data-total="' + sum.total + '" data-kinds="' + sum.totalKinds + '">'
+					+ '<span class="usd-setbar-sumline"><strong class="usd-setbar-num" data-usd-el="set-total-num">' + formatPtNumber(sum.total) + '</strong>'
+					+ '<span class="usd-setbar-k">Pt</span><span class="usd-setbar-k" data-usd-el="set-total-kinds">／' + sum.totalKinds + '種</span></span>'
+					+ '<span class="usd-setbar-subline"><span class="usd-setbar-sub" data-usd-el="set-total-sub">' + esc(sub) + '</span>'
+					+ '<button type="button" class="uma-help-btn" data-usd-act="set-total-help" data-usd-el="set-total-help" aria-haspopup="dialog" aria-expanded="false" aria-label="合計の式" title="合計の式">?</button></span></span>';
 			}
 			setBarEl.innerHTML = '<div class="usd-setbar" data-usd-el="setbar"><div class="usd-setbar-l">' + left + '</div><div class="usd-setbar-r">' + right + '</div></div>';
 			refreshIcons();
@@ -8160,6 +8240,9 @@
 			const p = infoEl('p', '', '合計 ＝ ① ' + formatPtNumber(sum.rosterPt) + ' ＋ ② ' + formatPtNumber(sum.factorPt));
 			p.setAttribute('data-usd-el', 'set-total-formula');
 			body.appendChild(p);
+			const k = infoEl('p', '', '種 ＝ ① ' + sum.rosterKinds + ' ＋ ② ' + sum.factorKinds);
+			k.setAttribute('data-usd-el', 'set-total-kinds-formula');
+			body.appendChild(k);
 		}
 		/** セットの一覧の小窓（ラジオで切り替え・＋新規・選んだセットの削除） */
 		function fillSetList(body) {
@@ -8576,15 +8659,15 @@
 				+ tag('pt-need-uniq', '継承固有', sum.uniqPt, sum.uniqKinds)
 				+ tag('pt-need-common', '共通スキル', sum.commonPt, sum.commonKinds)
 				+ '</span>'
+				+ resetBtnHtml('factor-reset', 'factor-reset', '②因子周回をリセット', !canResetFactor(currentTarget()))
 				+ '</div></div>';
 			el.hidden = false;
 			renderPanelPts();
 			scanEntryRows();
 		}
-		/** 帯の「X Pt／N種」（①②で同じ形。数字 22px・Pt 12px・／N 14px・種 11px の薄い字は CSS が決める） */
-		function bandSumHtml(pt, kinds, ptEl, kindsEl) {
-			return '<strong class="usd-band-pt" data-usd-el="' + ptEl + '">' + formatPtNumber(pt) + '</strong><span class="usd-band-unit">Pt</span>'
-				+ '<span class="usd-band-slash">／</span><strong class="usd-band-kinds" data-usd-el="' + kindsEl + '">' + kinds + '</strong><span class="usd-band-kunit">種</span>';
+		/** ②に消すものがあるか（スキルが1つでも・アイコンが1つでも）。↺ を押せるかの判定 */
+		function canResetFactor(target) {
+			return (skillIdsOf(target) || []).length > 0 || Object.keys(iconsOf(target)).length > 0;
 		}
 		/** ②の「?」の小窓（段9）。理論値の説明・式・数えていないもの */
 		function fillFactorHelp(body) {
