@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03q';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03r';
 
 	/* ============================================================
 	 * 定数
@@ -7706,6 +7706,8 @@
 		let mode = null;
 		// 「理論値」の「?」の説明を開いているか（段5。保存しない）
 		let ptNeedHelpOpen = false;
+		// アイコンのパレットの選択（段9。'a'〜'f' か 'clear'＝解除）。初期は ◎。ほかのボタンを押すまで保つ（続けて付けられる）。保存しない
+		let paletteSel = SKILL_ICON_DEFAULT;
 		// 名前つきのタブ（段7b の ⑫。special の②だけ）。tabNoun は確認・ボタンの呼び名（special は「因子周回」。無ければ setLabel）
 		const tabNoun = opts.tabNoun || setLabel;
 		let nameEdit = null;       // 選んでいるタブの名前を編集中なら { value }（確定するまで保存しない）
@@ -7862,6 +7864,22 @@
 			const modeRow = body.querySelector('.usd-mode-row');
 			if (modeRow) modeRow.parentNode.removeChild(modeRow);
 			['pt-need', 'roster-link'].forEach(k => { const el = q(container, k); body.insertBefore(el, body.firstChild ? body.querySelector('.usd-entry-row') : null); });
+			// 段9・D: スキルのまとまり（白い枠）＝ 入口のボタン → アイコンのパレット → 選んだスキルの一覧。広い幅では入口とパレットを同じ行に（右寄せ）
+			const group = global.document.createElement('div');
+			group.className = 'usd-skillgroup';
+			group.setAttribute('data-usd-el', 'skill-group');
+			const head = global.document.createElement('div');
+			head.className = 'usd-skillgroup-head';
+			const palEl = q(container, 'tier-row');
+			palEl.className = 'usd-palette usd-hscroll';
+			palEl.setAttribute('data-usd-no-trim', '1');
+			palEl.setAttribute('role', 'group');
+			palEl.setAttribute('aria-label', 'アイコン');
+			head.appendChild(body.querySelector('.usd-entry-row'));
+			head.appendChild(palEl);
+			group.appendChild(head);
+			group.appendChild(q(container, 'selected-list'));
+			body.appendChild(group);
 		}
 		// grouped（special の②）には名前の入力欄が無い（名前はタブの中で編集する）
 		const nameInput = grouped ? null : q(container, 'name-input');
@@ -7913,6 +7931,9 @@
 			else if (act === 'pt-need-help' && setBased) openPopover({ key: 'factor-help:' + draftScopeKey, title: '②の Pt', build: fillFactorHelp, btn: btn, opener: btn, refocus: '[data-usd-act="pt-need-help"]' });
 			else if (act === 'pt-need-help') { ptNeedHelpOpen = !ptNeedHelpOpen; renderPtNeed(); }
 			else if (act === 'pt-total-help') openPtTotalPopover(btn);
+			// 段9: アイコンのパレットと、行の先頭のアイコン
+			else if (act === 'palette-pick') pickPalette(btn.dataset.icon);
+			else if (act === 'skill-icon') toggleSkillIcon(btn.dataset.skillId);
 			else if (act === 'roster-link') openRosterLinkPopover(btn);
 			// 段8: 共通の見出しの帯
 			else if (act === 'set-list') openPopover({ key: 'set-list:' + draftScopeKey, title: 'セット', build: fillSetList, btn: btn, opener: btn, refocus: '[data-usd-act="set-list"]' });
@@ -8702,6 +8723,8 @@
 			return { byTier: byTier, total: total };
 		}
 		function renderTierRow() {
+			// 段9（setBased）: 分類のタブ（超優先／優先／通常）はアイコンのパレットに置き換わった
+			if (setBased) { renderPalette(); renderPtNeed(); return; }
 			const ids = editingSkillIds();
 			const tiers = tiersOf(currentTarget());
 			const kinds = kindCountsOf(ids, tiers);
@@ -8738,12 +8761,14 @@
 
 		// モードのボタンの押した状態（C-57 の (9)）。「すべて外す」は削除モードのときだけ出す
 		function renderModes(count) {
-			const reclass = q(container, 'mode-reclass');
-			const del = q(container, 'mode-delete');
-			reclass.setAttribute('aria-pressed', mode === 'reclass' ? 'true' : 'false');
-			del.setAttribute('aria-pressed', mode === 'delete' ? 'true' : 'false');
-			reclass.disabled = count === 0;
-			del.disabled = count === 0;
+			if (!setBased) {   // 段9: 再分類・削除のボタン（モード）は無い。行ごとに × がある
+				const reclass = q(container, 'mode-reclass');
+				const del = q(container, 'mode-delete');
+				reclass.setAttribute('aria-pressed', mode === 'reclass' ? 'true' : 'false');
+				del.setAttribute('aria-pressed', mode === 'delete' ? 'true' : 'false');
+				reclass.disabled = count === 0;
+				del.disabled = count === 0;
+			}
 			renderResetBtn();
 			/* 「緑スキル」の入口の件数バッジ（72セッション目・段9 の追加 → やり直しで括弧書きから
 			   **タブと同じ数字バッジ**へ変えた。括弧書きはボタンを横に広げすぎた）。
@@ -8770,6 +8795,23 @@
 			renderModes(ids.length);
 			if (ids.length === 0) {
 				el.innerHTML = '<p class="text-xs text-slate-400" style="grid-column: 1 / -1;">まだスキルが選択されていません。</p>';
+				return;
+			}
+			// 段9（setBased）: 分類ごとの見出しは無く、すべて並べる。行は「アイコン／名前（長いときは省略）／Pt／×」
+			if (setBased) {
+				const icons = iconsOf(target);
+				el.innerHTML = ids.map(id => {
+					const name = getSkillName(id);
+					return '<div class="usd-panel" data-skill-id="' + esc(id) + '">'
+						+ iconButtonHtml(id, name, icons[id])
+						+ '<button type="button" class="usd-panel-namebtn" data-usd-info="' + esc(id) + '" title="' + esc(name) + '">' + esc(name) + '</button>'
+						+ '<span class="usd-panel-pt" data-usd-el="panel-pt" data-skill-id="' + esc(id) + '"></span>'
+						+ '<button type="button" class="usd-panel-del" data-usd-act="template-skill-remove" data-skill-id="' + esc(id) + '" aria-label="' + esc(name + 'を外す') + '"><i data-lucide="x" class="w-3 h-3"></i></button>'
+						+ '</div>';
+				}).join('');
+				attachSkillInfoIn(el, (id) => ({ skillId: id, trigger: 'self' }));
+				renderPanelPts();
+				refreshIcons();
 				return;
 			}
 			// いま開いている分類のぶんだけ並べる（順序はセットの中の順のまま）
@@ -8801,6 +8843,60 @@
 			// 周回因子セット（special の②）の行は、①と同じく名前（button）を押すと説明の小窓（段7d の ⑬。ⓘ と長押しはやめた）。基礎Pt だけ（「いまの設定」は本育成の行にだけ）
 			if (grouped) { attachSkillInfoIn(el, (id) => ({ skillId: id, trigger: 'self' })); renderPanelPts(); }
 			refreshIcons();
+		}
+
+		/** 行の先頭のアイコンのボタン（押す範囲は 32px 以上）。アイコンの無いスキルは破線の丸（中は空） */
+		function iconButtonHtml(skillId, name, iconId) {
+			const ic = SKILL_ICONS.find(i => i.id === iconId);
+			return '<button type="button" class="usd-panel-iconbtn" data-usd-act="skill-icon" data-usd-el="skill-icon" data-skill-id="' + esc(skillId) + '"' + (ic ? ' data-icon="' + ic.id + '"' : '')
+				+ ' aria-label="' + esc(name + 'のアイコン：' + (ic ? ic.mark : 'なし')) + '" title="アイコンを付ける・外す">' + skillIconHtml(iconId) + '</button>';
+		}
+		/** パレット「◎ ○ △ ◇ ★ ✕ │ 解除」（段9）。選んでいるものは外側に 2px の輪（aria-pressed） */
+		function renderPalette() {
+			const el = q(container, 'tier-row');
+			if (!el) return;
+			el.innerHTML = SKILL_ICONS.map(i => '<button type="button" class="usd-palette-btn" data-usd-act="palette-pick" data-usd-el="palette-' + i.id + '" data-icon="' + i.id + '"'
+				+ ' aria-pressed="' + (paletteSel === i.id ? 'true' : 'false') + '" aria-label="アイコン ' + esc(i.mark) + '" title="' + esc(i.mark) + '">' + skillIconHtml(i.id) + '</button>').join('')
+				+ '<span class="usd-palette-sep" aria-hidden="true"></span>'
+				+ '<button type="button" class="usd-palette-clear" data-usd-act="palette-pick" data-usd-el="palette-clear" data-icon="clear" aria-pressed="' + (paletteSel === 'clear' ? 'true' : 'false') + '"'
+				+ ' title="押した行のアイコンを外す">解除</button>';
+			scanEntryRows();
+		}
+		function pickPalette(iconId) {
+			if (iconId !== 'clear' && !isSkillIconId(iconId)) return;
+			paletteSel = iconId;
+			renderPalette();
+		}
+		/**
+		 * 行の先頭のアイコンを押したとき（段9）。選んでいるのが解除以外なら、そのアイコンを付ける／同じものが付いていれば外す／別のものなら付け替える。
+		 * 解除なら、付いているアイコンを種類に関係なく外す。**Pt・種・合計には影響しない（メモ用）。** 選択は保つので続けて押せる。
+		 * 描き直すのはその行のアイコンだけ（押したボタンを作り直さない＝フォーカスとスクロールの位置を保つ）。
+		 * tiers はアイコンから導いて書き直す（◎→超優先・○→優先・それ以外と無印→通常）。結合画像の印のために、変更を呼び出し元へ知らせる
+		 */
+		function toggleSkillIcon(skillId) {
+			const target = currentTarget();
+			const ids = skillIdsOf(target) || [];
+			if (ids.indexOf(skillId) === -1) return;
+			const icons = iconsOf(target);
+			const cur = icons[skillId];
+			if (paletteSel === 'clear') { if (!cur) return; delete icons[skillId]; }
+			else if (cur === paletteSel) delete icons[skillId];
+			else icons[skillId] = paletteSel;
+			if (!writeSkillState(target, ids, icons)) return;
+			const list = q(container, 'selected-list');
+			const b = list ? list.querySelector('[data-usd-act="skill-icon"][data-skill-id="' + (global.CSS && global.CSS.escape ? global.CSS.escape(skillId) : skillId) + '"]') : null;
+			if (b) {
+				const next = icons[skillId];
+				const html = iconButtonHtml(skillId, getSkillName(skillId), next);
+				const tmp = global.document.createElement('div');
+				tmp.innerHTML = html;
+				const nb = tmp.firstChild;
+				if (next) b.setAttribute('data-icon', next); else b.removeAttribute('data-icon');
+				b.setAttribute('aria-label', nb.getAttribute('aria-label'));
+				b.innerHTML = nb.innerHTML;
+			}
+			renderPtNeed();   // 帯の「↺」（消すものがあるか）を描き直す
+			fireChange();
 		}
 
 		function selectTier(tier) {
