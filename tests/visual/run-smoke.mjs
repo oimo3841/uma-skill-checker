@@ -21,6 +21,7 @@ import { register7c } from './blocks-7c.mjs';
 // 段7d（2026-10-03・C-116）の検査
 import { register7d } from './blocks-7d.mjs';
 import { register7f } from './blocks-7f.mjs';
+import { register7e } from './blocks-7e.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -14505,6 +14506,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 await register7c({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register7d({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register7f({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register7e({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
