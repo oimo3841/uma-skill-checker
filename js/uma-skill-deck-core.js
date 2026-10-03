@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03n';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03o';
 
 	/* ============================================================
 	 * 定数
@@ -7521,6 +7521,9 @@
 		const setBased = grouped && !!opts.setMode;
 		// 共通の見出しの帯の置き場（段8・B。中身は renderSetBar()）
 		const setBarEl = setBased && opts.setBar && opts.setBar.nodeType === 1 ? opts.setBar : null;
+		// シナリオ因子／遺伝子のチェックの置き場（段8・E。③の先頭の1行）
+		const scopesBarEl = setBased && opts.scopesBar && opts.scopesBar.nodeType === 1 ? opts.scopesBar : null;
+		const scopesHostEl = () => q(container, 'extra-scopes') || (scopesBarEl ? q(scopesBarEl, 'extra-scopes') : null);
 		// 「?」で一覧を開いている節（C-2c）。保存しない（開き直すと閉じている）
 		let scopeHelpKey = null;
 
@@ -7680,7 +7683,18 @@
 			sec.classList.add('usd-setbody');
 			const row = sec.querySelector('.uma-section-row');
 			const scopesEl = q(container, 'extra-scopes');
-			if (scopesEl && opts.scopesBar && opts.scopesBar.nodeType === 1) opts.scopesBar.appendChild(scopesEl);
+			if (scopesEl && scopesBarEl) {
+				// 段8・E: シナリオ因子／遺伝子のチェックと「?」は③のパネルの先頭の1行（opts.scopesBar）へ。意味・保存・小窓の中身は変えない
+				scopesBarEl.appendChild(scopesEl);
+				scopesBarEl.addEventListener('change', (e) => {
+					const box = e.target;
+					if (box && box.getAttribute && box.getAttribute('data-usd-act') === 'scope-check') setScope(box.dataset.scope, box.checked);
+				});
+				scopesBarEl.addEventListener('click', (e) => {
+					const b = e.target.closest ? e.target.closest('[data-usd-act="scope-help"]') : null;
+					if (b && scopesBarEl.contains(b)) openScopeList(b.dataset.scope);
+				});
+			}
 			if (row) row.parentNode.removeChild(row);
 			const modeRow = body.querySelector('.usd-mode-row');
 			if (modeRow) modeRow.parentNode.removeChild(modeRow);
@@ -7871,7 +7885,7 @@
 		 * **exam の同じ1行にはバッジが残っている**（段K では exam を触らないと決めたため）。
 		 */
 		function renderExtraScopes() {
-			const el = q(container, 'extra-scopes');
+			const el = scopesHostEl();
 			if (!el) return;
 			if (extraScopes.length === 0) { el.innerHTML = ''; return; }
 			const cur = scopesOf(currentTarget());
@@ -7941,7 +7955,8 @@
 			if (scopeListEl) { scopeListEl.hidden = true; scopeListEl.innerHTML = ''; }
 			renderExtraScopes();
 			// 開く前に押したボタンへフォーカスを戻す（画面は動かさない）
-			const again = container.querySelector('[data-usd-act="scope-help"][data-scope="' + key.replace(/"/g, '\\"') + '"]');
+			const host = scopesHostEl() || container;
+			const again = host.querySelector('[data-usd-act="scope-help"][data-scope="' + key.replace(/"/g, '\\"') + '"]');
 			if (again) { try { again.focus({ preventScroll: true }); } catch (e) { /* 古いブラウザ */ } }
 		}
 

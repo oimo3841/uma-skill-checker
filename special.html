@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-03n"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-03o"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<style>
@@ -93,6 +93,9 @@
 			padding: 1px var(--uma-card-pad); background: var(--uma-surface); border-bottom: 1px solid var(--uma-border);
 			border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; }
 		.deck-set-bar[hidden] { display: none; }
+		/* 段8・E: ③の先頭の1行（シナリオ因子／遺伝子のチェック）。中身の並びは core（.usd-tm-scopes） */
+		.deck-scopes-bar { margin-bottom: var(--uma-sp-2); padding-top: var(--uma-sp-1); }
+		.deck-scopes-bar[hidden] { display: none; }
 		@media (max-width: 640px) {
 			.deck-set-bar { margin: calc(-1 * var(--uma-sp-1-5)) calc(-1 * var(--uma-sp-1-5)) var(--uma-sp-1); padding: 1px var(--uma-sp-2); border-radius: var(--uma-r-lg) var(--uma-r-lg) 0 0; }
 		}
@@ -705,6 +708,9 @@
 			     B を開閉していた）。両方のパネルは常に DOM にあり（見えていないほうは hidden）、アップロード済みの
 			     画像は保持される。OCR と画像結合は「画像のあるセット」を対象にし、どちらのタブを見ているかは関係ない。
 			     タブの色は結果の表と同じ（親A＝青 .person-col-blue／親B＝赤 .person-col-red）。 -->
+			<!-- 段8・E（C-120）: シナリオ因子／遺伝子のチェック（節の ON/OFF）とそれぞれの「?」。②から③のパネルの先頭の1行へ移した。
+			     中身は core の createTemplateManager（scopesBar）が描く。新UIだけ（旧UIでは hidden） -->
+			<div id="deck-scopes-bar" class="deck-scopes-bar" hidden></div>
 			<div class="uma-subtabs-row mb-3">
 				<div id="personset-tabs" data-usd-el="personset-tabs" onkeydown="onPersonSetTabKeydown(event)"></div>
 			</div>
@@ -3118,6 +3124,7 @@
 			// ①本育成編成のタブは Deck連携モードだけ出す（C-51 の11節①）。丸数字は見えているタブの順に付け直す
 			document.getElementById('step-tab-0').hidden = false;
 			document.getElementById('deck-set-bar').hidden = false;   // 段8・B: 共通の見出しの帯
+			document.getElementById('deck-scopes-bar').hidden = false;   // 段8・E: ③の先頭のシナリオ因子／遺伝子
 			renumberStepTabs();
 			const btn = document.getElementById('deck-mode-btn');
 			btn.classList.add('is-on');  // 点灯（Deck の色。css/shell.css の .uma-btn.is-on）
@@ -3168,6 +3175,8 @@
 						setBar: document.getElementById('deck-set-bar'),
 						// 段8・D: ②のタブの脇の「N種」を、②の先頭の N に合わせる
 						onSetSummary: (sum) => updateSkillCountBadge(sum),
+						// 段8・E: シナリオ因子／遺伝子のチェックの置き場（③の先頭の1行）
+						scopesBar: document.getElementById('deck-scopes-bar'),
 						// A（スキルセット）を「同じ層に並ぶ選択肢の1つ」として見せる（見出し＋出っ張り＋枠。段K）。
 						// ②には B（シナリオ因子）・C（遺伝子）が同じ行に並ぶので、どこまでが A なのかが要る。
 						// Deck 単体ページは A しか無いので渡さない（枠も出っ張りも出ない）。
@@ -3232,6 +3241,7 @@
 			document.getElementById('step1-title').textContent = 'スキルリストを入力';
 			document.getElementById('step-tab-0').hidden = true;
 			document.getElementById('deck-set-bar').hidden = true;
+			document.getElementById('deck-scopes-bar').hidden = true;
 			renumberStepTabs();
 			const btn = document.getElementById('deck-mode-btn');
 			btn.classList.remove('is-on');
