@@ -6,7 +6,7 @@
 	     読めるようにするために必要。これが無いと env() は常に 0 を返し、
 	     ノッチ端末のホームバーにFABが潜り込む。 -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-	<title>UmaStar OCR（β版）</title>
+	<title>UmaStar OCR（α版）</title>
 	<!-- 共通スタイル（3ファイル・版は1つ）。Tailwindより先に読み込む。
 	       tokens.css … デザイントークン（変数だけ）
 	       common.css … 共通部品（ボタン・入力欄・バッジ・カード）
@@ -45,10 +45,14 @@
 		/* 赤い配色（旧 .deck-panel-note--alpha）は css/common.css の .uma-help-box--alpha へ移した
 		   （段F で exam の遺伝子の行も使うようになったため。C-62 の (9) と同じ運び）。
 		   ここに残るのは、このパネルの余白だけ。 */
-		/* タイトルの脇の「一部αテスト中」（C-62 の (4)）。「新UI」バッジと同じ大きさで、色は注意の赤。 */
-		.alpha-badge { font-size: 10px; line-height: 1.4; font-weight: 700; padding: var(--uma-sp-1) var(--uma-sp-2); border-radius: 999px;
-			border: 1px solid var(--uma-danger-border); background: var(--uma-danger-bg); color: var(--uma-danger-text); }
-		.alpha-badge[hidden] { display: none !important; }
+		/* ヘッダーの「？」（使い方・注意）と、狭い幅でのツール切替（段7b の ⓪）。
+		   「新UI」「一部αテスト中」のバッジは外した（①のタブの中の赤い注意書きは残す）。 */
+		.help-open-btn { width: 32px; height: 32px; font-size: var(--uma-fs-base); flex: none; }
+		@media (max-width: 640px) {
+			/* 375px でタイトル・ツール切替・？ を1行に収めるため、ツール切替は文字と矢印を外してアイコンだけ（aria-label 付き） */
+			.tool-switch-label, .tool-switch-chev { display: none; }
+			#tool-dropdown-btn { padding-inline: var(--uma-sp-2); }
+		}
 		/* 親A／親Bセットのタブ（③）の色。結果の表と同じ変数（.person-col-blue / .person-col-red）を、
 		   共有部品の色付きタブ（css/shell.css の .uma-subtab--tinted）の変数へ写す。 */
 		.uma-subtab.person-col-blue, .uma-subtab.person-col-red {
@@ -194,29 +198,15 @@
 				<div class="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-green-200/40 blur-3xl"></div>
 				<div class="absolute -bottom-20 -left-10 w-48 h-48 rounded-full bg-amber-200/30 blur-3xl"></div>
 			</div>
-			<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-				<!-- 左側：タイトルエリア -->
-				<div>
+			<!-- 段7b（⓪）: タイトル・ツール切替・？ を、375px でも1行に並べる（flex-row を常に）。 -->
+				<div class="relative z-10 flex flex-row items-center justify-between gap-2 md:gap-4">
+					<!-- 左側：タイトルエリア -->
+					<div class="min-w-0">
 					<!-- タイトルの右に「新UI」バッジを並べる（exam と同じ位置）。
 					     狭い画面ではバッジが次の行へ回るよう flex-wrap にしてある。 -->
 					<div class="flex items-center flex-wrap gap-x-2 gap-y-1">
-						<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR<span class="ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">β版</span></h1>
-						<!-- いま新しいUIにいることの表示。過渡期のあいだだけ出す目印で、
-						     旧UIのときは何も出さない（旧UIが「普通の状態」なので）。
-						     押すと告知を読み直せる（既読の状態は変えない）。 -->
-						<button type="button" id="ui-mode-badge" hidden onclick="reopenUiNotice()"
-							class="ui-mode-badge shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full"
-							title="スキルの選び方が変わったお知らせをもう一度見る">新UI</button>
-						<!-- 改修中であることの目印（C-62 の (4)）。①のタブの中の赤いラベルを押して読む形は
-						     やめたので、「このツールのどこかがαテスト中」であること自体はタイトルの脇で
-						     常に見えるようにしておく。押せない（ラベルであってボタンではない）。
-						     新UIのときだけ出す＝旧UIにはαテスト中の機能が無いため。 -->
-						<span id="alpha-badge" class="alpha-badge shrink-0 whitespace-nowrap" hidden>一部αテスト中</span>
+						<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR<span class="ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">α版</span></h1>
 					</div>
-					<!-- 何ができるかを1行で言い切り、注意書きは1件1行に分ける。
-					     以前は「親Aセット（親A+祖A1+祖A2）の因子スクリーンショットから…」と
-					     画面の構造を先に説明していたが、初見には読み解けない語が多かった。 -->
-					<p class="mt-1.5 text-xs md:text-sm text-slate-500">ゲーム画面のスクリーンショットから、スキルの★の数を判定</p>
 					<!-- 3行の注意書き（OCR の精度・解像度・加工画像）は、段7（2026-10-03）に「使い方・注意」のポップアップの
 					     「注意」の欄へ移した（ヘッダーを短くするため。文言は変えていない）。 -->
 				</div>
@@ -225,15 +215,15 @@
 				<div class="flex items-center gap-2 shrink-0">
 
 					<!-- ツール切り替えドロップダウン -->
-					<div class="relative" id="tool-dropdown-wrap">
-						<button id="tool-dropdown-btn" type="button" onclick="toggleToolDropdown()" class="uma-btn uma-btn--secondary">
+					<div class="relative flex items-center gap-2" id="tool-dropdown-wrap">
+						<button id="tool-dropdown-btn" type="button" onclick="toggleToolDropdown()" class="uma-btn uma-btn--secondary" aria-label="ツール切替" title="ツール切替">
 							<i data-lucide="layout-grid" class="w-4 h-4 text-[var(--uma-control)]"></i>
-							<span>ツール切替</span>
-							<i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+							<span class="tool-switch-label">ツール切替</span>
+							<i data-lucide="chevron-down" class="tool-switch-chev w-3.5 h-3.5 text-slate-400"></i>
 						</button>
 
 						<!-- ドロップダウン本体 -->
-						<div id="tool-dropdown-menu" class="hidden absolute left-0 md:left-auto md:right-0 mt-2 w-72 max-w-[calc(100vw-2.5rem)] bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-xl z-50 p-1.5 transition-all">
+						<div id="tool-dropdown-menu" class="hidden absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2.5rem)] bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-xl z-50 p-1.5 transition-all">
 							<div class="px-3 py-2 border-b border-slate-100 mb-1">
 								<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ツール切り替え</p>
 							</div>
@@ -288,11 +278,9 @@
 						<span id="deck-mode-btn-label">旧UIへ</span>
 					</button>
 
-					<!-- 使い方・注意（段7で「使い方ガイド」から改名。ヘッダーにあった3行の注意書きもこの中に入れた） -->
-					<button type="button" onclick="toggleHelp()" class="uma-btn uma-btn--secondary">
-						<i data-lucide="help-circle" class="w-4 h-4"></i>
-						<span>使い方・注意</span>
-					</button>
+					<!-- 使い方・注意（段7で「使い方ガイド」から改名。ヘッダーにあった3行の注意書きもこの中に入れた）。
+					     段7b（⓪）で「？」だけの丸いボタンにした（名前は aria-label と title） -->
+					<button type="button" onclick="toggleHelp()" class="uma-help-btn help-open-btn" aria-label="使い方・注意" title="使い方・注意"><span aria-hidden="true">?</span></button>
 				</div>
 			</div>
 		</header>
@@ -3077,10 +3065,8 @@
 			// 片道化（2026-09-15）: 新UIからは旧UIへ入れない。ボタンごと出さない（ラベルの更新は残す）
 			btn.hidden = true;
 			document.getElementById('old-ui-end-note').hidden = true;
-			document.getElementById('ui-mode-badge').hidden = false;
 			// 「一部αテスト中」と「N種」は新UIだけの表示（C-62 の (4)(5)）。
 			// 数は編成パネルが描けたところで onSureCountChange が入れ直す。
-			document.getElementById('alpha-badge').hidden = false;
 			updateRosterBadge(0);
 			updateDeckEntryVisibility();
 			saveUiModeChoice();
@@ -3181,8 +3167,6 @@
 			// 片道化（2026-09-15）: 旧UIにいる間は「新UIへ」（出口）と更新終了の注記を必ず出す
 			btn.hidden = false;
 			document.getElementById('old-ui-end-note').hidden = false;
-			document.getElementById('ui-mode-badge').hidden = true;
-			document.getElementById('alpha-badge').hidden = true;
 			document.getElementById('deck-roster-excluded').hidden = true;
 			updateDeckEntryVisibility();
 			saveUiModeChoice();
