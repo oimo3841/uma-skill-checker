@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03l';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03m';
 
 	/* ============================================================
 	 * 定数
@@ -4049,7 +4049,7 @@
 		// 文字と地の組み合わせは、すべてコントラスト比 4.5 以上（検査が実際の色で見る）
 		'.usd-roster-grid { --usd-skill-heal-bg: #e6f3fd; --usd-skill-heal-text: #0b5fa5; --usd-skill-passive-text: #1b7a3a; --usd-skill-debuff-text: #b3261e; --usd-skill-pt-text: #546580;',
 		'  --usd-skill-unique-from: #e3f6e6; --usd-skill-unique-mid: #dff1fb; --usd-skill-unique-to: #fbe3f1; --usd-skill-unique-edge: #f0a8d0; }',
-		'.usd-roster-grow--heal > .usd-roster-gc, .usd-roster-grow--heal > .usd-roster-gc--uma { background: var(--usd-skill-heal-bg); }',
+		// 段8・C: 回復の行の淡い水色の地はやめた（地は白。名前の青だけで示す＝緑・デバフと同じ扱い）。--usd-skill-heal-bg は使っていない
 		'.usd-roster-grow--gold > .usd-roster-gc { background: var(--uma-stitch-soft); }',
 		'.usd-roster-grow--gold > .usd-roster-gc--uma { background: var(--uma-stitch-soft); }',
 		// 固有スキル: 行全体を左から右へ 淡い緑 → 空色 → 淡いピンク のグラデーション＋1px のピンクの縁（ゲームの固有スキルの虹色の枠の印象）。
@@ -4059,13 +4059,13 @@
 		'  outline: 1px solid var(--usd-skill-unique-edge); outline-offset: -1px; }',
 		'.usd-roster-grow--unique > .usd-roster-gc, .usd-roster-grow--unique > .usd-roster-gc--uma { background: transparent; }',
 		// 得られる●の行の Pt の文字は、金・回復・固有の地の上で 4.5 以上になる少し濃い色にする（薄い△の参考値はそのまま）
-		'.usd-roster-grow--gold:not(.usd-roster-grow--off) .usd-roster-pt:not(.usd-roster-pt--ref), .usd-roster-grow--heal:not(.usd-roster-grow--off) .usd-roster-pt:not(.usd-roster-pt--ref),',
+		'.usd-roster-grow--gold:not(.usd-roster-grow--off) .usd-roster-pt:not(.usd-roster-pt--ref),',
 		'  .usd-roster-grow--unique:not(.usd-roster-grow--off) .usd-roster-pt:not(.usd-roster-pt--ref) { color: var(--usd-skill-pt-text); }',
 		'.usd-roster-skillname--heal { color: var(--usd-skill-heal-text); }',
 		'.usd-roster-skillname--debuff { color: var(--usd-skill-debuff-text); }',
 		'.usd-roster-skillname--passive { color: var(--usd-skill-passive-text); }',
-		// 前段の白スキルの行（金スキルの直下に動かしたもの）: 名前を左へ 4px 字下げするだけ。ほかは変えない
-		'.usd-roster-grow--prev > .usd-roster-gc--name { padding-left: calc(var(--uma-sp-2) + 4px); }',
+		// 前段の白スキルの行（金スキルの直下に動かしたもの）: 段8・C で 4px の字下げをやめ、名前の先頭に薄い色の「└」を付けた（行頭は揃える）
+		'.usd-roster-prevmark { flex: none; color: var(--uma-text-faint); font-size: var(--uma-fs-xs); line-height: 1; margin-right: 1px; }',
 		// × の確認の小窓（(6)）
 		'.usd-roster-modal-box--confirm { width: min(360px, 100%); }',
 		'.usd-roster-confirm-text { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-md); color: var(--uma-text-heading); }',
@@ -6443,13 +6443,21 @@
 					+ ' title="' + esc(blocked ? umaLevelBlockedReason(view) : '育成ウマ娘の覚醒ヒントLv' + choice) + '">覚醒ヒントLv' + choice + '</button>';
 			}
 			h += '</span></div>';
-			h += prevHtml(view);
+			h += '</div>';
+			return h;
+		}
+		/**
+		 * 段8・C: 「ヒントLv0：…」の前段の行と、前段・ヒントレベルの知らせ。①の並びは
+		 * 「X Pt/N種」の行（ptSummaryHtml）→ 育成ウマ娘とカードのパネル → この行 → 絞り込み → 表。
+		 */
+		function ptSubHtml(view) {
+			const pt = view.pt;
+			let h = prevHtml(view);
 			if (skillPtData.meta.stepUp === 'failed') h += '<p class="usd-roster-note" data-usd-el="pt-prev-error">前段のデータを読み込めませんでした</p>';
 			if (pt.unknownLevelSkillIds.length > 0) {
 				h += '<p class="usd-roster-note" data-usd-el="pt-unknown">ヒントレベルが不明なスキル' + pt.unknownLevelSkillIds.length + '種は Lv0 として計算しています</p>';
 			}
-			h += '</div>';
-			return h;
+			return h ? '<div class="usd-roster-ptsub" data-usd-el="pt-sub">' + h + '</div>' : '';
 		}
 
 		/** （?）の小窓の中身（段7の (13)）。出る条件があるものだけ、上から順に。 */
@@ -6763,6 +6771,12 @@
 			}
 			h += '</div>';
 
+			/* ── 合計の1行（段8・C で、育成ウマ娘とカードのパネルの上へ移した）。読み込み中は何も出さず、読めなかったときだけ知らせる ── */
+			if (res.items.length > 0) {
+				if (ptView) h += ptSummaryHtml(ptView, res);
+				else if (ptDataStatus() === 'failed') h += '<p class="usd-roster-alert" data-usd-el="pt-error">Pt のデータを読み込めませんでした</p>';
+			}
+
 			/* ── 下位層: 育成ウマ娘 と サポートカード ── */
 			h += '<div class="usd-roster-lower">';
 			// 育成ウマ娘（段7b の ③⑦⑧）: パネル名の行（名前＋（i））は無し。（i）は選択欄の右隣。選んだ状態は白文字・黒背景。
@@ -6843,9 +6857,8 @@
 				h += '<p class="usd-roster-note">育成ウマ娘とサポートカードを選ぶと、ここに出ます。</p>';
 			} else {
 				const members = res.members;
-				// 合計の1行（段7）。読み込み中は何も出さず、読めなかったときだけ知らせる
-				if (ptView) h += ptSummaryHtml(ptView, res);
-				else if (ptDataStatus() === 'failed') h += '<p class="usd-roster-alert" data-usd-el="pt-error">Pt のデータを読み込めませんでした</p>';
+				// 前段の1行（「ヒントLv0：…」。段8・C でパネルの下へ）
+				if (ptView) h += ptSubHtml(ptView);
 				// 絞り込み（段7の (17)）: 距離・脚質・バ場。選択肢は TAG_AXES から
 				const sel = resolvedFilter();
 				h += '<div class="usd-roster-filterrow" data-usd-el="filter-row">';
@@ -6897,6 +6910,7 @@
 					h += '<div class="usd-roster-grow' + (rarity === 'gold' ? ' usd-roster-grow--gold' : '') + (rarity === 'unique' ? ' usd-roster-grow--unique' : '') + (tone.heal ? ' usd-roster-grow--heal' : '')
 						+ (prevRowIds.has(it.skillId) ? ' usd-roster-grow--prev' : '') + (isOff ? ' usd-roster-grow--off' : '') + '" role="row" data-skill-id="' + esc(it.skillId) + '"' + (isOff ? ' data-usd-off="1"' : '') + '>'
 						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader">' + takeBox + '<div class="usd-roster-namescroll usd-hscroll" data-usd-no-trim="1">'
+							+ (prevRowIds.has(it.skillId) ? '<span class="usd-roster-prevmark" aria-hidden="true" data-usd-el="prev-mark">└</span>' : '')
 							+ '<button type="button" class="usd-roster-skillname usd-roster-skillname--btn' + (isOff ? ' usd-roster-skillname--off' : '') + nameTone + '" data-usd-info="' + esc(it.skillId) + '">' + esc(it.name) + '</button>'
 							+ ptCellHtml(ptView, it, isOff) + '</div></div>'
 						+ members.map(m => '<div class="usd-roster-gc' + colClass(m) + '" role="cell">'
