@@ -16,6 +16,8 @@ import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_I
 import { avgColor, deltaE, contrastRatio, hexOf } from './lib/pixels.mjs';
 import { buildEventFixture, buildCharacterFixture } from './lib/event-fixture.mjs';
 import { buildDraftFixture } from './lib/draft-fixture.mjs';
+// 段7c（2026-10-03・C-115）の検査は別ファイル（塊の見出しはすべて「段7c」を含む）
+import { register7c } from './blocks-7c.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -8648,10 +8650,9 @@ await block('C-62（61セッション目）: 棚卸しで挙がった11件', asy
 		'C-63 (3): ①の「?」と、その中の説明文は無い');
 	await page.evaluate(() => selectStepTab(0));
 	await page.waitForTimeout(400);
-	assert(await page.isVisible('#deck-roster-alpha'),
-		'C-62 (4): αテスト中の注記は（押さなくても）常時出ている');
-	assert((await page.textContent('#deck-roster-alpha')).includes('結果が正しくないことがあります'),
-		'C-62 (4): 注記の文面は据え置き');
+	// 段7c（L）: ①のタブの赤い注意書き（αテスト中の機能です…）は削除した（C-115）。「一部αテスト中」のバッジ・開閉ボタンと同じく、もう無い
+	assert((await page.$('#deck-roster-alpha')) === null && !(await page.textContent('#step-panel-0')).includes('結果が正しくないことがあります'),
+		'段7c(L): ①のタブに赤い注意書き（αテスト中の機能です…）は出ない');
 
 	/* --- (5)/(2) 除外N種。**①のタブの中**（②の件数バッジと同じ並び）へ移した（C-63 の (2)） --- */
 	// 段7（2026-10-03）: 「除外N種」→「N種」（表に出ている●の数。編成が空なら 0種）
@@ -11380,7 +11381,8 @@ await block('グループのサポートカードの名前（2026-09-30）', asy
 			const panel = document.getElementById('deck-roster-panel');
 			const slot = (i) => panel.querySelector('[data-usd-act="pick-card"][data-index="' + i + '"]').textContent.trim();
 			return { slot0: slot(0), slot1: slot(1), slot2: slot(2),
-				heads: Array.from(panel.querySelectorAll('.usd-roster-gh-name')).map((e) => e.textContent), text: panel.textContent };
+				heads: Array.from(panel.querySelectorAll('.usd-roster-gh-name')).map((e) => e.textContent), text: panel.textContent,
+				titles: Array.from(panel.querySelectorAll('[data-usd-act="pick-card"]')).map((b) => b.title) };
 		});
 		assert(hitG2 === '[' + G2.title + ']' + G2.charaName && look.slot2.includes(G2.charaName) && look.heads.includes(G2.charaName),
 			'名前(2): groupName の無いグループのカードは、候補・選んだ枠・列の見出しとも今までどおり代表者の名前', { hitG2, slot2: look.slot2 });
@@ -11390,8 +11392,9 @@ await block('グループのサポートカードの名前（2026-09-30）', asy
 			'名前(5): 選んだ枠は、グループのカードが groupName（代表者の名前は出ない）', { slot0: look.slot0, slot1: look.slot1 });
 		assert(look.heads.includes(G.groupName) && look.heads.includes(N.charaName) && !look.heads.includes(G.charaName),
 			'名前(6): 表の列の見出しは、グループのカードが groupName', look.heads);
-		assert(look.text.includes('[' + G.title + ']' + G.groupName),
-			'名前(7): 凡例にも「[二つ名]groupName」で出る');
+		// 段7c(L): 表の最下段の凡例は削除した。正式な名称（[二つ名]groupName）は、選んだ枠の title（全文）に出る
+		assert(look.titles.includes('[' + G.title + ']' + G.groupName),
+			'名前(7)→段7c: 選んだ枠の title（全文）に「[二つ名]groupName」で出る（凡例は削除した）', look.titles);
 		assert(errors.length === 0, '名前: コンソールエラーなし（special）', errors.slice(0, 3));
 		await ctx.close();
 	}
@@ -14034,8 +14037,8 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 				helpAria: document.querySelector('.help-open-btn').getAttribute('aria-label'), helpTitle: document.querySelector('.help-open-btn').title, helpText: document.querySelector('.help-open-btn').textContent.trim(),
 				badges: [!!document.getElementById('ui-mode-badge'), !!document.getElementById('alpha-badge')], alphaNote: !!document.getElementById('deck-roster-alpha'), helpBtns: document.querySelectorAll('[onclick="toggleHelp()"]').length };
 		});
-		assert(!hd.text.includes('ゲーム画面のスクリーンショットから') && hd.h1.endsWith('α版') && !hd.h1.includes('β') && hd.title.includes('α版') && !hd.badges[0] && !hd.badges[1] && hd.alphaNote,
-			tag + '副題が無い・「α版」・「新UI」「一部αテスト中」のバッジが無い（①の中の赤い注意書きは残る）', { h1: hd.h1, title: hd.title, badges: hd.badges, alphaNote: hd.alphaNote });
+		assert(!hd.text.includes('ゲーム画面のスクリーンショットから') && hd.h1.endsWith('2nd edition β版') && !hd.h1.includes('α') && hd.title.includes('2nd edition β版') && !hd.badges[0] && !hd.badges[1] && !hd.alphaNote,
+			tag + '副題が無い・「2nd edition β版」（段7c の L。「α版」を置き換え）・「新UI」「一部αテスト中」のバッジが無い・①の中の赤い注意書きも無い', { h1: hd.h1, title: hd.title, badges: hd.badges, alphaNote: hd.alphaNote });
 		assert(hd.helpText === '?' && hd.helpAria === '使い方・注意' && hd.helpTitle === '使い方・注意' && hd.helpr.w <= 36 && hd.helpBtns === 1, tag + '「使い方・注意」は「？」だけの丸いボタン（aria-label と title が「使い方・注意」。横幅は最小）', { w: hd.helpr.w, aria: hd.helpAria });
 		const oneRow = Math.abs(hd.h1r.t + hd.h1r.h / 2 - (hd.toolr.t + hd.toolr.h / 2)) < 12 && Math.abs(hd.toolr.t + hd.toolr.h / 2 - (hd.helpr.t + hd.helpr.h / 2)) < 12 && hd.h1r.h < 50;
 		assert(oneRow, tag + 'タイトル・ツール切替・？ が1行に並ぶ（タイトルは1行）', { h1: hd.h1r, tool: hd.toolr, help: hd.helpr });
@@ -14085,8 +14088,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			tag + 'カードの欄の名前の前に 1〜6 のバッジ（空きは「サポカを選ぶ」）。名前は省略記号で切り、全文は title と aria-label', top.slots.map((s) => [s.badge, s.name]));
 		assert(top.umaToggles.length === 1 && top.umaToggles[0].text === '覚醒ヒントLv5' && top.statusToggles.join('|') === '勉強家|切れ者' && !top.umaToggles[0].disabled && top.umaToggles[0].pressed === 'false',
 			tag + '「ヒントLv3」のボタンは無く、「覚醒ヒントLv5」だけ（覚醒レベル7のウマ娘なので押せる・既定は押していない＝Lv3）。「勉強家」「切れ者」はそのまま', top.umaToggles);
-		if (w === 375) assert(top.legendShown === false, tag + 'スマホ（640px 以下）では表の最下段の凡例を出さない', { legendShown: top.legendShown });
-		else assert(top.legendShown === true && top.legendItems === 7, tag + '広い幅（1280px）では凡例を残す', { shown: top.legendShown, n: top.legendItems });
+		assert(top.legendShown === null, tag + '表の最下段の凡例（育成ウマ娘・カード名の一覧）は、どの幅でも出さない（段7c の L。段7b の「広い幅は残す」を置き換え）', { legendShown: top.legendShown });
 		// 覚醒ヒントLv5 の入れ替え
 		await sp.page.click(P + 'button[data-usd-act="pt-uma"]');
 		let st = await sp.page.evaluate(() => ({ pressed: document.querySelector('#deck-roster-panel button[data-usd-act="pt-uma"]').getAttribute('aria-pressed'), draft: JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')) }));
@@ -14483,6 +14485,8 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 	}
 }
 });
+
+await register7c({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

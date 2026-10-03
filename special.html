@@ -6,7 +6,7 @@
 	     読めるようにするために必要。これが無いと env() は常に 0 を返し、
 	     ノッチ端末のホームバーにFABが潜り込む。 -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-	<title>UmaStar OCR（α版）</title>
+	<title>UmaStar OCR（2nd edition β版）</title>
 	<!-- 共通スタイル（3ファイル・版は1つ）。Tailwindより先に読み込む。
 	       tokens.css … デザイントークン（変数だけ）
 	       common.css … 共通部品（ボタン・入力欄・バッジ・カード）
@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-03b"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-03c"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<style>
@@ -53,6 +53,10 @@
 			.tool-switch-label, .tool-switch-chev { display: none; }
 			#tool-dropdown-btn { padding-inline: var(--uma-sp-2); }
 		}
+		/* バッジ「2nd edition β版」（段7c の L）。タイトルの右に小さく置く。スマホでは 11px */
+		.header-edition { font-size: var(--uma-fs-sm); line-height: 1.2; white-space: nowrap; }
+		@media (min-width: 768px) { .header-edition { font-size: var(--uma-fs-base); } }
+		@media (max-width: 640px) { .header-edition { font-size: 11px; line-height: 1.05; margin-left: var(--uma-sp-1); } }
 		/* 親A／親Bセットのタブ（③）の色。結果の表と同じ変数（.person-col-blue / .person-col-red）を、
 		   共有部品の色付きタブ（css/shell.css の .uma-subtab--tinted）の変数へ写す。 */
 		.uma-subtab.person-col-blue, .uma-subtab.person-col-red {
@@ -205,7 +209,7 @@
 					<!-- タイトルの右に「新UI」バッジを並べる（exam と同じ位置）。
 					     狭い画面ではバッジが次の行へ回るよう flex-wrap にしてある。 -->
 					<div class="flex items-center flex-wrap gap-x-2 gap-y-1">
-						<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR<span class="ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">α版</span></h1>
+						<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR<span class="header-edition ml-2 align-middle font-semibold text-slate-400">2nd edition β版</span></h1>
 					</div>
 					<!-- 3行の注意書き（OCR の精度・解像度・加工画像）は、段7（2026-10-03）に「使い方・注意」のポップアップの
 					     「注意」の欄へ移した（ヘッダーを短くするため。文言は変えていない）。 -->
@@ -550,8 +554,7 @@
 				<!-- 見出しの行（「本育成のウマ娘/サポートカードの編成」「任意」）は段7（2026-10-03）で削除した
 				     （任意かどうかは示さない。パネルの名前は下の aria-label に残す）。
 				     **「?」（説明）は C-63 の (3) で削除した。** 使い方は「使い方・注意」にある。
-				     **αテスト中の注記は常時表示**（C-62 の (4)）。 -->
-				<p id="deck-roster-alpha" class="uma-help-box uma-help-box--alpha deck-panel-note">αテスト中の機能です。まだ作りかけで、<strong>結果が正しくないことがあります</strong>。確かめながらお使いください。</p>
+				     **αテスト中の注記（赤い注意書き）は段7c（2026-10-03）で削除した**（C-115）。 -->
 				<div id="deck-roster-panel" aria-label="本育成のウマ娘/サポートカードの編成"></div>
 			</div>
 

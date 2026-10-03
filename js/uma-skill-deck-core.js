@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03c';
 
 	/* ============================================================
 	 * 定数
@@ -3410,19 +3410,13 @@
 		'  background: var(--uma-table-head-key-bg); border-radius: var(--uma-r-sm); }',
 		'.usd-roster-umamark::before { content: ""; display: block; width: 7px; height: 7px; background: var(--uma-table-head-key-text);',
 		'  transform: rotate(45deg); }',
-		// 凡例（番号 → 正式名称）。表の外に、左ぞろえで1行1件
-		'.usd-roster-legend { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--uma-sp-0-5);',
-		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
-		'.usd-roster-legend li { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; }',
+		// 番号のバッジ（表の列見出し・カードの選択欄・イベントの小窓の見出しが使う部品。凡例は段7c の L で削除した）
 		'.usd-roster-legend-no { flex: none; min-width: 20px; text-align: center; font-weight: 700;',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm); }',
 		// 番号は表の見出しと同じ色にする（C-62 の (2)）。凡例は「番号 → 正式名称」の対応表なので、
 		// 番号の見た目が表と食い違うと対応を追えない。
 		'.usd-roster-legend-no.usd-roster-typed { background: var(--usd-card-bg); border-color: var(--usd-card-border);',
 		'  color: var(--usd-card-text); }',
-		'.usd-roster-legend--empty { color: var(--uma-text-faint); }',
-		// スマホ（640px 以下）では凡例を出さない（段7b の ⑦。名前は選択欄に出ていて、選択欄の前にも同じバッジが付いている）
-		'@media (max-width: 640px) { .usd-roster-legend { display: none; } }',
 		'.usd-roster-note { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); margin: 0; }',
 		'.usd-roster-warn { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); margin: 0; }',
 		// スキルPt（段3）。育成の設定の箱・合計の行・名前セルの2行目。色と寸法はトークンだけで、共有の CSS には足していない
@@ -3566,7 +3560,6 @@
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text); cursor: pointer; white-space: nowrap; }',
 		'.usd-roster-togglebtn[aria-pressed="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
 		'.usd-roster-togglebtn:disabled { color: var(--uma-text-faint); border-style: dashed; cursor: not-allowed; }',
-		'.usd-roster-filtering { font-size: var(--uma-fs-2xs); }',
 		// 絞り込みの行（(17)）: 距離・脚質・バ場の3つのセレクトを1行に
 		'.usd-roster-filterrow { display: flex; flex-wrap: nowrap; gap: var(--uma-sp-1-5); min-width: 0; }',
 		'.usd-roster-filter { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 0; }',
@@ -6207,9 +6200,7 @@
 						+ '</select></label>';
 				});
 				h += '</div>';
-				// 絞り込み中の印は、セレクトの行の下に出す（段7b の ⑥）。合計の1行（375px でぎりぎり1行）に置くと、印の幅で2行に折り返し、
-				// セレクトを押すたびにセレクトの位置が28px 動いていた
-				if (res.filtered) h += '<p class="usd-roster-filternote"><span class="uma-badge uma-badge--accent usd-roster-filtering" data-usd-el="pt-filtering">絞り込み中</span></p>';
+				// 「絞り込み中」の印は段7c（L）で削除した（条件は（?）の小窓に残る）。セレクトの行の高さは絞り込みで変わらない
 				// 並べ替え（段7の (16)）: 押した列のメンバーが得るスキルを上へ（安定ソート）
 				let rows = res.visibleItems.slice();
 				if (sortKey !== null && members.some(m => m.key === sortKey)) {
@@ -6245,11 +6236,7 @@
 						+ '</div>';
 				});
 				h += '</div></div>';
-				h += '<ol class="usd-roster-legend">' + members.map(m =>
-					'<li' + (m.label ? '' : ' class="usd-roster-legend--empty"') + '>'
-					+ (m.kind === 'uma' ? umaChip
-						: '<span class="usd-roster-legend-no' + colTypedClass(m) + '"' + colStyle(m) + '>' + m.no + '</span>')
-					+ '<span>' + (m.label ? esc(m.label) : '（空き）') + '</span></li>').join('') + '</ol>';
+				// 表の最下段の凡例（育成ウマ娘・カード名の一覧）は段7c（L）で削除した（デスクトップでも出さない）
 			}
 			h += '</div>';
 			h += '</div>';
