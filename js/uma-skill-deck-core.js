@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03j';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-03k';
 
 	/* ============================================================
 	 * 定数
@@ -675,7 +675,72 @@
 		// schemaVersion 5 で template.scopes（節の ON/OFF。{ scenarioFactors: true, genes: true }。C-2a）が
 		// 加わった。これも読み込み側は分岐せず、**後から補わない**（scopes が無いセットは
 		// 「どの節も OFF」＝含めない、として読む。既定が OFF なので移行は要らない）。
-		return { schemaVersion: 5, templates: [], records: [], customSkills: [], rosters: [] };
+		// schemaVersion 6（段8・C-120）で「セット」＝ template ＋ その baseRosterId が指す roster 1件、になった。
+		// 5 以前の編成（roster）は migrateUserDataToSets() が読み込み時に1回だけセットへ振り分ける。
+		return { schemaVersion: 6, templates: [], records: [], customSkills: [], rosters: [] };
+	}
+
+	/**
+	 * schemaVersion 5 → 6 の移行（段8・C-120）。「セット」＝ template（因子周回）＋ その baseRosterId が指す roster（本育成編成）。
+	 *   (a) 指す roster がある template はそのまま1セット（roster の name を template.name に揃える）
+	 *   (a') 2つ以上の template が同じ roster を指すときは、先に並ぶ template が元を持ち、後の template には写し（新しい rosterId）を付ける
+	 *   (a'') 指す先が無い baseRosterId は消す（①が空のセット）
+	 *   (b) どの template からも指されていない roster は、同じ名前の新しい template（スキル0件）を作って付ける
+	 *   (c) roster の無い template は①が空のセット（何も足さない）
+	 *   (d) 合わせて TEMPLATE_LIMIT を超えたぶんは (b) を作らない（roster は rosters に残る＝書き出しに含まれる・消さない）
+	 * 移すものが1つも無いデータ（rosters も baseRosterId も無い）は**触らない**（schemaVersion も上げない。開いただけで姿を変えない流儀）。
+	 * 返り値: { changed, skipped（(d) で読み込まなかった件数） }。data をその場で書き換える。
+	 */
+	function migrateUserDataToSets(data) {
+		const out = { changed: false, skipped: 0 };
+		if (!data || typeof data !== 'object' || data.schemaVersion >= 6) return out;
+		const templates = Array.isArray(data.templates) ? data.templates : [];
+		const rosters = Array.isArray(data.rosters) ? data.rosters : [];
+		const anyLink = templates.some(t => t && typeof t.baseRosterId === 'string');
+		if (rosters.length === 0 && !anyLink) return out;
+		const byId = new Map(rosters.map(r => [r && r.rosterId, r]));
+		const owned = new Set();
+		templates.forEach(t => {
+			if (!t || typeof t.baseRosterId !== 'string') return;
+			const r = byId.get(t.baseRosterId);
+			if (!r) { delete t.baseRosterId; return; }
+			if (!owned.has(r.rosterId)) {
+				owned.add(r.rosterId);
+				r.name = String(t.name || '');
+				return;
+			}
+			// (a') 同じ roster を指す2件目以降は写しを付ける（①の中身を共有させない）
+			const copy = JSON.parse(JSON.stringify(r));
+			copy.rosterId = uid('roster');
+			copy.name = String(t.name || '');
+			copy.createdAt = copy.updatedAt = nowIso();
+			rosters.push(copy);
+			owned.add(copy.rosterId);
+			t.baseRosterId = copy.rosterId;
+		});
+		rosters.slice().forEach(r => {
+			if (!r || owned.has(r.rosterId)) return;
+			if (templates.length >= TEMPLATE_LIMIT) { out.skipped++; return; }
+			const now = nowIso();
+			templates.push({ templateId: uid('tpl'), name: String(r.name || ''), skillIds: [], baseRosterId: r.rosterId, createdAt: now, updatedAt: now });
+			owned.add(r.rosterId);
+		});
+		data.templates = templates;
+		data.rosters = rosters;
+		data.schemaVersion = 6;
+		out.changed = true;
+		return out;
+	}
+	/** 移行で読み込まなかった件数の知らせ。ページが configure() でトーストを差し込んだときに1回だけ出す */
+	let pendingMigrationNotice = '';
+	function noteMigration(res) {
+		if (res && res.skipped > 0) pendingMigrationNotice = 'セットが' + TEMPLATE_LIMIT + '件を超えたため、' + res.skipped + '件は読み込んでいません';
+	}
+	function flushMigrationNotice() {
+		if (!pendingMigrationNotice) return;
+		const msg = pendingMigrationNotice;
+		pendingMigrationNotice = '';
+		toast(msg);
 	}
 
 	function loadUserData() {
@@ -693,6 +758,12 @@
 			// ページを開いただけで保存データの姿が変わってしまう（次の保存で
 			// localStorage に rosters: [] が書き足される）。読む側が毎回 `|| []` で
 			// 受けるので、持たない古い形（schemaVersion 2 以前）のままで正しく動く。
+			// 段8（C-120）: 5 以前の編成をセットへ振り分ける（1回だけ。移したときだけ保存し直す）
+			const mig = migrateUserDataToSets(parsed);
+			if (mig.changed) {
+				noteMigration(mig);
+				try { global.localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(parsed)); } catch (e) { /* 保存は次の書き込みで */ }
+			}
 			return parsed;
 		} catch (e) {
 			return createEmptyUserData();
@@ -718,6 +789,9 @@
 		userData.records = userData.records || [];
 		userData.customSkills = userData.customSkills || [];
 		// rosters は loadUserData() と同じ理由で補わない（保存データの姿を勝手に変えない）。
+		// 段8（C-120）: 取り込んだデータが 5 以前なら、読み込みと同じ移行を通す（6 のデータは何も変わらない）
+		const mig = migrateUserDataToSets(userData);
+		if (mig.changed) { noteMigration(mig); flushMigrationNotice(); }
 		saveUserData();
 	}
 
@@ -2539,6 +2613,48 @@
 		const data = ensureUserData();
 		data.rosters = (data.rosters || []).filter(x => x.rosterId !== rosterId);
 		saveUserData();
+	}
+
+	/* ---- セット（段8・C-120。special だけ）----
+	   セット＝ template（因子周回）＋ その baseRosterId が指す roster（本育成編成）。選んでいるセットは②（createTemplateManager）が持ち、
+	   描き直すたびに setHubPublish() で知らせる。①（createRosterPanel）はそれを受けて、そのセットの編成を開く。
+	   templateId は保存済みのセットの id、'' は「＋新規」（下書き。template と roster の下書きが対）。 */
+	const setHub = { inited: false, templateId: '', listeners: [] };
+	function setHubPublish(templateId, force) {
+		const id = templateId || '';
+		if (setHub.inited && setHub.templateId === id && !force) return;
+		setHub.inited = true;
+		setHub.templateId = id;
+		setHub.listeners.forEach(fn => { try { fn(id); } catch (e) { if (global.console) global.console.error('[UmaSkillDeckCore] セットの切り替えで例外', e); } });
+	}
+	/** 保存済みのセットの編成（無ければ null）。下書きのセットは呼び出し元が下書きの編成を読む */
+	function setRosterOfTemplate(t) {
+		return t && typeof t.baseRosterId === 'string' && t.baseRosterId ? findRoster(t.baseRosterId) : null;
+	}
+	/**
+	 * ①が空だったセットに、初めて編成を付ける（①に何かを入れたとき）。名前はセット名。上限（ROSTER_LIMIT）では止めない
+	 * （編成はセットに付くだけなので、セットの数＝TEMPLATE_LIMIT を超えない）。付けたら schemaVersion を 6 にする。
+	 */
+	function attachRosterToTemplate(templateId, roster) {
+		const data = ensureUserData();
+		const t = (data.templates || []).find(x => x.templateId === templateId);
+		if (!t || !roster) return false;
+		roster.name = String(t.name || '');
+		roster.updatedAt = nowIso();
+		data.rosters = data.rosters || [];
+		data.rosters.push(roster);
+		t.baseRosterId = roster.rosterId;
+		t.updatedAt = nowIso();
+		if (!(data.schemaVersion >= 6)) data.schemaVersion = 6;
+		saveUserData();
+		return true;
+	}
+	/** 編成に中身があるか（育成ウマ娘・カード・設定のどれかを触っているか）。下書きの①を保存するときに、写しを作るかの判定に使う */
+	function rosterHasContent(r) {
+		if (!r || typeof r !== 'object') return false;
+		if (r.umaId) return true;
+		if ((r.cardIds || []).some(Boolean)) return true;
+		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds'].some(k => r[k] !== undefined && r[k] !== null);
 	}
 
 	/**
@@ -6110,6 +6226,9 @@
 		const opts = options || {};
 		// 「＋新規」の中身（未保存の編成）を残す localStorage のキー（C-53）。渡さなければメモリだけ
 		const draftKey = opts.draftKey || null;
+		// セット（段8・C-120。special だけ）。真のときは、編成のタブを出さず、②で選んでいるセットの編成を開く（setHub）
+		const setBased = !!opts.setMode;
+		let setTplId = '';            // setBased: 開いているセットの templateId（'' は「＋新規」＝下書き）
 		let roster = restoreDraftRoster();
 		let selectedId = '';          // 保存済みを選んでいればその rosterId
 		let picking = null;           // { kind: 'uma' } / { kind: 'card', index } / null
@@ -6424,8 +6543,30 @@
 		 */
 		function persistNow() {
 			syncFixedFields();
+			if (setBased && setTplId) {
+				// セットの名前と揃える（名前は帯の ✎ で template と roster の両方を書き換える。ここで古い名前を書き戻さない）
+				const t = ensureUserData().templates.find(x => x.templateId === setTplId);
+				if (t) roster.name = String(t.name || '');
+				// ①が空だったセットに初めて入れたとき：編成を作ってセットに付ける
+				if (!selectedId) { if (attachRosterToTemplate(setTplId, snapshot(roster))) selectedId = roster.rosterId; return; }
+			}
 			if (selectedId) saveRoster(snapshot(roster));
 			else if (draftKey) saveDraftRoster(draftKey, snapshot(roster));
+		}
+		/** setBased: セットを開く（段8）。下書きは下書きの編成、保存済みは付いている編成。付いていなければ空の編成（触ったときに作る） */
+		function loadForSet(templateId) {
+			setTplId = templateId || '';
+			const t = setTplId ? ensureUserData().templates.find(x => x.templateId === setTplId) : null;
+			if (!t) { setTplId = ''; loadSelected(''); return; }
+			const r = setRosterOfTemplate(t);
+			if (r) { loadSelected(r.rosterId); return; }
+			selectedId = '';
+			roster = emptyRoster();
+			roster.name = String(t.name || '');
+			picking = null;
+			nameEdit = null;
+			sortKey = null;
+			render();
 		}
 
 		function syncFixedFields() {
@@ -6564,6 +6705,7 @@
 			// 上限に達したら「＋新規」は薄く押せない見た目（押すと知らせを出す）
 			// 段7b の ①：名前の入力欄・✓・× の行は無くした。選んでいるタブの名前の右に ✎ と ×、編集中はそのタブが 入力欄・✓・↩ に変わる
 			// （共有の部品 namedTabsHtml。②因子周回のタブも同じもの）
+			if (!setBased) {   // 段8: セットの名前・切り替えは共通の見出しの帯（special）。編成のタブは出さない
 			h += '<div class="usd-roster-tabs" data-usd-el="roster-tabs-wrap">';
 			h += namedTabsHtml(
 				[{ id: '', label: '＋新規', isNew: true, selected: !selectedId, title: full ? '編成は' + ROSTER_LIMIT + '件までです' : '新しい編成（未保存）',
@@ -6574,6 +6716,7 @@
 			if (limitNotice) {
 				h += '<p class="usd-roster-warn" data-usd-el="limit-notice">編成は' + ROSTER_LIMIT + '件までです。新しい編成を作るには、いまの編成を削除してください（名前の横の×）。</p>';
 			}
+			}   // !setBased
 			// イベントスキルの未確認は、αテスト中の明示として編成の層に赤字で**1行だけ**出す
 			if (res.unconfirmed.length > 0) {
 				const cardCount = new Set(res.unconfirmed.map(u => u.cardId)).size;
@@ -7248,7 +7391,11 @@
 					settings: status === 'ok' ? resolveRosterPtSettings(roster, skillPtData.rules) : null };
 			}
 		};
-		render();
+		if (setBased) {
+			// ②で選んでいるセットに合わせる（段8）。②が先に作られていれば、いま選んでいるセットを開く
+			setHub.listeners.push(function (tid) { if (!container.isConnected) return; loadForSet(tid); });
+			if (setHub.inited && setHub.templateId) loadForSet(setHub.templateId); else render();
+		} else render();
 		// スキルPt の元データがまだ読まれていなければ、読み終わったあとで描き直す（読めなくても描き直す＝知らせを出す）
 		if (!skillPtData.meta.loaded) loadSkillPtData(false).then(function () { render(); });
 		// シナリオの固定イベント（段7c の N）。編成パネルを作るときにだけ読む。読み終わったら描き直す（読めなければ列を出さない）
@@ -7298,6 +7445,9 @@
 		// 並びの行（A の見出し＋ B・C）を出すか。**どちらか一方でもあれば出す** ――
 		// extraScopes だけ渡して sectionGrouping を渡さなかったときに、節が黙って消えないようにする。
 		const grouped = sectionGrouping || extraScopes.length > 0;
+		// セット（段8・C-120。special だけ）。真のときは、選んでいる因子周回とその本育成編成（①）を1つの「セット」として扱う
+		// （①は setHub で選択に従う。②の「本育成編成」の小窓は無く、相手は常に同じセットの①）。Deck 単体ページは渡さない
+		const setBased = grouped && !!opts.setMode;
 		// 「?」で一覧を開いている節（C-2c）。保存しない（開き直すと閉じている）
 		let scopeHelpKey = null;
 
@@ -7586,6 +7736,8 @@
 			   **ここで呼ばないと、読み込んだ幅のままでは一度も測られない** ――
 			   window の resize でしか走らないので、その幅で開いた人には何も当たらなかった。 */
 			scanEntryRows();
+			// 段8: ①に、選んでいるセットを知らせる（変わったときだけ①が開き直す）
+			if (setBased) setHubPublish(currentTemplateId() || '');
 			fireViewChange('list');
 		}
 
@@ -7767,6 +7919,11 @@
 		}
 		/** 対象が使っている保存済みの編成。指す先が無ければ null（対象なしとして扱う。保存値は書き換えない） */
 		function linkedRosterOf(target) {
+			// 段8（setBased）: 相手は常に同じセットの①。下書きのセットは下書きの編成、保存済みは付いている編成（無ければ null＝①が空）
+			if (setBased) {
+				if (!target || target.kind === 'draft') return draftScopeKey ? loadDraftRoster(draftScopeKey) : null;
+				return setRosterOfTemplate(ensureUserData().templates.find(x => x.templateId === target.obj.templateId));
+			}
 			const id = storedBaseRosterIdOf(target);
 			return id ? findRoster(id) : null;
 		}
@@ -7783,22 +7940,21 @@
 			return true;
 		}
 		/** 選んだ編成の●（その編成の絞り込みの決まりで数えたもの）。編成パネルが無い画面・指す先が無いときは空 */
-		function rosterSureIdsOf(rosterId) {
-			if (!grouped || !rosterPtSource || !rosterId) return [];
-			const r = findRoster(rosterId);
-			return r ? rosterPtInputsOf(r).sureIds : [];
+		// 段8: 引数は編成そのもの（下書きの編成には保存済みの id が無いため）
+		function rosterSureIdsOf(r) {
+			if (!grouped || !rosterPtSource || !r) return [];
+			return rosterPtInputsOf(r).sureIds;
 		}
 		/** 選んだ編成で「取得しない」にしたスキル（段7c の M。いま●のものだけ）。追加の一覧では、本育成で得るものとは別の理由で選べなくする */
-		function rosterOffIdsOf(rosterId) {
-			if (!grouped || !rosterPtSource || !rosterId) return [];
-			const r = findRoster(rosterId);
-			return r ? rosterPtInputsOf(r).offIds : [];
+		function rosterOffIdsOf(r) {
+			if (!grouped || !rosterPtSource || !r) return [];
+			return rosterPtInputsOf(r).offIds;
 		}
 		/** 追加の一覧で選べなくするスキル（対象があるセットを編集しているときだけ）。モーダルが開いていれば描き直す（旧5）。 */
 		function applyRosterHidden() {
 			const linked = linkedRosterOf(currentTarget());
-			const sure = linked ? rosterSureIdsOf(linked.rosterId) : [];
-			const off = linked ? rosterOffIdsOf(linked.rosterId).filter(id => sure.indexOf(id) === -1) : [];
+			const sure = linked ? rosterSureIdsOf(linked) : [];
+			const off = linked ? rosterOffIdsOf(linked).filter(id => sure.indexOf(id) === -1) : [];
 			const next = sure.concat(off);
 			const changed = next.length !== pickerHiddenIds.length || next.some((id, i) => id !== pickerHiddenIds[i])
 				|| off.length !== pickerOffIds.length || off.some((id, i) => id !== pickerOffIds[i]);
@@ -7812,8 +7968,8 @@
 			if (!grouped || !rosterPtSource) { el.hidden = true; el.innerHTML = ''; return; }
 			const target = currentTarget();
 			const linked = linkedRosterOf(target);
-			const sure = new Set(linked ? rosterSureIdsOf(linked.rosterId) : []);
-			const offSet = new Set(linked ? rosterOffIdsOf(linked.rosterId) : []);
+			const sure = new Set(linked ? rosterSureIdsOf(linked) : []);
+			const offSet = new Set(linked ? rosterOffIdsOf(linked) : []);
 			const overlap = linked ? (skillIdsOf(target) || []).filter(id => sure.has(id)).length : 0;
 			const offIn = linked ? (skillIdsOf(target) || []).filter(id => offSet.has(id)).length : 0;
 			// 対象なし＝輪郭だけ（aria-pressed=false）。対象あり＝暗い塗りで「本育成編成：{編成の名前}」（長ければ省略記号。aria-pressed=true）。
@@ -7831,9 +7987,10 @@
 			const uq = resolveInheritedUnique(inheritedUniqueOf(target), skillPtData.rules);
 			const optList = (list, cur, fmt) => list.map(v => '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + fmt(v) + '</option>').join('');
 			let h = '<div class="usd-roster-linkrow usd-hscroll" data-usd-no-trim="1" data-usd-el="roster-link-row">'
-				+ '<button type="button" class="usd-roster-linkbtn" data-usd-act="roster-link" data-usd-el="roster-link-btn"'
+				// 段8（setBased）: 「本育成編成」のボタンと小窓は無い（相手は常に同じセットの①）
+				+ (setBased ? '' : '<button type="button" class="usd-roster-linkbtn" data-usd-act="roster-link" data-usd-el="roster-link-btn"'
 				+ ' aria-pressed="' + (linked ? 'true' : 'false') + '" aria-haspopup="dialog" aria-expanded="false" title="' + esc(fullLabel) + '" aria-label="' + esc(fullLabel) + '">'
-				+ '<span class="usd-roster-linkname">' + esc(label) + '</span></button>'
+				+ '<span class="usd-roster-linkname">' + esc(label) + '</span></button>')
 				+ '<span class="usd-uniq" role="group" aria-label="継承固有" data-usd-el="uniq">'
 				+ '<span class="usd-uniq-label">継承固有</span>'
 				+ '<select class="usd-uniq-sel" data-usd-act="uniq-count" data-usd-el="uniq-count" aria-label="継承固有の種類">' + optList(inheritedUniqueCountChoices(), uq.count, v => v + '種') + '</select>'
@@ -7885,7 +8042,7 @@
 			const target = currentTarget();
 			if (!writeBaseRosterId(target, rosterId)) return;
 			if (rosterId) {
-				const sure = new Set(rosterSureIdsOf(rosterId));
+				const sure = new Set(rosterSureIdsOf(findRoster(rosterId)));
 				const before = skillIdsOf(target) || [];
 				const drop = before.filter(id => sure.has(id));
 				if (drop.length > 0) {
@@ -8246,6 +8403,8 @@
 			if (target.kind === 'template') {
 				target.obj.name = value;
 				target.obj.updatedAt = nowIso();
+				// 段8（setBased）: 付いている編成の名前も同じにする
+				if (setBased) { const r = setRosterOfTemplate(target.obj); if (r) { r.name = String(value || ''); r.updatedAt = nowIso(); } }
 				saveUserData();
 				nameEdit = null;
 				render();
@@ -8271,6 +8430,8 @@
 		function resetDraft() {
 			const prev = draftScope.skillIds.slice();
 			draftScope = persistDraft([], '', {}, {}, null, null, null);
+			// 段8（setBased）: 「＋新規」は①の下書きと対なので、①も空に戻す（①を開き直させる）
+			if (setBased && draftScopeKey) { clearDraftRoster(draftScopeKey); setHubPublish('', true); }
 			picker.excludeIds = picker.excludeIds.filter(id => prev.indexOf(id) === -1);
 			selectedId = null;
 			render();
@@ -8295,7 +8456,8 @@
 				toast(setLabel + 'を保存しました');
 				return;
 			}
-			if (draftScope.skillIds.length === 0) { toast('スキルを1件以上選んでください'); return; }
+			// 段8（setBased）: ①だけのセットもあるので、②のスキルが0件でも保存できる
+			if (draftScope.skillIds.length === 0 && !setBased) { toast('スキルを1件以上選んでください'); return; }
 			if (data.templates.length >= TEMPLATE_LIMIT) {
 				toast(setLabel + 'は最大' + TEMPLATE_LIMIT + '件までです。不要なものを削除してください');
 				return;
@@ -8307,7 +8469,20 @@
 			setTemplateScopes(t, draftScope.scopes || {});
 			if (typeof draftScope.parentHintLevel === 'number') t.parentHintLevel = draftScope.parentHintLevel;   // 親由来のレベル F（段5）
 			if (draftScope.inheritedUnique && typeof draftScope.inheritedUnique === 'object') t.inheritedUnique = Object.assign({}, draftScope.inheritedUnique);   // 継承固有（段7d の ⑪）
-			if (typeof draftScope.baseRosterId === 'string' && draftScope.baseRosterId) t.baseRosterId = draftScope.baseRosterId;   // 「本育成編成」の対象（段7b の ⑬）
+			if (setBased) {
+				// 段8: 下書きの①（編成）に中身があれば、写し（新しい rosterId・名前はセット名）を作ってこのセットに付ける。下書きの①はそのまま残す
+				const dr = draftScopeKey ? loadDraftRoster(draftScopeKey) : null;
+				if (rosterHasContent(dr)) {
+					const r = Object.assign(emptyRoster(), snapshot(dr));
+					r.rosterId = uid('roster');
+					r.name = String(nameToSave || '');
+					r.createdAt = r.updatedAt = nowIso();
+					data.rosters = data.rosters || [];
+					data.rosters.push(r);
+					t.baseRosterId = r.rosterId;
+					if (!(data.schemaVersion >= 6)) data.schemaVersion = 6;
+				}
+			} else if (typeof draftScope.baseRosterId === 'string' && draftScope.baseRosterId) t.baseRosterId = draftScope.baseRosterId;   // 「本育成編成」の対象（段7b の ⑬）
 			data.templates.push(t);
 			saveUserData();
 			if (grouped) {
@@ -8671,6 +8846,8 @@
 			if (idx === -1) return;
 			const removed = snapshot(data.templates[idx]);
 			const label = removed.name || '（名称未設定）';
+			// 段8（setBased）: セットの削除は、付いている①の編成も一緒に消す（「元に戻す」で両方戻る）
+			const removedRoster = setBased ? (setRosterOfTemplate(removed) ? snapshot(setRosterOfTemplate(removed)) : null) : null;
 			pushUndo({
 				scope: 'list',
 				doneLabel: setLabel + '「' + label + '」を削除しました',
@@ -8685,6 +8862,7 @@
 					if (d.templates.some(x => x.templateId === templateId)) return false;
 					if (d.templates.length >= TEMPLATE_LIMIT) return false;
 					d.templates.splice(Math.min(idx, d.templates.length), 0, snapshot(removed));
+					if (removedRoster && !(d.rosters || []).some(x => x.rosterId === removedRoster.rosterId)) { d.rosters = d.rosters || []; d.rosters.push(snapshot(removedRoster)); }
 					saveUserData();
 					// 戻したものを選び直す
 					selectedId = templateId;
@@ -8695,6 +8873,7 @@
 				}
 			});
 			data.templates.splice(idx, 1);
+			if (removedRoster) data.rosters = (data.rosters || []).filter(x => x.rosterId !== removedRoster.rosterId);
 			saveUserData();
 			// 消したあとは「＋ 新規」（ドラフト）へ
 			selectedId = draftScope.skillIds.length > 0 ? DRAFT_SELECTION_ID : null;
@@ -9036,7 +9215,11 @@
 		DRAFT_SELECTION_ID: DRAFT_SELECTION_ID,
 
 		// 設定
-		configure: function (next) { config = Object.assign({}, config, next || {}); },
+		configure: function (next) {
+			config = Object.assign({}, config, next || {});
+			// 段8（C-120）の移行で読み込まなかったぶんの知らせ（トーストが差し込まれてから1回だけ）
+			if (next && typeof next.toast === 'function') { ensureUserData(); flushMigrationNotice(); }
+		},
 
 		// ユーティリティ（呼び出し元でも同じ実装を使いたいもの）
 		uid: uid,

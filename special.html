@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-03j"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-03k"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<style>
@@ -3149,6 +3149,8 @@
 						// 名前つきのタブ（✎ ✓ ↩ ×）の確認・ボタンの呼び名（段7b の ⑫。①の「編成」に当たる）。
 						// 因子セット（setLabel）は入れ物の呼び名のままで、画面の文言のうち「周回因子セット」だった所は「因子周回」にした（⑪）
 						tabNoun: '因子周回',
+						// 段8（C-120）: 因子周回と本育成編成（①）を1つの「セット」として扱う（①は選んでいる因子周回の編成を開く）
+						setMode: true,
 						// A（スキルセット）を「同じ層に並ぶ選択肢の1つ」として見せる（見出し＋出っ張り＋枠。段K）。
 						// ②には B（シナリオ因子）・C（遺伝子）が同じ行に並ぶので、どこまでが A なのかが要る。
 						// Deck 単体ページは A しか無いので渡さない（枠も出っ張りも出ない）。
@@ -3187,6 +3189,8 @@
 					{
 						// 「＋新規」の中身（未保存の編成）をブラウザに残す（C-53。タブを切り替えても消えない）
 						draftKey: DECK_DRAFT_SCOPE_KEY,
+						// 段8（C-120）: 編成のタブを出さず、②で選んでいるセットの編成を開く
+						setMode: true,
 						// 表に出ている●の数を①のタブの項目名の脇に出す（C-62 の (5) → 段7の (2)）
 						onSureCountChange: (n) => updateRosterBadge(n)
 						// **段7（2026-10-03）で getScopeSkillIds・getScopeChoices・onRemoveFromScope・onHiddenIdsChange を外した。**
