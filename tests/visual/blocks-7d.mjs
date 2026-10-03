@@ -1,7 +1,7 @@
 // 段7d（2026-10-03・C-116）の検査。run-smoke.mjs の末尾から register7d() で呼ばれる（塊の見出しはすべて「段7d」を含むので、
 // `npm run test:visual -- --only=段7d` で全部、`--only=段7d(B)` のように括弧つきの見出しで1つずつ回せる）。
 //
-//   A  トレセン軒のいいとこ入った！（①）／前回のタブ（③）／絞り込みのセレクトの色（④）／ヘッダーのバッジ（⑦）／2文字の名前（⑧）
+//   A  トレセン軒のいいとこ入った！（①）／前回のタブ（③）／絞り込みのセレクトの色（④）／ヘッダーのバッジ（⑦→追加・B で「β版」＋ピル「2nd Edition」）／2文字の名前（⑧）
 //   B  選ぶ必要のあるイベントの判定（⑤）／②が数える本育成の Pt＝①の数字（⑥）／種数の数え方（⑫）／前段の1行（②）
 //   C  必要スキルPt のチップ（⑨）／本育成編成のボタン（⑩）／継承固有（⑪）／②の行の Pt と名前の小窓（⑬）／削除したもの（⑭⑮）／縦の高さ
 //
@@ -91,8 +91,14 @@ export async function register7d(env) {
 	const readNeed = (page) => page.evaluate(() => {
 		const el = document.querySelector('[data-usd-el="pt-need"]');
 		if (!el || el.hidden) return { hidden: true };
-		const chips = [1, 2, 3].map((k) => { const e = el.querySelector('[data-usd-el="pt-need-' + k + '"]'); return e ? { text: e.textContent.trim(), n: Number(e.querySelector('strong').textContent.replace(/[^0-9]/g, '')), top: Math.round(e.getBoundingClientRect().top) } : null; });
-		return { hidden: false, chips };
+		// チップの数字は「そのランクのぶんだけ」（段7d の追加・A）。cum はそのランクまでの累計（data-cum）
+		const chip = (e) => (e ? { text: e.textContent.trim(), n: Number(e.querySelector('strong').textContent.replace(/[^0-9-]/g, '')), cum: e.hasAttribute('data-cum') ? Number(e.getAttribute('data-cum')) : null, top: Math.round(e.getBoundingClientRect().top) } : null);
+		const chips = [1, 2, 3].map((k) => chip(el.querySelector('[data-usd-el="pt-need-' + k + '"]')));
+		const uniq = chip(el.querySelector('[data-usd-el="pt-need-uniq"]'));
+		// 合計は2か所（行の右・見出しの行の右端）にあり、CSS が片方だけ見せる。見えているほうを読む
+		const vis = ['pt-total-row', 'pt-total-head'].map((k) => document.querySelector('[data-usd-el="' + k + '"]')).find((e) => e && e.getClientRects().length > 0);
+		const total = vis ? { where: vis.getAttribute('data-usd-el'), text: vis.textContent.replace(/\s+/g, ' ').trim(), n: Number(vis.querySelector('[data-usd-el="pt-total-num"]').textContent.replace(/[^0-9-]/g, '')), top: Math.round(vis.getBoundingClientRect().top) } : null;
+		return { hidden: false, chips, uniq, total };
 	});
 	const linkBtn = (page) => page.evaluate(() => { const b = document.querySelector('[data-usd-el="roster-link-btn"]'); return { text: b.textContent.trim(), title: b.title, pressed: b.getAttribute('aria-pressed') }; });
 	const link = async (page, n) => { await page.click('[data-usd-el="roster-link-btn"]'); await page.waitForTimeout(150); await page.click('[data-usd-el="link-list"] label:nth-child(' + n + ')'); await page.waitForTimeout(300); };
@@ -157,21 +163,38 @@ export async function register7d(env) {
 			assert(!(await sel('distance')).on, '「指定なし」に戻すと元の見た目に戻る');
 			await sp.ctx.close();
 		}
-		// ⑦ ヘッダーのバッジ「β版（2nd Edition）」: 広い幅は exam の「β版」と同じ大きさ。狭い幅は収まる（350px 以下は「β版」だけ）
+		// ⑦ → 段7d の追加・B: ヘッダーは「β版」と、その右のピル「2nd Edition」（exam の「β版」「新UI」と同じ形式）。
+		//    「β版」は exam と同じ文字の大きさ、ピルは exam の「新UI」と同じ高さ・フォントサイズ・太さ。色は special の緑（--uma-accent-soft）。
+		//    ヘッダーの高さは増えない（実測の基準: 1280px 104px／700px 80px／640px 以下 47px）。323px 以上はピルの文字が全部入り、322px 以下だけ「2nd」
 		{
 			const exam = await openPage(browser, base, 'exam.html', { width: 1280, height: 800 });
-			const examSize = await exam.page.evaluate(() => { const h1 = document.querySelector('header h1'); const sp = Array.from(h1.querySelectorAll('span')).find((s) => s.textContent.trim() === 'β版'); return sp ? getComputedStyle(sp).fontSize : null; });
+			const ref = await exam.page.evaluate(() => {
+				const h1 = document.querySelector('header h1'); const beta = Array.from(h1.querySelectorAll('span')).find((s) => s.textContent.trim() === 'β版');
+				const b = document.getElementById('ui-mode-badge'); b.hidden = false;
+				const cs = getComputedStyle(b); const r = b.getBoundingClientRect();
+				return { beta: getComputedStyle(beta).fontSize, fs: cs.fontSize, fw: cs.fontWeight, h: Math.round(r.height * 10) / 10, cls: Array.from(b.classList).filter((c) => c === 'ui-mode-badge' || c === 'rounded-full').join() };
+			});
 			await exam.ctx.close();
-			for (const [w, h] of [[1280, 800], [700, 800], [390, 800], [375, 800], [360, 800], [320, 800]]) {
-				const sp = await open({ w, h });
-				const m = await sp.page.evaluate(() => { const b = document.querySelector('header .header-edition'); const hd = document.querySelector('header'); const hr = hd.getBoundingClientRect(); const br = b.getBoundingClientRect();
-					return { text: b.textContent.trim(), inner: b.innerText.trim(), size: getComputedStyle(b).fontSize, hdH: hr.height, badgeRight: br.right, hdRight: hr.right, title: document.title, docW: document.documentElement.scrollWidth, iw: innerWidth }; });
-				assert(m.text === 'β版（2nd Edition）' && !m.text.includes('2nd edition β版') && m.title.includes('2nd Edition'), '段7d(A)⑦ ' + w + 'px: バッジは「β版（2nd Edition）」', m);
-				if (w >= 768) assert(m.size === examSize, w + 'px: 大きさは exam.html の「β版」と同じ（' + examSize + '）', { size: m.size, examSize });
-				if (w <= 640) assert(m.size === '11px', w + 'px: スマホでは 11px のまま', m.size);
-				if (w <= 350) assert(m.inner === 'β版', w + 'px: 350px 以下は「β版」だけ（収まらないため）', m.inner);
-				else assert(m.inner === 'β版（2nd Edition）', w + 'px: 351px 以上は「β版（2nd Edition）」が収まる', m.inner);
-				assert(m.badgeRight <= m.hdRight && m.docW <= m.iw && (w > 640 || m.hdH <= 48), w + 'px: ヘッダーに収まり、横にはみ出さない（スマホでは高さ 48px 以下。実測 ' + m.hdH + 'px）', m);
+			assert(ref.fs === '10px' && ref.fw === '700' && ref.h > 20 && ref.cls === 'ui-mode-badge,rounded-full', '段7d追加(B) 前提: exam の「新UI」（ui-mode-badge）は 10px／太字(700)／高さ ' + ref.h + 'px', ref);
+			const HD = (w) => (w >= 1000 ? 104 : w > 640 ? 80 : 47);
+			for (const w of [1280, 700, 390, 375, 360, 323, 322, 300]) {
+				const sp = await open({ w, h: 800 });
+				const m = await sp.page.evaluate(() => {
+					const pill = document.querySelector('header .header-edition-pill'); const beta = document.querySelector('header .header-edition'); const hd = document.querySelector('header'); const h1 = document.querySelector('header h1');
+					const cs = getComputedStyle(pill); const pr = pill.getBoundingClientRect(); const probe = document.createElement('i'); probe.style.cssText = 'background:var(--uma-accent-soft);color:var(--uma-accent-soft-text)'; document.body.appendChild(probe);
+					const pc = getComputedStyle(probe); const soft = { bg: pc.backgroundColor, color: pc.color }; probe.remove();
+					const btnLeft = Math.min(...Array.from(hd.querySelectorAll('button')).map((b) => b.getBoundingClientRect().left).filter((x) => x > 0));
+					return { tag: pill.tagName, full: pill.innerText.replace(/\s+/g, ' ').trim(), insideH1: h1.contains(pill), fs: cs.fontSize, fw: cs.fontWeight, h: Math.round(pr.height * 10) / 10, cursor: cs.cursor, bg: cs.backgroundColor, color: cs.color, soft, betaFs: getComputedStyle(beta).fontSize, betaText: beta.textContent.trim(),
+						hdH: Math.round(hd.getBoundingClientRect().height), pillRight: pr.right, btnLeft, sameRow: Math.abs((pr.top + pr.height / 2) - (beta.getBoundingClientRect().top + beta.getBoundingClientRect().height / 2)) < 8, title: document.title, docW: document.documentElement.scrollWidth, iw: innerWidth };
+				});
+				const tag = '段7d追加(B) ' + w + 'px: ';
+				assert(m.betaText === 'β版' && !m.insideH1 && m.tag === 'SPAN' && m.title.includes('2nd Edition'), tag + 'h1 の中は「β版」、ピル「2nd Edition」は h1 の外（文字の抜きグラデーションを受けない）にある。押せるものではない（span）', m);
+				assert(m.fs === ref.fs && m.fw === ref.fw && m.h === ref.h, tag + 'ピルのフォントサイズ（' + m.fs + '）・太さ（' + m.fw + '）・高さ（' + m.h + 'px）は exam の「新UI」と同じ', { m: [m.fs, m.fw, m.h], ref });
+				assert(m.bg === m.soft.bg && m.color === m.soft.color && m.cursor === 'default', tag + 'ピルの色は special の緑（--uma-accent-soft／--uma-accent-soft-text）。手のカーソルにならない', { bg: m.bg, color: m.color, soft: m.soft, cursor: m.cursor });
+				const wantBeta = w >= 768 ? ref.beta : w > 640 ? '14px' : '11px';   // exam と同じ（768px 以上 16px／それ未満 14px）。640px 以下は詰めて 11px
+				assert(m.betaFs === wantBeta, tag + '「β版」の大きさ ' + wantBeta + (w > 640 ? '（exam と同じ）' : '（スマホは 11px）'), m.betaFs);
+				assert(m.full === (w >= 323 ? '2nd Edition' : '2nd'), tag + (w >= 323 ? 'ピルは「2nd Edition」（全部入る）' : '全部は入らない幅（322px 以下）だけ「2nd」'), m.full);
+				assert(m.hdH === HD(w) && m.pillRight <= m.btnLeft - 4 && m.sameRow && m.docW <= m.iw, tag + 'ヘッダーの高さは ' + HD(w) + 'px のまま（実測 ' + m.hdH + 'px）。ピルは右のボタンの手前（余白 ' + Math.round(m.btnLeft - m.pillRight) + 'px）で、「β版」と同じ行に並び、横にはみ出さない', m);
 				await sp.ctx.close();
 			}
 		}
@@ -259,7 +282,7 @@ export async function register7d(env) {
 				const stLabel = (rules.statuses.find((s) => s.id === c.st) || {}).label;   // 「なし」のときは状態と「_」を省く
 				assert(num(bt.text) === total1 && bt.text === '本育成編成：' + (stLabel && c.st !== 'none' ? stLabel + '_' : '') + fmt(total1) + ' Pt', tag + '本育成編成のボタンの Pt が①の「X Pt/N種」の X と同じ（' + fmt(total1) + '）', { ptn: s1.total, btn: bt.text });
 				const u = UNIQ(6, 3, c.st);
-				assert(!n.hidden && n.chips.every((x) => x.n === total1 + u), tag + '②の必要スキルPt（＋超優先・＋優先・＋通常）は、①の数字（' + fmt(total1) + '）＋継承固有（' + fmt(u) + '）', { chips: n.chips.map((x) => x.n), total1, u });
+				assert(!n.hidden && n.uniq.n === u && n.chips.every((x) => x.n === 0) && n.total.n === total1 + u, tag + '②の合計は、①の数字（' + fmt(total1) + '）＋継承固有（' + fmt(u) + '）。スキルを入れていないので 超優先・優先・通常 は 0', { total: n.total, uniq: n.uniq.n, chips: n.chips.map((x) => x.n), total1, u });
 				await sp.ctx.close();
 			}
 			// 本育成編成が「なし」: 編成の Pt は 0（①で選択中の編成の Pt は入らない）。スキル0種で本育成編成なしなら、必要スキルPt は出ない
@@ -271,14 +294,14 @@ export async function register7d(env) {
 			await sp.ctx.close();
 			sp = await open({ w: 375, h: 812, userData: baseUser({ rosters: [mkRoster(0, null, { pt: { umaHintLevel: 3, status: 'kire' } })] }), tab: 1, scope: { skillIds: [W[8]], name: '', tiers: {}, updatedAt: '' } });
 			n = await readNeed(sp.page);
-			assert(!n.hidden && n.chips[0].n === UNIQ(6, 3, 'none') && n.chips[1].n === pay(180, 5, 'none') + UNIQ(6, 3, 'none') && n.chips[2].n === n.chips[1].n,
-				'本育成編成が「なし」のセットは、①で選択中の編成の Pt を足さない（因子のスキル W8 は親由来 Lv5 で ' + pay(180, 5, 'none') + ' Pt＋継承固有のみ）', n.chips.map((x) => x.n));
+			assert(!n.hidden && n.uniq.n === UNIQ(6, 3, 'none') && n.chips[0].n === 0 && n.chips[1].n === pay(180, 5, 'none') && n.chips[2].n === 0 && n.total.n === UNIQ(6, 3, 'none') + pay(180, 5, 'none'),
+				'本育成編成が「なし」のセットは、①で選択中の編成の Pt を足さない（因子のスキル W8 は優先で親由来 Lv5 の ' + pay(180, 5, 'none') + ' Pt＋継承固有のみ。超優先・通常は 0）', { chips: n.chips.map((x) => x.n), uniq: n.uniq.n, total: n.total.n });
 			await link(sp.page, 2);
 			n = await readNeed(sp.page);
-			assert(n.chips[0].n > UNIQ(6, 3, 'kire'), '本育成編成を選ぶと、編成の Pt が加わる（切れ者の編成）', n.chips.map((x) => x.n));
+			assert(n.total.n > UNIQ(6, 3, 'kire') + pay(180, 5, 'kire'), '本育成編成を選ぶと、編成の Pt が合計に加わる（切れ者の編成）', n.total);
 			await link(sp.page, 1);
 			n = await readNeed(sp.page);
-			assert(n.chips[0].n === UNIQ(6, 3, 'none'), '「なし」に戻すと、編成の Pt は 0 に戻る（①の編成には戻らない）', n.chips.map((x) => x.n));
+			assert(n.uniq.n === UNIQ(6, 3, 'none') && n.total.n === UNIQ(6, 3, 'none') + pay(180, 5, 'none'), '「なし」に戻すと、編成の Pt は 0 に戻る（①の編成には戻らない）', { uniq: n.uniq.n, total: n.total.n });
 			await sp.ctx.close();
 		}
 
@@ -342,8 +365,8 @@ export async function register7d(env) {
 			const sp = await open({ w, h: w === 375 ? 812 : 900, tab: 1, userData: UD, scope: scopeA });
 			// ⑨⑩ チップ・ボタンの文言
 			let n = await readNeed(sp.page);
-			assert(n.chips.map((c) => c.text.replace(/\s+/g, ' ')).join('|') === ['＋超優先：' + fmt(n.chips[0].n) + ' Pt', '＋優先：' + fmt(n.chips[1].n) + ' Pt', '＋通常：' + fmt(n.chips[2].n) + ' Pt'].join('|'),
-				tag + 'チップは「＋超優先：X,XXX Pt」「＋優先：…」「＋通常：…」（＋と：は全角。数字と Pt の間は空白）', n.chips.map((c) => c.text));
+			assert([n.uniq].concat(n.chips).map((c) => c.text.replace(/\s+/g, ' ')).join('|') === ['継承固有：' + fmt(n.uniq.n) + ' Pt', '＋超優先：' + fmt(n.chips[0].n) + ' Pt', '＋優先：' + fmt(n.chips[1].n) + ' Pt', '＋通常：' + fmt(n.chips[2].n) + ' Pt'].join('|'),
+				tag + 'チップは左から「継承固有：X Pt」「＋超優先：X,XXX Pt」「＋優先：…」「＋通常：…」（＋と：は全角。数字と Pt の間は空白）', [n.uniq].concat(n.chips).map((c) => c.text));
 			let b = await linkBtn(sp.page);
 			assert(b.text === '本育成編成' && b.pressed === 'false', tag + '編成を選んでいないときは「本育成編成」だけ', b);
 			await link(sp.page, 2);
@@ -357,18 +380,20 @@ export async function register7d(env) {
 			assert(u0.label === '継承固有' && u0.cnt === '6' && u0.lv === '3' && u0.cntOpts.join() === '2種,3種,4種,5種,6種' && u0.lvOpts.join() === 'Lv1,Lv2,Lv3,Lv4,Lv5' && u0.sameRow && u0.hEq,
 				tag + '「継承固有」は［ラベル｜種類 2〜6（既定 6）｜ヒントLv 1〜5（既定 3）］で、本育成編成のボタンと同じ行・同じ高さ', u0);
 			n = await readNeed(sp.page);
-			const base6 = n.chips[0].n - UNIQ(6, 3, 'kire');
-			assert(base6 > 0 && n.chips[1].n - UNIQ(6, 3, 'kire') >= base6, tag + '必要スキルPt に継承固有（6種×基礎200・Lv3・切れ者の割引 = ' + fmt(UNIQ(6, 3, 'kire')) + ' Pt）が足されている', { chips: n.chips.map((c) => c.n) });
+			const X = num(b.text);   // 本育成編成のボタンの Pt（①の「X Pt/N種」と同じ値）
+			const tiersSum = () => n.chips.reduce((t, c) => t + c.n, 0);
+			const base6 = tiersSum();
+			assert(base6 > 0 && n.uniq.n === UNIQ(6, 3, 'kire') && n.total.n === X + n.uniq.n + base6, tag + '継承固有（6種×基礎200・Lv3・切れ者の割引 = ' + fmt(UNIQ(6, 3, 'kire')) + ' Pt）は継承固有のチップに出て、合計 = 本育成編成 ' + fmt(X) + ' ＋ 継承固有 ＋ 超優先 ＋ 優先 ＋ 通常', { X, uniq: n.uniq.n, tiers: n.chips.map((c) => c.n), total: n.total.n });
 			let st = await draftScope(sp.page);
 			assert(!('inheritedUnique' in (st || {})), tag + '触っていないときは inheritedUnique を保存しない', st);
 			await sp.page.selectOption(T + '[data-usd-el="uniq-count"]', '3');
 			await sp.page.waitForTimeout(150);
 			n = await readNeed(sp.page);
-			assert(n.chips[0].n === base6 + UNIQ(3, 3, 'kire'), tag + '種類を 3種 にすると、継承固有は 3種ぶん（' + fmt(UNIQ(3, 3, 'kire')) + ' Pt）', n.chips.map((c) => c.n));
+			assert(n.uniq.n === UNIQ(3, 3, 'kire') && n.total.n === X + UNIQ(3, 3, 'kire') + base6 && tiersSum() === base6, tag + '種類を 3種 にすると、継承固有は 3種ぶん（' + fmt(UNIQ(3, 3, 'kire')) + ' Pt）。ランクのチップは変わらない', { uniq: n.uniq.n, total: n.total.n });
 			await sp.page.selectOption(T + '[data-usd-el="uniq-level"]', '5');
 			await sp.page.waitForTimeout(150);
 			n = await readNeed(sp.page);
-			assert(n.chips[0].n === base6 + UNIQ(3, 5, 'kire'), tag + 'ヒントLv を Lv5 にすると、Lv5 の割引（' + fmt(UNIQ(3, 5, 'kire')) + ' Pt）', n.chips.map((c) => c.n));
+			assert(n.uniq.n === UNIQ(3, 5, 'kire') && n.total.n === X + UNIQ(3, 5, 'kire') + base6, tag + 'ヒントLv を Lv5 にすると、Lv5 の割引（' + fmt(UNIQ(3, 5, 'kire')) + ' Pt）', { uniq: n.uniq.n, total: n.total.n });
 			st = await draftScope(sp.page);
 			assert(JSON.stringify(st.inheritedUnique) === JSON.stringify({ count: 3, hintLevel: 5 }), tag + '保存はセットごと（inheritedUnique: { count, hintLevel }）', st.inheritedUnique);
 			await sp.page.selectOption(T + '[data-usd-el="uniq-count"]', '6');
@@ -387,7 +412,7 @@ export async function register7d(env) {
 			await sp.page.selectOption(T + '[data-usd-el="uniq-count"]', '4');
 			await sp.page.waitForTimeout(100);
 			n = await readNeed(sp.page);
-			assert(n.chips[0].n === UNIQ(4, 3, 'none'), tag + '本育成編成が「なし」のときは割引なし（4種×Lv3 = ' + fmt(UNIQ(4, 3, 'none')) + ' Pt）', n.chips.map((c) => c.n));
+			assert(n.uniq.n === UNIQ(4, 3, 'none') && n.total.n === n.uniq.n + tiersSum(), tag + '本育成編成が「なし」のときは割引なし（4種×Lv3 = ' + fmt(UNIQ(4, 3, 'none')) + ' Pt）。本育成の項は 0（合計 = 継承固有 ＋ 超優先 ＋ 優先 ＋ 通常）', { uniq: n.uniq.n, total: n.total.n, tiers: n.chips.map((c) => c.n) });
 			// ⑭⑮ 削除したもの
 			await link(sp.page, 2);
 			const gone = await sp.page.evaluate(() => ({ notice: !!document.querySelector('[data-usd-el="roster-link-notice"]'), undo: !!document.querySelector('[data-usd-act="roster-link-undo"]'), dup: !!document.querySelector('#deck-template-panel [data-usd-act="template-duplicate"]'), dupRow: !!document.querySelector('[data-usd-el="tm-actions"]'),
@@ -453,18 +478,128 @@ export async function register7d(env) {
 				sp = await open({ w, h, tab: 1, userData: UD, routes: { scenDoc: scenReal }, scope: { skillIds: [W[8], W[4]], name: '', tiers: {}, updatedAt: '' } });
 				await link(sp.page, 2);
 				const l = await sp.page.evaluate(() => Math.round(document.querySelector('#deck-template-panel [data-usd-el="selected-list"]').getBoundingClientRect().top + scrollY));
-				const chipTops = (await readNeed(sp.page)).chips.map((c) => c.top);
+				const need = await readNeed(sp.page);
+				const chipTops = [need.uniq].concat(need.chips).map((c) => c.top);
 				const rowTops = await sp.page.evaluate(() => ['roster-link-btn', 'uniq'].map((k) => Math.round(document.querySelector('[data-usd-el="' + k + '"]').getBoundingClientRect().top)));
 				const hs = await SP(sp.page);
 				out.push({ w, h, grid: g, list: l });
 				assert(g <= 383, '段7d(C) ' + w + '×' + h + ': ①の表より上の高さ ' + g + 'px は段7c（383px）以下', { g });
 				assert(l <= 474, '段7d(C) ' + w + '×' + h + ': ②の追加済みスキルより上の高さ ' + l + 'px は段7c（474px）以下', { l });
-				assert(chipTops[0] === chipTops[1] && chipTops[1] === chipTops[2], '3つのチップは1行', chipTops);
+				assert(new Set(chipTops).size === 1, '継承固有と3つのチップは1行（収まらないときはその行だけ横に送る）', chipTops);
 				assert(rowTops[0] === rowTops[1], '本育成編成のボタンと継承固有は1行（375px）', rowTops);
 				assert(hs.sw <= hs.iw, '横にはみ出さない', hs);
 				await sp.ctx.close();
 			}
 			console.log('     [実測] 375px の表より上の高さ（段7c: ① 383px／② 474px）: ' + out.map((o) => o.w + '×' + o.h + ' ①' + o.grid + 'px ②' + o.list + 'px').join('・'));
+		}
+	});
+
+	/* ============================================================
+	 * 段7d の追加・A. ②因子周回の必要スキルPt の見せ方
+	 *   チップ＝継承固有 → ＋超優先 → ＋優先 → ＋通常（それぞれそのランクのぶんだけ）／合計＝本育成編成 ＋ 継承固有 ＋ 超優先 ＋ 優先 ＋ 通常
+	 *   合計は広い幅では「スキルセット　□シナリオ因子 ?　□遺伝子 ?」の行の右、狭い幅（520px 以下）では見出しの行の右端。（?）の小窓に式と累計
+	 * ============================================================ */
+	await block('段7d追加(A) 必要スキルPtの見せ方（継承固有・ランクごとのチップ・合計・内訳の小窓）', async () => {
+		const stepNone = mkStep([]);   // 前段なし（ランクごとの値を、スキル単体の Pt で独立に計算できる）
+		const ptX = mkPt({}, { [W[9]]: 140, [W[10]]: 90 });
+		const scope = { skillIds: [W[8], W[4], W[9], W[10]], name: '', tiers: { [W[8]]: 1, [W[9]]: 3, [W[10]]: 3 }, updatedAt: '' };   // 超優先 W8／優先 W4／通常 W9・W10
+		const STS = [{ id: 'kire', label: '切れ者' }, { id: 'benkyo', label: '勉強家' }, { id: 'none', label: 'なし' }];
+		const UD = baseUser({ rosters: STS.map((s, i) => mkRoster(i, null, { name: '編成' + s.label, pt: { umaHintLevel: 3, status: s.id } })) });
+		const own = (st) => [pay(180, 5, st), pay(160, 5, st), pay(140, 5, st) + pay(90, 5, st)];   // 超優先・優先・通常（親由来のレベル 5）
+		const popText = async (page) => {
+			await page.evaluate(() => { const e = ['pt-total-row', 'pt-total-head'].map((k) => document.querySelector('[data-usd-el="' + k + '"]')).find((x) => x && x.getClientRects().length > 0); e.querySelector('button').click(); });
+			await page.waitForTimeout(250);
+			const r = await page.evaluate(() => { const pop = document.querySelector('[data-usd-el="info-pop"]'); const t = (k) => { const e = pop && pop.querySelector('[data-usd-el="' + k + '"]'); return e ? e.textContent.trim() : null; };
+				return { open: !!pop && !pop.hidden, title: pop ? pop.querySelector('.uma-popover-title').textContent.trim() : null, formula: t('info-total-formula'), cum: t('info-total-cumulative') }; });
+			await page.keyboard.press('Escape');
+			await page.waitForTimeout(150);
+			return r;
+		};
+		for (const w of [375, 1280]) {
+			const tag = '段7d追加(A) ' + w + 'px: ';
+			const sp = await open({ w, h: w === 375 ? 812 : 900, tab: 1, userData: UD, routes: { stepDoc: stepNone, ptDoc: ptX }, scope });
+			// (b) 本育成編成が「なし」: 本育成の項は 0。合計 = 継承固有 ＋ 超優先 ＋ 優先 ＋ 通常
+			let n = await readNeed(sp.page);
+			let o = own('none');
+			const U6 = UNIQ(6, 3, 'none');
+			assert(n.uniq.n === U6 && n.chips.map((c) => c.n).join() === o.join() && n.total.n === U6 + o[0] + o[1] + o[2],
+				tag + '(b) 本育成編成が「なし」: 継承固有 ' + fmt(U6) + '・超優先 ' + fmt(o[0]) + '・優先 ' + fmt(o[1]) + '・通常 ' + fmt(o[2]) + '。合計 ' + fmt(U6 + o[0] + o[1] + o[2]) + '（本育成の項は 0）', { uniq: n.uniq.n, chips: n.chips.map((c) => c.n), total: n.total });
+			assert([n.uniq].concat(n.chips).map((c) => c.text.replace(/\s+/g, ' ')).join('|') === ['継承固有：' + fmt(U6) + ' Pt', '＋超優先：' + fmt(o[0]) + ' Pt', '＋優先：' + fmt(o[1]) + ' Pt', '＋通常：' + fmt(o[2]) + ' Pt'].join('|'),
+				tag + '左から「継承固有：N Pt」「＋超優先：N Pt」「＋優先：N Pt」「＋通常：N Pt」（＋と：は全角。数字と Pt の間は空白）', [n.uniq].concat(n.chips).map((c) => c.text));
+			assert([n.uniq].concat(n.chips).map((c) => c.cum).slice(1).join() === [U6 + o[0], U6 + o[0] + o[1], U6 + o[0] + o[1] + o[2]].join(), tag + '累計（data-cum）は 超優先まで・優先まで・通常まで', n.chips.map((c) => c.cum));
+			const wantWhere = w <= 520 ? 'pt-total-head' : 'pt-total-row';
+			assert(n.total.where === wantWhere && /^合計： ?[0-9,]+ Pt ?\??$/.test(n.total.text.replace(/\s*\?$/, '')) && n.total.text.startsWith('合計：'),
+				tag + '合計「合計：N Pt」は' + (w <= 520 ? '「必要スキルPt［理論値］?」の見出しの行の右端' : '「スキルセット　□シナリオ因子 ?　□遺伝子 ?」の行の右') + 'に出る（もう片方は見えない）', n.total);
+			let pop = await popText(sp.page);
+			assert(pop.open && pop.formula === '合計 ＝ 本育成編成 0 ＋ 継承固有 ' + fmt(U6) + ' ＋ 超優先 ' + fmt(o[0]) + ' ＋ 優先 ' + fmt(o[1]) + ' ＋ 通常 ' + fmt(o[2])
+				&& pop.cum === '超優先まで ' + fmt(U6 + o[0]) + '／優先まで ' + fmt(U6 + o[0] + o[1]) + '／通常まで ' + fmt(U6 + o[0] + o[1] + o[2]),
+				tag + '（?）の小窓: 式「合計 ＝ 本育成編成 0 ＋ 継承固有 … ＋ 超優先 … ＋ 優先 … ＋ 通常 …」と、累計「超優先まで／優先まで／通常まで」', pop);
+			// (a) 本育成編成を選ぶ（切れ者）: 合計 = 本育成編成（①の X）＋ 継承固有 ＋ 超優先 ＋ 優先 ＋ 通常
+			for (const [i, st] of [[2, 'kire'], [3, 'benkyo']]) {
+				await link(sp.page, i);
+				const X = num((await linkBtn(sp.page)).text);
+				n = await readNeed(sp.page);
+				o = own(st);
+				const U = UNIQ(6, 3, st);
+				assert(X > 0 && n.uniq.n === U && n.chips.map((c) => c.n).join() === o.join() && n.total.n === X + U + o[0] + o[1] + o[2],
+					tag + '(a) 本育成編成（' + st + '）: 合計 ' + fmt(n.total.n) + ' = 本育成編成 ' + fmt(X) + ' ＋ 継承固有 ' + fmt(U) + ' ＋ ' + o.map(fmt).join(' ＋ '), { X, uniq: n.uniq.n, chips: n.chips.map((c) => c.n), total: n.total.n });
+				pop = await popText(sp.page);
+				assert(pop.formula === '合計 ＝ 本育成編成 ' + fmt(X) + ' ＋ 継承固有 ' + fmt(U) + ' ＋ 超優先 ' + fmt(o[0]) + ' ＋ 優先 ' + fmt(o[1]) + ' ＋ 通常 ' + fmt(o[2]) && pop.cum.endsWith('通常まで ' + fmt(n.total.n)),
+					tag + '（?）の小窓の式も同じ数字（' + st + '）', pop);
+			}
+			// (c) 継承固有の種類・ヒントLv・割引（勉強家／切れ者／なし）を変えたときの数字
+			for (const [i, st] of [[2, 'kire'], [3, 'benkyo'], [4, 'none']]) {
+				await link(sp.page, i);
+				const X = num((await linkBtn(sp.page)).text);
+				for (const [cnt, lv] of [[2, 1], [4, 2], [5, 5]]) {
+					await sp.page.selectOption(T + '[data-usd-el="uniq-count"]', String(cnt));
+					await sp.page.selectOption(T + '[data-usd-el="uniq-level"]', String(lv));
+					await sp.page.waitForTimeout(100);
+					n = await readNeed(sp.page);
+					o = own(st);
+					assert(n.uniq.n === UNIQ(cnt, lv, st) && n.total.n === X + UNIQ(cnt, lv, st) + o[0] + o[1] + o[2],
+						tag + '(c) ' + (STS.find((s) => s.id === st).label) + '・継承固有 ' + cnt + '種 Lv' + lv + ': 継承固有 ' + fmt(UNIQ(cnt, lv, st)) + '、合計 ' + fmt(X + UNIQ(cnt, lv, st) + o[0] + o[1] + o[2]), { uniq: n.uniq.n, total: n.total.n, X });
+				}
+				await sp.page.selectOption(T + '[data-usd-el="uniq-count"]', '6');
+				await sp.page.selectOption(T + '[data-usd-el="uniq-level"]', '3');
+			}
+			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+			await sp.ctx.close();
+		}
+
+		// 前段のあるとき（うち前段 K）。本育成編成の項に前段が含まれ、小窓に「（うち前段 K）」が出る。前段が 0 のときは出さない
+		{
+			const sp = await open({ w: 375, h: 812, tab: 1, userData: UD, scope: { skillIds: [W[4]], name: '', tiers: {}, updatedAt: '' } });   // 既定の前段: W3（金）の前段 W8
+			await link(sp.page, 2);
+			const X = num((await linkBtn(sp.page)).text);
+			const prev = pay(BASE[W[8]], 0, 'kire');
+			const n = await readNeed(sp.page);
+			const pop = await popText(sp.page);
+			assert(n.total.n === X + UNIQ(6, 3, 'kire') + pay(160, 5, 'kire') && pop.formula.startsWith('合計 ＝ 本育成編成 ' + fmt(X) + '（うち前段 ' + fmt(prev) + '） ＋ 継承固有 '),
+				'段7d追加(A): 前段があるとき、小窓の式は「本育成編成 ' + fmt(X) + '（うち前段 ' + fmt(prev) + '）」。合計は前段込みの X を使う', { pop: pop.formula, total: n.total.n, X });
+			await link(sp.page, 1);
+			const pop0 = await popText(sp.page);
+			assert(!pop0.formula.includes('うち前段'), '本育成編成が「なし」のときは「うち前段」を出さない', pop0.formula);
+			await sp.ctx.close();
+		}
+
+		// (d) 375px で行が増えていない（px）。見出しの行・「スキルセット」の行の高さは、合計を足す前と同じ
+		{
+			for (const [w, h] of [[375, 667], [375, 812], [360, 780]]) {
+				const sp = await open({ w, h, tab: 1, userData: UD, routes: { stepDoc: stepNone, ptDoc: ptX }, scope });
+				await link(sp.page, 2);
+				const m = await sp.page.evaluate(() => {
+					const r = (s) => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { top: Math.round(b.top + scrollY), h: Math.round(b.height), right: Math.round(b.right) }; };
+					const main = r('.usd-ptneed-main'), title = r('.usd-ptneed-title'), head = ['pt-total-row', 'pt-total-head'].map((k) => document.querySelector('[data-usd-el="' + k + '"]')).find((e) => e && e.getClientRects().length > 0);
+					const chips = document.querySelector('.usd-ptneed-chips');
+					return { row: r('#deck-template-panel .uma-section-row'), main, title, list: r('[data-usd-el="selected-list"]'), headTop: head ? Math.round(head.getBoundingClientRect().top + scrollY) : null, headH: head ? Math.round(head.getBoundingClientRect().height) : null,
+						chipsScroll: chips.scrollWidth > chips.clientWidth + 1, sw: document.documentElement.scrollWidth, iw: innerWidth };
+				});
+				assert(m.row.h <= 34 && m.main.h <= 52 && m.headTop !== null && Math.abs(m.headTop - m.title.top) <= 6 && m.headH <= 24 && m.sw <= m.iw && m.list.top <= 474,
+					'段7d追加(A)(d) ' + w + '×' + h + ': 「スキルセット」の行 ' + m.row.h + 'px（34px 以下）・見出し＋チップの行 ' + m.main.h + 'px（52px 以下）。合計は見出しと同じ行（差 ' + Math.abs(m.headTop - m.title.top) + 'px）で行を増やさない。②の追加済みスキルより上 ' + m.list.top + 'px（474px 以下）。横にはみ出さない', m);
+				console.log('     [実測] ' + w + '×' + h + ' 追加(A): 「スキルセット」の行 ' + m.row.h + 'px／見出し＋チップ ' + m.main.h + 'px／追加済みスキルの上端 ' + m.list.top + 'px／チップの行は横に送る=' + m.chipsScroll);
+				await sp.ctx.close();
+			}
 		}
 	});
 }

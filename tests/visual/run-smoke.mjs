@@ -12448,7 +12448,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	const readNeed = (page) => page.evaluate(() => {
 		const el = document.querySelector('[data-usd-el="pt-need"]');
 		const num = (s) => Number((s || '').replace(/[^0-9]/g, ''));
-		const chip = (n) => { const e = el.querySelector('[data-usd-el="pt-need-' + n + '"]'); return e ? { label: e.textContent.trim(), n: num(e.querySelector('strong').textContent) } : null; };
+		const chip = (n) => { const e = el.querySelector('[data-usd-el="pt-need-' + n + '"]'); return e ? { label: e.textContent.trim(), n: Number(e.getAttribute('data-cum')) } : null; };   // n は「そのランクまで」の累計（チップの表示はそのランクのぶんだけ。段7d の追加・A）
 		const t = (i) => { const e = el.querySelector('[data-usd-el="' + i + '"]'); return e ? e.textContent : null; };
 		const sel = el.querySelector('[data-usd-el="pt-parent-level"]');
 		return { hidden: el.hidden, empty: el.innerHTML === '', chips: [chip(1), chip(2), chip(3)], roster: t('pt-need-roster'), unpriced: t('pt-need-unpriced'), error: t('pt-need-error'),
@@ -12619,7 +12619,7 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 		const el = document.querySelector('[data-usd-el="pt-need"]');
 		const n = el.querySelector('[data-usd-el="pt-need-overlap"]');
 		const ro = el.querySelector('[data-usd-el="pt-need-roster"]');
-		return { note: n ? n.textContent : null, roster: ro ? ro.textContent : null, chips: [1, 2, 3].map((k) => Number(el.querySelector('[data-usd-el="pt-need-' + k + '"] strong').textContent.replace(/[^0-9]/g, ''))) };
+		return { note: n ? n.textContent : null, roster: ro ? ro.textContent : null, chips: [1, 2, 3].map((k) => Number(el.querySelector('[data-usd-el="pt-need-' + k + '"]').getAttribute('data-cum'))) };
 	});
 	// (1) 重なるスキル X6（本育成のイベント Lv2 → L2）がある → 出る。値は変わらない（うち本育成・3つの合計）
 	sp = await openSpecial({ scope: { skillIds: [x(6)], name: '', updatedAt: '' } });
@@ -12678,9 +12678,9 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 			const el = document.querySelector('[data-usd-el="pt-need"]');
 			const chips = Array.from(el.querySelectorAll('.usd-ptneed-chip'));
 			return { hidden: el.hidden, page: document.documentElement.scrollWidth - window.innerWidth, box: el.scrollWidth - el.clientWidth,
-				chipOut: chips.filter((c) => c.getBoundingClientRect().right > el.getBoundingClientRect().right + 1).length, chips: chips.length };
+				tops: new Set(chips.map((c) => Math.round(c.getBoundingClientRect().top))).size, chips: chips.length };
 		});
-		assert(!g.hidden && g.page <= 0 && g.box <= 0 && g.chipOut === 0 && g.chips === 3, '段5(11): ' + w + 'px の②タブで、必要スキルPt（3つの合計のチップ・親由来のレベル）が横にはみ出さない', g);
+		assert(!g.hidden && g.page <= 0 && g.box <= 0 && g.tops === 1 && g.chips === 4, '段5(11)→段7d の追加(A): ' + w + 'px の②タブで、必要スキルPt（継承固有と3つのチップは1行〔収まらないときはその行だけ横に送る〕・親由来のレベル）が、ページも箱も横にはみ出さない', g);
 		const other = sp.errors.filter((m) => !/Failed to load resource|status of 404/.test(m));
 		assert(other.length === 0, '段5(11): ' + w + 'px でコンソールエラーなし', other.slice(0, 3));
 		await sp.ctx.close();
@@ -12870,7 +12870,7 @@ await block('前段の必要Pt（段4b）', async () => {
 		const el = document.querySelector('[data-usd-el="pt-need"]');
 		const num = (s) => Number((s || '').replace(/[^0-9]/g, ''));
 		const t = (i) => { const e = el.querySelector('[data-usd-el="' + i + '"]'); return e ? e.textContent : null; };
-		return { hidden: el.hidden, chips: [1, 2, 3].map((k) => { const c = el.querySelector('[data-usd-el="pt-need-' + k + '"] strong'); return c ? num(c.textContent) : null; }),
+		return { hidden: el.hidden, chips: [1, 2, 3].map((k) => { const c = el.querySelector('[data-usd-el="pt-need-' + k + '"]'); return c ? Number(c.getAttribute('data-cum')) : null; }),
 			roster: t('pt-need-roster'), unpriced: t('pt-need-unpriced'), prevError: t('pt-need-prev-error') };
 	});
 
@@ -14053,8 +14053,8 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 				helpAria: document.querySelector('.help-open-btn').getAttribute('aria-label'), helpTitle: document.querySelector('.help-open-btn').title, helpText: document.querySelector('.help-open-btn').textContent.trim(),
 				badges: [!!document.getElementById('ui-mode-badge'), !!document.getElementById('alpha-badge')], alphaNote: !!document.getElementById('deck-roster-alpha'), helpBtns: document.querySelectorAll('[onclick="toggleHelp()"]').length };
 		});
-		assert(!hd.text.includes('ゲーム画面のスクリーンショットから') && hd.h1.endsWith('β版（2nd Edition）') && !hd.h1.includes('α') && hd.title.includes('2nd Edition') && !hd.badges[0] && !hd.badges[1] && !hd.alphaNote,
-			tag + '副題が無い・「β版（2nd Edition）」（段7d の ⑦。「α版」を置き換え）・「新UI」「一部αテスト中」のバッジが無い・①の中の赤い注意書きも無い', { h1: hd.h1, title: hd.title, badges: hd.badges, alphaNote: hd.alphaNote });
+		assert(!hd.text.includes('ゲーム画面のスクリーンショットから') && hd.h1.endsWith('β版') && !hd.h1.includes('α') && hd.title.includes('2nd Edition') && !hd.badges[0] && !hd.badges[1] && !hd.alphaNote,
+			tag + '副題が無い・「β版」＋ピル「2nd Edition」（段7d の追加・B。h1 は「β版」で終わる）・「新UI」「一部αテスト中」のバッジが無い・①の中の赤い注意書きも無い', { h1: hd.h1, title: hd.title, badges: hd.badges, alphaNote: hd.alphaNote });
 		assert(hd.helpText === '?' && hd.helpAria === '使い方・注意' && hd.helpTitle === '使い方・注意' && hd.helpr.w <= 36 && hd.helpBtns === 1, tag + '「使い方・注意」は「？」だけの丸いボタン（aria-label と title が「使い方・注意」。横幅は最小）', { w: hd.helpr.w, aria: hd.helpAria });
 		const oneRow = Math.abs(hd.h1r.t + hd.h1r.h / 2 - (hd.toolr.t + hd.toolr.h / 2)) < 12 && Math.abs(hd.toolr.t + hd.toolr.h / 2 - (hd.helpr.t + hd.helpr.h / 2)) < 12 && hd.h1r.h < 50;
 		assert(oneRow, tag + 'タイトル・ツール切替・？ が1行に並ぶ（タイトルは1行）', { h1: hd.h1r, tool: hd.toolr, help: hd.helpr });

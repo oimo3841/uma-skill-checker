@@ -139,11 +139,12 @@ export async function register7c(env) {
 			const v = await readPanel(sp.page);
 			const hd = await sp.page.evaluate(() => {
 				const b = document.querySelector('header .header-edition');
+				const pill = document.querySelector('header .header-edition-pill');
 				const hd = document.querySelector('header');
-				return { title: document.title, h1: document.querySelector('header h1').textContent.replace(/\s+/g, ' ').trim(), badge: b ? b.textContent.trim() : null, badgeSize: b ? parseFloat(getComputedStyle(b).fontSize) : null, hdH: hd.getBoundingClientRect().height };
+				return { title: document.title, h1: document.querySelector('header h1').textContent.replace(/\s+/g, ' ').trim(), badge: b ? b.textContent.trim() : null, pill: pill ? pill.innerText.replace(/\s+/g, ' ').trim() : null, badgeSize: b ? parseFloat(getComputedStyle(b).fontSize) : null, hdH: hd.getBoundingClientRect().height };
 			});
-			assert(hd.badge === 'β版（2nd Edition）' && hd.h1.endsWith('β版（2nd Edition）') && !hd.h1.includes('α版') && hd.title.includes('2nd Edition'),
-				tag + 'ヘッダーのバッジは「β版（2nd Edition）」（段7d の ⑦。「α版」でも「2nd edition β版」でもない）', hd);
+			assert(hd.badge === 'β版' && hd.pill === '2nd Edition' && hd.h1.endsWith('β版') && !hd.h1.includes('α版') && hd.title.includes('2nd Edition'),
+				tag + 'ヘッダーは「β版」と、その右のピル「2nd Edition」（段7d の追加・B。exam の「β版」「新UI」と同じ形式。「α版」でも「2nd edition β版」でもない）', hd);
 			if (w <= 640) assert(hd.badgeSize <= 11.5, tag + 'スマホではバッジの文字を 11px にする', { size: hd.badgeSize });
 			assert(!v.alpha && !(await sp.page.textContent('#step-panel-0')).includes('結果が正しくないことがあります'), tag + '①のタブの赤い注意書き「αテスト中の機能です…」は出ない');
 			assert(v.filtering === null && !(await sp.page.textContent(P + '[data-usd-el="pt-sum"]')).includes('絞り込み中'), tag + '絞り込み中でも、合計の下に「絞り込み中」の印は出ない', { filtering: v.filtering });
@@ -513,7 +514,7 @@ export async function register7c(env) {
 			const el = document.querySelector('[data-usd-el="pt-need"]');
 			if (!el || el.hidden) return { hidden: true };
 			const num = (s) => Number((s || '').replace(/[^0-9]/g, ''));
-			const chips = [1, 2, 3].map((k) => { const e = el.querySelector('[data-usd-el="pt-need-' + k + '"]'); return e ? num(e.querySelector('strong').textContent) : null; });
+			const chips = [1, 2, 3].map((k) => { const e = el.querySelector('[data-usd-el="pt-need-' + k + '"]'); return e ? Number(e.getAttribute('data-cum')) : null; });   // 累計（チップの表示はそのランクのぶんだけ。段7d の追加・A）
 			const box = el.querySelector('[data-usd-el="pt-need-help-box"]');
 			return { hidden: false, chips, roster: !!el.querySelector('[data-usd-el="pt-need-roster"]'), overlapInBox: !!(box && box.querySelector('[data-usd-el="pt-need-overlap"]')), overlapText: box && box.querySelector('[data-usd-el="pt-need-overlap"]') ? box.querySelector('[data-usd-el="pt-need-overlap"]').textContent : null,
 				outside: !!Array.from(el.querySelectorAll('[data-usd-el="pt-need-overlap"]')).find((n) => !box || !box.contains(n)) };
