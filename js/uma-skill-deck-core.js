@@ -3355,13 +3355,36 @@
 		if (!r || typeof r !== 'object') return false;
 		if (r.umaId) return true;
 		if ((r.cardIds || []).some(Boolean)) return true;
-		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'outsideCardExcluded', 'outsideSkillExcluded'].some(k => r[k] !== undefined && r[k] !== null);
+		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'outsideCardExcluded', 'outsideSkillExcluded', 'race'].some(k => r[k] !== undefined && r[k] !== null);
+	}
+
+	/**
+	 * セットのレース条件（オススメサポ ④・段8・2026-10-04。roster.race）。保存してあるのは、選んだときのレースの行の写し（条件そのもの）と元の id。
+	 * 触ったときだけ書く・「指定なし」で項目ごと消す・schemaVersion は 7 のまま・読み込み時に補わない（ルール28）。
+	 * **一覧から消えたレースも、保存値を書き換えずに同じ条件で読む**。形が崩れていれば「レース条件なし」（null）と読む。
+	 */
+	function raceOfRoster(r) {
+		return normalizeRaceRow(r && r.race);
+	}
+	/**
+	 * レースで固定する①の絞り込み（段8）。**公開されている項目だけ**: 距離（区分）・バ場。脚質は常に利用者の選択。
+	 * 値が選択肢に無ければ固定しない（知らない値は「公開されていない」と同じ扱い）。{ 軸のキー: 値 }。
+	 */
+	function raceLockedFilterOf(race) {
+		const out = {};
+		if (!race) return out;
+		const put = (key, v) => { const axis = TAG_AXES.find(a => a.key === key); if (axis && typeof v === 'string' && pickableOptions(axis).some(o => o.v === v)) out[key] = v; };
+		put('distance', race.distanceCategory);
+		put('surface', race.surface);
+		return out;
 	}
 
 	/**
 	 * 編成の絞り込み（段7の (17)。距離・脚質・バ場）。設定は編成の skillFilter に保存してある
 	 * （触らなければ足さない・読み込み時に補わない・知らない値は「指定なし」として扱う）。
 	 * ①のパネルと、②の「本育成編成」（選んだ編成の●を数える）が同じ決まりで使うので、編成を引数に取る形でここに置く。
+	 * **レース条件（roster.race）があれば、公開されている距離・バ場をここで上書きする**（④・段8。skillFilter の保存値は書き換えない。
+	 * レースを「指定なし」に戻すと、保存してある選択がそのまま戻る）。
 	 */
 	function resolvedFilterOf(r) {
 		const f = (r && r.skillFilter && typeof r.skillFilter === 'object') ? r.skillFilter : {};
@@ -3370,7 +3393,7 @@
 			const v = f[axis.key];
 			if (typeof v === 'string' && v && pickableOptions(axis).some(o => o.v === v)) out[axis.key] = v;
 		});
-		return out;
+		return Object.assign(out, raceLockedFilterOf(raceOfRoster(r)));
 	}
 	/** 絞り込みの述語（matchesFilters。タグを持たないスキルは残る）。絞り込んでいなければ null */
 	function filterPredicateOf(r) {
@@ -4783,6 +4806,11 @@
 		'.usd-roster-filtersel.usd-roster-filtersel--on { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
 		'.usd-roster-filtersel option { background: var(--uma-surface); color: var(--uma-text); }',
 		'.usd-roster-filtersel { width: 100%; min-width: 0; padding: var(--uma-sp-1) var(--uma-sp-1-5); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
+		// レースで固定している軸（④・段8）: 選んだ形の濃色のまま押せない（色だけで示す。opacity は使わない）＋左に小さな錠の印
+		'.usd-roster-filter--locked { position: relative; }',
+		'.usd-roster-filter--locked .usd-roster-filtersel { padding-left: 17px; cursor: default; }',
+		'.usd-roster-filter--locked .usd-roster-filtersel:disabled { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); opacity: 1; }',
+		'.usd-roster-filterlock { position: absolute; left: 5px; top: 50%; transform: translateY(-50%); pointer-events: none; fill: var(--uma-text-inverse); color: var(--uma-text-inverse); }',
 		// 表（(14)(15)(16)(18)）: 狭い幅ではスキル名の列を 1/3、メンバーの列の全体を 2/3 に。名前と Pt は1行（nowrap）で、セルの中だけ横に送る
 		'.usd-roster-namescroll { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; width: 100%; white-space: nowrap;',
 		'  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; }',
@@ -7321,6 +7349,8 @@
 		function filterPredicate() { return filterPredicateOf(roster); }
 		function setFilter(axisKey, value) {
 			if (!filterAxes().some(a => a.key === axisKey)) return;
+			// レースで固定している軸は書かない（④・段8。選択欄も押せないが、念のため）
+			if (raceLockedFilterOf(raceOfRoster(roster))[axisKey] !== undefined) return;
 			const cur = (roster.skillFilter && typeof roster.skillFilter === 'object') ? Object.assign({}, roster.skillFilter) : {};
 			if (value) cur[axisKey] = value; else delete cur[axisKey];
 			if (Object.keys(cur).length === 0) delete roster.skillFilter; else roster.skillFilter = cur;
@@ -7902,11 +7932,15 @@
 				if (ptView) h += ptSubHtml(ptView);
 				// 絞り込み（段7の (17)）: 距離・脚質・バ場。選択肢は TAG_AXES から
 				const sel = resolvedFilter();
+				// レースで固定している軸（④・段8）: 選べない状態にして、レースの値を選んだ形で出す。小さな錠の印（説明の文は足さない）
+				const locked = raceLockedFilterOf(raceOfRoster(roster));
 				h += '<div class="usd-roster-filterrow" data-usd-el="filter-row">';
 				filterAxes().forEach(axis => {
+					const lk = locked[axis.key] !== undefined;
 					// 段7b の ④：ラベルの行は無し。「指定なし」は「距離指定なし」のように軸の名前を含める
-					h += '<label class="usd-roster-filter">'
-						+ '<select class="uma-input usd-roster-filtersel' + (sel[axis.key] ? ' usd-roster-filtersel--on' : '') + '" data-usd-act="filter" data-axis="' + esc(axis.key) + '" aria-label="' + esc(axis.label + 'で絞り込む') + '">'
+					h += '<label class="usd-roster-filter' + (lk ? ' usd-roster-filter--locked' : '') + '"' + (lk ? ' data-usd-locked="1"' : '') + '>'
+						+ (lk ? '<svg class="usd-roster-filterlock" data-usd-el="filter-lock" viewBox="0 0 16 16" width="10" height="10" aria-hidden="true" focusable="false"><rect x="3" y="7" width="10" height="7.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>' : '')
+						+ '<select class="uma-input usd-roster-filtersel' + (sel[axis.key] ? ' usd-roster-filtersel--on' : '') + '" data-usd-act="filter" data-axis="' + esc(axis.key) + '"' + (lk ? ' disabled' : '') + ' aria-label="' + esc(axis.label + 'で絞り込む' + (lk ? '（レースで固定）' : '')) + '">'
 						+ '<option value=""' + (sel[axis.key] ? '' : ' selected') + '>' + esc(axis.label + '指定なし') + '</option>'
 						+ pickableOptions(axis).map(o => '<option value="' + esc(o.v) + '"' + (sel[axis.key] === o.v ? ' selected' : '') + '>' + esc(o.t) + '</option>').join('')
 						+ '</select></label>';
@@ -8377,6 +8411,24 @@
 			}
 			if (cur.length === 0) delete roster.outsideSkillExcluded; else roster.outsideSkillExcluded = cur;
 			persistNow();
+			return true;
+		};
+		/**
+		 * レース条件（④・段8）。row はレースの一覧の行（その写し＝条件そのもの＋元の id を保存する）か null（「指定なし」＝項目ごと消す）。
+		 * 同じ条件をもう一度選んだときは書かない。書いたら①を描き直す（距離・バ場の固定が変わるため。②の帯は①の描き直しの知らせで描き直る）。
+		 */
+		rosterOutsideSink.setRace = function (row) {
+			if (row === null || row === undefined) {
+				if (roster.race === undefined) return true;
+				delete roster.race;
+			} else {
+				const n = normalizeRaceRow(row);
+				if (!n) return false;
+				if (roster.race !== undefined && JSON.stringify(roster.race) === JSON.stringify(n)) return true;
+				roster.race = n;
+			}
+			persistNow();
+			render();
 			return true;
 		};
 		// 「すべて戻す」: いま引ける（有効な）カードとスキルの除外だけを外す。引けない古いIDは書き換えない（残す）
@@ -11284,7 +11336,11 @@
 			skillExcludedIdsOf: outsideSkillExcludedIdsOf,
 			getSkillExcluded: function () { return outsideSkillExcludedIdsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null); },
 			setSkillExcluded: function (skillId, excluded) { return rosterOutsideSink ? rosterOutsideSink.setSkillExcluded(skillId, excluded) : false; },
-			clearExcluded: function () { return rosterOutsideSink ? rosterOutsideSink.clearExcluded() : false; }
+			clearExcluded: function () { return rosterOutsideSink ? rosterOutsideSink.clearExcluded() : false; },
+			// ④（段8〜）: レース条件。setRace はレースの一覧の行か null（指定なし）。raceOf・lockedFilterOf・resolvedFilterOf は編成を引数に取る（読むだけ）
+			getRace: function () { return raceOfRoster(rosterOutsideSink ? rosterOutsideSink.getRoster() : null); },
+			setRace: function (row) { return rosterOutsideSink ? rosterOutsideSink.setRace(row) : false; },
+			raceOf: raceOfRoster, lockedFilterOf: function (r) { return raceLockedFilterOf(raceOfRoster(r)); }, resolvedFilterOf: resolvedFilterOf
 		},
 		loadScenarioEvents: loadScenarioEvents,
 		getScenarioEventStatus: function () { return scenarioEventState.status; },
