@@ -98,6 +98,8 @@ export async function register11(env) {
 			footHidden: foot.hidden, footState: foot.getAttribute('data-state'),
 			partial: (() => { const e = q('[data-usd-el="outside-partial"]'); return e && !e.hidden ? e.textContent : null; })(),
 			addDisabled: q('[data-usd-el="outside-add"]').disabled, addText: txt('[data-usd-el="outside-add"]'),
+			recalc: !q('[data-usd-el="outside-recalc"]').hidden, recalcText: txt('[data-usd-el="outside-recalc"]'), restoreAll: txt('[data-usd-el="outside-restore-all"]'),
+			exSkills: Array.from(m.querySelectorAll('[data-usd-el="outside-excl-skill"]')).map((e) => ({ id: e.getAttribute('data-skill-id'), text: e.textContent.replace(/\s+/g, ' ').trim() })),
 			empty: txt('[data-usd-el="outside-empty"]'), busy: txt('[data-usd-el="outside-busy"]')
 		};
 	});
@@ -294,11 +296,11 @@ export async function register11(env) {
 		const exp = await solveIn(sp.page, { count: 5, addedSkillIds: [] });
 		assert(b.cards.every((c) => c.id !== victim) && b.cards.length === 5 && JSON.stringify(dr.outsideCardExcluded) === JSON.stringify([victim]) && parseFoot(b).kinds === exp.counts.kinds && b.cards.map((c) => c.id).join() === exp.kindOrder.join(),
 			'オススメサポ(C) 「外す」で、そのカードを①の roster.outsideCardExcluded に書き、再計算して別のカードで5枚を埋める（結果は純粋関数と一致）', { cards: b.cards.map((c) => c.id), saved: dr.outsideCardExcluded });
-		assert(b.excl === '除外中 1枚 ▾' && b.exclCards.length === 0, 'オススメサポ(C) 除外が1枚になると「除外中 1枚 ▾」の行が出る（一覧はまだ閉じている）', b.excl);
+		assert(b.excl === '除外中 カード1枚 ▾' && b.exclCards.length === 0, 'オススメサポ(C) 除外が1枚になると「除外中 カード1枚 ▾」の行が出る（一覧はまだ閉じている）', b.excl);
 		await sp.page.click(M + '[data-usd-el="outside-excl-toggle"]');
 		const c = await snap(sp.page);
 		const geo = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-excl-card"]')).map((e) => ({ h: Math.round(e.getBoundingClientRect().height), btn: (e.querySelector('[data-usd-el="outside-restore"]') || {}).textContent })));
-		assert(c.exclCards.length === 1 && c.exclCards[0].id === victim && /戻す$/.test(c.exclCards[0].text) && geo[0].btn === '戻す' && geo[0].h === 36 && /除外中 1枚 ▴/.test(c.excl), 'オススメサポ(C) 押すと除外したカードの一覧が開き、各カードに「戻す」がある', { c: c.exclCards, geo });
+		assert(c.exclCards.length === 1 && c.exclCards[0].id === victim && /戻す$/.test(c.exclCards[0].text) && geo[0].btn === '戻す' && geo[0].h === 36 && /除外中 カード1枚 ▴/.test(c.excl), 'オススメサポ(C) 押すと除外したカードの一覧が開き、各カードに「戻す」がある', { c: c.exclCards, geo });
 		// ①の次の書き込み（スキルのオン/オフ）のあとも残る。受け口を通さず保存データへ直接書いていると、①の古い roster で上書きされて消える
 		await sp.page.click(M + '[data-usd-act="outside-close"]');
 		await sp.page.evaluate(() => document.querySelector('#deck-roster-panel input[data-usd-act="take-skill"]').click());
@@ -310,7 +312,7 @@ export async function register11(env) {
 		// 開き直しても除外は残り、「戻す」で解除される
 		await open(sp.page);
 		const d = await snap(sp.page);
-		assert(d.excl === '除外中 1枚 ▾' && d.cards.every((x) => x.id !== victim), 'オススメサポ(C) 開き直しても除外は残っている（5枚に戻る切り替えとは別に、除外は保存される）', d.excl);
+		assert(d.excl === '除外中 カード1枚 ▾' && d.cards.every((x) => x.id !== victim), 'オススメサポ(C) 開き直しても除外は残っている（5枚に戻る切り替えとは別に、除外は保存される）', d.excl);
 		await sp.page.click(M + '[data-usd-el="outside-excl-toggle"]');
 		await sp.page.click(M + '[data-usd-el="outside-restore"][data-card-id="' + victim + '"]');
 		await settle(sp.page);
@@ -340,7 +342,7 @@ export async function register11(env) {
 		await pickSet(sp2.page, 't1');
 		await open(sp2.page);
 		const b = await snap(sp2.page);
-		assert(b.excl === '除外中 2枚 ▾' && b.cards.every((c) => c.id !== victim && c.id !== victim2), 'オススメサポ(C) 書き出したデータを取り込んだあとも、除外は残っている', b.excl);
+		assert(b.excl === '除外中 カード2枚 ▾' && b.cards.every((c) => c.id !== victim && c.id !== victim2), 'オススメサポ(C) 書き出したデータを取り込んだあとも、除外は残っている', b.excl);
 		// 再読み込み（openPage の初期化スクリプトは読み込みのたびに保存データを仕込み直すので、同じ context の新しいページで開き直す。保存先 localStorage は同じ）
 		const pg = await sp2.ctx.newPage();
 		await pg.route('**/data/scenario-event-skills.json*', (r) => r.fulfill(json(scenReal)));
@@ -351,7 +353,7 @@ export async function register11(env) {
 		await pickSet(pg, 't1');
 		await open(pg);
 		const c = await snap(pg);
-		assert(c.excl === '除外中 2枚 ▾' && c.cards.every((x) => x.id !== victim && x.id !== victim2), 'オススメサポ(C) 再読み込みのあとも、除外は残っている', c.excl);
+		assert(c.excl === '除外中 カード2枚 ▾' && c.cards.every((x) => x.id !== victim && x.id !== victim2), 'オススメサポ(C) 再読み込みのあとも、除外は残っている', c.excl);
 		await pg.close();
 		assert(jsErrors(sp2.errors).length === 0, 'オススメサポ(C) コンソールのエラー0', jsErrors(sp2.errors).slice(0, 3));
 		await sp2.ctx.close();
@@ -487,7 +489,7 @@ export async function register11(env) {
 		const n = await sp.page.evaluate((cs) => { const ids = UmaSkillDeckCore.outside.candidatesOf({ cardIds: cs }).map((c) => c.id); ids.forEach((id) => UmaSkillDeckCore.outside.setExcluded(id, true)); return ids.length; }, CARDS6);
 		await open(sp.page);
 		const c = await snap(sp.page);
-		assert(n > 100 && c.empty === MSG_EMPTY && c.rows.length === 0 && c.cards.length === 0 && c.footHidden && c.excl === '除外中 ' + n + '枚 ▾',
+		assert(n > 100 && c.empty === MSG_EMPTY && c.rows.length === 0 && c.cards.length === 0 && c.footHidden && c.excl === '除外中 カード' + n + '枚 ▾',
 			'オススメサポ(E) 候補が1枚も無いとき、「' + MSG_EMPTY + '」を出し、チェックリストとフッターの数字は出さない（「除外中 ' + n + '枚」は残る＝戻せる）', { n, empty: c.empty, rows: c.rows.length, foot: c.footHidden, excl: c.excl });
 		await sp.page.click(M + '[data-usd-el="outside-excl-toggle"]');
 		const one = (await snap(sp.page)).exclCards[0].id;
@@ -755,7 +757,7 @@ export async function register11(env) {
 		await sp.page.click(M + '[data-usd-el="outside-exclude"][data-card-id="syn-C"]');
 		await settle(sp.page);
 		const ex = await snap(sp.page);
-		assert(ex.excl === '除外中 1枚 ▾' && !(await sp.page.evaluate(() => !document.querySelector('.usd-info-pop').hidden)), 'オススメサポ(H) 「外す」を押すと除外になる（情報は出ない）', ex.excl);
+		assert(ex.excl === '除外中 カード1枚 ▾' && !(await sp.page.evaluate(() => !document.querySelector('.usd-info-pop').hidden)), 'オススメサポ(H) 「外す」を押すと除外になる（情報は出ない）', ex.excl);
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ(H) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
@@ -788,6 +790,333 @@ export async function register11(env) {
 		const s2 = await snap(sp.page);
 		assert(ids(s2) === b0.ids && gainOf(s2, 'syn-A') === 10, 'オススメサポ(H) 「戻す」でも探索をやり直し、最初の結果（A・C・D・E・F）に戻る', ids(s2));
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ(H) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	/* ====================================================================
+	 * (I) スキルの除外（段5）: チェックを外した行＝このパネルだけの除外スキル（roster.outsideSkillExcluded）・「再計算」・「除外中」の行
+	 * ==================================================================== */
+	const skillEx = (page) => page.evaluate(() => { const r = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')); return r ? (r.outsideSkillExcluded || null) : null; });
+	const cardEx = (page) => page.evaluate(() => { const r = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')); return r ? (r.outsideCardExcluded || null) : null; });
+	const rowCheck = (id) => M + '[data-usd-el="outside-row"][data-skill-id="' + id + '"] input';
+	/** 除外スキルを考慮した総当たり（カードの除外も） */
+	const bruteSk = (cands, K, exCards, exSkills) => brute(cands.map((c) => Object.assign({}, c, { skills: c.skills.filter((x) => exSkills.indexOf(x) === -1) })), K, exCards);
+
+	await block('オススメサポ(I) スキルのチェック: 外すと除外スキルとして記録／付け直すと外れる／「再計算」は集合が変わっている間だけ出る／追加済みの行は対象外／再計算せずに「追加」しても記録は残る', async () => {
+		const syn = await needSyn();
+		const X = syn.S[11], Y = syn.S[12], Z = syn.S[13];
+		const sp = await openSyn({ syn, scope: { skillIds: [Z], name: '', updatedAt: '', skillIcons: {} } });
+		await open(sp.page);
+		const s0 = await snap(sp.page);
+		const f0 = parseFoot(s0);
+		assert(!s0.recalc && (await skillEx(sp.page)) === null && s0.rows.find((r) => r.id === Z).added, 'オススメサポ(I) 開いた直後は「再計算」は出ない。除外スキルの記録も無い（Z は②にあるので追加済みの行）', { recalc: s0.recalc });
+		await sp.page.evaluate(() => { document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]').__mark = 1; });
+		await sp.page.click(rowCheck(X));
+		const s1 = await snap(sp.page);
+		const f1 = parseFoot(s1);
+		const mark = await sp.page.evaluate(() => document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]').__mark);
+		assert(JSON.stringify(await skillEx(sp.page)) === JSON.stringify([X]) && s1.recalc && s1.recalcText === '再計算' && f1.n === f0.n - 1 && f1.pt < f0.pt && s1.rows.length === s0.rows.length && mark === 1,
+			'オススメサポ(I) チェックを外すと、その場で roster.outsideSkillExcluded に記録され、「選択 N種・M Pt」が変わり、「再計算」が出る。再計算はまだしない（行もカードもそのまま）', { ex: await skillEx(sp.page), recalc: s1.recalc, n: [f0.n, f1.n], pt: [f0.pt, f1.pt] });
+		await sp.page.click(rowCheck(Y));
+		assert(JSON.stringify(await skillEx(sp.page)) === JSON.stringify([X, Y]), 'オススメサポ(I) 続けて外すと、記録は外した順に増える（[X, Y]）', await skillEx(sp.page));
+		await sp.page.click(rowCheck(Y));
+		const s2 = await snap(sp.page);
+		assert(JSON.stringify(await skillEx(sp.page)) === JSON.stringify([X]) && s2.recalc, 'オススメサポ(I) 付け直すと、その除外だけが記録から外れる。まだ集合が違う（X）ので「再計算」は出たまま', await skillEx(sp.page));
+		await sp.page.click(rowCheck(X));
+		const s3 = await snap(sp.page);
+		assert((await skillEx(sp.page)) === null && !s3.recalc && parseFoot(s3).pt === f0.pt && parseFoot(s3).n === f0.n, 'オススメサポ(I) すべて付け直して集合が計算時と同じになると、「再計算」は消え、記録も項目ごと消える。数字も元に戻る', { ex: await skillEx(sp.page), recalc: s3.recalc });
+		// 追加済みの行は対象外
+		const added = await sp.page.evaluate((id) => { const i = document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-row"][data-skill-id="' + id + '"] input'); return { dis: i.disabled, n: document.querySelectorAll('[data-usd-el="outside-modal"] [data-skill-id="' + id + '"] [data-usd-el="outside-check"]').length }; }, Z);
+		await sp.page.click(rowCheck(Z), { force: true, timeout: 1000 }).catch(() => {});
+		assert(added.dis && added.n === 0 && (await skillEx(sp.page)) === null, 'オススメサポ(I) 追加済みの行はチェックできず、除外にならない（記録されない）', { added, ex: await skillEx(sp.page) });
+		// 外したまま、再計算せずに「追加」
+		await sp.page.click(rowCheck(X));
+		await sp.page.click(rowCheck(Y));
+		const before = (await draftScope(sp.page)) || { skillIds: [Z] };
+		await sp.page.click(M + '[data-usd-el="outside-add"]');
+		await sp.page.waitForTimeout(300);
+		const sc = await draftScope(sp.page);
+		const expectAdded = s0.rows.filter((r) => !r.added && r.id !== X && r.id !== Y).map((r) => r.id);
+		assert(!(await modalOpen(sp.page)) && sc.skillIds.indexOf(X) === -1 && sc.skillIds.indexOf(Y) === -1 && sc.skillIds.length === 1 + expectAdded.length && JSON.stringify(await skillEx(sp.page)) === JSON.stringify([X, Y]),
+			'オススメサポ(I) 外したまま再計算せずに「追加」しても、②に入るのはチェックされたスキルだけ。外したスキルは除外として記録されたまま', { n: sc.skillIds.length, expect: 1 + expectAdded.length, ex: await skillEx(sp.page) });
+		// 開き直すと、記録されている除外スキルが反映される（リストに出ない）。「再計算」は出ない
+		await open(sp.page);
+		const s4 = await snap(sp.page);
+		assert(s4.rows.every((r) => r.id !== X && r.id !== Y) && !s4.recalc && s4.excl === '除外中 スキル2種 ▾' && s4.rows.every((r) => r.added || r.checked),
+			'オススメサポ(I) 開き直すと、記録されている除外スキルは母集団から除かれ（リストに出ない）、「再計算」は出ない。「除外中 スキル2種」の行が出る', { excl: s4.excl, recalc: s4.recalc });
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ(I) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('オススメサポ(I) 再計算: 除外スキルを母集団から除いて最初から探し直す（総当たりと一致）／リストは全部チェック・追加済みは薄いまま・除外スキルは出ない／外す・戻す・開き直しでも反映／金スキルは前段の白がすべて除外されたら数えない', async () => {
+		const syn = await needSyn();
+		const Ex = syn.S.slice(0, 6);
+		const Z = syn.S[12];
+		const sp = await openSyn({ syn, scope: { skillIds: [Z], name: '', updatedAt: '', skillIcons: {} } });
+		await open(sp.page);
+		const ids = (s) => s.cards.map((c) => c.id).sort().join();
+		const s0 = await snap(sp.page);
+		for (const id of Ex) await sp.page.click(rowCheck(id));
+		await sp.page.evaluate(() => { document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]').__mark = 1; });
+		await sp.page.click(M + '[data-usd-el="outside-recalc"]');
+		await settle(sp.page);
+		const s1 = await snap(sp.page);
+		const b1 = bruteSk(syn.cands, 5, [], Ex);
+		assert(ids(s1) === b1.ids && ids(s1) !== ids(s0) && parseFoot(s1).kinds === b1.score, 'オススメサポ(I) 「再計算」で、除外スキルを除いた母集団で最初から探し直す。結果は総当たりと一致し、除外前（' + ids(s0).replace(/syn-/g, '') + '）とは変わる', { ui: ids(s1), brute: b1.ids, kinds: parseFoot(s1).kinds, score: b1.score });
+		const mark = await sp.page.evaluate(() => document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]').__mark);
+		assert(mark === undefined && !s1.recalc && s1.rows.every((r) => Ex.indexOf(r.id) === -1) && s1.rows.filter((r) => !r.added).every((r) => r.checked && !r.disabled) && s1.rows.find((r) => r.id === Z && r.added && r.mark === '追加済み' && r.disabled),
+			'オススメサポ(I) 再計算でチェックリストが作り直され（全部チェック済み）、除外スキルは出ない。追加済みの行は薄いまま。「再計算」は消える', { recalc: s1.recalc, ex: s1.rows.filter((r) => Ex.indexOf(r.id) !== -1).length });
+		assert(s1.excl === '除外中 スキル6種 ▾' && JSON.stringify(await skillEx(sp.page)) === JSON.stringify(Ex), 'オススメサポ(I) 「除外中 スキル6種 ▾」が出て、記録は6件のまま', { excl: s1.excl });
+		// 外す（カードの再計算）でも、記録されている除外スキルを反映する
+		const first = s1.cards[0].id;
+		await sp.page.click(M + '[data-usd-el="outside-exclude"][data-card-id="' + first + '"]'); await settle(sp.page);
+		const s2 = await snap(sp.page);
+		const b2 = bruteSk(syn.cands, 5, [first], Ex);
+		assert(ids(s2) === b2.ids && s2.rows.every((r) => Ex.indexOf(r.id) === -1) && s2.excl === '除外中 カード1枚・スキル6種 ▾', 'オススメサポ(I) 「外す」の再計算にも除外スキルが効く（カードとスキルの除外を合わせた総当たりと一致）。「除外中 カード1枚・スキル6種 ▾」', { ui: ids(s2), brute: b2.ids, excl: s2.excl });
+		// 枚数の切り替え・閉じて開き直しでも反映
+		await sp.page.click(M + '[data-usd-el="outside-count-6"]'); await settle(sp.page);
+		const s3 = await snap(sp.page);
+		const b3 = bruteSk(syn.cands, 6, [first], Ex);
+		assert(s3.cards.length === 6 && b3.ids.split(',').every((id) => ids(s3).split(',').indexOf(id) !== -1) && parseFoot(s3).kinds === b3.score && s3.rows.every((r) => Ex.indexOf(r.id) === -1), 'オススメサポ(I) 6枚に切り替えても除外スキルが効く（総当たりの組を含み、種数が一致。足りない枚数は増分0のカードで埋める）', { ui: ids(s3), brute: b3.ids, kinds: parseFoot(s3).kinds, score: b3.score });
+		await sp.page.click(M + '[data-usd-act="outside-close"]');
+		await open(sp.page);
+		const s4 = await snap(sp.page);
+		assert(ids(s4) === b2.ids && s4.rows.every((r) => Ex.indexOf(r.id) === -1) && s4.count === '5', 'オススメサポ(I) 小窓を開いたとき（5枚から）の計算にも、記録されている除外カード・除外スキルが効く', { ui: ids(s4), brute: b2.ids });
+		await sp.page.click(M + '[data-usd-act="outside-close"]');
+		await sp.ctx.close();
+
+		// 金スキル: 前段の鎖の白がすべて除外されたら、点数に数えない（既存の評価規則のとおり）
+		const probe = await openSp({ roster: FULL });
+		const pop = await probe.page.evaluate((f) => UmaSkillDeckCore.outside.populationOf({ umaId: 'uma-0001', cardIds: [], skillFilter: f }).ids, FILTER);
+		await probe.ctx.close();
+		const prevOfMap = new Map(stepReal.entries.map((e) => [e.skillId, e.prevSkillIds || []]));
+		const rarityMap = new Map(ptReal.entries.map((e) => [e.skillId, e.rarity]));
+		const gold = Array.from(prevOfMap.keys()).find((g) => rarityMap.get(g) === 'gold' && prevOfMap.get(g).length === 1 && pop.indexOf(prevOfMap.get(g)[0]) !== -1 && (prevOfMap.get(prevOfMap.get(g)[0]) || []).length === 0);
+		const p1 = gold ? prevOfMap.get(gold)[0] : null;
+		assert(!!gold && !!p1, 'オススメサポ(I) 前提: 前段が白1つだけで、その白が母集団にある金スキルがある', { gold, p1 });
+		const mkc = (id, chara, order, skills) => ({ id, title: '二つ名' + id, charaName: chara, type: 'スピード', typeOrder: order, rarity: 'SSR', isGroup: false, hintSkills: skills.map((x) => ({ skillId: x, name: 'x' })), dataStatus: { hint: 'done' } });
+		const gc = SYN_ROSTER_IDS.map((id, i) => mkc(id, 'ロスター' + (i + 1), 1, [])).concat([mkc('syn-H', 'テストH', 2, [gold])]);
+		const sg = await openSp({ roster: FULLSYN, syn: { cards: gc, events: gc.map((c) => ({ cardId: c.id, status: 'done', chain: [] })) } });
+		const g = await sg.page.evaluate((a) => {
+			const C = UmaSkillDeckCore.outside;
+			const r0 = C.solveSync({ roster: a.roster, count: 5, addedSkillIds: [], deadlineMs: 20000 });
+			const r1 = C.solveSync({ roster: Object.assign({}, a.roster, { outsideSkillExcluded: [a.p1] }), count: 5, addedSkillIds: [], deadlineMs: 20000 });
+			return { g0: r0.counts.gold, w0: r0.skills.map((s) => s.skillId), g1: r1.counts.gold, w1: r1.skills.map((s) => s.skillId), score1: r1.score, cards1: r1.cards.length };
+		}, { roster: FULLSYN, p1 });
+		assert(g.g0 === 1 && g.w0.indexOf(p1) !== -1 && g.g1 === 0 && g.w1.indexOf(p1) === -1 && g.score1 === 0, 'オススメサポ(I) 金スキルの前段の白（鎖のすべて）を除外すると、金スキルは数えず（金スキル 1種 → 0種）、前段の白もリストに出ない', g);
+		await sg.ctx.close();
+	});
+
+	await block('オススメサポ(I) 除外スキルはこのパネルの計算にだけ効く: 条件で検索・テキストで検索・②の一覧・種数・Pt・①の数字は変わらない', async () => {
+		const sp = await openSp({ roster: FULL });
+		await open(sp.page);
+		const s0 = await snap(sp.page);
+		await sp.page.click(M + '[data-usd-act="outside-close"]');
+		await sp.page.click(T + '[data-usd-act="editor-pick"]');
+		const inPicker = await sp.page.evaluate((ids) => ids.filter((id) => !!document.querySelector('[data-usd-el="skill-check"][value="' + id + '"]')), s0.rows.filter((r) => !r.added).map((r) => r.id));
+		await sp.page.click('[data-usd-act="picker-close"]');
+		const pick = inPicker.slice(0, 3);
+		await open(sp.page);
+		const nums = () => sp.page.evaluate(() => { const q = (s) => { const e = document.querySelector(s); return e ? e.textContent : null; };
+			return { f: [q('#deck-template-panel [data-usd-el="factor-pt"]'), q('#deck-template-panel [data-usd-el="factor-count"]')], r: [q('#deck-roster-panel [data-usd-el="pt-total"]'), q('#deck-roster-panel [data-usd-el="pt-count"]')], badge: q('#skill-count-badge'), list: document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]').length }; });
+		const before = await nums();
+		const name0 = await sp.page.evaluate((id) => UmaSkillDeckCore.getSkillName(id), pick[0]);
+		for (const id of pick) await sp.page.click(rowCheck(id));
+		await sp.page.click(M + '[data-usd-el="outside-recalc"]'); await settle(sp.page);
+		assert(JSON.stringify(await skillEx(sp.page)) === JSON.stringify(pick) && (await snap(sp.page)).rows.every((r) => pick.indexOf(r.id) === -1), 'オススメサポ(I) 前提: 3つを除外して再計算した（リストから消えた）', await skillEx(sp.page));
+		await sp.page.click(M + '[data-usd-act="outside-close"]');
+		const after = await nums();
+		assert(JSON.stringify(before) === JSON.stringify(after), 'オススメサポ(I) ②の合計（Pt・種数）・①の合計・見出しの数・②の一覧の行数は、除外スキルで変わらない', { before, after });
+		// 条件で検索: 除外したスキルも一覧に出て、選べる
+		await sp.page.click(T + '[data-usd-act="editor-pick"]');
+		const rows = await sp.page.evaluate((ids) => ids.map((id) => { const i = document.querySelector('[data-usd-el="skill-check"][value="' + id + '"]'); return !!i && !i.disabled; }), pick);
+		await sp.page.click('[data-usd-act="picker-close"]');
+		assert(rows.every(Boolean), 'オススメサポ(I) 条件で検索の一覧には、除外したスキルも出て、選べる', rows);
+		// テキストで検索: 名前で照合できて、チェックが入る
+		await sp.page.click(T + '[data-usd-act="editor-pick-text"]');
+		await sp.page.fill('[data-usd-el="paste-input"]', name0);
+		await sp.page.click('[data-usd-act="paste-run"]');
+		const txt = await sp.page.evaluate(() => (document.querySelector('[data-usd-el="picker-checked-count"]') || {}).textContent);
+		await sp.page.click('[data-usd-act="picker-close"]');
+		assert(txt === '1種選択', 'オススメサポ(I) テキストで検索でも、除外したスキルを名前で照合して選べる', txt);
+		// 緑スキル・純粋関数（引数の roster を変えた計算だけが影響を受ける）
+		const pure = await sp.page.evaluate((a) => { const C = UmaSkillDeckCore.outside; const all = C.populationOf({ umaId: a.u, cardIds: a.cards, skillFilter: a.f }).ids; return { all: all.length, hasAll: a.pick.every((id) => all.indexOf(id) !== -1) }; }, { u: FULL.umaId, cards: CARDS6, f: FILTER, pick });
+		assert(pure.hasAll, 'オススメサポ(I) 除外スキルを持たない roster で数えた母集団には、そのスキルが入っている（除外はこの機能の計算の入力でだけ効く）', pure);
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ(I) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('オススメサポ(I) 保存: 項目の無いデータは開いても1バイトも変わらない／schemaVersion は 7 のまま／書き出し→取り込み→「元に戻す」・複製・再読み込みで保たれる／古いIDは数えず書き換えない／①の次の書き込み・①②のリセットで消えない／＋新規の保存で写る', async () => {
+		const seed = SAVED();
+		seed.templates[0].skillIds = ['1', '2', '3'];   // ②のリセットを押せるように、②にスキルを入れておく
+		let sp = await openSp({ userData: seed, roster: null });
+		await pickSet(sp.page, 't1');
+		const raw0 = await rawUd(sp.page);
+		assert(raw0 === JSON.stringify(seed), 'オススメサポ(I) 項目の無いデータを開き、セットを選んでも、保存データは1バイトも変わらない', raw0.length);
+		await open(sp.page);
+		const raw1 = await rawUd(sp.page);
+		assert(raw1 === raw0, 'オススメサポ(I) 小窓を開いて計算しても、保存データは変わらない（チェックを外すまで何も書かない）', true);
+		const s0 = await snap(sp.page);
+		const [X, Y] = s0.rows.filter((r) => !r.added).slice(0, 2).map((r) => r.id);
+		await sp.page.click(rowCheck(X)); await sp.page.click(rowCheck(Y));
+		let d = await ud(sp.page);
+		const rr = (dd) => dd.rosters.find((r) => r.rosterId === 'r1');
+		assert(JSON.stringify(rr(d).outsideSkillExcluded) === JSON.stringify([X, Y]) && d.schemaVersion === 7 && !('outsideCardExcluded' in rr(d)) && d.rosters.length === 1,
+			'オススメサポ(I) 保存済みのセットでは userData の roster に書く（schemaVersion は 7 のまま・移行なし。カードの除外は無関係）', rr(d).outsideSkillExcluded);
+		const exported = JSON.stringify(d);   // 書き出し（①のリセットの前の姿）
+		// ①の次の書き込み（スキルのオン/オフ）のあとも残る
+		await sp.page.click(M + '[data-usd-act="outside-close"]');
+		await sp.page.evaluate(() => document.querySelector('#deck-roster-panel input[data-usd-act="take-skill"]').click());
+		await sp.page.waitForTimeout(300);
+		d = await ud(sp.page);
+		assert(JSON.stringify(rr(d).outsideSkillExcluded) === JSON.stringify([X, Y]) && Array.isArray(rr(d).offSkillIds), 'オススメサポ(I) ①で次の書き込み（スキルのオン/オフ）をしても、除外スキルは消えない（①のメモリ上の roster 経由）', rr(d).outsideSkillExcluded);
+		await sp.page.evaluate(() => document.querySelector('#deck-roster-panel input[data-usd-act="take-skill"]').click());
+		await sp.page.waitForTimeout(250);
+		// ①のリセット・②のリセット
+		await sp.page.evaluate(() => selectStepTab(0, { noSave: true }));
+		await sp.page.waitForTimeout(250);
+		await sp.page.click(P + '[data-usd-act="roster-reset"]');
+		await sp.page.click('[data-usd-el="roster-reset-all"]');
+		await sp.page.waitForTimeout(300);
+		d = await ud(sp.page);
+		assert(!rr(d).umaId && JSON.stringify(rr(d).outsideSkillExcluded) === JSON.stringify([X, Y]), 'オススメサポ(I) ①のリセットは、除外スキルを消さない', { uma: rr(d).umaId, ex: rr(d).outsideSkillExcluded });
+		await sp.page.evaluate(() => selectStepTab(1, { noSave: true }));
+		await sp.page.waitForTimeout(250);
+		await sp.page.click(T + '[data-usd-act="factor-reset"]');
+		await sp.page.click('[data-usd-el="factor-reset-all"]');
+		await sp.page.waitForTimeout(300);
+		d = await ud(sp.page);
+		assert(JSON.stringify(rr(d).outsideSkillExcluded) === JSON.stringify([X, Y]), 'オススメサポ(I) ②のリセットも、除外スキルを消さない', rr(d).outsideSkillExcluded);
+		await sp.ctx.close();
+		// 取り込み後（同じ中身を入れて開く）
+		sp = await openSp({ userData: JSON.parse(exported), roster: null });
+		await pickSet(sp.page, 't1');
+		await open(sp.page);
+		const sImp = await snap(sp.page);
+		assert(sImp.excl === '除外中 スキル2種 ▾' && sImp.rows.every((r) => r.id !== X && r.id !== Y), 'オススメサポ(I) 書き出したデータを取り込んだあとも、除外スキルは残っている', sImp.excl);
+		await sp.ctx.close();
+		// 古いID: 引けないIDは数えず、書き換えない
+		const old = SAVED({ outsideSkillExcluded: ['no-such-skill', X] });
+		sp = await openSp({ userData: old, roster: null });
+		await pickSet(sp.page, 't1');
+		const rawOld = await rawUd(sp.page);
+		assert(rawOld === JSON.stringify(old), 'オススメサポ(I) 古いIDを含む保存データを開いても、1バイトも変わらない', rawOld.length);
+		await open(sp.page);
+		const so = await snap(sp.page);
+		assert(so.excl === '除外中 スキル1種 ▾' && so.rows.every((r) => r.id !== X), 'オススメサポ(I) 引けない古いIDは数えない（「除外中 スキル1種」）。引けるIDだけが効く', so.excl);
+		const other = so.rows.find((r) => !r.added).id;
+		await sp.page.click(rowCheck(other)); await sp.page.click(rowCheck(other));
+		let dd = await ud(sp.page);
+		assert(JSON.stringify(rr(dd).outsideSkillExcluded) === JSON.stringify(['no-such-skill', X]), 'オススメサポ(I) 別のスキルを外して付け直しても、古いIDと既存の記録は書き換わらない（そのIDだけを触る）', rr(dd).outsideSkillExcluded);
+		await sp.page.click(M + '[data-usd-el="outside-excl-toggle"]');
+		await sp.page.click(M + '[data-usd-el="outside-restore-skill"][data-skill-id="' + X + '"]'); await settle(sp.page);
+		dd = await ud(sp.page);
+		assert(JSON.stringify(rr(dd).outsideSkillExcluded) === JSON.stringify(['no-such-skill']), 'オススメサポ(I) 「戻す」は、そのIDだけを外す（古いIDは残る）', rr(dd).outsideSkillExcluded);
+		await sp.ctx.close();
+		// ＋新規の保存: この項目だけを持つ下書きの①も写される
+		sp = await openSp({ roster: { outsideSkillExcluded: [X] } });
+		await sp.page.click(BAR + '[data-usd-act="name-edit"]');
+		await sp.page.fill(BAR + '[data-usd-el="name"]', '除外スキルだけ');
+		await sp.page.keyboard.press('Enter');
+		await sp.page.waitForTimeout(250);
+		dd = await ud(sp.page);
+		const nt = dd.templates.find((t) => t.name === '除外スキルだけ');
+		const nr = nt && dd.rosters.find((r) => r.rosterId === nt.baseRosterId);
+		assert(nt && nr && JSON.stringify(nr.outsideSkillExcluded) === JSON.stringify([X]), 'オススメサポ(I) 「＋新規の保存」で、この項目だけを持つ下書きの①も写される（rosterHasContent）', { nt: !!nt, nr });
+		await sp.ctx.close();
+		// 再読み込み（同じ context の新しいページ）
+		const base1 = SAVED({ outsideSkillExcluded: [X, Y] });
+		sp = await openSp({ userData: base1, roster: null });
+		const pg = await sp.ctx.newPage();
+		await pg.route('**/data/scenario-event-skills.json*', (r) => r.fulfill(json(scenReal)));
+		await pg.goto(base + '/special.html', { waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await pg.isVisible('#ui-notice')) await pg.click('[data-act="notice-ok"]');
+		await pg.waitForSelector(T + OPEN, { timeout: 10000 });
+		await pg.waitForTimeout(300);
+		await pickSet(pg, 't1');
+		await open(pg);
+		const sr = await snap(pg);
+		assert(sr.excl === '除外中 スキル2種 ▾' && sr.rows.every((r) => r.id !== X && r.id !== Y), 'オススメサポ(I) 再読み込みのあとも、除外スキルは残っている', sr.excl);
+		await pg.close();
+		await sp.ctx.close();
+		// Deck: 書き出し→取り込み→「元に戻す」・複製
+		const seedD = SAVED({ outsideSkillExcluded: [X, 'no-such-skill'] });
+		const dk = await openPage(browser, base, 'uma-skill-deck.html', { width: 1280, height: 900 }, seedD);
+		await dk.page.click('#tab-btn-data');
+		await dk.page.waitForTimeout(300);
+		const state = () => dk.page.evaluate(() => JSON.stringify(UmaSkillDeckCore.getUserData()) + '|' + localStorage.getItem('umaSkillDeck:userData'));
+		const bef = await state();
+		const exp = await dk.page.evaluate(() => { exportData(); return document.getElementById('export-textarea').value; });
+		assert(JSON.parse(exp).rosters[0].outsideSkillExcluded.join() === [X, 'no-such-skill'].join(), 'オススメサポ(I) 書き出しに項目が入る（古いIDもそのまま）', exp.length);
+		const other2 = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
+		await dk.page.evaluate((v) => { document.getElementById('import-textarea').value = JSON.stringify(v); const c = window.confirm; window.confirm = () => true; importData(); window.confirm = c; }, other2);
+		const un = await dk.page.evaluate(() => ({ ok: performUndo() }));
+		await dk.page.waitForTimeout(300);
+		assert(un.ok && (await state()) === bef, 'オススメサポ(I) 取り込み→「元に戻す」で、項目つきのデータが取り込み前と一致する（移行で書き換わらない）', un);
+		await dk.page.evaluate((v) => { document.getElementById('import-textarea').value = v; const c = window.confirm; window.confirm = () => true; importData(); window.confirm = c; }, exp);
+		assert(JSON.stringify(await dk.page.evaluate(() => UmaSkillDeckCore.getUserData().rosters[0].outsideSkillExcluded)) === JSON.stringify([X, 'no-such-skill']), 'オススメサポ(I) 書き出したファイルを取り込み直しても、項目が保たれる', true);
+		await dk.page.evaluate(() => switchTab('template'));
+		await dk.page.click('[data-usd-act="template-tab"][data-tab-id="t1"]');
+		await dk.page.waitForTimeout(250);
+		const dup = await dk.page.evaluate(() => { const b = document.querySelector('[data-usd-act="template-duplicate"]'); return !!b && !b.hidden; });
+		if (dup) { await dk.page.click('[data-usd-act="template-duplicate"]'); await dk.page.waitForTimeout(300); }
+		const aft = await dk.page.evaluate(() => { const d = UmaSkillDeckCore.getUserData(); return { n: d.templates.length, ex: d.rosters.map((r) => r.outsideSkillExcluded) }; });
+		assert(dup && aft.n === 3 && aft.ex[0].join() === [X, 'no-such-skill'].join(), 'オススメサポ(I) セットの複製（Deck）でも、roster の項目は保たれる（複製は同じ roster を指す）', { dup, aft });
+		assert(dk.errors.length === 0, 'オススメサポ(I) Deck: コンソールのエラー0', dk.errors.slice(0, 3));
+		await dk.ctx.close();
+	});
+
+	await block('オススメサポ(J) 「除外中」の行: 文言（カード1枚・スキル1種）・開閉・一覧の最大の高さ・「戻す」「すべて戻す」でその場で再計算・0件で消える／新しい文言', async () => {
+		const sp = await openSp({ roster: FULL });
+		await open(sp.page);
+		const s0 = await snap(sp.page);
+		assert(s0.excl === null && s0.restoreAll === null && !s0.recalc, 'オススメサポ(J) 除外が0件のとき、「除外中」の行（と「すべて戻す」）は出ない', { excl: s0.excl });
+		// カード1枚
+		const c0 = s0.cards[0].id;
+		await sp.page.click(M + '[data-usd-el="outside-exclude"][data-card-id="' + c0 + '"]'); await settle(sp.page);
+		const s1 = await snap(sp.page);
+		assert(s1.excl === '除外中 カード1枚 ▾' && s1.restoreAll === 'すべて戻す', 'オススメサポ(J) カードだけのとき「除外中 カード1枚 ▾」。行の右端に「すべて戻す」', { excl: s1.excl, all: s1.restoreAll });
+		// スキル12種を外して再計算（一覧の最大の高さを見る）
+		const names = s1.rows.filter((r) => !r.added).slice(0, 12);
+		for (const r of names) await sp.page.click(rowCheck(r.id));
+		const pend = await snap(sp.page);
+		assert(pend.excl === '除外中 カード1枚 ▾' && pend.recalc, 'オススメサポ(J) チェックを外しただけ（まだ再計算していない）では、「除外中」のスキルの数は増えず、「再計算」が出る', { excl: pend.excl, recalc: pend.recalc });
+		await sp.page.click(M + '[data-usd-el="outside-recalc"]'); await settle(sp.page);
+		const s2 = await snap(sp.page);
+		assert(s2.excl === '除外中 カード1枚・スキル12種 ▾' && !s2.recalc, 'オススメサポ(J) 再計算すると「除外中 カード1枚・スキル12種 ▾」になる', s2.excl);
+		await sp.page.click(M + '[data-usd-el="outside-excl-toggle"]');
+		const s3 = await snap(sp.page);
+		const geo = await sp.page.evaluate(() => { const l = document.querySelector('[data-usd-el="outside-excl-list"]'); const cs = getComputedStyle(l); return { h: Math.round(l.clientHeight), sh: l.scrollHeight, max: cs.maxHeight, oy: cs.overflowY, sw: document.documentElement.scrollWidth, iw: window.innerWidth }; });
+		assert(s3.exclCards.length === 1 && s3.exSkills.length === 12 && s3.exSkills.every((e) => /戻す$/.test(e.text)) && s3.exSkills.map((e) => e.id).join() === names.map((r) => r.id).join() && /▴/.test(s3.excl),
+			'オススメサポ(J) 押すと一覧が開き、カードは名前、スキルはスキル名を出し、それぞれに「戻す」がある', { cards: s3.exclCards.length, skills: s3.exSkills.length });
+		assert(geo.oy === 'auto' && geo.max === '132px' && geo.h <= 132 && geo.sh > geo.h && geo.sw <= geo.iw, 'オススメサポ(J) 一覧が長いときは、一覧の中だけをスクロールさせる（最大の高さ 132px。' + geo.h + 'px で ' + geo.sh + 'px 分）', geo);
+		// スキルを1つ戻す → その場で再計算。そのスキルがリストに戻る
+		const back = names[0].id;
+		await sp.page.click(M + '[data-usd-el="outside-restore-skill"][data-skill-id="' + back + '"]'); await settle(sp.page);
+		const s4 = await snap(sp.page);
+		const ex4 = await skillEx(sp.page);
+		assert(s4.excl && /^除外中 カード1枚・スキル11種/.test(s4.excl) && s4.rows.some((r) => r.id === back && r.checked) && ex4.indexOf(back) === -1 && ex4.length === 11,
+			'オススメサポ(J) スキルの「戻す」で記録から外れ、その場で再計算され、リストに戻る（全部チェック済み）', { excl: s4.excl, n: (ex4 || []).length });
+		// カードを戻す
+		await sp.page.click(M + '[data-usd-el="outside-excl-toggle"]');   // 再計算で一覧は閉じる？ 開いているなら閉じない
+		const open4 = await sp.page.evaluate(() => !!document.querySelector('[data-usd-el="outside-excl-list"]'));
+		if (!open4) await sp.page.click(M + '[data-usd-el="outside-excl-toggle"]');
+		await sp.page.click(M + '[data-usd-el="outside-restore"][data-card-id="' + c0 + '"]'); await settle(sp.page);
+		const s5 = await snap(sp.page);
+		assert(/^除外中 スキル11種/.test(s5.excl) && (await cardEx(sp.page)) === null && s5.cards.some((c) => c.id === c0), 'オススメサポ(J) カードの「戻す」で、カードの除外だけが外れる（「除外中 スキル11種」）', s5.excl);
+		// すべて戻す → 両方の記録が消え、再計算され、行が消える。最初の結果に戻る
+		await sp.page.click(M + '[data-usd-el="outside-restore-all"]'); await settle(sp.page);
+		const s6 = await snap(sp.page);
+		const dr = await draftRoster(sp.page);
+		assert(s6.excl === null && s6.restoreAll === null && !('outsideSkillExcluded' in dr) && !('outsideCardExcluded' in dr) && s6.cards.map((c) => c.id).join() === s0.cards.map((c) => c.id).join() && s6.rows.length === s0.rows.length,
+			'オススメサポ(J) 「すべて戻す」で、カードとスキルの除外の記録が（項目ごと）消え、その場で再計算され、「除外中」の行が消える。最初の結果に戻る', { excl: s6.excl, keys: Object.keys(dr) });
+		// 新しい文言
+		await sp.page.click(M + '[data-usd-el="outside-row"] input');
+		const t = await sp.page.evaluate(() => ({ recalc: document.querySelector('[data-usd-el="outside-recalc"]').textContent.replace(/\s+/g, ' ').trim(), icon: !!document.querySelector('[data-usd-el="outside-recalc"] svg, [data-usd-el="outside-recalc"] i[data-lucide="refresh-cw"]') }));
+		assert(t.recalc === '再計算' && t.icon, 'オススメサポ(J) 新しい文言「再計算」（更新のアイコンつき）', t);
+		const all = await sp.page.evaluate(() => { const m = document.querySelector('[data-usd-el="outside-modal"]'); return m.outerHTML + m.innerText; });
+		assert(!/ヒント/.test(all), 'オススメサポ(J) 「ヒント」の語が、この機能の画面のどこにも出ない（除外中・再計算を含む）', true);
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ(J) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
 

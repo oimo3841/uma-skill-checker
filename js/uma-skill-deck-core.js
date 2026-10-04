@@ -2281,6 +2281,7 @@
 		const wanted = filterPredicateOf(r);
 		const vp = visiblePartOf(r, rosterSkillResultOf(r));
 		const taken = new Set(vp.takenIds), off = new Set(vp.offList);
+		const skipped = new Set(outsideSkillExcludedIdsOf(r));   // 小窓で除外したスキル（このパネルの計算だけ）
 		const ids = [];
 		const seen = new Set();
 		pool.forEach(s => {
@@ -2289,10 +2290,17 @@
 			const row = skillPtData.skillPt.get(s.id);
 			if (row && row.rarity !== 'white') return;
 			if (wanted && !wanted(s.id)) return;
-			if (taken.has(s.id) || off.has(s.id)) return;
+			if (taken.has(s.id) || off.has(s.id) || skipped.has(s.id)) return;
 			ids.push(s.id);
 		});
-		return { ok: true, ids: ids, set: new Set(ids), takenIds: Array.from(taken), offIds: Array.from(off), filtered: !!wanted };
+		return { ok: true, ids: ids, set: new Set(ids), takenIds: Array.from(taken), offIds: Array.from(off), skillExcludedIds: Array.from(skipped), filtered: !!wanted };
+	}
+	/** 提案から除外したスキルID（roster.outsideSkillExcluded。小窓のチェックを外したスキル）のうち、収録データで引けるものだけ。保存値は書き換えない。この計算（母集団）にだけ効かせる */
+	function outsideSkillExcludedIdsOf(roster) {
+		const stored = (roster && Array.isArray(roster.outsideSkillExcluded)) ? roster.outsideSkillExcluded : [];
+		const out = [];
+		stored.forEach(id => { if (typeof id === 'string' && id && out.indexOf(id) === -1 && findSkill(id)) out.push(id); });
+		return out;
 	}
 	/** 提案から外したカードID（roster.outsideCardExcluded）のうち、収録データで引けるものだけ。保存値は書き換えない */
 	function outsideExcludedIdsOf(roster) {
@@ -3277,7 +3285,7 @@
 		if (!r || typeof r !== 'object') return false;
 		if (r.umaId) return true;
 		if ((r.cardIds || []).some(Boolean)) return true;
-		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'outsideCardExcluded'].some(k => r[k] !== undefined && r[k] !== null);
+		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'outsideCardExcluded', 'outsideSkillExcluded'].some(k => r[k] !== undefined && r[k] !== null);
 	}
 
 	/**
@@ -3930,7 +3938,7 @@
 		'  background: var(--uma-surface); color: var(--uma-text); cursor: pointer; white-space: nowrap; }',
 		'.usd-out-segbtn[aria-pressed="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
 		'.usd-out-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--uma-sp-1-5); align-content: start; min-height: 120px; margin-bottom: var(--uma-sp-1-5); }',
-		'.usd-out-cards--excl { min-height: 0; margin: var(--uma-sp-1-5) 0 0; }',
+		'.usd-out-cards--excl { min-height: 0; margin: 0 0 var(--uma-sp-1-5); }',
 		// タイル（1行・高さ36px）。塗りは①のカードの表示と同じ種類色（--usd-card-bg / --usd-card-text。cardTypeColorVars が番号で流し込む）。
 		// 枠でレアリティを分ける: SSR は虹色 3px・SR は金色 2px（色は下の --usd-rarity-*。ダークでは同じ名前を差し替える）
 		'.usd-out-card { --usd-out-fill: var(--uma-surface); --usd-out-frame: linear-gradient(var(--uma-border), var(--uma-border));',
@@ -3949,6 +3957,12 @@
 		'.usd-out-card-gain { flex: none; white-space: nowrap; font-size: var(--uma-fs-xs); font-variant-numeric: tabular-nums; color: inherit; }',
 		'.usd-out-card-btn { flex: none; font: inherit; font-size: var(--uma-fs-xs); line-height: 1; min-height: 28px; padding: 0 var(--uma-sp-1); border: 0; background: transparent; color: inherit; text-decoration: underline; cursor: pointer; white-space: nowrap; }',
 		'.usd-out-card-btn:hover { filter: brightness(.8); }',
+		'.usd-out-exhead { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); }',
+		'.usd-out-restore-all { color: var(--uma-text-subtle); }',
+		'.usd-out-exlist { max-height: 132px; overflow-y: auto; margin-top: var(--uma-sp-1-5); }',
+		'.usd-out-exskill { display: flex; align-items: center; gap: var(--uma-sp-2); min-height: 32px; padding: 0 var(--uma-sp-1) 0 var(--uma-sp-2); border-bottom: 1px solid var(--uma-surface-muted); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); }',
+		'.usd-out-exskill-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+		'.usd-out-recalc { flex: none; padding: var(--uma-sp-1-5) var(--uma-sp-2-5); gap: var(--uma-sp-1); font-size: var(--uma-fs-xs); }',
 		'.usd-out-exbtn { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; min-height: 28px; padding: 0 var(--uma-sp-2); border: 0; background: transparent; color: var(--uma-text-subtle); cursor: pointer; }',
 		'.usd-out-excl { margin-bottom: var(--uma-sp-2); }',
 		'.usd-out-note { margin: 0; padding: var(--uma-sp-3); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
@@ -8244,6 +8258,37 @@
 				return true;
 			}
 		};
+		// スキルの除外（段5）。カードと同じ規則: 触ったときだけ書く・空になったら項目ごと消す・付け外しはそのIDだけ（古いIDは触らない）。書き込みは persistNow に乗せる
+		rosterOutsideSink.setSkillExcluded = function (skillId, excluded) {
+			if (typeof skillId !== 'string' || !skillId) return false;
+			const cur = Array.isArray(roster.outsideSkillExcluded) ? roster.outsideSkillExcluded.slice() : [];
+			const i = cur.indexOf(skillId);
+			if (excluded) {
+				if (!findSkill(skillId)) return false;
+				if (i !== -1) return true;
+				cur.push(skillId);
+			} else {
+				if (i === -1) return true;
+				cur.splice(i, 1);
+			}
+			if (cur.length === 0) delete roster.outsideSkillExcluded; else roster.outsideSkillExcluded = cur;
+			persistNow();
+			return true;
+		};
+		// 「すべて戻す」: いま引ける（有効な）カードとスキルの除外だけを外す。引けない古いIDは書き換えない（残す）
+		rosterOutsideSink.clearExcluded = function () {
+			let changed = false;
+			if (Array.isArray(roster.outsideCardExcluded)) {
+				const keep = roster.outsideCardExcluded.filter(id => !(typeof id === 'string' && id && findCard(id)));
+				if (keep.length !== roster.outsideCardExcluded.length) { changed = true; if (keep.length === 0) delete roster.outsideCardExcluded; else roster.outsideCardExcluded = keep; }
+			}
+			if (Array.isArray(roster.outsideSkillExcluded)) {
+				const keep = roster.outsideSkillExcluded.filter(id => !(typeof id === 'string' && id && findSkill(id)));
+				if (keep.length !== roster.outsideSkillExcluded.length) { changed = true; if (keep.length === 0) delete roster.outsideSkillExcluded; else roster.outsideSkillExcluded = keep; }
+			}
+			if (changed) persistNow();
+			return true;
+		};
 		rosterPtSource = {
 			getInputs: function () {
 				const res = computed();
@@ -9547,7 +9592,10 @@
 		const OUTSIDE_MSG_NEED_ROSTER = '先に①本育成編成を設定してください';
 		const OUTSIDE_MSG_PENDING = '①でイベントの選択が済んでいないものがあります';
 		const OUTSIDE_HELP_TEXT = '本育成のサポカで得られない対象スキルを、できるだけ多く得られる組み合わせです。ランダムイベントのスキルも数えます。選択肢で変わるものは、得られる側を選んだ前提です。追加済みのスキルも種数に含みます。金スキルの前段の白は、金スキルと合わせて1種ですが、金スキルによる因子化率を加味してオススメしています。';
-		const outsideUi = { el: null, open: false, count: OUTSIDE_COUNT_DEFAULT, token: 0, computing: false, result: null, checked: new Set(), excludedOpen: false, opener: null };
+		const outsideUi = { el: null, open: false, count: OUTSIDE_COUNT_DEFAULT, token: 0, computing: false, result: null, checked: new Set(), excludedOpen: false, opener: null, applied: '', appliedIds: [] };
+
+		/** 除外スキルの集合の印（計算に使ったときと、いまとで比べる）。引けるIDだけを並べて連ねたもの */
+		function outsideSkillKey() { return outsideSkillExcludedIdsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null).slice().sort().join(','); }
 
 		/**
 		 * 開く前の条件（満たさなければ小窓を開かない）。育成ウマ娘が選ばれている・サポカが6枚そろっている・距離／脚質／バ場がすべて指定されている。
@@ -9576,6 +9624,7 @@
 				+ '<p class="usd-out-partial" data-usd-el="outside-partial" hidden>途中の結果です（時間内に探し切れませんでした）</p>'
 				+ '<p class="usd-out-total" data-usd-el="outside-total"></p>'
 				+ '<div class="usd-out-selrow"><span class="usd-out-selected" data-usd-el="outside-selected"></span>'
+				+ '<button type="button" class="uma-btn uma-btn--secondary usd-out-recalc" data-usd-act="outside-recalc" data-usd-el="outside-recalc" hidden><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 再計算</button>'
 				+ '<button type="button" class="uma-btn uma-btn--primary usd-out-add" data-usd-act="outside-add" data-usd-el="outside-add" disabled>追加</button></div>'
 				+ '</div></div>';
 		}
@@ -9605,6 +9654,9 @@
 				else if (act === 'outside-exclude') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, true)) outsideRun(); }
 				else if (act === 'outside-restore') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, false)) outsideRun(); }
 				else if (act === 'outside-excl-toggle') { outsideUi.excludedOpen = !outsideUi.excludedOpen; renderOutside(); }
+				else if (act === 'outside-restore-skill') { if (rosterOutsideSink && rosterOutsideSink.setSkillExcluded(b.dataset.skillId, false)) outsideRun(); }
+				else if (act === 'outside-restore-all') { if (rosterOutsideSink && rosterOutsideSink.clearExcluded()) outsideRun(); }
+				else if (act === 'outside-recalc') outsideRun();
 				else if (act === 'outside-add') outsideAdd();
 			});
 			// チェックの付け外しでは再計算しない（フッターの数字だけを更新する）
@@ -9612,6 +9664,8 @@
 				const box = e.target;
 				if (!box || !box.getAttribute || box.getAttribute('data-usd-el') !== 'outside-check') return;
 				if (box.checked) outsideUi.checked.add(box.value); else outsideUi.checked.delete(box.value);
+				// 外した行は「除外スキル」として①の roster に記録する（付け直すと記録から消える）。再計算はしない（「再計算」を押すまで反映しない）
+				if (rosterOutsideSink) rosterOutsideSink.setSkillExcluded(box.value, !box.checked);
 				updateOutsideFoot();
 			});
 			global.document.addEventListener('keydown', (e) => {
@@ -9651,9 +9705,12 @@
 			else { const again = global.document.querySelector('[data-usd-act="outside-open"]'); if (again) focusNoScroll(again); }
 		}
 
-		/** 計算して描き直す。小窓を開いたとき・「外す」「戻す」・枚数の切り替えのときだけ呼ぶ。結果が出るまで「計算中…」 */
+		/** 計算して描き直す。小窓を開いたとき・「外す」「戻す」・「再計算」・枚数の切り替えのときだけ呼ぶ。結果が出るまで「計算中…」。毎回、探索を最初から全部やり直す（前の順位の次点を足すのではない）。記録されている除外カード・除外スキルを反映する */
 		async function outsideRun() {
 			const tok = ++outsideUi.token;
+			// この計算に効かせる除外スキル（記録されているもの）。「除外中」の行はこれを出す（チェックを外しただけで、まだ反映していないものは、チェックリストの中の外れた行として見える）
+			outsideUi.appliedIds = outsideSkillExcludedIdsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null);
+			outsideUi.applied = outsideUi.appliedIds.slice().sort().join(',');
 			outsideUi.computing = true;
 			outsideUi.result = null;
 			renderOutside();
@@ -9724,14 +9781,25 @@
 				});
 			}
 			h += '</div>';
-			// 除外中（1枚以上あるときだけ）
-			if (excl.length > 0) {
-				h += '<div class="usd-out-excl" data-usd-el="outside-excl">'
-					+ '<button type="button" class="usd-out-exbtn" data-usd-act="outside-excl-toggle" data-usd-el="outside-excl-toggle" aria-expanded="' + (outsideUi.excludedOpen ? 'true' : 'false') + '">除外中 ' + excl.length + '枚 ' + (outsideUi.excludedOpen ? '▴' : '▾') + '</button>';
+			// 除外中（カードかスキルが1件以上あるときだけ）。「除外中 カード1枚・スキル1種 ▾」と、右端の「すべて戻す」
+			const exSkills = outsideUi.appliedIds.filter(id => !!findSkill(id));
+			if (excl.length > 0 || exSkills.length > 0) {
+				const parts = [];
+				if (excl.length > 0) parts.push('カード' + excl.length + '枚');
+				if (exSkills.length > 0) parts.push('スキル' + exSkills.length + '種');
+				h += '<div class="usd-out-excl" data-usd-el="outside-excl"><div class="usd-out-exhead">'
+					+ '<button type="button" class="usd-out-exbtn" data-usd-act="outside-excl-toggle" data-usd-el="outside-excl-toggle" aria-expanded="' + (outsideUi.excludedOpen ? 'true' : 'false') + '">除外中 ' + parts.join('・') + ' ' + (outsideUi.excludedOpen ? '▴' : '▾') + '</button>'
+					+ '<button type="button" class="usd-out-card-btn usd-out-restore-all" data-usd-act="outside-restore-all" data-usd-el="outside-restore-all">すべて戻す</button></div>';
 				if (outsideUi.excludedOpen) {
-					h += '<div class="usd-out-cards usd-out-cards--excl" data-usd-el="outside-excl-list">';
-					excl.forEach(id => {
-						h += outsideCardTileHtml({ cardId: id }, { el: 'outside-excl-card', act: 'outside-restore', btnEl: 'outside-restore', btnText: '戻す' });
+					h += '<div class="usd-out-exlist" data-usd-el="outside-excl-list">';
+					if (excl.length > 0) {
+						h += '<div class="usd-out-cards usd-out-cards--excl">';
+						excl.forEach(id => { h += outsideCardTileHtml({ cardId: id }, { el: 'outside-excl-card', act: 'outside-restore', btnEl: 'outside-restore', btnText: '戻す' }); });
+						h += '</div>';
+					}
+					exSkills.forEach(id => {
+						h += '<div class="usd-out-exskill" data-usd-el="outside-excl-skill" data-skill-id="' + esc(id) + '"><span class="usd-out-exskill-name">' + esc(getSkillName(id)) + '</span>'
+							+ '<button type="button" class="usd-out-card-btn" data-usd-act="outside-restore-skill" data-usd-el="outside-restore-skill" data-skill-id="' + esc(id) + '" aria-label="' + esc(getSkillName(id) + 'を戻す') + '">戻す</button></div>';
 					});
 					h += '</div>';
 				}
@@ -9777,6 +9845,7 @@
 				q(el, 'outside-total').textContent = '得られるスキル 0種（金スキル 0種）';
 				q(el, 'outside-selected').textContent = '選択 0種・0 Pt';
 				q(el, 'outside-add').disabled = true;
+				q(el, 'outside-recalc').hidden = true;
 				return;
 			}
 			foot.removeAttribute('data-state');
@@ -9788,6 +9857,7 @@
 			if (p.ok) text += '・' + formatPtNumber(p.total) + ' Pt' + (p.unpriced.length > 0 ? '＋未収録 ' + p.unpriced.length + '種' : '');
 			q(el, 'outside-selected').textContent = text;
 			q(el, 'outside-add').disabled = ids.length === 0;
+			q(el, 'outside-recalc').hidden = outsideSkillKey() === outsideUi.applied;
 		}
 
 		/** 追加（段4）。チェックされた白スキルを、既存の一括追加と同じ受け皿で②に足す（2種以上なら「元に戻す」付きの知らせ）。足したら小窓を閉じる */
@@ -11051,7 +11121,11 @@
 			maskOf: outsideMaskOf, ptOf: outsidePtOf,
 			excludedIdsOf: outsideExcludedIdsOf,
 			getExcluded: function () { return outsideExcludedIdsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null); },
-			setExcluded: function (cardId, excluded) { return rosterOutsideSink ? rosterOutsideSink.setExcluded(cardId, excluded) : false; }
+			setExcluded: function (cardId, excluded) { return rosterOutsideSink ? rosterOutsideSink.setExcluded(cardId, excluded) : false; },
+			skillExcludedIdsOf: outsideSkillExcludedIdsOf,
+			getSkillExcluded: function () { return outsideSkillExcludedIdsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null); },
+			setSkillExcluded: function (skillId, excluded) { return rosterOutsideSink ? rosterOutsideSink.setSkillExcluded(skillId, excluded) : false; },
+			clearExcluded: function () { return rosterOutsideSink ? rosterOutsideSink.clearExcluded() : false; }
 		},
 		loadScenarioEvents: loadScenarioEvents,
 		getScenarioEventStatus: function () { return scenarioEventState.status; },
