@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-04a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-04b';
 
 	/* ============================================================
 	 * 定数
@@ -2071,6 +2071,480 @@
 
 		const list = Array.from(items.values()).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
 		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing, sources: sources, events: events, scenario: scenario };
+	}
+
+	/* ============================================================
+	 * 本育成サポカ外スキル（段1・2026-10-04・C-122。設計は support-card-outside-skills-step0.md とその補遺）
+	 *
+	 * ①（本育成編成）で得られない、②に追加できる白スキルのうち、①の絞り込み（距離・脚質・バ場）に合うものを、
+	 * 最も多く得られるサポートカードの組み合わせ（5枚か6枚。同じキャラクターは同時に入れられない）を探す。
+	 * **画面を持たない。** 母集団・候補・探索・結果の組み立て・Pt の純粋関数と、探索の部品だけ（画面は段3 以降）。
+	 * この機能は①②の計算に何も書き込まない（読むだけ。書くのは除外のカードID を roster に持つ段2 の受け口だけ）。
+	 *
+	 * 評価値（点数）: 選んだカードで得られるスキルIDの集合を作る。**金スキルを得たら、その前段の鎖（直前から根まで）の白を全部足す。**
+	 * 点数 ＝ 集合のうち母集団の白の数 ＋ 母集団の白を前段の鎖のどこかに持つ金スキルの数（金は前段の白とは別に1点）。
+	 * ヒントで出るスキル・イベントで出るスキル・キャラクター共通のイベントで出るスキルは等価に数える（出るかどうかだけ。レベルは使わない）。
+	 * △（選択肢が2つ以上あるイベント）は選択肢ごとの最良の選び方で数える。
+	 *
+	 * 同点のときの選び方（毎回同じになる）: (1) 増分が正のカードの枚数が少ない → (2) SSR が多い → (3) カード番号を昇順に並べた並びが辞書順で小さい。
+	 * 候補が足りて、増分が正のカードが K 枚に満たないときは、残りを SSR → カード番号の昇順で（同じキャラクターを避けて）埋める。埋めたカードの増分は 0。
+	 * ============================================================ */
+	const OUTSIDE_COUNT_CHOICES = [5, 6];
+	const OUTSIDE_COUNT_DEFAULT = 6;
+	const OUTSIDE_DEADLINE_MS = 1500;
+	const OUTSIDE_SLICE_MS = 8;
+	const OUTSIDE_PT_STATUS = 'kire';       // Pt は切れ者・ヒントLv5 で取得する前提で数える（仕様8）
+	const OUTSIDE_PT_HINT_LEVEL = 5;
+
+	function outsideNow() {
+		return (global.performance && typeof global.performance.now === 'function') ? global.performance.now() : Date.now();
+	}
+	function outsidePopcount32(x) {
+		x = x - ((x >>> 1) & 0x55555555);
+		x = (x & 0x33333333) + ((x >>> 2) & 0x33333333);
+		return (((x + (x >>> 4)) & 0x0F0F0F0F) * 0x01010101) >>> 24;
+	}
+	/** 番号（0〜）の配列 → ビット列（Int32Array。W 語） */
+	function outsideMaskOf(bits, W) {
+		const m = new Int32Array(Math.max(1, W || 1));
+		(bits || []).forEach(i => { m[i >> 5] |= (1 << (i & 31)); });
+		return m;
+	}
+	function outsideMaskPop(m) { let n = 0; for (let i = 0; i < m.length; i++) n += outsidePopcount32(m[i]); return n; }
+	function outsideMaskOr(a, b) { const r = new Int32Array(a.length); for (let i = 0; i < a.length; i++) r[i] = a[i] | b[i]; return r; }
+	function outsideMaskSubset(a, b) { for (let i = 0; i < a.length; i++) if ((a[i] & ~b[i]) !== 0) return false; return true; }
+	function outsideMaskGain(m, cov) { let n = 0; for (let i = 0; i < m.length; i++) n += outsidePopcount32(m[i] & ~cov[i]); return n; }
+	/** 他の選択肢の部分集合になる選択肢を落とす（中身が同じなら先に出たものを残す。入力の並びが決まっていれば結果も決まる） */
+	function outsidePareto(list) {
+		const out = [];
+		list.forEach(o => {
+			if (out.some(x => outsideMaskSubset(o.m, x.m))) return;
+			for (let i = out.length - 1; i >= 0; i--) if (outsideMaskSubset(out[i].m, o.m)) out.splice(i, 1);
+			out.push(o);
+		});
+		return out;
+	}
+
+	/* ---- 探索の部品（データを知らない。groups だけを見る）----
+	   groups: [{ key, options: [{ card, ssr, m（Int32Array）か bits（番号の配列）}] }]。グループ＝キャラクター（1グループから高々1枚）。
+	   選ぶ枚数は K まで。評価は ビットの数（和集合）。 */
+	function outsideEngine(groupsIn, W, K) {
+		const groups = groupsIn.map(g => ({ key: g.key, opts: g.options.map(o => ({ card: o.card, ssr: o.ssr ? 1 : 0, m: o.m || outsideMaskOf(o.bits, W), ref: o })) }));
+		groups.forEach(g => g.opts.forEach(o => { o.pc = outsideMaskPop(o.m); }));
+		const G = groups.length;
+		const zero = () => new Int32Array(Math.max(1, W));
+		let best = null;       // { score, size, ssr, ids（昇順）, picks: [option] }
+		let nodes = 0, finished = false, timedOut = false;
+		const cmpIds = (a, b) => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1; return 0; };
+		const better = (a, b) => {
+			if (!b) return true;
+			if (a.score !== b.score) return a.score > b.score;
+			if (a.size !== b.size) return a.size < b.size;
+			if (a.ssr !== b.ssr) return a.ssr > b.ssr;
+			return cmpIds(a.ids, b.ids) < 0;
+		};
+		const candidateOf = (score, picks) => ({ score: score, size: picks.length, ssr: picks.reduce((s, o) => s + o.ssr, 0),
+			ids: picks.map(o => o.card).sort(), picks: picks.slice() });
+		// (a) 貪欲法の解を出発点にして、枝刈りを早く効かせる
+		{
+			let cov = zero(), covN = 0; const used = new Set(); const picks = [];
+			for (let k = 0; k < K; k++) {
+				let bg = 0, bo = null, bgi = -1;
+				for (let g = 0; g < G; g++) {
+					if (used.has(g)) continue;
+					for (const o of groups[g].opts) { const gn = outsideMaskGain(o.m, cov); if (gn > bg) { bg = gn; bo = o; bgi = g; } }
+				}
+				if (!bo) break;
+				used.add(bgi); picks.push(bo); cov = outsideMaskOr(cov, bo.m); covN += bg;
+			}
+			if (picks.length > 0) best = candidateOf(covN, picks);
+		}
+		const stack = [];
+		const pickStack = [];
+		stack.push({ cands: groups.map((_, g) => g), left: K, cov: zero(), covN: 0, order: null, gains: null, i: 0, os: null, oi: 0, picked: false });
+		const worth = (ub, f) => {
+			const B = best ? best.score : 0;
+			if (ub > B) return true;
+			if (ub < B) return false;
+			// 同点: すでに f の時点の組が B に届いていれば、深くなるだけの組は負ける。届いていないときだけ、枚数で負けない範囲で調べる
+			return f.covN < B && (best === null || pickStack.length + 1 <= best.size);
+		};
+		/** 時間（ms）まで進める。'done'（探索が終わった）／'yield'（譲る時間）／'timeout'（締め切り）。 */
+		function step(sliceMs, deadlineAt) {
+			const sliceEnd = outsideNow() + sliceMs;
+			let iter = 0;
+			while (stack.length > 0) {
+				if ((++iter & 63) === 0) {
+					const t = outsideNow();
+					if (t >= deadlineAt) { timedOut = true; return 'timeout'; }
+					if (t >= sliceEnd) return 'yield';
+				}
+				const f = stack[stack.length - 1];
+				if (f.order === null) {
+					nodes++;
+					const d = pickStack.length;
+					if (f.covN > 0 && (!best || f.covN > best.score || (f.covN === best.score && d <= best.size))) {
+						const c = candidateOf(f.covN, pickStack);
+						if (better(c, best)) best = c;
+					}
+					if (f.left === 0) { if (f.picked) pickStack.pop(); stack.pop(); continue; }
+					const gs = [];
+					for (const g of f.cands) {
+						let mx = 0;
+						for (const o of groups[g].opts) { if (o.pc <= mx) continue; const gn = outsideMaskGain(o.m, f.cov); if (gn > mx) mx = gn; }
+						if (mx > 0) gs.push([mx, g]);
+					}
+					if (gs.length === 0) { if (f.picked) pickStack.pop(); stack.pop(); continue; }
+					gs.sort((a, b) => (b[0] - a[0]) || (a[1] - b[1]));
+					f.order = gs.map(x => x[1]);
+					f.gains = gs.map(x => x[0]);
+					f.i = 0; f.os = null;
+				}
+				if (f.os === null) {
+					if (f.i >= f.order.length) { if (f.picked) pickStack.pop(); stack.pop(); continue; }
+					let ub = f.covN;
+					for (let j = f.i; j < Math.min(f.i + f.left, f.gains.length); j++) ub += f.gains[j];
+					if (!worth(ub, f)) { if (f.picked) pickStack.pop(); stack.pop(); continue; }
+					const g = f.order[f.i];
+					f.os = groups[g].opts.map(o => ({ o: o, gn: outsideMaskGain(o.m, f.cov) })).filter(x => x.gn > 0)
+						.sort((a, b) => (b.gn - a.gn) || (a.o.card < b.o.card ? -1 : a.o.card > b.o.card ? 1 : 0)).map(x => x.o);
+					f.oi = 0;
+				}
+				if (f.oi < f.os.length) {
+					const o = f.os[f.oi++];
+					const nc = outsideMaskOr(f.cov, o.m);
+					pickStack.push(o);
+					stack.push({ cands: f.order.slice(f.i + 1), left: f.left - 1, cov: nc, covN: outsideMaskPop(nc), order: null, gains: null, i: 0, os: null, oi: 0, picked: true });
+				} else { f.i++; f.os = null; }
+			}
+			finished = true;
+			return 'done';
+		}
+		return { step: step, state: function () { return { best: best, nodes: nodes, finished: finished, timedOut: timedOut, groups: G }; } };
+	}
+	/** 締め切りまで一気に回す（譲らない。検査・node 用） */
+	function outsideRunSync(engine, deadlineMs) {
+		const t0 = outsideNow();
+		const st = engine.step(Infinity, t0 + deadlineMs);
+		const s = engine.state();
+		return { best: s.best, nodes: s.nodes, partial: st === 'timeout', ms: outsideNow() - t0, groups: s.groups };
+	}
+	/** 時間で区切って、区切りごとに画面へ譲る（締め切りに達したら、そのときの最良を返す） */
+	async function outsideRunAsync(engine, deadlineMs, sliceMs) {
+		const t0 = outsideNow();
+		const deadlineAt = t0 + deadlineMs;
+		let st;
+		for (;;) {
+			st = engine.step(sliceMs, deadlineAt);
+			if (st !== 'yield') break;
+			await new Promise(function (resolve) { global.setTimeout(resolve, 0); });
+		}
+		const s = engine.state();
+		return { best: s.best, nodes: s.nodes, partial: st === 'timeout', ms: outsideNow() - t0, groups: s.groups };
+	}
+
+	/* ---- 母集団・候補（データを読む）---- */
+	/** 前段の鎖（直前から根まで）。前段データが無ければ空。pairedWhiteIds・computeRosterPt の前段と同じ歩き方 */
+	function outsideAncestorsFn() {
+		const su = skillPtData.stepUp;
+		const memo = new Map();
+		return function (id) {
+			if (memo.has(id)) return memo.get(id);
+			const out = [];
+			if (su && typeof su.prevOf === 'function') {
+				const seen = new Set([id]);
+				const walk = (x) => su.prevOf(x).forEach(p => { if (seen.has(p)) return; seen.add(p); out.push(p); walk(p); });
+				walk(id);
+			}
+			memo.set(id, out);
+			return out;
+		};
+	}
+	function outsideIsGold(id) {
+		const pt = skillPtData.skillPt;
+		const row = pt instanceof Map ? pt.get(id) : null;
+		return !!row && row.rarity === 'gold';
+	}
+	/**
+	 * 母集団（②に追加できる白スキル）。条件で検索の母集団と緑スキルの合計（taggedSkillPool）のうち、区分が白（Pt 未収録で区分が不明なものも残す）で、
+	 * ①の絞り込みに合い、①の●（OFFでないもの）と、①でOFFにしたスキルを除いたもの。**すでに②にあるスキルは入れたまま。金スキルは入れない。**
+	 * roster は①の編成（無ければ {}＝絞り込みなし・●なし）。元データ（スキルPt）が読めていなければ { ok:false }。
+	 */
+	function outsidePopulationOf(roster) {
+		if (skillPtDataStatus() !== 'ok' || !(skillPtData.skillPt instanceof Map)) return { ok: false, reason: 'skillPt' };
+		const pool = taggedSkillPool();
+		if (pool.length === 0) return { ok: false, reason: 'master' };
+		const r = (roster && typeof roster === 'object') ? roster : {};
+		const wanted = filterPredicateOf(r);
+		const vp = visiblePartOf(r, rosterSkillResultOf(r));
+		const taken = new Set(vp.takenIds), off = new Set(vp.offList);
+		const ids = [];
+		const seen = new Set();
+		pool.forEach(s => {
+			if (seen.has(s.id)) return;
+			seen.add(s.id);
+			const row = skillPtData.skillPt.get(s.id);
+			if (row && row.rarity !== 'white') return;
+			if (wanted && !wanted(s.id)) return;
+			if (taken.has(s.id) || off.has(s.id)) return;
+			ids.push(s.id);
+		});
+		return { ok: true, ids: ids, set: new Set(ids), takenIds: Array.from(taken), offIds: Array.from(off), filtered: !!wanted };
+	}
+	/** 提案から外したカードID（roster.outsideCardExcluded）のうち、収録データで引けるものだけ。保存値は書き換えない */
+	function outsideExcludedIdsOf(roster) {
+		const stored = (roster && Array.isArray(roster.outsideCardExcluded)) ? roster.outsideCardExcluded : [];
+		const out = [];
+		stored.forEach(id => { if (typeof id === 'string' && id && out.indexOf(id) === -1 && findCard(id)) out.push(id); });
+		return out;
+	}
+	/** 候補のカード: SSR・SR、グループでない、イベント行が done。①の6枚（cardIds のカードだけ）と、提案から外したカードは除く */
+	function outsideCandidatesOf(roster, extraExcludedIds) {
+		const inRoster = new Set(((roster && roster.cardIds) || []).filter(Boolean));
+		const ex = new Set(outsideExcludedIdsOf(roster).concat((extraExcludedIds || []).filter(id => typeof id === 'string')));
+		return listCards().filter(c => c && (c.rarity === 'SSR' || c.rarity === 'SR') && c.isGroup === false
+			&& eventStatusOf(c.id) === 'done' && !inRoster.has(c.id) && !ex.has(c.id))
+			.sort((a, b) => ((b.rarity === 'SSR' ? 1 : 0) - (a.rarity === 'SSR' ? 1 : 0)) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+	}
+	/** イベントの行 → [{ idx, alts: [[skillId…]…] }]。done のときだけ。選択肢は成功側。スキルを得ない選択肢も空の選択肢として残す */
+	function outsideEventsOf(row, eventsKey) {
+		if (!row || row.status !== 'done') return [];
+		const out = [];
+		(row[eventsKey] || []).forEach((ev, idx) => {
+			const alts = ((ev && ev.choices) || []).map(ch => eventChoiceSuccessSkills(ch).map(s => s && s.skillId).filter(Boolean));
+			if (alts.length > 0) out.push({ idx: idx, alts: alts });
+		});
+		return out;
+	}
+	/** 1枚のカードが持つもの: ヒント（dataStatus.hint が done のときだけ）・連続イベント・（キャラクターごとに）共通イベント */
+	function outsideCardSourceOf(card) {
+		const hs = card.dataStatus && card.dataStatus.hint;
+		return { hint: hs === 'done' ? (card.hintSkills || []).map(s => s && s.skillId).filter(Boolean) : [], events: outsideEventsOf(findEventRow(card.id), 'chain') };
+	}
+	function outsideCommonSourceOf(charaName) {
+		return characterEventStatusOf(charaName) === 'done' ? outsideEventsOf(findCharacterEventRow(charaName), 'events') : [];
+	}
+
+	/**
+	 * 問題を組み立てる（母集団・候補・評価の土台・グループ）。
+	 *   args: { roster, addedSkillIds（②にあるスキル）, excludedCardIds（追加で外すカード）}
+	 */
+	function outsideBuild(args) {
+		const a = args || {};
+		const roster = (a.roster && typeof a.roster === 'object') ? a.roster : {};
+		const pop = outsidePopulationOf(roster);
+		if (!pop.ok) return { ok: false, reason: pop.reason };
+		if (!trainingMeta.loaded || !trainingSources.supportCard) return { ok: false, reason: 'cards' };
+		const cands = outsideCandidatesOf(roster, a.excludedCardIds);
+		const ancestors = outsideAncestorsFn();
+		const cardSrc = new Map(cands.map(c => [c.id, outsideCardSourceOf(c)]));
+		const charaOf = (c) => c.charaName;
+		const commonSrc = new Map();
+		cands.forEach(c => { if (!commonSrc.has(charaOf(c))) commonSrc.set(charaOf(c), outsideCommonSourceOf(charaOf(c))); });
+		// 得られうるスキルの全体から、評価に数える金スキル（前段の鎖のどこかに母集団の白を持つもの）を集める
+		const obtainable = new Set();
+		const eachId = (events, fn) => events.forEach(ev => ev.alts.forEach(al => al.forEach(fn)));
+		cardSrc.forEach(s => { s.hint.forEach(id => obtainable.add(id)); eachId(s.events, id => obtainable.add(id)); });
+		commonSrc.forEach(evs => eachId(evs, id => obtainable.add(id)));
+		const countableGolds = [];
+		obtainable.forEach(id => { if (outsideIsGold(id) && ancestors(id).some(p => pop.set.has(p))) countableGolds.push(id); });
+		countableGolds.sort();
+		const universe = pop.ids.concat(countableGolds);
+		const idx = new Map(universe.map((id, i) => [id, i]));
+		const W = Math.max(1, Math.ceil(universe.length / 32));
+		// 金スキルを得たら前段の鎖の白も足してから、母集団の中のものだけをビットにする
+		const expandIds = (ids) => {
+			const out = new Set();
+			ids.forEach(id => { out.add(id); if (outsideIsGold(id)) ancestors(id).forEach(p => out.add(p)); });
+			return out;
+		};
+		const mk = (ids) => { const bits = []; expandIds(ids).forEach(id => { const i = idx.get(id); if (i !== undefined) bits.push(i); }); return outsideMaskOf(bits, W); };
+		// カードごとの選択肢。イベントごとに選択肢（部分集合になるものは落とす）の直積を取る。picks は選んだ選択肢（2つ以上あるイベントだけ）
+		const foldEvents = (opts, events, scope) => {
+			events.forEach(ev => {
+				if (ev.alts.length === 1) {
+					const am = mk(ev.alts[0]);
+					opts = opts.map(o => Object.assign({}, o, { m: outsideMaskOr(o.m, am) }));
+					return;
+				}
+				const alts = outsidePareto(ev.alts.map((al, ci) => ({ m: mk(al), ci: ci })));
+				if (alts.every(x => outsideMaskPop(x.m) === 0)) return;
+				const next = [];
+				opts.forEach(o => alts.forEach(x => next.push(Object.assign({}, o, { m: outsideMaskOr(o.m, x.m),
+					picks: outsideMaskPop(x.m) > 0 ? o.picks.concat([{ scope: scope, eventIndex: ev.idx, choiceIndex: x.ci }]) : o.picks }))));
+				opts = outsidePareto(next);
+			});
+			return opts;
+		};
+		const byChara = new Map();
+		cands.forEach(c => {
+			const src = cardSrc.get(c.id);
+			const opts = foldEvents([{ m: mk(src.hint), card: c.id, ssr: c.rarity === 'SSR' ? 1 : 0, picks: [] }], src.events, 'card');
+			const k = charaOf(c);
+			if (!byChara.has(k)) byChara.set(k, []);
+			byChara.get(k).push.apply(byChara.get(k), opts);
+		});
+		const groups = [];
+		Array.from(byChara.keys()).sort((x, y) => (x < y ? -1 : x > y ? 1 : 0)).forEach(name => {
+			let opts = outsidePareto(byChara.get(name));
+			opts = foldEvents(opts, commonSrc.get(name) || [], 'chara');
+			opts = opts.filter(o => outsideMaskPop(o.m) > 0);
+			if (opts.length > 0) groups.push({ key: name, options: opts });
+		});
+		return { ok: true, roster: roster, pop: pop, cands: cands, cardSrc: cardSrc, commonSrc: commonSrc, universe: universe, idx: idx, W: W,
+			countableGolds: new Set(countableGolds), groups: groups, expandIds: expandIds, ancestors: ancestors,
+			added: new Set((a.addedSkillIds || []).filter(id => typeof id === 'string')) };
+	}
+
+	/** 選んだ組み合わせ（options の配列）の結果を組み立てる。足りない枚数は SSR → カード番号の昇順で（同じキャラクターを避けて）埋める */
+	function outsideAssemble(prob, chosen, K, search) {
+		const used = new Set(chosen.map(o => prob.cands.find(c => c.id === o.card).charaName));
+		const picksOf = new Map(chosen.map(o => [o.card, o.picks || []]));
+		const order = chosen.map(o => o.card);
+		for (const c of prob.cands) {
+			if (order.length >= K) break;
+			if (used.has(c.charaName)) continue;
+			used.add(c.charaName); order.push(c.id); picksOf.set(c.id, []);
+		}
+		const cardBy = new Map(prob.cands.map(c => [c.id, c]));
+		// 由来（ヒント／イベント／確定か）。金スキルを得たら前段の鎖の白も同じ由来で足す
+		const flagsByCard = new Map();
+		order.forEach(cardId => {
+			const card = cardBy.get(cardId);
+			const flags = new Map();
+			const put = (id, kind, sure) => {
+				const cur = flags.get(id) || { hint: false, event: false, sure: false, viaGold: false };
+				if (kind === 'hint') cur.hint = true; else cur.event = true;
+				if (sure) cur.sure = true;
+				flags.set(id, cur);
+			};
+			const src = prob.cardSrc.get(cardId);
+			src.hint.forEach(id => put(id, 'hint', true));
+			const picks = picksOf.get(cardId) || [];
+			const eventsOut = (events, scope) => events.forEach(ev => {
+				if (ev.alts.length === 1) { ev.alts[0].forEach(id => put(id, 'event', true)); return; }
+				const p = picks.find(x => x.scope === scope && x.eventIndex === ev.idx);
+				if (!p) return;
+				ev.alts[p.choiceIndex].forEach(id => put(id, 'event', ev.alts.every(al => al.indexOf(id) !== -1)));
+			});
+			eventsOut(src.events, 'card');
+			eventsOut(prob.commonSrc.get(card.charaName) || [], 'chara');
+			Array.from(flags.keys()).forEach(id => {
+				if (!outsideIsGold(id)) return;
+				const g = flags.get(id);
+				prob.ancestors(id).forEach(p => {
+					const cur = flags.get(p) || { hint: false, event: false, sure: false, viaGold: true };
+					cur.hint = cur.hint || g.hint; cur.event = cur.event || g.event; cur.sure = cur.sure || g.sure;
+					flags.set(p, cur);
+				});
+			});
+			flagsByCard.set(cardId, flags);
+		});
+		const scoredOf = (flags) => Array.from(flags.keys()).filter(id => prob.idx.has(id));
+		// 増分（カードを増分の大きい順に並べたときの、点数の増え方）。同じなら SSR → カード番号
+		const sets = new Map(order.map(id => [id, new Set(scoredOf(flagsByCard.get(id)))]));
+		const covered = new Set();
+		const left = order.slice();
+		const ranked = [];
+		while (left.length > 0) {
+			let bi = 0, bg = -1;
+			left.forEach((id, i) => {
+				let gn = 0; sets.get(id).forEach(x => { if (!covered.has(x)) gn++; });
+				const better = gn > bg || (gn === bg && ((cardBy.get(id).rarity === 'SSR') > (cardBy.get(left[bi]).rarity === 'SSR')
+					|| (cardBy.get(id).rarity === cardBy.get(left[bi]).rarity && id < left[bi])));
+				if (better) { bi = i; bg = gn; }
+			});
+			const id = left.splice(bi, 1)[0];
+			sets.get(id).forEach(x => covered.add(x));
+			ranked.push({ id: id, gain: bg });
+		}
+		// スキルごとの由来
+		const skillFlags = new Map();
+		order.forEach(cardId => {
+			flagsByCard.get(cardId).forEach((f, id) => {
+				if (!prob.idx.has(id)) return;
+				const cur = skillFlags.get(id) || { hint: false, event: false, sure: false, direct: false, cardIds: [] };
+				cur.hint = cur.hint || f.hint; cur.event = cur.event || f.event; cur.sure = cur.sure || f.sure; cur.direct = cur.direct || !f.viaGold;
+				if (cur.cardIds.indexOf(cardId) === -1) cur.cardIds.push(cardId);
+				skillFlags.set(id, cur);
+			});
+		});
+		const entryOf = (id) => {
+			const f = skillFlags.get(id);
+			return { skillId: id, name: getSkillName(id), hint: f.hint, event: f.event, unsure: !f.sure, viaGold: !f.direct, added: prob.added.has(id), cardIds: f.cardIds.slice() };
+		};
+		const whiteIds = Array.from(skillFlags.keys()).filter(id => prob.pop.set.has(id));
+		const goldIds = Array.from(skillFlags.keys()).filter(id => prob.countableGolds.has(id));
+		const idxOrder = (a, b) => prob.idx.get(a) - prob.idx.get(b);
+		whiteIds.sort(idxOrder); goldIds.sort(idxOrder);
+		const skills = whiteIds.map(entryOf), golds = goldIds.map(entryOf);
+		const cards = ranked.map(r => {
+			const c = cardBy.get(r.id), set = sets.get(r.id);
+			return { cardId: r.id, charaName: c.charaName, label: formatEntryLabel(c), rarity: c.rarity, gain: r.gain,
+				skillIds: whiteIds.filter(id => set.has(id)), goldIds: goldIds.filter(id => set.has(id)), picks: (picksOf.get(r.id) || []).map(p => Object.assign({}, p)) };
+		});
+		return { ok: true, partial: !!search.partial, count: K,
+			score: whiteIds.length + goldIds.length,
+			cards: cards, skills: skills, golds: golds,
+			// 仕様6・7: 種数は countSkillKinds（金スキルと前段の白で1種）、金スキルの数は併記。hintWhiteCount はヒントで得られる白の数（イベントでも得られるものを含む）
+			counts: { kinds: countSkillKinds(whiteIds.concat(goldIds)), gold: goldIds.length, white: whiteIds.length,
+				hintWhiteCount: skills.filter(x => x.hint).length, added: skills.filter(x => x.added).length },
+			stats: { engineScore: search.best ? search.best.score : 0, nodes: search.nodes, ms: search.ms, groups: search.groups, candidates: prob.cands.length, population: prob.pop.ids.length, goldCountable: prob.countableGolds.size } };
+	}
+
+	/**
+	 * 組み合わせを探す。args: { roster, addedSkillIds, count（5か6。既定6）, excludedCardIds, deadlineMs（既定1500）, sliceMs（既定8）}
+	 * 非同期版 outsideSolve は区切りごとに画面へ譲り、締め切りに達したら、そのときの最良に partial:true を付けて返す。
+	 * 結果の形は outsideAssemble を参照。元データが読めていないときは { ok:false, reason }。
+	 */
+	function outsidePrepare(args) {
+		const a = args || {};
+		const K = OUTSIDE_COUNT_CHOICES.indexOf(a.count) !== -1 ? a.count : OUTSIDE_COUNT_DEFAULT;
+		const prob = outsideBuild(a);
+		if (!prob.ok) return { prob: prob, K: K };
+		return { prob: prob, K: K, engine: outsideEngine(prob.groups, prob.W, K) };
+	}
+	function outsideFinish(p, search) {
+		if (!search.best) return outsideAssemble(p.prob, [], p.K, { partial: search.partial, nodes: search.nodes, ms: search.ms, groups: search.groups });
+		return outsideAssemble(p.prob, search.best.picks.map(o => o.ref), p.K, search);
+	}
+	async function outsideSolve(args) {
+		const a = args || {};
+		const p = outsidePrepare(a);
+		if (!p.prob.ok) return { ok: false, reason: p.prob.reason };
+		const search = await outsideRunAsync(p.engine, typeof a.deadlineMs === 'number' ? a.deadlineMs : OUTSIDE_DEADLINE_MS, typeof a.sliceMs === 'number' ? a.sliceMs : OUTSIDE_SLICE_MS);
+		return outsideFinish(p, search);
+	}
+	function outsideSolveSync(args) {
+		const a = args || {};
+		const p = outsidePrepare(a);
+		if (!p.prob.ok) return { ok: false, reason: p.prob.reason };
+		return outsideFinish(p, outsideRunSync(p.engine, typeof a.deadlineMs === 'number' ? a.deadlineMs : OUTSIDE_DEADLINE_MS));
+	}
+	/** 探索の部品だけを単独で回す（検査用）。groups の形は outsideEngine を参照。 */
+	function outsideSolveGroups(groups, universeSize, K, opts) {
+		const o = opts || {};
+		const W = Math.max(1, Math.ceil((universeSize || 0) / 32));
+		const r = outsideRunSync(outsideEngine(groups, W, K), typeof o.deadlineMs === 'number' ? o.deadlineMs : OUTSIDE_DEADLINE_MS);
+		return { score: r.best ? r.best.score : 0, cards: r.best ? r.best.ids.slice() : [], size: r.best ? r.best.size : 0, ssr: r.best ? r.best.ssr : 0, partial: r.partial, nodes: r.nodes, ms: r.ms };
+	}
+
+	/**
+	 * チェックされた白スキルの、本育成で必要な Pt（切れ者・ヒントLv5 で取得する前提）。既存の computeRosterPt を呼ぶだけ（前段の扱いも既存どおり）。
+	 * 追加済みのスキルは呼び出し側が渡さない（チェックされないため）。Pt 未収録のスキルは合計に入れず unpriced に返す。
+	 */
+	function outsidePtOf(skillIds) {
+		if (skillPtDataStatus() !== 'ok' || !skillPtData.rules) return { ok: false, reason: 'skillPt' };
+		const rules = skillPtData.rules;
+		if (!rules.statuses.some(s => s.id === OUTSIDE_PT_STATUS)) return { ok: false, reason: 'status' };
+		const ids = Array.from(new Set((skillIds || []).filter(id => typeof id === 'string' && id)));
+		const level = Math.min(OUTSIDE_PT_HINT_LEVEL, rules.hintLevelMax);
+		const parents = {};
+		ids.forEach(id => { parents[id] = level; });
+		const r = computeRosterPt({ sources: [], rules: rules, skillPt: skillPtData.skillPt, stepUp: skillPtData.stepUp,
+			statusId: OUTSIDE_PT_STATUS, umaHintLevel: rules.umaHintLevelDefault, parentHintLevels: parents });
+		if (!r.ok) return { ok: false, reason: 'rules' };
+		return { ok: true, total: r.totalWithPrev, own: r.total, prevTotal: r.prevTotal, unpriced: r.unpriced.concat(r.prevUnpriced), statusId: OUTSIDE_PT_STATUS, hintLevel: level };
 	}
 
 	/* ============================================================
@@ -10187,6 +10661,14 @@
 		icons: { list: SKILL_ICONS.map(i => ({ id: i.id, mark: i.mark, light: i.light, dark: i.dark })), defaultIcon: SKILL_ICON_DEFAULT, tierOf: iconTier, html: skillIconHtml, fromTiers: iconsFromTiers, toTiers: tiersFromIcons },
 		listRosters: listRosters,
 		computeRosterSkills: computeRosterSkills,
+		// 本育成サポカ外スキル（段1・2・C-122。画面は段3 以降）。検査から呼ぶ
+		outside: {
+			COUNT_CHOICES: OUTSIDE_COUNT_CHOICES.slice(), COUNT_DEFAULT: OUTSIDE_COUNT_DEFAULT, DEADLINE_MS: OUTSIDE_DEADLINE_MS,
+			populationOf: outsidePopulationOf, candidatesOf: outsideCandidatesOf, build: outsideBuild,
+			solve: outsideSolve, solveSync: outsideSolveSync, solveGroups: outsideSolveGroups,
+			maskOf: outsideMaskOf, ptOf: outsidePtOf,
+			excludedIdsOf: outsideExcludedIdsOf
+		},
 		loadScenarioEvents: loadScenarioEvents,
 		getScenarioEventStatus: function () { return scenarioEventState.status; },
 		getPickerHiddenIds: function () { return pickerHiddenIds.slice(); },
