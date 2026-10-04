@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-04f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-04g';
 
 	/* ============================================================
 	 * 定数
@@ -87,7 +87,7 @@
 		'data/scenario-event-skills.json': '2026-10-03c',
 		// これから開催されるレースの一覧（オススメサポ ④・段7・2026-10-04）。公式のお知らせの公開情報。loadUpcomingRaces() が読む。
 		// exam は読まないので EXAM_DATA_JSON_VERSIONS には載せない（同じファイルを両方の表に載せると test:verify §1 が落とす）
-		'data/upcoming-races.json': '2026-10-04a'
+		'data/upcoming-races.json': '2026-10-04b'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
@@ -719,9 +719,10 @@
 	 * 高さ --usd-toast-bottom を測り直す）。閉じているときは null（知らせの位置は呼び出し元のページの既定のまま）。
 	 */
 	let toastLiftFn = null;
-	function toast(msg) {
+	// kind … 'warn' で注意の見た目（段13・A4。受け取らないページでは今までどおりの見た目）
+	function toast(msg, kind) {
 		if (toastLiftFn) { try { toastLiftFn(); } catch (e) { /* 位置の測り直しの失敗で知らせを止めない */ } }
-		config.toast(msg);
+		config.toast(msg, kind);
 	}
 
 	function confirmDialog(msg) {
@@ -1381,7 +1382,7 @@
 	 *
 	 * 公式のお知らせで公開された条件だけを持つ（公開されていない項目は null）。値の語はスキルのタグと同じ
 	 * （venue＝trackVenue、direction・season・weather・ground・time＝environment、surface＝バ場、distanceCategory＝距離）。
-	 * course（内／外）と time は表示だけに使う（その条件のスキルはゲームに無い）。rule は特殊ルール（no_debuff）。
+	 * course（内／外）は表示だけに使う（その条件のスキルはゲームに無い）。time は、昼のレースでナイターのスキルを外すときだけ使う（段13）。rule は特殊ルール（no_debuff）。
 	 * セットに保存するのは、この行の写し（RACE_SNAPSHOT_KEYS）と元の id（段8）。一覧から消えても、セットは同じ条件で動き続ける。
 	 * ============================================================ */
 	const UPCOMING_RACES_PATH = 'data/upcoming-races.json';
@@ -1398,10 +1399,16 @@
 		time: ['time_day', 'time_evening', 'time_night']
 	};
 	/**
-	 * オススメサポの母集団に効かせる項目（段9）。**course（内／外）と time（昼）は表示だけ**（内回り・外回り・昼を条件にするスキルはゲームに無い。
+	 * オススメサポの母集団に効かせる項目（段9）。**course（内／外）は表示だけ**（内回り・外回りを条件にするスキルはゲームに無い。
 	 * おいもさん確認済み・2026-10-04）。小回り・直線コースは今回は扱わない（レースの一覧に持たせない）。
+	 * time は RACE_TIME_REJECTS の分だけ効かせる（段13）。
 	 */
 	const RACE_EFFECTIVE_ENV_FIELDS = ['direction', 'season', 'weather', 'ground'];
+	/**
+	 * 時間帯（time）で外すタグ（段13・A1）。**昼のレースでは、ナイターのタグを持つスキルを外す**（Step 0 §4-1）。
+	 * 昼を条件にするスキルはゲームに無いので、ほかの項目のように「レースの値を含まなければ外す」とはしない（夕方・夜のレースでは外さない）。
+	 */
+	const RACE_TIME_REJECTS = { time_day: ['time_night'] };
 	const RACE_COURSE_VALUES = ['inner', 'outer'];
 	/** 特殊ルール。no_debuff（デバフなし）は、効果タイプ（effect）が「デバフ」のスキル（まとめた値＝掛かり時間を含む）を母集団から外す（段9） */
 	const RACE_RULES = {
@@ -1458,7 +1465,8 @@
 	/**
 	 * スキルがそのレースで発動しえないか（段9。オススメサポの母集団から外す規則）。**公開されていない項目では外さない**。
 	 * スキルがその項目のタグを持たなければ外さない（どのレースでも）。1つでも食い違えば外す。距離・バ場は①の固定（resolvedFilterOf）で効くのでここでは見ない。
-	 * 特殊ルール（no_debuff）は、効果タイプがデバフ（まとめた値を含む）のスキルを外す。course（内／外）・time（昼）は見ない（RACE_EFFECTIVE_ENV_FIELDS）。
+	 * 特殊ルール（no_debuff）は、効果タイプがデバフ（まとめた値を含む）のスキルを外す。course（内／外）は見ない（RACE_EFFECTIVE_ENV_FIELDS）。
+	 * time は、昼のレースでナイターのタグを持つスキルを外す（RACE_TIME_REJECTS。段13）。
 	 */
 	function raceRejectsSkill(skill, race) {
 		if (!race || !skill) return false;
@@ -1474,6 +1482,11 @@
 			const group = RACE_ENV_FIELDS[f];
 			const sv = env.filter(x => group.indexOf(x) !== -1);
 			if (sv.length > 0 && sv.indexOf(rv) === -1) return true;
+		}
+		const timeOut = race.time ? (RACE_TIME_REJECTS[race.time] || []) : [];
+		if (timeOut.length > 0) {
+			const sv = env.filter(x => RACE_ENV_FIELDS.time.indexOf(x) !== -1);
+			if (sv.indexOf(race.time) === -1 && sv.some(x => timeOut.indexOf(x) !== -1)) return true;
 		}
 		const rule = race.rule ? RACE_RULES[race.rule] : null;
 		if (rule) {
@@ -2871,15 +2884,15 @@
 	}
 	/**
 	 * 種類の指定を満たす組み合わせが無いとき（④・段11）の結果。カード・スキルは空で、足りない種類（shortTypes）を添える。
-	 * 足りない種類 ＝ 指定の枚数より、候補にいるその種類のキャラクター（友人は最大1）が少ない種類。それが無い（組み合わせで満たせない・指定の合計が枚数を超える）ときは指定した種類すべて。
+	 * 足りない種類 ＝ 指定の枚数より、候補にいるその種類のキャラクター（友人は最大1）が少ない種類。
+	 * それが無い（種類ごとには足りているのに、組み合わせとして満たせない）ときは空（画面は種類を並べず1行だけ。段13・A2）。
 	 */
 	function outsideInfeasible(p, search) {
 		const prob = p.prob, tm = prob.typeMin || {};
 		const charas = new Map();
 		prob.cands.forEach(c => { const t = cardTypeOrderOf(c); if (t === null) return; if (!charas.has(t)) charas.set(t, new Set()); charas.get(t).add(c.charaName); });
 		const types = Object.keys(tm).map(Number).sort((x, y) => x - y);
-		let shortTypes = types.filter(t => tm[t] > Math.min(charas.has(t) ? charas.get(t).size : 0, t === OUTSIDE_FRIEND_TYPE ? OUTSIDE_FRIEND_MAX : Infinity));
-		if (shortTypes.length === 0) shortTypes = types;
+		const shortTypes = types.filter(t => tm[t] > Math.min(charas.has(t) ? charas.get(t).size : 0, t === OUTSIDE_FRIEND_TYPE ? OUTSIDE_FRIEND_MAX : Infinity));
 		return { ok: true, infeasible: true, shortTypes: shortTypes, partial: false, count: p.K, score: 0, cards: [], kindOrder: [], skills: [], golds: [],
 			counts: { kinds: 0, gold: 0, white: 0, hintWhiteCount: 0, added: 0 },
 			stats: { engineScore: 0, nodes: search.nodes, ms: search.ms, groups: search.groups, candidates: prob.cands.length, population: prob.pop.ids.length, goldCountable: prob.countableGolds.size } };
@@ -4334,6 +4347,10 @@
 		'.usd-out-filterlabel { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-heading); }',
 		'.usd-out-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--uma-sp-1-5); align-content: start; min-height: 120px; margin-bottom: var(--uma-sp-1-5); }',
 		'.usd-out-cards--excl { min-height: 0; margin: 0 0 var(--uma-sp-1-5); }',
+		// 結果のカードが無いとき（段13・A3）: カードの欄とチェックリストの高さを取らない（空白を出さない）
+		'.usd-out-cards--bare { min-height: 0; }',
+		'.usd-out-cards--bare:empty { display: none; }',
+		'.usd-results.usd-out-list.usd-out-list--bare { height: auto; justify-content: flex-start; }',
 		// タイル（1行・高さ36px）。塗りは①のカードの表示と同じ種類色（--usd-card-bg / --usd-card-text。cardTypeColorVars が番号で流し込む）。
 		// 枠でレアリティを分ける: SSR は虹色 3px・SR は金色 2px（色は下の --usd-rarity-*。ダークでは同じ名前を差し替える）
 		'.usd-out-card { --usd-out-fill: var(--uma-surface); --usd-out-frame: linear-gradient(var(--uma-border), var(--uma-border));',
@@ -10147,7 +10164,9 @@
 		 * ============================================================ */
 		const OUTSIDE_MSG_NEED_ROSTER = '先に①本育成編成を設定してください';
 		const OUTSIDE_MSG_PENDING = '①でイベントの選択が済んでいないものがあります';
-		const OUTSIDE_HELP_TEXT = '本育成のサポカで得られない対象スキルを、できるだけ多く得られる組み合わせです。ランダムイベントのスキルも数えます。選択肢で変わるものは、得られる側を選んだ前提です。追加済みのスキルも種数に含みます。金スキルの前段の白は、金スキルと合わせて1種ですが、金スキルによる因子化率を加味してオススメしています。';
+		const OUTSIDE_HELP_TEXT = '本育成のサポカで得られない対象スキルを、できるだけ多く得られる組み合わせです。ランダムイベントのスキルも数えます。追加済みのスキルも数えます。金スキルの前段の白は、金スキルと合わせて1種ですが、金スキルによる因子化率を加味してオススメしています。';
+		// 種類の指定を満たせないとき（段13・A2）: 種類ごとには足りているのに、組み合わせとして満たせないときの1行
+		const OUTSIDE_MSG_COMBO = 'この組み合わせでは指定を満たせません';
 		const outsideUi = { el: null, open: false, count: OUTSIDE_COUNT_DEFAULT, token: 0, computing: false, result: null, checked: new Set(), excludedOpen: false, opener: null, applied: '', appliedIds: [] };
 
 		/** 除外スキルの集合の印（計算に使ったときと、いまとで比べる）。引けるIDだけを並べて連ねたもの */
@@ -10249,7 +10268,7 @@
 			const closeBtn = q(el, 'outside-close');
 			if (closeBtn) focusNoScroll(closeBtn);
 			outsideRun();
-			if (outsideHasPendingEvents(roster)) toast(OUTSIDE_MSG_PENDING);
+			if (outsideHasPendingEvents(roster)) toast(OUTSIDE_MSG_PENDING, 'warn');
 		}
 		/**
 		 * 小窓が開いている間の知らせの位置（段7）。フッター（「得られるスキル」の行）の上端より上に出すよう、ページの知らせが読む
@@ -10259,8 +10278,10 @@
 			const root = global.document.documentElement;
 			const el = outsideUi.el;
 			const foot = el && outsideUi.open && !el.hidden ? q(el, 'outside-foot') : null;
-			if (!foot || foot.hidden) { root.style.removeProperty('--usd-toast-bottom'); return; }
-			const top = foot.getBoundingClientRect().top;
+			if (!foot) { root.style.removeProperty('--usd-toast-bottom'); return; }
+			// フッターが無いとき（指定を満たせない・候補なし。段13）は、小窓の上端より上に出す（短くなった小窓の見出しを隠さない）
+			const panel = el.querySelector('.usd-out-panel');
+			const top = foot.hidden ? (panel ? panel.getBoundingClientRect().top : global.innerHeight) : foot.getBoundingClientRect().top;
 			root.style.setProperty('--usd-toast-bottom', Math.max(0, Math.round(global.innerHeight - top + 8)) + 'px');
 		}
 		function closeOutsideAdvisor() {
@@ -10546,8 +10567,10 @@
 				+ optBtn('outside-filter-open', 'outside-filter-btn', '絞り込み' + (fN > 0 ? ' ' + fN : ''), fN > 0)
 				+ optBtn('outside-count-open', 'outside-count-btn', opt.count + '枚', false)
 				+ '</span></div>';
+			// 結果のカードが無いとき（指定を満たせない・候補が無い）は、カードの欄とチェックリストの高さを取らない（段13・A3。空白を出さない）
+			const bare = !outsideUi.computing && !(ok && r.cards.length > 0);
 			// カード（2列×3行）。種数の増分の大きい順
-			h += '<div class="usd-out-cards" data-usd-el="outside-cards">';
+			h += '<div class="usd-out-cards' + (bare ? ' usd-out-cards--bare' : '') + '" data-usd-el="outside-cards">';
 			if (ok) {
 				const by = new Map(r.cards.map(c => [c.cardId, c]));
 				(r.kindOrder || r.cards.map(c => c.cardId)).forEach(id => {
@@ -10582,13 +10605,17 @@
 				h += '</div>';
 			}
 			// チェックリスト（白スキル。金スキルは出さない）
-			h += '<div class="usd-results usd-out-list" data-usd-el="outside-list">';
+			h += '<div class="usd-results usd-out-list' + (bare ? ' usd-out-list--bare' : '') + '" data-usd-el="outside-list">';
 			if (outsideUi.computing) h += '<p class="usd-out-note" data-usd-el="outside-busy">計算中…</p>';
-			// 種類の指定を満たせないとき（④・段11）: 結果を出さず、足りない種類を添える（チェックリストとフッターの数字は出さない。自動で緩めない）
+			// 種類の指定を満たせないとき（④・段11）: 結果を出さず、足りない種類を添える（チェックリストとフッターの数字は出さない。自動で緩めない）。
+			// 段13・A2: 種類ごとには足りているのに組み合わせとして満たせないときは、種類を並べず1行だけ
 			else if (ok && r.infeasible) {
 				const names = outsideTypeNames();
-				h += '<p class="usd-out-note usd-out-infeasible" data-usd-el="outside-infeasible"><span>指定を満たす組み合わせがありません</span>'
-					+ '<span data-usd-el="outside-short">足りない種類：' + esc(r.shortTypes.map(t => names.get(t) || String(t)).join('・')) + '</span></p>';
+				h += '<p class="usd-out-note usd-out-infeasible" data-usd-el="outside-infeasible">'
+					+ (r.shortTypes.length > 0
+						? '<span>指定を満たす組み合わせがありません</span><span data-usd-el="outside-short">足りない種類：' + esc(r.shortTypes.map(t => names.get(t) || String(t)).join('・')) + '</span>'
+						: '<span data-usd-el="outside-combo">' + OUTSIDE_MSG_COMBO + '</span>')
+					+ '</p>';
 			}
 			else if (!ok || r.cards.length === 0) h += '<p class="usd-out-note" data-usd-el="outside-empty">提案できるサポカがありません</p>';
 			else if (r.skills.length === 0) h += '<p class="usd-out-note" data-usd-el="outside-none">得られるスキルがありません</p>';
@@ -10613,6 +10640,8 @@
 			attachSkillInfoIn(main, (id) => ({ skillId: id, trigger: 'self' }));
 			outsideFitNicks(main);
 			updateOutsideFoot();
+			// 小窓の高さが変わったら、出ている知らせの位置も合わせる（段13。計算のあとで小窓が短くなる場合）
+			if (outsideUi.open && toastLiftFn === outsideSyncToastLift) outsideSyncToastLift();
 		}
 
 		/** フッター（2行）。1行目「得られるスキル XX種（金スキル X種）」、2行目「選択 N種・M Pt」と［追加］。チェックの付け外しではここだけを更新する */

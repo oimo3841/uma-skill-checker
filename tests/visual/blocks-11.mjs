@@ -28,7 +28,7 @@ export async function register11(env) {
 	const MSG_PENDING = '①でイベントの選択が済んでいないものがあります';
 	const MSG_PARTIAL = '途中の結果です（時間内に探し切れませんでした）';
 	const MSG_EMPTY = '提案できるサポカがありません';
-	const HELP = '本育成のサポカで得られない対象スキルを、できるだけ多く得られる組み合わせです。ランダムイベントのスキルも数えます。選択肢で変わるものは、得られる側を選んだ前提です。追加済みのスキルも種数に含みます。金スキルの前段の白は、金スキルと合わせて1種ですが、金スキルによる因子化率を加味してオススメしています。';
+	const HELP = '本育成のサポカで得られない対象スキルを、できるだけ多く得られる組み合わせです。ランダムイベントのスキルも数えます。追加済みのスキルも数えます。金スキルの前段の白は、金スキルと合わせて1種ですが、金スキルによる因子化率を加味してオススメしています。';
 	const whiteIds = ptReal.entries.filter((e) => e.rarity === 'white').map((e) => e.skillId);
 	const masterWhite = master.filter((s) => whiteIds.indexOf(s.id) !== -1).map((s) => s.id);
 

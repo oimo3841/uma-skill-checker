@@ -391,11 +391,13 @@ export async function register12(env) {
 			const sv = env.filter(groupOf[f]);
 			if (sv.length > 0 && !sv.includes(race[f])) return true;
 		}
+		// 段13・A1: 昼のレースでは、ナイターのタグを持つスキル（昼のタグを持たないもの）を外す
+		if (race.time === 'time_day' && env.includes('time_night') && !env.includes('time_day')) return true;
 		if (race.rule === 'no_debuff' && (tags.effect || []).some((v) => v === 'debuff' || v === 'temptation_time')) return true;
 		return false;
 	};
 
-	await block('オススメサポ④段9 母集団の規則: 軸ごと（レース場・回り・季節・天気・バ場状態）に食い違うものだけ外す／公開されていない軸・タグの無いスキルは外さない／内外・昼は効かせない／特殊ルール「デバフなし」／実データで物差しと一致', async () => {
+	await block('オススメサポ④段9 母集団の規則: 軸ごと（レース場・回り・季節・天気・バ場状態）に食い違うものだけ外す／公開されていない軸・タグの無いスキルは外さない／内外は効かせない・昼はナイターのスキルだけ外す（段13・A1）／特殊ルール「デバフなし」／実データで物差しと一致', async () => {
 		const sp = await openSp({ roster: FULL });
 		const base0 = await sp.page.evaluate(() => { const ids = UmaSkillDeckCore.outside.populationOf({}).ids; return ids.map((id) => [id, UmaSkillDeckCore.getSkillTags(id)]); });
 		const cases = [
@@ -406,7 +408,9 @@ export async function register12(env) {
 			['天気だけ（雨）', { weather: 'weather_rain' }],
 			['バ場状態だけ（良）', { ground: 'ground_good' }],
 			['バ場状態だけ（道悪）', { ground: 'ground_bad' }],
-			['内外・昼だけ（効かせない）', { course: 'outer', time: 'time_day' }],
+			['内外だけ（効かせない）', { course: 'outer' }],
+			['昼だけ（ナイターのスキルを外す）', { time: 'time_day' }],
+			['夜だけ（外さない）', { time: 'time_night' }],
 			['デバフなしだけ', { rule: 'no_debuff' }],
 			['公開なし（名前だけ）', {}],
 			['一覧の1行目（全部公開）', R0],
@@ -425,7 +429,7 @@ export async function register12(env) {
 			out.push(label + ' ' + got.length);
 			assert(JSON.stringify(got) === JSON.stringify(expected) && JSON.stringify(r.ids.slice().sort()) === JSON.stringify(keep),
 				'オススメサポ④段9 ' + label + ': 外すスキル（' + got.length + '種）が物差しと一致し、残りは全部残る', { got: got.length, expected: expected.length });
-			if (label.indexOf('公開なし') !== -1 || label.indexOf('内外・昼') !== -1) assert(got.length === 0, 'オススメサポ④段9 ' + label + ': 1種も外さない', got);
+			if (label.indexOf('公開なし') !== -1 || label.indexOf('内外だけ') !== -1 || label.indexOf('夜だけ') !== -1) assert(got.length === 0, 'オススメサポ④段9 ' + label + ': 1種も外さない', got);
 			else if (label.indexOf('一覧') === -1) assert(got.length > 0, 'オススメサポ④段9 ' + label + ': 実データで外れるスキルがある（検査が空振りしていない）', got.length);
 		}
 		console.log('     [実測] レース条件で外れる白スキルの数: ' + out.join(' / '));
