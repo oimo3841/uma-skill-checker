@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-04c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-04d';
 
 	/* ============================================================
 	 * 定数
@@ -3929,17 +3929,30 @@
 		'.usd-out-segbtn { font: inherit; font-size: 11px; line-height: 1.2; font-weight: 600; height: 28px; padding: 0 var(--uma-sp-3); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
 		'  background: var(--uma-surface); color: var(--uma-text); cursor: pointer; white-space: nowrap; }',
 		'.usd-out-segbtn[aria-pressed="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
-		'.usd-out-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--uma-sp-1-5); align-content: start; min-height: 108px; margin-bottom: var(--uma-sp-1-5); }',
+		'.usd-out-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--uma-sp-1-5); align-content: start; min-height: 120px; margin-bottom: var(--uma-sp-1-5); }',
 		'.usd-out-cards--excl { min-height: 0; margin: var(--uma-sp-1-5) 0 0; }',
-		'.usd-out-card { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; height: 32px; padding: 0 var(--uma-sp-1) 0 var(--uma-sp-2); border: 1px solid var(--uma-border);',
-		'  border-radius: var(--uma-r-lg); background: var(--uma-surface); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); }',
-		'.usd-out-card-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--uma-text-heading); }',
-		'.usd-out-card-gain { flex: none; white-space: nowrap; font-size: var(--uma-fs-xs); font-variant-numeric: tabular-nums; color: var(--uma-text-subtle); }',
-		'.usd-out-card-btn { flex: none; font: inherit; font-size: var(--uma-fs-xs); line-height: 1; min-height: 28px; padding: 0 var(--uma-sp-1-5); border: 0; background: transparent; color: var(--uma-text-subtle); text-decoration: underline; cursor: pointer; white-space: nowrap; }',
-		'.usd-out-card-btn:hover { color: var(--uma-text-heading); }',
+		// タイル（1行・高さ36px）。塗りは①のカードの表示と同じ種類色（--usd-card-bg / --usd-card-text。cardTypeColorVars が番号で流し込む）。
+		// 枠でレアリティを分ける: SSR は虹色 3px・SR は金色 2px（色は下の --usd-rarity-*。ダークでは同じ名前を差し替える）
+		'.usd-out-card { --usd-out-fill: var(--uma-surface); --usd-out-frame: linear-gradient(var(--uma-border), var(--uma-border));',
+		'  display: flex; align-items: center; gap: var(--uma-sp-1); min-width: 0; height: 36px; box-sizing: border-box; padding: 0 var(--uma-sp-1) 0 var(--uma-sp-1-5);',
+		'  border: 1px solid transparent; border-radius: var(--uma-r-lg); color: var(--uma-text-heading);',
+		'  background: linear-gradient(var(--usd-out-fill), var(--usd-out-fill)) padding-box, var(--usd-out-frame) border-box; }',
+		'.usd-out-card--typed { --usd-out-fill: var(--usd-card-bg); color: var(--usd-card-text); }',
+		'.usd-out-card--ssr { border-width: 3px; --usd-out-frame: linear-gradient(135deg, var(--usd-rarity-ssr-1), var(--usd-rarity-ssr-2), var(--usd-rarity-ssr-3), var(--usd-rarity-ssr-4), var(--usd-rarity-ssr-5)); }',
+		'.usd-out-card--sr { border-width: 2px; --usd-out-frame: linear-gradient(135deg, var(--usd-rarity-sr-1), var(--usd-rarity-sr-2), var(--usd-rarity-sr-1)); }',
+		':root { --usd-rarity-ssr-1: #e5384f; --usd-rarity-ssr-2: #f08a1c; --usd-rarity-ssr-3: #7cb518; --usd-rarity-ssr-4: #1d8fe0; --usd-rarity-ssr-5: #8b5cf6; --usd-rarity-sr-1: #e3b23c; --usd-rarity-sr-2: #b8860b; }',
+		// 名前の部分（押すとカードの情報）。二つ名は 11px で先に省略し、次に名前（14px）を省略する
+		'.usd-out-card-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 3px; height: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }',
+		'.usd-out-card-main:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
+		'.usd-out-card-nick { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 1.2; font-weight: 400; align-self: center; }',
+		'.usd-out-card-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; line-height: 1.2; font-weight: 600; align-self: center; }',
+		'.usd-out-card-gain { flex: none; white-space: nowrap; font-size: var(--uma-fs-xs); font-variant-numeric: tabular-nums; color: inherit; }',
+		'.usd-out-card-btn { flex: none; font: inherit; font-size: var(--uma-fs-xs); line-height: 1; min-height: 28px; padding: 0 var(--uma-sp-1); border: 0; background: transparent; color: inherit; text-decoration: underline; cursor: pointer; white-space: nowrap; }',
+		'.usd-out-card-btn:hover { filter: brightness(.8); }',
 		'.usd-out-exbtn { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; min-height: 28px; padding: 0 var(--uma-sp-2); border: 0; background: transparent; color: var(--uma-text-subtle); cursor: pointer; }',
 		'.usd-out-excl { margin-bottom: var(--uma-sp-2); }',
 		'.usd-out-note { margin: 0; padding: var(--uma-sp-3); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		'.usd-results.usd-out-list { height: 268px; }',
 		'.usd-out-row { min-width: 0; }',
 		'.usd-out-name { flex: 1 1 auto; min-width: 0; }',
 		'.usd-out-pt { flex: none; margin-left: auto; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-variant-numeric: tabular-nums; color: var(--uma-text-subtle); white-space: nowrap; }',
@@ -4828,14 +4841,6 @@
 		'  background: var(--uma-surface); color: var(--uma-text); }',
 		'.usd-band-tag strong { color: var(--uma-text-heading); font-variant-numeric: tabular-nums; }',
 		'.usd-band-tagname { color: var(--uma-text-muted); }',
-		// 「オススメサポ」ボタン（②の帯の「↺」の隣。高さ 28px・縦の行は増やさない）。狭い幅では「↺」と一緒に右端へ寄る
-		'.usd-outside-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; height: 28px; padding: 0 10px; border: 1px solid var(--uma-border-strong);',
-		'  border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text-heading); font: inherit; font-size: 11px; line-height: 1; font-weight: 600; white-space: nowrap; cursor: pointer; }',
-		'.usd-outside-btn:hover { background: var(--uma-surface-muted); }',
-		'.usd-outside-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
-		'.usd-band-main .usd-outside-btn { order: 2; margin-left: auto; }',
-		'.usd-band-main .usd-outside-btn + .usd-reset-btn { margin-left: 0; }',
-		'@media (min-width: 641px) { .usd-band-main .usd-outside-btn { order: 4; margin-left: 0; } }',
 		'.usd-help-dot { position: relative; }',
 		'.usd-help-dot::after { content: ""; position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--uma-danger-text); border: 1px solid var(--uma-surface); }',
 		// リセットの「↺」（①②の帯の右端。28px の丸）。消すものが無いときは薄くして押せない
@@ -8401,6 +8406,9 @@
 					 * 作り得る）。開閉の状態（`entryRowOpen`）も一緒に取り除いた ――
 					 * **保存先は持っていなかった**ので、残る値の後始末は要らない。 */
 					'<div class="usd-entry-row">' +
+						// 「オススメサポ」（本育成サポカ外スキル。special の②だけ）。入口列の先頭・濃色の塗り（小窓の「追加」と同じ）で、ほかの入口と見分ける
+						(setBased ? '<button type="button" class="uma-btn uma-btn--primary usd-outside-entry" data-usd-act="outside-open" data-usd-el="outside-open" aria-haspopup="dialog">' +
+							'<i data-lucide="sparkles" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> オススメサポ</button>' : '') +
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
 							'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件で検索' +
 						'</button>' +
@@ -9307,7 +9315,6 @@
 				+ tag('pt-need-uniq', '継承固有', sum.uniqPt, sum.uniqKinds)
 				+ tag('pt-need-common', '共通スキル', sum.commonPt, sum.commonKinds)
 				+ '</span>'
-				+ '<button type="button" class="usd-outside-btn" data-usd-act="outside-open" data-usd-el="outside-open" aria-haspopup="dialog">オススメサポ</button>'
 				+ resetBtnHtml('factor-reset', 'factor-reset', '②因子周回をリセット', !canResetFactor(currentTarget()))
 				+ '</div></div>';
 			el.hidden = false;
@@ -9590,6 +9597,10 @@
 				if (act === 'outside-close') closeOutsideAdvisor();
 				else if (act === 'outside-help') openPopover({ key: 'outside-help', title: 'オススメサポ', build: (body) => { const p = infoEl('p', '', OUTSIDE_HELP_TEXT); p.setAttribute('data-usd-el', 'outside-help-text'); body.appendChild(p); },
 					btn: b, opener: b, refocus: '[data-usd-act="outside-help"]' });
+				else if (act === 'outside-card-info') {
+					const cid = b.dataset.cardId, cd = findCard(cid);
+					openPopover({ key: 'outside-card:' + cid, title: cd ? formatEntryLabel(cd) : cid, build: (body) => fillOutsideCardInfo(body, cid), btn: b, opener: b, refocus: '[data-usd-el="outside-card-main"][data-card-id="' + cid + '"]' });
+				}
 				else if (act === 'outside-count') { const n = Number(b.dataset.count); if (OUTSIDE_COUNT_CHOICES.indexOf(n) !== -1 && n !== outsideUi.count) { outsideUi.count = n; outsideRun(); } }
 				else if (act === 'outside-exclude') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, true)) outsideRun(); }
 				else if (act === 'outside-restore') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, false)) outsideRun(); }
@@ -9656,6 +9667,31 @@
 			renderOutside();
 		}
 
+		/** カードのタイル（1行）。[二つ名]（小さめ）・名前・（＋N種）・外す／戻す。名前の部分を押すとカードの情報（outside-card-info）。種類色は①のカードの表示と同じ変数 */
+		function outsideCardTileHtml(c, o) {
+			const cardId = c.cardId;
+			const card = findCard(cardId);
+			const label = card ? formatEntryLabel(card) : cardId;
+			const name = card ? formatEntryShortLabel(card) : cardId;
+			const nick = card && card.title ? '[' + card.title + ']' : '';
+			const n = cardTypeOrderOf(card);
+			const rar = card && card.rarity === 'SSR' ? ' usd-out-card--ssr' : (card && card.rarity === 'SR' ? ' usd-out-card--sr' : '');
+			return '<div class="usd-out-card' + (n !== null ? ' usd-out-card--typed' : '') + rar + '" data-usd-el="' + o.el + '" data-card-id="' + esc(c.cardId) + '"'
+				+ (n !== null ? ' data-type-order="' + n + '" style="' + cardTypeColorVars(n) + '"' : '') + '>'
+				+ '<button type="button" class="usd-out-card-main" data-usd-act="outside-card-info" data-usd-el="outside-card-main" data-card-id="' + esc(cardId) + '" aria-haspopup="dialog" aria-label="' + esc(label + 'の情報') + '" title="' + esc(label) + '">'
+				+ (nick ? '<span class="usd-out-card-nick" data-usd-el="outside-card-nick">' + esc(nick) + '</span>' : '') + '<span class="usd-out-card-name" data-usd-el="outside-card-name">' + esc(name) + '</span></button>'
+				+ (o.gain !== undefined ? '<span class="usd-out-card-gain" data-usd-el="outside-card-gain">＋' + o.gain + '種</span>' : '')
+				+ '<button type="button" class="usd-out-card-btn" data-usd-act="' + o.act + '" data-usd-el="' + o.btnEl + '" data-card-id="' + esc(cardId) + '" aria-label="' + esc(name + 'を' + o.btnText) + '">' + o.btnText + '</button></div>';
+		}
+		/** カード名を押したときの情報（簡単な表示）。①の表・①のカード選択の小窓には、カードの情報を出す部品が無いので、名称（二つ名＋名前）・種類・レアリティだけを出す */
+		function fillOutsideCardInfo(body, cardId) {
+			const card = findCard(cardId);
+			if (!card) { body.appendChild(infoEl('p', 'usd-info-desc--pending', 'カードの情報を読み込めませんでした')); return; }
+			const line = (text, el) => { const p = infoEl('p', '', text); p.setAttribute('data-usd-el', el); body.appendChild(p); };
+			line('種類：' + (card.type || '不明'), 'outside-card-info-type');
+			line('レアリティ：' + (card.rarity || '不明'), 'outside-card-info-rarity');
+		}
+
 		/** 行の Pt の文言（そのスキルだけ。前段は含めない）。合計（フッター）は前段も含むので、前段をチェックしていないときは行の合計より大きくなる */
 		function outsideRowPtText(skillId) {
 			const row = skillPtData.skillPt instanceof Map ? skillPtData.skillPt.get(skillId) : null;
@@ -9684,10 +9720,7 @@
 				(r.kindOrder || r.cards.map(c => c.cardId)).forEach(id => {
 					const c = by.get(id);
 					if (!c) return;
-					h += '<div class="usd-out-card" data-usd-el="outside-card" data-card-id="' + esc(c.cardId) + '" title="' + esc(c.label) + '">'
-						+ '<span class="usd-out-card-name">' + esc(c.charaName) + '</span>'
-						+ '<span class="usd-out-card-gain" data-usd-el="outside-card-gain">＋' + c.kindGain + '種</span>'
-						+ '<button type="button" class="usd-out-card-btn" data-usd-act="outside-exclude" data-usd-el="outside-exclude" data-card-id="' + esc(c.cardId) + '" aria-label="' + esc(c.charaName + 'を外す') + '">外す</button></div>';
+					h += outsideCardTileHtml(c, { el: 'outside-card', gain: c.kindGain, act: 'outside-exclude', btnEl: 'outside-exclude', btnText: '外す' });
 				});
 			}
 			h += '</div>';
@@ -9698,11 +9731,7 @@
 				if (outsideUi.excludedOpen) {
 					h += '<div class="usd-out-cards usd-out-cards--excl" data-usd-el="outside-excl-list">';
 					excl.forEach(id => {
-						const c = findCard(id);
-						const name = c ? c.charaName : id;
-						h += '<div class="usd-out-card" data-usd-el="outside-excl-card" data-card-id="' + esc(id) + '" title="' + esc(c ? formatEntryLabel(c) : id) + '">'
-							+ '<span class="usd-out-card-name">' + esc(name) + '</span>'
-							+ '<button type="button" class="usd-out-card-btn" data-usd-act="outside-restore" data-usd-el="outside-restore" data-card-id="' + esc(id) + '" aria-label="' + esc(name + 'を戻す') + '">戻す</button></div>';
+						h += outsideCardTileHtml({ cardId: id }, { el: 'outside-excl-card', act: 'outside-restore', btnEl: 'outside-restore', btnText: '戻す' });
 					});
 					h += '</div>';
 				}

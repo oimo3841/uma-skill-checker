@@ -1217,7 +1217,7 @@ await block('special.html — ステップ①の入口「スキルセット画�
 	// 72セッション目・段9 で2番目に「緑スキル」（editor-pick-passive）が入り、
 	// 73セッション目に末尾の「リセット」（editor-clear-skills）が名前の行へ抜けた
 	// 2026-09-27（C-100）に末尾の「未収録スキルを追加」（editor-pick-custom）を廃止した
-	assert(entry.order.join(',') === 'editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot'
+	assert(entry.order.join(',') === 'outside-open,editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot'
 		&& entry.label === 'スクショで追加' && entry.cls.includes('uma-btn--secondary') && entry.noHelp,
 		'special/ocr入口: 「テキストで検索」の後ろ（並びの最後）に、同じ見た目で「スクショで追加」が出る（「?」は無い）', { order: entry.order, label: entry.label });
 	assert(entry.icon === 'upload-cloud' || String(entry.icon).includes('lucide-upload-cloud'),
@@ -9466,8 +9466,8 @@ await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見
 	const e0 = await entryState();
 	/* **数そのものを見る**（73セッション目に「6つ」→「5つ」へ直した。段9 で「緑スキル」を
 	   足したときに数え直さず 6 と書いたままで、判定が `> 1` だったので落ちずに残っていた）。 */
-	assert(e0.見えている && e0.高さ > 0 && e0.ボタン数 === 4,
-		'段11(⑩): 入口の並びは、開く操作をしなくても最初から4つ見えている', e0);
+	assert(e0.見えている && e0.高さ > 0 && e0.ボタン数 === 5,
+		'段11(⑩): 入口の並びは、開く操作をしなくても最初から見えている（4つ＋先頭の「オススメサポ」＝5つ）', e0);
 	assert(!e0.畳む見出し && !e0.畳む入れ物 && !e0.見出しの文字 && !e0.向きの印,
 		'段11(⑩): 畳む見出し「スキルの追加」と開閉の仕掛けは残っていない', e0);
 
@@ -9478,7 +9478,7 @@ await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見
 	await page.evaluate(() => deckTemplateManager.setSelectedId('__draft__'));   // 段8（C-120）: 帯のタブの代わりに setSelectedId
 	await page.waitForTimeout(400);
 	const e3 = await entryState();
-	assert(e2.見えている && e2.ボタン数 === 4 && e3.見えている && e3.ボタン数 === 4,
+	assert(e2.見えている && e2.ボタン数 === 5 && e3.見えている && e3.ボタン数 === 5,
 		'段11(⑩): 因子セットを切り替えても入口は見えたまま', { 移った先: e2, 戻った: e3 });
 
 	/* **開き直しても同じ。** 状態を持たなくなったので、リロードで変わるものが無い。
@@ -9490,7 +9490,7 @@ await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見
 	await page.waitForTimeout(400);
 	const e5 = await entryState();
 	const keysAfter = await page.evaluate(() => Object.keys(localStorage).sort().join(','));
-	assert(e5.見えている && e5.ボタン数 === 4 && e5.高さ === e0.高さ,
+	assert(e5.見えている && e5.ボタン数 === 5 && e5.高さ === e0.高さ,
 		'段11(⑩): リロードしても入口は最初から4つ見えていて、高さも同じ', { 前: e0, 後: e5 });
 	assert(keysAfter === keysBefore,
 		'段11(⑩): 入口の並びのために localStorage のキーを増やしていない', { 前: keysBefore, 後: keysAfter });
@@ -9664,8 +9664,8 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 		assert(got.every((g) => g.バーを隠す指定 === 'none'),
 			'横1行(バッジ' + バッジ + '): スクロールバーを隠す指定（scrollbar-width: none）が効いている',
 			got.map((g) => ({ 幅: g.幅, 指定: g.バーを隠す指定, 厚み: g.バーの厚み })));
-		assert(got.every((g) => g.子の顔ぶれ.length === 1 && g.子の顔ぶれ[0] === 'BUTTON' && g.ボタン数 === 4),
-			'横1行(バッジ' + バッジ + '): 並びの中身は入口のボタン4つだけ（矢印や「端へ移動」を足していない。C-100 で5→4）',
+		assert(got.every((g) => g.子の顔ぶれ.length === 1 && g.子の顔ぶれ[0] === 'BUTTON' && g.ボタン数 === 5),
+			'横1行(バッジ' + バッジ + '): 並びの中身は入口のボタン5つだけ（矢印や「端へ移動」を足していない。C-100 で5→4、段5 で先頭に「オススメサポ」を足して5）',
 			got.map((g) => ({ 幅: g.幅, 子: g.子の顔ぶれ, 数: g.ボタン数 })));
 	}
 
@@ -9733,7 +9733,7 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 	const 並び = await page.evaluate((s) =>
 		[...document.querySelectorAll(s + ' button')].map((b) => b.dataset.usdAct), SEL);
 	// 2026-09-27（C-100）に末尾の「未収録スキルを追加」（editor-pick-custom）を廃止した。残りの順は変えていない
-	assert(並び.join(',') === 'editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot',
+	assert(並び.join(',') === 'outside-open,editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot',
 		'横1行: 入口の並び順は変えていない', 並び);
 
 	assert(errors.length === 0, '横1行: コンソールエラーなし', errors.slice(0, 3));

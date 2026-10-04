@@ -358,7 +358,7 @@ export async function register9(env) {
 					sumText: (q('[data-usd-el="factor-sum"]') || {}).textContent,
 					sumFs: [cs('[data-usd-el="factor-pt"]', 'fontSize'), cs('[data-usd-el="factor-pt"]', 'fontWeight')],
 					cfgText: (q('[data-usd-el="roster-link-row"]') || {}).textContent.replace(/\s+/g, ' ').trim().slice(0, 60),
-					entries: Array.from(document.querySelectorAll('#deck-template-panel .usd-entry-row > button')).map((b) => b.textContent.replace(/\s+/g, '')),
+					entries: Array.from(document.querySelectorAll('#deck-template-panel .usd-entry-row > button:not([data-usd-act="outside-open"])')).map((b) => b.textContent.replace(/\s+/g, '')),
 					entryRowOverflow: cs('.usd-entry-row', 'overflowX'),
 					gone: ['tier-total', 'mode-reclass', 'mode-delete', 'selected-count', 'clear-skills'].filter((k) => q('[data-usd-el="' + k + '"]')).concat(q('.usd-tier-tab') ? ['tier-tab'] : [], q('[data-usd-act="tier-move"]') ? ['tier-move'] : [], q('.usd-ptneed-chip--rank') ? ['rank-chip'] : []),
 					rowN: rows.length, cols,

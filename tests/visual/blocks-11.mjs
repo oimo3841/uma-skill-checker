@@ -36,6 +36,11 @@ export async function register11(env) {
 	const openSp = async (o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 375, height: o.h || 812 }, o.userData || EMPTY);
 		await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill(json(scenReal)));
+		if (o.syn) {
+			await sp.page.route('**/data/support-cards.json*', (r) => r.fulfill(json({ dataVersion: 'syn', category: 'supportCard', nextSerial: 'card-9999', note: 'x', entries: o.syn.cards })));
+			await sp.page.route('**/data/support-card-event-skills.json*', (r) => r.fulfill(json({ dataVersion: 'syn', category: 'supportCardEventSkill', note: 'x', entries: o.syn.events })));
+			await sp.page.route('**/data/character-event-skills.json*', (r) => r.fulfill(json({ dataVersion: 'syn', category: 'characterEventSkill', note: 'x', entries: [] })));
+		}
 		if (o.ptDrop) {
 			await sp.page.route('**/data/skill-pt.json*', (r) => r.fulfill(json(Object.assign({}, ptReal, { entries: ptReal.entries.filter((e) => o.ptDrop.indexOf(e.skillId) === -1) }))));
 		}
@@ -245,7 +250,7 @@ export async function register11(env) {
 	/* ====================================================================
 	 * (C) カード: ＋N種・外す・除外中・戻す・保存
 	 * ==================================================================== */
-	await block('オススメサポ(C) カード: 2列・高さ32px・「キャラクター名 ＋N種 外す」・＋N種の合計が「得られるスキル XX種」と一致・増分の大きい順', async () => {
+	await block('オススメサポ(C) カード: 2列・高さ36px・「キャラクター名 ＋N種 外す」・＋N種の合計が「得られるスキル XX種」と一致・増分の大きい順', async () => {
 		const sp = await openSp({ roster: FULL });
 		await open(sp.page);
 		for (const n of ['5', '6']) {
@@ -263,9 +268,9 @@ export async function register11(env) {
 			const sum = s.cards.reduce((t, c) => t + c.gain, 0);
 			assert(sum === f.kinds && s.cards.length === Number(n), 'オススメサポ(C) ' + n + '枚: ＋N種の合計（' + sum + '）が「得られるスキル XX種」（' + f.kinds + '）と一致する', { gains: s.cards.map((c) => c.gain), kinds: f.kinds });
 			assert(s.cards.every((c, i) => i === 0 || c.gain <= s.cards[i - 1].gain), 'オススメサポ(C) ' + n + '枚: カードは増分の大きい順', s.cards.map((c) => c.gain));
-			assert(geo.cols === 2 && geo.rowsN === Math.ceil(Number(n) / 2) && geo.hs.join() === '32' && geo.ell === 'ellipsis' && geo.ws === 'nowrap' && geo.within && geo.bodyOver <= 0,
-				'オススメサポ(C) ' + n + '枚: カードは2列・各32px・名前は長いとき省略（…）・はみ出さない（行数 ' + geo.rowsN + '）', geo);
-			assert(geo.texts.every((t) => /^\S.*＋\d+種外す$/.test(t)), 'オススメサポ(C) ' + n + '枚: 各カードは「キャラクター名 ＋N種 外す」', geo.texts);
+			assert(geo.cols === 2 && geo.rowsN === Math.ceil(Number(n) / 2) && geo.hs.join() === '36' && geo.ell === 'ellipsis' && geo.ws === 'nowrap' && geo.within && geo.bodyOver <= 0,
+				'オススメサポ(C) ' + n + '枚: カードは2列・各36px・名前は長いとき省略（…）・はみ出さない（行数 ' + geo.rowsN + '）', geo);
+			assert(geo.texts.every((t) => /^\S.*＋\d+種外す$/.test(t)), 'オススメサポ(C) ' + n + '枚: 各カードは「[二つ名]キャラクター名 ＋N種 外す」', geo.texts);
 		}
 		const exp = await solveIn(sp.page, { count: 6, addedSkillIds: [] });
 		const s6 = await snap(sp.page);
@@ -293,7 +298,7 @@ export async function register11(env) {
 		await sp.page.click(M + '[data-usd-el="outside-excl-toggle"]');
 		const c = await snap(sp.page);
 		const geo = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-excl-card"]')).map((e) => ({ h: Math.round(e.getBoundingClientRect().height), btn: (e.querySelector('[data-usd-el="outside-restore"]') || {}).textContent })));
-		assert(c.exclCards.length === 1 && c.exclCards[0].id === victim && /戻す$/.test(c.exclCards[0].text) && geo[0].btn === '戻す' && geo[0].h === 32 && /除外中 1枚 ▴/.test(c.excl), 'オススメサポ(C) 押すと除外したカードの一覧が開き、各カードに「戻す」がある', { c: c.exclCards, geo });
+		assert(c.exclCards.length === 1 && c.exclCards[0].id === victim && /戻す$/.test(c.exclCards[0].text) && geo[0].btn === '戻す' && geo[0].h === 36 && /除外中 1枚 ▴/.test(c.excl), 'オススメサポ(C) 押すと除外したカードの一覧が開き、各カードに「戻す」がある', { c: c.exclCards, geo });
 		// ①の次の書き込み（スキルのオン/オフ）のあとも残る。受け口を通さず保存データへ直接書いていると、①の古い roster で上書きされて消える
 		await sp.page.click(M + '[data-usd-act="outside-close"]');
 		await sp.page.evaluate(() => document.querySelector('#deck-roster-panel input[data-usd-act="take-skill"]').click());
@@ -569,36 +574,220 @@ export async function register11(env) {
 	/* ====================================================================
 	 * (G) 見た目: 帯のボタン・小窓の高さ・文言
 	 * ==================================================================== */
-	await block('オススメサポ(G) ②の帯の「オススメサポ」ボタン（高さ28px・「↺」の隣）: 320・375・414px で、はみ出さず・折り返さず・帯の高さが変わらない', async () => {
+	await block('オススメサポ(G) 入口列の先頭に濃色のボタン／②の帯にボタンは無く、帯の高さはこの機能を足す前と同じ／入口列は横スクロールのままで、ほかの入口は変わらない（320・375・414px）', async () => {
 		const big = { skillIds: masterWhite.slice(0, 273), name: '', updatedAt: '', skillIcons: {} };   // 24,390Pt／273種（帯の数字が最も広くなる側）
+		// この機能を足す前（段2 まで）に実測した帯の高さ。ボタンを帯に置いていたとき（ボタンを隠した状態）も同じ値だった
+		const BAND_H = { '320:②が空': 71, '320:②が273種': 100, '375:②が空': 71, '375:②が273種': 71, '414:②が空': 71, '414:②が273種': 71 };
 		for (const w of [320, 375, 414]) {
 			for (const [label, scope] of [['②が空', null], ['②が273種', big]]) {
 				const sp = await openSp({ w, h: 800, roster: FULL, scope });
 				const r = await sp.page.evaluate(() => {
 					const q = (s) => document.querySelector('#deck-template-panel ' + s);
 					const rect = (e) => { const b = e.getBoundingClientRect(); return { l: Math.round(b.left), r: Math.round(b.right), t: Math.round(b.top), b: Math.round(b.bottom), w: Math.round(b.width), h: Math.round(b.height) }; };
-					const band = q('[data-usd-el="set-head"]'), btn = q('[data-usd-el="outside-open"]'), reset = q('[data-usd-el="factor-reset"]'), sum = q('[data-usd-el="factor-sum"]');
-					const h1 = rect(band).h;
-					btn.style.display = 'none';
-					const h0 = rect(band).h;
-					btn.style.display = '';
-					const bandR = rect(band), cs = getComputedStyle(band);
-					const bt = rect(btn);
-					return { h1, h0, band: bandR, btn: bt, reset: rect(reset), sum: rect(sum), text: btn.textContent, oneLine: btn.getClientRects().length === 1 && btn.scrollWidth <= btn.clientWidth + 1, ws: getComputedStyle(btn).whiteSpace,
-						innerR: Math.round(bandR.r - parseFloat(cs.paddingRight)), sw: document.documentElement.scrollWidth, iw: window.innerWidth, sameRow: Math.abs(bt.t - rect(reset).t) <= 1 };
+					const band = q('[data-usd-el="set-head"]'), row = q('.usd-entry-row'), btns = Array.from(row.children);
+					const first = btns[0], rr = row.getBoundingClientRect(), cs = getComputedStyle(row);
+					const visible = btns.filter((b) => b.getBoundingClientRect().right <= rr.right + 1).length;
+					const partly = btns.filter((b) => b.getBoundingClientRect().left < rr.right - 1).length;
+					return { bandH: rect(band).h, bandBtn: !!band.querySelector('[data-usd-act="outside-open"], .usd-outside-btn'), outsideAnywhereInBand: band.textContent.indexOf('オススメサポ'),
+						texts: btns.map((b) => b.textContent.replace(/\s+/g, '').replace(/[0-9]+$/, '')), firstAct: first.getAttribute('data-usd-act'), firstW: Math.round(first.getBoundingClientRect().width), firstH: Math.round(first.getBoundingClientRect().height),
+						cls: first.className, others: btns.slice(1).map((b) => b.className.split(' ').filter((c) => c.indexOf('uma-btn') === 0).join(' ')),
+						ov: cs.overflowX, wrap: cs.flexWrap, scrolls: row.scrollWidth > row.clientWidth, visible, partly, sw: document.documentElement.scrollWidth, iw: window.innerWidth, rowW: Math.round(rr.width) };
 				});
 				const tag = 'オススメサポ(G) ' + w + 'px・' + label + ': ';
-				assert(r.text === 'オススメサポ' && r.btn.h === 28 && r.oneLine && r.btn.r <= r.innerR + 1 && r.btn.r <= r.reset.l && r.reset.l - r.btn.r <= 12 && r.sameRow && r.btn.l >= r.sum.r,
-					tag + 'ボタンは高さ28px・1行・帯の中に収まり、「↺」の左隣（同じ行・右端）にある。左の数字と重ならない', r);
-				assert(r.h1 === r.h0 && r.sw <= r.iw, tag + '帯の高さがボタンの有無で変わらない（' + r.h0 + 'px）。画面が横にはみ出さない', { h1: r.h1, h0: r.h0, sw: r.sw, iw: r.iw });
+				assert(!r.bandBtn && r.outsideAnywhereInBand === -1 && r.bandH === BAND_H[w + ':' + label] && r.sw <= r.iw, tag + '②の帯にボタンは無く、帯の高さはこの機能を足す前と同じ（' + r.bandH + 'px）。画面が横にはみ出さない', r);
+				assert(r.texts.join() === 'オススメサポ,条件で検索,緑スキル,テキストで検索,スクショで追加' && r.firstAct === 'outside-open' && /uma-btn--primary/.test(r.cls) && r.others.every((c) => c === 'uma-btn uma-btn--secondary'),
+					tag + '入口列の先頭（「条件で検索」の左）に濃色（primary）の「オススメサポ」。ほかの4つは今までどおり（secondary）', { texts: r.texts, cls: r.cls, others: r.others });
+				assert(r.ov === 'auto' && r.wrap === 'nowrap' && (w > 414 || r.scrolls), tag + '入口列は折り返さず横スクロール（幅 ' + r.rowW + 'px。先頭に ' + r.firstW + 'px 足された。' + (r.scrolls ? '右にスクロールして見る' : '収まる') + '）', r);
+				if (label === '②が空') console.log('     [実測] ' + w + 'px: ボタンの幅 ' + r.firstW + '×' + r.firstH + 'px・最初に全体が見えるボタン ' + r.visible + '個（一部でも見えるもの ' + r.partly + '個）');
 				assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 				await sp.ctx.close();
 			}
 		}
-		// 1280px（帯のタグも1段目に並ぶ幅）
-		const sp = await openSp({ w: 1280, h: 900, roster: FULL });
-		const r = await sp.page.evaluate(() => { const q = (s) => document.querySelector('#deck-template-panel ' + s).getBoundingClientRect(); const b = q('[data-usd-el="outside-open"]'), r2 = q('[data-usd-el="factor-reset"]'), band = q('[data-usd-el="set-head"]'); return { bt: Math.round(b.top), rt: Math.round(r2.top), gap: Math.round(r2.left - b.right), h: Math.round(b.height), bandH: Math.round(band.height) }; });
-		assert(Math.abs(r.bt - r.rt) <= 1 && r.gap >= 0 && r.gap <= 12 && r.h === 28, 'オススメサポ(G) 1280px: ボタンは「↺」の左隣・同じ行（帯の高さ ' + r.bandH + 'px）', r);
+		// ほかの入口の動きは変わらない（条件で検索を押すと、スキル選択の小窓が開く）／濃色の塗りは小窓の「追加」と同じ
+		const sp = await openSp({ w: 375, h: 812, roster: FULL });
+		const fill = await sp.page.evaluate(() => getComputedStyle(document.querySelector('#deck-template-panel [data-usd-el="outside-open"]')).backgroundColor);
+		await sp.page.click(T + '[data-usd-act="editor-pick"]');
+		const picker = await sp.page.evaluate(() => { const t = document.querySelector('[data-usd-el="picker-title"]'); return { title: t ? t.textContent : null, vis: !!t && !!t.offsetParent }; });
+		assert(picker.vis && /条件で検索/.test(picker.title), 'オススメサポ(G) ほかの入口（条件で検索）の動きは変わらない（スキル選択の小窓が開く）', picker);
+		await sp.page.click('[data-usd-act="picker-close"]');
+		await open(sp.page);
+		const addFill = await sp.page.evaluate(() => getComputedStyle(document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-add"]')).backgroundColor);
+		assert(fill === addFill && fill !== 'rgba(0, 0, 0, 0)', 'オススメサポ(G) 入口列のボタンの塗りは、小窓の「追加」ボタンと同じ濃色', { fill, addFill });
+		await sp.ctx.close();
+		// 1280px
+		const sp2 = await openSp({ w: 1280, h: 900, roster: FULL });
+		const r2 = await sp2.page.evaluate(() => { const row = document.querySelector('#deck-template-panel .usd-entry-row'); return { first: row.children[0].getAttribute('data-usd-act'), scrolls: row.scrollWidth > row.clientWidth, band: !!document.querySelector('#deck-template-panel [data-usd-el="set-head"] [data-usd-act="outside-open"]') }; });
+		assert(r2.first === 'outside-open' && !r2.band, 'オススメサポ(G) 1280px: 入口列の先頭にボタン（帯には無い）', r2);
+		await sp2.ctx.close();
+	});
+
+	/* ====================================================================
+	 * (H) カードのタイル（①のカードの表示に揃える）・名前を押したときの情報・再計算（全部やり直し）
+	 *     合成した材料: 白のスキルを重ねたカード A〜G（同じキャラクターは無い）。ウマ娘は実データ
+	 * ==================================================================== */
+	const stepReal = readJson('data/skill-step-up.json');
+	const linked = new Set(); stepReal.entries.forEach((e) => { linked.add(e.skillId); (e.prevSkillIds || []).forEach((p) => linked.add(p)); });
+	const masterById = new Map(master.map((s) => [s.id, s]));
+	const SYN_ROSTER_IDS = ['syn-r1', 'syn-r2', 'syn-r3', 'syn-r4', 'syn-r5', 'syn-r6'];
+	const FULLSYN = { umaId: 'uma-0001', cardIds: SYN_ROSTER_IDS, skillFilter: FILTER };
+	/** 合成の材料。A（＋10種）と B（＋9種）は大きく重なる。A があると A・C・D・E・F、A を外すと B・C・D・E・G が最適 */
+	const buildSyn = (S) => {
+		const mk = (id, chara, rarity, order, skills, title) => ({ id, title: title || '二つ名' + id, charaName: chara, type: ['スピード', 'スタミナ', 'パワー', '根性', '賢さ', '友人'][order - 1], typeOrder: order, rarity, isGroup: false,
+			hintSkills: skills.map((s) => ({ skillId: s, name: 'x' })), dataStatus: { hint: 'done' } });
+		const cands = [
+			{ id: 'syn-A', chara: 'タマ', rarity: 'SSR', order: 1, skills: S.slice(0, 10), title: 'とても長い二つ名がここに入りますよ' },
+			{ id: 'syn-B', chara: 'テストB', rarity: 'SSR', order: 2, skills: S.slice(0, 8).concat([S[10]]) },
+			{ id: 'syn-C', chara: 'ながいながいながいなまえのウマ娘', rarity: 'SSR', order: 3, skills: S.slice(11, 18), title: '短' },
+			{ id: 'syn-D', chara: 'テストD', rarity: 'SSR', order: 4, skills: S.slice(18, 24) },
+			{ id: 'syn-E', chara: 'テストE', rarity: 'SR', order: 5, skills: S.slice(24, 29) },
+			{ id: 'syn-F', chara: 'テストF', rarity: 'SR', order: 6, skills: S.slice(29, 33) },
+			{ id: 'syn-G', chara: 'テストG', rarity: 'SR', order: 1, skills: [S[8], S[9]].concat(S.slice(33, 36)) }
+		];
+		const roster = SYN_ROSTER_IDS.map((id, i) => ({ id, chara: 'ロスター' + (i + 1), rarity: 'SR', order: (i % 6) + 1, skills: [] }));
+		const all = cands.concat(roster);
+		return { cands, cards: all.map((c) => mk(c.id, c.chara, c.rarity, c.order, c.skills, c.title)), events: all.map((c) => ({ cardId: c.id, status: 'done', chain: [] })) };
+	};
+	const openSyn = async (o = {}) => {
+		const sp = await openSp(Object.assign({ roster: FULLSYN, syn: o.syn }, o));
+		return sp;
+	};
+	const brute = (cands, K, excluded) => {
+		const list = cands.filter((c) => excluded.indexOf(c.id) === -1);
+		let best = null;
+		const rec = (i, picks) => {
+			if (i === list.length) {
+				if (picks.length === 0 || picks.length > K) return;
+				const cov = new Set(); picks.forEach((c) => c.skills.forEach((x) => cov.add(x)));
+				const cand = { score: cov.size, size: picks.length, ssr: picks.filter((c) => c.rarity === 'SSR').length, ids: picks.map((c) => c.id).sort().join() };
+				if (!best || cand.score > best.score || (cand.score === best.score && (cand.size < best.size || (cand.size === best.size && (cand.ssr > best.ssr || (cand.ssr === best.ssr && cand.ids < best.ids)))))) best = cand;
+				return;
+			}
+			rec(i + 1, picks); rec(i + 1, picks.concat([list[i]]));
+		};
+		rec(0, []);
+		return best;
+	};
+	let SYN = null;
+	const needSyn = async () => {
+		if (SYN) return SYN;
+		const probe = await openSp({ roster: FULL });
+		const pop = await probe.page.evaluate((f) => UmaSkillDeckCore.outside.populationOf({ umaId: 'uma-0001', cardIds: [], skillFilter: f }).ids, FILTER);
+		await probe.ctx.close();
+		const S = pop.filter((id) => masterById.has(id) && whiteIds.indexOf(id) !== -1 && !linked.has(id)).slice(0, 36);
+		SYN = Object.assign({ S }, buildSyn(S));
+		return SYN;
+	};
+
+	await block('オススメサポ(H) カードのタイル: 1行（高さ36px）・①と同じ種類色・SSR は虹色の枠3px／SR は金色の枠2px・二つ名（11px）を先に省略してから名前（14px）を省略する', async () => {
+		const syn = await needSyn();
+		assert(syn.S.length === 36, 'オススメサポ(H) 前提: 合成の材料にできる白のスキルが36個ある（母集団で、前段の無いもの）', syn.S.length);
+		const sp = await openSyn({ syn });
+		await open(sp.page);
+		const r = await sp.page.evaluate(() => {
+			const probe = (css) => { const e = document.createElement('i'); e.style.cssText = css; document.body.appendChild(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return c; };
+			const tiles = Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]'));
+			const slots = Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="card-slots"] .usd-roster-slot'));
+			const cs = (e) => getComputedStyle(e);
+			return {
+				n: tiles.length,
+				tiles: tiles.map((t) => {
+					const n = t.getAttribute('data-type-order'), nick = t.querySelector('.usd-out-card-nick'), name = t.querySelector('.usd-out-card-name'), main = t.querySelector('.usd-out-card-main');
+					const bg = cs(t).backgroundImage;
+					const ssr = ['1', '2', '3', '4', '5'].map((i) => probe('background-color: var(--usd-rarity-ssr-' + i + ')'));
+					const sr = ['1', '2'].map((i) => probe('background-color: var(--usd-rarity-sr-' + i + ')'));
+					return { id: t.getAttribute('data-card-id'), h: Math.round(t.getBoundingClientRect().height), mainH: Math.round(main.getBoundingClientRect().height), nameH: Math.round(name.getBoundingClientRect().height), n,
+						expectBg: probe('background-color: var(--uma-card-type-' + n + '-bg)'), bgImage: bg, text: cs(t).color, expectText: probe('background-color: var(--uma-card-type-' + n + '-text)'),
+						bw: cs(t).borderTopWidth, ssrColors: ssr, srColors: sr, cls: t.className,
+						nickFs: nick ? cs(nick).fontSize : null, nameFs: cs(name).fontSize,
+						nickCut: nick ? nick.scrollWidth > nick.clientWidth + 1 : null, nameCut: name.scrollWidth > name.clientWidth + 1, nickW: nick ? Math.round(nick.getBoundingClientRect().width) : null, ell: nick ? cs(nick).textOverflow : null };
+				}),
+				slot: slots.map((s) => ({ n: s.getAttribute('data-type-order'), bg: cs(s).backgroundColor })),
+				varDefined: ['--usd-rarity-ssr-1', '--usd-rarity-ssr-5', '--usd-rarity-sr-1', '--usd-rarity-sr-2'].map((v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim())
+			};
+		});
+		assert(r.n === 5 && r.tiles.every((t) => t.h === 36 && t.mainH <= 36 && t.nameH <= 20), 'オススメサポ(H) タイルは1行で高さ36px（目標の36px以内）。名前が2行に折れない', r.tiles.map((t) => [t.h, t.mainH, t.nameH]));
+		assert(r.tiles.every((t) => t.bgImage.indexOf(t.expectBg) !== -1 && t.text === t.expectText), 'オススメサポ(H) 塗りと文字の色は、種類の番号で引く変数（--uma-card-type-N-bg／-text）。①のカードの表示と同じ', r.tiles.map((t) => [t.n, t.expectBg]));
+		const slotOk = r.slot.filter((s) => s.n).every((s) => { const t = r.tiles.find((x) => x.n === s.n); return !t || t.expectBg === s.bg; });
+		assert(r.slot.filter((s) => s.n).length === 6 && slotOk, 'オススメサポ(H) 同じ種類番号の①のカードの欄の地の色と、タイルの塗りが一致する', { slot: r.slot, tiles: r.tiles.map((t) => [t.n, t.expectBg]) });
+		const ssrT = r.tiles.filter((t) => / usd-out-card--ssr/.test(t.cls)), srT = r.tiles.filter((t) => / usd-out-card--sr/.test(t.cls));
+		assert(ssrT.length >= 1 && srT.length >= 1 && ssrT.every((t) => t.bw === '3px' && t.ssrColors.every((c) => t.bgImage.indexOf(c) !== -1)) && srT.every((t) => t.bw === '2px' && t.srColors.every((c) => t.bgImage.indexOf(c) !== -1)),
+			'オススメサポ(H) SSR は虹色（5色）の枠3px・SR は金色の枠2px', { ssr: ssrT.length, sr: srT.length, bw: r.tiles.map((t) => t.bw) });
+		assert(r.varDefined.every((v) => /^#[0-9a-f]{6}$/i.test(v)), 'オススメサポ(H) 虹色・金色は新しい変数（--usd-rarity-ssr-1〜5・--usd-rarity-sr-1〜2）として定義してある（タイルには色を直書きしていない）', r.varDefined);
+		const A = r.tiles.find((t) => t.id === 'syn-A'), C = r.tiles.find((t) => t.id === 'syn-C');
+		assert(A && C && A.nickFs === '11px' && A.nameFs === '14px' && A.nickCut && !A.nameCut && A.ell === 'ellipsis', 'オススメサポ(H) 二つ名が長く名前が短いカードでは、二つ名（11px）だけが省略（…）され、名前（14px）は全部見える', A);
+		assert(C.nameCut && C.nickW <= 12 && !A.nameCut, 'オススメサポ(H) 名前も長いカードでは、二つ名が先に縮み切ってから（' + C.nickW + 'px）名前が省略される', C);
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ(H) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('オススメサポ(H) カード名を押すと、カードの情報（名称・種類・レアリティ）が小窓の上に出る／「外す」と押す範囲が重ならない／閉じても小窓は残る', async () => {
+		const syn = await needSyn();
+		const sp = await openSyn({ syn });
+		await open(sp.page);
+		const geo = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]')).map((t) => {
+			const m = t.querySelector('.usd-out-card-main').getBoundingClientRect(), b = t.querySelector('[data-usd-el="outside-exclude"]').getBoundingClientRect(), g = t.querySelector('[data-usd-el="outside-card-gain"]').getBoundingClientRect();
+			return { mainR: Math.round(m.right), gainL: Math.round(g.left), gainR: Math.round(g.right), btnL: Math.round(b.left), btnW: Math.round(b.width), btnH: Math.round(b.height) };
+		}));
+		assert(geo.every((g) => g.mainR <= g.gainL + 1 && g.gainR <= g.btnL + 1 && g.btnH >= 28), 'オススメサポ(H) 名前の部分・「＋N種」・「外す」の押す範囲は左から順に並び、重ならない（「外す」は高さ28px以上）', geo);
+		const before = await snap(sp.page);
+		await sp.page.click(M + '[data-usd-el="outside-card"][data-card-id="syn-A"] .usd-out-card-main');
+		const info = await sp.page.evaluate(() => {
+			const pop = document.querySelector('.usd-info-pop');
+			const r = pop.getBoundingClientRect();
+			const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+			const modal = document.querySelector('[data-usd-el="outside-modal"]');
+			return { shown: !pop.hidden, text: pop.innerText.replace(/\s+/g, ' ').trim(), onTop: pop.contains(top), modalOpen: !modal.hidden, zPop: getComputedStyle(pop).zIndex, zModal: getComputedStyle(modal).zIndex,
+				type: (document.querySelector('[data-usd-el="outside-card-info-type"]') || {}).textContent, rarity: (document.querySelector('[data-usd-el="outside-card-info-rarity"]') || {}).textContent };
+		});
+		assert(info.shown && info.onTop && info.modalOpen && Number(info.zPop) > Number(info.zModal) && /^\[とても長い二つ名がここに入りますよ\]タマ/.test(info.text) && info.type === '種類：スピード' && info.rarity === 'レアリティ：SSR',
+			'オススメサポ(H) 名前を押すと、名称（二つ名＋名前）・種類・レアリティの小さな表示が小窓の上に出る（重なり順は表示のほうが上）', info);
+		const mid = await snap(sp.page);
+		assert(JSON.stringify(mid.cards.map((c) => c.id)) === JSON.stringify(before.cards.map((c) => c.id)) && mid.excl === null, 'オススメサポ(H) 名前を押しても「外す」は起きない（カードも除外も変わらない）', mid.cards.map((c) => c.id));
+		await sp.page.keyboard.press('Escape');
+		const after = await sp.page.evaluate(() => ({ popHidden: document.querySelector('.usd-info-pop').hidden, modalOpen: !document.querySelector('[data-usd-el="outside-modal"]').hidden }));
+		assert(after.popHidden && after.modalOpen, 'オススメサポ(H) 情報を閉じても、小窓は残る（Esc で閉じるのは情報だけ）', after);
+		// 背景を押して閉じるときも小窓は残る
+		await sp.page.click(M + '[data-usd-el="outside-card"][data-card-id="syn-C"] .usd-out-card-main');
+		await sp.page.mouse.click(5, 5);
+		const after2 = await sp.page.evaluate(() => ({ popHidden: document.querySelector('.usd-info-pop').hidden, modalOpen: !document.querySelector('[data-usd-el="outside-modal"]').hidden }));
+		assert(after2.popHidden && after2.modalOpen, 'オススメサポ(H) 情報の外（背景）を押して閉じても、小窓は残る', after2);
+		// 「外す」を押すと情報ではなく除外になる
+		await sp.page.click(M + '[data-usd-el="outside-exclude"][data-card-id="syn-C"]');
+		await settle(sp.page);
+		const ex = await snap(sp.page);
+		assert(ex.excl === '除外中 1枚 ▾' && !(await sp.page.evaluate(() => !document.querySelector('.usd-info-pop').hidden)), 'オススメサポ(H) 「外す」を押すと除外になる（情報は出ない）', ex.excl);
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ(H) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('オススメサポ(H) 「外す」「戻す」は探索を最初から全部やり直す: A（＋10種）を外すと B が入り、ほかも入れ替わり、「A を除いて最初から総当たり」した結果と一致する（次点を足すだけではない）', async () => {
+		const syn = await needSyn();
+		const sp = await openSyn({ syn });
+		await open(sp.page);
+		const ids = (s) => s.cards.map((c) => c.id).sort().join();
+		const b0 = brute(syn.cands, 5, []);
+		const s0 = await snap(sp.page);
+		const gainOf = (s, id) => (s.cards.find((c) => c.id === id) || {}).gain;
+		assert(ids(s0) === b0.ids && ids(s0) === 'syn-A,syn-C,syn-D,syn-E,syn-F' && gainOf(s0, 'syn-A') === 10 && s0.cards[0].id === 'syn-A' && !s0.cards.some((c) => c.id === 'syn-B'),
+			'オススメサポ(H) 最初の状態: A（＋10種）が選ばれ B（＋9種）は落ちている。結果は総当たりと一致（A・C・D・E・F）', { ui: ids(s0), brute: b0.ids, gains: s0.cards.map((c) => c.id + ':' + c.gain) });
+		// 次点を足すだけの方式（A を落として、前回の順位の次のカードを足す）なら、この顔ぶれになる
+		const naive = ['syn-C', 'syn-D', 'syn-E', 'syn-F', 'syn-G'].sort().join();
+		await sp.page.click(M + '[data-usd-el="outside-exclude"][data-card-id="syn-A"]');
+		await settle(sp.page);
+		const s1 = await snap(sp.page);
+		const b1 = brute(syn.cands, 5, ['syn-A']);
+		const changed = ids(s0).split(',').filter((x) => x !== 'syn-A' && ids(s1).split(',').indexOf(x) === -1);
+		assert(ids(s1) === b1.ids && s1.cards.some((c) => c.id === 'syn-B') && !s1.cards.some((c) => c.id === 'syn-A') && changed.length >= 1 && ids(s1) !== naive && gainOf(s1, 'syn-B') === 9,
+			'オススメサポ(H) A を外すと、B（＋9種）が入り、ほかの1枚以上（' + changed.join('・') + '）が入れ替わる。結果は「A を除いて最初から総当たり」と一致し、次点を足しただけの顔ぶれ（C・D・E・F・G）ではない', { ui: ids(s1), brute: b1.ids, naive, changed });
+		const eng = await solveIn(sp.page, { count: 5, addedSkillIds: [], excludedCardIds: ['syn-A'] });
+		assert(eng.cards.map((c) => c.cardId).sort().join() === ids(s1), 'オススメサポ(H) 画面の結果は、探索を最初からやり直した純粋関数の結果と同じ', eng.cards.map((c) => c.cardId));
+		// 戻す: A を戻すと最初の結果に戻る（これも全部やり直し）
+		await sp.page.click(M + '[data-usd-el="outside-excl-toggle"]');
+		await sp.page.click(M + '[data-usd-el="outside-restore"][data-card-id="syn-A"]');
+		await settle(sp.page);
+		const s2 = await snap(sp.page);
+		assert(ids(s2) === b0.ids && gainOf(s2, 'syn-A') === 10, 'オススメサポ(H) 「戻す」でも探索をやり直し、最初の結果（A・C・D・E・F）に戻る', ids(s2));
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ(H) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
 
