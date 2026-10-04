@@ -109,7 +109,9 @@ export async function register10(env) {
 		await sp.page.waitForTimeout(300);
 		return sp;
 	};
-	const solve = (page, args) => page.evaluate((a) => UmaSkillDeckCore.outside.solveSync(a), args);
+	// 段13・C2: 除外の初期値（デバフ・持久力回復）は、ここでは外して段1 の規則だけを見る（roster に outsideOptions が無ければ exclude: {} を足す）
+	const NOEX = { exclude: {} };
+	const solve = (page, args) => page.evaluate(({ a, nx }) => { const r = Object.assign({}, a.roster || {}); if (!r.outsideOptions) r.outsideOptions = nx; return UmaSkillDeckCore.outside.solveSync(Object.assign({}, a, { roster: r })); }, { a: args, nx: NOEX });
 	const brief = (r) => ({ ok: r.ok, score: r.score, cards: r.cards.map((c) => c.cardId + ':' + c.gain), counts: r.counts, partial: r.partial });
 
 	assert(!!gold1 && !!gold2 && W.length === 20 && !!wShort && !!wMed && !!noPtId && !masterIds.has(a2), '段10 前提: 実データから、金（前段1つ）・金（鎖が2段で途中の白は母集団の外）・平凡な白20・距離のタグを持つ白2・Pt 未収録のスキルを用意できる', { gold1, gold2, a2, b2, W: W.length });
@@ -258,22 +260,22 @@ export async function register10(env) {
 
 	await block('段10(B) 母集団: ②に追加できる白（金は入らない）・①の絞り込み・●・OFFを除く・すでに②にあるものは残る・タグを持たないものは絞り込みで残る', async () => {
 		const sp = await openSynth();
-		const r = await sp.page.evaluate(({ W, wShort, wMed, noPtId, gold1, gold2, p1, b2 }) => {
+		const r = await sp.page.evaluate(({ W, wShort, wMed, noPtId, gold1, gold2, p1, b2, nx }) => {
 			const C = UmaSkillDeckCore.outside;
-			const pop = (roster) => { const p = C.populationOf(roster); return p.ok ? new Set(p.ids) : null; };
+			const pop = (roster) => { const p = C.populationOf(Object.assign({ outsideOptions: nx }, roster)); return p.ok ? new Set(p.ids) : null; };
 			const base = pop({});
 			const poolIds = new Set(UmaSkillDeckCore.getMasterSkills().map((s) => s.id));
 			const short = pop({ skillFilter: { distance: 'short' } });
 			const med = pop({ skillFilter: { distance: 'medium' } });
 			const withRoster = pop({ cardIds: ['syn-c15'], offSkillIds: [W[13]] });
-			const added = C.build({ roster: {}, addedSkillIds: [W[0]] });
+			const added = C.build({ roster: { outsideOptions: nx }, addedSkillIds: [W[0]] });
 			return {
 				size: base.size, hasGold: base.has(gold1) || base.has(gold2), hasP1: base.has(p1), hasNoPt: base.has(noPtId), allInPool: Array.from(base).every((id) => poolIds.has(id) || id.startsWith('ex-')),
 				shortHas: [short.has(wShort), short.has(wMed), short.has(W[0])], medHas: [med.has(wShort), med.has(wMed), med.has(W[0])],
 				rosterHas: [withRoster.has(W[12]), withRoster.has(W[13]), withRoster.has(W[14]), withRoster.has(W[0])],
 				addedStill: added.pop.set.has(W[0])
 			};
-		}, { W, wShort, wMed, noPtId, gold1, gold2, p1, b2 });
+		}, { W, wShort, wMed, noPtId, gold1, gold2, p1, b2, nx: NOEX });
 		assert(r.size === 452 && !r.hasGold && r.hasP1 && r.hasNoPt, '段10(B) 母集団: 条件で検索と緑スキルの合計の452種（白444＋Pt 未収録8）。金は入らず、Pt 未収録も残る', r);
 		assert(r.shortHas.join() === 'true,false,true' && r.medHas.join() === 'false,true,true', '段10(B) 母集団: ①の絞り込み（距離）に合うものだけが残り、距離のタグを持たないスキルは絞り込みでも残る', r);
 		assert(r.rosterHas.join() === 'false,false,true,true', '段10(B) 母集団: ①の●（c15 のヒント）と、①でOFFにしたスキルは入らない。①で得ないスキルは残る', r);
@@ -291,11 +293,11 @@ export async function register10(env) {
 		assert(B.score === 3 && B.counts.kinds === 2 && B.counts.gold === 1 && B.counts.white === 2 && B.golds.length === 1 && B.golds[0].skillId === gold1,
 			'段10(B) カードB（金と白）は、金＋前段の白＋白の 3点。表示は 2種（金スキル1種）で、白の行は2つ。Bのほうが高く評価される', brief(B));
 		assert(B.score > A.score && AB.score === 3 && AB.counts.kinds === 2 && AB.cards.length === 2, '段10(B) 2枚を合わせても、重なりは1回ずつ（前段の白と白は共通なので 3点）', brief(AB));
-		const b = await sp.page.evaluate(({ gold2, a2, b2, p1, gold1 }) => {
-			const prob = UmaSkillDeckCore.outside.build({ roster: {} });
+		const b = await sp.page.evaluate(({ gold2, a2, b2, p1, gold1, nx }) => {
+			const prob = UmaSkillDeckCore.outside.build({ roster: { outsideOptions: nx } });
 			const ex = Array.from(prob.expandIds([gold2]));
 			return { ex, chainBoth: ex.includes(a2) && ex.includes(b2), gold1Countable: prob.countableGolds.has(gold1), gold2Countable: prob.countableGolds.has(gold2), inUniverse: [prob.idx.has(a2), prob.idx.has(b2), prob.idx.has(p1)] };
-		}, { gold2, a2, b2, p1, gold1 });
+		}, { gold2, a2, b2, p1, gold1, nx: NOEX });
 		assert(b.chainBoth && b.gold1Countable && b.gold2Countable && b.inUniverse.join() === 'false,true,true',
 			'段10(B) 鎖が2段の金（金→a→b）は、前段の白を全部（a も b も）足す。数えるのは母集団にある b だけ。b が母集団にあるので金は点数になる（前段の鎖のどこかに母集団の白を持つ）', b);
 		const C6 = await solve(sp.page, { roster: {}, count: 5, excludedCardIds: onlyOf(['syn-c06']) });
@@ -389,8 +391,8 @@ export async function register10(env) {
 				r: (q('#deck-roster-panel [data-usd-el="pt-total"]') || {}).textContent, rk: (q('#deck-roster-panel [data-usd-el="pt-count"]') || {}).textContent });
 		});
 		const before = await nums();
-		const cut = await sp.page.evaluate(async () => { const r = await UmaSkillDeckCore.outside.solve({ roster: {}, count: 6, deadlineMs: 0 }); return { ok: r.ok, partial: r.partial, score: r.score, cards: r.cards.length }; });
-		const full = await sp.page.evaluate(async () => { const r = await UmaSkillDeckCore.outside.solve({ roster: {}, count: 6, deadlineMs: 20000 }); return { ok: r.ok, partial: r.partial, score: r.score, cards: r.cards.length, counts: r.counts, stats: r.stats }; });
+		const cut = await sp.page.evaluate(async () => { const r = await UmaSkillDeckCore.outside.solve({ roster: { outsideOptions: { exclude: {} } }, count: 6, deadlineMs: 0 }); return { ok: r.ok, partial: r.partial, score: r.score, cards: r.cards.length }; });
+		const full = await sp.page.evaluate(async () => { const r = await UmaSkillDeckCore.outside.solve({ roster: { outsideOptions: { exclude: {} } }, count: 6, deadlineMs: 20000 }); return { ok: r.ok, partial: r.partial, score: r.score, cards: r.cards.length, counts: r.counts, stats: r.stats }; });
 		assert(cut.ok && cut.partial === true && cut.score > 0 && cut.cards === 6 && full.ok && full.partial === false && cut.score <= full.score, '段10(C) 実データ: 締め切り 0ms だと途中の結果（partial）で、それまでの最良（6枚）を返す。十分な時間なら印は付かない', { cut, full: { partial: full.partial, score: full.score } });
 		assert(full.stats.engineScore === full.score, '段10(C) 実データでも、探索の点数と組み立ての点数が一致する', [full.stats.engineScore, full.score]);
 		assert(full.counts.kinds + full.counts.gold === full.score && full.stats.population === 452 && full.stats.candidates === 407 && full.stats.groups === 145, '段10(C) 実データ: 点数 ＝ 種数（countSkillKinds）＋ 金スキル。母集団452・候補407枚・145キャラクター', { counts: full.counts, stats: full.stats });

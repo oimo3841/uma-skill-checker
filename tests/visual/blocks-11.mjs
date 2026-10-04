@@ -666,7 +666,8 @@ export async function register11(env) {
 	const linked = new Set(); stepReal.entries.forEach((e) => { linked.add(e.skillId); (e.prevSkillIds || []).forEach((p) => linked.add(p)); });
 	const masterById = new Map(master.map((s) => [s.id, s]));
 	const SYN_ROSTER_IDS = ['syn-r1', 'syn-r2', 'syn-r3', 'syn-r4', 'syn-r5', 'syn-r6'];
-	const FULLSYN = { umaId: 'uma-0001', cardIds: SYN_ROSTER_IDS, skillFilter: FILTER };
+	// 段13・C2: 合成の材料は除外の初期値（デバフ・持久力回復）を外して作り（exclude: {}）、計算も同じ条件にする（ここで見るのは段3〜6 の動き）
+	const FULLSYN = { umaId: 'uma-0001', cardIds: SYN_ROSTER_IDS, skillFilter: FILTER, outsideOptions: { exclude: {} } };
 	/** 合成の材料。A（＋10種）と B（＋9種）は大きく重なる。A があると A・C・D・E・F、A を外すと B・C・D・E・G が最適 */
 	const buildSyn = (S) => {
 		const mk = (id, chara, rarity, order, skills, title) => ({ id, title: title || '二つ名' + id, charaName: chara, type: ['スピード', 'スタミナ', 'パワー', '根性', '賢さ', '友人'][order - 1], typeOrder: order, rarity, isGroup: false,
@@ -708,7 +709,7 @@ export async function register11(env) {
 	const needSyn = async () => {
 		if (SYN) return SYN;
 		const probe = await openSp({ roster: FULL });
-		const pop = await probe.page.evaluate((f) => UmaSkillDeckCore.outside.populationOf({ umaId: 'uma-0001', cardIds: [], skillFilter: f }).ids, FILTER);
+		const pop = await probe.page.evaluate((f) => UmaSkillDeckCore.outside.populationOf({ umaId: 'uma-0001', cardIds: [], skillFilter: f, outsideOptions: { exclude: {} } }).ids, FILTER);
 		await probe.ctx.close();
 		const S = pop.filter((id) => masterById.has(id) && whiteIds.indexOf(id) !== -1 && !linked.has(id)).slice(0, 36);
 		SYN = Object.assign({ S }, buildSyn(S));
@@ -984,7 +985,7 @@ export async function register11(env) {
 
 		// 金スキル: 前段の鎖の白がすべて除外されたら、点数に数えない（既存の評価規則のとおり）
 		const probe = await openSp({ roster: FULL });
-		const pop = await probe.page.evaluate((f) => UmaSkillDeckCore.outside.populationOf({ umaId: 'uma-0001', cardIds: [], skillFilter: f }).ids, FILTER);
+		const pop = await probe.page.evaluate((f) => UmaSkillDeckCore.outside.populationOf({ umaId: 'uma-0001', cardIds: [], skillFilter: f, outsideOptions: { exclude: {} } }).ids, FILTER);
 		await probe.ctx.close();
 		const prevOfMap = new Map(stepReal.entries.map((e) => [e.skillId, e.prevSkillIds || []]));
 		const rarityMap = new Map(ptReal.entries.map((e) => [e.skillId, e.rarity]));

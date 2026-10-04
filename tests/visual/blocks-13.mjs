@@ -112,7 +112,8 @@ export async function register13(env) {
 	const linked = new Set(); stepReal.entries.forEach((e) => { linked.add(e.skillId); (e.prevSkillIds || []).forEach((p) => linked.add(p)); });
 	const TYPE_NAMES = ['スピード', 'スタミナ', 'パワー', '根性', '賢さ', '友人・その他'];
 	const SYN_ROSTER = ['syn-r1', 'syn-r2', 'syn-r3', 'syn-r4', 'syn-r5', 'syn-r6'];
-	const FULLSYN = { umaId: 'uma-0001', cardIds: SYN_ROSTER, skillFilter: FILTER };
+	// 合成の材料は除外の初期値（デバフ・持久力回復）を外して作り（exclude: {}）、計算も同じ条件にする（C2 の検査は別に初期値を見る）
+	const FULLSYN = { umaId: 'uma-0001', cardIds: SYN_ROSTER, skillFilter: FILTER, outsideOptions: { exclude: {} } };
 	const mkCard = (id, chara, rarity, order, skills) => ({ id, title: '二つ名' + id, charaName: chara, type: TYPE_NAMES[order - 1], typeOrder: order, rarity, isGroup: false,
 		hintSkills: skills.map((s) => ({ skillId: s, name: 'x' })), dataStatus: { hint: 'done' } });
 	let POOL = null;
@@ -122,7 +123,7 @@ export async function register13(env) {
 		const probe = await openSp({ roster: FULL });
 		POOL = await probe.page.evaluate((f) => {
 			const C = UmaSkillDeckCore;
-			return C.outside.populationOf({ umaId: 'uma-0001', cardIds: [], skillFilter: f }).ids.map((id) => [id, C.getSkillTags(id)]);
+			return C.outside.populationOf({ umaId: 'uma-0001', cardIds: [], skillFilter: f, outsideOptions: { exclude: {} } }).ids.map((id) => [id, C.getSkillTags(id)]);
 		}, FILTER);
 		await probe.ctx.close();
 		POOL = POOL.filter(([id]) => masterIds.has(id) && whiteSet.has(id) && !linked.has(id)).map(([id, t]) => ({ id, tags: t }));
@@ -145,7 +146,7 @@ export async function register13(env) {
 			['syn-B1', 'テストB', 'SSR', 1, S.slice(6, 9)], ['syn-B2', 'テストB', 'SSR', 2, S.slice(9, 12)],
 			['syn-C', 'テストC', 'SR', 3, S.slice(12, 14)], ['syn-D', 'テストD', 'SR', 4, S.slice(14, 16)], ['syn-E', 'テストE', 'SR', 5, S.slice(16, 18)]
 		]);
-		const sp = await openSp({ roster: Object.assign({}, FULLSYN, { outsideOptions: { count: 4, typeMin: { 1: 2, 2: 2 } } }), syn });
+		const sp = await openSp({ roster: Object.assign({}, FULLSYN, { outsideOptions: { count: 4, typeMin: { 1: 2, 2: 2 }, exclude: {} } }), syn });
 		const solve = (o) => sp.page.evaluate((a) => { const r = UmaSkillDeckCore.outside.solveSync(Object.assign({ addedSkillIds: [], deadlineMs: 20000 }, a)); return { infeasible: !!r.infeasible, short: r.shortTypes || null }; }, o);
 		const combo = await solve({ count: 4, typeMin: { 1: 2, 2: 2 } });
 		const short = await solve({ count: 4, typeMin: { 2: 3 } });
@@ -444,7 +445,7 @@ export async function register13(env) {
 
 	await block('オススメサポ段13C1 画面: 残りの枠は「N サポカを選ぶ」・①と同じカード選択の小窓（オススメサポの小窓の上・Escape で選ぶ小窓だけ閉じる）・指定したカードは番号の札つき・「外す」で解除／枚数の選択肢・保存（セットごと）／追加で指定したカードのスキルも入る（①の本育成のスキルは入らない）', async () => {
 		const { S, syn } = await c1Syn();
-		const sp = await openSp({ roster: Object.assign({}, FULLSYN, { outsideOptions: { count: 4 } }), syn });
+		const sp = await openSp({ roster: Object.assign({}, FULLSYN, { outsideOptions: { count: 4, exclude: {} } }), syn });
 		await open(sp.page);
 		const t0 = await modalTiles(sp.page);
 		assert(t0.filter((x) => x.el === 'outside-card').length === 4 && t0.slice(4).map((x) => x.el + ':' + x.slot + ':' + x.text).join() === 'outside-slot:5:5サポカを選ぶ,outside-slot:6:6サポカを選ぶ' && t0.every((x) => x.h === 36),
@@ -498,7 +499,7 @@ export async function register13(env) {
 		await settle(sp.page);
 		const d2 = await sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')).outsideOptions);
 		const t2 = await modalTiles(sp.page);
-		assert(JSON.stringify(d2) === JSON.stringify({ count: 4 }) && t2.filter((x) => x.el === 'outside-slot').length === 2, 'オススメサポ段13C1 「外す」で指定が解除され（pinned の項目が消える）、2枠とも「サポカを選ぶ」に戻る', d2);
+		assert(JSON.stringify(d2) === JSON.stringify({ count: 4, exclude: {} }) && t2.filter((x) => x.el === 'outside-slot').length === 2, 'オススメサポ段13C1 「外す」で指定が解除され（pinned の項目が消える）、2枠とも「サポカを選ぶ」に戻る', d2);
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13C1 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
