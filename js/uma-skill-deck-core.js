@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-04b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-04c';
 
 	/* ============================================================
 	 * 定数
@@ -2090,8 +2090,11 @@
 	 * 候補が足りて、増分が正のカードが K 枚に満たないときは、残りを SSR → カード番号の昇順で（同じキャラクターを避けて）埋める。埋めたカードの増分は 0。
 	 * ============================================================ */
 	const OUTSIDE_COUNT_CHOICES = [5, 6];
-	const OUTSIDE_COUNT_DEFAULT = 6;
+	const OUTSIDE_COUNT_DEFAULT = 5;        // 小窓も開くたびに5枚から始める（段3・2026-10-04。保存しない）
 	const OUTSIDE_DEADLINE_MS = 1500;
+	// 検査用: 締め切りの既定を差し替える（null で元に戻す）。画面の探索が途中の結果になる場合を作るためだけに使う
+	let outsideDeadlineOverride = null;
+	function outsideDeadlineMs() { return outsideDeadlineOverride !== null ? outsideDeadlineOverride : OUTSIDE_DEADLINE_MS; }
 	const OUTSIDE_SLICE_MS = 8;
 	const OUTSIDE_PT_STATUS = 'kire';       // Pt は切れ者・ヒントLv5 で取得する前提で数える（仕様8）
 	const OUTSIDE_PT_HINT_LEVEL = 5;
@@ -2478,14 +2481,39 @@
 		const idxOrder = (a, b) => prob.idx.get(a) - prob.idx.get(b);
 		whiteIds.sort(idxOrder); goldIds.sort(idxOrder);
 		const skills = whiteIds.map(entryOf), golds = goldIds.map(entryOf);
+		// 画面の「＋N種」（段3）: 種数（countSkillKinds）で数えた増分。カードを種数の増分の大きい順（同じなら SSR → カード番号）に足したとき、
+		// 新しく増える種数。合計は counts.kinds と一致する（点数の増分 gain は、金スキルと前段の白を別々に数えるので合計が一致しない）
+		const kindCover = new Map(order.map(id => [id, whiteIds.filter(x => sets.get(id).has(x)).concat(goldIds.filter(x => sets.get(id).has(x)))]));
+		const kindOrder = [];
+		const kindGainOf = new Map();
+		{
+			let cum = new Set(), curKinds = 0;
+			const leftK = order.slice();
+			while (leftK.length > 0) {
+				let bi = 0, bg = -1, bk = 0;
+				leftK.forEach((id, i) => {
+					const next = new Set(cum); kindCover.get(id).forEach(x => next.add(x));
+					const k = countSkillKinds(Array.from(next));
+					const gn = k - curKinds;
+					const better = gn > bg || (gn === bg && ((cardBy.get(id).rarity === 'SSR') > (cardBy.get(leftK[bi]).rarity === 'SSR')
+						|| (cardBy.get(id).rarity === cardBy.get(leftK[bi]).rarity && id < leftK[bi])));
+					if (better) { bi = i; bg = gn; bk = k; }
+				});
+				const id = leftK.splice(bi, 1)[0];
+				kindCover.get(id).forEach(x => cum.add(x));
+				curKinds = bk;
+				kindOrder.push(id);
+				kindGainOf.set(id, bg);
+			}
+		}
 		const cards = ranked.map(r => {
 			const c = cardBy.get(r.id), set = sets.get(r.id);
-			return { cardId: r.id, charaName: c.charaName, label: formatEntryLabel(c), rarity: c.rarity, gain: r.gain,
+			return { cardId: r.id, charaName: c.charaName, label: formatEntryLabel(c), rarity: c.rarity, gain: r.gain, kindGain: kindGainOf.get(r.id),
 				skillIds: whiteIds.filter(id => set.has(id)), goldIds: goldIds.filter(id => set.has(id)), picks: (picksOf.get(r.id) || []).map(p => Object.assign({}, p)) };
 		});
 		return { ok: true, partial: !!search.partial, count: K,
 			score: whiteIds.length + goldIds.length,
-			cards: cards, skills: skills, golds: golds,
+			cards: cards, kindOrder: kindOrder, skills: skills, golds: golds,
 			// 仕様6・7: 種数は countSkillKinds（金スキルと前段の白で1種）、金スキルの数は併記。hintWhiteCount はヒントで得られる白の数（イベントでも得られるものを含む）
 			counts: { kinds: countSkillKinds(whiteIds.concat(goldIds)), gold: goldIds.length, white: whiteIds.length,
 				hintWhiteCount: skills.filter(x => x.hint).length, added: skills.filter(x => x.added).length },
@@ -2493,7 +2521,7 @@
 	}
 
 	/**
-	 * 組み合わせを探す。args: { roster, addedSkillIds, count（5か6。既定6）, excludedCardIds, deadlineMs（既定1500）, sliceMs（既定8）}
+	 * 組み合わせを探す。args: { roster, addedSkillIds, count（5か6。既定5）, excludedCardIds, deadlineMs（既定1500）, sliceMs（既定8）}
 	 * 非同期版 outsideSolve は区切りごとに画面へ譲り、締め切りに達したら、そのときの最良に partial:true を付けて返す。
 	 * 結果の形は outsideAssemble を参照。元データが読めていないときは { ok:false, reason }。
 	 */
@@ -2512,14 +2540,14 @@
 		const a = args || {};
 		const p = outsidePrepare(a);
 		if (!p.prob.ok) return { ok: false, reason: p.prob.reason };
-		const search = await outsideRunAsync(p.engine, typeof a.deadlineMs === 'number' ? a.deadlineMs : OUTSIDE_DEADLINE_MS, typeof a.sliceMs === 'number' ? a.sliceMs : OUTSIDE_SLICE_MS);
+		const search = await outsideRunAsync(p.engine, typeof a.deadlineMs === 'number' ? a.deadlineMs : outsideDeadlineMs(), typeof a.sliceMs === 'number' ? a.sliceMs : OUTSIDE_SLICE_MS);
 		return outsideFinish(p, search);
 	}
 	function outsideSolveSync(args) {
 		const a = args || {};
 		const p = outsidePrepare(a);
 		if (!p.prob.ok) return { ok: false, reason: p.prob.reason };
-		return outsideFinish(p, outsideRunSync(p.engine, typeof a.deadlineMs === 'number' ? a.deadlineMs : OUTSIDE_DEADLINE_MS));
+		return outsideFinish(p, outsideRunSync(p.engine, typeof a.deadlineMs === 'number' ? a.deadlineMs : outsideDeadlineMs()));
 	}
 	/** 探索の部品だけを単独で回す（検査用）。groups の形は outsideEngine を参照。 */
 	function outsideSolveGroups(groups, universeSize, K, opts) {
@@ -3891,6 +3919,38 @@
 		'  font-weight: 600; color: var(--uma-text-subtle); white-space: nowrap; }',
 		'.usd-foot-commit { flex: 1 1 auto; justify-content: center; text-align: center; }',
 		'.usd-foot-added { white-space: nowrap; font-weight: 400; }',
+		// オススメサポの小窓（段3・C-123）。スキル選択の小窓の枠（.usd-modal / .usd-modal-panel / .usd-modal-foot / .usd-results / .usd-row）を使い回す。色は既存の変数だけ
+		'.usd-out-head { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); padding: var(--uma-sp-3) var(--uma-sp-4); border-bottom: 1px solid var(--uma-border); }',
+		'.usd-out-title { display: flex; align-items: center; gap: var(--uma-sp-2); margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600; color: var(--uma-text-heading); }',
+		'.usd-out-body { overflow: auto; min-height: 0; padding: var(--uma-sp-3) var(--uma-sp-4); }',
+		'.usd-out-cardsbar { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); margin-bottom: var(--uma-sp-2); }',
+		'.usd-out-cardsbar-title { font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-out-seg { display: inline-flex; gap: var(--uma-sp-1); }',
+		'.usd-out-segbtn { font: inherit; font-size: 11px; line-height: 1.2; font-weight: 600; height: 28px; padding: 0 var(--uma-sp-3); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
+		'  background: var(--uma-surface); color: var(--uma-text); cursor: pointer; white-space: nowrap; }',
+		'.usd-out-segbtn[aria-pressed="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
+		'.usd-out-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--uma-sp-1-5); align-content: start; min-height: 108px; margin-bottom: var(--uma-sp-1-5); }',
+		'.usd-out-cards--excl { min-height: 0; margin: var(--uma-sp-1-5) 0 0; }',
+		'.usd-out-card { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; height: 32px; padding: 0 var(--uma-sp-1) 0 var(--uma-sp-2); border: 1px solid var(--uma-border);',
+		'  border-radius: var(--uma-r-lg); background: var(--uma-surface); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); }',
+		'.usd-out-card-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--uma-text-heading); }',
+		'.usd-out-card-gain { flex: none; white-space: nowrap; font-size: var(--uma-fs-xs); font-variant-numeric: tabular-nums; color: var(--uma-text-subtle); }',
+		'.usd-out-card-btn { flex: none; font: inherit; font-size: var(--uma-fs-xs); line-height: 1; min-height: 28px; padding: 0 var(--uma-sp-1-5); border: 0; background: transparent; color: var(--uma-text-subtle); text-decoration: underline; cursor: pointer; white-space: nowrap; }',
+		'.usd-out-card-btn:hover { color: var(--uma-text-heading); }',
+		'.usd-out-exbtn { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; min-height: 28px; padding: 0 var(--uma-sp-2); border: 0; background: transparent; color: var(--uma-text-subtle); cursor: pointer; }',
+		'.usd-out-excl { margin-bottom: var(--uma-sp-2); }',
+		'.usd-out-note { margin: 0; padding: var(--uma-sp-3); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		'.usd-out-row { min-width: 0; }',
+		'.usd-out-name { flex: 1 1 auto; min-width: 0; }',
+		'.usd-out-pt { flex: none; margin-left: auto; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-variant-numeric: tabular-nums; color: var(--uma-text-subtle); white-space: nowrap; }',
+		'.usd-out-foot { flex-direction: column; align-items: stretch; gap: var(--uma-sp-1); }',
+		'.usd-out-foot[data-state="busy"] { visibility: hidden; }',
+		'.usd-out-partial, .usd-out-total { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
+		'.usd-out-partial { color: var(--uma-warn-text); font-weight: 600; }',
+		'.usd-out-total { font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-out-selrow { display: flex; align-items: center; gap: var(--uma-sp-3); }',
+		'.usd-out-selected { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--uma-text-subtle); }',
+		'.usd-out-add { flex: none; min-width: 88px; }',
 		// 一括貼り付けの照合結果
 		'.usd-paste-summary { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2); align-items: center; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); margin-bottom: var(--uma-sp-1-5); }',
 		'.usd-paste-ok { color: var(--uma-success); font-weight: 600; }',
@@ -4768,6 +4828,14 @@
 		'  background: var(--uma-surface); color: var(--uma-text); }',
 		'.usd-band-tag strong { color: var(--uma-text-heading); font-variant-numeric: tabular-nums; }',
 		'.usd-band-tagname { color: var(--uma-text-muted); }',
+		// 「オススメサポ」ボタン（②の帯の「↺」の隣。高さ 28px・縦の行は増やさない）。狭い幅では「↺」と一緒に右端へ寄る
+		'.usd-outside-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; height: 28px; padding: 0 10px; border: 1px solid var(--uma-border-strong);',
+		'  border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text-heading); font: inherit; font-size: 11px; line-height: 1; font-weight: 600; white-space: nowrap; cursor: pointer; }',
+		'.usd-outside-btn:hover { background: var(--uma-surface-muted); }',
+		'.usd-outside-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
+		'.usd-band-main .usd-outside-btn { order: 2; margin-left: auto; }',
+		'.usd-band-main .usd-outside-btn + .usd-reset-btn { margin-left: 0; }',
+		'@media (min-width: 641px) { .usd-band-main .usd-outside-btn { order: 4; margin-left: 0; } }',
 		'.usd-help-dot { position: relative; }',
 		'.usd-help-dot::after { content: ""; position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--uma-danger-text); border: 1px solid var(--uma-surface); }',
 		// リセットの「↺」（①②の帯の右端。28px の丸）。消すものが無いときは薄くして押せない
@@ -8489,6 +8557,7 @@
 			else if (act === 'palette-pick') pickPalette(btn.dataset.icon);
 			else if (act === 'skill-icon') toggleSkillIcon(btn.dataset.skillId);
 			else if (act === 'factor-reset') openFactorResetPopover(btn);
+			else if (act === 'outside-open') openOutsideAdvisor(btn);
 			else if (act === 'roster-link') openRosterLinkPopover(btn);
 			// 段8: 共通の見出しの帯
 			else if (act === 'set-list') openPopover({ key: 'set-list:' + draftScopeKey, title: 'セット', build: fillSetList, btn: btn, opener: btn, refocus: '[data-usd-act="set-list"]' });
@@ -9238,6 +9307,7 @@
 				+ tag('pt-need-uniq', '継承固有', sum.uniqPt, sum.uniqKinds)
 				+ tag('pt-need-common', '共通スキル', sum.commonPt, sum.commonKinds)
 				+ '</span>'
+				+ '<button type="button" class="usd-outside-btn" data-usd-act="outside-open" data-usd-el="outside-open" aria-haspopup="dialog">オススメサポ</button>'
 				+ resetBtnHtml('factor-reset', 'factor-reset', '②因子周回をリセット', !canResetFactor(currentTarget()))
 				+ '</div></div>';
 			el.hidden = false;
@@ -9457,6 +9527,242 @@
 			} else if (!writeSkillState(target, prevIds, {})) return;
 			afterEditingSkillsChanged(target);
 		}
+
+		/* ============================================================
+		 * オススメサポ（本育成サポカ外スキル・段3 入口と小窓／段4 追加の動き。C-123・2026-10-04。special の②だけ＝setBased）
+		 *
+		 * ②の帯の「↺」の隣のボタンから、小窓を開く。①の絞り込みに合う、②に追加できる白スキルを最も多く得られるサポートカードの組み合わせ
+		 * （5枚か6枚）と、そのカードで得られる白スキルの一覧を出し、チェックした白スキルを②に追加する。計算（outsideSolve）は純粋関数で、
+		 * ここは小窓の状態と描画だけ。**計算するのは、開いたとき・「外す」「戻す」・枚数の切り替えのときだけ**（チェックの付け外しでは再計算せず、フッターの数字だけを更新する）。
+		 * 保存するのは除外だけ（①の roster.outsideCardExcluded。段2 の受け口経由）。枚数・チェックの状態は保存しない（開くたびに5枚から）。
+		 * 追加は既存の一括追加と同じ受け皿（pickerSinkFor）。追加するスキルにアイコンは付けない（既存の追加の動きと同じ）。
+		 * ============================================================ */
+		const OUTSIDE_MSG_NEED_ROSTER = '先に①本育成編成を設定してください';
+		const OUTSIDE_MSG_PENDING = '①でイベントの選択が済んでいないものがあります';
+		const OUTSIDE_HELP_TEXT = '本育成のサポカで得られない対象スキルを、できるだけ多く得られる組み合わせです。ランダムイベントのスキルも数えます。選択肢で変わるものは、得られる側を選んだ前提です。追加済みのスキルも種数に含みます。金スキルの前段の白は、金スキルと合わせて1種ですが、金スキルによる因子化率を加味してオススメしています。';
+		const outsideUi = { el: null, open: false, count: OUTSIDE_COUNT_DEFAULT, token: 0, computing: false, result: null, checked: new Set(), excludedOpen: false, opener: null };
+
+		/**
+		 * 開く前の条件（満たさなければ小窓を開かない）。育成ウマ娘が選ばれている・サポカが6枚そろっている・距離／脚質／バ場がすべて指定されている。
+		 * 「指定なし」は resolvedFilterOf(roster) にその軸のキーが無いこと（未設定・空・知らない値）。①が空のセット（roster が無い）も満たさない。
+		 */
+		function outsideRosterReady(roster) {
+			if (!roster || !roster.umaId || !findUma(roster.umaId)) return false;
+			if ((roster.cardIds || []).filter(id => id && findCard(id)).length < ROSTER_CARD_SLOTS) return false;
+			const f = resolvedFilterOf(roster);
+			return ROSTER_FILTER_AXIS_KEYS.every(k => f[k] !== undefined);
+		}
+		/** ①の表に「！」（選ぶ必要があるのにまだ選んでいないイベント）が1つでもあるか。①の列見出しの「！」・「未選択N件」と同じ判定（events の pending） */
+		function outsideHasPendingEvents(roster) {
+			return rosterSkillResultOf(roster).events.some(e => e.pending);
+		}
+
+		function outsideMarkup() {
+			return '<div class="usd-modal-panel usd-out-panel" role="dialog" aria-modal="true" aria-label="オススメサポ">'
+				+ '<div class="usd-out-head">'
+				+ '<p class="usd-out-title"><span data-usd-el="outside-title">オススメサポ</span>'
+				+ '<button type="button" class="uma-help-btn" data-usd-act="outside-help" data-usd-el="outside-help" aria-haspopup="dialog" aria-expanded="false" aria-label="オススメサポの説明" title="オススメサポの説明">?</button></p>'
+				+ '<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="outside-close" data-usd-el="outside-close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>'
+				+ '</div>'
+				+ '<div class="usd-out-body" data-usd-el="outside-body"><div data-usd-el="outside-main"></div></div>'
+				+ '<div class="usd-modal-foot usd-out-foot" data-usd-el="outside-foot" hidden>'
+				+ '<p class="usd-out-partial" data-usd-el="outside-partial" hidden>途中の結果です（時間内に探し切れませんでした）</p>'
+				+ '<p class="usd-out-total" data-usd-el="outside-total"></p>'
+				+ '<div class="usd-out-selrow"><span class="usd-out-selected" data-usd-el="outside-selected"></span>'
+				+ '<button type="button" class="uma-btn uma-btn--primary usd-out-add" data-usd-act="outside-add" data-usd-el="outside-add" disabled>追加</button></div>'
+				+ '</div></div>';
+		}
+		function ensureOutsideUi() {
+			if (outsideUi.el) return outsideUi.el;
+			injectStyles();
+			const el = global.document.createElement('div');
+			el.className = 'usd-modal';
+			el.hidden = true;
+			el.setAttribute('data-usd-el', 'outside-modal');
+			el.innerHTML = outsideMarkup();
+			global.document.body.appendChild(el);
+			outsideUi.el = el;
+			el.addEventListener('click', (e) => {
+				if (e.target === el) { closeOutsideAdvisor(); return; }
+				const b = e.target.closest('[data-usd-act]');
+				if (!b || !el.contains(b)) return;
+				const act = b.dataset.usdAct;
+				if (act === 'outside-close') closeOutsideAdvisor();
+				else if (act === 'outside-help') openPopover({ key: 'outside-help', title: 'オススメサポ', build: (body) => { const p = infoEl('p', '', OUTSIDE_HELP_TEXT); p.setAttribute('data-usd-el', 'outside-help-text'); body.appendChild(p); },
+					btn: b, opener: b, refocus: '[data-usd-act="outside-help"]' });
+				else if (act === 'outside-count') { const n = Number(b.dataset.count); if (OUTSIDE_COUNT_CHOICES.indexOf(n) !== -1 && n !== outsideUi.count) { outsideUi.count = n; outsideRun(); } }
+				else if (act === 'outside-exclude') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, true)) outsideRun(); }
+				else if (act === 'outside-restore') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, false)) outsideRun(); }
+				else if (act === 'outside-excl-toggle') { outsideUi.excludedOpen = !outsideUi.excludedOpen; renderOutside(); }
+				else if (act === 'outside-add') outsideAdd();
+			});
+			// チェックの付け外しでは再計算しない（フッターの数字だけを更新する）
+			el.addEventListener('change', (e) => {
+				const box = e.target;
+				if (!box || !box.getAttribute || box.getAttribute('data-usd-el') !== 'outside-check') return;
+				if (box.checked) outsideUi.checked.add(box.value); else outsideUi.checked.delete(box.value);
+				updateOutsideFoot();
+			});
+			global.document.addEventListener('keydown', (e) => {
+				if (e.key !== 'Escape' || e.defaultPrevented || !outsideUi.open || outsideUi.el.hidden) return;
+				closeOutsideAdvisor();
+				e.preventDefault();
+			});
+			refreshIcons();
+			return el;
+		}
+
+		function openOutsideAdvisor(btn) {
+			const roster = rosterOutsideSink ? rosterOutsideSink.getRoster() : null;
+			if (!outsideRosterReady(roster)) { toast(OUTSIDE_MSG_NEED_ROSTER); return; }
+			const el = ensureOutsideUi();
+			outsideUi.open = true;
+			outsideUi.count = OUTSIDE_COUNT_DEFAULT;
+			outsideUi.excludedOpen = false;
+			outsideUi.result = null;
+			outsideUi.checked = new Set();
+			outsideUi.opener = btn || null;
+			el.hidden = false;
+			const closeBtn = q(el, 'outside-close');
+			if (closeBtn) focusNoScroll(closeBtn);
+			outsideRun();
+			if (outsideHasPendingEvents(roster)) toast(OUTSIDE_MSG_PENDING);
+		}
+		function closeOutsideAdvisor() {
+			if (!outsideUi.el) return;
+			outsideUi.open = false;
+			outsideUi.token++;
+			closeSkillInfo();
+			outsideUi.el.hidden = true;
+			const o = outsideUi.opener;
+			outsideUi.opener = null;
+			if (o && o.isConnected && typeof o.focus === 'function') focusNoScroll(o);
+			else { const again = global.document.querySelector('[data-usd-act="outside-open"]'); if (again) focusNoScroll(again); }
+		}
+
+		/** 計算して描き直す。小窓を開いたとき・「外す」「戻す」・枚数の切り替えのときだけ呼ぶ。結果が出るまで「計算中…」 */
+		async function outsideRun() {
+			const tok = ++outsideUi.token;
+			outsideUi.computing = true;
+			outsideUi.result = null;
+			renderOutside();
+			let r;
+			try { r = await outsideSolve({ addedSkillIds: skillIdsOf(currentTarget()) || [], count: outsideUi.count }); }
+			catch (e) { if (global.console) global.console.error('[UmaSkillDeckCore] オススメサポの計算で例外', e); r = { ok: false, reason: 'error' }; }
+			if (tok !== outsideUi.token || !outsideUi.open) return;
+			outsideUi.computing = false;
+			outsideUi.result = r;
+			outsideUi.checked = new Set(r && r.ok ? r.skills.filter(s => !s.added).map(s => s.skillId) : []);
+			renderOutside();
+		}
+
+		/** 行の Pt の文言（そのスキルだけ。前段は含めない）。合計（フッター）は前段も含むので、前段をチェックしていないときは行の合計より大きくなる */
+		function outsideRowPtText(skillId) {
+			const row = skillPtData.skillPt instanceof Map ? skillPtData.skillPt.get(skillId) : null;
+			if (!row) return 'Pt 未収録';
+			if (row.pt === 0) return 'Pt 不要';
+			const p = outsidePtOf([skillId]);
+			return p.ok ? formatPtNumber(p.own) + ' Pt' : '';
+		}
+
+		function renderOutside() {
+			const el = outsideUi.el;
+			if (!el) return;
+			const main = q(el, 'outside-main');
+			const roster = rosterOutsideSink ? rosterOutsideSink.getRoster() : {};
+			const excl = outsideExcludedIdsOf(roster);
+			const r = outsideUi.result;
+			const ok = !!(r && r.ok);
+			let h = '<div class="usd-out-cardsbar"><span class="usd-out-cardsbar-title">カード</span>'
+				+ '<span class="usd-out-seg" role="group" aria-label="枚数">'
+				+ OUTSIDE_COUNT_CHOICES.map(n => '<button type="button" class="usd-out-segbtn" data-usd-act="outside-count" data-usd-el="outside-count-' + n + '" data-count="' + n + '" aria-pressed="' + (outsideUi.count === n ? 'true' : 'false') + '">' + n + '枚</button>').join('')
+				+ '</span></div>';
+			// カード（2列×3行）。種数の増分の大きい順
+			h += '<div class="usd-out-cards" data-usd-el="outside-cards">';
+			if (ok) {
+				const by = new Map(r.cards.map(c => [c.cardId, c]));
+				(r.kindOrder || r.cards.map(c => c.cardId)).forEach(id => {
+					const c = by.get(id);
+					if (!c) return;
+					h += '<div class="usd-out-card" data-usd-el="outside-card" data-card-id="' + esc(c.cardId) + '" title="' + esc(c.label) + '">'
+						+ '<span class="usd-out-card-name">' + esc(c.charaName) + '</span>'
+						+ '<span class="usd-out-card-gain" data-usd-el="outside-card-gain">＋' + c.kindGain + '種</span>'
+						+ '<button type="button" class="usd-out-card-btn" data-usd-act="outside-exclude" data-usd-el="outside-exclude" data-card-id="' + esc(c.cardId) + '" aria-label="' + esc(c.charaName + 'を外す') + '">外す</button></div>';
+				});
+			}
+			h += '</div>';
+			// 除外中（1枚以上あるときだけ）
+			if (excl.length > 0) {
+				h += '<div class="usd-out-excl" data-usd-el="outside-excl">'
+					+ '<button type="button" class="usd-out-exbtn" data-usd-act="outside-excl-toggle" data-usd-el="outside-excl-toggle" aria-expanded="' + (outsideUi.excludedOpen ? 'true' : 'false') + '">除外中 ' + excl.length + '枚 ' + (outsideUi.excludedOpen ? '▴' : '▾') + '</button>';
+				if (outsideUi.excludedOpen) {
+					h += '<div class="usd-out-cards usd-out-cards--excl" data-usd-el="outside-excl-list">';
+					excl.forEach(id => {
+						const c = findCard(id);
+						const name = c ? c.charaName : id;
+						h += '<div class="usd-out-card" data-usd-el="outside-excl-card" data-card-id="' + esc(id) + '" title="' + esc(c ? formatEntryLabel(c) : id) + '">'
+							+ '<span class="usd-out-card-name">' + esc(name) + '</span>'
+							+ '<button type="button" class="usd-out-card-btn" data-usd-act="outside-restore" data-usd-el="outside-restore" data-card-id="' + esc(id) + '" aria-label="' + esc(name + 'を戻す') + '">戻す</button></div>';
+					});
+					h += '</div>';
+				}
+				h += '</div>';
+			}
+			// チェックリスト（白スキル。金スキルは出さない）
+			h += '<div class="usd-results usd-out-list" data-usd-el="outside-list">';
+			if (outsideUi.computing) h += '<p class="usd-out-note" data-usd-el="outside-busy">計算中…</p>';
+			else if (!ok || r.cards.length === 0) h += '<p class="usd-out-note" data-usd-el="outside-empty">提案できるサポカがありません</p>';
+			else if (r.skills.length === 0) h += '<p class="usd-out-note" data-usd-el="outside-none">得られるスキルがありません</p>';
+			else {
+				r.skills.forEach(s => {
+					if (s.added) {
+						h += '<label class="usd-row usd-row--excluded usd-out-row" data-usd-el="outside-row" data-usd-excluded="1" data-skill-id="' + esc(s.skillId) + '" aria-disabled="true">'
+							+ '<input type="checkbox" data-usd-el="outside-check-added" value="' + esc(s.skillId) + '" disabled/>'
+							+ '<span class="usd-out-name">' + esc(s.name) + '</span>'
+							+ '<span class="usd-row-reason" data-usd-el="outside-added-mark">追加済み</span></label>';
+					} else {
+						h += '<label class="usd-row usd-out-row" data-usd-el="outside-row" data-skill-id="' + esc(s.skillId) + '">'
+							+ '<input type="checkbox" data-usd-el="outside-check" value="' + esc(s.skillId) + '"' + (outsideUi.checked.has(s.skillId) ? ' checked' : '') + '/>'
+							+ '<span class="usd-out-name">' + esc(s.name) + '</span>'
+							+ '<span class="usd-out-pt" data-usd-el="outside-row-pt">' + esc(outsideRowPtText(s.skillId)) + '</span></label>';
+					}
+				});
+			}
+			h += '</div>';
+			main.innerHTML = h;
+			updateOutsideFoot();
+		}
+
+		/** フッター（2行）。1行目「得られるスキル XX種（金スキル X種）」、2行目「選択 N種・M Pt」と［追加］。チェックの付け外しではここだけを更新する */
+		function updateOutsideFoot() {
+			const el = outsideUi.el;
+			if (!el) return;
+			const foot = q(el, 'outside-foot');
+			const r = outsideUi.result;
+			const ok = !!(r && r.ok && r.cards.length > 0);
+			if (!outsideUi.computing && !ok) { foot.hidden = true; foot.removeAttribute('data-state'); return; }
+			foot.hidden = false;
+			if (!ok) {   // 計算中: 高さを保ったまま見えなくする（開いた直後に小窓の高さが跳ねないように）
+				foot.setAttribute('data-state', 'busy');
+				q(el, 'outside-partial').hidden = true;
+				q(el, 'outside-total').textContent = '得られるスキル 0種（金スキル 0種）';
+				q(el, 'outside-selected').textContent = '選択 0種・0 Pt';
+				q(el, 'outside-add').disabled = true;
+				return;
+			}
+			foot.removeAttribute('data-state');
+			q(el, 'outside-partial').hidden = !r.partial;
+			q(el, 'outside-total').textContent = '得られるスキル ' + r.counts.kinds + '種（金スキル ' + r.counts.gold + '種）';
+			const ids = r.skills.filter(s => !s.added && outsideUi.checked.has(s.skillId)).map(s => s.skillId);
+			let text = '選択 ' + ids.length + '種';
+			const p = outsidePtOf(ids);
+			if (p.ok) text += '・' + formatPtNumber(p.total) + ' Pt' + (p.unpriced.length > 0 ? '＋未収録 ' + p.unpriced.length + '種' : '');
+			q(el, 'outside-selected').textContent = text;
+			q(el, 'outside-add').disabled = ids.length === 0;
+		}
+
+		/** 追加（段4 で実装する。段3 では押しても何もしない） */
+		function outsideAdd() {}
 
 		/** 行の先頭のアイコンのボタン（押す範囲は 32px 以上）。アイコンの無いスキルは破線の丸（中は空） */
 		function iconButtonHtml(skillId, name, iconId) {
@@ -10688,8 +10994,9 @@
 		icons: { list: SKILL_ICONS.map(i => ({ id: i.id, mark: i.mark, light: i.light, dark: i.dark })), defaultIcon: SKILL_ICON_DEFAULT, tierOf: iconTier, html: skillIconHtml, fromTiers: iconsFromTiers, toTiers: tiersFromIcons },
 		listRosters: listRosters,
 		computeRosterSkills: computeRosterSkills,
-		// 本育成サポカ外スキル（段1・2・C-122。画面は段3 以降）。検査から呼ぶ
+		// 本育成サポカ外スキル（段1〜4・C-122・C-123）。検査から呼ぶ。setDeadline は検査用（画面の探索の締め切りを替える。null で戻す）
 		outside: {
+			setDeadline: function (ms) { outsideDeadlineOverride = (typeof ms === 'number' && ms >= 0) ? ms : null; },
 			COUNT_CHOICES: OUTSIDE_COUNT_CHOICES.slice(), COUNT_DEFAULT: OUTSIDE_COUNT_DEFAULT, DEADLINE_MS: OUTSIDE_DEADLINE_MS,
 			populationOf: outsidePopulationOf, candidatesOf: outsideCandidatesOf, build: outsideBuild,
 			solve: outsideSolve, solveSync: outsideSolveSync, solveGroups: outsideSolveGroups,
