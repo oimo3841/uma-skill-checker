@@ -78,6 +78,12 @@ export async function register11(env) {
 		return !!m && !m.hidden && !m.querySelector('[data-usd-el="outside-busy"]');
 	}, null, { timeout: 20000 });
 	const open = async (page) => { await page.click(T + OPEN); await settle(page); };
+	/** 枚数を変える（④・段10 で「5枚｜6枚」の切り替えを、見出し行の「5枚 ▾」の選択欄に置き換えた） */
+	const setCount = async (page, n) => {
+		await page.click(M + '[data-usd-el="outside-count-btn"]');
+		await page.click('[data-usd-el="outside-count-list"] [data-usd-el="outside-count-' + n + '"]');
+		await settle(page);
+	};
 	/** 小窓の中身を読む */
 	const snap = (page) => page.evaluate(() => {
 		const m = document.querySelector('[data-usd-el="outside-modal"]');
@@ -85,7 +91,7 @@ export async function register11(env) {
 		const txt = (s) => { const e = q(s); return e ? e.textContent.replace(/\s+/g, ' ').trim() : null; };
 		const foot = q('[data-usd-el="outside-foot"]');
 		return {
-			count: ['5', '6'].filter((n) => q('[data-usd-el="outside-count-' + n + '"]').getAttribute('aria-pressed') === 'true').join(''),
+			count: ((/^(\d)枚/.exec(txt('[data-usd-el="outside-count-btn"]') || '')) || [])[1] || '',   // ④・段10: 見出し行の「5枚 ▾」のボタンの数
 			cards: Array.from(m.querySelectorAll('[data-usd-el="outside-card"]')).map((c) => ({ id: c.getAttribute('data-card-id'), text: c.textContent.replace(/\s+/g, ' ').trim(), gain: Number(/＋(\d+)種/.exec(c.querySelector('[data-usd-el="outside-card-gain"]').textContent)[1]) })),
 			excl: txt('[data-usd-el="outside-excl-toggle"]'),
 			exclCards: Array.from(m.querySelectorAll('[data-usd-el="outside-excl-card"]')).map((c) => ({ id: c.getAttribute('data-card-id'), text: c.textContent.replace(/\s+/g, ' ').trim() })),
@@ -188,7 +194,7 @@ export async function register11(env) {
 		assert(await modalOpen(sp.page) && s0.cards.length === 5 && s0.rows.length > 0 && await toastText(sp.page) === MSG_PENDING && toasts.filter((t) => t === MSG_PENDING).length === 1,
 			'オススメサポ(B) △ありの①: 小窓が開き（カード5枚・スキルの行あり＝計算もした）、「' + MSG_PENDING + '」を1回出す', { cards: s0.cards.length, rows: s0.rows.length, toasts });
 		// 計算し直しても（枚数の切り替え・外す・戻す）、もう知らせない
-		await sp.page.click(M + '[data-usd-el="outside-count-6"]'); await settle(sp.page);
+		await setCount(sp.page, 6);
 		await sp.page.click(M + '[data-usd-el="outside-exclude"]'); await settle(sp.page);
 		const toasts2 = await sp.page.evaluate(() => window.__toasts.slice());
 		assert(toasts2.filter((t) => t === MSG_PENDING).length === 1, 'オススメサポ(B) 知らせは小窓を開いた直後の1回だけ（再計算では出さない）', toasts2);
@@ -218,29 +224,37 @@ export async function register11(env) {
 		await sp2.ctx.close();
 	});
 
-	await block('オススメサポ(B) 開くたびに5枚から・5枚と6枚の切り替えで結果が変わる・切り替えは保存されない・既定は5枚', async () => {
+	// ④・段10 で書き直した: 「開くたびに5枚から・切り替えは保存しない」は廃止（セットごとに保存する）。枚数は4・5・6。保存の規則の細部は blocks-12 の段10
+	await block('オススメサポ(B) 指定の無いセットは5枚から・4枚／5枚／6枚の切り替えで結果が変わる・切り替えはセットに保存され、開き直しても残る・既定は5枚', async () => {
 		const sp = await openSp({ roster: FULL });
 		const d0 = await sp.page.evaluate(() => ({ choices: UmaSkillDeckCore.outside.COUNT_CHOICES, def: UmaSkillDeckCore.outside.COUNT_DEFAULT }));
 		const def = await solveIn(sp.page, { roster: {}, addedSkillIds: [] });
-		assert(d0.def === 5 && d0.choices.join() === '5,6' && def.count === 5 && def.cards.length === 5, 'オススメサポ(B) 段1の既定の枚数は5枚（count を渡さない計算が5枚）', { d0, count: def.count, n: def.cards.length });
-		const raw0 = { ud: await rawUd(sp.page), dr: await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:special')), sc: await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:draftScope:special')) };
+		assert(d0.def === 5 && d0.choices.join() === '4,5,6' && def.count === 5 && def.cards.length === 5, 'オススメサポ(B) 既定の枚数は5枚（count も指定も無い計算が5枚）・選択肢は4・5・6', { d0, count: def.count, n: def.cards.length });
+		const raw0 = { ud: await rawUd(sp.page), sc: await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:draftScope:special')) };
 		await open(sp.page);
 		const a = await snap(sp.page);
-		await sp.page.click(M + '[data-usd-el="outside-count-6"]'); await settle(sp.page);
+		await setCount(sp.page, 6);
 		const b = await snap(sp.page);
-		const exp5 = await solveIn(sp.page, { count: 5, addedSkillIds: [] });
-		const exp6 = await solveIn(sp.page, { count: 6, addedSkillIds: [] });
-		assert(a.count === '5' && a.cards.length === 5 && b.count === '6' && b.cards.length === 6 && parseFoot(b).kinds >= parseFoot(a).kinds
-			&& parseFoot(a).kinds === exp5.counts.kinds && parseFoot(b).kinds === exp6.counts.kinds && (parseFoot(b).kinds > parseFoot(a).kinds || b.cards.map((c) => c.id).join() !== a.cards.map((c) => c.id).join()),
-			'オススメサポ(B) 開いた直後は5枚。6枚に切り替えると6枚の結果に変わる（カード数・得られる種数が純粋関数の結果と一致）', { a: [a.count, a.cards.length, a.total], b: [b.count, b.cards.length, b.total], exp5: exp5.counts.kinds, exp6: exp6.counts.kinds });
-		const mid = { ud: await rawUd(sp.page), dr: await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:special')), sc: await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:draftScope:special')) };
-		assert(mid.ud === raw0.ud && mid.dr === raw0.dr && mid.sc === raw0.sc, 'オススメサポ(B) 開く・枚数を切り替える・計算する、では保存データ（保存済み・①②の下書き）が1バイトも変わらない（枚数もチェックも保存しない）', { ud: mid.ud === raw0.ud, dr: mid.dr === raw0.dr, sc: mid.sc === raw0.sc });
-		// 閉じて開き直す → 5枚から
+		await setCount(sp.page, 4);
+		const c4 = await snap(sp.page);
+		const exp = {};
+		for (const n of [4, 5, 6]) exp[n] = await solveIn(sp.page, { count: n, addedSkillIds: [] });
+		assert(a.count === '5' && a.cards.length === 5 && b.count === '6' && b.cards.length === 6 && c4.count === '4' && c4.cards.length === 4
+			&& parseFoot(a).kinds === exp[5].counts.kinds && parseFoot(b).kinds === exp[6].counts.kinds && parseFoot(c4).kinds === exp[4].counts.kinds && parseFoot(b).kinds >= parseFoot(a).kinds && parseFoot(a).kinds >= parseFoot(c4).kinds,
+			'オススメサポ(B) 指定の無いセットは5枚から。6枚・4枚に切り替えると、その枚数の結果に変わる（カード数・得られる種数が純粋関数の結果と一致）', { a: [a.count, a.cards.length, a.total], b: [b.count, b.cards.length, b.total], c4: [c4.count, c4.cards.length, c4.total] });
+		const mid = { ud: await rawUd(sp.page), dr: await sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'))), sc: await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:draftScope:special')) };
+		assert(mid.ud === raw0.ud && mid.sc === raw0.sc && JSON.stringify(mid.dr.outsideOptions) === JSON.stringify({ count: 4 }),
+			'オススメサポ(B) 枚数はセット（①の下書き）の outsideOptions に保存される。②の下書き・保存済みのデータは変わらない（チェックは保存しない）', { dr: mid.dr.outsideOptions, ud: mid.ud === raw0.ud, sc: mid.sc === raw0.sc });
+		// 閉じて開き直す → 保存した枚数のまま
 		await sp.page.click(M + '[data-usd-act="outside-close"]');
 		assert(!(await modalOpen(sp.page)), 'オススメサポ(B) × で閉じる', true);
 		await open(sp.page);
 		const c = await snap(sp.page);
-		assert(c.count === '5' && c.cards.length === 5, 'オススメサポ(B) 開き直すと、前に6枚にしていても5枚から始まる', { count: c.count, n: c.cards.length });
+		assert(c.count === '4' && c.cards.length === 4, 'オススメサポ(B) 開き直すと、保存した枚数（4枚）で計算する', { count: c.count, n: c.cards.length });
+		// 5枚に戻すと、項目ごと消える（既定と同じ）
+		await setCount(sp.page, 5);
+		const dr5 = await sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')));
+		assert(!('outsideOptions' in dr5) && (await snap(sp.page)).count === '5', 'オススメサポ(B) 5枚に戻すと、指定の項目ごと消える', Object.keys(dr5));
 		// 背景を押しても閉じる
 		await sp.page.mouse.click(5, 5);
 		await sp.page.waitForTimeout(200);
@@ -256,7 +270,7 @@ export async function register11(env) {
 		const sp = await openSp({ roster: FULL });
 		await open(sp.page);
 		for (const n of ['5', '6']) {
-			if (n === '6') { await sp.page.click(M + '[data-usd-el="outside-count-6"]'); await settle(sp.page); }
+			if (n === '6') { await setCount(sp.page, 6); }
 			const s = await snap(sp.page);
 			const f = parseFoot(s);
 			const geo = await sp.page.evaluate(() => {
@@ -473,7 +487,7 @@ export async function register11(env) {
 			new MutationObserver((recs) => recs.forEach((r) => r.addedNodes.forEach((n) => { if (n.nodeType === 1) { const e = n.matches('[data-usd-el="outside-busy"]') ? n : n.querySelector('[data-usd-el="outside-busy"]'); if (e) window.__busy.push(e.textContent); } })))
 				.observe(document.querySelector('[data-usd-el="outside-modal"]'), { childList: true, subtree: true });
 		});
-		await sp.page.click(M + '[data-usd-el="outside-count-6"]'); await settle(sp.page);
+		await setCount(sp.page, 6);
 		const first = (await snap(sp.page)).cards[0].id;
 		await sp.page.click(M + '[data-usd-el="outside-exclude"][data-card-id="' + first + '"]'); await settle(sp.page);
 		await sp.page.click(M + '[data-usd-el="outside-excl-toggle"]');
@@ -953,14 +967,15 @@ export async function register11(env) {
 		const b2 = bruteSk(syn.cands, 5, [first], Ex);
 		assert(ids(s2) === b2.ids && s2.rows.every((r) => Ex.indexOf(r.id) === -1) && s2.excl === '除外中 カード1枚・スキル6種 ▾', 'オススメサポ(I) 「外す」の再計算にも除外スキルが効く（カードとスキルの除外を合わせた総当たりと一致）。「除外中 カード1枚・スキル6種 ▾」', { ui: ids(s2), brute: b2.ids, excl: s2.excl });
 		// 枚数の切り替え・閉じて開き直しでも反映
-		await sp.page.click(M + '[data-usd-el="outside-count-6"]'); await settle(sp.page);
+		await setCount(sp.page, 6);
 		const s3 = await snap(sp.page);
 		const b3 = bruteSk(syn.cands, 6, [first], Ex);
 		assert(s3.cards.length === 6 && b3.ids.split(',').every((id) => ids(s3).split(',').indexOf(id) !== -1) && parseFoot(s3).kinds === b3.score && s3.rows.every((r) => Ex.indexOf(r.id) === -1), 'オススメサポ(I) 6枚に切り替えても除外スキルが効く（総当たりの組を含み、種数が一致。足りない枚数は増分0のカードで埋める）', { ui: ids(s3), brute: b3.ids, kinds: parseFoot(s3).kinds, score: b3.score });
+		await setCount(sp.page, 5);   // ④・段10: 枚数はセットに保存されるので、5枚に戻してから開き直す
 		await sp.page.click(M + '[data-usd-act="outside-close"]');
 		await open(sp.page);
 		const s4 = await snap(sp.page);
-		assert(ids(s4) === b2.ids && s4.rows.every((r) => Ex.indexOf(r.id) === -1) && s4.count === '5', 'オススメサポ(I) 小窓を開いたとき（5枚から）の計算にも、記録されている除外カード・除外スキルが効く', { ui: ids(s4), brute: b2.ids });
+		assert(ids(s4) === b2.ids && s4.rows.every((r) => Ex.indexOf(r.id) === -1) && s4.count === '5', 'オススメサポ(I) 小窓を開いたとき（5枚）の計算にも、記録されている除外カード・除外スキルが効く', { ui: ids(s4), brute: b2.ids });
 		await sp.page.click(M + '[data-usd-act="outside-close"]');
 		await sp.ctx.close();
 

@@ -2224,8 +2224,43 @@
 	 * 同点のときの選び方（毎回同じになる）: (1) 増分が正のカードの枚数が少ない → (2) SSR が多い → (3) カード番号を昇順に並べた並びが辞書順で小さい。
 	 * 候補が足りて、増分が正のカードが K 枚に満たないときは、残りを SSR → カード番号の昇順で（同じキャラクターを避けて）埋める。埋めたカードの増分は 0。
 	 * ============================================================ */
-	const OUTSIDE_COUNT_CHOICES = [5, 6];
-	const OUTSIDE_COUNT_DEFAULT = 5;        // 小窓も開くたびに5枚から始める（段3・2026-10-04。保存しない）
+	const OUTSIDE_COUNT_CHOICES = [4, 5, 6];   // ④・段10 で4を足した
+	const OUTSIDE_COUNT_DEFAULT = 5;        // 指定（roster.outsideOptions.count）が無いセットは5枚（④・段10 で「開くたびに5枚から」は廃止。セットごとに保存する）
+	/** カードの種類の番号（typeOrder。1 スピード〜5 賢さ・6 友人）。「種類」の指定（④・段11）で使う。6（友人）はオススメで選ぶのが最大1枚 */
+	const OUTSIDE_TYPE_ORDERS = [1, 2, 3, 4, 5, 6];
+	const OUTSIDE_FRIEND_TYPE = 6;
+	const OUTSIDE_FRIEND_MAX = 1;
+	/** 「絞り込み」（④・段12）に出す軸: 条件で検索と同じ軸（pickableAxes）から、①で決まる距離・脚質・バ場を除いたもの */
+	function outsideFilterAxes() {
+		return pickableAxes().filter(a => ROSTER_FILTER_AXIS_KEYS.indexOf(a.key) === -1);
+	}
+	/**
+	 * セットの「種類」「絞り込み」「枚数」の指定（④・段10。roster.outsideOptions）を、決めた形に読む（保存値は書き換えない・読み込み時に補わない）。
+	 *   count … 4・5・6（無い・知らない値は5）
+	 *   typeMin … { 種類の番号: 最低の枚数 }（1以上の整数だけ。友人は最大1。合計が枚数を超えていてもそのまま＝計算で満たせないと出る）
+	 *   filter … { 軸: [値…] }（「絞り込み」に出す軸の、選べる値だけ）
+	 */
+	function outsideOptionsOf(roster) {
+		const o = (roster && roster.outsideOptions && typeof roster.outsideOptions === 'object') ? roster.outsideOptions : {};
+		const count = OUTSIDE_COUNT_CHOICES.indexOf(o.count) !== -1 ? o.count : OUTSIDE_COUNT_DEFAULT;
+		const typeMin = {};
+		if (o.typeMin && typeof o.typeMin === 'object') {
+			OUTSIDE_TYPE_ORDERS.forEach(t => {
+				const n = o.typeMin[t];
+				if (typeof n === 'number' && Number.isInteger(n) && n >= 1) typeMin[t] = t === OUTSIDE_FRIEND_TYPE ? Math.min(n, OUTSIDE_FRIEND_MAX) : Math.min(n, OUTSIDE_COUNT_CHOICES[OUTSIDE_COUNT_CHOICES.length - 1]);
+			});
+		}
+		const filter = {};
+		if (o.filter && typeof o.filter === 'object') {
+			outsideFilterAxes().forEach(axis => {
+				const vals = Array.isArray(o.filter[axis.key]) ? o.filter[axis.key] : [];
+				const ok = pickableOptions(axis).map(x => x.v).filter(v => vals.indexOf(v) !== -1);
+				if (ok.length > 0) filter[axis.key] = ok;
+			});
+		}
+		return { count: count, typeMin: typeMin, filter: filter };
+	}
+	function outsideTypeMinSum(typeMin) { return Object.keys(typeMin || {}).reduce((s, k) => s + (typeMin[k] || 0), 0); }
 	const OUTSIDE_DEADLINE_MS = 1500;
 	// 検査用: 締め切りの既定を差し替える（null で元に戻す）。画面の探索が途中の結果になる場合を作るためだけに使う
 	let outsideDeadlineOverride = null;
@@ -2669,14 +2704,16 @@
 	}
 
 	/**
-	 * 組み合わせを探す。args: { roster, addedSkillIds, count（5か6。既定5）, excludedCardIds, deadlineMs（既定1500）, sliceMs（既定8）}
+	 * 組み合わせを探す。args: { roster, addedSkillIds, count（4・5・6。無ければセットの指定＝roster.outsideOptions、それも無ければ5）, excludedCardIds, deadlineMs（既定1500）, sliceMs（既定8）}
 	 * 非同期版 outsideSolve は区切りごとに画面へ譲り、締め切りに達したら、そのときの最良に partial:true を付けて返す。
 	 * 結果の形は outsideAssemble を参照。元データが読めていないときは { ok:false, reason }。
 	 */
 	function outsidePrepare(args) {
 		const a = args || {};
-		const K = OUTSIDE_COUNT_CHOICES.indexOf(a.count) !== -1 ? a.count : OUTSIDE_COUNT_DEFAULT;
-		const prob = outsideBuild(a);
+		// 枚数は引数（count）が優先。無ければセットの指定（roster.outsideOptions。無ければ5枚）。④・段10
+		const roster = (a.roster && typeof a.roster === 'object') ? a.roster : (rosterOutsideSink ? rosterOutsideSink.getRoster() : {});
+		const K = OUTSIDE_COUNT_CHOICES.indexOf(a.count) !== -1 ? a.count : outsideOptionsOf(roster).count;
+		const prob = outsideBuild(Object.assign({}, a, { roster: roster }));
 		if (!prob.ok) return { prob: prob, K: K };
 		return { prob: prob, K: K, engine: outsideEngine(prob.groups, prob.W, K) };
 	}
@@ -3425,7 +3462,7 @@
 		if (!r || typeof r !== 'object') return false;
 		if (r.umaId) return true;
 		if ((r.cardIds || []).some(Boolean)) return true;
-		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'outsideCardExcluded', 'outsideSkillExcluded', 'race'].some(k => r[k] !== undefined && r[k] !== null);
+		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'outsideCardExcluded', 'outsideSkillExcluded', 'race', 'outsideOptions'].some(k => r[k] !== undefined && r[k] !== null);
 	}
 
 	/**
@@ -4100,6 +4137,11 @@
 		'.usd-out-segbtn { font: inherit; font-size: 11px; line-height: 1.2; font-weight: 600; height: 28px; padding: 0 var(--uma-sp-3); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
 		'  background: var(--uma-surface); color: var(--uma-text); cursor: pointer; white-space: nowrap; }',
 		'.usd-out-segbtn[aria-pressed="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
+		// 見出し行の3つのボタン（④・段10）と、選択欄の中のチップの並び。押せないチップは色だけで示す
+		'.usd-out-optbtn { display: inline-flex; align-items: center; gap: 2px; padding: 0 var(--uma-sp-2-5); }',
+		'.usd-out-optcaret { font-size: 9px; }',
+		'.usd-out-segbtn:disabled { cursor: not-allowed; color: var(--uma-text-faint); background: var(--uma-surface-sunken); border-color: var(--uma-border); }',
+		'.usd-out-chiprow { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1-5); }',
 		'.usd-out-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--uma-sp-1-5); align-content: start; min-height: 120px; margin-bottom: var(--uma-sp-1-5); }',
 		'.usd-out-cards--excl { min-height: 0; margin: 0 0 var(--uma-sp-1-5); }',
 		// タイル（1行・高さ36px）。塗りは①のカードの表示と同じ種類色（--usd-card-bg / --usd-card-text。cardTypeColorVars が番号で流し込む）。
@@ -8513,6 +8555,36 @@
 			render();
 			return true;
 		};
+		/**
+		 * 「種類」「絞り込み」「枚数」の指定（④・段10。roster.outsideOptions）。patch に入れた項目だけを置き換える
+		 * （count: 4・5・6／typeMin: { 種類の番号: 枚数 }／filter: { 軸: [値…] }）。既定と同じ（5枚・空）なら、その項目を消し、全部消えたら項目ごと消す。
+		 * 中身が変わらなければ書かない。①の表には効かないので、①は描き直さない。
+		 */
+		rosterOutsideSink.setOptions = function (patch) {
+			if (!patch || typeof patch !== 'object') return false;
+			const next = (roster.outsideOptions && typeof roster.outsideOptions === 'object') ? Object.assign({}, roster.outsideOptions) : {};
+			if ('count' in patch) {
+				if (OUTSIDE_COUNT_CHOICES.indexOf(patch.count) === -1) return false;
+				if (patch.count === OUTSIDE_COUNT_DEFAULT) delete next.count; else next.count = patch.count;
+			}
+			if ('typeMin' in patch) {
+				const t = {};
+				Object.keys(patch.typeMin || {}).forEach(k => { const n = patch.typeMin[k]; if (OUTSIDE_TYPE_ORDERS.indexOf(Number(k)) !== -1 && Number.isInteger(n) && n >= 1) t[String(Number(k))] = n; });
+				if (Object.keys(t).length === 0) delete next.typeMin; else next.typeMin = t;
+			}
+			if ('filter' in patch) {
+				const f = {};
+				Object.keys(patch.filter || {}).forEach(k => { const v = patch.filter[k]; if (Array.isArray(v) && v.length > 0) f[k] = v.filter(x => typeof x === 'string' && x); });
+				Object.keys(f).forEach(k => { if (f[k].length === 0) delete f[k]; });
+				if (Object.keys(f).length === 0) delete next.filter; else next.filter = f;
+			}
+			const before = roster.outsideOptions === undefined ? undefined : JSON.stringify(roster.outsideOptions);
+			const empty = Object.keys(next).length === 0;
+			if (empty ? before === undefined : before === JSON.stringify(next)) return true;
+			if (empty) delete roster.outsideOptions; else roster.outsideOptions = next;
+			persistNow();
+			return true;
+		};
 		// 「すべて戻す」: いま引ける（有効な）カードとスキルの除外だけを外す。引けない古いIDは書き換えない（残す）
 		rosterOutsideSink.clearExcluded = function () {
 			let changed = false;
@@ -9879,7 +9951,8 @@
 		 * ②の帯の「↺」の隣のボタンから、小窓を開く。①の絞り込みに合う、②に追加できる白スキルを最も多く得られるサポートカードの組み合わせ
 		 * （5枚か6枚）と、そのカードで得られる白スキルの一覧を出し、チェックした白スキルを②に追加する。計算（outsideSolve）は純粋関数で、
 		 * ここは小窓の状態と描画だけ。**計算するのは、開いたとき・「外す」「戻す」・枚数の切り替えのときだけ**（チェックの付け外しでは再計算せず、フッターの数字だけを更新する）。
-		 * 保存するのは除外だけ（①の roster.outsideCardExcluded。段2 の受け口経由）。枚数・チェックの状態は保存しない（開くたびに5枚から）。
+		 * 保存するのは除外（①の roster.outsideCardExcluded・outsideSkillExcluded。段2・段5 の受け口経由）と、④（段10〜）の「種類」「絞り込み」「枚数」の指定
+		 * （roster.outsideOptions。指定が無いセットは5枚から。変えたら自動で計算し直す）。チェックの状態は保存しない。
 		 * 追加は既存の一括追加と同じ受け皿（pickerSinkFor）。追加するスキルにアイコンは付けない（既存の追加の動きと同じ）。
 		 * ============================================================ */
 		const OUTSIDE_MSG_NEED_ROSTER = '先に①本育成編成を設定してください';
@@ -9942,7 +10015,9 @@
 				else if (act === 'outside-card-info') {
 					openOutsideCardInfo(b, b.dataset.cardId);
 				}
-				else if (act === 'outside-count') { const n = Number(b.dataset.count); if (OUTSIDE_COUNT_CHOICES.indexOf(n) !== -1 && n !== outsideUi.count) { outsideUi.count = n; outsideRun(); } }
+				else if (act === 'outside-count-open') openOutsideCountPopover(b);
+				else if (act === 'outside-types-open') openOutsideTypesPopover(b);
+				else if (act === 'outside-filter-open') openOutsideFilterPopover(b);
 				else if (act === 'outside-exclude') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, true)) outsideRun(); }
 				else if (act === 'outside-restore') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, false)) outsideRun(); }
 				else if (act === 'outside-excl-toggle') { outsideUi.excludedOpen = !outsideUi.excludedOpen; renderOutside(); }
@@ -9975,7 +10050,6 @@
 			if (!outsideRosterReady(roster)) { toast(OUTSIDE_MSG_NEED_ROSTER); return; }
 			const el = ensureOutsideUi();
 			outsideUi.open = true;
-			outsideUi.count = OUTSIDE_COUNT_DEFAULT;
 			outsideUi.excludedOpen = false;
 			outsideUi.result = null;
 			outsideUi.checked = new Set();
@@ -10023,7 +10097,8 @@
 			outsideUi.result = null;
 			renderOutside();
 			let r;
-			try { r = await outsideSolve({ addedSkillIds: skillIdsOf(currentTarget()) || [], count: outsideUi.count }); }
+			// 枚数・種類・絞り込みは、セットの指定（roster.outsideOptions）を計算の側が読む（④・段10〜12）
+			try { r = await outsideSolve({ addedSkillIds: skillIdsOf(currentTarget()) || [] }); }
 			catch (e) { if (global.console) global.console.error('[UmaSkillDeckCore] オススメサポの計算で例外', e); r = { ok: false, reason: 'error' }; }
 			if (tok !== outsideUi.token || !outsideUi.open) return;
 			outsideUi.computing = false;
@@ -10091,6 +10166,40 @@
 				btn: btn, opener: btn, refocus: '[data-usd-el="outside-card-main"][data-card-id="' + cid + '"]' });
 		}
 
+		/**
+		 * 「5枚 ▾」の選択欄（④・段10）。4枚・5枚・6枚の3つのチップ。押したらすぐ閉じ、セットの指定（roster.outsideOptions.count）に書いて計算し直す。
+		 * 種類の指定の合計より少ない枚数は選べない（押せない）。
+		 */
+		function openOutsideCountPopover(btn) {
+			openPopover({ key: 'outside-count', title: '枚数', btn: btn, opener: btn, refocus: '[data-usd-el="outside-count-btn"]',
+				build: (body) => {
+					const opt = outsideOptionsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {});
+					const sum = outsideTypeMinSum(opt.typeMin);
+					const row = infoEl('div', 'usd-out-chiprow');
+					row.setAttribute('role', 'group');
+					row.setAttribute('aria-label', '枚数');
+					row.setAttribute('data-usd-el', 'outside-count-list');
+					OUTSIDE_COUNT_CHOICES.forEach(n => {
+						const b = infoEl('button', 'usd-out-segbtn', n + '枚');
+						b.type = 'button';
+						b.setAttribute('data-usd-el', 'outside-count-' + n);
+						b.setAttribute('data-count', String(n));
+						b.setAttribute('aria-pressed', opt.count === n ? 'true' : 'false');
+						b.disabled = n < sum;
+						b.addEventListener('click', () => {
+							closeSkillInfo();
+							if (n !== opt.count && rosterOutsideSink && rosterOutsideSink.setOptions({ count: n })) outsideRun();
+						});
+						row.appendChild(b);
+					});
+					body.appendChild(row);
+				} });
+		}
+		/** 「種類 ▾」の選択欄（④・段11 で中身を入れる） */
+		function openOutsideTypesPopover(btn) { /* 段11 */ }
+		/** 「絞り込み ▾」の選択欄（④・段12 で中身を入れる） */
+		function openOutsideFilterPopover(btn) { /* 段12 */ }
+
 		/** 行の Pt の文言（そのスキルだけ。前段は含めない）。合計（フッター）は前段も含むので、前段をチェックしていないときは行の合計より大きくなる */
 		function outsideRowPtText(skillId) {
 			const row = skillPtData.skillPt instanceof Map ? skillPtData.skillPt.get(skillId) : null;
@@ -10108,9 +10217,16 @@
 			const excl = outsideExcludedIdsOf(roster);
 			const r = outsideUi.result;
 			const ok = !!(r && r.ok);
+			// 見出し行（④・段10）: 「カード」＋「種類 ▾」「絞り込み ▾」「5枚 ▾」。指定があるボタンは濃色で、数の印（「種類 2」＝指定の合計枚数・「絞り込み 1」＝選んだ軸の数）
+			const opt = outsideOptionsOf(roster);
+			const tSum = outsideTypeMinSum(opt.typeMin), fN = Object.keys(opt.filter).length;
+			const optBtn = (act, el, label, on) => '<button type="button" class="usd-out-segbtn usd-out-optbtn" data-usd-act="' + act + '" data-usd-el="' + el + '" aria-haspopup="dialog" aria-expanded="false" aria-pressed="' + (on ? 'true' : 'false') + '">'
+				+ esc(label) + '<span class="usd-out-optcaret" aria-hidden="true">▾</span></button>';
 			let h = '<div class="usd-out-cardsbar"><span class="usd-out-cardsbar-title">カード</span>'
-				+ '<span class="usd-out-seg" role="group" aria-label="枚数">'
-				+ OUTSIDE_COUNT_CHOICES.map(n => '<button type="button" class="usd-out-segbtn" data-usd-act="outside-count" data-usd-el="outside-count-' + n + '" data-count="' + n + '" aria-pressed="' + (outsideUi.count === n ? 'true' : 'false') + '">' + n + '枚</button>').join('')
+				+ '<span class="usd-out-seg" role="group" aria-label="指定">'
+				+ optBtn('outside-types-open', 'outside-types-btn', '種類' + (tSum > 0 ? ' ' + tSum : ''), tSum > 0)
+				+ optBtn('outside-filter-open', 'outside-filter-btn', '絞り込み' + (fN > 0 ? ' ' + fN : ''), fN > 0)
+				+ optBtn('outside-count-open', 'outside-count-btn', opt.count + '枚', false)
 				+ '</span></div>';
 			// カード（2列×3行）。種数の増分の大きい順
 			h += '<div class="usd-out-cards" data-usd-el="outside-cards">';
@@ -11477,7 +11593,12 @@
 			// ④（段8〜）: レース条件。setRace はレースの一覧の行か null（指定なし）。raceOf・lockedFilterOf・resolvedFilterOf は編成を引数に取る（読むだけ）
 			getRace: function () { return raceOfRoster(rosterOutsideSink ? rosterOutsideSink.getRoster() : null); },
 			setRace: function (row) { return rosterOutsideSink ? rosterOutsideSink.setRace(row) : false; },
-			raceOf: raceOfRoster, lockedFilterOf: function (r) { return raceLockedFilterOf(raceOfRoster(r)); }, resolvedFilterOf: resolvedFilterOf
+			raceOf: raceOfRoster, lockedFilterOf: function (r) { return raceLockedFilterOf(raceOfRoster(r)); }, resolvedFilterOf: resolvedFilterOf,
+			// ④（段10〜）: 「種類」「絞り込み」「枚数」の指定（roster.outsideOptions）。setOptions は項目ごとの置き換え（{ count } / { typeMin } / { filter }）
+			optionsOf: outsideOptionsOf,
+			getOptions: function () { return outsideOptionsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null); },
+			setOptions: function (patch) { return rosterOutsideSink ? rosterOutsideSink.setOptions(patch) : false; },
+			filterAxes: function () { return outsideFilterAxes().map(a => a.key); }
 		},
 		loadScenarioEvents: loadScenarioEvents,
 		getScenarioEventStatus: function () { return scenarioEventState.status; },

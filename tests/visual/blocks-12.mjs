@@ -496,4 +496,74 @@ export async function register12(env) {
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段9 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
+
+	/* ====================================================================
+	 * 段10: 枚数（4・5・6）と、指定の保存（roster.outsideOptions）・見出し行の3つのボタン
+	 * ==================================================================== */
+	/** 見出し行（「カード」＋3つのボタン）の見え方 */
+	const headInfo = (page) => page.evaluate(() => {
+		const m = document.querySelector('[data-usd-el="outside-modal"]');
+		const bar = m.querySelector('.usd-out-cardsbar');
+		const btns = ['outside-types-btn', 'outside-filter-btn', 'outside-count-btn'].map((el) => m.querySelector('[data-usd-el="' + el + '"]'));
+		const br = bar.getBoundingClientRect();
+		return { barH: Math.round(br.height), texts: btns.map((b) => (b ? b.innerText.replace(/\s+/g, '') : null)), pressed: btns.map((b) => b && b.getAttribute('aria-pressed') === 'true'),
+			hs: btns.map((b) => (b ? Math.round(b.getBoundingClientRect().height) : 0)), tops: btns.map((b) => (b ? Math.round(b.getBoundingClientRect().top) : 0)),
+			inside: btns.every((b) => b && b.getBoundingClientRect().right <= br.right + 0.5 && b.getBoundingClientRect().left >= br.left - 0.5), sw: document.documentElement.scrollWidth, iw: window.innerWidth };
+	});
+	const countOf = (page) => page.evaluate(() => document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]').length);
+	const setCount = async (page, n) => {
+		await page.click(M + '[data-usd-el="outside-count-btn"]');
+		await page.click('[data-usd-el="outside-count-list"] [data-usd-el="outside-count-' + n + '"]');
+		await settle(page);
+	};
+
+	await block('オススメサポ④段10 保存（roster.outsideOptions）: 触ったときだけ書く・既定（5枚・指定なし）で項目ごと消す・schemaVersion 7・①の次の書き込み／①②のリセットで消えない・書き出し／取り込み／元に戻す／複製／再読み込み・古いデータは1バイトも変わらない', async () => {
+		const setOn = (page) => page.evaluate(() => UmaSkillDeckCore.outside.setOptions({ count: 6, typeMin: { 1: 2 }, filter: { phase: ['late'] } }));
+		const setOff = (page) => page.evaluate(() => UmaSkillDeckCore.outside.setOptions({ count: 5, typeMin: {}, filter: {} }));
+		await checkSaveRules('オススメサポ④段10 outsideOptions:', 'outsideOptions', setOn, setOff, { count: 6, typeMin: { 1: 2 }, filter: { phase: ['late'] } }, [
+			['形の崩れた outsideOptions', { outsideOptions: { count: 9, typeMin: 'x', filter: { nope: ['y'] } } }]
+		]);
+	});
+
+	await block('オススメサポ④段10 見出し行: 「種類 ▾」「絞り込み ▾」「5枚 ▾」が1行（28px）に収まる（320・375・414・1280px）／指定があるボタンは濃色で数の印', async () => {
+		for (const w of [320, 375, 414, 1280]) {
+			for (const [label, opts] of [['指定なし', null], ['指定あり', { count: 6, typeMin: { 1: 2, 2: 1, 6: 1 }, filter: { phase: ['late', 'mid'], effect: ['accel_up'] } }]]) {
+				const sp = await openSp({ roster: opts ? Object.assign({}, FULL, { outsideOptions: opts }) : FULL, w, h: w === 1280 ? 900 : 812 });
+				await open(sp.page);
+				const r = await headInfo(sp.page);
+				const tag = 'オススメサポ④段10 ' + w + 'px・' + label + ': ';
+				const exp = opts ? ['種類4▾', '絞り込み2▾', '6枚▾'] : ['種類▾', '絞り込み▾', '5枚▾'];
+				assert(JSON.stringify(r.texts) === JSON.stringify(exp) && r.pressed.join() === (opts ? 'true,true,false' : 'false,false,false'),
+					tag + 'ボタンの文字は「' + exp.join('」「') + '」。指定があるボタンは濃色', { texts: r.texts, pressed: r.pressed });
+				assert(r.barH === 28 && r.hs.every((h) => h === 28) && new Set(r.tops).size === 1 && r.inside && r.sw <= r.iw, tag + '見出し行は1行・28px のまま（3つとも同じ行・行の中に収まる）', r);
+				if (opts) assert((await countOf(sp.page)) === 6, tag + '保存された枚数（6枚）で計算する', await countOf(sp.page));
+				assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+				await sp.ctx.close();
+			}
+		}
+	});
+
+	await block('オススメサポ④段10 「5枚 ▾」: 4枚・5枚・6枚のチップ（いまの枚数に印）・押すとすぐ閉じて自動で計算し直す・種類の指定の合計より少ない枚数は押せない／指定の無いセットは5枚から', async () => {
+		const sp = await openSp({ roster: FULL });
+		await open(sp.page);
+		assert((await countOf(sp.page)) === 5, 'オススメサポ④段10 指定の無いセットは5枚から', await countOf(sp.page));
+		await sp.page.click(M + '[data-usd-el="outside-count-btn"]');
+		const chips = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-count-list"] button')).map((b) => ({ t: b.textContent, on: b.getAttribute('aria-pressed') === 'true', dis: b.disabled })));
+		assert(chips.map((c) => c.t).join() === '4枚,5枚,6枚' && chips.map((c) => c.on).join() === 'false,true,false' && chips.every((c) => !c.dis), 'オススメサポ④段10 選択欄は「4枚」「5枚」「6枚」の3つで、いまの枚数に印', chips);
+		await sp.page.click('[data-usd-el="outside-count-list"] [data-usd-el="outside-count-4"]');
+		const closed = await sp.page.evaluate(() => { const l = document.querySelector('[data-usd-el="outside-count-list"]'); return !l || !l.offsetParent; });
+		await settle(sp.page);
+		const exp4 = await sp.page.evaluate(() => UmaSkillDeckCore.outside.solveSync({ count: 4, addedSkillIds: [], deadlineMs: 20000 }).cards.map((c) => c.cardId).sort().join());
+		const ui4 = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]')).map((c) => c.getAttribute('data-card-id')).sort().join());
+		assert(closed && (await countOf(sp.page)) === 4 && ui4 === exp4 && (await headInfo(sp.page)).texts[2] === '4枚▾', 'オススメサポ④段10 押すとすぐ閉じ、ボタンなしで自動で計算し直す（4枚の結果が純粋関数と一致）。ボタンの文字は「4枚」', { closed, ui4, exp4 });
+		// 種類の指定の合計（5）より少ない枚数は押せない
+		await sp.page.evaluate(() => UmaSkillDeckCore.outside.setOptions({ count: 6, typeMin: { 1: 2, 2: 2, 3: 1 } }));
+		await sp.page.click(M + '[data-usd-act="outside-close"]');
+		await open(sp.page);
+		await sp.page.click(M + '[data-usd-el="outside-count-btn"]');
+		const chips2 = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-count-list"] button')).map((b) => b.disabled));
+		assert(chips2.join() === 'true,false,false', 'オススメサポ④段10 種類の指定の合計（5枚）より少ない「4枚」は押せない', chips2);
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段10 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
 }
