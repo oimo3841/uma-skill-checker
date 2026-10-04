@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-05a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-05b';
 
 	/* ============================================================
 	 * 定数
@@ -5360,9 +5360,8 @@
 		'.usd-ev-skill--gold { background: var(--uma-stitch-soft); padding-inline: var(--uma-sp-1-5); border-radius: var(--uma-r-sm); }',
 		'.usd-ev-skill-name { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); }',
 		'.usd-ev-skill-pt { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
-		'.usd-ev-skill-desc { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text); white-space: nowrap; overflow-x: auto; overflow-y: hidden;',
-		'  scrollbar-width: none; overscroll-behavior-x: contain; min-width: 0; }',
-		'.usd-ev-skill-desc::-webkit-scrollbar { display: none; }',
+		// 段13 の仕上げ: 説明文は小窓の幅で折り返して全文を出す（段7b の「1行・横に送る」を置き換えた。右端で切れて読めなかった）
+		'.usd-ev-skill-desc { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text); white-space: normal; overflow-wrap: anywhere; min-width: 0; }',
 		'.usd-ev-tag { display: inline-block; margin-inline-start: var(--uma-sp-1-5); padding: 0 var(--uma-sp-1-5); border: 1px dashed var(--uma-border-strong); border-radius: var(--uma-r-full);',
 		'  font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 600; color: var(--uma-text-subtle); vertical-align: middle; }',
 		'.usd-ev-tag--target { border-style: solid; border-color: var(--uma-success); background: var(--uma-success-bg); color: var(--uma-success-text); }',
@@ -7619,10 +7618,9 @@
 			pt.setAttribute('data-usd-el', 'ev-skill-pt');
 			li.appendChild(pt);
 		}
-		// 公式の説明文（1行。横に送ると全文が見られる。スクロールバーは出さず、続きがある側に薄いフェード）
-		const desc = infoEl('div', 'usd-ev-skill-desc usd-hscroll', '');
+		// 公式の説明文（小窓の幅で折り返して全文。段13 の仕上げで、段7b の「1行・横に送る」を置き換えた）
+		const desc = infoEl('div', 'usd-ev-skill-desc', '');
 		desc.setAttribute('data-usd-el', 'ev-skill-desc');
-		desc.setAttribute('data-usd-no-trim', '1');
 		desc.setAttribute('data-skill-id', it.skillId);
 		li.appendChild(desc);
 		settleSkillInfoDesc(it.skillId, desc);
@@ -9196,7 +9194,7 @@
 					'<div class="usd-entry-row">' +
 						// 「オススメサポ」（本育成サポカ外スキル。special の②だけ）。入口列の先頭・濃色の塗り（小窓の「追加」と同じ）で、ほかの入口と見分ける
 						(setBased ? '<button type="button" class="uma-btn usd-outside-entry" data-usd-act="outside-open" data-usd-el="outside-open" aria-haspopup="dialog">' +
-							'<i data-lucide="sparkles" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> オススメサポ</button>' : '') +
+							'<i data-lucide="sparkles" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> オススメサポαテスト</button>' : '') +
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
 							'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件で検索' +
 						'</button>' +
@@ -10417,9 +10415,9 @@
 		}
 
 		function outsideMarkup() {
-			return '<div class="usd-modal-panel usd-out-panel" role="dialog" aria-modal="true" aria-label="オススメサポ">'
+			return '<div class="usd-modal-panel usd-out-panel" role="dialog" aria-modal="true" aria-label="オススメサポαテスト">'
 				+ '<div class="usd-out-head">'
-				+ '<p class="usd-out-title"><span data-usd-el="outside-title">オススメサポ</span>'
+				+ '<p class="usd-out-title"><span data-usd-el="outside-title">オススメサポαテスト</span>'
 				+ '<button type="button" class="uma-help-btn" data-usd-act="outside-help" data-usd-el="outside-help" aria-haspopup="dialog" aria-expanded="false" aria-label="オススメサポの説明" title="オススメサポの説明">?</button></p>'
 				+ '<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="outside-close" data-usd-el="outside-close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>'
 				+ '</div>'
@@ -10851,7 +10849,7 @@
 				const pid = opt.pinned[s - opt.count - 1];
 				if (pid) {
 					const pc = by.get(pid);
-					h += outsideCardTileHtml({ cardId: pid }, { el: 'outside-pinned', gain: pc ? pc.kindGain : undefined, act: 'outside-unpin', btnEl: 'outside-unpin', btnText: '外す', slot: s });
+					h += outsideCardTileHtml({ cardId: pid }, { el: 'outside-pinned', gain: pc ? pc.kindGain : undefined, act: 'outside-unpin', btnEl: 'outside-unpin', btnText: '解除', slot: s });   // 段13 の仕上げ: 指定したカードは「解除」（オススメのカードの「外す」と分ける）
 				} else {
 					h += '<button type="button" class="usd-out-slot" data-usd-act="outside-pin-pick" data-usd-el="outside-slot" data-slot="' + s + '" aria-label="' + s + '枚目のサポカを選ぶ">'
 						+ '<span class="usd-roster-legend-no" aria-hidden="true">' + s + '</span><span class="usd-out-slot-text">サポカを選ぶ</span></button>';

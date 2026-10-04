@@ -13933,10 +13933,11 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		assert(firstMaybe > 0 && g.items.slice(0, firstMaybe).every((x) => !x.maybe && x.tag === null) && g.items.slice(firstMaybe).every((x) => x.maybe && x.tag === '未選択'), tag + '右の一覧は、いまの選択で得る●のスキルが先、未選択のイベントしだいのスキルが後ろで「未選択」の印つき', g.items.map((x) => [x.id === W[2] ? 'W2' : x.id, x.maybe]));
 		const w0 = g.items.find((x) => x.id === W[0]);
 		assert(w0 && w0.rows === 3 && w0.pt === '基礎 ' + BASE[W[0]] + ' Pt' && w0.desc === '説明 ' + W[0], tag + '1つのスキルは3行（スキル名／「基礎 B Pt」／公式の説明文）', w0);
-		assert(g.descScroll && g.descScroll.ox === 'auto' && g.descScroll.bar === 'none' && g.descScroll.ws === 'nowrap', tag + '説明文は1行（折り返さず）で、横に送れる（スクロールバーは出さない）', g.descScroll);
+		// 段13 の仕上げ（C-127）: 説明文は「1行・横に送る」をやめ、小窓の幅で折り返して全文を出す
+		assert(g.descScroll && g.descScroll.ws === 'normal' && g.descScroll.sw <= g.descScroll.cw + 1, tag + '説明文は小窓の幅で折り返す（横にはみ出さない）', g.descScroll);
 		const longId = W[2];
-		const longDesc = await sp.page.evaluate((id) => { const d = document.querySelector('[data-usd-el="ev-skill-desc"][data-skill-id="' + id + '"]'); return d ? { sw: d.scrollWidth, cw: d.clientWidth, fade: d.getAttribute('data-usd-fade'), text: d.textContent.length } : null; }, longId);
-		assert(longDesc && longDesc.sw > longDesc.cw && longDesc.fade === 'right', tag + '長い説明文は、続きがある側（右）に薄いフェード', longDesc);
+		const longDesc = await sp.page.evaluate((id) => { const d = document.querySelector('[data-usd-el="ev-skill-desc"][data-skill-id="' + id + '"]'); return d ? { sw: d.scrollWidth, cw: d.clientWidth, h: d.getBoundingClientRect().height, lh: parseFloat(getComputedStyle(d).lineHeight), text: d.textContent.length } : null; }, longId);
+		assert(longDesc && longDesc.sw <= longDesc.cw + 1 && longDesc.h > longDesc.lh * 1.5, tag + '長い説明文は折り返して2行以上になり、全文が見える（段13 の仕上げ）', longDesc);
 		// 選択を変えると右も描き直される（W0 を選ぶと W0 が●の側へ）
 		await sp.page.click('[data-usd-el="info-pop"] [data-usd-el="event-choice"][data-event-key$="#0"][data-choice="0"]');
 		await sp.page.waitForTimeout(300);

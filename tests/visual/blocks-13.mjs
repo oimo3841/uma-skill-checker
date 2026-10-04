@@ -469,8 +469,8 @@ export async function register13(env) {
 		await pickBy(5, 'syn-P');
 		const t1 = await modalTiles(sp.page);
 		const d1 = await sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')).outsideOptions);
-		assert(t1.find((x) => x.el === 'outside-pinned' && x.id === 'syn-P' && x.slot === '5' && /^5/.test(x.text) && /外す$/.test(x.text)) && t1.filter((x) => x.el === 'outside-card').every((x) => x.id !== 'syn-P2') && JSON.stringify(d1.pinned) === '["syn-P"]',
-			'オススメサポ段13C1 選ぶと、5枠目に番号の札つきで入り（「外す」）、セットに保存（pinned）。同じキャラクターの P2 はオススメに出ない', { t1, d1 });
+		assert(t1.find((x) => x.el === 'outside-pinned' && x.id === 'syn-P' && x.slot === '5' && /^5/.test(x.text) && /解除$/.test(x.text)) && t1.filter((x) => x.el === 'outside-card').every((x) => x.id !== 'syn-P2') && JSON.stringify(d1.pinned) === '["syn-P"]',
+			'オススメサポ段13C1 選ぶと、5枠目に番号の札つきで入り（「解除」。段13 の仕上げ）、セットに保存（pinned）。同じキャラクターの P2 はオススメに出ない', { t1, d1 });
 		// 同じキャラクターのカードは選べない
 		await sp.page.click(M + '[data-usd-el="outside-slot"][data-slot="6"]');
 		await sp.page.fill('[data-usd-el="roster-modal-host"] [data-usd-el="find"]', '二つ名syn-P');
@@ -735,6 +735,75 @@ export async function register13(env) {
 		if (anyGold) assert(anyGold.gold.every((g) => rarity.get(g.id) === 'gold' && g.bg === anyGold.goldVar), 'オススメサポ段13C5 ①から開いた小窓でも、金スキルの行に同じ金色の帯', anyGold.gold);
 		else console.log('     [記録] ①の小窓（この編成）に金スキルを得るカードが無いので、①側の帯は ②と同じ部品（eventSkillRowEl）であることだけで確かめた');
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13C4・C5 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+	/* ====================================================================
+	 * 段13 の仕上げ: 説明文の折り返し・「解除」・「オススメサポαテスト」
+	 * ==================================================================== */
+	/** 開いている「取得できるスキル」の説明文の様子（右のペインを見せてから測る） */
+	const descInfo = (page) => page.evaluate(() => {
+		const panes = document.querySelector('[data-usd-el="events-panes"]');
+		const right = panes.querySelector('[data-usd-el="events-pane-skills"]');
+		const rr = right.getBoundingClientRect();
+		const ds = Array.from(right.querySelectorAll('[data-usd-el="ev-skill-desc"]')).filter((d) => d.textContent.trim().length > 0);
+		return { n: ds.length, ws: ds.map((d) => getComputedStyle(d).whiteSpace), over: ds.filter((d) => d.scrollWidth > d.clientWidth + 1 || d.getBoundingClientRect().right > rr.right + 1).length,
+			multi: ds.filter((d) => d.getBoundingClientRect().height > parseFloat(getComputedStyle(d).lineHeight) * 1.5).length, swipe: panes.scrollWidth > panes.clientWidth + 1 };
+	});
+	await block('オススメサポ段13仕上げ 説明文: 「取得できるスキル」の説明文は小窓の幅で折り返して全文を出す（右端で切れない）／②から開いても①から開いても同じ（375px）', async () => {
+		const sp = await openSp({ roster: FULL });
+		await open(sp.page);
+		const ids = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-card-main"]')).map((b) => b.getAttribute('data-card-id')));
+		let all2 = { n: 0, over: 0, multi: 0, ws: [] };
+		for (const id of ids) {
+			await sp.page.click(M + '[data-usd-el="outside-card-main"][data-card-id="' + id + '"]');
+			await sp.page.waitForSelector('[data-usd-el="events-panes"]');
+			await sp.page.waitForTimeout(300);
+			const d = await descInfo(sp.page);
+			all2 = { n: all2.n + d.n, over: all2.over + d.over, multi: all2.multi + d.multi, ws: all2.ws.concat(d.ws) };
+			await sp.page.keyboard.press('Escape');
+			await sp.page.waitForTimeout(150);
+		}
+		assert(all2.n > 0 && all2.over === 0 && all2.multi > 0 && all2.ws.every((w) => w === 'normal'), 'オススメサポ段13仕上げ ②から開いた小窓（' + ids.length + '枚）: 説明文 ' + all2.n + '件がどれも小窓の幅に収まり、長いもの（' + all2.multi + '件）は折り返す', all2);
+		await sp.page.click(M + '[data-usd-act="outside-close"]');
+		await sp.page.evaluate(() => selectStepTab(0, { noSave: true }));
+		await sp.page.waitForTimeout(250);
+		const keys = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-act="events"]')).map((b) => b.getAttribute('data-member-key')));
+		let all1 = { n: 0, over: 0, multi: 0, ws: [] };
+		for (const k of keys) {
+			await sp.page.click('#deck-roster-panel [data-usd-act="events"][data-member-key="' + k + '"]');
+			await sp.page.waitForSelector('[data-usd-el="events-panes"]');
+			await sp.page.click('[data-usd-el="events-switch"]');
+			await sp.page.waitForTimeout(500);
+			const d = await descInfo(sp.page);
+			all1 = { n: all1.n + d.n, over: all1.over + d.over, multi: all1.multi + d.multi, ws: all1.ws.concat(d.ws) };
+			await sp.page.keyboard.press('Escape');
+			await sp.page.waitForTimeout(150);
+		}
+		assert(all1.n > 0 && all1.over === 0 && all1.ws.every((w) => w === 'normal'), 'オススメサポ段13仕上げ ①から開いた小窓（' + keys.length + '件）でも、説明文 ' + all1.n + '件が小窓の幅に収まる（折り返す ' + all1.multi + '件）', all1);
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13仕上げ コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('オススメサポ段13仕上げ 表記: 入口と小窓の見出しは「オススメサポαテスト」（375・320px で入口の列は1行・見出しの行は崩れない）／指定したカードのタイルは「解除」・オススメのカードは「外す」', async () => {
+		for (const w of [375, 320]) {
+			const sp = await openSp({ roster: FULL, w });
+			const e = await sp.page.evaluate(() => { const row = document.querySelector('#deck-template-panel .usd-entry-row'); const b = row.querySelector('[data-usd-el="outside-open"]'); const btns = Array.from(row.children);
+				return { text: b.textContent.trim(), tops: new Set(btns.map((x) => Math.round(x.getBoundingClientRect().top))).size, bh: Math.round(b.getBoundingClientRect().height), wrap: getComputedStyle(row).flexWrap, sw: document.documentElement.scrollWidth, iw: window.innerWidth }; });
+			await open(sp.page);
+			const m = await sp.page.evaluate(() => { const head = document.querySelector('[data-usd-el="outside-modal"] .usd-out-head'); const t = head.querySelector('[data-usd-el="outside-title"]'); const help = head.querySelector('[data-usd-el="outside-help"]'); const x = head.querySelector('[data-usd-el="outside-close"]');
+				const c = (el) => Math.round(el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2);
+				return { text: t.textContent, lines: Math.round(t.getBoundingClientRect().height / parseFloat(getComputedStyle(t).lineHeight)), mid: Math.abs(c(t) - c(x)) <= 3 && Math.abs(c(help) - c(x)) <= 3, headH: Math.round(head.getBoundingClientRect().height), label: document.querySelector('[data-usd-el="outside-modal"] .usd-out-panel').getAttribute('aria-label') }; });
+			const tag = 'オススメサポ段13仕上げ ' + w + 'px: ';
+			assert(e.text === 'オススメサポαテスト' && e.tops === 1 && e.wrap === 'nowrap' && e.bh <= 32 && e.sw <= e.iw, tag + '入口のボタンは「オススメサポαテスト」。入口の列は1行のまま（横に送る）', e);
+			assert(m.text === 'オススメサポαテスト' && m.lines === 1 && m.mid && m.label === 'オススメサポαテスト', tag + '小窓の見出しは「オススメサポαテスト」で1行。？と×と同じ行（見出しの行の高さ ' + m.headH + 'px）', m);
+			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+			await sp.ctx.close();
+		}
+		const sp = await openSp({ roster: Object.assign({}, FULL, { outsideOptions: { count: 5, pinned: ['card-0300'] } }) });
+		await open(sp.page);
+		const t = await sp.page.evaluate(() => ({ pinned: Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-unpin"]')).map((b) => b.textContent),
+			rec: Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-exclude"]')).map((b) => b.textContent) }));
+		assert(t.pinned.join() === '解除' && t.rec.length === 5 && t.rec.every((x) => x === '外す'), 'オススメサポ段13仕上げ 指定したカードのタイルは「解除」、オススメで選ばれたカードのタイルは「外す」のまま', t);
 		await sp.ctx.close();
 	});
 }
