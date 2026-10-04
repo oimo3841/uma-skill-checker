@@ -494,6 +494,79 @@ export async function register11(env) {
 	});
 
 	/* ====================================================================
+	 * (F) 追加（段4）
+	 * ==================================================================== */
+	await block('オススメサポ(F) 追加: チェックされた白スキルだけが②に入り（アイコンは付けない＝既存の追加と同じ）、小窓が閉じ、「元に戻す」で戻る／0件のとき押せない', async () => {
+		const probe = await openSp({ roster: FULL });
+		const base0 = await solveIn(probe.page, { count: 5, addedSkillIds: [] });
+		const whites = base0.skills.filter((s) => !s.viaGold).map((s) => s.skillId);
+		await probe.ctx.close();
+		const existing = whites.slice(0, 1);
+		const sp = await openSp({ roster: FULL, scope: { skillIds: existing, name: '', updatedAt: '', skillIcons: { [existing[0]]: 'a' } } });
+		await open(sp.page);
+		const s = await snap(sp.page);
+		const want = s.rows.filter((r) => !r.added).slice(0, 3).map((r) => r.id);
+		for (const r of s.rows) { if (!r.added && want.indexOf(r.id) === -1) await sp.page.click(M + '[data-usd-el="outside-row"][data-skill-id="' + r.id + '"] input'); }
+		const pre = parseFoot(await snap(sp.page));
+		await clearToast(sp.page);
+		await sp.page.click(M + '[data-usd-el="outside-add"]');
+		await sp.page.waitForTimeout(300);
+		const sc = await draftScope(sp.page);
+		assert(!(await modalOpen(sp.page)) && sc.skillIds.length === 1 + 3 && sc.skillIds[0] === existing[0] && JSON.stringify(sc.skillIds.slice(1)) === JSON.stringify(want),
+			'オススメサポ(F) チェックされた3種だけが②に（既存のスキルのあとへ）入り、小窓が閉じる', { skillIds: sc.skillIds, want, pre });
+		assert(await toastText(sp.page) === '3種を追加しました' && await toastShown(sp.page), 'オススメサポ(F) 3種の追加は「元に戻す」付きの知らせ（「3種を追加しました」）', await toastText(sp.page));
+		// アイコン: 既存のアイコンは保つ。足したものには付けない（既存の「テキストで検索」の追加と同じ）
+		const icons = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]')).map((p) => [p.getAttribute('data-skill-id'), ((p.querySelector('[data-usd-act="skill-icon"]') || {}).dataset || {}).icon || '']));
+		assert(sc.skillIcons[existing[0]] === 'a' && want.every((id) => !(id in (sc.skillIcons || {}))) && icons.length === 4 && icons[0][1] === 'a' && icons.slice(1).every((x) => x[1] === ''),
+			'オススメサポ(F) 足した3種にアイコンは付かず（破線の丸）、既存のスキルのアイコンはそのまま', { saved: sc.skillIcons, icons });
+		// 既存の追加（テキストで検索）と比べる: 別のスキルを足したときも、アイコンの扱いは同じ
+		const other = whites.find((id) => sc.skillIds.indexOf(id) === -1 && masterWhite.indexOf(id) !== -1);
+		const otherName = await sp.page.evaluate((id) => UmaSkillDeckCore.getSkillName(id), other);
+		await sp.page.click(T + '[data-usd-act="editor-pick-text"]');
+		await sp.page.fill('[data-usd-el="paste-input"]', otherName);
+		await sp.page.click('[data-usd-act="paste-run"]');
+		await sp.page.click('[data-usd-el="picker-commit"]');
+		await sp.page.waitForTimeout(250);
+		await sp.page.click('[data-usd-act="picker-close"]');
+		const sc2 = await draftScope(sp.page);
+		assert(sc2.skillIds.indexOf(other) === 4 && !(other in (sc2.skillIcons || {})) && sc2.skillIcons[existing[0]] === 'a',
+			'オススメサポ(F) 比較: 既存の「テキストで検索」から足したスキルも、アイコンは付かない（モーダルからの追加と同じ扱い）', { other, icons: sc2.skillIcons });
+		// 元に戻す: ②の最後の操作（テキストで検索の1件）は1種なので元に戻す対象ではない。モーダルの追加（3種）を戻す
+		const undoBefore = await sp.page.evaluate(() => UmaSkillDeckCore.undoCount());
+		await sp.page.click('#deck-undo-btn');
+		await sp.page.waitForTimeout(300);
+		const sc3 = await draftScope(sp.page);
+		assert(undoBefore >= 1 && sc3.skillIds.filter((id) => want.indexOf(id) !== -1).length === 0 && sc3.skillIds.indexOf(existing[0]) !== -1, 'オススメサポ(F) 「元に戻す」で、足した3種が②から消える（既存のスキルは残る）', { undoBefore, skillIds: sc3.skillIds });
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ(F) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+
+		// 1種だけの追加は既存の一括追加と同じく「元に戻す」の知らせを出さない（2種以上のときだけ）
+		const sp2 = await openSp({ roster: FULL });
+		await open(sp2.page);
+		const s2 = await snap(sp2.page);
+		for (const r of s2.rows) if (r.id !== s2.rows[0].id) await sp2.page.click(M + '[data-usd-el="outside-row"][data-skill-id="' + r.id + '"] input');
+		await clearToast(sp2.page);
+		const u0 = await sp2.page.evaluate(() => UmaSkillDeckCore.undoCount());
+		await sp2.page.click(M + '[data-usd-el="outside-add"]');
+		await sp2.page.waitForTimeout(250);
+		const sc4 = await draftScope(sp2.page);
+		assert(!(await modalOpen(sp2.page)) && sc4.skillIds.join() === s2.rows[0].id && await sp2.page.evaluate(() => UmaSkillDeckCore.undoCount()) === u0, 'オススメサポ(F) 1種だけの追加: ②に入り、小窓は閉じる。既存の一括追加と同じく「元に戻す」には積まない（2種以上のときだけ）', { skillIds: sc4.skillIds });
+		await sp2.ctx.close();
+
+		// 0件のとき押せない
+		const sp3 = await openSp({ roster: FULL });
+		await open(sp3.page);
+		const s3 = await snap(sp3.page);
+		assert(!s3.addDisabled && s3.addText === '追加', 'オススメサポ(F) チェックがあれば［追加］は押せる', s3.addText);
+		for (const r of s3.rows) await sp3.page.click(M + '[data-usd-el="outside-row"][data-skill-id="' + r.id + '"] input');
+		const dis = await sp3.page.evaluate(() => { const b = document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-add"]'); return { d: b.disabled, op: getComputedStyle(b).opacity }; });
+		await sp3.page.click(M + '[data-usd-el="outside-add"]', { force: true }).catch(() => {});
+		await sp3.page.waitForTimeout(200);
+		assert(dis.d && Number(dis.op) < 1 && (await modalOpen(sp3.page)) && (await draftScope(sp3.page)) === null, 'オススメサポ(F) チェックが0件のとき［追加］は薄くなって押せない（押しても何も起きず、②は変わらない）', dis);
+		await sp3.ctx.close();
+	});
+
+	/* ====================================================================
 	 * (G) 見た目: 帯のボタン・小窓の高さ・文言
 	 * ==================================================================== */
 	await block('オススメサポ(G) ②の帯の「オススメサポ」ボタン（高さ28px・「↺」の隣）: 320・375・414px で、はみ出さず・折り返さず・帯の高さが変わらない', async () => {

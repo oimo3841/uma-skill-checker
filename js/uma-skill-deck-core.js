@@ -9761,8 +9761,27 @@
 			q(el, 'outside-add').disabled = ids.length === 0;
 		}
 
-		/** 追加（段4 で実装する。段3 では押しても何もしない） */
-		function outsideAdd() {}
+		/** 追加（段4）。チェックされた白スキルを、既存の一括追加と同じ受け皿で②に足す（2種以上なら「元に戻す」付きの知らせ）。足したら小窓を閉じる */
+		function outsideAdd() {
+			const r = outsideUi.result;
+			if (!r || !r.ok) return;
+			const ids = r.skills.filter(s => !s.added && outsideUi.checked.has(s.skillId)).map(s => s.skillId);
+			if (ids.length === 0) return;
+			const sink = pickerSinkFor(currentTarget(), 'list');
+			const baseline = sink.probe();
+			const added = sink.add(ids) || [];
+			closeOutsideAdvisor();
+			if (added.length >= UNDO_MIN_BULK_ADD) {
+				pushUndo({
+					scope: sink.scope,
+					baseline: baseline,
+					doneLabel: added.length + '種を追加しました',
+					undoneLabel: '追加した' + added.length + '種を取り消しました',
+					probe: () => sink.probe(),
+					apply: () => sink.remove(added.slice())
+				});
+			}
+		}
 
 		/** 行の先頭のアイコンのボタン（押す範囲は 32px 以上）。アイコンの無いスキルは破線の丸（中は空） */
 		function iconButtonHtml(skillId, name, iconId) {
