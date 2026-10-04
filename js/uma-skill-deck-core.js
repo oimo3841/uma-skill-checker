@@ -2261,10 +2261,11 @@
 		return pickableAxes().filter(a => ROSTER_FILTER_AXIS_KEYS.indexOf(a.key) === -1);
 	}
 	/**
-	 * セットの「種類」「絞り込み」「枚数」の指定（④・段10。roster.outsideOptions）を、決めた形に読む（保存値は書き換えない・読み込み時に補わない）。
+	 * セットの「種類」「除外」「枚数」と残りの枠の指定（④・段10。段13 で「絞り込み」を「除外」に置き換え、pinned を足した。roster.outsideOptions）を、決めた形に読む（保存値は書き換えない・読み込み時に補わない）。
 	 *   count … 4・5・6（無い・知らない値は5）
 	 *   typeMin … { 種類の番号: 最低の枚数 }（1以上の整数だけ。友人は最大1。合計が枚数を超えていてもそのまま＝計算で満たせないと出る）
-	 *   filter … { 軸: [値…] }（「絞り込み」に出す軸の、選べる値だけ）
+	 *   exclude … { 軸: [値…] }（「除外」に出す軸の、選べる値だけ。保存値が無ければ初期値 OUTSIDE_EXCLUDE_DEFAULT）
+	 *   pinned … [カードID…]（残りの枠に指定したカード。outsidePinnedOf）
 	 */
 	function outsideOptionsOf(roster) {
 		const o = (roster && roster.outsideOptions && typeof roster.outsideOptions === 'object') ? roster.outsideOptions : {};
@@ -2276,15 +2277,43 @@
 				if (typeof n === 'number' && Number.isInteger(n) && n >= 1) typeMin[t] = t === OUTSIDE_FRIEND_TYPE ? Math.min(n, OUTSIDE_FRIEND_MAX) : Math.min(n, OUTSIDE_COUNT_CHOICES[OUTSIDE_COUNT_CHOICES.length - 1]);
 			});
 		}
-		const filter = {};
-		if (o.filter && typeof o.filter === 'object') {
-			outsideFilterAxes().forEach(axis => {
-				const vals = Array.isArray(o.filter[axis.key]) ? o.filter[axis.key] : [];
-				const ok = pickableOptions(axis).map(x => x.v).filter(v => vals.indexOf(v) !== -1);
-				if (ok.length > 0) filter[axis.key] = ok;
-			});
-		}
-		return { count: count, typeMin: typeMin, filter: filter, pinned: outsidePinnedOf(o.pinned, count) };
+		// 段13・C2: 「除外」（exclude）。保存値が無いセットは初期値（デバフ・持久力回復）で読む。保存値が {} なら「何も除外しない」。
+		// 段12 の「絞り込み」（filter）は push 前に置き換えたので読まない（消しもしない。ルール28）
+		const exclude = outsideExcludeOf(o.exclude && typeof o.exclude === 'object' && !Array.isArray(o.exclude) ? o.exclude : OUTSIDE_EXCLUDE_DEFAULT);
+		return { count: count, typeMin: typeMin, exclude: exclude, pinned: outsidePinnedOf(o.pinned, count) };
+	}
+	/**
+	 * 「除外」の初期値（段13・C2）。保存値が無いセットはこの値で読む（保存は触ったときだけ）。
+	 * 値はタグの語（効果タイプの debuff〔まとめた掛かり時間を含む〕と stamina〔持久力回復〕）。スキル名は書かない
+	 */
+	const OUTSIDE_EXCLUDE_DEFAULT = { effect: ['debuff', 'stamina'] };
+	/** { 軸: [値…] } を、「除外」に出す軸の選べる値だけ・選択肢の並びに揃えた形にする（空の軸は持たない） */
+	function outsideExcludeOf(src) {
+		const out = {};
+		outsideFilterAxes().forEach(axis => {
+			const vals = Array.isArray(src[axis.key]) ? src[axis.key] : [];
+			const ok = pickableOptions(axis).map(x => x.v).filter(v => vals.indexOf(v) !== -1);
+			if (ok.length > 0) out[axis.key] = ok;
+		});
+		return out;
+	}
+	/**
+	 * 「除外」でそのスキルを外すか（段13・C2）。**ある軸で、スキルが持つ値がすべて除外されているときだけ外す**
+	 * （例：効果タイプが「速度上昇」と「持久力回復」のスキルは、持久力回復を除外しても外さない）。その軸に値を持たないスキルは外さない。
+	 * どれか1つの軸で外れれば外す。まとめた値（掛かり時間→デバフ）は、まとめ先を除外すれば一緒に外れる（expandMergedValues）
+	 */
+	function outsideExcludesSkill(skill, exclude) {
+		const tags = (skill && skill.tags) || {};
+		return Object.keys(exclude || {}).some(k => {
+			const vals = exclude[k];
+			if (!Array.isArray(vals) || vals.length === 0) return false;
+			const axis = TAG_AXES.find(a => a.key === k);
+			if (!axis) return false;
+			const have = Array.isArray(tags[k]) ? tags[k] : [];
+			if (have.length === 0) return false;
+			const ex = expandMergedValues(axis, vals);
+			return have.every(v => ex.indexOf(v) !== -1);
+		});
 	}
 	/**
 	 * 残りの枠（6 − 枚数）に利用者が指定したカード（段13・C1。roster.outsideOptions.pinned）を、決めた形に読む（保存値は書き換えない）。
@@ -2591,16 +2620,16 @@
 		if (pool.length === 0) return { ok: false, reason: 'master' };
 		const r = (roster && typeof roster === 'object') ? roster : {};
 		const wanted = filterPredicateOf(r);
-		// ④・段12: 小窓の「絞り込み」（条件で検索と同じ軸・照合＝matchesFilters。この母集団にだけ効かせる）。引数 popOpts.filter が優先、無ければセットの指定
+		// 段13・C2: 小窓の「除外」（段12 の「絞り込み」を置き換えた。この母集団にだけ効かせる）。引数 popOpts.exclude が優先、無ければセットの指定（無ければ初期値）
 		const po = popOpts || {};
-		const ofilt = (po.filter && typeof po.filter === 'object') ? po.filter : outsideOptionsOf(r).filter;
-		const filtered = Object.keys(ofilt).some(k => Array.isArray(ofilt[k]) && ofilt[k].length > 0);
+		const oex = (po.exclude && typeof po.exclude === 'object') ? outsideExcludeOf(po.exclude) : outsideOptionsOf(r).exclude;
+		const excluding = Object.keys(oex).length > 0;
 		const vp = visiblePartOf(r, rosterSkillResultOf(r));
 		const taken = new Set(vp.takenIds), off = new Set(vp.offList);
 		const skipped = new Set(outsideSkillExcludedIdsOf(r));   // 小窓で除外したスキル（このパネルの計算だけ）
 		// ④・段9: レース条件に合わないスキルも外す（チェックリストにも「除外中」にも出さない。距離・バ場は wanted＝①の固定で効く）
 		const race = raceOfRoster(r);
-		const raceOut = [], filterOut = [];
+		const raceOut = [], excludeOut = [];
 		const ids = [];
 		const seen = new Set();
 		pool.forEach(s => {
@@ -2611,11 +2640,11 @@
 			if (wanted && !wanted(s.id)) return;
 			if (taken.has(s.id) || off.has(s.id) || skipped.has(s.id)) return;
 			if (race && raceRejectsSkill(findSkill(s.id), race)) { raceOut.push(s.id); return; }
-			if (filtered) { const sk = findSkill(s.id); if (sk && !matchesFilters(sk, ofilt, null)) { filterOut.push(s.id); return; } }
+			if (excluding && outsideExcludesSkill(findSkill(s.id), oex)) { excludeOut.push(s.id); return; }
 			ids.push(s.id);
 		});
 		return { ok: true, ids: ids, set: new Set(ids), takenIds: Array.from(taken), offIds: Array.from(off), skillExcludedIds: Array.from(skipped), raceExcludedIds: raceOut, race: race,
-			filterExcludedIds: filterOut, outsideFilter: ofilt, filtered: !!wanted };
+			optionExcludedIds: excludeOut, outsideExclude: oex, filtered: !!wanted };
 	}
 	/** 提案から除外したスキルID（roster.outsideSkillExcluded。小窓のチェックを外したスキル）のうち、収録データで引けるものだけ。保存値は書き換えない。この計算（母集団）にだけ効かせる */
 	function outsideSkillExcludedIdsOf(roster) {
@@ -2665,7 +2694,7 @@
 	function outsideBuild(args) {
 		const a = args || {};
 		const roster = (a.roster && typeof a.roster === 'object') ? a.roster : (rosterOutsideSink ? rosterOutsideSink.getRoster() : {});
-		const pop = outsidePopulationOf(roster, { filter: (a.filter && typeof a.filter === 'object') ? a.filter : null });
+		const pop = outsidePopulationOf(roster, { exclude: (a.exclude && typeof a.exclude === 'object') ? a.exclude : null });
 		if (!pop.ok) return { ok: false, reason: pop.reason };
 		if (!trainingMeta.loaded || !trainingSources.supportCard) return { ok: false, reason: 'cards' };
 		// 段13・C1: 残りの枠に指定したカード（pinnedCardIds）。そのカードで得られるスキルは「得られる」として扱い（探索の出発点の被覆）、
@@ -4397,7 +4426,13 @@
 		'  background: var(--uma-surface); color: var(--uma-text); cursor: pointer; white-space: nowrap; }',
 		'.usd-out-segbtn[aria-pressed="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
 		// 見出し行の3つのボタン（④・段10）と、選択欄の中のチップの並び。押せないチップは色だけで示す
-		'.usd-out-optbtn { display: inline-flex; align-items: center; gap: 2px; padding: 0 var(--uma-sp-2-5); }',
+		'.usd-out-optbtn { display: inline-flex; align-items: center; gap: 2px; padding: 0 var(--uma-sp-2-5); flex: none; }',
+		// 段13・C2: 「除外：デバフ・持久力回復 ▾」は、入りきらない分を「…」で切る（見出し行は 320px でも1行）。ほかの2つのボタンは縮めない
+		'.usd-out-cardsbar-title { flex: none; }',
+		'.usd-out-seg { min-width: 0; }',
+		'.usd-out-optbtn.usd-out-exbtn2 { flex: 0 1 auto; min-width: 0; }',
+		'.usd-out-optlabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+		'.usd-out-optcaret { flex: none; }',
 		'.usd-out-optcaret { font-size: 9px; }',
 		'.usd-out-segbtn:disabled { cursor: not-allowed; color: var(--uma-text-faint); background: var(--uma-surface-sunken); border-color: var(--uma-border); }',
 		'.usd-out-chiprow { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1-5); }',
@@ -8911,8 +8946,8 @@
 			return true;
 		};
 		/**
-		 * 「種類」「絞り込み」「枚数」の指定（④・段10。roster.outsideOptions）。patch に入れた項目だけを置き換える
-		 * （count: 4・5・6／typeMin: { 種類の番号: 枚数 }／filter: { 軸: [値…] }）。既定と同じ（5枚・空）なら、その項目を消し、全部消えたら項目ごと消す。
+		 * 「種類」「除外」「枚数」と残りの枠の指定（④・段10・段13。roster.outsideOptions）。patch に入れた項目だけを置き換える
+		 * （count: 4・5・6／typeMin: { 種類の番号: 枚数 }／exclude: { 軸: [値…] }／pinned: [カードID…]）。既定と同じ（5枚・空・除外は初期値）なら、その項目を消し、全部消えたら項目ごと消す。
 		 * 中身が変わらなければ書かない。①の表には効かないので、①は描き直さない。
 		 */
 		rosterOutsideSink.setOptions = function (patch) {
@@ -8927,11 +8962,10 @@
 				Object.keys(patch.typeMin || {}).forEach(k => { const n = patch.typeMin[k]; if (OUTSIDE_TYPE_ORDERS.indexOf(Number(k)) !== -1 && Number.isInteger(n) && n >= 1) t[String(Number(k))] = n; });
 				if (Object.keys(t).length === 0) delete next.typeMin; else next.typeMin = t;
 			}
-			if ('filter' in patch) {
-				const f = {};
-				Object.keys(patch.filter || {}).forEach(k => { const v = patch.filter[k]; if (Array.isArray(v) && v.length > 0) f[k] = v.filter(x => typeof x === 'string' && x); });
-				Object.keys(f).forEach(k => { if (f[k].length === 0) delete f[k]; });
-				if (Object.keys(f).length === 0) delete next.filter; else next.filter = f;
+			// 段13・C2: 「除外」。初期値（デバフ・持久力回復）と同じなら項目を消す（保存値が無い＝初期値）。何も除外しないときは {} を書く（初期値と区別する）
+			if ('exclude' in patch) {
+				const ex = outsideExcludeOf(patch.exclude && typeof patch.exclude === 'object' ? patch.exclude : {});
+				if (JSON.stringify(ex) === JSON.stringify(outsideExcludeOf(OUTSIDE_EXCLUDE_DEFAULT))) delete next.exclude; else next.exclude = ex;
 			}
 			// 段13・C1: 残りの枠に指定したカード（枠の順）。引けないID・重複は入れない。空なら項目を消す
 			if ('pinned' in patch) {
@@ -10345,7 +10379,7 @@
 		 * ②の帯の「↺」の隣のボタンから、小窓を開く。①の絞り込みに合う、②に追加できる白スキルを最も多く得られるサポートカードの組み合わせ
 		 * （5枚か6枚）と、そのカードで得られる白スキルの一覧を出し、チェックした白スキルを②に追加する。計算（outsideSolve）は純粋関数で、
 		 * ここは小窓の状態と描画だけ。**計算するのは、開いたとき・「外す」「戻す」・枚数の切り替えのときだけ**（チェックの付け外しでは再計算せず、フッターの数字だけを更新する）。
-		 * 保存するのは除外（①の roster.outsideCardExcluded・outsideSkillExcluded。段2・段5 の受け口経由）と、④（段10〜）の「種類」「絞り込み」「枚数」の指定
+		 * 保存するのは除外（①の roster.outsideCardExcluded・outsideSkillExcluded。段2・段5 の受け口経由）と、④（段10〜）の「種類」「除外」「枚数」と残りの枠の指定（段13）
 		 * （roster.outsideOptions。指定が無いセットは5枚から。変えたら自動で計算し直す）。チェックの状態は保存しない。
 		 * 追加は既存の一括追加と同じ受け皿（pickerSinkFor）。追加するスキルにアイコンは付けない（既存の追加の動きと同じ）。
 		 * ============================================================ */
@@ -10413,7 +10447,7 @@
 				}
 				else if (act === 'outside-count-open') openOutsideCountPopover(b);
 				else if (act === 'outside-types-open') openOutsideTypesPopover(b);
-				else if (act === 'outside-filter-open') openOutsideFilterPopover(b);
+				else if (act === 'outside-exclude-open') openOutsideExcludePopover(b);
 				else if (act === 'outside-exclude') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, true)) outsideRun(); }
 				else if (act === 'outside-restore') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, false)) outsideRun(); }
 				else if (act === 'outside-excl-toggle') { outsideUi.excludedOpen = !outsideUi.excludedOpen; renderOutside(); }
@@ -10675,42 +10709,41 @@
 				} });
 		}
 		/**
-		 * 「絞り込み ▾」の選択欄（④・段12）。②の「条件で検索」と同じ軸・選択肢・照合（pickableAxes・pickableOptions・axisRuleHint・matchesFilters）を使う
-		 * 小窓用の部品（条件で検索の画面部品・状態は使わない。id は付けない）。距離・脚質・バ場は①で決まるので出さない。目標のレースの距離の入力欄も出さない。
-		 * 軸ごとに1行（軸名＋チップ）。選択欄の中だけスクロール。上に「すべて解除」と「？」（軸内の読み方。開いたときだけ出す）。
-		 * 押すたびにセットの指定（roster.outsideOptions.filter）に書いて、自動で計算し直す（選択欄は開いたまま）。オススメサポの母集団にだけ効く。
+		 * 「除外」の選択欄（段13・C2。段12 の「絞り込み」を置き換えた）。軸と選択肢は条件で検索と同じ（pickableAxes・pickableOptions。距離・脚質・バ場は①で決まるので出さない）。
+		 * チップを押すと、その値を除外する／除外をやめる。外す規則は outsideExcludesSkill（ある軸で持つ値がすべて除外されているときだけ外す）。
+		 * 押すたびにセットの指定（roster.outsideOptions.exclude）に書いて、自動で計算し直す（選択欄は開いたまま）。オススメサポの母集団にだけ効く。
+		 * 上に「？」（除外の意味。開いたときだけ出す）と「すべて解除」。id は付けない（条件で検索の部品・状態は使わない）
 		 */
-		function openOutsideFilterPopover(btn) {
-			openPopover({ key: 'outside-filter', title: '絞り込み', btn: btn, opener: btn, refocus: '[data-usd-el="outside-filter-btn"]',
+		const OUTSIDE_EXCLUDE_HELP = '選んだ値しか持たないスキルを、オススメから外します。ほかの値も持つスキルは外しません。';
+		function openOutsideExcludePopover(btn) {
+			openPopover({ key: 'outside-exclude', title: '除外', btn: btn, opener: btn, refocus: '[data-usd-el="outside-exclude-btn"]',
 				build: (body) => {
 					const axes = outsideFilterAxes();
 					const top = infoEl('div', 'usd-out-filtertop');
 					const clear = infoEl('button', 'usd-out-card-btn', 'すべて解除');
 					clear.type = 'button';
-					clear.setAttribute('data-usd-el', 'outside-filter-clear');
+					clear.setAttribute('data-usd-el', 'outside-exclude-clear');
 					const help = infoEl('button', 'uma-help-btn', '?');
 					help.type = 'button';
-					help.setAttribute('data-usd-el', 'outside-filter-help');
+					help.setAttribute('data-usd-el', 'outside-exclude-help');
 					help.setAttribute('aria-expanded', 'false');
-					help.setAttribute('aria-label', '絞り込みの読み方');
-					help.title = '絞り込みの読み方';
+					help.setAttribute('aria-label', '除外の説明');
+					help.title = '除外の説明';
 					top.appendChild(help);
 					top.appendChild(clear);
 					body.appendChild(top);
-					// 「？」の中: 軸ごとの読み方（軸の印から決まる1文。条件で検索と同じ文）と、効く範囲
 					const hintBox = infoEl('div', 'usd-out-filterhelp');
-					hintBox.setAttribute('data-usd-el', 'outside-filter-helptext');
+					hintBox.setAttribute('data-usd-el', 'outside-exclude-helptext');
 					hintBox.hidden = true;
-					hintBox.appendChild(infoEl('p', '', '選ぶカードの計算にだけ効きます。軸どうしは「かつ」です。'));
-					axes.forEach(axis => hintBox.appendChild(infoEl('p', '', axis.label + '：' + axisRuleHint(axis))));
+					hintBox.appendChild(infoEl('p', '', OUTSIDE_EXCLUDE_HELP));
 					body.appendChild(hintBox);
 					help.addEventListener('click', () => { hintBox.hidden = !hintBox.hidden; help.setAttribute('aria-expanded', hintBox.hidden ? 'false' : 'true'); });
 					const list = infoEl('div', 'usd-out-filterlist');
-					list.setAttribute('data-usd-el', 'outside-filter-list');
+					list.setAttribute('data-usd-el', 'outside-exclude-list');
 					const chips = [];
 					axes.forEach(axis => {
 						const row = infoEl('div', 'usd-out-filterrow');
-						row.setAttribute('data-usd-el', 'outside-filter-axis');
+						row.setAttribute('data-usd-el', 'outside-exclude-axis');
 						row.setAttribute('data-axis', axis.key);
 						row.appendChild(infoEl('span', 'usd-out-filterlabel', axis.label));
 						const wrap = infoEl('div', 'usd-out-chiprow');
@@ -10719,19 +10752,19 @@
 						pickableOptions(axis).forEach(o => {
 							const b = infoEl('button', 'usd-out-segbtn usd-out-filterchip', o.t);
 							b.type = 'button';
-							b.setAttribute('data-usd-el', 'outside-filter-chip');
+							b.setAttribute('data-usd-el', 'outside-exclude-chip');
 							b.setAttribute('data-axis', axis.key);
 							b.setAttribute('data-value', o.v);
 							b.addEventListener('click', () => {
 								if (!rosterOutsideSink) return;
-								const cur = outsideOptionsOf(rosterOutsideSink.getRoster()).filter;
+								const cur = outsideOptionsOf(rosterOutsideSink.getRoster()).exclude;
 								const next = {};
 								Object.keys(cur).forEach(k => { next[k] = cur[k].slice(); });
 								const vals = next[axis.key] || [];
 								const i = vals.indexOf(o.v);
 								if (i === -1) vals.push(o.v); else vals.splice(i, 1);
-								if (vals.length === 0) delete next[axis.key]; else next[axis.key] = pickableOptions(axis).map(x => x.v).filter(v => vals.indexOf(v) !== -1);
-								if (rosterOutsideSink.setOptions({ filter: next })) { update(); outsideRun(); }
+								if (vals.length === 0) delete next[axis.key]; else next[axis.key] = vals;
+								if (rosterOutsideSink.setOptions({ exclude: next })) { update(); outsideRun(); }
 							});
 							wrap.appendChild(b);
 							chips.push(b);
@@ -10740,14 +10773,20 @@
 						list.appendChild(row);
 					});
 					body.appendChild(list);
-					clear.addEventListener('click', () => { if (rosterOutsideSink && rosterOutsideSink.setOptions({ filter: {} })) { update(); outsideRun(); } });
+					clear.addEventListener('click', () => { if (rosterOutsideSink && rosterOutsideSink.setOptions({ exclude: {} })) { update(); outsideRun(); } });
 					function update() {
-						const f = outsideOptionsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {}).filter;
-						chips.forEach(b => { const on = (f[b.getAttribute('data-axis')] || []).indexOf(b.getAttribute('data-value')) !== -1; b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
-						clear.disabled = Object.keys(f).length === 0;
+						const ex = outsideOptionsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {}).exclude;
+						chips.forEach(b => { const on = (ex[b.getAttribute('data-axis')] || []).indexOf(b.getAttribute('data-value')) !== -1; b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+						clear.disabled = Object.keys(ex).length === 0;
 					}
 					update();
 				} });
+		}
+		/** 除外している値の表示名（軸の並び・選択肢の並び）。見出し行のボタンの文字に使う */
+		function outsideExcludeLabels(ex) {
+			const out = [];
+			outsideFilterAxes().forEach(axis => { const vals = ex[axis.key] || []; pickableOptions(axis).forEach(o => { if (vals.indexOf(o.v) !== -1) out.push(o.t); }); });
+			return out;
 		}
 
 		/** 行の Pt の文言（そのスキルだけ。前段は含めない）。合計（フッター）は前段も含むので、前段をチェックしていないときは行の合計より大きくなる */
@@ -10767,15 +10806,19 @@
 			const excl = outsideExcludedIdsOf(roster);
 			const r = outsideUi.result;
 			const ok = !!(r && r.ok);
-			// 見出し行（④・段10）: 「カード」＋「種類 ▾」「絞り込み ▾」「5枚 ▾」。指定があるボタンは濃色で、数の印（「種類 2」＝指定の合計枚数・「絞り込み 1」＝選んだ軸の数）
+			// 見出し行（④・段10。段13・C2 で「絞り込み」を「除外」に置き換えて「種類」の左へ）: 「カード」＋「除外：…▾」「種類 ▾」「5枚 ▾」。
+			// 指定があるボタンは濃色。「種類 2」＝指定の合計枚数。「除外：デバフ・持久力回復」＝除外している値（入りきらない分は「…」）
 			const opt = outsideOptionsOf(roster);
-			const tSum = outsideTypeMinSum(opt.typeMin), fN = Object.keys(opt.filter).length;
+			const tSum = outsideTypeMinSum(opt.typeMin);
+			const exLabels = outsideExcludeLabels(opt.exclude);
 			const optBtn = (act, el, label, on) => '<button type="button" class="usd-out-segbtn usd-out-optbtn" data-usd-act="' + act + '" data-usd-el="' + el + '" aria-haspopup="dialog" aria-expanded="false" aria-pressed="' + (on ? 'true' : 'false') + '">'
 				+ esc(label) + '<span class="usd-out-optcaret" aria-hidden="true">▾</span></button>';
 			let h = '<div class="usd-out-cardsbar"><span class="usd-out-cardsbar-title">カード</span>'
 				+ '<span class="usd-out-seg" role="group" aria-label="指定">'
+				+ '<button type="button" class="usd-out-segbtn usd-out-optbtn usd-out-exbtn2" data-usd-act="outside-exclude-open" data-usd-el="outside-exclude-btn" aria-haspopup="dialog" aria-expanded="false" aria-pressed="' + (exLabels.length > 0 ? 'true' : 'false') + '"'
+					+ ' aria-label="' + esc('除外' + (exLabels.length > 0 ? '：' + exLabels.join('・') : 'なし')) + '" title="' + esc(exLabels.length > 0 ? '除外：' + exLabels.join('・') : '除外') + '">'
+					+ '<span class="usd-out-optlabel" data-usd-el="outside-exclude-label">' + esc('除外' + (exLabels.length > 0 ? '：' + exLabels.join('・') : '')) + '</span><span class="usd-out-optcaret" aria-hidden="true">▾</span></button>'
 				+ optBtn('outside-types-open', 'outside-types-btn', '種類' + (tSum > 0 ? ' ' + tSum : ''), tSum > 0)
-				+ optBtn('outside-filter-open', 'outside-filter-btn', '絞り込み' + (fN > 0 ? ' ' + fN : ''), fN > 0)
 				+ optBtn('outside-count-open', 'outside-count-btn', opt.count + '枚', false)
 				+ '</span></div>';
 			// 結果のカードが無いとき（指定を満たせない・候補が無い）は、カードの欄とチェックリストの高さを取らない（段13・A3。空白を出さない）
@@ -12169,11 +12212,11 @@
 			getRace: function () { return raceOfRoster(rosterOutsideSink ? rosterOutsideSink.getRoster() : null); },
 			setRace: function (row) { return rosterOutsideSink ? rosterOutsideSink.setRace(row) : false; },
 			raceOf: raceOfRoster, lockedFilterOf: function (r) { return raceLockedFilterOf(raceOfRoster(r)); }, resolvedFilterOf: resolvedFilterOf,
-			// ④（段10〜）: 「種類」「絞り込み」「枚数」の指定（roster.outsideOptions）。setOptions は項目ごとの置き換え（{ count } / { typeMin } / { filter }）
+			// ④（段10〜）・段13: 「種類」「除外」「枚数」と残りの枠の指定（roster.outsideOptions）。setOptions は項目ごとの置き換え（{ count } / { typeMin } / { exclude } / { pinned }）
 			optionsOf: outsideOptionsOf,
 			getOptions: function () { return outsideOptionsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null); },
 			setOptions: function (patch) { return rosterOutsideSink ? rosterOutsideSink.setOptions(patch) : false; },
-			filterAxes: function () { return outsideFilterAxes().map(a => a.key); },
+			filterAxes: function () { return outsideFilterAxes().map(a => a.key); }, EXCLUDE_DEFAULT: JSON.parse(JSON.stringify(OUTSIDE_EXCLUDE_DEFAULT)), excludesSkill: outsideExcludesSkill,
 			// ④（段11）: 種類の番号と表示名・友人の種類の番号
 			typeNames: function () { return Array.from(outsideTypeNames().entries()); }, FRIEND_TYPE: OUTSIDE_FRIEND_TYPE
 		},
