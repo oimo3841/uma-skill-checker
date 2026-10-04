@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-04e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-04f';
 
 	/* ============================================================
 	 * 定数
@@ -84,7 +84,10 @@
 		// スキルの公式の説明文（2026-10-02）。ページの読み込みでは取りに行かない（ⓘ・長押しを最初に開いたときだけ。段6）
 		'data/skill-descriptions.json': '2026-10-02a',
 		// シナリオの固定イベントで得られるスキルとヒントレベル（段7c・2026-10-03）。編成パネルを作るときにだけ読む（ほかのページの読み込みでは取りに行かない）
-		'data/scenario-event-skills.json': '2026-10-03c'
+		'data/scenario-event-skills.json': '2026-10-03c',
+		// これから開催されるレースの一覧（オススメサポ ④・段7・2026-10-04）。公式のお知らせの公開情報。loadUpcomingRaces() が読む。
+		// exam は読まないので EXAM_DATA_JSON_VERSIONS には載せない（同じファイルを両方の表に載せると test:verify §1 が落とす）
+		'data/upcoming-races.json': '2026-10-04a'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
@@ -679,6 +682,11 @@
 	 */
 	let raceDistances = null;
 	let raceDistancesMeta = { loaded: false, ok: false, version: '' };
+	/**
+	 * これから開催されるレースの一覧（`data/upcoming-races.json`。オススメサポ ④・段7・2026-10-04）。行の配列（並びはファイルのまま）。
+	 * **写しは持たない**（読めなければ null のまま＝「レース条件なし」で動く。セットが持っているレース条件は、保存した条件そのものなので影響しない）。
+	 */
+	let upcomingRaces = null;
 
 	// 呼び出し元ページから差し込む入出力（トースト・確認ダイアログ）。
 	// 既定値を持たせておくことで、設定し忘れても動作は壊れない。
@@ -706,7 +714,13 @@
 		if (global.lucide) global.lucide.createIcons();
 	}
 
+	/**
+	 * 知らせを出す直前に呼ぶもの（段7・2026-10-04）。オススメサポの小窓が開いている間だけ入る（知らせを小窓のフッターの上に出すための
+	 * 高さ --usd-toast-bottom を測り直す）。閉じているときは null（知らせの位置は呼び出し元のページの既定のまま）。
+	 */
+	let toastLiftFn = null;
 	function toast(msg) {
+		if (toastLiftFn) { try { toastLiftFn(); } catch (e) { /* 位置の測り直しの失敗で知らせを止めない */ } }
 		config.toast(msg);
 	}
 
@@ -1303,6 +1317,7 @@
 	async function loadMasterSkills(forceRefresh, masterJsonPath) {
 		await loadExtraCatalog(forceRefresh);
 		await loadRaceDistances(forceRefresh);
+		await loadUpcomingRaces(forceRefresh);
 		// **`?v=` を付ける**（71セッション目・段7。MASTER_JSON_VERSION の説明を読むこと）。
 		// forceRefresh のときは fetchMasterJson がさらに `&t=` を足してキャッシュを完全に避ける。
 		const url = withQuery(masterJsonPath || MASTER_JSON_PATH, 'v', MASTER_JSON_VERSION);
@@ -1359,6 +1374,61 @@
 			try { global.console.warn('[UmaSkillDeck] レースの距離の一覧を読み込めなかった（目標のレースの距離は使えない）'); } catch (e2) {}
 		}
 		return raceDistancesMeta;
+	}
+
+	/* ============================================================
+	 * これから開催されるレースの一覧（`data/upcoming-races.json`。オススメサポ ④・段7・2026-10-04）
+	 *
+	 * 公式のお知らせで公開された条件だけを持つ（公開されていない項目は null）。値の語はスキルのタグと同じ
+	 * （venue＝trackVenue、direction・season・weather・ground・time＝environment、surface＝バ場、distanceCategory＝距離）。
+	 * course（内／外）と time は表示だけに使う（その条件のスキルはゲームに無い）。rule は特殊ルール（no_debuff）。
+	 * セットに保存するのは、この行の写し（RACE_SNAPSHOT_KEYS）と元の id（段8）。一覧から消えても、セットは同じ条件で動き続ける。
+	 * ============================================================ */
+	const UPCOMING_RACES_PATH = 'data/upcoming-races.json';
+	const RACE_SNAPSHOT_KEYS = ['name', 'date', 'dateLabel', 'venue', 'surface', 'distance', 'distanceCategory', 'direction', 'course', 'season', 'weather', 'ground', 'time', 'rule'];
+	/**
+	 * レースの項目と、スキルの「レース環境」（environment）のタグの値の対応。値の語はタグと同じ（check:catalog が、値がタグの選択肢に実在し、
+	 * 項目に合った値であることを、この表を読んで見る）。**スキル名は書かない**（恒久ルール1。ここにあるのはタグの語だけ）。
+	 */
+	const RACE_ENV_FIELDS = {
+		direction: ['right_turn', 'left_turn'],
+		season: ['season_spring', 'season_summer', 'season_autumn', 'season_winter'],
+		weather: ['weather_sunny', 'weather_cloudy', 'weather_rain', 'weather_snow'],
+		ground: ['ground_good', 'ground_bad'],
+		time: ['time_day', 'time_evening', 'time_night']
+	};
+	/**
+	 * オススメサポの母集団に効かせる項目（段9）。**course（内／外）と time（昼）は表示だけ**（内回り・外回り・昼を条件にするスキルはゲームに無い。
+	 * おいもさん確認済み・2026-10-04）。小回り・直線コースは今回は扱わない（レースの一覧に持たせない）。
+	 */
+	const RACE_EFFECTIVE_ENV_FIELDS = ['direction', 'season', 'weather', 'ground'];
+	const RACE_COURSE_VALUES = ['inner', 'outer'];
+	/** 特殊ルール。no_debuff（デバフなし）は、効果タイプ（effect）が「デバフ」のスキル（まとめた値＝掛かり時間を含む）を母集団から外す（段9） */
+	const RACE_RULES = {
+		no_debuff: { axis: 'effect', value: 'debuff', label: 'デバフなし' }
+	};
+	/** レースの行（またはセットに保存した写し）を、決めた形に読む。id と name が無ければ null。知らない型の項目は「公開されていない」（null）と読む（保存値は書き換えない） */
+	function normalizeRaceRow(row) {
+		if (!row || typeof row !== 'object' || typeof row.id !== 'string' || !row.id || typeof row.name !== 'string' || !row.name) return null;
+		const out = { id: row.id };
+		RACE_SNAPSHOT_KEYS.forEach(k => {
+			const v = row[k];
+			if (k === 'distance') out[k] = (typeof v === 'number' && Number.isInteger(v) && v > 0) ? v : null;
+			else out[k] = (typeof v === 'string' && v) ? v : null;
+		});
+		return out;
+	}
+	async function loadUpcomingRaces(forceRefresh) {
+		try {
+			const data = await fetchMasterJson(withDataVersion(UPCOMING_RACES_PATH), !!forceRefresh);
+			const rows = (data && Array.isArray(data.races)) ? data.races.map(normalizeRaceRow).filter(Boolean) : null;
+			if (!rows) throw new Error('empty');
+			upcomingRaces = rows;
+		} catch (e) {
+			upcomingRaces = null;
+			try { global.console.warn('[UmaSkillDeck] レースの一覧を読み込めなかった（レース条件なしで動く）'); } catch (e2) {}
+		}
+		return upcomingRaces;
 	}
 
 	/** 距離 d の区分（`distanceCategories` の境目から決める）。無ければ null。 */
@@ -3948,10 +4018,13 @@
 		'.usd-out-card--typed { --usd-out-fill: var(--usd-card-bg); color: var(--usd-card-text); }',
 		'.usd-out-card--ssr { border-width: 3px; --usd-out-frame: linear-gradient(135deg, var(--usd-rarity-ssr-1), var(--usd-rarity-ssr-2), var(--usd-rarity-ssr-3), var(--usd-rarity-ssr-4), var(--usd-rarity-ssr-5)); }',
 		'.usd-out-card--sr { border-width: 2px; --usd-out-frame: linear-gradient(135deg, var(--usd-rarity-sr-1), var(--usd-rarity-sr-2), var(--usd-rarity-sr-1)); }',
-		// 入口のボタン「オススメサポ」: SSR の枠と同じ虹色の塗りに黒い文字（黒は --usd-rarity-ssr-text。虹の5色の上で 4.5 以上。ダークでは同じ名前を差し替える）
-		'.uma-btn.usd-outside-entry { background: linear-gradient(135deg, var(--usd-rarity-ssr-1), var(--usd-rarity-ssr-2), var(--usd-rarity-ssr-3), var(--usd-rarity-ssr-4), var(--usd-rarity-ssr-5)); color: var(--usd-rarity-ssr-text); border-color: transparent; box-shadow: var(--uma-shadow-1); }',
-		'.uma-btn.usd-outside-entry:hover:not(:disabled) { filter: brightness(1.06); }',
-		':root { --usd-rarity-ssr-text: #000000; --usd-rarity-ssr-1: #e5384f; --usd-rarity-ssr-2: #f08a1c; --usd-rarity-ssr-3: #7cb518; --usd-rarity-ssr-4: #1d8fe0; --usd-rarity-ssr-5: #8b5cf6; --usd-rarity-sr-1: #e3b23c; --usd-rarity-sr-2: #b8860b; }',
+		// 入口のボタン「オススメサポ」（段7・2026-10-04）: ①の表の固有スキルの行（.usd-roster-grow--unique）と同じ淡いグラデーション・同じ縁の色に、黒い文字。
+		// 変数（--usd-skill-unique-*）は①の行と同じもの（:root に置いた）。黒は --usd-rarity-ssr-text（淡い3色の上で 4.5 以上。ダークでは同じ名前を差し替える）
+		'.uma-btn.usd-outside-entry { background: linear-gradient(90deg, var(--usd-skill-unique-from), var(--usd-skill-unique-mid), var(--usd-skill-unique-to)); color: var(--usd-rarity-ssr-text); border-color: var(--usd-skill-unique-edge); box-shadow: var(--uma-shadow-1); }',
+		'.uma-btn.usd-outside-entry:hover:not(:disabled) { filter: brightness(0.97); }',
+		':root { --usd-rarity-ssr-text: #000000; --usd-rarity-ssr-1: #e5384f; --usd-rarity-ssr-2: #f08a1c; --usd-rarity-ssr-3: #7cb518; --usd-rarity-ssr-4: #1d8fe0; --usd-rarity-ssr-5: #8b5cf6; --usd-rarity-sr-1: #e3b23c; --usd-rarity-sr-2: #b8860b;',
+		// 固有スキルの行の色（段7e の (2)〜(6)）。①の表と、入口の「オススメサポ」のボタンが同じ変数を読むので :root に置く（段7・2026-10-04 に .usd-roster-grid から移した。値は変えていない）
+		'  --usd-skill-unique-from: #e3f6e6; --usd-skill-unique-mid: #dff1fb; --usd-skill-unique-to: #fbe3f1; --usd-skill-unique-edge: #f0a8d0; }',
 		// 名前の部分（押すとカードの情報）。二つ名は 11px で先に省略し、次に名前（14px）を省略する
 		'.usd-out-card-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 3px; height: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }',
 		'.usd-out-card-main:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
@@ -4738,8 +4811,8 @@
 		// 行の色分け（段7e の (2)〜(6)）。色は core の中のこの変数にまとめる（共有の tokens／common／shell は触らない）。
 		// 地の優先は 固有 > 金 > 回復（CSS の並び順で決める＝回復 → 金 → 固有）、文字の優先は 回復 > デバフ > パッシブ（JS が1つだけクラスを付ける）。
 		// 文字と地の組み合わせは、すべてコントラスト比 4.5 以上（検査が実際の色で見る）
-		'.usd-roster-grid { --usd-skill-heal-bg: #e6f3fd; --usd-skill-heal-text: #0b5fa5; --usd-skill-passive-text: #1b7a3a; --usd-skill-debuff-text: #b3261e; --usd-skill-pt-text: #546580;',
-		'  --usd-skill-unique-from: #e3f6e6; --usd-skill-unique-mid: #dff1fb; --usd-skill-unique-to: #fbe3f1; --usd-skill-unique-edge: #f0a8d0; }',
+		// 固有スキルの行の色（--usd-skill-unique-*）は、入口の「オススメサポ」のボタンも読むので :root に置いてある（段7・2026-10-04）
+		'.usd-roster-grid { --usd-skill-heal-bg: #e6f3fd; --usd-skill-heal-text: #0b5fa5; --usd-skill-passive-text: #1b7a3a; --usd-skill-debuff-text: #b3261e; --usd-skill-pt-text: #546580; }',
 		// 段8・C: 回復の行の淡い水色の地はやめた（地は白。名前の青だけで示す＝緑・デバフと同じ扱い）。--usd-skill-heal-bg は使っていない
 		'.usd-roster-grow--gold > .usd-roster-gc { background: var(--uma-stitch-soft); }',
 		'.usd-roster-grow--gold > .usd-roster-gc--uma { background: var(--uma-stitch-soft); }',
@@ -9719,14 +9792,29 @@
 			outsideUi.checked = new Set();
 			outsideUi.opener = btn || null;
 			el.hidden = false;
+			toastLiftFn = outsideSyncToastLift;
 			const closeBtn = q(el, 'outside-close');
 			if (closeBtn) focusNoScroll(closeBtn);
 			outsideRun();
 			if (outsideHasPendingEvents(roster)) toast(OUTSIDE_MSG_PENDING);
 		}
+		/**
+		 * 小窓が開いている間の知らせの位置（段7）。フッター（「得られるスキル」の行）の上端より上に出すよう、ページの知らせが読む
+		 * --usd-toast-bottom（画面の下端からの距離）を入れる。フッターが無いとき（候補なし）と、閉じたときは外す（ページの既定の位置に戻る）。
+		 */
+		function outsideSyncToastLift() {
+			const root = global.document.documentElement;
+			const el = outsideUi.el;
+			const foot = el && outsideUi.open && !el.hidden ? q(el, 'outside-foot') : null;
+			if (!foot || foot.hidden) { root.style.removeProperty('--usd-toast-bottom'); return; }
+			const top = foot.getBoundingClientRect().top;
+			root.style.setProperty('--usd-toast-bottom', Math.max(0, Math.round(global.innerHeight - top + 8)) + 'px');
+		}
 		function closeOutsideAdvisor() {
 			if (!outsideUi.el) return;
 			outsideUi.open = false;
+			toastLiftFn = null;
+			global.document.documentElement.style.removeProperty('--usd-toast-bottom');
 			outsideUi.token++;
 			closeSkillInfo();
 			outsideUi.el.hidden = true;
@@ -11148,6 +11236,9 @@
 		// 目標のレースの距離（C-97）。検査が判定の材料（レースの一覧・評価）を読むために公開する
 		evaluateTargetDistance: evaluateTargetDistance,
 		getRaceDistances: function () { return raceDistances; },
+		// これから開催されるレースの一覧（段7）。読めていなければ null
+		getUpcomingRaces: function () { return upcomingRaces ? upcomingRaces.map(r => Object.assign({}, r)) : null; },
+		loadUpcomingRaces: loadUpcomingRaces,
 		getRaceDistancesMeta: function () { return raceDistancesMeta; },
 		tagLabel: tagLabel,
 		tagLabels: tagLabels,

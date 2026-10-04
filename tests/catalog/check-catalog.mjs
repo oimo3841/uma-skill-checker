@@ -137,6 +137,13 @@ const RACE_TOP_KEYS = { need: ['dataVersion', 'category', 'distanceCategories', 
 const RACE_CATEGORY_KEYS = { need: ['key', 'name'], opt: ['minDistance', 'maxDistance'] };
 const RACE_ROW_KEYS = { need: ['distance', 'category', 'surfaces'], opt: [] };
 const RACE_CATEGORY_NAME = 'raceDistance';
+/* これから開催されるレースの一覧（data/upcoming-races.json。オススメサポ ④・段7・2026-10-04）。`entries` を持たない
+   （同じ名前のレースが複数あるので、スキルの名前の突き合わせに混ぜない）ので FILES には入れず、§12 で見る。
+   どの行もすべての項目を書く（公開されていない項目は null）。 */
+const UPCOMING_FILE = 'upcoming-races.json';
+const UPCOMING_TOP_KEYS = { need: ['dataVersion', 'category', 'races'], opt: ['note'] };
+const UPCOMING_ROW_KEYS = { need: ['id', 'name', 'date', 'dateLabel', 'venue', 'surface', 'distance', 'distanceCategory', 'direction', 'course', 'season', 'weather', 'ground', 'time', 'rule'], opt: [] };
+const UPCOMING_CATEGORY_NAME = 'upcomingRace';
 /* めろっぷ用の行の並び（data/melop-sheet-rows.json。C-101）。めろっぷ！【LTC】さんの因子管理シートの
    ★を貼る欄（H38:J599）の行の並び。`entries` を持たないので FILES には入れず、§9 で見る。
    行番号の範囲は貼り先の形そのものなので、ここに数字で持つ（シートの欄が変わったら、こことデータを一緒に直す）。 */
@@ -1007,6 +1014,77 @@ console.log('\n=== 9. めろっぷ用の行の並び（' + MELOP_FILE + '） ===
 		none(dupId, '同じ独自IDを2行が指していない');
 		console.log('     ' + rows.length + '行（独自IDあり ' + seenId.size + ' / なし ' + (rows.length - seenId.size)
 			+ '。いちばん上の段: 青 ' + bySlot('blue').length + '・赤 ' + bySlot('red').length + '・継承固有 ' + bySlot('unique').length + '）');
+	}
+}
+
+/* ──────────────────────── 12. これから開催されるレースの一覧 ──────────────────────── */
+
+console.log('\n=== 12. これから開催されるレースの一覧（' + UPCOMING_FILE + '） ===');
+/* オススメサポのレース条件（④・段7・2026-10-04）。公式のお知らせで公開された条件だけを持ち、公開されていない項目は null。
+   **値の語はスキルのタグと同じ** ―― ここに値を書かず、core.js の TAG_AXES の選択肢と、レースの項目とタグの値の対応（RACE_ENV_FIELDS）・
+   内外の値（RACE_COURSE_VALUES）・特殊ルール（RACE_RULES）を読んで突き合わせる。距離と区分・バ場は race-distances.json と突き合わせる。 */
+{
+	const abs = path.join(REPO_ROOT, DIR, UPCOMING_FILE);
+	const r = fs.existsSync(abs) ? readJsonFile(abs) : { ok: false, error: 'ファイルが無い' };
+	check(r.ok, UPCOMING_FILE + ' が読める', r.ok ? undefined : r.error);
+	const raceDoc = readJsonFile(path.join(REPO_ROOT, DIR, RACE_FILE));
+	if (r.ok && raceDoc.ok) {
+		const doc = r.data;
+		const unknown = [], missing = [], bad = [];
+		checkKeys(doc, UPCOMING_TOP_KEYS, UPCOMING_FILE, unknown, missing);
+		if (doc.category !== UPCOMING_CATEGORY_NAME) bad.push('category が ' + JSON.stringify(doc.category));
+		if (!DATA_VERSION_RE.test(String(doc.dataVersion))) bad.push('dataVersion が「YYYY-MM-DD＋英小文字1字」の形でない: ' + String(doc.dataVersion));
+		const rows = isArr(doc.races) ? doc.races : [];
+		if (!isArr(doc.races)) bad.push('races が配列でない');
+		// core.js から読む: タグの選択肢・レースの項目とタグの値の対応・内外の値・特殊ルール
+		const optsOf = (key) => new Set((readAxisOptions(coreSrc, key) || []).map((o) => o.v));
+		const envOpts = optsOf('environment'), venueOpts = optsOf('trackVenue'), surfOpts = optsOf('surface'), distOpts = optsOf('distance');
+		const envFields = (() => {
+			const m = /const RACE_ENV_FIELDS = \{([\s\S]*?)\n\t\};/.exec(coreSrc);
+			return m ? Object.fromEntries([...m[1].matchAll(/(\w+)\s*:\s*\[([^\]]*)\]/g)].map((x) => [x[1], [...x[2].matchAll(/'([^']+)'/g)].map((y) => y[1])])) : {};
+		})();
+		const courseVals = (() => { const m = /const RACE_COURSE_VALUES = \[([^\]]*)\]/.exec(coreSrc); return m ? [...m[1].matchAll(/'([^']+)'/g)].map((y) => y[1]) : []; })();
+		const ruleKeys = (() => { const m = /const RACE_RULES = \{([\s\S]*?)\n\t\};/.exec(coreSrc); return m ? [...m[1].matchAll(/^\s*(\w+)\s*:\s*\{/gm)].map((y) => y[1]) : []; })();
+		check(Object.keys(envFields).length > 0 && courseVals.length > 0 && ruleKeys.length > 0,
+			'core.js からレースの項目とタグの値の対応（' + Object.keys(envFields).join('・') + '）・内外の値・特殊ルール（' + ruleKeys.join('・') + '）を読めた');
+		const notTag = Object.keys(envFields).flatMap((f) => envFields[f].filter((v) => !envOpts.has(v)).map((v) => f + ': ' + v));
+		none(notTag, 'core.js の RACE_ENV_FIELDS の値が、レース環境の軸の選択肢に実在する');
+		const cats = raceDoc.data.distanceCategories || [];
+		const dists = raceDoc.data.distances || [];
+		const categoryOf = (d) => cats.find((c) => (c.minDistance === undefined || d >= c.minDistance) && (c.maxDistance === undefined || d <= c.maxDistance));
+		const seen = new Set();
+		rows.forEach((row, i) => {
+			const w = 'races[' + i + ']';
+			if (!checkKeys(row, UPCOMING_ROW_KEYS, w, unknown, missing)) return;
+			const nullOrStr = (k) => row[k] === null || isStr(row[k]);
+			if (!/^race-\d{4}$/.test(String(row.id))) bad.push(w + ': id は「race-」＋4桁');
+			else if (seen.has(row.id)) bad.push(w + ': id ' + row.id + ' が重複');
+			seen.add(row.id);
+			if (!isStr(row.name)) bad.push(w + ': name は空でない文字列');
+			['date', 'dateLabel', 'venue', 'surface', 'distanceCategory', 'course', 'rule'].concat(Object.keys(envFields)).forEach((k) => { if (!nullOrStr(k)) bad.push(w + ': ' + k + ' は空でない文字列か null'); });
+			if (row.date !== null && !(/^\d{4}-\d{2}-\d{2}$/.test(String(row.date)) && !isNaN(Date.parse(row.date)))) bad.push(w + ': date は YYYY-MM-DD か null');
+			if (row.date === null && row.dateLabel === null) bad.push(w + ': date と dateLabel のどちらかは要る（画面に日付を出すため）');
+			if (row.venue !== null && !venueOpts.has(row.venue)) bad.push(w + ': venue ' + row.venue + ' がレース場の選択肢に無い');
+			if (row.surface !== null && !surfOpts.has(row.surface)) bad.push(w + ': surface ' + row.surface + ' がバ場の選択肢に無い');
+			if (row.distanceCategory !== null && !distOpts.has(row.distanceCategory)) bad.push(w + ': distanceCategory ' + row.distanceCategory + ' が距離の選択肢に無い');
+			Object.keys(envFields).forEach((k) => { if (row[k] !== null && !envFields[k].includes(row[k])) bad.push(w + ': ' + k + ' ' + row[k] + ' がこの項目のタグの値（' + envFields[k].join('・') + '）に無い'); });
+			if (row.course !== null && !courseVals.includes(row.course)) bad.push(w + ': course は ' + courseVals.join('・') + ' か null');
+			if (row.rule !== null && !ruleKeys.includes(row.rule)) bad.push(w + ': rule ' + row.rule + ' が既知の特殊ルール（' + ruleKeys.join('・') + '）に無い');
+			if (row.distance !== null) {
+				if (!isInt(row.distance) || row.distance < 1) { bad.push(w + ': distance は1以上の整数か null'); return; }
+				const dr = dists.find((x) => x.distance === row.distance);
+				if (!dr) bad.push(w + ': 距離 ' + row.distance + ' のレースが ' + RACE_FILE + ' に無い');
+				else if (row.surface !== null && !(dr.surfaces || []).includes(row.surface)) bad.push(w + ': 距離 ' + row.distance + ' に ' + row.surface + ' のレースが無い');
+				const c = categoryOf(row.distance);
+				if (!c || c.key !== row.distanceCategory) bad.push(w + ': distanceCategory が ' + JSON.stringify(row.distanceCategory) + ' だが距離 ' + row.distance + ' の区分は ' + (c ? c.key : '(無し)'));
+			} else if (row.distanceCategory !== null && row.surface !== null && !dists.some((x) => x.category === row.distanceCategory && (x.surfaces || []).includes(row.surface))) {
+				bad.push(w + ': 区分 ' + row.distanceCategory + ' に ' + row.surface + ' のレースが無い');
+			}
+		});
+		none(unknown, UPCOMING_FILE + ' に知らないキーが無い');
+		none(missing, UPCOMING_FILE + ' の必須のキーが揃っている（公開されていない項目も null で書く）');
+		none(bad, UPCOMING_FILE + ' の値が決めた形（値がタグの選択肢に実在する／項目に合ったタグの値／距離と区分が合う／その距離・区分にそのバ場がある／特殊ルールが既知）');
+		console.log('     ' + rows.length + 'レース（特殊ルールあり ' + rows.filter((x) => x.rule !== null).length + '）');
 	}
 }
 

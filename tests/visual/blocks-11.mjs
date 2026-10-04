@@ -576,7 +576,7 @@ export async function register11(env) {
 	/* ====================================================================
 	 * (G) 見た目: 帯のボタン・小窓の高さ・文言
 	 * ==================================================================== */
-	await block('オススメサポ(G) 入口列の先頭に濃色のボタン／②の帯にボタンは無く、帯の高さはこの機能を足す前と同じ／入口列は横スクロールのままで、ほかの入口は変わらない（320・375・414px）', async () => {
+	await block('オススメサポ(G) 入口列の先頭にボタン／②の帯にボタンは無く、帯の高さはこの機能を足す前と同じ／入口列は横スクロールのままで、ほかの入口は変わらない（320・375・414px）', async () => {
 		const big = { skillIds: masterWhite.slice(0, 273), name: '', updatedAt: '', skillIcons: {} };   // 24,390Pt／273種（帯の数字が最も広くなる側）
 		// この機能を足す前（段2 まで）に実測した帯の高さ。ボタンを帯に置いていたとき（ボタンを隠した状態）も同じ値だった
 		const BAND_H = { '320:②が空': 71, '320:②が273種': 100, '375:②が空': 71, '375:②が273種': 71, '414:②が空': 71, '414:②が273種': 71 };
@@ -611,14 +611,17 @@ export async function register11(env) {
 		const picker = await sp.page.evaluate(() => { const t = document.querySelector('[data-usd-el="picker-title"]'); return { title: t ? t.textContent : null, vis: !!t && !!t.offsetParent }; });
 		assert(picker.vis && /条件で検索/.test(picker.title), 'オススメサポ(G) ほかの入口（条件で検索）の動きは変わらない（スキル選択の小窓が開く）', picker);
 		await sp.page.click('[data-usd-act="picker-close"]');
-		// 虹色の塗り（SSR の枠と同じ変数）に黒い文字。文字と、虹の5色・その間の色とのコントラスト比が 4.5 以上
+		// 段7（④・2026-10-04）: 虹色の塗りをやめ、①の表の固有スキルの行と同じ淡いグラデーション（同じ変数・同じ指定）に黒い文字。
+		// 文字と、グラデーションの3色・その間の色とのコントラスト比が 4.5 以上。縁の色も固有スキルの行と同じ変数
 		const rb = await sp.page.evaluate(() => {
 			const btn = document.querySelector('#deck-template-panel [data-usd-el="outside-open"]');
 			const probe = (css) => { const e = document.createElement('i'); e.style.cssText = css; document.body.appendChild(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return c; };
 			const cs = getComputedStyle(btn);
-			const stops = [1, 2, 3, 4, 5].map((i) => probe('background-color: var(--usd-rarity-ssr-' + i + ')'));
+			const stops = ['from', 'mid', 'to'].map((k) => probe('background-color: var(--usd-skill-unique-' + k + ')'));
+			const row = document.querySelector('#deck-roster-panel .usd-roster-grow--unique');
 			const icon = btn.querySelector('svg, i');
-			return { image: cs.backgroundImage, text: cs.color, stops: stops, textVar: probe('background-color: var(--usd-rarity-ssr-text)'), iconColor: icon ? getComputedStyle(icon).color : null, iconStroke: icon && icon.tagName.toLowerCase() === 'svg' ? getComputedStyle(icon).stroke : null };
+			return { image: cs.backgroundImage, rowImage: row ? getComputedStyle(row).backgroundImage : null, border: cs.borderTopColor, edge: probe('background-color: var(--usd-skill-unique-edge)'),
+				rainbow: probe('background-color: var(--usd-rarity-ssr-1)'), text: cs.color, stops: stops, textVar: probe('background-color: var(--usd-rarity-ssr-text)'), iconColor: icon ? getComputedStyle(icon).color : null };
 		});
 		const rgb = (c) => (/rgba?\((\d+), (\d+), (\d+)/.exec(c) || []).slice(1, 4).map(Number);
 		const lum = (c) => { const [r, g, b] = rgb(c).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
@@ -626,8 +629,10 @@ export async function register11(env) {
 		const mixes = [];
 		for (let i = 0; i < rb.stops.length - 1; i++) for (const t of [0.25, 0.5, 0.75]) { const x = rgb(rb.stops[i]), y = rgb(rb.stops[i + 1]); mixes.push('rgb(' + x.map((v, k) => Math.round(v + (y[k] - v) * t)).join(', ') + ')'); }
 		const min = Math.min.apply(null, rb.stops.concat(mixes).map((c) => ratio(rb.text, c)));
-		assert(rb.stops.every((c) => rb.image.indexOf(c) !== -1) && /gradient/.test(rb.image) && rb.text === rb.textVar && rgb(rb.text).every((v) => v <= 10) && min >= 4.5 && rb.iconColor === rb.text,
-			'オススメサポ(G) 入口のボタンは、SSR の枠と同じ虹色（--usd-rarity-ssr-*）の塗りに黒い文字・黒いアイコン。文字と虹の各色（間の色を含む）とのコントラスト比は最小 ' + min.toFixed(2) + '（4.5 以上）', { text: rb.text, min: min });
+		assert(rb.stops.every((c) => rb.image.indexOf(c) !== -1) && /gradient/.test(rb.image) && rb.rowImage !== null && rb.image === rb.rowImage && rb.image.indexOf(rb.rainbow) === -1
+			&& rb.border === rb.edge && rb.text === rb.textVar && rgb(rb.text).every((v) => v <= 10) && min >= 4.5 && (rb.iconColor === null || rb.iconColor === rb.text),
+			'オススメサポ(G) 段7: 入口のボタンは、①の固有スキルの行と同じ淡いグラデーション（--usd-skill-unique-*。指定が行と一字一句同じ・虹色は使わない）・縁も同じ色に黒い文字。文字と3色（間の色を含む）とのコントラスト比は最小 ' + min.toFixed(2) + '（4.5 以上）',
+			{ image: rb.image, rowImage: rb.rowImage, border: rb.border, edge: rb.edge, text: rb.text, min: min });
 		await sp.ctx.close();
 		// 1280px
 		const sp2 = await openSp({ w: 1280, h: 900, roster: FULL });

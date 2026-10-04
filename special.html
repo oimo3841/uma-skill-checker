@@ -31,7 +31,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-04e"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-04f"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<style>
@@ -239,9 +239,10 @@
 
 	<!-- トースト通知 -->
 	<!-- 右下は固定ナビ（FAB）が占めるので、トーストはその1段上に出す。
-	     位置はFABの寸法変数から計算するので、FABを大きくしても自動で追従する。 -->
+	     位置はFABの寸法変数から計算するので、FABを大きくしても自動で追従する。
+	     オススメサポの小窓が開いている間は、core が --usd-toast-bottom を入れて小窓のフッターの上に出す（段7・2026-10-04）。 -->
 	<div id="toast" class="fixed z-50 transform translate-y-16 opacity-0 pointer-events-none flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 text-sm font-medium"
-		style="bottom: calc(var(--uma-fab-edge) + var(--uma-fab-size) + var(--uma-sp-4) + env(safe-area-inset-bottom, 0px)); right: max(1.25rem, calc(50% - 512px));">
+		style="bottom: var(--usd-toast-bottom, calc(var(--uma-fab-edge) + var(--uma-fab-size) + var(--uma-sp-4) + env(safe-area-inset-bottom, 0px))); right: max(1.25rem, calc(50% - 512px));">
 		<i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
 		<span id="toast-message">コピーしました</span>
 	</div>

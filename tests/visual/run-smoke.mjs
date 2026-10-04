@@ -26,6 +26,7 @@ import { register8 } from './blocks-8.mjs';
 import { register9 } from './blocks-9.mjs';
 import { register10 } from './blocks-10.mjs';
 import { register11 } from './blocks-11.mjs';
+import { register12 } from './blocks-12.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -14116,6 +14117,7 @@ await register8({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, U
 await register9({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register10({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register11({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register12({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();
