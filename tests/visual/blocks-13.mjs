@@ -661,4 +661,80 @@ export async function register13(env) {
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13C2 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
+	/* ====================================================================
+	 * C3〜C5: ②の一覧の2列・カード名の小窓の最初のタブ・金スキルの帯
+	 * ==================================================================== */
+	await block('オススメサポ段13C3 ②のスキルの一覧: 375px・414px は2列（段9 の1列を置き換え）・320px は1列／横にはみ出さない', async () => {
+		const ids = master.filter((s) => whiteSet.has(s.id)).slice(0, 12).map((s) => s.id);
+		for (const [w, cols] of [[320, 1], [375, 2], [414, 2]]) {
+			const sp = await openSp({ roster: FULL, w, storage: { 'umaSkillDeck:draftScope:special': JSON.stringify({ skillIds: ids, name: '', updatedAt: 'x' }) } });
+			const r = await sp.page.evaluate(() => {
+				const panels = Array.from(document.querySelectorAll('#deck-template-panel .usd-skillgroup .usd-panels .usd-panel'));
+				const lefts = new Set(panels.map((p) => Math.round(p.getBoundingClientRect().left)));
+				const rows = new Set(panels.map((p) => Math.round(p.getBoundingClientRect().top)));
+				const names = panels.map((p) => p.querySelector('.usd-panel-namebtn')).filter(Boolean);
+				return { n: panels.length, cols: lefts.size, rows: rows.size, w: panels.length ? Math.round(panels[0].getBoundingClientRect().width) : 0, cut: names.filter((x) => x.scrollWidth > x.clientWidth + 1).length, sw: document.documentElement.scrollWidth, iw: window.innerWidth };
+			});
+			assert(r.n === ids.length && r.cols === cols && r.rows === Math.ceil(r.n / cols) && r.sw <= r.iw, 'オススメサポ段13C3 ' + w + 'px: ' + cols + '列（' + r.n + '件・' + r.rows + '行・1件の幅 ' + r.w + 'px・名前が「…」で切れる件 ' + r.cut + '）', r);
+			assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13C3 ' + w + 'px: コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+			await sp.ctx.close();
+		}
+	});
+
+	/** 開いている「イベント」「取得できるスキル」の小窓の様子 */
+	const evPop = (page) => page.evaluate(() => {
+		const panes = document.querySelector('[data-usd-el="events-panes"]');
+		if (!panes) return null;
+		const sw = document.querySelector('[data-usd-el="events-switch"]');
+		const pr = panes.getBoundingClientRect();
+		const right = panes.querySelector('[data-usd-el="events-pane-skills"]').getBoundingClientRect();
+		const probe = (css) => { const e = document.createElement('i'); e.style.cssText = css; document.body.appendChild(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return c; };
+		const rows = Array.from(panes.querySelectorAll('[data-usd-el="ev-skill"]'));
+		return { swipe: panes.scrollWidth > panes.clientWidth + 1, skillsShown: Math.abs(right.left - pr.left) < 2, switchText: sw ? sw.textContent : null,
+			gold: rows.filter((li) => li.getAttribute('data-usd-gold') === '1').map((li) => ({ id: li.getAttribute('data-skill-id'), bg: getComputedStyle(li).backgroundColor })),
+			plainBg: rows.filter((li) => li.getAttribute('data-usd-gold') !== '1').map((li) => getComputedStyle(li).backgroundColor), goldVar: probe('background-color: var(--uma-stitch-soft)'), n: rows.length };
+	});
+	const rarity = new Map(ptReal.entries.map((e) => [e.skillId, e.rarity]));
+
+	await block('オススメサポ段13C4・C5 カード名の小窓: ②（オススメサポ）から開くと「取得できるスキル」から・①から開くと今のまま「イベント」から（375px）／金スキルの行に金色の帯（①の表の金の行と同じ変数）・①②とも', async () => {
+		const sp = await openSp({ roster: FULL });
+		await open(sp.page);
+		// ②（オススメサポ）: 金スキルを得るカードを探して開く
+		const cards = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-card-main"]')).map((b) => b.getAttribute('data-card-id')));
+		let a = null;
+		for (const id of cards) {
+			await sp.page.click(M + '[data-usd-el="outside-card-main"][data-card-id="' + id + '"]');
+			await sp.page.waitForSelector('[data-usd-el="events-panes"]');
+			await sp.page.waitForTimeout(150);
+			a = await evPop(sp.page);
+			if (a.gold.length > 0) break;
+			await sp.page.keyboard.press('Escape');
+			await sp.page.waitForTimeout(150);
+		}
+		assert(a && a.swipe && a.skillsShown && a.switchText === '‹ イベント', 'オススメサポ段13C4 ②から開くと、最初に「取得できるスキル」が見えている（切り替えのボタンは「‹ イベント」）', a && { swipe: a.swipe, shown: a.skillsShown, sw: a.switchText });
+		assert(a && a.gold.length > 0 && a.gold.every((g) => rarity.get(g.id) === 'gold' && g.bg === a.goldVar) && a.plainBg.every((bg) => bg !== a.goldVar) && a.n > a.gold.length,
+			'オススメサポ段13C5 ②から開いた小窓: 金スキルの行（' + (a ? a.gold.length : 0) + '件）だけ金色の帯（--uma-stitch-soft）。ほかの行は帯なし', a && { gold: a.gold, goldVar: a.goldVar });
+		await sp.page.keyboard.press('Escape');
+		await sp.page.click(M + '[data-usd-act="outside-close"]');
+		// ①: 列見出しの番号（イベントを選ぶ）から開く
+		await sp.page.evaluate(() => selectStepTab(0, { noSave: true }));
+		await sp.page.waitForTimeout(250);
+		const keys = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-act="events"]')).map((b) => b.getAttribute('data-member-key')));
+		let b = null, anyGold = null;
+		for (const k of keys) {
+			await sp.page.click('#deck-roster-panel [data-usd-act="events"][data-member-key="' + k + '"]');
+			await sp.page.waitForSelector('[data-usd-el="events-panes"]');
+			await sp.page.waitForTimeout(150);
+			const x = await evPop(sp.page);
+			if (!b) b = x;
+			if (x.gold.length > 0) { anyGold = x; break; }
+			await sp.page.keyboard.press('Escape');
+			await sp.page.waitForTimeout(150);
+		}
+		assert(b && b.swipe && !b.skillsShown && b.switchText === 'スキル ›', 'オススメサポ段13C4 ①から開くと、今のまま「イベント」から（切り替えのボタンは「スキル ›」）', b && { shown: b.skillsShown, sw: b.switchText });
+		if (anyGold) assert(anyGold.gold.every((g) => rarity.get(g.id) === 'gold' && g.bg === anyGold.goldVar), 'オススメサポ段13C5 ①から開いた小窓でも、金スキルの行に同じ金色の帯', anyGold.gold);
+		else console.log('     [記録] ①の小窓（この編成）に金スキルを得るカードが無いので、①側の帯は ②と同じ部品（eventSkillRowEl）であることだけで確かめた');
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13C4・C5 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
 }

@@ -5356,6 +5356,8 @@
 		'.usd-ev-skilllist { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }',
 		'.usd-ev-skill { display: flex; flex-direction: column; gap: 1px; min-width: 0; padding: var(--uma-sp-1-5) 0; border-top: 1px solid var(--uma-border); }',
 		'.usd-ev-skill:first-child { border-top: 0; }',
+		// 段13・C5: 金スキルの行の金色の帯（①の表の金の行と同じ --uma-stitch-soft）
+		'.usd-ev-skill--gold { background: var(--uma-stitch-soft); padding-inline: var(--uma-sp-1-5); border-radius: var(--uma-r-sm); }',
 		'.usd-ev-skill-name { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); }',
 		'.usd-ev-skill-pt { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
 		'.usd-ev-skill-desc { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text); white-space: nowrap; overflow-x: auto; overflow-y: hidden;',
@@ -5462,7 +5464,9 @@
 		'  font-size: 11px; line-height: 1; font-weight: 700; color: var(--usd-icon-fg, #fff); background: var(--uma-text-faint); }',
 		'.usd-icon--none { background: transparent; border: 1.5px dashed var(--uma-dash, #b9c2d0); }',
 		'.usd-skillgroup .usd-panels { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }',
-		'@media (max-width: 520px) { .usd-skillgroup .usd-panels { grid-template-columns: minmax(0, 1fr); } }',
+		// 段13・C3: 375px も2列（段9・C-121 の「520px 以下は1列」を置き換えた）。360px 未満（320px）は名前が2〜3文字しか入らないので1列のまま
+		'@media (max-width: 520px) { .usd-skillgroup .usd-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
+		'@media (max-width: 359px) { .usd-skillgroup .usd-panels { grid-template-columns: minmax(0, 1fr); } }',
 		'@media (min-width: 521px) and (max-width: 900px) { .usd-skillgroup .usd-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
 		'.usd-skillgroup .usd-panel { gap: 2px; padding: 0 6px 0 0; min-height: 36px; }',
 		'.usd-panel-iconbtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: var(--uma-r-sm); }',
@@ -7587,8 +7591,12 @@
 	}
 	/** 取得できるスキルの1件（3行：スキル名／基礎Pt／公式の説明文）。絞り込みで外れるものは灰色、未選択のイベントしだいのものは薄く「未選択」の印 */
 	function eventSkillRowEl(it, maybe, dim, tag) {
-		const li = infoEl('li', 'usd-ev-skill' + (maybe ? ' usd-ev-skill--maybe' : '') + (dim ? ' usd-ev-skill--dim' : ''));
+		// 段13・C5: 金スキルの行は金色の帯（①の表の金の行と同じ地）
+		const ptRow = skillPtData.skillPt instanceof Map ? skillPtData.skillPt.get(it.skillId) : null;
+		const gold = !!ptRow && ptRow.rarity === 'gold';
+		const li = infoEl('li', 'usd-ev-skill' + (maybe ? ' usd-ev-skill--maybe' : '') + (dim ? ' usd-ev-skill--dim' : '') + (gold ? ' usd-ev-skill--gold' : ''));
 		li.setAttribute('data-usd-el', 'ev-skill');
+		if (gold) li.setAttribute('data-usd-gold', '1');
 		li.setAttribute('data-skill-id', it.skillId);
 		if (maybe) li.setAttribute('data-usd-maybe', '1');
 		if (dim) li.setAttribute('data-usd-dim', '1');
@@ -10599,11 +10607,16 @@
 			const res = computeRosterSkills({ cardIds: [cardId] }, { eventChoices: eventChoices, autoChoose: true, isWanted: wanted });
 			const m = res.members.find(x => x.kind === 'card' && x.label);
 			const targets = new Set(c ? c.skillIds.concat(c.goldIds) : []);
-			let pane = 0;
+			// 段13・C4: 最初に見せるのは「取得できるスキル」（狭い幅のタブ。広い幅は2つとも見えている）
+			let pane = 1;
 			openPopover({ key: 'outside-card:' + cardId, title: label, wide: true,
 				build: (body) => { if (!m) { body.appendChild(infoEl('p', 'usd-info-desc--pending', 'カードの情報を読み込めませんでした')); return; }
 					buildEventsInfo(body, res, m.key, { wanted: wanted, interactive: false, showUnselected: false, getPane: () => pane, setPane: (n) => { pane = n; }, tagOf: (id) => targets.has(id) ? '対象' : null }); },
 				btn: btn, opener: btn, refocus: '[data-usd-el="outside-card-main"][data-card-id="' + cid + '"]' });
+			// 狭い幅（2つのペインを横に並べてスワイプ）では、2つ目のペインへ送っておく
+			const panes = skillInfoUi && skillInfoUi.body ? skillInfoUi.body.querySelector('[data-usd-el="events-panes"]') : null;
+			// 幅に端数があると clientWidth（整数）ぶん送っても1つ目のペインの端が細く残るので、いちばん右まで送る
+			if (panes && panes.scrollWidth > panes.clientWidth + 1) { panes.scrollLeft = panes.scrollWidth; scanEntryRows(); }
 		}
 
 		/**

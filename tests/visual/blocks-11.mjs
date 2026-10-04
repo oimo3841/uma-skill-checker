@@ -784,8 +784,8 @@ export async function register11(env) {
 		});
 		assert(info.shown && info.onTop && info.modalOpen && Number(info.zPop) > Number(info.zModal) && /\[とても長い二つ名がここに入りますよ\]タマ/.test(info.text) && !info.badge,
 			'オススメサポ(H) 名前を押すと、小窓の上に、カード名（二つ名＋名前）の見出しの小窓が出る。番号の札は無い（重なり順は小窓のほうが上）', { text: info.text.slice(0, 60), badge: info.badge, zPop: info.zPop });
-		assert(info.panes && info.left && info.right && info.skillsTitle === '取得できるスキル' && info.sw === 'スキル ›' && info.rows.length === 10 && info.rows.every((r) => r.pt && r.desc),
-			'オススメサポ(H) ①のカード枠の小窓と同じ作り（イベントの欄・「取得できるスキル」の欄・「スキル ›」の切り替え。各スキルに基礎Ptと説明文）', { sw: info.sw, rows: info.rows.length });
+		assert(info.panes && info.left && info.right && info.skillsTitle === '取得できるスキル' && info.sw === '‹ イベント' && info.rows.length === 10 && info.rows.every((r) => r.pt && r.desc),
+			'オススメサポ(H) ①のカード枠の小窓と同じ作り（イベントの欄・「取得できるスキル」の欄・切り替え。段13・C4 で②から開いたときは「取得できるスキル」から＝「‹ イベント」。各スキルに基礎Ptと説明文）', { sw: info.sw, rows: info.rows.length });
 		assert(info.ro === info.choices && info.choices > 0 || info.choices === 0, 'オススメサポ(H) イベントの選択肢は表示だけ（押しても何も変わらない）', { ro: info.ro, choices: info.choices });
 		const A = syn.cands.find((c) => c.id === 'syn-A').skills;
 		assert(info.rows.every((r) => r.tag === '対象') && info.rows.map((r) => r.id).sort().join() === A.slice().sort().join(), 'オススメサポ(H) このカードで得られて、計算で数えたスキル（A の10種）の行すべてに札「対象」', info.rows.map((r) => [r.id, r.tag]));
