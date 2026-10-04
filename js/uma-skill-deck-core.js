@@ -2535,18 +2535,22 @@
 	 * ①の絞り込みに合い、①の●（OFFでないもの）と、①でOFFにしたスキルを除いたもの。**すでに②にあるスキルは入れたまま。金スキルは入れない。**
 	 * roster は①の編成（無ければ {}＝絞り込みなし・●なし）。元データ（スキルPt）が読めていなければ { ok:false }。
 	 */
-	function outsidePopulationOf(roster) {
+	function outsidePopulationOf(roster, popOpts) {
 		if (skillPtDataStatus() !== 'ok' || !(skillPtData.skillPt instanceof Map)) return { ok: false, reason: 'skillPt' };
 		const pool = taggedSkillPool();
 		if (pool.length === 0) return { ok: false, reason: 'master' };
 		const r = (roster && typeof roster === 'object') ? roster : {};
 		const wanted = filterPredicateOf(r);
+		// ④・段12: 小窓の「絞り込み」（条件で検索と同じ軸・照合＝matchesFilters。この母集団にだけ効かせる）。引数 popOpts.filter が優先、無ければセットの指定
+		const po = popOpts || {};
+		const ofilt = (po.filter && typeof po.filter === 'object') ? po.filter : outsideOptionsOf(r).filter;
+		const filtered = Object.keys(ofilt).some(k => Array.isArray(ofilt[k]) && ofilt[k].length > 0);
 		const vp = visiblePartOf(r, rosterSkillResultOf(r));
 		const taken = new Set(vp.takenIds), off = new Set(vp.offList);
 		const skipped = new Set(outsideSkillExcludedIdsOf(r));   // 小窓で除外したスキル（このパネルの計算だけ）
 		// ④・段9: レース条件に合わないスキルも外す（チェックリストにも「除外中」にも出さない。距離・バ場は wanted＝①の固定で効く）
 		const race = raceOfRoster(r);
-		const raceOut = [];
+		const raceOut = [], filterOut = [];
 		const ids = [];
 		const seen = new Set();
 		pool.forEach(s => {
@@ -2557,9 +2561,11 @@
 			if (wanted && !wanted(s.id)) return;
 			if (taken.has(s.id) || off.has(s.id) || skipped.has(s.id)) return;
 			if (race && raceRejectsSkill(findSkill(s.id), race)) { raceOut.push(s.id); return; }
+			if (filtered) { const sk = findSkill(s.id); if (sk && !matchesFilters(sk, ofilt, null)) { filterOut.push(s.id); return; } }
 			ids.push(s.id);
 		});
-		return { ok: true, ids: ids, set: new Set(ids), takenIds: Array.from(taken), offIds: Array.from(off), skillExcludedIds: Array.from(skipped), raceExcludedIds: raceOut, race: race, filtered: !!wanted };
+		return { ok: true, ids: ids, set: new Set(ids), takenIds: Array.from(taken), offIds: Array.from(off), skillExcludedIds: Array.from(skipped), raceExcludedIds: raceOut, race: race,
+			filterExcludedIds: filterOut, outsideFilter: ofilt, filtered: !!wanted };
 	}
 	/** 提案から除外したスキルID（roster.outsideSkillExcluded。小窓のチェックを外したスキル）のうち、収録データで引けるものだけ。保存値は書き換えない。この計算（母集団）にだけ効かせる */
 	function outsideSkillExcludedIdsOf(roster) {
@@ -2609,7 +2615,7 @@
 	function outsideBuild(args) {
 		const a = args || {};
 		const roster = (a.roster && typeof a.roster === 'object') ? a.roster : (rosterOutsideSink ? rosterOutsideSink.getRoster() : {});
-		const pop = outsidePopulationOf(roster);
+		const pop = outsidePopulationOf(roster, { filter: (a.filter && typeof a.filter === 'object') ? a.filter : null });
 		if (!pop.ok) return { ok: false, reason: pop.reason };
 		if (!trainingMeta.loaded || !trainingSources.supportCard) return { ok: false, reason: 'cards' };
 		const cands = outsideCandidatesOf(roster, a.excludedCardIds);
@@ -2847,7 +2853,8 @@
 	}
 
 	/**
-	 * 組み合わせを探す。args: { roster, addedSkillIds, count（4・5・6。無ければセットの指定＝roster.outsideOptions、それも無ければ5）, excludedCardIds, deadlineMs（既定1500）, sliceMs（既定8）}
+	 * 組み合わせを探す。args: { roster, addedSkillIds, count（4・5・6）, typeMin（{ 種類: 枚数 }）, filter（{ 軸: [値…] }）, excludedCardIds, deadlineMs（既定1500）, sliceMs（既定8）}
+	 * count・typeMin・filter は、無ければセットの指定（roster.outsideOptions。それも無ければ5枚・指定なし）。
 	 * 非同期版 outsideSolve は区切りごとに画面へ譲り、締め切りに達したら、そのときの最良に partial:true を付けて返す。
 	 * 結果の形は outsideAssemble を参照。元データが読めていないときは { ok:false, reason }。
 	 */
@@ -4316,6 +4323,15 @@
 		'.usd-out-typenum { flex: none; min-width: 2em; text-align: center; font-size: var(--uma-fs-sm); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--uma-text-heading); }',
 		'.usd-out-typesum { margin: var(--uma-sp-2) 0 0; text-align: right; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
 		'.usd-out-infeasible span { display: block; }',
+		// 「絞り込み ▾」の選択欄（④・段12）: 上に「？」と「すべて解除」、軸ごとに1行（軸名＋チップ）。中だけスクロール（共有の小窓の本文）
+		'.usd-out-filtertop { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); margin-bottom: var(--uma-sp-2); }',
+		'.usd-out-filtertop .usd-out-card-btn:disabled { cursor: not-allowed; color: var(--uma-text-faint); }',
+		'.usd-out-filterhelp { margin-bottom: var(--uma-sp-2); padding: var(--uma-sp-2); border-radius: var(--uma-r-md); background: var(--uma-surface-muted); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text); }',
+		'.usd-out-filterhelp p { margin: 0; }',
+		'.usd-out-filterhelp p + p { margin-top: var(--uma-sp-1); }',
+		'.usd-out-filterlist { display: flex; flex-direction: column; gap: var(--uma-sp-2-5); }',
+		'.usd-out-filterrow { display: flex; flex-direction: column; gap: var(--uma-sp-1); }',
+		'.usd-out-filterlabel { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-heading); }',
 		'.usd-out-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--uma-sp-1-5); align-content: start; min-height: 120px; margin-bottom: var(--uma-sp-1-5); }',
 		'.usd-out-cards--excl { min-height: 0; margin: 0 0 var(--uma-sp-1-5); }',
 		// タイル（1行・高さ36px）。塗りは①のカードの表示と同じ種類色（--usd-card-bg / --usd-card-text。cardTypeColorVars が番号で流し込む）。
@@ -10426,8 +10442,81 @@
 					update();
 				} });
 		}
-		/** 「絞り込み ▾」の選択欄（④・段12 で中身を入れる） */
-		function openOutsideFilterPopover(btn) { /* 段12 */ }
+		/**
+		 * 「絞り込み ▾」の選択欄（④・段12）。②の「条件で検索」と同じ軸・選択肢・照合（pickableAxes・pickableOptions・axisRuleHint・matchesFilters）を使う
+		 * 小窓用の部品（条件で検索の画面部品・状態は使わない。id は付けない）。距離・脚質・バ場は①で決まるので出さない。目標のレースの距離の入力欄も出さない。
+		 * 軸ごとに1行（軸名＋チップ）。選択欄の中だけスクロール。上に「すべて解除」と「？」（軸内の読み方。開いたときだけ出す）。
+		 * 押すたびにセットの指定（roster.outsideOptions.filter）に書いて、自動で計算し直す（選択欄は開いたまま）。オススメサポの母集団にだけ効く。
+		 */
+		function openOutsideFilterPopover(btn) {
+			openPopover({ key: 'outside-filter', title: '絞り込み', btn: btn, opener: btn, refocus: '[data-usd-el="outside-filter-btn"]',
+				build: (body) => {
+					const axes = outsideFilterAxes();
+					const top = infoEl('div', 'usd-out-filtertop');
+					const clear = infoEl('button', 'usd-out-card-btn', 'すべて解除');
+					clear.type = 'button';
+					clear.setAttribute('data-usd-el', 'outside-filter-clear');
+					const help = infoEl('button', 'uma-help-btn', '?');
+					help.type = 'button';
+					help.setAttribute('data-usd-el', 'outside-filter-help');
+					help.setAttribute('aria-expanded', 'false');
+					help.setAttribute('aria-label', '絞り込みの読み方');
+					help.title = '絞り込みの読み方';
+					top.appendChild(help);
+					top.appendChild(clear);
+					body.appendChild(top);
+					// 「？」の中: 軸ごとの読み方（軸の印から決まる1文。条件で検索と同じ文）と、効く範囲
+					const hintBox = infoEl('div', 'usd-out-filterhelp');
+					hintBox.setAttribute('data-usd-el', 'outside-filter-helptext');
+					hintBox.hidden = true;
+					hintBox.appendChild(infoEl('p', '', '選ぶカードの計算にだけ効きます。軸どうしは「かつ」です。'));
+					axes.forEach(axis => hintBox.appendChild(infoEl('p', '', axis.label + '：' + axisRuleHint(axis))));
+					body.appendChild(hintBox);
+					help.addEventListener('click', () => { hintBox.hidden = !hintBox.hidden; help.setAttribute('aria-expanded', hintBox.hidden ? 'false' : 'true'); });
+					const list = infoEl('div', 'usd-out-filterlist');
+					list.setAttribute('data-usd-el', 'outside-filter-list');
+					const chips = [];
+					axes.forEach(axis => {
+						const row = infoEl('div', 'usd-out-filterrow');
+						row.setAttribute('data-usd-el', 'outside-filter-axis');
+						row.setAttribute('data-axis', axis.key);
+						row.appendChild(infoEl('span', 'usd-out-filterlabel', axis.label));
+						const wrap = infoEl('div', 'usd-out-chiprow');
+						wrap.setAttribute('role', 'group');
+						wrap.setAttribute('aria-label', axis.label);
+						pickableOptions(axis).forEach(o => {
+							const b = infoEl('button', 'usd-out-segbtn usd-out-filterchip', o.t);
+							b.type = 'button';
+							b.setAttribute('data-usd-el', 'outside-filter-chip');
+							b.setAttribute('data-axis', axis.key);
+							b.setAttribute('data-value', o.v);
+							b.addEventListener('click', () => {
+								if (!rosterOutsideSink) return;
+								const cur = outsideOptionsOf(rosterOutsideSink.getRoster()).filter;
+								const next = {};
+								Object.keys(cur).forEach(k => { next[k] = cur[k].slice(); });
+								const vals = next[axis.key] || [];
+								const i = vals.indexOf(o.v);
+								if (i === -1) vals.push(o.v); else vals.splice(i, 1);
+								if (vals.length === 0) delete next[axis.key]; else next[axis.key] = pickableOptions(axis).map(x => x.v).filter(v => vals.indexOf(v) !== -1);
+								if (rosterOutsideSink.setOptions({ filter: next })) { update(); outsideRun(); }
+							});
+							wrap.appendChild(b);
+							chips.push(b);
+						});
+						row.appendChild(wrap);
+						list.appendChild(row);
+					});
+					body.appendChild(list);
+					clear.addEventListener('click', () => { if (rosterOutsideSink && rosterOutsideSink.setOptions({ filter: {} })) { update(); outsideRun(); } });
+					function update() {
+						const f = outsideOptionsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {}).filter;
+						chips.forEach(b => { const on = (f[b.getAttribute('data-axis')] || []).indexOf(b.getAttribute('data-value')) !== -1; b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+						clear.disabled = Object.keys(f).length === 0;
+					}
+					update();
+				} });
+		}
 
 		/** 行の Pt の文言（そのスキルだけ。前段は含めない）。合計（フッター）は前段も含むので、前段をチェックしていないときは行の合計より大きくなる */
 		function outsideRowPtText(skillId) {

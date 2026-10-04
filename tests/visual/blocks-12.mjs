@@ -698,4 +698,98 @@ export async function register12(env) {
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段11 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
+
+	/* ====================================================================
+	 * 段12: 「絞り込み」（条件で検索と同じ軸・照合。オススメサポの母集団にだけ効く。状態は混ざらない）
+	 * ==================================================================== */
+	const filterPop = (page) => page.evaluate(() => {
+		const list = document.querySelector('[data-usd-el="outside-filter-list"]');
+		if (!list) return null;
+		const pop = list.closest('.uma-popover');
+		return { axes: Array.from(list.querySelectorAll('[data-usd-el="outside-filter-axis"]')).map((r) => ({ key: r.getAttribute('data-axis'), label: r.querySelector('.usd-out-filterlabel').textContent, n: r.querySelectorAll('[data-usd-el="outside-filter-chip"]').length })),
+			on: Array.from(list.querySelectorAll('[data-usd-el="outside-filter-chip"][aria-pressed="true"]')).map((b) => b.getAttribute('data-axis') + ':' + b.getAttribute('data-value')),
+			inputs: pop.querySelectorAll('input').length, ids: pop.querySelector('.uma-popover-body').querySelectorAll('[id]').length, helpHidden: pop.querySelector('[data-usd-el="outside-filter-helptext"]').hidden,
+			help: Array.from(pop.querySelectorAll('[data-usd-el="outside-filter-helptext"] p')).map((p) => p.textContent), clearDis: pop.querySelector('[data-usd-el="outside-filter-clear"]').disabled,
+			bodyScroll: getComputedStyle(pop.querySelector('.uma-popover-body')).overflowY, popH: Math.round(pop.getBoundingClientRect().height), vh: window.innerHeight };
+	});
+	const chip = async (page, axis, v) => { await page.click('[data-usd-el="outside-filter-chip"][data-axis="' + axis + '"][data-value="' + v + '"]'); await settle(page); };
+
+	await block('オススメサポ④段12 「絞り込み ▾」: 条件で検索と同じ軸（距離・脚質・バ場を除く）・選択肢／入力欄は無い／？の中に軸内の読み方／押すたびに保存して自動で計算し直す・母集団に効く（物差しと一致）／「すべて解除」', async () => {
+		const sp = await openSp({ roster: FULL });
+		const expAxes = await sp.page.evaluate(() => { const C = UmaSkillDeckCore; return { keys: C.outside.filterAxes(), all: C.TAG_AXES ? null : null }; });
+		await open(sp.page);
+		await sp.page.click(M + '[data-usd-el="outside-filter-btn"]');
+		await sp.page.waitForSelector('[data-usd-el="outside-filter-list"]');
+		const p0 = await filterPop(sp.page);
+		assert(p0.axes.map((a) => a.key).join() === expAxes.keys.join() && expAxes.keys.length > 0 && !expAxes.keys.some((k) => ['distance', 'style', 'surface'].includes(k)) && p0.axes.every((a) => a.n > 0),
+			'オススメサポ④段12 軸は条件で検索と同じ（隠す軸を除く）から距離・脚質・バ場を除いたもの（' + p0.axes.map((a) => a.label).join('・') + '）。軸ごとに1行（軸名＋チップ）', p0.axes);
+		assert(p0.inputs === 0 && p0.ids === 0 && p0.on.length === 0 && p0.clearDis && p0.helpHidden && p0.bodyScroll === 'auto' && p0.popH <= p0.vh,
+			'オススメサポ④段12 入力欄（目標のレースの距離など）は無い・id を持つ要素は無い（条件で検索と重ならない）・最初は何も選ばれていない（「すべて解除」は押せない）・中だけスクロール・？の中は閉じている', p0);
+		await sp.page.click('[data-usd-el="outside-filter-help"]');
+		const p1 = await filterPop(sp.page);
+		assert(!p1.helpHidden && p1.help.length === p0.axes.length + 1 && p0.axes.every((a, i) => p1.help[i + 1].indexOf(a.label + '：') === 0), 'オススメサポ④段12 「？」を押すと、軸ごとの読み方（条件で検索と同じ文）が出る', p1.help);
+		// 母集団に効く: フェーズ「終盤」→ 効果タイプ「デバフ」（まとめた値を含む）も足す
+		const base = await sp.page.evaluate(() => UmaSkillDeckCore.outside.populationOf(JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'))).ids.map((id) => [id, UmaSkillDeckCore.getSkillTags(id)]));
+		await chip(sp.page, 'phase', 'late');
+		const dr1 = await draftRoster(sp.page);
+		const pop1 = await sp.page.evaluate(() => UmaSkillDeckCore.outside.populationOf(JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'))).ids);
+		const exp1 = base.filter(([, t]) => (t.phase || []).includes('late')).map(([id]) => id);
+		const rows1 = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-row"]')).map((r) => r.getAttribute('data-skill-id')));
+		assert(JSON.stringify(dr1.outsideOptions) === JSON.stringify({ filter: { phase: ['late'] } }) && JSON.stringify(pop1.sort()) === JSON.stringify(exp1.sort()) && exp1.length > 0 && exp1.length < base.length
+			&& rows1.length > 0 && rows1.every((id) => exp1.includes(id)) && (await headInfo(sp.page)).texts[1] === '絞り込み1▾' && (await filterPop(sp.page)).on.join() === 'phase:late',
+			'オススメサポ④段12 「終盤」を押すと、セットに保存（filter）・母集団が「終盤」のタグを持つ白だけになり（' + exp1.length + '／' + base.length + '種。物差しと一致）・自動で計算し直してチェックリストもその中から・ボタンの印「絞り込み 1」', { saved: dr1.outsideOptions, pop: pop1.length, exp: exp1.length, rows: rows1.length });
+		await chip(sp.page, 'effect', 'debuff');
+		const pop2 = await sp.page.evaluate(() => UmaSkillDeckCore.outside.populationOf(JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'))).ids);
+		const exp2 = base.filter(([, t]) => (t.phase || []).includes('late') && (t.effect || []).some((v) => v === 'debuff' || v === 'temptation_time')).map(([id]) => id);
+		assert(JSON.stringify(pop2.sort()) === JSON.stringify(exp2.sort()) && (await headInfo(sp.page)).texts[1] === '絞り込み2▾', 'オススメサポ④段12 軸どうしは「かつ」。効果タイプ「デバフ」は、まとめた値（掛かり時間）も当たる（条件で検索と同じ matchesFilters）', { pop: pop2.length, exp: exp2.length });
+		await sp.page.click('[data-usd-el="outside-filter-clear"]'); await settle(sp.page);
+		const dr3 = await draftRoster(sp.page);
+		assert(!('outsideOptions' in dr3) && (await filterPop(sp.page)).on.length === 0 && (await headInfo(sp.page)).texts[1] === '絞り込み▾', 'オススメサポ④段12 「すべて解除」で、項目ごと消え（ほかの指定が無いので）、チップの印も消える', Object.keys(dr3));
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段12 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('オススメサポ④段12 条件で検索の状態と混ざらない: 小窓の絞り込みは条件で検索に出ず、条件で検索の選択は小窓に出ない（両方を開き直しても）／再読み込みのあとも小窓の絞り込みは残る', async () => {
+		const sp = await openSp({ roster: FULL });
+		const pickerChecked = async () => {
+			await sp.page.click(T + '[data-usd-act="editor-pick"]');
+			await sp.page.waitForTimeout(200);
+			const v = await sp.page.evaluate(() => Array.from(document.querySelectorAll('input[data-usd-el="filter-check"]:checked')).map((i) => i.getAttribute('data-axis') + ':' + i.getAttribute('data-value')));
+			return v;
+		};
+		await open(sp.page);
+		await sp.page.click(M + '[data-usd-el="outside-filter-btn"]');
+		await chip(sp.page, 'phase', 'late');
+		await sp.page.keyboard.press('Escape');
+		await sp.page.click(M + '[data-usd-act="outside-close"]');
+		const c1 = await pickerChecked();
+		assert(c1.length === 0, 'オススメサポ④段12 小窓で「終盤」を選んでも、条件で検索には何も選ばれていない', c1);
+		await sp.page.evaluate(() => document.querySelector('input[data-usd-el="filter-check"][data-axis="phase"][data-value="mid"]').click());
+		await sp.page.waitForTimeout(200);
+		await sp.page.click('[data-usd-act="picker-close"]');
+		await open(sp.page);
+		await sp.page.click(M + '[data-usd-el="outside-filter-btn"]');
+		const p = await filterPop(sp.page);
+		assert(p.on.join() === 'phase:late', 'オススメサポ④段12 条件で検索で「中盤」を選んでも、小窓の絞り込みは「終盤」だけ', p.on);
+		await sp.page.keyboard.press('Escape');
+		await sp.page.click(M + '[data-usd-act="outside-close"]');
+		const c2 = await pickerChecked();
+		await sp.page.click('[data-usd-act="picker-close"]');
+		assert(c2.join() === 'phase:mid', 'オススメサポ④段12 開き直すと、条件で検索は自分の選択（「中盤」）だけ（小窓の「終盤」は混ざらない）', c2);
+		const dup = await sp.page.evaluate(() => ['usd-panel-phase', 'usd-tab-phase'].map((id) => document.querySelectorAll('#' + id).length));
+		assert(dup.every((n) => n <= 1), 'オススメサポ④段12 条件で検索の id（usd-panel-・usd-tab-）は重ならない', dup);
+		// 再読み込み
+		const pg = await sp.ctx.newPage();
+		await pg.route('**/data/scenario-event-skills.json*', (r) => r.fulfill(json(scenReal)));
+		await pg.goto(base + '/special.html', { waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await pg.isVisible('#ui-notice')) await pg.click('[data-act="notice-ok"]');
+		await pg.waitForSelector(T + OPEN, { timeout: 10000 });
+		await pg.waitForTimeout(300);
+		await open(pg);
+		await pg.click(M + '[data-usd-el="outside-filter-btn"]');
+		assert((await filterPop(pg)).on.join() === 'phase:late' && (await headInfo(pg)).texts[1] === '絞り込み1▾', 'オススメサポ④段12 再読み込みのあとも、小窓の絞り込み（「終盤」）は残っている', (await filterPop(pg)).on);
+		await pg.close();
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段12 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
 }
