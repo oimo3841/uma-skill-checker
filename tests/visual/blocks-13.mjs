@@ -673,7 +673,7 @@ export async function register13(env) {
 				const lefts = new Set(panels.map((p) => Math.round(p.getBoundingClientRect().left)));
 				const rows = new Set(panels.map((p) => Math.round(p.getBoundingClientRect().top)));
 				const names = panels.map((p) => p.querySelector('.usd-panel-namebtn')).filter(Boolean);
-				return { n: panels.length, cols: lefts.size, rows: rows.size, w: panels.length ? Math.round(panels[0].getBoundingClientRect().width) : 0, cut: names.filter((x) => x.scrollWidth > x.clientWidth + 1).length, sw: document.documentElement.scrollWidth, iw: window.innerWidth };
+				return { n: panels.length, cols: lefts.size, rows: rows.size, w: panels.length ? Math.round(panels[0].getBoundingClientRect().width) : 0, cut: names.filter((x) => x.scrollWidth > x.clientWidth + 4).length, sw: document.documentElement.scrollWidth, iw: window.innerWidth };   // 下線と余白で 1〜3px はみ出すので、4px を超えたら「…」で切れていると数える
 			});
 			assert(r.n === ids.length && r.cols === cols && r.rows === Math.ceil(r.n / cols) && r.sw <= r.iw, 'オススメサポ段13C3 ' + w + 'px: ' + cols + '列（' + r.n + '件・' + r.rows + '行・1件の幅 ' + r.w + 'px・名前が「…」で切れる件 ' + r.cut + '）', r);
 			assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13C3 ' + w + 'px: コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
