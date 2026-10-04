@@ -58,7 +58,10 @@ export async function register11(env) {
 	};
 	const pickSet = async (page, id) => {
 		await page.click(BAR + '[data-usd-act="set-list"]');
-		await page.click('[data-usd-el="set-list"] input[value="' + id + '"]');
+		// 段13・B2: 読み込み直すと直前のセットが開くので、すでに選ばれていたら一覧を閉じるだけ（押しても change が起きず一覧が残るため）
+		const already = await page.evaluate((v) => { const i = document.querySelector('[data-usd-el="set-list"] input[value="' + v + '"]'); return !!i && i.checked; }, id);
+		if (already) await page.keyboard.press('Escape');
+		else await page.click('[data-usd-el="set-list"] input[value="' + id + '"]');
 		await page.waitForTimeout(250);
 	};
 	const SAVED = (extra) => ({ schemaVersion: 7, records: [], customSkills: [], templates: [

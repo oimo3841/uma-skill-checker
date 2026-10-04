@@ -115,7 +115,10 @@ export async function register12(env) {
 		rosters: [Object.assign({ rosterId: 'r1', name: 'S1', umaId: FULL.umaId, star: 3, awakeningLevel: 5, cardIds: CARDS6.slice(), skillFilter: filter || FILTER, createdAt: 'x', updatedAt: 'x' }, extra || {})] });
 	const pickSet = async (page, id) => {
 		await page.click(BAR + '[data-usd-act="set-list"]');
-		await page.click('[data-usd-el="set-list"] input[value="' + id + '"]');
+		// 段13・B2: 読み込み直すと直前のセットが開くので、すでに選ばれていたら一覧を閉じるだけ（押しても change が起きず一覧が残るため）
+		const already = await page.evaluate((v) => { const i = document.querySelector('[data-usd-el="set-list"] input[value="' + v + '"]'); return !!i && i.checked; }, id);
+		if (already) await page.keyboard.press('Escape');
+		else await page.click('[data-usd-el="set-list"] input[value="' + id + '"]');
 		await page.waitForTimeout(250);
 	};
 	const rr = (d) => d.rosters.find((r) => r.rosterId === 'r1');
@@ -313,7 +316,7 @@ export async function register12(env) {
 	const openRaceList = async (page) => { await page.click(BAR + '[data-usd-act="set-race"]'); await page.waitForSelector('[data-usd-el="race-list"]'); };
 	const chooseRace = async (page, id) => { await openRaceList(page); await page.click('[data-usd-el="race-opt"][data-race-id="' + id + '"] input'); await page.waitForTimeout(300); };
 
-	await block('オススメサポ④段9 帯の「レース ▾」: 「0/10 ▾」の右・高さ28px・選ぶと濃色（帯にレース名は出さない）／帯の高さは変わらない／320px は「レース」だけ（320・375・414px）', async () => {
+	await block('オススメサポ④段9 帯の「レース ▾」: 「0/10 ▾」の右・高さ28px・選ぶと濃色／帯の高さは変わらない／320px は「レース」だけ（320・375・414px）。選んだときの文字は段13・B1（blocks-13）', async () => {
 		for (const w of [320, 375, 414]) {
 			const sp = await openSp({ roster: FULL, w });
 			const a = await barInfo(sp.page);
@@ -322,7 +325,7 @@ export async function register12(env) {
 			const tag = 'オススメサポ④段9 ' + w + 'px: ';
 			assert(a.btn && Math.round(a.btn.h) === 28 && a.btn.l >= a.pillR && a.btn.r <= a.sumL && a.sw <= a.iw && !a.on, tag + '「レース」のボタンは札（0/10 ▾）の右・合計の左に入り、高さ28px。画面は横にはみ出さない', a);
 			assert(a.text === (w < 360 ? 'レース' : 'レース▾') && a.caretShown === (w >= 360), tag + (w < 360 ? '320px は「レース」だけ（▾を省く）' : '「レース ▾」'), { text: a.text, caret: a.caretShown });
-			assert(b.on && b.bg !== a.bg && b.text === a.text && b.barH === a.barH && b.btn.r <= b.sumL && b.sw <= b.iw, tag + '選ぶとボタンが濃色になり、文字は「レース」のまま（帯にレース名は出さない）。帯の高さ（' + a.barH + 'px）は変わらない', { a: [a.barH, a.bg], b: [b.barH, b.bg, b.text] });
+			assert(b.on && b.bg !== a.bg && b.barH === a.barH && b.btn.r <= b.sumL && b.sw <= b.iw, tag + '選ぶとボタンが濃色になる。帯の高さ（' + a.barH + 'px）は変わらない（文字は段13・B1 で条件の短い形）', { a: [a.barH, a.bg], b: [b.barH, b.bg, b.text] });
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		}

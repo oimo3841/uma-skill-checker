@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-04g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-05a';
 
 	/* ============================================================
 	 * 定数
@@ -281,6 +281,8 @@
 	// ドラフト（保存しない一時的な対象スキルセット）の保存先の接頭辞。
 	// scope名を後ろに付けるので、将来 exam 側が合流しても衝突しない。
 	const STORAGE_KEY_DRAFT_PREFIX = 'umaSkillDeck:draftScope:';
+	// 直前まで開いていたセットのID（段13・B2。special の②だけ。scope名を後ろに付ける）。書き出しの対象外
+	const STORAGE_KEY_LAST_SET_PREFIX = 'umaSkillDeck:lastSet:';
 
 	// テンプレート一覧の中でドラフトを指すための番号（テンプレートIDと衝突しない形）。
 	const DRAFT_SELECTION_ID = '__draft__';
@@ -1444,8 +1446,11 @@
 		if (m) return Number(m[2]) + '/' + Number(m[3]);
 		return (race && race.dateLabel) || '';
 	}
-	/** 選択欄の2行目（公開された条件だけ。例「京都 芝2200m 右・外・秋・曇・良・昼」「芝 マイル デバフなし」）。公開されない項目は出さない */
-	function raceCondText(race) {
+	/**
+	 * 条件の短い形（会場＋バ場＋距離。例「京都 芝2200m」、一部しか公開されていなければ「芝 中距離」）。公開されない項目は出さない。
+	 * セットの帯の「レース」のボタン（段13・B1）と、選択欄の2行目の先頭が使う
+	 */
+	function raceShortText(race) {
 		if (!race) return '';
 		const parts = [];
 		const venue = tagOptionLabel('trackVenue', race.venue);
@@ -1457,6 +1462,14 @@
 			const cat = tagOptionLabel('distance', race.distanceCategory);
 			if (cat) parts.push(cat);
 		}
+		return parts.join(' ');
+	}
+	/** 選択欄の2行目（公開された条件だけ。例「京都 芝2200m 右・外・秋・曇・良・昼」「芝 マイル デバフなし」）。公開されない項目は出さない */
+	function raceCondText(race) {
+		if (!race) return '';
+		const parts = [];
+		const short = raceShortText(race);
+		if (short) parts.push(short);
 		const env = ['direction', 'course', 'season', 'weather', 'ground', 'time'].map(k => RACE_SHORT_LABELS[race[k]] || '').filter(Boolean);
 		if (env.length > 0) parts.push(env.join('・'));
 		if (race.rule && RACE_RULES[race.rule]) parts.push(RACE_RULES[race.rule].label);
@@ -3456,6 +3469,15 @@
 	 */
 	const ROW_HEAL_EFFECTS = ['stamina'];
 	const ROW_DEBUFF_EFFECTS = ['debuff'];
+	/**
+	 * ①の列見出しの種類の漏斗（段13・B3）。並びは回復・緑（パッシブ）・デバフ。key は rowToneOf の返す印。
+	 * アイコンは飾り（押せない）: 回復とデバフはオススメサポのボタンと同じ光の形（sparkles）を角丸の四角に白で、緑は「緑スキル」の入口と同じ葉（sprout）
+	 */
+	const ROW_TONE_SORTS = [
+		{ key: 'heal', label: '回復スキル', icon: 'sparkles' },
+		{ key: 'passive', label: '緑スキル', icon: 'sprout' },
+		{ key: 'debuff', label: 'デバフスキル', icon: 'sparkles' }
+	];
 	function rowToneOf(skillId) {
 		const tags = getSkillTags(skillId) || {};
 		const eff = Array.isArray(tags.effect) ? tags.effect : [];
@@ -5160,6 +5182,25 @@
 		// 文字と地の組み合わせは、すべてコントラスト比 4.5 以上（検査が実際の色で見る）
 		// 固有スキルの行の色（--usd-skill-unique-*）は、入口の「オススメサポ」のボタンも読むので :root に置いてある（段7・2026-10-04）
 		'.usd-roster-grid { --usd-skill-heal-bg: #e6f3fd; --usd-skill-heal-text: #0b5fa5; --usd-skill-passive-text: #1b7a3a; --usd-skill-debuff-text: #b3261e; --usd-skill-pt-text: #546580; }',
+		// スキル名の列見出しの種類のアイコンと漏斗（段13・B3）。アイコンの色は変数（ダークモードで差し替える）
+		'.usd-roster-grid { --usd-tone-icon-heal: #2a7fd4; --usd-tone-icon-debuff: #d4363f; --usd-tone-icon-fg: #ffffff; --usd-tone-icon-passive: var(--uma-green-skill); }',
+		'.usd-roster-gh.usd-roster-gh--skill { gap: 2px; padding-right: 2px; }',
+		'.usd-roster-ghtitle { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+		// 漏斗の押せる範囲はメンバーの列と同じ 24px 以上（段7c）。3つを名前の右に収めるため、隣どうしを少し重ねて並べる（間隔 22px。320px は 18px）
+		'.usd-roster-tones { flex: none; display: flex; align-items: flex-end; margin-left: auto; }',
+		'.usd-roster-tone { display: flex; flex-direction: column; align-items: center; gap: 2px; }',
+		'.usd-roster-tone + .usd-roster-tone { margin-left: -2px; }',
+		'.usd-roster-toneicon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 3px; }',
+		'.usd-roster-toneicon--heal { background: var(--usd-tone-icon-heal); color: var(--usd-tone-icon-fg); }',
+		'.usd-roster-toneicon--debuff { background: var(--usd-tone-icon-debuff); color: var(--usd-tone-icon-fg); }',
+		'.usd-roster-toneicon--passive { color: var(--usd-tone-icon-passive); }',
+		'.usd-roster-toneicon .usd-roster-tonesvg { display: block; width: 10px; height: 10px; stroke-width: 2.4; }',
+		'.usd-roster-toneicon--passive .usd-roster-tonesvg { width: 14px; height: 14px; stroke-width: 2.2; }',
+		'.usd-roster-ghbtn.usd-roster-tonebtn { width: 24px; }',
+		// スマホより広い幅（641px 以上）は、メンバーの列の漏斗と同じ 28px（重ねない）
+		'@media (min-width: 641px) { .usd-roster-ghbtn.usd-roster-tonebtn { width: 28px; } .usd-roster-tone + .usd-roster-tone { margin-left: 0; } }',
+		// 320px（360px 未満）: 「スキル名」が切れないように、漏斗どうしの重なり・左右の余白・文字を少し詰める
+		'@media (max-width: 359px) { .usd-roster-gh.usd-roster-gh--skill { padding-left: 2px; padding-right: 0; gap: 1px; } .usd-roster-tone + .usd-roster-tone { margin-left: -7px; } .usd-roster-ghtitle { font-size: 11px; } }',
 		// 段8・C: 回復の行の淡い水色の地はやめた（地は白。名前の青だけで示す＝緑・デバフと同じ扱い）。--usd-skill-heal-bg は使っていない
 		'.usd-roster-grow--gold > .usd-roster-gc { background: var(--uma-stitch-soft); }',
 		'.usd-roster-grow--gold > .usd-roster-gc--uma { background: var(--uma-stitch-soft); }',
@@ -5356,14 +5397,18 @@
 		'.usd-setbar-list:hover { background: var(--uma-surface); }',
 		'.usd-setbar-caret { font-size: 9px; color: var(--uma-text-muted); }',
 		// レース条件のボタン（④・段9）。高さ28px・札と同じ線と地。選んでいるときは濃色（色だけで示す）。幅が狭いときは「▾」を省いて「レース」だけ
-		'.usd-setbar-race { flex: none; display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 8px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
+		// 段13・B1: 条件の短い形（「京都 芝2200m」）が入るので、幅が足りなければ文字を「…」で切る（帯は1行のまま）。
+		// セット名より先にこのボタンが縮む（縮む比を大きくして、セット名はほぼ縮まない＝「＋新規」が切れない）
+		'.usd-setbar-race { flex: 0 1000 auto; min-width: 0; display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 8px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
 		'  background: var(--uma-surface-muted); color: var(--uma-text-heading); font: inherit; font-size: 11px; line-height: 1; font-weight: 600; white-space: nowrap; cursor: pointer; }',
+		'.usd-setbar-race-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+		'.usd-setbar-race-caret { flex: none; }',
 		'.usd-setbar-race:hover { background: var(--uma-surface); }',
 		'.usd-setbar-race:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
 		'.usd-setbar-race--on { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
 		'.usd-setbar-race--on:hover { background: var(--uma-surface-inverse); }',
 		'.usd-setbar-race--on .usd-setbar-caret { color: var(--uma-text-inverse); }',
-		'@media (max-width: 359px) { .usd-setbar-race-caret { display: none; } .usd-setbar-race { padding: 0 7px; } }',
+		'@media (max-width: 359px) { .usd-setbar-race-caret { display: none; } .usd-setbar-race { padding: 0 7px; } .usd-setbar-race--on { padding: 0 5px; } .usd-setbar-race--on .usd-setbar-race-text { font-size: 10px; } }',
 		// レースの選択欄の行（1行目＝日付＋名前、2行目＝公開された条件）
 		'.usd-race-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }',
 		'.usd-race-cond { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); overflow-wrap: anywhere; }',
@@ -8282,7 +8327,12 @@
 				// 並び（段7e の (1)）: 金スキルと、その直前の白スキルが同じ表にあるときは、金スキルの直下に前段の白を置く（単位として動かす）。
 				// 並べ替えも単位ごと: 組のどちらかにその列の○があれば組ごと上へ寄せる（安定ソート）
 				let units = arrangeStepUnits(res.visibleItems);
-				if (sortKey !== null && members.some(m => m.key === sortKey)) {
+				const toneSort = typeof sortKey === 'string' && sortKey.indexOf('tone:') === 0 ? sortKey.slice(5) : null;
+				if (toneSort !== null) {
+					// 種類の漏斗（段13・B3）: 行の色分け（段7e の rowToneOf）と同じ基準で、その種類を持つまとまりを上へ（安定ソート。金と直下の前段の白は崩さない）
+					const hit = (u) => u.some(it => !!rowToneOf(it.skillId)[toneSort]);
+					units = units.filter(hit).concat(units.filter(u => !hit(u)));
+				} else if (sortKey !== null && members.some(m => m.key === sortKey)) {
 					const hit = (u) => u.some(it => it.members.indexOf(sortKey) !== -1);
 					units = units.filter(hit).concat(units.filter(u => !hit(u)));
 				}
@@ -8291,8 +8341,15 @@
 				const rows = [].concat.apply([], units);
 				h += '<div class="usd-roster-grid-wrap"><div class="usd-roster-grid" role="table" aria-label="本育成で得られるスキル"'
 					+ ' style="--usd-roster-cols:' + members.length + '">';
+				// スキル名の列見出し（段13・B3）: 名前の右に3つのアイコン（回復・緑〔パッシブ〕・デバフ）、それぞれの下に漏斗。
+				// 漏斗はその種類のスキルを上へ寄せる（行は減らさない。もう一度押すと元の並び）。メンバーの列の漏斗と同じ sortKey を使うので、有効なのは全部で1つだけ
+				const toneHead = ROW_TONE_SORTS.map(t => '<span class="usd-roster-tone" data-tone="' + t.key + '">'
+					+ '<span class="usd-roster-toneicon usd-roster-toneicon--' + t.key + '" role="img" aria-label="' + esc(t.label) + '" title="' + esc(t.label) + '"><i data-lucide="' + t.icon + '" class="usd-roster-tonesvg"></i></span>'
+					+ '<button type="button" class="usd-roster-ghbtn usd-roster-tonebtn" data-usd-act="sort-tone" data-tone="' + t.key + '" data-usd-el="tone-sort-btn"'
+					+ ' aria-pressed="' + (sortKey === 'tone:' + t.key ? 'true' : 'false') + '" aria-label="' + esc(t.label + 'を上に寄せる') + '" title="並べ替え">' + funnelSvg + '</button></span>').join('');
 				h += '<div class="usd-roster-grow" role="row">'
-					+ '<div class="usd-roster-gc usd-roster-gc--name usd-roster-gh" role="columnheader">スキル名</div>'
+					+ '<div class="usd-roster-gc usd-roster-gc--name usd-roster-gh usd-roster-gh--skill" role="columnheader" aria-label="スキル名"><span class="usd-roster-ghtitle" aria-hidden="true">スキル名</span>'
+					+ '<span class="usd-roster-tones" data-usd-el="tone-sorts">' + toneHead + '</span></div>'
 					+ members.map(m => '<div class="usd-roster-gc usd-roster-gh' + colClass(m) + colTypedClass(m)
 						+ (m.label ? '' : ' usd-roster-gh--empty') + '"'
 						+ ' role="columnheader" aria-label="' + colName(m) + '"' + colStyle(m) + '>' + colHead(m) + '</div>').join('')
@@ -8534,6 +8591,13 @@
 			}
 			else if (act === 'sort') {
 				const key = memberKeyOf(btn.getAttribute('data-member-key'));
+				sortKey = sortKey === key ? null : key;
+				gridScrollReset = true;
+				render();
+			}
+			else if (act === 'sort-tone') {
+				// 段13・B3: 種類の漏斗。メンバーの列の漏斗と同じ sortKey（有効なのは全部で1つだけ・保存しない）
+				const key = 'tone:' + btn.getAttribute('data-tone');
 				sortKey = sortKey === key ? null : key;
 				gridScrollReset = true;
 				render();
@@ -8887,6 +8951,24 @@
 		let draftScope = draftScopeKey ? loadDraftScope(draftScopeKey) : { skillIds: [], name: '', updatedAt: '' };
 		// 前回の続きがある場合は、そのまま使えるよう最初から選択しておく。
 		if (draftScope.skillIds.length > 0) selectedId = DRAFT_SELECTION_ID;
+		// 直前まで開いていたセット（段13・B2。special の②だけ）。F5 などで読み込み直したときに、そのセットを開く。
+		// 書き出しの対象外（umaSkillDeck:userData の外。「前回のタブ」と同じ扱い）。削除された・見つからないときは「＋新規」
+		const lastSetKey = setBased && draftScopeKey ? STORAGE_KEY_LAST_SET_PREFIX + draftScopeKey : null;
+		if (lastSetKey) {
+			let saved = null;
+			try { saved = global.localStorage.getItem(lastSetKey); } catch (e) { saved = null; }
+			if (saved && ensureUserData().templates.some(t => t.templateId === saved)) selectedId = saved;
+		}
+		/** いま開いているセットを覚える（変わったときだけ書く。「＋新規」のときは消す） */
+		function rememberLastSet() {
+			if (!lastSetKey) return;
+			const id = currentTemplateId() || '';
+			try {
+				const cur = global.localStorage.getItem(lastSetKey) || '';
+				if (cur === id) return;
+				if (id) global.localStorage.setItem(lastSetKey, id); else global.localStorage.removeItem(lastSetKey);
+			} catch (e) { /* 覚えられなくても動きは変えない */ }
+		}
 		// 後方互換の別名: いま編集している対象（{ kind: 'draft' } または { kind: 'template', obj }）。render() のたびに引き直す。
 		let editing = null;
 		// 分類（C-57 の (7)）: いま開いている分類のタブ。既定は「優先」（tiers に無い id が入る分類）
@@ -9246,6 +9328,7 @@
 			scanEntryRows();
 			// 段8: ①に、選んでいるセットを知らせる（変わったときだけ①が開き直す）
 			if (setBased) setHubPublish(currentTemplateId() || '');
+			rememberLastSet();
 			fireViewChange('list');
 		}
 
@@ -9429,13 +9512,15 @@
 					+ btn('name-edit', 'name-edit', target.kind === 'template' ? 'セットの名前を変える' : '名前を付けて保存', icon('pencil', 'w-3 h-3'))
 					+ '<button type="button" class="usd-setbar-list" data-usd-act="set-list" data-usd-el="set-list-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="セットの一覧（' + list.length + '／' + TEMPLATE_LIMIT + '件）">'
 					+ '<span data-usd-el="set-count">' + list.length + '／' + TEMPLATE_LIMIT + '</span><span class="usd-setbar-caret" aria-hidden="true">▾</span></button></span>';
-				// レース条件（④・段9）。①の roster が持つ（帯は①の描き直しの知らせで描き直る）。選んでいるときは濃色。レース名は帯に出さない（選択欄の中で見る）
+				// レース条件（④・段9）。①の roster が持つ（帯は①の描き直しの知らせで描き直る）。選んでいるときは濃色。
+				// 段13・B1: 選んでいるときは条件の短い形（「京都 芝2200m」「芝 中距離」）を出す。入りきらなければ「…」で切る。レース名の全文は選択欄の中で見る
 				if (rosterOutsideSink) {
 					const race = raceOfRoster(rosterOutsideSink.getRoster());
 					const lab = race ? 'レース：' + (raceDateText(race) ? raceDateText(race) + ' ' : '') + race.name : 'レース';
+					const text = race ? (raceShortText(race) || 'レース') : 'レース';
 					left += '<button type="button" class="usd-setbar-race' + (race ? ' usd-setbar-race--on' : '') + '" data-usd-act="set-race" data-usd-el="set-race-btn" aria-haspopup="dialog" aria-expanded="false"'
 						+ ' aria-pressed="' + (race ? 'true' : 'false') + '" aria-label="' + esc(lab) + '" title="' + esc(lab) + '">'
-						+ '<span>レース</span><span class="usd-setbar-caret usd-setbar-race-caret" aria-hidden="true">▾</span></button>';
+						+ '<span class="usd-setbar-race-text" data-usd-el="set-race-text">' + esc(text) + '</span><span class="usd-setbar-caret usd-setbar-race-caret" aria-hidden="true">▾</span></button>';
 				}
 			}
 			let right = '';
