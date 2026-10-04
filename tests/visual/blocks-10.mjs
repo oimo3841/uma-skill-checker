@@ -2,7 +2,7 @@
 // （塊の見出しは「段10」を含む。`npm run test:visual -- --only=段10` で回せる）。
 //
 // 段1（純粋関数）: 母集団・候補・評価（金スキルは前段の鎖の白も足す）・探索（総当たりと一致・同点の選び方・締め切り）・表示の数・Pt
-// （段2 の保存の検査は、次の commit で足す）
+// 段2（保存）: roster.outsideCardExcluded（受け口は①のメモリ上の roster 経由。schemaVersion は 7 のまま・移行なし）
 //
 // 小さな固定の材料（合成したカード）は、実データのスキルID を使って作る（スキルの名前は書かない。恒久ルール1）。
 // 合成したカードは data/support-cards.json などの応答を差し替えて渡す（本番のデータには触らない）。
@@ -367,5 +367,166 @@ export async function register10(env) {
 		console.log('     [実測] 64条件の探索時間（検査のブラウザ・隠れた画面）: 最悪 ' + m.max + 'ms／中央値 ' + m.median + 'ms／打ち切り ' + m.partial + '回');
 		assert(m.n === 64 && m.partial === 0 && m.max <= 500, '段10(C) 64条件で打ち切りが起きず、探索の最悪が 500ms 以下（' + m.max + 'ms。目標は150ms。単独で回したときの実測は報告に別記）', m);
 		await sp.ctx.close();
+	});
+
+	/* ====================================================================
+	 * (D) 保存（段2）: roster.outsideCardExcluded
+	 * ==================================================================== */
+	const SAVED = (extra) => ({ schemaVersion: 7, records: [], customSkills: [], templates: [
+		{ templateId: 't1', name: 'S1', skillIds: ['1', '2', '3'], baseRosterId: 'r1', createdAt: 'x', updatedAt: 'x' },
+		{ templateId: 't2', name: 'S2', skillIds: ['4'], createdAt: 'x', updatedAt: 'x' }],
+		rosters: [Object.assign({ rosterId: 'r1', name: 'S1', umaId: REAL.umaId, star: 3, awakeningLevel: 5, cardIds: REAL.cardIds.slice(), createdAt: 'x', updatedAt: 'x' }, extra || {})] });
+	const pickSet = async (page, id) => {
+		await page.click(BAR + '[data-usd-act="set-list"]');
+		await page.click('[data-usd-el="set-list"] input[value="' + id + '"]');
+		await page.waitForTimeout(250);
+	};
+	const rosterOf = (d, id) => d.rosters.find((r) => r.rosterId === id);
+	const OTHER = 'card-0300';
+
+	await block('段10(D) 保存: 項目の無いデータを開いても1バイトも変わらない・付け外しはそのIDだけ・空になったら項目ごと消える・schemaVersion は 7 のまま', async () => {
+		const seed = SAVED();
+		const sp = await openReal({ userData: seed, tab: 0, roster: null });
+		await pickSet(sp.page, 't1');
+		const raw0 = await rawUd(sp.page);
+		assert(raw0 === JSON.stringify(seed), '段10(D)(a) 項目の無いデータを開き、セットを選んでも、保存データは1バイトも変わらない', raw0.length);
+		const ok1 = await sp.page.evaluate((id) => UmaSkillDeckCore.outside.setExcluded(id, true), REAL.cardIds[0]);
+		const ok2 = await sp.page.evaluate((id) => UmaSkillDeckCore.outside.setExcluded(id, true), OTHER);
+		const bad = await sp.page.evaluate(() => UmaSkillDeckCore.outside.setExcluded('card-9999', true));
+		let d = await ud(sp.page);
+		const withField = JSON.parse(JSON.stringify(d));
+		assert(ok1 && ok2 && !bad && JSON.stringify(rosterOf(d, 'r1').outsideCardExcluded) === JSON.stringify([REAL.cardIds[0], OTHER]) && d.schemaVersion === 7,
+			'段10(D) 受け口(①のメモリ上の roster 経由)で付けると roster に保存される。引けないIDは付けない。schemaVersion は 7 のまま', { ok1, ok2, bad, ex: rosterOf(d, 'r1').outsideCardExcluded, v: d.schemaVersion });
+		await sp.page.evaluate((id) => UmaSkillDeckCore.outside.setExcluded(id, false), REAL.cardIds[0]);
+		d = await ud(sp.page);
+		assert(JSON.stringify(rosterOf(d, 'r1').outsideCardExcluded) === JSON.stringify([OTHER]), '段10(D) 外すのはそのIDだけ（もう1つは残る）', rosterOf(d, 'r1').outsideCardExcluded);
+		await sp.page.evaluate((id) => UmaSkillDeckCore.outside.setExcluded(id, false), OTHER);
+		d = await ud(sp.page);
+		const noStamp = (x) => JSON.stringify(x, (k, v) => (k === 'updatedAt' ? undefined : v));   // 書くたびに更新日時は進む
+		delete rosterOf(withField, 'r1').outsideCardExcluded;   // ①が最初の書き込みで整える項目（星・覚醒レベル）は、項目の有無に関係なく同じ
+		assert(!('outsideCardExcluded' in rosterOf(d, 'r1')) && noStamp(d) === noStamp(withField), '段10(D) 空になったら項目ごと消え、更新日時のほかは元に戻る（空の配列を残さない）', Object.keys(rosterOf(d, 'r1')));
+		assert(jsErrors(sp.errors).length === 0, '段10(D) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('段10(D) 保存: 消えたカードの古いIDは読んでも書き換えない（付け外しはそのIDだけ）', async () => {
+		const seed = SAVED({ outsideCardExcluded: ['card-9998', REAL.cardIds[0]] });
+		const sp = await openReal({ userData: seed, tab: 0, roster: null });
+		await pickSet(sp.page, 't1');
+		const read = await sp.page.evaluate(() => UmaSkillDeckCore.outside.getExcluded());
+		const raw = await rawUd(sp.page);
+		assert(JSON.stringify(read) === JSON.stringify([REAL.cardIds[0]]) && raw === JSON.stringify(seed), '段10(D)(c) 読むときは引けるカードIDだけを使い、保存データは1バイトも変わらない', { read, same: raw === JSON.stringify(seed) });
+		const cand = await sp.page.evaluate(() => UmaSkillDeckCore.outside.candidatesOf({ cardIds: [], outsideCardExcluded: ['card-9998', 'card-0248'] }).some((c) => c.id === 'card-0248'));
+		assert(cand === false, '段10(D) 引けるIDは候補から外れ、引けないIDは無視される', cand);
+		await sp.page.evaluate((id) => UmaSkillDeckCore.outside.setExcluded(id, false), REAL.cardIds[0]);
+		const d = await ud(sp.page);
+		assert(JSON.stringify(rosterOf(d, 'r1').outsideCardExcluded) === JSON.stringify(['card-9998']), '段10(D) 外すとき、触るのはそのIDだけ（古いIDは残る）', rosterOf(d, 'r1').outsideCardExcluded);
+		await sp.ctx.close();
+	});
+
+	await block('段10(D) 保存: ①の次の書き込み（絞り込み・スキルのオン/オフ）のあとも項目が残る・①のリセットと②のリセットは触らない', async () => {
+		const sp = await openReal({ userData: SAVED(), tab: 0, roster: null });
+		await pickSet(sp.page, 't1');
+		await sp.page.evaluate((id) => UmaSkillDeckCore.outside.setExcluded(id, true), OTHER);
+		const field = async () => (rosterOf(await ud(sp.page), 'r1') || {}).outsideCardExcluded;
+		assert(JSON.stringify(await field()) === JSON.stringify([OTHER]), '段10(D) 前提: 項目が保存されている', await field());
+		// ①の絞り込み
+		await sp.page.selectOption(P + 'select[data-usd-act="filter"][data-axis="distance"]', 'medium');
+		await sp.page.waitForTimeout(250);
+		let d = await ud(sp.page);
+		assert(JSON.stringify(rosterOf(d, 'r1').outsideCardExcluded) === JSON.stringify([OTHER]) && rosterOf(d, 'r1').skillFilter && rosterOf(d, 'r1').skillFilter.distance === 'medium', '段10(D)(d) ①の絞り込みを変えても、項目が残る（①の書き込みが上書きして消さない）', { f: rosterOf(d, 'r1').skillFilter, e: rosterOf(d, 'r1').outsideCardExcluded });
+		// ①のスキルのオン/オフ
+		const target = await sp.page.evaluate(() => { const e = document.querySelector('#deck-roster-panel input[data-usd-act="take-skill"]'); return e ? e.getAttribute('data-skill-id') : null; });
+		if (target) { await sp.page.click(P + 'input[data-usd-act="take-skill"][data-skill-id="' + target + '"]'); await sp.page.waitForTimeout(250); }
+		d = await ud(sp.page);
+		assert(!!target && Array.isArray(rosterOf(d, 'r1').offSkillIds) && rosterOf(d, 'r1').offSkillIds.indexOf(target) !== -1 && JSON.stringify(rosterOf(d, 'r1').outsideCardExcluded) === JSON.stringify([OTHER]),
+			'段10(D)(d) ①のスキルをオフにしても、項目が残る', { target, off: rosterOf(d, 'r1').offSkillIds, e: rosterOf(d, 'r1').outsideCardExcluded });
+		// ①のカードを1枚外す
+		await sp.page.click(P + '[data-usd-act="clear-card"]');
+		await sp.page.waitForTimeout(250);
+		d = await ud(sp.page);
+		assert(JSON.stringify(rosterOf(d, 'r1').outsideCardExcluded) === JSON.stringify([OTHER]), '段10(D)(d) ①のカードを外しても、項目が残る', rosterOf(d, 'r1').outsideCardExcluded);
+		// ①のリセット
+		await sp.page.click(P + '[data-usd-act="roster-reset"]');
+		await sp.page.click('[data-usd-el="roster-reset-all"]');
+		await sp.page.waitForTimeout(300);
+		d = await ud(sp.page);
+		const r1 = rosterOf(d, 'r1');
+		assert(!r1.umaId && (r1.cardIds || []).every((x) => !x) && !('offSkillIds' in r1) && JSON.stringify(r1.outsideCardExcluded) === JSON.stringify([OTHER]), '段10(E) ①のリセット（育成ウマ娘・カード・オン/オフを消す）は、除外のカードを消さない', { uma: r1.umaId, cards: r1.cardIds, e: r1.outsideCardExcluded });
+		// ②のリセット
+		await sp.page.evaluate(() => selectStepTab(1, { noSave: true }));
+		await sp.page.waitForTimeout(250);
+		await sp.page.click(T + '[data-usd-act="factor-reset"]');
+		await sp.page.click('[data-usd-el="factor-reset-all"]');
+		await sp.page.waitForTimeout(300);
+		d = await ud(sp.page);
+		assert(d.templates.find((t) => t.templateId === 't1').skillIds.length === 0 && JSON.stringify(rosterOf(d, 'r1').outsideCardExcluded) === JSON.stringify([OTHER]), '段10(E) ②のリセット（スキルをすべて消す）は、除外のカードを消さない（②のスキルは実際に消えた）', { skills: d.templates.find((t) => t.templateId === 't1').skillIds.length, e: rosterOf(d, 'r1').outsideCardExcluded });
+		assert(jsErrors(sp.errors).length === 0, '段10(D) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('段10(D) 保存: ①が空のセットに初めて書くと roster が作られる／下書き（＋新規）に書ける／「＋新規の保存」でこの項目だけの下書きも写される', async () => {
+		// ①が空のセット（t2）に書く
+		let sp = await openReal({ userData: SAVED(), tab: 0, roster: null });
+		await pickSet(sp.page, 't2');
+		const before = await ud(sp.page);
+		const ok = await sp.page.evaluate((id) => UmaSkillDeckCore.outside.setExcluded(id, true), OTHER);
+		let d = await ud(sp.page);
+		const t2 = d.templates.find((t) => t.templateId === 't2');
+		const nr = t2 && rosterOf(d, t2.baseRosterId);
+		assert(!before.templates.find((t) => t.templateId === 't2').baseRosterId && ok && nr && nr.name === 'S2' && JSON.stringify(nr.outsideCardExcluded) === JSON.stringify([OTHER]) && d.rosters.length === 2 && d.schemaVersion === 7,
+			'段10(D) ①が空のセットに書くと、①の既存の経路で roster が作られてセットに付く（名前はセット名）', { ok, nr, n: d.rosters.length });
+		await sp.ctx.close();
+		// 下書き（＋新規）に書く
+		sp = await openReal({ userData: EMPTY, tab: 0, roster: null });
+		const ok2 = await sp.page.evaluate((id) => UmaSkillDeckCore.outside.setExcluded(id, true), OTHER);
+		const dr = await draftRoster(sp.page);
+		assert(ok2 && dr && JSON.stringify(dr.outsideCardExcluded) === JSON.stringify([OTHER]), '段10(D) 下書き（＋新規）の①にも書ける（下書きの roster に保存される）', dr);
+		// ＋新規に名前を付けて保存 → この項目だけを持つ下書きの①が写される
+		await sp.page.click(BAR + '[data-usd-act="name-edit"]');
+		await sp.page.fill(BAR + '[data-usd-el="name"]', '除外だけ');
+		await sp.page.keyboard.press('Enter');
+		await sp.page.waitForTimeout(250);
+		d = await ud(sp.page);
+		const nt = d.templates.find((t) => t.name === '除外だけ');
+		const nr2 = nt && rosterOf(d, nt.baseRosterId);
+		assert(nt && nr2 && JSON.stringify(nr2.outsideCardExcluded) === JSON.stringify([OTHER]) && nr2.name === '除外だけ', '段10(D)(f) 「＋新規の保存」で、この項目だけを持つ下書きの①も写される（rosterHasContent）', { nt: !!nt, nr2 });
+		await sp.ctx.close();
+	});
+
+	await block('段10(D) 保存: 書き出し→取り込み→「元に戻す」で項目が保たれ、移行で書き換わらない／Deck 単体ページ（①が無い）では何もしない／Deck の複製でも保たれる', async () => {
+		const seed = SAVED({ outsideCardExcluded: [REAL.cardIds[1], 'card-9998'] });
+		const dk = await openPage(browser, base, 'uma-skill-deck.html', { width: 1280, height: 900 }, seed);
+		await dk.page.click('#tab-btn-data');
+		await dk.page.waitForTimeout(300);
+		const state = () => dk.page.evaluate(() => JSON.stringify(UmaSkillDeckCore.getUserData()) + '|' + localStorage.getItem('umaSkillDeck:userData'));
+		const before = await state();
+		const exported = await dk.page.evaluate(() => { exportData(); return document.getElementById('export-textarea').value; });
+		assert(JSON.parse(exported).rosters[0].outsideCardExcluded.join() === [REAL.cardIds[1], 'card-9998'].join(), '段10(D)(b) 書き出しに項目が入る（古いIDもそのまま）', exported.length);
+		// 別のデータを取り込み → 「元に戻す」
+		const other = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
+		await dk.page.evaluate((v) => { document.getElementById('import-textarea').value = JSON.stringify(v); const c = window.confirm; window.confirm = () => true; importData(); window.confirm = c; }, other);
+		const un = await dk.page.evaluate(() => ({ ok: performUndo() }));
+		await dk.page.waitForTimeout(300);
+		assert(un.ok && (await state()) === before, '段10(D)(b) 取り込み→「元に戻す」で、項目つきのデータがメモリと保存先の両方で取り込み前と一致する（移行で書き換わらない）', un);
+		// 書き出したものを取り込み直しても同じ
+		await dk.page.evaluate((v) => { document.getElementById('import-textarea').value = v; const c = window.confirm; window.confirm = () => true; importData(); window.confirm = c; }, exported);
+		assert(JSON.stringify(await dk.page.evaluate(() => UmaSkillDeckCore.getUserData().rosters[0].outsideCardExcluded)) === JSON.stringify([REAL.cardIds[1], 'card-9998']), '段10(D)(b) 書き出したファイルを取り込み直しても、項目が保たれる', true);
+		// Deck 単体ページ: ①が無い（受け口が無い）ので何もしない
+		const noop = await dk.page.evaluate((id) => ({ r: UmaSkillDeckCore.outside.setExcluded(id, true), g: UmaSkillDeckCore.outside.getExcluded() }), OTHER);
+		assert(noop.r === false && JSON.stringify(noop.g) === JSON.stringify([]), '段10(D) Deck 単体ページでは、除外の付け外しは何もしない（false）', noop);
+		// Deck の複製（roster は同じ id を指したまま）でも項目が保たれる
+		await dk.page.evaluate(() => switchTab('template'));
+		await dk.page.click('[data-usd-act="template-tab"][data-tab-id="t1"]');
+		await dk.page.waitForTimeout(250);
+		const dup = await dk.page.evaluate(() => { const b = document.querySelector('[data-usd-act="template-duplicate"]'); return !!b && !b.hidden; });
+		if (dup) {
+			await dk.page.click('[data-usd-act="template-duplicate"]');
+			await dk.page.waitForTimeout(300);
+		}
+		const after = await dk.page.evaluate(() => { const d = UmaSkillDeckCore.getUserData(); return { n: d.templates.length, ex: d.rosters.map((r) => r.outsideCardExcluded), bases: d.templates.map((t) => t.baseRosterId) }; });
+		assert(dup && after.n === 3 && after.ex[0].join() === [REAL.cardIds[1], 'card-9998'].join() && after.bases.filter((b) => b === 'r1').length >= 1, '段10(D)(g) セットの複製（Deck）でも、roster の項目は保たれる（複製は同じ roster を指す）', { dup, after });
+		assert(dk.errors.length === 0, '段10(D) Deck: コンソールのエラー0', dk.errors.slice(0, 3));
+		await dk.ctx.close();
 	});
 }

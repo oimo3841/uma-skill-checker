@@ -2331,7 +2331,7 @@
 	 */
 	function outsideBuild(args) {
 		const a = args || {};
-		const roster = (a.roster && typeof a.roster === 'object') ? a.roster : {};
+		const roster = (a.roster && typeof a.roster === 'object') ? a.roster : (rosterOutsideSink ? rosterOutsideSink.getRoster() : {});
 		const pop = outsidePopulationOf(roster);
 		if (!pop.ok) return { ok: false, reason: pop.reason };
 		if (!trainingMeta.loaded || !trainingSources.supportCard) return { ok: false, reason: 'cards' };
@@ -3158,6 +3158,12 @@
 	 * rosterPtSource が null のままなので、必要Ptは出ない。
 	 */
 	let rosterPtSource = null;
+	/**
+	 * 本育成サポカ外スキル（段2・C-122）の除外カード（roster.outsideCardExcluded）を書く受け口。①のパネルが作るときに自分を登録する。
+	 * 書き込みは必ず①のメモリ上の roster 経由（②が保存データへ直接書くと、①の次の書き込みが古い roster で上書きして消すため）。
+	 * ①が無い画面（Deck 単体ページ）では null のまま＝何もしない。
+	 */
+	let rosterOutsideSink = null;
 	const rosterPtListeners = [];
 	function emitRosterPtChange() {
 		rosterPtListeners.forEach(fn => { try { fn(); } catch (e) { if (global.console) global.console.error('[UmaSkillDeckCore] 必要Ptの更新で例外', e); } });
@@ -3243,7 +3249,7 @@
 		if (!r || typeof r !== 'object') return false;
 		if (r.umaId) return true;
 		if ((r.cardIds || []).some(Boolean)) return true;
-		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds'].some(k => r[k] !== undefined && r[k] !== null);
+		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'outsideCardExcluded'].some(k => r[k] !== undefined && r[k] !== null);
 	}
 
 	/**
@@ -8144,6 +8150,27 @@
 
 		// 周回因子セット（②）へ、本育成のぶんを渡す（段5・段7。special.html の接点は足さず、core の中で受け渡す）。
 		// sureIds は絞り込みなしの●（②の「本育成編成」と必要Ptが使う）
+		// 本育成サポカ外スキルの除外カードの受け口（段2）。付け外しはそのIDだけを触る。空になったら項目ごと消す（rosterHasContent は項目があれば中身ありと読む）。
+		// 書き込みは persistNow（保存済み＝saveRoster／下書き＝saveDraftRoster／①が空のセット＝attachRosterToTemplate）に乗せる
+		rosterOutsideSink = {
+			getRoster: function () { return snapshot(roster); },
+			setExcluded: function (cardId, excluded) {
+				if (typeof cardId !== 'string' || !cardId) return false;
+				const cur = Array.isArray(roster.outsideCardExcluded) ? roster.outsideCardExcluded.slice() : [];
+				const i = cur.indexOf(cardId);
+				if (excluded) {
+					if (!findCard(cardId)) return false;
+					if (i !== -1) return true;
+					cur.push(cardId);
+				} else {
+					if (i === -1) return true;
+					cur.splice(i, 1);
+				}
+				if (cur.length === 0) delete roster.outsideCardExcluded; else roster.outsideCardExcluded = cur;
+				persistNow();
+				return true;
+			}
+		};
 		rosterPtSource = {
 			getInputs: function () {
 				const res = computed();
@@ -10667,7 +10694,9 @@
 			populationOf: outsidePopulationOf, candidatesOf: outsideCandidatesOf, build: outsideBuild,
 			solve: outsideSolve, solveSync: outsideSolveSync, solveGroups: outsideSolveGroups,
 			maskOf: outsideMaskOf, ptOf: outsidePtOf,
-			excludedIdsOf: outsideExcludedIdsOf
+			excludedIdsOf: outsideExcludedIdsOf,
+			getExcluded: function () { return outsideExcludedIdsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null); },
+			setExcluded: function (cardId, excluded) { return rosterOutsideSink ? rosterOutsideSink.setExcluded(cardId, excluded) : false; }
 		},
 		loadScenarioEvents: loadScenarioEvents,
 		getScenarioEventStatus: function () { return scenarioEventState.status; },
