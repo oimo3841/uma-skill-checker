@@ -128,12 +128,14 @@ export async function register13(env) {
 		POOL = POOL.filter(([id]) => masterIds.has(id) && whiteSet.has(id) && !linked.has(id)).map(([id, t]) => ({ id, tags: t }));
 		return POOL;
 	};
-	/** 合成のデータ。cands: [[id, chara, rarity, typeOrder, [skillId…]]…] */
-	const synOf = (cands) => {
+	/** 合成のデータ。cands: [[id, chara, rarity, typeOrder, [skillId…]]…]。chains: { カードID: [イベント…] }（無ければ空） */
+	const synOf = (cands, chains) => {
 		const roster = SYN_ROSTER.map((id, i) => [id, 'ロスター' + i, 'SR', (i % 5) + 1, []]);
 		const all = cands.concat(roster).map((c) => mkCard.apply(null, c));
-		return { cards: all, events: all.map((c) => ({ cardId: c.id, status: 'done', chain: [] })) };
+		return { cards: all, events: all.map((c) => ({ cardId: c.id, status: 'done', chain: (chains && chains[c.id]) || [] })) };
 	};
+	const skE = (id) => ({ skillId: id, name: 'x', hintLevel: 1 });
+	const evN = (...alts) => ({ step: 1, choices: alts.map((ids) => ({ skills: ids.map(skE) })) });
 
 	await block('オススメサポ段13A2・A3 満たせないとき: 候補そのものが足りない種類は「足りない種類：…」／種類ごとには足りているのに組み合わせで満たせないときは1行だけ／どちらもカードの欄とチェックリストの空白を出さない', async () => {
 		const S = (await needPool()).map((x) => x.id);
@@ -157,18 +159,22 @@ export async function register13(env) {
 			const cards = m.querySelector('[data-usd-el="outside-cards"]');
 			const cr = cards.getBoundingClientRect();
 			const p = e ? e.getBoundingClientRect() : null;
+			// カードの欄に残るのは、残りの枠のタイル（段13・C1）だけ。欄の高さはタイルの行の高さぶんだけ
+			const kids = Array.from(cards.children);
+			const rows = new Set(kids.map((k) => Math.round(k.getBoundingClientRect().top))).size;
+			const tilesH = kids.length ? Math.round(Math.max.apply(null, kids.map((k) => k.getBoundingClientRect().bottom)) - Math.min.apply(null, kids.map((k) => k.getBoundingClientRect().top))) : 0;
 			return { text: e ? Array.from(e.children).map((x) => x.textContent) : null, gapHeadToList: Math.round(list.top - head.bottom), listH: Math.round(list.height), noteH: p ? Math.round(p.height) : null,
-				cardsH: Math.round(cr.height), cardsShown: getComputedStyle(cards).display !== 'none', foot: m.querySelector('[data-usd-el="outside-foot"]').hidden };
+				cardsH: Math.round(cr.height), tilesH, rows, kids: kids.map((k) => k.getAttribute('data-usd-el')), cardsShown: getComputedStyle(cards).display !== 'none', foot: m.querySelector('[data-usd-el="outside-foot"]').hidden };
 		});
 		await sp.page.click(T + OPEN); await settle(sp.page);
 		const v1 = await view();
 		assert(v1.text && v1.text.length === 1 && v1.text[0] === 'この組み合わせでは指定を満たせません' && v1.foot, 'オススメサポ段13A2 画面（組み合わせで満たせない）: 種類を並べず「この組み合わせでは指定を満たせません」の1行だけ', v1);
-		assert(v1.gapHeadToList <= 16 && v1.listH <= v1.noteH + 4, 'オススメサポ段13A3 見出しの行のすぐ下に文（間 ' + v1.gapHeadToList + 'px）・文の箱は文の高さ（' + v1.listH + 'px）。カードの欄の空白（120px）とチェックリストの高さ（268px）を取らない', v1);
+		assert(v1.kids.every((k) => k === 'outside-slot') && v1.cardsH <= v1.tilesH + 1 && v1.gapHeadToList <= v1.cardsH + 16 && v1.listH <= v1.noteH + 4, 'オススメサポ段13A3 カードの欄は残りの枠のタイルの高さ（' + v1.cardsH + 'px）だけで、その下にすぐ文（間 ' + v1.gapHeadToList + 'px）・文の箱は文の高さ（' + v1.listH + 'px）。カードの欄の空白（120px）とチェックリストの高さ（268px）を取らない', v1);
 		await close(sp.page);
 		await sp.page.evaluate(() => UmaSkillDeckCore.outside.setOptions({ typeMin: { 2: 3 } }));
 		await sp.page.click(T + OPEN); await settle(sp.page);
 		const v2 = await view();
-		assert(v2.text && v2.text.join('|') === '指定を満たす組み合わせがありません|足りない種類：スタミナ' && v2.gapHeadToList <= 16 && v2.listH <= v2.noteH + 4,
+		assert(v2.text && v2.text.join('|') === '指定を満たす組み合わせがありません|足りない種類：スタミナ' && v2.cardsH <= v2.tilesH + 1 && v2.gapHeadToList <= v2.cardsH + 16 && v2.listH <= v2.noteH + 4,
 			'オススメサポ段13A2・A3 画面（候補が足りない）: 「指定を満たす組み合わせがありません」と「足りない種類：スタミナ」（今のまま）。空白は出さない', v2);
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13A2 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
@@ -388,5 +394,145 @@ export async function register13(env) {
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		}
+	});
+
+	/* ====================================================================
+	 * C1: 残りの枠のサポカの指定
+	 * ==================================================================== */
+	/** 合成の材料（C1）: 指定するカード P（スピード）・P と同じスキルの A（スピード）・P と同じキャラクターの P2・友人2枚・選択肢のあるカード Q と、Q の片方の選択肢と同じスキルの C */
+	const c1Syn = async () => {
+		const S = (await needPool()).map((x) => x.id);
+		const cands = [
+			['syn-P', 'テストP', 'SSR', 1, S.slice(0, 5)], ['syn-A', 'テストA', 'SSR', 1, S.slice(0, 5)], ['syn-P2', 'テストP', 'SSR', 3, S.slice(5, 11)],
+			['syn-B', 'テストB', 'SR', 2, S.slice(11, 14)], ['syn-D', 'テストD', 'SR', 4, S.slice(14, 16)], ['syn-G', 'テストG', 'SR', 5, S.slice(16, 17)],
+			['syn-F1', 'テストF1', 'SR', 6, S.slice(17, 18)], ['syn-F2', 'テストF2', 'SR', 6, S.slice(18, 25)],
+			['syn-Q', 'テストQ', 'SR', 5, []], ['syn-C', 'テストC', 'SR', 4, S.slice(25, 29)]
+		];
+		// F2 は大きい（7種）ので、友人の上限に空きがあれば必ず選ばれる。C（4種）は、Q の1つ目の選択肢と同じスキル。Q の2つ目の選択肢は別の4種
+		if (S.length < 33) throw new Error('合成に使う白スキルが足りない: ' + S.length);
+		return { S, syn: synOf(cands, { 'syn-Q': [evN(S.slice(25, 29), S.slice(29, 33))] }) };
+	};
+	const solveC1 = (page, o) => page.evaluate((a) => {
+		const r = UmaSkillDeckCore.outside.solveSync(Object.assign({ addedSkillIds: [], deadlineMs: 20000 }, a));
+		return { ok: r.ok, infeasible: !!r.infeasible, rec: r.cards.filter((c) => !c.pinned).map((c) => c.cardId).sort(), pinned: r.cards.filter((c) => c.pinned).map((c) => ({ id: c.cardId, picks: c.picks, gain: c.kindGain })),
+			skills: r.skills.map((s) => s.skillId), score: r.score, engine: r.stats.engineScore, kinds: r.counts.kinds, gains: r.cards.reduce((s, c) => s + c.kindGain, 0) };
+	}, o);
+
+	await block('オススメサポ段13C1 探索: 指定したカードのスキルは「得られる」として扱い、それ以外を補う／同じキャラクターのカードは候補から外す／種類の指定・友人の上限は指定したカードを数えない／選択肢のある指定カードは、補うカードと合わせて最良の選び方', async () => {
+		const { S, syn } = await c1Syn();
+		const sp = await openSp({ roster: FULLSYN, syn });
+		const none = await solveC1(sp.page, { count: 4 });
+		const pin = await solveC1(sp.page, { count: 4, pinnedCardIds: ['syn-P'] });
+		assert(none.rec.includes('syn-P2') && pin.pinned.map((x) => x.id).join() === 'syn-P' && !pin.rec.includes('syn-A') && !pin.rec.includes('syn-P2') && pin.rec.length === 4,
+			'オススメサポ段13C1 P を指定（4枚）: P と同じスキルしか持たない A は選ばれず（得られるものとして扱う）、P と同じキャラクターの P2 は候補から外れる', { none: none.rec, pin: pin.rec });
+		assert(S.slice(0, 5).every((id) => pin.skills.includes(id)) && pin.score === pin.engine && pin.kinds === pin.gains && pin.pinned[0].gain === 5,
+			'オススメサポ段13C1 結果のスキルに P のスキルも入る（追加の対象）。点数は探索と一致・種数は各カードの「＋N種」の合計と一致（P は先に数えて＋5種）', pin);
+		const t = await solveC1(sp.page, { count: 4, pinnedCardIds: ['syn-P'], typeMin: { 1: 1 } });
+		assert(!t.infeasible && t.rec.includes('syn-A'), 'オススメサポ段13C1 スピード1枚の指定: 指定したスピードの P は数えないので、オススメの4枚にスピード（A）が入る', t.rec);
+		const f = await solveC1(sp.page, { count: 4, pinnedCardIds: ['syn-F1'] });
+		assert(f.rec.includes('syn-F2') && f.rec.filter((id) => /^syn-F/.test(id)).length === 1, 'オススメサポ段13C1 友人 F1 を指定: オススメの4枚に友人（F2）を1枚選べる（指定したカードは友人の上限に数えない）', f.rec);
+		const q = await solveC1(sp.page, { count: 4, pinnedCardIds: ['syn-Q'] });
+		const qp = q.pinned[0];
+		assert(qp && qp.picks.length === 1 && qp.picks[0].choiceIndex === 1 && q.rec.includes('syn-C') && S.slice(25, 33).every((id) => q.skills.includes(id)),
+			'オススメサポ段13C1 Q（選択肢が2つ）を指定: C と重ならない側の選択肢（2つ目）を選んだ前提で、C を補う（8種とも得られる）', { picks: qp && qp.picks, rec: q.rec });
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13C1 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	const modalTiles = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-cards"] > *')).map((e) => ({
+		el: e.getAttribute('data-usd-el'), id: e.getAttribute('data-card-id'), slot: e.getAttribute('data-slot'), text: e.textContent.replace(/\s+/g, ''), h: Math.round(e.getBoundingClientRect().height) })));
+
+	await block('オススメサポ段13C1 画面: 残りの枠は「N サポカを選ぶ」・①と同じカード選択の小窓（オススメサポの小窓の上・Escape で選ぶ小窓だけ閉じる）・指定したカードは番号の札つき・「外す」で解除／枚数の選択肢・保存（セットごと）／追加で指定したカードのスキルも入る（①の本育成のスキルは入らない）', async () => {
+		const { S, syn } = await c1Syn();
+		const sp = await openSp({ roster: Object.assign({}, FULLSYN, { outsideOptions: { count: 4 } }), syn });
+		await open(sp.page);
+		const t0 = await modalTiles(sp.page);
+		assert(t0.filter((x) => x.el === 'outside-card').length === 4 && t0.slice(4).map((x) => x.el + ':' + x.slot + ':' + x.text).join() === 'outside-slot:5:5サポカを選ぶ,outside-slot:6:6サポカを選ぶ' && t0.every((x) => x.h === 36),
+			'オススメサポ段13C1 4枚のとき、残りの2枠は「5 サポカを選ぶ」「6 サポカを選ぶ」（高さはカードと同じ 36px）', t0);
+		await sp.page.click(M + '[data-usd-el="outside-slot"][data-slot="5"]');
+		await sp.page.waitForSelector('.usd-roster-modal[data-usd-over="1"] [data-usd-el="hits"]');
+		const pk = await sp.page.evaluate(() => { const m = document.querySelector('.usd-roster-modal'); const o = document.querySelector('[data-usd-el="outside-modal"]');
+			return { z: Number(getComputedStyle(m).zIndex), oz: Number(getComputedStyle(o).zIndex), title: m.querySelector('.usd-roster-h').textContent, types: m.querySelectorAll('[data-usd-act="type"]').length }; });
+		assert(pk.z > pk.oz && pk.title === 'サポートカードを選ぶ' && pk.types > 0, 'オススメサポ段13C1 ①と同じ「サポートカードを選ぶ」の小窓が、オススメサポの小窓の上に出る（検索・種類の切り替えつき）', pk);
+		await sp.page.keyboard.press('Escape');
+		await sp.page.waitForTimeout(200);
+		const esc1 = await sp.page.evaluate(() => ({ picker: !!document.querySelector('.usd-roster-modal'), outside: !document.querySelector('[data-usd-el="outside-modal"]').hidden }));
+		assert(!esc1.picker && esc1.outside, 'オススメサポ段13C1 Escape で選ぶ小窓だけが閉じ、オススメサポの小窓は開いたまま', esc1);
+		const pickBy = async (slot, cardId) => {
+			await sp.page.click(M + '[data-usd-el="outside-slot"][data-slot="' + slot + '"]');
+			await sp.page.fill('[data-usd-el="roster-modal-host"] [data-usd-el="find"]', '二つ名' + cardId);
+			await sp.page.waitForTimeout(150);
+			await sp.page.click('[data-usd-el="roster-modal-host"] [data-usd-act="take"][data-entry-id="' + cardId + '"]');
+			await settle(sp.page);
+		};
+		await pickBy(5, 'syn-P');
+		const t1 = await modalTiles(sp.page);
+		const d1 = await sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')).outsideOptions);
+		assert(t1.find((x) => x.el === 'outside-pinned' && x.id === 'syn-P' && x.slot === '5' && /^5/.test(x.text) && /外す$/.test(x.text)) && t1.filter((x) => x.el === 'outside-card').every((x) => x.id !== 'syn-P2') && JSON.stringify(d1.pinned) === '["syn-P"]',
+			'オススメサポ段13C1 選ぶと、5枠目に番号の札つきで入り（「外す」）、セットに保存（pinned）。同じキャラクターの P2 はオススメに出ない', { t1, d1 });
+		// 同じキャラクターのカードは選べない
+		await sp.page.click(M + '[data-usd-el="outside-slot"][data-slot="6"]');
+		await sp.page.fill('[data-usd-el="roster-modal-host"] [data-usd-el="find"]', '二つ名syn-P');
+		await sp.page.waitForTimeout(150);
+		const hits = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="roster-modal-host"] .usd-name-hit')).map((e) => ({ t: e.textContent, btn: e.tagName === 'BUTTON' })));
+		assert(hits.find((h) => /syn-P2]/.test(h.t) && !h.btn && /同じキャラクターが入っています/.test(h.t)) && hits.find((h) => /syn-P]/.test(h.t) && !h.btn && /この編成に入っています/.test(h.t)),
+			'オススメサポ段13C1 指定済みのカードは「この編成に入っています」、同じキャラクターのカードは「同じキャラクターが入っています」で選べない', hits);
+		await sp.page.keyboard.press('Escape');
+		// 枚数: 指定が1枚なら 6枚は選べない
+		await sp.page.click(M + '[data-usd-el="outside-count-btn"]');
+		const chips = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-count-list"] button')).map((b) => b.disabled));
+		assert(chips.join() === 'false,false,true', 'オススメサポ段13C1 指定が1枚のとき、枚数は 4・5 まで（6枚は押せない）', chips);
+		await sp.page.keyboard.press('Escape');
+		// 追加: 指定したカードのスキル（母集団に入るもの）も入る。①の本育成のスキルは入らない
+		const r = await sp.page.evaluate(() => { const m = document.querySelector('[data-usd-el="outside-modal"]'); return Array.from(m.querySelectorAll('[data-usd-el="outside-check"]')).map((i) => i.value); });
+		assert(S.slice(0, 5).every((id) => r.includes(id)), 'オススメサポ段13C1 チェックリストに指定したカードのスキルも出る（最初は全部チェック）', r.length);
+		await sp.page.click(M + '[data-usd-el="outside-add"]');
+		await sp.page.waitForTimeout(300);
+		const added = await sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || '{"skillIds":[]}').skillIds);
+		const pop = await sp.page.evaluate(() => UmaSkillDeckCore.outside.populationOf(JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'))));
+		assert(S.slice(0, 5).every((id) => added.includes(id)) && added.every((id) => pop.takenIds.indexOf(id) === -1),
+			'オススメサポ段13C1 「追加」で、指定したカードのスキルも②に入る（①の本育成で得るスキルは入らない）', { added: added.length });
+		// 外す → 指定が消え、項目ごと消える（ほかの指定は残る）
+		await open(sp.page);
+		await sp.page.click(M + '[data-usd-el="outside-unpin"][data-card-id="syn-P"]');
+		await settle(sp.page);
+		const d2 = await sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')).outsideOptions);
+		const t2 = await modalTiles(sp.page);
+		assert(JSON.stringify(d2) === JSON.stringify({ count: 4 }) && t2.filter((x) => x.el === 'outside-slot').length === 2, 'オススメサポ段13C1 「外す」で指定が解除され（pinned の項目が消える）、2枠とも「サポカを選ぶ」に戻る', d2);
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13C1 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('オススメサポ段13C1 保存（outsideOptions.pinned）: 触ったときだけ書く・指定なしで項目ごと消す・セットごと（別のセットには出ない）・再読み込みで残る・古いデータは1バイトも変わらない・引けないIDは読まない', async () => {
+		const seed = JSON.parse(JSON.stringify(SAVED2));
+		seed.rosters.forEach((r) => { r.cardIds = CARDS6.slice(); r.umaId = 'uma-0001'; });
+		const sp = await openSp({ userData: seed, roster: null });
+		const pick = async (id) => { await sp.page.click(BAR + '[data-usd-act="set-list"]'); const on = await sp.page.evaluate((v) => document.querySelector('[data-usd-el="set-list"] input[value="' + v + '"]').checked, id); if (on) await sp.page.keyboard.press('Escape'); else await sp.page.click('[data-usd-el="set-list"] input[value="' + id + '"]'); await sp.page.waitForTimeout(250); };
+		await pick('t1');
+		assert((await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:userData'))) === JSON.stringify(seed), 'オススメサポ段13C1 項目の無いデータは、開いてセットを選んでも1バイトも変わらない', true);
+		await sp.page.evaluate(() => UmaSkillDeckCore.outside.setOptions({ pinned: ['card-0300', 'card-9999'] }));
+		let d = JSON.parse(await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:userData')));
+		assert(JSON.stringify(d.rosters.find((r) => r.rosterId === 'r1').outsideOptions) === '{"pinned":["card-0300"]}' && !d.rosters.find((r) => r.rosterId === 'r2').outsideOptions && d.schemaVersion === 7,
+			'オススメサポ段13C1 書くと、そのセットの roster に pinned（引けないIDは入れない）。別のセットには書かない・schemaVersion は 7 のまま', d.rosters.map((r) => r.outsideOptions));
+		await pick('t2');
+		assert((await sp.page.evaluate(() => UmaSkillDeckCore.outside.getOptions().pinned)).length === 0, 'オススメサポ段13C1 別のセット（S2）では指定なし', true);
+		await pick('t1');
+		const pg = await sp.ctx.newPage();
+		await pg.route('**/data/scenario-event-skills.json*', (rt) => rt.fulfill(json(scenReal)));
+		await pg.goto(base + '/special.html', { waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await pg.isVisible('#ui-notice')) await pg.click('[data-act="notice-ok"]');
+		await pg.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 });
+		await pg.waitForTimeout(300);
+		assert(JSON.stringify(await pg.evaluate(() => UmaSkillDeckCore.outside.getOptions().pinned)) === '["card-0300"]', 'オススメサポ段13C1 再読み込みのあとも残っている（S1 が開く）', true);
+		await pg.close();
+		await sp.page.evaluate(() => UmaSkillDeckCore.outside.setOptions({ pinned: [] }));
+		d = JSON.parse(await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:userData')));
+		assert(!('outsideOptions' in d.rosters.find((r) => r.rosterId === 'r1')), 'オススメサポ段13C1 指定なしに戻すと、項目ごと消える（ほかの指定が無いので）', d.rosters[0]);
+		const o = await sp.page.evaluate(() => UmaSkillDeckCore.outside.optionsOf({ outsideOptions: { count: 5, pinned: ['card-9999', 'card-0300', 'card-0300', 5] } }).pinned);
+		assert(JSON.stringify(o) === '["card-0300"]', 'オススメサポ段13C1 読むときは、引けないID・重複・文字列でないものを読まない（保存値は書き換えない）', o);
+		const o2 = await sp.page.evaluate(() => UmaSkillDeckCore.outside.optionsOf({ outsideOptions: { count: 6, pinned: ['card-0300'] } }).pinned);
+		assert(o2.length === 0, 'オススメサポ段13C1 枠が無い（6枚）ときは、指定を読まない', o2);
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13C1 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
 	});
 }
