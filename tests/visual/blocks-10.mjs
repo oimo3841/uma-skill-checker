@@ -156,14 +156,75 @@ export async function register10(env) {
 				const same = res.score === res2.score && res.cards.join() === res2.cards.join();
 				if (!same || (!best ? res.score !== 0 : (res.score !== best.score || res.cards.join() !== best.ids.join()))) { bad++; if (firstBad.length < 3) firstBad.push({ trial, engine: res.score + ' ' + res.cards.join(), brute: best && (best.score + ' ' + best.ids.join()), same }); }
 			}
+			// ④・段11: 種類の指定・友人の上限（最大1枚）・4枚を足した300問。総当たりは「選んだ組（友人は1枚まで）に、残りの枚数で使っていない群を種類ごとに
+			// 足して指定を満たせる組」だけを数える（群の種類＝その群の選択肢の種類）。指定を最初から満たせないとき（空の組でも満たせない）は infeasible
+			let cbad = 0, cn = 0, cInf = 0, cFriendCut = 0; const cFirstBad = [];
+			const FR = 6;
+			for (let trial = 0; trial < 300; trial++) {
+				const U = 8 + Math.floor(rnd() * 16), G = 4 + Math.floor(rnd() * 6), K = [2, 3, 4, 4, 5, 6][Math.floor(rnd() * 6)];
+				const groups = [];
+				for (let g = 0; g < G; g++) {
+					const opts = []; const no = 1 + Math.floor(rnd() * 3);
+					for (let o = 0; o < no; o++) {
+						const bits = []; const nb = Math.floor(rnd() * 5);
+						for (let b = 0; b < nb; b++) bits.push(Math.floor(rnd() * U));
+						opts.push({ card: 'c' + String(g).padStart(2, '0') + String.fromCharCode(97 + o), ssr: rnd() < 0.5 ? 1 : 0, bits: bits, type: rnd() < 0.25 ? FR : 1 + Math.floor(rnd() * 5) });
+					}
+					groups.push({ key: 'g' + g, options: opts });
+				}
+				const typeMin = {};
+				if (rnd() < 0.8) { const nt = 1 + Math.floor(rnd() * 3); for (let i = 0; i < nt; i++) { const t = 1 + Math.floor(rnd() * 6); typeMin[t] = t === FR ? 1 : 1 + Math.floor(rnd() * 2); } }
+				const groupTypes = groups.map((g) => new Set(g.options.map((o) => o.type)));
+				const feasible = (picks) => {   // picks: [{ g, o }]
+					if (picks.filter((p) => p.o.type === FR).length > 1) return false;
+					const need = [];
+					Object.keys(typeMin).map(Number).sort((a, b) => a - b).forEach((t) => { const have = picks.filter((p) => p.o.type === t).length; for (let i = have; i < typeMin[t]; i++) need.push(t); });
+					if (need.length > K - picks.length) return false;
+					const usedG = new Set(picks.map((p) => p.g));
+					const owner = new Map();
+					const aug = (ni, seen) => { for (let g = 0; g < G; g++) { if (usedG.has(g) || seen.has(g) || !groupTypes[g].has(need[ni])) continue; seen.add(g); if (!owner.has(g) || aug(owner.get(g), seen)) { owner.set(g, ni); return true; } } return false; };
+					for (let ni = 0; ni < need.length; ni++) if (!aug(ni, new Set())) return false;
+					return true;
+				};
+				const rootOk = feasible([]);
+				let best = null;
+				const rec = (gi, picks) => {
+					if (gi === G) {
+						if (picks.length === 0 || picks.length > K || !feasible(picks)) return;
+						const cov = new Set(); picks.forEach((p) => p.o.bits.forEach((b) => cov.add(b)));
+						const cand = { score: cov.size, size: picks.length, ssr: picks.reduce((s, p) => s + p.o.ssr, 0), ids: picks.map((p) => p.o.card).sort() };
+						if (cand.score === 0) return;
+						const better = !best || cand.score > best.score || (cand.score === best.score && (cand.size < best.size || (cand.size === best.size && (cand.ssr > best.ssr || (cand.ssr === best.ssr && cand.ids.join() < best.ids.join())))));
+						if (better) best = cand;
+						return;
+					}
+					rec(gi + 1, picks);
+					if (picks.length < K) groups[gi].options.forEach((o) => rec(gi + 1, picks.concat([{ g: gi, o }])));
+				};
+				rec(0, []);
+				const res = C.solveGroups(groups, U, K, { typeMin, friendType: FR, friendMax: 1, deadlineMs: 5000 });
+				const res2 = C.solveGroups(groups, U, K, { typeMin, friendType: FR, friendMax: 1, deadlineMs: 5000 });
+				cn++;
+				if (!rootOk) cInf++;
+				// 友人の上限が効いた問題（上限なしの総当たりのほうが点が高い）を数える（検査が空振りしていない印）
+				const free = C.solveGroups(groups, U, K, { deadlineMs: 5000 });
+				if (rootOk && Object.keys(typeMin).length === 0 && free.score > (best ? best.score : 0)) cFriendCut++;
+				const typeOfCard = new Map(); groups.forEach((g) => g.options.forEach((o) => typeOfCard.set(o.card, o.type)));
+				const friends = res.cards.filter((c) => typeOfCard.get(c) === FR).length;
+				const same = res.score === res2.score && res.cards.join() === res2.cards.join() && !!res.infeasible === !!res2.infeasible;
+				const okR = !rootOk ? (res.infeasible === true && res.score === 0) : (!res.infeasible && (!best ? res.score === 0 : (res.score === best.score && res.cards.join() === best.ids.join())));
+				if (!same || !okR || friends > 1) { cbad++; if (cFirstBad.length < 3) cFirstBad.push({ trial, K, typeMin, rootOk, engine: res.score + ' ' + res.cards.join() + (res.infeasible ? ' (infeasible)' : ''), brute: best && (best.score + ' ' + best.ids.join()), friends }); }
+			}
 			// 締め切り: 探索に数十万ノードかかる問題（最後まで回すと約0.3秒）を締め切り 0ms で回すと、途中の結果の印が付き、それまでの最良（貪欲法の解以上）が返る
 			const groups = []; let s2 = 5; const r2 = () => { s2 = (s2 * 1664525 + 1013904223) >>> 0; return s2 / 4294967296; };
 			for (let g = 0; g < 20; g++) { const opts = []; for (let o = 0; o < 3; o++) { const bits = []; for (let b = 0; b < 4; b++) bits.push(Math.floor(r2() * 50)); opts.push({ card: 'c' + String(g).padStart(2, '0') + o, ssr: 0, bits: bits }); } groups.push({ key: 'g' + g, options: opts }); }
 			const cut = C.solveGroups(groups, 50, 6, { deadlineMs: 0 });
 			const full = C.solveGroups(groups, 50, 6, { deadlineMs: 20000 });
-			return { n, bad, firstBad, cut: { partial: cut.partial, score: cut.score, size: cut.size }, full: { partial: full.partial, score: full.score } };
+			return { n, bad, firstBad, cn, cbad, cInf, cFriendCut, cFirstBad, cut: { partial: cut.partial, score: cut.score, size: cut.size }, full: { partial: full.partial, score: full.score } };
 		});
 		assert(r.n === 300 && r.bad === 0, '段10(A) 探索: 300問すべてで、総当たり（点数・同点の選び方〔枚数が少ない→SSRが多い→番号〕）と一致し、2回回しても同じ結果', r);
+		assert(r.cn === 300 && r.cbad === 0 && r.cInf > 0 && r.cFriendCut > 0,
+			'段10(A) ④・段11: 種類の指定・友人の上限（最大1枚）・4枚を足した300問でも、総当たりと一致（満たせない ' + r.cInf + '問は infeasible・友人の上限が効いた ' + r.cFriendCut + '問）。選んだ組に友人は2枚以上入らない', { cbad: r.cbad, first: r.cFirstBad });
 		assert(r.cut.partial === true && r.cut.score > 0 && r.cut.score <= r.full.score && r.full.partial === false, '段10(A) 締め切りに達したとき、途中の結果の印（partial）が付き、それまでの最良（最適以下）を返す。最後まで回れば印は付かない', r);
 		assert(jsErrors(sp.errors).length === 0, '段10(A) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();

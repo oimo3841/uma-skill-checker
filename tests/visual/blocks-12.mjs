@@ -566,4 +566,136 @@ export async function register12(env) {
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段10 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
+
+	/* ====================================================================
+	 * 段11: 「種類」の指定（探索の拡張・友人は最大1枚・満たせないときの表示）
+	 *   合成の材料: 種類ごとのカード（友人は2キャラクター・スタミナは増分0 のカードが2枚）。白のスキルは実データの母集団から（名前は書かない）
+	 * ==================================================================== */
+	const master = readJson('uma-skill-deck-skills.json').skills;
+	const ptReal = readJson('data/skill-pt.json');
+	const stepReal = readJson('data/skill-step-up.json');
+	const whiteSet = new Set(ptReal.entries.filter((e) => e.rarity === 'white').map((e) => e.skillId));
+	const masterIds = new Set(master.map((s) => s.id));
+	const linked = new Set(); stepReal.entries.forEach((e) => { linked.add(e.skillId); (e.prevSkillIds || []).forEach((p) => linked.add(p)); });
+	const TYPE_NAMES = ['スピード', 'スタミナ', 'パワー', '根性', '賢さ', '友人・その他'];
+	const SYN_ROSTER = ['syn-r1', 'syn-r2', 'syn-r3', 'syn-r4', 'syn-r5', 'syn-r6'];
+	const FULLSYN = { umaId: 'uma-0001', cardIds: SYN_ROSTER, skillFilter: FILTER };
+	let SYN = null;
+	const needSyn = async () => {
+		if (SYN) return SYN;
+		const probe = await openSp({ roster: FULL });
+		const pop = await probe.page.evaluate((f) => UmaSkillDeckCore.outside.populationOf({ umaId: 'uma-0001', cardIds: [], skillFilter: f }).ids, FILTER);
+		await probe.ctx.close();
+		const S = pop.filter((id) => masterIds.has(id) && whiteSet.has(id) && !linked.has(id)).slice(0, 34);
+		const mk = (id, chara, rarity, order, skills) => ({ id, title: '二つ名' + id, charaName: chara, type: TYPE_NAMES[order - 1], typeOrder: order, rarity, isGroup: false,
+			hintSkills: skills.map((s) => ({ skillId: s, name: 'x' })), dataStatus: { hint: 'done' } });
+		const cands = [
+			['syn-A', 'テストA', 'SSR', 1, S.slice(0, 6)], ['syn-B', 'テストB', 'SR', 1, S.slice(6, 11)], ['syn-C', 'テストC', 'SSR', 2, S.slice(11, 15)],
+			['syn-D', 'テストD', 'SSR', 3, S.slice(15, 18)], ['syn-E', 'テストE', 'SR', 4, S.slice(18, 20)], ['syn-F', 'テストF', 'SR', 5, [S[20]]],
+			['syn-G', 'テストG', 'SSR', 6, S.slice(21, 28)], ['syn-H', 'テストH', 'SSR', 6, S.slice(28, 34)],
+			['syn-I', 'テストI', 'SR', 2, []], ['syn-J', 'テストJ', 'SR', 2, []]
+		];
+		const roster = SYN_ROSTER.map((id, i) => [id, 'ロスター' + i, 'SR', (i % 5) + 1, []]);
+		const all = cands.concat(roster).map((c) => mk.apply(null, c));
+		SYN = { S, cards: all, events: all.map((c) => ({ cardId: c.id, status: 'done', chain: [] })) };
+		return SYN;
+	};
+	const cardsOf = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]')).map((c) => ({ id: c.getAttribute('data-card-id'), gain: c.querySelector('[data-usd-el="outside-card-gain"]').textContent })));
+	const typeUi = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-types-list"] [data-usd-el="outside-type-row"]')).map((r) => ({
+		t: Number(r.getAttribute('data-type')), name: r.querySelector('.usd-out-typename').textContent, n: Number(r.querySelector('[data-usd-el="outside-type-num"]').textContent),
+		minusDis: r.querySelector('[data-usd-el="outside-type-minus"]').disabled, plusDis: r.querySelector('[data-usd-el="outside-type-plus"]').disabled })));
+	const typeSum = (page) => page.evaluate(() => (document.querySelector('[data-usd-el="outside-types-sum"]') || {}).textContent || null);
+	const plus = async (page, t) => { await page.click('[data-usd-el="outside-type-row"][data-type="' + t + '"] [data-usd-el="outside-type-plus"]'); await settle(page); };
+	const minus = async (page, t) => { await page.click('[data-usd-el="outside-type-row"][data-type="' + t + '"] [data-usd-el="outside-type-minus"]'); await settle(page); };
+
+	await block('オススメサポ④段11 「種類 ▾」: 6行（スピード・スタミナ・パワー・根性・賢さ・友人）に「−」「数」「＋」・右下に「指定 N／5枚」／押すたびに保存して自動で計算し直す／合計は枚数まで・友人は0〜1', async () => {
+		const syn = await needSyn();
+		const sp = await openSp({ roster: FULLSYN, syn });
+		await open(sp.page);
+		await sp.page.click(M + '[data-usd-el="outside-types-btn"]');
+		await sp.page.waitForSelector('[data-usd-el="outside-types-list"]');
+		const u0 = await typeUi(sp.page);
+		assert(u0.map((x) => x.name).join() === 'スピード,スタミナ,パワー,根性,賢さ,友人' && u0.every((x) => x.n === 0 && x.minusDis && !x.plusDis) && (await typeSum(sp.page)) === '指定 0／5枚',
+			'オススメサポ④段11 6行の名前（種類名はカードのデータから・友人は「友人」）・どれも0（「−」は押せない）・「指定 0／5枚」', u0);
+		await plus(sp.page, 1); await plus(sp.page, 1);
+		const d1 = await draftRoster(sp.page);
+		const c1 = await cardsOf(sp.page);
+		assert((await typeUi(sp.page))[0].n === 2 && (await typeSum(sp.page)) === '指定 2／5枚' && JSON.stringify(d1.outsideOptions) === JSON.stringify({ typeMin: { 1: 2 } })
+			&& c1.filter((c) => ['syn-A', 'syn-B'].includes(c.id)).length === 2 && (await headInfo(sp.page)).texts[0] === '種類2▾',
+			'オススメサポ④段11 「＋」2回: 数が2・「指定 2／5枚」・セットに保存（typeMin）・ボタンの印「種類 2」・自動で計算し直して、スピードのカードが2枚入る（選択欄は開いたまま）', { d1: d1.outsideOptions, c1 });
+		await plus(sp.page, 6);
+		let u = await typeUi(sp.page);
+		assert(u[5].n === 1 && u[5].plusDis, 'オススメサポ④段11 友人は1まで（1にすると「＋」は押せない）', u[5]);
+		await plus(sp.page, 2); await plus(sp.page, 3);
+		u = await typeUi(sp.page);
+		assert((await typeSum(sp.page)) === '指定 5／5枚' && u.every((x) => x.plusDis), 'オススメサポ④段11 合計が枚数（5枚）に達すると、どの「＋」も押せない', u.map((x) => [x.n, x.plusDis]));
+		await minus(sp.page, 3);
+		u = await typeUi(sp.page);
+		assert(u[2].n === 0 && u[2].minusDis && (await typeSum(sp.page)) === '指定 4／5枚' && !u[0].plusDis && u[5].plusDis, 'オススメサポ④段11 「−」で減らせる（0 になると「−」は押せない。友人は1のまま「＋」は押せない）', u.map((x) => [x.n, x.minusDis, x.plusDis]));
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段11 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('オススメサポ④段11 探索: 友人は種類の指定に関係なく最大1枚／不足を埋めるなら増分0 のカードも選ぶ／指定を満たせないときは結果を出さず「指定を満たす組み合わせがありません」と足りない種類（チェックリスト・フッターの数字は出さない）', async () => {
+		const syn = await needSyn();
+		const sp = await openSp({ roster: FULLSYN, syn });
+		const solve = (o) => sp.page.evaluate((a) => { const r = UmaSkillDeckCore.outside.solveSync(Object.assign({ addedSkillIds: [], deadlineMs: 20000 }, a)); return { ok: r.ok, infeasible: !!r.infeasible, short: r.shortTypes || null, cards: r.cards.map((c) => c.cardId).sort(), score: r.score, engine: r.stats.engineScore }; }, o);
+		const a = await solve({ count: 5 });
+		assert(a.cards.includes('syn-G') && !a.cards.includes('syn-H') && a.cards.join() === ['syn-A', 'syn-B', 'syn-C', 'syn-D', 'syn-G'].sort().join(),
+			'オススメサポ④段11 指定なしの5枚: 友人（G・H）は増分が大きくても1枚だけ（G）。残りは友人以外の上位', a.cards);
+		const b = await solve({ count: 5, typeMin: { 2: 3 } });
+		assert(['syn-C', 'syn-I', 'syn-J'].every((id) => b.cards.includes(id)) && b.cards.length === 5 && b.score === b.engine,
+			'オススメサポ④段11 スタミナ3枚の指定: 増分0 のスタミナ（I・J）も選んで満たす。点数は探索の点数と一致', b);
+		const c = await solve({ count: 5, typeMin: { 6: 1, 1: 2 } });
+		assert(['syn-G', 'syn-A', 'syn-B'].every((id) => c.cards.includes(id)) && c.cards.filter((id) => id === 'syn-H').length === 0, 'オススメサポ④段11 友人1＋スピード2: 満たせる（友人はGの1枚）', c);
+		const d = await solve({ count: 5, typeMin: { 2: 4 } });
+		assert(d.ok && d.infeasible && JSON.stringify(d.short) === '[2]' && d.cards.length === 0, 'オススメサポ④段11 スタミナ4枚（候補は3キャラクター）: 満たせない（infeasible・足りない種類＝スタミナ）', d);
+		// 画面: 満たせないときの表示
+		await sp.page.evaluate(() => UmaSkillDeckCore.outside.setOptions({ typeMin: { 2: 4 } }));
+		await open(sp.page);
+		const v = await sp.page.evaluate(() => { const m = document.querySelector('[data-usd-el="outside-modal"]'); const e = m.querySelector('[data-usd-el="outside-infeasible"]');
+			return { text: e ? Array.from(e.children).map((x) => x.textContent) : null, rows: m.querySelectorAll('[data-usd-el="outside-row"]').length, cards: m.querySelectorAll('[data-usd-el="outside-card"]').length, foot: m.querySelector('[data-usd-el="outside-foot"]').hidden, head: !!m.querySelector('[data-usd-el="outside-types-btn"]') }; });
+		assert(v.text && v.text[0] === '指定を満たす組み合わせがありません' && v.text[1] === '足りない種類：スタミナ' && v.rows === 0 && v.cards === 0 && v.foot && v.head,
+			'オススメサポ④段11 画面: 「指定を満たす組み合わせがありません」と「足りない種類：スタミナ」。カード・チェックリスト・フッターは出ない（見出し行のボタンは残り、指定を直せる）', v);
+		// 指定を直すと（自動で）結果が出る
+		await sp.page.click(M + '[data-usd-el="outside-types-btn"]');
+		await minus(sp.page, 2);
+		const v2 = await cardsOf(sp.page);
+		assert(v2.length === 5 && ['syn-C', 'syn-I', 'syn-J'].every((id) => v2.some((x) => x.id === id)) && v2.find((x) => x.id === 'syn-I').gain === '＋0種',
+			'オススメサポ④段11 指定をスタミナ3に直すと、自動で計算し直して結果が出る（増分0 のカードは「＋0種」）', v2);
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段11 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('オススメサポ④段11 計算時間（実データ・256条件＝絞り込み8×①のカードあり／なし×枚数4・5・6×種類の指定8 のうち指定の合計が枚数以下）: 打ち切りなし・友人は1枚まで・指定を満たす・点数は探索と一致', async () => {
+		const sp = await openSp({ roster: FULL, w: 1280, h: 900 });
+		const r = await sp.page.evaluate(({ cards6 }) => {
+			const C = UmaSkillDeckCore.outside;
+			const F = { distance: 'medium', style: 'senko', surface: 'turf' };
+			const filters = [{}, { distance: F.distance }, { distance: F.distance, style: F.style }, F, { distance: 'short', style: 'nige', surface: 'dirt' }, { distance: 'long', style: 'oikomi', surface: 'turf' }, { style: F.style }, { surface: F.surface }];
+			const mins = [{}, { 6: 1, 1: 2 }, { 2: 1, 3: 1, 4: 1, 5: 1 }, { 1: 2, 2: 1, 3: 1, 5: 1 }, { 1: 1, 2: 1, 3: 1, 4: 1, 5: 1 }, { 1: 2, 2: 2, 3: 1, 5: 1 }, { 1: 1, 2: 1, 3: 1, 4: 2, 5: 1 }, { 1: 2, 2: 1, 3: 1, 4: 1, 5: 1 }];
+			const typeOf = new Map(C.candidatesOf({}).map((c) => [c.id, c.typeOrder]));
+			const out = [];
+			for (const f of filters) for (const withCards of [true, false]) for (const K of [4, 5, 6]) for (const tm of mins) {
+				const sum = Object.keys(tm).reduce((s, k) => s + tm[k], 0);
+				if (sum > K) continue;
+				const roster = withCards ? { umaId: 'uma-0001', cardIds: cards6, skillFilter: f } : { skillFilter: f };
+				const t0 = performance.now();
+				const res = C.solveSync({ roster, addedSkillIds: [], count: K, typeMin: tm, deadlineMs: 1500 });
+				const wall = performance.now() - t0;
+				const types = res.cards.map((c) => typeOf.get(c.cardId));
+				const meets = Object.keys(tm).every((k) => types.filter((t) => t === Number(k)).length >= tm[k]);
+				out.push({ K, sum, ms: res.stats.ms, wall, partial: res.partial, infeasible: !!res.infeasible, friends: types.filter((t) => t === 6).length, meets: res.infeasible || meets, n: res.cards.length, scoreOk: res.partial || res.infeasible || res.score === res.stats.engineScore });
+			}
+			return out;
+		}, { cards6: CARDS6 });
+		const ms = r.map((x) => x.ms).sort((a, b) => a - b);
+		const med = (a) => a[Math.floor((a.length - 1) / 2)];
+		const by = (K) => { const a = r.filter((x) => x.K === K).map((x) => x.ms).sort((p, q) => p - q); return K + '枚 最悪 ' + Math.round(a[a.length - 1]) + 'ms・中央値 ' + Math.round(med(a)) + 'ms（' + a.length + '通り）'; };
+		console.log('     [実測] 256条件の探索時間: 最悪 ' + Math.round(ms[ms.length - 1]) + 'ms・中央値 ' + Math.round(med(ms)) + 'ms／' + [4, 5, 6].map(by).join('／') + '／満たせない ' + r.filter((x) => x.infeasible).length + '回・打ち切り ' + r.filter((x) => x.partial).length + '回');
+		assert(r.length === 256 && r.every((x) => !x.partial), 'オススメサポ④段11 256条件すべてで打ち切りなし（締め切り1.5秒）', { n: r.length, partial: r.filter((x) => x.partial).length });
+		assert(r.every((x) => x.friends <= 1 && x.meets && x.scoreOk && (x.infeasible || x.n === x.K)), 'オススメサポ④段11 どの結果も、友人は1枚まで・種類の指定を満たす・枚数どおり・点数は探索の点数と一致', r.filter((x) => !(x.friends <= 1 && x.meets && x.scoreOk)).slice(0, 3));
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段11 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
 }

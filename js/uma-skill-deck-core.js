@@ -2261,6 +2261,17 @@
 		return { count: count, typeMin: typeMin, filter: filter };
 	}
 	function outsideTypeMinSum(typeMin) { return Object.keys(typeMin || {}).reduce((s, k) => s + (typeMin[k] || 0), 0); }
+	/**
+	 * 種類の番号 → 表示名（④・段11）。名前はカードのデータの種類名（typeOrder ごとに最初に出てきたもの）。
+	 * 友人（6）は「友人」と出す（データの種類名は「友人・その他」だが、グループのカード〔その他〕はオススメの候補に入らないため）。
+	 */
+	const OUTSIDE_FRIEND_LABEL = '友人';
+	function outsideTypeNames() {
+		const out = new Map();
+		listCards().forEach(c => { const t = cardTypeOrderOf(c); if (t !== null && !out.has(t) && c.type) out.set(t, c.type); });
+		out.set(OUTSIDE_FRIEND_TYPE, OUTSIDE_FRIEND_LABEL);
+		return out;
+	}
 	const OUTSIDE_DEADLINE_MS = 1500;
 	// 検査用: 締め切りの既定を差し替える（null で元に戻す）。画面の探索が途中の結果になる場合を作るためだけに使う
 	let outsideDeadlineOverride = null;
@@ -2287,27 +2298,79 @@
 	function outsideMaskOr(a, b) { const r = new Int32Array(a.length); for (let i = 0; i < a.length; i++) r[i] = a[i] | b[i]; return r; }
 	function outsideMaskSubset(a, b) { for (let i = 0; i < a.length; i++) if ((a[i] & ~b[i]) !== 0) return false; return true; }
 	function outsideMaskGain(m, cov) { let n = 0; for (let i = 0; i < m.length; i++) n += outsidePopcount32(m[i] & ~cov[i]); return n; }
-	/** 他の選択肢の部分集合になる選択肢を落とす（中身が同じなら先に出たものを残す。入力の並びが決まっていれば結果も決まる） */
-	function outsidePareto(list) {
+	/**
+	 * 他の選択肢の部分集合になる選択肢を落とす（中身が同じなら先に出たものを残す。入力の並びが決まっていれば結果も決まる）。
+	 * canDom(x, o) … x が o を落としてよいか（④・段11。種類の指定があるときは同じ種類どうしだけ、無いときも友人は友人以外を落とさない。
+	 * 友人は最大1枚なので、友人の選択肢しか残っていないと、別の友人を選んだ枝でそのキャラクターを使えなくなるため）。無ければ常に落とす。
+	 */
+	function outsidePareto(list, canDom) {
+		const dom = typeof canDom === 'function' ? canDom : () => true;
 		const out = [];
 		list.forEach(o => {
-			if (out.some(x => outsideMaskSubset(o.m, x.m))) return;
-			for (let i = out.length - 1; i >= 0; i--) if (outsideMaskSubset(out[i].m, o.m)) out.splice(i, 1);
+			if (out.some(x => dom(x, o) && outsideMaskSubset(o.m, x.m))) return;
+			for (let i = out.length - 1; i >= 0; i--) if (dom(o, out[i]) && outsideMaskSubset(out[i].m, o.m)) out.splice(i, 1);
 			out.push(o);
 		});
 		return out;
 	}
 
 	/* ---- 探索の部品（データを知らない。groups だけを見る）----
-	   groups: [{ key, options: [{ card, ssr, m（Int32Array）か bits（番号の配列）}] }]。グループ＝キャラクター（1グループから高々1枚）。
-	   選ぶ枚数は K まで。評価は ビットの数（和集合）。 */
-	function outsideEngine(groupsIn, W, K) {
-		const groups = groupsIn.map(g => ({ key: g.key, opts: g.options.map(o => ({ card: o.card, ssr: o.ssr ? 1 : 0, m: o.m || outsideMaskOf(o.bits, W), ref: o })) }));
+	   groups: [{ key, options: [{ card, ssr, m（Int32Array）か bits（番号の配列）, type（種類の番号。無くてもよい）}] }]。グループ＝キャラクター（1グループから高々1枚）。
+	   選ぶ枚数は K まで。評価は ビットの数（和集合）。
+	   cons（④・段11。無ければ従来どおり）: { typeMin: { 種類: 最低の枚数 }, friendType, friendMax, fill: [{ key, types: [種類…] }] }
+	     - friendType の選択肢は、選ぶ組の中で friendMax 枚まで（種類の指定に関係なく）
+	     - typeMin: 選んだ組（増分が正のカード）に、残りの枚数で「使っていないキャラクター」（fill。無ければ groups から作る）を種類ごとに足して満たせる組だけを数える
+	       （満たせない枝は落とす。照合は二部グラフの増加路。不足を埋めるカードは増分0 として、組み立てで足す）。根から満たせなければ state().infeasible */
+	function outsideEngine(groupsIn, W, K, consIn) {
+		const groups = groupsIn.map(g => ({ key: g.key, opts: g.options.map(o => ({ card: o.card, ssr: o.ssr ? 1 : 0, m: o.m || outsideMaskOf(o.bits, W), ref: o, type: typeof o.type === 'number' ? o.type : null })) }));
 		groups.forEach(g => g.opts.forEach(o => { o.pc = outsideMaskPop(o.m); }));
 		const G = groups.length;
 		const zero = () => new Int32Array(Math.max(1, W));
+		// ④・段11: 友人の上限と、種類の最低枚数
+		const cons = consIn || {};
+		const friendType = typeof cons.friendType === 'number' ? cons.friendType : null;
+		const friendMax = typeof cons.friendMax === 'number' ? cons.friendMax : Infinity;
+		const typeMin = new Map();
+		Object.keys(cons.typeMin || {}).forEach(k => { const n = cons.typeMin[k]; if (typeof n === 'number' && n > 0) typeMin.set(Number(k), n); });
+		const minTypes = Array.from(typeMin.keys()).sort((a, b) => a - b);
+		const fill = (Array.isArray(cons.fill) ? cons.fill : groups.map(g => ({ key: g.key, types: g.opts.map(o => o.type) })))
+			.map(e => ({ key: e.key, types: new Set((e.types || []).filter(t => typeof t === 'number')) }));
+		const fillIdxOfKey = new Map(fill.map((e, i) => [e.key, i]));
+		const fillByType = new Map(minTypes.map(t => [t, fill.map((e, i) => (e.types.has(t) ? i : -1)).filter(i => i >= 0)]));
+		const groupFill = groups.map(g => (fillIdxOfKey.has(g.key) ? fillIdxOfKey.get(g.key) : -1));
+		const allowed = (o, picks) => {
+			if (friendType === null || o.type !== friendType) return true;
+			let n = 0; picks.forEach(p => { if (p.type === friendType) n++; });
+			return n < friendMax;
+		};
+		/** picks（選んだ選択肢）と、その群の番号 pickGroups で、残り left 枚を使って種類の不足を埋められるか */
+		function feasible(picks, pickGroups, left) {
+			if (minTypes.length === 0) return true;
+			const need = [];
+			for (const t of minTypes) {
+				const want = typeMin.get(t);
+				if (t === friendType && want > friendMax) return false;
+				let have = 0; picks.forEach(o => { if (o.type === t) have++; });
+				for (let i = have; i < want; i++) need.push(t);
+			}
+			if (need.length === 0) return true;
+			if (need.length > left) return false;
+			const used = new Set(pickGroups.map(g => groupFill[g]).filter(i => i >= 0));
+			const owner = new Map();
+			const aug = (ni, seen) => {
+				for (const fi of fillByType.get(need[ni])) {
+					if (used.has(fi) || seen.has(fi)) continue;
+					seen.add(fi);
+					const cur = owner.get(fi);
+					if (cur === undefined || aug(cur, seen)) { owner.set(fi, ni); return true; }
+				}
+				return false;
+			};
+			for (let ni = 0; ni < need.length; ni++) if (!aug(ni, new Set())) return false;
+			return true;
+		}
 		let best = null;       // { score, size, ssr, ids（昇順）, picks: [option] }
-		let nodes = 0, finished = false, timedOut = false;
+		let nodes = 0, finished = false, timedOut = false, infeasible = false;
 		const cmpIds = (a, b) => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1; return 0; };
 		const better = (a, b) => {
 			if (!b) return true;
@@ -2318,22 +2381,24 @@
 		};
 		const candidateOf = (score, picks) => ({ score: score, size: picks.length, ssr: picks.reduce((s, o) => s + o.ssr, 0),
 			ids: picks.map(o => o.card).sort(), picks: picks.slice() });
-		// (a) 貪欲法の解を出発点にして、枝刈りを早く効かせる
+		// (a) 貪欲法の解を出発点にして、枝刈りを早く効かせる（種類の不足を埋められる途中までの組だけを使う）
 		{
-			let cov = zero(), covN = 0; const used = new Set(); const picks = [];
+			let cov = zero(), covN = 0; const used = new Set(); const picks = [], pg = [];
 			for (let k = 0; k < K; k++) {
 				let bg = 0, bo = null, bgi = -1;
 				for (let g = 0; g < G; g++) {
 					if (used.has(g)) continue;
-					for (const o of groups[g].opts) { const gn = outsideMaskGain(o.m, cov); if (gn > bg) { bg = gn; bo = o; bgi = g; } }
+					for (const o of groups[g].opts) { if (!allowed(o, picks)) continue; const gn = outsideMaskGain(o.m, cov); if (gn > bg) { bg = gn; bo = o; bgi = g; } }
 				}
 				if (!bo) break;
-				used.add(bgi); picks.push(bo); cov = outsideMaskOr(cov, bo.m); covN += bg;
+				used.add(bgi); picks.push(bo); pg.push(bgi); cov = outsideMaskOr(cov, bo.m); covN += bg;
+				if (feasible(picks, pg, K - picks.length)) { const c = candidateOf(covN, picks); if (better(c, best)) best = c; }
 			}
-			if (picks.length > 0) best = candidateOf(covN, picks);
 		}
 		const stack = [];
 		const pickStack = [];
+		const pickGroupStack = [];
+		const popFrame = (f) => { if (f.picked) { pickStack.pop(); pickGroupStack.pop(); } stack.pop(); };
 		stack.push({ cands: groups.map((_, g) => g), left: K, cov: zero(), covN: 0, order: null, gains: null, i: 0, os: null, oi: 0, picked: false });
 		const worth = (ub, f) => {
 			const B = best ? best.score : 0;
@@ -2356,30 +2421,56 @@
 				if (f.order === null) {
 					nodes++;
 					const d = pickStack.length;
+					// 種類の不足を、残りの枚数と使っていないキャラクターで埋められない枝は落とす（この先の組もすべて埋められない）
+					if (!feasible(pickStack, pickGroupStack, f.left)) { if (stack.length === 1) infeasible = true; popFrame(f); continue; }
 					if (f.covN > 0 && (!best || f.covN > best.score || (f.covN === best.score && d <= best.size))) {
 						const c = candidateOf(f.covN, pickStack);
 						if (better(c, best)) best = c;
 					}
-					if (f.left === 0) { if (f.picked) pickStack.pop(); stack.pop(); continue; }
+					if (f.left === 0) { popFrame(f); continue; }
+					// 種類の不足（この時点で、まだ足りない種類と枚数）。上限の見積もりに使う
+					f.need = null;
+					if (minTypes.length > 0) {
+						const nd = [];
+						minTypes.forEach(t => { let have = 0; pickStack.forEach(o => { if (o.type === t) have++; }); if (typeMin.get(t) > have) nd.push([t, typeMin.get(t) - have]); });
+						if (nd.length > 0) f.need = nd;
+					}
 					const gs = [];
 					for (const g of f.cands) {
 						let mx = 0;
-						for (const o of groups[g].opts) { if (o.pc <= mx) continue; const gn = outsideMaskGain(o.m, f.cov); if (gn > mx) mx = gn; }
-						if (mx > 0) gs.push([mx, g]);
+						const tg = f.need ? {} : null;   // 不足している種類ごとの、この群の最大の増分
+						for (const o of groups[g].opts) {
+							if (!allowed(o, pickStack)) continue;
+							if (tg && o.type !== null && f.need.some(x => x[0] === o.type)) { const gn0 = outsideMaskGain(o.m, f.cov); if (gn0 > (tg[o.type] || 0)) tg[o.type] = gn0; if (gn0 > mx) mx = gn0; continue; }
+							if (o.pc <= mx) continue;
+							const gn = outsideMaskGain(o.m, f.cov); if (gn > mx) mx = gn;
+						}
+						if (mx > 0) gs.push([mx, g, tg]);
 					}
-					if (gs.length === 0) { if (f.picked) pickStack.pop(); stack.pop(); continue; }
+					if (gs.length === 0) { popFrame(f); continue; }
 					gs.sort((a, b) => (b[0] - a[0]) || (a[1] - b[1]));
 					f.order = gs.map(x => x[1]);
 					f.gains = gs.map(x => x[0]);
+					f.tgains = f.need ? gs.map(x => x[2]) : null;
 					f.i = 0; f.os = null;
 				}
 				if (f.os === null) {
-					if (f.i >= f.order.length) { if (f.picked) pickStack.pop(); stack.pop(); continue; }
+					if (f.i >= f.order.length) { popFrame(f); continue; }
+					// 上限の見積もり: 残り left 枚のうち、不足を埋めるのに要る枚数（不足の合計）は、その種類のカードにしか使えない。
+					// ＝「自由に選べる left − 不足の合計 枚の、増分の上位」＋「不足している種類ごとに、その種類の増分の上位（不足の枚数ぶん）」（同じ群を両方で数えても上限としては正しい）
 					let ub = f.covN;
-					for (let j = f.i; j < Math.min(f.i + f.left, f.gains.length); j++) ub += f.gains[j];
-					if (!worth(ub, f)) { if (f.picked) pickStack.pop(); stack.pop(); continue; }
+					const needTotal = f.need ? f.need.reduce((s, x) => s + x[1], 0) : 0;
+					const freeN = Math.max(0, f.left - needTotal);
+					for (let j = f.i; j < Math.min(f.i + freeN, f.gains.length); j++) ub += f.gains[j];
+					if (f.need) f.need.forEach(([t, n]) => {
+						const vals = [];
+						for (let j = f.i; j < f.tgains.length; j++) { const v = f.tgains[j][t]; if (v > 0) vals.push(v); }
+						vals.sort((a, b) => b - a);
+						for (let k = 0; k < Math.min(n, vals.length); k++) ub += vals[k];
+					});
+					if (!worth(ub, f)) { popFrame(f); continue; }
 					const g = f.order[f.i];
-					f.os = groups[g].opts.map(o => ({ o: o, gn: outsideMaskGain(o.m, f.cov) })).filter(x => x.gn > 0)
+					f.os = groups[g].opts.map(o => ({ o: o, gn: outsideMaskGain(o.m, f.cov) })).filter(x => x.gn > 0 && allowed(x.o, pickStack))
 						.sort((a, b) => (b.gn - a.gn) || (a.o.card < b.o.card ? -1 : a.o.card > b.o.card ? 1 : 0)).map(x => x.o);
 					f.oi = 0;
 				}
@@ -2387,20 +2478,21 @@
 					const o = f.os[f.oi++];
 					const nc = outsideMaskOr(f.cov, o.m);
 					pickStack.push(o);
+					pickGroupStack.push(f.order[f.i]);
 					stack.push({ cands: f.order.slice(f.i + 1), left: f.left - 1, cov: nc, covN: outsideMaskPop(nc), order: null, gains: null, i: 0, os: null, oi: 0, picked: true });
 				} else { f.i++; f.os = null; }
 			}
 			finished = true;
 			return 'done';
 		}
-		return { step: step, state: function () { return { best: best, nodes: nodes, finished: finished, timedOut: timedOut, groups: G }; } };
+		return { step: step, state: function () { return { best: best, nodes: nodes, finished: finished, timedOut: timedOut, groups: G, infeasible: infeasible }; } };
 	}
 	/** 締め切りまで一気に回す（譲らない。検査・node 用） */
 	function outsideRunSync(engine, deadlineMs) {
 		const t0 = outsideNow();
 		const st = engine.step(Infinity, t0 + deadlineMs);
 		const s = engine.state();
-		return { best: s.best, nodes: s.nodes, partial: st === 'timeout', ms: outsideNow() - t0, groups: s.groups };
+		return { best: s.best, nodes: s.nodes, partial: st === 'timeout', ms: outsideNow() - t0, groups: s.groups, infeasible: !!s.infeasible };
 	}
 	/** 時間で区切って、区切りごとに画面へ譲る（締め切りに達したら、そのときの最良を返す） */
 	async function outsideRunAsync(engine, deadlineMs, sliceMs) {
@@ -2413,7 +2505,7 @@
 			await new Promise(function (resolve) { global.setTimeout(resolve, 0); });
 		}
 		const s = engine.state();
-		return { best: s.best, nodes: s.nodes, partial: st === 'timeout', ms: outsideNow() - t0, groups: s.groups };
+		return { best: s.best, nodes: s.nodes, partial: st === 'timeout', ms: outsideNow() - t0, groups: s.groups, infeasible: !!s.infeasible };
 	}
 
 	/* ---- 母集団・候補（データを読む）---- */
@@ -2545,6 +2637,10 @@
 			return out;
 		};
 		const mk = (ids) => { const bits = []; expandIds(ids).forEach(id => { const i = idx.get(id); if (i !== undefined) bits.push(i); }); return outsideMaskOf(bits, W); };
+		// ④・段11: 種類の指定（typeMin）と友人の上限。選択肢に種類を持たせ、部分集合で落とすのは「落としても種類の指定・友人の上限で困らない」ときだけ
+		const typeMin = (a.typeMin && typeof a.typeMin === 'object') ? a.typeMin : {};
+		const hasTypeMin = Object.keys(typeMin).some(k => typeMin[k] > 0);
+		const canDom = hasTypeMin ? (x, o) => x.type === o.type : (x, o) => !(x.type === OUTSIDE_FRIEND_TYPE && o.type !== OUTSIDE_FRIEND_TYPE);
 		// カードごとの選択肢。イベントごとに選択肢（部分集合になるものは落とす）の直積を取る。picks は選んだ選択肢（2つ以上あるイベントだけ）
 		const foldEvents = (opts, events, scope) => {
 			events.forEach(ev => {
@@ -2558,41 +2654,88 @@
 				const next = [];
 				opts.forEach(o => alts.forEach(x => next.push(Object.assign({}, o, { m: outsideMaskOr(o.m, x.m),
 					picks: outsideMaskPop(x.m) > 0 ? o.picks.concat([{ scope: scope, eventIndex: ev.idx, choiceIndex: x.ci }]) : o.picks }))));
-				opts = outsidePareto(next);
+				opts = outsidePareto(next, canDom);
 			});
 			return opts;
 		};
 		const byChara = new Map();
 		cands.forEach(c => {
 			const src = cardSrc.get(c.id);
-			const opts = foldEvents([{ m: mk(src.hint), card: c.id, ssr: c.rarity === 'SSR' ? 1 : 0, picks: [] }], src.events, 'card');
+			const opts = foldEvents([{ m: mk(src.hint), card: c.id, ssr: c.rarity === 'SSR' ? 1 : 0, picks: [], type: cardTypeOrderOf(c) }], src.events, 'card');
 			const k = charaOf(c);
 			if (!byChara.has(k)) byChara.set(k, []);
 			byChara.get(k).push.apply(byChara.get(k), opts);
 		});
 		const groups = [];
 		Array.from(byChara.keys()).sort((x, y) => (x < y ? -1 : x > y ? 1 : 0)).forEach(name => {
-			let opts = outsidePareto(byChara.get(name));
+			let opts = outsidePareto(byChara.get(name), canDom);
 			opts = foldEvents(opts, commonSrc.get(name) || [], 'chara');
 			opts = opts.filter(o => outsideMaskPop(o.m) > 0);
 			if (opts.length > 0) groups.push({ key: name, options: opts });
 		});
+		// 種類の不足を埋められるキャラクター（候補のカード全部。増分の無いキャラクターも含む）と、その種類
+		const fillTypes = new Map();
+		cands.forEach(c => { const t = cardTypeOrderOf(c); if (!fillTypes.has(charaOf(c))) fillTypes.set(charaOf(c), []); if (t !== null && fillTypes.get(charaOf(c)).indexOf(t) === -1) fillTypes.get(charaOf(c)).push(t); });
+		const typeMinOk = {};
+		Object.keys(typeMin).forEach(k => { const n = typeMin[k]; if (typeof n === 'number' && n > 0) typeMinOk[k] = n; });
 		return { ok: true, roster: roster, pop: pop, cands: cands, cardSrc: cardSrc, commonSrc: commonSrc, universe: universe, idx: idx, W: W,
 			countableGolds: new Set(countableGolds), groups: groups, expandIds: expandIds, ancestors: ancestors,
-			added: new Set((a.addedSkillIds || []).filter(id => typeof id === 'string')) };
+			added: new Set((a.addedSkillIds || []).filter(id => typeof id === 'string')),
+			typeMin: typeMinOk,
+			cons: { typeMin: typeMinOk, friendType: OUTSIDE_FRIEND_TYPE, friendMax: OUTSIDE_FRIEND_MAX, fill: Array.from(fillTypes.keys()).sort().map(k => ({ key: k, types: fillTypes.get(k) })) } };
 	}
 
-	/** 選んだ組み合わせ（options の配列）の結果を組み立てる。足りない枚数は SSR → カード番号の昇順で（同じキャラクターを避けて）埋める */
+	/**
+	 * 選んだ組み合わせ（options の配列）の結果を組み立てる。
+	 * 種類の指定（④・段11）があれば、まず不足する種類を、使っていないキャラクターのカードで埋める（照合。キャラクターは、その種類のカードの SSR → カード番号の順に試す）。
+	 * 足りない枚数は SSR → カード番号の昇順で（同じキャラクターを避けて）埋める。友人のカードは、全部で最大1枚（種類の指定に関係なく）。
+	 */
 	function outsideAssemble(prob, chosen, K, search) {
-		const used = new Set(chosen.map(o => prob.cands.find(c => c.id === o.card).charaName));
+		const cardBy = new Map(prob.cands.map(c => [c.id, c]));
+		const used = new Set(chosen.map(o => cardBy.get(o.card).charaName));
 		const picksOf = new Map(chosen.map(o => [o.card, o.picks || []]));
 		const order = chosen.map(o => o.card);
+		const typeOfCard = (id) => cardTypeOrderOf(cardBy.get(id));
+		const need = [];
+		Object.keys(prob.typeMin || {}).map(Number).sort((x, y) => x - y).forEach(t => {
+			const have = order.filter(id => typeOfCard(id) === t).length;
+			for (let i = have; i < prob.typeMin[t]; i++) need.push(t);
+		});
+		if (need.length > 0 && order.length + need.length <= K) {
+			const firstCardOf = new Map();   // 「キャラクター|種類」→ その種類の最初のカード（SSR → 番号の順）
+			const charasByType = new Map();
+			prob.cands.forEach(c => {
+				if (used.has(c.charaName)) return;
+				const t = cardTypeOrderOf(c), key = c.charaName + '|' + t;
+				if (firstCardOf.has(key)) return;
+				firstCardOf.set(key, c.id);
+				if (!charasByType.has(t)) charasByType.set(t, []);
+				charasByType.get(t).push(c.charaName);
+			});
+			const owner = new Map();
+			const aug = (ni, seen) => {
+				for (const ch of (charasByType.get(need[ni]) || [])) {
+					if (seen.has(ch)) continue;
+					seen.add(ch);
+					const cur = owner.get(ch);
+					if (cur === undefined || aug(cur, seen)) { owner.set(ch, ni); return true; }
+				}
+				return false;
+			};
+			let ok = true;
+			for (let ni = 0; ni < need.length; ni++) if (!aug(ni, new Set())) { ok = false; break; }
+			if (ok) {
+				const byNeed = [];
+				owner.forEach((ni, ch) => { byNeed[ni] = firstCardOf.get(ch + '|' + need[ni]); });
+				byNeed.forEach(id => { used.add(cardBy.get(id).charaName); order.push(id); picksOf.set(id, []); });
+			}
+		}
 		for (const c of prob.cands) {
 			if (order.length >= K) break;
 			if (used.has(c.charaName)) continue;
+			if (cardTypeOrderOf(c) === OUTSIDE_FRIEND_TYPE && order.filter(id => typeOfCard(id) === OUTSIDE_FRIEND_TYPE).length >= OUTSIDE_FRIEND_MAX) continue;
 			used.add(c.charaName); order.push(c.id); picksOf.set(c.id, []);
 		}
-		const cardBy = new Map(prob.cands.map(c => [c.id, c]));
 		// 由来（ヒント／イベント／確定か）。金スキルを得たら前段の鎖の白も同じ由来で足す
 		const flagsByCard = new Map();
 		order.forEach(cardId => {
@@ -2710,14 +2853,32 @@
 	 */
 	function outsidePrepare(args) {
 		const a = args || {};
-		// 枚数は引数（count）が優先。無ければセットの指定（roster.outsideOptions。無ければ5枚）。④・段10
+		// 枚数・種類は引数（count・typeMin）が優先。無ければセットの指定（roster.outsideOptions。無ければ5枚・指定なし）。④・段10〜11
 		const roster = (a.roster && typeof a.roster === 'object') ? a.roster : (rosterOutsideSink ? rosterOutsideSink.getRoster() : {});
-		const K = OUTSIDE_COUNT_CHOICES.indexOf(a.count) !== -1 ? a.count : outsideOptionsOf(roster).count;
-		const prob = outsideBuild(Object.assign({}, a, { roster: roster }));
+		const opt = outsideOptionsOf(roster);
+		const K = OUTSIDE_COUNT_CHOICES.indexOf(a.count) !== -1 ? a.count : opt.count;
+		const typeMin = (a.typeMin && typeof a.typeMin === 'object') ? a.typeMin : opt.typeMin;
+		const prob = outsideBuild(Object.assign({}, a, { roster: roster, typeMin: typeMin }));
 		if (!prob.ok) return { prob: prob, K: K };
-		return { prob: prob, K: K, engine: outsideEngine(prob.groups, prob.W, K) };
+		return { prob: prob, K: K, engine: outsideEngine(prob.groups, prob.W, K, prob.cons) };
+	}
+	/**
+	 * 種類の指定を満たす組み合わせが無いとき（④・段11）の結果。カード・スキルは空で、足りない種類（shortTypes）を添える。
+	 * 足りない種類 ＝ 指定の枚数より、候補にいるその種類のキャラクター（友人は最大1）が少ない種類。それが無い（組み合わせで満たせない・指定の合計が枚数を超える）ときは指定した種類すべて。
+	 */
+	function outsideInfeasible(p, search) {
+		const prob = p.prob, tm = prob.typeMin || {};
+		const charas = new Map();
+		prob.cands.forEach(c => { const t = cardTypeOrderOf(c); if (t === null) return; if (!charas.has(t)) charas.set(t, new Set()); charas.get(t).add(c.charaName); });
+		const types = Object.keys(tm).map(Number).sort((x, y) => x - y);
+		let shortTypes = types.filter(t => tm[t] > Math.min(charas.has(t) ? charas.get(t).size : 0, t === OUTSIDE_FRIEND_TYPE ? OUTSIDE_FRIEND_MAX : Infinity));
+		if (shortTypes.length === 0) shortTypes = types;
+		return { ok: true, infeasible: true, shortTypes: shortTypes, partial: false, count: p.K, score: 0, cards: [], kindOrder: [], skills: [], golds: [],
+			counts: { kinds: 0, gold: 0, white: 0, hintWhiteCount: 0, added: 0 },
+			stats: { engineScore: 0, nodes: search.nodes, ms: search.ms, groups: search.groups, candidates: prob.cands.length, population: prob.pop.ids.length, goldCountable: prob.countableGolds.size } };
 	}
 	function outsideFinish(p, search) {
+		if (search.infeasible) return outsideInfeasible(p, search);
 		if (!search.best) return outsideAssemble(p.prob, [], p.K, { partial: search.partial, nodes: search.nodes, ms: search.ms, groups: search.groups });
 		return outsideAssemble(p.prob, search.best.picks.map(o => o.ref), p.K, search);
 	}
@@ -2738,8 +2899,10 @@
 	function outsideSolveGroups(groups, universeSize, K, opts) {
 		const o = opts || {};
 		const W = Math.max(1, Math.ceil((universeSize || 0) / 32));
-		const r = outsideRunSync(outsideEngine(groups, W, K), typeof o.deadlineMs === 'number' ? o.deadlineMs : OUTSIDE_DEADLINE_MS);
-		return { score: r.best ? r.best.score : 0, cards: r.best ? r.best.ids.slice() : [], size: r.best ? r.best.size : 0, ssr: r.best ? r.best.ssr : 0, partial: r.partial, nodes: r.nodes, ms: r.ms };
+		// ④・段11: o.typeMin・o.friendType・o.friendMax・o.fill を渡すと、種類の指定と友人の上限つきで探す（outsideEngine の cons）
+		const cons = (o.typeMin || o.friendType !== undefined || o.fill) ? { typeMin: o.typeMin || {}, friendType: o.friendType, friendMax: o.friendMax, fill: o.fill } : null;
+		const r = outsideRunSync(outsideEngine(groups, W, K, cons), typeof o.deadlineMs === 'number' ? o.deadlineMs : OUTSIDE_DEADLINE_MS);
+		return { score: r.best ? r.best.score : 0, cards: r.best ? r.best.ids.slice() : [], size: r.best ? r.best.size : 0, ssr: r.best ? r.best.ssr : 0, partial: r.partial, infeasible: r.infeasible, nodes: r.nodes, ms: r.ms };
 	}
 
 	/**
@@ -4142,6 +4305,17 @@
 		'.usd-out-optcaret { font-size: 9px; }',
 		'.usd-out-segbtn:disabled { cursor: not-allowed; color: var(--uma-text-faint); background: var(--uma-surface-sunken); border-color: var(--uma-border); }',
 		'.usd-out-chiprow { display: flex; flex-wrap: wrap; gap: var(--uma-sp-1-5); }',
+		// 「種類 ▾」の選択欄（④・段11）: 6行（種類名・−・数・＋）と、右下の「指定 N／5枚」
+		'.usd-out-types { display: flex; flex-direction: column; gap: var(--uma-sp-1); }',
+		'.usd-out-typerow { display: flex; align-items: center; gap: var(--uma-sp-2); min-height: 36px; }',
+		'.usd-out-typename { flex: 1 1 auto; min-width: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600; color: var(--uma-text-heading); }',
+		'.usd-out-stepbtn { flex: none; width: 32px; height: 32px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text-heading);',
+		'  font: inherit; font-size: 16px; line-height: 1; font-weight: 700; cursor: pointer; }',
+		'.usd-out-stepbtn:hover:not(:disabled) { background: var(--uma-surface-muted); }',
+		'.usd-out-stepbtn:disabled { cursor: not-allowed; color: var(--uma-text-faint); background: var(--uma-surface-sunken); border-color: var(--uma-border); }',
+		'.usd-out-typenum { flex: none; min-width: 2em; text-align: center; font-size: var(--uma-fs-sm); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--uma-text-heading); }',
+		'.usd-out-typesum { margin: var(--uma-sp-2) 0 0; text-align: right; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		'.usd-out-infeasible span { display: block; }',
 		'.usd-out-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--uma-sp-1-5); align-content: start; min-height: 120px; margin-bottom: var(--uma-sp-1-5); }',
 		'.usd-out-cards--excl { min-height: 0; margin: 0 0 var(--uma-sp-1-5); }',
 		// タイル（1行・高さ36px）。塗りは①のカードの表示と同じ種類色（--usd-card-bg / --usd-card-text。cardTypeColorVars が番号で流し込む）。
@@ -10195,8 +10369,63 @@
 					body.appendChild(row);
 				} });
 		}
-		/** 「種類 ▾」の選択欄（④・段11 で中身を入れる） */
-		function openOutsideTypesPopover(btn) { /* 段11 */ }
+		/**
+		 * 「種類 ▾」の選択欄（④・段11）。スピード・スタミナ・パワー・根性・賢さ・友人の6行で、各行に「−」「数」「＋」。右下に「指定 N／5枚」。
+		 * 合計は枚数まで（超える「＋」は押せない）。友人は 0〜1。押すたびにセットの指定（roster.outsideOptions.typeMin）に書いて、自動で計算し直す（選択欄は開いたまま）。
+		 */
+		function openOutsideTypesPopover(btn) {
+			openPopover({ key: 'outside-types', title: 'カードの種類', btn: btn, opener: btn, refocus: '[data-usd-el="outside-types-btn"]',
+				build: (body) => {
+					const names = outsideTypeNames();
+					const list = infoEl('div', 'usd-out-types');
+					list.setAttribute('data-usd-el', 'outside-types-list');
+					const rows = OUTSIDE_TYPE_ORDERS.map(t => {
+						const row = infoEl('div', 'usd-out-typerow');
+						row.setAttribute('data-usd-el', 'outside-type-row');
+						row.setAttribute('data-type', String(t));
+						row.appendChild(infoEl('span', 'usd-out-typename', names.get(t) || ''));
+						const mk = (el, text, label, delta) => {
+							const b = infoEl('button', 'usd-out-stepbtn', text);
+							b.type = 'button';
+							b.setAttribute('data-usd-el', el);
+							b.setAttribute('aria-label', (names.get(t) || '') + label);
+							b.addEventListener('click', () => {
+								if (!rosterOutsideSink) return;
+								const opt = outsideOptionsOf(rosterOutsideSink.getRoster());
+								const next = Object.assign({}, opt.typeMin);
+								const n = (next[t] || 0) + delta;
+								if (n < 0 || (delta > 0 && (outsideTypeMinSum(opt.typeMin) >= opt.count || (t === OUTSIDE_FRIEND_TYPE && n > OUTSIDE_FRIEND_MAX)))) return;
+								if (n === 0) delete next[t]; else next[t] = n;
+								if (rosterOutsideSink.setOptions({ typeMin: next })) { update(); outsideRun(); }
+							});
+							return b;
+						};
+						const minus = mk('outside-type-minus', '−', 'を1枚減らす', -1);
+						const num = infoEl('span', 'usd-out-typenum', '0');
+						num.setAttribute('data-usd-el', 'outside-type-num');
+						const plus = mk('outside-type-plus', '＋', 'を1枚増やす', 1);
+						row.appendChild(minus); row.appendChild(num); row.appendChild(plus);
+						list.appendChild(row);
+						return { t: t, minus: minus, num: num, plus: plus };
+					});
+					body.appendChild(list);
+					const sumEl = infoEl('p', 'usd-out-typesum');
+					sumEl.setAttribute('data-usd-el', 'outside-types-sum');
+					body.appendChild(sumEl);
+					function update() {
+						const opt = outsideOptionsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {});
+						const sum = outsideTypeMinSum(opt.typeMin);
+						rows.forEach(x => {
+							const n = opt.typeMin[x.t] || 0;
+							x.num.textContent = String(n);
+							x.minus.disabled = n === 0;
+							x.plus.disabled = sum >= opt.count || (x.t === OUTSIDE_FRIEND_TYPE && n >= OUTSIDE_FRIEND_MAX);
+						});
+						sumEl.textContent = '指定 ' + sum + '／' + opt.count + '枚';
+					}
+					update();
+				} });
+		}
 		/** 「絞り込み ▾」の選択欄（④・段12 で中身を入れる） */
 		function openOutsideFilterPopover(btn) { /* 段12 */ }
 
@@ -10266,6 +10495,12 @@
 			// チェックリスト（白スキル。金スキルは出さない）
 			h += '<div class="usd-results usd-out-list" data-usd-el="outside-list">';
 			if (outsideUi.computing) h += '<p class="usd-out-note" data-usd-el="outside-busy">計算中…</p>';
+			// 種類の指定を満たせないとき（④・段11）: 結果を出さず、足りない種類を添える（チェックリストとフッターの数字は出さない。自動で緩めない）
+			else if (ok && r.infeasible) {
+				const names = outsideTypeNames();
+				h += '<p class="usd-out-note usd-out-infeasible" data-usd-el="outside-infeasible"><span>指定を満たす組み合わせがありません</span>'
+					+ '<span data-usd-el="outside-short">足りない種類：' + esc(r.shortTypes.map(t => names.get(t) || String(t)).join('・')) + '</span></p>';
+			}
 			else if (!ok || r.cards.length === 0) h += '<p class="usd-out-note" data-usd-el="outside-empty">提案できるサポカがありません</p>';
 			else if (r.skills.length === 0) h += '<p class="usd-out-note" data-usd-el="outside-none">得られるスキルがありません</p>';
 			else {
@@ -11598,7 +11833,9 @@
 			optionsOf: outsideOptionsOf,
 			getOptions: function () { return outsideOptionsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null); },
 			setOptions: function (patch) { return rosterOutsideSink ? rosterOutsideSink.setOptions(patch) : false; },
-			filterAxes: function () { return outsideFilterAxes().map(a => a.key); }
+			filterAxes: function () { return outsideFilterAxes().map(a => a.key); },
+			// ④（段11）: 種類の番号と表示名・友人の種類の番号
+			typeNames: function () { return Array.from(outsideTypeNames().entries()); }, FRIEND_TYPE: OUTSIDE_FRIEND_TYPE
 		},
 		loadScenarioEvents: loadScenarioEvents,
 		getScenarioEventStatus: function () { return scenarioEventState.status; },
