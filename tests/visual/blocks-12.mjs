@@ -293,4 +293,207 @@ export async function register12(env) {
 			'オススメサポ④段8 一覧から消えたレース（race-9999）を持つセットは、保存値を書き換えず、同じ条件で固定が効く', u3.map((x) => [x.axis, x.value, x.disabled]));
 		await sp2.ctx.close();
 	});
+
+	/* ====================================================================
+	 * 段9: セットの帯の「レース ▾」と選択欄・母集団の規則
+	 * ==================================================================== */
+	const barInfo = (page) => page.evaluate(() => {
+		const bar = document.querySelector('#deck-set-bar [data-usd-el="setbar"]');
+		const b = bar.querySelector('[data-usd-el="set-race-btn"]');
+		const sum = bar.querySelector('[data-usd-el="set-total"]');
+		const caret = b ? b.querySelector('.usd-setbar-race-caret') : null;
+		const rect = (e) => { const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height }; };
+		return { barH: Math.round(bar.getBoundingClientRect().height), btn: b ? rect(b) : null, text: b ? b.innerText.replace(/\s+/g, '') : null, caretShown: !!caret && getComputedStyle(caret).display !== 'none',
+			on: b ? b.getAttribute('aria-pressed') === 'true' : null, bg: b ? getComputedStyle(b).backgroundColor : null, sumL: sum ? sum.getBoundingClientRect().left : null,
+			pillR: bar.querySelector('[data-usd-el="set-pill"]').getBoundingClientRect().right, sw: document.documentElement.scrollWidth, iw: window.innerWidth };
+	});
+	const raceRows = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="race-list"] [data-usd-el="race-opt"]')).map((l) => ({
+		id: l.getAttribute('data-race-id'), checked: l.querySelector('input').checked, line1: (l.querySelector('[data-usd-el="race-line1"]') || l.querySelector('.usd-link-name')).textContent,
+		line2: (l.querySelector('[data-usd-el="race-line2"]') || {}).textContent || null })));
+	const openRaceList = async (page) => { await page.click(BAR + '[data-usd-act="set-race"]'); await page.waitForSelector('[data-usd-el="race-list"]'); };
+	const chooseRace = async (page, id) => { await openRaceList(page); await page.click('[data-usd-el="race-opt"][data-race-id="' + id + '"] input'); await page.waitForTimeout(300); };
+
+	await block('オススメサポ④段9 帯の「レース ▾」: 「0/10 ▾」の右・高さ28px・選ぶと濃色（帯にレース名は出さない）／帯の高さは変わらない／320px は「レース」だけ（320・375・414px）', async () => {
+		for (const w of [320, 375, 414]) {
+			const sp = await openSp({ roster: FULL, w });
+			const a = await barInfo(sp.page);
+			await chooseRace(sp.page, R0.id);
+			const b = await barInfo(sp.page);
+			const tag = 'オススメサポ④段9 ' + w + 'px: ';
+			assert(a.btn && Math.round(a.btn.h) === 28 && a.btn.l >= a.pillR && a.btn.r <= a.sumL && a.sw <= a.iw && !a.on, tag + '「レース」のボタンは札（0/10 ▾）の右・合計の左に入り、高さ28px。画面は横にはみ出さない', a);
+			assert(a.text === (w < 360 ? 'レース' : 'レース▾') && a.caretShown === (w >= 360), tag + (w < 360 ? '320px は「レース」だけ（▾を省く）' : '「レース ▾」'), { text: a.text, caret: a.caretShown });
+			assert(b.on && b.bg !== a.bg && b.text === a.text && b.barH === a.barH && b.btn.r <= b.sumL && b.sw <= b.iw, tag + '選ぶとボタンが濃色になり、文字は「レース」のまま（帯にレース名は出さない）。帯の高さ（' + a.barH + 'px）は変わらない', { a: [a.barH, a.bg], b: [b.barH, b.bg, b.text] });
+			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+			await sp.ctx.close();
+		}
+	});
+
+	await block('オススメサポ④段9 レースの選択欄: 先頭に「指定なし」・1行目は日付＋レース名・2行目は公開された条件だけ／選ぶと①の固定とボタンに反映・指定なしで戻る／一覧から外れたレースは「（一覧から外れました）」で先頭近く／①が空のセットでも選べる', async () => {
+		const sp = await openSp({ roster: FULL, tab: 1 });
+		await openRaceList(sp.page);
+		const rows = await raceRows(sp.page);
+		const dateOf = (r) => (r.date ? Number(r.date.slice(5, 7)) + '/' + Number(r.date.slice(8, 10)) : r.dateLabel);
+		assert(rows.length === racesReal.races.length + 1 && rows[0].id === '' && rows[0].line1 === '指定なし' && rows[0].checked && rows[0].line2 === null,
+			'オススメサポ④段9 先頭は「指定なし」（選ばれている）。続けて一覧の' + racesReal.races.length + '行', rows.map((r) => r.line1));
+		assert(rows.slice(1).every((r, i) => r.id === racesReal.races[i].id && r.line1 === dateOf(racesReal.races[i]) + ' ' + racesReal.races[i].name),
+			'オススメサポ④段9 1行目は「日付（決まっていなければ「11月下旬」のような表示）＋レース名」で、並びはファイルの行の順', rows.slice(1).map((r) => r.line1));
+		const line2 = rows.slice(1).map((r) => r.line2);
+		assert(line2[0] === '京都 芝2200m 右・外・秋・曇・良・昼' && line2[1] === '京都 芝3000m 右・外・秋・昼' && line2[3] === '芝 中距離' && line2[4] === 'ダート 中距離' && line2[5] === '芝 マイル デバフなし'
+			&& line2.every((t) => t && !/不明|null|undefined/.test(t)),
+			'オススメサポ④段9 2行目は公開された条件だけ（天気・バ場状態が公開されていない行は、その語を出さない。「不明」とは書かない）。特殊ルールは「デバフなし」', line2);
+		await sp.page.click('[data-usd-el="race-opt"][data-race-id="' + R0.id + '"] input');
+		await sp.page.waitForTimeout(300);
+		const closed = await sp.page.evaluate(() => !document.querySelector('[data-usd-el="race-list"]') || !document.querySelector('[data-usd-el="race-list"]').offsetParent);
+		const b = await barInfo(sp.page);
+		const dr = await draftRoster(sp.page);
+		assert(closed && b.on && JSON.stringify(dr.race) === JSON.stringify(SNAP(R0)), 'オススメサポ④段9 行を選ぶと選択欄が閉じ、ボタンが濃色になり、①（＋新規の下書き）にレースの写しが入る', { closed, on: b.on, race: dr.race && dr.race.id });
+		await sp.page.evaluate(() => selectStepTab(0, { noSave: true }));
+		await sp.page.waitForTimeout(250);
+		const u = await filterUi(sp.page);
+		assert(u.find((x) => x.axis === 'distance').disabled && u.find((x) => x.axis === 'surface').disabled, 'オススメサポ④段9 ①の距離・バ場が固定される（段8 の仕組み）', u.map((x) => [x.axis, x.disabled]));
+		await sp.page.evaluate(() => selectStepTab(1, { noSave: true }));
+		await sp.page.waitForTimeout(250);
+		await openRaceList(sp.page);
+		const rows2 = await raceRows(sp.page);
+		assert(rows2.find((r) => r.id === R0.id).checked && !rows2[0].checked, 'オススメサポ④段9 開き直すと、選んだレースに印', rows2.map((r) => r.checked));
+		await sp.page.click('[data-usd-el="race-opt"][data-race-id=""] input');
+		await sp.page.waitForTimeout(300);
+		assert(!('race' in (await draftRoster(sp.page))) && !(await barInfo(sp.page)).on, 'オススメサポ④段9 「指定なし」を選ぶと、項目ごと消え、ボタンは元の見た目', true);
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段9 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+		// 一覧から外れたレース
+		const gone = Object.assign(SNAP(R0), { id: 'race-9999' });
+		const sp2 = await openSp({ userData: SAVED({ race: gone }), roster: null });
+		await pickSet(sp2.page, 't1');
+		await openRaceList(sp2.page);
+		const rows3 = await raceRows(sp2.page);
+		assert(rows3[1].id === 'race-9999' && rows3[1].checked && /（一覧から外れました）$/.test(rows3[1].line1) && rows3[1].line2 === line2[0] && rows3.length === racesReal.races.length + 2 && (await barInfo(sp2.page)).on,
+			'オススメサポ④段9 セットが持っているレースが一覧に無いときは、「指定なし」の次にその行を出し（選ばれている）、「（一覧から外れました）」と添える', rows3.slice(0, 3));
+		await sp2.ctx.close();
+		// ①が空の保存済みのセット（roster が無い）: 選ぶと編成が作られ、そこに入る
+		const sp3 = await openSp({ userData: SAVED(), roster: null });
+		await pickSet(sp3.page, 't2');
+		await chooseRace(sp3.page, racesReal.races[3].id);
+		const d3 = await ud(sp3.page);
+		const t2 = d3.templates.find((t) => t.templateId === 't2');
+		const r2 = t2 && d3.rosters.find((r) => r.rosterId === t2.baseRosterId);
+		assert(r2 && r2.race && r2.race.id === racesReal.races[3].id && d3.schemaVersion === 7, 'オススメサポ④段9 ①が空のセットでレースを選ぶと、編成が1つ作られ（名前はセット名）、そこにレースが入る', { r2: r2 && { name: r2.name, race: r2.race && r2.race.id } });
+		await sp3.ctx.close();
+	});
+
+	/** 検査の側の母集団の規則（実装とは別に書いた物差し）。タグの語は値の形（_turn・season_ など）で群に分ける */
+	const groupOf = { direction: (v) => /_turn$/.test(v), season: (v) => /^season_/.test(v), weather: (v) => /^weather_/.test(v), ground: (v) => /^ground_/.test(v) };
+	const oracleRejects = (tags, race) => {
+		const env = tags.environment || [], tv = tags.trackVenue || [];
+		if (race.venue && tv.length > 0 && !tv.includes(race.venue)) return true;
+		for (const f of Object.keys(groupOf)) {
+			if (!race[f]) continue;
+			const sv = env.filter(groupOf[f]);
+			if (sv.length > 0 && !sv.includes(race[f])) return true;
+		}
+		if (race.rule === 'no_debuff' && (tags.effect || []).some((v) => v === 'debuff' || v === 'temptation_time')) return true;
+		return false;
+	};
+
+	await block('オススメサポ④段9 母集団の規則: 軸ごと（レース場・回り・季節・天気・バ場状態）に食い違うものだけ外す／公開されていない軸・タグの無いスキルは外さない／内外・昼は効かせない／特殊ルール「デバフなし」／実データで物差しと一致', async () => {
+		const sp = await openSp({ roster: FULL });
+		const base0 = await sp.page.evaluate(() => { const ids = UmaSkillDeckCore.outside.populationOf({}).ids; return ids.map((id) => [id, UmaSkillDeckCore.getSkillTags(id)]); });
+		const cases = [
+			['レース場だけ（京都）', { venue: 'track_kyoto' }],
+			['右回りだけ', { direction: 'right_turn' }],
+			['左回りだけ', { direction: 'left_turn' }],
+			['季節だけ（冬）', { season: 'season_winter' }],
+			['天気だけ（雨）', { weather: 'weather_rain' }],
+			['バ場状態だけ（良）', { ground: 'ground_good' }],
+			['バ場状態だけ（道悪）', { ground: 'ground_bad' }],
+			['内外・昼だけ（効かせない）', { course: 'outer', time: 'time_day' }],
+			['デバフなしだけ', { rule: 'no_debuff' }],
+			['公開なし（名前だけ）', {}],
+			['一覧の1行目（全部公開）', R0],
+			['一覧の6行目（芝・マイル・デバフなし）', racesReal.races[5]]
+		];
+		const out = [];
+		for (const [label, fields] of cases) {
+			const race = Object.assign({ id: 'race-t', name: 't' }, fields);
+			const r = await sp.page.evaluate((rc) => { const p = UmaSkillDeckCore.outside.populationOf({ race: rc }); return { ids: p.ids, ex: p.raceExcludedIds }; }, race);
+			// ①の固定（距離・バ場）で外れる分は、母集団の比較から除く（ここで見るのはレース条件の述語だけ）
+			const base = await sp.page.evaluate((rc) => UmaSkillDeckCore.outside.populationOf({ skillFilter: UmaSkillDeckCore.outside.lockedFilterOf({ race: rc }) }).ids, race);
+			const baseSet = new Set(base);
+			const expected = base0.filter(([id, tags]) => baseSet.has(id) && oracleRejects(tags, race)).map(([id]) => id).sort();
+			const got = r.ex.slice().sort();
+			const keep = base.filter((id) => expected.indexOf(id) === -1).sort();
+			out.push(label + ' ' + got.length);
+			assert(JSON.stringify(got) === JSON.stringify(expected) && JSON.stringify(r.ids.slice().sort()) === JSON.stringify(keep),
+				'オススメサポ④段9 ' + label + ': 外すスキル（' + got.length + '種）が物差しと一致し、残りは全部残る', { got: got.length, expected: expected.length });
+			if (label.indexOf('公開なし') !== -1 || label.indexOf('内外・昼') !== -1) assert(got.length === 0, 'オススメサポ④段9 ' + label + ': 1種も外さない', got);
+			else if (label.indexOf('一覧') === -1) assert(got.length > 0, 'オススメサポ④段9 ' + label + ': 実データで外れるスキルがある（検査が空振りしていない）', got.length);
+		}
+		console.log('     [実測] レース条件で外れる白スキルの数: ' + out.join(' / '));
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段9 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('オススメサポ④段9 金スキル自身の条件: レースと食い違う金は点数に数えない（前段の白は白として数える）／合うレース・指定なしでは数える', async () => {
+		// 合成の材料: 左回りの金（前段の鎖の根は、検査のために左回りのタグを外した白）を持つカード1枚
+		const master = readJson('uma-skill-deck-skills.json');
+		const step = readJson('data/skill-step-up.json').entries;
+		const pt = readJson('data/skill-pt.json').entries;
+		const ext = readJson('data/extended-skills.json').entries;
+		const rar = new Map(pt.map((e) => [e.skillId, e.rarity]));
+		const prev = new Map(step.map((e) => [e.skillId, e.prevSkillIds]));
+		const mIds = new Set(master.skills.map((s) => s.id));
+		const chain = (g) => { const o = []; const walk = (x) => (prev.get(x) || []).forEach((p) => { o.push(p); walk(p); }); walk(g); return o; };
+		const gold = ext.find((e) => rar.get(e.id) === 'gold' && ((e.tags || {}).environment || []).includes('left_turn') && chain(e.id).some((p) => mIds.has(p)));
+		assert(!!gold, 'オススメサポ④段9 前提: 左回りのタグを持ち、前段の鎖にマスターの白がある金スキルがある', !!gold);
+		const root = chain(gold.id).find((p) => mIds.has(p));
+		const patched = Object.assign({}, master, { skills: master.skills.map((s) => (s.id === root ? Object.assign({}, s, { tags: Object.assign({}, s.tags, { environment: [] }) }) : s)) });
+		const mk = (id, chara, order, hint) => ({ id, title: 'T', charaName: chara, type: 'x', typeOrder: order, rarity: 'SSR', isGroup: false, hintSkills: hint.map((s) => ({ skillId: s, name: 'x' })), dataStatus: { hint: 'done' } });
+		const syn = { cards: [mk('syn-g1', 'テスト金', 1, [gold.id])].concat(CARDS6.map((id, i) => mk(id, 'ロスター' + i, 1, []))), events: [] };
+		syn.events = syn.cards.map((c) => ({ cardId: c.id, status: 'done', chain: [] }));
+		const sp = await openSp({ roster: null, syn });
+		await sp.page.route('**/uma-skill-deck-skills.json*', (r) => r.fulfill(json(patched)));
+		await sp.page.evaluate(async () => { await UmaSkillDeckCore.loadMasterSkills(true); await UmaSkillDeckCore.loadTrainingSources(true); await UmaSkillDeckCore.loadSkillPtData(true); });
+		const res = await sp.page.evaluate(({ g, root }) => {
+			const C = UmaSkillDeckCore.outside;
+			const run = (race) => { const r = C.solveSync({ roster: race ? { race } : {}, addedSkillIds: [], count: 5, deadlineMs: 20000 }); return { golds: r.golds.map((x) => x.skillId), whites: r.skills.map((x) => x.skillId), score: r.score }; };
+			return { none: run(null), right: run({ id: 'race-t', name: 't', direction: 'right_turn' }), left: run({ id: 'race-t', name: 't', direction: 'left_turn' }), g, root };
+		}, { g: gold.id, root });
+		assert(res.none.golds.includes(gold.id) && res.none.whites.includes(root) && res.left.golds.includes(gold.id) && res.left.whites.includes(root),
+			'オススメサポ④段9 指定なし・左回りのレースでは、金（左回り）を数え、前段の白も数える', { none: res.none, left: res.left });
+		assert(!res.right.golds.includes(gold.id) && res.right.whites.includes(root) && res.right.score === res.none.score - 1,
+			'オススメサポ④段9 右回りのレースでは、金（左回り）は点数に数えず（金スキル 0）、前段の白（タグの無い白）は白として数える（点数は1少ない）', res.right);
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段9 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('オススメサポ④段9 レースで外したスキルは、チェックリストに出さず「除外中」にも数えない／条件で検索・②の数字・①の数字には効かない', async () => {
+		const sp = await openSp({ roster: FULL });
+		const nums = () => sp.page.evaluate(() => { const q = (s) => { const e = document.querySelector(s); return e ? e.textContent : null; };
+			return { f: [q('#deck-template-panel [data-usd-el="factor-pt"]'), q('#deck-template-panel [data-usd-el="factor-count"]')], r: [q('#deck-roster-panel [data-usd-el="pt-total"]'), q('#deck-roster-panel [data-usd-el="pt-count"]')], badge: q('#skill-count-badge') }; });
+		// 条件で検索・緑スキルの一覧（選べる行の id）
+		const pickerIds = async (act) => {
+			await sp.page.click(T + '[data-usd-act="' + act + '"]');
+			await sp.page.waitForTimeout(200);
+			const ids = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="skill-check"]')).filter((i) => !i.disabled).map((i) => i.value).sort().join());
+			await sp.page.click('[data-usd-act="picker-close"]');
+			return ids;
+		};
+		const before = await nums();
+		const pk0 = await pickerIds('editor-pick'), gr0 = await pickerIds('editor-pick-passive');
+		// R0（中距離・芝）は FULL の絞り込みと同じ距離・バ場なので、①の固定で数字は変わらない
+		await chooseRace(sp.page, R0.id);
+		const after = await nums();
+		assert(JSON.stringify(before) === JSON.stringify(after), 'オススメサポ④段9 ①の絞り込みと同じ距離・バ場のレースを選んでも、②の合計・①の合計・見出しの数は変わらない（母集団の規則はオススメサポにだけ効く）', { before, after });
+		const pk1 = await pickerIds('editor-pick'), gr1 = await pickerIds('editor-pick-passive');
+		assert(pk0.length > 0 && gr0.length > 0 && pk1 === pk0 && gr1 === gr0, 'オススメサポ④段9 条件で検索・緑スキルの一覧は、レースを選んでも同じ（レースに合わないスキルも出て、選べる）', { pk: pk0.split(',').length, gr: gr0.split(',').length });
+		const ex = await sp.page.evaluate(() => UmaSkillDeckCore.outside.populationOf(UmaSkillDeckCore.outside.getRace() ? JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')) : {}).raceExcludedIds);
+		assert(ex.length > 0, 'オススメサポ④段9 前提: このレースで外れるスキルがある（' + ex.length + '種）', ex.length);
+		await open(sp.page);
+		const s = await sp.page.evaluate(() => ({ rows: Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-row"]')).map((r) => r.getAttribute('data-skill-id')), excl: !!document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-excl"]') }));
+		assert(s.rows.length > 0 && s.rows.every((id) => ex.indexOf(id) === -1) && !s.excl, 'オススメサポ④段9 チェックリストにレースで外したスキルは出ず、「除外中」の行も出ない', { rows: s.rows.length, excl: s.excl });
+		const noRace = await sp.page.evaluate((r) => UmaSkillDeckCore.outside.populationOf(r).ids, FULL);
+		assert(ex.every((id) => noRace.indexOf(id) !== -1), 'オススメサポ④段9 外したスキルは、レースが無ければ母集団に入っている（レース条件だけで外れた）', ex.length);
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段9 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
 }

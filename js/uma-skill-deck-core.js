@@ -1418,6 +1418,71 @@
 		});
 		return out;
 	}
+	/** レースの条件の短い表示（選択欄の2行目。段9）。値の語はタグの語。スキル名ではない */
+	const RACE_SHORT_LABELS = {
+		right_turn: '右', left_turn: '左', inner: '内', outer: '外',
+		season_spring: '春', season_summer: '夏', season_autumn: '秋', season_winter: '冬',
+		weather_sunny: '晴', weather_cloudy: '曇', weather_rain: '雨', weather_snow: '雪',
+		ground_good: '良', ground_bad: '道悪', time_day: '昼', time_evening: '夕方', time_night: 'ナイター'
+	};
+	/** タグの値の表示名（TAG_AXES の選択肢から。無ければ空） */
+	function tagOptionLabel(axisKey, v) {
+		const axis = TAG_AXES.find(a => a.key === axisKey);
+		const o = axis && v ? axis.options.find(x => x.v === v) : null;
+		return o ? o.t : '';
+	}
+	/** 選択欄の1行目の日付（「10/20」か、日付が決まっていなければ dateLabel） */
+	function raceDateText(race) {
+		const m = race && race.date ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(race.date) : null;
+		if (m) return Number(m[2]) + '/' + Number(m[3]);
+		return (race && race.dateLabel) || '';
+	}
+	/** 選択欄の2行目（公開された条件だけ。例「京都 芝2200m 右・外・秋・曇・良・昼」「芝 マイル デバフなし」）。公開されない項目は出さない */
+	function raceCondText(race) {
+		if (!race) return '';
+		const parts = [];
+		const venue = tagOptionLabel('trackVenue', race.venue);
+		if (venue) parts.push(venue);
+		const surf = tagOptionLabel('surface', race.surface);
+		if (race.distance) parts.push(surf + race.distance + 'm');
+		else {
+			if (surf) parts.push(surf);
+			const cat = tagOptionLabel('distance', race.distanceCategory);
+			if (cat) parts.push(cat);
+		}
+		const env = ['direction', 'course', 'season', 'weather', 'ground', 'time'].map(k => RACE_SHORT_LABELS[race[k]] || '').filter(Boolean);
+		if (env.length > 0) parts.push(env.join('・'));
+		if (race.rule && RACE_RULES[race.rule]) parts.push(RACE_RULES[race.rule].label);
+		return parts.join(' ');
+	}
+	/**
+	 * スキルがそのレースで発動しえないか（段9。オススメサポの母集団から外す規則）。**公開されていない項目では外さない**。
+	 * スキルがその項目のタグを持たなければ外さない（どのレースでも）。1つでも食い違えば外す。距離・バ場は①の固定（resolvedFilterOf）で効くのでここでは見ない。
+	 * 特殊ルール（no_debuff）は、効果タイプがデバフ（まとめた値を含む）のスキルを外す。course（内／外）・time（昼）は見ない（RACE_EFFECTIVE_ENV_FIELDS）。
+	 */
+	function raceRejectsSkill(skill, race) {
+		if (!race || !skill) return false;
+		const tags = skill.tags || {};
+		if (race.venue) {
+			const v = tags.trackVenue || [];
+			if (v.length > 0 && v.indexOf(race.venue) === -1) return true;
+		}
+		const env = tags.environment || [];
+		for (const f of RACE_EFFECTIVE_ENV_FIELDS) {
+			const rv = race[f];
+			if (!rv) continue;
+			const group = RACE_ENV_FIELDS[f];
+			const sv = env.filter(x => group.indexOf(x) !== -1);
+			if (sv.length > 0 && sv.indexOf(rv) === -1) return true;
+		}
+		const rule = race.rule ? RACE_RULES[race.rule] : null;
+		if (rule) {
+			const axis = TAG_AXES.find(a => a.key === rule.axis);
+			const vals = axis ? expandMergedValues(axis, [rule.value]) : [rule.value];
+			if ((tags[rule.axis] || []).some(x => vals.indexOf(x) !== -1)) return true;
+		}
+		return false;
+	}
 	async function loadUpcomingRaces(forceRefresh) {
 		try {
 			const data = await fetchMasterJson(withDataVersion(UPCOMING_RACES_PATH), !!forceRefresh);
@@ -2352,6 +2417,9 @@
 		const vp = visiblePartOf(r, rosterSkillResultOf(r));
 		const taken = new Set(vp.takenIds), off = new Set(vp.offList);
 		const skipped = new Set(outsideSkillExcludedIdsOf(r));   // 小窓で除外したスキル（このパネルの計算だけ）
+		// ④・段9: レース条件に合わないスキルも外す（チェックリストにも「除外中」にも出さない。距離・バ場は wanted＝①の固定で効く）
+		const race = raceOfRoster(r);
+		const raceOut = [];
 		const ids = [];
 		const seen = new Set();
 		pool.forEach(s => {
@@ -2361,9 +2429,10 @@
 			if (row && row.rarity !== 'white') return;
 			if (wanted && !wanted(s.id)) return;
 			if (taken.has(s.id) || off.has(s.id) || skipped.has(s.id)) return;
+			if (race && raceRejectsSkill(findSkill(s.id), race)) { raceOut.push(s.id); return; }
 			ids.push(s.id);
 		});
-		return { ok: true, ids: ids, set: new Set(ids), takenIds: Array.from(taken), offIds: Array.from(off), skillExcludedIds: Array.from(skipped), filtered: !!wanted };
+		return { ok: true, ids: ids, set: new Set(ids), takenIds: Array.from(taken), offIds: Array.from(off), skillExcludedIds: Array.from(skipped), raceExcludedIds: raceOut, race: race, filtered: !!wanted };
 	}
 	/** 提案から除外したスキルID（roster.outsideSkillExcluded。小窓のチェックを外したスキル）のうち、収録データで引けるものだけ。保存値は書き換えない。この計算（母集団）にだけ効かせる */
 	function outsideSkillExcludedIdsOf(roster) {
@@ -2428,7 +2497,8 @@
 		cardSrc.forEach(s => { s.hint.forEach(id => obtainable.add(id)); eachId(s.events, id => obtainable.add(id)); });
 		commonSrc.forEach(evs => eachId(evs, id => obtainable.add(id)));
 		const countableGolds = [];
-		obtainable.forEach(id => { if (outsideIsGold(id) && ancestors(id).some(p => pop.set.has(p))) countableGolds.push(id); });
+		// ④・段9: 金スキル自身の条件タグがレースと食い違うときは、その金を点数に数えない（前段の白は白として数える＝expandIds はそのまま）
+		obtainable.forEach(id => { if (outsideIsGold(id) && ancestors(id).some(p => pop.set.has(p)) && !(pop.race && raceRejectsSkill(findSkill(id), pop.race))) countableGolds.push(id); });
 		countableGolds.sort();
 		const universe = pop.ids.concat(countableGolds);
 		const idx = new Map(universe.map((id, i) => [id, i]));
@@ -5036,6 +5106,18 @@
 		'  background: transparent; color: var(--uma-text); font: inherit; font-size: 11px; line-height: 1; font-weight: 600; cursor: pointer; white-space: nowrap; }',
 		'.usd-setbar-list:hover { background: var(--uma-surface); }',
 		'.usd-setbar-caret { font-size: 9px; color: var(--uma-text-muted); }',
+		// レース条件のボタン（④・段9）。高さ28px・札と同じ線と地。選んでいるときは濃色（色だけで示す）。幅が狭いときは「▾」を省いて「レース」だけ
+		'.usd-setbar-race { flex: none; display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 8px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
+		'  background: var(--uma-surface-muted); color: var(--uma-text-heading); font: inherit; font-size: 11px; line-height: 1; font-weight: 600; white-space: nowrap; cursor: pointer; }',
+		'.usd-setbar-race:hover { background: var(--uma-surface); }',
+		'.usd-setbar-race:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
+		'.usd-setbar-race--on { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
+		'.usd-setbar-race--on:hover { background: var(--uma-surface-inverse); }',
+		'.usd-setbar-race--on .usd-setbar-caret { color: var(--uma-text-inverse); }',
+		'@media (max-width: 359px) { .usd-setbar-race-caret { display: none; } .usd-setbar-race { padding: 0 7px; } }',
+		// レースの選択欄の行（1行目＝日付＋名前、2行目＝公開された条件）
+		'.usd-race-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }',
+		'.usd-race-cond { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); overflow-wrap: anywhere; }',
 		'.usd-setbar-input { min-width: 0; flex: 1 1 auto; height: 28px; padding: 0 var(--uma-sp-2); border: 1px solid var(--uma-control); border-radius: var(--uma-r-md); font: inherit; font-size: var(--uma-fs-sm); background: var(--uma-surface); color: var(--uma-text-heading); }',
 		'.usd-setbar-sum { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0; white-space: nowrap; color: var(--uma-text); }',
 		'.usd-setbar-sumline { display: inline-flex; align-items: baseline; gap: 2px; }',
@@ -8771,6 +8853,7 @@
 			// 段8: 共通の見出しの帯
 			else if (act === 'set-list') openPopover({ key: 'set-list:' + draftScopeKey, title: 'セット', build: fillSetList, btn: btn, opener: btn, refocus: '[data-usd-act="set-list"]' });
 			else if (act === 'set-total-help') openPopover({ key: 'set-total:' + draftScopeKey, title: '合計', build: fillSetTotalInfo, btn: btn, opener: btn, refocus: '[data-usd-act="set-total-help"]' });
+			else if (act === 'set-race') openPopover({ key: 'set-race:' + draftScopeKey, title: 'レース', build: fillRaceList, btn: btn, opener: btn, refocus: '[data-usd-act="set-race"]' });
 		}
 		// 段8: 帯（setBarEl）の操作も同じ処理へ渡す（名前の入力・確定・取り消し・一覧・合計の?）
 		if (setBarEl) {
@@ -9067,6 +9150,14 @@
 					+ btn('name-edit', 'name-edit', target.kind === 'template' ? 'セットの名前を変える' : '名前を付けて保存', icon('pencil', 'w-3 h-3'))
 					+ '<button type="button" class="usd-setbar-list" data-usd-act="set-list" data-usd-el="set-list-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="セットの一覧（' + list.length + '／' + TEMPLATE_LIMIT + '件）">'
 					+ '<span data-usd-el="set-count">' + list.length + '／' + TEMPLATE_LIMIT + '</span><span class="usd-setbar-caret" aria-hidden="true">▾</span></button></span>';
+				// レース条件（④・段9）。①の roster が持つ（帯は①の描き直しの知らせで描き直る）。選んでいるときは濃色。レース名は帯に出さない（選択欄の中で見る）
+				if (rosterOutsideSink) {
+					const race = raceOfRoster(rosterOutsideSink.getRoster());
+					const lab = race ? 'レース：' + (raceDateText(race) ? raceDateText(race) + ' ' : '') + race.name : 'レース';
+					left += '<button type="button" class="usd-setbar-race' + (race ? ' usd-setbar-race--on' : '') + '" data-usd-act="set-race" data-usd-el="set-race-btn" aria-haspopup="dialog" aria-expanded="false"'
+						+ ' aria-pressed="' + (race ? 'true' : 'false') + '" aria-label="' + esc(lab) + '" title="' + esc(lab) + '">'
+						+ '<span>レース</span><span class="usd-setbar-caret usd-setbar-race-caret" aria-hidden="true">▾</span></button>';
+				}
 			}
 			let right = '';
 			if (sum) {
@@ -9097,6 +9188,52 @@
 			const k = infoEl('p', '', '種 ＝ ① ' + sum.rosterKinds + ' ＋ ② ' + sum.factorKinds);
 			k.setAttribute('data-usd-el', 'set-total-kinds-formula');
 			body.appendChild(k);
+		}
+		/**
+		 * レース条件の選択欄（④・段9）。先頭に「指定なし」、続けて一覧の行（1行目＝日付＋レース名、2行目＝公開された条件だけ）。
+		 * セットが持っているレースが一覧に無い（一覧から外れた・一覧が読めない）ときは、その行を「指定なし」の次に出し、「（一覧から外れました）」と添える。
+		 * 選ぶと①の roster に書く（rosterOutsideSink.setRace。①が空のセットなら編成が作られる）。
+		 */
+		function fillRaceList(body) {
+			const cur = rosterOutsideSink ? raceOfRoster(rosterOutsideSink.getRoster()) : null;
+			const list = upcomingRaces || [];
+			const items = [{ row: null, key: '' }];
+			if (cur && !list.some(x => x.id === cur.id)) items.push({ row: cur, key: cur.id, gone: true });
+			list.forEach(x => items.push({ row: x, key: x.id }));
+			const group = infoEl('div', 'usd-link-list');
+			group.setAttribute('role', 'radiogroup');
+			group.setAttribute('aria-label', 'レース');
+			group.setAttribute('data-usd-el', 'race-list');
+			items.forEach(o => {
+				const on = cur ? (o.row !== null && o.key === cur.id) : o.row === null;
+				const lab = infoEl('label', 'usd-link-opt usd-race-opt' + (on ? ' usd-link-opt--on' : ''));
+				lab.setAttribute('data-usd-el', 'race-opt');
+				lab.setAttribute('data-race-id', o.key);
+				const input = infoEl('input');
+				input.type = 'radio';
+				input.name = 'usd-race-list';
+				input.value = o.key;
+				input.checked = on;
+				input.setAttribute('data-usd-el', 'race-radio');
+				input.addEventListener('change', () => {
+					if (!input.checked || !rosterOutsideSink) return;
+					closeSkillInfo();
+					rosterOutsideSink.setRace(o.row);
+				});
+				lab.appendChild(input);
+				const txt = infoEl('span', 'usd-race-txt');
+				if (o.row === null) txt.appendChild(infoEl('span', 'usd-link-name', '指定なし'));
+				else {
+					const l1 = infoEl('span', 'usd-link-name usd-race-name', (raceDateText(o.row) ? raceDateText(o.row) + ' ' : '') + o.row.name + (o.gone ? '（一覧から外れました）' : ''));
+					l1.setAttribute('data-usd-el', 'race-line1');
+					txt.appendChild(l1);
+					const cond = raceCondText(o.row);
+					if (cond) { const l2 = infoEl('span', 'usd-race-cond', cond); l2.setAttribute('data-usd-el', 'race-line2'); txt.appendChild(l2); }
+				}
+				lab.appendChild(txt);
+				group.appendChild(lab);
+			});
+			body.appendChild(group);
 		}
 		/** セットの一覧の小窓（ラジオで切り替え・＋新規・選んだセットの削除） */
 		function fillSetList(body) {
