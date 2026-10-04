@@ -597,24 +597,37 @@ export async function register11(env) {
 				});
 				const tag = 'オススメサポ(G) ' + w + 'px・' + label + ': ';
 				assert(!r.bandBtn && r.outsideAnywhereInBand === -1 && r.bandH === BAND_H[w + ':' + label] && r.sw <= r.iw, tag + '②の帯にボタンは無く、帯の高さはこの機能を足す前と同じ（' + r.bandH + 'px）。画面が横にはみ出さない', r);
-				assert(r.texts.join() === 'オススメサポ,条件で検索,緑スキル,テキストで検索,スクショで追加' && r.firstAct === 'outside-open' && /uma-btn--primary/.test(r.cls) && r.others.every((c) => c === 'uma-btn uma-btn--secondary'),
-					tag + '入口列の先頭（「条件で検索」の左）に濃色（primary）の「オススメサポ」。ほかの4つは今までどおり（secondary）', { texts: r.texts, cls: r.cls, others: r.others });
+				assert(r.texts.join() === 'オススメサポ,条件で検索,緑スキル,テキストで検索,スクショで追加' && r.firstAct === 'outside-open' && !/uma-btn--primary/.test(r.cls) && r.others.every((c) => c === 'uma-btn uma-btn--secondary'),
+					tag + '入口列の先頭（「条件で検索」の左）に「オススメサポ」。ほかの4つは今までどおり（secondary）。黒い塗り（primary）にはしない', { texts: r.texts, cls: r.cls, others: r.others });
 				assert(r.ov === 'auto' && r.wrap === 'nowrap' && (w > 414 || r.scrolls), tag + '入口列は折り返さず横スクロール（幅 ' + r.rowW + 'px。先頭に ' + r.firstW + 'px 足された。' + (r.scrolls ? '右にスクロールして見る' : '収まる') + '）', r);
 				if (label === '②が空') console.log('     [実測] ' + w + 'px: ボタンの幅 ' + r.firstW + '×' + r.firstH + 'px・最初に全体が見えるボタン ' + r.visible + '個（一部でも見えるもの ' + r.partly + '個）');
 				assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 				await sp.ctx.close();
 			}
 		}
-		// ほかの入口の動きは変わらない（条件で検索を押すと、スキル選択の小窓が開く）／濃色の塗りは小窓の「追加」と同じ
+		// ほかの入口の動きは変わらない（条件で検索を押すと、スキル選択の小窓が開く）
 		const sp = await openSp({ w: 375, h: 812, roster: FULL });
-		const fill = await sp.page.evaluate(() => getComputedStyle(document.querySelector('#deck-template-panel [data-usd-el="outside-open"]')).backgroundColor);
 		await sp.page.click(T + '[data-usd-act="editor-pick"]');
 		const picker = await sp.page.evaluate(() => { const t = document.querySelector('[data-usd-el="picker-title"]'); return { title: t ? t.textContent : null, vis: !!t && !!t.offsetParent }; });
 		assert(picker.vis && /条件で検索/.test(picker.title), 'オススメサポ(G) ほかの入口（条件で検索）の動きは変わらない（スキル選択の小窓が開く）', picker);
 		await sp.page.click('[data-usd-act="picker-close"]');
-		await open(sp.page);
-		const addFill = await sp.page.evaluate(() => getComputedStyle(document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-add"]')).backgroundColor);
-		assert(fill === addFill && fill !== 'rgba(0, 0, 0, 0)', 'オススメサポ(G) 入口列のボタンの塗りは、小窓の「追加」ボタンと同じ濃色', { fill, addFill });
+		// 虹色の塗り（SSR の枠と同じ変数）に黒い文字。文字と、虹の5色・その間の色とのコントラスト比が 4.5 以上
+		const rb = await sp.page.evaluate(() => {
+			const btn = document.querySelector('#deck-template-panel [data-usd-el="outside-open"]');
+			const probe = (css) => { const e = document.createElement('i'); e.style.cssText = css; document.body.appendChild(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return c; };
+			const cs = getComputedStyle(btn);
+			const stops = [1, 2, 3, 4, 5].map((i) => probe('background-color: var(--usd-rarity-ssr-' + i + ')'));
+			const icon = btn.querySelector('svg, i');
+			return { image: cs.backgroundImage, text: cs.color, stops: stops, textVar: probe('background-color: var(--usd-rarity-ssr-text)'), iconColor: icon ? getComputedStyle(icon).color : null, iconStroke: icon && icon.tagName.toLowerCase() === 'svg' ? getComputedStyle(icon).stroke : null };
+		});
+		const rgb = (c) => (/rgba?\((\d+), (\d+), (\d+)/.exec(c) || []).slice(1, 4).map(Number);
+		const lum = (c) => { const [r, g, b] = rgb(c).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+		const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+		const mixes = [];
+		for (let i = 0; i < rb.stops.length - 1; i++) for (const t of [0.25, 0.5, 0.75]) { const x = rgb(rb.stops[i]), y = rgb(rb.stops[i + 1]); mixes.push('rgb(' + x.map((v, k) => Math.round(v + (y[k] - v) * t)).join(', ') + ')'); }
+		const min = Math.min.apply(null, rb.stops.concat(mixes).map((c) => ratio(rb.text, c)));
+		assert(rb.stops.every((c) => rb.image.indexOf(c) !== -1) && /gradient/.test(rb.image) && rb.text === rb.textVar && rgb(rb.text).every((v) => v <= 10) && min >= 4.5 && rb.iconColor === rb.text,
+			'オススメサポ(G) 入口のボタンは、SSR の枠と同じ虹色（--usd-rarity-ssr-*）の塗りに黒い文字・黒いアイコン。文字と虹の各色（間の色を含む）とのコントラスト比は最小 ' + min.toFixed(2) + '（4.5 以上）', { text: rb.text, min: min });
 		await sp.ctx.close();
 		// 1280px
 		const sp2 = await openSp({ w: 1280, h: 900, roster: FULL });
@@ -722,7 +735,7 @@ export async function register11(env) {
 		await sp.ctx.close();
 	});
 
-	await block('オススメサポ(H) カード名を押すと、カードの情報（名称・種類・レアリティ）が小窓の上に出る／「外す」と押す範囲が重ならない／閉じても小窓は残る', async () => {
+	await block('オススメサポ(H) カード名を押すと、①のカード枠と同じ「イベント」「取得できるスキル」の小窓が（番号の札なしで）小窓の上に出る／対象のスキルにだけ「対象」の札／「外す」と押す範囲が重ならない／閉じると小窓に戻る', async () => {
 		const syn = await needSyn();
 		const sp = await openSyn({ syn });
 		await open(sp.page);
@@ -738,28 +751,89 @@ export async function register11(env) {
 			const r = pop.getBoundingClientRect();
 			const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
 			const modal = document.querySelector('[data-usd-el="outside-modal"]');
-			return { shown: !pop.hidden, text: pop.innerText.replace(/\s+/g, ' ').trim(), onTop: pop.contains(top), modalOpen: !modal.hidden, zPop: getComputedStyle(pop).zIndex, zModal: getComputedStyle(modal).zIndex,
-				type: (document.querySelector('[data-usd-el="outside-card-info-type"]') || {}).textContent, rarity: (document.querySelector('[data-usd-el="outside-card-info-rarity"]') || {}).textContent };
+			const rows = Array.from(pop.querySelectorAll('[data-usd-el="ev-skill"]'));
+			return { shown: !pop.hidden, title: document.querySelector('.usd-info-pop .uma-popover-title, .usd-info-pop [class*="title"]') ? document.querySelector('.usd-info-pop .uma-popover-title, .usd-info-pop [class*="title"]').textContent.trim() : '', onTop: pop.contains(top), modalOpen: !modal.hidden,
+				zPop: getComputedStyle(pop).zIndex, zModal: getComputedStyle(modal).zIndex, badge: !!pop.querySelector('.usd-roster-legend-no'),
+				panes: !!pop.querySelector('[data-usd-el="events-panes"]'), left: !!pop.querySelector('[data-usd-el="events-pane-events"]'), right: !!pop.querySelector('[data-usd-el="events-pane-skills"]'),
+				skillsTitle: (pop.querySelector('[data-usd-el="ev-skills-title"]') || {}).textContent, sw: (pop.querySelector('[data-usd-el="events-switch"]') || {}).textContent || null,
+				rows: rows.map((e) => ({ id: e.getAttribute('data-skill-id'), tag: (e.querySelector('[data-usd-el="ev-skill-target"]') || {}).textContent || null, pt: !!e.querySelector('[data-usd-el="ev-skill-pt"]'), desc: !!e.querySelector('[data-usd-el="ev-skill-desc"]'), maybe: e.hasAttribute('data-usd-maybe') })),
+				text: pop.innerText.replace(/\s+/g, ' ').trim(), ro: pop.querySelectorAll('[data-usd-static="1"]').length, choices: pop.querySelectorAll('[data-usd-el="event-choice"]').length };
 		});
-		assert(info.shown && info.onTop && info.modalOpen && Number(info.zPop) > Number(info.zModal) && /^\[とても長い二つ名がここに入りますよ\]タマ/.test(info.text) && info.type === '種類：スピード' && info.rarity === 'レアリティ：SSR',
-			'オススメサポ(H) 名前を押すと、名称（二つ名＋名前）・種類・レアリティの小さな表示が小窓の上に出る（重なり順は表示のほうが上）', info);
+		assert(info.shown && info.onTop && info.modalOpen && Number(info.zPop) > Number(info.zModal) && /\[とても長い二つ名がここに入りますよ\]タマ/.test(info.text) && !info.badge,
+			'オススメサポ(H) 名前を押すと、小窓の上に、カード名（二つ名＋名前）の見出しの小窓が出る。番号の札は無い（重なり順は小窓のほうが上）', { text: info.text.slice(0, 60), badge: info.badge, zPop: info.zPop });
+		assert(info.panes && info.left && info.right && info.skillsTitle === '取得できるスキル' && info.sw === 'スキル ›' && info.rows.length === 10 && info.rows.every((r) => r.pt && r.desc),
+			'オススメサポ(H) ①のカード枠の小窓と同じ作り（イベントの欄・「取得できるスキル」の欄・「スキル ›」の切り替え。各スキルに基礎Ptと説明文）', { sw: info.sw, rows: info.rows.length });
+		assert(info.ro === info.choices && info.choices > 0 || info.choices === 0, 'オススメサポ(H) イベントの選択肢は表示だけ（押しても何も変わらない）', { ro: info.ro, choices: info.choices });
+		const A = syn.cands.find((c) => c.id === 'syn-A').skills;
+		assert(info.rows.every((r) => r.tag === '対象') && info.rows.map((r) => r.id).sort().join() === A.slice().sort().join(), 'オススメサポ(H) このカードで得られて、計算で数えたスキル（A の10種）の行すべてに札「対象」', info.rows.map((r) => [r.id, r.tag]));
 		const mid = await snap(sp.page);
 		assert(JSON.stringify(mid.cards.map((c) => c.id)) === JSON.stringify(before.cards.map((c) => c.id)) && mid.excl === null, 'オススメサポ(H) 名前を押しても「外す」は起きない（カードも除外も変わらない）', mid.cards.map((c) => c.id));
 		await sp.page.keyboard.press('Escape');
 		const after = await sp.page.evaluate(() => ({ popHidden: document.querySelector('.usd-info-pop').hidden, modalOpen: !document.querySelector('[data-usd-el="outside-modal"]').hidden }));
-		assert(after.popHidden && after.modalOpen, 'オススメサポ(H) 情報を閉じても、小窓は残る（Esc で閉じるのは情報だけ）', after);
-		// 背景を押して閉じるときも小窓は残る
+		assert(after.popHidden && after.modalOpen, 'オススメサポ(H) 閉じると、オススメサポの小窓に戻る（Esc で閉じるのは開いた小窓だけ）', after);
 		await sp.page.click(M + '[data-usd-el="outside-card"][data-card-id="syn-C"] .usd-out-card-main');
 		await sp.page.mouse.click(5, 5);
 		const after2 = await sp.page.evaluate(() => ({ popHidden: document.querySelector('.usd-info-pop').hidden, modalOpen: !document.querySelector('[data-usd-el="outside-modal"]').hidden }));
-		assert(after2.popHidden && after2.modalOpen, 'オススメサポ(H) 情報の外（背景）を押して閉じても、小窓は残る', after2);
-		// 「外す」を押すと情報ではなく除外になる
+		assert(after2.popHidden && after2.modalOpen, 'オススメサポ(H) 外（背景）を押して閉じても、オススメサポの小窓は残る', after2);
 		await sp.page.click(M + '[data-usd-el="outside-exclude"][data-card-id="syn-C"]');
 		await settle(sp.page);
 		const ex = await snap(sp.page);
-		assert(ex.excl === '除外中 カード1枚 ▾' && !(await sp.page.evaluate(() => !document.querySelector('.usd-info-pop').hidden)), 'オススメサポ(H) 「外す」を押すと除外になる（情報は出ない）', ex.excl);
+		assert(ex.excl === '除外中 カード1枚 ▾' && !(await sp.page.evaluate(() => !document.querySelector('.usd-info-pop').hidden)), 'オススメサポ(H) 「外す」を押すと除外になる（小窓は出ない）', ex.excl);
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ(H) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
+
+		// 実データ: 対象でないスキル（得られても母集団に無いもの）には札が付かない。①のカード枠の小窓と作りが同じ
+		const rs = await openSp({ roster: FULL });
+		await open(rs.page);
+		const res0 = await solveIn(rs.page, { count: 5, addedSkillIds: [] });
+		const first = res0.cards[0];
+		await rs.page.click(M + '[data-usd-el="outside-card"][data-card-id="' + first.cardId + '"] .usd-out-card-main');
+		const real = await rs.page.evaluate(() => Array.from(document.querySelectorAll('.usd-info-pop [data-usd-el="ev-skill"]')).map((e) => ({ id: e.getAttribute('data-skill-id'), tag: !!e.querySelector('[data-usd-el="ev-skill-target"]'), maybe: e.hasAttribute('data-usd-maybe') })));
+		const expectTargets = new Set(first.skillIds.concat(first.goldIds));
+		assert(real.length > 0 && real.every((r) => r.tag === expectTargets.has(r.id)) && real.some((r) => r.tag) && real.some((r) => !r.tag),
+			'オススメサポ(H) 実データ: 札は、その計算で数えたスキルの行だけ（数えていないスキルの行に札は無い）。' + real.filter((r) => r.tag).length + '件に札・' + real.filter((r) => !r.tag).length + '件は札なし', real.filter((r) => r.tag !== expectTargets.has(r.id)));
+		const firstSure = real.findIndex((r) => r.maybe), lastSure = real.map((r) => r.maybe).lastIndexOf(false);
+		assert(firstSure === -1 || lastSure < firstSure, 'オススメサポ(H) 並びは①の小窓と同じ（得られるもの→選択肢しだいのもの）', real.map((r) => r.maybe));
+		await rs.page.keyboard.press('Escape');
+		await rs.page.evaluate(() => selectStepTab(0, { noSave: true }));
+		await rs.page.waitForTimeout(250);
+		const tw = await rs.page.evaluate(() => { const b = document.querySelector('#deck-roster-panel [data-usd-el="events-btn"]'); if (!b) return null; b.click(); const pop = document.querySelector('.usd-info-pop'); return { has: ['events-panes', 'events-pane-events', 'events-pane-skills', 'ev-skills-title'].every((k) => !!pop.querySelector('[data-usd-el="' + k + '"]')), sw: !!pop.querySelector('[data-usd-el="events-switch"]') || !!document.querySelector('[data-usd-el="events-switch"]'), badge: !!pop.querySelector('.usd-roster-legend-no') }; });
+		assert(tw && tw.has && tw.sw && tw.badge, 'オススメサポ(H) 参考: ①の列見出しのバッジを押した小窓には、同じ部品（イベントの欄・取得できるスキルの欄・切り替え）があり、番号の札がある（オススメサポのほうは札なし）', tw);
+		assert(jsErrors(rs.errors).length === 0, 'オススメサポ(H) 実データ: コンソールのエラー0', jsErrors(rs.errors).slice(0, 3));
+		await rs.ctx.close();
+	});
+
+	await block('オススメサポ(H) 二つ名: 「[」＋3文字＋「…」も入らない幅のときは二つ名を出さず名前だけ（375・320px）／SR の金色の枠は SSR の虹色の枠と区別できる', async () => {
+		const syn = await needSyn();
+		for (const w of [375, 320]) {
+			const sp = await openSyn({ syn, w, h: 812 });
+			await open(sp.page);
+			const r = await sp.page.evaluate(() => {
+				const cv = document.createElement('canvas').getContext('2d');
+				return Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]')).map((t) => {
+					const n = t.querySelector('.usd-out-card-nick'), nm = t.querySelector('.usd-out-card-name');
+					const o = { id: t.getAttribute('data-card-id'), hasNick: !!n, hidden: n ? (n.hidden || getComputedStyle(n).display === 'none') : null, nameCut: nm.scrollWidth > nm.clientWidth + 1, nameW: Math.round(nm.getBoundingClientRect().width), sr: /usd-out-card--sr/.test(t.className), bw: getComputedStyle(t).borderTopWidth };
+					if (n && !o.hidden) {
+						cv.font = getComputedStyle(n).font;
+						o.nickW = Math.round(n.getBoundingClientRect().width);
+						o.cut = n.scrollWidth > n.clientWidth + 1;
+						o.need = Math.round(cv.measureText(n.textContent.slice(0, 4) + '…').width);
+						o.fits = !o.cut || o.nickW >= o.need - 1;
+					}
+					return o;
+				});
+			});
+			assert(r.length === 5 && r.every((o) => !o.hasNick || o.hidden || o.fits), 'オススメサポ(H) ' + w + 'px: 見えている二つ名は、全部入っているか「[」＋3文字＋「…」以上の幅がある（「[」だけが残る表示は無い）', r.map((o) => [o.id, o.hidden, o.nickW, o.need]));
+			const C = r.find((o) => o.id === 'syn-C'), A = r.find((o) => o.id === 'syn-A');
+			assert(C.hidden === true && (w === 375 ? C.nameCut : true) && (w === 375 ? A.hidden === false : true) && !A.nameCut, 'オススメサポ(H) ' + w + 'px: 名前が長いカード（C）は二つ名を出さず、名前だけ（入らなければ「…」）。名前が短いカード（A）は二つ名が「[とても…」と出る', { C, A });
+			if (w === 375) {
+				const sr = r.filter((o) => o.sr), ssr = r.filter((o) => !o.sr);
+				assert(sr.length >= 1 && ssr.length >= 1 && sr.every((o) => o.bw === '2px') && ssr.every((o) => o.bw === '3px'), 'オススメサポ(H) SR（金・2px）と SSR（虹・3px）の両方が並ぶ状態で、枠の太さが違う', { sr: sr.length, ssr: ssr.length });
+				fs.mkdirSync(path.join(REPO_ROOT, 'output/scratch/shots'), { recursive: true });
+				await sp.page.screenshot({ path: path.join(REPO_ROOT, 'output/scratch/shots/s6-sr.png') });
+			}
+			await sp.ctx.close();
+		}
 	});
 
 	await block('オススメサポ(H) 「外す」「戻す」は探索を最初から全部やり直す: A（＋10種）を外すと B が入り、ほかも入れ替わり、「A を除いて最初から総当たり」した結果と一致する（次点を足すだけではない）', async () => {
@@ -1117,6 +1191,50 @@ export async function register11(env) {
 		const all = await sp.page.evaluate(() => { const m = document.querySelector('[data-usd-el="outside-modal"]'); return m.outerHTML + m.innerText; });
 		assert(!/ヒント/.test(all), 'オススメサポ(J) 「ヒント」の語が、この機能の画面のどこにも出ない（除外中・再計算を含む）', true);
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ(J) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('オススメサポ(K) スキル名: ①の表と同じ下線・押すとスキルの詳細（既存の部品）。チェックは変わらない／チェックボックスと名前以外の部分では切り替わる／追加済みの行の名前でも詳細が出る', async () => {
+		const probe = await openSp({ roster: FULL });
+		const base0 = await solveIn(probe.page, { count: 5, addedSkillIds: [] });
+		await probe.ctx.close();
+		const Z = base0.skills.find((s) => !s.viaGold).skillId;
+		const sp = await openSp({ roster: FULL, scope: { skillIds: [Z], name: '', updatedAt: '', skillIcons: {} } });
+		await open(sp.page);
+		const s0 = await snap(sp.page);
+		const X = s0.rows.find((r) => !r.added).id;
+		const ul = await sp.page.evaluate((id) => {
+			const mine = document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-row"][data-skill-id="' + id + '"] [data-usd-info]');
+			const ref = document.querySelector('#deck-roster-panel .usd-roster-skillname--btn');
+			const a = getComputedStyle(mine), b = getComputedStyle(ref);
+			return { tag: mine.tagName, line: a.textDecorationLine, refLine: b.textDecorationLine, color: a.textDecorationColor, refColor: b.textDecorationColor, offset: a.textUnderlineOffset, refOffset: b.textUnderlineOffset, cls: /usd-roster-skillname--btn/.test(mine.className) };
+		}, X);
+		assert(ul.tag === 'BUTTON' && ul.cls && ul.line === 'underline' && ul.line === ul.refLine && ul.color === ul.refColor && ul.offset === ul.refOffset, 'オススメサポ(K) チェックリストのスキル名は、①の表のスキル名と同じ下線（同じクラス・同じ線の色と位置）', ul);
+		const rowH = await sp.page.evaluate(() => Math.round(document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-row"]').getBoundingClientRect().height));
+		assert(rowH <= 30, 'オススメサポ(K) スキル名をボタンにしても、行の高さは増えない（' + rowH + 'px）', rowH);
+		const sel0 = parseFoot(s0);
+		// 名前を押す → 詳細が出る。チェックは変わらない
+		await sp.page.click(M + '[data-usd-el="outside-row"][data-skill-id="' + X + '"] [data-usd-info]');
+		const d = await sp.page.evaluate((id) => { const pop = document.querySelector('.usd-info-pop'); return { shown: !pop.hidden, text: pop.innerText.replace(/\s+/g, ' ').trim(), desc: !!pop.querySelector('[data-usd-el="info-desc"]'), name: UmaSkillDeckCore.getSkillName(id), modal: !document.querySelector('[data-usd-el="outside-modal"]').hidden }; }, X);
+		const s1 = await snap(sp.page);
+		assert(d.shown && d.modal && d.text.indexOf(d.name) !== -1 && d.desc && s1.rows.find((r) => r.id === X).checked && parseFoot(s1).n === sel0.n && (await skillEx(sp.page)) === null && !s1.recalc,
+			'オススメサポ(K) スキル名を押すと、①の表のスキル名と同じ詳細の小窓（説明文つき）が出る。チェックは変わらず、除外にもならない', { shown: d.shown, desc: d.desc, text: d.text.slice(0, 50) });
+		await sp.page.keyboard.press('Escape');
+		// 名前以外（Pt の部分）を押す → 切り替わる。チェックボックス → 切り替わる
+		await sp.page.click(M + '[data-usd-el="outside-row"][data-skill-id="' + X + '"] [data-usd-el="outside-row-pt"]');
+		const s2 = await snap(sp.page);
+		assert(!s2.rows.find((r) => r.id === X).checked && parseFoot(s2).n === sel0.n - 1, 'オススメサポ(K) 行の名前以外（Pt の部分）を押すと、これまでどおりチェックが切り替わる', { n: parseFoot(s2).n });
+		await sp.page.click(rowCheck(X));
+		const s3 = await snap(sp.page);
+		assert(s3.rows.find((r) => r.id === X).checked && parseFoot(s3).n === sel0.n, 'オススメサポ(K) チェックボックスを押すと切り替わる（付け直した）', { n: parseFoot(s3).n });
+		// 追加済みの行の名前でも詳細が出る
+		await sp.page.click(M + '[data-usd-el="outside-row"][data-skill-id="' + Z + '"] [data-usd-info]');
+		const da = await sp.page.evaluate((id) => { const pop = document.querySelector('.usd-info-pop'); return { shown: !pop.hidden, has: pop.innerText.indexOf(UmaSkillDeckCore.getSkillName(id)) !== -1 }; }, Z);
+		assert(da.shown && da.has && (await snap(sp.page)).rows.find((r) => r.id === Z).added, 'オススメサポ(K) 「追加済み」の薄い行のスキル名でも、詳細が出る', da);
+		await sp.page.keyboard.press('Escape');
+		const all = await sp.page.evaluate(() => document.querySelector('[data-usd-el="outside-modal"]').innerText);
+		assert(!/ヒント/.test(all), 'オススメサポ(K) 小窓の文字に「ヒント」の語が無い', true);
+		assert(jsErrors(sp.errors).length === 0, 'オススメサポ(K) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
 

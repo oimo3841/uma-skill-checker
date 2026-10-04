@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-04d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-04e';
 
 	/* ============================================================
 	 * 定数
@@ -3948,7 +3948,10 @@
 		'.usd-out-card--typed { --usd-out-fill: var(--usd-card-bg); color: var(--usd-card-text); }',
 		'.usd-out-card--ssr { border-width: 3px; --usd-out-frame: linear-gradient(135deg, var(--usd-rarity-ssr-1), var(--usd-rarity-ssr-2), var(--usd-rarity-ssr-3), var(--usd-rarity-ssr-4), var(--usd-rarity-ssr-5)); }',
 		'.usd-out-card--sr { border-width: 2px; --usd-out-frame: linear-gradient(135deg, var(--usd-rarity-sr-1), var(--usd-rarity-sr-2), var(--usd-rarity-sr-1)); }',
-		':root { --usd-rarity-ssr-1: #e5384f; --usd-rarity-ssr-2: #f08a1c; --usd-rarity-ssr-3: #7cb518; --usd-rarity-ssr-4: #1d8fe0; --usd-rarity-ssr-5: #8b5cf6; --usd-rarity-sr-1: #e3b23c; --usd-rarity-sr-2: #b8860b; }',
+		// 入口のボタン「オススメサポ」: SSR の枠と同じ虹色の塗りに黒い文字（黒は --usd-rarity-ssr-text。虹の5色の上で 4.5 以上。ダークでは同じ名前を差し替える）
+		'.uma-btn.usd-outside-entry { background: linear-gradient(135deg, var(--usd-rarity-ssr-1), var(--usd-rarity-ssr-2), var(--usd-rarity-ssr-3), var(--usd-rarity-ssr-4), var(--usd-rarity-ssr-5)); color: var(--usd-rarity-ssr-text); border-color: transparent; box-shadow: var(--uma-shadow-1); }',
+		'.uma-btn.usd-outside-entry:hover:not(:disabled) { filter: brightness(1.06); }',
+		':root { --usd-rarity-ssr-text: #000000; --usd-rarity-ssr-1: #e5384f; --usd-rarity-ssr-2: #f08a1c; --usd-rarity-ssr-3: #7cb518; --usd-rarity-ssr-4: #1d8fe0; --usd-rarity-ssr-5: #8b5cf6; --usd-rarity-sr-1: #e3b23c; --usd-rarity-sr-2: #b8860b; }',
 		// 名前の部分（押すとカードの情報）。二つ名は 11px で先に省略し、次に名前（14px）を省略する
 		'.usd-out-card-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 3px; height: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }',
 		'.usd-out-card-main:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
@@ -3969,6 +3972,9 @@
 		'.usd-results.usd-out-list { height: 268px; }',
 		'.usd-out-row { min-width: 0; }',
 		'.usd-out-name { flex: 1 1 auto; min-width: 0; }',
+		// スキル名（押すとスキルの詳細。①の表のスキル名と同じ下線）。行の高さは変えない
+		'.usd-out-row .usd-out-namebtn { min-height: 0; text-align: left; font-weight: 400; font-size: inherit; line-height: inherit; }',
+		'.usd-row--excluded .usd-out-namebtn { color: inherit; cursor: pointer; }',
 		'.usd-out-pt { flex: none; margin-left: auto; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-variant-numeric: tabular-nums; color: var(--uma-text-subtle); white-space: nowrap; }',
 		'.usd-out-foot { flex-direction: column; align-items: stretch; gap: var(--uma-sp-1); }',
 		'.usd-out-foot[data-state="busy"] { visibility: hidden; }',
@@ -4797,6 +4803,8 @@
 		'.usd-ev-skill-desc::-webkit-scrollbar { display: none; }',
 		'.usd-ev-tag { display: inline-block; margin-inline-start: var(--uma-sp-1-5); padding: 0 var(--uma-sp-1-5); border: 1px dashed var(--uma-border-strong); border-radius: var(--uma-r-full);',
 		'  font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 600; color: var(--uma-text-subtle); vertical-align: middle; }',
+		'.usd-ev-tag--target { border-style: solid; border-color: var(--uma-success); background: var(--uma-success-bg); color: var(--uma-success-text); }',
+		'.usd-roster-choice--static { cursor: default; pointer-events: none; }',
 		'.usd-ev-skill--maybe .usd-ev-skill-name, .usd-ev-skill--maybe .usd-ev-skill-pt, .usd-ev-skill--maybe .usd-ev-skill-desc { color: var(--uma-text-faint); font-weight: 400; }',
 		'.usd-ev-skill--dim .usd-ev-skill-name, .usd-ev-skill--dim .usd-ev-skill-pt, .usd-ev-skill--dim .usd-ev-skill-desc { color: var(--uma-text-faint); }',
 		// ②の「本育成編成」（E）
@@ -6995,6 +7003,204 @@
 		}
 	}
 
+	/* ---- 「イベント」と「取得できるスキル」の小窓の部品（①とオススメサポで共有） ---- */
+	function eventTitle(e) {
+		if (e.kind === 'scenarioEvent') return (e.name || '') + (e.when ? '（' + e.when + '）' : '');
+		if (e.kind === 'commonEvent') return '共通イベント' + (isNonNegInt(e.step) ? ' ' + e.step + '回目' : ' ' + (e.index + 1));
+		return isNonNegInt(e.step) ? e.step + '回目' : (e.index + 1) + 'つ目';
+	}
+	/** 取得できるスキルの1件（3行：スキル名／基礎Pt／公式の説明文）。絞り込みで外れるものは灰色、未選択のイベントしだいのものは薄く「未選択」の印 */
+	function eventSkillRowEl(it, maybe, dim, tag) {
+		const li = infoEl('li', 'usd-ev-skill' + (maybe ? ' usd-ev-skill--maybe' : '') + (dim ? ' usd-ev-skill--dim' : ''));
+		li.setAttribute('data-usd-el', 'ev-skill');
+		li.setAttribute('data-skill-id', it.skillId);
+		if (maybe) li.setAttribute('data-usd-maybe', '1');
+		if (dim) li.setAttribute('data-usd-dim', '1');
+		const name = infoEl('p', 'usd-ev-skill-name', getSkillName(it.skillId));
+		if (maybe) {
+			const tag = infoEl('span', 'usd-ev-tag', '未選択');
+			tag.setAttribute('data-usd-el', 'ev-skill-tag');
+			name.appendChild(tag);
+		}
+		// 小さな札（オススメサポの小窓から開いたとき、その計算で数えたスキルに「対象」。①の小窓では出さない）
+		if (tag) {
+			const t = infoEl('span', 'usd-ev-tag usd-ev-tag--target', tag);
+			t.setAttribute('data-usd-el', 'ev-skill-target');
+			name.appendChild(t);
+		}
+		li.appendChild(name);
+		const ptText = basePtText(it.skillId);
+		if (ptText) {
+			const pt = infoEl('p', 'usd-ev-skill-pt', ptText);
+			pt.setAttribute('data-usd-el', 'ev-skill-pt');
+			li.appendChild(pt);
+		}
+		// 公式の説明文（1行。横に送ると全文が見られる。スクロールバーは出さず、続きがある側に薄いフェード）
+		const desc = infoEl('div', 'usd-ev-skill-desc usd-hscroll', '');
+		desc.setAttribute('data-usd-el', 'ev-skill-desc');
+		desc.setAttribute('data-usd-no-trim', '1');
+		desc.setAttribute('data-skill-id', it.skillId);
+		li.appendChild(desc);
+		settleSkillInfoDesc(it.skillId, desc);
+		return li;
+	}
+	/**
+	 * 「イベント」と「取得できるスキル」の小窓の中身（段7の (19)。①の列見出しのバッジと、オススメサポのカード名で共有。C-125・段6）。
+	 *   o.wanted … 絞り込みの述語（外れるスキルを灰色に。無ければ null）／o.interactive … 選択肢を押して選べるか（①＝true、オススメサポ＝false の表示だけ）
+	 *   o.onChoose(e, c) … 選択肢を押したとき（interactive のとき）／o.showUnselected … 「未選択N件」の行を出すか
+	 *   o.getPane() / o.setPane(n) … 狭い幅で見せているペイン（0＝イベント、1＝取得できるスキル）の持ち主／o.tagOf(skillId) … 取得できるスキルの行に付ける札（無ければ null）
+	 */
+	function buildEventsInfo(body, res, memberKey, o) {
+		const wanted = o.wanted || null;
+		const list = res.events.filter(e => e.memberKey === memberKey);
+		const unsel = list.filter(e => e.pending).length;
+		const panes = infoEl('div', 'usd-ev-panes');
+		panes.setAttribute('data-usd-el', 'events-panes');
+		const left = infoEl('section', 'usd-ev-pane usd-ev-pane--events');
+		left.setAttribute('data-usd-el', 'events-pane-events');
+		const right = infoEl('section', 'usd-ev-pane usd-ev-pane--skills');
+		right.setAttribute('data-usd-el', 'events-pane-skills');
+		panes.appendChild(left);
+		panes.appendChild(right);
+		body.appendChild(panes);
+		// ── 左：今のイベントの一覧（回の見出し・選択肢のボタン・自動の印） ──
+		if (o.showUnselected) {
+			const head = infoEl('p', 'usd-roster-note', '未選択' + unsel + '件');
+			head.setAttribute('data-usd-el', 'events-unselected');
+			left.appendChild(head);
+		}
+		if (list.length === 0) {
+			const p = infoEl('p', 'usd-info-desc--pending', '選ぶイベントはありません');
+			p.setAttribute('data-usd-el', 'events-none');
+			left.appendChild(p);
+		}
+		const addChoiceEvent = (e) => {
+			const box = infoEl('div', 'usd-roster-event');
+			box.setAttribute('data-usd-el', 'event');
+			box.setAttribute('data-event-key', e.eventKey);
+			const t = infoEl('p', 'usd-roster-eventtitle', eventTitle(e));
+			if (e.chosen !== null && e.auto) {
+				const tag = infoEl('span', 'usd-roster-autotag', '自動');
+				tag.setAttribute('data-usd-el', 'event-auto');
+				t.appendChild(global.document.createTextNode(' '));
+				t.appendChild(tag);
+			}
+			box.appendChild(t);
+			const group = infoEl('div', 'usd-roster-choices');
+			group.setAttribute('role', 'radiogroup');
+			group.setAttribute('aria-label', eventTitle(e) + 'の選択肢');
+			e.choices.forEach(c => {
+				const on = e.chosen === c.index;
+				const btn = infoEl('button', 'usd-roster-choice' + (on ? ' usd-roster-choice--on' : ''));
+				btn.type = 'button';
+				btn.setAttribute('role', 'radio');
+				btn.setAttribute('aria-checked', on ? 'true' : 'false');
+				btn.setAttribute('data-usd-el', 'event-choice');
+				btn.setAttribute('data-event-key', e.eventKey);
+				btn.setAttribute('data-choice', String(c.index));
+				const lab = infoEl('span', 'usd-roster-choicelabel', c.label || ('選択肢' + (c.index + 1)));
+				btn.appendChild(lab);
+				// シナリオのイベント（段7c の N）: 編成にいるキャラクターのときの選択肢か、いないときのものかを添える
+				if (c.state) {
+					const st = infoEl('span', 'usd-roster-choicestate', c.state === 'linked' ? '編成時' : '非編成時');
+					st.setAttribute('data-usd-el', 'event-choice-state');
+					btn.appendChild(st);
+				}
+				const ul = infoEl('span', 'usd-roster-choiceskills');
+				if (c.skills.length === 0) ul.appendChild(infoEl('span', 'usd-roster-choiceskill usd-roster-choiceskill--none', 'スキルなし'));
+				c.skills.forEach(s => {
+					const dim = wanted && !wanted(s.skillId);
+					const sp = infoEl('span', 'usd-roster-choiceskill' + (dim ? ' usd-roster-choiceskill--dim' : ''),
+						getSkillName(s.skillId) + (isNonNegInt(s.hintLevel) ? ' Lv' + s.hintLevel : ''));
+					if (dim) sp.setAttribute('data-usd-dim', '1');
+					ul.appendChild(sp);
+				});
+				btn.appendChild(ul);
+				if (o.interactive) btn.addEventListener('click', () => o.onChoose(e, c));
+				else { btn.classList.add('usd-roster-choice--static'); btn.tabIndex = -1; btn.setAttribute('data-usd-static', '1'); }
+				group.appendChild(btn);
+			});
+			box.appendChild(group);
+			left.appendChild(box);
+		};
+		// 確定のイベント（選択肢なし。シナリオの固定イベント）: 得るスキルとヒントレベルを並べるだけ
+		const addFixedEvent = (fe) => {
+			const box = infoEl('div', 'usd-roster-event');
+			box.setAttribute('data-usd-el', 'event-fixed');
+			const t = infoEl('p', 'usd-roster-eventtitle', fe.name + (fe.when ? '（' + fe.when + '）' : ''));
+			const tag = infoEl('span', 'usd-roster-autotag', '確定');
+			tag.setAttribute('data-usd-el', 'event-fixed-tag');
+			t.appendChild(global.document.createTextNode(' '));
+			t.appendChild(tag);
+			box.appendChild(t);
+			const ul = infoEl('div', 'usd-roster-choiceskills');
+			fe.skills.filter(x => findSkill(x.skillId)).forEach(x => {
+				const sp = infoEl('span', 'usd-roster-choiceskill', getSkillName(x.skillId) + (isNonNegInt(x.hintLevel) ? ' Lv' + x.hintLevel : ''));
+				sp.setAttribute('data-usd-el', 'event-fixed-skill');
+				ul.appendChild(sp);
+			});
+			box.appendChild(ul);
+			left.appendChild(box);
+		};
+		if (memberKey === SCENARIO_KEY && res.scenario) {
+			// シナリオは、データの並び（イベント1・2・3…）のまま。選択式は選択肢のボタン、確定は一覧
+			res.scenario.events.forEach(se => {
+				if (se.type === 'fixed') { addFixedEvent(se); return; }
+				const ce = list.find(x => x.eventKey === se.eventKey);
+				if (ce) addChoiceEvent(ce);
+			});
+		} else {
+			list.forEach(addChoiceEvent);
+		}
+		// ── 右：取得できるスキル。いまの選択（自動を含む）で得るもの（●）を先に、未選択のイベントしだいのもの（△）を薄く「未選択」の印つきで後ろに。
+		//    絞り込みで外れるスキルは灰色で残す。選択を変えるたびに描き直す ──
+		const h3 = infoEl('p', 'usd-ev-skills-title', '取得できるスキル');
+		h3.setAttribute('data-usd-el', 'ev-skills-title');
+		right.appendChild(h3);
+		const mine = res.items.filter(it => it.members.indexOf(memberKey) !== -1);
+		const sure = mine.filter(it => it.sureMembers.indexOf(memberKey) !== -1);
+		const maybe = mine.filter(it => it.sureMembers.indexOf(memberKey) === -1);
+		if (mine.length === 0) {
+			right.appendChild(infoEl('p', 'usd-info-desc--pending', '取得できるスキルはありません'));
+		} else {
+			const ul = infoEl('ul', 'usd-ev-skilllist');
+			ul.setAttribute('data-usd-el', 'ev-skills');
+			sure.forEach(it => ul.appendChild(eventSkillRowEl(it, false, !!wanted && !wanted(it.skillId), o.tagOf ? o.tagOf(it.skillId) : null)));
+			maybe.forEach(it => ul.appendChild(eventSkillRowEl(it, true, !!wanted && !wanted(it.skillId), o.tagOf ? o.tagOf(it.skillId) : null)));
+			right.appendChild(ul);
+		}
+		// ── 狭い幅では、2つのペインを横に並べて scroll-snap でスワイプ。見出しの右の切り替えのボタンでも行き来できる ──
+		const ui = skillInfoUi;
+		const sw = infoEl('button', 'usd-ev-switch');
+		sw.type = 'button';
+		sw.setAttribute('data-usd-el', 'events-switch');
+		const syncSwitch = () => {
+			sw.textContent = o.getPane() === 0 ? 'スキル ›' : '‹ イベント';
+			sw.setAttribute('aria-label', o.getPane() === 0 ? '取得できるスキルを見る' : 'イベントの選択に戻る');
+		};
+		syncSwitch();
+		sw.addEventListener('click', () => {
+			o.setPane(o.getPane() === 0 ? 1 : 0);
+			syncSwitch();
+			try { panes.scrollTo({ left: o.getPane() * panes.clientWidth, behavior: 'smooth' }); } catch (e) { panes.scrollLeft = o.getPane() * panes.clientWidth; }
+		});
+		panes.addEventListener('scroll', () => {
+			const n = panes.scrollLeft > panes.clientWidth / 2 ? 1 : 0;
+			if (n !== o.getPane()) { o.setPane(n); syncSwitch(); }
+		}, { passive: true });
+		if (ui && ui.head) ui.head.insertBefore(sw, ui.closeBtn);
+		// 公式の説明文は、小窓を開いたときに1回だけ読む（読めなければ「説明文は準備中です」）。読み終えたら、まだ同じ小窓なら各行を整える
+		const token = skillInfoToken;
+		if (skillDescState.status !== 'ok') {
+			loadSkillDescriptions().then(() => {
+				if (!skillInfoCur || skillInfoCur.token !== token) return;
+				right.querySelectorAll('[data-usd-el="ev-skill-desc"]').forEach(d => settleSkillInfoDesc(d.getAttribute('data-skill-id'), d));
+				scanEntryRows();
+			});
+		}
+		return panes;
+	}
+
 	/**
 	 * 編成パネル（C-51）。**呼び出し元に依存しない**形にしてあるので、
 	 * いまは special.html の Deck の引き出しだけに置いているが、
@@ -7735,187 +7941,12 @@
 		/** ラーメンのどんぶり（シナリオ『トレセン軒』の列のアイコン。インラインの SVG・色は currentColor） */
 		const bowlSvg = '<svg class="usd-roster-bowl" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">'
 			+ '<path d="M1.8 7.2h12.4a6.2 6.2 0 0 1-12.4 0z"/><path d="M5.5 14.6h5"/><path d="M5.2 4.6c0-1 1-1.3 1-2.3M8.2 4.6c0-1 1-1.3 1-2.3M11 5c.3-.7 1-1 1-1.8"/></svg>';
-		function eventTitle(e) {
-			if (e.kind === 'scenarioEvent') return (e.name || '') + (e.when ? '（' + e.when + '）' : '');
-			if (e.kind === 'commonEvent') return '共通イベント' + (isNonNegInt(e.step) ? ' ' + e.step + '回目' : ' ' + (e.index + 1));
-			return isNonNegInt(e.step) ? e.step + '回目' : (e.index + 1) + 'つ目';
-		}
 		let eventsPane = 0;          // 狭い幅の小窓で見せているペイン（0＝イベント、1＝取得できるスキル。段7b の ⑩。保存しない）
-		/** 取得できるスキルの1件（3行：スキル名／基礎Pt／公式の説明文）。絞り込みで外れるものは灰色、未選択のイベントしだいのものは薄く「未選択」の印 */
-		function eventSkillRowEl(it, maybe, dim) {
-			const li = infoEl('li', 'usd-ev-skill' + (maybe ? ' usd-ev-skill--maybe' : '') + (dim ? ' usd-ev-skill--dim' : ''));
-			li.setAttribute('data-usd-el', 'ev-skill');
-			li.setAttribute('data-skill-id', it.skillId);
-			if (maybe) li.setAttribute('data-usd-maybe', '1');
-			if (dim) li.setAttribute('data-usd-dim', '1');
-			const name = infoEl('p', 'usd-ev-skill-name', getSkillName(it.skillId));
-			if (maybe) {
-				const tag = infoEl('span', 'usd-ev-tag', '未選択');
-				tag.setAttribute('data-usd-el', 'ev-skill-tag');
-				name.appendChild(tag);
-			}
-			li.appendChild(name);
-			const ptText = basePtText(it.skillId);
-			if (ptText) {
-				const pt = infoEl('p', 'usd-ev-skill-pt', ptText);
-				pt.setAttribute('data-usd-el', 'ev-skill-pt');
-				li.appendChild(pt);
-			}
-			// 公式の説明文（1行。横に送ると全文が見られる。スクロールバーは出さず、続きがある側に薄いフェード）
-			const desc = infoEl('div', 'usd-ev-skill-desc usd-hscroll', '');
-			desc.setAttribute('data-usd-el', 'ev-skill-desc');
-			desc.setAttribute('data-usd-no-trim', '1');
-			desc.setAttribute('data-skill-id', it.skillId);
-			li.appendChild(desc);
-			settleSkillInfoDesc(it.skillId, desc);
-			return li;
-		}
+		/** ①の小窓の中身。作りは共有の buildEventsInfo（オススメサポのカード名の小窓と同じ）。選択肢を押すと①の編成に保存する */
 		function fillEventsInfo(body, res, memberKey) {
-			const wanted = filterPredicate();
-			const list = res.events.filter(e => e.memberKey === memberKey);
-			const unsel = list.filter(e => e.pending).length;
-			const panes = infoEl('div', 'usd-ev-panes');
-			panes.setAttribute('data-usd-el', 'events-panes');
-			const left = infoEl('section', 'usd-ev-pane usd-ev-pane--events');
-			left.setAttribute('data-usd-el', 'events-pane-events');
-			const right = infoEl('section', 'usd-ev-pane usd-ev-pane--skills');
-			right.setAttribute('data-usd-el', 'events-pane-skills');
-			panes.appendChild(left);
-			panes.appendChild(right);
-			body.appendChild(panes);
-			// ── 左：今のイベントの一覧（回の見出し・選択肢のボタン・自動の印） ──
-			const head = infoEl('p', 'usd-roster-note', '未選択' + unsel + '件');
-			head.setAttribute('data-usd-el', 'events-unselected');
-			left.appendChild(head);
-			if (list.length === 0) {
-				const p = infoEl('p', 'usd-info-desc--pending', '選ぶイベントはありません');
-				p.setAttribute('data-usd-el', 'events-none');
-				left.appendChild(p);
-			}
-			const addChoiceEvent = (e) => {
-				const box = infoEl('div', 'usd-roster-event');
-				box.setAttribute('data-usd-el', 'event');
-				box.setAttribute('data-event-key', e.eventKey);
-				const t = infoEl('p', 'usd-roster-eventtitle', eventTitle(e));
-				if (e.chosen !== null && e.auto) {
-					const tag = infoEl('span', 'usd-roster-autotag', '自動');
-					tag.setAttribute('data-usd-el', 'event-auto');
-					t.appendChild(global.document.createTextNode(' '));
-					t.appendChild(tag);
-				}
-				box.appendChild(t);
-				const group = infoEl('div', 'usd-roster-choices');
-				group.setAttribute('role', 'radiogroup');
-				group.setAttribute('aria-label', eventTitle(e) + 'の選択肢');
-				e.choices.forEach(c => {
-					const on = e.chosen === c.index;
-					const btn = infoEl('button', 'usd-roster-choice' + (on ? ' usd-roster-choice--on' : ''));
-					btn.type = 'button';
-					btn.setAttribute('role', 'radio');
-					btn.setAttribute('aria-checked', on ? 'true' : 'false');
-					btn.setAttribute('data-usd-el', 'event-choice');
-					btn.setAttribute('data-event-key', e.eventKey);
-					btn.setAttribute('data-choice', String(c.index));
-					const lab = infoEl('span', 'usd-roster-choicelabel', c.label || ('選択肢' + (c.index + 1)));
-					btn.appendChild(lab);
-					// シナリオのイベント（段7c の N）: 編成にいるキャラクターのときの選択肢か、いないときのものかを添える
-					if (c.state) {
-						const st = infoEl('span', 'usd-roster-choicestate', c.state === 'linked' ? '編成時' : '非編成時');
-						st.setAttribute('data-usd-el', 'event-choice-state');
-						btn.appendChild(st);
-					}
-					const ul = infoEl('span', 'usd-roster-choiceskills');
-					if (c.skills.length === 0) ul.appendChild(infoEl('span', 'usd-roster-choiceskill usd-roster-choiceskill--none', 'スキルなし'));
-					c.skills.forEach(s => {
-						const dim = wanted && !wanted(s.skillId);
-						const sp = infoEl('span', 'usd-roster-choiceskill' + (dim ? ' usd-roster-choiceskill--dim' : ''),
-							getSkillName(s.skillId) + (isNonNegInt(s.hintLevel) ? ' Lv' + s.hintLevel : ''));
-						if (dim) sp.setAttribute('data-usd-dim', '1');
-						ul.appendChild(sp);
-					});
-					btn.appendChild(ul);
-					btn.addEventListener('click', () => toggleEventChoice(e.eventKey, c.index, e.chosen === c.index && !e.auto ? null : c.index, e));
-					group.appendChild(btn);
-				});
-				box.appendChild(group);
-				left.appendChild(box);
-			};
-			// 確定のイベント（選択肢なし。シナリオの固定イベント）: 得るスキルとヒントレベルを並べるだけ
-			const addFixedEvent = (fe) => {
-				const box = infoEl('div', 'usd-roster-event');
-				box.setAttribute('data-usd-el', 'event-fixed');
-				const t = infoEl('p', 'usd-roster-eventtitle', fe.name + (fe.when ? '（' + fe.when + '）' : ''));
-				const tag = infoEl('span', 'usd-roster-autotag', '確定');
-				tag.setAttribute('data-usd-el', 'event-fixed-tag');
-				t.appendChild(global.document.createTextNode(' '));
-				t.appendChild(tag);
-				box.appendChild(t);
-				const ul = infoEl('div', 'usd-roster-choiceskills');
-				fe.skills.filter(x => findSkill(x.skillId)).forEach(x => {
-					const sp = infoEl('span', 'usd-roster-choiceskill', getSkillName(x.skillId) + (isNonNegInt(x.hintLevel) ? ' Lv' + x.hintLevel : ''));
-					sp.setAttribute('data-usd-el', 'event-fixed-skill');
-					ul.appendChild(sp);
-				});
-				box.appendChild(ul);
-				left.appendChild(box);
-			};
-			if (memberKey === SCENARIO_KEY && res.scenario) {
-				// シナリオは、データの並び（イベント1・2・3…）のまま。選択式は選択肢のボタン、確定は一覧
-				res.scenario.events.forEach(se => {
-					if (se.type === 'fixed') { addFixedEvent(se); return; }
-					const ce = list.find(x => x.eventKey === se.eventKey);
-					if (ce) addChoiceEvent(ce);
-				});
-			} else {
-				list.forEach(addChoiceEvent);
-			}
-			// ── 右：取得できるスキル。いまの選択（自動を含む）で得るもの（●）を先に、未選択のイベントしだいのもの（△）を薄く「未選択」の印つきで後ろに。
-			//    絞り込みで外れるスキルは灰色で残す。選択を変えるたびに描き直す ──
-			const h3 = infoEl('p', 'usd-ev-skills-title', '取得できるスキル');
-			h3.setAttribute('data-usd-el', 'ev-skills-title');
-			right.appendChild(h3);
-			const mine = res.items.filter(it => it.members.indexOf(memberKey) !== -1);
-			const sure = mine.filter(it => it.sureMembers.indexOf(memberKey) !== -1);
-			const maybe = mine.filter(it => it.sureMembers.indexOf(memberKey) === -1);
-			if (mine.length === 0) {
-				right.appendChild(infoEl('p', 'usd-info-desc--pending', '取得できるスキルはありません'));
-			} else {
-				const ul = infoEl('ul', 'usd-ev-skilllist');
-				ul.setAttribute('data-usd-el', 'ev-skills');
-				sure.forEach(it => ul.appendChild(eventSkillRowEl(it, false, !!wanted && !wanted(it.skillId))));
-				maybe.forEach(it => ul.appendChild(eventSkillRowEl(it, true, !!wanted && !wanted(it.skillId))));
-				right.appendChild(ul);
-			}
-			// ── 狭い幅では、2つのペインを横に並べて scroll-snap でスワイプ。見出しの右の切り替えのボタンでも行き来できる ──
-			const ui = skillInfoUi;
-			const sw = infoEl('button', 'usd-ev-switch');
-			sw.type = 'button';
-			sw.setAttribute('data-usd-el', 'events-switch');
-			const syncSwitch = () => {
-				sw.textContent = eventsPane === 0 ? 'スキル ›' : '‹ イベント';
-				sw.setAttribute('aria-label', eventsPane === 0 ? '取得できるスキルを見る' : 'イベントの選択に戻る');
-			};
-			syncSwitch();
-			sw.addEventListener('click', () => {
-				eventsPane = eventsPane === 0 ? 1 : 0;
-				syncSwitch();
-				try { panes.scrollTo({ left: eventsPane * panes.clientWidth, behavior: 'smooth' }); } catch (e) { panes.scrollLeft = eventsPane * panes.clientWidth; }
-			});
-			panes.addEventListener('scroll', () => {
-				const n = panes.scrollLeft > panes.clientWidth / 2 ? 1 : 0;
-				if (n !== eventsPane) { eventsPane = n; syncSwitch(); }
-			}, { passive: true });
-			if (ui && ui.head) ui.head.insertBefore(sw, ui.closeBtn);
-			// 公式の説明文は、小窓を開いたときに1回だけ読む（読めなければ「説明文は準備中です」）。読み終えたら、まだ同じ小窓なら各行を整える
-			const token = skillInfoToken;
-			if (skillDescState.status !== 'ok') {
-				loadSkillDescriptions().then(() => {
-					if (!skillInfoCur || skillInfoCur.token !== token) return;
-					right.querySelectorAll('[data-usd-el="ev-skill-desc"]').forEach(d => settleSkillInfoDesc(d.getAttribute('data-skill-id'), d));
-					scanEntryRows();
-				});
-			}
-			return panes;
+			return buildEventsInfo(body, res, memberKey, { wanted: filterPredicate(), interactive: true, showUnselected: true,
+				getPane: () => eventsPane, setPane: (n) => { eventsPane = n; },
+				onChoose: (e, c) => toggleEventChoice(e.eventKey, c.index, e.chosen === c.index && !e.auto ? null : c.index, e) });
 		}
 		/** 選択肢を押したとき。選んでいたものをもう一度押すと未選択。自動で選ばれていたものを押すと、その選択を保存する */
 		function toggleEventChoice(eventKey, index, next, e) {
@@ -8452,7 +8483,7 @@
 					 * **保存先は持っていなかった**ので、残る値の後始末は要らない。 */
 					'<div class="usd-entry-row">' +
 						// 「オススメサポ」（本育成サポカ外スキル。special の②だけ）。入口列の先頭・濃色の塗り（小窓の「追加」と同じ）で、ほかの入口と見分ける
-						(setBased ? '<button type="button" class="uma-btn uma-btn--primary usd-outside-entry" data-usd-act="outside-open" data-usd-el="outside-open" aria-haspopup="dialog">' +
+						(setBased ? '<button type="button" class="uma-btn usd-outside-entry" data-usd-act="outside-open" data-usd-el="outside-open" aria-haspopup="dialog">' +
 							'<i data-lucide="sparkles" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> オススメサポ</button>' : '') +
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
 							'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件で検索' +
@@ -9647,8 +9678,7 @@
 				else if (act === 'outside-help') openPopover({ key: 'outside-help', title: 'オススメサポ', build: (body) => { const p = infoEl('p', '', OUTSIDE_HELP_TEXT); p.setAttribute('data-usd-el', 'outside-help-text'); body.appendChild(p); },
 					btn: b, opener: b, refocus: '[data-usd-act="outside-help"]' });
 				else if (act === 'outside-card-info') {
-					const cid = b.dataset.cardId, cd = findCard(cid);
-					openPopover({ key: 'outside-card:' + cid, title: cd ? formatEntryLabel(cd) : cid, build: (body) => fillOutsideCardInfo(body, cid), btn: b, opener: b, refocus: '[data-usd-el="outside-card-main"][data-card-id="' + cid + '"]' });
+					openOutsideCardInfo(b, b.dataset.cardId);
 				}
 				else if (act === 'outside-count') { const n = Number(b.dataset.count); if (OUTSIDE_COUNT_CHOICES.indexOf(n) !== -1 && n !== outsideUi.count) { outsideUi.count = n; outsideRun(); } }
 				else if (act === 'outside-exclude') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, true)) outsideRun(); }
@@ -9668,6 +9698,7 @@
 				if (rosterOutsideSink) rosterOutsideSink.setSkillExcluded(box.value, !box.checked);
 				updateOutsideFoot();
 			});
+			global.addEventListener('resize', () => { if (outsideUi.open && !el.hidden) outsideFitNicks(el); });
 			global.document.addEventListener('keydown', (e) => {
 				if (e.key !== 'Escape' || e.defaultPrevented || !outsideUi.open || outsideUi.el.hidden) return;
 				closeOutsideAdvisor();
@@ -9740,13 +9771,47 @@
 				+ (o.gain !== undefined ? '<span class="usd-out-card-gain" data-usd-el="outside-card-gain">＋' + o.gain + '種</span>' : '')
 				+ '<button type="button" class="usd-out-card-btn" data-usd-act="' + o.act + '" data-usd-el="' + o.btnEl + '" data-card-id="' + esc(cardId) + '" aria-label="' + esc(name + 'を' + o.btnText) + '">' + o.btnText + '</button></div>';
 		}
-		/** カード名を押したときの情報（簡単な表示）。①の表・①のカード選択の小窓には、カードの情報を出す部品が無いので、名称（二つ名＋名前）・種類・レアリティだけを出す */
-		function fillOutsideCardInfo(body, cardId) {
+		/** 二つ名が「[」＋3文字＋「…」も入らない幅のときは、二つ名を出さず名前だけにする（名前も入らなければ名前を省略）。描き直し・幅の変化のたびに呼ぶ */
+		function outsideFitNicks(root) {
+			if (!root) return;
+			const nicks = Array.from(root.querySelectorAll('.usd-out-card-nick'));
+			nicks.forEach(n => { n.hidden = false; });
+			nicks.forEach(n => {
+				if (n.scrollWidth <= n.clientWidth + 1) return;   // 全部入っている
+				const probe = n.cloneNode(false);
+				probe.removeAttribute('data-usd-el');
+				probe.style.cssText = 'position:absolute;visibility:hidden;flex:none;max-width:none;overflow:visible;';
+				probe.textContent = n.textContent.slice(0, 4) + '…';
+				n.parentNode.appendChild(probe);
+				const need = probe.getBoundingClientRect().width;
+				n.parentNode.removeChild(probe);
+				if (n.clientWidth < need - 0.5) n.hidden = true;
+			});
+		}
+
+		/**
+		 * カード名を押したときの小窓（段6）。①のカード枠（番号付き）を押すと出る「イベント」と「取得できるスキル」の小窓と同じ部品（buildEventsInfo）を、小窓の上に重ねて出す。
+		 * 番号の札は付けない（①の編成の列ではないので）。選択肢は表示だけ（その計算で選んだ前提の側を選んだ状態。保存しない）。
+		 * 取得できるスキルのうち、その計算で数えたもの（そのカードで得られ、母集団に入っているもの）の行に札「対象」。並び順は①の小窓と同じ。
+		 * そのカード1枚だけの編成として computeRosterSkills を呼ぶ（①と同じ計算）。閉じると、オススメサポの小窓に戻る。
+		 */
+		function openOutsideCardInfo(btn, cid) {
+			const cardId = cid;
 			const card = findCard(cardId);
-			if (!card) { body.appendChild(infoEl('p', 'usd-info-desc--pending', 'カードの情報を読み込めませんでした')); return; }
-			const line = (text, el) => { const p = infoEl('p', '', text); p.setAttribute('data-usd-el', el); body.appendChild(p); };
-			line('種類：' + (card.type || '不明'), 'outside-card-info-type');
-			line('レアリティ：' + (card.rarity || '不明'), 'outside-card-info-rarity');
+			const r = outsideUi.result;
+			const c = r && r.ok ? r.cards.find(x => x.cardId === cardId) : null;
+			const label = card ? formatEntryLabel(card) : cardId;
+			const eventChoices = {};
+			if (c && card) c.picks.forEach(pk => { eventChoices[(pk.scope === 'chara' ? 'chara:' + card.charaName : 'card:' + cardId) + '#' + pk.eventIndex] = pk.choiceIndex; });
+			const wanted = filterPredicateOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {});
+			const res = computeRosterSkills({ cardIds: [cardId] }, { eventChoices: eventChoices, autoChoose: true, isWanted: wanted });
+			const m = res.members.find(x => x.kind === 'card' && x.label);
+			const targets = new Set(c ? c.skillIds.concat(c.goldIds) : []);
+			let pane = 0;
+			openPopover({ key: 'outside-card:' + cardId, title: label, wide: true,
+				build: (body) => { if (!m) { body.appendChild(infoEl('p', 'usd-info-desc--pending', 'カードの情報を読み込めませんでした')); return; }
+					buildEventsInfo(body, res, m.key, { wanted: wanted, interactive: false, showUnselected: false, getPane: () => pane, setPane: (n) => { pane = n; }, tagOf: (id) => targets.has(id) ? '対象' : null }); },
+				btn: btn, opener: btn, refocus: '[data-usd-el="outside-card-main"][data-card-id="' + cid + '"]' });
 		}
 
 		/** 行の Pt の文言（そのスキルだけ。前段は含めない）。合計（フッター）は前段も含むので、前段をチェックしていないときは行の合計より大きくなる */
@@ -9813,20 +9878,23 @@
 			else {
 				r.skills.forEach(s => {
 					if (s.added) {
-						h += '<label class="usd-row usd-row--excluded usd-out-row" data-usd-el="outside-row" data-usd-excluded="1" data-skill-id="' + esc(s.skillId) + '" aria-disabled="true">'
+						h += '<label class="usd-row usd-row--excluded usd-out-row" data-usd-el="outside-row" data-usd-excluded="1" data-skill-id="' + esc(s.skillId) + '">'
 							+ '<input type="checkbox" data-usd-el="outside-check-added" value="' + esc(s.skillId) + '" disabled/>'
-							+ '<span class="usd-out-name">' + esc(s.name) + '</span>'
+							+ '<button type="button" class="usd-out-name usd-roster-skillname--btn usd-out-namebtn" data-usd-info="' + esc(s.skillId) + '">' + esc(s.name) + '</button>'
 							+ '<span class="usd-row-reason" data-usd-el="outside-added-mark">追加済み</span></label>';
 					} else {
 						h += '<label class="usd-row usd-out-row" data-usd-el="outside-row" data-skill-id="' + esc(s.skillId) + '">'
 							+ '<input type="checkbox" data-usd-el="outside-check" value="' + esc(s.skillId) + '"' + (outsideUi.checked.has(s.skillId) ? ' checked' : '') + '/>'
-							+ '<span class="usd-out-name">' + esc(s.name) + '</span>'
+							+ '<button type="button" class="usd-out-name usd-roster-skillname--btn usd-out-namebtn" data-usd-info="' + esc(s.skillId) + '">' + esc(s.name) + '</button>'
 							+ '<span class="usd-out-pt" data-usd-el="outside-row-pt">' + esc(outsideRowPtText(s.skillId)) + '</span></label>';
 					}
 				});
 			}
 			h += '</div>';
 			main.innerHTML = h;
+			// スキル名を押すと、①の表のスキル名と同じスキルの詳細（既存の部品）。チェックは変えない（ボタンはラベルの切り替えの対象外）
+			attachSkillInfoIn(main, (id) => ({ skillId: id, trigger: 'self' }));
+			outsideFitNicks(main);
 			updateOutsideFoot();
 		}
 

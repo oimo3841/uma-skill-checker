@@ -522,7 +522,7 @@ export async function register9(env) {
 						['タグの名前', c(T + '.usd-band-tagname', 'color'), c(T + '.usd-band-tag', 'backgroundColor')],
 						['タグの数字', c(T + '.usd-band-tag strong', 'color'), c(T + '.usd-band-tag', 'backgroundColor')],
 						['設定の枠の文字', c(T + '.usd-uniq-label', 'color'), c(T + '[data-usd-el="roster-link"]', 'backgroundColor')],
-						['入口のボタン', c(T + '.usd-entry-row .uma-btn', 'color'), c(T + '.usd-entry-row .uma-btn', 'backgroundColor')],
+						['入口のボタン', c(T + '.usd-entry-row .uma-btn--secondary', 'color'), c(T + '.usd-entry-row .uma-btn--secondary', 'backgroundColor')],
 						['解除のボタン', c(T + '[data-usd-el="palette-clear"]', 'color'), c(T + '[data-usd-el="palette-clear"]', 'backgroundColor')],
 						['アイコンの記号', c(T + '.usd-icon[data-icon="a"]', 'color'), c(T + '.usd-icon[data-icon="a"]', 'backgroundColor')]
 					],
