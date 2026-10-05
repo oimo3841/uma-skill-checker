@@ -1047,6 +1047,26 @@
 		try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
 	}
 	/**
+	 * まとめ対応の E（C-128）: 直前に押した操作がマウスか。小窓・貼り付け欄を開いたときに、入力欄へ focus を当てるかを決める
+	 * （タッチ・ペンで当てると、入力欄に触れていないのにスマホのキーボードが出る）。押した操作の pointerType を見て、
+	 * 取れないとき（キーボードで押した・記録が古い）は matchMedia('(pointer: fine)') で決める。
+	 */
+	const lastPointer = { type: '', at: 0 };
+	const POINTER_MEMORY_MS = 3000;
+	if (global.document && typeof global.document.addEventListener === 'function') {
+		global.document.addEventListener('pointerdown', (e) => { lastPointer.type = e.pointerType || ''; lastPointer.at = Date.now(); }, true);
+		global.document.addEventListener('keydown', () => { lastPointer.type = ''; }, true);
+	}
+	function openedByMouse() {
+		if (lastPointer.type && Date.now() - lastPointer.at < POINTER_MEMORY_MS) return lastPointer.type === 'mouse';
+		try { return !!(global.matchMedia && global.matchMedia('(pointer: fine)').matches); } catch (e) { return true; }
+	}
+	/** 描き直しの前に、root の中の data-usd-el="el" の入力欄に focus があったか（あったときだけ描き直しのあとに当て直す。C-128） */
+	function inputFocusedIn(root, el) {
+		const a = global.document.activeElement;
+		return !!(root && a && root.contains(a) && a.getAttribute && a.getAttribute('data-usd-el') === el);
+	}
+	/**
 	 * 描き直しで押したボタンが画面の中で動かないようにする（段7b の ⑥）。
 	 * 押す前に、ボタンを探し直す手がかり（data- 属性）と画面上の位置を覚えておき、描き直したあとに同じボタンを探して、
 	 * 位置のずれのぶんだけページをスクロールして打ち消す。ボタンが無くなっていたら何もしない。
@@ -7118,8 +7138,9 @@
 		renderPickerResults();
 		renderPasteReport();
 		refreshIcons();
+		// 貼り付け欄へ focus を当てるのは、マウスで開いたときだけ（タッチ・ペンではキーボードが出てしまう。C-128）
 		const focusTarget = picker.mode === 'paste' ? pasteInput : null;
-		if (focusTarget) focusNoScroll(focusTarget);
+		if (focusTarget && openedByMouse()) focusNoScroll(focusTarget);
 	}
 
 	// 条件でスキルを検索（8軸フィルター）。従来の openSkillPicker と同じ呼び出し方。
@@ -7810,6 +7831,7 @@
 		let picking = null;           // { kind: 'uma' } / { kind: 'card', index } / null
 		let pickQuery = '';           // ミニウィンドウの検索語
 		let pickType = '';            // ミニウィンドウの種類の絞り込み（'' はすべて）
+		let pickFocusOnce = false;    // 次の描き直しで検索欄へ focus を当てるか（ミニウィンドウをマウスで開いたときだけ true。C-128）
 		let showUnconf = false;       // イベントスキル未収録のカード名の一覧を開いているか（既定は閉じる）
 		let findTimer = 0;
 		let nameEdit = null;          // 選んでいるタブの名前を編集中なら { value }（段7の (6)・段7b の ①。確定するまで保存しない）
@@ -8515,6 +8537,9 @@
 			const oldWrap = container.querySelector('.usd-roster-grid-wrap');
 			const keepGrid = oldWrap && !gridScrollReset ? { top: oldWrap.scrollTop, left: oldWrap.scrollLeft } : null;
 			gridScrollReset = false;
+			// 描き直しの前に、検索欄・名前の欄に focus があったか（あったときだけ、描き直しのあとに当て直す。C-128）
+			const findHadFocus = inputFocusedIn(modalHost, 'find');
+			const nameHadFocus = inputFocusedIn(container, 'name');
 			container.innerHTML = h;
 			if (keepGrid) {
 				const nw = container.querySelector('.usd-roster-grid-wrap');
@@ -8530,14 +8555,19 @@
 			if (strip) strip.classList.add('usd-hscroll');
 			revealSelectedTab(container, true);
 			scanEntryRows();
-			if (picking) {
+			// 検索欄へ focus を当てるのは、マウスで開いた直後か、描き直しの前に focus があったときだけ（C-128。
+			// タッチで開いたとき・種類を押したときに当てると、入力欄に触れていないのにスマホのキーボードが出る）
+			if (picking && (pickFocusOnce || findHadFocus)) {
 				const input = q(host, 'find');
 				if (input) { focusNoScroll(input); input.setSelectionRange(input.value.length, input.value.length); }
 			}
-			if (nameEdit) {
+			pickFocusOnce = false;
+			// 名前の欄は、✎で開いた直後か、描き直しの前に focus があったときだけ（C-128）
+			if (nameEdit && (nameEdit.focusOnce || nameHadFocus)) {
 				const input = q(container, 'name');
 				if (input && global.document.activeElement !== input) { focusNoScroll(input); input.setSelectionRange(input.value.length, input.value.length); }
 			}
+			if (nameEdit) nameEdit.focusOnce = false;
 			// イベントを選ぶ小窓が開いていれば、中身を作り直す（選んだ結果をその場で映す）
 			if (eventsFor !== null) refreshEventsPopover(res);
 			fitGrid();
@@ -8678,10 +8708,11 @@
 		function dispatchAct(btn, act) {
 			// 「編成は10件までです」の知らせは、次の操作で消す
 			if (limitNotice && act !== 'select-roster') limitNotice = false;
-			if (act === 'pick-uma') { picking = { kind: 'uma' }; pickQuery = ''; pickType = ''; render(); renderHits(); }
+			if (act === 'pick-uma') { picking = { kind: 'uma' }; pickQuery = ''; pickType = ''; pickFocusOnce = openedByMouse(); render(); renderHits(); }
 			else if (act === 'pick-card') {
 				picking = { kind: 'card', index: Number(btn.getAttribute('data-index')) };
 				pickQuery = ''; pickType = '';
+				pickFocusOnce = openedByMouse();
 				render(); renderHits();
 			}
 			else if (act === 'cancel-pick') { picking = null; render(); }
@@ -8758,7 +8789,7 @@
 			}
 			else if (act === 'name-edit') {
 				// 保存済みの編成は今の名前から、「＋新規」は空から（段7b の ①）
-				nameEdit = { value: selectedId ? (roster.name || '') : '' };
+				nameEdit = { value: selectedId ? (roster.name || '') : '', focusOnce: true };
 				render();
 			}
 			else if (act === 'name-cancel') { nameEdit = null; render(); }
@@ -8998,6 +9029,7 @@
 			const x = o || {};
 			picking = { kind: 'card', index: -1, external: { used: (x.used || []).slice(), charas: (x.charas || []).slice(), onPick: typeof x.onPick === 'function' ? x.onPick : null } };
 			pickQuery = ''; pickType = '';
+			pickFocusOnce = openedByMouse();
 			render(); renderHits();
 			return true;
 		};
@@ -9607,6 +9639,7 @@
 				items[0].className = 'usd-roster-tab' + (full && !onDraft ? ' usd-roster-tab--full' : '');
 				if (full && !onDraft) items[0].title = tabNoun + 'は' + TEMPLATE_LIMIT + '件までです';
 				items.forEach(it => { if (!it.className) it.className = 'usd-roster-tab'; });
+				const nameHadFocus = inputFocusedIn(q(container, 'head'), 'name');   // C-128: あったときだけ当て直す
 				q(container, 'head').innerHTML =
 					namedTabsHtml(items, { act: 'template-tab', ariaLabel: tabNoun, el: 'tabs', noun: tabNoun, edit: nameEdit, placeholder: tabNoun + 'の名前' }) +
 					(limitNotice ? '<p class="usd-roster-warn" data-usd-el="limit-notice">' + esc(tabNoun) + 'は' + TEMPLATE_LIMIT + '件までです。新しい' + esc(tabNoun) + 'を作るには、いまの' + esc(tabNoun) + 'を削除してください（名前の横の×）。</p>' : '');
@@ -9614,10 +9647,12 @@
 				if (strip) strip.classList.add('usd-hscroll');
 				revealSelectedTab(container, true);
 				refreshIcons();
-				if (nameEdit) {
+				// 名前の欄は、✎で開いた直後か、描き直しの前に focus があったときだけ（C-128）
+				if (nameEdit && (nameEdit.focusOnce || nameHadFocus)) {
 					const input = q(container, 'name');
 					if (input && global.document.activeElement !== input) { focusNoScroll(input); input.setSelectionRange(input.value.length, input.value.length); }
 				}
+				if (nameEdit) nameEdit.focusOnce = false;
 				return;
 			}
 			q(container, 'head').innerHTML =
@@ -9678,14 +9713,17 @@
 					+ '<span class="usd-setbar-subline"><span class="usd-setbar-sub" data-usd-el="set-total-sub">' + esc(sub) + '</span>'
 					+ '<button type="button" class="uma-help-btn" data-usd-act="set-total-help" data-usd-el="set-total-help" aria-haspopup="dialog" aria-expanded="false" aria-label="合計の式" title="合計の式">?</button></span></span>';
 			}
+			const nameHadFocus = inputFocusedIn(setBarEl, 'name');   // C-128: あったときだけ当て直す
 			setBarEl.innerHTML = '<div class="usd-setbar" data-usd-el="setbar"><div class="usd-setbar-l">' + left + '</div><div class="usd-setbar-r">' + right + '</div></div>';
 			refreshIcons();
 			// ②のタブの脇の「N種」は②の先頭の N と同じ値（special が受け取って出す）
 			if (typeof opts.onSetSummary === 'function') { try { opts.onSetSummary(sum); } catch (e) { /* 呼び出し元の不具合で帯を止めない */ } }
-			if (nameEdit) {
+			// 名前の欄は、✎で開いた直後か、描き直しの前に focus があったときだけ（C-128。描き直しのたびに当てると、閉じたキーボードがまた出る）
+			if (nameEdit && (nameEdit.focusOnce || nameHadFocus)) {
 				const input = q(setBarEl, 'name');
 				if (input && global.document.activeElement !== input) { focusNoScroll(input); input.setSelectionRange(input.value.length, input.value.length); }
 			}
+			if (nameEdit) nameEdit.focusOnce = false;
 		}
 		/** 合計の式の小窓（?）。「合計 ＝ ① X ＋ ② Y」 */
 		function fillSetTotalInfo(body) {
@@ -11138,7 +11176,7 @@
 		function startNameEdit() {
 			const target = currentTarget();
 			// 保存済みは今の名前から、「＋新規」は空から
-			nameEdit = { value: target.kind === 'template' ? (target.obj.name || '') : '' };
+			nameEdit = { value: target.kind === 'template' ? (target.obj.name || '') : '', focusOnce: true };
 			render();
 		}
 		/** ✓。保存済みは名前を変えるだけ。「＋新規」は保存済みの因子周回として保存し、そのタブを選ぶ（「＋新規」の中身は残す）。 */
