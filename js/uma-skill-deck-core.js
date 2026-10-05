@@ -65,7 +65,7 @@
 	const DATA_JSON_VERSIONS = {
 		'data/scenario-inheritance-factors.json': '2026-09-15a',
 		'data/aptitude-genes.json': '2026-09-19a',
-		'data/extended-skills.json': '2026-10-04a',
+		'data/extended-skills.json': '2026-10-04b',
 		'data/training-umamusume.json': '2026-10-04a',
 		'data/support-cards.json': '2026-09-30b',
 		'data/support-card-event-skills.json': '2026-10-05a',
