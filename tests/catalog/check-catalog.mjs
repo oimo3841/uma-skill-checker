@@ -1220,6 +1220,27 @@ console.log('\n=== 6. 以前の内容との突き合わせ（' + (BASELINE_DIR |
 		none(serialBack, 'nextSerial が戻っていない');
 		if (renamed.length) warn('名前・二つ名が変わった行がある（表記の修正なら問題ない）', renamed);
 	}
+	// 2026-10-05（C-128）: 意図して除いた id が、スキルの4ファイルのどこにも戻っていない（再発の防止）。
+	// 2026-10-04 の書き出しに7件が戻っていたため。行の id だけでなく、前段などの参照（文字列の値）も含めて探す
+	{
+		const removedIds = new Set(Array.from(INTENTIONALLY_REMOVED_IDS).map((k) => k.replace(/^[^:]+:\s*/, '')));
+		const back = [];
+		const walk = (v, file) => {
+			if (typeof v === 'string') { if (removedIds.has(v)) back.push(file + ': ' + v); return; }
+			if (Array.isArray(v)) { v.forEach((x) => walk(x, file)); return; }
+			if (v && typeof v === 'object') Object.keys(v).forEach((k) => walk(v[k], file));
+		};
+		let seen = 0;
+		['extended-skills.json', 'skill-pt.json', 'skill-descriptions.json', 'skill-step-up.json'].forEach((file) => {
+			const abs = path.join(REPO_ROOT, DIR, file);
+			if (!fs.existsSync(abs)) return;
+			const r = readJsonFile(abs);
+			if (!r.ok) return;   // 読めないことは別の節が落とす
+			seen++;
+			walk(r.data, file);
+		});
+		none(back, '意図して除いた id（' + removedIds.size + '件）が、スキルの4ファイル（拡張スキル・Pt・説明文・前段）に1件も現れない（' + seen + 'ファイルを走査）');
+	}
 }
 
 /* ──────────────────────── 7. 進み具合（情報） ──────────────────────── */
