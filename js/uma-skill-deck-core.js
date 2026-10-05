@@ -2315,7 +2315,7 @@
 				if (typeof n === 'number' && Number.isInteger(n) && n >= 1) typeMin[t] = t === OUTSIDE_FRIEND_TYPE ? Math.min(n, OUTSIDE_FRIEND_MAX) : Math.min(n, OUTSIDE_COUNT_CHOICES[OUTSIDE_COUNT_CHOICES.length - 1]);
 			});
 		}
-		// 段13・C2: 「除外」（exclude）。保存値が無いセットは初期値（デバフ・持久力回復）で読む。保存値が {} なら「何も除外しない」。
+		// 段13・C2: 「除外」（exclude）。保存値が無いセットは初期値（C-129 から デバフ・持久力回復・視野・緑スキル・低効果）で読む。保存値が {} なら「何も除外しない」。
 		// 段12 の「絞り込み」（filter）は push 前に置き換えたので読まない（消しもしない。ルール28）
 		const exclude = outsideExcludeOf(o.exclude && typeof o.exclude === 'object' && !Array.isArray(o.exclude) ? o.exclude : OUTSIDE_EXCLUDE_DEFAULT);
 		return { count: count, typeMin: typeMin, exclude: exclude, pinned: outsidePinnedOf(o.pinned, count) };
@@ -2324,8 +2324,20 @@
 	 * 「除外」の初期値（段13・C2）。保存値が無いセットはこの値で読む（保存は触ったときだけ）。
 	 * 値はタグの語（効果タイプの debuff〔まとめた掛かり時間を含む〕と stamina〔持久力回復〕）。スキル名は書かない
 	 */
-	const OUTSIDE_EXCLUDE_DEFAULT = { effect: ['debuff', 'stamina'] };
-	/** { 軸: [値…] } を、「除外」に出す軸の選べる値だけ・選択肢の並びに揃えた形にする（空の軸は持たない） */
+	/*
+	 * C-129: 既定を「デバフ・持久力回復」から「デバフ・持久力回復・視野・緑スキル・低効果」の5つにした。保存値が無いセットだけがこの値で読む
+	 * （すでに除外を触って保存してあるセットは、その値のまま読む＝extra を持たないので緑スキル・低効果は外さない。保存値は書き換えない。ルール28）
+	 */
+	const OUTSIDE_EXCLUDE_DEFAULT = { effect: ['debuff', 'stamina', 'vision'], extra: ['passive', 'lowEffect'] };
+	/**
+	 * 軸ではない「除外」（C-129。保存は exclude.extra に値の配列）。並びは除外の小窓のチップの並び・ボタンの文字の並び。
+	 *   passive   … 緑スキル（パッシブのタグを持つスキル＝緑スキルの入口の一覧と同じ isPoolExcluded）
+	 *   lowEffect … 低効果（isLowEffectSkill。効果の段階のデータが読めていなければ何も外さない）
+	 */
+	const OUTSIDE_EXCLUDE_EXTRA_KEY = 'extra';
+	const OUTSIDE_EXCLUDE_EXTRAS = [{ v: 'passive', t: '緑スキル' }, { v: 'lowEffect', t: '低効果' }];
+	const OUTSIDE_EXCLUDE_EXTRA_LABEL = '全般';   // 除外の小窓のグループの見出し（軸の見出しの上）
+	/** { 軸: [値…], extra: [値…] } を、「除外」に出す軸の選べる値だけ・選択肢の並びに揃えた形にする（空の軸は持たない） */
 	function outsideExcludeOf(src) {
 		const out = {};
 		outsideFilterAxes().forEach(axis => {
@@ -2333,6 +2345,9 @@
 			const ok = pickableOptions(axis).map(x => x.v).filter(v => vals.indexOf(v) !== -1);
 			if (ok.length > 0) out[axis.key] = ok;
 		});
+		const ev = Array.isArray(src[OUTSIDE_EXCLUDE_EXTRA_KEY]) ? src[OUTSIDE_EXCLUDE_EXTRA_KEY] : [];
+		const extra = OUTSIDE_EXCLUDE_EXTRAS.map(x => x.v).filter(v => ev.indexOf(v) !== -1);
+		if (extra.length > 0) out[OUTSIDE_EXCLUDE_EXTRA_KEY] = extra;
 		return out;
 	}
 	/**
@@ -2342,6 +2357,10 @@
 	 */
 	function outsideExcludesSkill(skill, exclude) {
 		const tags = (skill && skill.tags) || {};
+		// C-129: 軸ではない除外（緑スキル・低効果）
+		const extra = (exclude && Array.isArray(exclude[OUTSIDE_EXCLUDE_EXTRA_KEY])) ? exclude[OUTSIDE_EXCLUDE_EXTRA_KEY] : [];
+		if (skill && extra.indexOf('passive') !== -1 && isPoolExcluded(skill)) return true;
+		if (skill && extra.indexOf('lowEffect') !== -1 && isLowEffectSkill(skill.id)) return true;
 		return Object.keys(exclude || {}).some(k => {
 			const vals = exclude[k];
 			if (!Array.isArray(vals) || vals.length === 0) return false;
@@ -10755,6 +10774,12 @@
 			outsideUi.result = null;
 			renderOutside();
 			let r;
+			// C-129: 「低効果」を除外しているときは、効果の段階のデータを先に読む（読めなければ低効果では何も外さず、計算は続ける）
+			const exNow = outsideOptionsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null).exclude;
+			if ((exNow[OUTSIDE_EXCLUDE_EXTRA_KEY] || []).indexOf('lowEffect') !== -1) {
+				try { await loadSkillEffectLevels(); } catch (e) { /* 読めなくても計算は止めない */ }
+				if (tok !== outsideUi.token || !outsideUi.open) return;
+			}
 			// 枚数・種類・絞り込みは、セットの指定（roster.outsideOptions）を計算の側が読む（④・段10〜12）
 			try { r = await outsideSolve({ addedSkillIds: skillIdsOf(currentTarget()) || [] }); }
 			catch (e) { if (global.console) global.console.error('[UmaSkillDeckCore] オススメサポの計算で例外', e); r = { ok: false, reason: 'error' }; }
@@ -10966,6 +10991,38 @@
 					const list = infoEl('div', 'usd-out-filterlist');
 					list.setAttribute('data-usd-el', 'outside-exclude-list');
 					const chips = [];
+					// C-129: 軸ではない除外（緑スキル・低効果）を、軸の見出しの上に1グループで（見出し「全般」）
+					{
+						const row = infoEl('div', 'usd-out-filterrow');
+						row.setAttribute('data-usd-el', 'outside-exclude-axis');
+						row.setAttribute('data-axis', OUTSIDE_EXCLUDE_EXTRA_KEY);
+						row.appendChild(infoEl('span', 'usd-out-filterlabel', OUTSIDE_EXCLUDE_EXTRA_LABEL));
+						const wrap = infoEl('div', 'usd-out-chiprow');
+						wrap.setAttribute('role', 'group');
+						wrap.setAttribute('aria-label', OUTSIDE_EXCLUDE_EXTRA_LABEL);
+						OUTSIDE_EXCLUDE_EXTRAS.forEach(o => {
+							const b = infoEl('button', 'usd-out-segbtn usd-out-filterchip', o.t);
+							b.type = 'button';
+							b.setAttribute('data-usd-el', 'outside-exclude-chip');
+							b.setAttribute('data-axis', OUTSIDE_EXCLUDE_EXTRA_KEY);
+							b.setAttribute('data-value', o.v);
+							b.addEventListener('click', () => {
+								if (!rosterOutsideSink) return;
+								const cur = outsideOptionsOf(rosterOutsideSink.getRoster()).exclude;
+								const next = {};
+								Object.keys(cur).forEach(k => { next[k] = cur[k].slice(); });
+								const vals = next[OUTSIDE_EXCLUDE_EXTRA_KEY] || [];
+								const i = vals.indexOf(o.v);
+								if (i === -1) vals.push(o.v); else vals.splice(i, 1);
+								if (vals.length === 0) delete next[OUTSIDE_EXCLUDE_EXTRA_KEY]; else next[OUTSIDE_EXCLUDE_EXTRA_KEY] = vals;
+								if (rosterOutsideSink.setOptions({ exclude: next })) { update(); outsideRun(); }
+							});
+							wrap.appendChild(b);
+							chips.push(b);
+						});
+						row.appendChild(wrap);
+						list.appendChild(row);
+					}
 					axes.forEach(axis => {
 						const row = infoEl('div', 'usd-out-filterrow');
 						row.setAttribute('data-usd-el', 'outside-exclude-axis');
@@ -11011,6 +11068,9 @@
 		function outsideExcludeLabels(ex) {
 			const out = [];
 			outsideFilterAxes().forEach(axis => { const vals = ex[axis.key] || []; pickableOptions(axis).forEach(o => { if (vals.indexOf(o.v) !== -1) out.push(o.t); }); });
+			// C-129: 軸ではない除外（緑スキル・低効果）は軸のあと
+			const ev = ex[OUTSIDE_EXCLUDE_EXTRA_KEY] || [];
+			OUTSIDE_EXCLUDE_EXTRAS.forEach(o => { if (ev.indexOf(o.v) !== -1) out.push(o.t); });
 			return out;
 		}
 
@@ -12383,6 +12443,9 @@
 		ROSTER_LIMIT: ROSTER_LIMIT,
 		ROSTER_FILTER_AXIS_KEYS: ROSTER_FILTER_AXIS_KEYS.slice(),
 		loadSkillDescriptions: loadSkillDescriptions,
+		// 効果量の段階（C-129）。低効果の判定（読めていなければ false）
+		loadSkillEffectLevels: loadSkillEffectLevels,
+		isLowEffectSkill: isLowEffectSkill,
 		SKILL_RARITY_LABELS: SKILL_RARITY_LABELS,
 		computeRosterPt: computeRosterPt,
 		resolveRosterPtSettings: resolveRosterPtSettings,
