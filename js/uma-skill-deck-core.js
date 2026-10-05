@@ -5499,8 +5499,11 @@
 		'.usd-skillgroup-head .usd-entry-row { margin-bottom: 0; }',
 		'@media (min-width: 641px) {',
 		'  .usd-skillgroup-head { flex-direction: row; align-items: center; gap: 12px; }',
-		'  .usd-skillgroup-head .usd-entry-row { flex: 0 1 auto; min-width: 0; }',
-		'  .usd-skillgroup-head .usd-palette { margin-left: auto; }',
+		// C-129: 入口の列は縮めず（中身の幅のまま）、パレットの最小幅（96px）と間（12px）を残した幅を上限にする（あふれたら入口の列の側で横に送る）
+		// （縮まない箱では右の余白〔--usd-entry-trim〕で幅が減らないので、覗かせの切り詰めは上限の側に入れる）
+		'  .usd-skillgroup-head .usd-entry-row { flex: 0 0 auto; min-width: 0; max-width: calc(100% - 108px - var(--usd-entry-trim, 0px)); }',
+		// C-129: パレットに「低効果を除外」を足して幅が増えたので、足りないときはパレットの側を先に縮める（横に送る・フェード付き）。入口の列を優先する
+		'  .usd-skillgroup-head .usd-palette { margin-left: auto; flex: 0 100 auto; min-width: 96px; }',
 		'}',
 		// パレット「◎ ○ △ ◇ ★ ✕ │ 解除」: 24px の丸を1行（足りなければ横スクロール）。選択中は外側に 2px の輪
 		'.usd-palette { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 5px 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; }',
