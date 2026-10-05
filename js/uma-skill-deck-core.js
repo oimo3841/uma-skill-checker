@@ -5496,6 +5496,13 @@
 		'  background: var(--uma-surface); color: var(--uma-text-heading); cursor: pointer; white-space: nowrap; }',
 		'.usd-palette-clear[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--uma-group-bg, var(--uma-surface)), 0 0 0 4px var(--uma-text-heading); }',
 		'.usd-palette-clear:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 3px; }',
+		// C-129: 「低効果を除外」（②はパレットの「解除」と同じ形。①は「スキル名」の列見出しの下の小さなボタン）。押せないときは灰（共有の無効の色）
+		'.usd-palette-clear:disabled, .usd-lowfx-btn:disabled { color: var(--uma-control-disabled); background: var(--uma-control-disabled-bg); border-color: var(--uma-border); cursor: default; }',
+		// ①: 「スキル名」と、その下の「低効果／を除外」（2行・11px）。列見出しの高さは増やさない（375px・320px で実測。幅 37〜41px・高さ 24px）
+		'.usd-roster-ghname { display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; align-self: stretch; min-width: 0; flex: 0 1 auto; gap: 2px; }',
+		'.usd-lowfx-btn { font: inherit; font-size: 11px; line-height: 1; font-weight: 600; padding: 0 1px; min-width: 24px; min-height: 24px; white-space: nowrap;',
+		'  border: 1px solid var(--uma-border-strong); border-radius: 4px; background: var(--uma-surface); color: var(--uma-text-heading); cursor: pointer; }',
+		'.usd-lowfx-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
 		// アイコン（18px の丸。丸い塗りに記号。無いときは破線の丸）。色は --usd-icon-<id>（表は core の SKILL_ICONS）
 		'.usd-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 18px; height: 18px; border-radius: 50%;',
 		'  font-size: 11px; line-height: 1; font-weight: 700; color: var(--usd-icon-fg, #fff); background: var(--uma-text-faint); }',
@@ -7344,6 +7351,78 @@
 		return st.promise;
 	}
 
+	/* ------------------------------------------------------------
+	 * 効果量の段階（C-129・2026-10-06。data/skill-effect-levels.json）
+	 * 説明文の効果の大きさを表す語から決めた、そのスキルに含まれる最も大きい効果の段階（maxStage）。
+	 * **低効果** ＝ maxStage の rank が lowEffectMax.rank 以下（null は含めない・行が無いスキルも含めない）。
+	 * 段階の名前（「ちょっと」など）はコードに書かず、データから読む。ページの読み込みでは取りに行かず、
+	 * 「低効果を除外」とオススメサポの「低効果」が最初に必要になったときに1回だけ読む（失敗したら次に必要になったときにもう一度試す）。
+	 * ------------------------------------------------------------ */
+	const SKILL_EFFECT_LEVELS_PATH = 'data/skill-effect-levels.json';
+	let skillEffectState = { status: 'idle', rankOfSkill: null, lowMaxRank: 0, lowMaxKey: '', promise: null };   // idle／loading／ok／failed
+	function loadSkillEffectLevels() {
+		if (skillEffectState.status === 'ok' || skillEffectState.status === 'loading') return skillEffectState.promise;
+		const st = { status: 'loading', rankOfSkill: null, lowMaxRank: 0, lowMaxKey: '', promise: null };
+		skillEffectState = st;
+		st.promise = (async () => {
+			try {
+				const doc = await fetchMasterJson(withDataVersion(SKILL_EFFECT_LEVELS_PATH), false);
+				const rankOf = new Map();
+				((doc && doc.stages) || []).forEach(s => { if (s && typeof s.key === 'string' && typeof s.rank === 'number') rankOf.set(s.key, s.rank); });
+				const lm = doc && doc.lowEffectMax;
+				if (!lm || typeof lm.key !== 'string' || rankOf.get(lm.key) !== lm.rank) throw new Error('lowEffectMax');
+				const map = new Map();
+				((doc && doc.entries) || []).forEach(e => {
+					if (!e || typeof e.skillId !== 'string') return;
+					map.set(e.skillId, e.maxStage === null || !rankOf.has(e.maxStage) ? null : rankOf.get(e.maxStage));
+				});
+				st.rankOfSkill = map;
+				st.lowMaxRank = lm.rank;
+				st.lowMaxKey = lm.key;
+				st.status = 'ok';
+			} catch (e) { st.status = 'failed'; }
+			return st.status;
+		})();
+		return st.promise;
+	}
+	/** 低効果か（読めていなければ false＝何も外さない） */
+	function isLowEffectSkill(skillId) {
+		const st = skillEffectState;
+		if (st.status !== 'ok') return false;
+		const r = st.rankOfSkill.get(skillId);
+		return typeof r === 'number' && r <= st.lowMaxRank;
+	}
+	/** 確認の小窓の文（「効果が“ちょっと”以下のスキルを除外しますか？」。語は lowEffectMax.key から） */
+	function lowEffectQuestion() {
+		return '効果が“' + skillEffectState.lowMaxKey + '”以下のスキルを除外しますか？';
+	}
+	const LOW_EFFECT_FAILED_MSG = '効果の段階のデータを読み込めませんでした';
+	/** 確認の小窓の2つのボタン（①のリセットと同じ縦並び。「除外する」は赤・「やめる」） */
+	function lowEffectConfirmButtons(onOk) {
+		const col = infoEl('div', 'usd-reset-ops');
+		col.setAttribute('data-usd-el', 'low-effect-ops');
+		const add = (cls, el, text, fn) => {
+			const b = infoEl('button', 'uma-btn ' + cls, text);
+			b.type = 'button';
+			b.setAttribute('data-usd-el', el);
+			b.addEventListener('click', () => { closeSkillInfo(); fn(); });
+			col.appendChild(b);
+		};
+		add('uma-btn--danger', 'low-effect-ok', '除外する', onOk);
+		add('uma-btn--ghost', 'low-effect-cancel', 'やめる', () => {});
+		return col;
+	}
+	/** 確認の小窓（①②で同じ形。C-129）: 問い・「対象 N種」・「除外する」（赤）／「やめる」 */
+	function fillLowEffectConfirm(body, count, onOk) {
+		const q0 = infoEl('p', '', lowEffectQuestion());
+		q0.setAttribute('data-usd-el', 'low-effect-question');
+		body.appendChild(q0);
+		const c = infoEl('p', '', '対象 ' + count + '種');
+		c.setAttribute('data-usd-el', 'low-effect-count');
+		body.appendChild(c);
+		body.appendChild(lowEffectConfirmButtons(onOk));
+	}
+
 	/**
 	 * 系列（前段データから）。前へはたどれる限り（前段が複数のときは先頭）、後ろへは次のスキルが1つのあいだたどる
 	 * （次が複数なら、そこで束ねて止める）。関係が無ければ null。**名前や記号は見ない**（id の関係だけ）。
@@ -7928,6 +8007,35 @@
 			else if (!taken && i === -1) cur.push(skillId);
 			if (cur.length === 0) delete roster.offSkillIds; else roster.offSkillIds = cur;
 			persistNow();
+		}
+		/**
+		 * ①の「低効果を除外」の対象（C-129）。表に出ている●のうち、取得する（チェックが入っている）低効果のスキル。
+		 * 金スキルとその直下の前段の白はひとまとまり（arrangeStepUnits）で、金スキルの段階で判定する（前段の行だけを外さない）。
+		 * 効果の段階のデータが読めていなければ空。res は computed() の結果
+		 */
+		function rosterLowEffectTargets(res) {
+			if (skillEffectState.status !== 'ok') return [];
+			const out = [];
+			arrangeStepUnits(res.visibleItems).forEach(u => {
+				if (!isLowEffectSkill(u[0].skillId)) return;
+				u.forEach(it => { if (it.sure && !res.offIds.has(it.skillId)) out.push(it.skillId); });
+			});
+			return out;
+		}
+		/** 「除外する」で、対象のチェックを外す（利用者が1件ずつ外すのと同じ＝offSkillIds に足す） */
+		function openRosterLowEffect(btn) {
+			loadSkillEffectLevels().then((st) => {
+				if (st !== 'ok') { toast(LOW_EFFECT_FAILED_MSG, 'warn'); return; }
+				const ids = rosterLowEffectTargets(computed());
+				render();   // 読めたので、対象が0種ならボタンを押せない状態にする
+				if (ids.length === 0) return;
+				const b = container.querySelector('[data-usd-el="roster-low-effect-btn"]') || btn;
+				openPopover({ key: 'roster-low-effect:' + uidBase, title: '低効果を除外', btn: b, opener: b, refocus: '[data-usd-el="roster-low-effect-btn"]',
+					build: (body) => fillLowEffectConfirm(body, ids.length, () => {
+						ids.forEach(id => setSkillTaken(id, false));
+						render();
+					}) });
+			});
 		}
 		/** 「すべて取得に戻す」。いま有効な（●の）オフだけを外し、指す先が無い古い id は残す */
 		function clearOffSkills() {
@@ -8543,8 +8651,13 @@
 					+ '<span class="usd-roster-toneicon usd-roster-toneicon--' + t.key + '" role="img" aria-label="' + esc(t.label) + '" title="' + esc(t.label) + '"><i data-lucide="' + t.icon + '" class="usd-roster-tonesvg"></i></span>'
 					+ '<button type="button" class="usd-roster-ghbtn usd-roster-tonebtn" data-usd-act="sort-tone" data-tone="' + t.key + '" data-usd-el="tone-sort-btn"'
 					+ ' aria-pressed="' + (sortKey === 'tone:' + t.key ? 'true' : 'false') + '" aria-label="' + esc(t.label + 'を上に寄せる') + '" title="並べ替え">' + funnelSvg + '</button></span>').join('');
+				// C-129: 「スキル名」の下に「低効果を除外」（列見出しの高さは増やさない）。取得する●が無いとき・対象が0種のとき（データを読んだあと）は押せない
+				const anyTaken = rows.some(it => it.sure && !res.offIds.has(it.skillId));
+				const lowDisabled = !anyTaken || (skillEffectState.status === 'ok' && rosterLowEffectTargets(res).length === 0);
+				const lowBtn = '<button type="button" class="usd-lowfx-btn" data-usd-act="roster-low-effect" data-usd-el="roster-low-effect-btn" aria-haspopup="dialog" aria-expanded="false"'
+					+ ' aria-label="低効果を除外" title="低効果を除外"' + (lowDisabled ? ' disabled' : '') + '>低効果<br>を除外</button>';
 				h += '<div class="usd-roster-grow" role="row">'
-					+ '<div class="usd-roster-gc usd-roster-gc--name usd-roster-gh usd-roster-gh--skill" role="columnheader" aria-label="スキル名"><span class="usd-roster-ghtitle" aria-hidden="true">スキル名</span>'
+					+ '<div class="usd-roster-gc usd-roster-gc--name usd-roster-gh usd-roster-gh--skill" role="columnheader" aria-label="スキル名"><span class="usd-roster-ghname"><span class="usd-roster-ghtitle" aria-hidden="true">スキル名</span>' + lowBtn + '</span>'
 					+ '<span class="usd-roster-tones" data-usd-el="tone-sorts">' + toneHead + '</span></div>'
 					+ members.map(m => '<div class="usd-roster-gc usd-roster-gh' + colClass(m) + colTypedClass(m)
 						+ (m.label ? '' : ' usd-roster-gh--empty') + '"'
@@ -8850,6 +8963,7 @@
 			else if (act === 'name-commit') { commitName(); }
 			else if (act === 'name-reset') { askReset(); }
 			else if (act === 'roster-reset') openRosterResetPopover(btn);
+			else if (act === 'roster-low-effect') { if (!btn.disabled) openRosterLowEffect(btn); }   // C-129
 		}
 
 		/**
@@ -9438,6 +9552,7 @@
 			else if (act === 'pt-total-help') openPtTotalPopover(btn);
 			// 段9: アイコンのパレットと、行の先頭のアイコン
 			else if (act === 'palette-pick') pickPalette(btn.dataset.icon);
+			else if (act === 'low-effect') { if (!btn.disabled) openLowEffectConfirmFor(btn); }   // C-129
 			else if (act === 'skill-icon') toggleSkillIcon(btn.dataset.skillId);
 			else if (act === 'factor-reset') openFactorResetPopover(btn);
 			else if (act === 'outside-open') openOutsideAdvisor(btn);
@@ -11085,7 +11200,15 @@
 				+ ' aria-pressed="' + (paletteSel === i.id ? 'true' : 'false') + '" aria-label="アイコン ' + esc(i.mark) + '" title="' + esc(i.mark) + '">' + skillIconHtml(i.id) + '</button>').join('')
 				+ '<span class="usd-palette-sep" aria-hidden="true"></span>'
 				+ '<button type="button" class="usd-palette-clear" data-usd-act="palette-pick" data-usd-el="palette-clear" data-icon="clear" aria-pressed="' + (paletteSel === 'clear' ? 'true' : 'false') + '"'
-				+ ' title="押した行のアイコンを外す">解除</button>';
+				+ ' title="押した行のアイコンを外す">解除</button>'
+				// C-129: 「低効果を除外」。押すと確認の小窓。対象が0種なら押せない（効果の段階のデータは押したときに初めて読むので、
+				// 読む前は一覧にスキルがあれば押せる。読んだあとは対象の数で決まる）
+				+ (function () {
+					const ids = skillIdsOf(currentTarget()) || [];
+					const none = ids.length === 0 || (skillEffectState.status === 'ok' && lowEffectIdsOfEditing().length === 0);
+					return '<button type="button" class="usd-palette-clear" data-usd-act="low-effect" data-usd-el="low-effect-btn" aria-haspopup="dialog" aria-expanded="false"'
+						+ (none ? ' disabled' : '') + ' title="低効果のスキルを一覧から外す">低効果を除外</button>';
+				})();
 			scanEntryRows();
 		}
 		function pickPalette(iconId) {
@@ -11477,6 +11600,55 @@
 			writeScopes(target, {});
 			picker.excludeIds = picker.excludeIds.filter(id => prev.indexOf(id) === -1);
 			afterEditingSkillsChanged(target);
+		}
+
+		/**
+		 * ②の「低効果を除外」（C-129）。一覧の低効果のスキルを、各行の✕と同じく一覧から外す（分類・アイコンも一緒に外し、
+		 * 「元に戻す」に1回で積む＝まとめて戻る）。低効果の判定は isLowEffectSkill（データから読む。読めていなければ何も外さない）。
+		 */
+		function lowEffectIdsOfEditing() {
+			const ids = skillIdsOf(currentTarget()) || [];
+			return ids.filter(id => isLowEffectSkill(id));
+		}
+		function removeLowEffectFromEditing() {
+			const target = currentTarget();
+			const ids = skillIdsOf(target);
+			if (!ids) return 0;
+			const drop = ids.filter(id => isLowEffectSkill(id));
+			if (drop.length === 0) return 0;
+			const prev = snapshot(ids);
+			const prevTiers = snapshot(tiersOf(target));
+			const prevIcons = setBased ? snapshot(iconsOf(target)) : undefined;
+			const n = drop.length;
+			pushUndo({
+				scope: 'list',
+				doneLabel: '低効果のスキル' + n + '種を外しました',
+				undoneLabel: '外した' + n + '種を戻しました',
+				probe: () => probeOf(skillIdsOf(target)),
+				apply: () => {
+					if (!writeSkillIds(target, snapshot(prev), snapshot(prevTiers), prevIcons ? snapshot(prevIcons) : undefined)) return false;
+					picker.excludeIds = picker.excludeIds.concat(prev.filter(id => picker.excludeIds.indexOf(id) === -1));
+					afterEditingSkillsChanged(target);
+					return true;
+				}
+			});
+			const dropSet = new Set(drop);
+			const nextIcons = setBased ? (() => { const ic = iconsOf(target); drop.forEach(id => { delete ic[id]; }); return ic; })() : undefined;
+			if (!writeSkillIds(target, ids.filter(id => !dropSet.has(id)), tiersWithout(prevTiers, drop), nextIcons)) return 0;
+			picker.excludeIds = picker.excludeIds.filter(id => !dropSet.has(id));
+			afterEditingSkillsChanged(target);
+			return n;
+		}
+		function openLowEffectConfirmFor(btn) {
+			loadSkillEffectLevels().then((st) => {
+				if (st !== 'ok') { toast(LOW_EFFECT_FAILED_MSG, 'warn'); return; }
+				const ids = lowEffectIdsOfEditing();
+				renderPalette();   // 読めたので、対象が0種ならボタンを押せない状態にする
+				if (ids.length === 0) return;
+				const b = q(container, 'low-effect-btn') || btn;
+				openPopover({ key: 'low-effect:' + draftScopeKey, title: '低効果を除外', btn: b, opener: b, refocus: '[data-usd-el="low-effect-btn"]',
+					build: (body) => fillLowEffectConfirm(body, ids.length, () => { removeLowEffectFromEditing(); renderPalette(); }) });
+			});
 		}
 
 		function removeSkillFromEditing(skillId) {
