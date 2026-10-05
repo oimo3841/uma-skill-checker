@@ -13038,7 +13038,9 @@ await block('スキルの説明（ⓘ・長押し。段6）', async () => {
 		'段6(7): 説明文の < > & はそのまま文字として見える（HTML として解釈されない）。改行も残る', { has: v.descHasChildEl, desc: v.desc });
 	const wrap = await sp.page.evaluate(() => getComputedStyle(document.querySelector('[data-usd-el="info-desc"]')).whiteSpace);
 	assert(wrap === 'pre-line', '段6(1): 説明文の改行（\\n）は改行として見せる（white-space: pre-line）', wrap);
-	assert(sp.descReqs.length === 1 && /v=2026-10-02a/.test(sp.descReqs[0]), '段6(6): 説明文の読み込みは最初に開いたときの1回で、?v=<版> が付く', sp.descReqs);
+	// 版は直書きしない（2026-10-05・C-128 で説明文の版が上がって落ちた）。正本は data/skill-descriptions.json の dataVersion
+	const descVer = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/skill-descriptions.json'), 'utf8')).dataVersion;
+	assert(sp.descReqs.length === 1 && sp.descReqs[0].includes('v=' + descVer), '段6(6): 説明文の読み込みは最初に開いたときの1回で、?v=<版> が付く', { reqs: sp.descReqs, descVer });
 	await closeIt(sp.page);
 	await sp.page.click(rosterBtn(X[1]));
 	await sp.page.waitForTimeout(150);
