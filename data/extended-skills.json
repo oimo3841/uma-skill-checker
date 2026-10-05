@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-04b",
+	"dataVersion": "2026-10-05a",
 	"category": "extendedSkill",
 	"nextSerial": "ex-0993",
 	"note": "マスター（uma-skill-deck-skills.json）の445種に無いスキル。name はゲーム画面の表示そのまま（全角・半角・中黒「・」を含めて変えない）。id は保存済みの比較シートが指し続ける不変の鍵なので、表記を直しても id は変えない。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。tagsPending が付いている間は8軸のタグが未設定で、条件での絞り込みの母集団には入れない（8軸すべてが空のタグは「条件を持たない＝万能スキル」という別の意味になるため、未設定はこの印で示す）。tagsPending と tags はどちらか一方だけを持つ。形は npm run check:catalog が確かめる。",
@@ -2798,7 +2798,7 @@
 				"environment": [],
 				"trackVenue": [],
 				"effect": [
-					"vision"
+					"debuff"
 				],
 				"scenario": [],
 				"passive": [],
@@ -7246,7 +7246,7 @@
 				"environment": [],
 				"trackVenue": [],
 				"effect": [
-					"vision"
+					"debuff"
 				],
 				"scenario": [],
 				"passive": [],

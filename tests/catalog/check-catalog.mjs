@@ -586,7 +586,9 @@ const otherCatalogNames = new Map();
 		if (!r.ok || !isArr(r.data.entries)) continue;
 		r.data.entries.forEach((e) => {
 			if (e && e.id) takenIds.add(String(e.id));
-			if (e && e.name) otherCatalogNames.set(String(e.name), String(e.id));
+			// id を持つ行（＝カタログの行）だけ。skill-effect-levels.json のように skillId と照合の控えの name を持つ行は、
+			// 別のスキルを名乗る行ではないので数えない（C-129）
+			if (e && e.id && e.name) otherCatalogNames.set(String(e.name), String(e.id));
 		});
 	}
 	// 検査の対象に入っているスキルではないカタログの名前も、同じ箱へ入れる。
@@ -1528,6 +1530,66 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 			none(badRoot, STEP_UP_FILE + ': hintRootSkillId は前段をさかのぼった祖先で、自身は根');
 			const multi = [...rows.values()].filter((e) => isArr(e.prevSkillIds) && e.prevSkillIds.length >= 2).map((e) => e.skillId + '（前段 ' + e.prevSkillIds.length + '個）');
 			if (multi.length) warn(STEP_UP_FILE + ': 前段が2個以上のスキル（「すべて必要」か「どれか1つ」かは要確認）', multi);
+		}
+	}
+
+	/* --- 効果量の段階（C-129・2026-10-06。「低効果を除外」とオススメサポの「低効果」が使う。最初に必要になったときだけ読むファイル） ---
+	   形は許可リスト方式（説明文の本文などを持たない＝知らないキーは落とす）。skillId は skill-pt.json に全部あり重複しない。
+	   maxStage は stages の key か null。lowEffectMax の key と rank は stages の1つと一致する。段階の語はここに書かない（データから読む）。 */
+	const EFFECT_FILE = 'skill-effect-levels.json';
+	const er = readOpt(EFFECT_FILE);
+	if (er === null) {
+		console.log('       ' + EFFECT_FILE + ': まだ無い（無ければ見ない）');
+	} else {
+		check(er.ok, EFFECT_FILE + ' が読める', er.ok ? undefined : er.error);
+		if (er.ok) {
+			const d = er.data;
+			const unknown = [], missing = [], bad = [], dup = [], notInPt = [], badStage = [], badName = [];
+			checkKeys(d, { need: ['category', 'dataVersion', 'stages', 'lowEffectMax', 'entries'], opt: ['note'] }, EFFECT_FILE, unknown, missing);
+			if (d.category !== 'skillEffectLevel') bad.push('category が ' + JSON.stringify(d.category));
+			if (!DATA_VERSION_RE.test(String(d.dataVersion))) bad.push('dataVersion の形が違う: ' + String(d.dataVersion));
+			const stages = isArr(d.stages) ? d.stages : [];
+			if (!isArr(d.stages) || stages.length === 0) bad.push('stages が空でない配列でない');
+			const rankOf = new Map();
+			stages.forEach((s, i) => {
+				const w = 'stages[' + i + ']';
+				if (!checkKeys(s, { need: ['key', 'rank'], opt: [] }, w, unknown, missing)) return;
+				if (!isStr(s.key)) bad.push(w + '.key: 空でない文字列');
+				if (!isInt(s.rank) || s.rank < 1) bad.push(w + '.rank: 1以上の整数');
+				if (rankOf.has(s.key)) bad.push(w + ': key が重複 ' + s.key);
+				if ([...rankOf.values()].includes(s.rank)) bad.push(w + ': rank が重複 ' + s.rank);
+				rankOf.set(s.key, s.rank);
+			});
+			const lm = d.lowEffectMax;
+			if (checkKeys(lm, { need: ['key', 'rank'], opt: [] }, 'lowEffectMax', unknown, missing)) {
+				if (!rankOf.has(lm.key) || rankOf.get(lm.key) !== lm.rank) bad.push('lowEffectMax の key と rank が stages の1つと一致しない: ' + JSON.stringify(lm));
+			}
+			const pr = readOpt(PT_FILE);
+			const ptIds = new Set(pr && pr.ok && isArr(pr.data.entries) ? pr.data.entries.map((e) => e && e.skillId) : []);
+			const nameOf = new Map(masterNameById);
+			docs.extendedSkill.entries.forEach((e) => nameOf.set(String(e.id), e.name));
+			const seen = new Set();
+			if (!isArr(d.entries) || d.entries.length === 0) bad.push('entries が空でない配列でない');
+			(isArr(d.entries) ? d.entries : []).forEach((e, i) => {
+				const w = 'entries[' + i + ']';
+				if (!checkKeys(e, { need: ['skillId', 'name', 'maxStage'], opt: [] }, w, unknown, missing)) return;
+				if (!isStr(e.skillId)) { bad.push(w + '.skillId: 空でない文字列'); return; }
+				if (seen.has(e.skillId)) dup.push(w + ': ' + e.skillId); seen.add(e.skillId);
+				if (!ptIds.has(e.skillId)) notInPt.push(w + ': ' + e.skillId);
+				if (e.maxStage !== null && !rankOf.has(e.maxStage)) badStage.push(w + ': ' + e.skillId + ' の maxStage ' + JSON.stringify(e.maxStage));
+				if (nameOf.has(e.skillId) && nameOf.get(e.skillId) !== e.name) badName.push(w + ': ' + e.skillId);
+			});
+			none(unknown.concat(missing), EFFECT_FILE + ': キーが決めた形（知らないキー〔説明文の本文など〕が無く、必須が揃っている）');
+			none(bad, EFFECT_FILE + ': category・版・stages・lowEffectMax の形（lowEffectMax は stages の1つと一致）');
+			none(dup, EFFECT_FILE + ': skillId が重複しない');
+			none(notInPt, EFFECT_FILE + ': skillId がすべて ' + PT_FILE + ' にある');
+			none(badStage, EFFECT_FILE + ': maxStage は stages の key か null');
+			none(badName, EFFECT_FILE + ': name（照合の控え）がマスター・拡張スキルの名前と一致');
+			if (isArr(d.entries) && lm && rankOf.has(lm.key)) {
+				const low = d.entries.filter((e) => e && e.maxStage !== null && rankOf.get(e.maxStage) <= lm.rank).length;
+				const nul = d.entries.filter((e) => e && e.maxStage === null).length;
+				console.log('       ' + EFFECT_FILE + ': ' + d.entries.length + '件（低効果 ' + low + '件・段階なし ' + nul + '件）');
+			}
 		}
 	}
 }

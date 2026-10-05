@@ -1,5 +1,5 @@
 {
- "masterVersion": "2026-09-26b",
+ "masterVersion": "2026-10-06a",
  "skills": [
   {
    "id": "1",
@@ -2819,7 +2819,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "vision"
+     "debuff"
     ],
     "scenario": [],
     "passive": [],
@@ -3169,7 +3169,7 @@
     "environment": [],
     "trackVenue": [],
     "effect": [
-     "vision"
+     "debuff"
     ],
     "scenario": [],
     "passive": [],

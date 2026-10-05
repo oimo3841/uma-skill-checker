@@ -1,0 +1,5725 @@
+{
+	"category": "skillEffectLevel",
+	"dataVersion": "2026-10-05a",
+	"stages": [
+		{
+			"key": "ほんのちょっと",
+			"rank": 1
+		},
+		{
+			"key": "ほんのわずかに",
+			"rank": 2
+		},
+		{
+			"key": "ちょっと",
+			"rank": 3
+		},
+		{
+			"key": "わずかに",
+			"rank": 4
+		},
+		{
+			"key": "少し",
+			"rank": 5
+		},
+		{
+			"key": "副詞なし",
+			"rank": 6
+		},
+		{
+			"key": "すごく",
+			"rank": 7
+		},
+		{
+			"key": "ものすごく",
+			"rank": 8
+		}
+	],
+	"lowEffectMax": {
+		"key": "ちょっと",
+		"rank": 3
+	},
+	"entries": [
+		{
+			"skillId": "1",
+			"name": "右回り○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "2",
+			"name": "左回り○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "3",
+			"name": "東京レース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "4",
+			"name": "中山レース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "5",
+			"name": "阪神レース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "6",
+			"name": "京都レース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "7",
+			"name": "中京レース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "8",
+			"name": "札幌レース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "9",
+			"name": "函館レース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "10",
+			"name": "福島レース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "11",
+			"name": "新潟レース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "12",
+			"name": "小倉レース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "13",
+			"name": "根幹距離○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "14",
+			"name": "非根幹距離○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "15",
+			"name": "良バ場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "16",
+			"name": "道悪○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "17",
+			"name": "春ウマ娘○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "18",
+			"name": "夏ウマ娘○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "19",
+			"name": "秋ウマ娘○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "20",
+			"name": "冬ウマ娘○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "21",
+			"name": "晴れの日○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "22",
+			"name": "曇りの日○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "23",
+			"name": "雨の日○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "24",
+			"name": "雪の日○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "25",
+			"name": "内枠得意○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "26",
+			"name": "外枠得意○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "27",
+			"name": "おひとり様○",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "28",
+			"name": "対抗意識○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "29",
+			"name": "徹底マーク○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "30",
+			"name": "伏兵○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "31",
+			"name": "コーナー巧者○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "32",
+			"name": "コーナー加速○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "33",
+			"name": "コーナー回復○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "34",
+			"name": "直線巧者",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "35",
+			"name": "直線加速",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "36",
+			"name": "直線回復",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "37",
+			"name": "集中力",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "38",
+			"name": "隠れ蓑",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "39",
+			"name": "ポジションセンス",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "40",
+			"name": "ペースアップ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "41",
+			"name": "ペースキープ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "42",
+			"name": "ウマ込み冷静",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "43",
+			"name": "垂れウマ回避",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "44",
+			"name": "臨機応変",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "45",
+			"name": "末脚",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "46",
+			"name": "先駆け",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "47",
+			"name": "急ぎ足",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "48",
+			"name": "押し切り準備",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "49",
+			"name": "スタミナキープ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "50",
+			"name": "好位追走",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "51",
+			"name": "抜け出し準備",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "52",
+			"name": "位置取り押し上げ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "53",
+			"name": "差し切り体勢",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "54",
+			"name": "外差し準備",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "55",
+			"name": "後方待機",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "56",
+			"name": "仕掛け抜群",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "57",
+			"name": "直線一気",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "58",
+			"name": "スプリントギア",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "59",
+			"name": "様子見",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "60",
+			"name": "詰め寄り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "61",
+			"name": "積極策",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "62",
+			"name": "展開窺い",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "63",
+			"name": "上昇気流",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "64",
+			"name": "前途洋々",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "65",
+			"name": "テンポアップ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "66",
+			"name": "食い下がり",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "67",
+			"name": "深呼吸",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "68",
+			"name": "内弁慶",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "69",
+			"name": "別腹タンク",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "70",
+			"name": "トリック（前）",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "71",
+			"name": "トリック（後）",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "72",
+			"name": "逃げ駆け引き",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "73",
+			"name": "先行駆け引き",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "74",
+			"name": "差し駆け引き",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "75",
+			"name": "追込駆け引き",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "76",
+			"name": "逃げけん制",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "77",
+			"name": "逃げ焦り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "78",
+			"name": "逃げためらい",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "79",
+			"name": "先行けん制",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "80",
+			"name": "先行焦り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "81",
+			"name": "先行ためらい",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "82",
+			"name": "差しけん制",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "83",
+			"name": "差し焦り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "84",
+			"name": "差しためらい",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "85",
+			"name": "追込けん制",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "86",
+			"name": "追込焦り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "87",
+			"name": "追込ためらい",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "88",
+			"name": "大井レース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "89",
+			"name": "短距離直線○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "90",
+			"name": "短距離コーナー○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "91",
+			"name": "大きなリード",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "92",
+			"name": "善後策",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "93",
+			"name": "仕掛け準備",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "94",
+			"name": "後方釘付",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "95",
+			"name": "抜け駆け禁止",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "96",
+			"name": "マイル直線○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "97",
+			"name": "マイルコーナー○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "98",
+			"name": "ギアシフト",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "99",
+			"name": "アクセラレーション",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "100",
+			"name": "負けん気",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "101",
+			"name": "スピードイーター",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "102",
+			"name": "布石",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "103",
+			"name": "中距離直線○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "104",
+			"name": "中距離コーナー○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "105",
+			"name": "ホークアイ",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "106",
+			"name": "イナズマステップ",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "107",
+			"name": "軽やかステップ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "108",
+			"name": "束縛",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "109",
+			"name": "ささやき",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "110",
+			"name": "長距離直線○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "111",
+			"name": "長距離コーナー○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "112",
+			"name": "リードキープ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "113",
+			"name": "パス上手",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "114",
+			"name": "追い上げ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "115",
+			"name": "スタミナイーター",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "116",
+			"name": "目くらまし",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "117",
+			"name": "逃げ直線○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "118",
+			"name": "逃げコーナー○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "119",
+			"name": "危険回避",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "120",
+			"name": "先頭プライド",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "121",
+			"name": "勢い任せ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "122",
+			"name": "二の矢",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "123",
+			"name": "リスタート",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "124",
+			"name": "先行直線○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "125",
+			"name": "先行コーナー○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "126",
+			"name": "巧みなステップ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "127",
+			"name": "直滑降",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "128",
+			"name": "栄養補給",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "129",
+			"name": "まき直し",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "130",
+			"name": "かく乱",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "131",
+			"name": "差し直線○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "132",
+			"name": "差しコーナー○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "133",
+			"name": "がんばり屋",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "134",
+			"name": "十万バリキ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "135",
+			"name": "小休憩",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "136",
+			"name": "読解力",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "137",
+			"name": "鋭い眼光",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "138",
+			"name": "追込直線○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "139",
+			"name": "追込コーナー○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "140",
+			"name": "お見通し",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "141",
+			"name": "下校の楽しみ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "142",
+			"name": "冷静",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "143",
+			"name": "策士",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "144",
+			"name": "まなざし",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "145",
+			"name": "逃げのコツ○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "146",
+			"name": "先行のコツ○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "147",
+			"name": "差しのコツ○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "148",
+			"name": "追込のコツ○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "149",
+			"name": "ラッキーセブン",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "150",
+			"name": "スリーセブン",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "151",
+			"name": "登山家",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "152",
+			"name": "ウマ好み",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "153",
+			"name": "地固め",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "154",
+			"name": "尻尾上がり",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "155",
+			"name": "ふり絞り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "156",
+			"name": "シンパシー",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "157",
+			"name": "一匹狼",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "158",
+			"name": "スリップストリーム",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "159",
+			"name": "遊びはおしまいっ！",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "160",
+			"name": "レコメンド",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "161",
+			"name": "前列狙い",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "162",
+			"name": "静かな呼吸",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "163",
+			"name": "ありったけ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "164",
+			"name": "真っ向勝負",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "165",
+			"name": "砂塵慣れ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "166",
+			"name": "影打",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "167",
+			"name": "早仕掛け",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "168",
+			"name": "あやしげな作戦",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "169",
+			"name": "軽い足取り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "170",
+			"name": "マイペース",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "171",
+			"name": "ワンチャンス",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "172",
+			"name": "闘争心",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "173",
+			"name": "前のめり",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "174",
+			"name": "気合十分",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "175",
+			"name": "恐れぬ心",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "176",
+			"name": "気迫を込めて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "177",
+			"name": "フルスロットル",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "178",
+			"name": "自制心",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "179",
+			"name": "下り坂巧者",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "180",
+			"name": "抜かりなし",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "181",
+			"name": "川崎レース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "182",
+			"name": "船橋レース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "183",
+			"name": "盛岡レース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "184",
+			"name": "ナイター○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "185",
+			"name": "小回り○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "186",
+			"name": "交流重賞○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "187",
+			"name": "明るい兆し",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "188",
+			"name": "盛り返し",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "189",
+			"name": "まっしぐら",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "190",
+			"name": "冴える思考",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "191",
+			"name": "砂浴び○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "192",
+			"name": "意気込み十分",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "193",
+			"name": "急浮上",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "194",
+			"name": "踏み込み上手",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "195",
+			"name": "泥遊び○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "196",
+			"name": "土煙",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "197",
+			"name": "圧迫感",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "198",
+			"name": "攻めの姿勢",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "199",
+			"name": "打開策",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "200",
+			"name": "しゃかりき",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "201",
+			"name": "一足飛び",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "202",
+			"name": "向上心",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "203",
+			"name": "がむしゃら",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "204",
+			"name": "確かな足取り",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "205",
+			"name": "やまっけ",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "206",
+			"name": "キレる脚",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "207",
+			"name": "粘り腰",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "208",
+			"name": "食らいつき",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "209",
+			"name": "本領発揮",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "210",
+			"name": "切れ味",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "211",
+			"name": "向こう見ず",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "212",
+			"name": "型破り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "213",
+			"name": "しとやかな足取り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "214",
+			"name": "プレッシャー",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "215",
+			"name": "快速",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "216",
+			"name": "ロックオン",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "217",
+			"name": "脇目も振らず",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "218",
+			"name": "大急ぎ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "219",
+			"name": "イグニッション",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "220",
+			"name": "溢れる情熱",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "221",
+			"name": "進出開始",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "222",
+			"name": "一歩から",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "223",
+			"name": "自信家",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "224",
+			"name": "込み上げる熱",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "225",
+			"name": "心弾んで",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "226",
+			"name": "バイブス上昇",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "227",
+			"name": "一番乗り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "228",
+			"name": "探求心",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "229",
+			"name": "会心の一歩",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "230",
+			"name": "折れない心",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "231",
+			"name": "ロンシャンレース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "232",
+			"name": "品行方正",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "233",
+			"name": "ひたむき前進",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "234",
+			"name": "勝利に向かって",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "235",
+			"name": "狙いを定めて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "236",
+			"name": "中盤巧者",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "237",
+			"name": "序盤巧者",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "238",
+			"name": "大詰め",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "239",
+			"name": "迷いなし",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "240",
+			"name": "二段構え",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "241",
+			"name": "砂払い",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "242",
+			"name": "ごぼう抜き",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "243",
+			"name": "急発進",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "244",
+			"name": "渾身の足取り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "245",
+			"name": "たぎる血潮",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "246",
+			"name": "不動の心",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "247",
+			"name": "推力十分",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "248",
+			"name": "切り崩し",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "249",
+			"name": "惜しみなし",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "250",
+			"name": "影踏み",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "251",
+			"name": "鬼気迫って",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "252",
+			"name": "パイオニア",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "253",
+			"name": "滾る想い",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "254",
+			"name": "好機を捉えて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "255",
+			"name": "飛躍の予感",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "256",
+			"name": "直線コース○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "257",
+			"name": "手練手管",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "258",
+			"name": "瞬発力",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "259",
+			"name": "風切り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "260",
+			"name": "素直な一歩",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "261",
+			"name": "胸の高鳴り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "262",
+			"name": "揺るがぬ信念",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "263",
+			"name": "無二",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "264",
+			"name": "無三",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "265",
+			"name": "力の限り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "266",
+			"name": "ダート直線○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "267",
+			"name": "ダートコーナー○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "268",
+			"name": "正面突破",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "269",
+			"name": "さらなる高みへ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "270",
+			"name": "決定打",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "271",
+			"name": "克己心",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "272",
+			"name": "むきだしの情熱",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "273",
+			"name": "後先恐れず",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "274",
+			"name": "切り替え上手",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "275",
+			"name": "裏腹なキモチ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "276",
+			"name": "目にも留まらず",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "277",
+			"name": "気の向くままに",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "278",
+			"name": "アグレッシブ",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "279",
+			"name": "逸る足取り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "280",
+			"name": "端緒",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "281",
+			"name": "急襲",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "282",
+			"name": "覚悟を決めて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "283",
+			"name": "切り込み隊長",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "284",
+			"name": "熱狂的",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "285",
+			"name": "光差す方へ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "286",
+			"name": "駆け降り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "287",
+			"name": "下準備",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "288",
+			"name": "這い寄る足音",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "289",
+			"name": "ハイピッチ",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "290",
+			"name": "一歩ずつ前へ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "291",
+			"name": "切り返し",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "292",
+			"name": "逃げ切り体勢",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "293",
+			"name": "破天荒",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "294",
+			"name": "追い風に乗って",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "295",
+			"name": "地道に重ねて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "296",
+			"name": "己を信じて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "297",
+			"name": "躍動",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "298",
+			"name": "憧れを越えて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "299",
+			"name": "ターニングポイント",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "300",
+			"name": "抜きん出る一歩",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "301",
+			"name": "みなぎる闘志",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "302",
+			"name": "譲れぬ一歩",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "303",
+			"name": "火花散らして",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "304",
+			"name": "比類なき",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "305",
+			"name": "覇気十分",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "306",
+			"name": "垣間見た光",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "307",
+			"name": "登竜門",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "308",
+			"name": "足任せ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "309",
+			"name": "ステップアップ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "310",
+			"name": "奮闘",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "311",
+			"name": "足がかり",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "312",
+			"name": "捕捉",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "313",
+			"name": "押し通る！",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "314",
+			"name": "砂蹴り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "315",
+			"name": "精進",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "316",
+			"name": "真っ直ぐな走り",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "317",
+			"name": "夢への挑戦",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "318",
+			"name": "光明",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "319",
+			"name": "活路を拓く！",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "320",
+			"name": "健脚",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "321",
+			"name": "静かな熱",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "322",
+			"name": "不断の鍛錬",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "323",
+			"name": "思い切り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "324",
+			"name": "勇気の一歩",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "325",
+			"name": "張り切り",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "326",
+			"name": "間隙を突いて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "327",
+			"name": "影を追って",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "328",
+			"name": "追駆",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "329",
+			"name": "臆せぬ心",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "330",
+			"name": "衝動",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "331",
+			"name": "好戦的",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "332",
+			"name": "想い焦がれて",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "333",
+			"name": "精神力",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "334",
+			"name": "内なる獣",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "335",
+			"name": "頂を目指して",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "336",
+			"name": "優等生",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "337",
+			"name": "心惹かれて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "338",
+			"name": "気ままな足取り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "339",
+			"name": "弾ける足取り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "340",
+			"name": "待ったなし",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "341",
+			"name": "ヒートアップ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "342",
+			"name": "急降下",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "343",
+			"name": "誇りを抱いて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "344",
+			"name": "プレリュード",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "345",
+			"name": "練達の一歩",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "346",
+			"name": "シビれる走り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "347",
+			"name": "天才肌",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "348",
+			"name": "気丈な姿勢",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "349",
+			"name": "なりふり構わず",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "350",
+			"name": "バイタリティ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "351",
+			"name": "目覚めの時",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "352",
+			"name": "意地っ張り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "353",
+			"name": "力業",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "354",
+			"name": "ここ一番",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "355",
+			"name": "労を惜しまず",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "356",
+			"name": "華麗な足取り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "357",
+			"name": "灯を胸に",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "358",
+			"name": "凛然と",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "359",
+			"name": "気持ちを乗せて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "360",
+			"name": "余勢を駆って",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "361",
+			"name": "逃げるが勝ち！",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "362",
+			"name": "轟く足音",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "363",
+			"name": "淀みなし",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "364",
+			"name": "勝負を懸けて",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "365",
+			"name": "大志を抱いて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "366",
+			"name": "あふれる活力",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "367",
+			"name": "前進あるのみ",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "368",
+			"name": "押しの一手",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "369",
+			"name": "溌剌",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "370",
+			"name": "巨歩",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "371",
+			"name": "アプローチ",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "372",
+			"name": "戦略家",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "373",
+			"name": "卓越する走り",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "374",
+			"name": "もう一踏ん張り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "375",
+			"name": "サンタアニタパークレース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "376",
+			"name": "デルマーレース場○",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "377",
+			"name": "星の煌き",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "378",
+			"name": "急旋回",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "379",
+			"name": "猛プッシュ",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "380",
+			"name": "超長距離回復○",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "381",
+			"name": "個性的",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "382",
+			"name": "押せ押せムード",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "383",
+			"name": "阿吽の呼吸",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "384",
+			"name": "実直な走り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "385",
+			"name": "弾みをつけて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "386",
+			"name": "勇を奮って",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "387",
+			"name": "大立ち回り",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "388",
+			"name": "流れに任せて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "389",
+			"name": "輝きを放って",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "390",
+			"name": "息抜き上手",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "391",
+			"name": "憂いなし",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "392",
+			"name": "影より速く",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "393",
+			"name": "追尾",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "394",
+			"name": "いざ我が道へ！",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "395",
+			"name": "奮い立つ心",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "396",
+			"name": "筆に任せて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "397",
+			"name": "ポイントマン",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "398",
+			"name": "ダブルアクセル",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "399",
+			"name": "存在感",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "400",
+			"name": "潮目を掴んで",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "401",
+			"name": "華麗な踏み込み",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "402",
+			"name": "先導者",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "403",
+			"name": "奥の手",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "404",
+			"name": "勝負勘",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "405",
+			"name": "ただその先へ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "406",
+			"name": "連綿",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "407",
+			"name": "広がる景色",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "408",
+			"name": "私の足取り",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "409",
+			"name": "砂塵を越えて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "410",
+			"name": "ここが狙い目",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "411",
+			"name": "元気バクハツ",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "412",
+			"name": "突き抜ける走り",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "413",
+			"name": "アオハル点火・速",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "414",
+			"name": "アオハル点火・体",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "415",
+			"name": "アオハル点火・力",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "416",
+			"name": "アオハル点火・根",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "417",
+			"name": "アオハル点火・賢",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "418",
+			"name": "綺羅星",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "419",
+			"name": "夢の途中",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "420",
+			"name": "前だけ見据えて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "421",
+			"name": "レースの真髄・速",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "422",
+			"name": "レースの真髄・体",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "423",
+			"name": "レースの真髄・力",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "424",
+			"name": "レースの真髄・根",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "425",
+			"name": "レースの真髄・賢",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "426",
+			"name": "レースの真髄・心",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "427",
+			"name": "陽の加護",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "428",
+			"name": "海の加護",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "429",
+			"name": "地の加護",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "430",
+			"name": "想いを背負って",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "431",
+			"name": "バーニングソウル",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "432",
+			"name": "いつまでも健やかに",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "433",
+			"name": "食の極意",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "434",
+			"name": "夢の再生方法",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "435",
+			"name": "時代を変える者",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "436",
+			"name": "あるがままに",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "437",
+			"name": "本気で休んで、もう一度",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "438",
+			"name": "アメリカンドリーム",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "439",
+			"name": "恩返し、召し上がれ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0001",
+			"name": "シューティングスター",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0002",
+			"name": "食いしん坊",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0003",
+			"name": "全身全霊",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0004",
+			"name": "行雲流水",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0005",
+			"name": "わやかわ♪マリンダイヴ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0006",
+			"name": "迅速果断",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0007",
+			"name": "アガッてきた！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0008",
+			"name": "威風堂々、夢錦！",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0009",
+			"name": "怒涛の追い上げ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0010",
+			"name": "日本一のウマ娘",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0011",
+			"name": "先頭の景色は譲らない…！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0012",
+			"name": "コンセントレーション",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0013",
+			"name": "逃亡者",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0014",
+			"name": "左回りの鬼",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0015",
+			"name": "水平線のその先へ",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0016",
+			"name": "脱出術",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0017",
+			"name": "誰より前へ！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0018",
+			"name": "究極テイオーステップ",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0019",
+			"name": "技巧派",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0020",
+			"name": "ライトニングステップ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0021",
+			"name": "夢の舞台へ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0022",
+			"name": "絶対は、ボクだ",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0023",
+			"name": "レースプランナー",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0024",
+			"name": "神業ステップ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0025",
+			"name": "歌舞歓楽や、ああをかし",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0026",
+			"name": "鍔迫り合い",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0027",
+			"name": "余裕綽々",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0028",
+			"name": "紅焔ギア/LP1211-M",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0029",
+			"name": "ギアチェンジ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0030",
+			"name": "アクセル全開！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0031",
+			"name": "グッときて♪Chu",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0032",
+			"name": "じゃじゃウマ娘",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0033",
+			"name": "マイルの支配者",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0034",
+			"name": "霊験灼然チョベリグ神託",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0035",
+			"name": "姉御肌",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0036",
+			"name": "傑出",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0037",
+			"name": "煌星のヴォードヴィル",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0038",
+			"name": "Ravissant",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0039",
+			"name": "見惚れるトリック",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0040",
+			"name": "スピードスター",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0041",
+			"name": "Gloire à toi!",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0042",
+			"name": "神速",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0043",
+			"name": "王手",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0044",
+			"name": "勝利の鼓動",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0045",
+			"name": "曲線のソムリエ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0046",
+			"name": "聖夜のミラクルラン！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0047",
+			"name": "内的体験",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0048",
+			"name": "灰の光跡：シンデレラグレイ",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0049",
+			"name": "努力の結実",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0050",
+			"name": "怪物",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0051",
+			"name": "波乱注意砲！",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0052",
+			"name": "不沈艦、抜錨ォッ！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0053",
+			"name": "視界良好！異常なし！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0054",
+			"name": "下校後のスペシャリスト",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0055",
+			"name": "Adventure of 564",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0056",
+			"name": "高揚感",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0057",
+			"name": "Vive la GOLD",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0058",
+			"name": "迫る影",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0059",
+			"name": "道悪の鬼",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0060",
+			"name": "アクセルX",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0061",
+			"name": "カッティング×DRIVE！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0062",
+			"name": "好転一息",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0063",
+			"name": "豪脚",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0064",
+			"name": "Into High Gear!",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0065",
+			"name": "ノンストップガール",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0066",
+			"name": "トップギア",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0067",
+			"name": "レッドエース",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0068",
+			"name": "ブリリアント・レッドエース",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0069",
+			"name": "キラーチューン",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0070",
+			"name": "Queen's Lumination",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0071",
+			"name": "踏ませぬ影",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0072",
+			"name": "ヴィクトリーショット！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0073",
+			"name": "Joyful Voyage!",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0074",
+			"name": "Have S'more Love!",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0075",
+			"name": "ぶっちぎり！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0076",
+			"name": "猪突猛進",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0077",
+			"name": "精神一到",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0078",
+			"name": "精神一到何事か成らざらん",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0079",
+			"name": "独占力",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0080",
+			"name": "乗り換え上手",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0081",
+			"name": "ゲインヒール・スペリアー",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0082",
+			"name": "クールダウン",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0083",
+			"name": "リラックス",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0084",
+			"name": "演舞・撫子大薙刀",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0085",
+			"name": "勇往邁進",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0086",
+			"name": "後の先",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0087",
+			"name": "タイマン！デッドヒート！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0088",
+			"name": "勝利への執念",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0089",
+			"name": "疾風怒濤",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0090",
+			"name": "大盛り！ファーストバイト！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0091",
+			"name": "強攻策",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0092",
+			"name": "抜群の切れ味",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0093",
+			"name": "貴顕の使命を果たすべく",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0094",
+			"name": "先陣の心得",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0095",
+			"name": "最強の名を懸けて",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0096",
+			"name": "ハヤテ一文字",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0097",
+			"name": "きらめくは海、まばゆきは君",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0098",
+			"name": "真打",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0099",
+			"name": "一意専心",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0100",
+			"name": "熱血☆アミーゴ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0101",
+			"name": "プランチャ☆ガナドール",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0102",
+			"name": "千里眼",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0103",
+			"name": "コンドル猛撃波",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0104",
+			"name": "昇り龍",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0105",
+			"name": "ヴィットーリアに捧ぐ舞踏",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0106",
+			"name": "恵福バルカローレ",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0107",
+			"name": "円弧のマエストロ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0108",
+			"name": "Shadow Break",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0109",
+			"name": "灰色の臨界点",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0110",
+			"name": "猛追",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0111",
+			"name": "汝、皇帝の神威を見よ",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0112",
+			"name": "弧線のプロフェッサー",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0113",
+			"name": "翳り退く、さざめきの矢",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0114",
+			"name": "初嵐",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0115",
+			"name": "エンプレス・プライド",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0116",
+			"name": "ブレイズ・オブ・プライド",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0117",
+			"name": "幻惑のかく乱",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0118",
+			"name": "レーンの魔術師",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0119",
+			"name": "薫風、永遠なる瞬間を",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0120",
+			"name": "尊み☆ﾗｽﾄｽﾊﾟ—(ﾟ∀ﾟ)—ﾄ!",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0121",
+			"name": "ウママニア",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0122",
+			"name": "狙うは最前列！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0123",
+			"name": "萌到讓我活過來了！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0124",
+			"name": "捲土重来",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0125",
+			"name": "アングリング×スキーミング",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0126",
+			"name": "Do Ya Breakin!",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0127",
+			"name": "トップランナー",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0128",
+			"name": "海風にまったり身を任せ",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0129",
+			"name": "急先鋒",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0130",
+			"name": "白い稲妻、見せたるで！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0131",
+			"name": "尻尾の滝登り",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0132",
+			"name": "火神鳴",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0133",
+			"name": "Fairy tale",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0134",
+			"name": "決意の直滑降",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0135",
+			"name": "Best day ever",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0136",
+			"name": "麗走一直！ラーメン道",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0137",
+			"name": "順風満帆",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0138",
+			"name": "正攻法",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0139",
+			"name": "∴win Q.E.D.",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0140",
+			"name": "Presents from X",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0141",
+			"name": "VIP顔パス",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0142",
+			"name": "勝利ヘ至ル累積",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0143",
+			"name": "一点集中",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0144",
+			"name": "脱兎の先へ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0145",
+			"name": "勝利のキッス☆",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0146",
+			"name": "ひらめき☆ランディング",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0147",
+			"name": "フラワリー☆マニューバ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0148",
+			"name": "魅惑のささやき",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0149",
+			"name": "HOP STEP♪LOCK ON!",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0150",
+			"name": "万里一空",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0151",
+			"name": "早業",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0152",
+			"name": "アナタヲ・オイカケテ",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0153",
+			"name": "スタミナグリード",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0154",
+			"name": "心からのおもてにゃし",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0155",
+			"name": "一網打尽",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0156",
+			"name": "迷える時も、幽かなる時も",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0157",
+			"name": "絶塵",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0158",
+			"name": "G00 1st.F∞;",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0159",
+			"name": "先手必勝",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0160",
+			"name": "切り開く者",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0161",
+			"name": "オペレーション・Cacao",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0162",
+			"name": "燃えろ筋肉！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0163",
+			"name": "レッツ・アナボリック！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0164",
+			"name": "あなたに捧げるフリーポア",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0165",
+			"name": "至高のダウンヒラー",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0166",
+			"name": "I'M☆FULL☆SPEED!!",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0167",
+			"name": "準備万全！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0168",
+			"name": "シュガーパレード・始動！",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0169",
+			"name": "まばたき厳禁！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0170",
+			"name": "ゆきあかり、おいかけて",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0171",
+			"name": "いっぱいおあげんしぇ！",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0172",
+			"name": "アンストッパブル",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0173",
+			"name": "ブルーローズチェイサー",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0174",
+			"name": "Drain for rose",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0175",
+			"name": "あおぞらクッキング♪",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0176",
+			"name": "究極のヒルクライマー",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0177",
+			"name": "淀の申し子",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0178",
+			"name": "チャージ完了！全速前進！",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0179",
+			"name": "荒ぶる旋風",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0180",
+			"name": "フレッシュ☆パーラー",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0181",
+			"name": "陣風円刃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0182",
+			"name": "全力全開！サイクロン",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0183",
+			"name": "お先に失礼っ！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0184",
+			"name": "introduction：My body",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0185",
+			"name": "U=ma2",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0186",
+			"name": "夏空ハレーション",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0187",
+			"name": "シンギュラリティ",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0188",
+			"name": "超光速微粒子の可能性",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0189",
+			"name": "流星光底",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0190",
+			"name": "ディオスクロイの流星",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0191",
+			"name": "冷静沈着",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0192",
+			"name": "Crystal Mist",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0193",
+			"name": "追跡者",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0194",
+			"name": "一張一弛",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0195",
+			"name": "快走かな、快走かな！",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0196",
+			"name": "砂の玄人",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0197",
+			"name": "灯穂",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0198",
+			"name": "全力Vサインッ！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0199",
+			"name": "勝利のチケットを、君にッ！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0200",
+			"name": "努力家",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0201",
+			"name": "夢の先へ、届け！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0202",
+			"name": "百万バリキ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0203",
+			"name": "決死の覚悟",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0204",
+			"name": "GO! Full-send",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0205",
+			"name": "千里の道",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0206",
+			"name": "trigger:BEAT",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0207",
+			"name": "月影一閃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0208",
+			"name": "...found you.",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0209",
+			"name": "Schwarzes Schwert",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0210",
+			"name": "Guten Appetit♪",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0211",
+			"name": "光芒一閃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0212",
+			"name": "潮風のGeschenk",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0213",
+			"name": "府中の申し子",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0214",
+			"name": "#LookatCurren",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0215",
+			"name": "悩殺術",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0216",
+			"name": "One True Color",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0217",
+			"name": "スプリントターボ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0218",
+			"name": "姫たるもの、勝利をこの手に",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0219",
+			"name": "快なる剛力",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0220",
+			"name": "KEEP IT REAL.",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0221",
+			"name": "慧眼",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0222",
+			"name": "GET DOWN",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0223",
+			"name": "布陣",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0224",
+			"name": "潜伏態勢",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0225",
+			"name": "Silent Sunset Gold",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0226",
+			"name": "陽炎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0227",
+			"name": "学級委員長+速さ＝バクシン",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0228",
+			"name": "優等生×バクシン＝大勝利ッ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0229",
+			"name": "圧倒的リード",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0230",
+			"name": "CHERRY☆スクランブル",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "ex-0231",
+			"name": "意気衝天",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0232",
+			"name": "紫電一閃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0233",
+			"name": "桜吹雪くスプリントバースト",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0234",
+			"name": "閃く雷光",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0235",
+			"name": "『I'm possible』",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0236",
+			"name": "Oh!bento-magic☆",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0237",
+			"name": "一陣の風",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0238",
+			"name": "ネバーギブアップ",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0239",
+			"name": "Ding Dong Boo",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0240",
+			"name": "全速前進！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0241",
+			"name": "泥んこマイスター",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0242",
+			"name": "最恐！いたずら計画なのだ♪",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0243",
+			"name": "ハジける闘志",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0244",
+			"name": "見事な砂蹴り",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0245",
+			"name": "いただき☆ストレリチア！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0246",
+			"name": "熱いまなざし",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0247",
+			"name": "とっておきmaterialize",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0248",
+			"name": "一心不乱",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0249",
+			"name": "クリアハート",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0250",
+			"name": "ピュリティオブハート",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0251",
+			"name": "ぐるぐるマミートリック♡",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0252",
+			"name": "忍法・ほほえみ心結の印",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0253",
+			"name": "キラキラ☆STARDOM",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0254",
+			"name": "注目の踊り子",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0255",
+			"name": "チャート急上昇！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0256",
+			"name": "α-star*",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0257",
+			"name": "目指せセンター！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0258",
+			"name": "Forward March!",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0259",
+			"name": "コール&レスポンス",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0260",
+			"name": "掲げよ、己が魂の剣を！",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0261",
+			"name": "光芒円刃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0262",
+			"name": "未知との遭遇、即ち物語",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0263",
+			"name": "勇迅一閃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0264",
+			"name": "YEAH☆VIVID TIME!",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0265",
+			"name": "GALmem.ふぉーえば♪",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0266",
+			"name": "起死回生",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0267",
+			"name": "大胆不敵",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0268",
+			"name": "ヤバ技☆ジャグルビート",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0269",
+			"name": "ストレートハート",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0270",
+			"name": "剣ヶ峰より、狂気に嗤え",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0271",
+			"name": "博打うち",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0272",
+			"name": "勝負師",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0273",
+			"name": "雲蒸竜変",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0274",
+			"name": "運否、聖夜の星に賭ける",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0275",
+			"name": "Nemesis",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0276",
+			"name": "眠れる獅子",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0277",
+			"name": "Hephaistos",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0278",
+			"name": "ブレイクスルー",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0279",
+			"name": "Overdrive Speed",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0280",
+			"name": "飛翔脚",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0281",
+			"name": "完全燃焼",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0282",
+			"name": "つぼみ、ほころぶ時",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0283",
+			"name": "Flowering Dreams",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0284",
+			"name": "豪風円刃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0285",
+			"name": "ワクワクよーいドン",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0286",
+			"name": "ワクワククライマックス",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0287",
+			"name": "鋼の意志",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0288",
+			"name": "不屈の心",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0289",
+			"name": "113転び114起き",
+			"maxStage": null
+		},
+		{
+			"skillId": "ex-0290",
+			"name": "熱血！！風紀アタック",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "ex-0291",
+			"name": "破竹の勢い",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0292",
+			"name": "奥義・常夏バーニング！！",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0293",
+			"name": "ペガサスフルパワー！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0294",
+			"name": "疾風爆走ペガサスダッシュ！",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0295",
+			"name": "電撃の煌めき",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0296",
+			"name": "万彩☆マーベラス★世界",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0297",
+			"name": "喝采☆ワンダードール！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0298",
+			"name": "ルミネセンス",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0299",
+			"name": "麒麟児",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0300",
+			"name": "来てください来てください！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0301",
+			"name": "来ます来てます来させます！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0302",
+			"name": "奇術師",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0303",
+			"name": "スーパーラッキーセブン",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0304",
+			"name": "禾スナハチ登ル",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0305",
+			"name": "叙情、旅路の果てに",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0306",
+			"name": "天衣無縫",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0307",
+			"name": "爛然闊歩",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0308",
+			"name": "千載一遇",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0309",
+			"name": "I Never Goof Up!",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0310",
+			"name": "Spooky-Scary-Happy",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0311",
+			"name": "彼方、その先へ…",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0312",
+			"name": "八方にらみ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0313",
+			"name": "ときめきが呼ぶほうへ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0314",
+			"name": "アタシもたまには、ね？",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0315",
+			"name": "きっとその先へ…！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0316",
+			"name": "Go☆Go☆for it!",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0317",
+			"name": "もちっと・ハレハレ",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0318",
+			"name": "いいとこ入った！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0319",
+			"name": "Call me KING",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0320",
+			"name": "Pride of KING",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0321",
+			"name": "大局観",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0322",
+			"name": "轟！トレセン応援団！！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0323",
+			"name": "春一番",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0324",
+			"name": "理想へのwinding road",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0325",
+			"name": "気骨稜稜",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0326",
+			"name": "レディー、どんっ！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0327",
+			"name": "どんっ、パッ、むんっ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0328",
+			"name": "どこ吹く風",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0329",
+			"name": "ごろりん！？パワードライブ",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0330",
+			"name": "打ち、鍛えて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0331",
+			"name": "百錬成鋼",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0332",
+			"name": "千歳、廻りて",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0333",
+			"name": "ぶっちぎりロード",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0334",
+			"name": "jingle all the way",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0335",
+			"name": "烈風一閃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0336",
+			"name": "ブチ☆アゲ↑バイブス",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0337",
+			"name": "アゲてアゲてぷちょへんざ！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0338",
+			"name": "遮二無二",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0339",
+			"name": "ノッてけ、マッシュアップ！",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0340",
+			"name": "エンジン点火！",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "ex-0341",
+			"name": "エンジン全開！大噴射！",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0342",
+			"name": "出力1000％！",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0343",
+			"name": "晦冥を照らせ永遠の耀き",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0344",
+			"name": "右回りの鬼",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0345",
+			"name": "玄雲散らす、黄金甲矢",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0346",
+			"name": "無我夢中",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0347",
+			"name": "ポンテ・デ・ディアマン",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0348",
+			"name": "勝ち鬨ワッショイ！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0349",
+			"name": "あっぱれ大盤振る舞い！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0350",
+			"name": "ミンナノアタシへ！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0351",
+			"name": "画竜点睛",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0352",
+			"name": "憧れは桜を越える！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0353",
+			"name": "咲け咲け！私！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0354",
+			"name": "気炎万丈",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0355",
+			"name": "セイリオス",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0356",
+			"name": "駆るは光、狩るは星々",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0357",
+			"name": "昂る鼓動",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0358",
+			"name": "一期の夢、刹那の飛翔",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0359",
+			"name": "Danser le présent",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0360",
+			"name": "烈火繚乱、無敵之舞",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0361",
+			"name": "剛勇果断、烈火之刀",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0362",
+			"name": "心、強し！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0363",
+			"name": "燃え盛るは絶対の意志",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0364",
+			"name": "勇迅円刃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0365",
+			"name": "麗しき花信風",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0366",
+			"name": "泰然自若",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0367",
+			"name": "Illuminate you",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0368",
+			"name": "夕凪のリトリート・メモリー",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0369",
+			"name": "一発必中",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0370",
+			"name": "一気呵成",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0371",
+			"name": "花開き、世界",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0372",
+			"name": "春光・Bon appétit",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0373",
+			"name": "気丈夫",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0374",
+			"name": "Road to Glory",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0375",
+			"name": "良バ場の鬼",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0376",
+			"name": "Joy to the World",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0377",
+			"name": "影従打破",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0378",
+			"name": "一杯全力、お届けします！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0379",
+			"name": "エネルギッシュ",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0380",
+			"name": "快刀乱麻",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0381",
+			"name": "風光る",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0382",
+			"name": "風雲の志",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0383",
+			"name": "Breezy Treat",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0384",
+			"name": "かっとばせ！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0385",
+			"name": "『船橋最強！』",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0386",
+			"name": "優位形成",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0387",
+			"name": "猛烈激走",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0388",
+			"name": "Info: Acquired",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0389",
+			"name": "盤石の構え",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0390",
+			"name": "砂の開拓者",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0391",
+			"name": "地熱解放オーヴァードライブ",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0392",
+			"name": "勇壮活発",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0393",
+			"name": "Punkish Bite",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0394",
+			"name": "踏みしめる大地",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0395",
+			"name": "清濁併呑",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0396",
+			"name": "Shining Runway",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0397",
+			"name": "ハイボルテージ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0398",
+			"name": "煌めき華やぐアローライン",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0399",
+			"name": "熱情",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0400",
+			"name": "Mission: Triumph",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0401",
+			"name": "Immortal Work",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0402",
+			"name": "霹靂のアウフヘーベン",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0403",
+			"name": "深淵のテルプシコラー",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0404",
+			"name": "至上であれ",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0405",
+			"name": "威風堂々",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0406",
+			"name": "電光石火",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0407",
+			"name": "蒼炎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0408",
+			"name": "愛と熔けよただ熔けよ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0409",
+			"name": "十全十美",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0410",
+			"name": "解けぬ結い目",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0411",
+			"name": "Silent letter",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0412",
+			"name": "ふわもこアワー",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0413",
+			"name": "イニシアチブ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0414",
+			"name": "Reversal Illusion",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0415",
+			"name": "夏雷カスケード！",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0416",
+			"name": "刹那の勝機",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0417",
+			"name": "Celeste Oath",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0418",
+			"name": "快進撃",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0419",
+			"name": "Tidebreaker",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0420",
+			"name": "ショーダウン",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0421",
+			"name": "Queen's Rebirth",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0422",
+			"name": "デラックス☆ファウンテン",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0423",
+			"name": "ジュ・テーム☆バカンス！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0424",
+			"name": "才気煥発",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0425",
+			"name": "照らすのはわたしの焔",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0426",
+			"name": "初志貫徹",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0427",
+			"name": "燃ゆる魂",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0428",
+			"name": "幸せの青い光",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0429",
+			"name": "きせき・おもい・かなで",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0430",
+			"name": "Faith in the Feral",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0431",
+			"name": "突撃魂",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0432",
+			"name": "黄昏の血盟",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0433",
+			"name": "有志竟成",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0434",
+			"name": "念い、信ずればこそ",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0435",
+			"name": "百戦錬磨",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0436",
+			"name": "知宵欺敵、百戦不殆",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0437",
+			"name": "スカーレットリリィの高揚",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0438",
+			"name": "闘争本能",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0439",
+			"name": "解き放つ情念",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0440",
+			"name": "理運開かりて翔る",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0441",
+			"name": "勝利の機運",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0442",
+			"name": "抜群の踏み込み",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0443",
+			"name": "五獣挙りて彩光奏づ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0444",
+			"name": "点滴穿石",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0445",
+			"name": "交流重賞の鬼",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0446",
+			"name": "かがやけ☆とまこまい",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0447",
+			"name": "とびだせ☆ポッピングシェル",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0448",
+			"name": "Never Say Never",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0449",
+			"name": "優雅な砂浴び",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0450",
+			"name": "湯守の和心",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0451",
+			"name": "震天動地",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0452",
+			"name": "ヴィヴァーチェ・ヴォラーレ",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0453",
+			"name": "ケ・ピアチェーヴォレ！",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0454",
+			"name": "開花",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0455",
+			"name": "アピール宣言！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0456",
+			"name": "絶対最強☆アピール宣言！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0457",
+			"name": "大車輪",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0458",
+			"name": "暁の御旗『葛城栄主』！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0459",
+			"name": "決意一筆",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0460",
+			"name": "勝負はここから！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0461",
+			"name": "英姿颯爽",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0462",
+			"name": "アド・アストラ",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0463",
+			"name": "Encounter with U",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0464",
+			"name": "コネクト",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0465",
+			"name": "Bang☆ミラクるわせ！",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0466",
+			"name": "小さな奇跡、フォーユー♪",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0467",
+			"name": "Billions of stars",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0468",
+			"name": "Romantic Horizon",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0469",
+			"name": "羅刹、赤翼にて天上へ至らん",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0470",
+			"name": "君臨",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0471",
+			"name": "繋ぐ・繋がる×夢・未来",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0472",
+			"name": "ずっとずっと輝いて",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0473",
+			"name": "この手に掴んだ未来",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0474",
+			"name": "Guiding Sea",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0475",
+			"name": "時かけるせせらぎ",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0476",
+			"name": "辿る血脈、芽吹く未来",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0477",
+			"name": "用意周到",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0478",
+			"name": "With All My Heart",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0479",
+			"name": "ホップステップ・ゲッチュ♡",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0480",
+			"name": "渚のヴィーナスタイム♡",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0481",
+			"name": "To Our Vista",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0482",
+			"name": "勇気凛々",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0483",
+			"name": "我が覇道、阻むものなし",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0484",
+			"name": "睥睨",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0485",
+			"name": "烈華の洗礼",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0486",
+			"name": "強者の証",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0487",
+			"name": "不凋なるCattleya",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0488",
+			"name": "鋭気のアレグロ",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0489",
+			"name": "肉薄",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0490",
+			"name": "悠遠のファーノース",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0491",
+			"name": "才色兼備",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0492",
+			"name": "天賦の才",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0493",
+			"name": "『それでは、よき旅を』",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0494",
+			"name": "掌握",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0495",
+			"name": "夢寐に見る銀世界",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0496",
+			"name": "無二無三なる一条の路",
+			"maxStage": null
+		},
+		{
+			"skillId": "ex-0497",
+			"name": "陣風一閃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0498",
+			"name": "Lame de vent",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0499",
+			"name": "ふくらむ夢、先駆の途",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0500",
+			"name": "幕引き",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0501",
+			"name": "暁霞を拓き、朝を掴む",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0502",
+			"name": "対象捕捉！正義遂行！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0503",
+			"name": "剛心鉄壁ガーディアン",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0504",
+			"name": "百花繚乱",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0505",
+			"name": "Peerless Heroine",
+			"maxStage": null
+		},
+		{
+			"skillId": "ex-0506",
+			"name": "パラダイムシフト",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0507",
+			"name": "唯一無二",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0508",
+			"name": "咲う花形",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0509",
+			"name": "¡Qué alegría!",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0510",
+			"name": "トキメキハート",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0511",
+			"name": "天真爛漫",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0512",
+			"name": "Circulating Love♡",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0513",
+			"name": "Watch Us Flourish",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0514",
+			"name": "王道一途",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0515",
+			"name": "Weaving History",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0516",
+			"name": "いずれあなたに咲くフローラ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0517",
+			"name": "黄金を訪ねて",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0518",
+			"name": "遥か先へ",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0519",
+			"name": "好奇心",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0520",
+			"name": "無垢の祈り・ホーリーライト",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0521",
+			"name": "聖女の挑戦",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0522",
+			"name": "舞い降りる翼",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0523",
+			"name": "想像×創造＝∞",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0524",
+			"name": "インスピレーション",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0525",
+			"name": "一世一代",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0526",
+			"name": "光れ！弾けろ！超新星爆発！",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0527",
+			"name": "超然",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0528",
+			"name": "Ring-a-Link",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0529",
+			"name": "冠絶タクティクス",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0530",
+			"name": "烈々と咲く",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0531",
+			"name": "立ち合い",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0532",
+			"name": "剣抜弩張",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0533",
+			"name": "気勢を上げて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0534",
+			"name": "右回り◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0535",
+			"name": "左回り◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0536",
+			"name": "東京レース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0537",
+			"name": "中山レース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0538",
+			"name": "阪神レース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0539",
+			"name": "京都レース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0540",
+			"name": "中京レース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0541",
+			"name": "札幌レース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0542",
+			"name": "函館レース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0543",
+			"name": "福島レース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0544",
+			"name": "新潟レース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0545",
+			"name": "小倉レース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0546",
+			"name": "根幹距離◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0547",
+			"name": "非根幹距離◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0548",
+			"name": "良バ場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0549",
+			"name": "道悪◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0550",
+			"name": "春ウマ娘◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0551",
+			"name": "夏ウマ娘◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0552",
+			"name": "青嵐",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0553",
+			"name": "秋ウマ娘◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0554",
+			"name": "冬ウマ娘◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0555",
+			"name": "凍て風",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0556",
+			"name": "晴れの日◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0557",
+			"name": "曇りの日◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0558",
+			"name": "雨の日◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0559",
+			"name": "雪の日◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0560",
+			"name": "内枠得意◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0561",
+			"name": "外枠得意◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0562",
+			"name": "おひとり様◎",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0563",
+			"name": "対抗意識◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0564",
+			"name": "徹底マーク◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0565",
+			"name": "伏兵◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0566",
+			"name": "火事場のバ鹿力",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0567",
+			"name": "大井レース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0568",
+			"name": "短距離直線◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0569",
+			"name": "短距離コーナー◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0570",
+			"name": "紫電円刃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0571",
+			"name": "プランX",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0573",
+			"name": "マイル直線◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0574",
+			"name": "豪風一閃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0575",
+			"name": "マイルコーナー◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0577",
+			"name": "中距離直線◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0578",
+			"name": "中距離コーナー◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0579",
+			"name": "長距離直線◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0580",
+			"name": "長距離コーナー◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0581",
+			"name": "烈風円刃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0582",
+			"name": "逃げ直線◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0583",
+			"name": "逃げコーナー◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0584",
+			"name": "シックスセンス",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0586",
+			"name": "先行直線◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0587",
+			"name": "先行コーナー◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0588",
+			"name": "くじけぬ精神",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0589",
+			"name": "差し直線◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0590",
+			"name": "鋭脚一閃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0591",
+			"name": "差しコーナー◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0592",
+			"name": "鋭脚円刃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0593",
+			"name": "追込直線◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0594",
+			"name": "追込コーナー◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0595",
+			"name": "月影円刃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0596",
+			"name": "天命士",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0597",
+			"name": "逃げのコツ◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0598",
+			"name": "先行のコツ◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0599",
+			"name": "差しのコツ◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0600",
+			"name": "追込のコツ◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0601",
+			"name": "大逃げ",
+			"maxStage": null
+		},
+		{
+			"skillId": "ex-0602",
+			"name": "川崎レース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0603",
+			"name": "船橋レース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0604",
+			"name": "盛岡レース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0605",
+			"name": "ナイター◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0606",
+			"name": "小回り◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0607",
+			"name": "交流重賞◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0610",
+			"name": "泥遊び◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0614",
+			"name": "ロンシャンレース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0615",
+			"name": "ロンシャンの申し子",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0616",
+			"name": "時中の妙",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0617",
+			"name": "機先の勝負",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0618",
+			"name": "砂の妙手",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0619",
+			"name": "ロケットスタート",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0620",
+			"name": "心頭滅却",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0621",
+			"name": "直線コース◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0622",
+			"name": "電迅速攻",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0623",
+			"name": "風翔",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0624",
+			"name": "砂塵一閃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0625",
+			"name": "ダート直線◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0626",
+			"name": "砂塵円刃",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0627",
+			"name": "ダートコーナー◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0628",
+			"name": "怜悧清澄",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0629",
+			"name": "本能の解放",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0630",
+			"name": "豪胆無比",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0631",
+			"name": "連鎖反応",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0632",
+			"name": "烈火の如く",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0633",
+			"name": "熾烈の極み",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0634",
+			"name": "閃光",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0635",
+			"name": "勇猛果敢",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-0636",
+			"name": "真骨頂",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0637",
+			"name": "飛竜乗雲",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0638",
+			"name": "正々堂々",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0639",
+			"name": "丁々発止",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0640",
+			"name": "英俊豪傑",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0641",
+			"name": "一所懸命",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0642",
+			"name": "突破口",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0643",
+			"name": "独立独歩",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0644",
+			"name": "曙光",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0645",
+			"name": "パスファインダー",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0646",
+			"name": "悠久走破",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0647",
+			"name": "秘めた闘魂",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0648",
+			"name": "残影",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0649",
+			"name": "即断即決",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0650",
+			"name": "自由奔放",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0651",
+			"name": "問答無用",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0652",
+			"name": "至宝の輝き",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0653",
+			"name": "不抜の気概",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0654",
+			"name": "迸る気迫",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0655",
+			"name": "千鍛万錬",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0656",
+			"name": "錦上添花",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0657",
+			"name": "元気溌剌",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0658",
+			"name": "前人未到",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0659",
+			"name": "イノベーション",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0660",
+			"name": "サンタアニタパークレース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0661",
+			"name": "デルマーレース場◎",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0662",
+			"name": "匠のステアリング",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0663",
+			"name": "超長距離回復◎",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0664",
+			"name": "圧倒",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0665",
+			"name": "継続は力なり",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0666",
+			"name": "一騎当千",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0667",
+			"name": "光輝燦然",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0668",
+			"name": "悠々自適",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0669",
+			"name": "聖女の試練",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0670",
+			"name": "レースメイカー",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0671",
+			"name": "一石二鳥",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0672",
+			"name": "当機立断",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0673",
+			"name": "清麗高雅",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0674",
+			"name": "純真無垢",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0675",
+			"name": "開けろ風穴！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0676",
+			"name": "堅忍果決",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0677",
+			"name": "素質の証明",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0678",
+			"name": "アオハル燃焼・速",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0679",
+			"name": "アオハル燃焼・体",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0680",
+			"name": "アオハル燃焼・力",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0681",
+			"name": "アオハル燃焼・根",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0682",
+			"name": "アオハル燃焼・賢",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0683",
+			"name": "一番星",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0684",
+			"name": "キミと勝ちたい",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0685",
+			"name": "限界の先へ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0686",
+			"name": "太陽の叡智",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0687",
+			"name": "大海の叡智",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0688",
+			"name": "大地の叡智",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0689",
+			"name": "最高峰の夢",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0690",
+			"name": "爆熱のキラメキ！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0691",
+			"name": "アスリート魂",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0692",
+			"name": "私たちの走る道程",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0693",
+			"name": "もう少しだけ、いい景色",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0694",
+			"name": "新たな伝説を築く者",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0695",
+			"name": "本能の懸け橋",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0696",
+			"name": "保養が導く奇跡",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0697",
+			"name": "情熱と挑戦の先の栄光",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0698",
+			"name": "極上の感謝を！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0982",
+			"name": "エパヌイスマンの大号令",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-0984",
+			"name": "励声一番",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0986",
+			"name": "一往直前",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-0987",
+			"name": "怯むことなく",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0988",
+			"name": "Cascading Might",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-0989",
+			"name": "Shadow Ancestress",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-0990",
+			"name": "遊び心",
+			"maxStage": "少し"
+		}
+	],
+	"note": "スキルの効果量の段階。ゲーム内で表示される説明文の効果の大きさを表す語から決めた、そのスキルに含まれる最も大きい効果の段階（maxStage）。stages は小さい順で、rank が大きいほど効果が大きい。「副詞なし」は効果の大きさを表す語が付かないもの。時間の表現（少しの間など）は数えない。maxStage が null のものは段階を決めていない（効果の表現が無い、または stages に無い大きさの表現を含む）。rank が lowEffectMax.rank 以下のものを低効果とする。ここに無い skillId は未収録。"
+}

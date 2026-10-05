@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-05d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-06a';
 
 	/* ============================================================
 	 * 定数
@@ -45,7 +45,7 @@
 	 * **`data/` の6ファイルにも同じ問題がある**（どれも `?v=` が付かない）。
 	 * そちらを対象に入れるかはまだ決めていない。
 	 */
-	const MASTER_JSON_VERSION = '2026-09-26b';
+	const MASTER_JSON_VERSION = '2026-10-06a';
 
 	/**
 	 * **`data/` の6ファイルの版**（71セッション目・段7の続き）。
@@ -65,7 +65,7 @@
 	const DATA_JSON_VERSIONS = {
 		'data/scenario-inheritance-factors.json': '2026-09-15a',
 		'data/aptitude-genes.json': '2026-09-19a',
-		'data/extended-skills.json': '2026-10-04b',
+		'data/extended-skills.json': '2026-10-05a',
 		'data/training-umamusume.json': '2026-10-04a',
 		'data/support-cards.json': '2026-09-30b',
 		'data/support-card-event-skills.json': '2026-10-05a',
@@ -87,7 +87,10 @@
 		'data/scenario-event-skills.json': '2026-10-03c',
 		// これから開催されるレースの一覧（オススメサポ ④・段7・2026-10-04）。公式のお知らせの公開情報。loadUpcomingRaces() が読む。
 		// exam は読まないので EXAM_DATA_JSON_VERSIONS には載せない（同じファイルを両方の表に載せると test:verify §1 が落とす）
-		'data/upcoming-races.json': '2026-10-04b'
+		'data/upcoming-races.json': '2026-10-04b',
+		// スキルの効果量の段階（C-129・2026-10-06）。説明文の効果の大きさを表す語から決めた段階。「低効果を除外」とオススメサポの「低効果」が使う。
+		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadSkillEffectLevels）
+		'data/skill-effect-levels.json': '2026-10-05a'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
