@@ -6542,11 +6542,13 @@
 		if (!el) return;
 		// 段7（旧3）: 行の数なので「件」。段7c の M: 本育成で得るためと、不要にしているための両方を合わせた件数。
 		// C-129: レース条件だけで選べない行は別に数える（本育成の理由が先）
-		const parts = [];
-		if (count > 0) parts.push('本育成編成のため選べない ' + count + '件');
-		if (raceCount > 0) parts.push('レース条件に合わないため選べない ' + raceCount + '件');
-		el.hidden = parts.length === 0;
-		el.textContent = parts.join('・');
+		// 両方あるときは1行（折り返さない）に収めるため短い形「選べない：本育成編成 N件・レース条件 M件」（375px・320px で実測）
+		let text = '';
+		if (count > 0 && raceCount > 0) text = '選べない：本育成編成 ' + count + '件・レース条件 ' + raceCount + '件';
+		else if (count > 0) text = '本育成編成のため選べない ' + count + '件';
+		else if (raceCount > 0) text = 'レース条件に合わないため選べない ' + raceCount + '件';
+		el.hidden = !text;
+		el.textContent = text;
 	}
 
 	/** 除外中の行（グレーアウト・チェックできない・理由つき）。条件で検索と緑スキルの一覧で共通。 */
