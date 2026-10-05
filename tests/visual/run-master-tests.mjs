@@ -79,6 +79,8 @@ const DEBUFF = [
 	'差しけん制', '差し焦り', '差しためらい', '追込けん制', '追込焦り', '追込ためらい',
 	'後方釘付', '抜け駆け禁止', 'スピードイーター', '束縛', 'ささやき',
 	'鋭い眼光', 'まなざし', '土煙', '圧迫感', '布石', 'リスタート',
+	// C-129（2026-10-06）: 他のウマ娘の視野を狭くする効果は、視野からデバフへ分類し直した（data-work の変更の一覧を反映）
+	'目くらまし', 'かく乱',
 ];
 
 /** ②(ア)A で「能力上昇」(stat_up) へ統合した6つの値と、D で「デバフ」へ統合した2つの値。 */
@@ -174,9 +176,9 @@ console.log('=== 1. マスターデータ（uma-skill-deck-skills.json） ===');
 	// ① 持久力回復 ／ ②(ア)D デバフ
 	const rec = master.skills.filter((s) => s.tags.effect.includes('stamina'));
 	const dec = master.skills.filter((s) => s.tags.effect.includes('debuff'));
-	assert(dec.length === 25, '②D デバフ(debuff)が25件（統合時の31件から第2回の段2で +2 −8）', dec.length);
+	assert(dec.length === DEBUFF.length && dec.length === 27, '②D デバフ(debuff)が27件（統合時の31件から第2回の段2で +2 −8、C-129 で視野から +2）', dec.length);
 	assert(eq(dec.map((s) => s.name).sort(), DEBUFF.slice().sort()),
-		'②D デバフの内訳が指定の25件と一致', dec.map((s) => s.name));
+		'②D デバフの内訳が指定の27件と一致', dec.map((s) => s.name));
 	assert(rec.length === 43, '①持久力回復(stamina)が43件（メイン回復33＋サブ回復9＋第2回の段2でスタミナイーター）', rec.length);
 	const stillStamina = SUB_CONSUME_NO_STAMINA.filter((n) => byName.get(n).tags.effect.includes('stamina'));
 	assert(stillStamina.length === 0, '①サブ効果が持久力消費の14件は持久力を持たない', stillStamina);

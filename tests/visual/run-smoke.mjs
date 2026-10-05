@@ -29,6 +29,7 @@ import { register11 } from './blocks-11.mjs';
 import { register12 } from './blocks-12.mjs';
 import { register13 } from './blocks-13.mjs';
 import { register14 } from './blocks-14.mjs';
+import { register15 } from './blocks-15.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -9179,7 +9180,8 @@ await block('段7【5】収録スキルデータ（マスター）の取り回�
 		assert(paths.length === dataFileCount, '段7の続き: 版の表が data/ の' + dataFileCount + 'ファイル（exam だけが読むものを除く）ぶんある', paths);
 		// 必要になったときだけ読む data/（ⓘ・長押しを開いたとき。段6・2026-10-02）。ここ（ページの読み込みと各入口の呼び出し）では
 		// 取りに行かないのが正しい。**ほかの全ファイルが取得されること**と、**これらが取得されていないこと**を別々に見る。
-		const 遅延 = ['data/skill-descriptions.json', 'data/scenario-event-skills.json'];   // シナリオの固定イベント（段7c）は special が編成パネルを作るときにだけ読む
+		// シナリオの固定イベント（段7c）は special が編成パネルを作るときにだけ読む。効果量の段階（C-129）は「低効果を除外」・オススメサポの「低効果」で初めて読む
+		const 遅延 = ['data/skill-descriptions.json', 'data/scenario-event-skills.json', 'data/skill-effect-levels.json'];
 		const 取れた = paths.filter((k) => dataUrls.some((u) => u.includes('/' + k)));
 		const 対象 = paths.filter((k) => !遅延.includes(k));
 		assert(遅延.every((k) => paths.includes(k)) && !遅延.some((k) => 取れた.includes(k)),
@@ -11885,6 +11887,8 @@ await block('スキルPt ―― check:catalog の §11（届いたときの検�
 		const tmp = path.join(REPO_ROOT, 'output', 'scratch', 'smoke-pt-catalog');
 		fs.rmSync(tmp, { recursive: true, force: true });
 		fs.cpSync(path.join(REPO_ROOT, 'data'), tmp, { recursive: true });
+		// 効果量の段階（C-129）は skillId が skill-pt.json に全部あることを見るので、仮の skill-pt.json とは合わない。この塊は §11 の Pt の検査だけを見るので外す
+		fs.rmSync(path.join(tmp, 'skill-effect-levels.json'), { force: true });
 		Object.entries(files).forEach(([name, doc]) => fs.writeFileSync(path.join(tmp, name), JSON.stringify(doc, null, '\t')));
 		const r = spawnSync(process.execPath, ['tests/catalog/check-catalog.mjs', '--dir=' + path.relative(REPO_ROOT, tmp).split(path.sep).join('/')], { cwd: REPO_ROOT, encoding: 'utf8' });
 		fs.rmSync(tmp, { recursive: true, force: true });
@@ -13616,8 +13620,10 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	/* ⑪ 文言・ほかのページ・②の ⓘ */
 	sp = await open();
 	const words = await sp.page.evaluate(() => {
-		const text = document.body.innerText;
-		const attrs = Array.from(document.querySelectorAll('#deck-roster-panel [title], #deck-roster-panel [aria-label], #deck-template-panel [title], #deck-template-panel [aria-label]')).map((e) => (e.title || '') + ' ' + (e.getAttribute('aria-label') || '')).join(' ');
+		// C-129: ボタン「低効果を除外」（①の列見出し・②のパレット）は、おいもさんが文言を指定したもの。この語だけは免除する
+		const LOWFX = /低効果\s*を除外/g;
+		const text = document.body.innerText.replace(LOWFX, '');
+		const attrs = Array.from(document.querySelectorAll('#deck-roster-panel [title], #deck-roster-panel [aria-label], #deck-template-panel [title], #deck-template-panel [aria-label]')).map((e) => (e.title || '') + ' ' + (e.getAttribute('aria-label') || '')).join(' ').replace(LOWFX, '');
 		return { jogai: text.includes('除外') || attrs.includes('除外'), yuko: text.includes('有効にする') || text.includes('有効を外す'), badge: document.getElementById('deck-roster-excluded').textContent, head: !!document.querySelector('.deck-panel-head'), help: document.querySelector('header').innerText + ' ' + document.querySelector('.help-open-btn').getAttribute('aria-label') };
 	});
 	assert(!words.jogai && !words.yuko && words.head === false && /^\d+種$/.test(words.badge) && words.help.includes('使い方・注意') && !words.help.includes('精度は完全'),
@@ -14125,6 +14131,7 @@ await register11({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register12({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register13({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register14({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register15({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

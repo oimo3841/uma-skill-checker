@@ -464,7 +464,9 @@ export async function register12(env) {
 		await sp.page.evaluate(async () => { await UmaSkillDeckCore.loadMasterSkills(true); await UmaSkillDeckCore.loadTrainingSources(true); await UmaSkillDeckCore.loadSkillPtData(true); });
 		const res = await sp.page.evaluate(({ g, root }) => {
 			const C = UmaSkillDeckCore.outside;
-			const run = (race) => { const r = C.solveSync({ roster: race ? { race } : {}, addedSkillIds: [], count: 5, deadlineMs: 20000 }); return { golds: r.golds.map((x) => x.skillId), whites: r.skills.map((x) => x.skillId), score: r.score }; };
+			// C-129: 既定の除外に緑スキル（左回りの金はパッシブ）が入ったので、この検査を書いたときの除外（デバフ・持久力回復）を明示して、レース条件の規則だけを見る
+			const OLDEX = { exclude: { effect: ['debuff', 'stamina'] } };
+			const run = (race) => { const r = C.solveSync({ roster: race ? { race, outsideOptions: OLDEX } : { outsideOptions: OLDEX }, addedSkillIds: [], count: 5, deadlineMs: 20000 }); return { golds: r.golds.map((x) => x.skillId), whites: r.skills.map((x) => x.skillId), score: r.score }; };
 			return { none: run(null), right: run({ id: 'race-t', name: 't', direction: 'right_turn' }), left: run({ id: 'race-t', name: 't', direction: 'left_turn' }), g, root };
 		}, { g: gold.id, root });
 		assert(res.none.golds.includes(gold.id) && res.none.whites.includes(root) && res.left.golds.includes(gold.id) && res.left.whites.includes(root),
@@ -494,13 +496,18 @@ export async function register12(env) {
 		const after = await nums();
 		assert(JSON.stringify(before) === JSON.stringify(after), 'オススメサポ④段9 ①の絞り込みと同じ距離・バ場のレースを選んでも、②の合計・①の合計・見出しの数は変わらない（母集団の規則はオススメサポにだけ効く）', { before, after });
 		const pk1 = await pickerIds('editor-pick'), gr1 = await pickerIds('editor-pick-passive');
-		assert(pk0.length > 0 && gr0.length > 0 && pk1 === pk0 && gr1 === gr0, 'オススメサポ④段9 条件で検索・緑スキルの一覧は、レースを選んでも同じ（レースに合わないスキルも出て、選べる）', { pk: pk0.split(',').length, gr: gr0.split(',').length });
+		// C-129 で置き換えた: 段9 の「条件で検索・緑スキルの一覧は、レースを選んでも同じ（レースに合わないスキルも出て、選べる）」は、
+		// レース条件を追加の経路にも効かせたので逆になった。いまは「選べる行は減るだけで増えない」を見る（グレーアウトの作りと理由は blocks-15 の C129B）
+		const sub = (a, b) => a.split(',').filter(Boolean).every((id) => b.split(',').indexOf(id) !== -1);
+		assert(pk0.length > 0 && gr0.length > 0 && sub(pk1, pk0) && sub(gr1, gr0) && pk1.split(',').length < pk0.split(',').length,
+			'オススメサポ④段9→C-129 条件で検索・緑スキルの一覧は、レースを選ぶとレース条件に合わないスキルが選べなくなる（選べる行は減るだけで増えない）', { pk: [pk0.split(',').length, pk1.split(',').length], gr: [gr0.split(',').length, gr1.split(',').length] });
 		const ex = await sp.page.evaluate(() => UmaSkillDeckCore.outside.populationOf(UmaSkillDeckCore.outside.getRace() ? JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')) : {}).raceExcludedIds);
 		assert(ex.length > 0, 'オススメサポ④段9 前提: このレースで外れるスキルがある（' + ex.length + '種）', ex.length);
 		await open(sp.page);
 		const s = await sp.page.evaluate(() => ({ rows: Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-row"]')).map((r) => r.getAttribute('data-skill-id')), excl: !!document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-excl"]') }));
 		assert(s.rows.length > 0 && s.rows.every((id) => ex.indexOf(id) === -1) && !s.excl, 'オススメサポ④段9 チェックリストにレースで外したスキルは出ず、「除外中」の行も出ない', { rows: s.rows.length, excl: s.excl });
-		const noRace = await sp.page.evaluate((r) => UmaSkillDeckCore.outside.populationOf(r).ids, FULL);
+		// C-129: 既定の除外（緑スキルなど）で外れるスキルは、レースがあるとレース条件で先に外れるので、レース無しの側は「除外で外れたもの」も含めて比べる
+		const noRace = await sp.page.evaluate((r) => { const p = UmaSkillDeckCore.outside.populationOf(r); return p.ids.concat(p.optionExcludedIds); }, FULL);
 		assert(ex.every((id) => noRace.indexOf(id) !== -1), 'オススメサポ④段9 外したスキルは、レースが無ければ母集団に入っている（レース条件だけで外れた）', ex.length);
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段9 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
@@ -542,7 +549,8 @@ export async function register12(env) {
 				await open(sp.page);
 				const r = await headInfo(sp.page);
 				const tag = 'オススメサポ④段10 ' + w + 'px・' + label + ': ';
-				const exp = opts ? ['除外：加速度上昇・中盤・終盤▾', '種類4▾', '6枚▾'] : ['除外：持久力回復・デバフ▾', '種類▾', '5枚▾'];
+				// C-129: 既定の除外は5つ（持久力回復・デバフ・視野＋緑スキル・低効果）。文字は全部を持ち、入りきらない分は画面で「…」に切れる
+				const exp = opts ? ['除外：加速度上昇・中盤・終盤▾', '種類4▾', '6枚▾'] : ['除外：持久力回復・デバフ・視野・緑スキル・低効果▾', '種類▾', '5枚▾'];
 				assert(JSON.stringify(r.texts) === JSON.stringify(exp) && r.pressed.join() === (opts ? 'true,true,false' : 'true,false,false'),
 					tag + 'ボタンの文字は「' + exp.join('」「') + '」。指定があるボタンは濃色', { texts: r.texts, pressed: r.pressed });
 				assert(r.barH === 28 && r.hs.every((h) => h === 28) && new Set(r.tops).size === 1 && r.inside && r.sw <= r.iw, tag + '見出し行は1行・28px のまま（3つとも同じ行・行の中に収まる）', r);

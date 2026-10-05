@@ -120,7 +120,8 @@ export async function register11(env) {
 		return { kinds: t ? Number(t[1]) : null, gold: t ? Number(t[2]) : null, n: sel ? Number(sel[1]) : null, pt: sel ? Number(sel[2].replace(/,/g, '')) : null, unpriced: sel ? Number(sel[3] || 0) : null };
 	};
 	/** 純粋関数の結果（画面と突き合わせる） */
-	const solveIn = (page, args) => page.evaluate((a) => UmaSkillDeckCore.outside.solveSync(Object.assign({ deadlineMs: 20000 }, a)), args);
+	// C-129: 既定の除外に「低効果」が入ったので、小窓（開くときに効果の段階のデータを読む）と同じ条件にするため、計算の前に読む
+	const solveIn = (page, args) => page.evaluate(async (a) => { await UmaSkillDeckCore.loadSkillEffectLevels(); return UmaSkillDeckCore.outside.solveSync(Object.assign({ deadlineMs: 20000 }, a)); }, args);
 
 	/* ====================================================================
 	 * (A) 入口: 開く前の条件（エラーの知らせ）

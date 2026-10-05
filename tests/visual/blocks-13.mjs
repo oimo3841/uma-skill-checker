@@ -15,6 +15,12 @@ export async function register13(env) {
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	const scenReal = readJson('data/scenario-event-skills.json');
 	const racesReal = readJson('data/upcoming-races.json');
+	// C-129: 既定の除外（デバフ・持久力回復・視野・緑スキル・低効果）の物差しに使う、低効果のスキル（データから）
+	const effectReal = readJson('data/skill-effect-levels.json');
+	const effRank = new Map(effectReal.stages.map((s) => [s.key, s.rank]));
+	const LOW_SET = new Set(effectReal.entries.filter((e) => e.maxStage !== null && effRank.get(e.maxStage) <= effectReal.lowEffectMax.rank).map((e) => e.skillId));
+	const NEW_DEFAULT = { effect: ['stamina', 'debuff', 'vision'], extra: ['passive', 'lowEffect'] };
+	const NEW_DEFAULT_TEXT = '除外：持久力回復・デバフ・視野・緑スキル・低効果▾';
 	const FILTER = { distance: 'medium', style: 'senko', surface: 'turf' };
 	const CARDS6 = ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'];
 	const FULL = { umaId: 'uma-0001', cardIds: CARDS6, skillFilter: FILTER };
@@ -60,8 +66,10 @@ export async function register13(env) {
 		const sp = await openSp({ roster: FULL });
 		const r = await sp.page.evaluate((rows) => {
 			const C = UmaSkillDeckCore.outside;
-			const night = C.populationOf({}).ids.filter((id) => (UmaSkillDeckCore.getSkillTags(id).environment || []).includes('time_night'));
-			const pop = (race) => C.populationOf(race ? { race: Object.assign({ id: 'race-t', name: 't' }, race) } : {});
+			// C-129: 既定の除外に緑スキル（ナイターのスキルはパッシブ）が入ったので、この検査を書いたときの除外（デバフ・持久力回復）を明示して、時間帯の規則だけを見る
+			const OLDEX = { exclude: { effect: ['debuff', 'stamina'] } };
+			const night = C.populationOf({ outsideOptions: OLDEX }).ids.filter((id) => (UmaSkillDeckCore.getSkillTags(id).environment || []).includes('time_night'));
+			const pop = (race) => C.populationOf(race ? { race: Object.assign({ id: 'race-t', name: 't' }, race), outsideOptions: OLDEX } : { outsideOptions: OLDEX });
 			const day = pop({ time: 'time_day' }), nightRace = pop({ time: 'time_night' }), none = pop(null);
 			const real = rows.filter((x) => x.time === 'time_day').map((x) => pop(x).raceExcludedIds);
 			return { night, day: day.raceExcludedIds, dayIds: day.ids, nightEx: nightRace.raceExcludedIds, noneIds: none.ids, real };
@@ -549,8 +557,9 @@ export async function register13(env) {
 
 	await block('オススメサポ段13C2 除外の規則: ある軸で持つ値がすべて除外のときだけ外す（ほかの値も持てば残す・その軸に値が無ければ残す・どれか1つの軸で外れれば外す）／デバフにまとめた掛かり時間も外れる／保存値の無いセットは初期値（デバフ・持久力回復）／実データで物差しと一致', async () => {
 		const sp = await openSp({ roster: FULL });
-		const r = await sp.page.evaluate(() => {
+		const r = await sp.page.evaluate(async () => {
 			const C = UmaSkillDeckCore;
+			await C.loadSkillEffectLevels();   // C-129: 既定の「低効果」を効かせるため、段階のデータを先に読む（小窓を開いたときと同じ）
 			const merged = {};
 			C.TAG_AXES.forEach((a) => { merged[a.key] = a.options.filter((o) => o.mergedInto).map((o) => ({ v: o.v, into: o.mergedInto })); });
 			const arr = C.getMasterSkills();
@@ -571,12 +580,13 @@ export async function register13(env) {
 			['probe-ex1', 'probe-ex2', 'probe-ex3', 'probe-ex4', 'probe-ex5', 'probe-ex6'].forEach((id) => arr.splice(arr.findIndex((s) => s.id === id), 1));
 			return out;
 		});
-		assert(JSON.stringify(r.defaultOpt) === JSON.stringify({ effect: ['stamina', 'debuff'] }), 'オススメサポ段13C2 保存値の無いセットは、初期値（効果タイプの持久力回復・デバフ）で読む', r.defaultOpt);
+		assert(JSON.stringify(r.defaultOpt) === JSON.stringify(NEW_DEFAULT), 'オススメサポ段13C2→C-129 保存値の無いセットは、初期値（効果タイプの持久力回復・デバフ・視野＋緑スキル・低効果）で読む', r.defaultOpt);
 		assert(r.noEx.join() === 'true,true', 'オススメサポ段13C2 前提: 何も除外しなければ、仮のスキル（掛かり時間だけ・持久力回復だけ）も母集団に入る', r.noEx);
 		assert(r.def.join() === 'false,true,true,false', 'オススメサポ段13C2 初期値: 掛かり時間だけのスキル（デバフにまとめた値）は外れる／速度上昇と持久力回復を持つスキルは残る／効果タイプが空のスキルは残る／持久力回復だけのスキルは外れる', r.def);
 		assert(r.late.join() === 'false,true,true', 'オススメサポ段13C2 フェーズ「終盤」を除外: 終盤だけのスキルは（効果タイプが除外でなくても）外れる＝どれか1つの軸で外れれば外す／終盤と中盤を持つスキルは残る', r.late);
 		// 実データ: 物差しと一致（除外しないときの母集団から、物差しで外れるものを引いたもの）
-		const expDef = r.real.filter(([, t]) => !exOracle(t, { effect: ['stamina', 'debuff'] }, r.merged)).map(([id]) => id).sort();
+		// C-129: 既定の物差しは、効果タイプ（持久力回復・デバフ・視野）＋緑スキル（パッシブのタグ）＋低効果（データの段階）
+		const expDef = r.real.filter(([id, t]) => !(exOracle(t, { effect: ['stamina', 'debuff', 'vision'] }, r.merged) || ((t && t.passive) || []).length > 0 || LOW_SET.has(id))).map(([id]) => id).sort();
 		const expLate = r.real.filter(([, t]) => !exOracle(t, { phase: ['late'] }, r.merged)).map(([id]) => id).sort();
 		const tempOnly = r.real.filter(([, t]) => (t.effect || []).length > 0 && (t.effect || []).every((v) => v === 'temptation_time')).length;
 		assert(JSON.stringify(r.defIds.slice().sort()) === JSON.stringify(expDef) && expDef.length < r.real.length && JSON.stringify(r.lateIds.slice().sort()) === JSON.stringify(expLate) && expLate.length < r.real.length,
@@ -610,14 +620,15 @@ export async function register13(env) {
 			await open(sp.page);
 			const tag = 'オススメサポ段13C2 ' + w + 'px: ';
 			const u0 = await exUi(sp.page);
-			assert(u0.text === '除外：持久力回復・デバフ▾' && u0.on && u0.order === 'outside-exclude-btn,outside-types-btn,outside-count-btn' && u0.barH === 28 && u0.tops === 1 && u0.inside && u0.sw <= u0.iw,
-				tag + '保存値の無いセット: 「除外：持久力回復・デバフ ▾」（濃色）が「種類」の左。見出し行は1行・28px（' + (u0.cut ? '「…」で切れている' : '全部入っている') + '）', u0);
+			assert(u0.text === NEW_DEFAULT_TEXT && u0.on && u0.order === 'outside-exclude-btn,outside-types-btn,outside-count-btn' && u0.barH === 28 && u0.tops === 1 && u0.inside && u0.sw <= u0.iw,
+				tag + '保存値の無いセット: 「' + NEW_DEFAULT_TEXT + '」（濃色。C-129 で5つ）が「種類」の左。見出し行は1行・28px（' + (u0.cut ? '「…」で切れている' : '全部入っている') + '）', u0);
 			if (w === 320) { await sp.ctx.close(); continue; }
 			await sp.page.click(M + '[data-usd-el="outside-exclude-btn"]');
 			await sp.page.waitForSelector('[data-usd-el="outside-exclude-list"]');
 			const p0 = await exPop(sp.page);
 			const axes = await sp.page.evaluate(() => UmaSkillDeckCore.outside.filterAxes());
-			assert(p0.axes.join() === axes.join() && p0.on.join() === 'effect:stamina,effect:debuff' && p0.ids === 0 && p0.helpHidden && !p0.clearDis, tag + '選択欄: 軸は段12 と同じ（距離・脚質・バ場を除く）・初期値の2つに印・id を持つ要素なし・「？」は閉じている', p0);
+			// C-129: 先頭に軸ではない「全般」（extra）のグループ。初期値の5つに印
+			assert(p0.axes.join() === ['extra'].concat(axes).join() && p0.on.join() === 'extra:passive,extra:lowEffect,effect:stamina,effect:debuff,effect:vision' && p0.ids === 0 && p0.helpHidden && !p0.clearDis, tag + '選択欄: 先頭に「全般」、続けて段12 と同じ軸（距離・脚質・バ場を除く）・初期値の5つに印・id を持つ要素なし・「？」は閉じている', p0);
 			await sp.page.click('[data-usd-el="outside-exclude-help"]');
 			const p1 = await exPop(sp.page);
 			assert(!p1.helpHidden && p1.help.join('|') === '選んだ値しか持たないスキルを、オススメから外します。ほかの値も持つスキルは外しません。', tag + '「？」の文面', p1.help);
@@ -625,12 +636,12 @@ export async function register13(env) {
 			await exChip(sp.page, 'effect', 'stamina');
 			let d = await draft(sp.page);
 			const u1 = await exUi(sp.page);
-			assert(JSON.stringify(d.outsideOptions) === JSON.stringify({ exclude: { effect: ['debuff'] } }) && u1.text === '除外：デバフ▾' && (await exPop(sp.page)).on.join() === 'effect:debuff',
-				tag + '持久力回復を押すと除外をやめ、その場で保存（exclude）・文字は「除外：デバフ」・選択欄は開いたまま', { d: d.outsideOptions, t: u1.text });
+			assert(JSON.stringify(d.outsideOptions) === JSON.stringify({ exclude: { effect: ['debuff', 'vision'], extra: ['passive', 'lowEffect'] } }) && u1.text === '除外：デバフ・視野・緑スキル・低効果▾' && (await exPop(sp.page)).on.join() === 'extra:passive,extra:lowEffect,effect:debuff,effect:vision',
+				tag + '持久力回復を押すと除外をやめ、その場で保存（exclude）・文字から持久力回復が消える・選択欄は開いたまま', { d: d.outsideOptions, t: u1.text });
 			// 戻す → 初期値と同じなので項目ごと消える
 			await exChip(sp.page, 'effect', 'stamina');
 			d = await draft(sp.page);
-			assert(!('outsideOptions' in d) && (await exUi(sp.page)).text === '除外：持久力回復・デバフ▾', tag + 'もう一度押して初期値と同じに戻すと、保存値は消える（初期値で読む）', Object.keys(d));
+			assert(!('outsideOptions' in d) && (await exUi(sp.page)).text === NEW_DEFAULT_TEXT, tag + 'もう一度押して初期値と同じに戻すと、保存値は消える（初期値で読む）', Object.keys(d));
 			// すべて解除 → {} を保存・「除外 ▾」（濃色でない）
 			await sp.page.click('[data-usd-el="outside-exclude-clear"]'); await settle(sp.page);
 			d = await draft(sp.page);
@@ -648,12 +659,12 @@ export async function register13(env) {
 		const old = Object.assign({}, FULL, { outsideOptions: { filter: { phase: ['late'] } } });
 		const sp = await openSp({ roster: old });
 		const r = await sp.page.evaluate((ro) => { const C = UmaSkillDeckCore.outside; return { a: C.populationOf(ro).ids.length, b: C.populationOf(Object.assign({}, ro, { outsideOptions: {} })).ids.length, ex: C.optionsOf(ro).exclude }; }, old);
-		assert(r.a === r.b && JSON.stringify(r.ex) === JSON.stringify({ effect: ['stamina', 'debuff'] }), 'オススメサポ段13C2 段12 の filter（終盤）は読まない（母集団は保存値なしと同じ・除外は初期値）', r);
+		assert(r.a === r.b && JSON.stringify(r.ex) === JSON.stringify(NEW_DEFAULT), 'オススメサポ段13C2 段12 の filter（終盤）は読まない（母集団は保存値なしと同じ・除外は初期値）', r);
 		await open(sp.page);
 		await sp.page.click(M + '[data-usd-el="outside-exclude-btn"]');
 		await exChip(sp.page, 'phase', 'mid');
 		const d = await draft(sp.page);
-		assert(JSON.stringify(d.outsideOptions.filter) === JSON.stringify({ phase: ['late'] }) && JSON.stringify(d.outsideOptions.exclude) === JSON.stringify({ effect: ['stamina', 'debuff'], phase: ['mid'] }), 'オススメサポ段13C2 除外を書いても、段12 の filter は消さない（ルール28）', d.outsideOptions);
+		assert(JSON.stringify(d.outsideOptions.filter) === JSON.stringify({ phase: ['late'] }) && JSON.stringify(d.outsideOptions.exclude) === JSON.stringify({ effect: ['stamina', 'debuff', 'vision'], phase: ['mid'], extra: ['passive', 'lowEffect'] }), 'オススメサポ段13C2 除外を書いても、段12 の filter は消さない（ルール28）', d.outsideOptions);
 		await sp.page.keyboard.press('Escape');
 		await sp.page.click(M + '[data-usd-act="outside-close"]');
 		const pick = await sp.page.evaluate(async () => { document.querySelector('#deck-template-panel [data-usd-act="editor-pick"]').click(); await new Promise((res) => setTimeout(res, 200)); const v = Array.from(document.querySelectorAll('input[data-usd-el="filter-check"]:checked')).length; document.querySelector('[data-usd-act="picker-close"]').click(); return v; });
