@@ -1532,6 +1532,21 @@
 		}
 		return false;
 	}
+	/**
+	 * ②の追加の経路（条件で検索・緑スキル・テキストで検索・スクショで追加）で、スキルがセットのレース条件に合わないか（C-129）。
+	 * **オススメサポの母集団と同じ判定**: raceRejectsSkill（レース場・環境・時間帯・特殊ルール）に、レースで固定する距離・バ場
+	 * （raceLockedFilterOf。オススメサポでは①の固定〔resolvedFilterOf〕を通して効く）を足したもの。公開されていない項目では外さない。
+	 */
+	function raceBlocksSkill(skill, race) {
+		if (!race || !skill) return false;
+		if (raceRejectsSkill(skill, race)) return true;
+		const lock = raceLockedFilterOf(race);
+		const keys = Object.keys(lock);
+		if (keys.length === 0) return false;
+		const filters = {};
+		keys.forEach(k => { filters[k] = [lock[k]]; });
+		return !matchesFilters(skill, filters, null);
+	}
 	async function loadUpcomingRaces(forceRefresh) {
 		try {
 			const data = await fetchMasterJson(withDataVersion(UPCOMING_RACES_PATH), !!forceRefresh);
@@ -5676,6 +5691,12 @@
 	 */
 	let pickerOffIds = [];
 	/**
+	 * いま編集しているセットのレース条件（C-129。special の②だけ。無ければ null）。追加の一覧では、レース条件に合わないスキルを
+	 * 本育成の除外と同じ作り（グレーアウト・チェック不可・理由つき）で残し、貼り付け・画像の取り込みでは追加しない。
+	 * `pickerHiddenIds` と同じく `applyRosterHidden()` が入れる。
+	 */
+	let pickerRace = null;
+	/**
 	 * 選択肢パネルを開いているか（70セッション目・段4 の続き）。
 	 *
 	 * **選択中のタブをもう一度押すと閉じる。** 段4 で選択肢を3段にしたぶん、特に狭い画面で
@@ -5728,10 +5749,22 @@
 	const PICKER_EXCLUDED_REASON = '本育成で得るため選べません';   // 段7（2026-10-03）: 「除外」の語を使わない
 	// 本育成編成で「取得しない」にしているスキル（段7c の M。利用者が明示的に不要と判断したスキルを、因子周回で再び選べるのは不自然なため）
 	const PICKER_OFF_REASON = '本育成編成で不要にしているため選べません';
-	/** そのスキルを選べなくしている理由（選べるなら空）。不要にしているものは、本育成で得るものとは別の理由 */
+	// セットのレース条件に合わないスキル（C-129）
+	const PICKER_RACE_REASON = 'レース条件に合わないため選べない';
+	/** そのスキルを選べなくしている理由（選べるなら空）。不要にしているものは、本育成で得るものとは別の理由。理由が重なるときは本育成の理由を先に出す */
 	function pickerBlockReasonOf(skillId) {
-		if (pickerHiddenIds.indexOf(skillId) === -1) return '';
+		if (pickerHiddenIds.indexOf(skillId) === -1) return isPickerRaceBlocked(skillId) ? PICKER_RACE_REASON : '';
 		return pickerOffIds.indexOf(skillId) !== -1 ? PICKER_OFF_REASON : PICKER_EXCLUDED_REASON;
+	}
+	/** セットのレース条件に合わないか（C-129。レースが「指定なし」なら常に false） */
+	function isPickerRaceBlocked(skillId) {
+		if (!pickerRace) return false;
+		const s = findSkill(skillId);
+		return !!s && raceBlocksSkill(s, pickerRace);
+	}
+	/** 追加の一覧で選べないか（本育成編成のため・レース条件に合わないため。C-129） */
+	function isPickerBlocked(skillId) {
+		return isPickerExcluded(skillId) || isPickerRaceBlocked(skillId);
 	}
 
 	const PICKER_MODES = {
@@ -6448,9 +6481,14 @@
 		const target = currentTargetDistance();
 		// エラー（数字でない・レースが無い・区分と合わない）のときは d を使わずに絞る（C-97）
 		const usable = target.state === 'ok' ? target : null;
+		// レース条件に合わないもの（C-129）も、本育成の除外と同じくグレーアウトで残す。race は「レース条件だけで」選べない行の印（件数の内訳に使う）
 		return taggedSkillPool().filter(s => !picker.excludeIds.includes(s.id)
 			&& !isPoolExcluded(s) && matchesFilters(s, pickerFilters, usable))
-			.map(s => ({ skill: s, excluded: hidden.has(s.id) }));
+			.map(s => {
+				const h = hidden.has(s.id);
+				const race = !h && isPickerRaceBlocked(s.id);
+				return { skill: s, excluded: h || race, race: race };
+			});
 	}
 
 	/**
@@ -6471,10 +6509,15 @@
 	 * 単位は**その一覧の数え方に合わせる**: 「条件で検索」は「絞り込み結果（N件）」なので「件」、
 	 * 「緑スキルを追加」は「（このうちN種が追加済み）」や①のバッジ「除外N種」と同じ「種」。
 	 */
-	function setExcludedCountLabel(el, count, unit) {
+	function setExcludedCountLabel(el, count, unit, raceCount) {
 		if (!el) return;
-		el.hidden = count <= 0;
-		el.textContent = count > 0 ? '本育成編成のため選べない ' + count + '件' : '';   // 段7（旧3）: 行の数なので「件」。段7c の M: 本育成で得るためと、不要にしているための両方を合わせた件数
+		// 段7（旧3）: 行の数なので「件」。段7c の M: 本育成で得るためと、不要にしているための両方を合わせた件数。
+		// C-129: レース条件だけで選べない行は別に数える（本育成の理由が先）
+		const parts = [];
+		if (count > 0) parts.push('本育成編成のため選べない ' + count + '件');
+		if (raceCount > 0) parts.push('レース条件に合わないため選べない ' + raceCount + '件');
+		el.hidden = parts.length === 0;
+		el.textContent = parts.join('・');
 	}
 
 	/** 除外中の行（グレーアウト・チェックできない・理由つき）。条件で検索と緑スキルの一覧で共通。 */
@@ -6528,9 +6571,10 @@
 		// 除外中の行の数は「除外中 M件」として別に出す。
 		const rows = getPickerPoolRows();
 		const filtered = rows.filter(r => !r.excluded).map(r => r.skill);
-		const excludedCount = rows.length - filtered.length;
+		const raceCount = rows.filter(r => r.race).length;
+		const excludedCount = rows.length - filtered.length - raceCount;
 		q(pickerEl, 'result-count').textContent = filtered.length + '件';
-		setExcludedCountLabel(q(pickerEl, 'result-excluded'), excludedCount, '件');
+		setExcludedCountLabel(q(pickerEl, 'result-excluded'), excludedCount, '件', raceCount);
 		const selectAllBox = pickerEl.querySelector('[data-usd-act="picker-select-all"]');
 		if (selectAllBox) selectAllBox.checked = filtered.length > 0 && filtered.every(s => picker.checked.has(s.id));
 		updatePickerCommitState();
@@ -6595,8 +6639,11 @@
 		 * 残し、チェックできず、理由を添える（段3b。「条件で検索」の一覧と同じ扱い）。
 		 * **すでに追加済み（チェックが入っている）ものは普通の行のまま** ―― 無効にすると、外す操作までできなくなる。
 		 * 実データでも編成の●に緑スキルは入る（練習のヒント・育成ウマ娘の覚醒・イベントのいずれにも）ので、この一覧でも効かせる。 */
-		const isExcludedRow = (s) => !chosen.has(s.id) && isPickerExcluded(s.id);
-		setExcludedCountLabel(q(pickerEl, 'passive-excluded'), list.filter(isExcludedRow).length, '種');
+		// C-129: レース条件に合わないものも同じ作りで残す（件数は本育成の分と分けて出す）
+		const isExcludedRow = (s) => !chosen.has(s.id) && isPickerBlocked(s.id);
+		const hiddenRows = list.filter(s => !chosen.has(s.id) && isPickerExcluded(s.id)).length;
+		const raceRows = list.filter(s => !chosen.has(s.id) && !isPickerExcluded(s.id) && isPickerRaceBlocked(s.id)).length;
+		setExcludedCountLabel(q(pickerEl, 'passive-excluded'), hiddenRows, '種', raceRows);
 		el.innerHTML = list.map(s => isExcludedRow(s)
 			? excludedRowHtml(s, 'passive-check-excluded')
 			: '<label class="usd-row">' +
@@ -6617,7 +6664,7 @@
 		const sink = picker.onAdd;
 		if (!sink) return;
 		// 除外中（追加済みでないもの）は足さない（段3b。除外中の行のチェックは無効にしてあるので、保険）
-		if (checked && isPickerExcluded(skillId) && picker.excludeIds.indexOf(skillId) === -1) { renderPassiveList(); return; }
+		if (checked && isPickerBlocked(skillId) && picker.excludeIds.indexOf(skillId) === -1) { renderPassiveList(); return; }
 		if (checked) {
 			if (typeof sink === 'object' && typeof sink.add === 'function') sink.add([skillId]);
 			else if (typeof sink === 'function') sink([skillId]);
@@ -6647,7 +6694,7 @@
 	function onPickerCheck(skillId, checked) {
 		// 除外中の行にはチェックを入れさせない（段3b）。除外中の行のチェックは無効にしてあるので、
 		// ここへは通常は来ない。**押せてしまう経路があっても足さない**ための保険。
-		if (checked && isPickerExcluded(skillId)) { renderPickerResults(); return; }
+		if (checked && isPickerBlocked(skillId)) { renderPickerResults(); return; }
 		if (checked) picker.checked.add(skillId); else picker.checked.delete(skillId);
 		// 一覧は作り直さない（チェックだけの操作でフォーカスを飛ばさない）ので、
 		// フッターの数だけをここで更新する。
@@ -6697,8 +6744,8 @@
 	 */
 	function addCheckedSkills() {
 		if (picker.checked.size === 0) { toast('スキルにチェックを入れてください'); return; }
-		// 本育成で得るスキル（「本育成編成」が ON のセット）は、どの経路からも足さない（段7の 旧4。保険）
-		const ids = Array.from(picker.checked).filter(id => !isPickerExcluded(id));
+		// 本育成で得るスキル（「本育成編成」が ON のセット）とレース条件に合わないスキル（C-129）は、どの経路からも足さない（段7の 旧4。保険）
+		const ids = Array.from(picker.checked).filter(id => !isPickerBlocked(id));
 		if (ids.length === 0) { picker.checked.clear(); renderPickerResults(); renderPasteReport(); return; }
 		const sink = picker.onAdd;
 		const undoable = sink && typeof sink === 'object' && typeof sink.add === 'function';
@@ -6760,8 +6807,8 @@
 			const accept = r.kind === 'exact' || (r.autoAccepted === true && r.matchedId);
 			if (!accept) return;
 			r.chosenId = r.matchedId;
-			// 本育成で得るスキル（「本育成編成」が ON のセット）は選択に入れない（段7の 旧4。報告に「追加しなかったもの」として数える）
-			if (picker.excludeIds.indexOf(r.matchedId) === -1 && !isPickerExcluded(r.matchedId)) picker.checked.add(r.matchedId);
+			// 本育成で得るスキル（「本育成編成」が ON のセット）とレース条件に合わないスキル（C-129）は選択に入れない（段7の 旧4。報告に「追加しなかったもの」として数える）
+			if (picker.excludeIds.indexOf(r.matchedId) === -1 && !isPickerBlocked(r.matchedId)) picker.checked.add(r.matchedId);
 		});
 		renderPasteReport();
 		renderPickerResults();
@@ -6791,7 +6838,7 @@
 		row.chosenId = skillId;
 		// 選び直した場合、前に選んでいたスキルを他の行も使っていなければ選択から外す
 		if (prev && prev !== skillId) releaseIfUnused(prev);
-		if (picker.excludeIds.indexOf(skillId) === -1 && !isPickerExcluded(skillId)) picker.checked.add(skillId);   // 本育成で得るものは足さない（段7の 旧4）
+		if (picker.excludeIds.indexOf(skillId) === -1 && !isPickerBlocked(skillId)) picker.checked.add(skillId);   // 本育成で得るもの・レース条件に合わないもの（C-129）は足さない（段7の 旧4）
 		renderPasteReport();
 		renderPickerResults();
 	}
@@ -6920,7 +6967,7 @@
 				// 追加済みのものも**一覧から消さない**（消すと「打ち間違えたのか」と迷うため）。
 				// 出したうえで選べなくする＝自分の入力が正しかったことは確認できる。
 				? '<span class="usd-name-hit usd-name-hit--added">' + esc(h.name) + '<span class="usd-name-added">追加済み</span></span>'
-				: (hidden.has(h.id)
+				: ((hidden.has(h.id) || isPickerRaceBlocked(h.id))   // C-129: レース条件に合わないものも同じく選べなくする
 					? '<span class="usd-name-hit usd-name-hit--added">' + esc(h.name) + '<span class="usd-name-added">' + esc(pickerBlockReasonOf(h.id) || PICKER_EXCLUDED_REASON) + '</span></span>'
 					: '<button type="button" class="usd-name-hit" data-usd-act="name-pick" data-skill-id="' + esc(h.id) + '">' + esc(h.name) + '</button>')
 			).join('') + '</div>' +
@@ -7008,15 +7055,19 @@
 		const alreadyIds = new Set(resolved.filter(r => excluded.has(r.chosenId)).map(r => r.chosenId));
 		// 本育成で得るため追加しなかったもの（段7の 旧4。「本育成編成」が ON のセットで、一致した行）。0種のときは出さない
 		const blockedIds = new Set(resolved.filter(r => !excluded.has(r.chosenId) && isPickerExcluded(r.chosenId)).map(r => r.chosenId));
+		// レース条件に合わないため追加しなかったもの（C-129。本育成の理由に当たるものは上で数えるので除く）。0種のときは出さない
+		const raceBlockedIds = new Set(resolved.filter(r => !excluded.has(r.chosenId) && !isPickerExcluded(r.chosenId) && isPickerRaceBlocked(r.chosenId)).map(r => r.chosenId));
+		const notAdded = blockedIds.size + raceBlockedIds.size;
 
 		let html = '<div class="usd-paste-summary">' +
-			'<span class="usd-paste-ok">選択 ' + (resolvedIds.size - blockedIds.size) + '件</span>' +
+			'<span class="usd-paste-ok">選択 ' + (resolvedIds.size - notAdded) + '件</span>' +
 			(alreadyIds.size > 0 ? '<span class="usd-paste-muted">（うち追加済み ' + alreadyIds.size + '件）</span>' : '') +
 			(blockedIds.size > 0 ? '<span class="usd-paste-muted" data-usd-el="paste-blocked">本育成編成のため追加しなかったもの ' + blockedIds.size + '種</span>' : '') +
+			(raceBlockedIds.size > 0 ? '<span class="usd-paste-muted" data-usd-el="paste-race-blocked">レース条件に合わないため追加しなかったもの ' + raceBlockedIds.size + '種</span>' : '') +
 			(pending.length > 0 ? '<span class="usd-paste-warn">要確認 ' + pending.length + '件</span>' : '') +
 			(errors.length > 0 ? '<span class="usd-paste-err">エラー ' + errors.length + '件</span>' : '') +
 		'</div>';
-		if (resolvedIds.size - blockedIds.size > alreadyIds.size) {
+		if (resolvedIds.size - notAdded > alreadyIds.size) {
 			html += '<p class="usd-paste-hint">下の「チェックしたスキルを追加」を押すと確定します。</p>';
 		}
 
@@ -9899,10 +9950,14 @@
 			const sure = linked ? rosterSureIdsOf(linked) : [];
 			const off = linked ? rosterOffIdsOf(linked).filter(id => sure.indexOf(id) === -1) : [];
 			const next = sure.concat(off);
+			// C-129: セットのレース条件（special の②＝setBased だけ。Deck 単体ページでは効かせない）
+			const race = setBased && linked ? raceOfRoster(linked) : null;
 			const changed = next.length !== pickerHiddenIds.length || next.some((id, i) => id !== pickerHiddenIds[i])
-				|| off.length !== pickerOffIds.length || off.some((id, i) => id !== pickerOffIds[i]);
+				|| off.length !== pickerOffIds.length || off.some((id, i) => id !== pickerOffIds[i])
+				|| JSON.stringify(race) !== JSON.stringify(pickerRace);
 			pickerHiddenIds = next;
 			pickerOffIds = off;
+			pickerRace = race;
 			if (changed) { renderPickerResults(); renderPasteReport(); }
 		}
 		function renderRosterLink() {
