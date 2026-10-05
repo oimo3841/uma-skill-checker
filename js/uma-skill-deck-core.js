@@ -5591,6 +5591,9 @@
 		'  .usd-roster-gh { padding: var(--uma-sp-0-5); }',
 		'  .usd-roster-ghbtn { height: 24px; }',
 		'  .usd-roster-grid-wrap { max-height: max(180px, calc(100dvh - var(--usd-grid-top, 380px) - var(--uma-sp-2))); }',
+		// まとめ対応の D（C-128）: 表の下端は画面の下端の近くにあり、左下の「元に戻す」と右下の「＋」が最後の行に重なる。
+		// 表の中の下に「＋」の高さ＋少しの余白を入れて、最後まで送ると最後の行がボタンの上に出るようにする（ふだん見える行数は変わらない）
+		'  .usd-roster-grid-wrap { padding-bottom: calc(var(--uma-fab-size, 44px) + var(--uma-sp-1)); }',
 		'}'
 	]).join('\n');
 
