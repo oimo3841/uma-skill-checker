@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-05c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-05d';
 
 	/* ============================================================
 	 * 定数
@@ -65,8 +65,8 @@
 	const DATA_JSON_VERSIONS = {
 		'data/scenario-inheritance-factors.json': '2026-09-15a',
 		'data/aptitude-genes.json': '2026-09-19a',
-		'data/extended-skills.json': '2026-10-02a',
-		'data/training-umamusume.json': '2026-09-24a',
+		'data/extended-skills.json': '2026-10-04a',
+		'data/training-umamusume.json': '2026-10-04a',
 		'data/support-cards.json': '2026-09-30b',
 		'data/support-card-event-skills.json': '2026-10-05a',
 		// キャラクター共通のイベント（C-102 の区切り3・2026-09-27）。9本目
@@ -78,11 +78,11 @@
 		// 実ファイル（skill-pt.json・skill-step-up.json）は、届いてから載せた（載せると取りに行くため）。
 		'data/skill-pt-rules.json': '2026-09-30a',
 		// スキルの基礎Pt とレアリティ（2026-09-30 に実ファイルが届いたので載せた。載せると loadSkillPtData が読む）
-		'data/skill-pt.json': '2026-10-02a',
+		'data/skill-pt.json': '2026-10-04a',
 		// スキルのステップアップの前段（2026-10-01c。2026-10-02 に実ファイルが届いたので載せた。loadSkillPtData が skill-pt.json と一緒に読む）
 		'data/skill-step-up.json': '2026-10-02b',
 		// スキルの公式の説明文（2026-10-02）。ページの読み込みでは取りに行かない（ⓘ・長押しを最初に開いたときだけ。段6）
-		'data/skill-descriptions.json': '2026-10-02a',
+		'data/skill-descriptions.json': '2026-10-04a',
 		// シナリオの固定イベントで得られるスキルとヒントレベル（段7c・2026-10-03）。編成パネルを作るときにだけ読む（ほかのページの読み込みでは取りに行かない）
 		'data/scenario-event-skills.json': '2026-10-03c',
 		// これから開催されるレースの一覧（オススメサポ ④・段7・2026-10-04）。公式のお知らせの公開情報。loadUpcomingRaces() が読む。

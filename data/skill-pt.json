@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-02a",
+	"dataVersion": "2026-10-04a",
 	"category": "skillPt",
 	"note": "スキルの取得に要るスキルPt（ヒントのレベル0の基礎値）とレアリティ。rarity は white・gold・unique・evolved。unique は取得に Pt が要らないので pt は 0。ここに無い skillId は未収録。",
 	"entries": [
@@ -5666,6 +5666,21 @@
 		{
 			"skillId": "ex-0987",
 			"pt": 160,
+			"rarity": "white"
+		},
+		{
+			"skillId": "ex-0988",
+			"pt": 0,
+			"rarity": "unique"
+		},
+		{
+			"skillId": "ex-0989",
+			"pt": 0,
+			"rarity": "unique"
+		},
+		{
+			"skillId": "ex-0990",
+			"pt": 180,
 			"rarity": "white"
 		}
 	]
