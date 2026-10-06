@@ -615,8 +615,8 @@ export async function register11(env) {
 				});
 				const tag = 'オススメサポ(G) ' + w + 'px・' + label + ': ';
 				assert(!r.bandBtn && r.outsideAnywhereInBand === -1 && r.bandH === BAND_H[w + ':' + label] && r.sw <= r.iw, tag + '②の帯にボタンは無く、帯の高さはこの機能を足す前と同じ（' + r.bandH + 'px）。画面が横にはみ出さない', r);
-				assert(r.texts.join() === 'オススメサポαテスト,条件で検索,緑スキル,テキストで検索,スクショで追加' && r.firstAct === 'outside-open' && !/uma-btn--primary/.test(r.cls) && r.others.every((c) => c === 'uma-btn uma-btn--secondary'),
-					tag + '入口列の先頭（「条件で検索」の左）に「オススメサポαテスト」（段13 の仕上げで αテストの表記）。ほかの4つは今までどおり（secondary）。黒い塗り（primary）にはしない', { texts: r.texts, cls: r.cls, others: r.others });
+				assert(r.texts.join() === 'オススメサポ,条件で検索,緑スキル,テキストで検索,スクショで追加' && r.firstAct === 'outside-open' && !/uma-btn--primary/.test(r.cls) && r.others.every((c) => c === 'uma-btn uma-btn--secondary'),
+					tag + '入口列の先頭（「条件で検索」の左）に「オススメサポ」（段13 の仕上げで付けた αテストの表記は C-130 で外した）。ほかの4つは今までどおり（secondary）。黒い塗り（primary）にはしない', { texts: r.texts, cls: r.cls, others: r.others });
 				assert(r.ov === 'auto' && r.wrap === 'nowrap' && (w > 414 || r.scrolls), tag + '入口列は折り返さず横スクロール（幅 ' + r.rowW + 'px。先頭に ' + r.firstW + 'px 足された。' + (r.scrolls ? '右にスクロールして見る' : '収まる') + '）', r);
 				if (label === '②が空') console.log('     [実測] ' + w + 'px: ボタンの幅 ' + r.firstW + '×' + r.firstH + 'px・最初に全体が見えるボタン ' + r.visible + '個（一部でも見えるもの ' + r.partly + '個）');
 				assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));

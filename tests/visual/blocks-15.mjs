@@ -2,8 +2,8 @@
 // （塊の見出しはすべて「C129」で始まる。`npm run test:visual -- --only=C129` で回せる。B・C・D だけなら「C129B」「C129C」「C129D」）。
 //
 // B: セットのレース条件を、②の追加の4経路（条件で検索・緑スキル・テキストで検索・スクショで追加）にも効かせる
-// C: 「低効果を除外」（①の列見出し・②のパレット）
-// D: オススメサポαテストの除外の既定（デバフ・持久力回復・視野・緑スキル・低効果）と、新しい2つのチップ
+// C: 「低効果を除外」（①の列見出し。②のパレットのボタンは C-130 で脚質のボタンに置き換えて削除した＝その塊は下で外した）
+// D: オススメサポ（当時は「オススメサポαテスト」）の除外の既定（デバフ・持久力回復・視野・緑スキル・低効果）と、新しい2つのチップ
 // スキル名・レース名・段階の名前は検査の側に書かない（恒久ルール1。データか画面から読む）。
 
 export async function register15(env) {
@@ -301,42 +301,10 @@ export async function register15(env) {
 		assert(r2.popped && r2.off.slice().sort().join() === pair.map((p) => p.id).sort().join(), 'C129C ①: 金が低効果なら、前段の白（高い段階）も一緒に外す', { r2, pair: pair.map((p) => p.id) });
 	});
 
-	await block('C129C ②: 低効果のスキルだけ一覧から外れる（null は外れない）／「やめる」で変わらない／「元に戻す」で戻る／対象0種で押せない／読めないときは何も外さず知らせる', async () => {
-		const ids = HIGH_IDS.slice(0, 3).concat(LOW_IDS.slice(0, 2), NULL_IDS.slice(0, 1), HIGH_IDS.slice(3, 4), LOW_IDS.slice(2, 3));
-		const ud = { schemaVersion: 7, records: [], customSkills: [], rosters: [], templates: [{ templateId: 't1', name: 'S1', skillIds: ids, createdAt: 'x', updatedAt: 'x' }] };
-		const tpl = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:userData')).templates[0].skillIds);
-		const sp = await openSp({ userData: ud, roster: null, set: 't1' });
-		const btn = T + '[data-usd-el="low-effect-btn"]';
-		const pal = await sp.page.evaluate(() => { const p = document.querySelector('[data-usd-el="tier-row"]'); const b = p.querySelector('[data-usd-el="low-effect-btn"]'); const c = p.querySelector('[data-usd-el="palette-clear"]');
-			return { next: c.nextElementSibling === b, h: p.getBoundingClientRect().height, rowsH: Math.round(b.getBoundingClientRect().top - c.getBoundingClientRect().top), cls: p.className }; });
-		assert(pal.next && Math.abs(pal.rowsH) <= 1 && /usd-hscroll/.test(pal.cls), 'C129C ②: 「解除」の隣に置かれ、同じ行（入りきらなければ横に送る作り）', pal);
-		await sp.page.click(btn);
-		await sp.page.waitForSelector('[data-usd-el="low-effect-count"]');
-		const n = await sp.page.evaluate(() => document.querySelector('[data-usd-el="low-effect-count"]').textContent);
-		assert(n === '対象 3種', 'C129C ②: 「対象 N種」は一覧の低効果のスキルの数', n);
-		await sp.page.click('[data-usd-el="low-effect-cancel"]');
-		await sp.page.waitForTimeout(200);
-		assert(JSON.stringify(await tpl(sp.page)) === JSON.stringify(ids), 'C129C ②: 「やめる」では何も変わらない', await tpl(sp.page));
-		await sp.page.click(btn);
-		await sp.page.waitForSelector('[data-usd-el="low-effect-ok"]');
-		await sp.page.click('[data-usd-el="low-effect-ok"]');
-		await sp.page.waitForTimeout(300);
-		const after = await tpl(sp.page);
-		assert(JSON.stringify(after) === JSON.stringify(ids.filter((id) => !isLow(id))) && after.includes(NULL_IDS[0]), 'C129C ②: 低効果の3種だけ外れ、段階が null のスキルは残る', { after });
-		assert(await sp.page.evaluate((s) => document.querySelector(s).disabled, btn), 'C129C ②: 外したあとは対象が0種なので押せない', true);
-		await sp.page.evaluate(() => UmaSkillDeckCore.performUndo());
-		await sp.page.waitForTimeout(300);
-		assert(JSON.stringify(await tpl(sp.page)) === JSON.stringify(ids), 'C129C ②: 「元に戻す」で元の並びのまま戻る', await tpl(sp.page));
-		assert(jsErrors(sp.errors).length === 0, 'C129C ② コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
-		await sp.ctx.close();
-		// 読めないとき: 押しても何も外さず、知らせを出す
-		const sp2 = await openSp({ userData: ud, roster: null, set: 't1', effect: 'fail' });
-		await sp2.page.click(btn);
-		await sp2.page.waitForTimeout(500);
-		const t = await sp2.page.evaluate(() => ({ toast: document.getElementById('toast-message').textContent, pop: !!document.querySelector('[data-usd-el="low-effect-ok"]') }));
-		assert(!t.pop && t.toast === '効果の段階のデータを読み込めませんでした' && JSON.stringify(await tpl(sp2.page)) === JSON.stringify(ids), 'C129C ②: 段階のデータが読めないときは何も外さず、短い知らせを出す', t);
-		await sp2.ctx.close();
-	});
+	/* C-130（2026-10-06）で外した塊: 「C129C ②: 低効果のスキルだけ一覧から外れる…」。
+	   ②の「低効果を除外」のボタンと確認の小窓を削除し、同じ場所を①の脚質に応じたボタン（逃げオススメ・先差追オススメ）に置き換えたため。
+	   ②にボタンが無いこと・①のボタンが残ることは blocks-16 の「C130C ①の脚質で…」が見る。
+	   ①の「低効果を除外」（上の2つの塊）は残る。 */
 
 	/* ====================================================================
 	 * D: オススメサポαテストの除外の既定

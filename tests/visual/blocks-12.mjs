@@ -493,8 +493,13 @@ export async function register12(env) {
 		const pk0 = await pickerIds('editor-pick'), gr0 = await pickerIds('editor-pick-passive');
 		// R0（中距離・芝）は FULL の絞り込みと同じ距離・バ場なので、①の固定で数字は変わらない
 		await chooseRace(sp.page, R0.id);
+		// C-130: レースを選ぶと②に既定のスキル（回り・季節など）が入るので、それを「元に戻す」で外してから比べる（母集団の規則が②の数字に効かないことを見る）
+		const auto = await sp.page.evaluate(() => ((JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || 'null') || {}).skillIds || []).length);
+		await sp.page.evaluate(() => UmaSkillDeckCore.performUndo());
+		await sp.page.waitForTimeout(300);
 		const after = await nums();
-		assert(JSON.stringify(before) === JSON.stringify(after), 'オススメサポ④段9 ①の絞り込みと同じ距離・バ場のレースを選んでも、②の合計・①の合計・見出しの数は変わらない（母集団の規則はオススメサポにだけ効く）', { before, after });
+		// （②のタブの脇の「N種」〔badge〕は比べない。②に足して「元に戻す」で空にすると、special が古い値のまま出し続ける〔C-130 より前からの挙動。手で足して戻しても同じ〕ため）
+		assert(auto > 0 && JSON.stringify(before.f) === JSON.stringify(after.f) && JSON.stringify(before.r) === JSON.stringify(after.r), 'オススメサポ④段9 ①の絞り込みと同じ距離・バ場のレースを選んでも、②の合計・①の合計は変わらない（母集団の規則はオススメサポにだけ効く。C-130 の既定の追加 ' + auto + '種は「元に戻す」で外して比べる）', { before, after, auto });
 		const pk1 = await pickerIds('editor-pick'), gr1 = await pickerIds('editor-pick-passive');
 		// C-129 で置き換えた: 段9 の「条件で検索・緑スキルの一覧は、レースを選んでも同じ（レースに合わないスキルも出て、選べる）」は、
 		// レース条件を追加の経路にも効かせたので逆になった。いまは「選べる行は減るだけで増えない」を見る（グレーアウトの作りと理由は blocks-15 の C129B）

@@ -30,6 +30,7 @@ import { register12 } from './blocks-12.mjs';
 import { register13 } from './blocks-13.mjs';
 import { register14 } from './blocks-14.mjs';
 import { register15 } from './blocks-15.mjs';
+import { register16 } from './blocks-16.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -9180,8 +9181,9 @@ await block('段7【5】収録スキルデータ（マスター）の取り回�
 		assert(paths.length === dataFileCount, '段7の続き: 版の表が data/ の' + dataFileCount + 'ファイル（exam だけが読むものを除く）ぶんある', paths);
 		// 必要になったときだけ読む data/（ⓘ・長押しを開いたとき。段6・2026-10-02）。ここ（ページの読み込みと各入口の呼び出し）では
 		// 取りに行かないのが正しい。**ほかの全ファイルが取得されること**と、**これらが取得されていないこと**を別々に見る。
-		// シナリオの固定イベント（段7c）は special が編成パネルを作るときにだけ読む。効果量の段階（C-129）は「低効果を除外」・オススメサポの「低効果」で初めて読む
-		const 遅延 = ['data/skill-descriptions.json', 'data/scenario-event-skills.json', 'data/skill-effect-levels.json'];
+		// シナリオの固定イベント（段7c）は special が編成パネルを作るときにだけ読む。効果量の段階（C-129）は「低効果を除外」・オススメサポの「低効果」で初めて読む。
+		// ②にまとめて追加するスキルのグループ（C-130）は、レースを選んだとき・②のパレットの行が見えたとき（脚質があるとき）に初めて読む
+		const 遅延 = ['data/skill-descriptions.json', 'data/scenario-event-skills.json', 'data/skill-effect-levels.json', 'data/recommended-skills.json'];
 		const 取れた = paths.filter((k) => dataUrls.some((u) => u.includes('/' + k)));
 		const 対象 = paths.filter((k) => !遅延.includes(k));
 		assert(遅延.every((k) => paths.includes(k)) && !遅延.some((k) => 取れた.includes(k)),
@@ -14132,6 +14134,7 @@ await register12({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register13({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register14({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register15({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register16({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

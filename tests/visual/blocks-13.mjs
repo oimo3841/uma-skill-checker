@@ -795,7 +795,8 @@ export async function register13(env) {
 		await sp.ctx.close();
 	});
 
-	await block('オススメサポ段13仕上げ 表記: 入口と小窓の見出しは「オススメサポαテスト」（375・320px で入口の列は1行・見出しの行は崩れない）／指定したカードのタイルは「解除」・オススメのカードは「外す」', async () => {
+	// C-130: 「αテスト」の表記を外したので、入口と小窓の見出しは「オススメサポ」を見る（1280px と「αテスト」の語が残らないことは blocks-16 の C130E）
+	await block('オススメサポ段13仕上げ 表記: 入口と小窓の見出しは「オススメサポ」（375・320px で入口の列は1行・見出しの行は崩れない）／指定したカードのタイルは「解除」・オススメのカードは「外す」', async () => {
 		for (const w of [375, 320]) {
 			const sp = await openSp({ roster: FULL, w });
 			const e = await sp.page.evaluate(() => { const row = document.querySelector('#deck-template-panel .usd-entry-row'); const b = row.querySelector('[data-usd-el="outside-open"]'); const btns = Array.from(row.children);
@@ -805,8 +806,8 @@ export async function register13(env) {
 				const c = (el) => Math.round(el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2);
 				return { text: t.textContent, lines: Math.round(t.getBoundingClientRect().height / parseFloat(getComputedStyle(t).lineHeight)), mid: Math.abs(c(t) - c(x)) <= 3 && Math.abs(c(help) - c(x)) <= 3, headH: Math.round(head.getBoundingClientRect().height), label: document.querySelector('[data-usd-el="outside-modal"] .usd-out-panel').getAttribute('aria-label') }; });
 			const tag = 'オススメサポ段13仕上げ ' + w + 'px: ';
-			assert(e.text === 'オススメサポαテスト' && e.tops === 1 && e.wrap === 'nowrap' && e.bh <= 32 && e.sw <= e.iw, tag + '入口のボタンは「オススメサポαテスト」。入口の列は1行のまま（横に送る）', e);
-			assert(m.text === 'オススメサポαテスト' && m.lines === 1 && m.mid && m.label === 'オススメサポαテスト', tag + '小窓の見出しは「オススメサポαテスト」で1行。？と×と同じ行（見出しの行の高さ ' + m.headH + 'px）', m);
+			assert(e.text === 'オススメサポ' && e.tops === 1 && e.wrap === 'nowrap' && e.bh <= 32 && e.sw <= e.iw, tag + '入口のボタンは「オススメサポ」。入口の列は1行のまま（横に送る）', e);
+			assert(m.text === 'オススメサポ' && m.lines === 1 && m.mid && m.label === 'オススメサポ', tag + '小窓の見出しは「オススメサポ」で1行。？と×と同じ行（見出しの行の高さ ' + m.headH + 'px）', m);
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		}
