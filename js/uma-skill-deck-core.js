@@ -3822,6 +3822,40 @@
 		return normalizeRaceRow(r && r.race);
 	}
 	/**
+	 * レースを選んだときに②へ自動で入れたスキルの id（C-130・B。roster.raceAutoSkillIds）。レースを変えたとき・「指定なし」に戻したときに、
+	 * このうち②にあるものを外してから新しいレースのぶんを入れる（手で追加したものは外さない）。触ったときだけ書く・空なら項目ごと消す・
+	 * schemaVersion は上げない・読み込み時に補わない（ルール28）。形が崩れた値は読まない（保存値は書き換えない）。
+	 */
+	function raceAutoIdsOf(r) {
+		const v = (r && Array.isArray(r.raceAutoSkillIds)) ? r.raceAutoSkillIds : [];
+		return v.filter((id, i) => typeof id === 'string' && id && v.indexOf(id) === i);
+	}
+	/**
+	 * レースを選んだときに②へ入れる候補（C-130・B。追加できるかどうか〔②にある・本育成で得る・レース条件に合わない〕は呼び出し側で見る）。
+	 *   (1) 回り … レースの回り（direction）の値を、レース環境のタグに持つスキル
+	 *   (2) 季節 … レースの季節（season）の値を、レース環境のタグに持つスキル（季節の値が無いレースでは入れない）
+	 *   (3) レースに「デバフなし」の特殊ルール（RACE_RULES の、効果タイプのデバフを外すもの）が無ければ、グループ RECOMMENDED_RACE_EXTRA_GROUP
+	 * (1)(2) は追加の一覧と同じ顔ぶれ（taggedSkillPool）の白スキル（Pt 未収録で区分が不明なものも含む。金スキルは入れない）から、タグで選ぶ
+	 * （**スキル名は見ない**）。(3) はグループの onlyWhenRaceDistanceClass も見る。並びは (1)(2) が顔ぶれの順、(3) がグループの順。
+	 */
+	function raceAutoCandidateIds(race) {
+		const out = [];
+		if (!race) return out;
+		const pt = skillPtData.skillPt instanceof Map ? skillPtData.skillPt : null;
+		const isWhite = (id) => { const row = pt ? pt.get(id) : null; return !row || row.rarity === 'white'; };
+		const push = (id) => { if (out.indexOf(id) === -1) out.push(id); };
+		['direction', 'season'].forEach(f => {
+			const v = race[f];
+			if (!v) return;
+			taggedSkillPool().forEach(s => { if (isWhite(s.id) && ((s.tags && s.tags.environment) || []).indexOf(v) !== -1) push(s.id); });
+		});
+		const rule = race.rule ? RACE_RULES[race.rule] : null;
+		const noDebuff = !!rule && rule.axis === 'effect' && rule.value === 'debuff';
+		const g = noDebuff ? null : recommendedGroupOf(RECOMMENDED_RACE_EXTRA_GROUP);
+		if (g) g.skills.forEach(e => { if (recommendedRaceOk(e, race)) push(e.skillId); });
+		return out;
+	}
+	/**
 	 * レースで固定する①の絞り込み（段8）。**公開されている項目だけ**: 距離（区分）・バ場。脚質は常に利用者の選択。
 	 * 値が選択肢に無ければ固定しない（知らない値は「公開されていない」と同じ扱い）。{ 軸のキー: 値 }。
 	 */
@@ -9241,6 +9275,19 @@
 			return true;
 		};
 		/**
+		 * レースを選んだときに②へ自動で入れたスキルの記録（C-130・B。roster.raceAutoSkillIds）。空なら項目ごと消す。中身が変わらなければ書かない。
+		 * ①の表には効かないので、①は描き直さない。
+		 */
+		rosterOutsideSink.setRaceAuto = function (ids) {
+			const next = raceAutoIdsOf({ raceAutoSkillIds: Array.isArray(ids) ? ids : [] });
+			const had = roster.raceAutoSkillIds !== undefined;
+			if (had && JSON.stringify(roster.raceAutoSkillIds) === JSON.stringify(next) && next.length > 0) return true;
+			if (!had && next.length === 0) return true;
+			if (next.length === 0) delete roster.raceAutoSkillIds; else roster.raceAutoSkillIds = next;
+			persistNow();
+			return true;
+		};
+		/**
 		 * 「種類」「除外」「枚数」と残りの枠の指定（④・段10・段13。roster.outsideOptions）。patch に入れた項目だけを置き換える
 		 * （count: 4・5・6／typeMin: { 種類の番号: 枚数 }／exclude: { 軸: [値…] }／pinned: [カードID…]）。既定と同じ（5枚・空・除外は初期値）なら、その項目を消し、全部消えたら項目ごと消す。
 		 * 中身が変わらなければ書かない。①の表には効かないので、①は描き直さない。
@@ -10021,7 +10068,7 @@
 				input.addEventListener('change', () => {
 					if (!input.checked || !rosterOutsideSink) return;
 					closeSkillInfo();
-					rosterOutsideSink.setRace(o.row);
+					pickRaceForSet(o.row);   // C-130・B: ②への既定の追加も
 				});
 				lab.appendChild(input);
 				const txt = infoEl('span', 'usd-race-txt');
@@ -10037,6 +10084,68 @@
 				group.appendChild(lab);
 			});
 			body.appendChild(group);
+		}
+		/**
+		 * セットのレースを選んだとき（C-130・B）。「指定なし」から選んだとき・別のレースに変えたとき・「指定なし」に戻したときだけ、②を書き換える
+		 * （ページの読み込み・保存済みのセットの読み込みでは何も書かない＝ここは選択欄の操作からだけ呼ぶ）。
+		 * 前に自動で入れたもの（roster.raceAutoSkillIds）のうち、いま②にあるものを外してから、新しいレースのぶん（raceAutoCandidateIds）のうち
+		 * 追加できるもの（②に無い・本育成で得ない・レース条件に合う）を入れる。手で追加したものは外さない。「元に戻す」に1回で積む。
+		 * レースを選んだときは、グループのデータを先に読む（読めなければ②は何も変えず、短い知らせを出す）。
+		 */
+		async function pickRaceForSet(row) {
+			if (!rosterOutsideSink) return;
+			const target = currentTarget();
+			const prevRace = raceOfRoster(rosterOutsideSink.getRoster());
+			if (!rosterOutsideSink.setRace(row)) return;
+			const nextRace = raceOfRoster(rosterOutsideSink.getRoster());
+			if (JSON.stringify(prevRace) === JSON.stringify(nextRace)) return;
+			if (nextRace) {
+				const st = await loadRecommendedSkills();
+				if (!sameTarget(target, currentTarget()) || JSON.stringify(raceOfRoster(rosterOutsideSink.getRoster())) !== JSON.stringify(nextRace)) return;
+				if (st !== 'ok') { toast(RECOMMENDED_FAILED_MSG, 'warn'); return; }
+			}
+			applyRaceAutoSkills(target, nextRace);
+		}
+		function sameTarget(a, b) {
+			if (!a || !b || a.kind !== b.kind) return false;
+			return a.kind === 'draft' || (a.obj && b.obj && a.obj.templateId === b.obj.templateId);
+		}
+		function applyRaceAutoSkills(target, race) {
+			const ids = skillIdsOf(target);
+			if (!ids || !rosterOutsideSink) return;
+			applyRosterHidden();   // 本育成で得るもの・レース条件（新しいレース）を、いまの①に合わせる
+			const record = raceAutoIdsOf(rosterOutsideSink.getRoster());
+			const inList = record.filter(id => ids.indexOf(id) !== -1);
+			const rest = ids.filter(id => inList.indexOf(id) === -1);
+			const want = raceAutoCandidateIds(race).filter(id => rest.indexOf(id) === -1 && !isPickerBlocked(id));
+			// 前のレースでも新しいレースでも入るものは、外さずにそのまま残す（記録にも残す）。知らせの数は、実際に外した・足したものだけ
+			const keep = inList.filter(id => want.indexOf(id) !== -1);
+			const drop = inList.filter(id => keep.indexOf(id) === -1);
+			const add = want.filter(id => keep.indexOf(id) === -1);
+			if (drop.length === 0 && add.length === 0) { rosterOutsideSink.setRaceAuto(keep); return; }
+			const prev = snapshot(ids);
+			const prevIcons = snapshot(iconsOf(target));
+			const prevTiers = snapshot(tiersOf(target));
+			pushUndo({
+				scope: 'list',
+				doneLabel: 'レースに合わせて' + (add.length > 0 ? add.length + '種を追加しました' + (drop.length > 0 ? '（' + drop.length + '種を外しました）' : '') : drop.length + '種を外しました'),
+				undoneLabel: 'レースに合わせた追加を取り消しました',
+				probe: () => probeOf(skillIdsOf(target)),
+				apply: () => {
+					if (!writeSkillIds(target, snapshot(prev), snapshot(prevTiers), snapshot(prevIcons))) return false;
+					if (rosterOutsideSink && sameTarget(target, currentTarget())) rosterOutsideSink.setRaceAuto(record);
+					picker.excludeIds = picker.excludeIds.filter(id => add.indexOf(id) === -1).concat(drop.filter(id => picker.excludeIds.indexOf(id) === -1));
+					afterEditingSkillsChanged(target);
+					return true;
+				}
+			});
+			const nextIcons = iconsOf(target);
+			drop.forEach(id => { delete nextIcons[id]; });
+			const next = ids.filter(id => drop.indexOf(id) === -1).concat(add);
+			if (!writeSkillIds(target, next, tiersWithout(prevTiers, drop), nextIcons)) return;
+			rosterOutsideSink.setRaceAuto(keep.concat(add));
+			picker.excludeIds = picker.excludeIds.filter(id => drop.indexOf(id) === -1).concat(add.filter(id => picker.excludeIds.indexOf(id) === -1));
+			afterEditingSkillsChanged(target);
 		}
 		/** セットの一覧の小窓（ラジオで切り替え・＋新規・選んだセットの削除） */
 		function fillSetList(body) {
@@ -11941,6 +12050,7 @@
 		/** setBased: スキルの並びとアイコンを書き、tiers をアイコンから導いて書く（下書きは下書きへ、テンプレートは保存まで） */
 		function writeSkillState(target, ids, icons) {
 			const derived = tiersFromIcons(ids, icons);
+			pruneRaceAuto(target, ids);
 			if (target.kind === 'draft') {
 				draftScope = persistDraft(ids, draftScope.name, derived, undefined, undefined, undefined, undefined, icons);
 				return true;
@@ -11955,6 +12065,15 @@
 			t.updatedAt = nowIso();
 			saveUserData();
 			return true;
+		}
+		/**
+		 * レースに合わせて自動で入れた記録（C-130・B）から、②に無くなったもの（手で外した・元に戻した）を落とす。
+		 * あとで手で足し直したものを、次にレースを変えたときに外さないため。記録に変わりが無ければ書かない
+		 */
+		function pruneRaceAuto(target, ids) {
+			if (!rosterOutsideSink || !sameTarget(target, currentTarget())) return;
+			const rec = raceAutoIdsOf(rosterOutsideSink.getRoster());
+			if (rec.some(id => ids.indexOf(id) === -1)) rosterOutsideSink.setRaceAuto(rec.filter(id => ids.indexOf(id) !== -1));
 		}
 		/**
 		 * 対象の「今の」アイコン { スキルID: アイコンID }（段9。special の②だけ）。写しを返す。skillIcons を持たない対象
