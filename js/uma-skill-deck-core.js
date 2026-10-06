@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-06b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-07a';
 
 	/* ============================================================
 	 * 定数
@@ -4612,8 +4612,11 @@
 		'.usd-out-partial, .usd-out-total { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
 		'.usd-out-partial { color: var(--uma-warn-text); font-weight: 600; }',
 		'.usd-out-total { font-weight: 700; color: var(--uma-text-heading); }',
-		'.usd-out-selrow { display: flex; align-items: center; gap: var(--uma-sp-3); }',
-		'.usd-out-selected { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--uma-text-subtle); }',
+		// C-131: 1行目は種数（左）と Pt（右）。折り返さない（狭い幅では種数の側を「…」で切る）
+		'.usd-out-total { display: flex; align-items: baseline; gap: var(--uma-sp-2); white-space: nowrap; font-variant-numeric: tabular-nums; }',
+		'.usd-out-total-kinds { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }',
+		'.usd-out-total-pt { flex: none; margin-left: auto; }',
+		'.usd-out-selrow { display: flex; align-items: center; justify-content: flex-end; gap: var(--uma-sp-3); }',
 		'.usd-out-add { flex: none; min-width: 88px; }',
 		// 一括貼り付けの照合結果
 		'.usd-paste-summary { display: flex; flex-wrap: wrap; gap: var(--uma-sp-2); align-items: center; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); margin-bottom: var(--uma-sp-1-5); }',
@@ -10840,8 +10843,9 @@
 				+ '<div class="usd-out-body" data-usd-el="outside-body"><div data-usd-el="outside-main"></div></div>'
 				+ '<div class="usd-modal-foot usd-out-foot" data-usd-el="outside-foot" hidden>'
 				+ '<p class="usd-out-partial" data-usd-el="outside-partial" hidden>途中の結果です（時間内に探し切れませんでした）</p>'
-				+ '<p class="usd-out-total" data-usd-el="outside-total"></p>'
-				+ '<div class="usd-out-selrow"><span class="usd-out-selected" data-usd-el="outside-selected"></span>'
+				// C-131: 1行目「得られるスキル XX種（追加済み YY種, 金スキル Z種）」と「N,NNN Pt」。2行目はボタンだけ（「選択 N種・M Pt」の行は無くした）
+				+ '<p class="usd-out-total"><span class="usd-out-total-kinds" data-usd-el="outside-total"></span><span class="usd-out-total-pt" data-usd-el="outside-total-pt"></span></p>'
+				+ '<div class="usd-out-selrow">'
 				+ '<button type="button" class="uma-btn uma-btn--secondary usd-out-recalc" data-usd-act="outside-recalc" data-usd-el="outside-recalc" hidden><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 再計算</button>'
 				+ '<button type="button" class="uma-btn uma-btn--primary usd-out-add" data-usd-act="outside-add" data-usd-el="outside-add" disabled>追加</button></div>'
 				+ '</div></div>';
@@ -11377,7 +11381,28 @@
 			if (outsideUi.open && toastLiftFn === outsideSyncToastLift) outsideSyncToastLift();
 		}
 
-		/** フッター（2行）。1行目「得られるスキル XX種（金スキル X種）」、2行目「選択 N種・M Pt」と［追加］。チェックの付け外しではここだけを更新する */
+		/**
+		 * フッター（2行。C-131）。1行目「得られるスキル XX種（追加済み YY種, 金スキル Z種）」と「N,NNN Pt」、2行目は［再計算］［追加］。チェックの付け外しではここだけを更新する。
+		 *   XX … チェックしている白スキル＋追加済みの白スキル（YY を含む）に、その前段を持つ金スキルを足して、種数（countSkillKinds。金と前段の白で1種）で数えたもの
+		 *   YY … 追加済みの白スキルの数（0 なら出さない）／Z … XX に入る金スキルの数（0 なら出さない）
+		 *   Pt … チェックしている白スキルの Pt の合計（追加済みは含めない）
+		 */
+		function outsideFootSummary(r) {
+			const checked = r.skills.filter(s => !s.added && outsideUi.checked.has(s.skillId)).map(s => s.skillId);
+			const added = r.skills.filter(s => s.added).map(s => s.skillId);
+			const sel = new Set(checked.concat(added));
+			const anc = outsideAncestorsFn();
+			const golds = r.golds.map(g => g.skillId).filter(g => anc(g).some(p => sel.has(p)));
+			const parts = [];
+			if (added.length > 0) parts.push('追加済み ' + added.length + '種');
+			if (golds.length > 0) parts.push('金スキル ' + golds.length + '種');
+			const p = outsidePtOf(checked);
+			return {
+				checked: checked,
+				kindsText: '得られるスキル ' + countSkillKinds(Array.from(sel).concat(golds)) + '種' + (parts.length > 0 ? '（' + parts.join(', ') + '）' : ''),
+				ptText: p.ok ? formatPtNumber(p.total) + ' Pt' + (p.unpriced.length > 0 ? '＋未収録 ' + p.unpriced.length + '種' : '') : ''
+			};
+		}
 		function updateOutsideFoot() {
 			const el = outsideUi.el;
 			if (!el) return;
@@ -11389,21 +11414,18 @@
 			if (!ok) {   // 計算中: 高さを保ったまま見えなくする（開いた直後に小窓の高さが跳ねないように）
 				foot.setAttribute('data-state', 'busy');
 				q(el, 'outside-partial').hidden = true;
-				q(el, 'outside-total').textContent = '得られるスキル 0種（金スキル 0種）';
-				q(el, 'outside-selected').textContent = '選択 0種・0 Pt';
+				q(el, 'outside-total').textContent = '得られるスキル 0種';
+				q(el, 'outside-total-pt').textContent = '0 Pt';
 				q(el, 'outside-add').disabled = true;
 				q(el, 'outside-recalc').hidden = true;
 				return;
 			}
 			foot.removeAttribute('data-state');
 			q(el, 'outside-partial').hidden = !r.partial;
-			q(el, 'outside-total').textContent = '得られるスキル ' + r.counts.kinds + '種（金スキル ' + r.counts.gold + '種）';
-			const ids = r.skills.filter(s => !s.added && outsideUi.checked.has(s.skillId)).map(s => s.skillId);
-			let text = '選択 ' + ids.length + '種';
-			const p = outsidePtOf(ids);
-			if (p.ok) text += '・' + formatPtNumber(p.total) + ' Pt' + (p.unpriced.length > 0 ? '＋未収録 ' + p.unpriced.length + '種' : '');
-			q(el, 'outside-selected').textContent = text;
-			q(el, 'outside-add').disabled = ids.length === 0;
+			const sum = outsideFootSummary(r);
+			q(el, 'outside-total').textContent = sum.kindsText;
+			q(el, 'outside-total-pt').textContent = sum.ptText;
+			q(el, 'outside-add').disabled = sum.checked.length === 0;
 			q(el, 'outside-recalc').hidden = outsideSkillKey() === outsideUi.applied;
 		}
 
