@@ -147,7 +147,9 @@ const UPCOMING_CATEGORY_NAME = 'upcomingRace';
 /* ②にまとめて追加するスキルのグループ（data/recommended-skills.json。C-130・2026-10-06）。`entries` を持たないので
    FILES には入れず、§13 で見る。onlyWhenRaceDistanceClass は race-distances.json の区分のキーの配列。 */
 const RECOMMENDED_FILE = 'recommended-skills.json';
-const RECOMMENDED_TOP_KEYS = { need: ['category', 'dataVersion', 'groups'], opt: ['note'] };
+const RECOMMENDED_TOP_KEYS = { need: ['category', 'dataVersion', 'groups'], opt: ['equivalentPairs', 'note'] };
+// 同じものとして扱うスキルの組（C-131。目覚めと、対応するスキル）
+const RECOMMENDED_PAIR_KEYS = { need: ['key', 'skillIds'], opt: [] };
 const RECOMMENDED_GROUP_KEYS = { need: ['key', 'label', 'skills'], opt: [] };
 const RECOMMENDED_SKILL_KEYS = { need: ['skillId', 'name'], opt: ['onlyWhenRaceDistanceClass'] };
 const RECOMMENDED_CATEGORY_NAME = 'recommendedSkills';
@@ -1163,6 +1165,30 @@ console.log('\n=== 13. ②にまとめて追加するスキルのグループ（
 			if (m2) [...m2[1].matchAll(/:\s*'([^']+)'/g)].forEach((x) => { if (!out.includes(x[1])) out.push(x[1]); });
 			return out;
 		})();
+		// C-131: 同じものとして扱うスキルの組。2つの id がどちらもマスターにある・2つのタグが同じ・どの id も複数の組に入らない・key が空でなく重ならない
+		{
+			const pairs = doc.equivalentPairs === undefined ? [] : doc.equivalentPairs;
+			const pairBad = [];
+			if (doc.equivalentPairs !== undefined && !isArr(doc.equivalentPairs)) pairBad.push('equivalentPairs が配列でない');
+			const masterById = new Map(masterSkills.map((s) => [String(s.id), s]));
+			const pkeys = new Set(), used = new Map();
+			(isArr(pairs) ? pairs : []).forEach((p, i) => {
+				const w = 'equivalentPairs[' + i + ']';
+				if (!checkKeys(p, RECOMMENDED_PAIR_KEYS, w, unknown, missing)) return;
+				if (!isStr(p.key) || !String(p.key).trim()) pairBad.push(w + ': key は空でない文字列');
+				else if (pkeys.has(p.key)) pairBad.push(w + ': key ' + p.key + ' が重複');
+				pkeys.add(p.key);
+				if (!isArr(p.skillIds) || p.skillIds.length !== 2 || !p.skillIds.every(isStr) || p.skillIds[0] === p.skillIds[1]) { pairBad.push(w + ': skillIds は違う2つの id'); return; }
+				p.skillIds.forEach((id) => {
+					if (!masterById.has(id)) pairBad.push(w + ': ' + id + ' がマスターに無い');
+					if (used.has(id)) pairBad.push(w + ': ' + id + ' が ' + used.get(id) + ' にも入っている');
+					used.set(id, w);
+				});
+				const [a, b] = p.skillIds.map((id) => masterById.get(id));
+				if (a && b && JSON.stringify(a.tags) !== JSON.stringify(b.tags)) pairBad.push(w + ': ' + p.skillIds.join('・') + ' のタグが同じでない');
+			});
+			none(pairBad, RECOMMENDED_FILE + ': equivalentPairs（2つの id がマスターにある・タグが同じ・どの id も1つの組だけ・key が空でなく重ならない）［' + (isArr(pairs) ? pairs.length : 0) + '組］');
+		}
 		check(coreKeys.length > 0, 'core.js から使うグループのキーを読めた（' + coreKeys.join('・') + '）');
 		none(coreKeys.filter((k) => !keys.has(k)), 'core.js が使うグループのキーがデータにある');
 		none(unknown, RECOMMENDED_FILE + ' に知らないキーが無い');

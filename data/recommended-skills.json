@@ -1,6 +1,6 @@
 {
 	"category": "recommendedSkills",
-	"dataVersion": "2026-10-06a",
+	"dataVersion": "2026-10-07a",
 	"groups": [
 		{
 			"key": "noDebuffExtra",
@@ -53,5 +53,13 @@
 			]
 		}
 	],
-	"note": "②にまとめて追加するスキルのグループ。noDebuffExtra はレースを選んだときに、そのレースに「デバフなし」の特殊ルールが無ければ足すもの。runnerEscape・runnerNotEscape は②のパレットの行のボタンで足すもの（①の脚質が逃げなら runnerEscape、先行・差し・追込なら runnerNotEscape）。label はボタンの文字。skills の並びは管理ID順（マスターの数字の id の昇順、続けて ex- の id の昇順）。onlyWhenRaceDistanceClass を持つスキルは、レースが選ばれていて、そのレースの距離の区分（race-distances.json の区分のキー）がこの一覧に含まれるときだけ足す。name は照合の控え（マスター・拡張スキルの名前と一致する）。形は npm run check:catalog が確かめる。"
+	"equivalentPairs": [
+		{ "key": "rightTurn", "skillIds": ["441", "1"] },
+		{ "key": "leftTurn", "skillIds": ["440", "2"] },
+		{ "key": "spring", "skillIds": ["442", "17"] },
+		{ "key": "summer", "skillIds": ["443", "18"] },
+		{ "key": "autumn", "skillIds": ["444", "19"] },
+		{ "key": "winter", "skillIds": ["445", "20"] }
+	],
+	"note": "②にまとめて追加するスキルのグループ。noDebuffExtra はレースを選んだときに、そのレースに「デバフなし」の特殊ルールが無ければ足すもの。runnerEscape・runnerNotEscape は②のパレットの行のボタンで足すもの（①の脚質が逃げなら runnerEscape、先行・差し・追込なら runnerNotEscape）。label はボタンの文字。skills の並びは管理ID順（マスターの数字の id の昇順、続けて ex- の id の昇順）。onlyWhenRaceDistanceClass を持つスキルは、レースが選ばれていて、そのレースの距離の区分（race-distances.json の区分のキー）がこの一覧に含まれるときだけ足す。name は照合の控え（マスター・拡張スキルの名前と一致する）。equivalentPairs は同じものとして扱うスキルの組（目覚めと、対応するスキル。skillIds の先頭が目覚め）。組のどちらかを①の本育成で得るなら、もう一方も②に追加しない。組のどちらかが②にあれば、もう一方も追加済みとして数える。形は npm run check:catalog が確かめる。"
 }
