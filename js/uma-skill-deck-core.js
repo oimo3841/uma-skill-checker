@@ -9535,7 +9535,7 @@
 					'<div class="usd-entry-row">' +
 						// 「オススメサポ」（本育成サポカ外スキル。special の②だけ）。入口列の先頭・濃色の塗り（小窓の「追加」と同じ）で、ほかの入口と見分ける
 						(setBased ? '<button type="button" class="uma-btn usd-outside-entry" data-usd-act="outside-open" data-usd-el="outside-open" aria-haspopup="dialog">' +
-							'<i data-lucide="sparkles" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> オススメサポαテスト</button>' : '') +
+							'<i data-lucide="sparkles" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> オススメサポ</button>' : '') +
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
 							'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件で検索' +
 						'</button>' +
@@ -10831,9 +10831,9 @@
 		}
 
 		function outsideMarkup() {
-			return '<div class="usd-modal-panel usd-out-panel" role="dialog" aria-modal="true" aria-label="オススメサポαテスト">'
+			return '<div class="usd-modal-panel usd-out-panel" role="dialog" aria-modal="true" aria-label="オススメサポ">'
 				+ '<div class="usd-out-head">'
-				+ '<p class="usd-out-title"><span data-usd-el="outside-title">オススメサポαテスト</span>'
+				+ '<p class="usd-out-title"><span data-usd-el="outside-title">オススメサポ</span>'
 				+ '<button type="button" class="uma-help-btn" data-usd-act="outside-help" data-usd-el="outside-help" aria-haspopup="dialog" aria-expanded="false" aria-label="オススメサポの説明" title="オススメサポの説明">?</button></p>'
 				+ '<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="outside-close" data-usd-el="outside-close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>'
 				+ '</div>'
