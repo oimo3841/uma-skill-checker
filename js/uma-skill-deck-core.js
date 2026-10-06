@@ -2687,9 +2687,11 @@
 		const oex = (po.exclude && typeof po.exclude === 'object') ? outsideExcludeOf(po.exclude) : outsideOptionsOf(r).exclude;
 		const excluding = Object.keys(oex).length > 0;
 		// C-130・D: ②で追加済みのスキル（po.addedSkillIds）は、除外の設定に関わらず数える（除外が効くのは、オススメで選ぶカードの母集団の、追加済みでないスキルだけ）
-		const added = new Set((Array.isArray(po.addedSkillIds) ? po.addedSkillIds : []).filter(id => typeof id === 'string'));
+		// C-131: 組のどちらかが②にあれば、もう一方も追加済みとして数える
+		const added = new Set(withEquivalents((Array.isArray(po.addedSkillIds) ? po.addedSkillIds : []).filter(id => typeof id === 'string')));
 		const vp = visiblePartOf(r, rosterSkillResultOf(r));
-		const taken = new Set(vp.takenIds), off = new Set(vp.offList);
+		// C-131: ①で得るスキルの組の相手（目覚めと対応するスキル）も、①で得るものとして母集団から外す
+		const taken = new Set(withEquivalents(vp.takenIds)), off = new Set(vp.offList);
 		const skipped = new Set(outsideSkillExcludedIdsOf(r));   // 小窓で除外したスキル（このパネルの計算だけ）
 		// ④・段9: レース条件に合わないスキルも外す（チェックリストにも「除外中」にも出さない。距離・バ場は wanted＝①の固定で効く）
 		const race = raceOfRoster(r);
@@ -2845,7 +2847,8 @@
 		});
 		return { ok: true, roster: roster, pop: pop, cands: cands, cardSrc: cardSrc, commonSrc: commonSrc, universe: universe, idx: idx, W: W,
 			countableGolds: new Set(countableGolds), groups: groups, expandIds: expandIds, ancestors: ancestors,
-			added: new Set((a.addedSkillIds || []).filter(id => typeof id === 'string')),
+			// C-131: 組のどちらかが②にあれば、もう一方も「追加済み」（一覧で選べない・追加しない・下段の追加済みに数える）
+			added: new Set(withEquivalents((a.addedSkillIds || []).filter(id => typeof id === 'string'))),
 			typeMin: typeMinOk, pinned: pinnedCards, bases: bases,
 			cons: { typeMin: typeMinOk, friendType: OUTSIDE_FRIEND_TYPE, friendMax: OUTSIDE_FRIEND_MAX, fill: Array.from(fillTypes.keys()).sort().map(k => ({ key: k, types: fillTypes.get(k) })),
 				bases: bases.map(b => b.m) } };
@@ -7473,11 +7476,11 @@
 	const RECOMMENDED_RACE_EXTRA_GROUP = 'noDebuffExtra';
 	const RECOMMENDED_GROUP_FOR_STYLE = { nige: 'runnerEscape', senko: 'runnerNotEscape', sashi: 'runnerNotEscape', oikomi: 'runnerNotEscape' };
 	const RECOMMENDED_FAILED_MSG = 'オススメのスキルのデータを読み込めませんでした';
-	let recommendedState = { status: 'idle', groups: null, promise: null };   // idle／loading／ok／failed
+	let recommendedState = { status: 'idle', groups: null, pairs: null, promise: null };   // idle／loading／ok／failed
 	const recommendedListeners = [];
 	function loadRecommendedSkills() {
 		if (recommendedState.status === 'ok' || recommendedState.status === 'loading') return recommendedState.promise;
-		const st = { status: 'loading', groups: null, promise: null };
+		const st = { status: 'loading', groups: null, pairs: null, promise: null };
 		recommendedState = st;
 		st.promise = (async () => {
 			try {
@@ -7494,6 +7497,14 @@
 					map.set(g.key, { key: g.key, label: g.label, skills: skills });
 				});
 				if (map.size === 0) throw new Error('empty');
+				// C-131: 同じものとして扱うスキルの組（equivalentPairs）。id → 組の相手の id の一覧。形が崩れた組は読まない
+				const pairs = new Map();
+				((doc && Array.isArray(doc.equivalentPairs)) ? doc.equivalentPairs : []).forEach(p => {
+					const ids = p && Array.isArray(p.skillIds) ? p.skillIds : null;
+					if (!ids || ids.length !== 2 || ids.some(id => typeof id !== 'string' || !id) || ids[0] === ids[1]) return;
+					ids.forEach((id, i) => { const other = ids[1 - i]; if (!pairs.has(id)) pairs.set(id, []); if (pairs.get(id).indexOf(other) === -1) pairs.get(id).push(other); });
+				});
+				st.pairs = pairs;
 				st.groups = map;
 				st.status = 'ok';
 			} catch (e) { st.status = 'failed'; }
@@ -7501,6 +7512,23 @@
 			return st.status;
 		})();
 		return st.promise;
+	}
+	/**
+	 * 同じものとして扱うスキルの組の相手（C-131。目覚めと、対応するスキル）。データが読めていなければ空（組を使わない＝今までの動き）。
+	 * 使うところ: ①の本育成で得るスキル（②の追加の一覧・レース選択の自動追加・脚質のボタン・オススメサポの母集団）と、オススメサポの追加済みの数え方
+	 */
+	function equivalentPartnersOf(id) {
+		const st = recommendedState;
+		return (st.status === 'ok' && st.pairs && st.pairs.get(id)) || [];
+	}
+	/** id の一覧に、組の相手を足したもの（並びは元の順・相手はその直後。重なりは除く） */
+	function withEquivalents(ids) {
+		const out = [];
+		(ids || []).forEach(id => {
+			if (out.indexOf(id) === -1) out.push(id);
+			equivalentPartnersOf(id).forEach(p => { if (out.indexOf(p) === -1) out.push(p); });
+		});
+		return out;
 	}
 	/** グループ（読めていなければ null） */
 	function recommendedGroupOf(key) {
@@ -9582,7 +9610,8 @@
 		// 編成（①）が変わったら、必要Ptと「本育成編成」の重なり・追加の一覧のグレーアウトも描き直す（段7の E・旧5。モーダルが開いたままでも映す）
 		rosterPtListeners.push(function () { if (!container.isConnected) return; renderPtNeed(); renderRosterLink(); applyRosterHidden(); if (setBased) { renderSetBar(); renderSelectedList(); } });
 		// C-130・C: グループのデータを読めたら、パレットの行のボタンを出す
-		recommendedListeners.push(function () { if (!container.isConnected || !setBased) return; renderPalette(); });
+		// C-131: 同じものとして扱うスキルの組も読めたので、選べなくするスキルを組み直す（開いている一覧はここで描き直る）
+		recommendedListeners.push(function () { if (!container.isConnected || !setBased) return; applyRosterHidden(); renderPalette(); });
 		onSkillPtLoaded(function () { if (!container.isConnected || !grouped) return; renderTabs(); renderSelectedList(); });
 
 		container.addEventListener('click', (e) => {
@@ -9613,7 +9642,7 @@
 			else if (act === 'editor-pick') openEditorPicker('filter');
 			else if (act === 'editor-pick-passive') openEditorPicker('passive');
 			else if (act === 'editor-pick-text') openEditorPicker('paste');
-			else if (act === 'editor-pick-screenshot') { if (opts.screenshotEntry && typeof opts.screenshotEntry.onClick === 'function') opts.screenshotEntry.onClick(); }
+			else if (act === 'editor-pick-screenshot') { ensureEquivalentsLoaded(); if (opts.screenshotEntry && typeof opts.screenshotEntry.onClick === 'function') opts.screenshotEntry.onClick(); }
 			else if (act === 'template-skill-remove') removeSkillFromEditing(btn.dataset.skillId);
 			else if (act === 'editor-clear-skills') clearEditingSkills();
 			// 分類（C-57）: 分類のタブ・再分類／削除のモード・1件の移動
@@ -10202,7 +10231,8 @@
 		/** 追加の一覧で選べなくするスキル（対象があるセットを編集しているときだけ）。モーダルが開いていれば描き直す（旧5）。 */
 		function applyRosterHidden() {
 			const linked = linkedRosterOf(currentTarget());
-			const sure = linked ? rosterSureIdsOf(linked) : [];
+			// C-131: 同じものとして扱うスキルの組の相手も「本育成で得るスキル」にする（右回り○を①で得るなら右回りの目覚めも。逆も同じ。組のデータが読めていなければ今までどおり）
+			const sure = linked ? (setBased ? withEquivalents(rosterSureIdsOf(linked)) : rosterSureIdsOf(linked)) : [];
 			const off = linked ? rosterOffIdsOf(linked).filter(id => sure.indexOf(id) === -1) : [];
 			const next = sure.concat(off);
 			// C-129: セットのレース条件（special の②＝setBased だけ。Deck 単体ページでは効かせない）
@@ -10902,6 +10932,9 @@
 				try { await loadSkillEffectLevels(); } catch (e) { /* 読めなくても計算は止めない */ }
 				if (tok !== outsideUi.token || !outsideUi.open) return;
 			}
+			// C-131: 同じものとして扱うスキルの組を先に読む（読めなければ組を使わずに計算する）
+			try { await ensureEquivalentsLoaded(); } catch (e) { /* 読めなくても計算は止めない */ }
+			if (tok !== outsideUi.token || !outsideUi.open) return;
 			// 枚数・種類・絞り込みは、セットの指定（roster.outsideOptions）を計算の側が読む（④・段10〜12）
 			try { r = await outsideSolve({ addedSkillIds: skillIdsOf(currentTarget()) || [] }); }
 			catch (e) { if (global.console) global.console.error('[UmaSkillDeckCore] オススメサポの計算で例外', e); r = { ok: false, reason: 'error' }; }
@@ -11770,7 +11803,17 @@
 		/* ---------- スキルの追加（3つの入口） ---------- */
 		// 3つの入口はどれも同じ「選んだIDを編集中のセットへ足す」処理へ合流する。
 		function openEditorPicker(mode) {
+			ensureEquivalentsLoaded();
 			openPicker(mode, editingSkillIds(), pickerSinkFor(currentTarget(), 'list'));
+		}
+		/**
+		 * 同じものとして扱うスキルの組（C-131）を、②の追加の一覧・オススメサポで最初に必要になったときに読む（special の②だけ。ページの読み込みでは読まない）。
+		 * 読めたら、選べなくするスキル（applyRosterHidden）を組み直す（recommendedListeners）。読めなくても知らせは出さない（組を使わない＝今までの動き）
+		 */
+		function ensureEquivalentsLoaded() {
+			if (!setBased || !rosterPtSource) return Promise.resolve(recommendedState.status);
+			if (recommendedState.status === 'ok' || recommendedState.status === 'loading') return recommendedState.promise;
+			return loadRecommendedSkills();
 		}
 
 		// ピッカーの受け皿（openPicker の第3引数。{scope, probe, add, remove}）。
@@ -11813,6 +11856,7 @@
 		 * 対象は選択中のもの（テンプレート／ドラフト）。足した分は Undo に積める（受け皿は入口と同じ pickerSinkFor）。
 		 */
 		function openSkillRowsPickerForSelection(rows, summary, options) {
+			ensureEquivalentsLoaded();
 			const target = currentTarget();
 			openSkillRowsPicker(skillIdsOf(target) || [], pickerSinkFor(target, 'list'), rows, summary, options);
 			return true;
