@@ -31,6 +31,7 @@ import { register13 } from './blocks-13.mjs';
 import { register14 } from './blocks-14.mjs';
 import { register15 } from './blocks-15.mjs';
 import { register16 } from './blocks-16.mjs';
+import { register17 } from './blocks-17.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -14135,6 +14136,7 @@ await register13({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register14({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register15({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register16({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register17({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

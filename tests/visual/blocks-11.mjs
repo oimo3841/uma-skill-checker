@@ -103,7 +103,8 @@ export async function register11(env) {
 				return { id: r.getAttribute('data-skill-id'), name: r.querySelector('.usd-out-name').textContent, added: r.classList.contains('usd-row--excluded'), checked: box.checked, disabled: box.disabled,
 					pt: (r.querySelector('[data-usd-el="outside-row-pt"]') || {}).textContent || null, mark: (r.querySelector('[data-usd-el="outside-added-mark"]') || {}).textContent || null };
 			}),
-			total: txt('[data-usd-el="outside-total"]'), selected: txt('[data-usd-el="outside-selected"]'),
+			// C-131: 下段は「得られるスキル XX種（追加済み YY種, 金スキル Z種）」と「N,NNN Pt」の1行（「選択 N種・M Pt」の行は無くした）。selected には Pt の部分を入れる
+			total: txt('[data-usd-el="outside-total"]'), selected: txt('[data-usd-el="outside-total-pt"]'),
 			footHidden: foot.hidden, footState: foot.getAttribute('data-state'),
 			partial: (() => { const e = q('[data-usd-el="outside-partial"]'); return e && !e.hidden ? e.textContent : null; })(),
 			addDisabled: q('[data-usd-el="outside-add"]').disabled, addText: txt('[data-usd-el="outside-add"]'),
@@ -113,11 +114,24 @@ export async function register11(env) {
 		};
 	});
 	const numOf = (s) => Number(String(s || '').replace(/[^0-9-]/g, ''));
-	/** 画面に出ている数字（「得られるスキル XX種（金スキル X種）」・「選択 N種・M Pt＋未収録 K種」）を読む */
+	/**
+	 * 画面に出ている数字（C-131 から「得られるスキル XX種（追加済み YY種, 金スキル Z種）」と「M Pt＋未収録 K種」）を読む。
+	 * YY・Z は 0 なら出ない。n はチェックしている行の数（画面にはもう出さないので、一覧のチェックから数える）
+	 */
 	const parseFoot = (s) => {
-		const t = /^得られるスキル (\d+)種（金スキル (\d+)種）$/.exec(s.total || '');
-		const sel = /^選択 (\d+)種・([\d,]+) Pt(?:＋未収録 (\d+)種)?$/.exec(s.selected || '');
-		return { kinds: t ? Number(t[1]) : null, gold: t ? Number(t[2]) : null, n: sel ? Number(sel[1]) : null, pt: sel ? Number(sel[2].replace(/,/g, '')) : null, unpriced: sel ? Number(sel[3] || 0) : null };
+		const t = /^得られるスキル (\d+)種(?:（(.+)）)?$/.exec(s.total || '');
+		const inner = t && t[2] ? t[2] : '';
+		const ad = /追加済み (\d+)種/.exec(inner), go = /金スキル (\d+)種/.exec(inner);
+		const sel = /^([\d,]+) Pt(?:＋未収録 (\d+)種)?$/.exec(s.selected || '');
+		return { kinds: t ? Number(t[1]) : null, added: t ? (ad ? Number(ad[1]) : 0) : null, gold: t ? (go ? Number(go[1]) : 0) : null,
+			n: (s.rows || []).filter((r) => r.checked && !r.added).length, pt: sel ? Number(sel[1].replace(/,/g, '')) : null, unpriced: sel ? Number(sel[2] || 0) : null };
+	};
+	/** 下段の1行目の文（C-131）。YY・Z は 0 なら出さない */
+	const footText = (kinds, added, gold) => {
+		const parts = [];
+		if (added > 0) parts.push('追加済み ' + added + '種');
+		if (gold > 0) parts.push('金スキル ' + gold + '種');
+		return '得られるスキル ' + kinds + '種' + (parts.length ? '（' + parts.join(', ') + '）' : '');
 	};
 	/** 純粋関数の結果（画面と突き合わせる） */
 	// C-129: 既定の除外に「低効果」が入ったので、小窓（開くときに効果の段階のデータを読む）と同じ条件にするため、計算の前に読む
@@ -387,9 +401,9 @@ export async function register11(env) {
 		const f = parseFoot(s);
 		const exp = await solveIn(sp.page, { count: 5, addedSkillIds: [] });
 		assert(s.rows.length === exp.skills.length && s.rows.every((r) => r.checked && !r.disabled && !r.added) && f.n === s.rows.length,
-			'オススメサポ(D) 最初は全部チェック済み（行 ' + s.rows.length + '）。「選択 N種」は行の数', { rows: s.rows.length, n: f.n });
-		assert(f.kinds === exp.counts.kinds && f.gold === exp.counts.gold && s.total === '得られるスキル ' + exp.counts.kinds + '種（金スキル ' + exp.counts.gold + '種）',
-			'オススメサポ(D) 「得られるスキル XX種（金スキル X種）」が countSkillKinds の数え方（純粋関数の counts）と一致', { s: s.total, exp: exp.counts });
+			'オススメサポ(D) 最初は全部チェック済み（行 ' + s.rows.length + '）', { rows: s.rows.length, n: f.n });
+		assert(f.kinds === exp.counts.kinds && f.gold === exp.counts.gold && s.total === footText(exp.counts.kinds, 0, exp.counts.gold),
+			'オススメサポ(D) 全部チェックのときの「得られるスキル XX種（金スキル Z種）」が countSkillKinds の数え方（純粋関数の counts）と一致', { s: s.total, exp: exp.counts });
 		const ptAll = await sp.page.evaluate((ids) => { const r = UmaSkillDeckCore.outside.ptOf(ids); return { total: r.total, unpriced: r.unpriced.length }; }, s.rows.map((r) => r.id));
 		assert(f.pt === ptAll.total && f.unpriced === ptAll.unpriced, 'オススメサポ(D) 「M Pt」は、チェックした全スキルについて computeRosterPt を切れ者・ヒントLv5 固定で呼んだ合計（前段込み）と一致', { f, ptAll });
 		// 行の Pt（そのスキルだけ）と、合計との関係を測る
@@ -405,16 +419,16 @@ export async function register11(env) {
 		const t1 = parseFoot(await snap(sp.page));
 		const own1 = await sp.page.evaluate((id) => UmaSkillDeckCore.outside.ptOf([id]).own, target.id);
 		const rest = await sp.page.evaluate((ids) => UmaSkillDeckCore.outside.ptOf(ids).total, s.rows.filter((r) => r.id !== target.id).map((r) => r.id));
-		assert(t1.n === f.n - 1 && t1.pt === rest && t1.pt <= f.pt && t1.pt < f.pt, 'オススメサポ(D) 1つ外すと、N種が1減り、M Pt がチェックの残りの合計に変わる（' + f.pt + ' → ' + t1.pt + '）', { f, t1, own1 });
+		assert(t1.n === f.n - 1 && t1.pt === rest && t1.pt <= f.pt && t1.pt < f.pt && t1.kinds <= f.kinds && t1.kinds >= f.kinds - 1, 'オススメサポ(D) 1つ外すと、得られるスキル XX種 も数え直し（C-131。金と前段の白の組は1種なので、減るのは1種まで）、M Pt がチェックの残りの合計に変わる（' + f.pt + ' → ' + t1.pt + '）', { f, t1, own1 });
 		const marks = await sp.page.evaluate(() => ({ card: document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]').__mark, row: document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-row"]').__mark }));
 		assert(marks.card === 1 && marks.row === 1, 'オススメサポ(D) チェックの付け外しでは再計算も描き直しもしない（カードとチェックリストの要素がそのまま）。フッターの数字だけを更新する', marks);
 		await sp.page.click(M + '[data-usd-el="outside-row"][data-skill-id="' + target.id + '"] input');
 		const t2 = parseFoot(await snap(sp.page));
-		assert(t2.n === f.n && t2.pt === f.pt && t2.kinds === f.kinds, 'オススメサポ(D) 付け直すと元の数字に戻る。得られるスキル XX種 は付け外しで変わらない', { f, t2 });
-		// 全部外す → 追加は押せない・「選択 0種・0 Pt」
+		assert(t2.n === f.n && t2.pt === f.pt && t2.kinds === f.kinds, 'オススメサポ(D) 付け直すと元の数字に戻る', { f, t2 });
+		// 全部外す → 追加は押せない・「得られるスキル 0種」「0 Pt」（追加済みが無いとき。C-131）
 		for (const r of s.rows) await sp.page.click(M + '[data-usd-el="outside-row"][data-skill-id="' + r.id + '"] input');
 		const z = await snap(sp.page);
-		assert(z.selected === '選択 0種・0 Pt' && z.addDisabled && parseFoot(z).kinds === f.kinds, 'オススメサポ(D) 全部外すと「選択 0種・0 Pt」。［追加］は押せない', z.selected);
+		assert(z.selected === '0 Pt' && z.total === '得られるスキル 0種' && z.addDisabled, 'オススメサポ(D) 全部外すと「得られるスキル 0種」「0 Pt」。［追加］は押せない', { total: z.total, pt: z.selected });
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ(D) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
@@ -448,7 +462,7 @@ export async function register11(env) {
 		assert(added.length === 2 && added.map((r) => r.id).sort().join() === pick.slice().sort().join() && added.every((r) => r.mark === '追加済み' && !r.checked && r.disabled && r.pt === null)
 			&& look.addColor !== look.norColor && look.op === '1' && look.dis && look.noCheckEl,
 			'オススメサポ(D) ②にあるスキルは薄い行（色だけで表す・opacity は使わない）で「追加済み」と出し、チェックできない', { added: added.map((r) => [r.id, r.mark, r.checked, r.disabled]), look });
-		assert(f.n === normal.length && normal.every((r) => r.checked) && f.kinds === kinds0, 'オススメサポ(D) 「選択 N種」は追加済みを含めない（' + f.n + '＝チェックできる行の数）。「得られるスキル XX種」には追加済みも含める（②が空のときと同じ ' + kinds0 + '種）', { f, normal: normal.length, kinds0 });
+		assert(f.n === normal.length && normal.every((r) => r.checked) && f.kinds === kinds0 && f.added === 2 && /（追加済み 2種/.test(s.total), 'オススメサポ(D) 「得られるスキル XX種」には追加済みも含め（②が空のときと同じ ' + kinds0 + '種）、「（追加済み 2種, …）」と出す（C-131）', { f, total: s.total, normal: normal.length, kinds0 });
 		const ptNo = await sp.page.evaluate((ids) => UmaSkillDeckCore.outside.ptOf(ids), normal.map((r) => r.id));
 		assert(f.pt === ptNo.total, 'オススメサポ(D) 「M Pt」は追加済みを含めない', { f: f.pt, expect: ptNo.total });
 		// Pt 未収録

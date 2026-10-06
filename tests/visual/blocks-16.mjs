@@ -225,7 +225,7 @@ export async function register16(env) {
 		await sleep(page, 600);
 	};
 
-	await block('C130C ①の脚質で②のパレットの行のボタンが切り替わる（逃げ→runnerEscape・先行／差し／追込→runnerNotEscape・指定なし→出さない）／「解除」の隣・同じ行／②の「低効果を除外」は無く①には残る／②が見えたときに1回だけ読む', async () => {
+	await block('C130C ①の脚質で②のパレットの行のボタンが切り替わる（逃げ→runnerEscape・先行／差し／追込→runnerNotEscape・指定なし→出さない）／「解除」の隣・同じ行／②の「低効果を除外」は無い／②が見えたときに1回だけ読む', async () => {
 		const sp = await openSp({ roster: Object.assign({}, FULL, { skillFilter: { style: 'nige' } }), tab: 0 });
 		assert(sp.recReqs.length === 0, 'C130C ①のタブを開いている間は読まない', sp.recReqs);
 		await sp.page.click('#step-tab-1');
@@ -233,7 +233,7 @@ export async function register16(env) {
 		const p = await readPalette(sp.page);
 		assert(p.has && p.text === GROUP('runnerEscape').label && p.group === 'runnerEscape' && sp.recReqs.length === 1, 'C130C 逃げ: ②を開くとグループのデータを1回だけ読み、ボタンの文字は runnerEscape の label', { p, reqs: sp.recReqs.length });
 		assert(p.next && p.sameLine && p.hscroll && !p.low, 'C130C ボタンは「解除」の隣で同じ行（入りきらなければ横に送る作り）。②の「低効果を除外」は無い', p);
-		assert(await sp.page.evaluate(() => !!document.querySelector('#deck-roster-panel [data-usd-el="roster-low-effect-btn"]')), 'C130C ①の「低効果を除外」は残る', true);
+		// （C-130 の時点では「①の『低効果を除外』は残る」を見ていた。C-131 で①のボタンも削除したので、ここでは見ない＝blocks-17 の C131C）
 		for (const v of ['senko', 'sashi', 'oikomi']) {
 			await setStyle(sp.page, v);
 			const q = await readPalette(sp.page);

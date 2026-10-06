@@ -217,89 +217,9 @@ export async function register15(env) {
 	});
 	const offIds = (page) => page.evaluate(() => (JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')) || {}).offSkillIds || []);
 
-	await block('C129C ①の列見出し: 「低効果を除外」は 375px・320px で列見出しの高さを増やさず、押せる大きさは 24px 以上', async () => {
-		for (const size of [{ w: 375, h: 812 }, { w: 320, h: 568 }]) {
-			const sp = await openSp({ w: size.w, h: size.h, tab: 0 });
-			const m = await sp.page.evaluate(() => {
-				const cell = document.querySelector('.usd-roster-gh--skill');
-				const btn = cell.querySelector('[data-usd-el="roster-low-effect-btn"]');
-				const h1 = cell.getBoundingClientRect().height;
-				const br = btn.getBoundingClientRect();
-				btn.style.display = 'none';
-				const h0 = cell.getBoundingClientRect().height;
-				btn.style.display = '';
-				const others = Array.from(cell.parentElement.children).slice(1).map((c) => c.getBoundingClientRect().height);
-				return { h1, h0, w: br.width, h: br.height, over: btn.scrollWidth > btn.clientWidth + 1, others: Math.max(...others), text: btn.textContent };
-			});
-			assert(Math.abs(m.h1 - m.h0) < 0.5 && m.h1 <= m.others + 0.5, 'C129C ' + size.w + 'px: ボタンがあっても列見出しの高さは同じ（' + m.h1 + 'px）', m);
-			assert(m.w >= 24 && m.h >= 24 && !m.over && m.text === '低効果を除外', 'C129C ' + size.w + 'px: ボタンは 24px 以上で文字がはみ出さない', m);
-			await sp.ctx.close();
-		}
-	});
-
-	await block('C129C ①: 確認の小窓（問いの語はデータから・対象 N種）／「やめる」で何も変わらない／「除外する」で低効果だけチェックが外れ、金と前段のまとまりは崩れない／ページの読み込みでは段階のファイルを取りに行かない', async () => {
-		const sp = await openSp({ tab: 0 });
-		assert(sp.effReqs.length === 0, 'C129C ページの読み込みでは skill-effect-levels.json を取りに行かない', sp.effReqs);
-		const units0 = await readRosterUnits(sp.page);
-		const expect = [];
-		units0.forEach((u) => { if (isLow(u[0].id)) u.forEach((it) => { if (it.sure && it.checked) expect.push(it.id); }); });
-		assert(expect.length > 0 && units0.some((u) => u.length > 1), 'C129C 材料: 低効果のスキルがあり（' + expect.length + '種）、金と前段のまとまりもある（空振りでない）', { expect, pairs: units0.filter((u) => u.length > 1).length });
-		await sp.page.click(P + '[data-usd-el="roster-low-effect-btn"]');
-		await sp.page.waitForSelector('[data-usd-el="low-effect-question"]');
-		const pop = await sp.page.evaluate(() => ({ q: document.querySelector('[data-usd-el="low-effect-question"]').textContent, n: document.querySelector('[data-usd-el="low-effect-count"]').textContent }));
-		assert(pop.q === '効果が“' + LOW_STAGE + '”以下のスキルを除外しますか？', 'C129C ①: 問いの語は lowEffectMax.key から', pop);
-		assert(pop.n === '対象 ' + expect.length + '種', 'C129C ①: 「対象 N種」は低効果のまとまりの●（チェックあり）の数', { pop, want: expect.length });
-		assert(sp.effReqs.length === 1, 'C129C ①: 押したときに1回だけ読む', sp.effReqs.length);
-		await sp.page.click('[data-usd-el="low-effect-cancel"]');
-		await sp.page.waitForTimeout(200);
-		assert((await offIds(sp.page)).length === 0, 'C129C ①: 「やめる」では何も変わらない', await offIds(sp.page));
-		await sp.page.click(P + '[data-usd-el="roster-low-effect-btn"]');
-		await sp.page.waitForSelector('[data-usd-el="low-effect-ok"]');
-		await sp.page.click('[data-usd-el="low-effect-ok"]');
-		await sp.page.waitForTimeout(300);
-		const off = await offIds(sp.page);
-		assert(off.slice().sort().join() === expect.slice().sort().join(), 'C129C ①: 「除外する」で低効果のスキルだけチェックが外れる（offSkillIds）', { off, expect });
-		const units1 = await readRosterUnits(sp.page);
-		const split = units1.filter((u) => u.length > 1 && u.some((it) => it.sure && it.checked) && u.some((it) => it.sure && !it.checked));
-		assert(split.length === 0, 'C129C ①: 金と前段の白のまとまりが崩れない（まとまりの中で一部だけ外れていない）', split);
-		const dis = await sp.page.evaluate(() => document.querySelector('[data-usd-el="roster-low-effect-btn"]').disabled);
-		assert(dis, 'C129C ①: 外したあとは対象が0種なので押せない', dis);
-		assert(sp.effReqs.length === 1, 'C129C ①: 2回目以降は読み直さない', sp.effReqs.length);
-		assert(jsErrors(sp.errors).length === 0, 'C129C ① コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
-		await sp.ctx.close();
-	});
-
-	await block('C129C ①: 金スキルの段階でまとまりごと判定する（前段の白だけが低効果でも外さない／金が低効果なら前段も外す）', async () => {
-		// 実データの表から、金と前段のまとまりを1つ選び、効果の段階のファイルを差し替えて2通り試す（段階の名前はデータから）
-		const probe = await openSp({ tab: 0 });
-		const units = await readRosterUnits(probe.page);
-		await probe.ctx.close();
-		const pair = units.find((u) => u.length > 1 && u.every((it) => it.sure && it.checked));
-		assert(!!pair, 'C129C 材料: ●の金と前段の白のまとまりがある', units.filter((u) => u.length > 1).map((u) => u.map((x) => x.id)));
-		const others = new Set(units.flat().map((it) => it.id));
-		const synth = (goldStage, whiteStage) => {
-			const doc = JSON.parse(JSON.stringify(EFFECT));
-			doc.entries.forEach((e) => { if (others.has(e.skillId)) e.maxStage = TOP_STAGE; });   // 表のほかのスキルは低効果にしない
-			doc.entries.forEach((e) => { if (e.skillId === pair[0].id) e.maxStage = goldStage; if (pair.slice(1).some((p) => p.id === e.skillId)) e.maxStage = whiteStage; });
-			return doc;
-		};
-		const run = async (doc) => {
-			const sp = await openSp({ tab: 0, effect: doc });
-			await sp.page.click(P + '[data-usd-el="roster-low-effect-btn"]');
-			await sp.page.waitForTimeout(500);
-			const pop = await sp.page.$('[data-usd-el="low-effect-ok"]');
-			let n = null;
-			if (pop) { n = await sp.page.evaluate(() => document.querySelector('[data-usd-el="low-effect-count"]').textContent); await pop.click(); await sp.page.waitForTimeout(300); }
-			const off = await offIds(sp.page);
-			const dis = await sp.page.evaluate(() => document.querySelector('[data-usd-el="roster-low-effect-btn"]').disabled);
-			await sp.ctx.close();
-			return { n, off, dis, popped: !!pop };
-		};
-		const r1 = await run(synth(TOP_STAGE, LOW_STAGE));
-		assert(!r1.popped && r1.off.length === 0 && r1.dis, 'C129C ①: 前段の白だけが低効果（金は高い段階）なら外さない（対象0種で小窓は出ず、ボタンは押せない）', r1);
-		const r2 = await run(synth(LOW_STAGE, TOP_STAGE));
-		assert(r2.popped && r2.off.slice().sort().join() === pair.map((p) => p.id).sort().join(), 'C129C ①: 金が低効果なら、前段の白（高い段階）も一緒に外す', { r2, pair: pair.map((p) => p.id) });
-	});
+	/* C-131（2026-10-07）で外した塊（3つ）: 「C129C ①の列見出し: 「低効果を除外」は…」「C129C ①: 確認の小窓…」「C129C ①: 金スキルの段階でまとまりごと判定する…」。
+	   ①の「低効果を除外」のボタンと確認の小窓を削除したため（低効果の除外が要るのは②の場面で、①では不要。おいもさんの判断）。
+	   ①の列見出しにボタンが無いこと・高さが 49px のままであることは blocks-17 の「C131C」が見る。 */
 
 	/* C-130（2026-10-06）で外した塊: 「C129C ②: 低効果のスキルだけ一覧から外れる…」。
 	   ②の「低効果を除外」のボタンと確認の小窓を削除し、同じ場所を①の脚質に応じたボタン（逃げオススメ・先差追オススメ）に置き換えたため。
