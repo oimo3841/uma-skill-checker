@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-06a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-06b';
 
 	/* ============================================================
 	 * 定数
@@ -90,7 +90,10 @@
 		'data/upcoming-races.json': '2026-10-04b',
 		// スキルの効果量の段階（C-129・2026-10-06）。説明文の効果の大きさを表す語から決めた段階。「低効果を除外」とオススメサポの「低効果」が使う。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadSkillEffectLevels）
-		'data/skill-effect-levels.json': '2026-10-05a'
+		'data/skill-effect-levels.json': '2026-10-05a',
+		// ②にまとめて追加するスキルのグループ（C-130・2026-10-06）。レースを選んだときの既定の追加と、②のパレットの行のボタンが使う。
+		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadRecommendedSkills）
+		'data/recommended-skills.json': '2026-10-06a'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
@@ -7445,6 +7448,66 @@
 		c.setAttribute('data-usd-el', 'low-effect-count');
 		body.appendChild(c);
 		body.appendChild(lowEffectConfirmButtons(onOk));
+	}
+
+	/* ------------------------------------------------------------
+	 * ②にまとめて追加するスキルのグループ（C-130・2026-10-06。data/recommended-skills.json）
+	 * groups: [{ key, label, skills: [{ skillId, name, onlyWhenRaceDistanceClass? }] }]。**スキル名・ボタンの文字はコードに書かない**（データから読む）。
+	 *   RECOMMENDED_RACE_EXTRA_GROUP … レースを選んだとき、そのレースに「デバフなし」の特殊ルールが無ければ足すグループ
+	 *   RECOMMENDED_GROUP_FOR_STYLE  … ②のパレットの行のボタン。①の脚質（タグの値）→ グループ（指定なしはボタンを出さない）
+	 * onlyWhenRaceDistanceClass を持つスキルは、レースが選ばれていて、その距離の区分（race-distances.json の区分のキー）が一覧に含まれるときだけ足す。
+	 * ページの読み込みでは取りに行かず、最初に必要になったとき（セットのレースを選んだとき・②のパレットの行が見えたとき）に1回だけ読む
+	 * （失敗したら次に必要になったときにもう一度試す）。
+	 * ------------------------------------------------------------ */
+	const RECOMMENDED_SKILLS_PATH = 'data/recommended-skills.json';
+	const RECOMMENDED_RACE_EXTRA_GROUP = 'noDebuffExtra';
+	const RECOMMENDED_GROUP_FOR_STYLE = { nige: 'runnerEscape', senko: 'runnerNotEscape', sashi: 'runnerNotEscape', oikomi: 'runnerNotEscape' };
+	const RECOMMENDED_FAILED_MSG = 'オススメのスキルのデータを読み込めませんでした';
+	let recommendedState = { status: 'idle', groups: null, promise: null };   // idle／loading／ok／failed
+	const recommendedListeners = [];
+	function loadRecommendedSkills() {
+		if (recommendedState.status === 'ok' || recommendedState.status === 'loading') return recommendedState.promise;
+		const st = { status: 'loading', groups: null, promise: null };
+		recommendedState = st;
+		st.promise = (async () => {
+			try {
+				const doc = await fetchMasterJson(withDataVersion(RECOMMENDED_SKILLS_PATH), false);
+				const map = new Map();
+				((doc && doc.groups) || []).forEach(g => {
+					if (!g || typeof g.key !== 'string' || !g.key || typeof g.label !== 'string' || !g.label || !Array.isArray(g.skills)) return;
+					const skills = [];
+					g.skills.forEach(s => {
+						if (!s || typeof s.skillId !== 'string' || !s.skillId || skills.some(x => x.skillId === s.skillId)) return;
+						const only = Array.isArray(s.onlyWhenRaceDistanceClass) ? s.onlyWhenRaceDistanceClass.filter(v => typeof v === 'string' && v) : null;
+						skills.push({ skillId: s.skillId, onlyWhenRaceDistanceClass: only });
+					});
+					map.set(g.key, { key: g.key, label: g.label, skills: skills });
+				});
+				if (map.size === 0) throw new Error('empty');
+				st.groups = map;
+				st.status = 'ok';
+			} catch (e) { st.status = 'failed'; }
+			recommendedListeners.forEach(fn => { try { fn(st.status); } catch (e2) { /* 1つの画面の不具合でほかを止めない */ } });
+			return st.status;
+		})();
+		return st.promise;
+	}
+	/** グループ（読めていなければ null） */
+	function recommendedGroupOf(key) {
+		return recommendedState.status === 'ok' ? (recommendedState.groups.get(key) || null) : null;
+	}
+	/** レースの距離の区分のキー（distanceCategory。無ければ距離から決める。どちらも無ければ null） */
+	function raceDistanceClassOf(race) {
+		if (!race) return null;
+		if (race.distanceCategory) return race.distanceCategory;
+		const c = race.distance ? categoryOfDistance(race.distance) : null;
+		return c ? c.key : null;
+	}
+	/** onlyWhenRaceDistanceClass に合うか（持たないスキルは常に合う。持つスキルは、レースがあって区分が一覧に含まれるときだけ） */
+	function recommendedRaceOk(entry, race) {
+		if (!entry.onlyWhenRaceDistanceClass) return true;
+		const cls = raceDistanceClassOf(race);
+		return !!cls && entry.onlyWhenRaceDistanceClass.indexOf(cls) !== -1;
 	}
 
 	/**

@@ -1,0 +1,57 @@
+{
+	"category": "recommendedSkills",
+	"dataVersion": "2026-10-06a",
+	"groups": [
+		{
+			"key": "noDebuffExtra",
+			"label": "ためらい",
+			"skills": [
+				{ "skillId": "78", "name": "逃げためらい" },
+				{ "skillId": "81", "name": "先行ためらい" },
+				{ "skillId": "84", "name": "差しためらい" },
+				{ "skillId": "87", "name": "追込ためらい" }
+			]
+		},
+		{
+			"key": "runnerEscape",
+			"label": "逃げオススメ",
+			"skills": [
+				{ "skillId": "39", "name": "ポジションセンス" },
+				{ "skillId": "119", "name": "危険回避" },
+				{ "skillId": "413", "name": "アオハル点火・速" },
+				{ "skillId": "417", "name": "アオハル点火・賢" },
+				{ "skillId": "420", "name": "前だけ見据えて" },
+				{ "skillId": "421", "name": "レースの真髄・速" },
+				{ "skillId": "422", "name": "レースの真髄・体" },
+				{ "skillId": "425", "name": "レースの真髄・賢" },
+				{ "skillId": "427", "name": "陽の加護" },
+				{ "skillId": "429", "name": "地の加護" },
+				{ "skillId": "431", "name": "バーニングソウル", "onlyWhenRaceDistanceClass": ["mile", "medium"] },
+				{ "skillId": "435", "name": "時代を変える者" },
+				{ "skillId": "437", "name": "本気で休んで、もう一度" },
+				{ "skillId": "438", "name": "アメリカンドリーム" },
+				{ "skillId": "439", "name": "恩返し、召し上がれ" }
+			]
+		},
+		{
+			"key": "runnerNotEscape",
+			"label": "先差追オススメ",
+			"skills": [
+				{ "skillId": "413", "name": "アオハル点火・速" },
+				{ "skillId": "420", "name": "前だけ見据えて" },
+				{ "skillId": "421", "name": "レースの真髄・速" },
+				{ "skillId": "422", "name": "レースの真髄・体" },
+				{ "skillId": "423", "name": "レースの真髄・力" },
+				{ "skillId": "425", "name": "レースの真髄・賢" },
+				{ "skillId": "427", "name": "陽の加護" },
+				{ "skillId": "429", "name": "地の加護" },
+				{ "skillId": "431", "name": "バーニングソウル", "onlyWhenRaceDistanceClass": ["mile", "medium"] },
+				{ "skillId": "435", "name": "時代を変える者" },
+				{ "skillId": "437", "name": "本気で休んで、もう一度" },
+				{ "skillId": "438", "name": "アメリカンドリーム" },
+				{ "skillId": "439", "name": "恩返し、召し上がれ" }
+			]
+		}
+	],
+	"note": "②にまとめて追加するスキルのグループ。noDebuffExtra はレースを選んだときに、そのレースに「デバフなし」の特殊ルールが無ければ足すもの。runnerEscape・runnerNotEscape は②のパレットの行のボタンで足すもの（①の脚質が逃げなら runnerEscape、先行・差し・追込なら runnerNotEscape）。label はボタンの文字。skills の並びは管理ID順（マスターの数字の id の昇順、続けて ex- の id の昇順）。onlyWhenRaceDistanceClass を持つスキルは、レースが選ばれていて、そのレースの距離の区分（race-distances.json の区分のキー）がこの一覧に含まれるときだけ足す。name は照合の控え（マスター・拡張スキルの名前と一致する）。形は npm run check:catalog が確かめる。"
+}

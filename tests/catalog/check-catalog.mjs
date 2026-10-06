@@ -144,6 +144,13 @@ const UPCOMING_FILE = 'upcoming-races.json';
 const UPCOMING_TOP_KEYS = { need: ['dataVersion', 'category', 'races'], opt: ['note'] };
 const UPCOMING_ROW_KEYS = { need: ['id', 'name', 'date', 'dateLabel', 'venue', 'surface', 'distance', 'distanceCategory', 'direction', 'course', 'season', 'weather', 'ground', 'time', 'rule'], opt: [] };
 const UPCOMING_CATEGORY_NAME = 'upcomingRace';
+/* ②にまとめて追加するスキルのグループ（data/recommended-skills.json。C-130・2026-10-06）。`entries` を持たないので
+   FILES には入れず、§13 で見る。onlyWhenRaceDistanceClass は race-distances.json の区分のキーの配列。 */
+const RECOMMENDED_FILE = 'recommended-skills.json';
+const RECOMMENDED_TOP_KEYS = { need: ['category', 'dataVersion', 'groups'], opt: ['note'] };
+const RECOMMENDED_GROUP_KEYS = { need: ['key', 'label', 'skills'], opt: [] };
+const RECOMMENDED_SKILL_KEYS = { need: ['skillId', 'name'], opt: ['onlyWhenRaceDistanceClass'] };
+const RECOMMENDED_CATEGORY_NAME = 'recommendedSkills';
 /* めろっぷ用の行の並び（data/melop-sheet-rows.json。C-101）。めろっぷ！【LTC】さんの因子管理シートの
    ★を貼る欄（H38:J599）の行の並び。`entries` を持たないので FILES には入れず、§9 で見る。
    行番号の範囲は貼り先の形そのものなので、ここに数字で持つ（シートの欄が変わったら、こことデータを一緒に直す）。 */
@@ -1087,6 +1094,85 @@ console.log('\n=== 12. これから開催されるレースの一覧（' + UPCOM
 		none(missing, UPCOMING_FILE + ' の必須のキーが揃っている（公開されていない項目も null で書く）');
 		none(bad, UPCOMING_FILE + ' の値が決めた形（値がタグの選択肢に実在する／項目に合ったタグの値／距離と区分が合う／その距離・区分にそのバ場がある／特殊ルールが既知）');
 		console.log('     ' + rows.length + 'レース（特殊ルールあり ' + rows.filter((x) => x.rule !== null).length + '）');
+	}
+}
+
+/* ──────────────────────── 13. ②にまとめて追加するスキルのグループ ──────────────────────── */
+
+console.log('\n=== 13. ②にまとめて追加するスキルのグループ（' + RECOMMENDED_FILE + '） ===');
+/* C-130（2026-10-06）。レースを選んだときの既定の追加（noDebuffExtra）と、②のパレットの行のボタン（脚質ごと）が使う。
+   **スキル名・グループの文字はここに書かない** ―― skillId がマスター・拡張スキルに実在し name が一致すること、
+   グループの中で重ならず管理ID順（マスターの数字の id の昇順、続けて ex- の id の昇順）であること、label が空でないこと、
+   onlyWhenRaceDistanceClass の値が race-distances.json の区分のキーにあること、core.js が使うグループのキーがデータにあることを見る。 */
+{
+	const abs = path.join(REPO_ROOT, DIR, RECOMMENDED_FILE);
+	const r = fs.existsSync(abs) ? readJsonFile(abs) : { ok: false, error: 'ファイルが無い' };
+	check(r.ok, RECOMMENDED_FILE + ' が読める', r.ok ? undefined : r.error);
+	const raceDoc = readJsonFile(path.join(REPO_ROOT, DIR, RACE_FILE));
+	if (r.ok && raceDoc.ok) {
+		const doc = r.data;
+		const unknown = [], missing = [], bad = [], noRef = [], nameDiff = [], dup = [], order = [];
+		checkKeys(doc, RECOMMENDED_TOP_KEYS, RECOMMENDED_FILE, unknown, missing);
+		if (doc.category !== RECOMMENDED_CATEGORY_NAME) bad.push('category が ' + JSON.stringify(doc.category));
+		if (!DATA_VERSION_RE.test(String(doc.dataVersion))) bad.push('dataVersion が「YYYY-MM-DD＋英小文字1字」の形でない: ' + String(doc.dataVersion));
+		const groups = isArr(doc.groups) ? doc.groups : [];
+		if (!isArr(doc.groups) || groups.length === 0) bad.push('groups が空でない配列でない');
+		const catKeys = new Set((raceDoc.data.distanceCategories || []).map((c) => c.key));
+		const nameById = new Map(masterNameById);
+		docs.extendedSkill.entries.forEach((e) => nameById.set(String(e.id), String(e.name)));
+		// 管理ID順の並びの鍵（マスターの数字の id が先・数の昇順、続けて ex- の id が番号の昇順）
+		const orderKey = (id) => { const s = String(id); return /^\d+$/.test(s) ? [0, Number(s)] : (/^ex-(\d+)$/.test(s) ? [1, Number(s.slice(3))] : [2, 0]); };
+		const before = (a, b) => { const x = orderKey(a), y = orderKey(b); return x[0] < y[0] || (x[0] === y[0] && x[1] < y[1]); };
+		const keys = new Set();
+		let total = 0;
+		groups.forEach((g, gi) => {
+			const w = 'groups[' + gi + ']';
+			if (!checkKeys(g, RECOMMENDED_GROUP_KEYS, w, unknown, missing)) return;
+			if (!isStr(g.key)) bad.push(w + ': key は空でない文字列');
+			else if (keys.has(g.key)) bad.push(w + ': key ' + g.key + ' が重複');
+			keys.add(g.key);
+			if (!isStr(g.label) || !String(g.label).trim()) bad.push(w + ': label は空でない文字列');
+			if (!isArr(g.skills) || g.skills.length === 0) { bad.push(w + ': skills が空でない配列でない'); return; }
+			const seen = new Set();
+			g.skills.forEach((s, si) => {
+				const ws = w + '.skills[' + si + ']';
+				if (!checkKeys(s, RECOMMENDED_SKILL_KEYS, ws, unknown, missing)) return;
+				total++;
+				if (!isStr(s.skillId) || !isStr(s.name)) { bad.push(ws + ': skillId / name は空でない文字列'); return; }
+				if (!nameById.has(s.skillId)) noRef.push(ws + ': ' + s.skillId);
+				else if (nameById.get(s.skillId) !== s.name) nameDiff.push(ws + ': ' + s.skillId + ' の name が一致しない');
+				if (seen.has(s.skillId)) dup.push(ws + ': ' + s.skillId);
+				seen.add(s.skillId);
+				if (si > 0 && isStr(g.skills[si - 1].skillId) && !before(g.skills[si - 1].skillId, s.skillId)) order.push(ws + ': ' + g.skills[si - 1].skillId + ' の次に ' + s.skillId);
+				if (s.onlyWhenRaceDistanceClass !== undefined) {
+					const v = s.onlyWhenRaceDistanceClass;
+					if (!isArr(v) || v.length === 0 || !v.every(isStr)) bad.push(ws + ': onlyWhenRaceDistanceClass は空でない文字列の配列');
+					else {
+						if (new Set(v).size !== v.length) bad.push(ws + ': onlyWhenRaceDistanceClass の値が重複');
+						v.filter((x) => !catKeys.has(x)).forEach((x) => bad.push(ws + ': onlyWhenRaceDistanceClass の ' + x + ' が ' + RACE_FILE + ' の区分に無い'));
+					}
+				}
+			});
+		});
+		// core.js が使うグループのキー（RECOMMENDED_GROUP_FOR_STYLE・RECOMMENDED_RACE_EXTRA_GROUP）がデータにある
+		const coreKeys = (() => {
+			const out = [];
+			const m1 = /const RECOMMENDED_RACE_EXTRA_GROUP = '([^']+)'/.exec(coreSrc);
+			if (m1) out.push(m1[1]);
+			const m2 = /const RECOMMENDED_GROUP_FOR_STYLE = \{([^}]*)\}/.exec(coreSrc);
+			if (m2) [...m2[1].matchAll(/:\s*'([^']+)'/g)].forEach((x) => { if (!out.includes(x[1])) out.push(x[1]); });
+			return out;
+		})();
+		check(coreKeys.length > 0, 'core.js から使うグループのキーを読めた（' + coreKeys.join('・') + '）');
+		none(coreKeys.filter((k) => !keys.has(k)), 'core.js が使うグループのキーがデータにある');
+		none(unknown, RECOMMENDED_FILE + ' に知らないキーが無い');
+		none(missing, RECOMMENDED_FILE + ' の必須のキーが揃っている');
+		none(bad, RECOMMENDED_FILE + ' の値が決めた形（key は重ならない・label は空でない・onlyWhenRaceDistanceClass の値は ' + RACE_FILE + ' の区分）');
+		none(noRef, RECOMMENDED_FILE + ': skillId がマスター・拡張スキルに実在する');
+		none(nameDiff, RECOMMENDED_FILE + ': name（照合の控え）がマスター・拡張スキルの名前と一致');
+		none(dup, RECOMMENDED_FILE + ': グループの中で skillId が重ならない');
+		none(order, RECOMMENDED_FILE + ': グループの中の並びが管理ID順（マスターの数字の id の昇順、続けて ex- の id の昇順）');
+		console.log('     ' + groups.length + 'グループ・のべ ' + total + '種（' + groups.map((g) => (g && g.key) + ' ' + ((g && isArr(g.skills)) ? g.skills.length : 0)).join(' / ') + '）');
 	}
 }
 
