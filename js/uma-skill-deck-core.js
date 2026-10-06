@@ -11469,9 +11469,9 @@
 			const key = recommendStyleGroupKey();
 			const g = key ? recommendedGroupOf(key) : null;
 			if (!g) return '';
-			const n = recommendPlanOf(g).add.length;
+			// C-131: 追加できるものが0種でも押せない状態にしない（押すと、何も足さずに理由の内訳を知らせる＝addRecommendedGroup）
 			return '<button type="button" class="usd-palette-clear" data-usd-act="recommend-add" data-usd-el="recommend-btn" data-group="' + esc(g.key) + '"'
-				+ (n === 0 ? ' disabled' : '') + ' title="' + esc(g.label + 'のスキルをまとめて追加') + '">' + esc(g.label) + '</button>';
+				+ ' title="' + esc(g.label + 'のスキルをまとめて追加') + '">' + esc(g.label) + '</button>';
 		}
 		/**
 		 * パレットの行が見えたら（②のタブを開いた・スクロールで現れた）、脚質に応じたボタンのためにグループのデータを読む。
@@ -11501,12 +11501,13 @@
 			const ids = skillIdsOf(target);
 			if (!g || !ids) return;
 			const plan = recommendPlanOf(g);
-			if (plan.add.length === 0) { renderPalette(); return; }
 			const skip = plan.already.length + plan.roster.length + plan.race.length;
 			const why = [];
 			if (plan.already.length > 0) why.push('追加済み ' + plan.already.length + '種');
 			if (plan.roster.length > 0) why.push('本育成編成のため ' + plan.roster.length + '種');
 			if (plan.race.length > 0) why.push('レース条件に合わないため ' + plan.race.length + '種');
+			// C-131: 追加できるものが0種なら、何も足さずに知らせる（内訳は「追加しなかったもの」と同じ書き方。内訳も0なら一文だけ）
+			if (plan.add.length === 0) { toast('追加できるスキルはありません' + (why.length > 0 ? '（' + why.join('・') + '）' : '')); return; }
 			const prev = snapshot(ids);
 			const prevIcons = snapshot(iconsOf(target));
 			const add = plan.add.slice();
