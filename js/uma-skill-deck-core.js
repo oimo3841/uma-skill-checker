@@ -2672,6 +2672,7 @@
 	/**
 	 * 母集団（②に追加できる白スキル）。条件で検索の母集団と緑スキルの合計（taggedSkillPool）のうち、区分が白（Pt 未収録で区分が不明なものも残す）で、
 	 * ①の絞り込みに合い、①の●（OFFでないもの）と、①でOFFにしたスキルを除いたもの。**すでに②にあるスキルは入れたまま。金スキルは入れない。**
+	 * 小窓の「除外」は、②で追加済みのスキル（popOpts.addedSkillIds）には効かせない（C-130・D。追加済みのスキルも数える）。
 	 * roster は①の編成（無ければ {}＝絞り込みなし・●なし）。元データ（スキルPt）が読めていなければ { ok:false }。
 	 */
 	function outsidePopulationOf(roster, popOpts) {
@@ -2684,6 +2685,8 @@
 		const po = popOpts || {};
 		const oex = (po.exclude && typeof po.exclude === 'object') ? outsideExcludeOf(po.exclude) : outsideOptionsOf(r).exclude;
 		const excluding = Object.keys(oex).length > 0;
+		// C-130・D: ②で追加済みのスキル（po.addedSkillIds）は、除外の設定に関わらず数える（除外が効くのは、オススメで選ぶカードの母集団の、追加済みでないスキルだけ）
+		const added = new Set((Array.isArray(po.addedSkillIds) ? po.addedSkillIds : []).filter(id => typeof id === 'string'));
 		const vp = visiblePartOf(r, rosterSkillResultOf(r));
 		const taken = new Set(vp.takenIds), off = new Set(vp.offList);
 		const skipped = new Set(outsideSkillExcludedIdsOf(r));   // 小窓で除外したスキル（このパネルの計算だけ）
@@ -2700,7 +2703,7 @@
 			if (wanted && !wanted(s.id)) return;
 			if (taken.has(s.id) || off.has(s.id) || skipped.has(s.id)) return;
 			if (race && raceRejectsSkill(findSkill(s.id), race)) { raceOut.push(s.id); return; }
-			if (excluding && outsideExcludesSkill(findSkill(s.id), oex)) { excludeOut.push(s.id); return; }
+			if (excluding && !added.has(s.id) && outsideExcludesSkill(findSkill(s.id), oex)) { excludeOut.push(s.id); return; }
 			ids.push(s.id);
 		});
 		return { ok: true, ids: ids, set: new Set(ids), takenIds: Array.from(taken), offIds: Array.from(off), skillExcludedIds: Array.from(skipped), raceExcludedIds: raceOut, race: race,
@@ -2754,7 +2757,7 @@
 	function outsideBuild(args) {
 		const a = args || {};
 		const roster = (a.roster && typeof a.roster === 'object') ? a.roster : (rosterOutsideSink ? rosterOutsideSink.getRoster() : {});
-		const pop = outsidePopulationOf(roster, { exclude: (a.exclude && typeof a.exclude === 'object') ? a.exclude : null });
+		const pop = outsidePopulationOf(roster, { exclude: (a.exclude && typeof a.exclude === 'object') ? a.exclude : null, addedSkillIds: a.addedSkillIds });
 		if (!pop.ok) return { ok: false, reason: pop.reason };
 		if (!trainingMeta.loaded || !trainingSources.supportCard) return { ok: false, reason: 'cards' };
 		// 段13・C1: 残りの枠に指定したカード（pinnedCardIds）。そのカードで得られるスキルは「得られる」として扱い（探索の出発点の被覆）、
