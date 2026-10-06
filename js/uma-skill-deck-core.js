@@ -5540,6 +5540,7 @@
 		// （縮まない箱では右の余白〔--usd-entry-trim〕で幅が減らないので、覗かせの切り詰めは上限の側に入れる）
 		'  .usd-skillgroup-head .usd-entry-row { flex: 0 0 auto; min-width: 0; max-width: calc(100% - 108px - var(--usd-entry-trim, 0px)); }',
 		// C-129: パレットに「低効果を除外」を足して幅が増えたので、足りないときはパレットの側を先に縮める（横に送る・フェード付き）。入口の列を優先する
+		// （C-130 で、そのボタンは①の脚質に応じた「逃げオススメ」「先差追オススメ」に置き換えた。幅の決まりはそのまま）
 		'  .usd-skillgroup-head .usd-palette { margin-left: auto; flex: 0 100 auto; min-width: 96px; }',
 		'}',
 		// パレット「◎ ○ △ ◇ ★ ✕ │ 解除」: 24px の丸を1行（足りなければ横スクロール）。選択中は外側に 2px の輪
@@ -5555,7 +5556,7 @@
 		'  background: var(--uma-surface); color: var(--uma-text-heading); cursor: pointer; white-space: nowrap; }',
 		'.usd-palette-clear[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--uma-group-bg, var(--uma-surface)), 0 0 0 4px var(--uma-text-heading); }',
 		'.usd-palette-clear:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 3px; }',
-		// C-129: 「低効果を除外」（②はパレットの「解除」と同じ形。①は「スキル名」の列見出しの下の小さなボタン）。押せないときは灰（共有の無効の色）
+		// C-129: 「低効果を除外」（①は「スキル名」の列見出しの下の小さなボタン）と、②のパレットの行のボタン（C-130 から「逃げオススメ」などの脚質のボタン。「解除」と同じ形）。押せないときは灰（共有の無効の色）
 		'.usd-palette-clear:disabled, .usd-lowfx-btn:disabled { color: var(--uma-control-disabled); background: var(--uma-control-disabled-bg); border-color: var(--uma-border); cursor: default; }',
 		// ①: 「スキル名」と、その下の「低効果／を除外」（2行・11px）。列見出しの高さは増やさない（375px・320px で実測。幅 37〜41px・高さ 24px）
 		'.usd-roster-ghname { display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; align-self: stretch; min-width: 0; flex: 0 1 auto; gap: 2px; }',
@@ -9639,6 +9640,8 @@
 		// 編成パネル（①）が描き直したとき、必要Ptも描き直す（本育成のぶんが変わるため）。段5
 		// 編成（①）が変わったら、必要Ptと「本育成編成」の重なり・追加の一覧のグレーアウトも描き直す（段7の E・旧5。モーダルが開いたままでも映す）
 		rosterPtListeners.push(function () { if (!container.isConnected) return; renderPtNeed(); renderRosterLink(); applyRosterHidden(); if (setBased) { renderSetBar(); renderSelectedList(); } });
+		// C-130・C: グループのデータを読めたら、パレットの行のボタンを出す
+		recommendedListeners.push(function () { if (!container.isConnected || !setBased) return; renderPalette(); });
 		onSkillPtLoaded(function () { if (!container.isConnected || !grouped) return; renderTabs(); renderSelectedList(); });
 
 		container.addEventListener('click', (e) => {
@@ -9686,7 +9689,7 @@
 			else if (act === 'pt-total-help') openPtTotalPopover(btn);
 			// 段9: アイコンのパレットと、行の先頭のアイコン
 			else if (act === 'palette-pick') pickPalette(btn.dataset.icon);
-			else if (act === 'low-effect') { if (!btn.disabled) openLowEffectConfirmFor(btn); }   // C-129
+			else if (act === 'recommend-add') { if (!btn.disabled) addRecommendedGroup(btn.dataset.group); }   // C-130・C
 			else if (act === 'skill-icon') toggleSkillIcon(btn.dataset.skillId);
 			else if (act === 'factor-reset') openFactorResetPopover(btn);
 			else if (act === 'outside-open') openOutsideAdvisor(btn);
@@ -10145,7 +10148,7 @@
 			if (!writeSkillIds(target, next, tiersWithout(prevTiers, drop), nextIcons)) return;
 			rosterOutsideSink.setRaceAuto(keep.concat(add));
 			picker.excludeIds = picker.excludeIds.filter(id => drop.indexOf(id) === -1).concat(add.filter(id => picker.excludeIds.indexOf(id) === -1));
-			afterEditingSkillsChanged(target);
+			afterAutoAdd(target);
 		}
 		/** セットの一覧の小窓（ラジオで切り替え・＋新規・選んだセットの削除） */
 		function fillSetList(body) {
@@ -11438,15 +11441,103 @@
 				+ '<span class="usd-palette-sep" aria-hidden="true"></span>'
 				+ '<button type="button" class="usd-palette-clear" data-usd-act="palette-pick" data-usd-el="palette-clear" data-icon="clear" aria-pressed="' + (paletteSel === 'clear' ? 'true' : 'false') + '"'
 				+ ' title="押した行のアイコンを外す">解除</button>'
-				// C-129: 「低効果を除外」。押すと確認の小窓。対象が0種なら押せない（効果の段階のデータは押したときに初めて読むので、
-				// 読む前は一覧にスキルがあれば押せる。読んだあとは対象の数で決まる）
-				+ (function () {
-					const ids = skillIdsOf(currentTarget()) || [];
-					const none = ids.length === 0 || (skillEffectState.status === 'ok' && lowEffectIdsOfEditing().length === 0);
-					return '<button type="button" class="usd-palette-clear" data-usd-act="low-effect" data-usd-el="low-effect-btn" aria-haspopup="dialog" aria-expanded="false"'
-						+ (none ? ' disabled' : '') + ' title="低効果のスキルを一覧から外す">低効果を除外</button>';
-				})();
+				// C-130・C: ①の脚質に応じたボタン（C-129 の「低効果を除外」を置き換えた）。文字はグループの label（データから）。
+				// 脚質が指定なしなら出さない。グループのデータは、この行が見えたときに初めて読む（読むまでは出さない）。追加できるものが0種なら押せない
+				+ recommendButtonHtml();
 			scanEntryRows();
+			watchRecommendVisible(el);
+		}
+		/* ---------- ②のパレットの行の「逃げオススメ」「先差追オススメ」（C-130・C） ---------- */
+		/** ①の脚質に応じたグループのキー（脚質が指定なし・対応が無ければ null） */
+		function recommendStyleGroupKey() {
+			const linked = linkedRosterOf(currentTarget());
+			const style = linked ? resolvedFilterOf(linked).style : undefined;
+			return (style && RECOMMENDED_GROUP_FOR_STYLE[style]) || null;
+		}
+		/**
+		 * グループのうち、追加するもの（add）と、追加しないもの（理由ごと）。理由が重なるときは、追加済み → 本育成編成 → レース条件 の順に1つだけ数える。
+		 * レース条件には onlyWhenRaceDistanceClass に合わないもの（レースが選ばれていないときを含む）も入れる
+		 */
+		function recommendPlanOf(group) {
+			const ids = skillIdsOf(currentTarget()) || [];
+			const linked = linkedRosterOf(currentTarget());
+			const race = setBased && linked ? raceOfRoster(linked) : null;
+			const plan = { add: [], already: [], roster: [], race: [] };
+			group.skills.forEach(e => {
+				const id = e.skillId;
+				if (ids.indexOf(id) !== -1) plan.already.push(id);
+				else if (isPickerExcluded(id)) plan.roster.push(id);
+				else if (isPickerRaceBlocked(id) || !recommendedRaceOk(e, race)) plan.race.push(id);
+				else plan.add.push(id);
+			});
+			return plan;
+		}
+		function recommendButtonHtml() {
+			const key = recommendStyleGroupKey();
+			const g = key ? recommendedGroupOf(key) : null;
+			if (!g) return '';
+			const n = recommendPlanOf(g).add.length;
+			return '<button type="button" class="usd-palette-clear" data-usd-act="recommend-add" data-usd-el="recommend-btn" data-group="' + esc(g.key) + '"'
+				+ (n === 0 ? ' disabled' : '') + ' title="' + esc(g.label + 'のスキルをまとめて追加') + '">' + esc(g.label) + '</button>';
+		}
+		/**
+		 * パレットの行が見えたら（②のタブを開いた・スクロールで現れた）、脚質に応じたボタンのためにグループのデータを読む。
+		 * ページの読み込みでは読まない（①のタブを開いている間・脚質が指定なしの間は読まない）。読めなければ短い知らせを出す（次に見えたときにもう一度試す）
+		 */
+		let recommendObserver = null;
+		function watchRecommendVisible(el) {
+			// ①のパネルができる前は見張らない（脚質は①のもの。special は起動の途中で②を一時的に開くので、そこで読まないため。
+			// ①ができたあとの描き直しで、ここへもう一度来る）
+			if (!setBased || !rosterPtSource || recommendedState.status === 'ok' || !recommendStyleGroupKey()) return;
+			const tryLoad = () => {
+				if (recommendedState.status === 'ok' || recommendedState.status === 'loading' || !recommendStyleGroupKey()) return;
+				loadRecommendedSkills().then(st => { if (st !== 'ok') toast(RECOMMENDED_FAILED_MSG, 'warn'); });
+			};
+			if (typeof global.IntersectionObserver !== 'function') { tryLoad(); return; }
+			if (!recommendObserver) {
+				recommendObserver = new global.IntersectionObserver((entries) => { if (entries.some(x => x.isIntersecting)) tryLoad(); }, { rootMargin: '100000px 0px' });
+			}
+			recommendObserver.disconnect();
+			recommendObserver.observe(el);
+		}
+		/** 押したとき: 確認なしでまとめて②に追加し、「元に戻す」に1回で積む。追加しなかったものは、数と理由を知らせに添える */
+		function addRecommendedGroup(key) {
+			applyRosterHidden();
+			const g = recommendedGroupOf(key);
+			const target = currentTarget();
+			const ids = skillIdsOf(target);
+			if (!g || !ids) return;
+			const plan = recommendPlanOf(g);
+			if (plan.add.length === 0) { renderPalette(); return; }
+			const skip = plan.already.length + plan.roster.length + plan.race.length;
+			const why = [];
+			if (plan.already.length > 0) why.push('追加済み ' + plan.already.length + '種');
+			if (plan.roster.length > 0) why.push('本育成編成のため ' + plan.roster.length + '種');
+			if (plan.race.length > 0) why.push('レース条件に合わないため ' + plan.race.length + '種');
+			const prev = snapshot(ids);
+			const prevIcons = snapshot(iconsOf(target));
+			const add = plan.add.slice();
+			pushUndo({
+				scope: 'list',
+				doneLabel: g.label + ' ' + add.length + '種を追加しました' + (skip > 0 ? '。追加しなかったもの ' + skip + '種（' + why.join('・') + '）' : ''),
+				undoneLabel: g.label + 'で追加した' + add.length + '種を取り消しました',
+				probe: () => probeOf(skillIdsOf(target)),
+				apply: () => {
+					if (!writeSkillIds(target, snapshot(prev), undefined, snapshot(prevIcons))) return false;
+					picker.excludeIds = picker.excludeIds.filter(id => add.indexOf(id) === -1);
+					afterEditingSkillsChanged(target);
+					return true;
+				}
+			});
+			if (!writeSkillIds(target, ids.concat(add))) return;
+			picker.excludeIds = picker.excludeIds.concat(add.filter(id => picker.excludeIds.indexOf(id) === -1));
+			afterAutoAdd(target);
+		}
+		/** 自動で足したあとの描画と通知（下書きに中身ができたら選択状態にする＝ほかの追加の経路と同じ） */
+		function afterAutoAdd(target) {
+			afterEditorPickerAdd(target);
+			renderPickerResults();
+			renderPasteReport();
 		}
 		function pickPalette(iconId) {
 			if (iconId !== 'clear' && !isSkillIconId(iconId)) return;
@@ -11839,54 +11930,7 @@
 			afterEditingSkillsChanged(target);
 		}
 
-		/**
-		 * ②の「低効果を除外」（C-129）。一覧の低効果のスキルを、各行の✕と同じく一覧から外す（分類・アイコンも一緒に外し、
-		 * 「元に戻す」に1回で積む＝まとめて戻る）。低効果の判定は isLowEffectSkill（データから読む。読めていなければ何も外さない）。
-		 */
-		function lowEffectIdsOfEditing() {
-			const ids = skillIdsOf(currentTarget()) || [];
-			return ids.filter(id => isLowEffectSkill(id));
-		}
-		function removeLowEffectFromEditing() {
-			const target = currentTarget();
-			const ids = skillIdsOf(target);
-			if (!ids) return 0;
-			const drop = ids.filter(id => isLowEffectSkill(id));
-			if (drop.length === 0) return 0;
-			const prev = snapshot(ids);
-			const prevTiers = snapshot(tiersOf(target));
-			const prevIcons = setBased ? snapshot(iconsOf(target)) : undefined;
-			const n = drop.length;
-			pushUndo({
-				scope: 'list',
-				doneLabel: '低効果のスキル' + n + '種を外しました',
-				undoneLabel: '外した' + n + '種を戻しました',
-				probe: () => probeOf(skillIdsOf(target)),
-				apply: () => {
-					if (!writeSkillIds(target, snapshot(prev), snapshot(prevTiers), prevIcons ? snapshot(prevIcons) : undefined)) return false;
-					picker.excludeIds = picker.excludeIds.concat(prev.filter(id => picker.excludeIds.indexOf(id) === -1));
-					afterEditingSkillsChanged(target);
-					return true;
-				}
-			});
-			const dropSet = new Set(drop);
-			const nextIcons = setBased ? (() => { const ic = iconsOf(target); drop.forEach(id => { delete ic[id]; }); return ic; })() : undefined;
-			if (!writeSkillIds(target, ids.filter(id => !dropSet.has(id)), tiersWithout(prevTiers, drop), nextIcons)) return 0;
-			picker.excludeIds = picker.excludeIds.filter(id => !dropSet.has(id));
-			afterEditingSkillsChanged(target);
-			return n;
-		}
-		function openLowEffectConfirmFor(btn) {
-			loadSkillEffectLevels().then((st) => {
-				if (st !== 'ok') { toast(LOW_EFFECT_FAILED_MSG, 'warn'); return; }
-				const ids = lowEffectIdsOfEditing();
-				renderPalette();   // 読めたので、対象が0種ならボタンを押せない状態にする
-				if (ids.length === 0) return;
-				const b = q(container, 'low-effect-btn') || btn;
-				openPopover({ key: 'low-effect:' + draftScopeKey, title: '低効果を除外', btn: b, opener: b, refocus: '[data-usd-el="low-effect-btn"]',
-					build: (body) => fillLowEffectConfirm(body, ids.length, () => { removeLowEffectFromEditing(); renderPalette(); }) });
-			});
-		}
+		// C-130・C: ②の「低効果を除外」（C-129）は、パレットの行の「逃げオススメ」「先差追オススメ」に置き換えて削除した（①の「低効果を除外」と、オススメサポの除外の「低効果」は残る）
 
 		function removeSkillFromEditing(skillId) {
 			const target = currentTarget();
