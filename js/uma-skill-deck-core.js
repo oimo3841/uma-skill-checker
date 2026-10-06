@@ -9611,7 +9611,7 @@
 		rosterPtListeners.push(function () { if (!container.isConnected) return; renderPtNeed(); renderRosterLink(); applyRosterHidden(); if (setBased) { renderSetBar(); renderSelectedList(); } });
 		// C-130・C: グループのデータを読めたら、パレットの行のボタンを出す
 		// C-131: 同じものとして扱うスキルの組も読めたので、選べなくするスキルを組み直す（開いている一覧はここで描き直る）
-		recommendedListeners.push(function () { if (!container.isConnected || !setBased) return; applyRosterHidden(); renderPalette(); });
+		recommendedListeners.push(function (st) { if (st !== 'ok' || !container.isConnected || !setBased) return; applyRosterHidden(); renderPalette(); });
 		onSkillPtLoaded(function () { if (!container.isConnected || !grouped) return; renderTabs(); renderSelectedList(); });
 
 		container.addEventListener('click', (e) => {
@@ -11481,7 +11481,9 @@
 		function watchRecommendVisible(el) {
 			// ①のパネルができる前は見張らない（脚質は①のもの。special は起動の途中で②を一時的に開くので、そこで読まないため。
 			// ①ができたあとの描き直しで、ここへもう一度来る）
-			if (!setBased || !rosterPtSource || recommendedState.status === 'ok' || !recommendStyleGroupKey()) return;
+			// 一度失敗したら、見張りでは読み直さない（読み直すたびに失敗の知らせと描き直しが続き、取りに行き続けるため。C-131 で直した）。
+			// 読み直すのは、レースを選んだとき・②の追加の一覧やオススメサポを開いたとき
+			if (!setBased || !rosterPtSource || recommendedState.status === 'ok' || recommendedState.status === 'failed' || !recommendStyleGroupKey()) return;
 			const tryLoad = () => {
 				if (recommendedState.status === 'ok' || recommendedState.status === 'loading' || !recommendStyleGroupKey()) return;
 				loadRecommendedSkills().then(st => { if (st !== 'ok') toast(RECOMMENDED_FAILED_MSG, 'warn'); });
