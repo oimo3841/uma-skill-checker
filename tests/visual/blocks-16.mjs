@@ -268,7 +268,13 @@ export async function register16(env) {
 		const t = await toastText(sp.page);
 		assert(t === g.label + ' ' + want.length + '種を追加しました。追加しなかったもの ' + (2 + blocked.length) + '種（' + why.join('・') + '）', 'C130C 知らせ: 追加した数・追加しなかったもの M種と理由', t);
 		const p = await readPalette(sp.page);
-		assert(p.dis, 'C130C 追加できるものが0種になったら押せない（disabled）', p);
+		// C-131: 0種でも押せない状態にしない。押すと何も足さずに、理由の内訳を知らせる（詳しくは blocks-17 の C131D）
+		assert(!p.dis, 'C130C→C-131 追加できるものが0種になっても押せる見た目のまま', p);
+		const n0 = (await draftIds(sp.page)).length;
+		await sp.page.click(T + '[data-usd-el="recommend-btn"]');
+		await sleep(sp.page, 300);
+		const t0 = await toastText(sp.page);
+		assert((await draftIds(sp.page)).length === n0 && /^追加できるスキルはありません（追加済み \d+種/.test(t0), 'C130C→C-131 0種のときに押すと、何も足さずに「追加できるスキルはありません（…）」', t0);
 		await sp.page.evaluate(() => UmaSkillDeckCore.performUndo());
 		await sleep(sp.page, 300);
 		assert(JSON.stringify(await draftIds(sp.page)) === JSON.stringify([pre]) && !(await readPalette(sp.page)).dis, 'C130C 「元に戻す」で1回で戻り、また押せる', await draftIds(sp.page));
@@ -318,14 +324,16 @@ export async function register16(env) {
 	await block('C130D オススメサポ: ②で追加済みのスキルは、既定の除外（緑スキル・低効果・視野など）に当てはまっても母集団に入り、数えられる（除外は追加済みでないスキルにだけ効く）', async () => {
 		const FILTER = { distance: 'medium', style: 'senko', surface: 'turf' };
 		const sp = await openSp({ roster: Object.assign({}, FULL, { skillFilter: FILTER }), tab: 1 });
-		const r = await sp.page.evaluate(async () => {
+		// C-131: 組（目覚めと対応するスキル）のスキルは、相手も追加済みとして数えるので、この塊の材料には選ばない（組の数え方は blocks-17 の C131B）
+		const paired = (REC.equivalentPairs || []).flatMap((p) => p.skillIds);
+		const r = await sp.page.evaluate(async (paired) => {
 			await UmaSkillDeckCore.loadSkillEffectLevels();
 			const roster = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'));
 			const C = UmaSkillDeckCore.outside;
 			const p0 = C.populationOf(roster);
 			// 既定の除外で外れたスキルを、軸ごと（緑スキル・低効果・視野などの効果タイプ）に1つずつ選ぶ
 			const isPassive = (id) => { const s = UmaSkillDeckCore.findSkill(id); return !!s && ((s.tags && s.tags.passive) || []).length > 0; };
-			const pickBy = (fn) => p0.optionExcludedIds.find(fn);
+			const pickBy = (fn) => p0.optionExcludedIds.find((id) => !paired.includes(id) && fn(id));
 			const picks = [pickBy(isPassive), pickBy((id) => UmaSkillDeckCore.isLowEffectSkill(id) && !isPassive(id)), pickBy((id) => !isPassive(id) && !UmaSkillDeckCore.isLowEffectSkill(id))].filter(Boolean);
 			const p1 = C.populationOf(roster, { addedSkillIds: picks });
 			// 計算（outsideSolve の口）: 追加済みの印が付き、得られれば数える
@@ -333,7 +341,7 @@ export async function register16(env) {
 			const s1 = C.solveSync({ roster, addedSkillIds: picks, deadlineMs: 20000 });
 			return { picks, inP0: picks.filter((id) => p0.ids.includes(id)), inP1: picks.filter((id) => p1.ids.includes(id)), n0: p0.ids.length, n1: p1.ids.length,
 				pop0: s0.stats.population, pop1: s1.stats.population, added1: s1.skills.filter((x) => x.added).map((x) => x.skillId) };
-		});
+		}, paired);
 		assert(r.picks.length >= 3, 'C130D 材料: 既定の除外で外れるスキル（緑スキル・低効果・効果タイプ）を1つずつ選べた（空振りでない）', r.picks);
 		assert(r.inP0.length === 0 && r.inP1.length === r.picks.length && r.n1 === r.n0 + r.picks.length, 'C130D 追加済みにすると、除外に当てはまっても母集団に入る（ほかは変わらない）', r);
 		assert(r.pop1 === r.pop0 + r.picks.length && r.added1.every((id) => r.picks.includes(id)), 'C130D 計算（outsideSolve）の母集団にも入り、得られたものは「追加済み」の印で数えられる', { pop0: r.pop0, pop1: r.pop1, added: r.added1 });

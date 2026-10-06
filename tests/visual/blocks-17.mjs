@@ -3,7 +3,8 @@
 //
 // A: オススメサポで、②に追加済みのスキルを数える（タイルの「＋N種」・小窓の「対象」・下段の新しい表示）
 // C: ①の「低効果を除外」ボタンと確認の小窓を削除した（オススメサポの除外の「低効果」は残る）
-// B（目覚めと対応するスキルの同一扱い）は、組のつけ方に使う独自カテゴリが公開データに無いので実装していない（C-131 の記録）。
+// B: 目覚めを、対応するスキルと同じものとして扱う（組は recommended-skills.json の equivalentPairs）
+// D: 脚質のボタン（逃げオススメ・先差追オススメ）を、追加できるものが0種でも押せない状態にしない
 // スキル名・レース名は検査の側に書かない（恒久ルール1。データか画面から読む）。
 
 export async function register17(env) {
@@ -19,18 +20,58 @@ export async function register17(env) {
 	const T = '#deck-template-panel ';
 	const M = '[data-usd-el="outside-modal"] ';
 
+	const json = (body) => ({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(body) });
+	/** o.rec＝recommended-skills.json の差し替え（'fail' で 500）・o.umas＝training-umamusume.json の差し替え */
 	const openSp = async (o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 375, height: o.h || 812 }, EMPTY);
+		sp.recReqs = [];
+		sp.page.on('request', (r) => { if (r.url().includes('recommended-skills.json')) sp.recReqs.push(r.url()); });
+		if (o.rec === 'fail') await sp.page.route('**/data/recommended-skills.json*', (r) => r.fulfill({ status: 500, body: 'x' }));
+		else if (o.rec) await sp.page.route('**/data/recommended-skills.json*', (r) => r.fulfill(json(o.rec)));
+		if (o.umas) await sp.page.route('**/data/training-umamusume.json*', (r) => r.fulfill(json(o.umas)));
 		await sp.page.evaluate(({ roster, tab }) => {
 			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster));
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
 			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
 		}, { roster: o.roster || FULL, tab: o.tab === undefined ? 1 : o.tab });
+		sp.recReqs = [];
 		await sp.page.reload({ waitUntil: 'networkidle' });
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(400);
 		return sp;
 	};
+	const REC = readJson('data/recommended-skills.json');
+	const UMAS_DOC = readJson('data/training-umamusume.json');
+	const MASTER = readJson('uma-skill-deck-skills.json').skills;
+	const nameOf = (id) => (MASTER.find((s) => String(s.id) === id) || {}).name;
+	const toastText = (page) => page.evaluate(() => document.getElementById('toast-message').textContent);
+	const hiddenIds = (page) => page.evaluate(() => UmaSkillDeckCore.getPickerHiddenIds());
+	const addByText = async (page, names) => {
+		await page.click(T + '[data-usd-act="editor-pick-text"]');
+		await page.fill('[data-usd-el="paste-input"]', names.join('\n'));
+		await page.click('[data-usd-act="paste-run"]');
+		await page.waitForTimeout(200);
+		await page.click('[data-usd-el="picker-commit"]');
+		await page.waitForTimeout(200);
+		await page.click('[data-usd-act="picker-close"]');
+		await page.waitForTimeout(200);
+	};
+	/** 緑スキルの一覧を開き、渡した id の行の様子（出ているか・押せないか・理由）を読む。閉じて返す */
+	const passiveRows = async (page, ids) => {
+		await page.click(T + '[data-usd-act="editor-pick-passive"]');
+		await page.waitForSelector('[data-usd-el="passive-results"] label.usd-row');
+		await page.waitForTimeout(400);
+		const r = await page.evaluate((ids) => ids.map((id) => {
+			const i = document.querySelector('[data-usd-el="passive-results"] input[value="' + id + '"]');
+			return { id, shown: !!i, disabled: i ? i.disabled : null, reason: i ? ((i.closest('label').querySelector('[data-usd-el="excluded-reason"]') || {}).textContent || '') : null };
+		}), ids);
+		await page.click('[data-usd-act="picker-close"]');
+		await page.waitForTimeout(200);
+		return r;
+	};
+	// 組（目覚め・対応するスキル）。①でどちらかを最初から持つ育成ウマ娘をデータから探す
+	const PAIR = REC.equivalentPairs.find((p) => UMAS_DOC.entries.some((u) => (u.awakeningSkills || []).some((a) => a.level === 0 && (a.skills || []).some((s) => s.skillId === p.skillIds[1]))));
+	const UMA_WITH = PAIR ? UMAS_DOC.entries.find((u) => (u.awakeningSkills || []).some((a) => a.level === 0 && (a.skills || []).some((s) => s.skillId === PAIR.skillIds[1]))) : null;
 	const pickRace = async (page, id) => {
 		await page.click('#deck-set-bar [data-usd-act="set-race"]');
 		await page.waitForSelector('[data-usd-el="race-list"]');
@@ -166,5 +207,136 @@ export async function register17(env) {
 		assert(chip && chip.text === '低効果' && chip.on === 'true', 'C131C 除外の小窓に「低効果」のチップがあり、既定で入っている', chip);
 		assert(jsErrors(sp.errors).length === 0, 'C131C コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
+	});
+
+	/* ====================================================================
+	 * B: 目覚めを、対応するスキルと同じものとして扱う（組は recommended-skills.json の equivalentPairs）
+	 * ==================================================================== */
+	await block('C131B ①で対応するスキルを得るセットでは、目覚めも「本育成で得る」になる: 緑スキルの一覧でグレーアウト（条件で検索には緑スキルは出ない）・レース選択の自動追加で入らない', async () => {
+		assert(!!PAIR && !!UMA_WITH, 'C131B 材料: 組の対応するスキルを最初から持つ育成ウマ娘がいる', { pair: PAIR, uma: UMA_WITH && UMA_WITH.id });
+		if (!PAIR || !UMA_WITH) return;
+		const [awk, base1] = PAIR.skillIds;
+		const sp = await openSp({ roster: { umaId: UMA_WITH.id, cardIds: CARDS6 } });
+		assert(sp.recReqs.length === 0, 'C131B ページの読み込みでは recommended-skills.json を取りに行かない', sp.recReqs);
+		// (1) 緑スキルの一覧（開いたときに組のデータを読み、組み直す）
+		const rows = await passiveRows(sp.page, [awk, base1]);
+		assert(rows.every((x) => x.shown && x.disabled && x.reason === '本育成で得るため選べません'), 'C131B (1) 緑スキルの一覧で、目覚めも対応するスキルと同じく「本育成で得るため選べません」のグレーアウト', rows);
+		assert((await hiddenIds(sp.page)).includes(awk), 'C131B (1) 選べなくするスキル（条件で検索・テキストで検索・スクショで追加が使う）に目覚めが入る', true);
+		await sp.page.click(T + '[data-usd-act="editor-pick"]');
+		await sp.page.waitForSelector('[data-usd-el="results"] label.usd-row');
+		const inFilter = await sp.page.evaluate((ids) => ids.filter((id) => !!document.querySelector('[data-usd-el="results"] input[value="' + id + '"]:not([disabled])')), [awk, base1]);
+		assert(inFilter.length === 0, 'C131B (1) 条件で検索で、目覚め・対応するスキルは選べない（どちらも緑スキルなので、もともとこの一覧には出ない）', inFilter);
+		await sp.page.click('[data-usd-act="picker-close"]');
+		// テキストで検索: 目覚めの名前を貼っても「本育成編成のため追加しなかったもの」
+		await sp.page.click(T + '[data-usd-act="editor-pick-text"]');
+		await sp.page.fill('[data-usd-el="paste-input"]', nameOf(awk));
+		await sp.page.click('[data-usd-act="paste-run"]');
+		await sp.page.waitForTimeout(300);
+		const pb = await sp.page.evaluate(() => (document.querySelector('[data-usd-el="paste-blocked"]') || {}).textContent || null);
+		assert(pb === '本育成編成のため追加しなかったもの 1種', 'C131B (1) テキストで検索で、目覚めは「本育成編成のため追加しなかったもの 1種」', pb);
+		await sp.page.click('[data-usd-act="picker-close"]');
+		// (2) レース選択の自動追加: 組の回り・季節のレースを選んでも、目覚めも対応するスキルも入らない
+		const env = (MASTER.find((s) => String(s.id) === awk).tags.environment || []);
+		const race = RACES.find((r) => env.includes(r.direction) || env.includes(r.season));
+		await pickRace(sp.page, race.id);
+		const ids = await draftIds(sp.page);
+		assert(ids.length > 0 && !ids.includes(awk) && !ids.includes(base1), 'C131B (2) レース（' + race.id + '）を選んでも、目覚め・対応するスキルは②に入らない（ほかは入る）', ids);
+		assert(jsErrors(sp.errors).length === 0, 'C131B コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+		// 組のデータが読めないときは今までどおり（目覚めは選べる）。知らせも出さない
+		const sp2 = await openSp({ roster: { umaId: UMA_WITH.id, cardIds: CARDS6 }, rec: 'fail' });
+		const rows2 = await passiveRows(sp2.page, [awk, base1]);
+		const t2 = await toastText(sp2.page);
+		assert(rows2.find((x) => x.id === awk).shown && !rows2.find((x) => x.id === awk).disabled && rows2.find((x) => x.id === base1).disabled && !/読み込めません/.test(t2), 'C131B 組のデータが読めないときは今までの動き（目覚めは選べる・対応するスキルは選べない）で、知らせも出ない', { rows2, t2 });
+		await sp2.ctx.close();
+	});
+
+	await block('C131B 逆も同じ（①で目覚めを得ると対応するスキルが外れる）／脚質のボタンでも入らない（グループに目覚めを入れた差し替えのデータ）', async () => {
+		if (!PAIR || !UMA_WITH) { assert(false, 'C131B 材料が無い', null); return; }
+		const [awk, base1] = PAIR.skillIds;
+		// 逆: 育成ウマ娘の最初から持つスキルを、対応するスキルから目覚めに差し替えたデータ（検査の中だけ）
+		const umas = JSON.parse(JSON.stringify(UMAS_DOC));
+		const u = umas.entries.find((x) => x.id === UMA_WITH.id);
+		u.awakeningSkills.forEach((a) => { if (a.level === 0) a.skills = a.skills.map((s) => (s.skillId === base1 ? { skillId: awk, name: nameOf(awk) } : s)); });
+		// 脚質のボタンのグループに、目覚めと対応するスキルを足したデータ（検査の中だけ）
+		const rec = JSON.parse(JSON.stringify(REC));
+		const g = rec.groups.find((x) => x.key === 'runnerNotEscape');
+		g.skills = g.skills.concat([{ skillId: base1, name: nameOf(base1) }, { skillId: awk, name: nameOf(awk) }]);
+		const sp = await openSp({ roster: { umaId: UMA_WITH.id, cardIds: CARDS6, skillFilter: { style: 'senko' } }, umas, rec });
+		const rows = await passiveRows(sp.page, [awk, base1]);
+		assert(rows.every((x) => x.shown && x.disabled && x.reason === '本育成で得るため選べません'), 'C131B 逆: ①で目覚めを得ると、対応するスキルもグレーアウト', rows);
+		await sp.page.waitForSelector(T + '[data-usd-el="recommend-btn"]');
+		await sp.page.click(T + '[data-usd-el="recommend-btn"]');
+		await sp.page.waitForTimeout(300);
+		const ids = await draftIds(sp.page);
+		const t = await toastText(sp.page);
+		assert(ids.length > 0 && !ids.includes(awk) && !ids.includes(base1) && /本育成編成のため \d+種/.test(t), 'C131B (3) 脚質のボタンでも、目覚め・対応するスキルは入らない（本育成編成のため）', { ids, t });
+		assert(jsErrors(sp.errors).length === 0, 'C131B 逆 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('C131B オススメサポ: ②に目覚めが入っているとき、カードが対応するスキルを持てば「追加済み」として数える（除外の設定に関わらず）／組を読めないときは数えない', async () => {
+		if (!PAIR) { assert(false, 'C131B 材料が無い', null); return; }
+		const [awk, base1] = PAIR.skillIds;
+		const sp = await openSp();
+		// 組の回り・季節のレースを選ぶ（目覚めと対応するスキルが②に入る）→ 対応するスキルだけを手で外す（②には目覚めだけが残る）
+		const envB = (MASTER.find((s) => String(s.id) === awk).tags.environment || []);
+		const raceB = RACES.find((r) => envB.includes(r.direction) || envB.includes(r.season));
+		await pickRace(sp.page, raceB.id);
+		if ((await draftIds(sp.page)).includes(base1)) { await sp.page.click(T + '[data-usd-act="template-skill-remove"][data-skill-id="' + base1 + '"]'); await sp.page.waitForTimeout(200); }
+		if (!(await draftIds(sp.page)).includes(awk)) await addByText(sp.page, [nameOf(awk)]);
+		const ids0 = await draftIds(sp.page);
+		assert(ids0.includes(awk) && !ids0.includes(base1), 'C131B 材料: ②に目覚めがあり、対応するスキルは無い', ids0);
+		await openOutside(sp.page);
+		const r = await sp.page.evaluate(({ awk, base1 }) => {
+			const roster = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'));
+			const C = UmaSkillDeckCore.outside;
+			const p1 = C.populationOf(roster, { addedSkillIds: [awk] });
+			const p0 = C.populationOf(roster, { addedSkillIds: [] });
+			const res = C.solveSync({ roster, addedSkillIds: JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds, deadlineMs: 20000 });
+			const row = document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-row"][data-skill-id="' + base1 + '"]');
+			return { in1: p1.ids.includes(base1), in0: p0.ids.includes(base1), entry: res.skills.find((s) => s.skillId === base1) || null, card: res.cards.find((c) => c.skillIds.includes(base1)) || null,
+				rowMark: row ? ((row.querySelector('[data-usd-el="outside-added-mark"]') || {}).textContent || null) : 'no-row', foot: document.querySelector('[data-usd-el="outside-total"]').textContent };
+		}, { awk, base1 });
+		assert(!r.in0 && r.in1, 'C131B ②に目覚めがあると、対応するスキルは既定の除外（緑スキル）に当たっても母集団に入る', r);
+		assert(!!r.entry && !!r.card && r.entry.added && r.rowMark === '追加済み' && /追加済み \d+種/.test(r.foot), 'C131B 結果のカード（' + (r.card && r.card.cardId) + '）が対応するスキルを持ち、その行は「追加済み」（一覧で選べない・下段の追加済みに数える）', r);
+		if (r.card) {
+			const tile = await sp.page.evaluate((cid) => (document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-card"][data-card-id="' + cid + '"] [data-usd-el="outside-card-gain"]') || {}).textContent, r.card.cardId);
+			assert(tile === '＋' + r.card.kindGain + '種', 'C131B そのカードの「＋N種」は対応するスキルを含めた種数', { tile, gain: r.card.kindGain });
+		}
+		await sp.ctx.close();
+		const sp2 = await openSp({ rec: 'fail' });
+		await addByText(sp2.page, [nameOf(awk)]);
+		await openOutside(sp2.page);
+		const in2 = await sp2.page.evaluate(({ awk, base1 }) => UmaSkillDeckCore.outside.populationOf(JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')), { addedSkillIds: [awk] }).ids.includes(base1), { awk, base1 });
+		assert(!in2, 'C131B 組のデータが読めないときは、目覚めが②にあっても対応するスキルを追加済みとして数えない（今までの動き）', in2);
+		await sp2.ctx.close();
+	});
+
+	/* ====================================================================
+	 * D: 脚質のボタンを押せない状態にしない
+	 * ==================================================================== */
+	await block('C131D 脚質のボタンは追加できるものが0種でも押せる見た目のまま。押すと何も足さずに「追加できるスキルはありません（内訳）」／内訳も0なら一文だけ', async () => {
+		const sp = await openSp({ roster: Object.assign({}, FULL, { skillFilter: { style: 'senko' } }) });
+		await sp.page.waitForSelector(T + '[data-usd-el="recommend-btn"]');
+		await sp.page.click(T + '[data-usd-el="recommend-btn"]');
+		await sp.page.waitForTimeout(300);
+		const n1 = (await draftIds(sp.page)).length;
+		const look = await sp.page.evaluate(() => { const b = document.querySelector('[data-usd-el="recommend-btn"]'); return { dis: b.disabled, color: getComputedStyle(b).color, clear: getComputedStyle(document.querySelector('[data-usd-el="palette-clear"]')).color }; });
+		assert(n1 > 0 && !look.dis && look.color === look.clear, 'C131D 全部足したあとも、ボタンは押せる見た目（disabled なし・「解除」と同じ色）', look);
+		await sp.page.click(T + '[data-usd-el="recommend-btn"]');
+		await sp.page.waitForTimeout(300);
+		const t = await toastText(sp.page);
+		assert((await draftIds(sp.page)).length === n1 && /^追加できるスキルはありません（追加済み \d+種(・本育成編成のため \d+種)?(・レース条件に合わないため \d+種)?）$/.test(t), 'C131D 押すと何も足さずに、内訳つきで知らせる', t);
+		await sp.ctx.close();
+		const rec = JSON.parse(JSON.stringify(REC));
+		rec.groups.find((x) => x.key === 'runnerNotEscape').skills = [];
+		const sp2 = await openSp({ roster: Object.assign({}, FULL, { skillFilter: { style: 'senko' } }), rec });
+		await sp2.page.waitForSelector(T + '[data-usd-el="recommend-btn"]');
+		await sp2.page.click(T + '[data-usd-el="recommend-btn"]');
+		await sp2.page.waitForTimeout(300);
+		assert((await toastText(sp2.page)) === '追加できるスキルはありません' && (await draftIds(sp2.page)).length === 0, 'C131D 内訳も0なら「追加できるスキルはありません」だけ', await toastText(sp2.page));
+		assert(jsErrors(sp2.errors).length === 0, 'C131D コンソールのエラー0', jsErrors(sp2.errors).slice(0, 3));
+		await sp2.ctx.close();
 	});
 }
