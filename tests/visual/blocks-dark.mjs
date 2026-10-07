@@ -12,7 +12,6 @@
 // Playwright の既定の OS の設定はライトなので、「自動」は data-theme="light" になる。
 
 import { scanTextContrastInPage, formatContrast } from './lib/contrast.mjs';
-import { LIGHT_SCENES, captureScene } from './lib/light-shots.mjs';
 import { deltaE } from './lib/pixels.mjs';
 
 export async function registerDark(env) {
@@ -159,24 +158,13 @@ export async function registerDark(env) {
 		await ctx.close();
 	});
 
-	/* ---------- ライトは1ピクセルも変わらない（決定12） ----------
-	   基準は output/dark-base/base/（.gitignore 済み。ダークの段1 の前の commit の作業ツリーから
-	   lib/light-shots.mjs で撮ったもの）。基準が無い環境では比べられないので、落とさずに [--] と出す。
-	   **ダークの段7 が済んで基準を撮り直す必要が無くなったら、この塊は外す**（ライトを意図して変える
-	   別の作業が入った時点で、基準のほうが古くなるため）。 */
-	await block('ダーク9 ライトは1ピクセルも変わらない（special・exam・Deck の 375px／1280px・引き出しを開いた場面）', async () => {
-		const dir = path.join(REPO_ROOT, 'output', 'dark-base', 'base');
-		if (!fs.existsSync(dir)) { console.log('[--] ダーク9: 基準（output/dark-base/base/）が無いので比べていない'); return; }
-		const diff = [], missing = [];
-		for (const s of LIGHT_SCENES) {
-			const f = path.join(dir, s.name + '.png');
-			if (!fs.existsSync(f)) { missing.push(s.name); continue; }
-			const buf = await captureScene(browser, base, s, env.USER_DATA, 'light');
-			if (!buf.equals(fs.readFileSync(f))) diff.push(s.name);
-		}
-		assert(missing.length === 0, 'ダーク9: 基準の PNG が全場面ぶん在る（' + LIGHT_SCENES.length + '場面）', missing);
-		assert(diff.length === 0, 'ダーク9: ライトのフルページPNG が基準とバイト一致（' + (LIGHT_SCENES.length - missing.length) + '場面）', diff);
-	});
+	/* 【INTENTIONALLY_REMOVED・2026-10-08（C-135・ダークモードの段7）】ここには塊「ダーク9 ライトは1ピクセルも変わらない」があった。
+	   special・exam・Deck の 375px／1280px（引き出しを開いた場面・exam の結果の表を含む15場面）のライトのフルページPNG を、
+	   output/dark-base/base/ の基準とバイト比較していた（決定12）。段1〜7 のどの commit でも一致を確かめた（段7 は bbceb44）。
+	   **外した理由**: ダークモードの作業はこれで終わり、以後ライトを意図して変える作業が入ると、基準のほうが古くなって
+	   この塊が落ち続けるため（C-134 の仮に決めた点10）。基準の撮り方は tests/visual/lib/light-shots.mjs に残してある
+	   （同じ確かめ方が要るときは、変更の前の commit の作業ツリーから撮って比べる）。
+	   **失っていない検査**: ライトの見た目そのものは、他の塊が色の値（rgb の期待値）と画素で見ている。 */
 
 	/* ---------- 段2: 共通の土台（css/tokens.css のダーク） ---------- */
 	await block('ダーク5 tokens.css の色の変数は、すべてダークの値を持つ（持たないものは理由つきの一覧だけ）', async () => {
