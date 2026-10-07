@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-07b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-07c';
 
 	/* ============================================================
 	 * 定数
@@ -5578,12 +5578,33 @@
 		'@media (max-width: 520px) { .usd-skillgroup .usd-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
 		'@media (max-width: 359px) { .usd-skillgroup .usd-panels { grid-template-columns: minmax(0, 1fr); } }',
 		'@media (min-width: 521px) and (max-width: 900px) { .usd-skillgroup .usd-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
-		'.usd-skillgroup .usd-panel { gap: 2px; padding: 0 6px 0 0; min-height: 36px; }',
-		'.usd-panel-iconbtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: var(--uma-r-sm); }',
+		'.usd-skillgroup .usd-panel { gap: 3px; padding: 0 6px 0 0; min-height: 36px; }',
+		// C-132: アイコンを少し小さく（丸 15px・押す範囲は幅 26px×高さ 32px）。✕ を無くしたぶんと合わせて、名前の幅を広げる
+		'.usd-panel-iconbtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 32px; padding: 0 0 0 2px; border: 0; background: transparent; cursor: pointer; border-radius: var(--uma-r-sm); }',
+		'.usd-panel-iconbtn .usd-icon { width: 15px; height: 15px; font-size: 9px; }',
 		'.usd-panel-iconbtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }',
-		'.usd-skillgroup .usd-panel-namebtn { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; }',
+		// C-132: 名前は「…」で切らず、名前の部分だけ横に送る（続きがある側に薄いフェード＝.usd-hscroll）。縦の高さはタイルのまま
+		'.usd-panel-namescroll { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; align-self: stretch; overflow-x: auto; overflow-y: hidden;',
+		'  scrollbar-width: none; overscroll-behavior-x: contain; white-space: nowrap; }',
+		'.usd-panel-namescroll::-webkit-scrollbar { display: none; }',
+		'.usd-skillgroup .usd-panel-namebtn { flex: none; white-space: nowrap; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; }',
+		// 名前のボタンの押す範囲を上下に広げる（::after）と、送る箱の中では縦にはみ出してスクロールの種になるので、ここでは横だけ
+		'.usd-skillgroup .usd-panel-namebtn::after { inset: 0 -3px; }',
 		'.usd-skillgroup .usd-panel-pt { flex: none; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); white-space: nowrap; }',
-		'.usd-skillgroup .usd-panel-del { flex: none; width: 24px; height: 24px; }',
+		// C-132: 削除の状態（パレットの「削除」を選んでいる）。タイルは破線の枠と、名前の取り消しの線（色だけに頼らない）。ボタンは選択中の輪と色
+		'.usd-skillgroup { --usd-delete-line: var(--uma-danger-text); }',
+		'.usd-skillgroup--delete .usd-panel { border-style: dashed; border-color: var(--usd-delete-line); cursor: pointer; }',
+		'.usd-skillgroup--delete .usd-panel-namebtn { text-decoration-line: line-through; text-decoration-color: var(--usd-delete-line); }',
+		'.usd-palette-del { display: inline-flex; align-items: center; gap: 3px; }',
+		// C-132: 「逃げオススメ」「先差追オススメ」の確認の小窓（追加するスキルの名前と Pt・追加しないものの内訳・ボタン2つ）
+		'.usd-rec-head { font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-rec-list { list-style: none; margin: var(--uma-sp-1) 0 0; padding: 0; max-height: 40vh; overflow-y: auto; border-top: 1px solid var(--uma-border); }',
+		'.usd-rec-item { display: flex; justify-content: space-between; gap: var(--uma-sp-2); padding: var(--uma-sp-1) 0; border-bottom: 1px solid var(--uma-border); }',
+		'.usd-rec-name { min-width: 0; overflow-wrap: anywhere; font-weight: 600; color: var(--uma-text); }',
+		'.usd-rec-pt { flex: none; white-space: nowrap; color: var(--uma-text-subtle); font-variant-numeric: tabular-nums; }',
+		'.usd-rec-skip { margin-top: var(--uma-sp-2); color: var(--uma-text-muted); }',
+		'.usd-rec-ops { display: flex; justify-content: flex-end; gap: var(--uma-sp-2); margin-top: var(--uma-sp-3); }',
+		'.usd-palette-del[aria-pressed="true"] { color: var(--usd-delete-line, var(--uma-danger-text)); border-color: var(--usd-delete-line, var(--uma-danger-text)); }',
 		'.usd-reset-ops { display: flex; flex-direction: column; gap: 8px; }',
 		'.usd-reset-ops .uma-btn { width: 100%; justify-content: center; }',
 		'.usd-panel--taken .usd-panel-namebtn, .usd-panel--taken .usd-panel-pt { color: var(--uma-text-faint); }',
@@ -9426,7 +9447,8 @@
 		let mode = null;
 		// 「理論値」の「?」の説明を開いているか（段5。保存しない）
 		let ptNeedHelpOpen = false;
-		// アイコンのパレットの選択（段9。'a'〜'f' か 'clear'＝解除）。初期は ◎。ほかのボタンを押すまで保つ（続けて付けられる）。保存しない
+		// アイコンのパレットの選択（段9。'a'〜'f'／PALETTE_DELETE＝削除〔C-132〕／null＝何も選んでいない）。初期は ◎。ほかのボタンを押すまで保つ（続けて付けられる）。保存しない
+		const PALETTE_DELETE = 'delete';
 		let paletteSel = SKILL_ICON_DEFAULT;
 		// 名前つきのタブ（段7b の ⑫。special の②だけ）。tabNoun は確認・ボタンの呼び名（special は「因子周回」。無ければ setLabel）
 		const tabNoun = opts.tabNoun || setLabel;
@@ -9614,6 +9636,18 @@
 		recommendedListeners.push(function (st) { if (st !== 'ok' || !container.isConnected || !setBased) return; applyRosterHidden(); renderPalette(); });
 		onSkillPtLoaded(function () { if (!container.isConnected || !grouped) return; renderTabs(); renderSelectedList(); });
 
+		// C-132: 削除の状態では、タイルのどこを押しても（アイコン・名前を含む）そのスキルを②から外す（今までの ✕ と同じ処理。「元に戻す」に積む）。
+		// 名前の説明・アイコンの付与より先に受けるので、捕捉の段で受けて止める
+		if (setBased) {
+			q(container, 'selected-list').addEventListener('click', (e) => {
+				if (paletteSel !== PALETTE_DELETE) return;
+				const panel = e.target.closest ? e.target.closest('.usd-panel[data-skill-id]') : null;
+				if (!panel) return;
+				e.stopPropagation();
+				e.preventDefault();
+				removeSkillFromEditing(panel.getAttribute('data-skill-id'));
+			}, true);
+		}
 		container.addEventListener('click', (e) => {
 			const btn = e.target.closest('[data-usd-act]');
 			if (!btn || !container.contains(btn)) return;
@@ -9659,7 +9693,7 @@
 			else if (act === 'pt-total-help') openPtTotalPopover(btn);
 			// 段9: アイコンのパレットと、行の先頭のアイコン
 			else if (act === 'palette-pick') pickPalette(btn.dataset.icon);
-			else if (act === 'recommend-add') { if (!btn.disabled) addRecommendedGroup(btn.dataset.group); }   // C-130・C
+			else if (act === 'recommend-add') { if (!btn.disabled) confirmRecommendedGroup(btn.dataset.group, btn); }   // C-130・C（C-132 で確認の小窓を挟んだ）
 			else if (act === 'skill-icon') toggleSkillIcon(btn.dataset.skillId);
 			else if (act === 'factor-reset') openFactorResetPopover(btn);
 			else if (act === 'outside-open') openOutsideAdvisor(btn);
@@ -10660,16 +10694,17 @@
 				el.innerHTML = '<p class="text-xs text-slate-400" style="grid-column: 1 / -1;">まだスキルが選択されていません。</p>';
 				return;
 			}
-			// 段9（setBased）: 分類ごとの見出しは無く、すべて並べる。行は「アイコン／名前（長いときは省略）／Pt／×」
+			// 段9（setBased）: 分類ごとの見出しは無く、すべて並べる。行は「アイコン／名前／Pt」。
+			// C-132: ✕ は無くした（外すのはパレットの「削除」）。名前は「…」で切らず、名前の部分だけ横に送る（末尾で区別するスキルを見分けるため）
 			if (setBased) {
 				const icons = iconsOf(target);
 				el.innerHTML = ids.map(id => {
 					const name = getSkillName(id);
 					return '<div class="usd-panel" data-skill-id="' + esc(id) + '">'
 						+ iconButtonHtml(id, name, icons[id])
-						+ '<button type="button" class="usd-panel-namebtn" data-usd-info="' + esc(id) + '" title="' + esc(name) + '">' + esc(name) + '</button>'
+						+ '<span class="usd-panel-namescroll usd-hscroll" data-usd-el="panel-namescroll" data-usd-no-trim="1">'
+						+ '<button type="button" class="usd-panel-namebtn" data-usd-info="' + esc(id) + '" title="' + esc(name) + '">' + esc(name) + '</button></span>'
 						+ '<span class="usd-panel-pt" data-usd-el="panel-pt" data-skill-id="' + esc(id) + '"></span>'
-						+ '<button type="button" class="usd-panel-del" data-usd-act="template-skill-remove" data-skill-id="' + esc(id) + '" aria-label="' + esc(name + 'を外す') + '"><i data-lucide="x" class="w-3 h-3"></i></button>'
 						+ '</div>';
 				}).join('');
 				attachSkillInfoIn(el, (id) => ({ skillId: id, trigger: 'self' }));
@@ -11425,18 +11460,28 @@
 			return '<button type="button" class="usd-panel-iconbtn" data-usd-act="skill-icon" data-usd-el="skill-icon" data-skill-id="' + esc(skillId) + '"' + (ic ? ' data-icon="' + ic.id + '"' : '')
 				+ ' aria-label="' + esc(name + 'のアイコン：' + (ic ? ic.mark : 'なし')) + '" title="アイコンを付ける・外す">' + skillIconHtml(iconId) + '</button>';
 		}
-		/** パレット「◎ ○ △ ◇ ★ ✕ │ 解除」（段9）。選んでいるものは外側に 2px の輪（aria-pressed） */
+		/**
+		 * パレット「削除 │ 逃げオススメ／先差追オススメ │ ◎ ○ △ ◇ ★ ✕」（段9。C-132 で並びを変え、「解除」を「削除」に置き換えた）。
+		 * 選んでいるものは外側に 2px の輪（aria-pressed）。選んでいるアイコンをもう一度押すと選択が外れる（何も付けない状態）。
+		 * 「削除」はアイコンと同じブラシの扱い（押すと削除の状態。タイルを押すとそのスキルを外す）。収まらないぶんは横に送る（始まりは左端）
+		 */
 		function renderPalette() {
 			const el = q(container, 'tier-row');
 			if (!el) return;
-			el.innerHTML = SKILL_ICONS.map(i => '<button type="button" class="usd-palette-btn" data-usd-act="palette-pick" data-usd-el="palette-' + i.id + '" data-icon="' + i.id + '"'
-				+ ' aria-pressed="' + (paletteSel === i.id ? 'true' : 'false') + '" aria-label="アイコン ' + esc(i.mark) + '" title="' + esc(i.mark) + '">' + skillIconHtml(i.id) + '</button>').join('')
+			const del = paletteSel === PALETTE_DELETE;
+			// C-130・C: ①の脚質に応じたボタン（C-129 の「低効果を除外」を置き換えた）。文字はグループの label（データから）。
+			// 脚質が指定なしなら出さない。グループのデータは、この行が見えたときに初めて読む（読むまでは出さない）
+			const rec = recommendButtonHtml();
+			el.innerHTML = '<button type="button" class="usd-palette-clear usd-palette-del" data-usd-act="palette-pick" data-usd-el="palette-delete" data-icon="' + PALETTE_DELETE + '" aria-pressed="' + (del ? 'true' : 'false') + '"'
+				+ ' title="押したスキルを②から外す"><i data-lucide="trash-2" class="w-3 h-3" aria-hidden="true"></i>削除</button>'
+				+ (rec ? '<span class="usd-palette-sep" aria-hidden="true"></span>' + rec : '')
 				+ '<span class="usd-palette-sep" aria-hidden="true"></span>'
-				+ '<button type="button" class="usd-palette-clear" data-usd-act="palette-pick" data-usd-el="palette-clear" data-icon="clear" aria-pressed="' + (paletteSel === 'clear' ? 'true' : 'false') + '"'
-				+ ' title="押した行のアイコンを外す">解除</button>'
-				// C-130・C: ①の脚質に応じたボタン（C-129 の「低効果を除外」を置き換えた）。文字はグループの label（データから）。
-				// 脚質が指定なしなら出さない。グループのデータは、この行が見えたときに初めて読む（読むまでは出さない）。追加できるものが0種なら押せない
-				+ recommendButtonHtml();
+				+ SKILL_ICONS.map(i => '<button type="button" class="usd-palette-btn" data-usd-act="palette-pick" data-usd-el="palette-' + i.id + '" data-icon="' + i.id + '"'
+				+ ' aria-pressed="' + (paletteSel === i.id ? 'true' : 'false') + '" aria-label="アイコン ' + esc(i.mark) + '" title="' + esc(i.mark) + '">' + skillIconHtml(i.id) + '</button>').join('');
+			// 削除の状態は、スキルのまとまりの印でタイルの見た目にも出す（控えめな破線の枠と、名前の取り消しの線）
+			const group = q(container, 'skill-group');
+			if (group) group.classList.toggle('usd-skillgroup--delete', del);
+			refreshIcons();
 			scanEntryRows();
 			watchRecommendVisible(el);
 		}
@@ -11495,7 +11540,62 @@
 			recommendObserver.disconnect();
 			recommendObserver.observe(el);
 		}
-		/** 押したとき: 確認なしでまとめて②に追加し、「元に戻す」に1回で積む。追加しなかったものは、数と理由を知らせに添える */
+		/** 追加しないものの内訳（「追加済み N種」「本育成編成のため N種」「レース条件に合わないため N種」。0 の理由は出さない） */
+		function recommendSkipReasons(plan) {
+			const why = [];
+			if (plan.already.length > 0) why.push('追加済み ' + plan.already.length + '種');
+			if (plan.roster.length > 0) why.push('本育成編成のため ' + plan.roster.length + '種');
+			if (plan.race.length > 0) why.push('レース条件に合わないため ' + plan.race.length + '種');
+			return why;
+		}
+		/**
+		 * 押したとき（C-132）: 追加できるものがあれば、追加する前に確認の小窓を出す（追加するスキルの名前と Pt・追加しないもの M種と内訳・「追加する」「やめる」）。
+		 * 追加できるものが0種なら、小窓は出さずに知らせだけ（C-131 のまま）
+		 */
+		function confirmRecommendedGroup(key, btn) {
+			applyRosterHidden();
+			const g = recommendedGroupOf(key);
+			if (!g || !skillIdsOf(currentTarget())) return;
+			const plan = recommendPlanOf(g);
+			const why = recommendSkipReasons(plan);
+			// C-131: 追加できるものが0種なら、何も足さずに知らせる（内訳は「追加しなかったもの」と同じ書き方。内訳も0なら一文だけ）
+			if (plan.add.length === 0) { toast('追加できるスキルはありません' + (why.length > 0 ? '（' + why.join('・') + '）' : '')); return; }
+			openPopover({ key: 'recommend-confirm:' + draftScopeKey, title: g.label, btn: btn, opener: btn, refocus: '[data-usd-el="recommend-btn"]',
+				build: (body) => {
+					const head = infoEl('p', 'usd-rec-head', '追加するスキル ' + plan.add.length + '種');
+					head.setAttribute('data-usd-el', 'recommend-confirm-head');
+					body.appendChild(head);
+					const ul = infoEl('ul', 'usd-rec-list');
+					ul.setAttribute('data-usd-el', 'recommend-confirm-list');
+					plan.add.forEach(id => {
+						const li = infoEl('li', 'usd-rec-item');
+						li.setAttribute('data-skill-id', id);
+						li.appendChild(infoEl('span', 'usd-rec-name', getSkillName(id)));
+						li.appendChild(infoEl('span', 'usd-rec-pt', outsideRowPtText(id)));
+						ul.appendChild(li);
+					});
+					body.appendChild(ul);
+					const skip = plan.already.length + plan.roster.length + plan.race.length;
+					if (skip > 0) {
+						const p = infoEl('p', 'usd-rec-skip', '追加しないもの ' + skip + '種（' + why.join('・') + '）');
+						p.setAttribute('data-usd-el', 'recommend-confirm-skip');
+						body.appendChild(p);
+					}
+					const row = infoEl('div', 'usd-rec-ops');
+					const go = infoEl('button', 'uma-btn uma-btn--primary', '追加する');
+					go.type = 'button';
+					go.setAttribute('data-usd-el', 'recommend-confirm-add');
+					go.addEventListener('click', () => { closeSkillInfo(); addRecommendedGroup(key); });
+					const no = infoEl('button', 'uma-btn uma-btn--ghost', 'やめる');
+					no.type = 'button';
+					no.setAttribute('data-usd-el', 'recommend-confirm-cancel');
+					no.addEventListener('click', () => closeSkillInfo());
+					row.appendChild(no);
+					row.appendChild(go);
+					body.appendChild(row);
+				} });
+		}
+		/** 確認の小窓の「追加する」: まとめて②に追加し、「元に戻す」に1回で積む。追加しなかったものは、数と理由を知らせに添える */
 		function addRecommendedGroup(key) {
 			applyRosterHidden();
 			const g = recommendedGroupOf(key);
@@ -11504,11 +11604,7 @@
 			if (!g || !ids) return;
 			const plan = recommendPlanOf(g);
 			const skip = plan.already.length + plan.roster.length + plan.race.length;
-			const why = [];
-			if (plan.already.length > 0) why.push('追加済み ' + plan.already.length + '種');
-			if (plan.roster.length > 0) why.push('本育成編成のため ' + plan.roster.length + '種');
-			if (plan.race.length > 0) why.push('レース条件に合わないため ' + plan.race.length + '種');
-			// C-131: 追加できるものが0種なら、何も足さずに知らせる（内訳は「追加しなかったもの」と同じ書き方。内訳も0なら一文だけ）
+			const why = recommendSkipReasons(plan);
 			if (plan.add.length === 0) { toast('追加できるスキルはありません' + (why.length > 0 ? '（' + why.join('・') + '）' : '')); return; }
 			const prev = snapshot(ids);
 			const prevIcons = snapshot(iconsOf(target));
@@ -11535,14 +11631,15 @@
 			renderPickerResults();
 			renderPasteReport();
 		}
+		/** C-132: 同じものをもう一度押すと選択が外れる（アイコン・削除とも）。アイコンを選ぶと削除の状態は終わる */
 		function pickPalette(iconId) {
-			if (iconId !== 'clear' && !isSkillIconId(iconId)) return;
-			paletteSel = iconId;
+			if (iconId !== PALETTE_DELETE && !isSkillIconId(iconId)) return;
+			paletteSel = paletteSel === iconId ? null : iconId;
 			renderPalette();
 		}
 		/**
-		 * 行の先頭のアイコンを押したとき（段9）。選んでいるのが解除以外なら、そのアイコンを付ける／同じものが付いていれば外す／別のものなら付け替える。
-		 * 解除なら、付いているアイコンを種類に関係なく外す。**Pt・種・合計には影響しない（メモ用）。** 選択は保つので続けて押せる。
+		 * 行の先頭のアイコンを押したとき（段9）。アイコンを選んでいれば、そのアイコンを付ける／同じものが付いていれば外す／別のものなら付け替える。
+		 * 何も選んでいないときは何もしない（C-132 で「解除」は無くした。外すのは、同じアイコンを選んで押す）。**Pt・種・合計には影響しない（メモ用）。** 選択は保つので続けて押せる。
 		 * 描き直すのはその行のアイコンだけ（押したボタンを作り直さない＝フォーカスとスクロールの位置を保つ）。
 		 * tiers はアイコンから導いて書き直す（◎→超優先・○→優先・それ以外と無印→通常）。結合画像の印のために、変更を呼び出し元へ知らせる
 		 */
@@ -11550,10 +11647,10 @@
 			const target = currentTarget();
 			const ids = skillIdsOf(target) || [];
 			if (ids.indexOf(skillId) === -1) return;
+			if (!isSkillIconId(paletteSel)) return;
 			const icons = iconsOf(target);
 			const cur = icons[skillId];
-			if (paletteSel === 'clear') { if (!cur) return; delete icons[skillId]; }
-			else if (cur === paletteSel) delete icons[skillId];
+			if (cur === paletteSel) delete icons[skillId];
 			else icons[skillId] = paletteSel;
 			if (!writeSkillState(target, ids, icons)) return;
 			const list = q(container, 'selected-list');
