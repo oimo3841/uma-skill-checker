@@ -45,6 +45,9 @@ export async function captureScene(browser, base, s, userData, theme = 'light') 
 	await page.waitForFunction(() => document.readyState === 'complete' && (!document.querySelector('script[src*="tailwindcss-browser"]') || document.documentElement.classList.contains('uma-tw-ready')), null, { timeout: 15000 });
 	await page.waitForTimeout(1500);
 	for (const sel of ['[data-act="notice-ok"]', '#ui-notice-ok']) if (await page.isVisible(sel).catch(() => false)) { await page.click(sel); await page.waitForTimeout(400); }
+	// 告知を閉じるとフォーカスがヘッダーのボタンへ戻り、その transition の途中で撮ると縁の画素が1段ゆれる（C-135 で判明）。外して落ち着かせる
+	await page.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); });
+	await page.waitForTimeout(600);
 	if (s.act === 'deck') { await page.evaluate(() => fabGoTo('deck')); await page.waitForTimeout(2500); }
 	if (s.act === 'examResults') {
 		await page.evaluate(() => {

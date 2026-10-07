@@ -7,7 +7,7 @@
 	     ノッチ端末のホームバーにFABが潜り込む。 -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 	<!-- 画面の色（ライト／ダーク）。CSS より先に、同期で読む（<html> の data-theme を本文の描画より前に付けるため。中身は js/theme.js の冒頭） -->
-	<script src="js/theme.js?v=2026-10-08a"></script>
+	<script src="js/theme.js?v=2026-10-08b"></script>
 	<title>UmaStar OCR（β版 2nd Edition）</title>
 	<!-- 共通スタイル（3ファイル・版は1つ）。Tailwindより先に読み込む。
 	       tokens.css … デザイントークン（変数だけ）
@@ -16,9 +16,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-10-08e" />
-	<link rel="stylesheet" href="css/common.css?v=2026-10-08e" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-10-08e" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-10-08f" />
+	<link rel="stylesheet" href="css/common.css?v=2026-10-08f" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-10-08f" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -452,6 +452,15 @@
 				</button>
 			</div>
 			<div class="help-body">
+				<!-- 画面の色（C-135・ダークモードの段7）。選ぶとすぐ反映する。仕組みは js/theme.js（[data-uma-theme-picker]） -->
+				<div class="uma-theme-row" data-uma-theme-picker>
+					<span class="uma-theme-label" id="theme-picker-label">画面の色</span>
+					<div class="uma-theme-choices" role="radiogroup" aria-labelledby="theme-picker-label">
+						<button type="button" class="uma-theme-choice" role="radio" aria-checked="false" data-theme-choice="auto" title="端末の設定に合わせる" aria-label="自動（端末の設定に合わせる）">自動</button>
+						<button type="button" class="uma-theme-choice" role="radio" aria-checked="false" data-theme-choice="light">ライト</button>
+						<button type="button" class="uma-theme-choice" role="radio" aria-checked="false" data-theme-choice="dark">ダーク</button>
+					</div>
+				</div>
 				<!-- 使い方の手順（C-62 の (10) で、いまの画面に合わせて書き直した）。
 				     旧UIは①がスキルリストの貼り付けだけで編成も分類も無いので、新UIの手順だけが増える形にする
 				     （data-help-mode="new" の行は新UIのときだけ出る。旧UIは更新終了＝C-32 なので足さない）。 -->
@@ -975,7 +984,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-10-08e';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-10-08f';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -3754,7 +3763,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-10-08h';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-10-08i';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {

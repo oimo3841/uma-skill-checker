@@ -31,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-10-08e";
+	--uma-components-css-version: "2026-10-08f";
 }
 
 /* ============================================================
@@ -581,3 +581,24 @@ textarea.uma-input {
 :root[data-theme="dark"] :is(.text-indigo-600) { color: oklch(67.3% 0.182 276.935); }
 :root[data-theme="dark"] :is(.text-violet-600) { color: oklch(70.2% 0.183 293.541); }
 :root[data-theme="dark"] :is(.text-amber-600) { color: oklch(82.8% 0.189 84.429); }
+
+/* ============================================================
+ * 画面の色の切り替え（C-135・ダークモードの段7）
+ * special／exam の「？」の小窓の先頭の1行と、スタイルガイド。押したときの動きは js/theme.js。
+ * 3つを1つの枠に横に並べる。選ばれているものは**黒い地と「✓」**（色だけに頼らない）。
+ * 「✓」の場所は選ばれていないものにも空けておき、選び直しても幅が動かないようにする（320px でも1行）。
+ * ============================================================ */
+.uma-theme-row { display: flex; align-items: center; gap: var(--uma-sp-2); margin: 0 0 var(--uma-sp-4); }
+.uma-theme-label { flex: none; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); white-space: nowrap; }
+.uma-theme-choices { display: inline-flex; flex: none; border: 1px solid var(--uma-control-border); border-radius: var(--uma-r-md); overflow: hidden; }
+.uma-theme-choice {
+	display: inline-flex; align-items: center; gap: 2px; padding: var(--uma-sp-1) var(--uma-sp-2);
+	font: inherit; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600; white-space: nowrap;
+	color: var(--uma-text-heading); background: var(--uma-surface); border: 0; cursor: pointer;
+}
+.uma-theme-choice + .uma-theme-choice { border-left: 1px solid var(--uma-control-border); }
+.uma-theme-choice::before { content: "✓"; visibility: hidden; font-size: var(--uma-fs-xs); }
+.uma-theme-choice:hover { background: var(--uma-control-soft); }
+.uma-theme-choice[aria-checked="true"] { background: var(--uma-control); color: var(--uma-text-inverse); }
+.uma-theme-choice[aria-checked="true"]::before { visibility: visible; }
+.uma-theme-choice:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: 0; }

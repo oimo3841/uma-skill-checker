@@ -4,7 +4,7 @@
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<!-- 画面の色（ライト／ダーク）。CSS より先に、同期で読む（<html> の data-theme を本文の描画より前に付けるため。中身は js/theme.js の冒頭） -->
-	<script src="js/theme.js?v=2026-10-08a"></script>
+	<script src="js/theme.js?v=2026-10-08b"></script>
 	<title>UmaSkill Deck</title>
 	<!-- 共通スタイル（tokens.css＝変数、common.css＝共通部品。版は1つ）。Tailwindより先に読み込む。
 	     このページは引き出し・FAB を持たないが、帯のタブ（.uma-subtabs。C-54）が shell.css にあるので
@@ -12,9 +12,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-10-08e" />
-	<link rel="stylesheet" href="css/common.css?v=2026-10-08e" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-10-08e" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-10-08f" />
+	<link rel="stylesheet" href="css/common.css?v=2026-10-08f" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-10-08f" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -22,7 +22,7 @@
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
 	<script src="js/uma-skill-deck-core.js?v=2026-10-08a"></script>
-	<script src="js/uma-skill-deck.js?v=2026-10-08h"></script>
+	<script src="js/uma-skill-deck.js?v=2026-10-08i"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。

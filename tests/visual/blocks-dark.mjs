@@ -4,10 +4,12 @@
 // 設計は dark-mode-step0.md の §8-1。ここで見るのは:
 //   ダーク1 保存と復元（鍵 uma-tools-theme・自動は鍵なし・壊れた値は自動・localStorage が投げても落ちない・選ぶまで書かない）
 //   ダーク2 ちらつかない（data-theme は body より前に付く・theme.js は head の同期スクリプト）
-//   ダーク3 OS の設定への追従は止めてある（決定13。段7 まで）・引き出しの Deck は保存値に追従する
+//   ダーク3 自動のときは OS の設定に追従する（段7・C-135 で決定13 を解いた）・固定のときは追従しない・引き出しの Deck も同じ
+//   ダーク13 「？」の小窓の「画面の色」の切り替え（3つの選択肢・保存と復元・1行に収まる。C-135）
 //   ダーク4 書き出しに鍵が紛れない
 // 段2 以降で、コントラスト比・意味を持つ色の見分け・canvas のライト固定を足す。
-// 切り替えの部品は段7 まで画面に無いので、ここでは window.UmaTheme.set() と localStorage で選ぶ。
+// ダーク1〜12 は window.UmaTheme.set() と localStorage で選ぶ（切り替えの部品そのものはダーク13 が見る）。
+// Playwright の既定の OS の設定はライトなので、「自動」は data-theme="light" になる。
 
 import { scanTextContrastInPage, formatContrast } from './lib/contrast.mjs';
 import { LIGHT_SCENES, captureScene } from './lib/light-shots.mjs';
@@ -26,7 +28,7 @@ export async function registerDark(env) {
 		const { ctx, page, errors } = await openPage(browser, base, 'special.html', { width: 375, height: 812 });
 		await closeNotice(page);
 		assert(await page.evaluate(() => window.UmaTheme && window.UmaTheme.version) === THEME_VER, 'ダーク1: window.UmaTheme があり、版が THEME_JS_VERSION と同じ', THEME_VER);
-		assert(await attr(page) === null && await stored(page) === null, 'ダーク1: 何も選んでいないときは属性を付けず、鍵も無い');
+		assert(await attr(page) === 'light' && await stored(page) === null, 'ダーク1: 何も選んでいないときは OS の設定（ライト）の属性を付け、鍵は無い');
 		// 画面を少し操作しても鍵を書かない（選ぶまで何も書かない）
 		for (const id of ['step-tab-0', 'step-tab-1', 'step-tab-2']) { await page.click('#' + id).catch(() => {}); await page.waitForTimeout(150); }
 		assert(await stored(page) === null, 'ダーク1: タブを切り替えても鍵は書かれない');
@@ -40,11 +42,11 @@ export async function registerDark(env) {
 		await page.reload({ waitUntil: 'networkidle' });
 		assert(await attr(page) === 'light' && await page.evaluate(() => window.UmaTheme.get()) === 'light', 'ダーク1: 読み込み直してもライトのまま');
 		await page.evaluate(() => window.UmaTheme.set('auto'));
-		assert(await attr(page) === null && await stored(page) === null, 'ダーク1: 自動を選ぶと鍵を消す（段7 までは属性も付けない）');
+		assert(await attr(page) === 'light' && await stored(page) === null, 'ダーク1: 自動を選ぶと鍵を消し、OS の設定（ライト）に戻る');
 
 		await page.evaluate((k) => localStorage.setItem(k, 'purple'), KEY);
 		await page.reload({ waitUntil: 'networkidle' });
-		assert(await attr(page) === null && await stored(page) === 'purple' && await page.evaluate(() => window.UmaTheme.get()) === 'auto',
+		assert(await attr(page) === 'light' && await stored(page) === 'purple' && await page.evaluate(() => window.UmaTheme.get()) === 'auto',
 			'ダーク1: 壊れた値は自動として扱い、書き換えない', { attr: await attr(page), stored: await stored(page) });
 		await page.evaluate((k) => localStorage.removeItem(k), KEY);
 		assert(jsErrors(errors).length === 0, 'ダーク1: コンソールのエラー0', jsErrors(errors));
@@ -95,32 +97,52 @@ export async function registerDark(env) {
 		}
 	});
 
-	await block('ダーク3 OS の設定への追従は止めてある（決定13）・引き出しの Deck は保存値に追従する', async () => {
+	await block('ダーク3 自動のときは OS の設定に追従する・ライト／ダークの固定のときは追従しない・引き出しの Deck も同じ（C-135）', async () => {
 		for (const file of ['special.html', 'exam.html', 'uma-skill-deck.html']) {
 			const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, colorScheme: 'dark' });
 			const page = await ctx.newPage();
 			await page.goto(base + '/' + file, { waitUntil: 'networkidle', timeout: 60000 });
-			const r = await page.evaluate(() => ({ os: matchMedia('(prefers-color-scheme: dark)').matches, attr: document.documentElement.getAttribute('data-theme'), follows: window.UmaTheme.followsOs }));
-			assert(r.os === true && r.attr === null && r.follows === false, 'ダーク3: ' + file + ' は OS がダークでも、何も選んでいなければ属性を付けない（ライトのまま）', r);
+			const r = await page.evaluate(() => ({ attr: document.documentElement.getAttribute('data-theme'), follows: window.UmaTheme.followsOs, key: localStorage.getItem('uma-tools-theme') }));
+			assert(r.attr === 'dark' && r.follows === true && r.key === null, 'ダーク3: ' + file + ' は何も選んでいなければ OS の設定（ダーク）に従う', r);
 			await page.emulateMedia({ colorScheme: 'light' });
+			await page.waitForTimeout(100);
+			assert(await attr(page) === 'light', 'ダーク3: ' + file + ' は自動のとき、OS をライトにすると属性が light に変わる');
+			await page.evaluate(() => window.UmaTheme.set('dark'));
+			await page.emulateMedia({ colorScheme: 'dark' }); await page.emulateMedia({ colorScheme: 'light' });
+			await page.waitForTimeout(100);
+			assert(await attr(page) === 'dark', 'ダーク3: ' + file + ' はダークに固定すると、OS がライトでもダークのまま');
+			await page.evaluate(() => window.UmaTheme.set('light'));
 			await page.emulateMedia({ colorScheme: 'dark' });
 			await page.waitForTimeout(100);
-			assert(await attr(page) === null, 'ダーク3: ' + file + ' は OS の設定が変わっても属性を付けない');
+			assert(await attr(page) === 'light', 'ダーク3: ' + file + ' はライトに固定すると、OS がダークでもライトのまま');
+			await page.evaluate(() => window.UmaTheme.set('auto'));
+			assert(await attr(page) === 'dark', 'ダーク3: ' + file + ' は自動に戻すと、すぐ OS の設定（ダーク）になる');
+			await page.reload({ waitUntil: 'networkidle' });
+			assert(await page.evaluate(() => document.documentElement.hasAttribute('data-theme')), 'ダーク3: ' + file + ' は属性が無い状態を作らない（常に light か dark）');
 			await ctx.close();
 		}
-		// 引き出しの Deck（iframe）: 親で選ぶと storage イベントで追従する
+		// 引き出しの Deck（iframe）: 親で選ぶと storage イベントで、OS の設定は自分の change で追従する
 		const { ctx, page } = await openPage(browser, base, 'special.html', { width: 375, height: 812 });
 		await closeNotice(page);
 		await page.evaluate(() => fabGoTo('deck'));
 		await page.waitForTimeout(1500);
 		const frameAttr = () => page.evaluate(() => document.getElementById('deck-drawer-frame').contentDocument.documentElement.getAttribute('data-theme'));
-		assert(await frameAttr() === null, 'ダーク3: 引き出しの Deck も、何も選んでいなければ属性を付けない');
+		assert(await frameAttr() === 'light', 'ダーク3: 引き出しの Deck も、何も選んでいなければ OS の設定（ライト）');
 		await page.evaluate(() => window.UmaTheme.set('dark'));
 		await page.waitForTimeout(300);
 		assert(await frameAttr() === 'dark', 'ダーク3: 親でダークを選ぶと、開いている引き出しの Deck もダークになる');
 		await page.evaluate(() => window.UmaTheme.set('auto'));
 		await page.waitForTimeout(300);
-		assert(await frameAttr() === null, 'ダーク3: 親で自動に戻すと、引き出しの Deck も属性が外れる');
+		assert(await frameAttr() === 'light', 'ダーク3: 親で自動に戻すと、引き出しの Deck も OS の設定（ライト）に戻る');
+		await page.emulateMedia({ colorScheme: 'dark' });
+		await page.waitForTimeout(300);
+		assert(await attr(page) === 'dark' && await frameAttr() === 'dark', 'ダーク3: 自動のとき OS をダークにすると、親も引き出しの Deck もダークになる');
+		await page.emulateMedia({ colorScheme: 'light' });
+		await page.evaluate(() => window.UmaTheme.set('light'));
+		await page.emulateMedia({ colorScheme: 'dark' });
+		await page.waitForTimeout(300);
+		assert(await attr(page) === 'light' && await frameAttr() === 'light', 'ダーク3: ライトに固定すると、OS をダークにしても親も引き出しの Deck もライトのまま');
+		await page.evaluate(() => window.UmaTheme.set('auto'));
 		await ctx.close();
 	});
 
@@ -196,7 +218,7 @@ export async function registerDark(env) {
 		const { ctx, page } = await openPage(browser, base, 'css/styleguide.html', { width: 1280, height: 900 });
 		const lightScan = await page.evaluate(scanTextContrastInPage, null);
 		console.log('     [参考] ライトのスタイルガイドの不足（直していない）: ' + (lightScan.bad.length ? formatContrast(lightScan.bad).join(' / ') : 'なし'));
-		await page.click('[data-sg-theme="dark"]');
+		await page.click('[data-theme-choice="dark"]');
 		await page.waitForTimeout(200);
 		assert(await attr(page) === 'dark', 'ダーク6: スタイルガイドの「ダーク」で属性が付く');
 		const r = await page.evaluate(scanTextContrastInPage, null);
@@ -204,8 +226,8 @@ export async function registerDark(env) {
 		assert(r.undecided.length === 0, 'ダーク6: 背景を決められない文字が無い', r.undecided);
 		const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 		assert(bg === 'rgb(23, 29, 38)', 'ダーク6: 地は面の色（#171d26）', bg);
-		await page.click('[data-sg-theme="light"]');
-		assert(await attr(page) === null, 'ダーク6: 「ライト」で属性が外れる');
+		await page.click('[data-theme-choice="auto"]');
+		assert(await attr(page) === 'light' && await stored(page) === null, 'ダーク6: 「自動」でライト（OS の設定）に戻り、鍵が消える（special／exam と同じ js/theme.js の部品）');
 		await ctx.close();
 	});
 
@@ -441,5 +463,101 @@ export async function registerDark(env) {
 		assert(drawerBg === 'rgb(18, 23, 31)', 'ダーク12: 引き出しの地は暗い（--uma-drawer-bg）', drawerBg);
 		await sp.ctx.close();
 		console.log('     [参考] Deck 375px のライトのコントラスト比の不足（直していない・' + lightReport.length + '件）:\n       ' + (lightReport.join('\n       ') || 'なし'));
+	});
+
+	/* ---------- 段7: 「？」の小窓の「画面の色」の切り替え（C-135） ---------- */
+	await block('ダーク13 「？」の小窓の「画面の色」（自動／ライト／ダーク）: 先頭の1行・選ぶとすぐ反映・保存と復元・自動で鍵が消える・壊れた値は自動・375px／320px で1行', async () => {
+		const ROW = '#help-box [data-uma-theme-picker]';
+		const pickerState = (page) => page.evaluate((ROW) => {
+			const row = document.querySelector(ROW);
+			if (!row) return null;
+			const btns = Array.from(row.querySelectorAll('[data-theme-choice]'));
+			const rects = [row.querySelector('.uma-theme-label')].concat(btns).map((e) => e.getBoundingClientRect());
+			const on = btns.find((b) => b.getAttribute('aria-checked') === 'true');
+			const body = document.querySelector('#help-box .help-body');
+			return {
+				first: body.firstElementChild === row,
+				label: row.querySelector('.uma-theme-label').textContent.trim(),
+				group: row.querySelector('[role="radiogroup"]') ? row.querySelector('[role="radiogroup"]').getAttribute('aria-labelledby') : null,
+				texts: btns.map((b) => b.textContent.trim()), roles: btns.map((b) => b.getAttribute('role')),
+				autoTitle: btns[0].getAttribute('title'), autoAria: btns[0].getAttribute('aria-label'),
+				checked: on ? on.getAttribute('data-theme-choice') : null,
+				checkedMark: on ? getComputedStyle(on, '::before').visibility === 'visible' && getComputedStyle(on, '::before').content.includes('✓') : false,
+				otherMarks: btns.filter((b) => b !== on).every((b) => getComputedStyle(b, '::before').visibility === 'hidden'),
+				oneLine: rects.every((r) => Math.abs(r.top - rects[1].top) < 6) && row.getBoundingClientRect().height < 40,
+				fits: row.scrollWidth <= row.clientWidth + 1 && row.getBoundingClientRect().right <= body.getBoundingClientRect().right,
+				tabbable: btns.filter((b) => b.tabIndex === 0).map((b) => b.getAttribute('data-theme-choice')),
+			};
+		}, ROW);
+		for (const file of ['special.html', 'exam.html']) {
+			for (const w of [375, 320]) {
+				const { ctx, page, errors } = await openPage(browser, base, file, { width: w, height: 760 });
+				for (const sel of ['#ui-notice-ok', '[data-act="notice-ok"]']) if (await page.isVisible(sel).catch(() => false)) await page.click(sel);
+				const headerBefore = await page.evaluate(() => document.querySelector('header').getBoundingClientRect().height);
+				await page.evaluate(() => openHelp());
+				await page.waitForTimeout(300);
+				let st = await pickerState(page);
+				const tag = file + ' ' + w + 'px: ';
+				assert(!!st && st.first && st.label === '画面の色' && st.group === 'theme-picker-label' && st.texts.join() === '自動,ライト,ダーク' && st.roles.every((r) => r === 'radio'),
+					'ダーク13: ' + tag + '「？」の小窓の先頭に「画面の色」と、自動・ライト・ダークの3つ（radiogroup）', st);
+				assert(st.autoTitle === '端末の設定に合わせる' && /端末の設定に合わせる/.test(st.autoAria), 'ダーク13: ' + tag + '「自動」の意味は title と aria-label にある', st);
+				assert(st.oneLine && st.fits, 'ダーク13: ' + tag + '1行に収まる', st);
+				assert(st.checked === 'auto' && st.checkedMark && st.otherMarks && st.tabbable.join() === 'auto', 'ダーク13: ' + tag + '何も選んでいなければ「自動」が選ばれていて、「✓」が付く（色だけに頼らない）', st);
+				await page.click(ROW + ' [data-theme-choice="dark"]');
+				st = await pickerState(page);
+				assert(await attr(page) === 'dark' && await stored(page) === 'dark' && st.checked === 'dark' && st.checkedMark && st.oneLine,
+					'ダーク13: ' + tag + '「ダーク」を押すとすぐダークになり、鍵に dark を書く（1行のまま）', st);
+				await page.reload({ waitUntil: 'networkidle' });
+				for (const sel of ['#ui-notice-ok', '[data-act="notice-ok"]']) if (await page.isVisible(sel).catch(() => false)) await page.click(sel);
+				await page.evaluate(() => openHelp());
+				await page.waitForTimeout(200);
+				st = await pickerState(page);
+				assert(await attr(page) === 'dark' && st.checked === 'dark', 'ダーク13: ' + tag + '開き直してもダークのまま・「ダーク」が選ばれている', st);
+				// 矢印キーで隣へ（ダーク → 自動）
+				await page.focus(ROW + ' [data-theme-choice="dark"]');
+				await page.keyboard.press('ArrowRight');
+				st = await pickerState(page);
+				assert(st.checked === 'auto' && await stored(page) === null && await attr(page) === 'light' && await page.evaluate(() => document.activeElement.getAttribute('data-theme-choice')) === 'auto',
+					'ダーク13: ' + tag + '矢印キーで隣を選べる（ダーク → 自動。鍵が消え、OS の設定のライトに戻る）', st);
+				await page.click(ROW + ' [data-theme-choice="light"]');
+				assert(await attr(page) === 'light' && await stored(page) === 'light', 'ダーク13: ' + tag + '「ライト」を押すと鍵に light を書く');
+				await page.emulateMedia({ colorScheme: 'dark' });
+				await page.waitForTimeout(100);
+				assert(await attr(page) === 'light', 'ダーク13: ' + tag + '「ライト」のときは OS をダークにしてもライトのまま');
+				await page.click(ROW + ' [data-theme-choice="auto"]');
+				st = await pickerState(page);
+				assert(await stored(page) === null && await attr(page) === 'dark' && st.checked === 'auto', 'ダーク13: ' + tag + '「自動」を押すと鍵を消し、OS の設定（ダーク）に従う', st);
+				await page.emulateMedia({ colorScheme: 'light' });
+				await page.evaluate((k) => localStorage.setItem(k, 'purple'), KEY);
+				await page.reload({ waitUntil: 'networkidle' });
+				for (const sel of ['#ui-notice-ok', '[data-act="notice-ok"]']) if (await page.isVisible(sel).catch(() => false)) await page.click(sel);
+				await page.evaluate(() => openHelp());
+				st = await pickerState(page);
+				assert(st.checked === 'auto' && await stored(page) === 'purple' && await attr(page) === 'light', 'ダーク13: ' + tag + '壊れた値は「自動」として出し、書き換えない', st);
+				await page.evaluate((k) => localStorage.removeItem(k), KEY);
+				const headerAfter = await page.evaluate(() => document.querySelector('header').getBoundingClientRect().height);
+				assert(headerAfter === headerBefore, 'ダーク13: ' + tag + 'ヘッダーの高さは変わらない（切り替えはヘッダーに置かない）', [headerBefore, headerAfter]);
+				assert(jsErrors(errors).length === 0, 'ダーク13: ' + tag + 'コンソールのエラー0', jsErrors(errors));
+				await ctx.close();
+			}
+			// localStorage が使えないときも落ちない（選んだものはその画面の中だけ効く）
+			const c2 = await browser.newContext({ viewport: { width: 375, height: 760 } });
+			await c2.addInitScript((k) => {
+				const g = Storage.prototype.getItem, s2 = Storage.prototype.setItem, r = Storage.prototype.removeItem;
+				Storage.prototype.getItem = function (key) { if (key === k) throw new Error('blocked'); return g.call(this, key); };
+				Storage.prototype.setItem = function (key, v) { if (key === k) throw new Error('blocked'); return s2.call(this, key, v); };
+				Storage.prototype.removeItem = function (key) { if (key === k) throw new Error('blocked'); return r.call(this, key); };
+			}, KEY);
+			const p2 = await c2.newPage();
+			const errs = [];
+			p2.on('pageerror', (e) => errs.push(String(e)));
+			await p2.goto(base + '/' + file, { waitUntil: 'networkidle', timeout: 60000 });
+			for (const sel of ['#ui-notice-ok', '[data-act="notice-ok"]']) if (await p2.isVisible(sel).catch(() => false)) await p2.click(sel);
+			await p2.evaluate(() => openHelp());
+			await p2.click(ROW + ' [data-theme-choice="dark"]');
+			const st2 = await pickerState(p2);
+			assert(errs.length === 0 && await attr(p2) === 'dark' && st2.checked === 'dark', 'ダーク13: ' + file + ' は localStorage が使えなくても落ちず、選んだ色をその画面に当てて「ダーク」を選んだ表示にする', { errs, st2 });
+			await c2.close();
+		}
 	});
 }

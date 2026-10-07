@@ -3,16 +3,17 @@
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<!-- 画面の色（C-135）。special／exam と同じ js/theme.js を読む（切り替えの部品も同じ） -->
+	<script src="../js/theme.js?v=2026-10-08b"></script>
 	<title>Uma Tools スタイルガイド</title>
 	<!-- 確認専用。ツール本体には組み込まない。
 	     tokens.css（変数）と common.css（共通部品）だけを読み込み、Tailwind も lucide も使わない。
 	     ここが正しく見えていれば、共通部分の妥当性は確認できる。 -->
-	<link rel="stylesheet" href="tokens.css?v=2026-10-08e" />
-	<link rel="stylesheet" href="common.css?v=2026-10-08e" />
+	<link rel="stylesheet" href="tokens.css?v=2026-10-08f" />
+	<link rel="stylesheet" href="common.css?v=2026-10-08f" />
 	<style>
 		body { margin: 0; padding: 24px; background: var(--uma-surface); font-family: ui-sans-serif, system-ui, sans-serif; }
-		/* ダークの見本（C-134 段2）。このページだけは画面の上で切り替えられる（保存はしない。js/theme.js も読まない） */
-		.sg-theme { display: flex; gap: 8px; margin: 0 0 20px; }
+		/* 画面の色の切り替えは css/common.css の .uma-theme-row（special／exam の「？」の小窓と同じ部品。C-135） */
 		.sg-wrap { max-width: 960px; margin: 0 auto; }
 		.sg-h1 { font-size: var(--uma-fs-xl); line-height: var(--uma-lh-xl); font-weight: 700; margin: 0 0 4px; }
 		.sg-lead { font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); color: var(--uma-text-subtle); margin: 0 0 24px; }
@@ -53,9 +54,14 @@
 	<p class="sg-lead">
 		css/common.css <span id="ver"></span> の内容だけを表示している。Tailwind は読み込んでいない。
 	</p>
-	<div class="sg-theme" role="group" aria-label="画面の色">
-		<button type="button" class="uma-pill active" data-sg-theme="light" aria-pressed="true">ライト</button>
-		<button type="button" class="uma-pill" data-sg-theme="dark" aria-pressed="false">ダーク</button>
+	<!-- 画面の色（C-135・ダークモードの段7）。選ぶとすぐ反映する。仕組みは js/theme.js（[data-uma-theme-picker]） -->
+	<div class="uma-theme-row" data-uma-theme-picker>
+		<span class="uma-theme-label" id="theme-picker-label">画面の色</span>
+		<div class="uma-theme-choices" role="radiogroup" aria-labelledby="theme-picker-label">
+			<button type="button" class="uma-theme-choice" role="radio" aria-checked="false" data-theme-choice="auto" title="端末の設定に合わせる" aria-label="自動（端末の設定に合わせる）">自動</button>
+			<button type="button" class="uma-theme-choice" role="radio" aria-checked="false" data-theme-choice="light">ライト</button>
+			<button type="button" class="uma-theme-choice" role="radio" aria-checked="false" data-theme-choice="dark">ダーク</button>
+		</div>
 	</div>
 
 	<!-- ============ 色 ============ -->
@@ -241,17 +247,6 @@
 		// 読み込まれている common.css の版を表示する（版ずれの確認用）。
 		document.getElementById('ver').textContent =
 			getComputedStyle(document.documentElement).getPropertyValue('--common-css-version').trim() || '(読み込めていません)';
-		// ライト／ダークの見本の切り替え（<html data-theme> を付け替えるだけ。保存しない）
-		document.querySelectorAll('[data-sg-theme]').forEach((b) => b.addEventListener('click', () => {
-			const t = b.getAttribute('data-sg-theme');
-			if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-			else document.documentElement.removeAttribute('data-theme');
-			document.querySelectorAll('[data-sg-theme]').forEach((x) => {
-				const on = x === b;
-				x.classList.toggle('active', on);
-				x.setAttribute('aria-pressed', on ? 'true' : 'false');
-			});
-		}));
 	</script>
 </div>
 </body>
