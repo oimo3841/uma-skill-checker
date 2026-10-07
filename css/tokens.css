@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-10-08b";
+	--common-css-version: "2026-10-08c";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -438,7 +438,7 @@
 	--uma-catalog-text: #f2a8ea;
 	--uma-catalog-soft: #35172f;
 	--uma-catalog-border: #6b2b63;
-	--uma-mark-gene: #b48cf0;
+	--uma-mark-gene: #a08aff;
 	--uma-gene-text: #d6bcf8;
 	--uma-gene-soft: #251a3a;
 	--uma-gene-border: #4c3a70;

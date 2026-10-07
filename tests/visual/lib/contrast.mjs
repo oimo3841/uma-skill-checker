@@ -41,14 +41,36 @@ export function scanTextContrastInPage(rootSel) {
 		if (da) s += '[' + da + ']';
 		return s;
 	};
-	/** 有効な背景。決められないときは null（理由を返す） */
+	/** background-image のいちばん上の層の色（不透明なグラデーションだけ）。決められなければ null */
+	const firstLayerStops = (img) => {
+		let depth = 0, end = img.length;
+		for (let i = 0; i < img.length; i++) {
+			const ch = img[i];
+			if (ch === '(') depth++;
+			else if (ch === ')') depth--;
+			else if (ch === ',' && depth === 0) { end = i; break; }
+		}
+		const layer = img.slice(0, end).trim();
+		if (!/^(linear|radial|conic)-gradient\(/.test(layer)) return null;
+		const stops = (layer.match(/(rgba?\([^)]*\)|color\([^)]*\)|oklch\([^)]*\)|oklab\([^)]*\)|#[0-9a-fA-F]{3,8}\b)/g) || []).map(toRgba);
+		if (!stops.length || stops.some((c) => c[3] < 0.999)) return null;
+		return stops;
+	};
+	/** 有効な背景。決められないときは null（理由を返す）。不透明なグラデーションの上では、色の止まりの数だけ候補を返す
+	   （文字との比はいちばん悪いもので見る） */
 	const effectiveBg = (el) => {
 		const layers = [];
 		let cover = 0;  // ここまでに重ねた面が下をどれだけ覆っているか（0〜1）
+		let cands = null;
 		for (let e = el; e; e = e.parentElement) {
 			const cs = getComputedStyle(e);
+			// 文字の形に切り抜く背景（見出しの文字のグラデーション）は、子の後ろに面を描かない
+			if (e !== el && (cs.webkitBackgroundClip || cs.backgroundClip) === 'text') continue;
 			if (cs.backgroundImage && cs.backgroundImage !== 'none') {
-				// 画像・グラデーションの背景。上に重なった面がほぼ覆っている（85% 以上。.glass-card の 88〜92% など）なら、
+				// 不透明なグラデーション（スキルパネルの地・オススメサポのボタン・カードの地など）なら、その色の止まりを候補にする
+				const stops = firstLayerStops(cs.backgroundImage);
+				if (stops) { cands = stops; break; }
+				// 画像・半透明のグラデーションの背景。上に重なった面がほぼ覆っている（85% 以上。.glass-card の 88〜92% など）なら、
 				// その要素の背景色（無ければ白）で代える（誤差は小さい）。覆っていなければ決められない
 				if (cover >= 0.85) {
 					const b = toRgba(cs.backgroundColor);
@@ -63,11 +85,13 @@ export function scanTextContrastInPage(rootSel) {
 			if (bg[3] >= 0.999) break;
 			if (e === document.documentElement) layers.push([255, 255, 255, 1]);  // キャンバスの既定は白
 		}
+		const stack = (bottom) => { let c = bottom; for (let i = layers.length - 1; i >= 0; i--) c = over(layers[i], c); return c; };
+		if (cands) return { cs: cands.map(stack) };
 		if (!layers.length) layers.push([255, 255, 255, 1]);
 		let c = layers[layers.length - 1];
 		if (c[3] < 0.999) c = over(c, [255, 255, 255, 1]);
 		for (let i = layers.length - 2; i >= 0; i--) c = over(layers[i], c);
-		return { c };
+		return { cs: [c] };
 	};
 	const root = rootSel ? document.querySelector(rootSel) : document.body;
 	const bad = [], undecided = [], disabled = [];
@@ -93,14 +117,19 @@ export function scanTextContrastInPage(rootSel) {
 		const fg = toRgba(cs.color);
 		if (fg[3] === 0 || (cs.webkitBackgroundClip || cs.backgroundClip) === 'text') { undecided.push({ el: label(el), text, why: 'text-clip' }); continue; }
 		const bg = effectiveBg(el);
-		if (!bg.c) { undecided.push({ el: label(el), text, why: bg.why, at: bg.at }); continue; }
-		const f = fg[3] < 1 ? over(fg, bg.c) : fg;
-		const ratioV = ratio(f, bg.c);
+		if (!bg.cs) { undecided.push({ el: label(el), text, why: bg.why, at: bg.at }); continue; }
+		// グラデーションの上では、色の止まりのうちいちばん悪いもので見る
+		let worst = null;
+		for (const b of bg.cs) {
+			const f = fg[3] < 1 ? over(fg, b) : fg;
+			const v = ratio(f, b);
+			if (!worst || v < worst.v) worst = { v, f, b };
+		}
 		const size = parseFloat(cs.fontSize), weight = parseInt(cs.fontWeight, 10) || 400;
 		const large = size >= 24 || (size >= 18.66 && weight >= 700);
 		const need = large ? 3 : 4.5;
 		checked++;
-		if (ratioV + 1e-9 < need) bad.push({ el: label(el), text, fg: hex(f), bg: hex(bg.c), ratio: Math.round(ratioV * 100) / 100, need });
+		if (worst.v + 1e-9 < need) bad.push({ el: label(el), text, fg: hex(worst.f), bg: hex(worst.b), ratio: Math.round(worst.v * 100) / 100, need });
 	}
 	return { checked, bad, undecided, disabled };
 }

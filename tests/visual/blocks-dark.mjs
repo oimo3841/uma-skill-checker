@@ -11,6 +11,7 @@
 
 import { scanTextContrastInPage, formatContrast } from './lib/contrast.mjs';
 import { LIGHT_SCENES, captureScene } from './lib/light-shots.mjs';
+import { deltaE } from './lib/pixels.mjs';
 
 export async function registerDark(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -206,5 +207,132 @@ export async function registerDark(env) {
 		await page.click('[data-sg-theme="light"]');
 		assert(await attr(page) === null, 'ダーク6: 「ライト」で属性が外れる');
 		await ctx.close();
+	});
+
+	/* ---------- 段4: special＋core ---------- */
+	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
+	const MASTER = readJson('uma-skill-deck-skills.json').skills;
+	const CARDS6 = ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'];
+	const FULL = { umaId: 'uma-0001', cardIds: CARDS6, skillFilter: { distance: 'medium', style: 'senko', surface: 'turf' } };
+	const EMPTY = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
+	const IDS = MASTER.slice(0, 14).map((s) => String(s.id));
+	/** special を①の編成と②のスキルが入った状態で開く。theme＝'dark' なら鍵を入れてから読み込み直す */
+	const openSpFull = async (o = {}) => {
+		const sp = await openPage(browser, base, 'special.html', { width: o.w || 375, height: o.h || 812 }, EMPTY);
+		await sp.page.evaluate(({ tab, ids, theme, KEY }) => {
+			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: 'uma-0001', cardIds: ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'], skillFilter: { distance: 'medium', style: 'senko', surface: 'turf' } }));
+			localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify({ skillIds: ids }));
+			localStorage.setItem('umaSkillDeck:stepTab', String(tab));
+			if (theme === 'dark') localStorage.setItem(KEY, 'dark'); else localStorage.removeItem(KEY);
+		}, { tab: o.tab === undefined ? 1 : o.tab, ids: o.ids || IDS, theme: o.theme || 'light', KEY });
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		await closeNotice(sp.page);
+		await sp.page.waitForTimeout(500);
+		return sp;
+	};
+	// 見出しのタイトル（文字のグラデーション）と、その中の文字は背景を決められない。目視で確かめる（スクリーンショット）
+	const headerOnly = (list) => list.filter((x) => !(x.el.startsWith('h1.') || /^header\.site-header/.test(x.at || '')));
+
+	await block('ダーク7 結合画像（canvas）はダークでもライトの値で焼き込む（決定4）', async () => {
+		const { ctx, page } = await openPage(browser, base, 'special.html', { width: 375, height: 812 });
+		await closeNotice(page);
+		const draw = () => page.evaluate(() => {
+			const c = document.createElement('canvas'); c.width = 360; c.height = 200;
+			const g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, 360, 200);
+			const colors = tierMarkColors();
+			[1, 2, 3].forEach((t, i) => drawTierMark(g, t, 40 + i * 60, 40, 32, colors));
+			const bar = buildTierLegendBar(360, 360, true);
+			if (bar) g.drawImage(bar, 0, 100);
+			return { colors, url: c.toDataURL(), attr: document.documentElement.getAttribute('data-theme') };
+		});
+		const light = await draw();
+		await page.evaluate(() => window.UmaTheme.set('dark'));
+		const shown = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--uma-mark-tier-1').trim());
+		const dark = await draw();
+		assert(shown !== light.colors[1], 'ダーク7: 前提: ダークでは画面の印の色がライトと違う', { light: light.colors[1], dark: shown });
+		assert(JSON.stringify(dark.colors) === JSON.stringify(light.colors), 'ダーク7: tierMarkColors() はダークでもライトの値を返す', { light: light.colors, dark: dark.colors });
+		assert(dark.url === light.url && light.url.length > 1000, 'ダーク7: 印と凡例の帯を描いた canvas が、ダークとライトでピクセルまで同じ', [light.url.length, dark.url.length]);
+		assert(dark.attr === 'dark', 'ダーク7: 読み終わったあと、画面はダークのまま（属性を戻している）', dark.attr);
+		await page.evaluate(() => window.UmaTheme.set('auto'));
+		await ctx.close();
+	});
+
+	await block('ダーク8 special のダークの文字のコントラスト比（①②③・オススメサポの小窓・確認の小窓・トースト・「＋」の展開）', async () => {
+		const report = [];
+		const check = async (page, name) => {
+			const r = await page.evaluate(scanTextContrastInPage, null);
+			assert(r.checked > 30 && r.bad.length === 0, 'ダーク8: ' + name + ' の文字はすべて 4.5（大きい文字は 3.0）以上（' + r.checked + '件）', formatContrast(r.bad));
+			assert(headerOnly(r.undecided).length === 0, 'ダーク8: ' + name + ' で背景を決められない文字は、見出しのタイトルだけ', headerOnly(r.undecided));
+		};
+		for (const w of [375, 1280]) {
+			for (const tab of [0, 1, 2]) {
+				const sp = await openSpFull({ tab, w, h: w === 375 ? 812 : 900, theme: 'dark' });
+				assert(await attr(sp.page) === 'dark', 'ダーク8: 前提: ダークで開いた');
+				await check(sp.page, w + 'px の' + ['①', '②', '③'][tab]);
+				if (w === 375 && tab === 1) {
+					await sp.page.click('#deck-template-panel [data-usd-el="palette-delete"]');
+					await check(sp.page, '②の「削除」を選んだ状態');
+					await sp.page.click('#deck-template-panel [data-usd-el="palette-delete"]');
+					await sp.page.click('#deck-template-panel [data-usd-el="outside-open"]');
+					await sp.page.waitForFunction(() => { const m = document.querySelector('[data-usd-el="outside-modal"]'); return !!m && !m.hidden && !m.querySelector('[data-usd-el="outside-busy"]'); }, null, { timeout: 20000 });
+					await check(sp.page, 'オススメサポの小窓');
+					for (const el of ['outside-exclude-btn', 'outside-types-btn', 'outside-count-btn', 'outside-card-main']) {
+						await sp.page.click('[data-usd-el="outside-modal"] [data-usd-el="' + el + '"]');
+						await sp.page.waitForTimeout(300);
+						await check(sp.page, 'オススメサポの ' + el + ' の小窓');
+						await sp.page.keyboard.press('Escape');
+						await sp.page.waitForTimeout(200);
+					}
+					await sp.page.keyboard.press('Escape');
+					await sp.page.evaluate(() => showToast('確認', 'warn'));
+					await sp.page.waitForTimeout(400);
+					const t = await sp.page.evaluate(() => { const e = document.getElementById('toast'); const cs = getComputedStyle(e); return { bg: cs.backgroundColor, border: cs.borderTopColor, bw: cs.borderTopWidth }; });
+					assert(t.bg === 'rgb(15, 23, 43)' && t.border === 'rgb(170, 182, 200)' && t.bw === '1px', 'ダーク8: トーストは暗いまま、明るい細い枠（決定7）', t);
+					await check(sp.page, 'トースト（注意のアイコン付き）');
+					await sp.page.click('#fab-toggle');
+					await sp.page.waitForTimeout(500);
+					await check(sp.page, '「＋」の展開');
+				}
+				await sp.ctx.close();
+			}
+		}
+		// ライトの既存の不足は直さない（決定12）。一覧にして出すだけ
+		for (const tab of [0, 1, 2]) {
+			const sp = await openSpFull({ tab, theme: 'light' });
+			const r = await sp.page.evaluate(scanTextContrastInPage, null);
+			report.push(...r.bad.map((b) => '①②③'[tab] + ' ' + formatContrast([b])[0]));
+			await sp.ctx.close();
+		}
+		console.log('     [参考] special 375px のライトのコントラスト比の不足（直していない・' + report.length + '件）:\n       ' + (report.join('\n       ') || 'なし'));
+	});
+
+	await block('ダーク10 意味を持つ色の見分け（種類の文字・行の地・印・サポカの種類・スキルのアイコン）はダークでもライト以上に離れている', async () => {
+		const sp = await openSpFull({ tab: 0, theme: 'light' });
+		const read = () => sp.page.evaluate(() => {
+			const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d', { willReadFrequently: true });
+			const rgb = (c) => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = '#000'; cx.fillStyle = c; cx.fillRect(0, 0, 1, 1); const d = cx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2]]; };
+			const grid = document.querySelector('.usd-roster-grid') || document.documentElement;
+			const v = (el, n) => rgb(getComputedStyle(el).getPropertyValue(n).trim());
+			const R = document.documentElement;
+			return {
+				'①の名前の色（回復・パッシブ・デバフ・ふつう）': [v(grid, '--usd-skill-heal-text'), v(grid, '--usd-skill-passive-text'), v(grid, '--usd-skill-debuff-text'), v(R, '--uma-text')],
+				'①の行の地（金・固有・ふつう）': [v(R, '--uma-stitch-soft'), v(R, '--usd-skill-unique-mid'), v(R, '--uma-surface')],
+				'分類の印と因子の印（◎○▲・◆・ハート）': [1, 2, 3].map((t) => v(R, '--uma-mark-tier-' + t)).concat([v(R, '--uma-mark-catalog'), v(R, '--uma-mark-gene')]),
+				'サポカの種類6色（文字）': [1, 2, 3, 4, 5, 6].map((t) => v(R, '--uma-card-type-' + t + '-text')),
+				'サポカの種類6色（地）': [1, 2, 3, 4, 5, 6].map((t) => v(R, '--uma-card-type-' + t + '-bg')),
+				'スキルのアイコン6色': ['a', 'b', 'c', 'd', 'e', 'f'].map((k) => v(R, '--usd-icon-' + k)),
+			};
+		});
+		const minDE = (cols) => { let m = Infinity; for (let i = 0; i < cols.length; i++) for (let j = i + 1; j < cols.length; j++) m = Math.min(m, deltaE(cols[i], cols[j])); return m; };
+		const light = await read();
+		await sp.page.evaluate(() => window.UmaTheme.set('dark'));
+		const dark = await read();
+		for (const k of Object.keys(light)) {
+			const l = minDE(light[k]), d = minDE(dark[k]);
+			assert(d + 1e-9 >= l && JSON.stringify(light[k]) !== JSON.stringify(dark[k]),
+				'ダーク10: ' + k + ' の最小の色差（ΔE）がダークでライト以上（ライト ' + l.toFixed(1) + ' → ダーク ' + d.toFixed(1) + '）', { light: light[k], dark: dark[k] });
+		}
+		await sp.page.evaluate(() => window.UmaTheme.set('auto'));
+		await sp.ctx.close();
 	});
 }

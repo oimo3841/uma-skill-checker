@@ -16,9 +16,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-10-08b" />
-	<link rel="stylesheet" href="css/common.css?v=2026-10-08b" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-10-08b" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-10-08c" />
+	<link rel="stylesheet" href="css/common.css?v=2026-10-08c" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-10-08c" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -36,7 +36,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-07c"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-08a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<style>
@@ -107,7 +107,15 @@
 		     --uma-config-bg  … ②の設定の枠（破線）の地（ダークで、まとまりの面とも濃淡で見分けるため、設定の枠だけ別に持つ）
 		   **値（ライト・ダークとも）は css/tokens.css へ移した**（C-134 段2。Deck の引き出し・Deck 単体も同じ値を使うため）。
 		   ダークは帯 #2d4160／設定の枠は一段沈めた面と破線／まとまりは背景より一段明るい面と線 → 濃淡と線の種類の両方で見分ける。 */
-		:root[data-theme="dark"] body { background: #0f1318; color: var(--uma-text); }
+		:root[data-theme="dark"] body { background: var(--uma-page-ground); color: var(--uma-text); }
+		/* ダーク（C-134 段4）: このページの色（緑のアクセント・親A／親Bの人物色）。地と面は tokens.css の青黒にそろえ（決定6）、
+		   緑や青・赤は色相を保って明るい側へ。淡い面は同じ色相の暗い面へ */
+		:root[data-theme="dark"] {
+			--uma-accent: #4ade80; --uma-accent-hover: #86efac; --uma-accent-soft: #12301f;
+			--uma-accent-soft-text: #8be3ac; --uma-accent-border: #1f5a37; --uma-accent-ring: #4ade80;
+		}
+		:root[data-theme="dark"] .person-col-blue { --person-bg: #172a4a; --person-fg: #a9c9ff; --person-border-strong: #3b6fb8; --person-border-soft: #26426b; --person-tint: rgba(74, 158, 245, .10); }
+		:root[data-theme="dark"] .person-col-red  { --person-bg: #3a1a1d; --person-fg: #ffb3b3; --person-border-strong: #a3474d; --person-border-soft: #6b2d33; --person-tint: rgba(251, 44, 54, .10); }
 		/* 段8・B（C-120）: 共通の見出しの帯。カードの左右の端まで伸ばし、スクロールしても画面の上に残す（ヘッダーは残さない）。
 		   中身の並びと文字の大きさは core（.usd-setbar）。ここは置き場だけ */
 		.deck-set-bar { position: sticky; top: 0; z-index: 40; margin: calc(-1 * var(--uma-card-pad)) calc(-1 * var(--uma-card-pad)) var(--uma-sp-2);
@@ -967,7 +975,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-10-08b';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-10-08c';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -2237,20 +2245,31 @@
 		 * （読めなかったときの代わりの色をここに書くと、生のhexが戻ってきてしまう。F-19）。
 		 */
 		function tierMarkColors() {
-			const css = getComputedStyle(document.documentElement);
-			const out = {};
-			for (const t of [1, 2, 3]) {
-				const v = css.getPropertyValue('--uma-mark-tier-' + t).trim();
-				if (!v) return null;
-				out[t] = v;
-			}
 			// 因子の印（段G で節ごとに分けた）。トークンの名前は CATALOG_MARKS が持つ
-			for (const m of Object.values(CATALOG_MARKS)) {
-				const v = css.getPropertyValue(m.token).trim();
-				if (!v) return null;
-				out[m.mark] = v;
-			}
+			const marks = Object.values(CATALOG_MARKS);
+			const vals = readTokensLight(['--uma-mark-tier-1', '--uma-mark-tier-2', '--uma-mark-tier-3'].concat(marks.map(m => m.token)));
+			if (vals.some(v => !v)) return null;
+			const out = { 1: vals[0], 2: vals[1], 3: vals[2] };
+			marks.forEach((m, i) => { out[m.mark] = vals[3 + i]; });
 			return out;
+		}
+
+		/**
+		 * 結合画像（canvas）に焼き込む色は、**画面がダークでも常にライトの値で読む**（C-134・決定4）。
+		 * 画像は白地に描くので、ダークの値（明るい文字色など）を混ぜると読めなくなる。
+		 * <html data-theme> を一瞬 light に付け替えて読み、すぐ元に戻す（同期処理なので間に描画は挟まらない）。
+		 * ライトのときは何も付け替えない。
+		 */
+		function readTokensLight(names) {
+			const root = document.documentElement;
+			const prev = root.getAttribute('data-theme');
+			if (prev === 'dark') root.setAttribute('data-theme', 'light');
+			try {
+				const css = getComputedStyle(root);
+				return names.map(n => css.getPropertyValue(n).trim());
+			} finally {
+				if (prev === 'dark') root.setAttribute('data-theme', prev);
+			}
 		}
 
 		/**
@@ -3735,7 +3754,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-10-08c';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-10-08e';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {

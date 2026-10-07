@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-07c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-08a';
 
 	/* ============================================================
 	 * 定数
@@ -201,7 +201,7 @@
 		{ id: 'b', mark: '○', light: '#e8890c', dark: '#ffb04d' },
 		{ id: 'c', mark: '△', light: '#1f6fd1', dark: '#6aa8ff' },
 		{ id: 'd', mark: '◇', light: '#1f9d55', dark: '#5fd28f' },
-		{ id: 'e', mark: '★', light: '#8a4fd1', dark: '#c29bff' },
+		{ id: 'e', mark: '★', light: '#8a4fd1', dark: '#d38cff' },
 		{ id: 'f', mark: '✕', light: '#5b6575', dark: '#9aa4b3' }
 	];
 	const SKILL_ICON_FG = { light: '#ffffff', dark: '#10151c' };
@@ -4587,6 +4587,8 @@
 		':root { --usd-rarity-ssr-text: #000000; --usd-rarity-ssr-1: #e5384f; --usd-rarity-ssr-2: #f08a1c; --usd-rarity-ssr-3: #7cb518; --usd-rarity-ssr-4: #1d8fe0; --usd-rarity-ssr-5: #8b5cf6; --usd-rarity-sr-1: #e3b23c; --usd-rarity-sr-2: #b8860b;',
 		// 固有スキルの行の色（段7e の (2)〜(6)）。①の表と、入口の「オススメサポ」のボタンが同じ変数を読むので :root に置く（段7・2026-10-04 に .usd-roster-grid から移した。値は変えていない）
 		'  --usd-skill-unique-from: #e3f6e6; --usd-skill-unique-mid: #dff1fb; --usd-skill-unique-to: #fbe3f1; --usd-skill-unique-edge: #f0a8d0; }',
+		// ダーク（C-134 段4）: 固有スキルの行とオススメサポのボタンの地は、同じ3色の色相のまま暗い面へ。上に載る文字は明るく
+		':root[data-theme="dark"] { --usd-rarity-ssr-text: #f1f5f9; --usd-skill-unique-from: #163423; --usd-skill-unique-mid: #142f45; --usd-skill-unique-to: #3a1a32; --usd-skill-unique-edge: #a8457a; }',
 		// 名前の部分（押すとカードの情報）。二つ名は 11px で先に省略し、次に名前（14px）を省略する
 		'.usd-out-card-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 3px; height: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }',
 		'.usd-out-card-main:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
@@ -5268,6 +5270,13 @@
 		'.usd-info-btn { flex: none; }',
 		'.usd-info-btn::before { content: "i"; font-style: italic; font-family: Georgia, "Times New Roman", serif; }',
 		'.usd-info-back { position: fixed; inset: 0; z-index: 110; background: rgba(15, 23, 43, 0.25); }',
+		// ダーク（C-134 段4）: 半透明の黒白のうち、暗い面の上で効かなくなるもの（暗転・hover・反転した面の上の白）
+		':root[data-theme="dark"] :is(.usd-modal, .usd-roster-modal-back) { background: var(--uma-scrim); }',
+		':root[data-theme="dark"] .usd-info-back { background: rgba(0, 0, 0, .35); }',
+		':root[data-theme="dark"] .usd-roster-ghbtn:hover { background: rgba(255, 255, 255, .08); }',
+		':root[data-theme="dark"] .usd-tier-tab.active .usd-tier-count { background: rgba(15, 19, 24, .15); }',
+		':root[data-theme="dark"] .usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-clearbtn { border-left-color: rgba(15, 19, 24, .28); }',
+		':root[data-theme="dark"] .usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-clearbtn:hover { background: rgba(15, 19, 24, .12); }',
 		'.usd-info-back[hidden] { display: none; }',
 		'.usd-info-body { display: flex; flex-direction: column; gap: var(--uma-sp-2); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); color: var(--uma-text); overflow-wrap: anywhere; }',
 		'.usd-info-body p { margin: 0; }',
@@ -5387,6 +5396,9 @@
 		'.usd-roster-grid { --usd-skill-heal-bg: #e6f3fd; --usd-skill-heal-text: #0b5fa5; --usd-skill-passive-text: #1b7a3a; --usd-skill-debuff-text: #b3261e; --usd-skill-pt-text: #546580; }',
 		// スキル名の列見出しの種類のアイコンと漏斗（段13・B3）。アイコンの色は変数（ダークモードで差し替える）
 		'.usd-roster-grid { --usd-tone-icon-heal: #2a7fd4; --usd-tone-icon-debuff: #d4363f; --usd-tone-icon-fg: #ffffff; --usd-tone-icon-passive: var(--uma-green-skill); }',
+		// ダーク（C-134 段4）: 種類の色は色相を保って明るい側へ（回復＝青・パッシブ＝緑・デバフ＝赤。Pt は淡い灰）。アイコンの地は中間の濃さで、記号は暗い色
+		':root[data-theme="dark"] .usd-roster-grid { --usd-skill-heal-bg: #172a40; --usd-skill-heal-text: #7cbcff; --usd-skill-passive-text: #6fdc95; --usd-skill-debuff-text: #ff8f87; --usd-skill-pt-text: #b6c2d4;',
+		'  --usd-tone-icon-heal: #4a9ef5; --usd-tone-icon-debuff: #f0605f; --usd-tone-icon-fg: #0f1318; }',
 		'.usd-roster-gh.usd-roster-gh--skill { gap: 2px; padding-right: 2px; }',
 		'.usd-roster-ghtitle { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
 		// 漏斗の押せる範囲はメンバーの列と同じ 24px 以上（段7c）。3つを名前の右に収めるため、隣どうしを少し重ねて並べる（間隔 22px。320px は 18px）
@@ -5509,11 +5521,11 @@
 		'.usd-link-opt input { flex: none; width: 18px; height: 18px; margin: 0; }',
 		'.usd-link-name { min-width: 0; overflow-wrap: anywhere; font-weight: 600; color: var(--uma-text-heading); }',
 		// ②因子周回（段9・C-121。special だけ＝.usd-setbody）: 上から 帯（薄い地）→ 設定の枠（破線）→ スキルのまとまり（白い枠）。
-		// 帯・設定の枠・まとまりの色は special.html の変数（--uma-band・--uma-dash・--uma-group-bg・--uma-group-line。ダークは同じ名前の差し替え）。
-		// 変数が無い画面でも崩れないよう、値（ライト）を既定に書いておく
+		// 帯・設定の枠・まとまりの色は css/tokens.css の変数（--uma-band・--uma-dash・--uma-group-bg・--uma-group-line・--uma-config-bg。
+		// ライトもダークもあちらが持つ。C-134 で special.html から移したので、ここに書いていた既定の値（フォールバック）は外した）
 		'.usd-setbody > .uma-section-body { gap: var(--uma-sp-2); }',
 		'.usd-setbody .usd-ptneed { padding: 0; background: transparent; border: 0; border-radius: 0; }',
-		'.usd-bandbox { background: var(--uma-band, #e9eef6); border-radius: 10px; padding: 8px 10px; }',
+		'.usd-bandbox { background: var(--uma-band); border-radius: 10px; padding: 8px 10px; }',
 		'.usd-band-sum { display: inline-flex; align-items: baseline; white-space: nowrap; color: var(--uma-text-heading); }',
 		'.usd-band-pt { font-size: 22px; line-height: 1.1; font-weight: 800; font-variant-numeric: tabular-nums; }',
 		'.usd-band-unit { margin-left: 1px; font-size: 12px; font-weight: 700; }',
@@ -5537,11 +5549,11 @@
 		'.usd-reset-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
 		'.usd-reset-btn:disabled { color: var(--uma-text-faint); background: transparent; border-style: dashed; cursor: not-allowed; }',
 		// 設定の枠（破線・薄い地・角丸10px）
-		'.usd-setbody .usd-roster-link { padding: 6px 8px; border: 1px dashed var(--uma-dash, #b9c2d0); border-radius: 10px; background: var(--uma-config-bg, var(--uma-surface-sunken)); min-width: 0; }',
+		'.usd-setbody .usd-roster-link { padding: 6px 8px; border: 1px dashed var(--uma-dash); border-radius: 10px; background: var(--uma-config-bg); min-width: 0; }',
 		'.usd-setcfg { flex: 1 1 100%; }',
 		// スキルのまとまり（白い枠・線あり・角丸10px・横8px）: 入口 → パレット → 一覧
-		'.usd-skillgroup { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid var(--uma-group-line, var(--uma-border-strong)); border-radius: 10px;',
-		'  background: var(--uma-group-bg, var(--uma-surface)); min-width: 0; }',
+		'.usd-skillgroup { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid var(--uma-group-line); border-radius: 10px;',
+		'  background: var(--uma-group-bg); min-width: 0; }',
 		'.usd-skillgroup-head { display: flex; flex-direction: column; gap: 6px; min-width: 0; }',
 		'.usd-skillgroup-head .usd-entry-row { margin-bottom: 0; }',
 		'@media (min-width: 641px) {',
@@ -5559,12 +5571,12 @@
 		'.usd-palette > * { flex: none; }',
 		'.usd-palette-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }',
 		'.usd-palette-btn .usd-icon { width: 24px; height: 24px; font-size: 14px; }',
-		'.usd-palette-btn[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--uma-group-bg, var(--uma-surface)), 0 0 0 4px var(--uma-text-heading); }',
+		'.usd-palette-btn[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--uma-group-bg), 0 0 0 4px var(--uma-text-heading); }',
 		'.usd-palette-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 3px; }',
 		'.usd-palette-sep { width: 1px; height: 18px; background: var(--uma-border-strong); }',
 		'.usd-palette-clear { font: inherit; font-size: 12px; line-height: 1.4; font-weight: 600; padding: 2px 10px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
 		'  background: var(--uma-surface); color: var(--uma-text-heading); cursor: pointer; white-space: nowrap; }',
-		'.usd-palette-clear[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--uma-group-bg, var(--uma-surface)), 0 0 0 4px var(--uma-text-heading); }',
+		'.usd-palette-clear[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--uma-group-bg), 0 0 0 4px var(--uma-text-heading); }',
 		'.usd-palette-clear:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 3px; }',
 		// ②のパレットの行のボタン（C-130 から「逃げオススメ」などの脚質のボタン。「解除」と同じ形）。押せないときは灰（共有の無効の色）。
 		// （C-129 の①の「低効果を除外」の小さなボタンと、その列見出しの組み〔usd-lowfx-btn・usd-roster-ghname〕は C-131 で削除した）
@@ -5572,7 +5584,7 @@
 		// アイコン（18px の丸。丸い塗りに記号。無いときは破線の丸）。色は --usd-icon-<id>（表は core の SKILL_ICONS）
 		'.usd-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 18px; height: 18px; border-radius: 50%;',
 		'  font-size: 11px; line-height: 1; font-weight: 700; color: var(--usd-icon-fg, #fff); background: var(--uma-text-faint); }',
-		'.usd-icon--none { background: transparent; border: 1.5px dashed var(--uma-dash, #b9c2d0); }',
+		'.usd-icon--none { background: transparent; border: 1.5px dashed var(--uma-dash); }',
 		'.usd-skillgroup .usd-panels { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }',
 		// 段13・C3: 375px も2列（段9・C-121 の「520px 以下は1列」を置き換えた）。360px 未満（320px）は名前が2〜3文字しか入らないので1列のまま
 		'@media (max-width: 520px) { .usd-skillgroup .usd-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
