@@ -73,9 +73,13 @@
 		@media (max-width: 640px) {
 			/* FAB を小さく・端に寄せて、表を覆う量を減らす */
 			:root { --uma-fab-size: 44px; --uma-fab-edge: 8px; }
-			.page-wrap { padding: 0 0 calc(var(--uma-fab-reserve) + env(safe-area-inset-bottom, 0px)); }
-			/* ①のタブ: 1画面に収める。FAB は表の右下に重なる（置き場は空けない） */
-			body[data-step-tab="0"] .page-wrap { padding-bottom: 0; }
+			/* C-132（段7c の (6)「①を1画面に収める」を置き換えた）: ①②③ともページ全体をスクロールする。
+			   本文の下の余白は、右下の「＋」の置き場（--usd-fab-dock）だけ。最下端までスクロールすると、最後の行が「＋」の直上で止まる
+			   （展開した項目は本文の上に重なる。左下の「元に戻す」と知らせは「＋」より低いので、これで足りる） */
+			.page-wrap, body[data-step-tab="0"] .page-wrap { padding: 0 0 max(0px, calc(var(--usd-fab-dock) - var(--uma-sp-1-5))); }
+			.main-card, body[data-step-tab="0"] .main-card { margin-bottom: 0; }
+			/* スクロールしても残すのは、帯（.deck-set-bar・sticky）と、その直下の ①の表の列見出し／②のパレットの行だけ。
+			   帯の高さは JS が --usd-sticky-top に入れる（core の ①の列見出しも同じ値を読む） */
 			/* ヘッダーは画面の両端まで伸びる帯。タイトルは左、右にツール切替と？だけ。上下の余白は最小 */
 			.site-header { margin-bottom: var(--uma-sp-1); padding: var(--uma-sp-1) var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
 			.site-header h1 { font-size: 1.25rem; line-height: 1.2; }
@@ -1438,6 +1442,22 @@
 			selectStepTab(next);
 			document.getElementById('step-tab-' + next).focus();
 		}
+
+		/* ---------- C-132: スマホでスクロールしても残す帯の高さ ----------
+		   帯（#deck-set-bar・sticky）の高さを --usd-sticky-top に入れる。①の表の列見出しと②のパレットの行（どちらもスマホだけ sticky）は、
+		   この値を top にして帯の直下に残る。帯が隠れている（旧UI）ときは 0 */
+		function syncStickyTop() {
+			const bar = document.getElementById('deck-set-bar');
+			const h = bar && !bar.hidden ? Math.round(bar.getBoundingClientRect().height) : 0;
+			const v = h + 'px';
+			if (document.documentElement.style.getPropertyValue('--usd-sticky-top') !== v) document.documentElement.style.setProperty('--usd-sticky-top', v);
+		}
+		(function watchStickyTop() {
+			const bar = document.getElementById('deck-set-bar');
+			if (bar && typeof ResizeObserver === 'function') new ResizeObserver(syncStickyTop).observe(bar);
+			window.addEventListener('resize', syncStickyTop);
+			syncStickyTop();
+		})();
 
 		function updateImageCountBadge() {
 			const badge = document.getElementById('image-count-badge');

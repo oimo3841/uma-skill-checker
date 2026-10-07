@@ -5722,10 +5722,11 @@
 		'  .usd-roster-gc { padding-block: 1px; }',
 		'  .usd-roster-gh { padding: var(--uma-sp-0-5); }',
 		'  .usd-roster-ghbtn { height: 24px; }',
-		'  .usd-roster-grid-wrap { max-height: max(180px, calc(100dvh - var(--usd-grid-top, 380px) - var(--uma-sp-2))); }',
-		// まとめ対応の D（C-128）: 表の下端は画面の下端の近くにあり、左下の「元に戻す」と右下の「＋」が最後の行に重なる。
-		// 表の中の下に「＋」の高さ＋少しの余白を入れて、最後まで送ると最後の行がボタンの上に出るようにする（ふだん見える行数は変わらない）
-		'  .usd-roster-grid-wrap { padding-bottom: calc(var(--uma-fab-size, 44px) + var(--uma-sp-1)); }',
+		// C-132（段7c の (6)「1画面に収める」と、C-128 の表の中の 48px の余白を置き換えた）: 表の中だけをスクロールする作りをやめ、ページ全体をスクロールする。
+		// 表は高さの上限なし。縦にはスクロールしない箱にする（overflow-x: clip は箱をスクロールの器にしないので、列見出しの sticky がページに対して効く）。
+		// 列見出しは、ページが固定する帯の直下（--usd-sticky-top。帯の高さはページが入れる。無ければ 0）に残す。最後の行が「＋」に隠れないことは、ページの下の余白で保つ
+		'  .usd-roster-grid-wrap { max-height: none; overflow: visible; overflow-x: clip; }',
+		'  .usd-roster-gh { top: var(--usd-sticky-top, 0px); z-index: 2; }',
 		'}'
 	]).join('\n');
 
@@ -8479,19 +8480,7 @@
 			if (typeof opts.onSureCountChange === 'function') opts.onSureCountChange(res.kindCount);
 		}
 
-		/**
-		 * 表の上端の位置（ページの先頭からの px）を --usd-grid-top に入れる（段7c の P の (6)）。スマホで、表の高さを「画面の高さ − 表の上端」にして
-		 * 1画面に収めるための値（CSS が使う。デスクトップでは使わない）。パネルが見えていないとき（②③のタブを見ているとき）は測れないので何もしない
-		 * （見えるようになったとき、下の ResizeObserver が測り直す）。
-		 */
-		function fitGrid() {
-			const wrap = container.querySelector('.usd-roster-grid-wrap');
-			if (!wrap || container.getClientRects().length === 0) return;
-			const top = Math.round(wrap.getBoundingClientRect().top + (global.pageYOffset || 0)) + 'px';
-			if (wrap.style.getPropertyValue('--usd-grid-top') !== top) wrap.style.setProperty('--usd-grid-top', top);
-		}
-		if (typeof global.ResizeObserver === 'function') new global.ResizeObserver(function () { fitGrid(); }).observe(container);
-		global.addEventListener('resize', function () { fitGrid(); });
+		// 段7c の P の (6) の fitGrid（スマホで表の高さを「画面の高さ − 表の上端」にする --usd-grid-top）は、C-132 でページ全体をスクロールする作りにしたので削除した
 
 		function labelOfUma() {
 			if (!roster.umaId) return '育成ウマ娘を選ぶ';
@@ -8850,7 +8839,6 @@
 			if (nameEdit) nameEdit.focusOnce = false;
 			// イベントを選ぶ小窓が開いていれば、中身を作り直す（選んだ結果をその場で映す）
 			if (eventsFor !== null) refreshEventsPopover(res);
-			fitGrid();
 			notifySureCount(res);
 			// 本育成のぶんが変わったことを、②へ知らせる（段5・段7）
 			emitRosterPtChange();
