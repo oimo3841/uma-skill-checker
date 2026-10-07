@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-10-08a";
+	--common-css-version: "2026-10-08b";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -290,7 +290,12 @@
 	--uma-drawer-bg: #f5f6fb;                                /* 引き出しの地 */
 	--uma-scrim: rgba(15, 23, 42, .45);                      /* 引き出し・ダイアログの背景の暗転 */
 	--uma-drawer-shadow: -8px 0 32px rgba(15, 23, 42, .25);  /* 引き出しの影 */
-	/* ---- 余白（4pxを単位とする刻み。1/3/7/9pxのような孤立値は使わない） ---- */
+	/* ---- トースト・色の付いた地の上の白い文字（C-134 段3） ----
+	   ライトでは各ページの Tailwind のクラス（bg-slate-900 text-white border-slate-700）が描くので、ここの値は
+	   ダークの規則（css/common.css の末尾）だけが読む。ライトの値はそのクラスの色と同じにしてある。 */
+	--uma-text-on-color: #ffffff;  /* 色の付いた地（緑・青・赤のボタン、トースト）の上の白い文字。ダークでも白 */
+	--uma-toast-bg: #0f172b;       /* トーストの地（slate-900）。ダークでも暗いまま（決定7） */
+	--uma-toast-border: #314158;   /* トーストの縁（slate-700）。ダークでは明るい細い枠にする */	/* ---- 余白（4pxを単位とする刻み。1/3/7/9pxのような孤立値は使わない） ---- */
 	--uma-sp-0-5: 2px;
 	--uma-sp-1: 4px;
 	--uma-sp-1-5: 6px;
@@ -493,4 +498,31 @@
 	--uma-drawer-bg: #12171f;
 	--uma-scrim: rgba(0, 0, 0, .6);
 	--uma-drawer-shadow: -8px 0 32px rgba(0, 0, 0, .5);
+	/* ---- トースト（決定7: 暗いまま、明るい細い枠で縁を出す。注意のアイコン付きも同じ） ---- */
+	--uma-toast-border: #aab6c8;
+	/* ---- Tailwind のパレット（--color-*）の上書き（C-134 段3・決定3） ----
+	   Tailwind v4 は色のクラスを var(--color-*) で出すので、ここで変数を差し替えればマークアップを変えずに色が替わる。
+	   **製品が使っている色相だけ**（special／exam／Deck／core／deck.js を数えた: slate と amber blue emerald green indigo red violet）。
+	   新しい色相のクラスを使うときは、ここにも足す（足さないとダークでもライトの値のまま出る）。
+	   slate（無彩色）は役割で決めた値: 50〜200 が面と罫線、300 が淡い罫線と淡い文字、400〜950 が文字（明るい側へ）。
+	   色相は、淡い面（50〜300）を同じ色相の暗い面へ（500 を面の色 #171d26 に 14〜45% 混ぜる）、中間（400〜600）はそのまま、
+	   濃い文字（700〜950）を同じ色相の淡い側（300〜50）へ入れ替える。
+	   白（--color-white）は面の色にする（bg-white・bg-white/95・via-white/70 などの面がそのまま暗くなる）。
+	   色付きの地の上の白い文字（text-white）は css/common.css の規則で白に戻す。 */
+	--color-white: var(--uma-surface);
+	--color-slate-50: #1c2430; --color-slate-100: #263041; --color-slate-200: #2a3441; --color-slate-300: #4f5b6e; --color-slate-400: #7d8aa0; --color-slate-500: #9aa7ba; --color-slate-600: #b8c3d3; --color-slate-700: #cbd5e1; --color-slate-800: #e2e8f0; --color-slate-900: #f1f5f9; --color-slate-950: #f8fafc;
+	--color-amber-50: color-mix(in oklab, oklch(76.9% 0.188 70.08) 14%, #171d26); --color-amber-100: color-mix(in oklab, oklch(76.9% 0.188 70.08) 20%, #171d26); --color-amber-200: color-mix(in oklab, oklch(76.9% 0.188 70.08) 30%, #171d26); --color-amber-300: color-mix(in oklab, oklch(76.9% 0.188 70.08) 45%, #171d26);
+	--color-amber-700: oklch(87.9% 0.169 91.605); --color-amber-800: oklch(92.4% 0.12 95.746); --color-amber-900: oklch(96.2% 0.059 95.617); --color-amber-950: oklch(98.7% 0.022 95.277);
+	--color-blue-50: color-mix(in oklab, oklch(62.3% 0.214 259.815) 14%, #171d26); --color-blue-100: color-mix(in oklab, oklch(62.3% 0.214 259.815) 20%, #171d26); --color-blue-200: color-mix(in oklab, oklch(62.3% 0.214 259.815) 30%, #171d26); --color-blue-300: color-mix(in oklab, oklch(62.3% 0.214 259.815) 45%, #171d26);
+	--color-blue-700: oklch(80.9% 0.105 251.813); --color-blue-800: oklch(88.2% 0.059 254.128); --color-blue-900: oklch(93.2% 0.032 255.585); --color-blue-950: oklch(97% 0.014 254.604);
+	--color-emerald-50: color-mix(in oklab, oklch(69.6% 0.17 162.48) 14%, #171d26); --color-emerald-100: color-mix(in oklab, oklch(69.6% 0.17 162.48) 20%, #171d26); --color-emerald-200: color-mix(in oklab, oklch(69.6% 0.17 162.48) 30%, #171d26); --color-emerald-300: color-mix(in oklab, oklch(69.6% 0.17 162.48) 45%, #171d26);
+	--color-emerald-700: oklch(84.5% 0.143 164.978); --color-emerald-800: oklch(90.5% 0.093 164.15); --color-emerald-900: oklch(95% 0.052 163.051); --color-emerald-950: oklch(97.9% 0.021 166.113);
+	--color-green-50: color-mix(in oklab, oklch(72.3% 0.219 149.579) 14%, #171d26); --color-green-100: color-mix(in oklab, oklch(72.3% 0.219 149.579) 20%, #171d26); --color-green-200: color-mix(in oklab, oklch(72.3% 0.219 149.579) 30%, #171d26); --color-green-300: color-mix(in oklab, oklch(72.3% 0.219 149.579) 45%, #171d26);
+	--color-green-700: oklch(87.1% 0.15 154.449); --color-green-800: oklch(92.5% 0.084 155.995); --color-green-900: oklch(96.2% 0.044 156.743); --color-green-950: oklch(98.2% 0.018 155.826);
+	--color-indigo-50: color-mix(in oklab, oklch(58.5% 0.233 277.117) 14%, #171d26); --color-indigo-100: color-mix(in oklab, oklch(58.5% 0.233 277.117) 20%, #171d26); --color-indigo-200: color-mix(in oklab, oklch(58.5% 0.233 277.117) 30%, #171d26); --color-indigo-300: color-mix(in oklab, oklch(58.5% 0.233 277.117) 45%, #171d26);
+	--color-indigo-700: oklch(78.5% 0.115 274.713); --color-indigo-800: oklch(87% 0.065 274.039); --color-indigo-900: oklch(93% 0.034 272.788); --color-indigo-950: oklch(96.2% 0.018 272.314);
+	--color-red-50: color-mix(in oklab, oklch(63.7% 0.237 25.331) 14%, #171d26); --color-red-100: color-mix(in oklab, oklch(63.7% 0.237 25.331) 20%, #171d26); --color-red-200: color-mix(in oklab, oklch(63.7% 0.237 25.331) 30%, #171d26); --color-red-300: color-mix(in oklab, oklch(63.7% 0.237 25.331) 45%, #171d26);
+	--color-red-700: oklch(80.8% 0.114 19.571); --color-red-800: oklch(88.5% 0.062 18.334); --color-red-900: oklch(93.6% 0.032 17.717); --color-red-950: oklch(97.1% 0.013 17.38);
+	--color-violet-50: color-mix(in oklab, oklch(60.6% 0.25 292.717) 14%, #171d26); --color-violet-100: color-mix(in oklab, oklch(60.6% 0.25 292.717) 20%, #171d26); --color-violet-200: color-mix(in oklab, oklch(60.6% 0.25 292.717) 30%, #171d26); --color-violet-300: color-mix(in oklab, oklch(60.6% 0.25 292.717) 45%, #171d26);
+	--color-violet-700: oklch(81.1% 0.111 293.571); --color-violet-800: oklch(89.4% 0.057 293.283); --color-violet-900: oklch(94.3% 0.029 294.588); --color-violet-950: oklch(96.9% 0.016 293.756);
 }

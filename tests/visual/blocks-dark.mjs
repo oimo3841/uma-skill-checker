@@ -169,6 +169,8 @@ export async function registerDark(env) {
 			'--uma-mark-green-skill': '緑スキルの●は暗い面の上でも読める（emerald-500）',
 			'--uma-table-head-key-bg': '濃い地（stone-700）に白文字の組で、ダークの中でもそのまま読める',
 			'--uma-table-head-key-text': '上の地の上の白文字',
+			'--uma-text-on-color': '色の付いた地の上の白い文字。ダークでも白',
+			'--uma-toast-bg': 'トーストはダークでも暗いまま（決定7）',
 		};
 		const missing = [...light].filter((n) => !dark.has(n) && !(n in KEEP));
 		const stale = Object.keys(KEEP).filter((n) => !light.has(n) || dark.has(n));
@@ -176,8 +178,17 @@ export async function registerDark(env) {
 		assert(missing.length === 0, 'ダーク5: ライトの色の変数でダークの値が無いものは0（理由つきの4つを除く）', missing);
 		assert(stale.length === 0, 'ダーク5: 理由つきの一覧が古くなっていない（ライトに在り、ダークに無い）', stale);
 		const lightAll = names(blockOf(':root'), false);  // 影など、値が色で始まらない変数も含める
-		const extra = [...dark].filter((n) => !lightAll.has(n) && n !== '--uma-page-ground');
-		assert(extra.length === 0, 'ダーク5: ダークにだけ在る変数は --uma-page-ground だけ（綴りの間違いで効いていない値が無い）', extra);
+		const extra = [...dark].filter((n) => !lightAll.has(n) && n !== '--uma-page-ground' && !n.startsWith('--color-'));
+		assert(extra.length === 0, 'ダーク5: ダークにだけ在る変数は --uma-page-ground と Tailwind のパレット（--color-*）だけ（綴りの間違いで効いていない値が無い）', extra);
+		// Tailwind のパレットの上書き（段3）: 製品が使う色のクラスの色相が、すべて表に在る
+		const used = new Set();
+		for (const f of ['special.html', 'exam.html', 'uma-skill-deck.html', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js']) {
+			const s = fs.readFileSync(path.join(REPO_ROOT, f), 'utf8');
+			for (const m of s.matchAll(/\b(?:[a-z-]+:)*(?:bg|text|border|ring|from|via|to|fill|stroke|outline|divide|accent|decoration|placeholder)-([a-z]+)-(?:50|[1-9]00|950)\b/g)) used.add(m[1]);
+		}
+		const table = new Set([...dark].filter((n) => n.startsWith('--color-')).map((n) => n.split('-')[3]));
+		const noTable = [...used].filter((h) => !table.has(h));
+		assert(used.size >= 5 && noTable.length === 0, 'ダーク5: 製品が使う Tailwind の色相（' + [...used].sort().join('・') + '）はすべてダークの上書き表に在る', noTable);
 	});
 
 	await block('ダーク6 スタイルガイド（css/styleguide.html）をダークで見たとき、文字のコントラスト比が足りる', async () => {

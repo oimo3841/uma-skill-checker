@@ -31,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-10-08a";
+	--uma-components-css-version: "2026-10-08b";
 }
 
 /* ============================================================
@@ -549,4 +549,23 @@ textarea.uma-input {
 .uma-badge--warn {
 	background: var(--uma-warn-bg);
 	color: var(--uma-warn-text);
+}
+
+/* ============================================================
+ * ダーク（C-134 段3）: Tailwind の白とトースト
+ *
+ * ダークでは css/tokens.css が --color-white を面の色にする（bg-white などの面を暗くするため）。
+ * そのままだと**色の付いた地の上の白い文字**（text-white）まで暗くなるので、ここで白に戻す。
+ * 地が「操作できる部品の色」（--uma-control・bg-slate-900）のものは、ダークでは地が明るくなるので
+ * 白ではなく反転の文字（--uma-text-inverse の暗い色）にする。
+ * トーストはダークでも暗いまま、明るい細い枠で縁を出す（決定7。注意のアイコン付き＝C-130 も同じ要素）。
+ * 規則は :root[data-theme="dark"] の下だけに置くので、ライトには何も効かない。
+ * ============================================================ */
+:root[data-theme="dark"] .text-white,
+:root[data-theme="dark"] .group:hover .group-hover\:text-white { color: var(--uma-text-on-color); }
+:root[data-theme="dark"] :is(.bg-slate-900, .bg-slate-900\/80, .bg-\[var\(--uma-control\)\]).text-white { color: var(--uma-text-inverse); }
+:root[data-theme="dark"] #toast {
+	background-color: var(--uma-toast-bg);
+	color: var(--uma-text-on-color);
+	border: 1px solid var(--uma-toast-border);
 }
