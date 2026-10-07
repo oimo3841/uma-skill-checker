@@ -80,6 +80,9 @@
 			.main-card, body[data-step-tab="0"] .main-card { margin-bottom: 0; }
 			/* スクロールしても残すのは、帯（.deck-set-bar・sticky）と、その直下の ①の表の列見出し／②のパレットの行だけ。
 			   帯の高さは JS が --usd-sticky-top に入れる（core の ①の列見出しも同じ値を読む） */
+			#deck-template-panel .usd-skillgroup-head { display: contents; }
+			#deck-template-panel .usd-skillgroup .usd-palette { position: sticky; top: var(--usd-sticky-top, 0px); z-index: 30;
+				margin: 0 -8px; padding: 6px 14px; background: var(--uma-group-bg); border-bottom: 1px solid var(--uma-group-line); }
 			/* ヘッダーは画面の両端まで伸びる帯。タイトルは左、右にツール切替と？だけ。上下の余白は最小 */
 			.site-header { margin-bottom: var(--uma-sp-1); padding: var(--uma-sp-1) var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
 			.site-header h1 { font-size: 1.25rem; line-height: 1.2; }
