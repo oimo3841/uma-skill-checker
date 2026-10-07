@@ -7,10 +7,12 @@
 	<!-- 確認専用。ツール本体には組み込まない。
 	     tokens.css（変数）と common.css（共通部品）だけを読み込み、Tailwind も lucide も使わない。
 	     ここが正しく見えていれば、共通部分の妥当性は確認できる。 -->
-	<link rel="stylesheet" href="tokens.css?v=2026-09-22c" />
-	<link rel="stylesheet" href="common.css?v=2026-09-22c" />
+	<link rel="stylesheet" href="tokens.css?v=2026-10-08a" />
+	<link rel="stylesheet" href="common.css?v=2026-10-08a" />
 	<style>
-		body { margin: 0; padding: 24px; background: #fff; font-family: ui-sans-serif, system-ui, sans-serif; }
+		body { margin: 0; padding: 24px; background: var(--uma-surface); font-family: ui-sans-serif, system-ui, sans-serif; }
+		/* ダークの見本（C-134 段2）。このページだけは画面の上で切り替えられる（保存はしない。js/theme.js も読まない） */
+		.sg-theme { display: flex; gap: 8px; margin: 0 0 20px; }
 		.sg-wrap { max-width: 960px; margin: 0 auto; }
 		.sg-h1 { font-size: var(--uma-fs-xl); line-height: var(--uma-lh-xl); font-weight: 700; margin: 0 0 4px; }
 		.sg-lead { font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); color: var(--uma-text-subtle); margin: 0 0 24px; }
@@ -51,6 +53,10 @@
 	<p class="sg-lead">
 		css/common.css <span id="ver"></span> の内容だけを表示している。Tailwind は読み込んでいない。
 	</p>
+	<div class="sg-theme" role="group" aria-label="画面の色">
+		<button type="button" class="uma-pill active" data-sg-theme="light" aria-pressed="true">ライト</button>
+		<button type="button" class="uma-pill" data-sg-theme="dark" aria-pressed="false">ダーク</button>
+	</div>
 
 	<!-- ============ 色 ============ -->
 	<section class="sg-sec">
@@ -158,9 +164,9 @@
 			<div class="sg-swatch"><div class="sg-chip" style="border-radius:var(--uma-r-full);background:var(--uma-surface-muted)"></div><div class="sg-label">--uma-r-full / ピル</div></div>
 		</div>
 		<div class="sg-grid" style="margin-top:16px">
-			<div class="sg-swatch"><div class="sg-chip" style="background:#fff;box-shadow:var(--uma-shadow-1)"></div><div class="sg-label">--uma-shadow-1（面）</div></div>
-			<div class="sg-swatch"><div class="sg-chip" style="background:#fff;box-shadow:var(--uma-shadow-2)"></div><div class="sg-label">--uma-shadow-2（主ボタン）</div></div>
-			<div class="sg-swatch"><div class="sg-chip" style="background:#fff;box-shadow:var(--uma-shadow-3)"></div><div class="sg-label">--uma-shadow-3（浮遊要素）</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-surface);box-shadow:var(--uma-shadow-1)"></div><div class="sg-label">--uma-shadow-1（面）</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-surface);box-shadow:var(--uma-shadow-2)"></div><div class="sg-label">--uma-shadow-2（主ボタン）</div></div>
+			<div class="sg-swatch"><div class="sg-chip" style="background:var(--uma-surface);box-shadow:var(--uma-shadow-3)"></div><div class="sg-label">--uma-shadow-3（浮遊要素）</div></div>
 		</div>
 	</section>
 
@@ -235,6 +241,17 @@
 		// 読み込まれている common.css の版を表示する（版ずれの確認用）。
 		document.getElementById('ver').textContent =
 			getComputedStyle(document.documentElement).getPropertyValue('--common-css-version').trim() || '(読み込めていません)';
+		// ライト／ダークの見本の切り替え（<html data-theme> を付け替えるだけ。保存しない）
+		document.querySelectorAll('[data-sg-theme]').forEach((b) => b.addEventListener('click', () => {
+			const t = b.getAttribute('data-sg-theme');
+			if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+			else document.documentElement.removeAttribute('data-theme');
+			document.querySelectorAll('[data-sg-theme]').forEach((x) => {
+				const on = x === b;
+				x.classList.toggle('active', on);
+				x.setAttribute('aria-pressed', on ? 'true' : 'false');
+			});
+		}));
 	</script>
 </div>
 </body>

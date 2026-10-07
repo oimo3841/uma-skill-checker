@@ -9,6 +9,9 @@
 // 段2 以降で、コントラスト比・意味を持つ色の見分け・canvas のライト固定を足す。
 // 切り替えの部品は段7 まで画面に無いので、ここでは window.UmaTheme.set() と localStorage で選ぶ。
 
+import { scanTextContrastInPage, formatContrast } from './lib/contrast.mjs';
+import { LIGHT_SCENES, captureScene } from './lib/light-shots.mjs';
+
 export async function registerDark(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const KEY = 'uma-tools-theme';
@@ -130,6 +133,67 @@ export async function registerDark(env) {
 		const out = await page.inputValue('#export-textarea');
 		assert(out.includes('templates') && !out.includes(KEY) && !/"theme"|data-theme/.test(out), 'ダーク4: ダークを選んでいても、書き出しに uma-tools-theme が入らない', out.length);
 		await page.evaluate(() => window.UmaTheme.set('auto'));
+		await ctx.close();
+	});
+
+	/* ---------- ライトは1ピクセルも変わらない（決定12） ----------
+	   基準は output/dark-base/base/（.gitignore 済み。ダークの段1 の前の commit の作業ツリーから
+	   lib/light-shots.mjs で撮ったもの）。基準が無い環境では比べられないので、落とさずに [--] と出す。
+	   **ダークの段7 が済んで基準を撮り直す必要が無くなったら、この塊は外す**（ライトを意図して変える
+	   別の作業が入った時点で、基準のほうが古くなるため）。 */
+	await block('ダーク9 ライトは1ピクセルも変わらない（special・exam・Deck の 375px／1280px・引き出しを開いた場面）', async () => {
+		const dir = path.join(REPO_ROOT, 'output', 'dark-base', 'base');
+		if (!fs.existsSync(dir)) { console.log('[--] ダーク9: 基準（output/dark-base/base/）が無いので比べていない'); return; }
+		const diff = [], missing = [];
+		for (const s of LIGHT_SCENES) {
+			const f = path.join(dir, s.name + '.png');
+			if (!fs.existsSync(f)) { missing.push(s.name); continue; }
+			const buf = await captureScene(browser, base, s, env.USER_DATA, 'light');
+			if (!buf.equals(fs.readFileSync(f))) diff.push(s.name);
+		}
+		assert(missing.length === 0, 'ダーク9: 基準の PNG が全場面ぶん在る（' + LIGHT_SCENES.length + '場面）', missing);
+		assert(diff.length === 0, 'ダーク9: ライトのフルページPNG が基準とバイト一致（' + (LIGHT_SCENES.length - missing.length) + '場面）', diff);
+	});
+
+	/* ---------- 段2: 共通の土台（css/tokens.css のダーク） ---------- */
+	await block('ダーク5 tokens.css の色の変数は、すべてダークの値を持つ（持たないものは理由つきの一覧だけ）', async () => {
+		const src = fs.readFileSync(path.join(REPO_ROOT, 'css/tokens.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+		const blockOf = (sel) => { const i = src.indexOf(sel + ' {'); if (i < 0) return ''; return src.slice(i, src.indexOf('\n}', i)); };
+		const names = (s, onlyColor) => new Set([...s.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/g)]
+			.filter((m) => !onlyColor || /^(#|rgba?\(|linear-gradient)/.test(m[2].trim())).map((m) => m[1]));
+		const light = names(blockOf(':root'), true);
+		const dark = names(blockOf(':root:where([data-theme="dark"])'), false);
+		// ダークでも同じ値で読めるので、わざと持たせていないもの（理由）
+		const KEEP = {
+			'--uma-star': '★の橙は暗い面の上でも読める（面 #171d26 に対して 8 以上）',
+			'--uma-mark-green-skill': '緑スキルの●は暗い面の上でも読める（emerald-500）',
+			'--uma-table-head-key-bg': '濃い地（stone-700）に白文字の組で、ダークの中でもそのまま読める',
+			'--uma-table-head-key-text': '上の地の上の白文字',
+		};
+		const missing = [...light].filter((n) => !dark.has(n) && !(n in KEEP));
+		const stale = Object.keys(KEEP).filter((n) => !light.has(n) || dark.has(n));
+		assert(light.size > 80 && dark.size > 80, 'ダーク5: ライトとダークの色の変数を読めた', { light: light.size, dark: dark.size });
+		assert(missing.length === 0, 'ダーク5: ライトの色の変数でダークの値が無いものは0（理由つきの4つを除く）', missing);
+		assert(stale.length === 0, 'ダーク5: 理由つきの一覧が古くなっていない（ライトに在り、ダークに無い）', stale);
+		const lightAll = names(blockOf(':root'), false);  // 影など、値が色で始まらない変数も含める
+		const extra = [...dark].filter((n) => !lightAll.has(n) && n !== '--uma-page-ground');
+		assert(extra.length === 0, 'ダーク5: ダークにだけ在る変数は --uma-page-ground だけ（綴りの間違いで効いていない値が無い）', extra);
+	});
+
+	await block('ダーク6 スタイルガイド（css/styleguide.html）をダークで見たとき、文字のコントラスト比が足りる', async () => {
+		const { ctx, page } = await openPage(browser, base, 'css/styleguide.html', { width: 1280, height: 900 });
+		const lightScan = await page.evaluate(scanTextContrastInPage, null);
+		console.log('     [参考] ライトのスタイルガイドの不足（直していない）: ' + (lightScan.bad.length ? formatContrast(lightScan.bad).join(' / ') : 'なし'));
+		await page.click('[data-sg-theme="dark"]');
+		await page.waitForTimeout(200);
+		assert(await attr(page) === 'dark', 'ダーク6: スタイルガイドの「ダーク」で属性が付く');
+		const r = await page.evaluate(scanTextContrastInPage, null);
+		assert(r.checked > 40 && r.bad.length === 0, 'ダーク6: ダークのスタイルガイドの文字はすべて 4.5（大きい文字は 3.0）以上（' + r.checked + '件）', formatContrast(r.bad));
+		assert(r.undecided.length === 0, 'ダーク6: 背景を決められない文字が無い', r.undecided);
+		const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+		assert(bg === 'rgb(23, 29, 38)', 'ダーク6: 地は面の色（#171d26）', bg);
+		await page.click('[data-sg-theme="light"]');
+		assert(await attr(page) === null, 'ダーク6: 「ライト」で属性が外れる');
 		await ctx.close();
 	});
 }

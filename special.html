@@ -16,9 +16,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → shell → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-09-22c" />
-	<link rel="stylesheet" href="css/common.css?v=2026-09-22c" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-09-22c" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-10-08a" />
+	<link rel="stylesheet" href="css/common.css?v=2026-10-08a" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-10-08a" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -105,26 +105,9 @@
 		     --uma-dash       … ②の設定の枠の破線（アイコンの無い丸の破線も同じ色）
 		     --uma-group-bg   … ②のスキルのまとまり（白い枠）の面　／　--uma-group-line … その枠の線
 		     --uma-config-bg  … ②の設定の枠（破線）の地（ダークで、まとまりの面とも濃淡で見分けるため、設定の枠だけ別に持つ）
-		   既定がライト。**ダークは html[data-theme="dark"] で同じ名前を差し替えるだけ**（将来のダークモード切替の足場。いまは製品のどこにも
-		   data-theme を付けない＝ライトのまま）。ダークの面・文字・線は、共有の tokens にダークが無いので、このページが使うぶんをここで補う
-		   （帯 #2d4160／設定の枠は一段沈めた面と破線／まとまりは背景より一段明るい面と線 → 濃淡と線の種類の両方で見分ける）。 */
-		:root { --uma-band: #e9eef6; --uma-dash: #b9c2d0; --uma-group-bg: #ffffff; --uma-group-line: #cad5e2; --uma-config-bg: #f8fafc; }
-		:root[data-theme="dark"] {
-			--uma-band: #2d4160; --uma-dash: #5f6e86; --uma-group-bg: #222a35; --uma-group-line: #3b4555; --uma-config-bg: #12171f;
-			--uma-surface: #171d26; --uma-glass-bg: rgba(23, 29, 38, .92); --uma-surface-sunken: #1c2430; --uma-surface-muted: #263041;
-			--uma-surface-group: #263041; --uma-surface-inverse: #e2e8f0;
-			--uma-text: #e2e8f0; --uma-text-heading: #f1f5f9; --uma-text-muted: #cbd5e1; --uma-text-subtle: #aab6c8; --uma-text-faint: #8f9cb0; --uma-text-inverse: #0f1318;
-			--uma-border: #2a3441; --uma-border-strong: #3b4555;
-			--uma-danger-bg: #3a1c1f; --uma-danger-border: #6b2d33; --uma-danger-text: #ff9a9a;
-			--uma-table-rule: #2a3441; --uma-table-rule-strong: #3b4555; --uma-table-head-bg: #263041; --uma-table-col-alt: #1c2430; --uma-table-col-key: #22304a;
-			--uma-skillpanel-bg: linear-gradient(90deg, #1f2733 0%, #27303f 46%, #2f3a4c 100%); --uma-skillpanel-border: #3b4555; --uma-skillpanel-shadow: none;
-			--uma-control: #e2e8f0; --uma-control-hover: #f1f5f9; --uma-control-soft: #263041; --uma-control-border: #3b4555; --uma-control-border-strong: #52607a;
-			--uma-control-disabled: #6b778b; --uma-control-disabled-bg: #222a35;
-		}
+		   **値（ライト・ダークとも）は css/tokens.css へ移した**（C-134 段2。Deck の引き出し・Deck 単体も同じ値を使うため）。
+		   ダークは帯 #2d4160／設定の枠は一段沈めた面と破線／まとまりは背景より一段明るい面と線 → 濃淡と線の種類の両方で見分ける。 */
 		:root[data-theme="dark"] body { background: #0f1318; color: var(--uma-text); }
-		/* ブラウザ自身が描く部品（select の選択肢・スクロールバー・日付の入力）も画面の色に合わせる（ダーク段1） */
-		:root[data-theme="dark"] { color-scheme: dark; }
-		:root[data-theme="light"] { color-scheme: light; }
 		/* 段8・B（C-120）: 共通の見出しの帯。カードの左右の端まで伸ばし、スクロールしても画面の上に残す（ヘッダーは残さない）。
 		   中身の並びと文字の大きさは core（.usd-setbar）。ここは置き場だけ */
 		.deck-set-bar { position: sticky; top: 0; z-index: 40; margin: calc(-1 * var(--uma-card-pad)) calc(-1 * var(--uma-card-pad)) var(--uma-sp-2);
@@ -984,7 +967,7 @@
 		 * 全部読み、期待値と食い違うものがあれば警告する。
 		 * common.js が版数を文字列定数で持っているのと同じ方式。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-09-22c';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-10-08a';
 		// このページが読む共通CSSと、それぞれの版の印
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
@@ -3752,7 +3735,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-10-08a';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-10-08b';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {

@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-09-22c";
+	--common-css-version: "2026-10-08a";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -117,7 +117,7 @@
 
 	/* ---- 表の罫線（C-57・57セッション目） ----
 	   ★取り表（編成パネル）の列の間の縦線と、行の間の横線。**地色に依存させず、ここで1か所で持つ**
-	   （ダークモードに対応するときはこの値を変えるだけ。ダークモードそのものは範囲外）。
+	   （ダークの値はこのファイルの末尾。C-134）。
 	   見出しのセルの地と、育成ウマ娘の列の見出しだけに使う濃い地もここ。 */
 	--uma-table-rule: #e2e8f0;          /* slate-200 : 列の間の縦線・行の間の横線 */
 	--uma-table-rule-strong: #cad5e2;   /* slate-300 : 見出し行の下線 */
@@ -197,7 +197,8 @@
 	--uma-green-skill-hover: #006045;  /* emerald-800 : 選択中の hover（白文字と 7.61） */
 	--uma-green-skill-soft: #ecfdf5;   /* emerald-50  : 未選択の hover の面 */
 	--uma-green-skill-border: #a4f4cf; /* emerald-200 : 切り替えを囲む枠 */
-
+	/* 緑スキルの色で塗った地の上に載せる文字（ダークでは地が明るい緑になるので暗い色。C-134） */
+	--uma-green-skill-on: #ffffff;
 	/* ---- 操作できる部品の色（3ツール共通の黒） ----
 	   ボタンの地・枠線だけのボタンの枠と文字・チェック／ラジオ・選択中のタブの下線・
 	   選択中を示す枠・右下と引き出しの丸ボタン。**押せるものは色でなく黒**にして、
@@ -275,6 +276,20 @@
 	--uma-card-type-5-bg: #dcfce7;     --uma-card-type-5-border: #7bf1a8; --uma-card-type-5-text: #016630; /* 緑 */
 	--uma-card-type-6-bg: #fef9c2;     --uma-card-type-6-border: #ffdf20; --uma-card-type-6-text: #894b00; /* 黄 */
 
+	/* ---- ①②の帯・②の設定の枠・まとまり（段9・C-121） ----
+	   core の .usd-bandbox などが読む。special.html の <style> にあったものを、Deck の引き出し・Deck 単体でも
+	   同じ値になるようにここへ移した（C-134 段2。値は core の var() のフォールバックと同じなので、
+	   これまで変数が無かった Deck でもライトの見た目は変わらない）。 */
+	--uma-band: #e9eef6;        /* ①②の「Pt／種」の薄い帯の地 */
+	--uma-dash: #b9c2d0;        /* ②の設定の枠の破線（アイコンの無い丸の破線も同じ色） */
+	--uma-group-bg: #ffffff;    /* ②のスキルのまとまりの面 */
+	--uma-group-line: #cad5e2;  /* その枠の線 */
+	--uma-config-bg: #f8fafc;   /* ②の設定の枠（破線）の地 */
+
+	/* ---- 画面の骨格（css/shell.css が読む。C-134 段2 で直書きから変数へ） ---- */
+	--uma-drawer-bg: #f5f6fb;                                /* 引き出しの地 */
+	--uma-scrim: rgba(15, 23, 42, .45);                      /* 引き出し・ダイアログの背景の暗転 */
+	--uma-drawer-shadow: -8px 0 32px rgba(15, 23, 42, .25);  /* 引き出しの影 */
 	/* ---- 余白（4pxを単位とする刻み。1/3/7/9pxのような孤立値は使わない） ---- */
 	--uma-sp-0-5: 2px;
 	--uma-sp-1: 4px;
@@ -338,4 +353,144 @@
 	--uma-accent-border: var(--uma-deck-accent-border);
 	--uma-accent-ring: var(--uma-deck-accent-ring);   /* これが無いとフォーカスの輪だけ
 	                                                    ページのアクセントのまま残って浮く */
+}
+
+/* ============================================================
+ * ダーク（C-134・2026-10-07）
+ *
+ * <html data-theme="dark"> のときだけ、上の色の変数を同じ名前のまま差し替える。属性は js/theme.js が付ける
+ * （利用者が選んだときだけ。段7 までは OS の設定には従わない）。**ライトの値は1つも変えていない。**
+ * 基調は青黒（地 #0f1318・面 #171d26。決定6）で、special・exam・Deck の3ツールで同じ。
+ * ツールごとの色味（special の緑・exam の青・Deck の暖灰）は暗い面には残さず、アクセントや
+ * 意味を持つ色（印・種類・状態）だけを、色相を保って明るい側へ寄せる（dark-mode-step0.md §6）。
+ * 結合画像・結果画像の canvas は、ここを通らずに常にライトの値で焼き込む（決定4。各ページの readTokenLight）。
+ * 値は special.html の <style> にあった足場（段9・C-121 の37個）を引き継ぎ、残りを足した。
+ *
+ * **セレクタは :root:where([data-theme="dark"])（詳細度は :root と同じ）。** 各ページの <style> が :root で
+ * 持つ自前の値（special の緑のアクセント・exam の青の段・Deck の地など）は、このファイルより後に読まれるので
+ * ダークでもそちらが勝つ。**ページ固有の色のダークは、そのページが :root[data-theme="dark"] で持つ。**
+ * ここを :root[data-theme="dark"] にすると、ページのアクセントが既定の藍に塗り替わってしまう。
+ * ============================================================ */
+:root:where([data-theme="light"]) { color-scheme: light; }
+:root:where([data-theme="dark"]) {
+	/* ブラウザ自身が描く部品（select の選択肢・スクロールバー・日付の入力）も暗くする */
+	color-scheme: dark;
+
+	/* ---- 面 ---- */
+	--uma-surface: #171d26;
+	--uma-glass-bg: rgba(23, 29, 38, .92);
+	--uma-surface-sunken: #1c2430;
+	--uma-surface-muted: #263041;
+	--uma-surface-group: #263041;
+	--uma-surface-inverse: #e2e8f0;
+	--uma-page-ground: #0f1318;      /* ページの地（各ページの body がダークで使う） */
+
+	/* ---- 文字 ---- */
+	--uma-text: #e2e8f0;
+	--uma-text-heading: #f1f5f9;
+	--uma-text-muted: #cbd5e1;
+	--uma-text-subtle: #aab6c8;
+	--uma-text-faint: #8f9cb0;
+	--uma-text-inverse: #0f1318;
+
+	/* ---- 罫線 ---- */
+	--uma-border: #2a3441;
+	--uma-border-strong: #3b4555;
+
+	/* ---- 状態色 ---- */
+	--uma-success: #5ad28c;
+	--uma-success-bg: #12301f;
+	--uma-success-text: #8be3ac;
+	--uma-warn-bg: #2f2510;
+	--uma-warn-border: #6a5214;
+	--uma-warn-text: #f6c453;
+	--uma-danger-bg: #3a1c1f;
+	--uma-danger-border: #6b2d33;
+	--uma-danger-text: #ff9a9a;
+	/* ★の実数（橙）は暗い面の上でも読めるので変えない。空きはライトの slate-300 だと暗い面で明るすぎて
+	   「空き」に見えないので、暗い灰へ */
+	--uma-star-empty: #4a5568;
+
+	/* ---- 印の色（形が主・色は補助。色相はそのままで明るい側へ） ---- */
+	--uma-mark-tier-1: #ff7070;
+	--uma-mark-tier-2: #6aa8ff;
+	--uma-mark-tier-3: #9aa4b3;
+
+	/* ---- スキルパネル ---- */
+	--uma-skillpanel-bg: linear-gradient(90deg, #1f2733 0%, #27303f 46%, #2f3a4c 100%);
+	--uma-skillpanel-border: #3b4555;
+	--uma-skillpanel-shadow: none;
+
+	/* ---- 表 ---- */
+	--uma-table-rule: #2a3441;
+	--uma-table-rule-strong: #3b4555;
+	--uma-table-head-bg: #263041;
+	--uma-table-col-alt: #1c2430;
+	--uma-table-col-key: #22304a;
+
+	/* ---- シナリオ因子（紫）・遺伝子（濃い紫） ---- */
+	--uma-mark-catalog: #e57ad9;
+	--uma-catalog-text: #f2a8ea;
+	--uma-catalog-soft: #35172f;
+	--uma-catalog-border: #6b2b63;
+	--uma-mark-gene: #b48cf0;
+	--uma-gene-text: #d6bcf8;
+	--uma-gene-soft: #251a3a;
+	--uma-gene-border: #4c3a70;
+
+	/* ---- 緑スキル ---- */
+	--uma-green-skill: #34d399;
+	--uma-green-skill-hover: #6ee7b7;
+	--uma-green-skill-soft: #10291f;
+	--uma-green-skill-border: #1f5a43;
+	--uma-green-skill-on: #0f1318;
+
+	/* ---- 操作できる部品（ダークでは明るい灰。上に載る文字は --uma-text-inverse の暗い色） ---- */
+	--uma-control: #e2e8f0;
+	--uma-control-hover: #f1f5f9;
+	--uma-control-soft: #263041;
+	--uma-control-border: #3b4555;
+	--uma-control-border-strong: #52607a;
+	--uma-control-disabled: #6b778b;
+	--uma-control-disabled-bg: #222a35;
+
+	--uma-focus-ring: #6aa8ff;
+	--uma-notify: #ff6464;
+
+	/* ---- アクセント（既定の藍。ツールのページは各HTMLが上書きする） ---- */
+	--uma-accent: #8b7dff;
+	--uma-accent-hover: #a59bff;
+	--uma-accent-soft: #221f45;
+	--uma-accent-soft-text: #b8b0ff;
+	--uma-accent-border: #3d3780;
+	--uma-accent-ring: #8b7dff;
+
+	/* ---- Deck の色（暖灰の色相を保って明るい側へ。淡い面は青黒の面） ---- */
+	--uma-deck-accent: #d6d3d1;
+	--uma-deck-accent-hover: #e7e5e4;
+	--uma-deck-accent-soft: #263041;
+	--uma-deck-accent-soft-text: #e7e5e4;
+	--uma-deck-accent-border: #57534e;
+	--uma-deck-accent-ring: #d6d3d1;
+
+	/* ---- 結合画像（琥珀） ---- */
+	--uma-stitch-accent: #f5a524;
+	--uma-stitch-soft: #33270f;
+	--uma-stitch-soft-text: #f6c453;
+
+	/* ---- サポートカードの種類（地は暗く・文字は明るく・左の罫線は中間） ---- */
+	--uma-card-type-1-bg: #172a4a;     --uma-card-type-1-border: #3b6fb8; --uma-card-type-1-text: #a9c9ff;
+	--uma-card-type-2-bg: #3a1a1d;     --uma-card-type-2-border: #a3474d; --uma-card-type-2-text: #ffb3b3;
+	--uma-card-type-3-bg: #3a2412;     --uma-card-type-3-border: #b0662a; --uma-card-type-3-text: #ffc48a;
+	--uma-card-type-4-bg: #3a1a2c;     --uma-card-type-4-border: #a8457a; --uma-card-type-4-text: #ffb0d8;
+	--uma-card-type-5-bg: #12301f;     --uma-card-type-5-border: #2f8f57; --uma-card-type-5-text: #8be3ac;
+	--uma-card-type-6-bg: #33300f;     --uma-card-type-6-border: #a08a1a; --uma-card-type-6-text: #f5df6b;
+
+	/* ---- ①②の帯・②の設定の枠・まとまり（段9・C-121。special.html から移した） ---- */
+	--uma-band: #2d4160; --uma-dash: #5f6e86; --uma-group-bg: #222a35; --uma-group-line: #3b4555; --uma-config-bg: #12171f;
+
+	/* ---- 画面の骨格（css/shell.css が読む） ---- */
+	--uma-drawer-bg: #12171f;
+	--uma-scrim: rgba(0, 0, 0, .6);
+	--uma-drawer-shadow: -8px 0 32px rgba(0, 0, 0, .5);
 }

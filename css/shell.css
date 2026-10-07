@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-09-22c";
+	--uma-shell-css-version: "2026-10-08a";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -274,7 +274,7 @@
 .uma-undo-fab-count {
 	font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 700;
 	padding: 0 var(--uma-sp-1-5); border-radius: var(--uma-r-full);
-	background: rgba(255, 255, 255, .2);
+	background: color-mix(in srgb, var(--uma-text-inverse) 20%, transparent);  /* 黒い地の上の白の 20%（ダークでは明るい地の上の暗い色の 20%） */
 }
 @media (min-width: 768px) {
 	.uma-undo-fab { left: max(var(--uma-fab-edge), calc(50% - var(--uma-content-half, 512px))); }
@@ -379,7 +379,7 @@
    半透明の背景色を持つ不透明な要素として実装する。 */
 .uma-drawer-backdrop {
 	position: fixed; inset: 0; z-index: 90;
-	background: rgba(15, 23, 42, .45);
+	background: var(--uma-scrim);
 	transition: background-color .3s ease;
 }
 .uma-drawer-backdrop[hidden] { display: none !important; }
@@ -389,7 +389,7 @@
 	position: fixed; top: 0; right: 0; z-index: 100;
 	width: min(92vw, 820px); height: 100%;
 	display: flex; flex-direction: column;
-	background: #f5f6fb; box-shadow: -8px 0 32px rgba(15, 23, 42, .25);
+	background: var(--uma-drawer-bg); box-shadow: var(--uma-drawer-shadow);
 	transform: translateX(100%);
 	transition: transform .3s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -404,7 +404,7 @@
 }
 /* 中身は引き出しの中でスクロールする（本文側は body ごとスクロールを止める）。
    iframe の引き出しだけは中の文書が自前でスクロールするので、外側は固定。 */
-.uma-drawer-body { flex: 1; min-height: 0; overflow-y: auto; background: #f5f6fb; }
+.uma-drawer-body { flex: 1; min-height: 0; overflow-y: auto; background: var(--uma-drawer-bg); }
 .uma-drawer-body--frame { overflow: hidden; }
 .uma-drawer-body iframe { width: 100%; height: 100%; border: 0; display: block; }
 .uma-drawer-content { padding: var(--uma-sp-4); }
@@ -459,7 +459,7 @@
  * ============================================================ */
 .uma-overlay-backdrop {
 	position: fixed; inset: 0; z-index: 110;
-	background: rgba(15, 23, 42, .45);
+	background: var(--uma-scrim);
 }
 .uma-overlay-backdrop[hidden] { display: none !important; }
 .uma-overlay {
