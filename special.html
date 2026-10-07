@@ -1462,6 +1462,49 @@
 			syncStickyTop();
 		})();
 
+		/* ---------- C-132: ①②③の左右スワイプ（タッチ操作のときだけ） ----------
+		   横の動きが SWIPE_MIN_PX 以上で、縦の動きの SWIPE_RATIO 倍より大きいときだけ、隣のタブへ切り替える（左へ払うと次、右へ払うと前。端では何もしない）。
+		   次の場所から始まった動きは切り替えにしない：横にスクロールできる場所（①の表・②のパレットの行・スキル名など）・小窓・ポップオーバー・入力欄・選択欄。
+		   切り替えたあとのスクロール位置は、タブを押したときと同じ（動かさない） */
+		const SWIPE_MIN_PX = 60;
+		const SWIPE_RATIO = 2;
+		// 横にスクロールする作りの部品（中身が収まっていて、いまは送れないときも含めて外す）
+		const SWIPE_BLOCK_SELECTOR = '.usd-roster-grid-wrap, .usd-hscroll, .usd-palette, .usd-entry-row, .usd-panel-namescroll, .uma-subtabs, '
+			+ 'input, textarea, select, [contenteditable], [role="dialog"], .uma-overlay, .uma-overlay-backdrop, .usd-modal, .uma-drawer, .uma-fab-nav, .uma-undo-fab';
+		function swipeBlockedAt(el) {
+			for (let n = el; n && n !== document.body && n.nodeType === 1; n = n.parentElement) {
+				if (n.matches(SWIPE_BLOCK_SELECTOR)) return true;
+				const ox = getComputedStyle(n).overflowX;
+				if ((ox === 'auto' || ox === 'scroll') && n.scrollWidth > n.clientWidth + 1) return true;
+			}
+			return false;
+		}
+		// 開いている小窓・引き出しがあるあいだは切り替えない（背景を払っても下の画面を動かさない）
+		function anyLayerOpen() {
+			return Array.prototype.some.call(document.querySelectorAll('[aria-modal="true"], .uma-popover, .usd-modal'), (d) => !d.hidden && d.getClientRects().length > 0);
+		}
+		let swipeStart = null;
+		document.addEventListener('touchstart', (e) => {
+			swipeStart = null;
+			if (!deckMode || e.touches.length !== 1 || anyLayerOpen() || swipeBlockedAt(e.target)) return;
+			const t = e.touches[0];
+			swipeStart = { x: t.clientX, y: t.clientY };
+		}, { passive: true });
+		document.addEventListener('touchcancel', () => { swipeStart = null; }, { passive: true });
+		document.addEventListener('touchend', (e) => {
+			const s = swipeStart;
+			swipeStart = null;
+			if (!s || e.changedTouches.length !== 1) return;
+			const t = e.changedTouches[0];
+			const dx = t.clientX - s.x, dy = t.clientY - s.y;
+			if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= SWIPE_RATIO * Math.abs(dy)) return;
+			const tabs = visibleStepTabs();
+			const cur = tabs.findIndex(k => document.getElementById('step-tab-' + k).getAttribute('aria-selected') === 'true');
+			const next = tabs[cur + (dx < 0 ? 1 : -1)];
+			if (cur < 0 || next === undefined) return;
+			selectStepTab(next);
+		}, { passive: true });
+
 		function updateImageCountBadge() {
 			const badge = document.getElementById('image-count-badge');
 			if (!badge) return;
