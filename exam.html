@@ -19,9 +19,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-10-08c" />
-	<link rel="stylesheet" href="css/common.css?v=2026-10-08c" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-10-08c" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-10-08d" />
+	<link rel="stylesheet" href="css/common.css?v=2026-10-08d" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-10-08d" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -92,6 +92,14 @@
 			--uma-page-mid: #f1f6fc;
 			--uma-page-high: #f7fafd;
 			--uma-card-border: rgba(150, 196, 240, .55);
+
+			/* 結果の表の親A（青）・親B（赤）の色と、★合計の列・親A／親Bの表示切り替えのボタンの色。
+			   JS がインラインの style で当てるので、ダークで差し替えられるよう変数にしてある（C-134 段5。値は以前の直書きと同じ） */
+			--exam-blue-bg: #eff6ff; --exam-blue-text: #1e40af; --exam-blue-border-strong: #93c5fd; --exam-blue-border-soft: #bfdbfe; --exam-blue-tint: rgba(59,130,246,0.07);
+			--exam-red-bg: #fef2f2; --exam-red-text: #991b1b; --exam-red-border-strong: #fca5a5; --exam-red-border-soft: #fecaca; --exam-red-tint: rgba(239,68,68,0.07);
+			--exam-total-th-bg: #f1f5f9; --exam-total-th-text: #334155; --exam-total-th-border: #cbd5e1;
+			--exam-total-td-bg: #f8fafc; --exam-total-td-border: #e2e8f0;
+			--exam-toggle-off-bg: #fff; --exam-toggle-off-text: #94a3b8; --exam-toggle-off-border: #e2e8f0; --exam-toggle-on-text: #fff;
 		}
 		/* ①のタブに出す件数バッジ。骨格（shell.css の .step-tab-badge）は灰なので、このページの青に */
 		.step-tab-badge--accent { background: var(--uma-deco-soft); color: var(--uma-deco-strong); }
@@ -374,6 +382,46 @@
 		.copylist-btn { padding: 0.375rem 0.875rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid #e2e8f0; background: #fff; color: #64748b; }
 		.copylist-btn:hover { background-color: #f1f5f9; }
 		.copylist-btn.active { background-color: var(--uma-control); color: #fff; border-color: var(--uma-control); }
+
+		/* ===== ダーク（C-134 段5）=====
+		   <html data-theme="dark"> のときだけ効く。ライトの見た目は1つも変えていない。
+		   地と面は tokens.css の青黒（決定6）。このページの青（--uma-c-*）は、段の並びを裏返して
+		   淡い段を暗い面に、濃い段を明るい文字にする（色相は 210 のまま）。旧UI は崩れても直さない（決定8）。 */
+		:root[data-theme="dark"] {
+			--uma-c-50: #11253b; --uma-c-100: #16304d; --uma-c-200: #1f4166; --uma-c-300: #2d5a8a;
+			--uma-c-400: #4a9ef5; --uma-c-500: #5aa9f7; --uma-c-600: #6fb4fa; --uma-c-700: #8cc4fb;
+			--uma-c-800: #a8d4ff; --uma-c-900: #cbe5ff; --uma-c-950: #e0f0ff;
+			--uma-card-border: rgba(74, 158, 245, .25);
+			--exam-blue-bg: #172a4a; --exam-blue-text: #a9c9ff; --exam-blue-border-strong: #3b6fb8; --exam-blue-border-soft: #26426b; --exam-blue-tint: rgba(74, 158, 245, .10);
+			--exam-red-bg: #3a1a1d; --exam-red-text: #ffb3b3; --exam-red-border-strong: #a3474d; --exam-red-border-soft: #6b2d33; --exam-red-tint: rgba(251, 44, 54, .10);
+			--exam-total-th-bg: var(--uma-surface-muted); --exam-total-th-text: var(--uma-text-heading); --exam-total-th-border: var(--uma-border-strong);
+			--exam-total-td-bg: var(--uma-surface-sunken); --exam-total-td-border: var(--uma-border);
+			--exam-toggle-off-bg: var(--uma-surface); --exam-toggle-off-text: var(--uma-text-faint); --exam-toggle-off-border: var(--uma-border); --exam-toggle-on-text: #ffffff;
+		}
+		:root[data-theme="dark"] body { background: var(--uma-page-ground); color: var(--uma-text); }
+		:root[data-theme="dark"] .glass-card { background: var(--uma-glass-bg); }
+		:root[data-theme="dark"] .result-table th { background-color: var(--uma-surface-muted); color: var(--uma-text-muted); border-bottom-color: var(--uma-border); }
+		:root[data-theme="dark"] .result-table td { border-bottom-color: var(--uma-surface-muted); }
+		:root[data-theme="dark"] .result-table tr:hover td { background-color: var(--uma-surface-sunken); }
+		/* 先頭の列は横スクロールで固定（sticky）なので、不透明の面のまま（恒久ルール9。opacity は使わない） */
+		:root[data-theme="dark"] .result-table td:first-child { background-color: var(--uma-surface); }
+		:root[data-theme="dark"] .found { color: var(--uma-success); }
+		:root[data-theme="dark"] .not-found { color: var(--uma-text-faint); }
+		/* 切り出しのプレビュー（canvas）は画像なのでライトのまま。周りの枠だけ */
+		:root[data-theme="dark"] #debug-preview canvas { border-color: var(--uma-border); }
+		/* 結果画像の模式図（設定パネルの小さな絵）も画面の色にそろえる */
+		:root[data-theme="dark"] .stitch-wire-sheet, :root[data-theme="dark"] .stitch-wire-row { background: var(--uma-surface-muted); }
+		:root[data-theme="dark"] .stitch-wire-card--a { background: #172a4a; border-color: #26426b; color: #a9c9ff; }
+		:root[data-theme="dark"] .stitch-wire-card--b { background: #33270f; border-color: #6a5214; color: #f6c453; }
+		:root[data-theme="dark"] .mode-btn.active { color: var(--uma-green-skill-on); }
+		:root[data-theme="dark"] .scope-detail { color: var(--uma-text-muted); background: var(--uma-surface); border-color: var(--uma-border-strong); }
+		:root[data-theme="dark"] .scope-detail-title { color: var(--uma-text-heading); }
+		:root[data-theme="dark"] .copylist-btn { border-color: var(--uma-border); background: var(--uma-surface); color: var(--uma-text-subtle); }
+		:root[data-theme="dark"] .copylist-btn:hover { background-color: var(--uma-surface-muted); }
+		:root[data-theme="dark"] .copylist-btn.active { background-color: var(--uma-control); border-color: var(--uma-control); color: var(--uma-text-inverse); }
+		:root[data-theme="dark"] svg path[stroke="#cbd5e1"] { stroke: var(--uma-border-strong); }
+		/* 青の主ボタン（bg-blue-600）の hover は、ダークの表では blue-700 が淡い青になるので 600 のまま */
+		:root[data-theme="dark"] .hover\:bg-blue-700:hover { background-color: var(--color-blue-600); }
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-[var(--uma-control)] selection:text-white">
@@ -2290,7 +2338,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-10-08c';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-10-08d';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],
@@ -3456,9 +3504,9 @@
 				const colors = HUE_HEX[set.hue];
 				const on = tableSetVisible[setIdx];
 				btn.textContent = (on ? '✓ ' : '') + set.label;
-				btn.style.backgroundColor = on ? colors.borderStrong : '#fff';
-				btn.style.color = on ? '#fff' : '#94a3b8';
-				btn.style.borderColor = on ? colors.borderStrong : '#e2e8f0';
+				btn.style.backgroundColor = on ? colors.borderStrong : 'var(--exam-toggle-off-bg)';
+				btn.style.color = on ? 'var(--exam-toggle-on-text)' : 'var(--exam-toggle-off-text)';
+				btn.style.borderColor = on ? colors.borderStrong : 'var(--exam-toggle-off-border)';
 			});
 		}
 
@@ -3705,9 +3753,10 @@
 		// .result-table th には既に background-color を指定するCSSルールがあり、
 		// クラスの指定だけでは優先度で負けて反映されないことがあるため、
 		// ここではインラインstyleで確実に上書きする。
+		// 値は <style> の :root の --exam-blue-* / --exam-red-*（ダークで差し替えるため変数にした。C-134 段5。ライトの値は同じ）。
 		const HUE_HEX = {
-			blue: { bg: '#eff6ff', text: '#1e40af', borderStrong: '#93c5fd', borderSoft: '#bfdbfe', tint: 'rgba(59,130,246,0.07)' },
-			red: { bg: '#fef2f2', text: '#991b1b', borderStrong: '#fca5a5', borderSoft: '#fecaca', tint: 'rgba(239,68,68,0.07)' }
+			blue: { bg: 'var(--exam-blue-bg)', text: 'var(--exam-blue-text)', borderStrong: 'var(--exam-blue-border-strong)', borderSoft: 'var(--exam-blue-border-soft)', tint: 'var(--exam-blue-tint)' },
+			red: { bg: 'var(--exam-red-bg)', text: 'var(--exam-red-text)', borderStrong: 'var(--exam-red-border-strong)', borderSoft: 'var(--exam-red-border-soft)', tint: 'var(--exam-red-tint)' }
 		};
 
 		// 表示中の列(used内の各personIdx)について、色と「セットの境目に区切り線を
@@ -3742,7 +3791,7 @@
 				html += `<th class="text-center" style="background-color:${m.colors.bg};color:${m.colors.text};${borderStyle}">${PERSON_LABELS[m.idx]}</th>`;
 			});
 			if (showTotal) {
-				html += '<th class="text-center" style="background-color:#f1f5f9;color:#334155;border-left:2px solid #cbd5e1;">★合計</th>';
+				html += '<th class="text-center" style="background-color:var(--exam-total-th-bg);color:var(--exam-total-th-text);border-left:2px solid var(--exam-total-th-border);">★合計</th>';
 			}
 			html += '</tr>';
 			thead.innerHTML = html;
@@ -3892,7 +3941,7 @@
 				let totalCell = '';
 				if (showTotal) {
 					const total = vals.reduce((sum, v) => sum + (typeof v === 'number' ? v : 0), 0);
-					totalCell = `<td class="text-center font-bold text-slate-700" style="background-color:#f8fafc;border-left:2px solid #e2e8f0;">${total}</td>`;
+					totalCell = `<td class="text-center font-bold text-slate-700" style="background-color:var(--exam-total-td-bg);border-left:2px solid var(--exam-total-td-border);">${total}</td>`;
 				}
 
 				tableHtml += `<tr class="transition-colors">
@@ -5010,14 +5059,30 @@
 		 * （読めなかったときの代わりの色をここに書くと、生のhexが戻ってきてしまう）。
 		 */
 		function attrMarkColors() {
-			const css = getComputedStyle(document.documentElement);
+			const kinds = Object.keys(ATTR_MARK_TOKEN);
+			const vals = readTokensLight(kinds.map(k => ATTR_MARK_TOKEN[k]));
+			if (vals.some(v => !v)) return null;
 			const out = {};
-			for (const kind of Object.keys(ATTR_MARK_TOKEN)) {
-				const v = css.getPropertyValue(ATTR_MARK_TOKEN[kind]).trim();
-				if (!v) return null;
-				out[kind] = v;
-			}
+			kinds.forEach((k, i) => { out[k] = vals[i]; });
 			return out;
+		}
+
+		/**
+		 * 結果画像（canvas）に焼き込む色は、**画面がダークでも常にライトの値で読む**（C-134・決定4）。
+		 * 画像は白地に描くので、ダークの値（明るい文字色など）を混ぜると読めなくなる。
+		 * <html data-theme> を一瞬 light に付け替えて読み、すぐ元に戻す（同期処理なので間に描画は挟まらない）。
+		 * special.html の readTokensLight と同じ。
+		 */
+		function readTokensLight(names) {
+			const root = document.documentElement;
+			const prev = root.getAttribute('data-theme');
+			if (prev === 'dark') root.setAttribute('data-theme', 'light');
+			try {
+				const css = getComputedStyle(root);
+				return names.map(n => css.getPropertyValue(n).trim());
+			} finally {
+				if (prev === 'dark') root.setAttribute('data-theme', prev);
+			}
 		}
 
 		/**
@@ -5029,7 +5094,7 @@
 		 * ここに区分の色の hex を代わりに書くと、トークンを変えても古い色が生き残る。
 		 */
 		function stitchTokenColor(token) {
-			const v = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+			const v = readTokensLight([token])[0];
 			return v || STITCH_NOTE_COLOR;
 		}
 
@@ -6432,7 +6497,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-10-08e';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-10-08f';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;

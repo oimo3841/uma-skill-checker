@@ -19,6 +19,9 @@ export const LIGHT_SCENES = (() => {
 	out.push({ name: 'special-375-deckdrawer', file: 'special.html', w: 375, tab: '1', act: 'deck', viewportOnly: true });
 	out.push({ name: 'exam-375-deckdrawer', file: 'exam.html', w: 375, act: 'deck', viewportOnly: true });
 	out.push({ name: 'special-1280-deckdrawer', file: 'special.html', w: 1280, tab: '1', act: 'deck', viewportOnly: true });
+	// exam の結果の表（親A・親Bの人物色・★合計の列。JS がインラインの style で色を当てる）
+	out.push({ name: 'exam-375-results', file: 'exam.html', w: 375, act: 'examResults', viewportOnly: true });
+	out.push({ name: 'exam-1280-results', file: 'exam.html', w: 1280, act: 'examResults', viewportOnly: true });
 	return out;
 })();
 
@@ -41,8 +44,21 @@ export async function captureScene(browser, base, s, userData, theme = 'light') 
 	await page.goto(base + '/' + s.file, { waitUntil: 'networkidle', timeout: 60000 });
 	await page.waitForFunction(() => document.readyState === 'complete' && (!document.querySelector('script[src*="tailwindcss-browser"]') || document.documentElement.classList.contains('uma-tw-ready')), null, { timeout: 15000 });
 	await page.waitForTimeout(1500);
-	if (await page.isVisible('[data-act="notice-ok"]').catch(() => false)) { await page.click('[data-act="notice-ok"]'); await page.waitForTimeout(400); }
+	for (const sel of ['[data-act="notice-ok"]', '#ui-notice-ok']) if (await page.isVisible(sel).catch(() => false)) { await page.click(sel); await page.waitForTimeout(400); }
 	if (s.act === 'deck') { await page.evaluate(() => fabGoTo('deck')); await page.waitForTimeout(2500); }
+	if (s.act === 'examResults') {
+		await page.evaluate(() => {
+			const mk = (names, offset) => matchAllSkillsWithStars(names.map((n, i) => ({ text: n, stars: ((i + offset) % 3) + 1, starsReliable: i !== 4, rowKey: 'r' + i })), skillList, skillIndex, {});
+			personResults = PERSON_LABELS.map(() => null);
+			personResults[0] = mk(skillList, 0);
+			personResults[3] = mk(skillList.slice(0, 20), 1);
+			renderResults();
+			fabGoTo('result');
+		});
+		await page.waitForTimeout(800);
+		await page.evaluate(() => { const t = document.querySelector('#result-drawer .result-table'); if (t) t.scrollIntoView({ block: 'start' }); });
+		await page.waitForTimeout(1500);
+	}
 	await page.evaluate(() => {
 		const re = /20\d\d-\d\d-\d\d[a-z]/g;
 		const docs = [document];

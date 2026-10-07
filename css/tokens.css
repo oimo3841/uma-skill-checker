@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-10-08c";
+	--common-css-version: "2026-10-08d";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -295,7 +295,10 @@
 	   ダークの規則（css/common.css の末尾）だけが読む。ライトの値はそのクラスの色と同じにしてある。 */
 	--uma-text-on-color: #ffffff;  /* 色の付いた地（緑・青・赤のボタン、トースト）の上の白い文字。ダークでも白 */
 	--uma-toast-bg: #0f172b;       /* トーストの地（slate-900）。ダークでも暗いまま（決定7） */
-	--uma-toast-border: #314158;   /* トーストの縁（slate-700）。ダークでは明るい細い枠にする */	/* ---- 余白（4pxを単位とする刻み。1/3/7/9pxのような孤立値は使わない） ---- */
+	--uma-toast-border: #314158;   /* トーストの縁（slate-700）。ダークでは明るい細い枠にする */
+	--uma-symbol-faint: #cad5e2;   /* わざと淡くした記号（★の空き・「−」。Tailwind の text-slate-300）。ダークでは記号として 3:1 を保つ */
+
+	/* ---- 余白（4pxを単位とする刻み。1/3/7/9pxのような孤立値は使わない） ---- */
 	--uma-sp-0-5: 2px;
 	--uma-sp-1: 4px;
 	--uma-sp-1-5: 6px;
@@ -500,6 +503,7 @@
 	--uma-drawer-shadow: -8px 0 32px rgba(0, 0, 0, .5);
 	/* ---- トースト（決定7: 暗いまま、明るい細い枠で縁を出す。注意のアイコン付きも同じ） ---- */
 	--uma-toast-border: #aab6c8;
+	--uma-symbol-faint: #717d92;
 	/* ---- Tailwind のパレット（--color-*）の上書き（C-134 段3・決定3） ----
 	   Tailwind v4 は色のクラスを var(--color-*) で出すので、ここで変数を差し替えればマークアップを変えずに色が替わる。
 	   **製品が使っている色相だけ**（special／exam／Deck／core／deck.js を数えた: slate と amber blue emerald green indigo red violet）。
@@ -510,7 +514,7 @@
 	   白（--color-white）は面の色にする（bg-white・bg-white/95・via-white/70 などの面がそのまま暗くなる）。
 	   色付きの地の上の白い文字（text-white）は css/common.css の規則で白に戻す。 */
 	--color-white: var(--uma-surface);
-	--color-slate-50: #1c2430; --color-slate-100: #263041; --color-slate-200: #2a3441; --color-slate-300: #4f5b6e; --color-slate-400: #7d8aa0; --color-slate-500: #9aa7ba; --color-slate-600: #b8c3d3; --color-slate-700: #cbd5e1; --color-slate-800: #e2e8f0; --color-slate-900: #f1f5f9; --color-slate-950: #f8fafc;
+	--color-slate-50: #1c2430; --color-slate-100: #263041; --color-slate-200: #2a3441; --color-slate-300: #4f5b6e; --color-slate-400: #8f9cb0; --color-slate-500: #aab6c8; --color-slate-600: #c0cad8; --color-slate-700: #d3dbe5; --color-slate-800: #e2e8f0; --color-slate-900: #f1f5f9; --color-slate-950: #f8fafc;
 	--color-amber-50: color-mix(in oklab, oklch(76.9% 0.188 70.08) 14%, #171d26); --color-amber-100: color-mix(in oklab, oklch(76.9% 0.188 70.08) 20%, #171d26); --color-amber-200: color-mix(in oklab, oklch(76.9% 0.188 70.08) 30%, #171d26); --color-amber-300: color-mix(in oklab, oklch(76.9% 0.188 70.08) 45%, #171d26);
 	--color-amber-700: oklch(87.9% 0.169 91.605); --color-amber-800: oklch(92.4% 0.12 95.746); --color-amber-900: oklch(96.2% 0.059 95.617); --color-amber-950: oklch(98.7% 0.022 95.277);
 	--color-blue-50: color-mix(in oklab, oklch(62.3% 0.214 259.815) 14%, #171d26); --color-blue-100: color-mix(in oklab, oklch(62.3% 0.214 259.815) 20%, #171d26); --color-blue-200: color-mix(in oklab, oklch(62.3% 0.214 259.815) 30%, #171d26); --color-blue-300: color-mix(in oklab, oklch(62.3% 0.214 259.815) 45%, #171d26);

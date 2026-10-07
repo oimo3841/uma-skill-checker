@@ -3,6 +3,7 @@
  *
  * 文字を直接持つ要素ごとに、文字の色と「有効な背景」（祖先の背景色を下から重ねたもの）を求めて
  * WCAG のコントラスト比を出す。基準は 4.5、大きい文字（24px 以上、または 18.66px 以上の太字）は 3.0。
+ * 記号だけの文字（★の空き・「−」・◎○△ など）は、文字ではなく図形（WCAG 1.4.11）として 3.0。
  *
  * **背景を決められないもの**（祖先にグラデーション・画像の背景がある／文字の色が透明＝文字のグラデーション）は
  * 黙って通さず、別の一覧（undecided）に出す。
@@ -127,7 +128,9 @@ export function scanTextContrastInPage(rootSel) {
 		}
 		const size = parseFloat(cs.fontSize), weight = parseInt(cs.fontWeight, 10) || 400;
 		const large = size >= 24 || (size >= 18.66 && weight >= 700);
-		const need = large ? 3 : 4.5;
+		// 記号だけの文字（★の空き・「−」・印など）は文字ではなく図形として 3.0（WCAG 1.4.11）
+		const symbolOnly = /^[\s★☆−\-–—○◎△▲◇◆♦■□✕×└・…♡♥●]+$/u.test(own);
+		const need = (large || symbolOnly) ? 3 : 4.5;
 		checked++;
 		if (worst.v + 1e-9 < need) bad.push({ el: label(el), text, fg: hex(worst.f), bg: hex(worst.b), ratio: Math.round(worst.v * 100) / 100, need });
 	}

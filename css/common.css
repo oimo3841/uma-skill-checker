@@ -31,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-10-08c";
+	--uma-components-css-version: "2026-10-08d";
 }
 
 /* ============================================================
@@ -569,3 +569,15 @@ textarea.uma-input {
 	color: var(--uma-text-on-color);
 	border: 1px solid var(--uma-toast-border);
 }
+/* 淡い記号（★の空き・「−」）は、ダークでも淡いまま、記号として読める濃さ（3:1）にする。罫線の slate-300 は変えない */
+:root[data-theme="dark"] .text-slate-300 { color: var(--uma-symbol-faint); }
+/* 色相の 500・600 は、ダークの上書き表では中間のまま（色の地のボタンに白い文字を載せるため）。
+   文字として使っているもの（数字・注意の文字）は、暗い面の上で読めるよう同じ色相の 400 にする（値は Tailwind v4.1.11 の 400。
+   変数 --color-*-400 はそのページで使っていないと Tailwind が出さないので、値を書く） */
+:root[data-theme="dark"] :is(.text-blue-600, .hover\:text-blue-600:hover) { color: oklch(70.7% 0.165 254.624); }
+:root[data-theme="dark"] :is(.text-red-600, .text-red-500, .hover\:text-red-600:hover) { color: oklch(70.4% 0.191 22.216); }
+:root[data-theme="dark"] :is(.text-green-600, .hover\:text-green-600:hover) { color: oklch(79.2% 0.209 151.711); }
+:root[data-theme="dark"] :is(.text-emerald-600) { color: oklch(76.5% 0.177 163.223); }
+:root[data-theme="dark"] :is(.text-indigo-600) { color: oklch(67.3% 0.182 276.935); }
+:root[data-theme="dark"] :is(.text-violet-600) { color: oklch(70.2% 0.183 293.541); }
+:root[data-theme="dark"] :is(.text-amber-600) { color: oklch(82.8% 0.189 84.429); }

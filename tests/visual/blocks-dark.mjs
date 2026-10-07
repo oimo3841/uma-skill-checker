@@ -335,4 +335,66 @@ export async function registerDark(env) {
 		await sp.page.evaluate(() => window.UmaTheme.set('auto'));
 		await sp.ctx.close();
 	});
+
+	/* ---------- 段5: exam ---------- */
+	const openExam = async (theme, w = 375) => {
+		const ctx = await browser.newContext({ viewport: { width: w, height: 812 } });
+		await ctx.addInitScript(({ theme, KEY }) => { try { if (theme === 'dark') localStorage.setItem(KEY, 'dark'); } catch (e) {} }, { theme, KEY });
+		const page = await ctx.newPage();
+		const errors = [];
+		page.on('pageerror', (e) => errors.push(String(e)));
+		await page.goto(base + '/exam.html', { waitUntil: 'networkidle', timeout: 60000 });
+		await page.waitForFunction(() => document.documentElement.classList.contains('uma-tw-ready'), null, { timeout: 15000 }).catch(() => {});
+		await page.waitForTimeout(800);
+		for (const sel of ['#ui-notice-ok', '[data-act="notice-ok"]']) if (await page.isVisible(sel).catch(() => false)) await page.click(sel);
+		await page.waitForTimeout(300);
+		return { ctx, page, errors };
+	};
+	const seedExamResults = (page) => page.evaluate(() => {
+		const mk = (names, offset) => matchAllSkillsWithStars(names.map((n, i) => ({ text: n, stars: ((i + offset) % 3) + 1, starsReliable: i !== 4, rowKey: 'r' + i })), skillList, skillIndex, {});
+		personResults = PERSON_LABELS.map(() => null);
+		personResults[0] = mk(skillList, 0);
+		personResults[3] = mk(skillList.slice(0, 20), 1);
+		renderResults();
+	});
+
+	await block('ダーク11 exam: 結果画像（canvas）の色はライトで読む・ダークの文字のコントラスト比（①②・判定の結果）', async () => {
+		const { ctx, page, errors } = await openExam('light');
+		const readMarks = () => page.evaluate(() => ({ marks: attrMarkColors(), factor: stitchTokenColor('--uma-catalog-text'), gene: stitchTokenColor('--uma-gene-text'), attr: document.documentElement.getAttribute('data-theme') }));
+		const light = await readMarks();
+		await page.evaluate(() => window.UmaTheme.set('dark'));
+		const dark = await readMarks();
+		const shown = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--uma-text').trim());
+		assert(shown === '#e2e8f0', 'ダーク11: 前提: ダークでは画面の文字の色が明るい', shown);
+		assert(JSON.stringify(dark.marks) === JSON.stringify(light.marks) && dark.factor === light.factor && dark.gene === light.gene && !!light.marks,
+			'ダーク11: attrMarkColors()・stitchTokenColor() はダークでもライトの値を返す（決定4）', { light, dark });
+		assert(dark.attr === 'dark', 'ダーク11: 読み終わったあと、画面はダークのまま', dark.attr);
+		await page.evaluate(() => window.UmaTheme.set('auto'));
+		assert(errors.length === 0, 'ダーク11: コンソールのエラー0', errors);
+		await ctx.close();
+
+		const lightReport = [];
+		for (const w of [375, 1280]) {
+			for (const theme of ['dark', 'light']) {
+				const ex = await openExam(theme, w);
+				const scan = async (name) => {
+					const r = await ex.page.evaluate(scanTextContrastInPage, null);
+					if (theme === 'dark') {
+						assert(r.checked > 30 && r.bad.length === 0, 'ダーク11: exam ' + w + 'px の' + name + 'の文字はすべて 4.5（大きい文字は 3.0）以上（' + r.checked + '件）', formatContrast(r.bad));
+						assert(r.undecided.filter((x) => !x.el.startsWith('h1.') && !/^h1\./.test(x.at || '') && !/^header/.test(x.at || '')).length === 0, 'ダーク11: exam ' + w + 'px の' + name + 'で背景を決められない文字は見出しのタイトルだけ', r.undecided);
+					} else if (w === 375) lightReport.push(...r.bad.map((b) => name + ' ' + formatContrast([b])[0]));
+				};
+				await scan('①');
+				await ex.page.click('#step-tab-1').catch(() => {});
+				await ex.page.waitForTimeout(300);
+				await scan('②');
+				await seedExamResults(ex.page);
+				await ex.page.evaluate(() => fabGoTo('result'));
+				await ex.page.waitForTimeout(1200);
+				await scan('判定の結果');
+				await ex.ctx.close();
+			}
+		}
+		console.log('     [参考] exam 375px のライトのコントラスト比の不足（直していない・' + lightReport.length + '件）:\n       ' + (lightReport.join('\n       ') || 'なし'));
+	});
 }
