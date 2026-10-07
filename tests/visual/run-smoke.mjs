@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { startServer, REPO_ROOT } from './lib/serve.mjs';
-import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA } from './lib/fixtures.mjs';
+import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA, SET_REMOVE_IN_PAGE, removeFromSet } from './lib/fixtures.mjs';
 // スクリーンショットの画素から**実際に描かれている色**を読む（段11 ⑨。半透明の重なりの結果を見るため）
 import { avgColor, deltaE, contrastRatio, hexOf } from './lib/pixels.mjs';
 import { buildEventFixture, buildCharacterFixture } from './lib/event-fixture.mjs';
@@ -32,6 +32,7 @@ import { register14 } from './blocks-14.mjs';
 import { register15 } from './blocks-15.mjs';
 import { register16 } from './blocks-16.mjs';
 import { register17 } from './blocks-17.mjs';
+import { register18 } from './blocks-18.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -238,7 +239,8 @@ await block('special.html（UmaStar OCR）', async () => {
 		nav.classList.remove('open');
 		return d;
 	});
-	assert(fabDelays.join(',') === '0.06s,0.03s,0s', 'special: 右下ナビの3項目の展開の遅延が従来どおり', fabDelays);
+	// C-132: Deck の下に「セット」「レース」を足して5項目になった（下から 0 / .03 / .06 / .09 / .12 秒）
+	assert(fabDelays.join(',') === '0.12s,0.09s,0.06s,0.03s,0s', 'special: 右下ナビの5項目の展開の遅延が下から順に揃う', fabDelays);
 	// 一度開いたので照合結果の未読は下りている。Deckはまだ見に行っていないので残る。
 	assert(!(await page.isVisible('#fab-dot-result')), 'special: 一度開くと未読バッジが下りる');
 	assert(await page.isVisible('#fab-dot-deck'), 'special: Deckを見に行くまではバッジが残る');
@@ -646,11 +648,8 @@ await block('special.html（UmaStar OCR）', async () => {
 		   × は削除モードのときだけ出る（C-57 の (9)）。 */
 		await page.click('[data-usd-act="picker-close"]');
 		await page.waitForTimeout(400);
-		await page.evaluate((id) => {
-			const del = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
-			if (del && del.getAttribute('aria-pressed') !== 'true') del.click();   // 段9: special の② は × が常に出る（削除モードは無い）
-			document.querySelector('#deck-template-panel [data-usd-act="template-skill-remove"][data-skill-id="' + id + '"]').click();
-		}, target);
+		// C-132: special の②のタイルに × は無い。パレットの「削除」を選んでタイルを押す
+		await removeFromSet(page, target);
 		await page.waitForTimeout(400);
 		await page.click('#deck-template-panel [data-usd-act="editor-pick-passive"]');
 		await page.waitForTimeout(700);
@@ -5277,17 +5276,16 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 	assert(/12種/.test(afterReload), 'undo: リロードしても戻した12種が保たれている', afterReload);
 
 	// 3) 個別に外す → 元に戻す。位置も含めて実行前と一致すること
-	const single = await page.evaluate(() => {
+	const single = await page.evaluate((removeSrc) => {
 		const read = () => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds;
 		const before = read();
-		const del = document.querySelector('#deck-template-panel [data-usd-el="mode-delete"]');
-		if (del && del.getAttribute('aria-pressed') !== 'true') del.click();   // × は削除モードのときだけ出る（C-57）。段9: special の② は常に出る
-		document.querySelectorAll('#deck-template-panel [data-usd-act="template-skill-remove"]')[3].click();
+		// C-132: special の②のタイルに × は無い。パレットの「削除」を選んで4件目のタイルを押す
+		(0, eval)(removeSrc)(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]')[3].getAttribute('data-skill-id'));
 		const removedLen = read().length;
 		const ok = UmaSkillDeckCore.performUndo();
 		return { ok, removedLen, same: read().join() === before.join(), stack: UmaSkillDeckCore.undoCount(),
 			toast: document.getElementById('toast-message').textContent };
-	});
+	}, SET_REMOVE_IN_PAGE);
 	assert(single.removedLen === PICK.length - 1 && single.ok && single.same && single.stack === 0,
 		'undo: 個別に外す→元に戻すで、順序も含めて実行前と一致する', single);
 	assert(single.toast === '外したスキル「' + PICK[3].name + '」を戻しました',
@@ -7600,7 +7598,8 @@ await block('スキルセットの分類（超優先／優先／通常。C-57）
 	const t0 = await ui();
 	assert(t0.panels === PICK.length && t0.icons === 'b'.repeat(PICK.length),
 		'tiers→段9: tiers を持たないデータのスキルは全部「優先」＝○のアイコンで出る', t0);
-	assert(t0.tabs === 0 && !t0.modes && t0.dels === PICK.length, '段9: 分類のタブと再分類・削除のモードは無い。各行に × がある', t0);
+	// C-132: 各行の × は無くした（外すのはパレットの「削除」）
+	assert(t0.tabs === 0 && !t0.modes && t0.dels === 0, '段9: 分類のタブと再分類・削除のモードは無い。C-132: 各行に × は無い', t0);
 	// 印は競馬の印（◎○▲）を**線で**描いた SVG（C-58 の作業B）。塗りつぶさないので fill は none
 	const markShape = await page.evaluate(() => {
 		const one = (t) => {
@@ -12439,7 +12438,8 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 	assert(v.roster === null && e.roster > 0, '段5(1)→段7c(O): 「（うち本育成 X）」の行は削除した（表示だけ。X の計算は変えていない）', { got: v.roster, want: e.roster });
 	// 分類を変える（優先の Y1 を超優先へ）→ 超優先だけ・優先までが増え、通常までは変わらない
 	// 段9: 再分類のモードは無い。パレットで ◎ を選び、その行のアイコンを押すと超優先（tiers が 1）になる
-	await sp.page.click('#deck-template-panel [data-usd-el="palette-a"]');
+	// C-132: 選択中のアイコンをもう一度押すと選択が外れるので、◎ が選ばれていないときだけ押す（初期は ◎）
+	await sp.page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="palette-a"]'); if (b.getAttribute('aria-pressed') !== 'true') b.click(); });
 	await sp.page.click('#deck-template-panel .usd-panel[data-skill-id="' + y(1) + '"] [data-usd-act="skill-icon"]');
 	v = await readNeed(sp.page);
 	const tiers2 = Object.assign({}, SCOPE_TIERS, { [y(1)]: 1 });
@@ -14137,6 +14137,7 @@ await register14({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register15({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register16({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register17({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register18({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
 await close();

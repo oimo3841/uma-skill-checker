@@ -1,3 +1,4 @@
+import { pressRecommend, removeFromSet } from './lib/fixtures.mjs';
 // C-130（2026-10-06）の検査。run-smoke.mjs の末尾から register16() で呼ばれる
 // （塊の見出しはすべて「C130」で始まる。`npm run test:visual -- --only=C130` で回せる。B・C・D・E だけなら「C130B」「C130C」「C130D」「C130E」）。
 //
@@ -150,7 +151,7 @@ export async function register16(env) {
 		assert(ids1[0] === manual && !rec1.includes(manual) && ea.all.every((id) => ids1.includes(id)), 'C130B 手で追加済みのものは記録に入らない（②にあるので足さない）', { ids1, rec1 });
 		// 季節の1種を手で外して、手で足し直す → 記録から落ちる
 		const readd = ea.season[0];
-		await sp.page.click(T + '[data-usd-act="template-skill-remove"][data-skill-id="' + readd + '"]');
+		await removeFromSet(sp.page, readd);   // C-132: タイルの × は無い（パレットの「削除」）
 		await sleep(sp.page, 200);
 		assert(!(await record(sp.page)).includes(readd), 'C130B 手で外したものは記録から落ちる', await record(sp.page));
 		await addByText(sp.page, [nameOf(readd)]);
@@ -213,9 +214,11 @@ export async function register16(env) {
 	const readPalette = (page) => page.evaluate(() => {
 		const row = document.querySelector('#deck-template-panel [data-usd-el="tier-row"]');
 		const b = row.querySelector('[data-usd-el="recommend-btn"]');
-		const c = row.querySelector('[data-usd-el="palette-clear"]');
+		// C-132: 「解除」は無くなり、並びは「削除 │ 脚質のボタン │ アイコン」。ボタンは「削除」の次（区切りの線を挟む）
+		const c = row.querySelector('[data-usd-el="palette-delete"]');
+		const prevBtn = (el) => { let n = el.previousElementSibling; while (n && n.classList.contains('usd-palette-sep')) n = n.previousElementSibling; return n; };
 		return { has: !!b, text: b ? b.textContent : null, dis: b ? b.disabled : null, group: b ? b.getAttribute('data-group') : null,
-			next: !!b && c.nextElementSibling === b, sameLine: !!b && Math.abs(b.getBoundingClientRect().top + b.getBoundingClientRect().height / 2 - (c.getBoundingClientRect().top + c.getBoundingClientRect().height / 2)) <= 1,
+			next: !!b && prevBtn(b) === c, sameLine: !!b && Math.abs(b.getBoundingClientRect().top + b.getBoundingClientRect().height / 2 - (c.getBoundingClientRect().top + c.getBoundingClientRect().height / 2)) <= 1,
 			hscroll: /usd-hscroll/.test(row.className), rowH: row.getBoundingClientRect().height, low: !!document.querySelector('#deck-template-panel [data-usd-el="low-effect-btn"]') };
 	});
 	const setStyle = async (page, v) => {
@@ -232,7 +235,7 @@ export async function register16(env) {
 		await sp.page.waitForSelector(T + '[data-usd-el="recommend-btn"]', { timeout: 5000 }).catch(() => {});
 		const p = await readPalette(sp.page);
 		assert(p.has && p.text === GROUP('runnerEscape').label && p.group === 'runnerEscape' && sp.recReqs.length === 1, 'C130C 逃げ: ②を開くとグループのデータを1回だけ読み、ボタンの文字は runnerEscape の label', { p, reqs: sp.recReqs.length });
-		assert(p.next && p.sameLine && p.hscroll && !p.low, 'C130C ボタンは「解除」の隣で同じ行（入りきらなければ横に送る作り）。②の「低効果を除外」は無い', p);
+		assert(p.next && p.sameLine && p.hscroll && !p.low, 'C130C ボタンは「削除」の次で同じ行（入りきらなければ横に送る作り。C-132 で「解除」の隣から変えた）。②の「低効果を除外」は無い', p);
 		// （C-130 の時点では「①の『低効果を除外』は残る」を見ていた。C-131 で①のボタンも削除したので、ここでは見ない＝blocks-17 の C131C）
 		for (const v of ['senko', 'sashi', 'oikomi']) {
 			await setStyle(sp.page, v);
@@ -246,7 +249,7 @@ export async function register16(env) {
 		await sp.ctx.close();
 	});
 
-	await block('C130C 押すと確認なしでまとめて追加・知らせに追加しなかったものの数と理由／0種なら押せない／「元に戻す」で戻る／onlyWhenRaceDistanceClass はレースが無い・区分が合わないときは入れない', async () => {
+	await block('C130C 押すと（C-132 から確認の小窓の「追加する」を経て）まとめて追加・知らせに追加しなかったものの数と理由／0種なら押せない／「元に戻す」で戻る／onlyWhenRaceDistanceClass はレースが無い・区分が合わないときは入れない', async () => {
 		assert(!!ONLY && !!RACE_IN && !!RACE_OUT, 'C130C 材料: onlyWhenRaceDistanceClass を持つスキルと、区分が合うレース・合わないレースがある', { only: ONLY && ONLY.skillId, in: RACE_IN && RACE_IN.id, out: RACE_OUT && RACE_OUT.id });
 		const g = REC.groups.find((x) => x.skills.some((s) => s.skillId === ONLY.skillId) && x.key !== 'noDebuffExtra');
 		const style = g.key === 'runnerEscape' ? 'nige' : 'senko';
@@ -258,7 +261,7 @@ export async function register16(env) {
 		// 先に1種を手で足しておく（「追加済み」の理由を作る）
 		const pre = allIds.find((id) => id !== ONLY.skillId && !hidden.includes(id));
 		await addByText(sp.page, [nameOf(pre)]);
-		await sp.page.click(T + '[data-usd-el="recommend-btn"]');
+		await pressRecommend(sp.page);   // C-132: 確認の小窓を挟む
 		await sleep(sp.page, 300);
 		const ids = await draftIds(sp.page);
 		const blocked = allIds.filter((id) => hidden.includes(id));
@@ -271,7 +274,7 @@ export async function register16(env) {
 		// C-131: 0種でも押せない状態にしない。押すと何も足さずに、理由の内訳を知らせる（詳しくは blocks-17 の C131D）
 		assert(!p.dis, 'C130C→C-131 追加できるものが0種になっても押せる見た目のまま', p);
 		const n0 = (await draftIds(sp.page)).length;
-		await sp.page.click(T + '[data-usd-el="recommend-btn"]');
+		await pressRecommend(sp.page);   // C-132: 確認の小窓を挟む
 		await sleep(sp.page, 300);
 		const t0 = await toastText(sp.page);
 		assert((await draftIds(sp.page)).length === n0 && /^追加できるスキルはありません（追加済み \d+種/.test(t0), 'C130C→C-131 0種のときに押すと、何も足さずに「追加できるスキルはありません（…）」', t0);
@@ -282,7 +285,7 @@ export async function register16(env) {
 		const rows = [];
 		for (const race of [RACE_OUT, RACE_IN]) {
 			await pickRace(sp.page, race.id);
-			await sp.page.click(T + '[data-usd-el="recommend-btn"]');
+			await pressRecommend(sp.page);   // C-132: 確認の小窓を挟む
 			await sleep(sp.page, 300);
 			rows.push({ race: race.id, cls: classOf(race), has: (await draftIds(sp.page)).includes(ONLY.skillId) });
 			await sp.page.evaluate(() => UmaSkillDeckCore.performUndo());

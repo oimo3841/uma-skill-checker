@@ -1,3 +1,4 @@
+import { pressRecommend, removeFromSet } from './lib/fixtures.mjs';
 // C-131（2026-10-07）の検査。run-smoke.mjs の末尾から register17() で呼ばれる
 // （塊の見出しはすべて「C131」で始まる。`npm run test:visual -- --only=C131` で回せる。A・C だけなら「C131A」「C131C」）。
 //
@@ -266,7 +267,7 @@ export async function register17(env) {
 		const rows = await passiveRows(sp.page, [awk, base1]);
 		assert(rows.every((x) => x.shown && x.disabled && x.reason === '本育成で得るため選べません'), 'C131B 逆: ①で目覚めを得ると、対応するスキルもグレーアウト', rows);
 		await sp.page.waitForSelector(T + '[data-usd-el="recommend-btn"]');
-		await sp.page.click(T + '[data-usd-el="recommend-btn"]');
+		await pressRecommend(sp.page);   // C-132: 確認の小窓を挟む
 		await sp.page.waitForTimeout(300);
 		const ids = await draftIds(sp.page);
 		const t = await toastText(sp.page);
@@ -283,7 +284,7 @@ export async function register17(env) {
 		const envB = (MASTER.find((s) => String(s.id) === awk).tags.environment || []);
 		const raceB = RACES.find((r) => envB.includes(r.direction) || envB.includes(r.season));
 		await pickRace(sp.page, raceB.id);
-		if ((await draftIds(sp.page)).includes(base1)) { await sp.page.click(T + '[data-usd-act="template-skill-remove"][data-skill-id="' + base1 + '"]'); await sp.page.waitForTimeout(200); }
+		if ((await draftIds(sp.page)).includes(base1)) { await removeFromSet(sp.page, base1); await sp.page.waitForTimeout(200); }   // C-132: タイルの × は無い
 		if (!(await draftIds(sp.page)).includes(awk)) await addByText(sp.page, [nameOf(awk)]);
 		const ids0 = await draftIds(sp.page);
 		assert(ids0.includes(awk) && !ids0.includes(base1), 'C131B 材料: ②に目覚めがあり、対応するスキルは無い', ids0);
@@ -319,12 +320,13 @@ export async function register17(env) {
 	await block('C131D 脚質のボタンは追加できるものが0種でも押せる見た目のまま。押すと何も足さずに「追加できるスキルはありません（内訳）」／内訳も0なら一文だけ', async () => {
 		const sp = await openSp({ roster: Object.assign({}, FULL, { skillFilter: { style: 'senko' } }) });
 		await sp.page.waitForSelector(T + '[data-usd-el="recommend-btn"]');
-		await sp.page.click(T + '[data-usd-el="recommend-btn"]');
+		await pressRecommend(sp.page);   // C-132: 確認の小窓を挟む
 		await sp.page.waitForTimeout(300);
 		const n1 = (await draftIds(sp.page)).length;
-		const look = await sp.page.evaluate(() => { const b = document.querySelector('[data-usd-el="recommend-btn"]'); return { dis: b.disabled, color: getComputedStyle(b).color, clear: getComputedStyle(document.querySelector('[data-usd-el="palette-clear"]')).color }; });
-		assert(n1 > 0 && !look.dis && look.color === look.clear, 'C131D 全部足したあとも、ボタンは押せる見た目（disabled なし・「解除」と同じ色）', look);
-		await sp.page.click(T + '[data-usd-el="recommend-btn"]');
+		// C-132: 「解除」は無くなったので、同じ形のボタンの「削除」（選ばれていないとき）と同じ色かを見る
+		const look = await sp.page.evaluate(() => { const b = document.querySelector('[data-usd-el="recommend-btn"]'); return { dis: b.disabled, color: getComputedStyle(b).color, clear: getComputedStyle(document.querySelector('[data-usd-el="palette-delete"]')).color }; });
+		assert(n1 > 0 && !look.dis && look.color === look.clear, 'C131D 全部足したあとも、ボタンは押せる見た目（disabled なし・「削除」と同じ色）', look);
+		await pressRecommend(sp.page);   // C-132: 確認の小窓を挟む
 		await sp.page.waitForTimeout(300);
 		const t = await toastText(sp.page);
 		assert((await draftIds(sp.page)).length === n1 && /^追加できるスキルはありません（追加済み \d+種(・本育成編成のため \d+種)?(・レース条件に合わないため \d+種)?）$/.test(t), 'C131D 押すと何も足さずに、内訳つきで知らせる', t);
@@ -333,7 +335,7 @@ export async function register17(env) {
 		rec.groups.find((x) => x.key === 'runnerNotEscape').skills = [];
 		const sp2 = await openSp({ roster: Object.assign({}, FULL, { skillFilter: { style: 'senko' } }), rec });
 		await sp2.page.waitForSelector(T + '[data-usd-el="recommend-btn"]');
-		await sp2.page.click(T + '[data-usd-el="recommend-btn"]');
+		await pressRecommend(sp2.page);   // C-132: 確認の小窓を挟む
 		await sp2.page.waitForTimeout(300);
 		assert((await toastText(sp2.page)) === '追加できるスキルはありません' && (await draftIds(sp2.page)).length === 0, 'C131D 内訳も0なら「追加できるスキルはありません」だけ', await toastText(sp2.page));
 		assert(jsErrors(sp2.errors).length === 0, 'C131D コンソールのエラー0', jsErrors(sp2.errors).slice(0, 3));

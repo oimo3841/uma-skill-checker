@@ -159,3 +159,30 @@ export async function seedSpecialResults(page) {
 	}, PICK);
 	await page.waitForTimeout(600);
 }
+
+/**
+ * special の②から1件を外す（C-132）。タイルの ✕ は無くなったので、パレットの「削除」を選んでタイルを押し、「削除」を戻す。
+ * root はパネルの外枠のセレクタ（既定は special の②）。page.evaluate の中で使う同じ処理は SET_REMOVE_IN_PAGE。
+ */
+export const SET_REMOVE_IN_PAGE = `(function (id, root) {
+	root = root || '#deck-template-panel';
+	const del = () => document.querySelector(root + ' [data-usd-el="palette-delete"]');
+	if (del().getAttribute('aria-pressed') !== 'true') del().click();
+	document.querySelector(root + ' .usd-panel[data-skill-id="' + id + '"] .usd-panel-namebtn').click();
+	if (del().getAttribute('aria-pressed') === 'true') del().click();
+})`;
+export async function removeFromSet(page, id, root) {
+	await page.evaluate(({ src, id, root }) => (0, eval)(src)(id, root), { src: SET_REMOVE_IN_PAGE, id, root: root || null });
+}
+
+/**
+ * special の②の「逃げオススメ」「先差追オススメ」を押して追加する（C-132）。追加できるものがあれば確認の小窓が出るので「追加する」を押す。
+ * 0種なら小窓は出ない（知らせだけ）。戻り値は小窓が出たか
+ */
+export async function pressRecommend(page) {
+	await page.click('#deck-template-panel [data-usd-el="recommend-btn"]');
+	await page.waitForTimeout(150);
+	const shown = await page.evaluate(() => { const b = document.querySelector('[data-usd-el="recommend-confirm-add"]'); return !!b && b.getClientRects().length > 0; });
+	if (shown) await page.click('[data-usd-el="recommend-confirm-add"]');
+	return shown;
+}

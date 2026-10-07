@@ -93,7 +93,8 @@ export async function register14(env) {
 			const tag = 'まとめ対応D ' + size.w + 'px';
 			assert(m.rows >= 10 && m.undoShown, tag + ': 表に行がある（' + m.rows + '行）・「元に戻す」が出ている（空振りでない）', m);
 			assert(m.last2.every((x) => x.undo === 0 && x.fab === 0), tag + ': 最後の2行は「元に戻す」と「＋」に重ならない', m.last2);
-			assert(m.pad === '48px', tag + ': 表の中の下の余白は「＋」の高さ（44px）＋4px＝48px', m.pad);
+			// C-132: ページ全体をスクロールする作りにしたので、表の中の 48px の余白は、ページの下の余白（「＋」の置き場）に置き換えた
+			assert(m.pad === '0px', tag + ': 表の中の下の余白は 0（C-132。最後の行は、ページの下の余白で「＋」の上に出る）', m.pad);
 			assert(m.h1 === m.h0 && m.v1 === m.v0, tag + ': ふだんの表の高さ・丸ごと見えている行の数は、余白の有無で変わらない', { 高さ: [m.h1, m.h0], 行: [m.v1, m.v0] });
 			assert(jsErrors(sp.errors).length === 0, tag + ': コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();

@@ -155,10 +155,11 @@ export async function register9(env) {
 		const pressed = () => sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel .usd-palette [aria-pressed="true"]')).map((b) => b.dataset.icon));
 		const stored = async () => (await draft(sp.page));
 		const before = await nums(sp.page);
-		// パレット: 6つの丸と「解除」。初期は ◎
+		// パレット: 6つの丸。初期は ◎。C-132 で「解除」を無くし、先頭に「削除」を置いた
 		const palInfo = await sp.page.evaluate(() => ({ marks: Array.from(document.querySelectorAll('#deck-template-panel .usd-palette-btn')).map((b) => b.textContent.trim()),
-			clear: (document.querySelector('#deck-template-panel [data-usd-el="palette-clear"]') || {}).textContent, size: (() => { const r = document.querySelector('#deck-template-panel .usd-palette-btn .usd-icon').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; })() }));
-		assert(palInfo.marks.join('') === '◎○△◇★✕' && palInfo.clear === '解除' && palInfo.size.join() === '24,24', '段9(B) パレットは「◎ ○ △ ◇ ★ ✕ │ 解除」。丸は 24px', palInfo);
+			clear: !!document.querySelector('#deck-template-panel [data-usd-el="palette-clear"]'), del: (document.querySelector('#deck-template-panel [data-usd-el="palette-delete"]') || {}).textContent,
+			size: (() => { const r = document.querySelector('#deck-template-panel .usd-palette-btn .usd-icon').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; })() }));
+		assert(palInfo.marks.join('') === '◎○△◇★✕' && !palInfo.clear && palInfo.del === '削除' && palInfo.size.join() === '24,24', '段9(B) パレットは「削除 │ ◎ ○ △ ◇ ★ ✕」（C-132 で「解除」は無い）。丸は 24px', palInfo);
 		assert((await pressed()).join() === 'a', '段9(B) 初期の選択は ◎', await pressed());
 		// 付ける
 		await sp.page.click(btn(ids[2]));
@@ -195,16 +196,19 @@ export async function register9(env) {
 		ic = await rowIcons(sp.page);
 		s = await stored();
 		assert(ic[ids[4]] === 'b' && ic[ids[6]] === 'e', '段9(B) ○ への付け替え・★ を付ける', ic);
-		// 解除: 種類に関係なく外す。選択は解除のまま続く
-		await sp.page.click(pal('clear'));
+		// C-132: 「解除」は無くした。外すのは、同じアイコンを選んでその行を押す。選択中のアイコンをもう一度押すと選択が外れ、行を押しても何も起きない
+		await sp.page.click(pal('b'));
 		await sp.page.click(btn(ids[4]));
+		await sp.page.click(pal('c'));
 		await sp.page.click(btn(ids[5]));
+		await sp.page.click(pal('e'));
 		await sp.page.click(btn(ids[6]));
-		await sp.page.click(btn(ids[7]));   // 付いていない行を押しても何も起きない
+		await sp.page.click(pal('e'));   // 選択中のアイコンをもう一度押す＝選択が外れる
+		await sp.page.click(btn(ids[7]));   // 何も選んでいないので、何も起きない
 		await sp.page.waitForTimeout(100);
 		ic = await rowIcons(sp.page);
 		s = await stored();
-		assert(ic[ids[4]] === '' && ic[ids[5]] === '' && ic[ids[6]] === '' && ic[ids[7]] === '' && (await pressed()).join() === 'clear', '段9(B) 解除は、付いているアイコンを種類に関係なく外す（続けて押せる）。選択は解除のまま', { ic, pressed: await pressed() });
+		assert(ic[ids[4]] === '' && ic[ids[5]] === '' && ic[ids[6]] === '' && ic[ids[7]] === '' && (await pressed()).length === 0, '段9(B) 同じアイコンを選んで押すと外れる。選択中のアイコンをもう一度押すと何も選ばれていない状態になり、行を押しても何も付かない', { ic, pressed: await pressed() });
 		assert(JSON.stringify(s.skillIcons) === JSON.stringify({ [ids[3]]: 'c' }), '段9(B) 保存されるのは、いま付いているアイコンだけ', s.skillIcons);
 		// アイコンは Pt・種・合計に影響しない
 		const after = await nums(sp.page);
@@ -384,10 +388,12 @@ export async function register9(env) {
 			assert(/^継承固有/.test(o.cfgText) && /共通スキルのヒントLv/.test(o.cfgText), tag + '設定の枠は「継承固有 [6種▾][Lv3▾]」「共通スキルのヒントLv [5▾]」', o.cfgText);
 			assert(o.entries.map((x) => x.replace(/\d+$/, '')).join() === '条件で検索,緑スキル,テキストで検索,スクショで追加' && o.entryRowOverflow === 'auto', tag + '入口のボタン4つ（横スクロール）', o.entries);
 			assert(o.gone.length === 0, tag + '超優先／優先／通常・再分類・削除（ランク）・ランク別の見出し・ランクのチップは無い', o.gone);
-			assert(o.iconBtn[0] >= 32 && o.iconBtn[1] >= 32 && o.icon.join() === '18,18', tag + 'アイコンは 18px。押す範囲は 32px 以上（' + o.iconBtn.join('×') + '）', o);
+			// C-132: アイコンを少し小さく（18px → 15px）。押す範囲は幅 26px・高さ 32px（24px 以上を保つ）
+			assert(o.iconBtn[0] >= 24 && o.iconBtn[1] >= 32 && o.icon.join() === '15,15', tag + 'アイコンは 15px。押す範囲は 24×32px 以上（' + o.iconBtn.join('×') + '）', o);
 			assert(o.noneIcon && o.noneIcon.bs === 'dashed' && o.noneIcon.text === '', tag + 'アイコンの無いスキルは破線の丸（中は空）', o.noneIcon);
-			assert(o.firstPartsOrder[0] === 'skill-icon' && o.firstPartsOrder[1].startsWith('usd-panel-namebtn') && o.firstPartsOrder[2].startsWith('usd-panel-pt') && o.firstPartsOrder[3] === 'template-skill-remove', tag + '行は「アイコン／名前／Pt／×」の順', o.firstPartsOrder);
-			assert(o.nameEll.to === 'ellipsis' && o.nameEll.ws === 'nowrap' && o.nameEll.ov === 'hidden' && o.x, tag + '名前は長いとき省略（…）。行ごとに「×」がある', o);
+			// C-132: × は無くした。名前は「…」で切らず、名前の部分（panel-namescroll）だけ横に送る
+			assert(o.firstPartsOrder.length === 3 && o.firstPartsOrder[0] === 'skill-icon' && o.firstPartsOrder[1] === 'usd-panel-namescroll|panel-namescroll' && o.firstPartsOrder[2].startsWith('usd-panel-pt'), tag + '行は「アイコン／名前／Pt」の順（× は無い）', o.firstPartsOrder);
+			assert(o.nameEll.to !== 'ellipsis' && o.nameEll.ws === 'nowrap' && !o.x, tag + '名前は「…」で切らない（横に送る）。行に「×」は無い', o);
 			assert(o.taken.length === 2 && o.taken.every((x) => x.pt === '①で取得' && Number(x.iconOp) < 1), tag + '①で取得するものは丸を薄くして「①で取得」と出す', o.taken);
 			if (w === 1280) {
 				assert(o.tops.entry.top < o.tops.pal.bottom && o.tops.pal.top < o.tops.entry.bottom && o.tops.pal.right >= o.tops.entry.right && o.tops.list.top >= o.tops.entry.bottom && o.cols === 4, tag + '1280px: 入口のボタンとパレットは同じ行（パレットは右寄せ）、一覧は4列（' + o.cols + '列）', o);
@@ -523,7 +529,7 @@ export async function register9(env) {
 						['タグの数字', c(T + '.usd-band-tag strong', 'color'), c(T + '.usd-band-tag', 'backgroundColor')],
 						['設定の枠の文字', c(T + '.usd-uniq-label', 'color'), c(T + '[data-usd-el="roster-link"]', 'backgroundColor')],
 						['入口のボタン', c(T + '.usd-entry-row .uma-btn--secondary', 'color'), c(T + '.usd-entry-row .uma-btn--secondary', 'backgroundColor')],
-						['解除のボタン', c(T + '[data-usd-el="palette-clear"]', 'color'), c(T + '[data-usd-el="palette-clear"]', 'backgroundColor')],
+						['削除のボタン', c(T + '[data-usd-el="palette-delete"]', 'color'), c(T + '[data-usd-el="palette-delete"]', 'backgroundColor')],   // C-132: 「解除」→「削除」
 						['アイコンの記号', c(T + '.usd-icon[data-icon="a"]', 'color'), c(T + '.usd-icon[data-icon="a"]', 'backgroundColor')]
 					],
 					iconColors: ['a', 'b', 'c', 'd', 'e', 'f'].map((i) => c(T + '.usd-palette-btn[data-icon="' + i + '"] .usd-icon', 'backgroundColor'))

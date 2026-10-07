@@ -109,7 +109,8 @@ export async function register8(env) {
 	await block('段8(B) 共通の見出しの帯（sticky・名前・一覧・削除・合計）', async () => {
 		for (const w of [375, 1280]) {
 			const tag = '段8(B) ' + w + 'px: ';
-			const sp = await openSet({ w, h: w === 375 ? 640 : 480, userData: SETS, tab: 1, scope: { skillIds: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'], name: '', updatedAt: '' } });
+			// C-132: スマホの本文の下の余白を「＋」の置き場だけにしたので、スクロールできる量を作るために 375px の画面の高さを 640 → 420 にした
+			const sp = await openSet({ w, h: w === 375 ? 420 : 480, userData: SETS, tab: 1, scope: { skillIds: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'], name: '', updatedAt: '' } });
 			const g = await sp.page.evaluate(() => {
 				const bar = document.getElementById('deck-set-bar');
 				const tabs = document.querySelector('.step-tabs');

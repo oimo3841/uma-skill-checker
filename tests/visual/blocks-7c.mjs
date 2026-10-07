@@ -602,9 +602,9 @@ export async function register7c(env) {
 				if (w === 320) {
 					assert(m.docW <= m.vw && jsErrors(sp.errors).length === 0, tag + '横にはみ出さない（320px でも崩れない）・コンソールのエラー0', { docW: m.docW, vw: m.vw, errors: jsErrors(sp.errors).slice(0, 2) });
 				} else {
-					const need = w === 390 ? 50 : (withPrev ? 40 : 45);
-					assert(share >= need, tag + '表（列見出しを含む）が画面の高さの ' + need + '% 以上（実測 ' + share + '%）', { share, grid: m.grid.h, vh: m.vh });
-					assert(m.grid.b <= m.vh && m.docH <= m.vh + 1, tag + 'スクロールなしで1画面に収まる（表の下端 ' + m.grid.b + 'px・ページの高さ ' + m.docH + 'px）', { gridB: m.grid.b, docH: m.docH, vh: m.vh });
+					// C-132: 「1画面に収める」（表の割合・スクロールなし）は、おいもさんの指示でページ全体をスクロールする作りに置き換えたので外した。
+					// 新しい仕様（帯と列見出しだけを残す・最後の行は「＋」の直上で止まる）は blocks-18.mjs の C132B
+					assert(m.docH > m.vh, tag + 'ページ全体がスクロールする（C-132。ページの高さ ' + m.docH + 'px）', { docH: m.docH, vh: m.vh, share });
 					assert(m.docW <= m.vw && jsErrors(sp.errors).length === 0, tag + '横にはみ出さない・コンソールのエラー0', { docW: m.docW, errors: jsErrors(sp.errors).slice(0, 2) });
 					if (!withPrev && w === 390) {
 						assert(m.header.l === 0 && m.header.r === m.vw && m.headerRadius === '0px' && m.headerBorderL === '0px' && m.header.h <= 48,
