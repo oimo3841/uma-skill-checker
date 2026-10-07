@@ -397,4 +397,49 @@ export async function registerDark(env) {
 		}
 		console.log('     [参考] exam 375px のライトのコントラスト比の不足（直していない・' + lightReport.length + '件）:\n       ' + (lightReport.join('\n       ') || 'なし'));
 	});
+
+	/* ---------- 段6: Deck（単体ページ・引き出しの中） ---------- */
+	await block('ダーク12 Deck: 単体ページと引き出しの中のダークの文字のコントラスト比・単体ページに切り替えの部品は無い（決定9）', async () => {
+		const lightReport = [];
+		for (const theme of ['dark', 'light']) {
+			for (const w of [375, 1280]) {
+				const ctx = await browser.newContext({ viewport: { width: w, height: 900 } });
+				await ctx.addInitScript(({ d, theme, KEY }) => { try { if (!sessionStorage.getItem('__d')) { sessionStorage.setItem('__d', '1'); localStorage.setItem('umaSkillDeck:userData', JSON.stringify(d)); if (theme === 'dark') localStorage.setItem(KEY, 'dark'); } } catch (e) {} }, { d: env.USER_DATA, theme, KEY });
+				const page = await ctx.newPage();
+				await page.goto(base + '/uma-skill-deck.html', { waitUntil: 'networkidle', timeout: 60000 });
+				await page.waitForTimeout(800);
+				const scan = async (name) => {
+					const r = await page.evaluate(scanTextContrastInPage, null);
+					if (theme === 'dark') {
+						assert(r.checked > 10 && r.bad.length === 0, 'ダーク12: Deck 単体 ' + w + 'px の' + name + 'の文字はすべて基準以上（' + r.checked + '件）', formatContrast(r.bad));
+						assert(r.undecided.length === 0, 'ダーク12: Deck 単体 ' + w + 'px の' + name + 'で背景を決められない文字が無い', r.undecided);
+					} else if (w === 375) lightReport.push(...r.bad.map((b) => 'Deck ' + name + ' ' + formatContrast([b])[0]));
+				};
+				if (theme === 'dark' && w === 375) {
+					assert(await attr(page) === 'dark' && await page.evaluate(() => getComputedStyle(document.body).backgroundColor) === 'rgb(15, 19, 24)', 'ダーク12: Deck 単体の地は青黒（#0f1318。決定6）');
+					assert(await page.evaluate(() => document.querySelectorAll('[data-theme-choice], [aria-label="画面の色"]').length) === 0, 'ダーク12: Deck 単体に画面の色の切り替えは無い（決定9）');
+				}
+				await scan('スキルセット');
+				await page.click('#tab-btn-record'); await page.waitForTimeout(300);
+				await page.evaluate((id) => openRecordEditor(id), env.USER_DATA.records[0].recordId);
+				await page.waitForTimeout(600);
+				await scan('比較シート');
+				await page.click('#tab-btn-data').catch(() => {}); await page.waitForTimeout(300);
+				await scan('データ管理');
+				await ctx.close();
+			}
+		}
+		// 引き出しの中（special 375px）
+		const sp = await openSpFull({ tab: 1, theme: 'dark' });
+		await sp.page.evaluate(() => fabGoTo('deck'));
+		await sp.page.waitForTimeout(2000);
+		const fr = sp.page.frames().find((f) => /uma-skill-deck\.html/.test(f.url()));
+		const r = await fr.evaluate(scanTextContrastInPage, null);
+		assert(await fr.evaluate(() => document.documentElement.getAttribute('data-theme')) === 'dark', 'ダーク12: 引き出しの Deck もダーク');
+		assert(r.checked > 10 && r.bad.length === 0 && r.undecided.length === 0, 'ダーク12: 引き出しの Deck の文字はすべて基準以上（' + r.checked + '件）', { bad: formatContrast(r.bad), undecided: r.undecided });
+		const drawerBg = await sp.page.evaluate(() => getComputedStyle(document.querySelector('#deck-drawer .uma-drawer-body')).backgroundColor);
+		assert(drawerBg === 'rgb(18, 23, 31)', 'ダーク12: 引き出しの地は暗い（--uma-drawer-bg）', drawerBg);
+		await sp.ctx.close();
+		console.log('     [参考] Deck 375px のライトのコントラスト比の不足（直していない・' + lightReport.length + '件）:\n       ' + (lightReport.join('\n       ') || 'なし'));
+	});
 }

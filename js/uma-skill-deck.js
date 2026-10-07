@@ -15,12 +15,12 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-10-08f';
+const UMA_SKILL_DECK_JS_VERSION = '2026-10-08h';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
 // 「直したはずなのに直っていない」状態になるため、起動時に照合する。
-const EXPECTED_COMMON_CSS_VERSION = '2026-10-08d';
+const EXPECTED_COMMON_CSS_VERSION = '2026-10-08e';
 // このページが読む共通CSSと、それぞれが :root に持つ版の印
 const COMMON_CSS_FILES = [
 	['css/tokens.css', '--common-css-version'],
@@ -1238,7 +1238,7 @@ function renderOcrImportRows() {
 		'<div class="ocr-row">' +
 			'<span class="ocr-row-label">' + escapeHtml(p.label) + '</span>' +
 			'<span class="ocr-row-note">検出' + (detected + unknown) + '件'
-				+ (unknown > 0 ? ' / <span style="color:#b45309;font-weight:600;">★不明' + unknown + '件</span>' : '') + '</span>' +
+				+ (unknown > 0 ? ' / <span style="color:var(--deck-unknown-text);font-weight:600;">★不明' + unknown + '件</span>' : '') + '</span>' +
 			'<select class="ocr-select uma-input" data-ocr-el="person-select" data-person="' + p.index + '">' + opts.join('') + '</select>' +
 			'<input type="text" class="ocr-label-input uma-input" data-ocr-el="person-label" data-person="' + p.index + '" value="' + escapeHtml(p.label) + '" placeholder="候補名"' + (def === '__new__' ? '' : ' hidden') + ' />' +
 		'</div>';

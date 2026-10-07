@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-10-08d";
+	--common-css-version: "2026-10-08e";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -417,7 +417,7 @@
 	--uma-danger-text: #ff9a9a;
 	/* ★の実数（橙）は暗い面の上でも読めるので変えない。空きはライトの slate-300 だと暗い面で明るすぎて
 	   「空き」に見えないので、暗い灰へ */
-	--uma-star-empty: #4a5568;
+	--uma-star-empty: #7a869b;
 
 	/* ---- 印の色（形が主・色は補助。色相はそのままで明るい側へ） ---- */
 	--uma-mark-tier-1: #ff7070;

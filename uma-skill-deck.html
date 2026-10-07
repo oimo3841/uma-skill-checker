@@ -12,9 +12,9 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-10-08d" />
-	<link rel="stylesheet" href="css/common.css?v=2026-10-08d" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-10-08d" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-10-08e" />
+	<link rel="stylesheet" href="css/common.css?v=2026-10-08e" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-10-08e" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -22,7 +22,7 @@
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
 	<script src="js/uma-skill-deck-core.js?v=2026-10-08a"></script>
-	<script src="js/uma-skill-deck.js?v=2026-10-08f"></script>
+	<script src="js/uma-skill-deck.js?v=2026-10-08h"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -49,7 +49,13 @@
 			--uma-page-glow: rgba(214, 211, 209, 0.55);   /* stone-300 の半透明 */
 			--uma-page-mid: #f3f2f1;
 			--uma-page-high: #faf9f8;
+			/* 比較シートの「★不明N件」の文字（js/uma-skill-deck.js がインラインで当てる。C-134 段6 で変数にした。値は以前と同じ） */
+			--deck-unknown-text: #b45309;
 		}
+		/* ダーク（C-134 段6）: 地は tokens.css の青黒（決定6。Deck の暖灰は暗い面には残さない）。
+		   アクセント（--uma-deck-*）は tokens.css が暖灰の色相のまま明るい側へ差し替える */
+		:root[data-theme="dark"] { --deck-unknown-text: #f6c453; }
+		:root[data-theme="dark"] body { background: var(--uma-page-ground); }
 
 		/* ページの地。作り（淡い色面＋放射グラデーション）は UmaStar OCR と共通で、色相だけが違う。 */
 		body {
