@@ -67,7 +67,7 @@ function grabQuery(sources) {
 }
 
 const ALL_JS = ['special.html', 'uma-skill-deck.html', 'exam.html', 'index.html', 'card-event-input.html',
-	'js/common.js', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js'];
+	'js/common.js', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js', 'js/theme.js'];
 // 15セッション目: exam.html を「変更してはいけないファイル」から外し、
 // special.html と同じくセレクタ資産・class・構文の検査対象に移した（第2段階の着手）。
 const TARGETS = ['special.html', 'exam.html', 'uma-skill-deck.html', 'js/uma-skill-deck-core.js', 'js/uma-skill-deck.js'];
@@ -127,6 +127,9 @@ const stitchVer = /STITCH_JS_VERSION = '([^']+)'/.exec(read('js/stitch.js'))[1];
 const skillsetVer = /SKILLSET_CARDS_JS_VERSION = '([^']+)'/.exec(read('js/skillset-cards.js'))[1];
 // コミット2: 読み取りの本体 js/skillset-ocr.js も同じ運用（special.html だけが読む）。
 const skillsetOcrVer = /SKILLSET_OCR_JS_VERSION = '([^']+)'/.exec(read('js/skillset-ocr.js'))[1];
+// ダークモード段1（2026-10-07・C-134）: 画面の色を決める js/theme.js を新設した。special / exam / Deck の3ページが
+// <head> の先頭近くで同期で読む。他の共有JSと同じ「定数と ?v= の3点一致」の運用に載せる。
+const themeVer = /THEME_JS_VERSION = '([^']+)'/.exec(read('js/theme.js'))[1];
 /* 71セッション目・段7: マスター（uma-skill-deck-skills.json）の取得URLに ?v= が付いた。
    ここだけ形が違う ―― 版の正本は**JSONの中の masterVersion**（ファイル名には版が付かない）で、
    core.js の MASTER_JSON_VERSION がそれを写して ?v= に使う。**写し間違いを落とす。**
@@ -154,7 +157,7 @@ for (const k of Object.keys(examDataVerTable)) dataVerOwner[k] = 'exam.html';
 const bothTables = Object.keys(examDataVerTable).filter((k) => k in dataVerTable);
 Object.assign(dataVerTable, examDataVerTable);
 const dataFiles = fs.readdirSync(path.join(REPO_ROOT, 'data')).filter((f) => f.endsWith('.json')).sort();
-console.log('     内部定数:  common.js=%s / core=%s / deck=%s / stitch=%s / skillset-cards=%s / skillset-ocr=%s / css=%s', commonVer, coreVer, deckVer, stitchVer, skillsetVer, skillsetOcrVer, cssVer);
+console.log('     内部定数:  common.js=%s / core=%s / deck=%s / stitch=%s / skillset-cards=%s / skillset-ocr=%s / theme=%s / css=%s', commonVer, coreVer, deckVer, stitchVer, skillsetVer, skillsetOcrVer, themeVer, cssVer);
 for (const [p, pat, ver, name] of [
 	['special.html', /js\/uma-skill-deck-core\.js\?v=([0-9a-z-]+)/g, coreVer, 'core.js'],
 	['special.html', /js\/common\.js\?v=([0-9a-z-]+)/g, commonVer, 'common.js'],
@@ -171,6 +174,10 @@ for (const [p, pat, ver, name] of [
 	['special.html', /uma-skill-deck\.html\?v=([0-9a-z-]+)/g, deckVer, '引き出しiframe'],
 	// exam.html の引き出しパネルが読む iframe（DECK_PAGE_URL）。同じ決まりで deck.js の版に合わせる。
 	['exam.html', /uma-skill-deck\.html\?v=([0-9a-z-]+)/g, deckVer, '引き出しiframe'],
+	// ダークモード段1: 画面の色（js/theme.js）。3ページとも1か所ずつ
+	['special.html', /js\/theme\.js\?v=([0-9a-z-]+)/g, themeVer, 'theme.js'],
+	['exam.html', /js\/theme\.js\?v=([0-9a-z-]+)/g, themeVer, 'theme.js'],
+	['uma-skill-deck.html', /js\/theme\.js\?v=([0-9a-z-]+)/g, themeVer, 'theme.js'],
 ]) {
 	const q = [...read(p).matchAll(pat)].map((m) => m[1]);
 	check(q.length === 1 && q[0] === ver, `${p} の ${name} の ?v= が ${ver}`, q);
@@ -220,6 +227,7 @@ const VERSIONED = [
 	['js/stitch.js', stitchVer, /STITCH_JS_VERSION = '([^']+)'/],
 	['js/skillset-cards.js', skillsetVer, /SKILLSET_CARDS_JS_VERSION = '([^']+)'/],
 	['js/skillset-ocr.js', skillsetOcrVer, /SKILLSET_OCR_JS_VERSION = '([^']+)'/],
+	['js/theme.js', themeVer, /THEME_JS_VERSION = '([^']+)'/],
 	['css/tokens.css', cssVer, /--common-css-version:\s*"([^"]+)"/],
 	// マスターは JSON の中の masterVersion が版。**中身を変えたのに版を据え置く**と
 	// ?v= も動かず、公開側の10分キャッシュに古い本文が残り続ける（71セッション目・段7）。
@@ -485,7 +493,7 @@ for (const p of ['special.html', 'exam.html', 'uma-skill-deck.html', 'css/styleg
 		check(r.status === 0, `${p} の<script>#${i} が構文エラーなし`, (r.stderr || '').slice(0, 160));
 	});
 }
-for (const p of ['js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/common.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js']) {
+for (const p of ['js/uma-skill-deck-core.js', 'js/uma-skill-deck.js', 'js/common.js', 'js/stitch.js', 'js/skillset-cards.js', 'js/skillset-ocr.js', 'js/theme.js']) {
 	const r = spawnSync(process.execPath, ['--check', path.join(REPO_ROOT, p)], { encoding: 'utf8' });
 	check(r.status === 0, p + ' が構文エラーなし', (r.stderr || '').slice(0, 160));
 }

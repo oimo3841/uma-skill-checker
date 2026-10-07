@@ -5,6 +5,8 @@
 	<meta charset="UTF-8" />
 	<!-- viewport-fit=cover が無いと env(safe-area-inset-bottom) が常に0になり、ノッチ端末で右下のFABがホームバーに潜る（F-26） -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+	<!-- 画面の色（ライト／ダーク）。CSS より先に、同期で読む（<html> の data-theme を本文の描画より前に付けるため。中身は js/theme.js の冒頭） -->
+	<script src="js/theme.js?v=2026-10-08a"></script>
 	<title>UmaExam OCR（β版）</title>
 	<!-- 共通スタイルの3つ（変数 tokens.css ／ 共通部品 common.css ／ 画面の骨格 shell.css）を読む。
 	     Tailwind より先に読み込む（レイヤー無しの方が強い）。
@@ -21,6 +23,9 @@
 	<link rel="stylesheet" href="css/common.css?v=2026-09-22c" />
 	<link rel="stylesheet" href="css/shell.css?v=2026-09-22c" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
+	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
+	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
+	<style type="text/tailwindcss">@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));</style>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
 	<script src="https://unpkg.com/lucide@latest"></script>
@@ -100,6 +105,9 @@
 			background-repeat: repeat, no-repeat, no-repeat, no-repeat;
 			background-attachment: fixed, fixed, fixed, fixed;
 		}
+		/* ブラウザ自身が描く部品（select の選択肢・スクロールバー・日付の入力）も画面の色に合わせる（ダーク段1） */
+		:root[data-theme="dark"] { color-scheme: dark; }
+		:root[data-theme="light"] { color-scheme: light; }
 		.glass-card {
 			background: rgba(255, 255, 255, 0.88);
 			backdrop-filter: blur(14px);
@@ -6427,7 +6435,7 @@
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-09-27b';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-10-08a';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;

@@ -6,6 +6,8 @@
 	     読めるようにするために必要。これが無いと env() は常に 0 を返し、
 	     ノッチ端末のホームバーにFABが潜り込む。 -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+	<!-- 画面の色（ライト／ダーク）。CSS より先に、同期で読む（<html> の data-theme を本文の描画より前に付けるため。中身は js/theme.js の冒頭） -->
+	<script src="js/theme.js?v=2026-10-08a"></script>
 	<title>UmaStar OCR（β版 2nd Edition）</title>
 	<!-- 共通スタイル（3ファイル・版は1つ）。Tailwindより先に読み込む。
 	       tokens.css … デザイントークン（変数だけ）
@@ -18,6 +20,9 @@
 	<link rel="stylesheet" href="css/common.css?v=2026-09-22c" />
 	<link rel="stylesheet" href="css/shell.css?v=2026-09-22c" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
+	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
+	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
+	<style type="text/tailwindcss">@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));</style>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons -->
 	<script src="https://unpkg.com/lucide@latest"></script>
@@ -117,6 +122,9 @@
 			--uma-control-disabled: #6b778b; --uma-control-disabled-bg: #222a35;
 		}
 		:root[data-theme="dark"] body { background: #0f1318; color: var(--uma-text); }
+		/* ブラウザ自身が描く部品（select の選択肢・スクロールバー・日付の入力）も画面の色に合わせる（ダーク段1） */
+		:root[data-theme="dark"] { color-scheme: dark; }
+		:root[data-theme="light"] { color-scheme: light; }
 		/* 段8・B（C-120）: 共通の見出しの帯。カードの左右の端まで伸ばし、スクロールしても画面の上に残す（ヘッダーは残さない）。
 		   中身の並びと文字の大きさは core（.usd-setbar）。ここは置き場だけ */
 		.deck-set-bar { position: sticky; top: 0; z-index: 40; margin: calc(-1 * var(--uma-card-pad)) calc(-1 * var(--uma-card-pad)) var(--uma-sp-2);
@@ -3744,7 +3752,7 @@
 		 * 共有され、パネル内で編集したテンプレート・比較シートは、この画面の
 		 * Deck連携モードにも反映される。
 		 * ============================================================ */
-		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-09-27b';
+		const DECK_DRAWER_FRAME_SRC = 'uma-skill-deck.html?v=2026-10-08a';
 
 		// 各引き出しの定義。onOpen / onClose はその引き出し固有の後始末。
 		const DRAWERS = {
