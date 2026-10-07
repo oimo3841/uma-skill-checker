@@ -129,6 +129,17 @@
 		@media (max-width: 640px) {
 			.deck-set-bar { margin: calc(-1 * var(--uma-sp-1-5)) calc(-1 * var(--uma-sp-1-5)) var(--uma-sp-1); padding: 0 var(--uma-sp-2); border-radius: var(--uma-r-lg) var(--uma-r-lg) 0 0; }
 		}
+		/* C-132: 「＋」の展開の「セット」「レース」（共有の shell.css は触らない）。項目が2つ増えたぶんの出る順の遅れと、
+		   レースの短い表記（ラベルの右に小さく・1行に収める）。アイコンの丸は帯のボタンと同じ地 */
+		/* 項目が2つ増えたぶん、641px 以上で本文の下に空ける余白（展開しても本文の最後が隠れない量）も増やす（共有の 18rem／20rem に、2項目ぶん） */
+		:root { --uma-fab-reserve: 25rem; }
+		@media (min-width: 768px) { :root { --uma-fab-reserve: 28rem; } }
+		.uma-fab-nav.open .uma-fab-item:nth-last-child(6) { transition-delay: .12s; }
+		.uma-fab-nav.open .uma-fab-item:nth-last-child(7) { transition-delay: .15s; }
+		.fab-set-icon { background: var(--uma-surface-muted); color: var(--uma-text-heading); }
+		.fab-race-label { display: inline-flex; align-items: baseline; gap: var(--uma-sp-1-5); min-width: 0; }
+		.fab-race-text { font-size: var(--uma-fs-xs); font-weight: 600; color: var(--uma-text-muted); max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.fab-race-text[hidden] { display: none; }
 		/* 狭い端末（322px 以下）でタイトルとピルがツール切替・？と並ばないときは、ピルの文字を「2nd」だけにする（323px 以上は全部入って1行に収まる。実測。それより狭いとピルが次の行へ回りヘッダーが高くなる） */
 		@media (max-width: 322px) { .header-edition-sub { display: none; } }
 		/* 親A／親Bセットのタブ（③）の色。結果の表と同じ変数（.person-col-blue / .person-col-red）を、
@@ -3963,7 +3974,31 @@
 			next.click();
 		}
 
+		/* C-132: 「＋」の展開の「セット」「レース」。帯に同じボタンがあるときだけ出す（新UI・名前を編集していないとき）。
+		   レースが選ばれているときは、帯のボタンと同じ短い表記（例「京都 芝3000m」）を添える */
+		function fabSetBarBtn(act) {
+			const bar = document.getElementById('deck-set-bar');
+			return bar && !bar.hidden ? bar.querySelector('[data-usd-act="' + act + '"]') : null;
+		}
+		function fabSyncSetItems() {
+			const set = document.getElementById('fab-item-set'), race = document.getElementById('fab-item-race');
+			if (!set || !race) return;
+			const raceBtn = deckMode ? fabSetBarBtn('set-race') : null;
+			set.hidden = !(deckMode && fabSetBarBtn('set-list'));
+			race.hidden = !raceBtn;
+			const on = !!raceBtn && raceBtn.getAttribute('aria-pressed') === 'true';
+			const text = document.getElementById('fab-race-text');
+			text.hidden = !on;
+			text.textContent = on ? (raceBtn.textContent || '').replace('▾', '').trim() : '';
+		}
+		function fabOpenSetBar(act) {
+			setFabOpen(false);
+			const btn = fabSetBarBtn(act);
+			if (btn) btn.click();
+		}
+
 		function setFabOpen(open) {
+			if (open) fabSyncSetItems();
 			fabOpen = open;
 			document.getElementById('fab-nav').classList.toggle('open', open);
 			document.getElementById('fab-toggle').setAttribute('aria-expanded', String(open));
@@ -4114,6 +4149,7 @@
 		function updateDeckEntryVisibility() {
 			const trigger = document.getElementById('deck-drawer-trigger');
 			if (trigger) trigger.hidden = !deckMode;
+			fabSyncSetItems();
 			refreshDeckHandoffState();
 			// Deck の項目を出し入れしたら、畳んでいるときの赤丸も数え直す
 			updateFabUnseenDot();
@@ -4391,6 +4427,21 @@
 			<span class="uma-fab-icon">
 				<i data-lucide="layers" class="w-4 h-4"></i>
 				<span id="fab-dot-deck" class="uma-fab-dot" hidden></span>
+			</span>
+		</button>
+
+		<!-- C-132: 帯の「セット」「レース」のボタンと同じ小窓を開く（帯のボタンはそのまま）。新UIのあいだだけ出す（updateDeckEntryVisibility）。
+		     レースが選ばれているときは、帯と同じ短い表記を添える（開くたびに fabSyncSetItems が入れ直す） -->
+		<button id="fab-item-set" type="button" class="uma-fab-item" onclick="fabOpenSetBar('set-list')" aria-haspopup="dialog" hidden>
+			<span>セット</span>
+			<span class="uma-fab-icon fab-set-icon">
+				<i data-lucide="folder-open" class="w-4 h-4"></i>
+			</span>
+		</button>
+		<button id="fab-item-race" type="button" class="uma-fab-item" onclick="fabOpenSetBar('set-race')" aria-haspopup="dialog" hidden>
+			<span class="fab-race-label"><span>レース</span><span id="fab-race-text" class="fab-race-text" hidden></span></span>
+			<span class="uma-fab-icon fab-set-icon">
+				<i data-lucide="flag" class="w-4 h-4"></i>
 			</span>
 		</button>
 
