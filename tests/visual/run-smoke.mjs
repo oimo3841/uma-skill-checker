@@ -10904,6 +10904,73 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(st4.noImg.made && st4.noImg.drawnMore === 0, '効率(段4): 蹄鉄の画像を読めなくても結合は続け、蹄鉄だけ省く', st4.noImg);
 	assert(st4.def.attr === 1 && st4.def.effDraw === 0, '効率(段4): ほかの3択では蹄鉄を描かず、従来の左の印', st4.def);
 
+	// (13b) 改善D・段5: 人ごとの帯。効率で選ぶでは「検出」「sp70緑」のカードは既定と同じ値で検出数カードに従い、
+	//      区間まとめパネルと効率の合計は常に出す。拡張モードではカード＋合計（合計は検出数カードに従う）
+	const st5 = await page.evaluate(async () => {
+		const s = melopSheet;
+		const b = effBounds.slice();
+		const pick = [0, 1, 2, 3].map((k) => effData.targets.find((t) => t.id && !t.unique && effTierOf(t.milli, b) === k && !/\+$/.test(t.name)));
+		// 既定の133種に入っているスキル（カードの値を既定と比べるため）と、sp70緑のスキル
+		const in133 = EXAM_SKILL_LIST.slice(0, 3).map((x) => x.name);
+		const sp70 = EXAM_NAME_BY_ID[SP70_GREEN_17_IDS[0]];
+		const names = pick.map((t) => t.name).concat(in133, [sp70]);
+		const lines = names.map((n, i) => ({ text: n, stars: (i % 3) + 1, starsReliable: true, rowKey: '0:' + i }));
+		personGeometry = PERSON_LABELS.map(() => null);
+		personLines = PERSON_LABELS.map(() => null);
+		personMelop = PERSON_LABELS.map(() => null);
+		personResults = PERSON_LABELS.map(() => null);
+		personGeometry[0] = [null];
+		personLines[0] = lines;
+		personMelop[0] = { res: matchMelopLines(lines, s), top: { found: true, uniqueStars: 1, blue: null, red: null, extraLines: [] } };
+		personResults[0] = matchAllSkillsWithStars(lines, skillList, skillIndex, {});
+		const orig = { stitch: stitchOnePerson, banner: stitchDrawPersonBanner };
+		const calls = [];
+		stitchOnePerson = async () => { const c = document.createElement('canvas'); c.width = 900; c.height = 600; return c; };
+		stitchDrawPersonBanner = (w, label, detected, sp70Count, f, g, opts) => {
+			const c = orig.banner(w, label, detected, sp70Count, f, g, opts);
+			calls.push({ detected, sp70Count, cards: opts.cards, panel: opts.effPanel ? opts.effPanel.cells.map((x) => ({ range: x.range, count: x.count })) : null,
+				total: opts.totalText, h: c.height });
+			return c;
+		};
+		const files = PERSON_LABELS.map((_, i) => (i === 0 ? [new File(['x'], 'a.png')] : []));
+		const base = Object.assign(captureRun(), { files });
+		const show = (banner) => Object.assign({}, base.show, { banner });
+		await buildStitchedSetImage(0, Object.assign({}, base, { show: show(true) }));
+		await buildStitchedSetImage(0, Object.assign({}, base, { show: show(false) }));
+		await buildStitchedSetImage(0, Object.assign({}, base, { eff: { bounds: b, tiers: [true, false, true, true] }, show: show(true) }));
+		// 既定（拡張モードはオフ）・既定＋拡張モード（カードあり／なし）
+		const def = Object.assign({}, base, { scope: 'default', eff: null, melop: false, show: show(true) });
+		await buildStitchedSetImage(0, def);
+		await buildStitchedSetImage(0, Object.assign({}, def, { melop: true }));
+		await buildStitchedSetImage(0, Object.assign({}, def, { melop: true, show: show(false) }));		await buildStitchedSetImage(0, Object.assign({}, base, { eff: { bounds: b, tiers: [true, true, true, false] }, show: show(true) }));
+		stitchOnePerson = orig.stitch; stitchDrawPersonBanner = orig.banner;
+		// 期待値: 区間ごとの数（1種1回。継承固有も対象）・合計（千分率の整数で足す。★は掛けない）
+		const unique = effData.targets.find((t) => t.unique && t.column === 0);
+		const effItems = pick.map((t) => ({ milli: t.milli, tier: effTierOf(t.milli, b) })).concat([{ milli: unique.milli, tier: effTierOf(unique.milli, b) }]);
+		// 133種・sp70緑のスキルにも効率があれば、拡張モードの照合で対象として数えられる
+		const extra = in133.concat([sp70]).map((n) => effData.targets.find((t) => t.name === n)).filter(Boolean)
+			.filter((t) => !pick.includes(t)).map((t) => ({ milli: t.milli, tier: effTierOf(t.milli, b) }));
+		const all = effItems.concat(extra);
+		const tierCounts = [0, 1, 2, 3].map((k) => all.filter((x) => x.tier === k).length);
+		const sum = (xs) => xs.reduce((a, x) => a + x.milli, 0);
+		return { calls, tierCounts, total: '合計 ' + (sum(all) / 1000).toFixed(3) + '（評価点/SP）',
+			totalOff1: '合計 ' + (sum(all.filter((x) => x.tier !== 1)) / 1000).toFixed(3) + '（評価点/SP）',
+			ranges: [0, 1, 2, 3].map((k) => effRangeLabel(k, b)) };
+	});
+	const [effOn, effOff, effTierOff, defC, melopOn, melopOff, effRainbowOff] = st5.calls;
+	assert(effRainbowOff.sp70Count === defC.sp70Count && effRainbowOff.detected === defC.detected,
+		'効率(D): 虹の区間を外しても、結合画像のカードは既定の133種・sp70緑17種を母数とした値のまま', { got: [effRainbowOff.detected, effRainbowOff.sp70Count], def: [defC.detected, defC.sp70Count] });
+	assert(effOn.cards && effOn.detected === defC.detected && effOn.sp70Count === defC.sp70Count && defC.detected > 0 && defC.sp70Count > 0,
+		'効率(D): 効率で選ぶの「検出」「sp70緑」のカードは、同じ行を既定で判定したときと同じ値', { eff: [effOn.detected, effOn.sp70Count], def: [defC.detected, defC.sp70Count] });
+	assert(!effOff.cards && effOff.panel && effOff.total && effOn.panel && effOn.total && effOn.h > effOff.h,
+		'効率(D): カードは「検出数カード」に従い、区間まとめパネルと合計は常に出る', { on: effOn.cards, off: effOff.cards, h: [effOn.h, effOff.h] });
+	assert(JSON.stringify(effOn.panel.map((x) => x.count)) === JSON.stringify(st5.tierCounts) && JSON.stringify(effOn.panel.map((x) => x.range)) === JSON.stringify(st5.ranges),
+		'効率(段5): パネルの各マスは「上限-下限」と、その区間に入る検出数（1種1回・継承固有を含む）', { got: effOn.panel, want: st5.tierCounts });
+	assert(effTierOff.panel[1].count === null && effTierOff.total === st5.totalOff1,
+		'効率(段5): 外した区間のマスは「－」（null）で、合計にも入れない', effTierOff);
+	assert(effOn.total === st5.total, '効率(段5): 合計は効率の千分率を1種1回ずつ足したもの（★は掛けない）を小数3桁で', { got: effOn.total, want: st5.total });
+	assert(!defC.panel && !defC.total && !melopOn.panel && melopOn.total === st5.total && melopOn.cards && !melopOff.total && !melopOff.panel,
+		'効率(段5): 既定ではパネルも合計も出ない。拡張モードはカード＋合計（合計は検出数カードがオフなら消える）', { def: defC, melopOn, melopOff });
 	// (12) ほかの選択肢に戻すとバーは消え、#scope-detail が戻る
 	await page.click('label[for="scope-mode-default"]');
 	const back = await page.evaluate(() => ({ panel: document.getElementById('eff-panel').hidden, detail: document.getElementById('scope-detail').hidden,

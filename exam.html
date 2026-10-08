@@ -3506,6 +3506,10 @@
 					run.melop = false;
 					showToast('めろっぷ用のデータを読み込めなかったため、拡張モードなしで判定します');
 				}
+				// 結合画像の効率の合計（C-136・段5）に使う。読めなければ合計の行を出さないだけ（知らせは出さない）
+				if (run.melop) {
+					try { await loadEffData(); } catch (err) { console.warn('効率のデータを読み込めませんでした（合計の行を出しません）', err); }
+				}
 			}
 			// 効率で選ぶ（C-136）。照合は拡張モードの辞書で行うので、並びのデータと効率のデータを読む。
 			// 押した時点でまだ読めていなければ、ここで読んで今の境目と区間で控える。読めなければ効率なしで判定する
@@ -6124,7 +6128,20 @@
 			const listFont = Math.round(cardH * 0.26);
 			const listLineH = Math.round(listFont * 1.55);
 			const listBlockH = listLineCount ? (gapY + listLineCount * listLineH) : 0;
-			const barHeight = pad * 2 + titleH + (withCards ? gapY + cardH : 0) + listBlockH;
+			// 効率で選ぶ（C-136・段5）: 区間まとめパネル（2×2）と、効率の合計の1行。どちらも渡されたときだけ
+			// （渡されなければ高さも描画も従来と同じ）。大きさは1列の幅に対する比（モックの値）で決める:
+			// 蹄鉄 12.5%・範囲の文字 4%・検出数 9.6%（太字）
+			const effPanel = (opts && opts.effPanel) || null;
+			const totalText = (opts && opts.totalText) || null;
+			const effIcon = Math.round(width * 0.125);
+			const effCellPad = Math.round(width * 0.012);
+			const effCellH = effIcon + effCellPad * 2;
+			const effPanelPad = Math.round(width * 0.015);
+			const effPanelH = effPanel ? (effPanelPad * 2 + effCellH * 2 + gapY) : 0;
+			const totalFont = listFont;
+			const totalH = totalText ? Math.round(totalFont * 2) : 0;
+			const barHeight = pad * 2 + titleH + (withCards ? gapY + cardH : 0)
+				+ (effPanel ? gapY + effPanelH : 0) + (totalText ? gapY + totalH : 0) + listBlockH;
 
 			const c = document.createElement('canvas');
 			c.width = width;
@@ -6146,7 +6163,7 @@
 			ctx.font = 'bold ' + titleH + 'px sans-serif';
 			ctx.textBaseline = 'top';
 			ctx.fillText(groupLabel, pad, y);
-			if (!withCards && !listLineCount) return c; // 見出しだけの帯（下の区切り線は上で引いてある）
+			if (!withCards && !listLineCount && !effPanel && !totalText) return c; // 見出しだけの帯（下の区切り線は上で引いてある）
 			y += titleH + gapY;
 
 			if (withCards) {
@@ -6199,9 +6216,74 @@
 				ctx.fillText(String(sp70Count), x2 + cardW * 0.08, y + cardH * 0.36);
 			}
 
+			// 区間まとめパネルと合計（C-136・段5）。カードがあればその下、無ければ見出しのすぐ下
+			let cardsPassed = false;
+			if (effPanel || totalText) {
+				if (withCards) y += cardH + gapY;
+				cardsPassed = true;
+				const rr = (x, yy, w, h, r) => {
+					ctx.beginPath();
+					ctx.moveTo(x + r, yy);
+					ctx.arcTo(x + w, yy, x + w, yy + h, r);
+					ctx.arcTo(x + w, yy + h, x, yy + h, r);
+					ctx.arcTo(x, yy + h, x, yy, r);
+					ctx.arcTo(x, yy, x + w, yy, r);
+					ctx.closePath();
+				};
+				const radius = Math.round(width * 0.02);
+				if (effPanel) {
+					// 薄いターフ色の角丸。2×2 で、左上＝虹・右上＝金・左下＝銀・右下＝銅
+					// 各マスは「蹄鉄｜上限-下限｜検出数」（外した区間の検出数は「－」）
+					const pw = width - pad * 2;
+					rr(pad, y, pw, effPanelH, radius);
+					ctx.fillStyle = stitchTokenColor('--exam-eff-turf-bg');
+					ctx.fill();
+					ctx.strokeStyle = stitchTokenColor('--exam-eff-turf-border');
+					ctx.lineWidth = 2;
+					ctx.stroke();
+					const textColor = stitchTokenColor('--exam-eff-turf-text');
+					const cellW = (pw - effPanelPad * 2 - gapY) / 2;
+					const rangeFont = Math.round(width * 0.04);
+					const countFont = Math.round(width * 0.096);
+					[3, 2, 1, 0].forEach((k, pos) => {
+						const cell = effPanel.cells[k];
+						const cx = pad + effPanelPad + (pos % 2) * (cellW + gapY);
+						const cy = y + effPanelPad + Math.floor(pos / 2) * (effCellH + gapY);
+						const mid = cy + effCellH / 2;
+						if (cell.img) ctx.drawImage(cell.img, cx + effCellPad, cy + effCellPad, effIcon, effIcon);
+						ctx.fillStyle = textColor;
+						ctx.textBaseline = 'middle';
+						ctx.textAlign = 'left';
+						ctx.font = rangeFont + 'px sans-serif';
+						ctx.fillText(cell.range, cx + effCellPad * 2 + effIcon, mid);
+						ctx.font = 'bold ' + countFont + 'px sans-serif';
+						ctx.textAlign = 'right';
+						ctx.fillText(cell.count === null ? '－' : String(cell.count), cx + cellW - effCellPad, mid);
+						ctx.textAlign = 'left';
+					});
+					ctx.textBaseline = 'top';
+					y += effPanelH + gapY;
+				}
+				if (totalText) {
+					// 効率の合計の1行（薄い紫の角丸）
+					rr(pad, y, width - pad * 2, totalH, Math.round(totalH * 0.3));
+					ctx.fillStyle = stitchTokenColor('--exam-eff-total-bg');
+					ctx.fill();
+					ctx.strokeStyle = stitchTokenColor('--exam-eff-total-border');
+					ctx.lineWidth = 2;
+					ctx.stroke();
+					ctx.fillStyle = stitchTokenColor('--exam-eff-total-text');
+					ctx.font = 'bold ' + totalFont + 'px sans-serif';
+					ctx.textBaseline = 'middle';
+					ctx.fillText(totalText, pad + Math.round(totalFont * 0.6), y + totalH / 2);
+					ctx.textBaseline = 'top';
+					y += totalH + gapY;
+				}
+			}
+
 			if (listLineCount) {
 				// カードがあればその下、無ければ見出しのすぐ下（y は見出しの下端＋余白のまま）
-				if (withCards) y += cardH + gapY;
+				if (withCards && !cardsPassed) y += cardH + gapY;
 				// 幅に収まらない行があれば、**全部のまとまりをまとめて**縮めて桁を揃える
 				// （区分ごとに大きさを決めると、因子と遺伝子で字の大きさが変わってしまう）。
 				// 各まとまりの最後の行は、右端の「他」と重ならないようそのぶん狭い幅で見る。
@@ -6395,8 +6477,11 @@
 			if (activeIndexes.length === 0) return null;
 
 			const equivalence = (run.countMode === 'equivalence');
-			const sp70Ids = new Set(effectiveBaseIds(SP70_GREEN_17_IDS, run));
-			const greenIds = new Set(effectiveBaseIds(GREEN_59_IDS, run));
+			// 効率で選ぶ（C-136・改善D）: 結合画像の「検出」「sp70緑」のカード（とコメントのコピー）は、既定の133種・sp70緑17種を
+			// 母数とした従来の集計にする（同じ画像を既定で判定したときと同じ値。判定の表も133種のまま）
+			const effScope = (run.scope === 'efficiency');
+			const sp70Ids = new Set(effScope ? SP70_GREEN_17_IDS : effectiveBaseIds(SP70_GREEN_17_IDS, run));
+			const greenIds = new Set(effScope ? GREEN_59_IDS : effectiveBaseIds(GREEN_59_IDS, run));
 
 			const bannerCanvases = [];
 			const contentCanvases = [];
@@ -6434,10 +6519,24 @@
 				const detected = countDetected(idx, run);
 				const sp70Count = countCategory(idx, sp70Ids, false);
 				const greenCount = countCategory(idx, greenIds, equivalence);
+				// 区間まとめパネル（効率で選ぶのとき常に）と効率の合計（効率で選ぶのとき常に／拡張モードでは検出数カードに従う）。C-136・段5
+				let effPanel = null, totalText = null;
+				if (effOn) {
+					const items = effPersonItems(idx, run) || [];
+					effPanel = { cells: [0, 1, 2, 3].map(k => ({
+						img: effImgs ? effImgs[k] : null,
+						range: effRangeLabel(k, run.eff.bounds),
+						count: run.eff.tiers[k] ? items.filter(it => it.tier === k).length : null
+					})) };
+				}
+				if (effOn || (run.melop && show.banner)) {
+					const milli = effTotalMilli(idx, run);
+					if (milli !== null) totalText = '合計 ' + (milli / 1000).toFixed(3) + '（評価点/SP）';
+				}
 				// 検出数カード・「シナリオ因子・遺伝子」は個別に省ける。両方 OFF でも列見出し（親A など）の帯は出す
 				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count,
 					scenarioFactorHighlight(idx, run), aptitudeGeneHighlight(idx, run),
-					{ cards: show.banner, factors: show.scenario });
+					{ cards: show.banner, factors: show.scenario, effPanel: effPanel, totalText: totalText });
 				bannerCanvases.push(banner);
 				contentCanvases.push(contentCanvas);
 				personMeta.push({ idx: idx, label: label, sp70Count: sp70Count, greenCount: greenCount });
