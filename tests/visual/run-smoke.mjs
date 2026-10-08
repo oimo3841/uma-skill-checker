@@ -10445,6 +10445,313 @@ await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101
 });
 
 /* ============================================================
+ * exam.html — 効率で選ぶ（βテスト・C-136）
+ *
+ * 「対象スキルの範囲」の4つ目の選択肢と区切りのバー、照合の切り替え（拡張モードの辞書で照合して範囲で絞る）を見る。
+ * 数値（最小・最大・境目）はデータから計算して比べる（ここに 2.741 などを書かない）。スキル名も書かない。
+ * ============================================================ */
+await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () => {
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
+	await page.waitForTimeout(600);
+	if (await page.isVisible('#ui-notice')) await page.click('#ui-notice-ok');
+	await page.waitForTimeout(200);
+	await page.evaluate(() => selectStepTab(1));
+	const fmt = (m) => (m / 1000).toFixed(3);
+
+	// (1) 4つ目の選択肢。既定は選ばれておらず、バーは出ていない
+	const opt = await page.evaluate(() => ({
+		values: [...document.querySelectorAll('input[name="target-scope-mode"]')].map((r) => r.value),
+		text: document.querySelector('label[for="scope-mode-efficiency"]').textContent.replace(/\s+/g, ''),
+		checked: document.getElementById('scope-mode-efficiency').checked,
+		panelHidden: document.getElementById('eff-panel').hidden,
+		detailHidden: document.getElementById('scope-detail').hidden,
+	}));
+	assert(JSON.stringify(opt.values) === JSON.stringify(['default', 'expanded', 'curated', 'efficiency'])
+		&& /^効率で選ぶ（.+種）βテスト$/.test(opt.text) && !opt.checked && opt.panelHidden && !opt.detailHidden,
+		'効率(1): 「対象スキルの範囲」の4つ目に「効率で選ぶ（N種）βテスト」。既定では選ばれず、バーは出ない', opt);
+
+	// (2) 選ぶとデータを読み、#scope-detail の代わりにバーが出る。最小・最大・初期の境目はデータから
+	await page.click('label[for="scope-mode-efficiency"]');
+	await page.waitForFunction(() => !!effData && document.querySelectorAll('.eff-seg').length === 4);
+	await page.waitForTimeout(300);
+	const st = await page.evaluate(async () => {
+		const json = await fetch('data/skill-efficiency.json').then((r) => r.json());
+		const ms = json.entries.map((e) => Math.round(e.efficiency * 1000));
+		return {
+			min: Math.min(...ms), max: Math.max(...ms), n: json.entries.length,
+			dmin: effData.min, dmax: effData.max, targets: effData.targets.length,
+			count: document.getElementById('scope-count-efficiency').textContent,
+			reg: document.getElementById('registry-skill-count').textContent,
+			copyAll: document.getElementById('copylist-all133-count').textContent,
+			bounds: effBounds.slice(), tiers: effTiers.slice(),
+			detailHidden: document.getElementById('scope-detail').hidden, panelHidden: document.getElementById('eff-panel').hidden,
+			srcs: [...document.querySelectorAll('.eff-seg img')].map((i) => i.getAttribute('src')), icons: EFF_TIER_ICON_SRCS,
+			pressed: [...document.querySelectorAll('.eff-seg')].map((s) => s.getAttribute('aria-pressed')),
+			vals: [...document.querySelectorAll('.eff-val')].map((e) => e.textContent),
+			stored: [localStorage.getItem('uma-exam-eff-bounds'), localStorage.getItem('uma-exam-eff-tiers')],
+			scopeStored: localStorage.getItem('uma-exam-target-scope'),
+			skillList133: scopeBaseNames('efficiency').length === EXAM_SKILL_NAMES.length,
+			regRows: document.querySelectorAll('#skill-registry-list .eff-mini').length,
+		};
+	});
+	const eq = [1, 2, 3].map((k) => Math.round(st.min + (st.max - st.min) * k / 4));
+	assert(st.dmin === st.min && st.dmax === st.max && st.targets === st.n && st.count === String(st.n) && st.reg === String(st.n) && st.regRows === st.n,
+		'効率(2): 最小・最大はデータから。初期は4区間とも入れ、種数・一覧の行数はデータの行数', st);
+	assert(JSON.stringify(st.bounds) === JSON.stringify(eq) && st.tiers.every(Boolean) && st.pressed.every((p) => p === 'true'),
+		'効率(2): 初期の境目は最小〜最大の等分（小数第3位）', { bounds: st.bounds, want: eq });
+	assert(st.detailHidden && !st.panelHidden && JSON.stringify(st.srcs) === JSON.stringify(st.icons),
+		'効率(2): #scope-detail の代わりにバーが出て、区間の蹄鉄は左から銅・銀・金・虹', st.srcs);
+	assert(JSON.stringify(st.vals) === JSON.stringify([fmt(st.min)].concat(eq.map(fmt), [fmt(st.max)])),
+		'効率(2): つまみの下に境目の値、両端の下に最小値と最大値（どれも小数3桁）', st.vals);
+	assert(st.stored[0] === null && st.stored[1] === null && st.scopeStored === 'efficiency' && st.skillList133 && st.copyAll === '133',
+		'効率(2): 動かすまで境目と区間は保存しない。判定の表と「スキル名のコピー」は133種のまま', st);
+
+	// (3) キーボード: ←→ で0.01、Shift で0.1。つまみどうし・両端とは0.05より寄らない。動かすと保存
+	await page.focus('.eff-thumb[data-idx="0"]');
+	await page.keyboard.press('ArrowRight');
+	const k1 = await page.evaluate(() => effBounds[0]);
+	await page.keyboard.press('Shift+ArrowRight');
+	const k2 = await page.evaluate(() => effBounds[0]);
+	for (let i = 0; i < 80; i++) await page.keyboard.press('Shift+ArrowRight');
+	const k3 = await page.evaluate(() => ({ b: effBounds.slice(), focus: document.activeElement.getAttribute('data-idx'), stored: JSON.parse(localStorage.getItem('uma-exam-eff-bounds')) }));
+	for (let i = 0; i < 80; i++) await page.keyboard.press('Shift+ArrowLeft');
+	const k4 = await page.evaluate(() => effBounds[0]);
+	assert(k1 === eq[0] + 10 && k2 === eq[0] + 110, '効率(3): ←→ は0.01、Shift＋←→ は0.1 ずつ動く', { k1, k2, start: eq[0] });
+	assert(k3.b[0] === k3.b[1] - 50 && k3.focus === '0' && JSON.stringify(k3.stored) === JSON.stringify(k3.b.map((m) => m / 1000)),
+		'効率(3): 隣のつまみとは0.05より寄らない。焦点はつまみに残り、動かすと保存される', k3);
+	assert(k4 === st.min + 50, '効率(3): 端（最小）とも0.05より寄らない', { k4, min: st.min });
+
+	// (4) ドラッグ（マウス）。区間の切り替えと取り違えない
+	const drag = await page.evaluate(() => {
+		const bar = document.getElementById('eff-bar').getBoundingClientRect();
+		const th = document.querySelector('.eff-thumb[data-idx="1"]').getBoundingClientRect();
+		return { bar: { x: bar.x, y: bar.y, w: bar.width, h: bar.height }, th: { x: th.x + th.width / 2, y: th.y + th.height / 2 }, tiers: effTiers.slice() };
+	});
+	const target = 0.6;
+	await page.mouse.move(drag.th.x, drag.th.y);
+	await page.mouse.down();
+	await page.mouse.move(drag.bar.x + drag.bar.w * 0.5, drag.th.y, { steps: 4 });
+	await page.mouse.move(drag.bar.x + drag.bar.w * target, drag.th.y, { steps: 4 });
+	await page.mouse.up();
+	const d1 = await page.evaluate(() => ({ b: effBounds.slice(), tiers: effTiers.slice(), stored: JSON.parse(localStorage.getItem('uma-exam-eff-bounds')) }));
+	const wantDrag = Math.round((st.min + target * (st.max - st.min)) / 10) * 10;
+	assert(Math.abs(d1.b[1] - wantDrag) <= 20 && d1.b[1] % 10 === 0 && JSON.stringify(d1.tiers) === JSON.stringify(drag.tiers)
+		&& JSON.stringify(d1.stored) === JSON.stringify(d1.b.map((m) => m / 1000)),
+		'効率(4): つまみをドラッグで動かせる（0.01 刻み）。区間の切り替えは起きず、離すと保存される', { got: d1.b[1], want: wantDrag, d1 });
+	// 右端の先まで引っ張っても、右のつまみから0.05 手前で止まる
+	await page.mouse.move(drag.bar.x + drag.bar.w * target, drag.th.y);
+	await page.mouse.down();
+	await page.mouse.move(drag.bar.x + drag.bar.w * 1.5, drag.th.y, { steps: 6 });
+	await page.mouse.up();
+	const d2 = await page.evaluate(() => effBounds.slice());
+	assert(d2[1] === d2[2] - 50, '効率(4): ドラッグでも右のつまみとは0.05より寄らない', d2);
+
+	// (5) 区間を押すと対象に入れる／外すが切り替わる（aria-pressed・色）。全部は外せない。キーボードでも押せる
+	// 上のドラッグで金の区間がつまみ2つの間の幅しか無くなっているので、境目を初期に戻してから押す
+	const t0 = await page.evaluate(() => { effBounds = defaultEffBounds(effData); layoutEffPanel(); return { count: effTargets().length }; });
+	await page.click('.eff-seg--2');
+	const t1 = await page.evaluate(() => {
+		const on = getComputedStyle(document.querySelector('.eff-seg--1')), off = getComputedStyle(document.querySelector('.eff-seg--2'));
+		const snap = effSnapshot();
+		return {
+			tiers: effTiers.slice(), pressed: document.querySelector('.eff-seg--2').getAttribute('aria-pressed'),
+			count: Number(document.getElementById('scope-count-efficiency').textContent),
+			want: effData.targets.filter((t) => effTierOf(t.milli, snap.bounds) !== 2).length,
+			onBg: on.backgroundColor, offBg: off.backgroundColor, offOpacity: off.opacity,
+			imgFilter: getComputedStyle(document.querySelector('.eff-seg--2 img')).filter,
+			stored: JSON.parse(localStorage.getItem('uma-exam-eff-tiers')),
+		};
+	});
+	assert(t1.pressed === 'false' && t1.tiers[2] === false && t1.count === t1.want && t1.count < t0.count && JSON.stringify(t1.stored) === JSON.stringify(t1.tiers),
+		'効率(5): 区間を押すと対象から外れ、種数が減り、保存される', t1);
+	assert(t1.onBg !== t1.offBg && t1.offOpacity === '1' && /grayscale/.test(t1.imgFilter),
+		'効率(5): 外した区間は色で表す（opacity は使わない。恒久ルール9）', t1);
+	await page.focus('.eff-seg--2');
+	await page.keyboard.press('Enter');
+	const t2 = await page.evaluate(() => effTiers.slice());
+	assert(t2.every(Boolean), '効率(5): 区間はキーボード（Enter）でも切り替わる', t2);
+	const t3 = await page.evaluate(() => {
+		[0, 1, 2].forEach((k) => toggleEffTier(k));
+		toggleEffTier(3);
+		const r = { tiers: effTiers.slice(), toast: document.getElementById('toast') ? document.getElementById('toast').textContent : '' };
+		[0, 1, 2].forEach((k) => toggleEffTier(k));
+		return r;
+	});
+	assert(JSON.stringify(t3.tiers) === JSON.stringify([false, false, false, true]) && t3.toast.includes('少なくとも1つ'),
+		'効率(5): 最後の1つの区間は外せない（知らせが出る）', t3);
+
+	// (6) 保存値の復元: 壊れた値は直して使い、保存値は書き換えない（恒久ルール28）。直した値は何度通しても同じ
+	await page.evaluate(() => { localStorage.setItem('uma-exam-eff-bounds', '[9,1,"x"]'); localStorage.setItem('uma-exam-eff-tiers', '[false,false,false,false]'); });
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.waitForFunction(() => !!effData);
+	await page.waitForTimeout(300);
+	const r1 = await page.evaluate(() => ({ b: effBounds.slice(), t: effTiers.slice(), mode: targetScopeMode,
+		stored: [localStorage.getItem('uma-exam-eff-bounds'), localStorage.getItem('uma-exam-eff-tiers')] }));
+	assert(r1.mode === 'efficiency' && JSON.stringify(r1.b) === JSON.stringify(eq) && r1.t.every(Boolean)
+		&& r1.stored[0] === '[9,1,"x"]' && r1.stored[1] === '[false,false,false,false]',
+		'効率(6): 読めない境目・全部外した区間は初期値で使い、保存値は書き換えない', r1);
+	const r2 = await page.evaluate((m) => {
+		const a = normalizeEffBounds([m.max / 1000 + 1, 0, (m.min + m.max) / 2000], effData);
+		const b = normalizeEffBounds(a.map((v) => v / 1000), effData);
+		const c = normalizeEffBounds([m.min / 1000, m.min / 1000, m.min / 1000], effData);
+		return { a, b, c, d: normalizeEffBounds([1, 2], effData), e: normalizeEffBounds(['1', 2, 3], effData) };
+	}, { min: st.min, max: st.max });
+	const okShape = (b) => b && b[0] >= st.min + 50 && b[1] - b[0] >= 50 && b[2] - b[1] >= 50 && b[2] <= st.max - 50;
+	assert(okShape(r2.a) && JSON.stringify(r2.a) === JSON.stringify(r2.b) && okShape(r2.c) && r2.d === null && r2.e === null,
+		'効率(6): 直すと「昇順・間隔0.05・最小〜最大の内側」になり、直した値をもう一度通しても変わらない', r2);
+
+	// (7) 合成の行: 照合した名前 → 区間（蹄鉄）。下限を含み上限を含まない・最大は最後の区間。外した区間・効率の無い行は入らない
+	const syn = await page.evaluate(() => {
+		const s = melopSheet;
+		const b = effBounds.slice();
+		const tierOf = (t) => effTierOf(t.milli, b);
+		// 区間ごとに独自IDのある対象を1つずつ
+		const pick = [0, 1, 2, 3].map((k) => effData.targets.find((t) => t.id && !t.unique && tierOf(t) === k && !/\+$/.test(t.name)));
+		// 効率を持たない行（レース因子など。いちばん上の段の行は除く）
+		const noEff = s.rows.find((r) => !r.slot && !effData.milliByRow.has(r.row) && !/シナリオ|遺伝子/.test(r.name));
+		const lines = pick.concat([{ name: noEff.name }]).map((t, i) => ({ text: t.name, stars: (i % 3) + 1, starsReliable: true, rowKey: '0:' + i }));
+		personMelop = PERSON_LABELS.map(() => null);
+		personMelop[0] = { res: matchMelopLines(lines, s), top: { found: true, blue: null, red: null, uniqueStars: 2, extraLines: [] } };
+		const run = captureRun();
+		const items = effPersonItems(0, run);
+		const off = Object.assign({}, run, { eff: { bounds: b, tiers: [true, false, true, true] } });
+		const itemsOff = effPersonItems(0, off);
+		// 境目ちょうどの値は上の区間・最大は最後の区間
+		const edge = { atB1: effTierOf(b[1], b), justBelow: effTierOf(b[1] - 1, b), max: effTierOf(effData.max, b), min: effTierOf(effData.min, b) };
+		return {
+			want: pick.map((t) => ({ row: t.row, tier: tierOf(t) })),
+			got: items.filter((it) => !it.unique).map((it) => ({ row: it.row, tier: it.tier, icon: EFF_TIER_ICON_SRCS[it.tier] })),
+			unique: items.filter((it) => it.unique).map((it) => ({ row: it.row, column: s.uniqueRows.find((r) => r.row === it.row).column, stars: it.stars })),
+			noEffIn: items.some((it) => it.row === noEff.row),
+			offRows: itemsOff.map((it) => it.tier), edge, icons: EFF_TIER_ICON_SRCS,
+		};
+	});
+	assert(JSON.stringify(syn.got.map((g) => ({ row: g.row, tier: g.tier }))) === JSON.stringify(syn.want)
+		&& syn.got.every((g) => g.icon === syn.icons[g.tier]),
+		'効率(7): 照合した名前は効率の区間に入り、その区間の蹄鉄になる（4区間とも）', syn);
+	assert(!syn.noEffIn && syn.unique.length === 1 && syn.unique[0].column === 0 && syn.unique[0].stars === 2,
+		'効率(7): 効率の無い行は入らない。継承固有はいちばん上の段が読めていればその人の列の行が入る', syn);
+	assert(!syn.offRows.includes(1), '効率(7): 外した区間のスキルは入らない', syn.offRows);
+	assert(syn.edge.atB1 === 2 && syn.edge.justBelow === 1 && syn.edge.max === 3 && syn.edge.min === 0,
+		'効率(7): 区間の判定は下限を含み上限を含まない（最後の区間だけ最大も含む）', syn.edge);
+
+	// (8) 判定の流れ（OCR の代わりに行を固定）: 照合は拡張モードの辞書の全部で行い、表・コピーは133種のまま。Deck へは独自IDのある対象だけ
+	const flow = await page.evaluate(async () => {
+		const calls = { match: 0, dictRows: [] };
+		const orig = { top: readMelopTopRow, match: matchMelopLines, ppi: processPersonImages, tess: window.Tesseract };
+		readMelopTopRow = async () => ({ found: true, file: 'a.png', blue: null, red: null, uniqueStars: 3, extraLines: [] });
+		matchMelopLines = (lines, s) => { calls.match++; calls.dictRows.push(s.listDict.list.length); return orig.match(lines, s); };
+		const snapT = effSnapshot();
+		const pick = [0, 1, 2, 3].map((k) => effData.targets.find((t) => t.id && !t.unique && effTierOf(t.milli, snapT.bounds) === k && !/\+$/.test(t.name)));
+		const lineNames = skillList.slice(0, 6).concat(pick.map((t) => t.name));
+		processPersonImages = async () => ({
+			lines: lineNames.map((n, i) => ({ text: n, stars: (i % 3) + 1, starsReliable: true, rowKey: '0:' + i })),
+			skipped: [], warned: [], geometry: [null],
+		});
+		window.Tesseract = { createWorker: async () => ({ loadLanguage: async () => {}, initialize: async () => {}, setParameters: async () => {},
+			recognize: async () => ({ data: { text: '', lines: [] } }), terminate: async () => {} }) };
+		persons.forEach((p) => { p.files = []; });
+		persons[0].files = [new File(['x'], 'a.png', { type: 'image/png' })];
+		const snap = () => ({ copy: document.getElementById('copy-data').value, rows: document.querySelectorAll('#result-tbody tr').length });
+		setMelopMode(false);
+		await processImages({ keepClosed: true });
+		const eff = { snap: snap(), calls: Object.assign({}, calls), dictFull: melopSheet.listDict.list.length, melopBtn: !document.getElementById('melop-copy-btn-A').hidden,
+			runEff: !!lastOcrRun.eff, payload: JSON.parse(localStorage.getItem('umaSkillDeck:ocrHandoff:exam')) };
+		setTargetScopeMode('default');
+		await processImages({ keepClosed: true });
+		const def = { snap: snap(), payload: JSON.parse(localStorage.getItem('umaSkillDeck:ocrHandoff:exam')), melop: personMelop.every((m) => m === null) };
+		setTargetScopeMode('efficiency');
+		readMelopTopRow = orig.top; matchMelopLines = orig.match; processPersonImages = orig.ppi; window.Tesseract = orig.tess;
+		const idNames = new Set(effData.targets.filter((t) => t.id).map((t) => t.name));
+		const uniqueNames = effData.targets.filter((t) => t.unique).map((t) => t.name);
+		return { eff, def, pick: pick.map((t) => t.name),
+			namesOk: eff.payload.skillNames.every((n) => idNames.has(n)) && !eff.payload.skillNames.some((n) => uniqueNames.includes(n)),
+			starsHasPick: pick.every((t) => eff.payload.persons[0].stars[t.name] !== undefined),
+			starsNoUnique: !uniqueNames.some((n) => eff.payload.persons[0].stars[n] !== undefined) };
+	});
+	assert(flow.eff.calls.match === 1 && flow.eff.calls.dictRows.every((n) => n === flow.eff.dictFull) && flow.eff.runEff,
+		'効率(8): 効率で選ぶで判定すると、拡張モードの辞書の全部（範囲で絞らない）で照合する', flow.eff.calls);
+	assert(JSON.stringify(flow.eff.snap) === JSON.stringify(flow.def.snap) && flow.eff.snap.copy.length > 0 && !flow.eff.melopBtn && flow.def.melop,
+		'効率(8): 判定結果の表と「★の数をコピー」は既定の133種と同じ（めろっぷ用のボタンは出ない。既定では拡張の照合を通らない）', { eff: flow.eff.snap, def: flow.def.snap });
+	assert(flow.namesOk && flow.starsHasPick && flow.starsNoUnique && flow.def.payload.skillNames.length === 133,
+		'効率(8): Deck へは効率の対象のうち独自IDのあるものを渡し、継承固有は除く（既定では従来どおり133種）', flow);
+
+	// (9) 「画像を更新」: 範囲や区間を変えたら OCR からやり直す扱い
+	const stale = await page.evaluate(() => {
+		// (8) の最後は既定で判定しているので、今の設定（効率で選ぶ）で判定・結合したことにする
+		lastOcrRun = captureRun();
+		lastStitchRun = lastOcrRun;
+		const before = stitchRefreshState();
+		toggleEffTier(0);
+		const after = stitchRefreshState();
+		toggleEffTier(0);
+		return { before, after };
+	});
+	assert(stale.before !== 'stale' && stale.after === 'stale', '効率(9): 区間を変えると「画像を更新」は OCR からやり直しになる', stale);
+
+	// (10) ダーク: バーの色がダークの値に替わる
+	const dark = await page.evaluate(() => {
+		const seg = () => getComputedStyle(document.querySelector('.eff-seg--0')).backgroundColor;
+		const panel = () => getComputedStyle(document.getElementById('eff-panel')).backgroundColor;
+		const prev = document.documentElement.getAttribute('data-theme');
+		document.documentElement.setAttribute('data-theme', 'light');
+		const light = { seg: seg(), panel: panel() };
+		document.documentElement.setAttribute('data-theme', 'dark');
+		const darkV = { seg: seg(), panel: panel() };
+		if (prev) document.documentElement.setAttribute('data-theme', prev); else document.documentElement.removeAttribute('data-theme');
+		return { light, dark: darkV };
+	});
+	assert(dark.light.seg !== dark.dark.seg && dark.light.panel !== dark.dark.panel && dark.dark.panel !== 'rgb(255, 255, 255)',
+		'効率(10): ダークでは区間と枠の色がダークの値になる', dark);
+
+	// (11) 375px: 横にはみ出さない。選択肢は2列×2段
+	await page.setViewportSize({ width: 375, height: 800 });
+	await page.waitForTimeout(400);
+	const narrow = await page.evaluate(() => {
+		const grid = document.getElementById('scope-mode-default').closest('.grid');
+		const p = document.getElementById('eff-panel').getBoundingClientRect();
+		const vals = [...document.querySelectorAll('.eff-val')].map((e) => e.getBoundingClientRect());
+		return { sw: document.documentElement.scrollWidth, cols: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
+			panelRight: p.right, valsIn: vals.every((r) => r.left >= p.left - 1 && r.right <= p.right + 1),
+			icons: [...document.querySelectorAll('.eff-seg img')].map((i) => i.style.display !== 'none') };
+	});
+	assert(narrow.sw <= 375 && narrow.cols === 2 && narrow.panelRight <= 375 && narrow.valsIn && narrow.icons.every(Boolean),
+		'効率(11): 375px で横にはみ出さず、選択肢は2列×2段・値はバーの枠の中・蹄鉄は4つとも見える', narrow);
+	// つまみを最小の側へ寄せ切っても、値どうしは重ならない（下の段へずらす）。狭い区間の蹄鉄は縮めるか出さない
+	const packed = await page.evaluate(() => {
+		effBounds = [effData.min + 50, effData.min + 100, effData.min + 150];
+		layoutEffPanel();
+		const rs = [...document.querySelectorAll('.eff-val')].map((e) => e.getBoundingClientRect());
+		const overlap = rs.some((a, i) => rs.some((b, j) => i < j && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom));
+		const scale = document.querySelector('.eff-scale').getBoundingClientRect();
+		const panel = document.getElementById('eff-panel').getBoundingClientRect();
+		const imgs = [...document.querySelectorAll('.eff-seg')].map((s) => {
+			const img = s.querySelector('img');
+			return { seg: s.getBoundingClientRect().width, img: img.style.display === 'none' ? 0 : img.getBoundingClientRect().width };
+		});
+		const r = { overlap, inside: rs.every((x) => x.bottom <= scale.bottom + 0.5 && x.bottom <= panel.bottom), rows: Math.round(scale.height / 16), imgs };
+		effBounds = defaultEffBounds(effData);
+		layoutEffPanel();
+		return r;
+	});
+	assert(!packed.overlap && packed.inside && packed.rows >= 2 && packed.imgs.every((x) => x.img === 0 || x.img <= x.seg - 6),
+		'効率(11): つまみを寄せ切っても値どうしは重ならず（下の段へ）、狭い区間の蹄鉄は縮めるか出さない', packed);
+	await page.setViewportSize({ width: 1280, height: 900 });
+
+	// (12) ほかの選択肢に戻すとバーは消え、#scope-detail が戻る
+	await page.click('label[for="scope-mode-default"]');
+	const back = await page.evaluate(() => ({ panel: document.getElementById('eff-panel').hidden, detail: document.getElementById('scope-detail').hidden,
+		reg: document.getElementById('registry-skill-count').textContent, minis: document.querySelectorAll('#skill-registry-list .eff-mini').length }));
+	assert(back.panel && !back.detail && back.reg === '133' && back.minis === 0, '効率(12): 既定に戻すとバーは消え、一覧は133種に戻る', back);
+
+	await page.evaluate(() => { ['uma-exam-eff-bounds', 'uma-exam-eff-tiers', 'uma-exam-target-scope'].forEach((k) => localStorage.removeItem(k)); });
+	assert(errors.length === 0, '効率: コンソールエラーなし', errors.slice(0, 3));
+	await ctx.close();
+}
+});
+
+/* ============================================================
  * 編成パネル ―― サポートカードのイベントの●・△（C-102・区切り1）
  *
  * 本物のイベントのデータは行が0件なので、`tests/visual/lib/event-fixture.mjs` の仕込みを

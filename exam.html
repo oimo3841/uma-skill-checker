@@ -100,6 +100,13 @@
 			--exam-total-th-bg: #f1f5f9; --exam-total-th-text: #334155; --exam-total-th-border: #cbd5e1;
 			--exam-total-td-bg: #f8fafc; --exam-total-td-border: #e2e8f0;
 			--exam-toggle-off-bg: #fff; --exam-toggle-off-text: #94a3b8; --exam-toggle-off-border: #e2e8f0; --exam-toggle-on-text: #fff;
+
+			/* 効率で選ぶ（C-136）。ターフの3色はおいもさんのモックの値で、区切りのバーの「対象に入れた区間」と、
+			   結果画像の区間まとめパネル（canvas。ライトの値で読む）が同じものを使う。
+			   外した区間は灰（opacity は使わず色だけで表す。恒久ルール9） */
+			--exam-eff-turf-bg: #e8f3dd; --exam-eff-turf-border: #c6ddb2; --exam-eff-turf-text: #46563a;
+			--exam-eff-off-bg: #eef0f3; --exam-eff-off-border: #d5dae1;
+			--exam-eff-thumb-bg: #ffffff; --exam-eff-thumb-border: #46563a;
 		}
 		/* ①のタブに出す件数バッジ。骨格（shell.css の .step-tab-badge）は灰なので、このページの青に */
 		.step-tab-badge--accent { background: var(--uma-deco-soft); color: var(--uma-deco-strong); }
@@ -383,6 +390,46 @@
 		.copylist-btn:hover { background-color: #f1f5f9; }
 		.copylist-btn.active { background-color: var(--uma-control); color: #fff; border-color: var(--uma-control); }
 
+		/* 効率で選ぶ（βテスト・C-136）の区切りのバー。#scope-detail の位置に出す（選んでいる間だけ）。
+		   帯を4つの区間（左から 銅・銀・金・虹）に分け、各区間の中央に蹄鉄。区間の名前の文字は出さない。
+		   区間は押すと「対象に入れる／外す」が切り替わるボタン。境目の3つのつまみはドラッグと←→で動く。
+		   左右の余白（8px）は、両端に寄せたつまみが帯の外へはみ出さないため。 */
+		/* 「対象スキルの範囲」を4択にしたとき（C-136）、1枚の幅が狭い（1024px 未満）と、選択肢の下の説明の1行まで出すと
+		   1枚が3〜4行に折り返し、3択だったときより高くなる（恒久ルール25）。狭い幅では説明の1行を出さない
+		   （足す／外す名前は #scope-detail が出す。「βテスト」の1行だけは残す）。
+		   実測（①のパネルの選択肢の格子の高さ）：375px 186→135px・320px 186→151px・700px 57→73px・1280px 57→57px */
+		@media (max-width: 1023.98px) {
+			.scope-sub { display: none; }
+		}
+		.eff-panel { margin-top: 0.5rem; padding: 0.55rem 0 0.35rem; background: #fff; border: 1px solid #cbd5e1; border-radius: 0.5rem; }
+		.eff-bar { position: relative; height: 44px; margin: 0 12px; }
+		.eff-seg {
+			position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
+			padding: 0; overflow: hidden; cursor: pointer;
+			background: var(--exam-eff-turf-bg); border: 1px solid var(--exam-eff-turf-border);
+		}
+		.eff-seg + .eff-seg { border-left-width: 0; }
+		.eff-seg:first-child { border-radius: 8px 0 0 8px; }
+		.eff-seg--3 { border-radius: 0 8px 8px 0; }
+		.eff-seg[aria-pressed="false"] { background: var(--exam-eff-off-bg); border-color: var(--exam-eff-off-border); }
+		/* 外した区間の蹄鉄は灰色に（filter は色の変換。opacity ではない） */
+		.eff-seg[aria-pressed="false"] img { filter: grayscale(1); }
+		.eff-seg img { display: block; width: 32px; height: 32px; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+		.eff-thumb {
+			position: absolute; top: -5px; bottom: -5px; width: 14px; margin-left: -7px; z-index: 1;
+			background: var(--exam-eff-thumb-bg); border: 2px solid var(--exam-eff-thumb-border); border-radius: 7px;
+			box-shadow: 0 1px 3px rgba(15, 23, 42, .25); cursor: ew-resize; touch-action: none;
+		}
+		/* 指で掴みやすいよう、つまみの左右に見えない当たり判定を足す */
+		.eff-thumb::before { content: ''; position: absolute; top: -4px; bottom: -4px; left: -9px; right: -9px; }
+		.eff-scale { position: relative; height: 16px; margin: 6px 12px 0; font-size: 11px; line-height: 16px; color: #475569; font-variant-numeric: tabular-nums; }
+		.eff-val { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+		.eff-val--min { transform: none; }
+		.eff-val--max { transform: translateX(-100%); }
+		.eff-msg { margin: 0 12px; font-size: 11px; color: #475569; }
+		/* ①の対象スキルの一覧で、その行の区間を示す小さな蹄鉄 */
+		.eff-mini { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; }
+
 		/* ===== ダーク（C-134 段5）=====
 		   <html data-theme="dark"> のときだけ効く。ライトの見た目は1つも変えていない。
 		   地と面は tokens.css の青黒（決定6）。このページの青（--uma-c-*）は、段の並びを裏返して
@@ -397,6 +444,10 @@
 			--exam-total-th-bg: var(--uma-surface-muted); --exam-total-th-text: var(--uma-text-heading); --exam-total-th-border: var(--uma-border-strong);
 			--exam-total-td-bg: var(--uma-surface-sunken); --exam-total-td-border: var(--uma-border);
 			--exam-toggle-off-bg: var(--uma-surface); --exam-toggle-off-text: var(--uma-text-faint); --exam-toggle-off-border: var(--uma-border); --exam-toggle-on-text: #ffffff;
+			/* 効率で選ぶ（C-136）。結果画像はライトの値で読むので、ここは画面のバーにだけ効く */
+			--exam-eff-turf-bg: #24331b; --exam-eff-turf-border: #47603a; --exam-eff-turf-text: #cfe3bd;
+			--exam-eff-off-bg: #1c222b; --exam-eff-off-border: #313a46;
+			--exam-eff-thumb-bg: #e2e8f0; --exam-eff-thumb-border: #cfe3bd;
 		}
 		:root[data-theme="dark"] body { background: var(--uma-page-ground); color: var(--uma-text); }
 		:root[data-theme="dark"] .glass-card { background: var(--uma-glass-bg); }
@@ -416,6 +467,8 @@
 		:root[data-theme="dark"] .mode-btn.active { color: var(--uma-green-skill-on); }
 		:root[data-theme="dark"] .scope-detail { color: var(--uma-text-muted); background: var(--uma-surface); border-color: var(--uma-border-strong); }
 		:root[data-theme="dark"] .scope-detail-title { color: var(--uma-text-heading); }
+		:root[data-theme="dark"] .eff-panel { background: var(--uma-surface); border-color: var(--uma-border-strong); }
+		:root[data-theme="dark"] .eff-scale, :root[data-theme="dark"] .eff-msg { color: var(--uma-text-muted); }
 		:root[data-theme="dark"] .copylist-btn { border-color: var(--uma-border); background: var(--uma-surface); color: var(--uma-text-subtle); }
 		:root[data-theme="dark"] .copylist-btn:hover { background-color: var(--uma-surface-muted); }
 		:root[data-theme="dark"] .copylist-btn.active { background-color: var(--uma-control); border-color: var(--uma-control); color: var(--uma-text-inverse); }
@@ -783,34 +836,49 @@
 					<!-- 「対象を広げる／絞る」に触れている間は、足す／外すスキル名を下の #scope-detail に出す
 					     （中身は renderScopeDetail() がデータから書く）。マウスだけでなく、キーボード・
 					     タップでラジオに焦点が来たときも同じ欄に出す。選択肢の上には何も重ねない。 -->
-					<div class="grid gap-2 sm:grid-cols-3">
+					<!-- 4択（C-136 で「効率で選ぶ」を足した）。640px 未満は2列×2段（縦3段だったときより1段減る。恒久ルール25）、
+					     640px 以上は横1列（3択のときと同じ段数）。種数の「（N種）」は途中で折り返さない -->
+					<div class="grid gap-2 grid-cols-2 sm:grid-cols-4">
 						<label for="scope-mode-default" class="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 cursor-pointer hover:border-[var(--uma-control-border)] transition-all"
 							onmouseenter="previewScopeDetail('default')" onmouseleave="previewScopeDetail(null)">
 							<input type="radio" id="scope-mode-default" name="target-scope-mode" value="default" class="mt-0.5 accent-[var(--uma-control)] cursor-pointer" onchange="setTargetScopeMode('default')" onfocus="previewScopeDetail('default')" onblur="previewScopeDetail(null)" checked />
 							<span>
-								<span class="block text-xs font-semibold text-slate-800">既定（<span id="scope-count-default">133</span>種）</span>
-								<span class="block text-[11px] text-slate-500 mt-0.5">これまでどおりの対象です</span>
+								<span class="block text-xs font-semibold text-slate-800">既定<span class="whitespace-nowrap">（<span id="scope-count-default">133</span>種）</span></span>
+								<span class="scope-sub block text-[11px] text-slate-500 mt-0.5">これまでどおりの対象です</span>
 							</span>
 						</label>
 						<label for="scope-mode-expanded" class="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 cursor-pointer hover:border-[var(--uma-control-border)] transition-all"
 							onmouseenter="previewScopeDetail('expanded')" onmouseleave="previewScopeDetail(null)">
 							<input type="radio" id="scope-mode-expanded" name="target-scope-mode" value="expanded" class="mt-0.5 accent-[var(--uma-control)] cursor-pointer" onchange="setTargetScopeMode('expanded')" onfocus="previewScopeDetail('expanded')" onblur="previewScopeDetail(null)" />
 							<span>
-								<span class="block text-xs font-semibold text-slate-800">対象を広げる（<span id="scope-count-expanded">138</span>種）</span>
-								<span class="block text-[11px] text-slate-500 mt-0.5">既定に5種を足します</span>
+								<span class="block text-xs font-semibold text-slate-800">対象を広げる<span class="whitespace-nowrap">（<span id="scope-count-expanded">138</span>種）</span></span>
+								<span class="scope-sub block text-[11px] text-slate-500 mt-0.5">既定に5種を足します</span>
 							</span>
 						</label>
 						<label for="scope-mode-curated" class="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 cursor-pointer hover:border-[var(--uma-control-border)] transition-all"
 							onmouseenter="previewScopeDetail('curated')" onmouseleave="previewScopeDetail(null)">
 							<input type="radio" id="scope-mode-curated" name="target-scope-mode" value="curated" class="mt-0.5 accent-[var(--uma-control)] cursor-pointer" onchange="setTargetScopeMode('curated')" onfocus="previewScopeDetail('curated')" onblur="previewScopeDetail(null)" />
 							<span>
-								<span class="block text-xs font-semibold text-slate-800">対象を絞る（<span id="scope-count-curated">121</span>種）</span>
-								<span class="block text-[11px] text-slate-500 mt-0.5">既定から12種を外します</span>
+								<span class="block text-xs font-semibold text-slate-800">対象を絞る<span class="whitespace-nowrap">（<span id="scope-count-curated">121</span>種）</span></span>
+								<span class="scope-sub block text-[11px] text-slate-500 mt-0.5">既定から12種を外します</span>
+							</span>
+						</label>
+						<!-- 効率で選ぶ（βテスト・C-136）。種数は区間で対象にしているぶん（データを読めるまでは「…」）。
+						     選んでいる間は、下の #scope-detail の位置に区切りのバー（#eff-panel）を出す -->
+						<label for="scope-mode-efficiency" class="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 cursor-pointer hover:border-[var(--uma-control-border)] transition-all"
+							onmouseenter="previewScopeDetail('efficiency')" onmouseleave="previewScopeDetail(null)">
+							<input type="radio" id="scope-mode-efficiency" name="target-scope-mode" value="efficiency" class="mt-0.5 accent-[var(--uma-control)] cursor-pointer" onchange="setTargetScopeMode('efficiency')" onfocus="previewScopeDetail('efficiency')" onblur="previewScopeDetail(null)" />
+							<span>
+								<span class="block text-xs font-semibold text-slate-800">効率で選ぶ<span class="whitespace-nowrap">（<span id="scope-count-efficiency">…</span>種）</span></span>
+								<span class="block text-[11px] text-slate-500 mt-0.5">βテスト</span>
 							</span>
 						</label>
 					</div>
 					<!-- 足す／外すスキル名の欄。aria-live で、キーボード操作でも読み上げられる -->
 					<div id="scope-detail" class="scope-detail" aria-live="polite"></div>
+					<!-- 「効率で選ぶ」を選んでいる間だけ、#scope-detail の代わりに出す区切りのバー（C-136）。
+					     中身（4つの区間・3つのつまみ・値）は renderEffPanel() がデータから作る -->
+					<div id="eff-panel" class="eff-panel" hidden></div>
 				</fieldset>
 
 				<!-- シナリオ因子は**まとめて1つのチェック**（64セッション目・段D）。
@@ -2092,7 +2160,8 @@
 				try { localStorage.removeItem(k); } catch (e) { /* 使えない環境では何もしない */ }
 			});
 		}
-		const TARGET_SCOPE_MODES = ['default', 'expanded', 'curated'];
+		// 'efficiency' … 効率で選ぶ（βテスト・C-136）。対象は data/skill-efficiency.json と区間の選択で決まる（下の EFF_* の節）
+		const TARGET_SCOPE_MODES = ['default', 'expanded', 'curated', 'efficiency'];
 		let targetScopeMode = 'default';
 		// 軸2は総括チェック1つ（ON＝24種すべて／OFF＝空）。**中身は Set のまま**にして
 		// あるので、下流は「選ばれている因子の集合」として従来どおり読める（段D）。
@@ -2243,10 +2312,17 @@
 			const m = mode || targetScopeMode;
 			if (m === 'expanded') return EXAM_SKILL_NAMES.concat(EXPANDED_EXTRA_SKILL_NAMES);
 			if (m === 'curated') return EXAM_SKILL_NAMES.filter(n => !CURATED_EXCLUDED_ID_SET.has(examSkillId(n)));
+			// 'efficiency'（効率で選ぶ）も133種を返す。判定結果の表と「★の数をコピー」は133種の並びのまま変えないため
+			// （効率の対象の照合は拡張モードの辞書で別に行う。effPersonItems）
 			return EXAM_SKILL_NAMES.slice();
 		}
 		// 軸1を反映した基準リスト（ID）。名前の表記ゆれを避けるため ID で持つ。
-		function scopeBaseIdSet(mode) {
+		// 'efficiency' は効率の対象のうち独自IDのあるもの（sp70緑・緑のカードの母数がこれで決まる）。
+		// run（captureRun）を渡せば、押した時点の境目と区間で答える。
+		function scopeBaseIdSet(mode, run) {
+			if (mode === 'efficiency') {
+				return new Set(effTargets(run ? run.eff : undefined).filter(t => t.id).map(t => String(t.id)));
+			}
 			return new Set(scopeBaseNames(mode).map(n => examSkillId(n)).filter(Boolean));
 		}
 
@@ -2267,7 +2343,7 @@
 		// 軸1を反映した基準リスト（ID）。sp70緑・緑59種の集計母数はこれで動的に縮む。
 		// run（captureRun）を渡せば、押した時点の範囲で答える（結合画像の側が使う）。
 		function effectiveBaseIds(ids, run) {
-			const inScope = scopeBaseIdSet(run ? run.scope : targetScopeMode);
+			const inScope = scopeBaseIdSet(run ? run.scope : targetScopeMode, run);
 			return ids.filter(id => inScope.has(id));
 		}
 		function effectiveGreen59EquivalenceMax() {
@@ -2407,6 +2483,8 @@
 			restoreTargetScope();
 			rebuildSkillList();
 			renderTargetScopeControls();
+			// 「効率で選ぶ」を選んだまま開いたときは、効率のデータを読みに行く（読めたら表示を作り直す）
+			ensureEffData();
 			renderSkillRegistryList();
 			updateSkillCountDisplays();
 			updateCategoryBadges();
@@ -2444,6 +2522,14 @@
 		 */
 		function buildSkillRegistryRows() {
 			const rows = [];
+			// 効率で選ぶ（C-136）：効率の対象（入れている区間の行。並びのデータの順）を、区間の蹄鉄つきで並べる
+			if (targetScopeMode === 'efficiency') {
+				const snap = effSnapshot();
+				effTargets().forEach(t => rows.push({ name: t.name, state: 'eff', tier: effTierOf(t.milli, snap.bounds) }));
+				activeScenarioFactors().forEach(name => rows.push({ name: name, state: 'normal' }));
+				activeAptitudeGenes().forEach(name => rows.push({ name: name, state: 'normal' }));
+				return rows;
+			}
 			const curated = (targetScopeMode === 'curated');
 			EXAM_SKILL_NAMES.forEach(name => {
 				if (curated && CURATED_EXCLUDED_ID_SET.has(examSkillId(name))) {
@@ -2473,6 +2559,8 @@
 			const kinds = new Set();
 			let hasAdded = false, hasRemoved = false;
 			rows.forEach(row => {
+				// 効率の対象の行は蹄鉄で示す（凡例は置かない。区間の意味はバーと同じ並び。恒久ルール26）
+				if (row.state === 'eff') return;
 				const kind = skillMarkKind(row.name);
 				if (kind && SCREEN_MARK[kind]) kinds.add(kind);
 				if (row.state === 'scopeAdded') hasAdded = true;
@@ -2496,10 +2584,12 @@
 			const box = document.getElementById('skill-registry-list');
 			box.innerHTML = rows.map(row => {
 				const skill = row.name;
-				const m = SCREEN_MARK[skillMarkKind(skill)];
-				const mark = m
-					? screenMarkHtml(m, m.listTitle)
-					: '<span class="inline-block w-3"></span>';
+				const m = row.state === 'eff' ? null : SCREEN_MARK[skillMarkKind(skill)];
+				const mark = row.state === 'eff'
+					? '<img class="eff-mini" src="' + EFF_TIER_ICON_SRCS[row.tier] + '" alt="" />'
+					: m
+						? screenMarkHtml(m, m.listTitle)
+						: '<span class="inline-block w-3"></span>';
 				let nameClass = '', title = '';
 				if (row.state === 'scopeAdded') { nameClass = ' class="registry-added"'; title = ' title="「対象を広げる」で足したスキル"'; }
 				else if (row.state === 'scopeRemoved') { nameClass = ' class="registry-removed"'; title = ' title="「対象を絞る」で対象から外したスキル"'; }
@@ -2530,12 +2620,17 @@
 
 		function updateSkillCountDisplays() {
 			const total = skillOnlyList.length;
+			// 「効率で選ぶ」のときは、一覧と①のタブのバッジは効率の対象の数（C-136）。
+			// 「スキル名のコピー」の全種は133種の並びのまま（判定結果の表と同じ）なので total のまま
+			const shown = (targetScopeMode === 'efficiency')
+				? (effData ? String(effTargets().length) : (effLoadFailed ? '−' : '…'))
+				: String(total);
 			// 見出しの種数（#header-skill-count）はこの一覧から外した。見出しには
 			// 数を出さない方針にしたため（上のヘッダーのコメント参照）。
-			['registry-skill-count', 'copylist-all133-count'].forEach(id => {
-				const el = document.getElementById(id);
-				if (el) el.textContent = String(total);
-			});
+			const reg = document.getElementById('registry-skill-count');
+			if (reg) reg.textContent = shown;
+			const copyAll = document.getElementById('copylist-all133-count');
+			if (copyAll) copyAll.textContent = String(total);
 			// 一覧と全種の書き出しには**シナリオ因子と遺伝子の行も入る**ので、数は分けて添える
 			// （数だけ「スキル」に寄せて、行が減ったように見えるのを防ぐ）。
 			// **合算せず並記する**（「＋シナリオ因子24種＋遺伝子10種」）。選ぶときに分けているので。
@@ -2549,7 +2644,7 @@
 			// 既定の133種から離れていることが分かるようにする。
 			// 因子の数はここには足さない（「シナリオ因子：N種」のバッジが別に出ている）。
 			const badge = document.getElementById('step1-skill-badge');
-			if (badge) badge.textContent = total + '種' + (isTargetAdjusted() ? '（調整あり）' : '');
+			if (badge) badge.textContent = shown + '種' + (isTargetAdjusted() ? '（調整あり）' : '');
 		}
 
 		function updateCategoryBadges() {
@@ -2647,6 +2742,14 @@
 				const count = document.getElementById('scope-count-' + mode);
 				if (count) count.textContent = String(scopeBaseNames(mode).length);
 			});
+			// 効率で選ぶ：区間で対象にしている数（データを読めるまでは「…」、読めなければ「−」）。
+			// 選んでいないときも、前に選んだ区間のままの数を出す
+			const effCount = document.getElementById('scope-count-efficiency');
+			if (effCount) {
+				effCount.textContent = effData
+					? String(effTargets({ bounds: effBounds, tiers: effTiers }).length)
+					: (effLoadFailed ? '−' : '…');
+			}
 			renderScopeDetail();
 			renderScenarioFactorToggle();
 			renderAptitudeGeneToggle();
@@ -2682,6 +2785,8 @@
 			} else {
 				box.innerHTML = '「対象を広げる」「対象を絞る」に触れると、足す／外すスキル名をここに表示します。';
 			}
+			// 「効率で選ぶ」を選んでいる間は、この欄の代わりに区切りのバーを出す（C-136）
+			renderEffPanel();
 		}
 
 		/* ------------------------------------------------------------
@@ -2810,6 +2915,7 @@
 			scopeDetailPreview = null;
 			saveTargetScope();
 			refreshAfterTargetChange();
+			ensureEffData();
 		}
 
 		// 軸1・軸2・軸3が変わったときに、影響するすべての表示をまとめて更新する。
@@ -2817,7 +2923,8 @@
 		// 照合そのものはやり直さないと新しい対象に対する結果にならない。
 		// 表は次の判定まで前のままになるので、結果が出ている状態で切り替えたときだけ
 		// 「もう一度判定する」と知らせる。
-		function refreshAfterTargetChange() {
+		// opts.quiet … 「もう一度判定してください」を出さない（効率のデータを読み終えて表示を作り直すときなど）
+		function refreshAfterTargetChange(opts) {
 			rebuildSkillList();
 			renderTargetScopeControls();
 			renderSkillRegistryList();
@@ -2829,7 +2936,9 @@
 			// 「結合画像の表示」の「シナリオ因子・遺伝子」のチェックは、どちらも1件も選んでいなければ灰色にする
 			syncStitchShowUi();
 			if (window.lucide) lucide.createIcons();
-			if (activePersonIndexes().length > 0) {
+			// 範囲・区間を変えたら、結果画像の「画像を更新」は OCR からやり直す扱いになる（stitchRefreshState）
+			updateStitchRefreshUi();
+			if (activePersonIndexes().length > 0 && !(opts && opts.quiet)) {
 				showToast('対象スキルを変えました。今の結果に反映するには、もう一度判定してください');
 			}
 		}
@@ -3377,6 +3486,18 @@
 					showToast('めろっぷ用のデータを読み込めなかったため、拡張モードなしで判定します');
 				}
 			}
+			// 効率で選ぶ（C-136）。照合は拡張モードの辞書で行うので、並びのデータと効率のデータを読む。
+			// 押した時点でまだ読めていなければ、ここで読んで今の境目と区間で控える。読めなければ効率なしで判定する
+			if (run.scope === 'efficiency') {
+				try {
+					await loadEffData();
+					if (!run.eff) run.eff = effSnapshot();
+				} catch (err) {
+					console.warn('効率のデータを読み込めませんでした', err);
+					run.eff = null;
+					showToast('効率のデータを読み込めなかったため、効率なしで判定します');
+				}
+			}
 
 			try {
 				setProgress(0, 'OCRエンジンを初期化中…');
@@ -3406,8 +3527,9 @@
 					// 結果画像の印を焼くのに使う（判定・集計には一切関わらない）
 					personLines[p] = result.lines;
 					personGeometry[p] = result.geometry;
-					// めろっぷ！【LTC】専用拡張モード（C-101）。上の判定の結果には触らず、別に持つ
-					if (run.melop) {
+					// めろっぷ！【LTC】専用拡張モード（C-101）。上の判定の結果には触らず、別に持つ。
+					// 効率で選ぶ（C-136）も同じ照合（564行の辞書・いちばん上の段）を使う
+					if (run.melop || run.eff) {
 						const top = await readMelopTopRow(worker, files, melopSheet);
 						personMelop[p] = { top: top, res: matchMelopLines(result.lines.concat(top.extraLines), melopSheet) };
 						devGeometry.push('【めろっぷ ' + PERSON_LABELS[p] + '】' + (top.found
@@ -4576,6 +4698,335 @@
 			legacy();
 		}
 
+		/* ============================================================
+		 * 効率で選ぶ（βテスト・C-136）
+		 *
+		 * 「対象スキルの範囲」の4つ目の選択肢（内部の値は 'efficiency'）。データは data/skill-efficiency.json
+		 * （独自ID か名前 → 評価点・消費スキルPt・効率）。対象は、拡張モードの並び（data/melop-sheet-rows.json）の行のうち
+		 * 効率を持つもの（レース因子と効率0の行はデータに無い）。**名前はここに書かない**（恒久ルール1）。
+		 *
+		 * - 効率は千分率の整数で扱う（3.945 → 3945）。区間の判定・境目の移動・保存の丸めで端数がぶれないように。
+		 * - 区間は4つ（0＝銅・1＝銀・2＝金・3＝虹）。判定は下限を含み上限を含まない。最後の区間だけ上限も含む。
+		 * - 最小・最大はデータから出す（数値をコードに書かない）。初期の境目は最小〜最大の等分。
+		 * - 照合は常に拡張モードの辞書（matchMelopLines）で行い、範囲・区間の切り替えは結果を絞るのにだけ使う
+		 *   （範囲内の名前だけで照合すると、範囲外のスキルが字面の近い名前に化けるため）。
+		 * - 判定結果の表と「★の数をコピー」は、既定の133種の並びのまま（scopeBaseNames('efficiency') は133種を返す）。
+		 * ============================================================ */
+		const EFF_DATA_PATH = 'data/skill-efficiency.json';
+		const EFF_BOUNDS_STORAGE_KEY = 'uma-exam-eff-bounds';
+		const EFF_TIERS_STORAGE_KEY = 'uma-exam-eff-tiers';
+		const EFF_TIER_COUNT = 4;
+		const EFF_STEP = 10;        // ←→ の1回（0.01）
+		const EFF_STEP_BIG = 100;   // Shift＋←→（0.1）
+		const EFF_MIN_GAP = 50;     // つまみどうし・つまみと両端の最小の間隔（0.05）
+		const EFF_ICON_PX = 32;     // 区切りのバーの蹄鉄の大きさ（区間が狭いときは縮める）
+		const EFF_ICON_MIN_PX = 14; // これより小さくなるなら出さない
+		// 読み上げ用の区間の呼び名（画面には出さない）
+		const EFF_TIER_LABELS = ['銅', '銀', '金', '虹'];
+		let effData = null;          // prepareEffData() の戻り値
+		let effLoadPromise = null;
+		let effLoadFailed = false;
+		let effBounds = null;        // [境目1, 境目2, 境目3]（千分率）。データを読めるまで null
+		let effTiers = [true, true, true, true];
+
+		function effFormat(milli) {
+			return (milli / 1000).toFixed(3);
+		}
+
+		/* 読み込んだデータを、並びのデータの行に結び付ける。
+		   targets … 対象になり得る行（並びのデータの順）。{ row, name, id, unique, column, milli }
+		   milliByRow … 行番号 → 効率（千分率） */
+		function prepareEffData(json, sheet) {
+			const byId = new Map(), byName = new Map();
+			((json && json.entries) || []).forEach(e => {
+				const milli = Math.round(Number(e.efficiency) * 1000);
+				if (!(milli > 0)) return;
+				if (e.skillId !== undefined) byId.set(String(e.skillId), milli);
+				else if (e.name) byName.set(String(e.name), milli);
+			});
+			const milliByRow = new Map();
+			const targets = [];
+			sheet.rows.forEach(r => {
+				const milli = (r.id !== undefined) ? byId.get(String(r.id)) : byName.get(r.name);
+				if (milli === undefined) return;
+				milliByRow.set(r.row, milli);
+				targets.push({ row: r.row, name: r.name, id: r.id || null, unique: r.slot === 'unique', column: r.column, milli: milli });
+			});
+			const ms = targets.map(t => t.milli);
+			return { dataVersion: json && json.dataVersion, targets: targets, milliByRow: milliByRow,
+				min: Math.min.apply(null, ms), max: Math.max.apply(null, ms) };
+		}
+
+		async function loadEffData() {
+			if (effData) return effData;
+			if (!effLoadPromise) {
+				effLoadPromise = (async () => {
+					const sheet = await loadMelopSheet();
+					const v = EXAM_DATA_JSON_VERSIONS[EFF_DATA_PATH];
+					const res = await fetch(EFF_DATA_PATH + (v ? '?v=' + encodeURIComponent(v) : ''));
+					if (!res.ok) throw new Error('HTTP ' + res.status);
+					const d = prepareEffData(await res.json(), sheet);
+					if (d.targets.length === 0) throw new Error('対象が0件');
+					effData = d;
+					restoreEffSettings();
+					return effData;
+				})();
+				effLoadPromise.catch(() => { effLoadPromise = null; });
+			}
+			return effLoadPromise;
+		}
+
+		// 「効率で選ぶ」を選んでいるときだけ、データを読みに行く（読めたら表示を作り直す）
+		function ensureEffData() {
+			if (effData || effLoadFailed || targetScopeMode !== 'efficiency') return;
+			loadEffData().then(() => refreshAfterTargetChange({ quiet: true })).catch(err => {
+				console.warn('効率のデータを読み込めませんでした', err);
+				effLoadFailed = true;
+				renderTargetScopeControls();
+				showToast('効率のデータを読み込めませんでした');
+			});
+		}
+
+		// 初期の境目＝最小〜最大の等分（小数第3位＝千分率の整数に丸める）
+		function defaultEffBounds(d) {
+			return [1, 2, 3].map(k => Math.round(d.min + (d.max - d.min) * k / EFF_TIER_COUNT));
+		}
+
+		/* 保存値の境目を「昇順・最小の間隔0.05・データの最小〜最大の内側」に直す。直せない形なら null（呼び出し側が初期値にする）。
+		   **何度かけても結果が変わらない**（直した値をもう一度通しても同じ。恒久ルール28）。保存値そのものは書き換えない。 */
+		function normalizeEffBounds(raw, d) {
+			if (!Array.isArray(raw) || raw.length !== 3) return null;
+			const b = raw.map(v => (typeof v === 'number' ? Math.round(v * 1000) : NaN));
+			if (!b.every(Number.isFinite)) return null;
+			b.sort((x, y) => x - y);
+			const lo = d.min + EFF_MIN_GAP, hi = d.max - EFF_MIN_GAP;
+			b[0] = Math.max(b[0], lo);
+			for (let i = 1; i < 3; i++) b[i] = Math.max(b[i], b[i - 1] + EFF_MIN_GAP);
+			b[2] = Math.min(b[2], hi);
+			for (let i = 1; i >= 0; i--) b[i] = Math.min(b[i], b[i + 1] - EFF_MIN_GAP);
+			return b[0] >= lo ? b : null;
+		}
+
+		function restoreEffSettings() {
+			let raw = null;
+			try { raw = JSON.parse(localStorage.getItem(EFF_BOUNDS_STORAGE_KEY)); } catch (e) { raw = null; }
+			effBounds = normalizeEffBounds(raw, effData) || defaultEffBounds(effData);
+			let t = null;
+			try { t = JSON.parse(localStorage.getItem(EFF_TIERS_STORAGE_KEY)); } catch (e) { t = null; }
+			// 4つの真偽値で、1つ以上が入っているときだけ使う（全部外した形は読まない）
+			effTiers = (Array.isArray(t) && t.length === EFF_TIER_COUNT && t.every(v => typeof v === 'boolean') && t.some(Boolean))
+				? t.slice() : [true, true, true, true];
+		}
+
+		// 保存は利用者が動かしたときだけ（読んだときに直した値は書き戻さない）
+		function saveEffSettings() {
+			try {
+				localStorage.setItem(EFF_BOUNDS_STORAGE_KEY, JSON.stringify(effBounds.map(m => m / 1000)));
+				localStorage.setItem(EFF_TIERS_STORAGE_KEY, JSON.stringify(effTiers));
+			} catch (e) {}
+		}
+
+		// 区間の番号（0〜3）。下限を含み上限を含まない。最後の区間だけ上限（データの最大）も含む
+		function effTierOf(milli, bounds) {
+			return milli < bounds[0] ? 0 : milli < bounds[1] ? 1 : milli < bounds[2] ? 2 : 3;
+		}
+
+		// 押した時点の境目と区間の切り替え（captureRun が控える）。新モードでないか、データが無ければ null
+		function effSnapshot() {
+			if (targetScopeMode !== 'efficiency' || !effData || !effBounds) return null;
+			return { bounds: effBounds.slice(), tiers: effTiers.slice() };
+		}
+
+		// 対象（入れている区間の行）。snap を省けば（undefined）今の画面の値。null なら対象なし
+		function effTargets(snap) {
+			const s = (snap === undefined) ? effSnapshot() : snap;
+			if (!s || !effData) return [];
+			return effData.targets.filter(t => s.tiers[effTierOf(t.milli, s.bounds)]);
+		}
+
+		/* その人の列で検出した対象（1種1回）。拡張モードの照合の結果（personMelop）から作る。
+		   継承固有は、いちばん上の段が読めていれば、その人の列の行を足す。
+		   戻り値: [{ row, name, id, milli, tier, stars, unique, dictName }] ／ 作れなければ null */
+		function effPersonItems(personIdx, run) {
+			const snap = run ? run.eff : effSnapshot();
+			const m = personMelop[personIdx];
+			if (!snap || !effData || !melopSheet || !m) return null;
+			const items = [];
+			m.res.detectedSkills.forEach(dictName => {
+				const row = melopSheet.rowByDictName[dictName];
+				if (!row) return;
+				const milli = effData.milliByRow.get(row.row);
+				if (milli === undefined) return;
+				const tier = effTierOf(milli, snap.bounds);
+				if (!snap.tiers[tier]) return;
+				items.push({ row: row.row, name: row.name, id: row.id || null, milli: milli, tier: tier,
+					stars: m.res.skillStars[dictName], unique: false, dictName: dictName });
+			});
+			if (m.top && m.top.found) {
+				const ur = melopSheet.uniqueRows.find(r => r.column === personIdx % 3);
+				const milli = ur ? effData.milliByRow.get(ur.row) : undefined;
+				if (milli !== undefined) {
+					const tier = effTierOf(milli, snap.bounds);
+					if (snap.tiers[tier]) items.push({ row: ur.row, name: ur.name, id: null, milli: milli, tier: tier,
+						stars: m.top.uniqueStars, unique: true, dictName: null });
+				}
+			}
+			return items;
+		}
+
+		/* ---------- 区切りのバー ---------- */
+		function renderEffPanel() {
+			const panel = document.getElementById('eff-panel');
+			const detail = document.getElementById('scope-detail');
+			if (!panel) return;
+			const show = (targetScopeMode === 'efficiency');
+			panel.hidden = !show;
+			if (detail) detail.hidden = show;
+			if (!show) return;
+			if (!effData) {
+				panel.removeAttribute('data-built');
+				panel.innerHTML = effLoadFailed ? '<p class="eff-msg">効率のデータを読み込めませんでした</p>' : '';
+				return;
+			}
+			// 作りは1度だけ（作り直すと、キーボードで動かしている最中のつまみから焦点が外れる）。以後は位置と状態だけ直す
+			if (panel.getAttribute('data-built') !== String(effData.dataVersion)) {
+				let html = '<div class="eff-bar" id="eff-bar">';
+				for (let k = 0; k < EFF_TIER_COUNT; k++) {
+					html += '<button type="button" class="eff-seg eff-seg--' + k + '" data-tier="' + k + '" onclick="toggleEffTier(' + k + ')">'
+						+ '<img src="' + EFF_TIER_ICON_SRCS[k] + '" alt="" draggable="false" /></button>';
+				}
+				for (let i = 0; i < 3; i++) {
+					html += '<div class="eff-thumb" role="slider" tabindex="0" data-idx="' + i + '" aria-label="' + (i + 1) + 'つ目の境目"></div>';
+				}
+				html += '</div><div class="eff-scale" id="eff-scale">'
+					+ '<span class="eff-val eff-val--min" data-val="min"></span>'
+					+ [0, 1, 2].map(i => '<span class="eff-val" data-val="' + i + '"></span>').join('')
+					+ '<span class="eff-val eff-val--max" data-val="max"></span></div>';
+				panel.innerHTML = html;
+				panel.setAttribute('data-built', String(effData.dataVersion));
+				bindEffPanel(panel);
+			}
+			layoutEffPanel();
+		}
+
+		// 位置・値・押した状態・蹄鉄の大きさ・値の重なりを、今の境目に合わせる（作り直さない）
+		function layoutEffPanel() {
+			const panel = document.getElementById('eff-panel');
+			if (!panel || panel.hidden || !effData || !effBounds) return;
+			const d = effData, b = effBounds, span = d.max - d.min;
+			const pct = (m) => ((m - d.min) / span * 100);
+			const edges = [d.min].concat(b, [d.max]);
+			panel.querySelectorAll('.eff-seg').forEach(seg => {
+				const k = Number(seg.getAttribute('data-tier'));
+				seg.style.left = pct(edges[k]) + '%';
+				seg.style.width = (pct(edges[k + 1]) - pct(edges[k])) + '%';
+				seg.setAttribute('aria-pressed', effTiers[k] ? 'true' : 'false');
+				seg.setAttribute('aria-label', EFF_TIER_LABELS[k] + '（' + effFormat(edges[k]) + '〜' + effFormat(edges[k + 1]) + '）を対象にする');
+			});
+			panel.querySelectorAll('.eff-thumb').forEach(th => {
+				const i = Number(th.getAttribute('data-idx'));
+				th.style.left = pct(b[i]) + '%';
+				th.setAttribute('aria-valuemin', effFormat(d.min));
+				th.setAttribute('aria-valuemax', effFormat(d.max));
+				th.setAttribute('aria-valuenow', effFormat(b[i]));
+				th.setAttribute('aria-valuetext', effFormat(b[i]));
+			});
+			const vals = panel.querySelectorAll('.eff-val');
+			vals.forEach(el => {
+				const key = el.getAttribute('data-val');
+				if (key === 'min') { el.textContent = effFormat(d.min); el.style.left = '0%'; }
+				else if (key === 'max') { el.textContent = effFormat(d.max); el.style.left = '100%'; }
+				else { const i = Number(key); el.textContent = effFormat(b[i]); el.style.left = pct(b[i]) + '%'; }
+				el.style.top = '0px';
+			});
+			// 区間が狭いときは蹄鉄を縮める（さらに狭ければ出さない）
+			panel.querySelectorAll('.eff-seg').forEach(seg => {
+				const img = seg.querySelector('img');
+				const w = seg.getBoundingClientRect().width;
+				const size = Math.min(EFF_ICON_PX, Math.floor(w - 6));
+				img.style.display = size >= EFF_ICON_MIN_PX ? '' : 'none';
+				img.style.width = img.style.height = Math.max(size, 0) + 'px';
+			});
+			// 隣の値と重なるものは下の段へずらす（左から順に、重ならない最初の段へ。両端の値も含める）。
+			// つまみを寄せ切ると4つの値が重なり得るので、段の数は決め打ちしない
+			const scale = panel.querySelector('.eff-scale');
+			const LINE = 16;
+			const rowRights = [];
+			const order = ['min', '0', '1', '2', 'max'].map(k => panel.querySelector('.eff-val[data-val="' + k + '"]'));
+			order.forEach(el => {
+				const r = el.getBoundingClientRect();
+				if (r.width === 0) return;
+				let row = rowRights.findIndex(right => r.left >= right + 4);
+				if (row === -1) { row = rowRights.length; rowRights.push(-Infinity); }
+				rowRights[row] = r.right;
+				el.style.top = (row * LINE) + 'px';
+			});
+			if (scale) scale.style.height = (Math.max(1, rowRights.length) * LINE) + 'px';
+		}
+
+		function bindEffPanel(panel) {
+			const bar = panel.querySelector('.eff-bar');
+			panel.querySelectorAll('.eff-thumb').forEach(th => {
+				const i = Number(th.getAttribute('data-idx'));
+				let moved = false;
+				th.addEventListener('pointerdown', (e) => {
+					if (e.pointerType === 'mouse' && e.button !== 0) return;
+					e.preventDefault();
+					try { th.setPointerCapture(e.pointerId); } catch (err) {}
+					th.focus();
+					moved = false;
+				});
+				th.addEventListener('pointermove', (e) => {
+					if (!th.hasPointerCapture || !th.hasPointerCapture(e.pointerId)) return;
+					const r = bar.getBoundingClientRect();
+					if (!(r.width > 0)) return;
+					const frac = (e.clientX - r.left) / r.width;
+					const v = Math.round((effData.min + frac * (effData.max - effData.min)) / EFF_STEP) * EFF_STEP;
+					if (setEffBound(i, v)) moved = true;
+				});
+				const end = (e) => {
+					try { if (th.hasPointerCapture(e.pointerId)) th.releasePointerCapture(e.pointerId); } catch (err) {}
+					if (moved) { moved = false; saveEffSettings(); refreshAfterTargetChange(); }
+				};
+				th.addEventListener('pointerup', end);
+				th.addEventListener('pointercancel', end);
+				th.addEventListener('keydown', (e) => {
+					const dir = (e.key === 'ArrowRight' || e.key === 'ArrowUp') ? 1 : (e.key === 'ArrowLeft' || e.key === 'ArrowDown') ? -1 : 0;
+					if (!dir) return;
+					e.preventDefault();
+					if (setEffBound(i, effBounds[i] + dir * (e.shiftKey ? EFF_STEP_BIG : EFF_STEP))) {
+						saveEffSettings();
+						refreshAfterTargetChange();
+					}
+				});
+			});
+			// 見えるようになったとき・幅が変わったときに、蹄鉄の大きさと値の重なりを測り直す
+			if (window.ResizeObserver) new ResizeObserver(() => layoutEffPanel()).observe(bar);
+		}
+
+		// i 番目の境目を v へ（隣と両端から 0.05 以上離す）。動いたら true。保存と表示の更新は呼び出し側
+		function setEffBound(i, v) {
+			const lo = (i === 0 ? effData.min : effBounds[i - 1]) + EFF_MIN_GAP;
+			const hi = (i === 2 ? effData.max : effBounds[i + 1]) - EFF_MIN_GAP;
+			const nv = Math.min(hi, Math.max(lo, Math.round(v)));
+			if (nv === effBounds[i]) return false;
+			effBounds[i] = nv;
+			layoutEffPanel();
+			return true;
+		}
+
+		// 区間を押すと、対象に入れる／外すが切り替わる。全部は外せない（対象が0種になるため）
+		function toggleEffTier(k) {
+			if (!effData) return;
+			if (effTiers[k] && effTiers.filter(Boolean).length === 1) {
+				showToast('少なくとも1つの区間は対象にしてください');
+				return;
+			}
+			effTiers[k] = !effTiers[k];
+			saveEffSettings();
+			refreshAfterTargetChange();
+		}
+
 		function copyDevLog() {
 			const text = document.getElementById('dev-log').textContent;
 			if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -4728,7 +5179,9 @@
 				geneOnlyList: geneOnlyList,
 				skillIndex: skillIndex,
 				// めろっぷ！【LTC】専用拡張モード（C-101）。押した時点の状態で決める
-				melop: melopModeEnabled
+				melop: melopModeEnabled,
+				// 効率で選ぶ（C-136）。押した時点の境目と区間の切り替え。新モードでない・データがまだ無いときは null
+				eff: effSnapshot()
 			};
 		}
 		// 最後に OCR を回したときの run。personResults / personLines / personGeometry はこれに対応する。
@@ -4778,7 +5231,9 @@
 				cur.scope !== lastOcrRun.scope ||
 				!sameFactorSets(cur.factors, lastOcrRun.factors) ||
 				cur.countMode !== lastOcrRun.countMode ||
-				cur.setB !== lastOcrRun.setB) return 'stale';
+				cur.setB !== lastOcrRun.setB ||
+				// 効率で選ぶ（C-136）：境目・区間の切り替えが変わったら OCR からやり直す
+				JSON.stringify(cur.eff) !== JSON.stringify(lastOcrRun.eff)) return 'stale';
 			const now = stitchShowEffective(cur);
 			const shown = stitchShowEffective(lastStitchRun);
 			const same = now.banner === shown.banner && now.scenario === shown.scenario && now.legend === shown.legend &&
@@ -6531,7 +6986,30 @@
 			const used = activePersonIndexes();
 			if (used.length === 0 || skillList.length === 0) return;
 
+			// 効率で選ぶ（C-136）で判定したときは、効率の対象（拡張モードの辞書で照合したもの）＋シナリオ因子・遺伝子を渡す。
+			// 独自IDの無い行（継承固有）は Deck で引けないので黙って除く
+			const effRun = (lastOcrRun && lastOcrRun.scope === 'efficiency' && lastOcrRun.eff && effData && melopSheet) ? lastOcrRun : null;
+			const effNames = effRun ? effTargets(effRun.eff).filter(t => t.id).map(t => t.name) : null;
+			const extraNames = effRun ? effRun.factorOnlyList.concat(effRun.geneOnlyList) : null;
+			const handoffNames = effRun ? effNames.concat(extraNames) : skillList;
+
 			const persons = used.map(i => {
+				if (effRun) {
+					const stars = {};
+					const unknownStars = [];
+					(effPersonItems(i, effRun) || []).forEach(it => {
+						if (!it.id) return;
+						if (it.stars === null || it.stars === undefined || it.stars === 0) unknownStars.push(it.name);
+						else stars[it.name] = it.stars;
+					});
+					extraNames.forEach(name => {
+						const v = starsFor(i, name);
+						if (v === undefined) return;
+						if (v === null) { unknownStars.push(name); return; }
+						stars[name] = v;
+					});
+					return { index: i, label: PERSON_LABELS[i], stars: stars, unknownStars: unknownStars };
+				}
 				const stars = {};
 				const unknownStars = [];
 				skillList.forEach(name => {
@@ -6549,7 +7027,7 @@
 				createdAt: new Date().toISOString(),
 				source: 'exam',
 				scope: { kind: 'manual', id: '', name: handoffScopeName() },
-				skillNames: skillList.slice(),
+				skillNames: handoffNames.slice(),
 				persons: persons
 			};
 			try {
