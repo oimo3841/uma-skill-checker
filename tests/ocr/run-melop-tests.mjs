@@ -8,12 +8,12 @@
 //
 // いちばん上の段（青因子・赤因子・固有・固有の右隣）は、いつもの読み取り（detectSkillRows の listTop より下）
 // では読まない。拡張モードのときだけ exam.html の readMelopTopRow() が別に読む。その関数を**そのまま**呼ぶ
-// （ロジックは複製しない）。右隣の名前は matchMelopLines()（562行の名前の辞書での照合）で決める。
+// （ロジックは複製しない）。右隣の名前は matchMelopLines()（564行の名前の辞書での照合）で決める。
 //
 // 期待値は各ケースの test-images/<ケース>/expect.json の melopTop（書き方は test-images/README.md）:
 //   { "blue": ["<名前>", ★], "red": ["<名前>", ★], "unique": ★, "right": ["<名前>", ★] }
 // 任意で melopRows（C-101 の追記）: { "<シートの行番号>": ★ か "?" か null } ―― いつもの OCR の行まで読んで
-//   562行の照合を通し、その行の値を見る（null はその行が空欄であること。例: マイルCS南部杯の★がマイルCS の行に入らない）。
+//   564行の照合を通し、その行の値を見る（null はその行が空欄であること。例: マイルCS南部杯の★がマイルCS の行に入らない）。
 // **期待値の無いケースは合格にしない**（[期待値なし] と出す）。照合できたケースが0件なら NG。
 // ケース名・スキル名はこのファイルに書かない（test:stitch の expect.json と同じ考え方）。
 //
@@ -83,7 +83,7 @@ async function runInPage({ files, rowsWanted }) {
 		const top = await readMelopTopRow(worker, fileObjs, sheet);
 		const res = matchMelopLines(top.extraLines, sheet);
 		const right = Array.from(res.detectedSkills).map((n) => ({ name: sheet.rowByDictName[n].name, stars: res.skillStars[n] }));
-		// melopRows があるケースだけ、いつもの OCR の行も読んで 562行の照合まで通す（exam の processImages と同じ組み立て）
+		// melopRows があるケースだけ、いつもの OCR の行も読んで 564行の照合まで通す（exam の processImages と同じ組み立て）
 		let rows = null;
 		if (rowsWanted) {
 			const ocr = await processPersonImages(worker, fileObjs, 'melop', true, true, false);
@@ -146,7 +146,7 @@ for (const c of cases) {
 	if (c.rows) {
 		for (const [row, want] of Object.entries(c.rows)) {
 			const g = r.rows[row] === undefined ? null : r.rows[row];
-			checks.push([row + '行目（562行の照合）', g, want]);
+			checks.push([row + '行目（564行の照合）', g, want]);
 		}
 	}
 	const ng = checks.filter(([, g, w]) => g !== w);

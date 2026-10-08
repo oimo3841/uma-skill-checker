@@ -4110,8 +4110,8 @@
 		 * めろっぷ！【LTC】専用拡張モード（βテスト・C-101）
 		 *
 		 * めろっぷ！【LTC】さんのブック「因子入力等（因子管理シート）」は、★の数を
-		 * H38:J599（562行 × H＝親／I＝祖1／J＝祖2）に貼ると、G列で継承の可能性を計算する。
-		 * このモードでは、判定の結果からその欄へそのまま貼れるデータ（562行 × 3列・タブ区切り）を
+		 * H38:J601（564行 × H＝親／I＝祖1／J＝祖2。2026-10-08 に562行から増えた）に貼ると、G列で継承の可能性を計算する。
+		 * このモードでは、判定の結果からその欄へそのまま貼れるデータ（564行 × 3列・タブ区切り）を
 		 * 親Aセット・親Bセットごとに作る（1つの因子の欄は3列で、6列まとめて貼ると
 		 * あいだの式を上書きするため、セットごとに分ける）。
 		 *
@@ -4124,7 +4124,7 @@
 		 * - 青因子・赤因子・固有は画面のいちばん上の段にあり、いつもの読み取り（detectSkillRows の
 		 *   listTop より下）では読まない。**このモードのときだけ** readMelopTopRow() が別に読む。
 		 *   固有の右隣の1枠（同じ理由で読まれていなかった）もここで読み、下の照合に混ぜる。
-		 * - 照合はいつもの判定（personResults）とは別に、562行の名前の辞書でもう一度行う
+		 * - 照合はいつもの判定（personResults）とは別に、564行の名前の辞書でもう一度行う
 		 *   （matchMelopLines）。**いつもの判定・表示・「★の数をコピー」には一切触らない。**
 		 * - **モードが切れて判定したときは、読み取り・照合・出力の関数は1つも呼ばれない**（processImages の中の
 		 *   run.melop の分岐だけが入口）。呼ばれるのはボタンを隠したままにする renderMelopCopyButtons() だけ。
@@ -4132,7 +4132,7 @@
 		 * ============================================================ */
 		// data/ のうち exam.html だけが読むものの版（dataVersion と揃える。test:verify §1 が見る）
 		const EXAM_DATA_JSON_VERSIONS = {
-			'data/melop-sheet-rows.json': '2026-09-27a'
+			'data/melop-sheet-rows.json': '2026-10-09a'
 		};
 		const MELOP_SHEET_PATH = 'data/melop-sheet-rows.json';
 		const MELOP_MODE_STORAGE_KEY = 'uma-exam-melop-mode';
@@ -4249,7 +4249,7 @@
 			return melopSheet;
 		}
 
-		/* 562行の名前でもう一度照合する。シナリオ因子と遺伝子は、いつもの判定と同じ絞り込みを
+		/* 564行の名前でもう一度照合する。シナリオ因子と遺伝子は、いつもの判定と同じ絞り込みを
 		   24種・10種すべてを相手に掛ける（選択には関係なく。シートには全部の行がある）。 */
 		const MELOP_ALL_FACTORS = new Set(SCENARIO_INHERITANCE_FACTORS);
 		const MELOP_ALL_GENES = new Set(APTITUDE_GENES);
@@ -4476,7 +4476,7 @@
 		}
 
 		/* ------------------------------------------------------------
-		 * 出力（562行 × 3列）
+		 * 出力（564行 × 3列）
 		 * ------------------------------------------------------------ */
 		function melopStarText(stars) {
 			return (stars === null || stars === undefined || stars === 0) ? '?' : String(stars);
@@ -4505,7 +4505,7 @@
 			return out;
 		}
 
-		// セット（0＝親A・1＝親B）の貼り付け用の文字列。562行 × 3列（親・祖1・祖2）のタブ区切り。
+		// セット（0＝親A・1＝親B）の貼り付け用の文字列。564行 × 3列（親・祖1・祖2）のタブ区切り。
 		function buildMelopCopyText(setIdx, sheet) {
 			const cols = [0, 1, 2].map(k => melopPersonValues(setIdx * 3 + k, sheet));
 			return sheet.rows.map(r => cols.map(c => (c[r.row] !== undefined ? c[r.row] : '')).join('\t')).join('\n');

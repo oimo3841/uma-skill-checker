@@ -154,7 +154,7 @@ const RECOMMENDED_GROUP_KEYS = { need: ['key', 'label', 'skills'], opt: [] };
 const RECOMMENDED_SKILL_KEYS = { need: ['skillId', 'name'], opt: ['onlyWhenRaceDistanceClass'] };
 const RECOMMENDED_CATEGORY_NAME = 'recommendedSkills';
 /* めろっぷ用の行の並び（data/melop-sheet-rows.json。C-101）。めろっぷ！【LTC】さんの因子管理シートの
-   ★を貼る欄（H38:J599）の行の並び。`entries` を持たないので FILES には入れず、§9 で見る。
+   ★を貼る欄（H38:J601。2026-10-08 に H38:J599 から2行増えた）の行の並び。`entries` を持たないので FILES には入れず、§9 で見る。
    行番号の範囲は貼り先の形そのものなので、ここに数字で持つ（シートの欄が変わったら、こことデータを一緒に直す）。 */
 const MELOP_FILE = 'melop-sheet-rows.json';
 const MELOP_TOP_KEYS = { need: ['dataVersion', 'category', 'rows'], opt: ['note'] };
@@ -162,7 +162,7 @@ const MELOP_ROW_KEYS = { need: ['row', 'group', 'name'], opt: ['id', 'slot', 'co
 const MELOP_CATEGORY_NAME = 'melopSheetRows';
 const MELOP_SLOTS = ['blue', 'red', 'unique'];
 const MELOP_FIRST_ROW = 38;
-const MELOP_LAST_ROW = 599;
+const MELOP_LAST_ROW = 601;
 
 const SKILL_REF_KEYS = { need: ['skillId', 'name'], opt: [] };
 /* **サポートカードのイベント（C-102）。** 1回ぶんは { step, choices }。
@@ -959,7 +959,7 @@ console.log('\n=== 8. レースの距離の一覧（' + RACE_FILE + '） ===');
 
 console.log('\n=== 9. めろっぷ用の行の並び（' + MELOP_FILE + '） ===');
 /* exam.html の「めろっぷ！【LTC】専用拡張モード」（C-101）が、★の数をこの順で出す。
-   シート側（★を貼る欄 H38:J599）が更新されたときにずれに気づけるよう、**行数と行番号の並び**を見る
+   シート側（★を貼る欄 H38:J601）が更新されたときにずれに気づけるよう、**行数と行番号の並び**を見る
    （シートの欄の範囲は、貼り先の形そのものなので、ここに数字で持つ。スキル名は書かない）。
    あわせて、独自IDの参照先が実在し、その名前が行の名前と同じもの（〇と○の違い・全角半角だけを揃えて）かを見る。 */
 {
