@@ -4,7 +4,8 @@
 //   遺伝子は64セッション目・段A に新設と同時に追加。
 //   レースの距離の一覧は 2026-09-26・C-97 に新設と同時に追加 ―― `entries` を持たない形なので
 //   FILES のループには入れず、§8 で独自に見る。
-//   めろっぷ用の行の並び（melop-sheet-rows.json）は 2026-09-27・C-101 に新設と同時に追加 ―― 同じく §9）
+//   めろっぷ用の行の並び（melop-sheet-rows.json）は 2026-09-27・C-101 に新設と同時に追加 ―― 同じく §9。
+//   スキルの効率（skill-efficiency.json）は 2026-10-09・C-136 に新設と同時に追加 ―― §14）
 //
 //   npm run check:catalog        … 単体で回す
 //   npm run test:verify          … 納品前チェックの §10 からも呼ばれる
@@ -1199,6 +1200,104 @@ console.log('\n=== 13. ②にまとめて追加するスキルのグループ（
 		none(dup, RECOMMENDED_FILE + ': グループの中で skillId が重ならない');
 		none(order, RECOMMENDED_FILE + ': グループの中の並びが管理ID順（マスターの数字の id の昇順、続けて ex- の id の昇順）');
 		console.log('     ' + groups.length + 'グループ・のべ ' + total + '種（' + groups.map((g) => (g && g.key) + ' ' + ((g && isArr(g.skills)) ? g.skills.length : 0)).join(' / ') + '）');
+	}
+}
+
+/* ──────────────────────── 14. スキルの効率 ──────────────────────── */
+
+/* exam.html の「効率で選ぶ（βテスト）」と結合画像の効率の合計が読む（C-136・2026-10-08）。
+   1行は「独自ID か名前のどちらか一方」＋ 評価点（score）・消費スキルPt（sp）・効率（efficiency）。
+   **持たないもの**（取得元の管理用の番号・区分の名前・「高効率」の印）は、キーの許可リストで弾く
+   （外部データの取得と利用 の項目7・12）。効率は E列ではなく score÷sp を小数第3位に四捨五入した値。 */
+const EFF_FILE = 'skill-efficiency.json';
+const EFF_TOP_KEYS = { need: ['dataVersion', 'category', 'entries'], opt: ['note'] };
+// 独自IDのキーは skillId（skill-pt.json と同じ）。id にすると §3 が「別のカタログの行」とみなして衝突を数える
+const EFF_ROW_KEYS = { need: ['score', 'sp', 'efficiency'], opt: ['skillId', 'name'] };
+const EFF_CATEGORY_NAME = 'skillEfficiency';
+console.log('\n=== 14. スキルの効率（' + EFF_FILE + '） ===');
+{
+	const abs = path.join(REPO_ROOT, DIR, EFF_FILE);
+	// 無ければ見ない（効果量の段階と同じ）。data/ にあることは test:verify §1（exam の版の表と data/ の実ファイルの突き合わせ）が見る。
+	// スモークの「スキルPt ―― check:catalog の §11」は data/ の写しに仮の skill-pt.json を置くので、写しからこのファイルを外す
+	const r = fs.existsSync(abs) ? readJsonFile(abs) : null;
+	if (r === null) console.log('       ' + EFF_FILE + ': 無い（無ければ見ない）');
+	else check(r.ok, EFF_FILE + ' が読める', r.ok ? undefined : r.error);
+	if (r && r.ok) {
+		const doc = r.data;
+		const unknown = [], missing = [], bad = [];
+		checkKeys(doc, EFF_TOP_KEYS, EFF_FILE, unknown, missing);
+		if (doc.category !== EFF_CATEGORY_NAME) bad.push('category が ' + JSON.stringify(doc.category));
+		if (!DATA_VERSION_RE.test(String(doc.dataVersion))) bad.push('dataVersion が「YYYY-MM-DD＋英小文字1字」の形でない: ' + String(doc.dataVersion));
+		const rows = isArr(doc.entries) ? doc.entries : [];
+		if (!isArr(doc.entries) || rows.length === 0) bad.push('entries が空でない配列でない');
+		const recalc = [], notPositive = [];
+		rows.forEach((e, i) => {
+			const w = 'entries[' + i + ']';
+			if (!checkKeys(e, EFF_ROW_KEYS, w, unknown, missing)) return;
+			if ((e.skillId === undefined) === (e.name === undefined)) bad.push(w + ': skillId と name はどちらか一方だけ');
+			if (e.skillId !== undefined && !isStr(e.skillId)) bad.push(w + ': skillId は空でない文字列');
+			if (e.name !== undefined && !isStr(e.name)) bad.push(w + ': name は空でない文字列');
+			if (!isInt(e.score) || !isInt(e.sp)) { bad.push(w + ': score / sp は整数'); return; }
+			if (!(e.score > 0) || !(e.sp > 0) || !(typeof e.efficiency === 'number' && e.efficiency > 0)) { notPositive.push(w); return; }
+			// 千分率の整数で丸める（data を作ったときと同じ式）
+			if (Math.round(e.score * 1000 / e.sp) / 1000 !== e.efficiency) recalc.push(w + ': ' + e.score + '÷' + e.sp + ' → ' + e.efficiency);
+		});
+		none(unknown, EFF_FILE + ' に知らないキーが無い（管理用の番号・区分の名前・「高効率」の印を持たない）');
+		none(missing, EFF_FILE + ' の必須のキーが揃っている');
+		none(bad, EFF_FILE + ' の値が決めた形（skillId か name のどちらか一方・score と sp は整数）');
+		none(notPositive, EFF_FILE + ': 評価点・消費スキルPt・効率がどれも0より大きい（効率0の行を持たない）');
+		none(recalc, EFF_FILE + ': 効率が 評価点÷消費スキルPt を小数第3位に四捨五入した値と一致');
+
+		// 重なり
+		const dup = [];
+		const seen = new Set();
+		rows.forEach((e) => { const k = e.skillId !== undefined ? 'id:' + e.skillId : 'name:' + e.name; if (seen.has(k)) dup.push(k); seen.add(k); });
+		none(dup, EFF_FILE + ': 同じ独自ID・名前の行が2つ無い');
+
+		// 独自IDの実在と、拡張モードの並び（melop-sheet-rows.json）の同じ id の行の名前との一致
+		const nameById = new Map(masterNameById);
+		[docs.extendedSkill, docs.scenarioFactor, docs.geneFactor].forEach((d) => (d.entries || []).forEach((e) => nameById.set(String(e.id), String(e.name))));
+		const melopDoc = readJsonFile(path.join(REPO_ROOT, DIR, MELOP_FILE));
+		const melopRows = (melopDoc.ok && isArr(melopDoc.data.rows)) ? melopDoc.data.rows : [];
+		const melopById = new Map(melopRows.filter((x) => x.id !== undefined).map((x) => [String(x.id), x]));
+		const melopByName = new Map(melopRows.map((x) => [x.name, x]));
+		const loose = (s) => String(s).normalize('NFKC').replace(/〇/g, '○');
+		const noRef = [], noMelop = [], nameDiff = [], nameOnlyBad = [];
+		rows.forEach((e, i) => {
+			const w = 'entries[' + i + ']';
+			if (e.skillId !== undefined) {
+				const id = String(e.skillId);
+				if (!nameById.has(id)) { noRef.push(w + ': ' + id); return; }
+				const m = melopById.get(id);
+				if (!m) { noMelop.push(w + ': ' + id); return; }
+				if (loose(m.name) !== loose(nameById.get(id))) nameDiff.push(w + ': ' + id + ' ' + nameById.get(id) + ' ≠ ' + m.name);
+			} else if (e.name !== undefined) {
+				const m = melopByName.get(e.name);
+				if (!m || m.id !== undefined) nameOnlyBad.push(w + ': ' + e.name);
+			}
+		});
+		none(noRef, EFF_FILE + ': 独自IDの参照先がマスター・拡張スキル・シナリオ因子・遺伝子に実在する');
+		none(noMelop, EFF_FILE + ': 独自IDが ' + MELOP_FILE + ' のどれかの行の id にある（照合の辞書に名前がある）');
+		none(nameDiff, EFF_FILE + ': 独自IDの名前が ' + MELOP_FILE + ' の行の名前と同じ（〇／○・全角半角の違いだけを揃えて比べる）');
+		none(nameOnlyBad, EFF_FILE + ': 独自IDの無い行は、' + MELOP_FILE + ' に同じ名前の行（id を持たない行）がある');
+
+		// 消費スキルPt と skill-pt.json の基礎値（載っているものだけ）
+		const ptDoc = readJsonFile(path.join(REPO_ROOT, DIR, 'skill-pt.json'));
+		const ptById = new Map(((ptDoc.ok && isArr(ptDoc.data.entries)) ? ptDoc.data.entries : []).map((x) => [String(x.skillId), x.pt]));
+		const ptDiff = [];
+		let ptCompared = 0;
+		rows.forEach((e, i) => {
+			if (e.skillId === undefined || !ptById.has(String(e.skillId))) return;
+			ptCompared++;
+			if (ptById.get(String(e.skillId)) !== e.sp) ptDiff.push('entries[' + i + ']: ' + e.skillId + ' sp ' + e.sp + ' ≠ skill-pt ' + ptById.get(String(e.skillId)));
+		});
+		check(ptCompared > 0, EFF_FILE + ': skill-pt.json と突き合わせられる行がある（' + ptCompared + '行）');
+		none(ptDiff, EFF_FILE + ': 消費スキルPt が skill-pt.json の基礎値と一致（skill-pt.json に載っている行）');
+
+		const effs = rows.map((e) => e.efficiency).filter((v) => typeof v === 'number');
+		console.log('     ' + rows.length + '行（独自IDあり ' + rows.filter((e) => e.skillId !== undefined).length + ' / 名前 '
+			+ rows.filter((e) => e.name !== undefined).length + '・skill-pt.json と突き合わせ ' + ptCompared + '行・効率 '
+			+ (effs.length ? Math.min(...effs) + '〜' + Math.max(...effs) : '-') + '）');
 	}
 }
 

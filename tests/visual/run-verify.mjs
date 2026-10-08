@@ -203,6 +203,16 @@ check(JSON.stringify(Object.keys(dataVerTable).sort()) === JSON.stringify(dataFi
 	}
 	check(ng.length === 0, 'DATA_JSON_VERSIONS（＋exam の表）の版が data/ の各 dataVersion と一致（' + Object.keys(dataVerTable).length + '件）', ng);
 }
+// (3) 効率の区間の蹄鉄（C-136・2026-10-08）。画像はファイル名の日付が版（差し替えは新しい名前）。
+//     exam.html が指す名前と img/ の実ファイルが1対1で、4枚そろっている。
+{
+	const referred = [...new Set([...read('exam.html').matchAll(/img\/(horseshoe-[a-z0-9-]+\.png)/g)].map((m) => m[1]))].sort();
+	const onDisk = fs.readdirSync(path.join(REPO_ROOT, 'img')).filter((f) => /^horseshoe-.*\.png$/.test(f)).sort();
+	check(referred.length === 4 && JSON.stringify(referred) === JSON.stringify(onDisk)
+		&& referred.every((f) => /^horseshoe-[1-4]-[a-z]+-\d{4}-\d{2}-\d{2}\.png$/.test(f)),
+		'exam.html が指す蹄鉄の画像4枚が img/ に実在し、img/ に余分な蹄鉄の画像が無い（名前は「horseshoe-番号-色-日付.png」）',
+		{ exam: referred, img: onDisk });
+}
 
 /* --- 凍結中のファイル。不一致でも落とさず、警告として必ず一覧に出す ---
    index.html は C-1 で更新終了・凍結。?v= の更新対象から外れ続けた結果、

@@ -11893,6 +11893,8 @@ await block('スキルPt ―― check:catalog の §11（届いたときの検�
 		fs.cpSync(path.join(REPO_ROOT, 'data'), tmp, { recursive: true });
 		// 効果量の段階（C-129）は skillId が skill-pt.json に全部あることを見るので、仮の skill-pt.json とは合わない。この塊は §11 の Pt の検査だけを見るので外す
 		fs.rmSync(path.join(tmp, 'skill-effect-levels.json'), { force: true });
+		// スキルの効率（C-136）も消費スキルPt を skill-pt.json と突き合わせるので、仮の skill-pt.json とは合わない。同じく外す
+		fs.rmSync(path.join(tmp, 'skill-efficiency.json'), { force: true });
 		Object.entries(files).forEach(([name, doc]) => fs.writeFileSync(path.join(tmp, name), JSON.stringify(doc, null, '\t')));
 		const r = spawnSync(process.execPath, ['tests/catalog/check-catalog.mjs', '--dir=' + path.relative(REPO_ROOT, tmp).split(path.sep).join('/')], { cwd: REPO_ROOT, encoding: 'utf8' });
 		fs.rmSync(tmp, { recursive: true, force: true });
