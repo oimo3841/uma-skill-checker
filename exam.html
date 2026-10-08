@@ -5929,13 +5929,19 @@
 		 *     ★だけを読む行で、結合画像の行の位置が取れないので置かない。
 		 *   - 位置は印と同じ（スキル名 → 根拠の OCR 行 → 元画像の行 → 結合後の座標）。
 		 *     対応を確かめていない画面サイズ・列が2本にならない画像には置かない（印と同じ断り書きを出す）。
-		 *   - 大きさは列と列の間隔の 0.125 倍（〇のへこみの直径 0.1125 倍より少し大きい）。へこみを覆い、スキル名には掛からない
-		 *     （〇の中心からスキル名の左端までは間隔の 0.0708 倍。蹄鉄の半分は 0.0625 倍）。
-		 *     実測（2026-10-09）: DMM版 列の間隔 294px → 36.8px・374px → 46.8px ／ スマホ版 453px → 56.6px・537px → 67.1px。
+		 *   - 大きさは〇のへこみの直径（列の間隔の 0.1125 倍）。それが36px に満たない小さい画面だけ36px まで大きくする
+		 *     （上限は間隔の 0.125 倍。〇の中心からスキル名の左端までは間隔の 0.0708 倍なので、スキル名には掛からない）。
+		 *     実測（2026-10-09）: DMM版 列の間隔 294px → 36.0px・374px → 42.1px ／ スマホ版 453px → 51.0px・537px → 60.4px。
 		 *   - **結合が終わってから焼く**（印と同じ理由）。画像を読めなかったときは何もしない（結合は続ける）。
 		 * 印のON/OFF（「印」のチェック）には従わない ―― 効率で選ぶでは、この蹄鉄がスキル行の区間を示す本体なので常に描く。
 		 * ------------------------------------------------------------ */
-		const EFF_ROW_ICON_OVER_PITCH = 0.125;
+		const EFF_ROW_ICON_OVER_PITCH = 0.125;   // 大きくしてよい上限（列の間隔に対する比）
+		const EFF_ROW_ICON_MIN_PX = 36;          // 小さい画面でもこれ以上にする（元画像の画素）
+		// 行の蹄鉄の差し渡し: ふだんは〇のへこみの直径（列の間隔の 0.1125 倍）。それが36px に満たない小さい画面だけ、
+		// 36px まで（ただし間隔の 0.125 倍まで）大きくする。大きい画面で 0.125 倍にすると、パネルの左の縁からはみ出すため
+		function effRowIconSize(pitch) {
+			return Math.min(pitch * EFF_ROW_ICON_OVER_PITCH, Math.max(EFF_ROW_ICON_MIN_PX, pitch * ATTR_WELL_D_OVER_PITCH));
+		}
 		let effIconImagesPromise = null;
 		// 蹄鉄の画像4枚（読めなければ null）。1度読んだら使い回す
 		function loadEffIconImages() {
@@ -5996,7 +6002,7 @@
 					if (!g || !g.rows || !g.columnXs) return;
 					const metrics = attrCircleMetrics(g);
 					if (!metrics) return;
-					const s = metrics.d / ATTR_WELL_D_OVER_PITCH * EFF_ROW_ICON_OVER_PITCH;
+					const s = effRowIconSize(metrics.d / ATTR_WELL_D_OVER_PITCH);
 					g.rows.forEach((row, rowIndex) => {
 						const tier = tierByRowKey[p.fileIndex + ':' + rowIndex];
 						if (tier === undefined) return;

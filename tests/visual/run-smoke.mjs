@@ -10882,7 +10882,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const def = { attr: attrCalls - attrBefore, effDraw: order.slice(orderBefore).filter((o) => o === 'draw').length };
 		stitchOnePerson = orig.stitch; drawEffIconsOnPerson = orig.draw; drawAttrIconsOnPerson = orig.attr; buildEffLegendLines = orig.legend;
 		stitchWrapText = orig.wrap; CanvasRenderingContext2D.prototype.drawImage = orig.drawImage;
-		const offset = pitch * 0.0708, size = pitch * EFF_ROW_ICON_OVER_PITCH;
+		const offset = pitch * 0.0708, size = effRowIconSize(pitch);
 		const want = pick.map((t, i) => ({ src: EFF_TIER_ICON_SRCS[effTierOf(t.milli, b)], cx: colX[i % 2] - offset, cy: rows[i].y + rows[i].h / 2 }));
 		return {
 			order: order.slice(0, 2), attrCalls: attrCalls - (def.attr), made: !!canvas, marks: canvas._effMarks,
@@ -10896,9 +10896,12 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		'効率(段4): 蹄鉄は結合が終わってから焼き、左の印は描かない（印のチェックが外れていても蹄鉄は描く）', { order: st4.order, attr: st4.attrCalls });
 	assert(st4.drawn.length === st4.want.length && st4.want.every((w, i) => st4.drawn[i] && st4.drawn[i].src === w.src && near(st4.drawn[i].cx, w.cx)
 		&& near(st4.drawn[i].cy, w.cy) && near(st4.drawn[i].w, st4.size)),
-		'効率(段4): 対象のスキルの行の〇の位置に、その区間の蹄鉄（列の間隔の0.125倍）。効率の無い行には付けない', { drawn: st4.drawn, want: st4.want, size: st4.size });
+		'効率(段4): 対象のスキルの行の〇の位置に、その区間の蹄鉄（へこみの直径。36px 未満なら36px まで）。効率の無い行には付けない', { drawn: st4.drawn, want: st4.want, size: st4.size });
 	assert(st4.marks.length === 1 && st4.marks[0].placed === 4 && st4.size >= 36,
 		'効率(段4): 置いた数を控え、スマホ版相当（列の間隔453px）で36px以上', st4.marks);
+	const sizes = await page.evaluate(() => [294, 320, 374, 453, 537].map((p) => Math.round(effRowIconSize(p) * 10) / 10));
+	assert(sizes.every((x, i) => x >= 36 && x <= [294, 320, 374, 453, 537][i] * 0.125 + 0.01),
+		'効率(段4): 蹄鉄はどの画面でも36px以上で、列の間隔の0.125倍を超えない', sizes);
 	assert(JSON.stringify(st4.legendTexts.filter((t) => /\d/.test(t))) === JSON.stringify(st4.wantLegend) && !st4.legendNote,
 		'効率(段4): 補助テキストの凡例は4つの蹄鉄と「上限-下限」（虹→銅）。「印の無い行の説明」は出さない', { got: st4.legendTexts, want: st4.wantLegend });
 	assert(st4.noImg.made && st4.noImg.drawnMore === 0, '効率(段4): 蹄鉄の画像を読めなくても結合は続け、蹄鉄だけ省く', st4.noImg);
