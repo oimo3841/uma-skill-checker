@@ -107,6 +107,9 @@
 			--exam-eff-turf-bg: #e8f3dd; --exam-eff-turf-border: #c6ddb2; --exam-eff-turf-text: #46563a;
 			--exam-eff-off-bg: #eef0f3; --exam-eff-off-border: #d5dae1;
 			--exam-eff-thumb-bg: #ffffff; --exam-eff-thumb-border: #46563a;
+			/* 吹き出し（改善C）と、結合画像の効率の合計の行（段5。canvas はライトの値で読む） */
+			--exam-eff-tip-bg: #ffffff; --exam-eff-tip-border: #c6ddb2; --exam-eff-tip-text: #26301f; --exam-eff-tip-sep: #d5dae1;
+			--exam-eff-total-bg: #f3effa; --exam-eff-total-border: #d9cdee; --exam-eff-total-text: #4b3a73;
 		}
 		/* ①のタブに出す件数バッジ。骨格（shell.css の .step-tab-badge）は灰なので、このページの青に */
 		.step-tab-badge--accent { background: var(--uma-deco-soft); color: var(--uma-deco-strong); }
@@ -395,7 +398,8 @@
 		   区間は押すと「対象に入れる／外す」が切り替わるボタン。境目の3つのつまみはドラッグと←→で動く。
 		   左右の余白（8px）は、両端に寄せたつまみが帯の外へはみ出さないため。 */
 		/* 「対象スキルの範囲」を4択にしたとき（C-136）、1枚の幅が狭い（1024px 未満）と、選択肢の下の説明の1行まで出すと
-		   1枚が3〜4行に折り返し、3択だったときより高くなる（恒久ルール25）。狭い幅では説明の1行を出さない
+		   1枚が3〜4行に折り返し、3択だったときより低くならない（375px は同じ 186px、320px は 186→202px・700px 前後は 57→89px と
+		   高くなる。恒久ルール25）。狭い幅では説明の1行を出さない
 		   （足す／外す名前は #scope-detail が出す。「βテスト」の1行だけは残す）。
 		   実測（①のパネルの選択肢の格子の高さ）：375px 186→135px・320px 186→151px・700px 57→73px・1280px 57→57px */
 		@media (max-width: 1023.98px) {
@@ -427,6 +431,22 @@
 		.eff-val--min { transform: none; }
 		.eff-val--max { transform: translateX(-100%); }
 		.eff-msg { margin: 0 12px; font-size: 11px; color: #475569; }
+		/* 吹き出し（改善C）。つまみを動かしている間だけ、帯の上に重ねて出す（行は増やさない）。
+		   横の位置は JS（placeEffTip）が帯の枠と画面の幅の内側に寄せる。名前が長ければ名前だけ「…」で詰める */
+		.eff-tip {
+			position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 2;
+			display: flex; align-items: center; height: 26px; padding: 0 6px; white-space: nowrap;
+			font-size: 11px; line-height: 1; font-variant-numeric: tabular-nums;
+			background: var(--exam-eff-tip-bg); color: var(--exam-eff-tip-text);
+			border: 1px solid var(--exam-eff-tip-border); border-radius: 6px; box-shadow: 0 2px 6px rgba(15, 23, 42, .18);
+			pointer-events: none;
+		}
+		.eff-tip[hidden] { display: none; }
+		.eff-tip img { width: 18px; height: 18px; flex: none; }
+		.eff-tip-name, .eff-tip-num { padding: 0 6px; border-left: 1px solid var(--exam-eff-tip-sep); }
+		.eff-tip-name { overflow: hidden; text-overflow: ellipsis; min-width: 0; margin-left: 6px; }
+		.eff-tip-num { flex: none; }
+		.eff-tip-num:last-child { padding-right: 0; }
 		/* ①の対象スキルの一覧で、その行の区間を示す小さな蹄鉄 */
 		.eff-mini { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; }
 
@@ -448,6 +468,7 @@
 			--exam-eff-turf-bg: #24331b; --exam-eff-turf-border: #47603a; --exam-eff-turf-text: #cfe3bd;
 			--exam-eff-off-bg: #1c222b; --exam-eff-off-border: #313a46;
 			--exam-eff-thumb-bg: #e2e8f0; --exam-eff-thumb-border: #cfe3bd;
+			--exam-eff-tip-bg: #1b2433; --exam-eff-tip-border: #47603a; --exam-eff-tip-text: #e6edf5; --exam-eff-tip-sep: #3a4555;
 		}
 		:root[data-theme="dark"] body { background: var(--uma-page-ground); color: var(--uma-text); }
 		:root[data-theme="dark"] .glass-card { background: var(--uma-glass-bg); }
@@ -4705,9 +4726,13 @@
 		 * （独自ID か名前 → 評価点・消費スキルPt・効率）。対象は、拡張モードの並び（data/melop-sheet-rows.json）の行のうち
 		 * 効率を持つもの（レース因子と効率0の行はデータに無い）。**名前はここに書かない**（恒久ルール1）。
 		 *
-		 * - 効率は千分率の整数で扱う（3.945 → 3945）。区間の判定・境目の移動・保存の丸めで端数がぶれないように。
-		 * - 区間は4つ（0＝銅・1＝銀・2＝金・3＝虹）。判定は下限を含み上限を含まない。最後の区間だけ上限も含む。
-		 * - 最小・最大はデータから出す（数値をコードに書かない）。初期の境目は最小〜最大の等分。
+		 * - 効率は千分率の整数で扱う（3.945 → 3945）。区間の判定・合計・保存の丸めで端数がぶれないように。
+		 * - **境目は「段の値」だけを取る**（改善B）。段の値＝対象の行の効率から重複を除いたもの。
+		 *   ドラッグは最も近い段の値に吸い付き、←→ は1段・Shift＋←→ は5段動く。
+		 * - 区間は4つ（0＝銅・1＝銀・2＝金・3＝虹）。**境目ちょうどの値は下（左）の区間に入る**
+		 *   （区間1＝最小〜境目1、区間2＝境目1の次〜境目2、区間3＝境目2の次〜境目3、区間4＝境目3の次〜最大）。
+		 *   4つの区間のどれも1種以上を含むよう、境目1≧最小・境目1＜境目2＜境目3・境目3≦最大の1つ下の段の値に保つ。
+		 * - 最小・最大・段の値はデータから出す（数値をコードに書かない）。初期の境目は最小〜最大の等分点に最も近い段の値。
 		 * - 照合は常に拡張モードの辞書（matchMelopLines）で行い、範囲・区間の切り替えは結果を絞るのにだけ使う
 		 *   （範囲内の名前だけで照合すると、範囲外のスキルが字面の近い名前に化けるため）。
 		 * - 判定結果の表と「★の数をコピー」は、既定の133種の並びのまま（scopeBaseNames('efficiency') は133種を返す）。
@@ -4716,17 +4741,17 @@
 		const EFF_BOUNDS_STORAGE_KEY = 'uma-exam-eff-bounds';
 		const EFF_TIERS_STORAGE_KEY = 'uma-exam-eff-tiers';
 		const EFF_TIER_COUNT = 4;
-		const EFF_STEP = 10;        // ←→ の1回（0.01）
-		const EFF_STEP_BIG = 100;   // Shift＋←→（0.1）
-		const EFF_MIN_GAP = 50;     // つまみどうし・つまみと両端の最小の間隔（0.05）
-		const EFF_ICON_PX = 32;     // 区切りのバーの蹄鉄の大きさ（区間が狭いときは縮める）
-		const EFF_ICON_MIN_PX = 14; // これより小さくなるなら出さない
+		const EFF_KEY_STEPS = 1;      // ←→ の1回（段の数）
+		const EFF_KEY_STEPS_BIG = 5;  // Shift＋←→
+		const EFF_ICON_PX = 32;       // 区切りのバーの蹄鉄の大きさ（区間が狭いときは縮める）
+		const EFF_ICON_MIN_PX = 14;   // これより小さくなるなら出さない
+		const EFF_TIP_KEY_MS = 1500;  // キーボードで動かしたあと吹き出しを出しておく時間
 		// 読み上げ用の区間の呼び名（画面には出さない）
 		const EFF_TIER_LABELS = ['銅', '銀', '金', '虹'];
 		let effData = null;          // prepareEffData() の戻り値
 		let effLoadPromise = null;
 		let effLoadFailed = false;
-		let effBounds = null;        // [境目1, 境目2, 境目3]（千分率）。データを読めるまで null
+		let effBounds = null;        // [境目1, 境目2, 境目3]（千分率・段の値）。データを読めるまで null
 		let effTiers = [true, true, true, true];
 
 		function effFormat(milli) {
@@ -4734,27 +4759,30 @@
 		}
 
 		/* 読み込んだデータを、並びのデータの行に結び付ける。
-		   targets … 対象になり得る行（並びのデータの順）。{ row, name, id, unique, column, milli }
-		   milliByRow … 行番号 → 効率（千分率） */
+		   targets … 対象になり得る行（並びのデータの順＝data/skill-efficiency.json の順）。{ row, name, id, unique, column, milli, score, sp }
+		   milliByRow … 行番号 → 効率（千分率）
+		   steps … 段の値（効率の重複を除いて小さい順） */
 		function prepareEffData(json, sheet) {
 			const byId = new Map(), byName = new Map();
 			((json && json.entries) || []).forEach(e => {
 				const milli = Math.round(Number(e.efficiency) * 1000);
 				if (!(milli > 0)) return;
-				if (e.skillId !== undefined) byId.set(String(e.skillId), milli);
-				else if (e.name) byName.set(String(e.name), milli);
+				const v = { milli: milli, score: e.score, sp: e.sp };
+				if (e.skillId !== undefined) byId.set(String(e.skillId), v);
+				else if (e.name) byName.set(String(e.name), v);
 			});
 			const milliByRow = new Map();
 			const targets = [];
 			sheet.rows.forEach(r => {
-				const milli = (r.id !== undefined) ? byId.get(String(r.id)) : byName.get(r.name);
-				if (milli === undefined) return;
-				milliByRow.set(r.row, milli);
-				targets.push({ row: r.row, name: r.name, id: r.id || null, unique: r.slot === 'unique', column: r.column, milli: milli });
+				const v = (r.id !== undefined) ? byId.get(String(r.id)) : byName.get(r.name);
+				if (v === undefined) return;
+				milliByRow.set(r.row, v.milli);
+				targets.push({ row: r.row, name: r.name, id: r.id || null, unique: r.slot === 'unique', column: r.column,
+					milli: v.milli, score: v.score, sp: v.sp });
 			});
-			const ms = targets.map(t => t.milli);
-			return { dataVersion: json && json.dataVersion, targets: targets, milliByRow: milliByRow,
-				min: Math.min.apply(null, ms), max: Math.max.apply(null, ms) };
+			const steps = Array.from(new Set(targets.map(t => t.milli))).sort((a, b) => a - b);
+			return { dataVersion: json && json.dataVersion, targets: targets, milliByRow: milliByRow, steps: steps,
+				min: steps[0], max: steps[steps.length - 1] };
 		}
 
 		async function loadEffData() {
@@ -4766,7 +4794,8 @@
 					const res = await fetch(EFF_DATA_PATH + (v ? '?v=' + encodeURIComponent(v) : ''));
 					if (!res.ok) throw new Error('HTTP ' + res.status);
 					const d = prepareEffData(await res.json(), sheet);
-					if (d.targets.length === 0) throw new Error('対象が0件');
+					// 区間を4つ作るには、段の値が4つ以上要る
+					if (d.steps.length < EFF_TIER_COUNT) throw new Error('段の値が足りない');
 					effData = d;
 					restoreEffSettings();
 					return effData;
@@ -4787,24 +4816,40 @@
 			});
 		}
 
-		// 初期の境目＝最小〜最大の等分（小数第3位＝千分率の整数に丸める）
-		function defaultEffBounds(d) {
-			return [1, 2, 3].map(k => Math.round(d.min + (d.max - d.min) * k / EFF_TIER_COUNT));
+		// v に最も近い段の値の番号（同じ近さなら小さいほう）
+		function effNearestStepIndex(v, d) {
+			let best = 0;
+			d.steps.forEach((s, i) => { if (Math.abs(s - v) < Math.abs(d.steps[best] - v)) best = i; });
+			return best;
 		}
 
-		/* 保存値の境目を「昇順・最小の間隔0.05・データの最小〜最大の内側」に直す。直せない形なら null（呼び出し側が初期値にする）。
-		   **何度かけても結果が変わらない**（直した値をもう一度通しても同じ。恒久ルール28）。保存値そのものは書き換えない。 */
+		/* 境目の段の番号3つを、4つの区間のどれも1種以上を含む形に直す。
+		   i0≧0・i0＜i1＜i2・i2≦（最後の番号−1）。直せなければ null。**何度かけても結果は変わらない**。 */
+		function effFixStepIndexes(idx, d) {
+			const last = d.steps.length - 1;
+			const i = idx.slice().sort((a, b) => a - b);
+			i[0] = Math.max(i[0], 0);
+			i[1] = Math.max(i[1], i[0] + 1);
+			i[2] = Math.max(i[2], i[1] + 1);
+			i[2] = Math.min(i[2], last - 1);
+			i[1] = Math.min(i[1], i[2] - 1);
+			i[0] = Math.min(i[0], i[1] - 1);
+			return i[0] >= 0 ? i : null;
+		}
+
+		// 初期の境目＝最小〜最大の等分点に最も近い段の値（昇順を保つ）
+		function defaultEffBounds(d) {
+			const idx = [1, 2, 3].map(k => effNearestStepIndex(d.min + (d.max - d.min) * k / EFF_TIER_COUNT, d));
+			return effFixStepIndexes(idx, d).map(i => d.steps[i]);
+		}
+
+		/* 保存値の境目を、段の値に最も近い値に直し、4つの区間がどれも1種以上を含む形に直す。
+		   直せない形なら null（呼び出し側が初期値にする）。**何度かけても結果が変わらない**（恒久ルール28）。保存値そのものは書き換えない。 */
 		function normalizeEffBounds(raw, d) {
 			if (!Array.isArray(raw) || raw.length !== 3) return null;
-			const b = raw.map(v => (typeof v === 'number' ? Math.round(v * 1000) : NaN));
-			if (!b.every(Number.isFinite)) return null;
-			b.sort((x, y) => x - y);
-			const lo = d.min + EFF_MIN_GAP, hi = d.max - EFF_MIN_GAP;
-			b[0] = Math.max(b[0], lo);
-			for (let i = 1; i < 3; i++) b[i] = Math.max(b[i], b[i - 1] + EFF_MIN_GAP);
-			b[2] = Math.min(b[2], hi);
-			for (let i = 1; i >= 0; i--) b[i] = Math.min(b[i], b[i + 1] - EFF_MIN_GAP);
-			return b[0] >= lo ? b : null;
+			if (!raw.every(v => typeof v === 'number' && Number.isFinite(v))) return null;
+			const idx = effFixStepIndexes(raw.map(v => effNearestStepIndex(Math.round(v * 1000), d)), d);
+			return idx ? idx.map(i => d.steps[i]) : null;
 		}
 
 		function restoreEffSettings() {
@@ -4818,7 +4863,7 @@
 				? t.slice() : [true, true, true, true];
 		}
 
-		// 保存は利用者が動かしたときだけ（読んだときに直した値は書き戻さない）
+		// 保存は利用者が動かしたときだけ（読んだときに直した値は書き戻さない）。境目は段の値（小数3桁）で持つ
 		function saveEffSettings() {
 			try {
 				localStorage.setItem(EFF_BOUNDS_STORAGE_KEY, JSON.stringify(effBounds.map(m => m / 1000)));
@@ -4826,15 +4871,21 @@
 			} catch (e) {}
 		}
 
-		// 区間の番号（0〜3）。下限を含み上限を含まない。最後の区間だけ上限（データの最大）も含む
+		// 区間の番号（0〜3）。**境目ちょうどの値は下（左）の区間**に入る
 		function effTierOf(milli, bounds) {
-			return milli < bounds[0] ? 0 : milli < bounds[1] ? 1 : milli < bounds[2] ? 2 : 3;
+			return milli <= bounds[0] ? 0 : milli <= bounds[1] ? 1 : milli <= bounds[2] ? 2 : 3;
 		}
 
 		// 押した時点の境目と区間の切り替え（captureRun が控える）。新モードでないか、データが無ければ null
 		function effSnapshot() {
 			if (targetScopeMode !== 'efficiency' || !effData || !effBounds) return null;
 			return { bounds: effBounds.slice(), tiers: effTiers.slice() };
+		}
+
+		// 拡張モードの効率の合計に使う「全部の区間を入れた」形（区間の分け方は合計には関係しない）
+		function effAllSnapshot() {
+			if (!effData) return null;
+			return { bounds: (effBounds || defaultEffBounds(effData)).slice(), tiers: [true, true, true, true] };
 		}
 
 		// 対象（入れている区間の行）。snap を省けば（undefined）今の画面の値。null なら対象なし
@@ -4844,11 +4895,17 @@
 			return effData.targets.filter(t => s.tiers[effTierOf(t.milli, s.bounds)]);
 		}
 
+		// 境目の値と同じ効率のスキルのうち、データの並びで最初のもの（吹き出しの代表）
+		function effRepresentative(milli) {
+			return effData ? (effData.targets.find(t => t.milli === milli) || null) : null;
+		}
+
 		/* その人の列で検出した対象（1種1回）。拡張モードの照合の結果（personMelop）から作る。
 		   継承固有は、いちばん上の段が読めていれば、その人の列の行を足す。
+		   snap … 区間の分け方と切り替え（省けば今の画面の値）。
 		   戻り値: [{ row, name, id, milli, tier, stars, unique, dictName }] ／ 作れなければ null */
-		function effPersonItems(personIdx, run) {
-			const snap = run ? run.eff : effSnapshot();
+		function effPersonItems(personIdx, snapOrRun) {
+			const snap = (snapOrRun && snapOrRun.bounds) ? snapOrRun : (snapOrRun ? snapOrRun.eff : effSnapshot());
 			const m = personMelop[personIdx];
 			if (!snap || !effData || !melopSheet || !m) return null;
 			const items = [];
@@ -4872,6 +4929,15 @@
 				}
 			}
 			return items;
+		}
+
+		/* 効率の合計（千分率の整数）。効率で選ぶ＝対象にした区間のものだけ／拡張モード＝効率を持つもの全部。
+		   1種1回・★は掛けない。作れなければ null（その人の行は出さない） */
+		function effTotalMilli(personIdx, run) {
+			const snap = run.eff || (run.melop ? effAllSnapshot() : null);
+			const items = snap ? effPersonItems(personIdx, snap) : null;
+			if (!items) return null;
+			return items.reduce((sum, it) => sum + it.milli, 0);
 		}
 
 		/* ---------- 区切りのバー ---------- */
@@ -4898,6 +4964,10 @@
 				for (let i = 0; i < 3; i++) {
 					html += '<div class="eff-thumb" role="slider" tabindex="0" data-idx="' + i + '" aria-label="' + (i + 1) + 'つ目の境目"></div>';
 				}
+				// 吹き出し（つまみを動かしている間だけ出す。バーに重ねるので行は増えない）
+				html += '<div class="eff-tip" id="eff-tip" hidden aria-hidden="true"><img alt="" draggable="false" />'
+					+ '<span class="eff-tip-name"></span><span class="eff-tip-num" data-k="eff"></span>'
+					+ '<span class="eff-tip-num" data-k="score"></span><span class="eff-tip-num" data-k="sp"></span></div>';
 				html += '</div><div class="eff-scale" id="eff-scale">'
 					+ '<span class="eff-val eff-val--min" data-val="min"></span>'
 					+ [0, 1, 2].map(i => '<span class="eff-val" data-val="' + i + '"></span>').join('')
@@ -4925,11 +4995,12 @@
 			});
 			panel.querySelectorAll('.eff-thumb').forEach(th => {
 				const i = Number(th.getAttribute('data-idx'));
+				const rep = effRepresentative(b[i]);
 				th.style.left = pct(b[i]) + '%';
 				th.setAttribute('aria-valuemin', effFormat(d.min));
 				th.setAttribute('aria-valuemax', effFormat(d.max));
 				th.setAttribute('aria-valuenow', effFormat(b[i]));
-				th.setAttribute('aria-valuetext', effFormat(b[i]));
+				th.setAttribute('aria-valuetext', effFormat(b[i]) + (rep ? ' ' + rep.name : ''));
 			});
 			const vals = panel.querySelectorAll('.eff-val');
 			vals.forEach(el => {
@@ -4962,6 +5033,53 @@
 				el.style.top = (row * LINE) + 'px';
 			});
 			if (scale) scale.style.height = (Math.max(1, rowRights.length) * LINE) + 'px';
+			if (effTipIdx !== null) placeEffTip();
+		}
+
+		/* ---------- 吹き出し（改善C） ----------
+		   動かしているつまみの上に「蹄鉄｜スキル名｜効率｜評価点｜消費sp」の1行。
+		   スキルは、そのつまみの値（段の値）と効率が等しいもののうち、データの並びで最初のもの。
+		   蹄鉄は、そのスキルが入る区間（境目の値は左の区間）＝つまみの番号の区間。
+		   画面の端で切れないよう、横の位置は帯の枠と画面の幅の内側に寄せる。 */
+		let effTipIdx = null;      // 吹き出しを出しているつまみの番号（出していなければ null）
+		let effTipTimer = null;
+
+		function showEffTip(i, ms) {
+			effTipIdx = i;
+			if (effTipTimer) { clearTimeout(effTipTimer); effTipTimer = null; }
+			if (ms) effTipTimer = setTimeout(hideEffTip, ms);
+			placeEffTip();
+		}
+
+		function hideEffTip() {
+			effTipIdx = null;
+			if (effTipTimer) { clearTimeout(effTipTimer); effTipTimer = null; }
+			const tip = document.getElementById('eff-tip');
+			if (tip) tip.hidden = true;
+		}
+
+		function placeEffTip() {
+			const tip = document.getElementById('eff-tip');
+			const bar = document.getElementById('eff-bar');
+			if (!tip || !bar || effTipIdx === null || !effData || !effBounds) return;
+			const v = effBounds[effTipIdx];
+			const rep = effRepresentative(v);
+			if (!rep) { tip.hidden = true; return; }
+			tip.querySelector('img').src = EFF_TIER_ICON_SRCS[effTierOf(v, effBounds)];
+			tip.querySelector('.eff-tip-name').textContent = rep.name;
+			tip.querySelector('[data-k="eff"]').textContent = effFormat(v);
+			tip.querySelector('[data-k="score"]').textContent = String(rep.score);
+			tip.querySelector('[data-k="sp"]').textContent = String(rep.sp);
+			tip.hidden = false;
+			// 横の位置: つまみの真上を中心に、帯の枠（#eff-panel）と画面の幅の内側に寄せる
+			const barR = bar.getBoundingClientRect();
+			const panelR = document.getElementById('eff-panel').getBoundingClientRect();
+			const lo = Math.max(panelR.left, 0) + 4, hi = Math.min(panelR.right, document.documentElement.clientWidth) - 4;
+			tip.style.maxWidth = Math.max(0, hi - lo) + 'px';
+			const w = tip.getBoundingClientRect().width;
+			const cx = barR.left + barR.width * (v - effData.min) / (effData.max - effData.min);
+			const left = Math.min(Math.max(cx - w / 2, lo), hi - w);
+			tip.style.left = (left - barR.left) + 'px';
 		}
 
 		function bindEffPanel(panel) {
@@ -4975,40 +5093,49 @@
 					try { th.setPointerCapture(e.pointerId); } catch (err) {}
 					th.focus();
 					moved = false;
+					showEffTip(i, 0);
 				});
 				th.addEventListener('pointermove', (e) => {
 					if (!th.hasPointerCapture || !th.hasPointerCapture(e.pointerId)) return;
 					const r = bar.getBoundingClientRect();
 					if (!(r.width > 0)) return;
 					const frac = (e.clientX - r.left) / r.width;
-					const v = Math.round((effData.min + frac * (effData.max - effData.min)) / EFF_STEP) * EFF_STEP;
-					if (setEffBound(i, v)) moved = true;
+					const k = effNearestStepIndex(effData.min + frac * (effData.max - effData.min), effData);
+					if (setEffBoundStep(i, k)) moved = true;
 				});
 				const end = (e) => {
 					try { if (th.hasPointerCapture(e.pointerId)) th.releasePointerCapture(e.pointerId); } catch (err) {}
+					hideEffTip();
 					if (moved) { moved = false; saveEffSettings(); refreshAfterTargetChange(); }
 				};
 				th.addEventListener('pointerup', end);
 				th.addEventListener('pointercancel', end);
+				th.addEventListener('blur', hideEffTip);
 				th.addEventListener('keydown', (e) => {
 					const dir = (e.key === 'ArrowRight' || e.key === 'ArrowUp') ? 1 : (e.key === 'ArrowLeft' || e.key === 'ArrowDown') ? -1 : 0;
 					if (!dir) return;
 					e.preventDefault();
-					if (setEffBound(i, effBounds[i] + dir * (e.shiftKey ? EFF_STEP_BIG : EFF_STEP))) {
+					const cur = effData.steps.indexOf(effBounds[i]);
+					if (setEffBoundStep(i, cur + dir * (e.shiftKey ? EFF_KEY_STEPS_BIG : EFF_KEY_STEPS))) {
 						saveEffSettings();
 						refreshAfterTargetChange();
 					}
+					showEffTip(i, EFF_TIP_KEY_MS);
 				});
 			});
 			// 見えるようになったとき・幅が変わったときに、蹄鉄の大きさと値の重なりを測り直す
 			if (window.ResizeObserver) new ResizeObserver(() => layoutEffPanel()).observe(bar);
 		}
 
-		// i 番目の境目を v へ（隣と両端から 0.05 以上離す）。動いたら true。保存と表示の更新は呼び出し側
-		function setEffBound(i, v) {
-			const lo = (i === 0 ? effData.min : effBounds[i - 1]) + EFF_MIN_GAP;
-			const hi = (i === 2 ? effData.max : effBounds[i + 1]) - EFF_MIN_GAP;
-			const nv = Math.min(hi, Math.max(lo, Math.round(v)));
+		/* i 番目の境目を段の番号 k へ（4つの区間のどれも1種以上を含む範囲に収める）。動いたら true。
+		   保存と表示の更新は呼び出し側 */
+		function setEffBoundStep(i, k) {
+			const idx = effBounds.map(v => effData.steps.indexOf(v));
+			const last = effData.steps.length - 1;
+			const lo = (i === 0) ? 0 : idx[i - 1] + 1;
+			const hi = (i === 2) ? last - 1 : idx[i + 1] - 1;
+			const nk = Math.min(hi, Math.max(lo, Math.round(k)));
+			const nv = effData.steps[nk];
 			if (nv === effBounds[i]) return false;
 			effBounds[i] = nv;
 			layoutEffPanel();

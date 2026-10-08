@@ -10447,8 +10447,9 @@ await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101
 /* ============================================================
  * exam.html — 効率で選ぶ（βテスト・C-136）
  *
- * 「対象スキルの範囲」の4つ目の選択肢と区切りのバー、照合の切り替え（拡張モードの辞書で照合して範囲で絞る）を見る。
- * 数値（最小・最大・境目）はデータから計算して比べる（ここに 2.741 などを書かない）。スキル名も書かない。
+ * 「対象スキルの範囲」の4つ目の選択肢と区切りのバー、照合の切り替え（拡張モードの辞書で照合して範囲で絞る）、
+ * 境目の段の値（改善B）・吹き出し（改善C）・結合画像（改善D・段4・段5）を見る。
+ * 数値（最小・最大・段の値・境目）はデータから計算して比べる（ここに 2.741 などを書かない）。スキル名も書かない。
  * ============================================================ */
 await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () => {
 {
@@ -10471,7 +10472,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		&& /^効率で選ぶ（.+種）βテスト$/.test(opt.text) && !opt.checked && opt.panelHidden && !opt.detailHidden,
 		'効率(1): 「対象スキルの範囲」の4つ目に「効率で選ぶ（N種）βテスト」。既定では選ばれず、バーは出ない', opt);
 
-	// (2) 選ぶとデータを読み、#scope-detail の代わりにバーが出る。最小・最大・初期の境目はデータから
+	// (2) 選ぶとデータを読み、#scope-detail の代わりにバーが出る。最小・最大・段の値・初期の境目はデータから
 	await page.click('label[for="scope-mode-efficiency"]');
 	await page.waitForFunction(() => !!effData && document.querySelectorAll('.eff-seg').length === 4);
 	await page.waitForTimeout(300);
@@ -10479,8 +10480,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const json = await fetch('data/skill-efficiency.json').then((r) => r.json());
 		const ms = json.entries.map((e) => Math.round(e.efficiency * 1000));
 		return {
-			min: Math.min(...ms), max: Math.max(...ms), n: json.entries.length,
-			dmin: effData.min, dmax: effData.max, targets: effData.targets.length,
+			ms, n: json.entries.length,
+			dsteps: effData.steps.slice(), dmin: effData.min, dmax: effData.max, targets: effData.targets.length,
 			count: document.getElementById('scope-count-efficiency').textContent,
 			reg: document.getElementById('registry-skill-count').textContent,
 			copyAll: document.getElementById('copylist-all133-count').textContent,
@@ -10495,60 +10496,128 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 			regRows: document.querySelectorAll('#skill-registry-list .eff-mini').length,
 		};
 	});
-	const eq = [1, 2, 3].map((k) => Math.round(st.min + (st.max - st.min) * k / 4));
-	assert(st.dmin === st.min && st.dmax === st.max && st.targets === st.n && st.count === String(st.n) && st.reg === String(st.n) && st.regRows === st.n,
-		'効率(2): 最小・最大はデータから。初期は4区間とも入れ、種数・一覧の行数はデータの行数', st);
-	assert(JSON.stringify(st.bounds) === JSON.stringify(eq) && st.tiers.every(Boolean) && st.pressed.every((p) => p === 'true'),
-		'効率(2): 初期の境目は最小〜最大の等分（小数第3位）', { bounds: st.bounds, want: eq });
+	// 段の値＝効率の重複を除いて小さい順。初期の境目＝等分点に最も近い段の値（同じ近さなら小さいほう）
+	const steps = [...new Set(st.ms)].sort((a, b) => a - b);
+	const min = steps[0], max = steps[steps.length - 1];
+	const nearIdx = (v) => steps.reduce((best, s, i) => (Math.abs(s - v) < Math.abs(steps[best] - v) ? i : best), 0);
+	const eqIdx = [1, 2, 3].map((k) => nearIdx(min + (max - min) * k / 4));
+	const eq = eqIdx.map((i) => steps[i]);
+	const tierOfT = (m, b) => (m <= b[0] ? 0 : m <= b[1] ? 1 : m <= b[2] ? 2 : 3);
+	assert(JSON.stringify(st.dsteps) === JSON.stringify(steps) && st.dmin === min && st.dmax === max && st.targets === st.n
+		&& st.count === String(st.n) && st.reg === String(st.n) && st.regRows === st.n,
+		'効率(2): 段の値・最小・最大はデータから。初期は4区間とも入れ、種数・一覧の行数はデータの行数', { steps: steps.length, n: st.n, count: st.count });
+	assert(JSON.stringify(st.bounds) === JSON.stringify(eq) && eqIdx[0] < eqIdx[1] && eqIdx[1] < eqIdx[2] && st.tiers.every(Boolean)
+		&& st.pressed.every((p) => p === 'true'),
+		'効率(2): 初期の境目は最小〜最大の等分点に最も近い段の値（昇順）', { bounds: st.bounds, want: eq });
+	assert([0, 1, 2, 3].every((k) => st.ms.some((m) => tierOfT(m, st.bounds) === k)),
+		'効率(2): 初期の境目で、4つの区間のどれも1種以上を含む', st.bounds);
 	assert(st.detailHidden && !st.panelHidden && JSON.stringify(st.srcs) === JSON.stringify(st.icons),
 		'効率(2): #scope-detail の代わりにバーが出て、区間の蹄鉄は左から銅・銀・金・虹', st.srcs);
-	assert(JSON.stringify(st.vals) === JSON.stringify([fmt(st.min)].concat(eq.map(fmt), [fmt(st.max)])),
+	assert(JSON.stringify(st.vals) === JSON.stringify([fmt(min)].concat(eq.map(fmt), [fmt(max)])),
 		'効率(2): つまみの下に境目の値、両端の下に最小値と最大値（どれも小数3桁）', st.vals);
 	assert(st.stored[0] === null && st.stored[1] === null && st.scopeStored === 'efficiency' && st.skillList133 && st.copyAll === '133',
 		'効率(2): 動かすまで境目と区間は保存しない。判定の表と「スキル名のコピー」は133種のまま', st);
 
-	// (3) キーボード: ←→ で0.01、Shift で0.1。つまみどうし・両端とは0.05より寄らない。動かすと保存
+	// (3) キーボード: ←→ で1段、Shift で5段。段の値だけを取る。4つの区間のどれも1種以上を含む範囲で止まる。動かすと保存
 	await page.focus('.eff-thumb[data-idx="0"]');
 	await page.keyboard.press('ArrowRight');
 	const k1 = await page.evaluate(() => effBounds[0]);
 	await page.keyboard.press('Shift+ArrowRight');
-	const k2 = await page.evaluate(() => effBounds[0]);
-	for (let i = 0; i < 80; i++) await page.keyboard.press('Shift+ArrowRight');
+	const k2 = await page.evaluate(() => effBounds.slice());
+	for (let i = 0; i < 40; i++) await page.keyboard.press('Shift+ArrowRight');
 	const k3 = await page.evaluate(() => ({ b: effBounds.slice(), focus: document.activeElement.getAttribute('data-idx'), stored: JSON.parse(localStorage.getItem('uma-exam-eff-bounds')) }));
-	for (let i = 0; i < 80; i++) await page.keyboard.press('Shift+ArrowLeft');
+	for (let i = 0; i < 40; i++) await page.keyboard.press('Shift+ArrowLeft');
 	const k4 = await page.evaluate(() => effBounds[0]);
-	assert(k1 === eq[0] + 10 && k2 === eq[0] + 110, '効率(3): ←→ は0.01、Shift＋←→ は0.1 ずつ動く', { k1, k2, start: eq[0] });
-	assert(k3.b[0] === k3.b[1] - 50 && k3.focus === '0' && JSON.stringify(k3.stored) === JSON.stringify(k3.b.map((m) => m / 1000)),
-		'効率(3): 隣のつまみとは0.05より寄らない。焦点はつまみに残り、動かすと保存される', k3);
-	assert(k4 === st.min + 50, '効率(3): 端（最小）とも0.05より寄らない', { k4, min: st.min });
+	await page.focus('.eff-thumb[data-idx="2"]');
+	for (let i = 0; i < 40; i++) await page.keyboard.press('Shift+ArrowRight');
+	const k5 = await page.evaluate(() => effBounds.slice());
+	const idx = (v) => steps.indexOf(v);
+	assert(k1 === steps[eqIdx[0] + 1] && k2[0] === steps[Math.min(eqIdx[0] + 6, idx(k2[1]) - 1)],
+		'効率(3): ←→ は1段、Shift＋←→ は5段ずつ動く（段の値だけを取る）', { k1, k2, start: eq[0] });
+	assert(idx(k3.b[0]) === idx(k3.b[1]) - 1 && k3.focus === '0' && JSON.stringify(k3.stored) === JSON.stringify(k3.b.map((m) => m / 1000)),
+		'効率(3): 隣のつまみの1段手前で止まる。焦点はつまみに残り、動かすと保存される', k3);
+	assert(k4 === min, '効率(3): 境目1は最小の段の値まで動く（区間1は最小の段のスキルを含む）', { k4, min });
+	assert(k5[2] === steps[steps.length - 2] && [0, 1, 2, 3].every((k) => st.ms.some((m) => tierOfT(m, k5) === k)),
+		'効率(3): 境目3は最大の1つ下の段の値で止まる。寄せ切っても4つの区間のどれも1種以上を含む', k5);
+	await page.evaluate(() => { effBounds = defaultEffBounds(effData); layoutEffPanel(); });
 
-	// (4) ドラッグ（マウス）。区間の切り替えと取り違えない
+	// (4) ドラッグ（マウス）: ポインタに最も近い段の値に吸い付く。区間の切り替えと取り違えない。動かしている間は吹き出し（改善C）
 	const drag = await page.evaluate(() => {
 		const bar = document.getElementById('eff-bar').getBoundingClientRect();
 		const th = document.querySelector('.eff-thumb[data-idx="1"]').getBoundingClientRect();
-		return { bar: { x: bar.x, y: bar.y, w: bar.width, h: bar.height }, th: { x: th.x + th.width / 2, y: th.y + th.height / 2 }, tiers: effTiers.slice() };
+		return { bar: { x: bar.x, y: bar.y, w: bar.width, h: bar.height }, th: { x: th.x + th.width / 2, y: th.y + th.height / 2 }, tiers: effTiers.slice(), b: effBounds.slice() };
 	});
-	const target = 0.6;
+	const target = 0.55;
 	await page.mouse.move(drag.th.x, drag.th.y);
 	await page.mouse.down();
 	await page.mouse.move(drag.bar.x + drag.bar.w * 0.5, drag.th.y, { steps: 4 });
 	await page.mouse.move(drag.bar.x + drag.bar.w * target, drag.th.y, { steps: 4 });
+	const during = await page.evaluate(() => {
+		const tip = document.getElementById('eff-tip');
+		const v = effBounds[1];
+		const rep = effData.targets.find((t) => t.milli === v);
+		return { hidden: tip.hidden, v, img: tip.querySelector('img').getAttribute('src'), name: tip.querySelector('.eff-tip-name').textContent,
+			nums: [...tip.querySelectorAll('.eff-tip-num')].map((e) => e.textContent), rep: { name: rep.name, score: rep.score, sp: rep.sp },
+			icons: EFF_TIER_ICON_SRCS, valuetext: document.querySelector('.eff-thumb[data-idx="1"]').getAttribute('aria-valuetext') };
+	});
 	await page.mouse.up();
-	const d1 = await page.evaluate(() => ({ b: effBounds.slice(), tiers: effTiers.slice(), stored: JSON.parse(localStorage.getItem('uma-exam-eff-bounds')) }));
-	const wantDrag = Math.round((st.min + target * (st.max - st.min)) / 10) * 10;
-	assert(Math.abs(d1.b[1] - wantDrag) <= 20 && d1.b[1] % 10 === 0 && JSON.stringify(d1.tiers) === JSON.stringify(drag.tiers)
+	const d1 = await page.evaluate(() => ({ b: effBounds.slice(), tiers: effTiers.slice(), stored: JSON.parse(localStorage.getItem('uma-exam-eff-bounds')), tipHidden: document.getElementById('eff-tip').hidden }));
+	const wantDragIdx = Math.min(Math.max(nearIdx(min + target * (max - min)), idx(d1.b[0]) + 1), idx(d1.b[2]) - 1);
+	assert(d1.b[1] === steps[wantDragIdx] && JSON.stringify(d1.tiers) === JSON.stringify(drag.tiers)
 		&& JSON.stringify(d1.stored) === JSON.stringify(d1.b.map((m) => m / 1000)),
-		'効率(4): つまみをドラッグで動かせる（0.01 刻み）。区間の切り替えは起きず、離すと保存される', { got: d1.b[1], want: wantDrag, d1 });
-	// 右端の先まで引っ張っても、右のつまみから0.05 手前で止まる
+		'効率(4): ドラッグはポインタに最も近い段の値に吸い付く。区間の切り替えは起きず、離すと保存される', { got: d1.b[1], want: steps[wantDragIdx] });
+	assert(!during.hidden && d1.tipHidden, '効率(C): ドラッグしている間は吹き出しが出て、離すと消える', { during: during.hidden, after: d1.tipHidden });
+	assert(during.name === during.rep.name && JSON.stringify(during.nums) === JSON.stringify([fmt(during.v), String(during.rep.score), String(during.rep.sp)])
+		&& during.img === during.icons[1] && during.valuetext === fmt(during.v) + ' ' + during.rep.name,
+		'効率(C): 吹き出しは「左の区間の蹄鉄｜代表のスキル（その値の効率で最初のもの）｜効率｜評価点｜消費sp」。読み上げにも値とスキル名', during);
+	// 右端の先まで引っ張っても、右のつまみの1段手前で止まる
 	await page.mouse.move(drag.bar.x + drag.bar.w * target, drag.th.y);
 	await page.mouse.down();
 	await page.mouse.move(drag.bar.x + drag.bar.w * 1.5, drag.th.y, { steps: 6 });
 	await page.mouse.up();
 	const d2 = await page.evaluate(() => effBounds.slice());
-	assert(d2[1] === d2[2] - 50, '効率(4): ドラッグでも右のつまみとは0.05より寄らない', d2);
+	assert(idx(d2[1]) === idx(d2[2]) - 1, '効率(4): ドラッグでも右のつまみの1段手前で止まる', d2);
+	await page.evaluate(() => { effBounds = defaultEffBounds(effData); saveEffSettings(); layoutEffPanel(); });
+
+	// (C) キーボードで動かしたあとは1.5秒だけ吹き出しを出す。焦点が外れたら消える
+	await page.focus('.eff-thumb[data-idx="0"]');
+	await page.keyboard.press('ArrowRight');
+	const kt1 = await page.evaluate(() => ({ hidden: document.getElementById('eff-tip').hidden, img: document.querySelector('#eff-tip img').getAttribute('src') }));
+	await page.waitForTimeout(1000);
+	const kt2 = await page.evaluate(() => document.getElementById('eff-tip').hidden);
+	await page.waitForTimeout(800);
+	const kt3 = await page.evaluate(() => document.getElementById('eff-tip').hidden);
+	await page.keyboard.press('ArrowLeft');
+	await page.evaluate(() => document.activeElement.blur());
+	const kt4 = await page.evaluate(() => document.getElementById('eff-tip').hidden);
+	assert(!kt1.hidden && kt1.img === st.icons[0] && !kt2 && kt3 && kt4,
+		'効率(C): キーボードで動かすと吹き出しが出て1.5秒で消える。焦点が外れても消える（つまみ1は銅の蹄鉄）', { kt1, kt2, kt3, kt4 });
+	// 端で切れない: 境目を両端に寄せて吹き出しを出し、帯の枠と画面の内側に入っていること（デスクトップ・375px）
+	const edgeTip = async () => page.evaluate(() => {
+		const out = [];
+		const save = effBounds.slice();
+		const n = effData.steps.length;
+		effBounds = [effData.steps[0], effData.steps[1], effData.steps[2]];
+		layoutEffPanel();
+		showEffTip(0, 0);
+		const p = document.getElementById('eff-panel').getBoundingClientRect();
+		let r = document.getElementById('eff-tip').getBoundingClientRect();
+		out.push({ left: r.left, right: r.right, pl: p.left, pr: p.right, vw: document.documentElement.clientWidth });
+		effBounds = [effData.steps[n - 4], effData.steps[n - 3], effData.steps[n - 2]];
+		layoutEffPanel();
+		showEffTip(2, 0);
+		r = document.getElementById('eff-tip').getBoundingClientRect();
+		out.push({ left: r.left, right: r.right, pl: p.left, pr: p.right, vw: document.documentElement.clientWidth });
+		hideEffTip();
+		effBounds = save;
+		layoutEffPanel();
+		return out;
+	});
+	const inside = (xs) => xs.every((x) => x.left >= x.pl && x.right <= x.pr && x.left >= 0 && x.right <= x.vw && x.right > x.left);
+	const e1 = await edgeTip();
+	assert(inside(e1), '効率(C): 吹き出しは両端に寄せても帯の枠と画面の内側に収まる（デスクトップ）', e1);
 
 	// (5) 区間を押すと対象に入れる／外すが切り替わる（aria-pressed・色）。全部は外せない。キーボードでも押せる
-	// 上のドラッグで金の区間がつまみ2つの間の幅しか無くなっているので、境目を初期に戻してから押す
 	const t0 = await page.evaluate(() => { effBounds = defaultEffBounds(effData); layoutEffPanel(); return { count: effTargets().length }; });
 	await page.click('.eff-seg--2');
 	const t1 = await page.evaluate(() => {
@@ -10581,7 +10650,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(JSON.stringify(t3.tiers) === JSON.stringify([false, false, false, true]) && t3.toast.includes('少なくとも1つ'),
 		'効率(5): 最後の1つの区間は外せない（知らせが出る）', t3);
 
-	// (6) 保存値の復元: 壊れた値は直して使い、保存値は書き換えない（恒久ルール28）。直した値は何度通しても同じ
+	// (6) 保存値の復元: 段の値に最も近い値へ直し、区間がどれも1種以上を含む形に直して使う。保存値は書き換えない（恒久ルール28）。何度通しても同じ
 	await page.evaluate(() => { localStorage.setItem('uma-exam-eff-bounds', '[9,1,"x"]'); localStorage.setItem('uma-exam-eff-tiers', '[false,false,false,false]'); });
 	await page.reload({ waitUntil: 'networkidle' });
 	await page.waitForFunction(() => !!effData);
@@ -10591,24 +10660,38 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(r1.mode === 'efficiency' && JSON.stringify(r1.b) === JSON.stringify(eq) && r1.t.every(Boolean)
 		&& r1.stored[0] === '[9,1,"x"]' && r1.stored[1] === '[false,false,false,false]',
 		'効率(6): 読めない境目・全部外した区間は初期値で使い、保存値は書き換えない', r1);
+	const offStep = (steps[1] + steps[2]) / 2000 + 0.0004;
+	await page.evaluate((v) => { localStorage.setItem('uma-exam-eff-bounds', JSON.stringify([v, 99, 0])); }, offStep);
+	await page.reload({ waitUntil: 'networkidle' });
+	await page.waitForFunction(() => !!effData);
+	await page.waitForTimeout(300);
+	const r1b = await page.evaluate(() => ({ b: effBounds.slice(), stored: localStorage.getItem('uma-exam-eff-bounds') }));
+	assert(r1b.b.every((v) => steps.includes(v)) && idx(r1b.b[0]) < idx(r1b.b[1]) && idx(r1b.b[1]) < idx(r1b.b[2]) && idx(r1b.b[2]) <= steps.length - 2
+		&& r1b.stored === JSON.stringify([offStep, 99, 0]),
+		'効率(6): 段の値でない・並びの崩れた保存値は、段の値に直して昇順・4区間とも1種以上の形で使う（保存値はそのまま）', r1b);
 	const r2 = await page.evaluate((m) => {
 		const a = normalizeEffBounds([m.max / 1000 + 1, 0, (m.min + m.max) / 2000], effData);
 		const b = normalizeEffBounds(a.map((v) => v / 1000), effData);
 		const c = normalizeEffBounds([m.min / 1000, m.min / 1000, m.min / 1000], effData);
-		return { a, b, c, d: normalizeEffBounds([1, 2], effData), e: normalizeEffBounds(['1', 2, 3], effData) };
-	}, { min: st.min, max: st.max });
-	const okShape = (b) => b && b[0] >= st.min + 50 && b[1] - b[0] >= 50 && b[2] - b[1] >= 50 && b[2] <= st.max - 50;
-	assert(okShape(r2.a) && JSON.stringify(r2.a) === JSON.stringify(r2.b) && okShape(r2.c) && r2.d === null && r2.e === null,
-		'効率(6): 直すと「昇順・間隔0.05・最小〜最大の内側」になり、直した値をもう一度通しても変わらない', r2);
+		const r = { a, b, c, d: normalizeEffBounds([1, 2], effData), e: normalizeEffBounds(['1', 2, 3], effData) };
+		// 以降の検査のために、境目を初期に戻す
+		localStorage.removeItem('uma-exam-eff-bounds');
+		effBounds = defaultEffBounds(effData);
+		layoutEffPanel();
+		return r;
+	}, { min, max });
+	const okShape = (b) => b && b.every((v) => steps.includes(v)) && idx(b[0]) >= 0 && idx(b[0]) < idx(b[1]) && idx(b[1]) < idx(b[2]) && idx(b[2]) <= steps.length - 2;
+	assert(okShape(r2.a) && JSON.stringify(r2.a) === JSON.stringify(r2.b) && JSON.stringify(r2.c) === JSON.stringify(steps.slice(0, 3)) && r2.d === null && r2.e === null,
+		'効率(6): 直すと段の値・昇順・4区間とも1種以上になり、直した値をもう一度通しても変わらない', r2);
 
-	// (7) 合成の行: 照合した名前 → 区間（蹄鉄）。下限を含み上限を含まない・最大は最後の区間。外した区間・効率の無い行は入らない
+	// (7) 合成の行: 照合した名前 → 区間（蹄鉄）。境目ちょうどの値は下（左）の区間。外した区間・効率の無い行は入らない
 	const syn = await page.evaluate(() => {
 		const s = melopSheet;
 		const b = effBounds.slice();
 		const tierOf = (t) => effTierOf(t.milli, b);
-		// 区間ごとに独自IDのある対象を1つずつ
-		const pick = [0, 1, 2, 3].map((k) => effData.targets.find((t) => t.id && !t.unique && tierOf(t) === k && !/\+$/.test(t.name)));
-		// 効率を持たない行（レース因子など。いちばん上の段の行は除く）
+		// 区間ごとに独自IDのある対象を1つずつ（区間1と2は境目ちょうどの値のスキルを選ぶ）
+		const pick = [0, 1, 2, 3].map((k) => effData.targets.find((t) => t.id && !t.unique && tierOf(t) === k && !/\+$/.test(t.name)
+			&& (k > 1 || t.milli === b[k])));
 		const noEff = s.rows.find((r) => !r.slot && !effData.milliByRow.has(r.row) && !/シナリオ|遺伝子/.test(r.name));
 		const lines = pick.concat([{ name: noEff.name }]).map((t, i) => ({ text: t.name, stars: (i % 3) + 1, starsReliable: true, rowKey: '0:' + i }));
 		personMelop = PERSON_LABELS.map(() => null);
@@ -10617,10 +10700,10 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const items = effPersonItems(0, run);
 		const off = Object.assign({}, run, { eff: { bounds: b, tiers: [true, false, true, true] } });
 		const itemsOff = effPersonItems(0, off);
-		// 境目ちょうどの値は上の区間・最大は最後の区間
-		const edge = { atB1: effTierOf(b[1], b), justBelow: effTierOf(b[1] - 1, b), max: effTierOf(effData.max, b), min: effTierOf(effData.min, b) };
+		const edge = { atB0: effTierOf(b[0], b), atB1: effTierOf(b[1], b), justAbove: effTierOf(b[1] + 1, b), atB2: effTierOf(b[2], b),
+			max: effTierOf(effData.max, b), min: effTierOf(effData.min, b) };
 		return {
-			want: pick.map((t) => ({ row: t.row, tier: tierOf(t) })),
+			want: pick.map((t) => ({ row: t.row, tier: tierOf(t) })), pickAtBound: [pick[0].milli === b[0], pick[1].milli === b[1]],
 			got: items.filter((it) => !it.unique).map((it) => ({ row: it.row, tier: it.tier, icon: EFF_TIER_ICON_SRCS[it.tier] })),
 			unique: items.filter((it) => it.unique).map((it) => ({ row: it.row, column: s.uniqueRows.find((r) => r.row === it.row).column, stars: it.stars })),
 			noEffIn: items.some((it) => it.row === noEff.row),
@@ -10628,13 +10711,13 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		};
 	});
 	assert(JSON.stringify(syn.got.map((g) => ({ row: g.row, tier: g.tier }))) === JSON.stringify(syn.want)
-		&& syn.got.every((g) => g.icon === syn.icons[g.tier]),
-		'効率(7): 照合した名前は効率の区間に入り、その区間の蹄鉄になる（4区間とも）', syn);
+		&& syn.got.every((g) => g.icon === syn.icons[g.tier]) && syn.pickAtBound.every(Boolean),
+		'効率(7): 照合した名前は効率の区間に入り、その区間の蹄鉄になる（4区間とも。境目ちょうどの値のスキルを含む）', syn);
 	assert(!syn.noEffIn && syn.unique.length === 1 && syn.unique[0].column === 0 && syn.unique[0].stars === 2,
 		'効率(7): 効率の無い行は入らない。継承固有はいちばん上の段が読めていればその人の列の行が入る', syn);
 	assert(!syn.offRows.includes(1), '効率(7): 外した区間のスキルは入らない', syn.offRows);
-	assert(syn.edge.atB1 === 2 && syn.edge.justBelow === 1 && syn.edge.max === 3 && syn.edge.min === 0,
-		'効率(7): 区間の判定は下限を含み上限を含まない（最後の区間だけ最大も含む）', syn.edge);
+	assert(syn.edge.atB0 === 0 && syn.edge.atB1 === 1 && syn.edge.justAbove === 2 && syn.edge.atB2 === 2 && syn.edge.max === 3 && syn.edge.min === 0,
+		'効率(7): 境目ちょうどの値は下（左）の区間に入る（区間1は最小を、区間4は最大を含む）', syn.edge);
 
 	// (8) 判定の流れ（OCR の代わりに行を固定）: 照合は拡張モードの辞書の全部で行い、表・コピーは133種のまま。Deck へは独自IDのある対象だけ
 	const flow = await page.evaluate(async () => {
@@ -10690,22 +10773,26 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	});
 	assert(stale.before !== 'stale' && stale.after === 'stale', '効率(9): 区間を変えると「画像を更新」は OCR からやり直しになる', stale);
 
-	// (10) ダーク: バーの色がダークの値に替わる
+	// (10) ダーク: バーと吹き出しの色がダークの値に替わる
 	const dark = await page.evaluate(() => {
 		const seg = () => getComputedStyle(document.querySelector('.eff-seg--0')).backgroundColor;
 		const panel = () => getComputedStyle(document.getElementById('eff-panel')).backgroundColor;
+		const tip = () => getComputedStyle(document.getElementById('eff-tip')).backgroundColor;
 		const prev = document.documentElement.getAttribute('data-theme');
+		showEffTip(0, 0);
 		document.documentElement.setAttribute('data-theme', 'light');
-		const light = { seg: seg(), panel: panel() };
+		const light = { seg: seg(), panel: panel(), tip: tip() };
 		document.documentElement.setAttribute('data-theme', 'dark');
-		const darkV = { seg: seg(), panel: panel() };
+		const darkV = { seg: seg(), panel: panel(), tip: tip() };
+		hideEffTip();
 		if (prev) document.documentElement.setAttribute('data-theme', prev); else document.documentElement.removeAttribute('data-theme');
 		return { light, dark: darkV };
 	});
-	assert(dark.light.seg !== dark.dark.seg && dark.light.panel !== dark.dark.panel && dark.dark.panel !== 'rgb(255, 255, 255)',
-		'効率(10): ダークでは区間と枠の色がダークの値になる', dark);
+	assert(dark.light.seg !== dark.dark.seg && dark.light.panel !== dark.dark.panel && dark.dark.panel !== 'rgb(255, 255, 255)'
+		&& dark.light.tip !== dark.dark.tip,
+		'効率(10): ダークでは区間・枠・吹き出しの色がダークの値になる', dark);
 
-	// (11) 375px: 横にはみ出さない。選択肢は2列×2段
+	// (11) 375px: 横にはみ出さない。選択肢は2列×2段。吹き出しも画面の内側
 	await page.setViewportSize({ width: 375, height: 800 });
 	await page.waitForTimeout(400);
 	const narrow = await page.evaluate(() => {
@@ -10718,9 +10805,12 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	});
 	assert(narrow.sw <= 375 && narrow.cols === 2 && narrow.panelRight <= 375 && narrow.valsIn && narrow.icons.every(Boolean),
 		'効率(11): 375px で横にはみ出さず、選択肢は2列×2段・値はバーの枠の中・蹄鉄は4つとも見える', narrow);
+	const e2 = await edgeTip();
+	const sw2 = await page.evaluate(() => document.documentElement.scrollWidth);
+	assert(inside(e2) && sw2 <= 375, '効率(11): 375px でも吹き出しは帯の枠と画面の内側に収まり、横にはみ出さない', e2);
 	// つまみを最小の側へ寄せ切っても、値どうしは重ならない（下の段へずらす）。狭い区間の蹄鉄は縮めるか出さない
 	const packed = await page.evaluate(() => {
-		effBounds = [effData.min + 50, effData.min + 100, effData.min + 150];
+		effBounds = effData.steps.slice(0, 3);
 		layoutEffPanel();
 		const rs = [...document.querySelectorAll('.eff-val')].map((e) => e.getBoundingClientRect());
 		const overlap = rs.some((a, i) => rs.some((b, j) => i < j && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom));
@@ -10738,6 +10828,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(!packed.overlap && packed.inside && packed.rows >= 2 && packed.imgs.every((x) => x.img === 0 || x.img <= x.seg - 6),
 		'効率(11): つまみを寄せ切っても値どうしは重ならず（下の段へ）、狭い区間の蹄鉄は縮めるか出さない', packed);
 	await page.setViewportSize({ width: 1280, height: 900 });
+
+	// (13) 結合画像（改善D・段4・段5）―― ここに足す
 
 	// (12) ほかの選択肢に戻すとバーは消え、#scope-detail が戻る
 	await page.click('label[for="scope-mode-default"]');
