@@ -10830,6 +10830,79 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	await page.setViewportSize({ width: 1280, height: 900 });
 
 	// (13) 結合画像（改善D・段4・段5）―― ここに足す
+	// (13a) 段4: 蹄鉄を結合画像のスキル行に重ねる（合成の行・結合の代わりに白い画像）。左の印は描かず、結合の後に焼く。凡例は蹄鉄と「上限-下限」
+	const st4 = await page.evaluate(async () => {
+		const s = melopSheet;
+		const b = effBounds.slice();
+		const pick = [0, 1, 2, 3].map((k) => effData.targets.find((t) => t.id && !t.unique && effTierOf(t.milli, b) === k && !/\+$/.test(t.name)));
+		const plain = s.rows.find((r) => !r.slot && !effData.milliByRow.has(r.row) && !/シナリオ|遺伝子/.test(r.name));
+		const W = 1179, H = 2556, pitch = 453, colX = [200, 200 + pitch];
+		const names = pick.map((t) => t.name).concat([plain.name]);
+		const rows = names.map((n, i) => ({ x: colX[i % 2], y: 300 + Math.floor(i / 2) * 120, w: 200, h: 40, col: i % 2, band: Math.floor(i / 2) }));
+		const lines = names.map((n, i) => ({ text: n, stars: 2, starsReliable: true, rowKey: '0:' + i }));
+		personGeometry = PERSON_LABELS.map(() => null);
+		personLines = PERSON_LABELS.map(() => null);
+		personMelop = PERSON_LABELS.map(() => null);
+		personResults = PERSON_LABELS.map(() => null);
+		personGeometry[0] = [{ rows, columnXs: colX, scale: 1, naturalW: W, naturalH: H }];
+		personLines[0] = lines;
+		personMelop[0] = { res: matchMelopLines(lines, s), top: { found: true, uniqueStars: 1, blue: null, red: null, extraLines: [] } };
+		personResults[0] = matchAllSkillsWithStars(lines, skillList, skillIndex, {});
+		const order = [];
+		const orig = { stitch: stitchOnePerson, draw: drawEffIconsOnPerson, attr: drawAttrIconsOnPerson, legend: buildEffLegendLines, wrap: stitchWrapText,
+			drawImage: CanvasRenderingContext2D.prototype.drawImage };
+		let target = null;
+		const drawn = [];
+		stitchOnePerson = async () => { order.push('stitch'); const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H); return c; };
+		let attrCalls = 0;
+		drawAttrIconsOnPerson = (...a) => { attrCalls++; return orig.attr(...a); };
+		drawEffIconsOnPerson = (...a) => { order.push('draw'); target = a[0]; return orig.draw(...a); };
+		CanvasRenderingContext2D.prototype.drawImage = function (img, ...rest) {
+			if (this.canvas === target && rest.length === 4) drawn.push({ src: (img.getAttribute && img.getAttribute('src')) || img.src, x: rest[0], y: rest[1], w: rest[2] });
+			return orig.drawImage.call(this, img, ...rest);
+		};
+		let legendArgs = null;
+		buildEffLegendLines = (...a) => { legendArgs = a; return orig.legend(...a); };
+		const wrapped = [];
+		stitchWrapText = (ctx, text, w) => { wrapped.push(text); return orig.wrap(ctx, text, w); };
+		const run = Object.assign(captureRun(), { files: PERSON_LABELS.map((_, i) => (i === 0 ? [new File(['x'], 'a.png')] : [])), attrIcons: false });
+		const canvas = await buildStitchedSetImage(0, run);
+		const legendTexts = legendArgs ? orig.legend(...legendArgs).flat().filter((it) => it.type === 'text').map((it) => it.text.trim()) : [];
+		const legendNote = wrapped.includes(MARK_LEGEND_NOTE);
+		// 画像を読めなかったとき: 蹄鉄だけ省いて結合は続ける
+		const saveImgs = effIconImagesPromise;
+		effIconImagesPromise = Promise.resolve(null);
+		const before = drawn.length;
+		const canvas2 = await buildStitchedSetImage(0, run);
+		const noImg = { made: !!canvas2, drawnMore: drawn.length - before };
+		effIconImagesPromise = saveImgs;
+		// 既定（ほかの3択）では蹄鉄を描かず、左の印（印のチェックが入っていれば）を描く
+		const attrBefore = attrCalls, orderBefore = order.length;
+		await buildStitchedSetImage(0, Object.assign({}, run, { scope: 'default', eff: null, attrIcons: true }));
+		const def = { attr: attrCalls - attrBefore, effDraw: order.slice(orderBefore).filter((o) => o === 'draw').length };
+		stitchOnePerson = orig.stitch; drawEffIconsOnPerson = orig.draw; drawAttrIconsOnPerson = orig.attr; buildEffLegendLines = orig.legend;
+		stitchWrapText = orig.wrap; CanvasRenderingContext2D.prototype.drawImage = orig.drawImage;
+		const offset = pitch * 0.0708, size = pitch * EFF_ROW_ICON_OVER_PITCH;
+		const want = pick.map((t, i) => ({ src: EFF_TIER_ICON_SRCS[effTierOf(t.milli, b)], cx: colX[i % 2] - offset, cy: rows[i].y + rows[i].h / 2 }));
+		return {
+			order: order.slice(0, 2), attrCalls: attrCalls - (def.attr), made: !!canvas, marks: canvas._effMarks,
+			drawn: drawn.slice(0, before).map((d) => ({ src: d.src.replace(/^.*\/img\//, 'img/'), cx: d.x + d.w / 2, cy: d.y + d.w / 2, w: d.w })),
+			want, size, legendTexts, wantLegend: [3, 2, 1, 0].map((k) => effRangeLabel(k, b)),
+			legendNote, noImg, def,
+		};
+	});
+	const near = (a, b) => Math.abs(a - b) < 1.5;
+	assert(st4.made && st4.order[0] === 'stitch' && st4.order[1] === 'draw' && st4.attrCalls === 0,
+		'効率(段4): 蹄鉄は結合が終わってから焼き、左の印は描かない（印のチェックが外れていても蹄鉄は描く）', { order: st4.order, attr: st4.attrCalls });
+	assert(st4.drawn.length === st4.want.length && st4.want.every((w, i) => st4.drawn[i] && st4.drawn[i].src === w.src && near(st4.drawn[i].cx, w.cx)
+		&& near(st4.drawn[i].cy, w.cy) && near(st4.drawn[i].w, st4.size)),
+		'効率(段4): 対象のスキルの行の〇の位置に、その区間の蹄鉄（列の間隔の0.125倍）。効率の無い行には付けない', { drawn: st4.drawn, want: st4.want, size: st4.size });
+	assert(st4.marks.length === 1 && st4.marks[0].placed === 4 && st4.size >= 36,
+		'効率(段4): 置いた数を控え、スマホ版相当（列の間隔453px）で36px以上', st4.marks);
+	assert(JSON.stringify(st4.legendTexts.filter((t) => /\d/.test(t))) === JSON.stringify(st4.wantLegend) && !st4.legendNote,
+		'効率(段4): 補助テキストの凡例は4つの蹄鉄と「上限-下限」（虹→銅）。「印の無い行の説明」は出さない', { got: st4.legendTexts, want: st4.wantLegend });
+	assert(st4.noImg.made && st4.noImg.drawnMore === 0, '効率(段4): 蹄鉄の画像を読めなくても結合は続け、蹄鉄だけ省く', st4.noImg);
+	assert(st4.def.attr === 1 && st4.def.effDraw === 0, '効率(段4): ほかの3択では蹄鉄を描かず、従来の左の印', st4.def);
 
 	// (12) ほかの選択肢に戻すとバーは消え、#scope-detail が戻る
 	await page.click('label[for="scope-mode-default"]');

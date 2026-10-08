@@ -5258,10 +5258,12 @@
 			const marks = run ? run.attrIcons : attrIconsEnabled;
 			const factorCount = run ? run.factors.size : selectedScenarioFactors.size;
 			const geneCount = run ? (run.genes ? run.genes.size : 0) : selectedGenes.size;
+			// 効率で選ぶ（C-136）では、印の代わりの蹄鉄を印の ON/OFF に関わらず描くので、凡例も印の ON/OFF に従わない
+			const eff = (run ? run.scope : targetScopeMode) === 'efficiency';
 			return {
 				banner: !!show.banner,
 				scenario: !!show.scenario && (factorCount + geneCount) > 0,
-				legend: !!show.legend && !!marks,
+				legend: !!show.legend && (!!marks || eff),
 				conditions: !!show.conditions
 			};
 		}
@@ -5915,6 +5917,142 @@
 			return { drawn: placed.length > 0, suppressed: null, kinds: MARK_KIND_ORDER.filter(k => used.has(k)) };
 		}
 
+		/* ------------------------------------------------------------
+		 * 効率で選ぶ（C-136・段4）: 結果画像のスキル行に、効率の区間の蹄鉄を重ねる
+		 *
+		 * 左の印（drawAttrIconsOnPerson）の代わりに、**同じ位置・同じ判定**で蹄鉄の画像を描く。
+		 *   - 置くのは、その人の列で検出した効率の対象（対象にした区間のもの）の行だけ。継承固有はいちばん上の段から
+		 *     ★だけを読む行で、結合画像の行の位置が取れないので置かない。
+		 *   - 位置は印と同じ（スキル名 → 根拠の OCR 行 → 元画像の行 → 結合後の座標）。
+		 *     対応を確かめていない画面サイズ・列が2本にならない画像には置かない（印と同じ断り書きを出す）。
+		 *   - 大きさは列と列の間隔の 0.125 倍（〇のへこみの直径 0.1125 倍より少し大きい）。へこみを覆い、スキル名には掛からない
+		 *     （〇の中心からスキル名の左端までは間隔の 0.0708 倍。蹄鉄の半分は 0.0625 倍）。
+		 *     実測（2026-10-09）: DMM版 列の間隔 294px → 36.8px・374px → 46.8px ／ スマホ版 453px → 56.6px・537px → 67.1px。
+		 *   - **結合が終わってから焼く**（印と同じ理由）。画像を読めなかったときは何もしない（結合は続ける）。
+		 * 印のON/OFF（「印」のチェック）には従わない ―― 効率で選ぶでは、この蹄鉄がスキル行の区間を示す本体なので常に描く。
+		 * ------------------------------------------------------------ */
+		const EFF_ROW_ICON_OVER_PITCH = 0.125;
+		let effIconImagesPromise = null;
+		// 蹄鉄の画像4枚（読めなければ null）。1度読んだら使い回す
+		function loadEffIconImages() {
+			if (!effIconImagesPromise) {
+				effIconImagesPromise = Promise.all(EFF_TIER_ICON_SRCS.map(src => new Promise((resolve, reject) => {
+					const img = new Image();
+					img.onload = () => resolve(img);
+					img.onerror = () => reject(new Error('画像を読めない: ' + src));
+					img.src = src;
+				}))).catch(err => {
+					console.warn('蹄鉄の画像を読み込めませんでした', err);
+					effIconImagesPromise = null;
+					return null;
+				});
+			}
+			return effIconImagesPromise;
+		}
+
+		// 戻り値: { drawn, suppressed, placed, wanted, sizes }（sizes は描いた蹄鉄の差し渡し〔元画像の画素〕。画像ごと）
+		function drawEffIconsOnPerson(canvas, personIdx, run, imgs) {
+			const none = { drawn: false, suppressed: null, placed: 0, wanted: 0, sizes: [] };
+			if (!run || !run.eff || !imgs) return none;
+			const geo = personGeometry[personIdx];
+			const lines = personLines[personIdx];
+			const m = personMelop[personIdx];
+			const items = effPersonItems(personIdx, run);
+			if (!geo || !lines || !m || !items) return none;
+			if (!geo.every(g => g && attrIconProfileOf(g.naturalW, g.naturalH))) {
+				return Object.assign({}, none, { suppressed: 'size' });
+			}
+			if (geo.some(g => g.rows && !attrCircleMetrics(g))) {
+				devGeometry.push('[蹄鉄] ' + PERSON_LABELS[personIdx] +
+					': 列がちょうど2本にならない画像があり、〇の位置を決められないため蹄鉄を描きませんでした');
+				return Object.assign({}, none, { suppressed: 'layout' });
+			}
+			// rowKey（"画像の番号:行の番号"）→ 区間。根拠の行の番号は「いつもの OCR の行＋右隣の行」の通し番号なので、
+			// いつもの行（personLines）の範囲にあるものだけを使う
+			const tierByRowKey = {};
+			items.forEach(it => {
+				if (it.unique || !it.dictName) return;
+				(m.res.skillSources[it.dictName] || []).forEach(li => {
+					const l = li < lines.length ? lines[li] : null;
+					if (l && l.rowKey) tierByRowKey[l.rowKey] = it.tier;
+				});
+			});
+			const placements = (canvas._sourcePlacements && canvas._sourcePlacements.length)
+				? canvas._sourcePlacements
+				: [{ fileIndex: 0, srcY0: 0, srcY1: canvas.height, outY0: 0 }];
+			const ctx = canvas.getContext('2d');
+			ctx.imageSmoothingEnabled = true;
+			ctx.imageSmoothingQuality = 'high';
+			const placed = [];
+			const sizes = new Set();
+			// 印と同じ2周（採った範囲の行 → それ以外の行も同じ平行移動で写す）。重なりは避ける
+			[true, false].forEach(inRangeOnly => {
+				placements.forEach(p => {
+					const g = geo[p.fileIndex];
+					if (!g || !g.rows || !g.columnXs) return;
+					const metrics = attrCircleMetrics(g);
+					if (!metrics) return;
+					const s = metrics.d / ATTR_WELL_D_OVER_PITCH * EFF_ROW_ICON_OVER_PITCH;
+					g.rows.forEach((row, rowIndex) => {
+						const tier = tierByRowKey[p.fileIndex + ':' + rowIndex];
+						if (tier === undefined) return;
+						const cySrc = (row.y + row.h / 2) * g.scale;
+						const inRange = (cySrc >= p.srcY0 && cySrc < p.srcY1);
+						if (inRangeOnly !== inRange) return;
+						const cx = g.columnXs[row.col] * g.scale - metrics.offset;
+						const cy = p.outY0 + (cySrc - p.srcY0);
+						if (cy < 0 || cy >= canvas.height) return;
+						if (placed.some(q => Math.abs(q.x - cx) < s && Math.abs(q.y - cy) < s)) return;
+						placed.push({ x: cx, y: cy });
+						ctx.drawImage(imgs[tier], cx - s / 2, cy - s / 2, s, s);
+						sizes.add(Math.round(s * 10) / 10);
+					});
+				});
+			});
+			const wanted = Object.keys(tierByRowKey).length;
+			devGeometry.push('[蹄鉄] ' + PERSON_LABELS[personIdx] + ': 置いた ' + placed.length + ' / 置きたかった行 ' + wanted
+				+ '（差し渡し ' + Array.from(sizes).join('・') + 'px）');
+			return { drawn: placed.length > 0, suppressed: null, placed: placed.length, wanted: wanted, sizes: Array.from(sizes) };
+		}
+
+		// 区間の範囲の表示「上限-下限」（小数第1位）。隣り合う区間の境目は同じ値（境目の値）から作るので表示もそろう
+		function effRangeLabel(k, bounds) {
+			const r1 = (m) => (Math.round(m / 100) / 10).toFixed(1);
+			const hi = (k === EFF_TIER_COUNT - 1) ? effData.max : bounds[k];
+			const lo = (k === 0) ? effData.min : bounds[k - 1];
+			return r1(hi) + '-' + r1(lo);
+		}
+
+		/* 補助テキストの帯の「印の凡例」の代わり（段4・G3）。「印の見かた：」に続けて、4つの蹄鉄と「上限-下限」を
+		   虹 → 金 → 銀 → 銅 の順に並べる（区間まとめパネルの読む順と同じ）。折り返しは buildMarkLegendLines と同じ形 */
+		function buildEffLegendLines(ctx, bounds, imgs, maxWidth, fontSize) {
+			const glyphW = fontSize * 1.35;
+			const sep = ' ／ ';
+			const groups = [[{ type: 'text', text: MARK_LEGEND_HEAD, w: ctx.measureText(MARK_LEGEND_HEAD).width }]];
+			[3, 2, 1, 0].forEach((k, i) => {
+				const g = [];
+				if (i > 0) g.push({ type: 'text', text: sep, w: ctx.measureText(sep).width });
+				g.push({ type: 'mark', w: glyphW, draw: (c2, cx, cy, d) => c2.drawImage(imgs[k], cx - d * 0.65, cy - d * 0.65, d * 1.3, d * 1.3) });
+				const label = ' ' + effRangeLabel(k, bounds);
+				g.push({ type: 'text', text: label, w: ctx.measureText(label).width });
+				groups.push(g);
+			});
+			const lines = [[]];
+			let x = 0;
+			groups.forEach(g => {
+				let parts = g;
+				const gw = g.reduce((sum, it) => sum + it.w, 0);
+				if (x > 0 && x + gw > maxWidth) {
+					lines.push([]);
+					x = 0;
+					parts = g.filter(it => !(it.type === 'text' && it.text === sep));
+				}
+				parts.forEach(it => lines[lines.length - 1].push(it));
+				x += parts.reduce((sum, it) => sum + it.w, 0);
+			});
+			return lines;
+		}
+
 		/**
 		 * 凡例の1行を、折り返し済みの「部品の並び」に組み立てる。
 		 *
@@ -6187,12 +6325,16 @@
 			// 印の凡例。使った区分だけを並べる。記号は色で描き分けるので、
 			// 文字ではなく結果画像と同じ drawSkillMark() で描く。
 			const info = markInfo || {};
-			const markColors = (s.legend && info.kinds && info.kinds.length) ? attrMarkColors() : null;
-			const legendLines = markColors ? buildMarkLegendLines(ctx, info.kinds, maxTextWidth, fontSize) : [];
+			// 効率で選ぶ（C-136・段4）: 印の凡例の代わりに、4つの蹄鉄と「上限-下限」。「印の無い行の説明」は出さない
+			const effLegend = !!(s.legend && info.eff && info.eff.imgs);
+			const markColors = (!effLegend && s.legend && info.kinds && info.kinds.length) ? attrMarkColors() : null;
+			const legendLines = effLegend
+				? buildEffLegendLines(ctx, info.eff.bounds, info.eff.imgs, maxTextWidth, fontSize)
+				: (markColors ? buildMarkLegendLines(ctx, info.kinds, maxTextWidth, fontSize) : []);
 
 			// 凡例に続く、印そのものについての断り（印の無い行の意味・印を付けなかった理由）。
 			const markNotes = [];
-			if (legendLines.length) {
+			if (legendLines.length && !effLegend) {
 				stitchWrapText(ctx, MARK_LEGEND_NOTE, maxTextWidth).forEach(line => markNotes.push(line));
 			}
 			(s.legend ? (info.suppressed || []) : []).slice()
@@ -6213,7 +6355,8 @@
 			// 画像を見た人がまず知りたいのは記号の意味なので、凡例を先頭に置き、
 			// 対象スキルをどう調整したかは後ろにまとめる。
 			// 記号の部品は、描き方（drawSkillMark と色）を包んで骨格へ渡す。
-			const rows = legendLines.map(segs => segs.map(it => (it.type === 'mark'
+			// 蹄鉄の凡例の部品は描き方（draw）を自分で持っているので、そのまま渡す
+			const rows = legendLines.map(segs => segs.map(it => (it.type === 'mark' && !it.draw
 				? { type: 'mark', w: it.w, draw: (c2, cx, cy, d) => drawSkillMark(c2, it.kind, cx, cy, d, markColors) }
 				: it)));
 			markNotes.forEach(line => rows.push(stitchNoteTextRow(ctx, line)));
@@ -6265,6 +6408,10 @@
 			// 印の凡例に出すもの（セット内の全員ぶんをまとめる）
 			const usedMarkKinds = new Set();
 			const markSuppressed = new Set();
+			// 効率で選ぶ（C-136）: 左の印の代わりに蹄鉄（段4）。画像を読めなければ蹄鉄だけ省いて結合は続ける
+			const effOn = !!(run.scope === 'efficiency' && run.eff && effData);
+			const effImgs = effOn ? await loadEffIconImages() : null;
+			const effMarks = [];
 			for (const idx of activeIndexes) {
 				const label = PERSON_LABELS[idx];
 				if (onPersonStart) onPersonStart(label);
@@ -6274,7 +6421,14 @@
 					allWarnings.push(...contentCanvas._stitchWarnings);
 				}
 				// 区分の印は**結合が終わってから**焼く（結合の前に描くと継ぎ目がズレる）
-				const mark = drawAttrIconsOnPerson(contentCanvas, idx, run);
+				let mark;
+				if (effOn) {
+					const e = drawEffIconsOnPerson(contentCanvas, idx, run, effImgs);
+					effMarks.push({ idx: idx, placed: e.placed, wanted: e.wanted, sizes: e.sizes, suppressed: e.suppressed });
+					mark = { kinds: [], suppressed: e.suppressed };
+				} else {
+					mark = drawAttrIconsOnPerson(contentCanvas, idx, run);
+				}
 				mark.kinds.forEach(k => usedMarkKinds.add(k));
 				if (mark.suppressed) markSuppressed.add(mark.suppressed);
 				const detected = countDetected(idx, run);
@@ -6305,7 +6459,8 @@
 			const countNoteBar = show.banner ? stitchDrawCountNoteBar(rowWidth, contentCanvases[0].width) : null;
 			const noteBar = stitchDrawSharedNoteBar(rowWidth, contentCanvases[0].width, {
 				kinds: MARK_KIND_ORDER.filter(k => usedMarkKinds.has(k)),
-				suppressed: MARK_SUPPRESSED_ORDER.filter(r => markSuppressed.has(r))
+				suppressed: MARK_SUPPRESSED_ORDER.filter(r => markSuppressed.has(r)),
+				eff: (effOn && effImgs) ? { bounds: run.eff.bounds, imgs: effImgs } : null
 			}, { legend: show.legend, conditions: show.conditions }, run,
 				personMeta.map(p => p.idx));
 
@@ -6331,6 +6486,7 @@
 
 			finalCanvas._personMeta = personMeta; // コピーボタン描画用に一時保持
 			finalCanvas._stitchWarnings = allWarnings;
+			finalCanvas._effMarks = effMarks; // 効率で選ぶの蹄鉄を置いた数と大きさ（検査・開発ログ用）
 			return finalCanvas;
 		}
 
