@@ -5049,6 +5049,13 @@
 			});
 			return { score: score, sp: sp, count: items.length };
 		}
+		// 効率を指定の合計の帯（2行）。1行目「合計評価点/合計SP:6.123」（小数3桁）・2行目「合計評価点:19,594」（3桁区切り）。
+		// 該当が無い（消費SPの合計が0）ときは1行目の値が「—」・2行目の値が「0」
+		function effTotalLines(tot) {
+			return ['合計評価点/合計SP:' + (tot.sp > 0 ? (tot.score / tot.sp).toFixed(3) : '—'),
+				'合計評価点:' + (tot.sp > 0 ? tot.score.toLocaleString('en-US') : '0')];
+		}
+		// 拡張モードの合計の帯（1行）
 		function effTotalText(tot) {
 			return '合計 ' + (tot.sp > 0 ? (tot.score / tot.sp).toFixed(3) : '—') + '（評価点/SP）';
 		}
@@ -6323,8 +6330,10 @@
 		const EFF_BANNER = {
 			pad: 0.03, topPad: 0.018, titleFont: 0.075, cardH: 0.1, headGap: 0.019,
 			cardLabelFont: 0.04, cardValueFont: 0.07, cardPad: 0.02, cardInnerGap: 0.012, cardGap: 0.015, cardRadius: 0.015,
-			panelPad: 0.012, panelGap: 0.012, panelIcon: 0.11, cellPad: 0.012, rangeFont: 0.036, countFont: 0.08, panelAfter: 0.016,
-			totalH: 0.09, totalFont: 0.044, totalAfter: 0.017,
+			// 区間まとめパネルは案A（改善3）: 蹄鉄は0.79倍（0.11→0.087）・検出数の文字は0.76倍（0.08→0.061）・余白を詰めた。
+			// 合計の帯の高さ（totalH＋totalAfter）は変えず、中を2行にした（文字は 0.044→0.032）
+			panelPad: 0.008, panelGap: 0.008, panelIcon: 0.087, cellPad: 0.007, rangeFont: 0.036, countFont: 0.061, panelAfter: 0.016,
+			totalH: 0.09, totalFont: 0.032, totalAfter: 0.017,
 			purpleFont: 0.041, purpleLineH: 0.062, purpleAfter: 0.022
 		};
 
@@ -6373,14 +6382,14 @@
 			ctx.closePath();
 		}
 
-		// opts … { cards, factors, effPanel, totalText, purpleMinLines }。purpleMinLines は、同じセットの全員で紫の行数をそろえる
+		// opts … { cards, factors, effPanel, totalLines, purpleMinLines }（totalLines は合計の帯の2行の文字）。purpleMinLines は、同じセットの全員で紫の行数をそろえる
 		// （帯の高さがそろい、スクショの上端がずれない）
 		function stitchDrawEffPersonBanner(width, groupLabel, totalDetected, sp70Count, factors, genes, opts) {
 			const B = EFF_BANNER;
 			const U = (r) => Math.round(width * r);
 			const withCards = !(opts && opts.cards === false);
 			const effPanel = (opts && opts.effPanel) || null;
-			const totalText = (opts && opts.totalText) || null;
+			const totalLines = (opts && opts.totalLines) || null;
 			const pad = U(B.pad);
 			const headContentH = withCards ? U(B.cardH) : U(B.titleFont);
 			const headPitch = U(B.topPad) + headContentH + U(B.headGap);
@@ -6388,7 +6397,7 @@
 			const panelH = effPanel ? (U(B.panelPad) * 2 + panelCellH * 2 + U(B.panelGap)) : 0;
 			const panelPitch = effPanel ? panelH + U(B.panelAfter) : 0;
 			const totalBoxH = U(B.totalH);
-			const totalPitch = totalText ? totalBoxH + U(B.totalAfter) : 0;
+			const totalPitch = totalLines ? totalBoxH + U(B.totalAfter) : 0;
 			const purple = effPurpleLayout(width, factors, genes, !(opts && opts.factors === false));
 			const purpleLines = purple.lineCount ? Math.max(purple.lineCount, (opts && opts.purpleMinLines) || 0) : (opts && opts.purpleMinLines) || 0;
 			const purplePitch = purpleLines ? purpleLines * U(B.purpleLineH) + U(B.purpleAfter) : 0;
@@ -6485,7 +6494,8 @@
 				});
 				y += panelPitch;
 			}
-			if (totalText) {
+			if (totalLines) {
+				// ラベンダー色の箱の中の2行（1行目＝合計評価点/合計SP・2行目＝合計評価点）
 				stitchRoundRectPath(ctx, pad, y, width - pad * 2, totalBoxH, Math.round(totalBoxH * 0.3));
 				ctx.fillStyle = stitchTokenColor('--exam-eff-total-bg');
 				ctx.fill();
@@ -6496,7 +6506,7 @@
 				const tf = U(B.totalFont);
 				ctx.font = 'bold ' + tf + 'px sans-serif';
 				ctx.textBaseline = 'middle';
-				ctx.fillText(totalText, pad + Math.round(tf * 0.6), y + totalBoxH / 2);
+				totalLines.forEach((line, i) => ctx.fillText(line, pad + Math.round(tf * 0.8), y + totalBoxH * (i === 0 ? 0.29 : 0.73)));
 				y += totalPitch;
 			}
 			if (purple.lineCount) {
@@ -6922,7 +6932,7 @@
 				const sp70Count = countCategory(idx, sp70Ids, false);
 				const greenCount = countCategory(idx, greenIds, equivalence);
 				// 区間まとめパネル（効率を指定のとき常に）と合計＝評価点の合計÷消費SPの合計（効率を指定のとき常に／拡張モードでは検出数カードに従う）。C-136・段5・改善2
-				let effPanel = null, totalText = null;
+				let effPanel = null, totalText = null, totalLines = null;
 				if (effOn) {
 					const items = effPersonItems(idx, run) || [];
 					effPanel = { cells: [0, 1, 2, 3].map(k => ({
@@ -6933,14 +6943,14 @@
 				}
 				if (effOn || (run.melop && show.banner)) {
 					const tot = effTotals(idx, run);
-					if (tot) totalText = effTotalText(tot);
+					if (tot) { if (effOn) totalLines = effTotalLines(tot); else totalText = effTotalText(tot); }
 				}
 				// 検出数カード・「シナリオ因子・遺伝子」は個別に省ける。両方 OFF でも列見出し（親A など）の帯は出す
 				const factorHl = scenarioFactorHighlight(idx, run), geneHl = aptitudeGeneHighlight(idx, run);
 				if (effOn) {
 					// 効率を指定: 情報領域を縦に詰めた専用の帯（stitchDrawEffPersonBanner）。全員ぶんをそろえてから描く
 					effBannerSpecs.push({ slot: bannerCanvases.length, width: contentCanvas.width, label: label, detected: detected, sp70Count: sp70Count,
-						factors: factorHl, genes: geneHl, opts: { cards: show.banner, factors: show.scenario, effPanel: effPanel, totalText: totalText } });
+						factors: factorHl, genes: geneHl, opts: { cards: show.banner, factors: show.scenario, effPanel: effPanel, totalLines: totalLines } });
 					bannerCanvases.push(null);
 				} else {
 					bannerCanvases.push(stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count, factorHl, geneHl,
