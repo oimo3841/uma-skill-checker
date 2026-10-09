@@ -10469,8 +10469,40 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		detailHidden: document.getElementById('scope-detail').hidden,
 	}));
 	assert(JSON.stringify(opt.values) === JSON.stringify(['default', 'expanded', 'curated', 'efficiency'])
-		&& /^効率で選ぶ（.+種）βテスト$/.test(opt.text) && !opt.checked && opt.panelHidden && !opt.detailHidden,
-		'効率(1): 「対象スキルの範囲」の4つ目に「効率で選ぶ（N種）βテスト」。既定では選ばれず、バーは出ない', opt);
+		&& /^効率を指定（.+種）\?βテスト$/.test(opt.text) && !opt.checked && opt.panelHidden && !opt.detailHidden,
+		'効率(1): 「対象スキルの範囲」の4つ目の題は「効率を指定（N種）」、その下の1行は「βテスト」。既定では選ばれず、バーは出ない', opt);
+
+	// (C2) 題の隣の「？」: 既存の「？」と同じ部品。押しても選択肢（ラジオ）は切り替わらない（マウスもキーボードも）。説明が出る
+	const help = await page.evaluate(() => {
+		const b = document.getElementById('eff-help-btn');
+		const f = document.getElementById('factor-list-btn');
+		const label = document.querySelector('label[for="scope-mode-efficiency"]');
+		const tb = b.getBoundingClientRect(), ls = label.querySelector('.block').getBoundingClientRect();
+		return { cls: b.className.split(' ').includes('uma-help-btn') && f.className.split(' ').includes('uma-help-btn'), inLabel: label.contains(b),
+			w: tb.width, fw: f.getBoundingClientRect().width, nearTitle: tb.top >= ls.top - 8 && tb.top <= ls.top + 24 };
+	});
+	const radios = () => page.evaluate(() => ({ eff: document.getElementById('scope-mode-efficiency').checked, def: document.getElementById('scope-mode-default').checked, mode: targetScopeMode }));
+	await page.click('#eff-help-btn');
+	const h1 = await page.evaluate(() => ({ open: !document.getElementById('eff-help-box').hidden, text: document.getElementById('eff-help-text').textContent, exp: document.getElementById('eff-help-btn').getAttribute('aria-expanded'), expect: EFF_HELP_TEXT }));
+	const r1c = await radios();
+	await page.keyboard.press('Escape');
+	const h2 = await page.evaluate(() => document.getElementById('eff-help-box').hidden);
+	await page.focus('#eff-help-btn');
+	await page.keyboard.press('Enter');
+	const h3 = await page.evaluate(() => !document.getElementById('eff-help-box').hidden);
+	const r2c = await radios();
+	await page.click('#eff-help-close');
+	await page.focus('#eff-help-btn');
+	await page.keyboard.press('Space');
+	const h4 = await page.evaluate(() => !document.getElementById('eff-help-box').hidden);
+	const r3c = await radios();
+	await page.keyboard.press('Escape');
+	assert(help.cls && help.inLabel && Math.abs(help.w - help.fw) < 0.5 && help.nearTitle,
+		'効率(C2): 題の隣に「？」。既存の「？」（シナリオ因子・遺伝子）と同じ部品・同じ大きさ', help);
+	assert(!r1c.eff && r1c.def && !r2c.eff && r2c.def && !r3c.eff && r3c.def && r1c.mode === 'default',
+		'効率(C2): 「？」を押しても選択肢（ラジオ）は切り替わらない（クリック・Enter・Space のどれでも）', { r1c, r2c, r3c });
+	assert(h1.open && h1.exp === 'true' && h1.text === h1.expect && h1.text.startsWith('効率（評価点÷消費SP）で対象のスキルを選ぶモードです（βテスト）。') && h2 && h3 && h4,
+		'効率(C2): 押すとこのモードの説明が出る（Esc・✕で閉じ、キーボードでも開ける）', h1);
 
 	// (2) 選ぶとデータを読み、#scope-detail の代わりにバーが出る。最小・最大・段の値・初期の境目はデータから
 	await page.click('label[for="scope-mode-efficiency"]');
@@ -10487,8 +10519,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 			copyAll: document.getElementById('copylist-all133-count').textContent,
 			bounds: effBounds.slice(), tiers: effTiers.slice(),
 			detailHidden: document.getElementById('scope-detail').hidden, panelHidden: document.getElementById('eff-panel').hidden,
-			srcs: [...document.querySelectorAll('.eff-seg img')].map((i) => i.getAttribute('src')), icons: EFF_TIER_ICON_SRCS,
-			pressed: [...document.querySelectorAll('.eff-seg')].map((s) => s.getAttribute('aria-pressed')),
+			srcs: [...document.querySelectorAll('.eff-shoe img')].map((i) => i.getAttribute('src')), icons: EFF_TIER_ICON_SRCS,
+			pressed: [...document.querySelectorAll('.eff-shoe')].map((s) => s.getAttribute('aria-pressed')),
 			vals: [...document.querySelectorAll('.eff-val')].map((e) => e.textContent),
 			stored: [localStorage.getItem('uma-exam-eff-bounds'), localStorage.getItem('uma-exam-eff-tiers')],
 			scopeStored: localStorage.getItem('uma-exam-target-scope'),
@@ -10514,7 +10546,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert([0, 1, 2, 3].every((k) => st.ms.some((m) => tierOfT(m, st.bounds) === k)),
 		'効率(2): 初期の境目で、4つの区間のどれも1種以上を含む', st.bounds);
 	assert(st.detailHidden && !st.panelHidden && JSON.stringify(st.srcs) === JSON.stringify(st.icons),
-		'効率(2): #scope-detail の代わりにバーが出て、区間の蹄鉄は左から銅・銀・金・虹', st.srcs);
+		'効率(2): #scope-detail の代わりにバーが出て、バーの下の蹄鉄は左から銅・銀・金・虹', st.srcs);
 	assert(JSON.stringify(st.vals) === JSON.stringify([fmt(min)].concat(eq.map(fmt), [fmt(max)])),
 		'効率(2): つまみの下に境目の値、両端の下に最小値と最大値（どれも小数3桁）', st.vals);
 	assert(st.stored[0] === null && st.stored[1] === null && st.scopeStored === 'efficiency' && st.skillList133 && st.copyAll === '133',
@@ -10564,10 +10596,12 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	});
 	await page.mouse.up();
 	const d1 = await page.evaluate(() => ({ b: effBounds.slice(), tiers: effTiers.slice(), stored: JSON.parse(localStorage.getItem('uma-exam-eff-bounds')), tipHidden: document.getElementById('eff-tip').hidden }));
-	const wantDragIdx = Math.min(Math.max(nearIdx(min + target * (max - min)), idx(d1.b[0]) + 1), idx(d1.b[2]) - 1);
+	const cumAt = (i) => st.ms.filter((m) => m <= steps[i]).length / st.ms.length;
+	const nearPos = (f) => steps.reduce((best, s, i) => (Math.abs(cumAt(i) - f) < Math.abs(cumAt(best) - f) ? i : best), 0);
+	const wantDragIdx = Math.min(Math.max(nearPos(target), idx(d1.b[0]) + 1), idx(d1.b[2]) - 1);
 	assert(d1.b[1] === steps[wantDragIdx] && JSON.stringify(d1.tiers) === JSON.stringify(drag.tiers)
 		&& JSON.stringify(d1.stored) === JSON.stringify(d1.b.map((m) => m / 1000)),
-		'効率(4): ドラッグはポインタに最も近い段の値に吸い付く。区間の切り替えは起きず、離すと保存される', { got: d1.b[1], want: steps[wantDragIdx] });
+		'効率(4): ドラッグはポインタに最も近い段（バー上の個数の位置）に吸い付く。区間の切り替えは起きず、離すと保存される', { got: d1.b[1], want: steps[wantDragIdx] });
 	assert(!during.hidden && d1.tipHidden, '効率(C): ドラッグしている間は吹き出しが出て、離すと消える', { during: during.hidden, after: d1.tipHidden });
 	assert(during.name === during.rep.name && JSON.stringify(during.nums) === JSON.stringify([fmt(during.v), String(during.rep.score), String(during.rep.sp)])
 		&& during.img === during.icons[1] && during.valuetext === fmt(during.v) + ' ' + during.rep.name,
@@ -10621,27 +10655,27 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 
 	// (5) 区間を押すと対象に入れる／外すが切り替わる（aria-pressed・色）。全部は外せない。キーボードでも押せる
 	const t0 = await page.evaluate(() => { effBounds = defaultEffBounds(effData); layoutEffPanel(); return { count: effTargets().length }; });
-	await page.click('.eff-seg--2');
+	await page.click('.eff-shoe--2');
 	const t1 = await page.evaluate(() => {
 		const on = getComputedStyle(document.querySelector('.eff-seg--1')), off = getComputedStyle(document.querySelector('.eff-seg--2'));
 		const snap = effSnapshot();
 		return {
-			tiers: effTiers.slice(), pressed: document.querySelector('.eff-seg--2').getAttribute('aria-pressed'),
+			tiers: effTiers.slice(), pressed: document.querySelector('.eff-shoe--2').getAttribute('aria-pressed'),
 			count: Number(document.getElementById('scope-count-efficiency').textContent),
 			want: effData.targets.filter((t) => effTierOf(t.milli, snap.bounds) !== 2).length,
 			onBg: on.backgroundColor, offBg: off.backgroundColor, offOpacity: off.opacity,
-			imgFilter: getComputedStyle(document.querySelector('.eff-seg--2 img')).filter,
+			imgFilter: getComputedStyle(document.querySelector('.eff-shoe--2 img')).filter, segOn: document.querySelector('.eff-seg--2').getAttribute('data-on'),
 			stored: JSON.parse(localStorage.getItem('uma-exam-eff-tiers')),
 		};
 	});
 	assert(t1.pressed === 'false' && t1.tiers[2] === false && t1.count === t1.want && t1.count < t0.count && JSON.stringify(t1.stored) === JSON.stringify(t1.tiers),
-		'効率(5): 区間を押すと対象から外れ、種数が減り、保存される', t1);
-	assert(t1.onBg !== t1.offBg && t1.offOpacity === '1' && /grayscale/.test(t1.imgFilter),
-		'効率(5): 外した区間は色で表す（opacity は使わない。恒久ルール9）', t1);
-	await page.focus('.eff-seg--2');
+		'効率(5): 蹄鉄を押すと区間が対象から外れ、種数が減り、保存される', t1);
+	assert(t1.onBg !== t1.offBg && t1.offOpacity === '1' && /grayscale/.test(t1.imgFilter) && t1.segOn === 'false',
+		'効率(5): 外した区間はバーを灰色にし、蹄鉄も灰色にする（色で表す。opacity は使わない。恒久ルール9）', t1);
+	await page.focus('.eff-shoe--2');
 	await page.keyboard.press('Enter');
 	const t2 = await page.evaluate(() => effTiers.slice());
-	assert(t2.every(Boolean), '効率(5): 区間はキーボード（Enter）でも切り替わる', t2);
+	assert(t2.every(Boolean), '効率(5): 蹄鉄はキーボード（Enter）でも切り替わる', t2);
 	const t3 = await page.evaluate(() => {
 		[0, 1, 2].forEach((k) => toggleEffTier(k));
 		toggleEffTier(3);
@@ -10794,6 +10828,104 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		&& dark.light.tip !== dark.dark.tip,
 		'効率(10): ダークでは区間・枠・吹き出しの色がダークの値になる', dark);
 
+	// (C3) バーの形（改善2）。区間の幅とつまみの位置は個数に比例／蹄鉄はバーの下・44px・端で切れない・重なれば段をずらす・線でつなぐ
+	// 配置を測る関数（ページの中で動く。座標は「バーの左端・バーの下端」を原点にする）
+	const PROBE = () => {
+		const R = (el) => el.getBoundingClientRect();
+		const bar = R(document.getElementById('eff-bar'));
+		return {
+			barW: bar.width, barH: bar.height, panelH: R(document.getElementById('eff-panel')).height,
+			segs: [...document.querySelectorAll('.eff-seg')].map((s) => { const r = R(s); return { x: r.left - bar.left, w: r.width }; }),
+			thumbs: [...document.querySelectorAll('.eff-thumb')].map((t) => { const r = R(t); return { cx: r.left + r.width / 2 - bar.left, top: r.top - bar.top, bottom: r.bottom - bar.bottom, h: r.height }; }),
+			shoes: [...document.querySelectorAll('.eff-shoe')].map((s) => { const r = R(s), i = R(s.querySelector('img')); return { l: r.left - bar.left, r: r.right - bar.left, top: r.top - bar.bottom, w: i.width, h: i.height }; }),
+			stems: [...document.querySelectorAll('.eff-stem')].map((s) => { const r = R(s); return { cx: r.left + r.width / 2 - bar.left, top: r.top - bar.bottom, bottom: r.bottom - bar.bottom, w: r.width }; }),
+			vals: [...document.querySelectorAll('.eff-val')].map((e) => { const r = R(e); return { l: r.left - bar.left, r: r.right - bar.left, t: r.top - bar.top, b: r.bottom - bar.top }; }),
+		};
+	};
+	const geomErrors = (g, b, tag) => {
+		const bad = [];
+		const N = st.ms.length;
+		const counts = [0, 1, 2, 3].map((k) => st.ms.filter((m) => tierOfT(m, b) === k).length);
+		let x = 0;
+		counts.forEach((c, k) => {
+			const w = g.barW * c / N;
+			if (Math.abs(g.segs[k].w - w) > 1) bad.push(tag + ' 区間' + k + 'の幅 ' + g.segs[k].w.toFixed(1) + ' ≠ 個数に比例 ' + w.toFixed(1));
+			if (Math.abs(g.segs[k].x - x) > 1) bad.push(tag + ' 区間' + k + 'の左端 ' + g.segs[k].x.toFixed(1) + ' ≠ ' + x.toFixed(1));
+			x += w;
+		});
+		let acc = 0;
+		[0, 1, 2].forEach((i) => {
+			acc += counts[i];
+			if (Math.abs(g.thumbs[i].cx - g.barW * acc / N) > 1) bad.push(tag + ' つまみ' + i + 'の位置 ' + g.thumbs[i].cx.toFixed(1) + ' ≠ 積み上げた個数の位置 ' + (g.barW * acc / N).toFixed(1));
+		});
+		if (Math.abs(g.barH - 34) > 0.5) bad.push(tag + ' バーの高さ ' + g.barH);
+		g.thumbs.forEach((t, i) => { if (Math.abs(t.h - 42) > 0.5 || Math.abs(t.top + 4) > 0.5 || Math.abs(t.bottom - 4) > 0.5) bad.push(tag + ' つまみ' + i + 'は高さ42px・上下に4pxはみ出す ' + JSON.stringify(t)); });
+		g.shoes.forEach((s, k) => {
+			if (Math.abs(s.w - 44) > 0.01 || Math.abs(s.h - 44) > 0.01) bad.push(tag + ' 蹄鉄' + k + 'の大きさ ' + s.w + '×' + s.h);
+			if (s.top < 0) bad.push(tag + ' 蹄鉄' + k + 'がバーの中にある');
+			if (s.l < -0.5 || s.r > g.barW + 0.5) bad.push(tag + ' 蹄鉄' + k + 'がバーの幅の外へ出ている（端で切れる）');
+			// 区間の中央（バーの内側に収めたもの）
+			const center = Math.min(Math.max(g.segs[k].x + g.segs[k].w / 2, 22), g.barW - 22);
+			if (Math.abs((s.l + s.r) / 2 - center) > 1) bad.push(tag + ' 蹄鉄' + k + 'の横の位置が区間の中央でない');
+			// 段は 6px 刻みでなく 50px 刻みで下へずれる
+			const row = (s.top - 8) / 50;
+			if (Math.abs(row - Math.round(row)) > 0.02 || row < -0.02) bad.push(tag + ' 蹄鉄' + k + 'の段が 50px 刻みでない');
+		});
+		// 重なる（間隔4px未満）ものは段がずれ、同じ段のものは間隔4px以上
+		for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) {
+			const a = g.shoes[i], c = g.shoes[j];
+			const gap = Math.max(c.l - a.r, a.l - c.r);
+			if (Math.abs(a.top - c.top) < 1 && gap < 4 - 0.5) bad.push(tag + ' 蹄鉄' + i + 'と' + j + 'が同じ段で間隔 ' + gap.toFixed(1) + 'px');
+		}
+		g.stems.forEach((s, k) => {
+			const center = g.segs[k].x + g.segs[k].w / 2;
+			if (Math.abs(s.cx - center) > 1 || Math.abs(s.w - 1.5) > 0.1) bad.push(tag + ' 線' + k + 'が区間の中央・1.5pxでない');
+			if (Math.abs(s.top) > 1 || Math.abs(s.bottom - g.shoes[k].top) > 1) bad.push(tag + ' 線' + k + 'がバーの下端から蹄鉄の上端までつながっていない ' + JSON.stringify(s));
+			if (s.cx < g.shoes[k].l - 0.5 || s.cx > g.shoes[k].r + 0.5) bad.push(tag + ' 線' + k + 'が蹄鉄の幅から外れている');
+		});
+		// バーの上の値: バーの幅の内側・バーより上・重ならない
+		g.vals.forEach((v, i) => {
+			if (v.l < -0.5 || v.r > g.barW + 0.5 || v.b > 0.5) bad.push(tag + ' 値' + i + 'がバーの幅の外・バーの上にない ' + JSON.stringify(v));
+			g.vals.forEach((w2, j) => { if (i < j && v.l < w2.r && w2.l < v.r && v.t < w2.b && w2.t < v.b) bad.push(tag + ' 値' + i + 'と' + j + 'が重なる'); });
+		});
+		return bad;
+	};
+	const geomAt = async (bounds) => {
+		await page.evaluate((bs) => { effBounds = bs ? bs.map((i) => effData.steps[i]) : defaultEffBounds(effData); layoutEffPanel(); }, bounds || null);
+		const g = await page.evaluate(PROBE);
+		const b = await page.evaluate(() => effBounds.slice());
+		return { g, b };
+	};
+	const n = steps.length;
+	const d1280 = await geomAt(null);
+	const e1280 = geomErrors(d1280.g, d1280.b, '[1280 初期]');
+	assert(e1280.length === 0, '効率(C3): 1280px・初期の境目: 区間の幅とつまみの位置は個数に比例／蹄鉄はバーの下で44px・区間の中央・線でつながる／値はバーの上', e1280);
+	assert(d1280.g.shoes.every((s) => s.top === d1280.g.shoes[0].top) && d1280.g.panelH > 0,
+		'効率(C3): 1280px の初期は蹄鉄が1段に収まる', { tops: d1280.g.shoes.map((s) => s.top), panelH: d1280.g.panelH });
+	// 区間の色（トークン）。銅 #B5602E・銀 #6C7A92・金 #D9A300・虹は左から右へ5色のグラデーション
+	const colors = await page.evaluate(() => {
+		const cs = (k) => getComputedStyle(document.querySelector('.eff-seg--' + k));
+		return { bg: [0, 1, 2].map((k) => cs(k).backgroundColor), rainbow: cs(3).backgroundImage, off: (() => { effTiers[1] = false; layoutEffPanel(); const v = cs(1).backgroundColor; effTiers[1] = true; layoutEffPanel(); return v; })() };
+	});
+	assert(JSON.stringify(colors.bg) === JSON.stringify(['rgb(181, 96, 46)', 'rgb(108, 122, 146)', 'rgb(217, 163, 0)'])
+		&& /linear-gradient/.test(colors.rainbow) && ['240, 98, 146', '255, 213, 79', '102, 187, 106', '79, 195, 247', '149, 117, 205'].every((c) => colors.rainbow.includes(c))
+		&& colors.rainbow.indexOf('240, 98, 146') < colors.rainbow.indexOf('255, 213, 79') && colors.rainbow.indexOf('79, 195, 247') < colors.rainbow.indexOf('149, 117, 205')
+		&& colors.off !== colors.bg[1] && colors.off === 'rgb(201, 207, 216)',
+		'効率(C3): 区間の色は銅・銀・金・虹（5色のグラデーション）。外した区間は灰色', colors);
+	// 範囲の表示（改善D）: 区間に入る段の値の最大を切り上げ・最小を切り捨てて小数第2位（千分率の整数で計算）。書式は「上限-下限」
+	const fmt2 = (h) => Math.floor(h / 100) + '.' + String(h % 100).padStart(2, '0');
+	const rangeOf = (k, bs) => { const inT = steps.filter((s) => tierOfT(s, bs) === k); return fmt2(Math.ceil(inT[inT.length - 1] / 10)) + '-' + fmt2(Math.floor(inT[0] / 10)); };
+	const rl = await page.evaluate(() => {
+		const b = effBounds.slice();
+		return { b, got: [0, 1, 2, 3].map((k) => effRangeLabel(k, b)), unit: [effRangeLabel(3, [effData.steps[1], effData.steps[2], effData.steps[3]])] };
+	});
+	assert(JSON.stringify(rl.got) === JSON.stringify([0, 1, 2, 3].map((k) => rangeOf(k, rl.b))),
+		'効率(D): 範囲の表示は、区間に入る段の値の最大（切り上げ）と最小（切り捨て）を小数第2位で「上限-下限」', { got: rl.got, want: [0, 1, 2, 3].map((k) => rangeOf(k, rl.b)) });
+	assert(fmt2(Math.ceil(7557 / 10)) === '7.56' && fmt2(Math.floor(6170 / 10)) === '6.17' && fmt2(Math.ceil(7551 / 10)) === '7.56' && fmt2(Math.floor(6179 / 10)) === '6.17',
+		'効率(D): 最大値は切り上げ・最小値は切り捨て（7557→7.56、6170→6.17。千分率の整数で計算）', null);
+	assert(JSON.stringify(rl.got) === JSON.stringify(['3.78-2.74', '4.79-3.82', '5.88-4.91', '7.56-6.17']) || JSON.stringify(rl.b) !== JSON.stringify([3779, 4783, 5878]),
+		'効率(D): 初期の境目では、銅 3.78-2.74・銀 4.79-3.82・金 5.88-4.91・虹 7.56-6.17', rl);
+
 	// (11) 375px: 横にはみ出さない。選択肢は2列×2段。吹き出しも画面の内側
 	await page.setViewportSize({ width: 375, height: 800 });
 	await page.waitForTimeout(400);
@@ -10803,32 +10935,26 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const vals = [...document.querySelectorAll('.eff-val')].map((e) => e.getBoundingClientRect());
 		return { sw: document.documentElement.scrollWidth, cols: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
 			panelRight: p.right, valsIn: vals.every((r) => r.left >= p.left - 1 && r.right <= p.right + 1),
-			icons: [...document.querySelectorAll('.eff-seg img')].map((i) => i.style.display !== 'none') };
+			icons: [...document.querySelectorAll('.eff-shoe img')].map((i) => { const r = i.getBoundingClientRect(); return r.width === 44 && r.height === 44 && getComputedStyle(i).display !== 'none'; }) };
 	});
 	assert(narrow.sw <= 375 && narrow.cols === 2 && narrow.panelRight <= 375 && narrow.valsIn && narrow.icons.every(Boolean),
 		'効率(11): 375px で横にはみ出さず、選択肢は2列×2段・値はバーの枠の中・蹄鉄は4つとも見える', narrow);
 	const e2 = await edgeTip();
 	const sw2 = await page.evaluate(() => document.documentElement.scrollWidth);
 	assert(inside(e2) && sw2 <= 375, '効率(11): 375px でも吹き出しは帯の枠と画面の内側に収まり、横にはみ出さない', e2);
-	// つまみを最小の側へ寄せ切っても、値どうしは重ならない（下の段へずらす）。狭い区間の蹄鉄は縮めるか出さない
-	const packed = await page.evaluate(() => {
-		effBounds = effData.steps.slice(0, 3);
-		layoutEffPanel();
-		const rs = [...document.querySelectorAll('.eff-val')].map((e) => e.getBoundingClientRect());
-		const overlap = rs.some((a, i) => rs.some((b, j) => i < j && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom));
-		const scale = document.querySelector('.eff-scale').getBoundingClientRect();
-		const panel = document.getElementById('eff-panel').getBoundingClientRect();
-		const imgs = [...document.querySelectorAll('.eff-seg')].map((s) => {
-			const img = s.querySelector('img');
-			return { seg: s.getBoundingClientRect().width, img: img.style.display === 'none' ? 0 : img.getBoundingClientRect().width };
-		});
-		const r = { overlap, inside: rs.every((x) => x.bottom <= scale.bottom + 0.5 && x.bottom <= panel.bottom), rows: Math.round(scale.height / 16), imgs };
-		effBounds = defaultEffBounds(effData);
-		layoutEffPanel();
-		return r;
-	});
-	assert(!packed.overlap && packed.inside && packed.rows >= 2 && packed.imgs.every((x) => x.img === 0 || x.img <= x.seg - 6),
-		'効率(11): つまみを寄せ切っても値どうしは重ならず（下の段へ）、狭い区間の蹄鉄は縮めるか出さない', packed);
+	// (C3・375px) 初期・つまみを両端へ寄せ切った形・真ん中に寄せた形。どれでも蹄鉄は44px・端で切れず、重なれば段をずらして線でつなぐ。値は重ならない
+	const shapes = [['初期', null], ['最小の側へ寄せ切り', [0, 1, 2]], ['最大の側へ寄せ切り', [n - 4, n - 3, n - 2]], ['真ん中へ寄せ', [Math.floor(n / 2) - 1, Math.floor(n / 2), Math.floor(n / 2) + 1]],
+		['境目1だけ最小', [0, Math.floor(n / 2), n - 2]]];
+	const shapeInfo = [];
+	for (const [label, idxs] of shapes) {
+		const { g, b } = await geomAt(idxs);
+		const bad = geomErrors(g, b, '[375 ' + label + ']');
+		assert(bad.length === 0, '効率(C3): 375px・' + label + ': 幅は個数に比例／蹄鉄は44px・バーの下・端で切れない・線でつながる／値は重ならずバーの幅の内側', bad);
+		shapeInfo.push({ label, rows: new Set(g.shoes.map((s) => s.top)).size, panelH: Math.round(g.panelH) });
+	}
+	assert(shapeInfo[0].rows >= 2 && shapeInfo[1].rows >= 2 && shapeInfo.some((s) => s.rows >= 3),
+		'効率(C3): 375px では、重なる蹄鉄が上下の段にずれる（初期は2段以上、寄せ切ると3段以上になることがある）', shapeInfo);
+	await page.evaluate(() => { effBounds = defaultEffBounds(effData); layoutEffPanel(); });
 	await page.setViewportSize({ width: 1280, height: 900 });
 
 	// (13) 結合画像（改善D・段4・段5）―― ここに足す

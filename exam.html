@@ -105,8 +105,12 @@
 			   結果画像の区間まとめパネル（canvas。ライトの値で読む）が同じものを使う。
 			   外した区間は灰（opacity は使わず色だけで表す。恒久ルール9） */
 			--exam-eff-turf-bg: #e8f3dd; --exam-eff-turf-border: #c6ddb2; --exam-eff-turf-text: #46563a;
-			--exam-eff-off-bg: #eef0f3; --exam-eff-off-border: #d5dae1;
 			--exam-eff-thumb-bg: #ffffff; --exam-eff-thumb-border: #46563a;
+			/* 区間の色（改善2）。バーの塗りと、結合画像の蹄鉄の枠が同じものを使う（canvas はライトの値で読む）。
+			   虹は左から右へ5色のグラデーション（結合画像では斜め135度）。外した区間は灰色、線は蹄鉄とバーをつなぐ細い線 */
+			--exam-eff-bronze: #B5602E; --exam-eff-silver: #6C7A92; --exam-eff-gold: #D9A300;
+			--exam-eff-rainbow-1: #F06292; --exam-eff-rainbow-2: #FFD54F; --exam-eff-rainbow-3: #66BB6A; --exam-eff-rainbow-4: #4FC3F7; --exam-eff-rainbow-5: #9575CD;
+			--exam-eff-off-bar: #c9cfd8; --exam-eff-seg-edge: rgba(15, 23, 42, .18); --exam-eff-stem: #64748b;
 			/* 吹き出し（改善C）と、結合画像の効率の合計の行（段5。canvas はライトの値で読む） */
 			--exam-eff-tip-bg: #ffffff; --exam-eff-tip-border: #c6ddb2; --exam-eff-tip-text: #26301f; --exam-eff-tip-sep: #d5dae1;
 			--exam-eff-total-bg: #f3effa; --exam-eff-total-border: #d9cdee; --exam-eff-total-text: #4b3a73;
@@ -393,10 +397,9 @@
 		.copylist-btn:hover { background-color: #f1f5f9; }
 		.copylist-btn.active { background-color: var(--uma-control); color: #fff; border-color: var(--uma-control); }
 
-		/* 効率で選ぶ（βテスト・C-136）の区切りのバー。#scope-detail の位置に出す（選んでいる間だけ）。
-		   帯を4つの区間（左から 銅・銀・金・虹）に分け、各区間の中央に蹄鉄。区間の名前の文字は出さない。
-		   区間は押すと「対象に入れる／外す」が切り替わるボタン。境目の3つのつまみはドラッグと←→で動く。
-		   左右の余白（8px）は、両端に寄せたつまみが帯の外へはみ出さないため。 */
+		/* 効率を指定（βテスト・C-136）の区切りのバー。#scope-detail の位置に出す（選んでいる間だけ）。
+		   バーを4つの区間（左から 銅・銀・金・虹）の色で塗り、各区間の蹄鉄はバーの下に置く。区間の名前の文字は出さない。
+		   蹄鉄は押すと「対象に入れる／外す」が切り替わるボタン。境目の3つのつまみはドラッグと←→で動く。 */
 		/* 「対象スキルの範囲」を4択にしたとき（C-136）、1枚の幅が狭い（1024px 未満）と、選択肢の下の説明の1行まで出すと
 		   1枚が3〜4行に折り返し、3択だったときより低くならない（375px は同じ 186px、320px は 186→202px・700px 前後は 57→89px と
 		   高くなる。恒久ルール25）。狭い幅では説明の1行を出さない
@@ -405,36 +408,46 @@
 		@media (max-width: 1023.98px) {
 			.scope-sub { display: none; }
 		}
-		.eff-panel { margin-top: 0.5rem; padding: 0.55rem 0 0.35rem; background: #fff; border: 1px solid #cbd5e1; border-radius: 0.5rem; }
-		.eff-bar { position: relative; height: 44px; margin: 0 12px; }
-		.eff-seg {
-			position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
-			padding: 0; overflow: hidden; cursor: pointer;
-			background: var(--exam-eff-turf-bg); border: 1px solid var(--exam-eff-turf-border);
+		.eff-panel { margin-top: 0.5rem; padding: 0.55rem 0 0.5rem; background: #fff; border: 1px solid #cbd5e1; border-radius: 0.5rem; }
+		/* バー（高さ34px）。区間ごとの色で中を塗る。区間の幅・つまみの位置はスキルの個数に比例（JS が % で置く）。
+		   左右の余白（12px）は、両端に寄せたつまみが帯の外へはみ出さないため */
+		.eff-bar { position: relative; height: 34px; margin: 0 12px; }
+		.eff-seg { position: absolute; top: 0; bottom: 0; box-shadow: inset 0 0 0 1px var(--exam-eff-seg-edge); }
+		.eff-seg--0 { background: var(--exam-eff-bronze); border-radius: 8px 0 0 8px; }
+		.eff-seg--1 { background: var(--exam-eff-silver); }
+		.eff-seg--2 { background: var(--exam-eff-gold); }
+		.eff-seg--3 {
+			background: linear-gradient(90deg, var(--exam-eff-rainbow-1), var(--exam-eff-rainbow-2), var(--exam-eff-rainbow-3), var(--exam-eff-rainbow-4), var(--exam-eff-rainbow-5));
+			border-radius: 0 8px 8px 0;
 		}
-		.eff-seg + .eff-seg { border-left-width: 0; }
-		.eff-seg:first-child { border-radius: 8px 0 0 8px; }
-		.eff-seg--3 { border-radius: 0 8px 8px 0; }
-		.eff-seg[aria-pressed="false"] { background: var(--exam-eff-off-bg); border-color: var(--exam-eff-off-border); }
-		/* 外した区間の蹄鉄は灰色に（filter は色の変換。opacity ではない） */
-		.eff-seg[aria-pressed="false"] img { filter: grayscale(1); }
-		.eff-seg img { display: block; width: 32px; height: 32px; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+		/* 外した区間は灰色（opacity は使わず色だけで表す。恒久ルール9） */
+		.eff-seg[data-on="false"] { background: var(--exam-eff-off-bar); }
+		/* つまみ: 白地・暗い縁・高さ42px（バーより上下に4pxはみ出す） */
 		.eff-thumb {
-			position: absolute; top: -5px; bottom: -5px; width: 14px; margin-left: -7px; z-index: 1;
+			position: absolute; top: -4px; height: 42px; width: 14px; margin-left: -7px; z-index: 2;
 			background: var(--exam-eff-thumb-bg); border: 2px solid var(--exam-eff-thumb-border); border-radius: 7px;
 			box-shadow: 0 1px 3px rgba(15, 23, 42, .25); cursor: ew-resize; touch-action: none;
 		}
 		/* 指で掴みやすいよう、つまみの左右に見えない当たり判定を足す */
 		.eff-thumb::before { content: ''; position: absolute; top: -4px; bottom: -4px; left: -9px; right: -9px; }
-		.eff-scale { position: relative; height: 16px; margin: 6px 12px 0; font-size: 11px; line-height: 16px; color: #475569; font-variant-numeric: tabular-nums; }
-		.eff-val { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
-		.eff-val--min { transform: none; }
-		.eff-val--max { transform: translateX(-100%); }
+		/* バーの上の値（つまみの値・両端の最小値と最大値）。段の数と位置は JS が決める */
+		.eff-scale { position: relative; height: 16px; margin: 0 12px 6px; font-size: 11px; line-height: 16px; color: #475569; font-variant-numeric: tabular-nums; }
+		.eff-val { position: absolute; top: 0; left: 0; white-space: nowrap; }
 		.eff-msg { margin: 0 12px; font-size: 11px; color: #475569; }
-		/* 吹き出し（改善C）。つまみを動かしている間だけ、帯の上に重ねて出す（行は増やさない）。
+		/* バーの下の蹄鉄（44px）。区間の中央から上端まで細い線（1.5px）でつなぐ。線は蹄鉄の後ろ */
+		.eff-shoes { position: relative; margin: 0 12px; }
+		.eff-stem { position: absolute; top: 0; width: 1.5px; margin-left: -0.75px; background: var(--exam-eff-stem); }
+		.eff-shoe {
+			position: absolute; z-index: 1; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px;
+			background: transparent; cursor: pointer;
+		}
+		.eff-shoe img { display: block; width: 44px; height: 44px; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+		/* 外した区間の蹄鉄は灰色に（filter は色の変換。opacity ではない） */
+		.eff-shoe[aria-pressed="false"] img { filter: grayscale(1); }
+		/* 吹き出し（改善C）。つまみを動かしている間だけ、つまみの上に重ねて出す（行は増やさない）。
 		   横の位置は JS（placeEffTip）が帯の枠と画面の幅の内側に寄せる。名前が長ければ名前だけ「…」で詰める */
 		.eff-tip {
-			position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 2;
+			position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 3;
 			display: flex; align-items: center; height: 26px; padding: 0 6px; white-space: nowrap;
 			font-size: 11px; line-height: 1; font-variant-numeric: tabular-nums;
 			background: var(--exam-eff-tip-bg); color: var(--exam-eff-tip-text);
@@ -449,6 +462,9 @@
 		.eff-tip-num:last-child { padding-right: 0; }
 		/* ①の対象スキルの一覧で、その行の区間を示す小さな蹄鉄 */
 		.eff-mini { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; }
+		/* 選択肢「効率を指定」の題の末尾の「？」。「（N種）」と一続き（nowrap）にして、狭い幅でも「（N種）」の行に収める。
+		   「？」（22px）が題の行を高くしないよう、上下の余白を負にして文字の行の高さに収める */
+		.scope-help { margin: -3px 0 -5px 2px; vertical-align: top; }
 
 		/* ===== ダーク（C-134 段5）=====
 		   <html data-theme="dark"> のときだけ効く。ライトの見た目は1つも変えていない。
@@ -466,8 +482,10 @@
 			--exam-toggle-off-bg: var(--uma-surface); --exam-toggle-off-text: var(--uma-text-faint); --exam-toggle-off-border: var(--uma-border); --exam-toggle-on-text: #ffffff;
 			/* 効率で選ぶ（C-136）。結果画像はライトの値で読むので、ここは画面のバーにだけ効く */
 			--exam-eff-turf-bg: #24331b; --exam-eff-turf-border: #47603a; --exam-eff-turf-text: #cfe3bd;
-			--exam-eff-off-bg: #1c222b; --exam-eff-off-border: #313a46;
 			--exam-eff-thumb-bg: #e2e8f0; --exam-eff-thumb-border: #cfe3bd;
+			--exam-eff-bronze: #C9743C; --exam-eff-silver: #8C99B0; --exam-eff-gold: #E3B21C;
+			--exam-eff-rainbow-1: #F27AA3; --exam-eff-rainbow-2: #FFDC7A; --exam-eff-rainbow-3: #7BC97F; --exam-eff-rainbow-4: #66C7F0; --exam-eff-rainbow-5: #A68DDB;
+			--exam-eff-off-bar: #323a46; --exam-eff-seg-edge: rgba(255, 255, 255, .16); --exam-eff-stem: #8a97ae;
 			--exam-eff-tip-bg: #1b2433; --exam-eff-tip-border: #47603a; --exam-eff-tip-text: #e6edf5; --exam-eff-tip-sep: #3a4555;
 		}
 		:root[data-theme="dark"] body { background: var(--uma-page-ground); color: var(--uma-text); }
@@ -733,6 +751,24 @@
 			</div>
 		</div>
 
+		<!-- 効率を指定（βテスト）の説明（C-136・改善2）。選択肢の題の「？」から開く**見るだけ**のミニウィンドウ。
+		     上のシナリオ因子・遺伝子の一覧と同じ作り（置き場所・閉じ方も。.glass-card の外に置くこと。F-61）。 -->
+		<div id="eff-help-backdrop" class="uma-overlay-backdrop" hidden onclick="closeEffHelp()"></div>
+		<div id="eff-help-box" class="uma-overlay notice-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="eff-help-title">
+			<div class="help-head">
+				<h2 id="eff-help-title" class="help-title">
+					<i data-lucide="sliders-horizontal" class="w-4 h-4 text-[var(--uma-control)]"></i>
+					<span>効率を指定（βテスト）</span>
+				</h2>
+				<button id="eff-help-close" type="button" onclick="closeEffHelp()" aria-label="閉じる" class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer">
+					<i data-lucide="x" class="w-5 h-5"></i>
+				</button>
+			</div>
+			<div class="help-body">
+				<p id="eff-help-text" class="notice-text"></p>
+			</div>
+		</div>
+
 		<!-- 画面の切り替えの告知。初回だけ自動で出て、以後は右上の「新UI」バッジから読み直せる。
 		     ✕・OK・背景・Esc のどれで閉じても既読になる（special の C-16 と同じ作法）。
 		     上の段はこのページの青、＜新機能＞の段は Deck の色（.deck-accent）の枠で囲み、
@@ -857,7 +893,7 @@
 					<!-- 「対象を広げる／絞る」に触れている間は、足す／外すスキル名を下の #scope-detail に出す
 					     （中身は renderScopeDetail() がデータから書く）。マウスだけでなく、キーボード・
 					     タップでラジオに焦点が来たときも同じ欄に出す。選択肢の上には何も重ねない。 -->
-					<!-- 4択（C-136 で「効率で選ぶ」を足した）。640px 未満は2列×2段（縦3段だったときより1段減る。恒久ルール25）、
+					<!-- 4択（C-136 で「効率を指定」を足した）。640px 未満は2列×2段（縦3段だったときより1段減る。恒久ルール25）、
 					     640px 以上は横1列（3択のときと同じ段数）。種数の「（N種）」は途中で折り返さない -->
 					<div class="grid gap-2 grid-cols-2 sm:grid-cols-4">
 						<label for="scope-mode-default" class="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 cursor-pointer hover:border-[var(--uma-control-border)] transition-all"
@@ -884,13 +920,13 @@
 								<span class="scope-sub block text-[11px] text-slate-500 mt-0.5">既定から12種を外します</span>
 							</span>
 						</label>
-						<!-- 効率で選ぶ（βテスト・C-136）。種数は区間で対象にしているぶん（データを読めるまでは「…」）。
+						<!-- 効率を指定（βテスト・C-136）。種数は区間で対象にしているぶん（データを読めるまでは「…」）。
 						     選んでいる間は、下の #scope-detail の位置に区切りのバー（#eff-panel）を出す -->
 						<label for="scope-mode-efficiency" class="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 cursor-pointer hover:border-[var(--uma-control-border)] transition-all"
 							onmouseenter="previewScopeDetail('efficiency')" onmouseleave="previewScopeDetail(null)">
 							<input type="radio" id="scope-mode-efficiency" name="target-scope-mode" value="efficiency" class="mt-0.5 accent-[var(--uma-control)] cursor-pointer" onchange="setTargetScopeMode('efficiency')" onfocus="previewScopeDetail('efficiency')" onblur="previewScopeDetail(null)" />
 							<span>
-								<span class="block text-xs font-semibold text-slate-800">効率で選ぶ<span class="whitespace-nowrap">（<span id="scope-count-efficiency">…</span>種）</span></span>
+								<span class="block text-xs font-semibold text-slate-800">効率を指定<span class="whitespace-nowrap">（<span id="scope-count-efficiency">…</span>種）<button type="button" class="uma-help-btn scope-help" id="eff-help-btn" aria-expanded="false" aria-haspopup="dialog" onclick="openEffHelp(event)" aria-label="効率を指定の説明を見る" title="効率を指定の説明を見る">?</button></span></span>
 								<span class="block text-[11px] text-slate-500 mt-0.5">βテスト</span>
 							</span>
 						</label>
@@ -2922,6 +2958,43 @@
 			geneListReturnFocus = null;
 		}
 
+		/* ------------------------------------------------------------
+		 * 効率を指定（βテスト）の説明（改善2）。選択肢の題の「？」から開く見るだけの小窓。
+		 * 「？」は選択肢（ラジオ）の中にあるので、押してもラジオが切り替わらないよう、押した操作はここで止める
+		 * （キーボードの Enter・Space も同じ）。閉じ方は一覧と同じ（✕・背景・Esc）。
+		 * ------------------------------------------------------------ */
+		const EFF_HELP_TEXT = '効率（評価点÷消費SP）で対象のスキルを選ぶモードです（βテスト）。バーの蹄鉄は効率の区間で、左ほど効率が低く、右ほど高くなります。つまみを動かすと区間の範囲が変わり、蹄鉄を押すとその区間を対象に入れる／外すを切り替えられます。つまみを動かしている間は、境目のスキルの例が表示されます。結合画像では、スキル行に区間の蹄鉄が付き、列ごとに区間別の検出数と、評価点の合計÷SPの合計が出ます。継承固有・レース因子(スキル)は対象に含まれません。';
+		let effHelpOpen = false;
+		let effHelpReturnFocus = null;
+
+		function openEffHelp(e) {
+			if (e) { e.preventDefault(); e.stopPropagation(); }
+			if (effHelpOpen) return;
+			effHelpOpen = true;
+			effHelpReturnFocus = document.activeElement;
+			document.getElementById('eff-help-text').textContent = EFF_HELP_TEXT;
+			document.getElementById('eff-help-backdrop').hidden = false;
+			document.getElementById('eff-help-box').hidden = false;
+			document.getElementById('eff-help-btn').setAttribute('aria-expanded', 'true');
+			document.body.style.overflow = 'hidden';
+			if (window.lucide) lucide.createIcons();
+			document.getElementById('eff-help-close').focus();
+		}
+
+		function closeEffHelp() {
+			if (!effHelpOpen) return;
+			effHelpOpen = false;
+			document.getElementById('eff-help-backdrop').hidden = true;
+			document.getElementById('eff-help-box').hidden = true;
+			document.getElementById('eff-help-btn').setAttribute('aria-expanded', 'false');
+			document.body.style.overflow = '';
+			// **preventScroll を付ける。** 付けないと、フォーカスを戻すだけで画面が動く（C-65 と同じ）
+			if (effHelpReturnFocus && typeof effHelpReturnFocus.focus === 'function') {
+				try { effHelpReturnFocus.focus({ preventScroll: true }); } catch (err) { effHelpReturnFocus.focus(); }
+			}
+			effHelpReturnFocus = null;
+		}
+
 		function setAptitudeGenesAll(on) {
 			selectedGenes = on ? new Set(APTITUDE_GENES) : new Set();
 			saveTargetScope();
@@ -4747,8 +4820,10 @@
 		const EFF_TIER_COUNT = 4;
 		const EFF_KEY_STEPS = 1;      // ←→ の1回（段の数）
 		const EFF_KEY_STEPS_BIG = 5;  // Shift＋←→
-		const EFF_ICON_PX = 32;       // 区切りのバーの蹄鉄の大きさ（区間が狭いときは縮める）
-		const EFF_ICON_MIN_PX = 14;   // これより小さくなるなら出さない
+		const EFF_SHOE_PX = 44;       // バーの下の蹄鉄の大きさ（区間が狭くても縮めない）
+		const EFF_SHOE_GAP_MIN = 4;   // 蹄鉄どうしの間隔がこれ未満になるなら下の段へずらす
+		const EFF_SHOE_ROW_PX = 50;   // 蹄鉄の1段あたりの高さ（44px＋6px）
+		const EFF_SHOE_TOP_PX = 8;    // バーの下端から最初の段の蹄鉄の上端まで（つなぐ線の長さ）
 		const EFF_TIP_KEY_MS = 1500;  // キーボードで動かしたあと吹き出しを出しておく時間
 		// 読み上げ用の区間の呼び名（画面には出さない）
 		const EFF_TIER_LABELS = ['銅', '銀', '金', '虹'];
@@ -4765,7 +4840,9 @@
 		/* 読み込んだデータを、並びのデータの行に結び付ける。
 		   targets … 対象になり得る行（並びのデータの順＝data/skill-efficiency.json の順）。{ row, name, id, milli, score, sp }
 		   milliByRow … 行番号 → 効率（千分率）
-		   steps … 段の値（効率の重複を除いて小さい順） */
+		   steps … 段の値（効率の重複を除いて小さい順）
+		   cum … 段の値ごとの個数の積み上げ（cum[i]＝効率が steps[i] 以下の行の数）。バーの区間の幅とつまみの位置はこれに比例させる
+		   total … 対象の行の数（cum の最後） */
 		function prepareEffData(json, sheet) {
 			const byId = new Map();
 			((json && json.entries) || []).forEach(e => {
@@ -4782,8 +4859,12 @@
 				targets.push({ row: r.row, name: r.name, id: String(r.id), milli: v.milli, score: v.score, sp: v.sp });
 			});
 			const steps = Array.from(new Set(targets.map(t => t.milli))).sort((a, b) => a - b);
+			const countByStep = new Map();
+			targets.forEach(t => countByStep.set(t.milli, (countByStep.get(t.milli) || 0) + 1));
+			let acc = 0;
+			const cum = steps.map(s => (acc += countByStep.get(s)));
 			return { dataVersion: json && json.dataVersion, targets: targets, milliByRow: milliByRow, steps: steps,
-				min: steps[0], max: steps[steps.length - 1], defaultBounds: json && json.defaultBounds };
+				cum: cum, total: targets.length, min: steps[0], max: steps[steps.length - 1], defaultBounds: json && json.defaultBounds };
 		}
 
 		async function loadEffData() {
@@ -4821,6 +4902,16 @@
 		function effNearestStepIndex(v, d) {
 			let best = 0;
 			d.steps.forEach((s, i) => { if (Math.abs(s - v) < Math.abs(d.steps[best] - v)) best = i; });
+			return best;
+		}
+
+		// 段 i のバー上の位置（バーの幅に対する比。0〜1）。個数の積み上げ。境目ちょうどの値は左の区間に入る
+		function effPosOfStep(i, d) { return d.cum[i] / d.total; }
+		function effPosOfValue(milli, d) { return effPosOfStep(d.steps.indexOf(milli), d); }
+		// バー上の位置（比）に最も近い段の番号（同じ近さなら小さいほう）。ドラッグの吸い付き先
+		function effNearestStepByPos(frac, d) {
+			let best = 0;
+			d.steps.forEach((s, i) => { if (Math.abs(effPosOfStep(i, d) - frac) < Math.abs(effPosOfStep(best, d) - frac)) best = i; });
 			return best;
 		}
 
@@ -4935,7 +5026,12 @@
 			return items.reduce((sum, it) => sum + it.milli, 0);
 		}
 
-		/* ---------- 区切りのバー ---------- */
+		/* ---------- 区切りのバー（改善2・C3） ----------
+		   バーの中は区間ごとの色で塗る（外した区間は灰色）。**区間の幅とつまみの位置は、スキルの個数
+		   （段の値ごとの個数の積み上げ）に比例させる**。つまみは段の値にだけ吸い付く。
+		   蹄鉄は、バーの下に出す（大きさは44pxのまま）。横の位置は区間の中央で、バーの幅の内側に収める。
+		   重なる（間隔4px未満になる）ものは下の段へずらし、区間の中央から蹄鉄の上端まで細い線でつなぐ。
+		   つまみの値（段の値）と両端の最小値・最大値はバーの上。つまみが近いときは、上の段へずらして重ならないようにする。 */
 		function renderEffPanel() {
 			const panel = document.getElementById('eff-panel');
 			const detail = document.getElementById('scope-detail');
@@ -4951,22 +5047,26 @@
 			}
 			// 作りは1度だけ（作り直すと、キーボードで動かしている最中のつまみから焦点が外れる）。以後は位置と状態だけ直す
 			if (panel.getAttribute('data-built') !== String(effData.dataVersion)) {
-				let html = '<div class="eff-bar" id="eff-bar">';
-				for (let k = 0; k < EFF_TIER_COUNT; k++) {
-					html += '<button type="button" class="eff-seg eff-seg--' + k + '" data-tier="' + k + '" onclick="toggleEffTier(' + k + ')">'
-						+ '<img src="' + EFF_TIER_ICON_SRCS[k] + '" alt="" draggable="false" /></button>';
-				}
+				let html = '<div class="eff-scale" id="eff-scale">'
+					+ '<span class="eff-val" data-val="min"></span>'
+					+ [0, 1, 2].map(i => '<span class="eff-val" data-val="' + i + '"></span>').join('')
+					+ '<span class="eff-val" data-val="max"></span></div>';
+				html += '<div class="eff-bar" id="eff-bar">';
+				for (let k = 0; k < EFF_TIER_COUNT; k++) html += '<span class="eff-seg eff-seg--' + k + '" data-tier="' + k + '"></span>';
 				for (let i = 0; i < 3; i++) {
 					html += '<div class="eff-thumb" role="slider" tabindex="0" data-idx="' + i + '" aria-label="' + (i + 1) + 'つ目の境目"></div>';
 				}
-				// 吹き出し（つまみを動かしている間だけ出す。バーに重ねるので行は増えない）
+				// 吹き出し（つまみを動かしている間だけ出す。つまみの上に重ねるので行は増えない）
 				html += '<div class="eff-tip" id="eff-tip" hidden aria-hidden="true"><img alt="" draggable="false" />'
 					+ '<span class="eff-tip-name"></span><span class="eff-tip-num" data-k="eff"></span>'
 					+ '<span class="eff-tip-num" data-k="score"></span><span class="eff-tip-num" data-k="sp"></span></div>';
-				html += '</div><div class="eff-scale" id="eff-scale">'
-					+ '<span class="eff-val eff-val--min" data-val="min"></span>'
-					+ [0, 1, 2].map(i => '<span class="eff-val" data-val="' + i + '"></span>').join('')
-					+ '<span class="eff-val eff-val--max" data-val="max"></span></div>';
+				html += '</div><div class="eff-shoes" id="eff-shoes">';
+				for (let k = 0; k < EFF_TIER_COUNT; k++) html += '<span class="eff-stem" data-tier="' + k + '"></span>';
+				for (let k = 0; k < EFF_TIER_COUNT; k++) {
+					html += '<button type="button" class="eff-shoe eff-shoe--' + k + '" data-tier="' + k + '" onclick="toggleEffTier(' + k + ')">'
+						+ '<img src="' + EFF_TIER_ICON_SRCS[k] + '" alt="" draggable="false" /></button>';
+				}
+				html += '</div>';
 				panel.innerHTML = html;
 				panel.setAttribute('data-built', String(effData.dataVersion));
 				bindEffPanel(panel);
@@ -4974,65 +5074,94 @@
 			layoutEffPanel();
 		}
 
-		// 位置・値・押した状態・蹄鉄の大きさ・値の重なりを、今の境目に合わせる（作り直さない）
+		// つまみの境目の段の番号3つ
+		function effBoundIdx() {
+			return effBounds.map(v => effData.steps.indexOf(v));
+		}
+
+		// 区間の縁の位置（バーの幅に対する比。0〜1）。区間 k は edges[k]〜edges[k+1]。個数の積み上げで決まる
+		function effEdges() {
+			return [0].concat(effBoundIdx().map(i => effPosOfStep(i, effData)), [1]);
+		}
+
+		// 位置・値・押した状態・蹄鉄の位置を、今の境目に合わせる（作り直さない）
 		function layoutEffPanel() {
 			const panel = document.getElementById('eff-panel');
 			if (!panel || panel.hidden || !effData || !effBounds) return;
-			const d = effData, b = effBounds, span = d.max - d.min;
-			const pct = (m) => ((m - d.min) / span * 100);
-			const edges = [d.min].concat(b, [d.max]);
+			const bar = panel.querySelector('.eff-bar');
+			const W = bar.getBoundingClientRect().width;
+			if (!(W > 0)) return;
+			const d = effData, b = effBounds;
+			const edges = effEdges();
+			const pct = (f) => (f * 100) + '%';
 			panel.querySelectorAll('.eff-seg').forEach(seg => {
 				const k = Number(seg.getAttribute('data-tier'));
-				seg.style.left = pct(edges[k]) + '%';
-				seg.style.width = (pct(edges[k + 1]) - pct(edges[k])) + '%';
-				seg.setAttribute('aria-pressed', effTiers[k] ? 'true' : 'false');
-				seg.setAttribute('aria-label', EFF_TIER_LABELS[k] + '（' + effFormat(edges[k]) + '〜' + effFormat(edges[k + 1]) + '）を対象にする');
+				seg.style.left = pct(edges[k]);
+				seg.style.width = pct(edges[k + 1] - edges[k]);
+				seg.setAttribute('data-on', effTiers[k] ? 'true' : 'false');
 			});
 			panel.querySelectorAll('.eff-thumb').forEach(th => {
 				const i = Number(th.getAttribute('data-idx'));
 				const rep = effRepresentative(b[i]);
-				th.style.left = pct(b[i]) + '%';
+				th.style.left = pct(edges[i + 1]);
 				th.setAttribute('aria-valuemin', effFormat(d.min));
 				th.setAttribute('aria-valuemax', effFormat(d.max));
 				th.setAttribute('aria-valuenow', effFormat(b[i]));
 				th.setAttribute('aria-valuetext', effFormat(b[i]) + (rep ? ' ' + rep.name : ''));
 			});
-			const vals = panel.querySelectorAll('.eff-val');
-			vals.forEach(el => {
-				const key = el.getAttribute('data-val');
-				if (key === 'min') { el.textContent = effFormat(d.min); el.style.left = '0%'; }
-				else if (key === 'max') { el.textContent = effFormat(d.max); el.style.left = '100%'; }
-				else { const i = Number(key); el.textContent = effFormat(b[i]); el.style.left = pct(b[i]) + '%'; }
-				el.style.top = '0px';
-			});
-			// 区間が狭いときは蹄鉄を縮める（さらに狭ければ出さない）
-			panel.querySelectorAll('.eff-seg').forEach(seg => {
-				const img = seg.querySelector('img');
-				const w = seg.getBoundingClientRect().width;
-				const size = Math.min(EFF_ICON_PX, Math.floor(w - 6));
-				img.style.display = size >= EFF_ICON_MIN_PX ? '' : 'none';
-				img.style.width = img.style.height = Math.max(size, 0) + 'px';
-			});
-			// 隣の値と重なるものは下の段へずらす（左から順に、重ならない最初の段へ。両端の値も含める）。
+			const bounds2 = [d.min].concat(b, [d.max]);
+			// バーの下の蹄鉄: 区間の中央（バーの幅の内側に収める）。間隔が4px未満になるものは下の段へ。左から順に、入る最初の段へ
+			const shoes = panel.querySelector('.eff-shoes');
+			const rowRights = [];
+			for (let k = 0; k < EFF_TIER_COUNT; k++) {
+				const shoe = panel.querySelector('.eff-shoe[data-tier="' + k + '"]');
+				const stem = panel.querySelector('.eff-stem[data-tier="' + k + '"]');
+				const center = (edges[k] + edges[k + 1]) / 2 * W;
+				const left = Math.min(Math.max(center - EFF_SHOE_PX / 2, 0), Math.max(W - EFF_SHOE_PX, 0));
+				let row = rowRights.findIndex(right => left >= right + EFF_SHOE_GAP_MIN);
+				if (row === -1) { row = rowRights.length; rowRights.push(-Infinity); }
+				rowRights[row] = left + EFF_SHOE_PX;
+				const top = EFF_SHOE_TOP_PX + row * EFF_SHOE_ROW_PX;
+				shoe.style.left = left + 'px';
+				shoe.style.top = top + 'px';
+				shoe.setAttribute('aria-pressed', effTiers[k] ? 'true' : 'false');
+				shoe.setAttribute('aria-label', EFF_TIER_LABELS[k] + '（' + effFormat(bounds2[k]) + '〜' + effFormat(bounds2[k + 1]) + '）を対象にする');
+				stem.style.left = center + 'px';
+				stem.style.height = top + 'px';
+			}
+			if (shoes) shoes.style.height = (EFF_SHOE_TOP_PX + rowRights.length * EFF_SHOE_ROW_PX - (EFF_SHOE_ROW_PX - EFF_SHOE_PX)) + 'px';
+			// バーの上の値（両端の最小値・最大値と、つまみの値）。バーの幅の内側に収め、重なるものは上の段へ。
 			// つまみを寄せ切ると4つの値が重なり得るので、段の数は決め打ちしない
 			const scale = panel.querySelector('.eff-scale');
 			const LINE = 16;
-			const rowRights = [];
-			const order = ['min', '0', '1', '2', 'max'].map(k => panel.querySelector('.eff-val[data-val="' + k + '"]'));
-			order.forEach(el => {
-				const r = el.getBoundingClientRect();
-				if (r.width === 0) return;
-				let row = rowRights.findIndex(right => r.left >= right + 4);
-				if (row === -1) { row = rowRights.length; rowRights.push(-Infinity); }
-				rowRights[row] = r.right;
-				el.style.top = (row * LINE) + 'px';
+			const items = ['min', '0', '1', '2', 'max'].map(key => {
+				const el = panel.querySelector('.eff-val[data-val="' + key + '"]');
+				if (key === 'min') el.textContent = effFormat(d.min);
+				else if (key === 'max') el.textContent = effFormat(d.max);
+				else el.textContent = effFormat(b[Number(key)]);
+				const w = el.getBoundingClientRect().width;
+				const x = key === 'min' ? 0 : key === 'max' ? W : edges[Number(key) + 1] * W;
+				const left = key === 'min' ? 0 : key === 'max' ? W - w : Math.min(Math.max(x - w / 2, 0), Math.max(W - w, 0));
+				return { el: el, left: left, w: w };
 			});
-			if (scale) scale.style.height = (Math.max(1, rowRights.length) * LINE) + 'px';
+			const valRights = [];
+			items.forEach(it => {
+				let row = valRights.findIndex(right => it.left >= right + 4);
+				if (row === -1) { row = valRights.length; valRights.push(-Infinity); }
+				valRights[row] = it.left + it.w;
+				it.row = row;
+			});
+			const rows = Math.max(1, valRights.length);
+			items.forEach(it => {
+				it.el.style.left = it.left + 'px';
+				it.el.style.top = ((rows - 1 - it.row) * LINE) + 'px';
+			});
+			if (scale) scale.style.height = (rows * LINE) + 'px';
 			if (effTipIdx !== null) placeEffTip();
 		}
 
 		/* ---------- 吹き出し（改善C） ----------
-		   動かしているつまみの上に「蹄鉄｜スキル名｜効率｜評価点｜消費sp」の1行。
+		   動かしているつまみの上に「蹄鉄｜スキル名｜効率｜評価点｜消費sp」の1行（つまみの上に重ねて出す）。
 		   スキルは、そのつまみの値（段の値）と効率が等しいもののうち、データの並びで最初のもの。
 		   蹄鉄は、そのスキルが入る区間（境目の値は左の区間）＝つまみの番号の区間。
 		   画面の端で切れないよう、横の位置は帯の枠と画面の幅の内側に寄せる。 */
@@ -5072,7 +5201,7 @@
 			const lo = Math.max(panelR.left, 0) + 4, hi = Math.min(panelR.right, document.documentElement.clientWidth) - 4;
 			tip.style.maxWidth = Math.max(0, hi - lo) + 'px';
 			const w = tip.getBoundingClientRect().width;
-			const cx = barR.left + barR.width * (v - effData.min) / (effData.max - effData.min);
+			const cx = barR.left + barR.width * effPosOfValue(v, effData);
 			const left = Math.min(Math.max(cx - w / 2, lo), hi - w);
 			tip.style.left = (left - barR.left) + 'px';
 		}
@@ -5094,8 +5223,7 @@
 					if (!th.hasPointerCapture || !th.hasPointerCapture(e.pointerId)) return;
 					const r = bar.getBoundingClientRect();
 					if (!(r.width > 0)) return;
-					const frac = (e.clientX - r.left) / r.width;
-					const k = effNearestStepIndex(effData.min + frac * (effData.max - effData.min), effData);
+					const k = effNearestStepByPos((e.clientX - r.left) / r.width, effData);
 					if (setEffBoundStep(i, k)) moved = true;
 				});
 				const end = (e) => {
@@ -5118,14 +5246,14 @@
 					showEffTip(i, EFF_TIP_KEY_MS);
 				});
 			});
-			// 見えるようになったとき・幅が変わったときに、蹄鉄の大きさと値の重なりを測り直す
+			// 見えるようになったとき・幅が変わったときに、蹄鉄と値の位置を測り直す
 			if (window.ResizeObserver) new ResizeObserver(() => layoutEffPanel()).observe(bar);
 		}
 
 		/* i 番目の境目を段の番号 k へ（4つの区間のどれも1種以上を含む範囲に収める）。動いたら true。
 		   保存と表示の更新は呼び出し側 */
 		function setEffBoundStep(i, k) {
-			const idx = effBounds.map(v => effData.steps.indexOf(v));
+			const idx = effBoundIdx();
 			const last = effData.steps.length - 1;
 			const lo = (i === 0) ? 0 : idx[i - 1] + 1;
 			const hi = (i === 2) ? last - 1 : idx[i + 1] - 1;
@@ -5137,7 +5265,7 @@
 			return true;
 		}
 
-		// 区間を押すと、対象に入れる／外すが切り替わる。全部は外せない（対象が0種になるため）
+		// 蹄鉄を押すと、その区間を対象に入れる／外すが切り替わる。全部は外せない（対象が0種になるため）
 		function toggleEffTier(k) {
 			if (!effData) return;
 			if (effTiers[k] && effTiers.filter(Boolean).length === 1) {
@@ -6015,12 +6143,14 @@
 			return { drawn: placed.length > 0, suppressed: null, placed: placed.length, wanted: wanted, sizes: Array.from(sizes) };
 		}
 
-		// 区間の範囲の表示「上限-下限」（小数第1位）。隣り合う区間の境目は同じ値（境目の値）から作るので表示もそろう
+		/* 区間の範囲の表示「上限-下限」（小数第2位）。その区間に入る段の値の最大値と最小値で表し、
+		   最大値は切り上げ・最小値は切り捨て（千分率の整数で計算。例: 7557→7.56、6170→6.17）。
+		   どの区間も段の値を1つ以上含む（境目の決まり）。bounds は境目3つ（千分率）。 */
 		function effRangeLabel(k, bounds) {
-			const r1 = (m) => (Math.round(m / 100) / 10).toFixed(1);
-			const hi = (k === EFF_TIER_COUNT - 1) ? effData.max : bounds[k];
-			const lo = (k === 0) ? effData.min : bounds[k - 1];
-			return r1(hi) + '-' + r1(lo);
+			const inTier = effData.steps.filter(s => effTierOf(s, bounds) === k);
+			const hi = inTier[inTier.length - 1], lo = inTier[0];
+			const fmt2 = (hundredths) => Math.floor(hundredths / 100) + '.' + String(hundredths % 100).padStart(2, '0');
+			return fmt2(Math.ceil(hi / 10)) + '-' + fmt2(Math.floor(lo / 10));
 		}
 
 		/* 補助テキストの帯の「印の凡例」の代わり（段4・G3）。「印の見かた：」に続けて、4つの蹄鉄と「上限-下限」を
@@ -7321,6 +7451,7 @@
 			if (stitchSettingsOpen) closeStitchSettings();
 			else if (factorListOpen) closeFactorList();
 			else if (geneListOpen) closeGeneList();
+			else if (effHelpOpen) closeEffHelp();
 			else if (uiNoticeOpen) closeUiNotice();
 			else if (helpOpen) closeHelp();
 			else if (openDrawerKey) closeDrawer();
