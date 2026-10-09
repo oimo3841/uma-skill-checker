@@ -6441,11 +6441,17 @@
 					ctx.fillStyle = textColor;
 					ctx.textBaseline = 'middle';
 					ctx.textAlign = 'left';
-					ctx.font = U(B.rangeFont) + 'px sans-serif';
+					// 範囲の文字は折り返さず、検出数との間に収まらなければ文字を小さくする（最小 6px）
+					const countText = cell.count === null ? '－' : String(cell.count);
+					ctx.font = 'bold ' + U(B.countFont) + 'px sans-serif';
+					const availRange = cellW - cellPad * 3 - icon - ctx.measureText(countText).width;
+					let rf = U(B.rangeFont);
+					ctx.font = rf + 'px sans-serif';
+					while (rf > 6 && ctx.measureText(cell.range).width > availRange) { rf -= 1; ctx.font = rf + 'px sans-serif'; }
 					ctx.fillText(cell.range, cx + cellPad * 2 + icon, mid);
 					ctx.font = 'bold ' + U(B.countFont) + 'px sans-serif';
 					ctx.textAlign = 'right';
-					ctx.fillText(cell.count === null ? '－' : String(cell.count), cx + cellW - cellPad, mid);
+					ctx.fillText(countText, cx + cellW - cellPad, mid);
 					ctx.textAlign = 'left';
 				});
 				y += panelPitch;

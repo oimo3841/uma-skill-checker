@@ -11214,6 +11214,26 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(!(compact.rightCard[0] === 255 && compact.rightCard[1] === 255 && compact.rightCard[2] === 255) && compact.rightOff.join() === '255,255,255',
 		'効率(F): 「検出」「sp70緑」のカードは見出しと同じ行の右に並ぶ（オフなら何も無い）', { on: compact.rightCard, off: compact.rightOff });
 
+	// (13c2) 範囲の文字は1マスに折り返さず収まる。収まらなければ折り返さずに文字を小さくする（検出数が極端に長いときだけ）
+	const fit = await page.evaluate(async () => {
+		const imgs = await loadEffIconImages();
+		const b = effBounds.slice();
+		const used = (w, count) => {
+			const cells = [0, 1, 2, 3].map((k) => ({ img: imgs[k], range: effRangeLabel(k, b), count: count }));
+			const calls = [];
+			const orig = CanvasRenderingContext2D.prototype.fillText;
+			CanvasRenderingContext2D.prototype.fillText = function (text, x, y) { if (/^\d\.\d\d-\d\.\d\d$/.test(text)) calls.push({ text, font: this.font, w: this.measureText(text).width, x }); return orig.apply(this, arguments); };
+			stitchDrawEffPersonBanner(w, '親A', 1, 1, null, null, { cards: true, factors: true, effPanel: { cells }, totalText: null });
+			CanvasRenderingContext2D.prototype.fillText = orig;
+			return calls.map((c) => ({ px: parseFloat(c.font.replace(/^.*?(\d+(\.\d+)?)px.*$/, '$1')), w: c.w, text: c.text }));
+		};
+		const out = {};
+		[262, 765, 1179].forEach((w) => { out[w] = { normal: used(w, 12), longCount: used(w, 123456789), want: Math.round(w * EFF_BANNER.rangeFont) }; });
+		return out;
+	});
+	assert(Object.values(fit).every((x) => x.normal.length === 4 && x.normal.every((c) => c.px === x.want) && x.longCount.every((c) => c.px < x.want && c.px >= 6)),
+		'効率(D): 範囲の文字（9文字）は1マスに折り返さず、ふつうの検出数なら決めた大きさのまま収まる。検出数が極端に長いときだけ文字を小さくする', fit);
+
 	// (13d) 画像の設定（H）: 「印」のチェックが「蹄鉄（効率の区間）」（虹の小さな画像つき）になり、凡例のチェックは出ない。状態は印とは別に記憶する
 	const hset = await page.evaluate(async () => {
 		const q = (sel) => document.querySelector(sel);
