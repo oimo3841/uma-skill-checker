@@ -10858,8 +10858,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 			acc += counts[i];
 			if (Math.abs(g.thumbs[i].cx - g.barW * acc / N) > 1) bad.push(tag + ' つまみ' + i + 'の位置 ' + g.thumbs[i].cx.toFixed(1) + ' ≠ 積み上げた個数の位置 ' + (g.barW * acc / N).toFixed(1));
 		});
-		if (Math.abs(g.barH - 34) > 0.5) bad.push(tag + ' バーの高さ ' + g.barH);
-		g.thumbs.forEach((t, i) => { if (Math.abs(t.h - 42) > 0.5 || Math.abs(t.top + 4) > 0.5 || Math.abs(t.bottom - 4) > 0.5) bad.push(tag + ' つまみ' + i + 'は高さ42px・上下に4pxはみ出す ' + JSON.stringify(t)); });
+		if (Math.abs(g.barH - 38) > 0.5) bad.push(tag + ' バーの高さ ' + g.barH);
+		g.thumbs.forEach((t, i) => { if (Math.abs(t.h - 46) > 0.5 || Math.abs(t.top + 4) > 0.5 || Math.abs(t.bottom - 4) > 0.5) bad.push(tag + ' つまみ' + i + 'は高さ46px・上下に4pxはみ出す ' + JSON.stringify(t)); });
 		g.shoes.forEach((s, k) => {
 			if (Math.abs(s.w - 44) > 0.01 || Math.abs(s.h - 44) > 0.01) bad.push(tag + ' 蹄鉄' + k + 'の大きさ ' + s.w + '×' + s.h);
 			if (s.top < 0) bad.push(tag + ' 蹄鉄' + k + 'がバーの中にある');
@@ -10902,16 +10902,35 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(e1280.length === 0, '効率(C3): 1280px・初期の境目: 区間の幅とつまみの位置は個数に比例／蹄鉄はバーの下で44px・区間の中央・線でつながる／値はバーの上', e1280);
 	assert(d1280.g.shoes.every((s) => s.top === d1280.g.shoes[0].top) && d1280.g.panelH > 0,
 		'効率(C3): 1280px の初期は蹄鉄が1段に収まる', { tops: d1280.g.shoes.map((s) => s.top), panelH: d1280.g.panelH });
-	// 区間の色（トークン）。銅 #B5602E・銀 #6C7A92・金 #D9A300・虹は左から右へ5色のグラデーション
+	// 区間の色（トークン。改善3）。銅 #C97B47・銀 #8E9BB3・金 #E3B33B・虹は左から右へ5色のグラデーション。その上にシェブロン柄（28pxのタイル）と光沢。外した区間は灰色（柄なし）
 	const colors = await page.evaluate(() => {
 		const cs = (k) => getComputedStyle(document.querySelector('.eff-seg--' + k));
-		return { bg: [0, 1, 2].map((k) => cs(k).backgroundColor), rainbow: cs(3).backgroundImage, off: (() => { effTiers[1] = false; layoutEffPanel(); const v = cs(1).backgroundColor; effTiers[1] = true; layoutEffPanel(); return v; })() };
+		const off = (() => { effTiers[1] = false; layoutEffPanel(); const s = cs(1); const v = { c: s.backgroundColor, img: s.backgroundImage }; effTiers[1] = true; layoutEffPanel(); return v; })();
+		return { bg: [0, 1, 2].map((k) => cs(k).backgroundColor), imgs: [0, 1, 2, 3].map((k) => cs(k).backgroundImage), size: cs(0).backgroundSize, rainbow: cs(3).backgroundImage, off,
+			tile: getComputedStyle(document.documentElement).getPropertyValue('--exam-eff-chevron'), sheen: getComputedStyle(document.documentElement).getPropertyValue('--exam-eff-sheen') };
 	});
-	assert(JSON.stringify(colors.bg) === JSON.stringify(['rgb(181, 96, 46)', 'rgb(108, 122, 146)', 'rgb(217, 163, 0)'])
-		&& /linear-gradient/.test(colors.rainbow) && ['240, 98, 146', '255, 213, 79', '102, 187, 106', '79, 195, 247', '149, 117, 205'].every((c) => colors.rainbow.includes(c))
-		&& colors.rainbow.indexOf('240, 98, 146') < colors.rainbow.indexOf('255, 213, 79') && colors.rainbow.indexOf('79, 195, 247') < colors.rainbow.indexOf('149, 117, 205')
-		&& colors.off !== colors.bg[1] && colors.off === 'rgb(201, 207, 216)',
-		'効率(C3): 区間の色は銅・銀・金・虹（5色のグラデーション）。外した区間は灰色', colors);
+	assert(JSON.stringify(colors.bg) === JSON.stringify(['rgb(201, 123, 71)', 'rgb(142, 155, 179)', 'rgb(227, 179, 59)'])
+		&& ['247, 166, 197', '255, 224, 138', '154, 223, 166', '143, 214, 243', '185, 164, 242'].every((c) => colors.rainbow.includes(c))
+		&& colors.rainbow.indexOf('247, 166, 197') < colors.rainbow.indexOf('255, 224, 138') && colors.rainbow.indexOf('143, 214, 243') < colors.rainbow.indexOf('185, 164, 242')
+		&& colors.off.c === 'rgb(201, 207, 216)' && colors.off.c !== colors.bg[1],
+		'効率(A): 区間の色は銅・銀・金・虹（5色のグラデーション）。外した区間は灰色', colors);
+	assert(colors.imgs.every((x) => x.includes('data:image/svg+xml') && x.includes('linear-gradient(') && x.includes('rgba(255, 255, 255, 0.3)') && x.includes('rgba(0, 0, 0, 0.12)')) && colors.size.includes('28px') && colors.off.img === 'none',
+		'効率(A): 区間の色の上にシェブロン柄（SVGのタイル28px）と光沢を重ねる。外した区間は灰色のままで柄なし', { imgs: colors.imgs.map((x) => x.slice(0, 60)), size: colors.size, off: colors.off.img });
+	assert(['points=\'8,9 18,18 8,27\'', 'stroke=\'white\'', 'stroke-width=\'5\'', 'stroke-linecap=\'round\'', 'opacity=\'.32\'', 'width=\'28\'', 'height=\'28\''].every((s) => colors.tile.includes(s))
+		&& colors.sheen.replace(/\s+/g, '') === 'linear-gradient(180deg,rgba(255,255,255,0.30)0%,rgba(255,255,255,0.04)50%,rgba(0,0,0,0.12)100%)',
+		'効率(A): シェブロンは polyline (8,9)(18,18)(8,27)・白・opacity .32・太さ5・丸。光沢は指定のグラデーション（どちらもトークン）', { tile: colors.tile.slice(0, 120), sheen: colors.sheen });
+	// 区間のスキルの個数（数字のみ・白の太字14px・影つき・狭ければ隠す・aria-label に個数）
+	const cnt = await page.evaluate(() => {
+		const b = effBounds.slice();
+		const want = [0, 1, 2, 3].map((k) => effData.targets.filter((x) => effTierOf(x.milli, b) === k).length);
+		const segs = [...document.querySelectorAll('.eff-seg')].map((s) => { const n = s.querySelector('.eff-seg-n'), cs = getComputedStyle(n); return { text: n.textContent, hidden: n.hidden, w: s.getBoundingClientRect().width, nw: n.getBoundingClientRect().width, color: cs.color, weight: cs.fontWeight, size: cs.fontSize, shadow: cs.textShadow }; });
+		return { want, segs, aria: [...document.querySelectorAll('.eff-shoe')].map((s) => s.getAttribute('aria-label')) };
+	});
+	assert(cnt.segs.every((s, k) => s.text === String(cnt.want[k]) && /^\d+$/.test(s.text) && s.color === 'rgb(255, 255, 255)' && Number(s.weight) >= 700 && s.size === '14px' && s.shadow !== 'none')
+		&& cnt.aria.every((l, k) => l.includes(cnt.want[k] + '種')) && cnt.want.reduce((a, x) => a + x, 0) === st.n,
+		'効率(A): 各区間のバーの中に、その区間のスキルの個数（数字のみ・白の太字14px・影つき）。aria-label にも個数', cnt);
+	assert(cnt.segs.every((s) => s.hidden || s.w >= s.nw + 8),
+		'効率(A): 区間の幅が狭くて入らないときは個数を隠す（入るときは出す）', cnt.segs);
 	// 範囲の表示（改善D）: 区間に入る段の値の最大を切り上げ・最小を切り捨てて小数第2位（千分率の整数で計算）。書式は「上限-下限」
 	const fmt2 = (h) => Math.floor(h / 100) + '.' + String(h % 100).padStart(2, '0');
 	const rangeOf = (k, bs) => { const inT = steps.filter((s) => tierOfT(s, bs) === k); return fmt2(Math.ceil(inT[inT.length - 1] / 10)) + '-' + fmt2(Math.floor(inT[0] / 10)); };

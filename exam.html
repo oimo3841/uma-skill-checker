@@ -108,8 +108,11 @@
 			--exam-eff-thumb-bg: #ffffff; --exam-eff-thumb-border: #46563a;
 			/* 区間の色（改善2）。バーの塗りと、結合画像の蹄鉄の枠が同じものを使う（canvas はライトの値で読む）。
 			   虹は左から右へ5色のグラデーション（結合画像では斜め135度）。外した区間は灰色、線は蹄鉄とバーをつなぐ細い線 */
-			--exam-eff-bronze: #B5602E; --exam-eff-silver: #6C7A92; --exam-eff-gold: #D9A300;
-			--exam-eff-rainbow-1: #F06292; --exam-eff-rainbow-2: #FFD54F; --exam-eff-rainbow-3: #66BB6A; --exam-eff-rainbow-4: #4FC3F7; --exam-eff-rainbow-5: #9575CD;
+			--exam-eff-bronze: #C97B47; --exam-eff-silver: #8E9BB3; --exam-eff-gold: #E3B33B;
+			--exam-eff-rainbow-1: #F7A6C5; --exam-eff-rainbow-2: #FFE08A; --exam-eff-rainbow-3: #9ADFA6; --exam-eff-rainbow-4: #8FD6F3; --exam-eff-rainbow-5: #B9A4F2;
+			/* バーの区間の色の上に重ねる模様と光沢（改善3）。シェブロン柄は28pxのタイル（白・不透明度 .32・太さ5・丸）。外した区間には付けない */
+			--exam-eff-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpolyline points='8,9 18,18 8,27' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round' opacity='.32'/%3E%3C/svg%3E");
+			--exam-eff-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(0, 0, 0, 0.12) 100%);
 			--exam-eff-off-bar: #c9cfd8; --exam-eff-seg-edge: rgba(15, 23, 42, .18); --exam-eff-stem: #64748b;
 			/* 結合画像のスキル行の蹄鉄の枠（暗い縁取り。板の色は上の区間の色を使う） */
 			--exam-eff-frame-edge: #3B3340;
@@ -413,22 +416,29 @@
 			.scope-sub { display: none; }
 		}
 		.eff-panel { margin-top: 0.5rem; padding: 0.55rem 0 0.5rem; background: #fff; border: 1px solid #cbd5e1; border-radius: 0.5rem; }
-		/* バー（高さ34px）。区間ごとの色で中を塗る。区間の幅・つまみの位置はスキルの個数に比例（JS が % で置く）。
+		/* バー（高さ38px）。区間ごとの色で中を塗り、シェブロン柄と光沢を重ねる（外した区間は灰色のまま・柄なし）。区間の幅・つまみの位置はスキルの個数に比例（JS が % で置く）。
 		   左右の余白（12px）は、両端に寄せたつまみが帯の外へはみ出さないため */
-		.eff-bar { position: relative; height: 34px; margin: 0 12px; }
-		.eff-seg { position: absolute; top: 0; bottom: 0; box-shadow: inset 0 0 0 1px var(--exam-eff-seg-edge); }
-		.eff-seg--0 { background: var(--exam-eff-bronze); border-radius: 8px 0 0 8px; }
-		.eff-seg--1 { background: var(--exam-eff-silver); }
-		.eff-seg--2 { background: var(--exam-eff-gold); }
+		.eff-bar { position: relative; height: 38px; margin: 0 12px; }
+		.eff-seg {
+			position: absolute; top: 0; bottom: 0; box-shadow: inset 0 0 0 1px var(--exam-eff-seg-edge);
+			display: flex; align-items: center; justify-content: center; overflow: hidden;
+		}
+		.eff-seg--0 { background: var(--exam-eff-sheen), var(--exam-eff-chevron) 0 0 / 28px 28px repeat, var(--exam-eff-bronze); border-radius: 8px 0 0 8px; }
+		.eff-seg--1 { background: var(--exam-eff-sheen), var(--exam-eff-chevron) 0 0 / 28px 28px repeat, var(--exam-eff-silver); }
+		.eff-seg--2 { background: var(--exam-eff-sheen), var(--exam-eff-chevron) 0 0 / 28px 28px repeat, var(--exam-eff-gold); }
 		.eff-seg--3 {
-			background: linear-gradient(90deg, var(--exam-eff-rainbow-1), var(--exam-eff-rainbow-2), var(--exam-eff-rainbow-3), var(--exam-eff-rainbow-4), var(--exam-eff-rainbow-5));
+			background: var(--exam-eff-sheen), var(--exam-eff-chevron) 0 0 / 28px 28px repeat,
+				linear-gradient(90deg, var(--exam-eff-rainbow-1), var(--exam-eff-rainbow-2), var(--exam-eff-rainbow-3), var(--exam-eff-rainbow-4), var(--exam-eff-rainbow-5));
 			border-radius: 0 8px 8px 0;
 		}
+		/* 区間のスキルの個数（数字のみ。白の太字14px・影つき。幅が狭くて入らないときは JS が隠す） */
+		.eff-seg-n { color: #fff; font-size: 14px; font-weight: 700; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px rgba(0, 0, 0, .55); pointer-events: none; }
+		.eff-seg-n[hidden] { display: none; }
 		/* 外した区間は灰色（opacity は使わず色だけで表す。恒久ルール9） */
 		.eff-seg[data-on="false"] { background: var(--exam-eff-off-bar); }
-		/* つまみ: 白地・暗い縁・高さ42px（バーより上下に4pxはみ出す） */
+		/* つまみ: 白地・暗い縁・高さ46px（バーより上下に4pxはみ出す） */
 		.eff-thumb {
-			position: absolute; top: -4px; height: 42px; width: 14px; margin-left: -7px; z-index: 2;
+			position: absolute; top: -4px; height: 46px; width: 14px; margin-left: -7px; z-index: 2;
 			background: var(--exam-eff-thumb-bg); border: 2px solid var(--exam-eff-thumb-border); border-radius: 7px;
 			box-shadow: 0 1px 3px rgba(15, 23, 42, .25); cursor: ew-resize; touch-action: none;
 		}
@@ -5069,7 +5079,7 @@
 					+ [0, 1, 2].map(i => '<span class="eff-val" data-val="' + i + '"></span>').join('')
 					+ '<span class="eff-val" data-val="max"></span></div>';
 				html += '<div class="eff-bar" id="eff-bar">';
-				for (let k = 0; k < EFF_TIER_COUNT; k++) html += '<span class="eff-seg eff-seg--' + k + '" data-tier="' + k + '"></span>';
+				for (let k = 0; k < EFF_TIER_COUNT; k++) html += '<span class="eff-seg eff-seg--' + k + '" data-tier="' + k + '"><span class="eff-seg-n" aria-hidden="true"></span></span>';
 				for (let i = 0; i < 3; i++) {
 					html += '<div class="eff-thumb" role="slider" tabindex="0" data-idx="' + i + '" aria-label="' + (i + 1) + 'つ目の境目"></div>';
 				}
@@ -5096,6 +5106,14 @@
 			return effBounds.map(v => effData.steps.indexOf(v));
 		}
 
+		// 区間 k のスキルの個数（段の値ごとの個数の積み上げの差。区間を外していても数える）
+		function effTierCount(k) {
+			const idx = effBoundIdx();
+			const upper = (k === EFF_TIER_COUNT - 1) ? effData.total : effData.cum[idx[k]];
+			const lower = (k === 0) ? 0 : effData.cum[idx[k - 1]];
+			return upper - lower;
+		}
+
 		// 区間の縁の位置（バーの幅に対する比。0〜1）。区間 k は edges[k]〜edges[k+1]。個数の積み上げで決まる
 		function effEdges() {
 			return [0].concat(effBoundIdx().map(i => effPosOfStep(i, effData)), [1]);
@@ -5116,6 +5134,12 @@
 				seg.style.left = pct(edges[k]);
 				seg.style.width = pct(edges[k + 1] - edges[k]);
 				seg.setAttribute('data-on', effTiers[k] ? 'true' : 'false');
+				// 区間のスキルの個数。幅が狭くて入らない（文字＋左右4pxより狭い）ときは隠す
+				const n = effTierCount(k);
+				const num = seg.querySelector('.eff-seg-n');
+				num.textContent = String(n);
+				num.hidden = false;
+				if (seg.getBoundingClientRect().width < num.getBoundingClientRect().width + 8) num.hidden = true;
 			});
 			panel.querySelectorAll('.eff-thumb').forEach(th => {
 				const i = Number(th.getAttribute('data-idx'));
@@ -5142,7 +5166,7 @@
 				shoe.style.left = left + 'px';
 				shoe.style.top = top + 'px';
 				shoe.setAttribute('aria-pressed', effTiers[k] ? 'true' : 'false');
-				shoe.setAttribute('aria-label', EFF_TIER_LABELS[k] + '（' + effFormat(bounds2[k]) + '〜' + effFormat(bounds2[k + 1]) + '）を対象にする');
+				shoe.setAttribute('aria-label', EFF_TIER_LABELS[k] + '（' + effFormat(bounds2[k]) + '〜' + effFormat(bounds2[k + 1]) + '、' + effTierCount(k) + '種）を対象にする');
 				stem.style.left = center + 'px';
 				stem.style.height = top + 'px';
 			}
