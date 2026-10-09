@@ -11028,6 +11028,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		order.push('stitch');
 		const canvas = await buildStitchedSetImage(0, run);
 		const frameCalls = frames.length;
+		const framesSnap = frames.map((f) => ({ tier: f.tier, cx: f.cx, cy: f.cy, s: f.s }));
 		const wrapsEffNote = wrapped.includes(EFF_COUNT_NOTE);
 		const wrapsLegendNote = wrapped.includes(MARK_LEGEND_NOTE);
 		// 画像を読めなかったとき: 蹄鉄だけ省いて結合は続ける
@@ -11037,6 +11038,14 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const canvas2 = await buildStitchedSetImage(0, run);
 		const noImg = { made: !!canvas2, drawnMore: drawn.length - before };
 		effIconImagesPromise = saveImgs;
+		// 検出数カードをオフにしても脚注は出る（常に）。集計条件（追加・除外・検出したシナリオ因子・遺伝子）の行は効率を指定では置かない
+		wrapped.length = 0;
+		const origNotes = buildTargetAdjustmentNotes;
+		let notesCalls = 0;
+		buildTargetAdjustmentNotes = (...a) => { notesCalls++; return ['検出した遺伝子（1種）：テスト']; };
+		await buildStitchedSetImage(0, Object.assign({}, run, { show: Object.assign({}, run.show, { banner: false, conditions: true }) }));
+		const cardsOff = { note: wrapped.includes(EFF_COUNT_NOTE), notesCalls, adjustRow: wrapped.some((x) => x.startsWith('検出した')) };
+		buildTargetAdjustmentNotes = origNotes;
 		// 「蹄鉄」のチェックを外すと描かない
 		const framesBefore = frames.length;
 		const canvas3 = await buildStitchedSetImage(0, Object.assign({}, run, { effShoes: false }));
@@ -11054,8 +11063,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		return {
 			order: order.slice(0, 2), attrCalls: attrCalls - def.attr, made: !!canvas, marks: canvas._effMarks,
 			drawn: drawn.slice(0, before).map((d) => ({ src: d.src.replace(/^.*\/img\//, 'img/'), cx: d.x + d.w / 2, cy: d.y + d.w / 2, w: d.w })),
-			want, size, inner, frameCalls, frames: frames.map((f) => ({ tier: f.tier, cx: f.cx, cy: f.cy, s: f.s })), wrapsEffNote, wrapsLegendNote, legendCalls: effLegendCalls, countNoteCalls: effNoteCalls,
-			noImg, noShoes, def, canvasW: canvas.width, canvasH: canvas.height,
+			want, size, inner, frameCalls, frames: framesSnap, wrapsEffNote, wrapsLegendNote, legendCalls: effLegendCalls, countNoteCalls: effNoteCalls,
+			noImg, noShoes, def, cardsOff, canvasW: canvas.width, canvasH: canvas.height,
 		};
 	}, { setup: SETUP.toString(), white: WHITE_STITCH.toString() });
 	const near = (a, b) => Math.abs(a - b) < 1.5;
@@ -11073,6 +11082,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(st4.def.attr === 1 && st4.def.effDraw === 0 && st4.def.countNote === 1, '効率(段4): ほかの3択では蹄鉄を描かず、従来の左の印と、上の数え方の脚注の帯', st4.def);
 	assert(st4.countNoteCalls === 0 && st4.legendCalls === 0 && !st4.wrapsLegendNote,
 		'効率(G): 効率を指定では、印の凡例も「印の無い行の説明」も出さず、上の薄い脚注の帯も置かない（脚注は補助テキストの帯の先頭）', { legend: st4.legendCalls, countNote: st4.countNoteCalls, legendNote: st4.wrapsLegendNote });
+	assert(st4.cardsOff.note && st4.cardsOff.notesCalls === 0 && !st4.cardsOff.adjustRow,
+		'効率(B): 脚注は検出数カードのオン・オフに関わらず常に出る。集計条件の行（検出したシナリオ因子・遺伝子）は、チェックが入っていても効率を指定では置かない', st4.cardsOff);
 	assert(st4.wrapsEffNote, '効率(G): 補助テキストの帯の先頭に、効率を指定用の脚注（継承固有・レース因子(スキル)は集計に含めない／目覚めは個別にカウント）', null);
 	const sizes = await page.evaluate(() => [294, 320, 374, 453, 537].map((p) => Math.round(effRowIconSize(p) * 10) / 10));
 	assert(sizes.every((x, i) => x >= 36 && x <= [294, 320, 374, 453, 537][i] * 0.125 + 0.01),
@@ -11264,6 +11275,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 			const lab = item.querySelector('[data-stitch-marks-label]'), sub = item.querySelector('[data-stitch-marks-sub]');
 			return { label: lab.textContent, subShown: !sub.hidden, checked: marks.checked, miniShown: !mini.hidden && getComputedStyle(mini).display !== 'none', miniW: parseFloat(getComputedStyle(mini).width),
 				miniSrc: mini.getAttribute('src'), legendShown: getComputedStyle(legendItem).display !== 'none' && !legendItem.hidden,
+				condShown: (() => { const c = q('#stitch-show-conditions').closest('.stitch-show-item'); return getComputedStyle(c).display !== 'none' && !c.hidden; })(),
 				cards: q('#stitch-show-banner').closest('.stitch-show-item').textContent.replace(/\s+/g, ''),
 				stored: [localStorage.getItem('uma-exam-eff-shoes'), localStorage.getItem('uma-exam-attr-icons')] };
 		};
@@ -11295,6 +11307,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		localStorage.removeItem('uma-exam-eff-shoes');
 		return { out, shoeDefault, state, same, ready };
 	});
+	assert(hset.out.defOn.condShown === true && hset.out.eff0.condShown === false && hset.out.defBack.condShown === true && hset.out.effBack.condShown === false,
+		'効率(B): 結合画像の設定の「集計条件」のチェックは、効率を指定のときだけ出ない（ほかのモードでは従来どおり）', { def: hset.out.defOn.condShown, eff: hset.out.eff0.condShown });
 	assert(hset.out.defOn.label === '印' && hset.out.defOn.subShown && !hset.out.defOn.miniShown && hset.out.defOn.legendShown && hset.out.defOn.checked,
 		'効率(H): ほかのモードでは従来どおり「印」と凡例のチェック', hset.out.defOn);
 	assert(hset.out.eff0.label === '蹄鉄（効率の区間）' && !hset.out.eff0.subShown && hset.out.eff0.miniShown && Math.abs(hset.out.eff0.miniW - 18) <= 1 && /horseshoe-4-rainbow/.test(hset.out.eff0.miniSrc) && !hset.out.eff0.legendShown,
@@ -11316,7 +11330,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		stitchOnePerson = WHITE(sp.W, 900);
 		scenarioFactorHighlight = () => ({ items: [{ text: '因子の名前その1：★1' }, { text: '因子の名前その2：★2' }], more: true });
 		aptitudeGeneHighlight = () => ({ items: [{ text: '遺伝子その1：★3' }], more: false });
-		buildTargetAdjustmentNotes = () => ['検出したシナリオ因子（8種）：' + Array.from({ length: 8 }, (_, i) => '因子の名前その' + i).join('・'), '検出した遺伝子（2種）：遺伝子その1・遺伝子その2'];
+		let condCalls = 0;
+		buildTargetAdjustmentNotes = () => { condCalls++; return ['検出したシナリオ因子（8種）：' + Array.from({ length: 8 }, (_, i) => '因子の名前その' + i).join('・'), '検出した遺伝子（2種）：遺伝子その1・遺伝子その2']; };
 		const gapOf = (c) => {
 			const cx = c.getContext('2d'); const W = c.width, H = c.height; let gap = 0;
 			for (let y = H - 1; y >= 0; y--) { const d = cx.getImageData(0, y, W, 1).data; let ink = false; for (let i = 0; i < d.length; i += 4) { if (d[i] < 245 || d[i + 1] < 245 || d[i + 2] < 245) { ink = true; break; } } if (ink) break; gap++; }
@@ -11331,14 +11346,16 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		for (const [label, v] of variants) {
 			for (const legend of [true, false]) {
 				const run = Object.assign({}, base, v, { files, attrIcons: true, show: Object.assign({}, base.show, { banner: true, scenario: true, legend, conditions: true }), factors: new Set(['x']), genes: new Set(['y']) });
+				condCalls = 0;
 				const canvas = await buildStitchedSetImage(0, run);
+				const calledNotes = condCalls;
 				const container = document.createElement('div');
 				appendStitchResultBlock(container, PERSON_SETS[0], canvas);
 				const img = container.querySelector('img');
 				await img.decode();
 				const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
 				const bmp = await createImageBitmap(blob);
-				out.push({ label: label + (legend ? '・凡例あり' : '・凡例なし'), canvasH: canvas.height, imgH: img.naturalHeight, copyH: bmp.height, gap: gapOf(canvas) });
+				out.push({ label: label + (legend ? '・凡例あり' : '・凡例なし'), canvasH: canvas.height, imgH: img.naturalHeight, copyH: bmp.height, gap: gapOf(canvas), calledNotes });
 			}
 		}
 		stitchOnePerson = orig.stitch; scenarioFactorHighlight = orig.f; aptitudeGeneHighlight = orig.g; buildTargetAdjustmentNotes = orig.notes;
@@ -11346,6 +11363,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	}, { setup: SETUP.toString(), white: WHITE_STITCH.toString() });
 	assert(clip.every((x) => x.imgH === x.canvasH && x.copyH === x.canvasH),
 		'効率(I2): 画面の <img> の高さ・コピー用の画像の高さ・キャンバスの高さが一致する（全モード）', clip);
+	assert(clip.every((x) => (x.label.startsWith('効率を指定') ? x.calledNotes === 0 : x.calledNotes >= 1)),
+		'効率(B): 集計条件の行（検出したシナリオ因子・遺伝子）は効率を指定でだけ置かず、ほかのモードでは従来どおり置く', clip.map((x) => [x.label, x.calledNotes]));
 	assert(clip.every((x) => x.gap >= 4 && x.gap <= 160),
 		'効率(I2): 最下段の行（検出したシナリオ因子・遺伝子）の画素が、キャンバスの下端のすぐ上にあり、下端で切れていない（全モード）', clip.map((x) => [x.label, x.gap]));
 

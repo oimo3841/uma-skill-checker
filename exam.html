@@ -5440,7 +5440,9 @@
 				banner: !!show.banner,
 				scenario: !!show.scenario && (factorCount + geneCount) > 0,
 				legend: !eff && !!show.legend && !!marks,
-				conditions: !!show.conditions,
+				// 効率を指定では「集計条件」を出さない（最下段の「検出したシナリオ因子・遺伝子」の行も置かない。改善3）。
+				// 追加／除外スキルは効率を指定には無く、因子・遺伝子の検出は各人の帯の紫の行が受け持つ
+				conditions: !eff && !!show.conditions,
 				// 効率を指定のときだけ真偽値（蹄鉄を描くか）。それ以外は null
 				shoes: eff ? (run ? run.effShoes !== false : effShoesEnabled) : null
 			};
@@ -5720,6 +5722,8 @@
 					if (label) label.classList.toggle('is-off', off);
 					// 効率を指定では「凡例」のチェックは出さない（入れ子の字下げごと）
 					if (label && key === 'legend') label.hidden = effMode;
+					// 同じく「集計条件」のチェックも出さない（改善3）
+					if (label && key === 'conditions') label.hidden = effMode;
 				});
 				const setHidden = (part, hidden) =>
 					panel.querySelectorAll('[data-stitch-part="' + part + '"]').forEach(el => { el.hidden = hidden; });
@@ -5728,7 +5732,8 @@
 				setHidden('legend', !eff.legend);
 				setHidden('conditions', !eff.conditions);
 				// 補足欄は凡例も集計条件も出さないなら区切り線ごと消す（結果画像と同じ）
-				setHidden('notebar', !(eff.legend || eff.conditions));
+				// （効率を指定は、脚注が常にあるので補足欄を出す）
+				setHidden('notebar', !(eff.legend || eff.conditions || effMode));
 				panel.querySelectorAll('[data-stitch-part="marks"]').forEach(el => el.classList.toggle('is-on', effMode ? eff.shoes : attrIconsEnabled));
 			});
 			// 表示設定が変わったので、「画像を更新」が押せるかも見直す
