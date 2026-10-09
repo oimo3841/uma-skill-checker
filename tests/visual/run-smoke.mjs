@@ -10957,15 +10957,15 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	await page.evaluate(() => { effBounds = defaultEffBounds(effData); layoutEffPanel(); });
 	await page.setViewportSize({ width: 1280, height: 900 });
 
-	// (13) 結合画像（改善D・段4・段5）―― ここに足す
-	// (13a) 段4: 蹄鉄を結合画像のスキル行に重ねる（合成の行・結合の代わりに白い画像）。左の印は描かず、結合の後に焼く。凡例は蹄鉄と「上限-下限」
-	const st4 = await page.evaluate(async () => {
+	// (13) 結合画像（改善D・段4・段5・改善2 のE〜I）
+	// 合成の行を作る共通の下ごしらえ（ページの中で動く）。stitchOnePerson は白い画像を返す形に差し替える
+	const SETUP = async (opts) => {
 		const s = melopSheet;
 		const b = effBounds.slice();
-		const pick = [0, 1, 2, 3].map((k) => effData.targets.find((t) => t.id && !t.unique && effTierOf(t.milli, b) === k && !/\+$/.test(t.name)));
+		const pick = [0, 1, 2, 3].map((k) => effData.targets.find((t) => t.id && effTierOf(t.milli, b) === k && !/\+$/.test(t.name)));
 		const plain = s.rows.find((r) => !r.slot && !effData.milliByRow.has(r.row) && !/シナリオ|遺伝子/.test(r.name));
-		const W = 1179, H = 2556, pitch = 453, colX = [200, 200 + pitch];
-		const names = pick.map((t) => t.name).concat([plain.name]);
+		const W = opts.W || 1179, H = opts.H || 2556, pitch = opts.pitch || 453, colX = [200, 200 + pitch];
+		const names = (opts.names || pick.map((t) => t.name)).concat(opts.noPlain ? [] : [plain.name]);
 		const rows = names.map((n, i) => ({ x: colX[i % 2], y: 300 + Math.floor(i / 2) * 120, w: 200, h: 40, col: i % 2, band: Math.floor(i / 2) }));
 		const lines = names.map((n, i) => ({ text: n, stars: 2, starsReliable: true, rowKey: '0:' + i }));
 		personGeometry = PERSON_LABELS.map(() => null);
@@ -10976,27 +10976,41 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		personLines[0] = lines;
 		personMelop[0] = { res: matchMelopLines(lines, s), top: { found: true, uniqueStars: 1, blue: null, red: null, extraLines: [] } };
 		personResults[0] = matchAllSkillsWithStars(lines, skillList, skillIndex, {});
+		return { pick, plain, W, H, pitch, colX, rows, names, b };
+	};
+	const WHITE_STITCH = (W, H) => async () => { const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H); return c; };
+
+	// (13a) 段4・改善2 E: 蹄鉄を結合画像のスキル行に重ねる（結合の代わりに白い画像）。左の印は描かず、結合の後に焼く。区間色の枠・暗い縁取り・影つき
+	const st4 = await page.evaluate(async (SETUP_SRC) => {
+		const SETUP = eval('(' + SETUP_SRC.setup + ')');
+		const WHITE = eval('(' + SETUP_SRC.white + ')');
+		const sp = await SETUP({});
+		const { pick, plain, W, H, pitch, colX, rows, b } = sp;
 		const order = [];
-		const orig = { stitch: stitchOnePerson, draw: drawEffIconsOnPerson, attr: drawAttrIconsOnPerson, legend: buildEffLegendLines, wrap: stitchWrapText,
-			drawImage: CanvasRenderingContext2D.prototype.drawImage };
+		const orig = { stitch: stitchOnePerson, draw: drawEffIconsOnPerson, attr: drawAttrIconsOnPerson, wrap: stitchWrapText, frame: drawEffFramedIcon,
+			legendLines: buildMarkLegendLines, countNote: stitchDrawCountNoteBar, drawImage: CanvasRenderingContext2D.prototype.drawImage };
 		let target = null;
-		const drawn = [];
-		stitchOnePerson = async () => { order.push('stitch'); const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H); return c; };
+		const drawn = [], frames = [];
+		stitchOnePerson = WHITE(W, H);
 		let attrCalls = 0;
 		drawAttrIconsOnPerson = (...a) => { attrCalls++; return orig.attr(...a); };
 		drawEffIconsOnPerson = (...a) => { order.push('draw'); target = a[0]; return orig.draw(...a); };
+		drawEffFramedIcon = (ctx, img, tier, cx, cy, s2, colors) => { frames.push({ tier, cx, cy, s: s2, colors }); return orig.frame(ctx, img, tier, cx, cy, s2, colors); };
 		CanvasRenderingContext2D.prototype.drawImage = function (img, ...rest) {
 			if (this.canvas === target && rest.length === 4) drawn.push({ src: (img.getAttribute && img.getAttribute('src')) || img.src, x: rest[0], y: rest[1], w: rest[2] });
 			return orig.drawImage.call(this, img, ...rest);
 		};
-		let legendArgs = null;
-		buildEffLegendLines = (...a) => { legendArgs = a; return orig.legend(...a); };
+		let legendCalls = 0, countNoteCalls = 0;
+		buildMarkLegendLines = (...a) => { legendCalls++; return orig.legendLines(...a); };
+		stitchDrawCountNoteBar = (...a) => { countNoteCalls++; return orig.countNote(...a); };
 		const wrapped = [];
 		stitchWrapText = (ctx, text, w) => { wrapped.push(text); return orig.wrap(ctx, text, w); };
 		const run = Object.assign(captureRun(), { files: PERSON_LABELS.map((_, i) => (i === 0 ? [new File(['x'], 'a.png')] : [])), attrIcons: false });
+		order.push('stitch');
 		const canvas = await buildStitchedSetImage(0, run);
-		const legendTexts = legendArgs ? orig.legend(...legendArgs).flat().filter((it) => it.type === 'text').map((it) => it.text.trim()) : [];
-		const legendNote = wrapped.includes(MARK_LEGEND_NOTE);
+		const frameCalls = frames.length;
+		const wrapsEffNote = wrapped.includes(EFF_COUNT_NOTE);
+		const wrapsLegendNote = wrapped.includes(MARK_LEGEND_NOTE);
 		// 画像を読めなかったとき: 蹄鉄だけ省いて結合は続ける
 		const saveImgs = effIconImagesPromise;
 		effIconImagesPromise = Promise.resolve(null);
@@ -11004,43 +11018,96 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const canvas2 = await buildStitchedSetImage(0, run);
 		const noImg = { made: !!canvas2, drawnMore: drawn.length - before };
 		effIconImagesPromise = saveImgs;
-		// 既定（ほかの3択）では蹄鉄を描かず、左の印（印のチェックが入っていれば）を描く
-		const attrBefore = attrCalls, orderBefore = order.length;
+		// 「蹄鉄」のチェックを外すと描かない
+		const framesBefore = frames.length;
+		const canvas3 = await buildStitchedSetImage(0, Object.assign({}, run, { effShoes: false }));
+		const noShoes = { made: !!canvas3, frames: frames.length - framesBefore, heightSame: canvas3.height === canvas.height };
+		// 既定（ほかの3択）では蹄鉄を描かず、左の印（印のチェックが入っていれば）を描く。数え方の脚注は上の薄い帯
+		const attrBefore = attrCalls, orderBefore = order.length, noteBefore = countNoteCalls, legendBefore = legendCalls;
+		const effNoteCalls = countNoteCalls, effLegendCalls = legendCalls;
 		await buildStitchedSetImage(0, Object.assign({}, run, { scope: 'default', eff: null, attrIcons: true }));
-		const def = { attr: attrCalls - attrBefore, effDraw: order.slice(orderBefore).filter((o) => o === 'draw').length };
-		stitchOnePerson = orig.stitch; drawEffIconsOnPerson = orig.draw; drawAttrIconsOnPerson = orig.attr; buildEffLegendLines = orig.legend;
+		const def = { attr: attrCalls - attrBefore, effDraw: order.slice(orderBefore).filter((o) => o === 'draw').length, countNote: countNoteCalls - noteBefore };
+		stitchOnePerson = orig.stitch; drawEffIconsOnPerson = orig.draw; drawAttrIconsOnPerson = orig.attr; drawEffFramedIcon = orig.frame;
+		buildMarkLegendLines = orig.legendLines; stitchDrawCountNoteBar = orig.countNote;
 		stitchWrapText = orig.wrap; CanvasRenderingContext2D.prototype.drawImage = orig.drawImage;
-		const offset = pitch * 0.0708, size = effRowIconSize(pitch);
+		const offset = pitch * 0.0708, size = effRowIconSize(pitch), inner = size * 0.82;
 		const want = pick.map((t, i) => ({ src: EFF_TIER_ICON_SRCS[effTierOf(t.milli, b)], cx: colX[i % 2] - offset, cy: rows[i].y + rows[i].h / 2 }));
 		return {
-			order: order.slice(0, 2), attrCalls: attrCalls - (def.attr), made: !!canvas, marks: canvas._effMarks,
+			order: order.slice(0, 2), attrCalls: attrCalls - def.attr, made: !!canvas, marks: canvas._effMarks,
 			drawn: drawn.slice(0, before).map((d) => ({ src: d.src.replace(/^.*\/img\//, 'img/'), cx: d.x + d.w / 2, cy: d.y + d.w / 2, w: d.w })),
-			want, size, legendTexts, wantLegend: [3, 2, 1, 0].map((k) => effRangeLabel(k, b)),
-			legendNote, noImg, def,
+			want, size, inner, frameCalls, frames: frames.map((f) => ({ tier: f.tier, cx: f.cx, cy: f.cy, s: f.s })), wrapsEffNote, wrapsLegendNote, legendCalls: effLegendCalls, countNoteCalls: effNoteCalls,
+			noImg, noShoes, def, canvasW: canvas.width, canvasH: canvas.height,
 		};
-	});
+	}, { setup: SETUP.toString(), white: WHITE_STITCH.toString() });
 	const near = (a, b) => Math.abs(a - b) < 1.5;
 	assert(st4.made && st4.order[0] === 'stitch' && st4.order[1] === 'draw' && st4.attrCalls === 0,
 		'効率(段4): 蹄鉄は結合が終わってから焼き、左の印は描かない（印のチェックが外れていても蹄鉄は描く）', { order: st4.order, attr: st4.attrCalls });
 	assert(st4.drawn.length === st4.want.length && st4.want.every((w, i) => st4.drawn[i] && st4.drawn[i].src === w.src && near(st4.drawn[i].cx, w.cx)
-		&& near(st4.drawn[i].cy, w.cy) && near(st4.drawn[i].w, st4.size)),
-		'効率(段4): 対象のスキルの行の〇の位置に、その区間の蹄鉄（へこみの直径。36px 未満なら36px まで）。効率の無い行には付けない', { drawn: st4.drawn, want: st4.want, size: st4.size });
+		&& near(st4.drawn[i].cy, w.cy) && near(st4.drawn[i].w, st4.inner)),
+		'効率(E): 対象のスキルの行の〇の位置に、その区間の蹄鉄の画像（外側の約82%。外側はへこみの直径＝36px 未満なら36px まで）。効率の無い行には付けない', { drawn: st4.drawn, want: st4.want, inner: st4.inner });
+	assert(st4.frameCalls === st4.want.length && st4.frames.every((f) => near(f.s, st4.size)) && st4.frames.map((f) => f.tier).join() === '0,1,2,3',
+		'効率(E): 行の蹄鉄は枠つき（区間の板・暗い縁取り・影）で、外側の大きさは従来の蹄鉄の大きさのまま。区間まとめパネルとバーの蹄鉄には枠を付けない（枠の描画は行の数だけ）', { frames: st4.frames, size: st4.size });
 	assert(st4.marks.length === 1 && st4.marks[0].placed === 4 && st4.size >= 36,
 		'効率(段4): 置いた数を控え、スマホ版相当（列の間隔453px）で36px以上', st4.marks);
+	assert(st4.noShoes.made && st4.noShoes.frames === 0, '効率(H): 「蹄鉄（効率の区間）」のチェックを外した回は、蹄鉄を描かない（結合は続く）', st4.noShoes);
+	assert(st4.noImg.made && st4.noImg.drawnMore === 0, '効率(段4): 蹄鉄の画像を読めなくても結合は続け、蹄鉄だけ省く', st4.noImg);
+	assert(st4.def.attr === 1 && st4.def.effDraw === 0 && st4.def.countNote === 1, '効率(段4): ほかの3択では蹄鉄を描かず、従来の左の印と、上の数え方の脚注の帯', st4.def);
+	assert(st4.countNoteCalls === 0 && st4.legendCalls === 0 && !st4.wrapsLegendNote,
+		'効率(G): 効率を指定では、印の凡例も「印の無い行の説明」も出さず、上の薄い脚注の帯も置かない（脚注は補助テキストの帯の先頭）', { legend: st4.legendCalls, countNote: st4.countNoteCalls, legendNote: st4.wrapsLegendNote });
+	assert(st4.wrapsEffNote, '効率(G): 補助テキストの帯の先頭に、効率を指定用の脚注（継承固有・レース因子(スキル)は集計に含めない／目覚めは個別にカウント）', null);
 	const sizes = await page.evaluate(() => [294, 320, 374, 453, 537].map((p) => Math.round(effRowIconSize(p) * 10) / 10));
 	assert(sizes.every((x, i) => x >= 36 && x <= [294, 320, 374, 453, 537][i] * 0.125 + 0.01),
 		'効率(段4): 蹄鉄はどの画面でも36px以上で、列の間隔の0.125倍を超えない', sizes);
-	assert(JSON.stringify(st4.legendTexts.filter((t) => /\d/.test(t))) === JSON.stringify(st4.wantLegend) && !st4.legendNote,
-		'効率(段4): 補助テキストの凡例は4つの蹄鉄と「上限-下限」（虹→銅）。「印の無い行の説明」は出さない', { got: st4.legendTexts, want: st4.wantLegend });
-	assert(st4.noImg.made && st4.noImg.drawnMore === 0, '効率(段4): 蹄鉄の画像を読めなくても結合は続け、蹄鉄だけ省く', st4.noImg);
-	assert(st4.def.attr === 1 && st4.def.effDraw === 0, '効率(段4): ほかの3択では蹄鉄を描かず、従来の左の印', st4.def);
 
-	// (13b) 改善D・段5: 人ごとの帯。効率で選ぶでは「検出」「sp70緑」のカードは既定と同じ値で検出数カードに従い、
-	//      区間まとめパネルと効率の合計は常に出す。拡張モードではカード＋合計（合計は検出数カードに従う）
-	const st5 = await page.evaluate(async () => {
+	// 枠の描き方（改善2・E）を画素で確かめる: 区間の板の色（銅・銀・金は単色）・虹は斜めのグラデーション・暗い縁取り・外側の大きさ
+	const frame = await page.evaluate(() => {
+		const S = 200, cvs = document.createElement('canvas');
+		cvs.width = cvs.height = S + 80;
+		const ctx = cvs.getContext('2d');
+		const imgs = [0, 1, 2, 3].map(() => { const i = document.createElement('canvas'); i.width = i.height = 16; return i; });
+		const colors = effFrameColors();
+		const cx = S / 2 + 40, cy = S / 2 + 40;
+		const out = { tiers: [] };
+		const px = (x, y) => { const d = ctx.getImageData(Math.round(x), Math.round(y), 1, 1).data; return [d[0], d[1], d[2], d[3]]; };
+		[0, 1, 2, 3].forEach((tier) => {
+			ctx.clearRect(0, 0, cvs.width, cvs.height);
+			ctx.fillStyle = '#ffffff';
+			ctx.fillRect(0, 0, cvs.width, cvs.height);
+			drawEffFramedIcon(ctx, imgs[tier], tier, cx, cy, S, colors);
+			const left = cx - S / 2;
+			out.tiers.push({
+				plateMid: px(left + S * 0.062, cy),               // 板（縁取りの内側・画像の外側）
+				plateTL: px(left + S * 0.09, cy - S * 0.3),
+				plateBR: px(cx + S * 0.5 - S * 0.09, cy + S * 0.3),
+				edgeMid: px(left + S * 0.017, cy),                 // 暗い縁取りの中ほど
+				justOutside: px(left - 40, cy),                    // 外側から離れた外（影のにじみが届かない。白のまま）
+				nearOutside: px(left - 3, cy),                     // 外側のすぐ外（影のにじみがごくわずかにかかる）
+				belowShadow: px(cx, cy + S / 2 + 4),               // 外側の下（影がわずかにかかる）
+				cornerOut: px(left + 2, cy - S / 2 + 2),           // 角の外（丸みで板が来ない）
+			});
+		});
+		out.colors = colors;
+		return out;
+	});
+	const hex2rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+	const dist = (a, b) => Math.max(...[0, 1, 2].map((i) => Math.abs(a[i] - b[i])));
+	assert([0, 1, 2].every((k) => dist(frame.tiers[k].plateMid, hex2rgb(frame.colors.plate[k])) <= 3 && dist(frame.tiers[k].plateTL, hex2rgb(frame.colors.plate[k])) <= 3),
+		'効率(E): 銅・銀・金の板は単色（トークンの色）', { got: frame.tiers.slice(0, 3).map((x) => x.plateMid), want: frame.colors.plate });
+	assert(dist(frame.tiers[3].plateTL, frame.tiers[3].plateBR) > 60 && frame.tiers[3].plateTL.slice(0, 3).join() !== frame.tiers[3].plateBR.slice(0, 3).join(),
+		'効率(E): 虹の板は斜めのグラデーション（左上と右下で色が違う）', { tl: frame.tiers[3].plateTL, br: frame.tiers[3].plateBR });
+	assert(frame.tiers.every((x) => dist(x.edgeMid, hex2rgb(frame.colors.edge)) <= 40 && Math.max(...x.edgeMid.slice(0, 3)) < 110),
+		'効率(E): 板の外周に暗い縁取り（トークン #3B3340 相当）', frame.tiers.map((x) => x.edgeMid));
+	assert(frame.tiers.every((x) => x.justOutside.slice(0, 3).join() === '255,255,255' && x.cornerOut.slice(0, 3).join() === '255,255,255' && x.nearOutside[0] > 180),
+		'効率(E): 外側の大きさは変わらない（外側から離れた外・丸めた角の外は何も塗らず、すぐ外は影がごく薄くかかるだけ）', frame.tiers.map((x) => [x.justOutside, x.nearOutside, x.cornerOut]));
+	assert(frame.tiers.every((x) => x.belowShadow[0] < 255 && x.belowShadow[0] > 150), '効率(E): ごく薄い影が外側の下にかかる（真っ黒にならない）', frame.tiers.map((x) => x.belowShadow));
+
+	// (13b) 改善D・段5・F: 人ごとの帯。効率を指定では「検出」「sp70緑」のカードは既定と同じ値で検出数カードに従い、
+	//      区間まとめパネルと合計は常に出す。拡張モードではカード＋合計（合計は検出数カードに従う）。合計＝評価点の合計÷消費SPの合計（I1）
+	const st5 = await page.evaluate(async (SRC) => {
+		const WHITE = eval('(' + SRC.white + ')');
 		const s = melopSheet;
 		const b = effBounds.slice();
-		const pick = [0, 1, 2, 3].map((k) => effData.targets.find((t) => t.id && !t.unique && effTierOf(t.milli, b) === k && !/\+$/.test(t.name)));
+		const pick = [0, 1, 2, 3].map((k) => effData.targets.find((t) => t.id && effTierOf(t.milli, b) === k && !/\+$/.test(t.name)));
 		// 既定の133種に入っているスキル（カードの値を既定と比べるため）と、sp70緑のスキル
 		const in133 = EXAM_SKILL_LIST.slice(0, 3).map((x) => x.name);
 		const sp70 = EXAM_NAME_BY_ID[SP70_GREEN_17_IDS[0]];
@@ -11054,15 +11121,13 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		personLines[0] = lines;
 		personMelop[0] = { res: matchMelopLines(lines, s), top: { found: true, uniqueStars: 1, blue: null, red: null, extraLines: [] } };
 		personResults[0] = matchAllSkillsWithStars(lines, skillList, skillIndex, {});
-		const orig = { stitch: stitchOnePerson, banner: stitchDrawPersonBanner };
+		const orig = { stitch: stitchOnePerson, banner: stitchDrawPersonBanner, effBanner: stitchDrawEffPersonBanner };
 		const calls = [];
-		stitchOnePerson = async () => { const c = document.createElement('canvas'); c.width = 900; c.height = 600; return c; };
-		stitchDrawPersonBanner = (w, label, detected, sp70Count, f, g, opts) => {
-			const c = orig.banner(w, label, detected, sp70Count, f, g, opts);
-			calls.push({ detected, sp70Count, cards: opts.cards, panel: opts.effPanel ? opts.effPanel.cells.map((x) => ({ range: x.range, count: x.count })) : null,
-				total: opts.totalText, h: c.height });
-			return c;
-		};
+		stitchOnePerson = WHITE(900, 600);
+		const rec = (kind, c, w, label, detected, sp70Count, opts) => calls.push({ kind, detected, sp70Count, cards: opts.cards, panel: opts.effPanel ? opts.effPanel.cells.map((x) => ({ range: x.range, count: x.count })) : null,
+			total: opts.totalText, h: c.height });
+		stitchDrawPersonBanner = (w, label, detected, sp70Count, f, g, opts) => { const c = orig.banner(w, label, detected, sp70Count, f, g, opts); rec('old', c, w, label, detected, sp70Count, opts); return c; };
+		stitchDrawEffPersonBanner = (w, label, detected, sp70Count, f, g, opts) => { const c = orig.effBanner(w, label, detected, sp70Count, f, g, opts); rec('eff', c, w, label, detected, sp70Count, opts); return c; };
 		const files = PERSON_LABELS.map((_, i) => (i === 0 ? [new File(['x'], 'a.png')] : []));
 		const base = Object.assign(captureRun(), { files });
 		const show = (banner) => Object.assign({}, base.show, { banner });
@@ -11073,34 +11138,198 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const def = Object.assign({}, base, { scope: 'default', eff: null, melop: false, show: show(true) });
 		await buildStitchedSetImage(0, def);
 		await buildStitchedSetImage(0, Object.assign({}, def, { melop: true }));
-		await buildStitchedSetImage(0, Object.assign({}, def, { melop: true, show: show(false) }));		await buildStitchedSetImage(0, Object.assign({}, base, { eff: { bounds: b, tiers: [true, true, true, false] }, show: show(true) }));
-		stitchOnePerson = orig.stitch; stitchDrawPersonBanner = orig.banner;
-		// 期待値: 区間ごとの数（1種1回。継承固有は数えない）・合計（千分率の整数で足す。★は掛けない）
-		const effItems = pick.map((t) => ({ milli: t.milli, tier: effTierOf(t.milli, b) }));
+		await buildStitchedSetImage(0, Object.assign({}, def, { melop: true, show: show(false) }));
+		await buildStitchedSetImage(0, Object.assign({}, base, { eff: { bounds: b, tiers: [true, true, true, false] }, show: show(true) }));
+		stitchOnePerson = orig.stitch; stitchDrawPersonBanner = orig.banner; stitchDrawEffPersonBanner = orig.effBanner;
+		// 期待値: 区間ごとの数（1種1回。継承固有は数えない）・合計（評価点の合計÷消費SPの合計。★は掛けない）
+		const effItems = pick.map((t) => ({ t, tier: effTierOf(t.milli, b) }));
 		// 133種・sp70緑のスキルにも効率があれば、拡張モードの照合で対象として数えられる
 		const extra = in133.concat([sp70]).map((n) => effData.targets.find((t) => t.name === n)).filter(Boolean)
-			.filter((t) => !pick.includes(t)).map((t) => ({ milli: t.milli, tier: effTierOf(t.milli, b) }));
+			.filter((t) => !pick.includes(t)).map((t) => ({ t, tier: effTierOf(t.milli, b) }));
 		const all = effItems.concat(extra);
 		const tierCounts = [0, 1, 2, 3].map((k) => all.filter((x) => x.tier === k).length);
-		const sum = (xs) => xs.reduce((a, x) => a + x.milli, 0);
-		return { calls, tierCounts, total: '合計 ' + (sum(all) / 1000).toFixed(3) + '（評価点/SP）',
-			totalOff1: '合計 ' + (sum(all.filter((x) => x.tier !== 1)) / 1000).toFixed(3) + '（評価点/SP）',
-			ranges: [0, 1, 2, 3].map((k) => effRangeLabel(k, b)) };
-	});
+		const ratio = (xs) => { const S = xs.reduce((a, x) => a + x.t.score, 0), P = xs.reduce((a, x) => a + x.t.sp, 0); return '合計 ' + (P > 0 ? (S / P).toFixed(3) : '—') + '（評価点/SP）'; };
+		const effValueSum = (xs) => '合計 ' + (xs.reduce((a, x) => a + x.t.milli, 0) / 1000).toFixed(3) + '（評価点/SP）';
+		return { calls, tierCounts, total: ratio(all), wrongTotal: effValueSum(all),
+			totalOff1: ratio(all.filter((x) => x.tier !== 1)), ranges: [0, 1, 2, 3].map((k) => effRangeLabel(k, b)) };
+	}, { white: WHITE_STITCH.toString() });
 	const [effOn, effOff, effTierOff, defC, melopOn, melopOff, effRainbowOff] = st5.calls;
 	assert(effRainbowOff.sp70Count === defC.sp70Count && effRainbowOff.detected === defC.detected,
 		'効率(D): 虹の区間を外しても、結合画像のカードは既定の133種・sp70緑17種を母数とした値のまま', { got: [effRainbowOff.detected, effRainbowOff.sp70Count], def: [defC.detected, defC.sp70Count] });
 	assert(effOn.cards && effOn.detected === defC.detected && effOn.sp70Count === defC.sp70Count && defC.detected > 0 && defC.sp70Count > 0,
-		'効率(D): 効率で選ぶの「検出」「sp70緑」のカードは、同じ行を既定で判定したときと同じ値', { eff: [effOn.detected, effOn.sp70Count], def: [defC.detected, defC.sp70Count] });
+		'効率(D): 効率を指定の「検出」「sp70緑」のカードは、同じ行を既定で判定したときと同じ値', { eff: [effOn.detected, effOn.sp70Count], def: [defC.detected, defC.sp70Count] });
+	assert(effOn.kind === 'eff' && defC.kind === 'old' && melopOn.kind === 'old',
+		'効率(F): 効率を指定のときだけ、情報領域を縦に詰めた専用の帯を使う（ほかの3択と拡張モードの帯は従来の関数）', { eff: effOn.kind, def: defC.kind, melop: melopOn.kind });
 	assert(!effOff.cards && effOff.panel && effOff.total && effOn.panel && effOn.total && effOn.h > effOff.h,
 		'効率(D): カードは「検出数カード」に従い、区間まとめパネルと合計は常に出る', { on: effOn.cards, off: effOff.cards, h: [effOn.h, effOff.h] });
 	assert(JSON.stringify(effOn.panel.map((x) => x.count)) === JSON.stringify(st5.tierCounts) && JSON.stringify(effOn.panel.map((x) => x.range)) === JSON.stringify(st5.ranges),
-		'効率(段5): パネルの各マスは「上限-下限」と、その区間に入る検出数（1種1回・継承固有は入らない）', { got: effOn.panel, want: st5.tierCounts });
+		'効率(段5): パネルの各マスは「上限-下限」と、その区間に入る検出数（1種1回・継承固有は入らない。銅が0のときは0）', { got: effOn.panel, want: st5.tierCounts });
 	assert(effTierOff.panel[1].count === null && effTierOff.total === st5.totalOff1,
 		'効率(段5): 外した区間のマスは「－」（null）で、合計にも入れない', effTierOff);
-	assert(effOn.total === st5.total, '効率(段5): 合計は効率の千分率を1種1回ずつ足したもの（★は掛けない）を小数3桁で', { got: effOn.total, want: st5.total });
+	assert(effOn.total === st5.total && st5.total !== st5.wrongTotal,
+		'効率(I1): 合計は「評価点の合計÷消費SPの合計」（効率の合計ではない）。1種1回・★は掛けず、小数3桁', { got: effOn.total, want: st5.total, wrong: st5.wrongTotal });
 	assert(!defC.panel && !defC.total && !melopOn.panel && melopOn.total === st5.total && melopOn.cards && !melopOff.total && !melopOff.panel,
-		'効率(段5): 既定ではパネルも合計も出ない。拡張モードはカード＋合計（合計は検出数カードがオフなら消える）', { def: defC, melopOn, melopOff });
+		'効率(I1): 既定ではパネルも合計も出ない。拡張モードはカード＋合計（同じ計算。合計は検出数カードがオフなら消える）', { def: defC, melopOn, melopOff });
+
+	// (13c) 帯の高さ（F）: 列の幅262pxのとき 見出し行36px・パネル84px・合計28px・紫22px（モックの案2）。紫は「／」でつないで1行、収まらなければ折り返す
+	const compact = await page.evaluate(async () => {
+		const imgs = await loadEffIconImages();
+		const b = effBounds.slice();
+		const cells = [0, 1, 2, 3].map((k) => ({ img: imgs[k], range: effRangeLabel(k, b), count: 3 + k }));
+		const mk = (n) => ({ items: Array.from({ length: n }, (_, i) => ({ text: 'ABCDEFG' + (i + 1) + '：★' + ((i % 3) + 1) })), more: false });
+		const H = (w, o, f, g) => stitchDrawEffPersonBanner(w, '親A', 30, 12, f || null, g || null, Object.assign({ cards: true, factors: true }, o)).height;
+		const w = 262;
+		const head = H(w, {});
+		const withPanel = H(w, { effPanel: { cells } });
+		const withTotal = H(w, { effPanel: { cells }, totalText: '合計 4.912（評価点/SP）' });
+		const withPurple = H(w, { effPanel: { cells }, totalText: '合計 4.912（評価点/SP）' }, mk(1));
+		const noCards = H(w, { cards: false });
+		const short = (n) => ({ items: Array.from({ length: n }, (_, i) => ({ text: 'A' + (i + 1) + '：★' + (i + 1) })), more: false });
+		const layoutFit = effPurpleLayout(1000, short(3), short(1), true);
+		const layoutWrap = effPurpleLayout(300, mk(3), mk(1), true);
+		const ctx = document.createElement('canvas').getContext('2d');
+		ctx.font = 'bold ' + layoutWrap.fs + 'px sans-serif';
+		const maxW = 300 - Math.round(300 * 0.03) * 2;
+		// 同じセットで紫の行数をそろえる（行の少ない人の帯も、多い人と同じ高さにする）
+		const aligned = [H(w, { effPanel: { cells }, purpleMinLines: 3 }, mk(1)), H(w, { effPanel: { cells }, purpleMinLines: 3 }, mk(5))];
+		// 右のカードが見出しの右端に寄っている（右端から内側へ入った位置の画素が白でない）
+		const c = stitchDrawEffPersonBanner(w, '親A', 30, 12, null, null, { cards: true, factors: true });
+		const d = c.getContext('2d').getImageData(w - Math.round(w * 0.03) - 6, Math.round(w * 0.018 + w * 0.05), 1, 1).data;
+		const cOff = stitchDrawEffPersonBanner(w, '親A', 30, 12, null, null, { cards: false, factors: true });
+		const d2 = cOff.getContext('2d').getImageData(w - Math.round(w * 0.03) - 6, Math.round(w * 0.018 + w * 0.04), 1, 1).data;
+		return { head, withPanel, withTotal, withPurple, noCards,
+			fit: { lines: layoutFit.blocks.map((x) => x.lines), n: layoutFit.lineCount },
+			wrap: { lines: layoutWrap.blocks.map((x) => x.lines), n: layoutWrap.lineCount, widths: layoutWrap.blocks.flatMap((x) => x.lines).map((t) => ctx.measureText(t).width), maxW },
+			aligned, rightCard: [d[0], d[1], d[2]], rightOff: [d2[0], d2[1], d2[2]] };
+	});
+	const within = (v, want, tol) => Math.abs(v - want) <= tol;
+	assert(within(compact.head, 36, 2) && within(compact.withPanel - compact.head, 84, 3) && within(compact.withTotal - compact.withPanel, 28, 2) && within(compact.withPurple - compact.withTotal, 22, 2),
+		'効率(F): 帯の高さは、列の幅262pxのとき 見出し行36px・パネル84px・合計28px・紫22px（モックの案2の大きさの比）', compact);
+	assert(compact.noCards < compact.head, '効率(F): 検出数カードがオフなら見出し行は低くなる（カードが見出しと同じ行に並ぶ）', compact);
+	assert(compact.fit.lines[0].length === 1 && compact.fit.lines[0][0].split('／').length === 3 && compact.fit.lines[1].length === 1 && compact.fit.n === 2,
+		'効率(F): 紫の行は、同じ人の「名前：★N」を「／」でつないで1行（因子の行・遺伝子の行）', compact.fit);
+	assert(compact.wrap.lines[0].length > 1 && compact.wrap.widths.every((w) => w <= compact.wrap.maxW + 0.5) && compact.wrap.lines[0].join('／').split('／').length >= 3,
+		'効率(F): 収まらなければ項目の切れ目で折り返す（語の途中では切らず、どの行も幅に収まる）', compact.wrap);
+	assert(compact.aligned[0] === compact.aligned[1], '効率(F): 同じセットの全員で紫の行数をそろえ、帯の高さをそろえる', compact.aligned);
+	assert(!(compact.rightCard[0] === 255 && compact.rightCard[1] === 255 && compact.rightCard[2] === 255) && compact.rightOff.join() === '255,255,255',
+		'効率(F): 「検出」「sp70緑」のカードは見出しと同じ行の右に並ぶ（オフなら何も無い）', { on: compact.rightCard, off: compact.rightOff });
+
+	// (13d) 画像の設定（H）: 「印」のチェックが「蹄鉄（効率の区間）」（虹の小さな画像つき）になり、凡例のチェックは出ない。状態は印とは別に記憶する
+	const hset = await page.evaluate(async () => {
+		const q = (sel) => document.querySelector(sel);
+		const info = () => {
+			const marks = q('#opt-attr-icons');
+			const item = marks.closest('.stitch-show-item');
+			const legendItem = q('#stitch-show-legend').closest('.stitch-show-item');
+			const mini = item.querySelector('[data-stitch-marks-shoe]');
+			const lab = item.querySelector('[data-stitch-marks-label]'), sub = item.querySelector('[data-stitch-marks-sub]');
+			return { label: lab.textContent, subShown: !sub.hidden, checked: marks.checked, miniShown: !mini.hidden && getComputedStyle(mini).display !== 'none', miniW: parseFloat(getComputedStyle(mini).width),
+				miniSrc: mini.getAttribute('src'), legendShown: getComputedStyle(legendItem).display !== 'none' && !legendItem.hidden,
+				cards: q('#stitch-show-banner').closest('.stitch-show-item').textContent.replace(/\s+/g, ''),
+				stored: [localStorage.getItem('uma-exam-eff-shoes'), localStorage.getItem('uma-exam-attr-icons')] };
+		};
+		const out = {};
+		setTargetScopeMode('default');
+		setAttrIcons(true);
+		out.defOn = info();
+		setTargetScopeMode('efficiency');
+		out.eff0 = info();
+		const shoeDefault = effShoesEnabled;
+		setAttrIcons(false);
+		out.effOff = info();
+		out.attrAfter = attrIconsEnabled;
+		const state = [stitchShowEffective().shoes, captureRun().effShoes];
+		// 画像を更新: 蹄鉄のチェックの変更も「更新できる」変更
+		lastOcrRun = captureRun(); lastStitchRun = lastOcrRun;
+		const same = stitchRefreshState();
+		setAttrIcons(true);
+		const ready = stitchRefreshState();
+		setAttrIcons(true);
+		setTargetScopeMode('default');
+		out.defBack = info();
+		setAttrIcons(false);
+		setTargetScopeMode('efficiency');
+		out.effBack = info();
+		setAttrIcons(true);
+		setTargetScopeMode('default');
+		setAttrIcons(false);
+		localStorage.removeItem('uma-exam-eff-shoes');
+		return { out, shoeDefault, state, same, ready };
+	});
+	assert(hset.out.defOn.label === '印' && hset.out.defOn.subShown && !hset.out.defOn.miniShown && hset.out.defOn.legendShown && hset.out.defOn.checked,
+		'効率(H): ほかのモードでは従来どおり「印」と凡例のチェック', hset.out.defOn);
+	assert(hset.out.eff0.label === '蹄鉄（効率の区間）' && !hset.out.eff0.subShown && hset.out.eff0.miniShown && Math.abs(hset.out.eff0.miniW - 18) <= 1 && /horseshoe-4-rainbow/.test(hset.out.eff0.miniSrc) && !hset.out.eff0.legendShown,
+		'効率(H): 効率を指定では「蹄鉄（効率の区間）」と虹の蹄鉄の小さな画像（約18px）。「凡例」のチェックは出ない', hset.out.eff0);
+	assert(hset.shoeDefault === true && hset.out.eff0.checked === true && hset.out.effOff.checked === false && hset.out.effOff.stored[0] === '0' && hset.out.attrAfter === true && hset.out.effOff.stored[1] === '1',
+		'効率(H): 蹄鉄のチェックの初期は入。外すと、効率を指定専用に別に記憶され、印の設定（ほかのモード）は変わらない', hset.out.effOff);
+	assert(hset.out.defBack.label === '印' && hset.out.defBack.checked === true && hset.out.defBack.legendShown && hset.out.effBack.checked === true && hset.out.effBack.label === '蹄鉄（効率の区間）',
+		'効率(H): 範囲を切り替えると、それぞれの記憶のとおりのチェックに戻る（印は印、蹄鉄は蹄鉄）', { def: hset.out.defBack, eff: hset.out.effBack });
+	assert(hset.state[0] === false && hset.state[1] === false && hset.same === 'same' && hset.ready === 'ready',
+		'効率(H): 蹄鉄のチェックの変更は「画像を更新」で反映できる変更に数える', { state: hset.state, same: hset.same, ready: hset.ready });
+
+	await page.evaluate(() => setTargetScopeMode('efficiency'));
+	// (13e) 欠けの回帰（I2）: 最下段の行が結合画像の内側に収まる／画面の <img> とコピー用の画像の高さが一致する（効率を指定・既定・広げる・絞る・拡張モード）
+	const clip = await page.evaluate(async (SRC) => {
+		const SETUPF = eval('(' + SRC.setup + ')');
+		const WHITE = eval('(' + SRC.white + ')');
+		const sp = await SETUPF({});
+		const orig = { stitch: stitchOnePerson, f: scenarioFactorHighlight, g: aptitudeGeneHighlight, notes: buildTargetAdjustmentNotes };
+		stitchOnePerson = WHITE(sp.W, 900);
+		scenarioFactorHighlight = () => ({ items: [{ text: '因子の名前その1：★1' }, { text: '因子の名前その2：★2' }], more: true });
+		aptitudeGeneHighlight = () => ({ items: [{ text: '遺伝子その1：★3' }], more: false });
+		buildTargetAdjustmentNotes = () => ['検出したシナリオ因子（8種）：' + Array.from({ length: 8 }, (_, i) => '因子の名前その' + i).join('・'), '検出した遺伝子（2種）：遺伝子その1・遺伝子その2'];
+		const gapOf = (c) => {
+			const cx = c.getContext('2d'); const W = c.width, H = c.height; let gap = 0;
+			for (let y = H - 1; y >= 0; y--) { const d = cx.getImageData(0, y, W, 1).data; let ink = false; for (let i = 0; i < d.length; i += 4) { if (d[i] < 245 || d[i + 1] < 245 || d[i + 2] < 245) { ink = true; break; } } if (ink) break; gap++; }
+			return gap;
+		};
+		const base = captureRun();
+		const files = PERSON_LABELS.map((_, i) => (i === 0 ? [new File(['x'], 'a.png')] : []));
+		const out = [];
+		const variants = [['効率を指定', { scope: 'efficiency', eff: { bounds: sp.b, tiers: [true, true, true, true] }, melop: false }],
+			['既定', { scope: 'default', eff: null, melop: false }], ['広げる', { scope: 'expanded', eff: null, melop: false }], ['絞る', { scope: 'curated', eff: null, melop: false }],
+			['拡張モード', { scope: 'default', eff: null, melop: true }]];
+		for (const [label, v] of variants) {
+			for (const legend of [true, false]) {
+				const run = Object.assign({}, base, v, { files, attrIcons: true, show: Object.assign({}, base.show, { banner: true, scenario: true, legend, conditions: true }), factors: new Set(['x']), genes: new Set(['y']) });
+				const canvas = await buildStitchedSetImage(0, run);
+				const container = document.createElement('div');
+				appendStitchResultBlock(container, PERSON_SETS[0], canvas);
+				const img = container.querySelector('img');
+				await img.decode();
+				const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
+				const bmp = await createImageBitmap(blob);
+				out.push({ label: label + (legend ? '・凡例あり' : '・凡例なし'), canvasH: canvas.height, imgH: img.naturalHeight, copyH: bmp.height, gap: gapOf(canvas) });
+			}
+		}
+		stitchOnePerson = orig.stitch; scenarioFactorHighlight = orig.f; aptitudeGeneHighlight = orig.g; buildTargetAdjustmentNotes = orig.notes;
+		return out;
+	}, { setup: SETUP.toString(), white: WHITE_STITCH.toString() });
+	assert(clip.every((x) => x.imgH === x.canvasH && x.copyH === x.canvasH),
+		'効率(I2): 画面の <img> の高さ・コピー用の画像の高さ・キャンバスの高さが一致する（全モード）', clip);
+	assert(clip.every((x) => x.gap >= 4 && x.gap <= 160),
+		'効率(I2): 最下段の行（検出したシナリオ因子・遺伝子）の画素が、キャンバスの下端のすぐ上にあり、下端で切れていない（全モード）', clip.map((x) => [x.label, x.gap]));
+
+	// (13f) 目覚めの扱い（G）: 「〇〇の目覚め」は対応する緑スキルと個別に数える（検出数カードでも、区間まとめパネルでも）
+	const awaken = await page.evaluate(async (SRC) => {
+		const WHITE = eval('(' + SRC.white + ')');
+		const SETUPF = eval('(' + SRC.setup + ')');
+		const awakeId = Object.keys(AWAKENING_PAIR_MAP).find((id) => effData.milliByRow && effData.targets.some((t) => t.id === id) && effData.targets.some((t) => t.id === AWAKENING_PAIR_MAP[id]));
+		if (!awakeId) return { skip: true };
+		const names = [EXAM_NAME_BY_ID[awakeId], EXAM_NAME_BY_ID[AWAKENING_PAIR_MAP[awakeId]]];
+		const sp = await SETUPF({ names: names, noPlain: true });
+		const orig = { stitch: stitchOnePerson, banner: stitchDrawEffPersonBanner };
+		stitchOnePerson = WHITE(sp.W, 600);
+		let got = null;
+		stitchDrawEffPersonBanner = (w, label, detected, sp70Count, f, g, opts) => { got = { detected, panel: opts.effPanel.cells.map((x) => x.count) }; return orig.banner(w, label, detected, sp70Count, f, g, opts); };
+		const run = Object.assign(captureRun(), { files: PERSON_LABELS.map((_, i) => (i === 0 ? [new File(['x'], 'a.png')] : [])) });
+		await buildStitchedSetImage(0, run);
+		stitchOnePerson = orig.stitch; stitchDrawEffPersonBanner = orig.banner;
+		return { skip: false, names, detected: got.detected, panelTotal: got.panel.reduce((a, c) => a + (c || 0), 0) };
+	}, { setup: SETUP.toString(), white: WHITE_STITCH.toString() });
+	assert(awaken.skip || (awaken.panelTotal === 2 && awaken.detected >= 2),
+		'効率(G): 「〇〇の目覚め」と対応する緑スキルを両方検出すると、区間まとめパネルでも検出数カードでも2種として個別に数える（脚注の文面のとおり）', awaken);
+
 	// (12) ほかの選択肢に戻すとバーは消え、#scope-detail が戻る
 	await page.click('label[for="scope-mode-default"]');
 	const back = await page.evaluate(() => ({ panel: document.getElementById('eff-panel').hidden, detail: document.getElementById('scope-detail').hidden,

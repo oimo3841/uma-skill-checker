@@ -111,6 +111,8 @@
 			--exam-eff-bronze: #B5602E; --exam-eff-silver: #6C7A92; --exam-eff-gold: #D9A300;
 			--exam-eff-rainbow-1: #F06292; --exam-eff-rainbow-2: #FFD54F; --exam-eff-rainbow-3: #66BB6A; --exam-eff-rainbow-4: #4FC3F7; --exam-eff-rainbow-5: #9575CD;
 			--exam-eff-off-bar: #c9cfd8; --exam-eff-seg-edge: rgba(15, 23, 42, .18); --exam-eff-stem: #64748b;
+			/* 結合画像のスキル行の蹄鉄の枠（暗い縁取り。板の色は上の区間の色を使う） */
+			--exam-eff-frame-edge: #3B3340;
 			/* 吹き出し（改善C）と、結合画像の効率の合計の行（段5。canvas はライトの値で読む） */
 			--exam-eff-tip-bg: #ffffff; --exam-eff-tip-border: #c6ddb2; --exam-eff-tip-text: #26301f; --exam-eff-tip-sep: #d5dae1;
 			--exam-eff-total-bg: #f3effa; --exam-eff-total-border: #d9cdee; --exam-eff-total-text: #4b3a73;
@@ -248,6 +250,8 @@
 		.stitch-show-branch { color: var(--uma-text-faint); font-weight: 400; }
 		.stitch-show-check { flex-shrink: 0; width: 1rem; height: 1rem; margin-top: 1px; accent-color: var(--uma-control); cursor: pointer; }
 		.stitch-show-sub { font-weight: 400; color: var(--uma-text-subtle); }
+		/* 効率を指定のとき、「蹄鉄（効率の区間）」のチェックの文字に添える虹の蹄鉄の小さな画像（約18px） */
+		.stitch-shoe-mini { display: inline-block; width: 18px; height: 18px; margin-left: 4px; vertical-align: -4px; }
 		/* 印が OFF の間、凡例は選べない。色だけで示す（opacity は使わない。B節ルール9） */
 		.stitch-show-item.is-off, .stitch-show-item.is-off .stitch-show-sub { color: var(--uma-text-faint); cursor: not-allowed; }
 		.stitch-show-item.is-off .stitch-show-check { cursor: not-allowed; }
@@ -3010,6 +3014,8 @@
 			saveTargetScope();
 			refreshAfterTargetChange();
 			ensureEffData();
+			// 結合画像の設定の「印／蹄鉄（効率の区間）」「凡例」の出し分け（効率を指定のときだけ変わる）
+			syncStitchShowUi();
 		}
 
 		// 軸1・軸2・軸3が変わったときに、影響するすべての表示をまとめて更新する。
@@ -4863,7 +4869,7 @@
 			targets.forEach(t => countByStep.set(t.milli, (countByStep.get(t.milli) || 0) + 1));
 			let acc = 0;
 			const cum = steps.map(s => (acc += countByStep.get(s)));
-			return { dataVersion: json && json.dataVersion, targets: targets, milliByRow: milliByRow, steps: steps,
+			return { dataVersion: json && json.dataVersion, targets: targets, milliByRow: milliByRow, targetByRow: new Map(targets.map(x => [x.row, x])), steps: steps,
 				cum: cum, total: targets.length, min: steps[0], max: steps[steps.length - 1], defaultBounds: json && json.defaultBounds };
 		}
 
@@ -5017,13 +5023,24 @@
 			return items;
 		}
 
-		/* 効率の合計（千分率の整数）。効率で選ぶ＝対象にした区間のものだけ／拡張モード＝効率を持つもの全部。
-		   1種1回・★は掛けない。作れなければ null（その人の行は出さない） */
-		function effTotalMilli(personIdx, run) {
+		/* 結合画像の合計＝評価点の合計÷消費SPの合計（改善2・I1。効率の合計ではない）。
+		   検出した対象（効率が0より大きく、継承固有・レース因子(スキル)を除く＝データにある行）を1種1回ずつ。
+		   効率を指定＝対象にした区間のものだけ／拡張モード＝データの効率が0より大きいもの全部。★は掛けない。
+		   評価点・消費spは整数で足し、最後に割る。作れなければ null（その人の行は出さない）。消費spの合計が0なら表示は「—」 */
+		function effTotals(personIdx, run) {
 			const snap = run.eff || (run.melop ? effAllSnapshot() : null);
 			const items = snap ? effPersonItems(personIdx, snap) : null;
 			if (!items) return null;
-			return items.reduce((sum, it) => sum + it.milli, 0);
+			let score = 0, sp = 0;
+			items.forEach(it => {
+				const tg = effData.targetByRow.get(it.row);
+				score += tg.score;
+				sp += tg.sp;
+			});
+			return { score: score, sp: sp, count: items.length };
+		}
+		function effTotalText(tot) {
+			return '合計 ' + (tot.sp > 0 ? (tot.score / tot.sp).toFixed(3) : '—') + '（評価点/SP）';
 		}
 
 		/* ---------- 区切りのバー（改善2・C3） ----------
@@ -5313,17 +5330,28 @@
 
 		const ATTR_ICONS_STORAGE_KEY = 'uma-exam-attr-icons';
 		let attrIconsEnabled = false; // 保存値が無いときは OFF
+		// 効率を指定のときの「蹄鉄（効率の区間）」のチェック（改善2）。印のチェックと同じ場所に出るが、状態は別に記憶する
+		// （効率を指定のときの値はここ、ほかの3択と拡張モードの印は上の値。互いに影響しない）。保存値が無いときは ON
+		const EFF_SHOES_STORAGE_KEY = 'uma-exam-eff-shoes';
+		let effShoesEnabled = true;
 
 		function restoreAttrIcons() {
 			attrIconsEnabled = readStored(ATTR_ICONS_STORAGE_KEY) === '1';
+			effShoesEnabled = readStored(EFF_SHOES_STORAGE_KEY) !== '0';
 			const el = document.getElementById('opt-attr-icons');
-			if (el) el.checked = attrIconsEnabled;
+			if (el) el.checked = (targetScopeMode === 'efficiency') ? effShoesEnabled : attrIconsEnabled;
 			syncStitchShowUi();
 		}
 
+		// 「印」のチェック。効率を指定のときは「蹄鉄（効率の区間）」のチェックとして働き、別に記憶する
 		function setAttrIcons(on) {
-			attrIconsEnabled = !!on;
-			writeStored(ATTR_ICONS_STORAGE_KEY, attrIconsEnabled ? '1' : '0');
+			if (targetScopeMode === 'efficiency') {
+				effShoesEnabled = !!on;
+				writeStored(EFF_SHOES_STORAGE_KEY, effShoesEnabled ? '1' : '0');
+			} else {
+				attrIconsEnabled = !!on;
+				writeStored(ATTR_ICONS_STORAGE_KEY, attrIconsEnabled ? '1' : '0');
+			}
 			// 凡例の可否と模式図の印は、印の ON/OFF に連動する
 			syncStitchShowUi();
 		}
@@ -5381,13 +5409,16 @@
 			const marks = run ? run.attrIcons : attrIconsEnabled;
 			const factorCount = run ? run.factors.size : selectedScenarioFactors.size;
 			const geneCount = run ? (run.genes ? run.genes.size : 0) : selectedGenes.size;
-			// 効率で選ぶ（C-136）では、印の代わりの蹄鉄を印の ON/OFF に関わらず描くので、凡例も印の ON/OFF に従わない
+			// 効率を指定（C-136・改善2）: 印の代わりに蹄鉄（「蹄鉄（効率の区間）」のチェック。印とは別に記憶する）を描き、
+			// 凡例は出さない（区間まとめパネルが凡例に当たる）
 			const eff = (run ? run.scope : targetScopeMode) === 'efficiency';
 			return {
 				banner: !!show.banner,
 				scenario: !!show.scenario && (factorCount + geneCount) > 0,
-				legend: !!show.legend && (!!marks || eff),
-				conditions: !!show.conditions
+				legend: !eff && !!show.legend && !!marks,
+				conditions: !!show.conditions,
+				// 効率を指定のときだけ真偽値（蹄鉄を描くか）。それ以外は null
+				shoes: eff ? (run ? run.effShoes !== false : effShoesEnabled) : null
 			};
 		}
 
@@ -5419,6 +5450,7 @@
 				id: ++runSeq,
 				show: Object.assign({}, stitchShow),
 				attrIcons: attrIconsEnabled,
+				effShoes: effShoesEnabled,
 				scope: targetScopeMode,
 				factors: new Set(selectedScenarioFactors),
 				genes: new Set(selectedGenes),
@@ -5489,7 +5521,9 @@
 			const now = stitchShowEffective(cur);
 			const shown = stitchShowEffective(lastStitchRun);
 			const same = now.banner === shown.banner && now.scenario === shown.scenario && now.legend === shown.legend &&
-				now.conditions === shown.conditions && cur.attrIcons === lastStitchRun.attrIcons;
+				now.conditions === shown.conditions && cur.attrIcons === lastStitchRun.attrIcons &&
+				// 効率を指定のときは蹄鉄のチェック（印とは別）の変更も「更新できる」変更に数える
+				now.shoes === shown.shoes;
 			return same ? 'same' : 'ready';
 		}
 
@@ -5524,7 +5558,8 @@
 			try {
 				const run = Object.assign({}, lastOcrRun, {
 					show: Object.assign({}, stitchShow),
-					attrIcons: attrIconsEnabled
+					attrIcons: attrIconsEnabled,
+					effShoes: effShoesEnabled
 				});
 				// 見ている最中の作り直しなので未読の印は立てない（quiet）。
 				// 進捗バーは本文側にあって引き出しの裏に隠れるので出さない（このボタン自身が「更新中…」になる）
@@ -5592,7 +5627,9 @@
 				// **参考表示**なので、豆腐になっても何の項目かは読める。SVG を混ぜると
 				// 項目名の行の中で大きさとベースラインを別に面倒みることになるので割に合わない。
 				// ◇ は段I-5 で遺伝子の印になった白抜きの菱形（塗りの ◆ と対）。
-				item('marks', 'setAttrIcons(this.checked)', '印', '（★●◆◇✕）') +
+				// 効率を指定のときは、文字が「蹄鉄（効率の区間）」＋虹の蹄鉄の小さな画像になり、括弧の記号の並びは出ない（syncStitchShowUi が替える）
+				item('marks', 'setAttrIcons(this.checked)', '<span data-stitch-marks-label>印</span><img class="stitch-shoe-mini" data-stitch-marks-shoe src="' + EFF_TIER_ICON_SRCS[3] + '" alt="" hidden />',
+					'<span data-stitch-marks-sub>（★●◆◇✕）</span>') +
 				item('legend', "setStitchShow('legend', this.checked)", '凡例', '（印の見かた）', true) +
 				item('conditions', "setStitchShow('conditions', this.checked)", '集計条件', '（追加／除外スキル・シナリオ因子・遺伝子一覧）');
 
@@ -5641,9 +5678,13 @@
 		function syncStitchShowUi() {
 			const eff = stitchShowEffective();
 			document.querySelectorAll('[data-stitch-show-panel]').forEach(panel => {
+				const effMode = eff.shoes !== null;
+				panel.querySelectorAll('[data-stitch-marks-label]').forEach(el => { el.textContent = effMode ? '蹄鉄（効率の区間）' : '印'; });
+				panel.querySelectorAll('[data-stitch-marks-sub]').forEach(el => { el.hidden = effMode; });
+				panel.querySelectorAll('[data-stitch-marks-shoe]').forEach(el => { el.hidden = !effMode; });
 				panel.querySelectorAll('input[data-stitch-show]').forEach(input => {
 					const key = input.getAttribute('data-stitch-show');
-					input.checked = (key === 'marks') ? attrIconsEnabled : !!stitchShow[key];
+					input.checked = (key === 'marks') ? (effMode ? eff.shoes : attrIconsEnabled) : !!stitchShow[key];
 					// 凡例は印の子。印が OFF の間は選べない（保存値は残し、印を戻せばそのまま効く）。
 					// 「シナリオ因子・遺伝子」は**どちらも1件も選んでいなければ**選べない
 					// （出す行が無い。同じく保存値は残す）。片方だけ選んでいれば選べる ――
@@ -5653,6 +5694,8 @@
 					input.disabled = off;
 					const label = input.closest('.stitch-show-item');
 					if (label) label.classList.toggle('is-off', off);
+					// 効率を指定では「凡例」のチェックは出さない（入れ子の字下げごと）
+					if (label && key === 'legend') label.hidden = effMode;
 				});
 				const setHidden = (part, hidden) =>
 					panel.querySelectorAll('[data-stitch-part="' + part + '"]').forEach(el => { el.hidden = hidden; });
@@ -5662,7 +5705,7 @@
 				setHidden('conditions', !eff.conditions);
 				// 補足欄は凡例も集計条件も出さないなら区切り線ごと消す（結果画像と同じ）
 				setHidden('notebar', !(eff.legend || eff.conditions));
-				panel.querySelectorAll('[data-stitch-part="marks"]').forEach(el => el.classList.toggle('is-on', attrIconsEnabled));
+				panel.querySelectorAll('[data-stitch-part="marks"]').forEach(el => el.classList.toggle('is-on', effMode ? eff.shoes : attrIconsEnabled));
 			});
 			// 表示設定が変わったので、「画像を更新」が押せるかも見直す
 			updateStitchRefreshUi();
@@ -6051,7 +6094,8 @@
 		 *     （上限は間隔の 0.125 倍。〇の中心からスキル名の左端までは間隔の 0.0708 倍なので、スキル名には掛からない）。
 		 *     実測（2026-10-09）: DMM版 列の間隔 294px → 36.0px・374px → 42.1px ／ スマホ版 453px → 51.0px・537px → 60.4px。
 		 *   - **結合が終わってから焼く**（印と同じ理由）。画像を読めなかったときは何もしない（結合は続ける）。
-		 * 印のON/OFF（「印」のチェック）には従わない ―― 効率で選ぶでは、この蹄鉄がスキル行の区間を示す本体なので常に描く。
+		 *   - 区間色の枠（板・暗い縁取り・影）を付ける（drawEffFramedIcon。改善2・E）。外側の大きさは上のとおりのまま。
+		 * 描くかどうかは設定の「蹄鉄（効率の区間）」のチェック（効率を指定専用の記憶。左の印のチェックとは別。初期は入）に従う。
 		 * ------------------------------------------------------------ */
 		const EFF_ROW_ICON_OVER_PITCH = 0.125;   // 大きくしてよい上限（列の間隔に対する比）
 		const EFF_ROW_ICON_MIN_PX = 36;          // 小さい画面でもこれ以上にする（元画像の画素）
@@ -6060,6 +6104,48 @@
 		function effRowIconSize(pitch) {
 			return Math.min(pitch * EFF_ROW_ICON_OVER_PITCH, Math.max(EFF_ROW_ICON_MIN_PX, pitch * ATTR_WELL_D_OVER_PITCH));
 		}
+		// 蹄鉄の枠の色（トークン。canvas はライトの値で読む）。1回の描画で1度だけ読む
+		function effFrameColors() {
+			const tok = (n) => stitchTokenColor(n);
+			return {
+				plate: [tok('--exam-eff-bronze'), tok('--exam-eff-silver'), tok('--exam-eff-gold')],
+				rainbow: [1, 2, 3, 4, 5].map(k => tok('--exam-eff-rainbow-' + k)),
+				edge: tok('--exam-eff-frame-edge')
+			};
+		}
+
+		/* スキル行の蹄鉄（効率を指定のときだけ。区間まとめパネルと画面のバーの蹄鉄には枠を付けず画像だけを使う）。
+		   外側（差し渡し s）が区間色の板＝角丸の正方形（角の丸みは外側の約23%）。銅・銀・金は単色、虹は斜め135度の5色のグラデーション。
+		   板の外周に暗い縁取り（外側の約3.4%の太さ。外側の大きさの内側に収める）とごく薄い影（下へ約2%・にじみ約7%・不透明度0.4）。
+		   画像は板の内側に外側の約82%の大きさで置く（縁取りの内側の余白は上下左右とも約5.7%）。 */
+		function drawEffFramedIcon(ctx, img, tier, cx, cy, s, colors) {
+			const x = cx - s / 2, y = cy - s / 2;
+			const radius = s * 0.23, edge = s * 0.034, inner = s * 0.82;
+			ctx.save();
+			stitchRoundRectPath(ctx, x, y, s, s, radius);
+			if (tier < 3) {
+				ctx.fillStyle = colors.plate[tier];
+			} else {
+				const g = ctx.createLinearGradient(x, y, x + s, y + s);
+				colors.rainbow.forEach((c, i) => g.addColorStop(i / (colors.rainbow.length - 1), c));
+				ctx.fillStyle = g;
+			}
+			ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+			ctx.shadowOffsetX = 0;
+			ctx.shadowOffsetY = s * 0.02;
+			ctx.shadowBlur = s * 0.07;
+			ctx.fill();
+			ctx.shadowColor = 'rgba(0, 0, 0, 0)';
+			ctx.shadowOffsetY = 0;
+			ctx.shadowBlur = 0;
+			stitchRoundRectPath(ctx, x + edge / 2, y + edge / 2, s - edge, s - edge, radius - edge / 2);
+			ctx.lineWidth = edge;
+			ctx.strokeStyle = colors.edge;
+			ctx.stroke();
+			ctx.drawImage(img, cx - inner / 2, cy - inner / 2, inner, inner);
+			ctx.restore();
+		}
+
 		let effIconImagesPromise = null;
 		// 蹄鉄の画像4枚（読めなければ null）。1度読んだら使い回す
 		function loadEffIconImages() {
@@ -6082,6 +6168,8 @@
 		function drawEffIconsOnPerson(canvas, personIdx, run, imgs) {
 			const none = { drawn: false, suppressed: null, placed: 0, wanted: 0, sizes: [] };
 			if (!run || !run.eff || !imgs) return none;
+			// 設定の「蹄鉄（効率の区間）」のチェック。外していれば蹄鉄は描かない
+			if (run.effShoes === false) return none;
 			const geo = personGeometry[personIdx];
 			const lines = personLines[personIdx];
 			const m = personMelop[personIdx];
@@ -6113,6 +6201,7 @@
 			ctx.imageSmoothingQuality = 'high';
 			const placed = [];
 			const sizes = new Set();
+			const frameColors = effFrameColors();
 			// 印と同じ2周（採った範囲の行 → それ以外の行も同じ平行移動で写す）。重なりは避ける
 			[true, false].forEach(inRangeOnly => {
 				placements.forEach(p => {
@@ -6132,7 +6221,7 @@
 						if (cy < 0 || cy >= canvas.height) return;
 						if (placed.some(q => Math.abs(q.x - cx) < s && Math.abs(q.y - cy) < s)) return;
 						placed.push({ x: cx, y: cy });
-						ctx.drawImage(imgs[tier], cx - s / 2, cy - s / 2, s, s);
+						drawEffFramedIcon(ctx, imgs[tier], tier, cx, cy, s, frameColors);
 						sizes.add(Math.round(s * 10) / 10);
 					});
 				});
@@ -6151,36 +6240,6 @@
 			const hi = inTier[inTier.length - 1], lo = inTier[0];
 			const fmt2 = (hundredths) => Math.floor(hundredths / 100) + '.' + String(hundredths % 100).padStart(2, '0');
 			return fmt2(Math.ceil(hi / 10)) + '-' + fmt2(Math.floor(lo / 10));
-		}
-
-		/* 補助テキストの帯の「印の凡例」の代わり（段4・G3）。「印の見かた：」に続けて、4つの蹄鉄と「上限-下限」を
-		   虹 → 金 → 銀 → 銅 の順に並べる（区間まとめパネルの読む順と同じ）。折り返しは buildMarkLegendLines と同じ形 */
-		function buildEffLegendLines(ctx, bounds, imgs, maxWidth, fontSize) {
-			const glyphW = fontSize * 1.35;
-			const sep = ' ／ ';
-			const groups = [[{ type: 'text', text: MARK_LEGEND_HEAD, w: ctx.measureText(MARK_LEGEND_HEAD).width }]];
-			[3, 2, 1, 0].forEach((k, i) => {
-				const g = [];
-				if (i > 0) g.push({ type: 'text', text: sep, w: ctx.measureText(sep).width });
-				g.push({ type: 'mark', w: glyphW, draw: (c2, cx, cy, d) => c2.drawImage(imgs[k], cx - d * 0.65, cy - d * 0.65, d * 1.3, d * 1.3) });
-				const label = ' ' + effRangeLabel(k, bounds);
-				g.push({ type: 'text', text: label, w: ctx.measureText(label).width });
-				groups.push(g);
-			});
-			const lines = [[]];
-			let x = 0;
-			groups.forEach(g => {
-				let parts = g;
-				const gw = g.reduce((sum, it) => sum + it.w, 0);
-				if (x > 0 && x + gw > maxWidth) {
-					lines.push([]);
-					x = 0;
-					parts = g.filter(it => !(it.type === 'text' && it.text === sep));
-				}
-				parts.forEach(it => lines[lines.length - 1].push(it));
-				x += parts.reduce((sum, it) => sum + it.w, 0);
-			});
-			return lines;
 		}
 
 		/**
@@ -6220,6 +6279,220 @@
 			return lines;
 		}
 
+		/* ------------------------------------------------------------
+		 * 効率を指定（C-136・改善2）: 結果画像の人ごとの帯（情報領域を縦に詰めた形）
+		 *
+		 * ほかの3択と拡張モードの帯（stitchDrawPersonBanner）は変えず、効率を指定のときだけこちらを使う。
+		 * 上から次の順（大きさは1列の幅 width に対する比。モックの案2＝列の幅262pxのとき 見出し行36px・パネル84px・合計28px・紫22px の比）:
+		 *   見出し行（親A など）… 右に「検出」「sp70緑」を1行ずつの小さなカードで並べる（検出数カードがオンのとき）
+		 *   区間まとめパネル（2×2。左上＝虹・右上＝金・左下＝銀・右下＝銅。各マスは「蹄鉄｜上限-下限｜検出数」。外した区間の検出数は「－」）
+		 *   合計の行（評価点の合計÷消費SPの合計）
+		 *   紫の行（シナリオ因子・遺伝子）… 同じ人の「名前：★N」を「／」でつないで1行にし、収まらなければ折り返す
+		 * 各ブロックの高さは、直下の余白を含めた比で決めてある（見出し行 0.137・パネル 0.32・合計 0.107・紫 1行 0.084＋以降 0.062 ずつ）。
+		 * 区間まとめパネルと蹄鉄は画像だけを使う（枠は付けない）。
+		 * ------------------------------------------------------------ */
+		const EFF_BANNER = {
+			pad: 0.03, topPad: 0.018, titleFont: 0.075, cardH: 0.1, headGap: 0.019,
+			cardLabelFont: 0.04, cardValueFont: 0.07, cardPad: 0.02, cardInnerGap: 0.012, cardGap: 0.015, cardRadius: 0.015,
+			panelPad: 0.012, panelGap: 0.012, panelIcon: 0.11, cellPad: 0.012, rangeFont: 0.036, countFont: 0.08, panelAfter: 0.016,
+			totalH: 0.09, totalFont: 0.044, totalAfter: 0.017,
+			purpleFont: 0.041, purpleLineH: 0.062, purpleAfter: 0.022
+		};
+
+		/* 紫の行（シナリオ因子・遺伝子）の折り返し。区分（因子・遺伝子）ごとに「名前：★N」を「／」でつなぎ、幅に収まらなければ
+		   項目の切れ目で折り返す（「他」は最後の項目として薄い色で続ける）。1項目が幅に収まらなければ字を小さくする（9px まで）。
+		   戻り値: { blocks: [{ lines, textToken, moreToken, more }], lineCount, fs } */
+		function effPurpleLayout(width, factors, genes, withFactors) {
+			const out = { blocks: [], lineCount: 0, fs: 0 };
+			if (!withFactors) return out;
+			const maxW = width - Math.round(width * EFF_BANNER.pad) * 2;
+			const ctx = document.createElement('canvas').getContext('2d');
+			const src = [[factors, STITCH_FACTOR_TEXT_TOKEN, STITCH_FACTOR_MORE_TOKEN], [genes, STITCH_GENE_TEXT_TOKEN, STITCH_GENE_MORE_TOKEN]];
+			src.forEach(([h, textToken, moreToken]) => {
+				if (!h || !h.items.length) return;
+				out.blocks.push({ items: h.items.map(it => it.text).concat(h.more ? ['他'] : []), more: !!h.more, textToken: textToken, moreToken: moreToken, lines: [] });
+			});
+			let fs = Math.max(9, Math.round(width * EFF_BANNER.purpleFont));
+			const fits = () => {
+				ctx.font = 'bold ' + fs + 'px sans-serif';
+				return out.blocks.every(b => b.items.every(t => ctx.measureText(t).width <= maxW));
+			};
+			while (fs > 9 && !fits()) fs -= 1;
+			ctx.font = 'bold ' + fs + 'px sans-serif';
+			out.fs = fs;
+			const sep = '／';
+			out.blocks.forEach(b => {
+				let cur = '';
+				b.items.forEach(t => {
+					const cand = cur ? cur + sep + t : t;
+					if (cur && ctx.measureText(cand).width > maxW) { b.lines.push(cur); cur = t; } else cur = cand;
+				});
+				if (cur) b.lines.push(cur);
+				out.lineCount += b.lines.length;
+			});
+			return out;
+		}
+
+		// 角丸の四角の経路（fill / stroke は呼び出し側）
+		function stitchRoundRectPath(ctx, x, y, w, h, r) {
+			ctx.beginPath();
+			ctx.moveTo(x + r, y);
+			ctx.arcTo(x + w, y, x + w, y + h, r);
+			ctx.arcTo(x + w, y + h, x, y + h, r);
+			ctx.arcTo(x, y + h, x, y, r);
+			ctx.arcTo(x, y, x + w, y, r);
+			ctx.closePath();
+		}
+
+		// opts … { cards, factors, effPanel, totalText, purpleMinLines }。purpleMinLines は、同じセットの全員で紫の行数をそろえる
+		// （帯の高さがそろい、スクショの上端がずれない）
+		function stitchDrawEffPersonBanner(width, groupLabel, totalDetected, sp70Count, factors, genes, opts) {
+			const B = EFF_BANNER;
+			const U = (r) => Math.round(width * r);
+			const withCards = !(opts && opts.cards === false);
+			const effPanel = (opts && opts.effPanel) || null;
+			const totalText = (opts && opts.totalText) || null;
+			const pad = U(B.pad);
+			const headContentH = withCards ? U(B.cardH) : U(B.titleFont);
+			const headPitch = U(B.topPad) + headContentH + U(B.headGap);
+			const panelCellH = U(B.panelIcon) + U(B.cellPad) * 2;
+			const panelH = effPanel ? (U(B.panelPad) * 2 + panelCellH * 2 + U(B.panelGap)) : 0;
+			const panelPitch = effPanel ? panelH + U(B.panelAfter) : 0;
+			const totalBoxH = U(B.totalH);
+			const totalPitch = totalText ? totalBoxH + U(B.totalAfter) : 0;
+			const purple = effPurpleLayout(width, factors, genes, !(opts && opts.factors === false));
+			const purpleLines = purple.lineCount ? Math.max(purple.lineCount, (opts && opts.purpleMinLines) || 0) : (opts && opts.purpleMinLines) || 0;
+			const purplePitch = purpleLines ? purpleLines * U(B.purpleLineH) + U(B.purpleAfter) : 0;
+			const barHeight = headPitch + panelPitch + totalPitch + purplePitch;
+
+			const c = document.createElement('canvas');
+			c.width = width;
+			c.height = barHeight;
+			c._purpleLines = purple.lineCount;
+			const ctx = c.getContext('2d');
+			ctx.fillStyle = '#ffffff';
+			ctx.fillRect(0, 0, width, barHeight);
+			ctx.strokeStyle = '#e2e2e2';
+			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.moveTo(0, barHeight - 1);
+			ctx.lineTo(width, barHeight - 1);
+			ctx.stroke();
+
+			let y = U(B.topPad);
+			const headMid = y + headContentH / 2;
+			ctx.textBaseline = 'middle';
+			ctx.textAlign = 'left';
+			ctx.fillStyle = '#1a1a1a';
+			ctx.font = 'bold ' + U(B.titleFont) + 'px sans-serif';
+			ctx.fillText(groupLabel, pad, headMid);
+			if (withCards) {
+				// 「検出」「sp70緑」を1行ずつの小さなカードで、見出しの右に並べる（右のカードが右端）
+				const labelFont = U(B.cardLabelFont), valueFont = U(B.cardValueFont), cardPad = U(B.cardPad), inner = U(B.cardInnerGap);
+				const cardDefs = [
+					{ label: '検出', value: String(totalDetected), bg: '#f5f8ff', border: '#cfe0fb', labelColor: '#3c5a99', valueColor: '#0f3fc9' },
+					{ label: 'sp70緑', value: String(sp70Count), bg: '#fffaf0', border: '#f5dfae', labelColor: '#a9720b', valueColor: '#c96a00' }
+				];
+				const measured = cardDefs.map(cd => {
+					ctx.font = 'bold ' + labelFont + 'px sans-serif';
+					const lw = ctx.measureText(cd.label).width;
+					ctx.font = 'bold ' + valueFont + 'px sans-serif';
+					const vw = ctx.measureText(cd.value).width;
+					return { cd: cd, lw: lw, vw: vw, w: cardPad * 2 + lw + inner + vw };
+				});
+				let x = width - pad;
+				for (let i = measured.length - 1; i >= 0; i--) {
+					const m = measured[i];
+					x -= m.w;
+					stitchRoundRectPath(ctx, x, y, m.w, headContentH, U(B.cardRadius));
+					ctx.fillStyle = m.cd.bg;
+					ctx.fill();
+					ctx.strokeStyle = m.cd.border;
+					ctx.lineWidth = 2;
+					ctx.stroke();
+					ctx.fillStyle = m.cd.labelColor;
+					ctx.font = 'bold ' + labelFont + 'px sans-serif';
+					ctx.fillText(m.cd.label, x + cardPad, headMid);
+					ctx.fillStyle = m.cd.valueColor;
+					ctx.font = 'bold ' + valueFont + 'px sans-serif';
+					ctx.fillText(m.cd.value, x + cardPad + m.lw + inner, headMid);
+					x -= U(B.cardGap);
+				}
+			}
+			y = headPitch;
+
+			if (effPanel) {
+				const pw = width - pad * 2;
+				stitchRoundRectPath(ctx, pad, y, pw, panelH, U(B.cardRadius) + 2);
+				ctx.fillStyle = stitchTokenColor('--exam-eff-turf-bg');
+				ctx.fill();
+				ctx.strokeStyle = stitchTokenColor('--exam-eff-turf-border');
+				ctx.lineWidth = 2;
+				ctx.stroke();
+				const textColor = stitchTokenColor('--exam-eff-turf-text');
+				const cellW = (pw - U(B.panelPad) * 2 - U(B.panelGap)) / 2;
+				const icon = U(B.panelIcon), cellPad = U(B.cellPad);
+				[3, 2, 1, 0].forEach((k, pos) => {
+					const cell = effPanel.cells[k];
+					const cx = pad + U(B.panelPad) + (pos % 2) * (cellW + U(B.panelGap));
+					const cy = y + U(B.panelPad) + Math.floor(pos / 2) * (panelCellH + U(B.panelGap));
+					const mid = cy + panelCellH / 2;
+					if (cell.img) ctx.drawImage(cell.img, cx + cellPad, cy + cellPad, icon, icon);
+					ctx.fillStyle = textColor;
+					ctx.textBaseline = 'middle';
+					ctx.textAlign = 'left';
+					ctx.font = U(B.rangeFont) + 'px sans-serif';
+					ctx.fillText(cell.range, cx + cellPad * 2 + icon, mid);
+					ctx.font = 'bold ' + U(B.countFont) + 'px sans-serif';
+					ctx.textAlign = 'right';
+					ctx.fillText(cell.count === null ? '－' : String(cell.count), cx + cellW - cellPad, mid);
+					ctx.textAlign = 'left';
+				});
+				y += panelPitch;
+			}
+			if (totalText) {
+				stitchRoundRectPath(ctx, pad, y, width - pad * 2, totalBoxH, Math.round(totalBoxH * 0.3));
+				ctx.fillStyle = stitchTokenColor('--exam-eff-total-bg');
+				ctx.fill();
+				ctx.strokeStyle = stitchTokenColor('--exam-eff-total-border');
+				ctx.lineWidth = 2;
+				ctx.stroke();
+				ctx.fillStyle = stitchTokenColor('--exam-eff-total-text');
+				const tf = U(B.totalFont);
+				ctx.font = 'bold ' + tf + 'px sans-serif';
+				ctx.textBaseline = 'middle';
+				ctx.fillText(totalText, pad + Math.round(tf * 0.6), y + totalBoxH / 2);
+				y += totalPitch;
+			}
+			if (purple.lineCount) {
+				ctx.font = 'bold ' + purple.fs + 'px sans-serif';
+				ctx.textBaseline = 'middle';
+				ctx.textAlign = 'left';
+				const lineH = U(B.purpleLineH);
+				let row = 0;
+				purple.blocks.forEach(b => {
+					b.lines.forEach((text, i) => {
+						const my = y + row * lineH + lineH / 2;
+						const isLast = i === b.lines.length - 1;
+						// 「他」は最後の項目。薄い色で、その区分の並びの続きだと分かるようにする
+						if (b.more && isLast && (text === '他' || text.endsWith('／他'))) {
+							const head = text === '他' ? '' : text.slice(0, -1);
+							ctx.fillStyle = stitchTokenColor(b.textToken);
+							if (head) ctx.fillText(head, pad, my);
+							const hw = head ? ctx.measureText(head).width : 0;
+							ctx.fillStyle = stitchTokenColor(b.moreToken);
+							ctx.fillText('他', pad + hw, my);
+						} else {
+							ctx.fillStyle = stitchTokenColor(b.textToken);
+							ctx.fillText(text, pad, my);
+						}
+						row++;
+					});
+				});
+			}
+			return c;
+		}
+
 		// ①-7：ハイライトバナー（検出数・sp70緑のシンプルな表示。
 		// 現行UIの「照合結果」カードと同じ配色：検出＝青系、sp70緑＝黄色/オレンジ系）
 		//
@@ -6254,20 +6527,13 @@
 			const listFont = Math.round(cardH * 0.26);
 			const listLineH = Math.round(listFont * 1.55);
 			const listBlockH = listLineCount ? (gapY + listLineCount * listLineH) : 0;
-			// 効率で選ぶ（C-136・段5）: 区間まとめパネル（2×2）と、効率の合計の1行。どちらも渡されたときだけ
-			// （渡されなければ高さも描画も従来と同じ）。大きさは1列の幅に対する比（モックの値）で決める:
-			// 蹄鉄 12.5%・範囲の文字 4%・検出数 9.6%（太字）
-			const effPanel = (opts && opts.effPanel) || null;
+			// 拡張モードの合計（評価点の合計÷消費SPの合計）の1行。渡されたときだけ（渡されなければ高さも描画も従来と同じ）。
+			// 効率を指定は専用の stitchDrawEffPersonBanner を使う
 			const totalText = (opts && opts.totalText) || null;
-			const effIcon = Math.round(width * 0.125);
-			const effCellPad = Math.round(width * 0.012);
-			const effCellH = effIcon + effCellPad * 2;
-			const effPanelPad = Math.round(width * 0.015);
-			const effPanelH = effPanel ? (effPanelPad * 2 + effCellH * 2 + gapY) : 0;
 			const totalFont = listFont;
 			const totalH = totalText ? Math.round(totalFont * 2) : 0;
 			const barHeight = pad * 2 + titleH + (withCards ? gapY + cardH : 0)
-				+ (effPanel ? gapY + effPanelH : 0) + (totalText ? gapY + totalH : 0) + listBlockH;
+				+ (totalText ? gapY + totalH : 0) + listBlockH;
 
 			const c = document.createElement('canvas');
 			c.width = width;
@@ -6289,7 +6555,7 @@
 			ctx.font = 'bold ' + titleH + 'px sans-serif';
 			ctx.textBaseline = 'top';
 			ctx.fillText(groupLabel, pad, y);
-			if (!withCards && !listLineCount && !effPanel && !totalText) return c; // 見出しだけの帯（下の区切り線は上で引いてある）
+			if (!withCards && !listLineCount && !totalText) return c; // 見出しだけの帯（下の区切り線は上で引いてある）
 			y += titleH + gapY;
 
 			if (withCards) {
@@ -6342,9 +6608,9 @@
 				ctx.fillText(String(sp70Count), x2 + cardW * 0.08, y + cardH * 0.36);
 			}
 
-			// 区間まとめパネルと合計（C-136・段5）。カードがあればその下、無ければ見出しのすぐ下
+			// 拡張モードの合計（C-136・段5）。カードがあればその下、無ければ見出しのすぐ下
 			let cardsPassed = false;
-			if (effPanel || totalText) {
+			if (totalText) {
 				if (withCards) y += cardH + gapY;
 				cardsPassed = true;
 				const rr = (x, yy, w, h, r) => {
@@ -6356,55 +6622,19 @@
 					ctx.arcTo(x, yy, x + w, yy, r);
 					ctx.closePath();
 				};
-				const radius = Math.round(width * 0.02);
-				if (effPanel) {
-					// 薄いターフ色の角丸。2×2 で、左上＝虹・右上＝金・左下＝銀・右下＝銅
-					// 各マスは「蹄鉄｜上限-下限｜検出数」（外した区間の検出数は「－」）
-					const pw = width - pad * 2;
-					rr(pad, y, pw, effPanelH, radius);
-					ctx.fillStyle = stitchTokenColor('--exam-eff-turf-bg');
-					ctx.fill();
-					ctx.strokeStyle = stitchTokenColor('--exam-eff-turf-border');
-					ctx.lineWidth = 2;
-					ctx.stroke();
-					const textColor = stitchTokenColor('--exam-eff-turf-text');
-					const cellW = (pw - effPanelPad * 2 - gapY) / 2;
-					const rangeFont = Math.round(width * 0.04);
-					const countFont = Math.round(width * 0.096);
-					[3, 2, 1, 0].forEach((k, pos) => {
-						const cell = effPanel.cells[k];
-						const cx = pad + effPanelPad + (pos % 2) * (cellW + gapY);
-						const cy = y + effPanelPad + Math.floor(pos / 2) * (effCellH + gapY);
-						const mid = cy + effCellH / 2;
-						if (cell.img) ctx.drawImage(cell.img, cx + effCellPad, cy + effCellPad, effIcon, effIcon);
-						ctx.fillStyle = textColor;
-						ctx.textBaseline = 'middle';
-						ctx.textAlign = 'left';
-						ctx.font = rangeFont + 'px sans-serif';
-						ctx.fillText(cell.range, cx + effCellPad * 2 + effIcon, mid);
-						ctx.font = 'bold ' + countFont + 'px sans-serif';
-						ctx.textAlign = 'right';
-						ctx.fillText(cell.count === null ? '－' : String(cell.count), cx + cellW - effCellPad, mid);
-						ctx.textAlign = 'left';
-					});
-					ctx.textBaseline = 'top';
-					y += effPanelH + gapY;
-				}
-				if (totalText) {
-					// 効率の合計の1行（薄い紫の角丸）
-					rr(pad, y, width - pad * 2, totalH, Math.round(totalH * 0.3));
-					ctx.fillStyle = stitchTokenColor('--exam-eff-total-bg');
-					ctx.fill();
-					ctx.strokeStyle = stitchTokenColor('--exam-eff-total-border');
-					ctx.lineWidth = 2;
-					ctx.stroke();
-					ctx.fillStyle = stitchTokenColor('--exam-eff-total-text');
-					ctx.font = 'bold ' + totalFont + 'px sans-serif';
-					ctx.textBaseline = 'middle';
-					ctx.fillText(totalText, pad + Math.round(totalFont * 0.6), y + totalH / 2);
-					ctx.textBaseline = 'top';
-					y += totalH + gapY;
-				}
+				// 合計の1行（薄い紫の角丸）
+				rr(pad, y, width - pad * 2, totalH, Math.round(totalH * 0.3));
+				ctx.fillStyle = stitchTokenColor('--exam-eff-total-bg');
+				ctx.fill();
+				ctx.strokeStyle = stitchTokenColor('--exam-eff-total-border');
+				ctx.lineWidth = 2;
+				ctx.stroke();
+				ctx.fillStyle = stitchTokenColor('--exam-eff-total-text');
+				ctx.font = 'bold ' + totalFont + 'px sans-serif';
+				ctx.textBaseline = 'middle';
+				ctx.fillText(totalText, pad + Math.round(totalFont * 0.6), y + totalH / 2);
+				ctx.textBaseline = 'top';
+				y += totalH + gapY;
 			}
 
 			if (listLineCount) {
@@ -6484,6 +6714,9 @@
 		// **字の大きさの基準にもなる**（stitchNoteMetrics の sizingText）。上（脚注）と
 		// 下（補助テキスト欄）で同じ値を使うため、この1行を渡す形で揃えている。
 		const STITCH_COUNT_NOTE = '※「〇〇の目覚め」は対応する緑スキルと個別にカウントしています。';
+		// 効率を指定のときの脚注（改善2・G）。補助テキストの帯の先頭に、常に（検出数カードのオン・オフに関わらず）置く。
+		// 区間まとめパネルの検出数・合計は、拡張モードの辞書で1種ずつ数える（目覚めは対応する緑スキルとは別の行）ので、「個別にカウント」は実際の数え方と合っている
+		const EFF_COUNT_NOTE = '※継承固有・レース因子(スキル)は集計に含めていません。『〇〇の目覚め』は対応する緑スキルと個別にカウントしています。';
 
 		// 帯の骨格（stitchWrapText / stitchNoteMetrics / stitchDrawNoteBar / STITCH_NOTE_COLOR）は
 		// js/stitch.js にある（59セッション目・段3 に special.html と共通化した）。
@@ -6533,19 +6766,26 @@
 			// 印の凡例。使った区分だけを並べる。記号は色で描き分けるので、
 			// 文字ではなく結果画像と同じ drawSkillMark() で描く。
 			const info = markInfo || {};
-			// 効率で選ぶ（C-136・段4）: 印の凡例の代わりに、4つの蹄鉄と「上限-下限」。「印の無い行の説明」は出さない
-			const effLegend = !!(s.legend && info.eff && info.eff.imgs);
-			const markColors = (!effLegend && s.legend && info.kinds && info.kinds.length) ? attrMarkColors() : null;
-			const legendLines = effLegend
-				? buildEffLegendLines(ctx, info.eff.bounds, info.eff.imgs, maxTextWidth, fontSize)
-				: (markColors ? buildMarkLegendLines(ctx, info.kinds, maxTextWidth, fontSize) : []);
+			// 効率を指定（C-136・改善2）: 印の凡例と「印の無い行の説明」は出さない（区間まとめパネルが凡例に当たる）。
+			// 数え方の脚注を先頭に常に置く。蹄鉄を付けられなかった理由（画面の形が未対応など）は、蹄鉄を描く設定のときに出す
+			const effNote = !!info.effNote;
+			const markColors = (s.legend && info.kinds && info.kinds.length) ? attrMarkColors() : null;
+			const legendLines = markColors ? buildMarkLegendLines(ctx, info.kinds, maxTextWidth, fontSize) : [];
+			// 脚注は、1行に収まらなければ「。」の切れ目で2文に分けてから折り返す（語の途中で切れないように）
+			let effNoteLines = effNote ? stitchWrapText(ctx, EFF_COUNT_NOTE, maxTextWidth) : [];
+			if (effNoteLines.length > 1) {
+				effNoteLines = [];
+				EFF_COUNT_NOTE.split('。').filter(Boolean).forEach(sentence => {
+					stitchWrapText(ctx, sentence + '。', maxTextWidth).forEach(line => effNoteLines.push(line));
+				});
+			}
 
 			// 凡例に続く、印そのものについての断り（印の無い行の意味・印を付けなかった理由）。
 			const markNotes = [];
-			if (legendLines.length && !effLegend) {
+			if (legendLines.length) {
 				stitchWrapText(ctx, MARK_LEGEND_NOTE, maxTextWidth).forEach(line => markNotes.push(line));
 			}
-			(s.legend ? (info.suppressed || []) : []).slice()
+			((s.legend || effNote) ? (info.suppressed || []) : []).slice()
 				.sort((a, b) => MARK_SUPPRESSED_ORDER.indexOf(a) - MARK_SUPPRESSED_ORDER.indexOf(b))
 				.forEach(reason => {
 					const text = MARK_SUPPRESSED_NOTE[reason];
@@ -6563,10 +6803,10 @@
 			// 画像を見た人がまず知りたいのは記号の意味なので、凡例を先頭に置き、
 			// 対象スキルをどう調整したかは後ろにまとめる。
 			// 記号の部品は、描き方（drawSkillMark と色）を包んで骨格へ渡す。
-			// 蹄鉄の凡例の部品は描き方（draw）を自分で持っているので、そのまま渡す
-			const rows = legendLines.map(segs => segs.map(it => (it.type === 'mark' && !it.draw
+				const rows = effNoteLines.map(line => stitchNoteTextRow(ctx, line));
+			legendLines.forEach(segs => rows.push(segs.map(it => (it.type === 'mark'
 				? { type: 'mark', w: it.w, draw: (c2, cx, cy, d) => drawSkillMark(c2, it.kind, cx, cy, d, markColors) }
-				: it)));
+				: it))));
 			markNotes.forEach(line => rows.push(stitchNoteTextRow(ctx, line)));
 			adjustNotes.forEach(line => rows.push(stitchNoteTextRow(ctx, line)));
 
@@ -6610,6 +6850,7 @@
 			const greenIds = new Set(effScope ? GREEN_59_IDS : effectiveBaseIds(GREEN_59_IDS, run));
 
 			const bannerCanvases = [];
+			const effBannerSpecs = []; // 効率を指定の帯は、同じセットの全員で紫の行数をそろえるため、全員ぶんをそろえてから描く
 			const contentCanvases = [];
 			const personMeta = []; // コピー機能用に、personIdx・sp70・green・labelを保持
 
@@ -6645,7 +6886,7 @@
 				const detected = countDetected(idx, run);
 				const sp70Count = countCategory(idx, sp70Ids, false);
 				const greenCount = countCategory(idx, greenIds, equivalence);
-				// 区間まとめパネル（効率で選ぶのとき常に）と効率の合計（効率で選ぶのとき常に／拡張モードでは検出数カードに従う）。C-136・段5
+				// 区間まとめパネル（効率を指定のとき常に）と合計＝評価点の合計÷消費SPの合計（効率を指定のとき常に／拡張モードでは検出数カードに従う）。C-136・段5・改善2
 				let effPanel = null, totalText = null;
 				if (effOn) {
 					const items = effPersonItems(idx, run) || [];
@@ -6656,20 +6897,34 @@
 					})) };
 				}
 				if (effOn || (run.melop && show.banner)) {
-					const milli = effTotalMilli(idx, run);
-					if (milli !== null) totalText = '合計 ' + (milli / 1000).toFixed(3) + '（評価点/SP）';
+					const tot = effTotals(idx, run);
+					if (tot) totalText = effTotalText(tot);
 				}
 				// 検出数カード・「シナリオ因子・遺伝子」は個別に省ける。両方 OFF でも列見出し（親A など）の帯は出す
-				const banner = stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count,
-					scenarioFactorHighlight(idx, run), aptitudeGeneHighlight(idx, run),
-					{ cards: show.banner, factors: show.scenario, effPanel: effPanel, totalText: totalText });
-				bannerCanvases.push(banner);
+				const factorHl = scenarioFactorHighlight(idx, run), geneHl = aptitudeGeneHighlight(idx, run);
+				if (effOn) {
+					// 効率を指定: 情報領域を縦に詰めた専用の帯（stitchDrawEffPersonBanner）。全員ぶんをそろえてから描く
+					effBannerSpecs.push({ slot: bannerCanvases.length, width: contentCanvas.width, label: label, detected: detected, sp70Count: sp70Count,
+						factors: factorHl, genes: geneHl, opts: { cards: show.banner, factors: show.scenario, effPanel: effPanel, totalText: totalText } });
+					bannerCanvases.push(null);
+				} else {
+					bannerCanvases.push(stitchDrawPersonBanner(contentCanvas.width, label, detected, sp70Count, factorHl, geneHl,
+						{ cards: show.banner, factors: show.scenario, totalText: totalText }));
+				}
 				contentCanvases.push(contentCanvas);
 				personMeta.push({ idx: idx, label: label, sp70Count: sp70Count, greenCount: greenCount });
 			}
 
 			if (contentCanvases.length === 0) return null;
 
+			// 効率を指定の帯: 紫の行数を全員でそろえて（帯の高さをそろえて）描く
+			if (effBannerSpecs.length) {
+				const minLines = Math.max.apply(null, effBannerSpecs.map(sp => effPurpleLayout(sp.width, sp.factors, sp.genes, show.scenario).lineCount));
+				effBannerSpecs.forEach(sp => {
+					bannerCanvases[sp.slot] = stitchDrawEffPersonBanner(sp.width, sp.label, sp.detected, sp.sp70Count, sp.factors, sp.genes,
+						Object.assign({ purpleMinLines: minLines }, sp.opts));
+				});
+			}
 			const bannerRow = bannerCanvases.length === 1 ? bannerCanvases[0] : stitchConcatHorizontallyTopAligned(bannerCanvases);
 			const contentRow = contentCanvases.length === 1 ? contentCanvases[0] : stitchConcatHorizontallyTopAligned(contentCanvases);
 			// 数え方の脚注はスクショの上（従来の位置）に残し、補助テキスト欄は
@@ -6681,11 +6936,12 @@
 			const rowWidth = contentRow.width;
 			// 数え方の脚注は検出数カードに従う（カードの数の断りなので、カードが無ければ出さない。
 			// シナリオ因子の ON/OFF には関わらない）
-			const countNoteBar = show.banner ? stitchDrawCountNoteBar(rowWidth, contentCanvases[0].width) : null;
+			// 効率を指定は、この脚注を補助テキストの帯の先頭へ移した（常に出すため。stitchDrawSharedNoteBar の effNote）
+			const countNoteBar = (show.banner && !effOn) ? stitchDrawCountNoteBar(rowWidth, contentCanvases[0].width) : null;
 			const noteBar = stitchDrawSharedNoteBar(rowWidth, contentCanvases[0].width, {
 				kinds: MARK_KIND_ORDER.filter(k => usedMarkKinds.has(k)),
 				suppressed: MARK_SUPPRESSED_ORDER.filter(r => markSuppressed.has(r)),
-				eff: (effOn && effImgs) ? { bounds: run.eff.bounds, imgs: effImgs } : null
+				effNote: effOn
 			}, { legend: show.legend, conditions: show.conditions }, run,
 				personMeta.map(p => p.idx));
 
