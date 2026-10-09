@@ -10480,7 +10480,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const json = await fetch('data/skill-efficiency.json').then((r) => r.json());
 		const ms = json.entries.map((e) => Math.round(e.efficiency * 1000));
 		return {
-			ms, n: json.entries.length,
+			ms, n: json.entries.length, defaultBounds: json.defaultBounds, allHaveId: json.entries.every((e) => e.skillId !== undefined && e.name === undefined),
 			dsteps: effData.steps.slice(), dmin: effData.min, dmax: effData.max, targets: effData.targets.length,
 			count: document.getElementById('scope-count-efficiency').textContent,
 			reg: document.getElementById('registry-skill-count').textContent,
@@ -10496,19 +10496,21 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 			regRows: document.querySelectorAll('#skill-registry-list .eff-mini').length,
 		};
 	});
-	// 段の値＝効率の重複を除いて小さい順。初期の境目＝等分点に最も近い段の値（同じ近さなら小さいほう）
+	// 段の値＝効率の重複を除いて小さい順。初期の境目＝データの defaultBounds（段の値に無ければ最も近い段の値）
 	const steps = [...new Set(st.ms)].sort((a, b) => a - b);
 	const min = steps[0], max = steps[steps.length - 1];
 	const nearIdx = (v) => steps.reduce((best, s, i) => (Math.abs(s - v) < Math.abs(steps[best] - v) ? i : best), 0);
-	const eqIdx = [1, 2, 3].map((k) => nearIdx(min + (max - min) * k / 4));
+	const eqIdx = st.defaultBounds.map((v) => nearIdx(Math.round(v * 1000)));
 	const eq = eqIdx.map((i) => steps[i]);
 	const tierOfT = (m, b) => (m <= b[0] ? 0 : m <= b[1] ? 1 : m <= b[2] ? 2 : 3);
 	assert(JSON.stringify(st.dsteps) === JSON.stringify(steps) && st.dmin === min && st.dmax === max && st.targets === st.n
 		&& st.count === String(st.n) && st.reg === String(st.n) && st.regRows === st.n,
 		'効率(2): 段の値・最小・最大はデータから。初期は4区間とも入れ、種数・一覧の行数はデータの行数', { steps: steps.length, n: st.n, count: st.count });
-	assert(JSON.stringify(st.bounds) === JSON.stringify(eq) && eqIdx[0] < eqIdx[1] && eqIdx[1] < eqIdx[2] && st.tiers.every(Boolean)
-		&& st.pressed.every((p) => p === 'true'),
-		'効率(2): 初期の境目は最小〜最大の等分点に最も近い段の値（昇順）', { bounds: st.bounds, want: eq });
+	assert(st.n === 462 && st.allHaveId && st.targets === 462 && st.count === '462',
+		'効率(A): 種数は462（継承固有の3行を外した。全行が独自IDを持つ）', { n: st.n, targets: st.targets, count: st.count });
+	assert(JSON.stringify(st.bounds) === JSON.stringify(eq) && JSON.stringify(st.bounds) === JSON.stringify(st.defaultBounds.map((v) => Math.round(v * 1000)))
+		&& eqIdx[0] < eqIdx[1] && eqIdx[1] < eqIdx[2] && st.tiers.every(Boolean) && st.pressed.every((p) => p === 'true'),
+		'効率(A): 初期の境目はデータの defaultBounds（段の値）で、4区間とも入れる', { bounds: st.bounds, want: eq });
 	assert([0, 1, 2, 3].every((k) => st.ms.some((m) => tierOfT(m, st.bounds) === k)),
 		'効率(2): 初期の境目で、4つの区間のどれも1種以上を含む', st.bounds);
 	assert(st.detailHidden && !st.panelHidden && JSON.stringify(st.srcs) === JSON.stringify(st.icons),
@@ -10705,7 +10707,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		return {
 			want: pick.map((t) => ({ row: t.row, tier: tierOf(t) })), pickAtBound: [pick[0].milli === b[0], pick[1].milli === b[1]],
 			got: items.filter((it) => !it.unique).map((it) => ({ row: it.row, tier: it.tier, icon: EFF_TIER_ICON_SRCS[it.tier] })),
-			unique: items.filter((it) => it.unique).map((it) => ({ row: it.row, column: s.uniqueRows.find((r) => r.row === it.row).column, stars: it.stars })),
+			uniqueIn: items.filter((it) => it.unique || s.uniqueRows.some((r) => r.row === it.row)).length,
 			noEffIn: items.some((it) => it.row === noEff.row),
 			offRows: itemsOff.map((it) => it.tier), edge, icons: EFF_TIER_ICON_SRCS,
 		};
@@ -10713,8 +10715,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(JSON.stringify(syn.got.map((g) => ({ row: g.row, tier: g.tier }))) === JSON.stringify(syn.want)
 		&& syn.got.every((g) => g.icon === syn.icons[g.tier]) && syn.pickAtBound.every(Boolean),
 		'効率(7): 照合した名前は効率の区間に入り、その区間の蹄鉄になる（4区間とも。境目ちょうどの値のスキルを含む）', syn);
-	assert(!syn.noEffIn && syn.unique.length === 1 && syn.unique[0].column === 0 && syn.unique[0].stars === 2,
-		'効率(7): 効率の無い行は入らない。継承固有はいちばん上の段が読めていればその人の列の行が入る', syn);
+	assert(!syn.noEffIn && syn.uniqueIn === 0,
+		'効率(7): 効率の無い行は入らない。継承固有は、いちばん上の段が読めていても入らない（効率を指定の集計には含めない）', syn);
 	assert(!syn.offRows.includes(1), '効率(7): 外した区間のスキルは入らない', syn.offRows);
 	assert(syn.edge.atB0 === 0 && syn.edge.atB1 === 1 && syn.edge.justAbove === 2 && syn.edge.atB2 === 2 && syn.edge.max === 3 && syn.edge.min === 0,
 		'効率(7): 境目ちょうどの値は下（左）の区間に入る（区間1は最小を、区間4は最大を含む）', syn.edge);
@@ -10747,7 +10749,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		setTargetScopeMode('efficiency');
 		readMelopTopRow = orig.top; matchMelopLines = orig.match; processPersonImages = orig.ppi; window.Tesseract = orig.tess;
 		const idNames = new Set(effData.targets.filter((t) => t.id).map((t) => t.name));
-		const uniqueNames = effData.targets.filter((t) => t.unique).map((t) => t.name);
+		const uniqueNames = melopSheet.uniqueRows.map((r) => r.name);
 		return { eff, def, pick: pick.map((t) => t.name),
 			namesOk: eff.payload.skillNames.every((n) => idNames.has(n)) && !eff.payload.skillNames.some((n) => uniqueNames.includes(n)),
 			starsHasPick: pick.every((t) => eff.payload.persons[0].stars[t.name] !== undefined),
@@ -10947,9 +10949,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		await buildStitchedSetImage(0, Object.assign({}, def, { melop: true }));
 		await buildStitchedSetImage(0, Object.assign({}, def, { melop: true, show: show(false) }));		await buildStitchedSetImage(0, Object.assign({}, base, { eff: { bounds: b, tiers: [true, true, true, false] }, show: show(true) }));
 		stitchOnePerson = orig.stitch; stitchDrawPersonBanner = orig.banner;
-		// 期待値: 区間ごとの数（1種1回。継承固有も対象）・合計（千分率の整数で足す。★は掛けない）
-		const unique = effData.targets.find((t) => t.unique && t.column === 0);
-		const effItems = pick.map((t) => ({ milli: t.milli, tier: effTierOf(t.milli, b) })).concat([{ milli: unique.milli, tier: effTierOf(unique.milli, b) }]);
+		// 期待値: 区間ごとの数（1種1回。継承固有は数えない）・合計（千分率の整数で足す。★は掛けない）
+		const effItems = pick.map((t) => ({ milli: t.milli, tier: effTierOf(t.milli, b) }));
 		// 133種・sp70緑のスキルにも効率があれば、拡張モードの照合で対象として数えられる
 		const extra = in133.concat([sp70]).map((n) => effData.targets.find((t) => t.name === n)).filter(Boolean)
 			.filter((t) => !pick.includes(t)).map((t) => ({ milli: t.milli, tier: effTierOf(t.milli, b) }));
@@ -10968,7 +10969,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(!effOff.cards && effOff.panel && effOff.total && effOn.panel && effOn.total && effOn.h > effOff.h,
 		'効率(D): カードは「検出数カード」に従い、区間まとめパネルと合計は常に出る', { on: effOn.cards, off: effOff.cards, h: [effOn.h, effOff.h] });
 	assert(JSON.stringify(effOn.panel.map((x) => x.count)) === JSON.stringify(st5.tierCounts) && JSON.stringify(effOn.panel.map((x) => x.range)) === JSON.stringify(st5.ranges),
-		'効率(段5): パネルの各マスは「上限-下限」と、その区間に入る検出数（1種1回・継承固有を含む）', { got: effOn.panel, want: st5.tierCounts });
+		'効率(段5): パネルの各マスは「上限-下限」と、その区間に入る検出数（1種1回・継承固有は入らない）', { got: effOn.panel, want: st5.tierCounts });
 	assert(effTierOff.panel[1].count === null && effTierOff.total === st5.totalOff1,
 		'効率(段5): 外した区間のマスは「－」（null）で、合計にも入れない', effTierOff);
 	assert(effOn.total === st5.total, '効率(段5): 合計は効率の千分率を1種1回ずつ足したもの（★は掛けない）を小数3桁で', { got: effOn.total, want: st5.total });

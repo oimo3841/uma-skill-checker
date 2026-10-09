@@ -2338,11 +2338,11 @@
 			return EXAM_SKILL_NAMES.slice();
 		}
 		// 軸1を反映した基準リスト（ID）。名前の表記ゆれを避けるため ID で持つ。
-		// 'efficiency' は効率の対象のうち独自IDのあるもの（sp70緑・緑のカードの母数がこれで決まる）。
+		// 'efficiency' は効率の対象（どれも独自IDを持つ。sp70緑・緑のカードの母数がこれで決まる）。
 		// run（captureRun）を渡せば、押した時点の境目と区間で答える。
 		function scopeBaseIdSet(mode, run) {
 			if (mode === 'efficiency') {
-				return new Set(effTargets(run ? run.eff : undefined).filter(t => t.id).map(t => String(t.id)));
+				return new Set(effTargets(run ? run.eff : undefined).map(t => t.id));
 			}
 			return new Set(scopeBaseNames(mode).map(n => examSkillId(n)).filter(Boolean));
 		}
@@ -4281,7 +4281,7 @@
 		const EXAM_DATA_JSON_VERSIONS = {
 			'data/melop-sheet-rows.json': '2026-10-09a',
 			// 「効率で選ぶ（βテスト）」と結合画像の効率の合計が読む（C-136）
-			'data/skill-efficiency.json': '2026-10-09b'
+			'data/skill-efficiency.json': '2026-10-09c'
 		};
 		// 効率の区間の蹄鉄（左から銅・銀・金・虹＝効率の低い区間から高い区間）。画像はファイル名の日付が版
 		// （差し替えるときは新しい名前にする。test:verify §1 が img/ の実ファイルとの一致を見る）
@@ -4728,7 +4728,7 @@
 		 *
 		 * 「対象スキルの範囲」の4つ目の選択肢（内部の値は 'efficiency'）。データは data/skill-efficiency.json
 		 * （独自ID か名前 → 評価点・消費スキルPt・効率）。対象は、拡張モードの並び（data/melop-sheet-rows.json）の行のうち
-		 * 効率を持つもの（レース因子と効率0の行はデータに無い）。**名前はここに書かない**（恒久ルール1）。
+		 * 効率を持つもの（継承固有・レース因子(スキル)・効率0の行はデータに無い。どの集計にも入らない）。**名前はここに書かない**（恒久ルール1）。
 		 *
 		 * - 効率は千分率の整数で扱う（3.945 → 3945）。区間の判定・合計・保存の丸めで端数がぶれないように。
 		 * - **境目は「段の値」だけを取る**（改善B）。段の値＝対象の行の効率から重複を除いたもの。
@@ -4763,30 +4763,27 @@
 		}
 
 		/* 読み込んだデータを、並びのデータの行に結び付ける。
-		   targets … 対象になり得る行（並びのデータの順＝data/skill-efficiency.json の順）。{ row, name, id, unique, column, milli, score, sp }
+		   targets … 対象になり得る行（並びのデータの順＝data/skill-efficiency.json の順）。{ row, name, id, milli, score, sp }
 		   milliByRow … 行番号 → 効率（千分率）
 		   steps … 段の値（効率の重複を除いて小さい順） */
 		function prepareEffData(json, sheet) {
-			const byId = new Map(), byName = new Map();
+			const byId = new Map();
 			((json && json.entries) || []).forEach(e => {
 				const milli = Math.round(Number(e.efficiency) * 1000);
-				if (!(milli > 0)) return;
-				const v = { milli: milli, score: e.score, sp: e.sp };
-				if (e.skillId !== undefined) byId.set(String(e.skillId), v);
-				else if (e.name) byName.set(String(e.name), v);
+				if (!(milli > 0) || e.skillId === undefined) return;
+				byId.set(String(e.skillId), { milli: milli, score: e.score, sp: e.sp });
 			});
 			const milliByRow = new Map();
 			const targets = [];
 			sheet.rows.forEach(r => {
-				const v = (r.id !== undefined) ? byId.get(String(r.id)) : byName.get(r.name);
+				const v = (r.id !== undefined) ? byId.get(String(r.id)) : undefined;
 				if (v === undefined) return;
 				milliByRow.set(r.row, v.milli);
-				targets.push({ row: r.row, name: r.name, id: r.id || null, unique: r.slot === 'unique', column: r.column,
-					milli: v.milli, score: v.score, sp: v.sp });
+				targets.push({ row: r.row, name: r.name, id: String(r.id), milli: v.milli, score: v.score, sp: v.sp });
 			});
 			const steps = Array.from(new Set(targets.map(t => t.milli))).sort((a, b) => a - b);
 			return { dataVersion: json && json.dataVersion, targets: targets, milliByRow: milliByRow, steps: steps,
-				min: steps[0], max: steps[steps.length - 1] };
+				min: steps[0], max: steps[steps.length - 1], defaultBounds: json && json.defaultBounds };
 		}
 
 		async function loadEffData() {
@@ -4841,8 +4838,11 @@
 			return i[0] >= 0 ? i : null;
 		}
 
-		// 初期の境目＝最小〜最大の等分点に最も近い段の値（昇順を保つ）
+		// 初期の境目＝データの defaultBounds（段の値に無ければ最も近い段の値に寄せる）。
+		// データに無い・読めない形のときだけ、最小〜最大の等分点に最も近い段の値（昇順を保つ）
 		function defaultEffBounds(d) {
+			const fromData = normalizeEffBounds(d.defaultBounds, d);
+			if (fromData) return fromData;
 			const idx = [1, 2, 3].map(k => effNearestStepIndex(d.min + (d.max - d.min) * k / EFF_TIER_COUNT, d));
 			return effFixStepIndexes(idx, d).map(i => d.steps[i]);
 		}
@@ -4905,9 +4905,9 @@
 		}
 
 		/* その人の列で検出した対象（1種1回）。拡張モードの照合の結果（personMelop）から作る。
-		   継承固有は、いちばん上の段が読めていれば、その人の列の行を足す。
+		   継承固有は入れない（データに行が無い。いちばん上の段から読む行は対象外）。
 		   snap … 区間の分け方と切り替え（省けば今の画面の値）。
-		   戻り値: [{ row, name, id, milli, tier, stars, unique, dictName }] ／ 作れなければ null */
+		   戻り値: [{ row, name, id, milli, tier, stars, dictName }] ／ 作れなければ null */
 		function effPersonItems(personIdx, snapOrRun) {
 			const snap = (snapOrRun && snapOrRun.bounds) ? snapOrRun : (snapOrRun ? snapOrRun.eff : effSnapshot());
 			const m = personMelop[personIdx];
@@ -4921,17 +4921,8 @@
 				const tier = effTierOf(milli, snap.bounds);
 				if (!snap.tiers[tier]) return;
 				items.push({ row: row.row, name: row.name, id: row.id || null, milli: milli, tier: tier,
-					stars: m.res.skillStars[dictName], unique: false, dictName: dictName });
+					stars: m.res.skillStars[dictName], dictName: dictName });
 			});
-			if (m.top && m.top.found) {
-				const ur = melopSheet.uniqueRows.find(r => r.column === personIdx % 3);
-				const milli = ur ? effData.milliByRow.get(ur.row) : undefined;
-				if (milli !== undefined) {
-					const tier = effTierOf(milli, snap.bounds);
-					if (snap.tiers[tier]) items.push({ row: ur.row, name: ur.name, id: null, milli: milli, tier: tier,
-						stars: m.top.uniqueStars, unique: true, dictName: null });
-				}
-			}
 			return items;
 		}
 
@@ -5925,8 +5916,7 @@
 		 * 効率で選ぶ（C-136・段4）: 結果画像のスキル行に、効率の区間の蹄鉄を重ねる
 		 *
 		 * 左の印（drawAttrIconsOnPerson）の代わりに、**同じ位置・同じ判定**で蹄鉄の画像を描く。
-		 *   - 置くのは、その人の列で検出した効率の対象（対象にした区間のもの）の行だけ。継承固有はいちばん上の段から
-		 *     ★だけを読む行で、結合画像の行の位置が取れないので置かない。
+		 *   - 置くのは、その人の列で検出した効率の対象（対象にした区間のもの）の行だけ。継承固有は対象に入らない。
 		 *   - 位置は印と同じ（スキル名 → 根拠の OCR 行 → 元画像の行 → 結合後の座標）。
 		 *     対応を確かめていない画面サイズ・列が2本にならない画像には置かない（印と同じ断り書きを出す）。
 		 *   - 大きさは〇のへこみの直径（列の間隔の 0.1125 倍）。それが36px に満たない小さい画面だけ36px まで大きくする
@@ -5981,7 +5971,7 @@
 			// いつもの行（personLines）の範囲にあるものだけを使う
 			const tierByRowKey = {};
 			items.forEach(it => {
-				if (it.unique || !it.dictName) return;
+				if (!it.dictName) return;
 				(m.res.skillSources[it.dictName] || []).forEach(li => {
 					const l = li < lines.length ? lines[li] : null;
 					if (l && l.rowKey) tierByRowKey[l.rowKey] = it.tier;
@@ -7374,10 +7364,9 @@
 			const used = activePersonIndexes();
 			if (used.length === 0 || skillList.length === 0) return;
 
-			// 効率で選ぶ（C-136）で判定したときは、効率の対象（拡張モードの辞書で照合したもの）＋シナリオ因子・遺伝子を渡す。
-			// 独自IDの無い行（継承固有）は Deck で引けないので黙って除く
+			// 効率で選ぶ（C-136）で判定したときは、効率の対象（拡張モードの辞書で照合したもの。どれも独自IDを持つ）＋シナリオ因子・遺伝子を渡す
 			const effRun = (lastOcrRun && lastOcrRun.scope === 'efficiency' && lastOcrRun.eff && effData && melopSheet) ? lastOcrRun : null;
-			const effNames = effRun ? effTargets(effRun.eff).filter(t => t.id).map(t => t.name) : null;
+			const effNames = effRun ? effTargets(effRun.eff).map(t => t.name) : null;
 			const extraNames = effRun ? effRun.factorOnlyList.concat(effRun.geneOnlyList) : null;
 			const handoffNames = effRun ? effNames.concat(extraNames) : skillList;
 
@@ -7386,7 +7375,6 @@
 					const stars = {};
 					const unknownStars = [];
 					(effPersonItems(i, effRun) || []).forEach(it => {
-						if (!it.id) return;
 						if (it.stars === null || it.stars === undefined || it.stars === 0) unknownStars.push(it.name);
 						else stars[it.name] = it.stars;
 					});

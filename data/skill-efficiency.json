@@ -1,11 +1,9 @@
 {
-	"dataVersion": "2026-10-09b",
+	"dataVersion": "2026-10-09c",
 	"category": "skillEfficiency",
-	"note": "スキルの評価点（有志の調査値）・消費スキルPt（ヒントのレベル0の基礎値）・技能試験効率（評価点÷消費スキルPt を小数第3位に四捨五入）。exam.html の「効率で選ぶ（βテスト）」と、結合画像の効率の合計だけが読む。skillId は独自ID（マスター・拡張スキル・シナリオ因子・遺伝子）。独自IDの無い行（継承固有）は name で、名前は data/melop-sheet-rows.json の行の名前と同じ。効率が0の行は持たない。並びは data/melop-sheet-rows.json の行の順。",
+	"note": "スキルの評価点（有志の調査値）・消費スキルPt（ヒントのレベル0の基礎値）・技能試験効率（評価点÷消費スキルPt を小数第3位に四捨五入）。exam.html の「効率を指定（βテスト）」と、結合画像の評価点の合計÷消費スキルPtの合計だけが読む。skillId は独自ID（マスター・拡張スキル・シナリオ因子・遺伝子）。継承固有・レース因子(スキル)・効率が0の行は持たない。並びは data/melop-sheet-rows.json の行の順。defaultBounds は効率を指定の初期の境目（段の値）。",
+	"defaultBounds": [3.779, 4.783, 5.878],
 	"entries": [
-		{"name":"継承固有：親","score":580,"sp":200,"efficiency":2.9},
-		{"name":"継承固有：祖1","score":580,"sp":200,"efficiency":2.9},
-		{"name":"継承固有：祖2","score":580,"sp":200,"efficiency":2.9},
 		{"skillId":"1","score":529,"sp":90,"efficiency":5.878},
 		{"skillId":"2","score":529,"sp":90,"efficiency":5.878},
 		{"skillId":"3","score":529,"sp":90,"efficiency":5.878},
