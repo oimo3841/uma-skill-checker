@@ -38,21 +38,21 @@ export async function register19(env) {
 	/* ====================================================================
 	 * A: 効率を指定の画面とリスト
 	 * ==================================================================== */
-	await block('微調整1A1 初期値に戻すボタン: 44px以上・バーの右の枠の中・押せない状態にしない／境目と蹄鉄を初期値へ・保存値を消す・小窓なし／すでに初期値なら知らせる', async () => {
+	await block('微調整1A1 初期値に戻すボタン: 44px以上・蹄鉄の行の下の余裕領域の右下（微調整2のBで移した）・押せない状態にしない／境目と蹄鉄を初期値へ・保存値を消す・小窓なし／すでに初期値なら知らせる', async () => {
 		for (const w of [1280, 375]) {
 			const { ctx, page, errors } = await openExam({ w, eff: true });
 			const geo = await page.evaluate(() => {
 				const R = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, r: r.right, b: r.bottom }; };
 				const btn = document.getElementById('eff-reset-btn');
 				return { btn: R(btn), panel: R(document.getElementById('eff-panel')), bar: R(document.getElementById('eff-bar')), inPanel: document.getElementById('eff-panel').contains(btn),
-					thumbs: [...document.querySelectorAll('.eff-thumb')].map(R), disabled: btn.disabled, label: btn.getAttribute('aria-label'), vw: document.documentElement.clientWidth,
+					thumbs: [...document.querySelectorAll('.eff-mark')].map(R), shoes: [...document.querySelectorAll('.eff-shoe')].map(R), disabled: btn.disabled, label: btn.getAttribute('aria-label'), vw: document.documentElement.clientWidth,
 					sw: document.documentElement.scrollWidth };
 			});
 			const overlap = (a, b) => a.x < b.r && b.x < a.r && a.y < b.b && b.y < a.b;
-			assert(geo.inPanel && geo.btn.w >= 44 && geo.btn.h >= 44 && geo.btn.r <= geo.panel.r + 0.5 && geo.btn.x >= geo.bar.r - 1 && !geo.disabled && !!geo.label && geo.sw <= geo.vw,
-				'微調整1A1(' + w + 'px): リセットボタンは効率を指定の枠の中・バーの右・44px以上で、押せない状態（disabled）ではない', geo);
-			assert(!overlap(geo.btn, geo.bar) && geo.thumbs.every((t) => !overlap(geo.btn, t)),
-				'微調整1A1(' + w + 'px): ボタンはバー・つまみに重ならない', geo);
+			assert(geo.inPanel && geo.btn.w >= 44 && geo.btn.h >= 44 && geo.btn.r <= geo.panel.r + 0.5 && Math.abs(geo.btn.r - geo.bar.r) < 1.5 && geo.btn.y >= Math.max(...geo.shoes.map((t) => t.b)) - 0.5 && !geo.disabled && !!geo.label && geo.sw <= geo.vw,
+				'微調整1A1(' + w + 'px): リセットボタンは効率を指定の枠の中・蹄鉄の行の下の右下（バーの右端にそろう）・44px以上で、押せない状態（disabled）ではない', geo);
+			assert(!overlap(geo.btn, geo.bar) && geo.thumbs.every((t) => !overlap(geo.btn, t)) && geo.shoes.every((t) => !overlap(geo.btn, t)),
+				'微調整1A1(' + w + 'px): ボタンはバー・境目の目印・蹄鉄に重ならない', geo);
 			// 動かす → 戻す
 			const moved = await page.evaluate(() => {
 				const idx = effBoundIdx();
@@ -72,9 +72,9 @@ export async function register19(env) {
 			const after = await page.evaluate(() => ({ b: effBounds.slice(), tiers: effTiers.slice(), def: defaultEffBounds(effData),
 				stored: [localStorage.getItem('uma-exam-eff-bounds'), localStorage.getItem('uma-exam-eff-tiers')],
 				count: document.getElementById('scope-count-efficiency').textContent, n: effTargets().length,
-				pressed: [...document.querySelectorAll('.eff-shoe')].map((s) => s.getAttribute('aria-pressed')),
+				pressed: [...document.querySelectorAll('.eff-hit')].map((s) => s.getAttribute('aria-pressed')),
 				seg: [...document.querySelectorAll('.eff-seg')].map((s) => s.getAttribute('data-on')),
-				thumbLeft: [...document.querySelectorAll('.eff-thumb')].map((t) => t.style.left), edges: effEdges().slice(1, 4).map((f) => f * 100 + '%'),
+				thumbLeft: [...document.querySelectorAll('.eff-mark')].map((t) => t.style.left), edges: effEdges().slice(1, 4).map((f) => f * 100 + '%'),
 				overlayOpen: [...document.querySelectorAll('.uma-overlay')].some((e) => !e.hidden), disabled: document.getElementById('eff-reset-btn').disabled }));
 			assert(JSON.stringify(after.b) === JSON.stringify(after.def) && after.tiers.every(Boolean) && after.pressed.every((p) => p === 'true') && after.seg.every((s) => s === 'true'),
 				'微調整1A1(' + w + 'px): 押すと区間の境目はデータの defaultBounds に、蹄鉄の ON/OFF は全部 ON に戻る', after);
@@ -166,8 +166,8 @@ export async function register19(env) {
 						assert(r.litRows === 0, '微調整1A2(' + tag + '): 区間' + k + '（OFF）は灰色のまま・模様なし', r);
 					}
 				}
-				const thumb = await page.evaluate(() => { const b = document.getElementById('eff-bar').getBoundingClientRect(); return [...document.querySelectorAll('.eff-thumb')].map((t) => { const r = t.getBoundingClientRect(); return { h: r.height, up: b.top - r.top, down: r.bottom - b.bottom }; }); });
-				assert(thumb.every((t) => t.h === 36 && t.up === 4 && t.down === 4), '微調整1A2(' + tag + '): つまみは上下に4pxはみ出す形のまま（高さ36px）', thumb);
+				const thumb = await page.evaluate(() => { const b = document.getElementById('eff-bar').getBoundingClientRect(); return [...document.querySelectorAll('.eff-mark')].map((t) => { const r = t.getBoundingClientRect(); return { h: r.height, up: b.top - r.top, down: r.bottom - b.bottom }; }); });
+				assert(thumb.length === 3 && thumb.every((t) => t.h === 28 && t.up === 0 && t.down === 0), '微調整1A2(' + tag + '): 境目の目印はバーの高さ（28px）に収まり、上下にはみ出さない（微調整2のBでつまみの出っ張りを無くした）', thumb);
 				const fs = await page.evaluate(() => [...document.querySelectorAll('.eff-seg-n')].map((n) => getComputedStyle(n).fontSize));
 				assert(fs.every((f) => f === '14px'), '微調整1A2(' + tag + '): 個数の数字は14pxのまま', fs);
 				assert(jsErrors(errors).length === 0, '微調整1A2(' + tag + '): コンソールエラーなし', errors.slice(0, 3));
@@ -176,7 +176,7 @@ export async function register19(env) {
 		}
 	});
 
-	await block('微調整1A3 バーの中に個数を出せない区間は、蹄鉄の下に個数（どの区間も同じ規則・読める色）／375pxの3段でも隣の蹄鉄に重ならない', async () => {
+	await block('微調整1A3 バーの中に個数を出せない区間は、その区間の中央の真下に個数（どの区間も同じ規則・読める色。微調整2のBで蹄鉄の下から移した）', async () => {
 		const lum = (c) => { const v = c.map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
 		const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
 		const rgb = (s) => (s.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
@@ -187,38 +187,41 @@ export async function register19(env) {
 				const panel = document.getElementById('eff-panel');
 				return {
 					bg: getComputedStyle(panel).backgroundColor,
+					shoes: [...document.querySelectorAll('.eff-shoe')].map(R),
+					bar: R(document.getElementById('eff-bar')),
 					tiers: [0, 1, 2, 3].map((k) => {
 						const seg = document.querySelector('.eff-seg[data-tier="' + k + '"]'), n = seg.querySelector('.eff-seg-n');
 						const wasHidden = n.hidden; n.hidden = false; const numW = n.getBoundingClientRect().width; n.hidden = wasHidden;
-						const shoe = document.querySelector('.eff-shoe[data-tier="' + k + '"]'), u = shoe.querySelector('.eff-shoe-n'), img = shoe.querySelector('img');
+						const u = document.querySelector('.eff-num[data-tier="' + k + '"]');
 						const cs = getComputedStyle(u);
 						return { inBarHidden: n.hidden, inBar: n.textContent, underHidden: u.hidden, under: u.textContent, color: cs.color, weight: cs.fontWeight, size: cs.fontSize,
-							segW: seg.getBoundingClientRect().width, numW: numW, shoe: R(shoe), img: R(img), u: u.hidden ? null : R(u), want: effTierCount(k) };
+							segW: seg.getBoundingClientRect().width, seg: R(seg), numW: numW, u: u.hidden ? null : R(u), want: effTierCount(k) };
 					}),
 				};
 			});
 			const tag = w + 'px・' + theme;
 			let p = await probe();
 			const rule = (q) => q.tiers.every((t) => t.inBarHidden === !t.underHidden && (t.inBarHidden ? t.under : t.inBar) === String(t.want));
-			assert(rule(p), '微調整1A3(' + tag + '・初期): 個数はバーの中か蹄鉄の下のどちらか一方（同じ数字）に出る', p.tiers.map((t) => ({ inBarHidden: t.inBarHidden, underHidden: t.underHidden, want: t.want })));
+			assert(rule(p), '微調整1A3(' + tag + '・初期): 個数はバーの中か、その区間の真下のどちらか一方（同じ数字）に出る', p.tiers.map((t) => ({ inBarHidden: t.inBarHidden, underHidden: t.underHidden, want: t.want })));
 			assert(p.tiers.every((t) => t.inBarHidden === (t.segW < t.numW + 8)), '微調整1A3(' + tag + '・初期): バーの中に出せないか（区間の幅 < 数字の幅＋8px）は全区間で同じ規則', p.tiers.map((t) => ({ segW: Math.round(t.segW), numW: Math.round(t.numW), inBarHidden: t.inBarHidden })));
-			if (w === 375) assert(p.tiers[3].inBarHidden && !p.tiers[3].underHidden, '微調整1A3(' + tag + '・初期): 375px では虹（30種）の個数が蹄鉄の下に出る', p.tiers[3]);
-			else assert(p.tiers.every((t) => !t.inBarHidden && t.underHidden), '微調整1A3(' + tag + '・初期): 1280px では4つとも個数はバーの中（蹄鉄の下には出さない）', p.tiers.map((t) => ({ inBarHidden: t.inBarHidden, underHidden: t.underHidden })));
+			if (w === 375) assert(p.tiers[3].inBarHidden && !p.tiers[3].underHidden, '微調整1A3(' + tag + '・初期): 375px では虹（30種）の個数が区間の中央の真下に出る', p.tiers[3]);
+			else assert(p.tiers.every((t) => !t.inBarHidden && t.underHidden), '微調整1A3(' + tag + '・初期): 1280px では4つとも個数はバーの中（真下には出さない）', p.tiers.map((t) => ({ inBarHidden: t.inBarHidden, underHidden: t.underHidden })));
 			// 境目を動かして、複数の区間が細くなる形（金と虹・銀と金と虹）でも同じ規則
 			const shapes = [['最大の側へ寄せ切り', (n) => [n - 4, n - 3, n - 2]], ['真ん中へ寄せ', (n) => [Math.floor(n / 2) - 1, Math.floor(n / 2), Math.floor(n / 2) + 1]], ['境目1だけ最小', (n) => [0, Math.floor(n / 2), n - 2]]];
 			for (const [label, fn] of shapes) {
 				await page.evaluate((src) => { const f = eval('(' + src + ')'); effBounds = f(effData.steps.length).map((i) => effData.steps[i]); layoutEffPanel(); }, fn.toString());
 				p = await probe();
 				const under = p.tiers.filter((t) => !t.underHidden).length;
-				assert(rule(p) && p.tiers.every((t) => t.inBarHidden === (t.segW < t.numW + 8)), '微調整1A3(' + tag + '・' + label + '): どの区間も同じ規則（バーの中に出せなければ蹄鉄の下）', p.tiers.map((t) => ({ segW: Math.round(t.segW), inBarHidden: t.inBarHidden, underHidden: t.underHidden })));
-				// 数字は蹄鉄の画像の真下・隣の蹄鉄（画像）に重ならない・パネルの枠の中
+				assert(rule(p) && p.tiers.every((t) => t.inBarHidden === (t.segW < t.numW + 8)), '微調整1A3(' + tag + '・' + label + '): どの区間も同じ規則（バーの中に出せなければ区間の中央の真下）', p.tiers.map((t) => ({ segW: Math.round(t.segW), inBarHidden: t.inBarHidden, underHidden: t.underHidden })));
+				// 数字は区間の中央の真下（バーと蹄鉄の間の行）・蹄鉄の箱に重ならない・パネルの枠の中
 				const bad = [];
 				p.tiers.forEach((t, i) => {
 					if (!t.u) return;
-					if (t.u.y < t.img.b - 0.5) bad.push('蹄鉄' + i + 'の個数が画像の下にない');
-					p.tiers.forEach((o, j) => { if (j !== i && o.img.x < t.u.r && t.u.x < o.img.r && o.img.y < t.u.b && t.u.y < o.img.b) bad.push('蹄鉄' + i + 'の個数が蹄鉄' + j + 'の画像に重なる'); });
+					if (t.u.y < p.bar.b - 0.5) bad.push('区間' + i + 'の個数がバーの下の行にない');
+					if (Math.abs((t.u.x + t.u.w / 2) - (t.seg.x + t.seg.w / 2)) > 1) bad.push('区間' + i + 'の個数が区間の中央の真下でない');
+					p.shoes.forEach((o, j) => { if (o.x < t.u.r && t.u.x < o.r && o.y < t.u.b && t.u.y < o.b) bad.push('区間' + i + 'の個数が蹄鉄' + j + 'に重なる'); });
 				});
-				assert(bad.length === 0, '微調整1A3(' + tag + '・' + label + '): 蹄鉄の下の個数は、隣の蹄鉄に重ならない（個数のある段は、その行のぶん間隔が広がる）', { bad, under });
+				assert(bad.length === 0, '微調整1A3(' + tag + '・' + label + '): 真下の個数は、区間の中央・バーと蹄鉄の間の行に収まり、蹄鉄に重ならない', { bad, under });
 			}
 			// 文字色: 白の太字ではなく、パネルの地の上で読める色（コントラスト比 4.5 以上）。太字
 			await page.evaluate(() => { effBounds = defaultEffBounds(effData); layoutEffPanel(); });
@@ -226,7 +229,7 @@ export async function register19(env) {
 			const shown = p.tiers.filter((t) => !t.underHidden);
 			if (w === 375) {
 				assert(shown.length >= 1 && shown.every((t) => JSON.stringify(rgb(t.color)) !== '[255,255,255]' && contrast(rgb(t.color), rgb(p.bg)) >= 4.5 && Number(t.weight) >= 700),
-					'微調整1A3(' + tag + '): 蹄鉄の下の個数は白ではなく、地の上でコントラスト比 4.5 以上・太字', shown.map((t) => ({ color: t.color, ratio: contrast(rgb(t.color), rgb(p.bg)).toFixed(2), weight: t.weight })));
+					'微調整1A3(' + tag + '): 真下の個数は白ではなく、地の上でコントラスト比 4.5 以上・太字', shown.map((t) => ({ color: t.color, ratio: contrast(rgb(t.color), rgb(p.bg)).toFixed(2), weight: t.weight })));
 			}
 			assert(jsErrors(errors).length === 0, '微調整1A3(' + tag + '): コンソールエラーなし', errors.slice(0, 3));
 			await ctx.close();
@@ -760,8 +763,8 @@ export async function register19(env) {
 		assert(await page.evaluate(() => localStorage.getItem('uma-exam-last-step')) === '2', '微調整1D1 切り替えたタブは「最後に使ったタブ」として覚える（タブを押したときと同じ）', null);
 		await swipeAt(page, OUT, 120, 0);
 		// ①の中で、反応させない場所
-		assert(await swipeAt(page, '.eff-bar', -120, 0) === 'step-tab-1', '微調整1D1 効率のバー（つまみの操作）から始まった動きでは変わらない', await tab());
-		assert(await swipeAt(page, '.eff-thumb[data-idx="1"]', -120, 0) === 'step-tab-1', '微調整1D1 つまみから始まった動きでは変わらない', await tab());
+		assert(await swipeAt(page, '.eff-bar', -120, 0) === 'step-tab-1', '微調整1D1 効率のバーから始まった動きでは変わらない', await tab());
+		assert(await swipeAt(page, '.eff-hit[data-tier="1"]', -120, 0) === 'step-tab-1', '微調整1D1 バーの区間のエリアから始まった動きでは変わらない', await tab());
 		assert(await swipeAt(page, '.eff-shoe--0', -120, 0) === 'step-tab-1', '微調整1D1 効率を指定の枠の中（蹄鉄）から始まった動きでは変わらない', await tab());
 		assert(await swipeAt(page, '#skill-copy-textarea', -120, 0) === 'step-tab-1', '微調整1D1 入力欄（テキストの欄）から始まった動きでは変わらない', await tab());
 		assert(await swipeAt(page, '#scope-mode-default', -120, 0) === 'step-tab-1', '微調整1D1 選択肢（ラジオ）から始まった動きでは変わらない', await tab());

@@ -10438,7 +10438,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 			bounds: effBounds.slice(), tiers: effTiers.slice(),
 			detailHidden: document.getElementById('scope-detail').hidden, panelHidden: document.getElementById('eff-panel').hidden,
 			srcs: [...document.querySelectorAll('.eff-shoe img')].map((i) => i.getAttribute('src')), icons: EFF_TIER_ICON_SRCS,
-			pressed: [...document.querySelectorAll('.eff-shoe')].map((s) => s.getAttribute('aria-pressed')),
+			pressed: [...document.querySelectorAll('.eff-hit')].map((s) => s.getAttribute('aria-pressed')),
 			vals: [...document.querySelectorAll('.eff-val')].map((e) => e.textContent),
 			stored: [localStorage.getItem('uma-exam-eff-bounds'), localStorage.getItem('uma-exam-eff-tiers')],
 			scopeStored: localStorage.getItem('uma-exam-target-scope'),
@@ -10471,7 +10471,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		'効率(2): 動かすまで境目と区間は保存しない。判定の表と「スキル名のコピー」は133種のまま', st);
 
 	// (3) キーボード: ←→ で1段、Shift で5段。段の値だけを取る。4つの区間のどれも1種以上を含む範囲で止まる。動かすと保存
-	await page.focus('.eff-thumb[data-idx="0"]');
+	await page.focus('.eff-shoe[data-idx="0"]');
 	await page.keyboard.press('ArrowRight');
 	const k1 = await page.evaluate(() => effBounds[0]);
 	await page.keyboard.press('Shift+ArrowRight');
@@ -10480,7 +10480,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	const k3 = await page.evaluate(() => ({ b: effBounds.slice(), focus: document.activeElement.getAttribute('data-idx'), stored: JSON.parse(localStorage.getItem('uma-exam-eff-bounds')) }));
 	for (let i = 0; i < 40; i++) await page.keyboard.press('Shift+ArrowLeft');
 	const k4 = await page.evaluate(() => effBounds[0]);
-	await page.focus('.eff-thumb[data-idx="2"]');
+	await page.focus('.eff-shoe[data-idx="2"]');
 	for (let i = 0; i < 40; i++) await page.keyboard.press('Shift+ArrowRight');
 	const k5 = await page.evaluate(() => effBounds.slice());
 	const idx = (v) => steps.indexOf(v);
@@ -10494,26 +10494,29 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	await page.evaluate(() => { effBounds = defaultEffBounds(effData); layoutEffPanel(); });
 
 	// (4) ドラッグ（マウス）: ポインタに最も近い段の値に吸い付く。区間の切り替えと取り違えない。動かしている間は吹き出し（改善C）
-	const drag = await page.evaluate(() => {
+	// 微調整2・B: 境目を動かすのは蹄鉄。蹄鉄を横にドラッグした距離を境目の位置に直す（境目の位置は、ドラッグを始めた時点の位置＋動いた距離）
+	const shoeNow = (i) => page.evaluate((k) => {
 		const bar = document.getElementById('eff-bar').getBoundingClientRect();
-		const th = document.querySelector('.eff-thumb[data-idx="1"]').getBoundingClientRect();
-		return { bar: { x: bar.x, y: bar.y, w: bar.width, h: bar.height }, th: { x: th.x + th.width / 2, y: th.y + th.height / 2 }, tiers: effTiers.slice(), b: effBounds.slice() };
-	});
+		const th = document.querySelector('.eff-shoe[data-idx="' + k + '"]').getBoundingClientRect();
+		return { bar: { x: bar.x, y: bar.y, w: bar.width, h: bar.height }, th: { x: th.x + th.width / 2, y: th.y + th.height / 2 }, bx: bar.x + bar.width * effEdges()[k + 1] };
+	}, i);
+	const drag = Object.assign(await shoeNow(1), { tiers: await page.evaluate(() => effTiers.slice()), b: await page.evaluate(() => effBounds.slice()) });
 	const target = 0.55;
+	const dxTo = (fracOfBar) => drag.bar.x + drag.bar.w * fracOfBar - drag.bx;
 	await page.mouse.move(drag.th.x, drag.th.y);
 	await page.mouse.down();
-	await page.mouse.move(drag.bar.x + drag.bar.w * 0.5, drag.th.y, { steps: 4 });
-	await page.mouse.move(drag.bar.x + drag.bar.w * target, drag.th.y, { steps: 4 });
+	await page.mouse.move(drag.th.x + dxTo(0.5), drag.th.y, { steps: 4 });
+	await page.mouse.move(drag.th.x + dxTo(target), drag.th.y, { steps: 4 });
 	const during = await page.evaluate(() => {
-		const tip = document.getElementById('eff-tip');
+		const tip = document.getElementById('eff-tip-1');
 		const v = effBounds[1];
 		const rep = effData.targets.find((t) => t.milli === v);
 		return { hidden: tip.hidden, v, img: tip.querySelector('img').getAttribute('src'), name: tip.querySelector('.eff-tip-name').textContent,
 			nums: [...tip.querySelectorAll('.eff-tip-num')].map((e) => e.textContent), rep: { name: rep.name, score: rep.score, sp: rep.sp },
-			icons: EFF_TIER_ICON_SRCS, valuetext: document.querySelector('.eff-thumb[data-idx="1"]').getAttribute('aria-valuetext') };
+			icons: EFF_TIER_ICON_SRCS, valuetext: document.querySelector('.eff-shoe[data-idx="1"]').getAttribute('aria-valuetext') };
 	});
 	await page.mouse.up();
-	const d1 = await page.evaluate(() => ({ b: effBounds.slice(), tiers: effTiers.slice(), stored: JSON.parse(localStorage.getItem('uma-exam-eff-bounds')), tipHidden: document.getElementById('eff-tip').hidden }));
+	const d1 = await page.evaluate(() => ({ b: effBounds.slice(), tiers: effTiers.slice(), stored: JSON.parse(localStorage.getItem('uma-exam-eff-bounds')), tipHidden: document.getElementById('eff-tip-1').hidden }));
 	const cumAt = (i) => st.ms.filter((m) => m <= steps[i]).length / st.ms.length;
 	const nearPos = (f) => steps.reduce((best, s, i) => (Math.abs(cumAt(i) - f) < Math.abs(cumAt(best) - f) ? i : best), 0);
 	const wantDragIdx = Math.min(Math.max(nearPos(target), idx(d1.b[0]) + 1), idx(d1.b[2]) - 1);
@@ -10525,25 +10528,26 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		&& during.img === during.icons[1] && during.valuetext === fmt(during.v) + ' ' + during.rep.name,
 		'効率(C): 吹き出しは「左の区間の蹄鉄｜代表のスキル（その値の効率で最初のもの）｜効率｜評価点｜消費sp」。読み上げにも値とスキル名', during);
 	// 右端の先まで引っ張っても、右のつまみの1段手前で止まる
-	await page.mouse.move(drag.bar.x + drag.bar.w * target, drag.th.y);
+	const s2 = await shoeNow(1);
+	await page.mouse.move(s2.th.x, s2.th.y);
 	await page.mouse.down();
-	await page.mouse.move(drag.bar.x + drag.bar.w * 1.5, drag.th.y, { steps: 6 });
+	await page.mouse.move(s2.th.x + s2.bar.w, s2.th.y, { steps: 6 });
 	await page.mouse.up();
 	const d2 = await page.evaluate(() => effBounds.slice());
 	assert(idx(d2[1]) === idx(d2[2]) - 1, '効率(4): ドラッグでも右のつまみの1段手前で止まる', d2);
 	await page.evaluate(() => { effBounds = defaultEffBounds(effData); saveEffSettings(); layoutEffPanel(); });
 
 	// (C) キーボードで動かしたあとは1.5秒だけ吹き出しを出す。焦点が外れたら消える
-	await page.focus('.eff-thumb[data-idx="0"]');
+	await page.focus('.eff-shoe[data-idx="0"]');
 	await page.keyboard.press('ArrowRight');
-	const kt1 = await page.evaluate(() => ({ hidden: document.getElementById('eff-tip').hidden, img: document.querySelector('#eff-tip img').getAttribute('src') }));
+	const kt1 = await page.evaluate(() => ({ hidden: document.getElementById('eff-tip-0').hidden, img: document.querySelector('#eff-tip-0 img').getAttribute('src') }));
 	await page.waitForTimeout(1000);
-	const kt2 = await page.evaluate(() => document.getElementById('eff-tip').hidden);
+	const kt2 = await page.evaluate(() => document.getElementById('eff-tip-0').hidden);
 	await page.waitForTimeout(800);
-	const kt3 = await page.evaluate(() => document.getElementById('eff-tip').hidden);
+	const kt3 = await page.evaluate(() => document.getElementById('eff-tip-0').hidden);
 	await page.keyboard.press('ArrowLeft');
 	await page.evaluate(() => document.activeElement.blur());
-	const kt4 = await page.evaluate(() => document.getElementById('eff-tip').hidden);
+	const kt4 = await page.evaluate(() => document.getElementById('eff-tip-0').hidden);
 	assert(!kt1.hidden && kt1.img === st.icons[0] && !kt2 && kt3 && kt4,
 		'効率(C): キーボードで動かすと吹き出しが出て1.5秒で消える。焦点が外れても消える（つまみ1は銅の蹄鉄）', { kt1, kt2, kt3, kt4 });
 	// 端で切れない: 境目を両端に寄せて吹き出しを出し、帯の枠と画面の内側に入っていること（デスクトップ・375px）
@@ -10553,16 +10557,16 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const n = effData.steps.length;
 		effBounds = [effData.steps[0], effData.steps[1], effData.steps[2]];
 		layoutEffPanel();
-		showEffTip(0, 0);
+		effPinned = [true, false, false]; placeEffTips();
 		const p = document.getElementById('eff-panel').getBoundingClientRect();
-		let r = document.getElementById('eff-tip').getBoundingClientRect();
+		let r = document.getElementById('eff-tip-0').getBoundingClientRect();
 		out.push({ left: r.left, right: r.right, pl: p.left, pr: p.right, vw: document.documentElement.clientWidth });
 		effBounds = [effData.steps[n - 4], effData.steps[n - 3], effData.steps[n - 2]];
 		layoutEffPanel();
-		showEffTip(2, 0);
-		r = document.getElementById('eff-tip').getBoundingClientRect();
+		effPinned = [false, false, true]; placeEffTips();
+		r = document.getElementById('eff-tip-2').getBoundingClientRect();
 		out.push({ left: r.left, right: r.right, pl: p.left, pr: p.right, vw: document.documentElement.clientWidth });
-		hideEffTip();
+		effPinned = [false, false, false]; placeEffTips();
 		effBounds = save;
 		layoutEffPanel();
 		return out;
@@ -10573,12 +10577,12 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 
 	// (5) 区間を押すと対象に入れる／外すが切り替わる（aria-pressed・色）。全部は外せない。キーボードでも押せる
 	const t0 = await page.evaluate(() => { effBounds = defaultEffBounds(effData); layoutEffPanel(); return { count: effTargets().length }; });
-	await page.click('.eff-shoe--2');
+	await page.click('.eff-hit[data-tier="2"]');
 	const t1 = await page.evaluate(() => {
 		const on = getComputedStyle(document.querySelector('.eff-seg--1')), off = getComputedStyle(document.querySelector('.eff-seg--2'));
 		const snap = effSnapshot();
 		return {
-			tiers: effTiers.slice(), pressed: document.querySelector('.eff-shoe--2').getAttribute('aria-pressed'),
+			tiers: effTiers.slice(), pressed: document.querySelector('.eff-hit[data-tier="2"]').getAttribute('aria-pressed'),
 			count: Number(document.getElementById('scope-count-efficiency').textContent),
 			want: effData.targets.filter((t) => effTierOf(t.milli, snap.bounds) !== 2).length,
 			onBg: on.backgroundColor, offBg: off.backgroundColor, offOpacity: off.opacity,
@@ -10587,13 +10591,13 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		};
 	});
 	assert(t1.pressed === 'false' && t1.tiers[2] === false && t1.count === t1.want && t1.count < t0.count && JSON.stringify(t1.stored) === JSON.stringify(t1.tiers),
-		'効率(5): 蹄鉄を押すと区間が対象から外れ、種数が減り、保存される', t1);
+		'効率(5): 区間のエリアを押すと区間が対象から外れ、種数が減り、保存される', t1);
 	assert(t1.onBg !== t1.offBg && t1.offOpacity === '1' && /grayscale/.test(t1.imgFilter) && t1.segOn === 'false',
 		'効率(5): 外した区間はバーを灰色にし、蹄鉄も灰色にする（色で表す。opacity は使わない。恒久ルール9）', t1);
-	await page.focus('.eff-shoe--2');
+	await page.focus('.eff-hit[data-tier="2"]');
 	await page.keyboard.press('Enter');
 	const t2 = await page.evaluate(() => effTiers.slice());
-	assert(t2.every(Boolean), '効率(5): 蹄鉄はキーボード（Enter）でも切り替わる', t2);
+	assert(t2.every(Boolean), '効率(5): 区間のエリアはキーボード（Enter）でも切り替わる', t2);
 	const t3 = await page.evaluate(() => {
 		[0, 1, 2].forEach((k) => toggleEffTier(k));
 		toggleEffTier(3);
@@ -10601,7 +10605,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		[0, 1, 2].forEach((k) => toggleEffTier(k));
 		return r;
 	});
-	assert(JSON.stringify(t3.tiers) === JSON.stringify([false, false, false, true]) && t3.toast.includes('少なくとも1つ'),
+	assert(JSON.stringify(t3.tiers) === JSON.stringify([false, false, false, true]) && t3.toast.includes('最後の1区間は外せません'),
 		'効率(5): 最後の1つの区間は外せない（知らせが出る）', t3);
 
 	// (6) 保存値の復元: 段の値に最も近い値へ直し、区間がどれも1種以上を含む形に直して使う。保存値は書き換えない（恒久ルール28）。何度通しても同じ
@@ -10731,14 +10735,14 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	const dark = await page.evaluate(() => {
 		const seg = () => getComputedStyle(document.querySelector('.eff-seg--0')).backgroundColor;
 		const panel = () => getComputedStyle(document.getElementById('eff-panel')).backgroundColor;
-		const tip = () => getComputedStyle(document.getElementById('eff-tip')).backgroundColor;
+		const tip = () => getComputedStyle(document.getElementById('eff-tip-0')).backgroundColor;
 		const prev = document.documentElement.getAttribute('data-theme');
-		showEffTip(0, 0);
+		effPinned = [true, false, false]; placeEffTips();
 		document.documentElement.setAttribute('data-theme', 'light');
 		const light = { seg: seg(), panel: panel(), tip: tip() };
 		document.documentElement.setAttribute('data-theme', 'dark');
 		const darkV = { seg: seg(), panel: panel(), tip: tip() };
-		hideEffTip();
+		effPinned = [false, false, false]; placeEffTips();
 		if (prev) document.documentElement.setAttribute('data-theme', prev); else document.documentElement.removeAttribute('data-theme');
 		return { light, dark: darkV };
 	});
@@ -10746,21 +10750,24 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		&& dark.light.tip !== dark.dark.tip,
 		'効率(10): ダークでは区間・枠・吹き出しの色がダークの値になる', dark);
 
-	// (C3) バーの形（改善2）。区間の幅とつまみの位置は個数に比例／蹄鉄はバーの下・44px・端で切れない・重なれば段をずらす・線でつなぐ
+	// (C3) バーの形（改善2・微調整2のB）。区間の幅と境目の位置は個数に比例／蹄鉄はバーの下の1段の行（見た目38px・押せる範囲44px）・端で切れない・
+	// 銅・銀・金は担当する境目より左・虹は右端／境目の目印はバーの高さに収まる細い線／ポインタの線は目印の下端から蹄鉄の上端までつながる
 	// 配置を測る関数（ページの中で動く。座標は「バーの左端・バーの下端」を原点にする）
 	const PROBE = () => {
 		const R = (el) => el.getBoundingClientRect();
 		const bar = R(document.getElementById('eff-bar'));
 		return {
 			barW: bar.width, barH: bar.height, panelH: R(document.getElementById('eff-panel')).height,
-			segs: [...document.querySelectorAll('.eff-seg')].map((s) => { const r = R(s); return { x: r.left - bar.left, w: r.width }; }),
-			thumbs: [...document.querySelectorAll('.eff-thumb')].map((t) => { const r = R(t); return { cx: r.left + r.width / 2 - bar.left, top: r.top - bar.top, bottom: r.bottom - bar.bottom, h: r.height }; }),
-			shoes: [...document.querySelectorAll('.eff-shoe')].map((s) => { const r = R(s), i = R(s.querySelector('img')), nn = s.querySelector('.eff-shoe-n'), nr = R(nn); return { l: r.left - bar.left, r: r.right - bar.left, top: r.top - bar.bottom, w: i.width, h: i.height, bottom: r.bottom - bar.bottom, numShown: !nn.hidden && nr.height > 0, numTop: nr.top - bar.bottom, numBottom: nr.bottom - bar.bottom }; }),
-			stems: [...document.querySelectorAll('.eff-stem')].map((s) => { const r = R(s); return { cx: r.left + r.width / 2 - bar.left, top: r.top - bar.bottom, bottom: r.bottom - bar.bottom, w: r.width }; }),
+			segs: [...document.querySelectorAll('.eff-seg')].map((s) => { const r = R(s); return { x: r.left - bar.left, w: r.width, numInside: !s.querySelector('.eff-seg-n').hidden }; }),
+			marks: [...document.querySelectorAll('.eff-mark')].map((t) => { const r = R(t); return { cx: r.left + r.width / 2 - bar.left, top: r.top - bar.top, bottom: r.bottom - bar.bottom, w: r.width, h: r.height }; }),
+			shoes: [...document.querySelectorAll('.eff-shoe')].map((s) => { const r = R(s), i = R(s.querySelector('img')); return { l: r.left - bar.left, r: r.right - bar.left, top: r.top - bar.bottom, bottom: r.bottom - bar.bottom, w: r.width, h: r.height, iw: i.width, ih: i.height, itop: i.top - bar.bottom }; }),
+			ptrs: [...document.querySelectorAll('.eff-ptr')].map((p) => p.getAttribute('d')),
+			nums: [...document.querySelectorAll('.eff-num')].map((n) => { const r = R(n); return { shown: !n.hidden && r.height > 0, cx: r.left + r.width / 2 - bar.left, l: r.left - bar.left, r: r.right - bar.left, top: r.top - bar.bottom, bottom: r.bottom - bar.bottom }; }),
 			vals: [...document.querySelectorAll('.eff-val')].map((e) => { const r = R(e); return { l: r.left - bar.left, r: r.right - bar.left, t: r.top - bar.top, b: r.bottom - bar.top }; }),
 		};
 	};
-	const geomErrors = (g, b, tag) => {
+	/** 配置の誤りを文字列で返す。o.numLines＝個数の文字とポインタの縦の線が重ならないことも見る（初期の形など、細すぎる区間が無いとき） */
+	const geomErrors = (g, b, tag, o = {}) => {
 		const bad = [];
 		const N = st.ms.length;
 		const counts = [0, 1, 2, 3].map((k) => st.ms.filter((m) => tierOfT(m, b) === k).length);
@@ -10774,45 +10781,47 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		let acc = 0;
 		[0, 1, 2].forEach((i) => {
 			acc += counts[i];
-			if (Math.abs(g.thumbs[i].cx - g.barW * acc / N) > 1) bad.push(tag + ' つまみ' + i + 'の位置 ' + g.thumbs[i].cx.toFixed(1) + ' ≠ 積み上げた個数の位置 ' + (g.barW * acc / N).toFixed(1));
+			if (Math.abs(g.marks[i].cx - g.barW * acc / N) > 1) bad.push(tag + ' 目印' + i + 'の位置 ' + g.marks[i].cx.toFixed(1) + ' ≠ 積み上げた個数の位置 ' + (g.barW * acc / N).toFixed(1));
 		});
 		if (Math.abs(g.barH - 28) > 0.5) bad.push(tag + ' バーの高さ ' + g.barH);
-		g.thumbs.forEach((t, i) => { if (Math.abs(t.h - 36) > 0.5 || Math.abs(t.top + 4) > 0.5 || Math.abs(t.bottom - 4) > 0.5) bad.push(tag + ' つまみ' + i + 'は高さ36px・上下に4pxはみ出す ' + JSON.stringify(t)); });
+		// 境目の目印: 細い線。バーの高さに収まる（上下にはみ出さない）
+		g.marks.forEach((t, i) => { if (Math.abs(t.h - 28) > 0.5 || Math.abs(t.top) > 0.5 || Math.abs(t.bottom) > 0.5 || t.w > 5.01) bad.push(tag + ' 目印' + i + 'はバーの高さに収まる細い線（幅5px以下）でない ' + JSON.stringify(t)); });
+		// 蹄鉄: 押せる範囲の箱は44×44・見た目の画像は38×38・1段の行（箱の上端が全部同じ）・バーの幅の内側
+		const tops = g.shoes.map((s) => Math.round(s.top * 100) / 100);
+		if (new Set(tops).size !== 1) bad.push(tag + ' 蹄鉄が1段の行に並んでいない（虹が下へ押し出されている） ' + JSON.stringify(tops));
 		g.shoes.forEach((s, k) => {
-			if (Math.abs(s.w - 44) > 0.01 || Math.abs(s.h - 44) > 0.01) bad.push(tag + ' 蹄鉄' + k + 'の大きさ ' + s.w + '×' + s.h);
+			if (Math.abs(s.w - 44) > 0.01 || Math.abs(s.h - 44) > 0.01) bad.push(tag + ' 蹄鉄' + k + 'の押せる範囲 ' + s.w + '×' + s.h);
+			if (Math.abs(s.iw - 38) > 0.01 || Math.abs(s.ih - 38) > 0.01) bad.push(tag + ' 蹄鉄' + k + 'の見た目 ' + s.iw + '×' + s.ih);
 			if (s.top < 0) bad.push(tag + ' 蹄鉄' + k + 'がバーの中にある');
 			if (s.l < -0.5 || s.r > g.barW + 0.5) bad.push(tag + ' 蹄鉄' + k + 'がバーの幅の外へ出ている（端で切れる）');
-			// 区間の中央（バーの内側に収めたもの）
-			const center = Math.min(Math.max(g.segs[k].x + g.segs[k].w / 2, 22), g.barW - 22);
-			if (Math.abs((s.l + s.r) / 2 - center) > 1) bad.push(tag + ' 蹄鉄' + k + 'の横の位置が区間の中央でない');
-			});
-			// 段は 50px 刻みで下へずれる。個数を蹄鉄の下に出す段（微調整1・A(3)）は、その行（16px）のぶんだけ次の段との間隔が広がる
-			{
-				const tops = [...new Set(g.shoes.map((s) => Math.round(s.top * 100) / 100))].sort((a, b) => a - b);
-				let want = 8;
-				tops.forEach((t, r) => {
-					if (Math.abs(t - want) > 0.05) bad.push(tag + ' 蹄鉄の' + r + '段目の上端が ' + want + ' でない: ' + t);
-					const hasNum = g.shoes.some((s) => Math.abs(s.top - t) < 0.05 && s.numShown);
-					want += 50 + (hasNum ? 16 : 0);
-				});
-				// 蹄鉄の下の個数が、下の段の蹄鉄に重ならない
-				g.shoes.forEach((s, i) => {
-					if (!s.numShown) return;
-					g.shoes.forEach((o, j) => { if (j !== i && o.top > s.top + 1 && o.l < s.r && s.l < o.r && s.numBottom > o.top + 0.5) bad.push(tag + ' 蹄鉄' + i + 'の下の個数が蹄鉄' + j + 'に重なる'); });
-					if (s.numTop < s.top + 43.5) bad.push(tag + ' 蹄鉄' + i + 'の個数が蹄鉄の画像の下にない');
-				});
+		});
+		// 並び（銅・銀・金・虹）と間隔（4px以上）。虹はバーの右端に固定
+		for (let k = 0; k < 3; k++) if (g.shoes[k + 1].l - g.shoes[k].r < 4 - 0.5) bad.push(tag + ' 蹄鉄' + k + 'と' + (k + 1) + 'の間隔 ' + (g.shoes[k + 1].l - g.shoes[k].r).toFixed(1) + 'px（4px未満・または順番が入れ替わっている）');
+		if (Math.abs(g.shoes[3].r - g.barW) > 1) bad.push(tag + ' 虹の蹄鉄がバーの右端に固定されていない');
+		// 銅・銀・金は担当する境目より左（右端が境目の位置以下）。置けないほど境目が左端に近いときだけ、置ける最も左（左端0）にいる
+		for (let k = 0; k < 3; k++) if (g.shoes[k].r > g.marks[k].cx + 0.5 && g.shoes[k].l > 0.5 + (k === 0 ? 0 : (g.shoes[k - 1].r + 4 - 0.5))) bad.push(tag + ' 蹄鉄' + k + 'が担当する境目より右にある');
+		// ポインタ: 目印の下端（バーの下端）から真下へ → 横へ → 蹄鉄の上端中央へ。段の高さは銅<銀<金（交差しない）
+		const parsed = g.ptrs.map((d) => { const m = /^M([\d.\-]+) 0 V([\d.\-]+) H([\d.\-]+) V([\d.\-]+)$/.exec(d); return m ? { bx: +m[1], y: +m[2], sx: +m[3], ye: +m[4] } : null; });
+		parsed.forEach((p, k) => {
+			if (!p) { bad.push(tag + ' ポインタ' + k + 'の形が読めない: ' + g.ptrs[k]); return; }
+			if (Math.abs(p.bx - g.marks[k].cx) > 0.6) bad.push(tag + ' ポインタ' + k + 'の始点が境目の目印の位置でない');
+			if (Math.abs(p.sx - (g.shoes[k].l + g.shoes[k].r) / 2) > 0.6) bad.push(tag + ' ポインタ' + k + 'の終点が蹄鉄の上端の中央でない');
+			if (Math.abs(p.ye - g.shoes[k].itop) > 0.6) bad.push(tag + ' ポインタ' + k + 'が蹄鉄の画像の上端に着いていない ' + p.ye + ' / ' + g.shoes[k].itop);
+		});
+		if (parsed.every(Boolean) && !(parsed[0].y < parsed[1].y && parsed[1].y < parsed[2].y)) bad.push(tag + ' ポインタの横の線の高さが銅<銀<金の順でない（交差し得る）');
+		// 個数: バーの中に入らない区間は、その区間の中央の真下（バーと蹄鉄の間の行）。入る区間はバーの中
+		g.segs.forEach((s, k) => {
+			const n = g.nums[k];
+			if (s.numInside && n.shown) bad.push(tag + ' 区間' + k + 'の個数がバーの中と真下の両方にある');
+			if (!s.numInside && !n.shown) bad.push(tag + ' 区間' + k + 'の個数がバーの中にも真下にも出ていない');
+			if (n.shown) {
+				if (Math.abs(n.cx - (s.x + s.w / 2)) > 1) bad.push(tag + ' 区間' + k + 'の個数が区間の中央の真下でない');
+				if (n.top < -0.5 || n.bottom > g.shoes[k].top - 0.5) bad.push(tag + ' 区間' + k + 'の個数がバーと蹄鉄の間の行に収まっていない ' + JSON.stringify(n));
+				if (o.numLines && parsed.every(Boolean)) {
+					// 個数の文字とポインタの縦の線（バーの下端から横の線の高さまで）が重ならない
+					parsed.forEach((p, i) => { if (p.bx > n.l - 1 && p.bx < n.r + 1 && n.top < p.y) bad.push(tag + ' 区間' + k + 'の個数がポインタ' + i + 'の縦の線に重なる'); });
+				}
 			}
-		// 重なる（間隔4px未満）ものは段がずれ、同じ段のものは間隔4px以上
-		for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) {
-			const a = g.shoes[i], c = g.shoes[j];
-			const gap = Math.max(c.l - a.r, a.l - c.r);
-			if (Math.abs(a.top - c.top) < 1 && gap < 4 - 0.5) bad.push(tag + ' 蹄鉄' + i + 'と' + j + 'が同じ段で間隔 ' + gap.toFixed(1) + 'px');
-		}
-		g.stems.forEach((s, k) => {
-			const center = g.segs[k].x + g.segs[k].w / 2;
-			if (Math.abs(s.cx - center) > 1 || Math.abs(s.w - 1.5) > 0.1) bad.push(tag + ' 線' + k + 'が区間の中央・1.5pxでない');
-			if (Math.abs(s.top) > 1 || Math.abs(s.bottom - g.shoes[k].top) > 1) bad.push(tag + ' 線' + k + 'がバーの下端から蹄鉄の上端までつながっていない ' + JSON.stringify(s));
-			if (s.cx < g.shoes[k].l - 0.5 || s.cx > g.shoes[k].r + 0.5) bad.push(tag + ' 線' + k + 'が蹄鉄の幅から外れている');
 		});
 		// バーの上の値: バーの幅の内側・バーより上・重ならない
 		g.vals.forEach((v, i) => {
@@ -10829,10 +10838,15 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	};
 	const n = steps.length;
 	const d1280 = await geomAt(null);
-	const e1280 = geomErrors(d1280.g, d1280.b, '[1280 初期]');
-	assert(e1280.length === 0, '効率(C3): 1280px・初期の境目: 区間の幅とつまみの位置は個数に比例／蹄鉄はバーの下で44px・区間の中央・線でつながる／値はバーの上', e1280);
-	assert(d1280.g.shoes.every((s) => s.top === d1280.g.shoes[0].top) && d1280.g.panelH > 0,
-		'効率(C3): 1280px の初期は蹄鉄が1段に収まる', { tops: d1280.g.shoes.map((s) => s.top), panelH: d1280.g.panelH });
+	const e1280 = geomErrors(d1280.g, d1280.b, '[1280 初期]', { numLines: true });
+	assert(e1280.length === 0, '効率(C3): 1280px・初期の境目: 区間の幅と境目の目印の位置は個数に比例／蹄鉄はバーの下の1段（押せる範囲44px・見た目38px）・担当する境目より左／ポインタの線でつながる／値はバーの上', e1280);
+	const resetPos = await page.evaluate(() => {
+		const r = document.getElementById('eff-reset-btn').getBoundingClientRect(), sh = [...document.querySelectorAll('.eff-shoe')].map((s) => s.getBoundingClientRect());
+		const bar = document.getElementById('eff-bar').getBoundingClientRect(), p = document.getElementById('eff-panel').getBoundingClientRect();
+		return { belowShoes: r.top >= Math.max(...sh.map((x) => x.bottom)) - 0.5, rightAligned: Math.abs(r.right - bar.right) < 1.5, w: r.width, h: r.height, inPanel: r.bottom <= p.bottom && r.left >= p.left };
+	});
+	assert(d1280.g.shoes.every((s) => s.top === d1280.g.shoes[0].top) && d1280.g.panelH > 0 && resetPos.belowShoes && resetPos.rightAligned && resetPos.w >= 44 && resetPos.h >= 44 && resetPos.inPanel,
+		'効率(C3): 1280px の初期は蹄鉄が1段に収まり、その下に余裕領域がある（バーの下の行の下端より下にリセットのボタン）', { tops: d1280.g.shoes.map((s) => s.top), panelH: d1280.g.panelH, resetPos });
 	// 区間の色（トークン。改善3）。銅 #C97B47・銀 #8E9BB3・金 #E3B33B・虹は左から右へ5色のグラデーション。その上にシェブロン柄（28pxのタイル）と光沢。外した区間は灰色（柄なし）
 	const colors = await page.evaluate(() => {
 		const cs = (k) => getComputedStyle(document.querySelector('.eff-seg--' + k));
@@ -10847,15 +10861,15 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		'効率(A): 区間の色は銅・銀・金・虹（5色のグラデーション）。外した区間は灰色', colors);
 	assert(colors.imgs.every((x) => x.includes('data:image/svg+xml') && x.includes('linear-gradient(') && x.includes('rgba(255, 255, 255, 0.3)') && x.includes('rgba(0, 0, 0, 0.12)')) && colors.size.includes('28px') && colors.off.img === 'none',
 		'効率(A): 区間の色の上にシェブロン柄（SVGのタイル28px）と光沢を重ねる。外した区間は灰色のままで柄なし', { imgs: colors.imgs.map((x) => x.slice(0, 60)), size: colors.size, off: colors.off.img });
-	assert(['points=\'8,9 18,18 8,27\'', 'stroke=\'white\'', 'stroke-width=\'5\'', 'stroke-linecap=\'round\'', 'opacity=\'.32\'', 'width=\'28\'', 'height=\'28\''].every((s) => colors.tile.includes(s))
+	assert(['points=\'8,5 18,14 8,23\'', 'stroke=\'white\'', 'stroke-width=\'5\'', 'stroke-linecap=\'round\'', 'opacity=\'.32\'', 'width=\'28\'', 'height=\'28\''].every((s) => colors.tile.includes(s))
 		&& colors.sheen.replace(/\s+/g, '') === 'linear-gradient(180deg,rgba(255,255,255,0.30)0%,rgba(255,255,255,0.04)50%,rgba(0,0,0,0.12)100%)',
-		'効率(A): シェブロンは polyline (8,9)(18,18)(8,27)・白・opacity .32・太さ5・丸。光沢は指定のグラデーション（どちらもトークン）', { tile: colors.tile.slice(0, 120), sheen: colors.sheen });
+		'効率(A): シェブロンは polyline (8,5)(18,14)(8,23)（タイルの縦の中央・上下対称）・白・opacity .32・太さ5・丸。光沢は指定のグラデーション（どちらもトークン）', { tile: colors.tile.slice(0, 120), sheen: colors.sheen });
 	// 区間のスキルの個数（数字のみ・白の太字14px・影つき・狭ければ隠す・aria-label に個数）
 	const cnt = await page.evaluate(() => {
 		const b = effBounds.slice();
 		const want = [0, 1, 2, 3].map((k) => effData.targets.filter((x) => effTierOf(x.milli, b) === k).length);
 		const segs = [...document.querySelectorAll('.eff-seg')].map((s) => { const n = s.querySelector('.eff-seg-n'), cs = getComputedStyle(n); return { text: n.textContent, hidden: n.hidden, w: s.getBoundingClientRect().width, nw: n.getBoundingClientRect().width, color: cs.color, weight: cs.fontWeight, size: cs.fontSize, shadow: cs.textShadow }; });
-		return { want, segs, aria: [...document.querySelectorAll('.eff-shoe')].map((s) => s.getAttribute('aria-label')) };
+		return { want, segs, aria: [...document.querySelectorAll('.eff-hit')].map((s) => s.getAttribute('aria-label')) };
 	});
 	assert(cnt.segs.every((s, k) => s.text === String(cnt.want[k]) && /^\d+$/.test(s.text) && s.color === 'rgb(255, 255, 255)' && Number(s.weight) >= 700 && s.size === '14px' && s.shadow !== 'none')
 		&& cnt.aria.every((l, k) => l.includes(cnt.want[k] + '種')) && cnt.want.reduce((a, x) => a + x, 0) === st.n,
@@ -10885,7 +10899,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const vals = [...document.querySelectorAll('.eff-val')].map((e) => e.getBoundingClientRect());
 		return { sw: document.documentElement.scrollWidth, cols: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
 			panelRight: p.right, valsIn: vals.every((r) => r.left >= p.left - 1 && r.right <= p.right + 1),
-			icons: [...document.querySelectorAll('.eff-shoe img')].map((i) => { const r = i.getBoundingClientRect(); return r.width === 44 && r.height === 44 && getComputedStyle(i).display !== 'none'; }) };
+			icons: [...document.querySelectorAll('.eff-shoe img')].map((i) => { const r = i.getBoundingClientRect(); return Math.abs(r.width - 38) < 0.01 && Math.abs(r.height - 38) < 0.01 && getComputedStyle(i).display !== 'none'; }) };
 	});
 	assert(narrow.sw <= 375 && narrow.cols === 2 && narrow.panelRight <= 375 && narrow.valsIn && narrow.icons.every(Boolean),
 		'効率(11): 375px で横にはみ出さず、選択肢は2列×2段・値はバーの枠の中・蹄鉄は4つとも見える', narrow);
@@ -10898,12 +10912,12 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	const shapeInfo = [];
 	for (const [label, idxs] of shapes) {
 		const { g, b } = await geomAt(idxs);
-		const bad = geomErrors(g, b, '[375 ' + label + ']');
-		assert(bad.length === 0, '効率(C3): 375px・' + label + ': 幅は個数に比例／蹄鉄は44px・バーの下・端で切れない・線でつながる／値は重ならずバーの幅の内側', bad);
+		const bad = geomErrors(g, b, '[375 ' + label + ']', { numLines: idxs === null });
+		assert(bad.length === 0, '効率(C3): 375px・' + label + ': 幅は個数に比例／蹄鉄は1段・押せる範囲44px／見た目38px・バーの幅の内側・順番を保つ・端で切れない／ポインタでつながる／値は重ならずバーの幅の内側', bad);
 		shapeInfo.push({ label, rows: new Set(g.shoes.map((s) => s.top)).size, panelH: Math.round(g.panelH) });
 	}
-	assert(shapeInfo[0].rows >= 2 && shapeInfo[1].rows >= 2 && shapeInfo.some((s) => s.rows >= 3),
-		'効率(C3): 375px では、重なる蹄鉄が上下の段にずれる（初期は2段以上、寄せ切ると3段以上になることがある）', shapeInfo);
+	assert(shapeInfo.every((s) => s.rows === 1),
+		'効率(C3): 375px では、どの形（初期・両端へ寄せ切り・真ん中）でも蹄鉄は1段の行のまま（虹を下へ押し出さない）', shapeInfo);
 	await page.evaluate(() => { effBounds = defaultEffBounds(effData); layoutEffPanel(); });
 	await page.setViewportSize({ width: 1280, height: 900 });
 

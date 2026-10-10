@@ -451,13 +451,10 @@ const INTENTIONALLY_REMOVED = {
 	// 表の最下段の凡例 .usd-roster-legend）は、属性の名前ではなく値・class なのでこの検査には当たらない（記録として残す）。
 	// commit が進んだら免除は空に戻す。
 	// → 段7c の commit（db56879）で HEAD から消えたので、免除は空に戻した（残すと本当の事故を見逃す口になる）。
-		// 2026-10-10（微調整1・C・C-139）: おいもさんの指示で、exam の「使い方ガイド」（ボタン・小窓・旧UIのアコーディオン・本文）と、
-		// special の「？」（使い方・注意のボタン・小窓・注意の3行）を削除し、代わりにヘッダーに画面の色の切り替えボタンを付けた。
-		// 小窓の中にあった「画面の色」の3択（data-uma-theme-picker・data-theme-choice）も一緒になくなった（ボタンは別の作りで、js/theme.js はそのまま）。
-		// exam の見出しの「新UI」バッジ（#ui-mode-badge）も外した。commit が進んだら免除は空に戻す。
-		'exam.html': ['ui-mode-badge', 'help-backdrop', 'help-box', 'help-title', 'help-close', 'help-dialog-slot', 'help-content', 'old-help-card', 'old-help-slot', 'theme-picker-label',
-			'data-uma-theme-picker', 'data-theme-choice'],
-		'special.html': ['help-backdrop', 'help-box', 'help-title', 'help-close', 'help-cautions', 'theme-picker-label', 'data-uma-theme-picker', 'data-theme-choice', 'data-help-mode'],
+		// 2026-10-10（微調整2・B・C-140）: 効率を指定のバーを作り直した。吹き出しは境目ごとに1つ（eff-tip-0〜2）になったので、1つだけだった #eff-tip は無い。
+		// （class の .eff-thumb・.eff-stem・.eff-shoe-n は id ではないのでこの検査には当たらない。つまみを触る操作は無くなり、蹄鉄が境目を動かす。）
+		// commit が進んだら免除は空に戻す。
+		'exam.html': ['eff-tip'],
 	};
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
