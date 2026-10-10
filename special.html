@@ -76,8 +76,16 @@
 		   同じ大きさ（text-[10px] font-bold px-2 py-1 rounded-full）。ピルは押せない表示だけなので、押せそうな見た目（手のカーソル・hover）は消す */
 		.header-edition { white-space: nowrap; }
 		.header-edition-pill { cursor: default; }
-		/* 「2nd Edition」の脇の一言（C-140・微調整2・D。exam.html の見出しと同じ部品）。広い画面は11px・狭い画面は幅に合わせて小さくする（最小9px） */
+		/* 「2nd Edition」の脇の一言（C-140・微調整2・D。exam.html の見出しと同じ部品）。
+		   C-141（微調整3・A-2）: どの幅でもバッジの右隣（同じ行）に置き、下の行へ回さない。大きさ（11px→最小8px）・2行の折り返し・バッジを詰めるかは
+		   fitHeaderTagline() が幅を測って決める（data-lines／data-hdr-tight／data-break-any） */
 		.header-tagline { white-space: nowrap; font-size: 11px; line-height: 1.2; font-weight: 600; }
+		.header-tagline[data-lines="2"] { white-space: normal; line-height: 1.05; }
+		.header-tagline[data-break-any] { overflow-wrap: anywhere; }
+		header[data-hdr-short] .header-edition-sub { display: none; }
+		.hdr-row > h1 { flex: none; white-space: nowrap; }
+		header[data-hdr-tight] .hdr-row, header[data-hdr-tight] .hdr-bar, header[data-hdr-tight] .hdr-acts { column-gap: 4px; }
+		header[data-hdr-tight] .header-edition-pill { padding-left: 4px; padding-right: 4px; letter-spacing: -0.3px; }
 		.header-edition-pill:hover { background: var(--uma-accent-soft); }
 		/* ①のタブ（デスクトップ）: 本文の最後は表。表の下の余白は FAB の置き場だけにして、下端までスクロールしたとき表が画面いっぱいに見える。
 		   FAB（右下）は表の下の置き場に収まるので、表の縦スクロールバーと最後の列を覆わない */
@@ -101,7 +109,6 @@
 			/* C-140（微調整2・D）: タイトルの上下に余白（6px＝カードの内側の余白と同じ）を取り、文字を一段大きくした（20→22px。exam.html のタイトルと同じ大きさ）。
 			   360px 以下は従来の20px（1行に収める最小の幅を保つ） */
 			.site-header h1 { font-size: 1.375rem; line-height: 1.2; }
-			.header-tagline { font-size: clamp(9px, 2.6vw, 11px); }
 			.site-header .header-edition { font-size: 11px; line-height: 1.05; margin-left: var(--uma-sp-1); }
 			.main-card { margin: 0 var(--uma-sp-1); padding: var(--uma-sp-1-5); border-radius: var(--uma-r-lg); }
 			.main-card .step-tabs { margin-bottom: var(--uma-sp-1); }
@@ -307,16 +314,16 @@
 				<div class="absolute -bottom-20 -left-10 w-48 h-48 rounded-full bg-amber-200/30 blur-3xl"></div>
 			</div>
 			<!-- 段7b（⓪）: タイトル・ツール切替・？ を、375px でも1行に並べる（flex-row を常に）。 -->
-				<div class="relative z-10 flex flex-row items-center justify-between gap-2 md:gap-4">
+				<div class="hdr-bar relative z-10 flex flex-row items-center justify-between gap-2 md:gap-4">
 					<!-- 左側：タイトルエリア -->
 					<div class="min-w-0">
-					<!-- タイトルの右に「新UI」バッジを並べる（exam と同じ位置）。
-					     狭い画面ではバッジが次の行へ回るよう flex-wrap にしてある。 -->
-					<div class="flex items-center flex-wrap gap-x-2 gap-y-1">
+					<!-- タイトルの右に「2nd Edition」のバッジと一言を並べる（exam と同じ位置）。
+					     C-141（微調整3・A-2）: 折り返さない（flex-nowrap）。一言は狭い幅でもバッジの右隣のまま、fitHeaderTagline() が大きさを決める -->
+					<div class="hdr-row flex items-center flex-nowrap gap-x-2">
 						<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-green-800 via-green-700 to-green-500 bg-clip-text text-transparent">Uma<span class="text-amber-400">Star</span> OCR<span class="header-edition ml-2 align-middle text-sm md:text-base font-semibold text-slate-400">β版</span></h1>
 						<!-- 「2nd Edition」。exam の「新UI」と同じピル（押せない表示）。322px 以下は「2nd」だけ -->
 						<span class="header-edition-pill ui-mode-badge shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full">2nd<span class="header-edition-sub"> Edition</span></span>
-						<!-- 「2nd Edition」の脇の一言（C-140・微調整2・D）。幅に収まらないときは文字を小さくし（最小9px）、それでも収まらなければ次の行（バッジの下）へ回る -->
+						<!-- 「2nd Edition」の脇の一言（C-140・微調整2・D）。C-141（微調整3・A-2）: 下の行へは回さない。小さく（最小8px）→ 2行 → バッジを詰める、の順 -->
 						<span class="header-tagline text-slate-500">チャンミ/LoH用ツール</span>
 					</div>
 					<!-- 3行の注意書き（OCR の精度・解像度・加工画像）は、段7（2026-10-03）に「使い方・注意」のポップアップの
@@ -324,7 +331,7 @@
 				</div>
 
 				<!-- 右側：アクションボタン群 -->
-				<div class="header-actions flex items-center gap-2 shrink-0">
+				<div class="header-actions hdr-acts flex items-center gap-2 shrink-0">
 
 					<!-- ツール切り替えドロップダウン -->
 					<div class="relative flex items-center gap-2" id="tool-dropdown-wrap">
@@ -1075,6 +1082,58 @@
 		}
 		window.addEventListener('storage', (e) => { if (e.key === 'uma-tools-theme' || e.key === null) syncThemeCycleBtn(); });
 		document.addEventListener('DOMContentLoaded', syncThemeCycleBtn);
+		/* 見出しの一言（「2nd Edition」のバッジの右隣）の大きさと折り返し（C-141・微調整3・A-2）。
+		   一言は、どの幅でもバッジの右隣（同じ行）に置き、下の行へは回さない。幅が足りないときは次の順で詰める:
+		     1. 一言の文字を小さくする（11px→最小8px）
+		     2. 一言を、自分の枠の中で2行に折り返す（行間を詰める。タイトルの行の高さを超えない大きさの中で、いちばん大きい文字）
+		     3. バッジの左右の余白と字間・バッジの前後の間・右のボタンとの間とボタンどうしの間（8→4px）を詰めて（header の data-hdr-tight）、1→2 をやり直す（バッジの文字は10pxのまま）
+		     4. それでも入らなければ、バッジを「2nd」だけにして（header の data-hdr-short。322px 以下でいつも使っている形）、1→2 をやり直す
+		   それでも入らない（端末の字形で数px足りない）ときだけ、語の途中でも2行に折り返す（data-break-any）。タイトルの文字の大きさは変えない。
+		   幅が変わるたびに（ResizeObserver）測り直す。 */
+		function fitHeaderTagline() {
+			const hd = document.querySelector('header'), tag = hd && hd.querySelector('.header-tagline');
+			if (!tag) return;
+			const row = tag.parentElement, left = row.parentElement, bar = left.parentElement, acts = left.nextElementSibling;
+			const h1 = row.querySelector('h1'), pill = row.querySelector('.header-edition-pill');
+			if (!h1 || !pill || !acts) return;
+			const px = (v) => parseFloat(v) || 0;
+			const set = (tight, lines, fs, any) => {
+				hd.toggleAttribute('data-hdr-tight', tight);
+				tag.setAttribute('data-lines', String(lines));
+				tag.toggleAttribute('data-break-any', !!any);
+				tag.style.fontSize = fs + 'px';
+				tag.style.maxWidth = '';
+			};
+			// 一言に使える幅 = 行の中身の幅 − 右のボタン群 − 行の間 − タイトル − バッジ − 行の中の間2つ
+			const room = () => {
+				const bs = getComputedStyle(bar), rs = getComputedStyle(row);
+				return bar.clientWidth - px(bs.paddingLeft) - px(bs.paddingRight) - acts.getBoundingClientRect().width - px(bs.columnGap)
+					- h1.getBoundingClientRect().width - pill.getBoundingClientRect().width - 2 * px(rs.columnGap);
+			};
+			const lineBox = h1.getBoundingClientRect().height;
+			const oneLine = () => tag.getBoundingClientRect().width <= room() + 0.5;
+			const twoLines = (fs) => {
+				const r = Math.floor(room());
+				if (r <= 0 || 2 * fs * 1.05 > lineBox + 0.5) return false;
+				tag.style.maxWidth = r + 'px';
+				return tag.scrollWidth <= tag.clientWidth + 0.5 && Math.round(tag.getBoundingClientRect().height / (fs * 1.05)) <= 2;
+			};
+			for (const [tight, short] of [[false, false], [true, false], [true, true]]) {
+				hd.toggleAttribute('data-hdr-short', short);
+				for (let fs = 11; fs >= 8; fs -= 0.5) { set(tight, 1, fs); if (oneLine()) return; }
+				for (let fs = 11; fs >= 8; fs -= 0.5) { set(tight, 2, fs); if (twoLines(fs)) return; }
+			}
+			for (let fs = 11; fs >= 8; fs -= 0.5) { set(true, 2, fs, true); if (twoLines(fs)) return; }
+			set(true, 2, 8, true);
+			tag.style.maxWidth = Math.max(0, Math.floor(room())) + 'px';
+		}
+		document.addEventListener('DOMContentLoaded', () => {
+			fitHeaderTagline();
+			const hd = document.querySelector('header');
+			let lastW = -1;
+			if (hd && window.ResizeObserver) new ResizeObserver(() => { if (hd.clientWidth !== lastW) { lastW = hd.clientWidth; fitHeaderTagline(); } }).observe(hd);
+			if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHeaderTagline);
+		});
 
 		// kind … 'warn' で注意のアイコン（段13・A4）。それ以外は完了のアイコン
 		function showToast(msg, kind) {

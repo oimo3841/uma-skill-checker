@@ -513,7 +513,15 @@
 		/* 見出しの「2nd Edition」のバッジと、その脇の一言（special.html と同じ作り。C-140・微調整2・D）。バッジは押せない表示だけなので、手のカーソルと hover は消す */
 		.header-edition-pill { cursor: default; }
 		.header-edition-pill:hover { background: var(--uma-accent-soft); }
+		/* C-141（微調整3・A-2）: 一言はどの幅でもバッジの右隣（同じ行）。大きさ（11px→最小8px）・2行の折り返し・バッジを詰めるかは
+		   fitHeaderTagline() が幅を測って決める（special.html と同じ作り） */
 		.header-tagline { white-space: nowrap; font-size: 11px; line-height: 1.2; font-weight: 600; }
+		.header-tagline[data-lines="2"] { white-space: normal; line-height: 1.05; }
+		.header-tagline[data-break-any] { overflow-wrap: anywhere; }
+		header[data-hdr-short] .header-edition-sub { display: none; }
+		.hdr-row > h1 { flex: none; white-space: nowrap; }
+		header[data-hdr-tight] .hdr-row, header[data-hdr-tight] .hdr-bar, header[data-hdr-tight] .hdr-acts { column-gap: 4px; }
+		header[data-hdr-tight] .header-edition-pill { padding-left: 4px; padding-right: 4px; letter-spacing: -0.3px; }
 		@media (max-width: 322px) { .header-edition-sub { display: none; } }
 		.theme-cycle-btn { width: 44px; height: 44px; padding: 0; flex: none; }
 		.theme-cycle-btn svg { display: none; width: 20px; height: 20px; flex: none; }
@@ -531,7 +539,6 @@
 			.exam-header { margin-bottom: var(--uma-sp-1); padding: var(--uma-sp-1-5) var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
 			/* C-140（微調整2・D）: タイトルの上下に余白（6px＝カードの内側の余白と同じ）を取り、special.html のタイトルと同じ大きさ（22px。360px 以下は20px）にそろえる */
 			.exam-title { font-size: 1.375rem; line-height: 1.2; }
-			.header-tagline { font-size: clamp(9px, 2.6vw, 11px); }
 			#new-step-card { margin: 0 var(--uma-sp-1); padding: var(--uma-sp-1-5); border-radius: var(--uma-r-lg); }
 			#new-step-card .step-tabs { margin-bottom: var(--uma-sp-1); gap: 2px; }
 			#new-step-card .step-tab { padding: var(--uma-sp-1) 2px; }
@@ -631,12 +638,13 @@
 				<div class="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-[var(--uma-deco-border)]/40 blur-3xl"></div>
 				<div class="absolute -bottom-20 -left-10 w-48 h-48 rounded-full bg-amber-200/30 blur-3xl"></div>
 			</div>
-			<div class="relative z-10 flex flex-row items-center justify-between gap-2 md:gap-4">
+			<div class="hdr-bar relative z-10 flex flex-row items-center justify-between gap-2 md:gap-4">
 				<!-- 左側：タイトルエリア -->
 				<div class="min-w-0">
 					<!-- タイトルの右に「2nd Edition」のバッジ（special と同じ部品・このページの色）と、その脇の一言（C-140・微調整2・D）。
-					     狭い画面では一言が次の行（バッジの下）へ回る。「β版」は付けない（exam は機能の不備がほぼ無いため）。冒頭の説明の1行は、ここへ移した -->
-					<div class="flex items-center flex-wrap gap-x-2 gap-y-1">
+					     「β版」は付けない（exam は機能の不備がほぼ無いため）。冒頭の説明の1行は、ここへ移した。
+					     C-141（微調整3・A-2）: 折り返さない（flex-nowrap）。一言は狭い幅でもバッジの右隣のまま、fitHeaderTagline() が大きさを決める -->
+					<div class="hdr-row flex items-center flex-nowrap gap-x-2">
 						<h1 class="exam-title text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-[var(--uma-deco-grad-from)] via-[var(--uma-deco-grad-via)] to-[var(--uma-deco-grad-to)] bg-clip-text text-transparent">Uma<span class="text-amber-400">Exam</span> OCR</h1>
 						<span class="header-edition-pill ui-mode-badge shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full">2nd<span class="header-edition-sub"> Edition</span></span>
 						<span class="header-tagline text-slate-500">技能試験特化ツール</span>
@@ -645,7 +653,7 @@
 
 				<!-- 右側：アクションボタン群（右端）。ツール切替は special と同じアイコンだけのボタン（枠つき・ラベルなし）。
 				     メニューはこの群の右端にそろえて開く（ボタンが2つ並ぶので、ツール切替のボタンの右端にそろえると画面の左へはみ出す） -->
-				<div class="relative flex items-center gap-2 shrink-0" id="tool-dropdown-wrap">
+				<div class="hdr-acts relative flex items-center gap-2 shrink-0" id="tool-dropdown-wrap">
 
 					<!-- ツール切り替えドロップダウン -->
 					<button id="tool-dropdown-btn" type="button" onclick="toggleToolDropdown()" class="uma-btn uma-btn--secondary" aria-label="ツール切替" title="ツール切替">
@@ -2696,13 +2704,25 @@
 			return (f ? '＋シナリオ因子' + f + '種' : '') + (g ? '＋遺伝子' + g + '種' : '');
 		}
 
+		/* 「対象スキルN種の一覧を確認する」の見出しと「スキル名のコピー」の件数は、**この関数の同じ行から**数える（C-141・微調整3・A-1）。
+		   行は一覧と同じ（buildSkillRegistryRows）。「対象を絞る」で外した12種（取り消し線の行）は対象ではないので数えない・コピーにも入れない。
+		   別々に数えていると、範囲や因子・遺伝子のチェックを変えたときに片方だけ食い違う。 */
+		function targetListSummary() {
+			const rows = buildSkillRegistryRows().filter(r => r.state !== 'scopeRemoved');
+			const count = g => rows.filter(r => r.group === g).length;
+			return { rows: rows, skills: count('skill'), factors: count('factor'), genes: count('gene') };
+		}
+		// 「＋シナリオ因子24種＋遺伝子10種」（0種の項目は書かない）。一覧の見出しとコピー欄の件数が使う
+		function targetListExtraNote(sum) {
+			return (sum.factors ? '＋シナリオ因子' + sum.factors + '種' : '') + (sum.genes ? '＋遺伝子' + sum.genes + '種' : '');
+		}
+
 		function updateSkillCountDisplays() {
-			const total = skillOnlyList.length;
-			// 「効率で選ぶ」のときは、一覧と①のタブのバッジは効率の対象の数（C-136）。
-			// 「スキル名のコピー」の全種は133種の並びのまま（判定結果の表と同じ）なので total のまま
-			const shown = (targetScopeMode === 'efficiency')
-				? (effData ? String(effTargets().length) : (effLoadFailed ? '−' : '…'))
-				: String(total);
+			const sum = targetListSummary();
+			// 「効率で選ぶ」のときは、一覧と①のタブのバッジは効率の対象の数（C-136）。効率のデータを読み終える前は「…」（失敗は「−」）
+			const shown = (targetScopeMode === 'efficiency' && !effData)
+				? (effLoadFailed ? '−' : '…')
+				: String(sum.skills);
 			// 見出しの種数（#header-skill-count）はこの一覧から外した。見出しには
 			// 数を出さない方針にしたため（上のヘッダーのコメント参照）。
 			const reg = document.getElementById('registry-skill-count');
@@ -2711,7 +2731,7 @@
 			// （数だけ「スキル」に寄せて、行が減ったように見えるのを防ぐ）。
 			// **合算せず並記する**（「＋シナリオ因子24種＋遺伝子10種」）。選ぶときに分けているので。
 			// 片方だけ ON のときは、その片方だけを書く（0種の項目は出さない）。
-			const factorNote = extraCountNote();
+			const factorNote = targetListExtraNote(sum);
 			['registry-factor-count'].forEach(id => {
 				const el = document.getElementById(id);
 				if (el) el.textContent = factorNote;
@@ -3070,13 +3090,11 @@
 		 * 形はタブ区切りの2列（1列目＝スキル名・2列目＝効率〔小数3桁〕。効率の無い行は2列目が空）。効率の列は「効率の高い順」が OFF でも出す。
 		 * ============================================================ */
 		function renderSkillCopyTextarea() {
-			const rows = buildSkillRegistryRows().filter(r => r.state !== 'scopeRemoved');
-			const count = g => rows.filter(r => r.group === g).length;
-			const skills = count('skill'), factors = count('factor'), genes = count('gene');
+			// 件数は一覧の見出しと同じ関数（targetListSummary）から出す（C-141・微調整3・A-1）
+			const sum = targetListSummary(), rows = sum.rows;
 			document.getElementById('skill-copy-textarea').value = rows.map(r => r.name + '\t' + ((r.milli === null || r.milli === undefined) ? '' : effFormat(r.milli))).join('\n');
 			// 「スキルXXX種＋シナリオ因子24種＋遺伝子10種・ YYY行」。因子・遺伝子のチェックが外れているときは、その部分を書かない
-			document.getElementById('skill-copy-hint').textContent = 'スキル' + skills + '種' + (factors ? '＋シナリオ因子' + factors + '種' : '') + (genes ? '＋遺伝子' + genes + '種' : '')
-				+ '・ ' + rows.length + '行';
+			document.getElementById('skill-copy-hint').textContent = 'スキル' + sum.skills + '種' + targetListExtraNote(sum) + '・ ' + rows.length + '行';
 		}
 
 		function copySkillList() {
@@ -3141,6 +3159,58 @@
 		}
 		window.addEventListener('storage', (e) => { if (e.key === 'uma-tools-theme' || e.key === null) syncThemeCycleBtn(); });
 		document.addEventListener('DOMContentLoaded', syncThemeCycleBtn);
+		/* 見出しの一言（「2nd Edition」のバッジの右隣）の大きさと折り返し（C-141・微調整3・A-2）。
+		   一言は、どの幅でもバッジの右隣（同じ行）に置き、下の行へは回さない。幅が足りないときは次の順で詰める:
+		     1. 一言の文字を小さくする（11px→最小8px）
+		     2. 一言を、自分の枠の中で2行に折り返す（行間を詰める。タイトルの行の高さを超えない大きさの中で、いちばん大きい文字）
+		     3. バッジの左右の余白と字間・バッジの前後の間・右のボタンとの間とボタンどうしの間（8→4px）を詰めて（header の data-hdr-tight）、1→2 をやり直す（バッジの文字は10pxのまま）
+		     4. それでも入らなければ、バッジを「2nd」だけにして（header の data-hdr-short。322px 以下でいつも使っている形）、1→2 をやり直す
+		   それでも入らない（端末の字形で数px足りない）ときだけ、語の途中でも2行に折り返す（data-break-any）。タイトルの文字の大きさは変えない。
+		   幅が変わるたびに（ResizeObserver）測り直す。 */
+		function fitHeaderTagline() {
+			const hd = document.querySelector('header'), tag = hd && hd.querySelector('.header-tagline');
+			if (!tag) return;
+			const row = tag.parentElement, left = row.parentElement, bar = left.parentElement, acts = left.nextElementSibling;
+			const h1 = row.querySelector('h1'), pill = row.querySelector('.header-edition-pill');
+			if (!h1 || !pill || !acts) return;
+			const px = (v) => parseFloat(v) || 0;
+			const set = (tight, lines, fs, any) => {
+				hd.toggleAttribute('data-hdr-tight', tight);
+				tag.setAttribute('data-lines', String(lines));
+				tag.toggleAttribute('data-break-any', !!any);
+				tag.style.fontSize = fs + 'px';
+				tag.style.maxWidth = '';
+			};
+			// 一言に使える幅 = 行の中身の幅 − 右のボタン群 − 行の間 − タイトル − バッジ − 行の中の間2つ
+			const room = () => {
+				const bs = getComputedStyle(bar), rs = getComputedStyle(row);
+				return bar.clientWidth - px(bs.paddingLeft) - px(bs.paddingRight) - acts.getBoundingClientRect().width - px(bs.columnGap)
+					- h1.getBoundingClientRect().width - pill.getBoundingClientRect().width - 2 * px(rs.columnGap);
+			};
+			const lineBox = h1.getBoundingClientRect().height;
+			const oneLine = () => tag.getBoundingClientRect().width <= room() + 0.5;
+			const twoLines = (fs) => {
+				const r = Math.floor(room());
+				if (r <= 0 || 2 * fs * 1.05 > lineBox + 0.5) return false;
+				tag.style.maxWidth = r + 'px';
+				return tag.scrollWidth <= tag.clientWidth + 0.5 && Math.round(tag.getBoundingClientRect().height / (fs * 1.05)) <= 2;
+			};
+			for (const [tight, short] of [[false, false], [true, false], [true, true]]) {
+				hd.toggleAttribute('data-hdr-short', short);
+				for (let fs = 11; fs >= 8; fs -= 0.5) { set(tight, 1, fs); if (oneLine()) return; }
+				for (let fs = 11; fs >= 8; fs -= 0.5) { set(tight, 2, fs); if (twoLines(fs)) return; }
+			}
+			for (let fs = 11; fs >= 8; fs -= 0.5) { set(true, 2, fs, true); if (twoLines(fs)) return; }
+			set(true, 2, 8, true);
+			tag.style.maxWidth = Math.max(0, Math.floor(room())) + 'px';
+		}
+		document.addEventListener('DOMContentLoaded', () => {
+			fitHeaderTagline();
+			const hd = document.querySelector('header');
+			let lastW = -1;
+			if (hd && window.ResizeObserver) new ResizeObserver(() => { if (hd.clientWidth !== lastW) { lastW = hd.clientWidth; fitHeaderTagline(); } }).observe(hd);
+			if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHeaderTagline);
+		});
 
 		/* 「結合画像の設定」のパネルが開いている間、トーストをパネルの上辺より上へ逃がす。
 		 * 引き出しの中のパネルは右下に浮いていて、「画像を更新」を押した直後のトーストが

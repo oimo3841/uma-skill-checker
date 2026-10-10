@@ -24,7 +24,7 @@ export async function register20d(env) {
 		const pr = pill.getBoundingClientRect(), tg = tag.getBoundingClientRect(), tr = h1.getBoundingClientRect();
 		const beta = hd.querySelector('.header-edition');
 		return { hdrH: r.height, hdrW: r.width, hdrRight: r.right, h1fs: parseFloat(getComputedStyle(h1).fontSize), h1Text: h1.textContent.replace(/\s+/g, ''), h1Top: tr.top - r.top, h1Bottom: r.bottom - tr.bottom, h1Lines: Math.round(tr.height / parseFloat(getComputedStyle(h1).lineHeight)),
-			pillText: pill.innerText.replace(/\s+/g, ' ').trim(), pillRow: Math.abs(pr.top - tr.top) < tr.height, pillRight: pr.right, tagText: tag.textContent.trim(), tagfs: parseFloat(getComputedStyle(tag).fontSize), tagLines: Math.round(tg.height / (parseFloat(getComputedStyle(tag).fontSize) * 1.2)),
+			pillText: pill.innerText.replace(/\s+/g, ' ').trim(), short: hd.hasAttribute('data-hdr-short'), pillRow: Math.abs(pr.top - tr.top) < tr.height, pillRight: pr.right, tagText: tag.textContent.trim(), tagfs: parseFloat(getComputedStyle(tag).fontSize), tagLines: Math.round(tg.height / parseFloat(getComputedStyle(tag).lineHeight)),
 			tagSameRowAsPill: Math.abs(tg.top - pr.top) < 12, tagRight: tg.right, tagLeft: tg.left, tagBottom: tg.bottom, hdrBottom: r.bottom, beta: beta ? beta.textContent.trim() : null,
 			helpBtns: hd.querySelectorAll('.uma-help-btn, [aria-haspopup="dialog"]').length, qMarks: [...hd.querySelectorAll('button')].filter((b) => /^[?？]$/.test(b.textContent.trim())).length,
 			themeBtn: !!hd.querySelector('#theme-cycle-btn'), toolBtn: !!hd.querySelector('#tool-dropdown-btn'), sw: document.documentElement.scrollWidth, vw: document.documentElement.clientWidth,
@@ -55,13 +55,15 @@ export async function register20d(env) {
 				const p = await probe(page);
 				const tag = which + '・' + w + 'px・' + theme;
 				const wantTag = which === 'special' ? 'チャンミ/LoH用ツール' : '技能試験特化ツール';
-				assert(p.tagText === wantTag && /^2nd( Edition)?$/.test(p.pillText) && (w <= 322 ? p.pillText === '2nd' : p.pillText === '2nd Edition'),
-					'微調整2D2(' + tag + '): 「' + (w <= 322 ? '2nd' : '2nd Edition') + '」のバッジと、その脇の一言「' + wantTag + '」', { tag: p.tagText, pill: p.pillText });
-				assert(p.h1Lines === 1 && p.pillRow && p.tagLines === 1 && p.tagRight <= p.hdrRight + 0.5 && p.tagLeft >= -0.5 && p.pillRight <= p.hdrRight - 4 && p.sw <= p.vw,
-					'微調整2D2(' + tag + '): タイトル・バッジは1行に並び、一言も1行（途中で折り返さず、見出しの幅の内側）／横にはみ出さない', p);
-				// 一言: 小さくして収める（最小9px）。収まらないときだけバッジの下の行へ回る
-				assert(p.tagfs >= 9 - 0.01 && p.tagfs <= 11 + 0.01 && (p.tagSameRowAsPill || p.tagBottom <= p.hdrBottom + 0.5),
-					'微調整2D2(' + tag + '): 一言の文字は9〜11px。バッジの脇か、収まらなければバッジの下の行（見出しの枠の中）', { fs: p.tagfs, same: p.tagSameRowAsPill });
+				// C-141（微調整3・A-2）: 一言を入れる幅が足りないときは「2nd」だけ（data-hdr-short）。373px 以上は必ず「2nd Edition」
+				assert(p.tagText === wantTag && p.pillText === ((w <= 322 || p.short) ? '2nd' : '2nd Edition') && (w < 373 || !p.short),
+					'微調整2D2(' + tag + '): 「' + ((w <= 322 || p.short) ? '2nd' : '2nd Edition') + '」のバッジと、その脇の一言「' + wantTag + '」', { tag: p.tagText, pill: p.pillText, short: p.short });
+				// C-141（微調整3・A-2）: 一言は自分の枠の中で2行まで折り返してよい（下の行へは回さない。位置の詳しい検査は 微調整3A2）
+				assert(p.h1Lines === 1 && p.pillRow && p.tagLines >= 1 && p.tagLines <= 2 && p.tagRight <= p.hdrRight + 0.5 && p.tagLeft >= -0.5 && p.pillRight <= p.hdrRight - 4 && p.sw <= p.vw,
+					'微調整2D2(' + tag + '): タイトル・バッジは1行に並び、一言は2行まで（見出しの幅の内側）／横にはみ出さない', p);
+				// 一言: 小さくして収める（最小8px）。C-141（微調整3・A-2）で「収まらなければバッジの下の行へ」を取り消した。いつもバッジの右隣
+				assert(p.tagfs >= 8 - 0.01 && p.tagfs <= 11 + 0.01 && p.tagSameRowAsPill && p.tagLeft >= p.pillRight - 0.5,
+					'微調整2D2(' + tag + '): 一言の文字は8〜11px。いつもバッジの右隣（下の行へは回さない）', { fs: p.tagfs, same: p.tagSameRowAsPill, left: p.tagLeft, pillRight: p.pillRight });
 				if (which === 'special') assert(p.beta === 'β版', '微調整2D2(' + tag + '): special の「β版」は残っている', p.beta);
 				else assert(p.beta === null && !/β|新UI/.test(p.headerText), '微調整2D2(' + tag + '): exam の見出しに「β版」「新UI」は付けない', p.headerText);
 				if (which === 'exam') {

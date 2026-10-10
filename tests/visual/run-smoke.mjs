@@ -41,6 +41,7 @@ import { register20b } from './blocks-20b.mjs';
 import { register20c } from './blocks-20c.mjs';
 import { register20d } from './blocks-20d.mjs';
 import { register20e } from './blocks-20e.mjs';
+import { register21 } from './blocks-21.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 
@@ -15064,6 +15065,7 @@ await register20b({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register20c({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register20d({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register20e({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register21({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();

@@ -186,7 +186,7 @@ export async function register7d(env) {
 					const cs = getComputedStyle(pill); const pr = pill.getBoundingClientRect(); const probe = document.createElement('i'); probe.style.cssText = 'background:var(--uma-accent-soft);color:var(--uma-accent-soft-text)'; document.body.appendChild(probe);
 					const pc = getComputedStyle(probe); const soft = { bg: pc.backgroundColor, color: pc.color }; probe.remove();
 					const btnLeft = Math.min(...Array.from(hd.querySelectorAll('button')).map((b) => b.getBoundingClientRect().left).filter((x) => x > 0));
-					return { tag: pill.tagName, full: pill.innerText.replace(/\s+/g, ' ').trim(), insideH1: h1.contains(pill), fs: cs.fontSize, fw: cs.fontWeight, h: Math.round(pr.height * 10) / 10, cursor: cs.cursor, bg: cs.backgroundColor, color: cs.color, soft, betaFs: getComputedStyle(beta).fontSize, betaText: beta.textContent.trim(),
+					return { tag: pill.tagName, full: pill.innerText.replace(/\s+/g, ' ').trim(), short: hd.hasAttribute('data-hdr-short'), insideH1: h1.contains(pill), fs: cs.fontSize, fw: cs.fontWeight, h: Math.round(pr.height * 10) / 10, cursor: cs.cursor, bg: cs.backgroundColor, color: cs.color, soft, betaFs: getComputedStyle(beta).fontSize, betaText: beta.textContent.trim(),
 						hdH: Math.round(hd.getBoundingClientRect().height), pillRight: pr.right, btnLeft, sameRow: Math.abs((pr.top + pr.height / 2) - (beta.getBoundingClientRect().top + beta.getBoundingClientRect().height / 2)) < 8, title: document.title, docW: document.documentElement.scrollWidth, iw: innerWidth };
 				});
 				const tag = '段7d追加(B) ' + w + 'px: ';
@@ -195,7 +195,8 @@ export async function register7d(env) {
 				assert(m.bg === m.soft.bg && m.color === m.soft.color && m.cursor === 'default', tag + 'ピルの色は special の緑（--uma-accent-soft／--uma-accent-soft-text）。手のカーソルにならない', { bg: m.bg, color: m.color, soft: m.soft, cursor: m.cursor });
 				const wantBeta = w >= 768 ? ref.beta : w > 640 ? '14px' : '11px';   // exam と同じ（768px 以上 16px／それ未満 14px）。640px 以下は詰めて 11px
 				assert(m.betaFs === wantBeta, tag + '「β版」の大きさ ' + wantBeta + (w > 640 ? '（exam と同じ）' : '（スマホは 11px）'), m.betaFs);
-				assert(m.full === (w >= 323 ? '2nd Edition' : '2nd'), tag + (w >= 323 ? 'ピルは「2nd Edition」（全部入る）' : '全部は入らない幅（322px 以下）だけ「2nd」'), m.full);
+				// C-141（微調整3・A-2）: 一言をバッジの右隣に入れる幅が足りないときは「2nd」だけにする（data-hdr-short）。373px 以上は必ず「2nd Edition」
+				assert(m.full === ((w <= 322 || m.short) ? '2nd' : '2nd Edition') && (w < 373 || !m.short), tag + (w <= 322 ? '全部は入らない幅（322px 以下）は「2nd」' : m.short ? '一言を入れる幅が足りないので「2nd」' : 'ピルは「2nd Edition」（全部入る）'), m.full);
 				assert(m.hdH === HD(w) && m.pillRight <= m.btnLeft - 4 && m.sameRow && m.docW <= m.iw, tag + 'ヘッダーの高さは ' + HD(w) + 'px（実測 ' + m.hdH + 'px）。ピルは右のボタンの手前（余白 ' + Math.round(m.btnLeft - m.pillRight) + 'px）で、「β版」と同じ行に並び、横にはみ出さない', m);
 				await sp.ctx.close();
 			}
