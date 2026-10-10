@@ -389,4 +389,170 @@ export async function register19(env) {
 		assert(jsErrors(errors).length === 0, '微調整1A6: コンソールエラーなし', errors.slice(0, 3));
 		await ctx.close();
 	});
+
+	/* ====================================================================
+	 * B: 結合画像の合計（効率を指定だけ）
+	 * ==================================================================== */
+	/** 帯を1枚描き、fillText の呼び出し（文字・大きさ・位置）を集める。o.lines＝合計の2行（effTotalLines の形） */
+	const drawBanner = (page, w, o = {}) => page.evaluate(async ({ w, o }) => {
+		const imgs = await loadEffIconImages();
+		const b = effBounds.slice();
+		const cells = [0, 1, 2, 3].map((k) => ({ img: imgs[k], range: effRangeLabel(k, b), count: 20 + k * 7 }));
+		const mk = (n) => ({ items: Array.from({ length: n }, (_, i) => ({ text: 'ABCDEFG' + (i + 1) + '：★' + ((i % 3) + 1) })), more: false });
+		const calls = [];
+		const orig = CanvasRenderingContext2D.prototype.fillText;
+		CanvasRenderingContext2D.prototype.fillText = function (text, x, y) {
+			calls.push({ text, x, y, px: parseFloat(this.font.replace(/^.*?(\d+(\.\d+)?)px.*$/, '$1')), width: this.measureText(text).width, base: this.textBaseline });
+			return orig.apply(this, arguments);
+		};
+		let c;
+		try {
+			c = stitchDrawEffPersonBanner(w, '親A', 30, 12, o.purple ? mk(o.purple) : null, null,
+				Object.assign({ cards: true, factors: true, effPanel: { cells }, totalLines: o.lines || null }, o.opts || {}));
+		} finally { CanvasRenderingContext2D.prototype.fillText = orig; }
+		const purpleFs = effPurpleLayout(w, mk(1), null, true).fs;
+		return { h: c.height, calls, purpleFs, cardValueFs: Math.round(w * EFF_BANNER.cardValueFont), layout: o.lines ? effTotalLayout(w, o.lines) : null };
+	}, { w, o });
+	const LINES = ['合計評価点/合計SP:6.220', '合計評価点:18,972'];
+
+	await block('微調整1B1 合計の帯の文字は紫の行と同じくらい・数字は検出数の数字と同じ大きさ／コロンのあとに間・2行の数字の左端をそろえる（列の幅 262・765・1170px）', async () => {
+		const { ctx, page, errors } = await openExam({ eff: true });
+		for (const w of [262, 765, 1170]) {
+			const r = await drawBanner(page, w, { lines: LINES });
+			const labels = r.calls.filter((c) => c.text === '合計評価点/合計SP:' || c.text === '合計評価点:');
+			const values = r.calls.filter((c) => c.text === '6.220' || c.text === '18,972');
+			assert(labels.length === 2 && values.length === 2, '微調整1B1(' + w + 'px): 合計は2行・ラベルと数字を別々に描く', r.calls.map((c) => c.text));
+			assert(labels.every((c) => c.px === r.purpleFs),
+				'微調整1B1(' + w + 'px): ラベルの文字の大きさ（' + labels.map((c) => c.px) + 'px）は、紫の行（シナリオ因子の行）の文字（' + r.purpleFs + 'px）と同じ', { labels: labels.map((c) => c.px), purple: r.purpleFs });
+			assert(values.every((c) => c.px === r.cardValueFs),
+				'微調整1B1(' + w + 'px): 数字の大きさ（' + values.map((c) => c.px) + 'px）は、検出数カードの数字（' + r.cardValueFs + 'px）と同じ', { values: values.map((c) => c.px), card: r.cardValueFs });
+			// コロンのあと: ラベルの右端と数字の左端のあいだに間（最も長い行でもラベルの文字の大きさの0.4倍以上）。2行の数字の左端は同じ
+			const gaps = labels.map((l, i) => values[i].x - (l.x + l.width));
+			assert(values[0].x === values[1].x && Math.min.apply(null, gaps) >= r.layout.lab * 0.4 && labels.every((l) => l.text.endsWith(':')),
+				'微調整1B1(' + w + 'px): コロンのあとに間（最短 ' + Math.min.apply(null, gaps).toFixed(1) + 'px）を空け、2行の数字の左端をそろえる', { gaps, xs: values.map((c) => c.x) });
+			// 数字の位置は、ラベルの幅の大きい方に合わせる（幅の大きいほうの行の間が決めた値・短いほうの行は間が広い）
+			const wide = labels[0].width > labels[1].width ? 0 : 1;
+			assert(Math.abs(gaps[wide] - r.layout.gap) < 0.6 && gaps[1 - wide] > gaps[wide],
+				'微調整1B1(' + w + 'px): 数字の位置は、幅の大きいほうのラベルに合わせて決める', { gaps, gap: r.layout.gap });
+			// 同じベースライン（ラベルと数字が同じ行で揃う）
+			assert(labels.every((l, i) => l.y === values[i].y && l.base === 'alphabetic'), '微調整1B1(' + w + 'px): 同じ行のラベルと数字は同じベースライン', { l: labels.map((c) => c.y), v: values.map((c) => c.y) });
+			// 1行に収まる
+			const rowW = labels.map((l, i) => (values[i].x + values[i].width) - labels[i].x);
+			assert(rowW.every((x) => x <= r.layout.innerW + 0.5), '微調整1B1(' + w + 'px): 2行とも箱の内側の幅（' + r.layout.innerW + 'px）に収まる', { rowW, innerW: r.layout.innerW });
+			// 帯の高さ（列の幅の比で決まる）
+			const none = r.h;
+			const p1 = (await drawBanner(page, w, { lines: LINES, purple: 1 })).h, p3 = (await drawBanner(page, w, { lines: LINES, purple: 3 })).h;
+			const rowH = Math.round(w * 0.093), pad = Math.round(w * 0.016), after = Math.round(w * 0.017);
+			const none0 = (await drawBanner(page, w, {})).h;
+			assert(none - none0 === rowH * 2 + pad * 2 + after && p1 > none && p3 > p1,
+				'微調整1B1(' + w + 'px): 合計の帯の高さは 2行（' + rowH + 'px×2）＋上下の余白（' + pad + 'px×2）＋下の間（' + after + 'px）。帯の高さは 合計なし ' + none0 + ' → あり ' + none + 'px（紫1行 ' + p1 + '・紫3行 ' + p3 + '）', { none0, none, p1, p3 });
+			assert(r.layout.lab === r.layout.lab0 && r.layout.num === r.layout.num0, '微調整1B1(' + w + 'px): ふつうの値では縮めない', r.layout);
+		}
+		assert(jsErrors(errors).length === 0, '微調整1B1: コンソールエラーなし', errors.slice(0, 3));
+		await ctx.close();
+	});
+
+	await block('微調整1B2 1行に収まらないときは、ラベルと数字を同じ比で縮める（最小 6px）／同じセットの全員の帯の高さはそろう（合計を持たない人も高さだけ確保）', async () => {
+		const { ctx, page, errors } = await openExam({ eff: true });
+		const BIG = ['合計評価点/合計SP:123456789.123', '合計評価点:123,456,789,012'];
+		for (const w of [262, 765, 1170]) {
+			const r = await drawBanner(page, w, { lines: BIG });
+			const L = r.layout;
+			const labels = r.calls.filter((c) => c.text.startsWith('合計評価点') && c.text.endsWith(':'));
+			const values = r.calls.filter((c) => /^[\d,.]{9,}$/.test(c.text));
+			assert(L.lab < L.lab0 && L.lab >= 6 && L.need <= L.innerW + 0.5, '微調整1B2(' + w + 'px): 収まらない値では文字を縮め（' + L.lab0 + '→' + L.lab + 'px・数字 ' + L.num0 + '→' + L.num + 'px）、1行に収める', L);
+			assert(Math.abs(L.num / L.lab - L.num0 / L.lab0) < 0.12, '微調整1B2(' + w + 'px): ラベルと数字は一緒に（同じ比で）縮める', { ratio: L.num / L.lab, want: L.num0 / L.lab0 });
+			assert(labels.length === 2 && values.length === 2 && labels.every((c) => c.px === L.lab) && values.every((c) => c.px === L.num),
+				'微調整1B2(' + w + 'px): 実際に描いた大きさも縮めた値', { labels: labels.map((c) => c.px), values: values.map((c) => c.px), L });
+		}
+		// ものすごく長い値: 最小 6px で止まる
+		const huge = await page.evaluate(() => { const L = effTotalLayout(262, ['合計評価点/合計SP:' + '9'.repeat(60), '合計評価点:' + '9'.repeat(70)]); return { lab: L.lab, num: L.num }; });
+		assert(huge.lab === 6 && huge.num >= 6, '微調整1B2: 極端に長い値でも、ラベルは最小 6px（それ以上は縮めない）', huge);
+		// 収まるかは「列の幅 262px」で確かめる（ふつうの値は収まる）
+		const norm = await page.evaluate(() => { const L = effTotalLayout(262, ['合計評価点/合計SP:9.999', '合計評価点:9,999,999']); return { need: L.need, innerW: L.innerW, lab: L.lab, lab0: L.lab0 }; });
+		assert(norm.need <= norm.innerW && norm.lab === norm.lab0, '微調整1B2: 列の幅262pxで、7桁の評価点でも縮めずに収まる', norm);
+		// 帯の高さ: 合計を持たない人も、同じセットに持つ人がいれば高さだけ確保（reserve）して同じ高さ。誰も持たなければ従来どおり箱なし
+		const hs = {
+			own: (await drawBanner(page, 262, { lines: LINES, purple: 1 })).h,
+			reserve: (await drawBanner(page, 262, { purple: 1, opts: { totalReserve: true } })).h,
+			none: (await drawBanner(page, 262, { purple: 1 })).h,
+		};
+		assert(hs.own === hs.reserve && hs.none < hs.own, '微調整1B2: 合計を持たない人の帯も、同じセットで持つ人がいれば同じ高さにそろう（誰も持たなければ箱なし）', hs);
+		// 組み立ての流れ（buildStitchedSetImage）: 効率を指定で2人とも同じ高さの帯になる
+		const flow = await page.evaluate(async () => {
+			const s = melopSheet;
+			const b = effBounds.slice();
+			const pick = [0, 1, 2, 3].map((k) => effData.targets.find((t) => t.id && effTierOf(t.milli, b) === k && !/\+$/.test(t.name)));
+			const names = pick.map((t) => t.name);
+			const rows = names.map((n, i) => ({ x: 200 + (i % 2) * 453, y: 300 + Math.floor(i / 2) * 120, w: 200, h: 40, col: i % 2, band: Math.floor(i / 2) }));
+			const lines = names.map((n, i) => ({ text: n, stars: 2, starsReliable: true, rowKey: '0:' + i }));
+			personGeometry = PERSON_LABELS.map(() => null); personLines = PERSON_LABELS.map(() => null); personMelop = PERSON_LABELS.map(() => null); personResults = PERSON_LABELS.map(() => null);
+			[0, 1].forEach((p) => {
+				personGeometry[p] = [{ rows, columnXs: [200, 653], scale: 1, naturalW: 1179, naturalH: 2556 }];
+				personLines[p] = lines;
+				personMelop[p] = { res: matchMelopLines(lines, s), top: { found: true, uniqueStars: 1, blue: null, red: null, extraLines: [] } };
+				personResults[p] = matchAllSkillsWithStars(lines, skillList, skillIndex, {});
+			});
+			const white = async () => { const c = document.createElement('canvas'); c.width = 1179; c.height = 2556; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 1179, 2556); return c; };
+			const orig = stitchOnePerson; stitchOnePerson = white;
+			const calls = [];
+			const origB = stitchDrawEffPersonBanner;
+			stitchDrawEffPersonBanner = (...a) => { const c = origB(...a); calls.push({ h: c.height, hasTotal: !!(a[6] && a[6].totalLines), reserve: !!(a[6] && a[6].totalReserve) }); return c; };
+			const run = Object.assign(captureRun(), { files: PERSON_LABELS.map((_, i) => (i < 2 ? [new File(['x'], 'a.png')] : [])), attrIcons: false });
+			try { await buildStitchedSetImage(0, run); } finally { stitchOnePerson = orig; stitchDrawEffPersonBanner = origB; }
+			return calls;
+		});
+		assert(flow.length === 2 && flow[0].h === flow[1].h && flow.every((c) => c.hasTotal),
+			'微調整1B2: 組み立ての流れでも、同じセットの2人の帯は同じ高さ・どちらも合計の2行を持つ', flow);
+		assert(jsErrors(errors).length === 0, '微調整1B2: コンソールエラーなし', errors.slice(0, 3));
+		await ctx.close();
+	});
+
+	await block('微調整1B3 効率を指定だけの変更: 拡張モードの合計（1行）と他のモードの帯は従来のまま（合計の2行の配置関数を呼ばない）', async () => {
+		const { ctx, page, errors } = await openExam({ eff: false });
+		const r = await page.evaluate(async () => {
+			const calls = { layout: 0, effBanner: 0, plain: 0, texts: [] };
+			const oL = effTotalLayout, oE = stitchDrawEffPersonBanner, oP = stitchDrawPersonBanner;
+			effTotalLayout = (...a) => { calls.layout++; return oL(...a); };
+			stitchDrawEffPersonBanner = (...a) => { calls.effBanner++; return oE(...a); };
+			stitchDrawPersonBanner = (...a) => { calls.plain++; calls.texts.push(a[6] && a[6].totalText); return oP(...a); };
+			const s = melopSheet || await loadMelopSheet();
+			await loadEffData();
+			const names = effData.targets.filter((t) => t.id).slice(0, 4).map((t) => t.name);
+			const rows = names.map((n, i) => ({ x: 200 + (i % 2) * 453, y: 300 + Math.floor(i / 2) * 120, w: 200, h: 40, col: i % 2, band: Math.floor(i / 2) }));
+			const lines = names.map((n, i) => ({ text: n, stars: 2, starsReliable: true, rowKey: '0:' + i }));
+			const setup = () => {
+				personGeometry = PERSON_LABELS.map(() => null); personLines = PERSON_LABELS.map(() => null); personMelop = PERSON_LABELS.map(() => null); personResults = PERSON_LABELS.map(() => null);
+				personGeometry[0] = [{ rows, columnXs: [200, 653], scale: 1, naturalW: 1179, naturalH: 2556 }];
+				personLines[0] = lines;
+				personMelop[0] = { res: matchMelopLines(lines, s), top: { found: true, uniqueStars: 1, blue: null, red: null, extraLines: [] } };
+				personResults[0] = matchAllSkillsWithStars(lines, skillList, skillIndex, {});
+			};
+			const white = async () => { const c = document.createElement('canvas'); c.width = 1179; c.height = 2556; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 1179, 2556); return c; };
+			const orig = stitchOnePerson; stitchOnePerson = white;
+			const out = {};
+			try {
+				const base = Object.assign(captureRun(), { files: PERSON_LABELS.map((_, i) => (i < 1 ? [new File(['x'], 'a.png')] : [])), attrIcons: false });
+				for (const [label, patch] of [['既定', { scope: 'default', eff: null }], ['拡張モード（合計あり）', { scope: 'default', eff: null, melop: true }]]) {
+					setup();
+					calls.layout = calls.effBanner = calls.plain = 0; calls.texts = [];
+					await buildStitchedSetImage(0, Object.assign({}, base, patch));
+					out[label] = { layout: calls.layout, effBanner: calls.effBanner, plain: calls.plain, texts: calls.texts.slice() };
+				}
+				// 効率を指定では呼ぶ
+				setTargetScopeMode('efficiency');
+				setup();
+				calls.layout = calls.effBanner = calls.plain = 0;
+				await buildStitchedSetImage(0, Object.assign(captureRun(), { files: base.files, attrIcons: false }));
+				out['効率を指定'] = { layout: calls.layout, effBanner: calls.effBanner, plain: calls.plain };
+			} finally { stitchOnePerson = orig; effTotalLayout = oL; stitchDrawEffPersonBanner = oE; stitchDrawPersonBanner = oP; }
+			return out;
+		});
+		assert(r['既定'].layout === 0 && r['既定'].effBanner === 0 && r['既定'].plain === 1, '微調整1B3: 既定では従来の帯（効率を指定の帯・合計の配置は使わない）', r['既定']);
+		assert(r['拡張モード（合計あり）'].layout === 0 && r['拡張モード（合計あり）'].effBanner === 0 && r['拡張モード（合計あり）'].plain === 1 && /^合計 \d+\.\d{3}（評価点\/SP）$/.test(r['拡張モード（合計あり）'].texts[0] || ''),
+			'微調整1B3: 拡張モードの合計は1行「合計 N.NNN（評価点/SP）」のまま（2行の配置を使わない）', r['拡張モード（合計あり）']);
+		assert(r['効率を指定'].layout >= 1 && r['効率を指定'].effBanner === 1 && r['効率を指定'].plain === 0, '微調整1B3: 効率を指定では専用の帯と合計の配置を使う', r['効率を指定']);
+		assert(jsErrors(errors).length === 0, '微調整1B3: コンソールエラーなし', errors.slice(0, 3));
+		await ctx.close();
+	});
 }

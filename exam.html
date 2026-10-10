@@ -6465,7 +6465,10 @@
 			// 区間まとめパネルは案A（改善3）: 蹄鉄は0.79倍（0.11→0.087）・検出数の文字は0.76倍（0.08→0.061）・余白を詰めた。
 			// 合計の帯の高さ（totalH＋totalAfter）は変えず、中を2行にした（文字は 0.044→0.032）
 			panelPad: 0.008, panelGap: 0.008, panelIcon: 0.087, cellPad: 0.007, rangeFont: 0.036, countFont: 0.061, panelAfter: 0.016,
-			totalH: 0.09, totalFont: 0.032, totalAfter: 0.017,
+			// 合計の帯（効率を指定だけ。微調整1・B）: ラベルの文字は紫の行と同じくらい（totalLabelFont＝purpleFont）・数字は検出数のカードの数字と同じ（totalNumFont＝cardValueFont）。
+			// 2行の高さは totalRowH ずつ・箱の上下の余白は totalPadV。コロンのあとの間は、ラベルの文字の大きさの totalGap 倍。
+			// 1行に収まらないときは、ラベルと数字を一緒に縮める（ラベルは最小 6px）。改善3の「帯の高さを前と同じに保つ」は外した（帯の高さは増えてよい）
+			totalLabelFont: 0.041, totalNumFont: 0.07, totalRowH: 0.093, totalPadV: 0.016, totalGap: 0.6, totalAfter: 0.017,
 			purpleFont: 0.041, purpleLineH: 0.062, purpleAfter: 0.022
 		};
 
@@ -6514,7 +6517,32 @@
 			ctx.closePath();
 		}
 
-		// opts … { cards, factors, effPanel, totalLines, purpleMinLines }（totalLines は合計の帯の2行の文字）。purpleMinLines は、同じセットの全員で紫の行数をそろえる
+		/* 合計の帯の2行の配置（微調整1・B）。lines は effTotalLines() の2行（「合計評価点/合計SP:6.123」「合計評価点:19,594」）。
+		   最初のコロンの前（コロンを含む）をラベル、あとを数字として分け、数字の左端は2行でそろえる（ラベルの幅の大きいほうに、間を足した位置）。
+		   1行（ラベル＋間＋数字）が箱の内側の幅に収まらないときは、ラベルと数字を同じ比で縮める（ラベルは最小 6px）。
+		   戻り値: { rows: [{label, value}], lab（ラベルの大きさ px）, num（数字の大きさ px）, labelW, gap, inset, innerW, need（いちばん長い行の幅）, lab0, num0 } */
+		function effTotalLayout(width, lines) {
+			const B = EFF_BANNER;
+			const pad = Math.round(width * B.pad);
+			const inset = pad;
+			const innerW = width - pad * 2 - inset * 2;
+			const rows = lines.map(line => { const k = line.indexOf(':'); return { label: line.slice(0, k + 1), value: line.slice(k + 1) }; });
+			const ctx = document.createElement('canvas').getContext('2d');
+			const lab0 = Math.round(width * B.totalLabelFont), num0 = Math.round(width * B.totalNumFont);
+			let lab = lab0, num = num0, labelW = 0, gap = 0, need = 0;
+			const measure = () => {
+				ctx.font = 'bold ' + lab + 'px sans-serif';
+				labelW = Math.max.apply(null, rows.map(r => ctx.measureText(r.label).width));
+				gap = Math.round(lab * B.totalGap);
+				ctx.font = 'bold ' + num + 'px sans-serif';
+				need = labelW + gap + Math.max.apply(null, rows.map(r => ctx.measureText(r.value).width));
+			};
+			measure();
+			while (lab > 6 && need > innerW) { lab -= 1; num = Math.max(6, Math.round(num0 * lab / lab0)); measure(); }
+			return { rows: rows, lab: lab, num: num, labelW: labelW, gap: gap, inset: inset, innerW: innerW, need: need, lab0: lab0, num0: num0 };
+		}
+
+		// opts … { cards, factors, effPanel, totalLines, totalReserve, purpleMinLines }（totalLines は合計の帯の2行の文字。totalReserve は、合計を出さない人でも高さだけ確保する＝同じセットの全員の帯の高さをそろえる）。purpleMinLines は、同じセットの全員で紫の行数をそろえる
 		// （帯の高さがそろい、スクショの上端がずれない）
 		function stitchDrawEffPersonBanner(width, groupLabel, totalDetected, sp70Count, factors, genes, opts) {
 			const B = EFF_BANNER;
@@ -6528,8 +6556,8 @@
 			const panelCellH = U(B.panelIcon) + U(B.cellPad) * 2;
 			const panelH = effPanel ? (U(B.panelPad) * 2 + panelCellH * 2 + U(B.panelGap)) : 0;
 			const panelPitch = effPanel ? panelH + U(B.panelAfter) : 0;
-			const totalBoxH = U(B.totalH);
-			const totalPitch = totalLines ? totalBoxH + U(B.totalAfter) : 0;
+			const totalBoxH = U(B.totalRowH) * 2 + U(B.totalPadV) * 2;
+			const totalPitch = (totalLines || (opts && opts.totalReserve)) ? totalBoxH + U(B.totalAfter) : 0;
 			const purple = effPurpleLayout(width, factors, genes, !(opts && opts.factors === false));
 			const purpleLines = purple.lineCount ? Math.max(purple.lineCount, (opts && opts.purpleMinLines) || 0) : (opts && opts.purpleMinLines) || 0;
 			const purplePitch = purpleLines ? purpleLines * U(B.purpleLineH) + U(B.purpleAfter) : 0;
@@ -6635,12 +6663,21 @@
 				ctx.lineWidth = 2;
 				ctx.stroke();
 				ctx.fillStyle = stitchTokenColor('--exam-eff-total-text');
-				const tf = U(B.totalFont);
-				ctx.font = 'bold ' + tf + 'px sans-serif';
+				const L = effTotalLayout(width, totalLines);
+				const rowH = U(B.totalRowH);
+				ctx.textBaseline = 'alphabetic';
+				ctx.textAlign = 'left';
+				L.rows.forEach((r, i) => {
+					// 行の中心に数字の高さの中心を合わせ、ラベルと数字は同じベースラインにそろえる
+					const base = Math.round(y + U(B.totalPadV) + rowH * (i + 0.5) + L.num * 0.36);
+					ctx.font = 'bold ' + L.lab + 'px sans-serif';
+					ctx.fillText(r.label, pad + L.inset, base);
+					ctx.font = 'bold ' + L.num + 'px sans-serif';
+					ctx.fillText(r.value, pad + L.inset + L.labelW + L.gap, base);
+				});
 				ctx.textBaseline = 'middle';
-				totalLines.forEach((line, i) => ctx.fillText(line, pad + Math.round(tf * 0.8), y + totalBoxH * (i === 0 ? 0.29 : 0.73)));
-				y += totalPitch;
 			}
+			if (totalLines || (opts && opts.totalReserve)) y += totalPitch;
 			if (purple.lineCount) {
 				ctx.font = 'bold ' + purple.fs + 'px sans-serif';
 				ctx.textBaseline = 'middle';
@@ -7097,9 +7134,11 @@
 			// 効率を指定の帯: 紫の行数を全員でそろえて（帯の高さをそろえて）描く
 			if (effBannerSpecs.length) {
 				const minLines = Math.max.apply(null, effBannerSpecs.map(sp => effPurpleLayout(sp.width, sp.factors, sp.genes, show.scenario).lineCount));
+// 合計の箱は、同じセットの誰かが持っていれば、持たない人にも高さだけ確保する（帯の高さをそろえる。微調整1・B）
+const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 				effBannerSpecs.forEach(sp => {
 					bannerCanvases[sp.slot] = stitchDrawEffPersonBanner(sp.width, sp.label, sp.detected, sp.sp70Count, sp.factors, sp.genes,
-						Object.assign({ purpleMinLines: minLines }, sp.opts));
+						Object.assign({ purpleMinLines: minLines, totalReserve: anyTotal }, sp.opts));
 				});
 			}
 			const bannerRow = bannerCanvases.length === 1 ? bannerCanvases[0] : stitchConcatHorizontallyTopAligned(bannerCanvases);

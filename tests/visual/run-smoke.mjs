@@ -11255,18 +11255,18 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const d = c.getContext('2d').getImageData(w - Math.round(w * 0.03) - 6, Math.round(w * 0.018 + w * 0.05), 1, 1).data;
 		const cOff = stitchDrawEffPersonBanner(w, '親A', 30, 12, null, null, { cards: false, factors: true });
 		const d2 = cOff.getContext('2d').getImageData(w - Math.round(w * 0.03) - 6, Math.round(w * 0.018 + w * 0.04), 1, 1).data;
-		return { head, withPanel, withTotal, withPurple, noCards, ratios, lineFns, drawnLines: lines2.every((x) => calls.includes(x)),
+		return { head, withPanel, withTotal, withPurple, noCards, ratios, lineFns, drawnLines: ['合計評価点/合計SP:', '4.912', '合計評価点:', '19,594'].every((x) => calls.includes(x)),
 			fit: { lines: layoutFit.blocks.map((x) => x.lines), n: layoutFit.lineCount },
 			wrap: { lines: layoutWrap.blocks.map((x) => x.lines), n: layoutWrap.lineCount, widths: layoutWrap.blocks.flatMap((x) => x.lines).map((t) => ctx.measureText(t).width), maxW },
 			aligned, rightCard: [d[0], d[1], d[2]], rightOff: [d2[0], d2[1], d2[2]] };
 	});
 	const within = (v, want, tol) => Math.abs(v - want) <= tol;
-	assert(within(compact.head, 36, 2) && within(compact.withPanel - compact.head, 64, 2) && within(compact.withTotal - compact.withPanel, 28, 2) && within(compact.withPurple - compact.withTotal, 22, 2),
-		'効率(F・C): 帯の高さは、列の幅262pxのとき 見出し行36px・パネル64px（縮めた案A。前は84px）・合計28px・紫22px', compact);
+	assert(within(compact.head, 36, 2) && within(compact.withPanel - compact.head, 64, 2) && within(compact.withTotal - compact.withPanel, 60, 2) && within(compact.withPurple - compact.withTotal, 22, 2),
+		'効率(F・C・微調整1B): 帯の高さは、列の幅262pxのとき 見出し行36px・パネル64px（縮めた案A。前は84px）・合計60px（微調整1・Bで28→60。文字と数字を大きくした）・紫22px', compact);
 	assert(within(compact.ratios.icon, 0.79, 0.01) && within(compact.ratios.count, 0.76, 0.01),
 		'効率(C): 区間まとめパネルの蹄鉄は0.79倍・検出数の文字は0.76倍（300px の列で 33→26px・25→19px）', compact.ratios);
-	assert(Math.abs(compact.ratios.totalPitch / compact.ratios.oldTotalPitch - 1) <= 0.03 && compact.drawnLines,
-		'効率(C): 合計の帯の高さは前（0.107×列の幅）とほぼ同じ（±3%）で、2行の文字を描く', compact.ratios);
+	assert(compact.drawnLines && compact.ratios.totalPitch > compact.ratios.oldTotalPitch,
+		'効率(C・微調整1B): 合計の帯は2行（ラベルと数字を別々に描く）。高さは前（0.107×列の幅）より増えた（改善3の「前と同じ」は外した）', compact.ratios);
 	assert(JSON.stringify(compact.lineFns.a) === JSON.stringify(['合計評価点/合計SP:6.123', '合計評価点:19,594'])
 		&& JSON.stringify(compact.lineFns.b) === JSON.stringify(['合計評価点/合計SP:—', '合計評価点:0'])
 		&& compact.lineFns.c[1] === '合計評価点:1,234,567',
