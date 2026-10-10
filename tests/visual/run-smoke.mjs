@@ -40,6 +40,7 @@ import { register20 } from './blocks-20.mjs';
 import { register20b } from './blocks-20b.mjs';
 import { register20c } from './blocks-20c.mjs';
 import { register20d } from './blocks-20d.mjs';
+import { register20e } from './blocks-20e.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 
@@ -8888,6 +8889,8 @@ await block('C-62 の (11): 改修中の告知', async () => {
 	await page.waitForTimeout(300);
 	const key = await page.evaluate(() => localStorage.getItem('uma-special-alpha-notice'));
 	assert(key === '2026-09-18-alpha-rework', 'C-62 (11): 閉じると既読の印が付く', key);
+	// 2nd Edition の告知（C-140・微調整2・E）はこの検査の対象ではないので、見たことにしておく（次の読み込みで出てしまうため）
+	await page.evaluate(() => markEditionNoticeSeen());
 	await page.reload({ waitUntil: 'networkidle' });
 	await page.waitForTimeout(2000);
 	assert(await page.evaluate(() => document.getElementById('ui-notice').hidden),
@@ -15060,6 +15063,7 @@ await register20({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register20b({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register20c({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register20d({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register20e({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();

@@ -39,6 +39,8 @@
 	<script src="js/uma-skill-deck-core.js?v=2026-10-08a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
+	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
+	<script src="js/announce.js?v=2026-10-10a"></script>
 	<style>
 		/* Deck連携モードの①のタブ（本育成編成）の見出し行（C-51 の11節①②）。
 		   ①〜③はステップのタブ（css/shell.css の .step-tab）に載せたので、ここには Step の枠は無い。
@@ -365,6 +367,12 @@
 									<p class="text-[11px] text-slate-500 mt-0.5 truncate">技能試験133スキルに特化した判定</p>
 								</div>
 							</a>
+
+							<!-- お知らせ（2nd Edition の告知）を、いつでも読み直せる（C-140・微調整2・E） -->
+							<button type="button" id="announce-menu-btn" onclick="openAnnounceFromMenu()" class="flex w-full items-center gap-3 p-2.5 mt-1 rounded-xl hover:bg-slate-100/80 transition-colors cursor-pointer text-left">
+								<span class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0"><i data-lucide="bell" class="w-4 h-4"></i></span>
+								<span class="text-xs font-bold text-slate-800">お知らせ</span>
+							</button>
 						</div>
 					<!-- 新UI（UmaSkill Deck連携）と旧UI（手入力リスト）の切り替え。既定は旧UIで、
 					     押して初めて新UIになる（既存の使い方には一切影響させない）。
@@ -504,6 +512,9 @@
 					</div>
 					<h2 class="notice-title" id="ui-notice-title-catalog"><span class="nb">最新のスキルまで</span><span class="nb">収録しました</span><span class="nb">（2026年9月27日時点）。</span></h2>
 				</div>
+
+				<!-- 2nd Edition の告知（C-140・微調整2・E）。文面・画像は js/announce.js の ANNOUNCE が持つ（exam と共有）。openUiNotice('edition') が中身を作る -->
+				<div id="ui-notice-body-edition" hidden></div>
 			</div>
 			<div class="notice-foot">
 				<button type="button" id="ui-notice-ok" class="uma-btn uma-btn--primary uma-btn--lg w-full" data-act="notice-ok" onclick="closeUiNotice()">OK</button>
@@ -3002,6 +3013,8 @@
 		// layout・alpha を既読にした人にも1度だけ出る。special だけに出す（exam と Deck には出さない）。
 		const CATALOG_NOTICE_STORAGE_KEY = 'uma-special-catalog-notice';
 		const CATALOG_NOTICE_ID = '2026-09-27-skills-up-to-date';
+		// 2nd Edition の告知（C-140・微調整2・E）。文面・画像・番号は js/announce.js（UmaAnnounce.ANNOUNCE。exam と共有）。これも別のキー
+		const EDITION_NOTICE_STORAGE_KEY = 'uma-special-edition-notice';
 		// 分類の印を結合画像に焼くか（C-58 の作業C）。**保存値が無ければ ON**（理由はチェックの脇のコメント）
 		const TIER_MARKS_STORAGE_KEY = 'uma-special-tier-marks';
 
@@ -3034,6 +3047,13 @@
 			if (hasSeenCatalogNotice()) return;
 			writeStored(CATALOG_NOTICE_STORAGE_KEY, CATALOG_NOTICE_ID);
 		}
+		function hasSeenEditionNotice() {
+			return readStored(EDITION_NOTICE_STORAGE_KEY) === UmaAnnounce.ANNOUNCE.id;
+		}
+		function markEditionNoticeSeen() {
+			if (hasSeenEditionNotice()) return;
+			writeStored(EDITION_NOTICE_STORAGE_KEY, UmaAnnounce.ANNOUNCE.id);
+		}
 		function saveUiModeChoice() {
 			writeStored(UI_MODE_STORAGE_KEY, deckMode ? 'new' : 'old');
 		}
@@ -3064,13 +3084,19 @@
 			/* 収録の告知（C-100）は、**初めての人にも**出す（改修中の断りと違い、初めての人にも意味がある）。
 			   2枚目のモーダルは重ねない ―― layout か alpha を出す読み込みでは、同じモーダルの下に並べる。 */
 			const withCatalog = !hasSeenCatalogNotice();
-			if (!seen) {
+			// ?notice=force: 文面の確認用。既読でも2nd Edition の告知だけを出し、何も書かない（C-140・微調整2・E）
+			if (UmaAnnounce.isForced()) {
+				openUiNotice('edition');
+			} else if (!seen) {
 				markAlphaNoticeSeen();
+				markEditionNoticeSeen();   // 初めての人には「変わりました」と言っても比べる相手が無い
 				openUiNotice('layout', withCatalog);
 			} else if (!hasSeenAlphaNotice()) {
 				openUiNotice('alpha', withCatalog);
 			} else if (withCatalog) {
 				openUiNotice('catalog');
+			} else if (!hasSeenEditionNotice()) {
+				openUiNotice('edition');
 			}
 		}
 
@@ -3080,23 +3106,27 @@
 		let uiNoticeWithCatalog = false;   // 収録の告知（C-100）を下に並べているか
 		let uiNoticeReturnFocus = null;
 
-		// kind: 'layout' | 'alpha' | 'catalog'。withCatalog を渡すと、layout／alpha の下に収録の告知を並べる。
+		// kind: 'layout' | 'alpha' | 'catalog' | 'edition'（2nd Edition の告知。中身は js/announce.js が作る）。withCatalog を渡すと、layout／alpha の下に収録の告知を並べる。
 		function openUiNotice(kind, withCatalog) {
 			if (uiNoticeOpen) return;
 			// 引き出しが開いている上には重ねない
 			if (openDrawerKey) return;
 			// layout と alpha は出すのはどちらか一方だけ（C-62 の (11)）
-			uiNoticeKind = (kind === 'alpha' || kind === 'catalog') ? kind : 'layout';
-			uiNoticeWithCatalog = uiNoticeKind !== 'catalog' && !!withCatalog;
+			uiNoticeKind = (kind === 'alpha' || kind === 'catalog' || kind === 'edition') ? kind : 'layout';
+			uiNoticeWithCatalog = uiNoticeKind !== 'catalog' && uiNoticeKind !== 'edition' && !!withCatalog;
 			document.getElementById('ui-notice-body-layout').hidden = uiNoticeKind !== 'layout';
 			document.getElementById('ui-notice-body-alpha').hidden = uiNoticeKind !== 'alpha';
+			const edBody = document.getElementById('ui-notice-body-edition');
+			edBody.hidden = uiNoticeKind !== 'edition';
+			if (uiNoticeKind === 'edition') UmaAnnounce.fill(edBody);
 			const catalogBody = document.getElementById('ui-notice-body-catalog');
 			catalogBody.hidden = !(uiNoticeKind === 'catalog' || uiNoticeWithCatalog);
 			catalogBody.classList.toggle('notice-catalog--with', uiNoticeWithCatalog);
 			// 読み上げの見出しも、出している方（並べているときは上の方）の見出しに向ける
 			document.getElementById('ui-notice').setAttribute('aria-labelledby',
 				uiNoticeKind === 'alpha' ? 'ui-notice-title-alpha'
-					: uiNoticeKind === 'catalog' ? 'ui-notice-title-catalog' : 'ui-notice-title');
+					: uiNoticeKind === 'catalog' ? 'ui-notice-title-catalog'
+					: uiNoticeKind === 'edition' ? UmaAnnounce.TITLE_ID : 'ui-notice-title');
 			uiNoticeOpen = true;
 			uiNoticeReturnFocus = document.activeElement;
 			document.getElementById('ui-notice-backdrop').hidden = false;
@@ -3114,10 +3144,14 @@
 			document.getElementById('ui-notice-backdrop').hidden = true;
 			document.getElementById('ui-notice').hidden = true;
 			document.body.style.overflow = '';
-			if (uiNoticeKind === 'alpha') markAlphaNoticeSeen();
-			else if (uiNoticeKind === 'layout') markUiNoticeSeen();
-			// 収録の告知（C-100）は、1枚で出したときも下に並べたときも、閉じたら既読
-			if (uiNoticeKind === 'catalog' || uiNoticeWithCatalog) markCatalogNoticeSeen();
+			// ?notice=force のときは、何も書かない（既読の状態を変えない）
+			if (!UmaAnnounce.isForced()) {
+				if (uiNoticeKind === 'alpha') markAlphaNoticeSeen();
+				else if (uiNoticeKind === 'layout') markUiNoticeSeen();
+				else if (uiNoticeKind === 'edition') markEditionNoticeSeen();
+				// 収録の告知（C-100）は、1枚で出したときも下に並べたときも、閉じたら既読
+				if (uiNoticeKind === 'catalog' || uiNoticeWithCatalog) markCatalogNoticeSeen();
+			}
 			uiNoticeWithCatalog = false;
 			// 読み直した場合は開いた元（右上のバッジ）へ、初回表示なら元の位置へ返す
 			if (uiNoticeReturnFocus && typeof uiNoticeReturnFocus.focus === 'function') uiNoticeReturnFocus.focus();
@@ -3127,6 +3161,13 @@
 		// 右上の「新UI」バッジからの読み直し。既読の状態は変えない（もともと既読なので）。
 		function reopenUiNotice() {
 			openUiNotice('layout');
+		}
+
+		// ツール切替のメニューの「お知らせ」: メニューを閉じて、2nd Edition の告知を出す（読み直し。閉じても既読の状態は変わらない）
+		function openAnnounceFromMenu() {
+			const menu = document.getElementById('tool-dropdown-menu');
+			if (menu) menu.classList.add('hidden');
+			openUiNotice('edition');
 		}
 
 		function toggleDeckMode() {

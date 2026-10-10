@@ -33,6 +33,8 @@
 	<script src="js/common.js?v=2026-09-26a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
+	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
+	<script src="js/announce.js?v=2026-10-10a"></script>
 	<style>
 		/* このツールの色（青）。**見出し・バッジ・淡い地・枠などの装飾にだけ使う。**
 		   押せる部品（ボタン・チェック・選択中のタブ）は色を持たず、3ツール共通の黒
@@ -679,6 +681,12 @@
 								<p class="text-[11px] text-[var(--uma-deco-strong)]/80 mt-0.5 truncate">技能試験133スキルに特化した判定</p>
 							</div>
 						</div>
+
+						<!-- お知らせ（2nd Edition の告知）を、いつでも読み直せる（C-140・微調整2・E） -->
+						<button type="button" id="announce-menu-btn" onclick="openAnnounceFromMenu()" class="flex w-full items-center gap-3 p-2.5 mt-1 rounded-xl hover:bg-slate-100/80 transition-colors cursor-pointer text-left">
+							<span class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0"><i data-lucide="bell" class="w-4 h-4"></i></span>
+							<span class="text-xs font-bold text-slate-800">お知らせ</span>
+						</button>
 					</div>
 
 					<!-- 旧UI（結果をカードで縦に並べる画面）と新UI（引き出し）の切り替え。既定は新UI。
@@ -804,6 +812,9 @@
 					<p class="notice-text"><span class="nb">設定は</span><span class="nb">①「対象スキル」</span>の<span class="nb">タブにあります。</span></p>
 					<p class="notice-text"><span class="nb">これまでの</span><span class="nb">「対象スキルのカスタム設定</span><span class="nb">（追加・除外）」</span>は、<span class="nb">この2つに</span><span class="nb">まとめました。</span></p>
 				</div>
+
+				<!-- 2nd Edition の告知（C-140・微調整2・E）。文面・画像は js/announce.js の ANNOUNCE が持つ。openUiNotice('edition') が中身を作る -->
+				<div id="ui-notice-body-edition" hidden></div>
 			</div>
 			<div class="notice-foot">
 				<button type="button" id="ui-notice-ok" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--uma-control)] text-white text-xs font-semibold hover:bg-[var(--uma-control-hover)] transition-all shadow-xs cursor-pointer w-full" onclick="closeUiNotice()">OK</button>
@@ -7459,6 +7470,8 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		// 別のキーにしてあるので、画面の告知を既読にした人にもこちらは1度だけ出る。
 		const TARGET_NOTICE_STORAGE_KEY = 'uma-exam-target-notice';
 		const TARGET_NOTICE_ID = '2026-09-14-target-scope';
+		// 2nd Edition の告知（C-140・微調整2・E）。文面・画像・番号は js/announce.js（UmaAnnounce.ANNOUNCE）。これも別のキー
+		const EDITION_NOTICE_STORAGE_KEY = 'uma-exam-edition-notice';
 		let newUi = true;
 
 		function readStored(key) {
@@ -7482,6 +7495,13 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			if (hasSeenTargetNotice()) return;
 			writeStored(TARGET_NOTICE_STORAGE_KEY, TARGET_NOTICE_ID);
 		}
+		function hasSeenEditionNotice() {
+			return readStored(EDITION_NOTICE_STORAGE_KEY) === UmaAnnounce.ANNOUNCE.id;
+		}
+		function markEditionNoticeSeen() {
+			if (hasSeenEditionNotice()) return;
+			writeStored(EDITION_NOTICE_STORAGE_KEY, UmaAnnounce.ANNOUNCE.id);
+		}
 		function saveUiModeChoice() {
 			writeStored(UI_MODE_STORAGE_KEY, newUi ? 'new' : 'old');
 		}
@@ -7498,11 +7518,17 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			} catch (e) {
 				console.error('[UmaExam OCR] UIの初期化に失敗しました', e);
 			}
-			if (!seen) {
+			// ?notice=force: 文面の確認用。既読でも2nd Edition の告知だけを出し、何も書かない（C-140・微調整2・E）
+			if (UmaAnnounce.isForced()) {
+				openUiNotice('edition');
+			} else if (!seen) {
 				markTargetNoticeSeen();
+				markEditionNoticeSeen();   // 初めての人には「変わりました」と言っても比べる相手が無い
 				openUiNotice('layout');
 			} else if (!hasSeenTargetNotice()) {
 				openUiNotice('target');
+			} else if (!hasSeenEditionNotice()) {
+				openUiNotice('edition');
 			}
 		}
 
@@ -7581,7 +7607,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 
 		/* ---------- 告知モーダル（使い方ガイドと同じ作法） ----------
 		   枠（背景・✕・OK・Esc）は1つで、中身だけ差し替える。
-		   kind: 'layout' … 画面の作りの案内 ／ 'target' … 対象スキルの選び方の案内 */
+		   kind: 'layout' … 画面の作りの案内 ／ 'target' … 対象スキルの選び方の案内 ／ 'edition' … 2nd Edition の告知（中身は js/announce.js が作る） */
 		let uiNoticeOpen = false;
 		let uiNoticeKind = 'layout';
 		let uiNoticeReturnFocus = null;
@@ -7590,13 +7616,16 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			if (uiNoticeOpen) return;
 			// 引き出しが開いている上には重ねない
 			if (openDrawerKey) return;
-			uiNoticeKind = (kind === 'target') ? 'target' : 'layout';
-			const isTarget = (uiNoticeKind === 'target');
-			document.getElementById('ui-notice-body-layout').hidden = isTarget;
+			uiNoticeKind = (kind === 'target' || kind === 'edition') ? kind : 'layout';
+			const isTarget = (uiNoticeKind === 'target'), isEdition = (uiNoticeKind === 'edition');
+			document.getElementById('ui-notice-body-layout').hidden = isTarget || isEdition;
 			document.getElementById('ui-notice-body-target').hidden = !isTarget;
+			const edBody = document.getElementById('ui-notice-body-edition');
+			edBody.hidden = !isEdition;
+			if (isEdition) UmaAnnounce.fill(edBody);
 			// 読み上げの見出しも、出している方の見出しに向ける
 			document.getElementById('ui-notice').setAttribute('aria-labelledby',
-				isTarget ? 'ui-notice-title-target' : 'ui-notice-title');
+				isEdition ? UmaAnnounce.TITLE_ID : isTarget ? 'ui-notice-title-target' : 'ui-notice-title');
 			uiNoticeOpen = true;
 			uiNoticeReturnFocus = document.activeElement;
 			document.getElementById('ui-notice-backdrop').hidden = false;
@@ -7606,6 +7635,13 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			document.getElementById('ui-notice-ok').focus();
 		}
 
+		// ツール切替のメニューの「お知らせ」: メニューを閉じて、2nd Edition の告知を出す（読み直し。閉じても既読の状態は変わらない）
+		function openAnnounceFromMenu() {
+			const menu = document.getElementById('tool-dropdown-menu');
+			if (menu) menu.classList.add('hidden');
+			openUiNotice('edition');
+		}
+
 		// ✕・OK・背景・Esc のどれで閉じても既読にする（出していた方だけ）
 		function closeUiNotice() {
 			if (!uiNoticeOpen) return;
@@ -7613,7 +7649,12 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			document.getElementById('ui-notice-backdrop').hidden = true;
 			document.getElementById('ui-notice').hidden = true;
 			document.body.style.overflow = '';
-			if (uiNoticeKind === 'target') markTargetNoticeSeen(); else markUiNoticeSeen();
+			// ?notice=force のときは、何も書かない（既読の状態を変えない）
+			if (!UmaAnnounce.isForced()) {
+				if (uiNoticeKind === 'target') markTargetNoticeSeen();
+				else if (uiNoticeKind === 'edition') markEditionNoticeSeen();
+				else markUiNoticeSeen();
+			}
 			if (uiNoticeReturnFocus && typeof uiNoticeReturnFocus.focus === 'function') uiNoticeReturnFocus.focus();
 			uiNoticeReturnFocus = null;
 		}
