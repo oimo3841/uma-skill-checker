@@ -2,6 +2,7 @@
 // （塊の見出しはすべて「微調整3」で始まる。`npm run test:visual -- --only=微調整3` で回せる）。
 //
 // A1 スキル名のコピー: 一覧の見出しとコピー欄の種数が同じ／行数＝種数の合計・並びが一覧と同じ（5つの範囲 × 並べ替え × 因子・遺伝子）／旧い部品が無い
+// B1 合計評価点（★補正）の計算（右回り○の例・複数・★を測れなかった行）／B2 結合画像の脚注の1行・折り返し・262px で1行
 // A2 見出し: 一言はどの幅でも「2nd Edition」のバッジの右隣（同じ行）・2行まで・8〜11px／見出しの高さは増えない／重ならない・はみ出さない
 // スキル名・効率の数値は検査の側に書かない（恒久ルール1。データから読む）。
 
@@ -130,5 +131,101 @@ export async function register21(env) {
 			}
 		}
 		assert(n === 28, '微調整3A2: 7幅 × ライト・ダーク × 2ツール ＝ 28通りを確かめた', n);
+	});
+
+	/* ====================================================================
+	 * B: 合計評価点（★補正）と脚注（効率を指定の結合画像）
+	 * ==================================================================== */
+	// 拡張モードの照合を、仕込んだ行（名前・★）で作り、効率を指定の合計を計算させる
+	const starTotals = (page, rows) => page.evaluate((rows) => {
+		const lines = rows.map((r, i) => ({ text: r.name, stars: r.stars, starsReliable: true, rowKey: '0:' + i }));
+		const keep = personMelop;
+		personMelop = PERSON_LABELS.map(() => null);
+		personMelop[0] = { res: matchMelopLines(lines, melopSheet), top: { found: true, uniqueStars: 1, blue: null, red: null, extraLines: [] } };
+		try {
+			const run = { eff: { bounds: effBounds.slice(), tiers: [true, true, true, true] } };
+			const tot = effTotals(0, run);
+			return { tot, lines: effTotalLines(tot) };
+		} finally { personMelop = keep; }
+	}, rows);
+	const fmt1 = (v) => { const p = v.toFixed(1).split('.'); return Number(p[0]).toLocaleString('en-US') + '.' + p[1]; };
+
+	await block('微調整3B1 「合計評価点（★補正）」＝Σ(評価点×★の数)÷3（★3＝1・★2＝2/3・★1＝1/3）・小数第1位・3桁区切り／右回り○（おいもさんの例 529×2/3≒352.7）／複数のスキルの合計／★を測れなかった行は入れない／1行目は補正なしのまま', async () => {
+		const { ctx, page, errors } = await openExam();
+		await page.evaluate(() => setTargetScopeMode('efficiency'));
+		await page.waitForFunction(() => !!effData && !!melopSheet, null, { timeout: 15000 });
+		// おいもさんの例。評価点はデータから読む（例の 529 と違えば、データの値で確かめる）
+		const ex = await page.evaluate(() => { const t = effData.targets.find((x) => /^右回り[○〇]$/.test(x.name)); return t ? { name: t.name, score: t.score, sp: t.sp } : null; });
+		assert(!!ex && ex.score > 0, '微調整3B1: 例の「右回り○」が効率のデータにある（評価点 ' + (ex && ex.score) + '）', ex);
+		for (const k of [1, 2, 3]) {
+			const r = await starTotals(page, [{ name: ex.name, stars: k }]);
+			const want = '合計評価点（★補正）:' + fmt1(ex.score * k / 3);
+			assert(r.lines[1] === want && r.tot.starScore === ex.score * k && r.tot.starCount === 1 && r.lines[0] === '合計評価点/合計SP:' + (ex.score / ex.sp).toFixed(3),
+				'微調整3B1(右回り○・★' + k + '): 2行目は「' + want + '」（' + ex.score + '×' + k + '/3）。1行目は★を掛けない「合計評価点/合計SP」のまま', r);
+		}
+		// 複数のスキル（データの並びから、区間の違う何種かを★1〜3で）
+		const many = await page.evaluate(() => { const ts = effData.targets.filter((t) => t.id && !/\+$/.test(t.name)); return [0, 7, 19, 40, 61, 88].map((i, j) => ({ name: ts[i].name, stars: (j % 3) + 1, score: ts[i].score, sp: ts[i].sp })); });
+		const r2 = await starTotals(page, many);
+		const W = many.reduce((a, x) => a + x.score * x.stars, 0), S = many.reduce((a, x) => a + x.score, 0), P = many.reduce((a, x) => a + x.sp, 0);
+		assert(r2.tot.count === many.length && r2.tot.starScore === W && r2.lines[1] === '合計評価点（★補正）:' + fmt1(W / 3) && r2.lines[0] === '合計評価点/合計SP:' + (S / P).toFixed(3),
+			'微調整3B1(' + many.length + '種・★1〜3): 2行目は「評価点×★の数」の合計（' + W + '）÷3 ＝ ' + fmt1(W / 3) + '（途中で丸めない）', { lines: r2.lines, W, count: r2.tot.count });
+		assert(Math.abs(W / 3 - many.reduce((a, x) => a + x.score * ({ 1: 1 / 3, 2: 2 / 3, 3: 1 })[x.stars], 0)) < 1e-6,
+			'微調整3B1: 重みは ★3＝1・★2＝2/3・★1＝1/3（「×★の数÷3」と同じ）', W);
+		// ★を測れなかった行（null）は★補正の合計に入れない（1行目の補正なしには入る）
+		const r3 = await starTotals(page, many.map((x, i) => (i === 0 ? Object.assign({}, x, { stars: null }) : x)));
+		const W3 = many.slice(1).reduce((a, x) => a + x.score * x.stars, 0);
+		assert(r3.tot.starSkipped === 1 && r3.tot.starCount === many.length - 1 && r3.tot.starScore === W3 && r3.lines[0] === r2.lines[0] && r3.lines[1] === '合計評価点（★補正）:' + fmt1(W3 / 3),
+			'微調整3B1: ★を測れなかった行は★補正の合計に入れない（1行目は変わらない）', r3.tot);
+		// 該当が無いとき・ほかの表示
+		const zero = await page.evaluate(() => effTotalLines({ score: 0, sp: 0, count: 0, starScore: 0, starCount: 0 }));
+		assert(zero[1] === '合計評価点（★補正）:0', '微調整3B1: 該当が無いときは「0」', zero);
+		// 「合計評価点:」（補正なしの単純な合計）の行は、結合画像のどこにも作らない（ソースにも残っていない）
+		const src = await page.evaluate(async () => (await (await fetch('exam.html', { cache: 'no-store' })).text()));
+		assert(!/'合計評価点:'/.test(src) && /合計評価点（★補正）/.test(src), '微調整3B1: 補正なしの「合計評価点:」の行は無い（2行目は「合計評価点（★補正）」に置き換えた）', null);
+		assert(jsErrors(errors).length === 0, '微調整3B1: コンソールエラーなし', errors.slice(0, 3));
+		await ctx.close();
+	});
+
+	await block('微調整3B2 効率を指定の結合画像の脚注: 既存の脚注の下に「※”合計評価点（★補正）”は、…（★3＝1、★2＝2/3、★1＝1/3）。」を別の行で（検出数カードのオン・オフに関わらず）／収まらなければ句読点の切れ目で折り返す／ほかのモードには出さない／ラベルが長くなっても1行・最小6px（列の幅262px）', async () => {
+		const { ctx, page, errors } = await openExam();
+		await page.evaluate(() => setTargetScopeMode('efficiency'));
+		await page.waitForFunction(() => !!effData, null, { timeout: 15000 });
+		const WANT = '※”合計評価点（★補正）”は、各スキルの評価点に重みづけをした合計値です（★3＝1、★2＝2/3、★1＝1/3）。';
+		for (const w of [262, 765, 1170, 2340]) {
+			const r = await page.evaluate(({ w }) => {
+				const rows = [];
+				const orig = stitchNoteTextRow;
+				stitchNoteTextRow = (ctx, text) => { rows.push(text); return orig(ctx, text); };
+				const out = {};
+				try {
+					for (const [k, info] of [['eff', { effNote: true }], ['effNoCards', { effNote: true, suppressed: [] }], ['other', { kinds: [] }]]) {
+						rows.length = 0;
+						stitchDrawSharedNoteBar(w, w, info, { legend: k !== 'eff', conditions: false }, null, []);
+						out[k] = rows.slice();
+					}
+				} finally { stitchNoteTextRow = orig; }
+				const ctx = document.createElement('canvas').getContext('2d');
+				const m = stitchNoteMetrics(ctx, w, w, STITCH_COUNT_NOTE);
+				out.maxW = m.maxTextWidth;
+				out.widths = out.eff.map((t) => ctx.measureText(t).width);
+				out.countLines = stitchWrapText(ctx, EFF_COUNT_NOTE, m.maxTextWidth).length > 1 ? EFF_COUNT_NOTE.split('。').filter(Boolean).length : 1;
+				out.note = EFF_STAR_NOTE;
+				out.countNote = EFF_COUNT_NOTE;
+				return out;
+			}, { w });
+			const idx = r.eff.findIndex((t) => t.startsWith('※”'));
+			const starLines = idx >= 0 ? r.eff.slice(idx) : [];
+			assert(r.note === WANT && idx >= 1 && starLines.join('') === WANT && r.eff.slice(0, idx).join('') === r.countNote,
+				'微調整3B2(' + w + 'px): 既存の脚注（' + idx + '行）の下に、★補正の脚注を別の行で置く（文面は指定のとおり）', { rows: r.eff });
+			assert(r.widths.every((x) => x <= r.maxW + 0.5) && starLines.slice(0, -1).every((t, i) => /[、。]$/.test(t) || /^（/.test(starLines[i + 1])),
+				'微調整3B2(' + w + 'px): 脚注は ' + starLines.length + '行。幅に収まり、折り返すときは「、」「。」のあとか括弧の前（語の途中では切らない）', { starLines, maxW: r.maxW });
+			assert(JSON.stringify(r.effNoCards) === JSON.stringify(r.eff) && !r.other.some((t) => /★補正/.test(t)),
+				'微調整3B2(' + w + 'px): 検出数カードの設定に関わらず出す／効率を指定でないときは出さない', { other: r.other });
+		}
+		// 列の幅262px: 2行目のラベルが長くなっても、1行に収める（収まらないときは文字と数字を一緒に縮める・最小6px）。数字の左端は2行でそろう
+		const L = await page.evaluate(() => { const L = effTotalLayout(262, ['合計評価点/合計SP:6.220', '合計評価点（★補正）:14,533.3']); return { lab: L.lab, num: L.num, lab0: L.lab0, num0: L.num0, need: L.need, innerW: L.innerW, labelW: L.labelW }; });
+		assert(L.need <= L.innerW + 0.5 && L.lab >= 6, '微調整3B2: 列の幅262pxで、2行目「合計評価点（★補正）:14,533.3」も1行に収まる（ラベル ' + L.lab + 'px・数字 ' + L.num + 'px）', L);
+		assert(jsErrors(errors).length === 0, '微調整3B2: コンソールエラーなし', errors.slice(0, 3));
+		await ctx.close();
 	});
 }

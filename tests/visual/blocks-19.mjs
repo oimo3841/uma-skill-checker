@@ -410,14 +410,15 @@ export async function register19(env) {
 		const purpleFs = effPurpleLayout(w, mk(1), null, true).fs;
 		return { h: c.height, calls, purpleFs, cardValueFs: Math.round(w * EFF_BANNER.cardValueFont), layout: o.lines ? effTotalLayout(w, o.lines) : null };
 	}, { w, o });
-	const LINES = ['合計評価点/合計SP:6.220', '合計評価点:18,972'];
+	// C-141（微調整3・B）: 2行目は「合計評価点（★補正）」（★の数で重みづけした合計・小数第1位）
+	const LINES = ['合計評価点/合計SP:6.220', '合計評価点（★補正）:13,235.7'];
 
 	await block('微調整1B1 合計の帯の文字は紫の行と同じくらい・数字は検出数の数字と同じ大きさ／コロンのあとに間・2行の数字の左端をそろえる（列の幅 262・765・1170px）', async () => {
 		const { ctx, page, errors } = await openExam({ eff: true });
 		for (const w of [262, 765, 1170]) {
 			const r = await drawBanner(page, w, { lines: LINES });
-			const labels = r.calls.filter((c) => c.text === '合計評価点/合計SP:' || c.text === '合計評価点:');
-			const values = r.calls.filter((c) => c.text === '6.220' || c.text === '18,972');
+			const labels = r.calls.filter((c) => c.text === '合計評価点/合計SP:' || c.text === '合計評価点（★補正）:');
+			const values = r.calls.filter((c) => c.text === '6.220' || c.text === '13,235.7');
 			assert(labels.length === 2 && values.length === 2, '微調整1B1(' + w + 'px): 合計は2行・ラベルと数字を別々に描く', r.calls.map((c) => c.text));
 			assert(labels.every((c) => c.px === r.purpleFs),
 				'微調整1B1(' + w + 'px): ラベルの文字の大きさ（' + labels.map((c) => c.px) + 'px）は、紫の行（シナリオ因子の行）の文字（' + r.purpleFs + 'px）と同じ', { labels: labels.map((c) => c.px), purple: r.purpleFs });
@@ -451,7 +452,7 @@ export async function register19(env) {
 
 	await block('微調整1B2 1行に収まらないときは、ラベルと数字を同じ比で縮める（最小 6px）／同じセットの全員の帯の高さはそろう（合計を持たない人も高さだけ確保）', async () => {
 		const { ctx, page, errors } = await openExam({ eff: true });
-		const BIG = ['合計評価点/合計SP:123456789.123', '合計評価点:123,456,789,012'];
+		const BIG = ['合計評価点/合計SP:123456789.123', '合計評価点（★補正）:123,456,789,012.3'];
 		for (const w of [262, 765, 1170]) {
 			const r = await drawBanner(page, w, { lines: BIG });
 			const L = r.layout;
@@ -463,11 +464,11 @@ export async function register19(env) {
 				'微調整1B2(' + w + 'px): 実際に描いた大きさも縮めた値', { labels: labels.map((c) => c.px), values: values.map((c) => c.px), L });
 		}
 		// ものすごく長い値: 最小 6px で止まる
-		const huge = await page.evaluate(() => { const L = effTotalLayout(262, ['合計評価点/合計SP:' + '9'.repeat(60), '合計評価点:' + '9'.repeat(70)]); return { lab: L.lab, num: L.num }; });
+		const huge = await page.evaluate(() => { const L = effTotalLayout(262, ['合計評価点/合計SP:' + '9'.repeat(60), '合計評価点（★補正）:' + '9'.repeat(70)]); return { lab: L.lab, num: L.num }; });
 		assert(huge.lab === 6 && huge.num >= 6, '微調整1B2: 極端に長い値でも、ラベルは最小 6px（それ以上は縮めない）', huge);
 		// 収まるかは「列の幅 262px」で確かめる（ふつうの値は収まる）
-		const norm = await page.evaluate(() => { const L = effTotalLayout(262, ['合計評価点/合計SP:9.999', '合計評価点:9,999,999']); return { need: L.need, innerW: L.innerW, lab: L.lab, lab0: L.lab0 }; });
-		assert(norm.need <= norm.innerW && norm.lab === norm.lab0, '微調整1B2: 列の幅262pxで、7桁の評価点でも縮めずに収まる', norm);
+		const norm = await page.evaluate(() => { const L = effTotalLayout(262, ['合計評価点/合計SP:9.999', '合計評価点（★補正）:99,999.9']); return { need: L.need, innerW: L.innerW, lab: L.lab, lab0: L.lab0 }; });
+		assert(norm.need <= norm.innerW && norm.lab === norm.lab0, '微調整1B2: 列の幅262pxで、5桁の★補正の合計（99,999.9）でも縮めずに収まる（C-141 でラベルが長くなった）', norm);
 		// 帯の高さ: 合計を持たない人も、同じセットに持つ人がいれば高さだけ確保（reserve）して同じ高さ。誰も持たなければ従来どおり箱なし
 		const hs = {
 			own: (await drawBanner(page, 262, { lines: LINES, purple: 1 })).h,

@@ -11128,7 +11128,11 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const tierCounts = [0, 1, 2, 3].map((k) => all.filter((x) => x.tier === k).length);
 		const ratio = (xs) => { const S = xs.reduce((a, x) => a + x.t.score, 0), P = xs.reduce((a, x) => a + x.t.sp, 0); return '合計 ' + (P > 0 ? (S / P).toFixed(3) : '—') + '（評価点/SP）'; };
 		const effValueSum = (xs) => '合計 ' + (xs.reduce((a, x) => a + x.t.milli, 0) / 1000).toFixed(3) + '（評価点/SP）';
-		const linesOf = (xs) => { const S = xs.reduce((a, x) => a + x.t.score, 0), P = xs.reduce((a, x) => a + x.t.sp, 0); return ['合計評価点/合計SP:' + (P > 0 ? (S / P).toFixed(3) : '—'), '合計評価点:' + (P > 0 ? S.toLocaleString('en-US') : '0')]; };
+		// C-141（微調整3・B）: 2行目は「合計評価点（★補正）」＝Σ(評価点×★の数)÷3（小数第1位・3桁区切り）。★は仕込んだ行の値（名前の順に 1,2,3,…）
+		// 同じ名前の行が2つあるときは、本体と同じ規則（多いほう・同数なら小さいほう。pickStarsFromSources）で★を決める
+		const starOf = new Map([...new Set(lines.map((l) => l.text))].map((n) => { const c = {}; lines.filter((l) => l.text === n).forEach((l) => { c[l.stars] = (c[l.stars] || 0) + 1; }); return [n, Object.keys(c).map(Number).sort((a, b) => (c[b] - c[a]) || (a - b))[0]]; }));
+		const starText = (W) => { const p = (W / 3).toFixed(1).split('.'); return Number(p[0]).toLocaleString('en-US') + '.' + p[1]; };
+		const linesOf = (xs) => { const S = xs.reduce((a, x) => a + x.t.score, 0), P = xs.reduce((a, x) => a + x.t.sp, 0), W = xs.reduce((a, x) => a + x.t.score * starOf.get(x.t.name), 0); return ['合計評価点/合計SP:' + (P > 0 ? (S / P).toFixed(3) : '—'), '合計評価点（★補正）:' + (P > 0 && xs.length ? starText(W) : '0')]; };
 		return { calls, tierCounts, total: ratio(all), wrongTotal: effValueSum(all), totalLines: linesOf(all), totalLinesOff1: linesOf(all.filter((x) => x.tier !== 1)),
 			wrongLine: '合計評価点/合計SP:' + (all.reduce((a, x) => a + x.t.milli, 0) / 1000).toFixed(3),
 			totalOff1: ratio(all.filter((x) => x.tier !== 1)), ranges: [0, 1, 2, 3].map((k) => effRangeLabel(k, b)) };
@@ -11147,7 +11151,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(effTierOff.panel[1].count === null && JSON.stringify(effTierOff.totalLines) === JSON.stringify(st5.totalLinesOff1),
 		'効率(段5): 外した区間のマスは「－」（null）で、合計にも入れない', effTierOff);
 	assert(JSON.stringify(effOn.totalLines) === JSON.stringify(st5.totalLines) && effOn.totalLines[0] !== st5.wrongLine,
-		'効率(C): 合計の帯は2行。1行目「合計評価点/合計SP:」（評価点の合計÷消費SPの合計・小数3桁。効率の合計ではない）、2行目「合計評価点:」（3桁区切り）。1種1回・★は掛けない', { got: effOn.totalLines, want: st5.totalLines, wrong: st5.wrongLine });
+		'効率(C・微調整3B): 合計の帯は2行。1行目「合計評価点/合計SP:」（評価点の合計÷消費SPの合計・小数3桁。効率の合計ではない。★は掛けない）、2行目「合計評価点（★補正）:」（Σ評価点×★÷3・小数第1位・3桁区切り）。1種1回', { got: effOn.totalLines, want: st5.totalLines, wrong: st5.wrongLine });
 	assert(!defC.panel && !defC.total && !melopOn.panel && melopOn.total === st5.total && !melopOn.totalLines && melopOn.cards && !melopOff.total && !melopOff.panel,
 		'効率(I1): 既定ではパネルも合計も出ない。拡張モードはカード＋合計（同じ計算。合計は検出数カードがオフなら消える）', { def: defC, melopOn, melopOff });
 
@@ -11161,7 +11165,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const w = 262;
 		const head = H(w, {});
 		const withPanel = H(w, { effPanel: { cells } });
-		const lines2 = ['合計評価点/合計SP:4.912', '合計評価点:19,594'];
+		const lines2 = ['合計評価点/合計SP:4.912', '合計評価点（★補正）:18,491.3'];
 		const withTotal = H(w, { effPanel: { cells }, totalLines: lines2 });
 		const withPurple = H(w, { effPanel: { cells }, totalLines: lines2 }, mk(1));
 		// 合計の帯の高さ（1170pxの列）と、パネルの大きさの比（案A: 蹄鉄0.79倍・検出数0.76倍）
@@ -11172,7 +11176,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		CanvasRenderingContext2D.prototype.fillText = function (text, x, y) { calls.push(text); return origFt.apply(this, arguments); };
 		H(w, { effPanel: { cells }, totalLines: lines2 });
 		CanvasRenderingContext2D.prototype.fillText = origFt;
-		const lineFns = { a: effTotalLines({ score: 19594, sp: 3200, count: 3 }), b: effTotalLines({ score: 0, sp: 0, count: 0 }), c: effTotalLines({ score: 1234567, sp: 1000, count: 9 }) };
+		const lineFns = { a: effTotalLines({ score: 19594, sp: 3200, count: 3, starScore: 55474, starCount: 3 }), b: effTotalLines({ score: 0, sp: 0, count: 0, starScore: 0, starCount: 0 }), c: effTotalLines({ score: 1234567, sp: 1000, count: 9, starScore: 3703700, starCount: 9 }) };
 		const ratios = { icon: EFF_BANNER.panelIcon / 0.11, count: EFF_BANNER.countFont / 0.08, totalPitch: (panelTotal - panelOnly), oldTotalPitch: Math.round(w2 * 0.09) + Math.round(w2 * 0.017) };
 		const noCards = H(w, { cards: false });
 		const short = (n) => ({ items: Array.from({ length: n }, (_, i) => ({ text: 'A' + (i + 1) + '：★' + (i + 1) })), more: false });
@@ -11188,7 +11192,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const d = c.getContext('2d').getImageData(w - Math.round(w * 0.03) - 6, Math.round(w * 0.018 + w * 0.05), 1, 1).data;
 		const cOff = stitchDrawEffPersonBanner(w, '親A', 30, 12, null, null, { cards: false, factors: true });
 		const d2 = cOff.getContext('2d').getImageData(w - Math.round(w * 0.03) - 6, Math.round(w * 0.018 + w * 0.04), 1, 1).data;
-		return { head, withPanel, withTotal, withPurple, noCards, ratios, lineFns, drawnLines: ['合計評価点/合計SP:', '4.912', '合計評価点:', '19,594'].every((x) => calls.includes(x)),
+		return { head, withPanel, withTotal, withPurple, noCards, ratios, lineFns, drawnLines: ['合計評価点/合計SP:', '4.912', '合計評価点（★補正）:', '18,491.3'].every((x) => calls.includes(x)),
 			fit: { lines: layoutFit.blocks.map((x) => x.lines), n: layoutFit.lineCount },
 			wrap: { lines: layoutWrap.blocks.map((x) => x.lines), n: layoutWrap.lineCount, widths: layoutWrap.blocks.flatMap((x) => x.lines).map((t) => ctx.measureText(t).width), maxW },
 			aligned, rightCard: [d[0], d[1], d[2]], rightOff: [d2[0], d2[1], d2[2]] };
@@ -11200,10 +11204,10 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		'効率(C): 区間まとめパネルの蹄鉄は0.79倍・検出数の文字は0.76倍（300px の列で 33→26px・25→19px）', compact.ratios);
 	assert(compact.drawnLines && compact.ratios.totalPitch > compact.ratios.oldTotalPitch,
 		'効率(C・微調整1B): 合計の帯は2行（ラベルと数字を別々に描く）。高さは前（0.107×列の幅）より増えた（改善3の「前と同じ」は外した）', compact.ratios);
-	assert(JSON.stringify(compact.lineFns.a) === JSON.stringify(['合計評価点/合計SP:6.123', '合計評価点:19,594'])
-		&& JSON.stringify(compact.lineFns.b) === JSON.stringify(['合計評価点/合計SP:—', '合計評価点:0'])
-		&& compact.lineFns.c[1] === '合計評価点:1,234,567',
-		'効率(C): 合計の2行は「合計評価点/合計SP:6.123」（小数3桁）と「合計評価点:19,594」（3桁区切り）。該当が無いときは「—」と「0」', compact.lineFns);
+	assert(JSON.stringify(compact.lineFns.a) === JSON.stringify(['合計評価点/合計SP:6.123', '合計評価点（★補正）:18,491.3'])
+		&& JSON.stringify(compact.lineFns.b) === JSON.stringify(['合計評価点/合計SP:—', '合計評価点（★補正）:0'])
+		&& compact.lineFns.c[1] === '合計評価点（★補正）:1,234,566.7',
+		'効率(C・微調整3B): 合計の2行は「合計評価点/合計SP:6.123」（小数3桁）と「合計評価点（★補正）:18,491.3」（小数第1位・3桁区切り）。該当が無いときは「—」と「0」', compact.lineFns);
 	assert(compact.noCards < compact.head, '効率(F): 検出数カードがオフなら見出し行は低くなる（カードが見出しと同じ行に並ぶ）', compact);
 	assert(compact.fit.lines[0].length === 1 && compact.fit.lines[0][0].split('／').length === 3 && compact.fit.lines[1].length === 1 && compact.fit.n === 2,
 		'効率(F): 紫の行は、同じ人の「名前：★N」を「／」でつないで1行（因子の行・遺伝子の行）', compact.fit);

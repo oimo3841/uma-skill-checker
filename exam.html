@@ -5147,24 +5147,37 @@
 		/* 結合画像の合計＝評価点の合計÷消費SPの合計（改善2・I1。効率の合計ではない）。
 		   検出した対象（効率が0より大きく、継承固有・レース因子(スキル)を除く＝データにある行）を1種1回ずつ。
 		   効率を指定＝対象にした区間のものだけ／拡張モード＝データの効率が0より大きいもの全部。★は掛けない。
-		   評価点・消費spは整数で足し、最後に割る。作れなければ null（その人の行は出さない）。消費spの合計が0なら表示は「—」 */
+		   評価点・消費spは整数で足し、最後に割る。作れなければ null（その人の行は出さない）。消費spの合計が0なら表示は「—」
+		   C-141（微調整3・B）: 「合計評価点（★補正）」＝ Σ(評価点 × ★の数) ÷ 3（★3＝1・★2＝2/3・★1＝1/3 の重み）。同じスキル（1種1回）。
+		   評価点×★の数を整数で足し、最後に3で割る（途中で丸めない）。★が1〜3で読めていないスキル（★を測れなかった行）は★補正の合計に入れない（starSkipped に数える）。
+		   戻り値の starScore は Σ(評価点 × ★の数)（3で割る前の整数）・starCount はそこに入れた種数 */
 		function effTotals(personIdx, run) {
 			const snap = run.eff || (run.melop ? effAllSnapshot() : null);
 			const items = snap ? effPersonItems(personIdx, snap) : null;
 			if (!items) return null;
-			let score = 0, sp = 0;
+			let score = 0, sp = 0, starScore = 0, starCount = 0, starSkipped = 0;
 			items.forEach(it => {
 				const tg = effData.targetByRow.get(it.row);
 				score += tg.score;
 				sp += tg.sp;
+				if (it.stars === 1 || it.stars === 2 || it.stars === 3) { starScore += tg.score * it.stars; starCount++; }
+				else starSkipped++;
 			});
-			return { score: score, sp: sp, count: items.length };
+			return { score: score, sp: sp, count: items.length, starScore: starScore, starCount: starCount, starSkipped: starSkipped };
 		}
-		// 効率を指定の合計の帯（2行）。1行目「合計評価点/合計SP:6.123」（小数3桁）・2行目「合計評価点:19,594」（3桁区切り）。
+		// 「合計評価点（★補正）」の値の文字。Σ(評価点×★の数)÷3 を小数第1位まで（toFixed(1)）・整数部は3桁区切り（例: 18,491.3）。該当が無いときは「0」
+		function effStarScoreText(tot) {
+			if (!tot || !tot.starCount) return '0';
+			const parts = (tot.starScore / 3).toFixed(1).split('.');
+			return Number(parts[0]).toLocaleString('en-US') + '.' + parts[1];
+		}
+		// 効率を指定の合計の帯（2行）。1行目「合計評価点/合計SP:6.123」（補正なしの評価点の合計÷消費SPの合計・小数3桁）・
+		// 2行目「合計評価点（★補正）:18,491.3」（C-141・微調整3・B。★の数で重みづけした合計。小数第1位・3桁区切り）。補正なしの単純な合計評価点は出さない。
 		// 該当が無い（消費SPの合計が0）ときは1行目の値が「—」・2行目の値が「0」
+		const EFF_STAR_TOTAL_LABEL = '合計評価点（★補正）';
 		function effTotalLines(tot) {
 			return ['合計評価点/合計SP:' + (tot.sp > 0 ? (tot.score / tot.sp).toFixed(3) : '—'),
-				'合計評価点:' + (tot.sp > 0 ? tot.score.toLocaleString('en-US') : '0')];
+				EFF_STAR_TOTAL_LABEL + ':' + (tot.sp > 0 ? effStarScoreText(tot) : '0')];
 		}
 		// 拡張モードの合計の帯（1行）
 		function effTotalText(tot) {
@@ -6640,7 +6653,7 @@
 			ctx.closePath();
 		}
 
-		/* 合計の帯の2行の配置（微調整1・B）。lines は effTotalLines() の2行（「合計評価点/合計SP:6.123」「合計評価点:19,594」）。
+		/* 合計の帯の2行の配置（微調整1・B）。lines は effTotalLines() の2行（「合計評価点/合計SP:6.123」「合計評価点（★補正）:18,491.3」）。
 		   最初のコロンの前（コロンを含む）をラベル、あとを数字として分け、数字の左端は2行でそろえる（ラベルの幅の大きいほうに、間を足した位置）。
 		   1行（ラベル＋間＋数字）が箱の内側の幅に収まらないときは、ラベルと数字を同じ比で縮める（ラベルは最小 6px）。
 		   戻り値: { rows: [{label, value}], lab（ラベルの大きさ px）, num（数字の大きさ px）, labelW, gap, inset, innerW, need（いちばん長い行の幅）, lab0, num0 } */
@@ -7054,6 +7067,8 @@
 		// 効率を指定のときの脚注（改善2・G）。補助テキストの帯の先頭に、常に（検出数カードのオン・オフに関わらず）置く。
 		// 区間まとめパネルの検出数・合計は、拡張モードの辞書で1種ずつ数える（目覚めは対応する緑スキルとは別の行）ので、「個別にカウント」は実際の数え方と合っている
 		const EFF_COUNT_NOTE = '※継承固有・レース因子(スキル)は集計に含めていません。『〇〇の目覚め』は対応する緑スキルと個別にカウントしています。';
+		// 効率を指定のときの2つ目の脚注（C-141・微調整3・B）。EFF_COUNT_NOTE の下に、別の1行として常に置く（検出数カードのオン・オフに関わらず。ほかのモードには出さない）
+		const EFF_STAR_NOTE = '※”合計評価点（★補正）”は、各スキルの評価点に重みづけをした合計値です（★3＝1、★2＝2/3、★1＝1/3）。';
 
 		// 帯の骨格（stitchWrapText / stitchNoteMetrics / stitchDrawNoteBar / STITCH_NOTE_COLOR）は
 		// js/stitch.js にある（59セッション目・段3 に special.html と共通化した）。
@@ -7091,6 +7106,39 @@
 		//   conditions が false なら集計条件（追加／除外スキル・シナリオ因子・遺伝子）の行を省く。
 		// run … 押した時点のスナップショット（captureRun）。集計条件の行はこの範囲・シナリオ因子・遺伝子で書く。
 		// personIdxs … この画像に入っている人。シナリオ因子・遺伝子の行を「誰かが検出したぶん」に絞るのに使う。
+		/* 文を切れ目で区切り、1行に収まるだけ詰めて並べる（語の途中では切らない）。
+		   切れ目は、括弧の外の「、」「。」のあとと、括弧（「（」）の前。括弧ごと1行に入らないときだけ、括弧の中の「、」のあとで切る。
+		   それでも1行に収まらない1つは、その中を stitchWrapText で折り返す。 */
+		function effSplitAt(text, inner) {
+			const segs = [];
+			let cur = '', depth = 0;
+			for (const ch of text) {
+				if (!inner && (ch === '（' || ch === '(')) { if (depth === 0 && cur) { segs.push(cur); cur = ''; } depth++; }
+				else if (!inner && (ch === '）' || ch === ')') && depth > 0) depth--;
+				cur += ch;
+				if ((ch === '、' || ch === '。') && (inner || depth === 0)) { segs.push(cur); cur = ''; }
+			}
+			if (cur) segs.push(cur);
+			return segs;
+		}
+		function effWrapAtPunct(ctx, text, maxWidth) {
+			if (ctx.measureText(text).width <= maxWidth) return [text];
+			const lines = [];
+			let line = '';
+			const put = (seg, depth) => {
+				if (line && ctx.measureText(line + seg).width <= maxWidth) { line += seg; return; }
+				if (ctx.measureText(seg).width <= maxWidth) { if (line) lines.push(line); line = seg; return; }
+				if (depth === 0) { effSplitAt(seg, true).forEach(x => put(x, 1)); return; }
+				if (line) lines.push(line);
+				const wrapped = stitchWrapText(ctx, seg, maxWidth);
+				wrapped.slice(0, -1).forEach(l => lines.push(l));
+				line = wrapped[wrapped.length - 1] || '';
+			};
+			effSplitAt(text, false).forEach(seg => put(seg, 0));
+			if (line) lines.push(line);
+			return lines;
+		}
+
 		function stitchDrawSharedNoteBar(totalWidth, referenceWidth, markInfo, show, run, personIdxs) {
 			const s = Object.assign({ legend: true, conditions: true }, show || {});
 			// 測るための ctx（帯そのものは js/stitch.js の stitchDrawNoteBar が別のCanvasに描く）。
@@ -7116,6 +7164,8 @@
 					stitchWrapText(ctx, sentence + '。', maxTextWidth).forEach(line => effNoteLines.push(line));
 				});
 			}
+			// ★補正の脚注は、その下に別の行として。1行に収まらなければ、句読点（「、」「。」）の切れ目で行を分ける（括弧の中では切らない。語の途中で切らない）
+			if (effNote) effNoteLines = effNoteLines.concat(effWrapAtPunct(ctx, EFF_STAR_NOTE, maxTextWidth));
 
 			// 凡例に続く、印そのものについての断り（印の無い行の意味・印を付けなかった理由）。
 			const markNotes = [];
