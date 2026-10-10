@@ -8,10 +8,12 @@
 export async function register20e(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
-	const TOOLS = [
+	// C-142（微調整4・E）: 告知は exam だけに出す（UmaStar の告知は完成後）。special には出ないことは 微調整4E1 が見る
+	const TOOLS_ALL = [
 		{ name: 'exam', file: 'exam.html', key: 'uma-exam-edition-notice', ok: '#ui-notice-ok', seen: { 'uma-exam-ui-notice': 'UI_NOTICE_ID', 'uma-exam-target-notice': 'TARGET_NOTICE_ID' }, back: '#ui-notice-backdrop' },
 		{ name: 'special', file: 'special.html', key: 'uma-special-edition-notice', ok: '#ui-notice-ok', seen: { 'uma-special-ui-notice': 'UI_NOTICE_ID', 'uma-special-alpha-notice': 'ALPHA_NOTICE_ID', 'uma-special-catalog-notice': 'CATALOG_NOTICE_ID' }, back: '#ui-notice-backdrop' },
 	];
+	const TOOLS = TOOLS_ALL.filter((t) => t.name === 'exam');
 	const ID = async (page, names) => page.evaluate((ns) => Object.fromEntries(ns.map((n) => [n, eval(n)])), names);
 	const noticeOpen = (page) => page.evaluate(() => { const d = document.getElementById('ui-notice'); return !!d && !d.hidden; });
 	const noticeKind = (page) => page.evaluate(() => uiNoticeKind);
@@ -49,10 +51,10 @@ export async function register20e(env) {
 				const id = await page.evaluate(() => UmaAnnounce.ANNOUNCE.id);
 				const kind = await noticeKind(page);
 				assert(await noticeOpen(page) && kind === 'edition', '微調整2E1(' + t.name + '・' + how + '): 起動すると2nd Edition の告知の小窓が出る', { open: await noticeOpen(page), kind });
-				const body = await page.evaluate(() => { const b = document.getElementById('ui-notice-body-edition'); return { hidden: b.hidden, title: b.querySelector('.notice-title').textContent, h: [...b.querySelectorAll('.announce-h')].map((e) => e.textContent), label: document.getElementById('ui-notice').getAttribute('aria-labelledby'), layoutHidden: document.getElementById('ui-notice-body-layout').hidden }; });
-				const want = await page.evaluate(() => ({ title: UmaAnnounce.ANNOUNCE.title, h: UmaAnnounce.ANNOUNCE.sections.map((s) => s.heading), tid: UmaAnnounce.TITLE_ID }));
+				const body = await page.evaluate(() => { const b = document.getElementById('ui-notice-body-edition'); return { hidden: b.hidden, title: b.querySelector('#' + UmaAnnounce.TITLE_ID).textContent, h: [...b.querySelectorAll('.announce-h')].map((e) => e.textContent), label: document.getElementById('ui-notice').getAttribute('aria-labelledby'), layoutHidden: document.getElementById('ui-notice-body-layout').hidden }; });
+				const want = await page.evaluate(() => ({ title: UmaAnnounce.ANNOUNCE.label, h: UmaAnnounce.ANNOUNCE.sections.map((s) => s.heading), tid: UmaAnnounce.TITLE_ID }));
 				assert(!body.hidden && body.layoutHidden && body.title === want.title && JSON.stringify(body.h) === JSON.stringify(want.h) && body.label === want.tid && (await page.evaluate((i) => document.getElementById(i) !== null, want.tid)),
-					'微調整2E1(' + t.name + '・' + how + '): 小窓の中身は定義（見出し・各ツールの節）どおりで、読み上げの名前は告知の見出し', { body, want });
+					'微調整2E1(' + t.name + '・' + how + '): 小窓の中身は定義（各ツールの節）どおりで、読み上げの名前は「お知らせ」（見えない見出し。微調整4E）', { body, want });
 				assert((await page.evaluate((k) => localStorage.getItem(k), t.key)) === null, '微調整2E1(' + t.name + '・' + how + '): 出した時点では既読にしない（閉じたときに既読になる）', null);
 				if (how === 'ok') await page.click(t.ok);
 				else if (how === 'x') await page.click('#ui-notice .notice-close');
@@ -197,7 +199,7 @@ export async function register20e(env) {
 		const A = await page.evaluate(() => UmaAnnounce.ANNOUNCE);
 		await ctx.close();
 		// 各節の見出し（ツール名）は、ページの題などにも出る名前なので、文面の重複の検査からは外す
-		const texts = [A.id, A.title].concat(A.sections.flatMap((s) => [s.lead].concat(s.lines, s.images.flatMap((i) => [i.src, i.alt]))));
+		const texts = [A.id].concat(A.sections.flatMap((s) => [s.lead].concat(s.lines, s.images.flatMap((i) => [i.src, i.alt]))));
 		assert(texts.length >= 8 && texts.every((x) => src.includes(x)) && A.sections.every((s) => src.includes(s.heading)), '微調整2E6: 告知の文面・画像のパス・alt・番号は js/announce.js に書いてある', { n: texts.length });
 		for (const f of ['exam.html', 'special.html']) {
 			const html = fs.readFileSync(path.join(REPO_ROOT, f), 'utf8');
@@ -210,7 +212,8 @@ export async function register20e(env) {
 			bodies.push(await r.page.evaluate(() => document.getElementById('ui-notice-body-edition').innerText.replace(/\s+/g, ' ').trim()));
 			await r.ctx.close();
 		}
-		assert(bodies[0] === bodies[1] && bodies[0].includes(A.title) && bodies[0].length > 100, '微調整2E6: 小窓の中身の文字は exam と special で同じ', { exam: bodies[0].slice(0, 80), special: bodies[1].slice(0, 80) });
+		// C-142（微調整4・E）: 告知は exam だけ。special と同じ中身かの比較は外し、exam の中身が定義の文面を含むことを見る
+		assert(bodies.length === 1 && A.sections.every((sec) => bodies[0].includes(sec.lead)) && bodies[0].length > 60, '微調整2E6: 小窓の中身の文字は定義どおり（exam）', { exam: bodies[0].slice(0, 80) });
 	});
 
 	await block('微調整2E7 小窓の見た目: ライト・ダーク／375・393・1280px で崩れない（横にはみ出さない・画面の内側・小窓の中でスクロール・OKが見える）／画像の縁取り', async () => {
@@ -226,12 +229,13 @@ export async function register20e(env) {
 					return { sw: document.documentElement.scrollWidth, vw: document.documentElement.clientWidth, vh: document.documentElement.clientHeight, dl: dr.left, dr: dr.right, dt: dr.top, db: dr.bottom,
 						bodyOverflowY: getComputedStyle(b).overflowY, scrollH: b.scrollHeight, clientH: b.clientHeight, bodyScrollW: b.scrollWidth, bodyClientW: b.clientWidth, okIn: or.top >= dr.top && or.bottom <= dr.bottom + 0.5 && or.bottom <= window.innerHeight + 0.5 && or.height >= 30,
 						imgBorder: cs.borderTopWidth + ' ' + cs.borderTopColor, imgBorderOk: parseFloat(cs.borderTopWidth) >= 1 && cs.borderTopColor !== 'rgba(0, 0, 0, 0)', dlgBg: getComputedStyle(d).backgroundColor, theme: document.documentElement.getAttribute('data-theme'),
-						secLeft: Math.min(...secs.map((s) => s.left)), secRight: Math.max(...secs.map((s) => s.right)), titleFs: parseFloat(getComputedStyle(d.querySelector('.notice-title')).fontSize) };
+						secLeft: Math.min(...secs.map((s) => s.left)), secRight: Math.max(...secs.map((s) => s.right)) };
 				});
 				const tag = t.name + '・' + w + 'px・' + theme;
 				assert(r.sw <= r.vw && r.dl >= 0 && r.dr <= r.vw && r.dt >= 0 && r.db <= r.vh + 0.5 && r.bodyScrollW <= r.bodyClientW + 0.5 && r.okIn && r.secLeft >= r.dl && r.secRight <= r.dr,
 					'微調整2E7(' + tag + '): 小窓は画面の内側・横にはみ出さない・OKボタンが見える（小窓の中身が長くても本文だけがスクロールする）', r);
-				if (h <= 700) assert(r.bodyOverflowY === 'auto' && r.scrollH > r.clientH, '微調整2E7(' + tag + '): 低い画面では本文が小窓の中でスクロールする（' + r.scrollH + ' > ' + r.clientH + '）', { overflowY: r.bodyOverflowY, scrollH: r.scrollH, clientH: r.clientH });
+				// C-142（微調整4・E）: 文面が短くなり 375×667px でも収まるようになった。長いときは本文だけがスクロールする作り（overflow-y: auto）であることを見る
+				if (h <= 700) assert(r.bodyOverflowY === 'auto' && r.scrollH >= r.clientH - 0.5, '微調整2E7(' + tag + '): 低い画面でも、本文は小窓の中でスクロールできる作り（' + r.scrollH + ' / ' + r.clientH + '）', { overflowY: r.bodyOverflowY, scrollH: r.scrollH, clientH: r.clientH });
 				assert(r.imgBorderOk, '微調整2E7(' + tag + '): 画像には縁取りがある（ライトの画像を暗い面の上に置いても違和感がない）', r.imgBorder);
 				if (theme === 'dark') assert(r.theme === 'dark' && r.dlgBg !== 'rgb(255, 255, 255)', '微調整2E7(' + tag + '): ダークでは小窓の地が暗い', { bg: r.dlgBg, theme: r.theme });
 				assert(jsErrors(errors).length === 0, '微調整2E7(' + tag + '): コンソールエラーなし', errors.slice(0, 3));

@@ -40,7 +40,7 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
-	<script src="js/announce.js?v=2026-10-11a"></script>
+	<script src="js/announce.js?v=2026-10-11b"></script>
 	<style>
 		/* Deck連携モードの①のタブ（本育成編成）の見出し行（C-51 の11節①②）。
 		   ①〜③はステップのタブ（css/shell.css の .step-tab）に載せたので、ここには Step の枠は無い。
@@ -3144,20 +3144,27 @@
 			   2枚目のモーダルは重ねない ―― layout か alpha を出す読み込みでは、同じモーダルの下に並べる。 */
 			const withCatalog = !hasSeenCatalogNotice();
 			// ?notice=force: 文面の確認用。既読でも2nd Edition の告知だけを出し、何も書かない（C-140・微調整2・E）
-			if (UmaAnnounce.isForced()) {
+			// C-142（微調整4・E）: 2nd Edition の告知は、定義（UmaAnnounce.ANNOUNCE.pages）に special があるときだけ出す。いまは exam だけ（UmaStar の告知は完成後）
+			const editionOn = UmaAnnounce.isFor('special');
+			if (editionOn && UmaAnnounce.isForced()) {
 				openUiNotice('edition');
 			} else if (!seen) {
 				markAlphaNoticeSeen();
-				markEditionNoticeSeen();   // 初めての人には「変わりました」と言っても比べる相手が無い
+				if (editionOn) markEditionNoticeSeen();   // 初めての人には「変わりました」と言っても比べる相手が無い
 				openUiNotice('layout', withCatalog);
 			} else if (!hasSeenAlphaNotice()) {
 				openUiNotice('alpha', withCatalog);
 			} else if (withCatalog) {
 				openUiNotice('catalog');
-			} else if (!hasSeenEditionNotice()) {
+			} else if (editionOn && !hasSeenEditionNotice()) {
 				openUiNotice('edition');
 			}
 		}
+		// メニューの「お知らせ」も、告知が special を含むときだけ置く（C-142・微調整4・E）
+		document.addEventListener('DOMContentLoaded', () => {
+			const b = document.getElementById('announce-menu-btn');
+			if (b && !(window.UmaAnnounce && UmaAnnounce.isFor('special'))) b.remove();
+		});
 
 		/* ---------- 告知モーダル（使い方ガイドと同じ作法） ---------- */
 		let uiNoticeOpen = false;
