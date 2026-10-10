@@ -35,6 +35,8 @@ import { register17 } from './blocks-17.mjs';
 import { register18 } from './blocks-18.mjs';
 // C-139（2026-10-10・ツール全体の微調整1）の検査（塊の見出しはすべて「微調整1」で始まる）
 import { register19 } from './blocks-19.mjs';
+// C-140（2026-10-10・ツール全体の微調整2）の検査（塊の見出しはすべて「微調整2」で始まる）
+import { register20 } from './blocks-20.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 
@@ -10421,7 +10423,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		'効率(C2): 押すとこのモードの説明が出る（Esc・✕で閉じ、キーボードでも開ける。微調整1・A(4)で3行の文面になった）', h1);
 
 	// (2) 選ぶとデータを読み、#scope-detail の代わりにバーが出る。最小・最大・段の値・初期の境目はデータから
-	await page.click('label[for="scope-mode-efficiency"]');
+	await page.click('label[for="scope-mode-efficiency"]', { position: { x: 6, y: 6 } });
 	await page.waitForFunction(() => !!effData && document.querySelectorAll('.eff-seg').length === 4);
 	await page.waitForTimeout(300);
 	const st = await page.evaluate(async () => {
@@ -15041,6 +15043,7 @@ await register16({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register17({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register18({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register19({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register20({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();

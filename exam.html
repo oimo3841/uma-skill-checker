@@ -502,6 +502,41 @@
 		.theme-cycle-btn[data-theme-state="light"] svg[data-theme-icon="light"],
 		.theme-cycle-btn[data-theme-state="dark"] svg[data-theme-icon="dark"] { display: block; }
 
+		/* ===== スマホ（640px 以下）の余白 ―― special.html と同じ作りにする（C-140・微調整2・A） =====
+		   special.html の実測（375px）に合わせる: ページ外枠の左右・上の余白は 0／ヘッダーは画面の両端まで伸びる帯／
+		   カードは左右に 4px のすき間・内側 6px／カードの中の箱は内側 8px・箱どうしの間は 8px（タブの下は 4px）。
+		   境目も special と同じ 640px。**641px 以上（1280px など）は1つも変えない。**
+		   新UIの中（#new-step-slot）だけに当てる（旧UIは動作保証の外。恒久ルール20）。共通CSSは触らない。 */
+		@media (max-width: 640px) {
+			.exam-page-wrap { padding-left: 0; padding-right: 0; padding-top: 0; }
+			.exam-header { margin-bottom: var(--uma-sp-1); padding: 1px var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
+			#new-step-card { margin: 0 var(--uma-sp-1); padding: var(--uma-sp-1-5); border-radius: var(--uma-r-lg); }
+			#new-step-card .step-tabs { margin-bottom: var(--uma-sp-1); gap: 2px; }
+			#new-step-card .step-tab { padding: var(--uma-sp-1) 2px; }
+			#new-step-slot #step-panel-1 > p { margin-bottom: var(--uma-sp-1-5); }
+			#new-step-slot #step-panel-1 > .flex-wrap { margin-bottom: var(--uma-sp-2); }
+			#new-step-slot #step-panel-1 > .rounded-xl { margin-bottom: var(--uma-sp-2); }
+			#new-step-slot #step-panel-1 > .rounded-xl.p-4 { padding: var(--uma-sp-2); }
+			#new-step-slot #step-panel-1 > details > summary { padding: var(--uma-sp-2) var(--uma-sp-2-5); }
+			#new-step-slot #step-panel-1 > details > div { padding: var(--uma-sp-1-5) var(--uma-sp-2) var(--uma-sp-2); }
+			#new-step-slot #step-panel-1 fieldset label.p-2\.5 { padding: var(--uma-sp-2); }
+			#new-step-slot #step-panel-1 .uma-checkrow { margin-top: var(--uma-sp-1-5); }
+			#new-step-slot #step-panel-1 .eff-panel { margin-top: var(--uma-sp-1-5); }
+			#new-step-slot #step-panel-2 > div.flex { margin-bottom: var(--uma-sp-1-5); }
+			#new-step-slot #step-panel-2 > p { margin-bottom: var(--uma-sp-2); }
+			#new-step-slot #step-panel-2 > .mb-4, #new-step-slot #step-panel-2 > details { margin-bottom: var(--uma-sp-2); }
+			#new-step-slot .exam-set-panel { padding: var(--uma-sp-2); }
+			#new-step-slot .exam-set-panel .grid { gap: var(--uma-sp-2); }
+			#new-step-slot .exam-person-card { padding: var(--uma-sp-2); }
+			#new-step-slot .exam-person-card .person-drop-zone { padding: var(--uma-sp-2-5); }
+			#new-step-slot #step-panel-2 > details > div { padding: var(--uma-sp-1-5) var(--uma-sp-2) var(--uma-sp-2); }
+		}
+		/* 狭い幅（360px 以下）: ヘッダーの左右の余白とボタンの間を詰める（special と同じ。画面の色のボタン 44px が入るぶん） */
+		@media (max-width: 360px) {
+			.exam-header { padding-inline: var(--uma-sp-1-5); }
+			#tool-dropdown-wrap { gap: var(--uma-sp-1); }
+		}
+
 		/* ===== ダーク（C-134 段5）=====
 		   <html data-theme="dark"> のときだけ効く。ライトの見た目は1つも変えていない。
 		   地と面は tokens.css の青黒（決定6）。このページの青（--uma-c-*）は、段の並びを裏返して
@@ -562,12 +597,12 @@
 	</div>
 
 	<!-- 下端の余白は右下固定ナビ（FAB）のぶん。展開しても本文の最後が隠れないようにする（F-26）。 -->
-	<div class="w-full max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12"
+	<div class="exam-page-wrap w-full max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12"
 		style="padding-bottom: calc(var(--uma-fab-reserve) + env(safe-area-inset-bottom, 0px));">
 
 		<!-- ヘッダー（special.html と同じ作り。見出しの行の右端に、ツール切替と画面の色の切り替えを、アイコンだけのボタンで置く）。
 		     C-139（微調整1・C）: 冒頭の説明は「技能試験特化ツール」の1行だけ・見出しの「β版」「新UI」のバッジは外した・使い方ガイドは削除した -->
-		<header class="relative mb-8 md:mb-10 rounded-3xl border border-[var(--uma-deco-soft-2)] bg-gradient-to-br from-[var(--uma-deco-soft)]/90 via-white/70 to-white p-5 md:p-8 shadow-sm">
+		<header class="exam-header relative mb-8 md:mb-10 rounded-3xl border border-[var(--uma-deco-soft-2)] bg-gradient-to-br from-[var(--uma-deco-soft)]/90 via-white/70 to-white p-5 md:p-8 shadow-sm">
 			<div aria-hidden="true" class="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
 				<div class="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-[var(--uma-deco-border)]/40 blur-3xl"></div>
 				<div class="absolute -bottom-20 -left-10 w-48 h-48 rounded-full bg-amber-200/30 blur-3xl"></div>
@@ -3191,7 +3226,7 @@
 			const label = PERSON_LABELS[idx];
 			const badgeCls = personBadgeClasses(idx);
 			return `
-				<div class="rounded-xl border border-slate-200 bg-white/70 p-3">
+				<div class="exam-person-card rounded-xl border border-slate-200 bg-white/70 p-3">
 					<p class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
 						<span class="w-6 h-6 rounded-full ${badgeCls} text-[9px] font-bold flex items-center justify-center shrink-0">${personRoleGlyph(idx)}</span>
 						${label}
@@ -3235,7 +3270,7 @@
 			const baseIdx = setIdx * 3;
 			const cards = [0, 1, 2].map(r => buildPersonUploadCard(baseIdx + r)).join('');
 			return `
-				<div class="rounded-2xl border border-${set.hue}-200 bg-${set.hue}-50/20 p-4">
+				<div class="exam-set-panel rounded-2xl border border-${set.hue}-200 bg-${set.hue}-50/20 p-4">
 					<div class="flex items-center justify-between mb-1">
 						<p class="text-xs font-bold text-${set.hue}-800 flex items-center gap-1.5">
 							<i data-lucide="workflow" class="w-3.5 h-3.5"></i>

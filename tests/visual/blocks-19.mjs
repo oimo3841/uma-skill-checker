@@ -28,7 +28,7 @@ export async function register19(env) {
 		await page.evaluate(() => selectStepTab(1));
 		await page.waitForFunction(() => !!effValueById, null, { timeout: 15000 });
 		if (o.eff) {
-			await page.click('label[for="scope-mode-efficiency"]');
+			await page.click('label[for="scope-mode-efficiency"]', { position: { x: 6, y: 6 } });
 			await page.waitForFunction(() => !!effData && document.querySelectorAll('.eff-seg').length === 4, null, { timeout: 15000 });
 		}
 		await page.waitForTimeout(300);
