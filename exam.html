@@ -404,6 +404,14 @@
 		   判定の結果の表では付けない（そちらは従来どおり無印）。 */
 		.registry-added { color: var(--uma-danger-text); text-decoration: underline; text-underline-offset: 2px; }
 		.registry-removed { color: var(--uma-danger-text); text-decoration: line-through; }
+		/* 一覧の行は、どの幅でも1行（C-142・微調整4・D）。印＋「名前の枠（残りの幅いっぱい）＋全角スペース＋効率（右端・全桁）」。
+		   名前が枠に入らないときだけ、名前の右端 1.5em をフェードアウトさせる（mask。背景色に依存しないのでライト・ダークとも同じ。「…」は付けない）。
+		   入るかどうかは updateRegistryFades() が scrollWidth > clientWidth で判定し、幅が変わるたび・一覧を開いたときに更新する */
+		#skill-registry-list > .registry-row { min-width: 0; }
+		.registry-box { display: flex; align-items: baseline; flex: 1 1 auto; min-width: 0; white-space: nowrap; }
+		.registry-name { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
+		.registry-name.is-fade { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.5em), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 1.5em), transparent); }
+		.registry-eff { flex: none; white-space: nowrap; }
 		.mode-btn:not(.active) { color: var(--uma-green-skill); }
 		.mode-btn:not(.active):hover { background-color: var(--uma-green-skill-soft); }
 		.copylist-btn { padding: 0.375rem 0.875rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid #e2e8f0; background: #fff; color: #64748b; }
@@ -2674,15 +2682,36 @@
 					: m
 						? screenMarkHtml(m, m.listTitle)
 						: '<span class="inline-block w-3"></span>';
-				let nameClass = '', title = '';
-				if (row.state === 'scopeAdded') { nameClass = ' class="registry-added"'; title = ' title="「対象を広げる」で足したスキル"'; }
-				else if (row.state === 'scopeRemoved') { nameClass = ' class="registry-removed"'; title = ' title="「対象を絞る」で対象から外したスキル"'; }
+				let nameClass = '', note = '';
+				if (row.state === 'scopeAdded') { nameClass = ' class="registry-added"'; note = '「対象を広げる」で足したスキル'; }
+				else if (row.state === 'scopeRemoved') { nameClass = ' class="registry-removed"'; note = '「対象を絞る」で対象から外したスキル'; }
 				// 名前の後ろに「全角スペース＋効率（小数3桁）」。効率の無い行（シナリオ因子・遺伝子など）は出さない
 				const milli = (row.milli === null || row.milli === undefined) ? null : row.milli;
-				return '<div class="flex items-center gap-1.5 py-0.5"' + title + '><span class="w-3.5 text-center">' + mark + '</span>'
-					+ '<span><span' + nameClass + '>' + escapeHtml(skill) + '</span>' + (milli === null ? '' : '　<span class="registry-eff">' + effFormat(milli) + '</span>') + '</span></div>';
+				// 行の title は全文（名前＋効率。広げる／絞るの行は、その説明を括弧で添える）。名前の全文は DOM にも残る（フェードは見た目だけ）
+				const full = skill + (milli === null ? '' : '　' + effFormat(milli));
+				const title = ' title="' + escapeHtml(full + (note ? '（' + note + '）' : '')) + '"';
+				return '<div class="registry-row flex items-center gap-1.5 py-0.5"' + title + '><span class="w-3.5 text-center shrink-0">' + mark + '</span>'
+					+ '<span class="registry-box"><span class="registry-name"><span' + nameClass + '>' + escapeHtml(skill) + '</span></span>' + (milli === null ? '' : '　<span class="registry-eff">' + effFormat(milli) + '</span>') + '</span></div>';
 			}).join('');
+			updateRegistryFades();
 		}
+
+		// 一覧の名前が枠に入らない行だけ、右端をフェードアウトさせる（C-142・微調整4・D）。一覧が閉じている（幅が測れない）ときは何もしない
+		function updateRegistryFades() {
+			const box = document.getElementById('skill-registry-list');
+			if (!box || !box.getClientRects().length) return;
+			box.querySelectorAll('.registry-name').forEach(n => n.classList.toggle('is-fade', n.scrollWidth > n.clientWidth + 0.5));
+		}
+		// 幅が変わったとき（回転・リサイズ）・一覧を開いたとき・フォントを読み終えたときに測り直す
+		document.addEventListener('DOMContentLoaded', () => {
+			const box = document.getElementById('skill-registry-list');
+			if (!box) return;
+			let lastW = -1;
+			if (window.ResizeObserver) new ResizeObserver(() => { if (box.clientWidth !== lastW) { lastW = box.clientWidth; updateRegistryFades(); } }).observe(box);
+			const det = box.closest('details');
+			if (det) det.addEventListener('toggle', () => { if (det.open) updateRegistryFades(); });
+			if (document.fonts && document.fonts.ready) document.fonts.ready.then(updateRegistryFades);
+		});
 
 		/* ============================================================
 		 * ヘッダー・バッジ類の件数表示を、現在のskillOnlyList（除外・追加反映後）に同期する

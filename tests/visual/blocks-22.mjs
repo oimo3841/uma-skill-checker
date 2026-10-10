@@ -72,4 +72,96 @@ export async function register22(env) {
 		assert(report.length === 12, '微調整4C1: 6幅 × ライト・ダーク ＝ 12通りを確かめた（' + report.join(' ／ ') + '）', report.length);
 	});
 
+	/* ====================================================================
+	 * D: 一覧の行（1行・フェードアウト）
+	 * ==================================================================== */
+	const setRange = async (page, range) => {
+		await page.evaluate((m) => { setMelopMode(m === 'melop'); setTargetScopeMode(m === 'melop' ? 'default' : m); }, range);
+		if (range === 'efficiency') await page.waitForFunction(() => !!effData, null, { timeout: 15000 });
+		await page.waitForTimeout(80);
+	};
+	const readRows = (page) => page.evaluate(() => {
+		const list = document.getElementById('skill-registry-list');
+		const rows = [...list.children].map((d) => {
+			const name = d.querySelector('.registry-name'), eff = d.querySelector('.registry-eff'), R = d.getBoundingClientRect(), N = name.getBoundingClientRect();
+			const E = eff ? eff.getBoundingClientRect() : null;
+			const ms = getComputedStyle(name).maskImage || getComputedStyle(name).webkitMaskImage || 'none';
+			return { h: R.height, nameText: name.textContent, effText: eff ? eff.textContent : null, title: d.getAttribute('title'), over: name.scrollWidth > name.clientWidth + 0.5, fade: name.classList.contains('is-fade'),
+				mask: ms, effFull: eff ? eff.scrollWidth <= eff.clientWidth + 0.5 && E.right <= R.right + 0.5 : true, sep: E ? N.right <= E.left + 0.5 : true,
+				lines: Math.round(N.height / parseFloat(getComputedStyle(name).lineHeight)), nameNat: name.scrollWidth };
+		});
+		const wantNames = buildSkillRegistryRows().map((r) => r.name);
+		return { rows, wantNames, listH: list.scrollHeight };
+	});
+
+	await block('微調整4D1 一覧の行は、どの幅・どのモードでも1行（高さの差1px以内）／名前が入らない行だけフェード（mask）・入る行にはかけない／効率は右端に全桁／名前と効率が重ならない／全行に title（全文＋効率）・名前の全文は DOM に残る（320〜1280px・ライト・ダーク・5つのモード × 並べ替え）', async () => {
+		let states = 0, fadeMax = 0;
+		for (const w of [320, 360, 375, 393, 430, 1280]) {
+			for (const theme of ['light', 'dark']) {
+				const { ctx, page, errors } = await openExam({ w, theme });
+				await page.evaluate(() => { document.getElementById('skill-registry-list').closest('details').open = true; setScenarioFactorsAll(true); setAptitudeGenesAll(true); });
+				for (const range of ['default', 'expanded', 'curated', 'melop', 'efficiency']) {
+					await setRange(page, range);
+					for (const sort of [false, true]) {
+						await page.evaluate((s0) => { if (registrySortByEff !== s0) toggleRegistrySort(); }, sort);
+						await page.waitForTimeout(60);
+						const r = await readRows(page);
+						const tag = '(' + w + 'px・' + theme + '・' + range + '・並べ替え' + (sort ? 'ON' : 'OFF') + ')';
+						const hs = r.rows.map((x) => x.h);
+						const bad = [];
+						r.rows.forEach((x, i) => {
+							if (x.lines !== 1) bad.push(x.nameText + ' が ' + x.lines + '行');
+							if (x.fade !== x.over) bad.push(x.nameText + ' のフェードの有無が違う（入らない=' + x.over + '・フェード=' + x.fade + '）');
+							if (x.fade !== /gradient/.test(x.mask)) bad.push(x.nameText + ' の mask が違う（' + x.mask + '）');
+							if (!x.effFull) bad.push(x.nameText + ' の効率が欠けている');
+							if (!x.sep) bad.push(x.nameText + ' の名前と効率が重なる');
+							if (!x.title || !x.title.startsWith(x.nameText + (x.effText ? '　' + x.effText : ''))) bad.push(x.nameText + ' の title が全文でない（' + x.title + '）');
+							if (x.nameText !== r.wantNames[i]) bad.push((i + 1) + '行目の名前の全文が DOM に無い');
+						});
+						assert(r.rows.length > 100 && Math.max(...hs) - Math.min(...hs) <= 1 && bad.length === 0,
+							'微調整4D1' + tag + ': ' + r.rows.length + '行すべて1行（高さ ' + Math.min(...hs).toFixed(1) + '〜' + Math.max(...hs).toFixed(1) + 'px）・フェード ' + r.rows.filter((x) => x.fade).length + '行', { bad: bad.slice(0, 5) });
+						fadeMax = Math.max(fadeMax, r.rows.filter((x) => x.fade).length);
+						states++;
+					}
+				}
+				assert(jsErrors(errors).length === 0, '微調整4D1(' + w + 'px・' + theme + '): コンソールエラーなし', errors.slice(0, 3));
+				await ctx.close();
+			}
+		}
+		assert(states === 120 && fadeMax > 0, '微調整4D1: 6幅 × ライト・ダーク × 5モード × 並べ替え ＝ 120通りを確かめた／フェードがかかる行がある（空振りでない。最大 ' + fadeMax + '行）', { states, fadeMax });
+	});
+
+	await block('微調整4D2 いちばん長い名前の行（320px・効率を指定・因子と遺伝子あり）: 1行・名前にフェード・効率は全桁・名前と効率が重ならない／幅を 320→1280→320 と変えると、フェードの有無が正しく更新される', async () => {
+		const { ctx, page, errors } = await openExam({ w: 320 });
+		await page.evaluate(() => { document.getElementById('skill-registry-list').closest('details').open = true; setScenarioFactorsAll(true); setAptitudeGenesAll(true); });
+		await setRange(page, 'efficiency');
+		const r = await readRows(page);
+		const longest = r.rows.reduce((a, x) => (x.nameNat > a.nameNat ? x : a), r.rows[0]);
+		assert(longest.fade && longest.lines === 1 && longest.effFull && longest.sep && longest.over,
+			'微調整4D2(320px): いちばん長い名前「' + longest.nameText + '」（' + longest.nameNat + 'px）の行は1行で、名前にフェードがかかり、効率「' + longest.effText + '」は全桁', longest);
+		const consistent = async (tag) => {
+			const s = await readRows(page);
+			const bad = s.rows.filter((x) => x.fade !== x.over || x.lines !== 1).map((x) => x.nameText);
+			assert(bad.length === 0, '微調整4D2(' + tag + '): フェードは「名前が入らない行」だけ（' + s.rows.filter((x) => x.fade).length + '行）', bad.slice(0, 5));
+			return s.rows.filter((x) => x.fade).length;
+		};
+		const n320 = await consistent('320px');
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await page.waitForTimeout(300);
+		const n1280 = await consistent('320→1280px');
+		await page.setViewportSize({ width: 320, height: 900 });
+		await page.waitForTimeout(300);
+		const back = await consistent('1280→320px');
+		assert(n320 > n1280 && back === n320, '微調整4D2: 幅を変えるとフェードの行数が変わる（320px ' + n320 + '行 → 1280px ' + n1280 + '行 → 320px ' + back + '行）', { n320, n1280, back });
+		// 閉じた一覧を開いたときにも測り直す
+		await page.evaluate(() => { const d = document.getElementById('skill-registry-list').closest('details'); d.open = false; });
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await page.waitForTimeout(200);
+		await page.evaluate(() => { document.getElementById('skill-registry-list').closest('details').open = true; });
+		await page.waitForTimeout(200);
+		await consistent('閉じたまま 320→1280px にしてから開いた');
+		assert(jsErrors(errors).length === 0, '微調整4D2: コンソールエラーなし', errors.slice(0, 3));
+		await ctx.close();
+	});
+
 }
