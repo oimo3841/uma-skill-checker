@@ -4923,6 +4923,12 @@
 		function effFormat(milli) {
 			return (milli / 1000).toFixed(3);
 		}
+		// バーの上の値（C-142・微調整4・C）: 小数第2位まで。結合画像の範囲の表示（effRangeLabel）と同じ規則で、
+		// up=true なら切り上げ（境目・最大）、false なら切り捨て（最小）。千分率の整数で計算する（例: 7557→7.56・2740→2.74）
+		function effFormat2(milli, up) {
+			const h = up ? Math.ceil(milli / 10) : Math.floor(milli / 10);
+			return Math.floor(h / 100) + '.' + String(h % 100).padStart(2, '0');
+		}
 
 		/* 読み込んだデータを、並びのデータの行に結び付ける。
 		   targets … 対象になり得る行（並びのデータの順＝data/skill-efficiency.json の順）。{ row, name, id, milli, score, sp }
@@ -5388,27 +5394,43 @@
 				}
 			}
 			panel.classList.toggle('is-dragging', effDragIdx !== null);
-			// バーの上の値（両端の最小値・最大値と、境目の値）。バーの幅の内側に収め、重なるものは上の段へ。
-			// 境目を寄せ切ると4つの値が重なり得るので、段の数は決め打ちしない
+			// バーの上の値（両端の最小値・最大値と、境目の値）。バーの幅の内側に収める。
+			// C-142（微調整4・C）: 値は小数第2位（最小は切り捨て・境目と最大は切り上げ。結合画像の範囲の表示と同じ）。
+			// 重なるときは、①下二桁 ②値の位置をバーの幅の内側で左右にずらして、となりとの間を最小4px 空ける ③それでも1行に収まらないときだけ上の段へ。
+			// 境目を寄せ切ると4つの値が重なり得るので、段の数は決め打ちしない（吹き出しの値は実際の境目なので小数3桁のまま）
 			const scale = panel.querySelector('.eff-scale');
-			const LINE = 16;
+			const LINE = 16, GAP = 4;
 			const items = ['min', '0', '1', '2', 'max'].map(key => {
 				const el = panel.querySelector('.eff-val[data-val="' + key + '"]');
-				if (key === 'min') el.textContent = effFormat(d.min);
-				else if (key === 'max') el.textContent = effFormat(d.max);
-				else el.textContent = effFormat(b[Number(key)]);
+				if (key === 'min') el.textContent = effFormat2(d.min, false);
+				else if (key === 'max') el.textContent = effFormat2(d.max, true);
+				else el.textContent = effFormat2(b[Number(key)], true);
 				const w = el.getBoundingClientRect().width;
 				const x = key === 'min' ? 0 : key === 'max' ? W : edges[Number(key) + 1] * W;
 				const left = key === 'min' ? 0 : key === 'max' ? W - w : Math.min(Math.max(x - w / 2, 0), Math.max(W - w, 0));
 				return { el: el, left: left, w: w };
 			});
+			// ② 1行のまま左右にずらす: 左から順に、となりとの間を GAP 以上に押し出し、右端からはみ出したら右から押し戻す
+			const fit = items.map(it => it.left);
+			for (let i = 1; i < fit.length; i++) fit[i] = Math.max(fit[i], fit[i - 1] + items[i - 1].w + GAP);
+			const last = fit.length - 1;
+			if (fit[last] + items[last].w > W) {
+				fit[last] = W - items[last].w;
+				for (let i = last - 1; i >= 0; i--) fit[i] = Math.min(fit[i], fit[i + 1] - GAP - items[i].w);
+			}
 			const valRights = [];
-			items.forEach(it => {
-				let row = valRights.findIndex(right => it.left >= right + 4);
-				if (row === -1) { row = valRights.length; valRights.push(-Infinity); }
-				valRights[row] = it.left + it.w;
-				it.row = row;
-			});
+			if (fit[0] >= -0.5) {
+				items.forEach((it, i) => { it.left = Math.max(0, fit[i]); it.row = 0; });
+				valRights.push(W);
+			} else {
+				// ③ 1行に収まらない（値の幅の合計がバーより広い）ときだけ、従来どおり重なるものを上の段へ
+				items.forEach(it => {
+					let row = valRights.findIndex(right => it.left >= right + GAP);
+					if (row === -1) { row = valRights.length; valRights.push(-Infinity); }
+					valRights[row] = it.left + it.w;
+					it.row = row;
+				});
+			}
 			const rows = Math.max(1, valRights.length);
 			items.forEach(it => {
 				it.el.style.left = it.left + 'px';

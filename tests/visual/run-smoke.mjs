@@ -42,6 +42,7 @@ import { register20c } from './blocks-20c.mjs';
 import { register20d } from './blocks-20d.mjs';
 import { register20e } from './blocks-20e.mjs';
 import { register21 } from './blocks-21.mjs';
+import { register22 } from './blocks-22.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 
@@ -10468,8 +10469,10 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		'効率(2): 初期の境目で、4つの区間のどれも1種以上を含む', st.bounds);
 	assert(st.detailHidden && !st.panelHidden && JSON.stringify(st.srcs) === JSON.stringify(st.icons),
 		'効率(2): #scope-detail の代わりにバーが出て、バーの下の蹄鉄は左から銅・銀・金・虹', st.srcs);
-	assert(JSON.stringify(st.vals) === JSON.stringify([fmt(min)].concat(eq.map(fmt), [fmt(max)])),
-		'効率(2): つまみの下に境目の値、両端の下に最小値と最大値（どれも小数3桁）', st.vals);
+	// C-142（微調整4・C）: 値は小数第2位（最小は切り捨て・境目と最大は切り上げ。千分率の整数で計算）
+	const fmt2v = (m, up) => { const h = up ? Math.ceil(m / 10) : Math.floor(m / 10); return Math.floor(h / 100) + '.' + String(h % 100).padStart(2, '0'); };
+	assert(JSON.stringify(st.vals) === JSON.stringify([fmt2v(min, false)].concat(eq.map((v) => fmt2v(v, true)), [fmt2v(max, true)])),
+		'効率(2・微調整4C): つまみの上に境目の値、両端の上に最小値と最大値（小数第2位。最小は切り捨て・境目と最大は切り上げ）', st.vals);
 	assert(st.stored[0] === null && st.stored[1] === null && st.scopeStored === 'efficiency' && st.skillList133 && st.copyRows === st.n,
 		'効率(2): 動かすまで境目と区間は保存しない。判定の表は133種のまま。「スキル名のコピー」は一覧と同じ（効率の対象の行）', st);
 
@@ -15070,6 +15073,7 @@ await register20c({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register20d({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register20e({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register21({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register22({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
