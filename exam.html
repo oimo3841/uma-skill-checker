@@ -3383,6 +3383,48 @@
 			document.getElementById('step-tab-' + next).focus();
 		}
 
+		/* ---------- ①②の左右スワイプ（C-139・微調整1・D。タッチ操作のときだけ） ----------
+		   special.html の①②③のスワイプ（C-132 の D）と同じ作り・同じ判定。
+		   横の動きが SWIPE_MIN_PX 以上で、縦の動きの SWIPE_RATIO 倍より大きいときだけ、隣のタブへ切り替える（左へ払うと①→②、右へ払うと②→①。端では何もしない）。
+		   次の場所から始まった動きは切り替えにしない：効率のバーのつまみ（効率を指定の枠の中）・横にスクロールできる場所・小窓や引き出し・入力欄・選択欄。
+		   旧UI（①②が別々のカード）では働かない。切り替えたあとのスクロール位置は、タブを押したときと同じ（動かさない） */
+		const SWIPE_MIN_PX = 60;
+		const SWIPE_RATIO = 2;
+		// 横にスクロールする作りの部品・つまみの操作・入力欄・小窓など（中身が収まっていて、いまは送れないときも含めて外す）
+		const SWIPE_BLOCK_SELECTOR = '.eff-panel, .overflow-x-auto, input, textarea, select, [contenteditable], [role="dialog"], .uma-overlay, .uma-overlay-backdrop, .uma-drawer, .uma-drawer-backdrop, .uma-fab-nav';
+		function swipeBlockedAt(el) {
+			for (let n = el; n && n !== document.body && n.nodeType === 1; n = n.parentElement) {
+				if (n.matches(SWIPE_BLOCK_SELECTOR)) return true;
+				const ox = getComputedStyle(n).overflowX;
+				if ((ox === 'auto' || ox === 'scroll') && n.scrollWidth > n.clientWidth + 1) return true;
+			}
+			return false;
+		}
+		// 開いている小窓・引き出しがあるあいだは切り替えない（背景を払っても下の画面を動かさない）
+		function anyLayerOpen() {
+			return Array.prototype.some.call(document.querySelectorAll('[aria-modal="true"], [role="dialog"], .uma-popover'), (d) => !d.hidden && d.getClientRects().length > 0);
+		}
+		let swipeStart = null;
+		document.addEventListener('touchstart', (e) => {
+			swipeStart = null;
+			if (!newUi || e.touches.length !== 1 || anyLayerOpen() || swipeBlockedAt(e.target)) return;
+			const t = e.touches[0];
+			swipeStart = { x: t.clientX, y: t.clientY };
+		}, { passive: true });
+		document.addEventListener('touchcancel', () => { swipeStart = null; }, { passive: true });
+		document.addEventListener('touchend', (e) => {
+			const s = swipeStart;
+			swipeStart = null;
+			if (!s || !newUi || e.changedTouches.length !== 1) return;
+			const t = e.changedTouches[0];
+			const dx = t.clientX - s.x, dy = t.clientY - s.y;
+			if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= SWIPE_RATIO * Math.abs(dy)) return;
+			const cur = document.getElementById('step-tab-1').getAttribute('aria-selected') === 'true' ? 1 : 2;
+			const next = cur + (dx < 0 ? 1 : -1);
+			if (next < 1 || next > 2) return;
+			selectStepTab(next);
+		}, { passive: true });
+
 		function updateImageCountBadge() {
 			const badge = document.getElementById('image-count-badge');
 			if (!badge) return;

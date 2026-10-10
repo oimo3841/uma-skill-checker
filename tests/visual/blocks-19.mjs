@@ -725,4 +725,71 @@ export async function register19(env) {
 			'微調整1C4: special の375pxのヘッダーは高さ47pxのまま・3つが1行に収まり、44px のボタンが帯からはみ出さない', r);
 		await sp.ctx.close();
 	});
+
+	/* ====================================================================
+	 * D: exam の①②の左右スワイプ（special の C-132 の D と同じ作り・同じ判定）
+	 * ==================================================================== */
+	/** sel の要素の上で、横 dx・縦 dy のタッチの動きを作る（Touch を合成して送る）。戻り値＝選ばれているタブの id */
+	const swipeAt = (page, sel, dx, dy) => page.evaluate(({ sel, dx, dy }) => {
+		const el = document.querySelector(sel);
+		const r = el.getBoundingClientRect();
+		const x = r.left + Math.min(r.width / 2, 120), y = r.top + Math.min(r.height / 2, 12);
+		const mk = (type, cx, cy) => {
+			const t = new Touch({ identifier: 1, target: el, clientX: cx, clientY: cy });
+			return new TouchEvent(type, { bubbles: true, cancelable: true, touches: type === 'touchend' ? [] : [t], targetTouches: type === 'touchend' ? [] : [t], changedTouches: [t] });
+		};
+		el.dispatchEvent(mk('touchstart', x, y));
+		el.dispatchEvent(mk('touchmove', x + dx / 2, y + dy / 2));
+		el.dispatchEvent(mk('touchend', x + dx, y + dy));
+		return document.querySelector('.step-tab[aria-selected="true"]').id;
+	}, { sel, dx, dy });
+
+	await block('微調整1D1 exam: 左右に払うと①②が切り替わる（左＝次・右＝前・端では変わらない）／つまみ・入力欄・小窓・横に送れる場所から始まった動きや、縦に大きい動き・小さい動きでは変わらない', async () => {
+		const { ctx, page, errors } = await openExam({ w: 375, h: 812, eff: true });
+		const tab = () => page.evaluate(() => document.querySelector('.step-tab[aria-selected="true"]').id);
+		const OUT = 'header h1';
+		assert(await tab() === 'step-tab-1', '微調整1D1 前提: ①が開いている', await tab());
+		assert(await swipeAt(page, OUT, -120, 10) === 'step-tab-2', '微調整1D1 左へ払うと次（①→②）', await tab());
+		assert(await swipeAt(page, OUT, -120, 10) === 'step-tab-2', '微調整1D1 端（②）でさらに左へ払っても変わらない', await tab());
+		assert(await swipeAt(page, OUT, 120, 10) === 'step-tab-1', '微調整1D1 右へ払うと前（②→①）', await tab());
+		assert(await swipeAt(page, OUT, 120, 10) === 'step-tab-1', '微調整1D1 端（①）でさらに右へ払っても変わらない', await tab());
+		assert(await swipeAt(page, OUT, -40, 0) === 'step-tab-1', '微調整1D1 横の動きが小さい（40px）と変わらない', await tab());
+		assert(await swipeAt(page, OUT, -120, 90) === 'step-tab-1', '微調整1D1 縦の動きが大きい（横の半分以上）と変わらない', await tab());
+		// 記憶: 切り替えは selectStepTab を通るので、最後に見たタブとして保存される
+		await swipeAt(page, OUT, -120, 0);
+		assert(await page.evaluate(() => localStorage.getItem('uma-exam-last-step')) === '2', '微調整1D1 切り替えたタブは「最後に使ったタブ」として覚える（タブを押したときと同じ）', null);
+		await swipeAt(page, OUT, 120, 0);
+		// ①の中で、反応させない場所
+		assert(await swipeAt(page, '.eff-bar', -120, 0) === 'step-tab-1', '微調整1D1 効率のバー（つまみの操作）から始まった動きでは変わらない', await tab());
+		assert(await swipeAt(page, '.eff-thumb[data-idx="1"]', -120, 0) === 'step-tab-1', '微調整1D1 つまみから始まった動きでは変わらない', await tab());
+		assert(await swipeAt(page, '.eff-shoe--0', -120, 0) === 'step-tab-1', '微調整1D1 効率を指定の枠の中（蹄鉄）から始まった動きでは変わらない', await tab());
+		assert(await swipeAt(page, '#skill-copy-textarea', -120, 0) === 'step-tab-1', '微調整1D1 入力欄（テキストの欄）から始まった動きでは変わらない', await tab());
+		assert(await swipeAt(page, '#scope-mode-default', -120, 0) === 'step-tab-1', '微調整1D1 選択肢（ラジオ）から始まった動きでは変わらない', await tab());
+		// 横にスクロールできる部品（中身が幅を超えるとき）。一覧の枠を一時的に横に長くして試す
+		await page.evaluate(() => { const b = document.getElementById('skill-registry-list'); b.closest('details').open = true; b.style.overflowX = 'auto'; const w = document.createElement('div'); w.id = 'probe-wide'; w.style.cssText = 'width:2000px;height:10px'; b.appendChild(w); });
+		assert(await swipeAt(page, '#probe-wide', -120, 0) === 'step-tab-1', '微調整1D1 横にスクロールできる場所（中身が幅を超える枠）から始まった動きでは変わらない', await tab());
+		await page.evaluate(() => { document.getElementById('probe-wide').remove(); });
+		// 小窓が開いているあいだ
+		await page.click('#eff-help-btn');
+		await page.waitForTimeout(150);
+		assert(await swipeAt(page, '#eff-help-box', -120, 0) === 'step-tab-1' && await swipeAt(page, OUT, -120, 0) === 'step-tab-1', '微調整1D1 小窓が開いているあいだは、小窓の上でも外でも変わらない', await tab());
+		await page.keyboard.press('Escape');
+		await page.waitForTimeout(150);
+		assert(await swipeAt(page, OUT, -120, 0) === 'step-tab-2', '微調整1D1 小窓を閉じたらまた切り替わる', await tab());
+		// ②の中
+		assert(await swipeAt(page, '#personset-A-wrap', 120, 0) === 'step-tab-1', '微調整1D1 ②の上でも払うと前に戻る（アップロードの欄の上は反応する）', await tab());
+		// スクロール位置は、タブを押したときと同じ（動かさない）
+		await page.evaluate(() => scrollTo(0, 120));
+		const y0 = await page.evaluate(() => Math.round(scrollY));
+		const t1 = await swipeAt(page, '#new-step-card .step-tabs', -120, 0);
+		const y1 = await page.evaluate(() => Math.round(scrollY));
+		assert(t1 === 'step-tab-2' && Math.abs(y1 - y0) <= 1, '微調整1D1 切り替えたあとのスクロール位置はタブを押したときと同じ（動かさない）', { t1, y0, y1 });
+		// 結果の引き出しが開いているあいだ
+		await page.evaluate(() => { selectStepTab(1); });
+		await page.evaluate(() => { const b = document.getElementById('fab-nav'); if (b) setFabOpen(true); });
+		assert(await swipeAt(page, '.uma-fab-nav', -120, 0) === 'step-tab-1', '微調整1D1 右下のボタン群の上から始まった動きでは変わらない', await tab());
+		await page.evaluate(() => setFabOpen(false));
+		assert(jsErrors(errors).length === 0, '微調整1D1 コンソールのエラー0', errors.slice(0, 3));
+		await ctx.close();
+	});
 }
