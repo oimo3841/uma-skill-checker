@@ -563,7 +563,7 @@ export async function register19(env) {
 			const { ctx, page, errors } = await openExam({ w });
 			const r = await page.evaluate(() => {
 				const h = document.querySelector('header');
-				const ps = [...h.querySelector('h1').parentElement.querySelectorAll('p')].map((p) => p.textContent.replace(/\s+/g, ''));   // 見出しの左の欄（メニューの中の文は除く）
+				const ps = [...h.querySelectorAll('.header-tagline')].map((p) => p.textContent.replace(/\s+/g, ''));   // 見出しの一言（C-140・微調整2・D で、見出しの下の <p> から「2nd Edition」の脇へ移した）
 				const p1 = document.querySelector('#step-panel-1 > p');
 				const p2 = [...document.querySelectorAll('#step-panel-2 > p')].find((p) => p.textContent.includes('親Bセットを追加すると'));
 				const foot = [...document.querySelectorAll('#step-panel-2 p')].find((p) => p.textContent.includes('SNS投稿用'));
@@ -710,7 +710,7 @@ export async function register19(env) {
 		}
 	});
 
-	await block('微調整1C4 special の375pxのヘッダー: タイトル・ツール切替・画面の色が1行／帯の高さは47pxのまま（①の表の上端などの高さの基準を動かさない）', async () => {
+	await block('微調整1C4 special の375pxのヘッダー: タイトル・ツール切替・画面の色が1行／帯の高さは57px（C-140・微調整2・D。①の表の上端などの基準は +10px）', async () => {
 		const sp = await openPage(browser, base, 'special.html', { width: 375, height: 812 });
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		const r = await sp.page.evaluate(() => {
@@ -718,8 +718,8 @@ export async function register19(env) {
 			return { hd: R(document.querySelector('header')), h1: R(document.querySelector('header h1')), tool: R(document.getElementById('tool-dropdown-btn')), theme: R(document.getElementById('theme-cycle-btn')), vw: document.documentElement.clientWidth };
 		});
 		const rows = [r.h1, r.tool, r.theme].map((x) => x.y + x.h / 2);
-		assert(Math.abs(r.hd.h - 47) <= 1 && r.theme.r <= r.vw && r.tool.r <= r.theme.x && r.h1.r <= r.tool.x && Math.max.apply(null, rows) - Math.min.apply(null, rows) < 8 && r.theme.y >= r.hd.y && r.theme.b <= r.hd.b + 0.5,
-			'微調整1C4: special の375pxのヘッダーは高さ47pxのまま・3つが1行に収まり、44px のボタンが帯からはみ出さない', r);
+		assert(Math.abs(r.hd.h - 57) <= 1 && r.theme.r <= r.vw && r.tool.r <= r.theme.x && r.h1.r <= r.tool.x && Math.max.apply(null, rows) - Math.min.apply(null, rows) < 16 && r.theme.y >= r.hd.y && r.theme.b <= r.hd.b + 0.5,
+			'微調整1C4: special の375pxのヘッダーは高さ57px（微調整2・D で上下に6pxの余白を取った。旧47px）・3つが1行に収まり、44px のボタンが帯からはみ出さない', r);
 		await sp.ctx.close();
 	});
 

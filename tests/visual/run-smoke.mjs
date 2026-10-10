@@ -39,6 +39,7 @@ import { register19 } from './blocks-19.mjs';
 import { register20 } from './blocks-20.mjs';
 import { register20b } from './blocks-20b.mjs';
 import { register20c } from './blocks-20c.mjs';
+import { register20d } from './blocks-20d.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 
@@ -1747,7 +1748,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		// ヘッダーの見出しからは種数を外した（範囲を選べるので、見出しの数が
 		// 利用者の選択で変わるのを避けるため）。いまの種数は一覧の見出しが出す。
 		total: document.getElementById('registry-skill-count').textContent,
-		header: document.querySelector('header p').textContent
+		// 見出しの一言（2nd Edition のバッジの脇。微調整2・D で見出しの下の <p> から移した）
+		header: document.querySelector('header .header-tagline').textContent
 	}));
 	assert(registry.rows === 133 && registry.total === '133' && registry.badge === '133種',
 		'exam: 組み込みの133種が登録されている（①のタブのバッジは「133種」）', registry);
@@ -15057,6 +15059,7 @@ await register19({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register20({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register20b({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register20c({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register20d({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();

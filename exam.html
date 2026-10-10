@@ -508,6 +508,11 @@
 		/* ヘッダーのツール切替（アイコンだけのボタン。special.html と同じ寸法・左右の余白だけ詰める）と、画面の色の切り替えボタン（44px。C-139・微調整1・C）。
 		   いまの状態は data-theme-state で、3つのアイコンのうち1つだけを出す */
 		#tool-dropdown-btn { padding-inline: var(--uma-sp-2); }
+		/* 見出しの「2nd Edition」のバッジと、その脇の一言（special.html と同じ作り。C-140・微調整2・D）。バッジは押せない表示だけなので、手のカーソルと hover は消す */
+		.header-edition-pill { cursor: default; }
+		.header-edition-pill:hover { background: var(--uma-accent-soft); }
+		.header-tagline { white-space: nowrap; font-size: 11px; line-height: 1.2; font-weight: 600; }
+		@media (max-width: 322px) { .header-edition-sub { display: none; } }
 		.theme-cycle-btn { width: 44px; height: 44px; padding: 0; flex: none; }
 		.theme-cycle-btn svg { display: none; width: 20px; height: 20px; flex: none; }
 		.theme-cycle-btn[data-theme-state="auto"] svg[data-theme-icon="auto"],
@@ -521,7 +526,10 @@
 		   新UIの中（#new-step-slot）だけに当てる（旧UIは動作保証の外。恒久ルール20）。共通CSSは触らない。 */
 		@media (max-width: 640px) {
 			.exam-page-wrap { padding-left: 0; padding-right: 0; padding-top: 0; }
-			.exam-header { margin-bottom: var(--uma-sp-1); padding: 1px var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
+			.exam-header { margin-bottom: var(--uma-sp-1); padding: var(--uma-sp-1-5) var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
+			/* C-140（微調整2・D）: タイトルの上下に余白（6px＝カードの内側の余白と同じ）を取り、special.html のタイトルと同じ大きさ（22px。360px 以下は20px）にそろえる */
+			.exam-title { font-size: 1.375rem; line-height: 1.2; }
+			.header-tagline { font-size: clamp(9px, 2.6vw, 11px); }
 			#new-step-card { margin: 0 var(--uma-sp-1); padding: var(--uma-sp-1-5); border-radius: var(--uma-r-lg); }
 			#new-step-card .step-tabs { margin-bottom: var(--uma-sp-1); gap: 2px; }
 			#new-step-card .step-tab { padding: var(--uma-sp-1) 2px; }
@@ -546,6 +554,7 @@
 		/* 狭い幅（360px 以下）: ヘッダーの左右の余白とボタンの間を詰める（special と同じ。画面の色のボタン 44px が入るぶん） */
 		@media (max-width: 360px) {
 			.exam-header { padding-inline: var(--uma-sp-1-5); }
+			.exam-title { font-size: 1.25rem; }
 			#tool-dropdown-wrap { gap: var(--uma-sp-1); }
 		}
 
@@ -623,8 +632,13 @@
 			<div class="relative z-10 flex flex-row items-center justify-between gap-2 md:gap-4">
 				<!-- 左側：タイトルエリア -->
 				<div class="min-w-0">
-					<h1 class="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-[var(--uma-deco-grad-from)] via-[var(--uma-deco-grad-via)] to-[var(--uma-deco-grad-to)] bg-clip-text text-transparent">Uma<span class="text-amber-400">Exam</span> OCR</h1>
-					<p class="mt-1.5 text-xs md:text-sm text-slate-500">技能試験特化ツール</p>
+					<!-- タイトルの右に「2nd Edition」のバッジ（special と同じ部品・このページの色）と、その脇の一言（C-140・微調整2・D）。
+					     狭い画面では一言が次の行（バッジの下）へ回る。「β版」は付けない（exam は機能の不備がほぼ無いため）。冒頭の説明の1行は、ここへ移した -->
+					<div class="flex items-center flex-wrap gap-x-2 gap-y-1">
+						<h1 class="exam-title text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-[var(--uma-deco-grad-from)] via-[var(--uma-deco-grad-via)] to-[var(--uma-deco-grad-to)] bg-clip-text text-transparent">Uma<span class="text-amber-400">Exam</span> OCR</h1>
+						<span class="header-edition-pill ui-mode-badge shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full">2nd<span class="header-edition-sub"> Edition</span></span>
+						<span class="header-tagline text-slate-500">技能試験特化ツール</span>
+					</div>
 				</div>
 
 				<!-- 右側：アクションボタン群（右端）。ツール切替は special と同じアイコンだけのボタン（枠つき・ラベルなし）。

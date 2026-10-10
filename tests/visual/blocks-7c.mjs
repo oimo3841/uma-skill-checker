@@ -607,8 +607,8 @@ export async function register7c(env) {
 					assert(m.docH > m.vh, tag + 'ページ全体がスクロールする（C-132。ページの高さ ' + m.docH + 'px）', { docH: m.docH, vh: m.vh, share });
 					assert(m.docW <= m.vw && jsErrors(sp.errors).length === 0, tag + '横にはみ出さない・コンソールのエラー0', { docW: m.docW, errors: jsErrors(sp.errors).slice(0, 2) });
 					if (!withPrev && w === 390) {
-						assert(m.header.l === 0 && m.header.r === m.vw && m.headerRadius === '0px' && m.headerBorderL === '0px' && m.header.h <= 48,
-							tag + 'ヘッダーは画面の両端まで伸びる帯（角丸なし・左右の枠なし）で、高さは 48px 以下（実測 ' + m.header.h + 'px）', { l: m.header.l, r: m.header.r, radius: m.headerRadius, h: m.header.h });
+						assert(m.header.l === 0 && m.header.r === m.vw && m.headerRadius === '0px' && m.headerBorderL === '0px' && m.header.h <= 60,
+							tag + 'ヘッダーは画面の両端まで伸びる帯（角丸なし・左右の枠なし）で、高さは 60px 以下（実測 ' + m.header.h + 'px。C-140・微調整2・D でタイトルの上下に6pxの余白を取り、旧47pxから57pxになった）', { l: m.header.l, r: m.header.r, radius: m.headerRadius, h: m.header.h });
 						assert(m.lowerSubBorders.every((x) => x === 0), tag + '育成ウマ娘とサポートカードのパネルは1つの帯（内側の枠なし）にまとまっている', m.lowerSubBorders);
 						assert(m.smallFonts === 0 && m.minTap >= 28 && m.minIcon >= 24, tag + '文字は 11px 以上・タップの領域は 28px 以上（アイコンは 24px 以上）', { smallFonts: m.smallFonts, minTap: m.minTap, minIcon: m.minIcon });
 						assert(m.fab.w === 44 && m.fab.r >= m.vw - 8 - 1, tag + '右下のボタン（FAB）は 44px・右下の端に寄せる（表を覆う量 ' + m.fabOverlapRatio + '%）', m.fab);

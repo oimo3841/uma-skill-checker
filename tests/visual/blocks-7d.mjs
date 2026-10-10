@@ -173,12 +173,12 @@ export async function register7d(env) {
 		}
 		// ⑦ → 段7d の追加・B: ヘッダーは「β版」と、その右のピル「2nd Edition」（exam の「β版」「新UI」と同じ形式）。
 		//    「β版」は exam と同じ文字の大きさ、ピルは exam の「新UI」と同じ高さ・フォントサイズ・太さ。色は special の緑（--uma-accent-soft）。
-		//    ヘッダーの高さは増えない（実測の基準: 1280px 110px／700px 86px／640px 以下 47px。C-139 で 44px の画面の色のボタンが入ったため 104／80 から変わった）。323px 以上はピルの文字が全部入り、322px 以下だけ「2nd」
+		//    ヘッダーの高さは増えない（実測の基準: 1280px 110px／700px 86px／640px 以下 47px（C-140・微調整2・D で上下に6pxの余白を取り 57px）。C-139 で 44px の画面の色のボタンが入ったため 104／80 から変わった）。323px 以上はピルの文字が全部入り、322px 以下だけ「2nd」
 		{
 			// 基準は、exam.html のヘッダーの「β版」（768px 以上 16px）と「新UI」のバッジ（10px・太字・高さ 20px 超）だった。
 			// exam からは C-139（微調整1・C(11)）で両方を外したので、そのときの実測値を固定値にして、special のピルがこの形を保つことを見る
 			const ref = { beta: '16px', fs: '10px', fw: '700' };
-			const HD = (w) => (w >= 1000 ? 110 : w > 640 ? 86 : 47);   // 基準は C-139（微調整1・C(13)）で、44px の画面の色のボタンが入って 104→110・80→86 に変わった（640px 以下は余白を詰めて 47px のまま）
+			const HD = (w) => (w >= 1000 ? 110 : w > 640 ? 86 : 57);   // C-140（微調整2・D）: 640px 以下はタイトルの上下に6pxの余白を取り 47→57px。基準は C-139（微調整1・C(13)）で、44px の画面の色のボタンが入って 104→110・80→86 に変わった（640px 以下は余白を詰めて 47px のまま）
 			for (const w of [1280, 700, 390, 375, 360, 323, 322, 300]) {
 				const sp = await open({ w, h: 800 });
 				const m = await sp.page.evaluate(() => {
@@ -196,7 +196,7 @@ export async function register7d(env) {
 				const wantBeta = w >= 768 ? ref.beta : w > 640 ? '14px' : '11px';   // exam と同じ（768px 以上 16px／それ未満 14px）。640px 以下は詰めて 11px
 				assert(m.betaFs === wantBeta, tag + '「β版」の大きさ ' + wantBeta + (w > 640 ? '（exam と同じ）' : '（スマホは 11px）'), m.betaFs);
 				assert(m.full === (w >= 323 ? '2nd Edition' : '2nd'), tag + (w >= 323 ? 'ピルは「2nd Edition」（全部入る）' : '全部は入らない幅（322px 以下）だけ「2nd」'), m.full);
-				assert(m.hdH === HD(w) && m.pillRight <= m.btnLeft - 4 && m.sameRow && m.docW <= m.iw, tag + 'ヘッダーの高さは ' + HD(w) + 'px のまま（実測 ' + m.hdH + 'px）。ピルは右のボタンの手前（余白 ' + Math.round(m.btnLeft - m.pillRight) + 'px）で、「β版」と同じ行に並び、横にはみ出さない', m);
+				assert(m.hdH === HD(w) && m.pillRight <= m.btnLeft - 4 && m.sameRow && m.docW <= m.iw, tag + 'ヘッダーの高さは ' + HD(w) + 'px（実測 ' + m.hdH + 'px）。ピルは右のボタンの手前（余白 ' + Math.round(m.btnLeft - m.pillRight) + 'px）で、「β版」と同じ行に並び、横にはみ出さない', m);
 				await sp.ctx.close();
 			}
 		}

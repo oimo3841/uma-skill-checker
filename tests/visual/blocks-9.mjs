@@ -627,7 +627,7 @@ export async function register9(env) {
 	/* ====================================================================
 	 * 375px の高さ
 	 * ==================================================================== */
-	await block('段9 375px の高さ（帯 40px 以下・①の表の上端 351px 以下・②の一覧の上端 400px 以下・行 31px）', async () => {
+	await block('段9 375px の高さ（帯 40px 以下・①の表の上端 361px 以下（351px ＋ 微調整2・D の見出しの余白 10px）・②の一覧の上端 400px 以下・行 31px）', async () => {
 		const scope = { skillIds: ['1', '2', '3', '4', '5', '6'], name: '', updatedAt: '' };
 		const m = {};
 		for (const tab of [0, 1]) {
@@ -642,6 +642,6 @@ export async function register9(env) {
 			await sp.ctx.close();
 		}
 		console.log('     [実測] 375px: 帯 ' + m.bar + 'px／①の表の上端 ' + m.grid + 'px（段8 336px）／②の一覧の上端 ' + m.list + 'px（段8 284px）／行 ' + m.row + 'px（31px）');
-		assert(m.bar <= 40 && m.grid <= 351 && m.list <= 400 && m.row === 31, '段9 375px: 帯 ' + m.bar + 'px・①の表の上端 ' + m.grid + 'px・②の一覧の上端 ' + m.list + 'px・行 ' + m.row + 'px', m);
+		assert(m.bar <= 40 && m.grid <= 361 && m.list <= 400 && m.row === 31, '段9 375px: 帯 ' + m.bar + 'px・①の表の上端 ' + m.grid + 'px・②の一覧の上端 ' + m.list + 'px・行 ' + m.row + 'px', m);
 	});
 }

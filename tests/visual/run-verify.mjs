@@ -451,10 +451,6 @@ const INTENTIONALLY_REMOVED = {
 	// 表の最下段の凡例 .usd-roster-legend）は、属性の名前ではなく値・class なのでこの検査には当たらない（記録として残す）。
 	// commit が進んだら免除は空に戻す。
 	// → 段7c の commit（db56879）で HEAD から消えたので、免除は空に戻した（残すと本当の事故を見逃す口になる）。
-		// 2026-10-10（微調整2・C・C-140）: 「スキル名のコピー」の3つのボタン（全◯種・sp70緑・緑59種）と、緑59種を選んだときの 実質53種／59種個別 の切り替え（コピー側）を廃止した。
-		// コピーするのは一覧と同じ内容の1つだけ（既定・変更不可）。技能試験ハイライトの切り替え（#mode-equivalence・#mode-individual）は残っている。
-		// commit が進んだら免除は空に戻す。
-		'exam.html': ['copylist-all133', 'copylist-all133-count', 'copylist-all133-factor', 'copylist-sp70', 'copylist-sp70-count', 'copylist-green59', 'copylist-green59-mode', 'mode-equivalence-list', 'mode-individual-list'],
 	};
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');

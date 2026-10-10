@@ -349,7 +349,7 @@ export async function register7e(env) {
 			if (w === 375) {
 				assert(rows.every((x) => x.h === 31), tag + '行の高さはすべて 31px のまま（固有・金・回復・前段の字下げの行も）', Array.from(new Set(rows.map((x) => x.h))));
 				const g = await gridTop(sp.page);
-				assert(g <= 351, tag + '①の表より上の高さ ' + g + 'px は段7d の最終（351px）以下', { g });
+				assert(g <= 361, tag + '①の表より上の高さ ' + g + 'px は段7d の最終（351px）に見出しの上下の余白（C-140・微調整2・D の +10px）を足した 361px 以下', { g });
 				console.log('     [実測] 375px: ①の表より上 ' + g + 'px／表の行の高さ ' + Array.from(new Set(rows.map((x) => x.h))).join(',') + 'px（段7d の最終: 351px／31px）');
 			}
 			await sp.ctx.close();
