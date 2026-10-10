@@ -50,11 +50,15 @@
 		/* 赤い配色（旧 .deck-panel-note--alpha）は css/common.css の .uma-help-box--alpha へ移した
 		   （段F で exam の遺伝子の行も使うようになったため。C-62 の (9) と同じ運び）。
 		   ここに残るのは、このパネルの余白だけ。 */
-		/* ヘッダーの「？」（使い方・注意）と、狭い幅でのツール切替（段7b の ⓪）。
+		/* ヘッダーの画面の色の切り替えボタン（C-139・微調整1・C(13)。44px。使い方・注意の「？」の位置）と、狭い幅でのツール切替（段7b の ⓪）。
 		   「新UI」「一部αテスト中」のバッジは外した（①のタブの中の赤い注意書きは残す）。 */
-		.help-open-btn { width: 32px; height: 32px; font-size: var(--uma-fs-base); flex: none; }
+		.theme-cycle-btn { width: 44px; height: 44px; padding: 0; flex: none; }
+		.theme-cycle-btn svg { display: none; width: 20px; height: 20px; flex: none; }
+		.theme-cycle-btn[data-theme-state="auto"] svg[data-theme-icon="auto"],
+		.theme-cycle-btn[data-theme-state="light"] svg[data-theme-icon="light"],
+		.theme-cycle-btn[data-theme-state="dark"] svg[data-theme-icon="dark"] { display: block; }
 		@media (max-width: 640px) {
-			/* 375px でタイトル・ツール切替・？ を1行に収めるため、ツール切替は文字と矢印を外してアイコンだけ（aria-label 付き） */
+			/* 375px でタイトル・ツール切替・画面の色の切り替え を1行に収めるため、ツール切替は文字と矢印を外してアイコンだけ（aria-label 付き） */
 			.tool-switch-label, .tool-switch-chev { display: none; }
 			#tool-dropdown-btn { padding-inline: var(--uma-sp-2); }
 		}
@@ -88,8 +92,8 @@
 			#deck-template-panel .usd-skillgroup-head { display: contents; }
 			#deck-template-panel .usd-skillgroup .usd-palette { position: sticky; top: var(--usd-sticky-top, 0px); z-index: 30;
 				margin: 0 -8px; padding: 6px 14px; background: var(--uma-group-bg); border-bottom: 1px solid var(--uma-group-line); }
-			/* ヘッダーは画面の両端まで伸びる帯。タイトルは左、右にツール切替と？だけ。上下の余白は最小 */
-			.site-header { margin-bottom: var(--uma-sp-1); padding: var(--uma-sp-1) var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
+			/* ヘッダーは画面の両端まで伸びる帯。タイトルは左、右にツール切替と画面の色の切り替えだけ。上下の余白は最小（44px のボタンが入って帯が 47px のままになる値） */
+			.site-header { margin-bottom: var(--uma-sp-1); padding: 1px var(--uma-sp-3); border-radius: 0; border-width: 0 0 1px; box-shadow: none; }
 			.site-header h1 { font-size: 1.25rem; line-height: 1.2; }
 			.site-header .header-edition { font-size: 11px; line-height: 1.05; margin-left: var(--uma-sp-1); }
 			.main-card { margin: 0 var(--uma-sp-1); padding: var(--uma-sp-1-5); border-radius: var(--uma-r-lg); }
@@ -98,6 +102,12 @@
 			.main-card .step-tabs { gap: 2px; }
 			/* 旧UIの注記など、ヘッダーの下に出る箱も左右の余白は main-card と揃える */
 			.old-ui-end-note { margin-inline: var(--uma-sp-1); }
+		}
+		/* 狭い幅（360px 以下）: 画面の色のボタン（44px）は、以前の「？」（32px）より 12px 広い。そのぶんをヘッダーの左右の余白（12px→6px）と、右のボタンの間（8px→4px）から出して、
+		   タイトル・ピル「2nd Edition」・ボタンが以前と同じ幅（323px）まで1行に収まるようにする（C-139・微調整1・C(13)） */
+		@media (max-width: 360px) {
+			.site-header { padding-inline: var(--uma-sp-1-5); }
+			.header-actions { gap: var(--uma-sp-1); }
 		}
 		/* ===== 段9（C-121）: ①②の帯・設定の枠・スキルのまとまりの色（変数）=====
 		   色や形の追加は共有の CSS（tokens／common／shell）ではなく、このページの変数でやる（core の .usd-bandbox などが読む）。
@@ -304,7 +314,7 @@
 				</div>
 
 				<!-- 右側：アクションボタン群 -->
-				<div class="flex items-center gap-2 shrink-0">
+				<div class="header-actions flex items-center gap-2 shrink-0">
 
 					<!-- ツール切り替えドロップダウン -->
 					<div class="relative flex items-center gap-2" id="tool-dropdown-wrap">
@@ -370,9 +380,13 @@
 						<span id="deck-mode-btn-label">旧UIへ</span>
 					</button>
 
-					<!-- 使い方・注意（段7で「使い方ガイド」から改名。ヘッダーにあった3行の注意書きもこの中に入れた）。
-					     段7b（⓪）で「？」だけの丸いボタンにした（名前は aria-label と title） -->
-					<button type="button" onclick="toggleHelp()" class="uma-help-btn help-open-btn" aria-label="使い方・注意" title="使い方・注意"><span aria-hidden="true">?</span></button>
+					<!-- 画面の色の切り替え（C-139・微調整1・C(13)）。1つのボタンを押すたびに 自動 → ライト → ダーク → 自動。
+					     いまの状態はアイコンで示し、読み上げの名前にも入れる（仕組みは js/theme.js のまま。cycleTheme()）。使い方・注意の「？」の位置（「？」と小窓は削除した） -->
+					<button type="button" id="theme-cycle-btn" onclick="cycleTheme()" class="uma-btn uma-btn--secondary theme-cycle-btn" data-theme-state="auto" aria-label="画面の色：自動" title="画面の色：自動">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-theme-icon="auto"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor"/></svg>
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-theme-icon="light"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-theme-icon="dark"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+					</button>
 				</div>
 			</div>
 		</header>
@@ -437,118 +451,6 @@
 			</div>
 			<div class="help-foot">
 				<button type="button" class="uma-btn uma-btn--primary" onclick="closeSkillsetPanel()">閉じる</button>
-			</div>
-		</div>
-
-		<div id="help-backdrop" class="uma-overlay-backdrop" hidden onclick="closeHelp()"></div>
-		<div id="help-box" class="uma-overlay help-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="help-title">
-			<div class="help-head">
-				<h2 id="help-title" class="help-title">
-					<i data-lucide="book-open" class="w-4 h-4 text-green-600"></i>
-					<span>使い方</span>
-				</h2>
-				<button id="help-close" type="button" class="uma-icon-btn" onclick="closeHelp()" aria-label="閉じる">
-					<i data-lucide="x" class="w-5 h-5"></i>
-				</button>
-			</div>
-			<div class="help-body">
-				<!-- 画面の色（C-135・ダークモードの段7）。選ぶとすぐ反映する。仕組みは js/theme.js（[data-uma-theme-picker]） -->
-				<div class="uma-theme-row" data-uma-theme-picker>
-					<span class="uma-theme-label" id="theme-picker-label">画面の色</span>
-					<div class="uma-theme-choices" role="radiogroup" aria-labelledby="theme-picker-label">
-						<button type="button" class="uma-theme-choice" role="radio" aria-checked="false" data-theme-choice="auto" title="端末の設定に合わせる" aria-label="自動（端末の設定に合わせる）">自動</button>
-						<button type="button" class="uma-theme-choice" role="radio" aria-checked="false" data-theme-choice="light">ライト</button>
-						<button type="button" class="uma-theme-choice" role="radio" aria-checked="false" data-theme-choice="dark">ダーク</button>
-					</div>
-				</div>
-				<!-- 使い方の手順（C-62 の (10) で、いまの画面に合わせて書き直した）。
-				     旧UIは①がスキルリストの貼り付けだけで編成も分類も無いので、新UIの手順だけが増える形にする
-				     （data-help-mode="new" の行は新UIのときだけ出る。旧UIは更新終了＝C-32 なので足さない）。 -->
-				<ol class="help-steps">
-					<li>
-						<span class="help-num">1</span>
-						<div>
-							<p class="help-step-title">本育成の編成を選ぶ（任意）</p>
-							<!-- ①の中身は旧UIと新UIで違うので、開いたときに片方だけ出す（data-help-mode） -->
-							<p class="help-step-text" data-help-mode="old">旧UIにこの手順はありません。タブ①へ進んでください。</p>
-							<p class="help-step-text" data-help-mode="new">タブ①で、育成するウマ娘と、使うサポートカード（最大6枚）を選びます。その編成のカードと覚醒で<strong>得られるスキル</strong>が表になり、どのカードから得られるかが列の印で分かります。サポートカードの種類は色で見分けられます（欄・候補・表の見出し・凡例の番号がすべて同じ色）。</p>
-							<p class="help-step-text" data-help-mode="new">②の各セットの<strong>「本育成編成」</strong>を押すと、そのセットから本育成で得るスキルを外し、以後その一覧でも選べなくなります（元に戻せます）。タブ①の見出しの脇には、本育成で得るスキルの数が<strong>「◯種」</strong>と出ます。選ばなくても②だけで使えます。</p>
-						</div>
-					</li>
-					<li>
-						<span class="help-num">2</span>
-						<div>
-							<p class="help-step-title">照合するスキルを用意する</p>
-							<p class="help-step-text" data-help-mode="old">タブ①に、スキル名を1行1つで貼り付けて「リストを解析する」を押します。スプレッドシートの1列をそのまま貼り付けても読めます。</p>
-							<p class="help-step-text" data-help-mode="new">タブ②で因子周回を1つ選びます。無ければ「＋ 新規」に足していけば作れます（保存しなくても次回まで残ります）。繰り返し使うものは名前を付けて保存できます。</p>
-							<p class="help-step-text" data-help-mode="new">スキルは<strong>超優先・優先・通常</strong>の3つに分けられます。上の切り替えで分類を選んでから足すとその分類に入り、あとから「再分類」でも移せます。分類は照合結果の表と結合画像に<strong>◎超優先・○優先・▲通常</strong>の印として出ます。</p>
-						</div>
-					</li>
-					<li>
-						<span class="help-num">3</span>
-						<div>
-							<p class="help-step-title">画像をアップロードする</p>
-							<p class="help-step-text">タブ③で、親A・祖A1・祖A2 のうち使う欄にだけスクリーンショットを入れます。1人分だけでも構いません。親Bセットも比べたいときは「＋ 親Bセットも追加する」を押します。</p>
-						</div>
-					</li>
-					<li>
-						<span class="help-num">4</span>
-						<div>
-							<p class="help-step-title">3つのボタンを使い分ける</p>
-							<p class="help-step-text"><strong>OCR処理を開始する</strong> … スキル名と★の数だけを判定します。結合画像は作りません。</p>
-							<p class="help-step-text"><strong>OCR処理＋画像結合を開始する（高負荷）</strong> … 判定と結合を続けて行います。<span data-help-mode="new"><strong>分類の印が付くのはこのボタンだけ</strong>です。</span>枚数が多いほど時間がかかります。</p>
-							<p class="help-step-text"><strong>画像を結合する（OCRしない）</strong> … 判定せずに画像だけをつなぎます。<span data-help-mode="new">分類の印も付きません。</span>スキルリストが空でも押せます。</p>
-						</div>
-					</li>
-					<li>
-						<span class="help-num">5</span>
-						<div>
-							<p class="help-step-title">結果を見る</p>
-							<p class="help-step-text">結果は右下の <strong>＋</strong> ボタンから開きます。行き先は「OCRの照合結果」と「画像結合レビュー」で、<strong>開いたあとは上のタブで行き来できます</strong>。まだ見ていない結果には赤い点が付きます。★の数はまとめてコピーできます。</p>
-							<p class="help-step-text" data-help-mode="new">結果は「UmaSkill Deck」にも渡せます。同じ右下のボタンから開いて「読み込む」を押してください。</p>
-						</div>
-					</li>
-				</ol>
-
-				<div class="help-tips" data-help-mode="new">
-					<p class="help-tips-title">
-						<i data-lucide="image" class="w-3.5 h-3.5"></i>
-						<span>結合画像の印と凡例</span>
-					</p>
-					<ul>
-						<li>分類の印が付くのは <strong>「OCR処理＋画像結合を開始する」</strong> で作った画像だけです。「画像を結合する（OCRしない）」では付きません。</li>
-						<li>スキルセットに入れたスキルの行に、分類の印（◎超優先・○優先・▲通常）が付きます。<strong>印の無い行は、スキルセットに入れていないスキル</strong>です。</li>
-						<li>画像の下端には印の見かたの帯が付きます。3段とも書くので、その画像に出ていない段があることも読み取れます。</li>
-						<li>印を付けるかどうかは、ボタンの下のチェックで切り替えられます。印が1つも入らないときは帯も付きません。</li>
-					</ul>
-				</div>
-
-				<div class="help-tips">
-					<p class="help-tips-title">
-						<i data-lucide="camera" class="w-3.5 h-3.5"></i>
-						<span>撮影のコツ</span>
-					</p>
-					<ul>
-						<li>スキル一覧の部分だけを写します。見出しや前後のキャラクターの行が混ざると誤判定のもとになります。</li>
-						<li>スキル名と★が同じ画像に収まるように撮ります。一番下の行は★が切れやすいので、少しずらしてもう1枚撮っておくと安心です。</li>
-					</ul>
-				</div>
-
-				<!-- 注意（段7・2026-10-03）。ヘッダーにあった3行をここへまとめた（文言は変えていない） -->
-				<div class="help-tips" id="help-cautions">
-					<p class="help-tips-title">
-						<i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
-						<span>注意</span>
-					</p>
-					<ul>
-						<li>※ OCR・★判定の精度は完全ではありません。</li>
-						<li>※ 解像度不足の画像はエラーとなる場合があります。</li>
-						<li>※ 加工された画像は適切に判定できない場合があります。</li>
-					</ul>
-				</div>
-			</div>
-			<div class="help-foot">
-				<button type="button" class="uma-btn uma-btn--primary" onclick="closeHelp()">閉じる</button>
 			</div>
 		</div>
 
@@ -1132,42 +1034,28 @@
 			}
 		});
 
-		/* ============================================================
-		 * 使い方ガイド（手前に重ねるオーバーレイ）
-		 * 閉じる手段は ✕・「閉じる」・背景タップ・Esc の4つ。開いている間は本文の
-		 * スクロールを止め、閉じたらフォーカスをヘッダーのボタンへ返す。
-		 * ============================================================ */
-		let helpOpen = false;
-		let helpReturnFocus = null;
-
-		function toggleHelp() {
-			if (helpOpen) closeHelp(); else openHelp();
+		/* 画面の色の切り替えボタン（C-139・微調整1・C(13)）。1つのボタンを押すたびに 自動 → ライト → ダーク → 自動。
+		   仕組みは js/theme.js（UmaTheme・保存の鍵・OS の設定への追従）のまま。いまの状態はアイコン（data-theme-state）と、
+		   読み上げの名前（aria-label）に出す。他のタブ・引き出しで選び直したときは storage イベントで追従する。 */
+		const THEME_CYCLE_ORDER = ['auto', 'light', 'dark'];
+		const THEME_CYCLE_LABEL = { auto: '自動', light: 'ライト', dark: 'ダーク' };
+		function syncThemeCycleBtn() {
+			const btn = document.getElementById('theme-cycle-btn');
+			if (!btn || !window.UmaTheme) return;
+			const cur = UmaTheme.get();
+			btn.setAttribute('data-theme-state', cur);
+			const name = '画面の色：' + THEME_CYCLE_LABEL[cur];
+			btn.setAttribute('aria-label', name);
+			btn.title = name;
 		}
-
-		function openHelp() {
-			if (helpOpen) return;
-			helpOpen = true;
-			helpReturnFocus = document.activeElement;
-			// ①の中身は旧UIと新UIで違うので、いま出ている方に合わせた説明だけを見せる
-			document.querySelectorAll('[data-help-mode]').forEach(el => {
-				el.hidden = el.dataset.helpMode !== (deckMode ? 'new' : 'old');
-			});
-			document.getElementById('help-backdrop').hidden = false;
-			document.getElementById('help-box').hidden = false;
-			document.body.style.overflow = 'hidden';
-			if (window.lucide) lucide.createIcons();
-			document.getElementById('help-close').focus();
+		function cycleTheme() {
+			if (!window.UmaTheme) return;
+			const cur = UmaTheme.get();
+			UmaTheme.set(THEME_CYCLE_ORDER[(THEME_CYCLE_ORDER.indexOf(cur) + 1) % THEME_CYCLE_ORDER.length]);
+			syncThemeCycleBtn();
 		}
-
-		function closeHelp() {
-			if (!helpOpen) return;
-			helpOpen = false;
-			document.getElementById('help-backdrop').hidden = true;
-			document.getElementById('help-box').hidden = true;
-			document.body.style.overflow = '';
-			if (helpReturnFocus && typeof helpReturnFocus.focus === 'function') helpReturnFocus.focus();
-			helpReturnFocus = null;
-		}
+		window.addEventListener('storage', (e) => { if (e.key === 'uma-tools-theme' || e.key === null) syncThemeCycleBtn(); });
+		document.addEventListener('DOMContentLoaded', syncThemeCycleBtn);
 
 		// kind … 'warn' で注意のアイコン（段13・A4）。それ以外は完了のアイコン
 		function showToast(msg, kind) {
@@ -3187,8 +3075,8 @@
 		// kind: 'layout' | 'alpha' | 'catalog'。withCatalog を渡すと、layout／alpha の下に収録の告知を並べる。
 		function openUiNotice(kind, withCatalog) {
 			if (uiNoticeOpen) return;
-			// 引き出しやガイドが開いている上には重ねない
-			if (helpOpen || openDrawerKey) return;
+			// 引き出しが開いている上には重ねない
+			if (openDrawerKey) return;
 			// layout と alpha は出すのはどちらか一方だけ（C-62 の (11)）
 			uiNoticeKind = (kind === 'alpha' || kind === 'catalog') ? kind : 'layout';
 			uiNoticeWithCatalog = uiNoticeKind !== 'catalog' && !!withCatalog;
@@ -4079,7 +3967,6 @@
 			if (skillsetPanelOpen) closeSkillsetPanel();
 			else if (uiNoticeOpen) closeUiNotice();
 			else if (skillsetGuideOpen) closeSkillsetGuide();
-			else if (helpOpen) closeHelp();
 			else if (openDrawerKey) closeDrawer();
 			else if (fabOpen) setFabOpen(false);
 			else return;

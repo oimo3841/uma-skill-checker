@@ -451,7 +451,14 @@ const INTENTIONALLY_REMOVED = {
 	// 表の最下段の凡例 .usd-roster-legend）は、属性の名前ではなく値・class なのでこの検査には当たらない（記録として残す）。
 	// commit が進んだら免除は空に戻す。
 	// → 段7c の commit（db56879）で HEAD から消えたので、免除は空に戻した（残すと本当の事故を見逃す口になる）。
-};
+		// 2026-10-10（微調整1・C・C-139）: おいもさんの指示で、exam の「使い方ガイド」（ボタン・小窓・旧UIのアコーディオン・本文）と、
+		// special の「？」（使い方・注意のボタン・小窓・注意の3行）を削除し、代わりにヘッダーに画面の色の切り替えボタンを付けた。
+		// 小窓の中にあった「画面の色」の3択（data-uma-theme-picker・data-theme-choice）も一緒になくなった（ボタンは別の作りで、js/theme.js はそのまま）。
+		// exam の見出しの「新UI」バッジ（#ui-mode-badge）も外した。commit が進んだら免除は空に戻す。
+		'exam.html': ['ui-mode-badge', 'help-backdrop', 'help-box', 'help-title', 'help-close', 'help-dialog-slot', 'help-content', 'old-help-card', 'old-help-slot', 'theme-picker-label',
+			'data-uma-theme-picker', 'data-theme-choice'],
+		'special.html': ['help-backdrop', 'help-box', 'help-title', 'help-close', 'help-cautions', 'theme-picker-label', 'data-uma-theme-picker', 'data-theme-choice', 'data-help-mode'],
+	};
 
 console.log('\n=== 3. セレクタ資産（id / data-*）の保全 ===');
 for (const p of TARGETS) {
@@ -519,15 +526,19 @@ fs.rmSync(tmp, { recursive: true, force: true });
  * **片方だけ直すと落ちる**ようにしておく（見た目の検査ではないのでここで見る）。
  * ------------------------------------------------------------ */
 {
-	const noteOf = (p) => {
-		const m = /<p class="mt-1\.5 text-\[11px\] text-slate-400 text-center">(※画像結合は、[^<]*)<\/p>/.exec(read(p));
+	// special の③の注記は従来の文面（両方の注意を書く）。exam の②の注記は、C-139（微調整1・C(8)）でおいもさんの指示により
+	// 「※親Aセット・親Bセットそれぞれで、親・祖1・祖2を個別にまとめてSNS投稿用に出力します。」に短縮した。
+	// → 以前の「special と exam で同じ文面」の検査は外し、special が従来のまま・exam が決めた文面であることを見る
+	const noteOf = (p, head) => {
+		const m = new RegExp('<p class="mt-1\\.5 text-\\[11px\\] text-slate-400 text-center">(' + head + '[^<]*)</p>').exec(read(p));
 		return m ? m[1] : null;
 	};
-	const sp = noteOf('special.html');
-	const ex = noteOf('exam.html');
-	check(sp !== null && sp === ex, '結合の注記が special と exam で同じ文面', { special: sp, exam: ex });
+	const sp = noteOf('special.html', '※画像結合は、');
+	const ex = noteOf('exam.html', '※親Aセット・親Bセット');
 	check(sp !== null && sp.includes('1枚だけのときはエラー') && sp.includes('時間がかかります'),
-		'結合の注記に「1枚だけならエラー」と「枚数が多いほど時間がかかる」の両方がある', sp);
+		'special の結合の注記には「1枚だけならエラー」と「枚数が多いほど時間がかかる」の両方がある（従来のまま）', sp);
+	check(ex === '※親Aセット・親Bセットそれぞれで、親・祖1・祖2を個別にまとめてSNS投稿用に出力します。',
+		'exam の結合の注記は、決めた短い文面（C-139・C(8)）', ex);
 }
 
 console.log('\n=== 6. 共通CSSの !important（詳細度で解決する方針） ===');

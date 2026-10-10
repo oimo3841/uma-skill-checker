@@ -555,4 +555,174 @@ export async function register19(env) {
 		assert(jsErrors(errors).length === 0, '微調整1B3: コンソールエラーなし', errors.slice(0, 3));
 		await ctx.close();
 	});
+
+	/* ====================================================================
+	 * C: ヘッダーと文言
+	 * ==================================================================== */
+	const rect = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, r: r.right, b: r.bottom }; };
+
+	await block('微調整1C1 exam の文言: 冒頭は「技能試験特化ツール」だけ・見出しに「β版」「新UI」なし・①と②の文面（7）（8）（10）', async () => {
+		for (const w of [1280, 375]) {
+			const { ctx, page, errors } = await openExam({ w });
+			const r = await page.evaluate(() => {
+				const h = document.querySelector('header');
+				const ps = [...h.querySelector('h1').parentElement.querySelectorAll('p')].map((p) => p.textContent.replace(/\s+/g, ''));   // 見出しの左の欄（メニューの中の文は除く）
+				const p1 = document.querySelector('#step-panel-1 > p');
+				const p2 = [...document.querySelectorAll('#step-panel-2 > p')].find((p) => p.textContent.includes('親Bセットを追加すると'));
+				const foot = [...document.querySelectorAll('#step-panel-2 p')].find((p) => p.textContent.includes('SNS投稿用'));
+				return { title: document.title, h1: document.querySelector('header h1').textContent.replace(/\s+/g, ' ').trim(), ps, badge: !!document.getElementById('ui-mode-badge'),
+					headerText: h.innerText.replace(/\s+/g, ' ').trim(), p1: p1 && p1.textContent, p2: p2 && p2.innerText, p2html: p2 && p2.innerHTML, foot: foot && foot.textContent,
+					body: document.body.innerText };
+			});
+			assert(r.title === 'UmaExam OCR' && r.h1 === 'UmaExam OCR' && !r.badge && !/β版|新UI/.test(r.headerText),
+				'微調整1C1(' + w + 'px): <title>・見出しに「β版」「新UI」が無い（見出しは「UmaExam OCR」）', { title: r.title, h1: r.h1, badge: r.badge });
+			assert(r.ps.length === 1 && r.ps[0] === '技能試験特化ツール',
+				'微調整1C1(' + w + 'px): 冒頭の説明は「技能試験特化ツール」の1行だけ（4つの文・注意書きの「※」2つは削除）', r.ps);
+			assert(['技能試験で有利な登録済み対象スキルに絞って', '親Aセット（+祖A1+祖A2）に加えて', 'OCR・★判定の精度は完全ではありません', 'パソコン版はゲームのウィンドウが小さいと'].every((s) => !r.body.includes(s)),
+				'微調整1C1(' + w + 'px): 修正前の冒頭の4つの文は画面のどこにも残っていない', null);
+			assert(r.p1 === '既定として登録済みの133種を対象にします。「対象スキルの範囲」で調整可能です。' && !r.body.includes('あらかじめ既定として'),
+				'微調整1C1(' + w + 'px): ①の説明は「既定として登録済みの133種を対象にします。「対象スキルの範囲」で調整可能です。」', r.p1);
+			await page.evaluate(() => selectStepTab(2));
+			const r2 = await page.evaluate(() => {
+				const p2 = [...document.querySelectorAll('#step-panel-2 p')].find((p) => p.textContent.includes('親Bセットを追加すると'));
+				const foot = [...document.querySelectorAll('#step-panel-2 p')].find((p) => p.textContent.includes('SNS投稿用'));
+				return { p2: p2.innerText, html: p2.innerHTML, br: p2.querySelectorAll('br').length, foot: foot.textContent, body: document.body.innerText };
+			});
+			assert(r2.p2.replace(/\n+/g, '\n') === '親Bセットを追加すると、親Aセットとまとめて照合・比較できます。\nスキルが1-2行重なるように撮影してください。' && r2.br === 1,
+				'微調整1C1(' + w + 'px): ②は「親Bセットを追加すると、…比較できます。」に続けて改行し、「スキルが1-2行重なるように撮影してください。」', r2.p2);
+			assert(r2.foot === '※親Aセット・親Bセットそれぞれで、親・祖1・祖2を個別にまとめてSNS投稿用に出力します。' && !r2.body.includes('1人につき2枚以上') && !r2.body.includes('1人分が1枚だけのときはエラー'),
+				'微調整1C1(' + w + 'px): ②の※は「※親Aセット・親Bセットそれぞれで、親・祖1・祖2を個別にまとめてSNS投稿用に出力します。」に短縮', r2.foot);
+			assert(jsErrors(errors).length === 0, '微調整1C1(' + w + 'px): コンソールエラーなし', errors.slice(0, 3));
+			await ctx.close();
+		}
+	});
+
+	await block('微調整1C2 ツール切替: special のアイコンだけのボタンと同じ見た目・大きさ・メニュー／見出しの行の右端（exam）', async () => {
+		const sp = await openPage(browser, base, 'special.html', { width: 375, height: 812 });
+		await sp.page.waitForTimeout(300);
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		const spec = await sp.page.evaluate(() => { const b = document.getElementById('tool-dropdown-btn'); const c = getComputedStyle(b); const r = b.getBoundingClientRect();
+			return { w: r.width, h: r.height, pad: c.padding, border: c.border, radius: c.borderRadius, bg: c.backgroundColor, label: getComputedStyle(b.querySelector('.tool-switch-label')).display, chev: getComputedStyle(b.querySelector('.tool-switch-chev')).display }; });
+		await sp.ctx.close();
+		for (const w of [375, 1280]) {
+			const { ctx, page, errors } = await openExam({ w });
+			const r = await page.evaluate(() => {
+				const b = document.getElementById('tool-dropdown-btn'), c = getComputedStyle(b), t = document.getElementById('theme-cycle-btn');
+				const hd = document.querySelector('header'), h1 = document.querySelector('header h1');
+				const R = (el) => { const q = el.getBoundingClientRect(); return { x: q.x, y: q.y, w: q.width, h: q.height, r: q.right, b: q.bottom }; };
+				return { btn: R(b), pad: c.padding, border: c.border, radius: c.borderRadius, bg: c.backgroundColor, text: b.textContent.trim(), icons: b.querySelectorAll('svg, i').length, aria: b.getAttribute('aria-label'), title: b.title,
+					theme: R(t), hd: R(hd), h1: R(h1), labelEl: !!b.querySelector('.tool-switch-label'), cs: getComputedStyle(hd).paddingRight };
+			});
+			assert(Math.abs(r.btn.w - spec.w) < 0.6 && Math.abs(r.btn.h - spec.h) < 0.6 && r.pad === spec.pad && r.border === spec.border && r.radius === spec.radius && r.bg === spec.bg,
+				'微調整1C2(' + w + 'px): ツール切替は special の375px のアイコンだけのボタンと同じ寸法・枠・角丸・地（' + spec.w + '×' + spec.h + 'px）', { exam: { w: r.btn.w, h: r.btn.h, pad: r.pad, radius: r.radius }, spec });
+			assert(r.text === '' && r.icons === 1 && r.aria === 'ツール切替' && r.title === 'ツール切替', '微調整1C2(' + w + 'px): ラベル「ツール切替」と下向きの矢印は外し、読み上げ用の名前は残す', { text: r.text, icons: r.icons, aria: r.aria });
+			// 見出しの行の右端: ツール切替 → 画面の色のボタンの順に、ヘッダーの内側の右端にそろう。タイトルと同じ行
+			const padR = parseFloat(r.cs);
+			assert(Math.abs(r.theme.r - (r.hd.r - padR - 1)) < 2 && r.btn.r <= r.theme.x && Math.abs((r.btn.y + r.btn.h / 2) - (r.h1.y + r.h1.h / 2)) < r.theme.h && r.theme.y < r.h1.b,
+				'微調整1C2(' + w + 'px): 見出しの行の右端に置く（タイトルと同じ行・ツール切替の右に画面の色のボタン）', { theme: r.theme, btn: r.btn, hd: r.hd, h1: r.h1, padR });
+			// メニュー: 押すと開く・画面の内側に収まる・外を押すと閉じる・メニュー内を押しても閉じない
+			await page.click('#tool-dropdown-btn');
+			const m1 = await page.evaluate(() => { const m = document.getElementById('tool-dropdown-menu'); const q = m.getBoundingClientRect(); return { open: !m.classList.contains('hidden'), l: q.left, r: q.right, t: q.top, vw: document.documentElement.clientWidth, links: [...m.querySelectorAll('a')].map((a) => a.getAttribute('href')), text: m.innerText.replace(/\s+/g, ' ') }; });
+			assert(m1.open && m1.l >= 0 && m1.r <= m1.vw && m1.links.join() === 'special.html' && m1.text.includes('UmaExam OCR') && m1.text.includes('選択中'),
+				'微調整1C2(' + w + 'px): 押すとメニューが開き、画面の内側に収まる（UmaStar OCR への行き先と「選択中」の現在のツール）', m1);
+			await page.click('#tool-dropdown-menu >> text=選択中');
+			assert(await page.evaluate(() => !document.getElementById('tool-dropdown-menu').classList.contains('hidden')), '微調整1C2(' + w + 'px): メニューの中を押しても閉じない', null);
+			await page.click('header h1');
+			assert(await page.evaluate(() => document.getElementById('tool-dropdown-menu').classList.contains('hidden')), '微調整1C2(' + w + 'px): 外を押すと閉じる', null);
+			const before = await page.evaluate(() => document.getElementById('theme-cycle-btn').getAttribute('data-theme-state'));
+			await page.click('#tool-dropdown-btn');
+			await page.click('#theme-cycle-btn');
+			const m2 = await page.evaluate((b) => ({ hidden: document.getElementById('tool-dropdown-menu').classList.contains('hidden'), state: document.getElementById('theme-cycle-btn').getAttribute('data-theme-state'), changed: document.getElementById('theme-cycle-btn').getAttribute('data-theme-state') !== b }), before);
+			assert(m2.hidden && m2.changed, '微調整1C2(' + w + 'px): メニューが開いているとき、隣の画面の色のボタンを押すとメニューは閉じて、色は切り替わる', m2);
+			await page.click('#tool-dropdown-btn');
+			await page.click('#tool-dropdown-btn');
+			assert(await page.evaluate(() => document.getElementById('tool-dropdown-menu').classList.contains('hidden')), '微調整1C2(' + w + 'px): もう一度押すと閉じる', null);
+			assert(jsErrors(errors).length === 0, '微調整1C2(' + w + 'px): コンソールエラーなし', errors.slice(0, 3));
+			await ctx.close();
+		}
+	});
+
+	await block('微調整1C3 画面の色の切り替えボタン（special・exam）: 押すたびに 自動→ライト→ダーク→自動／状態はアイコンと読み上げの名前／保存・開き直し・OS への追従／使い方の「？」と小窓は無い', async () => {
+		for (const file of ['special.html', 'exam.html']) {
+			for (const w of [375, 1280]) {
+				const r0 = await openPage(browser, base, file, { width: w, height: 812 });
+				const { ctx, page, errors } = r0;
+				for (let i = 0; i < 2; i++) { if (await page.isVisible('#ui-notice')) await page.click(file === 'special.html' ? '[data-act="notice-ok"]' : '#ui-notice-ok'); }
+				await page.evaluate(() => { try { localStorage.removeItem('uma-tools-theme'); } catch (e) {} });
+				await page.reload({ waitUntil: 'networkidle' });
+				for (let i = 0; i < 2; i++) { if (await page.isVisible('#ui-notice')) await page.click(file === 'special.html' ? '[data-act="notice-ok"]' : '#ui-notice-ok'); }
+				await page.emulateMedia({ colorScheme: 'light' });
+				const tag = file + '・' + w + 'px';
+				const st = () => page.evaluate(() => {
+					const b = document.getElementById('theme-cycle-btn');
+					const shown = [...b.querySelectorAll('svg')].filter((s) => getComputedStyle(s).display !== 'none').map((s) => s.getAttribute('data-theme-icon'));
+					return { state: b.getAttribute('data-theme-state'), aria: b.getAttribute('aria-label'), title: b.title, shown, stored: localStorage.getItem('uma-tools-theme'), attr: document.documentElement.getAttribute('data-theme'), api: UmaTheme.get() };
+				});
+				const g = await page.evaluate(() => { const b = document.getElementById('theme-cycle-btn'); const q = b.getBoundingClientRect(); return { w: q.width, h: q.height, r: q.right, vw: document.documentElement.clientWidth, tag: b.tagName, type: b.type, disabled: b.disabled }; });
+				assert(g.w >= 44 && g.h >= 44 && g.r <= g.vw && g.tag === 'BUTTON' && g.type === 'button' && !g.disabled, '微調整1C3(' + tag + '): 44px以上のボタンで、画面の右に収まる', g);
+				let s = await st();
+				assert(s.state === 'auto' && s.aria === '画面の色：自動' && s.title === s.aria && s.shown.join() === 'auto' && s.stored === null && s.api === 'auto',
+					'微調整1C3(' + tag + '): 初期は「自動」（アイコン1つ・読み上げの名前に状態・保存の鍵は無し）', s);
+				const order = [['light', 'ライト', 'light'], ['dark', 'ダーク', 'dark'], ['auto', '自動', null]];
+				for (const [mode, label, stored] of order) {
+					await page.click('#theme-cycle-btn');
+					s = await st();
+					assert(s.state === mode && s.aria === '画面の色：' + label && s.shown.join() === mode && s.stored === stored && s.api === mode,
+						'微調整1C3(' + tag + '): 押すと「' + label + '」（アイコン・読み上げの名前・保存が替わる。「自動」は鍵を消す）', s);
+					if (mode !== 'auto') assert(s.attr === mode, '微調整1C3(' + tag + '): 「' + label + '」では画面が ' + mode + ' になる', s);
+				}
+				// 自動のとき OS の設定に従う
+				await page.emulateMedia({ colorScheme: 'dark' });
+				await page.waitForTimeout(150);
+				const a1 = await st();
+				await page.emulateMedia({ colorScheme: 'light' });
+				await page.waitForTimeout(150);
+				const a2 = await st();
+				assert(a1.state === 'auto' && a1.attr === 'dark' && a2.attr === 'light', '微調整1C3(' + tag + '): 「自動」のときは OS の設定（ダーク／ライト）に従う', { a1: a1.attr, a2: a2.attr });
+				// 固定のときは OS に追従しない
+				await page.click('#theme-cycle-btn');
+				await page.emulateMedia({ colorScheme: 'dark' });
+				await page.waitForTimeout(150);
+				const f1 = await st();
+				assert(f1.state === 'light' && f1.attr === 'light', '微調整1C3(' + tag + '): 「ライト」にしたら OS がダークでもライトのまま', f1);
+				// 開き直しても続く
+				await page.click('#theme-cycle-btn');
+				await page.reload({ waitUntil: 'networkidle' });
+				for (let i = 0; i < 2; i++) { if (await page.isVisible('#ui-notice')) await page.click(file === 'special.html' ? '[data-act="notice-ok"]' : '#ui-notice-ok'); }
+				const re = await st();
+				assert(re.state === 'dark' && re.stored === 'dark' && re.attr === 'dark' && re.aria === '画面の色：ダーク' && re.shown.join() === 'dark', '微調整1C3(' + tag + '): 開き直しても選んだ色（ダーク）が続き、ボタンの状態も合っている', re);
+				// 他のタブで選び直したとき（storage イベント）に追従する
+				await page.evaluate(() => { localStorage.setItem('uma-tools-theme', 'light'); window.dispatchEvent(new StorageEvent('storage', { key: 'uma-tools-theme' })); });
+				const sy = await st();
+				assert(sy.state === 'light' && sy.aria === '画面の色：ライト', '微調整1C3(' + tag + '): 他のタブで選び直したら、ボタンの状態も追従する', sy);
+				// キーボード（フォーカス＋Enter）でも切り替わる
+				await page.focus('#theme-cycle-btn');
+				await page.keyboard.press('Enter');
+				const kb = await st();
+				assert(kb.state === 'dark', '微調整1C3(' + tag + '): キーボードの Enter でも切り替わる', kb);
+				// 使い方の「？」・ボタン・小窓・「画面の色」の選択は無い
+				const gone = await page.evaluate(() => ({ box: !!document.getElementById('help-box'), backdrop: !!document.getElementById('help-backdrop'), open: !!document.querySelector('.help-open-btn'), onclick: !!document.querySelector('button[onclick="toggleHelp()"]'),
+					fns: [typeof toggleHelp, typeof openHelp, typeof closeHelp], picker: !!document.querySelector('[data-uma-theme-picker], [data-theme-choice]'), old: !!document.getElementById('old-help-card'), content: !!document.getElementById('help-content'),
+					cautions: !!document.getElementById('help-cautions'), text: document.body.innerText.includes('使い方ガイド') || document.body.innerText.includes('使い方・注意') }));
+				assert(!gone.box && !gone.backdrop && !gone.open && !gone.onclick && gone.fns.every((f) => f === 'undefined') && !gone.picker && !gone.old && !gone.content && !gone.cautions && !gone.text,
+					'微調整1C3(' + tag + '): 使い方ガイド（exam）／「？」（special）のボタンと小窓の本文・「画面の色」の選択は無い', gone);
+				await page.keyboard.press('Escape');
+				assert(jsErrors(errors).length === 0, '微調整1C3(' + tag + '): Esc を押してもコンソールエラーなし', errors.slice(0, 3));
+				await ctx.close();
+			}
+		}
+	});
+
+	await block('微調整1C4 special の375pxのヘッダー: タイトル・ツール切替・画面の色が1行／帯の高さは47pxのまま（①の表の上端などの高さの基準を動かさない）', async () => {
+		const sp = await openPage(browser, base, 'special.html', { width: 375, height: 812 });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		const r = await sp.page.evaluate(() => {
+			const R = (el) => { const q = el.getBoundingClientRect(); return { x: q.x, y: q.y, w: q.width, h: q.height, r: q.right, b: q.bottom }; };
+			return { hd: R(document.querySelector('header')), h1: R(document.querySelector('header h1')), tool: R(document.getElementById('tool-dropdown-btn')), theme: R(document.getElementById('theme-cycle-btn')), vw: document.documentElement.clientWidth };
+		});
+		const rows = [r.h1, r.tool, r.theme].map((x) => x.y + x.h / 2);
+		assert(Math.abs(r.hd.h - 47) <= 1 && r.theme.r <= r.vw && r.tool.r <= r.theme.x && r.h1.r <= r.tool.x && Math.max.apply(null, rows) - Math.min.apply(null, rows) < 8 && r.theme.y >= r.hd.y && r.theme.b <= r.hd.b + 0.5,
+			'微調整1C4: special の375pxのヘッダーは高さ47pxのまま・3つが1行に収まり、44px のボタンが帯からはみ出さない', r);
+		await sp.ctx.close();
+	});
 }

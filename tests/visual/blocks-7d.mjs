@@ -173,18 +173,12 @@ export async function register7d(env) {
 		}
 		// ⑦ → 段7d の追加・B: ヘッダーは「β版」と、その右のピル「2nd Edition」（exam の「β版」「新UI」と同じ形式）。
 		//    「β版」は exam と同じ文字の大きさ、ピルは exam の「新UI」と同じ高さ・フォントサイズ・太さ。色は special の緑（--uma-accent-soft）。
-		//    ヘッダーの高さは増えない（実測の基準: 1280px 104px／700px 80px／640px 以下 47px）。323px 以上はピルの文字が全部入り、322px 以下だけ「2nd」
+		//    ヘッダーの高さは増えない（実測の基準: 1280px 110px／700px 86px／640px 以下 47px。C-139 で 44px の画面の色のボタンが入ったため 104／80 から変わった）。323px 以上はピルの文字が全部入り、322px 以下だけ「2nd」
 		{
-			const exam = await openPage(browser, base, 'exam.html', { width: 1280, height: 800 });
-			const ref = await exam.page.evaluate(() => {
-				const h1 = document.querySelector('header h1'); const beta = Array.from(h1.querySelectorAll('span')).find((s) => s.textContent.trim() === 'β版');
-				const b = document.getElementById('ui-mode-badge'); b.hidden = false;
-				const cs = getComputedStyle(b); const r = b.getBoundingClientRect();
-				return { beta: getComputedStyle(beta).fontSize, fs: cs.fontSize, fw: cs.fontWeight, h: Math.round(r.height * 10) / 10, cls: Array.from(b.classList).filter((c) => c === 'ui-mode-badge' || c === 'rounded-full').join() };
-			});
-			await exam.ctx.close();
-			assert(ref.fs === '10px' && ref.fw === '700' && ref.h > 20 && ref.cls === 'ui-mode-badge,rounded-full', '段7d追加(B) 前提: exam の「新UI」（ui-mode-badge）は 10px／太字(700)／高さ ' + ref.h + 'px', ref);
-			const HD = (w) => (w >= 1000 ? 104 : w > 640 ? 80 : 47);
+			// 基準は、exam.html のヘッダーの「β版」（768px 以上 16px）と「新UI」のバッジ（10px・太字・高さ 20px 超）だった。
+			// exam からは C-139（微調整1・C(11)）で両方を外したので、そのときの実測値を固定値にして、special のピルがこの形を保つことを見る
+			const ref = { beta: '16px', fs: '10px', fw: '700' };
+			const HD = (w) => (w >= 1000 ? 110 : w > 640 ? 86 : 47);   // 基準は C-139（微調整1・C(13)）で、44px の画面の色のボタンが入って 104→110・80→86 に変わった（640px 以下は余白を詰めて 47px のまま）
 			for (const w of [1280, 700, 390, 375, 360, 323, 322, 300]) {
 				const sp = await open({ w, h: 800 });
 				const m = await sp.page.evaluate(() => {
@@ -197,7 +191,7 @@ export async function register7d(env) {
 				});
 				const tag = '段7d追加(B) ' + w + 'px: ';
 				assert(m.betaText === 'β版' && !m.insideH1 && m.tag === 'SPAN' && m.title.includes('2nd Edition'), tag + 'h1 の中は「β版」、ピル「2nd Edition」は h1 の外（文字の抜きグラデーションを受けない）にある。押せるものではない（span）', m);
-				assert(m.fs === ref.fs && m.fw === ref.fw && m.h === ref.h, tag + 'ピルのフォントサイズ（' + m.fs + '）・太さ（' + m.fw + '）・高さ（' + m.h + 'px）は exam の「新UI」と同じ', { m: [m.fs, m.fw, m.h], ref });
+				assert(m.fs === ref.fs && m.fw === ref.fw && m.h > 20, tag + 'ピルのフォントサイズ（' + m.fs + '）・太さ（' + m.fw + '）・高さ（' + m.h + 'px・20px 超）は、以前の exam の「新UI」と同じ（固定値）', { m: [m.fs, m.fw, m.h], ref });
 				assert(m.bg === m.soft.bg && m.color === m.soft.color && m.cursor === 'default', tag + 'ピルの色は special の緑（--uma-accent-soft／--uma-accent-soft-text）。手のカーソルにならない', { bg: m.bg, color: m.color, soft: m.soft, cursor: m.cursor });
 				const wantBeta = w >= 768 ? ref.beta : w > 640 ? '14px' : '11px';   // exam と同じ（768px 以上 16px／それ未満 14px）。640px 以下は詰めて 11px
 				assert(m.betaFs === wantBeta, tag + '「β版」の大きさ ' + wantBeta + (w > 640 ? '（exam と同じ）' : '（スマホは 11px）'), m.betaFs);

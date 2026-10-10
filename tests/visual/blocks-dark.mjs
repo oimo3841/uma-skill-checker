@@ -453,78 +453,30 @@ export async function registerDark(env) {
 		console.log('     [参考] Deck 375px のライトのコントラスト比の不足（直していない・' + lightReport.length + '件）:\n       ' + (lightReport.join('\n       ') || 'なし'));
 	});
 
-	/* ---------- 段7: 「？」の小窓の「画面の色」の切り替え（C-135） ---------- */
-	await block('ダーク13 「？」の小窓の「画面の色」（自動／ライト／ダーク）: 先頭の1行・選ぶとすぐ反映・保存と復元・自動で鍵が消える・壊れた値は自動・375px／320px で1行', async () => {
-		const ROW = '#help-box [data-uma-theme-picker]';
-		const pickerState = (page) => page.evaluate((ROW) => {
-			const row = document.querySelector(ROW);
-			if (!row) return null;
-			const btns = Array.from(row.querySelectorAll('[data-theme-choice]'));
-			const rects = [row.querySelector('.uma-theme-label')].concat(btns).map((e) => e.getBoundingClientRect());
-			const on = btns.find((b) => b.getAttribute('aria-checked') === 'true');
-			const body = document.querySelector('#help-box .help-body');
-			return {
-				first: body.firstElementChild === row,
-				label: row.querySelector('.uma-theme-label').textContent.trim(),
-				group: row.querySelector('[role="radiogroup"]') ? row.querySelector('[role="radiogroup"]').getAttribute('aria-labelledby') : null,
-				texts: btns.map((b) => b.textContent.trim()), roles: btns.map((b) => b.getAttribute('role')),
-				autoTitle: btns[0].getAttribute('title'), autoAria: btns[0].getAttribute('aria-label'),
-				checked: on ? on.getAttribute('data-theme-choice') : null,
-				checkedMark: on ? getComputedStyle(on, '::before').visibility === 'visible' && getComputedStyle(on, '::before').content.includes('✓') : false,
-				otherMarks: btns.filter((b) => b !== on).every((b) => getComputedStyle(b, '::before').visibility === 'hidden'),
-				oneLine: rects.every((r) => Math.abs(r.top - rects[1].top) < 6) && row.getBoundingClientRect().height < 40,
-				fits: row.scrollWidth <= row.clientWidth + 1 && row.getBoundingClientRect().right <= body.getBoundingClientRect().right,
-				tabbable: btns.filter((b) => b.tabIndex === 0).map((b) => b.getAttribute('data-theme-choice')),
-			};
-		}, ROW);
+	/* ---------- 段7: 画面の色の切り替え（C-135）。C-139（微調整1・C(13)）で「？」の小窓の3択（自動／ライト／ダーク）から、ヘッダーの1つのボタン（押すたびに 自動→ライト→ダーク）へ置き換えた ---------- */
+	await block('ダーク13 画面の色の切り替えボタン（ヘッダー）: 壊れた値は「自動」のまま書き換えない・localStorage が使えなくても落ちない・375px／320px でヘッダーに収まる（回る順・保存・OS への追従は「微調整1C3」）', async () => {
 		for (const file of ['special.html', 'exam.html']) {
 			for (const w of [375, 320]) {
 				const { ctx, page, errors } = await openPage(browser, base, file, { width: w, height: 760 });
 				for (const sel of ['#ui-notice-ok', '[data-act="notice-ok"]']) if (await page.isVisible(sel).catch(() => false)) await page.click(sel);
-				const headerBefore = await page.evaluate(() => document.querySelector('header').getBoundingClientRect().height);
-				await page.evaluate(() => openHelp());
-				await page.waitForTimeout(300);
-				let st = await pickerState(page);
 				const tag = file + ' ' + w + 'px: ';
-				assert(!!st && st.first && st.label === '画面の色' && st.group === 'theme-picker-label' && st.texts.join() === '自動,ライト,ダーク' && st.roles.every((r) => r === 'radio'),
-					'ダーク13: ' + tag + '「？」の小窓の先頭に「画面の色」と、自動・ライト・ダークの3つ（radiogroup）', st);
-				assert(st.autoTitle === '端末の設定に合わせる' && /端末の設定に合わせる/.test(st.autoAria), 'ダーク13: ' + tag + '「自動」の意味は title と aria-label にある', st);
-				assert(st.oneLine && st.fits, 'ダーク13: ' + tag + '1行に収まる', st);
-				assert(st.checked === 'auto' && st.checkedMark && st.otherMarks && st.tabbable.join() === 'auto', 'ダーク13: ' + tag + '何も選んでいなければ「自動」が選ばれていて、「✓」が付く（色だけに頼らない）', st);
-				await page.click(ROW + ' [data-theme-choice="dark"]');
-				st = await pickerState(page);
-				assert(await attr(page) === 'dark' && await stored(page) === 'dark' && st.checked === 'dark' && st.checkedMark && st.oneLine,
-					'ダーク13: ' + tag + '「ダーク」を押すとすぐダークになり、鍵に dark を書く（1行のまま）', st);
-				await page.reload({ waitUntil: 'networkidle' });
-				for (const sel of ['#ui-notice-ok', '[data-act="notice-ok"]']) if (await page.isVisible(sel).catch(() => false)) await page.click(sel);
-				await page.evaluate(() => openHelp());
-				await page.waitForTimeout(200);
-				st = await pickerState(page);
-				assert(await attr(page) === 'dark' && st.checked === 'dark', 'ダーク13: ' + tag + '開き直してもダークのまま・「ダーク」が選ばれている', st);
-				// 矢印キーで隣へ（ダーク → 自動）
-				await page.focus(ROW + ' [data-theme-choice="dark"]');
-				await page.keyboard.press('ArrowRight');
-				st = await pickerState(page);
-				assert(st.checked === 'auto' && await stored(page) === null && await attr(page) === 'light' && await page.evaluate(() => document.activeElement.getAttribute('data-theme-choice')) === 'auto',
-					'ダーク13: ' + tag + '矢印キーで隣を選べる（ダーク → 自動。鍵が消え、OS の設定のライトに戻る）', st);
-				await page.click(ROW + ' [data-theme-choice="light"]');
-				assert(await attr(page) === 'light' && await stored(page) === 'light', 'ダーク13: ' + tag + '「ライト」を押すと鍵に light を書く');
-				await page.emulateMedia({ colorScheme: 'dark' });
-				await page.waitForTimeout(100);
-				assert(await attr(page) === 'light', 'ダーク13: ' + tag + '「ライト」のときは OS をダークにしてもライトのまま');
-				await page.click(ROW + ' [data-theme-choice="auto"]');
-				st = await pickerState(page);
-				assert(await stored(page) === null && await attr(page) === 'dark' && st.checked === 'auto', 'ダーク13: ' + tag + '「自動」を押すと鍵を消し、OS の設定（ダーク）に従う', st);
-				await page.emulateMedia({ colorScheme: 'light' });
+				const g = await page.evaluate(() => {
+					const b = document.getElementById('theme-cycle-btn'), hd = document.querySelector('header');
+					const R = (el) => { const q = el.getBoundingClientRect(); return { x: q.x, y: q.y, w: q.width, h: q.height, r: q.right, b: q.bottom }; };
+					return { btn: R(b), hd: R(hd), sw: document.documentElement.scrollWidth, vw: document.documentElement.clientWidth, h1: R(hd.querySelector('h1')), tool: R(document.getElementById('tool-dropdown-btn')) };
+				});
+				assert(g.btn.w >= 44 && g.btn.h >= 44 && g.btn.r <= g.vw && g.btn.x >= g.tool.r && g.sw <= g.vw && g.btn.y >= g.hd.y - 0.5 && g.btn.b <= g.hd.b + 0.5,
+					'ダーク13: ' + tag + 'ボタンは44px以上でヘッダーの右端に収まり、横にはみ出さない（ツール切替の右）', g);
+				// 壊れた値（light／dark 以外）は「自動」として出し、書き換えない
 				await page.evaluate((k) => localStorage.setItem(k, 'purple'), KEY);
 				await page.reload({ waitUntil: 'networkidle' });
 				for (const sel of ['#ui-notice-ok', '[data-act="notice-ok"]']) if (await page.isVisible(sel).catch(() => false)) await page.click(sel);
-				await page.evaluate(() => openHelp());
-				st = await pickerState(page);
-				assert(st.checked === 'auto' && await stored(page) === 'purple' && await attr(page) === 'light', 'ダーク13: ' + tag + '壊れた値は「自動」として出し、書き換えない', st);
+				const bad = await page.evaluate(() => ({ state: document.getElementById('theme-cycle-btn').getAttribute('data-theme-state'), aria: document.getElementById('theme-cycle-btn').getAttribute('aria-label') }));
+				assert(bad.state === 'auto' && bad.aria === '画面の色：自動' && await stored(page) === 'purple' && await attr(page) === 'light',
+					'ダーク13: ' + tag + '壊れた値は「自動」として出し、書き換えない（OS の設定のライトで開く）', bad);
+				await page.click('#theme-cycle-btn');
+				assert(await stored(page) === 'light' && await attr(page) === 'light', 'ダーク13: ' + tag + '押すと壊れた値の次の「ライト」になり、そこで初めて鍵を書き直す', null);
 				await page.evaluate((k) => localStorage.removeItem(k), KEY);
-				const headerAfter = await page.evaluate(() => document.querySelector('header').getBoundingClientRect().height);
-				assert(headerAfter === headerBefore, 'ダーク13: ' + tag + 'ヘッダーの高さは変わらない（切り替えはヘッダーに置かない）', [headerBefore, headerAfter]);
 				assert(jsErrors(errors).length === 0, 'ダーク13: ' + tag + 'コンソールのエラー0', jsErrors(errors));
 				await ctx.close();
 			}
@@ -541,10 +493,10 @@ export async function registerDark(env) {
 			p2.on('pageerror', (e) => errs.push(String(e)));
 			await p2.goto(base + '/' + file, { waitUntil: 'networkidle', timeout: 60000 });
 			for (const sel of ['#ui-notice-ok', '[data-act="notice-ok"]']) if (await p2.isVisible(sel).catch(() => false)) await p2.click(sel);
-			await p2.evaluate(() => openHelp());
-			await p2.click(ROW + ' [data-theme-choice="dark"]');
-			const st2 = await pickerState(p2);
-			assert(errs.length === 0 && await attr(p2) === 'dark' && st2.checked === 'dark', 'ダーク13: ' + file + ' は localStorage が使えなくても落ちず、選んだ色をその画面に当てて「ダーク」を選んだ表示にする', { errs, st2 });
+			await p2.click('#theme-cycle-btn');
+			await p2.click('#theme-cycle-btn');
+			const st2 = await p2.evaluate(() => ({ state: document.getElementById('theme-cycle-btn').getAttribute('data-theme-state'), attr: document.documentElement.getAttribute('data-theme') }));
+			assert(errs.length === 0 && st2.state === 'dark' && st2.attr === 'dark', 'ダーク13: ' + file + ' は localStorage が使えなくても落ちず、押した色（ライト→ダーク）をその画面に当てて、ボタンの状態も合わせる', { errs, st2 });
 			await c2.close();
 		}
 	});

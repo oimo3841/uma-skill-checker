@@ -754,37 +754,7 @@ await block('special.html（UmaStar OCR）', async () => {
 	await page.reload({ waitUntil: 'domcontentloaded' });
 	await page.waitForTimeout(2000);
 
-	// 使い方ガイド（手前に重ねるオーバーレイ）。閉じる手段が4つあることまで見る。
-	await page.click('button[onclick="toggleHelp()"]');
-	await page.waitForTimeout(200);
-	assert(await page.isVisible('#help-box'), 'special: 使い方ガイドが開く');
-	const helpOpened = await page.evaluate(() => ({
-		dialog: document.getElementById('help-box').getAttribute('role'),
-		backdrop: !document.getElementById('help-backdrop').hidden,
-		scrollLocked: document.body.style.overflow === 'hidden',
-		focusOnClose: document.activeElement === document.getElementById('help-close'),
-		// 旧UIなので①の説明は旧UI向けだけが出ている
-		oldText: [...document.querySelectorAll('[data-help-mode="old"]')].every((el) => !el.hidden),
-		newText: [...document.querySelectorAll('[data-help-mode="new"]')].every((el) => el.hidden)
-	}));
-	assert(helpOpened.dialog === 'dialog' && helpOpened.backdrop && helpOpened.scrollLocked,
-		'special: ガイドは背景を暗くして手前に重なり、本文のスクロールが止まる', helpOpened);
-	assert(helpOpened.focusOnClose, 'special: 開いた時点で✕にフォーカスが移る', helpOpened);
-	assert(helpOpened.oldText && helpOpened.newText, 'special: ガイドの①の説明が旧UI向けだけ出る', helpOpened);
-	await page.keyboard.press('Escape');
-	await page.waitForTimeout(200);
-	assert(!(await page.isVisible('#help-box')), 'special: Escでガイドが閉じる');
-	assert(await page.evaluate(() => document.body.style.overflow === ''), 'special: 閉じると本文のスクロールが戻る');
-	await page.click('button[onclick="toggleHelp()"]');
-	await page.waitForTimeout(200);
-	await page.click('#help-close');
-	await page.waitForTimeout(200);
-	assert(!(await page.isVisible('#help-box')), 'special: ✕でガイドが閉じる');
-	await page.click('button[onclick="toggleHelp()"]');
-	await page.waitForTimeout(200);
-	await page.mouse.click(8, 8); // 背景（左上の隅）
-	await page.waitForTimeout(200);
-	assert(!(await page.isVisible('#help-box')), 'special: 背景タップでガイドが閉じる');
+	// 使い方・注意の小窓は C-139（微調整1・C(13)）で本文ごと削除した。画面の色の切り替えボタンは blocks-19.mjs の「微調整1C3」が見る。
 	/* --- ステップ1・2のタブ（1枚のカードに重ねて切り替える） --- */
 	const stepState = () => page.evaluate(() => ({
 		tab1: document.getElementById('step-tab-1').getAttribute('aria-selected'),
@@ -1777,8 +1747,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	}));
 	assert(registry.rows === 133 && registry.total === '133' && registry.badge === '133種',
 		'exam: 組み込みの133種が登録されている（①のタブのバッジは「133種」）', registry);
-	assert(/技能試験で有利な登録済み対象スキル/.test(registry.header) && !/種・登録済み/.test(registry.header),
-		'exam: ヘッダーの見出しに種数を書かない', registry.header.slice(0, 40));
+	assert(registry.header.trim() === '技能試験特化ツール' && !/\d+種/.test(registry.header),
+		'exam: ヘッダーの見出しに種数を書かない（C-139・微調整1・C(9)で冒頭は「技能試験特化ツール」の1行になった）', registry.header.slice(0, 40));
 	assert(registry.sp70 === 'sp70緑：17種' && registry.green === '緑59種（実質53種）',
 		'exam: sp70緑17・緑59（実質53）のバッジが出る', registry);
 	// 59セッション目（段1）から common.css も読む（ボタンを共通部品にするため）。
@@ -2881,54 +2851,12 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	assert(!(await page.evaluate(() => document.getElementById('fab-nav').classList.contains('open'))), 'exam: Esc でFABが畳まれる');
 	await page.evaluate(() => { selectStepTab(1); window.scrollTo(0, 0); });
 
-	/* --- 使い方ガイド（手前に重ねるダイアログ）。閉じる手段が4つあることまで見る --- */
-	await page.click('button[onclick="toggleHelp()"]');
-	await page.waitForTimeout(200);
-	assert(await page.isVisible('#help-box'), 'exam: 使い方ガイドが開く');
-	const helpOpened = await page.evaluate(() => ({
-		dialog: document.getElementById('help-box').getAttribute('role'),
-		backdrop: !document.getElementById('help-backdrop').hidden,
-		scrollLocked: document.body.style.overflow === 'hidden',
-		focusOnClose: document.activeElement === document.getElementById('help-close'),
-		steps: document.querySelectorAll('#help-box .help-steps > li').length,
-		step3: document.querySelectorAll('#help-box .help-step-text')[2].textContent,
-		tips: document.querySelectorAll('#help-box .help-tips li').length
-	}));
-	assert(helpOpened.dialog === 'dialog' && helpOpened.backdrop && helpOpened.scrollLocked,
-		'exam: ガイドは背景を暗くして手前に重なり、本文のスクロールが止まる', helpOpened);
-	assert(helpOpened.focusOnClose, 'exam: 開いた時点で✕にフォーカスが移る', helpOpened);
-	assert(helpOpened.steps === 4 && helpOpened.tips === 2 && helpOpened.step3.includes('右下の') && helpOpened.step3.includes('引き出し'),
-		'exam: 文面は4ステップ＋撮影の注意2点のまま。STEP3 に引き出しの案内が足されている', helpOpened);
-	await page.keyboard.press('Escape');
-	await page.waitForTimeout(200);
-	assert(!(await page.isVisible('#help-box')), 'exam: Escでガイドが閉じる');
-	assert(await page.evaluate(() => document.body.style.overflow === ''), 'exam: 閉じると本文のスクロールが戻る');
-	await page.click('button[onclick="toggleHelp()"]');
-	await page.waitForTimeout(200);
-	await page.click('#help-close');
-	await page.waitForTimeout(200);
-	assert(!(await page.isVisible('#help-box')), 'exam: ✕でガイドが閉じる');
-	await page.click('button[onclick="toggleHelp()"]');
-	await page.waitForTimeout(200);
-	await page.click('#help-box .help-foot button');
-	await page.waitForTimeout(200);
-	assert(!(await page.isVisible('#help-box')), 'exam: 「閉じる」でガイドが閉じる');
-	await page.click('button[onclick="toggleHelp()"]');
-	await page.waitForTimeout(200);
-	await page.mouse.click(8, 8); // 背景（左上の隅）
-	await page.waitForTimeout(200);
-	assert(!(await page.isVisible('#help-box')), 'exam: 背景タップでガイドが閉じる');
-	// Esc の優先順位: ガイド → 引き出し。引き出しの上でガイドを開き、Esc を2回
+	/* --- 使い方ガイドは C-139（微調整1・C(13)）で本文ごと削除した。Esc の優先順位は 引き出し → FAB の順のまま --- */
 	await page.evaluate(() => fabGoTo('result'));
 	await page.waitForTimeout(500);
-	await page.evaluate(() => openHelp());
-	await page.waitForTimeout(200);
-	await page.keyboard.press('Escape');
-	await page.waitForTimeout(300);
-	assert(!(await page.isVisible('#help-box')) && await page.isVisible('#result-drawer'), 'exam: Esc はガイドを先に閉じ、引き出しは残る');
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(600);
-	assert(!(await page.isVisible('#result-drawer')), 'exam: もう一度 Esc で引き出しが閉じる');
+	assert(!(await page.isVisible('#result-drawer')), 'exam: Esc で引き出しが閉じる');
 
 	// 375px で横スクロールが出ていないこと（結果カードと案内が出ている状態で）
 	await page.setViewportSize({ width: 375, height: 812 });
@@ -4418,7 +4346,6 @@ await block('exam.html — 既定は新UI／切り替えの告知モーダル／
 	const uiState = (page) => page.evaluate(() => ({
 		notice: !document.getElementById('ui-notice').hidden,
 		backdrop: !document.getElementById('ui-notice-backdrop').hidden,
-		badge: !document.getElementById('ui-mode-badge').hidden,
 		newCard: !document.getElementById('new-step-card').hidden,
 		oldCards: [!document.getElementById('old-step1-card').hidden, !document.getElementById('old-step2-card').hidden],
 		fab: !document.getElementById('fab-nav').hidden,
@@ -4432,7 +4359,6 @@ await block('exam.html — 既定は新UI／切り替えの告知モーダル／
 		// 中身の置き場（どの箱の中にいるか）
 		panel1In: document.getElementById('step-panel-1').parentElement.id,
 		resultIn: document.getElementById('result-wrap').parentElement.id,
-		helpIn: document.getElementById('help-content').parentElement.id,
 		copyIn: document.getElementById('result-copy-btn').parentElement.id,
 		devIn: document.getElementById('dev-wrap').parentElement.id
 	}));
@@ -4442,11 +4368,11 @@ await block('exam.html — 既定は新UI／切り替えの告知モーダル／
 		const { ctx, page, errors } = await openPage(browser, base, 'exam.html');
 		await page.waitForTimeout(800);
 		const first = await uiState(page);
-		assert(first.newCard && !first.oldCards[0] && !first.oldCards[1] && first.fab && first.badge && first.label === '旧UIへ',
+		assert(first.newCard && !first.oldCards[0] && !first.oldCards[1] && first.fab && first.label === '旧UIへ',
 			'exam: 初回は新UI（タブ・FAB）で開き、旧UIのカードは出ない', first);
 		assert(!first.btnShown && !first.endNote, 'exam: 初回（新UI）では「旧UIへ」も更新終了の注記も出ない（片道化）', first);
 		assert(!(await page.isVisible('#deck-mode-btn')), 'exam: 隠した「旧UIへ」は実際に描画されない（inline-flex に負けない。F-13）');
-		assert(first.panel1In === 'new-step-slot' && first.resultIn === 'result-drawer-slot' && first.helpIn === 'help-dialog-slot' && first.copyIn === 'result-copy-slot'
+		assert(first.panel1In === 'new-step-slot' && first.resultIn === 'result-drawer-slot' && first.copyIn === 'result-copy-slot'
 			&& first.devIn === 'new-devlog-slot',
 			'exam: 新UIでは中身がタブ・引き出し・ダイアログの中にある', first);
 		assert(first.notice && first.backdrop && first.scrollLocked,
@@ -4529,12 +4455,8 @@ await block('exam.html — 既定は新UI／切り替えの告知モーダル／
 		assert(!(await page.evaluate(() => !document.getElementById('ui-notice').hidden)),
 			'exam: 対象スキルの告知は繰り返さない');
 
-		// 右上のバッジから読み直せる（既読のまま）
-		await page.click('#ui-mode-badge');
-		await page.waitForTimeout(300);
-		const reopened = await uiState(page);
-		assert(reopened.notice && reopened.seen === '2026-09-exam-drawer-layout', 'exam: 右上のバッジから読み直せて、既読のまま変わらない', reopened);
-		await page.click('#ui-notice-ok');
+			// 見出しの「新UI」バッジは C-139（微調整1・C(11)）で外した（読み直す入口は無い）
+			assert((await page.$('#ui-mode-badge')) === null, 'exam: 見出しに「新UI」のバッジは無い');
 		await page.waitForTimeout(300);
 
 		// 旧UI：中身が本文のカードにあり、FAB と Deck の入口が無い。受け渡しの書き込みは続く。
@@ -4553,7 +4475,7 @@ await block('exam.html — 既定は新UI／切り替えの告知モーダル／
 		});
 		await page.waitForTimeout(300);
 		const old = await uiState(page);
-		assert(old.mode === 'old' && old.label === '新UIへ' && !old.badge, 'exam: 保存値 old で開くと旧UIで、ラベルが「新UIへ」になる', old);
+		assert(old.mode === 'old' && old.label === '新UIへ', 'exam: 保存値 old で開くと旧UIで、ラベルが「新UIへ」になる', old);
 		assert(old.btnShown && old.endNote, 'exam: 旧UIでは「新UIへ」（出口）と更新終了の注記が出る', old);
 		const endNote = await page.evaluate(() => {
 			const el = document.getElementById('old-ui-end-note');
@@ -4573,7 +4495,7 @@ await block('exam.html — 既定は新UI／切り替えの告知モーダル／
 		assert(endNote.bg === 'rgb(255, 251, 235)' && endNote.opacity === '1',
 			'exam: 注記の地は警告の色（不透明）で opacity を使っていない', endNote);
 		assert(!old.newCard && old.oldCards[0] && old.oldCards[1] && !old.fab, 'exam: 旧UIでは①②が別々のカードで縦に並び、FABは出ない', old);
-		assert(old.panel1In === 'old-step1-slot' && old.resultIn === 'old-result-slot' && old.helpIn === 'old-help-slot' && old.copyIn === 'old-copy-slot'
+		assert(old.panel1In === 'old-step1-slot' && old.resultIn === 'old-result-slot' && old.copyIn === 'old-copy-slot'
 			&& old.devIn === 'old-devlog-slot',
 			'exam: 旧UIでは中身が本文のカードとアコーディオンの中へ移る', old);
 		assert(await page.evaluate(() => ({
@@ -4587,27 +4509,19 @@ await block('exam.html — 既定は新UI／切り替えの告知モーダル／
 			'exam: 旧UIでは Deck の入口（取り込み案内）を出さない（F-29②）');
 		assert(await page.evaluate(() => !!JSON.parse(localStorage.getItem('umaSkillDeck:ocrHandoff:exam') || 'null')),
 			'exam: 受け渡しの書き込み自体は旧UIでも続いている');
-		// 旧UIのガイドはアコーディオン
-		await page.click('button[onclick="toggleHelp()"]');
-		await page.waitForTimeout(200);
-		assert(await page.isVisible('#old-help-card') && await page.evaluate(() => document.getElementById('help-box').hidden),
-			'exam: 旧UIではガイドが本文のアコーディオンで開き、ダイアログは使わない');
-		await page.click('button[onclick="toggleHelp()"]');
-		await page.waitForTimeout(200);
-		assert(!(await page.isVisible('#old-help-card')), 'exam: 旧UIのアコーディオンはもう一度押すと閉じる');
 
 		// 再読み込み → 旧UIで開く・告知は出ない
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await page.waitForTimeout(1500);
 		const old2 = await uiState(page);
-		assert(!old2.newCard && old2.oldCards[0] && old2.label === '新UIへ' && !old2.badge && !old2.notice,
+		assert(!old2.newCard && old2.oldCards[0] && old2.label === '新UIへ' && !old2.notice,
 			'exam: 既読なら最後に選んだ旧UIで開き、モーダルは出ない', old2);
 
 		// 新UIへ戻る：中身がタブ・引き出しへ戻り、①のタブが開いている
 		await page.click('#deck-mode-btn');
 		await page.waitForTimeout(600);
 		const back = await uiState(page);
-		assert(back.newCard && back.fab && back.badge && back.panel1In === 'new-step-slot' && back.resultIn === 'result-drawer-slot',
+		assert(back.newCard && back.fab && back.panel1In === 'new-step-slot' && back.resultIn === 'result-drawer-slot',
 			'exam: 新UIへ戻ると中身もタブ・引き出しへ戻る', back);
 		assert(back.mode === 'new' && !back.btnShown && !back.endNote,
 			'exam: 新UIへ戻ると選んだUIが保存され、「旧UIへ」と注記は出ない（片道化）', back);
@@ -4901,7 +4815,7 @@ await block('失敗時の案内（版ずれ・CDN遮断）が実際に出るか'
 	await page.waitForTimeout(6000);
 	assert(warns.some((w) => w.includes('外部ファイルを読み込めませんでした')), 'CDN遮断を検出して案内が出る');
 	const hiddenWorks = await page.evaluate(() => {
-		const el = document.getElementById('help-box');
+		const el = document.getElementById('deck-drawer');   // 閉じている引き出し（.uma-drawer[hidden]。C-139 で使い方の小窓を削除したので、同じ作りのこちらで見る）
 		return el ? getComputedStyle(el).display === 'none' : null;
 	});
 	assert(hiddenWorks === true, 'CDN遮断時も hidden の保険が効いている', hiddenWorks);
@@ -14623,15 +14537,11 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 		const LOWFX = /低効果\s*を除外/g;
 		const text = document.body.innerText.replace(LOWFX, '');
 		const attrs = Array.from(document.querySelectorAll('#deck-roster-panel [title], #deck-roster-panel [aria-label], #deck-template-panel [title], #deck-template-panel [aria-label]')).map((e) => (e.title || '') + ' ' + (e.getAttribute('aria-label') || '')).join(' ').replace(LOWFX, '');
-		return { jogai: text.includes('除外') || attrs.includes('除外'), yuko: text.includes('有効にする') || text.includes('有効を外す'), badge: document.getElementById('deck-roster-excluded').textContent, head: !!document.querySelector('.deck-panel-head'), help: document.querySelector('header').innerText + ' ' + document.querySelector('.help-open-btn').getAttribute('aria-label') };
+		return { jogai: text.includes('除外') || attrs.includes('除外'), yuko: text.includes('有効にする') || text.includes('有効を外す'), badge: document.getElementById('deck-roster-excluded').textContent, head: !!document.querySelector('.deck-panel-head'), help: document.querySelector('header').innerText + ' ' + document.getElementById('theme-cycle-btn').getAttribute('aria-label') };
 	});
-	assert(!words.jogai && !words.yuko && words.head === false && /^\d+種$/.test(words.badge) && words.help.includes('使い方・注意') && !words.help.includes('精度は完全'),
-		'段7(旧3)(1)(2)(20)→段7b(⓪): 画面の文言に「除外」「有効にする」が無く、①の見出しの行は無く、ヘッダーの「？」は「使い方・注意」（aria-label）で注意の3行は無い', words);
-	await sp.page.click('.help-open-btn');
-	await sp.page.waitForTimeout(200);
-	const help = await sp.page.evaluate(() => ({ open: !document.getElementById('help-box').hidden, caution: (document.getElementById('help-cautions') || {}).innerText || '', title: document.querySelector('#help-box .help-title').innerText }));
-	assert(help.open && help.caution.includes('OCR・★判定の精度は完全ではありません') && help.caution.includes('解像度不足') && help.caution.includes('加工された画像'), '段7(1): 「使い方・注意」のポップアップの「注意」の欄に3行がある', help);
-	await sp.page.keyboard.press('Escape');
+	assert(!words.jogai && !words.yuko && words.head === false && /^\d+種$/.test(words.badge) && words.help.includes('画面の色') && !words.help.includes('使い方・注意') && !words.help.includes('精度は完全'),
+		'段7(旧3)(1)(2)(20)→段7b(⓪)→C-139: 画面の文言に「除外」「有効にする」が無く、①の見出しの行は無く、ヘッダーの右端のボタンは「画面の色」（aria-label。使い方・注意の「？」は削除した）で注意の3行は無い', words);
+	// 「使い方・注意」の小窓（と注意の3行）は C-139 で削除した
 	await sp.page.evaluate(() => selectStepTab(1));
 	const row2 = await sp.page.evaluate(() => { const r = document.querySelector('.usd-panel[data-skill-id]'); const b = r && r.querySelector('[data-usd-el="skill-info-btn"]'); return { btn: !!b, isInfo: b && b.classList.contains('usd-info-btn'), nameIsBtn: r && r.querySelector('.usd-panel-namebtn').tagName }; });   // 段9（C-121）: 行は「アイコン／名前（button）／Pt／×」で、名前を包む span は無い
 	assert(row2.btn && !row2.isInfo && row2.nameIsBtn === 'BUTTON', '段7(14)→段7d(⑬)→段9: ②の行も、名前（button）を押して開く形になった（ⓘ の別ボタンは無い）', row2);
@@ -14771,7 +14681,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 	   段8（C-120）で外した。①の編成のタブと②の因子周回のタブ（✎ ✓ ↩ ×・確認の小窓・10件の知らせ）を無くし、
 	   セットの名前・一覧・削除は共通の見出しの帯（#deck-set-bar）に1つにまとめた（新しい仕様は blocks-8.mjs の段8(B)）。 */
 
-	/* ───── ⓪ ヘッダー（special。375px でも1行・「？」から使い方・注意） ───── */
+	/* ───── ⓪ ヘッダー（special。375px でも1行・右端に画面の色の切り替え。C-139 で「？」〔使い方・注意〕から置き換えた） ───── */
 	for (const w of [375, 1280]) {
 		const sp = await openTab({ w, h: 900, tab: 0 });
 		const tag = '段7b(⓪) ' + w + 'px: ';
@@ -14780,21 +14690,17 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			const r = (e) => { const b = e.getBoundingClientRect(); return { t: b.top, h: b.height, l: b.left, r: b.right, w: b.width }; };
 			const label = document.querySelector('#tool-dropdown-btn .tool-switch-label');
 			return { text: hd.textContent.replace(/\s+/g, ' '), h1: document.querySelector('header h1').textContent.replace(/\s+/g, ' ').trim(), title: document.title,
-				h1r: r(document.querySelector('header h1')), toolr: r(document.getElementById('tool-dropdown-btn')), helpr: r(document.querySelector('.help-open-btn')), hdr: r(hd),
+				h1r: r(document.querySelector('header h1')), toolr: r(document.getElementById('tool-dropdown-btn')), helpr: r(document.getElementById('theme-cycle-btn')), hdr: r(hd),
 				labelShown: label ? getComputedStyle(label).display !== 'none' : null, toolAria: document.getElementById('tool-dropdown-btn').getAttribute('aria-label'),
-				helpAria: document.querySelector('.help-open-btn').getAttribute('aria-label'), helpTitle: document.querySelector('.help-open-btn').title, helpText: document.querySelector('.help-open-btn').textContent.trim(),
-				badges: [!!document.getElementById('ui-mode-badge'), !!document.getElementById('alpha-badge')], alphaNote: !!document.getElementById('deck-roster-alpha'), helpBtns: document.querySelectorAll('[onclick="toggleHelp()"]').length };
+				helpAria: document.getElementById('theme-cycle-btn').getAttribute('aria-label'), helpTitle: document.getElementById('theme-cycle-btn').title, helpText: document.getElementById('theme-cycle-btn').textContent.trim(),
+				badges: [!!document.getElementById('ui-mode-badge'), !!document.getElementById('alpha-badge')], alphaNote: !!document.getElementById('deck-roster-alpha'), helpBtns: document.querySelectorAll('[onclick="toggleHelp()"], .help-open-btn').length };
 		});
 		assert(!hd.text.includes('ゲーム画面のスクリーンショットから') && hd.h1.endsWith('β版') && !hd.h1.includes('α') && hd.title.includes('2nd Edition') && !hd.badges[0] && !hd.badges[1] && !hd.alphaNote,
 			tag + '副題が無い・「β版」＋ピル「2nd Edition」（段7d の追加・B。h1 は「β版」で終わる）・「新UI」「一部αテスト中」のバッジが無い・①の中の赤い注意書きも無い', { h1: hd.h1, title: hd.title, badges: hd.badges, alphaNote: hd.alphaNote });
-		assert(hd.helpText === '?' && hd.helpAria === '使い方・注意' && hd.helpTitle === '使い方・注意' && hd.helpr.w <= 36 && hd.helpBtns === 1, tag + '「使い方・注意」は「？」だけの丸いボタン（aria-label と title が「使い方・注意」。横幅は最小）', { w: hd.helpr.w, aria: hd.helpAria });
+		assert(hd.helpText === '' && hd.helpAria === '画面の色：自動' && hd.helpTitle === hd.helpAria && hd.helpr.w >= 44 && hd.helpBtns === 0, tag + '右端は画面の色の切り替え（文字なし・44px以上・aria-label と title が「画面の色：自動」）。使い方・注意の「？」は無い', { w: hd.helpr.w, aria: hd.helpAria, helpBtns: hd.helpBtns });
 		const oneRow = Math.abs(hd.h1r.t + hd.h1r.h / 2 - (hd.toolr.t + hd.toolr.h / 2)) < 12 && Math.abs(hd.toolr.t + hd.toolr.h / 2 - (hd.helpr.t + hd.helpr.h / 2)) < 12 && hd.h1r.h < 50;
-		assert(oneRow, tag + 'タイトル・ツール切替・？ が1行に並ぶ（タイトルは1行）', { h1: hd.h1r, tool: hd.toolr, help: hd.helpr });
+		assert(oneRow, tag + 'タイトル・ツール切替・画面の色が1行に並ぶ（タイトルは1行）', { h1: hd.h1r, tool: hd.toolr, help: hd.helpr });
 		assert(hd.toolAria === 'ツール切替' && (w === 375 ? hd.labelShown === false : hd.labelShown === true), tag + (w === 375 ? '375px ではツール切替をアイコンだけ（aria-label 付き）にして収める' : '1280px ではツール切替の文字が出ている'), { shown: hd.labelShown, aria: hd.toolAria });
-		await sp.page.click('.help-open-btn');
-		await sp.page.waitForTimeout(250);
-		assert(await sp.page.isVisible('#help-box') && (await sp.page.textContent('#help-box')).includes('注意'), tag + '「？」を押すと使い方・注意が開く（注意の欄つき）');
-		await sp.page.keyboard.press('Escape');
 		const sz = await SP(sp.page);
 		assert(sz.sw <= sz.iw && jsErrors(sp.errors).length === 0, tag + '横はみ出し0・コンソールのエラー0', { sz, errors: jsErrors(sp.errors) });
 		await sp.ctx.close();
@@ -15084,7 +14990,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		// 段8（C-120）で②のタブの帯（aria-label「因子周回」）を無くしたので、帯の呼び名の検査は外した（帯が無いことだけ見る）
 		assert(!texts.text.includes('周回因子セット') && !texts.attrs.includes('周回因子セット') && texts.step1 === '因子周回' && texts.tabAria === undefined,
 			'段7b(⑪): 画面の文言（見出し・タブ・説明・aria-label・title）に「周回因子セット」が残っていない。ステップのタブの名前は「因子周回」', { step1: texts.step1, tabAria: texts.tabAria });
-		assert(texts.text.includes('タブ②で因子周回を1つ選びます'), '段7b(⑪): 使い方の文も「因子周回」', null);
+		// 使い方の文（「タブ②で因子周回を1つ選びます」）は、使い方・注意の小窓ごと C-139（微調整1・C(13)）で削除した。画面に残る文言の検査は上の1件で足りる
 		await sp.ctx.close();
 		// 画面に出る文字列のリテラル（コメントを除く）にも残っていない
 		const src = fs.readFileSync(path.join(REPO_ROOT, 'js/uma-skill-deck-core.js'), 'utf8').split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l));
@@ -15105,7 +15011,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		const plain = async (file) => { const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } }); const page = await ctx.newPage(); const errors = []; page.on('pageerror', (er) => errors.push(String(er))); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); }); await page.goto(base + '/' + file, { waitUntil: 'networkidle', timeout: 60000 }); await page.waitForTimeout(600); return { ctx, page, errors }; };
 		const ex = await plain('exam.html');
 		const e = await ex.page.evaluate(() => ({ title: document.title, h1: document.querySelector('header h1').textContent.replace(/\s+/g, ' ').trim(), ntabs: document.querySelectorAll('.usd-ntabs, .usd-ntab').length, help: !!document.querySelector('.help-open-btn') }));
-		assert(e.title.includes('β版') && e.h1.endsWith('β版') && e.ntabs === 0 && !e.help, '段7b: exam.html のヘッダー（β版）は変わらない', e);
+		assert(e.title === 'UmaExam OCR' && e.h1 === 'UmaExam OCR' && e.ntabs === 0 && !e.help, '段7b→C-139: exam.html のヘッダーは「UmaExam OCR」（「β版」「新UI」を外した。微調整1・C(11)）', e);
 		await ex.ctx.close();
 		const ix = await plain('index.html');
 		const i = await ix.page.evaluate(() => ({ title: document.title, h1: document.querySelector('header h1').textContent.replace(/\s+/g, ' ').trim(), help: !!document.querySelector('.help-open-btn') }));
