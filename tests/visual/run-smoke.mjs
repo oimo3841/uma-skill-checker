@@ -10422,8 +10422,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		'効率(C2): 題の隣に「？」。既存の「？」（シナリオ因子・遺伝子）と同じ部品・同じ大きさ', help);
 	assert(!r1c.eff && r1c.def && !r2c.eff && r2c.def && !r3c.eff && r3c.def && r1c.mode === 'default',
 		'効率(C2): 「？」を押しても選択肢（ラジオ）は切り替わらない（クリック・Enter・Space のどれでも）', { r1c, r2c, r3c });
-	assert(h1.open && h1.exp === 'true' && h1.text === h1.expect && h1.text.startsWith('・評価点を数値化し、効率（評価点÷消費SP）や評価点の合計を示すモードです。') && h2 && h3 && h4,
-		'効率(C2): 押すとこのモードの説明が出る（Esc・✕で閉じ、キーボードでも開ける。微調整1・A(4)で3行の文面になった）', h1);
+	assert(h1.open && h1.exp === 'true' && h1.text === h1.expect && h1.text.startsWith('・効率（合計評価点÷合計消費SP）や、各スキルの評価点に★の数で重みづけをした”合計評価点（★補正）”を示すモードです。') && h2 && h3 && h4,
+		'効率(C2): 押すとこのモードの説明が出る（Esc・✕で閉じ、キーボードでも開ける。微調整1・A(4)で3行の文面、微調整3・Cで1行目を差し替えた）', h1);
 
 	// (2) 選ぶとデータを読み、#scope-detail の代わりにバーが出る。最小・最大・段の値・初期の境目はデータから
 	await page.click('label[for="scope-mode-efficiency"]', { position: { x: 6, y: 6 } });

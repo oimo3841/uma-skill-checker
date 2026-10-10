@@ -2,9 +2,10 @@
 // （塊の見出しはすべて「微調整3」で始まる。`npm run test:visual -- --only=微調整3` で回せる）。
 //
 // A1 スキル名のコピー: 一覧の見出しとコピー欄の種数が同じ／行数＝種数の合計・並びが一覧と同じ（5つの範囲 × 並べ替え × 因子・遺伝子）／旧い部品が無い
-// B1 合計評価点（★補正）の計算（右回り○の例・複数・★を測れなかった行）／B2 結合画像の脚注の1行・折り返し・262px で1行
 // A2 見出し: 一言はどの幅でも「2nd Edition」のバッジの右隣（同じ行）・2行まで・8〜11px／見出しの高さは増えない／重ならない・はみ出さない
-// スキル名・効率の数値は検査の側に書かない（恒久ルール1。データから読む）。
+// B1 合計評価点（★補正）の計算（右回り○の例・複数・★を測れなかった行）／B2 結合画像の脚注の1行・折り返し・262px で1行
+// C1 「効率を指定（βテスト）」の「？」の本文（3行・はみ出さない）
+// スキル名・効率の数値は検査の側に書かない（恒久ルール1。データから読む）。ただし B1 の「右回り〇」だけは、おいもさんの指示の例として名前で引く（評価点はデータから読む）。
 
 export async function register21(env) {
 	const { block, assert, browser, base, openPage } = env;
@@ -227,5 +228,37 @@ export async function register21(env) {
 		assert(L.need <= L.innerW + 0.5 && L.lab >= 6, '微調整3B2: 列の幅262pxで、2行目「合計評価点（★補正）:14,533.3」も1行に収まる（ラベル ' + L.lab + 'px・数字 ' + L.num + 'px）', L);
 		assert(jsErrors(errors).length === 0, '微調整3B2: コンソールエラーなし', errors.slice(0, 3));
 		await ctx.close();
+	});
+
+	/* ====================================================================
+	 * C: 「効率を指定（βテスト）」の「？」の説明
+	 * ==================================================================== */
+	await block('微調整3C1 「効率を指定（βテスト）」の「？」の本文は指定の3行（1行目は「…”合計評価点（★補正）”を示すモードです。」）／見出し・閉じ方は変えない／折り返しても小窓からはみ出さない（375・393・1280px・ライト・ダーク）', async () => {
+		const WANT = ['・効率（合計評価点÷合計消費SP）や、各スキルの評価点に★の数で重みづけをした”合計評価点（★補正）”を示すモードです。',
+			'・効率はすべての適性がAであるものとして示しています。',
+			'・継承固有・レース因子(スキル)は対象に含まれません。'];
+		for (const [w, theme] of [[375, 'light'], [393, 'light'], [1280, 'light'], [375, 'dark'], [393, 'dark'], [1280, 'dark']]) {
+			const { ctx, page, errors } = await openExam({ w });
+			await page.evaluate((t) => { try { localStorage.setItem('uma-tools-theme', t); } catch (e) {} document.documentElement.setAttribute('data-theme', t); }, theme);
+			await page.evaluate(() => document.getElementById('eff-help-btn').scrollIntoView({ block: 'center' }));
+			await page.click('#eff-help-btn');
+			await page.waitForTimeout(150);
+			const r = await page.evaluate(() => {
+				const box = document.getElementById('eff-help-box'), el = document.getElementById('eff-help-text');
+				const B = box.getBoundingClientRect(), T = el.getBoundingClientRect();
+				return { text: el.textContent, hidden: box.hidden, title: (box.querySelector('h2, h3, [id$="title"]') || {}).textContent || '',
+					inside: T.left >= B.left - 0.5 && T.right <= B.right + 0.5 && T.top >= B.top - 0.5 && T.bottom <= B.bottom + 0.5,
+					overflowX: el.scrollWidth > el.clientWidth + 0.5, boxInView: B.left >= -0.5 && B.right <= innerWidth + 0.5, sw: document.documentElement.scrollWidth, vw: document.documentElement.clientWidth };
+			});
+			const tag = w + 'px・' + theme;
+			assert(!r.hidden && r.text === WANT.join('\n') && /効率を指定（βテスト）/.test(r.title),
+				'微調整3C1(' + tag + '): 見出しは「効率を指定（βテスト）」のまま、本文は指定の3行', { text: r.text, title: r.title });
+			assert(r.inside && !r.overflowX && r.boxInView && r.sw <= r.vw, '微調整3C1(' + tag + '): 本文は折り返しても小窓の内側（はみ出さない・横にはみ出さない）', r);
+			await page.keyboard.press('Escape');
+			await page.waitForTimeout(100);
+			assert(await page.evaluate(() => document.getElementById('eff-help-box').hidden), '微調整3C1(' + tag + '): Esc で閉じる（閉じ方は変えていない）', null);
+			assert(jsErrors(errors).length === 0, '微調整3C1(' + tag + '): コンソールエラーなし', errors.slice(0, 3));
+			await ctx.close();
+		}
 	});
 }

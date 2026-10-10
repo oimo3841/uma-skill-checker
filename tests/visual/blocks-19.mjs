@@ -240,7 +240,7 @@ export async function register19(env) {
 		const { ctx, page, errors } = await openExam({ eff: false });
 		await page.click('#eff-help-btn');
 		const r = await page.evaluate(() => { const el = document.getElementById('eff-help-text'); return { text: el.textContent, ws: getComputedStyle(el).whiteSpace, lines: el.getClientRects().length, h: el.getBoundingClientRect().height, lh: parseFloat(getComputedStyle(el).lineHeight) }; });
-		const want = ['・評価点を数値化し、効率（評価点÷消費SP）や評価点の合計を示すモードです。', '・効率はすべての適性がAであるものとして示しています。', '・継承固有・レース因子(スキル)は対象に含まれません。'];
+		const want = ['・効率（合計評価点÷合計消費SP）や、各スキルの評価点に★の数で重みづけをした”合計評価点（★補正）”を示すモードです。', '・効率はすべての適性がAであるものとして示しています。', '・継承固有・レース因子(スキル)は対象に含まれません。'];
 		assert(r.text === want.join('\n') && r.ws === 'pre-line' && r.h >= r.lh * 3 - 1,
 			'微調整1A4: 小窓の本文は指定の3行（行頭は「・」）で、1行ずつ改行して出る', r);
 		assert(!/βテスト|蹄鉄|つまみ/.test(r.text), '微調整1A4: 古い説明（蹄鉄・つまみ・βテスト）は残っていない', r.text);
