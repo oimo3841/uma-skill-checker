@@ -33,6 +33,8 @@ import { register15 } from './blocks-15.mjs';
 import { register16 } from './blocks-16.mjs';
 import { register17 } from './blocks-17.mjs';
 import { register18 } from './blocks-18.mjs';
+// C-139（2026-10-10・ツール全体の微調整1）の検査（塊の見出しはすべて「微調整1」で始まる）
+import { register19 } from './blocks-19.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 
@@ -1846,7 +1848,7 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		// 一覧に実際に出ている区分
 		const present = new Set();
 		rows.forEach((d) => {
-			const k = skillMarkKind(d.lastElementChild.textContent);
+			const k = skillMarkKind(d.lastElementChild.firstElementChild.textContent);   // 名前（効率は名前の後ろの別の span。微調整1・A(5)）
 			if (k && SCREEN_MARK[k]) present.add(k);
 		});
 		return {
@@ -10501,8 +10503,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		'効率(C2): 題の隣に「？」。既存の「？」（シナリオ因子・遺伝子）と同じ部品・同じ大きさ', help);
 	assert(!r1c.eff && r1c.def && !r2c.eff && r2c.def && !r3c.eff && r3c.def && r1c.mode === 'default',
 		'効率(C2): 「？」を押しても選択肢（ラジオ）は切り替わらない（クリック・Enter・Space のどれでも）', { r1c, r2c, r3c });
-	assert(h1.open && h1.exp === 'true' && h1.text === h1.expect && h1.text.startsWith('効率（評価点÷消費SP）で対象のスキルを選ぶモードです（βテスト）。') && h2 && h3 && h4,
-		'効率(C2): 押すとこのモードの説明が出る（Esc・✕で閉じ、キーボードでも開ける）', h1);
+	assert(h1.open && h1.exp === 'true' && h1.text === h1.expect && h1.text.startsWith('・評価点を数値化し、効率（評価点÷消費SP）や評価点の合計を示すモードです。') && h2 && h3 && h4,
+		'効率(C2): 押すとこのモードの説明が出る（Esc・✕で閉じ、キーボードでも開ける。微調整1・A(4)で3行の文面になった）', h1);
 
 	// (2) 選ぶとデータを読み、#scope-detail の代わりにバーが出る。最小・最大・段の値・初期の境目はデータから
 	await page.click('label[for="scope-mode-efficiency"]');
@@ -10837,7 +10839,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 			barW: bar.width, barH: bar.height, panelH: R(document.getElementById('eff-panel')).height,
 			segs: [...document.querySelectorAll('.eff-seg')].map((s) => { const r = R(s); return { x: r.left - bar.left, w: r.width }; }),
 			thumbs: [...document.querySelectorAll('.eff-thumb')].map((t) => { const r = R(t); return { cx: r.left + r.width / 2 - bar.left, top: r.top - bar.top, bottom: r.bottom - bar.bottom, h: r.height }; }),
-			shoes: [...document.querySelectorAll('.eff-shoe')].map((s) => { const r = R(s), i = R(s.querySelector('img')); return { l: r.left - bar.left, r: r.right - bar.left, top: r.top - bar.bottom, w: i.width, h: i.height }; }),
+			shoes: [...document.querySelectorAll('.eff-shoe')].map((s) => { const r = R(s), i = R(s.querySelector('img')), nn = s.querySelector('.eff-shoe-n'), nr = R(nn); return { l: r.left - bar.left, r: r.right - bar.left, top: r.top - bar.bottom, w: i.width, h: i.height, bottom: r.bottom - bar.bottom, numShown: !nn.hidden && nr.height > 0, numTop: nr.top - bar.bottom, numBottom: nr.bottom - bar.bottom }; }),
 			stems: [...document.querySelectorAll('.eff-stem')].map((s) => { const r = R(s); return { cx: r.left + r.width / 2 - bar.left, top: r.top - bar.bottom, bottom: r.bottom - bar.bottom, w: r.width }; }),
 			vals: [...document.querySelectorAll('.eff-val')].map((e) => { const r = R(e); return { l: r.left - bar.left, r: r.right - bar.left, t: r.top - bar.top, b: r.bottom - bar.top }; }),
 		};
@@ -10858,8 +10860,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 			acc += counts[i];
 			if (Math.abs(g.thumbs[i].cx - g.barW * acc / N) > 1) bad.push(tag + ' つまみ' + i + 'の位置 ' + g.thumbs[i].cx.toFixed(1) + ' ≠ 積み上げた個数の位置 ' + (g.barW * acc / N).toFixed(1));
 		});
-		if (Math.abs(g.barH - 38) > 0.5) bad.push(tag + ' バーの高さ ' + g.barH);
-		g.thumbs.forEach((t, i) => { if (Math.abs(t.h - 46) > 0.5 || Math.abs(t.top + 4) > 0.5 || Math.abs(t.bottom - 4) > 0.5) bad.push(tag + ' つまみ' + i + 'は高さ46px・上下に4pxはみ出す ' + JSON.stringify(t)); });
+		if (Math.abs(g.barH - 28) > 0.5) bad.push(tag + ' バーの高さ ' + g.barH);
+		g.thumbs.forEach((t, i) => { if (Math.abs(t.h - 36) > 0.5 || Math.abs(t.top + 4) > 0.5 || Math.abs(t.bottom - 4) > 0.5) bad.push(tag + ' つまみ' + i + 'は高さ36px・上下に4pxはみ出す ' + JSON.stringify(t)); });
 		g.shoes.forEach((s, k) => {
 			if (Math.abs(s.w - 44) > 0.01 || Math.abs(s.h - 44) > 0.01) bad.push(tag + ' 蹄鉄' + k + 'の大きさ ' + s.w + '×' + s.h);
 			if (s.top < 0) bad.push(tag + ' 蹄鉄' + k + 'がバーの中にある');
@@ -10867,10 +10869,23 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 			// 区間の中央（バーの内側に収めたもの）
 			const center = Math.min(Math.max(g.segs[k].x + g.segs[k].w / 2, 22), g.barW - 22);
 			if (Math.abs((s.l + s.r) / 2 - center) > 1) bad.push(tag + ' 蹄鉄' + k + 'の横の位置が区間の中央でない');
-			// 段は 6px 刻みでなく 50px 刻みで下へずれる
-			const row = (s.top - 8) / 50;
-			if (Math.abs(row - Math.round(row)) > 0.02 || row < -0.02) bad.push(tag + ' 蹄鉄' + k + 'の段が 50px 刻みでない');
-		});
+			});
+			// 段は 50px 刻みで下へずれる。個数を蹄鉄の下に出す段（微調整1・A(3)）は、その行（16px）のぶんだけ次の段との間隔が広がる
+			{
+				const tops = [...new Set(g.shoes.map((s) => Math.round(s.top * 100) / 100))].sort((a, b) => a - b);
+				let want = 8;
+				tops.forEach((t, r) => {
+					if (Math.abs(t - want) > 0.05) bad.push(tag + ' 蹄鉄の' + r + '段目の上端が ' + want + ' でない: ' + t);
+					const hasNum = g.shoes.some((s) => Math.abs(s.top - t) < 0.05 && s.numShown);
+					want += 50 + (hasNum ? 16 : 0);
+				});
+				// 蹄鉄の下の個数が、下の段の蹄鉄に重ならない
+				g.shoes.forEach((s, i) => {
+					if (!s.numShown) return;
+					g.shoes.forEach((o, j) => { if (j !== i && o.top > s.top + 1 && o.l < s.r && s.l < o.r && s.numBottom > o.top + 0.5) bad.push(tag + ' 蹄鉄' + i + 'の下の個数が蹄鉄' + j + 'に重なる'); });
+					if (s.numTop < s.top + 43.5) bad.push(tag + ' 蹄鉄' + i + 'の個数が蹄鉄の画像の下にない');
+				});
+			}
 		// 重なる（間隔4px未満）ものは段がずれ、同じ段のものは間隔4px以上
 		for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) {
 			const a = g.shoes[i], c = g.shoes[j];
@@ -15119,6 +15134,7 @@ await register15({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register16({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register17({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register18({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register19({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();

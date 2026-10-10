@@ -114,6 +114,8 @@
 			--exam-eff-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpolyline points='8,9 18,18 8,27' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round' opacity='.32'/%3E%3C/svg%3E");
 			--exam-eff-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(0, 0, 0, 0.12) 100%);
 			--exam-eff-off-bar: #c9cfd8; --exam-eff-seg-edge: rgba(15, 23, 42, .18); --exam-eff-stem: #64748b;
+			/* 蹄鉄の下に出す区間の個数の文字色（微調整1）。パネルの地（ライトは白）の上で読める濃さ */
+			--exam-eff-shoe-n: #334155;
 			/* 結合画像のスキル行の蹄鉄の枠（暗い縁取り。板の色は上の区間の色を使う） */
 			--exam-eff-frame-edge: #3B3340;
 			/* 吹き出し（改善C）と、結合画像の効率の合計の行（段5。canvas はライトの値で読む） */
@@ -415,10 +417,17 @@
 		@media (max-width: 1023.98px) {
 			.scope-sub { display: none; }
 		}
-		.eff-panel { margin-top: 0.5rem; padding: 0.55rem 0 0.5rem; background: #fff; border: 1px solid #cbd5e1; border-radius: 0.5rem; }
-		/* バー（高さ38px）。区間ごとの色で中を塗り、シェブロン柄と光沢を重ねる（外した区間は灰色のまま・柄なし）。区間の幅・つまみの位置はスキルの個数に比例（JS が % で置く）。
-		   左右の余白（12px）は、両端に寄せたつまみが帯の外へはみ出さないため */
-		.eff-bar { position: relative; height: 38px; margin: 0 12px; }
+		.eff-panel { margin-top: 0.5rem; padding: 0.55rem 0 0.5rem; background: #fff; border: 1px solid #cbd5e1; border-radius: 0.5rem; display: flex; align-items: flex-start; }
+		/* 本体（バーの上の値・バー・蹄鉄）。右にリセットのボタン（44px）の置き場を残す。行は増やさない（恒久ルール25） */
+		.eff-main { flex: 1; min-width: 0; }
+		/* 初期値に戻すボタン（44×44px。バーの右。押せない状態にはしない）。縦はバー（1段の目盛りのとき）の中心に合わせる */
+		.eff-reset {
+			flex: none; width: 44px; height: 44px; margin: 14px 6px 0 4px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+			font-size: 22px; line-height: 1; border-radius: 10px; cursor: pointer;
+		}
+		/* バー（高さ28px＝シェブロン柄のタイル（28px）と同じ高さ。タイルの途中で切れた模様が下に出ない）。区間ごとの色で中を塗り、シェブロン柄と光沢を重ねる（外した区間は灰色のまま・柄なし）。
+		   区間の幅・つまみの位置はスキルの個数に比例（JS が % で置く）。左右の余白（12px）は、両端に寄せたつまみが帯の外へはみ出さないため */
+		.eff-bar { position: relative; height: 28px; margin: 0 12px; }
 		.eff-seg {
 			position: absolute; top: 0; bottom: 0; box-shadow: inset 0 0 0 1px var(--exam-eff-seg-edge);
 			display: flex; align-items: center; justify-content: center; overflow: hidden;
@@ -436,9 +445,9 @@
 		.eff-seg-n[hidden] { display: none; }
 		/* 外した区間は灰色（opacity は使わず色だけで表す。恒久ルール9） */
 		.eff-seg[data-on="false"] { background: var(--exam-eff-off-bar); }
-		/* つまみ: 白地・暗い縁・高さ46px（バーより上下に4pxはみ出す） */
+		/* つまみ: 白地・暗い縁・高さ36px（バーより上下に4pxはみ出す） */
 		.eff-thumb {
-			position: absolute; top: -4px; height: 46px; width: 14px; margin-left: -7px; z-index: 2;
+			position: absolute; top: -4px; height: 36px; width: 14px; margin-left: -7px; z-index: 2;
 			background: var(--exam-eff-thumb-bg); border: 2px solid var(--exam-eff-thumb-border); border-radius: 7px;
 			box-shadow: 0 1px 3px rgba(15, 23, 42, .25); cursor: ew-resize; touch-action: none;
 		}
@@ -452,10 +461,14 @@
 		.eff-shoes { position: relative; margin: 0 12px; }
 		.eff-stem { position: absolute; top: 0; width: 1.5px; margin-left: -0.75px; background: var(--exam-eff-stem); }
 		.eff-shoe {
-			position: absolute; z-index: 1; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px;
+			position: absolute; z-index: 1; width: 44px; padding: 0; border: 0; border-radius: 8px;
 			background: transparent; cursor: pointer;
 		}
-		.eff-shoe img { display: block; width: 44px; height: 44px; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+		.eff-shoe { display: flex; flex-direction: column; align-items: center; }
+		.eff-shoe img { display: block; width: 44px; height: 44px; flex: none; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+		/* 区間の幅が足りず、バーの中に個数を出せないときだけ、蹄鉄の下に出す個数（段の間隔を、この行のぶん広げる）。背景の上で読める色 */
+		.eff-shoe-n { display: block; height: 16px; font-size: 13px; font-weight: 700; line-height: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--exam-eff-shoe-n); pointer-events: none; }
+		.eff-shoe-n[hidden] { display: none; }
 		/* 外した区間の蹄鉄は灰色に（filter は色の変換。opacity ではない） */
 		.eff-shoe[aria-pressed="false"] img { filter: grayscale(1); }
 		/* 吹き出し（改善C）。つまみを動かしている間だけ、つまみの上に重ねて出す（行は増やさない）。
@@ -500,6 +513,7 @@
 			--exam-eff-bronze: #C9743C; --exam-eff-silver: #8C99B0; --exam-eff-gold: #E3B21C;
 			--exam-eff-rainbow-1: #F27AA3; --exam-eff-rainbow-2: #FFDC7A; --exam-eff-rainbow-3: #7BC97F; --exam-eff-rainbow-4: #66C7F0; --exam-eff-rainbow-5: #A68DDB;
 			--exam-eff-off-bar: #323a46; --exam-eff-seg-edge: rgba(255, 255, 255, .16); --exam-eff-stem: #8a97ae;
+			--exam-eff-shoe-n: #cbd5e1;
 			--exam-eff-tip-bg: #1b2433; --exam-eff-tip-border: #47603a; --exam-eff-tip-text: #e6edf5; --exam-eff-tip-sep: #3a4555;
 		}
 		:root[data-theme="dark"] body { background: var(--uma-page-ground); color: var(--uma-text); }
@@ -779,7 +793,7 @@
 				</button>
 			</div>
 			<div class="help-body">
-				<p id="eff-help-text" class="notice-text"></p>
+				<p id="eff-help-text" class="notice-text" style="white-space: pre-line;"></p>
 			</div>
 		</div>
 
@@ -1003,7 +1017,10 @@
 					     説明が残る、のどちらも起きた（'plain' の黒丸が凡例にも印にも無かったのがそれ）。
 					     いまは**一覧に実際に出ている区分だけ**が凡例に並ぶ（凡例と一覧が一対一）。
 					     記号そのものも SCREEN_MARK から出すので、色や形が2か所に分かれない。 -->
-					<p id="registry-legend" class="text-[11px] text-slate-500 mb-2"></p>
+					<div class="flex items-start justify-between gap-2 mb-2">
+						<p id="registry-legend" class="text-[11px] text-slate-500 min-w-0"></p>
+						<button type="button" id="registry-sort-btn" class="copylist-btn shrink-0" aria-pressed="false" onclick="toggleRegistrySort()">効率の高い順</button>
+					</div>
 					<div id="skill-registry-list" class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-xs text-slate-600 max-h-72 overflow-y-auto"></div>
 				</div>
 			</details>
@@ -2556,6 +2573,8 @@
 			renderTargetScopeControls();
 			// 「効率で選ぶ」を選んだまま開いたときは、効率のデータを読みに行く（読めたら表示を作り直す）
 			ensureEffData();
+			// 一覧とコピーの効率の値（どの範囲でも出す）
+			ensureEffValues();
 			renderSkillRegistryList();
 			updateSkillCountDisplays();
 			updateCategoryBadges();
@@ -2596,25 +2615,48 @@
 			// 効率で選ぶ（C-136）：効率の対象（入れている区間の行。並びのデータの順）を、区間の蹄鉄つきで並べる
 			if (targetScopeMode === 'efficiency') {
 				const snap = effSnapshot();
-				effTargets().forEach(t => rows.push({ name: t.name, state: 'eff', tier: effTierOf(t.milli, snap.bounds) }));
-				activeScenarioFactors().forEach(name => rows.push({ name: name, state: 'normal' }));
-				activeAptitudeGenes().forEach(name => rows.push({ name: name, state: 'normal' }));
-				return rows;
+				effTargets().forEach(t => rows.push({ name: t.name, state: 'eff', tier: effTierOf(t.milli, snap.bounds), milli: t.milli, group: 'skill' }));
+				activeScenarioFactors().forEach(name => rows.push({ name: name, state: 'normal', group: 'factor' }));
+				activeAptitudeGenes().forEach(name => rows.push({ name: name, state: 'normal', group: 'gene' }));
+				return registrySortRows(rows);
 			}
 			const curated = (targetScopeMode === 'curated');
 			EXAM_SKILL_NAMES.forEach(name => {
 				if (curated && CURATED_EXCLUDED_ID_SET.has(examSkillId(name))) {
-					rows.push({ name: name, state: 'scopeRemoved' });
+					rows.push({ name: name, state: 'scopeRemoved', milli: effOfSkillName(name), group: 'skill' });
 					return;
 				}
-				rows.push({ name: name, state: 'normal' });
+				rows.push({ name: name, state: 'normal', milli: effOfSkillName(name), group: 'skill' });
 			});
 			if (targetScopeMode === 'expanded') {
-				EXPANDED_EXTRA_SKILL_NAMES.forEach(name => rows.push({ name: name, state: 'scopeAdded' }));
+				EXPANDED_EXTRA_SKILL_NAMES.forEach(name => rows.push({ name: name, state: 'scopeAdded', milli: effOfSkillName(name), group: 'skill' }));
 			}
-			activeScenarioFactors().forEach(name => rows.push({ name: name, state: 'normal' }));
-			activeAptitudeGenes().forEach(name => rows.push({ name: name, state: 'normal' }));
-			return rows;
+			activeScenarioFactors().forEach(name => rows.push({ name: name, state: 'normal', group: 'factor' }));
+			activeAptitudeGenes().forEach(name => rows.push({ name: name, state: 'normal', group: 'gene' }));
+			return registrySortRows(rows);
+		}
+
+		/* 「効率の高い順」（微調整1・A(6)）。初期は OFF・状態は保存しない（開き直すと OFF）。
+		   ON のときの並び：効率のあるスキル（効率の降順・同じ効率は元の並び）→ 効率の無いスキル（元の並び）→ シナリオ因子 → 遺伝子。
+		   OFF のときは元の並びのまま。 */
+		let registrySortByEff = false;
+		function sortByEffDesc(items, groupOf, milliOf) {
+			if (!registrySortByEff) return items;
+			const has = it => milliOf(it) !== null && milliOf(it) !== undefined;
+			const rank = it => { const g = groupOf(it); return g === 'factor' ? 2 : g === 'gene' ? 3 : (has(it) ? 0 : 1); };
+			return items.map((it, i) => ({ it: it, i: i, r: rank(it), m: milliOf(it) }))
+				.sort((a, b) => (a.r - b.r) || (a.r === 0 ? (b.m - a.m) : 0) || (a.i - b.i))
+				.map(x => x.it);
+		}
+		function registrySortRows(rows) {
+			return sortByEffDesc(rows, r => r.group, r => r.milli);
+		}
+		function toggleRegistrySort() {
+			registrySortByEff = !registrySortByEff;
+			const btn = document.getElementById('registry-sort-btn');
+			if (btn) { btn.setAttribute('aria-pressed', registrySortByEff ? 'true' : 'false'); btn.classList.toggle('active', registrySortByEff); }
+			renderSkillRegistryList();
+			renderSkillCopyTextarea();
 		}
 
 		/* ------------------------------------------------------------
@@ -2664,8 +2706,10 @@
 				let nameClass = '', title = '';
 				if (row.state === 'scopeAdded') { nameClass = ' class="registry-added"'; title = ' title="「対象を広げる」で足したスキル"'; }
 				else if (row.state === 'scopeRemoved') { nameClass = ' class="registry-removed"'; title = ' title="「対象を絞る」で対象から外したスキル"'; }
+				// 名前の後ろに「全角スペース＋効率（小数3桁）」。効率の無い行（シナリオ因子・遺伝子など）は出さない
+				const milli = (row.milli === null || row.milli === undefined) ? null : row.milli;
 				return '<div class="flex items-center gap-1.5 py-0.5"' + title + '><span class="w-3.5 text-center">' + mark + '</span>'
-					+ '<span' + nameClass + '>' + escapeHtml(skill) + '</span></div>';
+					+ '<span><span' + nameClass + '>' + escapeHtml(skill) + '</span>' + (milli === null ? '' : '　<span class="registry-eff">' + effFormat(milli) + '</span>') + '</span></div>';
 			}).join('');
 		}
 
@@ -2977,7 +3021,13 @@
 		 * 「？」は選択肢（ラジオ）の中にあるので、押してもラジオが切り替わらないよう、押した操作はここで止める
 		 * （キーボードの Enter・Space も同じ）。閉じ方は一覧と同じ（✕・背景・Esc）。
 		 * ------------------------------------------------------------ */
-		const EFF_HELP_TEXT = '効率（評価点÷消費SP）で対象のスキルを選ぶモードです（βテスト）。バーの蹄鉄は効率の区間で、左ほど効率が低く、右ほど高くなります。つまみを動かすと区間の範囲が変わり、蹄鉄を押すとその区間を対象に入れる／外すを切り替えられます。つまみを動かしている間は、境目のスキルの例が表示されます。結合画像では、スキル行に区間の蹄鉄が付き、列ごとに区間別の検出数と、評価点の合計÷SPの合計が出ます。継承固有・レース因子(スキル)は対象に含まれません。';
+		// 3行（行頭は「・」）。1行ずつ改行して出す（#eff-help-text は white-space: pre-line）
+		const EFF_HELP_LINES = [
+			'・評価点を数値化し、効率（評価点÷消費SP）や評価点の合計を示すモードです。',
+			'・効率はすべての適性がAであるものとして示しています。',
+			'・継承固有・レース因子(スキル)は対象に含まれません。',
+		];
+		const EFF_HELP_TEXT = EFF_HELP_LINES.join('\n');
 		let effHelpOpen = false;
 		let effHelpReturnFocus = null;
 
@@ -3110,7 +3160,10 @@
 				hint = '対象スキル全' + skillOnlyList.length + '種' + extraCountNote()
 					+ '（登録順・範囲とカスタム設定を反映）';
 			}
-			document.getElementById('skill-copy-textarea').value = list.join('\n');
+			// 2列目に効率（小数3桁）。画面に出している並び（「効率の高い順」が ON ならその順）のとおりに出す。効率の無い行は2列目が空
+			const groupOfName = n => isScenarioFactor(n) ? 'factor' : isAptitudeGene(n) ? 'gene' : 'skill';
+			const copyRows = sortByEffDesc(list.map(n => ({ n: n, g: groupOfName(n), m: effOfSkillName(n) })), x => x.g, x => x.m);
+			document.getElementById('skill-copy-textarea').value = copyRows.map(x => x.n + '\t' + (x.m === null ? '' : effFormat(x.m))).join('\n');
 			document.getElementById('skill-copy-hint').textContent = hint + ' ・ ' + list.length + '行';
 		}
 
@@ -4838,7 +4891,8 @@
 		const EFF_KEY_STEPS_BIG = 5;  // Shift＋←→
 		const EFF_SHOE_PX = 44;       // バーの下の蹄鉄の大きさ（区間が狭くても縮めない）
 		const EFF_SHOE_GAP_MIN = 4;   // 蹄鉄どうしの間隔がこれ未満になるなら下の段へずらす
-		const EFF_SHOE_ROW_PX = 50;   // 蹄鉄の1段あたりの高さ（44px＋6px）
+		const EFF_SHOE_ROW_PX = 50;   // 蹄鉄の1段あたりの高さ（44px＋6px）。個数を蹄鉄の下に出す段は、EFF_SHOE_NUM_PX だけ高くなる
+		const EFF_SHOE_NUM_PX = 16;   // 蹄鉄の下に出す個数の行の高さ（微調整1・A(3)）
 		const EFF_SHOE_TOP_PX = 8;    // バーの下端から最初の段の蹄鉄の上端まで（つなぐ線の長さ）
 		const EFF_TIP_KEY_MS = 1500;  // キーボードで動かしたあと吹き出しを出しておく時間
 		// 読み上げ用の区間の呼び名（画面には出さない）
@@ -4883,15 +4937,56 @@
 				cum: cum, total: targets.length, min: steps[0], max: steps[steps.length - 1], defaultBounds: json && json.defaultBounds };
 		}
 
+		/* data/skill-efficiency.json の取得は1回だけ（効率の値の読み込みと、効率を指定のデータが共有する） */
+		let effJsonPromise = null;
+		function fetchEffJson() {
+			if (!effJsonPromise) {
+				effJsonPromise = (async () => {
+					const v = EXAM_DATA_JSON_VERSIONS[EFF_DATA_PATH];
+					const res = await fetch(EFF_DATA_PATH + (v ? '?v=' + encodeURIComponent(v) : ''));
+					if (!res.ok) throw new Error('HTTP ' + res.status);
+					return res.json();
+				})();
+				effJsonPromise.catch(() => { effJsonPromise = null; });
+			}
+			return effJsonPromise;
+		}
+
+		/* 一覧とコピーに出す効率（微調整1・A(5)(6)）。独自ID（examSkillId）で引く。値が無い行（シナリオ因子・遺伝子・継承固有・
+		   レース因子(スキル)など）は出さない。読めなければ何も出さない（一覧・コピーは効率なしのまま）。 */
+		let effValueById = null;   // Map: 独自ID → 効率（千分率）
+		let effValuePromise = null;
+		function ensureEffValues() {
+			if (effValueById || effValuePromise) return effValuePromise;
+			effValuePromise = fetchEffJson().then(json => {
+				const m = new Map();
+				((json && json.entries) || []).forEach(e => {
+					const milli = Math.round(Number(e.efficiency) * 1000);
+					if (milli > 0 && e.skillId !== undefined) m.set(String(e.skillId), milli);
+				});
+				effValueById = m;
+				renderSkillRegistryList();
+				renderSkillCopyTextarea();
+			}).catch(err => {
+				console.warn('効率の値を読み込めませんでした', err);
+				effValuePromise = null;
+			});
+			return effValuePromise;
+		}
+		// スキル名の効率（千分率）。無ければ null
+		function effOfSkillName(name) {
+			if (!effValueById) return null;
+			const id = examSkillId(name);
+			const v = id ? effValueById.get(String(id)) : undefined;
+			return v === undefined ? null : v;
+		}
+
 		async function loadEffData() {
 			if (effData) return effData;
 			if (!effLoadPromise) {
 				effLoadPromise = (async () => {
 					const sheet = await loadMelopSheet();
-					const v = EXAM_DATA_JSON_VERSIONS[EFF_DATA_PATH];
-					const res = await fetch(EFF_DATA_PATH + (v ? '?v=' + encodeURIComponent(v) : ''));
-					if (!res.ok) throw new Error('HTTP ' + res.status);
-					const d = prepareEffData(await res.json(), sheet);
+					const d = prepareEffData(await fetchEffJson(), sheet);
 					// 区間を4つ作るには、段の値が4つ以上要る
 					if (d.steps.length < EFF_TIER_COUNT) throw new Error('段の値が足りない');
 					effData = d;
@@ -5081,7 +5176,7 @@
 			}
 			// 作りは1度だけ（作り直すと、キーボードで動かしている最中のつまみから焦点が外れる）。以後は位置と状態だけ直す
 			if (panel.getAttribute('data-built') !== String(effData.dataVersion)) {
-				let html = '<div class="eff-scale" id="eff-scale">'
+				let html = '<div class="eff-main"><div class="eff-scale" id="eff-scale">'
 					+ '<span class="eff-val" data-val="min"></span>'
 					+ [0, 1, 2].map(i => '<span class="eff-val" data-val="' + i + '"></span>').join('')
 					+ '<span class="eff-val" data-val="max"></span></div>';
@@ -5098,10 +5193,13 @@
 				for (let k = 0; k < EFF_TIER_COUNT; k++) html += '<span class="eff-stem" data-tier="' + k + '"></span>';
 				for (let k = 0; k < EFF_TIER_COUNT; k++) {
 					html += '<button type="button" class="eff-shoe eff-shoe--' + k + '" data-tier="' + k + '" onclick="toggleEffTier(' + k + ')">'
-						+ '<img src="' + EFF_TIER_ICON_SRCS[k] + '" alt="" draggable="false" /></button>';
-				}
-				html += '</div>';
-				panel.innerHTML = html;
+						+ '<img src="' + EFF_TIER_ICON_SRCS[k] + '" alt="" draggable="false" /><span class="eff-shoe-n" aria-hidden="true" hidden></span></button>';
+						}
+						html += '</div></div>';
+						// 初期値に戻すボタン（A(1)。44px。押せない状態にはしない）
+						html += '<button type="button" class="uma-btn uma-btn--secondary eff-reset" id="eff-reset-btn" onclick="resetEffSettings()"'
+							+ ' aria-label="初期値に戻す" title="初期値に戻す"><span aria-hidden="true">↺</span></button>';
+						panel.innerHTML = html;
 				panel.setAttribute('data-built', String(effData.dataVersion));
 				bindEffPanel(panel);
 			}
@@ -5141,13 +5239,16 @@
 				seg.style.left = pct(edges[k]);
 				seg.style.width = pct(edges[k + 1] - edges[k]);
 				seg.setAttribute('data-on', effTiers[k] ? 'true' : 'false');
-				// 区間のスキルの個数。幅が狭くて入らない（文字＋左右4pxより狭い）ときは隠す
+				// 区間のスキルの個数。幅が狭くて入らない（文字＋左右4pxより狭い）ときは、バーの中には出さず、蹄鉄の下に出す
+				// （どの区間も同じ規則。虹だけの特別扱いはしない）
 				const n = effTierCount(k);
 				const num = seg.querySelector('.eff-seg-n');
 				num.textContent = String(n);
 				num.hidden = false;
 				if (seg.getBoundingClientRect().width < num.getBoundingClientRect().width + 8) num.hidden = true;
-			});
+				const under = panel.querySelector('.eff-shoe[data-tier="' + k + '"] .eff-shoe-n');
+				if (under) { under.textContent = String(n); under.hidden = !num.hidden; }
+				});
 			panel.querySelectorAll('.eff-thumb').forEach(th => {
 				const i = Number(th.getAttribute('data-idx'));
 				const rep = effRepresentative(b[i]);
@@ -5161,23 +5262,35 @@
 			// バーの下の蹄鉄: 区間の中央（バーの幅の内側に収める）。間隔が4px未満になるものは下の段へ。左から順に、入る最初の段へ
 			const shoes = panel.querySelector('.eff-shoes');
 			const rowRights = [];
+			const rowHasNum = [];
+			const placed = [];
 			for (let k = 0; k < EFF_TIER_COUNT; k++) {
 				const shoe = panel.querySelector('.eff-shoe[data-tier="' + k + '"]');
-				const stem = panel.querySelector('.eff-stem[data-tier="' + k + '"]');
 				const center = (edges[k] + edges[k + 1]) / 2 * W;
 				const left = Math.min(Math.max(center - EFF_SHOE_PX / 2, 0), Math.max(W - EFF_SHOE_PX, 0));
 				let row = rowRights.findIndex(right => left >= right + EFF_SHOE_GAP_MIN);
-				if (row === -1) { row = rowRights.length; rowRights.push(-Infinity); }
+				if (row === -1) { row = rowRights.length; rowRights.push(-Infinity); rowHasNum.push(false); }
 				rowRights[row] = left + EFF_SHOE_PX;
-				const top = EFF_SHOE_TOP_PX + row * EFF_SHOE_ROW_PX;
-				shoe.style.left = left + 'px';
-				shoe.style.top = top + 'px';
-				shoe.setAttribute('aria-pressed', effTiers[k] ? 'true' : 'false');
-				shoe.setAttribute('aria-label', EFF_TIER_LABELS[k] + '（' + effFormat(bounds2[k]) + '〜' + effFormat(bounds2[k + 1]) + '、' + effTierCount(k) + '種）を対象にする');
-				stem.style.left = center + 'px';
-				stem.style.height = top + 'px';
+				if (!shoe.querySelector('.eff-shoe-n').hidden) rowHasNum[row] = true;
+				placed.push({ k: k, shoe: shoe, center: center, left: left, row: row });
 			}
-			if (shoes) shoes.style.height = (EFF_SHOE_TOP_PX + rowRights.length * EFF_SHOE_ROW_PX - (EFF_SHOE_ROW_PX - EFF_SHOE_PX)) + 'px';
+			// 段の上端。個数を蹄鉄の下に出す段は、その行（16px）のぶん下の段を押し下げる（数字が隣の蹄鉄に重ならない）
+			const rowTops = [];
+			let shoesBottom = EFF_SHOE_TOP_PX;
+			rowRights.forEach((_, r) => { rowTops.push(shoesBottom); shoesBottom += EFF_SHOE_ROW_PX + (rowHasNum[r] ? EFF_SHOE_NUM_PX : 0); });
+			placed.forEach(pl => {
+				const k = pl.k;
+				const stem = panel.querySelector('.eff-stem[data-tier="' + k + '"]');
+				const top = rowTops[pl.row];
+				pl.shoe.style.left = pl.left + 'px';
+				pl.shoe.style.top = top + 'px';
+				pl.shoe.setAttribute('aria-pressed', effTiers[k] ? 'true' : 'false');
+				pl.shoe.setAttribute('aria-label', EFF_TIER_LABELS[k] + '（' + effFormat(bounds2[k]) + '〜' + effFormat(bounds2[k + 1]) + '、' + effTierCount(k) + '種）を対象にする');
+				stem.style.left = pl.center + 'px';
+				stem.style.height = top + 'px';
+			});
+			// 最後の段の下の余白（6px）は要らない（段のあいだだけ空ける）
+			if (shoes) shoes.style.height = (shoesBottom - (EFF_SHOE_ROW_PX - EFF_SHOE_PX)) + 'px';
 			// バーの上の値（両端の最小値・最大値と、つまみの値）。バーの幅の内側に収め、重なるものは上の段へ。
 			// つまみを寄せ切ると4つの値が重なり得るので、段の数は決め打ちしない
 			const scale = panel.querySelector('.eff-scale');
@@ -5205,6 +5318,9 @@
 				it.el.style.top = ((rows - 1 - it.row) * LINE) + 'px';
 			});
 			if (scale) scale.style.height = (rows * LINE) + 'px';
+			// 初期値に戻すボタンの縦の位置: バーの中心に合わせる（バーの上の値の段数に応じて下げる。ボタンの高さ44px・バーの高さ28px・値とバーの間6px）
+			const resetBtn = panel.querySelector('.eff-reset');
+			if (resetBtn) resetBtn.style.marginTop = (rows * LINE + 6 + 14 - 22) + 'px';
 			if (effTipIdx !== null) placeEffTip();
 		}
 
@@ -5311,6 +5427,22 @@
 			effBounds[i] = nv;
 			layoutEffPanel();
 			return true;
+		}
+
+		/* 初期値に戻す（微調整1・A(1)）。区間の境目をデータの defaultBounds へ、蹄鉄は全部 ON へ。
+		   保存値（境目・区間）は消す（初期値を保存しない）。確認の小窓は出さない。
+		   すでに初期値のときも押せる見た目のままにして、押したら「すでに初期値です」と知らせる。 */
+		function resetEffSettings() {
+			if (!effData) return;
+			const def = defaultEffBounds(effData);
+			const same = !!effBounds && effBounds.every((v, i) => v === def[i]) && effTiers.every(Boolean);
+			try { localStorage.removeItem(EFF_BOUNDS_STORAGE_KEY); localStorage.removeItem(EFF_TIERS_STORAGE_KEY); } catch (e) {}
+			if (same) { showToast('すでに初期値です'); return; }
+			effBounds = def;
+			effTiers = [true, true, true, true];
+			hideEffTip();
+			layoutEffPanel();
+			refreshAfterTargetChange();
 		}
 
 		// 蹄鉄を押すと、その区間を対象に入れる／外すが切り替わる。全部は外せない（対象が0種になるため）
