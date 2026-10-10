@@ -149,9 +149,10 @@ export async function register21(env) {
 			return { tot, lines: effTotalLines(tot) };
 		} finally { personMelop = keep; }
 	}, rows);
-	const fmt1 = (v) => { const p = v.toFixed(1).split('.'); return Number(p[0]).toLocaleString('en-US') + '.' + p[1]; };
+	// C-142（微調整4・B）: 切り捨ての整数・3桁区切り（小数点は出さない）
+	const fmt1 = (v) => Math.floor(v + 1e-9).toLocaleString('en-US');
 
-	await block('微調整3B1 「合計評価点（★補正）」＝Σ(評価点×★の数)÷3（★3＝1・★2＝2/3・★1＝1/3）・小数第1位・3桁区切り／右回り○（おいもさんの例 529×2/3≒352.7）／複数のスキルの合計／★を測れなかった行は入れない／1行目は補正なしのまま', async () => {
+	await block('微調整3B1 「合計評価点（★補正）」＝Σ(評価点×★の数)÷3（★3＝1・★2＝2/3・★1＝1/3）・切り捨ての整数・3桁区切り（微調整4・B）／右回り○（おいもさんの例 529×2/3 → 352）／複数のスキルの合計／★を測れなかった行は入れない／1行目は補正なしのまま', async () => {
 		const { ctx, page, errors } = await openExam();
 		await page.evaluate(() => setTargetScopeMode('efficiency'));
 		await page.waitForFunction(() => !!effData && !!melopSheet, null, { timeout: 15000 });
@@ -162,7 +163,10 @@ export async function register21(env) {
 			const r = await starTotals(page, [{ name: ex.name, stars: k }]);
 			const want = '合計評価点（★補正）:' + fmt1(ex.score * k / 3);
 			assert(r.lines[1] === want && r.tot.starScore === ex.score * k && r.tot.starCount === 1 && r.lines[0] === '合計評価点/合計SP:' + (ex.score / ex.sp).toFixed(3),
-				'微調整3B1(右回り○・★' + k + '): 2行目は「' + want + '」（' + ex.score + '×' + k + '/3）。1行目は★を掛けない「合計評価点/合計SP」のまま', r);
+				'微調整3B1(右回り○・★' + k + '): 2行目は「' + want + '」（' + ex.score + '×' + k + '/3 の切り捨て）。1行目は★を掛けない「合計評価点/合計SP」のまま', r);
+			// 微調整4・B: 小数点は出さない。おいもさんの例（評価点 529）なら ★1＝176・★2＝352（352.67 の端数を切り捨て）・★3＝529
+			assert(!/\./.test(r.lines[1].split(':')[1]) && (ex.score !== 529 || r.lines[1] === '合計評価点（★補正）:' + ({ 1: '176', 2: '352', 3: '529' })[k]),
+				'微調整4B(右回り○・★' + k + '): 値は切り捨ての整数で、小数点が出ない（' + r.lines[1] + '）', r.lines);
 		}
 		// 複数のスキル（データの並びから、区間の違う何種かを★1〜3で）
 		const many = await page.evaluate(() => { const ts = effData.targets.filter((t) => t.id && !/\+$/.test(t.name)); return [0, 7, 19, 40, 61, 88].map((i, j) => ({ name: ts[i].name, stars: (j % 3) + 1, score: ts[i].score, sp: ts[i].sp })); });
@@ -224,8 +228,8 @@ export async function register21(env) {
 				'微調整3B2(' + w + 'px): 検出数カードの設定に関わらず出す／効率を指定でないときは出さない', { other: r.other });
 		}
 		// 列の幅262px: 2行目のラベルが長くなっても、1行に収める（収まらないときは文字と数字を一緒に縮める・最小6px）。数字の左端は2行でそろう
-		const L = await page.evaluate(() => { const L = effTotalLayout(262, ['合計評価点/合計SP:6.220', '合計評価点（★補正）:14,533.3']); return { lab: L.lab, num: L.num, lab0: L.lab0, num0: L.num0, need: L.need, innerW: L.innerW, labelW: L.labelW }; });
-		assert(L.need <= L.innerW + 0.5 && L.lab >= 6, '微調整3B2: 列の幅262pxで、2行目「合計評価点（★補正）:14,533.3」も1行に収まる（ラベル ' + L.lab + 'px・数字 ' + L.num + 'px）', L);
+		const L = await page.evaluate(() => { const L = effTotalLayout(262, ['合計評価点/合計SP:6.220', '合計評価点（★補正）:14,533']); return { lab: L.lab, num: L.num, lab0: L.lab0, num0: L.num0, need: L.need, innerW: L.innerW, labelW: L.labelW }; });
+		assert(L.need <= L.innerW + 0.5 && L.lab >= 6, '微調整3B2: 列の幅262pxで、2行目「合計評価点（★補正）:14,533」も1行に収まる（ラベル ' + L.lab + 'px・数字 ' + L.num + 'px）', L);
 		assert(jsErrors(errors).length === 0, '微調整3B2: コンソールエラーなし', errors.slice(0, 3));
 		await ctx.close();
 	});

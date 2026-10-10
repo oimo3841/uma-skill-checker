@@ -5166,14 +5166,14 @@
 			});
 			return { score: score, sp: sp, count: items.length, starScore: starScore, starCount: starCount, starSkipped: starSkipped };
 		}
-		// 「合計評価点（★補正）」の値の文字。Σ(評価点×★の数)÷3 を小数第1位まで（toFixed(1)）・整数部は3桁区切り（例: 18,491.3）。該当が無いときは「0」
+		// 「合計評価点（★補正）」の値の文字。Σ(評価点×★の数)÷3 の小数点以下を切り捨てた整数・3桁区切り（例: 18,491）。該当が無いときは「0」
+		// C-142（微調整4・B）: 小数第1位まで → 切り捨ての整数（おいもさんの指示）。Σ は整数で足し、最後に3で割って切り捨てる（途中で丸めない）
 		function effStarScoreText(tot) {
 			if (!tot || !tot.starCount) return '0';
-			const parts = (tot.starScore / 3).toFixed(1).split('.');
-			return Number(parts[0]).toLocaleString('en-US') + '.' + parts[1];
+			return Math.floor(tot.starScore / 3).toLocaleString('en-US');
 		}
 		// 効率を指定の合計の帯（2行）。1行目「合計評価点/合計SP:6.123」（補正なしの評価点の合計÷消費SPの合計・小数3桁）・
-		// 2行目「合計評価点（★補正）:18,491.3」（C-141・微調整3・B。★の数で重みづけした合計。小数第1位・3桁区切り）。補正なしの単純な合計評価点は出さない。
+		// 2行目「合計評価点（★補正）:18,491」（C-141・微調整3・B。★の数で重みづけした合計。C-142 で切り捨ての整数・3桁区切り）。補正なしの単純な合計評価点は出さない。
 		// 該当が無い（消費SPの合計が0）ときは1行目の値が「—」・2行目の値が「0」
 		const EFF_STAR_TOTAL_LABEL = '合計評価点（★補正）';
 		function effTotalLines(tot) {
@@ -6654,7 +6654,7 @@
 			ctx.closePath();
 		}
 
-		/* 合計の帯の2行の配置（微調整1・B）。lines は effTotalLines() の2行（「合計評価点/合計SP:6.123」「合計評価点（★補正）:18,491.3」）。
+		/* 合計の帯の2行の配置（微調整1・B）。lines は effTotalLines() の2行（「合計評価点/合計SP:6.123」「合計評価点（★補正）:18,491」）。
 		   最初のコロンの前（コロンを含む）をラベル、あとを数字として分け、数字の左端は2行でそろえる（ラベルの幅の大きいほうに、間を足した位置）。
 		   1行（ラベル＋間＋数字）が箱の内側の幅に収まらないときは、ラベルと数字を同じ比で縮める（ラベルは最小 6px）。
 		   戻り値: { rows: [{label, value}], lab（ラベルの大きさ px）, num（数字の大きさ px）, labelW, gap, inset, innerW, need（いちばん長い行の幅）, lab0, num0 } */
