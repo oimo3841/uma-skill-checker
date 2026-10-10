@@ -37,6 +37,8 @@ import { register18 } from './blocks-18.mjs';
 import { register19 } from './blocks-19.mjs';
 // C-140（2026-10-10・ツール全体の微調整2）の検査（塊の見出しはすべて「微調整2」で始まる）
 import { register20 } from './blocks-20.mjs';
+import { register20b } from './blocks-20b.mjs';
+import { register20c } from './blocks-20c.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 
@@ -2034,35 +2036,30 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	// シナリオ因子はスキルではないので、「スキル」と付く数には入れない。
 	// 並び（照合・一覧・表）には従来どおり入る＝skillList は 121+24 のまま。
 	const splitCounts = await page.evaluate(() => {
-		selectCopyList('all133');
+		renderSkillCopyTextarea();
 		return {
 			skillOnly: skillOnlyList.length, factorOnly: factorOnlyList.length, all: skillList.length,
 			badge: document.getElementById('step1-skill-badge').textContent,
 			registry: document.getElementById('registry-skill-count').textContent,
-			copylist: document.getElementById('copylist-all133-count').textContent,
 			rows: document.querySelectorAll('#skill-registry-list > div').length,
 			// 表記（＋シナリオ因子N種）
 			registryHead: document.getElementById('registry-skill-count').parentElement.textContent,
-			copyBtn: document.getElementById('copylist-all133').textContent,
 			copyHint: document.getElementById('skill-copy-hint').textContent,
 			copyLines: document.getElementById('skill-copy-textarea').value.split('\n').length
 		};
 	});
 	assert(splitCounts.skillOnly === 121 && splitCounts.factorOnly === 24 && splitCounts.all === 145,
 		'exam: シナリオ因子を ON にすると、数える配列はスキル121・因子24に分かれる（並びの skillList は145のまま）', splitCounts);
-	assert(splitCounts.badge === '121種（調整あり）' && splitCounts.registry === '121' && splitCounts.copylist === '121',
-		'exam: ①のバッジ・一覧の見出し・コピーの「全◯種」は、因子を足してもスキルだけの数（121）', splitCounts);
+	assert(splitCounts.badge === '121種（調整あり）' && splitCounts.registry === '121',
+		'exam: ①のバッジ・一覧の見出しは、因子を足してもスキルだけの数（121）', splitCounts);
 	// 一覧は「外した12種」も取り消し線で残すので 133＋因子24＝157行。数だけがスキルの121になる。
 	assert(splitCounts.rows === 157,
 		'exam: 一覧の行そのものにはシナリオ因子も並ぶ（133＋因子24＝157行）', splitCounts);
 	// 表記: 因子も並ぶ／書き出される場所には「＋シナリオ因子N種」を添える
 	assert(splitCounts.registryHead === '対象スキル121種＋シナリオ因子24種の一覧を確認する',
 		'exam: 一覧の見出しは「対象スキル121種＋シナリオ因子24種の一覧を確認する」', splitCounts.registryHead);
-	assert(splitCounts.copyBtn === '全121種＋シナリオ因子24種',
-		'exam: コピーの全種ボタンも「全121種＋シナリオ因子24種」', splitCounts.copyBtn);
-	assert(splitCounts.copyHint === '対象スキル全121種＋シナリオ因子24種（登録順・範囲とカスタム設定を反映） ・ 145行'
-		&& splitCounts.copyLines === 145,
-		'exam: スキル名のコピーの見出しは種数を分けて書き、行数は実際の145行のまま', splitCounts);
+		assert(splitCounts.copyHint === 'スキル121種＋シナリオ因子24種・ 145行' && splitCounts.copyLines === 145,
+		'exam: スキル名のコピーの見出しは「スキル121種＋シナリオ因子24種・ 145行」（種数を分けて書き、行数は実際の145行。微調整2のCで短くした）', splitCounts);
 	await page.evaluate(() => { setScenarioFactorsAll(false); setAptitudeGenesAll(false); setTargetScopeMode('default'); });
 	assert(await page.textContent('#step1-skill-badge') === '133種', 'exam: 調整を戻すとバッジも「133種」に戻る');
 	assert(await page.evaluate(() => ['badge-scope-added', 'badge-scope-removed', 'badge-scenario-factors', 'badge-genes']
@@ -10434,7 +10431,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 			dsteps: effData.steps.slice(), dmin: effData.min, dmax: effData.max, targets: effData.targets.length,
 			count: document.getElementById('scope-count-efficiency').textContent,
 			reg: document.getElementById('registry-skill-count').textContent,
-			copyAll: document.getElementById('copylist-all133-count').textContent,
+			copyRows: document.getElementById('skill-copy-textarea').value.split('\n').length,
 			bounds: effBounds.slice(), tiers: effTiers.slice(),
 			detailHidden: document.getElementById('scope-detail').hidden, panelHidden: document.getElementById('eff-panel').hidden,
 			srcs: [...document.querySelectorAll('.eff-shoe img')].map((i) => i.getAttribute('src')), icons: EFF_TIER_ICON_SRCS,
@@ -10467,8 +10464,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		'効率(2): #scope-detail の代わりにバーが出て、バーの下の蹄鉄は左から銅・銀・金・虹', st.srcs);
 	assert(JSON.stringify(st.vals) === JSON.stringify([fmt(min)].concat(eq.map(fmt), [fmt(max)])),
 		'効率(2): つまみの下に境目の値、両端の下に最小値と最大値（どれも小数3桁）', st.vals);
-	assert(st.stored[0] === null && st.stored[1] === null && st.scopeStored === 'efficiency' && st.skillList133 && st.copyAll === '133',
-		'効率(2): 動かすまで境目と区間は保存しない。判定の表と「スキル名のコピー」は133種のまま', st);
+	assert(st.stored[0] === null && st.stored[1] === null && st.scopeStored === 'efficiency' && st.skillList133 && st.copyRows === st.n,
+		'効率(2): 動かすまで境目と区間は保存しない。判定の表は133種のまま。「スキル名のコピー」は一覧と同じ（効率の対象の行）', st);
 
 	// (3) キーボード: ←→ で1段、Shift で5段。段の値だけを取る。4つの区間のどれも1種以上を含む範囲で止まる。動かすと保存
 	await page.focus('.eff-shoe[data-idx="0"]');
@@ -15058,6 +15055,8 @@ await register17({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register18({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register19({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register20({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register20b({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register20c({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();

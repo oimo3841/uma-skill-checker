@@ -988,27 +988,13 @@
 					<i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform"></i>
 				</summary>
 				<div class="p-4 pt-2 border-t border-slate-200/60">
-					<p class="text-[11px] text-slate-500 mb-3">ご自身のスプレッドシートにスキル名の列を作る際にお使いください。1行に1スキル名で出力します。</p>
-
-					<div class="flex flex-wrap items-center gap-2 mb-2">
-						<!-- 全種の書き出しにはシナリオ因子の行も入るので、因子を選んでいれば「＋シナリオ因子N種」を添える -->
-						<button type="button" onclick="selectCopyList('all133')" id="copylist-all133" class="copylist-btn">全<span id="copylist-all133-count">133</span>種<span id="copylist-all133-factor"></span></button>
-						<button type="button" onclick="selectCopyList('sp70')" id="copylist-sp70" class="copylist-btn">sp70緑<span id="copylist-sp70-count">17</span>種</button>
-						<button type="button" onclick="selectCopyList('green59')" id="copylist-green59" class="copylist-btn">緑59種</button>
-						<!-- 緑59種を選んだ時だけ表示。「技能試験ハイライト」と同じcountModeを共有し、既定/個別のどちらで書き出すか切り替える -->
-						<div id="copylist-green59-mode" class="hidden items-center gap-1 text-xs bg-white rounded-lg border border-slate-200 p-0.5 ml-1">
-							<button type="button" onclick="setCountMode('equivalence')" class="mode-btn" id="mode-equivalence-list">実質53種</button>
-							<button type="button" onclick="setCountMode('individual')" class="mode-btn" id="mode-individual-list">59種個別</button>
-						</div>
-					</div>
-
 					<textarea id="skill-copy-textarea" readonly class="w-full h-28 text-xs p-2.5 rounded-lg border border-slate-200 bg-white font-mono text-slate-600 select-all focus:outline-none resize-y"></textarea>
 
-					<div class="flex items-center justify-between mt-2">
-						<span id="skill-copy-hint" class="text-[11px] text-slate-400"></span>
-						<button type="button" onclick="copySkillList()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[var(--uma-control)] text-white text-xs font-semibold hover:bg-[var(--uma-control-hover)] transition-all cursor-pointer">
-							<i data-lucide="copy" class="w-3.5 h-3.5"></i>
-							<span>コピー</span>
+					<!-- 件数のヒント（左）と、コピーのボタン（右）。ボタンは文字なしのアイコンだけ（44px の正方形・縮まない。文字が縦に崩れていたため。読み上げの名前は「コピー」） -->
+					<div class="flex items-center justify-between gap-2 mt-2">
+						<span id="skill-copy-hint" class="text-[11px] text-slate-400 min-w-0"></span>
+						<button type="button" id="skill-copy-btn" onclick="copySkillList()" aria-label="コピー" title="コピー" class="inline-flex shrink-0 items-center justify-center w-11 h-11 rounded-lg bg-[var(--uma-control)] text-white hover:bg-[var(--uma-control-hover)] transition-all cursor-pointer">
+							<i data-lucide="copy" class="w-5 h-5"></i>
 						</button>
 					</div>
 				</div>
@@ -2172,7 +2158,6 @@
 
 		// ステップ1「スキル名のコピー」で、現在どのリストを表示中か。
 		// 'all133' | 'sp70' | 'green59'
-		let copyListMode = 'all133';
 
 		/* ------------------------------------------------------------
 		 * 軸1（対象スキルの範囲）と軸2（シナリオ因子）の状態
@@ -2543,7 +2528,7 @@
 			restoreMelopMode();
 			restoreStitchShow();
 			initStitchSaveName();
-			selectCopyList('all133');
+			renderSkillCopyTextarea();
 			updateProcessBtn();
 			// どちらのUIで開くかを決める（未読なら新UI＋告知モーダル）。他の準備が終わってから
 			initUiMode();
@@ -2697,14 +2682,12 @@
 			// 数を出さない方針にしたため（上のヘッダーのコメント参照）。
 			const reg = document.getElementById('registry-skill-count');
 			if (reg) reg.textContent = shown;
-			const copyAll = document.getElementById('copylist-all133-count');
-			if (copyAll) copyAll.textContent = String(total);
 			// 一覧と全種の書き出しには**シナリオ因子と遺伝子の行も入る**ので、数は分けて添える
 			// （数だけ「スキル」に寄せて、行が減ったように見えるのを防ぐ）。
 			// **合算せず並記する**（「＋シナリオ因子24種＋遺伝子10種」）。選ぶときに分けているので。
 			// 片方だけ ON のときは、その片方だけを書く（0種の項目は出さない）。
 			const factorNote = extraCountNote();
-			['registry-factor-count', 'copylist-all133-factor'].forEach(id => {
+			['registry-factor-count'].forEach(id => {
 				const el = document.getElementById(id);
 				if (el) el.textContent = factorNote;
 			});
@@ -2722,8 +2705,6 @@
 			if (sp70Badge) sp70Badge.textContent = 'sp70緑：' + sp70Count + '種';
 			const greenBadge = document.getElementById('badge-green59-count');
 			if (greenBadge) greenBadge.textContent = '緑59種（実質' + greenMax + '種）';
-			const sp70CopyCount = document.getElementById('copylist-sp70-count');
-			if (sp70CopyCount) sp70CopyCount.textContent = String(sp70Count);
 
 			// 今の設定でだけ出すバッジ。該当しない設定のときはバッジ自体を出さない。
 			// Tailwind の .hidden と .inline-flex は同じ display ユーティリティで、
@@ -3058,66 +3039,19 @@
 
 		/* ============================================================
 		 * スキル名のコピー（各ユーザーが自分のスプレッドシートで管理するための書き出し）
-		 * 「緑59種」を選んでいる間は、技能試験ハイライトと同じcountMode
-		 * （実質53種 / 59種個別）と連動して出力内容を切り替える。
+		 * C-140（微調整2・C）: コピーするのは「全て」だけ（既定・変更不可）。内容は「対象スキルN種の一覧を確認する」に出している行と同じ
+		 * （いまの範囲〔既定・対象を広げる・対象を絞る・効率を指定〕の対象スキル＋チェックの入っているシナリオ因子・遺伝子。並びも一覧と同じ）。
+		 * 「対象を絞る」で外した12種は、一覧には取り消し線で出るが対象ではないので、コピーには入れない。
+		 * 形はタブ区切りの2列（1列目＝スキル名・2列目＝効率〔小数3桁〕。効率の無い行は2列目が空）。効率の列は「効率の高い順」が OFF でも出す。
 		 * ============================================================ */
-		// 緑59種を、現在のモードに応じた名前リストに変換する。
-		// equivalence=true の場合、「〇〇の目覚め」は対応する基本スキルに
-		// まとめられ、GREEN_59_IDS内で先に登場している基本スキルの側だけが残る
-		// （＝目覚め系の6件を除いた53件になる）。ID で畳んでから名前に直す。
-		function canonicalGreen59List(equivalence) {
-			const baseIds = effectiveBaseIds(GREEN_59_IDS);
-			if (!equivalence) return baseIds.map(id => EXAM_NAME_BY_ID[id]);
-			const seen = new Set();
-			const out = [];
-			baseIds.forEach(id => {
-				const canonical = AWAKENING_PAIR_MAP[id] || id;
-				if (!seen.has(canonical)) {
-					seen.add(canonical);
-					out.push(EXAM_NAME_BY_ID[canonical]);
-				}
-			});
-			return out;
-		}
-
-		function selectCopyList(mode) {
-			copyListMode = mode;
-			['all133', 'sp70', 'green59'].forEach(m => {
-				document.getElementById('copylist-' + m).classList.toggle('active', m === mode);
-			});
-			const modeWrap = document.getElementById('copylist-green59-mode');
-			if (mode === 'green59') {
-				modeWrap.classList.remove('hidden');
-				modeWrap.classList.add('flex');
-			} else {
-				modeWrap.classList.add('hidden');
-				modeWrap.classList.remove('flex');
-			}
-			renderSkillCopyTextarea();
-		}
-
 		function renderSkillCopyTextarea() {
-			let list, hint;
-			if (copyListMode === 'sp70') {
-				list = effectiveBaseIds(SP70_GREEN_17_IDS).map(id => EXAM_NAME_BY_ID[id]);
-				hint = 'sp70緑（' + list.length + '種）';
-			} else if (copyListMode === 'green59') {
-				const equivalence = (countMode === 'equivalence');
-				list = canonicalGreen59List(equivalence);
-				hint = equivalence
-					? '緑59種・実質' + effectiveGreen59EquivalenceMax() + '種（目覚め系は対応スキルにまとめています）'
-					: '緑59種（除外反映後' + list.length + '種・目覚め系も独立して含みます）';
-			} else {
-				// 書き出す行はシナリオ因子・遺伝子も含む（従来どおり）。種数だけ3つに分けて書く。
-				list = skillList;
-				hint = '対象スキル全' + skillOnlyList.length + '種' + extraCountNote()
-					+ '（登録順・範囲とカスタム設定を反映）';
-			}
-			// 2列目に効率（小数3桁）。画面に出している並び（「効率の高い順」が ON ならその順）のとおりに出す。効率の無い行は2列目が空
-			const groupOfName = n => isScenarioFactor(n) ? 'factor' : isAptitudeGene(n) ? 'gene' : 'skill';
-			const copyRows = sortByEffDesc(list.map(n => ({ n: n, g: groupOfName(n), m: effOfSkillName(n) })), x => x.g, x => x.m);
-			document.getElementById('skill-copy-textarea').value = copyRows.map(x => x.n + '\t' + (x.m === null ? '' : effFormat(x.m))).join('\n');
-			document.getElementById('skill-copy-hint').textContent = hint + ' ・ ' + list.length + '行';
+			const rows = buildSkillRegistryRows().filter(r => r.state !== 'scopeRemoved');
+			const count = g => rows.filter(r => r.group === g).length;
+			const skills = count('skill'), factors = count('factor'), genes = count('gene');
+			document.getElementById('skill-copy-textarea').value = rows.map(r => r.name + '\t' + ((r.milli === null || r.milli === undefined) ? '' : effFormat(r.milli))).join('\n');
+			// 「スキルXXX種＋シナリオ因子24種＋遺伝子10種・ YYY行」。因子・遺伝子のチェックが外れているときは、その部分を書かない
+			document.getElementById('skill-copy-hint').textContent = 'スキル' + skills + '種' + (factors ? '＋シナリオ因子' + factors + '種' : '') + (genes ? '＋遺伝子' + genes + '種' : '')
+				+ '・ ' + rows.length + '行';
 		}
 
 		function copySkillList() {
@@ -3132,15 +3066,11 @@
 		 * ============================================================ */
 		function setCountMode(mode) {
 			countMode = (mode === 'individual') ? 'individual' : 'equivalence';
-			// 「技能試験ハイライト」（結果エリア）と「スキル名のコピー」（ステップ1）の
-			// 2箇所にモード切替ボタンがあるが、実体は同じcountModeを共有する。
+			// 「技能試験ハイライト」（結果エリア）のモード切替ボタン。
 			document.getElementById('mode-equivalence').classList.toggle('active', countMode === 'equivalence');
 			document.getElementById('mode-individual').classList.toggle('active', countMode === 'individual');
-			document.getElementById('mode-equivalence-list').classList.toggle('active', countMode === 'equivalence');
-			document.getElementById('mode-individual-list').classList.toggle('active', countMode === 'individual');
 			try { localStorage.setItem(COUNT_MODE_STORAGE_KEY, countMode); } catch (e) {}
 			renderExamHighlight(activePersonIndexes());
-			if (copyListMode === 'green59') renderSkillCopyTextarea();
 			// 集計モードは結合画像のコメントの数え方に関わるので、「画像を更新」の可否も見直す
 			updateStitchRefreshUi();
 		}

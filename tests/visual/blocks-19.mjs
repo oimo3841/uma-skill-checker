@@ -329,14 +329,15 @@ export async function register19(env) {
 			const ties = effRows.filter((r, i) => i > 0 && effRows[i - 1].milli === r.milli).length;
 			assert(ties > 0, '微調整1A6(' + mode + '): 同じ効率の行があり、安定（元の並びのまま）の検査が空振りでない', { ties });
 			// スキル名のコピー（全種）: 画面の並びのとおり・「名前［タブ］効率」・効率の無い行は2列目が空
-			await page.evaluate(() => selectCopyList('all133'));
 			const copyOn = await page.evaluate(() => document.getElementById('skill-copy-textarea').value.split('\n').map((l) => l.split('\t')));
 			const nm = copyOn.map((c) => c[0]);
-			const base = await page.evaluate(() => skillList.slice());
-			const eff0 = (n) => ex.eff[n];
-			const grp0 = (n) => groups.f.includes(n) ? 2 : groups.g.includes(n) ? 3 : (eff0(n) === null ? 1 : 0);
-			const wantCopy = base.map((n, i) => ({ n, i })).sort((a, b) => (grp0(a.n) - grp0(b.n)) || (grp0(a.n) === 0 ? eff0(b.n) - eff0(a.n) : 0) || (a.i - b.i)).map((x) => x.n);
-			assert(copyOn.every((c) => c.length === 2) && JSON.stringify(nm) === JSON.stringify(wantCopy)
+			// 微調整2のC: コピーは一覧に出している行と同じ（並びも一覧のとおり）。「対象を絞る」で外した行（取り消し線）だけは対象ではないので入らない
+			const removed = await page.evaluate(() => [...document.querySelectorAll('#skill-registry-list .registry-removed')].map((e) => e.textContent));
+			const onMilli = new Map(on.rows.map((r) => [r.name, r.milli]));
+			const wantCopy = on.rows.map((r) => r.name).filter((n) => !removed.includes(n));
+			const base = off.map((r) => r.name).filter((n) => !removed.includes(n));
+			const eff0 = (n) => (onMilli.get(n) === undefined ? null : onMilli.get(n));
+			assert(copyOn.every((c) => c.length === 2) && JSON.stringify(nm) === JSON.stringify(wantCopy) && wantCopy.length > 100
 				&& copyOn.every((c) => c[1] === (eff0(c[0]) === null ? '' : (eff0(c[0]) / 1000).toFixed(3))),
 				'微調整1A6(' + mode + '): 「スキル名のコピー」（全種）は ON の並びで「名前［タブ］効率」の2列・効率の無い行は2列目が空', { rows: copyOn.length, head: copyOn.slice(0, 2), emptyEff: copyOn.filter((c) => c[1] === '').length });
 			// OFF に戻す
@@ -358,7 +359,6 @@ export async function register19(env) {
 			const offRows = [...document.querySelectorAll('#skill-registry-list > div')].map((d) => d.children[1].firstElementChild.textContent);
 			toggleRegistrySort();
 			const onRows = [...document.querySelectorAll('#skill-registry-list > div')].map((d) => ({ name: d.children[1].firstElementChild.textContent, has: d.querySelectorAll('.registry-eff').length === 1 }));
-			selectCopyList('all133');
 			const copy = document.getElementById('skill-copy-textarea').value.split('\n').map((l) => l.split('\t'));
 			toggleRegistrySort();
 			return { names, offRows, onRows, copy, F: SCENARIO_INHERITANCE_FACTORS.length, G: APTITUDE_GENES.length };
@@ -377,12 +377,6 @@ export async function register19(env) {
 				'微調整1A6(効率の無いスキル): コピーも同じ並びで、効率の無い行は2列目が空', { tail: cTail });
 		}
 		await page.evaluate(() => { window.__effSaved.forEach(([id, v]) => effValueById.set(String(id), v)); renderSkillRegistryList(); renderSkillCopyTextarea(); });
-		// sp70緑・緑59種のコピーも2列（効率のあるものは数字）
-		for (const m of ['sp70', 'green59']) {
-			await page.evaluate((x) => selectCopyList(x), m);
-			const lines = await page.evaluate(() => document.getElementById('skill-copy-textarea').value.split('\n').map((l) => l.split('\t')));
-			assert(lines.length > 0 && lines.every((c) => c.length === 2) && lines.every((c) => c[1] === '' || /^\d+\.\d{3}$/.test(c[1])), '微調整1A6(' + m + '): ' + m + ' のコピーも「名前［タブ］効率」の2列', { n: lines.length, head: lines[0] });
-		}
 		// 保存しない: 保存の鍵は増えず、開き直すと OFF
 		const lsAfter = await page.evaluate(() => JSON.stringify(Object.keys(localStorage).sort()));
 		await page.reload({ waitUntil: 'networkidle' });
