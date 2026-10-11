@@ -101,7 +101,7 @@
 			--exam-red-bg: #fef2f2; --exam-red-text: #991b1b; --exam-red-border-strong: #fca5a5; --exam-red-border-soft: #fecaca; --exam-red-tint: rgba(239,68,68,0.07);
 			--exam-total-th-bg: #f1f5f9; --exam-total-th-text: #334155; --exam-total-th-border: #cbd5e1;
 			--exam-total-td-bg: #f8fafc; --exam-total-td-border: #e2e8f0;
-			--exam-toggle-off-bg: #fff; --exam-toggle-off-text: #94a3b8; --exam-toggle-off-border: #e2e8f0; --exam-toggle-on-text: #1d293d;
+			--exam-toggle-off-bg: #fff; --exam-toggle-off-text: #94a3b8; --exam-toggle-off-border: #e2e8f0; --exam-toggle-on-text: #fff;
 
 			/* 効率で選ぶ（C-136）。ターフの3色はおいもさんのモックの値で、区切りのバーの「対象に入れた区間」と、
 			   結果画像の区間まとめパネル（canvas。ライトの値で読む）が同じものを使う。
@@ -366,13 +366,6 @@
 		.deck-note-btn { background: var(--uma-control); }
 		.deck-note-btn:hover { background: var(--uma-control-hover); }
 		.star-cell { font-weight: 700; letter-spacing: 0.05em; }
-		/* ライトのコントラスト比（C-143）。★の空きと「−」は人物色の淡い地（#e8eefa／#f5eaee）の上で 1.3 しか取れなかったので、
-		   tokens.css のライト用の「★の空き」の色（3.2）にする。罫線の border-slate-300 は別のクラスなので動かない。
-		   「検出」の赤い数字は #f9f3f6 の上で 4.37 だったので、わずかに濃くする（bg-red-600 は他で使っているので palette は動かさない）。
-		   「〇〇の目覚め」の注記は 70% の透け具合で 3.4 だったので 85%（4.67）にする。 */
-		:root:where([data-theme="light"]) .text-slate-300 { color: var(--uma-star-empty); }
-		:root:where([data-theme="light"]) #stat-grid .text-red-600 { color: #df000b; }
-		:root:where([data-theme="light"]) .exam-deco-note { color: color-mix(in oklab, var(--uma-deco-strong) 85%, transparent); }
 		.mode-btn { padding: 0.25rem 0.75rem; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: all 0.15s; }
 		/* 緑スキルの数え方の切り替え。押せる部品だが、**何を数えるのか＝緑スキル**を
 		   色が示すので、「操作できる部品は黒」の例外として緑で塗る（tokens.css の注記）。 */
@@ -1359,7 +1352,7 @@
 						</div>
 					</div>
 					<div id="exam-highlight-grid" class="grid gap-3"></div>
-					<p class="exam-deco-note text-[11px] text-[var(--uma-deco-strong)]/70 mt-3">※「〇〇の目覚め」系スキルは、実質53種モードでは対応する緑スキルとペアで1カウントします（本体テーブルの表示・★の判定そのものには影響しません）。</p>
+					<p class="text-[11px] text-[var(--uma-deco-strong)]/70 mt-3">※「〇〇の目覚め」系スキルは、実質53種モードでは対応する緑スキルとペアで1カウントします（本体テーブルの表示・★の判定そのものには影響しません）。</p>
 				</div>
 	
 				<!-- 検索・フィルターバー -->
