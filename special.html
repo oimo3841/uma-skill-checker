@@ -36,7 +36,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-08a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-11b"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -185,6 +185,9 @@
 			/* 右下のメインボタンは3ツール共通の黒（tokens.css の --uma-fab-bg）になったので、
 			   影もページの色ではなく shell.css の既定（暗い中間色）に任せる。ここで上書きしない。 */
 		}
+		/* 件数バッジ（タブの角と入口の「追加済み」。2つは同じ見た目に揃える決まり）。白い数字が地の --uma-accent（green-600）の上で 3.22 しか取れなかったので、
+		   ライトだけ一段濃い緑（green-700。白と 5.0）にする（C-143）。ダークは tokens.css の値のまま */
+		:root:where([data-theme="light"]) :is(.usd-tab-count, .usd-entry-count) { background: var(--uma-accent-hover); }
 		body {
 			background-color: #f4faf0;
 			background-image:
