@@ -176,7 +176,8 @@ export async function registerDark(env) {
 		const dark = names(blockOf(':root:where([data-theme="dark"])'), false);
 		// ダークでも同じ値で読めるので、わざと持たせていないもの（理由）
 		const KEEP = {
-			'--uma-star': '★の橙は暗い面の上でも読める（面 #171d26 に対して 8 以上）',
+			'--uma-star': '★の橙は暗い面の上でも読める（面 #171d26 に対して 8 以上）。ライトだけ淡い地用に暗い橙へ上書きする（C-143）',
+			'--uma-star-ink': '結合画像に焼き込む★の橙。テーマで変えない（C-143）',
 			'--uma-mark-green-skill': '緑スキルの●は暗い面の上でも読める（emerald-500）',
 			'--uma-table-head-key-bg': '濃い地（stone-700）に白文字の組で、ダークの中でもそのまま読める',
 			'--uma-table-head-key-text': '上の地の上の白文字',

@@ -2950,7 +2950,7 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 		const off = document.querySelector(sel + ' .star-off');
 		return off ? getComputedStyle(off).color : null;
 	}, TILE);
-	assert(starColor === 'rgb(254, 154, 0)' && emptyColor === 'rgb(202, 213, 226)',
+	assert(starColor === 'rgb(190, 115, 0)' && emptyColor === 'rgb(104, 135, 172)',
 		'deck: ★の色が --uma-star / --uma-star-empty', { starColor, emptyColor });
 
 	// 「計」バッジが値タイルに連動して再計算・再着色されること。0=グレー／1以上=薄い藍。
@@ -3115,7 +3115,7 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 		};
 	});
 	assert(dis.count > 0 && dis.cellOpacity === '1' && dis.tileOpacity === '1'
-		&& dis.cellColor === 'rgb(144, 161, 185)',
+		&& dis.cellColor === 'rgb(89, 111, 142)',
 		'deck: 無効列は実色だけで薄くなる（opacity不使用）', dis);
 
 	// ---- 手動修正の可視化 ----
