@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-11a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-12a';
 
 	/* ============================================================
 	 * 定数
@@ -1710,6 +1710,13 @@
 		return entry.groupName.trim();
 	}
 
+	/** 育成ウマ娘のイベントの行（段2・2026-10-12）。鍵は umaId。entries に無い衣装（新しい衣装）は null＝イベント無しとして動く */
+	function findUmaEventRow(umaId) {
+		const doc = trainingSources.trainingEventSkill;
+		const rows = (doc && doc.entries) || [];
+		return rows.find(r => r && r.umaId === umaId) || null;
+	}
+
 	function findEventRow(cardId) {
 		const doc = trainingSources.supportCardEventSkill;
 		const rows = (doc && doc.entries) || [];
@@ -1877,6 +1884,7 @@
 			out.push({ eventKey: eventKey, index: idx, step: (ev && Number.isInteger(ev.step)) ? ev.step : null, choices: choices,
 				wantedChoices: wantedChoices, pending: !pick && wantedChoices >= 2,
 				name: (ev && typeof ev.name === 'string') ? ev.name : null, when: (ev && typeof ev.when === 'string') ? ev.when : null,
+				eventName: (ev && typeof ev.eventName === 'string') ? ev.eventName : null, condition: (ev && typeof ev.condition === 'string') ? ev.condition : '',
 				chosen: pick ? pick.index : null, auto: !!(pick && pick.auto) });
 		});
 		return out;
@@ -2215,6 +2223,18 @@
 						(row.skills || []).forEach(s => add(s, '覚醒 Lv' + row.level, UMA_KEY, undefined, { kind: 'uma', part: 'awakening' }));
 					}
 				});
+				// 育成ウマ娘のイベント（段2・2026-10-12）。選択の鍵は uma:<umaId>#N（N は events の並びの位置）。
+				// 出どころの種類は 'umaEvent'（computeRosterPt は 'hint' と 'uma' 以外をイベントの経路に流すので、そのまま Lv に足される）。
+				// 行が無い衣装・読み込めていないときは何も足さない。赤字（unconfirmed）には数えない（決定4）
+				const umaEvRow = findUmaEventRow(r.umaId);
+				if (umaEvRow) {
+					const base = 'uma:' + r.umaId;
+					eventRowSkills(umaEvRow, 'events', Object.assign({}, evOpts, { keyBase: base })).forEach(s =>
+						add(s, umaLabel + ' のイベント' + (s.sure ? '' : '（確定でない）'), UMA_KEY, s.sure));
+					pushOccurrences(eventRowOccurrences(umaEvRow, 'events', base, evOpts), 'umaEvent', UMA_KEY);
+					eventRowChoiceEvents(umaEvRow, 'events', base, evOpts).forEach(e =>
+						events.push(Object.assign({ memberKey: UMA_KEY, kind: 'umaEvent', cardId: null, charaName: null }, e)));
+				}
 			}
 		}
 		members.push({ key: UMA_KEY, kind: 'uma', no: null, label: umaLabel, shortLabel: umaShort, typeOrder: null });

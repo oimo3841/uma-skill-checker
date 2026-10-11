@@ -43,6 +43,7 @@ import { register20d } from './blocks-20d.mjs';
 import { register20e } from './blocks-20e.mjs';
 import { register21 } from './blocks-21.mjs';
 import { register22 } from './blocks-22.mjs';
+import { register23 } from './blocks-23.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 
@@ -12754,7 +12755,7 @@ await block('スキルPt ―― 段2: sources（由来の機械可読化。2026-
 		const uma = (C.getTrainingSources().trainingUmamusume || {}).entries[0];
 		const r3 = C.computeRosterSkills({ umaId: uma.id, cardIds: [] });
 		const pack = (x) => x.sources.map((s) => Object.assign({}, s));
-		return { keys: Object.keys(r), sources: pack(r), sources2: pack(r2), items2: r2.items.map((i) => i.skillId), uma: pack(r3), umaItems: r3.items.map((i) => i.skillId),
+		return { keys: Object.keys(r), sources: pack(r), sources2: pack(r2), items2: r2.items.map((i) => i.skillId), uma: pack(r3).filter((s) => s.kind !== 'umaEvent'), umaItems: r3.items.map((i) => i.skillId),
 			skillIds: r.skillIds, itemIds: r.items.map((i) => i.skillId) };
 	}, { cardIds: fx.cardIds, cx: cx.id, cy: cy.id, sk: sk.id, sk2: sk2.id });
 	assert(['skillIds', 'items', 'members', 'unconfirmed', 'missing', 'sources'].every((k) => res.keys.includes(k)),
@@ -15074,6 +15075,7 @@ await register20d({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register20e({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register21({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register22({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register23({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
