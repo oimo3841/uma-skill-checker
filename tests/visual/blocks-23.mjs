@@ -2,7 +2,10 @@
 // （塊の見出しはすべて「育成イベント」で始まる。`npm run test:visual -- --only=育成イベント` で回せる。段2だけなら「育成イベント段2」）。
 //
 // 段2（①の計算）: ●/△・選ぶと●・results は先頭だけ・Pt（初期 Lv3＋イベント Lv、上限5）・「本育成で得る」への反映・赤字の数が変わらない・行の無い衣装
+// 段3（小窓・列見出し）: ボタン（！／◇）・イベント名・条件文・「選択肢N」・保存と再読み込み・リセット・見た目（375・320・1280px／ライト・ダーク）・サポカ側が変わらない
 // スキル名・イベント名・衣装名は検査の側に書かない（恒久ルール1）。実データ（data/training-event-skills.json）から読む。
+
+import { decodePng, contrastRatio, hexOf } from './lib/pixels.mjs';
 
 export async function register23(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -212,5 +215,166 @@ export async function register23(env) {
 		assert(r.ev === 0 && r.ch === 0 && r.unconf === noUma && t2 === t0, '育成イベント段2F entries に無い衣装: イベントの出どころ・選べるイベントとも0で、赤字も変わらない（エラーも出ない）', { r, t2 });
 		assert(jsErrors(sp2.errors).length === 0, '育成イベント段2F コンソールのエラー0', jsErrors(sp2.errors).slice(0, 3));
 		await sp2.ctx.close();
+	});
+	/* ====================================================================
+	 * 段3: 列見出しのボタン・小窓（イベント名・条件文・「選択肢N」）
+	 * ==================================================================== */
+	// 小窓に出る＝選択肢が2つ以上で、どこかの成功側にスキルがある。「！」に数える（未選択）＝スキルを持つ選択肢が2つ以上（1つだけなら自動で選ばれる）
+	const isListed = (ev) => ev.choices.length >= 2 && ev.choices.map(successOf).some((s) => s.length > 0);
+	const isPending = (ev) => ev.choices.map(successOf).filter((s) => s.length > 0).length >= 2;
+	const choiceEvents = (entry) => entry.events.map((ev, i) => ({ ev, i })).filter((x) => isListed(x.ev));
+	const pendingEvents = (entry) => choiceEvents(entry).filter((x) => isPending(x.ev));
+	const UMA_LONG = EVDOC.entries.filter((e) => choiceEvents(e).some((x) => x.ev.condition))
+		.sort((a, b) => Math.max(...choiceEvents(b).map((x) => x.ev.condition.length)) - Math.max(...choiceEvents(a).map((x) => x.ev.condition.length)))[0];
+	const UMA_NONE = EVDOC.entries.find((e) => choiceEvents(e).length === 0);
+	const UMA_SHORT = EVDOC.entries.find((e) => choiceEvents(e).length >= 2 && choiceEvents(e).some((x) => x.ev.condition === '') && choiceEvents(e).some((x) => x.ev.condition !== '') && e !== UMA_LONG);
+	const openRoster = async (umaId, o = {}) => {
+		const sp = await openPage(browser, base, 'special.html', { width: o.w || 375, height: o.h || 812 }, EMPTY);
+		await sp.page.evaluate(({ id, theme, ch }) => {
+			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: id, cardIds: [], eventChoices: ch || undefined }));
+			localStorage.setItem('umaSkillDeck:stepTab', '0');
+			if (theme) localStorage.setItem('uma-tools-theme', theme);
+		}, { id: umaId, theme: o.theme || null, ch: o.choices || null });
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.waitForTimeout(500);
+		return sp;
+	};
+	const EVBTN = '[data-usd-el="events-btn"][data-member-key="0"]';
+	const openPop = async (page) => { await page.click(EVBTN); await page.waitForSelector('[data-usd-el="event"]'); await page.waitForTimeout(300); };
+
+	await block('育成イベント段3A 育成ウマ娘の列見出しは、選ぶイベントがあるときだけボタン。未選択があれば「！」・無ければ ◇。選ぶイベントが無い衣装は今までの札', async () => {
+		const sp = await openRoster(UMA_LONG.umaId);
+		const need = pendingEvents(UMA_LONG).length;
+		const b = await sp.page.evaluate((sel) => { const e = document.querySelector(sel); return e ? { text: e.textContent, unsel: e.getAttribute('data-unselected'), aria: e.getAttribute('aria-label'), diamond: !!e.querySelector('.usd-roster-evdiamond'), tag: e.tagName } : null; }, EVBTN);
+		assert(!!b && b.tag === 'BUTTON' && b.text === '!' && b.unsel === String(need) && b.aria.includes('育成ウマ娘のイベントを選ぶ') && b.aria.includes('未選択' + need + '件'),
+			'育成イベント段3A 未選択があるあいだは「！」のボタン（未選択' + need + '件。aria-label に件数）', b);
+		const chip = await sp.page.evaluate(() => !!document.querySelector('.usd-roster-gh .usd-roster-umamark'));
+		assert(chip === false, '育成イベント段3A ボタンのときは列見出しに名前の札（umaChip）を出さない（小窓の見出しへ移した）', chip);
+		await sp.ctx.close();
+		// すべて選ぶと ◇
+		const ch = {};
+		pendingEvents(UMA_LONG).forEach((x) => { ch['uma:' + UMA_LONG.umaId + '#' + x.i] = 0; });
+		const sp2 = await openRoster(UMA_LONG.umaId, { choices: ch });
+		const b2 = await sp2.page.evaluate((sel) => { const e = document.querySelector(sel); return e ? { text: e.textContent, unsel: e.getAttribute('data-unselected'), diamond: !!e.querySelector('.usd-roster-evdiamond'), alert: e.classList.contains('usd-roster-evbtn--alert') } : null; }, EVBTN);
+		assert(!!b2 && b2.unsel === '0' && b2.diamond && b2.text === '' && !b2.alert, '育成イベント段3A すべて選ぶと「！」が消え、◇のボタンのまま（押すと小窓にもう一度入れる）', b2);
+		await sp2.ctx.close();
+		// 選ぶイベントが無い衣装
+		const sp3 = await openRoster(UMA_NONE.umaId);
+		const n = await sp3.page.evaluate((sel) => ({ btn: !!document.querySelector(sel), chip: !!document.querySelector('.usd-roster-gh .usd-roster-umamark') }), EVBTN);
+		assert(n.btn === false && n.chip === true, '育成イベント段3A 選ぶイベントが無い衣装は、これまでどおり札（◇）でボタンにならない', n);
+		assert(jsErrors(sp3.errors).length === 0, '育成イベント段3A コンソールのエラー0', jsErrors(sp3.errors).slice(0, 3));
+		await sp3.ctx.close();
+	});
+
+	await block('育成イベント段3B 小窓: イベント名は eventName（配列の順）・直下に条件文の1要素（空なら要素なし）・選択肢は「選択肢N」・見出しに名前の札', async () => {
+		for (const U of [UMA_LONG, UMA_SHORT]) {
+			const sp = await openRoster(U.umaId);
+			await openPop(sp.page);
+			const want = choiceEvents(U);
+			const r = await sp.page.evaluate(() => {
+				const evs = Array.from(document.querySelectorAll('[data-usd-el="event"]'));
+				return { events: evs.map((b) => {
+					const t = b.querySelector('.usd-roster-eventtitle');
+					const c = b.querySelector('.usd-roster-eventcond');
+					const labs = Array.from(b.querySelectorAll('.usd-roster-choicelabel')).map((x) => x.textContent);
+					return { key: b.getAttribute('data-event-key'), title: t.textContent.replace(/\s*自動$/, ''), cond: c ? c.textContent : null, next: t.nextElementSibling === c && !!c, nConds: b.querySelectorAll('.usd-roster-eventcond').length, labs };
+				}), head: !!document.querySelector('.uma-popover-title .usd-roster-evdiamond'), headText: (document.querySelector('.usd-ev-title-text') || {}).textContent };
+			});
+			const tag = U.umaId;
+			assert(r.events.length === want.length && r.events.every((e, k) => e.key === 'uma:' + U.umaId + '#' + want[k].i && e.title === want[k].ev.eventName),
+				'育成イベント段3B(' + tag + ') イベント名は eventName で、配列の位置の順（' + want.length + '件）', r.events.map((e) => e.title));
+			assert(r.events.every((e, k) => (want[k].ev.condition === '' ? e.cond === null && e.nConds === 0 : e.cond === want[k].ev.condition && e.next && e.nConds === 1)),
+				'育成イベント段3B(' + tag + ') 条件文は condition をそのまま・イベント名の直下に1要素。空のイベントには要素そのものが無い', r.events.map((e) => e.cond));
+			assert(r.events.some((e) => e.cond === null) === want.some((x) => x.ev.condition === '') && r.events.every((e) => e.labs.every((l, k) => l === '選択肢' + (k + 1))),
+				'育成イベント段3B(' + tag + ') 選択肢のボタンの見出しは「選択肢N」の番号だけ', r.events.map((e) => e.labs));
+			assert(r.head && !!r.headText, '育成イベント段3B(' + tag + ') 小窓の見出しに名前の札（◇）と衣装名がある', r);
+			await sp.ctx.close();
+		}
+	});
+
+	await block('育成イベント段3C 選択は uma:<umaId>#N で保存され、再読み込みで残り、「！」が減る。リセットで消える', async () => {
+		const U = UMA_LONG;
+		const first = pendingEvents(U)[0];
+		const key = 'uma:' + U.umaId + '#' + first.i;
+		const sp = await openRoster(U.umaId);
+		await openPop(sp.page);
+		await sp.page.click('[data-usd-el="event"][data-event-key="' + key + '"] [data-usd-el="event-choice"][data-choice="1"]');
+		await sp.page.waitForTimeout(300);
+		const saved = await sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')).eventChoices);
+		assert(saved && saved[key] === 1 && Object.keys(saved).length === 1, '育成イベント段3C 選ぶと eventChoices に { ' + key + ': 1 } だけが保存される（保存の形は今までと同じ）', saved);
+		const unsel = await sp.page.evaluate((sel) => document.querySelector(sel).getAttribute('data-unselected'), EVBTN);
+		assert(unsel === String(pendingEvents(U).length - 1), '育成イベント段3C 未選択の件数が1つ減る', unsel);
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.waitForTimeout(500);
+		await openPop(sp.page);
+		const on = await sp.page.evaluate((k) => { const b = document.querySelector('[data-usd-el="event"][data-event-key="' + k + '"] [data-usd-el="event-choice"][data-choice="1"]'); return b && b.getAttribute('aria-checked'); }, key);
+		assert(on === 'true', '育成イベント段3C 再読み込みしても、選んだ選択肢が選ばれたまま', on);
+		await sp.page.keyboard.press('Escape');
+		await sp.page.waitForTimeout(200);
+		await sp.page.click('#deck-roster-panel [data-usd-act="roster-reset"]');
+		await sp.page.click('[data-usd-el="roster-reset-all"]');
+		await sp.page.waitForTimeout(300);
+		const after = await sp.page.evaluate(() => { const r = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special') || '{}'); return { choices: r.eventChoices === undefined, uma: !r.umaId }; });
+		assert(after.choices && after.uma, '育成イベント段3C リセットで eventChoices と育成ウマ娘が消える（既存の ROSTER_RESET_KEYS）', after);
+		assert(jsErrors(sp.errors).length === 0, '育成イベント段3C コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('育成イベント段3D 条件文の見た目: 11px・トークンの色（subtle）・折り返して全文・省略しない（375・320・1280px／ライト・ダーク）。コントラスト比を測る', async () => {
+		const U = UMA_LONG;
+		const longEv = choiceEvents(U).sort((a, b) => b.ev.condition.length - a.ev.condition.length)[0];
+		const report = [];
+		for (const w of [375, 320, 1280]) {
+			for (const theme of ['light', 'dark']) {
+				const sp = await openRoster(U.umaId, { w, theme, h: w === 1280 ? 900 : 812 });
+				await openPop(sp.page);
+				const r = await sp.page.evaluate((k) => {
+					const c = document.querySelector('[data-usd-el="event"][data-event-key="' + k + '"] .usd-roster-eventcond');
+					const cs = getComputedStyle(c);
+					const probe = document.createElement('span'); probe.style.color = 'var(--uma-text-subtle)'; document.body.appendChild(probe);
+					const subtle = getComputedStyle(probe).color; probe.remove();
+					const rect = c.getBoundingClientRect();
+					const lh = parseFloat(cs.lineHeight);
+					return { fs: cs.fontSize, color: cs.color, subtle, ws: cs.whiteSpace, ov: cs.textOverflow, wrap: cs.overflowWrap, lines: Math.round(rect.height / lh), full: c.scrollHeight <= c.clientHeight + 1, sw: c.scrollWidth <= c.clientWidth + 1, left: rect.left, right: rect.right, vw: window.innerWidth, hscroll: document.documentElement.scrollWidth > window.innerWidth + 1, text: c.textContent, rect: { x: rect.x, y: rect.y, w: rect.width, h: rect.height } };
+				}, 'uma:' + U.umaId + '#' + longEv.i);
+				const tag = w + 'px・' + theme;
+				assert(r.fs === '11px' && r.color === r.subtle && r.ws === 'normal' && r.ov !== 'ellipsis' && r.wrap === 'anywhere', '育成イベント段3D(' + tag + ') 11px・色は --uma-text-subtle・折り返す（省略しない）', { fs: r.fs, color: r.color, subtle: r.subtle, ws: r.ws, ov: r.ov, wrap: r.wrap });
+				assert(r.text === longEv.ev.condition && r.full && r.sw && r.right <= r.vw + 0.5 && r.left >= -0.5 && !r.hscroll && r.lines <= 4, '育成イベント段3D(' + tag + ') いちばん長い条件文（' + longEv.ev.condition.length + '字）が全文出て、' + r.lines + '行（最悪4行以内）・横にはみ出さない', { lines: r.lines, full: r.full, sw: r.sw, left: r.left, right: r.right, vw: r.vw, hscroll: r.hscroll });
+				// 地の色は、小窓のガラスと透けを合成した実際の見た目（文字の矩形の画素で最頻の色）から読む
+				const shot = await sp.page.screenshot({ clip: { x: Math.max(0, r.rect.x), y: r.rect.y, width: Math.min(r.rect.w, r.vw - Math.max(0, r.rect.x)), height: r.rect.h } });
+				const { w: pw, h: ph, bpp, px } = decodePng(shot);
+				const counts = new Map();
+				for (let i = 0; i < pw * ph; i++) { const k = px[i * bpp] + ',' + px[i * bpp + 1] + ',' + px[i * bpp + 2]; counts.set(k, (counts.get(k) || 0) + 1); }
+				const bg = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0][0].split(',').map(Number);
+				const fg = (r.color.match(/\d+/g) || []).slice(0, 3).map(Number);
+				const ratio = contrastRatio(fg, bg);
+				report.push(tag + '：文字 ' + hexOf(fg) + '・地 ' + hexOf(bg) + '・コントラスト比 ' + ratio.toFixed(2));
+				assert(Number.isFinite(ratio) && ratio > 1, '育成イベント段3D(' + tag + ') コントラスト比を測れた（' + ratio.toFixed(2) + '。文字 ' + hexOf(fg) + '・地 ' + hexOf(bg) + '。4.5 未満でも色は変えない）', { fg, bg, ratio });
+				assert(jsErrors(sp.errors).length === 0, '育成イベント段3D(' + tag + ') コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+				await sp.ctx.close();
+			}
+		}
+		console.log('[報告] 条件文のコントラスト比\n  ' + report.join('\n  '));
+	});
+
+	await block('育成イベント段3E サポカ側のイベントは変わらない: 列見出しのボタン・小窓の見出し（「N回目」「共通イベント」）・条件文の要素が無い', async () => {
+		const evCards = new Set(readJson('data/support-card-event-skills.json').entries.filter((x) => x.status === 'done' && x.chain.some((s) => s.choices.length >= 2)).map((x) => x.cardId));
+		const cards = readJson('data/support-cards.json').entries.filter((c) => evCards.has(c.id)).slice(0, 2).map((c) => c.id);
+		const sp = await openPage(browser, base, 'special.html', { width: 375, height: 812 }, EMPTY);
+		await sp.page.evaluate((cs) => { localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ cardIds: cs })); localStorage.setItem('umaSkillDeck:stepTab', '0'); }, cards);
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.waitForTimeout(500);
+		const btns = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="events-btn"]')).map((b) => ({ key: b.getAttribute('data-member-key'), text: b.textContent, aria: b.getAttribute('aria-label'), cls: b.className })));
+		assert(btns.length >= 1 && btns.every((b) => /^[1-6]$/.test(b.key) && /番のカードのイベントを選ぶ/.test(b.aria) && !/evbtn--uma/.test(b.cls) && (b.text === '!' || /^[1-6]$/.test(b.text))),
+			'育成イベント段3E サポカの列見出しのボタンは番号か「！」のまま（◇のボタンにならない）', btns);
+		await sp.page.click('[data-usd-el="events-btn"]');
+		await sp.page.waitForSelector('[data-usd-el="event"]');
+		const r = await sp.page.evaluate(() => ({ conds: document.querySelectorAll('.usd-roster-eventcond').length, titles: Array.from(document.querySelectorAll('.usd-roster-eventtitle')).map((t) => t.textContent.replace(/\s*自動$/, '')), diamond: !!document.querySelector('.uma-popover-title .usd-roster-evdiamond') }));
+		assert(r.conds === 0 && !r.diamond && r.titles.length > 0 && r.titles.every((t) => /^(\d+回目|\d+つ目|共通イベント.*)$/.test(t)), '育成イベント段3E サポカの小窓: 条件文の要素は無く、イベント名は「N回目」「共通イベント…」のまま', r);
+		assert(jsErrors(sp.errors).length === 0, '育成イベント段3E コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
 	});
 }

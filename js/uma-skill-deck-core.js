@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-12a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-12b';
 
 	/* ============================================================
 	 * 定数
@@ -5411,6 +5411,9 @@
 		'.usd-roster-evbtn::after { content: ""; position: absolute; inset: -6px -4px; }',
 		'.usd-roster-evbtn:active { transform: translateY(1px); box-shadow: none; }',
 		'.usd-roster-evbtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
+		// 育成ウマ娘のイベントのボタン（番号の代わりに ◇）。カードの番号のバッジと同じ大きさ・同じ見た目
+		'.usd-roster-evbtn--uma { display: inline-flex; align-items: center; justify-content: center; }',
+		'.usd-roster-evdiamond { display: block; width: 7px; height: 7px; background: currentColor; transform: rotate(45deg); }',
 		'.usd-roster-evbtn--alert { background: var(--uma-danger-text); border-color: var(--uma-danger-text); color: var(--uma-text-inverse); }',
 		// 金スキルの行（(18)）: 淡い金の地（結合画像の琥珀と同じトークン）。名前は読める濃さのまま
 		// 行の色分け（段7e の (2)〜(6)）。色は core の中のこの変数にまとめる（共有の tokens／common／shell は触らない）。
@@ -5464,6 +5467,8 @@
 		// イベントを選ぶ小窓（(19)）
 		'.usd-roster-event { display: flex; flex-direction: column; gap: var(--uma-sp-1); padding: var(--uma-sp-2) 0; border-top: 1px solid var(--uma-border); }',
 		'.usd-roster-eventtitle { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-heading); }',
+		// 条件文（育成ウマ娘のイベント）。小さな灰色で折り返して全文。色はトークンで参照する（値は書かない）
+		'.usd-roster-eventcond { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); white-space: normal; overflow-wrap: anywhere; }',
 		'.usd-roster-autotag { display: inline-block; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 600; padding: 0 var(--uma-sp-1-5);',
 		'  border-radius: var(--uma-r-full); background: var(--uma-surface-muted); color: var(--uma-text-subtle); vertical-align: middle; }',
 		'.usd-roster-choices { display: flex; flex-direction: column; gap: var(--uma-sp-1); }',
@@ -7924,6 +7929,7 @@
 
 	/* ---- 「イベント」と「取得できるスキル」の小窓の部品（①とオススメサポで共有） ---- */
 	function eventTitle(e) {
+		if (e.kind === 'umaEvent') return e.eventName || ((e.index + 1) + 'つ目');
 		if (e.kind === 'scenarioEvent') return (e.name || '') + (e.when ? '（' + e.when + '）' : '');
 		if (e.kind === 'commonEvent') return '共通イベント' + (isNonNegInt(e.step) ? ' ' + e.step + '回目' : ' ' + (e.index + 1));
 		return isNonNegInt(e.step) ? e.step + '回目' : (e.index + 1) + 'つ目';
@@ -8008,6 +8014,12 @@
 				t.appendChild(tag);
 			}
 			box.appendChild(t);
+			// 育成ウマ娘のイベントの条件文（段3・2026-10-12）。データの condition をそのまま。空なら要素そのものを作らない
+			if (typeof e.condition === 'string' && e.condition !== '') {
+				const cond = infoEl('p', 'usd-roster-eventcond', e.condition);
+				cond.setAttribute('data-usd-el', 'event-cond');
+				box.appendChild(cond);
+			}
 			const group = infoEl('div', 'usd-roster-choices');
 			group.setAttribute('role', 'radiogroup');
 			group.setAttribute('aria-label', eventTitle(e) + 'の選択肢');
@@ -8722,15 +8734,15 @@
 			// ◇（育成ウマ娘）と、選ぶ必要のあるイベントが無いカードの番号は、ボタンにしない
 			const colHead = (m) => {
 				let s = '<div class="usd-roster-ghbtns">';
-				const evs = ((m.kind === 'card' && m.label) || m.kind === 'scenario') ? res.events.filter(e => e.memberKey === m.key) : [];
+				const evs = ((m.kind === 'card' && m.label) || m.kind === 'scenario' || (m.kind === 'uma' && m.label)) ? res.events.filter(e => e.memberKey === m.key) : [];
 				const typedAttrs = (m.typeOrder !== null && m.typeOrder !== undefined) ? ' usd-roster-typed" data-type-order="' + m.typeOrder + '" style="' + cardTypeColorVars(m.typeOrder) : '';
 				if (evs.length > 0) {
 					const unsel = evs.filter(e => e.pending).length;
-					const label = (m.kind === 'scenario' ? m.label : m.no + '番のカード') + 'のイベントを選ぶ' + (unsel > 0 ? '（未選択' + unsel + '件）' : '');
-					s += '<button type="button" class="usd-roster-legend-no usd-roster-evbtn' + (m.kind === 'scenario' ? ' usd-roster-evbtn--scen' : '') + (unsel > 0 ? ' usd-roster-evbtn--alert' : typedAttrs) + '"'
+					const label = (m.kind === 'scenario' ? m.label : m.kind === 'uma' ? '育成ウマ娘' : m.no + '番のカード') + 'のイベントを選ぶ' + (unsel > 0 ? '（未選択' + unsel + '件）' : '');
+					s += '<button type="button" class="usd-roster-legend-no usd-roster-evbtn' + (m.kind === 'scenario' ? ' usd-roster-evbtn--scen' : m.kind === 'uma' ? ' usd-roster-evbtn--uma' : '') + (unsel > 0 ? ' usd-roster-evbtn--alert' : typedAttrs) + '"'
 						+ ' data-usd-act="events" data-member-key="' + m.key + '" data-usd-el="events-btn" data-unselected="' + unsel + '"'
 						+ ' aria-label="' + esc(label) + '" title="' + esc(label) + '" aria-expanded="' + (eventsFor === m.key ? 'true' : 'false') + '">'
-						+ (unsel > 0 ? '!' : (m.kind === 'scenario' ? bowlSvg : String(m.no))) + '</button>';
+						+ (unsel > 0 ? '!' : (m.kind === 'scenario' ? bowlSvg : m.kind === 'uma' ? '<span class="usd-roster-evdiamond" aria-hidden="true"></span>' : String(m.no))) + '</button>';
 				} else if (m.kind === 'uma') {
 					s += umaChip;
 				} else if (m.kind === 'scenario') {
@@ -8907,6 +8919,7 @@
 		}
 		function eventsTitleHtml(m) {
 			if (m.kind === 'scenario') return '<span class="usd-roster-legend-no usd-roster-scenmark" aria-hidden="true">' + bowlSvg + '</span> <span class="usd-ev-title-text">' + esc(m.label || '') + '</span>';
+			if (m.kind === 'uma') return '<span class="usd-roster-legend-no usd-roster-evbtn--uma" aria-hidden="true"><span class="usd-roster-evdiamond"></span></span> <span class="usd-ev-title-text">' + esc(m.label || '') + '</span>';
 			const typed = m.typeOrder !== null && m.typeOrder !== undefined;
 			return '<span class="usd-roster-legend-no' + (typed ? ' usd-roster-typed' : '') + '"' + (typed ? ' data-type-order="' + m.typeOrder + '" style="' + cardTypeColorVars(m.typeOrder) + '"' : '') + '>' + m.no + '</span>'
 				+ ' <span class="usd-ev-title-text">' + esc(m.label || '') + '</span>';
