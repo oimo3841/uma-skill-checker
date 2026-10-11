@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-08a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-11a';
 
 	/* ============================================================
 	 * 定数
@@ -94,7 +94,9 @@
 		// ②にまとめて追加するスキルのグループ（C-130・2026-10-06）。レースを選んだときの既定の追加と、②のパレットの行のボタンが使う。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadRecommendedSkills）
 		// C-131: 同じものとして扱うスキルの組（equivalentPairs）を足した
-		'data/recommended-skills.json': '2026-10-07a'
+		'data/recommended-skills.json': '2026-10-07a',
+		// 育成ウマ娘のイベントで得られるスキル（段1・2026-10-11）。受け入れだけで、画面と計算はまだ使わない。TRAINING_SOURCES の5本目
+		'data/training-event-skills.json': '2026-10-11a'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
@@ -1643,7 +1645,9 @@
 		{ key: 'supportCard', path: 'data/support-cards.json' },
 		{ key: 'supportCardEventSkill', path: 'data/support-card-event-skills.json' },
 		// キャラクター共通のイベント（C-102 の区切り3）。キャラクター名（charaName）を鍵に、1人に1回だけ書く
-		{ key: 'characterEventSkill', path: 'data/character-event-skills.json' }
+		{ key: 'characterEventSkill', path: 'data/character-event-skills.json' },
+		// 育成ウマ娘のイベント（段1・2026-10-11）。読み込むだけで、まだどこからも使わない（段2以降で画面に出す）
+		{ key: 'trainingEventSkill', path: 'data/training-event-skills.json' }
 	];
 
 	/**

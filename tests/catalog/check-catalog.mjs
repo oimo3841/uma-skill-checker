@@ -1693,6 +1693,98 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 		}
 	}
 
+	/* --- 育成ウマ娘のイベントで得られるスキル（段1・2026-10-11。training-event-skills.json。本育成の表の「育成ウマ娘」列の元データ） ---
+	   形は許可リスト方式（知らないキーは落とす）。umaId は training-umamusume.json に実在し重複しない。skillId はマスターか
+	   拡張スキルで引け、name が引いた先の名前と一致する。hintLevel は 1〜3 の整数。"notes" というキーはどこにも置かない。
+	   ウマ娘名・イベント名・スキル名はここに書かない（恒久ルール1）。見るのは形と id の実在だけ。 */
+	const TRAIN_EV_FILE = 'training-event-skills.json';
+	const tev = readOpt(TRAIN_EV_FILE);
+	if (tev === null) {
+		console.log('       ' + TRAIN_EV_FILE + ': まだ無い（無ければ見ない）');
+	} else {
+		check(tev.ok, TRAIN_EV_FILE + ' が読める', tev.ok ? undefined : tev.error);
+		if (tev.ok) {
+			const d = tev.data;
+			const unknown = [], missing = [], bad = [], dup = [], unregistered = [], nameDiff = [], badLevel = [], badChoice = [], dupCond = [], notes = [];
+			checkKeys(d, PT_TOP_KEYS, TRAIN_EV_FILE, unknown, missing);
+			if (d.category !== 'trainingEventSkill') bad.push('category が ' + JSON.stringify(d.category));
+			if (typeof d.dataVersion !== 'string') bad.push('dataVersion が文字列でない');
+			else if (!DATA_VERSION_RE.test(d.dataVersion)) bad.push('dataVersion の形が違う: ' + d.dataVersion);
+			if (!isArr(d.entries)) bad.push('entries が配列でない');
+			// 版の写し（core.js の DATA_JSON_VERSIONS）と一致する
+			{
+				const coreSrc = fs.readFileSync(path.join(REPO_ROOT, 'js/uma-skill-deck-core.js'), 'utf8');
+				const m = /'data\/training-event-skills\.json':\s*'([0-9a-z-]+)'/.exec(coreSrc);
+				if (!m) bad.push('core.js の DATA_JSON_VERSIONS に載っていない');
+				else if (m[1] !== d.dataVersion) bad.push('core.js の DATA_JSON_VERSIONS（' + m[1] + '）と dataVersion（' + d.dataVersion + '）が違う');
+			}
+			const umaIds = new Set(docs.trainingUmamusume.entries.map((e) => String(e.id)));
+			const nameOf = new Map(masterNameById);
+			docs.extendedSkill.entries.forEach((e) => nameOf.set(String(e.id), String(e.name)));
+			const hasNotes = (o) => {
+				if (isArr(o)) return o.some(hasNotes);
+				if (o && typeof o === 'object') return Object.keys(o).some((k) => k === 'notes' || hasNotes(o[k]));
+				return false;
+			};
+			if (hasNotes(d)) notes.push('"notes" というキーがある');
+			const refsOk = (list, w) => {
+				if (!isArr(list)) { bad.push(w + ': 配列'); return; }
+				list.forEach((ref, i) => {
+					const wr = w + '[' + i + ']';
+					if (!checkKeys(ref, EVENT_SKILL_REF_KEYS, wr, unknown, missing)) return;
+					if (!isStr(ref.skillId)) { bad.push(wr + '.skillId: 空でない文字列'); return; }
+					if (!isStr(ref.name)) bad.push(wr + '.name: 空でない文字列');
+					if (!nameOf.has(ref.skillId)) unregistered.push(wr + ': ' + ref.skillId);
+					else if (nameOf.get(ref.skillId) !== ref.name) nameDiff.push(wr + ': ' + ref.skillId);
+					if (!isInt(ref.hintLevel) || ref.hintLevel < 1 || ref.hintLevel > 3) badLevel.push(wr + '.hintLevel: 1〜3の整数（' + String(ref.hintLevel) + '）');
+				});
+			};
+			const seenUma = new Set();
+			(isArr(d.entries) ? d.entries : []).forEach((en, i) => {
+				const w = 'entries[' + i + ']';
+				if (!checkKeys(en, { need: ['umaId', 'status', 'events'], opt: [] }, w, unknown, missing)) return;
+				if (!isStr(en.umaId)) { bad.push(w + '.umaId: 空でない文字列'); return; }
+				if (seenUma.has(en.umaId)) dup.push(w + ': ' + en.umaId); seenUma.add(en.umaId);
+				if (!umaIds.has(en.umaId)) unregistered.push(w + '.umaId: ' + en.umaId + '（training-umamusume.json に無い）');
+				if (en.status !== 'done' && en.status !== 'none') bad.push(w + '.status: done か none（' + String(en.status) + '）');
+				if (!isArr(en.events)) { bad.push(w + '.events: 配列'); return; }
+				const byName = new Map();
+				en.events.forEach((ev, j) => {
+					const we = w + '.events[' + j + ']';
+					if (!checkKeys(ev, { need: ['eventName', 'condition', 'choices'], opt: [] }, we, unknown, missing)) return;
+					if (!isStr(ev.eventName)) bad.push(we + '.eventName: 空でない文字列');
+					if (typeof ev.condition !== 'string') bad.push(we + '.condition: 文字列（空文字可）');
+					if (isStr(ev.eventName) && typeof ev.condition === 'string') {
+						if (!byName.has(ev.eventName)) byName.set(ev.eventName, []);
+						byName.get(ev.eventName).push(ev.condition);
+					}
+					if (!isArr(ev.choices)) { bad.push(we + '.choices: 配列'); return; }
+					ev.choices.forEach((c, k) => {
+						const wc = we + '.choices[' + k + ']';
+						const hasS = !!c && typeof c === 'object' && c.skills !== undefined, hasR = !!c && typeof c === 'object' && c.results !== undefined;
+						if (hasS === hasR) { badChoice.push(wc + ': skills か results のどちらか一方だけを持つ'); return; }
+						if (!checkKeys(c, { need: [hasS ? 'skills' : 'results'], opt: [] }, wc, unknown, missing)) return;
+						if (hasS) refsOk(c.skills, wc + '.skills');
+						else if (!isArr(c.results) || !c.results.every(isArr)) badChoice.push(wc + '.results: 配列の配列');
+						else c.results.forEach((r, m) => refsOk(r, wc + '.results[' + m + ']'));
+					});
+				});
+				byName.forEach((conds) => {
+					if (conds.length > 1 && new Set(conds).size !== conds.length) dupCond.push(w + ': 同名のイベントで condition が重複（' + en.umaId + '）');
+				});
+			});
+			none(unknown.concat(missing), TRAIN_EV_FILE + ': キーが決めた形（知らないキーが無く、必須が揃っている）');
+			none(bad, TRAIN_EV_FILE + ': category・版・status・イベントの形');
+			none(dup, TRAIN_EV_FILE + ': umaId が重複しない');
+			none(unregistered, TRAIN_EV_FILE + ': umaId が training-umamusume.json に、skillId がマスターか拡張スキルに実在する');
+			none(nameDiff, TRAIN_EV_FILE + ': スキルの name が引いた先の名前と一致する');
+			none(badLevel, TRAIN_EV_FILE + ': hintLevel は1〜3の整数');
+			none(badChoice, TRAIN_EV_FILE + ': 選択肢は skills か results のどちらか一方だけ（results は配列の配列）');
+			none(dupCond, TRAIN_EV_FILE + ': 同じウマ娘で同名のイベントは condition がすべて異なる');
+			none(notes, TRAIN_EV_FILE + ': "notes" というキーがどこにも無い');
+		}
+	}
+
 	/* --- 前段関係（届いたとき） --- */
 	const sr = readOpt(STEP_UP_FILE);
 	if (sr === null) {
