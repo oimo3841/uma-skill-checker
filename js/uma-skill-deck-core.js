@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-11b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-08a';
 
 	/* ============================================================
 	 * 定数
@@ -198,7 +198,7 @@
 	 */
 	const SKILL_ICONS = [
 		{ id: 'a', mark: '◎', light: '#d7263d', dark: '#ff6b7f' },
-		{ id: 'b', mark: '○', light: '#d37c0b', dark: '#ffb04d' },
+		{ id: 'b', mark: '○', light: '#e8890c', dark: '#ffb04d' },
 		{ id: 'c', mark: '△', light: '#1f6fd1', dark: '#6aa8ff' },
 		{ id: 'd', mark: '◇', light: '#1f9d55', dark: '#5fd28f' },
 		{ id: 'e', mark: '★', light: '#8a4fd1', dark: '#d38cff' },
