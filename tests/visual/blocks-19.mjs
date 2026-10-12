@@ -218,7 +218,10 @@ export async function register19(env) {
 				p.tiers.forEach((t, i) => {
 					if (!t.u) return;
 					if (t.u.y < p.bar.b - 0.5) bad.push('区間' + i + 'の個数がバーの下の行にない');
-					if (Math.abs((t.u.x + t.u.w / 2) - (t.seg.x + t.seg.w / 2)) > 1) bad.push('区間' + i + 'の個数が区間の中央の真下でない');
+					// C-144（3-2）: 区間の中央の真下。ただし端の区間では、はみ出さないようバーの幅の内側に寄せる
+					const want = Math.min(Math.max(t.seg.x + t.seg.w / 2, p.bar.x + t.u.w / 2), p.bar.x + p.bar.w - t.u.w / 2);
+					if (Math.abs((t.u.x + t.u.w / 2) - want) > 1) bad.push('区間' + i + 'の個数が区間の中央の真下でない');
+					if (t.u.x < p.bar.x - 0.5 || t.u.x + t.u.w > p.bar.x + p.bar.w + 0.5) bad.push('区間' + i + 'の個数がバーの幅からはみ出している');
 					p.shoes.forEach((o, j) => { if (o.x < t.u.r && t.u.x < o.r && o.y < t.u.b && t.u.y < o.b) bad.push('区間' + i + 'の個数が蹄鉄' + j + 'に重なる'); });
 				});
 				assert(bad.length === 0, '微調整1A3(' + tag + '・' + label + '): 真下の個数は、区間の中央・バーと蹄鉄の間の行に収まり、蹄鉄に重ならない', { bad, under });
@@ -611,7 +614,7 @@ export async function register19(env) {
 				return { btn: R(b), pad: c.padding, border: c.border, radius: c.borderRadius, bg: c.backgroundColor, text: b.textContent.trim(), icons: b.querySelectorAll('svg, i').length, aria: b.getAttribute('aria-label'), title: b.title,
 					theme: R(t), hd: R(hd), h1: R(h1), labelEl: !!b.querySelector('.tool-switch-label'), cs: getComputedStyle(hd).paddingRight };
 			});
-			assert(Math.abs(r.btn.w - spec.w) < 0.6 && Math.abs(r.btn.h - spec.h) < 0.6 && r.pad === spec.pad && r.border === spec.border && r.radius === spec.radius && r.bg === spec.bg,
+			assert(Math.abs(r.btn.w - spec.w) < 0.6 && Math.abs(r.btn.h - spec.h) < 0.6 && r.pad === spec.pad && r.border.split(' ')[0] === spec.border.split(' ')[0] && r.radius === spec.radius,   /* C-144: 枠と地の色はツールごとの補助ボタンの色（寸法・枠の太さ・角丸は同じ） */
 				'微調整1C2(' + w + 'px): ツール切替は special の375px のアイコンだけのボタンと同じ寸法・枠・角丸・地（' + spec.w + '×' + spec.h + 'px）', { exam: { w: r.btn.w, h: r.btn.h, pad: r.pad, radius: r.radius }, spec });
 			assert(r.text === '' && r.icons === 1 && r.aria === 'ツール切替' && r.title === 'ツール切替', '微調整1C2(' + w + 'px): ラベル「ツール切替」と下向きの矢印は外し、読み上げ用の名前は残す', { text: r.text, icons: r.icons, aria: r.aria });
 			// 見出しの行の右端: ツール切替 → 画面の色のボタンの順に、ヘッダーの内側の右端にそろう。タイトルと同じ行

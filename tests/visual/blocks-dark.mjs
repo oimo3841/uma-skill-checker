@@ -373,7 +373,7 @@ export async function registerDark(env) {
 		await page.evaluate(() => window.UmaTheme.set('dark'));
 		const dark = await readMarks();
 		const shown = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--uma-text').trim());
-		assert(shown === '#e2e8f0', 'ダーク11: 前提: ダークでは画面の文字の色が明るい', shown);
+		assert(shown === '#f1f4fa', 'ダーク11: 前提: ダークでは画面の文字の色が明るい', shown);   // C-144: UmaExam のダークの本文 #f1f4fa
 		assert(JSON.stringify(dark.marks) === JSON.stringify(light.marks) && dark.factor === light.factor && dark.gene === light.gene && !!light.marks,
 			'ダーク11: attrMarkColors()・stitchTokenColor() はダークでもライトの値を返す（決定4）', { light, dark });
 		assert(dark.attr === 'dark', 'ダーク11: 読み終わったあと、画面はダークのまま', dark.attr);

@@ -10837,7 +10837,10 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 			if (s.numInside && n.shown) bad.push(tag + ' 区間' + k + 'の個数がバーの中と真下の両方にある');
 			if (!s.numInside && !n.shown) bad.push(tag + ' 区間' + k + 'の個数がバーの中にも真下にも出ていない');
 			if (n.shown) {
-				if (Math.abs(n.cx - (s.x + s.w / 2)) > 1) bad.push(tag + ' 区間' + k + 'の個数が区間の中央の真下でない');
+				// C-144（3-2）: 区間の中央の真下。ただし端の区間では、はみ出さないようバーの幅の内側に寄せる
+				const nw = n.r - n.l, want = Math.min(Math.max(s.x + s.w / 2, nw / 2), g.barW - nw / 2);
+				if (Math.abs(n.cx - want) > 1) bad.push(tag + ' 区間' + k + 'の個数が区間の中央の真下でない');
+				if (n.l < -0.5 || n.r > g.barW + 0.5) bad.push(tag + ' 区間' + k + 'の個数がバーの幅からはみ出している');
 				if (n.top < -0.5 || n.bottom > g.shoes[k].top - 0.5) bad.push(tag + ' 区間' + k + 'の個数がバーと蹄鉄の間の行に収まっていない ' + JSON.stringify(n));
 				if (o.numLines && parsed.every(Boolean)) {
 					// 個数の文字とポインタの縦の線（バーの下端から横の線の高さまで）が重ならない
@@ -10893,7 +10896,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const segs = [...document.querySelectorAll('.eff-seg')].map((s) => { const n = s.querySelector('.eff-seg-n'), cs = getComputedStyle(n); return { text: n.textContent, hidden: n.hidden, w: s.getBoundingClientRect().width, nw: n.getBoundingClientRect().width, color: cs.color, weight: cs.fontWeight, size: cs.fontSize, shadow: cs.textShadow }; });
 		return { want, segs, aria: [...document.querySelectorAll('.eff-hit')].map((s) => s.getAttribute('aria-label')) };
 	});
-	assert(cnt.segs.every((s, k) => s.text === String(cnt.want[k]) && /^\d+$/.test(s.text) && s.color === 'rgb(255, 255, 255)' && Number(s.weight) >= 700 && s.size === '14px' && s.shadow !== 'none')
+	// C-144（3-2）: 区間の個数は、区間の色の上で 4.5 以上になる暗い文字（#111827）に明るい細い影。それまでは白の太字
+	assert(cnt.segs.every((s, k) => s.text === String(cnt.want[k]) && /^\d+$/.test(s.text) && s.color === 'rgb(17, 24, 39)' && Number(s.weight) >= 700 && s.size === '14px' && s.shadow !== 'none')
 		&& cnt.aria.every((l, k) => l.includes(cnt.want[k] + '種')) && cnt.want.reduce((a, x) => a + x, 0) === st.n,
 		'効率(A): 各区間のバーの中に、その区間のスキルの個数（数字のみ・白の太字14px・影つき）。aria-label にも個数', cnt);
 	assert(cnt.segs.every((s) => s.hidden || s.w >= s.nw + 8),

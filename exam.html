@@ -619,12 +619,136 @@
 		:root[data-theme="dark"] .scope-detail-title { color: var(--uma-text-heading); }
 		:root[data-theme="dark"] .eff-panel { background: var(--uma-surface); border-color: var(--uma-border-strong); }
 		:root[data-theme="dark"] .eff-scale, :root[data-theme="dark"] .eff-msg { color: var(--uma-text-muted); }
-		:root[data-theme="dark"] .copylist-btn { border-color: var(--uma-border); background: var(--uma-surface); color: var(--uma-text-subtle); }
+		:root[data-theme="dark"] .copylist-btn { border-color: var(--uma-aux-border); background: var(--uma-aux-bg); color: var(--uma-text-heading); }
 		:root[data-theme="dark"] .copylist-btn:hover { background-color: var(--uma-surface-muted); }
 		:root[data-theme="dark"] .copylist-btn.active { background-color: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); }
 		:root[data-theme="dark"] svg path[stroke="#cbd5e1"] { stroke: var(--uma-border-strong); }
 		/* 青の主ボタン（bg-blue-600）の hover は、ダークの表では blue-700 が淡い青になるので 600 のまま */
 		:root[data-theme="dark"] .hover\:bg-blue-700:hover { background-color: var(--color-blue-600); }
+
+		/* ===== C-144（2026-10-12）: UmaExam の配色（青み）。ライト・ダークのメリハリ =====
+		   面は4層（ページ → カード → パネル → オプション）。ライトはカードを淡い青にして、パネル・オプションへ内側ほど明るく、
+		   ダークは内側ほど一段ずつ明るくする。層の区切りは塗りの明度差と枠線の両方で取る（ゲート G3）。
+		   操作色は濃紺（ダークは青の塗り＋明るい縁）。値の一覧と根拠は DECISIONS の C-144。
+		   **結合画像（canvas）が読むトークン（--uma-text・シナリオ因子／遺伝子の色など）はライトの :root では変えない**
+		   （readTokensLight が :root の値を読むので、画像がバイト単位で変わらないよう、画面の文字色は body の側で上書きする） */
+		:root {
+			--uma-page-bg: #dfe8f5;
+			--uma-glass-bg: #edf3fc; --uma-card-border: #92aedb; --uma-card-shadow: 0 2px 10px rgba(40, 80, 150, .20);
+			--uma-panel-bg: #f6f9fe; --uma-panel-border: #8aa7d4;
+			--uma-surface: #ffffff; --uma-option-border: #7f9ccb;
+			--uma-surface-sunken: #f6f9fe; --uma-surface-muted: #dce6f6; --uma-surface-group: #dce6f6;
+			--uma-text-heading: #0e1c3a; --uma-text-muted: #2c3c5c; --uma-text-subtle: #4a5b7c; --uma-text-faint: #566789;
+			--uma-border: #a9bddd; --uma-border-strong: #7f9ccb; --uma-dash: #7a96c4;
+			--uma-control: #1d3d73; --uma-control-hover: #142c55; --uma-control-soft: #c4dbfb; --uma-control-border: #7f9ccb;
+			--uma-aux-bg: #ffffff; --uma-aux-border: #7f9ccb;
+			--uma-control-rim: 0 0 0 1px var(--uma-control);   /* 選んでいる塗りの部品は、ライトでも縁を 2px にして太さでも示す */
+			--uma-surface-inverse: #1d3d73;
+			--exam-hl: #f0a400; --exam-hl-shadow: 0 1px 0 rgba(20, 40, 100, .55);
+			--exam-head-l: #c9defa; --exam-head-m: #f6f9fd; --exam-head-r: #f5eac9; --exam-head-line: #8aa7d4;
+			--exam-sel-line: #1d4ed8; --exam-sel-bg: #c4dbfb;
+			--exam-badge-blue-bg: #c4dbfb; --exam-badge-blue-text: #0c3f94; --exam-badge-blue-line: #7ea6e6;
+			--exam-badge-gold-bg: #f9e3a0; --exam-badge-gold-text: #6e3600; --exam-badge-gold-line: #dcb24a;
+			--exam-badge-green-bg: #bfeed8; --exam-badge-green-text: #0f5233; --exam-badge-green-line: #72c79d;
+			--exam-badge-pink-bg: #f4cfe8; --exam-badge-pink-text: #75125c; --exam-badge-pink-line: #d890bd;
+			--exam-badge-purple-bg: #d6d6fa; --exam-badge-purple-text: #33267f; --exam-badge-purple-line: #9d98e0;
+			--exam-img-count: rgba(12, 30, 70, .80);
+			/* 印（★の橙・●の緑）と淡い記号（★の空き・「−」）は、淡い面の上で 3:1 になるよう、色相と彩度を保って明度だけ下げる（ゲート G1・G2） */
+			--color-amber-500: #c97000; --color-emerald-500: #179c5b; --uma-symbol-faint: #6d89b5;
+			--exam-toggle-on-text: #0e1c3a;
+			--exam-tabnum-bg: var(--uma-surface-muted); --exam-tabnum-text: var(--uma-text-subtle);
+			/* 「その他の対象スキル」の黒丸。結合画像と同じ色（:root の --uma-text。ライトは tokens.css の値・ダークは下の値） */
+			--exam-mark-plain: var(--uma-text);
+			/* Tailwind の灰（slate）を、このページの青みの段に置き換える（50〜300 が面と線、400〜950 が文字） */
+			--color-slate-50: #f6f9fe; --color-slate-100: #e3ebf8; --color-slate-200: #a9bddd; --color-slate-300: #8aa7d4;
+			--color-slate-400: #566789; --color-slate-500: #4a5b7c; --color-slate-600: #3b4b6b; --color-slate-700: #24365a;
+			--color-slate-800: #0e1c3a; --color-slate-900: #0b1630; --color-slate-950: #08102a;
+		}
+		/* 画面の文字は、ライトでは body で上書きする（上の注記。canvas は :root を読む） */
+		:root:not([data-theme="dark"]) body { --uma-text: #0e1c3a; }
+		:root[data-theme="dark"] {
+			--uma-page-ground: #171e2b;
+			--uma-glass-bg: #212b3c; --uma-card-border: #455a7c; --uma-card-shadow: 0 4px 16px rgba(0, 0, 0, .35);
+			--uma-panel-bg: #2a364b; --uma-panel-border: #51668b;
+			--uma-surface: #324058; --uma-option-border: #6379a0;
+			--uma-surface-sunken: #2a364b; --uma-surface-muted: #2f3d57; --uma-surface-group: #2f3d57;
+			--uma-text: #f1f4fa; --uma-text-heading: #f1f4fa; --uma-text-muted: #d3dbeb; --uma-text-subtle: #b3bed2; --uma-text-faint: #9aa8c0;
+			--color-amber-500: oklch(76.9% 0.188 70.08); --color-emerald-500: oklch(69.6% 0.17 162.48); --uma-symbol-faint: #717d92; --exam-toggle-on-text: #ffffff;
+			--uma-border: #4a5e80; --uma-border-strong: #6379a0; --uma-dash: #7388ad;
+			--uma-control: #3466cc; --uma-control-hover: #3d72dc; --uma-control-text: #ffffff; --uma-control-edge: #8fb4f5;
+			--uma-control-rim: 0 0 0 1px #8fb4f5; --uma-control-mark: #f1f4fa; --uma-control-soft: #2f4a78; --uma-control-border: #6379a0;
+			--uma-aux-bg: #2c3a54; --uma-aux-border: #9db4dc;
+			--uma-surface-inverse: #f1f4fa; --uma-text-inverse: #212b3c;
+			--exam-badge-pink-bg: #57244e; --exam-badge-pink-text: #ffc2ec; --exam-badge-pink-line: #b45aa3;
+			--exam-badge-purple-bg: #3a2f78; --exam-badge-purple-text: #d6cfff; --exam-badge-purple-line: #7a6ad0;
+			--exam-hl: #ffc21a; --exam-hl-shadow: 0 1px 0 rgba(0, 0, 0, .45);
+			--exam-head-l: #2b4066; --exam-head-m: #212b3c; --exam-head-r: #3b3420; --exam-head-line: #4a608a;
+			--exam-sel-line: #7fb0ff; --exam-sel-bg: #2f4a78;
+			--exam-badge-blue-bg: #23477c; --exam-badge-blue-text: #bcd9ff; --exam-badge-blue-line: #4f80c6;
+			--exam-badge-gold-bg: #52401a; --exam-badge-gold-text: #ffe08a; --exam-badge-gold-line: #b8912f;
+			--exam-badge-green-bg: #1b5340; --exam-badge-green-text: #a0f0cb; --exam-badge-green-line: #3fa27a;
+			--exam-img-count: rgba(8, 12, 24, .82);
+			--exam-tabnum-bg: #3a4a66; --exam-tabnum-text: #d3dbeb;
+			--exam-eff-off-bar: #3a4a66;
+			--color-white: var(--uma-surface);
+			--color-slate-50: #2a364b; --color-slate-100: #324058; --color-slate-200: #4a5e80; --color-slate-300: #6379a0;
+			--color-slate-400: #9aa8c0; --color-slate-500: #b3bed2; --color-slate-600: #c6cfdf; --color-slate-700: #d9e0ec;
+			--color-slate-800: #f1f4fa; --color-slate-900: #f6f8fc; --color-slate-950: #fafbfd;
+		}
+		/* ページ（縞はそのまま。白へ抜ける光と下のグラデーションは外して、ページの色をそのまま見せる） */
+		body {
+			background-color: var(--uma-page-bg);
+			background-image: repeating-linear-gradient(115deg, var(--uma-page-stripe) 0px, var(--uma-page-stripe) 40px, transparent 40px, transparent 80px);
+			background-repeat: repeat; background-attachment: fixed;
+		}
+		:root[data-theme="dark"] body { background: var(--uma-page-ground); }
+		/* ヘッダーの帯（左の青 → 中央 → 右の暖色）と枠 */
+		.exam-header { background-image: linear-gradient(90deg, var(--exam-head-l) 0%, var(--exam-head-m) 50%, var(--exam-head-r) 100%); border-color: var(--exam-head-line); }
+		/* タイトルの強調黄（色はくすませず、細い影で縁を出す） */
+		.exam-title .text-amber-400 { color: var(--exam-hl); text-shadow: var(--exam-hl-shadow); }
+		/* カード */
+		.glass-card { background: var(--uma-glass-bg); box-shadow: var(--uma-card-shadow); }
+		/* パネル（カードの中の一段：「対象スキルの範囲」・一覧の開閉・②の入力の枠）とオプション（選べる箱） */
+		.glass-card .bg-slate-50\/50 { background-color: var(--uma-panel-bg); border-color: var(--uma-panel-border); }
+		.glass-card .bg-slate-50\/50 label.bg-white { border-color: var(--uma-option-border); }
+		/* 選んでいるオプション: 2px の枠（色と太さの両方）と淡い青の面 */
+		.glass-card .bg-slate-50\/50 label.bg-white:has(input:checked) { border-color: var(--exam-sel-line); box-shadow: inset 0 0 0 1px var(--exam-sel-line); background-color: var(--exam-sel-bg); }
+		.scope-detail { color: var(--uma-text-muted); background: var(--uma-surface); border-color: var(--uma-dash); }
+		.scope-detail-title { color: var(--uma-text-heading); }
+		.eff-panel { background: var(--uma-surface); border-color: var(--uma-option-border); }
+		.eff-scale, .eff-msg { color: var(--uma-text-muted); }
+		.copylist-btn { border-color: var(--uma-aux-border); background: var(--uma-aux-bg); color: var(--uma-text-heading); }
+		.copylist-btn:hover { background-color: var(--uma-surface-sunken); }
+		/* タブの番号の丸（選ぶ前） */
+		.step-tab-num { background: var(--exam-tabnum-bg); color: var(--exam-tabnum-text); }
+		/* バッジ（淡色・押せない）: 青＝件数とピル、金＝sp70緑、緑＝緑59種、ピンク＝シナリオ因子、紫＝遺伝子。枠は寸法を変えない内側の線 */
+		.step-tab-badge--accent, .header-edition-pill.ui-mode-badge { background: var(--exam-badge-blue-bg); color: var(--exam-badge-blue-text); border-color: var(--exam-badge-blue-line); }
+		.step-tab-badge--accent { box-shadow: inset 0 0 0 1px var(--exam-badge-blue-line); }
+		.bg-amber-100.text-amber-800 { background-color: var(--exam-badge-gold-bg); color: var(--exam-badge-gold-text); box-shadow: inset 0 0 0 1px var(--exam-badge-gold-line); }
+		.bg-emerald-100.text-emerald-800 { background-color: var(--exam-badge-green-bg); color: var(--exam-badge-green-text); box-shadow: inset 0 0 0 1px var(--exam-badge-green-line); }
+		/* ピンク・紫はバッジだけ（ハイライトのカードなどは、結合画像と同じシナリオ因子／遺伝子のトークンのまま） */
+		#badge-scenario-factors { background-color: var(--exam-badge-pink-bg); color: var(--exam-badge-pink-text); box-shadow: inset 0 0 0 1px var(--exam-badge-pink-line); }
+		#badge-genes { background-color: var(--exam-badge-purple-bg); color: var(--exam-badge-purple-text); box-shadow: inset 0 0 0 1px var(--exam-badge-purple-line); }
+		/* 画像の上の小さな丸ボタン（✕）。画像の明るさに関わらず読めるよう、ライト・ダークとも暗い地に白 */
+		.person-image-list .bg-slate-900\/80 { background-color: var(--exam-img-count); color: #ffffff; }
+		/* 結果の表（ライトの直書きをトークンへ。ダークの規則と同じ参照） */
+		.result-table th { background-color: var(--uma-surface-muted); color: var(--uma-text-muted); border-bottom-color: var(--uma-border); }
+		.result-table td { border-bottom-color: var(--uma-border); }
+		.result-table td:first-child { background-color: var(--uma-surface); }
+		/* 効率のバー（3-2）: 区間の個数は暗い文字（区間の色の上で 4.5 以上）。外した区間（灰）も同じ。目盛りの値は12px */
+		.eff-seg-n { color: #111827; text-shadow: 0 1px 0 rgba(255, 255, 255, .45); }
+		:root[data-theme="dark"] .eff-seg[data-on="false"] .eff-seg-n { color: #f1f4fa; text-shadow: none; }
+		.eff-scale { font-size: 12px; }
+		/* 見出しの脇の一言（3-3）: 2行に折り返すときは、行の長さをそろえる（1文字だけ残る行を作らない） */
+		.header-tagline[data-lines="2"] { text-wrap: balance; }
+		/* 淡い記号（★の空き・「−」）。ダークは common.css の規則と同じ値 */
+		.text-slate-300 { color: var(--uma-symbol-faint); }
+		/* ②の「結合画像の表示」の模式図の sp70緑 の札（淡い地の上で 4.5 以上。結合画像そのものの色は変えない） */
+		:root:not([data-theme="dark"]) .stitch-wire-card--b { color: #9e6900; }
+		/* 結果のまとめの「/17」「/53」と、カードの下の注記（淡い地の上で 4.5 以上） */
+		p > span.text-xs.font-medium.text-amber-400 { color: var(--exam-badge-gold-text); }
+		p > span.text-xs.font-medium.text-emerald-400 { color: var(--exam-badge-green-text); }
+		.text-\[var\(--uma-deco-strong\)\]\/70 { color: var(--uma-deco-strong); }
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-[var(--uma-control)] selection:text-white">
@@ -2347,7 +2471,8 @@
 				green: { glyph: '●', color: 'text-emerald-500', listTitle: greenTitle, tableTitle: greenTitle },
 				// その他の対象スキル（段I）。緑の ● と**形が同じで色だけ違う**のは、
 				// 結合画像がすでにそうしているため（色＝どの区分か。F-62）。
-				plain: { glyph: '●', color: 'text-[var(--uma-text)]', listTitle: plainTitle, tableTitle: plainTitle }
+				// C-144: 画面の文字色（--uma-text）は body で上書きしたので、印は結合画像と同じ :root の値（--exam-mark-plain）で塗る
+				plain: { glyph: '●', color: 'text-[var(--exam-mark-plain)]', listTitle: plainTitle, tableTitle: plainTitle }
 			};
 		})();
 
@@ -5381,7 +5506,10 @@
 				if (under) {
 					under.textContent = String(n);
 					under.hidden = !num.hidden;
-					under.style.left = ((edges[k] + edges[k + 1]) / 2 * W) + 'px';
+					// C-144（3-2）: 区間の中央の真下。バーの幅の内側に収める（端の区間でも、はみ出し・欠けを作らない）
+					const cx = (edges[k] + edges[k + 1]) / 2 * W;
+					const uw = under.hidden ? 0 : under.getBoundingClientRect().width;
+					under.style.left = Math.min(Math.max(cx, uw / 2), Math.max(W - uw / 2, uw / 2)) + 'px';
 				}
 			});
 			// 境目の目印
@@ -5428,7 +5556,7 @@
 			// 重なるときは、①下二桁 ②値の位置をバーの幅の内側で左右にずらして、となりとの間を最小4px 空ける ③それでも1行に収まらないときだけ上の段へ。
 			// 境目を寄せ切ると4つの値が重なり得るので、段の数は決め打ちしない（吹き出しの値は実際の境目なので小数3桁のまま）
 			const scale = panel.querySelector('.eff-scale');
-			const LINE = 16, GAP = 4;
+			const LINE = 16, GAP = 6;   // C-144（3-2）: 値の間を 4→6px（目盛りの文字を12pxにしたぶん詰まって見えないように）
 			const items = ['min', '0', '1', '2', 'max'].map(key => {
 				const el = panel.querySelector('.eff-val[data-val="' + key + '"]');
 				if (key === 'min') el.textContent = effFormat2(d.min, false);
