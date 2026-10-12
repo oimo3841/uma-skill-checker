@@ -7630,6 +7630,159 @@
 		return (evolutionState.byScenario.get(k) || []).map(r => ({ baseSkillId: r.baseSkillId, evolvedSkillIds: r.evolvedSkillIds.slice() }));
 	}
 
+	/**
+	 * スキルの id の昇順（C-146 の回答7）。数字の id（マスター）を先に・数として、次に `ex-` の id を番号の整数として、その他は最後に文字列順。
+	 * 桁数が増えても崩れない（`ex-0985` の次は `ex-1000`）。
+	 */
+	function compareSkillIds(a, b) {
+		const rank = (id) => /^\d+$/.test(id) ? 0 : /^ex-\d+$/.test(id) ? 1 : 2;
+		const ra = rank(a), rb = rank(b);
+		if (ra !== rb) return ra - rb;
+		if (ra === 0) return Number(a) - Number(b);
+		if (ra === 1) return Number(a.slice(3)) - Number(b.slice(3));
+		return a < b ? -1 : a > b ? 1 : 0;
+	}
+
+	/**
+	 * 進化先（または進化元）が、いまの指定に「必ず合う／合うことがある／合わない」のどれか。
+	 * 指定＝距離（区分）・脚質・バ場（resolvedFilterOf の形 { distance, style, surface }）と、レース（任意）。
+	 * 判定は既存の matchesFilters を使い、距離だけ「区分の中の全部の距離で当たるか」を見る（レースで距離が決まっていればその距離）。
+	 *   'must' … 指定した軸すべてで例外なく合う   'may' … 距離の区分の一部の距離でしか合わない   'no' … 合わない
+	 * 指定した軸が無ければ、その軸は見ない。レースを選んでいれば、レース場・環境・時間帯・特殊ルール（raceRejectsSkill）も見る。
+	 */
+	function evolutionFitOf(skill, filter, race) {
+		if (!skill) return 'no';
+		if (race && raceRejectsSkill(skill, race)) return 'no';
+		const rest = {};
+		['style', 'surface'].forEach(k => { if (typeof filter[k] === 'string' && filter[k]) rest[k] = [filter[k]]; });
+		if (Object.keys(rest).length > 0 && !matchesFilters(skill, rest, null)) return 'no';
+		const cat = typeof filter.distance === 'string' && filter.distance ? filter.distance : null;
+		if (!cat) return 'must';
+		const withD = (d) => {
+			const c = categoryOfDistance(d);
+			return matchesFilters(skill, { distance: [cat] }, { state: 'ok', distance: d, category: c || { key: cat } });
+		};
+		if (race && typeof race.distance === 'number' && raceDistances) return withD(race.distance) ? 'must' : 'no';
+		if (!raceDistances) {
+			// レースの一覧が無いと区分の中の距離が分からない。タグだけで判定し、距離の数値の限定を持つものは「合うことがある」
+			if (!matchesFilters(skill, { distance: [cat] }, null)) return 'no';
+			return skill.raceDistance ? 'may' : 'must';
+		}
+		const ds = distancesInCategories([cat]);
+		if (ds.length === 0) return matchesFilters(skill, { distance: [cat] }, null) ? 'must' : 'no';
+		const hits = ds.filter(withD).length;
+		return hits === ds.length ? 'must' : hits > 0 ? 'may' : 'no';
+	}
+
+	/** 進化先を選ぶ順の鍵（小さいほど先）。[指定していない軸の限定あり(0/1), -指定した軸の限定の数, 許す値の数の合計, -効果の段階, データの並び] */
+	function evolutionOrderKey(skill, filter, effectRank, index) {
+		const tags = (skill && skill.tags) || {};
+		const axes = ['distance', 'style', 'surface'];
+		let unspecifiedLimit = 0, specifiedLimited = 0, allow = 0;
+		axes.forEach(k => {
+			const vals = Array.isArray(tags[k]) ? tags[k] : [];
+			const hasRd = k === 'distance' && !!skill.raceDistance;
+			const limited = vals.length > 0 || hasRd;
+			const specified = typeof filter[k] === 'string' && filter[k];
+			if (!limited) return;
+			if (!specified) { unspecifiedLimit = 1; return; }
+			specifiedLimited++;
+			// 距離の数値の限定だけを持つ行は、許す値の数を区分の数（TAG_AXES の選択肢）にする
+			allow += vals.length > 0 ? vals.length : ((TAG_AXES.find(a => a.key === 'distance') || { options: [] }).options.length);
+		});
+		const er = typeof effectRank === 'number' ? effectRank : -1;
+		return [unspecifiedLimit, -specifiedLimited, allow, -er, index];
+	}
+	function compareOrderKeys(a, b) {
+		for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i];
+		return 0;
+	}
+
+	/**
+	 * 進化の既定を決める（段3。画面にも保存にもつながない純粋な関数。C-145・C-146）。
+	 *
+	 * args:
+	 *   umaId     … 育成ウマ娘（衣装）の id。無ければパターンAの行は無い
+	 *   takenIds  … ①に●で入っている（取得する）スキルの id（経路を問わない。サポートカードのヒントやシナリオ由来も含む）
+	 *   filter    … { distance?, style?, surface? }（resolvedFilterOf の結果。レース条件が公開する距離の区分・バ場の上書きを含む）
+	 *   race      … 選んでいるレース（normalizeRaceRow の形）か null。レース場・環境・時間帯・特殊ルールと、レースの距離を使う
+	 *   scenarioKey … パターンBに使うシナリオの鍵（省略時は evolutionScenarioKey()）
+	 *   evolutions  … 進化の対応の doc（省略時は読み込み済みのもの）。{ entries: [...] }
+	 *   effectRank  … skillId → 効果の段階の数値（大きいほど大きい）か null の関数（省略時は読み込み済みの skill-effect-levels）
+	 *
+	 * 返り値:
+	 *   specified … 距離・脚質・バ場のどれかを指定している、またはレースを選んでいる（false なら全部「進化しない」で、「！」も出さない）
+	 *   slots     … { a: パターンAの進化元の数（衣装自身の金スキルの数）, b: 2, max: a + 2 }
+	 *   a         … [{ baseId, baseFit, targets: [{ id, fit }], default: 進化先の id | 'none' | 'invalid', visible }]
+	 *   b         … { scenario, candidates: [baseId…（id の昇順）], entries: [同上＋ candidate], defaults: [baseId…（先頭2つ）], bang }
+	 *   defaultChoices … { baseId: 進化先の id | 'none' }（無効のものは含めない）。A と B をまとめたもの
+	 *   count     … { a, b, max }（既定で進化する数）
+	 * 'invalid'（無効）＝進化元にも、どの進化先にも合わない。進化先が「合うことがある」だけのとき、default は 'none'（行は出す）。
+	 */
+	function computeEvolutionPlan(args) {
+		const a = args || {};
+		const filter = (a.filter && typeof a.filter === 'object') ? a.filter : {};
+		const race = a.race || null;
+		const taken = new Set(Array.isArray(a.takenIds) ? a.takenIds : []);
+		const idx = a.evolutions ? buildEvolutionIndex(a.evolutions) : (evolutionState.status === 'ok' ? evolutionState : { byUma: new Map(), byScenario: new Map() });
+		const effectRank = typeof a.effectRank === 'function' ? a.effectRank
+			: (id) => { const st = skillEffectState; const r = st.status === 'ok' ? st.rankOfSkill.get(id) : null; return typeof r === 'number' ? r : null; };
+		const specified = ['distance', 'style', 'surface'].some(k => typeof filter[k] === 'string' && filter[k]) || !!race;
+		const scenarioKey = a.scenarioKey !== undefined ? a.scenarioKey : (a.evolutions ? null : evolutionScenarioKey());
+
+		// 進化元ごとの判定（指定なしのときは、全部「合う」として扱い、既定は 'none'）
+		const judge = (row) => {
+			const base = findSkill(row.baseSkillId);
+			const baseFit = !specified ? 'must' : (base && matchesFilters(base, resolvedFilterArgs(filter), null) ? 'must' : 'no');
+			const targets = row.evolvedSkillIds.map((id, i) => {
+				const sk = findSkill(id);
+				return { id: id, fit: specified ? evolutionFitOf(sk, filter, race) : 'must', _key: sk ? evolutionOrderKey(sk, filter, effectRank(id), i) : [1, 0, 0, 0, i] };
+			});
+			const must = targets.filter(t => t.fit === 'must').sort((x, y) => compareOrderKeys(x._key, y._key));
+			let def;
+			if (!specified) def = 'none';
+			else if (must.length > 0) def = must[0].id;
+			else if (baseFit === 'must') def = 'none';
+			else if (targets.some(t => t.fit === 'may')) def = 'none';
+			else def = 'invalid';
+			const visible = def !== 'invalid';
+			return { baseId: row.baseSkillId, baseFit: baseFit, targets: targets.map(t => ({ id: t.id, fit: t.fit })), default: def, visible: visible, _best: must.length > 0 ? must[0].id : null };
+		};
+
+		// パターンA
+		const rowsA = a.umaId ? (idx.byUma.get(a.umaId) || []) : [];
+		const aOut = rowsA.filter(r => taken.has(r.baseSkillId)).map(judge);
+		const aEvolved = new Set(aOut.filter(e => e.default !== 'none' && e.default !== 'invalid').map(e => e.baseId));
+
+		// パターンB（ツールが使うシナリオの行だけ。パターンAで進化させた金スキルは対象外）
+		const rowsB = scenarioKey ? (idx.byScenario.get(scenarioKey) || []) : [];
+		const bAll = rowsB.filter(r => taken.has(r.baseSkillId) && !aEvolved.has(r.baseSkillId)).map(judge);
+		const bPool = bAll.map(e => Object.assign({}, e, { candidate: specified && e._best !== null }));
+		const candidates = bPool.filter(e => e.candidate).map(e => e.baseId).sort(compareSkillIds);
+		const bDefaults = candidates.slice(0, 2);
+		bPool.forEach(e => { e.default = !specified ? 'none' : (bDefaults.indexOf(e.baseId) !== -1 ? e._best : (e.default === 'invalid' ? 'invalid' : 'none')); e.visible = e.default !== 'invalid'; });
+
+		const defaultChoices = {};
+		aOut.concat(bPool).forEach(e => { if (e.default !== 'invalid') defaultChoices[e.baseId] = e.default; });
+		const strip = (e) => { const o = Object.assign({}, e); delete o._best; return o; };
+		const countA = aOut.filter(e => e.default !== 'none' && e.default !== 'invalid').length;
+		const countB = bPool.filter(e => e.default !== 'none' && e.default !== 'invalid').length;
+		return {
+			specified: specified,
+			slots: { a: rowsA.length, b: 2, max: rowsA.length + 2 },
+			a: aOut.map(strip),
+			b: { scenario: scenarioKey || null, candidates: candidates, entries: bPool.map(strip), defaults: bDefaults, bang: specified && candidates.length >= 3 },
+			defaultChoices: defaultChoices,
+			count: { a: countA, b: countB, max: rowsA.length + 2 }
+		};
+	}
+	/** filter（{ distance: 'medium', … }）を matchesFilters の形（{ distance: ['medium'], … }）にする */
+	function resolvedFilterArgs(filter) {
+		const out = {};
+		['distance', 'style', 'surface'].forEach(k => { if (typeof filter[k] === 'string' && filter[k]) out[k] = [filter[k]]; });
+		return out;
+	}
+
 	/* ------------------------------------------------------------
 	 * ②にまとめて追加するスキルのグループ（C-130・2026-10-06。data/recommended-skills.json）
 	 * groups: [{ key, label, skills: [{ skillId, name, onlyWhenRaceDistanceClass? }] }]。**スキル名・ボタンの文字はコードに書かない**（データから読む）。
@@ -12950,6 +13103,8 @@
 		getEvolutionRowsOfUma: evolutionRowsOfUma,
 		getEvolutionRowsOfScenario: evolutionRowsOfScenario,
 		getEvolutionScenarioKey: evolutionScenarioKey,
+		computeEvolutionPlan: computeEvolutionPlan,
+		compareSkillIds: compareSkillIds,
 		getSkillTextIndexSize: function (opts) { return buildSkillTextIndex(opts).length; },
 		isLowEffectSkill: isLowEffectSkill,
 		SKILL_RARITY_LABELS: SKILL_RARITY_LABELS,
