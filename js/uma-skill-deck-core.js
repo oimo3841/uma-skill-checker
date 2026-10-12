@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-12d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-12e';
 
 	/* ============================================================
 	 * 定数
@@ -200,7 +200,7 @@
 	 */
 	const SKILL_ICONS = [
 		{ id: 'a', mark: '◎', light: '#d7263d', dark: '#ff6b7f' },
-		{ id: 'b', mark: '○', light: '#e8890c', dark: '#ffb04d' },
+		{ id: 'b', mark: '○', light: '#d97f01', dark: '#ffb04d' },   // C-144: 白い記号と 3:1（色相はそのまま。旧 #e8890c）
 		{ id: 'c', mark: '△', light: '#1f6fd1', dark: '#6aa8ff' },
 		{ id: 'd', mark: '◇', light: '#1f9d55', dark: '#5fd28f' },
 		{ id: 'e', mark: '★', light: '#8a4fd1', dark: '#d38cff' },
@@ -5179,7 +5179,7 @@
 		//   ダークモードに対応するときはトークンを変えるだけ）。
 		'.usd-roster-gc { min-width: 0; display: flex; align-items: center; justify-content: center;',
 		'  padding: var(--uma-sp-1) var(--uma-sp-0-5); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs);',
-		'  background: var(--uma-surface); border-bottom: 1px solid var(--uma-table-rule); }',
+		'  background: var(--uma-table-cell-bg, var(--uma-surface)); border-bottom: 1px solid var(--uma-table-rule); }',
 		// 列の間の縦線（先頭のスキル名の列には引かない＝列と列の「間」だけ）
 		'.usd-roster-gc:not(.usd-roster-gc--name) { border-left: 1px solid var(--uma-table-rule); }',
 		// 1列おきの薄い灰（C-62 の (3)）。**罫線だけでは列を目で追えなかった**ので、C-57 でやめた
@@ -5466,8 +5466,10 @@
 		// 320px（360px 未満）: 「スキル名」が切れないように、漏斗どうしの重なり・左右の余白・文字を少し詰める
 		'@media (max-width: 359px) { .usd-roster-gh.usd-roster-gh--skill { padding-left: 2px; padding-right: 0; gap: 1px; } .usd-roster-tone + .usd-roster-tone { margin-left: -7px; } .usd-roster-ghtitle { font-size: 11px; } }',
 		// 段8・C: 回復の行の淡い水色の地はやめた（地は白。名前の青だけで示す＝緑・デバフと同じ扱い）。--usd-skill-heal-bg は使っていない
-		'.usd-roster-grow--gold > .usd-roster-gc { background: var(--uma-stitch-soft); }',
-		'.usd-roster-grow--gold > .usd-roster-gc--uma { background: var(--uma-stitch-soft); }',
+		'.usd-roster-grow--gold > .usd-roster-gc { background: var(--uma-gold-row-bg, var(--uma-stitch-soft)); color: var(--uma-gold-row-text, inherit); }',
+		// 金スキルの行の左端の帯（C-144。ページが --uma-gold-row-bar を持つときだけ。既定は無し＝これまでの見た目）
+		'.usd-roster-grow--gold > .usd-roster-gc--name { box-shadow: inset 4px 0 0 var(--uma-gold-row-bar, transparent); }',
+		'.usd-roster-grow--gold > .usd-roster-gc--uma { background: var(--uma-gold-row-bg, var(--uma-stitch-soft)); }',
 		// 固有スキル: 行全体を左から右へ 淡い緑 → 空色 → 淡いピンク のグラデーション＋1px のピンクの縁（ゲームの固有スキルの虹色の枠の印象）。
 		// 行は display: contents なので、この行だけ箱にして列を引き継ぐ（subgrid）。縁は outline（高さを変えない）
 		'.usd-roster-grow--unique { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid;',

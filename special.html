@@ -36,7 +36,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-12d"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-12e"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -275,6 +275,127 @@
 		.notice-catalog--with { margin-top: var(--uma-sp-4); padding-top: var(--uma-sp-4); border-top: 1px solid var(--uma-border); }
 		.notice-catalog--with .notice-icon { display: none; }
 		.notice-catalog--with .notice-title { margin-bottom: 0; font-size: var(--uma-fs-md); }
+
+		/* ===== C-144（2026-10-12）: UmaStar の配色（ライト＝暖色・ダーク＝ほぼモノトーン）。ライト・ダークのメリハリ =====
+		   面は4層（ページ → カード → パネル → オプション）。内側ほど明るく、層の区切りは塗りの明度差と枠線の両方で取る（ゲート G3）。
+		   操作色は濃い茶（ダークは暖かい灰の塗り＋明るい縁）。値の一覧と根拠は DECISIONS の C-144。
+		   結合画像（canvas）が読むトークン（印の色・シナリオ因子・遺伝子）は変えていない。タイトルの緑（UmaStar）も変えない */
+		:root {
+			--uma-glass-bg: #f6eedf; --uma-card-border: #c9b490; --uma-card-shadow: 0 2px 10px rgba(110, 80, 30, .18);
+			--uma-panel-bg: #fbf6ec; --uma-panel-border: #bfa982;
+			--uma-surface: #fffdf8; --uma-option-border: #b49c72;
+			--uma-surface-sunken: #fbf6ec; --uma-surface-muted: #efe4cf; --uma-surface-group: #efe4cf;
+			--uma-text: #2a2216; --uma-text-heading: #2a2216; --uma-text-muted: #4a3e2c; --uma-text-subtle: #6a5b45; --uma-text-faint: #716250;
+			--uma-border: #cdbb9f; --uma-border-strong: #b49c72; --uma-dash: #ad9670;
+			--uma-control: #43321a; --uma-control-hover: #33260f; --uma-control-soft: #efe4cf; --uma-control-border: #b49c72;
+			--uma-aux-bg: #fffdf8; --uma-aux-border: #b49c72;
+			--uma-control-rim: 0 0 0 1px var(--uma-control);   /* 選んでいる塗りの部品は、ライトでも縁を 2px にして太さでも示す */
+			--uma-surface-inverse: #43321a;
+			--uma-band: #efe4cf; --uma-group-bg: #fffdf8; --uma-group-line: #bfa982; --uma-config-bg: #fbf6ec;
+			--uma-table-rule: #c9b693; --uma-table-rule-strong: #b49c72; --uma-table-head-bg: #fbf6ec;
+			--uma-table-col-alt: #f8f1e3; --uma-table-col-key: #f1e6d2; --uma-table-cell-bg: #fffdf8;
+			--uma-drawer-bg: #f6eedf;
+			--star-page: #efe6d8; --star-stripe: rgba(120, 90, 40, .05);
+			--star-head-l: #f1e0c4; --star-head-m: #fbf6ea; --star-head-r: #fdf6e0; --star-head-line: #c9b490;
+			--star-hl: #e69a00; --star-hl-shadow: 0 1px 0 rgba(90, 50, 0, .5);
+			--star-img-count: rgba(50, 35, 10, .80);
+			--star-badge-green-bg: #cdebd3; --star-badge-green-text: #1d5a35; --star-badge-green-line: #86bf98;
+			--star-badge-red-bg: #fde3e0; --star-badge-red-text: #a3221a; --star-badge-red-line: #e29a94;
+			--star-tabnum-bg: var(--uma-surface-muted); --star-tabnum-text: var(--uma-text-subtle);
+			/* 注意の文字（amber-700）は、カードの暖色の地の上で 4.5 になるよう、色相を保って明度だけ下げる */
+			--color-amber-700: #af4801;
+			/* Tailwind の灰（slate）を、このページの暖色の段に置き換える（50〜300 が面と線、400〜950 が文字） */
+			--color-white: #fffdf8;
+			--color-slate-50: #fbf6ec; --color-slate-100: #f1e8d8; --color-slate-200: #cdbb9f; --color-slate-300: #b49c72;
+			--color-slate-400: #716250; --color-slate-500: #6a5b45; --color-slate-600: #54472f; --color-slate-700: #3d3120;
+			--color-slate-800: #2a2216; --color-slate-900: #1f190f; --color-slate-950: #15110a;
+		}
+		:root[data-theme="dark"] {
+			--uma-page-ground: #181716;
+			--uma-glass-bg: #232220; --uma-card-border: #5c5a55; --uma-card-shadow: 0 4px 16px rgba(0, 0, 0, .35);
+			--uma-panel-bg: #2c2b29; --uma-panel-border: #6a675f;
+			--uma-surface: #363431; --uma-option-border: #7d7a71;
+			--uma-surface-sunken: #2c2b29; --uma-surface-muted: #403e39; --uma-surface-group: #2c2b29;
+			--uma-text: #f3f1ec; --uma-text-heading: #f3f1ec; --uma-text-muted: #dcd8cf; --uma-text-subtle: #bdb9b0; --uma-text-faint: #a9a59a;
+			--uma-border: #5c5a55; --uma-border-strong: #7d7a71; --uma-dash: #7d7a71;
+			--uma-control: #4d4a44; --uma-control-hover: #5a564f; --uma-control-text: #ffffff; --uma-control-edge: #e9e3d6;
+			--uma-control-rim: 0 0 0 1px #e9e3d6; --uma-control-mark: #e6e0d2; --uma-control-soft: #403e39; --uma-control-border: #7d7a71;
+			--uma-aux-bg: #363431; --uma-aux-border: #a9a59a;
+			--uma-control-disabled: #7d7a71; --uma-control-disabled-bg: #2c2b29;
+			--uma-surface-inverse: #e6e0d2; --uma-text-inverse: #232220;
+			--uma-band: #3a3834; --uma-group-bg: #2c2b29; --uma-group-line: #6a675f; --uma-config-bg: #1d1c1a;
+			--uma-table-rule: #5c5a55; --uma-table-rule-strong: #7d7a71; --uma-table-head-bg: #2c2b29;
+			--uma-table-col-alt: #32312e; --uma-table-col-key: #2c2b29; --uma-table-cell-bg: #262523;
+			--uma-gold-row-bg: #5e4510; --uma-gold-row-bar: #ffc83d; --uma-gold-row-text: #ffe08a;
+			--uma-drawer-bg: #1d1c1a;
+			--star-head-l: #3a3830; --star-head-m: #232220; --star-head-r: #33322c; --star-head-line: #6a675f;
+			--star-hl: #ffc21a; --star-hl-shadow: 0 1px 0 rgba(0, 0, 0, .45);
+			--star-img-count: rgba(8, 8, 6, .82);
+			--star-badge-green-bg: #1b5340; --star-badge-green-text: #a0f0cb; --star-badge-green-line: #3fa27a;
+			--star-badge-red-bg: #7a2a3a; --star-badge-red-text: #ffd0d6; --star-badge-red-line: #ff8a9a;
+			--star-tabnum-bg: #403e39; --star-tabnum-text: #cfcbc0;
+			--color-amber-700: oklch(87.9% 0.169 91.605);
+			/* サポカの種類（チップ・列見出し）: 濃い地・明るい枠・白い文字 */
+			--uma-card-type-1-bg: #1f4a8a; --uma-card-type-1-border: #6aa3ff; --uma-card-type-1-text: #ffffff;
+			--uma-card-type-2-bg: #7a2a3a; --uma-card-type-2-border: #ff8a9a; --uma-card-type-2-text: #ffffff;
+			--uma-card-type-3-bg: #7a3d12; --uma-card-type-3-border: #ff9f5a; --uma-card-type-3-text: #ffffff;
+			--uma-card-type-4-bg: #7a2a5a; --uma-card-type-4-border: #ff8ac8; --uma-card-type-4-text: #ffffff;
+			--uma-card-type-5-bg: #1d6a45; --uma-card-type-5-border: #66d19a; --uma-card-type-5-text: #ffffff;
+			--uma-card-type-6-bg: #7a5f12; --uma-card-type-6-border: #ffd24a; --uma-card-type-6-text: #ffffff;
+			--color-white: var(--uma-surface);
+			--color-slate-50: #2c2b29; --color-slate-100: #363431; --color-slate-200: #5c5a55; --color-slate-300: #7d7a71;
+			--color-slate-400: #a9a59a; --color-slate-500: #bdb9b0; --color-slate-600: #cfcbc0; --color-slate-700: #e0dcd2;
+			--color-slate-800: #f3f1ec; --color-slate-900: #f7f5f1; --color-slate-950: #fbfaf7;
+		}
+		/* ページ（縞はそのまま。白へ抜ける光とグラデーションは外して、ページの色をそのまま見せる） */
+		body {
+			background-color: var(--star-page);
+			background-image: repeating-linear-gradient(115deg, var(--star-stripe) 0px, var(--star-stripe) 40px, transparent 40px, transparent 80px);
+			background-repeat: repeat; background-attachment: fixed;
+		}
+		:root[data-theme="dark"] body { background: var(--uma-page-ground); }
+		/* ヘッダーの帯と枠 */
+		.site-header { background-image: linear-gradient(90deg, var(--star-head-l) 0%, var(--star-head-m) 50%, var(--star-head-r) 100%); border-color: var(--star-head-line); }
+		/* タイトルの強調黄（色はくすませず、細い影で縁を出す。UmaStar の緑はそのまま） */
+		.site-header h1 .text-amber-400 { color: var(--star-hl); text-shadow: var(--star-hl-shadow); }
+		/* カード（帯の sticky の地もカードの色） */
+		.glass-card { background: var(--uma-glass-bg); box-shadow: var(--uma-card-shadow); }
+		.deck-set-bar { background: var(--uma-glass-bg); border-bottom-color: var(--uma-border); }
+		/* パネル（カードの中の一段）とオプション */
+		.glass-card .bg-slate-50\/50 { background-color: var(--uma-panel-bg); border-color: var(--uma-panel-border); }
+		/* タブの番号の丸（選ぶ前）・バッジ（淡色・押せない。緑＝ピル「2nd Edition」と②の件数、赤＝①の件数） */
+		.step-tab-num { background: var(--star-tabnum-bg); color: var(--star-tabnum-text); }
+		.header-edition-pill.ui-mode-badge, .step-tab-badge--ready { background: var(--star-badge-green-bg); color: var(--star-badge-green-text); border-color: var(--star-badge-green-line); }
+		.step-tab-badge--ready { box-shadow: inset 0 0 0 1px var(--star-badge-green-line); }
+		.step-tab-badge--alert { background: var(--star-badge-red-bg); color: var(--star-badge-red-text); border-color: var(--star-badge-red-line); }
+		/* レース条件のピルと3つの選択（距離・脚質・バ場）は、同じ地・文字・枠・寸法（ゲート G5）。選んでいないときは補助ボタン、選んだら主要な操作の塗り */
+		body .usd-setbar-race, body .usd-roster-filtersel {
+			height: 28px; border: 1px solid var(--uma-aux-border); border-radius: var(--uma-r-full);
+			background-color: var(--uma-aux-bg); color: var(--uma-text-heading); font-size: 11px; font-weight: 600; box-shadow: none;
+		}
+		body .usd-roster-filtersel { padding-top: 0; padding-bottom: 0; }
+		body .usd-setbar-race--on, body .usd-roster-filtersel.usd-roster-filtersel--on, body .usd-roster-filter--locked .usd-roster-filtersel:disabled {
+			background-color: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim);
+		}
+		body .usd-setbar-race--on .usd-setbar-caret, body .usd-roster-filterlock { color: var(--uma-control-text); fill: var(--uma-control-text); }
+		/* 特別な固有スキルの行（ダーク）: くすまない4色のグラデーション＋ピンクの縁と光 */
+		:root[data-theme="dark"] .usd-roster-grow--unique {
+			background: linear-gradient(90deg, #1f7a64 0%, #2a62b5 35%, #7a40b8 70%, #b03a8a 100%);
+			outline: 1.5px solid #ffc2ec; outline-offset: -1.5px; box-shadow: 0 0 14px rgba(255, 150, 220, .35);
+		}
+		/* 画像の上の小さな丸ボタン（✕）。ライト・ダークとも暗い地に白 */
+		.bg-slate-900\/80 { background-color: var(--star-img-count); }
+		/* 「切れ者」などのトグル（押していない）は補助ボタン */
+		body .usd-roster-togglebtn { border-color: var(--uma-aux-border); background-color: var(--uma-aux-bg); }
+		/* ダーク: 金スキルの行の参考の Pt と、回復の名前の青（金の地の上で 4.5 以上）。特別な固有スキルの行の文字は白 */
+		/* 名前の色（回復・パッシブ・デバフ）は、ダークの本文の色（#f3f1ec）からライト以上に離す（色相はそのまま） */
+		:root[data-theme="dark"] body .usd-roster-grid { --usd-skill-heal-text: #5aa9ff; --usd-skill-passive-text: #5fd889; --usd-skill-debuff-text: #ff7f75; }
+		:root[data-theme="dark"] body .usd-roster-grow--gold .usd-roster-skillname--heal { color: #86c2ff; }
+		:root[data-theme="dark"] body .usd-roster-grow--gold .usd-roster-skillname--debuff { color: #ffaaa2; }
+		:root[data-theme="dark"] .usd-roster-grow--gold .usd-roster-pt--ref { color: #cfc4a4; }
+		:root[data-theme="dark"] body .usd-roster-grow--unique :is(.usd-roster-skillname, .usd-roster-pt) { color: #ffffff; }
+		/* 見出しの脇の一言（3-3）: 2行に折り返すときは、行の長さをそろえる */
+		.header-tagline[data-lines="2"] { text-wrap: balance; }
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-green-600 selection:text-white">

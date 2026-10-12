@@ -541,7 +541,8 @@ export async function register9(env) {
 			assert(de.bg >= 5 && de.bc >= 5, tag + '濃淡: 帯は、設定の枠・まとまりのどちらとも ΔE 5 以上（帯↔まとまり ' + de.bg.toFixed(1) + '、帯↔設定の枠 ' + de.bc.toFixed(1) + '）', de);
 			if (theme === 'dark') assert(de.cg >= 5, tag + '濃淡: ダークでは設定の枠とまとまりも ΔE 5 以上（' + de.cg.toFixed(1) + '）', de);
 			assert(parseRgb(v.line.grp[1]).join() !== rgbs.grp.join(), tag + 'まとまりの線は面と違う色', v.line.grp);
-			if (theme === 'dark') assert(rgbs.grp[0] < 70 && rgbs.band[2] > rgbs.band[0], tag + 'ダークの面は暗い（まとまり ' + rgbs.grp.join() + '・帯は青み ' + rgbs.band.join() + '）', rgbs);
+			// C-144: UmaStar のダークはほぼモノトーン（帯＝合計パネル #3a3834）。帯は青みではなく、まとまりより明るい
+			if (theme === 'dark') assert(rgbs.grp[0] < 70 && rgbs.band[0] > rgbs.grp[0], tag + 'ダークの面は暗い（まとまり ' + rgbs.grp.join() + '・帯はまとまりより明るい ' + rgbs.band.join() + '）', rgbs);
 			const low = v.text.map(([name, fg, bg]) => ({ name, ratio: contrastRatio(parseRgb(fg), parseRgb(bg)) })).filter((x) => x.ratio < 4.5);
 			assert(low.length === 0, tag + '文字のコントラスト比はすべて 4.5 以上（帯・タグ・設定の枠・入口・解除・アイコンの記号）', low.map((x) => x.name + ' ' + x.ratio.toFixed(2)));
 			assert(new Set(v.iconColors).size === 6, tag + 'アイコン6つの色はすべて違う', v.iconColors);

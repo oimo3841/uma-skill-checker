@@ -336,6 +336,8 @@ export async function registerDark(env) {
 		await sp.page.evaluate(() => window.UmaTheme.set('dark'));
 		const dark = await read();
 		for (const k of Object.keys(light)) {
+			// C-144: ダークのサポカの種類は、§2 の指定どおり濃い地に白い文字（6色とも白）。見分けは地の色で行う（地の見分けはこの表の次の行が見る）
+			if (k === 'サポカの種類6色（文字）') { assert(dark[k].every((c) => c.join() === '255,255,255'), 'ダーク10: ' + k + ' はダークでは6色とも白（濃い地の上。見分けは地の色）', dark[k]); continue; }
 			const l = minDE(light[k]), d = minDE(dark[k]);
 			assert(d + 1e-9 >= l && JSON.stringify(light[k]) !== JSON.stringify(dark[k]),
 				'ダーク10: ' + k + ' の最小の色差（ΔE）がダークでライト以上（ライト ' + l.toFixed(1) + ' → ダーク ' + d.toFixed(1) + '）', { light: light[k], dark: dark[k] });
@@ -446,7 +448,7 @@ export async function registerDark(env) {
 		assert(await fr.evaluate(() => document.documentElement.getAttribute('data-theme')) === 'dark', 'ダーク12: 引き出しの Deck もダーク');
 		assert(r.checked > 10 && r.bad.length === 0 && r.undecided.length === 0, 'ダーク12: 引き出しの Deck の文字はすべて基準以上（' + r.checked + '件）', { bad: formatContrast(r.bad), undecided: r.undecided });
 		const drawerBg = await sp.page.evaluate(() => getComputedStyle(document.querySelector('#deck-drawer .uma-drawer-body')).backgroundColor);
-		assert(drawerBg === 'rgb(18, 23, 31)', 'ダーク12: 引き出しの地は暗い（--uma-drawer-bg）', drawerBg);
+		assert(drawerBg === 'rgb(29, 28, 26)', 'ダーク12: 引き出しの地は暗い（--uma-drawer-bg）', drawerBg);   // C-144: UmaStar のダークの引き出し #1d1c1a
 		await sp.ctx.close();
 		console.log('     [参考] Deck 375px のライトのコントラスト比の不足（直していない・' + lightReport.length + '件）:\n       ' + (lightReport.join('\n       ') || 'なし'));
 	});
