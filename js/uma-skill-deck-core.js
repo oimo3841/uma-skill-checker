@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-12b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-12c';
 
 	/* ============================================================
 	 * 定数
@@ -1889,6 +1889,24 @@
 		});
 		return out;
 	}
+
+	/**
+	 * イベントの行から、**読み取り専用で見せるイベント**（選択肢が1つで、条件文が空でないもの）を並べる（段3の追補・2026-10-12）。
+	 * 選ぶものではないので、選択の鍵・pending・未選択の数には関わらない（res.events には入れない）。
+	 * 返り値は [{ eventKey, index, eventName, condition, skills: [{ skillId, name, hintLevel }] }]。結果が分かれるものは先頭の結果だけ。
+	 */
+	function eventRowInfoEvents(row, eventsKey, keyBase) {
+		if (!row || row.status !== 'done') return [];
+		const out = [];
+		(row[eventsKey] || []).forEach((ev, idx) => {
+			const choices = (ev && ev.choices) || [];
+			if (choices.length !== 1 || typeof ev.condition !== 'string' || ev.condition === '') return;
+			const skills = eventChoiceSuccessSkills(choices[0]).filter(ref => ref && ref.skillId && findSkill(ref.skillId))
+				.map(ref => ({ skillId: ref.skillId, name: ref.name, hintLevel: (Number.isInteger(ref.hintLevel) && ref.hintLevel >= 0) ? ref.hintLevel : null }));
+			out.push({ eventKey: keyBase + '#' + idx, index: idx, eventName: typeof ev.eventName === 'string' ? ev.eventName : null, condition: ev.condition, skills: skills });
+		});
+		return out;
+	}
 	/* ---- キャラクター共通のイベント（C-102 の区切り3） ----
 	   同じキャラクターのサポートカードに共通するイベント。キャラクター名を鍵に1人に1回だけ書き、
 	   そのキャラクターのカード全部（R・SR・SSR）に当てはめる。**グループのカードはメンバー全員ぶん**。 */
@@ -2171,6 +2189,7 @@
 		const evOpts = { choices: (o.eventChoices && typeof o.eventChoices === 'object') ? o.eventChoices : {}, autoChoose: !!o.autoChoose,
 			isWanted: typeof o.isWanted === 'function' ? o.isWanted : null };
 		const events = [];           // 選べるイベント（段7の (19)。列見出しの▼から開く小窓が使う）
+		const infoEvents = [];       // 小窓に読み取り専用で出すだけのイベント（段3の追補。選択肢が1つで条件のある育成ウマ娘のイベント）
 		const items = new Map();   // skillId → { skillId, name, origins: [], members: [], sureMembers: [], sure }
 		const sources = [];        // 由来を機械が読める形で（段2）
 		const unconfirmed = [];
@@ -2234,6 +2253,9 @@
 					pushOccurrences(eventRowOccurrences(umaEvRow, 'events', base, evOpts), 'umaEvent', UMA_KEY);
 					eventRowChoiceEvents(umaEvRow, 'events', base, evOpts).forEach(e =>
 						events.push(Object.assign({ memberKey: UMA_KEY, kind: 'umaEvent', cardId: null, charaName: null }, e)));
+					// 選択肢が1つで条件のあるイベントは、小窓に読み取り専用の行として出すだけ（段3の追補）。計算は上の出現がすでに持っている
+					eventRowInfoEvents(umaEvRow, 'events', base).forEach(e =>
+						infoEvents.push(Object.assign({ memberKey: UMA_KEY, kind: 'umaEvent' }, e)));
 				}
 			}
 		}
@@ -2297,7 +2319,7 @@
 		}
 
 		const list = Array.from(items.values()).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing, sources: sources, events: events, scenario: scenario };
+		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing, sources: sources, events: events, infoEvents: infoEvents, scenario: scenario };
 	}
 
 	/* ============================================================
@@ -5469,6 +5491,8 @@
 		'.usd-roster-eventtitle { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-heading); }',
 		// 条件文（育成ウマ娘のイベント）。小さな灰色で折り返して全文。色はトークンで参照する（値は書かない）
 		'.usd-roster-eventcond { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); white-space: normal; overflow-wrap: anywhere; }',
+		// 読み取り専用のイベントの得るスキル（段3の追補）。選択肢の枠を付けない地の文
+		'.usd-roster-infoskills { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text); overflow-wrap: anywhere; }',
 		'.usd-roster-autotag { display: inline-block; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 600; padding: 0 var(--uma-sp-1-5);',
 		'  border-radius: var(--uma-r-full); background: var(--uma-surface-muted); color: var(--uma-text-subtle); vertical-align: middle; }',
 		'.usd-roster-choices { display: flex; flex-direction: column; gap: var(--uma-sp-1); }',
@@ -7982,6 +8006,8 @@
 		const wanted = o.wanted || null;
 		const list = res.events.filter(e => e.memberKey === memberKey);
 		const unsel = list.filter(e => e.pending).length;
+		// 読み取り専用の行（段3の追補）。未選択の数には入れない
+		const info = (res.infoEvents || []).filter(e => e.memberKey === memberKey);
 		const panes = infoEl('div', 'usd-ev-panes');
 		panes.setAttribute('data-usd-el', 'events-panes');
 		const left = infoEl('section', 'usd-ev-pane usd-ev-pane--events');
@@ -7997,7 +8023,7 @@
 			head.setAttribute('data-usd-el', 'events-unselected');
 			left.appendChild(head);
 		}
-		if (list.length === 0) {
+		if (list.length === 0 && info.length === 0) {
 			const p = infoEl('p', 'usd-info-desc--pending', '選ぶイベントはありません');
 			p.setAttribute('data-usd-el', 'events-none');
 			left.appendChild(p);
@@ -8076,6 +8102,21 @@
 			box.appendChild(ul);
 			left.appendChild(box);
 		};
+		// 読み取り専用の行（段3の追補）: イベント名・条件文・得るスキル（「スキル名 LvN」を「、」区切り）。ボタンにせず、選択肢の枠も付けない
+		const addInfoEvent = (e) => {
+			const box = infoEl('div', 'usd-roster-event');
+			box.setAttribute('data-usd-el', 'event-info');
+			box.setAttribute('data-event-key', e.eventKey);
+			box.appendChild(infoEl('p', 'usd-roster-eventtitle', eventTitle(e)));
+			const cond = infoEl('p', 'usd-roster-eventcond', e.condition);
+			cond.setAttribute('data-usd-el', 'event-cond');
+			box.appendChild(cond);
+			const sk = infoEl('p', 'usd-roster-infoskills', e.skills.length === 0 ? 'スキルなし'
+				: e.skills.map(s => getSkillName(s.skillId) + (isNonNegInt(s.hintLevel) ? ' Lv' + s.hintLevel : '')).join('、'));
+			sk.setAttribute('data-usd-el', 'event-info-skills');
+			box.appendChild(sk);
+			left.appendChild(box);
+		};
 		if (memberKey === SCENARIO_KEY && res.scenario) {
 			// シナリオは、データの並び（イベント1・2・3…）のまま。選択式は選択肢のボタン、確定は一覧
 			res.scenario.events.forEach(se => {
@@ -8083,6 +8124,10 @@
 				const ce = list.find(x => x.eventKey === se.eventKey);
 				if (ce) addChoiceEvent(ce);
 			});
+		} else if (info.length > 0) {
+			// 選べる行と読み取り専用の行を、イベントの並び（位置 N）のまま混ぜる
+			list.map(e => ({ i: e.index, f: () => addChoiceEvent(e) })).concat(info.map(e => ({ i: e.index, f: () => addInfoEvent(e) })))
+				.sort((a, b) => a.i - b.i).forEach(x => x.f());
 		} else {
 			list.forEach(addChoiceEvent);
 		}
@@ -8736,7 +8781,9 @@
 				let s = '<div class="usd-roster-ghbtns">';
 				const evs = ((m.kind === 'card' && m.label) || m.kind === 'scenario' || (m.kind === 'uma' && m.label)) ? res.events.filter(e => e.memberKey === m.key) : [];
 				const typedAttrs = (m.typeOrder !== null && m.typeOrder !== undefined) ? ' usd-roster-typed" data-type-order="' + m.typeOrder + '" style="' + cardTypeColorVars(m.typeOrder) : '';
-				if (evs.length > 0) {
+				// 育成ウマ娘は、読み取り専用の行（段3の追補）だけでも小窓に出す行があればボタンにする
+				const hasInfo = m.kind === 'uma' && !!m.label && (res.infoEvents || []).some(e => e.memberKey === m.key);
+				if (evs.length > 0 || hasInfo) {
 					const unsel = evs.filter(e => e.pending).length;
 					const label = (m.kind === 'scenario' ? m.label : m.kind === 'uma' ? '育成ウマ娘' : m.no + '番のカード') + 'のイベントを選ぶ' + (unsel > 0 ? '（未選択' + unsel + '件）' : '');
 					s += '<button type="button" class="usd-roster-legend-no usd-roster-evbtn' + (m.kind === 'scenario' ? ' usd-roster-evbtn--scen' : m.kind === 'uma' ? ' usd-roster-evbtn--uma' : '') + (unsel > 0 ? ' usd-roster-evbtn--alert' : typedAttrs) + '"'
