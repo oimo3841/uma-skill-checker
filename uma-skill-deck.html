@@ -380,6 +380,60 @@
 		}
 		/* 行の絞り込みは .uma-pill（UmaStar OCR の結果表と同じ形）を併記して使う。
 		   選択状態は .active（js/uma-skill-deck.js が付け外しする）。 */
+
+		/* ===== C-144（2026-10-12）: UmaSkill Deck の配色（モノトーン主体でわずかに紫。おいもさんの仮設定） =====
+		   **色味を後で調整しやすいよう、値はこの2つの :root にだけ書く**（下の規則は変数を参照するだけ）。
+		   面は4層（ページ → カード → パネル → オプション）。スキルの種類・バッジ・レアリティ・★など意味のある色は変えない */
+		:root {
+			--uma-page-bg: #e9e8ee;
+			--uma-glass-bg: #f3f2f7; --uma-card-border: #b5b3c4; --uma-card-shadow: 0 2px 10px rgba(60, 50, 100, .14);
+			--uma-panel-bg: #f9f8fc; --uma-panel-border: #aeacc0;
+			--uma-surface: #ffffff; --uma-option-border: #9d9bb2;
+			--uma-surface-sunken: #f9f8fc; --uma-surface-muted: #e6e4ee; --uma-surface-group: #e6e4ee;
+			--uma-text: #1d1b2a; --uma-text-heading: #1d1b2a; --uma-text-muted: #3a3850; --uma-text-subtle: #5a5870; --uma-text-faint: #605e75;
+			--uma-border: #c5c3d3; --uma-border-strong: #9d9bb2; --uma-dash: #9d9bb2;
+			--uma-control: #3b3652; --uma-control-hover: #2e2a42; --uma-control-soft: #e6e4ee; --uma-control-border: #9d9bb2;
+			--uma-aux-bg: #ffffff; --uma-aux-border: #9d9bb2;
+			--uma-control-rim: 0 0 0 1px var(--uma-control);   /* 選んでいる塗りの部品は、ライトでも縁を 2px にして太さでも示す */
+			--uma-control-disabled-bg: #e6e4ee;
+			--uma-surface-inverse: #3b3652;
+			--uma-band: #e6e4ee; --uma-group-bg: #ffffff; --uma-group-line: #aeacc0; --uma-config-bg: #f9f8fc;
+			--uma-table-rule: #d6d4e0; --uma-table-rule-strong: #aeacc0; --uma-table-head-bg: #f3f2f7; --uma-table-col-alt: #f6f5fa; --uma-table-col-key: #ecebf3;
+			--uma-drawer-bg: #f3f2f7;
+			--deck-head-from: #dcdae8; --deck-head-to: #ebe9f3; --deck-head-line: #aeacc0;
+			--color-slate-50: #f9f8fc; --color-slate-100: #ecebf3; --color-slate-200: #c5c3d3; --color-slate-300: #aeacc0;
+			--color-slate-400: #605e75; --color-slate-500: #5a5870; --color-slate-600: #48465e; --color-slate-700: #33314a;
+			--color-slate-800: #1d1b2a; --color-slate-900: #15131f; --color-slate-950: #0e0c16;
+		}
+		:root[data-theme="dark"] {
+			--uma-page-ground: #17161c;
+			--uma-glass-bg: #221f28; --uma-card-border: #5a5666; --uma-card-shadow: 0 4px 16px rgba(0, 0, 0, .35);
+			--uma-panel-bg: #2b2832; --uma-panel-border: #686475;
+			--uma-surface: #36333f; --uma-option-border: #7b7788;
+			--uma-surface-sunken: #2b2832; --uma-surface-muted: #3d3a47; --uma-surface-group: #2b2832;
+			--uma-text: #f1f0f5; --uma-text-heading: #f1f0f5; --uma-text-muted: #d9d7e2; --uma-text-subtle: #bdbac8; --uma-text-faint: #a9a6b6;
+			--uma-border: #5a5666; --uma-border-strong: #7b7788; --uma-dash: #7b7788;
+			--uma-control: #4a4655; --uma-control-hover: #575266; --uma-control-text: #ffffff; --uma-control-edge: #e6e3ef;
+			--uma-control-rim: 0 0 0 1px #e6e3ef; --uma-control-mark: #e6e3ef; --uma-control-soft: #3d3a47; --uma-control-border: #7b7788;
+			--uma-aux-bg: #36333f; --uma-aux-border: #a9a5b6;
+			--uma-control-disabled: #7b7788; --uma-control-disabled-bg: #2b2832;
+			--uma-surface-inverse: #e6e3ef; --uma-text-inverse: #221f28;
+			--uma-band: #2b2832; --uma-group-bg: #2b2832; --uma-group-line: #686475; --uma-config-bg: #221f28;
+			--uma-table-rule: #4a4655; --uma-table-rule-strong: #686475; --uma-table-head-bg: #2b2832; --uma-table-col-alt: #2b2832; --uma-table-col-key: #322f3a;
+			--uma-drawer-bg: #1c1a22;
+			--deck-head-from: #35323f; --deck-head-to: #2f2c38; --deck-head-line: #686475;
+			--color-white: var(--uma-surface);
+			--color-slate-50: #2b2832; --color-slate-100: #36333f; --color-slate-200: #5a5666; --color-slate-300: #7b7788;
+			--color-slate-400: #a9a6b6; --color-slate-500: #bdbac8; --color-slate-600: #cfcdd9; --color-slate-700: #e1dfe9;
+			--color-slate-800: #f1f0f5; --color-slate-900: #f6f5f9; --color-slate-950: #fbfafc;
+		}
+		body { background-color: var(--uma-page-bg); background-image: none; }
+		:root[data-theme="dark"] body { background: var(--uma-page-ground); }
+		/* 見出しの帯（タイトルの行） */
+		body > div > header:first-child { background: linear-gradient(90deg, var(--deck-head-from), var(--deck-head-to)); border: 1px solid var(--deck-head-line); border-radius: var(--uma-r-lg); padding: var(--uma-sp-2) var(--uma-sp-3); }
+		.glass-card { background: var(--uma-glass-bg); box-shadow: var(--uma-card-shadow); }
+		.tab-btn { background: var(--uma-aux-bg); border-color: var(--uma-aux-border); color: var(--uma-text-heading); }
+		.tab-btn.tab-active { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }
 	</style>
 </head>
 <body class="min-h-screen">

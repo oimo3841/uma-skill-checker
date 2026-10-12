@@ -426,7 +426,7 @@ export async function registerDark(env) {
 					} else if (w === 375) lightReport.push(...r.bad.map((b) => 'Deck ' + name + ' ' + formatContrast([b])[0]));
 				};
 				if (theme === 'dark' && w === 375) {
-					assert(await attr(page) === 'dark' && await page.evaluate(() => getComputedStyle(document.body).backgroundColor) === 'rgb(15, 19, 24)', 'ダーク12: Deck 単体の地は青黒（#0f1318。決定6）');
+					assert(await attr(page) === 'dark' && await page.evaluate(() => getComputedStyle(document.body).backgroundColor) === 'rgb(23, 22, 28)', 'ダーク12: Deck 単体の地は青黒（#0f1318。決定6）');   // C-144: Deck の仮設定（わずかに紫のモノトーン #17161c）
 					assert(await page.evaluate(() => document.querySelectorAll('[data-theme-choice], [aria-label="画面の色"]').length) === 0, 'ダーク12: Deck 単体に画面の色の切り替えは無い（決定9）');
 				}
 				await scan('スキルセット');
