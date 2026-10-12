@@ -13,7 +13,7 @@ import { chromium } from 'playwright';
 import { startServer, REPO_ROOT } from './lib/serve.mjs';
 import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA, SET_REMOVE_IN_PAGE, removeFromSet } from './lib/fixtures.mjs';
 // スクリーンショットの画素から**実際に描かれている色**を読む（段11 ⑨。半透明の重なりの結果を見るため）
-import { avgColor, deltaE, contrastRatio, hexOf } from './lib/pixels.mjs';
+import { avgColor, deltaE, contrastRatio, hexOf, tokRgb } from './lib/pixels.mjs';
 import { buildEventFixture, buildCharacterFixture } from './lib/event-fixture.mjs';
 import { buildDraftFixture } from './lib/draft-fixture.mjs';
 // 段7c（2026-10-03・C-115）の検査は別ファイル（塊の見出しはすべて「段7c」を含む）
@@ -196,7 +196,8 @@ await block('special.html（UmaStar OCR）', async () => {
 		const el = document.getElementById('filter-not-found');
 		return { cls: el.className, bg: getComputedStyle(el).backgroundColor };
 	});
-	assert(pill.cls.includes('uma-pill') && pill.cls.includes('active') && pill.bg === 'rgb(15, 23, 43)',
+	// C-144: 選んでいる塗りは、そのツールの操作色（--uma-control。それまでは反転色 slate-900）
+	assert(pill.cls.includes('uma-pill') && pill.cls.includes('active') && pill.bg === await tokRgb(page, 'var(--uma-control)'),
 		'special: 絞り込みの選択状態が反転する', pill);
 	await page.click('#filter-all');
 	await page.waitForTimeout(200);
@@ -1785,7 +1786,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	assert(step0.imageBadge === true, 'exam: 画像が無いうちは②の枚数バッジを出さない', step0);
 	// 選んでいるタブの下線は「操作の色」＝3ツール共通の黒（#1c1917）。ページの色ではない
 	// （2026-09-15・43セッション目に、押せる部品を黒へ揃えた）
-	assert(step0.underline === 'rgb(28, 25, 23)', 'exam: 選択中のタブの下線が操作の色（黒）', step0.underline);
+	// C-144: 操作色はツールごと。下線は「選択のしるし」（--uma-control-mark）
+	assert(step0.underline === await tokRgb(page, 'var(--uma-control-mark)'), 'exam: 選択中のタブの下線が操作の色（黒）', step0.underline);
 	await page.click('#step-tab-2');
 	await page.waitForTimeout(300);
 	const step2 = await stepState();
@@ -2091,8 +2093,9 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 			// シナリオ因子のすぐ右
 			afterFactor: el.previousElementSibling === fac,
 			bg: cs.backgroundColor, color: cs.color,
-			wantBg: toRgb(root.getPropertyValue('--uma-gene-soft').trim()),
-			wantColor: toRgb(root.getPropertyValue('--uma-gene-text').trim()),
+			// C-144: 遺伝子のバッジは紫のバッジの色（--exam-badge-purple-*。結合画像の --uma-gene-* とは別に持つ）
+			wantBg: toRgb(root.getPropertyValue('--exam-badge-purple-bg').trim() || root.getPropertyValue('--uma-gene-soft').trim()),
+			wantColor: toRgb(root.getPropertyValue('--exam-badge-purple-text').trim() || root.getPropertyValue('--uma-gene-text').trim()),
 			// 因子のバッジとは別の色（帯の中で区別が付く）
 			differsFromFactor: cs.backgroundColor !== csf.backgroundColor && cs.color !== csf.color,
 			icon: el.querySelector('svg') ? el.querySelector('svg').classList.contains('lucide-dna') : null,
@@ -2250,7 +2253,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	}));
 	// Deck の色は暖灰（stone）。案内の枠と地は Deck の色、押せるボタンは操作の色（黒）
 	// （2026-09-15・43セッション目。赤紫を試したが戻した）
-	assert(noteColor.deckSoft === '#e7e5e4' && noteColor.box === 'rgb(231, 229, 228)' && noteColor.btn === 'rgb(28, 25, 23)',
+	// C-144: 押せるボタンは、そのツールの操作色（--uma-control）
+	assert(noteColor.deckSoft === '#e7e5e4' && noteColor.box === 'rgb(231, 229, 228)' && noteColor.btn === await tokRgb(page, 'var(--uma-control)'),
 		'exam: 取り込み案内は Deck の色（暖灰）、ボタンは黒', noteColor);
 
 	// 「UmaSkill Deck を開いて取り込む」→ Deck の引き出し（iframe）が開く。開いた時点で新着の印は下りる
@@ -2780,7 +2784,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		return { onLine: on.borderBottomColor, onWeight: on.fontWeight, offLine: off.borderBottomColor,
 			strip: getComputedStyle(document.querySelector('.drawer-tabs')).display };
 	});
-	assert(tabCss.strip === 'flex' && tabCss.onWeight === '600' && tabCss.onLine === 'rgb(28, 25, 23)'
+	// C-144: 下線は選択のしるし（--uma-control-mark）
+	assert(tabCss.strip === 'flex' && tabCss.onWeight === '600' && tabCss.onLine === await tokRgb(page, 'var(--uma-control-mark)')
 		&& tabCss.offLine === 'rgba(0, 0, 0, 0)',
 		'exam: 引き出しの中のタブの見た目が共通CSS（shell.css）から当たっている', tabCss);
 
@@ -2903,7 +2908,8 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 	await page.click('button[data-mode="zero"]');
 	await page.waitForTimeout(400);
 	const bg = await page.evaluate(() => getComputedStyle(document.querySelector('button[data-mode="zero"]')).backgroundColor);
-	assert(bg === 'rgb(15, 23, 43)', 'deck: 選択中のピルが反転色になる', bg);
+	// C-144: 選んでいる塗りは、そのツールの操作色（--uma-control。それまでは反転色 slate-900）
+	assert(bg === await tokRgb(page, 'var(--uma-control)'), 'deck: 選択中のピルが反転色になる', bg);
 	await page.click('button[data-mode="all"]');
 	await page.waitForTimeout(400);
 
@@ -3116,7 +3122,7 @@ await block('uma-skill-deck.html（UmaSkill Deck）', async () => {
 		};
 	});
 	assert(dis.count > 0 && dis.cellOpacity === '1' && dis.tileOpacity === '1'
-		&& dis.cellColor === 'rgb(144, 161, 185)',
+		&& dis.cellColor === await tokRgb(page, 'var(--uma-text-faint)'),   // C-144: 注記の色（--uma-text-faint。Deck は #605e75＝地の上で 4.5 以上）
 		'deck: 無効列は実色だけで薄くなる（opacity不使用）', dis);
 
 	// ---- 手動修正の可視化 ----
@@ -7051,7 +7057,10 @@ await block('シナリオ因子の色＝紫／遺伝子の色＝赤（2026-09-15
 	const TEXT = 'rgb(118, 19, 111)';   // --uma-catalog-text  #76136f
 	const SOFT = 'rgb(251, 231, 248)';  // --uma-catalog-soft  #fbe7f8
 	const BORDER = 'rgb(240, 171, 232)';// --uma-catalog-border #f0abe8
-	const CONTROL = 'rgb(28, 25, 23)';  // --uma-control       #1c1917
+	const CONTROL = await tokRgb(page, 'var(--uma-control-mark)'); // C-144: 選択のしるし（--uma-control-mark。それまでは黒 #1c1917 の直書き）
+	// C-144: シナリオ因子のバッジはピンクのバッジの色（--exam-badge-pink-*。結合画像のトークンとは別。カードは従来どおりトークンの色）
+	const BADGE_TEXT = await tokRgb(page, 'var(--exam-badge-pink-text, var(--uma-catalog-text))');
+	const BADGE_SOFT = await tokRgb(page, 'var(--exam-badge-pink-bg, var(--uma-catalog-soft))');
 	const c = await page.evaluate(() => {
 		const cs = (el, prop) => (el ? getComputedStyle(el)[prop] : '(要素なし)');
 		const root = getComputedStyle(document.documentElement);
@@ -7132,9 +7141,9 @@ await block('シナリオ因子の色＝紫／遺伝子の色＝赤（2026-09-15
 		'段G-2: 遺伝子の印とシナリオ因子の印が同じ色に戻っていない', { gene: c.geneTokens.mark, factor: c.tokens.mark });
 	assert(c.listMark === MARK && c.tableMark === MARK && c.cardMore === MARK && c.wireBar === MARK,
 		'シナリオ因子の色: 一覧と表の◆・ハイライトの「他」・模式図の帯が印の色', c);
-	assert(c.badgeText === TEXT && c.cardHead === TEXT && c.cardLine === TEXT,
+	assert(c.badgeText === BADGE_TEXT && c.cardHead === TEXT && c.cardLine === TEXT,
 		'シナリオ因子の色: バッジの文字・カードの見出しと行が文字の色', c);
-	assert(c.badgeBg === SOFT && c.cardBorder === BORDER,
+	assert(c.badgeBg === BADGE_SOFT && c.cardBorder === BORDER,
 		'シナリオ因子の色: バッジの地が淡い地、カードの枠が枠の色', c);
 	assert(c.stitchText === '#76136f' && c.stitchMore === '#b02aa8',
 		'シナリオ因子の色: 結合画像が読むトークンも文字と印の色', c);
@@ -8597,7 +8606,8 @@ await block('C-62（61セッション目）: 棚卸しで挙がった11件', asy
 	});
 	assert(exclWhere.inTab && exclWhere.rightOfLabel,
 		'C-63 (2): 「N種」は①のタブの中の、ラベルの右にある', exclWhere);
-	assert(exclWhere.cls.includes('step-tab-badge') && exclWhere.color === 'rgb(193, 0, 7)',
+	// C-144: 赤のバッジの文字（UmaStar は赤系の件数バッジ --star-badge-red-text。それまでは --uma-danger-text）
+	assert(exclWhere.cls.includes('step-tab-badge') && exclWhere.color === await tokRgb(page, 'var(--star-badge-red-text, var(--uma-danger-text))'),
 		'C-63 (2): 他のタブの件数バッジと同じ形で、色だけ赤（--uma-danger-text）', exclWhere);
 
 	/* --- (1) ミニウィンドウの候補の色 --- */
@@ -8644,7 +8654,8 @@ await block('C-62（61セッション目）: 棚卸しで挙がった11件', asy
 	});
 	assert(pills.length >= 3 && pills[0].all && pills.slice(1).every((p) => p.typed),
 		'C-62 (1): 先頭が「すべて」で、あとは種類ごとの色が付いた候補', { n: pills.length });
-	assert(pills[0].pressed === 'true' && pills[0].bg === 'rgb(15, 23, 43)' && pills[0].fg === 'rgb(255, 255, 255)',
+	// C-144: 選んでいる塗りは、そのツールの操作色（--uma-control）に白
+	assert(pills[0].pressed === 'true' && pills[0].bg === await tokRgb(page, 'var(--uma-control)') && pills[0].fg === 'rgb(255, 255, 255)',
 		'C-62 (1): 「すべて」は選択中で黒地に白', pills[0]);
 	const typedBg = pills.slice(1).map((p) => p.bg);
 	assert(new Set(typedBg).size === typedBg.length,
@@ -8723,20 +8734,23 @@ await block('C-62（61セッション目）: 棚卸しで挙がった11件', asy
 		'C-62 (2): 表の見出しに、種類の色が付いたサポートカードの列がある', table && table.typedHeads);
 	assert(new Set(table.typedHeads.map((h) => h.bg)).size >= 2,
 		'C-62 (2): 種類が違えば見出しの色も違う', table.typedHeads);
-	assert(table.umaHeadBg === 'rgb(68, 64, 59)',
+	// C-144: 育成ウマ娘の列の見出しは主要な操作の塗り（--uma-table-head-key-bg＝--uma-control。それまでは stone-700 の直書き）
+	assert(table.umaHeadBg === await tokRgb(page, 'var(--uma-control)'),
 		'C-62 (3): 育成ウマ娘の列は見出しの濃い地のまま（扱いを変えていない）', table.umaHeadBg);
 	// (4) 育成ウマ娘の列は、本体のセルにも地を敷く（C-63 の (4)）。1列おきの灰（slate-50）とは
 	// 別の値（slate-100）にして、縞の一部に見えないようにしてある。
 	const umaBody = table.bodyAlt.filter((c) => c.uma);
-	assert(umaBody.length === 1 && umaBody[0].bg === 'rgb(241, 245, 249)',
+	// C-144: 表の地はトークンの値と比べる（UmaStar は暖色の段：列の地 #f1e6d2・1列おき #f8f1e3・セル #fffdf8）
+	const KEY_BG = await tokRgb(page, 'var(--uma-table-col-key)'), ALT_BG = await tokRgb(page, 'var(--uma-table-col-alt)'), CELL_BG = await tokRgb(page, 'var(--uma-table-cell-bg, var(--uma-surface))');
+	assert(umaBody.length === 1 && umaBody[0].bg === KEY_BG,
 		'C-63 (4): 育成ウマ娘の列の本体のセルは薄い灰（--uma-table-col-key）', umaBody);
-	assert(umaBody[0].bg !== 'rgb(248, 250, 252)',
+	assert(umaBody[0].bg !== ALT_BG,
 		'C-63 (4): 1列おきの灰（--uma-table-col-alt）とは別の値', umaBody);
 	const alt = table.bodyAlt.filter((c) => c.alt);
-	assert(alt.length >= 2 && alt.every((c) => c.bg === 'rgb(248, 250, 252)'),
+	assert(alt.length >= 2 && alt.every((c) => c.bg === ALT_BG),
 		'C-62 (3): 1列おきの列は薄い灰（--uma-table-col-alt）', alt.slice(0, 3));
 	const plain = table.bodyAlt.filter((c) => !c.alt && !c.uma && c.bg);
-	assert(plain.some((c) => c.bg === 'rgb(255, 255, 255)'),
+	assert(plain.some((c) => c.bg === CELL_BG),
 		'C-62 (3): もう一方の列は白のまま（交互になっている）', plain.slice(0, 3));
 	const legendTyped = table.legend.filter((n) => n.typed);
 	assert(legendTyped.length >= 2,
@@ -8787,7 +8801,8 @@ await block('C-62 の (9): 結合画像への導線（引き出しの中のタ�
 		return { onLine: on.borderBottomColor, onWeight: on.fontWeight, offLine: off.borderBottomColor,
 			strip: getComputedStyle(document.querySelector('.drawer-tabs')).display };
 	});
-	assert(tabCss.strip === 'flex' && tabCss.onWeight === '600' && tabCss.onLine === 'rgb(28, 25, 23)'
+	// C-144: 下線は選択のしるし（--uma-control-mark）
+	assert(tabCss.strip === 'flex' && tabCss.onWeight === '600' && tabCss.onLine === await tokRgb(page, 'var(--uma-control-mark)')
 		&& tabCss.offLine === 'rgba(0, 0, 0, 0)',
 		'C-62 (9): タブ帯の見た目が共通CSS（shell.css）から当たっている', tabCss);
 

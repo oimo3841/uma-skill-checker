@@ -10,7 +10,7 @@
 //   (E) リセット（①②を別々に・互いに触らない・戻せる・消すものが無いときは押せない）
 //   (F) 3つのまとまりの見分け（ライト・ダーク）
 //   375px の高さ
-import { contrastRatio, deltaE } from './lib/pixels.mjs';
+import { contrastRatio, deltaE, tokRgb } from './lib/pixels.mjs';
 
 export async function register9(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA } = env;
@@ -330,7 +330,7 @@ export async function register9(env) {
 				tag + '左：セット名 16px/800。「✎ 2／10 ▾」は 11px・1px の線・角丸999px・薄い地の札', g1);
 			assert(g1.num.join() === '18px,800' && g1.k.join() === '12px,700' && g1.sub[0] === '10.5px' && /^(切れ者・|勉強家・)?①＋②$/.test(g1.sub[1]) && g1.subHelp,
 				tag + '右：1行目「N」18px/800＋Pt・／M種 12px/700、2行目「…①＋②」10.5px＋?', g1);
-			assert(g1.band[0] === 'rgb(233, 238, 246)' && g1.band[1] === '10px' && g1.band[2] === '8px' && g1.band[3] === '10px', tag + '①の「Pt／種」は薄い帯（角丸10px・横10px縦8px・背景 --uma-band）', g1.band);
+			assert(g1.band[0] === await tokRgb(sp.page, 'var(--uma-band)') &&   /* C-144: 帯の地はトークンの値（UmaStar は暖色 #efe4cf） */ g1.band[1] === '10px' && g1.band[2] === '8px' && g1.band[3] === '10px', tag + '①の「Pt／種」は薄い帯（角丸10px・横10px縦8px・背景 --uma-band）', g1.band);
 			assert(g1.pt[0] === '22px' && g1.pt[1] === '800' && /tabular-nums/.test(g1.pt[2]) && g1.unit.join() === '12px,700' && g1.kinds[0] === '14px' && g1.kinds[1] === '800' && g1.kinds[2] === '／' && g1.kunit.join() === '11px,種',
 				tag + '数字 22px/800・tabular-nums、Pt 12px/700、／N 14px/800、種 11px', g1);
 			assert(g1.btns.join() === '勉強家,切れ者,覚醒Lv5' && g1.scroll === 'auto', tag + '①の帯の右側は「勉強家 切れ者 覚醒Lv5」（足りなければ横スクロール）', g1.btns);
@@ -376,13 +376,13 @@ export async function register9(env) {
 					firstId: first.getAttribute('data-skill-id')
 				};
 			});
-			assert(o.band.bg === 'rgb(233, 238, 246)' && o.band.radius === '10px' && o.band.pad === '8px 10px', tag + '②の帯: 薄い地（--uma-band）・角丸10px・横10px縦8px', o.band);
+			assert(o.band.bg === await tokRgb(sp.page, 'var(--uma-band)') &&   /* C-144 */ o.band.radius === '10px' && o.band.pad === '8px 10px', tag + '②の帯: 薄い地（--uma-band）・角丸10px・横10px縦8px', o.band);
 			assert(o.cfg.style === 'dashed' && o.cfg.width === '1px' && o.cfg.radius === '10px' && o.cfg.bg !== 'rgba(0, 0, 0, 0)', tag + '②の設定の枠: 破線・薄い地・角丸10px', o.cfg);
-			assert(o.grp.style === 'solid' && o.grp.width === '1px' && o.grp.radius === '10px' && o.grp.bg === 'rgb(255, 255, 255)' && o.grp.padL === '8px', tag + '②のスキルのまとまり: 白い枠・線あり・角丸10px・横8px', o.grp);
+			assert(o.grp.style === 'solid' && o.grp.width === '1px' && o.grp.radius === '10px' && o.grp.bg === await tokRgb(sp.page, 'var(--uma-group-bg)') &&   /* C-144: まとまりの面はトークンの値（UmaStar は #fffdf8） */ o.grp.padL === '8px', tag + '②のスキルのまとまり: 白い枠・線あり・角丸10px・横8px', o.grp);
 			assert(o.order.every((v, i) => v !== null && (i === 0 || v > o.order[i - 1])) && o.inGroup.every(Boolean), tag + '上から 帯 → 設定の枠 → スキルのまとまり（入口・パレット・一覧はまとまりの中）', o);
 			assert(o.tagTexts[0].startsWith('継承固有') && /Pt／6種$/.test(o.tagTexts[0]) && o.tagTexts[1].startsWith('共通スキル') && /Pt／\d+種$/.test(o.tagTexts[1]) && /Pt／\d+種$/.test(o.sumText) && o.sumFs.join() === '22px,800',
 				tag + '帯の1段目「X Pt／N種」、タグは［継承固有 … Pt／6種］［共通スキル … Pt／N種］', o);
-			assert(o.tagBand.tagRadius === '7px' && o.tagBand.tagBorder === '1px' && o.tagBand.tagBg === 'rgb(255, 255, 255)', tag + 'タグは白地・線あり・角丸7px', o.tagBand);
+			assert(o.tagBand.tagRadius === '7px' && o.tagBand.tagBorder === '1px' && o.tagBand.tagBg === await tokRgb(sp.page, 'var(--uma-surface)'),   /* C-144 */ tag + 'タグは白地・線あり・角丸7px', o.tagBand);
 			if (w === 375) assert(o.tagBand.tag.top >= o.tagBand.sum.bottom && o.tagBand.reset.top < o.tagBand.tag.top && o.tagBand.reset.right > o.tagBand.tags.right - 40, tag + '375px: タグは2段目に折り返し、「↺」は1段目の右端', o.tagBand);
 			else assert(o.tagBand.tag.top < o.tagBand.sum.bottom && o.tagBand.reset.top < o.tagBand.sum.bottom, tag + '1280px: タグは1段目に並ぶ（「↺」も1段目の右端）', o.tagBand);
 			assert(/^継承固有/.test(o.cfgText) && /共通スキルのヒントLv/.test(o.cfgText), tag + '設定の枠は「継承固有 [6種▾][Lv3▾]」「共通スキルのヒントLv [5▾]」', o.cfgText);

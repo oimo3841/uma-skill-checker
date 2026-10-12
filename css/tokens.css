@@ -26,7 +26,7 @@
 	   各ページの EXPECTED_COMMON_CSS_VERSION を必ず揃えて上げること。
 	   （古い版がキャッシュされたままだとレイアウトが崩れるため、
 	     読み込み側で照合して警告を出している） */
-	--common-css-version: "2026-10-08f";
+	--common-css-version: "2026-10-12a";
 
 	/* ---- 面 ---- */
 	--uma-surface: #ffffff;          /* white     : カード・入力欄の地 */
@@ -122,8 +122,10 @@
 	--uma-table-rule: #e2e8f0;          /* slate-200 : 列の間の縦線・行の間の横線 */
 	--uma-table-rule-strong: #cad5e2;   /* slate-300 : 見出し行の下線 */
 	--uma-table-head-bg: #f8fafc;       /* slate-50  : 見出しのセルの地 */
-	--uma-table-head-key-bg: #44403b;   /* stone-700 : 主の列（育成ウマ娘）の見出しの地 */
-	--uma-table-head-key-text: #ffffff; /* 上の地の上の文字と印 */
+	/* 主の列（育成ウマ娘）の見出しは「主要な操作」の塗り（C-144。それまでは stone-700 #44403b と白の直書き） */
+	--uma-table-head-key-bg: var(--uma-control);
+	--uma-table-head-key-text: var(--uma-control-text);
+	--uma-table-head-key-edge: var(--uma-control-edge);
 	--uma-table-col-alt: #f8fafc;       /* slate-50  : 1列おきの薄い灰（C-62 の (3)） */
 	--uma-table-col-key: #f1f5f9;       /* slate-100 : 主の列（育成ウマ娘）の本体の地（C-63 の (4)）。
 	                                       1列おきの灰より一段濃くして、縞の一部に見えないようにする */
@@ -212,6 +214,28 @@
 	--uma-control-border-strong: #a8a29e;/* stone-400 : hover で一段濃い枠 */
 	--uma-control-disabled: #a8a29e;     /* stone-400 : 無効の文字 */
 	--uma-control-disabled-bg: #e7e5e4;  /* stone-200 : 無効の地 */
+	/* 操作色の役割（C-144・2026-10-12）。主要な操作＝塗り（--uma-control）、補助的な操作＝枠線のみ（--uma-control-mark）の2段で参照する。
+	   ツールごとの値は各ページの :root（ライト）と :root[data-theme="dark"]（ダーク）が持つ。ここの既定は C-143 までの見た目と同じ。
+	     --uma-control-text … 塗りの上の文字（ライト・ダークとも白。既定のダークは塗りが明るいので暗い文字のまま）
+	     --uma-control-edge … 塗りの縁の色（ダークで塗りが背景に近いとき、明るい縁で浮かせる）
+	     --uma-control-rim  … 縁を 2px に見せる外側の 1px の影（1px の枠＋この影で 2px。寸法は変えない。ライトは無し）。
+	                         枠の無い部品は inset 0 0 0 1px var(--uma-control-edge) と並べて 2px にする
+	     --uma-control-mark … 選択のしるし（タブの下線・ラジオの点・チェックの塗り・選んだ枠）と、枠線だけの操作の線と文字 */
+	--uma-control-text: #ffffff;
+	--uma-control-edge: var(--uma-control);
+	--uma-control-rim: 0 0 0 0 transparent;
+	--uma-control-mark: var(--uma-control);
+	/* 層の役割（C-144）。ページ／カード／パネル／オプションの4層。既定は C-143 までの見た目と同じ（各ページが :root で上書きする）
+	     --uma-card-border … カード（.glass-card）の枠／--uma-panel-bg・--uma-panel-border … カードの中の一段（パネル）
+	     --uma-option-border … パネルの中の選べる箱・入力欄の枠／--uma-aux-bg・--uma-aux-border … 補助ボタン（ヘッダーのアイコン・「？」・リセット）
+	     --uma-card-shadow … カードの影 */
+	--uma-card-border: var(--uma-border);
+	--uma-panel-bg: var(--uma-surface-sunken);
+	--uma-panel-border: var(--uma-border);
+	--uma-option-border: var(--uma-border);
+	--uma-aux-bg: var(--uma-surface);
+	--uma-aux-border: var(--uma-border);
+	--uma-card-shadow: none;
 
 	/* ---- キーボード操作のフォーカス枠 ----
 	   黒い部品の上でも輪が見えるように、部品の色とは変えて青にする。3ツール共通。 */
@@ -461,6 +485,7 @@
 	--uma-control-border-strong: #52607a;
 	--uma-control-disabled: #6b778b;
 	--uma-control-disabled-bg: #222a35;
+	--uma-control-text: #0f1318;   /* 既定のダークは塗りが明るい灰なので暗い文字（C-144 のツールの値では白） */
 
 	--uma-focus-ring: #6aa8ff;
 	--uma-notify: #ff6464;

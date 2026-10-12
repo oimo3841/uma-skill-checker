@@ -19,9 +19,9 @@
 	     このページの <style> が後から同じ指定で上書きしている（:focus-visible）。
 	     common.css の「Tailwind を読めなかったときの保険」は .uma-tw-ready が付くと無効になるので、
 	     special.html と同じ verifyTailwindLoaded() をこのページにも置いた（hidden sm:inline が効かなくなるため）。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-10-08f" />
-	<link rel="stylesheet" href="css/common.css?v=2026-10-08f" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-10-08f" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-10-12a" />
+	<link rel="stylesheet" href="css/common.css?v=2026-10-12a" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-10-12a" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
@@ -183,7 +183,7 @@
 		}
 		.found { color: #059669; font-weight: 600; }
 		.not-found { color: #94a3b8; }
-		.drop-active { border-color: var(--uma-control) !important; background-color: var(--uma-control-soft) !important; transform: scale(1.005); }
+		.drop-active { border-color: var(--uma-control-mark) !important; background-color: var(--uma-control-soft) !important; transform: scale(1.005); }
 		.dev-log {
 			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 			font-size: 0.725rem; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
@@ -206,7 +206,7 @@
 		/* 取り込み案内の「UmaSkill Deck を開いて取り込む」。Deck の色（.deck-accent の中で --uma-accent が
 		   Deck の色になる）で塗る。共通部品 .uma-btn は読んでいないので、このページのボタンの書き方で。 */
 		/* 「旧UIへ／新UIへ」の、新UI中の点灯（選んでいる状態なので操作の色＝黒） */
-		#deck-mode-btn.is-on { border-color: var(--uma-control-border); background: var(--uma-control-soft); color: var(--uma-control); }
+		#deck-mode-btn.is-on { border-color: var(--uma-control-border); background: var(--uma-control-soft); color: var(--uma-control-mark); }
 		/* 片道化（2026-09-15）: 新UIの間はこのボタンを出さない。Tailwind の inline-flex が display を
 		   当てているので、hidden 属性を自前で押す（F-13。css/shell.css の .uma-fab-item[hidden] と同じ理由） */
 		#deck-mode-btn[hidden] { display: none !important; }
@@ -257,7 +257,7 @@
 		/* 凡例は印の子。字下げと「└」で親子を示す */
 		.stitch-show-item--child { margin-left: var(--uma-sp-5); }
 		.stitch-show-branch { color: var(--uma-text-faint); font-weight: 400; }
-		.stitch-show-check { flex-shrink: 0; width: 1rem; height: 1rem; margin-top: 1px; accent-color: var(--uma-control); cursor: pointer; }
+		.stitch-show-check { flex-shrink: 0; width: 1rem; height: 1rem; margin-top: 1px; accent-color: var(--uma-control-mark); cursor: pointer; }
 		.stitch-show-sub { font-weight: 400; color: var(--uma-text-subtle); }
 		/* 効率を指定のとき、「蹄鉄（効率の区間）」のチェックの文字に添える虹の蹄鉄の小さな画像（約18px） */
 		.stitch-shoe-mini { display: inline-block; width: 18px; height: 18px; margin-left: 4px; vertical-align: -4px; }
@@ -416,7 +416,7 @@
 		.mode-btn:not(.active):hover { background-color: var(--uma-green-skill-soft); }
 		.copylist-btn { padding: 0.375rem 0.875rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid #e2e8f0; background: #fff; color: #64748b; }
 		.copylist-btn:hover { background-color: #f1f5f9; }
-		.copylist-btn.active { background-color: var(--uma-control); color: #fff; border-color: var(--uma-control); }
+		.copylist-btn.active { background-color: var(--uma-control); color: var(--uma-control-text); border-color: var(--uma-control-edge); box-shadow: var(--uma-control-rim); }
 
 		/* 効率を指定（βテスト・C-136）の区切りのバー。#scope-detail の位置に出す（選んでいる間だけ）。
 		   バーを4つの区間（左から 銅・銀・金・虹）の色で塗り、各区間の蹄鉄はバーの下に置く。区間の名前の文字は出さない。
@@ -621,7 +621,7 @@
 		:root[data-theme="dark"] .eff-scale, :root[data-theme="dark"] .eff-msg { color: var(--uma-text-muted); }
 		:root[data-theme="dark"] .copylist-btn { border-color: var(--uma-border); background: var(--uma-surface); color: var(--uma-text-subtle); }
 		:root[data-theme="dark"] .copylist-btn:hover { background-color: var(--uma-surface-muted); }
-		:root[data-theme="dark"] .copylist-btn.active { background-color: var(--uma-control); border-color: var(--uma-control); color: var(--uma-text-inverse); }
+		:root[data-theme="dark"] .copylist-btn.active { background-color: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); }
 		:root[data-theme="dark"] svg path[stroke="#cbd5e1"] { stroke: var(--uma-border-strong); }
 		/* 青の主ボタン（bg-blue-600）の hover は、ダークの表では blue-700 が淡い青になるので 600 のまま */
 		:root[data-theme="dark"] .hover\:bg-blue-700:hover { background-color: var(--color-blue-600); }
@@ -665,7 +665,7 @@
 
 					<!-- ツール切り替えドロップダウン -->
 					<button id="tool-dropdown-btn" type="button" onclick="toggleToolDropdown()" class="uma-btn uma-btn--secondary" aria-label="ツール切替" title="ツール切替">
-						<i data-lucide="layout-grid" class="w-4 h-4 text-[var(--uma-control)]"></i>
+						<i data-lucide="layout-grid" class="w-4 h-4 text-[var(--uma-control-mark)]"></i>
 					</button>
 
 					<div id="tool-dropdown-menu" class="hidden absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2.5rem)] bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-xl z-50 p-1.5 transition-all">
@@ -776,7 +776,7 @@
 		<div id="eff-help-box" class="uma-overlay notice-dialog" hidden role="dialog" aria-modal="true" aria-labelledby="eff-help-title">
 			<div class="help-head">
 				<h2 id="eff-help-title" class="help-title">
-					<i data-lucide="sliders-horizontal" class="w-4 h-4 text-[var(--uma-control)]"></i>
+					<i data-lucide="sliders-horizontal" class="w-4 h-4 text-[var(--uma-control-mark)]"></i>
 					<span>効率を指定（βテスト）</span>
 				</h2>
 				<button id="eff-help-close" type="button" onclick="closeEffHelp()" aria-label="閉じる" class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer">
@@ -1359,7 +1359,7 @@
 				<div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-2">
 					<div class="relative w-full sm:w-64">
 						<i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
-						<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-[var(--uma-control)]" />
+						<input type="text" id="table-search" oninput="filterResults()" placeholder="スキル名で絞り込み..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-[var(--uma-control-mark)]" />
 					</div>
 					<div class="flex items-center gap-1 text-xs w-full sm:w-auto justify-end">
 						<button type="button" onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg bg-slate-900 text-white font-medium">すべて</button>
@@ -1453,7 +1453,7 @@
 					<label for="stitch-save-name" class="block text-xs font-bold text-slate-700 mb-1.5">保存するときの名前（任意）</label>
 					<input type="text" id="stitch-save-name" maxlength="40" placeholder="例：9月因子"
 						oninput="onStitchSaveNameInput()"
-						class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-[var(--uma-control)]" />
+						class="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-[var(--uma-control-mark)]" />
 					<p class="mt-1.5 text-[11px] text-slate-400">
 						<!-- 見本と「.png」の間に空白を入れないため、2つの span を続けて書く -->
 						<span id="stitch-save-name-preview" class="font-mono text-slate-500"></span><span>.png として保存されます（番号は保存するたびに増え、日付が変わると001に戻ります）</span>
@@ -2490,7 +2490,7 @@
 		 * 同じ版数の印を持つ。このページが読む3つを全部読み、期待値と食い違うものがあれば警告する。
 		 * special.html と同じ方式（common.css は 59セッション目・段1 から読む）。
 		 * ============================================================ */
-		const EXPECTED_COMMON_CSS_VERSION = '2026-10-08f';
+		const EXPECTED_COMMON_CSS_VERSION = '2026-10-12a';
 		const COMMON_CSS_FILES = [
 			['css/tokens.css', '--common-css-version'],
 			['css/common.css', '--uma-components-css-version'],
@@ -3302,7 +3302,7 @@
 					<label class="person-drop-zone group block cursor-pointer rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-[var(--uma-control-soft)]/40 hover:border-[var(--uma-control-border-strong)] transition-all p-4 text-center mb-2" data-person="${idx}">
 						<input type="file" accept="image/*" multiple class="hidden person-file-input" data-person="${idx}" />
 						<div class="flex flex-col items-center justify-center gap-1">
-							<i data-lucide="upload-cloud" class="w-5 h-5 text-slate-500 group-hover:text-[var(--uma-control)]"></i>
+							<i data-lucide="upload-cloud" class="w-5 h-5 text-slate-500 group-hover:text-[var(--uma-control-mark)]"></i>
 							<p class="text-[11px] font-medium text-slate-600">${label}のスクショを選択</p>
 						</div>
 					</label>
@@ -8200,7 +8200,7 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		const OCR_HANDOFF_STORAGE_KEY = 'umaSkillDeck:ocrHandoff:exam';
 		// Deck の引き出し（iframe）が読むページ。?v= は js/uma-skill-deck.js の版に合わせる決まり
 		// （HTML自体のキャッシュ対策。tests/visual/run-verify.mjs が一致を検査する）。
-		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-10-08i';
+		const DECK_PAGE_URL = 'uma-skill-deck.html?v=2026-10-12a';
 		// Deck の引き出しを開いた時点の handoffId。一度見に行った結果には新着の印を出さない
 		// （Deck 側の「閉じる」は localStorage に痕跡を残さないため、開いたことで下ろす。F-27④）。
 		let deckSeenHandoffId = null;

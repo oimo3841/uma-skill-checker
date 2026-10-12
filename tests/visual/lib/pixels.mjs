@@ -93,3 +93,7 @@ export function deltaE(a, b) {
 }
 
 export const hexOf = ([r, g, b]) => '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
+
+/** C-144: CSS の値（var(--…) など）を、そのページで実際に描かれる色（rgb(…)）にして返す。
+    操作色や面の色はツールごと・単位ごとに変わるので、検査は色の直書きではなくトークンと比べる */
+export const tokRgb = (page, expr) => page.evaluate((x) => { const d = document.createElement('i'); d.style.backgroundColor = x; document.body.appendChild(d); const v = getComputedStyle(d).backgroundColor; d.remove(); return v; }, expr);

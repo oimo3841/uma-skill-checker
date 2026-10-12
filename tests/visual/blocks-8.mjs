@@ -237,7 +237,8 @@ export async function register8(env) {
 					nameColor: getComputedStyle(r.querySelector('.usd-roster-skillname')).color };
 			}));
 			const heal = rows.filter((r) => r.cls.includes('usd-roster-grow--heal') && !r.cls.includes('--gold') && !r.cls.includes('--unique') && !r.cls.includes('--off'));
-			assert(heal.length >= 2 && heal.every((r) => r.nameBg === 'rgb(255, 255, 255)' || r.nameBg === 'rgba(0, 0, 0, 0)') && heal.every((r) => rgb(r.nameColor) === '11,95,165'),
+			const cellBg = await sp.page.evaluate(() => { const d = document.createElement('i'); d.style.backgroundColor = 'var(--uma-table-cell-bg, var(--uma-surface))'; document.body.appendChild(d); const v = getComputedStyle(d).backgroundColor; d.remove(); return v; });
+			assert(heal.length >= 2 && heal.every((r) => r.nameBg === cellBg || r.nameBg === 'rgba(0, 0, 0, 0)')   /* C-144: 表のセルの地（--uma-table-cell-bg。UmaStar は #fffdf8） */ && heal.every((r) => rgb(r.nameColor) === '11,95,165'),
 				tag + '回復の行は地が白で、名前の文字だけ青（' + heal.length + '行）', heal.slice(0, 3));
 			const prevRows = rows.filter((r) => r.cls.includes('usd-roster-grow--prev'));
 			const normal = rows.find((r) => !r.cls.includes('usd-roster-grow--prev'));

@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-10-08f";
+	--uma-shell-css-version: "2026-10-12a";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -83,7 +83,7 @@
 .step-tab:hover { color: var(--uma-text-heading); }
 .step-tab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
 /* 選んでいるタブの下線は操作の色（黒）。ページの色ではない */
-.step-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control); }
+.step-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control-mark); }
 .step-tab-num {
 	flex: none; width: 24px; height: 24px; border-radius: var(--uma-r-full);
 	display: flex; align-items: center; justify-content: center;
@@ -182,17 +182,17 @@
 }
 .uma-subtab:hover { color: var(--uma-text-heading); }
 .uma-subtab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
-.uma-subtab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control); }
-.uma-subtab[aria-selected="true"] .uma-subtab-count { background: var(--uma-control); color: var(--uma-text-inverse); }
+.uma-subtab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control-mark); }
+.uma-subtab[aria-selected="true"] .uma-subtab-count { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }
 .uma-subtab--new { font-weight: 700; }
 .uma-subtab--tinted[aria-selected="true"] {
 	background: var(--uma-subtab-tint-bg, transparent);
 	color: var(--uma-subtab-tint-fg, var(--uma-text-heading));
-	border-bottom-color: var(--uma-subtab-tint-line, var(--uma-control));
+	border-bottom-color: var(--uma-subtab-tint-line, var(--uma-control-mark));
 	border-radius: var(--uma-r-sm) var(--uma-r-sm) 0 0;
 }
 .uma-subtab--tinted[aria-selected="true"] .uma-subtab-count {
-	background: var(--uma-subtab-tint-fg, var(--uma-control)); color: var(--uma-text-inverse);
+	background: var(--uma-subtab-tint-fg, var(--uma-surface-inverse)); color: var(--uma-text-inverse);
 }
 @media (max-width: 640px) {
 	.uma-subtabs { flex-basis: 100%; }   /* 見出しの下の行へ折り返し、帯に幅いっぱいを使う */
@@ -264,9 +264,9 @@
 	display: inline-flex; align-items: center; gap: var(--uma-sp-2);
 	padding: var(--uma-sp-2-5) var(--uma-sp-4);
 	border: 0; border-radius: var(--uma-r-full);
-	background: var(--uma-surface-inverse); color: var(--uma-text-inverse);
+	background: var(--uma-control); color: var(--uma-control-text);
 	font: inherit; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600;
-	box-shadow: var(--uma-shadow-3); cursor: pointer; white-space: nowrap;
+	box-shadow: inset 0 0 0 1px var(--uma-control-edge), var(--uma-control-rim), var(--uma-shadow-3); cursor: pointer; white-space: nowrap;
 }
 .uma-undo-fab:hover { background: var(--uma-control-hover); }
 .uma-undo-fab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }
@@ -274,7 +274,7 @@
 .uma-undo-fab-count {
 	font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 700;
 	padding: 0 var(--uma-sp-1-5); border-radius: var(--uma-r-full);
-	background: color-mix(in srgb, var(--uma-text-inverse) 20%, transparent);  /* 黒い地の上の白の 20%（ダークでは明るい地の上の暗い色の 20%） */
+	background: color-mix(in srgb, var(--uma-control-text) 20%, transparent);  /* 黒い地の上の白の 20%（ダークでは明るい地の上の暗い色の 20%） */
 }
 @media (min-width: 768px) {
 	.uma-undo-fab { left: max(var(--uma-fab-edge), calc(50% - var(--uma-content-half, 512px))); }
@@ -342,9 +342,9 @@
 .uma-fab-toggle {
 	width: var(--uma-fab-size); height: var(--uma-fab-size); flex-shrink: 0;
 	border: none; border-radius: var(--uma-r-full);
-	background: var(--uma-control); color: var(--uma-text-inverse);
+	background: var(--uma-control); color: var(--uma-control-text);
 	display: flex; align-items: center; justify-content: center;
-	box-shadow: var(--uma-fab-shadow), var(--uma-shadow-2);
+	box-shadow: inset 0 0 0 1px var(--uma-control-edge), var(--uma-control-rim), var(--uma-fab-shadow), var(--uma-shadow-2);
 	cursor: pointer;
 	transition: background-color var(--uma-transition), transform var(--uma-transition);
 }
@@ -430,7 +430,7 @@
 	transition: color var(--uma-transition), border-color var(--uma-transition);
 }
 .drawer-tab:hover:not(:disabled) { color: var(--uma-text-heading); }
-.drawer-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control); }
+.drawer-tab[aria-selected="true"] { color: var(--uma-text-heading); border-bottom-color: var(--uma-control-mark); }
 .drawer-tab:disabled { color: var(--uma-text-faint); cursor: not-allowed; }
 .drawer-tab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }
 /* 未読の点はタブの文字の右に置く（FABの点と同じ見た目を借りるが、位置だけ流し込みに戻す） */
@@ -617,7 +617,7 @@
 .stitch-accent-icon { background: var(--uma-stitch-soft); color: var(--uma-stitch-soft-text); }
 /* 「いま新UIにいる」ことを示す、二次ボタンの点灯状態（旧UIへ／新UIへ のボタン） */
 /* 選んでいる状態の表示は操作の色（黒）で示す */
-.uma-btn.is-on { border-color: var(--uma-control-border); background: var(--uma-control-soft); color: var(--uma-control); }
+.uma-btn.is-on { border-color: var(--uma-control-border); background: var(--uma-control-soft); color: var(--uma-control-mark); }
 /* 結果の先頭に置く取り込み案内（未取り込みのとき。取り込み済みは各ページの緑のユーティリティ） */
 .deck-note { border: 1px solid var(--uma-accent-border); border-radius: var(--uma-r-lg); background: var(--uma-accent-soft); padding: var(--uma-sp-4); }
 .deck-note-title { color: var(--uma-accent-soft-text); }

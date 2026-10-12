@@ -12,17 +12,17 @@
 	     Tailwindのユーティリティは @layer utilities に入るため、レイヤーに属さない
 	     これらの方が強い。読み込み順は tokens → common → Tailwind → 下の<style>で、
 	     「共通の土台 → ユーティリティ → このページ固有の上書き」の三層になる。 -->
-	<link rel="stylesheet" href="css/tokens.css?v=2026-10-08f" />
-	<link rel="stylesheet" href="css/common.css?v=2026-10-08f" />
-	<link rel="stylesheet" href="css/shell.css?v=2026-10-08f" />
+	<link rel="stylesheet" href="css/tokens.css?v=2026-10-12a" />
+	<link rel="stylesheet" href="css/common.css?v=2026-10-12a" />
+	<link rel="stylesheet" href="css/shell.css?v=2026-10-12a" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss-browser/4.1.11/index.global.js"></script>
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
 	<style type="text/tailwindcss">@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));</style>
 	<script src="https://unpkg.com/lucide@latest"></script>
 	<!-- 共有モジュール（データ層・テンプレート管理UI・レコード書き込み。special.htmlのDeck連携モードと共有） -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-12c"></script>
-	<script src="js/uma-skill-deck.js?v=2026-10-08i"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-12d"></script>
+	<script src="js/uma-skill-deck.js?v=2026-10-12a"></script>
 	<style>
 		/* Tailwind の hidden と同義。CDNを読めなかった場合でも非表示要素が
 		   全部見えてしまわないための保険で、このページは意図的に残している。
@@ -89,7 +89,7 @@
 		   （2026-09-15・43セッション目） */
 		.tab-active {
 			background: var(--uma-control-soft);
-			color: var(--uma-control);
+			color: var(--uma-control-mark);
 			border-color: var(--uma-control-border);
 			font-weight: 600;
 		}
@@ -257,7 +257,7 @@
 		}
 		.deck-cand-pill input[type=checkbox] {
 			width: 11px; height: 11px; margin: 0; flex: 0 0 auto;
-			accent-color: var(--uma-control);
+			accent-color: var(--uma-control-mark);
 		}
 		.deck-cand-name {
 			background: none; border: none; padding: 0;

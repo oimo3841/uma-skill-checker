@@ -163,7 +163,7 @@ export async function register7d(env) {
 			await sp.page.selectOption(P + 'select[data-axis="distance"]', 'long');
 			await sp.page.waitForTimeout(150);
 			const on1 = await sel('distance'), off1 = await sel('style');
-			const inverse = await sp.page.evaluate(() => { const d = document.createElement('div'); d.style.cssText = 'color:var(--uma-text-inverse);background:var(--uma-surface-inverse)'; document.body.appendChild(d); const c = getComputedStyle(d); const r = { color: c.color, bg: c.backgroundColor }; d.remove(); return r; });
+			const inverse = await sp.page.evaluate(() => { const d = document.createElement('div'); d.style.cssText = 'color:var(--uma-control-text);background:var(--uma-control)';   /* C-144: 選んだセレクトは主要な操作の塗り（それまでは反転色 --uma-surface-inverse） */ document.body.appendChild(d); const c = getComputedStyle(d); const r = { color: c.color, bg: c.backgroundColor }; d.remove(); return r; });
 			assert(on1.on && on1.color === inverse.color && on1.bg === inverse.bg && !off0.on && !off1.on && off1.bg !== inverse.bg,
 				'段7d(A)④: 「指定なし」以外を選んだセレクトは、白文字・黒背景（--uma-text-inverse／--uma-surface-inverse）。指定なしのままのものは変わらない', { on1, off0, off1, inverse });
 			await sp.page.selectOption(P + 'select[data-axis="distance"]', '');
@@ -183,7 +183,7 @@ export async function register7d(env) {
 				const sp = await open({ w, h: 800 });
 				const m = await sp.page.evaluate(() => {
 					const pill = document.querySelector('header .header-edition-pill'); const beta = document.querySelector('header .header-edition'); const hd = document.querySelector('header'); const h1 = document.querySelector('header h1');
-					const cs = getComputedStyle(pill); const pr = pill.getBoundingClientRect(); const probe = document.createElement('i'); probe.style.cssText = 'background:var(--uma-accent-soft);color:var(--uma-accent-soft-text)'; document.body.appendChild(probe);
+					const cs = getComputedStyle(pill); const pr = pill.getBoundingClientRect(); const probe = document.createElement('i'); probe.style.cssText = 'background:var(--star-badge-green-bg, var(--uma-accent-soft));color:var(--star-badge-green-text, var(--uma-accent-soft-text))';   /* C-144: ピルは緑のバッジの色（--star-badge-green-*。無ければ従来の --uma-accent-soft） */ document.body.appendChild(probe);
 					const pc = getComputedStyle(probe); const soft = { bg: pc.backgroundColor, color: pc.color }; probe.remove();
 					const btnLeft = Math.min(...Array.from(hd.querySelectorAll('button')).map((b) => b.getBoundingClientRect().left).filter((x) => x > 0));
 					return { tag: pill.tagName, full: pill.innerText.replace(/\s+/g, ' ').trim(), short: hd.hasAttribute('data-hdr-short'), insideH1: h1.contains(pill), fs: cs.fontSize, fw: cs.fontWeight, h: Math.round(pr.height * 10) / 10, cursor: cs.cursor, bg: cs.backgroundColor, color: cs.color, soft, betaFs: getComputedStyle(beta).fontSize, betaText: beta.textContent.trim(),

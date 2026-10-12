@@ -178,8 +178,6 @@ export async function registerDark(env) {
 		const KEEP = {
 			'--uma-star': '★の橙は暗い面の上でも読める（面 #171d26 に対して 8 以上）',
 			'--uma-mark-green-skill': '緑スキルの●は暗い面の上でも読める（emerald-500）',
-			'--uma-table-head-key-bg': '濃い地（stone-700）に白文字の組で、ダークの中でもそのまま読める',
-			'--uma-table-head-key-text': '上の地の上の白文字',
 			'--uma-text-on-color': '色の付いた地の上の白い文字。ダークでも白',
 			'--uma-toast-bg': 'トーストはダークでも暗いまま（決定7）',
 		};

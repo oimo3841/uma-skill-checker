@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-12c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-12d';
 
 	/* ============================================================
 	 * 定数
@@ -4571,7 +4571,7 @@
 		'.usd-out-seg { display: inline-flex; gap: var(--uma-sp-1); }',
 		'.usd-out-segbtn { font: inherit; font-size: 11px; line-height: 1.2; font-weight: 600; height: 28px; padding: 0 var(--uma-sp-3); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
 		'  background: var(--uma-surface); color: var(--uma-text); cursor: pointer; white-space: nowrap; }',
-		'.usd-out-segbtn[aria-pressed="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
+		'.usd-out-segbtn[aria-pressed="true"] { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }',
 		// 見出し行の3つのボタン（④・段10）と、選択欄の中のチップの並び。押せないチップは色だけで示す
 		'.usd-out-optbtn { display: inline-flex; align-items: center; gap: 2px; padding: 0 var(--uma-sp-2-5); flex: none; }',
 		// 段13・C2: 「除外：デバフ・持久力回復 ▾」は、入りきらない分を「…」で切る（見出し行は 320px でも1行）。ほかの2つのボタンは縮めない
@@ -4782,7 +4782,7 @@
 		'.usd-tab:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -3px; }',
 		'.usd-tab-main { font-weight: 600; }',
 		'.usd-tab[aria-selected="true"] { color: var(--uma-text); background: var(--uma-surface); }',
-		'.usd-tab[aria-selected="true"] .usd-tab-main { font-weight: 700; color: var(--uma-control); }',
+		'.usd-tab[aria-selected="true"] .usd-tab-main { font-weight: 700; color: var(--uma-control-mark); }',
 
 		/* --- 1行に収まるとき：フォルダの見出し風 --- */
 		// パネル上端の線はタブバー全体で引く。選択中タブがこの線を塗り潰して「つながって」見える
@@ -4798,7 +4798,7 @@
 		// 選択中：一段持ち上がり、上端に黒い帯（操作の色）、下の線を消してパネルと地続きにする
 		'[data-usd-rows="1"] .usd-tab[aria-selected="true"] { margin-top: 0;',
 		'  min-height: calc(3.1rem + var(--usd-tab-lift)); border-bottom-color: var(--uma-surface);',
-		'  box-shadow: inset 0 3px 0 var(--uma-control); z-index: 1; }',
+		'  box-shadow: inset 0 3px 0 var(--uma-control-mark); z-index: 1; }',
 		'[data-usd-rows="1"] .usd-tabpanels { border-top: 0; border-radius: 0 0 var(--uma-r-lg) var(--uma-r-lg); }',
 
 		/* --- 収まらないとき：角丸ボタンの格子（狭い画面。4列×2段など） --- */
@@ -4811,7 +4811,7 @@
 		'[data-usd-rows="multi"] .usd-tab { min-height: 2.6rem; padding: var(--uma-sp-1) var(--uma-sp-2);',
 		'  border-radius: var(--uma-r-md); }',
 		'[data-usd-rows="multi"] .usd-tab[aria-selected="true"] { background: var(--uma-control-soft);',
-		'  border-color: var(--uma-control); box-shadow: inset 0 2px 0 var(--uma-control); }',
+		'  border-color: var(--uma-control-mark); box-shadow: inset 0 2px 0 var(--uma-control-mark); }',
 		'[data-usd-rows="multi"] .usd-tabpanels { border-radius: 0 0 var(--uma-r-lg) var(--uma-r-lg); }',
 
 		/* 件数バッジ（C-14）。条件が入っている軸のタブの角に出して、
@@ -4908,7 +4908,7 @@
 		'[data-usd-open="false"] .usd-tabpanels { display: none; }',
 		'[data-usd-open="false"] [data-usd-rows="1"] .usd-tab[aria-selected="true"] {',
 		'  margin-top: var(--usd-tab-lift); min-height: 3.1rem;',
-		'  border-bottom-color: var(--uma-border); box-shadow: inset 0 3px 0 var(--uma-control); }',
+		'  border-bottom-color: var(--uma-border); box-shadow: inset 0 3px 0 var(--uma-control-mark); }',
 
 		/* 絞り込み結果の一覧。**畳んで空いたぶんをここが受け取る。**
 		 *
@@ -5077,7 +5077,7 @@
 		'.usd-tier-tabs { display: inline-flex; gap: var(--uma-sp-1); }',
 		'.usd-tier-tab .usd-tier-count { font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 700;',
 		'  padding: 0 var(--uma-sp-1-5); border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text-subtle); }',
-		'.usd-tier-tab.active .usd-tier-count { background: rgba(255, 255, 255, .2); color: var(--uma-text-inverse); }',
+		'.usd-tier-tab.active .usd-tier-count { background: rgba(255, 255, 255, .2); color: var(--uma-control-text); }',
 		'.usd-tier-total { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); margin-left: auto; }',
 		// 「再分類」「削除」のモード（C-57 の (9)）。押した状態を持つボタン。同時には ON にならない。既定は両方 OFF
 		'.usd-mode-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-2); }',
@@ -5085,7 +5085,7 @@
 		'  padding: var(--uma-sp-0-5) var(--uma-sp-2-5); border-radius: var(--uma-r-full); cursor: pointer;',
 		'  border: 1px solid var(--uma-control-border); background: var(--uma-surface); color: var(--uma-text-heading); }',
 		'.usd-mode-btn:hover { border-color: var(--uma-control-border-strong); background: var(--uma-control-soft); }',
-		'.usd-mode-btn[aria-pressed="true"] { background: var(--uma-control); border-color: var(--uma-control); color: var(--uma-text-inverse); }',
+		'.usd-mode-btn[aria-pressed="true"] { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }',
 		'.usd-mode-btn:disabled { color: var(--uma-control-disabled); background: var(--uma-control-disabled-bg); border-color: var(--uma-control-disabled-bg); cursor: default; }',
 		// スキルパネル（C-57 の (7)(8)）。ゲームの「スキルセット詳細」のパネルに寄せた箱（色は tokens.css の --uma-skillpanel-*）。
 		// 並びは CSS Grid: PC は画面幅に合わせて可変（auto-fill）、640px 以下は 2 列固定（ゲームと同じ）。
@@ -5140,8 +5140,8 @@
 		'.usd-roster-pill--typed { background: var(--usd-card-bg); border-color: var(--usd-card-border); color: var(--usd-card-text); }',
 		'.usd-roster-pill--typed[aria-pressed="true"] { border-color: var(--usd-card-text); box-shadow: inset 0 0 0 1px currentColor; font-weight: 700; }',
 		// 「すべて」は種類ではないので黒と白（選択中＝黒地に白）
-		'.usd-roster-pill--all[aria-pressed="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse);',
-		'  color: var(--uma-text-inverse); font-weight: 700; }',
+		'.usd-roster-pill--all[aria-pressed="true"] { background: var(--uma-control); border-color: var(--uma-control-edge); box-shadow: var(--uma-control-rim);',
+		'  color: var(--uma-control-text); font-weight: 700; }',
 		// ★取り表（C-51 の10節⑥）。<table> ではなく div ＋ CSS Grid（比較シートと同じ流儀）。
 		// **縦スクロールだけ**にする（overflow-x: hidden）。横スクロールを作らないので、
 		// スマホで縦横が同時に動く「斜めスクロール」は構造的に起きない。幅が足りないぶんは
@@ -5200,7 +5200,7 @@
 		'.usd-roster-gh { position: sticky; top: 0; z-index: 1; background: var(--uma-table-head-bg);',
 		'  font-weight: 700; color: var(--uma-text-heading); border-bottom: 1px solid var(--uma-table-rule-strong); }',
 		// 育成ウマ娘の列は見出しのセルだけ濃い地（--uma-table-head-key-bg）に白い文字と ♦
-		'.usd-roster-gh.usd-roster-gc--uma { background: var(--uma-table-head-key-bg); color: var(--uma-table-head-key-text); }',
+		'.usd-roster-gh.usd-roster-gc--uma { background: var(--uma-table-head-key-bg); color: var(--uma-table-head-key-text); box-shadow: inset 0 0 0 2px var(--uma-table-head-key-edge, transparent); }',
 		'.usd-roster-gh.usd-roster-gc--uma.usd-roster-gh--empty { color: var(--uma-table-head-key-text); opacity: 1; }',
 		'.usd-roster-gh--empty { color: var(--uma-text-faint); font-weight: 400; }',
 		// 見出しのセルは、サポートカードの種類ごとの色（C-62 の (2)）。1列おきの灰より後に書いて
@@ -5220,7 +5220,7 @@
 		// 育成ウマ娘の見出しと凡例の印は**白い ♦（正方形を 45 度回したもの）**（C-57 の作業A。◎ → ● → ♦）。
 		// 見出しと同じ濃い地のチップに白い ♦ を CSS で描く（見出しの中では地が同じなので ♦ だけが見える）。
 		'.usd-roster-umamark { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 16px;',
-		'  background: var(--uma-table-head-key-bg); border-radius: var(--uma-r-sm); }',
+		'  background: var(--uma-table-head-key-bg); border-radius: var(--uma-r-sm); box-shadow: inset 0 0 0 1px var(--uma-table-head-key-edge, transparent); }',
 		'.usd-roster-umamark::before { content: ""; display: block; width: 7px; height: 7px; background: var(--uma-table-head-key-text);',
 		'  transform: rotate(45deg); }',
 		// 番号のバッジ（表の列見出し・カードの選択欄・イベントの小窓の見出しが使う部品。凡例は段7c の L で削除した）
@@ -5343,9 +5343,9 @@
 		'  font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); min-height: 32px; }',
 		'.usd-ntabs .uma-subtab:focus-visible { border-radius: var(--uma-r-full); }',
 		'.usd-ntab { flex: none; display: inline-flex; align-items: center; min-height: 32px; border-radius: var(--uma-r-full); scroll-snap-align: start; }',
-		'.usd-ntab--sel { background: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
+		'.usd-ntab--sel { background: var(--uma-control); color: var(--uma-control-text); box-shadow: inset 0 0 0 1px var(--uma-control-edge), var(--uma-control-rim); }',
 		'.usd-ntabs .usd-ntab--sel .uma-subtab { background: transparent; border-color: transparent; color: inherit; max-width: 180px; padding-inline-end: var(--uma-sp-1); }',
-		'.usd-ntab--edit { background: var(--uma-surface); border: 1px solid var(--uma-control); padding-inline-start: var(--uma-sp-2); }',
+		'.usd-ntab--edit { background: var(--uma-surface); border: 1px solid var(--uma-control-mark); padding-inline-start: var(--uma-sp-2); }',
 		'.usd-ntab-input { width: 150px; max-width: 46vw; min-width: 0; height: 28px; padding: 0 var(--uma-sp-1-5); border: 0; outline: 0; background: transparent;',
 		'  color: var(--uma-text-heading); font: inherit; font-size: var(--uma-fs-sm); }',
 		'.usd-ntab-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0;',
@@ -5376,10 +5376,10 @@
 		'.usd-roster-umarow { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; }',
 		'.usd-roster-umabox { flex: 1 1 auto; }',
 		'.usd-roster-umainfo { flex: none; width: 28px; height: 28px; }',
-		'.usd-roster-umabox.usd-roster-pickbox--filled { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
-		'.usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-pickbtn { color: var(--uma-text-inverse); }',
-		'.usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-clearbtn { color: var(--uma-text-inverse); border-left-color: rgba(255,255,255,.28); }',
-		'.usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-clearbtn:hover { background: rgba(255,255,255,.16); color: var(--uma-text-inverse); }',
+		'.usd-roster-umabox.usd-roster-pickbox--filled { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }',
+		'.usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-pickbtn { color: var(--uma-control-text); }',
+		'.usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-clearbtn { color: var(--uma-control-text); border-left-color: rgba(255,255,255,.28); }',
+		'.usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-clearbtn:hover { background: rgba(255,255,255,.16); color: var(--uma-control-text); }',
 		'.usd-roster-pickbox.usd-roster-card--typed .usd-roster-pickbtn { color: var(--usd-card-text); }',
 		'.usd-roster-pickbox:not(.usd-roster-pickbox--filled) .usd-roster-pickbtn { color: var(--uma-text-subtle); font-weight: 500; }',
 		'.usd-roster-clearbtn { flex: none; width: 32px; min-height: 32px; padding: 0; border: 0; border-left: 1px solid var(--uma-border);',
@@ -5396,20 +5396,20 @@
 		'.usd-roster-sumbtns > * { flex: none; white-space: nowrap; }',
 		'.usd-roster-togglebtn { font: inherit; font-size: 11px; line-height: 1.2; font-weight: 600; padding: var(--uma-sp-1) var(--uma-sp-1-5); min-height: 28px;',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text); cursor: pointer; white-space: nowrap; }',
-		'.usd-roster-togglebtn[aria-pressed="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
+		'.usd-roster-togglebtn[aria-pressed="true"] { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }',
 		'.usd-roster-togglebtn:disabled { color: var(--uma-text-faint); border-style: dashed; cursor: not-allowed; }',
 		// 絞り込みの行（(17)）: 距離・脚質・バ場の3つのセレクトを1行に
 		'.usd-roster-filterrow { display: flex; flex-wrap: nowrap; gap: var(--uma-sp-1-5); min-width: 0; }',
 		'.usd-roster-filter { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 0; }',
 		'.usd-roster-filterlabel { font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); color: var(--uma-text-subtle); font-weight: 600; }',
-		'.usd-roster-filtersel.usd-roster-filtersel--on { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
+		'.usd-roster-filtersel.usd-roster-filtersel--on { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }',
 		'.usd-roster-filtersel option { background: var(--uma-surface); color: var(--uma-text); }',
 		'.usd-roster-filtersel { width: 100%; min-width: 0; padding: var(--uma-sp-1) var(--uma-sp-1-5); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
 		// レースで固定している軸（④・段8）: 選んだ形の濃色のまま押せない（色だけで示す。opacity は使わない）＋左に小さな錠の印
 		'.usd-roster-filter--locked { position: relative; }',
 		'.usd-roster-filter--locked .usd-roster-filtersel { padding-left: 17px; cursor: default; }',
-		'.usd-roster-filter--locked .usd-roster-filtersel:disabled { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); opacity: 1; }',
-		'.usd-roster-filterlock { position: absolute; left: 5px; top: 50%; transform: translateY(-50%); pointer-events: none; fill: var(--uma-text-inverse); color: var(--uma-text-inverse); }',
+		'.usd-roster-filter--locked .usd-roster-filtersel:disabled { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); opacity: 1; }',
+		'.usd-roster-filterlock { position: absolute; left: 5px; top: 50%; transform: translateY(-50%); pointer-events: none; fill: var(--uma-control-text); color: var(--uma-control-text); }',
 		// 表（(14)(15)(16)(18)）: 狭い幅ではスキル名の列を 1/3、メンバーの列の全体を 2/3 に。名前と Pt は1行（nowrap）で、セルの中だけ横に送る
 		'.usd-roster-namescroll { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; width: 100%; white-space: nowrap;',
 		'  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; }',
@@ -5499,7 +5499,7 @@
 		'.usd-roster-choice { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--uma-sp-1) var(--uma-sp-2); width: 100%; text-align: left;',
 		'  padding: var(--uma-sp-1-5) var(--uma-sp-2); border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-md); background: var(--uma-surface);',
 		'  color: var(--uma-text); font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); cursor: pointer; }',
-		'.usd-roster-choice--on { border-color: var(--uma-control); box-shadow: inset 0 0 0 1px var(--uma-control); background: var(--uma-control-soft); }',
+		'.usd-roster-choice--on { border-color: var(--uma-control-mark); box-shadow: inset 0 0 0 1px var(--uma-control-mark); background: var(--uma-control-soft); }',
 		'.usd-roster-choicelabel { flex: none; font-weight: 700; color: var(--uma-text-heading); }',
 		'.usd-roster-choiceskills { display: inline-flex; flex-wrap: wrap; gap: var(--uma-sp-1) var(--uma-sp-2); min-width: 0; }',
 		'.usd-roster-choiceskill--dim, .usd-roster-choiceskill--none { color: var(--uma-text-faint); }',
@@ -5565,12 +5565,12 @@
 		'.usd-roster-linkname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
 		'.usd-roster-linkbtn:hover { background: var(--uma-surface-muted); border-color: var(--uma-text-subtle); color: var(--uma-text-heading); }',
 		'.usd-roster-linkbtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
-		'.usd-roster-linkbtn[aria-pressed="true"] { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
-		'.usd-roster-linkbtn[aria-pressed="true"]:hover { background: var(--uma-text-heading); border-color: var(--uma-text-heading); color: var(--uma-text-inverse); }',
+		'.usd-roster-linkbtn[aria-pressed="true"] { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }',
+		'.usd-roster-linkbtn[aria-pressed="true"]:hover { background: var(--uma-control-hover); border-color: var(--uma-control-edge); color: var(--uma-control-text); }',
 		'.usd-link-list { display: flex; flex-direction: column; gap: var(--uma-sp-1-5); }',
 		'.usd-link-opt { display: flex; align-items: center; gap: var(--uma-sp-2); min-height: 40px; padding: var(--uma-sp-1-5) var(--uma-sp-3);',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-md); background: var(--uma-surface); cursor: pointer; }',
-		'.usd-link-opt--on { border-color: var(--uma-control); box-shadow: inset 0 0 0 1px var(--uma-control); background: var(--uma-control-soft); }',
+		'.usd-link-opt--on { border-color: var(--uma-control-mark); box-shadow: inset 0 0 0 1px var(--uma-control-mark); background: var(--uma-control-soft); }',
 		'.usd-link-opt input { flex: none; width: 18px; height: 18px; margin: 0; }',
 		'.usd-link-name { min-width: 0; overflow-wrap: anywhere; font-weight: 600; color: var(--uma-text-heading); }',
 		// ②因子周回（段9・C-121。special だけ＝.usd-setbody）: 上から 帯（薄い地）→ 設定の枠（破線）→ スキルのまとまり（白い枠）。
@@ -5704,14 +5704,14 @@
 		'.usd-setbar-race-caret { flex: none; }',
 		'.usd-setbar-race:hover { background: var(--uma-surface); }',
 		'.usd-setbar-race:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
-		'.usd-setbar-race--on { background: var(--uma-surface-inverse); border-color: var(--uma-surface-inverse); color: var(--uma-text-inverse); }',
-		'.usd-setbar-race--on:hover { background: var(--uma-surface-inverse); }',
-		'.usd-setbar-race--on .usd-setbar-caret { color: var(--uma-text-inverse); }',
+		'.usd-setbar-race--on { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }',
+		'.usd-setbar-race--on:hover { background: var(--uma-control); }',
+		'.usd-setbar-race--on .usd-setbar-caret { color: var(--uma-control-text); }',
 		'@media (max-width: 359px) { .usd-setbar-race-caret { display: none; } .usd-setbar-race { padding: 0 7px; } .usd-setbar-race--on { padding: 0 5px; } .usd-setbar-race--on .usd-setbar-race-text { font-size: 10px; } }',
 		// レースの選択欄の行（1行目＝日付＋名前、2行目＝公開された条件）
 		'.usd-race-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }',
 		'.usd-race-cond { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); overflow-wrap: anywhere; }',
-		'.usd-setbar-input { min-width: 0; flex: 1 1 auto; height: 28px; padding: 0 var(--uma-sp-2); border: 1px solid var(--uma-control); border-radius: var(--uma-r-md); font: inherit; font-size: var(--uma-fs-sm); background: var(--uma-surface); color: var(--uma-text-heading); }',
+		'.usd-setbar-input { min-width: 0; flex: 1 1 auto; height: 28px; padding: 0 var(--uma-sp-2); border: 1px solid var(--uma-control-mark); border-radius: var(--uma-r-md); font: inherit; font-size: var(--uma-fs-sm); background: var(--uma-surface); color: var(--uma-text-heading); }',
 		'.usd-setbar-sum { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0; white-space: nowrap; color: var(--uma-text); }',
 		'.usd-setbar-sumline { display: inline-flex; align-items: baseline; gap: 2px; }',
 		'.usd-setbar-k { font-size: 12px; line-height: 1; font-weight: 700; color: var(--uma-text-heading); }',
@@ -5730,7 +5730,7 @@
 		// ●の行の名前セルの左の小さなチェック（24px 以上のタップ領域）。オフの行は、名前に取り消し線・全体を薄く（色だけで表す。opacity は使わない＝
 		// position:sticky の表で重なり順が壊れるため。F-7）・Pt は「—」・○は薄く残す
 		'.usd-roster-take { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; min-height: 28px; margin-inline-start: -2px; cursor: pointer; }',
-		'.usd-roster-take input { width: 16px; height: 16px; margin: 0; cursor: pointer; accent-color: var(--uma-control); }',
+		'.usd-roster-take input { width: 16px; height: 16px; margin: 0; cursor: pointer; accent-color: var(--uma-control-mark); }',
 		'.usd-roster-take:has(input:focus-visible) { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }',
 		'.usd-roster-skillname--off { text-decoration: line-through; color: var(--uma-text-faint); text-decoration-color: var(--uma-text-faint); }',
 		'.usd-roster-grow--off > .usd-roster-gc { background: var(--uma-surface-sunken); color: var(--uma-text-faint); }',

@@ -31,7 +31,7 @@
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする
 	   （run-verify.mjs が一致を検査し、各ページも起動時に照合する）。 */
-	--uma-components-css-version: "2026-10-08f";
+	--uma-components-css-version: "2026-10-12a";
 }
 
 /* ============================================================
@@ -86,7 +86,7 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 .glass-card {
 	background: var(--uma-glass-bg);
 	backdrop-filter: var(--uma-glass-blur);
-	border: 1px solid var(--uma-border);
+	border: 1px solid var(--uma-card-border);
 	border-radius: var(--uma-r-xl);
 	padding: var(--uma-card-pad);
 }
@@ -114,7 +114,7 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 }
 /* 選んでいる行。選択は操作の結果なので、ページの色ではなく操作の色（黒）で示す */
 .uma-list-row--selected {
-	border-color: var(--uma-control);
+	border-color: var(--uma-control-mark);
 	background: var(--uma-control-soft);
 }
 
@@ -157,14 +157,15 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 /* 主ボタン。押せるものは3ツールとも黒（--uma-control）。ページの色は装飾の側で使う */
 .uma-btn--primary {
 	background: var(--uma-control);
-	color: var(--uma-text-inverse);
-	box-shadow: var(--uma-shadow-2);
+	border-color: var(--uma-control-edge);
+	color: var(--uma-control-text);
+	box-shadow: var(--uma-control-rim), var(--uma-shadow-2);
 }
 .uma-btn--primary:hover:not(:disabled) { background: var(--uma-control-hover); }
 
 .uma-btn--secondary {
-	background: var(--uma-surface);
-	border-color: var(--uma-border);
+	background: var(--uma-aux-bg);
+	border-color: var(--uma-aux-border);
 	color: var(--uma-text-heading);
 	box-shadow: var(--uma-shadow-1);
 }
@@ -182,17 +183,19 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 /* 実行系だが、そのツールの主役ではない操作（解析する・元に戻す 等）。
    アクセントを使うと主要導線と競合するため、無彩色で塗る。 */
 .uma-btn--neutral {
-	background: var(--uma-surface-inverse);
-	color: var(--uma-text-inverse);
+	background: var(--uma-control);
+	border-color: var(--uma-control-edge);
+	color: var(--uma-control-text);
+	box-shadow: var(--uma-control-rim);
 }
-.uma-btn--neutral:hover:not(:disabled) { background: var(--uma-text-heading); }
+.uma-btn--neutral:hover:not(:disabled) { background: var(--uma-control-hover); }
 
 /* 主ボタンと同じ系統だが一段弱い扱い（並記される第2の実行ボタン）。
    枠と文字は黒、面だけ白のまま。 */
 .uma-btn--accent-outline {
 	background: var(--uma-surface);
-	border-color: var(--uma-control-border);
-	color: var(--uma-control);
+	border-color: var(--uma-control-mark);
+	color: var(--uma-control-mark);
 }
 .uma-btn--accent-outline:hover:not(:disabled) { background: var(--uma-control-soft); }
 
@@ -253,8 +256,8 @@ html:not(.uma-tw-ready) .hidden { display: none; }
 .uma-help-btn {
 	display: inline-flex; align-items: center; justify-content: center;
 	width: 22px; height: 22px; padding: 0;
-	border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);
-	background: var(--uma-surface); color: var(--uma-text-heading);
+	border: 1px solid var(--uma-aux-border); border-radius: var(--uma-r-full);
+	background: var(--uma-aux-bg); color: var(--uma-text-heading);
 	font: inherit; font-size: var(--uma-fs-sm); font-weight: 700; line-height: 1; cursor: pointer;
 }
 .uma-help-btn:hover { background: var(--uma-surface-muted); }
@@ -415,7 +418,26 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
 	display: inline-flex; align-items: center; gap: var(--uma-sp-2); cursor: pointer;
 	font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600; color: var(--uma-text);
 }
-.uma-checkrow-label > input { accent-color: var(--uma-control); cursor: pointer; }
+.uma-checkrow-label > input { accent-color: var(--uma-control-mark); cursor: pointer; }
+
+/* ラジオ（C-144・2026-10-12）。ブラウザの既定はダークで「未選択」が黒く塗った丸に見えるので、自前で描く。
+   未選択＝中が空の輪（塗りはオプションの面の色・輪 2px）、選択＝輪＋内側の点。**色だけでなく形で区別する**（ライトも同じ作り）。
+   詳細度 0 の :where() にしてあるので、個別に描いているラジオ（core の .usd-link-opt など）はそちらが勝つ。余白は指定しない（Tailwind の mt-0.5 などを残す） */
+:where(input[type="radio"]) {
+	appearance: none; -webkit-appearance: none; flex: none;
+	width: 14px; height: 14px; box-sizing: border-box;
+	border: 2px solid var(--uma-text-subtle); border-radius: 50%;
+	background: var(--uma-surface);
+	display: inline-grid; place-content: center; vertical-align: middle; cursor: pointer;
+}
+:where(input[type="radio"])::before {
+	content: ""; width: 6px; height: 6px; border-radius: 50%;
+	background: var(--uma-control-mark); transform: scale(0);
+}
+:where(input[type="radio"]:checked) { border-color: var(--uma-control-mark); }
+:where(input[type="radio"]:checked)::before { transform: scale(1); }
+:where(input[type="radio"]:disabled) { border-color: var(--uma-control-disabled); cursor: not-allowed; }
+:where(input[type="radio"]:focus-visible) { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }
 
 /* 「?」で開く、**見るだけ**の名前の一覧。押して選ぶものではないので、候補のボタン
    （core の .usd-name-hit）ではなく素の箱にする。件数が多いので列は幅に合わせて増やす。 */
@@ -448,8 +470,9 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
 }
 .uma-pill:hover:not(.active):not(:disabled) { background: var(--uma-border); }
 .uma-pill.active {
-	background: var(--uma-surface-inverse);
-	color: var(--uma-text-inverse);
+	background: var(--uma-control);
+	color: var(--uma-control-text);
+	box-shadow: inset 0 0 0 1px var(--uma-control-edge), var(--uma-control-rim);
 	font-weight: 500;
 }
 
@@ -508,7 +531,7 @@ button.uma-section-head:hover { color: var(--uma-text-heading); }
 }
 .uma-input:focus {
 	outline: none;
-	border-color: var(--uma-control);
+	border-color: var(--uma-control-mark);
 	box-shadow: 0 0 0 3px var(--uma-control-soft);
 }
 .uma-input:disabled {
@@ -563,7 +586,10 @@ textarea.uma-input {
  * ============================================================ */
 :root[data-theme="dark"] .text-white,
 :root[data-theme="dark"] .group:hover .group-hover\:text-white { color: var(--uma-text-on-color); }
-:root[data-theme="dark"] :is(.bg-slate-900, .bg-slate-900\/80, .bg-\[var\(--uma-control\)\]).text-white { color: var(--uma-text-inverse); }
+:root[data-theme="dark"] :is(.bg-slate-900, .bg-slate-900\/80).text-white { color: var(--uma-text-inverse); }
+/* 操作色の塗りの Tailwind クラス（exam の「コピー」「画像を更新」など。C-144）: 塗りの上の文字と、ダークの明るい縁 */
+.bg-\[var\(--uma-control\)\] { box-shadow: inset 0 0 0 1px var(--uma-control-edge), var(--uma-control-rim); }
+:root[data-theme="dark"] .bg-\[var\(--uma-control\)\].text-white { color: var(--uma-control-text); }
 :root[data-theme="dark"] #toast {
 	background-color: var(--uma-toast-bg);
 	color: var(--uma-text-on-color);
@@ -599,6 +625,6 @@ textarea.uma-input {
 .uma-theme-choice + .uma-theme-choice { border-left: 1px solid var(--uma-control-border); }
 .uma-theme-choice::before { content: "✓"; visibility: hidden; font-size: var(--uma-fs-xs); }
 .uma-theme-choice:hover { background: var(--uma-control-soft); }
-.uma-theme-choice[aria-checked="true"] { background: var(--uma-control); color: var(--uma-text-inverse); }
+.uma-theme-choice[aria-checked="true"] { background: var(--uma-control); color: var(--uma-control-text); box-shadow: inset 0 0 0 2px var(--uma-control-edge); }
 .uma-theme-choice[aria-checked="true"]::before { visibility: visible; }
 .uma-theme-choice:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: 0; }
