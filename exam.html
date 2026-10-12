@@ -749,6 +749,9 @@
 		p > span.text-xs.font-medium.text-amber-400 { color: var(--exam-badge-gold-text); }
 		p > span.text-xs.font-medium.text-emerald-400 { color: var(--exam-badge-green-text); }
 		.text-\[var\(--uma-deco-strong\)\]\/70 { color: var(--uma-deco-strong); }
+		/* 結果の絞り込みのボタン（「すべて」など）の選んでいる塗り（Tailwind の bg-slate-900）は、黒系ではなく操作色（C-144・B の追補） */
+		button.bg-slate-900 { background-color: var(--uma-control); color: var(--uma-control-text); box-shadow: inset 0 0 0 1px var(--uma-control-edge), var(--uma-control-rim); }
+		:root[data-theme="dark"] button.bg-slate-900.text-white { color: var(--uma-control-text); }
 	</style>
 </head>
 <body class="min-h-screen text-slate-800 antialiased selection:bg-[var(--uma-control)] selection:text-white">
