@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-04a",
+	"dataVersion": "2026-10-12a",
 	"category": "skillPt",
 	"note": "スキルの取得に要るスキルPt（ヒントのレベル0の基礎値）とレアリティ。rarity は white・gold・unique・evolved。unique は取得に Pt が要らないので pt は 0。ここに無い skillId は未収録。",
 	"entries": [
@@ -5682,6 +5682,3191 @@
 			"skillId": "ex-0990",
 			"pt": 180,
 			"rarity": "white"
+		},
+		{
+			"skillId": "ex-1034",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1035",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1036",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1037",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1038",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1039",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1040",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1041",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1042",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1043",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1044",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1045",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1046",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1047",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1048",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1049",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1050",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1051",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1052",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1053",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1054",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1055",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1056",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1057",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1058",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1059",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1060",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1061",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1062",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1063",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1064",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1065",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1066",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1067",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1068",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1069",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1070",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1071",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1072",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1073",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1074",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1075",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1076",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1077",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1078",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1079",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1080",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1081",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1082",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1083",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1084",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1085",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1086",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1087",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1088",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1089",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1090",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1091",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1092",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1093",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1094",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1095",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1096",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1097",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1098",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1099",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1100",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1101",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1102",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1103",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1104",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1105",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1106",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1107",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1108",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1109",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1110",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1111",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1112",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1113",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1114",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1115",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1116",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1117",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1118",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1119",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1120",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1121",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1122",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1123",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1124",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1125",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1126",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1127",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1128",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1129",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1130",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1131",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1132",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1133",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1134",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1135",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1136",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1137",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1138",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1139",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1140",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1141",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1142",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1143",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1144",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1145",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1146",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1147",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1148",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1149",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1150",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1151",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1152",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1153",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1154",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1155",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1156",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1157",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1158",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1159",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1160",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1161",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1162",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1163",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1164",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1165",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1166",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1167",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1168",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1169",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1170",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1171",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1172",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1173",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1174",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1175",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1176",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1177",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1178",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1179",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1180",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1181",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1182",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1183",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1184",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1185",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1186",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1187",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1188",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1189",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1190",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1191",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1192",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1193",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1194",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1195",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1196",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1197",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1198",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1199",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1200",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1201",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1202",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1203",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1204",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1205",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1206",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1207",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1208",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1209",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1210",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1211",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1212",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1213",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1214",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1215",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1216",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1217",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1218",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1219",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1220",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1221",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1222",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1223",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1224",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1225",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1226",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1227",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1228",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1229",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1230",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1231",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1232",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1233",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1234",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1235",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1236",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1237",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1238",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1239",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1240",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1241",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1242",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1243",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1244",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1245",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1246",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1247",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1248",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1249",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1250",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1251",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1252",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1253",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1254",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1255",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1256",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1257",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1258",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1259",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1260",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1261",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1262",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1263",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1264",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1265",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1266",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1267",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1268",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1269",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1270",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1271",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1272",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1273",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1274",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1275",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1276",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1277",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1278",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1279",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1280",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1281",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1282",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1283",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1284",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1285",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1286",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1287",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1288",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1289",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1290",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1291",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1292",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1293",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1294",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1295",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1296",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1297",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1298",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1299",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1300",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1301",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1302",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1303",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1304",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1305",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1306",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1307",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1308",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1309",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1310",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1311",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1312",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1313",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1314",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1315",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1316",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1317",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1318",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1319",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1320",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1321",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1322",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1323",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1324",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1325",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1326",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1327",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1328",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1329",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1330",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1331",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1332",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1333",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1334",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1335",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1336",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1337",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1338",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1339",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1340",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1341",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1342",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1343",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1344",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1345",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1346",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1347",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1348",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1349",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1350",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1351",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1352",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1353",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1354",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1355",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1356",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1357",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1358",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1359",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1360",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1361",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1362",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1363",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1364",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1365",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1366",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1367",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1368",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1369",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1370",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1371",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1372",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1373",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1374",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1375",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1376",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1377",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1378",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1379",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1380",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1381",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1382",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1383",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1384",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1385",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1386",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1387",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1388",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1389",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1390",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1391",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1392",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1393",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1394",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1395",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1396",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1397",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1398",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1399",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1400",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1401",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1402",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1403",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1404",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1405",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1406",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1407",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1408",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1409",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1410",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1411",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1412",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1413",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1414",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1415",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1416",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1417",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1418",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1419",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1420",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1421",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1422",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1423",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1424",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1425",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1426",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1427",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1428",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1429",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1430",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1431",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1432",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1433",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1434",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1435",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1436",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1437",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1438",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1439",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1440",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1441",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1442",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1443",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1444",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1445",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1446",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1447",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1448",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1449",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1450",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1451",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1452",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1453",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1454",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1455",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1456",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1457",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1458",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1459",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1460",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1461",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1462",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1463",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1464",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1465",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1466",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1467",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1468",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1469",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1470",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1471",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1472",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1473",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1474",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1475",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1476",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1477",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1478",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1479",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1480",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1481",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1482",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1483",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1484",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1485",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1486",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1487",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1488",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1489",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1490",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1491",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1492",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1493",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1494",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1495",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1496",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1497",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1498",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1499",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1500",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1501",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1502",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1503",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1504",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1505",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1506",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1507",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1508",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1509",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1510",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1511",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1512",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1513",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1514",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1515",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1516",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1517",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1518",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1519",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1520",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1521",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1522",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1523",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1524",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1525",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1526",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1527",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1528",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1529",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1530",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1531",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1532",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1533",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1534",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1535",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1536",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1537",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1538",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1539",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1540",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1541",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1542",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1543",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1544",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1545",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1546",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1547",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1548",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1549",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1550",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1551",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1552",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1553",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1554",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1555",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1556",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1557",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1558",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1559",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1560",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1561",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1562",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1563",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1564",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1565",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1566",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1567",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1568",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1569",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1570",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1571",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1572",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1573",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1574",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1575",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1576",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1577",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1578",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1579",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1580",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1581",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1582",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1583",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1584",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1585",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1586",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1587",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1588",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1589",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1590",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1591",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1592",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1593",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1594",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1595",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1596",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1597",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1598",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1599",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1600",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1601",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1602",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1603",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1604",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1605",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1606",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1607",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1608",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1609",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1610",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1611",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1612",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1613",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1614",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1615",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1616",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1617",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1618",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1619",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1620",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1621",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1622",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1623",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1624",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1625",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1626",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1627",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1628",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1629",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1630",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1631",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1632",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1633",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1634",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1635",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1636",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1637",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1638",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1639",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1640",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1641",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1642",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1643",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1644",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1645",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1646",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1647",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1648",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1649",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1650",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1651",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1652",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1653",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1654",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1655",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1656",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1657",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1658",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1659",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1660",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1661",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1662",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1663",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1664",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1665",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1666",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1667",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1668",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1669",
+			"pt": 0,
+			"rarity": "evolved"
+		},
+		{
+			"skillId": "ex-1670",
+			"pt": 0,
+			"rarity": "evolved"
 		}
 	]
 }

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-12e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-12f';
 
 	/* ============================================================
 	 * 定数
@@ -65,8 +65,8 @@
 	const DATA_JSON_VERSIONS = {
 		'data/scenario-inheritance-factors.json': '2026-09-15a',
 		'data/aptitude-genes.json': '2026-09-19a',
-		'data/extended-skills.json': '2026-10-05a',
-		'data/training-umamusume.json': '2026-10-04a',
+		'data/extended-skills.json': '2026-10-12b',
+		'data/training-umamusume.json': '2026-10-12a',
 		'data/support-cards.json': '2026-09-30b',
 		'data/support-card-event-skills.json': '2026-10-05a',
 		// キャラクター共通のイベント（C-102 の区切り3・2026-09-27）。9本目
@@ -78,11 +78,11 @@
 		// 実ファイル（skill-pt.json・skill-step-up.json）は、届いてから載せた（載せると取りに行くため）。
 		'data/skill-pt-rules.json': '2026-09-30a',
 		// スキルの基礎Pt とレアリティ（2026-09-30 に実ファイルが届いたので載せた。載せると loadSkillPtData が読む）
-		'data/skill-pt.json': '2026-10-04a',
+		'data/skill-pt.json': '2026-10-12a',
 		// スキルのステップアップの前段（2026-10-01c。2026-10-02 に実ファイルが届いたので載せた。loadSkillPtData が skill-pt.json と一緒に読む）
 		'data/skill-step-up.json': '2026-10-02b',
 		// スキルの公式の説明文（2026-10-02）。ページの読み込みでは取りに行かない（ⓘ・長押しを最初に開いたときだけ。段6）
-		'data/skill-descriptions.json': '2026-10-04a',
+		'data/skill-descriptions.json': '2026-10-12a',
 		// シナリオの固定イベントで得られるスキルとヒントレベル（段7c・2026-10-03）。編成パネルを作るときにだけ読む（ほかのページの読み込みでは取りに行かない）
 		'data/scenario-event-skills.json': '2026-10-03c',
 		// これから開催されるレースの一覧（オススメサポ ④・段7・2026-10-04）。公式のお知らせの公開情報。loadUpcomingRaces() が読む。
@@ -90,13 +90,15 @@
 		'data/upcoming-races.json': '2026-10-04b',
 		// スキルの効果量の段階（C-129・2026-10-06）。説明文の効果の大きさを表す語から決めた段階。「低効果を除外」とオススメサポの「低効果」が使う。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadSkillEffectLevels）
-		'data/skill-effect-levels.json': '2026-10-05a',
+		'data/skill-effect-levels.json': '2026-10-12a',
 		// ②にまとめて追加するスキルのグループ（C-130・2026-10-06）。レースを選んだときの既定の追加と、②のパレットの行のボタンが使う。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadRecommendedSkills）
 		// C-131: 同じものとして扱うスキルの組（equivalentPairs）を足した
 		'data/recommended-skills.json': '2026-10-07a',
 		// 育成ウマ娘のイベントで得られるスキル（段1・2026-10-11）。受け入れだけで、画面と計算はまだ使わない。TRAINING_SOURCES の5本目
-		'data/training-event-skills.json': '2026-10-11a'
+		'data/training-event-skills.json': '2026-10-11a',
+		// スキルの進化の対応（段2・2026-10-12。C-145・C-146）。受け入れだけで、画面と計算はまだ使わない。ページの読み込みでは取りに行かない（loadSkillEvolutions）
+		'data/skill-evolutions.json': '2026-10-12a'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
@@ -7553,6 +7555,80 @@
 	// C-131: ①の「低効果を除外」と確認の小窓は削除した（②のものは C-130 で削除済み）。低効果の判定と読み込みは、オススメサポの除外の「低効果」が使う
 
 	/* ------------------------------------------------------------
+	 * スキルの進化（C-145・C-146。data/skill-evolutions.json）
+	 *
+	 * パターンA（kind "uma"）＝衣装（umaId）自身の金スキル（baseSkillId）→ 進化先（evolvedSkillIds。1つ以上）。
+	 * パターンB（kind "scenario"）＝シナリオ（scenarioId）に設定された進化。**鍵は scenarioId × baseSkillId**（進化先はシナリオごとに別の id）。
+	 * ツールが使うシナリオは、scenario-event-skills.json の entries[0].scenario の名前ひとつだけ。ほかのシナリオの行は読んで持つが、使わない。
+	 * **ページの読み込みでは取りに行かない。** 進化を使う画面（段4以降）か、進化スキルを辞書から外す必要のある入口（Deck の取り込み）が
+	 * 呼んだときに1回だけ読む（失敗したら次に必要になったときにもう一度試す）。
+	 *
+	 * 進化スキルは拡張スキル（findSkill で引ける）だが、**検索の範囲に出さず（SEARCHABLE_EXTENDED_SKILL_IDS に入れない）、
+	 * OCR・貼り付けの照合の辞書にも入れない**（2026-10-12・おいもさんの方針。buildSkillTextIndex が外す）。
+	 * この段（段2・3）では画面にも計算にもつながない。computeEvolutionPlan は既定の決定だけを返す純粋な関数。
+	 * ------------------------------------------------------------ */
+	const SKILL_EVOLUTIONS_PATH = 'data/skill-evolutions.json';
+	let evolutionState = { status: 'idle', doc: null, byUma: null, byScenario: null, evolvedIds: null, promise: null };   // idle／loading／ok／failed
+	function buildEvolutionIndex(doc) {
+		const byUma = new Map();         // umaId → [{ baseSkillId, evolvedSkillIds }]（データの並び）
+		const byScenario = new Map();    // scenarioId → [{ baseSkillId, evolvedSkillIds }]
+		const evolved = new Set();
+		((doc && Array.isArray(doc.entries)) ? doc.entries : []).forEach(e => {
+			if (!e || typeof e.baseSkillId !== 'string' || !e.baseSkillId || !Array.isArray(e.evolvedSkillIds)) return;
+			const ids = e.evolvedSkillIds.filter(x => typeof x === 'string' && x);
+			if (ids.length === 0) return;
+			const row = { baseSkillId: e.baseSkillId, evolvedSkillIds: ids };
+			if (e.kind === 'uma' && typeof e.umaId === 'string' && e.umaId) {
+				if (!byUma.has(e.umaId)) byUma.set(e.umaId, []);
+				byUma.get(e.umaId).push(row);
+			} else if (e.kind === 'scenario' && typeof e.scenarioId === 'string' && e.scenarioId) {
+				if (!byScenario.has(e.scenarioId)) byScenario.set(e.scenarioId, []);
+				byScenario.get(e.scenarioId).push(row);
+			} else return;
+			ids.forEach(id => evolved.add(id));
+		});
+		return { byUma: byUma, byScenario: byScenario, evolvedIds: evolved };
+	}
+	function loadSkillEvolutions(forceRefresh) {
+		if (evolutionState.status === 'ok' || evolutionState.status === 'loading') return evolutionState.promise;
+		if (!DATA_JSON_VERSIONS[SKILL_EVOLUTIONS_PATH]) { evolutionState = { status: 'absent', doc: null, byUma: null, byScenario: null, evolvedIds: null, promise: Promise.resolve('absent') }; return evolutionState.promise; }
+		const st = { status: 'loading', doc: null, byUma: null, byScenario: null, evolvedIds: null, promise: null };
+		evolutionState = st;
+		st.promise = (async () => {
+			try {
+				const doc = await fetchMasterJson(withDataVersion(SKILL_EVOLUTIONS_PATH), !!forceRefresh);
+				if (!doc || !Array.isArray(doc.entries)) throw new Error('entries');
+				const idx = buildEvolutionIndex(doc);
+				st.doc = doc; st.byUma = idx.byUma; st.byScenario = idx.byScenario; st.evolvedIds = idx.evolvedIds;
+				st.status = 'ok';
+			} catch (e) { st.status = 'failed'; }
+			// 現在のシナリオの鍵（scenario-event-skills.json）も一緒に用意する（無くても進化の読み込みは成功にする）
+			try { await loadScenarioEvents(false); } catch (e2) { /* シナリオが読めなければパターンBを使わないだけ */ }
+			return st.status;
+		})();
+		return st.promise;
+	}
+	/** 進化スキル（どこかの行の進化先）の id か。読めていなければ false（＝何も外さない）。辞書を作る入口は、先に loadSkillEvolutions を待つこと */
+	function isEvolvedSkillId(id) {
+		return evolutionState.status === 'ok' && evolutionState.evolvedIds.has(id);
+	}
+	/** 衣装のパターンAの行（データの並び）。読めていなければ空 */
+	function evolutionRowsOfUma(umaId) {
+		return evolutionState.status === 'ok' ? (evolutionState.byUma.get(umaId) || []).map(r => ({ baseSkillId: r.baseSkillId, evolvedSkillIds: r.evolvedSkillIds.slice() })) : [];
+	}
+	/** ツールが使うシナリオの鍵（scenario-event-skills.json の entries[0].scenario の名前）。読めていなければ null */
+	function evolutionScenarioKey() {
+		const entry = scenarioEventState.status === 'ok' ? scenarioEntryOf(scenarioEventState.doc) : null;
+		return entry ? entry.scenario : null;
+	}
+	/** パターンBの行（データの並び）。key を渡さなければ、ツールが使うシナリオのぶんだけ。ほかのシナリオの行は返さない（key を明示したときだけ） */
+	function evolutionRowsOfScenario(key) {
+		const k = key === undefined ? evolutionScenarioKey() : key;
+		if (evolutionState.status !== 'ok' || !k) return [];
+		return (evolutionState.byScenario.get(k) || []).map(r => ({ baseSkillId: r.baseSkillId, evolvedSkillIds: r.evolvedSkillIds.slice() }));
+	}
+
+	/* ------------------------------------------------------------
 	 * ②にまとめて追加するスキルのグループ（C-130・2026-10-06。data/recommended-skills.json）
 	 * groups: [{ key, label, skills: [{ skillId, name, onlyWhenRaceDistanceClass? }] }]。**スキル名・ボタンの文字はコードに書かない**（データから読む）。
 	 *   RECOMMENDED_RACE_EXTRA_GROUP … レースを選んだとき、そのレースに「デバフなし」の特殊ルールが無ければ足すグループ
@@ -12866,6 +12942,13 @@
 		loadSkillDescriptions: loadSkillDescriptions,
 		// 効果量の段階（C-129）。低効果の判定（読めていなければ false）
 		loadSkillEffectLevels: loadSkillEffectLevels,
+		// スキルの進化（段2・3。C-145・C-146）。画面にも計算にもまだつながない
+		loadSkillEvolutions: loadSkillEvolutions,
+		isEvolvedSkillId: isEvolvedSkillId,
+		getEvolutionRowsOfUma: evolutionRowsOfUma,
+		getEvolutionRowsOfScenario: evolutionRowsOfScenario,
+		getEvolutionScenarioKey: evolutionScenarioKey,
+		getSkillTextIndexSize: function (opts) { return buildSkillTextIndex(opts).length; },
 		isLowEffectSkill: isLowEffectSkill,
 		SKILL_RARITY_LABELS: SKILL_RARITY_LABELS,
 		computeRosterPt: computeRosterPt,

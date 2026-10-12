@@ -1,0 +1,4507 @@
+{
+	"dataVersion": "2026-10-12a",
+	"category": "skillEvolution",
+	"entries": [
+		{
+			"kind": "uma",
+			"umaId": "uma-0001",
+			"baseSkillId": "ex-0002",
+			"evolvedSkillIds": [
+				"ex-1040"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0001",
+			"baseSkillId": "ex-0003",
+			"evolvedSkillIds": [
+				"ex-1041"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0001",
+			"baseSkillId": "ex-0004",
+			"evolvedSkillIds": [
+				"ex-1042"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0002",
+			"baseSkillId": "ex-0006",
+			"evolvedSkillIds": [
+				"ex-1043"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0002",
+			"baseSkillId": "ex-0007",
+			"evolvedSkillIds": [
+				"ex-1044"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0003",
+			"baseSkillId": "ex-0009",
+			"evolvedSkillIds": [
+				"ex-1045"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0003",
+			"baseSkillId": "ex-0010",
+			"evolvedSkillIds": [
+				"ex-1046"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0004",
+			"baseSkillId": "ex-0012",
+			"evolvedSkillIds": [
+				"ex-1047"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0004",
+			"baseSkillId": "ex-0013",
+			"evolvedSkillIds": [
+				"ex-1048"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0004",
+			"baseSkillId": "ex-0014",
+			"evolvedSkillIds": [
+				"ex-1049"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0005",
+			"baseSkillId": "ex-0016",
+			"evolvedSkillIds": [
+				"ex-1050",
+				"ex-1051"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0005",
+			"baseSkillId": "ex-0017",
+			"evolvedSkillIds": [
+				"ex-1052"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0006",
+			"baseSkillId": "ex-0019",
+			"evolvedSkillIds": [
+				"ex-1053"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0006",
+			"baseSkillId": "ex-0020",
+			"evolvedSkillIds": [
+				"ex-1054"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0006",
+			"baseSkillId": "ex-0021",
+			"evolvedSkillIds": [
+				"ex-1055"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0007",
+			"baseSkillId": "ex-0023",
+			"evolvedSkillIds": [
+				"ex-1056"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0007",
+			"baseSkillId": "ex-0024",
+			"evolvedSkillIds": [
+				"ex-1057"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0008",
+			"baseSkillId": "ex-0026",
+			"evolvedSkillIds": [
+				"ex-1058"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0008",
+			"baseSkillId": "ex-0027",
+			"evolvedSkillIds": [
+				"ex-1059",
+				"ex-1060"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0009",
+			"baseSkillId": "ex-0029",
+			"evolvedSkillIds": [
+				"ex-1061"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0009",
+			"baseSkillId": "ex-0030",
+			"evolvedSkillIds": [
+				"ex-1062",
+				"ex-1063"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0010",
+			"baseSkillId": "ex-0032",
+			"evolvedSkillIds": [
+				"ex-1064",
+				"ex-1065"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0010",
+			"baseSkillId": "ex-0033",
+			"evolvedSkillIds": [
+				"ex-1066"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0011",
+			"baseSkillId": "ex-0035",
+			"evolvedSkillIds": [
+				"ex-1067"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0011",
+			"baseSkillId": "ex-0036",
+			"evolvedSkillIds": [
+				"ex-1068"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0012",
+			"baseSkillId": "ex-0023",
+			"evolvedSkillIds": [
+				"ex-1070",
+				"ex-1071"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0012",
+			"baseSkillId": "ex-0035",
+			"evolvedSkillIds": [
+				"ex-1069"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0013",
+			"baseSkillId": "ex-0039",
+			"evolvedSkillIds": [
+				"ex-1072",
+				"ex-1073"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0013",
+			"baseSkillId": "ex-0040",
+			"evolvedSkillIds": [
+				"ex-1074"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0014",
+			"baseSkillId": "ex-0042",
+			"evolvedSkillIds": [
+				"ex-1075"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0014",
+			"baseSkillId": "ex-0043",
+			"evolvedSkillIds": [
+				"ex-1076"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0015",
+			"baseSkillId": "ex-0002",
+			"evolvedSkillIds": [
+				"ex-1077",
+				"ex-1078"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0015",
+			"baseSkillId": "ex-0045",
+			"evolvedSkillIds": [
+				"ex-1079"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0016",
+			"baseSkillId": "ex-0002",
+			"evolvedSkillIds": [
+				"ex-1080"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0016",
+			"baseSkillId": "ex-0047",
+			"evolvedSkillIds": [
+				"ex-1081"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0017",
+			"baseSkillId": "ex-0049",
+			"evolvedSkillIds": [
+				"ex-1082"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0017",
+			"baseSkillId": "ex-0050",
+			"evolvedSkillIds": [
+				"ex-1083",
+				"ex-1084"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0018",
+			"baseSkillId": "ex-0053",
+			"evolvedSkillIds": [
+				"ex-1085"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0018",
+			"baseSkillId": "ex-0054",
+			"evolvedSkillIds": [
+				"ex-1086"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0019",
+			"baseSkillId": "ex-0047",
+			"evolvedSkillIds": [
+				"ex-1087"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0019",
+			"baseSkillId": "ex-0056",
+			"evolvedSkillIds": [
+				"ex-1088",
+				"ex-1089"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0020",
+			"baseSkillId": "ex-0058",
+			"evolvedSkillIds": [
+				"ex-1090"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0020",
+			"baseSkillId": "ex-0059",
+			"evolvedSkillIds": [
+				"ex-1091"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0021",
+			"baseSkillId": "ex-0062",
+			"evolvedSkillIds": [
+				"ex-1092"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0021",
+			"baseSkillId": "ex-0063",
+			"evolvedSkillIds": [
+				"ex-1093"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0022",
+			"baseSkillId": "ex-0065",
+			"evolvedSkillIds": [
+				"ex-1094"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0022",
+			"baseSkillId": "ex-0066",
+			"evolvedSkillIds": [
+				"ex-1095"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0023",
+			"baseSkillId": "ex-0023",
+			"evolvedSkillIds": [
+				"ex-1097"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0023",
+			"baseSkillId": "ex-0069",
+			"evolvedSkillIds": [
+				"ex-1096"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0024",
+			"baseSkillId": "ex-0032",
+			"evolvedSkillIds": [
+				"ex-1098",
+				"ex-1099"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0024",
+			"baseSkillId": "ex-0071",
+			"evolvedSkillIds": [
+				"ex-1100"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0025",
+			"baseSkillId": "ex-0029",
+			"evolvedSkillIds": [
+				"ex-1101"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0025",
+			"baseSkillId": "ex-0033",
+			"evolvedSkillIds": [
+				"ex-1102"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0026",
+			"baseSkillId": "ex-0026",
+			"evolvedSkillIds": [
+				"ex-1104"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0026",
+			"baseSkillId": "ex-0033",
+			"evolvedSkillIds": [
+				"ex-1103"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0027",
+			"baseSkillId": "ex-0075",
+			"evolvedSkillIds": [
+				"ex-1105"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0027",
+			"baseSkillId": "ex-0076",
+			"evolvedSkillIds": [
+				"ex-1106"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0028",
+			"baseSkillId": "ex-0079",
+			"evolvedSkillIds": [
+				"ex-1107"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0028",
+			"baseSkillId": "ex-0080",
+			"evolvedSkillIds": [
+				"ex-1108"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0029",
+			"baseSkillId": "ex-0082",
+			"evolvedSkillIds": [
+				"ex-1109"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0029",
+			"baseSkillId": "ex-0083",
+			"evolvedSkillIds": [
+				"ex-1110"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0030",
+			"baseSkillId": "ex-0085",
+			"evolvedSkillIds": [
+				"ex-1111"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0030",
+			"baseSkillId": "ex-0086",
+			"evolvedSkillIds": [
+				"ex-1112"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0031",
+			"baseSkillId": "ex-0088",
+			"evolvedSkillIds": [
+				"ex-1113",
+				"ex-1114"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0031",
+			"baseSkillId": "ex-0089",
+			"evolvedSkillIds": [
+				"ex-1115"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0032",
+			"baseSkillId": "ex-0091",
+			"evolvedSkillIds": [
+				"ex-1116"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0032",
+			"baseSkillId": "ex-0092",
+			"evolvedSkillIds": [
+				"ex-1117",
+				"ex-1118"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0033",
+			"baseSkillId": "ex-0027",
+			"evolvedSkillIds": [
+				"ex-1120"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0033",
+			"baseSkillId": "ex-0050",
+			"evolvedSkillIds": [
+				"ex-1121"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0033",
+			"baseSkillId": "ex-0094",
+			"evolvedSkillIds": [
+				"ex-1119"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0034",
+			"baseSkillId": "ex-0082",
+			"evolvedSkillIds": [
+				"ex-1122"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0034",
+			"baseSkillId": "ex-0096",
+			"evolvedSkillIds": [
+				"ex-1123"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0035",
+			"baseSkillId": "ex-0098",
+			"evolvedSkillIds": [
+				"ex-1124"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0035",
+			"baseSkillId": "ex-0099",
+			"evolvedSkillIds": [
+				"ex-1125"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0036",
+			"baseSkillId": "ex-0027",
+			"evolvedSkillIds": [
+				"ex-1127"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0036",
+			"baseSkillId": "ex-0043",
+			"evolvedSkillIds": [
+				"ex-1128"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0036",
+			"baseSkillId": "ex-0102",
+			"evolvedSkillIds": [
+				"ex-1126"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0037",
+			"baseSkillId": "ex-0063",
+			"evolvedSkillIds": [
+				"ex-1129",
+				"ex-1130"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0037",
+			"baseSkillId": "ex-0104",
+			"evolvedSkillIds": [
+				"ex-1131"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0038",
+			"baseSkillId": "ex-0040",
+			"evolvedSkillIds": [
+				"ex-1132"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0038",
+			"baseSkillId": "ex-0069",
+			"evolvedSkillIds": [
+				"ex-1133"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0039",
+			"baseSkillId": "ex-0098",
+			"evolvedSkillIds": [
+				"ex-1136"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0039",
+			"baseSkillId": "ex-0107",
+			"evolvedSkillIds": [
+				"ex-1134",
+				"ex-1135"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0040",
+			"baseSkillId": "ex-0003",
+			"evolvedSkillIds": [
+				"ex-1138"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0040",
+			"baseSkillId": "ex-0096",
+			"evolvedSkillIds": [
+				"ex-1137"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0041",
+			"baseSkillId": "ex-0050",
+			"evolvedSkillIds": [
+				"ex-1140"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0041",
+			"baseSkillId": "ex-0110",
+			"evolvedSkillIds": [
+				"ex-1139"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0042",
+			"baseSkillId": "ex-0079",
+			"evolvedSkillIds": [
+				"ex-1141",
+				"ex-1142"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0042",
+			"baseSkillId": "ex-0112",
+			"evolvedSkillIds": [
+				"ex-1143"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0043",
+			"baseSkillId": "ex-0027",
+			"evolvedSkillIds": [
+				"ex-1144"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0043",
+			"baseSkillId": "ex-0114",
+			"evolvedSkillIds": [
+				"ex-1145"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0044",
+			"baseSkillId": "ex-0117",
+			"evolvedSkillIds": [
+				"ex-1148"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0044",
+			"baseSkillId": "ex-0118",
+			"evolvedSkillIds": [
+				"ex-1149"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0045",
+			"baseSkillId": "ex-0035",
+			"evolvedSkillIds": [
+				"ex-1150"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0045",
+			"baseSkillId": "ex-0045",
+			"evolvedSkillIds": [
+				"ex-1151",
+				"ex-1152"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0046",
+			"baseSkillId": "ex-0121",
+			"evolvedSkillIds": [
+				"ex-1155"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0046",
+			"baseSkillId": "ex-0122",
+			"evolvedSkillIds": [
+				"ex-1156",
+				"ex-1157"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0047",
+			"baseSkillId": "ex-0007",
+			"evolvedSkillIds": [
+				"ex-1158",
+				"ex-1159"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0047",
+			"baseSkillId": "ex-0124",
+			"evolvedSkillIds": [
+				"ex-1160"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0048",
+			"baseSkillId": "ex-0016",
+			"evolvedSkillIds": [
+				"ex-1163"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0048",
+			"baseSkillId": "ex-0094",
+			"evolvedSkillIds": [
+				"ex-1161",
+				"ex-1162"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0049",
+			"baseSkillId": "ex-0016",
+			"evolvedSkillIds": [
+				"ex-1164",
+				"ex-1165"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0049",
+			"baseSkillId": "ex-0127",
+			"evolvedSkillIds": [
+				"ex-1166"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0050",
+			"baseSkillId": "ex-0016",
+			"evolvedSkillIds": [
+				"ex-1167"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0050",
+			"baseSkillId": "ex-0129",
+			"evolvedSkillIds": [
+				"ex-1168"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0051",
+			"baseSkillId": "ex-0006",
+			"evolvedSkillIds": [
+				"ex-1169",
+				"ex-1170"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0051",
+			"baseSkillId": "ex-0131",
+			"evolvedSkillIds": [
+				"ex-1171"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0052",
+			"baseSkillId": "ex-0007",
+			"evolvedSkillIds": [
+				"ex-1173",
+				"ex-1174"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0052",
+			"baseSkillId": "ex-0069",
+			"evolvedSkillIds": [
+				"ex-1172"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0053",
+			"baseSkillId": "ex-0040",
+			"evolvedSkillIds": [
+				"ex-1175",
+				"ex-1176"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0053",
+			"baseSkillId": "ex-0134",
+			"evolvedSkillIds": [
+				"ex-1177"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0054",
+			"baseSkillId": "ex-0026",
+			"evolvedSkillIds": [
+				"ex-1179",
+				"ex-1180"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0054",
+			"baseSkillId": "ex-0029",
+			"evolvedSkillIds": [
+				"ex-1178"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0055",
+			"baseSkillId": "ex-0137",
+			"evolvedSkillIds": [
+				"ex-1181"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0055",
+			"baseSkillId": "ex-0138",
+			"evolvedSkillIds": [
+				"ex-1182"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0056",
+			"baseSkillId": "ex-0027",
+			"evolvedSkillIds": [
+				"ex-1183"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0056",
+			"baseSkillId": "ex-0082",
+			"evolvedSkillIds": [
+				"ex-1184"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0057",
+			"baseSkillId": "ex-0003",
+			"evolvedSkillIds": [
+				"ex-1186"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0057",
+			"baseSkillId": "ex-0141",
+			"evolvedSkillIds": [
+				"ex-1185"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0058",
+			"baseSkillId": "ex-0143",
+			"evolvedSkillIds": [
+				"ex-1187"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0058",
+			"baseSkillId": "ex-0144",
+			"evolvedSkillIds": [
+				"ex-1188"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0059",
+			"baseSkillId": "ex-0062",
+			"evolvedSkillIds": [
+				"ex-1189"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0059",
+			"baseSkillId": "ex-0065",
+			"evolvedSkillIds": [
+				"ex-1190"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0060",
+			"baseSkillId": "ex-0107",
+			"evolvedSkillIds": [
+				"ex-1192"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0060",
+			"baseSkillId": "ex-0148",
+			"evolvedSkillIds": [
+				"ex-1191"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0061",
+			"baseSkillId": "ex-0150",
+			"evolvedSkillIds": [
+				"ex-1193"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0061",
+			"baseSkillId": "ex-0151",
+			"evolvedSkillIds": [
+				"ex-1194"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0062",
+			"baseSkillId": "ex-0083",
+			"evolvedSkillIds": [
+				"ex-1195"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0062",
+			"baseSkillId": "ex-0153",
+			"evolvedSkillIds": [
+				"ex-1196"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0063",
+			"baseSkillId": "ex-0058",
+			"evolvedSkillIds": [
+				"ex-1197"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0063",
+			"baseSkillId": "ex-0155",
+			"evolvedSkillIds": [
+				"ex-1198"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0064",
+			"baseSkillId": "ex-0047",
+			"evolvedSkillIds": [
+				"ex-1199"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0064",
+			"baseSkillId": "ex-0157",
+			"evolvedSkillIds": [
+				"ex-1200"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0065",
+			"baseSkillId": "ex-0159",
+			"evolvedSkillIds": [
+				"ex-1201"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0065",
+			"baseSkillId": "ex-0160",
+			"evolvedSkillIds": [
+				"ex-1202"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0066",
+			"baseSkillId": "ex-0012",
+			"evolvedSkillIds": [
+				"ex-1205"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0066",
+			"baseSkillId": "ex-0016",
+			"evolvedSkillIds": [
+				"ex-1203",
+				"ex-1204"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0067",
+			"baseSkillId": "ex-0069",
+			"evolvedSkillIds": [
+				"ex-1206"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0067",
+			"baseSkillId": "ex-0104",
+			"evolvedSkillIds": [
+				"ex-1207"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0068",
+			"baseSkillId": "ex-0134",
+			"evolvedSkillIds": [
+				"ex-1208"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0068",
+			"baseSkillId": "ex-0165",
+			"evolvedSkillIds": [
+				"ex-1209",
+				"ex-1210"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0069",
+			"baseSkillId": "ex-0002",
+			"evolvedSkillIds": [
+				"ex-1212",
+				"ex-1213"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0069",
+			"baseSkillId": "ex-0167",
+			"evolvedSkillIds": [
+				"ex-1211"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0070",
+			"baseSkillId": "ex-0026",
+			"evolvedSkillIds": [
+				"ex-1215"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0070",
+			"baseSkillId": "ex-0169",
+			"evolvedSkillIds": [
+				"ex-1214"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0071",
+			"baseSkillId": "ex-0065",
+			"evolvedSkillIds": [
+				"ex-1216"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0071",
+			"baseSkillId": "ex-0134",
+			"evolvedSkillIds": [
+				"ex-1217",
+				"ex-1218"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0072",
+			"baseSkillId": "ex-0045",
+			"evolvedSkillIds": [
+				"ex-1220",
+				"ex-1221"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0072",
+			"baseSkillId": "ex-0172",
+			"evolvedSkillIds": [
+				"ex-1219"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0073",
+			"baseSkillId": "ex-0082",
+			"evolvedSkillIds": [
+				"ex-1223"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0073",
+			"baseSkillId": "ex-0134",
+			"evolvedSkillIds": [
+				"ex-1222"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0074",
+			"baseSkillId": "ex-0027",
+			"evolvedSkillIds": [
+				"ex-1224"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0074",
+			"baseSkillId": "ex-0039",
+			"evolvedSkillIds": [
+				"ex-1225"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0075",
+			"baseSkillId": "ex-0176",
+			"evolvedSkillIds": [
+				"ex-1226"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0075",
+			"baseSkillId": "ex-0177",
+			"evolvedSkillIds": [
+				"ex-1227"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0076",
+			"baseSkillId": "ex-0032",
+			"evolvedSkillIds": [
+				"ex-1228"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0076",
+			"baseSkillId": "ex-0179",
+			"evolvedSkillIds": [
+				"ex-1229"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0077",
+			"baseSkillId": "ex-0012",
+			"evolvedSkillIds": [
+				"ex-1230"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0077",
+			"baseSkillId": "ex-0181",
+			"evolvedSkillIds": [
+				"ex-1231"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0078",
+			"baseSkillId": "ex-0017",
+			"evolvedSkillIds": [
+				"ex-1232"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0078",
+			"baseSkillId": "ex-0183",
+			"evolvedSkillIds": [
+				"ex-1233"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0079",
+			"baseSkillId": "ex-0023",
+			"evolvedSkillIds": [
+				"ex-1235"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0079",
+			"baseSkillId": "ex-0079",
+			"evolvedSkillIds": [
+				"ex-1234"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0080",
+			"baseSkillId": "ex-0172",
+			"evolvedSkillIds": [
+				"ex-1237"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0080",
+			"baseSkillId": "ex-0187",
+			"evolvedSkillIds": [
+				"ex-1236"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0081",
+			"baseSkillId": "ex-0121",
+			"evolvedSkillIds": [
+				"ex-1239"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0081",
+			"baseSkillId": "ex-0189",
+			"evolvedSkillIds": [
+				"ex-1238"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0082",
+			"baseSkillId": "ex-0089",
+			"evolvedSkillIds": [
+				"ex-1241"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0082",
+			"baseSkillId": "ex-0191",
+			"evolvedSkillIds": [
+				"ex-1240"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0083",
+			"baseSkillId": "ex-0193",
+			"evolvedSkillIds": [
+				"ex-1242"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0083",
+			"baseSkillId": "ex-0194",
+			"evolvedSkillIds": [
+				"ex-1243"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0084",
+			"baseSkillId": "ex-0131",
+			"evolvedSkillIds": [
+				"ex-1244"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0084",
+			"baseSkillId": "ex-0196",
+			"evolvedSkillIds": [
+				"ex-1245",
+				"ex-1246"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0085",
+			"baseSkillId": "ex-0047",
+			"evolvedSkillIds": [
+				"ex-1247"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0085",
+			"baseSkillId": "ex-0058",
+			"evolvedSkillIds": [
+				"ex-1248",
+				"ex-1249"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0086",
+			"baseSkillId": "ex-0006",
+			"evolvedSkillIds": [
+				"ex-1251"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0086",
+			"baseSkillId": "ex-0200",
+			"evolvedSkillIds": [
+				"ex-1250"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0087",
+			"baseSkillId": "ex-0202",
+			"evolvedSkillIds": [
+				"ex-1252"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0087",
+			"baseSkillId": "ex-0203",
+			"evolvedSkillIds": [
+				"ex-1253"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0088",
+			"baseSkillId": "ex-0056",
+			"evolvedSkillIds": [
+				"ex-1254"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0088",
+			"baseSkillId": "ex-0205",
+			"evolvedSkillIds": [
+				"ex-1255"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0089",
+			"baseSkillId": "ex-0056",
+			"evolvedSkillIds": [
+				"ex-1256"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0089",
+			"baseSkillId": "ex-0207",
+			"evolvedSkillIds": [
+				"ex-1257"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0090",
+			"baseSkillId": "ex-0047",
+			"evolvedSkillIds": [
+				"ex-1260"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0090",
+			"baseSkillId": "ex-0153",
+			"evolvedSkillIds": [
+				"ex-1258",
+				"ex-1259"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0091",
+			"baseSkillId": "ex-0003",
+			"evolvedSkillIds": [
+				"ex-1262"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0091",
+			"baseSkillId": "ex-0118",
+			"evolvedSkillIds": [
+				"ex-1261"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0092",
+			"baseSkillId": "ex-0079",
+			"evolvedSkillIds": [
+				"ex-1263",
+				"ex-1264"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0092",
+			"baseSkillId": "ex-0211",
+			"evolvedSkillIds": [
+				"ex-1265"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0093",
+			"baseSkillId": "ex-0085",
+			"evolvedSkillIds": [
+				"ex-1267"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0093",
+			"baseSkillId": "ex-0213",
+			"evolvedSkillIds": [
+				"ex-1266"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0094",
+			"baseSkillId": "ex-0117",
+			"evolvedSkillIds": [
+				"ex-1268"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0094",
+			"baseSkillId": "ex-0215",
+			"evolvedSkillIds": [
+				"ex-1269"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0095",
+			"baseSkillId": "ex-0215",
+			"evolvedSkillIds": [
+				"ex-1270",
+				"ex-1271"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0095",
+			"baseSkillId": "ex-0217",
+			"evolvedSkillIds": [
+				"ex-1272"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0096",
+			"baseSkillId": "ex-0065",
+			"evolvedSkillIds": [
+				"ex-1273"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0096",
+			"baseSkillId": "ex-0104",
+			"evolvedSkillIds": [
+				"ex-1274"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0097",
+			"baseSkillId": "ex-0066",
+			"evolvedSkillIds": [
+				"ex-1275",
+				"ex-1276"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0097",
+			"baseSkillId": "ex-0165",
+			"evolvedSkillIds": [
+				"ex-1277"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0098",
+			"baseSkillId": "ex-0080",
+			"evolvedSkillIds": [
+				"ex-1279",
+				"ex-1280"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0098",
+			"baseSkillId": "ex-0221",
+			"evolvedSkillIds": [
+				"ex-1278"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0099",
+			"baseSkillId": "ex-0223",
+			"evolvedSkillIds": [
+				"ex-1281"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0099",
+			"baseSkillId": "ex-0224",
+			"evolvedSkillIds": [
+				"ex-1282"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0100",
+			"baseSkillId": "ex-0085",
+			"evolvedSkillIds": [
+				"ex-1283"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0100",
+			"baseSkillId": "ex-0226",
+			"evolvedSkillIds": [
+				"ex-1284"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0101",
+			"baseSkillId": "ex-0217",
+			"evolvedSkillIds": [
+				"ex-1285"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0101",
+			"baseSkillId": "ex-0229",
+			"evolvedSkillIds": [
+				"ex-1286"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0102",
+			"baseSkillId": "ex-0231",
+			"evolvedSkillIds": [
+				"ex-1287"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0102",
+			"baseSkillId": "ex-0232",
+			"evolvedSkillIds": [
+				"ex-1288"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0103",
+			"baseSkillId": "ex-0076",
+			"evolvedSkillIds": [
+				"ex-1290"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0103",
+			"baseSkillId": "ex-0234",
+			"evolvedSkillIds": [
+				"ex-1289"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0104",
+			"baseSkillId": "ex-0035",
+			"evolvedSkillIds": [
+				"ex-1292"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0104",
+			"baseSkillId": "ex-0232",
+			"evolvedSkillIds": [
+				"ex-1291"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0105",
+			"baseSkillId": "ex-0237",
+			"evolvedSkillIds": [
+				"ex-1293"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0105",
+			"baseSkillId": "ex-0238",
+			"evolvedSkillIds": [
+				"ex-1294"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0106",
+			"baseSkillId": "ex-0240",
+			"evolvedSkillIds": [
+				"ex-1295"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0106",
+			"baseSkillId": "ex-0241",
+			"evolvedSkillIds": [
+				"ex-1296",
+				"ex-1297"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0107",
+			"baseSkillId": "ex-0243",
+			"evolvedSkillIds": [
+				"ex-1298"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0107",
+			"baseSkillId": "ex-0244",
+			"evolvedSkillIds": [
+				"ex-1299"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0108",
+			"baseSkillId": "ex-0054",
+			"evolvedSkillIds": [
+				"ex-1300"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0108",
+			"baseSkillId": "ex-0246",
+			"evolvedSkillIds": [
+				"ex-1301",
+				"ex-1302"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0109",
+			"baseSkillId": "ex-0092",
+			"evolvedSkillIds": [
+				"ex-1303",
+				"ex-1304"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0109",
+			"baseSkillId": "ex-0248",
+			"evolvedSkillIds": [
+				"ex-1305"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0110",
+			"baseSkillId": "ex-0107",
+			"evolvedSkillIds": [
+				"ex-1307"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0110",
+			"baseSkillId": "ex-0117",
+			"evolvedSkillIds": [
+				"ex-1306"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0111",
+			"baseSkillId": "ex-0112",
+			"evolvedSkillIds": [
+				"ex-1308"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0111",
+			"baseSkillId": "ex-0148",
+			"evolvedSkillIds": [
+				"ex-1309"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0112",
+			"baseSkillId": "ex-0050",
+			"evolvedSkillIds": [
+				"ex-1311"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0112",
+			"baseSkillId": "ex-0172",
+			"evolvedSkillIds": [
+				"ex-1310"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0113",
+			"baseSkillId": "ex-0254",
+			"evolvedSkillIds": [
+				"ex-1312",
+				"ex-1313"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0113",
+			"baseSkillId": "ex-0255",
+			"evolvedSkillIds": [
+				"ex-1314"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0114",
+			"baseSkillId": "ex-0255",
+			"evolvedSkillIds": [
+				"ex-1315",
+				"ex-1316"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0114",
+			"baseSkillId": "ex-0257",
+			"evolvedSkillIds": [
+				"ex-1317"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0115",
+			"baseSkillId": "ex-0012",
+			"evolvedSkillIds": [
+				"ex-1318"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0115",
+			"baseSkillId": "ex-0259",
+			"evolvedSkillIds": [
+				"ex-1319"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0116",
+			"baseSkillId": "ex-0023",
+			"evolvedSkillIds": [
+				"ex-1320",
+				"ex-1321"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0116",
+			"baseSkillId": "ex-0261",
+			"evolvedSkillIds": [
+				"ex-1322"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0117",
+			"baseSkillId": "ex-0114",
+			"evolvedSkillIds": [
+				"ex-1324"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0117",
+			"baseSkillId": "ex-0263",
+			"evolvedSkillIds": [
+				"ex-1323"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0118",
+			"baseSkillId": "ex-0023",
+			"evolvedSkillIds": [
+				"ex-1326"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0118",
+			"baseSkillId": "ex-0080",
+			"evolvedSkillIds": [
+				"ex-1325"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0119",
+			"baseSkillId": "ex-0266",
+			"evolvedSkillIds": [
+				"ex-1327"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0119",
+			"baseSkillId": "ex-0267",
+			"evolvedSkillIds": [
+				"ex-1328",
+				"ex-1329"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0120",
+			"baseSkillId": "ex-0043",
+			"evolvedSkillIds": [
+				"ex-1331"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0120",
+			"baseSkillId": "ex-0269",
+			"evolvedSkillIds": [
+				"ex-1330"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0121",
+			"baseSkillId": "ex-0271",
+			"evolvedSkillIds": [
+				"ex-1332"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0121",
+			"baseSkillId": "ex-0272",
+			"evolvedSkillIds": [
+				"ex-1333"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0121",
+			"baseSkillId": "ex-0273",
+			"evolvedSkillIds": [
+				"ex-1334"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0122",
+			"baseSkillId": "ex-0066",
+			"evolvedSkillIds": [
+				"ex-1335"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0122",
+			"baseSkillId": "ex-0194",
+			"evolvedSkillIds": [
+				"ex-1336"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0123",
+			"baseSkillId": "ex-0058",
+			"evolvedSkillIds": [
+				"ex-1338"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0123",
+			"baseSkillId": "ex-0276",
+			"evolvedSkillIds": [
+				"ex-1337"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0124",
+			"baseSkillId": "ex-0266",
+			"evolvedSkillIds": [
+				"ex-1340"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0124",
+			"baseSkillId": "ex-0278",
+			"evolvedSkillIds": [
+				"ex-1339"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0125",
+			"baseSkillId": "ex-0280",
+			"evolvedSkillIds": [
+				"ex-1341"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0125",
+			"baseSkillId": "ex-0281",
+			"evolvedSkillIds": [
+				"ex-1342",
+				"ex-1343"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0126",
+			"baseSkillId": "ex-0096",
+			"evolvedSkillIds": [
+				"ex-1344",
+				"ex-1345"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0126",
+			"baseSkillId": "ex-0134",
+			"evolvedSkillIds": [
+				"ex-1346"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0127",
+			"baseSkillId": "ex-0165",
+			"evolvedSkillIds": [
+				"ex-1348",
+				"ex-1349"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0127",
+			"baseSkillId": "ex-0284",
+			"evolvedSkillIds": [
+				"ex-1347"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0128",
+			"baseSkillId": "ex-0287",
+			"evolvedSkillIds": [
+				"ex-1350"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0128",
+			"baseSkillId": "ex-0288",
+			"evolvedSkillIds": [
+				"ex-1351"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0129",
+			"baseSkillId": "ex-0200",
+			"evolvedSkillIds": [
+				"ex-1354"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0129",
+			"baseSkillId": "ex-0254",
+			"evolvedSkillIds": [
+				"ex-1352",
+				"ex-1353"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0130",
+			"baseSkillId": "ex-0104",
+			"evolvedSkillIds": [
+				"ex-1355",
+				"ex-1356"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0130",
+			"baseSkillId": "ex-0291",
+			"evolvedSkillIds": [
+				"ex-1357"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0131",
+			"baseSkillId": "ex-0080",
+			"evolvedSkillIds": [
+				"ex-1358"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0131",
+			"baseSkillId": "ex-0217",
+			"evolvedSkillIds": [
+				"ex-1359"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0132",
+			"baseSkillId": "ex-0006",
+			"evolvedSkillIds": [
+				"ex-1360"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0132",
+			"baseSkillId": "ex-0295",
+			"evolvedSkillIds": [
+				"ex-1361"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0133",
+			"baseSkillId": "ex-0056",
+			"evolvedSkillIds": [
+				"ex-1362",
+				"ex-1363"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0133",
+			"baseSkillId": "ex-0065",
+			"evolvedSkillIds": [
+				"ex-1364"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0134",
+			"baseSkillId": "ex-0298",
+			"evolvedSkillIds": [
+				"ex-1365"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0134",
+			"baseSkillId": "ex-0299",
+			"evolvedSkillIds": [
+				"ex-1366"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0135",
+			"baseSkillId": "ex-0302",
+			"evolvedSkillIds": [
+				"ex-1367"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0135",
+			"baseSkillId": "ex-0303",
+			"evolvedSkillIds": [
+				"ex-1368"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0136",
+			"baseSkillId": "ex-0009",
+			"evolvedSkillIds": [
+				"ex-1369",
+				"ex-1370"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0136",
+			"baseSkillId": "ex-0047",
+			"evolvedSkillIds": [
+				"ex-1371"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0137",
+			"baseSkillId": "ex-0058",
+			"evolvedSkillIds": [
+				"ex-1373",
+				"ex-1374"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0137",
+			"baseSkillId": "ex-0306",
+			"evolvedSkillIds": [
+				"ex-1372"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0138",
+			"baseSkillId": "ex-0306",
+			"evolvedSkillIds": [
+				"ex-1375"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0138",
+			"baseSkillId": "ex-0308",
+			"evolvedSkillIds": [
+				"ex-1376"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0139",
+			"baseSkillId": "ex-0040",
+			"evolvedSkillIds": [
+				"ex-1377"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0139",
+			"baseSkillId": "ex-0288",
+			"evolvedSkillIds": [
+				"ex-1378"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0140",
+			"baseSkillId": "ex-0026",
+			"evolvedSkillIds": [
+				"ex-1379",
+				"ex-1380"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0140",
+			"baseSkillId": "ex-0107",
+			"evolvedSkillIds": [
+				"ex-1381"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0141",
+			"baseSkillId": "ex-0177",
+			"evolvedSkillIds": [
+				"ex-1384"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0141",
+			"baseSkillId": "ex-0312",
+			"evolvedSkillIds": [
+				"ex-1382",
+				"ex-1383"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0142",
+			"baseSkillId": "ex-0266",
+			"evolvedSkillIds": [
+				"ex-1387"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0142",
+			"baseSkillId": "ex-0267",
+			"evolvedSkillIds": [
+				"ex-1385",
+				"ex-1386"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0143",
+			"baseSkillId": "ex-0148",
+			"evolvedSkillIds": [
+				"ex-1388"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0143",
+			"baseSkillId": "ex-0312",
+			"evolvedSkillIds": [
+				"ex-1389"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0144",
+			"baseSkillId": "ex-0065",
+			"evolvedSkillIds": [
+				"ex-1391"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0144",
+			"baseSkillId": "ex-0079",
+			"evolvedSkillIds": [
+				"ex-1390"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0145",
+			"baseSkillId": "ex-0080",
+			"evolvedSkillIds": [
+				"ex-1393",
+				"ex-1394"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0145",
+			"baseSkillId": "ex-0318",
+			"evolvedSkillIds": [
+				"ex-1392"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0146",
+			"baseSkillId": "ex-0295",
+			"evolvedSkillIds": [
+				"ex-1395"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0146",
+			"baseSkillId": "ex-0321",
+			"evolvedSkillIds": [
+				"ex-1396"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0147",
+			"baseSkillId": "ex-0104",
+			"evolvedSkillIds": [
+				"ex-1397"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0147",
+			"baseSkillId": "ex-0323",
+			"evolvedSkillIds": [
+				"ex-1398"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0148",
+			"baseSkillId": "ex-0063",
+			"evolvedSkillIds": [
+				"ex-1399"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0148",
+			"baseSkillId": "ex-0325",
+			"evolvedSkillIds": [
+				"ex-1400",
+				"ex-1401"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0149",
+			"baseSkillId": "ex-0009",
+			"evolvedSkillIds": [
+				"ex-1403"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0149",
+			"baseSkillId": "ex-0328",
+			"evolvedSkillIds": [
+				"ex-1402"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0150",
+			"baseSkillId": "ex-0224",
+			"evolvedSkillIds": [
+				"ex-1404"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0150",
+			"baseSkillId": "ex-0266",
+			"evolvedSkillIds": [
+				"ex-1405",
+				"ex-1406"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0151",
+			"baseSkillId": "ex-0023",
+			"evolvedSkillIds": [
+				"ex-1407"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0151",
+			"baseSkillId": "ex-0085",
+			"evolvedSkillIds": [
+				"ex-1408"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0152",
+			"baseSkillId": "ex-0189",
+			"evolvedSkillIds": [
+				"ex-1410"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0152",
+			"baseSkillId": "ex-0273",
+			"evolvedSkillIds": [
+				"ex-1409"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0153",
+			"baseSkillId": "ex-0094",
+			"evolvedSkillIds": [
+				"ex-1412",
+				"ex-1413"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0153",
+			"baseSkillId": "ex-0183",
+			"evolvedSkillIds": [
+				"ex-1411"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0154",
+			"baseSkillId": "ex-0335",
+			"evolvedSkillIds": [
+				"ex-1414"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0154",
+			"baseSkillId": "ex-0336",
+			"evolvedSkillIds": [
+				"ex-1415"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0155",
+			"baseSkillId": "ex-0029",
+			"evolvedSkillIds": [
+				"ex-1416"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0155",
+			"baseSkillId": "ex-0338",
+			"evolvedSkillIds": [
+				"ex-1417"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0156",
+			"baseSkillId": "ex-0033",
+			"evolvedSkillIds": [
+				"ex-1419"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0156",
+			"baseSkillId": "ex-0159",
+			"evolvedSkillIds": [
+				"ex-1418"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0157",
+			"baseSkillId": "ex-0159",
+			"evolvedSkillIds": [
+				"ex-1421"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0157",
+			"baseSkillId": "ex-0342",
+			"evolvedSkillIds": [
+				"ex-1420"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0158",
+			"baseSkillId": "ex-0224",
+			"evolvedSkillIds": [
+				"ex-1422",
+				"ex-1423"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0158",
+			"baseSkillId": "ex-0344",
+			"evolvedSkillIds": [
+				"ex-1424"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0159",
+			"baseSkillId": "ex-0153",
+			"evolvedSkillIds": [
+				"ex-1426"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0159",
+			"baseSkillId": "ex-0346",
+			"evolvedSkillIds": [
+				"ex-1425"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0160",
+			"baseSkillId": "ex-0261",
+			"evolvedSkillIds": [
+				"ex-1428"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0160",
+			"baseSkillId": "ex-0266",
+			"evolvedSkillIds": [
+				"ex-1427"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0161",
+			"baseSkillId": "ex-0159",
+			"evolvedSkillIds": [
+				"ex-1429"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0161",
+			"baseSkillId": "ex-0335",
+			"evolvedSkillIds": [
+				"ex-1430",
+				"ex-1431"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0162",
+			"baseSkillId": "ex-0016",
+			"evolvedSkillIds": [
+				"ex-1432"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0162",
+			"baseSkillId": "ex-0159",
+			"evolvedSkillIds": [
+				"ex-1433"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0163",
+			"baseSkillId": "ex-0150",
+			"evolvedSkillIds": [
+				"ex-1435"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0163",
+			"baseSkillId": "ex-0351",
+			"evolvedSkillIds": [
+				"ex-1434"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0164",
+			"baseSkillId": "ex-0040",
+			"evolvedSkillIds": [
+				"ex-1436",
+				"ex-1437"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0164",
+			"baseSkillId": "ex-0323",
+			"evolvedSkillIds": [
+				"ex-1438"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0165",
+			"baseSkillId": "ex-0096",
+			"evolvedSkillIds": [
+				"ex-1439"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0165",
+			"baseSkillId": "ex-0354",
+			"evolvedSkillIds": [
+				"ex-1440",
+				"ex-1441"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0166",
+			"baseSkillId": "ex-0069",
+			"evolvedSkillIds": [
+				"ex-1443",
+				"ex-1444"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0166",
+			"baseSkillId": "ex-0203",
+			"evolvedSkillIds": [
+				"ex-1442"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0167",
+			"baseSkillId": "ex-0059",
+			"evolvedSkillIds": [
+				"ex-1445",
+				"ex-1446"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0167",
+			"baseSkillId": "ex-0357",
+			"evolvedSkillIds": [
+				"ex-1447"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0168",
+			"baseSkillId": "ex-0023",
+			"evolvedSkillIds": [
+				"ex-1448"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0168",
+			"baseSkillId": "ex-0203",
+			"evolvedSkillIds": [
+				"ex-1449"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0169",
+			"baseSkillId": "ex-0211",
+			"evolvedSkillIds": [
+				"ex-1452"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0169",
+			"baseSkillId": "ex-0288",
+			"evolvedSkillIds": [
+				"ex-1450",
+				"ex-1451"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0170",
+			"baseSkillId": "ex-0007",
+			"evolvedSkillIds": [
+				"ex-1453"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0170",
+			"baseSkillId": "ex-0088",
+			"evolvedSkillIds": [
+				"ex-1454",
+				"ex-1455"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0171",
+			"baseSkillId": "ex-0043",
+			"evolvedSkillIds": [
+				"ex-1456"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0171",
+			"baseSkillId": "ex-0110",
+			"evolvedSkillIds": [
+				"ex-1457"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0172",
+			"baseSkillId": "ex-0261",
+			"evolvedSkillIds": [
+				"ex-1459"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0172",
+			"baseSkillId": "ex-0364",
+			"evolvedSkillIds": [
+				"ex-1458"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0173",
+			"baseSkillId": "ex-0288",
+			"evolvedSkillIds": [
+				"ex-1460"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0173",
+			"baseSkillId": "ex-0366",
+			"evolvedSkillIds": [
+				"ex-1461"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0174",
+			"baseSkillId": "ex-0009",
+			"evolvedSkillIds": [
+				"ex-1463"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0174",
+			"baseSkillId": "ex-0205",
+			"evolvedSkillIds": [
+				"ex-1462"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0175",
+			"baseSkillId": "ex-0369",
+			"evolvedSkillIds": [
+				"ex-1464"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0175",
+			"baseSkillId": "ex-0370",
+			"evolvedSkillIds": [
+				"ex-1465"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0176",
+			"baseSkillId": "ex-0085",
+			"evolvedSkillIds": [
+				"ex-1466"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0176",
+			"baseSkillId": "ex-0370",
+			"evolvedSkillIds": [
+				"ex-1467"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0177",
+			"baseSkillId": "ex-0110",
+			"evolvedSkillIds": [
+				"ex-1469"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0177",
+			"baseSkillId": "ex-0373",
+			"evolvedSkillIds": [
+				"ex-1468"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0178",
+			"baseSkillId": "ex-0098",
+			"evolvedSkillIds": [
+				"ex-1471"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0178",
+			"baseSkillId": "ex-0375",
+			"evolvedSkillIds": [
+				"ex-1470"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0179",
+			"baseSkillId": "ex-0099",
+			"evolvedSkillIds": [
+				"ex-1472"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0179",
+			"baseSkillId": "ex-0377",
+			"evolvedSkillIds": [
+				"ex-1473"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0180",
+			"baseSkillId": "ex-0379",
+			"evolvedSkillIds": [
+				"ex-1474"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0180",
+			"baseSkillId": "ex-0380",
+			"evolvedSkillIds": [
+				"ex-1475"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0181",
+			"baseSkillId": "ex-0029",
+			"evolvedSkillIds": [
+				"ex-1476"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0181",
+			"baseSkillId": "ex-0382",
+			"evolvedSkillIds": [
+				"ex-1477",
+				"ex-1478"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0182",
+			"baseSkillId": "ex-0382",
+			"evolvedSkillIds": [
+				"ex-1480"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0182",
+			"baseSkillId": "ex-0384",
+			"evolvedSkillIds": [
+				"ex-1479"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0183",
+			"baseSkillId": "ex-0386",
+			"evolvedSkillIds": [
+				"ex-1481"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0183",
+			"baseSkillId": "ex-0387",
+			"evolvedSkillIds": [
+				"ex-1482"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0184",
+			"baseSkillId": "ex-0389",
+			"evolvedSkillIds": [
+				"ex-1483"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0184",
+			"baseSkillId": "ex-0390",
+			"evolvedSkillIds": [
+				"ex-1484"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0185",
+			"baseSkillId": "ex-0389",
+			"evolvedSkillIds": [
+				"ex-1485"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0185",
+			"baseSkillId": "ex-0392",
+			"evolvedSkillIds": [
+				"ex-1486"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0186",
+			"baseSkillId": "ex-0394",
+			"evolvedSkillIds": [
+				"ex-1487"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0186",
+			"baseSkillId": "ex-0395",
+			"evolvedSkillIds": [
+				"ex-1488"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0187",
+			"baseSkillId": "ex-0007",
+			"evolvedSkillIds": [
+				"ex-1489"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0187",
+			"baseSkillId": "ex-0397",
+			"evolvedSkillIds": [
+				"ex-1490"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0188",
+			"baseSkillId": "ex-0092",
+			"evolvedSkillIds": [
+				"ex-1492"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0188",
+			"baseSkillId": "ex-0399",
+			"evolvedSkillIds": [
+				"ex-1491"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0189",
+			"baseSkillId": "ex-0346",
+			"evolvedSkillIds": [
+				"ex-1493"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0189",
+			"baseSkillId": "ex-0369",
+			"evolvedSkillIds": [
+				"ex-1494"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0190",
+			"baseSkillId": "ex-0080",
+			"evolvedSkillIds": [
+				"ex-1496"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0190",
+			"baseSkillId": "ex-0354",
+			"evolvedSkillIds": [
+				"ex-1495"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0191",
+			"baseSkillId": "ex-0089",
+			"evolvedSkillIds": [
+				"ex-1497"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0191",
+			"baseSkillId": "ex-0273",
+			"evolvedSkillIds": [
+				"ex-1498"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0192",
+			"baseSkillId": "ex-0063",
+			"evolvedSkillIds": [
+				"ex-1499"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0192",
+			"baseSkillId": "ex-0207",
+			"evolvedSkillIds": [
+				"ex-1500"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0193",
+			"baseSkillId": "ex-0405",
+			"evolvedSkillIds": [
+				"ex-1501",
+				"ex-1502"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0193",
+			"baseSkillId": "ex-0406",
+			"evolvedSkillIds": [
+				"ex-1503"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0194",
+			"baseSkillId": "ex-0399",
+			"evolvedSkillIds": [
+				"ex-1505"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0194",
+			"baseSkillId": "ex-0406",
+			"evolvedSkillIds": [
+				"ex-1504"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0195",
+			"baseSkillId": "ex-0386",
+			"evolvedSkillIds": [
+				"ex-1507"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0195",
+			"baseSkillId": "ex-0409",
+			"evolvedSkillIds": [
+				"ex-1506"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0196",
+			"baseSkillId": "ex-0033",
+			"evolvedSkillIds": [
+				"ex-1509"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0196",
+			"baseSkillId": "ex-0172",
+			"evolvedSkillIds": [
+				"ex-1508"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0197",
+			"baseSkillId": "ex-0159",
+			"evolvedSkillIds": [
+				"ex-1510"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0197",
+			"baseSkillId": "ex-0231",
+			"evolvedSkillIds": [
+				"ex-1511"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0198",
+			"baseSkillId": "ex-0151",
+			"evolvedSkillIds": [
+				"ex-1512"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0198",
+			"baseSkillId": "ex-0413",
+			"evolvedSkillIds": [
+				"ex-1513"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0199",
+			"baseSkillId": "ex-0006",
+			"evolvedSkillIds": [
+				"ex-1514"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0199",
+			"baseSkillId": "ex-0266",
+			"evolvedSkillIds": [
+				"ex-1515"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0200",
+			"baseSkillId": "ex-0110",
+			"evolvedSkillIds": [
+				"ex-1516"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0200",
+			"baseSkillId": "ex-0416",
+			"evolvedSkillIds": [
+				"ex-1517"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0201",
+			"baseSkillId": "ex-0003",
+			"evolvedSkillIds": [
+				"ex-1519"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0201",
+			"baseSkillId": "ex-0418",
+			"evolvedSkillIds": [
+				"ex-1518"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0202",
+			"baseSkillId": "ex-0384",
+			"evolvedSkillIds": [
+				"ex-1520"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0202",
+			"baseSkillId": "ex-0420",
+			"evolvedSkillIds": [
+				"ex-1521"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0203",
+			"baseSkillId": "ex-0238",
+			"evolvedSkillIds": [
+				"ex-1522"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0203",
+			"baseSkillId": "ex-0389",
+			"evolvedSkillIds": [
+				"ex-1523"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0204",
+			"baseSkillId": "ex-0165",
+			"evolvedSkillIds": [
+				"ex-1524"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0204",
+			"baseSkillId": "ex-0267",
+			"evolvedSkillIds": [
+				"ex-1525"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0205",
+			"baseSkillId": "ex-0205",
+			"evolvedSkillIds": [
+				"ex-1527"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0205",
+			"baseSkillId": "ex-0424",
+			"evolvedSkillIds": [
+				"ex-1526"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0206",
+			"baseSkillId": "ex-0426",
+			"evolvedSkillIds": [
+				"ex-1528"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0206",
+			"baseSkillId": "ex-0427",
+			"evolvedSkillIds": [
+				"ex-1529"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0207",
+			"baseSkillId": "ex-0026",
+			"evolvedSkillIds": [
+				"ex-1532"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0207",
+			"baseSkillId": "ex-0040",
+			"evolvedSkillIds": [
+				"ex-1530",
+				"ex-1531"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0208",
+			"baseSkillId": "ex-0234",
+			"evolvedSkillIds": [
+				"ex-1534"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0208",
+			"baseSkillId": "ex-0377",
+			"evolvedSkillIds": [
+				"ex-1533"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0209",
+			"baseSkillId": "ex-0357",
+			"evolvedSkillIds": [
+				"ex-1536",
+				"ex-1537"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0209",
+			"baseSkillId": "ex-0431",
+			"evolvedSkillIds": [
+				"ex-1535"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0210",
+			"baseSkillId": "ex-0066",
+			"evolvedSkillIds": [
+				"ex-1539"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0210",
+			"baseSkillId": "ex-0433",
+			"evolvedSkillIds": [
+				"ex-1538"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0211",
+			"baseSkillId": "ex-0172",
+			"evolvedSkillIds": [
+				"ex-1540"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0211",
+			"baseSkillId": "ex-0435",
+			"evolvedSkillIds": [
+				"ex-1541"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0212",
+			"baseSkillId": "ex-0267",
+			"evolvedSkillIds": [
+				"ex-1543"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0212",
+			"baseSkillId": "ex-0354",
+			"evolvedSkillIds": [
+				"ex-1542"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0213",
+			"baseSkillId": "ex-0438",
+			"evolvedSkillIds": [
+				"ex-1544"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0213",
+			"baseSkillId": "ex-0439",
+			"evolvedSkillIds": [
+				"ex-1545",
+				"ex-1546"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0214",
+			"baseSkillId": "ex-0441",
+			"evolvedSkillIds": [
+				"ex-1547"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0214",
+			"baseSkillId": "ex-0442",
+			"evolvedSkillIds": [
+				"ex-1548"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0215",
+			"baseSkillId": "ex-0444",
+			"evolvedSkillIds": [
+				"ex-1549"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0215",
+			"baseSkillId": "ex-0445",
+			"evolvedSkillIds": [
+				"ex-1550",
+				"ex-1551"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0216",
+			"baseSkillId": "ex-0027",
+			"evolvedSkillIds": [
+				"ex-1552"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0216",
+			"baseSkillId": "ex-0255",
+			"evolvedSkillIds": [
+				"ex-1553",
+				"ex-1554"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0217",
+			"baseSkillId": "ex-0259",
+			"evolvedSkillIds": [
+				"ex-1555"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0217",
+			"baseSkillId": "ex-0394",
+			"evolvedSkillIds": [
+				"ex-1556"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0218",
+			"baseSkillId": "ex-0035",
+			"evolvedSkillIds": [
+				"ex-1557",
+				"ex-1558"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0218",
+			"baseSkillId": "ex-0449",
+			"evolvedSkillIds": [
+				"ex-1559"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0219",
+			"baseSkillId": "ex-0004",
+			"evolvedSkillIds": [
+				"ex-1561"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0219",
+			"baseSkillId": "ex-0451",
+			"evolvedSkillIds": [
+				"ex-1560"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0220",
+			"baseSkillId": "ex-0062",
+			"evolvedSkillIds": [
+				"ex-1562"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0220",
+			"baseSkillId": "ex-0405",
+			"evolvedSkillIds": [
+				"ex-1563",
+				"ex-1564"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0221",
+			"baseSkillId": "ex-0298",
+			"evolvedSkillIds": [
+				"ex-1565"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0221",
+			"baseSkillId": "ex-0454",
+			"evolvedSkillIds": [
+				"ex-1566"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0222",
+			"baseSkillId": "ex-0019",
+			"evolvedSkillIds": [
+				"ex-1567"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0222",
+			"baseSkillId": "ex-0457",
+			"evolvedSkillIds": [
+				"ex-1568"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0223",
+			"baseSkillId": "ex-0071",
+			"evolvedSkillIds": [
+				"ex-1570"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0223",
+			"baseSkillId": "ex-0159",
+			"evolvedSkillIds": [
+				"ex-1569"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0224",
+			"baseSkillId": "ex-0460",
+			"evolvedSkillIds": [
+				"ex-1571"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0224",
+			"baseSkillId": "ex-0461",
+			"evolvedSkillIds": [
+				"ex-1572"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0225",
+			"baseSkillId": "ex-0203",
+			"evolvedSkillIds": [
+				"ex-1573"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0225",
+			"baseSkillId": "ex-0298",
+			"evolvedSkillIds": [
+				"ex-1574"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0226",
+			"baseSkillId": "ex-0298",
+			"evolvedSkillIds": [
+				"ex-1575"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0226",
+			"baseSkillId": "ex-0464",
+			"evolvedSkillIds": [
+				"ex-1576"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0227",
+			"baseSkillId": "ex-0083",
+			"evolvedSkillIds": [
+				"ex-1577",
+				"ex-1578"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0227",
+			"baseSkillId": "ex-0205",
+			"evolvedSkillIds": [
+				"ex-1579"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0228",
+			"baseSkillId": "ex-0266",
+			"evolvedSkillIds": [
+				"ex-1582"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0228",
+			"baseSkillId": "ex-0318",
+			"evolvedSkillIds": [
+				"ex-1580",
+				"ex-1581"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0229",
+			"baseSkillId": "ex-0016",
+			"evolvedSkillIds": [
+				"ex-1583"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0229",
+			"baseSkillId": "ex-0131",
+			"evolvedSkillIds": [
+				"ex-1584"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0230",
+			"baseSkillId": "ex-0071",
+			"evolvedSkillIds": [
+				"ex-1585"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0230",
+			"baseSkillId": "ex-0342",
+			"evolvedSkillIds": [
+				"ex-1586"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0231",
+			"baseSkillId": "ex-0238",
+			"evolvedSkillIds": [
+				"ex-1587"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0231",
+			"baseSkillId": "ex-0470",
+			"evolvedSkillIds": [
+				"ex-1588"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0232",
+			"baseSkillId": "ex-0026",
+			"evolvedSkillIds": [
+				"ex-1591"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0232",
+			"baseSkillId": "ex-0338",
+			"evolvedSkillIds": [
+				"ex-1589",
+				"ex-1590"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0233",
+			"baseSkillId": "ex-0134",
+			"evolvedSkillIds": [
+				"ex-1593"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0233",
+			"baseSkillId": "ex-0473",
+			"evolvedSkillIds": [
+				"ex-1592"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0234",
+			"baseSkillId": "ex-0194",
+			"evolvedSkillIds": [
+				"ex-1595"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0234",
+			"baseSkillId": "ex-0203",
+			"evolvedSkillIds": [
+				"ex-1594"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0235",
+			"baseSkillId": "ex-0418",
+			"evolvedSkillIds": [
+				"ex-1596"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0235",
+			"baseSkillId": "ex-0426",
+			"evolvedSkillIds": [
+				"ex-1597"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0236",
+			"baseSkillId": "ex-0056",
+			"evolvedSkillIds": [
+				"ex-1598"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0236",
+			"baseSkillId": "ex-0477",
+			"evolvedSkillIds": [
+				"ex-1599"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0237",
+			"baseSkillId": "ex-0172",
+			"evolvedSkillIds": [
+				"ex-1600"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0237",
+			"baseSkillId": "ex-0386",
+			"evolvedSkillIds": [
+				"ex-1601"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0238",
+			"baseSkillId": "ex-0026",
+			"evolvedSkillIds": [
+				"ex-1603"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0238",
+			"baseSkillId": "ex-0069",
+			"evolvedSkillIds": [
+				"ex-1602"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0239",
+			"baseSkillId": "ex-0187",
+			"evolvedSkillIds": [
+				"ex-1604"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0239",
+			"baseSkillId": "ex-0424",
+			"evolvedSkillIds": [
+				"ex-1605"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0240",
+			"baseSkillId": "ex-0470",
+			"evolvedSkillIds": [
+				"ex-1607"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0240",
+			"baseSkillId": "ex-0482",
+			"evolvedSkillIds": [
+				"ex-1606"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0241",
+			"baseSkillId": "ex-0470",
+			"evolvedSkillIds": [
+				"ex-1608"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0241",
+			"baseSkillId": "ex-0484",
+			"evolvedSkillIds": [
+				"ex-1609",
+				"ex-1610"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0242",
+			"baseSkillId": "ex-0065",
+			"evolvedSkillIds": [
+				"ex-1611"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0242",
+			"baseSkillId": "ex-0486",
+			"evolvedSkillIds": [
+				"ex-1612",
+				"ex-1613"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0243",
+			"baseSkillId": "ex-0431",
+			"evolvedSkillIds": [
+				"ex-1615"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0243",
+			"baseSkillId": "ex-0438",
+			"evolvedSkillIds": [
+				"ex-1614"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0244",
+			"baseSkillId": "ex-0238",
+			"evolvedSkillIds": [
+				"ex-1618"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0244",
+			"baseSkillId": "ex-0489",
+			"evolvedSkillIds": [
+				"ex-1616",
+				"ex-1617"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0245",
+			"baseSkillId": "ex-0491",
+			"evolvedSkillIds": [
+				"ex-1619"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0245",
+			"baseSkillId": "ex-0492",
+			"evolvedSkillIds": [
+				"ex-1620"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0246",
+			"baseSkillId": "ex-0344",
+			"evolvedSkillIds": [
+				"ex-1621"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0246",
+			"baseSkillId": "ex-0494",
+			"evolvedSkillIds": [
+				"ex-1622"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0247",
+			"baseSkillId": "ex-0155",
+			"evolvedSkillIds": [
+				"ex-1623"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0247",
+			"baseSkillId": "ex-0489",
+			"evolvedSkillIds": [
+				"ex-1624"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0248",
+			"baseSkillId": "ex-0232",
+			"evolvedSkillIds": [
+				"ex-1625",
+				"ex-1626"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0248",
+			"baseSkillId": "ex-0497",
+			"evolvedSkillIds": [
+				"ex-1627"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0249",
+			"baseSkillId": "ex-0248",
+			"evolvedSkillIds": [
+				"ex-1628"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0249",
+			"baseSkillId": "ex-0406",
+			"evolvedSkillIds": [
+				"ex-1629"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0250",
+			"baseSkillId": "ex-0382",
+			"evolvedSkillIds": [
+				"ex-1630"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0250",
+			"baseSkillId": "ex-0500",
+			"evolvedSkillIds": [
+				"ex-1631"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0251",
+			"baseSkillId": "ex-0035",
+			"evolvedSkillIds": [
+				"ex-1632"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0251",
+			"baseSkillId": "ex-0243",
+			"evolvedSkillIds": [
+				"ex-1633"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0252",
+			"baseSkillId": "ex-0050",
+			"evolvedSkillIds": [
+				"ex-1635"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0252",
+			"baseSkillId": "ex-0082",
+			"evolvedSkillIds": [
+				"ex-1634"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0253",
+			"baseSkillId": "ex-0098",
+			"evolvedSkillIds": [
+				"ex-1637"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0253",
+			"baseSkillId": "ex-0504",
+			"evolvedSkillIds": [
+				"ex-1636"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0254",
+			"baseSkillId": "ex-0506",
+			"evolvedSkillIds": [
+				"ex-1638"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0254",
+			"baseSkillId": "ex-0507",
+			"evolvedSkillIds": [
+				"ex-1639",
+				"ex-1640"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0255",
+			"baseSkillId": "ex-0226",
+			"evolvedSkillIds": [
+				"ex-1641"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0255",
+			"baseSkillId": "ex-0377",
+			"evolvedSkillIds": [
+				"ex-1642"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0256",
+			"baseSkillId": "ex-0510",
+			"evolvedSkillIds": [
+				"ex-1643"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0256",
+			"baseSkillId": "ex-0511",
+			"evolvedSkillIds": [
+				"ex-1644"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0257",
+			"baseSkillId": "ex-0269",
+			"evolvedSkillIds": [
+				"ex-1645"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0257",
+			"baseSkillId": "ex-0507",
+			"evolvedSkillIds": [
+				"ex-1646"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0258",
+			"baseSkillId": "ex-0504",
+			"evolvedSkillIds": [
+				"ex-1648"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0258",
+			"baseSkillId": "ex-0514",
+			"evolvedSkillIds": [
+				"ex-1647"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0259",
+			"baseSkillId": "ex-0021",
+			"evolvedSkillIds": [
+				"ex-1650"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0259",
+			"baseSkillId": "ex-0189",
+			"evolvedSkillIds": [
+				"ex-1649"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0260",
+			"baseSkillId": "ex-0086",
+			"evolvedSkillIds": [
+				"ex-1652"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0260",
+			"baseSkillId": "ex-0454",
+			"evolvedSkillIds": [
+				"ex-1651"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0261",
+			"baseSkillId": "ex-0518",
+			"evolvedSkillIds": [
+				"ex-1653"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0261",
+			"baseSkillId": "ex-0519",
+			"evolvedSkillIds": [
+				"ex-1654",
+				"ex-1655"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0262",
+			"baseSkillId": "ex-0203",
+			"evolvedSkillIds": [
+				"ex-1656"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0262",
+			"baseSkillId": "ex-0522",
+			"evolvedSkillIds": [
+				"ex-1657"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0263",
+			"baseSkillId": "ex-0524",
+			"evolvedSkillIds": [
+				"ex-1658"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0263",
+			"baseSkillId": "ex-0525",
+			"evolvedSkillIds": [
+				"ex-1659"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0264",
+			"baseSkillId": "ex-0189",
+			"evolvedSkillIds": [
+				"ex-1660"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0264",
+			"baseSkillId": "ex-0527",
+			"evolvedSkillIds": [
+				"ex-1661",
+				"ex-1662"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0265",
+			"baseSkillId": "ex-0269",
+			"evolvedSkillIds": [
+				"ex-1663"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0265",
+			"baseSkillId": "ex-0306",
+			"evolvedSkillIds": [
+				"ex-1664"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0266",
+			"baseSkillId": "ex-0012",
+			"evolvedSkillIds": [
+				"ex-1667"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0266",
+			"baseSkillId": "ex-0308",
+			"evolvedSkillIds": [
+				"ex-1668"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0267",
+			"baseSkillId": "ex-0165",
+			"evolvedSkillIds": [
+				"ex-1669"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0267",
+			"baseSkillId": "ex-0532",
+			"evolvedSkillIds": [
+				"ex-1670"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0268",
+			"baseSkillId": "ex-0409",
+			"evolvedSkillIds": [
+				"ex-1665"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0268",
+			"baseSkillId": "ex-0653",
+			"evolvedSkillIds": [
+				"ex-1666"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0269",
+			"baseSkillId": "ex-0354",
+			"evolvedSkillIds": [
+				"ex-1146"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0269",
+			"baseSkillId": "ex-0633",
+			"evolvedSkillIds": [
+				"ex-1147"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0270",
+			"baseSkillId": "ex-0655",
+			"evolvedSkillIds": [
+				"ex-1153"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0270",
+			"baseSkillId": "ex-0656",
+			"evolvedSkillIds": [
+				"ex-1154"
+			]
+		},
+		{
+			"kind": "scenario",
+			"scenarioId": "トレセン軒",
+			"baseSkillId": "ex-0029",
+			"evolvedSkillIds": [
+				"ex-1038"
+			]
+		},
+		{
+			"kind": "scenario",
+			"scenarioId": "トレセン軒",
+			"baseSkillId": "ex-0183",
+			"evolvedSkillIds": [
+				"ex-1034"
+			]
+		},
+		{
+			"kind": "scenario",
+			"scenarioId": "トレセン軒",
+			"baseSkillId": "ex-0616",
+			"evolvedSkillIds": [
+				"ex-1037"
+			]
+		},
+		{
+			"kind": "scenario",
+			"scenarioId": "トレセン軒",
+			"baseSkillId": "ex-0645",
+			"evolvedSkillIds": [
+				"ex-1036"
+			]
+		},
+		{
+			"kind": "scenario",
+			"scenarioId": "トレセン軒",
+			"baseSkillId": "ex-0657",
+			"evolvedSkillIds": [
+				"ex-1039"
+			]
+		},
+		{
+			"kind": "scenario",
+			"scenarioId": "トレセン軒",
+			"baseSkillId": "ex-0668",
+			"evolvedSkillIds": [
+				"ex-1035"
+			]
+		}
+	]
+}

@@ -9122,8 +9122,9 @@ await block('段7【5】収録スキルデータ（マスター）の取り回�
 		// 必要になったときだけ読む data/（ⓘ・長押しを開いたとき。段6・2026-10-02）。ここ（ページの読み込みと各入口の呼び出し）では
 		// 取りに行かないのが正しい。**ほかの全ファイルが取得されること**と、**これらが取得されていないこと**を別々に見る。
 		// シナリオの固定イベント（段7c）は special が編成パネルを作るときにだけ読む。効果量の段階（C-129）は「低効果を除外」・オススメサポの「低効果」で初めて読む。
-		// ②にまとめて追加するスキルのグループ（C-130）は、レースを選んだとき・②のパレットの行が見えたとき（脚質があるとき）に初めて読む
-		const 遅延 = ['data/skill-descriptions.json', 'data/scenario-event-skills.json', 'data/skill-effect-levels.json', 'data/recommended-skills.json'];
+		// ②にまとめて追加するスキルのグループ（C-130）は、レースを選んだとき・②のパレットの行が見えたとき（脚質があるとき）に初めて読む。
+		// スキルの進化の対応（C-145・2026-10-12）は、進化を使う画面か、進化スキルを辞書から外す入口（Deck の取り込み）が呼んだときに初めて読む
+		const 遅延 = ['data/skill-descriptions.json', 'data/scenario-event-skills.json', 'data/skill-effect-levels.json', 'data/recommended-skills.json', 'data/skill-evolutions.json'];
 		const 取れた = paths.filter((k) => dataUrls.some((u) => u.includes('/' + k)));
 		const 対象 = paths.filter((k) => !遅延.includes(k));
 		assert(遅延.every((k) => paths.includes(k)) && !遅延.some((k) => 取れた.includes(k)),
@@ -12847,6 +12848,8 @@ await block('スキルPt ―― check:catalog の §11（届いたときの検�
 		fs.rmSync(path.join(tmp, 'skill-effect-levels.json'), { force: true });
 		// スキルの効率（C-136）も消費スキルPt を skill-pt.json と突き合わせるので、仮の skill-pt.json とは合わない。同じく外す
 		fs.rmSync(path.join(tmp, 'skill-efficiency.json'), { force: true });
+		// スキルの進化の対応（C-145）も進化先の rarity を skill-pt.json と突き合わせるので、仮の skill-pt.json とは合わない。同じく外す
+		fs.rmSync(path.join(tmp, 'skill-evolutions.json'), { force: true });
 		Object.entries(files).forEach(([name, doc]) => fs.writeFileSync(path.join(tmp, name), JSON.stringify(doc, null, '\t')));
 		const r = spawnSync(process.execPath, ['tests/catalog/check-catalog.mjs', '--dir=' + path.relative(REPO_ROOT, tmp).split(path.sep).join('/')], { cwd: REPO_ROOT, encoding: 'utf8' });
 		fs.rmSync(tmp, { recursive: true, force: true });

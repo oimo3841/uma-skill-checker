@@ -5,7 +5,8 @@
 //   レースの距離の一覧は 2026-09-26・C-97 に新設と同時に追加 ―― `entries` を持たない形なので
 //   FILES のループには入れず、§8 で独自に見る。
 //   めろっぷ用の行の並び（melop-sheet-rows.json）は 2026-09-27・C-101 に新設と同時に追加 ―― 同じく §9。
-//   スキルの効率（skill-efficiency.json）は 2026-10-09・C-136 に新設と同時に追加 ―― §14）
+//   スキルの効率（skill-efficiency.json）は 2026-10-09・C-136 に新設と同時に追加 ―― §14。
+//   スキルの進化の対応（skill-evolutions.json）は 2026-10-12・C-145 に新設と同時に追加 ―― §11 の中）
 //
 //   npm run check:catalog        … 単体で回す
 //   npm run test:verify          … 納品前チェックの §10 からも呼ばれる
@@ -126,10 +127,12 @@ const ENTRY_KEYS = {
 const MASTER_ENTRY_KEYS = { need: ['id', 'name', 'tags'], opt: ['raceDistance'] };
 /* **raceDistance（レースの距離の限定。C-96・C-97）の中身。**
    - min・max … 両端を含む整数（「3000m未満」は max 2999）。少なくとも一方を持つ
-   - standardDistance … 根幹距離 true／非根幹距離 false。**min・max とは排他**（数字を持つ行には書かない）
+   - standardDistance … 根幹距離 true／非根幹距離 false。**min・max とは排他**（数字を持つ行には書かない）。
+     **例外（2026-10-12）: min・max と同時に持てるのは standardDistanceScope を持つ行だけ**
+   - standardDistanceScope … "all"／"part"。**min・max と standardDistance の両方を持つ行にだけ**書く（根幹距離の条件がかかる範囲。scope は数字の範囲にかかる）
    - scope … "all"（限定がスキル全体にかかる）／"part"（一部にかかる）。**必ず書く**
    - distanceTagScope … "all"／"part"。**距離のタグと raceDistance の両方を持つ行にだけ**書く */
-const RACE_DISTANCE_KEYS = { need: ['scope'], opt: ['min', 'max', 'standardDistance', 'distanceTagScope'] };
+const RACE_DISTANCE_KEYS = { need: ['scope'], opt: ['min', 'max', 'standardDistance', 'standardDistanceScope', 'distanceTagScope'] };
 const SCOPE_VALUES = ['all', 'part'];
 /* レースの距離の一覧（data/race-distances.json。C-97）。区分の境目と実在する距離。
    `entries` を持たないので FILES には入れず、§8 で見る。 */
@@ -551,7 +554,11 @@ console.log('\n=== 2-2. マスターの行のキーと raceDistance（マスタ�
 		if (hasMax && (!isInt(rd.max) || rd.max < 1)) bad.push(w + ': max は1以上の整数');
 		if (hasMin && hasMax && isInt(rd.min) && isInt(rd.max) && rd.min > rd.max) bad.push(w + ': min が max より大きい');
 		if (hasStd && typeof rd.standardDistance !== 'boolean') bad.push(w + ': standardDistance は true / false');
-		if (hasStd === (hasMin || hasMax)) bad.push(w + ': min・max と standardDistance はどちらか一方だけ持つ');
+		const hasStdScope = rd.standardDistanceScope !== undefined;
+		if (hasStdScope && !SCOPE_VALUES.includes(rd.standardDistanceScope)) bad.push(w + ': standardDistanceScope は ' + SCOPE_VALUES.join(' / '));
+		const hasBoth = hasStd && (hasMin || hasMax);
+		if (hasStdScope !== hasBoth) bad.push(w + ': standardDistanceScope は min・max と standardDistance の両方を持つ行にだけ書く（両方' + (hasBoth ? 'あり' : 'なし') + '・印' + (hasStdScope ? 'あり' : 'なし') + '）');
+		if (!hasStd && !hasMin && !hasMax) bad.push(w + ': min・max か standardDistance のどちらかは持つ');
 		if (!SCOPE_VALUES.includes(rd.scope)) bad.push(w + ': scope は ' + SCOPE_VALUES.join(' / '));
 		const hasDistanceTag = isObj(e.tags) && isArr(e.tags.distance) && e.tags.distance.length > 0;
 		const hasTagScope = rd.distanceTagScope !== undefined;
@@ -563,7 +570,7 @@ console.log('\n=== 2-2. マスターの行のキーと raceDistance（マスタ�
 	});
 	none(unknown, 'raceDistance に知らないキーが無い（' + RACE_DISTANCE_KEYS.need.concat(RACE_DISTANCE_KEYS.opt).join(' / ') + '）［' + count + '件］');
 	none(missing, 'raceDistance に scope がある');
-	none(bad, 'raceDistance の値が決めた形（min・max は両端を含む整数／standardDistance とは排他／distanceTagScope は距離のタグを持つ行だけ）');
+	none(bad, 'raceDistance の値が決めた形（min・max は両端を含む整数／standardDistance とは排他〔両方は standardDistanceScope を持つ行だけ〕／distanceTagScope は距離のタグを持つ行だけ）');
 	console.log('     raceDistance を持つ行: ' + count + '件（うち距離のタグも持つ行 ' + withTagAndLimit + '件）'
 		+ (count === 0 ? '（0件なので上の検査は見るものが無い）' : ''));
 }
@@ -1690,6 +1697,95 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 			none(dup, SCEN_FILE + ': シナリオ・イベント・同じ組の中のスキルが重複しない');
 			none(unregistered, SCEN_FILE + ': skillId がすべてマスターか拡張スキルで引ける');
 			none(badLevel, SCEN_FILE + ': hintLevel は1以上の整数');
+		}
+	}
+
+	/* --- スキルの進化の対応（2026-10-12・C-145／C-146。進化スキルの受け入れ） ---
+	   形は許可リスト方式。kind は uma（パターンA＝衣装自身の進化）か scenario（パターンB＝シナリオの進化）。
+	   進化先は rarity が evolved（厳格）で pt が 0。進化元の rarity は gold に限らない（引けることだけ見る）。
+	   uma の進化元は、その衣装自身の初期・覚醒スキルにある。scenario の scenarioId は scenario-event-skills.json の scenario と同じ名前。
+	   スキル名・衣装名・シナリオ名はここに書かない（恒久ルール1）。 */
+	const EVO_FILE = 'skill-evolutions.json';
+	const evr = readOpt(EVO_FILE);
+	if (evr === null) {
+		console.log('       ' + EVO_FILE + ': まだ無い（無ければ見ない）');
+	} else {
+		check(evr.ok, EVO_FILE + ' が読める', evr.ok ? undefined : evr.error);
+		if (evr.ok) {
+			const d = evr.data;
+			const unknown = [], missing = [], bad = [], dup = [], unregistered = [], badRarity = [], notOwn = [], badScenario = [];
+			checkKeys(d, PT_TOP_KEYS, EVO_FILE, unknown, missing);
+			if (d.category !== 'skillEvolution') bad.push('category が ' + JSON.stringify(d.category));
+			if (!DATA_VERSION_RE.test(String(d.dataVersion))) bad.push('dataVersion の形が違う: ' + String(d.dataVersion));
+			if (!isArr(d.entries) || d.entries.length === 0) bad.push('entries が空でない配列でない');
+			const ptDoc = readOpt(PT_FILE);
+			const ptBy = new Map();
+			if (ptDoc && ptDoc.ok && isArr(ptDoc.data.entries)) ptDoc.data.entries.forEach((e) => ptBy.set(String(e.skillId), e));
+			check(ptBy.size > 0, EVO_FILE + ': 進化先の rarity を見るための ' + PT_FILE + ' が読める');
+			const umaOwn = new Map();   // umaId → その衣装自身の初期・覚醒スキルの id の集合
+			docs.trainingUmamusume.entries.forEach((u) => {
+				const s = new Set();
+				['initialSkills', 'awakeningSkills'].forEach((k) => (u[k] || []).forEach((row) => (row.skills || []).forEach((x) => s.add(String(x.skillId)))));
+				umaOwn.set(String(u.id), s);
+			});
+			const scenarioNames = new Set();
+			const scr2 = readOpt('scenario-event-skills.json');
+			if (scr2 && scr2.ok && isArr(scr2.data.entries)) scr2.data.entries.forEach((en) => { if (isStr(en.scenario)) scenarioNames.add(en.scenario); });
+			const seenKey = new Set(), evolvedAll = [];
+			const umaWith = new Set();
+			let nUma = 0, nScen = 0;
+			(isArr(d.entries) ? d.entries : []).forEach((en, i) => {
+				const w = 'entries[' + i + ']';
+				if (en && en.kind === 'uma') {
+					if (!checkKeys(en, { need: ['kind', 'umaId', 'baseSkillId', 'evolvedSkillIds'], opt: [] }, w, unknown, missing)) return;
+					nUma++;
+					if (!umaOwn.has(String(en.umaId))) bad.push(w + '.umaId: ' + en.umaId + ' が training-umamusume.json にない');
+					else if (!umaOwn.get(String(en.umaId)).has(String(en.baseSkillId))) notOwn.push(w + ': ' + en.umaId + ' の初期・覚醒スキルに ' + en.baseSkillId + ' がない');
+					umaWith.add(String(en.umaId));
+				} else if (en && en.kind === 'scenario') {
+					if (!checkKeys(en, { need: ['kind', 'scenarioId', 'baseSkillId', 'evolvedSkillIds'], opt: [] }, w, unknown, missing)) return;
+					nScen++;
+					if (!isStr(en.scenarioId)) bad.push(w + '.scenarioId: 空でない文字列');
+					else if (!scenarioNames.has(en.scenarioId)) badScenario.push(w + ': scenarioId ' + en.scenarioId + ' が scenario-event-skills.json の scenario にない');
+				} else {
+					bad.push(w + '.kind: uma か scenario');
+					return;
+				}
+				const owner = en.kind === 'uma' ? String(en.umaId) : String(en.scenarioId);
+				if (!isStr(en.baseSkillId)) bad.push(w + '.baseSkillId: 空でない文字列');
+				else {
+					if (!registered.has(en.baseSkillId)) unregistered.push(w + '.baseSkillId: ' + en.baseSkillId);
+					const key = en.kind + '|' + owner + '|' + en.baseSkillId;
+					if (seenKey.has(key)) dup.push(w + ': (' + en.kind + ', ' + owner + ', ' + en.baseSkillId + ') が重複');
+					seenKey.add(key);
+				}
+				if (!isArr(en.evolvedSkillIds) || en.evolvedSkillIds.length === 0 || !en.evolvedSkillIds.every(isStr)) { bad.push(w + '.evolvedSkillIds: 空でない文字列の配列'); return; }
+				if (new Set(en.evolvedSkillIds).size !== en.evolvedSkillIds.length) dup.push(w + '.evolvedSkillIds: 進化先の重複');
+				en.evolvedSkillIds.forEach((id) => {
+					if (!registered.has(id)) unregistered.push(w + '.evolvedSkillIds: ' + id);
+					const row = ptBy.get(id);
+					if (!row || row.rarity !== 'evolved') badRarity.push(w + ': 進化先 ' + id + ' の rarity が evolved でない（' + (row ? row.rarity : '行なし') + '）');
+					else if (row.pt !== 0) badRarity.push(w + ': 進化先 ' + id + ' の pt が 0 でない（' + row.pt + '）');
+					if (id === en.baseSkillId) bad.push(w + ': 進化先が進化元と同じ ' + id);
+					evolvedAll.push(id);
+				});
+			});
+			none(unknown.concat(missing), EVO_FILE + ': キーが決めた形（知らないキーが無く、必須が揃っている）');
+			none(bad, EVO_FILE + ': category・版・kind・id の形と、umaId の実在');
+			none(dup, EVO_FILE + ': 鍵（kind × 衣装かシナリオ × 進化元）が重複せず、同じ行の進化先も重複しない');
+			none(unregistered, EVO_FILE + ': 進化元・進化先の id がすべてマスターか拡張スキルで引ける');
+			none(badRarity, EVO_FILE + ': 進化先の rarity はすべて evolved で pt は 0（進化元の rarity は問わない）');
+			none(notOwn, EVO_FILE + ': kind が uma の進化元は、その衣装自身の初期・覚醒スキルにある');
+			none(badScenario, EVO_FILE + ': kind が scenario の scenarioId は scenario-event-skills.json のシナリオ名と同じ');
+			// 進化スキル（rarity evolved）は、この対応のどこかの進化先になっている（孤児を作らない）。名前は進化先どうしで重複しない
+			const extNameById = new Map(docs.extendedSkill.entries.map((e) => [String(e.id), e.name]));
+			const evolvedSet = new Set(evolvedAll);
+			const orphan = [...ptBy.values()].filter((e) => e.rarity === 'evolved' && !evolvedSet.has(String(e.skillId))).map((e) => e.skillId);
+			none(orphan, EVO_FILE + ': rarity が evolved のスキルがすべて、どこかの行の進化先になっている');
+			const nameCount = new Map();
+			evolvedSet.forEach((id) => { const n = (masterNameById.get(id) || extNameById.get(id)); if (n) nameCount.set(n, (nameCount.get(n) || 0) + 1); });
+			none([...nameCount.entries()].filter(([, c]) => c > 1).map(([n]) => n), EVO_FILE + ': 進化先の名前が重複しない');
+			console.log('       ' + EVO_FILE + ': ' + nUma + '行（パターンA・' + umaWith.size + '衣装）・' + nScen + '行（パターンB）・進化先 ' + evolvedSet.size + '種');
 		}
 	}
 
