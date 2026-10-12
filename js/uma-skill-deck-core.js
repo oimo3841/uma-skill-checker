@@ -4235,9 +4235,11 @@
 	// 収録データの入力ページは `isReferableSkillId()` で外しているので、残しても影響は無い。
 	function buildSkillTextIndex(opts) {
 		const searchableOnly = !!(opts && opts.searchableOnly);
+		// 進化スキルは照合の辞書に入れない（2026-10-12・おいもさんの方針。OCR・貼り付けの照合が重いため）。findSkill では引ける。
+		// 進化スキルの一覧は loadSkillEvolutions が読んだあとに分かる（読めていなければ外せないので、辞書を使う入口は先に待つこと）
 		const pool = masterSkills.map(sk => ({ id: sk.id, name: sk.name }))
 			.concat(searchableOnly ? [] : (ensureUserData().customSkills || []).map(c => ({ id: c.customId, name: c.name })))
-			.concat(extraCatalog.filter(x => !searchableOnly || isSearchableCatalogEntry(x)).map(x => ({ id: x.id, name: x.name })));
+			.concat(extraCatalog.filter(x => (!searchableOnly || isSearchableCatalogEntry(x)) && !isEvolvedSkillId(x.id)).map(x => ({ id: x.id, name: x.name })));
 		return pool.map(p => ({ id: p.id, name: p.name, norm: normalizeSkillText(p.name) }));
 	}
 

@@ -15,7 +15,7 @@
 
 // このファイルの版。ツール上部の「読み込み状況」に表示し、
 // HTML側の ?v= クエリ・このファイル内の定数の3点が一致しているかを納品前に確認する。
-const UMA_SKILL_DECK_JS_VERSION = '2026-10-12a';
+const UMA_SKILL_DECK_JS_VERSION = '2026-10-12b';
 
 // 読み込むべき共通CSS（css/tokens.css / css/common.css）の版。3ファイルで1つの版。
 // 古い版がキャッシュに残ったまま新しいHTMLが読まれると、
@@ -1133,10 +1133,12 @@ function resolvedCountText(resolved) {
 	return parts.join('・');
 }
 
-function openOcrImportDialog() {
+async function openOcrImportDialog() {
 	const entry = pendingOcrHandoff();
 	if (!entry) { showToast('読み込めるデータがありません'); return; }
 	const payload = entry.payload;
+	// 受け取った名前の照合では、進化スキルを辞書に入れない（2026-10-12）。進化スキルの一覧が分かってから照合する（読めなくても取り込みは続ける）
+	try { await Core.loadSkillEvolutions(); } catch (e) { /* 照合は続ける */ }
 	const skills = resolveHandoffSkills(payload);
 	if (skills.resolved.length === 0) {
 		showToast('このツールに登録されているスキルと一致しませんでした');
