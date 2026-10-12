@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-12f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-13a';
 
 	/* ============================================================
 	 * 定数
@@ -1581,11 +1581,21 @@
 		return raceDistances.distances.filter(x => categoryKeys.includes(x.category)).map(x => x.distance);
 	}
 
-	/** スキルの `raceDistance`（レースの距離の限定）に、距離 d が当たるか。min・max は両端を含む。 */
+	/**
+	 * スキルの `raceDistance`（レースの距離の限定）に、距離 d が当たるか。min・max は両端を含む。
+	 *
+	 * **範囲（min・max）と根幹距離（standardDistance）の両方を持つ行**（2026-10-12・C-148。持つのは進化スキルの1行だけ）は、
+	 * `standardDistanceScope` が "part" のとき、**範囲に当たれば合う**。根幹距離は追加の効果にだけかかる条件なので、合う・合わないの判定には使わない。
+	 * "all" を持つ行はいまのところ無い（受け入れるときに別に決める）。片方だけを持つ行の判定は変えていない。
+	 */
 	function raceDistanceMatches(rd, d) {
 		if (!rd) return false;
-		if (typeof rd.standardDistance === 'boolean') return (d % STANDARD_DISTANCE_UNIT === 0) === rd.standardDistance;
-		return (rd.min == null || d >= rd.min) && (rd.max == null || d <= rd.max);
+		const inRange = (rd.min == null || d >= rd.min) && (rd.max == null || d <= rd.max);
+		if (typeof rd.standardDistance === 'boolean') {
+			if ((rd.min != null || rd.max != null) && rd.standardDistanceScope === 'part') return inRange;
+			return (d % STANDARD_DISTANCE_UNIT === 0) === rd.standardDistance;
+		}
+		return inRange;
 	}
 
 	/**

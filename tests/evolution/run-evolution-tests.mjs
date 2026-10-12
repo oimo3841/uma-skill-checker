@@ -7,7 +7,7 @@
 //      OCR・貼り付けの照合の辞書（buildSkillTextIndex）に入らない（辞書の件数は受け入れ前の基準と同じ）／照合しても結果に出ない
 //   §2 既定の決定関数（computeEvolutionPlan）を表で回す: 全衣装 × 主なレース条件で、決まり（上限・指定なし・id 昇順・Aで進化したらBの対象外・同じ入力は同じ出力）が成り立つ
 //   §3 手書きの期待値（オルフェーヴルの君臨・睥睨と3つの進化先／トレセン軒の6組／合成データの上限）
-//   §4 ex-1606（距離が範囲と根幹距離の両方を持つ行）が現行の判定のままで動く（結果を表示する。判定は変えていない）
+//   §4 ex-1606（距離が範囲と根幹距離の両方を持つ行）は、範囲に当たれば合う（根幹距離は判定に使わない。C-148）
 //
 // 件数の基準（受け入れ前に測った値。2026-10-12）: 辞書 = マスター445 ＋ 追加カタログ744 = 1189
 //   （追加カタログ744 = シナリオ因子24 ＋ 遺伝子10 ＋ 拡張スキル710。進化スキル637行は含めない）。
@@ -244,25 +244,27 @@ assert(!!orfe && ownGold(orfe).length === 2, 'オルフェーヴル総攬（' + 
 }
 
 /* ───────── §4 ex-1606 ───────── */
-console.log('\n=== §4 ex-1606（距離は範囲と根幹距離の両方を持つ）: 現行の判定のままで動く ===');
+console.log('\n=== §4 ex-1606（距離は範囲と根幹距離の両方を持つ）: 範囲に当たれば合う。根幹距離は判定に使わない（C-148） ===');
 {
-	const r = await page.evaluate((raceRows) => {
+	// ex-1606 = { min: 1600, max: 2500, standardDistance: true, scope: 'all', standardDistanceScope: 'part' }（脚質は追込。指定しなければ見ない）
+	const r = await page.evaluate(() => {
 		const C = window.UmaSkillDeckCore;
-		const out = {};
-		['short', 'mile', 'medium', 'long'].forEach((c) => {
-			const p = C.computeEvolutionPlan({ umaId: '', takenIds: ['x'], filter: { distance: c }, race: null, evolutions: { entries: [{ kind: 'scenario', scenarioId: 'S', baseSkillId: 'x', evolvedSkillIds: ['ex-1606'] }] }, scenarioKey: 'S' });
-			out[c] = p.b.entries.length ? p.b.entries[0].targets[0].fit : '(行なし)';
-		});
-		const byRace = {};
-		raceRows.forEach((rr) => {
-			const f = {}; if (rr.distanceCategory) f.distance = rr.distanceCategory;
-			const p = C.computeEvolutionPlan({ umaId: '', takenIds: ['x'], filter: f, race: rr, evolutions: { entries: [{ kind: 'scenario', scenarioId: 'S', baseSkillId: 'x', evolvedSkillIds: ['ex-1606'] }] }, scenarioKey: 'S' });
-			byRace[rr.id + '(' + rr.distance + 'm)'] = p.b.entries.length ? p.b.entries[0].targets[0].fit : '(行なし)';
-		});
-		return { out, byRace };
-	}, raceRows);
-	console.log('       現行の判定での ex-1606（脚質は指定なし）: 距離の区分だけ → ' + JSON.stringify(r.out) + ' ／ レースを選ぶ → ' + JSON.stringify(r.byRace));
-	assert(Object.values(r.out).every((x) => ['must', 'may', 'no'].includes(x)), 'ex-1606 は例外なく「必ず／合うことがある／合わない」のどれかに判定される', r.out);
+		const ev = { entries: [{ kind: 'scenario', scenarioId: 'S', baseSkillId: 'x', evolvedSkillIds: ['ex-1606'] }] };
+		const fitOf = (filter, race) => { const p = C.computeEvolutionPlan({ umaId: '', takenIds: ['x'], filter, race, evolutions: ev, scenarioKey: 'S' }); return p.b.entries.length ? p.b.entries[0].targets[0].fit : '(行なし)'; };
+		const catOf = (d) => (d <= 1400 ? 'short' : d <= 1800 ? 'mile' : d <= 2400 ? 'medium' : 'long');
+		const byDistance = {};
+		[1500, 1600, 1700, 1800, 1900, 2000, 2200, 2400, 2500, 2600, 3000].forEach((d) => { byDistance[d] = fitOf({ distance: catOf(d) }, { id: 'r', distance: d, distanceCategory: catOf(d) }); });
+		const byCategory = {};
+		['short', 'mile', 'medium', 'long'].forEach((c) => { byCategory[c] = fitOf({ distance: c }, null); });
+		return { byDistance, byCategory, rdKeep: C.findSkill('ex-1606').raceDistance };
+	});
+	const D = r.byDistance;
+	assert(D[2200] === 'must' && D[2500] === 'must', '2200m・2500m（範囲に当たる・根幹距離ではない）は「合う」', { 2200: D[2200], 2500: D[2500] });
+	assert(D[1700] === 'must' && D[1800] === 'must', '1700m・1800m（範囲に当たる・根幹距離ではない）は「合う」', { 1700: D[1700], 1800: D[1800] });
+	assert(D[2000] === 'must' && D[2400] === 'must' && D[1600] === 'must', '1600m・2000m・2400m（根幹距離）は「合う」', { 1600: D[1600], 2000: D[2000], 2400: D[2400] });
+	assert(D[1500] === 'no' && D[2600] === 'no' && D[3000] === 'no', '1500m・2600m・3000m（範囲の外）は「合わない」', { 1500: D[1500], 2600: D[2600], 3000: D[3000] });
+	assert(r.byCategory.short === 'no' && r.byCategory.mile === 'may' && r.byCategory.medium === 'must' && r.byCategory.long === 'may', '距離の区分だけの指定: 短距離＝合わない・マイル＝合うことがある（1500mが範囲の外）・中距離＝必ず合う（1900〜2400m がすべて範囲内）・長距離＝合うことがある（2500mだけ範囲内）', r.byCategory);
+	assert(r.rdKeep && r.rdKeep.standardDistanceScope === 'part', 'ex-1606 の raceDistance の中身は変わっていない', r.rdKeep);
 }
 
 assert(errors.length === 0, 'コンソールエラーなし', errors);
