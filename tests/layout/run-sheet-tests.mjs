@@ -9,8 +9,9 @@
 //   (2) バーが縮んだ状態では、シートの位置・高さが従来と同じ（修正前に測った値と一致）
 // スキル名・件数は書かない。
 import fs from 'node:fs';
+import path from 'node:path';
 import { chromium } from 'playwright';
-import { startServer } from '../visual/lib/serve.mjs';
+import { startServer, REPO_ROOT } from '../visual/lib/serve.mjs';
 
 const OUT = process.argv[2] || 'output/scratch/sheet-tests';
 const LARGE = 844, VISIBLE = 734;
@@ -19,7 +20,14 @@ const srv = await startServer();
 const browser = await chromium.launch();
 const unitFix = (body) => body.replace(/(\d+(?:\.\d+)?)vh/g, (m, n) => 'calc(' + n + ' * ' + (LARGE / 100) + 'px)');
 
-async function open(file, scheme, simulate) {
+// 進化の選択画面・リセットのシート（段4。special の①）を開くための編成。スキル名・衣装名は書かず、id と実データの決定関数で選ぶ
+const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
+const RACES = readJson('data/upcoming-races.json').races;
+const raceOf = (id) => { const r = RACES.find((x) => x.id === id); const { id: rid, ...rest } = r; return Object.assign({ id: rid }, rest); };
+const SCENARIO_DOC = readJson('data/scenario-event-skills.json');
+const mkRoster = (o) => Object.assign({ rosterId: 'r_sheet', name: '', umaId: '', star: 3, awakeningLevel: 5, cardIds: [null, null, null, null, null, null] }, o);
+
+async function open(file, scheme, simulate, seedRoster) {
 	const ctx = await browser.newContext({ viewport: { width: 390, height: simulate ? VISIBLE : LARGE }, deviceScaleFactor: 2, colorScheme: scheme, isMobile: true, hasTouch: true });
 	const page = await ctx.newPage();
 	page.setDefaultTimeout(8000);
@@ -28,6 +36,10 @@ async function open(file, scheme, simulate) {
 			const resp = await route.fetch();
 			await route.fulfill({ response: resp, body: unitFix(await resp.text()) });
 		});
+	}
+	if (seedRoster) {
+		await page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(SCENARIO_DOC) }));
+		await page.addInitScript((d) => { try { localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(d)); localStorage.setItem('umaSkillDeck:stepTab', '0'); } catch (e) {} }, seedRoster);
 	}
 	await page.addInitScript((s) => { try { localStorage.setItem('uma-tools-theme', s); localStorage.setItem('uma-special-ui-mode', 'new'); localStorage.setItem('uma-exam-ui-mode', 'new'); } catch (e) {} }, scheme);
 	await page.goto(srv.base + '/' + file, { waitUntil: 'networkidle', timeout: 60000 });
@@ -42,12 +54,40 @@ const CASES = [
 	{ name: 'exam-gene-list', file: 'exam.html', open: 'window.openGeneList()', box: '#gene-list-box' },
 	{ name: 'deck-picker', file: 'uma-skill-deck.html', clickText: '条件で検索', box: '.usd-modal-panel' }
 ];
+// 進化の選択画面（金スキル3つの衣装・シナリオの候補3つ）とリセットのシート。編成は実データから探す（衣装の金スキルが3つ・3つとも進化の行が出るレースと脚質）
+{
+	const probeCtx = await browser.newContext({ viewport: { width: 390, height: LARGE } });
+	const probe = await probeCtx.newPage();
+	await probe.goto(srv.base + '/uma-skill-deck.html', { waitUntil: 'networkidle', timeout: 60000 });
+	const found = await probe.evaluate(async ({ races }) => {
+		const C = window.UmaSkillDeckCore;
+		await C.loadSkillEvolutions(); await C.loadTrainingSources(false); await C.loadSkillPtData(false); await C.loadSkillEffectLevels();
+		const umas = ((C.getTrainingSources().trainingUmamusume || {}).entries || []);
+		for (const u of umas) {
+			if (C.getEvolutionRowsOfUma(u.id).length !== 3) continue;
+			const res = C.computeRosterSkills({ umaId: u.id, cardIds: [] }, {});
+			for (const race of races) for (const style of ['nige', 'senko', 'sashi', 'oikomi']) {
+				const pl = C.computeEvolutionPlan({ umaId: u.id, takenIds: res.skillIds, filter: { distance: race.distanceCategory, surface: race.surface, style: style }, race: race });
+				if (pl.a.filter((e) => e.choice !== 'invalid').length === 3) return { id: u.id, race: race.id, style: style };
+			}
+		}
+		return null;
+	}, { races: RACES });
+	await probeCtx.close();
+	if (!found) { console.log('[NG] 進化の画面の検査: 金スキルが3つで3つとも進化の行が出る編成が見つからない'); process.exit(1); }
+	CASES.push(
+		{ name: 'evo-sheet-a3', file: 'special.html', seed: mkRoster({ umaId: found.id, race: raceOf(found.race), skillFilter: { style: found.style } }), clickSel: '[data-usd-el="evo-btn"]', box: '.usd-info-pop' },
+		// シナリオの候補が3つ（uma-0009＋カード6枚＋京都 芝2200m・差し）: 「！」から開く
+		{ name: 'evo-sheet-b', file: 'special.html', seed: mkRoster({ umaId: 'uma-0009', cardIds: ['card-0546', 'card-0543', 'card-0295', 'card-0499', 'card-0427', 'card-0518'], skillFilter: { style: 'sashi' }, race: raceOf('race-0001') }), clickSel: '[data-usd-el="evo-bang"]', box: '.usd-info-pop' },
+		{ name: 'roster-reset', file: 'special.html', seed: mkRoster({ umaId: found.id, offSkillIds: [] }), clickSel: '[data-usd-el="roster-reset"]', box: '.usd-info-pop' }
+	);
+}
 // バーが縮んだ状態（従来の見た目）の位置・高さの基準（修正前に測った値）
 const BASE = { 'exam-factor-list': { top: 87, height: 757 }, 'exam-gene-list': { top: 479, height: 365 }, 'deck-picker': { top: 127, height: 717 } };
 let fails = 0;
 for (const c of CASES) for (const scheme of ['light', 'dark']) for (const simulate of [false, true]) {
-	const { ctx, page } = await open(c.file, scheme, simulate);
-	if (c.open) await page.evaluate(c.open); else await page.getByText(c.clickText, { exact: false }).first().click();
+	const { ctx, page } = await open(c.file, scheme, simulate, c.seed);
+	if (c.open) await page.evaluate(c.open); else if (c.clickSel) await page.click(c.clickSel); else await page.getByText(c.clickText, { exact: false }).first().click();
 	await page.waitForTimeout(600);
 	const m = await page.evaluate((sel) => {
 		const el = document.querySelector(sel);
@@ -60,7 +100,7 @@ for (const c of CASES) for (const scheme of ['light', 'dark']) for (const simula
 	const fits = !!m.box && m.box.top >= 0 && m.box.bottom <= m.innerHeight + 1;
 	if (!fits) fails++;
 	console.log((fits ? '[OK] ' : '[NG] ') + label + ': シートが画面に収まる（画面の高さ ' + m.innerHeight + '）', m.box);
-	if (!simulate) {
+	if (!simulate && BASE[c.name]) {
 		const b = BASE[c.name];
 		const same = !!m.box && m.box.top === b.top && m.box.height === b.height;
 		if (!same) fails++;

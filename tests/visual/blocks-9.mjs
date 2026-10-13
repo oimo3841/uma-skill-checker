@@ -330,7 +330,7 @@ export async function register9(env) {
 				tag + '左：セット名 16px/800。「✎ 2／10 ▾」は 11px・1px の線・角丸999px・薄い地の札', g1);
 			assert(g1.num.join() === '18px,800' && g1.k.join() === '12px,700' && g1.sub[0] === '10.5px' && /^(切れ者・|勉強家・)?①＋②$/.test(g1.sub[1]) && g1.subHelp,
 				tag + '右：1行目「N」18px/800＋Pt・／M種 12px/700、2行目「…①＋②」10.5px＋?', g1);
-			assert(g1.band[0] === await tokRgb(sp.page, 'var(--uma-band)') &&   /* C-144: 帯の地はトークンの値（UmaStar は暖色 #efe4cf） */ g1.band[1] === '10px' && g1.band[2] === '8px' && g1.band[3] === (w <= 640 ? '4px' : '10px'), tag + '①の「Pt／種」は薄い帯（角丸10px・縦8px・横はスマホ4px（段4で進化ボタンのため詰めた）／PC10px・背景 --uma-band）', g1.band);
+			assert(g1.band[0] === await tokRgb(sp.page, 'var(--uma-band)') &&   /* C-144: 帯の地はトークンの値（UmaStar は暖色 #efe4cf） */ g1.band[1] === '10px' && g1.band[2] === (w <= 640 ? '4px' : '8px') && g1.band[3] === (w <= 640 ? '4px' : '10px'), tag + '①の「Pt／種」は薄い帯（角丸10px・スマホは縦横4px（段4で進化ボタン44pxのために詰めた）／PC は縦8px・横10px・背景 --uma-band）', g1.band);
 			assert(g1.pt[0] === '22px' && g1.pt[1] === '800' && /tabular-nums/.test(g1.pt[2]) && g1.unit.join() === '12px,700' && g1.kinds[0] === '14px' && g1.kinds[1] === '800' && g1.kinds[2] === '／' && g1.kunit.join() === '11px,種',
 				tag + '数字 22px/800・tabular-nums、Pt 12px/700、／N 14px/800、種 11px', g1);
 			assert(g1.btns.join() === '勉強家,切れ者,覚醒Lv5' && g1.scroll === 'visible', tag + '①の帯の右側は「勉強家 切れ者 覚醒Lv5」（段4で横スクロール・フェードをやめた。足りなければ帯が2行になる）', { b: g1.btns, s: g1.scroll });
