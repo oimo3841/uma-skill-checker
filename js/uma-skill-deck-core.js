@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14b';
 
 	/* ============================================================
 	 * 定数
@@ -3987,13 +3987,32 @@
 	 */
 	function visiblePartOf(r, res) {
 		const wanted = filterPredicateOf(r);
-		const visibleItems = wanted ? res.items.filter(it => wanted(it.skillId)) : res.items.slice();
-		const vis = new Set(visibleItems.map(it => it.skillId));
-		const visibleSources = wanted ? res.sources.filter(s => vis.has(s.skillId)) : res.sources;
 		const offList = validOffIdsOf(r, res.skillIds);
 		const off = new Set(offList);
+		// 進化の決定（C-152）。**絞り込みに関係なく**、取得する（●で、取得しないにしていない）スキル全部から求める（元の金スキルの条件は見ない）。
+		// 進化させる金スキルは、絞り込みに当たらなくても表に出す（行は進化先の名前で、Pt は元の金スキルのまま数える）。
+		// 進化のデータ（skill-evolutions.json と説明文）を読めていなければ null（進化の行が無いのと同じ）
+		const evoPlan = evolutionPlanOfRoster(r, res.items.filter(it => it.sure && !off.has(it.skillId)).map(it => it.skillId));
+		const evolving = new Set();
+		if (evoPlan) Object.keys(evoPlan.choices).forEach(k => { if (evoPlan.choices[k] !== 'none') evolving.add(k); });
+		const shown = wanted ? (id) => wanted(id) || evolving.has(id) : null;
+		const visibleItems = shown ? res.items.filter(it => shown(it.skillId)) : res.items.slice();
+		const vis = new Set(visibleItems.map(it => it.skillId));
+		const visibleSources = shown ? res.sources.filter(s => vis.has(s.skillId)) : res.sources;
 		const takenIds = visibleItems.filter(it => it.sure && !off.has(it.skillId)).map(it => it.skillId);
-		return { wanted: wanted, visibleItems: visibleItems, visibleSources: visibleSources, offList: offList, takenIds: takenIds };
+		return { wanted: wanted, visibleItems: visibleItems, visibleSources: visibleSources, offList: offList, takenIds: takenIds, evoPlan: evoPlan };
+	}
+	/** 進化の対応と説明文の両方を読めているか（進化の決定に要る。C-152） */
+	function evolutionReady() {
+		return evolutionState.status === 'ok' && skillDescState.status === 'ok';
+	}
+	/** 編成の進化の決定（computeEvolutionPlan に編成の保存値を渡す）。進化のデータを読めていなければ null */
+	function evolutionPlanOfRoster(r, takenIds) {
+		if (!evolutionReady()) return null;
+		return computeEvolutionPlan({
+			umaId: r.umaId, takenIds: takenIds, filter: resolvedFilterOf(r), race: raceOfRoster(r),
+			choices: r.evolutionChoices, bSeen: r.evolutionBSeen
+		});
 	}
 
 	/* ============================================================
@@ -7730,6 +7749,70 @@
 	 *   'must' … 指定した軸すべてで例外なく合う   'may' … 距離の区分の一部の距離でしか合わない   'no' … 合わない
 	 * 指定した軸が無ければ、その軸は見ない。レースを選んでいれば、レース場・環境・時間帯・特殊ルール（raceRejectsSkill）も見る。
 	 */
+	/**
+	 * 進化先が「使える」条件（段4の修正・C-152）。**進化先自身が使えるレースなら選べる**。元の金スキルの条件と、追加の効果の条件は見ない。
+	 * 使える条件は、公式の説明文の＜…＞（＜中距離/長距離＞・＜作戦・先行＞・＜先行・ダート＞ など）から読む。軸の中は「/」、軸の間は「・」。
+	 * 語は TAG_AXES の距離・脚質・バ場の選択肢の名前と照らす（「作戦」は脚質の前置きの語として読み飛ばす）。知らない語がある軸は、限定なしとして扱う
+	 * （「いつでも選べる」側。ignored に記録する）。＜…＞が無い進化先は、距離・脚質・バ場の限定なし。
+	 * ほかに、距離の限定のうちデータが「スキル全体にかかる」（raceDistance.scope が "all"）と示すものだけを使う。
+	 * レース場・コースの環境・時間帯・"all" でない距離の限定・＜…＞に無い距離/脚質/バ場のタグは、追加の効果の条件か全体の条件かを
+	 * いまのデータでは分けられないので、使わない（「いつでも選べる」側に倒す。ignored に記録する）。レースの特殊ルール（デバフなし など）は見る。
+	 * 説明文を読めていなければ null（呼び出し側は、進化を読み込み中として扱う）。
+	 * 返り値: { tags（距離・脚質・バ場は＜…＞から。そのほかの軸は元のまま。レース場・環境は空）, raceDistance（"all" のときだけ）, bracket（＜…＞の文。無ければ ''）, ignored: [理由の語…] }
+	 */
+	const EVOLUTION_BRACKET_PREFIX_WORDS = ['作戦'];
+	const evolutionUsageCache = new Map();
+	function evolutionUsageOf(skill, descOf) {
+		if (!skill) return null;
+		const text = descOf ? descOf(skill.id) : (skillDescState.status === 'ok' ? (skillDescState.map.get(skill.id) || '') : null);
+		if (text === null || text === undefined) return null;
+		const cacheKey = skill.id + '\u0000' + text;
+		if (!descOf && evolutionUsageCache.has(cacheKey)) return evolutionUsageCache.get(cacheKey);
+		const tags = skill.tags || {};
+		const m = String(text).match(/＜([^＞]*)＞/);
+		const bracket = m ? m[0] : '';
+		const usageAxes = ['distance', 'style', 'surface'];
+		const got = { distance: [], style: [], surface: [] };
+		const ignored = [];
+		if (m) {
+			// 「・」で区切った1つの中に知らない語があれば、その区切りは丸ごと読まない（限定なし＝「いつでも選べる」側）。
+			// 例: ＜大逃げ・長距離＞ は距離（長距離）だけを読み、脚質の限定は付けない
+			const unknown = [];
+			m[1].split('・').forEach(part => {
+				const words = part.split('/').map(w => w.trim()).filter(w => w && EVOLUTION_BRACKET_PREFIX_WORDS.indexOf(w) === -1);
+				const hits = words.map(w => {
+					for (const k of usageAxes) {
+						const opt = (TAG_AXES.find(a => a.key === k) || { options: [] }).options.find(o => o.t === w);
+						if (opt) return { axis: k, v: opt.v };
+					}
+					return null;
+				});
+				if (hits.some(h => !h)) { words.forEach((w, i) => { if (!hits[i]) unknown.push(w); }); return; }
+				hits.forEach(h => { if (got[h.axis].indexOf(h.v) === -1) got[h.axis].push(h.v); });
+			});
+			if (unknown.length > 0) ignored.push('bracket:' + unknown.join('/'));
+		}
+		// ＜…＞と違う距離・脚質・バ場のタグは使わない（追加の効果の条件の可能性がある）
+		usageAxes.forEach(k => {
+			const tv = Array.isArray(tags[k]) ? tags[k] : [];
+			if (tv.length > 0 && JSON.stringify(tv.slice().sort()) !== JSON.stringify(got[k].slice().sort())) ignored.push(k);
+		});
+		const rd = skill.raceDistance && typeof skill.raceDistance === 'object' ? skill.raceDistance : null;
+		const rdAll = rd && rd.scope === 'all' ? rd : null;
+		if (rd && !rdAll && rd.scope !== 'part') ignored.push('raceDistance');
+		// データが「距離のタグは追加の効果だけにかかる」（distanceTagScope が "part"）と示しているものは、分けられているので記録しない
+		if (rd && rd.distanceTagScope === 'part') { const i = ignored.indexOf('distance'); if (i !== -1) ignored.splice(i, 1); }
+		['trackVenue', 'environment'].forEach(k => { if (Array.isArray(tags[k]) && tags[k].length > 0) ignored.push(k); });
+		const out = {
+			id: skill.id,
+			tags: Object.assign({}, tags, { distance: got.distance, style: got.style, surface: got.surface, trackVenue: [], environment: [] }),
+			raceDistance: rdAll || undefined,
+			bracket: bracket,
+			ignored: ignored
+		};
+		if (!descOf) evolutionUsageCache.set(cacheKey, out);
+		return out;
+	}
 	function evolutionFitOf(skill, filter, race) {
 		if (!skill) return 'no';
 		if (race && raceRejectsSkill(skill, race)) return 'no';
@@ -7797,6 +7880,10 @@
 	 *               有効＝'none'、または進化先がその行にあり、いまの条件で「合わない」でないもの。**無効な保存値は消さず、既定で表示する**
 	 *               （保存値は書き換えない）。パターンBは、有効な選択と既定を合わせて2つを超えたら、id の大きいほうから（既定で決まったものを先に）「進化しない」へ戻す
 	 *   bSeen     … 確認済みのパターンBの候補の組（roster.evolutionBSeen。id の配列）。候補の組がこれと同じなら「！」を出さない（b.alert）
+	 *   descOf    … skillId → 公式の説明文（省略時は読み込み済みの skill-descriptions）。進化先が使える条件（＜…＞）を読む（C-152。evolutionUsageOf）
+	 *
+	 * **選べるかは、進化先自身がそのレース（と指定した脚質）で使えるかだけで決める**（C-152・2026-10-14）。元の金スキルの条件と、
+	 * 「中距離なら効果が上がる」のような追加の効果の条件は見ない。takenIds は絞り込みに関係なく取得するもの全部を渡す（visiblePartOf）。
 	 *
 	 * 返り値:
 	 *   specified … レースを選んでいる（false なら全部「進化しない」で、「！」も出さない）。raceSelected も同じ値
@@ -7808,7 +7895,7 @@
 	 *   choices   … { baseId: 進化先の id | 'none' }（いまの選択＝有効な保存値か既定。無効のものは含めない）。各行（a・b.entries）には choice（同じ値か 'invalid'）と stored（有効な保存値か null）も付く
 	 *   b.alert   … 「！」を出すか（bang で、候補の組が bSeen と違うとき）
 	 * fit は内部の分類（'must'＝指定に例外なく合う／'may'＝距離の区分の一部でしか合わない／'no'＝合わない）。画面には出さない（条件だけを出す）。
-	 * 'invalid'（無効）＝進化元にも、どの進化先にも合わない。進化先が選べるのに既定にならないだけのとき、default は 'none'（行は出す）。
+	 * 'invalid'（無効）＝どの進化先も、このレースでは使えない（元の金スキルの条件は見ない）。進化先が選べるのに既定にならないだけのとき、default は 'none'（行は出す）。
 	 */
 	function computeEvolutionPlan(args) {
 		const a = args || {};
@@ -7822,24 +7909,27 @@
 		const specified = raceSelected;   // 既定を自動で選ぶのは、レースを選んでいるときだけ
 		const hasFilter = ['distance', 'style', 'surface'].some(k => typeof filter[k] === 'string' && filter[k]) || raceSelected;
 		const scenarioKey = a.scenarioKey !== undefined ? a.scenarioKey : (a.evolutions ? null : evolutionScenarioKey());
-		// 脚質が未指定のとき、脚質の限定がある進化先は自動では選ばない
-		const styleOk = (skill) => !!filter.style || !(((skill && skill.tags && skill.tags.style) || []).length);
+		// 進化先が使える条件（C-152。説明文の＜…＞と、スキル全体にかかる距離の限定）。説明文を読めていなければ元のスキルのまま（呼び出し側は読み込み中として扱う）
+		const descOf = typeof a.descOf === 'function' ? a.descOf : null;
+		const usageOf = (sk) => (sk && evolutionUsageOf(sk, descOf)) || sk;
+		// 脚質が未指定のとき、脚質の限定がある（使える脚質が決まっている）進化先は自動では選ばない
+		const styleOk = (usage) => !!filter.style || !(((usage && usage.tags && usage.tags.style) || []).length);
 
-		// 進化元ごとの判定。fit は条件があるときだけ見る（条件が何も無ければ全部「合う」）。既定は specified のときだけ決める
+		// 進化元ごとの判定。fit は条件があるときだけ見る（条件が何も無ければ全部「合う」）。既定は specified のときだけ決める。
+		// **元の金スキルの条件は、選べるか・既定・無効の判定に使わない**（C-152。baseFit は参考として返すだけ）
 		const judge = (row) => {
 			const base = findSkill(row.baseSkillId);
 			const baseFit = !hasFilter ? 'must' : (base && matchesFilters(base, resolvedFilterArgs(filter), null) ? 'must' : 'no');
 			const targets = row.evolvedSkillIds.map((id, i) => {
-				const sk = findSkill(id);
-				return { id: id, fit: hasFilter ? evolutionFitOf(sk, filter, race) : 'must', _ok: styleOk(sk), _key: sk ? evolutionOrderKey(sk, filter, effectRank(id), i) : [1, 0, 0, 0, i] };
+				const u = usageOf(findSkill(id));
+				return { id: id, fit: hasFilter ? evolutionFitOf(u, filter, race) : 'must', _ok: styleOk(u), _key: u ? evolutionOrderKey(u, filter, effectRank(id), i) : [1, 0, 0, 0, i] };
 			});
 			const cands = targets.filter(t => t.fit === 'must' && t._ok).sort((x, y) => compareOrderKeys(x._key, y._key));
 			let def;
 			if (!specified) def = 'none';
 			else if (cands.length > 0) def = cands[0].id;
-			else if (baseFit === 'must') def = 'none';
 			else if (targets.some(t => t.fit !== 'no')) def = 'none';   // 進化先が選べる（合うことがある・脚質が未指定）ので、行は出す
-			else def = 'invalid';
+			else def = 'invalid';   // どの進化先も、このレースでは使えない
 			return { baseId: row.baseSkillId, baseFit: baseFit, targets: targets.map(t => ({ id: t.id, fit: t.fit })), default: def, visible: def !== 'invalid', _best: cands.length > 0 ? cands[0].id : null };
 		};
 
@@ -8632,10 +8722,8 @@
 				&& evolutionRowsOfUma(roster.umaId).concat(evolutionRowsOfScenario()).some(r => r.evolvedSkillIds.length > 1)) {
 				loadSkillEffectLevels().then(function () { render(); });
 			}
-			return computeEvolutionPlan({
-				umaId: roster.umaId, takenIds: res.takenIds, filter: resolvedFilter(), race: raceOfRoster(roster),
-				choices: roster.evolutionChoices, bSeen: roster.evolutionBSeen
-			});
+			// 決定は visiblePartOf が求めたもの（絞り込みに関係なく取得するもの全部から。C-152）。進化のデータが揃うまでは、進化の行が無いのと同じ
+			return res.evoPlan || computeEvolutionPlan({ umaId: '', takenIds: [], filter: {}, race: null, evolutions: { entries: [] } });
 		}
 		/** 元の金スキルを、いま進化させているときの進化先の id（進化させていなければ null） */
 		function evolvedIdOf(baseId) {
@@ -8662,23 +8750,17 @@
 		function evoBEntries() {
 			return evoPlan.b.entries.filter(e => e.choice !== 'invalid' && e.targets.some(t => t.fit !== 'no')).slice().sort((x, y) => compareSkillIds(x.baseId, y.baseId));
 		}
-		/** 進化先の条件の表記（＜中距離＞ ＜追込・芝＞ 2000m以上 のような形）。タグと距離の限定から作る。制限が無ければ空 */
+		/**
+		 * 進化先の条件の表記（C-152）。**スキルの説明文にある＜…＞の文をそのまま**出す（＜中距離/長距離＞・＜作戦・先行＞ など）。
+		 * 追加の効果の条件（「中距離なら効果が上がる」など）は出さない。距離の限定がスキル全体にかかる（scope "all"）ものだけ、
+		 * その距離を後ろに足す（例 ＜作戦・逃げ＞ 2200m）。条件が無ければ空
+		 */
 		function evoConditionText(skillId) {
-			const sk = findSkill(skillId);
-			if (!sk) return '';
-			const tags = sk.tags || {};
-			const labelsOf = (axisKey) => {
-				const axis = TAG_AXES.find(a => a.key === axisKey);
-				const vals = Array.isArray(tags[axisKey]) ? tags[axisKey] : [];
-				const idx = (v) => axis ? axis.options.findIndex(o => o.v === v) : 0;
-				return tagLabels(axisKey, vals.slice().sort((p, q) => idx(p) - idx(q)));
-			};
+			const u = evolutionUsageOf(findSkill(skillId));
+			if (!u) return '';
 			const parts = [];
-			const dist = labelsOf('distance');
-			if (dist.length) parts.push('＜' + dist.join('/') + '＞');
-			const styleSurface = [labelsOf('style').join('/'), labelsOf('surface').join('/')].filter(Boolean);
-			if (styleSurface.length) parts.push('＜' + styleSurface.join('・') + '＞');
-			const rd = sk.raceDistance;
+			if (u.bracket) parts.push(u.bracket);
+			const rd = u.raceDistance;
 			if (rd && typeof rd === 'object') {
 				const hasMin = typeof rd.min === 'number', hasMax = typeof rd.max === 'number';
 				if (hasMin && hasMax) parts.push(rd.min === rd.max ? rd.min + 'm' : rd.min + '〜' + rd.max + 'm');
@@ -8715,9 +8797,14 @@
 		function evoSheetTitle() { return evoSheet && evoSheet.tab === 'b' ? 'シナリオの進化スキル' : '進化スキル(衣装)'; }
 		/** 帯の「進化」ボタン（と、確認が必要なときの「！」）を押したとき。wantTab は 'a'／'b'（「！」は 'b'）。開けないときは理由を知らせる */
 		function openEvoSheet(btn, wantTab) {
-			const st = evolutionState.status;
-			if (st === 'loading' || st === 'idle') { toast('進化のデータを読み込んでいます'); return; }
-			if (st !== 'ok') { toast('進化のデータを読み込めませんでした'); return; }
+			// 進化の決定には、進化の対応と説明文（使える条件の＜…＞）の両方が要る（C-152）
+			const st = evolutionState.status, sd = skillDescState.status;
+			if (st === 'failed' || st === 'absent' || sd === 'failed') {
+				toast('進化のデータを読み込めませんでした');
+				if (sd === 'failed') loadSkillDescriptions().then(function () { render(); });   // 次に押したときに使えるよう、もう一度読む
+				return;
+			}
+			if (!evolutionReady()) { toast('進化のデータを読み込んでいます'); return; }
 			const hasA = evoAEntries().length > 0, hasB = evoBEntries().length > 0;
 			if (!hasA && !hasB) { toast(!roster.umaId ? '衣装が未選択です' : '進化できるスキルがありません'); return; }
 			let tab = hasA ? 'a' : 'b';
@@ -8943,6 +9030,7 @@
 			r.offList = vp.offList;
 			r.offIds = new Set(r.offList);
 			r.takenIds = vp.takenIds;
+			r.evoPlan = vp.evoPlan;
 			r.visibleSureCount = vp.takenIds.length;
 			// 種数（段7d の ⑫）。金スキルと、その前段の白スキルを両方取るときは合わせて1種
 			r.kindCount = countSkillKinds(vp.takenIds);
@@ -10111,6 +10199,8 @@
 		if (!skillPtData.meta.loaded) loadSkillPtData(false).then(function () { render(); });
 		// 進化の対応（段4。skill-evolutions.json）。編成パネルを作るときにだけ読み、読み終わったら描き直す（読めなければ進化の行が無いのと同じ）。効果の段階は必要になったときだけ（evoPlanOf）
 		loadSkillEvolutions(false).then(function () { render(); });
+		// 進化先が使える条件は説明文の＜…＞から読む（C-152）ので、説明文も一緒に読む（進化の決定は両方が揃ってから。失敗したら次に開いたときにもう一度試す）
+		loadSkillDescriptions().then(function () { render(); });
 		// シナリオの固定イベント（段7c の N）。編成パネルを作るときにだけ読む。読み終わったら描き直す（読めなければ列を出さない）
 		if (scenarioEventState.status === 'idle' || scenarioEventState.status === 'failed') loadScenarioEvents(false).then(function () { render(); });
 		return {
@@ -13543,6 +13633,13 @@
 		getEvolutionRowsOfScenario: evolutionRowsOfScenario,
 		getEvolutionScenarioKey: evolutionScenarioKey,
 		computeEvolutionPlan: computeEvolutionPlan,
+		// 進化先が使える条件（C-152。説明文の＜…＞と、全体にかかる距離の限定）。説明文を読めていなければ null。検査と調査のため
+		getEvolutionUsage: function (skillId) { return evolutionUsageOf(findSkill(skillId)); },
+		// 編成の①の表に出る部分（絞り込み・取得しない・進化させる金スキルを効かせたもの）。検査のため。編成の保存値は書き換えない
+		getRosterVisiblePart: function (r) {
+			const vp = visiblePartOf(r || {}, rosterSkillResultOf(r || {}));
+			return { visibleIds: vp.visibleItems.map(it => it.skillId), takenIds: vp.takenIds.slice(), evoChoices: vp.evoPlan ? Object.assign({}, vp.evoPlan.choices) : null };
+		},
 		compareSkillIds: compareSkillIds,
 		getSkillTextIndexSize: function (opts) { return buildSkillTextIndex(opts).length; },
 		isLowEffectSkill: isLowEffectSkill,

@@ -288,7 +288,9 @@ export async function register24(env) {
 		const run = async (roster) => { const sp = await openSp({ roster, w: 390 }); const v = await sp.page.evaluate(() => !!document.querySelector('[data-usd-el="evo-bang"]')); await sp.ctx.close(); return v; };
 		assert(await run(bRoster({ evolutionBSeen: B_IDS.slice() })) === false, '進化段4C 確認済みの組と同じなら「！」は出ない');
 		assert(await run(bRoster({ evolutionBSeen: ['ex-0029', 'ex-0183'] })) === true, '進化段4C 候補の組が確認したときと違えば、再び「！」が出る');
-		assert(await run(bRoster({ race: raceOf('race-0002') })) === false, '進化段4C 候補が2つ（長距離のレース）なら「！」は出ない');
+		// C-152: 長距離のレースでも時中の妙（ex-0616）→湯切りの妙技が候補に入る（3つになる）ので、時中の妙を「取得しない」にして2つにする
+		assert(await run(bRoster({ race: raceOf('race-0002'), offSkillIds: ['ex-0616'] })) === false, '進化段4C 候補が2つ（長距離のレース・時中の妙を取得しない）なら「！」は出ない');
+		assert(await run(bRoster({ race: raceOf('race-0002') })) === true, '進化段4C 長距離のレースでも時中の妙が候補に入るので、候補は3つで「！」が出る（C-152）');
 		assert(await run(bRoster({ race: undefined })) === false, '進化段4C レース未選択なら「！」は出ない');
 		// 進化ボタンから開くと、確認が必要なときはシナリオの画面から開く
 		const sp = await openSp({ roster: bRoster(), w: 390 });

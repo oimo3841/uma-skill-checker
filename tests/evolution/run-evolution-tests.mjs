@@ -10,6 +10,8 @@
 //   §4 ex-1606（距離が範囲と根幹距離の両方を持つ行）は、範囲に当たれば合う（根幹距離は判定に使わない。C-148）
 //   §6 手で変えた選択（choices）と確認済みの候補（bSeen）を効かせる（段4の保存・つなぎ込み）
 //   §5 新しい勝負服（uma-0271。2026-10-13）の受け入れ: ①の衣装の選択に出る・進化の既定・イベントで得られるスキル
+//   §7 進化先を選べる条件（C-152・2026-10-14）: 進化先自身がそのレースで使えるなら選べる（説明文の＜…＞と、全体にかかる距離の限定だけを見る）。
+//      元の金スキルの条件・追加の効果の条件は見ない。気炎万丈（長距離）・時中の妙（長距離）と、洗い出した行の代表・全行で狭くならないこと
 //
 // 件数の基準（受け入れ前に測った値）: 辞書 = マスター445 ＋ 追加カタログ747 = 1192
 //   （追加カタログ747 = シナリオ因子24 ＋ 遺伝子10 ＋ 拡張スキル713。進化スキル639行は含めない）。
@@ -91,7 +93,8 @@ assert(cat.sf === 24 && cat.ge === 10, '因子の辞書の元（シナリオ因�
 
 /* ───────── §2 表で回す ───────── */
 console.log('\n=== §2 既定の決定関数を表で回す（全' + umas.length + '衣装 × 主なレース条件） ===');
-await page.evaluate(() => Promise.all([window.UmaSkillDeckCore.loadSkillEffectLevels()]));
+// 進化先が使える条件は説明文の＜…＞から読む（C-152）ので、説明文も読んでおく
+await page.evaluate(() => Promise.all([window.UmaSkillDeckCore.loadSkillEffectLevels(), window.UmaSkillDeckCore.loadSkillDescriptions()]));
 const raceRows = races.map((r) => ({ id: r.id, venue: r.venue, surface: r.surface, distance: r.distance, distanceCategory: r.distanceCategory, direction: r.direction, course: r.course, season: r.season, weather: r.weather, ground: r.ground, time: r.time, rule: r.rule, name: r.name }));
 // 試験用のレース（レースの一覧に頼らず、距離の区分・バ場・距離を決めて作る）
 const mkRace = (id, d, surface) => ({ id: id, name: '試験用', venue: null, surface: surface, distance: d, distanceCategory: d <= 1400 ? 'short' : d <= 1800 ? 'mile' : d <= 2400 ? 'medium' : 'long', direction: null, course: null, season: null, weather: null, ground: null, time: null, rule: null });
@@ -150,15 +153,16 @@ const table = await page.evaluate(({ umaInputs, scenarioBases, raceRows, synthRa
 				p.a.concat(p.b.entries).forEach((e) => {
 					if (e.default === 'invalid') {
 						invalids++;
-						if (e.baseFit === 'must' || e.targets.some((t) => t.fit !== 'no')) v('無効なのに合う候補がある', Object.assign({ base: e.baseId }, where));
+						// C-152: 無効は「どの進化先も使えない」だけ（元の金スキルの条件は見ない）
+						if (e.targets.some((t) => t.fit !== 'no')) v('無効なのに使える進化先がある', Object.assign({ base: e.baseId }, where));
 					} else if (e.default !== 'none') {
 						const t = e.targets.find((x) => x.id === e.default);
 						if (!t || t.fit !== 'must') v('既定の進化先が「必ず合う」でない', Object.assign({ base: e.baseId, def: e.default }, where));
 						// 脚質が未指定のとき、脚質の限定がある進化先を自動で選ばない
-						const sk = C.findSkill(e.default);
+						const sk = C.getEvolutionUsage(e.default);   // 使える脚質（説明文の＜…＞。C-152）
 						if (!cd.filter.style && ((sk.tags && sk.tags.style) || []).length > 0) v('脚質が未指定なのに、脚質の限定がある進化先が既定になった', Object.assign({ base: e.baseId, def: e.default }, where));
 						withEvolve++;
-					} else if (cd.race && !cd.filter.style && e.targets.some((t) => t.fit === 'must' && ((C.findSkill(t.id).tags || {}).style || []).length > 0)) styleSkipped++;
+					} else if (cd.race && !cd.filter.style && e.targets.some((t) => t.fit === 'must' && ((C.getEvolutionUsage(t.id).tags || {}).style || []).length > 0)) styleSkipped++;
 				});
 				p.b.entries.forEach((e) => { if (e.default !== 'none' && e.default !== 'invalid' && p.b.defaults.indexOf(e.baseId) === -1) v('B の既定の2つ以外が進化する', where); });
 				p.b.entries.forEach((e) => { if (scenarioBases.indexOf(e.baseId) === -1) v('シナリオの6組にない金スキルが B の行にある', where); });
@@ -227,9 +231,10 @@ assert(!!orfe && ownGold(orfe).length === 2, 'オルフェーヴル総攬（' + 
 	const pn0 = await plan({ umaId: '', takenIds: all, filter: { distance: 'mile' }, race: null });
 	assert(pn0.b.candidates.length === 0 && !pn0.b.bang && Object.values(pn0.defaultChoices).every((x) => x === 'none'), 'レース未選択・マイルを手で指定: 候補なし・「！」なし（自動で選ばない）');
 	const pm = await plan({ umaId: '', takenIds: all, filter: { distance: 'mile', surface: 'turf' }, race: mile });
-	assert(JSON.stringify(pm.b.candidates) === JSON.stringify(['ex-0029', 'ex-0183', 'ex-0657']) && pm.b.bang === true, 'マイル（1600m）のレース: 候補は ex-0029・ex-0183・ex-0657（id 昇順・3つなので「！」）', pm.b.candidates);
-	assert(JSON.stringify(pm.b.defaults) === JSON.stringify(['ex-0029', 'ex-0183']) && pm.defaultChoices['ex-0029'] === 'ex-1038' && pm.defaultChoices['ex-0183'] === 'ex-1034' && pm.defaultChoices['ex-0657'] === 'none', 'マイル: 既定は id 昇順の先頭2つ（ex-0029→ex-1038・ex-0183→ex-1034）。3つ目の ex-0657 は「進化しない」', pm.defaultChoices);
-	assert(entry(pm, 'ex-0645').default === 'invalid' && entry(pm, 'ex-0668').default === 'invalid' && entry(pm, 'ex-0616').default === 'none', 'マイル: 中距離/長距離の2組は無効、ex-0616 は進化先が合わないので「進化しない」', pm.b.entries.map((e) => e.baseId + '=' + e.default));
+	// C-152: ex-0616（時中の妙）→ex-1037（湯切りの妙技）は、説明文に＜…＞が無い（「中距離レースで」は追加の効果の条件）ので、マイルでも候補に入る
+	assert(JSON.stringify(pm.b.candidates) === JSON.stringify(['ex-0029', 'ex-0183', 'ex-0616', 'ex-0657']) && pm.b.bang === true, 'マイル（1600m）のレース: 候補は ex-0029・ex-0183・ex-0616・ex-0657（id 昇順・3つ以上なので「！」）', pm.b.candidates);
+	assert(JSON.stringify(pm.b.defaults) === JSON.stringify(['ex-0029', 'ex-0183']) && pm.defaultChoices['ex-0029'] === 'ex-1038' && pm.defaultChoices['ex-0183'] === 'ex-1034' && pm.defaultChoices['ex-0616'] === 'none' && pm.defaultChoices['ex-0657'] === 'none', 'マイル: 既定は id 昇順の先頭2つ（ex-0029→ex-1038・ex-0183→ex-1034）。3つ目以降の ex-0616・ex-0657 は「進化しない」', pm.defaultChoices);
+	assert(entry(pm, 'ex-0645').default === 'invalid' && entry(pm, 'ex-0668').default === 'invalid', 'マイル: 進化先がマイルでは使えない（説明文の＜…＞に無い）2組は無効', pm.b.entries.map((e) => e.baseId + '=' + e.default));
 	const pd = await plan({ umaId: '', takenIds: all, filter: { distance: 'medium', surface: 'turf' }, race: medium });
 	assert(JSON.stringify(pd.b.candidates) === JSON.stringify(['ex-0183', 'ex-0616', 'ex-0645', 'ex-0668']) && pd.b.bang === true && JSON.stringify(pd.b.defaults) === JSON.stringify(['ex-0183', 'ex-0616']), '中距離（2000m）のレース: 候補4つ（id 昇順）・「！」・既定は先頭2つ', { c: pd.b.candidates, d: pd.b.defaults });
 	const pn = await plan({ umaId: '', takenIds: ['ex-0029', 'ex-0183'], filter: { distance: 'mile', surface: 'turf' }, race: mile });
@@ -293,7 +298,7 @@ console.log('\n=== §4 ex-1606（距離は範囲と根幹距離の両方を持�
 /* ───────── §5 新しい勝負服（uma-0271。2026-10-13）の受け入れ ───────── */
 console.log('\n=== §5 新しい勝負服（uma-0271）: ①の衣装の選択に出る・進化の既定が決定関数どおり・イベントで得られるスキルが①の表に出る ===');
 {
-	// 手書きの期待値（id で書く）: 金スキル2つ（ex-0226・ex-1672）。進化先は ex-0226→ex-1675、ex-1672→ex-1676（どちらも＜中距離＞＜差し/追込＞）
+	// 手書きの期待値（id で書く）: 金スキル2つ（ex-0226・ex-1672）。進化先は ex-0226→ex-1675、ex-1672→ex-1676（どちらも説明文の条件は＜差し/追込＞。中距離は追加の効果の条件）
 	// ex-0226 は差し、ex-1672 は追込の限定がある。イベントで得られるスキル: 一歩ずつ前へ（290）・むきだしの情熱（272）
 	const NEW_UMA = 'uma-0271', G1 = 'ex-0226', G2 = 'ex-1672', E1 = 'ex-1675', E2 = 'ex-1676';
 	const r = await page.evaluate(async ({ NEW_UMA, G1, G2 }) => {
@@ -322,8 +327,9 @@ console.log('\n=== §5 新しい勝負服（uma-0271）: ①の衣装の選択�
 		'中距離 芝2000m・差し: 2つとも進化先が既定（進化 2／最大4）', r.medSashi.count);
 	assert(r.medOikomi[G1] === E1 && r.medOikomi[G2] === E2, '中距離 芝2000m・追込: 2つとも進化先が既定（進化先は差し/追込の両方に合う）', r.medOikomi);
 	assert(r.medNoStyle[G1] === 'none' && r.medNoStyle[G2] === 'none', '中距離 芝2000m・脚質未指定: 脚質の限定がある進化先は自動では選ばない', r.medNoStyle);
-	assert(r.mileSashi[G1] === 'none' && !(G2 in r.mileSashi), 'マイル 芝1600m・差し: 陽炎（差し）は進化先が中距離だけで合わないので「進化しない」、抜山蓋世（追込）は無効で行に出ない', r.mileSashi);
-	assert(r.longOikomi[G2] === 'none' && !(G1 in r.longOikomi), '長距離 芝3000m・追込: 抜山蓋世（追込）は「進化しない」、陽炎（差し）は無効', r.longOikomi);
+	// C-152: 進化先の説明文の条件は＜差し/追込＞だけ（「中距離レースで」は追加の効果の条件）。元の金スキルの脚質（差し・追込）も見ない
+	assert(r.mileSashi[G1] === E1 && r.mileSashi[G2] === E2, 'マイル 芝1600m・差し: 2つとも進化先が既定（進化先は＜差し/追込＞。中距離は追加の効果の条件・元の金スキルの脚質は見ない）', r.mileSashi);
+	assert(r.longOikomi[G1] === E1 && r.longOikomi[G2] === E2, '長距離 芝3000m・追込: 2つとも進化先が既定', r.longOikomi);
 	assert(r.eventSkills.includes('290') && r.eventSkills.includes('272'), '①の表に、イベントで得られるスキル（一歩ずつ前へ・むきだしの情熱）が出る', r.eventSkills);
 	assert(r.itemIds.includes('290') && r.itemIds.includes('272'), '①の表の行にも入る', r.itemIds);
 }
@@ -345,7 +351,7 @@ console.log('\n=== §6 手で変えた選択（choices）・確認済みの候�
 		out.alt = A({ [HEIGEI]: 'ex-1610' });
 		out.junk = A({ [KINRIN]: 'ex-9999', [HEIGEI]: 'ex-1608' });   // 進化先でないもの・別の行の進化先 → 無効（既定で表示）
 		out.noRace = C.computeEvolutionPlan({ umaId: ORFE, takenIds: gold, filter: {}, race: null, choices: { [KINRIN]: 'ex-1608' } });
-		out.bDef = B(undefined, { bSeen: ['ex-0029', 'ex-0183', 'ex-0657'] });
+		out.bDef = B(undefined, { bSeen: ['ex-0029', 'ex-0183', 'ex-0616', 'ex-0657'] });   // マイルの候補は4つ（C-152 で ex-0616 が入った）
 		out.bSeenDiff = B(undefined, { bSeen: ['ex-0029', 'ex-0183'] });
 		out.bSeenNone = B(undefined);
 		out.bOneOnly = B({ 'ex-0029': 'none', 'ex-0183': 'none', 'ex-0657': 'ex-1039' });
@@ -372,6 +378,95 @@ console.log('\n=== §6 手で変えた選択（choices）・確認済みの候�
 	assert(r.bAll3.count.b === 2 && r.bAll3.choices['ex-0657'] === 'none' && r.bAll3.choices['ex-0029'] === 'ex-1038' && r.bAll3.choices['ex-0183'] === 'ex-1034', 'B: 保存した選択が3つあっても2つまで（id の大きいほうから戻す）', r.bAll3.choices);
 	assert(r.bNoRace.b.bang === false && r.bNoRace.b.alert === false && r.bNoRace.count.b === 2 && r.bNoRace.choices['ex-0029'] === 'ex-1038' && r.bNoRace.choices['ex-0616'] === 'ex-1037', 'B: レース未選択なら「！」は出ず、手で選んだものは有効', r.bNoRace.choices);
 	assert(r.bStale.choices['ex-0029'] === 'ex-1038' && ent(r.bStale, 'ex-0029').stored === null, 'B: 別の行の進化先を指す保存値は無効（既定で表示）', r.bStale.choices);
+}
+
+/* ───────── §7 進化先を選べる条件（C-152・段4の修正3・4） ───────── */
+console.log('\n=== §7 進化先を選べる条件: 進化先自身が使えるレースなら選べる（元の金スキルの条件・追加の効果の条件は見ない） ===');
+{
+	const r = await page.evaluate(async ({ evRows, distances }) => {
+		const C = window.UmaSkillDeckCore;
+		await Promise.all([C.loadSkillEvolutions(), C.loadSkillDescriptions(), C.loadTrainingSources(false)]);
+		const cat = (d) => (d <= 1400 ? 'short' : d <= 1800 ? 'mile' : d <= 2400 ? 'medium' : 'long');
+		const mk = (d, s) => ({ id: 't-' + d + '-' + s, name: '試験用', venue: null, surface: s, distance: d, distanceCategory: cat(d) });
+		// 1行だけの進化の対応で、進化先の fit を見る（mode 'old' = 説明文を使わない＝変更前の進化先の判定。元の金スキルの判定は baseFit）
+		const one = (base, target, race, style, mode) => {
+			const f = { distance: race.distanceCategory, surface: race.surface }; if (style) f.style = style;
+			const a = { umaId: '', takenIds: [base], filter: f, race: race, evolutions: { entries: [{ kind: 'scenario', scenarioId: 'S', baseSkillId: base, evolvedSkillIds: [target] }] }, scenarioKey: 'S' };
+			if (mode === 'old') a.descOf = () => null;
+			const e = C.computeEvolutionPlan(a).b.entries[0];
+			return { fit: e.targets[0].fit, baseFit: e.baseFit, def: e.default };
+		};
+		const plan = (umaId, takenIds, race, style) => { const f = { distance: race.distanceCategory, surface: race.surface }; if (style) f.style = style; return C.computeEvolutionPlan({ umaId, takenIds, filter: f, race }); };
+		const out = {};
+		// 3: [Adamant Sovereign]シンボリルドルフ（uma-0269）の気炎万丈（ex-0354・＜中距離＞）→ 大望は煌めきとなりて（ex-1146・＜中距離/長距離＞。芝は追加の効果の条件）
+		const long3000 = mk(3000, 'turf'), longDirt = mk(2500, 'dirt');
+		const rudolf = (C.getTrainingSources().trainingUmamusume.entries.find((u) => u.id === 'uma-0269') || {});
+		const p3 = plan('uma-0269', ['ex-0354', 'ex-0633'], long3000, undefined);
+		out.rudolf = { found: !!rudolf.id, row: p3.a.find((e) => e.baseId === 'ex-0354') || null, choice: p3.choices['ex-0354'] };
+		out.rudolfDirt = one('ex-0354', 'ex-1146', longDirt, 'sashi', 'new');
+		out.rudolfOld = one('ex-0354', 'ex-1146', long3000, undefined, 'old');
+		// ①の表: 長距離のレースでは気炎万丈（中距離）は絞り込みで隠れるが、進化させるので表に出す（行は進化先・Pt は元のまま数える）
+		out.rudolfTable = C.getRosterVisiblePart({ umaId: 'uma-0269', cardIds: [null, null, null, null, null, null], race: long3000 });
+		out.rudolfTableNone = C.getRosterVisiblePart({ umaId: 'uma-0269', cardIds: [null, null, null, null, null, null], race: long3000, evolutionChoices: { 'ex-0354': 'none' } });
+		// 4: トレセン軒の時中の妙（ex-0616）→ 湯切りの妙技（ex-1037。＜…＞なし。「中距離レースで」は追加の効果の条件）。長距離でも選べる
+		const p4 = C.computeEvolutionPlan({ umaId: '', takenIds: ['ex-0616'], filter: { distance: 'long', surface: 'turf' }, race: long3000 });
+		out.jichu = { entry: p4.b.entries.find((e) => e.baseId === 'ex-0616') || null, candidates: p4.b.candidates, old: one('ex-0616', 'ex-1037', long3000, undefined, 'old') };
+		// 進化先自身が使えないレースは、選べないまま（＜作戦・先行＞の飛び出せSheepy!〔ex-1105〕を差しで）
+		out.senkoOnly = { sashi: one('ex-0075', 'ex-1105', mk(1600, 'turf'), 'sashi', 'new'), senko: one('ex-0075', 'ex-1105', mk(3000, 'turf'), 'senko', 'new') };
+		// 元の金スキルと進化先の条件が重ならず、これまで一度も選べなかった行（灰の怪物 ex-1084 ←怪物 ex-0050。進化先は＜先行・マイル＞）
+		out.never = { now: one('ex-0050', 'ex-1084', mk(1600, 'turf'), 'senko', 'new'), old: one('ex-0050', 'ex-1084', mk(1600, 'turf'), 'senko', 'old') };
+		// 距離の限定がスキル全体にかかる（scope "all"）ものは使う（滄海を越えしフーガ ex-1051 は 2200m のレースだけ）
+		out.all2200 = { d2200: one('ex-0016', 'ex-1051', mk(2200, 'turf'), 'nige', 'new').fit, d2000: one('ex-0016', 'ex-1051', mk(2000, 'turf'), 'nige', 'new').fit };
+		// ＜…＞に分類できない語（＜大逃げ・長距離＞）: 距離だけ読み、脚質は限定しない（「いつでも選べる」側。印が付く）
+		out.oonige = { usage: C.getEvolutionUsage('ex-1415'), sashiLong: one('ex-0336', 'ex-1415', mk(3000, 'turf'), 'sashi', 'new').fit, sashiMile: one('ex-0336', 'ex-1415', mk(1600, 'turf'), 'sashi', 'new').fit };
+		// 条件の文（＜…＞をそのまま）: 気炎万丈の進化先・湯切りの妙技
+		out.usage1146 = C.getEvolutionUsage('ex-1146');
+		out.usage1037 = C.getEvolutionUsage('ex-1037');
+		// 全行: 変更後に、変更前より選べる範囲が狭くなった条件が0（試験用のレース: 実在する距離 × バ場2 × 脚質5）
+		const styles = [undefined, 'nige', 'senko', 'sashi', 'oikomi'];
+		let narrowed = 0, widened = 0, rows = 0, cells = 0;
+		const seen = new Set();
+		evRows.forEach((row) => row.evolvedSkillIds.forEach((t) => {
+			const k = row.baseSkillId + '>' + t; if (seen.has(k)) return; seen.add(k); rows++;
+			let w = false;
+			distances.forEach((d) => ['turf', 'dirt'].forEach((s) => styles.forEach((st) => {
+				cells++;
+				const race = mk(d, s);
+				const b = one(row.baseSkillId, t, race, st, 'old'), a = one(row.baseSkillId, t, race, st, 'new');
+				const before = b.baseFit === 'must' && b.fit !== 'no', after = a.fit !== 'no';
+				if (before && !after) narrowed++;
+				if (!before && after) w = true;
+			})));
+			if (w) widened++;
+		}));
+		out.sweep = { rows, cells, narrowed, widened };
+		return out;
+	}, { evRows: evolutions.entries, distances: readJson('data/race-distances.json').distances.map((d) => d.distance) });
+
+	assert(r.rudolf.found && r.rudolf.row && r.rudolf.row.baseFit === 'no' && r.rudolf.row.targets[0].fit === 'must' && r.rudolf.choice === 'ex-1146',
+		'修正3: シンボリルドルフ（uma-0269）・長距離 芝3000m: 気炎万丈（＜中距離＞）は元の条件に合わないが、進化先の大望は煌めきとなりて（＜中距離/長距離＞）を選べる・既定になる', r.rudolf);
+	assert(r.rudolfOld.baseFit === 'no', '修正3:（変更前は、元の気炎万丈が長距離で合わず、①の表から隠れて進化の行が無かった）', r.rudolfOld);
+	assert(r.rudolfDirt.fit === 'must', '修正3: 長距離のダート（2500m）・差しでも選べる（「中央の芝レースなら」は追加の効果の条件）', r.rudolfDirt);
+	assert(r.rudolfTable.visibleIds.includes('ex-0354') && r.rudolfTable.takenIds.includes('ex-0354') && r.rudolfTable.evoChoices['ex-0354'] === 'ex-1146',
+		'修正3: ①の表: 長距離のレースでも、進化させる気炎万丈は表に出て取得に数える（Pt は元の金スキル）', { vis: r.rudolfTable.visibleIds.includes('ex-0354'), ev: r.rudolfTable.evoChoices });
+	assert(!r.rudolfTableNone.visibleIds.includes('ex-0354') && !r.rudolfTableNone.takenIds.includes('ex-0354'),
+		'修正3: ①の表: 「進化しない」を選べば、これまでどおり絞り込みで隠れる', r.rudolfTableNone.evoChoices);
+	assert(r.jichu.entry && r.jichu.entry.targets[0].fit === 'must' && r.jichu.candidates.includes('ex-0616') && r.jichu.old.fit === 'no',
+		'修正4: 時中の妙→湯切りの妙技: 長距離 芝3000m でも選べる・候補に入る（変更前は「中距離レースで」の追加の効果の条件で外れていた）', { entry: r.jichu.entry, old: r.jichu.old });
+	assert(r.senkoOnly.sashi.fit === 'no' && r.senkoOnly.senko.fit === 'must',
+		'進化先自身が使えないレース: ＜作戦・先行＞の進化先は、差しでは選べない（先行なら距離に関係なく選べる）', r.senkoOnly);
+	assert(r.never.now.fit === 'must' && !(r.never.old.baseFit === 'must' && r.never.old.fit !== 'no'),
+		'これまで一度も選べなかった行: 灰の怪物（＜先行・マイル＞）←怪物: マイル・先行で選べる', r.never);
+	assert(r.all2200.d2200 === 'must' && r.all2200.d2000 === 'no', '距離の限定がスキル全体にかかるもの（2200m のレースだけ）は使う: 2200m＝選べる・2000m＝選べない', r.all2200);
+	assert(r.oonige.usage && r.oonige.usage.tags.distance.join() === 'long' && r.oonige.usage.tags.style.length === 0 && r.oonige.usage.ignored.some((x) => /^bracket:/.test(x))
+		&& r.oonige.sashiLong === 'must' && r.oonige.sashiMile === 'no',
+		'＜大逃げ・長距離＞: 分類できない語（大逃げ）は脚質を限定しない（「いつでも選べる」側・印あり）。長距離は使う', r.oonige);
+	assert(r.usage1146 && r.usage1146.bracket === '＜中距離/長距離＞' && r.usage1146.tags.surface.length === 0 && r.usage1146.ignored.includes('surface'),
+		'条件の文は説明文の＜…＞のまま（大望は煌めきとなりて＝＜中距離/長距離＞）。芝のタグは使わない（印あり）', r.usage1146);
+	assert(r.usage1037 && r.usage1037.bracket === '' && r.usage1037.tags.distance.length === 0 && r.usage1037.ignored.includes('distance'),
+		'湯切りの妙技: 説明文に＜…＞が無いので条件の文なし・距離の限定なし（中距離のタグは使わない・印あり）', r.usage1037);
+	assert(r.sweep.narrowed === 0 && r.sweep.widened > 0,
+		'全' + r.sweep.rows + '行 × ' + (r.sweep.cells / r.sweep.rows) + '条件: 変更前より選べる範囲が狭くなった条件は0・広がった行は ' + r.sweep.widened + '行', r.sweep);
 }
 
 assert(errors.length === 0, 'コンソールエラーなし', errors);
