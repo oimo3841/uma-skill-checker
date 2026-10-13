@@ -4647,6 +4647,17 @@
 		':root { --usd-rarity-ssr-text: #000000; --usd-rarity-ssr-1: #e5384f; --usd-rarity-ssr-2: #f08a1c; --usd-rarity-ssr-3: #7cb518; --usd-rarity-ssr-4: #1d8fe0; --usd-rarity-ssr-5: #8b5cf6; --usd-rarity-sr-1: #e3b23c; --usd-rarity-sr-2: #b8860b;',
 		// 固有スキルの行の色（段7e の (2)〜(6)）。①の表と、入口の「オススメサポ」のボタンが同じ変数を読むので :root に置く（段7・2026-10-04 に .usd-roster-grid から移した。値は変えていない）
 		'  --usd-skill-unique-from: #e3f6e6; --usd-skill-unique-mid: #dff1fb; --usd-skill-unique-to: #fbe3f1; --usd-skill-unique-edge: #f0a8d0; }',
+		// 進化スキルの色（段4・C-150。ゲームの進化先の画面の色を基にした案B）。①の表の進化した行・進化の選択画面・リセットの赤いボタンが使う
+		'  :root { --evo-from: #fff0f5; --evo-mid: #ffd3e9; --evo-to: #ffb8e0; --evo-edge-on: #e8509c; --evo-edge: #f06aae; --evo-text: #4a1d0c; --evo-btn-bg: #fff0f5;',
+		'  --evo-base-from: #fffbe0; --evo-base-mid: #ffe58f; --evo-base-to: #ffd04d; --evo-base-edge: #c99a1c; --evo-base-text: #4a2a12;',
+		'  --evo-none-bg: #ffffff; --evo-none-edge: #cfcfcf; --evo-none-text: #4a2a12; --evo-arrow: #5f9a10; --evo-warn: #b3261e;',
+		'  --evo-sheet-bg: #ffffff; --evo-sheet-text: #2a2a2a; --evo-sheet-edge: #cfcfcf; --evo-group-bg: #f6f6f4;',
+		'  --evo-danger-edge: #b3261e; --evo-danger-bg: #fff3f1; --evo-danger-text: #7a1812; }',
+		':root[data-theme="dark"] { --evo-from: #3d1830; --evo-mid: #5a2145; --evo-to: #7a2b5e; --evo-edge-on: #ff8ac6; --evo-edge: #b8618f; --evo-text: #ffe9f2; --evo-btn-bg: #4a1f3a;',
+		'  --evo-base-from: #3a3212; --evo-base-mid: #554716; --evo-base-to: #6e5a14; --evo-base-edge: #ffd35b; --evo-base-text: #f3e8d0;',
+		'  --evo-none-bg: #2f2e34; --evo-none-edge: #4a4950; --evo-none-text: #e8e0d6; --evo-arrow: #a2df32; --evo-warn: #ff9a8f;',
+		'  --evo-sheet-bg: #26252a; --evo-sheet-text: #f0eae0; --evo-sheet-edge: #4a4950; --evo-group-bg: #1b1a1f;',
+		'  --evo-danger-edge: #ff9a8f; --evo-danger-bg: #4a2220; --evo-danger-text: #ffd9d4; }',
 		// ダーク（C-134 段4）: 固有スキルの行とオススメサポのボタンの地は、同じ3色の色相のまま暗い面へ。上に載る文字は明るく
 		':root[data-theme="dark"] { --usd-rarity-ssr-text: #f1f5f9; --usd-skill-unique-from: #163423; --usd-skill-unique-mid: #142f45; --usd-skill-unique-to: #3a1a32; --usd-skill-unique-edge: #a8457a; }',
 		// 名前の部分（押すとカードの情報）。二つ名は 11px で先に省略し、次に名前（14px）を省略する
@@ -5490,6 +5501,13 @@
 		'  background: linear-gradient(90deg, var(--usd-skill-unique-from), var(--usd-skill-unique-mid), var(--usd-skill-unique-to));',
 		'  outline: 1px solid var(--usd-skill-unique-edge); outline-offset: -1px; }',
 		'.usd-roster-grow--unique > .usd-roster-gc, .usd-roster-grow--unique > .usd-roster-gc--uma { background: transparent; }',
+		// 進化させた金スキルの行（段4）: 固有スキルの行と同じ作り（行を箱にして列を引き継ぐ）で、進化先の面（左→右のグラデーション）と枠。名前の文字は進化先の文字色
+		'.usd-roster-grow--evo { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid;',
+		'  background: linear-gradient(90deg, var(--evo-from), var(--evo-mid), var(--evo-to));',
+		'  outline: 2px solid var(--evo-edge-on); outline-offset: -2px; color: var(--evo-text); }',
+		'.usd-roster-grow--evo > .usd-roster-gc, .usd-roster-grow--evo > .usd-roster-gc--uma { background: transparent; color: var(--evo-text); }',
+		'.usd-roster-grow--evo .usd-roster-skillname, .usd-roster-grow--evo .usd-roster-pt:not(.usd-roster-pt--ref) { color: var(--evo-text); }',
+		'.usd-roster-grow--evo .usd-roster-got { border-color: var(--evo-text); }',
 		// 得られる●の行の Pt の文字は、金・回復・固有の地の上で 4.5 以上になる少し濃い色にする（薄い△の参考値はそのまま）
 		'.usd-roster-grow--gold:not(.usd-roster-grow--off) .usd-roster-pt:not(.usd-roster-pt--ref),',
 		'  .usd-roster-grow--unique:not(.usd-roster-grow--off) .usd-roster-pt:not(.usd-roster-pt--ref) { color: var(--usd-skill-pt-text); }',
@@ -8499,6 +8517,7 @@
 		let sortKey = null;           // 並べ替えている列のメンバー（段7の (16)。保存しない）
 		let eventsFor = null;         // イベントを選ぶ小窓を開いている列のメンバー（段7の (19)。保存しない）
 		let gridScrollReset = false;  // 次の描き直しで、表の中のスクロールを先頭へ戻すか（並べ替え・絞り込みのとき。段7c の M）
+		let evoPlan = null;           // いまの描き直しの進化の決定（段4。render の先頭で求める。computeEvolutionPlan の結果。保存しない）
 		const uidBase = uid('roster');
 
 		/* ------------------------------------------------------------
@@ -8542,6 +8561,23 @@
 			if (cur.length === 0) delete roster.offSkillIds; else roster.offSkillIds = cur;
 			persistNow();
 			render();
+		}
+
+		/**
+		 * 進化の決定（段4・C-150）。①の表・帯・選択画面が同じものを見る。手で変えた選択（roster.evolutionChoices）と
+		 * 確認済みの候補（roster.evolutionBSeen）を決定関数に渡す。**進化は表示だけ**で、②・オススメサポ・Pt の合計には影響しない
+		 * （合計には元の金スキルの Pt を数える。takenIds も進化元のまま）。進化のデータを読めていないときは、進化の行が無いのと同じ。
+		 */
+		function evoPlanOf(res) {
+			return computeEvolutionPlan({
+				umaId: roster.umaId, takenIds: res.takenIds, filter: resolvedFilter(), race: raceOfRoster(roster),
+				choices: roster.evolutionChoices, bSeen: roster.evolutionBSeen
+			});
+		}
+		/** 元の金スキルを、いま進化させているときの進化先の id（進化させていなければ null） */
+		function evolvedIdOf(baseId) {
+			const c = evoPlan && evoPlan.choices ? evoPlan.choices[baseId] : null;
+			return (typeof c === 'string' && c !== 'none') ? c : null;
 		}
 
 		/**
@@ -8966,6 +9002,7 @@
 			const res = computed();
 			const saved = listRosters();
 			const ptView = computePtView(res);
+			evoPlan = evoPlanOf(res);
 
 			let h = '<div class="usd-roster">';
 
@@ -9162,12 +9199,13 @@
 						: '';
 					// 色分け（段7e の (2)〜(5)）。取得しない（オフ）の行は今までの見た目のまま（地も文字も薄い色）
 					const tone = rowToneOf(it.skillId);
-					const nameTone = isOff ? '' : tone.heal ? ' usd-roster-skillname--heal' : tone.debuff ? ' usd-roster-skillname--debuff' : tone.passive ? ' usd-roster-skillname--passive' : '';
-					h += '<div class="usd-roster-grow' + (rarity === 'gold' ? ' usd-roster-grow--gold' : '') + (rarity === 'unique' ? ' usd-roster-grow--unique' : '') + (tone.heal ? ' usd-roster-grow--heal' : '')
-						+ (prevRowIds.has(it.skillId) ? ' usd-roster-grow--prev' : '') + (isOff ? ' usd-roster-grow--off' : '') + '" role="row" data-skill-id="' + esc(it.skillId) + '"' + (isOff ? ' data-usd-off="1"' : '') + '>'
+					const evoId = isOff ? null : evolvedIdOf(it.skillId);   // 進化させている金スキルは、名前を進化先にして進化先の色で出す（Pt は元のまま）
+					const nameTone = (isOff || evoId) ? '' : tone.heal ? ' usd-roster-skillname--heal' : tone.debuff ? ' usd-roster-skillname--debuff' : tone.passive ? ' usd-roster-skillname--passive' : '';
+					h += '<div class="usd-roster-grow' + (rarity === 'gold' && !evoId ? ' usd-roster-grow--gold' : '') + (evoId ? ' usd-roster-grow--evo' : '') + (rarity === 'unique' ? ' usd-roster-grow--unique' : '') + (tone.heal && !evoId ? ' usd-roster-grow--heal' : '')
+						+ (prevRowIds.has(it.skillId) ? ' usd-roster-grow--prev' : '') + (isOff ? ' usd-roster-grow--off' : '') + '" role="row" data-skill-id="' + esc(it.skillId) + '"' + (evoId ? ' data-usd-evo="' + esc(evoId) + '"' : '') + (isOff ? ' data-usd-off="1"' : '') + '>'
 						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader">' + takeBox + '<div class="usd-roster-namescroll usd-hscroll" data-usd-no-trim="1">'
 							+ (prevRowIds.has(it.skillId) ? '<span class="usd-roster-prevmark" aria-hidden="true" data-usd-el="prev-mark">└</span>' : '')
-							+ '<button type="button" class="usd-roster-skillname usd-roster-skillname--btn' + (isOff ? ' usd-roster-skillname--off' : '') + nameTone + '" data-usd-info="' + esc(it.skillId) + '">' + esc(it.name) + '</button>'
+							+ '<button type="button" class="usd-roster-skillname usd-roster-skillname--btn' + (isOff ? ' usd-roster-skillname--off' : '') + nameTone + '" data-usd-info="' + esc(evoId || it.skillId) + '">' + esc(evoId ? getSkillName(evoId) : it.name) + '</button>'
 							+ ptCellHtml(ptView, it, isOff) + '</div></div>'
 						+ members.map(m => '<div class="usd-roster-gc' + colClass(m) + '" role="cell">'
 							+ (it.sureMembers.indexOf(m.key) !== -1 ? '<span class="usd-roster-got" role="img" aria-label="得られる"></span>'
@@ -9726,6 +9764,9 @@
 		} else render();
 		// スキルPt の元データがまだ読まれていなければ、読み終わったあとで描き直す（読めなくても描き直す＝知らせを出す）
 		if (!skillPtData.meta.loaded) loadSkillPtData(false).then(function () { render(); });
+		// 進化の対応（段4。skill-evolutions.json）と効果の段階（既定の同点崩しに使う）。編成パネルを作るときにだけ読み、読み終わったら描き直す（読めなければ進化の行が無いのと同じ）
+		loadSkillEvolutions(false).then(function () { render(); });
+		loadSkillEffectLevels().then(function () { render(); });
 		// シナリオの固定イベント（段7c の N）。編成パネルを作るときにだけ読む。読み終わったら描き直す（読めなければ列を出さない）
 		if (scenarioEventState.status === 'idle' || scenarioEventState.status === 'failed') loadScenarioEvents(false).then(function () { render(); });
 		return {
