@@ -456,7 +456,8 @@ export async function register7d(env) {
 				const rowTops = await sp.page.evaluate(() => ['parent-level-group', 'uniq'].map((k) => Math.round(document.querySelector('[data-usd-el="' + k + '"]').getBoundingClientRect().top)));
 				const hs = await SP(sp.page);
 				out.push({ w, h, grid: g, list: l });
-				assert(g <= 383, '段7d(C) ' + w + '×' + h + ': ①の表より上の高さ ' + g + 'px は段7c（383px）以下', { g });
+				// 段4（C-150）: 帯に高さ44pxの「進化」ボタンが入り、383px → 392px 以下（実測 388px。帯が1行に収まる幅）
+				assert(g <= 392, '段7d(C) ' + w + '×' + h + ': ①の表より上の高さ ' + g + 'px は段7c（383px）に進化ボタンのぶん（+9px）を足した 392px 以下', { g });
 				assert(l <= 474, '段7d(C) ' + w + '×' + h + ': ②の追加済みスキルより上の高さ ' + l + 'px は段7c（474px）以下', { l });
 				// 段9（C-121）: ランクのチップは無くなった（継承固有と共通スキルのタグの並びは blocks-9.mjs の段9(D)）
 				assert(rowTops[0] === rowTops[1], '共通スキルのヒントLv と継承固有は1行（375px）', rowTops);

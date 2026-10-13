@@ -303,6 +303,7 @@ export async function register8(env) {
 			await sp.ctx.close();
 		}
 		console.log('     [実測] 375px: 帯 ' + m.bar + 'px／①の表の上端 ' + m.grid + 'px（段7f 351px）／②の一覧の上端 ' + m.list + 'px（段7f 474px）／行 ' + m.row + 'px（段7f 31px）');
-		assert(m.bar <= 40 && m.grid <= 361 && m.list <= 400 && m.row === 31, '段8 375px: 帯 ' + m.bar + 'px・①の表の上端 ' + m.grid + 'px・②の一覧の上端 ' + m.list + 'px・行 ' + m.row + 'px', m);
+		assert(m.bar <= 40 && m.grid <= 410 && m.list <= 400 && m.row === 31,   // grid: 段4（C-150）で帯に44pxの進化ボタン。帯が2行になる編成では 400px（361 → 410）
+		 '段8 375px: 帯 ' + m.bar + 'px・①の表の上端 ' + m.grid + 'px・②の一覧の上端 ' + m.list + 'px・行 ' + m.row + 'px', m);
 	});
 }

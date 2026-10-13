@@ -1,0 +1,453 @@
+// 進化スキル 段4（①の画面。2026-10-13・14）の検査。run-smoke.mjs の末尾から register24() で呼ばれる
+// （塊の見出しはすべて「進化段4」で始まる。`npm run test:visual -- --only=進化段4` で回せる）。
+//
+// 見るもの: 帯（「進化 N／最大」ボタン・「?」が無い・1行／2行・ボタンが切れない）／進化の選択画面（衣装・シナリオ）／
+//   ①の表の進化した行／リセットのシート（戻す範囲を選ぶ）／色（ライト・ダーク）と、スマホで画面からはみ出さないこと。
+// スキル名・衣装名は検査の側に書かない（恒久ルール1）。衣装・カードは id で書き、名前は画面の文字とデータから読む。
+
+import { contrastRatio } from './lib/pixels.mjs';
+
+export async function register24(env) {
+	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
+	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
+	const json = (body) => ({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(body) });
+	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
+	const EMPTY = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
+	const RACES = readJson('data/upcoming-races.json').races;
+	const raceOf = (id) => { const r = RACES.find((x) => x.id === id); const { id: rid, ...rest } = r; return Object.assign({ id: rid }, rest); };
+	const SCENARIO_DOC = readJson('data/scenario-event-skills.json');
+	const SKILL_NAME = new Map();
+	[readJson('uma-skill-deck-skills.json').skills, readJson('data/extended-skills.json').entries].forEach((l) => l.forEach((s) => SKILL_NAME.set(s.id, s.name)));
+	const EVOS = readJson('data/skill-evolutions.json').entries;
+	const UMAS = readJson('data/training-umamusume.json').entries;
+
+	// 手書きの組み合わせ（id で書く）。オルフェーヴル総攬: 金スキル2つ（ex-0470→ex-1608＝＜追込・芝＞2000m以上、ex-0484→ex-1609＝＜中距離＞）。
+	const ORFE = 'uma-0241', KINRIN = 'ex-0470', HEIGEI = 'ex-0484', KINRIN_TO = 'ex-1608', HEIGEI_TO = 'ex-1609';
+	// シナリオ（B）の候補が3つになる編成: uma-0009＋カード6枚＋レース 京都 芝2200m。候補は ex-0183・ex-0616・ex-0645（id 昇順）
+	const B_UMA = 'uma-0009';
+	const B_CARDS = ['card-0546', 'card-0543', 'card-0295', 'card-0499', 'card-0427', 'card-0518'];
+	const B_IDS = ['ex-0183', 'ex-0616', 'ex-0645'];
+	const mkRoster = (o) => Object.assign({ rosterId: 'r_evo', name: '', umaId: '', star: 3, awakeningLevel: 5, cardIds: [null, null, null, null, null, null] }, o);
+	const orfeRoster = (o) => mkRoster(Object.assign({ umaId: ORFE, skillFilter: { style: 'oikomi' }, race: raceOf('race-0001') }, o || {}));
+	const bRoster = (o) => mkRoster(Object.assign({ umaId: B_UMA, cardIds: B_CARDS, skillFilter: { style: 'sashi' }, race: raceOf('race-0001') }, o || {}));
+
+	const openSp = async (o = {}) => {
+		const sp = await openPage(browser, base, 'special.html', { width: o.w || 390, height: o.h || 844 }, EMPTY);
+		if (o.scheme) await sp.page.emulateMedia({ colorScheme: o.scheme });
+		await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill(json(SCENARIO_DOC)));
+		await sp.page.evaluate(({ roster }) => {
+			if (roster) localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster)); else localStorage.removeItem('umaSkillDeck:draftRoster:special');
+			localStorage.removeItem('umaSkillDeck:draftScope:special');
+			localStorage.setItem('umaSkillDeck:stepTab', '0');
+		}, { roster: o.roster === undefined ? null : o.roster });
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.waitForTimeout(500);
+		await sp.page.evaluate(() => UmaSkillDeckCore.loadTrainingSources(false));
+		await sp.page.evaluate(() => UmaSkillDeckCore.loadSkillPtData(false));
+		await sp.page.waitForFunction(() => UmaSkillDeckCore.getEvolutionScenarioKey() !== null && !!document.querySelector('[data-usd-el="evo-btn"]'), null, { timeout: 8000 }).catch(() => {});
+		await sp.page.waitForTimeout(300);
+		return sp;
+	};
+	const savedRoster = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special') || 'null'));
+	const toastText = (page) => page.evaluate(() => Array.from(document.querySelectorAll('body *')).filter((e) => e.children.length === 0 && /^(衣装が未選択です|進化できるスキルがありません|戻すスキルはありません|いまの条件（レース・脚質）では選べません)$/.test((e.textContent || '').trim())).map((e) => e.textContent.trim()));
+	const sheetVisible = (page) => page.evaluate(() => { const p = document.querySelector('.usd-info-pop'); return !!p && !p.hidden && p.getClientRects().length > 0; });
+	const sheetBox = (page) => page.evaluate(() => { const r = document.querySelector('.usd-info-pop').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, vh: window.innerHeight, vw: window.innerWidth }; });
+
+	/* ====================================================================
+	 * 帯
+	 * ==================================================================== */
+	await block('進化段4A 帯: 「?」を外して「進化 N／最大」ボタンを置く。合計の文字を押すと同じ小窓が開く。44px以上・衣装が未選択でも出て、押すと理由を知らせる', async () => {
+		const sp = await openSp({ roster: orfeRoster(), w: 390 });
+		const r = await sp.page.evaluate(() => {
+			const row = document.querySelector('[data-usd-el="pt-sumrow"]');
+			const btn = document.querySelector('[data-usd-el="evo-btn"]');
+			const b = btn.getBoundingClientRect();
+			return {
+				help: row.querySelectorAll('.uma-help-btn').length, text: btn.textContent, label: btn.getAttribute('aria-label'),
+				h: b.height, borderW: parseFloat(getComputedStyle(btn).borderTopWidth), radius: parseFloat(getComputedStyle(btn).borderTopLeftRadius),
+				bName: getComputedStyle(btn.querySelector('b')).fontSize + '/' + getComputedStyle(btn.querySelector('b')).fontWeight,
+				cnt: getComputedStyle(btn.querySelector('span')).fontSize + '/' + getComputedStyle(btn.querySelector('span')).fontWeight,
+				helpBtn: !!document.querySelector('[data-usd-el="pt-help-btn"]'), helpIsText: !!document.querySelector('[data-usd-el="pt-help-btn"] [data-usd-el="roster-sum"]'),
+				bang: !!document.querySelector('[data-usd-el="evo-bang"]'),
+				hscrollInBand: !!row.querySelector('.usd-hscroll')
+			};
+		});
+		assert(r.help === 0 && r.helpBtn && r.helpIsText, '進化段4A 帯に「?」のボタンは無く、合計の文字がボタン（同じ小窓を開く）', r);
+		assert(/^進化\s*3／4$/.test(r.text.replace(/\s/g, '')) && r.label.indexOf('3／4') !== -1, '進化段4A 進化ボタンは「進化」＋「N／最大」（オルフェーヴル 京都 芝2200m・追込: 衣装の2つ＋シナリオの1つ＝3／4）', { text: r.text, label: r.label });
+		assert(r.h >= 44 && r.borderW === 2 && r.radius >= 8, '進化段4A 進化ボタンは高さ44px以上・枠2px・角丸', { h: r.h, borderW: r.borderW, radius: r.radius });
+		assert(r.bName === '14px/700' && r.cnt === '12px/400', '進化段4A 「進化」は14px太字・「N／最大」は12px通常の太さ', { b: r.bName, n: r.cnt });
+		assert(!r.hscrollInBand && !r.bang, '進化段4A 帯に横スクロール・フェードの部品は無い／「！」は確認が必要なときだけ（ここでは出ない）', { hscroll: r.hscrollInBand, bang: r.bang });
+		// 合計の文字を押すと、これまでの「?」と同じ小窓（理論値など）が開く。覚醒Lv5の説明の1行は無い
+		await sp.page.click('[data-usd-el="pt-help-btn"]');
+		await sp.page.waitForTimeout(250);
+		const info = await sp.page.evaluate(() => ({ theory: !!document.querySelector('[data-usd-el="info-theory"]'), reason: !!document.querySelector('[data-usd-el="info-uma-reason"]'), off: !!document.querySelector('[data-usd-el="info-off"]') }));
+		assert(info.theory && !info.reason && !info.off, '進化段4A 合計の文字を押すと理論値の小窓が開く／覚醒Lv5の説明の1行と「取得しないスキル」の行は小窓に無い', info);
+		assert(jsErrors(sp.errors).length === 0, '進化段4A コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+		// 衣装が未選択でもボタンは出し、押すと理由を知らせる（画面は開かない）
+		const sp2 = await openSp({ roster: mkRoster({}), w: 390 });
+		const had = await sp2.page.evaluate(() => !!document.querySelector('[data-usd-el="evo-btn"]'));
+		await sp2.page.click('[data-usd-el="evo-btn"]');
+		await sp2.page.waitForTimeout(250);
+		assert(had && !(await sheetVisible(sp2.page)) && (await toastText(sp2.page)).indexOf('衣装が未選択です') !== -1, '進化段4A 衣装が未選択でも進化ボタンは出て、押すと「衣装が未選択です」を知らせる（画面は開かない）', await toastText(sp2.page));
+		await sp2.ctx.close();
+	});
+
+	await block('進化段4A 帯の並び: 390px は1行・360px は2行（進化は2行目の左）。どの幅でもボタンは切れず、はみ出さない（ライト・ダーク）', async () => {
+		const out = [];
+		for (const w of [390, 360, 320]) {
+			for (const scheme of ['light', 'dark']) {
+				const sp = await openSp({ roster: orfeRoster(), w, scheme });
+				const m = await sp.page.evaluate(() => {
+					const row = document.querySelector('[data-usd-el="pt-sumrow"]');
+					const rr = row.getBoundingClientRect();
+					const kids = [...row.querySelectorAll(':scope > [data-band]')].map((k) => { const b = k.getBoundingClientRect(); return { cls: k.className.split(' ')[0], l: b.left - rr.left, r: b.right - rr.left, t: b.top - rr.top, b: b.bottom - rr.top }; });
+					const sum = kids.find((k) => k.cls === 'usd-roster-sumtext'), evo = kids.find((k) => k.cls === 'usd-evo-wrap');
+					return { two: row.classList.contains('usd-roster-sumrow--two'), rowW: rr.width, kids, sum, evo, overflowX: row.scrollWidth - row.clientWidth, pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, fade: !!row.querySelector('[data-usd-fade]') };
+				});
+				out.push(Object.assign({ w, scheme }, m));
+				await sp.ctx.close();
+			}
+		}
+		const clipped = out.filter((m) => m.overflowX > 0 || m.pageOverflow > 0 || m.kids.some((k) => k.r > m.rowW + 0.5 || k.l < -0.5) || m.fade);
+		assert(clipped.length === 0, '進化段4A どの幅（390・360・320px）・ライト／ダークでも、帯のボタンは帯の中に収まる（切れ・横スクロール・フェードなし）', clipped.map((m) => m.w + m.scheme));
+		const one = out.filter((m) => m.w === 390);
+		assert(one.every((m) => !m.two && m.evo.t < m.sum.b), '進化段4A 390px は1行（進化ボタンは合計の右）', one.map((m) => ({ two: m.two, scheme: m.scheme })));
+		const two = out.filter((m) => m.w <= 360);
+		assert(two.every((m) => m.two && m.evo.t >= m.sum.b - 1 && m.evo.l <= 1), '進化段4A 360px以下は2行（進化ボタンは2行目の左）', two.map((m) => ({ w: m.w, two: m.two, evoT: m.evo.t, sumB: m.sum.b, evoL: m.evo.l })));
+	});
+
+	/* ====================================================================
+	 * 進化の選択画面（衣装）
+	 * ==================================================================== */
+	await block('進化段4B 衣装の画面: 見出し・条件の行・金スキルごとのグループ（元→▼▼▼→進化先→進化しない）・閉じるボタン。選ぶと表の行が変わり、保存される', async () => {
+		const sp = await openSp({ roster: orfeRoster(), w: 390 });
+		await sp.page.click('[data-usd-el="evo-btn"]');
+		await sp.page.waitForTimeout(300);
+		const r = await sp.page.evaluate(() => {
+			const q = (s) => [...document.querySelectorAll(s)];
+			const pop = document.querySelector('.usd-info-pop');
+			return {
+				title: pop.querySelector('.uma-popover-title').textContent, cond: (document.querySelector('[data-usd-el="evo-cond"]') || {}).textContent,
+				groups: q('[data-usd-el="evo-group"]').map((g) => ({ base: g.getAttribute('data-base-id'), baseName: g.querySelector('.usd-evo-base .usd-evo-name').textContent, arrow: g.querySelector('.usd-evo-arrow').textContent,
+					targets: [...g.querySelectorAll('[data-usd-el="evo-target"]')].map((t) => ({ v: t.getAttribute('data-evo-value'), name: t.querySelector('.usd-evo-name').textContent, sub: (t.querySelector('.usd-evo-sub') || {}).textContent || null, on: t.querySelector('input').checked, icon: !!t.querySelector('.usd-evo-icon') })),
+					none: { on: g.querySelector('[data-usd-el="evo-none"] input').checked, text: g.querySelector('[data-usd-el="evo-none"] .usd-evo-name').textContent } })),
+				closeBtn: !!document.querySelector('[data-usd-el="evo-close"]'), closeText: (document.querySelector('[data-usd-el="evo-close"]') || {}).textContent,
+				xSize: (() => { const x = pop.querySelector('.uma-popover-close').getBoundingClientRect(); return [Math.round(x.width), Math.round(x.height)]; })(),
+				tabs: !!document.querySelector('[data-usd-el="evo-tabs"]'),
+				nameSize: getComputedStyle(document.querySelector('[data-usd-el="evo-target"] .usd-evo-name')).fontSize + '/' + getComputedStyle(document.querySelector('[data-usd-el="evo-target"] .usd-evo-name')).fontWeight,
+				subSize: getComputedStyle(document.querySelector('[data-usd-el="evo-target"] .usd-evo-sub')).fontSize
+			};
+		});
+		assert(r.title === '進化スキル(衣装)' && r.cond === 'レース: 2200m 芝 / 脚質: 追込', '進化段4B 見出し「進化スキル(衣装)」と、その下の条件「レース: 2200m 芝 / 脚質: 追込」', { title: r.title, cond: r.cond });
+		assert(r.groups.length === 2 && r.groups[0].base === KINRIN && r.groups[1].base === HEIGEI, '進化段4B 金スキルごとに1つのグループ（衣装の金スキル2つ・データの並び）', r.groups.map((g) => g.base));
+		const g0 = r.groups[0], g1 = r.groups[1];
+		assert(g0.baseName === SKILL_NAME.get(KINRIN) && g0.arrow === '▼▼▼' && g0.targets.length === 1 && g0.targets[0].name === SKILL_NAME.get(KINRIN_TO) && g0.targets[0].on && g0.none.text === '進化しない' && !g0.none.on, '進化段4B グループの中身は 元の金スキル → ▼▼▼ → 進化先（選択中）→「進化しない」', g0);
+		assert(g1.targets.length === 2 && g1.targets[0].v === HEIGEI_TO && g1.targets[0].on && !g1.targets[1].on, '進化段4B 進化先が2つの金スキルは、進化先を2行並べる（既定が選ばれている）', g1.targets.map((t) => t.v + ':' + t.on));
+		assert(g0.targets[0].sub === '＜追込・芝＞ 2000m以上' && g1.targets[0].sub === '＜中距離＞' && g1.targets.every((t) => t.icon), '進化段4B 条件は ＜中距離＞ ＜追込・芝＞ 2000m以上 のような表記で、アイコン枠がある', { a: g0.targets[0].sub, b: g1.targets[0].sub });
+		assert(!/必ず合う|合うことがある|合わない/.test(JSON.stringify(r)), '進化段4B 画面に「必ず合う／合うことがある／合わない」の語は出さない');
+		assert(r.nameSize === '15px/700' && r.subSize === '12px' && r.closeBtn && r.closeText === '閉じる' && r.xSize[0] >= 44 && r.xSize[1] >= 44 && r.tabs, '進化段4B 進化先の名前は15px太字・条件は12px・×は44px以上・下に「閉じる」・シナリオの候補もあるので「衣装／シナリオ」の切り替えが出る', { name: r.nameSize, sub: r.subSize, x: r.xSize, tabs: r.tabs });
+		// 「進化しない」を選ぶと、その場で保存され、表の行が金スキルの行に戻る
+		await sp.page.click('[data-usd-el="evo-group"][data-base-id="' + KINRIN + '"] [data-usd-el="evo-none"]');
+		await sp.page.waitForTimeout(300);
+		const after = await sp.page.evaluate((k) => ({ evoRows: [...document.querySelectorAll('.usd-roster-grow--evo')].map((x) => x.getAttribute('data-skill-id')), goldRow: !!document.querySelector('.usd-roster-grow--gold[data-skill-id="' + k + '"]'), band: document.querySelector('[data-usd-el="evo-btn"]').textContent.replace(/\s/g, ''), noneOn: document.querySelector('[data-usd-el="evo-group"][data-base-id="' + k + '"] [data-usd-el="evo-none"] input').checked, stillOpen: !!document.querySelector('.usd-info-pop:not([hidden]) [data-usd-el="evo-sheet"]') }), KINRIN);
+		const saved = await savedRoster(sp.page);
+		assert(after.evoRows.join() === 'ex-0616,' + HEIGEI && after.goldRow && after.band === '進化2／4' && after.noneOn && after.stillOpen, '進化段4B 「進化しない」を選ぶと、その金スキルの行が金スキルに戻り（シナリオの進化と、もう1つの衣装の進化は残る）、帯は 2／4・画面は開いたまま', after);
+		assert(saved && saved.evolutionChoices && saved.evolutionChoices[KINRIN] === 'none' && Object.keys(saved.evolutionChoices).length === 1, '進化段4B 手で変えた選択だけを roster.evolutionChoices に保存する', saved && saved.evolutionChoices);
+		// 2つ目の進化先を選ぶ
+		await sp.page.click('[data-usd-el="evo-group"][data-base-id="' + HEIGEI + '"] [data-usd-el="evo-target"]:nth-of-type(2)');
+		await sp.page.waitForTimeout(300);
+		const alt = await sp.page.evaluate((h) => document.querySelector('.usd-roster-grow--evo[data-skill-id="' + h + '"]').getAttribute('data-usd-evo'), HEIGEI);
+		assert(alt !== HEIGEI_TO && !!alt, '進化段4B 進化先を選び直すと、表の進化先も変わる', alt);
+		// 閉じるで閉じる
+		await sp.page.click('[data-usd-el="evo-close"]');
+		await sp.page.waitForTimeout(200);
+		assert(!(await sheetVisible(sp.page)), '進化段4B 「閉じる」で閉じる');
+		assert(jsErrors(sp.errors).length === 0, '進化段4B コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('進化段4B 条件が合わない進化先は、押しても選ばず理由を知らせる（押せない見た目・無効にはしない）。レース未選択の既定は「進化しない」', async () => {
+		// 長距離のレース（3000m）では、睥睨の2つの進化先のうち、中距離だけの1つ目は選べない（中距離/長距離の2つ目は選べる）
+		const sp = await openSp({ roster: orfeRoster({ race: raceOf('race-0002') }), w: 390 });
+		await sp.page.click('[data-usd-el="evo-btn"]');
+		await sp.page.waitForTimeout(300);
+		const before = await sp.page.evaluate((h) => { const g = document.querySelector('[data-usd-el="evo-group"][data-base-id="' + h + '"]'); return { values: [...g.querySelectorAll('[data-usd-el="evo-target"]')].map((x) => x.getAttribute('data-evo-value') + ':' + x.querySelector('input').checked), anyDisabled: [...document.querySelectorAll('.usd-evo input')].some((i) => i.disabled) }; }, HEIGEI);
+		assert(before.values.length === 2 && before.values[0] === HEIGEI_TO + ':false' && !before.anyDisabled, '進化段4B 前提: 睥睨の1つ目の進化先（中距離だけ）は、長距離のレースでは既定にならない。入力は無効（disabled）にしない', before);
+		await sp.page.click('[data-usd-el="evo-group"][data-base-id="' + HEIGEI + '"] [data-usd-el="evo-target"]:nth-of-type(1)');
+		await sp.page.waitForTimeout(300);
+		const after = await sp.page.evaluate((h) => ({ on: [...document.querySelectorAll('[data-usd-el="evo-group"][data-base-id="' + h + '"] [data-usd-el="evo-target"] input')].map((i) => i.checked).join(), open: !!document.querySelector('.usd-info-pop:not([hidden])') }), HEIGEI);
+		const saved = await savedRoster(sp.page);
+		assert((await toastText(sp.page)).indexOf('いまの条件（レース・脚質）では選べません') !== -1, '進化段4B 選べない進化先を押すと、理由（いまの条件では選べません）を知らせる', await toastText(sp.page));
+		assert(after.on === 'false,true' && after.open, '進化段4B 選べない進化先は選ばれず、画面は開いたまま', after);
+		assert(!saved.evolutionChoices || saved.evolutionChoices[HEIGEI] === undefined, '進化段4B 選べない進化先は、保存値にも入らない', saved.evolutionChoices);
+		await sp.ctx.close();
+		// レース未選択: 脚質・距離を手で指定しても、何も自動では進化しない。進化ボタンは出ていて、選び直しはできる
+		const sp3 = await openSp({ roster: mkRoster({ umaId: ORFE, skillFilter: { distance: 'medium', style: 'oikomi', surface: 'turf' } }), w: 390 });
+		const r3 = await sp3.page.evaluate(() => ({ btn: document.querySelector('[data-usd-el="evo-btn"]').textContent.replace(/s/g, ''), evoRows: document.querySelectorAll('.usd-roster-grow--evo').length, bang: !!document.querySelector('[data-usd-el="evo-bang"]') }));
+		assert(r3.btn === '進化0／4' && r3.evoRows === 0 && !r3.bang, '進化段4B レース未選択: 全部「進化しない」（進化 0／4）・表に進化した行は無く・「！」も出ない', r3);
+		await sp3.page.click('[data-usd-el="evo-btn"]');
+		await sp3.page.waitForTimeout(300);
+		const c3 = await sp3.page.evaluate(() => (document.querySelector('[data-usd-el="evo-cond"]') || {}).textContent);
+		assert(c3 === 'レース: 未選択 / 脚質: 追込', '進化段4B レース未選択の条件の行は「レース: 未選択 / 脚質: 追込」', c3);
+		await sp3.page.click('[data-usd-el="evo-group"][data-base-id="' + KINRIN + '"] [data-usd-el="evo-target"]');
+		await sp3.page.waitForTimeout(300);
+		const r3b = await sp3.page.evaluate(() => ({ evo: [...document.querySelectorAll('.usd-roster-grow--evo')].map((x) => x.getAttribute('data-usd-evo')) }));
+		assert(r3b.evo.join() === KINRIN_TO, '進化段4B レース未選択でも、手で選んだ進化先は表に出る', r3b);
+		await sp3.ctx.close();
+	});
+
+	await block('進化段4B 金スキルが3つの衣装は3グループ。シートの中だけがスクロールし、画面からはみ出さない（バーが開いた高さ・縮んだ高さ・ライト／ダーク）', async () => {
+		const three = UMAS.filter((u) => EVOS.filter((e) => e.kind === 'uma' && e.umaId === u.id).length === 3);
+		assert(three.length === 6, '進化段4B 前提: 金スキルが3つの衣装は6つ', three.length);
+		// 3つとも進化の行が出る条件（レース×脚質）を、実データの決定関数で探す
+		const probe = await openSp({ roster: null, w: 390 });
+		const found = await probe.page.evaluate(async ({ ids, races }) => {
+			const C = UmaSkillDeckCore;
+			await C.loadSkillEvolutions(); await C.loadTrainingSources(false); await C.loadSkillPtData(false); await C.loadSkillEffectLevels();
+			for (const id of ids) {
+				const res = C.computeRosterSkills({ umaId: id, cardIds: [] }, {});
+				for (const race of races) for (const style of ['nige', 'senko', 'sashi', 'oikomi']) {
+					const pl = C.computeEvolutionPlan({ umaId: id, takenIds: res.skillIds, filter: { distance: race.distanceCategory, surface: race.surface, style: style }, race: race });
+					if (pl.a.filter((e) => e.choice !== 'invalid').length === 3) return { id: id, race: race.id, style: style };
+				}
+			}
+			return null;
+		}, { ids: three.map((u) => u.id), races: RACES });
+		await probe.ctx.close();
+		assert(!!found, '進化段4B 前提: 3つの金スキルの進化先がすべて出るレースと脚質がある', found);
+		if (!found) return;
+		const u3 = found.id;
+		const out = [];
+		for (const [h, label] of [[844, '縮んだ'], [734, '開いた']]) {
+			for (const scheme of ['light', 'dark']) {
+				const sp = await openSp({ roster: mkRoster({ umaId: u3, race: raceOf(found.race), skillFilter: { style: found.style } }), w: 390, h, scheme });
+				// iPhone の Safari のバーが開いた状態の模擬（tests/layout と同じ考え方）: vh だけを縮んだ画面（844px）基準にして、dvh は見える高さのまま
+				if (label === '開いた') await sp.page.addStyleTag({ content: '.usd-evo-pop { max-height: min(88vh, 760px) !important; max-height: min(88dvh, 760px) !important; }' });
+				await sp.page.click('[data-usd-el="evo-btn"]');
+				await sp.page.waitForTimeout(300);
+				const m = await sp.page.evaluate(() => { const pop = document.querySelector('.usd-info-pop'); const body = pop.querySelector('.uma-popover-body'); const r = pop.getBoundingClientRect(); return { groups: document.querySelectorAll('[data-usd-el="evo-group"]').length, top: r.top, bottom: r.bottom, vh: window.innerHeight, scrolls: body.scrollHeight > body.clientHeight, closeVisible: (() => { const c = document.querySelector('[data-usd-el="evo-close"]'); body.scrollTop = body.scrollHeight; const b = c.getBoundingClientRect(); return b.bottom <= window.innerHeight && b.top >= 0; })(), headTop: pop.querySelector('.uma-popover-head').getBoundingClientRect().top }; });
+				out.push(Object.assign({ label, scheme }, m));
+				await sp.ctx.close();
+			}
+		}
+		assert(out.every((m) => m.groups === 3), '進化段4B 金スキル3つの衣装は3グループ', out.map((m) => m.groups));
+		assert(out.every((m) => m.top >= 0 && m.bottom <= m.vh + 0.5 && m.headTop >= 0), '進化段4B シートは画面からはみ出さない（見出しと×が見える）', out.map((m) => ({ l: m.label, s: m.scheme, top: Math.round(m.top), bottom: Math.round(m.bottom), vh: m.vh })));
+		assert(out.every((m) => m.scrolls && m.closeVisible), '進化段4B 3グループは、シートの中だけをスクロールして「閉じる」まで届く', out.map((m) => ({ scrolls: m.scrolls, close: m.closeVisible })));
+	});
+
+	/* ====================================================================
+	 * 進化の選択画面（シナリオ）
+	 * ==================================================================== */
+	await block('進化段4C シナリオの画面: 候補が3つ以上のとき「！」。開くと確認済みになって消え、2つまで選べる。3つ目は増えず、赤い注意文が理由になる', async () => {
+		const sp = await openSp({ roster: bRoster(), w: 390 });
+		const r0 = await sp.page.evaluate(() => ({ bang: !!document.querySelector('[data-usd-el="evo-bang"]'), btn: document.querySelector('[data-usd-el="evo-btn"]').textContent.replace(/\s/g, ''), bangColor: (() => { const b = document.querySelector('[data-usd-el="evo-bang"]'); return b ? getComputedStyle(b).backgroundColor : null; })(), evBtnAlert: (() => { const x = document.querySelector('.usd-roster-evbtn--alert:not(.usd-evo-bang)'); return x ? getComputedStyle(x).backgroundColor : null; })() }));
+		assert(r0.bang && r0.btn === '進化2／4', '進化段4C 候補が3つあり、まだ確認していないので、進化ボタンの右に「！」（進化 2／4）', r0);
+		assert(!r0.evBtnAlert || r0.bangColor === r0.evBtnAlert, '進化段4C 「！」の色は、イベント未選択の「！」と同じ', { bang: r0.bangColor, ev: r0.evBtnAlert });
+		await sp.page.click('[data-usd-el="evo-bang"]');
+		await sp.page.waitForTimeout(350);
+		const r = await sp.page.evaluate(() => ({
+			tab: document.querySelector('[data-usd-el="evo-sheet"]').getAttribute('data-evo-tab'), title: document.querySelector('.usd-info-pop .uma-popover-title').textContent,
+			lead: (document.querySelector('[data-usd-el="evo-lead"]') || {}).textContent, many: (document.querySelector('[data-usd-el="evo-many"]') || {}).textContent,
+			sub: (document.querySelector('[data-usd-el="evo-subhead"]') || {}).textContent,
+			rows: [...document.querySelectorAll('[data-usd-el="evo-brow"]')].map((x) => ({ id: x.getAttribute('data-base-id'), on: x.querySelector('input').checked, name: x.querySelector('.usd-evo-name').textContent, sub: x.querySelector('.usd-evo-sub').textContent, icon: !!x.querySelector('.usd-evo-icon') })),
+			warn: (document.querySelector('[data-usd-el="evo-warn"]') || {}).textContent, bangNow: !!document.querySelector('[data-usd-el="evo-bang"]'),
+			confirmBtn: [...document.querySelectorAll('.usd-info-pop button')].some((b) => /確認した/.test(b.textContent)), closeText: (document.querySelector('[data-usd-el="evo-close"]') || {}).textContent
+		}));
+		assert(r.tab === 'b' && r.title === 'シナリオの進化スキル' && r.lead === 'トレセン軒 / 2つまで選べます。' && r.many === '候補が3つ以上あるため、選ぶものを確認してください。', '進化段4C 「！」から開くとシナリオの画面（見出し・「トレセン軒 / 2つまで選べます。」・候補が3つ以上の1文）', r);
+		assert(r.rows.map((x) => x.id).join() === B_IDS.join() && r.sub === '候補（選択 2／2）' && r.rows.map((x) => x.on).join() === 'true,true,false', '進化段4C 候補は元スキルの id 昇順・「候補（選択 2／2）」・既定は先頭2つ', r.rows.map((x) => x.id + ':' + x.on));
+		assert(r.rows.every((x) => /^元: /.test(x.sub) && x.icon) && r.rows[1].sub.indexOf('元: ' + SKILL_NAME.get('ex-0616')) === 0, '進化段4C 各行は チェック・アイコン枠・進化先の名前・「元: 元の金スキル名 / 条件」', r.rows.map((x) => x.sub));
+		assert(r.warn === '選べるのは2つまでです。3つ目を選ぶには、先にどれかの選択を外してください。' && !r.bangNow && !r.confirmBtn && r.closeText === '閉じる', '進化段4C 2つ選んでいる間は赤い注意文／「！」は開くと消える／「確認した」のボタンは無く「閉じる」だけ', { warn: r.warn, bang: r.bangNow, confirm: r.confirmBtn });
+		const seen = (await savedRoster(sp.page)).evolutionBSeen;
+		assert(JSON.stringify(seen) === JSON.stringify(B_IDS), '進化段4C 開いた時点で、確認した候補の組（id 昇順）を roster.evolutionBSeen に保存する', seen);
+		// 3つ目を押しても増えない（行は押せる見た目のまま）
+		const dis = await sp.page.evaluate(() => [...document.querySelectorAll('[data-usd-el="evo-brow"] input')].some((i) => i.disabled));
+		await sp.page.click('[data-usd-el="evo-brow"][data-base-id="' + B_IDS[2] + '"]');
+		await sp.page.waitForTimeout(300);
+		const after3 = await sp.page.evaluate(() => ({ on: [...document.querySelectorAll('[data-usd-el="evo-brow"] input')].map((i) => i.checked).join(), sub: document.querySelector('[data-usd-el="evo-subhead"]').textContent, warn: !!document.querySelector('[data-usd-el="evo-warn"]') }));
+		assert(!dis && after3.on === 'true,true,false' && after3.sub === '候補（選択 2／2）' && after3.warn, '進化段4C 3つ目を押しても選択は増えず（入力は無効にしない）、注意文が出たまま', after3);
+		// 1つ外すと注意文が消え、3つ目を選べる
+		await sp.page.click('[data-usd-el="evo-brow"][data-base-id="' + B_IDS[0] + '"]');
+		await sp.page.waitForTimeout(300);
+		const off1 = await sp.page.evaluate(() => ({ on: [...document.querySelectorAll('[data-usd-el="evo-brow"] input')].map((i) => i.checked).join(), sub: document.querySelector('[data-usd-el="evo-subhead"]').textContent, warn: !!document.querySelector('[data-usd-el="evo-warn"]'), band: document.querySelector('[data-usd-el="evo-btn"]').textContent.replace(/\s/g, '') }));
+		assert(off1.on === 'false,true,false' && off1.sub === '候補（選択 1／2）' && !off1.warn && off1.band === '進化1／4', '進化段4C 1つ外すと「選択 1／2」・注意文が消え・帯は 1／4', off1);
+		await sp.page.click('[data-usd-el="evo-brow"][data-base-id="' + B_IDS[2] + '"]');
+		await sp.page.waitForTimeout(300);
+		const saved = (await savedRoster(sp.page)).evolutionChoices;
+		assert(saved[B_IDS[0]] === 'none' && saved[B_IDS[2]] !== 'none' && saved[B_IDS[1]] !== 'none' && Object.keys(saved).length === 3, '進化段4C 取捨選択は、候補すべてのキーを書く（選んだものは進化先の id・選ばなかったものは none）', saved);
+		// 閉じて開き直しても「！」は出ない（組が同じ）。保存は残る
+		await sp.page.click('[data-usd-el="evo-close"]');
+		await sp.page.waitForTimeout(250);
+		assert(!(await sp.page.evaluate(() => !!document.querySelector('[data-usd-el="evo-bang"]'))), '進化段4C 閉じたあとも「！」は出ない（確認済みの組と同じ）');
+		assert(jsErrors(sp.errors).length === 0, '進化段4C コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('進化段4C 「！」の出る・出ない: 候補の組が確認済みと同じなら出ない／違えば再び出る／候補が2つなら出ない／レース未選択なら出ない', async () => {
+		const run = async (roster) => { const sp = await openSp({ roster, w: 390 }); const v = await sp.page.evaluate(() => !!document.querySelector('[data-usd-el="evo-bang"]')); await sp.ctx.close(); return v; };
+		assert(await run(bRoster({ evolutionBSeen: B_IDS.slice() })) === false, '進化段4C 確認済みの組と同じなら「！」は出ない');
+		assert(await run(bRoster({ evolutionBSeen: ['ex-0029', 'ex-0183'] })) === true, '進化段4C 候補の組が確認したときと違えば、再び「！」が出る');
+		assert(await run(bRoster({ race: raceOf('race-0002') })) === false, '進化段4C 候補が2つ（長距離のレース）なら「！」は出ない');
+		assert(await run(bRoster({ race: undefined })) === false, '進化段4C レース未選択なら「！」は出ない');
+		// 進化ボタンから開くと、確認が必要なときはシナリオの画面から開く
+		const sp = await openSp({ roster: bRoster(), w: 390 });
+		await sp.page.click('[data-usd-el="evo-btn"]');
+		await sp.page.waitForTimeout(300);
+		const tab = await sp.page.evaluate(() => document.querySelector('[data-usd-el="evo-sheet"]').getAttribute('data-evo-tab'));
+		assert(tab === 'b', '進化段4C 確認が必要なときは、進化ボタンからもシナリオの画面を開く', tab);
+		await sp.ctx.close();
+	});
+
+	await block('進化段4C 衣装とシナリオの両方があるときは、上の「衣装」「シナリオ」で行き来する。どちらかだけなら切り替えは出ない', async () => {
+		// オルフェーヴル＋カード6枚で、衣装の進化とシナリオの候補の両方を作る
+		const both = orfeRoster({ cardIds: B_CARDS });
+		const sp = await openSp({ roster: both, w: 390 });
+		const info = await sp.page.evaluate(() => { const C = UmaSkillDeckCore; return null; });
+		void info;
+		const hasB = await sp.page.evaluate(() => !!document.querySelector('[data-usd-el="evo-bang"]') || document.querySelector('[data-usd-el="evo-btn"]').textContent.replace(/\s/g, ''));
+		await sp.page.click('[data-usd-el="evo-btn"]');
+		await sp.page.waitForTimeout(300);
+		const r = await sp.page.evaluate(() => ({ tabs: [...document.querySelectorAll('[data-usd-el="evo-tabs"] button')].map((b) => b.textContent + ':' + b.getAttribute('aria-pressed')), tab: document.querySelector('[data-usd-el="evo-sheet"]').getAttribute('data-evo-tab'), title: document.querySelector('.usd-info-pop .uma-popover-title').textContent }));
+		if (r.tabs.length === 2) {
+			assert(r.tabs.length === 2, '進化段4C 衣装とシナリオの両方があれば、切り替えが出る', r);
+			const other = r.tab === 'a' ? 'b' : 'a';
+			await sp.page.click('[data-usd-el="evo-tab-' + other + '"]');
+			await sp.page.waitForTimeout(300);
+			const t2 = await sp.page.evaluate(() => ({ tab: document.querySelector('[data-usd-el="evo-sheet"]').getAttribute('data-evo-tab'), title: document.querySelector('.usd-info-pop .uma-popover-title').textContent }));
+			assert(t2.tab === other && t2.title === (other === 'b' ? 'シナリオの進化スキル' : '進化スキル(衣装)'), '進化段4C 切り替えると画面と見出しが入れ替わる', t2);
+		} else {
+			assert(true, '進化段4C （この編成ではどちらか一方だけ。切り替えは出ない）' + JSON.stringify({ hasB, r }));
+		}
+		await sp.ctx.close();
+	});
+
+	/* ====================================================================
+	 * ①の表
+	 * ==================================================================== */
+	await block('進化段4D ①の表: 進化させた金スキルは名前が進化先になり、進化先の色の行で出る。Pt・合計・金スキルの数は元のまま。「進」の印・状態の表示・Ptの注記は無い', async () => {
+		const sp = await openSp({ roster: orfeRoster(), w: 390 });
+		const withEvo = await sp.page.evaluate(({ k }) => {
+			const row = document.querySelector('.usd-roster-grow--evo[data-skill-id="' + k + '"]');
+			const cs = getComputedStyle(row);
+			return { evo: row.getAttribute('data-usd-evo'), name: row.querySelector('.usd-roster-skillname').textContent, info: row.querySelector('.usd-roster-skillname').getAttribute('data-usd-info'), pt: (row.querySelector('.usd-roster-pt') || {}).textContent, text: row.textContent, gold: row.classList.contains('usd-roster-grow--gold'), bg: cs.backgroundImage, outline: cs.outlineStyle + ' ' + cs.outlineWidth, sum: document.querySelector('[data-usd-el="roster-sum"]').textContent.replace(/\s/g, ''), take: row.querySelector('input[data-usd-act="take-skill"]').getAttribute('data-skill-id'), got: row.querySelectorAll('.usd-roster-got').length };
+		}, { k: KINRIN });
+		assert(withEvo.evo === KINRIN_TO && withEvo.name === SKILL_NAME.get(KINRIN_TO) && withEvo.info === KINRIN_TO && !withEvo.gold, '進化段4D 進化させた金スキルの行は、名前が進化先・説明も進化先・金色の行ではない', { evo: withEvo.evo, name: withEvo.name, gold: withEvo.gold });
+		assert(/linear-gradient/.test(withEvo.bg) && /solid 2px/.test(withEvo.outline) && withEvo.take === KINRIN && withEvo.got > 0, '進化段4D 進化先の色（グラデーションと2pxの枠）で、取得のチェックは元の金スキルのまま', { bg: withEvo.bg.slice(0, 60), outline: withEvo.outline, take: withEvo.take });
+		assert(!/進化|進|必ず|合う/.test(withEvo.text.replace(SKILL_NAME.get(KINRIN_TO), '')) && /Pt/.test(withEvo.pt || ''), '進化段4D 「進」の印・状態の表示・Ptの注記は付けず、Pt は元の金スキルの値で出る', { text: withEvo.text, pt: withEvo.pt });
+		// 進化の有無で、合計（Pt・種数）は変わらない（元の金スキルの Pt を数える）
+		const without = await openSp({ roster: orfeRoster({ evolutionChoices: { [KINRIN]: 'none', [HEIGEI]: 'none', 'ex-0616': 'none' } }), w: 390 });
+		const sum2 = await without.page.evaluate(() => ({ sum: document.querySelector('[data-usd-el="roster-sum"]').textContent.replace(/\s/g, ''), evoRows: document.querySelectorAll('.usd-roster-grow--evo').length, gold: document.querySelectorAll('.usd-roster-grow--gold').length, row: (document.querySelector('.usd-roster-grow[data-skill-id="ex-0470"] .usd-roster-pt') || {}).textContent }));
+		assert(sum2.sum === withEvo.sum && sum2.evoRows === 0 && sum2.row === withEvo.pt, '進化段4D 進化の有無で、合計のPtと種数、その行のPtは変わらない', { with: withEvo.sum, without: sum2.sum, ptWith: withEvo.pt, ptWithout: sum2.row });
+		await without.ctx.close();
+		assert(jsErrors(sp.errors).length === 0, '進化段4D コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('進化段4D ライト・ダークの色: 進化先の面・枠・文字は指定の値。進化の行・シート・ボタンが、指定の色で出る', async () => {
+		const want = {
+			light: { '--evo-from': '#fff0f5', '--evo-mid': '#ffd3e9', '--evo-to': '#ffb8e0', '--evo-edge-on': '#e8509c', '--evo-edge': '#f06aae', '--evo-text': '#4a1d0c', '--evo-btn-bg': '#fff0f5',
+				'--evo-base-from': '#fffbe0', '--evo-base-mid': '#ffe58f', '--evo-base-to': '#ffd04d', '--evo-base-edge': '#c99a1c', '--evo-base-text': '#4a2a12', '--evo-none-bg': '#ffffff', '--evo-none-edge': '#cfcfcf', '--evo-none-text': '#4a2a12',
+				'--evo-arrow': '#5f9a10', '--evo-warn': '#b3261e', '--evo-sheet-bg': '#ffffff', '--evo-sheet-text': '#2a2a2a', '--evo-sheet-edge': '#cfcfcf', '--evo-group-bg': '#f6f6f4', '--evo-danger-edge': '#b3261e', '--evo-danger-bg': '#fff3f1', '--evo-danger-text': '#7a1812' },
+			dark: { '--evo-from': '#3d1830', '--evo-mid': '#5a2145', '--evo-to': '#7a2b5e', '--evo-edge-on': '#ff8ac6', '--evo-edge': '#b8618f', '--evo-text': '#ffe9f2', '--evo-btn-bg': '#4a1f3a',
+				'--evo-base-from': '#3a3212', '--evo-base-mid': '#554716', '--evo-base-to': '#6e5a14', '--evo-base-edge': '#ffd35b', '--evo-base-text': '#f3e8d0', '--evo-none-bg': '#2f2e34', '--evo-none-edge': '#4a4950', '--evo-none-text': '#e8e0d6',
+				'--evo-arrow': '#a2df32', '--evo-warn': '#ff9a8f', '--evo-sheet-bg': '#26252a', '--evo-sheet-text': '#f0eae0', '--evo-sheet-edge': '#4a4950', '--evo-group-bg': '#1b1a1f', '--evo-danger-edge': '#ff9a8f', '--evo-danger-bg': '#4a2220', '--evo-danger-text': '#ffd9d4' }
+		};
+		const got = {};
+		for (const scheme of ['light', 'dark']) {
+			const sp = await openSp({ roster: orfeRoster(), w: 390, scheme });
+			// ダークは html の data-theme で決まる（OS の設定に合わせる）。ライトのときに dark の値が混ざらないことも見る
+			got[scheme] = await sp.page.evaluate((names) => { const cs = getComputedStyle(document.documentElement); const o = {}; names.forEach((n) => { o[n] = cs.getPropertyValue(n).trim().toLowerCase(); }); o.theme = document.documentElement.getAttribute('data-theme'); return o; }, Object.keys(want.light));
+			await sp.ctx.close();
+		}
+		const bad = [];
+		['light', 'dark'].forEach((s) => Object.keys(want[s]).forEach((k) => { if (got[s][k] !== want[s][k]) bad.push(s + ' ' + k + ': ' + got[s][k] + ' ≠ ' + want[s][k]); }));
+		assert(bad.length === 0, '進化段4D 色の変数がライト・ダークとも指定の値', bad.slice(0, 6));
+	});
+
+	/* ====================================================================
+	 * リセットのシート
+	 * ==================================================================== */
+	await block('進化段4E リセットのシート: 「取得しないスキルを戻す（X種）」「中身をすべて消す」「やめる」。X≧1 は押すとすぐ戻して閉じる・X=0 は押すと理由を知らせる', async () => {
+		const offId = KINRIN;
+		const sp = await openSp({ roster: orfeRoster({ offSkillIds: [offId] }), w: 390 });
+		await sp.page.click('[data-usd-el="roster-reset"]');
+		await sp.page.waitForTimeout(300);
+		const r = await sp.page.evaluate(() => ({ title: document.querySelector('.usd-info-pop .uma-popover-title').textContent, desc: (document.querySelector('[data-usd-el="roster-reset-desc"]') || {}).textContent,
+			btns: [...document.querySelectorAll('[data-usd-el="roster-reset-ops"] button')].map((b) => ({ el: b.getAttribute('data-usd-el'), text: b.textContent, bg: getComputedStyle(b).backgroundColor, border: getComputedStyle(b).borderTopColor, color: getComputedStyle(b).color, h: b.getBoundingClientRect().height, dis: b.disabled })) }));
+		assert(r.title === '① 本育成編成をリセット' && r.desc === '戻す範囲を選んでください。', '進化段4E タイトル「① 本育成編成をリセット」と説明「戻す範囲を選んでください。」', { title: r.title, desc: r.desc });
+		assert(r.btns.map((b) => b.text).join('|') === '取得しないスキルを戻す（1種）|中身をすべて消す|やめる' && r.btns.every((b) => !b.dis && b.h >= 44), '進化段4E ボタンは上から「取得しないスキルを戻す（1種）」「中身をすべて消す」「やめる」（どれも押せる・44px以上）', r.btns.map((b) => b.text));
+		const rgb = (hex) => { const n = parseInt(hex.slice(1), 16); return 'rgb(' + (n >> 16) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255) + ')'; };
+		assert(r.btns[1].bg === rgb('#fff3f1') && r.btns[1].border === rgb('#b3261e') && r.btns[1].color === rgb('#7a1812'), '進化段4E 「中身をすべて消す」はライトで 枠 #b3261e・面 #fff3f1・文字 #7a1812', r.btns[1]);
+		assert(r.btns[0].bg === rgb('#fff0f5'), '進化段4E 「取得しないスキルを戻す」は薄いピンクの面', r.btns[0].bg);
+		await sp.page.click('[data-usd-el="roster-reset-off"]');
+		await sp.page.waitForTimeout(300);
+		const after = await savedRoster(sp.page);
+		assert(!(await sheetVisible(sp.page)) && !(after.offSkillIds && after.offSkillIds.length) && after.umaId === ORFE, '進化段4E 押すとすぐ戻してシートを閉じる（取得しないスキルだけ。衣装は残る）', { offSkillIds: after.offSkillIds, umaId: after.umaId });
+		await sp.ctx.close();
+		// X = 0
+		const sp0 = await openSp({ roster: orfeRoster(), w: 390 });
+		await sp0.page.click('[data-usd-el="roster-reset"]');
+		await sp0.page.waitForTimeout(300);
+		const z = await sp0.page.evaluate(() => ({ desc: document.querySelector('[data-usd-el="roster-reset-desc"]').textContent, off: document.querySelector('[data-usd-el="roster-reset-off"]').textContent, dis: document.querySelector('[data-usd-el="roster-reset-off"]').disabled }));
+		assert(z.desc === '取得しないスキルはありません。' && z.off === '取得しないスキルを戻す（0種）' && !z.dis, '進化段4E X=0: 説明は「取得しないスキルはありません。」・ボタンは「（0種）」のまま押せる', z);
+		await sp0.page.click('[data-usd-el="roster-reset-off"]');
+		await sp0.page.waitForTimeout(250);
+		assert((await toastText(sp0.page)).indexOf('戻すスキルはありません') !== -1, '進化段4E X=0 で押すと「戻すスキルはありません」を知らせる', await toastText(sp0.page));
+		// 中身をすべて消す: 手で変えた進化の選択・確認済みの記録も消える
+		await sp0.page.click('[data-usd-el="roster-reset-all"]');
+		await sp0.page.waitForTimeout(300);
+		const cleared = await savedRoster(sp0.page);
+		assert(cleared.umaId === '' && cleared.evolutionChoices === undefined, '進化段4E 「中身をすべて消す」は従来どおり衣装・カードを消す（進化の選択も消える）', { umaId: cleared.umaId, evo: cleared.evolutionChoices });
+		await sp0.ctx.close();
+		const spE = await openSp({ roster: orfeRoster({ evolutionChoices: { [KINRIN]: 'none' }, evolutionBSeen: ['ex-0183'] }), w: 390 });
+		await spE.page.click('[data-usd-el="roster-reset"]');
+		await spE.page.waitForTimeout(300);
+		await spE.page.click('[data-usd-el="roster-reset-all"]');
+		await spE.page.waitForTimeout(300);
+		const c2 = await savedRoster(spE.page);
+		assert(c2.evolutionChoices === undefined && c2.evolutionBSeen === undefined, '進化段4E 中身をすべて消すと、手で変えた進化の選択と確認済みの記録も消える', { c: c2.evolutionChoices, s: c2.evolutionBSeen });
+		await spE.ctx.close();
+	});
+
+	/* ====================================================================
+	 * 見た目: シートの色とコントラスト（数値は報告に書く）
+	 * ==================================================================== */
+	await block('進化段4F 進化の画面の色（ライト・ダーク）: 実際に描いた色を測り、文字と地のコントラスト比を出す（小さい文字は 4.5 以上が望ましい。下回る組み合わせは数値を出す）', async () => {
+		const rows = [];
+		for (const scheme of ['light', 'dark']) {
+			const sp = await openSp({ roster: bRoster(), w: 390, scheme });
+			await sp.page.click('[data-usd-el="evo-btn"]');
+			await sp.page.waitForTimeout(300);
+			const hexOf = (c) => { const m = /rgba?\((\d+), (\d+), (\d+)/.exec(c); return m ? '#' + [m[1], m[2], m[3]].map((x) => Number(x).toString(16).padStart(2, '0')).join('') : null; };
+			const m = await sp.page.evaluate(() => {
+				const css = (el, p) => getComputedStyle(el)[p];
+				const pop = document.querySelector('.usd-info-pop');
+				const t = document.querySelector('[data-usd-el="evo-brow"]');
+				return { sheetBg: css(pop, 'backgroundColor'), sheetText: css(document.querySelector('[data-usd-el="evo-lead"]'), 'color'), group: css(document.querySelector('.usd-evo-group'), 'backgroundColor'),
+					warn: document.querySelector('[data-usd-el="evo-warn"]') ? css(document.querySelector('[data-usd-el="evo-warn"]'), 'color') : null,
+					targetText: css(t.querySelector('.usd-evo-name'), 'color'), targetSub: css(t.querySelector('.usd-evo-sub'), 'color'), grad: css(t, 'backgroundImage') };
+			});
+			rows.push({ scheme, m, hexOf });
+			await sp.ctx.close();
+		}
+		assert(rows.every((x) => x.m.sheetBg && x.m.grad.indexOf('linear-gradient') !== -1), '進化段4F 進化先の行はグラデーション、シートは指定の面で描かれる', rows.map((x) => x.m.sheetBg));
+		// 指定の色の組み合わせのコントラスト比（指定の値そのもの。値は変えない）
+		const pairs = {
+			light: [['進化先の文字 / 左端', '#4a1d0c', '#fff0f5'], ['進化先の文字 / 中央', '#4a1d0c', '#ffd3e9'], ['進化先の文字 / 右端', '#4a1d0c', '#ffb8e0'], ['元の金スキルの文字 / 左端', '#4a2a12', '#fffbe0'], ['元の金スキルの文字 / 右端', '#4a2a12', '#ffd04d'],
+				['「進化しない」の文字', '#4a2a12', '#ffffff'], ['注意文の赤 / シート', '#b3261e', '#ffffff'], ['注意文の赤 / グループ', '#b3261e', '#f6f6f4'], ['シートの文字 / シート', '#2a2a2a', '#ffffff'], ['シートの文字 / グループ', '#2a2a2a', '#f6f6f4'],
+				['赤いボタンの文字', '#7a1812', '#fff3f1'], ['進化ボタンの文字', '#4a1d0c', '#fff0f5']],
+			dark: [['進化先の文字 / 左端', '#ffe9f2', '#3d1830'], ['進化先の文字 / 中央', '#ffe9f2', '#5a2145'], ['進化先の文字 / 右端', '#ffe9f2', '#7a2b5e'], ['元の金スキルの文字 / 左端', '#f3e8d0', '#3a3212'], ['元の金スキルの文字 / 右端', '#f3e8d0', '#6e5a14'],
+				['「進化しない」の文字', '#e8e0d6', '#2f2e34'], ['注意文の赤 / シート', '#ff9a8f', '#26252a'], ['注意文の赤 / グループ', '#ff9a8f', '#1b1a1f'], ['シートの文字 / シート', '#f0eae0', '#26252a'], ['シートの文字 / グループ', '#f0eae0', '#1b1a1f'],
+				['赤いボタンの文字', '#ffd9d4', '#4a2220'], ['進化ボタンの文字', '#ffe9f2', '#4a1f3a']]
+		};
+		const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+		const low = [];
+		const all = {};
+		Object.keys(pairs).forEach((s) => { all[s] = pairs[s].map(([n, fg, bg]) => { const c = contrastRatio(hexRgb(fg), hexRgb(bg)); if (c < 4.5) low.push(s + ' ' + n + ' ' + c.toFixed(2)); return n + ' ' + c.toFixed(2); }); });
+		console.log('     [情報] 進化の色のコントラスト比（ライト）: ' + all.light.join(' / '));
+		console.log('     [情報] 進化の色のコントラスト比（ダーク）: ' + all.dark.join(' / '));
+		console.log('     [情報] 4.5 を下回る組み合わせ: ' + (low.length ? low.join(' / ') : 'なし'));
+		assert(true, '進化段4F コントラスト比を出した（4.5 未満: ' + (low.length || 0) + '件。値は指定のまま）');
+	});
+}

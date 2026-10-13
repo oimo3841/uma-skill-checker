@@ -330,10 +330,10 @@ export async function register9(env) {
 				tag + '左：セット名 16px/800。「✎ 2／10 ▾」は 11px・1px の線・角丸999px・薄い地の札', g1);
 			assert(g1.num.join() === '18px,800' && g1.k.join() === '12px,700' && g1.sub[0] === '10.5px' && /^(切れ者・|勉強家・)?①＋②$/.test(g1.sub[1]) && g1.subHelp,
 				tag + '右：1行目「N」18px/800＋Pt・／M種 12px/700、2行目「…①＋②」10.5px＋?', g1);
-			assert(g1.band[0] === await tokRgb(sp.page, 'var(--uma-band)') &&   /* C-144: 帯の地はトークンの値（UmaStar は暖色 #efe4cf） */ g1.band[1] === '10px' && g1.band[2] === '8px' && g1.band[3] === '10px', tag + '①の「Pt／種」は薄い帯（角丸10px・横10px縦8px・背景 --uma-band）', g1.band);
+			assert(g1.band[0] === await tokRgb(sp.page, 'var(--uma-band)') &&   /* C-144: 帯の地はトークンの値（UmaStar は暖色 #efe4cf） */ g1.band[1] === '10px' && g1.band[2] === '8px' && g1.band[3] === (w <= 640 ? '4px' : '10px'), tag + '①の「Pt／種」は薄い帯（角丸10px・縦8px・横はスマホ4px（段4で進化ボタンのため詰めた）／PC10px・背景 --uma-band）', g1.band);
 			assert(g1.pt[0] === '22px' && g1.pt[1] === '800' && /tabular-nums/.test(g1.pt[2]) && g1.unit.join() === '12px,700' && g1.kinds[0] === '14px' && g1.kinds[1] === '800' && g1.kinds[2] === '／' && g1.kunit.join() === '11px,種',
 				tag + '数字 22px/800・tabular-nums、Pt 12px/700、／N 14px/800、種 11px', g1);
-			assert(g1.btns.join() === '勉強家,切れ者,覚醒Lv5' && g1.scroll === 'auto', tag + '①の帯の右側は「勉強家 切れ者 覚醒Lv5」（足りなければ横スクロール）', g1.btns);
+			assert(g1.btns.join() === '勉強家,切れ者,覚醒Lv5' && g1.scroll === 'visible', tag + '①の帯の右側は「勉強家 切れ者 覚醒Lv5」（段4で横スクロール・フェードをやめた。足りなければ帯が2行になる）', { b: g1.btns, s: g1.scroll });
 			assert(g1.reset && g1.reset[0] === 28 && g1.reset[1] === 28 && g1.reset[2] === '999px' && g1.reset[3] === '↺' && g1.resetRight, tag + '右端に丸い「↺」（28px）', g1.reset);
 			assert(jsErrors(sp.errors).length === 0, tag + '①: コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
@@ -475,7 +475,7 @@ export async function register9(env) {
 		await sp.page.click(P + '[data-usd-el="roster-reset"]');
 		const op1 = await sp.page.evaluate(() => ({ title: (document.querySelector('[data-usd-el="info-pop"]') || { textContent: '' }).textContent, all: (document.querySelector('[data-usd-el="roster-reset-all"]') || {}).textContent, red: /danger/.test((document.querySelector('[data-usd-el="roster-reset-all"]') || { className: '' }).className),
 			cancel: (document.querySelector('[data-usd-el="roster-reset-cancel"]') || {}).textContent, n: document.querySelectorAll('[data-usd-el="roster-reset-ops"] button').length }));
-		assert(/① 本育成編成をリセット/.test(op1.title) && op1.all === '中身をすべて消す' && op1.red && op1.cancel === 'やめる' && op1.n === 2, '段9(E) ①の小窓: 「中身をすべて消す」（赤）／「やめる」', op1);
+		assert(/① 本育成編成をリセット/.test(op1.title) && op1.all === '中身をすべて消す' && op1.red && op1.cancel === 'やめる' && op1.n === 3, '段9(E) ①の小窓: 「取得しないスキルを戻す」／「中身をすべて消す」（赤）／「やめる」（段4で、戻す範囲を選べるようにした）', op1);
 		await sp.page.click('[data-usd-el="roster-reset-cancel"]');
 		assert(JSON.stringify(await draftRoster(sp.page)) === JSON.stringify(r0), '段9(E) ①: 「やめる」では何も変わらない', await draftRoster(sp.page));
 		await sp.page.click(P + '[data-usd-el="roster-reset"]');
@@ -643,6 +643,7 @@ export async function register9(env) {
 			await sp.ctx.close();
 		}
 		console.log('     [実測] 375px: 帯 ' + m.bar + 'px／①の表の上端 ' + m.grid + 'px（段8 336px）／②の一覧の上端 ' + m.list + 'px（段8 284px）／行 ' + m.row + 'px（31px）');
-		assert(m.bar <= 40 && m.grid <= 361 && m.list <= 400 && m.row === 31, '段9 375px: 帯 ' + m.bar + 'px・①の表の上端 ' + m.grid + 'px・②の一覧の上端 ' + m.list + 'px・行 ' + m.row + 'px', m);
+		assert(m.bar <= 40 && m.grid <= 410 && m.list <= 400 && m.row === 31,   // grid: 段4（C-150）で帯に44pxの進化ボタン。帯が2行になる編成では 400px（361 → 410）
+		 '段9 375px: 帯 ' + m.bar + 'px・①の表の上端 ' + m.grid + 'px・②の一覧の上端 ' + m.list + 'px・行 ' + m.row + 'px', m);
 	});
 }

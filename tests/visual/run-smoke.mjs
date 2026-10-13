@@ -44,6 +44,7 @@ import { register20e } from './blocks-20e.mjs';
 import { register21 } from './blocks-21.mjs';
 import { register22 } from './blocks-22.mjs';
 import { register23 } from './blocks-23.mjs';
+import { register24 } from './blocks-24.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 
@@ -13078,8 +13079,8 @@ await block('編成パネル ―― スキルPt（段3）', async () => {
 	const vb = await read('pt-b');
 	const helpB = await readHelp('pt-b');
 	assert(vb.umaBtns.length === 1 && vb.umaBtns.find((r) => r.v === '5').disabled && vb.umaChecked.join() === ''
-		&& vb.umaBtns.find((r) => r.v === '5').title === '覚醒ヒントLv5は覚醒レベル7のウマ娘のみ選べます' && helpB.umaReason === '覚醒ヒントLv5は覚醒レベル7のウマ娘のみ選べます',
-		'Pt(3): 覚醒レベルが7に届かないウマ娘では「ヒントLv5」が押せず、理由「覚醒ヒントLv5は覚醒レベル7のウマ娘のみ選べます」が title と（?）に出る', { r: vb.umaBtns, reason: helpB.umaReason });
+		&& vb.umaBtns.find((r) => r.v === '5').title === '覚醒ヒントLv5は覚醒レベル7のウマ娘のみ選べます' && !helpB.umaReason,
+		'Pt(3): 覚醒レベルが7に届かないウマ娘では「ヒントLv5」が押せず、理由「覚醒ヒントLv5は覚醒レベル7のウマ娘のみ選べます」が title に出る（段4で、合計の小窓の中の1行は削除した）', { r: vb.umaBtns, reason: helpB.umaReason });
 	await mount('pt-c', { umaId: '', cardIds: fx.cardIds }, 'pt-c');
 	const vc = await read('pt-c');
 	assert(vc.umaBtns.length === 1 && vc.umaBtns.find((r) => r.v === '5').disabled && vc.statusBtns.length === 2,
@@ -14332,7 +14333,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 		sp = await open({ w, h });
 		const g = await sp.page.evaluate(() => {
 			const panel = document.getElementById('deck-roster-panel');
-			const head = panel.querySelector('.usd-roster-sumhead'); const btns = panel.querySelector('.usd-roster-sumbtns');
+			const head = panel.querySelector('.usd-roster-sumtext'); const btns = panel.querySelector('.usd-roster-sumbtns');
 			const names = Array.from(panel.querySelectorAll('.usd-roster-namescroll'));
 			const slots = Array.from(panel.querySelectorAll('.usd-roster-slot')).map((s) => Math.round(s.getBoundingClientRect().top));
 			const grid = panel.querySelector('.usd-roster-grid'); const nameCol = panel.querySelector('.usd-roster-gc--name');
@@ -14510,7 +14511,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	assert(v.uma[0].disabled && v.uma[0].title === '覚醒ヒントLv5は覚醒レベル7のウマ娘のみ選べます', '段7(13)→段7b(⑤): 覚醒レベルが7に届かないウマ娘では［覚醒ヒントLv5］が押せず、title に理由が出る', v.uma[0]);
 	await sp.page.click(P + '[data-usd-el="pt-help-btn"]');
 	pv = await popover(sp.page);
-	assert(pv.umaReason === '覚醒ヒントLv5は覚醒レベル7のウマ娘のみ選べます', '段7(13)→段7b(⑤): （?）の中にも理由が出る', pv.umaReason);
+	assert(!pv.umaReason, '段7(13)→段7b(⑤): （?）の中の理由の1行は削除した（段4。title には出る）', pv.umaReason);
 	await esc(sp.page);
 	await sp.ctx.close();
 
@@ -14809,7 +14810,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		const b = await sp.page.evaluate(() => { const e = document.querySelector('#deck-roster-panel button[data-usd-act="pt-uma"]'); return { disabled: e.disabled, title: e.title, text: e.textContent.trim() }; });
 		await sp.page.click(P + '[data-usd-el="pt-help-btn"]');
 		const pp = await popover(sp.page);
-		assert(b.disabled && b.title === '覚醒ヒントLv5は覚醒レベル7のウマ娘のみ選べます' && pp.umaReason === '覚醒ヒントLv5は覚醒レベル7のウマ娘のみ選べます', '段7b(⑤): 覚醒レベル7でないウマ娘では「覚醒ヒントLv5」は押せず、title と（?）の説明は「覚醒ヒントLv5は覚醒レベル7のウマ娘のみ選べます」', { b, reason: pp.umaReason });
+		assert(b.disabled && b.title === '覚醒ヒントLv5は覚醒レベル7のウマ娘のみ選べます' && !pp.umaReason, '段7b(⑤): 覚醒レベル7でないウマ娘では「覚醒ヒントLv5」は押せず、title は「覚醒ヒントLv5は覚醒レベル7のウマ娘のみ選べます」（段4で、合計の小窓の中の1行は削除した）', { b, reason: pp.umaReason });
 		await sp.ctx.close();
 	}
 
@@ -15098,6 +15099,7 @@ await register20e({ block, assert, browser, base, openPage, fs, path, REPO_ROOT,
 await register21({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register22({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register23({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register24({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();

@@ -213,17 +213,22 @@ export async function register7c(env) {
 			let pv = await popover(sp.page);
 			assert(pv.open && pv.now === '取得しない設定です', tag + '名前を押す小窓には「取得しない設定です」が出る', pv);
 			await esc(sp.page);
+			// 段4（C-150）: 「取得しないスキル N種」「すべて取得に戻す」は、合計の小窓から ①のリセットのシートへ移った
 			await sp.page.click(P + '[data-usd-el="pt-help-btn"]');
 			pv = await popover(sp.page);
-			assert(pv.open && pv.offCount === '取得しないスキル 3種' && pv.offReset, tag + '（?）の中に「取得しないスキル N種」と「すべて取得に戻す」が出る', pv);
-			await sp.page.click('[data-usd-el="info-pop"] [data-usd-el="info-off-reset"]');
+			assert(pv.open && pv.offCount === null && !pv.offReset, tag + '合計の小窓には「取得しないスキル N種」「すべて取得に戻す」を出さない（リセットのシートへ移した）', pv);
+			await esc(sp.page);
+			await sp.page.click(P + '[data-usd-el="roster-reset"]');
+			const rs = await sp.page.evaluate(() => (document.querySelector('[data-usd-el="roster-reset-off"]') || {}).textContent);
+			assert(rs === '取得しないスキルを戻す（3種）', tag + 'リセットのシートに「取得しないスキルを戻す（3種）」が出る', rs);
+			await sp.page.click('[data-usd-el="roster-reset-off"]');
 			await sp.page.waitForTimeout(200);
 			v = await readPanel(sp.page);
 			const d2 = await draft(sp.page);
 			assert(v.total === total0 && v.rows.every((r) => !r.off) && !('offSkillIds' in d2), tag + '「すべて取得に戻す」で全部オンに戻り、保存からも消える（触らなければ足さない）', { total: v.total, saved: d2.offSkillIds });
 			await sp.page.click(P + '[data-usd-el="pt-help-btn"]');
 			pv = await popover(sp.page);
-			assert(pv.open && pv.offCount === null && !pv.offReset, tag + '0種のときは（?）の中に「取得しないスキル」を出さない', pv);
+			assert(pv.open && pv.offCount === null && !pv.offReset, tag + '0種のときも（?）の中に「取得しないスキル」は出ない', pv);
 			await esc(sp.page);
 			// 指す先が無い id は無視し、保存値は書き換えない
 			await sp.page.evaluate(() => { const d = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')); d.offSkillIds = ['zz-none']; localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(d)); });
@@ -688,11 +693,11 @@ export async function register7c(env) {
 				await sp.page.evaluate((sel) => document.querySelector(sel).scrollIntoView({ block: 'center' }), P + '[data-usd-el="pt-help-btn"]');
 				await sp.page.waitForTimeout(100);
 				const y0 = await sp.page.evaluate(() => window.scrollY);
-				await sp.page.click(P + '[data-usd-el="pt-help-btn"]');
-				await sp.page.click('[data-usd-el="info-pop"] [data-usd-el="info-off-reset"]');
+				await sp.page.click(P + '[data-usd-el="roster-reset"]');
+				await sp.page.click('[data-usd-el="roster-reset-off"]');
 				await sp.page.waitForTimeout(250);
 				const y1 = await sp.page.evaluate(() => window.scrollY);
-				rows.push({ label: w + 'px （?）の「すべて取得に戻す」', dy: y1 - y0, dtop: 0, ok: Math.abs(y1 - y0) <= 2 });
+				rows.push({ label: w + 'px リセットのシートの「取得しないスキルを戻す」', dy: y1 - y0, dtop: 0, ok: Math.abs(y1 - y0) <= 2 });
 				// 段8（C-120）で②の「本育成編成」のボタンと一覧の小窓を無くしたので、その2行（小窓を開く・編成を選ぶ）は外した
 				await sp.ctx.close();
 			}
