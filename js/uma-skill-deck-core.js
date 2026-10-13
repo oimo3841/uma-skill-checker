@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14d';
 
 	/* ============================================================
 	 * 定数
@@ -5374,6 +5374,12 @@
 		'.usd-info-desc { white-space: pre-line; }',
 		'.usd-info-desc--pending { color: var(--uma-text-subtle); }',
 		'.usd-info-self { color: var(--uma-text-heading); }',
+		// 進化スキルの小窓の関係（段4の修正5）。進化スキル → └ 金スキル → └ 白スキル。「└」は①の表の前段の白と同じ形。
+		// 小さい文字なので、線（└）も文字もコントラスト比 4.5 以上の色（--uma-text-subtle）にする（①の表の薄い色 --uma-text-faint は使わない）
+		'.usd-info-evorel { display: flex; flex-direction: column; gap: 2px; }',
+		'.usd-info-evorel-row { display: flex; align-items: baseline; gap: 2px; min-width: 0; }',
+		'.usd-info-evorel-mark { flex: none; color: var(--uma-text-subtle); font-size: var(--uma-fs-xs); line-height: 1; }',
+		'.usd-info-evorel-name { min-width: 0; color: var(--uma-text); }',
 		'.usd-roster-line2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--uma-sp-2); }',
 		'.usd-roster-share { font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); color: var(--uma-text-subtle); }',
 		'@media (max-width: 600px) { .usd-roster-share { display: none; } }',
@@ -8144,6 +8150,49 @@
 		return '基礎 ' + row.pt + ' Pt';
 	}
 
+	/**
+	 * 進化スキルの小窓の関係（段4の修正5・C-152）。上から 進化スキル（このスキル・太字）→ └ 元の金スキル → └ その前段の白スキル。
+	 * つなぎは①の表の金スキルと白スキルの関係と同じ「└」（白は金より1段下げる）。元の金スキルは、進化の対応のうちこのスキルを進化先に持つ行から
+	 * （衣装の進化・シナリオの進化のどちらでも。複数あれば id の昇順にすべて）。白スキルは前段データの「金 → 直前のスキル」のうち白のもの
+	 * （①の表と同じく直前だけを見る）。白が無ければ金までを出す。進化の対応を読めていなければ読んでから作る。読めなければ欄ごと外す。
+	 */
+	function settleEvoRelation(skillId, el) {
+		const fill = () => {
+			el.textContent = '';
+			const bases = [];
+			if (evolutionState.status === 'ok') {
+				[evolutionState.byUma, evolutionState.byScenario].forEach(m => m.forEach(rows => rows.forEach(r => {
+					if (r.evolvedSkillIds.indexOf(skillId) !== -1 && bases.indexOf(r.baseSkillId) === -1) bases.push(r.baseSkillId);
+				})));
+			}
+			bases.sort(compareSkillIds);
+			const row = (cls, depth, text, strong) => {
+				const p = infoEl('p', 'usd-info-evorel-row ' + cls);
+				p.style.paddingLeft = depth ? (depth - 1) + 'em' : '';
+				if (depth) { const m = infoEl('span', 'usd-info-evorel-mark', '└'); m.setAttribute('aria-hidden', 'true'); p.appendChild(m); }
+				p.appendChild(strong ? infoEl('strong', 'usd-info-self', text) : infoEl('span', 'usd-info-evorel-name', text));
+				return p;
+			};
+			el.appendChild(row('usd-info-evorel-row--evo', 0, getSkillName(skillId), true)).setAttribute('data-usd-el', 'info-evo-rel-evo');
+			const pd = skillPtData;
+			bases.forEach(g => {
+				el.appendChild(row('usd-info-evorel-row--gold', 1, getSkillName(g))).setAttribute('data-usd-el', 'info-evo-rel-gold');
+				const whites = (pd.stepUp && typeof pd.stepUp.prevOf === 'function' ? pd.stepUp.prevOf(g) : []).filter(id => {
+					const r = pd.skillPt instanceof Map ? pd.skillPt.get(id) : null;
+					return !!r && r.rarity === 'white';
+				});
+				whites.forEach(w => el.appendChild(row('usd-info-evorel-row--white', 2, getSkillName(w))).setAttribute('data-usd-el', 'info-evo-rel-white'));
+			});
+			if (bases.length === 0 && el.parentNode) el.parentNode.removeChild(el);
+		};
+		if (evolutionState.status === 'ok') { fill(); return; }
+		const token = skillInfoToken;
+		loadSkillEvolutions(false).then(() => {
+			if (!el.isConnected || skillInfoToken !== token) return;
+			if (evolutionState.status === 'ok') fill(); else if (el.parentNode) el.parentNode.removeChild(el);
+		});
+	}
+
 	/** 説明の本文を作る。line は呼び出し元が渡す「いまの設定」の1行（無ければ null）。note は系列の注記（「◎と共有」など。無ければ null） */
 	function fillSkillInfo(skillId, line, note) {
 		const ui = skillInfoUi;
@@ -8171,6 +8220,13 @@
 				n.setAttribute('data-usd-el', 'info-pt-now');
 				body.appendChild(n);
 			}
+		}
+		// 進化スキルだけ: 進化スキル → 元の金スキル → その前段の白スキル の関係（段4の修正5・C-152）。金スキルの小窓には出さない
+		if (row && row.rarity === 'evolved') {
+			const rel = infoEl('div', 'usd-info-evorel');
+			rel.setAttribute('data-usd-el', 'info-evo-rel');
+			body.appendChild(rel);
+			settleEvoRelation(skillId, rel);
 		}
 		const ser = skillSeriesOf(skillId, pd.stepUp);
 		if (ser) {

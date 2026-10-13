@@ -470,4 +470,62 @@ export async function register24(env) {
 		console.log('     [情報] 4.5 を下回る組み合わせ: ' + (low.length ? low.join(' / ') : 'なし'));
 		assert(true, '進化段4F コントラスト比を出した（4.5 未満: ' + (low.length || 0) + '件。値は指定のまま）');
 	});
+
+	/* ====================================================================
+	 * 進化スキルの小窓の関係（段4の修正5・C-152）
+	 * ==================================================================== */
+	await block('進化段4G 進化スキルの小窓: 進化スキル → └ 金スキル → └ 白スキル を出す（白が無ければ金まで）。金スキルの小窓は変えない。コントラスト 4.5 以上・360px で収まる（ライト・ダーク）', async () => {
+		const STEP = new Map(readJson('data/skill-step-up.json').entries.map((e) => [e.skillId, e.prevSkillIds || []]));
+		const PT = new Map(readJson('data/skill-pt.json').entries.map((e) => [e.skillId, e]));
+		const whitesOf = (g) => (STEP.get(g) || []).filter((id) => PT.get(id) && PT.get(id).rarity === 'white');
+		// 白の無い金スキルを元に持つ進化スキル（データから探す。名前は書かない）
+		const noWhite = EVOS.find((e) => e.evolvedSkillIds.length > 0 && whitesOf(e.baseSkillId).length === 0 && EVOS.filter((x) => x.evolvedSkillIds.indexOf(e.evolvedSkillIds[0]) !== -1).length === 1);
+		const rgb = (s) => (s.match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number);
+		const out = [];
+		for (const w of [390, 360]) {
+			for (const scheme of ['light', 'dark']) {
+				const sp = await openSp({ roster: orfeRoster(), w, scheme });
+				// ①の表の、進化させた睥睨の行の名前（進化先）を押す
+				await sp.page.click('.usd-roster-grow--evo[data-skill-id="' + HEIGEI + '"] [data-usd-info]');
+				await sp.page.waitForTimeout(350);
+				const m = await sp.page.evaluate(() => {
+					const pop = document.querySelector('.usd-info-pop');
+					const rel = pop.querySelector('[data-usd-el="info-evo-rel"]');
+					const rows = rel ? [...rel.querySelectorAll('.usd-info-evorel-row')].map((r) => { const mk = r.querySelector('.usd-info-evorel-mark'); const nm = r.querySelector('.usd-info-evorel-name, strong'); return { el: r.getAttribute('data-usd-el'), text: nm.textContent, mark: mk ? mk.textContent : null, markLeft: mk ? mk.getBoundingClientRect().left : null, nameLeft: nm.getBoundingClientRect().left, strong: nm.tagName === 'STRONG', markColor: mk ? getComputedStyle(mk).color : null, nameColor: getComputedStyle(nm).color, fs: parseFloat(getComputedStyle(nm).fontSize) }; }) : null;
+					let bgEl = pop, bg = getComputedStyle(pop).backgroundColor;
+					const pb = pop.getBoundingClientRect();
+					return { rows, bg, rarity: (pop.querySelector('[data-usd-el="info-rarity"]') || {}).textContent, pt: (pop.querySelector('[data-usd-el="info-pt"]') || {}).textContent, title: pop.querySelector('.uma-popover-title').textContent,
+						box: { left: pb.left, right: pb.right, top: pb.top, bottom: pb.bottom, vw: window.innerWidth, vh: window.innerHeight }, overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+						relOverflow: rel ? rel.scrollWidth - rel.clientWidth : 0 };
+				});
+				// 白の無い金スキルの進化スキル・金スキル自身（小窓の部品を付けて押す）
+				const extra = await sp.page.evaluate(({ noWhiteId, gold }) => {
+					const C = window.UmaSkillDeckCore;
+					const open = (id) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = id; document.body.appendChild(b); C.attachSkillInfo(b, { skillId: id, trigger: 'self' }); b.click(); };
+					const read = () => { const rel = document.querySelector('.usd-info-pop [data-usd-el="info-evo-rel"]'); return rel ? [...rel.querySelectorAll('.usd-info-evorel-row')].map((r) => r.getAttribute('data-usd-el')) : null; };
+					const res = {};
+					if (noWhiteId) { open(noWhiteId); res.noWhite = read(); }
+					open(gold); res.gold = read(); res.goldRarity = (document.querySelector('.usd-info-pop [data-usd-el="info-rarity"]') || {}).textContent;
+					return res;
+				}, { noWhiteId: noWhite ? noWhite.evolvedSkillIds[0] : null, gold: HEIGEI });
+				out.push({ w, scheme, m, extra, errors: jsErrors(sp.errors) });
+				await sp.ctx.close();
+			}
+		}
+		const o0 = out[0].m;
+		const wantWhites = whitesOf(HEIGEI).map((id) => SKILL_NAME.get(id));
+		assert(o0.title === SKILL_NAME.get(HEIGEI_TO) && o0.rarity === '進化スキル' && o0.pt === 'Pt 不要', '進化段4G 前提: 進化スキルの小窓（見出し＝進化先・「進化スキル」・「Pt 不要」）', { title: o0.title, rarity: o0.rarity, pt: o0.pt });
+		assert(out.every((x) => x.m.rows && x.m.rows.map((r) => r.text).join('>') === [SKILL_NAME.get(HEIGEI_TO), SKILL_NAME.get(HEIGEI)].concat(wantWhites).join('>')
+			&& x.m.rows[0].strong && x.m.rows[0].mark === null && x.m.rows.slice(1).every((r) => r.mark === '└')),
+			'進化段4G 関係は上から 進化スキル（太字）→ └ 元の金スキル → └ その前段の白スキル（①の表と同じ「└」）', out.map((x) => x.m.rows && x.m.rows.map((r) => (r.mark || '') + r.text)));
+		assert(wantWhites.length > 0 && out.every((x) => x.m.rows[2].markLeft > x.m.rows[1].markLeft + 4), '進化段4G 白スキルの「└」は、金スキルより1段下げる（L字が2段になる）', out.map((x) => [x.m.rows[1].markLeft, x.m.rows[2].markLeft]));
+		assert(!!noWhite && out.every((x) => x.extra.noWhite && x.extra.noWhite.join() === 'info-evo-rel-evo,info-evo-rel-gold'), '進化段4G 元の金スキルに白スキルが無いときは、進化スキルと金スキルだけを出す', { id: noWhite && noWhite.evolvedSkillIds[0], got: out.map((x) => x.extra.noWhite) });
+		assert(out.every((x) => x.extra.gold === null && x.extra.goldRarity === '金スキル'), '進化段4G 金スキルの小窓は変えない（進化先は出さない）', out.map((x) => x.extra.gold));
+		const cr = out.map((x) => { const bg = rgb(x.m.bg); return { w: x.w, s: x.scheme, marks: x.m.rows.filter((r) => r.markColor).map((r) => +contrastRatio(rgb(r.markColor), bg).toFixed(2)), names: x.m.rows.map((r) => +contrastRatio(rgb(r.nameColor), bg).toFixed(2)), fs: x.m.rows.map((r) => r.fs) }; });
+		console.log('     [情報] 進化スキルの小窓の関係のコントラスト比: ' + cr.map((c) => c.w + c.s + ' 線' + c.marks.join('/') + ' 文字' + c.names.join('/')).join(' ｜ '));
+		assert(cr.every((c) => c.marks.every((v) => v >= 4.5) && c.names.every((v) => v >= 4.5)), '進化段4G L字の線と文字のコントラスト比は 4.5 以上（ライト・ダーク）', cr);
+		assert(out.every((x) => x.m.box.left >= 0 && x.m.box.right <= x.m.box.vw + 0.5 && x.m.box.top >= 0 && x.m.box.bottom <= x.m.box.vh + 0.5 && x.m.overflowX <= 0 && x.m.relOverflow <= 0),
+			'進化段4G 小窓は 360px・390px でも画面に収まり、はみ出さない（横スクロールなし）', out.map((x) => ({ w: x.w, s: x.scheme, box: x.m.box, ox: x.m.overflowX })));
+		assert(out.every((x) => x.errors.length === 0), '進化段4G コンソールのエラー0', out.map((x) => x.errors.slice(0, 2)));
+	});
 }
