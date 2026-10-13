@@ -3863,12 +3863,12 @@
 	 * ①のリセットで消すもの（段9・C-121）。育成ウマ娘・サポートカード・イベントの選択・スキルのオン/オフ。
 	 * **絞り込み（距離・脚質・バ場）・勉強家／切れ者／覚醒Lv の押しボタン（roster.pt）・名前は触らない。**
 	 */
-	const ROSTER_RESET_KEYS = ['umaId', 'cardIds', 'eventChoices', 'offSkillIds'];
+	const ROSTER_RESET_KEYS = ['umaId', 'cardIds', 'eventChoices', 'offSkillIds', 'evolutionChoices', 'evolutionBSeen'];
 	function rosterResettable(r) {
 		if (!r || typeof r !== 'object') return false;
 		if (r.umaId) return true;
 		if ((r.cardIds || []).some(Boolean)) return true;
-		return ['eventChoices', 'offSkillIds'].some(k => r[k] !== undefined && r[k] !== null && (typeof r[k] !== 'object' || Object.keys(r[k]).length > 0));
+		return ['eventChoices', 'offSkillIds', 'evolutionChoices'].some(k => r[k] !== undefined && r[k] !== null && (typeof r[k] !== 'object' || Object.keys(r[k]).length > 0));
 	}
 	/** 編成に中身があるか（育成ウマ娘・カード・設定のどれかを触っているか）。下書きの①を保存するときに、写しを作るかの判定に使う */
 	function rosterHasContent(r) {
@@ -5748,6 +5748,11 @@
 		'.usd-palette-del[aria-pressed="true"] { color: var(--usd-delete-line, var(--uma-danger-text)); border-color: var(--usd-delete-line, var(--uma-danger-text)); }',
 		'.usd-reset-ops { display: flex; flex-direction: column; gap: 8px; }',
 		'.usd-reset-ops .uma-btn { width: 100%; justify-content: center; }',
+		// 段4: リセットのシートのボタン。「取得しないスキルを戻す」は薄いピンク、「中身をすべて消す」は赤い枠・赤みの面
+		'.usd-reset-desc { margin: 0 0 var(--uma-sp-2); }',
+		'.usd-reset-ops .usd-reset-soft { background: var(--evo-btn-bg); color: var(--evo-text); border: 2px solid var(--evo-edge); min-height: 44px; }',
+		'.usd-reset-ops .usd-reset-danger { background: var(--evo-danger-bg); color: var(--evo-danger-text); border: 2px solid var(--evo-danger-edge); min-height: 44px; }',
+		'.usd-reset-ops .uma-btn--ghost { min-height: 44px; background: transparent; border: 2px solid var(--uma-border-strong); color: var(--uma-text-heading); }',
 		'.usd-panel--taken .usd-panel-namebtn, .usd-panel--taken .usd-panel-pt { color: var(--uma-text-faint); }',
 		'.usd-panel--taken { background: var(--uma-surface-sunken); }',
 		'.usd-panel--taken .usd-icon { opacity: .4; }',
@@ -9078,20 +9083,7 @@
 				line('', '絞り込み中：' + keys.map(k => { const axis = TAG_AXES.find(a => a.key === k); return axis.label + ' ' + tagLabel(k, sel[k]); }).join('／'), 'info-filter');
 			}
 			if (pt.allUnpricedCount > 0) line('', '（Pt未収録' + pt.allUnpricedCount + '種は含めていません）', 'info-unpriced');
-			// 取得しないスキル（段7c の M）。0種のときは出さない。押すとすべてオンに戻る
-			if (res.offList.length > 0) {
-				const row = infoEl('div', 'usd-info-offrow');
-				row.setAttribute('data-usd-el', 'info-off');
-				const t = infoEl('span', '', '取得しないスキル ' + res.offList.length + '種');
-				t.setAttribute('data-usd-el', 'info-off-count');
-				row.appendChild(t);
-				const btn = infoEl('button', 'usd-roster-togglebtn', 'すべて取得に戻す');
-				btn.type = 'button';
-				btn.setAttribute('data-usd-el', 'info-off-reset');
-				btn.addEventListener('click', () => { closeSkillInfo(); clearOffSkills(); });
-				row.appendChild(btn);
-				body.appendChild(row);
-			}
+			// 「取得しないスキル X種」と「すべて取得に戻す」は、段4で ①のリセットのシート（「取得しないスキルを戻す」）へ移した
 		}
 
 		/** 育成ウマ娘の（i）の小窓の中身（段7の (7)）。 */
@@ -9834,16 +9826,26 @@
 			openPopover({ key: 'roster-reset:' + uidBase, title: '① 本育成編成をリセット', build: fillRosterReset, btn: btn, opener: btn, refocus: '[data-usd-act="roster-reset"]' });
 		}
 		function fillRosterReset(body) {
+			// 戻す範囲を選ぶ（段4・C-150）。上から「取得しないスキルを戻す（X種）」（薄いピンク。押したらすぐ実行して閉じる）・
+			// 「中身をすべて消す」（赤）・「やめる」。X が0のときも「取得しないスキルを戻す」は押せる見た目のまま、押すと理由を知らせる
+			const x = computed().offList.length;
+			const desc = infoEl('p', 'usd-info-desc usd-reset-desc', x > 0 ? '戻す範囲を選んでください。' : '取得しないスキルはありません。');
+			desc.setAttribute('data-usd-el', 'roster-reset-desc');
+			body.appendChild(desc);
 			const col = infoEl('div', 'usd-reset-ops');
 			col.setAttribute('data-usd-el', 'roster-reset-ops');
-			const add = (cls, el, text, fn) => {
+			const add = (cls, el, text, fn, keepOpen) => {
 				const b = infoEl('button', 'uma-btn ' + cls, text);
 				b.type = 'button';
 				b.setAttribute('data-usd-el', el);
-				b.addEventListener('click', () => { closeSkillInfo(); fn(); });
+				b.addEventListener('click', () => { if (!keepOpen) closeSkillInfo(); fn(); });
 				col.appendChild(b);
 			};
-			add('uma-btn--danger', 'roster-reset-all', '中身をすべて消す', runRosterResetContent);
+			add('usd-reset-soft', 'roster-reset-off', '取得しないスキルを戻す（' + x + '種）', () => {
+				if (x === 0) { toast('戻すスキルはありません'); return; }
+				clearOffSkills();
+			}, x === 0);
+			add('usd-reset-danger', 'roster-reset-all', '中身をすべて消す', runRosterResetContent);
 			add('uma-btn--ghost', 'roster-reset-cancel', 'やめる', () => {});
 			body.appendChild(col);
 		}
