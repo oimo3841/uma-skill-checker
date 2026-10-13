@@ -5845,10 +5845,10 @@
 		'  .usd-roster-pickbox, .usd-roster-slot { min-height: 30px; }',
 		'  .usd-roster-pickbtn { padding-block: var(--uma-sp-1); }',
 		'  .usd-roster-clearbtn { min-height: 28px; }',
-		'  .usd-roster-ptsum.usd-bandbox { padding-inline: 6px; }',
-		'  .usd-roster-sumrow { gap: 2px 3px; }',
-		'  .usd-roster-sumrow .usd-roster-sumbtns { gap: 3px; }',
-		'  .usd-roster-sumrow .usd-roster-togglebtn { padding-inline: 4px; }',
+		'  .usd-roster-ptsum.usd-bandbox { padding: 4px; }',
+		'  .usd-roster-sumrow { gap: 2px 2px; }',
+		'  .usd-roster-sumrow .usd-roster-sumbtns { gap: 2px; }',
+		'  .usd-roster-sumrow .usd-roster-togglebtn { padding-inline: 3px; }',
 		'  .usd-roster-sumtext { padding: 0; }',
 		'  .usd-evo-btn { padding: 0 6px; gap: 3px; }',
 		'  .usd-roster-ptsum { gap: 0; }',
@@ -8626,6 +8626,12 @@
 		 * （合計には元の金スキルの Pt を数える。takenIds も進化元のまま）。進化のデータを読めていないときは、進化の行が無いのと同じ。
 		 */
 		function evoPlanOf(res) {
+			// 効果の段階（skill-effect-levels.json）は、進化先が2つ以上ある行があり、レースを選んでいるときの「同点のときの並び」にだけ使う。
+			// そのときだけ読む（ページの読み込みでは取りに行かない。C-129 の約束）。読み終わったら描き直す
+			if (skillEffectState.status === 'idle' && raceOfRoster(roster)
+				&& evolutionRowsOfUma(roster.umaId).concat(evolutionRowsOfScenario()).some(r => r.evolvedSkillIds.length > 1)) {
+				loadSkillEffectLevels().then(function () { render(); });
+			}
 			return computeEvolutionPlan({
 				umaId: roster.umaId, takenIds: res.takenIds, filter: resolvedFilter(), race: raceOfRoster(roster),
 				choices: roster.evolutionChoices, bSeen: roster.evolutionBSeen
@@ -10103,9 +10109,8 @@
 		} else render();
 		// スキルPt の元データがまだ読まれていなければ、読み終わったあとで描き直す（読めなくても描き直す＝知らせを出す）
 		if (!skillPtData.meta.loaded) loadSkillPtData(false).then(function () { render(); });
-		// 進化の対応（段4。skill-evolutions.json）と効果の段階（既定の同点崩しに使う）。編成パネルを作るときにだけ読み、読み終わったら描き直す（読めなければ進化の行が無いのと同じ）
+		// 進化の対応（段4。skill-evolutions.json）。編成パネルを作るときにだけ読み、読み終わったら描き直す（読めなければ進化の行が無いのと同じ）。効果の段階は必要になったときだけ（evoPlanOf）
 		loadSkillEvolutions(false).then(function () { render(); });
-		loadSkillEffectLevels().then(function () { render(); });
 		// シナリオの固定イベント（段7c の N）。編成パネルを作るときにだけ読む。読み終わったら描き直す（読めなければ列を出さない）
 		if (scenarioEventState.status === 'idle' || scenarioEventState.status === 'failed') loadScenarioEvents(false).then(function () { render(); });
 		return {
