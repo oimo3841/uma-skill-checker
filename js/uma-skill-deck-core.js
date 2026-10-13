@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-13b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-13c';
 
 	/* ============================================================
 	 * 定数
@@ -7709,7 +7709,11 @@
 	}
 
 	/**
-	 * 進化の既定を決める（段3。画面にも保存にもつながない純粋な関数。C-145・C-146）。
+	 * 進化の既定を決める（段3。画面にも保存にもつながない純粋な関数。C-145・C-146・C-149）。
+	 *
+	 * **既定を自動で選ぶのは、レースを選んでいるときだけ**（C-149・2026-10-13）。レース未選択のときは、距離・脚質・バ場を手で指定していても、
+	 * すべて 'none'（進化しない）で、パターンBの候補・「！」も出さない（利用者が自分で選ぶ）。
+	 * レースを選んだときは、距離・バ場はレースで決まり、脚質は利用者の指定。**脚質が未指定のとき、脚質の限定がある進化先は自動では選ばない**（選び直しでは選べる）。
 	 *
 	 * args:
 	 *   umaId     … 育成ウマ娘（衣装）の id。無ければパターンAの行は無い
@@ -7721,13 +7725,14 @@
 	 *   effectRank  … skillId → 効果の段階の数値（大きいほど大きい）か null の関数（省略時は読み込み済みの skill-effect-levels）
 	 *
 	 * 返り値:
-	 *   specified … 距離・脚質・バ場のどれかを指定している、またはレースを選んでいる（false なら全部「進化しない」で、「！」も出さない）
+	 *   specified … レースを選んでいる（false なら全部「進化しない」で、「！」も出さない）。raceSelected も同じ値
 	 *   slots     … { a: パターンAの進化元の数（衣装自身の金スキルの数）, b: 2, max: a + 2 }
 	 *   a         … [{ baseId, baseFit, targets: [{ id, fit }], default: 進化先の id | 'none' | 'invalid', visible }]
 	 *   b         … { scenario, candidates: [baseId…（id の昇順）], entries: [同上＋ candidate], defaults: [baseId…（先頭2つ）], bang }
 	 *   defaultChoices … { baseId: 進化先の id | 'none' }（無効のものは含めない）。A と B をまとめたもの
 	 *   count     … { a, b, max }（既定で進化する数）
-	 * 'invalid'（無効）＝進化元にも、どの進化先にも合わない。進化先が「合うことがある」だけのとき、default は 'none'（行は出す）。
+	 * fit は内部の分類（'must'＝指定に例外なく合う／'may'＝距離の区分の一部でしか合わない／'no'＝合わない）。画面には出さない（条件だけを出す）。
+	 * 'invalid'（無効）＝進化元にも、どの進化先にも合わない。進化先が選べるのに既定にならないだけのとき、default は 'none'（行は出す）。
 	 */
 	function computeEvolutionPlan(args) {
 		const a = args || {};
@@ -7737,26 +7742,29 @@
 		const idx = a.evolutions ? buildEvolutionIndex(a.evolutions) : (evolutionState.status === 'ok' ? evolutionState : { byUma: new Map(), byScenario: new Map() });
 		const effectRank = typeof a.effectRank === 'function' ? a.effectRank
 			: (id) => { const st = skillEffectState; const r = st.status === 'ok' ? st.rankOfSkill.get(id) : null; return typeof r === 'number' ? r : null; };
-		const specified = ['distance', 'style', 'surface'].some(k => typeof filter[k] === 'string' && filter[k]) || !!race;
+		const raceSelected = !!race;
+		const specified = raceSelected;   // 既定を自動で選ぶのは、レースを選んでいるときだけ
+		const hasFilter = ['distance', 'style', 'surface'].some(k => typeof filter[k] === 'string' && filter[k]) || raceSelected;
 		const scenarioKey = a.scenarioKey !== undefined ? a.scenarioKey : (a.evolutions ? null : evolutionScenarioKey());
+		// 脚質が未指定のとき、脚質の限定がある進化先は自動では選ばない
+		const styleOk = (skill) => !!filter.style || !(((skill && skill.tags && skill.tags.style) || []).length);
 
-		// 進化元ごとの判定（指定なしのときは、全部「合う」として扱い、既定は 'none'）
+		// 進化元ごとの判定。fit は条件があるときだけ見る（条件が何も無ければ全部「合う」）。既定は specified のときだけ決める
 		const judge = (row) => {
 			const base = findSkill(row.baseSkillId);
-			const baseFit = !specified ? 'must' : (base && matchesFilters(base, resolvedFilterArgs(filter), null) ? 'must' : 'no');
+			const baseFit = !hasFilter ? 'must' : (base && matchesFilters(base, resolvedFilterArgs(filter), null) ? 'must' : 'no');
 			const targets = row.evolvedSkillIds.map((id, i) => {
 				const sk = findSkill(id);
-				return { id: id, fit: specified ? evolutionFitOf(sk, filter, race) : 'must', _key: sk ? evolutionOrderKey(sk, filter, effectRank(id), i) : [1, 0, 0, 0, i] };
+				return { id: id, fit: hasFilter ? evolutionFitOf(sk, filter, race) : 'must', _ok: styleOk(sk), _key: sk ? evolutionOrderKey(sk, filter, effectRank(id), i) : [1, 0, 0, 0, i] };
 			});
-			const must = targets.filter(t => t.fit === 'must').sort((x, y) => compareOrderKeys(x._key, y._key));
+			const cands = targets.filter(t => t.fit === 'must' && t._ok).sort((x, y) => compareOrderKeys(x._key, y._key));
 			let def;
 			if (!specified) def = 'none';
-			else if (must.length > 0) def = must[0].id;
+			else if (cands.length > 0) def = cands[0].id;
 			else if (baseFit === 'must') def = 'none';
-			else if (targets.some(t => t.fit === 'may')) def = 'none';
+			else if (targets.some(t => t.fit !== 'no')) def = 'none';   // 進化先が選べる（合うことがある・脚質が未指定）ので、行は出す
 			else def = 'invalid';
-			const visible = def !== 'invalid';
-			return { baseId: row.baseSkillId, baseFit: baseFit, targets: targets.map(t => ({ id: t.id, fit: t.fit })), default: def, visible: visible, _best: must.length > 0 ? must[0].id : null };
+			return { baseId: row.baseSkillId, baseFit: baseFit, targets: targets.map(t => ({ id: t.id, fit: t.fit })), default: def, visible: def !== 'invalid', _best: cands.length > 0 ? cands[0].id : null };
 		};
 
 		// パターンA
@@ -7779,6 +7787,7 @@
 		const countB = bPool.filter(e => e.default !== 'none' && e.default !== 'invalid').length;
 		return {
 			specified: specified,
+			raceSelected: raceSelected,
 			slots: { a: rowsA.length, b: 2, max: rowsA.length + 2 },
 			a: aOut.map(strip),
 			b: { scenario: scenarioKey || null, candidates: candidates, entries: bPool.map(strip), defaults: bDefaults, bang: specified && candidates.length >= 3 },

@@ -5,7 +5,7 @@
 // 見るもの:
 //   §1 受け入れ: 進化スキルが findSkill で引ける／検索の範囲（条件で検索・名前を入れて探す）に出ない／
 //      OCR・貼り付けの照合の辞書（buildSkillTextIndex）に入らない（辞書の件数は受け入れ前の基準と同じ）／照合しても結果に出ない
-//   §2 既定の決定関数（computeEvolutionPlan）を表で回す: 全衣装 × 主なレース条件で、決まり（上限・指定なし・id 昇順・Aで進化したらBの対象外・同じ入力は同じ出力）が成り立つ
+//   §2 既定の決定関数（computeEvolutionPlan）を表で回す（C-149: 既定を自動で選ぶのはレースを選んだときだけ）: 全衣装 × 主なレース条件で、決まり（上限・指定なし・id 昇順・Aで進化したらBの対象外・同じ入力は同じ出力）が成り立つ
 //   §3 手書きの期待値（オルフェーヴルの君臨・睥睨と3つの進化先／トレセン軒の6組／合成データの上限）
 //   §4 ex-1606（距離が範囲と根幹距離の両方を持つ行）は、範囲に当たれば合う（根幹距離は判定に使わない。C-148）
 //
@@ -90,27 +90,33 @@ assert(cat.sf === 24 && cat.ge === 10, '因子の辞書の元（シナリオ因�
 console.log('\n=== §2 既定の決定関数を表で回す（全' + umas.length + '衣装 × 主なレース条件） ===');
 await page.evaluate(() => Promise.all([window.UmaSkillDeckCore.loadSkillEffectLevels()]));
 const raceRows = races.map((r) => ({ id: r.id, venue: r.venue, surface: r.surface, distance: r.distance, distanceCategory: r.distanceCategory, direction: r.direction, course: r.course, season: r.season, weather: r.weather, ground: r.ground, time: r.time, rule: r.rule, name: r.name }));
-const table = await page.evaluate(({ umaInputs, scenarioBases, raceRows }) => {
+// 試験用のレース（レースの一覧に頼らず、距離の区分・バ場・距離を決めて作る）
+const mkRace = (id, d, surface) => ({ id: id, name: '試験用', venue: null, surface: surface, distance: d, distanceCategory: d <= 1400 ? 'short' : d <= 1800 ? 'mile' : d <= 2400 ? 'medium' : 'long', direction: null, course: null, season: null, weather: null, ground: null, time: null, rule: null });
+const synthRaces = [];
+[['short', 1200], ['mile', 1600], ['medium', 2000], ['long', 3000]].forEach(([c, d]) => ['turf', 'dirt'].forEach((s) => synthRaces.push(mkRace('t-' + c + '-' + s, d, s))));
+const table = await page.evaluate(({ umaInputs, scenarioBases, raceRows, synthRaces }) => {
 	const C = window.UmaSkillDeckCore;
 	const cats = ['short', 'mile', 'medium', 'long'], styles = ['nige', 'senko', 'sashi', 'oikomi'], surfs = ['turf', 'dirt'];
+	// レースを選んでいない条件（C-149: 距離・脚質・バ場を手で指定していても、すべて「進化しない」）
 	const conds = [{ name: '指定なし', filter: {}, race: null }];
 	cats.forEach((c) => conds.push({ name: '距離=' + c, filter: { distance: c }, race: null }));
 	styles.forEach((s) => conds.push({ name: '脚質=' + s, filter: { style: s }, race: null }));
 	surfs.forEach((s) => conds.push({ name: 'バ場=' + s, filter: { surface: s }, race: null }));
 	cats.forEach((c) => styles.forEach((s) => surfs.forEach((f) => conds.push({ name: c + '/' + s + '/' + f, filter: { distance: c, style: s, surface: f }, race: null }))));
-	raceRows.forEach((r) => {
-		const f = {}; if (r.distanceCategory) f.distance = r.distanceCategory; if (r.surface) f.surface = r.surface;
-		conds.push({ name: 'レース ' + r.id, filter: f, race: r });
-		conds.push({ name: 'レース ' + r.id + '＋脚質', filter: Object.assign({}, f, { style: 'sashi' }), race: r });
-	});
+	const noRaceCount = conds.length;
+	// レースを選んだ条件: 試験用のレース（距離4×バ場2）× 脚質（指定なし・4通り）＋ 実際のレース6件 × 脚質（指定なし・差し）
+	const raceConds = [];
+	synthRaces.forEach((r) => [null].concat(styles).forEach((s) => { const f = { distance: r.distanceCategory, surface: r.surface }; if (s) f.style = s; raceConds.push({ name: r.id + (s ? '＋' + s : ''), filter: f, race: r }); }));
+	raceRows.forEach((r) => [null, 'sashi'].forEach((s) => { const f = {}; if (r.distanceCategory) f.distance = r.distanceCategory; if (r.surface) f.surface = r.surface; if (s) f.style = s; raceConds.push({ name: 'レース ' + r.id + (s ? '＋' + s : ''), filter: f, race: r }); }));
+	conds.push(...raceConds);
 	const viol = [];
 	const v = (label, ctx) => { if (viol.length < 30) viol.push(label + ' ' + JSON.stringify(ctx)); };
-	let plans = 0, withEvolve = 0, bangs = 0, specifiedCount = 0, maxA = 0, maxTotal = 0, invalids = 0;
-	const digest = [];
+	let plans = 0, withEvolve = 0, bangs = 0, noRacePlans = 0, maxA = 0, maxTotal = 0, invalids = 0, styleSkipped = 0;
 	for (const u of umaInputs) {
 		for (const variant of [0, 1]) {
 			const takenIds = variant === 0 ? u.gold : u.gold.concat(scenarioBases);
-			for (const cd of conds) {
+			for (let ci = 0; ci < conds.length; ci++) {
+				const cd = conds[ci];
 				const args = { umaId: u.id, takenIds: takenIds, filter: cd.filter, race: cd.race };
 				const p = C.computeEvolutionPlan(args);
 				const p2 = C.computeEvolutionPlan(args);
@@ -122,20 +128,21 @@ const table = await page.evaluate(({ umaInputs, scenarioBases, raceRows }) => {
 				if (p.count.a > p.slots.a) v('A の進化の数が枠を超えた', where);
 				if (p.count.b > 2) v('B の進化の数が2を超えた', where);
 				if (p.count.a + p.count.b > p.slots.max) v('合計が最大を超えた', where);
+				if (p.specified !== !!cd.race) v('specified がレースを選んでいるかと違う', where);
 				maxA = Math.max(maxA, p.count.a); maxTotal = Math.max(maxTotal, p.count.a + p.count.b);
 				const aEvolved = new Set(p.a.filter((e) => e.default !== 'none' && e.default !== 'invalid').map((e) => e.baseId));
 				p.b.entries.forEach((e) => { if (aEvolved.has(e.baseId)) v('A で進化した金スキルが B の対象にいる', Object.assign({ base: e.baseId }, where)); });
-				// A の進化元は、取得する（takenIds に入る）自前の金スキルだけ
 				p.a.forEach((e) => { if (takenIds.indexOf(e.baseId) === -1) v('取得しない金スキルが A にいる', where); });
-				if (!p.specified) {
-					specifiedCount++;
-					if (Object.keys(p.defaultChoices).some((k) => p.defaultChoices[k] !== 'none')) v('指定なしなのに「進化しない」以外がある', where);
-					if (p.b.bang || p.b.candidates.length > 0 || p.b.defaults.length > 0) v('指定なしなのに B の候補・「！」が出た', where);
+				if (!cd.race) {
+					noRacePlans++;
+					if (Object.keys(p.defaultChoices).some((k) => p.defaultChoices[k] !== 'none')) v('レース未選択なのに「進化しない」以外がある', where);
+					if (p.b.bang || p.b.candidates.length > 0 || p.b.defaults.length > 0) v('レース未選択なのに B の候補・「！」が出た', where);
+					if (p.a.concat(p.b.entries).some((e) => e.default === 'invalid')) v('レース未選択なのに無効の行がある', where);
 				}
 				const asc = p.b.candidates.slice().sort(C.compareSkillIds);
 				if (JSON.stringify(asc) !== JSON.stringify(p.b.candidates)) v('B の候補が id の昇順でない', where);
 				if (JSON.stringify(p.b.defaults) !== JSON.stringify(p.b.candidates.slice(0, 2))) v('B の既定が id 昇順の先頭2つでない', where);
-				if (p.b.bang !== (p.specified && p.b.candidates.length >= 3)) v('「！」の条件が違う', where);
+				if (p.b.bang !== (!!cd.race && p.b.candidates.length >= 3)) v('「！」の条件が違う', where);
 				if (p.b.bang) bangs++;
 				p.a.concat(p.b.entries).forEach((e) => {
 					if (e.default === 'invalid') {
@@ -144,19 +151,21 @@ const table = await page.evaluate(({ umaInputs, scenarioBases, raceRows }) => {
 					} else if (e.default !== 'none') {
 						const t = e.targets.find((x) => x.id === e.default);
 						if (!t || t.fit !== 'must') v('既定の進化先が「必ず合う」でない', Object.assign({ base: e.baseId, def: e.default }, where));
+						// 脚質が未指定のとき、脚質の限定がある進化先を自動で選ばない
+						const sk = C.findSkill(e.default);
+						if (!cd.filter.style && ((sk.tags && sk.tags.style) || []).length > 0) v('脚質が未指定なのに、脚質の限定がある進化先が既定になった', Object.assign({ base: e.baseId, def: e.default }, where));
 						withEvolve++;
-					}
+					} else if (cd.race && !cd.filter.style && e.targets.some((t) => t.fit === 'must' && ((C.findSkill(t.id).tags || {}).style || []).length > 0)) styleSkipped++;
 				});
 				p.b.entries.forEach((e) => { if (e.default !== 'none' && e.default !== 'invalid' && p.b.defaults.indexOf(e.baseId) === -1) v('B の既定の2つ以外が進化する', where); });
 				p.b.entries.forEach((e) => { if (scenarioBases.indexOf(e.baseId) === -1) v('シナリオの6組にない金スキルが B の行にある', where); });
-				digest.push(Object.keys(p.defaultChoices).sort().map((k) => k + '=' + p.defaultChoices[k]).join(',') + '|' + p.b.bang);
 			}
 		}
 	}
-	return { plans, conds: conds.length, viol, withEvolve, bangs, specifiedCount, maxA, maxTotal, invalids, digest: digest.join('\n').length, sample: digest.slice(0, 0) };
-}, { umaInputs, scenarioBases, raceRows });
-assert(table.viol.length === 0, '決まりに反する出力が0件（' + table.plans + '通り: ' + umas.length + '衣装 × ' + table.conds + '条件 × 2）', table.viol);
-assert(table.specifiedCount > 0 && table.bangs > 0 && table.withEvolve > 0, '表が空振りしていない（指定なし・「！」・進化ありの出力がある）', { 指定なし: table.specifiedCount, 感嘆符あり: table.bangs, 進化あり: table.withEvolve, 無効: table.invalids });
+	return { plans, conds: conds.length, noRaceCount, raceCount: raceConds.length, viol, withEvolve, bangs, noRacePlans, maxA, maxTotal, invalids, styleSkipped };
+}, { umaInputs, scenarioBases, raceRows, synthRaces });
+assert(table.viol.length === 0, '決まりに反する出力が0件（' + table.plans + '通り: ' + umas.length + '衣装 × ' + table.conds + '条件〔レース未選択 ' + table.noRaceCount + '・レース選択 ' + table.raceCount + '〕 × 2）', table.viol);
+assert(table.noRacePlans > 0 && table.bangs > 0 && table.withEvolve > 0 && table.styleSkipped > 0, '表が空振りしていない（レース未選択・「！」・進化あり・脚質未指定で見送った進化先がある）', { レース未選択: table.noRacePlans, 感嘆符あり: table.bangs, 進化あり: table.withEvolve, 脚質未指定で見送り: table.styleSkipped, 無効: table.invalids });
 assert(table.maxTotal <= 5 && table.maxA <= 3, '進化の合計は最大5・A は最大3', { maxTotal: table.maxTotal, maxA: table.maxA });
 const lv7 = umaInputs.filter((u) => u.gold.length === 3).length;
 console.log('       覚醒Lv7（金スキル3つ）の衣装: ' + lv7 + '／通常（2つ）: ' + umaInputs.filter((u) => u.gold.length === 2).length);
@@ -169,49 +178,60 @@ const entry = (p, baseId) => p.a.concat(p.b.entries).find((e) => e.baseId === ba
 const ORFE = 'uma-0241', KINRIN = 'ex-0470', HEIGEI = 'ex-0484';
 const orfeGold = [KINRIN, HEIGEI];
 const orfe = umas.find((u) => u.id === ORFE);
+const race1 = raceRows.find((r) => r.id === 'race-0001');   // 京都・芝・2200m（中距離）
 assert(!!orfe && ownGold(orfe).length === 2, 'オルフェーヴル総攬（' + ORFE + '）が金スキル2つを持つ（君臨・睥睨）');
 {
 	const p = await plan({ umaId: ORFE, takenIds: orfeGold, filter: {}, race: null });
-	assert(!p.specified && entry(p, KINRIN).default === 'none' && entry(p, HEIGEI).default === 'none' && !p.b.bang, '指定なし: 君臨・睥睨とも「進化しない」', p.defaultChoices);
+	assert(!p.specified && entry(p, KINRIN).default === 'none' && entry(p, HEIGEI).default === 'none' && !p.b.bang, 'レース未選択・指定なし: 君臨・睥睨とも「進化しない」', p.defaultChoices);
 }
 {
+	// C-149: レースを選んでいなければ、距離・脚質・バ場を指定していても自動では選ばない（進化先の分類は出る）
 	const p = await plan({ umaId: ORFE, takenIds: orfeGold, filter: { distance: 'medium', style: 'oikomi', surface: 'turf' }, race: null });
 	const k = entry(p, KINRIN), h = entry(p, HEIGEI);
-	assert(k.targets.length === 1 && k.targets[0].id === 'ex-1608' && k.targets[0].fit === 'may' && k.default === 'none', '中距離・追込・芝: 君臨→「2000m以上」の進化先は「合うことがある」（中距離に1900mがある）ので既定にせず「進化しない」', k);
-	assert(h.targets.map((t) => t.id).join() === 'ex-1609,ex-1610' && h.targets.every((t) => t.fit === 'must') && h.default === 'ex-1609', '睥睨→中距離だけの進化先（ex-1609）を、中距離/長距離の進化先（ex-1610）より先に既定にする', h);
-	assert(p.count.a === 1 && p.slots.a === 2 && p.slots.max === 4, '進化は1、枠は2、最大は4', { count: p.count, slots: p.slots });
+	assert(k.default === 'none' && h.default === 'none' && p.count.a === 0 && !p.specified, 'レース未選択・中距離・追込・芝を手で指定: 全部「進化しない」（自動で選ばない）', p.defaultChoices);
+	assert(k.targets[0].id === 'ex-1608' && k.targets[0].fit === 'may' && h.targets.every((t) => t.fit === 'must'), '（進化先の内部の分類は出る）君臨→2000m以上の進化先は区分だけでは「合うことがある」・睥睨の2つは「必ず合う」', { k: k.targets, h: h.targets });
 }
 {
-	const race1 = raceRows.find((r) => r.id === 'race-0001');   // 芝・2200m（中距離）
-	const p = await plan({ umaId: ORFE, takenIds: orfeGold, filter: { distance: 'medium', surface: 'turf' }, race: race1 });
-	const k = entry(p, KINRIN);
-	assert(k.targets[0].fit === 'must' && k.default === 'ex-1608', '2200m の芝のレース: 君臨→ex-1608（2000m以上）は「必ず合う」ので既定になる', k);
-}
-{
-	const p = await plan({ umaId: ORFE, takenIds: orfeGold, filter: { style: 'nige' }, race: null });
+	const p = await plan({ umaId: ORFE, takenIds: orfeGold, filter: { distance: 'medium', surface: 'turf', style: 'oikomi' }, race: race1 });
 	const k = entry(p, KINRIN), h = entry(p, HEIGEI);
-	assert(k.default === 'invalid' && k.baseFit === 'no' && k.targets.every((t) => t.fit === 'no'), '逃げだけ指定: 君臨（追込）も進化先も合わないので無効', k);
-	assert(h.default === 'ex-1610', '逃げだけ指定: 睥睨は2つの進化先とも距離の限定が指定外なので、同点→効果の段階が大きい（すごく）ex-1610', h);
-	assert(p.count.a === 1, '進化は睥睨の1つだけ', p.count);
+	assert(k.default === 'ex-1608' && k.targets[0].fit === 'must', '京都 芝2200m・追込: 君臨→ex-1608（2000m以上・追込・芝）が既定', k);
+	assert(h.default === 'ex-1609', '京都 芝2200m・追込: 睥睨→中距離だけの進化先（ex-1609）を、中距離/長距離の進化先（ex-1610）より先に既定にする', h);
+	assert(p.count.a === 2 && p.slots.a === 2 && p.slots.max === 4, '進化は2、枠は2、最大は4', { count: p.count, slots: p.slots });
 }
 {
-	// トレセン軒の6組。衣装なし（パターンAなし）
+	// 脚質が未指定のとき、脚質の限定がある進化先は自動では選ばない（選び直しでは選べる）
+	const p = await plan({ umaId: ORFE, takenIds: orfeGold, filter: { distance: 'medium', surface: 'turf' }, race: race1 });
+	const k = entry(p, KINRIN), h = entry(p, HEIGEI);
+	assert(k.default === 'none' && k.targets[0].fit === 'must' && k.visible === true, '京都 芝2200m・脚質未指定: 君臨→追込の限定がある ex-1608 は自動では選ばない（行は出す・選び直しでは選べる）', k);
+	assert(h.default === 'ex-1609' && p.count.a === 1, '睥睨→脚質の限定がない ex-1609 は既定になる', h);
+}
+{
+	const p = await plan({ umaId: ORFE, takenIds: orfeGold, filter: { distance: 'medium', surface: 'turf', style: 'nige' }, race: race1 });
+	const k = entry(p, KINRIN), h = entry(p, HEIGEI);
+	assert(k.default === 'invalid' && k.baseFit === 'no' && k.targets.every((t) => t.fit === 'no'), '京都 芝2200m・逃げ: 君臨（追込）も進化先も合わないので無効', k);
+	assert(h.default === 'ex-1609' && p.count.a === 1, '京都 芝2200m・逃げ: 睥睨は2つの進化先とも合い、中距離だけの ex-1609 が既定', h);
+}
+{
+	// トレセン軒の6組。衣装なし（パターンAなし）。試験用のレースで見る
 	const pairs = { 'ex-0029': 'ex-1038', 'ex-0183': 'ex-1034', 'ex-0616': 'ex-1037', 'ex-0645': 'ex-1036', 'ex-0657': 'ex-1039', 'ex-0668': 'ex-1035' };
 	assert(JSON.stringify(Object.fromEntries(evolutions.entries.filter((e) => e.kind === 'scenario').map((e) => [e.baseSkillId, e.evolvedSkillIds[0]]))) === JSON.stringify(pairs), 'データのトレセン軒の6組が手書きの対応と一致（ギアチェンジ→秘伝の味変アレンジ！ほか）');
 	const all = Object.keys(pairs);
 	const key = await page.evaluate(() => window.UmaSkillDeckCore.getEvolutionScenarioKey());
-	assert(key === 'トレセン軒' || typeof key === 'string', 'ツールが使うシナリオの鍵が取れる', key);
+	assert(key === 'トレセン軒', 'ツールが使うシナリオの鍵が取れる', key);
+	const mile = mkRace('t-mile', 1600, 'turf'), medium = mkRace('t-medium', 2000, 'turf');
 	const p0 = await plan({ umaId: '', takenIds: all, filter: {}, race: null });
-	assert(p0.b.candidates.length === 0 && !p0.b.bang && Object.values(p0.defaultChoices).every((x) => x === 'none') && p0.b.entries.length === 6, '指定なし: 6組とも「進化しない」・「！」なし（行は6つある）');
-	const pm = await plan({ umaId: '', takenIds: all, filter: { distance: 'mile' }, race: null });
-	assert(JSON.stringify(pm.b.candidates) === JSON.stringify(['ex-0029', 'ex-0183', 'ex-0657']) && pm.b.bang === true, 'マイル: 候補は ex-0029・ex-0183・ex-0657（id 昇順・3つなので「！」）', pm.b.candidates);
+	assert(p0.b.candidates.length === 0 && !p0.b.bang && Object.values(p0.defaultChoices).every((x) => x === 'none') && p0.b.entries.length === 6, 'レース未選択: 6組とも「進化しない」・「！」なし（行は6つある）');
+	const pn0 = await plan({ umaId: '', takenIds: all, filter: { distance: 'mile' }, race: null });
+	assert(pn0.b.candidates.length === 0 && !pn0.b.bang && Object.values(pn0.defaultChoices).every((x) => x === 'none'), 'レース未選択・マイルを手で指定: 候補なし・「！」なし（自動で選ばない）');
+	const pm = await plan({ umaId: '', takenIds: all, filter: { distance: 'mile', surface: 'turf' }, race: mile });
+	assert(JSON.stringify(pm.b.candidates) === JSON.stringify(['ex-0029', 'ex-0183', 'ex-0657']) && pm.b.bang === true, 'マイル（1600m）のレース: 候補は ex-0029・ex-0183・ex-0657（id 昇順・3つなので「！」）', pm.b.candidates);
 	assert(JSON.stringify(pm.b.defaults) === JSON.stringify(['ex-0029', 'ex-0183']) && pm.defaultChoices['ex-0029'] === 'ex-1038' && pm.defaultChoices['ex-0183'] === 'ex-1034' && pm.defaultChoices['ex-0657'] === 'none', 'マイル: 既定は id 昇順の先頭2つ（ex-0029→ex-1038・ex-0183→ex-1034）。3つ目の ex-0657 は「進化しない」', pm.defaultChoices);
 	assert(entry(pm, 'ex-0645').default === 'invalid' && entry(pm, 'ex-0668').default === 'invalid' && entry(pm, 'ex-0616').default === 'none', 'マイル: 中距離/長距離の2組は無効、ex-0616 は進化先が合わないので「進化しない」', pm.b.entries.map((e) => e.baseId + '=' + e.default));
-	const pd = await plan({ umaId: '', takenIds: all, filter: { distance: 'medium' }, race: null });
-	assert(JSON.stringify(pd.b.candidates) === JSON.stringify(['ex-0183', 'ex-0616', 'ex-0645', 'ex-0668']) && pd.b.bang === true && JSON.stringify(pd.b.defaults) === JSON.stringify(['ex-0183', 'ex-0616']), '中距離: 候補4つ（id 昇順）・「！」・既定は先頭2つ', { c: pd.b.candidates, d: pd.b.defaults });
-	const pn = await plan({ umaId: '', takenIds: ['ex-0029', 'ex-0183'], filter: { distance: 'mile' }, race: null });
+	const pd = await plan({ umaId: '', takenIds: all, filter: { distance: 'medium', surface: 'turf' }, race: medium });
+	assert(JSON.stringify(pd.b.candidates) === JSON.stringify(['ex-0183', 'ex-0616', 'ex-0645', 'ex-0668']) && pd.b.bang === true && JSON.stringify(pd.b.defaults) === JSON.stringify(['ex-0183', 'ex-0616']), '中距離（2000m）のレース: 候補4つ（id 昇順）・「！」・既定は先頭2つ', { c: pd.b.candidates, d: pd.b.defaults });
+	const pn = await plan({ umaId: '', takenIds: ['ex-0029', 'ex-0183'], filter: { distance: 'mile', surface: 'turf' }, race: mile });
 	assert(pn.b.candidates.length === 2 && !pn.b.bang && pn.count.b === 2, '候補が2つなら「！」は出ず、2つとも進化する');
-	const pt2 = await plan({ umaId: '', takenIds: ['ex-0029'], filter: { distance: 'mile' }, race: null, scenarioKey: '別のシナリオ' });
+	const pt2 = await plan({ umaId: '', takenIds: ['ex-0029'], filter: { distance: 'mile' }, race: mile, scenarioKey: '別のシナリオ' });
 	assert(pt2.b.entries.length === 0, 'ほかのシナリオの鍵では、トレセン軒の行を使わない');
 }
 {
@@ -220,10 +240,10 @@ assert(!!orfe && ownGold(orfe).length === 2, 'オルフェーヴル総攬（' + 
 	if (!hit) console.log('[--] 衣装自身の金スキルがシナリオの6組にも入る衣装は無い（この確認は行わない。表の検査は通っている）');
 	else {
 		const both = hit.gold.filter((g) => scenarioBases.includes(g));
-		const p = await plan({ umaId: hit.id, takenIds: hit.gold.concat(scenarioBases), filter: { distance: 'mile', surface: 'dirt', style: 'senko' }, race: null });
+		const p = await plan({ umaId: hit.id, takenIds: hit.gold.concat(scenarioBases), filter: { distance: 'mile', surface: 'dirt', style: 'senko' }, race: mkRace('t-mile-dirt', 1600, 'dirt') });
 		const aEvolved = p.a.filter((e) => e.default !== 'none' && e.default !== 'invalid').map((e) => e.baseId);
 		const overlap = both.filter((g) => aEvolved.includes(g));
-		assert(overlap.every((g) => !p.b.entries.some((e) => e.baseId === g)), 'A で進化した金スキルは B の行に出ない（' + hit.id + '。A 進化=' + aEvolved.join() + '・重なり=' + overlap.join() + '）');
+		assert(overlap.length > 0 && overlap.every((g) => !p.b.entries.some((e) => e.baseId === g)), 'A で進化した金スキルは B の行に出ない（' + hit.id + '。A 進化=' + aEvolved.join() + '・重なり=' + overlap.join() + '）');
 	}
 }
 {
@@ -236,7 +256,7 @@ assert(!!orfe && ownGold(orfe).length === 2, 'オルフェーヴル総攬（' + 
 			...['ex-0029', 'ex-0183', 'ex-0645', 'ex-0657', 'ex-0668'].map((b, i) => ({ kind: 'scenario', scenarioId: 'S', baseSkillId: b, evolvedSkillIds: ['ex-1034'] }))
 		]
 	};
-	const p = await plan({ umaId: 'u1', takenIds: ['ex-0470', 'ex-0484', 'ex-0616', 'ex-0029', 'ex-0183', 'ex-0645', 'ex-0657', 'ex-0668'], filter: { distance: 'medium' }, race: null, evolutions: synth, scenarioKey: 'S' });
+	const p = await plan({ umaId: 'u1', takenIds: ['ex-0470', 'ex-0484', 'ex-0616', 'ex-0029', 'ex-0183', 'ex-0645', 'ex-0657', 'ex-0668'], filter: { distance: 'medium', surface: 'turf' }, race: mkRace('t-medium', 2000, 'turf'), evolutions: synth, scenarioKey: 'S' });
 	assert(p.slots.a === 3 && p.slots.max === 5, '合成: A の枠3・最大5', p.slots);
 	assert(p.count.a <= 3 && p.count.b === 2 && p.count.a + p.count.b <= 5, '合成: A は枠まで・B は2つまで・合計は最大5まで', p.count);
 	const ids = await page.evaluate(() => ['ex-1000', 'ex-0985', '12', 'ex-0100', '5', 'zz', 'ex-0002'].sort(window.UmaSkillDeckCore.compareSkillIds));
