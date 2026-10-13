@@ -8681,7 +8681,7 @@
 			const rd = sk.raceDistance;
 			if (rd && typeof rd === 'object') {
 				const hasMin = typeof rd.min === 'number', hasMax = typeof rd.max === 'number';
-				if (hasMin && hasMax) parts.push(rd.min + '〜' + rd.max + 'm');
+				if (hasMin && hasMax) parts.push(rd.min === rd.max ? rd.min + 'm' : rd.min + '〜' + rd.max + 'm');
 				else if (hasMin) parts.push(rd.min + 'm以上');
 				else if (hasMax) parts.push(rd.max + 'm以下');
 				else if (rd.standardDistance === true) parts.push('根幹距離');
