@@ -3875,7 +3875,7 @@
 		if (!r || typeof r !== 'object') return false;
 		if (r.umaId) return true;
 		if ((r.cardIds || []).some(Boolean)) return true;
-		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'outsideCardExcluded', 'outsideSkillExcluded', 'race', 'outsideOptions'].some(k => r[k] !== undefined && r[k] !== null);
+		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'evolutionChoices', 'outsideCardExcluded', 'outsideSkillExcluded', 'race', 'outsideOptions'].some(k => r[k] !== undefined && r[k] !== null);
 	}
 
 	/**
@@ -5414,11 +5414,53 @@
 		'.usd-roster-slot { min-height: 36px; }',
 		// 合計の1行（(11)〜(13)）。375px で収まらないときは、ボタン4つが2行目に落ちる（.usd-roster-sumbtns を1つの塊にしてある）
 		// 段9: ①の帯。左「X Pt／N種 ?」、中「勉強家 切れ者 覚醒Lv5」（足りなければ横スクロール。右に薄いフェード）、右端に「↺」
-		'.usd-roster-sumrow { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--uma-sp-1) var(--uma-sp-2); min-width: 0; }',
-		'.usd-roster-sumhead { flex: none; display: inline-flex; align-items: center; gap: var(--uma-sp-1-5); white-space: nowrap; }',
-		'.usd-roster-sumbtns { flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; flex-wrap: nowrap; gap: var(--uma-sp-1); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; }',
-		'.usd-roster-sumbtns::-webkit-scrollbar { display: none; }',
+		// 段4: 帯は1行に収まる幅では1行（左から 合計・進化・勉強家 切れ者 覚醒Lv5・↺）。収まらない幅だけ fitBand が --two を付け、
+		// 1行目＝合計・勉強家 切れ者 覚醒Lv5・↺、2行目＝進化（左）にする。横スクロール・フェードは使わない（ボタンが切れない）
+		'.usd-roster-sumrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--uma-sp-1) var(--uma-sp-2); min-width: 0; }',
+		'.usd-roster-sumtext { flex: none; display: inline-flex; align-items: center; min-height: 28px; padding: 0 2px; border: 0; border-radius: var(--uma-r-sm); background: transparent; color: inherit; font: inherit; cursor: pointer; }',
+		'.usd-roster-sumtext:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
+		'.usd-evo-wrap { flex: none; display: inline-flex; align-items: center; gap: var(--uma-sp-1); }',
+		'.usd-evo-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; padding: 0 var(--uma-sp-3); border: 2px solid var(--evo-edge-on); border-radius: 12px;',
+		'  background: var(--evo-btn-bg); color: var(--evo-text); font: inherit; line-height: 1; white-space: nowrap; cursor: pointer; }',
+		'.usd-evo-btn b { font-size: 14px; font-weight: 700; }',
+		'.usd-evo-btn span { font-size: 12px; font-weight: 400; }',
+		'.usd-evo-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
+		'.usd-evo-bang { flex: none; width: 22px; height: 22px; min-width: 22px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; }',
+		'.usd-roster-sumbtns { flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--uma-sp-1); }',
 		'.usd-roster-sumbtns > * { flex: none; white-space: nowrap; }',
+		'.usd-roster-sumbreak { display: none; }',
+		'.usd-roster-sumrow--two .usd-roster-sumtext { order: 1; }',
+		'.usd-roster-sumrow--two .usd-roster-sumbtns { order: 2; }',
+		'.usd-roster-sumrow--two .usd-reset-btn { order: 3; }',
+		'.usd-roster-sumrow--two .usd-roster-sumbreak { display: block; order: 4; flex: 0 0 100%; height: 0; }',
+		'.usd-roster-sumrow--two .usd-evo-wrap { order: 5; }',
+		// 進化の選択画面（段4）。色は --evo- の変数。スマホは下から出るシート（共有の .uma-popover の作り。高さは dvh）
+		'.usd-evo-pop { background: var(--evo-sheet-bg); color: var(--evo-sheet-text); border-color: var(--evo-sheet-edge); max-height: 88vh; max-height: min(88dvh, 760px); }',
+		'@media (min-width: 641px) { .usd-evo-pop { width: min(92vw, 560px); } }',
+		'.usd-evo-pop .uma-popover-head { border-bottom-color: var(--evo-sheet-edge); }',
+		'.usd-evo-pop .uma-popover-title { color: var(--evo-sheet-text); }',
+		'.usd-evo-pop .uma-popover-close { width: 44px; height: 44px; color: var(--evo-sheet-text); }',
+		'.usd-evo { display: flex; flex-direction: column; gap: var(--uma-sp-2); color: var(--evo-sheet-text); }',
+		'.usd-evo-tabs { display: flex; gap: var(--uma-sp-1-5); }',
+		'.usd-evo-tab { min-height: 44px; padding: 0 var(--uma-sp-3); font-size: 14px; }',
+		'.usd-evo-cond { margin: 0; font-size: 12px; line-height: 1.4; color: var(--evo-sheet-text); }',
+		'.usd-evo-subhead { margin: var(--uma-sp-1) 0 0; font-size: 14px; line-height: 1.3; font-weight: 700; }',
+		'.usd-evo-group { display: flex; flex-direction: column; gap: 6px; padding: var(--uma-sp-2); border-radius: 10px; background: var(--evo-group-bg); }',
+		'.usd-evo-base { display: flex; align-items: center; gap: var(--uma-sp-2); min-height: 44px; padding: 6px var(--uma-sp-2); border: 2px solid var(--evo-base-edge); border-radius: 8px;',
+		'  background: linear-gradient(90deg, var(--evo-base-from), var(--evo-base-mid), var(--evo-base-to)); color: var(--evo-base-text); }',
+		'.usd-evo-arrow { text-align: center; font-size: 12px; line-height: 1; letter-spacing: 3px; color: var(--evo-arrow); }',
+		'.usd-evo-target, .usd-evo-none { display: flex; align-items: center; gap: var(--uma-sp-2); min-height: 44px; padding: 6px var(--uma-sp-2); border-radius: 8px; cursor: pointer; }',
+		'.usd-evo-target { border: 2px solid var(--evo-edge); background: linear-gradient(90deg, var(--evo-from), var(--evo-mid), var(--evo-to)); color: var(--evo-text); }',
+		'.usd-evo-target--on { border-color: var(--evo-edge-on); }',
+		'.usd-evo-none { border: 2px solid var(--evo-none-edge); background: var(--evo-none-bg); color: var(--evo-none-text); }',
+		'.usd-evo-none--on { border-color: var(--evo-none-text); }',
+		'.usd-evo-target input, .usd-evo-none input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--evo-edge-on); }',
+		'.usd-evo-icon { flex: none; width: 32px; height: 32px; box-sizing: border-box; border: 2px solid currentColor; border-radius: 6px; background: rgba(255, 255, 255, .35); }',
+		'.usd-evo-text { display: flex; flex-direction: column; min-width: 0; gap: 1px; }',
+		'.usd-evo-name { font-size: 15px; line-height: 1.3; font-weight: 700; overflow-wrap: anywhere; }',
+		'.usd-evo-sub { font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; }',
+		'.usd-evo-warn { margin: 0; font-size: 13px; line-height: 1.4; font-weight: 700; color: var(--evo-warn); }',
+		'.usd-evo-close { width: 100%; min-height: 44px; justify-content: center; }',
 		'.usd-roster-togglebtn { font: inherit; font-size: 11px; line-height: 1.2; font-weight: 600; padding: var(--uma-sp-1) var(--uma-sp-1-5); min-height: 28px;',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text); cursor: pointer; white-space: nowrap; }',
 		'.usd-roster-togglebtn[aria-pressed="true"] { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }',
@@ -5798,7 +5840,12 @@
 		'  .usd-roster-pickbox, .usd-roster-slot { min-height: 30px; }',
 		'  .usd-roster-pickbtn { padding-block: var(--uma-sp-1); }',
 		'  .usd-roster-clearbtn { min-height: 28px; }',
-		'  .usd-roster-sumrow { gap: 0 var(--uma-sp-2); }',
+		'  .usd-roster-ptsum.usd-bandbox { padding-inline: 6px; }',
+		'  .usd-roster-sumrow { gap: 2px 3px; }',
+		'  .usd-roster-sumrow .usd-roster-sumbtns { gap: 3px; }',
+		'  .usd-roster-sumrow .usd-roster-togglebtn { padding-inline: 4px; }',
+		'  .usd-roster-sumtext { padding: 0; }',
+		'  .usd-evo-btn { padding: 0 6px; gap: 3px; }',
 		'  .usd-roster-ptsum { gap: 0; }',
 		'  .usd-roster-prev { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); }',
 		'  .usd-roster-filtersel { padding-block: var(--uma-sp-0-5); min-height: 28px; }',
@@ -8125,6 +8172,7 @@
 	 *   o.title  … 見出し／ o.build(body) … 本文を DOM で作る／ o.btn … aria-expanded を付け外しするボタン
 	 *   o.opener … 閉じたときにフォーカスを戻す要素／ o.refocus … それが無くなっていたときに探すセレクタ／ o.onClose … 閉じたときの後始末
 	 *   o.titleHtml … 見出しを HTML で渡す（呼び出し元が esc 済みのもの。番号のバッジを付けるとき。段7b の ⑩）。無ければ o.title
+	 *   o.popClass … この小窓だけに付ける追加のクラス（次に別の小窓を開くと外れる。進化の画面の色・高さ・× の大きさ）
 	 *   o.wide … 広い幅で小窓の幅を広げる（イベントの選択の2カラム。共有の CSS には触らず、core のスタイルの修飾クラスで広げる）
 	 */
 	function openPopover(o) {
@@ -8134,6 +8182,9 @@
 		const token = ++skillInfoToken;
 		skillInfoCur = { key: o.key || '', skillId: o.skillId || null, btn: o.btn || null, opener: o.opener || o.btn || null, token: token, refocus: o.refocus || null, onClose: o.onClose || null };
 		ui.pop.classList.toggle('usd-info-pop--wide', !!o.wide);
+		if (ui.popClass) ui.pop.classList.remove(ui.popClass);
+		ui.popClass = o.popClass || '';
+		if (ui.popClass) ui.pop.classList.add(ui.popClass);
 		const oldSwitch = ui.head.querySelector('.usd-ev-switch');
 		if (oldSwitch) oldSwitch.parentNode.removeChild(oldSwitch);
 		if (o.titleHtml) ui.title.innerHTML = o.titleHtml; else ui.title.textContent = o.title || '';
@@ -8518,6 +8569,7 @@
 		let eventsFor = null;         // イベントを選ぶ小窓を開いている列のメンバー（段7の (19)。保存しない）
 		let gridScrollReset = false;  // 次の描き直しで、表の中のスクロールを先頭へ戻すか（並べ替え・絞り込みのとき。段7c の M）
 		let evoPlan = null;           // いまの描き直しの進化の決定（段4。render の先頭で求める。computeEvolutionPlan の結果。保存しない）
+		let evoSheet = null;          // 進化の選択画面を開いていれば { tab: 'a' | 'b' }（段4。保存しない）
 		const uidBase = uid('roster');
 
 		/* ------------------------------------------------------------
@@ -8578,6 +8630,283 @@
 		function evolvedIdOf(baseId) {
 			const c = evoPlan && evoPlan.choices ? evoPlan.choices[baseId] : null;
 			return (typeof c === 'string' && c !== 'none') ? c : null;
+		}
+
+		/* ------------------------------------------------------------
+		 * 進化の選択画面（段4・C-150）。帯の「進化」ボタンで開く。パターンA（衣装の進化スキル）と、パターンB（シナリオの進化スキル）は
+		 * 上の切り替えで行き来する（行き先が1つだけのときは切り替えを出さない）。選んだものはその場で保存する（roster.evolutionChoices）。
+		 * **パターンBの画面を開いたら、確認したものとして候補の組を roster.evolutionBSeen に書く**（帯の「！」が消える。「確認した」のボタンは無い）。
+		 * 押せないように見えるボタンは作らない。選べない進化先を押したときは、選ばずに理由を知らせる。
+		 * ------------------------------------------------------------ */
+		const EVO_REASON_NOT_SELECTABLE = 'いまの条件（レース・脚質）では選べません';
+		/** 進化の最大数（衣装の金スキルの数 ＋ そのシナリオに進化のデータがあるときだけ 2） */
+		function evoMaxCount() {
+			return evoPlan.slots.a + (evolutionRowsOfScenario().length > 0 ? 2 : 0);
+		}
+		/** パターンAの行（その衣装の金スキルのうち、いま取っていて、進化先がいまの条件でありうるもの。データの並び） */
+		function evoAEntries() {
+			return evoPlan.a.filter(e => e.choice !== 'invalid');
+		}
+		/** パターンBの候補の行（元スキルの id の昇順。いまの条件で選べる進化先を持つもの） */
+		function evoBEntries() {
+			return evoPlan.b.entries.filter(e => e.choice !== 'invalid' && e.targets.some(t => t.fit !== 'no')).slice().sort((x, y) => compareSkillIds(x.baseId, y.baseId));
+		}
+		/** 進化先の条件の表記（＜中距離＞ ＜追込・芝＞ 2000m以上 のような形）。タグと距離の限定から作る。制限が無ければ空 */
+		function evoConditionText(skillId) {
+			const sk = findSkill(skillId);
+			if (!sk) return '';
+			const tags = sk.tags || {};
+			const labelsOf = (axisKey) => {
+				const axis = TAG_AXES.find(a => a.key === axisKey);
+				const vals = Array.isArray(tags[axisKey]) ? tags[axisKey] : [];
+				const idx = (v) => axis ? axis.options.findIndex(o => o.v === v) : 0;
+				return tagLabels(axisKey, vals.slice().sort((p, q) => idx(p) - idx(q)));
+			};
+			const parts = [];
+			const dist = labelsOf('distance');
+			if (dist.length) parts.push('＜' + dist.join('/') + '＞');
+			const styleSurface = [labelsOf('style').join('/'), labelsOf('surface').join('/')].filter(Boolean);
+			if (styleSurface.length) parts.push('＜' + styleSurface.join('・') + '＞');
+			const rd = sk.raceDistance;
+			if (rd && typeof rd === 'object') {
+				const hasMin = typeof rd.min === 'number', hasMax = typeof rd.max === 'number';
+				if (hasMin && hasMax) parts.push(rd.min + '〜' + rd.max + 'm');
+				else if (hasMin) parts.push(rd.min + 'm以上');
+				else if (hasMax) parts.push(rd.max + 'm以下');
+				else if (rd.standardDistance === true) parts.push('根幹距離');
+			}
+			return parts.join(' ');
+		}
+		/** 見出しの下の「レース: 2000m 芝 / 脚質: 追込」 */
+		function evoConditionLine() {
+			const race = raceOfRoster(roster);
+			const f = resolvedFilter();
+			const raceText = race ? [race.distance ? race.distance + 'm' : '', race.surface ? tagLabel('surface', race.surface) : ''].filter(Boolean).join(' ') || race.name : '未選択';
+			const styleText = f.style ? tagLabel('style', f.style) : '指定なし';
+			return 'レース: ' + raceText + ' / 脚質: ' + styleText;
+		}
+		function evoSetChoices(map) {
+			const cur = (roster.evolutionChoices && typeof roster.evolutionChoices === 'object') ? Object.assign({}, roster.evolutionChoices) : {};
+			Object.assign(cur, map);
+			roster.evolutionChoices = cur;
+			persistNow();
+			render();
+		}
+		/** パターンBの画面を開いたとき、いまの候補の組を確認済みにする。書き換えたら true */
+		function evoMarkBSeen() {
+			const set = evoPlan.b.candidates.slice();
+			const cur = Array.isArray(roster.evolutionBSeen) ? roster.evolutionBSeen : null;
+			if (cur && cur.length === set.length && set.every(id => cur.indexOf(id) !== -1)) return false;
+			roster.evolutionBSeen = set;
+			persistNow();
+			return true;
+		}
+		function evoSheetTitle() { return evoSheet && evoSheet.tab === 'b' ? 'シナリオの進化スキル' : '進化スキル(衣装)'; }
+		/** 帯の「進化」ボタン（と、確認が必要なときの「！」）を押したとき。wantTab は 'a'／'b'（「！」は 'b'）。開けないときは理由を知らせる */
+		function openEvoSheet(btn, wantTab) {
+			const st = evolutionState.status;
+			if (st === 'loading' || st === 'idle') { toast('進化のデータを読み込んでいます'); return; }
+			if (st !== 'ok') { toast('進化のデータを読み込めませんでした'); return; }
+			const hasA = evoAEntries().length > 0, hasB = evoBEntries().length > 0;
+			if (!hasA && !hasB) { toast(!roster.umaId ? '衣装が未選択です' : '進化できるスキルがありません'); return; }
+			let tab = hasA ? 'a' : 'b';
+			if (hasB && (wantTab === 'b' || (!wantTab && evoPlan.b.alert) || !hasA)) tab = 'b';
+			evoSheet = { tab: tab };
+			openPopover({
+				key: 'evo:' + uidBase, title: evoSheetTitle(), popClass: 'usd-evo-pop', btn: btn, opener: btn, refocus: '[data-usd-act="evo-open"]',
+				build: (body) => fillEvoSheet(body),
+				onClose: () => { evoSheet = null; const b = container.querySelector('[data-usd-act="evo-open"]'); if (b) b.setAttribute('aria-expanded', 'false'); }
+			});
+			// パターンBの画面を開いた時点で確認したものとして扱う（帯の「！」を消すために描き直す。描き直しが画面の中身も整える）
+			if (tab === 'b' && evoMarkBSeen()) render();
+		}
+		/** 開いている間に描き直されたとき、画面の中身を作り直す。スクロール位置とフォーカスは保つ。開けなくなっていたら閉じる */
+		function refreshEvoSheet() {
+			if (!evoSheet) return;
+			if (!skillInfoCur || skillInfoCur.key !== 'evo:' + uidBase) { evoSheet = null; return; }
+			const hasA = evoAEntries().length > 0, hasB = evoBEntries().length > 0;
+			if (!hasA && !hasB) { closeSkillInfo(); return; }
+			if (evoSheet.tab === 'a' && !hasA) evoSheet.tab = 'b';
+			if (evoSheet.tab === 'b' && !hasB) evoSheet.tab = 'a';
+			if (evoSheet.tab === 'b' && evoMarkBSeen()) { render(); return; }
+			const btn = container.querySelector('[data-usd-act="evo-open"]');
+			if (btn) { btn.setAttribute('aria-expanded', 'true'); skillInfoCur.btn = btn; skillInfoCur.opener = btn; }
+			const body = skillInfoUi.body;
+			const wrap = body.parentElement;
+			const keep = wrap ? wrap.scrollTop : 0;
+			const focusKey = global.document.activeElement && body.contains(global.document.activeElement) ? global.document.activeElement.getAttribute('data-evo-key') : null;
+			skillInfoUi.title.textContent = evoSheetTitle();
+			body.textContent = '';
+			fillEvoSheet(body);
+			if (wrap) wrap.scrollTop = keep;
+			if (focusKey) { const again = Array.from(body.querySelectorAll('[data-evo-key]')).find(el => el.getAttribute('data-evo-key') === focusKey); if (again) focusNoScroll(again); }
+		}
+		function evoIcon(cls) { const s = infoEl('span', 'usd-evo-icon' + (cls ? ' ' + cls : '')); s.setAttribute('aria-hidden', 'true'); return s; }
+		function fillEvoSheet(body) {
+			const hasA = evoAEntries().length > 0, hasB = evoBEntries().length > 0;
+			const root = infoEl('div', 'usd-evo');
+			root.setAttribute('data-usd-el', 'evo-sheet');
+			root.setAttribute('data-evo-tab', evoSheet.tab);
+			if (hasA && hasB) {
+				const tabs = infoEl('div', 'usd-evo-tabs');
+				tabs.setAttribute('data-usd-el', 'evo-tabs');
+				[['a', '衣装'], ['b', 'シナリオ']].forEach(([k, label]) => {
+					const b = infoEl('button', 'usd-roster-togglebtn usd-evo-tab', label);
+					b.type = 'button';
+					b.setAttribute('aria-pressed', evoSheet.tab === k ? 'true' : 'false');
+					b.setAttribute('data-usd-el', 'evo-tab-' + k);
+					b.setAttribute('data-evo-key', 'tab-' + k);
+					b.addEventListener('click', () => {
+						if (evoSheet.tab === k) return;
+						evoSheet.tab = k;
+						if (k === 'b' && evoMarkBSeen()) { render(); return; }
+						refreshEvoSheet();
+					});
+					tabs.appendChild(b);
+				});
+				root.appendChild(tabs);
+			}
+			if (evoSheet.tab === 'b') fillEvoPatternB(root); else fillEvoPatternA(root);
+			const close = infoEl('button', 'uma-btn uma-btn--secondary usd-evo-close', '閉じる');
+			close.type = 'button';
+			close.setAttribute('data-usd-el', 'evo-close');
+			close.addEventListener('click', () => closeSkillInfo());
+			root.appendChild(close);
+			body.appendChild(root);
+		}
+		function fillEvoPatternA(root) {
+			const cond = infoEl('p', 'usd-evo-cond', evoConditionLine());
+			cond.setAttribute('data-usd-el', 'evo-cond');
+			root.appendChild(cond);
+			evoAEntries().forEach(e => {
+				const g = infoEl('section', 'usd-evo-group');
+				g.setAttribute('data-usd-el', 'evo-group');
+				g.setAttribute('data-base-id', e.baseId);
+				const base = infoEl('div', 'usd-evo-base');
+				base.setAttribute('data-usd-el', 'evo-base');
+				base.appendChild(evoIcon());
+				base.appendChild(infoEl('span', 'usd-evo-name', getSkillName(e.baseId)));
+				g.appendChild(base);
+				const arrow = infoEl('div', 'usd-evo-arrow', '▼▼▼');
+				arrow.setAttribute('aria-hidden', 'true');
+				g.appendChild(arrow);
+				const radioName = 'evo-' + uidBase + '-' + e.baseId;
+				const addRadio = (value, labelEl, on, fit) => {
+					labelEl.setAttribute('data-usd-el', value === 'none' ? 'evo-none' : 'evo-target');
+					labelEl.setAttribute('data-evo-value', value);
+					const inp = infoEl('input');
+					inp.type = 'radio';
+					inp.name = radioName;
+					inp.value = value;
+					inp.checked = on;
+					inp.setAttribute('data-evo-key', e.baseId + ':' + value);
+					inp.addEventListener('click', (ev) => {
+						if (fit === 'no') { ev.preventDefault(); toast(EVO_REASON_NOT_SELECTABLE); return; }
+						if (on) return;
+						evoSetChoices({ [e.baseId]: value });
+					});
+					labelEl.insertBefore(inp, labelEl.firstChild);
+				};
+				e.targets.forEach(t => {
+					const on = e.choice === t.id;
+					const lab = infoEl('label', 'usd-evo-target' + (on ? ' usd-evo-target--on' : ''));
+					lab.appendChild(evoIcon());
+					const txt = infoEl('span', 'usd-evo-text');
+					txt.appendChild(infoEl('span', 'usd-evo-name', getSkillName(t.id)));
+					const c = evoConditionText(t.id);
+					if (c) { const sub = infoEl('span', 'usd-evo-sub', c); sub.setAttribute('data-usd-el', 'evo-sub'); txt.appendChild(sub); }
+					lab.appendChild(txt);
+					addRadio(t.id, lab, on, t.fit);
+					g.appendChild(lab);
+				});
+				const noneOn = e.choice === 'none';
+				const none = infoEl('label', 'usd-evo-none' + (noneOn ? ' usd-evo-none--on' : ''));
+				none.appendChild(infoEl('span', 'usd-evo-name', '進化しない'));
+				addRadio('none', none, noneOn, null);
+				g.appendChild(none);
+				root.appendChild(g);
+			});
+		}
+		function fillEvoPatternB(root) {
+			const list = evoBEntries();
+			const picked = list.filter(e => e.choice !== 'none').length;
+			const lead = infoEl('p', 'usd-evo-cond', (evoPlan.b.scenario || '') + ' / 2つまで選べます。');
+			lead.setAttribute('data-usd-el', 'evo-lead');
+			root.appendChild(lead);
+			if (evoPlan.b.candidates.length >= 3) {
+				const more = infoEl('p', 'usd-evo-cond', '候補が3つ以上あるため、選ぶものを確認してください。');
+				more.setAttribute('data-usd-el', 'evo-many');
+				root.appendChild(more);
+			}
+			const h = infoEl('h3', 'usd-evo-subhead', '候補（選択 ' + picked + '／2）');
+			h.setAttribute('data-usd-el', 'evo-subhead');
+			root.appendChild(h);
+			const box = infoEl('div', 'usd-evo-group');
+			box.setAttribute('data-usd-el', 'evo-blist');
+			list.forEach(e => {
+				const on = e.choice !== 'none';
+				const t = e.targets.find(x => x.fit !== 'no') || e.targets[0];
+				const lab = infoEl('label', 'usd-evo-brow usd-evo-target' + (on ? ' usd-evo-target--on' : ''));
+				lab.setAttribute('data-usd-el', 'evo-brow');
+				lab.setAttribute('data-base-id', e.baseId);
+				const inp = infoEl('input');
+				inp.type = 'checkbox';
+				inp.checked = on;
+				inp.setAttribute('data-evo-key', 'b:' + e.baseId);
+				inp.addEventListener('click', (ev) => {
+					if (!on && picked >= 2) { ev.preventDefault(); return; }   // 2つ選んでいる間は増やさない（下の赤い注意文が理由）
+					// 候補すべてのキーを書く（選んだものは進化先の id、選んでいないものは 'none'）。候補の組が変わったとき、利用者の選択と既定を区別できる
+					const tgt = {};
+					list.forEach(x => {
+						const evolving = x.baseId === e.baseId ? !on : x.choice !== 'none';
+						tgt[x.baseId] = evolving ? (x.baseId === e.baseId ? t.id : x.choice) : 'none';
+					});
+					evoSetChoices(tgt);
+				});
+				lab.appendChild(inp);
+				lab.appendChild(evoIcon());
+				const txt = infoEl('span', 'usd-evo-text');
+				txt.appendChild(infoEl('span', 'usd-evo-name', getSkillName(t.id)));
+				const c = evoConditionText(t.id);
+				const sub = infoEl('span', 'usd-evo-sub', '元: ' + getSkillName(e.baseId) + (c ? ' / ' + c : ''));
+				sub.setAttribute('data-usd-el', 'evo-sub');
+				txt.appendChild(sub);
+				lab.appendChild(txt);
+				box.appendChild(lab);
+			});
+			root.appendChild(box);
+			if (picked >= 2) {
+				const warn = infoEl('p', 'usd-evo-warn', '選べるのは2つまでです。3つ目を選ぶには、先にどれかの選択を外してください。');
+				warn.setAttribute('data-usd-el', 'evo-warn');
+				root.appendChild(warn);
+			}
+		}
+
+		/** 帯の「進化 N／最大」ボタンと、確認が必要なときの「！」（押すと進化の画面。「！」はパターンBから開く） */
+		function evoBandHtml() {
+			const n = evoPlan.count.a + evoPlan.count.b, max = evoMaxCount();
+			let s = '<span class="usd-evo-wrap" data-band="1" data-usd-el="evo-wrap">'
+				+ '<button type="button" class="usd-evo-btn" data-usd-act="evo-open" data-usd-el="evo-btn" aria-haspopup="dialog" aria-expanded="' + (evoSheet ? 'true' : 'false') + '"'
+				+ ' aria-label="進化スキルを選ぶ（' + n + '／' + max + '）" title="進化スキルを選ぶ"><b>進化</b><span>' + n + '／' + max + '</span></button>';
+			if (evoPlan.b.alert) {
+				s += '<button type="button" class="usd-roster-legend-no usd-roster-evbtn usd-roster-evbtn--alert usd-evo-bang" data-usd-act="evo-open" data-evo-tab="b" data-usd-el="evo-bang"'
+					+ ' aria-label="確認が必要な進化があります" title="確認が必要な進化があります">!</button>';
+			}
+			return s + '</span>';
+		}
+		/**
+		 * 帯が1行に収まらない幅のときだけ、2行にする（進化ボタンを2行目の左へ）。1行目の項目の縦の中心が揃っているかで見る。
+		 * 描き直しのたびと、幅が変わったときに測る（ボタンは切れず・薄くならず・フェードしない）
+		 */
+		function fitBand() {
+			const row = container.querySelector('[data-usd-el="pt-sumrow"]');
+			if (!row) return;
+			row.classList.remove('usd-roster-sumrow--two');
+			const kids = Array.prototype.slice.call(row.querySelectorAll(':scope > [data-band]'));
+			if (kids.length === 0) return;
+			const center = (el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2; };
+			const c0 = center(kids[0]);
+			if (kids.some(k => Math.abs(center(k) - c0) > 6)) row.classList.add('usd-roster-sumrow--two');
 		}
 
 		/**
@@ -8691,14 +9020,14 @@
 			const rules = view.rules;
 			const s = view.settings;
 			const pt = view.pt;
-			// 薄い帯（段9・C-121）: 左「X Pt／N種 ?」、中「勉強家 切れ者 覚醒Lv5」（足りなければ横スクロール。右に薄いフェード）、右端に「↺」（リセット）
+			// 薄い帯（段9・C-121。段4で変更）: 左「X Pt／N種」（押すと内訳の小窓。「?」は外した）と「進化 N／最大」（＋確認が必要なときの「！」）、
+			// 中「勉強家 切れ者 覚醒Lv5」、右端に「↺」（リセット）。1行に収まらない幅だけ2行（進化は2行目の左。fitBand）。ボタンは切れず・薄くならない
 			let h = '<div class="usd-roster-ptsum usd-bandbox" data-usd-el="pt-sum">';
 			h += '<div class="usd-roster-sumrow" data-usd-el="pt-sumrow">';
-			h += '<span class="usd-roster-sumhead">'
-				+ '<span class="usd-band-sum" data-usd-el="roster-sum">' + bandSumHtml(pt.totalWithPrev, res.kindCount, 'pt-total', 'pt-count') + '</span>'
-				+ '<button type="button" class="uma-help-btn" data-usd-act="pt-help" data-usd-el="pt-help-btn" aria-expanded="false" aria-label="合計の説明を開く" title="合計の説明を開く">?</button>'
-				+ '</span>';
-			h += '<span class="usd-roster-sumbtns usd-hscroll" data-usd-no-trim="1" data-usd-el="pt-sumbtns">';
+			h += '<button type="button" class="usd-roster-sumtext" data-band="1" data-usd-act="pt-help" data-usd-el="pt-help-btn" aria-expanded="false" aria-haspopup="dialog" aria-label="本育成のスキルPtの説明を開く" title="本育成のスキルPtの説明を開く">'
+				+ '<span class="usd-band-sum" data-usd-el="roster-sum">' + bandSumHtml(pt.totalWithPrev, res.kindCount, 'pt-total', 'pt-count') + '</span></button>';
+			h += evoBandHtml();
+			h += '<span class="usd-roster-sumbtns" data-band="1" data-usd-el="pt-sumbtns">';
 			rules.statuses.filter(st => st.id !== PT_STATUS_DEFAULT).forEach(st => {
 				h += '<button type="button" class="usd-roster-togglebtn" data-usd-act="pt-status" data-value="' + esc(st.id) + '"'
 					+ ' aria-pressed="' + (st.id === s.status ? 'true' : 'false') + '" title="' + esc(st.label + (st.percent > 0 ? ' −' + st.percent + '%' : '')) + '">' + esc(st.label) + '</button>';
@@ -8713,7 +9042,8 @@
 					+ ' title="' + esc(blocked ? umaLevelBlockedReason(view) : '育成ウマ娘の覚醒ヒントLv' + choice) + '">覚醒Lv' + choice + '</button>';
 			}
 			h += '</span>';
-			h += resetBtnHtml('roster-reset', 'roster-reset', '①本育成編成をリセット', !rosterResettable(roster));
+			h += '<span class="usd-roster-sumbreak" aria-hidden="true"></span>';
+			h += resetBtnHtml('roster-reset', 'roster-reset', '①本育成編成をリセット', !rosterResettable(roster)).replace('class="usd-reset-btn"', 'class="usd-reset-btn" data-band="1"');
 			h += '</div>';
 			h += '</div>';
 			return h;
@@ -8748,8 +9078,6 @@
 				line('', '絞り込み中：' + keys.map(k => { const axis = TAG_AXES.find(a => a.key === k); return axis.label + ' ' + tagLabel(k, sel[k]); }).join('／'), 'info-filter');
 			}
 			if (pt.allUnpricedCount > 0) line('', '（Pt未収録' + pt.allUnpricedCount + '種は含めていません）', 'info-unpriced');
-			const reason = umaLevelBlockedReason(view);
-			if (reason) line('', reason, 'info-uma-reason');
 			// 取得しないスキル（段7c の M）。0種のときは出さない。押すとすべてオンに戻る
 			if (res.offList.length > 0) {
 				const row = infoEl('div', 'usd-info-offrow');
@@ -9230,6 +9558,7 @@
 			const findHadFocus = inputFocusedIn(modalHost, 'find');
 			const nameHadFocus = inputFocusedIn(container, 'name');
 			container.innerHTML = h;
+			fitBand();
 			if (keepGrid) {
 				const nw = container.querySelector('.usd-roster-grid-wrap');
 				if (nw) { nw.scrollTop = keepGrid.top; nw.scrollLeft = keepGrid.left; }
@@ -9259,6 +9588,8 @@
 			if (nameEdit) nameEdit.focusOnce = false;
 			// イベントを選ぶ小窓が開いていれば、中身を作り直す（選んだ結果をその場で映す）
 			if (eventsFor !== null) refreshEventsPopover(res);
+			// 進化の画面が開いていれば、中身を作り直す（選んだ結果をその場で映す）
+			if (evoSheet) refreshEvoSheet();
 			notifySureCount(res);
 			// 本育成のぶんが変わったことを、②へ知らせる（段5・段7）
 			emitRosterPtChange();
@@ -9408,6 +9739,12 @@
 			else if (act === 'toggle-unconf') { showUnconf = !showUnconf; render(); }
 			else if (act === 'uma-info') {
 				openPopover({ key: 'uma-info:' + uidBase, title: '育成ウマ娘', build: fillUmaInfo, btn: btn, opener: btn, refocus: '[data-usd-act="uma-info"]' });
+			}
+			else if (act === 'evo-open') {
+				// 進化の画面（段4）。開いているときにもう一度押すと閉じる（「！」は、パターンBの画面へ切り替える）
+				const isBang = btn.hasAttribute('data-evo-tab');
+				if (skillInfoCur && skillInfoCur.key === 'evo:' + uidBase && !isBang) { closeSkillInfo(); return; }
+				openEvoSheet(container.querySelector('[data-usd-el="evo-btn"]') || btn, btn.getAttribute('data-evo-tab') || '');
 			}
 			else if (act === 'pt-help') {
 				openPopover({ key: 'pt-help:' + uidBase, title: '本育成のスキルPt', build: fillSummaryInfo, btn: btn, opener: btn, refocus: '[data-usd-act="pt-help"]' });
