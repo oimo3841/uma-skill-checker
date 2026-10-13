@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-13d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14a';
 
 	/* ============================================================
 	 * 定数
@@ -7723,6 +7723,10 @@
 	 *   scenarioKey … パターンBに使うシナリオの鍵（省略時は evolutionScenarioKey()）
 	 *   evolutions  … 進化の対応の doc（省略時は読み込み済みのもの）。{ entries: [...] }
 	 *   effectRank  … skillId → 効果の段階の数値（大きいほど大きい）か null の関数（省略時は読み込み済みの skill-effect-levels）
+	 *   choices   … 手で変えた選択（roster.evolutionChoices。{ baseId: 進化先の id | 'none' }）。省略すると既定だけ（段3と同じ出力）。
+	 *               有効＝'none'、または進化先がその行にあり、いまの条件で「合わない」でないもの。**無効な保存値は消さず、既定で表示する**
+	 *               （保存値は書き換えない）。パターンBは、有効な選択と既定を合わせて2つを超えたら、id の大きいほうから（既定で決まったものを先に）「進化しない」へ戻す
+	 *   bSeen     … 確認済みのパターンBの候補の組（roster.evolutionBSeen。id の配列）。候補の組がこれと同じなら「！」を出さない（b.alert）
 	 *
 	 * 返り値:
 	 *   specified … レースを選んでいる（false なら全部「進化しない」で、「！」も出さない）。raceSelected も同じ値
@@ -7730,7 +7734,9 @@
 	 *   a         … [{ baseId, baseFit, targets: [{ id, fit }], default: 進化先の id | 'none' | 'invalid', visible }]
 	 *   b         … { scenario, candidates: [baseId…（id の昇順）], entries: [同上＋ candidate], defaults: [baseId…（先頭2つ）], bang }
 	 *   defaultChoices … { baseId: 進化先の id | 'none' }（無効のものは含めない）。A と B をまとめたもの
-	 *   count     … { a, b, max }（既定で進化する数）
+	 *   count     … { a, b, max }（いま進化する数。choices が無ければ既定の数）
+	 *   choices   … { baseId: 進化先の id | 'none' }（いまの選択＝有効な保存値か既定。無効のものは含めない）。各行（a・b.entries）には choice（同じ値か 'invalid'）と stored（有効な保存値か null）も付く
+	 *   b.alert   … 「！」を出すか（bang で、候補の組が bSeen と違うとき）
 	 * fit は内部の分類（'must'＝指定に例外なく合う／'may'＝距離の区分の一部でしか合わない／'no'＝合わない）。画面には出さない（条件だけを出す）。
 	 * 'invalid'（無効）＝進化元にも、どの進化先にも合わない。進化先が選べるのに既定にならないだけのとき、default は 'none'（行は出す）。
 	 */
@@ -7769,8 +7775,17 @@
 
 		// パターンA
 		const rowsA = a.umaId ? (idx.byUma.get(a.umaId) || []) : [];
+		const stored = (a.choices && typeof a.choices === 'object') ? a.choices : {};
+		const storedChoiceOf = (e) => {
+			if (!Object.prototype.hasOwnProperty.call(stored, e.baseId)) return null;
+			const v = stored[e.baseId];
+			if (v === 'none') return 'none';
+			return (typeof v === 'string' && e.targets.some(t => t.id === v && t.fit !== 'no')) ? v : null;
+		};
+		const evolves = (c) => c !== 'none' && c !== 'invalid';
 		const aOut = rowsA.filter(r => taken.has(r.baseSkillId)).map(judge);
-		const aEvolved = new Set(aOut.filter(e => e.default !== 'none' && e.default !== 'invalid').map(e => e.baseId));
+		aOut.forEach(e => { e.stored = storedChoiceOf(e); e.choice = e.default === 'invalid' ? 'invalid' : (e.stored !== null ? e.stored : e.default); });
+		const aEvolved = new Set(aOut.filter(e => evolves(e.choice)).map(e => e.baseId));
 
 		// パターンB（ツールが使うシナリオの行だけ。パターンAで進化させた金スキルは対象外）
 		const rowsB = scenarioKey ? (idx.byScenario.get(scenarioKey) || []) : [];
@@ -7780,18 +7795,38 @@
 		const bDefaults = candidates.slice(0, 2);
 		bPool.forEach(e => { e.default = !specified ? 'none' : (bDefaults.indexOf(e.baseId) !== -1 ? e._best : (e.default === 'invalid' ? 'invalid' : 'none')); e.visible = e.default !== 'invalid'; });
 
+		// 保存された選択（B）。有効な保存値は既定より優先し、合わせて2つを超えたら id の大きいほうから戻す（既定で決まったものを先に）
+		bPool.forEach(e => { e.stored = storedChoiceOf(e); e.choice = e.default === 'invalid' ? 'invalid' : (e.stored !== null ? e.stored : e.default); });
+		const bOrdered = bPool.slice().sort((x, y) => compareSkillIds(x.baseId, y.baseId));
+		const trim = (pickStored) => {
+			for (;;) {
+				const live = bOrdered.filter(e => evolves(e.choice));
+				if (live.length <= 2) return;
+				const victims = live.filter(e => (e.stored !== null) === pickStored);
+				if (victims.length === 0) return;
+				victims[victims.length - 1].choice = 'none';
+			}
+		};
+		trim(false);
+		trim(true);
 		const defaultChoices = {};
 		aOut.concat(bPool).forEach(e => { if (e.default !== 'invalid') defaultChoices[e.baseId] = e.default; });
+		const choices = {};
+		aOut.concat(bPool).forEach(e => { if (e.choice !== 'invalid') choices[e.baseId] = e.choice; });
 		const strip = (e) => { const o = Object.assign({}, e); delete o._best; return o; };
-		const countA = aOut.filter(e => e.default !== 'none' && e.default !== 'invalid').length;
-		const countB = bPool.filter(e => e.default !== 'none' && e.default !== 'invalid').length;
+		const countA = aOut.filter(e => evolves(e.choice)).length;
+		const countB = bPool.filter(e => evolves(e.choice)).length;
+		const bSeen = Array.isArray(a.bSeen) ? a.bSeen.filter(x => typeof x === 'string') : null;
+		const sameSet = (x, y) => !!y && x.length === y.length && x.every(id => y.indexOf(id) !== -1);
+		const bang = specified && candidates.length >= 3;
 		return {
 			specified: specified,
 			raceSelected: raceSelected,
 			slots: { a: rowsA.length, b: 2, max: rowsA.length + 2 },
 			a: aOut.map(strip),
-			b: { scenario: scenarioKey || null, candidates: candidates, entries: bPool.map(strip), defaults: bDefaults, bang: specified && candidates.length >= 3 },
+			b: { scenario: scenarioKey || null, candidates: candidates, entries: bPool.map(strip), defaults: bDefaults, bang: bang, alert: bang && !sameSet(candidates, bSeen) },
 			defaultChoices: defaultChoices,
+			choices: choices,
 			count: { a: countA, b: countB, max: rowsA.length + 2 }
 		};
 	}

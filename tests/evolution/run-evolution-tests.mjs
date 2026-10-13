@@ -8,6 +8,7 @@
 //   §2 既定の決定関数（computeEvolutionPlan）を表で回す（C-149: 既定を自動で選ぶのはレースを選んだときだけ）: 全衣装 × 主なレース条件で、決まり（上限・指定なし・id 昇順・Aで進化したらBの対象外・同じ入力は同じ出力）が成り立つ
 //   §3 手書きの期待値（オルフェーヴルの君臨・睥睨と3つの進化先／トレセン軒の6組／合成データの上限）
 //   §4 ex-1606（距離が範囲と根幹距離の両方を持つ行）は、範囲に当たれば合う（根幹距離は判定に使わない。C-148）
+//   §6 手で変えた選択（choices）と確認済みの候補（bSeen）を効かせる（段4の保存・つなぎ込み）
 //   §5 新しい勝負服（uma-0271。2026-10-13）の受け入れ: ①の衣装の選択に出る・進化の既定・イベントで得られるスキル
 //
 // 件数の基準（受け入れ前に測った値）: 辞書 = マスター445 ＋ 追加カタログ747 = 1192
@@ -325,6 +326,52 @@ console.log('\n=== §5 新しい勝負服（uma-0271）: ①の衣装の選択�
 	assert(r.longOikomi[G2] === 'none' && !(G1 in r.longOikomi), '長距離 芝3000m・追込: 抜山蓋世（追込）は「進化しない」、陽炎（差し）は無効', r.longOikomi);
 	assert(r.eventSkills.includes('290') && r.eventSkills.includes('272'), '①の表に、イベントで得られるスキル（一歩ずつ前へ・むきだしの情熱）が出る', r.eventSkills);
 	assert(r.itemIds.includes('290') && r.itemIds.includes('272'), '①の表の行にも入る', r.itemIds);
+}
+
+/* ───────── §6 手で変えた選択（choices）と確認済みの候補（bSeen） ───────── */
+console.log('\n=== §6 手で変えた選択（choices）・確認済みの候補（bSeen）を効かせる ===');
+{
+	const mkRace = (id, d, surface) => ({ id: id, name: '試験用', venue: null, surface: surface, distance: d, distanceCategory: d <= 1400 ? 'short' : d <= 1800 ? 'mile' : d <= 2400 ? 'medium' : 'long', direction: null, course: null, season: null, weather: null, ground: null, time: null, rule: null });
+	const r = await page.evaluate(({ ORFE, KINRIN, HEIGEI, mile, medium }) => {
+		const C = window.UmaSkillDeckCore;
+		const gold = [KINRIN, HEIGEI];
+		const A = (choices, extra) => C.computeEvolutionPlan(Object.assign({ umaId: ORFE, takenIds: gold, filter: { distance: 'medium', surface: 'turf', style: 'oikomi' }, race: medium, choices: choices }, extra || {}));
+		const six = ['ex-0029', 'ex-0183', 'ex-0616', 'ex-0645', 'ex-0657', 'ex-0668'];
+		const B = (choices, extra) => C.computeEvolutionPlan(Object.assign({ umaId: '', takenIds: six, filter: { distance: 'mile', surface: 'turf' }, race: mile, choices: choices }, extra || {}));
+		const frozen = Object.freeze({ [KINRIN]: 'none' });
+		const out = {};
+		out.def = A(undefined);
+		out.noneKin = A(frozen);
+		out.alt = A({ [HEIGEI]: 'ex-1610' });
+		out.junk = A({ [KINRIN]: 'ex-9999', [HEIGEI]: 'ex-1608' });   // 進化先でないもの・別の行の進化先 → 無効（既定で表示）
+		out.noRace = C.computeEvolutionPlan({ umaId: ORFE, takenIds: gold, filter: {}, race: null, choices: { [KINRIN]: 'ex-1608' } });
+		out.bDef = B(undefined, { bSeen: ['ex-0029', 'ex-0183', 'ex-0657'] });
+		out.bSeenDiff = B(undefined, { bSeen: ['ex-0029', 'ex-0183'] });
+		out.bSeenNone = B(undefined);
+		out.bOneOnly = B({ 'ex-0029': 'none', 'ex-0183': 'none', 'ex-0657': 'ex-1039' });
+		out.bMissing = B({ 'ex-0657': 'ex-1039' });
+		out.bAll3 = B({ 'ex-0029': 'ex-1038', 'ex-0183': 'ex-1034', 'ex-0657': 'ex-1039' });
+		out.bNoRace = C.computeEvolutionPlan({ umaId: '', takenIds: six, filter: {}, race: null, choices: { 'ex-0029': 'ex-1038', 'ex-0616': 'ex-1037' }, bSeen: [] });
+		out.bStale = B({ 'ex-0029': 'ex-1034' });   // 別の行の進化先（無効）
+		// A で進化させた金スキルは B の対象外。A を「進化しない」にしたら B に出る（B の既定の候補に入る）
+		out.frozenKept = JSON.stringify(frozen);
+		return out;
+	}, { ORFE, KINRIN, HEIGEI, mile: mkRace('t-mile', 1600, 'turf'), medium: mkRace('t-medium', 2000, 'turf') });
+	const ent = (p, id) => p.a.concat(p.b.entries).find((e) => e.baseId === id);
+	assert(r.def.choices[KINRIN] === 'ex-1608' && r.def.choices[HEIGEI] === 'ex-1609' && r.def.count.a === 2, '保存なし: choices は既定と同じ', r.def.choices);
+	assert(r.noneKin.choices[KINRIN] === 'none' && ent(r.noneKin, KINRIN).stored === 'none' && r.noneKin.count.a === 1 && r.noneKin.choices[HEIGEI] === 'ex-1609', '保存「進化しない」: 既定より優先し、進化の数も減る', r.noneKin.count);
+	assert(r.noneKin.defaultChoices[KINRIN] === 'ex-1608', '（既定の決定そのものは変わらない）', r.noneKin.defaultChoices);
+	assert(r.alt.choices[HEIGEI] === 'ex-1610' && ent(r.alt, HEIGEI).stored === 'ex-1610', '保存の進化先（既定とは別の進化先）が有効なら、それを使う', r.alt.choices);
+	assert(r.junk.choices[KINRIN] === 'ex-1608' && ent(r.junk, KINRIN).stored === null && r.junk.choices[HEIGEI] === 'ex-1609' && ent(r.junk, HEIGEI).stored === null, '無効な保存値（その行の進化先でない）は既定で表示する', r.junk.choices);
+	assert(r.frozenKept === JSON.stringify({ [KINRIN]: 'none' }), '渡した保存値は書き換えない');
+	assert(r.noRace.choices[KINRIN] === 'ex-1608' && r.noRace.defaultChoices[KINRIN] === 'none' && r.noRace.count.a === 1, 'レース未選択でも、手で選んだ進化先は有効（既定は「進化しない」のまま）', r.noRace.choices);
+	assert(r.bDef.b.bang === true && r.bDef.b.alert === false, '候補の組が確認済みと同じなら「！」は出ない', r.bDef.b.candidates);
+	assert(r.bSeenDiff.b.alert === true && r.bSeenNone.b.alert === true, '候補の組が違う・未確認なら「！」が出る');
+	assert(r.bOneOnly.count.b === 1 && r.bOneOnly.choices['ex-0657'] === 'ex-1039' && r.bOneOnly.choices['ex-0029'] === 'none', 'B: 3つの候補のうち2つを外して1つだけ選べる（既定の2つは「進化しない」へ）', r.bOneOnly.choices);
+	assert(r.bMissing.count.b === 2 && r.bMissing.choices['ex-0657'] === 'ex-1039' && r.bMissing.choices['ex-0183'] === 'none' && r.bMissing.choices['ex-0029'] === 'ex-1038', 'B: 保存が1つだけでも合計は2つまで（既定で決まったもののうち id の大きいほうから戻す）', r.bMissing.choices);
+	assert(r.bAll3.count.b === 2 && r.bAll3.choices['ex-0657'] === 'none' && r.bAll3.choices['ex-0029'] === 'ex-1038' && r.bAll3.choices['ex-0183'] === 'ex-1034', 'B: 保存した選択が3つあっても2つまで（id の大きいほうから戻す）', r.bAll3.choices);
+	assert(r.bNoRace.b.bang === false && r.bNoRace.b.alert === false && r.bNoRace.count.b === 2 && r.bNoRace.choices['ex-0029'] === 'ex-1038' && r.bNoRace.choices['ex-0616'] === 'ex-1037', 'B: レース未選択なら「！」は出ず、手で選んだものは有効', r.bNoRace.choices);
+	assert(r.bStale.choices['ex-0029'] === 'ex-1038' && ent(r.bStale, 'ex-0029').stored === null, 'B: 別の行の進化先を指す保存値は無効（既定で表示）', r.bStale.choices);
 }
 
 assert(errors.length === 0, 'コンソールエラーなし', errors);
