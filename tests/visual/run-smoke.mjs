@@ -14247,6 +14247,8 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	const open = async (o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 1280, height: o.h || 900 }, o.userData);
 		await routes(sp.page);
+		// 説明文を読めない状態（段4の修正・C-152 から、編成パネルを作るときにも説明文を読むので、読み込みの前から失敗させる）
+		if (o.descFail) { await sp.page.unroute('**/data/skill-descriptions.json*'); await sp.page.route('**/data/skill-descriptions.json*', (route) => route.fulfill({ status: 500, body: 'x' })); }
 		await sp.page.evaluate(({ roster, scope }) => {
 			if (roster) localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster)); else localStorage.removeItem('umaSkillDeck:draftRoster:special');
 			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope)); else localStorage.removeItem('umaSkillDeck:draftScope:special');
@@ -14668,6 +14670,8 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 	const open = async (o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 1280, height: o.h || 900 }, o.userData);
 		await routes(sp.page);
+		// 説明文を読めない状態（段4の修正・C-152 から、編成パネルを作るときにも説明文を読むので、読み込みの前から失敗させる）
+		if (o.descFail) { await sp.page.unroute('**/data/skill-descriptions.json*'); await sp.page.route('**/data/skill-descriptions.json*', (route) => route.fulfill({ status: 500, body: 'x' })); }
 		await sp.page.evaluate(({ roster, scope }) => {
 			if (roster) localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster)); else localStorage.removeItem('umaSkillDeck:draftRoster:special');
 			if (scope) localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope)); else localStorage.removeItem('umaSkillDeck:draftScope:special');
@@ -14950,9 +14954,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 	}
 	{
 		// 説明文が読めなければ、各スキルの3行目は「説明文は準備中です」（小窓を開いたときに1回だけ読む。読めなければ次に開いたときにもう一度試す）
-		const sp = await openTab({ w: 1280, h: 900, tab: 0 });
-		await sp.page.unroute('**/data/skill-descriptions.json*');
-		await sp.page.route('**/data/skill-descriptions.json*', (route) => route.fulfill({ status: 500, body: 'x' }));
+		const sp = await openTab({ w: 1280, h: 900, tab: 0, descFail: true });
 		await sp.page.click(P + '[data-usd-el="events-btn"][data-member-key="1"]');
 		await sp.page.waitForTimeout(600);
 		const d = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="info-pop"] [data-usd-el="ev-skill-desc"]')).map((e) => e.textContent.trim()));

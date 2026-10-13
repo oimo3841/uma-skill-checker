@@ -50,14 +50,14 @@ export async function register24(env) {
 		return sp;
 	};
 	const savedRoster = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special') || 'null'));
-	const toastText = (page) => page.evaluate(() => Array.from(document.querySelectorAll('body *')).filter((e) => e.children.length === 0 && /^(衣装が未選択です|進化できるスキルがありません|戻すスキルはありません|いまの条件（レース・脚質）では選べません)$/.test((e.textContent || '').trim())).map((e) => e.textContent.trim()));
+	const toastText = (page) => page.evaluate(() => Array.from(document.querySelectorAll('body *')).filter((e) => e.children.length === 0 && /^(衣装が未選択です|進化できるスキルがありません|戻すスキルはありません|いまの条件（レース・脚質）では選べません|進化のデータを読み込めませんでした)$/.test((e.textContent || '').trim())).map((e) => e.textContent.trim()));
 	const sheetVisible = (page) => page.evaluate(() => { const p = document.querySelector('.usd-info-pop'); return !!p && !p.hidden && p.getClientRects().length > 0; });
 	const sheetBox = (page) => page.evaluate(() => { const r = document.querySelector('.usd-info-pop').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, vh: window.innerHeight, vw: window.innerWidth }; });
 
 	/* ====================================================================
 	 * 帯
 	 * ==================================================================== */
-	await block('進化段4A 帯: 「?」を外して「進化 N／最大」ボタンを置く。合計の文字を押すと同じ小窓が開く。44px以上・衣装が未選択でも出て、押すと理由を知らせる', async () => {
+	await block('進化段4A 帯: 「?」を外して「進化 N／最大」ボタンを置く。合計の文字を押すと同じ小窓が開く。見た目の高さは帯のほかのボタンと同じ・押せる範囲は44px以上・衣装が未選択でも出て、押すと理由を知らせる', async () => {
 		const sp = await openSp({ roster: orfeRoster(), w: 390 });
 		const r = await sp.page.evaluate(() => {
 			const row = document.querySelector('[data-usd-el="pt-sumrow"]');
@@ -99,7 +99,7 @@ export async function register24(env) {
 		await sp2.ctx.close();
 	});
 
-	await block('進化段4A 帯の並び: 390px は1行・360px は2行（進化は2行目の左）。どの幅でもボタンは切れず、はみ出さない（ライト・ダーク）', async () => {
+	await block('進化段4A 帯の並び: 390px・375px は1行・360px は2行（進化は2行目の左）。どの幅でもボタンは切れず、はみ出さない（ライト・ダーク）', async () => {
 		const out = [];
 		for (const w of [390, 375, 360, 320]) {
 			for (const scheme of ['light', 'dark']) {
@@ -527,5 +527,33 @@ export async function register24(env) {
 		assert(out.every((x) => x.m.box.left >= 0 && x.m.box.right <= x.m.box.vw + 0.5 && x.m.box.top >= 0 && x.m.box.bottom <= x.m.box.vh + 0.5 && x.m.overflowX <= 0 && x.m.relOverflow <= 0),
 			'進化段4G 小窓は 360px・390px でも画面に収まり、はみ出さない（横スクロールなし）', out.map((x) => ({ w: x.w, s: x.scheme, box: x.m.box, ox: x.m.overflowX })));
 		assert(out.every((x) => x.errors.length === 0), '進化段4G コンソールのエラー0', out.map((x) => x.errors.slice(0, 2)));
+	});
+
+	await block('進化段4H 説明文を読めないとき: 進化ボタンは押せる見た目のまま（最大は衣装の金スキルの数から）・押すと理由を知らせて画面は開かない・次に押したとき読めれば使える（C-152）', async () => {
+		let fail = true;
+		const sp = await openPage(browser, base, 'special.html', { width: 390, height: 844 }, EMPTY);
+		await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill(json(SCENARIO_DOC)));
+		await sp.page.route('**/data/skill-descriptions.json*', (r) => (fail ? r.fulfill({ status: 500, body: 'x' }) : r.continue()));
+		await sp.page.evaluate((ro) => { localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(ro)); localStorage.removeItem('umaSkillDeck:draftScope:special'); localStorage.setItem('umaSkillDeck:stepTab', '0'); }, orfeRoster());
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.waitForSelector('[data-usd-el="evo-btn"]');
+		await sp.page.waitForTimeout(800);
+		const st = () => sp.page.evaluate(() => { const b = document.querySelector('[data-usd-el="evo-btn"]'); return { text: b.textContent.replace(/\s/g, ''), disabled: b.disabled, aria: b.getAttribute('aria-disabled'), opacity: getComputedStyle(b).opacity, evoRows: document.querySelectorAll('.usd-roster-grow--evo').length }; });
+		const s0 = await st();
+		assert(s0.text === '進化0／4' && !s0.disabled && s0.aria === null && s0.opacity === '1' && s0.evoRows === 0, '進化段4H 読めない間: ボタンは押せる見た目のまま「進化 0／4」（最大は衣装の金スキル2つ＋シナリオ2）・表に進化した行は無い', s0);
+		await sp.page.click('[data-usd-el="evo-btn"]');
+		await sp.page.waitForTimeout(400);
+		assert((await toastText(sp.page)).indexOf('進化のデータを読み込めませんでした') !== -1 && !(await sheetVisible(sp.page)), '進化段4H 押すと「進化のデータを読み込めませんでした」を知らせ、画面は開かない', await toastText(sp.page));
+		// 押したときにもう一度読む。読めれば進化の決定が出る
+		fail = false;
+		await sp.page.click('[data-usd-el="evo-btn"]');
+		await sp.page.waitForTimeout(1200);
+		const s1 = await st();
+		assert(s1.text === '進化3／4' && s1.evoRows === 3, '進化段4H 読み直して読めれば、進化の決定が出る（進化 3／4・表に進化した行）', s1);
+		await sp.page.click('[data-usd-el="evo-btn"]');
+		await sp.page.waitForTimeout(400);
+		assert(await sheetVisible(sp.page), '進化段4H そのあと押すと進化の画面が開く');
+		await sp.ctx.close();
 	});
 }

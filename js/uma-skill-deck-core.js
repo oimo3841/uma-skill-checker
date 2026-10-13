@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14e';
 
 	/* ============================================================
 	 * 定数
@@ -8800,7 +8800,9 @@
 		const EVO_REASON_NOT_SELECTABLE = 'いまの条件（レース・脚質）では選べません';
 		/** 進化の最大数（衣装の金スキルの数 ＋ そのシナリオに進化のデータがあるときだけ 2） */
 		function evoMaxCount() {
-			return evoPlan.slots.a + (evolutionRowsOfScenario().length > 0 ? 2 : 0);
+			// 説明文の読み込み中・失敗中（進化の決定がまだ無い）も、衣装の金スキルの数は進化の対応から数える（「0／2」のように小さく見せない。C-152）
+			const a = evolutionReady() ? evoPlan.slots.a : evolutionRowsOfUma(roster.umaId).length;
+			return a + (evolutionRowsOfScenario().length > 0 ? 2 : 0);
 		}
 		/** パターンAの行（その衣装の金スキルのうち、いま取っていて、進化先がいまの条件でありうるもの。データの並び） */
 		function evoAEntries() {
