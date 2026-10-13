@@ -1,6 +1,6 @@
 {
 	"category": "skillEffectLevel",
-	"dataVersion": "2026-10-12a",
+	"dataVersion": "2026-10-13a",
 	"stages": [
 		{
 			"key": "ほんのちょっと",
@@ -8903,6 +8903,31 @@
 		{
 			"skillId": "ex-1670",
 			"name": "寄らば斬る！",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1671",
+			"name": "かくて宿りし血は目覚め",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-1672",
+			"name": "抜山蓋世",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1673",
+			"name": "規格外",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-1675",
+			"name": "魔の刻、来たれり",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-1676",
+			"name": "喰らえども、喰らえども",
 			"maxStage": "副詞なし"
 		}
 	],

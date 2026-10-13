@@ -58,7 +58,7 @@ export async function register23(env) {
 	/* ====================================================================
 	 * 段2: ①の計算
 	 * ==================================================================== */
-	await block('育成イベント段2A 全270衣装で、計算の出現（kind:umaEvent）がデータから独立に作った期待と一致する（●／△・eventKey・Lv・results は先頭だけ）', async () => {
+	await block('育成イベント段2A 全271衣装で、計算の出現（kind:umaEvent）がデータから独立に作った期待と一致する（●／△・eventKey・Lv・results は先頭だけ）', async () => {
 		const sp = await openSp();
 		const got = await sp.page.evaluate((ids) => ids.map((id) => {
 			const r = UmaSkillDeckCore.computeRosterSkills({ umaId: id, cardIds: [] });
@@ -72,7 +72,7 @@ export async function register23(env) {
 			if (JSON.stringify(exp) !== JSON.stringify(act)) bad.push(e.umaId);
 			got[i].src.forEach((s) => { if (s.sure) sureN++; else maybeN++; });
 		});
-		assert(EVDOC.entries.length === 270 && bad.length === 0, '育成イベント段2A 270衣装ぶんの出現が期待と一致（不一致 ' + bad.length + '件）', bad.slice(0, 5));
+		assert(EVDOC.entries.length === 271 && bad.length === 0, '育成イベント段2A 271衣装ぶんの出現が期待と一致（不一致 ' + bad.length + '件）', bad.slice(0, 5));
 		assert(sureN > 0 && maybeN > 0, '育成イベント段2A 前提: ●と△の両方が実データにある（検査が空振りでない。●' + sureN + '行・△' + maybeN + '行）', { sureN, maybeN });
 		assert(got.every((g) => g.src.every((s) => s.memberKey === 0)) && got.every((g) => g.missing === 0), '育成イベント段2A 出どころは育成ウマ娘の列（memberKey 0）で、引けないスキルは無い', got.filter((g) => g.missing).map((g) => g.id).slice(0, 3));
 		assert(got.every((g) => g.unconfirmed === 0), '育成イベント段2A 赤字（未収録）に育成ウマ娘のイベントは数えない（カード無しの編成は0件）', got.filter((g) => g.unconfirmed).map((g) => g.id).slice(0, 3));

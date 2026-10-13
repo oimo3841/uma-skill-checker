@@ -1,7 +1,7 @@
 {
-	"dataVersion": "2026-10-12b",
+	"dataVersion": "2026-10-13a",
 	"category": "extendedSkill",
-	"nextSerial": "ex-1671",
+	"nextSerial": "ex-1677",
 	"note": "マスター（uma-skill-deck-skills.json）の445種に無いスキル。name はゲーム画面の表示そのまま（全角・半角・中黒「・」を含めて変えない）。id は保存済みの比較シートが指し続ける不変の鍵なので、表記を直しても id は変えない。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。tagsPending が付いている間は8軸のタグが未設定で、条件での絞り込みの母集団には入れない（8軸すべてが空のタグは「条件を持たない＝万能スキル」という別の意味になるため、未設定はこの印で示す）。tagsPending と tags はどちらか一方だけを持つ。形は npm run check:catalog が確かめる。",
 	"entries": [
 		{
@@ -34155,6 +34155,137 @@
 				"effect": [
 					"move_forward",
 					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1671",
+			"name": "かくて宿りし血は目覚め",
+			"tags": {
+				"distance": [
+					"medium"
+				],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1672",
+			"name": "抜山蓋世",
+			"tags": {
+				"distance": [],
+				"style": [
+					"oikomi"
+				],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"move_forward"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1673",
+			"name": "規格外",
+			"tags": {
+				"distance": [],
+				"style": [
+					"oikomi"
+				],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"move_forward"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1675",
+			"name": "魔の刻、来たれり",
+			"tags": {
+				"distance": [
+					"medium"
+				],
+				"style": [
+					"oikomi",
+					"sashi"
+				],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"move_forward"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1676",
+			"name": "喰らえども、喰らえども",
+			"tags": {
+				"distance": [
+					"medium"
+				],
+				"style": [
+					"oikomi",
+					"sashi"
+				],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"move_forward"
 				],
 				"scenario": [],
 				"passive": [],

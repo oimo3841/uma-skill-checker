@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-13c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-13d';
 
 	/* ============================================================
 	 * 定数
@@ -65,8 +65,8 @@
 	const DATA_JSON_VERSIONS = {
 		'data/scenario-inheritance-factors.json': '2026-09-15a',
 		'data/aptitude-genes.json': '2026-09-19a',
-		'data/extended-skills.json': '2026-10-12b',
-		'data/training-umamusume.json': '2026-10-12a',
+		'data/extended-skills.json': '2026-10-13a',
+		'data/training-umamusume.json': '2026-10-13a',
 		'data/support-cards.json': '2026-09-30b',
 		'data/support-card-event-skills.json': '2026-10-05a',
 		// キャラクター共通のイベント（C-102 の区切り3・2026-09-27）。9本目
@@ -78,11 +78,11 @@
 		// 実ファイル（skill-pt.json・skill-step-up.json）は、届いてから載せた（載せると取りに行くため）。
 		'data/skill-pt-rules.json': '2026-09-30a',
 		// スキルの基礎Pt とレアリティ（2026-09-30 に実ファイルが届いたので載せた。載せると loadSkillPtData が読む）
-		'data/skill-pt.json': '2026-10-12a',
+		'data/skill-pt.json': '2026-10-13a',
 		// スキルのステップアップの前段（2026-10-01c。2026-10-02 に実ファイルが届いたので載せた。loadSkillPtData が skill-pt.json と一緒に読む）
 		'data/skill-step-up.json': '2026-10-02b',
 		// スキルの公式の説明文（2026-10-02）。ページの読み込みでは取りに行かない（ⓘ・長押しを最初に開いたときだけ。段6）
-		'data/skill-descriptions.json': '2026-10-12a',
+		'data/skill-descriptions.json': '2026-10-13a',
 		// シナリオの固定イベントで得られるスキルとヒントレベル（段7c・2026-10-03）。編成パネルを作るときにだけ読む（ほかのページの読み込みでは取りに行かない）
 		'data/scenario-event-skills.json': '2026-10-03c',
 		// これから開催されるレースの一覧（オススメサポ ④・段7・2026-10-04）。公式のお知らせの公開情報。loadUpcomingRaces() が読む。
@@ -90,15 +90,15 @@
 		'data/upcoming-races.json': '2026-10-04b',
 		// スキルの効果量の段階（C-129・2026-10-06）。説明文の効果の大きさを表す語から決めた段階。「低効果を除外」とオススメサポの「低効果」が使う。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadSkillEffectLevels）
-		'data/skill-effect-levels.json': '2026-10-12a',
+		'data/skill-effect-levels.json': '2026-10-13a',
 		// ②にまとめて追加するスキルのグループ（C-130・2026-10-06）。レースを選んだときの既定の追加と、②のパレットの行のボタンが使う。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadRecommendedSkills）
 		// C-131: 同じものとして扱うスキルの組（equivalentPairs）を足した
 		'data/recommended-skills.json': '2026-10-07a',
 		// 育成ウマ娘のイベントで得られるスキル（段1・2026-10-11）。受け入れだけで、画面と計算はまだ使わない。TRAINING_SOURCES の5本目
-		'data/training-event-skills.json': '2026-10-11a',
+		'data/training-event-skills.json': '2026-10-13a',
 		// スキルの進化の対応（段2・2026-10-12。C-145・C-146）。受け入れだけで、画面と計算はまだ使わない。ページの読み込みでは取りに行かない（loadSkillEvolutions）
-		'data/skill-evolutions.json': '2026-10-12a'
+		'data/skill-evolutions.json': '2026-10-13a'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */

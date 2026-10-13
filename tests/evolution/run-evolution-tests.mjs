@@ -8,9 +8,11 @@
 //   §2 既定の決定関数（computeEvolutionPlan）を表で回す（C-149: 既定を自動で選ぶのはレースを選んだときだけ）: 全衣装 × 主なレース条件で、決まり（上限・指定なし・id 昇順・Aで進化したらBの対象外・同じ入力は同じ出力）が成り立つ
 //   §3 手書きの期待値（オルフェーヴルの君臨・睥睨と3つの進化先／トレセン軒の6組／合成データの上限）
 //   §4 ex-1606（距離が範囲と根幹距離の両方を持つ行）は、範囲に当たれば合う（根幹距離は判定に使わない。C-148）
+//   §5 新しい勝負服（uma-0271。2026-10-13）の受け入れ: ①の衣装の選択に出る・進化の既定・イベントで得られるスキル
 //
-// 件数の基準（受け入れ前に測った値。2026-10-12）: 辞書 = マスター445 ＋ 追加カタログ744 = 1189
-//   （追加カタログ744 = シナリオ因子24 ＋ 遺伝子10 ＋ 拡張スキル710。進化スキル637行は含めない）。
+// 件数の基準（受け入れ前に測った値）: 辞書 = マスター445 ＋ 追加カタログ747 = 1192
+//   （追加カタログ747 = シナリオ因子24 ＋ 遺伝子10 ＋ 拡張スキル713。進化スキル639行は含めない）。
+//   2026-10-12: 辞書1189（追加カタログ744）／2026-10-13（新衣装ドゥラメンテ）: 進化でない新スキル3件（固有・金・白）が増えて1192（追加カタログ747）。
 // スキル名・衣装名は「手書きの期待値」にだけ id で書く（表の側は名前を持たない。恒久ルール1）。
 import fs from 'node:fs';
 import path from 'node:path';
@@ -23,9 +25,9 @@ function assert(cond, label, extra) {
 	console.log((cond ? '[OK] ' : '[NG] ') + label + (extra !== undefined ? '  ' + JSON.stringify(extra) : ''));
 }
 const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
-const BASELINE_TEXT_INDEX = 1189;   // マスター445 ＋ 追加カタログ744
+const BASELINE_TEXT_INDEX = 1192;   // マスター445 ＋ 追加カタログ747
 const BASELINE_MASTER = 445;
-const BASELINE_EXTRA_WITHOUT_EVOLVED = 744;
+const BASELINE_EXTRA_WITHOUT_EVOLVED = 747;
 
 const evolutions = readJson('data/skill-evolutions.json');
 const umas = readJson('data/training-umamusume.json').entries;
@@ -57,7 +59,7 @@ const before = await page.evaluate(() => {
 	return { master: C.getMasterSkills().length, extra: C.getExtraCatalog().length, indexBeforeLoad: C.getSkillTextIndexSize(), evolvedKnownBeforeLoad: C.isEvolvedSkillId('ex-1608') };
 });
 assert(before.master === BASELINE_MASTER, 'マスターの件数が受け入れ前と同じ', before.master);
-assert(before.extra === BASELINE_EXTRA_WITHOUT_EVOLVED + evolvedIds.length, '追加カタログ = 受け入れ前の744 + 進化スキル' + evolvedIds.length + '行', before.extra);
+assert(before.extra === BASELINE_EXTRA_WITHOUT_EVOLVED + evolvedIds.length, '追加カタログ = 受け入れ前の747 + 進化スキル' + evolvedIds.length + '行', before.extra);
 assert(before.evolvedKnownBeforeLoad === false, '進化の対応を読む前は、進化スキルを区別しない（ページの読み込みでは取りに行かない）');
 await page.evaluate(() => window.UmaSkillDeckCore.loadSkillEvolutions());
 const st = await page.evaluate((ids) => {
@@ -285,6 +287,44 @@ console.log('\n=== §4 ex-1606（距離は範囲と根幹距離の両方を持�
 	assert(D[1500] === 'no' && D[2600] === 'no' && D[3000] === 'no', '1500m・2600m・3000m（範囲の外）は「合わない」', { 1500: D[1500], 2600: D[2600], 3000: D[3000] });
 	assert(r.byCategory.short === 'no' && r.byCategory.mile === 'may' && r.byCategory.medium === 'must' && r.byCategory.long === 'may', '距離の区分だけの指定: 短距離＝合わない・マイル＝合うことがある（1500mが範囲の外）・中距離＝必ず合う（1900〜2400m がすべて範囲内）・長距離＝合うことがある（2500mだけ範囲内）', r.byCategory);
 	assert(r.rdKeep && r.rdKeep.standardDistanceScope === 'part', 'ex-1606 の raceDistance の中身は変わっていない', r.rdKeep);
+}
+
+/* ───────── §5 新しい勝負服（uma-0271。2026-10-13）の受け入れ ───────── */
+console.log('\n=== §5 新しい勝負服（uma-0271）: ①の衣装の選択に出る・進化の既定が決定関数どおり・イベントで得られるスキルが①の表に出る ===');
+{
+	// 手書きの期待値（id で書く）: 金スキル2つ（ex-0226・ex-1672）。進化先は ex-0226→ex-1675、ex-1672→ex-1676（どちらも＜中距離＞＜差し/追込＞）
+	// ex-0226 は差し、ex-1672 は追込の限定がある。イベントで得られるスキル: 一歩ずつ前へ（290）・むきだしの情熱（272）
+	const NEW_UMA = 'uma-0271', G1 = 'ex-0226', G2 = 'ex-1672', E1 = 'ex-1675', E2 = 'ex-1676';
+	const r = await page.evaluate(async ({ NEW_UMA, G1, G2 }) => {
+		const C = window.UmaSkillDeckCore;
+		await C.loadTrainingSources(false);
+		const mk = (d, s) => ({ id: 't', name: 't', venue: null, surface: s, distance: d, distanceCategory: d <= 1400 ? 'short' : d <= 1800 ? 'mile' : d <= 2400 ? 'medium' : 'long' });
+		const plan = (race, style, dist) => C.computeEvolutionPlan({ umaId: NEW_UMA, takenIds: [G1, G2], filter: { distance: dist, style: style, surface: race && race.surface }, race: race });
+		const res = C.computeRosterSkills({ umaId: NEW_UMA, cardIds: [] }, {});
+		return {
+			listed: ((C.getTrainingSources().trainingUmamusume || {}).entries || []).some((u) => u.id === NEW_UMA),
+			rows: C.getEvolutionRowsOfUma(NEW_UMA),
+			none: plan(null, undefined, undefined).defaultChoices,
+			medSashi: plan(mk(2000, 'turf'), 'sashi', 'medium'),
+			medOikomi: plan(mk(2000, 'turf'), 'oikomi', 'medium').defaultChoices,
+			medNoStyle: plan(mk(2000, 'turf'), undefined, 'medium').defaultChoices,
+			mileSashi: plan(mk(1600, 'turf'), 'sashi', 'mile').defaultChoices,
+			longOikomi: plan(mk(3000, 'turf'), 'oikomi', 'long').defaultChoices,
+			eventSkills: res.sources.filter((s) => s.kind === 'umaEvent').map((s) => s.skillId),
+			itemIds: res.items.map((i) => i.skillId)
+		};
+	}, { NEW_UMA, G1, G2 });
+	assert(r.listed, '新しい勝負服が①の衣装の選択（育成ウマ娘の一覧）に出る');
+	assert(JSON.stringify(r.rows) === JSON.stringify([{ baseSkillId: G1, evolvedSkillIds: [E1] }, { baseSkillId: G2, evolvedSkillIds: [E2] }]), '進化の行は2つ（ex-0226→ex-1675・ex-1672→ex-1676）', r.rows);
+	assert(r.none[G1] === 'none' && r.none[G2] === 'none', 'レース未選択: 2つとも「進化しない」', r.none);
+	assert(r.medSashi.defaultChoices[G1] === E1 && r.medSashi.defaultChoices[G2] === E2 && r.medSashi.count.a === 2 && r.medSashi.slots.a === 2 && r.medSashi.slots.max === 4,
+		'中距離 芝2000m・差し: 2つとも進化先が既定（進化 2／最大4）', r.medSashi.count);
+	assert(r.medOikomi[G1] === E1 && r.medOikomi[G2] === E2, '中距離 芝2000m・追込: 2つとも進化先が既定（進化先は差し/追込の両方に合う）', r.medOikomi);
+	assert(r.medNoStyle[G1] === 'none' && r.medNoStyle[G2] === 'none', '中距離 芝2000m・脚質未指定: 脚質の限定がある進化先は自動では選ばない', r.medNoStyle);
+	assert(r.mileSashi[G1] === 'none' && !(G2 in r.mileSashi), 'マイル 芝1600m・差し: 陽炎（差し）は進化先が中距離だけで合わないので「進化しない」、抜山蓋世（追込）は無効で行に出ない', r.mileSashi);
+	assert(r.longOikomi[G2] === 'none' && !(G1 in r.longOikomi), '長距離 芝3000m・追込: 抜山蓋世（追込）は「進化しない」、陽炎（差し）は無効', r.longOikomi);
+	assert(r.eventSkills.includes('290') && r.eventSkills.includes('272'), '①の表に、イベントで得られるスキル（一歩ずつ前へ・むきだしの情熱）が出る', r.eventSkills);
+	assert(r.itemIds.includes('290') && r.itemIds.includes('272'), '①の表の行にも入る', r.itemIds);
 }
 
 assert(errors.length === 0, 'コンソールエラーなし', errors);

@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-11a",
+	"dataVersion": "2026-10-13a",
 	"category": "trainingEventSkill",
 	"entries": [
 		{
@@ -27484,6 +27484,112 @@
 								],
 								[]
 							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"umaId": "uma-0271",
+			"status": "done",
+			"events": [
+				{
+					"eventName": "ドゥラメンテの日常",
+					"condition": "",
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "250",
+									"name": "影踏み",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"eventName": "日本ダービーの後に",
+					"condition": "日本ダービーで1着",
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "219",
+									"name": "イグニッション",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"eventName": "世代最強",
+					"condition": "クラシック三冠・春シニア三冠・秋シニア三冠をすべて達成し、有馬記念を連覇",
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "173",
+									"name": "前のめり",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "212",
+									"name": "型破り",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "224",
+									"name": "込み上げる熱",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"eventName": "トリック・トリック・トリック",
+					"condition": "",
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "290",
+									"name": "一歩ずつ前へ",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "290",
+									"name": "一歩ずつ前へ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"eventName": "WILD/ROSE",
+					"condition": "",
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "272",
+									"name": "むきだしの情熱",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": []
 						}
 					]
 				}
