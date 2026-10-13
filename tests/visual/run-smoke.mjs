@@ -10154,7 +10154,7 @@ await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101
 			plusPairs: plusRows.map((r) => ({ plus: r.row, base: (listRows.find((b) => b.name === r.name.replace(/\+$/, '')) || {}).row })),
 		};
 	});
-	assert(sheet.rows === 564 && sheet.version === sheet.table, 'めろっぷ(2): 564行を読める・版が exam の表と一致', sheet);
+	assert(sheet.rows === 565 && sheet.version === sheet.table, 'めろっぷ(2): 565行を読める・版が exam の表と一致', sheet);
 	assert(sheet.dict === sheet.listRows, 'めろっぷ(2): いちばん上の段以外の ' + sheet.listRows + '行の名前が、照合の辞書で1つも潰れない（「+」の有無も区別できる）',
 		{ 辞書: sheet.dict, 行: sheet.listRows });
 	assert(sheet.markSurvives && sheet.plusPairs.length > 0 && sheet.plusPairs.every((p) => p.base),
@@ -10178,7 +10178,7 @@ await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101
 		&& JSON.stringify(plus.plusKanji) === JSON.stringify([plus.want.plus]) && JSON.stringify(plus.base) === JSON.stringify([plus.want.base]),
 		'めろっぷ(3): 末尾の「+」「＋」「十」は「+」の行へ、付かないものは付かない行へ入る', plus);
 
-	// (4) 出力の形: 564行 × 3列・空欄・「?」・継承固有の斜めの置き方・いちばん上の段
+	// (4) 出力の形: 565行 × 3列・空欄・「?」・継承固有の斜めの置き方・いちばん上の段
 	const out = await page.evaluate(() => {
 		const s = melopSheet;
 		const list = s.rows.filter((r) => !r.slot);
@@ -10215,8 +10215,8 @@ await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101
 			noName: a.concat(b).every((l) => /^[123?]?\t[123?]?\t[123?]?$/.test(l)),
 		};
 	});
-	assert(out.linesA === 564 && out.linesB === 564 && out.tabsOk && out.noName,
-		'めろっぷ(4): A・B それぞれ564行 × 3列（タブ区切り・スキル名は含まない・値は 1〜3 か「?」か空欄）', out);
+	assert(out.linesA === 565 && out.linesB === 565 && out.tabsOk && out.noName,
+		'めろっぷ(4): A・B それぞれ565行 × 3列（タブ区切り・スキル名は含まない・値は 1〜3 か「?」か空欄）', out);
 	assert(out.listOk, 'めろっぷ(4): 読めた行はその人の列に★の数、★が読めなかった行は「?」', out);
 	assert(out.blankOk, 'めろっぷ(4): 持っていない行は空欄', out);
 	assert(JSON.stringify(out.uniqueA) === JSON.stringify(['1,,', ',2,', ',,3']),
@@ -10288,7 +10288,7 @@ await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101
 		return { off, on };
 	});
 	assert(flow.off.calls.load === 0 && flow.off.calls.top === 0 && flow.off.calls.match === 0 && flow.off.melop && !flow.off.btn && !flow.off.log,
-		'めろっぷ(6): オフで判定すると、並びのデータの読み込み・いちばん上の段・564行の照合を1つも通らない',
+		'めろっぷ(6): オフで判定すると、並びのデータの読み込み・いちばん上の段・565行の照合を1つも通らない',
 		{ calls: flow.off.calls, melop: flow.off.melop, btn: flow.off.btn, log: flow.off.log });
 	assert(flow.on.calls.top === 1 && flow.on.calls.match === 1 && flow.on.melop && flow.on.btn,
 		'めろっぷ(6): オンで判定すると、1人につき1回ずつ読み取りと照合を通り、ボタンが出る', flow.on.calls);
@@ -10477,8 +10477,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(JSON.stringify(st.dsteps) === JSON.stringify(steps) && st.dmin === min && st.dmax === max && st.targets === st.n
 		&& st.count === String(st.n) && st.reg === String(st.n) && st.regRows === st.n,
 		'効率(2): 段の値・最小・最大はデータから。初期は4区間とも入れ、種数・一覧の行数はデータの行数', { steps: steps.length, n: st.n, count: st.count });
-	assert(st.n === 462 && st.allHaveId && st.targets === 462 && st.count === '462',
-		'効率(A): 種数は462（継承固有の3行を外した。全行が独自IDを持つ）', { n: st.n, targets: st.targets, count: st.count });
+	assert(st.n === 463 && st.allHaveId && st.targets === 463 && st.count === '463',
+		'効率(A): 種数は463（継承固有の3行を外した。全行が独自IDを持つ。2026-10-13 に規格外を足して462から増えた）', { n: st.n, targets: st.targets, count: st.count });
 	assert(JSON.stringify(st.bounds) === JSON.stringify(eq) && JSON.stringify(st.bounds) === JSON.stringify(st.defaultBounds.map((v) => Math.round(v * 1000)))
 		&& eqIdx[0] < eqIdx[1] && eqIdx[1] < eqIdx[2] && st.tiers.every(Boolean) && st.pressed.every((p) => p === 'true'),
 		'効率(A): 初期の境目はデータの defaultBounds（段の値）で、4区間とも入れる', { bounds: st.bounds, want: eq });

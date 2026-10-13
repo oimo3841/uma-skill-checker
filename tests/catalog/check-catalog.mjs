@@ -158,7 +158,7 @@ const RECOMMENDED_GROUP_KEYS = { need: ['key', 'label', 'skills'], opt: [] };
 const RECOMMENDED_SKILL_KEYS = { need: ['skillId', 'name'], opt: ['onlyWhenRaceDistanceClass'] };
 const RECOMMENDED_CATEGORY_NAME = 'recommendedSkills';
 /* めろっぷ用の行の並び（data/melop-sheet-rows.json。C-101）。めろっぷ！【LTC】さんの因子管理シートの
-   ★を貼る欄（H38:J601。2026-10-08 に H38:J599 から2行増えた）の行の並び。`entries` を持たないので FILES には入れず、§9 で見る。
+   ★を貼る欄（H38:J602。2026-10-08 に H38:J599 から2行増え、2026-10-13 に H38:J601 から1行増えた）の行の並び。`entries` を持たないので FILES には入れず、§9 で見る。
    行番号の範囲は貼り先の形そのものなので、ここに数字で持つ（シートの欄が変わったら、こことデータを一緒に直す）。 */
 const MELOP_FILE = 'melop-sheet-rows.json';
 const MELOP_TOP_KEYS = { need: ['dataVersion', 'category', 'rows'], opt: ['note'] };
@@ -166,7 +166,7 @@ const MELOP_ROW_KEYS = { need: ['row', 'group', 'name'], opt: ['id', 'slot', 'co
 const MELOP_CATEGORY_NAME = 'melopSheetRows';
 const MELOP_SLOTS = ['blue', 'red', 'unique'];
 const MELOP_FIRST_ROW = 38;
-const MELOP_LAST_ROW = 601;
+const MELOP_LAST_ROW = 602;
 
 const SKILL_REF_KEYS = { need: ['skillId', 'name'], opt: [] };
 /* **サポートカードのイベント（C-102）。** 1回ぶんは { step, choices }。
@@ -967,7 +967,7 @@ console.log('\n=== 8. レースの距離の一覧（' + RACE_FILE + '） ===');
 
 console.log('\n=== 9. めろっぷ用の行の並び（' + MELOP_FILE + '） ===');
 /* exam.html の「めろっぷ！【LTC】専用拡張モード」（C-101）が、★の数をこの順で出す。
-   シート側（★を貼る欄 H38:J601）が更新されたときにずれに気づけるよう、**行数と行番号の並び**を見る
+   シート側（★を貼る欄 H38:J602）が更新されたときにずれに気づけるよう、**行数と行番号の並び**を見る
    （シートの欄の範囲は、貼り先の形そのものなので、ここに数字で持つ。スキル名は書かない）。
    あわせて、独自IDの参照先が実在し、その名前が行の名前と同じもの（〇と○の違い・全角半角だけを揃えて）かを見る。 */
 {
@@ -1222,6 +1222,10 @@ const EFF_FILE = 'skill-efficiency.json';
 const EFF_TOP_KEYS = { need: ['dataVersion', 'category', 'entries', 'defaultBounds'], opt: ['note'] };
 // 独自IDのキーは skillId（skill-pt.json と同じ）。id にすると §3 が「別のカタログの行」とみなして衝突を数える
 const EFF_ROW_KEYS = { need: ['skillId', 'score', 'sp', 'efficiency'], opt: [] };
+/* 効率の再計算の検査の免除（理由を必ず添える。黙って増やさない。免除は実行のたびに表示する）。
+   値は有志の表に載っている値を指定どおり入れたもので、評価点÷消費スキルPt を丸めた値と 0.001 だけ違う。
+   免除するのは「差が0.001以内」のときだけ（それ以上ずれたら免除でも落とす）。 */
+const EFF_ROUNDING_EXEMPT = { 'ex-1673': '指定の効率 3.362（評価点639÷消費スキルPt190 を丸めると 3.363）。2026-10-13・おいもさんの指定' };
 const EFF_CATEGORY_NAME = 'skillEfficiency';
 console.log('\n=== 14. スキルの効率（' + EFF_FILE + '） ===');
 {
@@ -1239,7 +1243,7 @@ console.log('\n=== 14. スキルの効率（' + EFF_FILE + '） ===');
 		if (!DATA_VERSION_RE.test(String(doc.dataVersion))) bad.push('dataVersion が「YYYY-MM-DD＋英小文字1字」の形でない: ' + String(doc.dataVersion));
 		const rows = isArr(doc.entries) ? doc.entries : [];
 		if (!isArr(doc.entries) || rows.length === 0) bad.push('entries が空でない配列でない');
-		const recalc = [], notPositive = [];
+		const recalc = [], notPositive = [], effExempted = [];
 		rows.forEach((e, i) => {
 			const w = 'entries[' + i + ']';
 			if (!checkKeys(e, EFF_ROW_KEYS, w, unknown, missing)) return;
@@ -1247,13 +1251,18 @@ console.log('\n=== 14. スキルの効率（' + EFF_FILE + '） ===');
 			if (!isInt(e.score) || !isInt(e.sp)) { bad.push(w + ': score / sp は整数'); return; }
 			if (!(e.score > 0) || !(e.sp > 0) || !(typeof e.efficiency === 'number' && e.efficiency > 0)) { notPositive.push(w); return; }
 			// 千分率の整数で丸める（data を作ったときと同じ式）
-			if (Math.round(e.score * 1000 / e.sp) / 1000 !== e.efficiency) recalc.push(w + ': ' + e.score + '÷' + e.sp + ' → ' + e.efficiency);
+			const calc = Math.round(e.score * 1000 / e.sp) / 1000;
+			if (calc !== e.efficiency) {
+				if (EFF_ROUNDING_EXEMPT[e.skillId] && Math.abs(calc - e.efficiency) <= 0.0010001) effExempted.push(e.skillId + '（計算 ' + calc + ' / データ ' + e.efficiency + '）: ' + EFF_ROUNDING_EXEMPT[e.skillId]);
+				else recalc.push(w + ': ' + e.score + '÷' + e.sp + ' → ' + e.efficiency);
+			}
 		});
 		none(unknown, EFF_FILE + ' に知らないキーが無い（管理用の番号・区分の名前・「高効率」の印を持たない）');
 		none(missing, EFF_FILE + ' の必須のキーが揃っている');
 		none(bad, EFF_FILE + ' の値が決めた形（skillId は文字列・score と sp は整数）');
 		none(notPositive, EFF_FILE + ': 評価点・消費スキルPt・効率がどれも0より大きい（効率0の行を持たない）');
 		none(recalc, EFF_FILE + ': 効率が 評価点÷消費スキルPt を小数第3位に四捨五入した値と一致');
+		effExempted.forEach((x) => console.log('[免除] 効率の再計算: ' + x));
 
 		// 重なり
 		const dup = [];
