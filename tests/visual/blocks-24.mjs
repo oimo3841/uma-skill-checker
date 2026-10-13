@@ -66,6 +66,10 @@ export async function register24(env) {
 			return {
 				help: row.querySelectorAll('.uma-help-btn').length, text: btn.textContent, label: btn.getAttribute('aria-label'),
 				h: b.height, borderW: parseFloat(getComputedStyle(btn).borderTopWidth), radius: parseFloat(getComputedStyle(btn).borderTopLeftRadius),
+				// 段4の修正2: 見た目の高さは育成ウマ娘の選択欄・合計の文字と同じ。押せる範囲（elementFromPoint で縦に走査）は 44px 以上
+				pickH: document.querySelector('[data-usd-el="pick-uma"]').getBoundingClientRect().height,
+				sumH: document.querySelector('[data-usd-el="pt-help-btn"]').getBoundingClientRect().height,
+				hitH: (() => { const x = b.left + b.width / 2; let lo = null, hi = null; for (let y = Math.floor(b.top) - 20; y <= Math.ceil(b.bottom) + 20; y++) { const e = document.elementFromPoint(x, y); if (e && e.closest('[data-usd-el="evo-btn"]')) { if (lo === null) lo = y; hi = y; } } return lo === null ? 0 : hi - lo + 1; })(),
 				bName: getComputedStyle(btn.querySelector('b')).fontSize + '/' + getComputedStyle(btn.querySelector('b')).fontWeight,
 				cnt: getComputedStyle(btn.querySelector('span')).fontSize + '/' + getComputedStyle(btn.querySelector('span')).fontWeight,
 				helpBtn: !!document.querySelector('[data-usd-el="pt-help-btn"]'), helpIsText: !!document.querySelector('[data-usd-el="pt-help-btn"] [data-usd-el="roster-sum"]'),
@@ -75,7 +79,8 @@ export async function register24(env) {
 		});
 		assert(r.help === 0 && r.helpBtn && r.helpIsText, '進化段4A 帯に「?」のボタンは無く、合計の文字がボタン（同じ小窓を開く）', r);
 		assert(/^進化\s*3／4$/.test(r.text.replace(/\s/g, '')) && r.label.indexOf('3／4') !== -1, '進化段4A 進化ボタンは「進化」＋「N／最大」（オルフェーヴル 京都 芝2200m・追込: 衣装の2つ＋シナリオの1つ＝3／4）', { text: r.text, label: r.label });
-		assert(r.h >= 44 && r.borderW === 2 && r.radius >= 8, '進化段4A 進化ボタンは高さ44px以上・枠2px・角丸', { h: r.h, borderW: r.borderW, radius: r.radius });
+		assert(Math.abs(r.h - r.pickH) < 0.5 && Math.abs(r.h - r.sumH) < 0.5 && r.hitH >= 44 && r.borderW === 2 && r.radius >= 8,
+			'進化段4A 進化ボタンの見た目の高さは、育成ウマ娘の選択欄・合計の文字と同じ（段4の修正2）。押せる範囲は44px以上・枠2px・角丸', { h: r.h, pick: r.pickH, sum: r.sumH, hit: r.hitH, borderW: r.borderW, radius: r.radius });
 		assert(r.bName === '14px/700' && r.cnt === '12px/400', '進化段4A 「進化」は14px太字・「N／最大」は12px通常の太さ', { b: r.bName, n: r.cnt });
 		assert(!r.hscrollInBand && !r.bang, '進化段4A 帯に横スクロール・フェードの部品は無い／「！」は確認が必要なときだけ（ここでは出ない）', { hscroll: r.hscrollInBand, bang: r.bang });
 		// 合計の文字を押すと、これまでの「?」と同じ小窓（理論値など）が開く。覚醒Lv5の説明の1行は無い
@@ -96,7 +101,7 @@ export async function register24(env) {
 
 	await block('進化段4A 帯の並び: 390px は1行・360px は2行（進化は2行目の左）。どの幅でもボタンは切れず、はみ出さない（ライト・ダーク）', async () => {
 		const out = [];
-		for (const w of [390, 360, 320]) {
+		for (const w of [390, 375, 360, 320]) {
 			for (const scheme of ['light', 'dark']) {
 				const sp = await openSp({ roster: orfeRoster(), w, scheme });
 				const m = await sp.page.evaluate(() => {
@@ -104,7 +109,8 @@ export async function register24(env) {
 					const rr = row.getBoundingClientRect();
 					const kids = [...row.querySelectorAll(':scope > [data-band]')].map((k) => { const b = k.getBoundingClientRect(); return { cls: k.className.split(' ')[0], l: b.left - rr.left, r: b.right - rr.left, t: b.top - rr.top, b: b.bottom - rr.top }; });
 					const sum = kids.find((k) => k.cls === 'usd-roster-sumtext'), evo = kids.find((k) => k.cls === 'usd-evo-wrap');
-					return { two: row.classList.contains('usd-roster-sumrow--two'), rowW: rr.width, kids, sum, evo, overflowX: row.scrollWidth - row.clientWidth, pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, fade: !!row.querySelector('[data-usd-fade]') };
+					return { two: row.classList.contains('usd-roster-sumrow--two'), rowW: rr.width, kids, sum, evo,
+						evoH: document.querySelector('[data-usd-el="evo-btn"]').getBoundingClientRect().height, sumH: document.querySelector('[data-usd-el="pt-help-btn"]').getBoundingClientRect().height, overflowX: row.scrollWidth - row.clientWidth, pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, fade: !!row.querySelector('[data-usd-fade]') };
 				});
 				out.push(Object.assign({ w, scheme }, m));
 				await sp.ctx.close();
@@ -112,8 +118,10 @@ export async function register24(env) {
 		}
 		const clipped = out.filter((m) => m.overflowX > 0 || m.pageOverflow > 0 || m.kids.some((k) => k.r > m.rowW + 0.5 || k.l < -0.5) || m.fade);
 		assert(clipped.length === 0, '進化段4A どの幅（390・360・320px）・ライト／ダークでも、帯のボタンは帯の中に収まる（切れ・横スクロール・フェードなし）', clipped.map((m) => m.w + m.scheme));
-		const one = out.filter((m) => m.w === 390);
-		assert(one.every((m) => !m.two && m.evo.t < m.sum.b), '進化段4A 390px は1行（進化ボタンは合計の右）', one.map((m) => ({ two: m.two, scheme: m.scheme })));
+		const one = out.filter((m) => m.w >= 375);
+		assert(one.every((m) => !m.two && m.evo.t < m.sum.b), '進化段4A 390px・375px は1行（進化ボタンは合計の右）', one.map((m) => ({ w: m.w, two: m.two, scheme: m.scheme })));
+		// 段4の修正2: どの幅でも、進化ボタンの見た目の高さは帯のほかのボタンと同じ（28px）
+		assert(out.every((m) => Math.abs(m.evoH - m.sumH) < 0.5), '進化段4A どの幅でも、進化ボタンの見た目の高さは合計の文字のボタンと同じ', out.map((m) => m.w + m.scheme + ':' + m.evoH + '/' + m.sumH));
 		const two = out.filter((m) => m.w <= 360);
 		assert(two.every((m) => m.two && m.evo.t >= m.sum.b - 1 && m.evo.l <= 1), '進化段4A 360px以下は2行（進化ボタンは2行目の左）', two.map((m) => ({ w: m.w, two: m.two, evoT: m.evo.t, sumB: m.sum.b, evoL: m.evo.l })));
 	});
@@ -137,7 +145,13 @@ export async function register24(env) {
 				xSize: (() => { const x = pop.querySelector('.uma-popover-close').getBoundingClientRect(); return [Math.round(x.width), Math.round(x.height)]; })(),
 				tabs: !!document.querySelector('[data-usd-el="evo-tabs"]'),
 				nameSize: getComputedStyle(document.querySelector('[data-usd-el="evo-target"] .usd-evo-name')).fontSize + '/' + getComputedStyle(document.querySelector('[data-usd-el="evo-target"] .usd-evo-name')).fontWeight,
-				subSize: getComputedStyle(document.querySelector('[data-usd-el="evo-target"] .usd-evo-sub')).fontSize
+				subSize: getComputedStyle(document.querySelector('[data-usd-el="evo-target"] .usd-evo-sub')).fontSize,
+				anyIcon: !!pop.querySelector('.usd-evo-icon'),
+				rowH: (() => {
+					const hs = (s) => q(s).map((x) => Math.round(x.getBoundingClientRect().height * 10) / 10);
+					const radioOff = q('[data-usd-el="evo-target"], [data-usd-el="evo-none"]').map((x) => { const a = x.getBoundingClientRect(), b = x.querySelector('input').getBoundingClientRect(); return Math.abs((a.top + a.height / 2) - (b.top + b.height / 2)); });
+					return { base: hs('[data-usd-el="evo-base"]'), target: hs('[data-usd-el="evo-target"]'), none: hs('[data-usd-el="evo-none"]'), radioOff };
+				})()
 			};
 		});
 		assert(r.title === '進化スキル(衣装)' && r.cond === 'レース: 2200m 芝 / 脚質: 追込', '進化段4B 見出し「進化スキル(衣装)」と、その下の条件「レース: 2200m 芝 / 脚質: 追込」', { title: r.title, cond: r.cond });
@@ -145,7 +159,10 @@ export async function register24(env) {
 		const g0 = r.groups[0], g1 = r.groups[1];
 		assert(g0.baseName === SKILL_NAME.get(KINRIN) && g0.arrow === '▼▼▼' && g0.targets.length === 1 && g0.targets[0].name === SKILL_NAME.get(KINRIN_TO) && g0.targets[0].on && g0.none.text === '進化しない' && !g0.none.on, '進化段4B グループの中身は 元の金スキル → ▼▼▼ → 進化先（選択中）→「進化しない」', g0);
 		assert(g1.targets.length === 2 && g1.targets[0].v === HEIGEI_TO && g1.targets[0].on && !g1.targets[1].on, '進化段4B 進化先が2つの金スキルは、進化先を2行並べる（既定が選ばれている）', g1.targets.map((t) => t.v + ':' + t.on));
-		assert(g0.targets[0].sub === '＜追込・芝＞ 2000m以上' && g1.targets[0].sub === '＜中距離＞' && g1.targets.every((t) => t.icon), '進化段4B 条件は ＜中距離＞ ＜追込・芝＞ 2000m以上 のような表記で、アイコン枠がある', { a: g0.targets[0].sub, b: g1.targets[0].sub });
+		assert(g0.targets[0].sub === '＜追込・芝＞ 2000m以上' && g1.targets[0].sub === '＜中距離＞' && r.groups.every((g) => g.targets.every((t) => !t.icon)) && !r.anyIcon, '進化段4B 条件は説明文の＜…＞（＜中距離＞・＜追込・芝＞ 2000m以上）。アイコンの代わりの四角は、どの行にも無い（段4の修正1）', { a: g0.targets[0].sub, b: g1.targets[0].sub, anyIcon: r.anyIcon });
+		// 段4の修正1: 行の縦幅。押せる行（進化先・進化しない）は 44px 以上、元の金スキルの行（押せない）は 44px 未満に詰めた。ラジオは行の縦の中央
+		assert(r.rowH.base.every((h) => h < 44) && r.rowH.target.every((h) => h >= 44) && r.rowH.none.every((h) => h >= 44) && r.rowH.radioOff.every((d) => d <= 1.5),
+			'進化段4B 行の縦幅: 元の金スキルの行は 44px 未満・進化先と「進化しない」は 44px 以上（タップの領域）・ラジオは行の縦の中央', r.rowH);
 		assert(!/必ず合う|合うことがある|合わない/.test(JSON.stringify(r)), '進化段4B 画面に「必ず合う／合うことがある／合わない」の語は出さない');
 		assert(r.nameSize === '15px/700' && r.subSize === '12px' && r.closeBtn && r.closeText === '閉じる' && r.xSize[0] >= 44 && r.xSize[1] >= 44 && r.tabs, '進化段4B 進化先の名前は15px太字・条件は12px・×は44px以上・下に「閉じる」・シナリオの候補もあるので「衣装／シナリオ」の切り替えが出る', { name: r.nameSize, sub: r.subSize, x: r.xSize, tabs: r.tabs });
 		// 「進化しない」を選ぶと、その場で保存され、表の行が金スキルの行に戻る
@@ -234,7 +251,8 @@ export async function register24(env) {
 		}
 		assert(out.every((m) => m.groups === 3), '進化段4B 金スキル3つの衣装は3グループ', out.map((m) => m.groups));
 		assert(out.every((m) => m.top >= 0 && m.bottom <= m.vh + 0.5 && m.headTop >= 0), '進化段4B シートは画面からはみ出さない（見出しと×が見える）', out.map((m) => ({ l: m.label, s: m.scheme, top: Math.round(m.top), bottom: Math.round(m.bottom), vh: m.vh })));
-		assert(out.every((m) => m.scrolls && m.closeVisible), '進化段4B 3グループは、シートの中だけをスクロールして「閉じる」まで届く', out.map((m) => ({ scrolls: m.scrolls, close: m.closeVisible })));
+		// 段4の修正1で行が低くなり、縮んだ高さ（844px）では3グループが収まるようになった。開いた高さ（734px）ではシートの中だけがスクロールする
+		assert(out.every((m) => m.closeVisible) && out.filter((m) => m.label === '開いた').every((m) => m.scrolls), '進化段4B 3グループでも「閉じる」まで届く（収まらない高さ〔バーが開いた 734px〕ではシートの中だけがスクロールする）', out.map((m) => ({ l: m.label, scrolls: m.scrolls, close: m.closeVisible })));
 	});
 
 	/* ====================================================================
@@ -257,7 +275,7 @@ export async function register24(env) {
 		}));
 		assert(r.tab === 'b' && r.title === 'シナリオの進化スキル' && r.lead === 'トレセン軒 / 2つまで選べます。' && r.many === '候補が3つ以上あるため、選ぶものを確認してください。', '進化段4C 「！」から開くとシナリオの画面（見出し・「トレセン軒 / 2つまで選べます。」・候補が3つ以上の1文）', r);
 		assert(r.rows.map((x) => x.id).join() === B_IDS.join() && r.sub === '候補（選択 2／2）' && r.rows.map((x) => x.on).join() === 'true,true,false', '進化段4C 候補は元スキルの id 昇順・「候補（選択 2／2）」・既定は先頭2つ', r.rows.map((x) => x.id + ':' + x.on));
-		assert(r.rows.every((x) => /^元: /.test(x.sub) && x.icon) && r.rows[1].sub.indexOf('元: ' + SKILL_NAME.get('ex-0616')) === 0, '進化段4C 各行は チェック・アイコン枠・進化先の名前・「元: 元の金スキル名 / 条件」', r.rows.map((x) => x.sub));
+		assert(r.rows.every((x) => /^元: /.test(x.sub) && !x.icon) && r.rows[1].sub.indexOf('元: ' + SKILL_NAME.get('ex-0616')) === 0, '進化段4C 各行は チェック・進化先の名前・「元: 元の金スキル名 / 条件」（アイコンの代わりの四角は無い。段4の修正1）', r.rows.map((x) => x.sub));
 		assert(r.warn === '選べるのは2つまでです。3つ目を選ぶには、先にどれかの選択を外してください。' && !r.bangNow && !r.confirmBtn && r.closeText === '閉じる', '進化段4C 2つ選んでいる間は赤い注意文／「！」は開くと消える／「確認した」のボタンは無く「閉じる」だけ', { warn: r.warn, bang: r.bangNow, confirm: r.confirmBtn });
 		const seen = (await savedRoster(sp.page)).evolutionBSeen;
 		assert(JSON.stringify(seen) === JSON.stringify(B_IDS), '進化段4C 開いた時点で、確認した候補の組（id 昇順）を roster.evolutionBSeen に保存する', seen);

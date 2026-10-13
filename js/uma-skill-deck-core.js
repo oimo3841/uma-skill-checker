@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14c';
 
 	/* ============================================================
 	 * 定数
@@ -5439,8 +5439,11 @@
 		'.usd-roster-sumtext { flex: none; display: inline-flex; align-items: center; min-height: 28px; padding: 0 2px; border: 0; border-radius: var(--uma-r-sm); background: transparent; color: inherit; font: inherit; cursor: pointer; }',
 		'.usd-roster-sumtext:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
 		'.usd-evo-wrap { flex: none; display: inline-flex; align-items: center; gap: var(--uma-sp-1); }',
-		'.usd-evo-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; padding: 0 var(--uma-sp-3); border: 2px solid var(--evo-edge-on); border-radius: 12px;',
+		// 段4の修正2: 見た目の高さは帯のほかのボタン（合計の文字・勉強家など・育成ウマ娘の選択欄）と同じ 28px。
+		// 押せる範囲は透明な ::before で上下に 8px ずつ広げて 44px を保つ（帯の行の高さは増やさない）
+		'.usd-evo-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 4px; box-sizing: border-box; height: 28px; padding: 0 var(--uma-sp-3); border: 2px solid var(--evo-edge-on); border-radius: 8px;',
 		'  background: var(--evo-btn-bg); color: var(--evo-text); font: inherit; line-height: 1; white-space: nowrap; cursor: pointer; }',
+		'.usd-evo-btn::before { content: ""; position: absolute; left: -2px; right: -2px; top: -10px; bottom: -10px; }',
 		'.usd-evo-btn b { font-size: 14px; font-weight: 700; }',
 		'.usd-evo-btn span { font-size: 12px; font-weight: 400; }',
 		'.usd-evo-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
@@ -5465,16 +5468,17 @@
 		'.usd-evo-cond { margin: 0; font-size: 12px; line-height: 1.4; color: var(--evo-sheet-text); }',
 		'.usd-evo-subhead { margin: var(--uma-sp-1) 0 0; font-size: 14px; line-height: 1.3; font-weight: 700; }',
 		'.usd-evo-group { display: flex; flex-direction: column; gap: 6px; padding: var(--uma-sp-2); border-radius: 10px; background: var(--evo-group-bg); }',
-		'.usd-evo-base { display: flex; align-items: center; gap: var(--uma-sp-2); min-height: 44px; padding: 6px var(--uma-sp-2); border: 2px solid var(--evo-base-edge); border-radius: 8px;',
+		// 段4の修正1: アイコンの代わりの四角を外し、行の縦幅を詰めた。元の金スキルの行は押せないので 44px にしない。
+		// 押せる行（進化先・進化しない）は 44px 以上のまま（ラジオ・チェックは行の左で縦の中央）
+		'.usd-evo-base { display: flex; align-items: center; gap: var(--uma-sp-2); padding: 4px var(--uma-sp-2); border: 2px solid var(--evo-base-edge); border-radius: 8px;',
 		'  background: linear-gradient(90deg, var(--evo-base-from), var(--evo-base-mid), var(--evo-base-to)); color: var(--evo-base-text); }',
 		'.usd-evo-arrow { text-align: center; font-size: 12px; line-height: 1; letter-spacing: 3px; color: var(--evo-arrow); }',
-		'.usd-evo-target, .usd-evo-none { display: flex; align-items: center; gap: var(--uma-sp-2); min-height: 44px; padding: 6px var(--uma-sp-2); border-radius: 8px; cursor: pointer; }',
+		'.usd-evo-target, .usd-evo-none { display: flex; align-items: center; gap: var(--uma-sp-2); box-sizing: border-box; min-height: 44px; padding: 3px var(--uma-sp-2); border-radius: 8px; cursor: pointer; }',
 		'.usd-evo-target { border: 2px solid var(--evo-edge); background: linear-gradient(90deg, var(--evo-from), var(--evo-mid), var(--evo-to)); color: var(--evo-text); }',
 		'.usd-evo-target--on { border-color: var(--evo-edge-on); }',
 		'.usd-evo-none { border: 2px solid var(--evo-none-edge); background: var(--evo-none-bg); color: var(--evo-none-text); }',
 		'.usd-evo-none--on { border-color: var(--evo-none-text); }',
 		'.usd-evo-target input, .usd-evo-none input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--evo-edge-on); }',
-		'.usd-evo-icon { flex: none; width: 32px; height: 32px; box-sizing: border-box; border: 2px solid currentColor; border-radius: 6px; background: rgba(255, 255, 255, .35); }',
 		'.usd-evo-text { display: flex; flex-direction: column; min-width: 0; gap: 1px; }',
 		'.usd-evo-name { font-size: 15px; line-height: 1.3; font-weight: 700; overflow-wrap: anywhere; }',
 		'.usd-evo-sub { font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; }',
@@ -8839,7 +8843,6 @@
 			if (wrap) wrap.scrollTop = keep;
 			if (focusKey) { const again = Array.from(body.querySelectorAll('[data-evo-key]')).find(el => el.getAttribute('data-evo-key') === focusKey); if (again) focusNoScroll(again); }
 		}
-		function evoIcon(cls) { const s = infoEl('span', 'usd-evo-icon' + (cls ? ' ' + cls : '')); s.setAttribute('aria-hidden', 'true'); return s; }
 		function fillEvoSheet(body) {
 			const hasA = evoAEntries().length > 0, hasB = evoBEntries().length > 0;
 			const root = infoEl('div', 'usd-evo');
@@ -8882,7 +8885,6 @@
 				g.setAttribute('data-base-id', e.baseId);
 				const base = infoEl('div', 'usd-evo-base');
 				base.setAttribute('data-usd-el', 'evo-base');
-				base.appendChild(evoIcon());
 				base.appendChild(infoEl('span', 'usd-evo-name', getSkillName(e.baseId)));
 				g.appendChild(base);
 				const arrow = infoEl('div', 'usd-evo-arrow', '▼▼▼');
@@ -8908,7 +8910,6 @@
 				e.targets.forEach(t => {
 					const on = e.choice === t.id;
 					const lab = infoEl('label', 'usd-evo-target' + (on ? ' usd-evo-target--on' : ''));
-					lab.appendChild(evoIcon());
 					const txt = infoEl('span', 'usd-evo-text');
 					txt.appendChild(infoEl('span', 'usd-evo-name', getSkillName(t.id)));
 					const c = evoConditionText(t.id);
@@ -8962,7 +8963,6 @@
 					evoSetChoices(tgt);
 				});
 				lab.appendChild(inp);
-				lab.appendChild(evoIcon());
 				const txt = infoEl('span', 'usd-evo-text');
 				txt.appendChild(infoEl('span', 'usd-evo-name', getSkillName(t.id)));
 				const c = evoConditionText(t.id);
