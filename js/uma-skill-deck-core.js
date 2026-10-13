@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-13a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-13b';
 
 	/* ============================================================
 	 * 定数
@@ -4561,7 +4561,7 @@
 		 * ねらいは C-14 の「フォルダの見出し風」（data-usd-rows="1"）を PC で保つこと。
 		 * 1行に収まっているかは run-smoke が**実際のレイアウトから**見張っている（幅の値は書いていない）。 */
 		'.usd-modal-panel { background: var(--uma-glass-bg); backdrop-filter: var(--uma-glass-blur); width: 100%; max-width: 42rem;',
-		'  border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }',
+		'  border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; max-height: 85vh; max-height: min(85dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 12px)); display: flex; flex-direction: column; overflow: hidden; }',
 		'@media (min-width: 768px) { .usd-modal-panel { border-radius: var(--uma-r-xl); margin-bottom: var(--uma-sp-6); } }',
 		// モーダル下部に固定するフッター（追加ボタンと選択数）。パネルの3段目なので
 		// スクロール領域と重ならず、一覧の最後の行を隠すこともない。
@@ -4736,7 +4736,7 @@
 		'.usd-name-back { min-height: 40px; padding-left: var(--uma-sp-3); padding-right: var(--uma-sp-4); }',
 		'.usd-name-read { margin-bottom: var(--uma-sp-2); font-family: var(--uma-font-mono); word-break: break-all; }',
 		// 画像は高さを抑える。抑えないと、縦に長い切り出しが来たときスマホで入力欄が画面の外へ押し出される
-		'.usd-name-img { display: block; width: 100%; height: auto; max-height: 22vh; object-fit: contain;',
+		'.usd-name-img { display: block; width: 100%; height: auto; max-height: 22vh; max-height: 22dvh; object-fit: contain;',
 		'  margin-bottom: var(--uma-sp-3);',
 		'  border: 1px solid var(--uma-border); border-radius: var(--uma-r-md); background: var(--uma-surface); }',
 		'.usd-name-img[data-usd-act] { cursor: zoom-in; }',
@@ -4746,7 +4746,7 @@
 		// 候補一覧も画面の高さに合わせる。キーボードが出て縦が狭いときに、一覧だけが伸びて
 		// 入力欄を押し出さないようにする（入力欄の下に必ず数件は見えている状態を保つ）
 		'.usd-name-list { display: flex; flex-direction: column; gap: var(--uma-sp-1);',
-		'  max-height: min(240px, 40vh); overflow: auto; }',
+		'  max-height: min(240px, 40vh); max-height: min(240px, 40dvh); overflow: auto; }',
 		// 候補は「押すと確定する」もの。行の候補チップ（.usd-paste-cand）と同じアクセント色の系統にそろえる
 		'.usd-name-hit { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2);',
 		'  text-align: left; padding: var(--uma-sp-2) var(--uma-sp-3); border-radius: var(--uma-r-md);',
@@ -4960,7 +4960,7 @@
 		 * .usd-results のものをそのまま使う。
 		 * **固定値なのは「条件で検索」と同じ理由**（段6【3】）で、件数でモーダルの高さを動かさないため。
 		 * `min()` の上限（560px）は、`.usd-modal-panel` の max-height: 85vh に余裕を持って収まる値。 */
-		'.usd-results--tall { height: min(60vh, 560px); }',
+		'.usd-results--tall { height: min(60vh, 560px); height: min(60dvh, 560px); }',
 
 		// 選択肢チップ。中身は本物の checkbox のままなので、既存のJSとテストがそのまま掴める
 		// （.usd-chip はテンプレートのスキル名チップで使用済みのため .usd-opt にしてある）
@@ -5319,7 +5319,7 @@
 		'  align-items: center; justify-content: center; padding: var(--uma-sp-3); }',
 		'.usd-roster-modal-back { position: absolute; inset: 0; background: rgba(15, 23, 43, 0.4); }',
 		'.usd-roster-modal-box { position: relative; z-index: 1; width: min(520px, 100%);',
-		'  max-height: min(70vh, 560px); overflow: hidden; display: flex; flex-direction: column; gap: var(--uma-sp-2);',
+		'  max-height: min(70vh, 560px); max-height: min(70dvh, 560px); overflow: hidden; display: flex; flex-direction: column; gap: var(--uma-sp-2);',
 		'  background: var(--uma-surface); border: 1px solid var(--uma-border);',
 		'  border-radius: var(--uma-r-md); padding: var(--uma-card-pad); box-shadow: var(--uma-shadow-lg, 0 10px 30px rgba(0,0,0,.2)); }',
 		'.usd-roster-modal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); }',
@@ -5521,7 +5521,7 @@
 		'.usd-roster-choiceskill--dim, .usd-roster-choiceskill--none { color: var(--uma-text-faint); }',
 		// イベントの選択の小窓の2カラム（段7b の ⑩）。共有の .uma-popover は触らず、修飾クラス（広い幅だけ幅を広げる）と中身のスタイルだけ。
 		// 広い幅＝左にイベントの一覧・右に「取得できるスキル」。狭い幅（ボトムシート）＝2つのペインを横に並べ、scroll-snap でスワイプ
-		'@media (min-width: 641px) { .usd-info-pop--wide { width: min(92vw, 860px); max-height: min(82vh, 680px); } }',
+		'@media (min-width: 641px) { .usd-info-pop--wide { width: min(92vw, 860px); max-height: min(82vh, 680px); max-height: min(82dvh, 680px); } }',
 		'.usd-ev-title-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
 		'.usd-info-pop--wide .uma-popover-title { min-width: 0; flex: 1 1 auto; }',
 		'.usd-ev-switch { display: none; flex: none; margin-inline-start: auto; padding: var(--uma-sp-1) var(--uma-sp-2-5); min-height: 32px;',
@@ -5529,12 +5529,12 @@
 		'  font: inherit; font-size: var(--uma-fs-xs); font-weight: 700; cursor: pointer; white-space: nowrap; }',
 		'@media (max-width: 640px) { .usd-ev-switch { display: inline-flex; align-items: center; } }',
 		'.usd-ev-panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--uma-sp-4); min-width: 0; }',
-		'.usd-ev-pane { min-width: 0; max-height: min(62vh, 520px); overflow-y: auto; overscroll-behavior: contain; }',
+		'.usd-ev-pane { min-width: 0; max-height: min(62vh, 520px); max-height: min(62dvh, 520px); overflow-y: auto; overscroll-behavior: contain; }',
 		'.usd-ev-pane--skills { border-inline-start: 1px solid var(--uma-border); padding-inline-start: var(--uma-sp-4); }',
 		'@media (max-width: 640px) {',
 		'  .usd-ev-panes { display: flex; gap: 0; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }',
 		'  .usd-ev-panes::-webkit-scrollbar { display: none; }',
-		'  .usd-ev-pane { flex: 0 0 100%; scroll-snap-align: start; max-height: 52vh; }',
+		'  .usd-ev-pane { flex: 0 0 100%; scroll-snap-align: start; max-height: 52vh; max-height: 52dvh; }',
 		'  .usd-ev-pane--skills { border-inline-start: 0; padding-inline-start: 0; }',
 		'}',
 		'.usd-ev-skills-title { margin: 0 0 var(--uma-sp-1); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-heading); }',
@@ -5679,7 +5679,7 @@
 		'.usd-palette-del { display: inline-flex; align-items: center; gap: 3px; }',
 		// C-132: 「逃げオススメ」「先差追オススメ」の確認の小窓（追加するスキルの名前と Pt・追加しないものの内訳・ボタン2つ）
 		'.usd-rec-head { font-weight: 700; color: var(--uma-text-heading); }',
-		'.usd-rec-list { list-style: none; margin: var(--uma-sp-1) 0 0; padding: 0; max-height: 40vh; overflow-y: auto; border-top: 1px solid var(--uma-border); }',
+		'.usd-rec-list { list-style: none; margin: var(--uma-sp-1) 0 0; padding: 0; max-height: 40vh; max-height: 40dvh; overflow-y: auto; border-top: 1px solid var(--uma-border); }',
 		'.usd-rec-item { display: flex; justify-content: space-between; gap: var(--uma-sp-2); padding: var(--uma-sp-1) 0; border-bottom: 1px solid var(--uma-border); }',
 		'.usd-rec-name { min-width: 0; overflow-wrap: anywhere; font-weight: 600; color: var(--uma-text); }',
 		'.usd-rec-pt { flex: none; white-space: nowrap; color: var(--uma-text-subtle); font-variant-numeric: tabular-nums; }',

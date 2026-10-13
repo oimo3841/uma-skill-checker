@@ -22,7 +22,7 @@
 
 :root {
 	/* 版数の印。tokens.css の --common-css-version と同じ文字列にする。 */
-	--uma-shell-css-version: "2026-10-12a";
+	--uma-shell-css-version: "2026-10-13a";
 
 	/* ===== 右下固定ナビ（FAB）の寸法 =====
 	   トーストの退避位置・本文の下端余白もこの変数から計算するので、
@@ -484,6 +484,7 @@
 .uma-popover {
 	display: flex; flex-direction: column;
 	width: min(92vw, 380px); max-height: min(70vh, 560px);
+	max-height: min(70dvh, 560px);
 	background: var(--uma-surface); border: 1px solid var(--uma-border);
 	border-radius: var(--uma-r-xl); box-shadow: var(--uma-shadow-3);
 }
@@ -536,7 +537,7 @@
 	max-height: 60%;
 }
 
-.help-dialog { width: min(92vw, 640px); max-height: min(88vh, 720px); }
+.help-dialog { width: min(92vw, 640px); max-height: min(88vh, 720px); max-height: min(88dvh, 720px); }
 .help-head {
 	flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
 	gap: var(--uma-sp-3); padding: var(--uma-sp-3) var(--uma-sp-3) var(--uma-sp-3) var(--uma-sp-5);
@@ -575,7 +576,7 @@
  * 既定を新UIにしたことは利用者が頼んだ変化ではないので、画面の中の案内枠ではなく
  * 一度だけ手前に出して確実に伝える。以後は右上のバッジから読み直せる。
  * ============================================================ */
-.notice-dialog { width: min(92vw, 420px); max-height: min(88vh, 640px); }
+.notice-dialog { width: min(92vw, 420px); max-height: min(88vh, 640px); max-height: min(88dvh, 640px); }
 .notice-body { padding: var(--uma-sp-6) var(--uma-sp-5) var(--uma-sp-4); text-align: center; overflow-y: auto; }
 .notice-icon {
 	width: 48px; height: 48px; margin: 0 auto var(--uma-sp-3);
@@ -627,12 +628,14 @@
 @media (max-width: 640px) {
 	/* 狭い画面では下から出るシートにする（片手で ✕ に届く位置に「閉じる」を置くため） */
 	.uma-overlay { left: 0; top: auto; bottom: 0; transform: none; width: 100%; border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; }
-	.help-dialog, .notice-dialog { max-height: 90vh; }
+	/* 下から出るシートの高さ。vh は「バーが縮んだときの大きい画面」の高さなので、iPhone の Safari でバーが開いていると見える領域より高くなり、
+	   下に寄せたシートの上（見出しと ✕）が画面の外へ出る。dvh（いま見えている高さ）で測る。上の余白は、画面の上端の安全域（切り欠き・時刻の帯）を引く。 */
+	.help-dialog, .notice-dialog { max-height: 90vh; max-height: min(90dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 12px)); }
 	.help-body { padding: var(--uma-sp-4); }
 	.notice-body { padding: var(--uma-sp-5) var(--uma-sp-4) var(--uma-sp-3); }
 	.notice-foot { padding: 0 var(--uma-sp-4) var(--uma-sp-4); }
 	/* 「結合画像の設定」は下からのシート。FAB から開くものは画面の、引き出しの中のものは引き出しの、それぞれ半分まで */
-	.uma-popover--fab { right: auto; bottom: 0; max-height: 50vh; }
+	.uma-popover--fab { right: auto; bottom: 0; max-height: 50vh; max-height: 50dvh; }
 	.uma-popover--drawer {
 		left: 0; right: 0; bottom: 0; width: 100%; max-height: 50%;
 		border-radius: var(--uma-r-xl) var(--uma-r-xl) 0 0; border-left: 0; border-right: 0; border-bottom: 0;
