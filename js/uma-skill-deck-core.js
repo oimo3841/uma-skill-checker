@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14g';
 
 	/* ============================================================
 	 * 定数
@@ -5329,6 +5329,9 @@
 		// 上位層は見出しを一段強くし、下位層は囲みの地色を沈めて内側に寄せる。
 		'.usd-roster-top { display: flex; flex-direction: column; gap: var(--uma-sp-2);',
 		'  padding-bottom: var(--uma-sp-3); border-bottom: 2px solid var(--uma-border-strong, var(--uma-border)); }',
+		// C-154（作業A・2026-10-14）: special（セット単位）では編成のタブを帯へ移したので、上位層が空になることが多い。
+		// 空のまま下線だけ残すと、ステップのタブの区切り線のすぐ下にもう1本の線が並んで二重に見えた。中身が無いときは出さない
+		'.usd-roster-top:empty { display: none; }',
 		'.usd-roster-h--top { font-size: var(--uma-fs-md); line-height: var(--uma-lh-md); }',
 		// 下位層は内側へ寄せない（左端を上位層と揃える。C-51 の10節④）。層の見分けは
 		// 上位層の下線と、下位層の沈んだ地色の囲みで付ける。
