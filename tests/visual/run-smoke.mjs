@@ -13988,7 +13988,8 @@ await block('スキルの説明（ⓘ・長押し。段6）', async () => {
 
 	/* ① 名前を押すと出る内容（本育成の行） ／ ⑦ HTML の記号 ／ ⑥ 読み込みは最初に開いたとき1回 */
 	let sp = await open();
-	assert(sp.descReqs.length === 0, '段6(6): ページの読み込みでは説明文を取りに行かない（名前を押す前）', sp.descReqs);
+	// C-152（2026-10-14）: 進化先の条件を説明文の＜…＞から読むので、①の編成パネルを作るときに説明文を1回だけ読む（それまでは「名前を押す前は読まない」だった）
+	assert(sp.descReqs.length === 1, '段6(6)→C-152: ①の編成パネルを作るときに説明文を1回だけ読む（名前を押す前）', sp.descReqs);
 	const btnCount = await sp.page.$$eval('#deck-roster-panel [data-usd-el="skill-info-btn"]', (bs) => bs.length);
 	const nameCount = await sp.page.$$eval('#deck-roster-panel .usd-roster-grow[data-skill-id]', (bs) => bs.length);
 	assert(btnCount > 0 && btnCount === nameCount, '段6(1)→段7: 本育成の表のスキルの名前そのものが押せる（行の数と同じ。ⓘ の別ボタンは無い。空振りでない）', { btnCount, nameCount });
@@ -14007,7 +14008,7 @@ await block('スキルの説明（ⓘ・長押し。段6）', async () => {
 	assert(wrap === 'pre-line', '段6(1): 説明文の改行（\\n）は改行として見せる（white-space: pre-line）', wrap);
 	// 版は直書きしない（2026-10-05・C-128 で説明文の版が上がって落ちた）。正本は data/skill-descriptions.json の dataVersion
 	const descVer = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/skill-descriptions.json'), 'utf8')).dataVersion;
-	assert(sp.descReqs.length === 1 && sp.descReqs[0].includes('v=' + descVer), '段6(6): 説明文の読み込みは最初に開いたときの1回で、?v=<版> が付く', { reqs: sp.descReqs, descVer });
+	assert(sp.descReqs.length === 1 && sp.descReqs[0].includes('v=' + descVer), '段6(6): 名前を押しても説明文は読み直さない（読み込みは1回で、?v=<版> が付く）', { reqs: sp.descReqs, descVer });
 	await closeIt(sp.page);
 	await sp.page.click(rosterBtn(X[1]));
 	await sp.page.waitForTimeout(150);
