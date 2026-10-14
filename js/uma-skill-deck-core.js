@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14j';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14k';
 
 	/* ============================================================
 	 * 定数
@@ -1907,7 +1907,7 @@
 				const sides = ((ev && ev.choices) || []).map(eventChoiceSuccessSkills);
 				const refs = [];
 				// 選んだ（または既定で選ばれた）選択肢があるイベント（段7の (19)）: その成功側だけが●。ほかの選択肢だけのスキルは出ない
-				const pick = resolveEventChoice(sides, keyBase + '#' + idx, evOpts);
+				const pick = resolveEventChoice(sides, keyBase + '#' + idx, evOpts, ev);
 				if (pick) { sides[pick.index].forEach(ref => refs.push({ ref: ref, sure: true })); }
 				else if (sides.length === 1) { sides[0].forEach(ref => refs.push({ ref: ref, sure: true })); }
 				else {
@@ -1925,12 +1925,35 @@
 	 *   evOpts.choices … 利用者が選んだもの { eventKey: 選択肢の位置 }（編成の eventChoices）。指す先が無い値は無効
 	 *   evOpts.autoChoose … 既定を決めるか。**残るスキル（evOpts.isWanted を通るもの）を成功側に持つ選択肢が1つだけ**のとき、それを選んだものとして扱う
 	 *   evOpts.isWanted … 絞り込みの述語（無ければ全部残る）
-	 * 返り値は { index, auto } か null（未選択）。
+	 *   ev … イベントの行。任意項目 defaultChoice（選択肢の番号・1始まり）があれば、利用者が選ぶ前から、その選択肢を選んだものとして扱う
+	 *        （「！」も未選択にも数えない。C-157）。利用者が外したときは EVENT_CHOICE_NONE を保存して、既定に戻さない。
+	 * 返り値は { index, auto, byDefault } か null（未選択）。
 	 */
-	function resolveEventChoice(sides, eventKey, evOpts) {
+	const EVENT_CHOICE_NONE = -1;
+	const warnedDefaultChoice = new Set();
+	/**
+	 * イベントの既定の選択肢（defaultChoice。1始まり）を 0始まりの位置にして返す。無い・範囲外・整数でないときは -1（範囲外などは警告を1回だけ出す）。
+	 * 選択肢が1つ以下のイベントでは意味が無いので、-1。
+	 */
+	function eventDefaultIndex(ev, count) {
+		if (!ev || ev.defaultChoice === undefined || ev.defaultChoice === null) return -1;
+		const d = ev.defaultChoice;
+		if (!Number.isInteger(d) || d < 1 || d > count) {
+			const key = String(ev.eventName || ev.name || '') + '|' + String(d) + '|' + count;
+			if (!warnedDefaultChoice.has(key)) {
+				warnedDefaultChoice.add(key);
+				try { global.console.warn('[UmaSkillDeck] defaultChoice が選択肢の範囲外のため無視した（' + String(d) + '／選択肢' + count + '）'); } catch (e) {}
+			}
+			return -1;
+		}
+		return count >= 2 ? d - 1 : -1;
+	}
+	function resolveEventChoice(sides, eventKey, evOpts, ev) {
 		if (!evOpts || sides.length < 2) return null;
 		const chosen = evOpts.choices && evOpts.choices[eventKey];
+		const def = eventDefaultIndex(ev, sides.length);
 		if (Number.isInteger(chosen) && chosen >= 0 && chosen < sides.length) return { index: chosen, auto: false };
+		if (def >= 0) return chosen === EVENT_CHOICE_NONE ? null : { index: def, auto: false, byDefault: true };
 		if (evOpts.autoChoose) {
 			const has = (side) => side.some(ref => ref && ref.skillId && findSkill(ref.skillId) && (!evOpts.isWanted || evOpts.isWanted(ref.skillId)));
 			const cands = [];
@@ -1962,7 +1985,7 @@
 			});
 			if (!choices.some(c => c.skills.length > 0)) return;
 			const eventKey = keyBase + '#' + idx;
-			const pick = resolveEventChoice(sides, eventKey, evOpts);
+			const pick = resolveEventChoice(sides, eventKey, evOpts, ev);
 			// 選ぶ必要があるか（段7d の ⑤）。絞り込み後に残るスキルを成功側に持つ選択肢が2つ以上あるイベントだけ「選ぶ必要あり」。
 			// 1つなら自動（resolveEventChoice）、0なら不要。pending は「選ぶ必要があるのに、まだ選んでいない」（「!」と「未選択N件」に数える）
 			const isWanted = evOpts && typeof evOpts.isWanted === 'function' ? evOpts.isWanted : null;
@@ -1971,7 +1994,7 @@
 				wantedChoices: wantedChoices, pending: !pick && wantedChoices >= 2,
 				name: (ev && typeof ev.name === 'string') ? ev.name : null, when: (ev && typeof ev.when === 'string') ? ev.when : null,
 				eventName: (ev && typeof ev.eventName === 'string') ? ev.eventName : null, condition: (ev && typeof ev.condition === 'string') ? ev.condition : '',
-				chosen: pick ? pick.index : null, auto: !!(pick && pick.auto) });
+				chosen: pick ? pick.index : null, auto: !!(pick && pick.auto), byDefault: !!(pick && pick.byDefault), defaultIndex: eventDefaultIndex(ev, sides.length) });
 		});
 		return out;
 	}
@@ -9917,7 +9940,8 @@
 		/** 選択肢を押したとき。選んでいたものをもう一度押すと未選択。自動で選ばれていたものを押すと、その選択を保存する */
 		function toggleEventChoice(eventKey, index, next, e) {
 			const cur = (roster.eventChoices && typeof roster.eventChoices === 'object') ? Object.assign({}, roster.eventChoices) : {};
-			if (next === null) delete cur[eventKey]; else cur[eventKey] = next;
+			// 既定の選択肢があるイベントは、外した状態を保つ（削除すると既定に戻ってしまう）
+			if (next === null) { if (e && e.defaultIndex >= 0) cur[eventKey] = EVENT_CHOICE_NONE; else delete cur[eventKey]; } else cur[eventKey] = next;
 			if (Object.keys(cur).length === 0) delete roster.eventChoices; else roster.eventChoices = cur;
 			persistNow();
 			render();

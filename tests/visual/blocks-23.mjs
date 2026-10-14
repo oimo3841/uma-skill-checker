@@ -23,7 +23,8 @@ export async function register23(env) {
 		const out = [];
 		entry.events.forEach((ev, idx) => {
 			const sides = ev.choices.map(successOf);
-			const pick = picks && Number.isInteger(picks[idx]) && sides.length >= 2 ? picks[idx] : null;
+			const dflt = Number.isInteger(ev.defaultChoice) && ev.defaultChoice >= 1 && ev.defaultChoice <= sides.length && sides.length >= 2 ? ev.defaultChoice - 1 : null;
+			const pick = picks && Number.isInteger(picks[idx]) && sides.length >= 2 ? picks[idx] : dflt;
 			const by = new Map();
 			const put = (ref, sure) => {
 				const cur = by.get(ref.skillId);
@@ -221,7 +222,8 @@ export async function register23(env) {
 	 * ==================================================================== */
 	// 小窓に出る＝選択肢が2つ以上で、どこかの成功側にスキルがある。「！」に数える（未選択）＝スキルを持つ選択肢が2つ以上（1つだけなら自動で選ばれる）
 	const isListed = (ev) => ev.choices.length >= 2 && ev.choices.map(successOf).some((s) => s.length > 0);
-	const isPending = (ev) => ev.choices.map(successOf).filter((s) => s.length > 0).length >= 2;
+	const hasDefault = (ev) => Number.isInteger(ev.defaultChoice) && ev.defaultChoice >= 1 && ev.defaultChoice <= ev.choices.length && ev.choices.length >= 2;
+	const isPending = (ev) => !hasDefault(ev) && ev.choices.map(successOf).filter((s) => s.length > 0).length >= 2;
 	// 読み取り専用で出る（段3の追補）＝選択肢が1つで条件文が空でない
 	const isInfo = (ev) => ev.choices.length === 1 && typeof ev.condition === 'string' && ev.condition !== '';
 	const choiceEvents = (entry) => entry.events.map((ev, i) => ({ ev, i })).filter((x) => isListed(x.ev));
@@ -516,5 +518,148 @@ export async function register23(env) {
 			}
 		}
 		console.log('[報告] 読み取り専用の行の条件文のコントラスト比（320px）\n  ' + report.join('\n  '));
+	});
+
+
+	/* ====================================================================
+	 * 2026-10-14a の取り込み（B）と defaultChoice（C-157）
+	 * ==================================================================== */
+	const withEvent = (doc, umaId, idx, patch) => Object.assign({}, doc, { entries: doc.entries.map((e) => e.umaId !== umaId ? e : Object.assign({}, e, { events: e.events.map((ev, i) => i !== idx ? ev : (typeof patch === 'function' ? patch(ev) : Object.assign({}, ev, patch))) })) });
+	/** 警告を拾うために、読み込みの前に console を見張って開く */
+	const openWatched = async (umaId, o = {}) => {
+		const sp = await openPage(browser, base, 'special.html', { width: 375, height: 812 }, EMPTY);
+		sp.warns = [];
+		sp.page.on('console', (m) => { if (m.type() === 'warning' && m.text().includes('defaultChoice')) sp.warns.push(m.text()); });
+		if (o.evDoc) await sp.page.route('**/data/training-event-skills.json*', (r) => r.fulfill(json(o.evDoc)));
+		await sp.page.evaluate(({ id, ch }) => {
+			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: id, cardIds: [], eventChoices: ch || undefined }));
+			localStorage.setItem('umaSkillDeck:stepTab', '0');
+		}, { id: umaId, ch: o.choices || null });
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.waitForTimeout(500);
+		return sp;
+	};
+	const eventsOf = (page, umaId, ch) => page.evaluate(({ umaId, ch }) => {
+		const res = UmaSkillDeckCore.computeRosterSkills({ umaId, cardIds: [], eventChoices: ch || undefined }, { eventChoices: ch || {} });
+		return { events: res.events.filter((e) => e.kind === 'umaEvent').map((e) => ({ key: e.eventKey, chosen: e.chosen, auto: e.auto, pending: e.pending })),
+			sure: res.sources.filter((s) => s.kind === 'umaEvent').map((s) => ({ key: s.eventKey, skillId: s.skillId, sure: s.sure, lv: s.hintLevel })) };
+	}, { umaId, ch });
+
+	await block('育成イベント取り込みB 2026-10-14a: 実データで defaultChoice を持つイベントは範囲内の整数だけ。持つ衣装で既定が最初から選ばれ、「！」に数えない', async () => {
+		const withDef = [];
+		EVDOC.entries.forEach((e) => e.events.forEach((ev, i) => { if (ev.defaultChoice !== undefined) withDef.push({ umaId: e.umaId, i, ev }); }));
+		assert(withDef.length > 0 && withDef.every((x) => hasDefault(x.ev)), '育成イベント取り込みB 前提: defaultChoice は実データにあり、すべて 1〜選択肢数 の整数（' + withDef.length + '件）', withDef.map((x) => x.umaId + '#' + x.i));
+		const sp = await openWatched(withDef[0].umaId);
+		const bad = [];
+		for (const x of withDef) {
+			const got = await eventsOf(sp.page, x.umaId, null);
+			const ev = got.events.find((e) => e.key === 'uma:' + x.umaId + '#' + x.i);
+			if (!ev || ev.chosen !== x.ev.defaultChoice - 1 || ev.pending || ev.auto) bad.push({ x: x.umaId + '#' + x.i, ev });
+			const want = successOf(x.ev.choices[x.ev.defaultChoice - 1]).map((r2) => r2.skillId);
+			const sure = got.sure.filter((s) => s.key === 'uma:' + x.umaId + '#' + x.i && s.sure).map((s) => s.skillId);
+			if (!want.every((id) => sure.includes(id))) bad.push({ x: x.umaId + '#' + x.i, want, sure });
+		}
+		assert(bad.length === 0, '育成イベント取り込みB 実データの既定: 選ばれた状態（chosen）・「自動」でない・未選択でない・成功側が●（' + withDef.length + '件）', bad.slice(0, 3));
+		await sp.ctx.close();
+		for (const x of withDef) {
+			const entry = EVDOC.entries.find((e) => e.umaId === x.umaId);
+			const sp2 = await openWatched(x.umaId);
+			const unsel = await sp2.page.evaluate((sel) => { const b = document.querySelector(sel); return b ? b.getAttribute('data-unselected') : null; }, EVBTN);
+			assert(unsel === String(pendingEvents(entry).length), '育成イベント取り込みB ' + x.umaId + ': 列見出しの未選択の数は、既定のあるイベントを除いた ' + pendingEvents(entry).length + '件', unsel);
+			await sp2.ctx.close();
+		}
+	});
+
+	await block('育成イベント取り込みB ヒシアマゾン型（結果3→1）: 以前の保存（番号2）が残っていても壊れず、先頭の結果のスキルが●のまま・選ぶ行には出ない', async () => {
+		const target = EVDOC.entries.map((e) => ({ e, i: e.events.findIndex((ev) => isInfo(ev) && successOf(ev.choices[0]).length > 0) })).find((x) => x.i >= 0);
+		assert(!!target, '育成イベント取り込みB 前提: 読み取り専用の行を持つ衣装がある', null);
+		const key = 'uma:' + target.e.umaId + '#' + target.i;
+		const want = successOf(target.e.events[target.i].choices[0]).map((x) => x.skillId);
+		const oldShape = withEvent(EVDOC, target.e.umaId, target.i, (ev) => Object.assign({}, ev, { choices: [{ results: [successOf(ev.choices[0]), [], []] }] }));
+		for (const [label, doc] of [['新しい形', EVDOC], ['旧い形（results 3つ）', oldShape]]) {
+			const sp = await openWatched(target.e.umaId, { evDoc: doc, choices: { [key]: 2 } });
+			const got = await eventsOf(sp.page, target.e.umaId, { [key]: 2 });
+			const sure = got.sure.filter((s) => s.key === key && s.sure).map((s) => s.skillId);
+			assert(want.every((id) => sure.includes(id)) && !got.events.some((e) => e.key === key), '育成イベント取り込みB ' + label + ' + 古い保存(番号2): 先頭の結果のスキルが●で、選ぶ行には出ない', { sure, want, events: got.events.map((e) => e.key) });
+			await sp.page.click(EVBTN).catch(() => {});
+			await sp.page.waitForTimeout(300);
+			assert(jsErrors(sp.errors).length === 0, '育成イベント取り込みB ' + label + ' + 古い保存: 小窓を開いてもコンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+			await sp.ctx.close();
+		}
+	});
+
+	await block('育成イベントC defaultChoice（C-157・合成データ）: 既定が選択済み・「！」に数えない・別の選択肢に変えられて保存される・外すと外した状態を保つ', async () => {
+		const U = UMA_LONG;
+		const first = pendingEvents(U)[0];
+		const key = 'uma:' + U.umaId + '#' + first.i;
+		const n = first.ev.choices.length;
+		const doc = withEvent(EVDOC, U.umaId, first.i, { defaultChoice: 2 });
+		const total = pendingEvents(U).length;
+		const sp = await openWatched(U.umaId, { evDoc: doc });
+		const state = (p) => p.evaluate(({ sel, key }) => ({
+			unsel: document.querySelector(sel) ? document.querySelector(sel).getAttribute('data-unselected') : null,
+			on: Array.from(document.querySelectorAll('[data-usd-el="event"][data-event-key="' + key + '"] [data-usd-el="event-choice"]')).map((b) => b.getAttribute('aria-checked') === 'true'),
+			autoTag: !!document.querySelector('[data-usd-el="event"][data-event-key="' + key + '"] [data-usd-el="event-auto"]'),
+			saved: (JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')) || {}).eventChoices || null
+		}), { sel: EVBTN, key });
+		const press = async (p, c) => { await p.click('[data-usd-el="event"][data-event-key="' + key + '"] [data-usd-el="event-choice"][data-choice="' + c + '"]'); await p.waitForTimeout(300); };
+		let st = await state(sp.page);
+		assert(st.unsel === String(total - 1) && st.saved === null, '育成イベントC 既定のあるイベントは「！」に数えない（未選択 ' + (total - 1) + '件）・保存はまだ空', st);
+		await openPop(sp.page);
+		st = await state(sp.page);
+		assert(st.on.length === n && st.on[1] === true && st.on.filter(Boolean).length === 1 && st.autoTag === false, '育成イベントC 小窓で既定の選択肢（2番目）が選択済み・「自動」の印は出ない', st);
+		await press(sp.page, 0);
+		st = await state(sp.page);
+		assert(st.saved && st.saved[key] === 0 && st.on[0] === true && st.on.filter(Boolean).length === 1, '育成イベントC 別の選択肢に変えると、その番号が保存される', st);
+		if (!(await sp.page.isVisible('[data-usd-el="event"]'))) await openPop(sp.page);
+		await press(sp.page, 0);
+		st = await state(sp.page);
+		assert(st.on.filter(Boolean).length === 0 && st.saved && st.saved[key] === -1, '育成イベントC 外すと既定に戻らず、外した状態（保存は -1）', st);
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.waitForTimeout(500);
+		await openPop(sp.page);
+		st = await state(sp.page);
+		assert(st.on.filter(Boolean).length === 0 && st.unsel === String(total), '育成イベントC 再読み込みしても外したまま。「！」にまた数える（未選択 ' + total + '件）', st);
+		await press(sp.page, 1);
+		st = await state(sp.page);
+		assert(st.on[1] === true && st.saved[key] === 1, '育成イベントC 外した状態から既定の選択肢を押すと選ばれる（保存は 1）', st);
+		const sp2 = await openWatched(U.umaId, { evDoc: doc });
+		await openPop(sp2.page);
+		await press(sp2.page, 1);
+		const st2 = await state(sp2.page);
+		assert(st2.on.filter(Boolean).length === 0 && st2.saved[key] === -1, '育成イベントC 保存が空で既定が選ばれているとき、既定の選択肢を押すと外した状態になる', st2);
+		assert(jsErrors(sp.errors).length === 0 && jsErrors(sp2.errors).length === 0, '育成イベントC コンソールのエラー0', jsErrors(sp.errors).concat(jsErrors(sp2.errors)).slice(0, 3));
+		await sp.ctx.close();
+		await sp2.ctx.close();
+	});
+
+	await block('育成イベントC defaultChoice の無いイベントは従来どおり／範囲外（0・選択肢数より大きい・数字以外・小数・負）は無視して従来どおり、コンソールに警告', async () => {
+		const U = UMA_LONG;
+		const first = pendingEvents(U)[0];
+		const key = 'uma:' + U.umaId + '#' + first.i;
+		const total = pendingEvents(U).length;
+		const n = first.ev.choices.length;
+		const sp0 = await openWatched(U.umaId);
+		const g0 = await eventsOf(sp0.page, U.umaId, null);
+		const u0 = await sp0.page.evaluate((sel) => document.querySelector(sel).getAttribute('data-unselected'), EVBTN);
+		const ev0 = g0.events.find((e) => e.key === key);
+		assert(ev0 && ev0.chosen === null && ev0.pending === true && u0 === String(total) && sp0.warns.length === 0, '育成イベントC defaultChoice の無いイベント: 未選択で「！」に数える・警告は出ない', { ev0, u0, warns: sp0.warns });
+		await sp0.ctx.close();
+		for (const bad of [0, n + 1, 99, '2', 'x', 1.5, -1, true]) {
+			const sp = await openWatched(U.umaId, { evDoc: withEvent(EVDOC, U.umaId, first.i, { defaultChoice: bad }) });
+			const g = await eventsOf(sp.page, U.umaId, null);
+			const u = await sp.page.evaluate((sel) => document.querySelector(sel).getAttribute('data-unselected'), EVBTN);
+			const ev = g.events.find((e) => e.key === key);
+			assert(ev && ev.chosen === null && ev.pending === true && u === String(total) && sp.warns.some((m) => m.includes('defaultChoice')), '育成イベントC defaultChoice=' + JSON.stringify(bad) + ': 無視して未選択のまま（「！」は ' + total + '件）・コンソールに警告', { ev, u, warns: sp.warns });
+			assert(jsErrors(sp.errors).length === 0, '育成イベントC defaultChoice=' + JSON.stringify(bad) + ' コンソールのエラー0', jsErrors(sp.errors).slice(0, 2));
+			await sp.ctx.close();
+		}
+		const info = EVDOC.entries.map((e) => ({ e, i: e.events.findIndex((ev) => ev.choices.length === 1) })).find((x) => x.i >= 0);
+		const sp3 = await openWatched(info.e.umaId, { evDoc: withEvent(EVDOC, info.e.umaId, info.i, { defaultChoice: 1 }) });
+		const g3 = await eventsOf(sp3.page, info.e.umaId, null);
+		assert(!g3.events.some((e) => e.key === 'uma:' + info.e.umaId + '#' + info.i) && sp3.warns.length === 0 && jsErrors(sp3.errors).length === 0, '育成イベントC 選択肢が1つのイベントの defaultChoice=1 は何も変えない（選ぶ行にならない・警告なし）', g3.events.map((e) => e.key));
+		await sp3.ctx.close();
 	});
 }
