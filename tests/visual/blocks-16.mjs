@@ -21,6 +21,7 @@ export async function register16(env) {
 	const EXT = readJson('data/extended-skills.json').entries;
 	const PT = new Map(readJson('data/skill-pt.json').entries.map((e) => [e.skillId, e.rarity]));
 	const UMAS = readJson('data/training-umamusume.json').entries;
+	const COURSE = readJson('data/course-conditions.json');
 	const CARDS6 = ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'];
 	const FULL = { umaId: 'uma-0001', cardIds: CARDS6 };
 	const EMPTY = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
@@ -81,10 +82,16 @@ export async function register16(env) {
 		const white = (id) => !PT.has(id) || PT.get(id) === 'white';
 		const byEnv = (v) => (v ? pool.filter((s) => white(s.id) && ((s.tags.environment || []).includes(v))).map((s) => s.id) : []);
 		const turn = byEnv(race.direction), season = byEnv(race.season);
+		// コースの形（小回り・直線コース。C-156）: レース場・バ場・距離がそろい、表に当たるレースだけ。表は data/course-conditions.json（タグの値が key）
+		const shape = [];
+		COURSE.conditions.forEach((c) => {
+			const t = race.venue && race.surface && race.distance ? c.tracks.find((x) => x.venue === race.venue) : null;
+			if (t && (!t.courses || t.courses.some((x) => x.surface === race.surface && x.distances.includes(race.distance)))) byEnv(c.key).forEach((id) => { if (!shape.includes(id)) shape.push(id); });
+		});
 		const extra = race.rule === 'no_debuff' ? [] : GROUP('noDebuffExtra').skills.filter((s) => !s.onlyWhenRaceDistanceClass || s.onlyWhenRaceDistanceClass.includes(classOf(race))).map((s) => s.skillId);
 		const all = [];
-		turn.concat(season, extra).forEach((id) => { if (!all.includes(id)) all.push(id); });
-		return { turn, season, extra, all };
+		turn.concat(season, shape, extra).forEach((id) => { if (!all.includes(id)) all.push(id); });
+		return { turn, season, shape, extra, all };
 	};
 
 	/* ====================================================================
@@ -157,12 +164,12 @@ export async function register16(env) {
 		await addByText(sp.page, [nameOf(readd)]);
 		await pickRace(sp.page, b.id);
 		const ids2 = await draftIds(sp.page), rec2 = await record(sp.page);
-		const gone = ea.season.filter((id) => id !== readd);
+		const gone = ea.all.filter((id) => !eb.all.includes(id) && id !== readd && id !== manual);
 		assert(ids2.includes(manual) && ids2.includes(readd), 'C130B レースを変えても、手で追加したもの・手で足し直したものは外さない', ids2);
-		assert(gone.every((id) => !ids2.includes(id)) && eb.season.every((id) => ids2.includes(id) && rec2.includes(id)), 'C130B 前のレースだけのもの（季節）は外れ、新しいレースのものが入る', { ids2, rec2 });
+		assert(gone.every((id) => !ids2.includes(id)) && eb.all.filter((id) => !ea.extra.includes(id) && id !== manual && id !== readd).every((id) => ids2.includes(id) && rec2.includes(id)), 'C130B 前のレースだけのもの（季節）は外れ、新しいレースのものが入る', { ids2, rec2 });
 		assert(ea.extra.every((id) => ids2.includes(id) && rec2.includes(id)), 'C130B 両方のレースで入るもの（noDebuffExtra）は外さずに残し、記録にも残る', rec2);
 		const t = await toastText(sp.page);
-		assert(t === 'レースに合わせて' + eb.season.length + '種を追加しました（' + gone.length + '種を外しました）', 'C130B 知らせ: 実際に足した数と外した数だけ', t);
+		assert(t === 'レースに合わせて' + eb.all.filter((id) => !ea.all.includes(id)).length + '種を追加しました（' + gone.length + '種を外しました）', 'C130B 知らせ: 実際に足した数と外した数だけ', t);
 		// 元に戻す: ②と記録がレースを変える前に戻る（レースはそのまま）
 		const before = ids1.filter((id) => id !== readd).concat([readd]);
 		await sp.page.evaluate(() => UmaSkillDeckCore.performUndo());

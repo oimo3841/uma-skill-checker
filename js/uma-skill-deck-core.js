@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14i';
 
 	/* ============================================================
 	 * 定数
@@ -3973,6 +3973,8 @@
 	 * レースを選んだときに②へ入れる候補（C-130・B。追加できるかどうか〔②にある・本育成で得る・レース条件に合わない〕は呼び出し側で見る）。
 	 *   (1) 回り … レースの回り（direction）の値を、レース環境のタグに持つスキル
 	 *   (2) 季節 … レースの季節（season）の値を、レース環境のタグに持つスキル（季節の値が無いレースでは入れない）
+	 *   (2b) コースの形 … 小回り・直線コース（data/course-conditions.json）のタグを持つスキルのうち、レースのレース場・バ場・距離が表に当たるもの
+	 *        （3つそろっていないレースでは入れない。C-156）。回り・季節と同じく、顔ぶれの白スキルからタグで選ぶ
 	 *   (3) レースに「デバフなし」の特殊ルール（RACE_RULES の、効果タイプのデバフを外すもの）が無ければ、グループ RECOMMENDED_RACE_EXTRA_GROUP
 	 * (1)(2) は追加の一覧と同じ顔ぶれ（taggedSkillPool）の白スキル（Pt 未収録で区分が不明なものも含む。金スキルは入れない）から、タグで選ぶ
 	 * （**スキル名は見ない**）。(3) はグループの onlyWhenRaceDistanceClass も見る。並びは (1)(2) が顔ぶれの順、(3) がグループの順。
@@ -3988,6 +3990,12 @@
 			if (!v) return;
 			taggedSkillPool().forEach(s => { if (isWhite(s.id) && ((s.tags && s.tags.environment) || []).indexOf(v) !== -1) push(s.id); });
 		});
+		if (courseConditions) {
+			courseConditions.forEach((tracks, key) => {
+				if (raceCourseMatches(key, race) !== true) return;
+				taggedSkillPool().forEach(s => { if (isWhite(s.id) && ((s.tags && s.tags.environment) || []).indexOf(key) !== -1) push(s.id); });
+			});
+		}
 		const rule = race.rule ? RACE_RULES[race.rule] : null;
 		const noDebuff = !!rule && rule.axis === 'effect' && rule.value === 'debuff';
 		const g = noDebuff ? null : recommendedGroupOf(RECOMMENDED_RACE_EXTRA_GROUP);
