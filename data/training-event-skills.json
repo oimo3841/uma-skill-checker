@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-13a",
+	"dataVersion": "2026-10-14a",
 	"category": "trainingEventSkill",
 	"entries": [
 		{
@@ -1217,6 +1217,7 @@
 				{
 					"eventName": "釣果アリ",
 					"condition": "トレーニングLvが最も高い能力で変化",
+					"defaultChoice": 1,
 					"choices": [
 						{
 							"skills": [
@@ -15719,19 +15720,15 @@
 				},
 				{
 					"eventName": "秋華賞の後に",
-					"condition": "秋華賞で1着",
+					"condition": "クラシック10月後半、桜花賞・オークス・秋華賞で勝利",
 					"choices": [
 						{
-							"results": [
-								[
-									{
-										"skillId": "66",
-										"name": "食い下がり",
-										"hintLevel": 2
-									}
-								],
-								[],
-								[]
+							"skills": [
+								{
+									"skillId": "66",
+									"name": "食い下がり",
+									"hintLevel": 2
+								}
 							]
 						}
 					]
@@ -21746,6 +21743,7 @@
 				{
 					"eventName": "釣果アリ",
 					"condition": "トレーニングLvが最も高い能力で変化",
+					"defaultChoice": 1,
 					"choices": [
 						{
 							"skills": [
@@ -25025,19 +25023,15 @@
 				},
 				{
 					"eventName": "秋華賞の後に",
-					"condition": "秋華賞で1着",
+					"condition": "クラシック10月後半、桜花賞・オークス・秋華賞で勝利",
 					"choices": [
 						{
-							"results": [
-								[
-									{
-										"skillId": "66",
-										"name": "食い下がり",
-										"hintLevel": 2
-									}
-								],
-								[],
-								[]
+							"skills": [
+								{
+									"skillId": "66",
+									"name": "食い下がり",
+									"hintLevel": 2
+								}
 							]
 						}
 					]
@@ -25108,6 +25102,7 @@
 				{
 					"eventName": "釣果アリ",
 					"condition": "トレーニングLvが最も高い能力で変化",
+					"defaultChoice": 1,
 					"choices": [
 						{
 							"skills": [

@@ -1887,7 +1887,7 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 		check(tev.ok, TRAIN_EV_FILE + ' が読める', tev.ok ? undefined : tev.error);
 		if (tev.ok) {
 			const d = tev.data;
-			const unknown = [], missing = [], bad = [], dup = [], unregistered = [], nameDiff = [], badLevel = [], badChoice = [], dupCond = [], notes = [];
+			const unknown = [], missing = [], bad = [], dup = [], unregistered = [], nameDiff = [], badLevel = [], badChoice = [], dupCond = [], badDefault = [], notes = [];
 			checkKeys(d, PT_TOP_KEYS, TRAIN_EV_FILE, unknown, missing);
 			if (d.category !== 'trainingEventSkill') bad.push('category が ' + JSON.stringify(d.category));
 			if (typeof d.dataVersion !== 'string') bad.push('dataVersion が文字列でない');
@@ -1933,8 +1933,10 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 				const byName = new Map();
 				en.events.forEach((ev, j) => {
 					const we = w + '.events[' + j + ']';
-					if (!checkKeys(ev, { need: ['eventName', 'condition', 'choices'], opt: [] }, we, unknown, missing)) return;
+					if (!checkKeys(ev, { need: ['eventName', 'condition', 'choices'], opt: ['defaultChoice'] }, we, unknown, missing)) return;
 					if (!isStr(ev.eventName)) bad.push(we + '.eventName: 空でない文字列');
+					// 任意項目 defaultChoice（C-157）: 選択肢の番号（1始まり）。選択肢が2つ以上あるイベントの、範囲内の整数だけ
+					if (ev.defaultChoice !== undefined && !(Number.isInteger(ev.defaultChoice) && isArr(ev.choices) && ev.choices.length >= 2 && ev.defaultChoice >= 1 && ev.defaultChoice <= ev.choices.length)) badDefault.push(we + '.defaultChoice: 選択肢が2つ以上あるイベントの 1〜選択肢数 の整数（' + JSON.stringify(ev.defaultChoice) + '）');
 					if (typeof ev.condition !== 'string') bad.push(we + '.condition: 文字列（空文字可）');
 					if (isStr(ev.eventName) && typeof ev.condition === 'string') {
 						if (!byName.has(ev.eventName)) byName.set(ev.eventName, []);
@@ -1963,6 +1965,7 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 			none(badLevel, TRAIN_EV_FILE + ': hintLevel は1〜3の整数');
 			none(badChoice, TRAIN_EV_FILE + ': 選択肢は skills か results のどちらか一方だけ（results は配列の配列）');
 			none(dupCond, TRAIN_EV_FILE + ': 同じウマ娘で同名のイベントは condition がすべて異なる');
+			none(badDefault, TRAIN_EV_FILE + ': defaultChoice は選択肢が2つ以上あるイベントの 1〜選択肢数 の整数');
 			none(notes, TRAIN_EV_FILE + ': "notes" というキーがどこにも無い');
 		}
 	}
