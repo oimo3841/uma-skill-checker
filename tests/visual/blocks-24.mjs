@@ -529,6 +529,65 @@ export async function register24(env) {
 		assert(out.every((x) => x.errors.length === 0), '進化段4G コンソールのエラー0', out.map((x) => x.errors.slice(0, 2)));
 	});
 
+	await block('進化段4I 衣装の小窓: 進化先の行（進化先の色）→ └ 金 → └ 白。360・375・390px × ライト・ダークで、収まる・最後まで送れる・「‹ イベント」で行き来できる・バーが開いた高さでも収まる・コントラスト 4.5 以上（C-153）', async () => {
+		const out = [];
+		for (const [w, h] of [[390, 844], [375, 812], [360, 780], [390, 734]]) {
+			for (const scheme of ['light', 'dark']) {
+				const sp = await openSp({ roster: mkRoster({ umaId: 'uma-0269', race: raceOf('race-0002') }), w, h, scheme });
+				// バーが開いた状態の模擬（734px。vh だけ 844px 基準）
+				if (h === 734) await sp.page.addStyleTag({ content: '.usd-info-pop { max-height: min(88vh, 760px) !important; max-height: min(88dvh, 760px) !important; }' });
+				await sp.page.click('#deck-roster-panel [data-usd-el="events-btn"][data-member-key="0"]');
+				await sp.page.waitForTimeout(400);
+				const narrow = await sp.page.evaluate(() => { const s = document.querySelector('[data-usd-el="events-switch"]'); return !!s && getComputedStyle(s).display !== 'none'; });
+				if (narrow) { await sp.page.click('[data-usd-el="events-switch"]'); await sp.page.waitForTimeout(700); }
+				const m = await sp.page.evaluate(() => {
+					const pop = document.querySelector('[data-usd-el="info-pop"]');
+					const pane = pop.querySelector('[data-usd-el="events-pane-skills"]');
+					const rows = [...pop.querySelectorAll('[data-usd-el="ev-skills"] > li')];
+					const evo = rows.filter((r) => r.getAttribute('data-usd-el') === 'ev-skill-evo');
+					const marks = [...pop.querySelectorAll('[data-usd-el="ev-evo-mark"]')].map((mk) => {
+						const li = mk.closest('li');
+						let bg = getComputedStyle(li).backgroundColor;
+						if (/rgba\(0, 0, 0, 0\)|transparent/.test(bg)) bg = getComputedStyle(pop).backgroundColor;
+						return { color: getComputedStyle(mk).color, bg, depth: li.getAttribute('data-usd-evo-depth'), left: mk.getBoundingClientRect().left, nameColor: getComputedStyle(li.querySelector('.usd-ev-skill-name')).color, dim: li.getAttribute('data-usd-dim') === '1' };
+					});
+					const cs = getComputedStyle(evo[0]);
+					const pb = pop.getBoundingClientRect();
+					// 一覧を最後まで送ったとき、最後の行が見える
+					const sc = [pane, pop.querySelector('.uma-popover-body')].find((e) => e && e.scrollHeight > e.clientHeight + 1) || pane;
+					sc.scrollTop = sc.scrollHeight;
+					const last = rows[rows.length - 1].getBoundingClientRect(), scb = sc.getBoundingClientRect();
+					return { n: evo.length, ids: rows.map((r) => r.getAttribute('data-skill-id')), marks, evoText: getComputedStyle(evo[0].querySelector('.usd-ev-skill-name')).color, evoDesc: getComputedStyle(evo[0].querySelector('.usd-ev-skill-desc')).color,
+						grad: cs.backgroundImage, from: cs.getPropertyValue('--evo-from').trim(), mid: cs.getPropertyValue('--evo-mid').trim(), to: cs.getPropertyValue('--evo-to').trim(),
+						box: { top: pb.top, bottom: pb.bottom, left: pb.left, right: pb.right, vw: innerWidth, vh: innerHeight }, ox: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+						lastVisible: last.bottom <= scb.bottom + 1 && last.top >= scb.top - 1, word: /必ず合う|合うことがある|合わない|進\b/.test(pop.textContent) && /必ず合う|合うことがある|合わない/.test(pop.textContent) };
+				});
+				// 「‹ イベント」で戻れる
+				let back = null;
+				if (narrow) { await sp.page.click('[data-usd-el="events-switch"]'); await sp.page.waitForTimeout(700); back = await sp.page.evaluate(() => ({ left: document.querySelector('[data-usd-el="events-panes"]').scrollLeft, text: document.querySelector('[data-usd-el="events-switch"]').textContent.trim() })); }
+				out.push({ w, h, scheme, narrow, m, back, errors: jsErrors(sp.errors) });
+				await sp.ctx.close();
+			}
+		}
+		const hex = (s) => { const n = parseInt(s.replace('#', ''), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+		const rgb = (s) => (s.match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number);
+		const o0 = out[0].m;
+		assert(out.every((x) => x.m.n === 2 && x.m.ids.indexOf('ex-1146') === x.m.ids.indexOf('ex-0354') - 1 && x.m.ids.indexOf('ex-1147') === x.m.ids.indexOf('ex-0633') - 1),
+			'進化段4I どの幅・テーマでも、進化先の行は2つ（大望は煌めきとなりて・熾烈の極みの進化先）で、それぞれ金スキルの直上', out.map((x) => x.w + x.scheme + ':' + x.m.n));
+		assert(out.every((x) => x.m.marks.length === 4 && x.m.marks.filter((k) => k.depth === '2').every((k2) => x.m.marks.filter((k) => k.depth === '1').some((k1) => k2.left > k1.left + 4))),
+			'進化段4I 「└」は金スキル2つと白スキル2つに付き、白は金より1段下げる', out.map((x) => x.m.marks.map((k) => k.depth + ':' + Math.round(k.left))));
+		assert(out.every((x) => x.m.grad.indexOf('linear-gradient') !== -1 && x.m.from && x.m.to), '進化段4I 進化先の行は進化先の色（--evo- の変数）のグラデーション', out.map((x) => x.m.from + '→' + x.m.to));
+		const cr = out.map((x) => ({ k: x.w + 'x' + x.h + x.scheme, marks: x.m.marks.map((k) => +contrastRatio(rgb(k.color), rgb(k.bg)).toFixed(2)), evo: [x.m.from, x.m.mid, x.m.to].map((c) => +contrastRatio(rgb(x.m.evoText), hex(c)).toFixed(2)), evoDesc: [x.m.from, x.m.mid, x.m.to].map((c) => +contrastRatio(rgb(x.m.evoDesc), hex(c)).toFixed(2)) }));
+		console.log('     [情報] 衣装の小窓のコントラスト比: ' + cr.filter((c, i) => i < 2).map((c) => c.k + ' 線' + c.marks.join('/') + ' 進化先の名前' + c.evo.join('/') + ' 説明' + c.evoDesc.join('/')).join(' ｜ '));
+		assert(cr.every((c) => c.marks.every((v) => v >= 4.5) && c.evo.every((v) => v >= 4.5) && c.evoDesc.every((v) => v >= 4.5)), '進化段4I 「└」の線（行の地に対して）と進化先の行の文字のコントラスト比は 4.5 以上（ライト・ダーク）', cr);
+		assert(out.every((x) => x.m.box.top >= 0 && x.m.box.bottom <= x.m.box.vh + 0.5 && x.m.box.left >= 0 && x.m.box.right <= x.m.box.vw + 0.5 && x.m.ox <= 0),
+			'進化段4I 小窓は 360・375・390px とバーが開いた高さ（734px）でも画面に収まり、横にはみ出さない', out.map((x) => ({ k: x.w + 'x' + x.h + x.scheme, top: Math.round(x.m.box.top), bottom: Math.round(x.m.box.bottom), vh: x.m.box.vh })));
+		assert(out.every((x) => x.m.lastVisible), '進化段4I 進化先の行が増えても、取得できるスキルを最後まで送れる（最後の行が見える）', out.map((x) => x.w + 'x' + x.h + x.scheme + ':' + x.m.lastVisible));
+		assert(out.filter((x) => x.narrow).length > 0 && out.filter((x) => x.narrow).every((x) => x.back && x.back.left <= 2 && x.back.text === 'スキル ›'), '進化段4I 狭い幅では「‹ イベント」でイベントのペインに戻れる', out.map((x) => x.back));
+		assert(out.every((x) => !x.m.word), '進化段4I 小窓に「必ず合う／合うことがある／合わない」の語は出ない');
+		assert(out.every((x) => x.errors.length === 0), '進化段4I コンソールのエラー0', out.map((x) => x.errors.slice(0, 2)));
+	});
+
 	await block('進化段4H 説明文を読めないとき: 進化ボタンは押せる見た目のまま（最大は衣装の金スキルの数から）・押すと理由を知らせて画面は開かない・次に押したとき読めれば使える（C-152）', async () => {
 		let fail = true;
 		const sp = await openPage(browser, base, 'special.html', { width: 390, height: 844 }, EMPTY);

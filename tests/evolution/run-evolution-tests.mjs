@@ -12,6 +12,7 @@
 //   §5 新しい勝負服（uma-0271。2026-10-13）の受け入れ: ①の衣装の選択に出る・進化の既定・イベントで得られるスキル
 //   §7 進化先を選べる条件（C-152・2026-10-14）: 進化先自身がそのレースで使えるなら選べる（説明文の＜…＞と、全体にかかる距離の限定だけを見る）。
 //      元の金スキルの条件・追加の効果の条件は見ない。気炎万丈（長距離）・時中の妙（長距離）と、洗い出した行の代表・全行で狭くならないこと
+//   §8 衣装の小窓（C-153・2026-10-14）: 進化先がある金スキルの上に進化先、下に前段の白（進化 → └ 金 → └ 白）。進化先がない金スキル・覚醒Lv7・シナリオの進化は出さない
 //
 // 件数の基準（受け入れ前に測った値）: 辞書 = マスター445 ＋ 追加カタログ747 = 1192
 //   （追加カタログ747 = シナリオ因子24 ＋ 遺伝子10 ＋ 拡張スキル713。進化スキル639行は含めない）。
@@ -467,6 +468,73 @@ console.log('\n=== §7 進化先を選べる条件: 進化先自身が使える�
 		'湯切りの妙技: 説明文に＜…＞が無いので条件の文なし・距離の限定なし（中距離のタグは使わない・印あり）', r.usage1037);
 	assert(r.sweep.narrowed === 0 && r.sweep.widened > 0,
 		'全' + r.sweep.rows + '行 × ' + (r.sweep.cells / r.sweep.rows) + '条件: 変更前より選べる範囲が狭くなった条件は0・広がった行は ' + r.sweep.widened + '行', r.sweep);
+}
+
+/* ───────── §8 衣装の小窓に、進化 → 金 → 白 の関係を出す（C-153） ───────── */
+console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓）: 進化先がある金スキルの上に進化先（パターンAだけ・レースで絞らない）、下に前段の白 ===');
+{
+	const { openPage } = await import('../visual/lib/fixtures.mjs');
+	const SCEN = readJson('data/scenario-event-skills.json');
+	const step = new Map(readJson('data/skill-step-up.json').entries.map((e) => [e.skillId, e.prevSkillIds || []]));
+	const whitesOf = (g) => (step.get(g) || []).filter((id) => pt.get(id) && pt.get(id).rarity === 'white');
+	const longRace = races.find((r) => r.distanceCategory === 'long');
+	// 衣装の小窓を開いて、取得できるスキルの行（id・種類・└ の段）を読む。evoDoc を渡すと skill-evolutions.json をその中身にする
+	const popRows = async (umaId, evoDoc) => {
+		const sp = await openPage(browser, srv.base, 'special.html', { width: 390, height: 844 }, { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] });
+		await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SCEN) }));
+		if (evoDoc) await sp.page.route('**/data/skill-evolutions.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(evoDoc) }));
+		await sp.page.evaluate((ro) => { localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(ro)); localStorage.removeItem('umaSkillDeck:draftScope:special'); localStorage.setItem('umaSkillDeck:stepTab', '0'); },
+			{ rosterId: 'r', name: '', umaId, star: 3, awakeningLevel: 5, cardIds: [null, null, null, null, null, null], race: longRace });
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.waitForFunction(() => window.UmaSkillDeckCore.getEvolutionRowsOfUma !== undefined && !!document.querySelector('#deck-roster-panel [data-usd-el="events-btn"][data-member-key="0"]'), null, { timeout: 15000 });
+		await sp.page.waitForTimeout(800);
+		await sp.page.click('#deck-roster-panel [data-usd-el="events-btn"][data-member-key="0"]');
+		await sp.page.waitForTimeout(400);
+		const rows = await sp.page.evaluate(() => [...document.querySelectorAll('[data-usd-el="info-pop"] [data-usd-el="ev-skills"] > li')].map((li) => ({ id: li.getAttribute('data-skill-id'), el: li.getAttribute('data-usd-el'), depth: li.getAttribute('data-usd-evo-depth'), gold: li.getAttribute('data-usd-gold') === '1', pt: (li.querySelector('[data-usd-el="ev-skill-pt"]') || {}).textContent || null })));
+		const errs = sp.errors.filter((m) => !/Failed to load resource/.test(m));
+		await sp.ctx.close();
+		return { rows, errs };
+	};
+	const evoRowsOf = (umaId, doc) => (doc || evolutions).entries.filter((e) => e.kind === 'uma' && e.umaId === umaId);
+	// 進化先がある金スキルごとに、[進化先…] → 金（└1）→ 前段の白のうち一覧にあるもの（└2）の順か
+	const groupOk = (rows, umaId, doc) => evoRowsOf(umaId, doc).every((er) => {
+		const gi = rows.findIndex((r) => r.id === er.baseSkillId && r.el === 'ev-skill');
+		if (gi < 0) return true;   // 一覧に無い金スキルは対象外
+		const n = er.evolvedSkillIds.length;
+		const above = rows.slice(gi - n, gi);
+		if (above.length !== n || above.some((r, i) => r.el !== 'ev-skill-evo' || r.id !== er.evolvedSkillIds[i] || r.pt !== 'Pt 不要')) return false;
+		if (rows[gi].depth !== '1') return false;
+		const ws = whitesOf(er.baseSkillId).filter((w) => rows.some((r) => r.id === w));
+		return ws.every((w, i) => rows[gi + 1 + i] && rows[gi + 1 + i].id === w && rows[gi + 1 + i].depth === '2');
+	});
+	// シンボリルドルフ（uma-0269）: 気炎万丈 ex-0354 → 大望は煌めきとなりて ex-1146（＋前段の白 172）・熾烈の極み ex-0633 → ex-1147（＋白 284）。長距離のレースでも出す
+	const r1 = await popRows('uma-0269');
+	const ids1 = r1.rows.map((r) => r.id);
+	assert(groupOk(r1.rows, 'uma-0269') && ids1.indexOf('ex-1146') === ids1.indexOf('ex-0354') - 1 && ids1.indexOf('ex-1147') === ids1.indexOf('ex-0633') - 1,
+		'衣装の小窓（シンボリルドルフ・長距離のレース）: 大望は煌めきとなりて → └ 気炎万丈 → └ その前段の白、熾烈の極みの進化先も同じ形（レースの条件で絞らない・Pt 不要）', r1.rows.map((r) => r.id + (r.depth ? '/' + r.depth : '') + (r.el === 'ev-skill-evo' ? '(進化)' : '')));
+	assert(r1.rows.filter((r) => r.el === 'ev-skill-evo').length === evoRowsOf('uma-0269').reduce((a, e) => a + e.evolvedSkillIds.length, 0), '衣装の小窓（シンボリルドルフ）: 進化先の行の数＝その衣装の進化先の数（' + evoRowsOf('uma-0269').reduce((a, e) => a + e.evolvedSkillIds.length, 0) + '）');
+	// 進化先がない金スキル（進化の対応から気炎万丈の行を外したもの）では、進化先も「└」も出さず、前段の白も動かさない
+	const cut = { entries: evolutions.entries.filter((e) => !(e.kind === 'uma' && e.umaId === 'uma-0269' && e.baseSkillId === 'ex-0354')) };
+	const r2 = await popRows('uma-0269', cut);
+	const ids2 = r2.rows.map((r) => r.id);
+	const k = r2.rows.find((r) => r.id === 'ex-0354');
+	// 気炎万丈の前段の白（172）は、これまでの並び（金スキルの直下ではない位置）のまま。熾烈の極みは進化先があるので、これまでどおり組になる
+	assert(!!k && !k.depth && k.gold && ids2.indexOf('ex-1146') === -1 && ids2.indexOf('172') !== ids2.indexOf('ex-0354') + 1 && !r2.rows.find((r) => r.id === '172').depth && groupOk(r2.rows, 'uma-0269', cut),
+		'進化先がない金スキル: 進化先も「└」も出さず、前段の白も金スキルの直下へ動かさない（これまでの並び。金の強調はそのまま）', { gold: k, ids: ids2 });
+	// 覚醒Lv7（金スキル3つ）の衣装: 進化先がある金スキルのすべてに出す
+	const lv7 = umas.filter((u) => evoRowsOf(u.id).length === 3);
+	const r3 = await popRows(lv7[0].id);
+	const golds3 = evoRowsOf(lv7[0].id).map((e) => e.baseSkillId).filter((g) => r3.rows.some((r) => r.id === g));
+	assert(lv7.length === 6 && golds3.length === 3 && groupOk(r3.rows, lv7[0].id) && golds3.every((g) => r3.rows.find((r) => r.id === g).depth === '1'),
+		'覚醒Lv7の衣装（' + lv7[0].id + '）: 金スキル3つのすべてに進化先と「└」が出る', r3.rows.map((r) => r.id + (r.depth ? '/' + r.depth : '') + (r.el === 'ev-skill-evo' ? '(進化)' : '')));
+	// シナリオの進化（パターンB）は出さない: uma-0009 の金スキル ex-0029 は、衣装の進化（ex-1061）とシナリオの進化（ex-1038）の両方を持つ
+	const bTargets = evolutions.entries.filter((e) => e.kind === 'scenario').flatMap((e) => e.evolvedSkillIds);
+	const r4 = await popRows('uma-0009');
+	const ids4 = r4.rows.map((r) => r.id);
+	assert(ids4.indexOf('ex-1061') === ids4.indexOf('ex-0029') - 1 && !ids4.some((id) => bTargets.includes(id)) && groupOk(r4.rows, 'uma-0009'),
+		'シナリオの進化は出さない: uma-0009 のギアチェンジ（ex-0029）の上は衣装の進化先（ex-1061）だけで、シナリオの進化先（ex-1038 など）は無い', ids4);
+	assert([r1, r2, r3, r4].every((x) => x.errs.length === 0), '§8 コンソールのエラー0', [r1, r2, r3, r4].map((x) => x.errs.slice(0, 2)));
 }
 
 assert(errors.length === 0, 'コンソールエラーなし', errors);

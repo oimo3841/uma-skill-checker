@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14f';
 
 	/* ============================================================
 	 * 定数
@@ -5632,6 +5632,12 @@
 		'.usd-ev-skill:first-child { border-top: 0; }',
 		// 段13・C5: 金スキルの行の金色の帯（①の表の金の行と同じ --uma-stitch-soft）
 		'.usd-ev-skill--gold { background: var(--uma-stitch-soft); padding-inline: var(--uma-sp-1-5); border-radius: var(--uma-r-sm); }',
+		// 衣装の小窓の進化（C-153）。進化先の行は段4の進化先と同じ色（--evo- の変数）。金の行・白の行の名前の先頭に「└」（進化スキルの説明の小窓と同じ部品）、白は1段下げる
+		'.usd-ev-skill--evo { box-sizing: border-box; padding-inline: var(--uma-sp-1-5); border: 2px solid var(--evo-edge); border-radius: var(--uma-r-sm); background: linear-gradient(90deg, var(--evo-from), var(--evo-mid), var(--evo-to)); }',
+		'.usd-ev-skill--evo + .usd-ev-skill { border-top: 0; }',
+		'.usd-ev-skill--evo .usd-ev-skill-name, .usd-ev-skill--evo .usd-ev-skill-pt, .usd-ev-skill--evo .usd-ev-skill-desc { color: var(--evo-text); }',
+		'.usd-ev-evomark { margin-right: 2px; font-weight: 400; }',
+		'.usd-ev-skill--evochild { padding-left: 1em; }',
 		'.usd-ev-skill-name { margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); }',
 		'.usd-ev-skill-pt { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
 		// 段13 の仕上げ: 説明文は小窓の幅で折り返して全文を出す（段7b の「1行・横に送る」を置き換えた。右端で切れて読めなかった）
@@ -8508,6 +8514,39 @@
 		return li;
 	}
 	/**
+	 * 衣装の小窓の進化先の行（C-153）。ほかの行と同じ3行（名前／基礎Pt〔0 なので「Pt 不要」。進化スキルの説明の小窓と同じ〕／公式の説明文）で、
+	 * 進化先の色（--evo- の変数。段4の色の案B）の面と枠。「進」の印は付けない。絞り込みでは灰色にしない（レースの条件では絞らない）
+	 */
+	function evolvedSkillRowEl(skillId) {
+		const li = infoEl('li', 'usd-ev-skill usd-ev-skill--evo');
+		li.setAttribute('data-usd-el', 'ev-skill-evo');
+		li.setAttribute('data-skill-id', skillId);
+		li.appendChild(infoEl('p', 'usd-ev-skill-name', getSkillName(skillId)));
+		const ptText = basePtText(skillId);
+		if (ptText) {
+			const pt = infoEl('p', 'usd-ev-skill-pt', ptText);
+			pt.setAttribute('data-usd-el', 'ev-skill-pt');
+			li.appendChild(pt);
+		}
+		const desc = infoEl('div', 'usd-ev-skill-desc', '');
+		desc.setAttribute('data-usd-el', 'ev-skill-desc');
+		desc.setAttribute('data-skill-id', skillId);
+		li.appendChild(desc);
+		settleSkillInfoDesc(skillId, desc);
+		return li;
+	}
+	/** 行の名前の先頭に「└」を付ける（depth 1＝金スキル、2＝その下の白スキル〔1段下げる〕）。進化スキルの説明の小窓と同じ部品（C-153） */
+	function markEvoRow(li, depth) {
+		const name = li.querySelector('.usd-ev-skill-name');
+		const m = infoEl('span', 'usd-info-evorel-mark usd-ev-evomark', '└');
+		m.setAttribute('aria-hidden', 'true');
+		m.setAttribute('data-usd-el', 'ev-evo-mark');
+		if (name) name.insertBefore(m, name.firstChild);
+		li.setAttribute('data-usd-evo-depth', String(depth));
+		if (depth >= 2) li.classList.add('usd-ev-skill--evochild');
+		return li;
+	}
+	/**
 	 * 「イベント」と「取得できるスキル」の小窓の中身（段7の (19)。①の列見出しのバッジと、オススメサポのカード名で共有。C-125・段6）。
 	 *   o.wanted … 絞り込みの述語（外れるスキルを灰色に。無ければ null）／o.interactive … 選択肢を押して選べるか（①＝true、オススメサポ＝false の表示だけ）
 	 *   o.onChoose(e, c) … 選択肢を押したとき（interactive のとき）／o.showUnselected … 「未選択N件」の行を出すか
@@ -8655,8 +8694,30 @@
 		} else {
 			const ul = infoEl('ul', 'usd-ev-skilllist');
 			ul.setAttribute('data-usd-el', 'ev-skills');
-			sure.forEach(it => ul.appendChild(eventSkillRowEl(it, false, !!wanted && !wanted(it.skillId), o.tagOf ? o.tagOf(it.skillId) : null)));
-			maybe.forEach(it => ul.appendChild(eventSkillRowEl(it, true, !!wanted && !wanted(it.skillId), o.tagOf ? o.tagOf(it.skillId) : null)));
+			const rowOf = (x) => eventSkillRowEl(x.it, x.maybe, !!wanted && !wanted(x.it.skillId), o.tagOf ? o.tagOf(x.it.skillId) : null);
+			const ordered = sure.map(it => ({ it: it, maybe: false })).concat(maybe.map(it => ({ it: it, maybe: true })));
+			// 衣装の小窓（育成ウマ娘）だけ: 進化先がある金スキルは、上に進化先（その衣装の候補すべて。レースの条件では絞らない）、
+			// 下にその前段の白スキル（同じ一覧にあるもの）を置き、進化 → └ 金 → └ 白 でつなぐ（C-153。進化スキルの説明の小窓と同じ「└」）。
+			// 進化先が無い金スキルとほかの行は、これまでの並びと見た目のまま。シナリオの進化（パターンB）は出さない
+			const evoOf = new Map((o.evoUmaId ? evolutionRowsOfUma(o.evoUmaId) : []).map(r => [r.baseSkillId, r.evolvedSkillIds]));
+			const whitesOf = (g) => {
+				const su = skillPtData.stepUp, pt = skillPtData.skillPt;
+				return (su && typeof su.prevOf === 'function' ? su.prevOf(g) : []).filter(id => { const r = pt instanceof Map ? pt.get(id) : null; return !!r && r.rarity === 'white'; });
+			};
+			const moved = new Set();
+			ordered.forEach(x => { if (evoOf.has(x.it.skillId)) whitesOf(x.it.skillId).forEach(w => { if (!moved.has(w) && ordered.some(y => y.it.skillId === w)) moved.add(w); }); });
+			const placed = new Set();
+			ordered.forEach(x => {
+				if (moved.has(x.it.skillId) || placed.has(x.it.skillId)) return;
+				const targets = evoOf.get(x.it.skillId);
+				if (!targets) { ul.appendChild(rowOf(x)); return; }
+				targets.forEach(t => ul.appendChild(evolvedSkillRowEl(t)));
+				ul.appendChild(markEvoRow(rowOf(x), 1));
+				whitesOf(x.it.skillId).forEach(w => {
+					const y = ordered.find(z => z.it.skillId === w);
+					if (y && !placed.has(w)) { placed.add(w); ul.appendChild(markEvoRow(rowOf(y), 2)); }
+				});
+			});
 			right.appendChild(ul);
 		}
 		// ── 狭い幅では、2つのペインを横に並べて scroll-snap でスワイプ。見出しの右の切り替えのボタンでも行き来できる ──
@@ -9752,7 +9813,10 @@
 		let eventsPane = 0;          // 狭い幅の小窓で見せているペイン（0＝イベント、1＝取得できるスキル。段7b の ⑩。保存しない）
 		/** ①の小窓の中身。作りは共有の buildEventsInfo（オススメサポのカード名の小窓と同じ）。選択肢を押すと①の編成に保存する */
 		function fillEventsInfo(body, res, memberKey) {
+			// 衣装の小窓（育成ウマ娘）だけ、その衣装の進化（パターンA）を出す（C-153）
+			const mem = res.members.find(x => x.key === memberKey);
 			return buildEventsInfo(body, res, memberKey, { wanted: filterPredicate(), interactive: true, showUnselected: true,
+				evoUmaId: mem && mem.kind === 'uma' ? roster.umaId : null,
 				getPane: () => eventsPane, setPane: (n) => { eventsPane = n; },
 				onChoose: (e, c) => toggleEventChoice(e.eventKey, c.index, e.chosen === c.index && !e.auto ? null : c.index, e) });
 		}
