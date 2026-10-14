@@ -16,6 +16,7 @@ export async function register12(env) {
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	const scenReal = readJson('data/scenario-event-skills.json');
 	const racesReal = readJson('data/upcoming-races.json');
+	const courseReal = readJson('data/course-conditions.json');
 	const FILTER = { distance: 'medium', style: 'senko', surface: 'turf' };
 	const CARDS6 = ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'];
 	const FULL = { umaId: 'uma-0001', cardIds: CARDS6, skillFilter: FILTER };
@@ -397,6 +398,12 @@ export async function register12(env) {
 		// 段13・A1: 昼のレースでは、ナイターのタグを持つスキル（昼のタグを持たないもの）を外す
 		if (race.time === 'time_day' && env.includes('time_night') && !env.includes('time_day')) return true;
 		if (race.rule === 'no_debuff' && (tags.effect || []).some((v) => v === 'debuff' || v === 'temptation_time')) return true;
+		// C-155: 小回り・直線コースのタグを持つスキルは、レース場・バ場・距離がそろったレースで、表に当たらなければ外す
+		if (race.venue && race.surface && race.distance) {
+			const shapes = courseReal.conditions.filter((c) => env.includes(c.key));
+			const hit = (c) => { const t = c.tracks.find((x) => x.venue === race.venue); return !!t && (!t.courses || t.courses.some((x) => x.surface === race.surface && x.distances.includes(race.distance))); };
+			if (shapes.length > 0 && !shapes.some(hit)) return true;
+		}
 		return false;
 	};
 
@@ -418,6 +425,9 @@ export async function register12(env) {
 			['夜だけ（外さない）', { time: 'time_night' }],
 			['デバフなしだけ', { rule: 'no_debuff' }],
 			['公開なし（名前だけ）', {}],
+			// C-155: 小回り・直線コース（レース場・バ場・距離がそろったときだけ判定）
+			['小回りに当たる（中山 芝2500m）', { venue: 'track_nakayama', surface: 'turf', distance: 2500 }],
+			['直線コースに当たる（新潟 芝1000m）', { venue: 'track_niigata', surface: 'turf', distance: 1000 }],
 			['一覧の1行目（全部公開）', R0],
 			['一覧の6行目（芝・マイル・デバフなし）', racesReal.races[5]]
 		];

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14h';
 
 	/* ============================================================
 	 * 定数
@@ -98,7 +98,10 @@
 		// 育成ウマ娘のイベントで得られるスキル（段1・2026-10-11）。受け入れだけで、画面と計算はまだ使わない。TRAINING_SOURCES の5本目
 		'data/training-event-skills.json': '2026-10-13a',
 		// スキルの進化の対応（段2・2026-10-12。C-145・C-146）。受け入れだけで、画面と計算はまだ使わない。ページの読み込みでは取りに行かない（loadSkillEvolutions）
-		'data/skill-evolutions.json': '2026-10-13a'
+		'data/skill-evolutions.json': '2026-10-13a',
+		// コースの形の条件（小回り・直線コース）に当たるレース場・バ場・距離（C-155・2026-10-14。おいもさんの指定の表）。
+		// loadUpcomingRaces() がレースの一覧と一緒に読む。exam は読まない
+		'data/course-conditions.json': '2026-10-14a'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
@@ -1433,7 +1436,8 @@
 	};
 	/**
 	 * オススメサポの母集団に効かせる項目（段9）。**course（内／外）は表示だけ**（内回り・外回りを条件にするスキルはゲームに無い。
-	 * おいもさん確認済み・2026-10-04）。小回り・直線コースは今回は扱わない（レースの一覧に持たせない）。
+	 * おいもさん確認済み・2026-10-04）。小回り・直線コースはレースの一覧に持たせず、`data/course-conditions.json` の表で
+	 * レース場・バ場・距離から決める（C-155。raceCourseMatches）。
 	 * time は RACE_TIME_REJECTS の分だけ効かせる（段13）。
 	 */
 	const RACE_EFFECTIVE_ENV_FIELDS = ['direction', 'season', 'weather', 'ground'];
@@ -1527,6 +1531,10 @@
 			const sv = env.filter(x => group.indexOf(x) !== -1);
 			if (sv.length > 0 && sv.indexOf(rv) === -1) return true;
 		}
+		// コースの形（小回り・直線コース。C-155）: そのタグを持つスキルは、表に当たらないレースで外す。
+		// レース場・バ場・距離のどれかが決まっていないレースでは判定しない（null＝外さない）
+		const shapes = env.filter(x => courseConditions && courseConditions.has(x));
+		if (shapes.length > 0 && shapes.every(k => raceCourseMatches(k, race) === false)) return true;
 		const timeOut = race.time ? (RACE_TIME_REJECTS[race.time] || []) : [];
 		if (timeOut.length > 0) {
 			const sv = env.filter(x => RACE_ENV_FIELDS.time.indexOf(x) !== -1);
@@ -1565,7 +1573,73 @@
 			upcomingRaces = null;
 			try { global.console.warn('[UmaSkillDeck] レースの一覧を読み込めなかった（レース条件なしで動く）'); } catch (e2) {}
 		}
+		await loadCourseConditions(forceRefresh);
 		return upcomingRaces;
+	}
+
+	/* ============================================================
+	 * コースの形の条件（小回り・直線コース。C-155・2026-10-14。`data/course-conditions.json`）
+	 *
+	 * key はスキルのレース環境（environment）のタグの値。そのタグを持つスキルは、表に当たるレースだけで有効になる。
+	 * courses の無いレース場は、すべての距離・バ場が当たる。courses のあるレース場（新潟・中山）は、バ場と距離の組み合わせが一致したときだけ当たる。
+	 * **スキル名は持たない**（どのスキルが対象かはタグで決まる。◎ も同じタグを持つので同じ条件になる）。
+	 * 読めなければ null（＝この条件では外さない）。
+	 * ============================================================ */
+	const COURSE_CONDITIONS_PATH = 'data/course-conditions.json';
+	/** Map: タグの値 → [{ venue, courses: null | [{ surface, distances: number[] }] }]（データの並びのまま） */
+	let courseConditions = null;
+	function normalizeCourseConditions(doc) {
+		const list = (doc && Array.isArray(doc.conditions)) ? doc.conditions : null;
+		if (!list) return null;
+		const out = new Map();
+		list.forEach(c => {
+			if (!c || typeof c.key !== 'string' || !c.key || !Array.isArray(c.tracks)) return;
+			const tracks = c.tracks.filter(t => t && typeof t.venue === 'string' && t.venue).map(t => ({
+				venue: t.venue,
+				courses: Array.isArray(t.courses) ? t.courses.filter(x => x && typeof x.surface === 'string' && Array.isArray(x.distances))
+					.map(x => ({ surface: x.surface, distances: x.distances.filter(d => typeof d === 'number') })) : null
+			}));
+			out.set(c.key, tracks);
+		});
+		return out.size > 0 ? out : null;
+	}
+	async function loadCourseConditions(forceRefresh) {
+		try {
+			courseConditions = normalizeCourseConditions(await fetchMasterJson(withDataVersion(COURSE_CONDITIONS_PATH), !!forceRefresh));
+			if (!courseConditions) throw new Error('empty');
+		} catch (e) {
+			courseConditions = null;
+			try { global.console.warn('[UmaSkillDeck] コースの形の条件を読み込めなかった（小回り・直線コースはレースで外さない）'); } catch (e2) {}
+		}
+		return courseConditions;
+	}
+	/**
+	 * レースが、コースの形の条件 key に当たるか。true（当たる）／false（当たらない）／null（判定しない）。
+	 * **レース場・バ場・距離の3つがそろったときだけ判定する**（どれかが決まっていなければ null＝新しく外さない）。
+	 */
+	function raceCourseMatches(key, race) {
+		const tracks = courseConditions ? courseConditions.get(key) : null;
+		if (!tracks || !race || !race.venue || !race.surface || !race.distance) return null;
+		const t = tracks.find(x => x.venue === race.venue);
+		if (!t) return false;
+		if (!t.courses) return true;
+		return t.courses.some(x => x.surface === race.surface && x.distances.indexOf(race.distance) !== -1);
+	}
+	/**
+	 * スキルの説明の小窓に出す「対象レース場: …」の1行（C-155）。そのスキルがコースの形のタグを持たなければ空。
+	 * 例「対象レース場: 札幌・…・新潟・中山（新潟は芝1200m・…、ダート1200m・1800m／中山は…）」。レース場が1つなら「新潟（芝1000m）」
+	 */
+	function courseConditionText(skill) {
+		const env = (skill && skill.tags && skill.tags.environment) || [];
+		const key = courseConditions ? env.find(x => courseConditions.has(x)) : null;
+		if (!key) return '';
+		const tracks = courseConditions.get(key);
+		const courseText = (t) => t.courses.map(x => tagOptionLabel('surface', x.surface) + x.distances.map(d => d + 'm').join('・')).join('、');
+		const names = tracks.map(t => tagOptionLabel('trackVenue', t.venue) || t.venue);
+		const limited = tracks.filter(t => t.courses);
+		if (tracks.length === 1 && limited.length === 1) return '対象レース場: ' + names[0] + '（' + courseText(limited[0]) + '）';
+		const notes = limited.map(t => (tagOptionLabel('trackVenue', t.venue) || t.venue) + 'は' + courseText(t));
+		return '対象レース場: ' + names.join('・') + (notes.length > 0 ? '（' + notes.join('／') + '）' : '');
 	}
 
 	/** 距離 d の区分（`distanceCategories` の境目から決める）。無ければ null。 */
@@ -5376,6 +5450,8 @@
 		'.usd-info-rarity { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-subtle); }',
 		'.usd-info-desc { white-space: pre-line; }',
 		'.usd-info-desc--pending { color: var(--uma-text-subtle); }',
+		// 小回り・直線コースの対象レース場（C-155）。補足なので一段小さく、コントラスト比 4.5 以上の色（--uma-text-subtle）
+		'.usd-info-course { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
 		'.usd-info-self { color: var(--uma-text-heading); }',
 		// 進化スキルの小窓の関係（段4の修正5）。進化スキル → └ 金スキル → └ 白スキル。「└」は①の表の前段の白と同じ形。
 		// 小さい文字なので、線（└）も文字もコントラスト比 4.5 以上の色（--uma-text-subtle）にする（①の表の薄い色 --uma-text-faint は使わない）
@@ -8219,6 +8295,13 @@
 		desc.setAttribute('data-usd-el', 'info-desc');
 		body.appendChild(desc);
 		settleSkillInfoDesc(skillId, desc);
+		// 小回り・直線コースのスキルだけ: 対象のレース場（C-155。表はデータから読む）
+		const course = courseConditionText(findSkill(skillId));
+		if (course) {
+			const c = infoEl('p', 'usd-info-course', course);
+			c.setAttribute('data-usd-el', 'info-course');
+			body.appendChild(c);
+		}
 		if (pd.meta.loaded) {
 			const t = basePtText(skillId);
 			const p = infoEl('p', 'usd-info-pt', t);
@@ -13829,6 +13912,11 @@
 		// これから開催されるレースの一覧（段7）。読めていなければ null
 		getUpcomingRaces: function () { return upcomingRaces ? upcomingRaces.map(r => Object.assign({}, r)) : null; },
 		loadUpcomingRaces: loadUpcomingRaces,
+		// コースの形の条件（小回り・直線コース。C-155）。検査が判定と表示の文を確かめるために公開する
+		raceCourseMatches: raceCourseMatches,
+		courseConditionText: courseConditionText,
+		raceRejectsSkill: raceRejectsSkill,
+		getCourseConditionKeys: function () { return courseConditions ? Array.from(courseConditions.keys()) : null; },
 		getRaceDistancesMeta: function () { return raceDistancesMeta; },
 		tagLabel: tagLabel,
 		tagLabels: tagLabels,

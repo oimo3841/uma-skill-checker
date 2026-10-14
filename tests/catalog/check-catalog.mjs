@@ -1327,6 +1327,83 @@ console.log('\n=== 14. スキルの効率（' + EFF_FILE + '） ===');
 	}
 }
 
+/* ──────────────────────── 15. コースの形の条件（小回り・直線コース） ──────────────────────── */
+
+/* C-155（2026-10-14）。おいもさんの指定の表。`entries` を持たないので FILES には入れず、ここで見る。
+   **値を書かない** ―― key はレース環境の軸（core.js の TAG_AXES）の選択肢に、venue はレース場の軸の選択肢に、surface はバ場の軸の選択肢に
+   実在すること、distances は race-distances.json にそのバ場で実在する距離であること、key を持つスキルがマスター・拡張スキルにあることを見る。 */
+const COURSE_FILE = 'course-conditions.json';
+const COURSE_TOP_KEYS = { need: ['dataVersion', 'category', 'conditions'], opt: ['note'] };
+const COURSE_COND_KEYS = { need: ['key', 'tracks'], opt: [] };
+const COURSE_TRACK_KEYS = { need: ['venue'], opt: ['courses'] };
+const COURSE_COURSE_KEYS = { need: ['surface', 'distances'], opt: [] };
+const COURSE_CATEGORY_NAME = 'courseConditions';
+console.log('\n=== 15. コースの形の条件（' + COURSE_FILE + '） ===');
+{
+	const abs = path.join(REPO_ROOT, DIR, COURSE_FILE);
+	const r = fs.existsSync(abs) ? readJsonFile(abs) : { ok: false, error: 'ファイルが無い' };
+	check(r.ok, COURSE_FILE + ' が読める', r.ok ? undefined : r.error);
+	const raceDoc = readJsonFile(path.join(REPO_ROOT, DIR, RACE_FILE));
+	if (r.ok && raceDoc.ok) {
+		const doc = r.data;
+		const unknown = [], missing = [], bad = [];
+		checkKeys(doc, COURSE_TOP_KEYS, COURSE_FILE, unknown, missing);
+		if (doc.category !== COURSE_CATEGORY_NAME) bad.push('category が ' + JSON.stringify(doc.category));
+		if (!DATA_VERSION_RE.test(String(doc.dataVersion))) bad.push('dataVersion が「YYYY-MM-DD＋英小文字1字」の形でない: ' + String(doc.dataVersion));
+		const optsOf = (key) => new Set((readAxisOptions(coreSrc, key) || []).map((o) => o.v));
+		const envOpts = optsOf('environment'), venueOpts = optsOf('trackVenue'), surfOpts = optsOf('surface');
+		const dists = raceDoc.data.distances || [];
+		const conds = isArr(doc.conditions) ? doc.conditions : [];
+		if (!isArr(doc.conditions) || conds.length === 0) bad.push('conditions が空でない配列でない');
+		const allSkills = masterSkills.concat(docs.extendedSkill.entries);
+		const seenKey = new Set();
+		let trackN = 0, courseN = 0;
+		conds.forEach((c, i) => {
+			const w = 'conditions[' + i + ']';
+			if (!checkKeys(c, COURSE_COND_KEYS, w, unknown, missing)) return;
+			if (!envOpts.has(c.key)) bad.push(w + ': key ' + c.key + ' がレース環境の軸の選択肢に無い');
+			if (seenKey.has(c.key)) bad.push(w + ': key ' + c.key + ' が重複');
+			seenKey.add(c.key);
+			if (!allSkills.some((s) => ((s.tags && s.tags.environment) || []).includes(c.key))) bad.push(w + ': key ' + c.key + ' のタグを持つスキルが無い');
+			if (!isArr(c.tracks) || c.tracks.length === 0) { bad.push(w + ': tracks が空でない配列でない'); return; }
+			const seenVenue = new Set();
+			c.tracks.forEach((t, j) => {
+				const tw = w + '.tracks[' + j + ']';
+				if (!checkKeys(t, COURSE_TRACK_KEYS, tw, unknown, missing)) return;
+				trackN++;
+				if (!venueOpts.has(t.venue)) bad.push(tw + ': venue ' + t.venue + ' がレース場の選択肢に無い');
+				if (seenVenue.has(t.venue)) bad.push(tw + ': venue ' + t.venue + ' が重複');
+				seenVenue.add(t.venue);
+				if (t.courses === undefined) return;
+				if (!isArr(t.courses) || t.courses.length === 0) { bad.push(tw + ': courses は空でない配列（すべての距離・バ場なら書かない）'); return; }
+				const seenSurf = new Set();
+				t.courses.forEach((x, k) => {
+					const xw = tw + '.courses[' + k + ']';
+					if (!checkKeys(x, COURSE_COURSE_KEYS, xw, unknown, missing)) return;
+					courseN++;
+					if (!surfOpts.has(x.surface)) bad.push(xw + ': surface ' + x.surface + ' がバ場の選択肢に無い');
+					if (seenSurf.has(x.surface)) bad.push(xw + ': surface ' + x.surface + ' が重複');
+					seenSurf.add(x.surface);
+					if (!isArr(x.distances) || x.distances.length === 0) { bad.push(xw + ': distances が空でない配列でない'); return; }
+					x.distances.forEach((d, n) => {
+						if (!isInt(d) || d < 1) { bad.push(xw + ': distances[' + n + '] は1以上の整数'); return; }
+						if (n > 0 && !(d > x.distances[n - 1])) bad.push(xw + ': distances は重なりなしの昇順');
+						const dr = dists.find((y) => y.distance === d);
+						if (!dr) bad.push(xw + ': 距離 ' + d + ' のレースが ' + RACE_FILE + ' に無い');
+						else if (!(dr.surfaces || []).includes(x.surface)) bad.push(xw + ': 距離 ' + d + ' に ' + x.surface + ' のレースが無い');
+					});
+				});
+			});
+		});
+		// core.js が読むパスと版の表に載っていること（載っていないと取りに行かない）
+		check(/const COURSE_CONDITIONS_PATH = 'data\/course-conditions\.json'/.test(coreSrc), 'core.js が ' + COURSE_FILE + ' を読む（COURSE_CONDITIONS_PATH）');
+		none(unknown, COURSE_FILE + ' に知らないキーが無い');
+		none(missing, COURSE_FILE + ' の必須のキーが揃っている');
+		none(bad, COURSE_FILE + ' の値が決めた形（key・venue・surface が軸の選択肢に実在する／距離がそのバ場で実在する／重複なし・昇順／key のタグを持つスキルがある）');
+		console.log('     条件 ' + conds.length + '・レース場 ' + trackN + '（うちバ場と距離の制限あり ' + conds.reduce((n, c) => n + (c.tracks || []).filter((t) => t.courses).length, 0) + '）・バ場ごとの距離の組 ' + courseN);
+	}
+}
+
 /* ──────────────────────── 5. ★・覚醒レベル・状態 ──────────────────────── */
 
 console.log('\n=== 5. ★・覚醒レベル・状態・種類 ===');

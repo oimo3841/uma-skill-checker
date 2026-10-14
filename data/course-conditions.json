@@ -1,0 +1,36 @@
+{
+	"dataVersion": "2026-10-14a",
+	"category": "courseConditions",
+	"note": "コースの形の条件（小回り・直線コース）に当たるレース。key はスキルのレース環境（environment）のタグの値で、そのタグを持つスキルは、ここに当たるレースだけで有効になる。courses が無いレース場は、すべての距離・バ場が当たる。courses があるレース場は、バ場と距離の組み合わせが一致したときだけ当たる。レース場・バ場・距離のどれかが決まっていないレースでは判定しない（外さない）。スキル名は持たない。",
+	"conditions": [
+		{
+			"key": "small_track",
+			"tracks": [
+				{ "venue": "track_sapporo" },
+				{ "venue": "track_hakodate" },
+				{ "venue": "track_fukushima" },
+				{ "venue": "track_kokura" },
+				{ "venue": "track_kawasaki" },
+				{ "venue": "track_funabashi" },
+				{ "venue": "track_santaanita" },
+				{ "venue": "track_delmar" },
+				{ "venue": "track_niigata", "courses": [
+					{ "surface": "turf", "distances": [1200, 1400, 2000, 2200, 2400] },
+					{ "surface": "dirt", "distances": [1200, 1800] }
+				] },
+				{ "venue": "track_nakayama", "courses": [
+					{ "surface": "turf", "distances": [1800, 2000, 2500, 3600] },
+					{ "surface": "dirt", "distances": [1200, 1800] }
+				] }
+			]
+		},
+		{
+			"key": "straight_course",
+			"tracks": [
+				{ "venue": "track_niigata", "courses": [
+					{ "surface": "turf", "distances": [1000] }
+				] }
+			]
+		}
+	]
+}

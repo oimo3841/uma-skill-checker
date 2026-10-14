@@ -1416,6 +1416,77 @@ console.log('\n=== 3. special.html（Deck連携モード）でも同じマスタ
 	await ctx.close();
 }
 
+/* ============================================================
+ * 4. コースの形の条件（小回り・直線コース。C-155・2026-10-14）
+ *
+ * 対象のスキルは、マスター・拡張スキルのレース環境（environment）のタグ small_track／straight_course で決まる（スキル名は書かない）。
+ * レース場・バ場・距離の3つがそろったレースだけで判定し、どれかが欠けていれば新しく外さない。
+ * レース場の id はタグの語（track_…）で書く。表そのものは data/course-conditions.json が正（ここには例だけを書く）。
+ * ============================================================ */
+console.log('\n=== 4. コースの形の条件（小回り・直線コース） ===');
+{
+	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	await page.evaluate(async () => { await UmaSkillDeckCore.loadMasterSkills(false); });
+	const all = master.skills.concat(extendedSkills.entries);
+	const idsOf = (v) => all.filter((s) => ((s.tags && s.tags.environment) || []).includes(v)).map((s) => s.id);
+	const SMALL = idsOf('small_track'), STRAIGHT = idsOf('straight_course');
+	assert(SMALL.length === 2 && STRAIGHT.length === 2, 'タグ small_track・straight_course を持つスキルは2件ずつ（○と◎。マスター1・拡張スキル1）', { SMALL, STRAIGHT });
+	const keys = await page.evaluate(() => UmaSkillDeckCore.getCourseConditionKeys());
+	assert(eq(keys, ['small_track', 'straight_course']), 'コースの形の条件のデータを読めた（small_track・straight_course）', keys);
+	const race = (venue, surface, distance) => ({ id: 'race-x', name: 'x', venue, surface, distance });
+	// [レース, 小回りが有効か, 直線コースが有効か]。null の項目は「決まっていない」
+	const cases = [];
+	const ALL_DIST = { turf: [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2500, 3000, 3600], dirt: [1000, 1200, 1400, 1600, 1800, 2000, 2400] };
+	for (const v of ['track_sapporo', 'track_hakodate', 'track_fukushima', 'track_kokura', 'track_kawasaki', 'track_funabashi', 'track_santaanita', 'track_delmar']) {
+		for (const s of ['turf', 'dirt']) for (const d of ALL_DIST[s]) cases.push([race(v, s, d), true, false, '一覧のレース場はどの距離・バ場でも小回りが有効']);
+	}
+	cases.push([race('track_niigata', 'turf', 1200), true, false, '新潟 芝1200m']);
+	cases.push([race('track_niigata', 'turf', 1800), false, false, '新潟 芝1800m']);
+	cases.push([race('track_niigata', 'dirt', 1800), true, false, '新潟 ダート1800m']);
+	cases.push([race('track_niigata', 'dirt', 1400), false, false, '新潟 ダート1400m']);
+	cases.push([race('track_nakayama', 'turf', 2200), false, false, '中山 芝2200m']);
+	cases.push([race('track_nakayama', 'turf', 2500), true, false, '中山 芝2500m']);
+	cases.push([race('track_nakayama', 'dirt', 1800), true, false, '中山 ダート1800m']);
+	cases.push([race('track_nakayama', 'dirt', 2400), false, false, '中山 ダート2400m']);
+	for (const [v, s, d] of [['track_kyoto', 'turf', 2200], ['track_kyoto', 'turf', 3000], ['track_tokyo', 'turf', 2400], ['track_hanshin', 'dirt', 1800], ['track_oi', 'dirt', 2000], ['track_longchamp', 'turf', 2400]])
+		cases.push([race(v, s, d), false, false, '一覧にないレース場は無効']);
+	cases.push([race('track_niigata', 'turf', 1000), false, true, '新潟 芝1000m: 直線コースが有効・小回りは無効']);
+	for (const [s, d] of [['turf', 1200], ['turf', 1600], ['turf', 2000], ['dirt', 1000], ['dirt', 1800]]) cases.push([race('track_niigata', s, d), s === 'turf' ? [1200, 2000].includes(d) : d === 1800, false, '新潟 芝1000m以外は直線コースが無効']);
+	// 指定が足りないレース: 新しく外さない（どちらも有効のまま）
+	cases.push([null, true, true, 'レースが未指定']);
+	for (const [v, s, d, why] of [['track_kyoto', null, null, 'レース場だけ（一覧にない京都）'], ['track_niigata', null, null, 'レース場だけ（新潟）'], ['track_sapporo', null, null, 'レース場だけ（札幌）'],
+		[null, 'turf', 2200, 'バ場と距離だけ'], [null, null, 1000, '距離だけ'], ['track_kyoto', 'turf', null, 'レース場とバ場だけ'], ['track_niigata', null, 1000, 'レース場と距離だけ']])
+		cases.push([race(v, s, d), true, true, '指定が足りない: ' + why]);
+	const got = await page.evaluate(({ cases, SMALL, STRAIGHT }) => cases.map(([r]) => ({
+		small: SMALL.map((id) => !(r && UmaSkillDeckCore.raceRejectsSkill(UmaSkillDeckCore.findSkill(id), r))),
+		straight: STRAIGHT.map((id) => !(r && UmaSkillDeckCore.raceRejectsSkill(UmaSkillDeckCore.findSkill(id), r)))
+	})), { cases, SMALL, STRAIGHT });
+	const groups = new Map();
+	cases.forEach(([r, wantSmall, wantStraight, label], i) => {
+		const g = groups.get(label) || { n: 0, bad: [] };
+		g.n++;
+		const ok = got[i].small.every((x) => x === wantSmall) && got[i].straight.every((x) => x === wantStraight);
+		if (!ok) g.bad.push({ race: r && [r.venue, r.surface, r.distance].join(' '), want: [wantSmall, wantStraight], got: got[i] });
+		groups.set(label, g);
+	});
+	for (const [label, g] of groups) assert(g.bad.length === 0, label + '（' + g.n + '通り。○と◎が同じ扱い）', g.bad.slice(0, 3));
+	console.log('     [件数] 判定した例 ' + cases.length + '通り × 4スキル');
+	// ほかのタグのスキル（レース環境の小回り・直線コースを持たないもの）は、この条件では外れない
+	const other = await page.evaluate(({ ids }) => {
+		const r ={ id: 'race-x', name: 'x', venue: 'track_kyoto', surface: 'turf', distance: 2200 };
+		return ids.filter((id) => UmaSkillDeckCore.raceRejectsSkill(UmaSkillDeckCore.findSkill(id), r));
+	}, { ids: master.skills.filter((s) => !((s.tags.environment || []).some((v) => v === 'small_track' || v === 'straight_course')) && !(s.tags.trackVenue || []).length && !(s.tags.environment || []).length).map((s) => s.id) });
+	assert(other.length === 0, '小回り・直線コース・レース場・レース環境のタグを持たないマスターのスキルは、京都 芝2200m で外れない', other.slice(0, 5));
+	// 小窓の1行（表から作る。新潟・中山の制限はそのまま書く）
+	const texts = await page.evaluate(({ a, b }) => [UmaSkillDeckCore.courseConditionText(UmaSkillDeckCore.findSkill(a)), UmaSkillDeckCore.courseConditionText(UmaSkillDeckCore.findSkill(b)), UmaSkillDeckCore.courseConditionText(UmaSkillDeckCore.findSkill('1'))], { a: SMALL[0], b: STRAIGHT[0] });
+	assert(texts[0] === '対象レース場: 札幌・函館・福島・小倉・川崎・船橋・サンタアニタパーク・デルマー・新潟・中山（新潟は芝1200m・1400m・2000m・2200m・2400m、ダート1200m・1800m／中山は芝1800m・2000m・2500m・3600m、ダート1200m・1800m）',
+		'小回りの小窓の1行: 対象レース場と、新潟・中山の制限（指定の書き方のまま）', texts[0]);
+	assert(texts[1] === '対象レース場: 新潟（芝1000m）', '直線コースの小窓の1行: 新潟（芝1000m）', texts[1]);
+	assert(texts[2] === '', 'ほかのスキルには出さない', texts[2]);
+	assert(errors.length === 0, 'コンソールエラーなし', errors);
+	await ctx.close();
+}
+
 await browser.close();
 await close();
 console.log('\n' + (fails === 0 ? '=== マスターデータテスト: 全項目OK ===' : '=== マスターデータテスト: ' + fails + '件 NG ==='));
