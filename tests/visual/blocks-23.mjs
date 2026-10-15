@@ -43,6 +43,7 @@ export async function register23(env) {
 	const openSp = async (o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 375, height: o.h || 812 }, EMPTY);
 		if (o.evDoc) await sp.page.route('**/data/training-event-skills.json*', (r) => r.fulfill(json(o.evDoc)));
+		if (o.cardEvDoc) await sp.page.route('**/data/support-card-event-skills.json*', (r) => r.fulfill(json(o.cardEvDoc)));
 		await sp.page.evaluate(({ roster, tab }) => {
 			if (roster) localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster)); else localStorage.removeItem('umaSkillDeck:draftRoster:special');
 			localStorage.removeItem('umaSkillDeck:draftScope:special');
@@ -191,23 +192,26 @@ export async function register23(env) {
 	});
 
 	await block('育成イベント段2F 赤字「αテスト中：イベントスキル未収録」の数は、育成ウマ娘の有無・衣装によらず変わらない／行の無い衣装は「イベント無し」として動く', async () => {
-		const evCards = new Set(readJson('data/support-card-event-skills.json').entries.map((x) => x.cardId));
-		const pendingCard = readJson('data/support-cards.json').entries.find((c) => !evCards.has(c.id)).id;
+		// 2026-10-15: 全563枚にイベントの行がそろい「行の無いカード」が実データに無くなった。未確認の扱いを見る検査なので、
+		// 1枚（CARDS6 に入らない最初のカード）の行だけ外したイベントのデータに差し替えて開く
+		const cardEvFull = readJson('data/support-card-event-skills.json');
+		const pendingCard = readJson('data/support-cards.json').entries.find((c) => !CARDS6.includes(c.id)).id;
+		const cardEvDoc = Object.assign({}, cardEvFull, { entries: cardEvFull.entries.filter((x) => x.cardId !== pendingCard) });
 		const CARDS = [pendingCard].concat(CARDS6.slice(0, 5));
 		const alertText = (page) => page.evaluate(() => { const a = document.querySelector('.usd-roster-alert'); return a ? a.textContent : ''; });
-		const sp = await openSp({ roster: { cardIds: CARDS } });
+		const sp = await openSp({ cardEvDoc, roster: { cardIds: CARDS } });
 		const noUma = await sp.page.evaluate((ids) => UmaSkillDeckCore.computeRosterSkills({ cardIds: ids }).unconfirmed.length, CARDS);
 		const withUma = await sp.page.evaluate((ids) => UmaSkillDeckCore.computeRosterSkills({ umaId: 'uma-0001', cardIds: ids }).unconfirmed.length, CARDS);
 		const t0 = await alertText(sp.page);
 		assert(noUma > 0 && noUma === withUma, '育成イベント段2F 未収録の数（計算）は育成ウマ娘を足しても同じ', { noUma, withUma });
 		await sp.ctx.close();
-		const sp1 = await openSp({ roster: { umaId: 'uma-0001', cardIds: CARDS } });
+		const sp1 = await openSp({ cardEvDoc, roster: { umaId: 'uma-0001', cardIds: CARDS } });
 		const t1 = await alertText(sp1.page);
 		assert(t0 === t1, '育成イベント段2F 画面の赤字の文も同じ（「' + t0 + '」）', { t0, t1 });
 		await sp1.ctx.close();
 		// 行の無い衣装（entries から外した写しを返す）
 		const doc = Object.assign({}, EVDOC, { entries: EVDOC.entries.filter((e) => e.umaId !== 'uma-0001') });
-		const sp2 = await openSp({ evDoc: doc, roster: { umaId: 'uma-0001', cardIds: CARDS } });
+		const sp2 = await openSp({ cardEvDoc, evDoc: doc, roster: { umaId: 'uma-0001', cardIds: CARDS } });
 		const r = await sp2.page.evaluate((ids) => {
 			const a = UmaSkillDeckCore.computeRosterSkills({ umaId: 'uma-0001', cardIds: ids });
 			return { ev: a.sources.filter((s) => s.kind === 'umaEvent').length, ch: a.events.filter((e) => e.kind === 'umaEvent').length, unconf: a.unconfirmed.length };

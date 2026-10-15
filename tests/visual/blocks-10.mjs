@@ -395,7 +395,7 @@ export async function register10(env) {
 		const full = await sp.page.evaluate(async () => { const r = await UmaSkillDeckCore.outside.solve({ roster: { outsideOptions: { exclude: {} } }, count: 6, deadlineMs: 20000 }); return { ok: r.ok, partial: r.partial, score: r.score, cards: r.cards.length, counts: r.counts, stats: r.stats }; });
 		assert(cut.ok && cut.partial === true && cut.score > 0 && cut.cards === 6 && full.ok && full.partial === false && cut.score <= full.score, '段10(C) 実データ: 締め切り 0ms だと途中の結果（partial）で、それまでの最良（6枚）を返す。十分な時間なら印は付かない', { cut, full: { partial: full.partial, score: full.score } });
 		assert(full.stats.engineScore === full.score, '段10(C) 実データでも、探索の点数と組み立ての点数が一致する', [full.stats.engineScore, full.score]);
-		assert(full.counts.kinds + full.counts.gold === full.score && full.stats.population === 452 && full.stats.candidates === 407 && full.stats.groups === 145, '段10(C) 実データ: 点数 ＝ 種数（countSkillKinds）＋ 金スキル。母集団452・候補407枚・145キャラクター', { counts: full.counts, stats: full.stats });
+		assert(full.counts.kinds + full.counts.gold === full.score && full.stats.population === 452 && full.stats.candidates === 410 && full.stats.groups === 146, '段10(C) 実データ: 点数 ＝ 種数（countSkillKinds）＋ 金スキル。母集団452・候補410枚・146キャラクター（2026-10-15: card-0323・0334・0147 のイベントが入り、候補407→410・キャラクター145→146）', { counts: full.counts, stats: full.stats });
 		const ticks = await sp.page.evaluate(async () => {
 			let n = 0; const iv = setInterval(() => { n++; }, 0);
 			const roster = { cardIds: ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'], skillFilter: { distance: 'medium', style: 'senko', surface: 'turf' } };

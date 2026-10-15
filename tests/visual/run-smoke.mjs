@@ -11939,6 +11939,12 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 			altered.entries.find((c) => c.id === G.id).rarity = 'SR';
 			await page2.route('**/data/support-cards.json*', (route) => route.fulfill({
 				status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(altered) }));
+			// 2026-10-15: グループのカード5枚にもイベントの行が入った。行が無いカードに既定の箱（3つ）を並べる見方を確かめる検査なので、
+			// 対象のカードの行だけ外したイベントのデータに差し替える
+			const evDoc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/support-card-event-skills.json'), 'utf8'));
+			evDoc.entries = evDoc.entries.filter((r) => r.cardId !== G.id);
+			await page2.route('**/data/support-card-event-skills.json*', (route) => route.fulfill({
+				status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(evDoc) }));
 			await page2.goto(base + '/card-event-input.html', { waitUntil: 'networkidle' });
 			await page2.waitForFunction(() => /全\d+枚/.test(document.getElementById('cei-counts').textContent));
 			await page2.uncheck('#cei-only-focus');
