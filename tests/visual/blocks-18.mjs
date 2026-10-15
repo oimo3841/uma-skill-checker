@@ -187,7 +187,7 @@ export async function register18(env) {
 		await sp.ctx.close();
 	});
 
-	await block('C132A5 パレットの行の並びは「削除」→ 脚質のボタン → アイコン（◎○△◇★✕）。始まりは左端で、収まらないぶんは右へ送る／脚質が指定なしなら脚質のボタンは無い', async () => {
+	await block('C132A5 パレットの行の並びは「削除」→「サポカ外」（C-163）→ 脚質のボタン → アイコン（◎○△◇★✕）。始まりは左端で、収まらないぶんは右へ送る／脚質が指定なしなら脚質のボタンは無い', async () => {
 		const sp = await openSp({ ids: LONG.slice(0, 2) });
 		const p = sp.page;
 		await p.waitForSelector(T + '[data-usd-el="recommend-btn"]');
@@ -196,12 +196,12 @@ export async function register18(env) {
 			const kids = Array.from(pal.children).filter((c) => !c.classList.contains('usd-palette-sep')).map((c) => c.getAttribute('data-usd-el'));
 			return { kids, left: pal.scrollLeft, over: pal.scrollWidth > pal.clientWidth, ox: getComputedStyle(pal).overflowX };
 		});
-		assert(r.kids[0] === 'palette-delete' && r.kids[1] === 'recommend-btn' && r.kids.slice(2).every((k) => /^palette-[a-f]$/.test(k)) && r.kids.length === 8, 'C132A5 並びは 削除・脚質のボタン・アイコン6つ', r.kids);
+		assert(r.kids[0] === 'palette-delete' && r.kids[1] === 'outside-skill-btn' && r.kids[2] === 'recommend-btn' && r.kids.slice(3).every((k) => /^palette-[a-f]$/.test(k)) && r.kids.length === 9, 'C132A5 並びは 削除・サポカ外（C-163）・脚質のボタン・アイコン6つ', r.kids);
 		assert(r.left === 0 && r.ox === 'auto', 'C132A5 始まりは左端で、横に送れる', r);
 		await sp.ctx.close();
 		const sp2 = await openSp({ ids: LONG.slice(0, 2), roster: Object.assign({}, FULL, { skillFilter: { distance: 'medium', surface: 'turf' } }) });
 		const k2 = await sp2.page.evaluate(() => Array.from(document.querySelector('#deck-template-panel .usd-palette').children).filter((c) => !c.classList.contains('usd-palette-sep')).map((c) => c.getAttribute('data-usd-el')));
-		assert(k2[0] === 'palette-delete' && !k2.includes('recommend-btn'), 'C132A5 脚質が指定なしなら、「削除」の次はアイコン', k2);
+		assert(k2[0] === 'palette-delete' && k2[1] === 'outside-skill-btn' && !k2.includes('recommend-btn') && /^palette-[a-f]$/.test(k2[2]), 'C132A5 脚質が指定なしなら、「サポカ外」（C-163）の次はアイコン', k2);
 		await sp2.ctx.close();
 	});
 

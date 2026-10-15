@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16d';
 
 	/* ============================================================
 	 * 定数
@@ -8227,6 +8227,36 @@
 		return !!cls && entry.onlyWhenRaceDistanceClass.indexOf(cls) !== -1;
 	}
 
+	/* ------------------------------------------------------------
+	 * サポカで得られないスキル（C-163・2026-10-16。data/non-support-skills.json）
+	 * ②のパレットの「サポカ外」ボタンの候補。データ側が規則で作る公開用の一覧（独自カテゴリ3のみ。パッシブ〔緑スキル〕も含む）。
+	 * { dataVersion, category, entries: [{ skillId, name }] }。**スキル名・件数はコードに書かない**（データから読む）。
+	 * ページの読み込みでは取りに行かず、ボタンを最初に押したときに1回だけ読む（失敗したら次に押したときにもう一度試す）。
+	 * ------------------------------------------------------------ */
+	const NON_SUPPORT_SKILLS_PATH = 'data/non-support-skills.json';
+	const NON_SUPPORT_FAILED_MSG = 'サポカ外のスキルのデータを読み込めませんでした';
+	let nonSupportState = { status: 'idle', ids: null, promise: null };   // idle／loading／ok／failed
+	function loadNonSupportSkills() {
+		if (nonSupportState.status === 'ok' || nonSupportState.status === 'loading') return nonSupportState.promise;
+		const st = { status: 'loading', ids: null, promise: null };
+		nonSupportState = st;
+		st.promise = (async () => {
+			try {
+				const doc = await fetchMasterJson(withDataVersion(NON_SUPPORT_SKILLS_PATH), false);
+				const ids = [];
+				((doc && Array.isArray(doc.entries)) ? doc.entries : []).forEach(e => {
+					const id = e && typeof e.skillId === 'string' ? e.skillId : '';
+					if (id && ids.indexOf(id) === -1) ids.push(id);
+				});
+				if (ids.length === 0) throw new Error('empty');
+				st.ids = ids;
+				st.status = 'ok';
+			} catch (e) { st.status = 'failed'; }
+			return st.status;
+		})();
+		return st.promise;
+	}
+
 	/**
 	 * 系列（前段データから）。前へはたどれる限り（前段が複数のときは先頭）、後ろへは次のスキルが1つのあいだたどる
 	 * （次が複数なら、そこで束ねて止める）。関係が無ければ null。**名前や記号は見ない**（id の関係だけ）。
@@ -10833,6 +10863,7 @@
 			// 段9: アイコンのパレットと、行の先頭のアイコン
 			else if (act === 'palette-pick') pickPalette(btn.dataset.icon);
 			else if (act === 'recommend-add') { if (!btn.disabled) confirmRecommendedGroup(btn.dataset.group, btn); }   // C-130・C（C-132 で確認の小窓を挟んだ）
+			else if (act === 'outside-skill-add') confirmOutsideSkills(btn);   // C-163
 			else if (act === 'skill-icon') toggleSkillIcon(btn.dataset.skillId);
 			else if (act === 'factor-reset') openFactorResetPopover(btn);
 			else if (act === 'outside-open') openOutsideAdvisor(btn);
@@ -12600,7 +12631,7 @@
 				+ ' aria-label="' + esc(name + 'のアイコン：' + (ic ? ic.mark : 'なし')) + '" title="アイコンを付ける・外す">' + skillIconHtml(iconId) + '</button>';
 		}
 		/**
-		 * パレット「削除 │ 逃げオススメ／先差追オススメ │ ◎ ○ △ ◇ ★ ✕」（段9。C-132 で並びを変え、「解除」を「削除」に置き換えた）。
+		 * パレット「削除 サポカ外 │ 逃げオススメ／先差追オススメ │ ◎ ○ △ ◇ ★ ✕」（段9。C-132 で並びを変え、「解除」を「削除」に置き換えた。C-163 で「サポカ外」を足した）。
 		 * 選んでいるものは外側に 2px の輪（aria-pressed）。選んでいるアイコンをもう一度押すと選択が外れる（何も付けない状態）。
 		 * 「削除」はアイコンと同じブラシの扱い（押すと削除の状態。タイルを押すとそのスキルを外す）。収まらないぶんは横に送る（始まりは左端）
 		 */
@@ -12613,6 +12644,9 @@
 			const rec = recommendButtonHtml();
 			el.innerHTML = '<button type="button" class="usd-palette-clear usd-palette-del" data-usd-act="palette-pick" data-usd-el="palette-delete" data-icon="' + PALETTE_DELETE + '" aria-pressed="' + (del ? 'true' : 'false') + '"'
 				+ ' title="押したスキルを②から外す"><i data-lucide="trash-2" class="w-3 h-3" aria-hidden="true"></i>削除</button>'
+				// C-163: 「削除」の次に「サポカ外」（サポカで得られないスキルを、①の条件に合うものだけ確認つきでまとめて追加）。データはボタンを押したときに読む＝いつも出す
+				+ '<button type="button" class="usd-palette-clear" data-usd-act="outside-skill-add" data-usd-el="outside-skill-btn"'
+				+ ' title="サポカで得られないスキルをまとめて追加">サポカ外</button>'
 				+ (rec ? '<span class="usd-palette-sep" aria-hidden="true"></span>' + rec : '')
 				+ '<span class="usd-palette-sep" aria-hidden="true"></span>'
 				+ SKILL_ICONS.map(i => '<button type="button" class="usd-palette-btn" data-usd-act="palette-pick" data-usd-el="palette-' + i.id + '" data-icon="' + i.id + '"'
@@ -12695,13 +12729,20 @@
 			applyRosterHidden();
 			const g = recommendedGroupOf(key);
 			if (!g || !skillIdsOf(currentTarget())) return;
-			const plan = recommendPlanOf(g);
+			confirmAddPlan({ label: g.label, plan: recommendPlanOf(g), btn: btn, refocus: '[data-usd-el="recommend-btn"]', onAdd: () => addRecommendedGroup(key) });
+		}
+		/**
+		 * 追加する前の確認の小窓（C-132。「オススメ」と C-163 の「サポカ外」で共通）。o = { label（小窓の見出し）, plan（recommendPlanOf の形）, btn, refocus, onAdd, showTotal? }。
+		 * showTotal のときは、追加するスキルの数のあとに合計 Pt を添える
+		 */
+		function confirmAddPlan(o) {
+			const plan = o.plan;
 			const why = recommendSkipReasons(plan);
 			// C-131: 追加できるものが0種なら、何も足さずに知らせる（内訳は「追加しなかったもの」と同じ書き方。内訳も0なら一文だけ）
 			if (plan.add.length === 0) { toast('追加できるスキルはありません' + (why.length > 0 ? '（' + why.join('・') + '）' : '')); return; }
-			openPopover({ key: 'recommend-confirm:' + draftScopeKey, title: g.label, btn: btn, opener: btn, refocus: '[data-usd-el="recommend-btn"]',
+			openPopover({ key: 'recommend-confirm:' + draftScopeKey, title: o.label, btn: o.btn, opener: o.btn, refocus: o.refocus,
 				build: (body) => {
-					const head = infoEl('p', 'usd-rec-head', '追加するスキル ' + plan.add.length + '種');
+					const head = infoEl('p', 'usd-rec-head', '追加するスキル ' + plan.add.length + '種' + (o.showTotal ? addPlanPtText(plan.add) : ''));
 					head.setAttribute('data-usd-el', 'recommend-confirm-head');
 					body.appendChild(head);
 					const ul = infoEl('ul', 'usd-rec-list');
@@ -12724,7 +12765,7 @@
 					const go = infoEl('button', 'uma-btn uma-btn--primary', '追加する');
 					go.type = 'button';
 					go.setAttribute('data-usd-el', 'recommend-confirm-add');
-					go.addEventListener('click', () => { closeSkillInfo(); addRecommendedGroup(key); });
+					go.addEventListener('click', () => { closeSkillInfo(); o.onAdd(); });
 					const no = infoEl('button', 'uma-btn uma-btn--ghost', 'やめる');
 					no.type = 'button';
 					no.setAttribute('data-usd-el', 'recommend-confirm-cancel');
@@ -12734,14 +12775,33 @@
 					body.appendChild(row);
 				} });
 		}
+		/** 追加するスキルの合計 Pt の文言（C-163）。行の Pt（outsideRowPtText）と同じ数え方の合計。Pt 未収録のスキルは合計に入れず、数を添える。Pt の元データが読めていなければ空 */
+		function addPlanPtText(ids) {
+			const pt = skillPtData.skillPt instanceof Map ? skillPtData.skillPt : null;
+			if (!pt) return '';
+			let sum = 0, unpriced = 0;
+			for (const id of ids) {
+				const row = pt.get(id);
+				if (!row) { unpriced++; continue; }
+				if (row.pt === 0) continue;
+				const p = outsidePtOf([id]);
+				if (!p.ok) return '';
+				sum += p.own;
+			}
+			return '（合計 ' + formatPtNumber(sum) + ' Pt' + (unpriced > 0 ? '・Pt 未収録 ' + unpriced + '種を除く' : '') + '）';
+		}
 		/** 確認の小窓の「追加する」: まとめて②に追加し、「元に戻す」に1回で積む。追加しなかったものは、数と理由を知らせに添える */
 		function addRecommendedGroup(key) {
 			applyRosterHidden();
 			const g = recommendedGroupOf(key);
+			if (!g) return;
+			commitAddPlan(g.label, recommendPlanOf(g));
+		}
+		/** plan.add を②に追加する（「オススメ」と「サポカ外」で共通）。label は知らせと「元に戻す」の文言に使う */
+		function commitAddPlan(label, plan) {
 			const target = currentTarget();
 			const ids = skillIdsOf(target);
-			if (!g || !ids) return;
-			const plan = recommendPlanOf(g);
+			if (!ids) return;
 			const skip = plan.already.length + plan.roster.length + plan.race.length;
 			const why = recommendSkipReasons(plan);
 			if (plan.add.length === 0) { toast('追加できるスキルはありません' + (why.length > 0 ? '（' + why.join('・') + '）' : '')); return; }
@@ -12750,8 +12810,8 @@
 			const add = plan.add.slice();
 			pushUndo({
 				scope: 'list',
-				doneLabel: g.label + ' ' + add.length + '種を追加しました' + (skip > 0 ? '。追加しなかったもの ' + skip + '種（' + why.join('・') + '）' : ''),
-				undoneLabel: g.label + 'で追加した' + add.length + '種を取り消しました',
+				doneLabel: label + ' ' + add.length + '種を追加しました' + (skip > 0 ? '。追加しなかったもの ' + skip + '種（' + why.join('・') + '）' : ''),
+				undoneLabel: label + 'で追加した' + add.length + '種を取り消しました',
 				probe: () => probeOf(skillIdsOf(target)),
 				apply: () => {
 					if (!writeSkillIds(target, snapshot(prev), undefined, snapshot(prevIcons))) return false;
@@ -12763,6 +12823,50 @@
 			if (!writeSkillIds(target, ids.concat(add))) return;
 			picker.excludeIds = picker.excludeIds.concat(add.filter(id => picker.excludeIds.indexOf(id) === -1));
 			afterAutoAdd(target);
+		}
+		/* ---------- ②のパレットの行の「サポカ外」（C-163） ---------- */
+		/**
+		 * 「サポカ外」で追加するもの（add）と、追加しないもの（理由ごと。recommendPlanOf と同じ形・同じ順: 追加済み → 本育成編成 → レース条件）。
+		 * 候補は non-support-skills.json の全件。①の距離・脚質・バ場と、目標のレース条件（距離を含む）に合うものだけを足す（matchesFilters。タグが空の距離・脚質は万能）。
+		 * **パッシブ（緑スキル）は、②の「緑スキル」の追加と同じ扱い**で、①の距離・脚質・バ場では絞らない（レース条件には合わせる）。
+		 * ①の条件に合わないものも、レース条件に合わないものと同じ「レース条件に合わないため」に数える。進化スキルは data に入っていない。
+		 */
+		function outsideSkillPlanOf() {
+			const ids = nonSupportState.status === 'ok' ? nonSupportState.ids : [];
+			const target = currentTarget();
+			const cur = skillIdsOf(target) || [];
+			const linked = linkedRosterOf(target);
+			const race = setBased && linked ? raceOfRoster(linked) : null;
+			const sel = linked ? resolvedFilterOf(linked) : {};
+			const filters = {};
+			Object.keys(sel).forEach(k => { filters[k] = [sel[k]]; });
+			const hasFilter = Object.keys(filters).length > 0;
+			let dist = null;   // レースの距離が決まっているときは、区分だけでなくその距離で判定する（C-97）
+			if (race && typeof race.distance === 'number') { const c = categoryOfDistance(race.distance); if (c) dist = { state: 'ok', distance: race.distance, category: c }; }
+			const plan = { add: [], already: [], roster: [], race: [] };
+			ids.forEach(id => {
+				const s = findSkill(id);
+				if (!s) return;
+				if (cur.indexOf(id) !== -1) plan.already.push(id);
+				else if (isPickerExcluded(id)) plan.roster.push(id);
+				else if (isPickerRaceBlocked(id) || (hasFilter && !isPoolExcluded(s) && !matchesFilters(s, filters, dist))) plan.race.push(id);
+				else plan.add.push(id);
+			});
+			return plan;
+		}
+		/** 「サポカ外」を押したとき: データを読んでから、確認の小窓（追加できるものが0種なら理由の知らせだけ） */
+		async function confirmOutsideSkills(btn) {
+			const target = currentTarget();
+			const st = await loadNonSupportSkills();
+			if (st !== 'ok') { toast(NON_SUPPORT_FAILED_MSG, 'warn'); return; }
+			if (!sameTarget(target, currentTarget())) return;
+			applyRosterHidden();
+			if (!skillIdsOf(currentTarget())) return;
+			confirmAddPlan({ label: 'サポカ外', plan: outsideSkillPlanOf(), btn: btn, refocus: '[data-usd-el="outside-skill-btn"]', showTotal: true, onAdd: addOutsideSkills });
+		}
+		function addOutsideSkills() {
+			applyRosterHidden();
+			commitAddPlan('サポカ外', outsideSkillPlanOf());
 		}
 		/** 自動で足したあとの描画と通知（下書きに中身ができたら選択状態にする＝ほかの追加の経路と同じ） */
 		function afterAutoAdd(target) {

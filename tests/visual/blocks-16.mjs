@@ -221,9 +221,10 @@ export async function register16(env) {
 	const readPalette = (page) => page.evaluate(() => {
 		const row = document.querySelector('#deck-template-panel [data-usd-el="tier-row"]');
 		const b = row.querySelector('[data-usd-el="recommend-btn"]');
-		// C-132: 「解除」は無くなり、並びは「削除 │ 脚質のボタン │ アイコン」。ボタンは「削除」の次（区切りの線を挟む）
+		// C-132: 「解除」は無くなり、並びは「削除 │ 脚質のボタン │ アイコン」。ボタンは「削除」の次（区切りの線を挟む）。
+		// C-163: 「削除」と脚質のボタンの間に「サポカ外」（outside-skill-btn）が入ったので、それも読み飛ばして「削除」の次を見る
 		const c = row.querySelector('[data-usd-el="palette-delete"]');
-		const prevBtn = (el) => { let n = el.previousElementSibling; while (n && n.classList.contains('usd-palette-sep')) n = n.previousElementSibling; return n; };
+		const prevBtn = (el) => { let n = el.previousElementSibling; while (n && (n.classList.contains('usd-palette-sep') || n.getAttribute('data-usd-el') === 'outside-skill-btn')) n = n.previousElementSibling; return n; };
 		return { has: !!b, text: b ? b.textContent : null, dis: b ? b.disabled : null, group: b ? b.getAttribute('data-group') : null,
 			next: !!b && prevBtn(b) === c, sameLine: !!b && Math.abs(b.getBoundingClientRect().top + b.getBoundingClientRect().height / 2 - (c.getBoundingClientRect().top + c.getBoundingClientRect().height / 2)) <= 1,
 			hscroll: /usd-hscroll/.test(row.className), rowH: row.getBoundingClientRect().height, low: !!document.querySelector('#deck-template-panel [data-usd-el="low-effect-btn"]') };
