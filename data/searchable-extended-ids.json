@@ -1,0 +1,46 @@
+{
+	"dataVersion": "2026-10-16a",
+	"category": "searchableExtendedId",
+	"entries": [
+		{
+			"skillId": "ex-0521",
+			"name": "聖女の挑戦"
+		},
+		{
+			"skillId": "ex-0531",
+			"name": "立ち合い"
+		},
+		{
+			"skillId": "ex-0533",
+			"name": "気勢を上げて"
+		},
+		{
+			"skillId": "ex-0669",
+			"name": "聖女の試練"
+		},
+		{
+			"skillId": "ex-0691",
+			"name": "アスリート魂"
+		},
+		{
+			"skillId": "ex-0968",
+			"name": "L'Arcの希望"
+		},
+		{
+			"skillId": "ex-0969",
+			"name": "凱旋門賞連覇の夢"
+		},
+		{
+			"skillId": "ex-0987",
+			"name": "怯むことなく"
+		},
+		{
+			"skillId": "ex-0990",
+			"name": "遊び心"
+		},
+		{
+			"skillId": "ex-1673",
+			"name": "規格外"
+		}
+	]
+}

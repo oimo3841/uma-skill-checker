@@ -38,6 +38,8 @@ const master = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'uma-skill-deck-s
  * 第2回でタグが入ると、マスター単独で組み立てた期待値は必ず食い違うので、
  * ここで材料を広げておく。**カテゴリ名も件数もこのファイルに書かない**（ファイルから読む）。 */
 const extendedSkills = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/extended-skills.json'), 'utf8'));
+// 検索に出してよい拡張スキルの id（C-163・2026-10-16）。製品の固定リストはやめ、データ側が規則で作ったファイルを読む
+const searchableExtendedIds = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/searchable-extended-ids.json'), 'utf8'));
 /** 育成ウマ娘（C-91 の (3)「編成には検索に出さない拡張スキルも引き続き出る」を見るのに使う）。 */
 const trainingUmas = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/training-umamusume.json'), 'utf8'));
 /** レースの距離の一覧（C-97。目標のレースの距離の判定の材料。区分の境目も実在する距離もここから読む）。 */
@@ -419,10 +421,10 @@ const browser = await chromium.launch();
 	 * 仮のスキル（`seedProbes`）は各塊が自分で入れるので、そのつど +N して数える。 */
 	const MASTER_POOL = master.skills.filter(inPool);
 	/* **C-91（2026-09-25）: 検索に出してよい拡張スキルは、名簿にあるものだけ。**
-	   マスター445件と同じ独自カテゴリの拡張スキルで、スキルの正本の独自カテゴリから作った一覧（7件）。
-	   **名簿は製品から読まずにここに持つ** ―― 製品の一覧を読むと、一覧から1件抜いて壊したときに
+	   2026-10-16（C-163）から名簿は `data/searchable-extended-ids.json`（データ側が規則で作る。10件）。
+	   **名簿は製品の core から読まずに、データのファイルから読む** ―― 製品の一覧を読むと、一覧から1件抜いて壊したときに
 	   期待値も一緒に動いて、「一覧にあるものが出る」の検査が落ちなくなる。製品の一覧とは下で突き合わせる。 */
-	const SEARCHABLE_EXT_IDS = ['ex-0521', 'ex-0531', 'ex-0533', 'ex-0669', 'ex-0691', 'ex-0968', 'ex-0969'];
+	const SEARCHABLE_EXT_IDS = searchableExtendedIds.entries.map((e) => e.skillId);
 	/** タグが付いた拡張スキルのすべて（検索に出さないものを含む。C-91 の「出ない」の検査に使う）。 */
 	const CATALOG_TAGGED_ALL = extendedSkills.entries.filter((e) => e.tags);
 	/** タグが付いた拡張スキルのうち、検索に出してよいもの（`tagsPending` の行は `tags` を持たないので自然に外れる）。 */

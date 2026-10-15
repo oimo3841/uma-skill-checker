@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16b';
 
 	/* ============================================================
 	 * 定数
@@ -66,6 +66,8 @@
 		'data/scenario-inheritance-factors.json': '2026-09-15a',
 		'data/aptitude-genes.json': '2026-09-19a',
 		'data/extended-skills.json': '2026-10-16a',
+		// 「条件で検索」の母集団に入れる拡張スキルの id の一覧（2026-10-16a・C-163）。データ側が規則で作る。拡張スキルと同じ経路（loadExtraCatalog）で読む
+		'data/searchable-extended-ids.json': '2026-10-16a',
 		'data/training-umamusume.json': '2026-10-13a',
 		'data/support-cards.json': '2026-09-30b',
 		'data/support-card-event-skills.json': '2026-10-15a',
@@ -153,6 +155,9 @@
 	 * （保存済みの比較シートは id で行を指すため、衝突すると別物にすり替わる）。
 	 * ------------------------------------------------------------ */
 	const STORAGE_KEY_EXTRA_CATALOG = 'umaSkillDeck:extraCatalogCache';
+	/* 検索に出してよい拡張スキルの id の一覧（C-163）。**スキルの行ではない**（id と名前の控えだけ）ので EXTRA_CATALOG_SOURCES には並べず、
+	   読み込みだけ同じ経路（loadExtraCatalog の fetchCatalogDoc・同じキャッシュ）に載せる。写しは持たない。 */
+	const SEARCHABLE_EXTENDED_IDS_SOURCE = { category: 'searchableExtendedId', path: 'data/searchable-extended-ids.json' };
 	const EXTRA_CATALOG_SOURCES = [
 		{ category: 'scenarioFactor', path: 'data/scenario-inheritance-factors.json' },
 		// 遺伝子（C-67）。**tags を持たないので「条件でスキルを検索」の母集団には入らない**
@@ -688,6 +693,8 @@
 	// entries を平らにしたもので、ファイル階層のキー（dataVersion / nextSerial / note …）を
 	// 持たない）。貼り付け用のテキストを組み立てる側が要るので、読んだものを残しておく。
 	let extraCatalogDocs = {};
+	// 検索に出してよい拡張スキルの id（SEARCHABLE_EXTENDED_IDS_SOURCE から。読めなければ空＝拡張スキルは検索に出ない）
+	let searchableExtendedIds = new Set();
 	let trainingSources = { };
 	let trainingMeta = { loaded: false, sources: [] };
 	/**
@@ -1268,6 +1275,16 @@
 			.map(e => toCatalogEntry(e, category));
 	}
 
+	/** 追加カタログ系のファイルを1つ取る（取得 → キャッシュ）。取れなければ data は null。 */
+	async function fetchCatalogDoc(src, cached, forceRefresh) {
+		try {
+			return { data: await fetchMasterJson(withDataVersion(src.path), !!forceRefresh), from: '取得' };
+		} catch (e) {
+			if (cached && cached.data && cached.data[src.category]) return { data: cached.data[src.category], from: 'キャッシュ' };
+		}
+		return { data: null, from: '' };
+	}
+
 	async function loadExtraCatalog(forceRefresh) {
 		let cached = null;
 		try { cached = JSON.parse(global.localStorage.getItem(STORAGE_KEY_EXTRA_CATALOG) || 'null'); } catch (e) {}
@@ -1278,13 +1295,8 @@
 
 		for (let i = 0; i < EXTRA_CATALOG_SOURCES.length; i++) {
 			const src = EXTRA_CATALOG_SOURCES[i];
-			let data = null, from = '';
-			try {
-				data = await fetchMasterJson(withDataVersion(src.path), !!forceRefresh);
-				from = '取得';
-			} catch (e) {
-				if (cached && cached.data && cached.data[src.category]) { data = cached.data[src.category]; from = 'キャッシュ'; }
-			}
+			const got = await fetchCatalogDoc(src, cached, forceRefresh);
+			let data = got.data, from = got.from;
 			let list = normalizeCatalogEntries(data, src.category);
 			if (list.length === 0) {
 				// 組み込みの写し。ここまで来ても空なら、そのカテゴリは今回は無いものとして進む。
@@ -1307,11 +1319,18 @@
 		extraCatalogDocs = nextDocs;
 		extraCatalogMeta = { entryCount: entries.length, sources: sources };
 
+		// 検索に出してよい拡張スキルの id（C-163）。キャッシュは拡張スキルと同じ箱に入れる。読めなければ空のまま進む
+		// （拡張スキルが検索に出なくなるだけ。下の emptyCategories と stale の知らせの対象に含める）
+		const idsGot = await fetchCatalogDoc(SEARCHABLE_EXTENDED_IDS_SOURCE, cached, forceRefresh);
+		searchableExtendedIds = new Set(((idsGot.data && idsGot.data.entries) || []).filter(e => e && e.skillId).map(e => String(e.skillId)));
+		if (idsGot.data) nextCache[SEARCHABLE_EXTENDED_IDS_SOURCE.category] = idsGot.data;
+		const idsSource = { category: SEARCHABLE_EXTENDED_IDS_SOURCE.category, count: searchableExtendedIds.size, from: idsGot.from, version: (idsGot.data && idsGot.data.dataVersion) || '' };
+
 		// 1件も読めなかったカテゴリは**黙って進めない**（C-49）。
 		// 組み込みの写しを持たないカテゴリ（拡張スキル）では、取得にもキャッシュにも
 		// 失敗すると中身が丸ごと空になる。そのまま進むと、保存済みの比較シートの行が
 		// 「（不明なスキル：…）」に化けた理由が利用者にも開発者にも分からなくなる。
-		const emptyCategories = sources.filter(s => s.count === 0).map(s => s.category);
+		const emptyCategories = sources.concat([idsSource]).filter(s => s.count === 0).map(s => s.category);
 		if (emptyCategories.length > 0) {
 			const msg = '収録データを読み込めませんでした（' + emptyCategories.join('・') + '）。'
 				+ '通信できないときは、ページを開き直すと直ることがあります。';
@@ -1329,7 +1348,7 @@
 			 *
 			 * カテゴリ名（`scenarioFactor` など）は**開発側の語**なので、利用者向けの文面には出さず
 			 * 開発ログにだけ出す。文面はマスターのものと揃える。 */
-			const stale = sources.filter(s => s.from !== '取得');
+			const stale = sources.concat([idsSource]).filter(s => s.from !== '取得');
 			if (stale.length > 0) {
 				try {
 					global.console.warn('[UmaSkillDeck] 収録データを取得できなかった: '
@@ -2066,8 +2085,9 @@
 	 *
 	 * 拡張スキルのうち、**マスター445件と同じ独自カテゴリに当たるもの**だけ。それ以外の拡張スキルは
 	 * 今後の機能拡張のために収録しているもので、いまの検索（条件で検索・緑スキルを追加・テキストで検索・
-	 * 名前を入れて探す）には出さない。一覧はスキルの正本の独自カテゴリから作ったもの
-	 * （元の一覧は7件）。**カテゴリの判断はここでしない**（id を持つだけ）。
+	 * 名前を入れて探す）には出さない。
+	 * **一覧は手書きの固定リストをやめ、データ側が規則で作った `data/searchable-extended-ids.json` を読む**（2026-10-16・C-163。
+	 * 固定リストの更新漏れで、新しい拡張スキルが検索に出なかったため）。**カテゴリの判断はここでしない**（id を持つだけ）。
 	 *
 	 * **外すのは検索だけ。** 次の経路はこの一覧を見ない（全件のまま）:
 	 *   - `findSkill()`（保存済みのセット・テンプレートの id の解決）
@@ -2076,13 +2096,10 @@
 	 *   - `findSkillsByNameFragment()` / `matchPastedSkillText()` の既定の呼び方
 	 *     （収録データの入力ページと、Deck の OCR の受け取り口が使う。検索のモーダルだけが `searchableOnly` を渡す）
 	 */
-	const SEARCHABLE_EXTENDED_SKILL_IDS = new Set([
-		'ex-0521', 'ex-0531', 'ex-0533', 'ex-0669', 'ex-0691', 'ex-0968', 'ex-0969'
-	]);
 
 	/** 追加カタログの行を、検索（条件で検索・緑スキル・テキストで検索・名前を入れて探す）に出してよいか。 */
 	function isSearchableCatalogEntry(x) {
-		return x.category !== REFERABLE_CATALOG_CATEGORY || SEARCHABLE_EXTENDED_SKILL_IDS.has(x.id);
+		return x.category !== REFERABLE_CATALOG_CATEGORY || searchableExtendedIds.has(x.id);
 	}
 
 	/* ============================================================
@@ -4358,7 +4375,7 @@
 	// どの条件にも当たってしまうため。
 	//
 	// **2026-09-25（C-91）: `opts.searchableOnly` を渡すと、拡張スキルは検索に出してよいもの
-	// （`SEARCHABLE_EXTENDED_SKILL_IDS`）だけになる。** 渡すのは「条件で検索」のモーダルの中の
+	// （`searchableExtendedIds`）だけになる。** 渡すのは「条件で検索」のモーダルの中の
 	// テキストで検索と名前を入れて探すだけ。既定（渡さない）は全件のまま ―― 収録データの入力ページと
 	// Deck の OCR の受け取り口は、これまでどおり全件で引く。
 	//
@@ -6849,7 +6866,7 @@
 	// 距離の軸の判定に限定が届かない。
 	function taggedSkillPool() {
 		return masterSkills
-			// C-91: 拡張スキルは検索に出してよいもの（`SEARCHABLE_EXTENDED_SKILL_IDS`）だけ。
+			// C-91: 拡張スキルは検索に出してよいもの（`searchableExtendedIds`）だけ。
 			// 母集団と「緑スキルを追加」の一覧の両方がここから作られるので、ここで外せば両方から外れる。
 			.concat(extraCatalog.filter(x => x.tags && isSearchableCatalogEntry(x)).map(x => ({ id: x.id, name: x.name, tags: x.tags, raceDistance: x.raceDistance })));
 	}
@@ -7790,7 +7807,7 @@
 	 * **ページの読み込みでは取りに行かない。** 進化を使う画面（段4以降）か、進化スキルを辞書から外す必要のある入口（Deck の取り込み）が
 	 * 呼んだときに1回だけ読む（失敗したら次に必要になったときにもう一度試す）。
 	 *
-	 * 進化スキルは拡張スキル（findSkill で引ける）だが、**検索の範囲に出さず（SEARCHABLE_EXTENDED_SKILL_IDS に入れない）、
+	 * 進化スキルは拡張スキル（findSkill で引ける）だが、**検索の範囲に出さず（searchable-extended-ids.json に入れない）、
 	 * OCR・貼り付けの照合の辞書にも入れない**（2026-10-12・おいもさんの方針。buildSkillTextIndex が外す）。
 	 * この段（段2・3）では画面にも計算にもつながない。computeEvolutionPlan は既定の決定だけを返す純粋な関数。
 	 * ------------------------------------------------------------ */
@@ -13933,7 +13950,7 @@
 		cardTypeOf: cardTypeOf,
 		isReferableSkillId: isReferableSkillId,
 		/** 検索に出してよい拡張スキルの id（C-91）。検査が自分の名簿と突き合わせるために出す。 */
-		getSearchableExtendedSkillIds: function () { return Array.from(SEARCHABLE_EXTENDED_SKILL_IDS); },
+		getSearchableExtendedSkillIds: function () { return Array.from(searchableExtendedIds); },
 		skillCatalogKind: skillCatalogKind,
 		/**
 		 * その軸で**利用者に選ばせる選択肢**（`internalOnly` を落としたもの）。
