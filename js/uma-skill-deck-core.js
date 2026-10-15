@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16c';
 
 	/* ============================================================
 	 * 定数
@@ -68,6 +68,8 @@
 		'data/extended-skills.json': '2026-10-16a',
 		// 「条件で検索」の母集団に入れる拡張スキルの id の一覧（2026-10-16a・C-163）。データ側が規則で作る。拡張スキルと同じ経路（loadExtraCatalog）で読む
 		'data/searchable-extended-ids.json': '2026-10-16a',
+		// サポカで得られないスキル（公開用・独自カテゴリ3のみ。2026-10-16c・C-163）。②の「サポカ外」ボタンの候補。データ側が規則で作る。loadNonSupportSkills() が読む
+		'data/non-support-skills.json': '2026-10-16c',
 		'data/training-umamusume.json': '2026-10-13a',
 		'data/support-cards.json': '2026-09-30b',
 		'data/support-card-event-skills.json': '2026-10-15a',

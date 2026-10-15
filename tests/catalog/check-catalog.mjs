@@ -2197,6 +2197,55 @@ console.log('\n=== 16. 検索に出す拡張スキルの一覧（' + SEARCHABLE_
 	}
 }
 
+/* ──────────────────────── 17. サポカで得られないスキル（2026-10-16・C-163） ──────────────────────── */
+
+/* ②の「サポカ外」ボタンの候補（data/non-support-skills.json）。データ側が規則で作る公開用の一覧（独自カテゴリ3のみ）。
+   entries は { skillId, name } で、スキルの行ではない（id を持たない）ので FILES には入れず、ここで見る。
+   エラー: 形／skillId の昇順（数字の id が先・数の小さい順、そのあとに拡張スキルの id）・重複なし／各 skillId がマスターか拡張スキルに実在し
+   name が一致／除外リスト（意図して除いた id）を含まない。
+   「サポカで得られない」ことそのもの（件数も含む）は、test:visual の塊「サポカ外」が実データで確かめる。 */
+const NONSUPPORT_FILE = 'non-support-skills.json';
+const NONSUPPORT_TOP_KEYS = { need: ['dataVersion', 'category', 'entries'], opt: ['note'] };
+const NONSUPPORT_ENTRY_KEYS = { need: ['skillId', 'name'], opt: [] };
+const NONSUPPORT_CATEGORY_NAME = 'nonSupportSkill';
+console.log('\n=== 17. サポカで得られないスキル（' + NONSUPPORT_FILE + '） ===');
+{
+	const abs = path.join(REPO_ROOT, DIR, NONSUPPORT_FILE);
+	const r = fs.existsSync(abs) ? readJsonFile(abs) : { ok: false, error: 'ファイルが無い' };
+	check(r.ok, NONSUPPORT_FILE + ' が読める', r.ok ? undefined : r.error);
+	if (r.ok) {
+		const doc = r.data;
+		const unknown = [], missing = [], bad = [];
+		checkKeys(doc, NONSUPPORT_TOP_KEYS, NONSUPPORT_FILE, unknown, missing);
+		if (doc.category !== NONSUPPORT_CATEGORY_NAME) bad.push('category が ' + JSON.stringify(doc.category));
+		if (!DATA_VERSION_RE.test(String(doc.dataVersion))) bad.push('dataVersion が「YYYY-MM-DD＋英小文字1字」の形でない: ' + String(doc.dataVersion));
+		const entries = isArr(doc.entries) ? doc.entries : [];
+		if (!isArr(doc.entries)) bad.push('entries が配列でない');
+		const nameById = new Map(masterNameById);
+		docs.extendedSkill.entries.forEach((e) => nameById.set(String(e.id), String(e.name)));
+		const removed = new Set(Array.from(INTENTIONALLY_REMOVED_IDS).map((k) => k.replace(/^[^:]+:\s*/, '')));
+		// 並びの鍵: 数字だけの id（マスター）は数の小さい順で先、そのあとに拡張スキルの id（文字の順）
+		const orderKey = (id) => (/^\d+$/.test(id) ? [0, Number(id), ''] : [1, 0, id]);
+		const less = (a, b) => { const x = orderKey(a), y = orderKey(b); return x[0] !== y[0] ? x[0] < y[0] : x[1] !== y[1] ? x[1] < y[1] : x[2] < y[2]; };
+		const seen = new Set();
+		entries.forEach((e, i) => {
+			const w = 'entries[' + i + ']';
+			if (!checkKeys(e, NONSUPPORT_ENTRY_KEYS, w, unknown, missing)) return;
+			const id = String(e.skillId);
+			if (seen.has(id)) bad.push(w + ': ' + id + ' が重複');
+			seen.add(id);
+			if (i > 0 && !less(String(entries[i - 1].skillId), id)) bad.push(w + ': ' + id + ' が昇順でない');
+			if (!nameById.has(id)) { bad.push(w + ': ' + id + ' がマスターにも拡張スキルにも無い'); return; }
+			if (nameById.get(id) !== String(e.name)) bad.push(w + ': ' + id + ' の name がマスター・拡張スキルと違う（' + e.name + ' / ' + nameById.get(id) + '）');
+			if (removed.has(id)) bad.push(w + ': ' + id + ' は除外リスト（意図して除いた id）にある');
+		});
+		none(unknown, NONSUPPORT_FILE + ' に知らないキーが無い');
+		none(missing, NONSUPPORT_FILE + ' の必須のキーが揃っている');
+		none(bad, NONSUPPORT_FILE + ' の値が決めた形（category・版／skillId が昇順・重複なし／マスターか拡張スキルに実在し name が一致／除外リストを含まない）');
+		console.log('     サポカ外の公開用 ' + entries.length + '件（うちマスター ' + entries.filter((e) => /^\d+$/.test(String(e.skillId))).length + '件・拡張スキル ' + entries.filter((e) => !/^\d+$/.test(String(e.skillId))).length + '件）');
+	}
+}
+
 if (warnings.length > 0) {
 	console.log('\n=== 警告（検査は落とさないが、放置しないこと。' + warnings.length + '件） ===');
 	warnings.forEach((w) => console.log('  ・' + w));

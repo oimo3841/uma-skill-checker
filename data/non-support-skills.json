@@ -1,0 +1,122 @@
+{
+	"dataVersion": "2026-10-16c",
+	"category": "nonSupportSkill",
+	"entries": [
+		{
+			"skillId": "7",
+			"name": "中京レース場○"
+		},
+		{
+			"skillId": "10",
+			"name": "福島レース場○"
+		},
+		{
+			"skillId": "11",
+			"name": "新潟レース場○"
+		},
+		{
+			"skillId": "181",
+			"name": "川崎レース場○"
+		},
+		{
+			"skillId": "190",
+			"name": "冴える思考"
+		},
+		{
+			"skillId": "193",
+			"name": "急浮上"
+		},
+		{
+			"skillId": "196",
+			"name": "土煙"
+		},
+		{
+			"skillId": "257",
+			"name": "手練手管"
+		},
+		{
+			"skillId": "265",
+			"name": "力の限り"
+		},
+		{
+			"skillId": "276",
+			"name": "目にも留まらず"
+		},
+		{
+			"skillId": "277",
+			"name": "気の向くままに"
+		},
+		{
+			"skillId": "291",
+			"name": "切り返し"
+		},
+		{
+			"skillId": "330",
+			"name": "衝動"
+		},
+		{
+			"skillId": "334",
+			"name": "内なる獣"
+		},
+		{
+			"skillId": "345",
+			"name": "練達の一歩"
+		},
+		{
+			"skillId": "349",
+			"name": "なりふり構わず"
+		},
+		{
+			"skillId": "358",
+			"name": "凛然と"
+		},
+		{
+			"skillId": "373",
+			"name": "卓越する走り"
+		},
+		{
+			"skillId": "375",
+			"name": "サンタアニタパークレース場○"
+		},
+		{
+			"skillId": "376",
+			"name": "デルマーレース場○"
+		},
+		{
+			"skillId": "381",
+			"name": "個性的"
+		},
+		{
+			"skillId": "399",
+			"name": "存在感"
+		},
+		{
+			"skillId": "402",
+			"name": "先導者"
+		},
+		{
+			"skillId": "403",
+			"name": "奥の手"
+		},
+		{
+			"skillId": "404",
+			"name": "勝負勘"
+		},
+		{
+			"skillId": "406",
+			"name": "連綿"
+		},
+		{
+			"skillId": "ex-0531",
+			"name": "立ち合い"
+		},
+		{
+			"skillId": "ex-0990",
+			"name": "遊び心"
+		},
+		{
+			"skillId": "ex-1673",
+			"name": "規格外"
+		}
+	]
+}
