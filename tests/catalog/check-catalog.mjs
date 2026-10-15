@@ -1494,16 +1494,17 @@ console.log('\n=== 5. ★・覚醒レベル・状態・種類 ===');
 
 /* ──────────────────────── 6. 以前の内容との突き合わせ ──────────────────────── */
 
+// 意図して公開データから除いた id（理由を必ず添える。黙って増やさない。免除は実行のたびに表示する）。
+// 2026-10-02：ゲームに未実装の金スキル7件（おいもさんの指示。外部データの項目9）。独自IDは欠番のまま使い回さない。
+const INTENTIONALLY_REMOVED_IDS = new Set([
+	'extendedSkill: ex-0572', 'extendedSkill: ex-0576', 'extendedSkill: ex-0585', 'extendedSkill: ex-0608',
+	'extendedSkill: ex-0609', 'extendedSkill: ex-0611', 'extendedSkill: ex-0612'
+]);
+
 console.log('\n=== 6. 以前の内容との突き合わせ（' + (BASELINE_DIR || 'git の HEAD') + '） ===');
 {
 	const lost = [], renamed = [], serialBack = [];
 	let compared = 0;
-	// 意図して公開データから除いた id（理由を必ず添える。黙って増やさない。免除は実行のたびに表示する）。
-	// 2026-10-02：ゲームに未実装の金スキル7件（おいもさんの指示。外部データの項目9）。独自IDは欠番のまま使い回さない。
-	const INTENTIONALLY_REMOVED_IDS = new Set([
-		'extendedSkill: ex-0572', 'extendedSkill: ex-0576', 'extendedSkill: ex-0585', 'extendedSkill: ex-0608',
-		'extendedSkill: ex-0609', 'extendedSkill: ex-0611', 'extendedSkill: ex-0612'
-	]);
 	const exempted = [];
 	for (const f of FILES) {
 		const prev = readPrevious(f.file);
@@ -2137,6 +2138,62 @@ console.log('\n=== 7. 進み具合（情報。検査には影響しない） ===
 		console.log('     キャラクター共通のイベント: done ' + ce.filter((e) => e.status === 'done').length
 			+ ' / seeded ' + ce.filter((e) => e.status === 'seeded').length
 			+ ' / none ' + ce.filter((e) => e.status === 'none').length);
+	}
+}
+
+/* ──────────────────────── 16. 検索に出す拡張スキルの一覧（2026-10-16・C-163） ──────────────────────── */
+
+/* 「条件で検索」の母集団に入れる拡張スキルの id の一覧（data/searchable-extended-ids.json）。データ側が規則で作る
+   （手書きの固定リストをやめた。固定リストの更新漏れで、新しい拡張スキルが検索に出なかったため）。entries は { skillId, name } で、
+   スキルの行ではない（id を持たない）ので FILES には入れず、ここで見る。
+   エラー: 形／skillId の昇順・重複なし／各 skillId が拡張スキルに実在し name が一致／除外リスト（意図して除いた id）を含まない。
+   警告（止めない）: 拡張スキルの tagsPending の件数と id の一覧／一覧のうちパッシブの件数。
+   **スキル名も件数も書かない**（恒久ルール1）。パッシブの軸は core.js の TAG_AXES の poolExcluded の印から読む。 */
+const SEARCHABLE_IDS_FILE = 'searchable-extended-ids.json';
+const SEARCHABLE_IDS_TOP_KEYS = { need: ['dataVersion', 'category', 'entries'], opt: ['note'] };
+const SEARCHABLE_IDS_ENTRY_KEYS = { need: ['skillId', 'name'], opt: [] };
+const SEARCHABLE_IDS_CATEGORY_NAME = 'searchableExtendedId';
+console.log('\n=== 16. 検索に出す拡張スキルの一覧（' + SEARCHABLE_IDS_FILE + '） ===');
+{
+	const abs = path.join(REPO_ROOT, DIR, SEARCHABLE_IDS_FILE);
+	const r = fs.existsSync(abs) ? readJsonFile(abs) : { ok: false, error: 'ファイルが無い' };
+	check(r.ok, SEARCHABLE_IDS_FILE + ' が読める', r.ok ? undefined : r.error);
+	if (r.ok) {
+		const doc = r.data;
+		const unknown = [], missing = [], bad = [];
+		checkKeys(doc, SEARCHABLE_IDS_TOP_KEYS, SEARCHABLE_IDS_FILE, unknown, missing);
+		if (doc.category !== SEARCHABLE_IDS_CATEGORY_NAME) bad.push('category が ' + JSON.stringify(doc.category));
+		if (!DATA_VERSION_RE.test(String(doc.dataVersion))) bad.push('dataVersion が「YYYY-MM-DD＋英小文字1字」の形でない: ' + String(doc.dataVersion));
+		const entries = isArr(doc.entries) ? doc.entries : [];
+		if (!isArr(doc.entries)) bad.push('entries が配列でない');
+		const exById = new Map(docs.extendedSkill.entries.map((e) => [String(e.id), e]));
+		const removed = new Set(Array.from(INTENTIONALLY_REMOVED_IDS).map((k) => k.replace(/^[^:]+:\s*/, '')));
+		const seen = new Set();
+		const poolExcludedAxes = [...coreSrc.matchAll(/\{ key: '(\w+)',[^\n]*poolExcluded: true/g)].map((m) => m[1]);
+		check(poolExcludedAxes.length > 0, 'core.js の TAG_AXES から poolExcluded の軸を読めた（' + poolExcludedAxes.join('・') + '）');
+		let passiveN = 0;
+		entries.forEach((e, i) => {
+			const w = 'entries[' + i + ']';
+			if (!checkKeys(e, SEARCHABLE_IDS_ENTRY_KEYS, w, unknown, missing)) return;
+			const id = String(e.skillId);
+			if (seen.has(id)) bad.push(w + ': ' + id + ' が重複');
+			seen.add(id);
+			if (i > 0 && !(id > String(entries[i - 1].skillId))) bad.push(w + ': ' + id + ' が昇順でない');
+			const ex = exById.get(id);
+			if (!ex) { bad.push(w + ': ' + id + ' が拡張スキル（' + docs.extendedSkill.entries.length + '件）に無い'); return; }
+			if (String(ex.name) !== String(e.name)) bad.push(w + ': ' + id + ' の name が拡張スキルと違う（' + e.name + ' / ' + ex.name + '）');
+			if (removed.has(id)) bad.push(w + ': ' + id + ' は除外リスト（意図して除いた id）にある');
+			if (ex.tags && poolExcludedAxes.some((k) => ((ex.tags[k]) || []).length > 0)) passiveN++;
+		});
+		none(unknown, SEARCHABLE_IDS_FILE + ' に知らないキーが無い');
+		none(missing, SEARCHABLE_IDS_FILE + ' の必須のキーが揃っている');
+		none(bad, SEARCHABLE_IDS_FILE + ' の値が決めた形（category・版／skillId が昇順・重複なし／各 id が拡張スキルに実在し name が一致／除外リストを含まない）');
+		console.log('     検索に出す拡張スキル ' + entries.length + '件（うちパッシブ ' + passiveN + '件。緑スキルの入口に振り分けられる）');
+		// 警告: 未確定（tagsPending）。止めない。新しいスキルが入るたび、分類（独自カテゴリ・パッシブ・タグ）を必須の手順とする（分類整備の手順）
+		const pending = docs.extendedSkill.entries.filter((e) => e.tagsPending === true).map((e) => String(e.id));
+		if (pending.length > 0) warn('拡張スキルのタグ未確定（tagsPending）が ' + pending.length + '件ある（公開はするが、検索の母集団には入らない）', pending);
+		if (pending.length > 0) console.log('     tagsPending の全件: ' + pending.join(', '));
+		if (passiveN > 0) warn('検索に出す拡張スキルのうちパッシブ（緑スキルの入口に振り分けられる）が ' + passiveN + '件ある（条件で検索に入るのは ' + (entries.length - passiveN) + '件）');
 	}
 }
 
