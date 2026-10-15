@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-14a",
+	"dataVersion": "2026-10-15a",
 	"category": "trainingEventSkill",
 	"entries": [
 		{
@@ -8873,7 +8873,7 @@
 				},
 				{
 					"eventName": "マーちゃんにも言って",
-					"condition": "桜花賞・シンザン記念・ローズSで1着",
+					"condition": "クラシック12月後半、ダイワスカーレットにクラシックのマイルレースで3勝(シンザン記念・桜花賞・ローズS)",
 					"choices": [
 						{
 							"skills": [
@@ -18915,7 +18915,7 @@
 				},
 				{
 					"eventName": "マーちゃんにも言って",
-					"condition": "桜花賞・シンザン記念・ローズSで1着",
+					"condition": "クラシック12月後半、ダイワスカーレットにクラシックのマイルレースで3勝(シンザン記念・桜花賞・ローズS)",
 					"choices": [
 						{
 							"skills": [
