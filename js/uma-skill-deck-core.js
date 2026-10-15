@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16e';
 
 	/* ============================================================
 	 * 定数
@@ -8638,10 +8638,11 @@
 	function eventTitle(e) {
 		if (e.kind === 'umaEvent') return e.eventName || ((e.index + 1) + 'つ目');
 		if (e.kind === 'scenarioEvent') return (e.name || '') + (e.when ? '（' + e.when + '）' : '');
-		// グループのカードだけ言い方を変える: 連続イベントは「N番目」（step はおでかけの通し番号）、共通イベントはキャラクター名を添える（メンバーごとに同じ見出しが並ぶため）
+		// グループのカードだけ言い方を変える: 連続イベントは「N番目」（step はおでかけの通し番号）、共通イベントは「共通イベント N（キャラクター名）」
+		// （メンバーごとに同じ見出しが並ぶため名前を添える。N はそのキャラクターの共通イベントの中での通し番号＝index+1。キャラクターが変わると1から。C-163で番号を戻した）
 		const inGroup = !!(e.cardId && (findCard(e.cardId) || {}).isGroup === true);
 		if (e.kind === 'commonEvent') {
-			if (inGroup && e.charaName) return '共通イベント（' + e.charaName + '）';
+			if (inGroup && e.charaName) return '共通イベント ' + (e.index + 1) + '（' + e.charaName + '）';
 			return '共通イベント' + (isNonNegInt(e.step) ? ' ' + e.step + '回目' : ' ' + (e.index + 1));
 		}
 		if (inGroup && isNonNegInt(e.step)) return e.step + '番目';

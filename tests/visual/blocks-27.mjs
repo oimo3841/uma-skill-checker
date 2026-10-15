@@ -4,7 +4,8 @@
 // 見るもの: (1) グループのカード5枚の計算の期待値（Step 0 の実測と同じ条件＝育成ウマ娘 uma-0001・autoChoose。●の数と合計Pt）
 //   (2) 同じキャラクターの規則（①の選択の窓。重なるカードを押すと追加されず、窓は開いたまま・理由の1行が出る。重ならなければ入る。
 //       保存済みの重なった編成は書き換えない）
-//   (3) 見出し（グループのカードの連続イベントは「N番目」・共通イベントにキャラクター名。グループでないカードは「N回目」のまま）
+//   (3) 見出し（グループのカードの連続イベントは「N番目」・共通イベントは「共通イベント N（キャラクター名）」で N はそのキャラクターの中での通し番号〔キャラクターが変わると1から〕。
+//       グループでないカードは「N回目」のまま）
 
 export async function register27(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -134,7 +135,7 @@ export async function register27(env) {
 	});
 
 	/* ---- (3) 見出し ---- */
-	await block('グループのカード(3) 見出し：グループは「N番目」・共通イベントにキャラクター名／グループでないカードは「N回目」', async () => {
+	await block('グループのカード(3) 見出し：グループは「N番目」・共通イベントは「共通イベント N（キャラクター名）」／グループでないカードは「N回目」', async () => {
 		const titlesOf = async (page, memberKey) => {
 			await page.click('[data-usd-act="events"][data-member-key="' + memberKey + '"]');
 			await page.waitForSelector('.usd-roster-eventtitle');
@@ -142,8 +143,24 @@ export async function register27(env) {
 		};
 		const sp = await openSp(['card-0483']);
 		const t = await titlesOf(sp.page, 1);
-		assert(t.includes('5番目') && t.includes('共通イベント（スピードシンボリ）') && !t.some((x) => /回目/.test(x)),
-			'グループのカード(3) card-0483: 連続イベントは「5番目」・共通イベントはキャラクター名つき・「回目」は出ない', t);
+		assert(t.includes('5番目') && !t.some((x) => /回目/.test(x)),
+			'グループのカード(3) card-0483: 連続イベントは「5番目」・「回目」は出ない', t);
+		// 共通イベントは「共通イベント N（キャラクター名）」。N はそのキャラクターの共通イベントの中での通し番号（元の並びの位置＋1）。画面に出るのは一部のイベントだけなので、番号は飛んでよい
+		const CHARA = readJson('data/character-event-skills.json').entries;
+		const members = CARDS.find((c) => c.id === 'card-0483').groupMembers;
+		const strip = (x) => x.replace(/ 自動$/, '');
+		const gotCommon = t.filter((x) => /^共通イベント/.test(x)).map(strip);
+		const parsed = gotCommon.map((x) => /^共通イベント (\d+)（(.+)）$/.exec(x));
+		const okForm = parsed.length >= 2 && parsed.every((m) => m && members.includes(m[2]) && Number(m[1]) >= 1 && Number(m[1]) <= (CHARA.find((r) => r.charaName === m[2]).events || []).length);
+		assert(okForm, 'グループのカード(3) card-0483: 共通イベントは「共通イベント N（キャラクター名）」で、N はそのキャラクターのイベントの通し番号（1以上・件数以内）', gotCommon);
+		assert(gotCommon.includes('共通イベント 3（スピードシンボリ）') && gotCommon.includes('共通イベント 4（スピードシンボリ）') && !gotCommon.some((x) => /^共通イベント（/.test(x)),
+			'グループのカード(3) card-0483: スピードシンボリは「共通イベント 3」「共通イベント 4」（元の通し番号のまま）・番号なしの見出しは出ない', gotCommon);
+		// キャラクターが変わると1から数え直す（通常のカードの共通イベントは「共通イベント 1」から）。メンバーに複数キャラクターがいるカードで見る
+		const sp3 = await openSp(['card-0310']);
+		const t3 = (await titlesOf(sp3.page, 1)).filter((x) => /^共通イベント/.test(x));
+		const want3 = ['シンボリルドルフ', 'トウカイテイオー', 'ツルマルツヨシ'].map((n) => '共通イベント 1（' + n + '）');
+		assert(want3.every((x) => t3.map(strip).includes(x)), 'グループのカード(3) card-0310: キャラクターが変わると「共通イベント 1」から数え直す', t3);
+		await sp3.ctx.close();
 		assert(jsErrors(sp.errors).length === 0, 'グループのカード(3) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 		// グループでないカード：選択肢が2つ以上の step を持つもの
@@ -151,7 +168,7 @@ export async function register27(env) {
 			&& r.chain.some((s) => s.choices.length >= 2 && s.choices.filter((c) => (c.skills || (c.results && c.results[0]) || []).length > 0).length >= 2));
 		const sp2 = await openSp([plain.cardId]);
 		const t2 = await titlesOf(sp2.page, 1);
-		assert(t2.some((x) => /^\d+回目$/.test(x)) && !t2.some((x) => /番目/.test(x)) && !t2.some((x) => /^共通イベント（/.test(x)),
+		assert(t2.some((x) => /^\d+回目$/.test(x)) && !t2.some((x) => /番目/.test(x)) && !t2.some((x) => /^共通イベント \d+（/.test(x) || /^共通イベント（/.test(x)),
 			'グループのカード(3) グループでないカード（' + plain.cardId + '）: 「N回目」のまま・キャラクター名は付かない', t2);
 		await sp2.ctx.close();
 	});
