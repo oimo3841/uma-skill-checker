@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-05a",
+	"dataVersion": "2026-10-15a",
 	"category": "supportCardEventSkill",
 	"note": "サポートカードのイベント（そのカードの連続イベント）で得られるスキル。ゲーム画面を見ながら、確かめられたカードから1件ずつ足す。ここに無い cardId は「未確認」の扱いなので、全カードぶんの空の行をあらかじめ並べる必要はない。cardId は support-cards.json の id。行の鍵は cardId で、このファイルには独自の id を振らない（nextSerial は持たない）。status は done（確かめた。chain を持つ）／none（見て回ってスキルが無かった。chain も unplaced も持たない）／seeded（シートから取り込んだまま。スキルは分かっているが、何回目か・選択肢・レベルは未確認。unplaced にスキルの参照だけを持つ）。chain はスキルが得られる回だけを並べる（スキルの無い回は書かない）。1回ぶんは { step, choices }：step は何回目か（1以上の整数・昇順・重複なし・上限なし）、choices はゲームの選択肢の並び（上から）のままで、スキルを得ない選択肢も空の選択肢として書く（選択肢の無いイベントは choices が1つ）。1つの選択肢は次のどちらか一方の形：{ skills: [...] }（成否に分かれない）／{ results: [[...], [...], ...] }（結果が分かれる。結果は2つ以上。**並びの先頭がいちばん良い結果（成功）**で、2番目以降が失敗側（成功に近い順）。結果が空でもよい）。編成パネルは成功側（skills か results の先頭）だけを使い、失敗側のスキルは出さないが、データには記録する。スキルの参照は { skillId, name, hintLevel }：skillId が本体で、name は照合のための控え（表示には使わない）、hintLevel はヒントのレベル（1以上の整数）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。イベントの名前や本文は書かない。既存の行は消さない。書き足したら dataVersion をその日の日付＋連番に上げ、js/uma-skill-deck-core.js の DATA_JSON_VERSIONS も同じ値にして、npm run check:catalog を回す。",
 	"entries": [
@@ -15229,6 +15229,1165 @@
 									"skillId": "318",
 									"name": "光明",
 									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0005",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0006",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0007",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0008",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0009",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0010",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0011",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0012",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0013",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0014",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0015",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0016",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0017",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0018",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0019",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0020",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0021",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0022",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0023",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0024",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0025",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0026",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0027",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0028",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0029",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0030",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0031",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0032",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0033",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0034",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0035",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0036",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0037",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0038",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0039",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0040",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0041",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0042",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0043",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0044",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0045",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0046",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0047",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0048",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0049",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0050",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0051",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0052",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0053",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0054",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0055",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0056",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0057",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0058",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0059",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0060",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0061",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0062",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0063",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0064",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0065",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0066",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0067",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0068",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0069",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0070",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0071",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0072",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0073",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0074",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0075",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0076",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0077",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0078",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0079",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0080",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0081",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0082",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0083",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0084",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0085",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0086",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0087",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0088",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0089",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0090",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0091",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0092",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0093",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0094",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0095",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0096",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0097",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0098",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0099",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0100",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0101",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0102",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0103",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0104",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0105",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0106",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0107",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0108",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0109",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0110",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0111",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0112",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0113",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0114",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0115",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0116",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0117",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0118",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0119",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0120",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0121",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0122",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0123",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0124",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0125",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0126",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0127",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0128",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0129",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0130",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0131",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0132",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0133",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0134",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0135",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0136",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0137",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0138",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0139",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0140",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0141",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0142",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0143",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0144",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0145",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0146",
+			"status": "none"
+		},
+		{
+			"cardId": "card-0147",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "86",
+									"name": "追込焦り",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0310",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "172",
+									"name": "闘争心",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "39",
+									"name": "ポジションセンス",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 4,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "177",
+									"name": "フルスロットル",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 5,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "4",
+									"name": "中山レース場○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 6,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0261",
+									"name": "光芒円刃",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 7,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "104",
+									"name": "中距離コーナー○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0323",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "168",
+									"name": "あやしげな作戦",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 4,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0271",
+										"name": "博打うち",
+										"hintLevel": 3
+									}
+								],
+								[]
+							]
+						},
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0271",
+										"name": "博打うち",
+										"hintLevel": 1
+									}
+								],
+								[
+									{
+										"skillId": "168",
+										"name": "あやしげな作戦",
+										"hintLevel": 1
+									}
+								]
+							]
+						}
+					]
+				},
+				{
+					"step": 5,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "152",
+									"name": "ウマ好み",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "152",
+									"name": "ウマ好み",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "152",
+									"name": "ウマ好み",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0324",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "168",
+									"name": "あやしげな作戦",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "29",
+									"name": "徹底マーク○",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 8,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0010",
+									"name": "日本一のウマ娘",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 9,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "33",
+									"name": "コーナー回復○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0334",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "159",
+									"name": "遊びはおしまいっ！",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "147",
+									"name": "差しのコツ○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "ex-0266",
+										"name": "起死回生",
+										"hintLevel": 3
+									}
+								],
+								[
+									{
+										"skillId": "171",
+										"name": "ワンチャンス",
+										"hintLevel": 3
+									}
+								]
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0380",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "34",
+									"name": "直線巧者",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "152",
+									"name": "ウマ好み",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "61",
+									"name": "積極策",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "92",
+									"name": "善後策",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 4,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "67",
+									"name": "深呼吸",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "163",
+									"name": "ありったけ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 6,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0042",
+									"name": "神速",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 7,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "150",
+									"name": "スリーセブン",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "215",
+									"name": "快速",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0422",
+			"status": "done",
+			"chain": [
+				{
+					"step": 2,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "110",
+									"name": "長距離直線○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 3,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "106",
+									"name": "イナズマステップ",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 4,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "45",
+									"name": "末脚",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 5,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "3",
+									"name": "東京レース場○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 6,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0003",
+									"name": "全身全霊",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 7,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "31",
+									"name": "コーナー巧者○",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"cardId": "card-0483",
+			"status": "done",
+			"chain": [
+				{
+					"step": 1,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "236",
+									"name": "中盤巧者",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 5,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "154",
+									"name": "尻尾上がり",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "172",
+									"name": "闘争心",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "153",
+									"name": "地固め",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 6,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "ex-0640",
+									"name": "英俊豪傑",
+									"hintLevel": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"step": 7,
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "304",
+									"name": "比類なき",
+									"hintLevel": 3
 								}
 							]
 						}
