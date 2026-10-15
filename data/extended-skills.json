@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-13a",
+	"dataVersion": "2026-10-16a",
 	"category": "extendedSkill",
 	"nextSerial": "ex-1677",
 	"note": "マスター（uma-skill-deck-skills.json）の445種に無いスキル。name はゲーム画面の表示そのまま（全角・半角・中黒「・」を含めて変えない）。id は保存済みの比較シートが指し続ける不変の鍵なので、表記を直しても id は変えない。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。tagsPending が付いている間は8軸のタグが未設定で、条件での絞り込みの母集団には入れない（8軸すべてが空のタグは「条件を持たない＝万能スキル」という別の意味になるため、未設定はこの印で示す）。tagsPending と tags はどちらか一方だけを持つ。形は npm run check:catalog が確かめる。",
@@ -17421,27 +17421,134 @@
 		{
 			"id": "ex-0986",
 			"name": "一往直前",
-			"tagsPending": true
+			"tags": {
+				"distance": [
+					"medium"
+				],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0987",
 			"name": "怯むことなく",
-			"tagsPending": true
+			"tags": {
+				"distance": [
+					"medium"
+				],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0988",
 			"name": "Cascading Might",
-			"tagsPending": true
+			"tags": {
+				"distance": [],
+				"style": [
+					"sashi",
+					"senko"
+				],
+				"surface": [
+					"turf"
+				],
+				"phase": [
+					"late"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"accel_up",
+					"move_forward"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": [
+					"goal_far"
+				]
+			}
 		},
 		{
 			"id": "ex-0989",
 			"name": "Shadow Ancestress",
-			"tagsPending": true
+			"tags": {
+				"distance": [
+					"medium"
+				],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-0990",
 			"name": "遊び心",
-			"tagsPending": true
+			"tags": {
+				"distance": [
+					"long",
+					"medium"
+				],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"stat_up"
+				],
+				"scenario": [],
+				"passive": [
+					"passive"
+				],
+				"distanceMark": []
+			}
 		},
 		{
 			"id": "ex-1034",

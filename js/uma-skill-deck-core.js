@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-15f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16a';
 
 	/* ============================================================
 	 * 定数
@@ -65,7 +65,7 @@
 	const DATA_JSON_VERSIONS = {
 		'data/scenario-inheritance-factors.json': '2026-09-15a',
 		'data/aptitude-genes.json': '2026-09-19a',
-		'data/extended-skills.json': '2026-10-13a',
+		'data/extended-skills.json': '2026-10-16a',
 		'data/training-umamusume.json': '2026-10-13a',
 		'data/support-cards.json': '2026-09-30b',
 		'data/support-card-event-skills.json': '2026-10-15a',
