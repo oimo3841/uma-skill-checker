@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-15d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-15e';
 
 	/* ============================================================
 	 * 定数
@@ -8893,6 +8893,7 @@
 		let picking = null;           // { kind: 'uma' } / { kind: 'card', index } / null
 		let pickQuery = '';           // ミニウィンドウの検索語
 		let pickType = '';            // ミニウィンドウの種類の絞り込み（'' はすべて）
+		let pickNotice = '';          // 選択の窓の上に出す1行の知らせ（同じキャラクターのカードを入れようとしたとき。次の操作で消える）
 		let pickFocusOnce = false;    // 次の描き直しで検索欄へ focus を当てるか（ミニウィンドウをマウスで開いたときだけ true。C-128）
 		let showUnconf = false;       // イベントスキル未収録のカード名の一覧を開いているか（既定は閉じる）
 		let findTimer = 0;
@@ -9586,6 +9587,27 @@
 					typeOrder: kind === 'card' ? cardTypeOrderOf(e) : null }));
 		}
 
+		/**
+		 * ①に新しく入れるカード（newId）が、すでに入っているカード（slotIndex の枠を除く）とキャラクターが重なるときの知らせ。重ならなければ ''。
+		 * 判定はキャラクター名の重なり（charactersOfCard。通常のカードは charaName、グループのカードはメンバー全員）。育成ウマ娘は見ない。
+		 */
+		function sameCharaNoticeOf(newId, slotIndex) {
+			const mine = charactersOfCard(findCard(newId));
+			if (mine.length === 0) return '';
+			const charas = [];
+			const cards = [];
+			roster.cardIds.forEach((id, i) => {
+				if (!id || i === slotIndex || id === newId) return;
+				const card = findCard(id);
+				const both = charactersOfCard(card).filter(n => mine.indexOf(n) !== -1);
+				if (both.length === 0) return;
+				both.forEach(n => { if (charas.indexOf(n) === -1) charas.push(n); });
+				cards.push(formatEntryShortLabel(card));
+			});
+			if (charas.length === 0) return '';
+			return charas.join('・') + 'が、すでに入っているカード（' + cards.join('・') + '）にいるため、入れられません';
+		}
+
 		function searchHtml() {
 			if (!picking) return '';
 			const isCard = picking.kind === 'card';
@@ -9617,6 +9639,7 @@
 					h += '<p class="usd-roster-note">種類のデータがまだありません。</p>';
 				}
 			}
+			if (pickNotice) h += '<p class="usd-roster-warn" role="status" data-usd-el="pick-notice">' + esc(pickNotice) + '</p>';
 			h += '<div class="usd-roster-hits" data-usd-el="hits"></div>';
 			h += '</div></div>';
 			return h;
@@ -10054,6 +10077,7 @@
 		function dispatchAct(btn, act) {
 			// 「編成は10件までです」の知らせは、次の操作で消す
 			if (limitNotice && act !== 'select-roster') limitNotice = false;
+			if (act !== 'take') pickNotice = '';
 			if (act === 'pick-uma') { picking = { kind: 'uma' }; pickQuery = ''; pickType = ''; pickFocusOnce = openedByMouse(); render(); renderHits(); }
 			else if (act === 'pick-card') {
 				picking = { kind: 'card', index: Number(btn.getAttribute('data-index')) };
@@ -10133,6 +10157,9 @@
 					roster.umaId = id;
 					syncFixedFields();
 				} else if (picking && picking.kind === 'card') {
+					// 同じキャラクターのカードは同時に入れられない（ゲームの規則）。追加せず、窓を開いたまま理由を知らせる
+					const why = sameCharaNoticeOf(id, picking.index);
+					if (why) { pickNotice = why; render(); renderHits(); return; }
 					roster.cardIds[picking.index] = id;
 				}
 				picking = null;
@@ -10277,6 +10304,7 @@
 			const act = el.getAttribute && el.getAttribute('data-usd-act');
 			if (act === 'find') {
 				pickQuery = el.value;
+				if (pickNotice) { pickNotice = ''; const nt = modalHost ? q(modalHost, 'pick-notice') : null; if (nt && nt.parentNode) nt.parentNode.removeChild(nt); }
 				clearTimeout(findTimer);
 				findTimer = setTimeout(function () { renderHits(); }, NAME_FIND_DEBOUNCE_MS);
 			} else if (act === 'name') {
