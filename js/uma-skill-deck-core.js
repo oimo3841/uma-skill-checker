@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-15e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-15f';
 
 	/* ============================================================
 	 * 定数
@@ -8589,7 +8589,13 @@
 	function eventTitle(e) {
 		if (e.kind === 'umaEvent') return e.eventName || ((e.index + 1) + 'つ目');
 		if (e.kind === 'scenarioEvent') return (e.name || '') + (e.when ? '（' + e.when + '）' : '');
-		if (e.kind === 'commonEvent') return '共通イベント' + (isNonNegInt(e.step) ? ' ' + e.step + '回目' : ' ' + (e.index + 1));
+		// グループのカードだけ言い方を変える: 連続イベントは「N番目」（step はおでかけの通し番号）、共通イベントはキャラクター名を添える（メンバーごとに同じ見出しが並ぶため）
+		const inGroup = !!(e.cardId && (findCard(e.cardId) || {}).isGroup === true);
+		if (e.kind === 'commonEvent') {
+			if (inGroup && e.charaName) return '共通イベント（' + e.charaName + '）';
+			return '共通イベント' + (isNonNegInt(e.step) ? ' ' + e.step + '回目' : ' ' + (e.index + 1));
+		}
+		if (inGroup && isNonNegInt(e.step)) return e.step + '番目';
 		return isNonNegInt(e.step) ? e.step + '回目' : (e.index + 1) + 'つ目';
 	}
 	/** 取得できるスキルの1件（3行：スキル名／基礎Pt／公式の説明文）。絞り込みで外れるものは灰色、未選択のイベントしだいのものは薄く「未選択」の印 */
