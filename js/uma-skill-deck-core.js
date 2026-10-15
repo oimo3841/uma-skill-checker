@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-14k';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-15a';
 
 	/* ============================================================
 	 * 定数
@@ -78,7 +78,7 @@
 		// 実ファイル（skill-pt.json・skill-step-up.json）は、届いてから載せた（載せると取りに行くため）。
 		'data/skill-pt-rules.json': '2026-09-30a',
 		// スキルの基礎Pt とレアリティ（2026-09-30 に実ファイルが届いたので載せた。載せると loadSkillPtData が読む）
-		'data/skill-pt.json': '2026-10-13a',
+		'data/skill-pt.json': '2026-10-15a',
 		// スキルのステップアップの前段（2026-10-01c。2026-10-02 に実ファイルが届いたので載せた。loadSkillPtData が skill-pt.json と一緒に読む）
 		'data/skill-step-up.json': '2026-10-02b',
 		// スキルの公式の説明文（2026-10-02）。ページの読み込みでは取りに行かない（ⓘ・長押しを最初に開いたときだけ。段6）
