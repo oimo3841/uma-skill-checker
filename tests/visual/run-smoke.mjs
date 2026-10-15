@@ -12235,7 +12235,9 @@ await block('グループのサポートカードの名前（2026-09-30）', asy
 	const cardsDoc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/support-cards.json'), 'utf8'));
 	const groups = cardsDoc.entries.filter((c) => c.isGroup === true && typeof c.groupName === 'string' && c.groupName);
 	const G = groups[0];
-	const N = cardsDoc.entries.find((c) => c.isGroup === false && c.rarity === 'SSR');
+	// 2026-10-15: 同じキャラクターのカードは①に同時に入れられなくなった（C-160）ので、N は groups[0]・groups[1] のメンバーに含まれないキャラクターのカードにする
+	const N = cardsDoc.entries.find((c) => c.isGroup === false && c.rarity === 'SSR'
+		&& !(groups[0].groupMembers || []).includes(c.charaName) && !((groups[1] || {}).groupMembers || []).includes(c.charaName));
 	assert(groups.length > 0 && G && N, '名前(0): groupName のあるグループのカードと、グループでない SSR のカードがデータにある', { groups: groups.length });
 
 	/* --- core --- */
