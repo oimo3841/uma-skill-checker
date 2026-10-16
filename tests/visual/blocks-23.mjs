@@ -275,8 +275,11 @@ export async function register23(env) {
 			'育成イベント段3A 選ぶイベントが無く、読み取り専用の行だけがある衣装（' + UMA_NONE.umaId + '）は ◇ のボタン（「！」にならない）', n);
 		assert(jsErrors(sp3.errors).length === 0, '育成イベント段3A コンソールのエラー0', jsErrors(sp3.errors).slice(0, 3));
 		await sp3.ctx.close();
-		// 小窓に出す行が無い衣装（実データには無いので、選べる行も読み取り専用の行も無い形にした写しを返す）。これまでどおり札でボタンにならない
-		const bare = Object.assign({}, EVDOC, { entries: EVDOC.entries.map((e) => e.umaId !== UMA_NONE.umaId ? e : Object.assign({}, e, { events: e.events.filter((x) => !isListed(x) && !isInfo(x)) })) });
+		// 小窓に出す行が無い衣装（実データには無いので、選べる行も読み取り専用の行も結果の切り替えも無い形にした写しを返す）。これまでどおり札でボタンにならない
+		// （結果の切り替えを持つイベントがあるときは、それだけでボタンになる〔結果切替の変更。結果切替(2)(4) が見る〕ので、その行も外す）
+		const resKey = (l) => (l || []).map((r) => r.skillId + ':' + r.hintLevel).sort().join(',');
+		const isResultSwitch = (x) => !x.condition && (x.choices || []).some((c) => Array.isArray(c.results) && c.results.length >= 2 && c.results.some((r) => resKey(r) !== resKey(c.results[0])));
+		const bare = Object.assign({}, EVDOC, { entries: EVDOC.entries.map((e) => e.umaId !== UMA_NONE.umaId ? e : Object.assign({}, e, { events: e.events.filter((x) => !isListed(x) && !isInfo(x) && !isResultSwitch(x)) })) });
 		const sp4 = await openRoster(UMA_NONE.umaId, { evDoc: bare });
 		const n4 = await sp4.page.evaluate((sel) => ({ btn: !!document.querySelector(sel), chip: !!document.querySelector('.usd-roster-gh .usd-roster-umamark') }), EVBTN);
 		assert(n4.btn === false && n4.chip === true, '育成イベント段3A 小窓に出す行が無い衣装は、これまでどおり札（◇）でボタンにならない', n4);
