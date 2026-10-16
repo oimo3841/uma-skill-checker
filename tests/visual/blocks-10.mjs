@@ -276,7 +276,7 @@ export async function register10(env) {
 				addedStill: added.pop.set.has(W[0])
 			};
 		}, { W, wShort, wMed, noPtId, gold1, gold2, p1, b2, nx: NOEX });
-		assert(r.size === 452 && !r.hasGold && r.hasP1 && r.hasNoPt, '段10(B) 母集団: 条件で検索と緑スキルの合計の452種（白444＋Pt 未収録8）。金は入らず、Pt 未収録も残る', r);
+		assert(r.size === 455 && !r.hasGold && r.hasP1 && r.hasNoPt, '段10(B) 母集団: 条件で検索と緑スキルの合計の455種（白447＋Pt 未収録8。2026-10-16: 検索に出す拡張スキルが7→10件になり +3）。金は入らず、Pt 未収録も残る', r);
 		assert(r.shortHas.join() === 'true,false,true' && r.medHas.join() === 'false,true,true', '段10(B) 母集団: ①の絞り込み（距離）に合うものだけが残り、距離のタグを持たないスキルは絞り込みでも残る', r);
 		assert(r.rosterHas.join() === 'false,false,true,true', '段10(B) 母集団: ①の●（c15 のヒント）と、①でOFFにしたスキルは入らない。①で得ないスキルは残る', r);
 		assert(r.addedStill, '段10(B) 母集団: すでに②にあるスキルは入れたまま', r);
@@ -395,7 +395,7 @@ export async function register10(env) {
 		const full = await sp.page.evaluate(async () => { const r = await UmaSkillDeckCore.outside.solve({ roster: { outsideOptions: { exclude: {} } }, count: 6, deadlineMs: 20000 }); return { ok: r.ok, partial: r.partial, score: r.score, cards: r.cards.length, counts: r.counts, stats: r.stats }; });
 		assert(cut.ok && cut.partial === true && cut.score > 0 && cut.cards === 6 && full.ok && full.partial === false && cut.score <= full.score, '段10(C) 実データ: 締め切り 0ms だと途中の結果（partial）で、それまでの最良（6枚）を返す。十分な時間なら印は付かない', { cut, full: { partial: full.partial, score: full.score } });
 		assert(full.stats.engineScore === full.score, '段10(C) 実データでも、探索の点数と組み立ての点数が一致する', [full.stats.engineScore, full.score]);
-		assert(full.counts.kinds + full.counts.gold === full.score && full.stats.population === 452 && full.stats.candidates === 410 && full.stats.groups === 146, '段10(C) 実データ: 点数 ＝ 種数（countSkillKinds）＋ 金スキル。母集団452・候補410枚・146キャラクター（2026-10-15: card-0323・0334・0147 のイベントが入り、候補407→410・キャラクター145→146）', { counts: full.counts, stats: full.stats });
+		assert(full.counts.kinds + full.counts.gold === full.score && full.stats.population === 455 && full.stats.candidates === 410 && full.stats.groups === 146, '段10(C) 実データ: 点数 ＝ 種数（countSkillKinds）＋ 金スキル。母集団455・候補410枚・146キャラクター（2026-10-15: card-0323・0334・0147 のイベントが入り、候補407→410・キャラクター145→146。2026-10-16: 検索に出す拡張スキルが7→10件になり母集団452→455。点数114・候補・キャラクターは変わらない）', { counts: full.counts, stats: full.stats });
 		const ticks = await sp.page.evaluate(async () => {
 			let n = 0; const iv = setInterval(() => { n++; }, 0);
 			const roster = { cardIds: ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'], skillFilter: { distance: 'medium', style: 'senko', surface: 'turf' } };
