@@ -13726,13 +13726,15 @@ await block('前段の必要Pt（段4b）', async () => {
 
 	const openSpecial = async (o) => {
 		const cardIds4 = o.cards.concat(new Array(6 - o.cards.length).fill(null));
-		const saved4 = { rosterId: 'r4b', name: '本育成', umaId: '', star: 0, awakeningLevel: 0, cardIds: cardIds4, createdAt: '2026-10-03T00:00:00.000Z', updatedAt: '2026-10-03T00:00:00.000Z' };
+		// o.keep … ○のまま数えるスキル（roster.keepCircleIds）。2026-10-16（C-165）から、◎がある○は既定で◎として数える。前段の数え方を見るこの塊は、○のまま数えるほうで見る
+		const keepPart = o.keep ? { keepCircleIds: o.keep } : {};
+		const saved4 = Object.assign({ rosterId: 'r4b', name: '本育成', umaId: '', star: 0, awakeningLevel: 0, cardIds: cardIds4, createdAt: '2026-10-03T00:00:00.000Z', updatedAt: '2026-10-03T00:00:00.000Z' }, keepPart);
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 1280, height: o.h || 1000 }, Object.assign({}, USER_DATA, { rosters: [saved4] }));
 		await routes(sp.page, o);
 		await sp.page.evaluate(({ roster, scope }) => {
 			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster));
 			localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(scope));
-		}, { roster: { umaId: '', cardIds: cardIds4 }, scope: Object.assign({ baseRosterId: 'r4b' }, o.scope || { skillIds: [], name: '', updatedAt: '' }) });
+		}, { roster: Object.assign({ umaId: '', cardIds: cardIds4 }, keepPart), scope: Object.assign({ baseRosterId: 'r4b' }, o.scope || { skillIds: [], name: '', updatedAt: '' }) });
 		await sp.page.reload({ waitUntil: 'networkidle' });
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.evaluate(() => selectStepTab(0));
@@ -13791,7 +13793,7 @@ await block('前段の必要Pt（段4b）', async () => {
 
 	/* ③ 前段が本育成の表にあるとき（Z3＝○が card B の●）: 数えず「（本育成）」 */
 	const fAB = await sourcesOf([cA.id, cB.id]);
-	sp = await openSpecial({ cards: [cA.id, cB.id] });
+	sp = await openSpecial({ cards: [cA.id, cB.id], keep: [z(3)] });
 	v = await readPanel(sp.page);
 	e = need(fAB.sources);
 	const n3b = await sp.page.evaluate((id) => window.UmaSkillDeckCore.getSkillName(id), z(3));
@@ -13817,7 +13819,7 @@ await block('前段の必要Pt（段4b）', async () => {
 
 	/* ⑤ 前段の行が無いスキルだけ（card B の○ Z3。行が無い）→ 前段の行が出ない */
 	const fB = await sourcesOf([cB.id]);
-	sp = await openSpecial({ cards: [cB.id] });
+	sp = await openSpecial({ cards: [cB.id], keep: [z(3)] });
 	v = await readPanel(sp.page);
 	e = need(fB.sources);
 	assert(!v.hasPrevRow && !v.hasWithPrev && v.total === e.roster.own && e.roster.prevIds.length === 0,

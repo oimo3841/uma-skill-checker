@@ -33,20 +33,25 @@ export async function register27(env) {
 
 	/* ---- (1) 計算の期待値（Step 0 の実測。2026-10-15） ---- */
 	await block('グループのカード(1) 5枚の計算：●の数と合計Pt・赤字が出ない', async () => {
+		// [カード, ●の数, 合計Pt（既定の◎で数える。2026-10-16・C-165）, ○のまま数えたときの合計Pt（Step 0 の実測。2026-10-15）]
 		const WANT = [
-			[['card-0310'], 23, '2,866'], [['card-0324'], 24, '2,998'], [['card-0380'], 26, '3,429'],
-			[['card-0422'], 20, '2,461'], [['card-0483'], 20, '2,601'], [GROUPS, 53, '6,778'],
+			[['card-0310'], 23, '3,366', 2866], [['card-0324'], 24, '3,586', 2998], [['card-0380'], 26, '3,803', 3429],
+			[['card-0422'], 20, '2,961', 2461], [['card-0483'], 20, '2,777', 2601], [GROUPS, 53, '7,976', 6778],
 		];
-		for (const [ids, sure, pt] of WANT) {
+		for (const [ids, sure, pt, keepPt] of WANT) {
 			const sp = await openSp(ids);
 			const r = await sp.page.evaluate((ids) => {
 				const res = UmaSkillDeckCore.computeRosterSkills({ umaId: 'uma-0001', cardIds: ids }, { autoChoose: true });
 				const el = document.querySelector('#deck-roster-panel [data-usd-el="pt-total"]');
 				const al = document.querySelector('.usd-roster-alert');
-				return { sure: res.skillIds.length, unconfirmed: res.unconfirmed.length, missing: res.missing.length, pt: el ? el.textContent.trim() : null, alert: al ? al.textContent : null };
+				// ○のまま数えたときの合計（切り替えの対象を全部○に戻す）。◎に上げる前の値と変わらないこと
+				const ro = { umaId: 'uma-0001', cardIds: ids };
+				const vp = UmaSkillDeckCore.getRosterVisiblePart(ro);
+				const keep = UmaSkillDeckCore.getRosterPtDetail(Object.assign({}, ro, { keepCircleIds: vp.circleCandidates.map((c) => c[0]) })).total;
+				return { sure: res.skillIds.length, unconfirmed: res.unconfirmed.length, missing: res.missing.length, pt: el ? el.textContent.trim() : null, alert: al ? al.textContent : null, keep: keep };
 			}, ids);
-			assert(r.sure === sure && r.unconfirmed === 0 && r.missing === 0 && r.alert === null && r.pt === pt,
-				'グループのカード(1) ' + ids.join('+') + ': ●' + sure + '種・' + pt + 'Pt・未収録0・赤字なし', r);
+			assert(r.sure === sure && r.unconfirmed === 0 && r.missing === 0 && r.alert === null && r.pt === pt && r.keep === keepPt,
+				'グループのカード(1) ' + ids.join('+') + ': ●' + sure + '種・' + pt + 'Pt（○のままなら ' + keepPt + 'Pt）・未収録0・赤字なし', r);
 			assert(jsErrors(sp.errors).length === 0, 'グループのカード(1) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		}
