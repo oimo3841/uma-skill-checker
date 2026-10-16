@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16h';
 
 	/* ============================================================
 	 * 定数
@@ -3979,19 +3979,19 @@
 	 * ①のリセットで消すもの（段9・C-121）。育成ウマ娘・サポートカード・イベントの選択・スキルのオン/オフ。
 	 * **絞り込み（距離・脚質・バ場）・勉強家／切れ者／覚醒Lv の押しボタン（roster.pt）・名前は触らない。**
 	 */
-	const ROSTER_RESET_KEYS = ['umaId', 'cardIds', 'eventChoices', 'offSkillIds', 'evolutionChoices', 'evolutionBSeen'];
+	const ROSTER_RESET_KEYS = ['umaId', 'cardIds', 'eventChoices', 'offSkillIds', 'evolutionChoices', 'evolutionBSeen', 'keepCircleIds'];
 	function rosterResettable(r) {
 		if (!r || typeof r !== 'object') return false;
 		if (r.umaId) return true;
 		if ((r.cardIds || []).some(Boolean)) return true;
-		return ['eventChoices', 'offSkillIds', 'evolutionChoices'].some(k => r[k] !== undefined && r[k] !== null && (typeof r[k] !== 'object' || Object.keys(r[k]).length > 0));
+		return ['eventChoices', 'offSkillIds', 'evolutionChoices', 'keepCircleIds'].some(k => r[k] !== undefined && r[k] !== null && (typeof r[k] !== 'object' || Object.keys(r[k]).length > 0));
 	}
 	/** 編成に中身があるか（育成ウマ娘・カード・設定のどれかを触っているか）。下書きの①を保存するときに、写しを作るかの判定に使う */
 	function rosterHasContent(r) {
 		if (!r || typeof r !== 'object') return false;
 		if (r.umaId) return true;
 		if ((r.cardIds || []).some(Boolean)) return true;
-		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'evolutionChoices', 'outsideCardExcluded', 'outsideSkillExcluded', 'race', 'outsideOptions'].some(k => r[k] !== undefined && r[k] !== null);
+		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'evolutionChoices', 'keepCircleIds', 'outsideCardExcluded', 'outsideSkillExcluded', 'race', 'outsideOptions'].some(k => r[k] !== undefined && r[k] !== null);
 	}
 
 	/**
@@ -4124,7 +4124,38 @@
 		const vis = new Set(visibleItems.map(it => it.skillId));
 		const visibleSources = shown ? res.sources.filter(s => vis.has(s.skillId)) : res.sources;
 		const takenIds = visibleItems.filter(it => it.sure && !off.has(it.skillId)).map(it => it.skillId);
-		return { wanted: wanted, visibleItems: visibleItems, visibleSources: visibleSources, offList: offList, takenIds: takenIds, evoPlan: evoPlan };
+		// ◎に上げる（C-165）。取得する○のうち、上の段の◎があるものは、既定で◎として数える（利用者が○に戻したもの〔roster.keepCircleIds〕を除く）。
+		// Pt の計算に渡す由来だけ○→◎に差し替える（○の行・種数・取得しないの判定・絞り込み・②へ渡す takenIds は○のまま）。
+		// ◎は○を取ったうえで買うので、○は computeRosterPt が「前段として必要」に数え、ヒントLvは根の○のものを援用する（どちらも既存の数え方）
+		const keep = new Set(keepCircleIdsOf(r));
+		const circleCandidates = new Map();   // ○ → ◎（切り替えを出す行。取得する○のうち、◎があるもの）
+		const circleOf = new Map();           // ○ → ◎（◎として数える行。candidates から○に戻したものを除いたもの）
+		takenIds.forEach(id => {
+			const up = circleUpOf(id);
+			if (!up || vis.has(up)) return;   // 上の段がすでに出どころにある行は、二重に数えないよう切り替えの対象にしない
+			circleCandidates.set(id, up);
+			if (!keep.has(id)) circleOf.set(id, up);
+		});
+		const pricedSources = circleOf.size === 0 ? visibleSources : visibleSources.map(s => circleOf.has(s.skillId) ? Object.assign({}, s, { skillId: circleOf.get(s.skillId) }) : s);
+		return { wanted: wanted, visibleItems: visibleItems, visibleSources: pricedSources, offList: offList, takenIds: takenIds, evoPlan: evoPlan,
+			circleCandidates: circleCandidates, circleOf: circleOf };
+	}
+	/**
+	 * ○の上の段の◎（C-165）。前段データ（skill-step-up.json）で「白のスキルを前段に持つ白のスキル」を、ちょうど1つ持つ白のスキルの、その上の段。
+	 * 区分は skill-pt.json の rarity（スキル名の記号〔○・◎〕では判断しない。ルール1）。無ければ（データ未読込・金スキルの前段など）null
+	 */
+	function circleUpOf(skillId) {
+		const su = skillPtData.stepUp, pt = skillPtData.skillPt;
+		if (!su || typeof su.nextOf !== 'function' || !(pt instanceof Map)) return null;
+		const isWhite = (id) => { const row = pt.get(id); return !!row && row.rarity === 'white'; };
+		if (!isWhite(skillId)) return null;
+		const ups = su.nextOf(skillId).filter(isWhite);
+		return ups.length === 1 ? ups[0] : null;
+	}
+	/** ○のまま残す（◎に上げない）スキルの○の id（roster.keepCircleIds）。形が崩れた値・知らない id は読まない（使うところで候補に当てるだけ）。保存値は書き換えない */
+	function keepCircleIdsOf(r) {
+		const v = (r && Array.isArray(r.keepCircleIds)) ? r.keepCircleIds : [];
+		return v.filter((id, i) => typeof id === 'string' && id && v.indexOf(id) === i);
 	}
 	/** 進化の対応と説明文の両方を読めているか（進化の決定に要る。C-152） */
 	function evolutionReady() {
@@ -9324,6 +9355,8 @@
 			r.offIds = new Set(r.offList);
 			r.takenIds = vp.takenIds;
 			r.evoPlan = vp.evoPlan;
+			r.circleCandidates = vp.circleCandidates;   // ○ → ◎（切り替えを出す行）
+			r.circleOf = vp.circleOf;                   // ○ → ◎（◎として数える行）
 			r.visibleSureCount = vp.takenIds.length;
 			// 種数（段7d の ⑫）。金スキルと、その前段の白スキルを両方取るときは合わせて1種
 			r.kindCount = countSkillKinds(vp.takenIds);
@@ -9480,6 +9513,12 @@
 			body.appendChild(p);
 		}
 
+		/** ◎に上げた行の◎の id から、行の○の id を引く（C-165）。◎に上げた行でなければそのまま */
+		function circleBaseOf(res, id) {
+			let base = id;
+			if (res.circleOf) res.circleOf.forEach((up, o) => { if (up === id) base = o; });
+			return base;
+		}
 		/** 系列の共有の注記（段6→段7で小窓の系列の欄だけに出す）。同じ表に相手が居るときだけ。 */
 		function shareNoteOf(skillId, res) {
 			const su = skillPtData.stepUp;
@@ -9495,9 +9534,9 @@
 			const res = computed();
 			const view = computePtView(res);
 			if (!view) return null;
-			const it = res.items.find(x => x.skillId === skillId);
+			const it = res.items.find(x => x.skillId === circleBaseOf(res, skillId));   // ◎に上げた行は、◎の id で来る（C-165）。行は○のまま
 			if (!it) return null;
-			if (it.sure && res.offIds.has(skillId)) return '取得しない設定です';   // 段7c の M
+			if (it.sure && res.offIds.has(it.skillId)) return '取得しない設定です';   // 段7c の M
 			if (it.sure) {
 				const x = view.byId.get(skillId);
 				return x && x.base !== null && x.base !== 0 ? 'いまの設定：' + x.pt + ' Pt（Lv' + x.hintLevel + '）' : null;
@@ -9507,11 +9546,12 @@
 		}
 
 		/** 名前の右の Pt（段7の (14)）。●＝「P Pt」（Pt 不要・Pt 未収録はそのまま）、△＝薄い色の参考値。データが使えないときは出さない。 */
-		function ptCellHtml(view, it, off) {
+		function ptCellHtml(view, it, off, ptId) {
 			if (!view) return '';
 			// 取得しないにした行は Pt を「—」にする（段7c の M）
 			if (off) return '<span class="usd-roster-pt" data-usd-el="pt-line">—</span>';
-			const x = it.sure ? view.byId.get(it.skillId) : ptReferenceOf(view, it.skillId);
+			// ptId … ◎に上げた行は、◎のぶんの Pt（Pt の計算には◎として渡している。C-165）
+			const x = it.sure ? view.byId.get(ptId || it.skillId) : ptReferenceOf(view, it.skillId);
 			if (!x) return '';
 			const text = x.base === null ? 'Pt 未収録' : x.base === 0 ? 'Pt 不要' : x.pt + ' Pt';
 			return '<span class="usd-roster-pt' + (it.sure ? '' : ' usd-roster-pt--ref') + '" data-usd-el="' + (it.sure ? 'pt-line' : 'pt-ref') + '">' + esc(text) + '</span>';
@@ -9919,7 +9959,9 @@
 				}
 				rows.forEach((it) => {
 					const isOff = it.sure && res.offIds.has(it.skillId);
-					const x = ptView ? ptView.byId.get(it.skillId) : null;
+					// ◎に上げた行（C-165）: 名前と Pt を◎のものにする（進化の行と同じ作り）。行の識別（data-skill-id）・種数・絞り込みは○のまま
+					const circleId = isOff ? null : (res.circleOf.get(it.skillId) || null);
+					const x = ptView ? ptView.byId.get(circleId || it.skillId) : null;
 					const rarity = x ? x.rarity : (skillPtData.skillPt instanceof Map && skillPtData.skillPt.get(it.skillId) ? skillPtData.skillPt.get(it.skillId).rarity : null);
 					// ●の行の名前セルの左に、取得するかどうかの小さなチェック（段7c の M。既定はオン。△の行には付けない）
 					const takeBox = it.sure
@@ -9929,13 +9971,15 @@
 					// 色分け（段7e の (2)〜(5)）。取得しない（オフ）の行は今までの見た目のまま（地も文字も薄い色）
 					const tone = rowToneOf(it.skillId);
 					const evoId = isOff ? null : evolvedIdOf(it.skillId);   // 進化させている金スキルは、名前を進化先にして進化先の色で出す（Pt は元のまま）
+					const shownId = circleId || it.skillId;
+					const shownName = evoId ? getSkillName(evoId) : circleId ? getSkillName(circleId) : it.name;
 					const nameTone = (isOff || evoId) ? '' : tone.heal ? ' usd-roster-skillname--heal' : tone.debuff ? ' usd-roster-skillname--debuff' : tone.passive ? ' usd-roster-skillname--passive' : '';
 					h += '<div class="usd-roster-grow' + (rarity === 'gold' && !evoId ? ' usd-roster-grow--gold' : '') + (evoId ? ' usd-roster-grow--evo' : '') + (rarity === 'unique' ? ' usd-roster-grow--unique' : '') + (tone.heal && !evoId ? ' usd-roster-grow--heal' : '')
-						+ (prevRowIds.has(it.skillId) ? ' usd-roster-grow--prev' : '') + (isOff ? ' usd-roster-grow--off' : '') + '" role="row" data-skill-id="' + esc(it.skillId) + '"' + (evoId ? ' data-usd-evo="' + esc(evoId) + '"' : '') + (isOff ? ' data-usd-off="1"' : '') + '>'
+						+ (prevRowIds.has(it.skillId) ? ' usd-roster-grow--prev' : '') + (isOff ? ' usd-roster-grow--off' : '') + '" role="row" data-skill-id="' + esc(it.skillId) + '"' + (evoId ? ' data-usd-evo="' + esc(evoId) + '"' : '') + (circleId ? ' data-usd-circle="' + esc(circleId) + '"' : '') + (isOff ? ' data-usd-off="1"' : '') + '>'
 						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader">' + takeBox + '<div class="usd-roster-namescroll usd-hscroll" data-usd-no-trim="1">'
 							+ (prevRowIds.has(it.skillId) ? '<span class="usd-roster-prevmark" aria-hidden="true" data-usd-el="prev-mark">└</span>' : '')
-							+ '<button type="button" class="usd-roster-skillname usd-roster-skillname--btn' + (isOff ? ' usd-roster-skillname--off' : '') + nameTone + '" data-usd-info="' + esc(evoId || it.skillId) + '">' + esc(evoId ? getSkillName(evoId) : it.name) + '</button>'
-							+ ptCellHtml(ptView, it, isOff) + '</div></div>'
+							+ '<button type="button" class="usd-roster-skillname usd-roster-skillname--btn' + (isOff ? ' usd-roster-skillname--off' : '') + nameTone + '" data-usd-info="' + esc(evoId || shownId) + '">' + esc(shownName) + '</button>'
+							+ ptCellHtml(ptView, it, isOff, circleId) + '</div></div>'
 						+ members.map(m => '<div class="usd-roster-gc' + colClass(m) + '" role="cell">'
 							+ (it.sureMembers.indexOf(m.key) !== -1 ? '<span class="usd-roster-got" role="img" aria-label="得られる"></span>'
 								: it.members.indexOf(m.key) !== -1
@@ -9965,7 +10009,7 @@
 				if (nw) { nw.scrollTop = keepGrid.top; nw.scrollLeft = keepGrid.left; }
 			}
 			// 名前を押すと説明の小窓（段7の (14)。ⓘ と長押しはやめた）。「いまの設定」の1行と系列の注記は開く直前に求める
-			attachSkillInfoIn(container, (id) => ({ skillId: id, trigger: 'self', getLine: () => infoLineFor(id), getNote: () => shareNoteOf(id, computed()) }));
+			attachSkillInfoIn(container, (id) => ({ skillId: id, trigger: 'self', getLine: () => infoLineFor(id), getNote: () => { const r = computed(); return shareNoteOf(circleBaseOf(r, id), r); } }));
 			const host = ensureModalHost();
 			host.innerHTML = searchHtml();
 			refreshIcons();
@@ -14039,7 +14083,20 @@
 		// 編成の①の表に出る部分（絞り込み・取得しない・進化させる金スキルを効かせたもの）。検査のため。編成の保存値は書き換えない
 		getRosterVisiblePart: function (r) {
 			const vp = visiblePartOf(r || {}, rosterSkillResultOf(r || {}));
-			return { visibleIds: vp.visibleItems.map(it => it.skillId), takenIds: vp.takenIds.slice(), evoChoices: vp.evoPlan ? Object.assign({}, vp.evoPlan.choices) : null };
+			return { visibleIds: vp.visibleItems.map(it => it.skillId), takenIds: vp.takenIds.slice(), evoChoices: vp.evoPlan ? Object.assign({}, vp.evoPlan.choices) : null,
+				circleCandidates: Array.from(vp.circleCandidates.entries()), circleOf: Array.from(vp.circleOf.entries()) };
+		},
+		// 編成の本育成の Pt（①の「X Pt/N種」と同じ値。◎に上げる〔C-165〕を含む）。検査のため。元データが使えないときは null
+		getRosterPtDetail: function (r) {
+			const copy = snapshot(r || {});
+			const inp = rosterPtInputsOf(copy);
+			if (inp.status !== 'ok') return null;
+			const pt = computeRosterPt({ sources: inp.sources, rules: skillPtData.rules, skillPt: skillPtData.skillPt, stepUp: skillPtData.stepUp,
+				statusId: inp.settings.status, umaHintLevel: inp.settings.umaHintLevel, offSkillIds: inp.offIds });
+			if (!pt.ok) return null;
+			return { total: pt.totalWithPrev, own: pt.total, prevTotal: pt.prevTotal, kinds: countSkillKinds(inp.sureIds),
+				items: pt.items.map(x => ({ skillId: x.skillId, pt: x.pt, base: x.base, hintLevel: x.hintLevel })),
+				prevItems: pt.prevItems.map(x => ({ skillId: x.skillId, pt: x.pt, base: x.base, hintLevel: x.hintLevel })) };
 		},
 		compareSkillIds: compareSkillIds,
 		getSkillTextIndexSize: function (opts) { return buildSkillTextIndex(opts).length; },
