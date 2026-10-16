@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16i';
 
 	/* ============================================================
 	 * 定数
@@ -6007,6 +6007,13 @@
 		// position:sticky の表で重なり順が壊れるため。F-7）・Pt は「—」・○は薄く残す
 		'.usd-roster-take { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; min-height: 28px; margin-inline-start: -2px; cursor: pointer; }',
 		'.usd-roster-take input { width: 16px; height: 16px; margin: 0; cursor: pointer; accent-color: var(--uma-control-mark); }',
+		// ◎／○の切り替え（C-165）。名前のセルの右端。押せる範囲は幅44px・セルの高さいっぱい（上下の余白ぶんまで広げ、行の高さは増やさない）。見た目の丸い印は小さい
+		'.usd-circle-btn { flex: none; align-self: stretch; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; margin: calc(-1 * var(--uma-sp-1)) calc(-1 * var(--uma-sp-0-5)) calc(-1 * var(--uma-sp-1)) 0;',
+		'  padding: 0; background: transparent; border: 0; color: inherit; cursor: pointer; }',
+		'.usd-circle-mark { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 22px; padding: 0 5px; border-radius: 11px; box-sizing: border-box;',
+		'  border: 1px solid var(--uma-border-strong); background: var(--uma-surface); color: var(--uma-text-heading); font-size: 13px; line-height: 1; font-weight: 700; }',
+		'.usd-circle-btn[aria-pressed="true"] .usd-circle-mark { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }',
+		'.usd-circle-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }',
 		'.usd-roster-take:has(input:focus-visible) { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; border-radius: var(--uma-r-sm); }',
 		'.usd-roster-skillname--off { text-decoration: line-through; color: var(--uma-text-faint); text-decoration-color: var(--uma-text-faint); }',
 		'.usd-roster-grow--off > .usd-roster-gc { background: var(--uma-surface-sunken); color: var(--uma-text-faint); }',
@@ -9503,6 +9510,7 @@
 				line('', '絞り込み中：' + keys.map(k => { const axis = TAG_AXES.find(a => a.key === k); return axis.label + ' ' + tagLabel(k, sel[k]); }).join('／'), 'info-filter');
 			}
 			if (pt.allUnpricedCount > 0) line('', '（Pt未収録' + pt.allUnpricedCount + '種は含めていません）', 'info-unpriced');
+			if (res.circleCandidates && res.circleCandidates.size > 0) line('', '◎に上げると、○を取得したうえで◎を買う前提でPtを数えます', 'info-circle');
 			// 「取得しないスキル X種」と「すべて取得に戻す」は、段4で ①のリセットのシート（「取得しないスキルを戻す」）へ移した
 		}
 
@@ -9513,6 +9521,47 @@
 			body.appendChild(p);
 		}
 
+		/**
+		 * ◎／○の切り替え（C-165）。押すと、その行を◎に上げて数える／○のまま数えるを入れ替える。見た目は丸い印（◎＝塗り、○＝輪郭）で、
+		 * 押せる範囲は幅44px・行の高さいっぱい（行の高さは増やさない。ルール25）。押せない見た目にはしない。
+		 */
+		function circleToggleHtml(it, upId, on) {
+			const name = getSkillName(on ? upId : it.skillId);
+			const label = on ? name + '：◎で数えています。○に戻す' : name + '：○で数えています。◎に上げる';
+			return '<button type="button" class="usd-circle-btn" data-usd-act="circle-toggle" data-usd-el="circle-toggle" data-skill-id="' + esc(it.skillId) + '"'
+				+ ' aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '" title="' + esc(label) + '"><span class="usd-circle-mark" aria-hidden="true">' + (on ? '◎' : '○') + '</span></button>';
+		}
+		/**
+		 * 切り替えを保存する（roster.keepCircleIds＝○のまま数える○の id の配列）。触ったときだけ書く・空なら項目ごと消す・読み込み時に補わない（ルール28）。
+		 * **切り替えるのはその 1 つの id だけ**で、知らない id は書き換えない。1回の操作で1回、元に戻す（Undo）に積む。
+		 */
+		function setCircleKept(skillId, keep) {
+			const had = Array.isArray(roster.keepCircleIds) ? roster.keepCircleIds : null;
+			const prev = had ? snapshot(had) : undefined;
+			const isKept = !!had && had.indexOf(skillId) !== -1;
+			if (isKept === keep) return false;
+			const rid = roster.rosterId;
+			const apply = (value) => {
+				if (value === undefined) delete roster.keepCircleIds; else roster.keepCircleIds = snapshot(value);
+				persistNow();
+			};
+			pushUndo({
+				scope: 'list',
+				doneLabel: keep ? '○のまま数えます：' + getSkillName(skillId) : '◎に上げて数えます：' + getSkillName(skillId),
+				undoneLabel: '◎／○の切り替えを戻しました',
+				probe: () => roster.rosterId === rid ? probeOf(roster.keepCircleIds === undefined ? null : roster.keepCircleIds) : '',
+				apply: () => {
+					if (roster.rosterId !== rid) return false;
+					apply(prev);
+					render();
+					return true;
+				}
+			});
+			const next = (had || []).filter(id => id !== skillId);
+			if (keep) next.push(skillId);
+			apply(next.length === 0 ? undefined : next);
+			return true;
+		}
 		/** ◎に上げた行の◎の id から、行の○の id を引く（C-165）。◎に上げた行でなければそのまま */
 		function circleBaseOf(res, id) {
 			let base = id;
@@ -9972,6 +10021,7 @@
 					const tone = rowToneOf(it.skillId);
 					const evoId = isOff ? null : evolvedIdOf(it.skillId);   // 進化させている金スキルは、名前を進化先にして進化先の色で出す（Pt は元のまま）
 					const shownId = circleId || it.skillId;
+					const circleUp = isOff ? null : (res.circleCandidates.get(it.skillId) || null);   // ◎があって切り替えを出す行（取得する○）
 					const shownName = evoId ? getSkillName(evoId) : circleId ? getSkillName(circleId) : it.name;
 					const nameTone = (isOff || evoId) ? '' : tone.heal ? ' usd-roster-skillname--heal' : tone.debuff ? ' usd-roster-skillname--debuff' : tone.passive ? ' usd-roster-skillname--passive' : '';
 					h += '<div class="usd-roster-grow' + (rarity === 'gold' && !evoId ? ' usd-roster-grow--gold' : '') + (evoId ? ' usd-roster-grow--evo' : '') + (rarity === 'unique' ? ' usd-roster-grow--unique' : '') + (tone.heal && !evoId ? ' usd-roster-grow--heal' : '')
@@ -9979,7 +10029,7 @@
 						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader">' + takeBox + '<div class="usd-roster-namescroll usd-hscroll" data-usd-no-trim="1">'
 							+ (prevRowIds.has(it.skillId) ? '<span class="usd-roster-prevmark" aria-hidden="true" data-usd-el="prev-mark">└</span>' : '')
 							+ '<button type="button" class="usd-roster-skillname usd-roster-skillname--btn' + (isOff ? ' usd-roster-skillname--off' : '') + nameTone + '" data-usd-info="' + esc(evoId || shownId) + '">' + esc(shownName) + '</button>'
-							+ ptCellHtml(ptView, it, isOff, circleId) + '</div></div>'
+							+ ptCellHtml(ptView, it, isOff, circleId) + '</div>' + (circleUp ? circleToggleHtml(it, circleUp, !!circleId) : '') + '</div>'
 						+ members.map(m => '<div class="usd-roster-gc' + colClass(m) + '" role="cell">'
 							+ (it.sureMembers.indexOf(m.key) !== -1 ? '<span class="usd-roster-got" role="img" aria-label="得られる"></span>'
 								: it.members.indexOf(m.key) !== -1
@@ -10215,6 +10265,15 @@
 				if (!cur) return;
 				setPtSetting('umaHintLevel', cur.umaHintLevel === value ? skillPtData.rules.umaHintLevelDefault : value);
 				render();
+			}
+			else if (act === 'circle-toggle') {
+				// ◎／○の切り替え（C-165）。押したボタンが画面の中で動かないようにする（take-skill と同じ決まり）
+				const id = btn.getAttribute('data-skill-id');
+				const anchor = captureAnchor(btn);
+				setCircleKept(id, btn.getAttribute('aria-pressed') === 'true');
+				render();
+				restoreAnchor(anchor, [container, modalHost]);
+				focusNoScroll(container.querySelector('button[data-usd-act="circle-toggle"][data-skill-id="' + id + '"]'));
 			}
 			else if (act === 'sort') {
 				const key = memberKeyOf(btn.getAttribute('data-member-key'));

@@ -148,5 +148,172 @@ export async function register29(env) {
 		assert(jsErrors(sp.errors).length === 0, '◎切替(2) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
+	/* ====================================================================
+	 * (3)〜(5) 切り替え・保存・リセット・元に戻す・説明の小窓（A-2）
+	 * ==================================================================== */
+	const BAR = '#deck-set-bar ';
+	const P = '#deck-roster-panel ';
+	const TOG = P + '[data-usd-el="circle-toggle"]';
+	const rawDraft = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:special'));
+	const draftR = async (page) => JSON.parse(await rawDraft(page));
+	const rawUd = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:userData'));
+	const rowInfo = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-grow[data-skill-id]')).map((r) => {
+		const nm = r.querySelector('.usd-roster-skillname');
+		const pt = r.querySelector('[data-usd-el="pt-line"]');
+		const tg = r.querySelector('[data-usd-el="circle-toggle"]');
+		return { id: r.getAttribute('data-skill-id'), circle: r.getAttribute('data-usd-circle'), name: nm ? nm.textContent : null, pt: pt ? pt.textContent : null,
+			tog: tg ? { mark: tg.textContent, pressed: tg.getAttribute('aria-pressed') } : null };
+	}));
+	const bandTotal = (page) => page.evaluate(() => Number(document.querySelector('#deck-roster-panel [data-usd-el="pt-total"]').textContent.replace(/[^0-9]/g, '')));
+	const undo = async (page) => { await page.click('#deck-undo-btn'); await page.waitForTimeout(350); };
+
+	await block('◎切替(3) 切り替え: 既定は◎・押すと○（名前とPtと合計が変わる）・もう一度で◎・タップ領域44px以上で行の高さは増えない・押せない見た目にしない', async () => {
+		const sp = await openSp({ roster: R2, w: 390 });
+		const rows0 = await rowInfo(sp.page);
+		const cand = rows0.filter((r) => r.tog);
+		assert(cand.length === FIX.R2.cand && cand.every((r) => r.tog.mark === '◎' && r.tog.pressed === 'true' && r.circle), '◎切替(3) 切り替えは対象の ' + FIX.R2.cand + '行だけに出て、既定は◎（押している）', cand.length);
+		assert(rows0.filter((r) => !r.tog).every((r) => !r.circle), '◎切替(3) 対象でない行には切り替えを出さない（' + rows0.filter((r) => !r.tog).length + '行）', null);
+		// 見た目: 押せる（無効にしない）・幅44px以上・行の高さは対象でない行と同じ
+		const geo = await sp.page.evaluate(() => {
+			const btn = document.querySelector('#deck-roster-panel [data-usd-el="circle-toggle"]');
+			const cell = btn.closest('.usd-roster-gc--name');
+			const hs = (rows) => rows.map((r) => r.querySelector('.usd-roster-gc--name').getBoundingClientRect().height);
+			const all = Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-grow[data-skill-id]'));
+			const withBtn = all.filter((r) => r.querySelector('[data-usd-el="circle-toggle"]'));
+			const without = all.filter((r) => !r.querySelector('[data-usd-el="circle-toggle"]'));
+			const b = btn.getBoundingClientRect(), c = cell.getBoundingClientRect();
+			const mark = btn.querySelector('.usd-circle-mark').getBoundingClientRect();
+			const cs = getComputedStyle(btn);
+			return { w: b.width, h: b.height, cellH: c.height, markW: mark.width, markH: mark.height, disabled: btn.disabled, opacity: cs.opacity, cursor: cs.cursor, pe: cs.pointerEvents,
+				hWith: hs(withBtn), hWithout: hs(without), docScroll: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+		});
+		const minWithout = Math.min(...geo.hWithout), maxWithout = Math.max(...geo.hWithout);
+		assert(geo.w >= 44 && geo.h >= geo.cellH - 1 && !geo.disabled && geo.opacity === '1' && geo.cursor === 'pointer' && geo.pe !== 'none', '◎切替(3) 押せる範囲は幅44px以上で行の高さいっぱい（無効の灰色にしない）', geo);
+		assert(geo.hWith.every((h) => h >= minWithout - 0.5 && h <= maxWithout + 0.5), '◎切替(3) 切り替えのある行の高さは、ない行と同じ（行の高さを増やさない）', { with: geo.hWith, without: [minWithout, maxWithout] });
+		assert(geo.docScroll <= 0, '◎切替(3) 390px で横スクロールが出ない', geo.docScroll);
+		const before = await bandTotal(sp.page);
+		const first = cand[0];
+		const lv = (await detail(sp.page, Object.assign({}, R2, { keepCircleIds: [first.id] }))).pt.items.find((x) => x.skillId === first.id).hintLevel;
+		const upPt = ptOf(PT.get(first.circle).pt, lv);
+		await sp.page.click(TOG);
+		await sp.page.waitForTimeout(300);
+		const rows1 = await rowInfo(sp.page);
+		const r1 = rows1.find((r) => r.id === first.id);
+		const mid = await bandTotal(sp.page);
+		assert(r1.tog.mark === '○' && r1.tog.pressed === 'false' && !r1.circle && r1.name === nameOf(first.id) && r1.pt && r1.pt !== first.pt, '◎切替(3) 押すとその行が○に戻る（名前・Pt・印）', { first, r1 });
+		assert(mid === before - upPt, '◎切替(3) 合計は◎のぶんだけ減る（' + before + ' − ' + upPt + ' ＝ ' + mid + '）', { before, upPt, mid });
+		assert(JSON.stringify(rows0.filter((r) => r.id !== first.id)) === JSON.stringify(rows1.filter((r) => r.id !== first.id)), '◎切替(3) ほかの行は1つも変わらない', null);
+		assert(rows1.length === rows0.length, '◎切替(3) 行の数は変わらない（絞り込みで出たり消えたりしない）', [rows0.length, rows1.length]);
+		const kept = (await draftR(sp.page)).keepCircleIds;
+		assert(JSON.stringify(kept) === JSON.stringify([first.id]), '◎切替(3) 保存は keepCircleIds に○のidだけ', kept);
+		await sp.page.click(TOG);
+		await sp.page.waitForTimeout(300);
+		const back = await draftR(sp.page);
+		assert(!('keepCircleIds' in back) && (await bandTotal(sp.page)) === before && JSON.stringify(await rowInfo(sp.page)) === JSON.stringify(rows0), '◎切替(3) もう一度押すと◎に戻り、keepCircleIds は項目ごと消える・表も最初と同じ', back.keepCircleIds);
+		assert(jsErrors(sp.errors).length === 0, '◎切替(3) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('◎切替(4) 保存・読み込み・リセット・元に戻す: 項目の無い保存は1バイトも変わらない／知らないidは残す／開き直しで同じ／リセットで既定／1操作で1回戻る', async () => {
+		const SAVED = (extra) => ({ schemaVersion: 7, records: [], customSkills: [], templates: [
+			{ templateId: 't1', name: 'S1', skillIds: [], baseRosterId: 'r1', createdAt: 'x', updatedAt: 'x' }],
+			rosters: [Object.assign({ rosterId: 'r1', name: 'S1', umaId: 'uma-0001', star: 3, awakeningLevel: 5, cardIds: CARDS6.slice(), skillFilter: R2.skillFilter, createdAt: 'x', updatedAt: 'x' }, extra || {})] });
+		const open2 = async (userData) => {
+			const sp = await openPage(browser, base, 'special.html', { width: 390, height: 900 }, userData);
+			await sp.page.evaluate(() => { localStorage.removeItem('umaSkillDeck:draftRoster:special'); localStorage.removeItem('umaSkillDeck:draftScope:special'); localStorage.setItem('umaSkillDeck:stepTab', '0'); });
+			await sp.page.reload({ waitUntil: 'networkidle' });
+			for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+			await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
+			await sp.page.click(BAR + '[data-usd-act="set-list"]');
+			const already = await sp.page.evaluate(() => { const i = document.querySelector('[data-usd-el="set-list"] input[value="t1"]'); return !!i && i.checked; });
+			if (already) await sp.page.keyboard.press('Escape'); else await sp.page.click('[data-usd-el="set-list"] input[value="t1"]');
+			await sp.page.waitForTimeout(900);
+			return sp;
+		};
+		const rosterOf = async (page) => JSON.parse(await rawUd(page)).rosters[0];
+		// (a) keepCircleIds が無い保存データ: 開いて、表を見て、帯の合計を出しても、1バイトも変わらない
+		const seed = SAVED();
+		const seedRaw = JSON.stringify(seed);
+		const sp = await open2(seed);
+		assert((await rawUd(sp.page)) === seedRaw, '◎切替(4)(a) keepCircleIds の無い保存データを開いてセットを選んでも、1バイトも変わらない（読み込み時に補わない）', (await rawUd(sp.page) || '').length);
+		const rows0 = await rowInfo(sp.page);
+		const cand = rows0.filter((r) => r.tog);
+		assert(cand.length === FIX.R2.cand && cand.every((r) => r.tog.pressed === 'true'), '◎切替(4)(a) 保存済みの編成も、開き直すと既定の◎（' + FIX.R2.cand + '種）', cand.length);
+		assert((await bandTotal(sp.page)) === FIX.R2.def, '◎切替(4)(a) 保存済みの編成の合計 Pt は ' + FIX.R2.def + '（○のままだった ' + FIX.R2.keep + ' から、◎の分だけ増える）', await bandTotal(sp.page));
+		// (b) 切り替え→保存→開き直しで同じ
+		const a = cand[0], b = cand[1];
+		await sp.page.click(P + '[data-usd-el="circle-toggle"][data-skill-id="' + a.id + '"]');
+		await sp.page.waitForTimeout(250);
+		await sp.page.click(P + '[data-usd-el="circle-toggle"][data-skill-id="' + b.id + '"]');
+		await sp.page.waitForTimeout(250);
+		const d1 = JSON.parse(await rawUd(sp.page));
+		assert(JSON.stringify(d1.rosters[0].keepCircleIds) === JSON.stringify([a.id, b.id]) && d1.schemaVersion === 7, '◎切替(4)(b) 2つ切り替えると rosters の keepCircleIds に○のidが順に入る（schemaVersion は 7 のまま）', d1.rosters[0].keepCircleIds);
+		const total2 = await bandTotal(sp.page);
+		const rowsAfter = await rowInfo(sp.page);
+		// 開き直し: 保存した中身をそのまま別の画面に入れて開く（この画面のまま読み込み直すと、検査の仕組みが元のデータを入れ直すため）
+		const savedNow = await rawUd(sp.page);
+		const spR = await open2(JSON.parse(savedNow));
+		assert(JSON.stringify(await rowInfo(spR.page)) === JSON.stringify(rowsAfter) && (await bandTotal(spR.page)) === total2 && (await rawUd(spR.page)) === savedNow,
+			'◎切替(4)(b) 開き直しても、行の名前・Pt・印・合計が同じ（保存データも1バイトも変わらない）', { total2, now: await bandTotal(spR.page) });
+		await spR.ctx.close();
+		// (c) 元に戻す: 1回の操作で1回。2回押すと2つとも戻る
+		await undo(sp.page);
+		let k = (await rosterOf(sp.page)).keepCircleIds;
+		assert(JSON.stringify(k) === JSON.stringify([a.id]), '◎切替(4)(c) 「元に戻す」1回で、直前の1つだけが戻る', k);
+		await undo(sp.page);
+		const r0 = await rosterOf(sp.page);
+		assert(!('keepCircleIds' in r0) && (await bandTotal(sp.page)) === FIX.R2.def, '◎切替(4)(c) もう1回で最初に戻る（keepCircleIds は項目ごと消え、合計も既定）', r0.keepCircleIds);
+		// (d) リセット（中身をすべて消す）で keepCircleIds も消える。元に戻すで戻る
+		await sp.page.click(P + '[data-usd-el="circle-toggle"][data-skill-id="' + a.id + '"]');
+		await sp.page.waitForTimeout(250);
+		assert(JSON.stringify((await rosterOf(sp.page)).keepCircleIds) === JSON.stringify([a.id]), '◎切替(4)(d) 前提: ○に戻した状態を保存できた', null);
+		await sp.page.click(P + '[data-usd-el="roster-reset"]');
+		await sp.page.waitForTimeout(300);
+		await sp.page.click('[data-usd-el="roster-reset-all"]');
+		await sp.page.waitForTimeout(400);
+		const cleared = await rosterOf(sp.page);
+		assert(!('keepCircleIds' in cleared) && cleared.umaId === '', '◎切替(4)(d) 「中身をすべて消す」で keepCircleIds も消える（既定の◎に戻る）', cleared.keepCircleIds);
+		await undo(sp.page);
+		const restored = await rosterOf(sp.page);
+		assert(JSON.stringify(restored.keepCircleIds) === JSON.stringify([a.id]) && restored.umaId === 'uma-0001', '◎切替(4)(d) 「元に戻す」で、リセット前（keepCircleIds も衣装も）に戻る', restored.keepCircleIds);
+		assert(jsErrors(sp.errors).length === 0, '◎切替(4) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+
+		// (e) 知らない id・形が崩れた値は無視し、保存値は書き換えない。切り替えたのはその1つだけ（知らない id は残る）
+		const seed2 = SAVED({ keepCircleIds: ['no-such-id', 5] });
+		const sp2 = await open2(seed2);
+		assert((await rawUd(sp2.page)) === JSON.stringify(seed2), '◎切替(4)(e) 知らない id・崩れた値の入った保存データも、開いただけでは1バイトも変わらない', null);
+		const r2 = await rowInfo(sp2.page);
+		assert(r2.filter((r) => r.tog && r.tog.pressed === 'true').length === FIX.R2.cand && (await bandTotal(sp2.page)) === FIX.R2.def, '◎切替(4)(e) 知らない id は無視して、すべて既定の◎で数える', await bandTotal(sp2.page));
+		const t = r2.find((r) => r.tog).id;
+		await sp2.page.click(P + '[data-usd-el="circle-toggle"][data-skill-id="' + t + '"]');
+		await sp2.page.waitForTimeout(250);
+		const k2 = (await rosterOf(sp2.page)).keepCircleIds;
+		assert(JSON.stringify(k2) === JSON.stringify(['no-such-id', 5, t]), '◎切替(4)(e) 切り替えたのはその1つだけ（知らない id は残したまま足す）', k2);
+		await sp2.page.click(P + '[data-usd-el="circle-toggle"][data-skill-id="' + t + '"]');
+		await sp2.page.waitForTimeout(250);
+		const k3 = (await rosterOf(sp2.page)).keepCircleIds;
+		assert(JSON.stringify(k3) === JSON.stringify(['no-such-id', 5]), '◎切替(4)(e) ◎に戻すと、その1つだけを外す（知らない id は残る）', k3);
+		await sp2.ctx.close();
+	});
+
+	await block('◎切替(5) 説明の小窓: ◎に上げると、○を取得したうえで◎を買う前提でPtを数えます（対象があるときだけ。1〜2行）', async () => {
+		const sp = await openSp({ roster: R2, w: 390 });
+		await sp.page.click(P + '[data-usd-act="pt-help"]');
+		await sp.page.waitForTimeout(300);
+		const t = await sp.page.evaluate(() => { const e = document.querySelector('[data-usd-el="info-circle"]'); return e ? { text: e.textContent, h: e.getBoundingClientRect().height, lh: parseFloat(getComputedStyle(e).lineHeight) } : null; });
+		// 対象の○をすべて「取得しない」にすると、切り替えの対象は0（表の行はある）
+		const candIds = (await detail(sp.page, R2)).vp.circleCandidates.map((c) => c[0]);
+		assert(t && t.text === '◎に上げると、○を取得したうえで◎を買う前提でPtを数えます' && t.h <= t.lh * 2 + 1, '◎切替(5) 説明の小窓に1〜2行の説明が出る', t);
+		await sp.ctx.close();
+		const spN = await openSp({ roster: Object.assign({}, R2, { offSkillIds: candIds }), w: 390 });
+		await spN.page.click(P + '[data-usd-act="pt-help"]');
+		await spN.page.waitForTimeout(300);
+		const n = await spN.page.evaluate(() => !!document.querySelector('[data-usd-el="info-circle"]'));
+		const cnt = await spN.page.evaluate(() => document.querySelectorAll('#deck-roster-panel [data-usd-el="circle-toggle"]').length);
+		assert(cnt === 0 && !n, '◎切替(5) 切り替えの対象が無い編成では、説明も出さない（対象 ' + cnt + '種）', { n, cnt });
+		await spN.ctx.close();
+	});
+
 	function numOf(s) { return Number(String(s).replace(/[^0-9]/g, '')); }
 }
