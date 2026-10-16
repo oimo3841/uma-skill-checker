@@ -119,11 +119,10 @@ export async function register28(env) {
 		});
 	};
 	const numOf = (s) => Number(String(s).replace(/[^0-9]/g, ''));
-	/** 検査の側で、データのタグから組み立てた期待値（①の距離・脚質・バ場だけ。レースなし）。パッシブは①の条件では絞らない（緑スキルの追加と同じ） */
+	/** 検査の側で、データのタグから組み立てた期待値（①の距離・脚質・バ場だけ。レースなし）。パッシブも白スキルと同じに絞る（C-164。タグに距離・脚質・バ場を持たないものは残る） */
 	const expectedIds = (f, have = [], hidden = []) => NS_IDS.filter((id) => {
 		if (have.includes(id) || hidden.includes(id)) return false;
 		const t = skillOf(id).tags;
-		if ((t.passive || []).length > 0) return true;
 		const ok = (axis, v) => !v || (t[axis] || []).length === 0 || (t[axis] || []).includes(v);
 		const surf = !f.surface || (t.surface || []).every((x) => x === f.surface);
 		return ok('distance', f.distance) && ok('style', f.style) && surf;
@@ -132,9 +131,9 @@ export async function register28(env) {
 	const SHD = { distance: 'short', style: 'nige', surface: 'dirt' };
 
 	// 固定の期待値（実データ。2026-10-16c）
-	const S1 = ['7', '10', '11', '181', '291', '330', '373', '375', '376', '381', '399', '404', '406', 'ex-0531', 'ex-0990'];
-	const S2 = ['7', '10', '11', '181', '190', '193', '196', '276', '330', '345', '349', '375', '376', '403', '404', '406', 'ex-0990'];
-	const S4 = ['291', '330', '373', '381', '399', '404', '406', 'ex-0531', 'ex-0990'];
+	const S1 = ['7', '10', '11', '181', '291', '373', '375', '376', '381', '399', '406', 'ex-0531', 'ex-0990'];
+	const S2 = ['7', '10', '11', '181', '190', '193', '196', '276', '345', '349', '375', '376', '403', '406'];
+	const S4 = ['291', '373', '381', '399', '406', 'ex-0531', 'ex-0990'];
 
 	await block('サポカ外(2) 「削除」の次に「サポカ外」／押せる見た目のまま（無効にしない）／押すまで data は取りに行かない', async () => {
 		const sp = await openSp({ roster: { skillFilter: MSF } });
@@ -164,10 +163,10 @@ export async function register28(env) {
 	await block('サポカ外(3) 固定のシナリオ: 候補の数・名前・合計 Pt（①の距離・脚質・バ場・レースを変えると候補が変わる）', async () => {
 		const WANT = [
 			// [見出し, openSp の引数, 候補の id, 見出しの文言, 追加しないものの文言]
-			['中距離・先行・芝', { roster: { skillFilter: MSF } }, S1, '追加するスキル 15種（合計 1,085 Pt）', '追加しないもの 14種（レース条件に合わないため 14種）'],
-			['短距離・逃げ・ダート', { roster: { skillFilter: SHD } }, S2, '追加するスキル 17種（合計 1,195 Pt）', '追加しないもの 12種（レース条件に合わないため 12種）'],
+			['中距離・先行・芝', { roster: { skillFilter: MSF } }, S1, '追加するスキル 13種（合計 865 Pt）', '追加しないもの 16種（レース条件に合わないため 16種）'],
+			['短距離・逃げ・ダート', { roster: { skillFilter: SHD } }, S2, '追加するスキル 14種（合計 885 Pt）', '追加しないもの 15種（レース条件に合わないため 15種）'],
 			['①の条件なし', { roster: {} }, NS_IDS, '追加するスキル 29種（合計 2,270 Pt）', null],
-			['脚質 先行＋レース［' + RACES[0].name + '］', { roster: { skillFilter: { style: 'senko' } }, race: 0 }, S4, '追加するスキル 9種（合計 865 Pt）', '追加しないもの 20種（レース条件に合わないため 20種）'],
+			['脚質 先行＋レース［' + RACES[0].name + '］', { roster: { skillFilter: { style: 'senko' } }, race: 0 }, S4, '追加するスキル 7種（合計 645 Pt）', '追加しないもの 22種（レース条件に合わないため 22種）'],
 			['本育成編成（uma-0030）で得る 291 は入らない', { roster: { umaId: 'uma-0030', cardIds: [] } }, NS_IDS.filter((id) => id !== '291'), '追加するスキル 28種（合計 2,180 Pt）', '追加しないもの 1種（本育成編成のため 1種）'],
 		];
 		const seen = [];
@@ -186,7 +185,7 @@ export async function register28(env) {
 		assert(new Set(seen).size === 5, 'サポカ外(3) ①の条件・レース・本育成編成を変えると、候補が変わる（5つのシナリオで5通り）', seen.map((s) => s.split(',').length));
 		// 検査の側で、データのタグから組み立てた期待値とも一致する（レースなしの3つ）
 		assert(S1.join() === expectedIds(MSF).join() && S2.join() === expectedIds(SHD).join() && NS_IDS.join() === expectedIds({}).join(),
-			'サポカ外(3) 固定の期待値は、データのタグから組み立てた期待値（距離・脚質・バ場。空は万能・パッシブは絞らない）と一致', { S1: expectedIds(MSF), S2: expectedIds(SHD) });
+			'サポカ外(3) 固定の期待値は、データのタグから組み立てた期待値（距離・脚質・バ場。空は万能。パッシブも同じに絞る）と一致', { S1: expectedIds(MSF), S2: expectedIds(SHD) });
 		assert(NS_IDS.every((id) => !skillOf(id).raceDistance), 'サポカ外(3) 29件にレースの距離の限定（raceDistance）は無い（上の期待値の組み立てに入れていない）', NS_IDS.filter((id) => skillOf(id).raceDistance));
 	});
 
@@ -207,10 +206,10 @@ export async function register28(env) {
 		await p.waitForTimeout(300);
 		const after = await draftIds(p);
 		const u1 = await p.evaluate(() => UmaSkillDeckCore.undoCount());
-		assert(after.join() === have.concat(S1).join(), 'サポカ外(4) 「追加する」で、小窓の15種が②の末尾に加わる（ほかは変わらない）', after);
+		assert(after.join() === have.concat(S1).join(), 'サポカ外(4) 「追加する」で、小窓の13種が②の末尾に加わる（ほかは変わらない）', after);
 		assert(u1 === u0 + 1, 'サポカ外(4) 「元に戻す」に1回で積む', { u0, u1 });
 		const tl = await p.evaluate(() => document.getElementById('toast-message').textContent);
-		assert(tl === 'サポカ外 15種を追加しました。追加しなかったもの 14種（レース条件に合わないため 14種）', 'サポカ外(4) 追加したあとの知らせ', tl);
+		assert(tl === 'サポカ外 13種を追加しました。追加しなかったもの 16種（レース条件に合わないため 16種）', 'サポカ外(4) 追加したあとの知らせ', tl);
 		// 追加済みのスキルは②のタイルに出る（パッシブ〔緑スキル〕もほかと同じタイル）
 		const tiles = await p.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]')).map((e) => e.getAttribute('data-skill-id')));
 		assert(S1.every((id) => tiles.includes(id)), 'サポカ外(4) ②のタイルに追加したスキルが並ぶ（緑スキルを含む）', tiles);
@@ -229,7 +228,7 @@ export async function register28(env) {
 		await p.click('[data-usd-el="recommend-confirm-add"]');
 		await p.waitForTimeout(300);
 		const z = await pressOutside(p);
-		assert(!z.open && z.toast === '追加できるスキルはありません（追加済み 15種・レース条件に合わないため 14種）', 'サポカ外(5) 追加後にもう一度押すと、小窓は出ずに理由の知らせ', z);
+		assert(!z.open && z.toast === '追加できるスキルはありません（追加済み 13種・レース条件に合わないため 16種）', 'サポカ外(5) 追加後にもう一度押すと、小窓は出ずに理由の知らせ', z);
 		const look = await p.evaluate(() => { const b = document.querySelector('[data-usd-el="outside-skill-btn"]'); return { dis: b.disabled, aria: b.getAttribute('aria-disabled') }; });
 		assert(look.dis === false && look.aria === null, 'サポカ外(5) 0件でもボタンは無効にしない', look);
 		await sp.ctx.close();
@@ -241,7 +240,7 @@ export async function register28(env) {
 		// (c) 3つの理由がそろう: ②に1種・本育成編成で1種（uma-0030 の 291）・①の条件に合わない
 		const sp3 = await openSp({ roster: { umaId: 'uma-0030', cardIds: [], skillFilter: MSF }, ids: ['7'] });
 		const r3 = await pressOutside(sp3.page);
-		assert(r3.open && r3.skip === '追加しないもの 16種（追加済み 1種・本育成編成のため 1種・レース条件に合わないため 14種）', 'サポカ外(5) 理由は「追加済み・本育成編成のため・レース条件に合わないため」の順に数える', r3.skip);
+		assert(r3.open && r3.skip === '追加しないもの 18種（追加済み 1種・本育成編成のため 1種・レース条件に合わないため 16種）', 'サポカ外(5) 理由は「追加済み・本育成編成のため・レース条件に合わないため」の順に数える', r3.skip);
 		await sp3.ctx.close();
 	});
 
@@ -257,8 +256,8 @@ export async function register28(env) {
 		} });
 		const r = await pressOutside(sp.page);
 		const i = r.ids.indexOf(noPt);
-		assert(r.open && i !== -1 && r.pts[i] === 'Pt 未収録' && r.head === '追加するスキル 15種（合計 995 Pt・Pt 未収録 1種を除く）',
-			'サポカ外(6) Pt が無いスキルの行は「Pt 未収録」・合計は 1,085 − 90 = 995 Pt で数を添える', { pt: r.pts[i], head: r.head });
+		assert(r.open && i !== -1 && r.pts[i] === 'Pt 未収録' && r.head === '追加するスキル 13種（合計 775 Pt・Pt 未収録 1種を除く）',
+			'サポカ外(6) Pt が無いスキルの行は「Pt 未収録」・合計は 865 − 90 = 775 Pt で数を添える', { pt: r.pts[i], head: r.head });
 		await sp.ctx.close();
 		const sp2 = await openSp({ roster: { skillFilter: MSF }, route: async (page) => { await page.route('**/data/non-support-skills.json*', (route) => route.fulfill({ status: 500, body: 'x' })); } });
 		const before = await draftIds(sp2.page);
@@ -266,4 +265,19 @@ export async function register28(env) {
 		assert(!r2.open && r2.toast === 'サポカ外のスキルのデータを読み込めませんでした' && (await draftIds(sp2.page)).join() === before.join(), 'サポカ外(6) データを読めないときは、②に何も入れず短い知らせだけ', r2.toast);
 		await sp2.ctx.close();
 	});
+	await block('サポカ外(7) パッシブも①の距離で絞る: 遊び心（ex-0990）は短距離の①では候補に出ず、中距離・長距離では出る／①の条件なしでは29種のまま', async () => {
+		const YU = 'ex-0990';
+		assert((skillOf(YU).tags.passive || []).length > 0 && skillOf(YU).tags.distance.join() === 'long,medium', 'サポカ外(7) 前提: 遊び心はパッシブで、距離のタグは長距離・中距離', skillOf(YU).tags);
+		for (const [d, want] of [['short', false], ['medium', true], ['long', true]]) {
+			const sp = await openSp({ roster: { skillFilter: { distance: d } } });
+			const r = await pressOutside(sp.page);
+			assert(r.open && r.ids.includes(YU) === want, 'サポカ外(7) 距離 ' + d + ': 遊び心は候補に' + (want ? '出る' : '出ない'), r.ids);
+			await sp.ctx.close();
+		}
+		const sp = await openSp({ roster: {} });
+		const r = await pressOutside(sp.page);
+		assert(r.open && r.ids.length === 29 && r.ids.includes(YU) && NS_IDS.filter((id) => (skillOf(id).tags.passive || []).length > 0).every((id) => r.ids.includes(id)), 'サポカ外(7) ①の条件なしでは、パッシブも含む29種のまま', r.ids.length);
+		await sp.ctx.close();
+	});
+
 }

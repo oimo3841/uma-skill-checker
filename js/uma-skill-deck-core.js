@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16f';
 
 	/* ============================================================
 	 * 定数
@@ -12829,7 +12829,7 @@
 		/**
 		 * 「サポカ外」で追加するもの（add）と、追加しないもの（理由ごと。recommendPlanOf と同じ形・同じ順: 追加済み → 本育成編成 → レース条件）。
 		 * 候補は non-support-skills.json の全件。①の距離・脚質・バ場と、目標のレース条件（距離を含む）に合うものだけを足す（matchesFilters。タグが空の距離・脚質は万能）。
-		 * **パッシブ（緑スキル）は、②の「緑スキル」の追加と同じ扱い**で、①の距離・脚質・バ場では絞らない（レース条件には合わせる）。
+		 * **パッシブ（緑スキル）も白スキルと同じに、①の距離・脚質・バ場で絞る**（2026-10-16・C-164。タグに距離・脚質・バ場を持たないパッシブは残る。レース条件の扱いは同じ）。
 		 * ①の条件に合わないものも、レース条件に合わないものと同じ「レース条件に合わないため」に数える。進化スキルは data に入っていない。
 		 */
 		function outsideSkillPlanOf() {
@@ -12850,7 +12850,7 @@
 				if (!s) return;
 				if (cur.indexOf(id) !== -1) plan.already.push(id);
 				else if (isPickerExcluded(id)) plan.roster.push(id);
-				else if (isPickerRaceBlocked(id) || (hasFilter && !isPoolExcluded(s) && !matchesFilters(s, filters, dist))) plan.race.push(id);
+				else if (isPickerRaceBlocked(id) || (hasFilter && !matchesFilters(s, filters, dist))) plan.race.push(id);
 				else plan.add.push(id);
 			});
 			return plan;
