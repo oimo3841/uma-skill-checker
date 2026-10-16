@@ -155,6 +155,12 @@ export async function register29(env) {
 	const BAR = '#deck-set-bar ';
 	const P = '#deck-roster-panel ';
 	const TOG = P + '[data-usd-el="circle-toggle"]';
+	// C-168: 行の◎／○の切り替えボタンは、見出しの◎のボタンが「入」のときだけ出る。この塊（3)〜(5)）は切り替えを使うので、先に「入」にする。
+	// 通常の状態で出ないこと・入で出ること・並びは blocks-33.mjs「◎ボタン」で見る
+	const circleOn = async (page) => {
+		const b = page.locator(P + '[data-usd-act="sort-tone"][data-tone="circle"]');
+		if ((await b.getAttribute('aria-pressed')) !== 'true') { await b.click(); await page.waitForTimeout(250); }
+	};
 	const rawDraft = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:special'));
 	const draftR = async (page) => JSON.parse(await rawDraft(page));
 	const rawUd = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:userData'));
@@ -170,6 +176,7 @@ export async function register29(env) {
 
 	await block('◎切替(3) 切り替え: 既定は◎・押すと○（名前とPtと合計が変わる）・もう一度で◎・タップ領域44px以上で行の高さは増えない・押せない見た目にしない', async () => {
 		const sp = await openSp({ roster: R2, w: 390 });
+		await circleOn(sp.page);
 		const rows0 = await rowInfo(sp.page);
 		const cand = rows0.filter((r) => r.tog);
 		assert(cand.length === FIX.R2.cand && cand.every((r) => r.tog.mark === '◎' && r.tog.pressed === 'true' && r.circle), '◎切替(3) 切り替えは対象の ' + FIX.R2.cand + '行だけに出て、既定は◎（押している）', cand.length);
@@ -229,6 +236,7 @@ export async function register29(env) {
 			const already = await sp.page.evaluate(() => { const i = document.querySelector('[data-usd-el="set-list"] input[value="t1"]'); return !!i && i.checked; });
 			if (already) await sp.page.keyboard.press('Escape'); else await sp.page.click('[data-usd-el="set-list"] input[value="t1"]');
 			await sp.page.waitForTimeout(900);
+			await circleOn(sp.page);
 			return sp;
 		};
 		const rosterOf = async (page) => JSON.parse(await rawUd(page)).rosters[0];
@@ -311,7 +319,7 @@ export async function register29(env) {
 		await spN.page.click(P + '[data-usd-act="pt-help"]');
 		await spN.page.waitForTimeout(300);
 		const n = await spN.page.evaluate(() => !!document.querySelector('[data-usd-el="info-circle"]'));
-		const cnt = await spN.page.evaluate(() => document.querySelectorAll('#deck-roster-panel [data-usd-el="circle-toggle"]').length);
+		const cnt = (await detail(spN.page, Object.assign({}, R2, { offSkillIds: candIds }))).vp.circleCandidates.length;
 		assert(cnt === 0 && !n, '◎切替(5) 切り替えの対象が無い編成では、説明も出さない（対象 ' + cnt + '種）', { n, cnt });
 		await spN.ctx.close();
 	});

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16o';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16p';
 
 	/* ============================================================
 	 * 定数
@@ -3884,6 +3884,8 @@
 	 */
 	const ROW_TONE_SORTS = [
 		{ key: 'heal', label: '回復スキル', icon: 'sparkles' },
+		// C-168: ◎のボタン（回復の隣）。対象は rowToneOf ではなく、◎／○の2つの状態を持つ行（visiblePartOf の circleCandidates）。アイコンはモノトーン（icon なし＝インラインの二重丸）
+		{ key: 'circle', label: '◎と○を切り替えられるスキル', icon: null },
 		{ key: 'passive', label: '緑スキル', icon: 'sprout' },
 		{ key: 'debuff', label: 'デバフスキル', icon: 'sparkles' }
 	];
@@ -5801,7 +5803,7 @@
 		// 固有スキルの行の色（--usd-skill-unique-*）は、入口の「オススメサポ」のボタンも読むので :root に置いてある（段7・2026-10-04）
 		'.usd-roster-grid { --usd-skill-heal-bg: #e6f3fd; --usd-skill-heal-text: #0b5fa5; --usd-skill-passive-text: #1b7a3a; --usd-skill-debuff-text: #b3261e; --usd-skill-pt-text: #546580; }',
 		// スキル名の列見出しの種類のアイコンと漏斗（段13・B3）。アイコンの色は変数（ダークモードで差し替える）
-		'.usd-roster-grid { --usd-tone-icon-heal: #2a7fd4; --usd-tone-icon-debuff: #d4363f; --usd-tone-icon-fg: #ffffff; --usd-tone-icon-passive: var(--uma-green-skill); }',
+		'.usd-roster-grid { --usd-tone-icon-heal: #2a7fd4; --usd-tone-icon-debuff: #d4363f; --usd-tone-icon-fg: #ffffff; --usd-tone-icon-passive: var(--uma-green-skill); --usd-tone-icon-circle: var(--uma-text-heading); }',
 		// ダーク（C-134 段4）: 種類の色は色相を保って明るい側へ（回復＝青・パッシブ＝緑・デバフ＝赤。Pt は淡い灰）。アイコンの地は中間の濃さで、記号は暗い色
 		':root[data-theme="dark"] .usd-roster-grid { --usd-skill-heal-bg: #172a40; --usd-skill-heal-text: #7cbcff; --usd-skill-passive-text: #6fdc95; --usd-skill-debuff-text: #ff8f87; --usd-skill-pt-text: #b6c2d4;',
 		'  --usd-tone-icon-heal: #4a9ef5; --usd-tone-icon-debuff: #f0605f; --usd-tone-icon-fg: #0f1318; }',
@@ -5810,18 +5812,23 @@
 		// 漏斗の押せる範囲はメンバーの列と同じ 24px 以上（段7c）。3つを名前の右に収めるため、隣どうしを少し重ねて並べる（間隔 22px。320px は 18px）
 		'.usd-roster-tones { flex: none; display: flex; align-items: flex-end; margin-left: auto; }',
 		'.usd-roster-tone { display: flex; flex-direction: column; align-items: center; gap: 2px; }',
-		'.usd-roster-tone + .usd-roster-tone { margin-left: -2px; }',
+		'.usd-roster-tone + .usd-roster-tone { margin-left: -7px; }',
 		'.usd-roster-toneicon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 3px; }',
 		'.usd-roster-toneicon--heal { background: var(--usd-tone-icon-heal); color: var(--usd-tone-icon-fg); }',
 		'.usd-roster-toneicon--debuff { background: var(--usd-tone-icon-debuff); color: var(--usd-tone-icon-fg); }',
 		'.usd-roster-toneicon--passive { color: var(--usd-tone-icon-passive); }',
+		'.usd-roster-toneicon--circle { color: var(--usd-tone-icon-circle); }',
 		'.usd-roster-toneicon .usd-roster-tonesvg { display: block; width: 10px; height: 10px; stroke-width: 2.4; }',
 		'.usd-roster-toneicon--passive .usd-roster-tonesvg { width: 14px; height: 14px; stroke-width: 2.2; }',
+		'.usd-roster-toneicon--circle .usd-roster-tonesvg { width: 14px; height: 14px; stroke-width: 2.2; }',
 		'.usd-roster-ghbtn.usd-roster-tonebtn { width: 24px; }',
 		// スマホより広い幅（641px 以上）は、メンバーの列の漏斗と同じ 28px（重ねない）
 		'@media (min-width: 641px) { .usd-roster-ghbtn.usd-roster-tonebtn { width: 28px; } .usd-roster-tone + .usd-roster-tone { margin-left: 0; } }',
 		// 320px（360px 未満）: 「スキル名」が切れないように、漏斗どうしの重なり・左右の余白・文字を少し詰める
-		'@media (max-width: 359px) { .usd-roster-gh.usd-roster-gh--skill { padding-left: 2px; padding-right: 0; gap: 1px; } .usd-roster-tone + .usd-roster-tone { margin-left: -7px; } .usd-roster-ghtitle { font-size: 11px; } }',
+		// C-168: ◎のボタンを足して4つになったので、重なりを -7px（それまでは 320px だけ）にし、360px 台は余白と文字を詰める。
+		// 359px 以下は4つ分と「スキル名」が並ばないので、見出しの文字は省く（列の見出しの aria-label は「スキル名」のまま。ボタンは4つとも24px）
+		'@media (max-width: 374px) { .usd-roster-gh.usd-roster-gh--skill { padding-left: 2px; padding-right: 0; gap: 1px; } .usd-roster-tone + .usd-roster-tone { margin-left: -8px; } .usd-roster-ghtitle { font-size: 10px; } }',
+		'@media (max-width: 359px) { .usd-roster-ghtitle { display: none; } }',
 		// 段8・C: 回復の行の淡い水色の地はやめた（地は白。名前の青だけで示す＝緑・デバフと同じ扱い）。--usd-skill-heal-bg は使っていない
 		'.usd-roster-grow--gold > .usd-roster-gc { background: var(--uma-gold-row-bg, var(--uma-stitch-soft)); color: var(--uma-gold-row-text, inherit); }',
 		// 金スキルの行の左端の帯（C-144。ページが --uma-gold-row-bar を持つときだけ。既定は無し＝これまでの見た目）
@@ -10210,12 +10217,15 @@
 				const toneSort = typeof sortKey === 'string' && sortKey.indexOf('tone:') === 0 ? sortKey.slice(5) : null;
 				if (toneSort !== null) {
 					// 種類の漏斗（段13・B3）: 行の色分け（段7e の rowToneOf）と同じ基準で、その種類を持つまとまりを上へ（安定ソート。金と直下の前段の白は崩さない）
-					const hit = (u) => u.some(it => !!rowToneOf(it.skillId)[toneSort]);
+					// ◎のボタン（C-168）は、◎／○の2つの状態を持つ行（circleCandidates）を上へ。ほかの種類は行の色分けと同じ基準
+					const hit = toneSort === 'circle' ? (u) => u.some(it => res.circleCandidates.has(it.skillId)) : (u) => u.some(it => !!rowToneOf(it.skillId)[toneSort]);
 					units = units.filter(hit).concat(units.filter(u => !hit(u)));
 				} else if (sortKey !== null && members.some(m => m.key === sortKey)) {
 					const hit = (u) => u.some(it => it.members.indexOf(sortKey) !== -1);
 					units = units.filter(hit).concat(units.filter(u => !hit(u)));
 				}
+				// 行の◎／○の切り替えボタンは、見出しの◎のボタンが「入」のときだけ出す（C-168）
+				const circleMode = sortKey === 'tone:circle';
 				const prevRowIds = new Set();
 				units.forEach(u => u.slice(1).forEach(it => prevRowIds.add(it.skillId)));
 				const rows = [].concat.apply([], units);
@@ -10223,8 +10233,10 @@
 					+ ' style="--usd-roster-cols:' + members.length + '">';
 				// スキル名の列見出し（段13・B3）: 名前の右に3つのアイコン（回復・緑〔パッシブ〕・デバフ）、それぞれの下に漏斗。
 				// 漏斗はその種類のスキルを上へ寄せる（行は減らさない。もう一度押すと元の並び）。メンバーの列の漏斗と同じ sortKey を使うので、有効なのは全部で1つだけ
+				// ◎のボタンのアイコン（C-168）。二重丸の線画。色は currentColor（CSS の --usd-tone-icon-circle＝既存のトークン）
+				const circleIconSvg = '<svg class="usd-roster-tonesvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.8"/></svg>';
 				const toneHead = ROW_TONE_SORTS.map(t => '<span class="usd-roster-tone" data-tone="' + t.key + '">'
-					+ '<span class="usd-roster-toneicon usd-roster-toneicon--' + t.key + '" role="img" aria-label="' + esc(t.label) + '" title="' + esc(t.label) + '"><i data-lucide="' + t.icon + '" class="usd-roster-tonesvg"></i></span>'
+					+ '<span class="usd-roster-toneicon usd-roster-toneicon--' + t.key + '" role="img" aria-label="' + esc(t.label) + '" title="' + esc(t.label) + '">' + (t.icon ? '<i data-lucide="' + t.icon + '" class="usd-roster-tonesvg"></i>' : circleIconSvg) + '</span>'
 					+ '<button type="button" class="usd-roster-ghbtn usd-roster-tonebtn" data-usd-act="sort-tone" data-tone="' + t.key + '" data-usd-el="tone-sort-btn"'
 					+ ' aria-pressed="' + (sortKey === 'tone:' + t.key ? 'true' : 'false') + '" aria-label="' + esc(t.label + 'を上に寄せる') + '" title="並べ替え">' + funnelSvg + '</button></span>').join('');
 				// C-131: C-129 で「スキル名」の下に置いた「低効果を除外」は削除した（低効果の除外が要るのは②の場面で、①では不要）
@@ -10262,7 +10274,7 @@
 						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader">' + takeBox + '<div class="usd-roster-namescroll usd-hscroll" data-usd-no-trim="1">'
 							+ (prevRowIds.has(it.skillId) ? '<span class="usd-roster-prevmark" aria-hidden="true" data-usd-el="prev-mark">└</span>' : '')
 							+ '<button type="button" class="usd-roster-skillname usd-roster-skillname--btn' + (isOff ? ' usd-roster-skillname--off' : '') + nameTone + '" data-usd-info="' + esc(evoId || shownId) + '">' + esc(shownName) + '</button>'
-							+ ptCellHtml(ptView, it, isOff, circleId) + '</div>' + (circleUp ? circleToggleHtml(it, circleUp, !!circleId) : '') + '</div>'
+							+ ptCellHtml(ptView, it, isOff, circleId) + '</div>' + (circleUp && circleMode ? circleToggleHtml(it, circleUp, !!circleId) : '') + '</div>'
 						+ members.map(m => '<div class="usd-roster-gc' + colClass(m) + '" role="cell">'
 							+ (it.sureMembers.indexOf(m.key) !== -1 ? '<span class="usd-roster-got" role="img" aria-label="得られる"></span>'
 								: it.members.indexOf(m.key) !== -1

@@ -355,14 +355,14 @@ export async function register13(env) {
 	/** 行の並びを、まとまり（前段の行は直前のまとまりに入る）に分ける */
 	const unitsOf = (rows) => { const u = []; rows.forEach((r) => { if (r.prev && u.length) u[u.length - 1].push(r.id); else u.push([r.id]); }); return u; };
 
-	await block('オススメサポ段13B3 ①の列見出し: 「スキル名」の右に回復・緑・デバフの3つのアイコンと、その下に漏斗／375px で高さは変わらず、320px でも「スキル名」は切れない／押すとその種類を上へ（行は減らない・金と前段の白は崩さない）／同時に1つだけ・もう一度で元の並び・保存しない', async () => {
+	await block('オススメサポ段13B3 ①の列見出し: 「スキル名」の右に回復・◎・緑・デバフの4つのアイコンと、その下に漏斗（◎は C-168 で足した。◎の動きは blocks-33.mjs）／375px で高さは変わらず、320px は「スキル名」の文字を省いて4つ収める（C-168）／押すとその種類を上へ（行は減らない・金と前段の白は崩さない）／同時に1つだけ・もう一度で元の並び・保存しない', async () => {
 		for (const w of [375, 320]) {
 			const sp = await openSp({ roster: FULL, tab: 0, w });
 			const tag = 'オススメサポ段13B3 ' + w + 'px: ';
 			const g0 = await gridInfo(sp.page);
-			assert(g0.icons.map((i) => i.label).join() === '回復スキル,緑スキル,デバフスキル' && g0.icons.every((i) => i.svg) && g0.btns.map((b) => b.tone).join() === 'heal,passive,debuff' && g0.btns.every((b) => !b.on),
-				tag + '3つのアイコン（回復・緑・デバフ）とその下の漏斗（どれも押していない）', g0.icons.map((i) => i.label));
-			assert(/lucide-sparkles/.test(g0.icons[0].cls) && /lucide-sparkles/.test(g0.icons[2].cls) && /lucide-sprout/.test(g0.icons[1].cls) && g0.icons[0].bg !== g0.icons[2].bg && g0.icons[0].fg === 'rgb(255, 255, 255)' && g0.icons[2].fg === 'rgb(255, 255, 255)' && g0.icons[1].bg === 'rgba(0, 0, 0, 0)',
+			assert(g0.icons.map((i) => i.label).join() === '回復スキル,◎と○を切り替えられるスキル,緑スキル,デバフスキル' && g0.icons.every((i) => i.svg) && g0.btns.map((b) => b.tone).join() === 'heal,circle,passive,debuff' && g0.btns.every((b) => !b.on),
+				tag + '4つのアイコン（回復・◎・緑・デバフ）とその下の漏斗（どれも押していない）', g0.icons.map((i) => i.label));
+			assert(/lucide-sparkles/.test(g0.icons[0].cls) && /lucide-sparkles/.test(g0.icons[3].cls) && /lucide-sprout/.test(g0.icons[2].cls) && g0.icons[0].bg !== g0.icons[3].bg && g0.icons[0].fg === 'rgb(255, 255, 255)' && g0.icons[3].fg === 'rgb(255, 255, 255)' && g0.icons[2].bg === 'rgba(0, 0, 0, 0)' && g0.icons[1].bg === 'rgba(0, 0, 0, 0)',
 				tag + '回復・デバフは光の形（オススメサポのボタンと同じ）を色の違う角丸の四角に白で、緑は葉（「緑スキル」の入口と同じ）', g0.icons);
 			assert(g0.ghH <= g0.memberH && g0.rowH === g0.memberH && !g0.titleCut && g0.title === 'スキル名' && g0.btns.every((b) => Math.min(b.w, b.h) >= 24) && g0.sw <= g0.iw,
 				tag + '列見出しの高さは他の列（' + g0.memberH + 'px）と同じで増えない・「スキル名」は切れない・漏斗の押せる範囲は 24px 以上・横にはみ出さない', g0);
