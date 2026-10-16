@@ -125,4 +125,186 @@ export async function register30(env) {
 		console.log('  （参考）共通イベント（キャラクター）: 単一選択肢' + exp.chara.single + '＋複数選択肢' + exp.chara.multi);
 		await sp.ctx.close();
 	});
+
+	/* ====================================================================
+	 * (2) 小窓・保存・リセット・元に戻す（段2）
+	 * ==================================================================== */
+	const P = '#deck-roster-panel ';
+	const BAR = '#deck-set-bar ';
+	const rawDraft = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:special'));
+	const draftR = async (page) => JSON.parse(await rawDraft(page));
+	const rawUd = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:userData'));
+	const bandTotal = (page) => page.evaluate(() => Number(document.querySelector('#deck-roster-panel [data-usd-el="pt-total"]').textContent.replace(/[^0-9]/g, '')));
+	const undo = async (page) => { await page.click('#deck-undo-btn'); await page.waitForTimeout(350); };
+	/** core から、切り替えを持つイベントの一覧（鍵・メンバー・単一か複数か・結果の数）と、選べるイベントの鍵を取る */
+	const events = (page, roster) => page.evaluate(async (roster) => {
+		const C = UmaSkillDeckCore;
+		await C.loadTrainingSources(); await C.loadSkillPtData(); await C.loadScenarioEvents(false);
+		const r = C.computeRosterSkills(roster, { autoChoose: true });
+		return { re: r.resultEvents.map((e) => ({ key: e.eventKey, member: e.memberKey, multi: e.multi, count: e.count, kind: e.kind, byChoice: e.byChoice,
+			names: e.byChoice.map((rs) => (rs ? rs.map((x) => x.map((s) => C.getSkillName(s.skillId) + (s.hintLevel !== null ? ' Lv' + s.hintLevel : ''))) : null)) })),
+			evKeys: r.events.map((e) => e.eventKey), pending: r.events.filter((e) => e.pending).length };
+	}, roster);
+	const total = (page, roster) => page.evaluate(async (roster) => UmaSkillDeckCore.getRosterPtDetail(roster).total, roster);
+	const openPop = async (page, member) => { await page.click(P + '[data-usd-el="events-btn"][data-member-key="' + member + '"]'); await page.waitForTimeout(350); };
+	const resultBtns = (page, key) => page.evaluate((key) => Array.from(document.querySelectorAll('[data-usd-el="result-choice"][data-event-key="' + key + '"]')).map((b) => ({
+		on: b.classList.contains('usd-roster-choice--on'), checked: b.getAttribute('aria-checked'), disabled: b.disabled, p: b.getAttribute('data-result'),
+		skills: Array.from(b.querySelectorAll('.usd-roster-choiceskill')).map((s) => s.textContent) })), key);
+
+	await block('結果切替(2) 小窓: 結果ボタンの箱（単一選択肢）・選択肢の箱の中の結果ボタン（複数選択肢）・押すと保存・合計が変わる・「！」「未選択N件」は変わらない・3段階は3ボタン', async () => {
+		const sp = await openSp({ roster: VARY, w: 390 });
+		const ev = await events(sp.page, VARY);
+		const single = ev.re.find((e) => e.kind === 'event' && !e.multi && e.count === 2 && ev.evKeys.indexOf(e.key) === -1);
+		let multi = null;
+		for (const e of ev.re.filter((x) => x.kind === 'event' && x.multi && ev.evKeys.indexOf(x.key) !== -1)) {
+			if ((await total(sp.page, Object.assign({}, VARY, { resultPicks: { [e.key]: e.count - 1 } }))) !== (await total(sp.page, VARY))) { multi = e; break; }
+		}
+		const three = ev.re.find((e) => e.count === 3 && e.kind === 'event');
+		assert(single && multi && three, '結果切替(2) 前提: VARY に 単一選択肢・複数選択肢（選べるイベントにある）・3段階の切り替えがある', { single: !!single, multi: !!multi, three: !!three });
+		const before = await bandTotal(sp.page);
+		const unselBefore = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"]')).map((b) => b.getAttribute('data-unselected')).join(','));
+		// 単一選択肢: 結果ボタンだけの箱
+		await openPop(sp.page, single.member);
+		const boxes = await sp.page.evaluate((k) => ({ box: !!document.querySelector('[data-usd-el="event-result"][data-event-key="' + k + '"]'),
+			unselText: (document.querySelector('[data-usd-el="events-unselected"]') || {}).textContent }), single.key);
+		assert(boxes.box, '結果切替(2) 単一選択肢の結果が分かれるイベントが、結果ボタンだけの箱で小窓に出る', boxes);
+		const b0 = await resultBtns(sp.page, single.key);
+		assert(b0.length === single.count && b0[0].on && b0[0].checked === 'true' && !b0[1].on && b0.every((b) => !b.disabled), '結果切替(2) 結果の数だけボタンが出て、既定は1つ目が選ばれていて、すべて押せる（無効にしない）', b0);
+		const flat = (p) => (single.names[0][p] || []).length ? single.names[0][p] : ['スキルなし'];
+		assert(b0.every((b, i) => JSON.stringify(b.skills) === JSON.stringify(flat(i))), '結果切替(2) 各ボタンに中身（スキル名 Lv／スキルなし）が出る（名前〔大成功・成功・失敗〕は出ない）', { got: b0.map((b) => b.skills), exp: [flat(0), flat(1)] });
+		assert(!(await sp.page.evaluate(() => /大成功|失敗/.test(document.querySelector('[data-usd-el="events-panes"]').textContent))), '結果切替(2) 小窓に「大成功」「失敗」の語は出ない', null);
+		// 押す → 保存・合計・描き直し
+		await sp.page.click('[data-usd-el="result-choice"][data-event-key="' + single.key + '"][data-result="1"]');
+		await sp.page.waitForTimeout(350);
+		const d1 = await draftR(sp.page);
+		const expTotal = await total(sp.page, Object.assign({}, VARY, { resultPicks: { [single.key]: 1 } }));
+		assert(JSON.stringify(d1.resultPicks) === JSON.stringify({ [single.key]: 1 }), '結果切替(2) 押すと resultPicks に { 鍵: 1 } だけが保存される', d1.resultPicks);
+		assert((await bandTotal(sp.page)) === expTotal && expTotal !== before, '結果切替(2) 帯の合計が切り替え後の値になる（' + before + '→' + expTotal + '）', await bandTotal(sp.page));
+		const b1 = await resultBtns(sp.page, single.key);
+		assert(b1.length === single.count && !b1[0].on && b1[1].on && b1[1].checked === 'true', '結果切替(2) 押したあと、小窓が描き直されて2つ目が選ばれている', b1);
+		const unselAfter = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"]')).map((b) => b.getAttribute('data-unselected')).join(','));
+		assert(unselAfter === unselBefore, '結果切替(2) 「！」「未選択N件」は結果ボタンを数えない（切り替えても変わらない）', { unselBefore, unselAfter });
+		// 最初の結果に戻すと、鍵も項目も消える
+		await sp.page.click('[data-usd-el="result-choice"][data-event-key="' + single.key + '"][data-result="0"]');
+		await sp.page.waitForTimeout(350);
+		const d0 = await draftR(sp.page);
+		assert(!('resultPicks' in d0) && (await bandTotal(sp.page)) === before, '結果切替(2) 1つ目に戻すと、鍵が消えて resultPicks は項目ごと消える・合計も最初に戻る', d0.resultPicks);
+		await sp.page.keyboard.press('Escape');
+		await sp.page.waitForTimeout(250);
+		// 複数選択肢（選べるイベント）: 選択肢の箱の中に結果ボタン
+		await openPop(sp.page, multi.member);
+		const inBox = await sp.page.evaluate((k) => { const box = document.querySelector('[data-usd-el="event"][data-event-key="' + k + '"]'); return { has: !!box, groups: box ? box.querySelectorAll('[data-usd-el="result-group"]').length : 0, choices: box ? box.querySelectorAll('[data-usd-el="event-choice"]').length : 0 }; }, multi.key);
+		assert(inBox.has && inBox.groups === 1 && inBox.choices >= 2, '結果切替(2) 選択肢が複数のイベントは、選択肢のボタンと別に、結果のボタンを1組（イベントに1組）', inBox);
+		const expMulti = await total(sp.page, Object.assign({}, VARY, { resultPicks: { [multi.key]: multi.count - 1 } }));
+		await sp.page.click('[data-usd-el="result-choice"][data-event-key="' + multi.key + '"][data-result="' + (multi.count - 1) + '"]');
+		await sp.page.waitForTimeout(350);
+		assert((await bandTotal(sp.page)) === expMulti && expMulti !== before, '結果切替(2) 複数選択肢のイベントも、押すと合計が切り替え後の値になる（' + before + '→' + expMulti + '）', { got: await bandTotal(sp.page), exp: expMulti });
+		await sp.page.click('[data-usd-el="result-choice"][data-event-key="' + multi.key + '"][data-result="0"]');
+		await sp.page.waitForTimeout(300);
+		await sp.page.keyboard.press('Escape');
+		await sp.page.waitForTimeout(250);
+		// 3段階
+		await openPop(sp.page, three.member);
+		const b3 = await resultBtns(sp.page, three.key);
+		assert(b3.length === 3 && b3[0].on, '結果切替(2) 3段階のイベントは、結果ボタンが3つ（既定は1つ目）', b3);
+		const exp3 = await total(sp.page, Object.assign({}, VARY, { resultPicks: { [three.key]: 2 } }));
+		await sp.page.click('[data-usd-el="result-choice"][data-event-key="' + three.key + '"][data-result="2"]');
+		await sp.page.waitForTimeout(350);
+		const d3 = await draftR(sp.page);
+		assert(JSON.stringify(d3.resultPicks) === JSON.stringify({ [three.key]: 2 }) && (await bandTotal(sp.page)) === exp3, '結果切替(2) 3つ目を選ぶと { 鍵: 2 } が保存され、合計が切り替え後の値になる', { d3: d3.resultPicks, exp3 });
+		assert(jsErrors(sp.errors).length === 0, '結果切替(2) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('結果切替(3) 保存・読み込み・リセット・元に戻す: 項目の無い保存は1バイトも変わらない／知らない鍵は残す／開き直しで同じ／リセットで消え元に戻すで戻る／1操作で1回戻る', async () => {
+		const SAVED = (extra) => ({ schemaVersion: 7, records: [], customSkills: [], templates: [
+			{ templateId: 't1', name: 'S1', skillIds: [], baseRosterId: 'r1', createdAt: 'x', updatedAt: 'x' }],
+			rosters: [Object.assign({ rosterId: 'r1', name: 'S1', umaId: VARY.umaId, star: 3, awakeningLevel: 5, cardIds: VARY.cardIds.slice(), createdAt: 'x', updatedAt: 'x' }, extra || {})] });
+		const open2 = async (userData) => {
+			const sp = await openPage(browser, base, 'special.html', { width: 390, height: 900 }, userData);
+			await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(readJson('data/scenario-event-skills.json')) }));
+			await sp.page.evaluate(() => { localStorage.removeItem('umaSkillDeck:draftRoster:special'); localStorage.removeItem('umaSkillDeck:draftScope:special'); localStorage.setItem('umaSkillDeck:stepTab', '0'); });
+			await sp.page.reload({ waitUntil: 'networkidle' });
+			for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+			await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
+			await sp.page.click(BAR + '[data-usd-act="set-list"]');
+			const already = await sp.page.evaluate(() => { const i = document.querySelector('[data-usd-el="set-list"] input[value="t1"]'); return !!i && i.checked; });
+			if (already) await sp.page.keyboard.press('Escape'); else await sp.page.click('[data-usd-el="set-list"] input[value="t1"]');
+			await sp.page.waitForTimeout(900);
+			return sp;
+		};
+		const rosterOf = async (page) => JSON.parse(await rawUd(page)).rosters[0];
+		const seed = SAVED();
+		const seedRaw = JSON.stringify(seed);
+		const sp = await open2(seed);
+		assert((await rawUd(sp.page)) === seedRaw, '結果切替(3)(a) resultPicks の無い保存データを開いてセットを選んでも、1バイトも変わらない（読み込み時に補わない・移行しない）', (await rawUd(sp.page) || '').length);
+		const base0 = await bandTotal(sp.page);
+		assert(base0 === (await total(sp.page, VARY)), '結果切替(3)(a) 保存済みの編成の合計は、基準（結果1）の値のまま', base0);
+		const ev = await events(sp.page, VARY);
+		const A = ev.re.find((e) => e.kind === 'event' && !e.multi && e.count === 2);
+		const B = ev.re.find((e) => e.kind === 'event' && !e.multi && e.count === 2 && e.key !== A.key && e.member !== A.member);
+		const clickResult = async (e, p) => {
+			await openPop(sp.page, e.member);
+			await sp.page.click('[data-usd-el="result-choice"][data-event-key="' + e.key + '"][data-result="' + p + '"]');
+			await sp.page.waitForTimeout(300);
+			await sp.page.keyboard.press('Escape');
+			await sp.page.waitForTimeout(200);
+		};
+		// (b) 2つ切り替える → 保存（schemaVersion は 7 のまま）→ 開き直しで同じ
+		await clickResult(A, 1);
+		await clickResult(B, 1);
+		const d1 = JSON.parse(await rawUd(sp.page));
+		assert(JSON.stringify(d1.rosters[0].resultPicks) === JSON.stringify({ [A.key]: 1, [B.key]: 1 }) && d1.schemaVersion === 7, '結果切替(3)(b) 2つ切り替えると rosters の resultPicks に { 鍵: 位置 } が入る（schemaVersion は 7 のまま）', d1.rosters[0].resultPicks);
+		const total2 = await bandTotal(sp.page);
+		const savedNow = await rawUd(sp.page);
+		const spR = await open2(JSON.parse(savedNow));
+		assert((await bandTotal(spR.page)) === total2 && (await rawUd(spR.page)) === savedNow, '結果切替(3)(b) 開き直しても、合計が同じ（保存データも1バイトも変わらない）', { total2, now: await bandTotal(spR.page) });
+		await spR.ctx.close();
+		// (c) 元に戻す: 1回の操作で1回
+		await undo(sp.page);
+		let k = (await rosterOf(sp.page)).resultPicks;
+		assert(JSON.stringify(k) === JSON.stringify({ [A.key]: 1 }), '結果切替(3)(c) 「元に戻す」1回で、直前の1つだけが戻る', k);
+		await undo(sp.page);
+		const r0 = await rosterOf(sp.page);
+		assert(!('resultPicks' in r0) && (await bandTotal(sp.page)) === base0, '結果切替(3)(c) もう1回で最初に戻る（resultPicks は項目ごと消え、合計も基準）', r0.resultPicks);
+		// (d) リセット（中身をすべて消す）で消える。元に戻すで戻る。「取得しないスキルを戻す」は触らない
+		await clickResult(A, 1);
+		assert(JSON.stringify((await rosterOf(sp.page)).resultPicks) === JSON.stringify({ [A.key]: 1 }), '結果切替(3)(d) 前提: 切り替えた状態を保存できた', null);
+		await sp.page.click(P + '[data-usd-el="roster-reset"]');
+		await sp.page.waitForTimeout(300);
+		await sp.page.click('[data-usd-el="roster-reset-off"]');
+		await sp.page.waitForTimeout(300);
+		await sp.page.keyboard.press('Escape');
+		await sp.page.waitForTimeout(250);
+		assert(JSON.stringify((await rosterOf(sp.page)).resultPicks) === JSON.stringify({ [A.key]: 1 }), '結果切替(3)(d) 「取得しないスキルを戻す」は resultPicks に触らない', null);
+		await sp.page.click(P + '[data-usd-el="roster-reset"]');
+		await sp.page.waitForTimeout(300);
+		await sp.page.click('[data-usd-el="roster-reset-all"]');
+		await sp.page.waitForTimeout(400);
+		const cleared = await rosterOf(sp.page);
+		assert(!('resultPicks' in cleared) && cleared.umaId === '', '結果切替(3)(d) 「中身をすべて消す」で resultPicks も消える', cleared.resultPicks);
+		await undo(sp.page);
+		const restored = await rosterOf(sp.page);
+		assert(JSON.stringify(restored.resultPicks) === JSON.stringify({ [A.key]: 1 }) && restored.umaId === VARY.umaId, '結果切替(3)(d) 「元に戻す」で、リセット前（resultPicks も衣装も）に戻る', restored.resultPicks);
+		assert(jsErrors(sp.errors).length === 0, '結果切替(3) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+
+		// (e) 知らない鍵・崩れた値の入った保存データは、開いただけでは1バイトも変わらない。結果1として数える。切り替えたのはその1つだけ（知らない鍵は残る）
+		const junk = { 'no-such#1': 1, 'card:card-9999#0': 2 };
+		junk[A.key] = 99;
+		const seed2 = SAVED({ resultPicks: junk });
+		const sp2 = await open2(seed2);
+		assert((await rawUd(sp2.page)) === JSON.stringify(seed2), '結果切替(3)(e) 知らない鍵・範囲外の値の入った保存データも、開いただけでは1バイトも変わらない', null);
+		assert((await bandTotal(sp2.page)) === base0, '結果切替(3)(e) 無効な値は結果1として数える（合計は基準のまま）', await bandTotal(sp2.page));
+		await openPop(sp2.page, A.member);
+		await sp2.page.click('[data-usd-el="result-choice"][data-event-key="' + A.key + '"][data-result="1"]');
+		await sp2.page.waitForTimeout(300);
+		const k2 = (await rosterOf(sp2.page)).resultPicks;
+		assert(JSON.stringify(k2) === JSON.stringify(Object.assign({}, junk, { [A.key]: 1 })), '結果切替(3)(e) 切り替えたのはその1つだけ（知らない鍵はそのまま残る）', k2);
+		await sp2.page.click('[data-usd-el="result-choice"][data-event-key="' + A.key + '"][data-result="0"]');
+		await sp2.page.waitForTimeout(300);
+		const k3 = (await rosterOf(sp2.page)).resultPicks;
+		assert(JSON.stringify(k3) === JSON.stringify({ 'no-such#1': 1, 'card:card-9999#0': 2 }), '結果切替(3)(e) 最初の結果に戻すと、その1つの鍵だけを外す（知らない鍵は残る）', k3);
+		await sp2.ctx.close();
+	});
 }
