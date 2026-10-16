@@ -86,7 +86,7 @@ export async function register27(env) {
 		];
 		for (const [name, have, take] of cases) {
 			assert(!!take, 'グループのカード(2) ' + name + ': 検査の対象のカードがデータから選べる', take);
-			const sp = await openSp(have);
+			const sp = await openSp(have, { umaId: '' });
 			await pickTake(sp.page, 1, take);
 			const s = await state(sp.page);
 			assert(s.ids.filter(Boolean).length === 1 && !s.ids.includes(take) && s.modal && s.notice && /が、すでに入っているカード（.+）にいるため、入れられません$/.test(s.notice),
@@ -102,7 +102,7 @@ export async function register27(env) {
 		}
 		// 重ならないカードは入る（グループどうし・グループと通常）
 		for (const [name, have, take] of [['グループどうし（重ならない）', ['card-0310'], 'card-0380'], ['グループと通常（重ならない）', ['card-0310'], free.id]]) {
-			const sp = await openSp(have);
+			const sp = await openSp(have, { umaId: '' });
 			await pickTake(sp.page, 1, take);
 			const s = await state(sp.page);
 			assert(s.ids[1] === take && !s.modal && !s.notice, 'グループのカード(2) ' + name + ': 入る（窓は閉じる・知らせなし）', s);
@@ -110,7 +110,7 @@ export async function register27(env) {
 		}
 		// 入れ替え（同じ枠の自分自身との重なりは見ない）
 		{
-			const sp = await openSp(['card-0310']);
+			const sp = await openSp(['card-0310'], { umaId: '' });
 			await pickTake(sp.page, 0, 'card-0422');
 			const s = await state(sp.page);
 			assert(s.ids[0] === 'card-0422' && !s.modal, 'グループのカード(2) 同じ枠の入れ替えは、その枠のカードとの重なりを見ない', s);
@@ -118,7 +118,7 @@ export async function register27(env) {
 		}
 		// 保存済みの重なった編成は書き換えず、そのまま計算する
 		{
-			const sp = await openSp(['card-0310', 'card-0422']);
+			const sp = await openSp(['card-0310', 'card-0422'], { umaId: '' });
 			const r = await sp.page.evaluate((key) => {
 				const ids = (JSON.parse(localStorage.getItem(key)) || {}).cardIds;
 				const res = UmaSkillDeckCore.computeRosterSkills({ umaId: 'uma-0001', cardIds: ids }, { autoChoose: true });
@@ -128,13 +128,13 @@ export async function register27(env) {
 			assert(r.ids.join() === 'card-0310,card-0422' && r.sure > 0 && r.missing === 0 && r.warn === null, 'グループのカード(2) 保存済みの重なった編成は書き換えず、警告も出さずに計算する', r);
 			await sp.ctx.close();
 		}
-		// 育成ウマ娘との重なりは見ない（暫定）
+		// 育成ウマ娘との重なり（C-168 で規則に加えた。詳しくは blocks-31.mjs「同キャラ」）: 育成ウマ娘と同じキャラクターのカードは入れられない
 		{
 			const uma = readJson('data/training-umamusume.json').entries.find((u) => u.charaName === normal.charaName);
-			const sp = await openSp([], { umaId: uma.umaId });
+			const sp = await openSp([], { umaId: uma.id });
 			await pickTake(sp.page, 0, normal.id);
 			const s = await state(sp.page);
-			assert(s.ids[0] === normal.id && !s.notice, 'グループのカード(2) 育成ウマ娘と同じキャラクターのカードは、規則の対象にしない', s);
+			assert(!s.ids[0] && s.modal && s.notice === normal.charaName + 'が、育成ウマ娘にいるため、入れられません', 'グループのカード(2) 育成ウマ娘と同じキャラクターのカードは入れられない（C-168）', s);
 			await sp.ctx.close();
 		}
 	});

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16m';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16n';
 
 	/* ============================================================
 	 * 定数
@@ -2135,6 +2135,17 @@
 		if (card.isGroup) return Array.isArray(card.groupMembers) ? card.groupMembers.slice() : [];
 		return card.charaName ? [card.charaName] : [];
 	}
+	/**
+	 * 育成ウマ娘（umaId の衣装）と同じキャラクターが、そのカードにいるか（C-168）。ゲームでは、育成ウマ娘と同じキャラクターのサポートカードは
+	 * 編成に入れられない。**この規則はここ1か所に持つ**（①のカード選択の窓・オススメサポの候補・オススメサポの残りの枠の選択が使う）。
+	 * 比べ方は同じカードどうしの規則（sameCharaNoticeOf）と同じ: キャラクター名の一致（charactersOfCard。グループのカードはメンバー全員）。
+	 * 返り値は重なるキャラクター名の配列。育成ウマ娘が未選択・引けない・キャラクター名が無いときは []。
+	 */
+	function umaSharedCharasOf(umaId, card) {
+		const uma = umaId ? findUma(umaId) : null;
+		if (!uma || !uma.charaName) return [];
+		return charactersOfCard(card).filter(n => n === uma.charaName);
+	}
 
 	/**
 	 * 収録データ（育成ウマ娘・サポートカード）から参照してよいスキルか。
@@ -2977,8 +2988,9 @@
 	function outsideCandidatesOf(roster, extraExcludedIds) {
 		const inRoster = new Set(((roster && roster.cardIds) || []).filter(Boolean));
 		const ex = new Set(outsideExcludedIdsOf(roster).concat((extraExcludedIds || []).filter(id => typeof id === 'string')));
+		// C-168: 育成ウマ娘と同じキャラクターのカードは候補（探索の母集団）に入れない
 		return listCards().filter(c => c && (c.rarity === 'SSR' || c.rarity === 'SR') && c.isGroup === false
-			&& eventStatusOf(c.id) === 'done' && !inRoster.has(c.id) && !ex.has(c.id))
+			&& eventStatusOf(c.id) === 'done' && !inRoster.has(c.id) && !ex.has(c.id) && umaSharedCharasOf(roster && roster.umaId, c).length === 0)
 			.sort((a, b) => ((b.rarity === 'SSR' ? 1 : 0) - (a.rarity === 'SSR' ? 1 : 0)) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 	}
 	/** イベントの行 → [{ idx, alts: [[skillId…]…] }]。done のときだけ。選択肢は成功側。スキルを得ない選択肢も空の選択肢として残す */
@@ -9900,13 +9912,21 @@
 					typeOrder: kind === 'card' ? cardTypeOrderOf(e) : null }));
 		}
 
+		/** 育成ウマ娘と同じキャラクターのカードを入れようとしたときの知らせ（C-168）。重ならなければ ''。判定は umaSharedCharasOf */
+		function umaCharaNoticeOf(newId) {
+			const withUma = umaSharedCharasOf(roster.umaId, findCard(newId));
+			return withUma.length > 0 ? withUma.join('・') + 'が、育成ウマ娘にいるため、入れられません' : '';
+		}
 		/**
 		 * ①に新しく入れるカード（newId）が、すでに入っているカード（slotIndex の枠を除く）とキャラクターが重なるときの知らせ。重ならなければ ''。
-		 * 判定はキャラクター名の重なり（charactersOfCard。通常のカードは charaName、グループのカードはメンバー全員）。育成ウマ娘は見ない。
+		 * 判定はキャラクター名の重なり（charactersOfCard。通常のカードは charaName、グループのカードはメンバー全員）。
+		 * C-168: 育成ウマ娘との重なりも同じ知らせ（1行）にする。育成ウマ娘との重なりを先に知らせる。
 		 */
 		function sameCharaNoticeOf(newId, slotIndex) {
 			const mine = charactersOfCard(findCard(newId));
 			if (mine.length === 0) return '';
+			const umaWhy = umaCharaNoticeOf(newId);
+			if (umaWhy) return umaWhy;
 			const charas = [];
 			const cards = [];
 			roster.cardIds.forEach((id, i) => {
@@ -10487,6 +10507,9 @@
 				const id = btn.getAttribute('data-entry-id');
 				// オススメサポの残りの枠（段13・C1）: ①の編成には書かず、選んだIDを返すだけ
 				if (picking && picking.external) {
+					// C-168: 育成ウマ娘と同じキャラクターのカードは、残りの枠にも指定できない（追加せず、窓を開いたまま理由を知らせる）
+					const umaWhy = umaCharaNoticeOf(id);
+					if (umaWhy) { pickNotice = umaWhy; render(); renderHits(); return; }
 					const cb = picking.external.onPick;
 					picking = null;
 					render();
@@ -14352,6 +14375,7 @@
 		resolveParentHintLevel: resolveParentHintLevel,
 		parentHintLevelChoices: parentHintLevelChoices,
 		charactersOfCard: charactersOfCard,
+		umaSharedCharasOf: umaSharedCharasOf,   // 育成ウマ娘と同じキャラクターのカードか（C-168）。検査のため
 		// サポートカードの種類。データに type が入るまでは空配列を返す（C-51 の修正2）。
 		listCardTypes: listCardTypes,
 		cardTypeOf: cardTypeOf,
