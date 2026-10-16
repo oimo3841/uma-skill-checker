@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16i';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16j';
 
 	/* ============================================================
 	 * 定数
@@ -1847,10 +1847,46 @@
 	 * 編成では使わない（失敗したときのスキルは基本的に下位のスキルで、利用者の関心の外。C-102 の問B）。
 	 */
 	function eventChoiceSuccessSkills(choice) {
+		return eventChoiceSkillsAt(choice, 0);
+	}
+	/**
+	 * イベントの1つの選択肢の、結果の位置 pos（0始まり）のスキル（結果の切り替え。roster.resultPicks）。`{ skills }` は位置によらずそのまま。
+	 * `{ results }` は results[pos]。**その選択肢の結果の数が pos より少ないときは、最後の結果にまるめる**。pos が 0 なら eventChoiceSuccessSkills と同じ。
+	 */
+	function eventChoiceSkillsAt(choice, pos) {
 		if (!choice) return [];
 		if (Array.isArray(choice.skills)) return choice.skills;
-		if (Array.isArray(choice.results) && Array.isArray(choice.results[0])) return choice.results[0];
+		if (Array.isArray(choice.results) && choice.results.length > 0) {
+			const i = Math.min(Math.max(Number.isInteger(pos) ? pos : 0, 0), choice.results.length - 1);
+			return Array.isArray(choice.results[i]) ? choice.results[i] : [];
+		}
 		return [];
+	}
+	/** イベントの選択肢の結果の数の最大（結果を持たない選択肢は 0） */
+	function eventMaxResults(ev) {
+		return ((ev && ev.choices) || []).reduce((m, c) => Math.max(m, (c && Array.isArray(c.results)) ? c.results.length : 0), 0);
+	}
+	/**
+	 * そのイベントで使う結果の位置（0始まり。roster.resultPicks の値）。**条件文のあるイベント（着順系）は常に 0**（結果1）。
+	 * 知らない鍵・整数でない・負・0・イベントのどの選択肢の結果数も超える値は無効＝0（保存値は書き換えない）。
+	 */
+	function resultPosOf(ev, eventKey, evOpts) {
+		const picks = evOpts && evOpts.resultPicks;
+		if (!picks || typeof picks !== 'object' || !ev) return 0;
+		if (typeof ev.condition === 'string' && ev.condition !== '') return 0;
+		if (!Object.prototype.hasOwnProperty.call(picks, eventKey)) return 0;
+		const v = picks[eventKey];
+		if (!Number.isInteger(v) || v < 1) return 0;
+		return v < eventMaxResults(ev) ? v : 0;
+	}
+	/**
+	 * 結果の切り替えを持つイベントか: 条件文が無く、結果が2つ以上ある選択肢があり、そのどれかで結果によって中身（スキル id か Lv）が違う。
+	 * 中身がどの結果でも同じなら false（切り替えを出さない）。
+	 */
+	function eventHasResultSwitch(ev) {
+		if (!ev || (typeof ev.condition === 'string' && ev.condition !== '')) return false;
+		const keyOf = (list) => (list || []).filter(r => r && r.skillId).map(r => r.skillId + ':' + (Number.isInteger(r.hintLevel) ? r.hintLevel : '')).sort().join(',');
+		return (ev.choices || []).some(c => Array.isArray(c && c.results) && c.results.length >= 2 && c.results.some(r => keyOf(r) !== keyOf(c.results[0])));
 	}
 
 	/**
@@ -1925,7 +1961,9 @@
 			pushEvent(keyBase + '#seeded', (row.unplaced || []).map(ref => ({ ref: ref, sure: false })));
 		} else if (row.status === 'done') {
 			(row[eventsKey] || []).forEach((ev, idx) => {
-				const sides = ((ev && ev.choices) || []).map(eventChoiceSuccessSkills);
+				// 結果の切り替え（roster.resultPicks）: そのイベントの結果の位置を全選択肢に当てる（既定は 0＝結果1）
+				const rpos = resultPosOf(ev, keyBase + '#' + idx, evOpts);
+				const sides = ((ev && ev.choices) || []).map(c => eventChoiceSkillsAt(c, rpos));
 				const refs = [];
 				// 選んだ（または既定で選ばれた）選択肢があるイベント（段7の (19)）: その成功側だけが●。ほかの選択肢だけのスキルは出ない
 				const pick = resolveEventChoice(sides, keyBase + '#' + idx, evOpts, ev);
@@ -1993,8 +2031,11 @@
 		if (!row || row.status !== 'done') return [];
 		const out = [];
 		(row[eventsKey] || []).forEach((ev, idx) => {
-			const sides = ((ev && ev.choices) || []).map(eventChoiceSuccessSkills);
+			// 結果の切り替え: 小窓に出すかどうかは結果1で決め（切り替えで消えて戻せなくならないように）、中身は選んだ結果の位置のもの
+			const rpos = resultPosOf(ev, keyBase + '#' + idx, evOpts);
+			const sides = ((ev && ev.choices) || []).map(c => eventChoiceSkillsAt(c, rpos));
 			if (sides.length < 2) return;
+			const listSides = rpos === 0 ? sides : ((ev && ev.choices) || []).map(c => eventChoiceSkillsAt(c, 0));
 			const choices = sides.map((side, i) => {
 				const raw = (ev.choices || [])[i] || {};
 				const c = { index: i, skills: side.filter(ref => ref && ref.skillId && findSkill(ref.skillId))
@@ -2004,7 +2045,7 @@
 				if (raw.state === 'linked' || raw.state === 'unlinked') c.state = raw.state;
 				return c;
 			});
-			if (!choices.some(c => c.skills.length > 0)) return;
+			if (!listSides.some(side => side.some(ref => ref && ref.skillId && findSkill(ref.skillId)))) return;
 			const eventKey = keyBase + '#' + idx;
 			const pick = resolveEventChoice(sides, eventKey, evOpts, ev);
 			// 選ぶ必要があるか（段7d の ⑤）。絞り込み後に残るスキルを成功側に持つ選択肢が2つ以上あるイベントだけ「選ぶ必要あり」。
@@ -2025,15 +2066,40 @@
 	 * 選ぶものではないので、選択の鍵・pending・未選択の数には関わらない（res.events には入れない）。
 	 * 返り値は [{ eventKey, index, eventName, condition, skills: [{ skillId, name, hintLevel }] }]。結果が分かれるものは先頭の結果だけ。
 	 */
-	function eventRowInfoEvents(row, eventsKey, keyBase) {
+	function eventRowInfoEvents(row, eventsKey, keyBase, evOpts) {
 		if (!row || row.status !== 'done') return [];
 		const out = [];
 		(row[eventsKey] || []).forEach((ev, idx) => {
 			const choices = (ev && ev.choices) || [];
 			if (choices.length !== 1 || typeof ev.condition !== 'string' || ev.condition === '') return;
-			const skills = eventChoiceSuccessSkills(choices[0]).filter(ref => ref && ref.skillId && findSkill(ref.skillId))
+			// 条件文のあるイベントは resultPosOf が常に 0（結果1）を返す
+			const skills = eventChoiceSkillsAt(choices[0], resultPosOf(ev, keyBase + '#' + idx, evOpts)).filter(ref => ref && ref.skillId && findSkill(ref.skillId))
 				.map(ref => ({ skillId: ref.skillId, name: ref.name, hintLevel: (Number.isInteger(ref.hintLevel) && ref.hintLevel >= 0) ? ref.hintLevel : null }));
 			out.push({ eventKey: keyBase + '#' + idx, index: idx, eventName: typeof ev.eventName === 'string' ? ev.eventName : null, condition: ev.condition, skills: skills });
+		});
+		return out;
+	}
+	/**
+	 * イベントの行から、**結果の切り替えを持つイベント**を並べる（結果の切り替え・2026-10-16）。小窓が結果ボタンの箱を出すのに使う。
+	 * 条件文があるイベント（着順系）・結果が1つだけのイベント・どの結果でも中身が同じイベントは含めない（eventHasResultSwitch）。
+	 * 選択肢が1つのイベントも、2つ以上のイベントも含める（後者は「選べるイベント」の箱の中にも結果ボタンを出すため）。
+	 * 返り値は [{ eventKey, index, step, name, when, eventName, count, pos, multi, byChoice: [ null | [ [{ skillId, name, hintLevel }, …] × 結果の数 ] ] }]。
+	 * pos は選んでいる結果の位置（無効な保存値は 0）。byChoice は選択肢ごとの、結果ごとのスキル（スキルを引けないものは除く）。
+	 * **選ぶ必要・未選択の数には関わらない**（既定は結果1で、未選択が無い）。
+	 */
+	function eventRowResultEvents(row, eventsKey, keyBase, evOpts) {
+		if (!row || row.status !== 'done') return [];
+		const out = [];
+		(row[eventsKey] || []).forEach((ev, idx) => {
+			if (!eventHasResultSwitch(ev)) return;
+			const eventKey = keyBase + '#' + idx;
+			const refOf = (ref) => ({ skillId: ref.skillId, name: ref.name, hintLevel: (Number.isInteger(ref.hintLevel) && ref.hintLevel >= 0) ? ref.hintLevel : null });
+			const byChoice = (ev.choices || []).map(c => (c && Array.isArray(c.results))
+				? c.results.map(r => (r || []).filter(ref => ref && ref.skillId && findSkill(ref.skillId)).map(refOf)) : null);
+			out.push({ eventKey: eventKey, index: idx, step: Number.isInteger(ev.step) ? ev.step : null,
+				name: typeof ev.name === 'string' ? ev.name : null, when: typeof ev.when === 'string' ? ev.when : null,
+				eventName: typeof ev.eventName === 'string' ? ev.eventName : null, count: eventMaxResults(ev),
+				pos: resultPosOf(ev, eventKey, evOpts), multi: (ev.choices || []).length >= 2, byChoice: byChoice });
 		});
 		return out;
 	}
@@ -2315,9 +2381,12 @@
 		// イベントの選択（段7の (19)）。eventChoices は編成に保存した { eventKey: 選択肢の位置 }、autoChoose は既定を決めるか、
 		// isWanted は絞り込みの述語（既定の判断にだけ使う。行の絞り込みは呼び出し側）。渡さなければ従来どおり（選択なし）
 		const evOpts = { choices: (o.eventChoices && typeof o.eventChoices === 'object') ? o.eventChoices : {}, autoChoose: !!o.autoChoose,
-			isWanted: typeof o.isWanted === 'function' ? o.isWanted : null };
+			isWanted: typeof o.isWanted === 'function' ? o.isWanted : null,
+			// 結果の切り替え（roster.resultPicks。{ eventKey: 結果の位置 }）。渡さなければ全イベントが結果1（従来どおり）
+			resultPicks: (o.resultPicks && typeof o.resultPicks === 'object') ? o.resultPicks : {} };
 		const events = [];           // 選べるイベント（段7の (19)。列見出しの▼から開く小窓が使う）
 		const infoEvents = [];       // 小窓に読み取り専用で出すだけのイベント（段3の追補。選択肢が1つで条件のある育成ウマ娘のイベント）
+		const resultEvents = [];     // 結果の切り替えを持つイベント（結果の切り替え。選択肢が1つのものも含む。条件のあるイベントは含まない）
 		const items = new Map();   // skillId → { skillId, name, origins: [], members: [], sureMembers: [], sure }
 		const sources = [];        // 由来を機械が読める形で（段2）
 		const unconfirmed = [];
@@ -2382,8 +2451,10 @@
 					eventRowChoiceEvents(umaEvRow, 'events', base, evOpts).forEach(e =>
 						events.push(Object.assign({ memberKey: UMA_KEY, kind: 'umaEvent', cardId: null, charaName: null }, e)));
 					// 選択肢が1つで条件のあるイベントは、小窓に読み取り専用の行として出すだけ（段3の追補）。計算は上の出現がすでに持っている
-					eventRowInfoEvents(umaEvRow, 'events', base).forEach(e =>
+					eventRowInfoEvents(umaEvRow, 'events', base, evOpts).forEach(e =>
 						infoEvents.push(Object.assign({ memberKey: UMA_KEY, kind: 'umaEvent' }, e)));
+					eventRowResultEvents(umaEvRow, 'events', base, evOpts).forEach(e =>
+						resultEvents.push(Object.assign({ memberKey: UMA_KEY, kind: 'umaEvent', cardId: null, charaName: null }, e)));
 				}
 			}
 		}
@@ -2414,6 +2485,7 @@
 				getEventSkillsOf(cardId, cardEv).forEach(s => add(s, label + ' のイベント' + (s.sure ? '' : '（確定でない）'), key, s.sure));
 				pushOccurrences(getEventOccurrencesOf(cardId, evOpts), 'event', key);
 				eventRowChoiceEvents(findEventRow(cardId), 'chain', 'card:' + cardId, evOpts).forEach(e => events.push(Object.assign({ memberKey: key, kind: 'event', cardId: cardId, charaName: null }, e)));
+				eventRowResultEvents(findEventRow(cardId), 'chain', 'card:' + cardId, evOpts).forEach(e => resultEvents.push(Object.assign({ memberKey: key, kind: 'event', cardId: cardId, charaName: null }, e)));
 			}
 
 			// キャラクター共通のイベント（C-102 の区切り3）。そのカードの列に出す。同じキャラクターが
@@ -2427,6 +2499,7 @@
 					add(s, label + ' の共通イベント（' + name + '）' + (s.sure ? '' : '（確定でない）'), key, s.sure));
 				pushOccurrences(getCharacterEventOccurrencesOf(name, evOpts), 'commonEvent', key);
 				eventRowChoiceEvents(findCharacterEventRow(name), 'events', 'chara:' + name, evOpts).forEach(e => events.push(Object.assign({ memberKey: key, kind: 'commonEvent', cardId: cardId, charaName: name }, e)));
+				eventRowResultEvents(findCharacterEventRow(name), 'events', 'chara:' + name, evOpts).forEach(e => resultEvents.push(Object.assign({ memberKey: key, kind: 'commonEvent', cardId: cardId, charaName: name }, e)));
 			});
 		});
 
@@ -2447,7 +2520,7 @@
 		}
 
 		const list = Array.from(items.values()).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing, sources: sources, events: events, infoEvents: infoEvents, scenario: scenario };
+		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing, sources: sources, events: events, infoEvents: infoEvents, resultEvents: resultEvents, scenario: scenario };
 	}
 
 	/* ============================================================
@@ -4087,7 +4160,7 @@
 	}
 	/** 編成で得られるスキル（イベントの選択と、絞り込みから決まる既定の選択を効かせる。①のパネルの computed() の元） */
 	function rosterSkillResultOf(r) {
-		return computeRosterSkills(r, { eventChoices: r.eventChoices, autoChoose: true, isWanted: filterPredicateOf(r) });
+		return computeRosterSkills(r, { eventChoices: r.eventChoices, resultPicks: r.resultPicks, autoChoose: true, isWanted: filterPredicateOf(r) });
 	}
 	/**
 	 * 本育成で「取得しない」にしたスキル（段7c の M。編成の offSkillIds）。**いま●のスキルに当たるものだけ**が有効
