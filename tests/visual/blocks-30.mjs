@@ -307,4 +307,47 @@ export async function register30(env) {
 		assert(JSON.stringify(k3) === JSON.stringify({ 'no-such#1': 1, 'card:card-9999#0': 2 }), '結果切替(3)(e) 最初の結果に戻すと、その1つの鍵だけを外す（知らない鍵は残る）', k3);
 		await sp2.ctx.close();
 	});
+
+	/* ====================================================================
+	 * (4) 列見出しのバッジの点（段3）
+	 * ==================================================================== */
+	const lum = (rgb) => { const [r, g, b] = rgb.match(/[\d.]+/g).slice(0, 3).map(Number).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+	const ratio = (a, b) => { const la = lum(a), lb = lum(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
+	const badges = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"]')).map((b) => {
+		const r = b.getBoundingClientRect(); const d = b.querySelector('[data-usd-el="result-dot"]');
+		const cs = getComputedStyle(b); const dcs = d ? getComputedStyle(d) : null; const dr = d ? d.getBoundingClientRect() : null;
+		return { key: b.getAttribute('data-member-key'), text: b.textContent, w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10, aria: b.getAttribute('aria-label'), picked: b.getAttribute('data-result-picked'),
+			dot: !!d, bg: cs.backgroundColor, dotBg: dcs && dcs.backgroundColor, ring: dcs && dcs.borderTopColor, dotW: dr && dr.width, dotInside: dr ? (dr.right <= r.right + 5 && dr.top >= r.top - 5) : null };
+	}));
+	const band = (page) => page.evaluate(() => Math.round(document.querySelector('#deck-roster-panel [data-usd-el="pt-sumrow"]').getBoundingClientRect().height));
+	const docScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+
+	await block('結果切替(4) 列見出しの点: 切り替えがある列のバッジだけに付く・形と帯の高さは変わらない・「！」と区別できる・ライト／ダークで見える（PC・390・360）', async () => {
+		for (const [w, scheme] of [[1280, 'light'], [390, 'light'], [390, 'dark'], [360, 'light']]) {
+			const plain = await openSp({ roster: VARY, w, scheme });
+			const ev = await events(plain.page, VARY);
+			const a = ev.re.find((e) => e.kind === 'event' && !e.multi && e.count === 2);
+			const bandPlain = await band(plain.page);
+			const b0 = await badges(plain.page);
+			assert(b0.every((b) => !b.dot && b.picked === null), '結果切替(4) ' + w + '/' + scheme + ' 切り替えが無いときは、どの列にも点が無い', b0.filter((b) => b.dot).length);
+			await plain.ctx.close();
+			const sp = await openSp({ roster: Object.assign({}, VARY, { resultPicks: { [a.key]: 1 } }), w, scheme });
+			const b1 = await badges(sp.page);
+			const dots = b1.filter((b) => b.dot);
+			assert(dots.length === 1 && String(dots[0].key) === String(a.member) && dots[0].picked === '1' && /結果を切り替え中1件/.test(dots[0].aria),
+				'結果切替(4) ' + w + '/' + scheme + ' 点は切り替えのある列（' + a.member + '）のバッジだけに付き、aria-label に「結果を切り替え中1件」', dots.map((d) => [d.key, d.picked, d.aria]));
+			assert(b1.every((b, i) => b.w === b0[i].w && b.h === b0[i].h && b.text === b0[i].text), '結果切替(4) ' + w + '/' + scheme + ' バッジの幅・高さ・中の字は変わらない（点は角に添えるだけ）', b1.map((b, i) => [b.w - b0[i].w, b.h - b0[i].h]));
+			assert((await band(sp.page)) === bandPlain, '結果切替(4) ' + w + '/' + scheme + ' 帯の高さは変わらない（' + bandPlain + 'px）', await band(sp.page));
+			assert((await docScroll(sp.page)) <= 0, '結果切替(4) ' + w + '/' + scheme + ' 横スクロールが出ない', await docScroll(sp.page));
+			const d = dots[0];
+			assert(d.dotW >= 7 && d.dotW <= 9 && d.dotInside, '結果切替(4) ' + w + '/' + scheme + ' 点は約8pxで、バッジの右上の角に収まる', { w: d.dotW, inside: d.dotInside });
+			// コントラスト: 点と縁取り（地の色）が3:1以上。「！」の赤いバッジの上でも、点の色は赤い地と違う色
+			const cr = ratio(d.dotBg, d.ring);
+			assert(cr >= 3, '結果切替(4) ' + w + '/' + scheme + ' 点と縁取りのコントラスト比 ' + cr.toFixed(2) + '（3:1以上）', { dot: d.dotBg, ring: d.ring });
+			const alertB = b1.find((b) => b.text === '!');
+			if (alertB) assert(ratio(d.dotBg, alertB.bg) >= 1.5 || d.dotBg !== alertB.bg, '結果切替(4) ' + w + '/' + scheme + ' 「！」の赤いバッジと点は別の色（赤い地の上でも縁取りで見分けがつく）', { dot: d.dotBg, alert: alertB.bg });
+			assert(jsErrors(sp.errors).length === 0, '結果切替(4) ' + w + '/' + scheme + ' コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+			await sp.ctx.close();
+		}
+	});
 }

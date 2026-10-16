@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16k';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16l';
 
 	/* ============================================================
 	 * 定数
@@ -5760,6 +5760,9 @@
 		// 押せるバッジ（イベントを選ぶ）。ボタンだとひと目で分かる見た目：枠と軽い影・押したときの沈み・フォーカスの輪。押せる範囲は見た目より広く取る
 		'.usd-roster-evbtn { position: relative; padding: 0; background: var(--uma-surface); color: var(--uma-text-heading); font: inherit; line-height: inherit; font-weight: 700; cursor: pointer; box-shadow: 0 1px 2px rgba(15, 23, 42, .4); }',
 		'.usd-roster-evbtn::after { content: ""; position: absolute; inset: -6px -4px; }',
+		// 結果を切り替えているイベントがある列の印（バッジの右上の角の小さな点。「！」の赤いバッジとも番号のバッジとも形は同じまま）
+		'.usd-roster-resdot { position: absolute; top: -4px; right: -4px; width: 8px; height: 8px; box-sizing: border-box; border-radius: var(--uma-r-full);',
+		'  background: var(--uma-control-mark); border: 1.5px solid var(--uma-surface); pointer-events: none; }',
 		'.usd-roster-evbtn:active { transform: translateY(1px); box-shadow: none; }',
 		'.usd-roster-evbtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
 		// 育成ウマ娘のイベントのボタン（番号の代わりに ◇）。カードの番号のバッジと同じ大きさ・同じ見た目
@@ -10094,11 +10097,14 @@
 				const hasResult = (m.kind === 'card' || m.kind === 'uma') && !!m.label && (res.resultEvents || []).some(e => e.memberKey === m.key);
 				if (evs.length > 0 || hasInfo || hasResult) {
 					const unsel = evs.filter(e => e.pending).length;
-					const label = (m.kind === 'scenario' ? m.label : m.kind === 'uma' ? '育成ウマ娘' : m.no + '番のカード') + 'のイベントを選ぶ' + (unsel > 0 ? '（未選択' + unsel + '件）' : '');
+					// 結果を最初のもの以外に切り替えたイベントが、この列に1つでもあるとき、バッジの角に小さな点（形は変えない）
+					const picked = (res.resultEvents || []).filter(e => e.memberKey === m.key && e.pos > 0).length;
+					const label = (m.kind === 'scenario' ? m.label : m.kind === 'uma' ? '育成ウマ娘' : m.no + '番のカード') + 'のイベントを選ぶ' + (unsel > 0 ? '（未選択' + unsel + '件）' : '') + (picked > 0 ? '（結果を切り替え中' + picked + '件）' : '');
 					s += '<button type="button" class="usd-roster-legend-no usd-roster-evbtn' + (m.kind === 'scenario' ? ' usd-roster-evbtn--scen' : m.kind === 'uma' ? ' usd-roster-evbtn--uma' : '') + (unsel > 0 ? ' usd-roster-evbtn--alert' : typedAttrs) + '"'
-						+ ' data-usd-act="events" data-member-key="' + m.key + '" data-usd-el="events-btn" data-unselected="' + unsel + '"'
+						+ ' data-usd-act="events" data-member-key="' + m.key + '" data-usd-el="events-btn" data-unselected="' + unsel + '"' + (picked > 0 ? ' data-result-picked="' + picked + '"' : '')
 						+ ' aria-label="' + esc(label) + '" title="' + esc(label) + '" aria-expanded="' + (eventsFor === m.key ? 'true' : 'false') + '">'
-						+ (unsel > 0 ? '!' : (m.kind === 'scenario' ? bowlSvg : m.kind === 'uma' ? '<span class="usd-roster-evdiamond" aria-hidden="true"></span>' : String(m.no))) + '</button>';
+						+ (unsel > 0 ? '!' : (m.kind === 'scenario' ? bowlSvg : m.kind === 'uma' ? '<span class="usd-roster-evdiamond" aria-hidden="true"></span>' : String(m.no)))
+						+ (picked > 0 ? '<span class="usd-roster-resdot" data-usd-el="result-dot" aria-hidden="true"></span>' : '') + '</button>';
 				} else if (m.kind === 'uma') {
 					s += umaChip;
 				} else if (m.kind === 'scenario') {
