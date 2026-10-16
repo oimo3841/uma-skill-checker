@@ -280,4 +280,40 @@ export async function register28(env) {
 		await sp.ctx.close();
 	});
 
+	/* ②のタブの脇の「N種」（C-164）: ②が空のときは出さない（古い値も残さない）。①③のタブの表示は変えない */
+	await block('サポカ外(8) ②が空のときは、②のタブの脇に「N種」を出さない／1種以上あるときは従来どおり／追加を「元に戻す」で空に戻しても出ない', async () => {
+		const badge = (page) => page.evaluate(() => {
+			const b = document.getElementById('skill-count-badge');
+			const o = (id) => { const e = document.getElementById(id); return e ? { hidden: e.hidden || e.classList.contains('hidden'), text: e.textContent } : null; };
+			return { text: b.textContent, hidden: b.classList.contains('hidden'), shown: getComputedStyle(b).display !== 'none', excluded: o('deck-roster-excluded'), image: o('image-count-badge') };
+		});
+		const sp0 = await openSp({ roster: { skillFilter: MSF }, ids: [] });
+		const e0 = await badge(sp0.page);
+		assert(e0.hidden && !e0.shown && e0.text === '', 'サポカ外(8) ②が空のセットを開くと「N種」は出ない', e0);
+		await sp0.ctx.close();
+		const sp1 = await openSp({ roster: { skillFilter: MSF }, ids: ['16', '23'] });
+		const e1 = await badge(sp1.page);
+		assert(!e1.hidden && e1.shown && /^[0-9]+種$/.test(e1.text), 'サポカ外(8) 1種以上あるときは従来どおり「N種」が出る', e1);
+		// ②を削除で空にすると出ない（古い値も残さない）。①③のタブの表示は変わらない
+		await sp1.page.click(T + '[data-usd-el="palette-delete"]');
+		for (const id of ['16', '23']) { await sp1.page.click(T + '.usd-panel[data-skill-id="' + id + '"] .usd-panel-namebtn'); await sp1.page.waitForTimeout(200); }
+		const e2 = await badge(sp1.page);
+		assert(e2.hidden && !e2.shown && e2.text === '', 'サポカ外(8) 削除で②を空にすると「N種」は消え、古い値も残らない', e2);
+		assert(JSON.stringify(e2.excluded) === JSON.stringify(e1.excluded) && JSON.stringify(e2.image) === JSON.stringify(e1.image), 'サポカ外(8) ①（除外）・③（画像）のタブの表示は変わらない', { e1: [e1.excluded, e1.image], e2: [e2.excluded, e2.image] });
+		await sp1.ctx.close();
+		// 空の②へ追加し、「元に戻す」で空に戻す
+		const sp2 = await openSp({ roster: { skillFilter: MSF }, ids: [] });
+		await pressOutside(sp2.page);
+		await sp2.page.click('[data-usd-el="recommend-confirm-add"]');
+		await sp2.page.waitForTimeout(400);
+		const e3 = await badge(sp2.page);
+		assert(!e3.hidden && /^[0-9]+種$/.test(e3.text), 'サポカ外(8) 追加すると「N種」が出る', e3);
+		await sp2.page.click('#deck-undo-btn');
+		await sp2.page.waitForTimeout(400);
+		const e4 = await badge(sp2.page);
+		assert((await draftIds(sp2.page)).length === 0 && e4.hidden && !e4.shown && e4.text === '', 'サポカ外(8) 「元に戻す」で②が空に戻ったら「N種」は出ない（古い値も残らない）', e4);
+		assert(jsErrors(sp2.errors).length === 0, 'サポカ外(8) コンソールのエラー0', jsErrors(sp2.errors).slice(0, 3));
+		await sp2.ctx.close();
+	});
+
 }
