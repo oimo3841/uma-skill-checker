@@ -132,9 +132,10 @@ export async function register29(env) {
 		const okRows = cands.every(([o, u]) => {
 			const r = byId.get(o);
 			const lv = keepById.get(o).hintLevel;
-			return r && r.circle === u && r.name === nameOf(u) && r.info === u && r.pt === ptOf(PT.get(u).pt, lv) + ' Pt';
+			// C-168: 行の Pt は「○の分と◎の分の合算」（◎は○のヒントLvを援用するので、同じ Lv でそれぞれ割り引いて足す）。詳しくは blocks-32.mjs「◎合算」
+			return r && r.circle === u && r.name === nameOf(u) && r.info === u && r.pt === (ptOf(PT.get(u).pt, lv) + ptOf(PT.get(o).pt, lv)) + ' Pt';
 		});
-		assert(okRows, '◎切替(2) ◎に上げた行（' + cands.length + '種）は、名前と Pt が◎のもの（行の識別は○のまま・説明の小窓も◎）', cands.filter(([o, u]) => { const r = byId.get(o); return !(r && r.circle === u && r.name === nameOf(u)); }).slice(0, 3));
+		assert(okRows, '◎切替(2) ◎に上げた行（' + cands.length + '種）は、名前が◎のもの・Pt は○の分と◎の合算（行の識別は○のまま・説明の小窓も◎）', cands.filter(([o, u]) => { const r = byId.get(o); return !(r && r.circle === u && r.name === nameOf(u)); }).slice(0, 3));
 		const others = rows.filter((r) => !r.circle);
 		assert(others.length > 0 && others.every((r) => r.name === nameOf(r.id) || r.name === null), '◎切替(2) 切り替えの対象でない行（' + others.length + '行）は従来どおり（名前は自分のもの）', others.slice(0, 3));
 		// 帯の合計（①の「X Pt/N種」）と前段の1行

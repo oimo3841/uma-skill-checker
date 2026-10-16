@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16n';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16o';
 
 	/* ============================================================
 	 * 定数
@@ -4224,6 +4224,19 @@
 		const pricedSources = circleOf.size === 0 ? visibleSources : visibleSources.map(s => circleOf.has(s.skillId) ? Object.assign({}, s, { skillId: circleOf.get(s.skillId) }) : s);
 		return { wanted: wanted, visibleItems: visibleItems, visibleSources: pricedSources, offList: offList, takenIds: takenIds, evoPlan: evoPlan,
 			circleCandidates: circleCandidates, circleOf: circleOf };
+	}
+	/**
+	 * ◎として数えている行の Pt（C-168）。**リストの Pt は「○の分と◎の分の合算」**。計算の結果（computeRosterPt）から、◎の id の項目（items）と
+	 * ○の id の前段の項目（prevItems）を引いて足す。割引の考え方は計算のまま（それぞれを独立に割り引いた Pt を足す）なので、行の Pt を全部足すと合計に一致する。
+	 * 返り値は { pt, base, hintLevel }。どちらかが Pt 未収録（base が null）・見つからないときは null（その行は今までの◎だけの表示）。
+	 * 計算の層（computeRosterPt・computeRosterSkills）は変えない。表示用の値をここで組み立てるだけ。
+	 */
+	function circleComboOf(pt, baseId, upId) {
+		if (!pt || !Array.isArray(pt.items) || !Array.isArray(pt.prevItems)) return null;
+		const up = pt.items.find(x => x.skillId === upId);
+		const prev = pt.prevItems.find(x => x.skillId === baseId);
+		if (!up || !prev || up.pt === null || prev.pt === null) return null;
+		return { pt: up.pt + prev.pt, base: up.base + prev.base, hintLevel: up.hintLevel };
 	}
 	/**
 	 * ○の上の段の◎（C-165）。前段データ（skill-step-up.json）で「白のスキルを前段に持つ白のスキル」を、ちょうど1つ持つ白のスキルの、その上の段。
@@ -8487,8 +8500,11 @@
 		});
 	}
 
-	/** 説明の本文を作る。line は呼び出し元が渡す「いまの設定」の1行（無ければ null）。note は系列の注記（「◎と共有」など。無ければ null） */
-	function fillSkillInfo(skillId, line, note) {
+	/**
+	 * 説明の本文を作る。line は呼び出し元が渡す「いまの設定」の1行（無ければ null）。note は系列の注記（「◎と共有」など。無ければ null）。
+	 * combo は◎として数えている行（①の表）だけが渡す { baseText: '基礎 ○ Pt', text: 'リストのPtは○と◎の合算です' }（C-168）。無ければ null＝今までどおり
+	 */
+	function fillSkillInfo(skillId, line, note, combo) {
 		const ui = skillInfoUi;
 		ui.title.textContent = getSkillName(skillId);
 		const body = ui.body;
@@ -8512,7 +8528,7 @@
 			body.appendChild(c);
 		}
 		if (pd.meta.loaded) {
-			const t = basePtText(skillId);
+			const t = combo && combo.baseText ? combo.baseText : basePtText(skillId);
 			const p = infoEl('p', 'usd-info-pt', t);
 			p.setAttribute('data-usd-el', 'info-pt');
 			body.appendChild(p);
@@ -8520,6 +8536,11 @@
 				const n = infoEl('p', 'usd-info-pt usd-info-pt--now', line);
 				n.setAttribute('data-usd-el', 'info-pt-now');
 				body.appendChild(n);
+			}
+			if (combo && combo.text) {
+				const c = infoEl('p', 'usd-info-pt', combo.text);
+				c.setAttribute('data-usd-el', 'info-pt-combined');
+				body.appendChild(c);
 			}
 		}
 		// 進化スキルだけ: 進化スキル → 元の金スキル → その前段の白スキル の関係（段4の修正5・C-152）。金スキルの小窓には出さない
@@ -8542,11 +8563,7 @@
 				p.appendChild(x.self ? infoEl('strong', 'usd-info-self', x.text) : global.document.createTextNode(x.text));
 			});
 			body.appendChild(p);
-			if (ser.rootId !== skillId) {
-				const rt = infoEl('p', 'usd-info-root', 'Lv は ' + getSkillName(ser.rootId) + ' のものです');
-				rt.setAttribute('data-usd-el', 'info-root');
-				body.appendChild(rt);
-			}
+			// C-168: 「Lv は ○○ のものです」の行は削除した（自明なため）
 			// 系列の共有の注記（段7の (14)）: 行からは外し、ここ（系列の欄）にだけ出す
 			if (note) {
 				const nt = infoEl('p', 'usd-info-root', note);
@@ -8653,10 +8670,10 @@
 		return token;
 	}
 
-	function openSkillInfo(skillId, line, btn, opener, note) {
+	function openSkillInfo(skillId, line, btn, opener, note, combo) {
 		const ui = ensureSkillInfoUi();
 		const token = openPopover({ key: 'skill:' + skillId, skillId: skillId, btn: btn, opener: opener || btn,
-			build: () => fillSkillInfo(skillId, line, note) });
+			build: () => fillSkillInfo(skillId, line, note, combo) });
 		// 説明文は、最初に開いたときに1回だけ読む。読み終わったとき、まだ同じ説明が開いていれば欄を整える
 		if (skillDescState.status !== 'ok') {
 			loadSkillDescriptions().then(() => {
@@ -8672,6 +8689,7 @@
 	 *   opts.skillId … 必須。
 	 *   opts.getLine … 開く直前に呼ぶ。「いまの設定」の1行（例：「いまの設定：108 Pt（Lv5）」）か null。
 	 *   opts.getNote … 開く直前に呼ぶ。系列の注記（「◎と共有」「○のレベル」）か null（段7の (14)）。
+	 *   opts.getCombo … 開く直前に呼ぶ。◎として数えている行だけ { baseText, text }（基礎Ptを○と◎の合算にし、合算の1行を足す。C-168）か null。
 	 *   opts.trigger … 'info'（既定。ⓘ と長押し）か 'self'（段7の (14)。el 自身（button）を押すと開く。ⓘ も長押しも付けない）
 	 * 長押し：約0.5秒押し続けると開く。10px 以上動いたら・スクロールが始まったら取り消す。端末標準の長押し
 	 * （文字の選択・コンテキストメニュー・iOS の呼び出し）は、-webkit-touch-callout／user-select と contextmenu の抑止で避ける。
@@ -8684,13 +8702,14 @@
 		const doc = global.document;
 		const lineOf = () => { try { return typeof o.getLine === 'function' ? (o.getLine() || null) : null; } catch (e) { return null; } };
 		const noteOf = () => { try { return typeof o.getNote === 'function' ? (o.getNote() || null) : null; } catch (e) { return null; } };
+		const comboOf = () => { try { return typeof o.getCombo === 'function' ? (o.getCombo() || null) : null; } catch (e) { return null; } };
 		if (o.trigger === 'self') {
 			// 名前そのものがボタン（段7の (14)）。Enter／Space は button の既定の click で届く
 			el.setAttribute('data-usd-el', 'skill-info-btn');
 			el.setAttribute('data-skill-id', skillId);
 			el.setAttribute('aria-label', getSkillName(skillId) + 'の説明を開く');
 			el.setAttribute('aria-expanded', 'false');
-			const onClick = () => { if (skillInfoCur && skillInfoCur.btn === el) closeSkillInfo(); else openSkillInfo(skillId, lineOf(), el, el, noteOf()); };
+			const onClick = () => { if (skillInfoCur && skillInfoCur.btn === el) closeSkillInfo(); else openSkillInfo(skillId, lineOf(), el, el, noteOf(), comboOf()); };
 			el.addEventListener('click', onClick);
 			return { button: el, detach: function () { el.removeEventListener('click', onClick); } };
 		}
@@ -8704,7 +8723,7 @@
 		el.parentNode.insertBefore(btn, el.nextSibling);
 		el.classList.add('usd-info-target');
 		btn.addEventListener('click', () => {
-			if (skillInfoCur && skillInfoCur.btn === btn) closeSkillInfo(); else openSkillInfo(skillId, lineOf(), btn, btn, noteOf());
+			if (skillInfoCur && skillInfoCur.btn === btn) closeSkillInfo(); else openSkillInfo(skillId, lineOf(), btn, btn, noteOf(), comboOf());
 		});
 
 		let timer = 0, sx = 0, sy = 0, active = false;
@@ -8723,7 +8742,7 @@
 				timer = 0;
 				if (!active) return;
 				cancel();
-				openSkillInfo(skillId, lineOf(), btn, el, noteOf());
+				openSkillInfo(skillId, lineOf(), btn, el, noteOf(), comboOf());
 			}, SKILL_INFO_LONG_PRESS_MS);
 		};
 		const onMove = (e) => {
@@ -9767,6 +9786,9 @@
 			if (!it) return null;
 			if (it.sure && res.offIds.has(it.skillId)) return '取得しない設定です';   // 段7c の M
 			if (it.sure) {
+				// ◎として数えている行は、○の分と◎の分の合算（C-168）
+				const cb = it.skillId !== skillId ? circleComboOf(view.pt, it.skillId, skillId) : null;
+				if (cb) return cb.base !== 0 ? 'いまの設定：' + cb.pt + ' Pt（Lv' + cb.hintLevel + '）' : null;
 				const x = view.byId.get(skillId);
 				return x && x.base !== null && x.base !== 0 ? 'いまの設定：' + x.pt + ' Pt（Lv' + x.hintLevel + '）' : null;
 			}
@@ -9774,14 +9796,32 @@
 			return x && x.base !== null && x.base !== 0 ? 'このイベントで選ぶと：' + x.pt + ' Pt（Lv' + x.hintLevel + '）' : null;
 		}
 
+		/**
+		 * ◎として数えている行の説明の小窓（C-168）。基礎Ptを○と◎の合算にし、合算の1行を足す。◎として数えている行でなければ null（小窓は今までどおり）。
+		 * 記号の字形は画面のスキル名と同じ（○＝U+25CB・◎＝U+25CE）。
+		 */
+		function comboInfoFor(skillId) {
+			const res = computed();
+			const baseId = circleBaseOf(res, skillId);
+			if (baseId === skillId) return null;
+			const view = computePtView(res);
+			const it = view ? res.items.find(x => x.skillId === baseId) : null;
+			if (!it || !it.sure || res.offIds.has(baseId)) return null;
+			const cb = circleComboOf(view.pt, baseId, skillId);
+			if (!cb) return null;
+			return { baseText: cb.base === 0 ? 'Pt 不要' : '基礎 ' + cb.base + ' Pt', text: 'リストのPtは○と◎の合算です' };
+		}
+
 		/** 名前の右の Pt（段7の (14)）。●＝「P Pt」（Pt 不要・Pt 未収録はそのまま）、△＝薄い色の参考値。データが使えないときは出さない。 */
 		function ptCellHtml(view, it, off, ptId) {
 			if (!view) return '';
+			// ◎として数えている行（ptId が◎の id）は、○の分と◎の分の合算を出す（C-168）。合算できないときは◎だけ（今までどおり）
 			// 取得しないにした行は Pt を「—」にする（段7c の M）
 			if (off) return '<span class="usd-roster-pt" data-usd-el="pt-line">—</span>';
 			// ptId … ◎に上げた行は、◎のぶんの Pt（Pt の計算には◎として渡している。C-165）
-			const x = it.sure ? view.byId.get(ptId || it.skillId) : ptReferenceOf(view, it.skillId);
-			if (!x) return '';
+			const x0 = it.sure ? view.byId.get(ptId || it.skillId) : ptReferenceOf(view, it.skillId);
+			if (!x0) return '';
+			const x = (it.sure && ptId && circleComboOf(view.pt, it.skillId, ptId)) || x0;
 			const text = x.base === null ? 'Pt 未収録' : x.base === 0 ? 'Pt 不要' : x.pt + ' Pt';
 			return '<span class="usd-roster-pt' + (it.sure ? '' : ' usd-roster-pt--ref') + '" data-usd-el="' + (it.sure ? 'pt-line' : 'pt-ref') + '">' + esc(text) + '</span>';
 		}
@@ -10252,7 +10292,7 @@
 				if (nw) { nw.scrollTop = keepGrid.top; nw.scrollLeft = keepGrid.left; }
 			}
 			// 名前を押すと説明の小窓（段7の (14)。ⓘ と長押しはやめた）。「いまの設定」の1行と系列の注記は開く直前に求める
-			attachSkillInfoIn(container, (id) => ({ skillId: id, trigger: 'self', getLine: () => infoLineFor(id), getNote: () => { const r = computed(); return shareNoteOf(circleBaseOf(r, id), r); } }));
+			attachSkillInfoIn(container, (id) => ({ skillId: id, trigger: 'self', getLine: () => infoLineFor(id), getNote: () => { const r = computed(); return shareNoteOf(circleBaseOf(r, id), r); }, getCombo: () => comboInfoFor(id) }));
 			const host = ensureModalHost();
 			host.innerHTML = searchHtml();
 			refreshIcons();
@@ -14361,6 +14401,7 @@
 				items: pt.items.map(x => ({ skillId: x.skillId, pt: x.pt, base: x.base, hintLevel: x.hintLevel })),
 				prevItems: pt.prevItems.map(x => ({ skillId: x.skillId, pt: x.pt, base: x.base, hintLevel: x.hintLevel })) };
 		},
+		circleComboOf: circleComboOf,   // ◎として数えている行の Pt（○の分と◎の分の合算。C-168）。検査のため
 		compareSkillIds: compareSkillIds,
 		getSkillTextIndexSize: function (opts) { return buildSkillTextIndex(opts).length; },
 		isLowEffectSkill: isLowEffectSkill,

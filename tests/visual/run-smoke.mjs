@@ -52,6 +52,7 @@ import { register28 } from './blocks-28.mjs';
 import { register29 } from './blocks-29.mjs';
 import { register30 } from './blocks-30.mjs';
 import { register31 } from './blocks-31.mjs';
+import { register32 } from './blocks-32.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 
@@ -13898,7 +13899,7 @@ await block('前段の必要Pt（段4b）', async () => {
  *   ②  周回因子セットの行では名前の長押し（0.5秒）でも開く。本育成の表の名前は押せば開く（button）
  *   ③  Escape で閉じ、フォーカスが戻る。Enter／Space で開く。aria-expanded が開閉で変わる
  *   ④  Pt 不要・Pt 未収録・説明文が無い
- *   ⑤  系列と「Lv は …のものです」。○と◎が同じパネルにあるときだけ、小窓の系列の欄に注記（行には出ない）
+ *   ⑤  系列（「Lv は …のものです」の行は C-168 で削除した）。○と◎が同じパネルにあるときだけ、小窓の系列の欄に注記（行には出ない）
  *   ⑥  説明文の読み込みは最初に開いたときだけ1回。失敗しても基礎Pt が出て「説明文は準備中です」
  *   ⑦  説明文の HTML の記号はそのまま文字として見える
  *   ⑧  シナリオ因子・遺伝子には出ない。Deck 単体・exam・index・card-event-input には ⓘ も説明文の読み込みも出ない
@@ -14073,7 +14074,7 @@ await block('スキルの説明（ⓘ・長押し。段6）', async () => {
 	assert(by(X[3]).series === null && by(X[3]).root === null && by(X[5]).series === null, '段6(5): 系列に関係が無いスキルには「系列：」も「Lv は」も出ない', { a: by(X[3]).series, b: by(X[5]).series });
 	const chain = [X[0], X[1], X[6]].map((i) => nameOf.get(i)).join(' → ');
 	assert(by(X[0]).series === '系列：' + chain && by(X[0]).root === null && by(X[0]).share === '◎と共有', '段6(5)→段7: ○（持ち主）は「系列：○ → ◎ → 金」で、「Lv は」は出ず、同じ表に◎が居るので系列の欄に「◎と共有」', { s: by(X[0]).series, r: by(X[0]).root, share: by(X[0]).share });
-	assert(by(X[1]).series === '系列：' + chain && by(X[1]).root === 'Lv は ' + nameOf.get(X[0]) + ' のものです' && by(X[1]).share === '○のレベル', '段6(5)→段7: ◎は同じ系列と、「Lv は {持ち主の名前} のものです」と、同じ表に○が居るので「○のレベル」が系列の欄に出る', { s: by(X[1]).series, r: by(X[1]).root, share: by(X[1]).share });
+	assert(by(X[1]).series === '系列：' + chain && by(X[1]).root === null && by(X[1]).share === '○のレベル', '段6(5)→段7: ◎は同じ系列と、同じ表に○が居るので「○のレベル」が系列の欄に出る。「Lv は {持ち主の名前} のものです」の行は出ない（C-168で削除）', { s: by(X[1]).series, r: by(X[1]).root, share: by(X[1]).share });
 	assert(by(X[6]).series === '系列：' + chain && by(X[6]).root === null && by(X[6]).share === null && by(X[6]).rarity === RARITY_LABEL.gold && by(X[6]).now === NOW[X[6]],
 		'段6(5): 金は系列を前段までさかのぼって出し、持ち主は自分自身なので「Lv は」も注記も出ない（金スキル・自分のレベルのいまの設定）', by(X[6]));
 	const strong = await sp.page.evaluate(async (id) => { document.querySelector('#deck-roster-panel [data-usd-el="skill-info-btn"][data-skill-id="' + id + '"]').click(); await new Promise((r) => setTimeout(r, 120));
@@ -14091,8 +14092,8 @@ await block('スキルの説明（ⓘ・長押し。段6）', async () => {
 	await sp.page.click(rosterBtn(Y[1]));
 	await sp.page.waitForTimeout(120);
 	v = await read(sp.page);
-	assert(v.root === 'Lv は ' + nameOf.get(Y[0]) + ' のものです' && v.series === '系列：' + nameOf.get(Y[0]) + ' → ' + nameOf.get(Y[1]) && v.share === null,
-		'段6(5): 相手（持ち主の○）が同じ表に居ないときは注記を出さないが、系列と「Lv は …」は出る', { s: v.series, r: v.root, share: v.share });
+	assert(v.root === null && v.series === '系列：' + nameOf.get(Y[0]) + ' → ' + nameOf.get(Y[1]) && v.share === null,
+		'段6(5): 相手（持ち主の○）が同じ表に居ないときは注記を出さないが、系列は出る（「Lv は …」の行は C-168 で削除）', { s: v.series, r: v.root, share: v.share });
 	await closeIt(sp.page);
 	await sp.page.evaluate(() => selectStepTab(1));
 	await sp.page.waitForSelector('.usd-panel[data-skill-id="' + X[7] + '"]');
@@ -15128,6 +15129,7 @@ await register28({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register29({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register30({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register31({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register32({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
