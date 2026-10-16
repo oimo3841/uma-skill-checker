@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-16g';
 
 	/* ============================================================
 	 * 定数
@@ -13525,6 +13525,9 @@
 
 		// 追加済みスキルが増減したあとの描画と通知（削除・全消し・元に戻す、で共通）。
 		function afterEditingSkillsChanged(target) {
+			// ②を空にすると「＋ 新規」の選択が外れる（render）。元に戻して中身ができたら選択に戻す（そうしないと getSelection が null のまま＝②のタブの「N種」が出ない）。
+			// 別のセットのタブを開いているとき（currentTemplateId がある）は選ばない
+			if (target.kind === 'draft' && draftScope.skillIds.length > 0 && selectedId !== DRAFT_SELECTION_ID && !currentTemplateId()) selectedId = DRAFT_SELECTION_ID;
 			render();
 			renderPickerResults();
 			renderPasteReport();

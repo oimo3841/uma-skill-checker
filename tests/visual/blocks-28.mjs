@@ -300,6 +300,20 @@ export async function register28(env) {
 		const e2 = await badge(sp1.page);
 		assert(e2.hidden && !e2.shown && e2.text === '', 'サポカ外(8) 削除で②を空にすると「N種」は消え、古い値も残らない', e2);
 		assert(JSON.stringify(e2.excluded) === JSON.stringify(e1.excluded) && JSON.stringify(e2.image) === JSON.stringify(e1.image), 'サポカ外(8) ①（除外）・③（画像）のタブの表示は変わらない', { e1: [e1.excluded, e1.image], e2: [e2.excluded, e2.image] });
+		// A-0（2026-10-16）: 空にしたあと「元に戻す」で戻すと、「N種」が出る（「＋ 新規」の選択に戻るため）。N は②の先頭の「X Pt/N種」の N（継承固有を含む）なので、
+		// 同じ中身のセットを開き直したときの値と比べる
+		await sp1.page.click('#deck-undo-btn');
+		await sp1.page.waitForTimeout(400);
+		const e2b = await badge(sp1.page);
+		const ids2b = await draftIds(sp1.page);
+		const ref1 = await openSp({ roster: { skillFilter: MSF }, ids: ids2b });
+		const r1 = await badge(ref1.page);
+		await ref1.ctx.close();
+		assert(ids2b.length === 1 && !e2b.hidden && e2b.shown && /^[0-9]+種$/.test(e2b.text) && e2b.text === r1.text, 'サポカ外(8) 空にしたあと「元に戻す」で1種戻すと、②のタブの脇に「N種」が出る（同じ中身のセットを開いたときと同じ値）', { ids2b, e2b: e2b.text, r1: r1.text });
+		await sp1.page.click('#deck-undo-btn');
+		await sp1.page.waitForTimeout(400);
+		const e2c = await badge(sp1.page);
+		assert((await draftIds(sp1.page)).length === 2 && !e2c.hidden && e2c.text === e1.text, 'サポカ外(8) もう一度「元に戻す」で2種に戻ると、最初と同じ「N種」が出る', { e1: e1.text, e2c: e2c.text });
 		await sp1.ctx.close();
 		// 空の②へ追加し、「元に戻す」で空に戻す
 		const sp2 = await openSp({ roster: { skillFilter: MSF }, ids: [] });
