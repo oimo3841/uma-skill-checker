@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-15a",
+	"dataVersion": "2026-10-16a",
 	"category": "trainingEventSkill",
 	"entries": [
 		{
@@ -3514,12 +3514,15 @@
 					"condition": "安田記念で1着",
 					"choices": [
 						{
-							"skills": [
-								{
-									"skillId": "23",
-									"name": "雨の日○",
-									"hintLevel": 1
-								}
+							"results": [
+								[
+									{
+										"skillId": "23",
+										"name": "雨の日○",
+										"hintLevel": 1
+									}
+								],
+								[]
 							]
 						}
 					]
@@ -12513,21 +12516,27 @@
 					"condition": "",
 					"choices": [
 						{
-							"skills": [
-								{
-									"skillId": "96",
-									"name": "マイル直線○",
-									"hintLevel": 1
-								}
+							"results": [
+								[
+									{
+										"skillId": "96",
+										"name": "マイル直線○",
+										"hintLevel": 1
+									}
+								],
+								[]
 							]
 						},
 						{
-							"skills": [
-								{
-									"skillId": "96",
-									"name": "マイル直線○",
-									"hintLevel": 1
-								}
+							"results": [
+								[
+									{
+										"skillId": "96",
+										"name": "マイル直線○",
+										"hintLevel": 1
+									}
+								],
+								[]
 							]
 						}
 					]
@@ -20541,12 +20550,15 @@
 					"condition": "安田記念で1着",
 					"choices": [
 						{
-							"skills": [
-								{
-									"skillId": "23",
-									"name": "雨の日○",
-									"hintLevel": 1
-								}
+							"results": [
+								[
+									{
+										"skillId": "23",
+										"name": "雨の日○",
+										"hintLevel": 1
+									}
+								],
+								[]
 							]
 						}
 					]
@@ -27132,12 +27144,15 @@
 					"condition": "安田記念で1着",
 					"choices": [
 						{
-							"skills": [
-								{
-									"skillId": "23",
-									"name": "雨の日○",
-									"hintLevel": 1
-								}
+							"results": [
+								[
+									{
+										"skillId": "23",
+										"name": "雨の日○",
+										"hintLevel": 1
+									}
+								],
+								[]
 							]
 						}
 					]
