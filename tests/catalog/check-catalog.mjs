@@ -1910,7 +1910,7 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 				return false;
 			};
 			if (hasNotes(d)) notes.push('"notes" というキーがある');
-			const refsOk = (list, w) => {
+			const refsOk = (list, w, maxLevel) => {
 				if (!isArr(list)) { bad.push(w + ': 配列'); return; }
 				list.forEach((ref, i) => {
 					const wr = w + '[' + i + ']';
@@ -1919,7 +1919,7 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 					if (!isStr(ref.name)) bad.push(wr + '.name: 空でない文字列');
 					if (!nameOf.has(ref.skillId)) unregistered.push(wr + ': ' + ref.skillId);
 					else if (nameOf.get(ref.skillId) !== ref.name) nameDiff.push(wr + ': ' + ref.skillId);
-					if (!isInt(ref.hintLevel) || ref.hintLevel < 1 || ref.hintLevel > 3) badLevel.push(wr + '.hintLevel: 1〜3の整数（' + String(ref.hintLevel) + '）');
+					if (!isInt(ref.hintLevel) || ref.hintLevel < 1 || ref.hintLevel > (maxLevel || 3)) badLevel.push(wr + '.hintLevel: 1〜' + (maxLevel || 3) + 'の整数（' + String(ref.hintLevel) + '）');
 				});
 			};
 			const seenUma = new Set();
@@ -1934,12 +1934,26 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 				const byName = new Map();
 				en.events.forEach((ev, j) => {
 					const we = w + '.events[' + j + ']';
-					if (!checkKeys(ev, { need: ['eventName', 'condition', 'choices'], opt: ['defaultChoice', 'acquireMode', 'acquireNote'] }, we, unknown, missing)) return;
+					if (!checkKeys(ev, { need: ['eventName', 'condition', 'choices'], opt: ['defaultChoice', 'acquireMode', 'acquireNote', 'acquireOptions', 'randomResult'] }, we, unknown, missing)) return;
 					if (!isStr(ev.eventName)) bad.push(we + '.eventName: 空でない文字列');
 					// 任意項目 acquireMode（2026-10-17）: "fixed"（確定取得）か "user"（ユーザー選択次第）。acquireNote は user のイベントだけが持つ短い補足文（空でない文字列）
 					if (ev.acquireMode !== undefined && ev.acquireMode !== 'fixed' && ev.acquireMode !== 'user') bad.push(we + '.acquireMode: fixed か user（' + JSON.stringify(ev.acquireMode) + '）');
 					if (ev.acquireNote !== undefined && !(ev.acquireMode === 'user' && isStr(ev.acquireNote))) bad.push(we + '.acquireNote: acquireMode が user のイベントだけが持つ空でない文字列');
 					if (ev.acquireMode === 'user' && ev.acquireNote === undefined) bad.push(we + '.acquireNote: acquireMode が user のイベントは補足文を持つ');
+					// 任意項目 acquireOptions（2026-10-17）: acquireMode が user のイベントだけ。2要素以上の配列で、各要素は { label（空でない文字列）, skills（空でない配列。hintLevel は1〜5の整数） }
+					if (ev.acquireOptions !== undefined) {
+						if (ev.acquireMode !== 'user') bad.push(we + '.acquireOptions: acquireMode が user のイベントだけが持つ');
+						if (!isArr(ev.acquireOptions) || ev.acquireOptions.length < 2) bad.push(we + '.acquireOptions: 2要素以上の配列');
+						else ev.acquireOptions.forEach((o, k) => {
+							const wo = we + '.acquireOptions[' + k + ']';
+							if (!checkKeys(o, { need: ['label', 'skills'], opt: [] }, wo, unknown, missing)) return;
+							if (!isStr(o.label)) bad.push(wo + '.label: 空でない文字列');
+							if (!isArr(o.skills) || o.skills.length === 0) bad.push(wo + '.skills: 空でない配列');
+							else refsOk(o.skills, wo + '.skills', 5);
+						});
+					}
+					// 任意項目 randomResult（2026-10-17）: true だけ（結果が確率で決まるイベントの目印）
+					if (ev.randomResult !== undefined && ev.randomResult !== true) bad.push(we + '.randomResult: true だけ（' + JSON.stringify(ev.randomResult) + '）');
 					// 任意項目 defaultChoice（C-157）: 選択肢の番号（1始まり）。選択肢が2つ以上あるイベントの、範囲内の整数だけ
 					if (ev.defaultChoice !== undefined && !(Number.isInteger(ev.defaultChoice) && isArr(ev.choices) && ev.choices.length >= 2 && ev.defaultChoice >= 1 && ev.defaultChoice <= ev.choices.length)) badDefault.push(we + '.defaultChoice: 選択肢が2つ以上あるイベントの 1〜選択肢数 の整数（' + JSON.stringify(ev.defaultChoice) + '）');
 					if (typeof ev.condition !== 'string') bad.push(we + '.condition: 文字列（空文字可）');

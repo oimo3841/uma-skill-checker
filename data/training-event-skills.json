@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-17c",
+	"dataVersion": "2026-10-17f",
 	"category": "trainingEventSkill",
 	"entries": [
 		{
@@ -1112,9 +1112,51 @@
 				},
 				{
 					"eventName": "不世出のステイヤー",
-					"condition": "長距離レースの勝利数で変化(2～3勝／4～5勝／6勝以上)",
+					"condition": "長距離レースの勝利数で変化",
 					"acquireMode": "user",
-					"acquireNote": "取得スキルは最大の段階（長距離6勝以上）のもの",
+					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "2～3勝",
+							"skills": [
+								{
+									"skillId": "111",
+									"name": "長距離コーナー○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "4～5勝",
+							"skills": [
+								{
+									"skillId": "111",
+									"name": "長距離コーナー○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "6勝以上",
+							"skills": [
+								{
+									"skillId": "111",
+									"name": "長距離コーナー○",
+									"hintLevel": 3
+								},
+								{
+									"skillId": "113",
+									"name": "パス上手",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "116",
+									"name": "目くらまし",
+									"hintLevel": 1
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -1949,9 +1991,41 @@
 				},
 				{
 					"eventName": "珠玉の力を献上せよ",
-					"condition": "ホープフルS、クラシックの宝塚記念・有馬記念、シニアの天皇賞(春)の4レースすべてで1着",
+					"condition": "ホープフルS・クラシックの宝塚記念・クラシックの有馬記念・シニアの天皇賞(春)の勝利数で変化",
 					"acquireMode": "user",
 					"acquireNote": "目標外：ホープフルS・クラシックの宝塚記念・有馬記念・シニアの天皇賞(春)",
+					"acquireOptions": [
+						{
+							"label": "1～3勝",
+							"skills": [
+								{
+									"skillId": "127",
+									"name": "直滑降",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "4勝（全勝）",
+							"skills": [
+								{
+									"skillId": "124",
+									"name": "先行直線○",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "127",
+									"name": "直滑降",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "198",
+									"name": "攻めの姿勢",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -2058,9 +2132,46 @@
 				},
 				{
 					"eventName": "疲れ知らずの怪",
-					"condition": "長距離レースの勝利数で変化(2～3勝／4～5勝／6勝以上)",
+					"condition": "長距離レースの勝利数で変化",
 					"acquireMode": "user",
-					"acquireNote": "取得スキルは最大の段階（長距離6勝以上）のもの",
+					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "2～3勝",
+							"skills": [
+								{
+									"skillId": "110",
+									"name": "長距離直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "4～5勝",
+							"skills": [
+								{
+									"skillId": "110",
+									"name": "長距離直線○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "6勝以上",
+							"skills": [
+								{
+									"skillId": "110",
+									"name": "長距離直線○",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "111",
+									"name": "長距離コーナー○",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -2989,9 +3100,56 @@
 				},
 				{
 					"eventName": "あなたに伝えたい言葉",
-					"condition": "シニア3月以降のG1の勝利数で変化(2勝／3～4勝／5勝以上)",
+					"condition": "シニア3月以降のG1の勝利数で変化",
 					"acquireMode": "user",
-					"acquireNote": "取得スキルは最大の段階（シニア3月以降のG1を5勝以上）のもの",
+					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "2勝",
+							"skills": [
+								{
+									"skillId": "280",
+									"name": "端緒",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "3～4勝",
+							"skills": [
+								{
+									"skillId": "280",
+									"name": "端緒",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "337",
+									"name": "心惹かれて",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "5勝以上",
+							"skills": [
+								{
+									"skillId": "280",
+									"name": "端緒",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "319",
+									"name": "活路を拓く！",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "337",
+									"name": "心惹かれて",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -3518,9 +3676,46 @@
 				},
 				{
 					"eventName": "大地と宙と、夜と、星と、君たちと",
-					"condition": "レース出走数14戦以上",
+					"condition": "レース出走数で変化",
 					"acquireMode": "user",
 					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "10～11戦",
+							"skills": [
+								{
+									"skillId": "175",
+									"name": "恐れぬ心",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "12～13戦",
+							"skills": [
+								{
+									"skillId": "175",
+									"name": "恐れぬ心",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "14戦以上",
+							"skills": [
+								{
+									"skillId": "175",
+									"name": "恐れぬ心",
+									"hintLevel": 3
+								},
+								{
+									"skillId": "220",
+									"name": "溢れる情熱",
+									"hintLevel": 3
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -3625,6 +3820,7 @@
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
 					"acquireMode": "fixed",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
@@ -4323,9 +4519,46 @@
 				},
 				{
 					"eventName": "だからふたりは",
-					"condition": "レースに14回以上出走",
+					"condition": "レースの出走回数で変化",
 					"acquireMode": "user",
 					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "10回",
+							"skills": [
+								{
+									"skillId": "305",
+									"name": "覇気十分",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "11回以上",
+							"skills": [
+								{
+									"skillId": "305",
+									"name": "覇気十分",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "14回以上",
+							"skills": [
+								{
+									"skillId": "272",
+									"name": "むきだしの情熱",
+									"hintLevel": 3
+								},
+								{
+									"skillId": "305",
+									"name": "覇気十分",
+									"hintLevel": 3
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -6633,9 +6866,41 @@
 				},
 				{
 					"eventName": "同じ時代で、違うレースを",
-					"condition": "桜花賞・オークス・秋華賞をすべて1着",
+					"condition": "クラシックの桜花賞・オークス・秋華賞の勝利数で変化",
 					"acquireMode": "user",
 					"acquireNote": "クラシック5月後半の目標選択でオークスを選ぶと達成",
+					"acquireOptions": [
+						{
+							"label": "2勝",
+							"skills": [
+								{
+									"skillId": "51",
+									"name": "抜け出し準備",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "3勝",
+							"skills": [
+								{
+									"skillId": "51",
+									"name": "抜け出し準備",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "232",
+									"name": "品行方正",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "213",
+									"name": "しとやかな足取り",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -6851,9 +7116,36 @@
 				},
 				{
 					"eventName": "キミガ風",
-					"condition": "日本ダービー以降、作戦「逃げ」でG1を7勝以上",
+					"condition": "日本ダービー以降、作戦「逃げ」でのG1の勝利数で変化",
 					"acquireMode": "user",
 					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "5～6勝",
+							"skills": [
+								{
+									"skillId": "117",
+									"name": "逃げ直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "7勝以上",
+							"skills": [
+								{
+									"skillId": "46",
+									"name": "先駆け",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "117",
+									"name": "逃げ直線○",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -9913,6 +10205,7 @@
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
 					"acquireMode": "fixed",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
@@ -10172,9 +10465,46 @@
 				},
 				{
 					"eventName": "九九の名を持つ星々たち",
-					"condition": "テイエムオペラオー・ナリタトップロード・メイショウドトウの出走するレースの勝利数で変化(5勝以下／6～7勝／8勝以上)",
+					"condition": "テイエムオペラオー・ナリタトップロード・メイショウドトウの出走するレースの勝利数で変化",
 					"acquireMode": "user",
-					"acquireNote": "取得スキルは最大の段階（8勝以上）のもの",
+					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "5勝以下",
+							"skills": [
+								{
+									"skillId": "139",
+									"name": "追込コーナー○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "6～7勝",
+							"skills": [
+								{
+									"skillId": "139",
+									"name": "追込コーナー○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "8勝以上",
+							"skills": [
+								{
+									"skillId": "138",
+									"name": "追込直線○",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "139",
+									"name": "追込コーナー○",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -10537,6 +10867,7 @@
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
 					"acquireMode": "fixed",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
@@ -11312,9 +11643,41 @@
 				},
 				{
 					"eventName": "珠玉の力を献上せよ",
-					"condition": "ホープフルS、クラシックの宝塚記念・有馬記念、シニアの天皇賞(春)の4レースすべてで1着",
+					"condition": "ホープフルS・クラシックの宝塚記念・クラシックの有馬記念・シニアの天皇賞(春)の勝利数で変化",
 					"acquireMode": "user",
 					"acquireNote": "目標外：ホープフルS・クラシックの宝塚記念・有馬記念・シニアの天皇賞(春)",
+					"acquireOptions": [
+						{
+							"label": "1～3勝",
+							"skills": [
+								{
+									"skillId": "127",
+									"name": "直滑降",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "4勝（全勝）",
+							"skills": [
+								{
+									"skillId": "124",
+									"name": "先行直線○",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "127",
+									"name": "直滑降",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "198",
+									"name": "攻めの姿勢",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -11751,9 +12114,36 @@
 				},
 				{
 					"eventName": "心に芽吹く、君という物語",
-					"condition": "京都レース場での勝利数で変化(3勝以上)",
+					"condition": "京都レース場での勝利数で変化",
 					"acquireMode": "user",
 					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "3～5勝",
+							"skills": [
+								{
+									"skillId": "6",
+									"name": "京都レース場○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "6勝以上",
+							"skills": [
+								{
+									"skillId": "6",
+									"name": "京都レース場○",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "15",
+									"name": "良バ場○",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -12562,9 +12952,46 @@
 				},
 				{
 					"eventName": "大地と宙と、夜と、星と、君たちと",
-					"condition": "レース出走数14戦以上",
+					"condition": "レース出走数で変化",
 					"acquireMode": "user",
 					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "10～11戦",
+							"skills": [
+								{
+									"skillId": "175",
+									"name": "恐れぬ心",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "12～13戦",
+							"skills": [
+								{
+									"skillId": "175",
+									"name": "恐れぬ心",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "14戦以上",
+							"skills": [
+								{
+									"skillId": "175",
+									"name": "恐れぬ心",
+									"hintLevel": 3
+								},
+								{
+									"skillId": "220",
+									"name": "溢れる情熱",
+									"hintLevel": 3
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -12904,6 +13331,7 @@
 				{
 					"eventName": "華であることのつとめ",
 					"condition": "",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
@@ -13042,9 +13470,41 @@
 				},
 				{
 					"eventName": "同じ時代で、違うレースを",
-					"condition": "桜花賞・オークス・秋華賞をすべて1着",
+					"condition": "クラシックの桜花賞・オークス・秋華賞の勝利数で変化",
 					"acquireMode": "user",
 					"acquireNote": "クラシック5月後半の目標選択でオークスを選ぶと達成",
+					"acquireOptions": [
+						{
+							"label": "2勝",
+							"skills": [
+								{
+									"skillId": "51",
+									"name": "抜け出し準備",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "3勝",
+							"skills": [
+								{
+									"skillId": "51",
+									"name": "抜け出し準備",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "232",
+									"name": "品行方正",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "213",
+									"name": "しとやかな足取り",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -13413,9 +13873,61 @@
 				},
 				{
 					"eventName": "ターフの上のヒーロー",
-					"condition": "「夕焼けの誓い」で選んだ距離の重賞の勝利数で変化(4勝・7勝)",
+					"condition": "「夕焼けの誓い」で選んだ項目の重賞勝利数で変化",
 					"acquireMode": "user",
-					"acquireNote": "選んだ距離の重賞を多く走ると達成",
+					"acquireNote": "クラシックの「夕焼けの誓い」で選んだ項目に対応",
+					"acquireOptions": [
+						{
+							"label": "短距離の重賞4勝",
+							"skills": [
+								{
+									"skillId": "89",
+									"name": "短距離直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "短距離の重賞7勝",
+							"skills": [
+								{
+									"skillId": "89",
+									"name": "短距離直線○",
+									"hintLevel": 3
+								},
+								{
+									"skillId": "175",
+									"name": "恐れぬ心",
+									"hintLevel": 3
+								}
+							]
+						},
+						{
+							"label": "マイルの重賞4勝",
+							"skills": [
+								{
+									"skillId": "96",
+									"name": "マイル直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "マイルの重賞7勝",
+							"skills": [
+								{
+									"skillId": "96",
+									"name": "マイル直線○",
+									"hintLevel": 3
+								},
+								{
+									"skillId": "175",
+									"name": "恐れぬ心",
+									"hintLevel": 3
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -13547,9 +14059,46 @@
 				},
 				{
 					"eventName": "疲れ知らずの怪",
-					"condition": "長距離レースの勝利数で変化(2～3勝／4～5勝／6勝以上)",
+					"condition": "長距離レースの勝利数で変化",
 					"acquireMode": "user",
-					"acquireNote": "取得スキルは最大の段階（長距離6勝以上）のもの",
+					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "2～3勝",
+							"skills": [
+								{
+									"skillId": "110",
+									"name": "長距離直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "4～5勝",
+							"skills": [
+								{
+									"skillId": "110",
+									"name": "長距離直線○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "6勝以上",
+							"skills": [
+								{
+									"skillId": "110",
+									"name": "長距離直線○",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "111",
+									"name": "長距離コーナー○",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -14379,9 +14928,51 @@
 				},
 				{
 					"eventName": "不世出のステイヤー",
-					"condition": "長距離レースの勝利数で変化(2～3勝／4～5勝／6勝以上)",
+					"condition": "長距離レースの勝利数で変化",
 					"acquireMode": "user",
-					"acquireNote": "取得スキルは最大の段階（長距離6勝以上）のもの",
+					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "2～3勝",
+							"skills": [
+								{
+									"skillId": "111",
+									"name": "長距離コーナー○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "4～5勝",
+							"skills": [
+								{
+									"skillId": "111",
+									"name": "長距離コーナー○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "6勝以上",
+							"skills": [
+								{
+									"skillId": "111",
+									"name": "長距離コーナー○",
+									"hintLevel": 3
+								},
+								{
+									"skillId": "113",
+									"name": "パス上手",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "116",
+									"name": "目くらまし",
+									"hintLevel": 1
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -14986,9 +15577,36 @@
 				},
 				{
 					"eventName": "Oath",
-					"condition": "G1の勝利数で変化(8勝／9勝以上)",
+					"condition": "G1の勝利数で変化",
 					"acquireMode": "user",
-					"acquireNote": "取得スキルは最大の段階（G1を9勝以上）のもの",
+					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "8勝",
+							"skills": [
+								{
+									"skillId": "31",
+									"name": "コーナー巧者○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "9勝以上",
+							"skills": [
+								{
+									"skillId": "31",
+									"name": "コーナー巧者○",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "43",
+									"name": "垂れウマ回避",
+									"hintLevel": 1
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -15469,6 +16087,7 @@
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
 					"acquireMode": "fixed",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
@@ -17492,9 +18111,36 @@
 				},
 				{
 					"eventName": "Oath",
-					"condition": "G1の勝利数で変化(8勝／9勝以上)",
+					"condition": "G1の勝利数で変化",
 					"acquireMode": "user",
-					"acquireNote": "取得スキルは最大の段階（G1を9勝以上）のもの",
+					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "8勝",
+							"skills": [
+								{
+									"skillId": "31",
+									"name": "コーナー巧者○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "9勝以上",
+							"skills": [
+								{
+									"skillId": "31",
+									"name": "コーナー巧者○",
+									"hintLevel": 1
+								},
+								{
+									"skillId": "43",
+									"name": "垂れウマ回避",
+									"hintLevel": 1
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -18010,9 +18656,36 @@
 				},
 				{
 					"eventName": "キミガ風",
-					"condition": "日本ダービー以降、作戦「逃げ」でG1を7勝以上",
+					"condition": "日本ダービー以降、作戦「逃げ」でのG1の勝利数で変化",
 					"acquireMode": "user",
 					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "5～6勝",
+							"skills": [
+								{
+									"skillId": "117",
+									"name": "逃げ直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "7勝以上",
+							"skills": [
+								{
+									"skillId": "46",
+									"name": "先駆け",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "117",
+									"name": "逃げ直線○",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -19038,6 +19711,7 @@
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
 					"acquireMode": "fixed",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
@@ -20642,6 +21316,7 @@
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
 					"acquireMode": "fixed",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
@@ -21220,6 +21895,7 @@
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
 					"acquireMode": "fixed",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
@@ -21813,9 +22489,36 @@
 				},
 				{
 					"eventName": "キミガ風",
-					"condition": "日本ダービー以降、作戦「逃げ」でG1を7勝以上",
+					"condition": "日本ダービー以降、作戦「逃げ」でのG1の勝利数で変化",
 					"acquireMode": "user",
 					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "5～6勝",
+							"skills": [
+								{
+									"skillId": "117",
+									"name": "逃げ直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "7勝以上",
+							"skills": [
+								{
+									"skillId": "46",
+									"name": "先駆け",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "117",
+									"name": "逃げ直線○",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -22601,9 +23304,51 @@
 				},
 				{
 					"eventName": "不世出のステイヤー",
-					"condition": "長距離レースの勝利数で変化(2～3勝／4～5勝／6勝以上)",
+					"condition": "長距離レースの勝利数で変化",
 					"acquireMode": "user",
-					"acquireNote": "取得スキルは最大の段階（長距離6勝以上）のもの",
+					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "2～3勝",
+							"skills": [
+								{
+									"skillId": "111",
+									"name": "長距離コーナー○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "4～5勝",
+							"skills": [
+								{
+									"skillId": "111",
+									"name": "長距離コーナー○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "6勝以上",
+							"skills": [
+								{
+									"skillId": "111",
+									"name": "長距離コーナー○",
+									"hintLevel": 3
+								},
+								{
+									"skillId": "113",
+									"name": "パス上手",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "116",
+									"name": "目くらまし",
+									"hintLevel": 1
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -23094,9 +23839,46 @@
 				},
 				{
 					"eventName": "九九の名を持つ星々たち",
-					"condition": "テイエムオペラオー・ナリタトップロード・メイショウドトウの出走するレースの勝利数で変化(5勝以下／6～7勝／8勝以上)",
+					"condition": "テイエムオペラオー・ナリタトップロード・メイショウドトウの出走するレースの勝利数で変化",
 					"acquireMode": "user",
-					"acquireNote": "取得スキルは最大の段階（8勝以上）のもの",
+					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "5勝以下",
+							"skills": [
+								{
+									"skillId": "139",
+									"name": "追込コーナー○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "6～7勝",
+							"skills": [
+								{
+									"skillId": "139",
+									"name": "追込コーナー○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "8勝以上",
+							"skills": [
+								{
+									"skillId": "138",
+									"name": "追込直線○",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "139",
+									"name": "追込コーナー○",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -24100,6 +24882,7 @@
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
 					"acquireMode": "fixed",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
@@ -24554,9 +25337,46 @@
 				},
 				{
 					"eventName": "疲れ知らずの怪",
-					"condition": "長距離レースの勝利数で変化(2～3勝／4～5勝／6勝以上)",
+					"condition": "長距離レースの勝利数で変化",
 					"acquireMode": "user",
-					"acquireNote": "取得スキルは最大の段階（長距離6勝以上）のもの",
+					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "2～3勝",
+							"skills": [
+								{
+									"skillId": "110",
+									"name": "長距離直線○",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"label": "4～5勝",
+							"skills": [
+								{
+									"skillId": "110",
+									"name": "長距離直線○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "6勝以上",
+							"skills": [
+								{
+									"skillId": "110",
+									"name": "長距離直線○",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "111",
+									"name": "長距離コーナー○",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -24848,9 +25668,36 @@
 				},
 				{
 					"eventName": "心に芽吹く、君という物語",
-					"condition": "京都レース場での勝利数で変化(3勝以上)",
+					"condition": "京都レース場での勝利数で変化",
 					"acquireMode": "user",
 					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "3～5勝",
+							"skills": [
+								{
+									"skillId": "6",
+									"name": "京都レース場○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "6勝以上",
+							"skills": [
+								{
+									"skillId": "6",
+									"name": "京都レース場○",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "15",
+									"name": "良バ場○",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -25744,6 +26591,7 @@
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
 					"acquireMode": "fixed",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
@@ -26723,6 +27571,7 @@
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
 					"acquireMode": "fixed",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
@@ -27568,6 +28417,7 @@
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
 					"acquireMode": "fixed",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
@@ -27713,6 +28563,7 @@
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
 					"acquireMode": "fixed",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
@@ -27800,6 +28651,7 @@
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
 					"acquireMode": "fixed",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
@@ -27842,9 +28694,36 @@
 				},
 				{
 					"eventName": "心に芽吹く、君という物語",
-					"condition": "京都レース場での勝利数で変化(3勝以上)",
+					"condition": "京都レース場での勝利数で変化",
 					"acquireMode": "user",
 					"acquireNote": "目標レース以外の出走が必要",
+					"acquireOptions": [
+						{
+							"label": "3～5勝",
+							"skills": [
+								{
+									"skillId": "6",
+									"name": "京都レース場○",
+									"hintLevel": 2
+								}
+							]
+						},
+						{
+							"label": "6勝以上",
+							"skills": [
+								{
+									"skillId": "6",
+									"name": "京都レース場○",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "15",
+									"name": "良バ場○",
+									"hintLevel": 2
+								}
+							]
+						}
+					],
 					"choices": [
 						{
 							"skills": [
@@ -28050,6 +28929,7 @@
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
 					"acquireMode": "fixed",
+					"randomResult": true,
 					"choices": [
 						{
 							"results": [
