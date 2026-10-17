@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-16a",
+	"dataVersion": "2026-10-17a",
 	"category": "extendedSkill",
 	"nextSerial": "ex-1677",
 	"note": "マスター（uma-skill-deck-skills.json）の445種に無いスキル。name はゲーム画面の表示そのまま（全角・半角・中黒「・」を含めて変えない）。id は保存済みの比較シートが指し続ける不変の鍵なので、表記を直しても id は変えない。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。tagsPending が付いている間は8軸のタグが未設定で、条件での絞り込みの母集団には入れない（8軸すべてが空のタグは「条件を持たない＝万能スキル」という別の意味になるため、未設定はこの印で示す）。tagsPending と tags はどちらか一方だけを持つ。形は npm run check:catalog が確かめる。",
@@ -828,9 +828,7 @@
 			"id": "ex-0034",
 			"name": "霊験灼然チョベリグ神託",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -997,9 +995,7 @@
 			"id": "ex-0041",
 			"name": "Gloire à toi!",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -1020,8 +1016,7 @@
 			},
 			"raceDistance": {
 				"standardDistance": true,
-				"scope": "part",
-				"distanceTagScope": "part"
+				"scope": "part"
 			}
 		},
 		{
@@ -1178,9 +1173,7 @@
 			"id": "ex-0048",
 			"name": "灰の光跡：シンデレラグレイ",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -1765,15 +1758,11 @@
 			"id": "ex-0074",
 			"name": "Have S'more Love!",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
-				"surface": [
-					"turf"
-				],
+				"surface": [],
 				"phase": [
 					"mid"
 				],
@@ -2231,9 +2220,7 @@
 			"id": "ex-0093",
 			"name": "貴顕の使命を果たすべく",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [],
@@ -2605,9 +2592,7 @@
 			"id": "ex-0109",
 			"name": "灰色の臨界点",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -3053,9 +3038,7 @@
 			"id": "ex-0128",
 			"name": "海風にまったり身を任せ",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"nige"
 				],
@@ -3398,9 +3381,7 @@
 			"id": "ex-0142",
 			"name": "勝利ヘ至ル累積",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -3681,9 +3662,7 @@
 			"id": "ex-0154",
 			"name": "心からのおもてにゃし",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -3735,9 +3714,7 @@
 			"id": "ex-0156",
 			"name": "迷える時も、幽かなる時も",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [
 					"sashi"
 				],
@@ -3920,9 +3897,7 @@
 			"id": "ex-0164",
 			"name": "あなたに捧げるフリーポア",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -3971,9 +3946,7 @@
 			"id": "ex-0166",
 			"name": "I'M☆FULL☆SPEED!!",
 			"tags": {
-				"distance": [
-					"short"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -4023,10 +3996,7 @@
 			"id": "ex-0168",
 			"name": "シュガーパレード・始動！",
 			"tags": {
-				"distance": [
-					"mile",
-					"short"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -4098,9 +4068,7 @@
 			"id": "ex-0171",
 			"name": "いっぱいおあげんしぇ！",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -4195,9 +4163,7 @@
 			"id": "ex-0175",
 			"name": "あおぞらクッキング♪",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -4370,9 +4336,7 @@
 			"id": "ex-0182",
 			"name": "全力全開！サイクロン",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -4504,9 +4468,7 @@
 			"id": "ex-0188",
 			"name": "超光速微粒子の可能性",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -5579,9 +5541,7 @@
 			"id": "ex-0233",
 			"name": "桜吹雪くスプリントバースト",
 			"tags": {
-				"distance": [
-					"short"
-				],
+				"distance": [],
 				"style": [
 					"nige",
 					"senko"
@@ -5654,10 +5614,7 @@
 			"id": "ex-0236",
 			"name": "Oh!bento-magic☆",
 			"tags": {
-				"distance": [
-					"mile",
-					"short"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -5732,9 +5689,7 @@
 			"tags": {
 				"distance": [],
 				"style": [],
-				"surface": [
-					"dirt"
-				],
+				"surface": [],
 				"phase": [
 					"late"
 				],
@@ -5813,9 +5768,7 @@
 				"style": [
 					"senko"
 				],
-				"surface": [
-					"dirt"
-				],
+				"surface": [],
 				"phase": [],
 				"coursePos": [],
 				"rarity": [],
@@ -6033,10 +5986,7 @@
 			"id": "ex-0252",
 			"name": "忍法・ほほえみ心結の印",
 			"tags": {
-				"distance": [
-					"long",
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -6138,9 +6088,7 @@
 			"tags": {
 				"distance": [],
 				"style": [],
-				"surface": [
-					"dirt"
-				],
+				"surface": [],
 				"phase": [
 					"midpoint"
 				],
@@ -6289,9 +6237,7 @@
 			"id": "ex-0262",
 			"name": "未知との遭遇、即ち物語",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -6318,8 +6264,7 @@
 			"raceDistance": {
 				"min": 2500,
 				"max": 2500,
-				"scope": "part",
-				"distanceTagScope": "part"
+				"scope": "part"
 			}
 		},
 		{
@@ -6725,9 +6670,7 @@
 			"id": "ex-0279",
 			"name": "Overdrive Speed",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -7028,9 +6971,7 @@
 			"id": "ex-0292",
 			"name": "奥義・常夏バーニング！！",
 			"tags": {
-				"distance": [
-					"short"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [],
@@ -7304,10 +7245,7 @@
 			"id": "ex-0305",
 			"name": "叙情、旅路の果てに",
 			"tags": {
-				"distance": [
-					"long",
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -7581,9 +7519,7 @@
 			"id": "ex-0317",
 			"name": "もちっと・ハレハレ",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -7833,9 +7769,7 @@
 			"id": "ex-0329",
 			"name": "ごろりん！？パワードライブ",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -7890,9 +7824,7 @@
 			"id": "ex-0332",
 			"name": "千歳、廻りて",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -8015,10 +7947,7 @@
 			"id": "ex-0337",
 			"name": "アゲてアゲてぷちょへんざ！",
 			"tags": {
-				"distance": [
-					"mile",
-					"short"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -8066,9 +7995,7 @@
 			"id": "ex-0339",
 			"name": "ノッてけ、マッシュアップ！",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -8243,9 +8170,7 @@
 			"id": "ex-0347",
 			"name": "ポンテ・デ・ディアマン",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -8324,9 +8249,7 @@
 			"id": "ex-0350",
 			"name": "ミンナノアタシへ！",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -8476,9 +8399,7 @@
 			"id": "ex-0356",
 			"name": "駆るは光、狩るは星々",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -8747,10 +8668,7 @@
 			"id": "ex-0368",
 			"name": "夕凪のリトリート・メモリー",
 			"tags": {
-				"distance": [
-					"long",
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -8828,9 +8746,7 @@
 			"id": "ex-0371",
 			"name": "花開き、世界",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -8854,9 +8770,7 @@
 			"id": "ex-0372",
 			"name": "春光・Bon appétit",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -8907,9 +8821,7 @@
 			"id": "ex-0374",
 			"name": "Road to Glory",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [],
@@ -9136,9 +9048,7 @@
 			"id": "ex-0383",
 			"name": "Breezy Treat",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [],
@@ -9266,9 +9176,7 @@
 			"tags": {
 				"distance": [],
 				"style": [],
-				"surface": [
-					"dirt"
-				],
+				"surface": [],
 				"phase": [],
 				"coursePos": [],
 				"rarity": [],
@@ -9392,9 +9300,7 @@
 					"nige",
 					"senko"
 				],
-				"surface": [
-					"dirt"
-				],
+				"surface": [],
 				"phase": [
 					"late"
 				],
@@ -9471,9 +9377,7 @@
 			"id": "ex-0396",
 			"name": "Shining Runway",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [],
@@ -9521,9 +9425,7 @@
 			"id": "ex-0398",
 			"name": "煌めき華やぐアローライン",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -9596,9 +9498,7 @@
 			"id": "ex-0401",
 			"name": "Immortal Work",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [],
@@ -9623,9 +9523,7 @@
 			"id": "ex-0402",
 			"name": "霹靂のアウフヘーベン",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -9652,9 +9550,7 @@
 			"id": "ex-0403",
 			"name": "深淵のテルプシコラー",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -9752,9 +9648,7 @@
 			"id": "ex-0407",
 			"name": "蒼炎",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -9928,9 +9822,7 @@
 			"id": "ex-0414",
 			"name": "Reversal Illusion",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [],
@@ -9953,9 +9845,7 @@
 			"id": "ex-0415",
 			"name": "夏雷カスケード！",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"sashi"
 				],
@@ -10123,10 +10013,7 @@
 			"id": "ex-0421",
 			"name": "Queen's Rebirth",
 			"tags": {
-				"distance": [
-					"medium",
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [
 					"turf"
@@ -10238,9 +10125,7 @@
 			"id": "ex-0425",
 			"name": "照らすのはわたしの焔",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -10314,10 +10199,7 @@
 			"id": "ex-0428",
 			"name": "幸せの青い光",
 			"tags": {
-				"distance": [
-					"mile",
-					"short"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -10340,9 +10222,7 @@
 			"id": "ex-0429",
 			"name": "きせき・おもい・かなで",
 			"tags": {
-				"distance": [
-					"short"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -10367,9 +10247,7 @@
 			"id": "ex-0430",
 			"name": "Faith in the Feral",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -10417,9 +10295,7 @@
 			"id": "ex-0432",
 			"name": "黄昏の血盟",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -10467,9 +10343,7 @@
 			"id": "ex-0434",
 			"name": "念い、信ずればこそ",
 			"tags": {
-				"distance": [
-					"short"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -10544,9 +10418,7 @@
 			"id": "ex-0437",
 			"name": "スカーレットリリィの高揚",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -10805,9 +10677,7 @@
 			"tags": {
 				"distance": [],
 				"style": [],
-				"surface": [
-					"dirt"
-				],
+				"surface": [],
 				"phase": [
 					"midpoint"
 				],
@@ -10830,9 +10700,7 @@
 			"tags": {
 				"distance": [],
 				"style": [],
-				"surface": [
-					"dirt"
-				],
+				"surface": [],
 				"phase": [],
 				"coursePos": [],
 				"rarity": [],
@@ -10879,9 +10747,7 @@
 			"tags": {
 				"distance": [],
 				"style": [],
-				"surface": [
-					"dirt"
-				],
+				"surface": [],
 				"phase": [
 					"mid"
 				],
@@ -10953,9 +10819,7 @@
 			"id": "ex-0453",
 			"name": "ケ・ピアチェーヴォレ！",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -11060,9 +10924,7 @@
 			"id": "ex-0458",
 			"name": "暁の御旗『葛城栄主』！",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [],
@@ -11166,9 +11028,7 @@
 			"id": "ex-0462",
 			"name": "アド・アストラ",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -11241,9 +11101,7 @@
 			"id": "ex-0465",
 			"name": "Bang☆ミラクるわせ！",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [],
@@ -11397,10 +11255,7 @@
 			"id": "ex-0471",
 			"name": "繋ぐ・繋がる×夢・未来",
 			"tags": {
-				"distance": [
-					"mile",
-					"short"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -11506,9 +11361,7 @@
 			"id": "ex-0475",
 			"name": "時かけるせせらぎ",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -11584,9 +11437,7 @@
 			"id": "ex-0478",
 			"name": "With All My Heart",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -11640,9 +11491,7 @@
 			"id": "ex-0480",
 			"name": "渚のヴィーナスタイム♡",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -11665,10 +11514,7 @@
 			"id": "ex-0481",
 			"name": "To Our Vista",
 			"tags": {
-				"distance": [
-					"medium",
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -11718,10 +11564,7 @@
 			"id": "ex-0483",
 			"name": "我が覇道、阻むものなし",
 			"tags": {
-				"distance": [
-					"long",
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"oikomi"
 				],
@@ -11900,13 +11743,9 @@
 			"id": "ex-0490",
 			"name": "悠遠のファーノース",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
-				"surface": [
-					"turf"
-				],
+				"surface": [],
 				"phase": [
 					"midpoint"
 				],
@@ -11979,10 +11818,7 @@
 			"id": "ex-0493",
 			"name": "『それでは、よき旅を』",
 			"tags": {
-				"distance": [
-					"long",
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [],
@@ -12034,9 +11870,7 @@
 			"id": "ex-0495",
 			"name": "夢寐に見る銀世界",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [],
@@ -12108,10 +11942,7 @@
 			"id": "ex-0498",
 			"name": "Lame de vent",
 			"tags": {
-				"distance": [
-					"mile",
-					"short"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -12188,10 +12019,7 @@
 			"id": "ex-0501",
 			"name": "暁霞を拓き、朝を掴む",
 			"tags": {
-				"distance": [
-					"medium",
-					"mile"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -12216,9 +12044,7 @@
 			"id": "ex-0502",
 			"name": "対象捕捉！正義遂行！",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -12300,9 +12126,7 @@
 			"id": "ex-0505",
 			"name": "Peerless Heroine",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [
 					"turf"
@@ -12380,14 +12204,9 @@
 			"id": "ex-0508",
 			"name": "咲う花形",
 			"tags": {
-				"distance": [
-					"medium",
-					"mile"
-				],
+				"distance": [],
 				"style": [],
-				"surface": [
-					"turf"
-				],
+				"surface": [],
 				"phase": [],
 				"coursePos": [
 					"straight"
@@ -12410,10 +12229,7 @@
 			"id": "ex-0509",
 			"name": "¡Qué alegría!",
 			"tags": {
-				"distance": [
-					"mile",
-					"short"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -12488,9 +12304,7 @@
 			"id": "ex-0512",
 			"name": "Circulating Love♡",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"sashi"
 				],
@@ -12567,10 +12381,7 @@
 			"id": "ex-0515",
 			"name": "Weaving History",
 			"tags": {
-				"distance": [
-					"long",
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -12597,10 +12408,7 @@
 			"id": "ex-0516",
 			"name": "いずれあなたに咲くフローラ",
 			"tags": {
-				"distance": [
-					"long",
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -12918,9 +12726,7 @@
 			"id": "ex-0528",
 			"name": "Ring-a-Link",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"sashi"
 				],
@@ -12972,9 +12778,7 @@
 			"id": "ex-0530",
 			"name": "烈々と咲く",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"sashi",
 					"senko"
@@ -17370,9 +17174,7 @@
 			"id": "ex-0982",
 			"name": "エパヌイスマンの大号令",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -17477,9 +17279,7 @@
 					"sashi",
 					"senko"
 				],
-				"surface": [
-					"turf"
-				],
+				"surface": [],
 				"phase": [
 					"late"
 				],
@@ -17503,9 +17303,7 @@
 			"id": "ex-0989",
 			"name": "Shadow Ancestress",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -17628,9 +17426,7 @@
 			"id": "ex-1037",
 			"name": "湯切りの妙技",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -19393,9 +19189,7 @@
 			"id": "ex-1105",
 			"name": "飛び出せSheepy!",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -19552,9 +19346,7 @@
 			"id": "ex-1111",
 			"name": "射貫く蒼",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [
 					"sashi"
 				],
@@ -20469,9 +20261,7 @@
 					"medium"
 				],
 				"style": [],
-				"surface": [
-					"turf"
-				],
+				"surface": [],
 				"phase": [],
 				"coursePos": [],
 				"rarity": [],
@@ -20497,9 +20287,7 @@
 					"sashi",
 					"senko"
 				],
-				"surface": [
-					"turf"
-				],
+				"surface": [],
 				"phase": [
 					"mid"
 				],
@@ -20624,9 +20412,7 @@
 					"mile"
 				],
 				"style": [],
-				"surface": [
-					"turf"
-				],
+				"surface": [],
 				"phase": [],
 				"coursePos": [
 					"final_corner"
@@ -20755,9 +20541,7 @@
 					"medium"
 				],
 				"style": [],
-				"surface": [
-					"turf"
-				],
+				"surface": [],
 				"phase": [
 					"late"
 				],
@@ -21012,9 +20796,7 @@
 				"style": [
 					"nige"
 				],
-				"surface": [
-					"turf"
-				],
+				"surface": [],
 				"phase": [
 					"mid"
 				],
@@ -21041,9 +20823,7 @@
 				"style": [
 					"nige"
 				],
-				"surface": [
-					"turf"
-				],
+				"surface": [],
 				"phase": [
 					"mid"
 				],
@@ -22235,10 +22015,7 @@
 			"id": "ex-1215",
 			"name": "満たせ☆ぱんぷきんパワー！",
 			"tags": {
-				"distance": [
-					"mile",
-					"short"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -22391,9 +22168,7 @@
 					"mile"
 				],
 				"style": [],
-				"surface": [
-					"turf"
-				],
+				"surface": [],
 				"phase": [],
 				"coursePos": [
 					"final_corner"
@@ -22695,9 +22470,7 @@
 			"id": "ex-1233",
 			"name": "青空の下で待ってるよ！",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [],
@@ -22821,9 +22594,7 @@
 			"id": "ex-1238",
 			"name": "光速を超える粒子",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -25165,9 +24936,7 @@
 			"id": "ex-1328",
 			"name": "あたししか勝たん！",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"sashi"
 				],
@@ -25252,9 +25021,7 @@
 			"id": "ex-1331",
 			"name": "ここ、カマしどきっしょ！",
 			"tags": {
-				"distance": [
-					"long"
-				],
+				"distance": [],
 				"style": [
 					"sashi",
 					"senko"
@@ -25280,8 +25047,7 @@
 			},
 			"raceDistance": {
 				"min": 2000,
-				"scope": "all",
-				"distanceTagScope": "part"
+				"scope": "all"
 			}
 		},
 		{
@@ -25365,9 +25131,7 @@
 			"id": "ex-1335",
 			"name": "一点張りでいこう",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"sashi"
 				],
@@ -27287,9 +27051,7 @@
 			"id": "ex-1410",
 			"name": "春道踏破",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -29131,9 +28893,7 @@
 					"mile"
 				],
 				"style": [],
-				"surface": [
-					"dirt"
-				],
+				"surface": [],
 				"phase": [
 					"mid"
 				],
@@ -29182,10 +28942,7 @@
 			"id": "ex-1483",
 			"name": "情報強者",
 			"tags": {
-				"distance": [
-					"medium",
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -29628,9 +29385,7 @@
 			"id": "ex-1500",
 			"name": "アルテミスの矢",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [
 					"oikomi"
 				],
@@ -30224,9 +29979,7 @@
 			"id": "ex-1522",
 			"name": "不撓不屈の女王",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -30253,9 +30006,7 @@
 			"id": "ex-1523",
 			"name": "『お姉ちゃん、だもの』",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -30382,9 +30133,7 @@
 			"id": "ex-1528",
 			"name": "わたしだって、勝ちたい！！",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -30437,9 +30186,7 @@
 			"id": "ex-1530",
 			"name": "K.Speed",
 			"tags": {
-				"distance": [
-					"short"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -30518,9 +30265,7 @@
 			"id": "ex-1533",
 			"name": "『見ていて、くださいね』",
 			"tags": {
-				"distance": [
-					"short"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -31250,9 +30995,7 @@
 					"sashi",
 					"senko"
 				],
-				"surface": [
-					"dirt"
-				],
+				"surface": [],
 				"phase": [
 					"mid"
 				],
@@ -31375,9 +31118,7 @@
 			"id": "ex-1566",
 			"name": "ドーノ・ディ・フローラ！",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -31482,9 +31223,7 @@
 			"id": "ex-1570",
 			"name": "逃げっ切りの1人旅",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"nige"
 				],
@@ -31892,9 +31631,7 @@
 			"id": "ex-1586",
 			"name": "大航海、飄々と",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"nige"
 				],
@@ -32263,9 +32000,7 @@
 			"id": "ex-1600",
 			"name": "Rush to Catch Me!",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -32290,9 +32025,7 @@
 			"id": "ex-1601",
 			"name": "Out in Front",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -33110,10 +32843,7 @@
 			"id": "ex-1630",
 			"name": "俊傑の悠",
 			"tags": {
-				"distance": [
-					"medium",
-					"mile"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -33138,10 +32868,7 @@
 			"id": "ex-1631",
 			"name": "嚆矢の花道",
 			"tags": {
-				"distance": [
-					"medium",
-					"mile"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -33194,10 +32921,7 @@
 			"id": "ex-1633",
 			"name": "ハジける風雲児",
 			"tags": {
-				"distance": [
-					"medium",
-					"mile"
-				],
+				"distance": [],
 				"style": [
 					"senko"
 				],
@@ -33443,17 +33167,12 @@
 			"id": "ex-1642",
 			"name": "霞薙ぐ花形",
 			"tags": {
-				"distance": [
-					"medium",
-					"mile"
-				],
+				"distance": [],
 				"style": [
 					"sashi",
 					"senko"
 				],
-				"surface": [
-					"turf"
-				],
+				"surface": [],
 				"phase": [
 					"mid"
 				],
@@ -33501,9 +33220,7 @@
 			"id": "ex-1644",
 			"name": "万哩へ響け大歓声",
 			"tags": {
-				"distance": [
-					"mile"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [
 					"turf"
@@ -33588,9 +33305,7 @@
 					"medium"
 				],
 				"style": [],
-				"surface": [
-					"turf"
-				],
+				"surface": [],
 				"phase": [
 					"lastspurt",
 					"late"
@@ -34180,9 +33895,7 @@
 			"id": "ex-1668",
 			"name": "強襲トリック",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"oikomi",
 					"senko"
@@ -34207,18 +33920,14 @@
 			"raceDistance": {
 				"min": 2000,
 				"max": 2500,
-				"scope": "all",
-				"distanceTagScope": "part"
+				"scope": "all"
 			}
 		},
 		{
 			"id": "ex-1669",
 			"name": "妙技・坂落とし",
 			"tags": {
-				"distance": [
-					"medium",
-					"mile"
-				],
+				"distance": [],
 				"style": [
 					"sashi",
 					"senko"
@@ -34272,9 +33981,7 @@
 			"id": "ex-1671",
 			"name": "かくて宿りし血は目覚め",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [],
 				"surface": [],
 				"phase": [
@@ -34347,9 +34054,7 @@
 			"id": "ex-1675",
 			"name": "魔の刻、来たれり",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"oikomi",
 					"sashi"
@@ -34375,9 +34080,7 @@
 			"id": "ex-1676",
 			"name": "喰らえども、喰らえども",
 			"tags": {
-				"distance": [
-					"medium"
-				],
+				"distance": [],
 				"style": [
 					"oikomi",
 					"sashi"
