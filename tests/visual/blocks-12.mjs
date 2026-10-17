@@ -435,8 +435,13 @@ export async function register12(env) {
 		for (const [label, fields] of cases) {
 			const race = Object.assign({ id: 'race-t', name: 't' }, fields);
 			const r = await sp.page.evaluate(({ rc, nx }) => { const p = UmaSkillDeckCore.outside.populationOf({ race: rc, outsideOptions: nx }); return { ids: p.ids, ex: p.raceExcludedIds }; }, { rc: race, nx: NOEX });
-			// ①の固定（距離・バ場）で外れる分は、母集団の比較から除く（ここで見るのはレース条件の述語だけ）
-			const base = await sp.page.evaluate(({ rc, nx }) => UmaSkillDeckCore.outside.populationOf({ skillFilter: UmaSkillDeckCore.outside.lockedFilterOf({ race: rc }), outsideOptions: nx }).ids, { rc: race, nx: NOEX });
+			// ①の固定（距離・バ場）で外れる分は、母集団の比較から除く（ここで見るのはレース条件の述語だけ）。
+			// 2026-10-17: レースの距離（m）が決まっているレースは、距離の数値の限定を実際の距離で判定する（raceLockedTargetOf）ので、その分も除く
+			const base = await sp.page.evaluate(({ rc, nx }) => {
+				const C = UmaSkillDeckCore, lock = C.outside.lockedFilterOf({ race: rc }), tgt = C.raceLockedTargetOf(rc), f = {};
+				Object.keys(lock).forEach((k) => { f[k] = [lock[k]]; });
+				return C.outside.populationOf({ skillFilter: lock, outsideOptions: nx }).ids.filter((id) => !tgt || C.matchesFilters(C.findSkill(id), f, tgt));
+			}, { rc: race, nx: NOEX });
 			const baseSet = new Set(base);
 			const expected = base0.filter(([id, tags]) => baseSet.has(id) && oracleRejects(tags, race)).map(([id]) => id).sort();
 			const got = r.ex.slice().sort();
@@ -509,7 +514,16 @@ export async function register12(env) {
 		await sp.page.waitForTimeout(300);
 		const after = await nums();
 		// （②のタブの脇の「N種」〔badge〕は比べない。②に足して「元に戻す」で空にすると、special が古い値のまま出し続ける〔C-130 より前からの挙動。手で足して戻しても同じ〕ため）
-		assert(auto > 0 && JSON.stringify(before.f) === JSON.stringify(after.f) && JSON.stringify(before.r) === JSON.stringify(after.r), 'オススメサポ④段9 ①の絞り込みと同じ距離・バ場のレースを選んでも、②の合計・①の合計は変わらない（母集団の規則はオススメサポにだけ効く。C-130 の既定の追加 ' + auto + '種は「元に戻す」で外して比べる）', { before, after, auto });
+		// 2026-10-17: ①の合計は、レースの距離（2200m）に当たらない限定を持つスキルが外れた分だけ変わる（レースで固定した距離を判定に渡すようにした）。②の合計は変わらない。
+		const exp = await sp.page.evaluate(({ FULL, R0 }) => {
+			const C = UmaSkillDeckCore, fmt = (n) => n.toLocaleString('en-US');
+			const a = C.getRosterPtDetail(FULL), b = C.getRosterPtDetail(Object.assign({}, FULL, { race: R0 }));
+			const va = C.getRosterVisiblePart(FULL).visibleIds, vb = C.getRosterVisiblePart(Object.assign({}, FULL, { race: R0 })).visibleIds;
+			const dropped = va.filter((id) => vb.indexOf(id) === -1), added = vb.filter((id) => va.indexOf(id) === -1);
+			return { a: [fmt(a.total), String(a.kinds)], b: [fmt(b.total), String(b.kinds)], dropped, added, limited: dropped.every((id) => { const s = C.findSkill(id); return !!s && !!s.raceDistance && s.raceDistance.scope === 'all'; }) };
+		}, { FULL, R0 });
+		assert(auto > 0 && JSON.stringify(before.f) === JSON.stringify(after.f) && JSON.stringify(before.r) === JSON.stringify(exp.a.map(String)) && JSON.stringify(after.r) === JSON.stringify(exp.b) && exp.added.length === 0 && exp.limited,
+			'オススメサポ④段9 ①の絞り込みと同じ距離・バ場のレースを選んでも、②の合計は変わらない。①の合計は、レースの距離に当たらない限定を持つスキルが外れた分だけ減る（母集団の規則はオススメサポにだけ効く。C-130 の既定の追加 ' + auto + '種は「元に戻す」で外して比べる）', { before, after, auto, exp });
 		const pk1 = await pickerIds('editor-pick'), gr1 = await pickerIds('editor-pick-passive');
 		// C-129 で置き換えた: 段9 の「条件で検索・緑スキルの一覧は、レースを選んでも同じ（レースに合わないスキルも出て、選べる）」は、
 		// レース条件を追加の経路にも効かせたので逆になった。いまは「選べる行は減るだけで増えない」を見る（グレーアウトの作りと理由は blocks-15 の C129B）

@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-17g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-17h';
 
 	/* ============================================================
 	 * 定数
@@ -1582,7 +1582,7 @@
 		if (keys.length === 0) return false;
 		const filters = {};
 		keys.forEach(k => { filters[k] = [lock[k]]; });
-		return !matchesFilters(skill, filters, null);
+		return !matchesFilters(skill, filters, raceLockedTargetOf(race));
 	}
 	async function loadUpcomingRaces(forceRefresh) {
 		try {
@@ -4236,6 +4236,19 @@
 	}
 
 	/**
+	 * レースで固定する距離の「目標」（matchesFilters の target。2026-10-17）。レースの距離（m）が決まっているときだけ、
+	 * その距離を渡して、距離の数値の限定（根幹距離・2400m だけ、など）を実際の距離で判定する。
+	 * 決まっていないとき（区分だけ公開のレース・レース未指定・距離の区分が固定されていない・距離の一覧を読めていない）は null＝これまでどおり区分で判定する。
+	 * **「レースで固定した距離」で判定する経路は、すべてここを通す**（①の述語 filterPredicateOf・②の追加の経路 raceBlocksSkill・サポカ外 outsideSkillPlanOf）。
+	 */
+	function raceLockedTargetOf(race) {
+		if (!race || typeof race.distance !== 'number') return null;
+		const c = categoryOfDistance(race.distance);
+		if (!c || raceLockedFilterOf(race).distance !== c.key) return null;
+		return { state: 'ok', distance: race.distance, category: c };
+	}
+
+	/**
 	 * 編成の絞り込み（段7の (17)。距離・脚質・バ場）。設定は編成の skillFilter に保存してある
 	 * （触らなければ足さない・読み込み時に補わない・知らない値は「指定なし」として扱う）。
 	 * ①のパネルと、②の「本育成編成」（選んだ編成の●を数える）が同じ決まりで使うので、編成を引数に取る形でここに置く。
@@ -4258,9 +4271,10 @@
 		if (keys.length === 0) return null;
 		const filters = {};
 		keys.forEach(k => { filters[k] = [sel[k]]; });
+		const target = raceLockedTargetOf(raceOfRoster(r));
 		return (skillId) => {
 			const s = findSkill(skillId);
-			return !s || matchesFilters(s, filters, null);
+			return !s || matchesFilters(s, filters, target);
 		};
 	}
 	/** 編成で得られるスキル（イベントの選択と、絞り込みから決まる既定の選択を効かせる。①のパネルの computed() の元） */
@@ -13461,8 +13475,7 @@
 			const filters = {};
 			Object.keys(sel).forEach(k => { filters[k] = [sel[k]]; });
 			const hasFilter = Object.keys(filters).length > 0;
-			let dist = null;   // レースの距離が決まっているときは、区分だけでなくその距離で判定する（C-97）
-			if (race && typeof race.distance === 'number') { const c = categoryOfDistance(race.distance); if (c) dist = { state: 'ok', distance: race.distance, category: c }; }
+			const dist = raceLockedTargetOf(race);   // レースの距離が決まっているときは、区分だけでなくその距離で判定する（C-97）
 			const plan = { add: [], already: [], roster: [], race: [] };
 			ids.forEach(id => {
 				const s = findSkill(id);
@@ -14744,6 +14757,7 @@
 		raceCourseMatches: raceCourseMatches,
 		courseConditionText: courseConditionText,
 		raceRejectsSkill: raceRejectsSkill,
+		raceBlocksSkill: raceBlocksSkill, raceLockedTargetOf: raceLockedTargetOf,   // 検査のため（レースで固定した距離の判定。2026-10-17）
 		getCourseConditionKeys: function () { return courseConditions ? Array.from(courseConditions.keys()) : null; },
 		getRaceDistancesMeta: function () { return raceDistancesMeta; },
 		tagLabel: tagLabel,

@@ -55,6 +55,7 @@ import { register31 } from './blocks-31.mjs';
 import { register32 } from './blocks-32.mjs';
 import { register33 } from './blocks-33.mjs';
 import { register34 } from './blocks-34.mjs';
+import { register35 } from './blocks-35.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 
@@ -15141,6 +15142,7 @@ await register31({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register32({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register33({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register34({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register35({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
