@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-17b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-17c';
 
 	/* ============================================================
 	 * 定数
@@ -1890,15 +1890,28 @@
 	}
 
 	/**
-	 * そのイベントを「起きたもの」として数えるか（取得の切り替え・2026-10-17。roster.acquirePicks = { イベントの鍵: true }）。
-	 * データの acquireMode が "user"（ユーザー選択次第）のイベントは、acquirePicks にその鍵が true で入っているときだけ数える（既定は未達成＝数えない）。
-	 * acquireMode が "fixed" のイベントと、acquireMode の無いイベントは常に数える（従来どおり）。知らない鍵・true 以外の値は未達成として読む（保存値は書き換えない）。
+	 * 取得の切り替えで選んだ段階の番号（0始まり。取得の切り替え・2026-10-17。roster.acquirePicks = { イベントの鍵: 段階の番号 }）。
+	 * データの acquireMode が "user"（ユーザー選択次第）のイベントだけが持つ。選んでいない（または保存値が無効）なら null。
+	 * 段階は acquireOptions の要素の番号。acquireOptions が無い（段階なしの）イベントは番号 0 だけが有効。
+	 * 範囲外・小数・負・文字列・配列・知らない鍵は無効（＝未選択。保存値は書き換えない）。**true は番号 0 として読む**（前の版の保存値との互換）。
+	 */
+	function acquireStageOf(ev, eventKey, evOpts) {
+		if (!ev || ev.acquireMode !== 'user') return null;
+		const picks = evOpts && evOpts.acquirePicks;
+		if (!picks || typeof picks !== 'object' || Array.isArray(picks)) return null;
+		if (!Object.prototype.hasOwnProperty.call(picks, eventKey)) return null;
+		const v = picks[eventKey];
+		const count = Array.isArray(ev.acquireOptions) ? ev.acquireOptions.length : 1;
+		if (v === true) return 0;
+		return (Number.isInteger(v) && v >= 0 && v < count) ? v : null;
+	}
+	/**
+	 * そのイベントを「起きたもの」として数えるか。acquireMode が "user" のイベントは、有効な段階の番号が入っているときだけ数える（既定は未選択＝数えない）。
+	 * acquireMode が "fixed" のイベントと、acquireMode の無いイベントは常に数える（従来どおり）。
 	 */
 	function acquiredOf(ev, eventKey, evOpts) {
 		if (!ev || ev.acquireMode !== 'user') return true;
-		const picks = evOpts && evOpts.acquirePicks;
-		if (!picks || typeof picks !== 'object' || Array.isArray(picks)) return false;
-		return Object.prototype.hasOwnProperty.call(picks, eventKey) && picks[eventKey] === true;
+		return acquireStageOf(ev, eventKey, evOpts) !== null;
 	}
 
 	/**
@@ -1975,6 +1988,12 @@
 			(row[eventsKey] || []).forEach((ev, idx) => {
 				// 取得の切り替え（roster.acquirePicks）: acquireMode が "user" のイベントは、達成にしていなければ起きなかったものとして何も数えない
 				if (!acquiredOf(ev, keyBase + '#' + idx, evOpts)) return;
+				// 段階（acquireOptions）を持つイベントは、選んだ段階のスキルだけを数える（成功側と同じく●）。段階が無ければこれまでどおり choices・結果で数える
+				const stage = acquireStageOf(ev, keyBase + '#' + idx, evOpts);
+				if (stage !== null && Array.isArray(ev.acquireOptions)) {
+					pushEvent(keyBase + '#' + idx, ((ev.acquireOptions[stage] && ev.acquireOptions[stage].skills) || []).map(ref => ({ ref: ref, sure: true })));
+					return;
+				}
 				// 結果の切り替え（roster.resultPicks）: そのイベントの結果の位置を全選択肢に当てる（既定は 0＝結果1）
 				const rpos = resultPosOf(ev, keyBase + '#' + idx, evOpts);
 				const sides = ((ev && ev.choices) || []).map(c => eventChoiceSkillsAt(c, rpos));
@@ -2046,6 +2065,8 @@
 		const out = [];
 		(row[eventsKey] || []).forEach((ev, idx) => {
 			// 結果の切り替え: 小窓に出すかどうかは結果1で決め（切り替えで消えて戻せなくならないように）、中身は選んだ結果の位置のもの
+			// 段階（acquireOptions）を持つイベントは、acquireOptions だけを選択のボタンにする。choices は出さず、「選択肢の未選択」にも数えない
+			if (ev && Array.isArray(ev.acquireOptions)) return;
 			const rpos = resultPosOf(ev, keyBase + '#' + idx, evOpts);
 			const sides = ((ev && ev.choices) || []).map(c => eventChoiceSkillsAt(c, rpos));
 			if (sides.length < 2) return;
@@ -2121,34 +2142,45 @@
 		return out;
 	}
 	/**
-	 * イベントの行から、**取得の切り替えを持つイベント**（acquireMode が "user"。ユーザー選択次第）を並べる（取得の切り替え・2026-10-17）。小窓が「未達成／達成」のボタンの行を出すのに使う。
+	 * イベントの行から、**取得の切り替えを持つイベント**（acquireMode が "user"。ユーザー選択次第）を並べる（取得の切り替え・2026-10-17）。小窓が段階（または条件）のボタンを出すのに使う。
 	 * 選択肢が1つのイベントも、2つ以上のイベントも含める。返り値は
-	 * [{ eventKey, index, step, eventName, condition, note, acquired, unseen, multi, skills: [{ skillId, name, hintLevel }] }]。
-	 *   acquired … 達成にしているか（acquiredOf）／unseen … 未確認（達成にしておらず、キャラクターの小窓をまだ開いていない。evOpts.acquireSeen が false のとき）
-	 *   skills … 達成にしたときに得るスキル（そのイベントで使う結果の位置のもの。条件文のあるイベントは常に結果1＝最大の段階）。選択肢が複数なら全選択肢の分を、スキルごとに最大の Lv でまとめる
-	 * **数え方には関わらない**（数えるかどうかは acquiredOf が eventRowOccurrences で決める）。
+	 * [{ eventKey, index, step, eventName, condition, note, staged, options, stage, acquired, unseen, multi, skills }]。
+	 *   staged … acquireOptions（段階）を持つか／options … ボタンにする段階 [{ label, skills: [{ skillId, name, hintLevel }] }]。
+	 *     段階を持つイベントは acquireOptions の要素の並び（条件のゆるい順）。持たないイベントは、条件文をラベルにした1つ（スキルは choices・結果で数えているもの）
+	 *   stage … 選んでいる段階の番号（0始まり）か null（未選択）／acquired … stage が null でないか（acquireStageOf）／unseen … 未選択で、キャラクターの小窓をまだ開いていない（evOpts.acquireSeen が false のとき）
+	 *   multi … ゲーム内の選択肢が2つ以上で、段階を持たないか（選択肢のボタンを別に出す）／skills … 段階を持たないイベントの、数えているスキル（choices が複数なら全選択肢の分を、スキルごとに最大の Lv でまとめる）
+	 * **数え方には関わらない**（数えるかどうかは acquiredOf・acquireStageOf が eventRowOccurrences で決める）。
 	 */
 	function eventRowAcquireEvents(row, eventsKey, keyBase, evOpts) {
 		if (!row || row.status !== 'done') return [];
 		const out = [];
+		const refOf = (ref) => ({ skillId: ref.skillId, name: ref.name, hintLevel: (Number.isInteger(ref.hintLevel) && ref.hintLevel >= 0) ? ref.hintLevel : null });
 		(row[eventsKey] || []).forEach((ev, idx) => {
 			if (!ev || ev.acquireMode !== 'user') return;
 			const eventKey = keyBase + '#' + idx;
 			const choices = ev.choices || [];
-			const pos = resultPosOf(ev, eventKey, evOpts);
+			const staged = Array.isArray(ev.acquireOptions);
+			const condition = typeof ev.condition === 'string' ? ev.condition : '';
 			const merged = new Map();
-			choices.forEach(c => eventChoiceSkillsAt(c, pos).forEach(ref => {
-				if (!ref || !ref.skillId || !findSkill(ref.skillId)) return;
-				const lv = (Number.isInteger(ref.hintLevel) && ref.hintLevel >= 0) ? ref.hintLevel : null;
-				const cur = merged.get(ref.skillId);
-				if (!cur) merged.set(ref.skillId, { skillId: ref.skillId, name: ref.name, hintLevel: lv });
-				else if (lv !== null && (cur.hintLevel === null || lv > cur.hintLevel)) cur.hintLevel = lv;
-			}));
-			const acquired = acquiredOf(ev, eventKey, evOpts);
+			let options;
+			if (staged) {
+				options = ev.acquireOptions.map(o => ({ label: (o && typeof o.label === 'string') ? o.label : '', skills: ((o && o.skills) || []).filter(ref => ref && ref.skillId && findSkill(ref.skillId)).map(refOf) }));
+			} else {
+				const pos = resultPosOf(ev, eventKey, evOpts);
+				choices.forEach(c => eventChoiceSkillsAt(c, pos).forEach(ref => {
+					if (!ref || !ref.skillId || !findSkill(ref.skillId)) return;
+					const lv = (Number.isInteger(ref.hintLevel) && ref.hintLevel >= 0) ? ref.hintLevel : null;
+					const cur = merged.get(ref.skillId);
+					if (!cur) merged.set(ref.skillId, { skillId: ref.skillId, name: ref.name, hintLevel: lv });
+					else if (lv !== null && (cur.hintLevel === null || lv > cur.hintLevel)) cur.hintLevel = lv;
+				}));
+				options = [{ label: condition, skills: Array.from(merged.values()) }];
+			}
+			const stage = acquireStageOf(ev, eventKey, evOpts);
 			out.push({ eventKey: eventKey, index: idx, step: Number.isInteger(ev.step) ? ev.step : null,
-				eventName: typeof ev.eventName === 'string' ? ev.eventName : null, condition: typeof ev.condition === 'string' ? ev.condition : '',
-				note: typeof ev.acquireNote === 'string' ? ev.acquireNote : '', acquired: acquired, unseen: !acquired && !(evOpts && evOpts.acquireSeen),
-				multi: choices.length >= 2, skills: Array.from(merged.values()) });
+				eventName: typeof ev.eventName === 'string' ? ev.eventName : null, condition: condition,
+				note: typeof ev.acquireNote === 'string' ? ev.acquireNote : '', staged: staged, options: options, stage: stage, acquired: stage !== null,
+				unseen: stage === null && !(evOpts && evOpts.acquireSeen), multi: !staged && choices.length >= 2, skills: Array.from(merged.values()) });
 		});
 		return out;
 	}
@@ -2444,7 +2476,7 @@
 			isWanted: typeof o.isWanted === 'function' ? o.isWanted : null,
 			// 結果の切り替え（roster.resultPicks。{ eventKey: 結果の位置 }）。渡さなければ全イベントが結果1（従来どおり）
 			resultPicks: (o.resultPicks && typeof o.resultPicks === 'object') ? o.resultPicks : {},
-			// 取得の切り替え（roster.acquirePicks。{ eventKey: true }）。渡さなければ acquireMode が "user" のイベントはすべて未達成（数えない）。
+			// 取得の切り替え（roster.acquirePicks。{ eventKey: 段階の番号（0始まり） }。true は番号0）。渡さなければ acquireMode が "user" のイベントはすべて未選択（数えない）。
 			// acquireSeen は「キャラクターの小窓を開いて確認済みか」（roster.acquireSeen が今の umaId と同じとき真）。「！」と「未選択N件」の数にだけ使う
 			acquirePicks: (o.acquirePicks && typeof o.acquirePicks === 'object' && !Array.isArray(o.acquirePicks)) ? o.acquirePicks : {},
 			acquireSeen: !!o.acquireSeen };
