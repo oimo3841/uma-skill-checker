@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-17h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-18a';
 
 	/* ============================================================
 	 * 定数
@@ -65,7 +65,7 @@
 	const DATA_JSON_VERSIONS = {
 		'data/scenario-inheritance-factors.json': '2026-09-15a',
 		'data/aptitude-genes.json': '2026-09-19a',
-		'data/extended-skills.json': '2026-10-17a',
+		'data/extended-skills.json': '2026-10-17b',
 		// 「条件で検索」の母集団に入れる拡張スキルの id の一覧（2026-10-16a・C-163）。データ側が規則で作る。拡張スキルと同じ経路（loadExtraCatalog）で読む
 		'data/searchable-extended-ids.json': '2026-10-16a',
 		// サポカで得られないスキル（公開用・独自カテゴリ3のみ。2026-10-16c・C-163）。②の「サポカ外」ボタンの候補。データ側が規則で作る。loadNonSupportSkills() が読む
@@ -94,7 +94,7 @@
 		'data/upcoming-races.json': '2026-10-04b',
 		// スキルの効果量の段階（C-129・2026-10-06）。説明文の効果の大きさを表す語から決めた段階。「低効果を除外」とオススメサポの「低効果」が使う。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadSkillEffectLevels）
-		'data/skill-effect-levels.json': '2026-10-13a',
+		'data/skill-effect-levels.json': '2026-10-17a',
 		// ②にまとめて追加するスキルのグループ（C-130・2026-10-06）。レースを選んだときの既定の追加と、②のパレットの行のボタンが使う。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadRecommendedSkills）
 		// C-131: 同じものとして扱うスキルの組（equivalentPairs）を足した
@@ -103,6 +103,8 @@
 		'data/training-event-skills.json': '2026-10-17f',
 		// スキルの進化の対応（段2・2026-10-12。C-145・C-146）。受け入れだけで、画面と計算はまだ使わない。ページの読み込みでは取りに行かない（loadSkillEvolutions）
 		'data/skill-evolutions.json': '2026-10-13a',
+		// 「このスキルは、これらのスキルを取得しているときだけ有効」の対応（2026-10-17a。大逃げの要るスキル）。skill-evolutions.json と一緒に、最初に必要になったとき1回だけ読む（loadSkillEvolutions）
+		'data/skill-requires.json': '2026-10-17a',
 		// コースの形の条件（小回り・直線コース）に当たるレース場・バ場・距離（C-155・2026-10-14。おいもさんの指定の表）。
 		// loadUpcomingRaces() がレースの一覧と一緒に読む。exam は読まない
 		'data/course-conditions.json': '2026-10-14a'
@@ -4315,7 +4317,9 @@
 		// 進化の決定（C-152）。**絞り込みに関係なく**、取得する（●で、取得しないにしていない）スキル全部から求める（元の金スキルの条件は見ない）。
 		// 進化させる金スキルは、絞り込みに当たらなくても表に出す（行は進化先の名前で、Pt は元の金スキルのまま数える）。
 		// 進化のデータ（skill-evolutions.json と説明文）を読めていなければ null（進化の行が無いのと同じ）
-		const evoPlan = evolutionPlanOfRoster(r, res.items.filter(it => it.sure && !off.has(it.skillId)).map(it => it.skillId));
+		// 要るスキル（大逃げ）を取得しているかは、①の取得の集合（●で、取得しないでなく、絞り込みに合うもの）で見る。先に絞り込みに合うかを決めてから集合に入るかを見る
+		const evoPlan = evolutionPlanOfRoster(r, res.items.filter(it => it.sure && !off.has(it.skillId)).map(it => it.skillId),
+			res.items.filter(it => it.sure && !off.has(it.skillId) && (!wanted || wanted(it.skillId))).map(it => it.skillId));
 		const evolving = new Set();
 		if (evoPlan) Object.keys(evoPlan.choices).forEach(k => { if (evoPlan.choices[k] !== 'none') evolving.add(k); });
 		const shown = wanted ? (id) => wanted(id) || evolving.has(id) : null;
@@ -4374,10 +4378,10 @@
 		return evolutionState.status === 'ok' && skillDescState.status === 'ok';
 	}
 	/** 編成の進化の決定（computeEvolutionPlan に編成の保存値を渡す）。進化のデータを読めていなければ null */
-	function evolutionPlanOfRoster(r, takenIds) {
+	function evolutionPlanOfRoster(r, takenIds, requireTakenIds) {
 		if (!evolutionReady()) return null;
 		return computeEvolutionPlan({
-			umaId: r.umaId, takenIds: takenIds, filter: resolvedFilterOf(r), race: raceOfRoster(r),
+			umaId: r.umaId, takenIds: takenIds, requireTakenIds: requireTakenIds, filter: resolvedFilterOf(r), race: raceOfRoster(r),
 			choices: r.evolutionChoices, bSeen: r.evolutionBSeen
 		});
 	}
@@ -8077,6 +8081,18 @@
 	 * この段（段2・3）では画面にも計算にもつながない。computeEvolutionPlan は既定の決定だけを返す純粋な関数。
 	 * ------------------------------------------------------------ */
 	const SKILL_EVOLUTIONS_PATH = 'data/skill-evolutions.json';
+	const SKILL_REQUIRES_PATH = 'data/skill-requires.json';
+	// 要るスキル（skill-requires.json）。skillId → [要るスキルの id…]。読めなかった・載っていないときは空（＝何も要らない。進化の判定は今までどおり）
+	let skillRequiresMap = new Map();
+	function buildRequiresIndex(doc) {
+		const map = new Map();
+		((doc && Array.isArray(doc.entries)) ? doc.entries : []).forEach(e => {
+			if (!e || typeof e.skillId !== 'string' || !e.skillId || !Array.isArray(e.requiresSkillIds)) return;
+			const ids = e.requiresSkillIds.filter(x => typeof x === 'string' && x && x !== e.skillId);
+			if (ids.length > 0) map.set(e.skillId, ids);
+		});
+		return map;
+	}
 	let evolutionState = { status: 'idle', doc: null, byUma: null, byScenario: null, evolvedIds: null, promise: null };   // idle／loading／ok／failed
 	function buildEvolutionIndex(doc) {
 		const byUma = new Map();         // umaId → [{ baseSkillId, evolvedSkillIds }]（データの並び）
@@ -8113,6 +8129,10 @@
 			} catch (e) { st.status = 'failed'; }
 			// 現在のシナリオの鍵（scenario-event-skills.json）も一緒に用意する（無くても進化の読み込みは成功にする）
 			try { await loadScenarioEvents(false); } catch (e2) { /* シナリオが読めなければパターンBを使わないだけ */ }
+			// 要るスキル（無くても進化の読み込みは成功にする。読めなければ何も要らないものとして扱う）
+			if (DATA_JSON_VERSIONS[SKILL_REQUIRES_PATH]) {
+				try { skillRequiresMap = buildRequiresIndex(await fetchMasterJson(withDataVersion(SKILL_REQUIRES_PATH), !!forceRefresh)); } catch (e3) { skillRequiresMap = new Map(); }
+			}
 			return st.status;
 		})();
 		return st.promise;
@@ -8310,6 +8330,10 @@
 		const filter = (a.filter && typeof a.filter === 'object') ? a.filter : {};
 		const race = a.race || null;
 		const taken = new Set(Array.isArray(a.takenIds) ? a.takenIds : []);
+		// 要るスキル（skill-requires.json）を取得しているか。takenIds とは別に、絞り込みに合うものだけで判定できる（requireTakenIds。省略時は takenIds）
+		const reqTaken = Array.isArray(a.requireTakenIds) ? new Set(a.requireTakenIds) : taken;
+		const requiresMap = a.requires instanceof Map ? a.requires : skillRequiresMap;
+		const missingOf = (id) => (requiresMap.get(id) || []).filter(r => !reqTaken.has(r));
 		const idx = a.evolutions ? buildEvolutionIndex(a.evolutions) : (evolutionState.status === 'ok' ? evolutionState : { byUma: new Map(), byScenario: new Map() });
 		const effectRank = typeof a.effectRank === 'function' ? a.effectRank
 			: (id) => { const st = skillEffectState; const r = st.status === 'ok' ? st.rankOfSkill.get(id) : null; return typeof r === 'number' ? r : null; };
@@ -8330,15 +8354,17 @@
 			const baseFit = !hasFilter ? 'must' : (base && matchesFilters(base, resolvedFilterArgs(filter), null) ? 'must' : 'no');
 			const targets = row.evolvedSkillIds.map((id, i) => {
 				const u = usageOf(findSkill(id));
-				return { id: id, fit: hasFilter ? evolutionFitOf(u, filter, race) : 'must', _ok: styleOk(u), _key: u ? evolutionOrderKey(u, filter, effectRank(id), i) : [1, 0, 0, 0, i] };
+				const missing = missingOf(id);
+				return { id: id, fit: hasFilter ? evolutionFitOf(u, filter, race) : 'must', _ok: styleOk(u), _key: u ? evolutionOrderKey(u, filter, effectRank(id), i) : [1, 0, 0, 0, i], missing: missing };
 			});
-			const cands = targets.filter(t => t.fit === 'must' && t._ok).sort((x, y) => compareOrderKeys(x._key, y._key));
+			// 要るスキルを取得していない進化先は選べない（fit は条件の判定のまま。行は出す）
+			const cands = targets.filter(t => t.fit === 'must' && t._ok && t.missing.length === 0).sort((x, y) => compareOrderKeys(x._key, y._key));
 			let def;
 			if (!specified) def = 'none';
 			else if (cands.length > 0) def = cands[0].id;
 			else if (targets.some(t => t.fit !== 'no')) def = 'none';   // 進化先が選べる（合うことがある・脚質が未指定）ので、行は出す
 			else def = 'invalid';   // どの進化先も、このレースでは使えない
-			return { baseId: row.baseSkillId, baseFit: baseFit, targets: targets.map(t => ({ id: t.id, fit: t.fit })), default: def, visible: def !== 'invalid', _best: cands.length > 0 ? cands[0].id : null };
+			return { baseId: row.baseSkillId, baseFit: baseFit, targets: targets.map(t => (t.missing.length > 0 ? { id: t.id, fit: t.fit, missing: t.missing.slice() } : { id: t.id, fit: t.fit })), default: def, visible: def !== 'invalid', _best: cands.length > 0 ? cands[0].id : null };
 		};
 
 		// パターンA
@@ -8348,7 +8374,7 @@
 			if (!Object.prototype.hasOwnProperty.call(stored, e.baseId)) return null;
 			const v = stored[e.baseId];
 			if (v === 'none') return 'none';
-			return (typeof v === 'string' && e.targets.some(t => t.id === v && t.fit !== 'no')) ? v : null;
+			return (typeof v === 'string' && e.targets.some(t => t.id === v && t.fit !== 'no' && !t.missing)) ? v : null;
 		};
 		const evolves = (c) => c !== 'none' && c !== 'invalid';
 		const aOut = rowsA.filter(r => taken.has(r.baseSkillId)).map(judge);
@@ -9619,7 +9645,7 @@
 				arrow.setAttribute('aria-hidden', 'true');
 				g.appendChild(arrow);
 				const radioName = 'evo-' + uidBase + '-' + e.baseId;
-				const addRadio = (value, labelEl, on, fit) => {
+				const addRadio = (value, labelEl, on, fit, missing) => {
 					labelEl.setAttribute('data-usd-el', value === 'none' ? 'evo-none' : 'evo-target');
 					labelEl.setAttribute('data-evo-value', value);
 					const inp = infoEl('input');
@@ -9630,6 +9656,7 @@
 					inp.setAttribute('data-evo-key', e.baseId + ':' + value);
 					inp.addEventListener('click', (ev) => {
 						if (fit === 'no') { ev.preventDefault(); toast(EVO_REASON_NOT_SELECTABLE); return; }
+						if (missing && missing.length > 0) { ev.preventDefault(); toast(missing.map(getSkillName).join('・') + 'を取得していないため選べません'); return; }
 						if (on) return;
 						evoSetChoices({ [e.baseId]: value });
 					});
@@ -9643,7 +9670,7 @@
 					const c = evoConditionText(t.id);
 					if (c) { const sub = infoEl('span', 'usd-evo-sub', c); sub.setAttribute('data-usd-el', 'evo-sub'); txt.appendChild(sub); }
 					lab.appendChild(txt);
-					addRadio(t.id, lab, on, t.fit);
+					addRadio(t.id, lab, on, t.fit, t.missing);
 					g.appendChild(lab);
 				});
 				const noneOn = e.choice === 'none';

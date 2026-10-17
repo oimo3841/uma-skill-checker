@@ -1,6 +1,6 @@
 {
 	"category": "skillEffectLevel",
-	"dataVersion": "2026-10-13a",
+	"dataVersion": "2026-10-17a",
 	"stages": [
 		{
 			"key": "ほんのちょっと",
@@ -33,6 +33,10 @@
 		{
 			"key": "ものすごく",
 			"rank": 8
+		},
+		{
+			"key": "とてつもなく",
+			"rank": 9
 		}
 	],
 	"lowEffectMax": {
@@ -4713,7 +4717,7 @@
 		{
 			"skillId": "ex-0496",
 			"name": "無二無三なる一条の路",
-			"maxStage": null
+			"maxStage": "とてつもなく"
 		},
 		{
 			"skillId": "ex-0497",
@@ -4758,7 +4762,7 @@
 		{
 			"skillId": "ex-0505",
 			"name": "Peerless Heroine",
-			"maxStage": null
+			"maxStage": "とてつもなく"
 		},
 		{
 			"skillId": "ex-0506",
@@ -5798,7 +5802,7 @@
 		{
 			"skillId": "ex-1049",
 			"name": "私だけの世界",
-			"maxStage": null
+			"maxStage": "とてつもなく"
 		},
 		{
 			"skillId": "ex-1050",
@@ -7213,7 +7217,7 @@
 		{
 			"skillId": "ex-1332",
 			"name": "乾坤一擲の大博打",
-			"maxStage": null
+			"maxStage": "とてつもなく"
 		},
 		{
 			"skillId": "ex-1333",
@@ -8628,7 +8632,7 @@
 		{
 			"skillId": "ex-1615",
 			"name": "最強淑女の誇り",
-			"maxStage": null
+			"maxStage": "とてつもなく"
 		},
 		{
 			"skillId": "ex-1616",
@@ -8818,7 +8822,7 @@
 		{
 			"skillId": "ex-1653",
 			"name": "見果てぬ旅路",
-			"maxStage": null
+			"maxStage": "とてつもなく"
 		},
 		{
 			"skillId": "ex-1654",

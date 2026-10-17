@@ -537,6 +537,50 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 	assert([r1, r2, r3, r4].every((x) => x.errs.length === 0), '§8 コンソールのエラー0', [r1, r2, r3, r4].map((x) => x.errs.slice(0, 2)));
 }
 
+/* ───────── §9 要るスキル（2026-10-18・skill-requires.json。大逃げ） ───────── */
+{
+	console.log('\n=== §9要るスキル（大逃げを取得しているときだけ、＜大逃げ＞を持つ進化先 ex-1415 を選べる） ===');
+	const reqs = readJson('data/skill-requires.json');
+	assert(reqs.entries.length === 1 && reqs.entries[0].skillId === 'ex-1415' && reqs.entries[0].requiresSkillIds.join() === 'ex-0601', 'skill-requires.json は ex-1415 → ex-0601 の1行', reqs.entries);
+	await page.evaluate(() => window.UmaSkillDeckCore.loadSkillEvolutions());
+	const longTurf = mkRace('t-long-turf', 3000, 'turf');
+	const rows9 = await page.evaluate(({ longTurf }) => {
+		const C = window.UmaSkillDeckCore;
+		const out = [];
+		for (const acq of [true, false]) for (const style of ['nige', 'senko', '']) for (const withRace of [false, true]) {
+			// 大逃げが「取得している」のは、取得の切り替えで取得し、かつ脚質の絞り込みに合う（逃げ以外を選ぶと外れる）とき
+			const reqTaken = acq && style !== 'senko' ? ['ex-0336', 'ex-0601'] : ['ex-0336'];
+			const args = { umaId: 'uma-0154', takenIds: ['ex-0336', 'ex-0601'], requireTakenIds: reqTaken, filter: style ? { style } : {}, race: withRace ? longTurf : null, choices: { 'ex-0336': 'ex-1415' } };
+			const p = C.computeEvolutionPlan(args);
+			const row = p.a.find((e) => e.baseId === 'ex-0336');
+			const t = row.targets.find((x) => x.id === 'ex-1415');
+			out.push({ acq, style, withRace, choice: p.choices['ex-0336'], def: row.default, missing: t.missing || null, visible: row.visible, fit: t.fit });
+		}
+		return out;
+	}, { longTurf });
+	const bad9 = rows9.filter((r) => {
+		const ok = r.acq && r.style !== 'senko';
+		if ((r.choice === 'ex-1415') !== ok) return true;                      // 手で選んだ ex-1415 が有効になるのは、要るスキルを取得しているときだけ
+		if (!ok && JSON.stringify(r.missing) !== '["ex-0601"]') return true;   // 取得していないときは進化先に要るスキルの印
+		if (ok && r.missing) return true;
+		if (!r.visible) return true;                                           // 行（元の金スキル）はどの場合も出す
+		if (r.withRace && ok && r.style === 'nige' && r.def !== 'ex-1415') return true;   // レース固定・逃げ・取得ありは既定でも進化する
+		if (r.withRace && !ok && r.def === 'ex-1415') return true;
+		return false;
+	});
+	assert(rows9.length === 12 && bad9.length === 0, '大逃げ 取得あり／なし × 脚質（逃げ・先行・指定なし）× レース（なし・長距離・芝）の12通りで、ex-0336 → ex-1415 の選べる・選べないが期待どおり', { n: rows9.length, bad9 });
+	// 本文の追加の効果の条件に「大逃げ」を持つ4件は、大逃げの有無に関わらず同じ（ex-1658 は uma-0263 の ex-0524 の進化先）
+	const k2 = await page.evaluate(() => {
+		const C = window.UmaSkillDeckCore;
+		const run = (req) => { const p = C.computeEvolutionPlan({ umaId: 'uma-0263', takenIds: ['ex-0524', 'ex-0601'], requireTakenIds: req, filter: {}, race: null, choices: { 'ex-0524': 'ex-1658' } }); const row = p.a.find((e) => e.baseId === 'ex-0524'); return { choice: p.choices['ex-0524'], targets: row.targets }; };
+		return [run(['ex-0524', 'ex-0601']), run(['ex-0524'])];
+	});
+	assert(JSON.stringify(k2[0]) === JSON.stringify(k2[1]) && k2[0].choice === 'ex-1658' && k2[0].targets.every((x) => !x.missing), '大逃げ ex-1658（本文の条件に大逃げ）は、大逃げの取得の有無に関わらず選べて、要るスキルの印が付かない', k2);
+	// 破壊確認: 要るスキルの表を空にして渡すと、取得なしでも選べてしまう（この表が落ちる）
+	const broken = await page.evaluate(() => { const C = window.UmaSkillDeckCore; const p = C.computeEvolutionPlan({ umaId: 'uma-0154', takenIds: ['ex-0336'], requireTakenIds: ['ex-0336'], filter: {}, race: null, choices: { 'ex-0336': 'ex-1415' }, requires: new Map() }); return p.choices['ex-0336']; });
+	assert(broken === 'ex-1415', '大逃げ 破壊確認: 要るスキルの表を空にすると、取得していなくても ex-1415 が選べる（§9 の期待が落ちる）', broken);
+}
+
 assert(errors.length === 0, 'コンソールエラーなし', errors);
 await browser.close();
 await srv.close();

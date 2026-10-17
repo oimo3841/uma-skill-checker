@@ -1,0 +1,13 @@
+{
+	"category": "skillRequirement",
+	"dataVersion": "2026-10-17a",
+	"note": "このスキルは、requiresSkillIds のスキルを取得しているときだけ有効。",
+	"entries": [
+		{
+			"skillId": "ex-1415",
+			"requiresSkillIds": [
+				"ex-0601"
+			]
+		}
+	]
+}

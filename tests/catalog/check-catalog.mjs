@@ -1876,6 +1876,53 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 		}
 	}
 
+	/* --- 要るスキル（2026-10-17a。skill-requires.json。「このスキルは、requiresSkillIds のスキルを取得しているときだけ有効」） ---
+	   形は許可リスト方式（category・dataVersion・note・entries だけ。entries の各行は skillId・requiresSkillIds だけ）。
+	   skillId・requiresSkillIds の id はカタログ（マスター・拡張スキル）で引ける。requiresSkillIds は空でなく、自分自身を含まず、重複しない。
+	   entries は skillId の昇順で、skillId が重複しない。スキル名はここに書かない（恒久ルール1）。 */
+	const REQ_FILE = 'skill-requires.json';
+	const rqr = readOpt(REQ_FILE);
+	if (rqr === null) {
+		console.log('       ' + REQ_FILE + ': まだ無い（無ければ見ない）');
+	} else {
+		check(rqr.ok, REQ_FILE + ' が読める', rqr.ok ? undefined : rqr.error);
+		if (rqr.ok) {
+			const d = rqr.data;
+			const unknown = [], missing = [], bad = [], dup = [], unregistered = [], unsorted = [];
+			checkKeys(d, { need: ['category', 'dataVersion', 'note', 'entries'], opt: [] }, REQ_FILE, unknown, missing);
+			if (d.category !== 'skillRequirement') bad.push('category が ' + JSON.stringify(d.category));
+			if (!DATA_VERSION_RE.test(String(d.dataVersion))) bad.push('dataVersion の形が違う: ' + String(d.dataVersion));
+			if (!isStr(d.note)) bad.push('note が空でない文字列でない');
+			if (!isArr(d.entries) || d.entries.length === 0) bad.push('entries が空でない配列でない');
+			const idRank = (id) => /^d+$/.test(id) ? [0, Number(id)] : /^ex-d+$/.test(id) ? [1, Number(id.slice(3))] : [2, 0];
+			const cmpId = (a, b) => { const x = idRank(a), y = idRank(b); return x[0] !== y[0] ? x[0] - y[0] : x[1] !== y[1] ? x[1] - y[1] : (a < b ? -1 : a > b ? 1 : 0); };
+			const seen = new Set();
+			let prev = null;
+			(isArr(d.entries) ? d.entries : []).forEach((en, i) => {
+				const w = 'entries[' + i + ']';
+				if (!checkKeys(en, { need: ['skillId', 'requiresSkillIds'], opt: [] }, w, unknown, missing)) return;
+				if (!isStr(en.skillId)) { bad.push(w + '.skillId: 空でない文字列'); return; }
+				if (!registered.has(en.skillId)) unregistered.push(w + '.skillId: ' + en.skillId);
+				if (seen.has(en.skillId)) dup.push(w + ': skillId ' + en.skillId + ' が重複');
+				seen.add(en.skillId);
+				if (prev !== null && cmpId(prev, en.skillId) >= 0) unsorted.push(w + ': ' + en.skillId + ' が直前（' + prev + '）より小さいか同じ');
+				prev = en.skillId;
+				if (!isArr(en.requiresSkillIds) || en.requiresSkillIds.length === 0 || !en.requiresSkillIds.every(isStr)) { bad.push(w + '.requiresSkillIds: 空でない文字列の配列'); return; }
+				if (new Set(en.requiresSkillIds).size !== en.requiresSkillIds.length) dup.push(w + '.requiresSkillIds: 重複');
+				en.requiresSkillIds.forEach((id) => {
+					if (!registered.has(id)) unregistered.push(w + '.requiresSkillIds: ' + id);
+					if (id === en.skillId) bad.push(w + ': 自分自身を要るスキルにしている ' + id);
+				});
+			});
+			none(unknown.concat(missing), REQ_FILE + ': キーが決めた形（知らないキーが無く、必須が揃っている）');
+			none(bad, REQ_FILE + ': category・dataVersion・note・entries と各行の形');
+			none(dup, REQ_FILE + ': skillId・requiresSkillIds が重複しない');
+			none(unregistered, REQ_FILE + ': skillId・requiresSkillIds の id がすべてマスターか拡張スキルで引ける');
+			none(unsorted, REQ_FILE + ': entries が skillId の昇順');
+			console.log('       ' + REQ_FILE + ': ' + (isArr(d.entries) ? d.entries.length : 0) + '行');
+		}
+	}
+
 	/* --- 育成ウマ娘のイベントで得られるスキル（段1・2026-10-11。training-event-skills.json。本育成の表の「育成ウマ娘」列の元データ） ---
 	   形は許可リスト方式（知らないキーは落とす）。umaId は training-umamusume.json に実在し重複しない。skillId はマスターか
 	   拡張スキルで引け、name が引いた先の名前と一致する。hintLevel は 1〜3 の整数。"notes" というキーはどこにも置かない。
