@@ -2264,6 +2264,75 @@ console.log('\n=== 17. サポカで得られないスキル（' + NONSUPPORT_FIL
 	}
 }
 
+/* ──────────────────────── §18 タグと説明文の突き合わせ（2026-10-17。C-95 の4節を置き換えた決定） ──────────────────────── */
+/* tags の距離・脚質・バ場には、公式の説明文の末尾の＜…＞にある語だけを入れる（スキル全体にかかる限定）。
+   本文の「〇〇レースなら」のような追加の効果の条件の語は入れない（別の項目にも移さない）。
+   ＜…＞に無い語がタグにあれば「余計」、＜…＞にある語がタグに無ければ「不足」で、どちらもエラー。 */
+// 語の対応表。将来「大逃げ」の値を足すときは、脚質の表に1行足し、BRACKET_SKIP_WORDS から外すだけで済む
+const BRACKET_WORD_MAP = {
+	distance: { '短距離': 'short', 'マイル': 'mile', '中距離': 'medium', '長距離': 'long' },
+	style: { '逃げ': 'nige', '先行': 'senko', '差し': 'sashi', '追込': 'oikomi' },
+	surface: { '芝': 'turf', 'ダート': 'dirt' }
+};
+// 読み飛ばす語（「作戦」は＜作戦・逃げ＞の見出し。「大逃げ」は対応するタグの値がまだ無い〔次の作業で決める〕）
+const BRACKET_SKIP_WORDS = ['作戦', '大逃げ'];
+const BRACKET_SPLIT_RE = /[・/／、]/;
+// 既知の例外（理由つき。この1件だけ。警告に出し、エラーにしない）
+//   ex-1607 … 本文の距離の語（マイル・中距離）が発動の条件で、スキルが実際にその距離だけで発動するため、＜…＞に無い距離をタグに持つ
+const BRACKET_KNOWN_EXCEPTIONS = new Set(['ex-1607']);
+console.log('\n=== 18. タグと説明文の突き合わせ（距離・脚質・バ場 ⇔ 説明文の末尾の＜…＞） ===');
+{
+	const DESC_PATH = path.join(REPO_ROOT, DIR, 'skill-descriptions.json');
+	const dr18 = fs.existsSync(DESC_PATH) ? readJsonFile(DESC_PATH) : { ok: false, error: 'ファイルが無い' };
+	check(dr18.ok && isArr(dr18.data.entries), 'skill-descriptions.json が読める（§18 の元）', dr18.ok ? undefined : dr18.error);
+	if (dr18.ok && isArr(dr18.data.entries)) {
+		const descById = new Map(dr18.data.entries.map((x) => [String(x.skillId), String(x.text)]));
+		const AX18 = ['distance', 'style', 'surface'];
+		const extra = [], lacking = [], unknownWords = [], noDescBad = [], exceptions = [];
+		let checkedWithDesc = 0, checkedNoDesc = 0, skippedPending = 0, withBracket = 0;
+		const rows18 = masterSkills.map((s) => ({ id: String(s.id), e: s }))
+			.concat(docs.extendedSkill.entries.map((e) => ({ id: String(e.id), e: e })));
+		rows18.forEach(({ id, e }) => {
+			if (e.tagsPending) { skippedPending++; return; }
+			const tags = isObj(e.tags) ? e.tags : {};
+			const text = descById.get(id);
+			if (text === undefined) {
+				checkedNoDesc++;
+				AX18.forEach((ax) => { if (isArr(tags[ax]) && tags[ax].length > 0) noDescBad.push(id + '.' + ax + '=' + tags[ax].join('/')); });
+				return;
+			}
+			checkedWithDesc++;
+			const m = /＜([^＞]*)＞\s*$/.exec(text);
+			if (m) withBracket++;
+			const words = m ? m[1].split(BRACKET_SPLIT_RE).map((w) => w.trim()).filter((w) => w) : [];
+			const expected = { distance: new Set(), style: new Set(), surface: new Set() };
+			words.forEach((w) => {
+				if (BRACKET_SKIP_WORDS.includes(w)) return;
+				const ax = AX18.find((a) => Object.prototype.hasOwnProperty.call(BRACKET_WORD_MAP[a], w));
+				if (!ax) { unknownWords.push(id + ': 「' + w + '」'); return; }
+				expected[ax].add(BRACKET_WORD_MAP[ax][w]);
+			});
+			const scopeAll = isObj(e.raceDistance) && e.raceDistance.scope === 'all';   // 距離の数値の限定が全体にかかる行は、区分がタグに入ることがある（余計は見ない）
+			const found = [];
+			AX18.forEach((ax) => {
+				const actual = new Set(isArr(tags[ax]) ? tags[ax] : []);
+				const miss = [...expected[ax]].filter((v) => !actual.has(v));
+				const over = [...actual].filter((v) => !expected[ax].has(v));
+				if (miss.length > 0) found.push({ list: lacking, msg: id + '.' + ax + ' 不足 ' + miss.join('/') });
+				if (over.length > 0 && !(ax === 'distance' && scopeAll)) found.push({ list: extra, msg: id + '.' + ax + ' 余計 ' + over.join('/') });
+			});
+			if (found.length > 0 && BRACKET_KNOWN_EXCEPTIONS.has(id)) found.forEach((f) => exceptions.push(f.msg));
+			else found.forEach((f) => f.list.push(f.msg));
+		});
+		none(unknownWords, '＜…＞の語がすべて対応表（距離・脚質・バ場）か読み飛ばす語にある');
+		none(extra, 'タグの距離・脚質・バ場に、＜…＞に無い語が入っていない（余計が0）');
+		none(lacking, '＜…＞にある距離・脚質・バ場の語が、すべてタグに入っている（不足が0）');
+		none(noDescBad, '説明文が無いスキルは、タグの距離・脚質・バ場が空');
+		if (exceptions.length > 0) warn('タグと＜…＞が食い違う既知の例外（理由はこの検査のファイルに書いてある）', exceptions);
+		console.log('     検査した行: 説明文あり ' + checkedWithDesc + '（うち＜…＞あり ' + withBracket + '）・説明文なし ' + checkedNoDesc + '・tagsPending で除外 ' + skippedPending);
+	}
+}
+
 if (warnings.length > 0) {
 	console.log('\n=== 警告（検査は落とさないが、放置しないこと。' + warnings.length + '件） ===');
 	warnings.forEach((w) => console.log('  ・' + w));
