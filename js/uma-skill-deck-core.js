@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-17d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-17e';
 
 	/* ============================================================
 	 * 定数
@@ -1867,24 +1867,24 @@
 		return ((ev && ev.choices) || []).reduce((m, c) => Math.max(m, (c && Array.isArray(c.results)) ? c.results.length : 0), 0);
 	}
 	/**
-	 * そのイベントで使う結果の位置（0始まり。roster.resultPicks の値）。**条件文のあるイベント（着順系）は常に 0**（結果1）。
+	 * そのイベントで使う結果の位置（0始まり。roster.resultPicks の値）。**条件文のあるイベント（着順系）は常に 0**（結果1）。ただし結果が確率で決まる目印（randomResult: true）のあるイベントは、条件文があっても切り替える。
 	 * 知らない鍵・整数でない・負・0・イベントのどの選択肢の結果数も超える値は無効＝0（保存値は書き換えない）。
 	 */
 	function resultPosOf(ev, eventKey, evOpts) {
 		const picks = evOpts && evOpts.resultPicks;
 		if (!picks || typeof picks !== 'object' || !ev) return 0;
-		if (typeof ev.condition === 'string' && ev.condition !== '') return 0;
+		if (typeof ev.condition === 'string' && ev.condition !== '' && ev.randomResult !== true) return 0;
 		if (!Object.prototype.hasOwnProperty.call(picks, eventKey)) return 0;
 		const v = picks[eventKey];
 		if (!Number.isInteger(v) || v < 1) return 0;
 		return v < eventMaxResults(ev) ? v : 0;
 	}
 	/**
-	 * 結果の切り替えを持つイベントか: 条件文が無く、結果が2つ以上ある選択肢があり、そのどれかで結果によって中身（スキル id か Lv）が違う。
+	 * 結果の切り替えを持つイベントか: 条件文が無く（結果が確率で決まる目印 randomResult: true のあるイベントは、条件文があってもよい）、結果が2つ以上ある選択肢があり、そのどれかで結果によって中身（スキル id か Lv）が違う。
 	 * 中身がどの結果でも同じなら false（切り替えを出さない）。
 	 */
 	function eventHasResultSwitch(ev) {
-		if (!ev || (typeof ev.condition === 'string' && ev.condition !== '')) return false;
+		if (!ev || (typeof ev.condition === 'string' && ev.condition !== '' && ev.randomResult !== true)) return false;
 		const keyOf = (list) => (list || []).filter(r => r && r.skillId).map(r => r.skillId + ':' + (Number.isInteger(r.hintLevel) ? r.hintLevel : '')).sort().join(',');
 		return (ev.choices || []).some(c => Array.isArray(c && c.results) && c.results.length >= 2 && c.results.some(r => keyOf(r) !== keyOf(c.results[0])));
 	}
@@ -2110,7 +2110,9 @@
 			if (choices.length !== 1 || typeof ev.condition !== 'string' || ev.condition === '') return;
 			// 取得の切り替え（acquireMode が "user"）のイベントは、読み取り専用にせず acquireEvents の箱で出す
 			if (ev.acquireMode === 'user') return;
-			// 条件文のあるイベントは resultPosOf が常に 0（結果1）を返す
+			// 結果が確率で決まる目印（randomResult）のあるイベントは、結果の切り替えの箱（条件文つき）で出す
+			if (eventHasResultSwitch(ev)) return;
+			// 条件文のあるイベントは resultPosOf が常に 0（結果1）を返す（目印のあるものを除く）
 			const skills = eventChoiceSkillsAt(choices[0], resultPosOf(ev, keyBase + '#' + idx, evOpts)).filter(ref => ref && ref.skillId && findSkill(ref.skillId))
 				.map(ref => ({ skillId: ref.skillId, name: ref.name, hintLevel: (Number.isInteger(ref.hintLevel) && ref.hintLevel >= 0) ? ref.hintLevel : null }));
 			out.push({ eventKey: keyBase + '#' + idx, index: idx, eventName: typeof ev.eventName === 'string' ? ev.eventName : null, condition: ev.condition, skills: skills });
@@ -2136,7 +2138,7 @@
 				? c.results.map(r => (r || []).filter(ref => ref && ref.skillId && findSkill(ref.skillId)).map(refOf)) : null);
 			out.push({ eventKey: eventKey, index: idx, step: Number.isInteger(ev.step) ? ev.step : null,
 				name: typeof ev.name === 'string' ? ev.name : null, when: typeof ev.when === 'string' ? ev.when : null,
-				eventName: typeof ev.eventName === 'string' ? ev.eventName : null, count: eventMaxResults(ev),
+				eventName: typeof ev.eventName === 'string' ? ev.eventName : null, condition: typeof ev.condition === 'string' ? ev.condition : '', count: eventMaxResults(ev),
 				pos: resultPosOf(ev, eventKey, evOpts), multi: (ev.choices || []).length >= 2, byChoice: byChoice });
 		});
 		return out;
@@ -9164,6 +9166,12 @@
 			box.setAttribute('data-usd-el', 'event-result');
 			box.setAttribute('data-event-key', re.eventKey);
 			box.appendChild(infoEl('p', 'usd-roster-eventtitle', eventTitle(re)));
+			// 結果が確率で決まる目印（randomResult）のあるイベントは条件文を持つ。灰色の行で添える
+			if (re.condition) {
+				const cond = infoEl('p', 'usd-roster-eventcond', re.condition);
+				cond.setAttribute('data-usd-el', 'event-cond');
+				box.appendChild(cond);
+			}
 			box.appendChild(resultGroupEl(re, null));
 			left.appendChild(box);
 		};

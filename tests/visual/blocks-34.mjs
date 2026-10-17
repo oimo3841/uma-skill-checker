@@ -724,4 +724,89 @@ export async function register34(env) {
 			await al.ctx.close();
 		}
 	});
+
+	/* ====================================================================
+	 * (7) ランダム目印（データの randomResult: true）: 条件文があっても結果の切り替えのボタンを出す。ほかの条件文つきイベントは対象外のまま
+	 * ==================================================================== */
+	await block('取得切替(7) ランダム目印: 15イベントで結果の切り替えが効く（条件文があっても）／目印の無い条件文つきの着順系は対象外／既定の出力は変わらない', async () => {
+		const rnd = [];
+		TR.forEach((e) => e.events.forEach((ev, i) => { if (ev.randomResult === true) rnd.push({ umaId: e.umaId, key: 'uma:' + e.umaId + '#' + i, ev }); }));
+		assert(rnd.length === 15, '取得切替(7) 前提: randomResult: true のイベントは15件', rnd.length);
+		const sp = await openCore(null);
+		const res = await sp.page.evaluate(async ({ rnd }) => {
+			const C = UmaSkillDeckCore;
+			await C.loadTrainingSources(); await C.loadSkillPtData();
+			const out = [];
+			for (const r of rnd) {
+				const roster = { umaId: r.umaId, cardIds: [] };
+				const def = C.computeRosterSkills(roster, { autoChoose: true });
+				const re = def.resultEvents.find((x) => x.eventKey === r.key);
+				const info = def.infoEvents.some((x) => x.eventKey === r.key);
+				const pick = (pos) => JSON.stringify(C.computeRosterSkills(roster, { autoChoose: true, resultPicks: { [r.key]: pos } }).sources.filter((s) => s.eventKey === r.key).map((s) => [s.skillId, s.hintLevel]));
+				out.push({ key: r.key, hasSwitch: !!re, count: re ? re.count : 0, pos: re ? re.pos : null, cond: re ? re.condition : null, info, differs: re ? pick(1) !== pick(0) : false, same0: pick(0) === JSON.stringify(def.sources.filter((s) => s.eventKey === r.key).map((s) => [s.skillId, s.hintLevel])) });
+			}
+			return out;
+		}, { rnd: rnd.map((r) => ({ umaId: r.umaId, key: r.key })) });
+		const badSw = res.filter((x) => !x.hasSwitch || x.count < 2 || x.pos !== 0 || x.cond !== (rnd.find((r) => r.key === x.key).ev.condition || '') || x.info || !x.differs || !x.same0);
+		assert(badSw.length === 0, '取得切替(7) 目印のある15イベントはすべて結果の切り替えを持つ（条件文があればそのまま添え・結果1が既定・結果を変えると数えるスキルが変わる・読み取り専用の行には出ない）', badSw.slice(0, 3));
+		// 目印の無い条件文つき（結果が分かれる着順系）は、resultPicks を何にしても変わらない
+		const plain = [];
+		TR.forEach((e) => e.events.forEach((ev, i) => { if (ev.randomResult !== true && ev.condition && ev.choices.some((c) => Array.isArray(c.results) && c.results.length >= 2)) plain.push({ umaId: e.umaId, key: 'uma:' + e.umaId + '#' + i }); }));
+		const fixedRes = await sp.page.evaluate(async ({ plain }) => {
+			const C = UmaSkillDeckCore;
+			await C.loadTrainingSources(); await C.loadSkillPtData();
+			let n = 0, bad = 0;
+			for (const r of plain) {
+				const roster = { umaId: r.umaId, cardIds: [] };
+				const a = JSON.stringify(C.computeRosterSkills(roster, { autoChoose: true }).sources);
+				const picks = { [r.key]: 1 };
+				const b = JSON.stringify(C.computeRosterSkills(roster, { autoChoose: true, resultPicks: picks }).sources);
+				const hasBox = C.computeRosterSkills(roster, { autoChoose: true }).resultEvents.some((x) => x.eventKey === r.key);
+				n++; if (a !== b || hasBox) bad++;
+			}
+			return { n, bad };
+		}, { plain });
+		assert(plain.length > 100 && fixedRes.bad === 0, '取得切替(7) 目印の無い条件文つきの着順系（' + plain.length + '件）は対象外のまま（結果を切り替えても変わらず、結果の切り替えの箱も無い）', fixedRes);
+		// 既定の出力は変わらない（目印を外したデータと、スキル・items・由来・Pt が一致）
+		const spOff = await openCore((es) => es.forEach((e) => e.events.forEach((ev) => { delete ev.randomResult; })));
+		const off = await measure(spOff.page, 'none');
+		await spOff.ctx.close();
+		const on = await measure(sp.page, 'none');
+		const bad = diffRows(off, on, ['skills', 'items', 'sources', 'pt', 'total', 'kinds', 'sure', 'maybe', 'members']);
+		assert(bad.length === 0, '取得切替(7) 既定（結果1）の出力は、目印を外したデータと同一（271衣装×3の編成で スキル・items・由来・Pt・●△ が一致）', bad.slice(0, 5));
+		assert(jsErrors(sp.errors).length === 0, '取得切替(7) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('取得切替(7b) ランダム目印の小窓: タイキシャトル「安田記念の後に」に条件文つきの結果ボタン（補足文・「ランダム」の語は無い）／押すと resultPicks に保存／目印の無い着順系は読み取り専用のまま', async () => {
+		const sp = await openSp({ roster: { umaId: 'uma-0027' } });
+		const ev = evsOf('uma-0027').find((x) => x.ev.randomResult === true);
+		await openPop(sp.page);
+		const box = await sp.page.evaluate((k) => {
+			const b = document.querySelector('[data-usd-el="event-result"][data-event-key="' + k + '"]');
+			const info = document.querySelector('[data-usd-el="event-info"][data-event-key="' + k + '"]');
+			return { has: !!b, info: !!info, text: b ? b.textContent : '', cond: b && b.querySelector('[data-usd-el="event-cond"]') ? b.querySelector('[data-usd-el="event-cond"]').textContent : null,
+				kids: b ? Array.from(b.children).map((c) => c.getAttribute('data-usd-el') || c.className.split(' ')[0]) : [], notes: b ? b.querySelectorAll('[data-usd-el="acquire-note"], .usd-roster-acquirenote').length : -1,
+				btns: b ? Array.from(b.querySelectorAll('[data-usd-el="result-choice"]')).map((x) => ({ on: x.classList.contains('usd-roster-choice--on'), t: x.textContent })) : [] };
+		}, ev.key);
+		assert(box.has && !box.info, '取得切替(7b) 「安田記念の後に」は結果ボタンの箱で出る（読み取り専用の行と二重にしない）', box);
+		assert(box.cond === ev.ev.condition && box.kids.indexOf('event-cond') < box.kids.indexOf('result-group') && box.notes === 0, '取得切替(7b) 条件文は灰色の行（データのまま）で添え、補足文は付けない', box);
+		assert(box.btns.length === ev.ev.choices[0].results.length && box.btns[0].on && box.btns.slice(1).every((b) => !b.on), '取得切替(7b) 結果のボタンは結果の数（' + ev.ev.choices[0].results.length + '）だけ。結果1が既定で選ばれている', box.btns);
+		assert(!/ランダム|確率|運/.test(box.text), '取得切替(7b) 「ランダム」を示す語は付けない', box.text);
+		await sp.page.click('[data-usd-el="result-choice"][data-event-key="' + ev.key + '"][data-result="1"]');
+		await sp.page.waitForTimeout(400);
+		const d = await draftR(sp.page);
+		assert(JSON.stringify(d.resultPicks) === JSON.stringify({ [ev.key]: 1 }), '取得切替(7b) 結果2を押すと resultPicks に { 鍵: 1 } が保存される', d.resultPicks);
+		const on2 = await sp.page.evaluate((k) => Array.from(document.querySelectorAll('[data-usd-el="result-choice"][data-event-key="' + k + '"]')).map((b) => b.classList.contains('usd-roster-choice--on')), ev.key);
+		assert(JSON.stringify(on2) === JSON.stringify([false, true]), '取得切替(7b) 押したあと、結果2が選ばれた状態に描き直される', on2);
+		assert(jsErrors(sp.errors).length === 0, '取得切替(7b) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+		// 目印の無い条件文つきの着順系（マンハッタンカフェ「有馬記念の後に」）は、今までどおり読み取り専用の行で、結果ボタンは出ない
+		const sp2 = await openSp({ roster: { umaId: 'uma-0064' } });
+		await openPop(sp2.page);
+		const k2 = 'uma:uma-0064#4';
+		const o = await sp2.page.evaluate((k) => ({ info: !!document.querySelector('[data-usd-el="event-info"][data-event-key="' + k + '"]'), res: !!document.querySelector('[data-event-key="' + k + '"] [data-usd-el="result-group"]') }), k2);
+		assert(o.info && !o.res, '取得切替(7b) 目印の無い着順系（有馬記念の後に）は読み取り専用の行のまま・結果ボタンは出ない', o);
+		await sp2.ctx.close();
+	});
 }
