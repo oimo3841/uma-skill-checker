@@ -696,12 +696,13 @@ export async function register13(env) {
 	const evPop = (page) => page.evaluate(() => {
 		const panes = document.querySelector('[data-usd-el="events-panes"]');
 		if (!panes) return null;
-		const sw = document.querySelector('[data-usd-el="events-switch"]');
+		const tabsEl = document.querySelector('[data-usd-el="events-tabs"]');
+		const active = document.querySelector('[data-usd-el="events-tab"][aria-selected="true"]');
 		const pr = panes.getBoundingClientRect();
 		const right = panes.querySelector('[data-usd-el="events-pane-skills"]').getBoundingClientRect();
 		const probe = (css) => { const e = document.createElement('i'); e.style.cssText = css; document.body.appendChild(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return c; };
 		const rows = Array.from(panes.querySelectorAll('[data-usd-el="ev-skill"]'));
-		return { swipe: panes.scrollWidth > panes.clientWidth + 1, skillsShown: Math.abs(right.left - pr.left) < 2, switchText: sw ? sw.textContent : null,
+		return { tabs: !!tabsEl && getComputedStyle(tabsEl).display !== 'none', skillsShown: Math.abs(right.left - pr.left) < 2, switchText: active ? active.textContent.trim() : null,
 			gold: rows.filter((li) => li.getAttribute('data-usd-gold') === '1').map((li) => ({ id: li.getAttribute('data-skill-id'), bg: getComputedStyle(li).backgroundColor })),
 			plainBg: rows.filter((li) => li.getAttribute('data-usd-gold') !== '1').map((li) => getComputedStyle(li).backgroundColor), goldVar: probe('background-color: var(--uma-stitch-soft)'), n: rows.length };
 	});
@@ -722,7 +723,7 @@ export async function register13(env) {
 			await sp.page.keyboard.press('Escape');
 			await sp.page.waitForTimeout(150);
 		}
-		assert(a && a.swipe && a.skillsShown && a.switchText === '‹ イベント', 'オススメサポ段13C4 ②から開くと、最初に「取得できるスキル」が見えている（切り替えのボタンは「‹ イベント」）', a && { swipe: a.swipe, shown: a.skillsShown, sw: a.switchText });
+		assert(a && a.tabs && a.skillsShown && a.switchText === 'スキル', 'オススメサポ段13C4 ②から開くと、最初に「取得できるスキル」が見えている（選ばれているタブは「スキル」）', a && { tabs: a.tabs, shown: a.skillsShown, sw: a.switchText });
 		assert(a && a.gold.length > 0 && a.gold.every((g) => rarity.get(g.id) === 'gold' && g.bg === a.goldVar) && a.plainBg.every((bg) => bg !== a.goldVar) && a.n > a.gold.length,
 			'オススメサポ段13C5 ②から開いた小窓: 金スキルの行（' + (a ? a.gold.length : 0) + '件）だけ金色の帯（--uma-stitch-soft）。ほかの行は帯なし', a && { gold: a.gold, goldVar: a.goldVar });
 		await sp.page.keyboard.press('Escape');
@@ -742,7 +743,7 @@ export async function register13(env) {
 			await sp.page.keyboard.press('Escape');
 			await sp.page.waitForTimeout(150);
 		}
-		assert(b && b.swipe && !b.skillsShown && b.switchText === 'スキル ›', 'オススメサポ段13C4 ①から開くと、今のまま「イベント」から（切り替えのボタンは「スキル ›」）', b && { shown: b.skillsShown, sw: b.switchText });
+		assert(b && b.tabs && !b.skillsShown && b.switchText === 'イベント', 'オススメサポ段13C4 ①から開くと、今のまま「イベント」から（選ばれているタブは「イベント」）', b && { shown: b.skillsShown, sw: b.switchText });
 		if (anyGold) assert(anyGold.gold.every((g) => rarity.get(g.id) === 'gold' && g.bg === anyGold.goldVar), 'オススメサポ段13C5 ①から開いた小窓でも、金スキルの行に同じ金色の帯', anyGold.gold);
 		else console.log('     [記録] ①の小窓（この編成）に金スキルを得るカードが無いので、①側の帯は ②と同じ部品（eventSkillRowEl）であることだけで確かめた');
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ段13C4・C5 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
@@ -758,7 +759,7 @@ export async function register13(env) {
 		const rr = right.getBoundingClientRect();
 		const ds = Array.from(right.querySelectorAll('[data-usd-el="ev-skill-desc"]')).filter((d) => d.textContent.trim().length > 0);
 		return { n: ds.length, ws: ds.map((d) => getComputedStyle(d).whiteSpace), over: ds.filter((d) => d.scrollWidth > d.clientWidth + 1 || d.getBoundingClientRect().right > rr.right + 1).length,
-			multi: ds.filter((d) => d.getBoundingClientRect().height > parseFloat(getComputedStyle(d).lineHeight) * 1.5).length, swipe: panes.scrollWidth > panes.clientWidth + 1 };
+			multi: ds.filter((d) => d.getBoundingClientRect().height > parseFloat(getComputedStyle(d).lineHeight) * 1.5).length };
 	});
 	await block('オススメサポ段13仕上げ 説明文: 「取得できるスキル」の説明文は小窓の幅で折り返して全文を出す（右端で切れない）／②から開いても①から開いても同じ（375px）', async () => {
 		const sp = await openSp({ roster: FULL });
@@ -783,7 +784,7 @@ export async function register13(env) {
 		for (const k of keys) {
 			await sp.page.click('#deck-roster-panel [data-usd-act="events"][data-member-key="' + k + '"]');
 			await sp.page.waitForSelector('[data-usd-el="events-panes"]');
-			await sp.page.click('[data-usd-el="events-switch"]');
+			await sp.page.click('[data-usd-el="events-tab"][data-pane="1"]');
 			await sp.page.waitForTimeout(500);
 			const d = await descInfo(sp.page);
 			all1 = { n: all1.n + d.n, over: all1.over + d.over, multi: all1.multi + d.multi, ws: all1.ws.concat(d.ws) };

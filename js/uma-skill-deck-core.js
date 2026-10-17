@@ -5953,17 +5953,16 @@
 		'@media (min-width: 641px) { .usd-info-pop--wide { width: min(92vw, 860px); max-height: min(82vh, 680px); max-height: min(82dvh, 680px); } }',
 		'.usd-ev-title-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
 		'.usd-info-pop--wide .uma-popover-title { min-width: 0; flex: 1 1 auto; }',
-		'.usd-ev-switch { display: none; flex: none; margin-inline-start: auto; padding: var(--uma-sp-1) var(--uma-sp-2-5); min-height: 32px;',
-		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text-heading);',
-		'  font: inherit; font-size: var(--uma-fs-xs); font-weight: 700; cursor: pointer; white-space: nowrap; }',
-		'@media (max-width: 640px) { .usd-ev-switch { display: inline-flex; align-items: center; } }',
+		// 狭い幅のタブ（「イベント」「スキル」）。見た目は共有の .step-tabs／.step-tab（css/shell.css）のまま。広い幅では出さない。下の余白だけ詰める
+		'.usd-ev-tabs { display: none; margin-bottom: var(--uma-sp-2); }',
 		'.usd-ev-panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--uma-sp-4); min-width: 0; }',
 		'.usd-ev-pane { min-width: 0; max-height: min(62vh, 520px); max-height: min(62dvh, 520px); overflow-y: auto; overscroll-behavior: contain; }',
 		'.usd-ev-pane--skills { border-inline-start: 1px solid var(--uma-border); padding-inline-start: var(--uma-sp-4); }',
 		'@media (max-width: 640px) {',
-		'  .usd-ev-panes { display: flex; gap: 0; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }',
-		'  .usd-ev-panes::-webkit-scrollbar { display: none; }',
-		'  .usd-ev-pane { flex: 0 0 100%; scroll-snap-align: start; max-height: 52vh; max-height: 52dvh; }',
+		'  .usd-ev-tabs { display: flex; }',
+		'  .usd-ev-panes { display: block; }',
+		'  .usd-ev-panes[data-active-pane="0"] .usd-ev-pane--skills, .usd-ev-panes[data-active-pane="1"] .usd-ev-pane--events { display: none; }',
+		'  .usd-ev-pane { max-height: 52vh; max-height: 52dvh; }',
 		'  .usd-ev-pane--skills { border-inline-start: 0; padding-inline-start: 0; }',
 		'}',
 		'.usd-ev-skills-title { margin: 0 0 var(--uma-sp-1); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-heading); }',
@@ -8734,8 +8733,6 @@
 		if (ui.popClass) ui.pop.classList.remove(ui.popClass);
 		ui.popClass = o.popClass || '';
 		if (ui.popClass) ui.pop.classList.add(ui.popClass);
-		const oldSwitch = ui.head.querySelector('.usd-ev-switch');
-		if (oldSwitch) oldSwitch.parentNode.removeChild(oldSwitch);
 		if (o.titleHtml) ui.title.innerHTML = o.titleHtml; else ui.title.textContent = o.title || '';
 		ui.body.textContent = '';
 		o.build(ui.body, token);
@@ -8856,6 +8853,17 @@
 			const id = els[i].getAttribute('data-usd-info');
 			attachSkillInfo(els[i], makeOpts(id));
 		}
+	}
+
+	/**
+	 * 左右のスワイプでタブを切り替えるかの判定（special.html の①②③のタブと共有。C-132 の決まり）。横の動きが SWIPE_MIN_PX 以上で、縦の動きの SWIPE_RATIO 倍より大きいときだけスワイプ。
+	 * 返り値は 1（左へ払った＝次のタブ）・-1（右へ払った＝前のタブ）・0（スワイプではない）。
+	 */
+	const SWIPE_MIN_PX = 60;
+	const SWIPE_RATIO = 2;
+	function swipeDirectionOf(dx, dy) {
+		if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= SWIPE_RATIO * Math.abs(dy)) return 0;
+		return dx < 0 ? 1 : -1;
 	}
 
 	/* ---- 「イベント」と「取得できるスキル」の小窓の部品（①とオススメサポで共有） ---- */
@@ -9234,26 +9242,59 @@
 			});
 			right.appendChild(ul);
 		}
-		// ── 狭い幅では、2つのペインを横に並べて scroll-snap でスワイプ。見出しの右の切り替えのボタンでも行き来できる ──
-		const ui = skillInfoUi;
-		const sw = infoEl('button', 'usd-ev-switch');
-		sw.type = 'button';
-		sw.setAttribute('data-usd-el', 'events-switch');
-		const syncSwitch = () => {
-			sw.textContent = o.getPane() === 0 ? 'スキル ›' : '‹ イベント';
-			sw.setAttribute('aria-label', o.getPane() === 0 ? '取得できるスキルを見る' : 'イベントの選択に戻る');
-		};
-		syncSwitch();
-		sw.addEventListener('click', () => {
-			o.setPane(o.getPane() === 0 ? 1 : 0);
-			syncSwitch();
-			try { panes.scrollTo({ left: o.getPane() * panes.clientWidth, behavior: 'smooth' }); } catch (e) { panes.scrollLeft = o.getPane() * panes.clientWidth; }
+		// ── 狭い幅（1列）では「イベント」「スキル」の2つのタブで切り替える。タブの見た目・押し方（クリック・←→・Home/End）・左右スワイプは、
+		//    ①②③のタブと同じ部品（css/shell.css の .step-tabs／.step-tab。WAI-ARIA の tablist）と、同じスワイプの決まり（swipeDirectionOf）。
+		//    広い幅（2列）ではタブを出さず、2つのペインを並べたまま ──
+		const tabs = infoEl('div', 'step-tabs usd-ev-tabs');
+		tabs.setAttribute('role', 'tablist');
+		tabs.setAttribute('aria-label', '小窓の表示');
+		tabs.setAttribute('data-usd-el', 'events-tabs');
+		const tabEls = [['イベント', 'events'], ['スキル', 'skills']].map(([label, key], n) => {
+			const b = infoEl('button', 'step-tab');
+			b.type = 'button';
+			b.setAttribute('role', 'tab');
+			b.setAttribute('data-usd-el', 'events-tab');
+			b.setAttribute('data-pane', String(n));
+			b.setAttribute('data-pane-key', key);
+			b.appendChild(infoEl('span', 'step-tab-label', label));
+			b.addEventListener('click', () => setPane(n));
+			tabs.appendChild(b);
+			return b;
 		});
-		panes.addEventListener('scroll', () => {
-			const n = panes.scrollLeft > panes.clientWidth / 2 ? 1 : 0;
-			if (n !== o.getPane()) { o.setPane(n); syncSwitch(); }
+		const setPane = (n) => {
+			o.setPane(n);
+			panes.setAttribute('data-active-pane', String(n));
+			tabEls.forEach((b, i) => { b.setAttribute('aria-selected', i === n ? 'true' : 'false'); b.tabIndex = i === n ? 0 : -1; });
+		};
+		tabs.addEventListener('keydown', (e) => {
+			const cur = o.getPane() === 1 ? 1 : 0;
+			const next = { ArrowRight: (cur + 1) % 2, ArrowLeft: (cur + 1) % 2, Home: 0, End: 1 }[e.key];
+			if (next === undefined) return;
+			e.preventDefault();
+			setPane(next);
+			tabEls[next].focus();
+		});
+		// 左右スワイプ（タッチのときだけ。タブが見えている＝1列のときだけ）。入力欄・横にスクロールする部品から始まった動きは切り替えにしない
+		let swipeStart = null;
+		const swipeBlocked = (el) => { for (let n = el; n && n !== panes && n.nodeType === 1; n = n.parentElement) { if (n.matches('.usd-hscroll, input, textarea, select, [contenteditable]')) return true; } return false; };
+		panes.addEventListener('touchstart', (e) => {
+			swipeStart = null;
+			if (e.touches.length !== 1 || tabs.getClientRects().length === 0 || swipeBlocked(e.target)) return;
+			swipeStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 		}, { passive: true });
-		if (ui && ui.head) ui.head.insertBefore(sw, ui.closeBtn);
+		panes.addEventListener('touchcancel', () => { swipeStart = null; }, { passive: true });
+		panes.addEventListener('touchend', (e) => {
+			const st = swipeStart;
+			swipeStart = null;
+			if (!st || e.changedTouches.length !== 1) return;
+			const t = e.changedTouches[0];
+			const dir = swipeDirectionOf(t.clientX - st.x, t.clientY - st.y);
+			const next = (o.getPane() === 1 ? 1 : 0) + dir;
+			if (dir === 0 || next < 0 || next > 1) return;
+			setPane(next);
+		}, { passive: true });
+		body.insertBefore(tabs, panes);
+		setPane(o.getPane() === 1 ? 1 : 0);
 		// 公式の説明文は、小窓を開いたときに1回だけ読む（読めなければ「説明文は準備中です」）。読み終えたら、まだ同じ小窓なら各行を整える
 		const token = skillInfoToken;
 		if (skillDescState.status !== 'ok') {
@@ -10582,12 +10623,6 @@
 			// 確認済みにしたら、列見出しの「！」を番号のバッジに戻すために描き直す（開いた小窓の中身も作り直される）
 			if (seenNow) render();
 			scanEntryRows();
-			restoreEventsPane();
-		}
-		/** 狭い幅で2つ目のペインを見ていたら、描き直したあともそのペインに合わせる */
-		function restoreEventsPane() {
-			const panes = skillInfoUi && skillInfoUi.body.querySelector('[data-usd-el="events-panes"]');
-			if (panes && eventsPane === 1 && panes.scrollWidth > panes.clientWidth + 1) panes.scrollLeft = panes.clientWidth;
 		}
 		/** 選択を変えたとき、開いたままの小窓の中身を描き直す。小窓の中のスクロール位置（縦・横）は変えない（段7b の ⑥） */
 		function refreshEventsPopover(res) {
@@ -10603,12 +10638,9 @@
 				left: (body.querySelector('[data-usd-el="events-pane-events"]') || {}).scrollTop || 0,
 				right: (body.querySelector('[data-usd-el="events-pane-skills"]') || {}).scrollTop || 0
 			};
-			const oldSwitch = skillInfoUi.head.querySelector('.usd-ev-switch');
-			if (oldSwitch) oldSwitch.parentNode.removeChild(oldSwitch);
 			body.textContent = '';
 			fillEventsInfo(body, res, eventsFor);
 			scanEntryRows();
-			restoreEventsPane();
 			if (wrap) wrap.scrollTop = keep.wrap;
 			const l = body.querySelector('[data-usd-el="events-pane-events"]');
 			const r = body.querySelector('[data-usd-el="events-pane-skills"]');
@@ -14602,6 +14634,7 @@
 				items: pt.items.map(x => ({ skillId: x.skillId, pt: x.pt, base: x.base, hintLevel: x.hintLevel })),
 				prevItems: pt.prevItems.map(x => ({ skillId: x.skillId, pt: x.pt, base: x.base, hintLevel: x.hintLevel })) };
 		},
+		swipeDirectionOf: swipeDirectionOf,   // 左右スワイプでタブを切り替えるかの判定（special.html の①②③のタブと小窓のタブが共有）
 		circleComboOf: circleComboOf,   // ◎として数えている行の Pt（○の分と◎の分の合算。C-168）。検査のため
 		compareSkillIds: compareSkillIds,
 		getSkillTextIndexSize: function (opts) { return buildSkillTextIndex(opts).length; },

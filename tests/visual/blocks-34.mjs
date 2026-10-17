@@ -465,4 +465,84 @@ export async function register34(env) {
 		assert(dk.errors.length === 0, '取得切替(4)(f) Deck: コンソールのエラー0', dk.errors.slice(0, 3));
 		await dk.ctx.close();
 	});
+
+	/* ====================================================================
+	 * (5) スマホの小窓: 「イベント」「スキル」のタブ（①②③のタブと同じ部品・同じスワイプの決まり）
+	 * ==================================================================== */
+	/** sel の要素の上で、横 dx・縦 dy のタッチの動きを作る（Touch を合成して送る。blocks-18 の swipe と同じ作り） */
+	const swipeOn = (page, sel, dx, dy) => page.evaluate(({ sel, dx, dy }) => {
+		const el = document.querySelector(sel);
+		const r = el.getBoundingClientRect();
+		const x = r.left + Math.min(r.width / 2, 120), y = r.top + Math.min(r.height / 2, 40);
+		const mk = (type, cx, cy) => {
+			const t = new Touch({ identifier: 1, target: el, clientX: cx, clientY: cy });
+			return new TouchEvent(type, { bubbles: true, cancelable: true, touches: type === 'touchend' ? [] : [t], targetTouches: type === 'touchend' ? [] : [t], changedTouches: [t] });
+		};
+		el.dispatchEvent(mk('touchstart', x, y));
+		el.dispatchEvent(mk('touchmove', x + dx / 2, y + dy / 2));
+		el.dispatchEvent(mk('touchend', x + dx, y + dy));
+		const a = document.querySelector('[data-usd-el="events-tab"][aria-selected="true"]');
+		return a ? a.getAttribute('data-pane') : null;
+	}, { sel, dx, dy });
+	const tabView = (page) => page.evaluate(() => {
+		const shown = (e) => !!e && e.getClientRects().length > 0;
+		const pop = document.querySelector('[data-usd-el="info-pop"]');
+		const tabs = pop.querySelector('[data-usd-el="events-tabs"]');
+		const l = pop.querySelector('[data-usd-el="events-pane-events"]'), r = pop.querySelector('[data-usd-el="events-pane-skills"]');
+		const tr = tabs.getBoundingClientRect();
+		return { tabs: shown(tabs), left: shown(l), right: shown(r), sel: Array.from(pop.querySelectorAll('[data-usd-el="events-tab"]')).map((t) => t.getAttribute('aria-selected')).join(),
+			tabIdx: Array.from(pop.querySelectorAll('[data-usd-el="events-tab"]')).map((t) => t.tabIndex).join(), tabH: tr.height, popH: pop.getBoundingClientRect().height,
+			lr: l.getBoundingClientRect(), rr: r.getBoundingClientRect(), ox: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+	});
+
+	await block('取得切替(5) スマホの小窓のタブ: 「イベント」「スキル」で2つの欄が切り替わる／左右スワイプ・←→でも切り替わる（端では変わらない）／縦の動きでは変わらない／閉じるが使える／PC幅（2列）は変わらない', async () => {
+		for (const [w, scheme] of [[390, 'light'], [360, 'light'], [390, 'dark']]) {
+			const sp = await openSp({ roster: { umaId: UMA_S }, w, scheme });
+			await openPop(sp.page);
+			const tag = '取得切替(5) ' + w + '/' + scheme + ' ';
+			const v0 = await tabView(sp.page);
+			assert(v0.tabs && v0.left && !v0.right && v0.sel === 'true,false' && v0.tabIdx === '0,-1', tag + '開いたときの既定は「イベント」のタブ（イベントの欄だけが見える）', v0);
+			assert(v0.tabH <= 48, tag + '小窓に足した高さはタブの1行分（' + Math.round(v0.tabH) + 'px）', v0.tabH);
+			// タブを押す
+			await sp.page.click('[data-usd-el="events-tab"][data-pane="1"]');
+			await sp.page.waitForTimeout(250);
+			const v1 = await tabView(sp.page);
+			assert(!v1.left && v1.right && v1.sel === 'false,true' && v1.tabIdx === '-1,0', tag + '「スキル」のタブで「取得できるスキル」の欄に切り替わる', v1);
+			await sp.page.click('[data-usd-el="events-tab"][data-pane="0"]');
+			await sp.page.waitForTimeout(250);
+			assert((await tabView(sp.page)).left, tag + '「イベント」のタブで戻る', null);
+			// 左右スワイプ（①②③と同じ決まり: 60px 以上・縦の2倍より大きい。左へ払うと次・右へ払うと前・端では何もしない）
+			const sel = '[data-usd-el="events-panes"]';
+			assert((await swipeOn(sp.page, sel, 30, 0)) === '0' && (await swipeOn(sp.page, sel, -100, 80)) === '0', tag + '短い動き（30px）・縦に大きい動きでは切り替わらない', null);
+			assert((await swipeOn(sp.page, sel, 100, 0)) === '0', tag + '最初のタブで右へ払っても何も起きない（端）', null);
+			assert((await swipeOn(sp.page, sel, -100, 10)) === '1', tag + '左へ払うと「スキル」に切り替わる', null);
+			assert((await swipeOn(sp.page, sel, -100, 10)) === '1', tag + '最後のタブで左へ払っても何も起きない（端）', null);
+			assert((await swipeOn(sp.page, sel, 100, 10)) === '0', tag + '右へ払うと「イベント」に戻る', null);
+			// キー（←→・Home/End。①②③のタブと同じ）
+			await sp.page.focus('[data-usd-el="events-tab"][data-pane="0"]');
+			await sp.page.keyboard.press('ArrowRight');
+			await sp.page.waitForTimeout(150);
+			assert((await tabView(sp.page)).sel === 'false,true', tag + '→ キーで次のタブへ', null);
+			await sp.page.keyboard.press('Home');
+			await sp.page.waitForTimeout(150);
+			assert((await tabView(sp.page)).sel === 'true,false', tag + 'Home キーで最初のタブへ', null);
+			// 縦スクロール: イベントの欄は縦にスクロールできる（タブに妨げられない）
+			const scroll = await sp.page.evaluate(() => { const l = document.querySelector('[data-usd-el="events-pane-events"]'); l.scrollTop = 40; return { st: l.scrollTop, can: l.scrollHeight > l.clientHeight, oy: getComputedStyle(l).overflowY }; });
+			assert(!scroll.can || scroll.st > 0, tag + '縦スクロールできる（イベントの欄）', scroll);
+			assert((await tabView(sp.page)).ox <= 0, tag + '横スクロールが出ない', await tabView(sp.page));
+			// 閉じるボタン
+			await sp.page.click('[data-usd-el="info-pop"] .uma-popover-close');
+			await sp.page.waitForTimeout(300);
+			assert(await sp.page.evaluate(() => { const p = document.querySelector('[data-usd-el="info-pop"]'); return !p || p.hidden || p.getClientRects().length === 0; }), tag + '閉じるボタンで小窓が閉じる（タブに隠れない）', null);
+			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+			await sp.ctx.close();
+		}
+		// PC幅（2列）: タブは出さず、2つの欄が並んだまま（これまでどおり）
+		const pc = await openSp({ roster: { umaId: UMA_S }, w: 1280, h: 900 });
+		await openPop(pc.page);
+		const vp = await tabView(pc.page);
+		assert(!vp.tabs && vp.left && vp.right && vp.rr.left >= vp.lr.right - 1 && vp.rr.left > vp.lr.left + 300, '取得切替(5) 1280px: タブは出ず、「イベント」「取得できるスキル」の2列が並んだまま', { tabs: vp.tabs, l: vp.lr.left, r: vp.rr.left });
+		assert((await swipeOn(pc.page, '[data-usd-el="events-panes"]', -100, 0)) === '0', '取得切替(5) 1280px: 左右の動きでは何も切り替わらない（2列のまま）', null);
+		await pc.ctx.close();
+	});
 }

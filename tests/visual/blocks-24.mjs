@@ -529,7 +529,7 @@ export async function register24(env) {
 		assert(out.every((x) => x.errors.length === 0), '進化段4G コンソールのエラー0', out.map((x) => x.errors.slice(0, 2)));
 	});
 
-	await block('進化段4I 衣装の小窓: 進化先の行（進化先の色）→ └ 金 → └ 白。360・375・390px × ライト・ダークで、収まる・最後まで送れる・「‹ イベント」で行き来できる・バーが開いた高さでも収まる・コントラスト 4.5 以上（C-153）', async () => {
+	await block('進化段4I 衣装の小窓: 進化先の行（進化先の色）→ └ 金 → └ 白。360・375・390px × ライト・ダークで、収まる・最後まで送れる・「イベント」「スキル」のタブで行き来できる・バーが開いた高さでも収まる・コントラスト 4.5 以上（C-153）', async () => {
 		const out = [];
 		for (const [w, h] of [[390, 844], [375, 812], [360, 780], [390, 734]]) {
 			for (const scheme of ['light', 'dark']) {
@@ -538,8 +538,8 @@ export async function register24(env) {
 				if (h === 734) await sp.page.addStyleTag({ content: '.usd-info-pop { max-height: min(88vh, 760px) !important; max-height: min(88dvh, 760px) !important; }' });
 				await sp.page.click('#deck-roster-panel [data-usd-el="events-btn"][data-member-key="0"]');
 				await sp.page.waitForTimeout(400);
-				const narrow = await sp.page.evaluate(() => { const s = document.querySelector('[data-usd-el="events-switch"]'); return !!s && getComputedStyle(s).display !== 'none'; });
-				if (narrow) { await sp.page.click('[data-usd-el="events-switch"]'); await sp.page.waitForTimeout(700); }
+				const narrow = await sp.page.evaluate(() => { const s = document.querySelector('[data-usd-el="events-tabs"]'); return !!s && getComputedStyle(s).display !== 'none'; });
+				if (narrow) { await sp.page.click('[data-usd-el="events-tab"][data-pane="1"]'); await sp.page.waitForTimeout(700); }
 				const m = await sp.page.evaluate(() => {
 					const pop = document.querySelector('[data-usd-el="info-pop"]');
 					const pane = pop.querySelector('[data-usd-el="events-pane-skills"]');
@@ -562,9 +562,9 @@ export async function register24(env) {
 						box: { top: pb.top, bottom: pb.bottom, left: pb.left, right: pb.right, vw: innerWidth, vh: innerHeight }, ox: document.documentElement.scrollWidth - document.documentElement.clientWidth,
 						lastVisible: last.bottom <= scb.bottom + 1 && last.top >= scb.top - 1, word: /必ず合う|合うことがある|合わない|進\b/.test(pop.textContent) && /必ず合う|合うことがある|合わない/.test(pop.textContent) };
 				});
-				// 「‹ イベント」で戻れる
+				// 「イベント」のタブで戻れる
 				let back = null;
-				if (narrow) { await sp.page.click('[data-usd-el="events-switch"]'); await sp.page.waitForTimeout(700); back = await sp.page.evaluate(() => ({ left: document.querySelector('[data-usd-el="events-panes"]').scrollLeft, text: document.querySelector('[data-usd-el="events-switch"]').textContent.trim() })); }
+				if (narrow) { await sp.page.click('[data-usd-el="events-tab"][data-pane="0"]'); await sp.page.waitForTimeout(700); back = await sp.page.evaluate(() => ({ active: document.querySelector('[data-usd-el="events-tab"][aria-selected="true"]').textContent.trim() })); }
 				out.push({ w, h, scheme, narrow, m, back, errors: jsErrors(sp.errors) });
 				await sp.ctx.close();
 			}
@@ -583,7 +583,7 @@ export async function register24(env) {
 		assert(out.every((x) => x.m.box.top >= 0 && x.m.box.bottom <= x.m.box.vh + 0.5 && x.m.box.left >= 0 && x.m.box.right <= x.m.box.vw + 0.5 && x.m.ox <= 0),
 			'進化段4I 小窓は 360・375・390px とバーが開いた高さ（734px）でも画面に収まり、横にはみ出さない', out.map((x) => ({ k: x.w + 'x' + x.h + x.scheme, top: Math.round(x.m.box.top), bottom: Math.round(x.m.box.bottom), vh: x.m.box.vh })));
 		assert(out.every((x) => x.m.lastVisible), '進化段4I 進化先の行が増えても、取得できるスキルを最後まで送れる（最後の行が見える）', out.map((x) => x.w + 'x' + x.h + x.scheme + ':' + x.m.lastVisible));
-		assert(out.filter((x) => x.narrow).length > 0 && out.filter((x) => x.narrow).every((x) => x.back && x.back.left <= 2 && x.back.text === 'スキル ›'), '進化段4I 狭い幅では「‹ イベント」でイベントのペインに戻れる', out.map((x) => x.back));
+		assert(out.filter((x) => x.narrow).length > 0 && out.filter((x) => x.narrow).every((x) => x.back && x.back.active === 'イベント'), '進化段4I 狭い幅では「イベント」のタブでイベントのペインに戻れる', out.map((x) => x.back));
 		assert(out.every((x) => !x.m.word), '進化段4I 小窓に「必ず合う／合うことがある／合わない」の語は出ない');
 		assert(out.every((x) => x.errors.length === 0), '進化段4I コンソールのエラー0', out.map((x) => x.errors.slice(0, 2)));
 	});

@@ -14897,7 +14897,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		await sp.ctx.close();
 	}
 
-	/* ───── ⑩ イベントの小窓（広い幅は2カラム／スマホは1カラムでスワイプ） ───── */
+	/* ───── ⑩ イベントの小窓（広い幅は2カラム／スマホは1カラムで「イベント」「スキル」のタブ） ───── */
 	{
 		const sp = await openTab({ w: 1280, h: 900, tab: 0 });
 		const tag = '段7b(⑩) 1280px: ';
@@ -14910,13 +14910,13 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			const items = Array.from(r.querySelectorAll('[data-usd-el="ev-skill"]')).map((li) => ({ id: li.getAttribute('data-skill-id'), maybe: li.hasAttribute('data-usd-maybe'), dim: li.hasAttribute('data-usd-dim'),
 				tag: (li.querySelector('[data-usd-el="ev-skill-tag"]') || {}).textContent || null, rows: li.children.length, name: li.children[0].firstChild.textContent.trim(), pt: (li.querySelector('[data-usd-el="ev-skill-pt"]') || {}).textContent || null,
 				desc: (li.querySelector('[data-usd-el="ev-skill-desc"]') || {}).textContent || null }));
-			const sw = pop.querySelector('[data-usd-el="events-switch"]');
+			const sw = pop.querySelector('[data-usd-el="events-tabs"]');
 			const d = r.querySelector('[data-usd-el="ev-skill-desc"]');
 			return { popW: pb.width, left: { l: lb.left, r: lb.right }, right: { l: rb.left, r: rb.right }, items, switchShown: sw ? getComputedStyle(sw).display !== 'none' : null,
 				descScroll: d ? { sw: d.scrollWidth, cw: d.clientWidth, bar: getComputedStyle(d).scrollbarWidth, ox: getComputedStyle(d).overflowX, ws: getComputedStyle(d).whiteSpace } : null,
 				title: pop.querySelector('.uma-popover-title').textContent.trim(), heading: (pop.querySelector('[data-usd-el="ev-skills-title"]') || {}).textContent };
 		});
-		assert(g.popW > 700 && g.right.l >= g.left.r - 1 && g.right.l > g.left.l + 300 && g.switchShown === false, tag + '2カラム（左＝イベント／右＝取得できるスキル）。小窓は広がり、切り替えのボタンは出ない', { popW: g.popW, left: g.left, right: g.right });
+		assert(g.popW > 700 && g.right.l >= g.left.r - 1 && g.right.l > g.left.l + 300 && g.switchShown === false, tag + '2カラム（左＝イベント／右＝取得できるスキル）。小窓は広がり、切り替えのタブは出ない', { popW: g.popW, left: g.left, right: g.right });
 		assert(g.heading === '取得できるスキル' && g.items.length > 0, tag + '右の一覧は「取得できるスキル」', { heading: g.heading, n: g.items.length });
 		// 並び: いまの選択（自動を含む）で得る●が先、未選択のイベントしだいのもの（△）が薄く「未選択」の印つきで後ろ
 		const firstMaybe = g.items.findIndex((x) => x.maybe);
@@ -14951,25 +14951,32 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		const tag = '段7b(⑩) 375px: ';
 		await sp.page.click(P + '[data-usd-el="events-btn"][data-member-key="1"]');
 		await sp.page.waitForTimeout(400);
-		const g = await sp.page.evaluate(() => {
+		const view = () => sp.page.evaluate(() => {
 			const pop = document.querySelector('[data-usd-el="info-pop"]');
 			const panes = pop.querySelector('[data-usd-el="events-panes"]');
-			const sw = pop.querySelector('[data-usd-el="events-switch"]');
+			const tabs = pop.querySelector('[data-usd-el="events-tabs"]');
+			const tabEls = Array.from(pop.querySelectorAll('[data-usd-el="events-tab"]'));
+			const shown = (e) => e.getClientRects().length > 0;
 			const pb = pop.getBoundingClientRect();
-			return { popW: pb.width, popBottom: pb.bottom, ih: window.innerHeight, snap: getComputedStyle(panes).scrollSnapType, ox: getComputedStyle(panes).overflowX, sw: sw ? { text: sw.textContent.trim(), aria: sw.getAttribute('aria-label'), shown: getComputedStyle(sw).display !== 'none', w: sw.getBoundingClientRect().width, inHead: !!sw.closest('.uma-popover-head') } : null,
-				scrollW: panes.scrollWidth, clientW: panes.clientWidth, paneW: pop.querySelector('[data-usd-el="events-pane-skills"]').getBoundingClientRect().width };
+			return { popW: pb.width, popBottom: pb.bottom, ih: window.innerHeight, display: getComputedStyle(panes).display,
+				leftShown: shown(pop.querySelector('[data-usd-el="events-pane-events"]')), rightShown: shown(pop.querySelector('[data-usd-el="events-pane-skills"]')),
+				tabs: tabs ? { shown: shown(tabs), role: tabs.getAttribute('role'), cls: tabs.className, texts: tabEls.map((t) => t.textContent.trim()), sel: tabEls.map((t) => t.getAttribute('aria-selected')),
+					tabCls: tabEls.map((t) => t.className), roles: tabEls.map((t) => t.getAttribute('role')), before: tabs.nextElementSibling === panes, inHead: !!tabs.closest('.uma-popover-head'), h: tabs.getBoundingClientRect().height } : null,
+				oldSwitch: !!document.querySelector('[data-usd-el="events-switch"]'), n: pop.querySelectorAll('[data-usd-el="ev-skill"]').length };
 		});
-		assert(g.popW === 375 && Math.abs(g.popBottom - g.ih) < 2 && g.snap.startsWith('x') && g.ox === 'auto' && g.scrollW >= g.clientW * 1.9, tag + '1カラム（ボトムシート）。2つのペインを横に並べて scroll-snap でスワイプ', g);
-		assert(g.sw && g.sw.shown && g.sw.inHead && g.sw.text === 'スキル ›' && g.sw.aria === '取得できるスキルを見る', tag + '見出しの右に切り替えのボタン「スキル ›」（aria-label つき）', g.sw);
-		await sp.page.click('[data-usd-el="events-switch"]');
-		await sp.page.waitForTimeout(800);
-		const g2 = await sp.page.evaluate(() => { const pop = document.querySelector('[data-usd-el="info-pop"]'); const panes = pop.querySelector('[data-usd-el="events-panes"]'); const sw = pop.querySelector('[data-usd-el="events-switch"]');
-			return { left: panes.scrollLeft, cw: panes.clientWidth, text: sw.textContent.trim(), aria: sw.getAttribute('aria-label'), n: pop.querySelectorAll('[data-usd-el="ev-skill"]').length }; });
-		assert(Math.abs(g2.left - g2.cw) <= 2 && g2.text === '‹ イベント' && g2.aria === 'イベントの選択に戻る' && g2.n > 0, tag + '押すと「取得できるスキル」のペインへ（ボタンは「‹ イベント」に変わる）', g2);
-		await sp.page.click('[data-usd-el="events-switch"]');
-		await sp.page.waitForTimeout(800);
-		const g3 = await sp.page.evaluate(() => { const panes = document.querySelector('[data-usd-el="info-pop"] [data-usd-el="events-panes"]'); return { left: panes.scrollLeft, text: document.querySelector('[data-usd-el="events-switch"]').textContent.trim() }; });
-		assert(g3.left <= 2 && g3.text === 'スキル ›', tag + 'もう一度押すとイベントのペインに戻る', g3);
+		const g = await view();
+		assert(g.popW === 375 && Math.abs(g.popBottom - g.ih) < 2 && g.display === 'block' && g.leftShown && !g.rightShown, tag + '1カラム（ボトムシート）。「イベント」の欄だけが見える（2つのペインを同時に並べない）', g);
+		assert(g.tabs && g.tabs.shown && g.tabs.role === 'tablist' && /\bstep-tabs\b/.test(g.tabs.cls) && g.tabs.tabCls.every((c) => /\bstep-tab\b/.test(c)) && g.tabs.roles.every((r) => r === 'tab')
+			&& JSON.stringify(g.tabs.texts) === JSON.stringify(['イベント', 'スキル']) && JSON.stringify(g.tabs.sel) === JSON.stringify(['true', 'false']) && g.tabs.before && !g.tabs.inHead && !g.oldSwitch,
+			tag + '「イベント」「スキル」の2つのタブ（①②③のタブと同じ .step-tabs／.step-tab・role=tablist／tab）。「イベント」が選ばれている。見出しの右の「スキル ›」のボタンは無い', g.tabs);
+		await sp.page.click('[data-usd-el="events-tab"][data-pane="1"]');
+		await sp.page.waitForTimeout(300);
+		const g2 = await view();
+		assert(!g2.leftShown && g2.rightShown && JSON.stringify(g2.tabs.sel) === JSON.stringify(['false', 'true']) && g2.n > 0, tag + '「スキル」のタブを押すと「取得できるスキル」の欄に切り替わる（タブの選択も変わる）', g2);
+		await sp.page.click('[data-usd-el="events-tab"][data-pane="0"]');
+		await sp.page.waitForTimeout(300);
+		const g3 = await view();
+		assert(g3.leftShown && !g3.rightShown && JSON.stringify(g3.tabs.sel) === JSON.stringify(['true', 'false']), tag + '「イベント」のタブを押すとイベントの欄に戻る', g3);
 		// 説明文が読めなければ「説明文は準備中です」
 		await esc(sp.page);
 		await sp.ctx.close();

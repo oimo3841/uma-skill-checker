@@ -793,14 +793,14 @@ export async function register11(env) {
 			return { shown: !pop.hidden, title: document.querySelector('.usd-info-pop .uma-popover-title, .usd-info-pop [class*="title"]') ? document.querySelector('.usd-info-pop .uma-popover-title, .usd-info-pop [class*="title"]').textContent.trim() : '', onTop: pop.contains(top), modalOpen: !modal.hidden,
 				zPop: getComputedStyle(pop).zIndex, zModal: getComputedStyle(modal).zIndex, badge: !!pop.querySelector('.usd-roster-legend-no'),
 				panes: !!pop.querySelector('[data-usd-el="events-panes"]'), left: !!pop.querySelector('[data-usd-el="events-pane-events"]'), right: !!pop.querySelector('[data-usd-el="events-pane-skills"]'),
-				skillsTitle: (pop.querySelector('[data-usd-el="ev-skills-title"]') || {}).textContent, sw: (pop.querySelector('[data-usd-el="events-switch"]') || {}).textContent || null,
+				skillsTitle: (pop.querySelector('[data-usd-el="ev-skills-title"]') || {}).textContent, sw: (((pop.querySelector('[data-usd-el="events-tab"][aria-selected="true"]') || {}).textContent) || '').trim() || null,
 				rows: rows.map((e) => ({ id: e.getAttribute('data-skill-id'), tag: (e.querySelector('[data-usd-el="ev-skill-target"]') || {}).textContent || null, pt: !!e.querySelector('[data-usd-el="ev-skill-pt"]'), desc: !!e.querySelector('[data-usd-el="ev-skill-desc"]'), maybe: e.hasAttribute('data-usd-maybe') })),
 				text: pop.innerText.replace(/\s+/g, ' ').trim(), ro: pop.querySelectorAll('[data-usd-static="1"]').length, choices: pop.querySelectorAll('[data-usd-el="event-choice"]').length };
 		});
 		assert(info.shown && info.onTop && info.modalOpen && Number(info.zPop) > Number(info.zModal) && /\[とても長い二つ名がここに入りますよ\]タマ/.test(info.text) && !info.badge,
 			'オススメサポ(H) 名前を押すと、小窓の上に、カード名（二つ名＋名前）の見出しの小窓が出る。番号の札は無い（重なり順は小窓のほうが上）', { text: info.text.slice(0, 60), badge: info.badge, zPop: info.zPop });
-		assert(info.panes && info.left && info.right && info.skillsTitle === '取得できるスキル' && info.sw === '‹ イベント' && info.rows.length === 10 && info.rows.every((r) => r.pt && r.desc),
-			'オススメサポ(H) ①のカード枠の小窓と同じ作り（イベントの欄・「取得できるスキル」の欄・切り替え。段13・C4 で②から開いたときは「取得できるスキル」から＝「‹ イベント」。各スキルに基礎Ptと説明文）', { sw: info.sw, rows: info.rows.length });
+		assert(info.panes && info.left && info.right && info.skillsTitle === '取得できるスキル' && info.sw === 'スキル' && info.rows.length === 10 && info.rows.every((r) => r.pt && r.desc),
+			'オススメサポ(H) ①のカード枠の小窓と同じ作り（イベントの欄・「取得できるスキル」の欄・切り替えのタブ。段13・C4 で②から開いたときは「取得できるスキル」から＝「スキル」のタブが選ばれている。各スキルに基礎Ptと説明文）', { sw: info.sw, rows: info.rows.length });
 		assert(info.ro === info.choices && info.choices > 0 || info.choices === 0, 'オススメサポ(H) イベントの選択肢は表示だけ（押しても何も変わらない）', { ro: info.ro, choices: info.choices });
 		const A = syn.cands.find((c) => c.id === 'syn-A').skills;
 		assert(info.rows.every((r) => r.tag === '対象') && info.rows.map((r) => r.id).sort().join() === A.slice().sort().join(), 'オススメサポ(H) このカードで得られて、計算で数えたスキル（A の10種）の行すべてに札「対象」', info.rows.map((r) => [r.id, r.tag]));
@@ -835,7 +835,7 @@ export async function register11(env) {
 		await rs.page.keyboard.press('Escape');
 		await rs.page.evaluate(() => selectStepTab(0, { noSave: true }));
 		await rs.page.waitForTimeout(250);
-		const tw = await rs.page.evaluate(() => { const b = document.querySelector('#deck-roster-panel [data-usd-el="events-btn"]'); if (!b) return null; b.click(); const pop = document.querySelector('.usd-info-pop'); return { has: ['events-panes', 'events-pane-events', 'events-pane-skills', 'ev-skills-title'].every((k) => !!pop.querySelector('[data-usd-el="' + k + '"]')), sw: !!pop.querySelector('[data-usd-el="events-switch"]') || !!document.querySelector('[data-usd-el="events-switch"]'), badge: !!pop.querySelector('.usd-roster-legend-no') }; });
+		const tw = await rs.page.evaluate(() => { const b = document.querySelector('#deck-roster-panel [data-usd-el="events-btn"]'); if (!b) return null; b.click(); const pop = document.querySelector('.usd-info-pop'); return { has: ['events-panes', 'events-pane-events', 'events-pane-skills', 'ev-skills-title'].every((k) => !!pop.querySelector('[data-usd-el="' + k + '"]')), sw: !!pop.querySelector('[data-usd-el="events-tabs"]'), badge: !!pop.querySelector('.usd-roster-legend-no') }; });
 		assert(tw && tw.has && tw.sw && tw.badge, 'オススメサポ(H) 参考: ①の列見出しのバッジを押した小窓には、同じ部品（イベントの欄・取得できるスキルの欄・切り替え）があり、番号の札がある（オススメサポのほうは札なし）', tw);
 		assert(jsErrors(rs.errors).length === 0, 'オススメサポ(H) 実データ: コンソールのエラー0', jsErrors(rs.errors).slice(0, 3));
 		await rs.ctx.close();
