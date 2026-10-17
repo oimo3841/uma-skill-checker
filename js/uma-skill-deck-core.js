@@ -1890,6 +1890,18 @@
 	}
 
 	/**
+	 * そのイベントを「起きたもの」として数えるか（取得の切り替え・2026-10-17。roster.acquirePicks = { イベントの鍵: true }）。
+	 * データの acquireMode が "user"（ユーザー選択次第）のイベントは、acquirePicks にその鍵が true で入っているときだけ数える（既定は未達成＝数えない）。
+	 * acquireMode が "fixed" のイベントと、acquireMode の無いイベントは常に数える（従来どおり）。知らない鍵・true 以外の値は未達成として読む（保存値は書き換えない）。
+	 */
+	function acquiredOf(ev, eventKey, evOpts) {
+		if (!ev || ev.acquireMode !== 'user') return true;
+		const picks = evOpts && evOpts.acquirePicks;
+		if (!picks || typeof picks !== 'object' || Array.isArray(picks)) return false;
+		return Object.prototype.hasOwnProperty.call(picks, eventKey) && picks[eventKey] === true;
+	}
+
+	/**
 	 * そのカードのイベントで得られるスキルを、編成の見方で返す（C-102）。
 	 * 返り値は [{ skillId, name, sure }]。sure が true なら●（得られる。「本育成スキルを除外する」で外す）、
 	 * false なら△（出すが外さない）。未確認・無しなら空配列。
@@ -1961,6 +1973,8 @@
 			pushEvent(keyBase + '#seeded', (row.unplaced || []).map(ref => ({ ref: ref, sure: false })));
 		} else if (row.status === 'done') {
 			(row[eventsKey] || []).forEach((ev, idx) => {
+				// 取得の切り替え（roster.acquirePicks）: acquireMode が "user" のイベントは、達成にしていなければ起きなかったものとして何も数えない
+				if (!acquiredOf(ev, keyBase + '#' + idx, evOpts)) return;
 				// 結果の切り替え（roster.resultPicks）: そのイベントの結果の位置を全選択肢に当てる（既定は 0＝結果1）
 				const rpos = resultPosOf(ev, keyBase + '#' + idx, evOpts);
 				const sides = ((ev && ev.choices) || []).map(c => eventChoiceSkillsAt(c, rpos));
@@ -2053,7 +2067,8 @@
 			const isWanted = evOpts && typeof evOpts.isWanted === 'function' ? evOpts.isWanted : null;
 			const wantedChoices = choices.filter(c => c.skills.some(s => !isWanted || isWanted(s.skillId))).length;
 			out.push({ eventKey: eventKey, index: idx, step: (ev && Number.isInteger(ev.step)) ? ev.step : null, choices: choices,
-				wantedChoices: wantedChoices, pending: !pick && wantedChoices >= 2,
+				// 達成にしていない（起きないものとして数えない）取得の切り替えのイベントは、選ぶ必要が無いので pending にしない（未確認の数は acquireEvents 側が持つ）
+				wantedChoices: wantedChoices, pending: !pick && wantedChoices >= 2 && acquiredOf(ev, eventKey, evOpts),
 				name: (ev && typeof ev.name === 'string') ? ev.name : null, when: (ev && typeof ev.when === 'string') ? ev.when : null,
 				eventName: (ev && typeof ev.eventName === 'string') ? ev.eventName : null, condition: (ev && typeof ev.condition === 'string') ? ev.condition : '',
 				chosen: pick ? pick.index : null, auto: !!(pick && pick.auto), byDefault: !!(pick && pick.byDefault), defaultIndex: eventDefaultIndex(ev, sides.length) });
@@ -2072,6 +2087,8 @@
 		(row[eventsKey] || []).forEach((ev, idx) => {
 			const choices = (ev && ev.choices) || [];
 			if (choices.length !== 1 || typeof ev.condition !== 'string' || ev.condition === '') return;
+			// 取得の切り替え（acquireMode が "user"）のイベントは、読み取り専用にせず acquireEvents の箱で出す
+			if (ev.acquireMode === 'user') return;
 			// 条件文のあるイベントは resultPosOf が常に 0（結果1）を返す
 			const skills = eventChoiceSkillsAt(choices[0], resultPosOf(ev, keyBase + '#' + idx, evOpts)).filter(ref => ref && ref.skillId && findSkill(ref.skillId))
 				.map(ref => ({ skillId: ref.skillId, name: ref.name, hintLevel: (Number.isInteger(ref.hintLevel) && ref.hintLevel >= 0) ? ref.hintLevel : null }));
@@ -2100,6 +2117,38 @@
 				name: typeof ev.name === 'string' ? ev.name : null, when: typeof ev.when === 'string' ? ev.when : null,
 				eventName: typeof ev.eventName === 'string' ? ev.eventName : null, count: eventMaxResults(ev),
 				pos: resultPosOf(ev, eventKey, evOpts), multi: (ev.choices || []).length >= 2, byChoice: byChoice });
+		});
+		return out;
+	}
+	/**
+	 * イベントの行から、**取得の切り替えを持つイベント**（acquireMode が "user"。ユーザー選択次第）を並べる（取得の切り替え・2026-10-17）。小窓が「未達成／達成」のボタンの行を出すのに使う。
+	 * 選択肢が1つのイベントも、2つ以上のイベントも含める。返り値は
+	 * [{ eventKey, index, step, eventName, condition, note, acquired, unseen, multi, skills: [{ skillId, name, hintLevel }] }]。
+	 *   acquired … 達成にしているか（acquiredOf）／unseen … 未確認（達成にしておらず、キャラクターの小窓をまだ開いていない。evOpts.acquireSeen が false のとき）
+	 *   skills … 達成にしたときに得るスキル（そのイベントで使う結果の位置のもの。条件文のあるイベントは常に結果1＝最大の段階）。選択肢が複数なら全選択肢の分を、スキルごとに最大の Lv でまとめる
+	 * **数え方には関わらない**（数えるかどうかは acquiredOf が eventRowOccurrences で決める）。
+	 */
+	function eventRowAcquireEvents(row, eventsKey, keyBase, evOpts) {
+		if (!row || row.status !== 'done') return [];
+		const out = [];
+		(row[eventsKey] || []).forEach((ev, idx) => {
+			if (!ev || ev.acquireMode !== 'user') return;
+			const eventKey = keyBase + '#' + idx;
+			const choices = ev.choices || [];
+			const pos = resultPosOf(ev, eventKey, evOpts);
+			const merged = new Map();
+			choices.forEach(c => eventChoiceSkillsAt(c, pos).forEach(ref => {
+				if (!ref || !ref.skillId || !findSkill(ref.skillId)) return;
+				const lv = (Number.isInteger(ref.hintLevel) && ref.hintLevel >= 0) ? ref.hintLevel : null;
+				const cur = merged.get(ref.skillId);
+				if (!cur) merged.set(ref.skillId, { skillId: ref.skillId, name: ref.name, hintLevel: lv });
+				else if (lv !== null && (cur.hintLevel === null || lv > cur.hintLevel)) cur.hintLevel = lv;
+			}));
+			const acquired = acquiredOf(ev, eventKey, evOpts);
+			out.push({ eventKey: eventKey, index: idx, step: Number.isInteger(ev.step) ? ev.step : null,
+				eventName: typeof ev.eventName === 'string' ? ev.eventName : null, condition: typeof ev.condition === 'string' ? ev.condition : '',
+				note: typeof ev.acquireNote === 'string' ? ev.acquireNote : '', acquired: acquired, unseen: !acquired && !(evOpts && evOpts.acquireSeen),
+				multi: choices.length >= 2, skills: Array.from(merged.values()) });
 		});
 		return out;
 	}
@@ -2394,10 +2443,15 @@
 		const evOpts = { choices: (o.eventChoices && typeof o.eventChoices === 'object') ? o.eventChoices : {}, autoChoose: !!o.autoChoose,
 			isWanted: typeof o.isWanted === 'function' ? o.isWanted : null,
 			// 結果の切り替え（roster.resultPicks。{ eventKey: 結果の位置 }）。渡さなければ全イベントが結果1（従来どおり）
-			resultPicks: (o.resultPicks && typeof o.resultPicks === 'object') ? o.resultPicks : {} };
+			resultPicks: (o.resultPicks && typeof o.resultPicks === 'object') ? o.resultPicks : {},
+			// 取得の切り替え（roster.acquirePicks。{ eventKey: true }）。渡さなければ acquireMode が "user" のイベントはすべて未達成（数えない）。
+			// acquireSeen は「キャラクターの小窓を開いて確認済みか」（roster.acquireSeen が今の umaId と同じとき真）。「！」と「未選択N件」の数にだけ使う
+			acquirePicks: (o.acquirePicks && typeof o.acquirePicks === 'object' && !Array.isArray(o.acquirePicks)) ? o.acquirePicks : {},
+			acquireSeen: !!o.acquireSeen };
 		const events = [];           // 選べるイベント（段7の (19)。列見出しの▼から開く小窓が使う）
 		const infoEvents = [];       // 小窓に読み取り専用で出すだけのイベント（段3の追補。選択肢が1つで条件のある育成ウマ娘のイベント）
 		const resultEvents = [];     // 結果の切り替えを持つイベント（結果の切り替え。選択肢が1つのものも含む。条件のあるイベントは含まない）
+		const acquireEvents = [];    // 取得の切り替えを持つイベント（acquireMode が "user"。育成ウマ娘のイベントだけ。選択肢が1つのものも含む）
 		const items = new Map();   // skillId → { skillId, name, origins: [], members: [], sureMembers: [], sure }
 		const sources = [];        // 由来を機械が読める形で（段2）
 		const unconfirmed = [];
@@ -2466,6 +2520,9 @@
 						infoEvents.push(Object.assign({ memberKey: UMA_KEY, kind: 'umaEvent' }, e)));
 					eventRowResultEvents(umaEvRow, 'events', base, evOpts).forEach(e =>
 						resultEvents.push(Object.assign({ memberKey: UMA_KEY, kind: 'umaEvent', cardId: null, charaName: null }, e)));
+					// 取得の切り替え（acquireMode が "user"）のイベント。小窓が「未達成／達成」の行を出すのに使う
+					eventRowAcquireEvents(umaEvRow, 'events', base, evOpts).forEach(e =>
+						acquireEvents.push(Object.assign({ memberKey: UMA_KEY, kind: 'umaEvent', cardId: null, charaName: null }, e)));
 				}
 			}
 		}
@@ -2531,7 +2588,7 @@
 		}
 
 		const list = Array.from(items.values()).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing, sources: sources, events: events, infoEvents: infoEvents, resultEvents: resultEvents, scenario: scenario };
+		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing, sources: sources, events: events, infoEvents: infoEvents, resultEvents: resultEvents, acquireEvents: acquireEvents, scenario: scenario };
 	}
 
 	/* ============================================================
@@ -4066,19 +4123,19 @@
 	 * ①のリセットで消すもの（段9・C-121）。育成ウマ娘・サポートカード・イベントの選択・スキルのオン/オフ。
 	 * **絞り込み（距離・脚質・バ場）・勉強家／切れ者／覚醒Lv の押しボタン（roster.pt）・名前は触らない。**
 	 */
-	const ROSTER_RESET_KEYS = ['umaId', 'cardIds', 'eventChoices', 'offSkillIds', 'evolutionChoices', 'evolutionBSeen', 'keepCircleIds', 'resultPicks'];
+	const ROSTER_RESET_KEYS = ['umaId', 'cardIds', 'eventChoices', 'offSkillIds', 'evolutionChoices', 'evolutionBSeen', 'keepCircleIds', 'resultPicks', 'acquirePicks', 'acquireSeen'];
 	function rosterResettable(r) {
 		if (!r || typeof r !== 'object') return false;
 		if (r.umaId) return true;
 		if ((r.cardIds || []).some(Boolean)) return true;
-		return ['eventChoices', 'offSkillIds', 'evolutionChoices', 'keepCircleIds', 'resultPicks'].some(k => r[k] !== undefined && r[k] !== null && (typeof r[k] !== 'object' || Object.keys(r[k]).length > 0));
+		return ['eventChoices', 'offSkillIds', 'evolutionChoices', 'keepCircleIds', 'resultPicks', 'acquirePicks'].some(k => r[k] !== undefined && r[k] !== null && (typeof r[k] !== 'object' || Object.keys(r[k]).length > 0));
 	}
 	/** 編成に中身があるか（育成ウマ娘・カード・設定のどれかを触っているか）。下書きの①を保存するときに、写しを作るかの判定に使う */
 	function rosterHasContent(r) {
 		if (!r || typeof r !== 'object') return false;
 		if (r.umaId) return true;
 		if ((r.cardIds || []).some(Boolean)) return true;
-		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'evolutionChoices', 'keepCircleIds', 'resultPicks', 'outsideCardExcluded', 'outsideSkillExcluded', 'race', 'outsideOptions'].some(k => r[k] !== undefined && r[k] !== null);
+		return ['pt', 'eventChoices', 'skillFilter', 'offSkillIds', 'evolutionChoices', 'keepCircleIds', 'resultPicks', 'acquirePicks', 'outsideCardExcluded', 'outsideSkillExcluded', 'race', 'outsideOptions'].some(k => r[k] !== undefined && r[k] !== null);
 	}
 
 	/**
@@ -4174,7 +4231,14 @@
 	}
 	/** 編成で得られるスキル（イベントの選択と、絞り込みから決まる既定の選択を効かせる。①のパネルの computed() の元） */
 	function rosterSkillResultOf(r) {
-		return computeRosterSkills(r, { eventChoices: r.eventChoices, resultPicks: r.resultPicks, autoChoose: true, isWanted: filterPredicateOf(r) });
+		return computeRosterSkills(r, { eventChoices: r.eventChoices, resultPicks: r.resultPicks, acquirePicks: r.acquirePicks, acquireSeen: acquireSeenOf(r), autoChoose: true, isWanted: filterPredicateOf(r) });
+	}
+	/**
+	 * 取得の切り替えの「確認済み」（roster.acquireSeen = 確認した時点の umaId）。**今の umaId と同じときだけ**確認済み（育成ウマ娘を別のキャラクターに変えたら未確認に戻る。保存値は書き換えない）。
+	 * 確認済みでない間は、達成にしていない取得の切り替えのイベントを「！」と「未選択N件」に数える（eventRowAcquireEvents の unseen）。
+	 */
+	function acquireSeenOf(r) {
+		return !!r && typeof r.acquireSeen === 'string' && r.acquireSeen !== '' && r.acquireSeen === r.umaId;
 	}
 	/**
 	 * 本育成で「取得しない」にしたスキル（段7c の M。編成の offSkillIds）。**いま●のスキルに当たるものだけ**が有効
