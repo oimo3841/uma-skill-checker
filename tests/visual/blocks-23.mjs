@@ -19,9 +19,11 @@ export async function register23(env) {
 	/** 成功側（先頭の結果）の参照 */
 	const successOf = (c) => (Array.isArray(c.skills) ? c.skills : (Array.isArray(c.results) && Array.isArray(c.results[0]) ? c.results[0] : []));
 	/** データだけから、衣装のイベントの期待する出現を作る（実装とは別の書き方）。eventKey ごと・スキルごとに { sure, lv } */
-	const expectedOf = (entry, picks) => {
+	const expectedOf = (entry, picks, acquireAll) => {
 		const out = [];
 		entry.events.forEach((ev, idx) => {
+			// 取得の切り替え（2026-10-17）: acquireMode が user のイベントは、達成にしていなければ数えない（acquireAll で全部達成）
+			if (ev.acquireMode === 'user' && !acquireAll) return;
 			const sides = ev.choices.map(successOf);
 			const dflt = Number.isInteger(ev.defaultChoice) && ev.defaultChoice >= 1 && ev.defaultChoice <= sides.length && sides.length >= 2 ? ev.defaultChoice - 1 : null;
 			const pick = picks && Number.isInteger(picks[idx]) && sides.length >= 2 ? picks[idx] : dflt;
@@ -74,7 +76,14 @@ export async function register23(env) {
 			if (JSON.stringify(exp) !== JSON.stringify(act)) bad.push(e.umaId);
 			got[i].src.forEach((s) => { if (s.sure) sureN++; else maybeN++; });
 		});
-		assert(EVDOC.entries.length === 271 && bad.length === 0, '育成イベント段2A 271衣装ぶんの出現が期待と一致（不一致 ' + bad.length + '件）', bad.slice(0, 5));
+		assert(EVDOC.entries.length === 271 && bad.length === 0, '育成イベント段2A 271衣装ぶんの出現が期待と一致（user のイベントは既定で未達成＝数えない。不一致 ' + bad.length + '件）', bad.slice(0, 5));
+		// 取得の切り替え: user のイベントをすべて達成にしたときは、従来どおり（user も数える）の期待と一致する
+		const gotAll = await sp.page.evaluate((list) => list.map(({ id, keys }) => { const p = {}; keys.forEach((k) => { p[k] = true; });
+			const r = UmaSkillDeckCore.computeRosterSkills({ umaId: id, cardIds: [] }, { acquirePicks: p });
+			return { id, src: r.sources.filter((s) => s.kind === 'umaEvent').map((s) => ({ eventKey: s.eventKey, skillId: s.skillId, sure: s.sure, hintLevel: s.hintLevel })) }; }),
+			EVDOC.entries.map((e) => ({ id: e.umaId, keys: e.events.map((ev, i) => (ev.acquireMode === 'user' ? 'uma:' + e.umaId + '#' + i : null)).filter(Boolean) })));
+		const badAll = EVDOC.entries.filter((e, i) => JSON.stringify(norm(expectedOf(e, undefined, true))) !== JSON.stringify(norm(gotAll[i].src))).map((e) => e.umaId);
+		assert(badAll.length === 0, '育成イベント段2A user のイベントをすべて達成にしたときは、271衣装ぶんの出現が従来どおりの期待と一致（不一致 ' + badAll.length + '件）', badAll.slice(0, 5));
 		assert(sureN > 0 && maybeN > 0, '育成イベント段2A 前提: ●と△の両方が実データにある（検査が空振りでない。●' + sureN + '行・△' + maybeN + '行）', { sureN, maybeN });
 		assert(got.every((g) => g.src.every((s) => s.memberKey === 0)) && got.every((g) => g.missing === 0), '育成イベント段2A 出どころは育成ウマ娘の列（memberKey 0）で、引けないスキルは無い', got.filter((g) => g.missing).map((g) => g.id).slice(0, 3));
 		assert(got.every((g) => g.unconfirmed === 0), '育成イベント段2A 赤字（未収録）に育成ウマ娘のイベントは数えない（カード無しの編成は0件）', got.filter((g) => g.unconfirmed).map((g) => g.id).slice(0, 3));
@@ -227,9 +236,12 @@ export async function register23(env) {
 	// 小窓に出る＝選択肢が2つ以上で、どこかの成功側にスキルがある。「！」に数える（未選択）＝スキルを持つ選択肢が2つ以上（1つだけなら自動で選ばれる）
 	const isListed = (ev) => ev.choices.length >= 2 && ev.choices.map(successOf).some((s) => s.length > 0);
 	const hasDefault = (ev) => Number.isInteger(ev.defaultChoice) && ev.defaultChoice >= 1 && ev.defaultChoice <= ev.choices.length && ev.choices.length >= 2;
-	const isPending = (ev) => !hasDefault(ev) && ev.choices.map(successOf).filter((s) => s.length > 0).length >= 2;
+	// 取得の切り替え（user）のイベントは、達成にしていなければ数えないので、選ぶ必要（未選択）には入れない
+	const isPending = (ev) => ev.acquireMode !== 'user' && !hasDefault(ev) && ev.choices.map(successOf).filter((s) => s.length > 0).length >= 2;
 	// 読み取り専用で出る（段3の追補）＝選択肢が1つで条件文が空でない
-	const isInfo = (ev) => ev.choices.length === 1 && typeof ev.condition === 'string' && ev.condition !== '';
+	// （取得の切り替え＝user のイベントは読み取り専用の行にせず、補足文とボタンの行を持つ箱で出す）
+	const isInfo = (ev) => ev.choices.length === 1 && typeof ev.condition === 'string' && ev.condition !== '' && ev.acquireMode !== 'user';
+	const isAcqOnly = (ev) => ev.choices.length === 1 && typeof ev.condition === 'string' && ev.condition !== '' && ev.acquireMode === 'user';
 	const choiceEvents = (entry) => entry.events.map((ev, i) => ({ ev, i })).filter((x) => isListed(x.ev));
 	const pendingEvents = (entry) => choiceEvents(entry).filter((x) => isPending(x.ev));
 	const UMA_LONG = EVDOC.entries.filter((e) => choiceEvents(e).some((x) => x.ev.condition))
@@ -239,11 +251,12 @@ export async function register23(env) {
 	const openRoster = async (umaId, o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 375, height: o.h || 812 }, EMPTY);
 		if (o.evDoc) await sp.page.route('**/data/training-event-skills.json*', (r) => r.fulfill(json(o.evDoc)));
-		await sp.page.evaluate(({ id, theme, ch }) => {
-			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: id, cardIds: [], eventChoices: ch || undefined }));
+		await sp.page.evaluate(({ id, theme, ch, seen }) => {
+			// 取得の切り替えの未確認も「！」に数えるので、既定では確認済みにして開く（この塊が見るのは選ぶ必要のあるイベント。未確認の数は blocks-34 が見る）
+			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: id, cardIds: [], eventChoices: ch || undefined, acquireSeen: seen ? id : undefined }));
 			localStorage.setItem('umaSkillDeck:stepTab', '0');
 			if (theme) localStorage.setItem('uma-tools-theme', theme);
-		}, { id: umaId, theme: o.theme || null, ch: o.choices || null });
+		}, { id: umaId, theme: o.theme || null, ch: o.choices || null, seen: !o.unseen });
 		await sp.page.reload({ waitUntil: 'networkidle' });
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
@@ -279,7 +292,7 @@ export async function register23(env) {
 		// （結果の切り替えを持つイベントがあるときは、それだけでボタンになる〔結果切替の変更。結果切替(2)(4) が見る〕ので、その行も外す）
 		const resKey = (l) => (l || []).map((r) => r.skillId + ':' + r.hintLevel).sort().join(',');
 		const isResultSwitch = (x) => !x.condition && (x.choices || []).some((c) => Array.isArray(c.results) && c.results.length >= 2 && c.results.some((r) => resKey(r) !== resKey(c.results[0])));
-		const bare = Object.assign({}, EVDOC, { entries: EVDOC.entries.map((e) => e.umaId !== UMA_NONE.umaId ? e : Object.assign({}, e, { events: e.events.filter((x) => !isListed(x) && !isInfo(x) && !isResultSwitch(x)) })) });
+		const bare = Object.assign({}, EVDOC, { entries: EVDOC.entries.map((e) => e.umaId !== UMA_NONE.umaId ? e : Object.assign({}, e, { events: e.events.filter((x) => !isListed(x) && !isInfo(x) && !isAcqOnly(x) && !isResultSwitch(x)) })) });
 		const sp4 = await openRoster(UMA_NONE.umaId, { evDoc: bare });
 		const n4 = await sp4.page.evaluate((sel) => ({ btn: !!document.querySelector(sel), chip: !!document.querySelector('.usd-roster-gh .usd-roster-umamark') }), EVBTN);
 		assert(n4.btn === false && n4.chip === true, '育成イベント段3A 小窓に出す行が無い衣装は、これまでどおり札（◇）でボタンにならない', n4);
@@ -352,6 +365,7 @@ export async function register23(env) {
 				await openPop(sp.page);
 				const r = await sp.page.evaluate((k) => {
 					const c = document.querySelector('[data-usd-el="event"][data-event-key="' + k + '"] .usd-roster-eventcond');
+					c.scrollIntoView({ block: 'center' });   // 小窓の上にタブの行が増えたので、測る前に見える位置まで送る
 					const cs = getComputedStyle(c);
 					const probe = document.createElement('span'); probe.style.color = 'var(--uma-text-subtle)'; document.body.appendChild(probe);
 					const subtle = getComputedStyle(probe).color; probe.remove();
@@ -401,10 +415,10 @@ export async function register23(env) {
 	/* ====================================================================
 	 * 段3の追補: 選択肢が1つで条件のあるイベントを、小窓に読み取り専用の行として出す（2026-10-12・案A）
 	 * ==================================================================== */
-	const shownOf = (entry) => entry.events.map((ev, i) => ({ ev, i, info: isInfo(ev) })).filter((x) => x.info || isListed(x.ev));
-	const openPopAny = async (page) => { await page.click(EVBTN); await page.waitForSelector('[data-usd-el="event"], [data-usd-el="event-info"]'); await page.waitForTimeout(300); };
+	const shownOf = (entry) => entry.events.map((ev, i) => ({ ev, i, info: isInfo(ev), acq: isAcqOnly(ev) })).filter((x) => x.info || x.acq || isListed(x.ev));
+	const openPopAny = async (page) => { await page.click(EVBTN); await page.waitForSelector('[data-usd-el="event"], [data-usd-el="event-info"], [data-usd-el="event-acquire"]'); await page.waitForTimeout(300); };
 	/** 小窓の左の行を、並びのまま読む */
-	const readRows = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="events-pane-events"] [data-usd-el="event"], [data-usd-el="events-pane-events"] [data-usd-el="event-info"]')).map((b) => {
+	const readRows = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="events-pane-events"] [data-usd-el="event"], [data-usd-el="events-pane-events"] [data-usd-el="event-info"], [data-usd-el="events-pane-events"] [data-usd-el="event-acquire"]')).map((b) => {
 		const c = b.querySelector('.usd-roster-eventcond');
 		const s = b.querySelector('[data-usd-el="event-info-skills"]');
 		return { el: b.getAttribute('data-usd-el'), key: b.getAttribute('data-event-key'), title: b.querySelector('.usd-roster-eventtitle').textContent.replace(/\s*自動$/, ''),
@@ -421,17 +435,17 @@ export async function register23(env) {
 	await block('育成イベント段3F 読み取り専用の行: 例の衣装で5件（選べる3＋読み取り専用2）が配列の順に並び、条件文と「スキル名 LvN」が出て、ボタンも選択肢の枠も無い', async () => {
 		const U = U5;
 		const want = shownOf(U);
-		assert(want.length === 5 && want.filter((x) => x.info).length === 2, '育成イベント段3F 例の衣装（' + U.umaId + '）のデータは、出す行が5件（読み取り専用2件）', want.map((x) => x.i + (x.info ? 'R' : 'C')));
+		assert(want.length === 5 && want.filter((x) => x.info).length === 1 && want.filter((x) => x.acq).length === 1, '育成イベント段3F 例の衣装（' + U.umaId + '）のデータは、出す行が5件（選べる3件・読み取り専用1件・取得の切り替え1件）', want.map((x) => x.i + (x.info ? 'R' : 'C')));
 		const sp = await openRoster(U.umaId);
 		await openPopAny(sp.page);
 		const rows = await readRows(sp.page);
 		const names = await sp.page.evaluate((ids) => ids.map((id) => UmaSkillDeckCore.getSkillName(id)), want.flatMap((x) => x.info ? successOf(x.ev.choices[0]).map((r) => r.skillId) : []));
 		let k = 0;
 		const expSkills = want.map((x) => x.info ? successOf(x.ev.choices[0]).map((r) => names[k++] + ' Lv' + r.hintLevel).join('、') : null);
-		assert(rows.length === 5 && rows.every((r, j) => r.key === 'uma:' + U.umaId + '#' + want[j].i && r.title === want[j].ev.eventName && r.el === (want[j].info ? 'event-info' : 'event')),
-			'育成イベント段3F 5件がイベントの配列の順（位置 N）に、選べる行と読み取り専用の行を混ぜて並ぶ', rows.map((r) => r.key + ' ' + r.el));
+		assert(rows.length === 5 && rows.every((r, j) => r.key === 'uma:' + U.umaId + '#' + want[j].i && r.title === want[j].ev.eventName && r.el === (want[j].info ? 'event-info' : want[j].acq ? 'event-acquire' : 'event')),
+			'育成イベント段3F 5件がイベントの配列の順（位置 N）に、選べる行・読み取り専用の行・取得の切り替えの箱を混ぜて並ぶ', rows.map((r) => r.key + ' ' + r.el));
 		const ro = rows.filter((r) => r.el === 'event-info');
-		assert(ro.length === 2 && ro.every((r) => r.buttons === 0 && r.choiceBoxes === 0 && r.skillsBorder === '0px'),
+		assert(ro.length === 1 && ro.every((r) => r.buttons === 0 && r.choiceBoxes === 0 && r.skillsBorder === '0px'),
 			'育成イベント段3F 読み取り専用の行にはボタンも選択肢の枠も無い', ro);
 		assert(rows.every((r, j) => !want[j].info || (r.cond === want[j].ev.condition && r.skills === expSkills[j])),
 			'育成イベント段3F 読み取り専用の行に、条件文（全文）と得るスキル（「スキル名 LvN」を「、」区切り）が出る', ro.map((r) => [r.cond, r.skills]));
@@ -539,7 +553,7 @@ export async function register23(env) {
 		sp.page.on('console', (m) => { if (m.type() === 'warning' && m.text().includes('defaultChoice')) sp.warns.push(m.text()); });
 		if (o.evDoc) await sp.page.route('**/data/training-event-skills.json*', (r) => r.fulfill(json(o.evDoc)));
 		await sp.page.evaluate(({ id, ch }) => {
-			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: id, cardIds: [], eventChoices: ch || undefined }));
+			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify({ umaId: id, cardIds: [], eventChoices: ch || undefined, acquireSeen: id }));
 			localStorage.setItem('umaSkillDeck:stepTab', '0');
 		}, { id: umaId, ch: o.choices || null });
 		await sp.page.reload({ waitUntil: 'networkidle' });

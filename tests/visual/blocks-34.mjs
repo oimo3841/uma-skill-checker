@@ -230,7 +230,7 @@ export async function register34(env) {
 					kids: Array.from(b.children).map((c) => c.getAttribute('data-usd-el') || c.className.split(' ')[0]),
 					note: (b.querySelector('[data-usd-el="acquire-note"]') || {}).textContent || null, cond: (b.querySelector('[data-usd-el="event-cond"]') || {}).textContent || null,
 					btns: Array.from(b.querySelectorAll('[data-usd-el="acquire-choice"]')).map((x) => ({ on: x.classList.contains('usd-roster-choice--on'), checked: x.getAttribute('aria-checked'), disabled: x.disabled, a: x.getAttribute('data-acquire'),
-						text: x.querySelector('.usd-roster-choicelabel').textContent, skills: Array.from(x.querySelectorAll('.usd-roster-choiceskill')).map((s) => s.textContent) })) })),
+						text: x.querySelector('.usd-roster-acquirelabel').textContent, skills: Array.from(x.querySelectorAll('.usd-roster-choiceskill')).map((s) => s.textContent) })) })),
 					text: left.textContent };
 			});
 			const keyed = new Map(dom.boxes.map((b) => [b.key, b]));

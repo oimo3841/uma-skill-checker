@@ -61,8 +61,9 @@ export async function register29(env) {
 	const R2 = { umaId: 'uma-0001', cardIds: CARDS6, skillFilter: { distance: 'medium', style: 'senko', surface: 'turf' } };
 	// 固定の期待値（実データ。2026-10-16）: 候補の数・既定◎の合計・○のままの合計・前段の合計・種数
 	const FIX = {
-		R1: { cand: 16, def: 8236, keep: 6949, defPrev: 1464, keepPrev: 360, kinds: 64 },
-		R2: { cand: 10, def: 5043, keep: 4224, defPrev: 1050, keepPrev: 360, kinds: 38 }
+		// 2026-10-17: 育成ウマ娘の user のイベント（取得の切り替え）は既定で数えないので、合計 Pt と種数が下がった（R1 8236→8092・6949→6805・64種→63種／R2 5043→4899・4224→4080・38種→37種。前段・◎の数は同じ）
+		R1: { cand: 16, def: 8092, keep: 6805, defPrev: 1464, keepPrev: 360, kinds: 63 },
+		R2: { cand: 10, def: 4899, keep: 4080, defPrev: 1050, keepPrev: 360, kinds: 37 }
 	};
 
 	await block('◎切替(1) 計算: 既定◎の合計は「○のまま」＋各◎のPt（独立に出した式と一致）／種数は変わらない／○に戻した行だけ従来どおり', async () => {

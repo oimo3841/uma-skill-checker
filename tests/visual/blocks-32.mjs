@@ -53,15 +53,19 @@ export async function register32(env) {
 
 	/* 変更前（直前の commit）と同じ出力のハッシュ。変更前の commit（コアの版 2026-10-16n）で同じ検査を回して固定した（2026-10-16。271衣装の単独・REAL・R2〔絞り込み〕・VARY の
 	 * getRosterPtDetail・getRosterVisiblePart・computeRosterSkills の出力を JSON にして SHA-256 の先頭16桁）。計算の層を変えたら変わる */
+	// 取得の切り替え（2026-10-17）: 育成ウマ娘の user のイベントは既定で数えないので、この固定のハッシュは「すべて達成にした」編成で取る（達成にすると従来と同一）
+	const TRD = readJson('data/training-event-skills.json').entries;
+	const ACQ = Object.fromEntries(TRD.map((e) => [e.umaId, Object.fromEntries(e.events.map((ev, i) => [ev.acquireMode === 'user' ? 'uma:' + e.umaId + '#' + i : null, true]).filter((x) => x[0] !== null))]));
 	const HASH = { solo271: '148b3434c01f7408', real: 'c233a84f582ba98d', r2: '2e74a955752d79c6', vary: '49545117935c03cb' };
 
 	await block('◎合算(1) 計算の層は変わらない: 271衣装の単独・REAL・絞り込み・VARY の出力ハッシュが変更前と同一', async () => {
 		const sp = await openSp({ roster: R1 });
-		const got = await sp.page.evaluate(async ({ umas, REAL, R2, VARY }) => {
+		const got = await sp.page.evaluate(async ({ umas, REAL, R2, VARY, ACQ }) => {
 			const C = UmaSkillDeckCore;
 			await C.loadTrainingSources(); await C.loadSkillPtData(); await C.loadScenarioEvents(false); await C.loadSkillEvolutions(false); await C.loadSkillDescriptions();
-			const one = (r) => {
-				const res = C.computeRosterSkills(r, { autoChoose: true });
+			const one = (r0) => {
+				const r = r0.umaId && ACQ[r0.umaId] && Object.keys(ACQ[r0.umaId]).length ? Object.assign({}, r0, { acquirePicks: ACQ[r0.umaId] }) : r0;
+				const res = C.computeRosterSkills(r, { autoChoose: true, acquirePicks: r.acquirePicks });
 				return JSON.stringify({ pt: C.getRosterPtDetail(r), vp: C.getRosterVisiblePart(r), ids: res.skillIds, n: res.items.length });
 			};
 			const hex = async (s) => {
@@ -70,7 +74,7 @@ export async function register32(env) {
 			};
 			const solo = umas.map((id) => one({ umaId: id, cardIds: [null, null, null, null, null, null] }));
 			return { solo271: await hex(solo.join('\n')), n: solo.length, real: await hex(one(REAL)), r2: await hex(one(R2)), vary: await hex(one(VARY)) };
-		}, { umas: UMAS, REAL: R1, R2, VARY });
+		}, { umas: UMAS, REAL: R1, R2, VARY, ACQ });
 		assert(got.n === 271 && got.solo271 === HASH.solo271, '◎合算(1) 271衣装の単独の出力ハッシュ（' + got.solo271 + '）が変更前と同一', got);
 		assert(got.real === HASH.real && got.r2 === HASH.r2 && got.vary === HASH.vary, '◎合算(1) REAL・絞り込み・VARY の出力ハッシュが変更前と同一', got);
 		assert(jsErrors(sp.errors).length === 0, '◎合算(1) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
@@ -145,7 +149,7 @@ export async function register32(env) {
 		assert(cands.length > 0 && bad.length === 0, '◎合算(2) ◎の行（' + cands.length + '種）の Pt は ○の分 ＋ ◎の分', bad.slice(0, 3));
 		// 合計の帯は変わらない（固定: R1 の既定◎の合計）
 		const total = await sp.page.evaluate(() => Number(document.querySelector('#deck-roster-panel [data-usd-el="pt-total"]').textContent.replace(/[^0-9]/g, '')));
-		assert(total === 8236, '◎合算(2) 帯の合計は 8236 Pt のまま', total);
+		assert(total === 8092, '◎合算(2) 帯の合計は 8092 Pt（user のイベントを数えない既定。2026-10-17 に 8236 から）のまま', total);
 		// ○に戻した行は○だけ
 		const keep = cands[0][0];
 		const spK = await openSp({ roster: Object.assign({}, R1, { keepCircleIds: [keep] }) });

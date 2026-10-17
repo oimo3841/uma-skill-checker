@@ -15,6 +15,8 @@ export async function register30(env) {
 	const EMPTY = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
 	const REAL = { umaId: 'uma-0001', cardIds: ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'] };
 	const VARY = { umaId: 'uma-0192', cardIds: ['card-0273', 'card-0288', 'card-0311', 'card-0346', 'card-0405', 'card-0248'] };
+	// 取得の切り替え（2026-10-17）: 育成ウマ娘の user のイベントは既定で数えない。この塊の固定の数（Step 0 の表）は「すべて達成にした」状態で取ったものなので、計算の呼び出しに全達成を渡す
+	const allAcquired = (roster) => { const e = readJson('data/training-event-skills.json').entries.find((x) => x.umaId === roster.umaId); const p = {}; (e ? e.events : []).forEach((ev, i) => { if (ev.acquireMode === 'user') p['uma:' + roster.umaId + '#' + i] = true; }); return Object.assign({}, roster, Object.keys(p).length ? { acquirePicks: p } : {}); };
 
 	const openSp = async (o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 390, height: o.h || 900 }, o.userData || EMPTY);
@@ -37,14 +39,14 @@ export async function register30(env) {
 	const probe = (page, roster, mode) => page.evaluate(async ({ roster, mode }) => {
 		const C = UmaSkillDeckCore;
 		await C.loadTrainingSources(); await C.loadSkillPtData(); await C.loadScenarioEvents(false);
-		const first = C.computeRosterSkills(roster, { autoChoose: true });
+		const first = C.computeRosterSkills(roster, { autoChoose: true, acquirePicks: roster.acquirePicks });
 		const picks = {};
 		first.resultEvents.forEach((e) => {
 			const isUma = e.kind === 'umaEvent';
 			if ((mode === 'uma' && isUma) || (mode === 'card' && !isUma) || mode === 'both') picks[e.eventKey] = e.count - 1;
 		});
 		const r = Object.assign({}, roster, mode === 'none' ? {} : { resultPicks: picks });
-		const res = C.computeRosterSkills(r, { autoChoose: true, resultPicks: r.resultPicks });
+		const res = C.computeRosterSkills(r, { autoChoose: true, resultPicks: r.resultPicks, acquirePicks: r.acquirePicks });
 		const d = C.getRosterPtDetail(r);
 		return { total: d.total, kinds: d.kinds, sure: res.items.filter((i) => i.sure).length, maybe: res.items.filter((i) => !i.sure).length,
 			picks: Object.keys(picks).length, keys: first.resultEvents.map((e) => e.eventKey) };
@@ -59,7 +61,7 @@ export async function register30(env) {
 		};
 		for (const [name, ex] of Object.entries(EXPECT)) {
 			for (const mode of ['none', 'uma', 'card', 'both']) {
-				const r = await probe(sp.page, ex.roster, mode);
+				const r = await probe(sp.page, allAcquired(ex.roster), mode);
 				assert(r.total === ex[mode][0] && r.kinds === ex[mode][1] && r.sure === ex[mode][2] && r.maybe === ex[mode][3],
 					'結果切替(1) ' + name + '・' + ({ none: '基準（結果1）', uma: '育成ウマ娘のイベントだけ最後の結果', card: 'サポカ・共通イベントだけ最後の結果', both: '両方' })[mode] + ' → ' + ex[mode].join('Pt・種・●・△='), { got: [r.total, r.kinds, r.sure, r.maybe] });
 			}

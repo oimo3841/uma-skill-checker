@@ -5927,7 +5927,7 @@
 		'.usd-roster-event { display: flex; flex-direction: column; gap: var(--uma-sp-1); padding: var(--uma-sp-2) 0; border-top: 1px solid var(--uma-border); }',
 		'.usd-roster-eventtitle { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-heading); }',
 		// 条件文（育成ウマ娘のイベント）。小さな灰色で折り返して全文。色はトークンで参照する（値は書かない）
-		'.usd-roster-eventcond { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); white-space: normal; overflow-wrap: anywhere; }',
+		'.usd-roster-eventcond, .usd-roster-acquirenote { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); white-space: normal; overflow-wrap: anywhere; }',
 		// 読み取り専用のイベントの得るスキル（段3の追補）。選択肢の枠を付けない地の文
 		'.usd-roster-infoskills { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text); overflow-wrap: anywhere; }',
 		'.usd-roster-autotag { display: inline-block; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 600; padding: 0 var(--uma-sp-1-5);',
@@ -5945,7 +5945,7 @@
 		'.usd-roster-acquire .usd-roster-choice { width: auto; min-width: 0; align-content: flex-start; }',
 		'.usd-roster-acquire .usd-roster-choice:first-child { flex: 0 0 auto; }',
 		'.usd-roster-acquire .usd-roster-choice:last-child { flex: 1 1 0; }',
-		'.usd-roster-choicelabel { flex: none; font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-roster-choicelabel, .usd-roster-acquirelabel { flex: none; font-weight: 700; color: var(--uma-text-heading); }',
 		'.usd-roster-choiceskills { display: inline-flex; flex-wrap: wrap; gap: var(--uma-sp-1) var(--uma-sp-2); min-width: 0; }',
 		'.usd-roster-choiceskill--dim, .usd-roster-choiceskill--none { color: var(--uma-text-faint); }',
 		// イベントの選択の小窓の2カラム（段7b の ⑩）。共有の .uma-popover は触らず、修飾クラス（広い幅だけ幅を広げる）と中身のスタイルだけ。
@@ -9036,7 +9036,7 @@
 		// 取得の切り替えの補足文（条件文の下の小さな灰色の1行。折り返してよい）と、「未達成」「達成」のボタンの行。達成のボタンには得るスキル（スキル名 Lv。最大の段階のもの）を添える。選んだものは --on
 		const acquireParts = (box, ae) => {
 			if (ae.note) {
-				const note = infoEl('p', 'usd-roster-eventcond usd-roster-acquirenote', ae.note);
+				const note = infoEl('p', 'usd-roster-acquirenote', ae.note);
 				note.setAttribute('data-usd-el', 'acquire-note');
 				box.appendChild(note);
 			}
@@ -9053,7 +9053,7 @@
 				btn.setAttribute('data-usd-el', 'acquire-choice');
 				btn.setAttribute('data-event-key', ae.eventKey);
 				btn.setAttribute('data-acquire', achieved ? '1' : '0');
-				btn.appendChild(infoEl('span', 'usd-roster-choicelabel', achieved ? '達成' : '未達成'));
+				btn.appendChild(infoEl('span', 'usd-roster-acquirelabel', achieved ? '達成' : '未達成'));
 				if (achieved) {
 					const ul = infoEl('span', 'usd-roster-choiceskills');
 					if (ae.skills.length === 0) ul.appendChild(infoEl('span', 'usd-roster-choiceskill usd-roster-choiceskill--none', 'スキルなし'));

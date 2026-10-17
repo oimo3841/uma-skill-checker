@@ -232,7 +232,8 @@ export async function register11(env) {
 		}, CARDS6);
 		await probe.ctx.close();
 		assert(noPend.n > 0 && noPend.pending === false, 'オススメサポ 前提: ①の選ぶ必要のあるイベント（' + noPend.n + '件）をすべて選んだ①を作れる', { n: noPend.n, pending: noPend.pending });
-		const sp2 = await openSp({ roster: Object.assign({}, FULL, { eventChoices: noPend.choices }) });
+		// 育成ウマ娘の取得の切り替え（user のイベント）の未確認も「！」に数えるので、確認済みにしておく（この塊が見るのは選ぶ必要のあるイベントの「！」）
+		const sp2 = await openSp({ roster: Object.assign({}, FULL, { eventChoices: noPend.choices, acquireSeen: FULL.umaId }) });
 		const unsel2 = await sp2.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"]')).reduce((s, b) => s + Number(b.getAttribute('data-unselected') || 0), 0));
 		await clearToast(sp2.page);
 		await open(sp2.page);
