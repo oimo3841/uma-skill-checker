@@ -53,10 +53,12 @@ export async function register32(env) {
 
 	/* 変更前（直前の commit）と同じ出力のハッシュ。変更前の commit（コアの版 2026-10-16n）で同じ検査を回して固定した（2026-10-16。271衣装の単独・REAL・R2〔絞り込み〕・VARY の
 	 * getRosterPtDetail・getRosterVisiblePart・computeRosterSkills の出力を JSON にして SHA-256 の先頭16桁）。計算の層を変えたら変わる */
-	// 取得の切り替え（2026-10-17）: 育成ウマ娘の user のイベントは既定で数えないので、この固定のハッシュは「すべて達成にした」編成で取る（達成にすると従来と同一）
+	// 取得の切り替え（2026-10-17）: 育成ウマ娘の user のイベントは既定で数えないので、この固定のハッシュは「すべて最大の段階で選んだ」編成で取る（従来と同一。ビコーペガサスを除く）
 	const TRD = readJson('data/training-event-skills.json').entries;
-	const ACQ = Object.fromEntries(TRD.map((e) => [e.umaId, Object.fromEntries(e.events.map((ev, i) => [ev.acquireMode === 'user' ? 'uma:' + e.umaId + '#' + i : null, true]).filter((x) => x[0] !== null))]));
-	const HASH = { solo271: '148b3434c01f7408', real: 'c233a84f582ba98d', r2: '2e74a955752d79c6', vary: '49545117935c03cb' };
+	const ACQ = Object.fromEntries(TRD.map((e) => [e.umaId, Object.fromEntries(e.events.map((ev, i) => [ev.acquireMode === 'user' ? 'uma:' + e.umaId + '#' + i : null, Array.isArray(ev.acquireOptions) ? ev.acquireOptions.length - 1 : 0]).filter((x) => x[0] !== null))]));
+	// solo271 は 2026-10-17f（段階 acquireOptions）で 148b3434c01f7408 から 4766549b438c42c2 に変わった。変わったのはビコーペガサス（uma-0132）の「ターフの上のヒーロー」だけ:
+	// 従来は「ゲーム内の選択肢4つ・未選択」で△だったものを、段階を選ぶと1つに決まり●になる（その衣装の acquireOptions を外したデータでは 148b… に戻ることを確かめた。blocks-34 の(1)(1d)も参照）
+	const HASH = { solo271: '4766549b438c42c2', real: 'c233a84f582ba98d', r2: '2e74a955752d79c6', vary: '49545117935c03cb' };
 
 	await block('◎合算(1) 計算の層は変わらない: 271衣装の単独・REAL・絞り込み・VARY の出力ハッシュが変更前と同一', async () => {
 		const sp = await openSp({ roster: R1 });

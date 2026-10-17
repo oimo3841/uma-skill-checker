@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-17e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-17f';
 
 	/* ============================================================
 	 * 定数
@@ -5976,6 +5976,8 @@
 		'.usd-roster-event[data-usd-el="event-result"] .usd-roster-results { margin-top: 0; padding-top: 0; border-top: 0; }',
 		// 取得の切り替え（段階／条件）のボタンの行。見た目は選択肢のボタンと同じ（縦に並べる）
 		'.usd-roster-choicelabel, .usd-roster-acquirelabel { flex: none; font-weight: 700; color: var(--uma-text-heading); }',
+		// 取得のボタンの見出しは条件文（長いことがある）なので、ボタンの幅を超えるときは折り返す
+		'.usd-roster-acquirelabel { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }',
 		'.usd-roster-choiceskills { display: inline-flex; flex-wrap: wrap; gap: var(--uma-sp-1) var(--uma-sp-2); min-width: 0; }',
 		'.usd-roster-choiceskill--dim, .usd-roster-choiceskill--none { color: var(--uma-text-faint); }',
 		// イベントの選択の小窓の2カラム（段7b の ⑩）。共有の .uma-popover は触らず、修飾クラス（広い幅だけ幅を広げる）と中身のスタイルだけ。

@@ -109,7 +109,7 @@ export async function register30(env) {
 		const SC = readJson('data/support-card-event-skills.json').entries;
 		const CH = readJson('data/character-event-skills.json').entries;
 		const keyOf = (l) => (l || []).map((r) => r.skillId + ':' + r.hintLevel).sort().join(',');
-		const sw = (ev) => !ev.condition && ev.choices.some((c) => Array.isArray(c.results) && c.results.length >= 2 && c.results.some((r) => keyOf(r) !== keyOf(c.results[0])));
+		const sw = (ev) => (!ev.condition || ev.randomResult === true) && ev.choices.some((c) => Array.isArray(c.results) && c.results.length >= 2 && c.results.some((r) => keyOf(r) !== keyOf(c.results[0])));
 		const cnt = (rows, key) => { let single = 0, multi = 0; rows.filter((r) => r.status === 'done').forEach((r) => (r[key] || []).forEach((ev) => { if (sw(ev)) (ev.choices.length >= 2 ? multi++ : single++); })); return { single, multi }; };
 		const exp = { uma: cnt(TR, 'events'), card: cnt(SC, 'chain'), chara: cnt(CH, 'events') };
 		const sp = await openSp({ roster: REAL });

@@ -24,7 +24,7 @@ export async function register34(env) {
 	const allUser = TR.reduce((s, e) => s + userKeysOf(e).length, 0);
 	const allStaged = TR.reduce((s, e) => s + e.events.filter((ev) => Array.isArray(ev.acquireOptions)).length, 0);
 	/** 段階の有無を問わず、acquire 系の項目をすべて外した（従来の数え方の）データにする */
-	const stripAcquire = (es) => es.forEach((e) => e.events.forEach((ev) => { delete ev.acquireMode; delete ev.acquireNote; delete ev.acquireOptions; delete ev.randomResult; }));
+	const stripAcquire = (es) => es.forEach((e) => e.events.forEach((ev) => { delete ev.acquireMode; delete ev.acquireNote; delete ev.acquireOptions; }));
 
 	/** special.html を開く。transform を渡すと、育成ウマ娘のイベントのデータをその関数で書き換えて読む（コピーに対して。ファイルは変えない） */
 	const openCore = async (transform) => {
