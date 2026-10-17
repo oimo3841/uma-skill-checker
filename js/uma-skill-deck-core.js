@@ -5940,6 +5940,11 @@
 		// 結果のボタンの組（選択肢のボタンの下。点線で区切る）。いまの選択肢ボタンと同じ見た目・同じ選び方
 		'.usd-roster-results { margin-top: var(--uma-sp-1-5); padding-top: var(--uma-sp-1-5); border-top: 1px dashed var(--uma-border-strong); }',
 		'.usd-roster-event[data-usd-el="event-result"] .usd-roster-results { margin-top: 0; padding-top: 0; border-top: 0; }',
+		// 取得の切り替え（未達成／達成）のボタンの行。2つのボタンを横に並べる（達成のほうに得るスキルを添えるので、そちらを広く取る）。見た目は選択肢のボタンと同じ
+		'.usd-roster-acquire { flex-direction: row; align-items: stretch; }',
+		'.usd-roster-acquire .usd-roster-choice { width: auto; min-width: 0; align-content: flex-start; }',
+		'.usd-roster-acquire .usd-roster-choice:first-child { flex: 0 0 auto; }',
+		'.usd-roster-acquire .usd-roster-choice:last-child { flex: 1 1 0; }',
 		'.usd-roster-choicelabel { flex: none; font-weight: 700; color: var(--uma-text-heading); }',
 		'.usd-roster-choiceskills { display: inline-flex; flex-wrap: wrap; gap: var(--uma-sp-1) var(--uma-sp-2); min-width: 0; }',
 		'.usd-roster-choiceskill--dim, .usd-roster-choiceskill--none { color: var(--uma-text-faint); }',
@@ -8947,7 +8952,8 @@
 	function buildEventsInfo(body, res, memberKey, o) {
 		const wanted = o.wanted || null;
 		const list = res.events.filter(e => e.memberKey === memberKey);
-		const unsel = list.filter(e => e.pending).length;
+		// 取得の切り替えの未確認（キャラクターの小窓をまだ開いていない user のイベント）も「未選択」の数に入れる
+		const unsel = list.filter(e => e.pending).length + (res.acquireEvents || []).filter(e => e.memberKey === memberKey && e.unseen).length;
 		// 読み取り専用の行（段3の追補）。未選択の数には入れない
 		const info = (res.infoEvents || []).filter(e => e.memberKey === memberKey);
 		// 結果の切り替えを持つイベント（結果の切り替え）。操作できる小窓（①）だけに出す。「選べるイベント」にあるものは、その箱の中に結果ボタンを足し、
@@ -8955,6 +8961,11 @@
 		const resultsAll = o.interactive && typeof o.onPickResult === 'function' ? (res.resultEvents || []).filter(e => e.memberKey === memberKey) : [];
 		const resultByKey = new Map(resultsAll.map(e => [e.eventKey, e]));
 		const resultOnly = resultsAll.filter(re => !list.some(e => e.eventKey === re.eventKey));
+		// 取得の切り替え（acquireMode が "user"）。操作できる小窓（①）だけに出す。「選べるイベント」にあるものは、その箱の中に未達成／達成の行を足し、
+		// ないもの（選択肢が1つのイベント）は、補足文とボタンの行だけの箱で出す
+		const acquireAll = o.interactive && typeof o.onAcquire === 'function' ? (res.acquireEvents || []).filter(e => e.memberKey === memberKey) : [];
+		const acquireByKey = new Map(acquireAll.map(e => [e.eventKey, e]));
+		const acquireOnly = acquireAll.filter(ae => !list.some(e => e.eventKey === ae.eventKey));
 		const panes = infoEl('div', 'usd-ev-panes');
 		panes.setAttribute('data-usd-el', 'events-panes');
 		const left = infoEl('section', 'usd-ev-pane usd-ev-pane--events');
@@ -8970,7 +8981,7 @@
 			head.setAttribute('data-usd-el', 'events-unselected');
 			left.appendChild(head);
 		}
-		if (list.length === 0 && info.length === 0 && resultOnly.length === 0) {
+		if (list.length === 0 && info.length === 0 && resultOnly.length === 0 && acquireOnly.length === 0) {
 			const p = infoEl('p', 'usd-info-desc--pending', '選ぶイベントはありません');
 			p.setAttribute('data-usd-el', 'events-none');
 			left.appendChild(p);
@@ -9014,6 +9025,43 @@
 			}
 			return group;
 		};
+		// 取得の切り替えの補足文（条件文の下の小さな灰色の1行。折り返してよい）と、「未達成」「達成」のボタンの行。達成のボタンには得るスキル（スキル名 Lv。最大の段階のもの）を添える。選んだものは --on
+		const acquireParts = (box, ae) => {
+			if (ae.note) {
+				const note = infoEl('p', 'usd-roster-eventcond usd-roster-acquirenote', ae.note);
+				note.setAttribute('data-usd-el', 'acquire-note');
+				box.appendChild(note);
+			}
+			const group = infoEl('div', 'usd-roster-choices usd-roster-acquire');
+			group.setAttribute('role', 'radiogroup');
+			group.setAttribute('data-usd-el', 'acquire-group');
+			group.setAttribute('aria-label', eventTitle(ae) + 'の取得');
+			[false, true].forEach(achieved => {
+				const on = ae.acquired === achieved;
+				const btn = infoEl('button', 'usd-roster-choice usd-roster-acquire-btn' + (on ? ' usd-roster-choice--on' : ''));
+				btn.type = 'button';
+				btn.setAttribute('role', 'radio');
+				btn.setAttribute('aria-checked', on ? 'true' : 'false');
+				btn.setAttribute('data-usd-el', 'acquire-choice');
+				btn.setAttribute('data-event-key', ae.eventKey);
+				btn.setAttribute('data-acquire', achieved ? '1' : '0');
+				btn.appendChild(infoEl('span', 'usd-roster-choicelabel', achieved ? '達成' : '未達成'));
+				if (achieved) {
+					const ul = infoEl('span', 'usd-roster-choiceskills');
+					if (ae.skills.length === 0) ul.appendChild(infoEl('span', 'usd-roster-choiceskill usd-roster-choiceskill--none', 'スキルなし'));
+					ae.skills.forEach(sk => {
+						const dim = wanted && !wanted(sk.skillId);
+						const sp = infoEl('span', 'usd-roster-choiceskill' + (dim ? ' usd-roster-choiceskill--dim' : ''), getSkillName(sk.skillId) + (isNonNegInt(sk.hintLevel) ? ' Lv' + sk.hintLevel : ''));
+						if (dim) sp.setAttribute('data-usd-dim', '1');
+						ul.appendChild(sp);
+					});
+					btn.appendChild(ul);
+				}
+				btn.addEventListener('click', () => o.onAcquire(ae, achieved));
+				group.appendChild(btn);
+			});
+			box.appendChild(group);
+		};
 		const addChoiceEvent = (e) => {
 			const box = infoEl('div', 'usd-roster-event');
 			box.setAttribute('data-usd-el', 'event');
@@ -9032,6 +9080,8 @@
 				cond.setAttribute('data-usd-el', 'event-cond');
 				box.appendChild(cond);
 			}
+			const acq = acquireByKey.get(e.eventKey);
+			if (acq) acquireParts(box, acq);
 			const group = infoEl('div', 'usd-roster-choices');
 			group.setAttribute('role', 'radiogroup');
 			group.setAttribute('aria-label', eventTitle(e) + 'の選択肢');
@@ -9081,6 +9131,20 @@
 			box.appendChild(resultGroupEl(re, null));
 			left.appendChild(box);
 		};
+		// 取得の切り替えだけの箱（選択肢が1つで、条件文のある user のイベント）: イベント名・条件文・補足文・未達成／達成のボタン
+		const addAcquireEvent = (ae) => {
+			const box = infoEl('div', 'usd-roster-event');
+			box.setAttribute('data-usd-el', 'event-acquire');
+			box.setAttribute('data-event-key', ae.eventKey);
+			box.appendChild(infoEl('p', 'usd-roster-eventtitle', eventTitle(ae)));
+			if (ae.condition !== '') {
+				const cond = infoEl('p', 'usd-roster-eventcond', ae.condition);
+				cond.setAttribute('data-usd-el', 'event-cond');
+				box.appendChild(cond);
+			}
+			acquireParts(box, ae);
+			left.appendChild(box);
+		};
 		// 確定のイベント（選択肢なし。シナリオの固定イベント）: 得るスキルとヒントレベルを並べるだけ
 		const addFixedEvent = (fe) => {
 			const box = infoEl('div', 'usd-roster-event');
@@ -9122,10 +9186,11 @@
 				const ce = list.find(x => x.eventKey === se.eventKey);
 				if (ce) addChoiceEvent(ce);
 			});
-		} else if (info.length > 0 || resultOnly.length > 0) {
-			// 選べる行・読み取り専用の行・結果ボタンだけの箱を、イベントの並び（位置 N）のまま混ぜる
+		} else if (info.length > 0 || resultOnly.length > 0 || acquireOnly.length > 0) {
+			// 選べる行・読み取り専用の行・結果ボタンだけの箱・取得の切り替えの箱を、イベントの並び（位置 N）のまま混ぜる
 			list.map(e => ({ i: e.index, f: () => addChoiceEvent(e) })).concat(info.map(e => ({ i: e.index, f: () => addInfoEvent(e) })))
 				.concat(resultOnly.map(e => ({ i: e.index, f: () => addResultEvent(e) })))
+				.concat(acquireOnly.map(e => ({ i: e.index, f: () => addAcquireEvent(e) })))
 				.sort((a, b) => a.i - b.i).forEach(x => x.f());
 		} else {
 			list.forEach(addChoiceEvent);
@@ -9832,6 +9897,49 @@
 			apply(nextValue);
 			return true;
 		}
+		/**
+		 * 取得の切り替えを保存する（roster.acquirePicks＝{ イベントの鍵: true }。達成にしたものだけ）。触ったときだけ書く・未達成に戻したらその鍵を消す・空なら項目ごと消す・
+		 * 読み込み時に補わない（ルール28）。**切り替えるのはその1つの鍵だけ**で、ほかの鍵（知らないものも）は書き換えない。1回の操作で1回、元に戻す（Undo）に積む（setResultPick と同じ）。
+		 * 切り替えたときは、確認済み（acquireSeen）にもする（こちらは元に戻すに積まない）。変わらなければ false（何も積まない）。
+		 */
+		function setAcquirePick(eventKey, achieved) {
+			markAcquireSeen();
+			const stored = (roster.acquirePicks && typeof roster.acquirePicks === 'object' && !Array.isArray(roster.acquirePicks)) ? roster.acquirePicks : null;
+			const prev = roster.acquirePicks === undefined ? undefined : snapshot(roster.acquirePicks);
+			const next = stored ? Object.assign({}, stored) : {};
+			if (achieved) next[eventKey] = true; else delete next[eventKey];
+			const nextValue = Object.keys(next).length === 0 ? undefined : next;
+			if (JSON.stringify(nextValue === undefined ? null : nextValue) === JSON.stringify(roster.acquirePicks === undefined ? null : roster.acquirePicks)) return false;
+			const rid = roster.rosterId;
+			const apply = (value) => {
+				if (value === undefined) delete roster.acquirePicks; else roster.acquirePicks = snapshot(value);
+				persistNow();
+			};
+			pushUndo({
+				scope: 'list',
+				doneLabel: achieved ? 'イベントを達成にしました' : 'イベントを未達成に戻しました',
+				undoneLabel: 'イベントの達成の切り替えを戻しました',
+				probe: () => roster.rosterId === rid ? probeOf(roster.acquirePicks === undefined ? null : roster.acquirePicks) : '',
+				apply: () => {
+					if (roster.rosterId !== rid) return false;
+					apply(prev);
+					render();
+					return true;
+				}
+			});
+			apply(nextValue);
+			return true;
+		}
+		/**
+		 * 取得の切り替えの確認済み（roster.acquireSeen＝確認した時点の umaId）を書く。育成ウマ娘のイベントの小窓を開いたとき・切り替えたときに呼ぶ。
+		 * **元に戻すには積まない**。すでに今の umaId なら何もしない（書き換えたら true）。
+		 */
+		function markAcquireSeen() {
+			if (!roster.umaId || roster.acquireSeen === roster.umaId) return false;
+			roster.acquireSeen = roster.umaId;
+			persistNow();
+			return true;
+		}
 		/** ◎に上げた行の◎の id から、行の○の id を引く（C-165）。◎に上げた行でなければそのまま */
 		function circleBaseOf(res, id) {
 			let base = id;
@@ -10112,7 +10220,7 @@
 
 		/** イベントを選ぶ小窓を開いている列の、未選択の数（段7の (19)。▼の点に使う）。 */
 		function unselectedCountOf(res, memberKey) {
-			return res.events.filter(e => e.memberKey === memberKey && e.pending).length;
+			return res.events.filter(e => e.memberKey === memberKey && e.pending).length + (res.acquireEvents || []).filter(e => e.memberKey === memberKey && e.unseen).length;
 		}
 
 		function render() {
@@ -10226,16 +10334,20 @@
 				const hasInfo = m.kind === 'uma' && !!m.label && (res.infoEvents || []).some(e => e.memberKey === m.key);
 				// 結果の切り替えだけを持つメンバー（選択肢が1つのイベントの結果が分かれるカードなど）も、小窓を開くボタンにする
 				const hasResult = (m.kind === 'card' || m.kind === 'uma') && !!m.label && (res.resultEvents || []).some(e => e.memberKey === m.key);
-				if (evs.length > 0 || hasInfo || hasResult) {
-					const unsel = evs.filter(e => e.pending).length;
+				// 取得の切り替え（育成ウマ娘の user のイベント）を持つ衣装もボタンにする。未確認のあいだは「！」と「未選択N件」に数える
+				const acqs = (m.kind === 'uma' && m.label) ? (res.acquireEvents || []).filter(e => e.memberKey === m.key) : [];
+				if (evs.length > 0 || hasInfo || hasResult || acqs.length > 0) {
+					const unsel = evs.filter(e => e.pending).length + acqs.filter(e => e.unseen).length;
+					// 達成にしたイベントがこの列に1つでもあるときも、結果の切り替えと同じ点を出す
+					const acquired = acqs.filter(e => e.acquired).length;
 					// 結果を最初のもの以外に切り替えたイベントが、この列に1つでもあるとき、バッジの角に小さな点（形は変えない）
 					const picked = (res.resultEvents || []).filter(e => e.memberKey === m.key && e.pos > 0).length;
-					const label = (m.kind === 'scenario' ? m.label : m.kind === 'uma' ? '育成ウマ娘' : m.no + '番のカード') + 'のイベントを選ぶ' + (unsel > 0 ? '（未選択' + unsel + '件）' : '') + (picked > 0 ? '（結果を切り替え中' + picked + '件）' : '');
+					const label = (m.kind === 'scenario' ? m.label : m.kind === 'uma' ? '育成ウマ娘' : m.no + '番のカード') + 'のイベントを選ぶ' + (unsel > 0 ? '（未選択' + unsel + '件）' : '') + (picked > 0 ? '（結果を切り替え中' + picked + '件）' : '') + (acquired > 0 ? '（達成にしたイベント' + acquired + '件）' : '');
 					s += '<button type="button" class="usd-roster-legend-no usd-roster-evbtn' + (m.kind === 'scenario' ? ' usd-roster-evbtn--scen' : m.kind === 'uma' ? ' usd-roster-evbtn--uma' : '') + (unsel > 0 ? ' usd-roster-evbtn--alert' : typedAttrs) + '"'
-						+ ' data-usd-act="events" data-member-key="' + m.key + '" data-usd-el="events-btn" data-unselected="' + unsel + '"' + (picked > 0 ? ' data-result-picked="' + picked + '"' : '')
+						+ ' data-usd-act="events" data-member-key="' + m.key + '" data-usd-el="events-btn" data-unselected="' + unsel + '"' + (picked > 0 ? ' data-result-picked="' + picked + '"' : '') + (acquired > 0 ? ' data-acquire-picked="' + acquired + '"' : '')
 						+ ' aria-label="' + esc(label) + '" title="' + esc(label) + '" aria-expanded="' + (eventsFor === m.key ? 'true' : 'false') + '">'
 						+ (unsel > 0 ? '!' : (m.kind === 'scenario' ? bowlSvg : m.kind === 'uma' ? '<span class="usd-roster-evdiamond" aria-hidden="true"></span>' : String(m.no)))
-						+ (picked > 0 ? '<span class="usd-roster-resdot" data-usd-el="result-dot" aria-hidden="true"></span>' : '') + '</button>';
+						+ (picked > 0 || acquired > 0 ? '<span class="usd-roster-resdot" data-usd-el="result-dot" aria-hidden="true"></span>' : '') + '</button>';
 				} else if (m.kind === 'uma') {
 					s += umaChip;
 				} else if (m.kind === 'scenario') {
@@ -10418,7 +10530,15 @@
 				evoUmaId: mem && mem.kind === 'uma' ? roster.umaId : null,
 				getPane: () => eventsPane, setPane: (n) => { eventsPane = n; },
 				onChoose: (e, c) => toggleEventChoice(e.eventKey, c.index, e.chosen === c.index && !e.auto ? null : c.index, e),
-				onPickResult: (re, pos) => pickResult(re.eventKey, pos) });
+				onPickResult: (re, pos) => pickResult(re.eventKey, pos),
+				onAcquire: (ae, achieved) => pickAcquire(ae.eventKey, achieved, achieved ? '1' : '0') });
+		}
+		/** 取得の切り替えのボタンを押したとき（未達成／達成）。切り替えて描き直し、押したボタンに focus を戻す（小窓の中身が作り直されるため） */
+		function pickAcquire(eventKey, achieved, which) {
+			setAcquirePick(eventKey, achieved);
+			render();
+			const again = skillInfoUi && skillInfoUi.body && skillInfoUi.body.querySelector('[data-usd-el="acquire-choice"][data-event-key="' + eventKey + '"][data-acquire="' + which + '"]');
+			if (again) focusNoScroll(again);
 		}
 		/** 結果のボタンを押したとき。切り替えて描き直し、押したボタンに focus を戻す（小窓の中身が作り直されるため） */
 		function pickResult(eventKey, pos) {
@@ -10444,9 +10564,12 @@
 				+ ' <span class="usd-ev-title-text">' + esc(m.label || '') + '</span>';
 		}
 		function openEventsPopover(memberKey) {
-			const res = computed();
+			let res = computed();
 			const m = res.members.find(x => x.key === memberKey);
 			if (!m) return;
+			// 育成ウマ娘の小窓を開いたら、取得の切り替えを確認したものとして数えるのをやめる（「！」・「未選択N件」。元に戻すには積まない）
+			const seenNow = m.kind === 'uma' && (res.acquireEvents || []).some(e => e.memberKey === memberKey) && markAcquireSeen();
+			if (seenNow) res = computed();
 			eventsFor = memberKey;
 			eventsPane = 0;
 			const btn = container.querySelector('[data-usd-act="events"][data-member-key="' + memberKey + '"]');
@@ -10456,6 +10579,8 @@
 				btn: btn, opener: btn, refocus: '[data-usd-act="events"][data-member-key="' + memberKey + '"]',
 				onClose: () => { eventsFor = null; const b = container.querySelector('[data-usd-act="events"][data-member-key="' + memberKey + '"]'); if (b) b.setAttribute('aria-expanded', 'false'); }
 			});
+			// 確認済みにしたら、列見出しの「！」を番号のバッジに戻すために描き直す（開いた小窓の中身も作り直される）
+			if (seenNow) render();
 			scanEntryRows();
 			restoreEventsPane();
 		}
@@ -12422,7 +12547,7 @@
 			const f = resolvedFilterOf(roster);
 			return ROSTER_FILTER_AXIS_KEYS.every(k => f[k] !== undefined);
 		}
-		/** ①の表に「！」（選ぶ必要があるのにまだ選んでいないイベント）が1つでもあるか。①の列見出しの「！」・「未選択N件」と同じ判定（events の pending） */
+		/** ①の表に「！」（選ぶ必要があるのにまだ選んでいないイベント）が1つでもあるか。events の pending で判定する（取得の切り替えの未確認は、オススメサポの探索を止める理由にしない） */
 		function outsideHasPendingEvents(roster) {
 			return rosterSkillResultOf(roster).events.some(e => e.pending);
 		}

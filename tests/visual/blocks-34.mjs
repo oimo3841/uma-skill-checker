@@ -171,4 +171,298 @@ export async function register34(env) {
 		console.log('  （参考）user のイベント ' + (exp.single + exp.multi) + '件: 単一選択肢' + exp.single + '／複数選択肢' + exp.multi + '。衣装ごとの件数の分布 {件数: 衣装数} ' + JSON.stringify(exp.perUma));
 		await sp.ctx.close();
 	});
+
+	/* ====================================================================
+	 * (2) 小窓: イベント欄の箱・ボタン・補足文・保存・「！」「未選択N件」・確認済み・元に戻す・リセット・インポート
+	 * ==================================================================== */
+	const P = '#deck-roster-panel ';
+	const BAR = '#deck-set-bar ';
+	const BAD_WORDS = /ヒント|必ず合う|合うことがある|合わない/;
+	const CARDS6 = REAL.cardIds;
+	const openSp = async (o = {}) => {
+		const sp = await openPage(browser, base, 'special.html', { width: o.w || 390, height: o.h || 900 }, o.userData || EMPTY);
+		if (o.scheme) await sp.page.emulateMedia({ colorScheme: o.scheme });
+		const scen = readJson('data/scenario-event-skills.json');
+		await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(scen) }));
+		const roster = Object.assign({ umaId: 'uma-0064', cardIds: CARDS6 }, o.roster || {});
+		await sp.page.evaluate(({ roster }) => {
+			localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(roster));
+			localStorage.removeItem('umaSkillDeck:draftScope:special');
+			localStorage.setItem('umaSkillDeck:stepTab', '0');
+		}, { roster });
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.waitForTimeout(700);
+		return sp;
+	};
+	const rawDraft = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:special'));
+	const draftR = async (page) => JSON.parse(await rawDraft(page));
+	const bandTotal = (page) => page.evaluate(() => Number(document.querySelector('#deck-roster-panel [data-usd-el="pt-total"]').textContent.replace(/[^0-9]/g, '')));
+	const undoCount = (page) => page.evaluate(() => UmaSkillDeckCore.undoCount());
+	// 小窓が開いていると「元に戻す」のボタンが隠れるので、閉じてから押す
+	const undo = async (page) => { await page.keyboard.press('Escape'); await page.waitForTimeout(250); await page.click('#deck-undo-btn'); await page.waitForTimeout(350); };
+	const ptTotal = (page, roster) => page.evaluate(async (roster) => { const C = UmaSkillDeckCore; await C.loadTrainingSources(); await C.loadSkillPtData(); return C.getRosterPtDetail(roster).total; }, roster);
+	const badge = (page, key = 0) => page.evaluate((key) => { const b = document.querySelector('#deck-roster-panel [data-usd-el="events-btn"][data-member-key="' + key + '"]');
+		return b && { text: b.textContent, un: Number(b.getAttribute('data-unselected')), dot: !!b.querySelector('[data-usd-el="result-dot"]'), acq: b.getAttribute('data-acquire-picked'), aria: b.getAttribute('aria-label') }; }, key);
+	const openPop = async (page, member = 0) => { await page.click(P + '[data-usd-el="events-btn"][data-member-key="' + member + '"]'); await page.waitForTimeout(400); };
+	const closePop = async (page) => { await page.keyboard.press('Escape'); await page.waitForTimeout(250); };
+	const evsOf = (umaId) => TR.find((e) => e.umaId === umaId).events.map((ev, i) => ({ ev, i, key: 'uma:' + umaId + '#' + i }));
+	/** 達成のボタンに出るはずの文字（全選択肢の分を、スキルごとに最大の Lv でまとめる。results があれば結果1） */
+	const expectLabel = (ev) => {
+		const m = new Map();
+		ev.choices.forEach((c) => (Array.isArray(c.results) ? c.results[0] : c.skills).forEach((r) => { const cur = m.get(r.skillId); if (!cur || r.hintLevel > cur.hintLevel) m.set(r.skillId, r); }));
+		return Array.from(m.values()).map((r) => r.name + ' Lv' + r.hintLevel);
+	};
+	const UMA_S = 'uma-0064';   // user 1件（単一選択肢）＋ fixed の読み取り専用 1件
+	const UMA_M = 'uma-0196';   // user の複数選択肢のイベントを持つ
+	const UMA_FIXED = 'uma-0040';   // ナリタブライアン（Maverick）: user のイベントが無い
+
+	await block('取得切替(2) 小窓: user のイベントは補足文・ボタンの行つきの箱／fixed は読み取り専用のまま／複数選択肢は選択肢の箱の中に行を足す／既定は未達成・どちらも押せる', async () => {
+		for (const umaId of [UMA_S, UMA_M]) {
+			const sp = await openSp({ roster: { umaId } });
+			const evs = evsOf(umaId);
+			const users = evs.filter((x) => x.ev.acquireMode === 'user');
+			await openPop(sp.page);
+			const dom = await sp.page.evaluate(() => {
+				const left = document.querySelector('[data-usd-el="events-pane-events"]');
+				const boxes = Array.from(left.querySelectorAll('[data-usd-el="event-acquire"], [data-usd-el="event"], [data-usd-el="event-info"], [data-usd-el="event-result"]'));
+				return { boxes: boxes.map((b) => ({ kind: b.getAttribute('data-usd-el'), key: b.getAttribute('data-event-key'), hasGroup: !!b.querySelector('[data-usd-el="acquire-group"]'),
+					kids: Array.from(b.children).map((c) => c.getAttribute('data-usd-el') || c.className.split(' ')[0]),
+					note: (b.querySelector('[data-usd-el="acquire-note"]') || {}).textContent || null, cond: (b.querySelector('[data-usd-el="event-cond"]') || {}).textContent || null,
+					btns: Array.from(b.querySelectorAll('[data-usd-el="acquire-choice"]')).map((x) => ({ on: x.classList.contains('usd-roster-choice--on'), checked: x.getAttribute('aria-checked'), disabled: x.disabled, a: x.getAttribute('data-acquire'),
+						text: x.querySelector('.usd-roster-choicelabel').textContent, skills: Array.from(x.querySelectorAll('.usd-roster-choiceskill')).map((s) => s.textContent) })) })),
+					text: left.textContent };
+			});
+			const keyed = new Map(dom.boxes.map((b) => [b.key, b]));
+			for (const u of users) {
+				const b = keyed.get(u.key);
+				const multi = u.ev.choices.length >= 2;
+				assert(b && b.hasGroup && b.kind === (multi ? 'event' : 'event-acquire'), '取得切替(2) ' + umaId + ' ' + u.key + ' は' + (multi ? '選択肢のボタンの箱の中に' : '補足文とボタンの行だけの箱として') + '未達成／達成の行が出る', b);
+				assert(b.note === u.ev.acquireNote && b.cond === u.ev.condition, '取得切替(2) ' + u.key + ' 条件文と補足文（acquireNote）がデータのまま出る', { note: b.note, cond: b.cond });
+				const kids = b.kids;
+				assert(kids.indexOf('event-cond') < kids.indexOf('acquire-note') && kids.indexOf('acquire-note') < kids.indexOf('acquire-group'), '取得切替(2) ' + u.key + ' 並びは 条件文 → 補足文 → ボタンの行', kids);
+				assert(b.btns.length === 2 && b.btns[0].text === '未達成' && b.btns[1].text === '達成' && b.btns[0].on && b.btns[0].checked === 'true' && !b.btns[1].on && b.btns[1].checked === 'false',
+					'取得切替(2) ' + u.key + ' ボタンは「未達成」「達成」の2つで、既定は未達成が選ばれている', b.btns);
+				assert(b.btns.every((x) => !x.disabled) && b.btns[0].skills.length === 0, '取得切替(2) ' + u.key + ' どちらも押せる（無効にしない）。未達成にはスキルを添えない', b.btns);
+				assert(JSON.stringify(b.btns[1].skills) === JSON.stringify(expectLabel(u.ev)), '取得切替(2) ' + u.key + ' 達成のボタンに得るスキル（スキル名 Lv。最大の段階のもの）が併記される', { got: b.btns[1].skills, exp: expectLabel(u.ev) });
+			}
+			// fixed（条件文のある単一選択肢）は読み取り専用のまま・ボタンの行も補足文も無い
+			const fixedInfos = evs.filter((x) => x.ev.acquireMode === 'fixed' && x.ev.choices.length === 1 && x.ev.condition !== '');
+			for (const f of fixedInfos) {
+				const b = keyed.get(f.key);
+				assert(b && b.kind === 'event-info' && !b.hasGroup && b.note === null, '取得切替(2) ' + umaId + ' ' + f.key + '（fixed）は今までの読み取り専用の行のまま（ボタンの行・補足文なし）', b);
+			}
+			assert(!BAD_WORDS.test(dom.text), '取得切替(2) ' + umaId + ' 小窓のイベント欄に「ヒント」「必ず合う／合うことがある／合わない」の語が出ない', dom.text.match(BAD_WORDS));
+			// 並び: 箱は events の並び（位置）の順
+			const idx = dom.boxes.map((b) => Number(b.key.split('#')[1]));
+			assert(idx.every((v, i) => i === 0 || idx[i - 1] <= v), '取得切替(2) ' + umaId + ' 箱はイベントの並び（位置）の順', idx);
+			assert(jsErrors(sp.errors).length === 0, '取得切替(2) ' + umaId + ' コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+			await sp.ctx.close();
+		}
+		// fixed だけのキャラクター: ボタンの行も補足文も出ない・バッジは「！」でない
+		const spF = await openSp({ roster: { umaId: UMA_FIXED } });
+		const bF = await badge(spF.page);
+		await openPop(spF.page);
+		const none = await spF.page.evaluate(() => ({ groups: document.querySelectorAll('[data-usd-el="acquire-group"]').length, notes: document.querySelectorAll('[data-usd-el="acquire-note"]').length }));
+		assert(none.groups === 0 && none.notes === 0 && bF.text !== '!' && !bF.dot, '取得切替(2) fixed だけのキャラクター（' + UMA_FIXED + '）の小窓にはボタンの行も補足文も出ない・「！」も点も出ない', { none, bF });
+		await spF.ctx.close();
+	});
+
+	await block('取得切替(2b) 押す: 達成にすると保存・合計が変わる・右の「取得できるスキル」に出る／未達成に戻すと鍵も項目も消える／元に戻すは1操作で1回／結果1のまま', async () => {
+		const sp = await openSp({ roster: { umaId: UMA_S } });
+		const u = evsOf(UMA_S).find((x) => x.ev.acquireMode === 'user');
+		const R = { umaId: UMA_S, cardIds: CARDS6 };
+		const before = await bandTotal(sp.page);
+		assert(before === (await ptTotal(sp.page, R)), '取得切替(2b) 前提: 既定の合計は、acquirePicks なしの計算と同じ', before);
+		await openPop(sp.page);
+		const rightBefore = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="ev-skills"] [data-usd-el="ev-skill"]')).map((x) => x.getAttribute('data-skill-id')));
+		const u0 = await undoCount(sp.page);
+		await sp.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="1"]');
+		await sp.page.waitForTimeout(400);
+		const d1 = await draftR(sp.page);
+		const expTotal = await ptTotal(sp.page, Object.assign({}, R, { acquirePicks: { [u.key]: true } }));
+		assert(JSON.stringify(d1.acquirePicks) === JSON.stringify({ [u.key]: true }), '取得切替(2b) 達成にすると acquirePicks に { 鍵: true } だけが保存される', d1.acquirePicks);
+		assert((await bandTotal(sp.page)) === expTotal && expTotal > before, '取得切替(2b) 帯の合計が達成後の値になる（' + before + '→' + expTotal + '）', await bandTotal(sp.page));
+		const rightAfter = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="ev-skills"] [data-usd-el="ev-skill"]')).map((x) => x.getAttribute('data-skill-id')));
+		const gained = (Array.isArray(u.ev.choices[0].results) ? u.ev.choices[0].results[0] : u.ev.choices[0].skills).map((r) => r.skillId);
+		assert(gained.every((id) => rightAfter.indexOf(id) !== -1 && rightBefore.indexOf(id) === -1), '取得切替(2b) 達成にすると、得るスキル（' + gained.join('・') + '）が右の「取得できるスキル」に出る（未達成では出ない）', { rightBefore: rightBefore.length, rightAfter: rightAfter.length });
+		const btns = await sp.page.evaluate((k) => Array.from(document.querySelectorAll('[data-usd-el="acquire-choice"][data-event-key="' + k + '"]')).map((b) => b.classList.contains('usd-roster-choice--on')), u.key);
+		assert(btns[1] && !btns[0], '取得切替(2b) 押したあと、小窓が描き直されて「達成」が選ばれている', btns);
+		assert((await undoCount(sp.page)) === u0 + 1, '取得切替(2b) 切り替えは元に戻すに1回だけ積まれる', { u0, now: await undoCount(sp.page) });
+		const dot = await badge(sp.page);
+		assert(dot.dot && dot.acq === '1', '取得切替(2b) 達成にした列のバッジに点（data-acquire-picked=1）', dot);
+		// 結果の切り替えに従う: 条件文のあるイベントは resultPicks を何にしても結果1
+		assert((await ptTotal(sp.page, Object.assign({}, R, { acquirePicks: { [u.key]: true }, resultPicks: { [u.key]: 2 } }))) === expTotal, '取得切替(2b) 達成のイベントも結果の切り替えに従う（条件文のあるイベントは結果1のまま）', null);
+		// 未達成に戻す → 鍵も項目も消える
+		await sp.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="0"]');
+		await sp.page.waitForTimeout(400);
+		const d0 = await draftR(sp.page);
+		assert(!('acquirePicks' in d0) && (await bandTotal(sp.page)) === before, '取得切替(2b) 未達成に戻すと、鍵が消えて acquirePicks は項目ごと消える・合計も最初に戻る', d0.acquirePicks);
+		// 元に戻す: 1回で戻る（達成 → 未達成 の2操作を、2回で戻る）
+		await undo(sp.page);
+		assert(JSON.stringify((await draftR(sp.page)).acquirePicks) === JSON.stringify({ [u.key]: true }), '取得切替(2b) 「元に戻す」1回で、直前の1操作（未達成に戻したこと）だけが戻る', null);
+		await undo(sp.page);
+		assert(!('acquirePicks' in (await draftR(sp.page))), '取得切替(2b) もう1回で最初（未達成）に戻る', null);
+		assert(jsErrors(sp.errors).length === 0, '取得切替(2b) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
+
+	await block('取得切替(3) 確認済み: 開くまで「！」と「未選択N件」に数える／開くと数えず元に戻すに積まない／切り替えでも確認済み／別のキャラクターなら未確認に戻る／保存値は書き換えない', async () => {
+		const expectedUnsel = (roster, seen) => openSp({ roster }).then(async (sp) => { const n = await sp.page.evaluate(async ({ roster, seen }) => {
+			const C = UmaSkillDeckCore; await C.loadTrainingSources(); await C.loadSkillPtData(); await C.loadScenarioEvents(false);
+			const r = C.computeRosterSkills(roster, { autoChoose: true, acquireSeen: seen });
+			return r.events.filter((e) => e.memberKey === 0 && e.pending).length + r.acquireEvents.filter((e) => e.unseen).length; }, { roster, seen }); await sp.ctx.close(); return n; });
+		const userN = evsOf(UMA_S).filter((x) => x.ev.acquireMode === 'user').length;
+		const sp = await openSp({ roster: { umaId: UMA_S } });
+		const b0 = await badge(sp.page);
+		const n0 = await expectedUnsel({ umaId: UMA_S, cardIds: CARDS6 }, false);
+		assert(b0.un === n0 && b0.un >= userN && b0.text === '!' && /未選択/.test(b0.aria), '取得切替(3) 開く前: user のイベント（' + userN + '件）が「！」と「未選択N件」に数えられる（' + b0.un + '件）', b0);
+		const raw0 = await rawDraft(sp.page);
+		const u0 = await undoCount(sp.page);
+		await openPop(sp.page);
+		const d1 = await draftR(sp.page);
+		assert(d1.acquireSeen === UMA_S && !('acquirePicks' in d1), '取得切替(3) 開くと acquireSeen に今の umaId が入る（acquirePicks は触らない）', d1);
+		assert((await undoCount(sp.page)) === u0, '取得切替(3) 小窓を開いて acquireSeen を書くことは、元に戻すに積まない', { u0, now: await undoCount(sp.page) });
+		const b1 = await badge(sp.page);
+		assert(b1.un === b0.un - userN, '取得切替(3) 開いたあとは user のイベントを数えない（' + b0.un + '→' + b1.un + '）', b1);
+		const shownUnsel = await sp.page.evaluate(() => (document.querySelector('[data-usd-el="events-unselected"]') || {}).textContent);
+		assert(shownUnsel === '未選択' + b1.un + '件', '取得切替(3) 小窓の「未選択N件」も、開いた時点で数えない', shownUnsel);
+		await closePop(sp.page);
+		// もう一度開いても何も書き換わらない
+		const raw1 = await rawDraft(sp.page);
+		await openPop(sp.page); await closePop(sp.page);
+		assert((await rawDraft(sp.page)) === raw1, '取得切替(3) 2回目に開いても保存データは変わらない', null);
+		await sp.ctx.close();
+		// 開き直し（保存した確認済みを入れて開く）: 戻らない。別のキャラクターの確認済みなら、未確認に戻る（保存値は1バイトも変わらない）
+		const spSeen = await openSp({ roster: { umaId: UMA_S, acquireSeen: UMA_S } });
+		const bs = await badge(spSeen.page);
+		assert(bs.un === b1.un, '取得切替(3) 確認済みを保存して開き直しても、user のイベントは数えない', bs);
+		await spSeen.ctx.close();
+		const other = { umaId: UMA_S, cardIds: CARDS6, acquireSeen: 'uma-0001' };
+		const spOther = await openSp({ roster: other });
+		const bo = await badge(spOther.page);
+		assert(bo.un === b0.un, '取得切替(3) acquireSeen が別の umaId（別のキャラクターで確認した値）なら、未確認に戻って数える', bo);
+		const rawOther = JSON.parse(await rawDraft(spOther.page));
+		assert(rawOther.acquireSeen === 'uma-0001', '取得切替(3) 別の umaId の acquireSeen は、開いただけでは書き換えない', rawOther);
+		await spOther.ctx.close();
+		// 切り替えたときも確認済みにする（小窓を開かずに切り替えることはできないが、開いた時点で確認済み。切り替えのあとも同じ）
+		const spT = await openSp({ roster: { umaId: UMA_S } });
+		await openPop(spT.page);
+		const u = evsOf(UMA_S).find((x) => x.ev.acquireMode === 'user');
+		await spT.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="1"]');
+		await spT.page.waitForTimeout(350);
+		await undo(spT.page);
+		assert((await draftR(spT.page)).acquireSeen === UMA_S, '取得切替(3) 切り替えを元に戻しても、確認済み（acquireSeen）は戻さない', await draftR(spT.page));
+		await spT.ctx.close();
+		// 未達成のまま確認済みにしたとき（開いただけ）、達成のイベントは「！」に数えない
+		const spA = await openSp({ roster: { umaId: UMA_S, acquirePicks: { [u.key]: true } } });
+		const ba = await badge(spA.page);
+		assert(ba.un === b0.un - userN, '取得切替(3) 達成にしたイベントは、確認前でも未確認に数えない（' + ba.un + '件）', ba);
+		await spA.ctx.close();
+	});
+
+	await block('取得切替(4) 保存・読み込み・リセット・元に戻す・インポート: 項目の無い保存は1バイトも変わらない／知らない鍵は残す／中身をすべて消すで両方消え元に戻すで戻る／インポート→元に戻すで書き換わらない（ルール28）', async () => {
+		const SAVED = (extra) => ({ schemaVersion: 7, records: [], customSkills: [], templates: [
+			{ templateId: 't1', name: 'S1', skillIds: [], baseRosterId: 'r1', createdAt: 'x', updatedAt: 'x' }],
+			rosters: [Object.assign({ rosterId: 'r1', name: 'S1', umaId: UMA_S, star: 3, awakeningLevel: 5, cardIds: CARDS6.slice(), createdAt: 'x', updatedAt: 'x' }, extra || {})] });
+		const rawUd = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:userData'));
+		const open2 = async (userData) => {
+			const sp = await openPage(browser, base, 'special.html', { width: 390, height: 900 }, userData);
+			await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(readJson('data/scenario-event-skills.json')) }));
+			await sp.page.evaluate(() => { localStorage.removeItem('umaSkillDeck:draftRoster:special'); localStorage.removeItem('umaSkillDeck:draftScope:special'); localStorage.setItem('umaSkillDeck:stepTab', '0'); });
+			await sp.page.reload({ waitUntil: 'networkidle' });
+			for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+			await sp.page.waitForSelector(BAR + '[data-usd-el="setbar"]', { timeout: 10000 }).catch(() => {});
+			await sp.page.click(BAR + '[data-usd-act="set-list"]');
+			const already = await sp.page.evaluate(() => { const i = document.querySelector('[data-usd-el="set-list"] input[value="t1"]'); return !!i && i.checked; });
+			if (already) await sp.page.keyboard.press('Escape'); else await sp.page.click('[data-usd-el="set-list"] input[value="t1"]');
+			await sp.page.waitForTimeout(900);
+			return sp;
+		};
+		const rosterOf = async (page) => JSON.parse(await rawUd(page)).rosters[0];
+		const u = evsOf(UMA_S).find((x) => x.ev.acquireMode === 'user');
+		const seed = SAVED();
+		const sp = await open2(seed);
+		assert((await rawUd(sp.page)) === JSON.stringify(seed), '取得切替(4)(a) acquirePicks・acquireSeen の無い保存データを開いてセットを選んでも、1バイトも変わらない（読み込み時に補わない・移行しない）', null);
+		const base0 = await bandTotal(sp.page);
+		assert(base0 === (await ptTotal(sp.page, seed.rosters[0])), '取得切替(4)(a) 保存済みの編成の合計は、既定（未達成）の値', base0);
+		// (b) 小窓を開く → acquireSeen が保存される（schemaVersion は 7 のまま）。切り替える → acquirePicks
+		await openPop(sp.page);
+		const r1 = await rosterOf(sp.page);
+		assert(r1.acquireSeen === UMA_S && !('acquirePicks' in r1) && JSON.parse(await rawUd(sp.page)).schemaVersion === 7, '取得切替(4)(b) 開くと保存済みの編成に acquireSeen だけが入る（schemaVersion は 7 のまま）', r1);
+		await sp.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="1"]');
+		await sp.page.waitForTimeout(350);
+		await closePop(sp.page);
+		const savedNow = await rawUd(sp.page);
+		assert(JSON.stringify((await rosterOf(sp.page)).acquirePicks) === JSON.stringify({ [u.key]: true }), '取得切替(4)(b) 達成にすると rosters の acquirePicks に { 鍵: true } が入る', null);
+		const total1 = await bandTotal(sp.page);
+		const spR = await open2(JSON.parse(savedNow));
+		assert((await bandTotal(spR.page)) === total1 && (await rawUd(spR.page)) === savedNow, '取得切替(4)(b) 開き直しても、合計が同じ（保存データも1バイトも変わらない）', { total1, now: await bandTotal(spR.page) });
+		await spR.ctx.close();
+		// (c) 元に戻す: 切り替えだけが戻る（acquireSeen は残る）
+		await undo(sp.page);
+		const r2 = await rosterOf(sp.page);
+		assert(!('acquirePicks' in r2) && r2.acquireSeen === UMA_S && (await bandTotal(sp.page)) === base0, '取得切替(4)(c) 「元に戻す」で acquirePicks が項目ごと消え、合計も既定に戻る（acquireSeen は残る）', r2);
+		// (d) リセット（中身をすべて消す）で、acquirePicks と acquireSeen の両方が消える。元に戻すで戻る。「取得しないスキルを戻す」は触らない
+		await openPop(sp.page);
+		await sp.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="1"]');
+		await sp.page.waitForTimeout(350);
+		await closePop(sp.page);
+		await sp.page.click(P + '[data-usd-el="roster-reset"]');
+		await sp.page.waitForTimeout(300);
+		await sp.page.click('[data-usd-el="roster-reset-off"]');
+		await sp.page.waitForTimeout(300);
+		await sp.page.keyboard.press('Escape');
+		await sp.page.waitForTimeout(250);
+		const r3 = await rosterOf(sp.page);
+		assert(JSON.stringify(r3.acquirePicks) === JSON.stringify({ [u.key]: true }) && r3.acquireSeen === UMA_S, '取得切替(4)(d) 「取得しないスキルを戻す」は acquirePicks・acquireSeen に触らない', r3);
+		await sp.page.click(P + '[data-usd-el="roster-reset"]');
+		await sp.page.waitForTimeout(300);
+		await sp.page.click('[data-usd-el="roster-reset-all"]');
+		await sp.page.waitForTimeout(400);
+		const cleared = await rosterOf(sp.page);
+		assert(!('acquirePicks' in cleared) && !('acquireSeen' in cleared) && cleared.umaId === '', '取得切替(4)(d) 「中身をすべて消す」で acquirePicks と acquireSeen の両方が消える', cleared);
+		await undo(sp.page);
+		const restored = await rosterOf(sp.page);
+		assert(JSON.stringify(restored.acquirePicks) === JSON.stringify({ [u.key]: true }) && restored.acquireSeen === UMA_S && restored.umaId === UMA_S, '取得切替(4)(d) 「元に戻す」で、リセット前（acquirePicks・acquireSeen・衣装）に戻る', restored);
+		assert(jsErrors(sp.errors).length === 0, '取得切替(4) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+		// (d2) acquireSeen だけの編成は「中身」と数えない（空の編成のリセットを押せるかは umaId・カード・acquirePicks など中身で決まる）
+		const onlySeen = await openSp({ roster: { umaId: '', cardIds: [null, null, null, null, null, null], acquireSeen: UMA_S } });
+		const hc = await onlySeen.page.evaluate(() => ({ resettable: !!document.querySelector('#deck-roster-panel [data-usd-el="roster-reset"]') && !document.querySelector('#deck-roster-panel [data-usd-el="roster-reset"]').disabled }));
+		assert(hc.resettable === false, '取得切替(4)(d2) acquireSeen だけの編成は、リセットの対象（中身）に数えない', hc);
+		await onlySeen.ctx.close();
+		// (e) 知らない鍵・崩れた値の入った保存データは、開いただけでは1バイトも変わらない。未達成として数える。切り替えたのはその1つだけ
+		const junk = { 'no-such#1': true, 'card:card-9999#0': true, [u.key]: 'yes' };
+		const seed2 = SAVED({ acquirePicks: junk, acquireSeen: 12345 });
+		const sp2 = await open2(seed2);
+		assert((await rawUd(sp2.page)) === JSON.stringify(seed2), '取得切替(4)(e) 知らない鍵・true 以外の値・形の崩れた acquireSeen の入った保存データも、開いただけでは1バイトも変わらない', null);
+		assert((await bandTotal(sp2.page)) === base0, '取得切替(4)(e) 無効な値は未達成として数える（合計は既定のまま）', await bandTotal(sp2.page));
+		await openPop(sp2.page);
+		await sp2.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="1"]');
+		await sp2.page.waitForTimeout(300);
+		const k2 = (await rosterOf(sp2.page)).acquirePicks;
+		assert(JSON.stringify(k2) === JSON.stringify(Object.assign({}, junk, { [u.key]: true })), '取得切替(4)(e) 切り替えたのはその1つの鍵だけ（知らない鍵はそのまま残る）', k2);
+		await sp2.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="0"]');
+		await sp2.page.waitForTimeout(300);
+		const k3 = (await rosterOf(sp2.page)).acquirePicks;
+		assert(JSON.stringify(k3) === JSON.stringify({ 'no-such#1': true, 'card:card-9999#0': true }), '取得切替(4)(e) 未達成に戻すと、その1つの鍵だけを外す（知らない鍵は残る）', k3);
+		await sp2.ctx.close();
+		// (f) Deck: acquirePicks・acquireSeen つきの保存データを書き出し→取り込み→「元に戻す」で、取り込み前と一致する（ルール28）
+		const seed3 = SAVED({ acquirePicks: { [u.key]: true, 'no-such#1': true }, acquireSeen: UMA_S });
+		const dk = await openPage(browser, base, 'uma-skill-deck.html', { width: 1280, height: 900 }, seed3);
+		await dk.page.click('#tab-btn-data');
+		await dk.page.waitForTimeout(300);
+		const state = () => dk.page.evaluate(() => JSON.stringify(UmaSkillDeckCore.getUserData()) + '|' + localStorage.getItem('umaSkillDeck:userData'));
+		const bef = await state();
+		const exp = await dk.page.evaluate(() => { exportData(); return document.getElementById('export-textarea').value; });
+		const er = JSON.parse(exp).rosters[0];
+		assert(JSON.stringify(er.acquirePicks) === JSON.stringify({ [u.key]: true, 'no-such#1': true }) && er.acquireSeen === UMA_S, '取得切替(4)(f) 書き出しに acquirePicks・acquireSeen が入る（知らない鍵も含めてそのまま）', er);
+		await dk.page.evaluate((v) => { document.getElementById('import-textarea').value = JSON.stringify(v); const c = window.confirm; window.confirm = () => true; importData(); window.confirm = c; }, EMPTY);
+		const un = await dk.page.evaluate(() => ({ ok: performUndo() }));
+		await dk.page.waitForTimeout(300);
+		assert(un.ok && (await state()) === bef, '取得切替(4)(f) 取り込み→「元に戻す」で、acquirePicks・acquireSeen つきのデータが取り込み前と一致する（移行で書き換わらない）', un);
+		assert(dk.errors.length === 0, '取得切替(4)(f) Deck: コンソールのエラー0', dk.errors.slice(0, 3));
+		await dk.ctx.close();
+	});
 }
