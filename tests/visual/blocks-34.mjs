@@ -545,4 +545,51 @@ export async function register34(env) {
 		assert((await swipeOn(pc.page, '[data-usd-el="events-panes"]', -100, 0)) === '0', '取得切替(5) 1280px: 左右の動きでは何も切り替わらない（2列のまま）', null);
 		await pc.ctx.close();
 	});
+
+	/* ====================================================================
+	 * (6) 列見出しのバッジの角の点（達成にしたイベントがあるとき。結果の切り替えと同じ点・同じ形）
+	 * ==================================================================== */
+	const lum = (rgb) => { const [r, g, b] = rgb.match(/[\d.]+/g).slice(0, 3).map(Number).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+	const ratio = (a, b) => { const la = lum(a), lb = lum(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
+	const badgesOf = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"]')).map((b) => {
+		const r = b.getBoundingClientRect(); const d = b.querySelector('[data-usd-el="result-dot"]');
+		const cs = getComputedStyle(b); const dcs = d ? getComputedStyle(d) : null; const dr = d ? d.getBoundingClientRect() : null;
+		return { key: b.getAttribute('data-member-key'), text: b.textContent, w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10, aria: b.getAttribute('aria-label'), acq: b.getAttribute('data-acquire-picked'),
+			dot: !!d, bg: cs.backgroundColor, dotBg: dcs && dcs.backgroundColor, ring: dcs && dcs.borderTopColor, dotW: dr && dr.width, dotInside: dr ? (dr.right <= r.right + 5 && dr.top >= r.top - 5) : null };
+	}));
+	const bandH = (page) => page.evaluate(() => Math.round(document.querySelector('#deck-roster-panel [data-usd-el="pt-sumrow"]').getBoundingClientRect().height));
+	const docScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+
+	await block('取得切替(6) 列見出しの点: 達成にしたイベントがある列のバッジだけに付く・形と帯の高さ（28px）は変わらない・「！」と区別できる・ライト／ダークで見える（PC・390・360）', async () => {
+		const key = evsOf(UMA_S).find((x) => x.ev.acquireMode === 'user').key;
+		for (const [w, scheme] of [[1280, 'light'], [390, 'light'], [390, 'dark'], [360, 'light']]) {
+			const tag = '取得切替(6) ' + w + '/' + scheme + ' ';
+			const plain = await openSp({ roster: { umaId: UMA_S, acquireSeen: UMA_S }, w, scheme });
+			const bandPlain = await bandH(plain.page);
+			const b0 = await badgesOf(plain.page);
+			assert(b0.every((b) => !b.dot && b.acq === null), tag + '達成にしたイベントが無いときは、どの列にも点が無い（確認済みだけでは出ない）', b0.filter((b) => b.dot).length);
+			await plain.ctx.close();
+			const sp = await openSp({ roster: { umaId: UMA_S, acquireSeen: UMA_S, acquirePicks: { [key]: true } }, w, scheme });
+			const b1 = await badgesOf(sp.page);
+			const dots = b1.filter((b) => b.dot);
+			assert(dots.length === 1 && dots[0].key === '0' && dots[0].acq === '1' && /達成にしたイベント1件/.test(dots[0].aria), tag + '点は達成にしたイベントのある列（育成ウマ娘）のバッジだけに付き、aria-label に「達成にしたイベント1件」', dots.map((d) => [d.key, d.acq, d.aria]));
+			assert(b1.every((b, i) => b.w === b0[i].w && b.h === b0[i].h), tag + 'バッジの幅・高さは変わらない（点は角に添えるだけ）', b1.map((b, i) => [b.w - b0[i].w, b.h - b0[i].h]));
+			// 帯（合計の1行）は PC・390px で 28px。360px は元から2行（60px）に折り返す。どの幅でも、点を足しても変わらない
+			assert((await bandH(sp.page)) === bandPlain && (w === 360 || bandPlain === 28), tag + '帯の高さは変わらない（' + bandPlain + 'px。PC・390px は 28px）', { plain: bandPlain, now: await bandH(sp.page) });
+			assert((await docScroll(sp.page)) <= 0, tag + '横スクロールが出ない', await docScroll(sp.page));
+			const d = dots[0];
+			assert(d.dotW >= 7 && d.dotW <= 9 && d.dotInside, tag + '点は約8pxで、バッジの右上の角に収まる', { w: d.dotW, inside: d.dotInside });
+			const cr = ratio(d.dotBg, d.ring);
+			assert(cr >= 3, tag + '点と縁取りのコントラスト比 ' + cr.toFixed(2) + '（3:1以上）', { dot: d.dotBg, ring: d.ring });
+			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+			await sp.ctx.close();
+			// 「！」（未確認・赤いバッジ）と点が同時に出るとき: 形は変えず、点は赤い地とは別の色（縁取りで見分けがつく）
+			const al = await openSp({ roster: { umaId: UMA_S, acquirePicks: { [key]: true } }, w, scheme });
+			const ba = await badgesOf(al.page);
+			const bang = ba.find((b) => b.key === '0');
+			assert(bang.text === '!' && bang.dot && bang.dotBg !== bang.bg && ratio(bang.dotBg, bang.bg) >= 1.5, tag + '「！」の赤いバッジの角にも点が出て、赤い地と違う色（コントラスト比 ' + ratio(bang.dotBg, bang.bg).toFixed(2) + '）', { text: bang.text, dot: bang.dotBg, bg: bang.bg });
+			assert((await bandH(al.page)) === bandPlain, tag + '「！」と点が同時でも帯の高さは変わらない（' + bandPlain + 'px）', await bandH(al.page));
+			await al.ctx.close();
+		}
+	});
 }
