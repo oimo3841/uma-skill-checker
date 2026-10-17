@@ -268,53 +268,71 @@ export async function register34(env) {
 	const openPop = async (page, member = 0) => { await page.click(P + '[data-usd-el="events-btn"][data-member-key="' + member + '"]'); await page.waitForTimeout(400); };
 	const closePop = async (page) => { await page.keyboard.press('Escape'); await page.waitForTimeout(250); };
 	const evsOf = (umaId) => TR.find((e) => e.umaId === umaId).events.map((ev, i) => ({ ev, i, key: 'uma:' + umaId + '#' + i }));
-	/** 達成のボタンに出るはずの文字（全選択肢の分を、スキルごとに最大の Lv でまとめる。results があれば結果1） */
-	const expectLabel = (ev) => {
+	const UMA_S = 'uma-0215';   // コパノリッキー: user 1件（段階なし・選択肢1つ）＋ fixed の読み取り専用 1件
+	const UMA_G = 'uma-0064';   // マンハッタンカフェ: user 1件（段階あり・3段階「疲れ知らずの怪」）
+	const UMA_M = 'uma-0196';   // ジェンティルドンナ: user 2件（段階なし。うち1件はゲーム内の選択肢が2つ）
+	const UMA_B = 'uma-0132';   // ビコーペガサス: 「ターフの上のヒーロー」（段階4つ。choices も4つ）
+	const UMA_FIXED = 'uma-0040';   // ナリタブライアン（Maverick）: user のイベントが無い
+
+	/** ボタンに出るはずの「スキル名 Lv」の並び（結果があれば結果1。全選択肢の分を、スキルごとに最大の Lv でまとめる） */
+	const expectSkills = (ev) => {
 		const m = new Map();
 		ev.choices.forEach((c) => (Array.isArray(c.results) ? c.results[0] : c.skills).forEach((r) => { const cur = m.get(r.skillId); if (!cur || r.hintLevel > cur.hintLevel) m.set(r.skillId, r); }));
 		return Array.from(m.values()).map((r) => r.name + ' Lv' + r.hintLevel);
 	};
-	const UMA_S = 'uma-0064';   // user 1件（単一選択肢）＋ fixed の読み取り専用 1件
-	const UMA_M = 'uma-0196';   // user の複数選択肢のイベントを持つ
-	const UMA_FIXED = 'uma-0040';   // ナリタブライアン（Maverick）: user のイベントが無い
+	const optSkills = (o) => o.skills.map((r) => r.name + ' Lv' + r.hintLevel);
+	const BAD_SHOWN = /達成|ヒント|必ず合う|合うことがある|合わない/;
 
-	await block('取得切替(2) 小窓: user のイベントは補足文・ボタンの行つきの箱／fixed は読み取り専用のまま／複数選択肢は選択肢の箱の中に行を足す／既定は未達成・どちらも押せる', async () => {
-		for (const umaId of [UMA_S, UMA_M]) {
+	await block('取得切替(2) 小窓: 段階ありは段階のボタン（条件文の灰色の行・補足文つき）／段階なしは条件を文にした1ボタン（灰色の行なし）／ゲーム内の選択肢が複数なら選択肢の下に別の段／choices は出ない／fixed は読み取り専用のまま／既定は何も選ばず押せる', async () => {
+		for (const umaId of [UMA_S, UMA_G, UMA_M, UMA_B]) {
 			const sp = await openSp({ roster: { umaId } });
 			const evs = evsOf(umaId);
 			const users = evs.filter((x) => x.ev.acquireMode === 'user');
 			await openPop(sp.page);
 			const dom = await sp.page.evaluate(() => {
 				const left = document.querySelector('[data-usd-el="events-pane-events"]');
+				const pop = document.querySelector('[data-usd-el="info-pop"]');
 				const boxes = Array.from(left.querySelectorAll('[data-usd-el="event-acquire"], [data-usd-el="event"], [data-usd-el="event-info"], [data-usd-el="event-result"]'));
 				return { boxes: boxes.map((b) => ({ kind: b.getAttribute('data-usd-el'), key: b.getAttribute('data-event-key'), hasGroup: !!b.querySelector('[data-usd-el="acquire-group"]'),
 					kids: Array.from(b.children).map((c) => c.getAttribute('data-usd-el') || c.className.split(' ')[0]),
 					note: (b.querySelector('[data-usd-el="acquire-note"]') || {}).textContent || null, cond: (b.querySelector('[data-usd-el="event-cond"]') || {}).textContent || null,
-					btns: Array.from(b.querySelectorAll('[data-usd-el="acquire-choice"]')).map((x) => ({ on: x.classList.contains('usd-roster-choice--on'), checked: x.getAttribute('aria-checked'), disabled: x.disabled, a: x.getAttribute('data-acquire'),
-						text: x.querySelector('.usd-roster-acquirelabel').textContent, skills: Array.from(x.querySelectorAll('.usd-roster-choiceskill')).map((s) => s.textContent) })) })),
-					text: left.textContent };
+					gameChoices: b.querySelectorAll('[data-usd-el="event-choice"]').length,
+					btns: Array.from(b.querySelectorAll('[data-usd-el="acquire-choice"]')).map((x) => ({ on: x.classList.contains('usd-roster-choice--on'), pressed: x.getAttribute('aria-pressed'), disabled: x.disabled, a: x.getAttribute('data-acquire'),
+						label: (x.querySelector('.usd-roster-acquirelabel') || {}).textContent || null, skills: Array.from(x.querySelectorAll('.usd-roster-choiceskill')).map((s) => s.textContent) })) })),
+					text: left.textContent, attrs: Array.from(pop.querySelectorAll('[aria-label],[title]')).map((e) => (e.getAttribute('aria-label') || '') + (e.getAttribute('title') || '')).join('|') };
 			});
 			const keyed = new Map(dom.boxes.map((b) => [b.key, b]));
 			for (const u of users) {
 				const b = keyed.get(u.key);
-				const multi = u.ev.choices.length >= 2;
-				assert(b && b.hasGroup && b.kind === (multi ? 'event' : 'event-acquire'), '取得切替(2) ' + umaId + ' ' + u.key + ' は' + (multi ? '選択肢のボタンの箱の中に' : '補足文とボタンの行だけの箱として') + '未達成／達成の行が出る', b);
-				assert(b.note === u.ev.acquireNote && b.cond === u.ev.condition, '取得切替(2) ' + u.key + ' 条件文と補足文（acquireNote）がデータのまま出る', { note: b.note, cond: b.cond });
-				const kids = b.kids;
-				assert(kids.indexOf('event-cond') < kids.indexOf('acquire-note') && kids.indexOf('acquire-note') < kids.indexOf('acquire-group'), '取得切替(2) ' + u.key + ' 並びは 条件文 → 補足文 → ボタンの行', kids);
-				assert(b.btns.length === 2 && b.btns[0].text === '未達成' && b.btns[1].text === '達成' && b.btns[0].on && b.btns[0].checked === 'true' && !b.btns[1].on && b.btns[1].checked === 'false',
-					'取得切替(2) ' + u.key + ' ボタンは「未達成」「達成」の2つで、既定は未達成が選ばれている', b.btns);
-				assert(b.btns.every((x) => !x.disabled) && b.btns[0].skills.length === 0, '取得切替(2) ' + u.key + ' どちらも押せる（無効にしない）。未達成にはスキルを添えない', b.btns);
-				assert(JSON.stringify(b.btns[1].skills) === JSON.stringify(expectLabel(u.ev)), '取得切替(2) ' + u.key + ' 達成のボタンに得るスキル（スキル名 Lv。最大の段階のもの）が併記される', { got: b.btns[1].skills, exp: expectLabel(u.ev) });
+				const staged = Array.isArray(u.ev.acquireOptions);
+				const multi = !staged && u.ev.choices.length >= 2;
+				assert(b && b.hasGroup && b.kind === (multi ? 'event' : 'event-acquire'), '取得切替(2) ' + umaId + ' ' + u.key + ' は' + (multi ? '選択肢のボタンの箱の下に別の段として' : 'ボタンの行だけの箱として') + '出る', b);
+				assert(b.note === u.ev.acquireNote, '取得切替(2) ' + u.key + ' 補足文（acquireNote）がデータのまま出る', { note: b.note });
+				if (staged) {
+					const n = u.ev.acquireOptions.length;
+					assert(b.cond === u.ev.condition && b.gameChoices === 0, '取得切替(2) ' + u.key + ' 段階あり: 条件文は灰色の行に（データのまま）・ゲーム内の選択肢（choices）は出ない', { cond: b.cond, gameChoices: b.gameChoices });
+					assert(b.kids.indexOf('event-cond') < b.kids.indexOf('acquire-note') && b.kids.indexOf('acquire-note') < b.kids.indexOf('acquire-group'), '取得切替(2) ' + u.key + ' 並びは 条件文 → 補足文 → ボタンの行', b.kids);
+					assert(b.btns.length === n && b.btns.every((x, i) => x.label === u.ev.acquireOptions[i].label && JSON.stringify(x.skills) === JSON.stringify(optSkills(u.ev.acquireOptions[i]))),
+						'取得切替(2) ' + u.key + ' 段階あり: acquireOptions の要素の数（' + n + '）だけボタンが並び、各ボタンは「ラベル スキル名 Lv」（選択肢と同じ作り）', b.btns);
+				} else {
+					assert(b.cond === null, '取得切替(2) ' + u.key + ' 段階なし: 灰色の条件文の行を出さない（条件文はボタンの文に含める）', b.cond);
+					assert(b.btns.length === 1 && b.btns[0].label === u.ev.condition && JSON.stringify(b.btns[0].skills) === JSON.stringify(expectSkills(u.ev)),
+						'取得切替(2) ' + u.key + ' 段階なし: ボタンは1つで「条件文 スキル名 Lv」', b.btns);
+					if (multi) {
+						assert(b.gameChoices === u.ev.choices.length && b.kids.indexOf('usd-roster-choices') < b.kids.indexOf('acquire-note') && b.kids.indexOf('acquire-note') < b.kids.indexOf('acquire-group'),
+							'取得切替(2) ' + u.key + ' ゲーム内の選択肢が複数: 選択肢のボタン（' + b.gameChoices + '）の下に、補足文 → 条件のボタンが別の段で出る', b.kids);
+					} else {
+						assert(b.kids.indexOf('acquire-note') < b.kids.indexOf('acquire-group'), '取得切替(2) ' + u.key + ' 補足文はボタンの上', b.kids);
+					}
+				}
+				assert(b.btns.every((x) => !x.on && x.pressed === 'false' && !x.disabled), '取得切替(2) ' + u.key + ' 既定は何も選ばれておらず、すべて押せる（無効にしない）', b.btns);
 			}
-			// fixed（条件文のある単一選択肢）は読み取り専用のまま・ボタンの行も補足文も無い
 			const fixedInfos = evs.filter((x) => x.ev.acquireMode === 'fixed' && x.ev.choices.length === 1 && x.ev.condition !== '');
 			for (const f of fixedInfos) {
 				const b = keyed.get(f.key);
 				assert(b && b.kind === 'event-info' && !b.hasGroup && b.note === null, '取得切替(2) ' + umaId + ' ' + f.key + '（fixed）は今までの読み取り専用の行のまま（ボタンの行・補足文なし）', b);
 			}
-			assert(!BAD_WORDS.test(dom.text), '取得切替(2) ' + umaId + ' 小窓のイベント欄に「ヒント」「必ず合う／合うことがある／合わない」の語が出ない', dom.text.match(BAD_WORDS));
-			// 並び: 箱は events の並び（位置）の順
+			assert(!BAD_SHOWN.test(dom.text) && !BAD_SHOWN.test(dom.attrs), '取得切替(2) ' + umaId + ' 小窓の文・aria-label・title に「達成／未達成」「ヒント」「必ず合う／合うことがある／合わない」の語が出ない', (dom.text + dom.attrs).match(BAD_SHOWN));
 			const idx = dom.boxes.map((b) => Number(b.key.split('#')[1]));
 			assert(idx.every((v, i) => i === 0 || idx[i - 1] <= v), '取得切替(2) ' + umaId + ' 箱はイベントの並び（位置）の順', idx);
 			assert(jsErrors(sp.errors).length === 0, '取得切替(2) ' + umaId + ' コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
@@ -329,7 +347,7 @@ export async function register34(env) {
 		await spF.ctx.close();
 	});
 
-	await block('取得切替(2b) 押す: 達成にすると保存・合計が変わる・右の「取得できるスキル」に出る／未達成に戻すと鍵も項目も消える／元に戻すは1操作で1回／結果1のまま', async () => {
+	await block('取得切替(2b) 押す（段階なし）: 押すと保存・合計が変わる・右の「取得できるスキル」に出る／もう一度押すと解除（鍵も項目も消える）／元に戻すは1操作で1回', async () => {
 		const sp = await openSp({ roster: { umaId: UMA_S } });
 		const u = evsOf(UMA_S).find((x) => x.ev.acquireMode === 'user');
 		const R = { umaId: UMA_S, cardIds: CARDS6 };
@@ -338,34 +356,87 @@ export async function register34(env) {
 		await openPop(sp.page);
 		const rightBefore = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="ev-skills"] [data-usd-el="ev-skill"]')).map((x) => x.getAttribute('data-skill-id')));
 		const u0 = await undoCount(sp.page);
-		await sp.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="1"]');
+		const sel = '[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="0"]';
+		await sp.page.click(sel);
 		await sp.page.waitForTimeout(400);
 		const d1 = await draftR(sp.page);
-		const expTotal = await ptTotal(sp.page, Object.assign({}, R, { acquirePicks: { [u.key]: true } }));
-		assert(JSON.stringify(d1.acquirePicks) === JSON.stringify({ [u.key]: true }), '取得切替(2b) 達成にすると acquirePicks に { 鍵: true } だけが保存される', d1.acquirePicks);
-		assert((await bandTotal(sp.page)) === expTotal && expTotal > before, '取得切替(2b) 帯の合計が達成後の値になる（' + before + '→' + expTotal + '）', await bandTotal(sp.page));
+		const expTotal = await ptTotal(sp.page, Object.assign({}, R, { acquirePicks: { [u.key]: 0 } }));
+		assert(JSON.stringify(d1.acquirePicks) === JSON.stringify({ [u.key]: 0 }), '取得切替(2b) 押すと acquirePicks に { 鍵: 0 } だけが保存される（段階なしは番号0）', d1.acquirePicks);
+		assert((await bandTotal(sp.page)) === expTotal && expTotal > before, '取得切替(2b) 帯の合計が選んだあとの値になる（' + before + '→' + expTotal + '）', await bandTotal(sp.page));
 		const rightAfter = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="ev-skills"] [data-usd-el="ev-skill"]')).map((x) => x.getAttribute('data-skill-id')));
 		const gained = (Array.isArray(u.ev.choices[0].results) ? u.ev.choices[0].results[0] : u.ev.choices[0].skills).map((r) => r.skillId);
-		assert(gained.every((id) => rightAfter.indexOf(id) !== -1 && rightBefore.indexOf(id) === -1), '取得切替(2b) 達成にすると、得るスキル（' + gained.join('・') + '）が右の「取得できるスキル」に出る（未達成では出ない）', { rightBefore: rightBefore.length, rightAfter: rightAfter.length });
-		const btns = await sp.page.evaluate((k) => Array.from(document.querySelectorAll('[data-usd-el="acquire-choice"][data-event-key="' + k + '"]')).map((b) => b.classList.contains('usd-roster-choice--on')), u.key);
-		assert(btns[1] && !btns[0], '取得切替(2b) 押したあと、小窓が描き直されて「達成」が選ばれている', btns);
+		assert(gained.every((id) => rightAfter.indexOf(id) !== -1 && rightBefore.indexOf(id) === -1), '取得切替(2b) 押すと、得るスキル（' + gained.join('・') + '）が右の「取得できるスキル」に出る（選ぶ前は出ない）', { rightBefore: rightBefore.length, rightAfter: rightAfter.length });
+		const on1 = await sp.page.evaluate((s) => { const b = document.querySelector(s); return [b.classList.contains('usd-roster-choice--on'), b.getAttribute('aria-pressed')]; }, sel);
+		assert(on1[0] && on1[1] === 'true', '取得切替(2b) 押したあと、小窓が描き直されて選んだ状態（--on・aria-pressed）になっている', on1);
 		assert((await undoCount(sp.page)) === u0 + 1, '取得切替(2b) 切り替えは元に戻すに1回だけ積まれる', { u0, now: await undoCount(sp.page) });
 		const dot = await badge(sp.page);
-		assert(dot.dot && dot.acq === '1', '取得切替(2b) 達成にした列のバッジに点（data-acquire-picked=1）', dot);
+		assert(dot.dot && dot.acq === '1', '取得切替(2b) 選んだ列のバッジに点（data-acquire-picked=1）', dot);
 		// 結果の切り替えに従う: 条件文のあるイベントは resultPicks を何にしても結果1
-		assert((await ptTotal(sp.page, Object.assign({}, R, { acquirePicks: { [u.key]: true }, resultPicks: { [u.key]: 2 } }))) === expTotal, '取得切替(2b) 達成のイベントも結果の切り替えに従う（条件文のあるイベントは結果1のまま）', null);
-		// 未達成に戻す → 鍵も項目も消える
-		await sp.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="0"]');
+		assert((await ptTotal(sp.page, Object.assign({}, R, { acquirePicks: { [u.key]: 0 }, resultPicks: { [u.key]: 2 } }))) === expTotal, '取得切替(2b) 選んだイベントも結果の切り替えに従う（条件文のあるイベントは結果1のまま）', null);
+		// もう一度押すと解除 → 鍵も項目も消える
+		await sp.page.click(sel);
 		await sp.page.waitForTimeout(400);
 		const d0 = await draftR(sp.page);
-		assert(!('acquirePicks' in d0) && (await bandTotal(sp.page)) === before, '取得切替(2b) 未達成に戻すと、鍵が消えて acquirePicks は項目ごと消える・合計も最初に戻る', d0.acquirePicks);
-		// 元に戻す: 1回で戻る（達成 → 未達成 の2操作を、2回で戻る）
+		assert(!('acquirePicks' in d0) && (await bandTotal(sp.page)) === before, '取得切替(2b) もう一度押すと解除され、鍵が消えて acquirePicks は項目ごと消える・合計も最初に戻る', d0.acquirePicks);
 		await undo(sp.page);
-		assert(JSON.stringify((await draftR(sp.page)).acquirePicks) === JSON.stringify({ [u.key]: true }), '取得切替(2b) 「元に戻す」1回で、直前の1操作（未達成に戻したこと）だけが戻る', null);
+		assert(JSON.stringify((await draftR(sp.page)).acquirePicks) === JSON.stringify({ [u.key]: 0 }), '取得切替(2b) 「元に戻す」1回で、直前の1操作（解除）だけが戻る', null);
 		await undo(sp.page);
-		assert(!('acquirePicks' in (await draftR(sp.page))), '取得切替(2b) もう1回で最初（未達成）に戻る', null);
+		assert(!('acquirePicks' in (await draftR(sp.page))), '取得切替(2b) もう1回で最初（何も選んでいない）に戻る', null);
 		assert(jsErrors(sp.errors).length === 0, '取得切替(2b) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
+	});
+
+	await block('取得切替(2c) 押す（段階あり）: 選べるのは1つ（排他）で別の段階を押すと切り替わる／同じ段階をもう一度押すと解除／その段階のスキルだけが合計と右の欄に出る／ビコーペガサスは choices が出ない', async () => {
+		for (const [umaId, label] of [[UMA_G, 'マンハッタンカフェ'], [UMA_B, 'ビコーペガサス']]) {
+			const sp = await openSp({ roster: { umaId } });
+			const u = evsOf(umaId).find((x) => Array.isArray(x.ev.acquireOptions));
+			const n = u.ev.acquireOptions.length;
+			const R = { umaId, cardIds: CARDS6 };
+			const before = await bandTotal(sp.page);
+			await openPop(sp.page);
+			const stateOf = () => sp.page.evaluate((k) => Array.from(document.querySelectorAll('[data-usd-el="acquire-choice"][data-event-key="' + k + '"]')).map((b) => b.classList.contains('usd-roster-choice--on') + ':' + b.getAttribute('aria-pressed')), u.key);
+			const rightIds = () => sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="ev-skills"] [data-usd-el="ev-skill"]')).map((x) => x.getAttribute('data-skill-id')));
+			const tag = '取得切替(2c) ' + label + ' ';
+			const click = async (i) => { await sp.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="' + i + '"]'); await sp.page.waitForTimeout(400); };
+			const noneOn = Array.from({ length: n }, () => 'false:false');
+			assert(JSON.stringify(await stateOf()) === JSON.stringify(noneOn), tag + '開いたとき、どの段階も選ばれていない', await stateOf());
+			const gameChoices = await sp.page.evaluate((k) => document.querySelectorAll('[data-usd-el="event-choice"][data-event-key="' + k + '"]').length, u.key);
+			assert(gameChoices === 0, tag + 'acquireOptions だけが選択のボタンで、choices のボタンは出ない', gameChoices);
+			const u0 = await undoCount(sp.page);
+			await click(n - 1);
+			let d = await draftR(sp.page);
+			const st = (i) => Array.from({ length: n }, (_, k) => (k === i ? 'true:true' : 'false:false'));
+			assert(JSON.stringify(d.acquirePicks) === JSON.stringify({ [u.key]: n - 1 }) && JSON.stringify(await stateOf()) === JSON.stringify(st(n - 1)), tag + '最後の段階を押すと { 鍵: ' + (n - 1) + ' } が保存され、その段階だけが選ばれる', { d: d.acquirePicks, s: await stateOf() });
+			const totalLast = await bandTotal(sp.page);
+			assert(totalLast === (await ptTotal(sp.page, Object.assign({}, R, { acquirePicks: { [u.key]: n - 1 } }))) && totalLast > before, tag + '合計が最後の段階の値になる（' + before + '→' + totalLast + '）', totalLast);
+			const ids = await rightIds();
+			assert(u.ev.acquireOptions[n - 1].skills.every((s) => ids.indexOf(s.skillId) !== -1), tag + '右の「取得できるスキル」に選んだ段階のスキルが出る', ids.length);
+			// 別の段階を押す: 切り替わる（排他）。元に戻すに1回積まれる
+			await click(0);
+			d = await draftR(sp.page);
+			assert(JSON.stringify(d.acquirePicks) === JSON.stringify({ [u.key]: 0 }) && JSON.stringify(await stateOf()) === JSON.stringify(st(0)), tag + '別の段階（先頭）を押すと切り替わる（選べるのは1つ）。ほかの段階の選びは残らない', { d: d.acquirePicks, s: await stateOf() });
+			const totalFirst = await bandTotal(sp.page);
+			assert(totalFirst === (await ptTotal(sp.page, Object.assign({}, R, { acquirePicks: { [u.key]: 0 } }))), tag + '合計が先頭の段階の値になる（最後の段階の分は数えない）', { totalFirst, totalLast });
+			assert((await undoCount(sp.page)) === u0 + 2, tag + '切り替えごとに元に戻すへ1回ずつ積まれる', { u0, now: await undoCount(sp.page) });
+			// 同じ段階をもう一度押す: 解除
+			await click(0);
+			d = await draftR(sp.page);
+			assert(!('acquirePicks' in d) && JSON.stringify(await stateOf()) === JSON.stringify(noneOn) && (await bandTotal(sp.page)) === before, tag + '選んでいる段階をもう一度押すと解除され、鍵も項目も消えて合計は最初に戻る', { d: d.acquirePicks, s: await stateOf() });
+			await undo(sp.page);
+			assert(JSON.stringify((await draftR(sp.page)).acquirePicks) === JSON.stringify({ [u.key]: 0 }), tag + '「元に戻す」で解除が戻り、先頭の段階を選んだ状態になる', null);
+			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+			await sp.ctx.close();
+		}
+		// ビコーペガサスは「選択肢の未選択」にも数えない（choices を数えない）。開く前の「！」は acquireEvents の未確認の分だけ
+		const spB = await openSp({ roster: { umaId: UMA_B } });
+		const bB = await badge(spB.page);
+		const expB = await spB.page.evaluate(async ({ roster }) => {
+			const C = UmaSkillDeckCore; await C.loadTrainingSources(); await C.loadSkillPtData(); await C.loadScenarioEvents(false);
+			const r = C.computeRosterSkills(roster, { autoChoose: true, acquireSeen: false });
+			return { pending: r.events.filter((e) => e.memberKey === 0 && e.pending).length, unseen: r.acquireEvents.filter((e) => e.unseen).length, bikoInEvents: r.events.some((e) => /uma-0132#2$/.test(e.eventKey)) };
+		}, { roster: { umaId: UMA_B, cardIds: CARDS6 } });
+		assert(!expB.bikoInEvents && bB.un === expB.pending + expB.unseen, '取得切替(2c) ビコーペガサス: 「ターフの上のヒーロー」の選択肢を「選択肢の未選択」に数えない（' + bB.un + '件＝選ぶ必要のあるイベント' + expB.pending + '＋未確認の取得' + expB.unseen + '）', { bB, expB });
+		await spB.ctx.close();
 	});
 
 	await block('取得切替(3) 確認済み: 開くまで「！」と「未選択N件」に数える／開くと数えず元に戻すに積まない／切り替えでも確認済み／別のキャラクターなら未確認に戻る／保存値は書き換えない', async () => {
@@ -410,15 +481,15 @@ export async function register34(env) {
 		const spT = await openSp({ roster: { umaId: UMA_S } });
 		await openPop(spT.page);
 		const u = evsOf(UMA_S).find((x) => x.ev.acquireMode === 'user');
-		await spT.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="1"]');
+		await spT.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="0"]');
 		await spT.page.waitForTimeout(350);
 		await undo(spT.page);
 		assert((await draftR(spT.page)).acquireSeen === UMA_S, '取得切替(3) 切り替えを元に戻しても、確認済み（acquireSeen）は戻さない', await draftR(spT.page));
 		await spT.ctx.close();
-		// 未達成のまま確認済みにしたとき（開いただけ）、達成のイベントは「！」に数えない
-		const spA = await openSp({ roster: { umaId: UMA_S, acquirePicks: { [u.key]: true } } });
+		// 未選択のまま確認済みにしたとき（開いただけ）、選択のイベントは「！」に数えない
+		const spA = await openSp({ roster: { umaId: UMA_S, acquirePicks: { [u.key]: 0 } } });
 		const ba = await badge(spA.page);
-		assert(ba.un === b0.un - userN, '取得切替(3) 達成にしたイベントは、確認前でも未確認に数えない（' + ba.un + '件）', ba);
+		assert(ba.un === b0.un - userN, '取得切替(3) 選んだイベントは、確認前でも未確認に数えない（' + ba.un + '件）', ba);
 		await spA.ctx.close();
 	});
 
@@ -446,16 +517,16 @@ export async function register34(env) {
 		const sp = await open2(seed);
 		assert((await rawUd(sp.page)) === JSON.stringify(seed), '取得切替(4)(a) acquirePicks・acquireSeen の無い保存データを開いてセットを選んでも、1バイトも変わらない（読み込み時に補わない・移行しない）', null);
 		const base0 = await bandTotal(sp.page);
-		assert(base0 === (await ptTotal(sp.page, seed.rosters[0])), '取得切替(4)(a) 保存済みの編成の合計は、既定（未達成）の値', base0);
+		assert(base0 === (await ptTotal(sp.page, seed.rosters[0])), '取得切替(4)(a) 保存済みの編成の合計は、既定（未選択）の値', base0);
 		// (b) 小窓を開く → acquireSeen が保存される（schemaVersion は 7 のまま）。切り替える → acquirePicks
 		await openPop(sp.page);
 		const r1 = await rosterOf(sp.page);
 		assert(r1.acquireSeen === UMA_S && !('acquirePicks' in r1) && JSON.parse(await rawUd(sp.page)).schemaVersion === 7, '取得切替(4)(b) 開くと保存済みの編成に acquireSeen だけが入る（schemaVersion は 7 のまま）', r1);
-		await sp.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="1"]');
+		await sp.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="0"]');
 		await sp.page.waitForTimeout(350);
 		await closePop(sp.page);
 		const savedNow = await rawUd(sp.page);
-		assert(JSON.stringify((await rosterOf(sp.page)).acquirePicks) === JSON.stringify({ [u.key]: true }), '取得切替(4)(b) 達成にすると rosters の acquirePicks に { 鍵: true } が入る', null);
+		assert(JSON.stringify((await rosterOf(sp.page)).acquirePicks) === JSON.stringify({ [u.key]: 0 }), '取得切替(4)(b) 選ぶと rosters の acquirePicks に { 鍵: true } が入る', null);
 		const total1 = await bandTotal(sp.page);
 		const spR = await open2(JSON.parse(savedNow));
 		assert((await bandTotal(spR.page)) === total1 && (await rawUd(spR.page)) === savedNow, '取得切替(4)(b) 開き直しても、合計が同じ（保存データも1バイトも変わらない）', { total1, now: await bandTotal(spR.page) });
@@ -466,7 +537,7 @@ export async function register34(env) {
 		assert(!('acquirePicks' in r2) && r2.acquireSeen === UMA_S && (await bandTotal(sp.page)) === base0, '取得切替(4)(c) 「元に戻す」で acquirePicks が項目ごと消え、合計も既定に戻る（acquireSeen は残る）', r2);
 		// (d) リセット（中身をすべて消す）で、acquirePicks と acquireSeen の両方が消える。元に戻すで戻る。「取得しないスキルを戻す」は触らない
 		await openPop(sp.page);
-		await sp.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="1"]');
+		await sp.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="0"]');
 		await sp.page.waitForTimeout(350);
 		await closePop(sp.page);
 		await sp.page.click(P + '[data-usd-el="roster-reset"]');
@@ -476,7 +547,7 @@ export async function register34(env) {
 		await sp.page.keyboard.press('Escape');
 		await sp.page.waitForTimeout(250);
 		const r3 = await rosterOf(sp.page);
-		assert(JSON.stringify(r3.acquirePicks) === JSON.stringify({ [u.key]: true }) && r3.acquireSeen === UMA_S, '取得切替(4)(d) 「取得しないスキルを戻す」は acquirePicks・acquireSeen に触らない', r3);
+		assert(JSON.stringify(r3.acquirePicks) === JSON.stringify({ [u.key]: 0 }) && r3.acquireSeen === UMA_S, '取得切替(4)(d) 「取得しないスキルを戻す」は acquirePicks・acquireSeen に触らない', r3);
 		await sp.page.click(P + '[data-usd-el="roster-reset"]');
 		await sp.page.waitForTimeout(300);
 		await sp.page.click('[data-usd-el="roster-reset-all"]');
@@ -485,7 +556,7 @@ export async function register34(env) {
 		assert(!('acquirePicks' in cleared) && !('acquireSeen' in cleared) && cleared.umaId === '', '取得切替(4)(d) 「中身をすべて消す」で acquirePicks と acquireSeen の両方が消える', cleared);
 		await undo(sp.page);
 		const restored = await rosterOf(sp.page);
-		assert(JSON.stringify(restored.acquirePicks) === JSON.stringify({ [u.key]: true }) && restored.acquireSeen === UMA_S && restored.umaId === UMA_S, '取得切替(4)(d) 「元に戻す」で、リセット前（acquirePicks・acquireSeen・衣装）に戻る', restored);
+		assert(JSON.stringify(restored.acquirePicks) === JSON.stringify({ [u.key]: 0 }) && restored.acquireSeen === UMA_S && restored.umaId === UMA_S, '取得切替(4)(d) 「元に戻す」で、リセット前（acquirePicks・acquireSeen・衣装）に戻る', restored);
 		assert(jsErrors(sp.errors).length === 0, '取得切替(4) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 		// (d2) acquireSeen だけの編成は「中身」と数えない（空の編成のリセットを押せるかは umaId・カード・acquirePicks など中身で決まる）
@@ -493,24 +564,24 @@ export async function register34(env) {
 		const hc = await onlySeen.page.evaluate(() => ({ resettable: !!document.querySelector('#deck-roster-panel [data-usd-el="roster-reset"]') && !document.querySelector('#deck-roster-panel [data-usd-el="roster-reset"]').disabled }));
 		assert(hc.resettable === false, '取得切替(4)(d2) acquireSeen だけの編成は、リセットの対象（中身）に数えない', hc);
 		await onlySeen.ctx.close();
-		// (e) 知らない鍵・崩れた値の入った保存データは、開いただけでは1バイトも変わらない。未達成として数える。切り替えたのはその1つだけ
+		// (e) 知らない鍵・崩れた値の入った保存データは、開いただけでは1バイトも変わらない。未選択として数える。切り替えたのはその1つだけ
 		const junk = { 'no-such#1': true, 'card:card-9999#0': true, [u.key]: 'yes' };
 		const seed2 = SAVED({ acquirePicks: junk, acquireSeen: 12345 });
 		const sp2 = await open2(seed2);
 		assert((await rawUd(sp2.page)) === JSON.stringify(seed2), '取得切替(4)(e) 知らない鍵・true 以外の値・形の崩れた acquireSeen の入った保存データも、開いただけでは1バイトも変わらない', null);
-		assert((await bandTotal(sp2.page)) === base0, '取得切替(4)(e) 無効な値は未達成として数える（合計は既定のまま）', await bandTotal(sp2.page));
+		assert((await bandTotal(sp2.page)) === base0, '取得切替(4)(e) 無効な値は未選択として数える（合計は既定のまま）', await bandTotal(sp2.page));
 		await openPop(sp2.page);
-		await sp2.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="1"]');
+		await sp2.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="0"]');
 		await sp2.page.waitForTimeout(300);
 		const k2 = (await rosterOf(sp2.page)).acquirePicks;
-		assert(JSON.stringify(k2) === JSON.stringify(Object.assign({}, junk, { [u.key]: true })), '取得切替(4)(e) 切り替えたのはその1つの鍵だけ（知らない鍵はそのまま残る）', k2);
+		assert(JSON.stringify(k2) === JSON.stringify(Object.assign({}, junk, { [u.key]: 0 })), '取得切替(4)(e) 切り替えたのはその1つの鍵だけ（知らない鍵はそのまま残る）', k2);
 		await sp2.page.click('[data-usd-el="acquire-choice"][data-event-key="' + u.key + '"][data-acquire="0"]');
 		await sp2.page.waitForTimeout(300);
 		const k3 = (await rosterOf(sp2.page)).acquirePicks;
-		assert(JSON.stringify(k3) === JSON.stringify({ 'no-such#1': true, 'card:card-9999#0': true }), '取得切替(4)(e) 未達成に戻すと、その1つの鍵だけを外す（知らない鍵は残る）', k3);
+		assert(JSON.stringify(k3) === JSON.stringify({ 'no-such#1': true, 'card:card-9999#0': true }), '取得切替(4)(e) 未選択に戻すと、その1つの鍵だけを外す（知らない鍵は残る）', k3);
 		await sp2.ctx.close();
 		// (f) Deck: acquirePicks・acquireSeen つきの保存データを書き出し→取り込み→「元に戻す」で、取り込み前と一致する（ルール28）
-		const seed3 = SAVED({ acquirePicks: { [u.key]: true, 'no-such#1': true }, acquireSeen: UMA_S });
+		const seed3 = SAVED({ acquirePicks: { [u.key]: 0, 'no-such#1': true }, acquireSeen: UMA_S });
 		const dk = await openPage(browser, base, 'uma-skill-deck.html', { width: 1280, height: 900 }, seed3);
 		await dk.page.click('#tab-btn-data');
 		await dk.page.waitForTimeout(300);
@@ -518,7 +589,7 @@ export async function register34(env) {
 		const bef = await state();
 		const exp = await dk.page.evaluate(() => { exportData(); return document.getElementById('export-textarea').value; });
 		const er = JSON.parse(exp).rosters[0];
-		assert(JSON.stringify(er.acquirePicks) === JSON.stringify({ [u.key]: true, 'no-such#1': true }) && er.acquireSeen === UMA_S, '取得切替(4)(f) 書き出しに acquirePicks・acquireSeen が入る（知らない鍵も含めてそのまま）', er);
+		assert(JSON.stringify(er.acquirePicks) === JSON.stringify({ [u.key]: 0, 'no-such#1': true }) && er.acquireSeen === UMA_S, '取得切替(4)(f) 書き出しに acquirePicks・acquireSeen が入る（知らない鍵も含めてそのまま）', er);
 		await dk.page.evaluate((v) => { document.getElementById('import-textarea').value = JSON.stringify(v); const c = window.confirm; window.confirm = () => true; importData(); window.confirm = c; }, EMPTY);
 		const un = await dk.page.evaluate(() => ({ ok: performUndo() }));
 		await dk.page.waitForTimeout(300);
@@ -608,7 +679,7 @@ export async function register34(env) {
 	});
 
 	/* ====================================================================
-	 * (6) 列見出しのバッジの角の点（達成にしたイベントがあるとき。結果の切り替えと同じ点・同じ形）
+	 * (6) 列見出しのバッジの角の点（選んだイベントがあるとき。結果の切り替えと同じ点・同じ形）
 	 * ==================================================================== */
 	const lum = (rgb) => { const [r, g, b] = rgb.match(/[\d.]+/g).slice(0, 3).map(Number).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
 	const ratio = (a, b) => { const la = lum(a), lb = lum(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
@@ -621,19 +692,19 @@ export async function register34(env) {
 	const bandH = (page) => page.evaluate(() => Math.round(document.querySelector('#deck-roster-panel [data-usd-el="pt-sumrow"]').getBoundingClientRect().height));
 	const docScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
-	await block('取得切替(6) 列見出しの点: 達成にしたイベントがある列のバッジだけに付く・形と帯の高さ（28px）は変わらない・「！」と区別できる・ライト／ダークで見える（PC・390・360）', async () => {
+	await block('取得切替(6) 列見出しの点: 選んだイベントがある列のバッジだけに付く・形と帯の高さ（28px）は変わらない・「！」と区別できる・ライト／ダークで見える（PC・390・360）', async () => {
 		const key = evsOf(UMA_S).find((x) => x.ev.acquireMode === 'user').key;
 		for (const [w, scheme] of [[1280, 'light'], [390, 'light'], [390, 'dark'], [360, 'light']]) {
 			const tag = '取得切替(6) ' + w + '/' + scheme + ' ';
 			const plain = await openSp({ roster: { umaId: UMA_S, acquireSeen: UMA_S }, w, scheme });
 			const bandPlain = await bandH(plain.page);
 			const b0 = await badgesOf(plain.page);
-			assert(b0.every((b) => !b.dot && b.acq === null), tag + '達成にしたイベントが無いときは、どの列にも点が無い（確認済みだけでは出ない）', b0.filter((b) => b.dot).length);
+			assert(b0.every((b) => !b.dot && b.acq === null), tag + '選んだイベントが無いときは、どの列にも点が無い（確認済みだけでは出ない）', b0.filter((b) => b.dot).length);
 			await plain.ctx.close();
-			const sp = await openSp({ roster: { umaId: UMA_S, acquireSeen: UMA_S, acquirePicks: { [key]: true } }, w, scheme });
+			const sp = await openSp({ roster: { umaId: UMA_S, acquireSeen: UMA_S, acquirePicks: { [key]: 0 } }, w, scheme });
 			const b1 = await badgesOf(sp.page);
 			const dots = b1.filter((b) => b.dot);
-			assert(dots.length === 1 && dots[0].key === '0' && dots[0].acq === '1' && /達成にしたイベント1件/.test(dots[0].aria), tag + '点は達成にしたイベントのある列（育成ウマ娘）のバッジだけに付き、aria-label に「達成にしたイベント1件」', dots.map((d) => [d.key, d.acq, d.aria]));
+			assert(dots.length === 1 && dots[0].key === '0' && dots[0].acq === '1' && /取得を選択中1件/.test(dots[0].aria), tag + '点は選んだイベントのある列（育成ウマ娘）のバッジだけに付き、aria-label に「取得を選択中1件」', dots.map((d) => [d.key, d.acq, d.aria]));
 			assert(b1.every((b, i) => b.w === b0[i].w && b.h === b0[i].h), tag + 'バッジの幅・高さは変わらない（点は角に添えるだけ）', b1.map((b, i) => [b.w - b0[i].w, b.h - b0[i].h]));
 			// 帯（合計の1行）は PC・390px で 28px。360px は元から2行（60px）に折り返す。どの幅でも、点を足しても変わらない
 			assert((await bandH(sp.page)) === bandPlain && (w === 360 || bandPlain === 28), tag + '帯の高さは変わらない（' + bandPlain + 'px。PC・390px は 28px）', { plain: bandPlain, now: await bandH(sp.page) });
@@ -645,7 +716,7 @@ export async function register34(env) {
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 			// 「！」（未確認・赤いバッジ）と点が同時に出るとき: 形は変えず、点は赤い地とは別の色（縁取りで見分けがつく）
-			const al = await openSp({ roster: { umaId: UMA_S, acquirePicks: { [key]: true } }, w, scheme });
+			const al = await openSp({ roster: { umaId: UMA_S, acquirePicks: { [key]: 0 } }, w, scheme });
 			const ba = await badgesOf(al.page);
 			const bang = ba.find((b) => b.key === '0');
 			assert(bang.text === '!' && bang.dot && bang.dotBg !== bang.bg && ratio(bang.dotBg, bang.bg) >= 1.5, tag + '「！」の赤いバッジの角にも点が出て、赤い地と違う色（コントラスト比 ' + ratio(bang.dotBg, bang.bg).toFixed(2) + '）', { text: bang.text, dot: bang.dotBg, bg: bang.bg });
