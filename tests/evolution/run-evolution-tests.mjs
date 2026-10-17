@@ -452,8 +452,8 @@ console.log('\n=== §7 進化先を選べる条件: 進化先自身が使える�
 		'修正3: ①の表: 長距離のレースでも、進化させる気炎万丈は表に出て取得に数える（Pt は元の金スキル）', { vis: r.rudolfTable.visibleIds.includes('ex-0354'), ev: r.rudolfTable.evoChoices });
 	assert(!r.rudolfTableNone.visibleIds.includes('ex-0354') && !r.rudolfTableNone.takenIds.includes('ex-0354'),
 		'修正3: ①の表: 「進化しない」を選べば、これまでどおり絞り込みで隠れる', r.rudolfTableNone.evoChoices);
-	assert(r.jichu.entry && r.jichu.entry.targets[0].fit === 'must' && r.jichu.candidates.includes('ex-0616') && r.jichu.old.fit === 'no',
-		'修正4: 時中の妙→湯切りの妙技: 長距離 芝3000m でも選べる・候補に入る（変更前は「中距離レースで」の追加の効果の条件で外れていた）', { entry: r.jichu.entry, old: r.jichu.old });
+	assert(r.jichu.entry && r.jichu.entry.targets[0].fit === 'must' && r.jichu.candidates.includes('ex-0616') && r.jichu.old.fit === 'must',
+		'修正4: 時中の妙→湯切りの妙技: 長距離 芝3000m でも選べる・候補に入る（2026-10-17 のタグ整備で、タグ自体から追加の効果の条件の語〔中距離〕が外れたので、説明文を読まない旧い経路〔old〕でも同じ）', { entry: r.jichu.entry, old: r.jichu.old });
 	assert(r.senkoOnly.sashi.fit === 'no' && r.senkoOnly.senko.fit === 'must',
 		'進化先自身が使えないレース: ＜作戦・先行＞の進化先は、差しでは選べない（先行なら距離に関係なく選べる）', r.senkoOnly);
 	assert(r.never.now.fit === 'must' && !(r.never.old.baseFit === 'must' && r.never.old.fit !== 'no'),
@@ -462,10 +462,10 @@ console.log('\n=== §7 進化先を選べる条件: 進化先自身が使える�
 	assert(r.oonige.usage && r.oonige.usage.tags.distance.join() === 'long' && r.oonige.usage.tags.style.length === 0 && r.oonige.usage.ignored.some((x) => /^bracket:/.test(x))
 		&& r.oonige.sashiLong === 'must' && r.oonige.sashiMile === 'no',
 		'＜大逃げ・長距離＞: 分類できない語（大逃げ）は脚質を限定しない（「いつでも選べる」側・印あり）。長距離は使う', r.oonige);
-	assert(r.usage1146 && r.usage1146.bracket === '＜中距離/長距離＞' && r.usage1146.tags.surface.length === 0 && r.usage1146.ignored.includes('surface'),
-		'条件の文は説明文の＜…＞のまま（大望は煌めきとなりて＝＜中距離/長距離＞）。芝のタグは使わない（印あり）', r.usage1146);
-	assert(r.usage1037 && r.usage1037.bracket === '' && r.usage1037.tags.distance.length === 0 && r.usage1037.ignored.includes('distance'),
-		'湯切りの妙技: 説明文に＜…＞が無いので条件の文なし・距離の限定なし（中距離のタグは使わない・印あり）', r.usage1037);
+	assert(r.usage1146 && r.usage1146.bracket === '＜中距離/長距離＞' && r.usage1146.tags.surface.length === 0 && !r.usage1146.ignored.includes('surface'),
+		'条件の文は説明文の＜…＞のまま（大望は煌めきとなりて＝＜中距離/長距離＞）。芝は追加の効果の条件で、タグにも無い（2026-10-17 のタグ整備後は、タグの側で外してあるので「無視した」印も付かない）', r.usage1146);
+	assert(r.usage1037 && r.usage1037.bracket === '' && r.usage1037.tags.distance.length === 0 && !r.usage1037.ignored.includes('distance'),
+		'湯切りの妙技: 説明文に＜…＞が無いので条件の文なし・距離の限定なし（中距離のタグはタグの側で外してあるので、「無視した」印も付かない）', r.usage1037);
 	assert(r.sweep.narrowed === 0 && r.sweep.widened > 0,
 		'全' + r.sweep.rows + '行 × ' + (r.sweep.cells / r.sweep.rows) + '条件: 変更前より選べる範囲が狭くなった条件は0・広がった行は ' + r.sweep.widened + '行', r.sweep);
 }
