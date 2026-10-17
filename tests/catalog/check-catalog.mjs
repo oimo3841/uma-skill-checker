@@ -1934,8 +1934,12 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 				const byName = new Map();
 				en.events.forEach((ev, j) => {
 					const we = w + '.events[' + j + ']';
-					if (!checkKeys(ev, { need: ['eventName', 'condition', 'choices'], opt: ['defaultChoice'] }, we, unknown, missing)) return;
+					if (!checkKeys(ev, { need: ['eventName', 'condition', 'choices'], opt: ['defaultChoice', 'acquireMode', 'acquireNote'] }, we, unknown, missing)) return;
 					if (!isStr(ev.eventName)) bad.push(we + '.eventName: 空でない文字列');
+					// 任意項目 acquireMode（2026-10-17）: "fixed"（確定取得）か "user"（ユーザー選択次第）。acquireNote は user のイベントだけが持つ短い補足文（空でない文字列）
+					if (ev.acquireMode !== undefined && ev.acquireMode !== 'fixed' && ev.acquireMode !== 'user') bad.push(we + '.acquireMode: fixed か user（' + JSON.stringify(ev.acquireMode) + '）');
+					if (ev.acquireNote !== undefined && !(ev.acquireMode === 'user' && isStr(ev.acquireNote))) bad.push(we + '.acquireNote: acquireMode が user のイベントだけが持つ空でない文字列');
+					if (ev.acquireMode === 'user' && ev.acquireNote === undefined) bad.push(we + '.acquireNote: acquireMode が user のイベントは補足文を持つ');
 					// 任意項目 defaultChoice（C-157）: 選択肢の番号（1始まり）。選択肢が2つ以上あるイベントの、範囲内の整数だけ
 					if (ev.defaultChoice !== undefined && !(Number.isInteger(ev.defaultChoice) && isArr(ev.choices) && ev.choices.length >= 2 && ev.defaultChoice >= 1 && ev.defaultChoice <= ev.choices.length)) badDefault.push(we + '.defaultChoice: 選択肢が2つ以上あるイベントの 1〜選択肢数 の整数（' + JSON.stringify(ev.defaultChoice) + '）');
 					if (typeof ev.condition !== 'string') bad.push(we + '.condition: 文字列（空文字可）');

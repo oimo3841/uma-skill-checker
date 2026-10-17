@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-16a",
+	"dataVersion": "2026-10-17c",
 	"category": "trainingEventSkill",
 	"entries": [
 		{
@@ -93,6 +93,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -112,6 +113,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -127,6 +129,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -275,6 +278,7 @@
 				{
 					"eventName": "デビュー戦の後に",
 					"condition": "デビュー戦で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -294,6 +298,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -375,6 +380,7 @@
 				{
 					"eventName": "デビュー戦の後に",
 					"condition": "デビュー戦で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -394,6 +400,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -413,6 +420,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -428,6 +436,8 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：ジャパンC",
 					"choices": [
 						{
 							"results": [
@@ -548,6 +558,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "クラシックのジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -563,6 +574,8 @@
 				{
 					"eventName": "皐月賞の後に",
 					"condition": "皐月賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：皐月賞",
 					"choices": [
 						{
 							"results": [
@@ -582,6 +595,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -654,6 +668,7 @@
 				{
 					"eventName": "フェブラリーSの後に",
 					"condition": "フェブラリーSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -738,6 +753,7 @@
 				{
 					"eventName": "皐月賞の後に",
 					"condition": "皐月賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -757,6 +773,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -791,6 +808,7 @@
 				{
 					"eventName": "大阪杯の後に",
 					"condition": "大阪杯で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -809,6 +827,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -901,6 +920,8 @@
 				{
 					"eventName": "海が映すあなたの未来",
 					"condition": "G1で9勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -921,6 +942,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -940,6 +962,7 @@
 				{
 					"eventName": "エリザベス女王杯の後に",
 					"condition": "クラシックのエリザベス女王杯で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -955,6 +978,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -1039,6 +1063,7 @@
 				{
 					"eventName": "メジロ家の歩み・二帖の盾",
 					"condition": "シニアの天皇賞(春)・天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -1054,6 +1079,8 @@
 				{
 					"eventName": "メジロ家の歩み・連年の女王",
 					"condition": "エリザベス女王杯を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：エリザベス女王杯（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -1069,6 +1096,8 @@
 				{
 					"eventName": "メジロ家の歩み・春秋お祭りフィーバー",
 					"condition": "シニアの宝塚記念・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの宝塚記念",
 					"choices": [
 						{
 							"skills": [
@@ -1083,7 +1112,9 @@
 				},
 				{
 					"eventName": "不世出のステイヤー",
-					"condition": "長距離レースで6勝以上",
+					"condition": "長距離レースの勝利数で変化(2～3勝／4～5勝／6勝以上)",
+					"acquireMode": "user",
+					"acquireNote": "取得スキルは最大の段階（長距離6勝以上）のもの",
 					"choices": [
 						{
 							"skills": [
@@ -1109,6 +1140,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -1217,6 +1249,7 @@
 				{
 					"eventName": "釣果アリ",
 					"condition": "トレーニングLvが最も高い能力で変化",
+					"acquireMode": "fixed",
 					"defaultChoice": 1,
 					"choices": [
 						{
@@ -1269,6 +1302,7 @@
 				{
 					"eventName": "三冠、釣り上げ！",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -1284,6 +1318,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -1370,6 +1405,7 @@
 				{
 					"eventName": "日経新春杯の後に",
 					"condition": "日経新春杯で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -1476,6 +1512,7 @@
 				{
 					"eventName": "札幌記念の後に",
 					"condition": "札幌記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -1495,6 +1532,8 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "9月の目標選択で天皇賞(秋)を選び、天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "最終目標の選択で天皇賞(秋)を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -1510,6 +1549,8 @@
 				{
 					"eventName": "エリザベス女王杯の後に",
 					"condition": "9月の目標選択でエリザベス女王杯を選び、エリザベス女王杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "最終目標の選択でエリザベス女王杯を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -1525,6 +1566,8 @@
 				{
 					"eventName": "マイルCSの後に",
 					"condition": "9月の目標選択でマイルCSを選び、マイルCSで1着",
+					"acquireMode": "user",
+					"acquireNote": "最終目標の選択でマイルCSを選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -1540,6 +1583,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "9月の目標選択で有馬記念を選び、有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "最終目標の選択で有馬記念を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -1560,6 +1605,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -1675,6 +1721,8 @@
 				{
 					"eventName": "3人のフォトアルバム",
 					"condition": "クラシックの皐月賞・日本ダービー・菊花賞・有馬記念、シニアの天皇賞(春)・宝塚記念・天皇賞(秋)・ジャパンC・有馬記念の9レースすべてで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -1690,6 +1738,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -1733,6 +1782,7 @@
 				{
 					"eventName": "スイートピーSの後に",
 					"condition": "スイートピーSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -1748,6 +1798,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -1763,6 +1814,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -1778,6 +1830,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -1793,6 +1846,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -1808,6 +1862,8 @@
 				{
 					"eventName": "三冠は、彩りを変えて",
 					"condition": "シニアの天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの天皇賞(秋)・有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -1894,6 +1950,8 @@
 				{
 					"eventName": "珠玉の力を献上せよ",
 					"condition": "ホープフルS、クラシックの宝塚記念・有馬記念、シニアの天皇賞(春)の4レースすべてで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：ホープフルS・クラシックの宝塚記念・有馬記念・シニアの天皇賞(春)",
 					"choices": [
 						{
 							"skills": [
@@ -1919,6 +1977,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "クラシックのジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -1999,7 +2058,9 @@
 				},
 				{
 					"eventName": "疲れ知らずの怪",
-					"condition": "長距離レースで6勝以上",
+					"condition": "長距離レースの勝利数で変化(2～3勝／4～5勝／6勝以上)",
+					"acquireMode": "user",
+					"acquireNote": "取得スキルは最大の段階（長距離6勝以上）のもの",
 					"choices": [
 						{
 							"skills": [
@@ -2020,6 +2081,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "2回目の有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -2063,6 +2125,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2078,6 +2141,7 @@
 				{
 					"eventName": "桜花賞の後に",
 					"condition": "桜花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2093,6 +2157,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2108,6 +2173,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2175,6 +2241,7 @@
 				{
 					"eventName": "府中ウマ娘Sの後に",
 					"condition": "府中ウマ娘Sで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2253,6 +2320,8 @@
 				{
 					"eventName": "言葉は取るに足らないもの",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "皐月賞後の路線選択で三冠路線を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -2267,7 +2336,9 @@
 				},
 				{
 					"eventName": "だってビートは止められない",
-					"condition": "短距離・マイルG1で計5勝以上",
+					"condition": "高松宮記念を含むとシニア級の短距離マイルG1を3勝",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -2283,6 +2354,8 @@
 				{
 					"eventName": "私の幸運の星",
 					"condition": "シニアの宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：宝塚記念・ジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -2388,6 +2461,8 @@
 				{
 					"eventName": "新チーム結成！",
 					"condition": "ホープフルS・皐月賞・菊花賞・天皇賞(春)で1着、有馬記念を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：有馬記念（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -2403,6 +2478,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2472,6 +2548,7 @@
 				{
 					"eventName": "祝福と、感謝と、顛末と",
 					"condition": "桜花賞・オークス・秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2487,6 +2564,7 @@
 				{
 					"eventName": "エリザベス女王杯の後に",
 					"condition": "エリザベス女王杯で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2526,6 +2604,7 @@
 				{
 					"eventName": "エリザベス女王杯の後に",
 					"condition": "エリザベス女王杯で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2541,6 +2620,7 @@
 				{
 					"eventName": "桜花賞の後に",
 					"condition": "桜花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2556,6 +2636,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2576,6 +2657,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2591,6 +2673,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2714,6 +2797,8 @@
 				{
 					"eventName": "“わたし”・コレクション",
 					"condition": "マイルG1で5勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -2739,6 +2824,7 @@
 				{
 					"eventName": "マイルCSの後に",
 					"condition": "マイルCSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2826,6 +2912,7 @@
 				{
 					"eventName": "スプリンターズSの後に",
 					"condition": "スプリンターズSを連覇",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2841,6 +2928,8 @@
 				{
 					"eventName": "マイルCSの後に",
 					"condition": "クラシックとシニアのマイルCSを連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックのマイルCS",
 					"choices": [
 						{
 							"skills": [
@@ -2900,7 +2989,9 @@
 				},
 				{
 					"eventName": "あなたに伝えたい言葉",
-					"condition": "シニア3月以降のG1で5勝以上",
+					"condition": "シニア3月以降のG1の勝利数で変化(2勝／3～4勝／5勝以上)",
+					"acquireMode": "user",
+					"acquireNote": "取得スキルは最大の段階（シニア3月以降のG1を5勝以上）のもの",
 					"choices": [
 						{
 							"skills": [
@@ -2926,6 +3017,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -2941,6 +3033,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -3055,6 +3148,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -3070,6 +3164,7 @@
 				{
 					"eventName": "桜花賞の後に",
 					"condition": "桜花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -3089,6 +3184,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -3108,6 +3204,8 @@
 				{
 					"eventName": "エリザベス女王杯の後に",
 					"condition": "クラシックのエリザベス女王杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックのエリザベス女王杯",
 					"choices": [
 						{
 							"results": [
@@ -3127,6 +3225,7 @@
 				{
 					"eventName": "ヴィクトリアマイルの後に",
 					"condition": "ヴィクトリアマイルで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -3146,6 +3245,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -3209,6 +3309,7 @@
 				{
 					"eventName": "シンザン記念の後に",
 					"condition": "シンザン記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -3224,6 +3325,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -3290,6 +3392,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -3305,6 +3408,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -3320,6 +3424,7 @@
 				{
 					"eventName": "青葉賞の後に",
 					"condition": "青葉賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -3335,6 +3440,8 @@
 				{
 					"eventName": "ゴールドコレクターの立役者",
 					"condition": "大阪杯・天皇賞(秋)・ジャパンC・宝塚記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：宝塚記念",
 					"choices": [
 						{
 							"skills": [
@@ -3412,6 +3519,8 @@
 				{
 					"eventName": "大地と宙と、夜と、星と、君たちと",
 					"condition": "レース出走数14戦以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -3432,6 +3541,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -3492,6 +3602,8 @@
 				{
 					"eventName": "マイルの先にあるもの",
 					"condition": "クラシックのマイルCS、シニアの金鯱賞・宝塚記念・毎日王冠・天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの金鯱賞・宝塚記念・毎日王冠・天皇賞(秋)",
 					"choices": [
 						{
 							"skills": [
@@ -3512,6 +3624,7 @@
 				{
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -3584,6 +3697,7 @@
 				{
 					"eventName": "予想外！それは突然やってきた！",
 					"condition": "シニアの天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -3599,6 +3713,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -3717,6 +3832,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "クラシックのジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -3732,6 +3848,8 @@
 				{
 					"eventName": "夢のような、奇跡のような",
 					"condition": "デビュー後に「マイル」を選び、目標外のマイルG1で2勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -3747,6 +3865,8 @@
 				{
 					"eventName": "奇跡のような、夢のような",
 					"condition": "デビュー後に「中距離」を選び、目標外の中距離G1で2勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -3762,6 +3882,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "クラシックの天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -3899,6 +4020,8 @@
 				{
 					"eventName": "貴方と祝うセレモニー",
 					"condition": "シニアの大阪杯・天皇賞(春)・宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠でシニアの大阪杯・宝塚記念を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -3919,6 +4042,8 @@
 				{
 					"eventName": "皐月賞の後に",
 					"condition": "皐月賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で皐月賞を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -3937,6 +4062,8 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で日本ダービーを選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -3955,6 +4082,8 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で菊花賞を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -3973,6 +4102,8 @@
 				{
 					"eventName": "阪神大賞典の後に",
 					"condition": "阪神大賞典で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で阪神大賞典を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -3988,6 +4119,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -4094,6 +4226,7 @@
 				{
 					"eventName": "その誇り高き二つ名は",
 					"condition": "桜花賞・オークス・秋華賞(トリプルティアラ)、阪神JF、エリザベス女王杯で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -4109,6 +4242,7 @@
 				{
 					"eventName": "オールカマーの後に",
 					"condition": "オールカマーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -4190,6 +4324,8 @@
 				{
 					"eventName": "だからふたりは",
 					"condition": "レースに14回以上出走",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -4210,6 +4346,8 @@
 				{
 					"eventName": "毎日王冠の後に",
 					"condition": "毎日王冠で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：毎日王冠",
 					"choices": [
 						{
 							"results": [
@@ -4229,6 +4367,8 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "クラシックの天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの天皇賞(秋)",
 					"choices": [
 						{
 							"results": [
@@ -4322,6 +4462,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -4337,6 +4478,8 @@
 				{
 					"eventName": "これからも、みんなと",
 					"condition": "クラシックの菊花賞・有馬記念、シニアの大阪杯・天皇賞(春)・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠でクラシックの菊花賞・シニアの大阪杯・天皇賞(春)を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -4458,6 +4601,8 @@
 				{
 					"eventName": "縁集う庭園",
 					"condition": "シニアの天皇賞(春)・宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの天皇賞(秋)・ジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -4478,6 +4623,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -4578,6 +4724,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -4638,6 +4785,8 @@
 				{
 					"eventName": "特別な週末、特別な景色",
 					"condition": "シニアの天皇賞(春)・宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：天皇賞(春)",
 					"choices": [
 						{
 							"skills": [
@@ -4653,6 +4802,7 @@
 				{
 					"eventName": "ジャパンカップの後に",
 					"condition": "ジャパンカップで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -4668,6 +4818,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "シニアの有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -4755,6 +4906,7 @@
 				{
 					"eventName": "JBCクラシックの後に",
 					"condition": "JBCクラシックで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -4857,6 +5009,8 @@
 				{
 					"eventName": "渾身のディレクターズカット",
 					"condition": "シニアの川崎記念・フェブラリーS・かしわ記念・帝王賞・マイルCS南部杯・JBCクラシック・チャンピオンズC・東京大賞典で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの川崎記念・かしわ記念・東京大賞典",
 					"choices": [
 						{
 							"skills": [
@@ -4882,6 +5036,7 @@
 				{
 					"eventName": "帝王賞の後に",
 					"condition": "帝王賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -4901,6 +5056,7 @@
 				{
 					"eventName": "マイルCS南部杯の後に",
 					"condition": "マイルCS南部杯で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -4920,6 +5076,7 @@
 				{
 					"eventName": "JBCクラシックの後に",
 					"condition": "JBCクラシックで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -4982,6 +5139,7 @@
 				{
 					"eventName": "皐月賞の後に",
 					"condition": "皐月賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -5001,6 +5159,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -5020,6 +5179,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -5039,6 +5199,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "シニアの宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -5054,6 +5215,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -5165,6 +5327,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -5243,6 +5406,8 @@
 				{
 					"eventName": "広めよマーベラス☆",
 					"condition": "ファン数24万人以上",
+					"acquireMode": "user",
+					"acquireNote": "ファン数の多いレースを選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -5273,6 +5438,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -5375,6 +5541,7 @@
 				{
 					"eventName": "スワンSの後に",
 					"condition": "スワンSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -5439,6 +5606,8 @@
 				{
 					"eventName": "最も尊い仕事とは",
 					"condition": "1200mのレースで10勝",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -5459,6 +5628,7 @@
 				{
 					"eventName": "スプリンターズSの後に",
 					"condition": "クラシックのスプリンターズSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -5519,6 +5689,8 @@
 				{
 					"eventName": "希望は誇り輝く",
 					"condition": "シニアのフェブラリーS・かしわ記念・帝王賞・マイルCS南部杯・JBCスプリント・チャンピオンズCで1着",
+					"acquireMode": "user",
+					"acquireNote": "最終目標の選択枠でJBCスプリント・チャンピオンズCを選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -5534,6 +5706,7 @@
 				{
 					"eventName": "帝王賞の後に",
 					"condition": "帝王賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -5552,6 +5725,7 @@
 				{
 					"eventName": "マイルCS南部杯の後に",
 					"condition": "シニアのマイルCS南部杯で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -5652,6 +5826,8 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：日本ダービー",
 					"choices": [
 						{
 							"skills": [
@@ -5667,6 +5843,8 @@
 				{
 					"eventName": "7連続ローリング！",
 					"condition": "クラシックの日本ダービー・ジャパンC・有馬記念、シニアの宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの日本ダービー・ジャパンC・有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -5692,6 +5870,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "クラシックの有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの有馬記念",
 					"choices": [
 						{
 							"results": [
@@ -5711,6 +5891,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -5804,6 +5985,7 @@
 				{
 					"eventName": "スワンSの後に",
 					"condition": "スワンSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -5882,6 +6064,8 @@
 				{
 					"eventName": "Still Not Perfect",
 					"condition": "フィリーズレビュー・桜花賞・フローラS・オークス・ローズS・秋華賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：フィリーズレビュー・フローラS・ローズS",
 					"choices": [
 						{
 							"skills": [
@@ -5902,6 +6086,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -5974,6 +6159,8 @@
 				{
 					"eventName": "Let's Gorgeous Party♪",
 					"condition": "阪神JF・桜花賞・オークス・秋華賞・ヴィクトリアマイルで1着、エリザベス女王杯を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：阪神JF・エリザベス女王杯（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -5989,6 +6176,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -6008,6 +6196,7 @@
 				{
 					"eventName": "ヴィクトリアマイルの後に",
 					"condition": "トリプルティアラ達成後「Sisters♡」で上の選択肢を選び、ヴィクトリアマイルで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -6100,6 +6289,8 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で菊花賞を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -6119,6 +6310,8 @@
 				{
 					"eventName": "ある日のお祝い",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で皐月賞・日本ダービー・菊花賞を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -6134,6 +6327,8 @@
 				{
 					"eventName": "皐月賞の後に",
 					"condition": "皐月賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で皐月賞を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -6153,6 +6348,8 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で日本ダービーを選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -6172,6 +6369,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -6278,6 +6476,8 @@
 				{
 					"eventName": "私たちはサトノのウマ娘だから",
 					"condition": "シニアの天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -6303,6 +6503,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -6433,6 +6634,8 @@
 				{
 					"eventName": "同じ時代で、違うレースを",
 					"condition": "桜花賞・オークス・秋華賞をすべて1着",
+					"acquireMode": "user",
+					"acquireNote": "クラシック5月後半の目標選択でオークスを選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -6458,6 +6661,8 @@
 				{
 					"eventName": "NHKマイルCの後に",
 					"condition": "NHKマイルCで1着",
+					"acquireMode": "user",
+					"acquireNote": "クラシック5月後半の目標選択でNHKマイルCを選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -6501,6 +6706,8 @@
 				{
 					"eventName": "海が映すあなたの未来",
 					"condition": "G1で9勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -6521,6 +6728,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -6540,6 +6748,7 @@
 				{
 					"eventName": "エリザベス女王杯の後に",
 					"condition": "クラシックのエリザベス女王杯で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -6555,6 +6764,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -6642,6 +6852,8 @@
 				{
 					"eventName": "キミガ風",
 					"condition": "日本ダービー以降、作戦「逃げ」でG1を7勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -6662,6 +6874,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -6681,6 +6894,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "シニアの有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -6804,6 +7019,7 @@
 				{
 					"eventName": "阪神JFの後に",
 					"condition": "阪神JFで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -6862,6 +7078,7 @@
 				{
 					"eventName": "桜花賞の後に",
 					"condition": "桜花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -6881,6 +7098,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -6900,6 +7118,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -6919,6 +7138,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -6934,6 +7154,8 @@
 				{
 					"eventName": "歴史を輝かせるために",
 					"condition": "阪神JF・桜花賞・オークス・秋華賞・ヴィクトリアマイルで1着、エリザベス女王杯を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：ヴィクトリアマイル・エリザベス女王杯（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -7041,6 +7263,8 @@
 				{
 					"eventName": "いつまでも心は変わらぬ",
 					"condition": "阪神JF・桜花賞・オークス・秋華賞・ヴィクトリアマイル・クラシックのエリザベス女王杯・シニアのエリザベス女王杯をすべて1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：阪神JF・クラシックのエリザベス女王杯",
 					"choices": [
 						{
 							"skills": [
@@ -7056,6 +7280,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -7141,6 +7366,8 @@
 				{
 					"eventName": "その名はパーフェクト",
 					"condition": "桜花賞・オークス・秋華賞・フィリーズレビュー・フローラS・ローズSで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：フィリーズレビュー・フローラS・ローズS",
 					"choices": [
 						{
 							"skills": [
@@ -7161,6 +7388,8 @@
 				{
 					"eventName": "求道、至り/王道、極めし",
 					"condition": "ジュニア12月に選んだ距離で変化。「マイル」なら桜花賞・安田記念・マイルCS・ヴィクトリアマイルで1着(選択肢1)、「中距離」ならオークス・秋華賞・宝塚記念・エリザベス女王杯・ジャパンC・大阪杯・天皇賞(秋)で1着(選択肢2)",
+					"acquireMode": "user",
+					"acquireNote": "目標外：マイル選択は安田記念・マイルCS／中距離選択は大阪杯・天皇賞(秋)",
 					"choices": [
 						{
 							"skills": [
@@ -7205,6 +7434,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -7284,6 +7514,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -7303,6 +7534,8 @@
 				{
 					"eventName": "エリザベス女王杯の後に",
 					"condition": "クラシックのエリザベス女王杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックのエリザベス女王杯",
 					"choices": [
 						{
 							"results": [
@@ -7322,6 +7555,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -7337,6 +7571,7 @@
 				{
 					"eventName": "桜花賞の後に",
 					"condition": "桜花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -7356,6 +7591,7 @@
 				{
 					"eventName": "ヴィクトリアマイルの後に",
 					"condition": "ヴィクトリアマイルで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -7375,6 +7611,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -7444,6 +7681,7 @@
 				{
 					"eventName": "My Very Own Triple Tiara",
 					"condition": "クラシックの桜花賞・オークス・秋華賞(トリプルティアラ)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -7459,6 +7697,7 @@
 				{
 					"eventName": "桜花賞の後に",
 					"condition": "桜花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -7478,6 +7717,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -7497,6 +7737,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -7516,6 +7757,7 @@
 				{
 					"eventName": "大阪杯の後に",
 					"condition": "大阪杯で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -7535,6 +7777,7 @@
 				{
 					"eventName": "ヴィクトリアマイルの後に",
 					"condition": "ヴィクトリアマイルで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -7655,6 +7898,8 @@
 				{
 					"eventName": "川崎記念の後に",
 					"condition": "川崎記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で川崎記念を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -7679,6 +7924,7 @@
 				{
 					"eventName": "JBCクラシックの後に",
 					"condition": "2回目のJBCクラシックで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -7779,6 +8025,8 @@
 				{
 					"eventName": "天に輝く11の星",
 					"condition": "ダートG1で11勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -7799,6 +8047,7 @@
 				{
 					"eventName": "かしわ記念の後に",
 					"condition": "かしわ記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -7887,6 +8136,8 @@
 				{
 					"eventName": "CASE.マメちん",
 					"condition": "クラシックの皐月賞・日本ダービー・有馬記念、シニアの天皇賞(春)・宝塚記念・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの皐月賞・有馬記念・シニアのジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -7907,6 +8158,8 @@
 				{
 					"eventName": "皐月賞の後に",
 					"condition": "皐月賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：皐月賞",
 					"choices": [
 						{
 							"results": [
@@ -7926,6 +8179,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -7941,6 +8195,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "クラシックのジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -8075,6 +8330,8 @@
 				{
 					"eventName": "親愛なる君へ",
 					"condition": "G1で8勝以上、ジャパンCと有馬記念を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：ジャパンC（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -8095,6 +8352,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -8207,6 +8465,8 @@
 				{
 					"eventName": "許されざる者、あるいは",
 					"condition": "マイルG1で5勝以上、かつ中距離G1で5勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -8227,6 +8487,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -8246,6 +8507,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "シニアの天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -8369,6 +8631,7 @@
 				{
 					"eventName": "海風の先導者",
 					"condition": "シニア級重賞を「逃げ」で3勝し、ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -8384,6 +8647,8 @@
 				{
 					"eventName": "六冠のフラワーレイ",
 					"condition": "シニアの大阪杯・天皇賞(春)・宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの大阪杯・天皇賞(春)・天皇賞(秋)",
 					"choices": [
 						{
 							"skills": [
@@ -8404,6 +8669,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -8443,6 +8709,8 @@
 				{
 					"eventName": "天下統一の祝祭",
 					"condition": "シニアの宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの宝塚記念・有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -8473,6 +8741,8 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：天皇賞(春)",
 					"choices": [
 						{
 							"results": [
@@ -8558,6 +8828,8 @@
 				{
 					"eventName": "前人未到の8マイル",
 					"condition": "マイルG1で8勝",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -8583,6 +8855,7 @@
 				{
 					"eventName": "マイルCSの後に",
 					"condition": "マイルCSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -8622,6 +8895,8 @@
 				{
 					"eventName": "王の偉業を称える星",
 					"condition": "皐月賞・日本ダービー・菊花賞・大阪杯・天皇賞(春)・宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：大阪杯・天皇賞(秋)",
 					"choices": [
 						{
 							"skills": [
@@ -8666,6 +8941,8 @@
 				{
 					"eventName": "おかえりなさい、いってらっしゃい",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：皐月賞・日本ダービー",
 					"choices": [
 						{
 							"skills": [
@@ -8748,6 +9025,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -8763,6 +9042,7 @@
 				{
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -8862,6 +9142,8 @@
 				{
 					"eventName": "マーちゃんに教えて",
 					"condition": "ウオッカにマイルレースで4勝",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -8877,6 +9159,8 @@
 				{
 					"eventName": "マーちゃんにも言って",
 					"condition": "クラシック12月後半、ダイワスカーレットにクラシックのマイルレースで3勝(シンザン記念・桜花賞・ローズS)",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -8892,6 +9176,8 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "クラシックの秋華賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの秋華賞",
 					"choices": [
 						{
 							"results": [
@@ -8911,6 +9197,8 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "シニアの天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの天皇賞(秋)",
 					"choices": [
 						{
 							"results": [
@@ -8975,6 +9263,7 @@
 				{
 					"eventName": "地方・最優秀ジュニアウマ娘",
 					"condition": "全日本ジュニア優駿で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -8990,6 +9279,7 @@
 				{
 					"eventName": "かしわ記念の後に",
 					"condition": "かしわ記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -9005,6 +9295,7 @@
 				{
 					"eventName": "JBCクラシックの後に",
 					"condition": "クラシックのJBCクラシックで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -9020,6 +9311,7 @@
 				{
 					"eventName": "地方・最優秀クラシックウマ娘",
 					"condition": "クラシックのジャパンダートダービー・JBCクラシック・チャンピオンズC・東京大賞典で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -9035,6 +9327,7 @@
 				{
 					"eventName": "地方・年度代表ウマ娘",
 					"condition": "地方・中央を問わずダートG1で6勝以上",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -9055,6 +9348,7 @@
 				{
 					"eventName": "チャンピオンズCの後に",
 					"condition": "チャンピオンズCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -9070,6 +9364,7 @@
 				{
 					"eventName": "東京大賞典の後に",
 					"condition": "東京大賞典で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -9085,6 +9380,7 @@
 				{
 					"eventName": "帝王賞の後に",
 					"condition": "帝王賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -9193,6 +9489,7 @@
 				{
 					"eventName": "朝日杯FSの後に",
 					"condition": "朝日杯FSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -9308,6 +9605,8 @@
 				{
 					"eventName": "“エース”の始まり",
 					"condition": "シニア級G1を5勝以上した状態でジャパンCで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -9323,6 +9622,8 @@
 				{
 					"eventName": "“エース”と“皇帝”",
 					"condition": "シニアの大阪杯・天皇賞(春)・宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの天皇賞(春)",
 					"choices": [
 						{
 							"skills": [
@@ -9338,6 +9639,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -9435,6 +9737,7 @@
 				{
 					"eventName": "期待を超えて",
 					"condition": "クラシックのジャパンC・有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -9450,6 +9753,8 @@
 				{
 					"eventName": "世界の涯てまで連いてきて",
 					"condition": "「小さな恋の物語」で下の選択肢を選び、目標外のレースに出走",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -9465,6 +9770,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -9589,6 +9895,8 @@
 				{
 					"eventName": "三冠を経て、なお",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：皐月賞・菊花賞",
 					"choices": [
 						{
 							"skills": [
@@ -9604,6 +9912,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -9646,6 +9955,7 @@
 				{
 					"eventName": "つい、くるりと",
 					"condition": "3回目の発生時",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -9676,6 +9986,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -9695,6 +10006,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -9714,6 +10026,7 @@
 				{
 					"eventName": "日経賞の後に",
 					"condition": "日経賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -9729,6 +10042,8 @@
 				{
 					"eventName": "皐月賞の後に",
 					"condition": "皐月賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：皐月賞",
 					"choices": [
 						{
 							"skills": [
@@ -9857,7 +10172,9 @@
 				},
 				{
 					"eventName": "九九の名を持つ星々たち",
-					"condition": "テイエムオペラオー・ナリタトップロード・メイショウドトウの出走するレースで8勝以上",
+					"condition": "テイエムオペラオー・ナリタトップロード・メイショウドトウの出走するレースの勝利数で変化(5勝以下／6～7勝／8勝以上)",
+					"acquireMode": "user",
+					"acquireNote": "取得スキルは最大の段階（8勝以上）のもの",
 					"choices": [
 						{
 							"skills": [
@@ -9878,6 +10195,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -9984,6 +10302,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -10042,6 +10361,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -10057,6 +10377,8 @@
 				{
 					"eventName": "NHKマイルCの後に",
 					"condition": "NHKマイルCで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：NHKマイルC",
 					"choices": [
 						{
 							"skills": [
@@ -10131,6 +10453,7 @@
 				{
 					"eventName": "皐月賞の後に",
 					"condition": "皐月賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -10213,6 +10536,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -10289,6 +10613,8 @@
 				{
 					"eventName": "夢のような、奇跡のような",
 					"condition": "デビュー後に「マイル」を選び、目標外のマイルG1で2勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -10304,6 +10630,8 @@
 				{
 					"eventName": "奇跡のような、夢のような",
 					"condition": "デビュー後に「中距離」を選び、目標外の中距離G1で2勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -10319,6 +10647,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "クラシックの天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -10334,6 +10663,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "クラシックのジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -10406,6 +10736,8 @@
 				{
 					"eventName": "訓練の成果、見せてあげる",
 					"condition": "逃げ・先行・差し・追込のそれぞれでG1を1勝以上",
+					"acquireMode": "user",
+					"acquireNote": "脚質の選択で変わる",
 					"choices": [
 						{
 							"skills": [
@@ -10436,6 +10768,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -10540,6 +10873,8 @@
 				{
 					"eventName": "マイルもオールマイン",
 					"condition": "ジュニアの阪神JF、クラシックの桜花賞・NHKマイルC・安田記念・マイルCS、シニアのヴィクトリアマイル・安田記念・マイルCSで1着(安田記念はクラシック・シニアのどちらか一方でも可)",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアのヴィクトリアマイル",
 					"choices": [
 						{
 							"skills": [
@@ -10560,6 +10895,7 @@
 				{
 					"eventName": "NHKマイルCの後に",
 					"condition": "NHKマイルCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -10603,6 +10939,8 @@
 				{
 					"eventName": "穢れなき聖騎士",
 					"condition": "安田記念・スプリンターズS・マイルCSをそれぞれ連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：安田記念（連覇は2年分必要）・スプリンターズS（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -10623,6 +10961,7 @@
 				{
 					"eventName": "マイルCSの後に",
 					"condition": "シニアのマイルCSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -10683,6 +11022,8 @@
 				{
 					"eventName": "いつまでも心は変わらぬ",
 					"condition": "阪神JF・桜花賞・オークス・秋華賞・ヴィクトリアマイル・クラシックのエリザベス女王杯・シニアのエリザベス女王杯をすべて1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：阪神JF・クラシックのエリザベス女王杯",
 					"choices": [
 						{
 							"skills": [
@@ -10698,6 +11039,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -10786,6 +11128,8 @@
 				{
 					"eventName": "カーテンコール、あるいは幕開け",
 					"condition": "皐月賞・日本ダービー・菊花賞・大阪杯・天皇賞(春)・宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：皐月賞・大阪杯",
 					"choices": [
 						{
 							"skills": [
@@ -10811,6 +11155,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "クラシックの有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -10830,6 +11175,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "シニアの有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -10902,6 +11248,7 @@
 				{
 					"eventName": "春の大三角",
 					"condition": "大阪杯・天皇賞(春)・宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -10922,6 +11269,7 @@
 				{
 					"eventName": "皐月賞の後に",
 					"condition": "皐月賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -10965,6 +11313,8 @@
 				{
 					"eventName": "珠玉の力を献上せよ",
 					"condition": "ホープフルS、クラシックの宝塚記念・有馬記念、シニアの天皇賞(春)の4レースすべてで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：ホープフルS・クラシックの宝塚記念・有馬記念・シニアの天皇賞(春)",
 					"choices": [
 						{
 							"skills": [
@@ -10990,6 +11340,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "クラシックのジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -11050,6 +11401,8 @@
 				{
 					"eventName": "これまでとこれから",
 					"condition": "ダートG1で10勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -11098,6 +11451,7 @@
 				{
 					"eventName": "川崎記念の後に",
 					"condition": "川崎記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -11117,6 +11471,7 @@
 				{
 					"eventName": "東京大賞典の後に",
 					"condition": "東京大賞典で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -11189,6 +11544,7 @@
 				{
 					"eventName": "Erinnerung an Tokyo",
 					"condition": "東京レース場のG1で2勝",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -11204,6 +11560,7 @@
 				{
 					"eventName": "Erinnerung an den Sieg",
 					"condition": "東京レース場のG1で3勝以上",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -11219,6 +11576,8 @@
 				{
 					"eventName": "Der Rekord",
 					"condition": "東京レース場のG1で5勝",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -11239,6 +11598,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -11282,6 +11642,8 @@
 				{
 					"eventName": "サマースプリントシリーズと夏の思い出",
 					"condition": "シニアのアイビスSD・セントウルSで1着、函館スプリントS・CBC賞・北九州記念・キーンランドCのいずれかで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアのセントウルSほか",
 					"choices": [
 						{
 							"skills": [
@@ -11317,6 +11679,7 @@
 				{
 					"eventName": "アイビスSDの後に",
 					"condition": "シニアのアイビスSDで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -11389,6 +11752,8 @@
 				{
 					"eventName": "心に芽吹く、君という物語",
 					"condition": "京都レース場での勝利数で変化(3勝以上)",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -11454,6 +11819,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -11469,6 +11835,8 @@
 				{
 					"eventName": "縁集う庭園",
 					"condition": "シニアの天皇賞(春)・宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの天皇賞(秋)・ジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -11546,6 +11914,8 @@
 				{
 					"eventName": "新チーム結成！",
 					"condition": "ホープフルS・皐月賞・菊花賞・天皇賞(春)で1着、有馬記念を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：有馬記念（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -11561,6 +11931,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -11633,6 +12004,7 @@
 				{
 					"eventName": "帽子のヒミツ",
 					"condition": "桜花賞・オークス・秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -11648,6 +12020,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -11663,6 +12036,7 @@
 				{
 					"eventName": "エリザベス女王杯の後に",
 					"condition": "エリザベス女王杯で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -11753,6 +12127,7 @@
 				{
 					"eventName": "高松宮記念の後に",
 					"condition": "高松宮記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -11813,6 +12188,8 @@
 				{
 					"eventName": "“わたし”・コレクション",
 					"condition": "マイルG1で5勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -11838,6 +12215,7 @@
 				{
 					"eventName": "マイルCSの後に",
 					"condition": "マイルCSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -11910,6 +12288,7 @@
 				{
 					"eventName": "現【うつつ】の三冠ウマ娘",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -12006,6 +12385,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -12121,6 +12501,8 @@
 				{
 					"eventName": "八重の勝利は無敵の証",
 					"condition": "オグリキャップ・イナリワン・スーパークリークの出走するレースで8勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -12141,6 +12523,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -12180,6 +12563,8 @@
 				{
 					"eventName": "大地と宙と、夜と、星と、君たちと",
 					"condition": "レース出走数14戦以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -12200,6 +12585,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -12312,6 +12698,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -12394,6 +12781,8 @@
 				{
 					"eventName": "パリピれマイル王",
 					"condition": "安田記念・マイルCSをそれぞれ連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：安田記念（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -12438,6 +12827,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -12568,6 +12958,8 @@
 				{
 					"eventName": "華麗なる歴史的偉業",
 					"condition": "阪神JF・桜花賞・NHKマイルC・安田記念・ヴィクトリアマイル・スプリンターズS・マイルCS・高松宮記念をすべて1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：阪神JF・NHKマイルC・ヴィクトリアマイル",
 					"choices": [
 						{
 							"skills": [
@@ -12593,6 +12985,7 @@
 				{
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -12650,6 +13043,8 @@
 				{
 					"eventName": "同じ時代で、違うレースを",
 					"condition": "桜花賞・オークス・秋華賞をすべて1着",
+					"acquireMode": "user",
+					"acquireNote": "クラシック5月後半の目標選択でオークスを選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -12675,6 +13070,8 @@
 				{
 					"eventName": "NHKマイルCの後に",
 					"condition": "NHKマイルCで1着",
+					"acquireMode": "user",
+					"acquireNote": "クラシック5月後半の目標選択でNHKマイルCを選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -12757,6 +13154,7 @@
 				{
 					"eventName": "マイルCS南部杯の後に",
 					"condition": "マイルCS南部杯で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -12776,6 +13174,7 @@
 				{
 					"eventName": "帝王賞の後に",
 					"condition": "帝王賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -12795,6 +13194,7 @@
 				{
 					"eventName": "JBCクラシックの後に",
 					"condition": "JBCクラシックで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -12837,6 +13237,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -12852,6 +13253,8 @@
 				{
 					"eventName": "世代最強",
 					"condition": "クラシック三冠・春シニア三冠・秋シニア三冠をすべて達成し、有馬記念を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの天皇賞(春)・有馬記念（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -12922,6 +13325,7 @@
 				{
 					"eventName": "その誇り高き二つ名は",
 					"condition": "桜花賞・オークス・秋華賞(トリプルティアラ)、阪神JF、エリザベス女王杯で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -12937,6 +13341,7 @@
 				{
 					"eventName": "オールカマーの後に",
 					"condition": "オールカマーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -13009,6 +13414,8 @@
 				{
 					"eventName": "ターフの上のヒーロー",
 					"condition": "「夕焼けの誓い」で選んだ距離の重賞の勝利数で変化(4勝・7勝)",
+					"acquireMode": "user",
+					"acquireNote": "選んだ距離の重賞を多く走ると達成",
 					"choices": [
 						{
 							"skills": [
@@ -13061,6 +13468,7 @@
 				{
 					"eventName": "セントウルSの後に",
 					"condition": "セントウルSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -13139,7 +13547,9 @@
 				},
 				{
 					"eventName": "疲れ知らずの怪",
-					"condition": "長距離レースで6勝以上",
+					"condition": "長距離レースの勝利数で変化(2～3勝／4～5勝／6勝以上)",
+					"acquireMode": "user",
+					"acquireNote": "取得スキルは最大の段階（長距離6勝以上）のもの",
 					"choices": [
 						{
 							"skills": [
@@ -13160,6 +13570,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "2回目の有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -13260,6 +13671,7 @@
 				{
 					"eventName": "ティアラの夢の、その先は",
 					"condition": "トリプルティアラ(桜花賞・オークス・秋華賞)を達成",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -13280,6 +13692,8 @@
 				{
 					"eventName": "マイルCS南部杯の後に",
 					"condition": "クラシックのマイルCS南部杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックのマイルCS南部杯",
 					"choices": [
 						{
 							"skills": [
@@ -13300,6 +13714,8 @@
 				{
 					"eventName": "マイルCS南部杯の後に",
 					"condition": "シニアのマイルCS南部杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアのマイルCS南部杯",
 					"choices": [
 						{
 							"skills": [
@@ -13349,6 +13765,8 @@
 				{
 					"eventName": "Let's Gorgeous Party♪",
 					"condition": "阪神JF・桜花賞・オークス・秋華賞・ヴィクトリアマイルで1着、エリザベス女王杯を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：阪神JF・エリザベス女王杯（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -13364,6 +13782,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -13383,6 +13802,7 @@
 				{
 					"eventName": "ヴィクトリアマイルの後に",
 					"condition": "トリプルティアラ達成後「Sisters♡」で上の選択肢を選び、ヴィクトリアマイルで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -13456,6 +13876,8 @@
 				{
 					"eventName": "頑張るって決めたから",
 					"condition": "クラシックの京都新聞杯・鳴尾記念・小倉記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの京都新聞杯・鳴尾記念",
 					"choices": [
 						{
 							"skills": [
@@ -13564,6 +13986,7 @@
 				{
 					"eventName": "Step with you!",
 					"condition": "シニアの大阪杯・天皇賞(春)・宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -13584,6 +14007,8 @@
 				{
 					"eventName": "菊花賞の後に・喝采！三冠祭り",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：皐月賞・日本ダービー",
 					"choices": [
 						{
 							"skills": [
@@ -13599,6 +14024,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -13618,6 +14044,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "クラシック三冠を達成し、シニアの有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの皐月賞・日本ダービー",
 					"choices": [
 						{
 							"skills": [
@@ -13657,6 +14085,8 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で菊花賞を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -13676,6 +14106,8 @@
 				{
 					"eventName": "皐月賞の後に",
 					"condition": "皐月賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で皐月賞を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -13695,6 +14127,8 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で日本ダービーを選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -13714,6 +14148,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -13786,6 +14221,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -13801,6 +14237,8 @@
 				{
 					"eventName": "私たちはサトノのウマ娘だから",
 					"condition": "シニアの天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -13892,6 +14330,7 @@
 				{
 					"eventName": "メジロ家の歩み・二帖の盾",
 					"condition": "シニアの天皇賞(春)・天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -13907,6 +14346,8 @@
 				{
 					"eventName": "メジロ家の歩み・連年の女王",
 					"condition": "エリザベス女王杯を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：エリザベス女王杯（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -13922,6 +14363,8 @@
 				{
 					"eventName": "メジロ家の歩み・春秋お祭りフィーバー",
 					"condition": "シニアの宝塚記念・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの宝塚記念",
 					"choices": [
 						{
 							"skills": [
@@ -13936,7 +14379,9 @@
 				},
 				{
 					"eventName": "不世出のステイヤー",
-					"condition": "長距離レースで6勝以上",
+					"condition": "長距離レースの勝利数で変化(2～3勝／4～5勝／6勝以上)",
+					"acquireMode": "user",
+					"acquireNote": "取得スキルは最大の段階（長距離6勝以上）のもの",
 					"choices": [
 						{
 							"skills": [
@@ -13962,6 +14407,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -14049,6 +14495,8 @@
 				{
 					"eventName": "頭が高ぁぁぁい！！！！！",
 					"condition": "クラシックの有馬記念、シニアの宝塚記念・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -14130,6 +14578,7 @@
 				{
 					"eventName": "海風の先導者",
 					"condition": "シニア級重賞を「逃げ」で3勝し、ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -14145,6 +14594,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -14238,6 +14688,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -14332,6 +14783,8 @@
 				{
 					"eventName": "全てのティアラを得たウマ娘へ",
 					"condition": "ジュニアの阪神JF、クラシックの桜花賞・オークス・秋華賞・エリザベス女王杯、シニアのヴィクトリアマイル・エリザベス女王杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：ジュニアの阪神JF・クラシックの桜花賞",
 					"choices": [
 						{
 							"skills": [
@@ -14347,6 +14800,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -14390,6 +14844,8 @@
 				{
 					"eventName": "求道、至り/王道、極めし",
 					"condition": "ジュニア12月に選んだ距離で変化。「マイル」なら桜花賞・安田記念・マイルCS・ヴィクトリアマイルで1着(選択肢1)、「中距離」ならオークス・秋華賞・宝塚記念・エリザベス女王杯・ジャパンC・大阪杯・天皇賞(秋)で1着(選択肢2)",
+					"acquireMode": "user",
+					"acquireNote": "目標外：マイル選択は安田記念・マイルCS／中距離選択は大阪杯・天皇賞(秋)",
 					"choices": [
 						{
 							"skills": [
@@ -14434,6 +14890,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -14529,7 +14986,9 @@
 				},
 				{
 					"eventName": "Oath",
-					"condition": "G1で9勝以上",
+					"condition": "G1の勝利数で変化(8勝／9勝以上)",
+					"acquireMode": "user",
+					"acquireNote": "取得スキルは最大の段階（G1を9勝以上）のもの",
 					"choices": [
 						{
 							"skills": [
@@ -14630,6 +15089,8 @@
 				{
 					"eventName": "It's A New Day",
 					"condition": "シニアの天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアのジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -14645,6 +15106,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -14664,6 +15126,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -14683,6 +15146,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -14747,6 +15211,7 @@
 				{
 					"eventName": "スワンSの後に",
 					"condition": "スワンSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -14843,6 +15308,8 @@
 				{
 					"eventName": "憧れに並んで",
 					"condition": "シニアの天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアのジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -14858,6 +15325,8 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：宝塚記念",
 					"choices": [
 						{
 							"results": [
@@ -14877,6 +15346,8 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：ジャパンC",
 					"choices": [
 						{
 							"results": [
@@ -14896,6 +15367,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "クラシックの有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -14996,6 +15468,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -15066,6 +15539,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -15146,6 +15620,7 @@
 				{
 					"eventName": "毎日王冠の後に",
 					"condition": "毎日王冠で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -15161,6 +15636,8 @@
 				{
 					"eventName": "連覇の先へ",
 					"condition": "重賞6連勝以上で、シニアの天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -15220,6 +15697,7 @@
 				{
 					"eventName": "現【うつつ】の三冠ウマ娘",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -15306,6 +15784,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -15379,6 +15858,8 @@
 				{
 					"eventName": "“エース”の始まり",
 					"condition": "シニア級G1を5勝以上した状態でジャパンCで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -15394,6 +15875,8 @@
 				{
 					"eventName": "“エース”と“皇帝”",
 					"condition": "シニアの大阪杯・天皇賞(春)・宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの天皇賞(春)",
 					"choices": [
 						{
 							"skills": [
@@ -15409,6 +15892,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -15503,6 +15987,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -15575,6 +16060,8 @@
 				{
 					"eventName": "最強サイコーとはスバリ！！",
 					"condition": "高松宮記念・スプリンターズSに加え、目標外の短距離重賞で2勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -15595,6 +16082,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -15649,6 +16138,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -15730,6 +16220,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "クラシック10月後半、桜花賞・オークス・秋華賞で勝利",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -15745,6 +16236,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -15826,6 +16318,8 @@
 				{
 					"eventName": "マイルも、がんばりやさん！",
 					"condition": "阪神JF・桜花賞・マイラーズC・安田記念で1着、マイルCSを連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：マイルCS（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -15846,6 +16340,7 @@
 				{
 					"eventName": "夜に咲く想い",
 					"condition": "3回目の発生時",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -15861,6 +16356,7 @@
 				{
 					"eventName": "桜花賞の後に",
 					"condition": "桜花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -15880,6 +16376,8 @@
 				{
 					"eventName": "エリザベス女王杯の後に",
 					"condition": "エリザベス女王杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：エリザベス女王杯",
 					"choices": [
 						{
 							"results": [
@@ -15899,6 +16397,8 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：宝塚記念",
 					"choices": [
 						{
 							"results": [
@@ -15968,7 +16468,9 @@
 				},
 				{
 					"eventName": "許されざる者、あるいは",
-					"condition": "マイルG1で5勝以上と中距離G1で5勝以上",
+					"condition": "マイルG1で5勝以上、かつ中距離G1で5勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -15989,6 +16491,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -16008,6 +16511,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "シニアの天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -16075,6 +16579,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -16090,6 +16595,8 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：日本ダービー",
 					"choices": [
 						{
 							"skills": [
@@ -16105,6 +16612,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "クラシックの有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの有馬記念",
 					"choices": [
 						{
 							"results": [
@@ -16181,6 +16690,7 @@
 				{
 					"eventName": "スプリンターズSの後に",
 					"condition": "スプリンターズSを連覇",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -16196,6 +16706,8 @@
 				{
 					"eventName": "マイルCSの後に",
 					"condition": "クラシックとシニアのマイルCSを連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックのマイルCS",
 					"choices": [
 						{
 							"skills": [
@@ -16271,6 +16783,8 @@
 				{
 					"eventName": "マイルCSの後に",
 					"condition": "マイルCSで1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠でマイルCSを選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -16290,6 +16804,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "クラシックの有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠でクラシックの有馬記念を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -16309,6 +16825,7 @@
 				{
 					"eventName": "ダイヤモンドSの後に",
 					"condition": "ダイヤモンドSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -16328,6 +16845,8 @@
 				{
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で安田記念を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -16347,6 +16866,8 @@
 				{
 					"eventName": "オールカマーの後に",
 					"condition": "オールカマーで1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠でオールカマーを選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -16390,6 +16911,7 @@
 				{
 					"eventName": "春の大三角",
 					"condition": "大阪杯・天皇賞(春)・宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -16410,6 +16932,7 @@
 				{
 					"eventName": "皐月賞の後に",
 					"condition": "皐月賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -16486,6 +17009,8 @@
 				{
 					"eventName": "貴方と祝うセレモニー",
 					"condition": "シニアの大阪杯・天皇賞(春)・宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠でシニアの大阪杯・宝塚記念を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -16506,6 +17031,8 @@
 				{
 					"eventName": "皐月賞の後に",
 					"condition": "皐月賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で皐月賞を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -16524,6 +17051,8 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で日本ダービーを選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -16542,6 +17071,8 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で菊花賞を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -16560,6 +17091,8 @@
 				{
 					"eventName": "阪神大賞典の後に",
 					"condition": "阪神大賞典で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で阪神大賞典を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -16575,6 +17108,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -16672,6 +17206,8 @@
 				{
 					"eventName": "それは羨望か、執着か",
 					"condition": "東京スポーツ杯ジュニアS・朝日杯FS・ラジオNIKKEI賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：東京スポーツ杯ジュニアS・ラジオNIKKEI賞",
 					"choices": [
 						{
 							"skills": [
@@ -16692,6 +17228,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -16711,6 +17248,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -16729,6 +17267,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：有馬記念",
 					"choices": [
 						{
 							"results": [
@@ -16808,6 +17348,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -16827,6 +17368,8 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "ダービー後の目標選択で菊花賞を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -16846,6 +17389,8 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "ダービー後の目標選択で天皇賞(秋)を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -16865,6 +17410,8 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "2回目の天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "クラシック5月後半の目標選択〔菊花賞／天皇賞(秋)〕で変わる",
 					"choices": [
 						{
 							"skills": [
@@ -16945,7 +17492,9 @@
 				},
 				{
 					"eventName": "Oath",
-					"condition": "G1で9勝以上",
+					"condition": "G1の勝利数で変化(8勝／9勝以上)",
+					"acquireMode": "user",
+					"acquireNote": "取得スキルは最大の段階（G1を9勝以上）のもの",
 					"choices": [
 						{
 							"skills": [
@@ -17011,6 +17560,8 @@
 				{
 					"eventName": "華麗なる歴史的偉業",
 					"condition": "阪神JF・桜花賞・NHKマイルC・安田記念・ヴィクトリアマイル・スプリンターズS・マイルCS・高松宮記念をすべて1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：阪神JF・NHKマイルC・ヴィクトリアマイル",
 					"choices": [
 						{
 							"skills": [
@@ -17036,6 +17587,7 @@
 				{
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -17093,6 +17645,8 @@
 				{
 					"eventName": "福島の星だぞっ☆",
 					"condition": "福島記念を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：福島記念（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -17113,6 +17667,7 @@
 				{
 					"eventName": "七夕賞の後に",
 					"condition": "作戦「逃げ」で七夕賞に出走して1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -17128,6 +17683,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "シニアの有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -17190,6 +17746,7 @@
 				{
 					"eventName": "期待を超えて",
 					"condition": "クラシックのジャパンC・有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -17205,6 +17762,8 @@
 				{
 					"eventName": "世界の涯てまで連いてきて",
 					"condition": "「小さな恋の物語」で下の選択肢を選び、目標外のレースに出走",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -17220,6 +17779,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -17263,6 +17823,8 @@
 				{
 					"eventName": "ダートマイルG1制覇！",
 					"condition": "全日本ジュニア優駿・マイルCS南部杯・フェブラリーS・かしわ記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：全日本ジュニア優駿・マイルCS南部杯・かしわ記念",
 					"choices": [
 						{
 							"skills": [
@@ -17278,6 +17840,7 @@
 				{
 					"eventName": "フェブラリーSの後に",
 					"condition": "フェブラリーSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -17353,6 +17916,7 @@
 				{
 					"eventName": "新しい風",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -17368,6 +17932,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -17446,6 +18011,8 @@
 				{
 					"eventName": "キミガ風",
 					"condition": "日本ダービー以降、作戦「逃げ」でG1を7勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -17466,6 +18033,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -17485,6 +18053,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "シニアの有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -17524,6 +18094,8 @@
 				{
 					"eventName": "パリピれマイル王",
 					"condition": "安田記念・マイルCSをそれぞれ連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：安田記念（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -17568,6 +18140,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -17644,6 +18217,8 @@
 				{
 					"eventName": "これまでとこれから",
 					"condition": "ダートG1で10勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -17659,6 +18234,7 @@
 				{
 					"eventName": "川崎記念の後に",
 					"condition": "川崎記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -17678,6 +18254,7 @@
 				{
 					"eventName": "東京大賞典の後に",
 					"condition": "東京大賞典で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -17780,6 +18357,8 @@
 				{
 					"eventName": "憧れに並んで",
 					"condition": "シニアの天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアのジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -17795,6 +18374,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "クラシックの有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -17814,6 +18394,8 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：宝塚記念",
 					"choices": [
 						{
 							"results": [
@@ -17833,6 +18415,8 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：ジャパンC",
 					"choices": [
 						{
 							"results": [
@@ -17939,6 +18523,7 @@
 				{
 					"eventName": "Step with you!",
 					"condition": "シニアの大阪杯・天皇賞(春)・宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -17959,6 +18544,8 @@
 				{
 					"eventName": "菊花賞の後に・喝采！三冠祭り",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：皐月賞・日本ダービー",
 					"choices": [
 						{
 							"skills": [
@@ -17974,6 +18561,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -17993,6 +18581,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "クラシック三冠を達成し、シニアの有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの皐月賞・日本ダービー",
 					"choices": [
 						{
 							"skills": [
@@ -18068,6 +18658,7 @@
 				{
 					"eventName": "天皇賞(春)の後に・盾",
 					"condition": "「岐」で「出席する」を選び、天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -18083,6 +18674,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に・星",
 					"condition": "「岐」で「出席する」を選び、天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -18098,6 +18690,7 @@
 				{
 					"eventName": "ジャパンカップの後に・帝",
 					"condition": "「岐」で「出席する」を選び、ジャパンカップで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -18113,6 +18706,7 @@
 				{
 					"eventName": "有馬記念の後に・我",
 					"condition": "「岐」で「出席する」を選び、有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -18158,6 +18752,8 @@
 				{
 					"eventName": "カーテンコール、あるいは幕開け",
 					"condition": "皐月賞・日本ダービー・菊花賞・大阪杯・天皇賞(春)・宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：皐月賞・大阪杯",
 					"choices": [
 						{
 							"skills": [
@@ -18183,6 +18779,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "クラシックの有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -18202,6 +18799,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "シニアの有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -18289,6 +18887,8 @@
 				{
 					"eventName": "1番と、カッコいい",
 					"condition": "阪神JF・桜花賞・日本ダービー・宝塚記念・秋華賞・エリザベス女王杯・ジャパンC・大阪杯・天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：阪神JF・日本ダービー・宝塚記念・ジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -18332,6 +18932,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -18419,6 +19020,8 @@
 				{
 					"eventName": "安田記念の後に・サイレント連覇",
 					"condition": "安田記念を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：安田記念（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -18434,6 +19037,7 @@
 				{
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -18453,6 +19057,8 @@
 				{
 					"eventName": "カッコいいと、1番",
 					"condition": "クラシックのチューリップ賞・桜花賞・秋華賞・エリザベス女王杯・有馬記念、シニアの大阪杯・天皇賞(秋)・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックのエリザベス女王杯・シニアの大阪杯・有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -18497,6 +19103,7 @@
 				{
 					"eventName": "JBCクラシックの後に",
 					"condition": "JBCクラシックで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -18540,6 +19147,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -18641,6 +19249,8 @@
 				{
 					"eventName": "終わらぬ祭りを御覧じろ",
 					"condition": "シニアの毎日王冠・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアのジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -18656,6 +19266,7 @@
 				{
 					"eventName": "東京大賞典の後に",
 					"condition": "東京大賞典で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -18731,6 +19342,8 @@
 				{
 					"eventName": "とびきりのお土産",
 					"condition": "シニアの宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠でシニアのジャパンCを選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -18746,6 +19359,8 @@
 				{
 					"eventName": "京都金杯の後に",
 					"condition": "京都金杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で京都金杯を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -18766,6 +19381,8 @@
 				{
 					"eventName": "中山金杯の後に",
 					"condition": "中山金杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で中山金杯を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -18786,6 +19403,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -18829,6 +19447,7 @@
 				{
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -18844,6 +19463,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -18910,6 +19531,8 @@
 				{
 					"eventName": "マーちゃんに教えて",
 					"condition": "ウオッカにマイルレースで4勝",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -18925,6 +19548,8 @@
 				{
 					"eventName": "マーちゃんにも言って",
 					"condition": "クラシック12月後半、ダイワスカーレットにクラシックのマイルレースで3勝(シンザン記念・桜花賞・ローズS)",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -18940,6 +19565,8 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "クラシックの秋華賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの秋華賞",
 					"choices": [
 						{
 							"results": [
@@ -18959,6 +19586,8 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "シニアの天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの天皇賞(秋)",
 					"choices": [
 						{
 							"results": [
@@ -19051,6 +19680,8 @@
 				{
 					"eventName": "偉業！私が覇王！？",
 					"condition": "皐月賞・宝塚記念・天皇賞(秋)・ジャパンC・有馬記念・天皇賞(春)で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：皐月賞・天皇賞(春)",
 					"choices": [
 						{
 							"skills": [
@@ -19071,6 +19702,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -19222,6 +19854,8 @@
 				{
 					"eventName": "万能を超えて",
 					"condition": "阪神JFか朝日杯FS・桜花賞・NHKマイルC・安田記念・マイルCS・フェブラリーS・ヴィクトリアマイルで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：桜花賞・安田記念・フェブラリーS・ヴィクトリアマイルほか",
 					"choices": [
 						{
 							"skills": [
@@ -19242,6 +19876,7 @@
 				{
 					"eventName": "マイルCSの後に",
 					"condition": "マイルCSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -19315,6 +19950,8 @@
 				{
 					"eventName": "マイルもオールマイン",
 					"condition": "ジュニアの阪神JF、クラシックの桜花賞・NHKマイルC・安田記念・マイルCS、シニアのヴィクトリアマイル・安田記念・マイルCSで1着(安田記念はクラシック・シニアのどちらか一方でも可)",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアのヴィクトリアマイル",
 					"choices": [
 						{
 							"skills": [
@@ -19335,6 +19972,7 @@
 				{
 					"eventName": "NHKマイルCの後に",
 					"condition": "NHKマイルCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -19398,7 +20036,8 @@
 				},
 				{
 					"eventName": "ティアラの夢の、その先は",
-					"condition": "トリプルティアラの達成で変化",
+					"condition": "トリプルティアラ(桜花賞・オークス・秋華賞)を達成",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -19419,6 +20058,8 @@
 				{
 					"eventName": "マイルCS南部杯の後に",
 					"condition": "クラシックのマイルCS南部杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックのマイルCS南部杯",
 					"choices": [
 						{
 							"skills": [
@@ -19439,6 +20080,8 @@
 				{
 					"eventName": "マイルCS南部杯の後に",
 					"condition": "シニアのマイルCS南部杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアのマイルCS南部杯",
 					"choices": [
 						{
 							"skills": [
@@ -19540,6 +20183,7 @@
 				{
 					"eventName": "皐月賞の後に",
 					"condition": "皐月賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -19640,6 +20284,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -19740,6 +20385,8 @@
 				{
 					"eventName": "川崎記念の後に",
 					"condition": "川崎記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で川崎記念を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -19764,6 +20411,7 @@
 				{
 					"eventName": "JBCクラシックの後に",
 					"condition": "2回目のJBCクラシックで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -19807,6 +20455,8 @@
 				{
 					"eventName": "天に輝く11の星",
 					"condition": "ダートG1で11勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -19827,6 +20477,7 @@
 				{
 					"eventName": "かしわ記念の後に",
 					"condition": "かしわ記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -19870,6 +20521,8 @@
 				{
 					"eventName": "最強サイコーとはスバリ！！",
 					"condition": "高松宮記念・スプリンターズSに加え、目標外の短距離重賞で2勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -19890,6 +20543,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -19986,6 +20641,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -20044,6 +20700,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -20171,6 +20828,8 @@
 				{
 					"eventName": "戦友よ",
 					"condition": "クラシックの皐月賞・菊花賞・ジャパンC、シニアの宝塚記念・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの皐月賞・ジャパンC・シニアの宝塚記念",
 					"choices": [
 						{
 							"skills": [
@@ -20191,6 +20850,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -20269,6 +20929,8 @@
 				{
 					"eventName": "It's A New Day",
 					"condition": "シニアの天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアのジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -20284,6 +20946,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -20303,6 +20966,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -20322,6 +20986,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -20401,6 +21066,7 @@
 				{
 					"eventName": "歩み、確かに",
 					"condition": "クラシックの桜花賞・オークス・秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -20416,6 +21082,8 @@
 				{
 					"eventName": "憧れ、続いて",
 					"condition": "シニア級の目標G1をすべて1着、かつシニアのG1で5勝以上(目標レースを含む)",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -20431,6 +21099,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -20528,6 +21197,8 @@
 				{
 					"eventName": "マイルの先にあるもの",
 					"condition": "クラシックのマイルCS、シニアの金鯱賞・宝塚記念・毎日王冠・天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの金鯱賞・宝塚記念・毎日王冠・天皇賞(秋)",
 					"choices": [
 						{
 							"skills": [
@@ -20548,6 +21219,7 @@
 				{
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -20590,6 +21262,7 @@
 				{
 					"eventName": "帽子のヒミツ",
 					"condition": "桜花賞・オークス・秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -20605,6 +21278,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -20620,6 +21294,7 @@
 				{
 					"eventName": "エリザベス女王杯の後に",
 					"condition": "エリザベス女王杯で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -20706,6 +21381,8 @@
 				{
 					"eventName": "終わらぬ祭りを御覧じろ",
 					"condition": "シニアの毎日王冠・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアのジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -20721,6 +21398,7 @@
 				{
 					"eventName": "東京大賞典の後に",
 					"condition": "東京大賞典で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -20823,6 +21501,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -20842,6 +21521,8 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "9月の目標選択で天皇賞(秋)を選び、天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "最終目標の選択で天皇賞(秋)を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -20857,6 +21538,8 @@
 				{
 					"eventName": "エリザベス女王杯の後に",
 					"condition": "9月の目標選択でエリザベス女王杯を選び、エリザベス女王杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "最終目標の選択でエリザベス女王杯を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -20872,6 +21555,8 @@
 				{
 					"eventName": "マイルCSの後に",
 					"condition": "9月の目標選択でマイルCSを選び、マイルCSで1着",
+					"acquireMode": "user",
+					"acquireNote": "最終目標の選択でマイルCSを選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -20887,6 +21572,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "9月の目標選択で有馬記念を選び、有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "最終目標の選択で有馬記念を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -20907,6 +21594,7 @@
 				{
 					"eventName": "札幌記念の後に",
 					"condition": "札幌記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -20992,6 +21680,8 @@
 				{
 					"eventName": "サマースプリントシリーズ制覇！",
 					"condition": "シニアの函館スプリントS・キーンランドC・セントウルSで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの函館スプリントS・キーンランドC・セントウルS",
 					"choices": [
 						{
 							"skills": [
@@ -21007,6 +21697,7 @@
 				{
 					"eventName": "高松宮記念の後に",
 					"condition": "高松宮記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -21061,6 +21752,8 @@
 				{
 					"eventName": "頭が高ぁぁぁい！！！！！",
 					"condition": "クラシックの有馬記念、シニアの宝塚記念・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -21121,6 +21814,8 @@
 				{
 					"eventName": "キミガ風",
 					"condition": "日本ダービー以降、作戦「逃げ」でG1を7勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -21141,6 +21836,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -21160,6 +21856,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "シニアの有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -21250,6 +21948,7 @@
 				{
 					"eventName": "高松宮記念の後に",
 					"condition": "高松宮記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -21322,6 +22021,8 @@
 				{
 					"eventName": "頑張るって決めたから",
 					"condition": "クラシックの京都新聞杯・鳴尾記念・小倉記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの京都新聞杯・鳴尾記念",
 					"choices": [
 						{
 							"skills": [
@@ -21382,6 +22083,8 @@
 				{
 					"eventName": "八重の勝利は無敵の証",
 					"condition": "オグリキャップ・イナリワン・スーパークリークの出走するレースで8勝以上",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -21402,6 +22105,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -21441,6 +22145,8 @@
 				{
 					"eventName": "マイルも、がんばりやさん！",
 					"condition": "阪神JF・桜花賞・マイラーズC・安田記念で1着、マイルCSを連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：マイルCS（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -21461,6 +22167,7 @@
 				{
 					"eventName": "夜に咲く想い",
 					"condition": "3回目の発生時",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -21476,6 +22183,7 @@
 				{
 					"eventName": "桜花賞の後に",
 					"condition": "桜花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -21495,6 +22203,8 @@
 				{
 					"eventName": "エリザベス女王杯の後に",
 					"condition": "エリザベス女王杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：エリザベス女王杯",
 					"choices": [
 						{
 							"results": [
@@ -21514,6 +22224,8 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：宝塚記念",
 					"choices": [
 						{
 							"results": [
@@ -21599,6 +22311,8 @@
 				{
 					"eventName": "言葉は取るに足らないもの",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "皐月賞後の路線選択で三冠路線を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -21613,7 +22327,9 @@
 				},
 				{
 					"eventName": "だってビートは止められない",
-					"condition": "短距離・マイルG1で計5勝以上",
+					"condition": "高松宮記念を含むとシニア級の短距離マイルG1を3勝",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -21629,6 +22345,8 @@
 				{
 					"eventName": "私の幸運の星",
 					"condition": "シニアの宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：宝塚記念・ジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -21725,6 +22443,7 @@
 				{
 					"eventName": "三冠、釣り上げ！",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -21740,6 +22459,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -21755,6 +22475,7 @@
 				{
 					"eventName": "釣果アリ",
 					"condition": "トレーニングLvが最も高い能力で変化",
+					"acquireMode": "fixed",
 					"defaultChoice": 1,
 					"choices": [
 						{
@@ -21831,6 +22552,7 @@
 				{
 					"eventName": "メジロ家の歩み・二帖の盾",
 					"condition": "シニアの天皇賞(春)・天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -21846,6 +22568,8 @@
 				{
 					"eventName": "メジロ家の歩み・連年の女王",
 					"condition": "エリザベス女王杯を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：エリザベス女王杯（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -21861,6 +22585,8 @@
 				{
 					"eventName": "メジロ家の歩み・春秋お祭りフィーバー",
 					"condition": "シニアの宝塚記念・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの宝塚記念",
 					"choices": [
 						{
 							"skills": [
@@ -21875,7 +22601,9 @@
 				},
 				{
 					"eventName": "不世出のステイヤー",
-					"condition": "長距離レースで6勝以上",
+					"condition": "長距離レースの勝利数で変化(2～3勝／4～5勝／6勝以上)",
+					"acquireMode": "user",
+					"acquireNote": "取得スキルは最大の段階（長距離6勝以上）のもの",
 					"choices": [
 						{
 							"skills": [
@@ -21901,6 +22629,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -21961,6 +22690,8 @@
 				{
 					"eventName": "憧れに並んで",
 					"condition": "シニアの天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアのジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -21976,6 +22707,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "クラシックの有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -21995,6 +22727,8 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：宝塚記念",
 					"choices": [
 						{
 							"results": [
@@ -22014,6 +22748,8 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：ジャパンC",
 					"choices": [
 						{
 							"results": [
@@ -22057,6 +22793,8 @@
 				{
 					"eventName": "マイルCSの後に",
 					"condition": "マイルCSで1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠でマイルCSを選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -22076,6 +22814,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "クラシックの有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠でクラシックの有馬記念を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -22095,6 +22835,7 @@
 				{
 					"eventName": "ダイヤモンドSの後に",
 					"condition": "ダイヤモンドSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -22114,6 +22855,8 @@
 				{
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で安田記念を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -22133,6 +22876,8 @@
 				{
 					"eventName": "オールカマーの後に",
 					"condition": "オールカマーで1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠でオールカマーを選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -22197,6 +22942,7 @@
 				{
 					"eventName": "Step with you!",
 					"condition": "シニアの大阪杯・天皇賞(春)・宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -22217,6 +22963,8 @@
 				{
 					"eventName": "菊花賞の後に・喝采！三冠祭り",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：皐月賞・日本ダービー",
 					"choices": [
 						{
 							"skills": [
@@ -22232,6 +22980,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -22251,6 +23000,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "クラシック三冠を達成し、シニアの有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの皐月賞・日本ダービー",
 					"choices": [
 						{
 							"skills": [
@@ -22343,7 +23094,9 @@
 				},
 				{
 					"eventName": "九九の名を持つ星々たち",
-					"condition": "テイエムオペラオー・ナリタトップロード・メイショウドトウの出走するレースで8勝以上",
+					"condition": "テイエムオペラオー・ナリタトップロード・メイショウドトウの出走するレースの勝利数で変化(5勝以下／6～7勝／8勝以上)",
+					"acquireMode": "user",
+					"acquireNote": "取得スキルは最大の段階（8勝以上）のもの",
 					"choices": [
 						{
 							"skills": [
@@ -22364,6 +23117,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -22428,6 +23182,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -22447,6 +23202,8 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "ダービー後の目標選択で菊花賞を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -22466,6 +23223,8 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "ダービー後の目標選択で天皇賞(秋)を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -22485,6 +23244,8 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "2回目の天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "クラシック5月後半の目標選択〔菊花賞／天皇賞(秋)〕で変わる",
 					"choices": [
 						{
 							"skills": [
@@ -22569,6 +23330,7 @@
 				{
 					"eventName": "Erinnerung an Tokyo",
 					"condition": "東京レース場のG1で2勝",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -22584,6 +23346,7 @@
 				{
 					"eventName": "Erinnerung an den Sieg",
 					"condition": "東京レース場のG1で3勝以上",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -22599,6 +23362,8 @@
 				{
 					"eventName": "Der Rekord",
 					"condition": "東京レース場のG1で5勝",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -22619,6 +23384,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -22698,6 +23464,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -22756,6 +23523,8 @@
 				{
 					"eventName": "それは羨望か、執着か",
 					"condition": "東京スポーツ杯ジュニアS・朝日杯FS・ラジオNIKKEI賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：東京スポーツ杯ジュニアS・ラジオNIKKEI賞",
 					"choices": [
 						{
 							"skills": [
@@ -22776,6 +23545,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -22795,6 +23565,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -22813,6 +23584,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：有馬記念",
 					"choices": [
 						{
 							"results": [
@@ -22931,6 +23704,7 @@
 				{
 					"eventName": "JBCスプリントの後に",
 					"condition": "JBCスプリントで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -22950,6 +23724,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "シニアの有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -22989,6 +23764,8 @@
 				{
 					"eventName": "とびきりのお土産",
 					"condition": "シニアの宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠でシニアのジャパンCを選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -23004,6 +23781,8 @@
 				{
 					"eventName": "京都金杯の後に",
 					"condition": "京都金杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で京都金杯を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -23024,6 +23803,8 @@
 				{
 					"eventName": "中山金杯の後に",
 					"condition": "中山金杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で中山金杯を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -23044,6 +23825,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -23108,6 +23890,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -23127,6 +23910,8 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "9月の目標選択で天皇賞(秋)を選び、天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "最終目標の選択で天皇賞(秋)を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -23142,6 +23927,8 @@
 				{
 					"eventName": "エリザベス女王杯の後に",
 					"condition": "9月の目標選択でエリザベス女王杯を選び、エリザベス女王杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "最終目標の選択でエリザベス女王杯を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -23157,6 +23944,8 @@
 				{
 					"eventName": "マイルCSの後に",
 					"condition": "9月の目標選択でマイルCSを選び、マイルCSで1着",
+					"acquireMode": "user",
+					"acquireNote": "最終目標の選択でマイルCSを選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -23172,6 +23961,8 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "9月の目標選択で有馬記念を選び、有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "最終目標の選択で有馬記念を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -23192,6 +23983,7 @@
 				{
 					"eventName": "札幌記念の後に",
 					"condition": "札幌記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -23307,6 +24099,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -23392,6 +24185,8 @@
 				{
 					"eventName": "これからも、みんなと",
 					"condition": "クラシックの菊花賞・有馬記念、シニアの大阪杯・天皇賞(春)・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠でクラシックの菊花賞・シニアの大阪杯・天皇賞(春)を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -23407,6 +24202,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -23446,6 +24242,7 @@
 				{
 					"eventName": "歩み、確かに",
 					"condition": "クラシックの桜花賞・オークス・秋華賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -23461,6 +24258,8 @@
 				{
 					"eventName": "憧れ、続いて",
 					"condition": "シニア級の目標G1をすべて1着、かつシニアのG1で5勝以上(目標レースを含む)",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -23476,6 +24275,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -23537,6 +24337,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -23594,6 +24395,7 @@
 				{
 					"eventName": "阪神JFの後に",
 					"condition": "阪神JFで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -23673,6 +24475,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -23692,6 +24495,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -23707,6 +24511,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -23749,7 +24554,9 @@
 				},
 				{
 					"eventName": "疲れ知らずの怪",
-					"condition": "長距離レースの勝利数で変化(2勝以上)",
+					"condition": "長距離レースの勝利数で変化(2～3勝／4～5勝／6勝以上)",
+					"acquireMode": "user",
+					"acquireNote": "取得スキルは最大の段階（長距離6勝以上）のもの",
 					"choices": [
 						{
 							"skills": [
@@ -23770,6 +24577,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "2回目の有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -23828,6 +24636,8 @@
 				{
 					"eventName": "全てのティアラを得たウマ娘へ",
 					"condition": "ジュニアの阪神JF、クラシックの桜花賞・オークス・秋華賞・エリザベス女王杯、シニアのヴィクトリアマイル・エリザベス女王杯で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：ジュニアの阪神JF・クラシックの桜花賞",
 					"choices": [
 						{
 							"skills": [
@@ -23843,6 +24653,7 @@
 				{
 					"eventName": "オークスの後に",
 					"condition": "オークスで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -23958,6 +24769,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -24037,6 +24849,8 @@
 				{
 					"eventName": "心に芽吹く、君という物語",
 					"condition": "京都レース場での勝利数で変化(3勝以上)",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -24141,6 +24955,8 @@
 				{
 					"eventName": "万能を超えて",
 					"condition": "阪神JFか朝日杯FS・桜花賞・NHKマイルC・安田記念・マイルCS・フェブラリーS・ヴィクトリアマイルで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：桜花賞・安田記念・フェブラリーS・ヴィクトリアマイルほか",
 					"choices": [
 						{
 							"skills": [
@@ -24161,6 +24977,7 @@
 				{
 					"eventName": "マイルCSの後に",
 					"condition": "マイルCSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -24233,6 +25050,7 @@
 				{
 					"eventName": "スワンSの後に",
 					"condition": "スワンSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -24294,6 +25112,8 @@
 				{
 					"eventName": "来たる福と、静かなる闘志と",
 					"condition": "クラシックの京都新聞杯・神戸新聞杯・菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：京都新聞杯・神戸新聞杯",
 					"choices": [
 						{
 							"skills": [
@@ -24309,6 +25129,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -24352,6 +25173,7 @@
 				{
 					"eventName": "Erinnerung an Tokyo",
 					"condition": "東京レース場のG1で2勝",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -24367,6 +25189,7 @@
 				{
 					"eventName": "Erinnerung an den Sieg",
 					"condition": "東京レース場のG1で3勝以上",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -24382,6 +25205,8 @@
 				{
 					"eventName": "Der Rekord",
 					"condition": "東京レース場のG1で5勝",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -24402,6 +25227,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -24445,6 +25271,8 @@
 				{
 					"eventName": "偉業！私が覇王！？",
 					"condition": "皐月賞・宝塚記念・天皇賞(秋)・ジャパンC・有馬記念・天皇賞(春)で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：皐月賞・天皇賞(春)",
 					"choices": [
 						{
 							"skills": [
@@ -24465,6 +25293,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -24543,6 +25372,7 @@
 				{
 					"eventName": "朝日杯FSの後に",
 					"condition": "朝日杯FSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -24652,6 +25482,8 @@
 				{
 					"eventName": "戦友よ",
 					"condition": "クラシックの皐月賞・菊花賞・ジャパンC、シニアの宝塚記念・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの皐月賞・ジャパンC・シニアの宝塚記念",
 					"choices": [
 						{
 							"skills": [
@@ -24672,6 +25504,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -24714,6 +25547,7 @@
 				{
 					"eventName": "阪神JFの後に",
 					"condition": "阪神JFで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -24757,6 +25591,8 @@
 				{
 					"eventName": "言葉は取るに足らないもの",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "皐月賞後の路線選択で三冠路線を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -24771,7 +25607,9 @@
 				},
 				{
 					"eventName": "だってビートは止められない",
-					"condition": "短距離・マイルG1で計5勝以上",
+					"condition": "高松宮記念を含むとシニア級の短距離マイルG1を3勝",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -24787,6 +25625,8 @@
 				{
 					"eventName": "私の幸運の星",
 					"condition": "シニアの宝塚記念・天皇賞(秋)・ジャパンC・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：宝塚記念・ジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -24886,6 +25726,8 @@
 				{
 					"eventName": "三冠を経て、なお",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：皐月賞・菊花賞",
 					"choices": [
 						{
 							"skills": [
@@ -24901,6 +25743,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -24997,6 +25840,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -25036,6 +25880,7 @@
 				{
 					"eventName": "秋華賞の後に",
 					"condition": "クラシック10月後半、桜花賞・オークス・秋華賞で勝利",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -25051,6 +25896,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -25114,6 +25960,7 @@
 				{
 					"eventName": "釣果アリ",
 					"condition": "トレーニングLvが最も高い能力で変化",
+					"acquireMode": "fixed",
 					"defaultChoice": 1,
 					"choices": [
 						{
@@ -25166,6 +26013,7 @@
 				{
 					"eventName": "三冠、釣り上げ！",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -25181,6 +26029,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -25304,6 +26153,8 @@
 				{
 					"eventName": "訓練の成果、見せてあげる",
 					"condition": "逃げ・先行・差し・追込のそれぞれでG1を1勝以上",
+					"acquireMode": "user",
+					"acquireNote": "脚質の選択で変わる",
 					"choices": [
 						{
 							"skills": [
@@ -25334,6 +26185,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -25377,6 +26229,7 @@
 				{
 					"eventName": "天皇賞(春)の後に・盾",
 					"condition": "「岐」で「出席する」を選び、天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -25392,6 +26245,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に・星",
 					"condition": "「岐」で「出席する」を選び、天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -25407,6 +26261,7 @@
 				{
 					"eventName": "ジャパンカップの後に・帝",
 					"condition": "「岐」で「出席する」を選び、ジャパンカップで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -25422,6 +26277,7 @@
 				{
 					"eventName": "有馬記念の後に・我",
 					"condition": "「岐」で「出席する」を選び、有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -25476,6 +26332,7 @@
 				{
 					"eventName": "JBCクラシックの後に",
 					"condition": "2回目のJBCクラシックで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -25495,6 +26352,8 @@
 				{
 					"eventName": "川崎記念の後に",
 					"condition": "川崎記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠で川崎記念を選ぶと達成",
 					"choices": [
 						{
 							"results": [
@@ -25558,6 +26417,7 @@
 				{
 					"eventName": "皐月賞の後に",
 					"condition": "皐月賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -25601,6 +26461,8 @@
 				{
 					"eventName": "サマースプリントシリーズ制覇！",
 					"condition": "シニアの函館スプリントS・キーンランドC・セントウルSで1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの函館スプリントS・キーンランドC・セントウルS",
 					"choices": [
 						{
 							"skills": [
@@ -25616,6 +26478,7 @@
 				{
 					"eventName": "高松宮記念の後に",
 					"condition": "高松宮記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -25691,6 +26554,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -25784,6 +26648,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -25857,6 +26722,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -25900,6 +26766,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -25985,6 +26852,7 @@
 				{
 					"eventName": "高松宮記念の後に",
 					"condition": "高松宮記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -26024,6 +26892,8 @@
 				{
 					"eventName": "頑張るって決めたから",
 					"condition": "クラシックの京都新聞杯・鳴尾記念・小倉記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの京都新聞杯・鳴尾記念",
 					"choices": [
 						{
 							"skills": [
@@ -26063,6 +26933,8 @@
 				{
 					"eventName": "来たる福と、静かなる闘志と",
 					"condition": "クラシックの京都新聞杯・神戸新聞杯・菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：京都新聞杯・神戸新聞杯",
 					"choices": [
 						{
 							"skills": [
@@ -26078,6 +26950,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -26103,6 +26976,7 @@
 				{
 					"eventName": "JBCスプリントの後に",
 					"condition": "JBCスプリントで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -26122,6 +26996,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "シニアの有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -26161,6 +27036,7 @@
 				{
 					"eventName": "スプリンターズSの後に",
 					"condition": "スプリンターズSを連覇",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -26176,6 +27052,8 @@
 				{
 					"eventName": "マイルCSの後に",
 					"condition": "クラシックとシニアのマイルCSを連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックのマイルCS",
 					"choices": [
 						{
 							"skills": [
@@ -26252,6 +27130,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -26295,6 +27174,7 @@
 				{
 					"eventName": "現【うつつ】の三冠ウマ娘",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -26334,6 +27214,7 @@
 				{
 					"eventName": "新しい風",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -26349,6 +27230,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -26424,6 +27306,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -26467,6 +27350,8 @@
 				{
 					"eventName": "訓練の成果、見せてあげる",
 					"condition": "逃げ・先行・差し・追込のそれぞれでG1を1勝以上",
+					"acquireMode": "user",
+					"acquireNote": "脚質の選択で変わる",
 					"choices": [
 						{
 							"skills": [
@@ -26497,6 +27382,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -26582,6 +27468,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -26663,6 +27550,8 @@
 				{
 					"eventName": "三冠を経て、なお",
 					"condition": "皐月賞・日本ダービー・菊花賞で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：皐月賞・菊花賞",
 					"choices": [
 						{
 							"skills": [
@@ -26678,6 +27567,7 @@
 				{
 					"eventName": "宝塚記念の後に",
 					"condition": "宝塚記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -26720,6 +27610,8 @@
 				{
 					"eventName": "1番と、カッコいい",
 					"condition": "阪神JF・桜花賞・日本ダービー・宝塚記念・秋華賞・エリザベス女王杯・ジャパンC・大阪杯・天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：阪神JF・日本ダービー・宝塚記念・ジャパンC",
 					"choices": [
 						{
 							"skills": [
@@ -26763,6 +27655,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -26802,6 +27695,8 @@
 				{
 					"eventName": "安田記念の後に・サイレント連覇",
 					"condition": "安田記念を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：安田記念（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
@@ -26817,6 +27712,7 @@
 				{
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -26836,6 +27732,8 @@
 				{
 					"eventName": "カッコいいと、1番",
 					"condition": "クラシックのチューリップ賞・桜花賞・秋華賞・エリザベス女王杯・有馬記念、シニアの大阪杯・天皇賞(秋)・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックのエリザベス女王杯・シニアの大阪杯・有馬記念",
 					"choices": [
 						{
 							"skills": [
@@ -26901,6 +27799,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -26944,6 +27843,8 @@
 				{
 					"eventName": "心に芽吹く、君という物語",
 					"condition": "京都レース場での勝利数で変化(3勝以上)",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -26988,6 +27889,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -27007,6 +27909,7 @@
 				{
 					"eventName": "天皇賞(春)の後に",
 					"condition": "天皇賞(春)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -27022,6 +27925,7 @@
 				{
 					"eventName": "有馬記念の後に",
 					"condition": "有馬記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -27065,6 +27969,7 @@
 				{
 					"eventName": "菊花賞の後に",
 					"condition": "菊花賞で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -27122,6 +28027,8 @@
 				{
 					"eventName": "マイルの先にあるもの",
 					"condition": "クラシックのマイルCS、シニアの金鯱賞・宝塚記念・毎日王冠・天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの金鯱賞・宝塚記念・毎日王冠・天皇賞(秋)",
 					"choices": [
 						{
 							"skills": [
@@ -27142,6 +28049,7 @@
 				{
 					"eventName": "安田記念の後に",
 					"condition": "安田記念で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -27184,6 +28092,8 @@
 				{
 					"eventName": "これからも、みんなと",
 					"condition": "クラシックの菊花賞・有馬記念、シニアの大阪杯・天皇賞(春)・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "出走先を選べる枠でクラシックの菊花賞・シニアの大阪杯・天皇賞(春)を選ぶと達成",
 					"choices": [
 						{
 							"skills": [
@@ -27199,6 +28109,7 @@
 				{
 					"eventName": "天皇賞(秋)の後に",
 					"condition": "天皇賞(秋)で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -27256,6 +28167,7 @@
 				{
 					"eventName": "朝日杯FSの後に",
 					"condition": "朝日杯FSで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -27317,6 +28229,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -27360,6 +28273,7 @@
 				{
 					"eventName": "毎日王冠の後に",
 					"condition": "毎日王冠で1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -27375,6 +28289,8 @@
 				{
 					"eventName": "連覇の先へ",
 					"condition": "重賞6連勝以上で、シニアの天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標レース以外の出走が必要",
 					"choices": [
 						{
 							"skills": [
@@ -27462,6 +28378,8 @@
 				{
 					"eventName": "戦友よ",
 					"condition": "クラシックの皐月賞・菊花賞・ジャパンC、シニアの宝塚記念・有馬記念で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：クラシックの皐月賞・ジャパンC・シニアの宝塚記念",
 					"choices": [
 						{
 							"skills": [
@@ -27482,6 +28400,7 @@
 				{
 					"eventName": "ジャパンCの後に",
 					"condition": "ジャパンCで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"results": [
@@ -27524,6 +28443,7 @@
 				{
 					"eventName": "日本ダービーの後に",
 					"condition": "日本ダービーで1着",
+					"acquireMode": "fixed",
 					"choices": [
 						{
 							"skills": [
@@ -27539,6 +28459,8 @@
 				{
 					"eventName": "世代最強",
 					"condition": "クラシック三冠・春シニア三冠・秋シニア三冠をすべて達成し、有馬記念を連覇",
+					"acquireMode": "user",
+					"acquireNote": "目標外：シニアの天皇賞(春)・有馬記念（連覇は2年分必要）",
 					"choices": [
 						{
 							"skills": [
