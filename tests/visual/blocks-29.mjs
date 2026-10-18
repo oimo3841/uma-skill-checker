@@ -123,7 +123,7 @@ export async function register29(env) {
 		const cands = d.vp.circleCandidates;
 		const keepAll = await detail(sp.page, Object.assign({}, R2, { keepCircleIds: cands.map((c) => c[0]) }));
 		const keepById = new Map(keepAll.pt.items.map((x) => [x.skillId, x]));
-		const rows = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-grow[data-skill-id]')).map((r) => {
+		const rows = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-grow[data-skill-id]:not([data-usd-derived])')).map((r) => {
 			const nm = r.querySelector('.usd-roster-skillname');
 			const pt = r.querySelector('[data-usd-el="pt-line"]');
 			return { id: r.getAttribute('data-skill-id'), circle: r.getAttribute('data-usd-circle'), name: nm ? nm.textContent : null, info: nm ? nm.getAttribute('data-usd-info') : null, pt: pt ? pt.textContent : null };
@@ -146,7 +146,8 @@ export async function register29(env) {
 		});
 		assert(numOf(band.total) === FIX.R2.def && numOf(band.count) === FIX.R2.kinds, '◎切替(2) 帯の「X Pt/N種」は ' + FIX.R2.def + ' Pt／' + FIX.R2.kinds + '種', band);
 		const prevText = band.prev || '';
-		assert(cands.every(([o]) => prevText.includes(nameOf(o))), '◎切替(2) 「前段として必要」の1行に、◎に上げた○の名前が出る', prevText.slice(0, 120));
+		// 2026-10-18（作業4・おいもさんの決定）: 上の1行は「ヒントLv0」のグループだけ。◎に上げた○（行の Pt に合算済み）は出さない。出るのは金スキルの下位の白だけ
+		assert(cands.every(([o]) => !prevText.includes(nameOf(o))) && /^ヒントLv0：/.test(prevText) && !/ヒントLv[1-9]/.test(prevText), '◎切替(2) 上の1行に、◎に上げた○の名前は出ない（ヒントLv0 のグループだけ）', prevText.slice(0, 120));
 		assert(jsErrors(sp.errors).length === 0, '◎切替(2) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
@@ -165,7 +166,7 @@ export async function register29(env) {
 	const rawDraft = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:special'));
 	const draftR = async (page) => JSON.parse(await rawDraft(page));
 	const rawUd = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:userData'));
-	const rowInfo = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-grow[data-skill-id]')).map((r) => {
+	const rowInfo = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-grow[data-skill-id]:not([data-usd-derived])')).map((r) => {
 		const nm = r.querySelector('.usd-roster-skillname');
 		const pt = r.querySelector('[data-usd-el="pt-line"]');
 		const tg = r.querySelector('[data-usd-el="circle-toggle"]');
@@ -187,7 +188,7 @@ export async function register29(env) {
 			const btn = document.querySelector('#deck-roster-panel [data-usd-el="circle-toggle"]');
 			const cell = btn.closest('.usd-roster-gc--name');
 			const hs = (rows) => rows.map((r) => r.querySelector('.usd-roster-gc--name').getBoundingClientRect().height);
-			const all = Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-grow[data-skill-id]'));
+			const all = Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-grow[data-skill-id]:not([data-usd-derived])'));
 			const withBtn = all.filter((r) => r.querySelector('[data-usd-el="circle-toggle"]'));
 			const without = all.filter((r) => !r.querySelector('[data-usd-el="circle-toggle"]'));
 			const b = btn.getBoundingClientRect(), c = cell.getBoundingClientRect();

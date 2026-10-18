@@ -59,6 +59,7 @@ import { register35 } from './blocks-35.mjs';
 import { register36 } from './blocks-36.mjs';
 import { register37 } from './blocks-37.mjs';
 import { register38 } from './blocks-38.mjs';
+import { register39 } from './blocks-39.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 
@@ -13756,9 +13757,15 @@ await block('前段の必要Pt（段4b）', async () => {
 		const n = (s) => (s === null ? null : Number(s.replace(/[^0-9]/g, '')));
 		// 段7d の ②: 前段は「ヒントLv0：名前 Pt・名前 Pt／ヒントLv2：…」の1行。合計（pt-total）は前段を含む額。
 		// ここでは従来の見方に直す: prevCount＝行の件数、prevTotal＝行の Pt の和、withPrev＝表示の合計、total＝前段を含めない合計（表示の合計 − prevTotal）
-		const line = t('pt-prev');
-		const entries = line ? line.split('／').flatMap((g) => g.replace(/^ヒントLv\d+：/, '').split('・')) : [];
-		const prevTotal = entries.reduce((s, x) => s + (/ (\d+)$/.test(x) ? Number(/ (\d+)$/.exec(x)[1]) : 0), 0);
+		// 2026-10-18（作業4）: 表の上の1行は「ヒントLv0」のグループだけ（◎に上げた○・Lv1 以上は出さない）になったので、
+		// 「前段として必要」の中身（件数・Pt・名前）は、計算の戻り値（getRosterPtDetail。①の表と同じ入力）から読む
+		const draftR = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special') || 'null');
+		const detR = draftR ? UmaSkillDeckCore.getRosterPtDetail(draftR) : null;
+		const prevAll = detR ? detR.prevItems : [];
+		const entries = prevAll.map((x) => UmaSkillDeckCore.getSkillName(x.skillId) + ' ' + (x.base === null ? 'Pt未収録' : x.pt));
+		const prevTotal = prevAll.reduce((s, x) => s + (x.pt || 0), 0);
+		const prevGroups = new Map(); prevAll.forEach((x) => { const lv = x.hintLevel || 0; if (!prevGroups.has(lv)) prevGroups.set(lv, []); prevGroups.get(lv).push(UmaSkillDeckCore.getSkillName(x.skillId) + ' ' + (x.base === null ? 'Pt未収録' : x.pt)); });
+		const line = prevAll.length ? Array.from(prevGroups.keys()).sort((p, q) => p - q).map((lv) => 'ヒントLv' + lv + '：' + prevGroups.get(lv).join('・')).join('／') : null;
 		const shown = n(t('pt-total'));
 		return { total: shown - prevTotal, prevCount: line ? entries.length : null, prevTotal: line ? prevTotal : null, list: line, withPrev: line ? shown : null,
 			hasPrevRow: !!line, hasWithPrev: !!line, unpriced: t('pt-unpriced'), prevError: t('pt-prev-error'), theory: h.querySelector('[data-usd-el="pt-help-btn"]') ? '理論値' : null };
@@ -15149,6 +15156,7 @@ await register35({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register36({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register37({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register38({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register39({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();

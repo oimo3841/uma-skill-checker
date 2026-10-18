@@ -57,7 +57,7 @@ export async function register7e(env) {
 		return sp;
 	};
 	/** 表の行を、表示されている順に読む（id・クラス・名前の色・各セルの地・字下げ・高さ・○の列） */
-	const readRows = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-grow[data-skill-id]')).map((r) => {
+	const readRows = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-grow[data-skill-id]:not([data-usd-derived])')).map((r) => {
 		const cells = Array.from(r.querySelectorAll('[role="cell"], [role="rowheader"]'));
 		const nm = r.querySelector('.usd-roster-skillname');
 		const first = cells[0];

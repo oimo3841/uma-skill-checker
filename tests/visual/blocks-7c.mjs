@@ -91,11 +91,17 @@ export async function register7c(env) {
 		const h = document.getElementById('deck-roster-panel');
 		const t = (i) => { const e = h.querySelector('[data-usd-el="' + i + '"]'); return e ? e.textContent.trim() : null; };
 		const num = (s) => (s === null ? null : Number(s.replace(/[^0-9]/g, '')));
-			const prevLine = t('pt-prev');
-			const prevEntries = prevLine ? prevLine.split('／').flatMap((g) => g.replace(/^ヒントLv\d+：/, '').split('・')) : [];
-			const prevSum = prevEntries.reduce((s, x) => s + (/ (\d+)$/.test(x) ? Number(/ (\d+)$/.exec(x)[1]) : 0), 0);
+			// 2026-10-18（作業4）: 表の上の1行は「ヒントLv0」のグループだけ（◎に上げた○・Lv1 以上は出さない）になったので、
+			// 「前段として必要」の中身（件数・Pt・名前）は、計算の戻り値（getRosterPtDetail。①の表と同じ入力）から読む
+			const draftR = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special') || 'null');
+			const detR = draftR ? UmaSkillDeckCore.getRosterPtDetail(draftR) : null;
+			const prevAll = detR ? detR.prevItems : [];
+			const prevEntries = prevAll.map((x) => UmaSkillDeckCore.getSkillName(x.skillId) + ' ' + (x.base === null ? 'Pt未収録' : x.pt));
+			const prevSum = prevAll.reduce((s, x) => s + (x.pt || 0), 0);
+			const prevGroups = new Map(); prevAll.forEach((x) => { const lv = x.hintLevel || 0; if (!prevGroups.has(lv)) prevGroups.set(lv, []); prevGroups.get(lv).push(UmaSkillDeckCore.getSkillName(x.skillId) + ' ' + (x.base === null ? 'Pt未収録' : x.pt)); });
+			const prevLine = prevAll.length ? Array.from(prevGroups.keys()).sort((p, q) => p - q).map((lv) => 'ヒントLv' + lv + '：' + prevGroups.get(lv).join('・')).join('／') : null;
 			const shownTotal = num(t('pt-total'));
-		const rows = Array.from(h.querySelectorAll('.usd-roster-grow[data-skill-id]')).map((r) => {
+		const rows = Array.from(h.querySelectorAll('.usd-roster-grow[data-skill-id]:not([data-usd-derived])')).map((r) => {
 			const box = r.querySelector('input[data-usd-act="take-skill"]');
 			const nm = r.querySelector('.usd-roster-skillname');
 			return { id: r.getAttribute('data-skill-id'), off: r.classList.contains('usd-roster-grow--off'), box: !!box, checked: box ? box.checked : null, aria: box ? box.getAttribute('aria-label') : null,

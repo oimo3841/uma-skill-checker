@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-18c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-18d';
 
 	/* ============================================================
 	 * 定数
@@ -3945,7 +3945,7 @@
 	 * 返り値は「単位」の配列。単位は [先頭の行, ...その直下に置く前段の白の行]。順序は元の並び（金スキルの位置）のまま。
 	 * データが読めていない画面（Deck 単体ページなど）では、1行ずつの単位（並びは変わらない）。
 	 */
-	function arrangeStepUnits(items) {
+	function arrangeStepUnits(items, derivedByGold) {
 		const list = Array.isArray(items) ? items : [];
 		const su = skillPtData.stepUp, pt = skillPtData.skillPt;
 		if (!su || typeof su.prevOf !== 'function' || !(pt instanceof Map)) return list.map(it => [it]);
@@ -3962,7 +3962,8 @@
 			});
 			if (ws.length > 0) under.set(it.skillId, ws);
 		});
-		return list.filter(it => !moved.has(it.skillId)).map(it => [it].concat(under.get(it.skillId) || []));
+		// derivedByGold … 表に行が無い下位の白（derivedPrevRowsOf の合成の行）。金の直下に、表にある前段の白のあとへ足す
+		return list.filter(it => !moved.has(it.skillId)).map(it => [it].concat(under.get(it.skillId) || [], (derivedByGold && derivedByGold.get(it.skillId)) || []));
 	}
 	/**
 	 * 表の行の色分け（段7e の (2)〜(5)）。判定はマスターの tags だけ（スキル名は決め打ちしない）。
@@ -4355,6 +4356,39 @@
 		const prev = pt.prevItems.find(x => x.skillId === baseId);
 		if (!up || !prev || up.pt === null || prev.pt === null) return null;
 		return { pt: up.pt + prev.pt, base: up.base + prev.base, hintLevel: up.hintLevel };
+	}
+	/**
+	 * 金スキルの下位の白で、①の表に行が無いもの（作業4・2026-10-18。Step 0 の案 (B)）。**表示用**で、takenIds・合計・種数・②には関わらない。
+	 * 取得する（●で取得しないでない）金スキルの、直前の白（前段データの直前だけ）が、表に出ていなくて、計算の「前段として必要」（prevItems）にあるとき、
+	 * 金スキルの直下に「└」の行として出す。Pt は prevItems の値そのもの（ヒントLv0・切れ者・勉強家の割引つき。合計にすでに入っている）。
+	 * 金の直前が◎で、その下の○も表に無いとき（金←◎←○）は、◎の行1つにして、Pt は◎＋○の合算（C-168 と同じ。○は別の行にしない）。
+	 * 1つの白が複数の金スキルの直前なら、先に出る金スキルの直下に1回だけ。返り値は Map(金の id → [{ skillId, pt, base, hintLevel, chain }])。
+	 * 前段データ・Pt・計算の結果が無ければ空。items は表の行（visibleItems）、offIds は取得しないスキルの id の集合。
+	 */
+	function derivedPrevRowsOf(items, offIds, ptResult) {
+		const out = new Map();
+		const su = skillPtData.stepUp, ptIdx = skillPtData.skillPt;
+		if (!su || typeof su.prevOf !== 'function' || !(ptIdx instanceof Map) || !ptResult || !Array.isArray(ptResult.prevItems)) return out;
+		const tableIds = new Set((items || []).map(it => it.skillId));
+		const prevBy = new Map(ptResult.prevItems.map(x => [x.skillId, x]));
+		const claimed = new Set();
+		(items || []).forEach(it => {
+			const row = ptIdx.get(it.skillId);
+			if (!it.sure || !row || row.rarity !== 'gold' || (offIds && offIds.has(it.skillId))) return;
+			su.prevOf(it.skillId).forEach(p => {
+				if (tableIds.has(p) || claimed.has(p) || !prevBy.has(p)) return;
+				// 直前の白とその下（表に無く、前段として数えているもの）を、古い順にさかのぼって合算する
+				const chain = [], seen = new Set();
+				const walk = (id) => { if (seen.has(id)) return; seen.add(id); if (tableIds.has(id) || !prevBy.has(id)) return; chain.push(id); su.prevOf(id).forEach(walk); };
+				walk(p);
+				const xs = chain.map(id => prevBy.get(id));
+				const unpriced = xs.some(x => x.pt === null || x.base === null);
+				claimed.add(p);
+				if (!out.has(it.skillId)) out.set(it.skillId, []);
+				out.get(it.skillId).push({ skillId: p, pt: unpriced ? null : xs.reduce((s, x) => s + x.pt, 0), base: unpriced ? null : xs.reduce((s, x) => s + x.base, 0), hintLevel: prevBy.get(p).hintLevel, chain: chain });
+			});
+		});
+		return out;
 	}
 	/**
 	 * ○の上の段の◎（C-165）。前段データ（skill-step-up.json）で「白のスキルを前段に持つ白のスキル」を、ちょうど1つ持つ白のスキルの、その上の段。
@@ -6244,6 +6278,7 @@
 		// ───── 段7c（2026-10-03）: スキルごとのオン/オフ（M） ─────
 		// ●の行の名前セルの左の小さなチェック（24px 以上のタップ領域）。オフの行は、名前に取り消し線・全体を薄く（色だけで表す。opacity は使わない＝
 		// position:sticky の表で重なり順が壊れるため。F-7）・Pt は「—」・○は薄く残す
+		'.usd-roster-takespace { flex: none; display: inline-block; width: 24px; min-height: 28px; margin-inline-start: -2px; }',
 		'.usd-roster-take { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; min-height: 28px; margin-inline-start: -2px; cursor: pointer; }',
 		'.usd-roster-take input { width: 16px; height: 16px; margin: 0; cursor: pointer; accent-color: var(--uma-control-mark); }',
 		// ◎／○の切り替え（C-165）。名前のセルの右端。押せる範囲は幅44px・セルの高さいっぱい（上下の余白ぶんまで広げ、行の高さは増やさない）。見た目の丸い印は小さい
@@ -9911,8 +9946,13 @@
 		function prevHtml(view) {
 			const pt = view.pt;
 			if (!pt.prevItems || pt.prevItems.length === 0) return '';
+			// 作業4（おいもさんの決定）: 「ヒントLv0」のグループだけを出す。Lv の値で絞るのではなく、先に「◎に上げた○」（view.res.circleOf のキー）を外す
+			// （ヒントレベルが不明な○は Lv0 に入るため）。「取得しない」にした金の下位の白で Lv が 1 以上になるものも、この行には出さない
+			const circleKeys = new Set(view.res && view.res.circleOf ? Array.from(view.res.circleOf.keys()) : []);
+			const items0 = pt.prevItems.filter(x => !circleKeys.has(x.skillId) && (x.hintLevel || 0) === 0);
+			if (items0.length === 0) return '';
 			const groups = new Map();
-			pt.prevItems.forEach(x => { const lv = x.hintLevel || 0; if (!groups.has(lv)) groups.set(lv, []); groups.get(lv).push(x); });
+			items0.forEach(x => { const lv = x.hintLevel || 0; if (!groups.has(lv)) groups.set(lv, []); groups.get(lv).push(x); });
 			const text = (x) => getSkillName(x.skillId) + ' ' + (x.base === null ? 'Pt未収録' : x.pt);
 			const line = Array.from(groups.keys()).sort((p, q2) => p - q2).map(lv => 'ヒントLv' + lv + '：' + groups.get(lv).map(text).join('・')).join('／');
 			return '<p class="usd-roster-prev usd-roster-prevline usd-hscroll" data-usd-el="pt-prev" data-usd-no-trim="1">' + esc(line) + '</p>';
@@ -10133,6 +10173,9 @@
 			const res = computed();
 			const view = computePtView(res);
 			if (!view) return null;
+			// 金スキルの下位の白の「└」の行（作業4）: 表の行ではない前段なので、前段として数えている Pt を出す
+			const dv = derivedRowById.get(skillId);
+			if (dv && !res.items.some(x => x.skillId === skillId)) return dv.base !== null && dv.base !== 0 ? 'いまの設定：' + dv.pt + ' Pt（Lv' + dv.hintLevel + '）' : null;
 			const it = res.items.find(x => x.skillId === circleBaseOf(res, skillId));   // ◎に上げた行は、◎の id で来る（C-165）。行は○のまま
 			if (!it) return null;
 			if (it.sure && res.offIds.has(it.skillId)) return '取得しない設定です';   // 段7c の M
@@ -10164,8 +10207,16 @@
 		}
 
 		/** 名前の右の Pt（段7の (14)）。●＝「P Pt」（Pt 不要・Pt 未収録はそのまま）、△＝薄い色の参考値。データが使えないときは出さない。 */
+		// 金スキルの下位の白の「└」の行（白の id → derivedPrevRowsOf の値）。描き直しのたびに作り直す（説明の小窓の「いまの設定」が引く）
+		let derivedRowById = new Map();
 		function ptCellHtml(view, it, off, ptId) {
 			if (!view) return '';
+			// 金スキルの下位の白の合成の行（作業4）。Pt は「前段として必要」の値（合計に入っている額）
+			if (it.derived) {
+				const d = it.derived;
+				const dtext = d.base === null ? 'Pt 未収録' : d.base === 0 ? 'Pt 不要' : d.pt + ' Pt';
+				return '<span class="usd-roster-pt" data-usd-el="pt-line">' + esc(dtext) + '</span>';
+			}
 			// ◎として数えている行（ptId が◎の id）は、○の分と◎の分の合算を出す（C-168）。合算できないときは◎だけ（今までどおり）
 			// 取得しないにした行は Pt を「—」にする（段7c の M）
 			if (off) return '<span class="usd-roster-pt" data-usd-el="pt-line">—</span>';
@@ -10561,7 +10612,17 @@
 				// 並べ替え（段7の (16)）: 押した列のメンバーが得るスキルを上へ（安定ソート）
 				// 並び（段7e の (1)）: 金スキルと、その直前の白スキルが同じ表にあるときは、金スキルの直下に前段の白を置く（単位として動かす）。
 				// 並べ替えも単位ごと: 組のどちらかにその列の○があれば組ごと上へ寄せる（安定ソート）
-				let units = arrangeStepUnits(res.visibleItems);
+				// 金スキルの下位の白（表に行が無いもの）を「└」の行にする（作業4）。表示用の合成の行（it.derived）。取得の集合・合計・種数・②は変わらない
+				const derivedMap = ptView ? derivedPrevRowsOf(res.visibleItems, res.offIds, ptView.pt) : new Map();
+				const derivedByGold = new Map();
+				derivedRowById = new Map();
+				derivedMap.forEach((list, goldId) => {
+					derivedByGold.set(goldId, list.map(d => {
+						derivedRowById.set(d.skillId, d);
+						return { skillId: d.skillId, name: getSkillName(d.skillId), sure: false, derived: d, members: [], sureMembers: [] };
+					}));
+				});
+				let units = arrangeStepUnits(res.visibleItems, derivedByGold);
 				const toneSort = typeof sortKey === 'string' && sortKey.indexOf('tone:') === 0 ? sortKey.slice(5) : null;
 				if (toneSort !== null) {
 					// 種類の漏斗（段13・B3）: 行の色分け（段7e の rowToneOf）と同じ基準で、その種類を持つまとまりを上へ（安定ソート。金と直下の前段の白は崩さない）
@@ -10606,7 +10667,8 @@
 					const x = ptView ? ptView.byId.get(circleId || it.skillId) : null;
 					const rarity = x ? x.rarity : (skillPtData.skillPt instanceof Map && skillPtData.skillPt.get(it.skillId) ? skillPtData.skillPt.get(it.skillId).rarity : null);
 					// ●の行の名前セルの左に、取得するかどうかの小さなチェック（段7c の M。既定はオン。△の行には付けない）
-					const takeBox = it.sure
+					// 金スキルの下位の白の合成の行（作業4）は取得のチェックを付けず、チェックの幅だけ空ける（「└」を●の「└」の行と揃える）
+					const takeBox = it.derived ? '<span class="usd-roster-takespace" aria-hidden="true"></span>' : it.sure
 						? '<label class="usd-roster-take"><input type="checkbox" data-usd-act="take-skill" data-skill-id="' + esc(it.skillId) + '"'
 							+ (isOff ? '' : ' checked') + ' aria-label="' + esc(it.name + 'を取得する') + '" /></label>'
 						: '';
@@ -10618,7 +10680,7 @@
 					const shownName = evoId ? getSkillName(evoId) : circleId ? getSkillName(circleId) : it.name;
 					const nameTone = (isOff || evoId) ? '' : tone.heal ? ' usd-roster-skillname--heal' : tone.debuff ? ' usd-roster-skillname--debuff' : tone.passive ? ' usd-roster-skillname--passive' : '';
 					h += '<div class="usd-roster-grow' + (rarity === 'gold' && !evoId ? ' usd-roster-grow--gold' : '') + (evoId ? ' usd-roster-grow--evo' : '') + (rarity === 'unique' ? ' usd-roster-grow--unique' : '') + (tone.heal && !evoId ? ' usd-roster-grow--heal' : '')
-						+ (prevRowIds.has(it.skillId) ? ' usd-roster-grow--prev' : '') + (isOff ? ' usd-roster-grow--off' : '') + '" role="row" data-skill-id="' + esc(it.skillId) + '"' + (evoId ? ' data-usd-evo="' + esc(evoId) + '"' : '') + (circleId ? ' data-usd-circle="' + esc(circleId) + '"' : '') + (isOff ? ' data-usd-off="1"' : '') + '>'
+						+ (prevRowIds.has(it.skillId) ? ' usd-roster-grow--prev' : '') + (isOff ? ' usd-roster-grow--off' : '') + '" role="row" data-skill-id="' + esc(it.skillId) + '"' + (evoId ? ' data-usd-evo="' + esc(evoId) + '"' : '') + (it.derived ? ' data-usd-derived="1"' : '') + (circleId ? ' data-usd-circle="' + esc(circleId) + '"' : '') + (isOff ? ' data-usd-off="1"' : '') + '>'
 						+ '<div class="usd-roster-gc usd-roster-gc--name" role="rowheader">' + takeBox + '<div class="usd-roster-namescroll usd-hscroll" data-usd-no-trim="1">'
 							+ (prevRowIds.has(it.skillId) ? '<span class="usd-roster-prevmark" aria-hidden="true" data-usd-el="prev-mark">└</span>' : '')
 							+ '<button type="button" class="usd-roster-skillname usd-roster-skillname--btn' + (isOff ? ' usd-roster-skillname--off' : '') + nameTone + '" data-usd-info="' + esc(evoId || shownId) + '">' + esc(shownName) + '</button>'
