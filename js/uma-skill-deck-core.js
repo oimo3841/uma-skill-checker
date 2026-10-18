@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-18b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-18c';
 
 	/* ============================================================
 	 * 定数
@@ -6171,6 +6171,13 @@
 		'.usd-rec-name { min-width: 0; overflow-wrap: anywhere; font-weight: 600; color: var(--uma-text); }',
 		'.usd-rec-pt { flex: none; white-space: nowrap; color: var(--uma-text-subtle); font-variant-numeric: tabular-nums; }',
 		'.usd-rec-skip { margin-top: var(--uma-sp-2); color: var(--uma-text-muted); }',
+		// 作業3: 「サポカ外」の確認の小窓の、追加するかを選ぶチェックと、公式の説明文（小さな灰色の文字。折り返す）。チェックの押す場所は44px以上
+		'.usd-rec-item--sel { align-items: flex-start; gap: var(--uma-sp-1); }',
+		'.usd-rec-check { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; min-height: 44px; margin: calc(var(--uma-sp-1) * -1) 0 calc(var(--uma-sp-1) * -1) calc(var(--uma-sp-2) * -1); cursor: pointer; }',
+		'.usd-rec-check input { width: 18px; height: 18px; margin: 0; }',
+		'.usd-rec-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }',
+		'.usd-rec-desc { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-muted); overflow-wrap: anywhere; }',
+		'.usd-rec-item--off .usd-rec-name, .usd-rec-item--off .usd-rec-pt { color: var(--uma-text-faint); }',
 		'.usd-rec-ops { display: flex; justify-content: flex-end; gap: var(--uma-sp-2); margin-top: var(--uma-sp-3); }',
 		'.usd-palette-del[aria-pressed="true"] { color: var(--usd-delete-line, var(--uma-danger-text)); border-color: var(--usd-delete-line, var(--uma-danger-text)); }',
 		'.usd-reset-ops { display: flex; flex-direction: column; gap: 8px; }',
@@ -13445,17 +13452,46 @@
 			const why = recommendSkipReasons(plan);
 			// C-131: 追加できるものが0種なら、何も足さずに知らせる（内訳は「追加しなかったもの」と同じ書き方。内訳も0なら一文だけ）
 			if (plan.add.length === 0) { toast('追加できるスキルはありません' + (why.length > 0 ? '（' + why.join('・') + '）' : '')); return; }
+			// 作業3: selectable のとき（「サポカ外」）は、各スキルにチェックと説明文を付ける。低効果（isLowEffectSkill）は最初からチェックを外す（効果量が分からないものは入れる）。
+			// 数・合計 Pt はチェックしたものだけで、選ぶたびに数え直す。「追加する」はチェックしたものだけを足す
+			const sel = !!o.selectable;
+			const chosen = new Set(plan.add.filter(id => !sel || !isLowEffectSkill(id)));
+			const chosenIds = () => plan.add.filter(id => chosen.has(id));
 			openPopover({ key: 'recommend-confirm:' + draftScopeKey, title: o.label, btn: o.btn, opener: o.btn, refocus: o.refocus,
 				build: (body) => {
-					const head = infoEl('p', 'usd-rec-head', '追加するスキル ' + plan.add.length + '種' + (o.showTotal ? addPlanPtText(plan.add) : ''));
+					const headText = () => '追加するスキル ' + chosen.size + '種' + (o.showTotal ? addPlanPtText(chosenIds()) : '');
+					const head = infoEl('p', 'usd-rec-head', headText());
 					head.setAttribute('data-usd-el', 'recommend-confirm-head');
 					body.appendChild(head);
 					const ul = infoEl('ul', 'usd-rec-list');
 					ul.setAttribute('data-usd-el', 'recommend-confirm-list');
 					plan.add.forEach(id => {
-						const li = infoEl('li', 'usd-rec-item');
+						const li = infoEl('li', 'usd-rec-item' + (sel ? ' usd-rec-item--sel' + (chosen.has(id) ? '' : ' usd-rec-item--off') : ''));
 						li.setAttribute('data-skill-id', id);
-						li.appendChild(infoEl('span', 'usd-rec-name', getSkillName(id)));
+						if (sel) {
+							const lab = infoEl('label', 'usd-rec-check');
+							const cb = infoEl('input');
+							cb.type = 'checkbox';
+							cb.checked = chosen.has(id);
+							cb.value = id;
+							cb.setAttribute('data-usd-el', 'recommend-confirm-check');
+							cb.setAttribute('aria-label', getSkillName(id) + 'を追加する');
+							cb.addEventListener('change', () => {
+								if (cb.checked) chosen.add(id); else chosen.delete(id);
+								li.classList.toggle('usd-rec-item--off', !cb.checked);
+								head.textContent = headText();
+							});
+							lab.appendChild(cb);
+							li.appendChild(lab);
+							const main = infoEl('span', 'usd-rec-main');
+							main.appendChild(infoEl('span', 'usd-rec-name', getSkillName(id)));
+							// 公式の説明文（読み込めたときだけ。折り返してよいので、改行は取って1つの文にする）
+							const dtext = skillDescState.status === 'ok' ? (skillDescState.map.get(id) || '') : '';
+							if (dtext) { const d = infoEl('span', 'usd-rec-desc', String(dtext).replace(/\n/g, '')); d.setAttribute('data-usd-el', 'recommend-confirm-desc'); main.appendChild(d); }
+							li.appendChild(main);
+						} else {
+							li.appendChild(infoEl('span', 'usd-rec-name', getSkillName(id)));
+						}
 						li.appendChild(infoEl('span', 'usd-rec-pt', outsideRowPtText(id)));
 						ul.appendChild(li);
 					});
@@ -13470,7 +13506,12 @@
 					const go = infoEl('button', 'uma-btn uma-btn--primary', '追加する');
 					go.type = 'button';
 					go.setAttribute('data-usd-el', 'recommend-confirm-add');
-					go.addEventListener('click', () => { closeSkillInfo(); o.onAdd(); });
+					go.addEventListener('click', () => {
+						// 1つもチェックされていないときも押せる見た目のまま、押すと理由を1行で知らせる（小窓は閉じない）
+						if (sel && chosen.size === 0) { toast('追加するスキルが選ばれていません'); return; }
+						closeSkillInfo();
+						o.onAdd(chosenIds());
+					});
 					const no = infoEl('button', 'uma-btn uma-btn--ghost', 'やめる');
 					no.type = 'button';
 					no.setAttribute('data-usd-el', 'recommend-confirm-cancel');
@@ -13563,14 +13604,19 @@
 			const target = currentTarget();
 			const st = await loadNonSupportSkills();
 			if (st !== 'ok') { toast(NON_SUPPORT_FAILED_MSG, 'warn'); return; }
+			// 低効果の既定のチェックと説明文のために、小窓を開く時点で読む（ページの初期読み込みを増やさない。読めなければ、低効果は外さず・説明文は出さない）
+			try { await Promise.all([loadSkillEffectLevels(), loadSkillDescriptions()]); } catch (e) { /* 読めなくても小窓は出す */ }
 			if (!sameTarget(target, currentTarget())) return;
 			applyRosterHidden();
 			if (!skillIdsOf(currentTarget())) return;
-			confirmAddPlan({ label: 'サポカ外', plan: outsideSkillPlanOf(), btn: btn, refocus: '[data-usd-el="outside-skill-btn"]', showTotal: true, onAdd: addOutsideSkills });
+			confirmAddPlan({ label: 'サポカ外', plan: outsideSkillPlanOf(), btn: btn, refocus: '[data-usd-el="outside-skill-btn"]', showTotal: true, selectable: true, onAdd: addOutsideSkills });
 		}
-		function addOutsideSkills() {
+		function addOutsideSkills(chosenIds) {
 			applyRosterHidden();
-			commitAddPlan('サポカ外', outsideSkillPlanOf());
+			const plan = outsideSkillPlanOf();
+			// 確認の小窓でチェックしたものだけを足す（小窓を開いたあとに②が変わって追加できなくなったものは、plan.add に無いので足さない）
+			if (Array.isArray(chosenIds)) plan.add = plan.add.filter(id => chosenIds.indexOf(id) !== -1);
+			commitAddPlan('サポカ外', plan);
 		}
 		/** 自動で足したあとの描画と通知（下書きに中身ができたら選択状態にする＝ほかの追加の経路と同じ） */
 		function afterAutoAdd(target) {

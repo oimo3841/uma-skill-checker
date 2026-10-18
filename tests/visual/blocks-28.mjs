@@ -103,10 +103,15 @@ export async function register28(env) {
 		return sp;
 	};
 	const draftIds = (page) => page.evaluate(() => ((JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || 'null') || {}).skillIds) || []);
-	/** 「サポカ外」を押して、確認の小窓（または知らせ）の中身を読む */
+	// 2026-10-18（作業3）: 確認の小窓は、低効果のスキルを最初からチェックを外した状態で出す。サポカ外(1)〜(8)の約束（候補の全部を足す・合計 Pt は全部の和）は、
+	// いったん全部チェックしてから見る形で残す（既定の外れ方は塊「サポカ外確認」で見る）
+	const tickAll = (page) => page.evaluate(() => { document.querySelectorAll('[data-usd-el="recommend-confirm-check"]').forEach((c) => { if (!c.checked) c.click(); }); });
+	const addAll = async (page) => { await tickAll(page); await page.click('[data-usd-el="recommend-confirm-add"]'); };
+	/** 「サポカ外」を押して、確認の小窓（または知らせ）の中身を読む（全部チェックした状態で） */
 	const pressOutside = async (page) => {
 		await page.click(BTN);
 		await page.waitForTimeout(800);
+		await tickAll(page);
 		return page.evaluate(() => {
 			const list = document.querySelector('[data-usd-el="recommend-confirm-list"]');
 			const open = !!list && !document.querySelector('.usd-info-pop').hidden;
@@ -202,7 +207,7 @@ export async function register28(env) {
 		const u0 = await p.evaluate(() => UmaSkillDeckCore.undoCount());
 		await p.click(BTN);
 		await p.waitForSelector('[data-usd-el="recommend-confirm-add"]');
-		await p.click('[data-usd-el="recommend-confirm-add"]');
+		await addAll(p);
 		await p.waitForTimeout(300);
 		const after = await draftIds(p);
 		const u1 = await p.evaluate(() => UmaSkillDeckCore.undoCount());
@@ -225,7 +230,7 @@ export async function register28(env) {
 		const sp = await openSp({ roster: { skillFilter: MSF } });
 		const p = sp.page;
 		await pressOutside(p);
-		await p.click('[data-usd-el="recommend-confirm-add"]');
+		await addAll(p);
 		await p.waitForTimeout(300);
 		const z = await pressOutside(p);
 		assert(!z.open && z.toast === '追加できるスキルはありません（追加済み 13種・レース条件に合わないため 16種）', 'サポカ外(5) 追加後にもう一度押すと、小窓は出ずに理由の知らせ', z);
@@ -318,7 +323,7 @@ export async function register28(env) {
 		// 空の②へ追加し、「元に戻す」で空に戻す
 		const sp2 = await openSp({ roster: { skillFilter: MSF }, ids: [] });
 		await pressOutside(sp2.page);
-		await sp2.page.click('[data-usd-el="recommend-confirm-add"]');
+		await addAll(sp2.page);
 		await sp2.page.waitForTimeout(400);
 		const e3 = await badge(sp2.page);
 		assert(!e3.hidden && /^[0-9]+種$/.test(e3.text), 'サポカ外(8) 追加すると「N種」が出る', e3);
