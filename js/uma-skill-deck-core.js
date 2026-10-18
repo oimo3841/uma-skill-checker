@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-18a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-18b';
 
 	/* ============================================================
 	 * 定数
@@ -5365,6 +5365,9 @@
 
 		// 選択肢チップ。中身は本物の checkbox のままなので、既存のJSとテストがそのまま掴める
 		// （.usd-chip はテンプレートのスキル名チップで使用済みのため .usd-opt にしてある）
+		'.usd-selrow { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--uma-sp-3); }',
+		'.usd-lowtoggle { display: inline-flex; align-items: center; gap: var(--uma-sp-1-5); min-height: 44px; cursor: pointer; }',
+		'.usd-lowtoggle[hidden] { display: none; }',
 		'.usd-opt { display: inline-flex; align-items: center; gap: var(--uma-sp-1-5);',
 		'  padding: var(--uma-sp-1-5) var(--uma-sp-3) var(--uma-sp-1-5) var(--uma-sp-2);',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
@@ -6345,6 +6348,8 @@
 	 * 意図して消したいときは「すべて解除」（`filter-clear-all`）。
 	 */
 	let pickerFilters = {};
+	// 「条件で検索」の小窓の「効果「…」以下を除外」（作業2・2026-10-18）。小窓の中だけの状態（保存しない。開き直すと既定のOFF＝全部見える）
+	let pickerLowOff = false;
 	TAG_AXES.forEach(a => { pickerFilters[a.key] = []; });
 	/**
 	 * 「目標のレースの距離」の入力欄の文字（C-96・C-97）。**寿命は `pickerFilters` と同じ**
@@ -6491,9 +6496,16 @@
 						// ensurePicker() のときに1回だけ組み立てる。
 						'<div data-usd-el="filter-axes"></div>' +
 						'<div class="flex items-center justify-between flex-wrap gap-x-2 mb-1">' +
+							'<div class="usd-selrow">' +
 							'<label class="flex items-center gap-1.5 text-xs text-slate-600 whitespace-nowrap">' +
 								'<input type="checkbox" data-usd-act="picker-select-all"/> 表示中を全て選択' +
 							'</label>' +
+							// 低効果の除外（既定OFF）。段階の名前と件数は renderPickerLowEffect が入れる。押す場所は44px以上
+							'<label class="usd-lowtoggle text-xs text-slate-600" data-usd-el="low-toggle" hidden>' +
+								'<input type="checkbox" data-usd-act="picker-low-effect"/>' +
+								'<span>効果「<span data-usd-el="low-name"></span>」以下を除外<span data-usd-el="low-count"></span></span>' +
+							'</label>' +
+							'</div>' +
 							// 「除外中 M件」は M が0のときは出さない（renderPickerResults が hidden を切り替える）
 							'<p class="text-xs text-slate-500">絞り込み結果（<span data-usd-el="result-count">0件</span>）' +
 								'<span class="usd-excluded-count" data-usd-el="result-excluded" hidden></span></p>' +
@@ -6605,6 +6617,7 @@
 		pickerEl.addEventListener('change', (e) => {
 			const el = e.target;
 			if (el.dataset.usdAct === 'picker-select-all') { togglePickerSelectAll(el.checked); return; }
+			if (el.dataset.usdAct === 'picker-low-effect') { togglePickerLowEffect(el.checked); return; }
 			if (el.dataset.usdEl === 'filter-check') { onPickerFilterChange(el); return; }
 			if (el.dataset.usdEl === 'skill-check') { onPickerCheck(el.value, el.checked); return; }
 			// 緑スキル（段9）は確定ボタンを通さず、押したその場で受け皿へ流す
@@ -7153,14 +7166,16 @@
 	 * 追加済み（`picker.excludeIds`）と、パッシブ（緑スキルの一覧のほうへ行く）は、これまでどおり一覧に出さない。
 	 * 返す `skill` は母集団の実体そのもの（印は行の側に付け、スキルの側は書き換えない）。
 	 */
-	function getPickerPoolRows() {
+	function getPickerPoolRows(ignoreLowEffect) {
 		const hidden = new Set(pickerHiddenIds);
 		const target = currentTargetDistance();
 		// エラー（数字でない・レースが無い・区分と合わない）のときは d を使わずに絞る（C-97）
 		const usable = target.state === 'ok' ? target : null;
 		// レース条件に合わないもの（C-129）も、本育成の除外と同じくグレーアウトで残す。race は「レース条件だけで」選べない行の印（件数の内訳に使う）
 		return taggedSkillPool().filter(s => !picker.excludeIds.includes(s.id)
-			&& !isPoolExcluded(s) && matchesFilters(s, pickerFilters, usable))
+			&& !isPoolExcluded(s) && matchesFilters(s, pickerFilters, usable)
+			// 低効果の除外（ONのとき）。効果量が分からないスキル（isLowEffectSkill が false）は外さない側
+			&& (ignoreLowEffect || !pickerLowOff || !isLowEffectSkill(s.id)))
 			.map(s => {
 				const h = hidden.has(s.id);
 				const race = !h && isPickerRaceBlocked(s.id);
@@ -7237,6 +7252,25 @@
 		return (ids || []).filter(id => set.has(id)).length;
 	}
 
+	/**
+	 * 「効果「…」以下を除外」のトグル（作業2）。文の段階の名前は skill-effect-levels.json の lowEffectMax から読む（コードに書かない）。
+	 * 件数は、いまの絞り込み結果（追加できる行）に含まれる低効果のスキルの数（ONでもOFFでも同じ数＝トグルを押す前の件数）。
+	 * 効果量のデータを読めていないとき（読み込み中・失敗）は、トグルごと出さない。
+	 */
+	function renderPickerLowEffect() {
+		if (!pickerEl) return;
+		const label = q(pickerEl, 'low-toggle');
+		if (!label) return;
+		const ok = skillEffectState.status === 'ok';
+		label.hidden = !ok;
+		if (!ok) return;
+		q(pickerEl, 'low-name').textContent = skillEffectState.lowMaxKey;
+		const n = getPickerPoolRows(true).filter(r => !r.excluded && !r.race && isLowEffectSkill(r.skill.id)).length;
+		q(pickerEl, 'low-count').textContent = '（' + n + '件）';
+		const box = pickerEl.querySelector('[data-usd-act="picker-low-effect"]');
+		if (box) box.checked = pickerLowOff;
+	}
+
 	function renderPickerResults() {
 		if (!pickerEl) return;
 		// 緑スキルの一覧も同じ合図で作り直す（72セッション目・段9）。
@@ -7253,6 +7287,7 @@
 		const raceCount = rows.filter(r => r.race).length;
 		const excludedCount = rows.length - filtered.length - raceCount;
 		q(pickerEl, 'result-count').textContent = filtered.length + '件';
+		renderPickerLowEffect();
 		setExcludedCountLabel(q(pickerEl, 'result-excluded'), excludedCount, '件', raceCount);
 		const selectAllBox = pickerEl.querySelector('[data-usd-act="picker-select-all"]');
 		if (selectAllBox) selectAllBox.checked = filtered.length > 0 && filtered.every(s => picker.checked.has(s.id));
@@ -7362,6 +7397,13 @@
 			picker.excludeIds = picker.excludeIds.filter(id => id !== skillId);
 		}
 		renderPassiveList();
+	}
+
+	/** 低効果の除外のON／OFF。ONにしたとき、一覧から外れたスキルのチェックは外す（見えないチェックを足してしまわないため） */
+	function togglePickerLowEffect(on) {
+		pickerLowOff = !!on;
+		if (pickerLowOff) Array.from(picker.checked).forEach(id => { if (isLowEffectSkill(id)) picker.checked.delete(id); });
+		renderPickerResults();
 	}
 
 	function togglePickerSelectAll(checked) {
@@ -7834,6 +7876,8 @@
 		picker.checked = new Set();
 		picker.excludeIds = (existingSkillIds || []).slice();
 		picker.onAdd = onAdd;
+		pickerLowOff = false;   // 低効果の除外は小窓を閉じたら既定のOFFに戻る（保存しない）
+		if (skillEffectState.status !== 'ok') { const lp = loadSkillEffectLevels(); if (lp) lp.then(() => { if (pickerEl && !pickerEl.hidden) renderPickerResults(); }); }
 		pasteRows = [];
 		// 呼び出し元の口はモードをまたいで残さない。openSkillRowsPicker がこの後で入れ直す
 		pasteOptions = {};
