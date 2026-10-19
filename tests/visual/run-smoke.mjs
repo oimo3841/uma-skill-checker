@@ -9141,7 +9141,8 @@ await block('段7【5】収録スキルデータ（マスター）の取り回�
 		// ②にまとめて追加するスキルのグループ（C-130）は、レースを選んだとき・②のパレットの行が見えたとき（脚質があるとき）に初めて読む。
 		// スキルの進化の対応（C-145・2026-10-12）は、進化を使う画面か、進化スキルを辞書から外す入口（Deck の取り込み）が呼んだときに初めて読む
 		// サポカで得られないスキル（C-162・2026-10-16）は、②の「サポカ外」ボタンを最初に押したときに初めて読む
-		const 遅延 = ['data/skill-descriptions.json', 'data/scenario-event-skills.json', 'data/skill-effect-levels.json', 'data/recommended-skills.json', 'data/skill-evolutions.json', 'data/non-support-skills.json'];
+		// 要るスキル（2026-10-18。skill-requires.json）は、進化の対応と一緒に（loadSkillEvolutions が）初めて読む
+		const 遅延 = ['data/skill-descriptions.json', 'data/scenario-event-skills.json', 'data/skill-effect-levels.json', 'data/recommended-skills.json', 'data/skill-evolutions.json', 'data/skill-requires.json', 'data/non-support-skills.json'];
 		const 取れた = paths.filter((k) => dataUrls.some((u) => u.includes('/' + k)));
 		const 対象 = paths.filter((k) => !遅延.includes(k));
 		assert(遅延.every((k) => paths.includes(k)) && !遅延.some((k) => 取れた.includes(k)),
