@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-20a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-21a';
 
 	/* ============================================================
 	 * 定数
@@ -5101,6 +5101,10 @@
 		':root { --usd-rarity-ssr-text: #000000; --usd-rarity-ssr-1: #e5384f; --usd-rarity-ssr-2: #f08a1c; --usd-rarity-ssr-3: #7cb518; --usd-rarity-ssr-4: #1d8fe0; --usd-rarity-ssr-5: #8b5cf6; --usd-rarity-sr-1: #e3b23c; --usd-rarity-sr-2: #b8860b;',
 		// 固有スキルの行の色（段7e の (2)〜(6)）。①の表と、入口の「オススメサポ」のボタンが同じ変数を読むので :root に置く（段7・2026-10-04 に .usd-roster-grid から移した。値は変えていない）
 		'  --usd-skill-unique-from: #e3f6e6; --usd-skill-unique-mid: #dff1fb; --usd-skill-unique-to: #fbe3f1; --usd-skill-unique-edge: #f0a8d0; }',
+		// 「既定と違う選択」の点の色（C-179）。列見出しのバッジの角と小窓の行で共通。ライト・ダークとも同じ値（どの地でも同じに見せる）。
+		// 塗り＝琥珀、縁＝ほぼ黒。地に対し、塗りか縁のどちらかが 3:1 以上（地は暗い育成ウマ娘の列・淡いカードの列・濃いダークの列・「！」の赤など。検査が実測する）。赤系は「！」と混ざるので使わない
+		':root { --usd-dot-fill: #fbbf24; --usd-dot-ring: #14110d; }',
+		':root[data-theme="dark"] { --usd-dot-fill: #fbbf24; --usd-dot-ring: #14110d; }',
 		// 進化スキルの色（段4・C-150。ゲームの進化先の画面の色を基にした案B）。①の表の進化した行・進化の選択画面・リセットの赤いボタンが使う
 		'  :root { --evo-from: #fff0f5; --evo-mid: #ffd3e9; --evo-to: #ffb8e0; --evo-edge-on: #e8509c; --evo-edge: #f06aae; --evo-text: #4a1d0c; --evo-btn-bg: #fff0f5;',
 		'  --evo-base-from: #fffbe0; --evo-base-mid: #ffe58f; --evo-base-to: #ffd04d; --evo-base-edge: #c99a1c; --evo-base-text: #4a2a12;',
@@ -5972,7 +5976,7 @@
 		'.usd-roster-evbtn::after { content: ""; position: absolute; inset: -6px -4px; }',
 		// 結果を切り替えているイベントがある列の印（バッジの右上の角の小さな点。「！」の赤いバッジとも番号のバッジとも形は同じまま）
 		'.usd-roster-resdot { position: absolute; top: -4px; right: -4px; width: 8px; height: 8px; box-sizing: border-box; border-radius: var(--uma-r-full);',
-		'  background: var(--uma-control-mark); border: 1.5px solid var(--uma-surface); pointer-events: none; }',
+		'  background: var(--usd-dot-fill); border: 1.5px solid var(--usd-dot-ring); pointer-events: none; }',
 		'.usd-roster-evbtn:active { transform: translateY(1px); box-shadow: none; }',
 		'.usd-roster-evbtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
 		// 育成ウマ娘のイベントのボタン（番号の代わりに ◇）。カードの番号のバッジと同じ大きさ・同じ見た目
@@ -6044,6 +6048,10 @@
 		'.usd-roster-confirm-btns { justify-content: flex-end; }',
 		// イベントを選ぶ小窓（(19)）
 		'.usd-roster-event { display: flex; flex-direction: column; gap: var(--uma-sp-1); padding: var(--uma-sp-2) 0; border-top: 1px solid var(--uma-border); }',
+		// 小窓の行の点（C-179）。列見出しの点と同じ大きさ・同じ色。見出しの右に置くが、幅は取らない（左の余白 4px を右の負の余白で打ち消す）ので、折り返しも行の高さも変わらない
+		'.usd-roster-rowdot { display: inline-block; width: 8px; height: 8px; box-sizing: border-box; margin: 0 -12px 0 4px; vertical-align: middle; border-radius: var(--uma-r-full);',
+		'  background: var(--usd-dot-fill); border: 1.5px solid var(--usd-dot-ring); pointer-events: none; }',
+		'.usd-roster-srnote { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }',
 		'.usd-roster-eventtitle { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 700; color: var(--uma-text-heading); }',
 		// 条件文（育成ウマ娘のイベント）。小さな灰色で折り返して全文。色はトークンで参照する（値は書かない）
 		'.usd-roster-eventcond, .usd-roster-acquirenote { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); white-space: normal; overflow-wrap: anywhere; }',
@@ -9256,6 +9264,17 @@
 			});
 			box.appendChild(group);
 		};
+		// 「既定と違う選択」の印（C-179）。列見出しのバッジの角の点と同じ条件を、イベント1件について見る
+		// （結果の切り替えが結果1以外、または取得の段階が有効）。見出しの右に付ける。点は飾り（aria-hidden）、読み上げは視覚的に隠した文。
+		// 画面に出る文は足さない。選択肢が複数あるイベントも、点はイベントに1つ
+		const markNonDefault = (t, on) => {
+			if (!on) return;
+			const dot = infoEl('span', 'usd-roster-rowdot');
+			dot.setAttribute('data-usd-el', 'event-nondefault-dot');
+			dot.setAttribute('aria-hidden', 'true');
+			t.appendChild(dot);
+			t.appendChild(infoEl('span', 'usd-roster-srnote', '（既定と違う選択）'));
+		};
 		const addChoiceEvent = (e) => {
 			const box = infoEl('div', 'usd-roster-event');
 			box.setAttribute('data-usd-el', 'event');
@@ -9316,6 +9335,7 @@
 			if (re) box.appendChild(resultGroupEl(re, e));
 			// 取得の切り替え（段階の無い user のイベント）: 選択肢のボタンの下に、補足文と条件のボタンを別の段として出す
 			if (acq) acquireParts(box, acq);
+			markNonDefault(t, !!((re && re.pos > 0) || (acq && acq.acquired)));
 			left.appendChild(box);
 		};
 		// 結果ボタンだけの箱（選択肢が1つで、結果が分かれるイベント）
@@ -9323,7 +9343,9 @@
 			const box = infoEl('div', 'usd-roster-event');
 			box.setAttribute('data-usd-el', 'event-result');
 			box.setAttribute('data-event-key', re.eventKey);
-			box.appendChild(infoEl('p', 'usd-roster-eventtitle', eventTitle(re)));
+			const rt = infoEl('p', 'usd-roster-eventtitle', eventTitle(re));
+			markNonDefault(rt, re.pos > 0);
+			box.appendChild(rt);
 			// 結果が確率で決まる目印（randomResult）のあるイベントは条件文を持つ。灰色の行で添える
 			if (re.condition) {
 				const cond = infoEl('p', 'usd-roster-eventcond', re.condition);
@@ -9339,7 +9361,9 @@
 			const box = infoEl('div', 'usd-roster-event');
 			box.setAttribute('data-usd-el', 'event-acquire');
 			box.setAttribute('data-event-key', ae.eventKey);
-			box.appendChild(infoEl('p', 'usd-roster-eventtitle', eventTitle(ae)));
+			const at = infoEl('p', 'usd-roster-eventtitle', eventTitle(ae));
+			markNonDefault(at, !!ae.acquired);
+			box.appendChild(at);
 			if (ae.staged && ae.condition !== '') {
 				const cond = infoEl('p', 'usd-roster-eventcond', ae.condition);
 				cond.setAttribute('data-usd-el', 'event-cond');
