@@ -117,6 +117,8 @@
 			--exam-eff-off-bar: #c9cfd8; --exam-eff-seg-edge: rgba(15, 23, 42, .18);
 			/* 蹄鉄の下に出す区間の個数の文字色（微調整1）。パネルの地（ライトは白）の上で読める濃さ */
 			--exam-eff-shoe-n: #334155;
+			/* 区間バーの中の個数（案B2）: 濃いグレーの文字＋白の縁。ライト・ダークとも同じ値 */
+			--exam-eff-seg-n: #2b3140; --exam-eff-seg-n-edge: #ffffff;
 			/* 蹄鉄からバーの境目へ引くポインタの線（区間の色の濃い版。白い面の上で読める濃さ）と、バーの上の境目の目印（白い細線＋暗い縁） */
 			--exam-eff-ptr-0: #9A5524; --exam-eff-ptr-1: #5B6B8C; --exam-eff-ptr-2: #A07200;
 			--exam-eff-mark-bg: #ffffff; --exam-eff-mark-edge: rgba(15, 23, 42, .6);
@@ -454,7 +456,7 @@
 			border-radius: 0 8px 8px 0;
 		}
 		/* 区間のスキルの個数（数字のみ。白の太字14px・影つき。幅が狭くて入らないときは JS が隠す） */
-		.eff-seg-n { color: #fff; font-size: 14px; font-weight: 700; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px rgba(0, 0, 0, .55); pointer-events: none; }
+		.eff-seg-n { color: var(--exam-eff-seg-n); font-size: 14px; font-weight: 500; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; -webkit-text-stroke: 2.5px var(--exam-eff-seg-n-edge); paint-order: stroke fill; pointer-events: none; }
 		.eff-seg-n[hidden] { display: none; }
 		/* 外した区間は灰色（opacity は使わず色だけで表す。恒久ルール9） */
 		.eff-seg[data-on="false"] { background: var(--exam-eff-off-bar); }
@@ -595,6 +597,7 @@
 			--exam-eff-rainbow-1: #F27AA3; --exam-eff-rainbow-2: #FFDC7A; --exam-eff-rainbow-3: #7BC97F; --exam-eff-rainbow-4: #66C7F0; --exam-eff-rainbow-5: #A68DDB;
 			--exam-eff-off-bar: #323a46; --exam-eff-seg-edge: rgba(255, 255, 255, .16);
 			--exam-eff-shoe-n: #cbd5e1;
+			--exam-eff-seg-n: #2b3140; --exam-eff-seg-n-edge: #ffffff;
 			--exam-eff-ptr-0: #E0955E; --exam-eff-ptr-1: #AEBBD3; --exam-eff-ptr-2: #F2C94C;
 			--exam-eff-mark-bg: #ffffff; --exam-eff-mark-edge: rgba(0, 0, 0, .7);
 			--exam-eff-tip-bg: #1b2433; --exam-eff-tip-border: #47603a; --exam-eff-tip-text: #e6edf5; --exam-eff-tip-sep: #3a4555;
@@ -736,8 +739,6 @@
 		.result-table td { border-bottom-color: var(--uma-border); }
 		.result-table td:first-child { background-color: var(--uma-surface); }
 		/* 効率のバー（3-2）: 区間の個数は暗い文字（区間の色の上で 4.5 以上）。外した区間（灰）も同じ。目盛りの値は12px */
-		.eff-seg-n { color: #111827; text-shadow: 0 1px 0 rgba(255, 255, 255, .45); }
-		:root[data-theme="dark"] .eff-seg[data-on="false"] .eff-seg-n { color: #f1f4fa; text-shadow: none; }
 		.eff-scale { font-size: 12px; }
 		/* 見出しの脇の一言（3-3）: 2行に折り返すときは、行の長さをそろえる（1文字だけ残る行を作らない） */
 		.header-tagline[data-lines="2"] { text-wrap: balance; }

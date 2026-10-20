@@ -62,6 +62,7 @@ import { register38 } from './blocks-38.mjs';
 import { register39 } from './blocks-39.mjs';
 import { register40 } from './blocks-40.mjs';
 import { register41 } from './blocks-41.mjs';
+import { register42 } from './blocks-42.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 
@@ -10917,10 +10918,10 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const segs = [...document.querySelectorAll('.eff-seg')].map((s) => { const n = s.querySelector('.eff-seg-n'), cs = getComputedStyle(n); return { text: n.textContent, hidden: n.hidden, w: s.getBoundingClientRect().width, nw: n.getBoundingClientRect().width, color: cs.color, weight: cs.fontWeight, size: cs.fontSize, shadow: cs.textShadow }; });
 		return { want, segs, aria: [...document.querySelectorAll('.eff-hit')].map((s) => s.getAttribute('aria-label')) };
 	});
-	// C-144（3-2）: 区間の個数は、区間の色の上で 4.5 以上になる暗い文字（#111827）に明るい細い影。それまでは白の太字
-	assert(cnt.segs.every((s, k) => s.text === String(cnt.want[k]) && /^\d+$/.test(s.text) && s.color === 'rgb(17, 24, 39)' && Number(s.weight) >= 700 && s.size === '14px' && s.shadow !== 'none')
+	// C-180: 区間の個数は、濃いグレー（#2b3140）・太さ500・14px・白の縁（影なし）。C-144（3-2）の暗い文字（#111827）＋明るい細い影から変えた
+	assert(cnt.segs.every((s, k) => s.text === String(cnt.want[k]) && /^\d+$/.test(s.text) && s.color === 'rgb(43, 49, 64)' && s.weight === '500' && s.size === '14px' && s.shadow === 'none')
 		&& cnt.aria.every((l, k) => l.includes(cnt.want[k] + '種')) && cnt.want.reduce((a, x) => a + x, 0) === st.n,
-		'効率(A): 各区間のバーの中に、その区間のスキルの個数（数字のみ・白の太字14px・影つき）。aria-label にも個数', cnt);
+		'効率(A): 各区間のバーの中に、その区間のスキルの個数（数字のみ・濃いグレー・太さ500・14px・白の縁）。aria-label にも個数', cnt);
 	assert(cnt.segs.every((s) => s.hidden || s.w >= s.nw + 8),
 		'効率(A): 区間の幅が狭くて入らないときは個数を隠す（入るときは出す）', cnt.segs);
 	// 範囲の表示（改善D）: 区間に入る段の値の最大を切り上げ・最小を切り捨てて小数第2位（千分率の整数で計算）。書式は「上限-下限」
@@ -15162,6 +15163,7 @@ await register38({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register39({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register40({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register41({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register42({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();
