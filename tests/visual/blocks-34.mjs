@@ -719,7 +719,7 @@ export async function register34(env) {
 			const al = await openSp({ roster: { umaId: UMA_S, acquirePicks: { [key]: 0 } }, w, scheme });
 			const ba = await badgesOf(al.page);
 			const bang = ba.find((b) => b.key === '0');
-			assert(bang.text === '!' && bang.dot && bang.dotBg !== bang.bg && ratio(bang.dotBg, bang.bg) >= 1.5, tag + '「！」の赤いバッジの角にも点が出て、赤い地と違う色（コントラスト比 ' + ratio(bang.dotBg, bang.bg).toFixed(2) + '）', { text: bang.text, dot: bang.dotBg, bg: bang.bg });
+			assert(bang.text === '!' && bang.dot && bang.dotBg !== bang.bg && Math.max(ratio(bang.dotBg, bang.bg), ratio(bang.ring, bang.bg)) >= 3, tag + '「！」の赤いバッジの角にも点が出て、赤い地と違う色（C-179: 塗りか縁が地に対し3:1以上。塗り ' + ratio(bang.dotBg, bang.bg).toFixed(2) + '・縁 ' + ratio(bang.ring, bang.bg).toFixed(2) + '）', { text: bang.text, dot: bang.dotBg, ring: bang.ring, bg: bang.bg });
 			assert((await bandH(al.page)) === bandPlain, tag + '「！」と点が同時でも帯の高さは変わらない（' + bandPlain + 'px）', await bandH(al.page));
 			await al.ctx.close();
 		}
