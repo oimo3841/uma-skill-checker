@@ -257,12 +257,23 @@ export async function register9(env) {
 				.filter((p) => !p.classList.contains('usd-panel--taken')).reduce((a, p) => a + Number(((p.querySelector('[data-usd-el="panel-pt"]') || {}).textContent || '').replace(/[^0-9]/g, '')), 0));
 			assert(n.common.pt > 0 && n.common.pt <= rowSum, tag + '共通スキルの Pt は、①で取得しない行の Pt の合計（' + rowSum + '）以下', { common: n.common, rowSum });
 			assert(n.badge === n.fKinds + '種', tag + '②のタブの「N種」は継承固有を含む②の種と同じ', n);
-			assert(n.total === n.rPt + n.fPt && n.totalKinds === n.rKinds + n.fKinds, tag + '見出しの合計 ＝ ①＋②（Pt ' + n.rPt + '＋' + n.fPt + '、種 ' + n.rKinds + '＋' + n.fKinds + '）', n);
+			// C-178: ①で取る金と、②にあるその前段の白は、見出しの合計の種数だけ1種に数える（1つの金につき1種まで）。引く数はデータから独立に数える
+			const cross = (() => {
+				const used = new Set(); let c = 0;
+				taken.filter((id) => rarityOf.get(id) === 'gold').forEach((g) => {
+					const seen = new Set([g]); let hit = null;
+					const walk = (x) => (prevOf.get(x) || []).forEach((p) => { if (seen.has(p)) return; seen.add(p); if (!hit && free.includes(p) && !used.has(p)) hit = p; walk(p); });
+					walk(g);
+					if (hit) { used.add(hit); c++; }
+				});
+				return c;
+			})();
+			assert(n.total === n.rPt + n.fPt && n.totalKinds === n.rKinds + n.fKinds - cross, tag + '見出しの合計 ＝ ①＋②（Pt ' + n.rPt + '＋' + n.fPt + '、種 ' + n.rKinds + '＋' + n.fKinds + '−' + cross + '）', Object.assign({ cross }, n));
 			const hdr = await sp.page.evaluate(() => ({ num: document.querySelector('#deck-set-bar [data-usd-el="set-total-num"]').textContent, kinds: document.querySelector('#deck-set-bar [data-usd-el="set-total-kinds"]').textContent }));
 			assert(num(hdr.num) === n.total && hdr.kinds === '／' + n.totalKinds + '種', tag + '見出しの帯は「N Pt／M種」（' + hdr.num + ' ' + hdr.kinds + '）', hdr);
 			await sp.page.click(BAR + '[data-usd-act="set-total-help"]');
 			const forms = await sp.page.evaluate(() => ({ pt: (document.querySelector('[data-usd-el="set-total-formula"]') || {}).textContent, kinds: (document.querySelector('[data-usd-el="set-total-kinds-formula"]') || {}).textContent }));
-			assert(forms.pt === '合計 ＝ ① ' + n.rPt.toLocaleString('en-US') + ' ＋ ② ' + n.fPt.toLocaleString('en-US') && forms.kinds === '種 ＝ ① ' + n.rKinds + ' ＋ ② ' + n.fKinds, tag + '?の中：合計 ＝ ① X ＋ ② Y、種 ＝ ① N ＋ ② M', forms);
+			assert(forms.pt === '合計 ＝ ① ' + n.rPt.toLocaleString('en-US') + ' ＋ ② ' + n.fPt.toLocaleString('en-US') && forms.kinds === '種 ＝ ① ' + n.rKinds + ' ＋ ② ' + n.fKinds + (cross > 0 ? ' − ' + cross + '（金と下位の白を両方取るため1種に数える）' : ''), tag + '?の中：合計 ＝ ① X ＋ ② Y、種 ＝ ① N ＋ ② M', forms);
 			await sp.page.keyboard.press('Escape');
 			// ②の ? の中
 			await sp.page.click(T + '[data-usd-act="pt-need-help"]');
