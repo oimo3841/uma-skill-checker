@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-18d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-20a';
 
 	/* ============================================================
 	 * 定数
@@ -4025,6 +4025,36 @@
 	function countSkillKinds(ids) {
 		const list = Array.from(new Set(ids || []));
 		return list.length - pairedWhiteIds(list).size;
+	}
+	/**
+	 * 見出しの合計の種数だけで使う（C-178）。①で取る金スキル（goldSideIds）と、②の因子セットにある、その金の前段の白（whiteSideIds）は、
+	 * 両方を取るとき1種に数える（pairedWhiteIds の決まりを、①と②をまたぐ場合に広げたもの。金と前段の白の定義は pairedWhiteIds と同じ）。
+	 * 返り値は「引く数」。1つの金につき1種まで。②の中で金と組になっている白（pairedWhiteIds(whiteSideIds)）は②の種数からすでに除かれているので、引かない。
+	 * ①の帯・②の帯の種数は変えない（それぞれ countSkillKinds のまま）。データが読めていない・金が無いときは 0。
+	 */
+	function countCrossPairedKinds(goldSideIds, whiteSideIds) {
+		const su = skillPtData.stepUp, pt = skillPtData.skillPt;
+		const golds = Array.from(new Set(goldSideIds || [])), whites = Array.from(new Set(whiteSideIds || []));
+		if (!su || typeof su.prevOf !== 'function' || !(pt instanceof Map) || golds.length === 0 || whites.length === 0) return 0;
+		const isGold = (id) => { const row = pt.get(id); return !!row && row.rarity === 'gold'; };
+		const already = pairedWhiteIds(whites);
+		const pool = new Set(whites.filter(id => !isGold(id) && !already.has(id)));
+		const used = new Set();
+		let n = 0;
+		golds.forEach(g => {
+			if (!isGold(g)) return;
+			const seen = new Set([g]);
+			let hit = null;
+			const walk = (x) => su.prevOf(x).forEach(prev => {
+				if (seen.has(prev)) return;
+				seen.add(prev);
+				if (!hit && pool.has(prev) && !used.has(prev)) hit = prev;
+				walk(prev);
+			});
+			walk(g);
+			if (hit) { used.add(hit); n++; }
+		});
+		return n;
 	}
 	/** スキルPt の元データを読み終えたときに知らせる（種数の数え方が変わるため、画面が数え直す）。 */
 	const skillPtLoadListeners = [];
@@ -11986,9 +12016,43 @@
 			const p = infoEl('p', '', '合計 ＝ ① ' + formatPtNumber(sum.rosterPt) + ' ＋ ② ' + formatPtNumber(sum.factorPt));
 			p.setAttribute('data-usd-el', 'set-total-formula');
 			body.appendChild(p);
-			const k = infoEl('p', '', '種 ＝ ① ' + sum.rosterKinds + ' ＋ ② ' + sum.factorKinds);
+			const k = infoEl('p', '', '種 ＝ ① ' + sum.rosterKinds + ' ＋ ② ' + sum.factorKinds + (sum.crossPaired > 0 ? ' − ' + sum.crossPaired + '（金と下位の白を両方取るため1種に数える）' : ''));
 			k.setAttribute('data-usd-el', 'set-total-kinds-formula');
 			body.appendChild(k);
+			// C-178: ①の前段として数えているスキルが②の因子セットにもあるときは、②の額で数えていることを知らせる（表示だけ。数は変えない）
+			const rows = prevOverlapRows(sum.st);
+			rows.slice(0, 5).forEach(o => {
+				const diff = o.factorPt - o.prevPt;
+				const p = infoEl('p', '', '①の前段として数えている「' + getSkillName(o.skillId) + '」' + formatPtNumber(o.prevPt) + ' Pt は、因子で得るため '
+					+ formatPtNumber(o.factorPt) + ' Pt に置き換えて数えています（差 ' + (diff < 0 ? '−' : '') + formatPtNumber(Math.abs(diff)) + ' Pt）');
+				p.setAttribute('data-usd-el', 'set-total-overlap');
+				p.setAttribute('data-skill-id', o.skillId);
+				body.appendChild(p);
+			});
+			if (rows.length > 5) {
+				const more = infoEl('p', '', 'ほか ' + (rows.length - 5) + ' 種');
+				more.setAttribute('data-usd-el', 'set-total-overlap-more');
+				body.appendChild(more);
+			}
+		}
+		/**
+		 * ①の「前段として必要」（取得していない白。ヒントLv0 などで数えているもの）のうち、②の因子セットにも入っているスキル（C-178）。
+		 * ①のPt は前段の項目の pt、②のPt は②の行の Pt（どちらも画面と同じ計算の値）。Pt が出ていない（未収録）ものは除く。表示用で、合計は変えない。
+		 */
+		function prevOverlapRows(st) {
+			if (!st || !st.r || !st.r.ok || !st.inp || !st.inp.settings || !Array.isArray(st.ids) || st.ids.length === 0) return [];
+			const pr = computeRosterPt({ sources: st.inp.sources, rules: st.rules, skillPt: skillPtData.skillPt, stepUp: skillPtData.stepUp,
+				statusId: st.inp.settings.status, umaHintLevel: st.inp.settings.umaHintLevel, offSkillIds: st.inp.offIds || [] });
+			if (!pr.ok || !Array.isArray(pr.prevItems)) return [];
+			const inFactor = new Set(st.ids);
+			const out = [];
+			pr.prevItems.forEach(it => {
+				if (!inFactor.has(it.skillId) || it.pt === null || it.pt === undefined) return;
+				const x = st.r.skillPts.get(it.skillId);
+				if (!x || x.base === null || x.base === undefined) return;
+				out.push({ skillId: it.skillId, prevPt: it.pt, factorPt: x.pt });
+			});
+			return out;
 		}
 		/**
 		 * レース条件の選択欄（④・段9）。先頭に「指定なし」、続けて一覧の行（1行目＝日付＋レース名、2行目＝公開された条件だけ）。
@@ -12402,10 +12466,12 @@
 			const rosterPt = rs ? rs.total : 0;
 			const rosterKinds = countSkillKinds((st.inp && st.inp.sureIds) || []);
 			const factorPt = uniqPt + commonPt, factorKinds = uniqKinds + commonKinds;
+			// C-178: ①で取る金と、②にあるその前段の白は、見出しの合計の種数だけ1種に数える（①の帯・②の帯の種数は変えない）
+			const crossPaired = countCrossPairedKinds((st.inp && st.inp.sureIds) || [], st.ids);
 			return { rosterPt: rosterPt, rosterKinds: rosterKinds, statusLabel: rs ? rs.statusLabel : '',
 				uniqPt: uniqPt, uniqKinds: uniqKinds, commonPt: commonPt, commonKinds: commonKinds,
-				factorPt: factorPt, factorKinds: factorKinds,
-				total: rosterPt + factorPt, totalKinds: rosterKinds + factorKinds,
+				factorPt: factorPt, factorKinds: factorKinds, crossPaired: crossPaired,
+				total: rosterPt + factorPt, totalKinds: rosterKinds + factorKinds - crossPaired,
 				takenIds: st.takenIds, unpricedCount: r.unpricedCount, st: st };
 		}
 		/** ②の各行の Pt を描き直す（⑬）。行の Pt は、必要スキルPt に数えている値（親由来のレベルと本育成編成の割引を反映したもの） */
