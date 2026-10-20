@@ -10,6 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { REPO_ROOT } from './serve.mjs';
+import { waitNoticeSettled } from './notice.mjs';
 
 const master = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'uma-skill-deck-skills.json'), 'utf8'));
 
@@ -129,6 +130,9 @@ export async function openPage(browser, base, file, viewport = { width: 1280, he
 		const needsTw = !!document.querySelector('script[src*="tailwindcss-browser"]');
 		return !needsTw || document.documentElement.classList.contains('uma-tw-ready');
 	}, null, { timeout: 15000 });
+	// お知らせは非同期の初期化の最後に出る。負荷が高いと networkidle の1秒前後あとになり、
+	// 検査の「いま見えていれば閉じる」を素通りして、あとで次のクリックを遮る（C-179）。出るはずなら出るまで待つ
+	await waitNoticeSettled(page);
 	await page.waitForTimeout(200);
 	return { ctx, page, errors };
 }

@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { startServer, REPO_ROOT } from '../visual/lib/serve.mjs';
+import { waitNoticeSettled } from '../visual/lib/notice.mjs';
 
 const OUT = process.argv[2] || 'output/scratch/sheet-tests';
 const LARGE = 844, VISIBLE = 734;
@@ -43,6 +44,8 @@ async function open(file, scheme, simulate, seedRoster) {
 	}
 	await page.addInitScript((s) => { try { localStorage.setItem('uma-tools-theme', s); localStorage.setItem('uma-special-ui-mode', 'new'); localStorage.setItem('uma-exam-ui-mode', 'new'); } catch (e) {} }, scheme);
 	await page.goto(srv.base + '/' + file, { waitUntil: 'networkidle', timeout: 60000 });
+	// お知らせは非同期の初期化の最後に出る。負荷が高いと networkidle の1秒前後あとになるので、出るはずなら出るまで待つ（C-179）
+	await waitNoticeSettled(page);
 	for (let i = 0; i < 3; i++) { if (await page.isVisible('#ui-notice').catch(() => false)) await page.click('[data-act="notice-ok"]').catch(() => {}); }
 	await page.waitForTimeout(500);
 	return { ctx, page };
@@ -87,7 +90,11 @@ const BASE = { 'exam-factor-list': { top: 87, height: 757 }, 'exam-gene-list': {
 let fails = 0;
 for (const c of CASES) for (const scheme of ['light', 'dark']) for (const simulate of [false, true]) {
 	const { ctx, page } = await open(c.file, scheme, simulate, c.seed);
-	if (c.open) await page.evaluate(c.open); else if (c.clickSel) await page.click(c.clickSel); else await page.getByText(c.clickText, { exact: false }).first().click();
+	// 押す対象が見えるまで待つ（既定の8秒では、負荷が高いと画面の組み立てが間に合わない。期待値は変えない）
+	const trigger = c.clickSel ? page.locator(c.clickSel).first() : c.clickText ? page.getByText(c.clickText, { exact: false }).first() : null;
+	if (trigger) await trigger.waitFor({ state: 'visible', timeout: 30000 });
+	if (c.open) await page.evaluate(c.open); else await trigger.click();
+	await page.locator(c.box).first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});   // 出なければ、下の測定が box なしで [NG] にする
 	await page.waitForTimeout(600);
 	const m = await page.evaluate((sel) => {
 		const el = document.querySelector(sel);
