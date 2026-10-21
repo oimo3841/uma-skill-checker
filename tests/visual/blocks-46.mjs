@@ -125,11 +125,11 @@ export async function register46(env) {
 				return srcKey(t.type) !== 'type:' + KEYS[c.typeOrder] || t.typeAlt !== TYPE_NAMES[c.typeOrder] || t.typeW !== 20 || t.nickText !== '[' + c.title + ']' || !t.nameText || t.nameText.indexOf(c.charaName) === -1;
 			});
 			assert(bad.length === 0, tag + '種別アイコン（20px・alt）・二つ名・名前がデータどおり', bad);
-			assert(m.tiles.every((t) => t.nameSize === 12 && t.nickSize === 10), tag + '名前は12px・二つ名は10px', m.tiles.map((t) => [t.nameSize, t.nickSize]));
+			assert(m.tiles.every((t) => (w <= 639 ? t.nameSize === 11 && t.nickSize === 9 : t.nameSize === 12 && t.nickSize === 10)), tag + '名前・二つ名の大きさ（2列表示は 11px・9px〔C-188〕／3列表示は 12px・10px）', m.tiles.map((t) => [t.nameSize, t.nickSize]));
 			assert(new Set(m.tiles.map((t) => t.bg)).size === 1 && m.tiles.every((t) => t.bgImg === 'none'), tag + '面は種別によらず同じ無彩色（色の塗り・グラデーションなし）', m.tiles.map((t) => t.bg));
 			assert(m.tiles.every((t) => t.bw === '2px' && t.bs === 'solid') && new Set(m.tiles.map((t) => t.bc)).size === 1, tag + '編成のカードは2pxの縁（同じ色）', m.tiles.map((t) => [t.bw, t.bc]));
 			assert(m.tiles.every((t) => t.x && t.x.w >= 44 && t.x.h >= 44 && t.x.text === '×' && /枚目を外す$/.test(t.x.label)), tag + '×の押せる範囲は44px以上・読み上げは「N枚目を外す」', m.tiles.map((t) => t.x));
-			assert(m.tiles.every((t) => t.h === 44 && !t.nameOver && t.mainLabel.indexOf((t.index + 1) + '枚目：') === 0), tag + 'タイルの高さは44px・名前がはみ出さない・読み上げは「N枚目：…」', m.tiles.map((t) => [t.h, t.mainLabel]));
+			assert(m.tiles.every((t) => (w <= 639 ? t.h >= 28 && t.h <= 33 : t.h === 44) && !t.nameOver && t.mainLabel.indexOf((t.index + 1) + '枚目：') === 0), tag + 'タイルの高さは44px・名前がはみ出さない・読み上げは「N枚目：…」', m.tiles.map((t) => [t.h, t.mainLabel]));
 			assert(!(await sp.page.evaluate(() => !!document.querySelector('#deck-roster-panel .usd-roster-slot, #deck-roster-panel [data-usd-el="badge"], #deck-roster-panel .usd-roster-slots .usd-roster-legend-no'))), tag + '番号の丸バッジ（旧）は無い', true);
 			assert(m.sw <= m.vw, tag + '横スクロールなし', [m.sw, m.vw]);
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
@@ -168,32 +168,16 @@ export async function register46(env) {
 		await sp.ctx.close();
 	});
 
-	await block('C-187(c) 番号: 同じ種別が2枚以上のカードだけ、種別アイコンの右下に小さな丸（13px 前後・濃い面に明るい文字）で並びの番号（1〜6）が出る。1枚だけの種別には出ない。タイルと列見出しで同じ番号。全部違う種別なら一つも出ない', async () => {
+	await block('C-187(c)→C-188 番号の丸は廃止: 同じ種別が2枚以上でも、タイル・列見出しのどこにも番号の丸が出ない。並びは aria-label の「N枚目」だけ。見出しの高さは全列で同じで変更前以下', async () => {
 		for (const [ids, label] of [[SAME_IDS, '同じ種別あり'], [DIFF_IDS, '全部違う種別']]) {
 			for (const [w, theme] of [[390, 'light'], [360, 'dark'], [1280, 'light']]) {
 				const sp = await openSp({ w, theme, h: w === 1280 ? 900 : 844, roster: { umaId: 'uma-0179', cardIds: ids, skillFilter: FILTER } });
 				const m = await measure(sp.page);
-				const tag = 'C-187(c) ' + label + ' ' + w + 'px・' + theme + ': ';
-				const count = {};
-				ids.forEach((id) => { const t = byId.get(id).typeOrder; count[t] = (count[t] || 0) + 1; });
-				const want = ids.map((id, i) => (count[byId.get(id).typeOrder] >= 2 ? String(i + 1) : null));
-				assert(JSON.stringify(m.tiles.map((t) => t.no)) === JSON.stringify(want), tag + 'タイルの番号は、同じ種別が2枚以上のカードだけ（期待 ' + want.join(',') + '）', m.tiles.map((t) => t.no));
-				const headCards = m.heads.filter((h) => h.btn);
-				assert(headCards.length === 6 && JSON.stringify(headCards.map((h) => h.no)) === JSON.stringify(want), tag + '列見出しの番号も同じ（タイルと同じ規則・同じ番号）', headCards.map((h) => h.no));
-				if (label === '全部違う種別') assert(m.tiles.every((t) => t.no === null) && headCards.every((h) => h.no === null), tag + '番号は一つも出ない', true);
-				const shown = m.tiles.filter((t) => t.no !== null);
-				assert(shown.every((t) => t.noBox.w >= 12 && t.noBox.w <= 18 && t.noBox.h >= 12 && t.noBox.h <= 16 && t.noBox.cx > t.iconBox.cx && t.noBox.cy > t.iconBox.cy), tag + 'タイルの番号は種別アイコンの右下・13px 前後の丸', shown.map((t) => t.noBox));
-				const shownH = headCards.filter((h) => h.no !== null);
-				assert(shownH.every((h) => h.noBox.w >= 12 && h.noBox.w <= 18 && h.noBox.h >= 12 && h.noBox.h <= 16 && h.noBox.cx > h.iconBox.cx && h.noBox.cy > h.iconBox.cy), tag + '列見出しの番号も右下・13px 前後の丸', shownH.map((h) => h.noBox));
-				if (shown.length) {
-					const nb = shown[0].noBox;
-					const c = contrast(rgbOf(nb.color), rgbOf(nb.bg));
-					if (theme === 'light') assert(lum(rgbOf(nb.bg)) < lum(rgbOf(nb.color)), tag + '番号の丸は濃い面に明るい文字（ライト）', nb);
-					assert(c >= 4.5, tag + '番号の文字は丸の上で 4.5:1 以上（' + c.toFixed(2) + '）', nb);
-				}
-				const hs = new Set(m.heads.map((h) => h.h));
-				assert(hs.size === 1, tag + '見出しの高さは全列で同じ（番号の有無で変えない）', m.heads.map((h) => h.h));
-				assert(m.heads[0].h <= BEFORE_HEAD[w], tag + '見出しの高さ ' + m.heads[0].h + 'px は変更前（' + BEFORE_HEAD[w] + 'px）以下', m.heads.map((h) => h.h));
+				const tag = 'C-188 ' + label + ' ' + w + 'px・' + theme + ': ';
+				assert(m.tiles.every((t) => t.no === null) && m.heads.every((h) => h.no === null), tag + 'タイルにも列見出しにも番号の丸が無い', true);
+				assert(m.tiles.every((t, i) => t.mainLabel.indexOf((i + 1) + '枚目：') === 0), tag + 'タイルの読み上げに「N枚目」がある', m.tiles.map((t) => t.mainLabel));
+				assert(m.heads.filter((h) => h.btn).every((h, i) => h.btn.label.indexOf((i + 1) + '枚目：') === 0), tag + '列見出しの読み上げにも「N枚目」がある', m.heads.filter((h) => h.btn).map((h) => h.btn.label));
+				assert(new Set(m.heads.map((h) => h.h)).size === 1 && m.heads[0].h <= BEFORE_HEAD[w], tag + '見出しの高さは全列で同じ（' + m.heads[0].h + 'px）で変更前（' + BEFORE_HEAD[w] + 'px）以下', m.heads.map((h) => h.h));
 				assert(m.sw <= m.vw, tag + '横スクロールなし', [m.sw, m.vw]);
 				await sp.ctx.close();
 			}
@@ -214,7 +198,7 @@ export async function register46(env) {
 			assert(cards.every((h) => h.btn.h >= 44 && h.btn.w >= 24 && h.btn.w >= Math.min(44, h.w - 8)), tag + '押せる範囲: 高さ44px以上・幅は列の幅いっぱい（' + cards.map((h) => Math.round(h.btn.w)).join('/') + 'px）', cards.map((h) => [h.btn.w, h.btn.h, h.w]));
 			assert(cards.every((h) => h.btn.bs === 'solid' && h.btn.bw === '1px'), tag + '押せるボタンだと分かる細い輪（1px の実線）', cards.map((h) => [h.btn.bs, h.btn.bw, h.btn.bc]));
 			const idsNow = SAME_IDS;
-			assert(cards.every((h, i) => { const c = byId.get(idsNow[i]); return h.btn.label.indexOf(c.charaName + '（' + TYPE_NAMES[c.typeOrder] + '）のメニュー') === 0; }), tag + 'aria-label は「名前（種別）のメニュー」', cards.map((h) => h.btn.label));
+			assert(cards.every((h, i) => { const c = byId.get(idsNow[i]); return h.btn.label.indexOf((i + 1) + '枚目：' + c.charaName + '（' + TYPE_NAMES[c.typeOrder] + '）のメニュー') === 0; }), tag + 'aria-label は「N枚目：名前（種別）のメニュー」（C-188）', cards.map((h) => h.btn.label));
 			if (w >= 768) assert(cards.every((h) => h.cap), tag + '幅が広い画面では、見出しにカード名が今の位置（アイコンの下）に残る', cards.map((h) => h.cap));
 			assert(m.heads[0].h <= BEFORE_HEAD[w], tag + '見出しの高さ ' + m.heads[0].h + 'px は変更前（' + BEFORE_HEAD[w] + 'px）以下', m.heads.map((h) => h.h));
 			assert(m.sw <= m.vw, tag + '横スクロールなし', [m.sw, m.vw]);
