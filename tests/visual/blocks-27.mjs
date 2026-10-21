@@ -1,3 +1,4 @@
+import { clickEvents, clickSort } from './lib/col-menu.mjs';
 // グループのカードを①で選べるようにする（C-160・2026-10-15）の検査。run-smoke.mjs の末尾から register27() で呼ばれる
 // （塊の見出しはすべて「グループのカード」で始まる。`npm run test:visual -- --only=グループのカード` で回せる）。
 //
@@ -143,7 +144,7 @@ export async function register27(env) {
 	/* ---- (3) 見出し ---- */
 	await block('グループのカード(3) 見出し：グループは「N番目」・共通イベントは「共通イベント N（キャラクター名）」／グループでないカードは「N回目」', async () => {
 		const titlesOf = async (page, memberKey) => {
-			await page.click('[data-usd-act="events"][data-member-key="' + memberKey + '"]');
+			await clickEvents(page, '', memberKey);
 			await page.waitForSelector('.usd-roster-eventtitle');
 			return page.$$eval('.usd-roster-eventtitle', (x) => x.map((e) => e.textContent));
 		};

@@ -101,7 +101,7 @@ export async function register43(env) {
 	/* ====================================================================
 	 * 入口
 	 * ==================================================================== */
-	await block('C-184 入口: オススメサポの直後に「脚質オススメ」（入口の列は折り返さず1段・ボタンの高さはほかと同じ）／縁は虹色・内側はオススメサポより淡い／ライト・ダーク（390・360・1280px）', async () => {
+	await block('C-184 入口: オススメサポの直後に「脚質オススメ」（入口の列は折り返さず1段・ボタンの高さはほかと同じ）／縁は虹色・内側は淡い虹色でオススメサポと同じ見た目（C-187）／ライト・ダーク（390・360・1280px）', async () => {
 		for (const theme of ['light', 'dark']) {
 			for (const w of [1280, 390, 360]) {
 				const sp = await openSp({ w, theme, h: w === 1280 ? 900 : 844 });
@@ -120,7 +120,7 @@ export async function register43(env) {
 				assert(e.order[0] === 'outside-open' && e.order[1] === 'style-open' && e.text === '脚質オススメ' && e.tops === 1 && e.nowrap === 'nowrap', tag + '入口の並びは「オススメサポ」「脚質オススメ」の順で、列は1段', e);
 				assert(Math.abs(e.hs - e.ho) <= 1 && Math.abs(e.hs - e.hf) <= 1 && e.pageW <= e.vw, tag + 'ボタンの高さはほかの入口と同じ（±1px）・横にはみ出さない', e);
 				assert(e.bw === '2px' && (e.bg.match(/linear-gradient/g) || []).length === 2 && e.ariaHaspopup === 'dialog', tag + '縁は2px・背景は内側と縁の2つのグラデーション（虹）', { bw: e.bw, bg: e.bg.slice(0, 120) });
-				// 画素: 縁（虹）はほかの入口の縁と違う色／内側はオススメサポより地に近い（淡い）
+				// 画素: 縁（虹）はほかの入口の縁と違う色／内側は、オススメサポと同じ淡い塗り（C-187）
 				if (w === 1280) {
 					const box = await sp.page.evaluate(() => {
 						const r = (sel) => { const b = document.querySelector(sel).getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; };
@@ -131,7 +131,7 @@ export async function register43(env) {
 					const fillS = await px(box.s.x + 7, box.s.y + box.s.h / 2 - 1), fillO = await px(box.o.x + 4, box.o.y + box.o.h / 2 - 1);
 					const paper = await px(box.p.x + box.p.w - 6, box.p.y + 6);
 					assert(deltaE(rimS, rimF) > 8, tag + '縁の色は、ほかの入口の縁と違う（ΔE ' + deltaE(rimS, rimF).toFixed(1) + '）', { rimS, rimF });
-					assert(deltaE(fillS, paper) < deltaE(fillO, paper), tag + '内側はオススメサポより淡い（地との差 ' + deltaE(fillS, paper).toFixed(1) + ' < ' + deltaE(fillO, paper).toFixed(1) + '）', { fillS, fillO, paper });
+					assert(deltaE(fillS, fillO) < 3, tag + '内側はオススメサポと同じ淡い塗り（C-187。ΔE ' + deltaE(fillS, fillO).toFixed(1) + ' < 3）・どちらも地に近い（地との差 ' + deltaE(fillS, paper).toFixed(1) + '）', { fillS, fillO, paper });
 				}
 				assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 				await sp.ctx.close();

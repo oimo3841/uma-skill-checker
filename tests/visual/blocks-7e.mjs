@@ -351,7 +351,7 @@ export async function register7e(env) {
 				assert(rows.every((x) => x.h === 31), tag + '行の高さはすべて 31px のまま（固有・金・回復・前段の字下げの行も）', Array.from(new Set(rows.map((x) => x.h))));
 				const g = await gridTop(sp.page);
 				// 段4（C-150）: 帯に44pxの「進化」ボタンが入り、この編成（合計の桁が多い）では帯が2行になる。2行の帯は +40px 前後（実測 400px）→ 410px 以下
-				assert(g <= 410, tag + '①の表より上の高さ ' + g + 'px は段7d の最終（351px）に余白（+10px）と、帯が2行になるぶん（進化ボタン・+49px）を足した 410px 以下', { g });
+				assert(g <= 460, tag + '①の表より上の高さ ' + g + 'px は段7d の最終（351px）に余白（+10px）・帯が2行になるぶん（進化ボタン・+49px）・①のカードのタイル化（C-187。実測 453px）を足した 460px 以下', { g });
 				console.log('     [実測] 375px: ①の表より上 ' + g + 'px／表の行の高さ ' + Array.from(new Set(rows.map((x) => x.h))).join(',') + 'px（段7d の最終: 351px／31px）');
 			}
 			await sp.ctx.close();

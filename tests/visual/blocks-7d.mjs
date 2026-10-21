@@ -1,3 +1,4 @@
+import { clickEvents, clickSort } from './lib/col-menu.mjs';
 // 段7d（2026-10-03・C-116）の検査。run-smoke.mjs の末尾から register7d() で呼ばれる（塊の見出しはすべて「段7d」を含むので、
 // `npm run test:visual -- --only=段7d` で全部、`--only=段7d(B)` のように括弧つきの見出しで1つずつ回せる）。
 //
@@ -237,7 +238,7 @@ export async function register7d(env) {
 				{ cardId: cB.id, status: 'done', chain: [
 					{ step: 1, choices: [{ skills: [ref(LONG[1], 1)] }, { skills: [ref(LONG[2], 1)] }] }] },    // 長距離で絞っても、残る選択肢は2つ → 選ぶ必要あり
 			] };
-			const evBtns = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel button[data-usd-act="events"]')).map((b) => ({ key: b.getAttribute('data-member-key'), unsel: Number(b.getAttribute('data-unselected')), bang: b.textContent.trim() === '!', label: b.getAttribute('aria-label') })));
+			const evBtns = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel button[data-usd-act="events"], #deck-roster-panel button[data-usd-act="col-menu"][data-has-events]')).map((b) => ({ key: b.getAttribute('data-member-key'), unsel: Number(b.getAttribute('data-unselected')), bang: b.textContent.trim() === '!' || !!b.querySelector('[data-usd-el="gh-bang"]'), label: b.getAttribute('aria-label') })));
 			let sp = await open({ w: 375, h: 812, routes: { evDoc: evPend } });
 			let b = await evBtns(sp.page);
 			assert(b.find((x) => x.key === '1').unsel === 2 && b.find((x) => x.key === '2').unsel === 1 && b.every((x) => x.bang), '段7d(A)⑤: 絞り込みなしでは、残る選択肢が2つあるイベントはすべて「選ぶ必要あり」（1枚目 2件・2枚目 1件。「!」）', b);
@@ -247,13 +248,13 @@ export async function register7d(env) {
 			const b1 = b.find((x) => x.key === '1'), b2 = b.find((x) => x.key === '2');
 			assert(b1.unsel === 0 && !b1.bang && !b1.label.includes('未選択') && b2.unsel === 1 && b2.bang && b2.label.includes('未選択1件'),
 				'長距離で絞ると: 1枚目（残る選択肢が1つ→自動・0つ→不要）は「!」も「未選択N件」も出ない。2枚目（残る選択肢が2つ）は未選択1件のまま', b);
-			await sp.page.click(P + 'button[data-usd-act="events"][data-member-key="1"]');
+			await clickEvents(sp.page, P, '1');
 			await sp.page.waitForTimeout(300);
 			const pop = await sp.page.evaluate(() => ({ head: (document.querySelector('[data-usd-el="events-unselected"]') || {}).textContent, autos: document.querySelectorAll('[data-usd-el="event-auto"]').length, events: document.querySelectorAll('[data-usd-el="event"]').length }));
 			assert(pop.head === '未選択0件' && pop.autos === 1 && pop.events === 2, '小窓の「未選択N件」も同じ決まり（0件）。残る選択肢が1つのイベントには「自動」が付く', pop);
 			await sp.page.keyboard.press('Escape');
 			await sp.page.waitForTimeout(150);
-			await sp.page.click(P + 'button[data-usd-act="events"][data-member-key="2"]');
+			await clickEvents(sp.page, P, '2');
 			await sp.page.waitForTimeout(300);
 			await sp.page.click('[data-usd-el="event-choice"][data-choice="0"]');
 			await sp.page.waitForTimeout(300);
@@ -457,7 +458,8 @@ export async function register7d(env) {
 				const hs = await SP(sp.page);
 				out.push({ w, h, grid: g, list: l });
 				// 段4（C-150）: 帯に高さ44pxの「進化」ボタンが入り、383px → 392px 以下（実測 388px。帯が1行に収まる幅）
-				assert(g <= 392, '段7d(C) ' + w + '×' + h + ': ①の表より上の高さ ' + g + 'px は段7c（383px）に進化ボタンのぶん（+9px）を足した 392px 以下', { g });
+				// C-187: ①の6枚のカードを44px のタイルにしたぶん（375px は2列×3行）が加わる。実測 450px（①のカードを44px のタイルにして約+60px）
+				assert(g <= 460, '段7d(C) ' + w + '×' + h + ': ①の表より上の高さ ' + g + 'px は段7c（383px）に進化ボタン（+9px）とカードのタイル化（C-187。約+60px）を足した 460px 以下', { g });
 				assert(l <= 474, '段7d(C) ' + w + '×' + h + ': ②の追加済みスキルより上の高さ ' + l + 'px は段7c（474px）以下', { l });
 				// 段9（C-121）: ランクのチップは無くなった（継承固有と共通スキルのタグの並びは blocks-9.mjs の段9(D)）
 				assert(rowTops[0] === rowTops[1], '共通スキルのヒントLv と継承固有は1行（375px）', rowTops);

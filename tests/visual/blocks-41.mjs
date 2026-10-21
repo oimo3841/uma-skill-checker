@@ -139,7 +139,7 @@ export async function register41(env) {
 			all.forEach((d) => seen.add(d.fill + '|' + d.ring));
 			assert(all.length >= 3 && all.every((d) => d.w >= 7 && d.w <= 9), 'C-179(b) ' + scheme + ' 点は育成ウマ娘の列・カードの列・小窓の行にあり、大きさは約8px', all.map((d) => d.w));
 			const f = row.fill, r = row.ring;
-			const need = [['小窓の行', row.ground]].concat(...col.grounds.map((g) => [[g.key + '番の見出しの地', g.ground], [g.key + '番のバッジの面', /rgba(0, 0, 0, 0)|transparent/.test(g.face || '') ? null : g.face]]));   // C-187: サポカの列の見出しは透明なボタン（面は見出しの地）
+			const need = [['小窓の行', row.ground]].concat(...col.grounds.map((g) => [[g.key + '番の見出しの地', g.ground], [g.key + '番のバッジの面', /rgba\(0, 0, 0, 0\)|transparent/.test(g.face || '') ? null : g.face]]));   // C-187: サポカの列の見出しは透明なボタン（面は見出しの地）
 			const bad = need.filter(([, g]) => g && Math.max(ratio(f, g), ratio(r, g)) < 3).map(([n, g]) => [n, g, ratio(f, g).toFixed(2), ratio(r, g).toFixed(2)]);
 			assert(bad.length === 0, 'C-179(b) ' + scheme + ' 点の塗りか縁が、すべての地（見出しの地・バッジの面・小窓の行 計' + need.length + '）に対して 3:1 以上', bad);
 			const uma = col.grounds.find((g) => g.key === '0'), card = col.grounds.find((g) => g.key === '1');

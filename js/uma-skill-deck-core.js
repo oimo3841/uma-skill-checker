@@ -6048,8 +6048,8 @@
 		// 育成ウマ娘の欄（③⑦）: 欄の右隣に（i）。選んだ状態は白文字・黒背景（選んでいるタブと同じ暗い色のトークン）。× は欄の中の右端のまま
 		'.usd-roster-umarow { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; }',
 		'.usd-roster-umabox { flex: 1 1 auto; }',
-		'.usd-roster-pickbox.usd-roster-umabox { min-height: 44px; border-radius: var(--uma-r-lg); }',
-		'.usd-roster-umabox .usd-roster-clearbtn { width: 44px; }',
+		// 育成ウマ娘のタイル（◇・名前・i・×）は構成も大きさも今のまま。角丸だけ①のカードのタイル（.usd-out-card）に合わせる（C-187）
+		'.usd-roster-pickbox.usd-roster-umabox { border-radius: var(--uma-r-lg); }',
 		'.usd-roster-umainfo { flex: none; width: 28px; height: 28px; }',
 		'.usd-roster-umabox.usd-roster-pickbox--filled { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }',
 		'.usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-pickbtn { color: var(--uma-control-text); }',

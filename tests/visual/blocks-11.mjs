@@ -644,16 +644,16 @@ export async function register11(env) {
 		const picker = await sp.page.evaluate(() => { const t = document.querySelector('[data-usd-el="picker-title"]'); return { title: t ? t.textContent : null, vis: !!t && !!t.offsetParent }; });
 		assert(picker.vis && /条件で検索/.test(picker.title), 'オススメサポ(G) ほかの入口（条件で検索）の動きは変わらない（スキル選択の小窓が開く）', picker);
 		await sp.page.click('[data-usd-act="picker-close"]');
-		// 段7（④・2026-10-04）: 虹色の塗りをやめ、①の表の固有スキルの行と同じ淡いグラデーション（同じ変数・同じ指定）に黒い文字。
-		// 文字と、グラデーションの3色・その間の色とのコントラスト比が 4.5 以上。縁の色も固有スキルの行と同じ変数
+		// 段7（④・2026-10-04）は①の固有スキルの行と同じ淡いグラデーションだったが、C-187（段D）で「脚質オススメ」と同じ見た目（虹色の縁・淡い虹色の内側）に置き換えた。
+		// 同じクラス・同じ変数（--usd-rainbow-*）・黒い文字（--usd-rarity-ssr-text）。文字と、内側の淡い3色・その間の色とのコントラスト比が 4.5 以上
 		const rb = await sp.page.evaluate(() => {
 			const btn = document.querySelector('#deck-template-panel [data-usd-el="outside-open"]');
+			const sty = document.querySelector('#deck-template-panel [data-usd-el="style-open"]');
 			const probe = (css) => { const e = document.createElement('i'); e.style.cssText = css; document.body.appendChild(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return c; };
 			const cs = getComputedStyle(btn);
-			const stops = ['from', 'mid', 'to'].map((k) => probe('background-color: var(--usd-skill-unique-' + k + ')'));
-			const row = document.querySelector('#deck-roster-panel .usd-roster-grow--unique');
+			const stops = ['from', 'mid', 'to'].map((k) => probe('background-color: var(--usd-rainbow-' + k + ')'));
 			const icon = btn.querySelector('svg, i');
-			return { image: cs.backgroundImage, rowImage: row ? getComputedStyle(row).backgroundImage : null, border: cs.borderTopColor, edge: probe('background-color: var(--usd-skill-unique-edge)'),
+			return { image: cs.backgroundImage, styleImage: sty ? getComputedStyle(sty).backgroundImage : null, cls: btn.className, styleCls: sty ? sty.className : null, bw: cs.borderTopWidth,
 				rainbow: probe('background-color: var(--usd-rarity-ssr-1)'), text: cs.color, stops: stops, textVar: probe('background-color: var(--usd-rarity-ssr-text)'), iconColor: icon ? getComputedStyle(icon).color : null };
 		});
 		const rgb = (c) => (/rgba?\((\d+), (\d+), (\d+)/.exec(c) || []).slice(1, 4).map(Number);
@@ -662,10 +662,10 @@ export async function register11(env) {
 		const mixes = [];
 		for (let i = 0; i < rb.stops.length - 1; i++) for (const t of [0.25, 0.5, 0.75]) { const x = rgb(rb.stops[i]), y = rgb(rb.stops[i + 1]); mixes.push('rgb(' + x.map((v, k) => Math.round(v + (y[k] - v) * t)).join(', ') + ')'); }
 		const min = Math.min.apply(null, rb.stops.concat(mixes).map((c) => ratio(rb.text, c)));
-		assert(rb.stops.every((c) => rb.image.indexOf(c) !== -1) && /gradient/.test(rb.image) && rb.rowImage !== null && rb.image === rb.rowImage && rb.image.indexOf(rb.rainbow) === -1
-			&& rb.border === rb.edge && rb.text === rb.textVar && rgb(rb.text).every((v) => v <= 10) && min >= 4.5 && (rb.iconColor === null || rb.iconColor === rb.text),
-			'オススメサポ(G) 段7: 入口のボタンは、①の固有スキルの行と同じ淡いグラデーション（--usd-skill-unique-*。指定が行と一字一句同じ・虹色は使わない）・縁も同じ色に黒い文字。文字と3色（間の色を含む）とのコントラスト比は最小 ' + min.toFixed(2) + '（4.5 以上）',
-			{ image: rb.image, rowImage: rb.rowImage, border: rb.border, edge: rb.edge, text: rb.text, min: min });
+		assert(rb.stops.every((c) => rb.image.indexOf(c) !== -1) && (rb.image.match(/linear-gradient/g) || []).length === 2 && rb.image === rb.styleImage && rb.cls === rb.styleCls && /usd-rainbow-entry/.test(rb.cls) && rb.bw === '2px'
+			&& rb.image.indexOf(rb.rainbow) !== -1 && rb.text === rb.textVar && rgb(rb.text).every((v) => v <= 10) && min >= 4.5 && (rb.iconColor === null || rb.iconColor === rb.text),
+			'オススメサポ(G)→C-187: 入口のボタンは「脚質オススメ」と同じ見た目（同じクラス・同じ変数 --usd-rainbow-*。縁は2pxの虹色・内側は淡い虹色）に黒い文字。文字と内側の3色（間の色を含む）とのコントラスト比は最小 ' + min.toFixed(2) + '（4.5 以上）',
+			{ image: rb.image, styleImage: rb.styleImage, cls: rb.cls, bw: rb.bw, text: rb.text, min: min });
 		await sp.ctx.close();
 		// 1280px
 		const sp2 = await openSp({ w: 1280, h: 900, roster: FULL });

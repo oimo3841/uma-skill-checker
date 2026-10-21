@@ -1,3 +1,4 @@
+import { clickEvents, clickSort } from './lib/col-menu.mjs';
 // オススメサポ 段13（段7〜12 の確認で出た修正と、追加の改善。2026-10-04・C-127）の検査。run-smoke.mjs の末尾から register13() で呼ばれる
 // （塊の見出しはすべて「オススメサポ段13」で始まる。`npm run test:visual -- --only=オススメサポ段13` で回せる。区切りごとに「段13A」のように回せる）。
 //
@@ -341,7 +342,7 @@ export async function register13(env) {
 		const t = gh ? gh.querySelector('.usd-roster-ghtitle') : null;
 		return { icons, btns, titleCut: t ? t.scrollWidth > t.clientWidth + 1 : null, title: t ? t.textContent : null, ghH: gh ? Math.round(gh.getBoundingClientRect().height) : 0,
 			rowH: heads.length ? Math.round(Math.max.apply(null, heads.map((h) => h.getBoundingClientRect().height))) : 0, memberH: heads.length > 1 ? Math.round(heads[1].getBoundingClientRect().height) : 0,
-			memberOn: Array.from(panel.querySelectorAll('[data-usd-el="sort-btn"][aria-pressed="true"]')).length, rows, sw: document.documentElement.scrollWidth, iw: window.innerWidth };
+			memberOn: Array.from(panel.querySelectorAll('[data-usd-el="sort-btn"][aria-pressed="true"], [data-usd-el="col-menu-btn"][data-sorted="1"]')).length, rows, sw: document.documentElement.scrollWidth, iw: window.innerWidth };
 	});
 	const tonesOf = (page, ids) => page.evaluate((list) => {
 		// 段7e の行の色分けと同じ基準（効果タイプの持久力回復／デバフ〔まとめた値を含む〕・パッシブの軸）を、タグから検査の側で引く
@@ -390,7 +391,7 @@ export async function register13(env) {
 			// メンバーの列の漏斗とも同時に1つだけ
 			await sp.page.click('#deck-roster-panel [data-usd-act="sort-tone"][data-tone="heal"]');
 			await sp.page.waitForTimeout(200);
-			await sp.page.click('#deck-roster-panel [data-usd-el="sort-btn"]');
+			await clickSort(sp.page, '#deck-roster-panel ', '1');   // メンバーの列（C-187: サポカの列はアイコンのメニューの「並べ替え」）
 			await sp.page.waitForTimeout(200);
 			const g2 = await gridInfo(sp.page);
 			assert(g2.memberOn === 1 && g2.btns.every((b) => !b.on), tag + 'メンバーの列の漏斗を押すと、種類の漏斗は外れる（全部で1つだけ）', { memberOn: g2.memberOn, btns: g2.btns });
@@ -723,10 +724,10 @@ export async function register13(env) {
 		// ①: 列見出しの番号（イベントを選ぶ）から開く
 		await sp.page.evaluate(() => selectStepTab(0, { noSave: true }));
 		await sp.page.waitForTimeout(250);
-		const keys = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-act="events"]')).map((b) => b.getAttribute('data-member-key')));
+		const keys = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-act="events"], #deck-roster-panel [data-usd-act="col-menu"][data-has-events]')).map((b) => b.getAttribute('data-member-key')));
 		let b = null, anyGold = null;
 		for (const k of keys) {
-			await sp.page.click('#deck-roster-panel [data-usd-act="events"][data-member-key="' + k + '"]');
+			await clickEvents(sp.page, '#deck-roster-panel ', k);
 			await sp.page.waitForSelector('[data-usd-el="events-panes"]');
 			await sp.page.waitForTimeout(150);
 			const x = await evPop(sp.page);
@@ -771,10 +772,10 @@ export async function register13(env) {
 		await sp.page.click(M + '[data-usd-act="outside-close"]');
 		await sp.page.evaluate(() => selectStepTab(0, { noSave: true }));
 		await sp.page.waitForTimeout(250);
-		const keys = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-act="events"]')).map((b) => b.getAttribute('data-member-key')));
+		const keys = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-act="events"], #deck-roster-panel [data-usd-act="col-menu"][data-has-events]')).map((b) => b.getAttribute('data-member-key')));
 		let all1 = { n: 0, over: 0, multi: 0, ws: [] };
 		for (const k of keys) {
-			await sp.page.click('#deck-roster-panel [data-usd-act="events"][data-member-key="' + k + '"]');
+			await clickEvents(sp.page, '#deck-roster-panel ', k);
 			await sp.page.waitForSelector('[data-usd-el="events-panes"]');
 			await sp.page.click('[data-usd-el="events-tab"][data-pane="1"]');
 			await sp.page.waitForTimeout(500);

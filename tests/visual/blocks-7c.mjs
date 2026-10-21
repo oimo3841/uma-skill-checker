@@ -114,7 +114,7 @@ export async function register7c(env) {
 		return { total: shownTotal - prevSum, count: num(t('pt-count')), rows, ids: rows.map((r) => r.id), badge: (document.getElementById('deck-roster-excluded') || {}).textContent,
 			// 前段は1行（段7d の ②）。prevCount＝行の件数、prevTotal＝行の Pt の和、withPrev＝表示の合計（前段を含む額）。上の total は「前段を含めない合計」（表示の合計 − prevTotal）に直す
 			prevCount: prevLine ? prevEntries.length : null, prevTotal: prevLine ? prevSum : null, prevList: prevLine, withPrev: prevLine ? shownTotal : null,
-			events: Array.from(h.querySelectorAll('button[data-usd-act="events"]')).map((b) => ({ key: b.getAttribute('data-member-key'), label: b.getAttribute('aria-label'), dot: b.textContent.trim() === '!', unselected: b.getAttribute('data-unselected'), hasSvg: !!b.querySelector('svg') })),
+			events: Array.from(h.querySelectorAll('button[data-usd-act="events"], button[data-usd-act="col-menu"][data-has-events]')).map((b) => ({ key: b.getAttribute('data-member-key'), label: b.getAttribute('aria-label'), dot: b.textContent.trim() === '!' || !!b.querySelector('[data-usd-el="gh-bang"]'), unselected: b.getAttribute('data-unselected'), hasSvg: !!b.querySelector('svg') })),
 			heads: Array.from(h.querySelectorAll('.usd-roster-gh')).length, hscroll: document.documentElement.scrollWidth - window.innerWidth, filtering: t('pt-filtering'), alpha: !!document.getElementById('deck-roster-alpha'),
 			legend: !!h.querySelector('.usd-roster-legend') };
 	});

@@ -1,3 +1,4 @@
+import { clickEvents, clickSort } from './lib/col-menu.mjs';
 // ①の本育成編成の表（2026-10-18・作業4。Step 0 main-roster-step0.md の案 (B)＋(C)）の検査。run-smoke.mjs の末尾から register39() で呼ばれる
 // （塊の見出しはすべて「本育成表」で始まる。`npm run test:visual -- --only=本育成表` で回せる）。
 //
@@ -163,10 +164,10 @@ export async function register39(env) {
 	await block('本育成表(5) 並べ替え・絞り込み・進化の行でも、合成の行は金の直下に付いて動く（絞り込みは金に従う）', async () => {
 		const sp = await openSp({ roster: A });
 		// 並べ替え（列の漏斗・種類の漏斗）
-		const keys = await sp.page.evaluate((T) => Array.from(document.querySelectorAll(T + '[data-usd-act="sort"]')).map((b) => b.getAttribute('data-member-key')).slice(0, 3), T);
+		const keys = await sp.page.evaluate((T) => Array.from(document.querySelectorAll(T + '[data-usd-act="sort"], ' + T + '[data-usd-act="col-menu"]')).map((b) => b.getAttribute('data-member-key')).slice(0, 3), T);
 		const results = [];
 		for (const k of keys) {
-			await sp.page.click(T + '[data-usd-act="sort"][data-member-key="' + k + '"]');
+			await clickSort(sp.page, T, k);
 			await sp.page.waitForTimeout(300);
 			const tb = await readTable(sp.page);
 			results.push({ k, ok: derivedFollowGold(tb.rows) && tb.rows.filter((r) => r.derived).length === 3 });
