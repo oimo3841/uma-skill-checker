@@ -178,15 +178,3 @@ export const SET_REMOVE_IN_PAGE = `(function (id, root) {
 export async function removeFromSet(page, id, root) {
 	await page.evaluate(({ src, id, root }) => (0, eval)(src)(id, root), { src: SET_REMOVE_IN_PAGE, id, root: root || null });
 }
-
-/**
- * special の②の「逃げオススメ」「先差追オススメ」を押して追加する（C-132）。追加できるものがあれば確認の小窓が出るので「追加する」を押す。
- * 0種なら小窓は出ない（知らせだけ）。戻り値は小窓が出たか
- */
-export async function pressRecommend(page) {
-	await page.click('#deck-template-panel [data-usd-el="recommend-btn"]');
-	await page.waitForTimeout(150);
-	const shown = await page.evaluate(() => { const b = document.querySelector('[data-usd-el="recommend-confirm-add"]'); return !!b && b.getClientRects().length > 0; });
-	if (shown) await page.click('[data-usd-el="recommend-confirm-add"]');
-	return shown;
-}

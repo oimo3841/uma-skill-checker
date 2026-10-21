@@ -58,11 +58,11 @@ import { register34 } from './blocks-34.mjs';
 import { register35 } from './blocks-35.mjs';
 import { register36 } from './blocks-36.mjs';
 import { register37 } from './blocks-37.mjs';
-import { register38 } from './blocks-38.mjs';
 import { register39 } from './blocks-39.mjs';
 import { register40 } from './blocks-40.mjs';
 import { register41 } from './blocks-41.mjs';
 import { register42 } from './blocks-42.mjs';
+import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 
@@ -1225,7 +1225,8 @@ await block('special.html — ステップ①の入口「スキルセット画�
 	// 72セッション目・段9 で2番目に「緑スキル」（editor-pick-passive）が入り、
 	// 73セッション目に末尾の「リセット」（editor-clear-skills）が名前の行へ抜けた
 	// 2026-09-27（C-100）に末尾の「未収録スキルを追加」（editor-pick-custom）を廃止した
-	assert(entry.order.join(',') === 'outside-open,editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot'
+	// 2026-10-21 に「オススメサポ」の直後へ「脚質オススメ」（style-open）が入った
+	assert(entry.order.join(',') === 'outside-open,style-open,editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot'
 		&& entry.label === 'スクショで追加' && entry.cls.includes('uma-btn--secondary') && entry.noHelp,
 		'special/ocr入口: 「テキストで検索」の後ろ（並びの最後）に、同じ見た目で「スクショで追加」が出る（「?」は無い）', { order: entry.order, label: entry.label });
 	assert(entry.icon === 'upload-cloud' || String(entry.icon).includes('lucide-upload-cloud'),
@@ -9143,7 +9144,7 @@ await block('段7【5】収録スキルデータ（マスター）の取り回�
 		// シナリオの固定イベント（段7c）は special が編成パネルを作るときにだけ読む。効果量の段階（C-129）は「低効果を除外」・オススメサポの「低効果」で初めて読む。
 		// ②にまとめて追加するスキルのグループ（C-130）は、レースを選んだとき・②のパレットの行が見えたとき（脚質があるとき）に初めて読む。
 		// スキルの進化の対応（C-145・2026-10-12）は、進化を使う画面か、進化スキルを辞書から外す入口（Deck の取り込み）が呼んだときに初めて読む
-		// サポカで得られないスキル（C-162・2026-10-16）は、②の「サポカ外」ボタンを最初に押したときに初めて読む
+		// サポカで得られないスキル（C-162・2026-10-16）は、入口の「脚質オススメ」を最初に押したときに初めて読む（2026-10-21 までは②の「サポカ外」ボタン）
 		// 要るスキル（2026-10-18。skill-requires.json）は、進化の対応と一緒に（loadSkillEvolutions が）初めて読む
 		const 遅延 = ['data/skill-descriptions.json', 'data/scenario-event-skills.json', 'data/skill-effect-levels.json', 'data/recommended-skills.json', 'data/skill-evolutions.json', 'data/skill-requires.json', 'data/non-support-skills.json'];
 		const 取れた = paths.filter((k) => dataUrls.some((u) => u.includes('/' + k)));
@@ -9435,8 +9436,8 @@ await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見
 	const e0 = await entryState();
 	/* **数そのものを見る**（73セッション目に「6つ」→「5つ」へ直した。段9 で「緑スキル」を
 	   足したときに数え直さず 6 と書いたままで、判定が `> 1` だったので落ちずに残っていた）。 */
-	assert(e0.見えている && e0.高さ > 0 && e0.ボタン数 === 5,
-		'段11(⑩): 入口の並びは、開く操作をしなくても最初から見えている（4つ＋先頭の「オススメサポ」＝5つ）', e0);
+	assert(e0.見えている && e0.高さ > 0 && e0.ボタン数 === 6,
+		'段11(⑩): 入口の並びは、開く操作をしなくても最初から見えている（4つ＋先頭の「オススメサポ」「脚質オススメ」＝6つ。2026-10-21 に5→6）', e0);
 	assert(!e0.畳む見出し && !e0.畳む入れ物 && !e0.見出しの文字 && !e0.向きの印,
 		'段11(⑩): 畳む見出し「スキルの追加」と開閉の仕掛けは残っていない', e0);
 
@@ -9447,7 +9448,7 @@ await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見
 	await page.evaluate(() => deckTemplateManager.setSelectedId('__draft__'));   // 段8（C-120）: 帯のタブの代わりに setSelectedId
 	await page.waitForTimeout(400);
 	const e3 = await entryState();
-	assert(e2.見えている && e2.ボタン数 === 5 && e3.見えている && e3.ボタン数 === 5,
+	assert(e2.見えている && e2.ボタン数 === 6 && e3.見えている && e3.ボタン数 === 6,
 		'段11(⑩): 因子セットを切り替えても入口は見えたまま', { 移った先: e2, 戻った: e3 });
 
 	/* **開き直しても同じ。** 状態を持たなくなったので、リロードで変わるものが無い。
@@ -9459,8 +9460,8 @@ await block('段11（⑨）― A の地色と枠 ／ 入口の並びが常に見
 	await page.waitForTimeout(400);
 	const e5 = await entryState();
 	const keysAfter = await page.evaluate(() => Object.keys(localStorage).sort().join(','));
-	assert(e5.見えている && e5.ボタン数 === 5 && e5.高さ === e0.高さ,
-		'段11(⑩): リロードしても入口は最初から4つ見えていて、高さも同じ', { 前: e0, 後: e5 });
+	assert(e5.見えている && e5.ボタン数 === 6 && e5.高さ === e0.高さ,
+		'段11(⑩): リロードしても入口は最初から6つ見えていて、高さも同じ', { 前: e0, 後: e5 });
 	assert(keysAfter === keysBefore,
 		'段11(⑩): 入口の並びのために localStorage のキーを増やしていない', { 前: keysBefore, 後: keysAfter });
 
@@ -9633,8 +9634,8 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 		assert(got.every((g) => g.バーを隠す指定 === 'none'),
 			'横1行(バッジ' + バッジ + '): スクロールバーを隠す指定（scrollbar-width: none）が効いている',
 			got.map((g) => ({ 幅: g.幅, 指定: g.バーを隠す指定, 厚み: g.バーの厚み })));
-		assert(got.every((g) => g.子の顔ぶれ.length === 1 && g.子の顔ぶれ[0] === 'BUTTON' && g.ボタン数 === 5),
-			'横1行(バッジ' + バッジ + '): 並びの中身は入口のボタン5つだけ（矢印や「端へ移動」を足していない。C-100 で5→4、段5 で先頭に「オススメサポ」を足して5）',
+		assert(got.every((g) => g.子の顔ぶれ.length === 1 && g.子の顔ぶれ[0] === 'BUTTON' && g.ボタン数 === 6),
+			'横1行(バッジ' + バッジ + '): 並びの中身は入口のボタン6つだけ（矢印や「端へ移動」を足していない。C-100 で5→4、段5 で先頭に「オススメサポ」を足して5、2026-10-21 に「脚質オススメ」を足して6）',
 			got.map((g) => ({ 幅: g.幅, 子: g.子の顔ぶれ, 数: g.ボタン数 })));
 	}
 
@@ -9702,7 +9703,7 @@ await block('73セッション目 ― 入口の並びを狭い幅で横1行に�
 	const 並び = await page.evaluate((s) =>
 		[...document.querySelectorAll(s + ' button')].map((b) => b.dataset.usdAct), SEL);
 	// 2026-09-27（C-100）に末尾の「未収録スキルを追加」（editor-pick-custom）を廃止した。残りの順は変えていない
-	assert(並び.join(',') === 'outside-open,editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot',
+	assert(並び.join(',') === 'outside-open,style-open,editor-pick,editor-pick-passive,editor-pick-text,editor-pick-screenshot',
 		'横1行: 入口の並び順は変えていない', 並び);
 
 	assert(errors.length === 0, '横1行: コンソールエラーなし', errors.slice(0, 3));
@@ -15159,11 +15160,11 @@ await register34({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register35({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register36({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register37({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
-await register38({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register39({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register40({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register41({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register42({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register43({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 
 await browser.close();

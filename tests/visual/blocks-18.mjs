@@ -152,57 +152,20 @@ export async function register18(env) {
 		}
 	});
 
-	await block('C132A4 「先差追オススメ」を押すと、追加の前に確認の小窓（名前と Pt・追加しないもの）が出る／「やめる」で何も変わらない／「追加する」で追加され「元に戻す」に積む／0種なら小窓は出ずに知らせだけ', async () => {
-		const sp = await openSp();
-		const p = sp.page;
-		await p.waitForSelector(T + '[data-usd-el="recommend-btn"]');
-		const before = await draftIds(p);
-		await p.click(T + '[data-usd-el="recommend-btn"]');
-		await p.waitForSelector('[data-usd-el="recommend-confirm-list"]');
-		const c = await p.evaluate(() => {
-			const items = Array.from(document.querySelectorAll('[data-usd-el="recommend-confirm-list"] li'));
-			return { n: items.length, rows: items.map((li) => ({ id: li.getAttribute('data-skill-id'), name: li.querySelector('.usd-rec-name').textContent, pt: li.querySelector('.usd-rec-pt').textContent })),
-				head: (document.querySelector('[data-usd-el="recommend-confirm-head"]') || {}).textContent, skip: (document.querySelector('[data-usd-el="recommend-confirm-skip"]') || {}).textContent || null,
-				add: !!document.querySelector('[data-usd-el="recommend-confirm-add"]'), cancel: !!document.querySelector('[data-usd-el="recommend-confirm-cancel"]') };
-		});
-		assert(c.n > 0 && c.head === '追加するスキル ' + c.n + '種' && c.rows.every((x) => x.name && /Pt/.test(x.pt)) && c.add && c.cancel, 'C132A4 小窓に、追加するスキルの名前と Pt・「追加する」「やめる」が出る', c);
-		assert((await draftIds(p)).join() === before.join(), 'C132A4 小窓を出しただけでは追加しない', { before, now: await draftIds(p) });
-		assert(c.skip === null || /^追加しないもの \d+種（.+）$/.test(c.skip), 'C132A4 追加しないものがあれば「追加しないもの M種（内訳）」', c.skip);
-		await p.click('[data-usd-el="recommend-confirm-cancel"]');
-		assert((await draftIds(p)).join() === before.join(), 'C132A4 「やめる」で何も変わらない', await draftIds(p));
-		const u0 = await p.evaluate(() => UmaSkillDeckCore.undoCount ? UmaSkillDeckCore.undoCount() : null);
-		await p.click(T + '[data-usd-el="recommend-btn"]');
-		await p.click('[data-usd-el="recommend-confirm-add"]');
-		await p.waitForTimeout(200);
-		const after = await draftIds(p);
-		const u1 = await p.evaluate(() => UmaSkillDeckCore.undoCount ? UmaSkillDeckCore.undoCount() : null);
-		assert(c.rows.every((x) => after.includes(x.id)) && after.length === before.length + c.n, 'C132A4 「追加する」で、小窓に出たスキルがすべて追加される', { n: c.n, after: after.length });
-		assert(u0 === null || u1 === u0 + 1, 'C132A4 「元に戻す」に1回で積む', { u0, u1 });
-		// 0種: もう一度押すと、追加済みなので小窓は出ずに知らせだけ
-		await p.click(T + '[data-usd-el="recommend-btn"]');
-		await p.waitForTimeout(300);
-		const z = await p.evaluate(() => ({ list: !!document.querySelector('[data-usd-el="recommend-confirm-list"]') && !document.querySelector('.usd-info-pop').hidden, toast: document.getElementById('toast-message').textContent }));
-		assert(!z.list && /^追加できるスキルはありません/.test(z.toast), 'C132A4 追加できるものが0種なら、小窓は出さずに知らせだけ', z);
-		assert(jsErrors(sp.errors).length === 0, 'C132A4 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
-		await sp.ctx.close();
-	});
-
-	await block('C132A5 パレットの行の並びは「削除」→「サポカ外」（C-163）→ 脚質のボタン → アイコン（◎○△◇★✕）。始まりは左端で、収まらないぶんは右へ送る／脚質が指定なしなら脚質のボタンは無い', async () => {
-		const sp = await openSp({ ids: LONG.slice(0, 2) });
-		const p = sp.page;
-		await p.waitForSelector(T + '[data-usd-el="recommend-btn"]');
-		const r = await p.evaluate(() => {
-			const pal = document.querySelector('#deck-template-panel .usd-palette');
-			const kids = Array.from(pal.children).filter((c) => !c.classList.contains('usd-palette-sep')).map((c) => c.getAttribute('data-usd-el'));
-			return { kids, left: pal.scrollLeft, over: pal.scrollWidth > pal.clientWidth, ox: getComputedStyle(pal).overflowX };
-		});
-		assert(r.kids[0] === 'palette-delete' && r.kids[1] === 'outside-skill-btn' && r.kids[2] === 'recommend-btn' && r.kids.slice(3).every((k) => /^palette-[a-f]$/.test(k)) && r.kids.length === 9, 'C132A5 並びは 削除・サポカ外（C-163）・脚質のボタン・アイコン6つ', r.kids);
-		assert(r.left === 0 && r.ox === 'auto', 'C132A5 始まりは左端で、横に送れる', r);
-		await sp.ctx.close();
-		const sp2 = await openSp({ ids: LONG.slice(0, 2), roster: Object.assign({}, FULL, { skillFilter: { distance: 'medium', surface: 'turf' } }) });
-		const k2 = await sp2.page.evaluate(() => Array.from(document.querySelector('#deck-template-panel .usd-palette').children).filter((c) => !c.classList.contains('usd-palette-sep')).map((c) => c.getAttribute('data-usd-el')));
-		assert(k2[0] === 'palette-delete' && k2[1] === 'outside-skill-btn' && !k2.includes('recommend-btn') && /^palette-[a-f]$/.test(k2[2]), 'C132A5 脚質が指定なしなら、「サポカ外」（C-163）の次はアイコン', k2);
-		await sp2.ctx.close();
+	// C132A4（「逃げオススメ」「先差追オススメ」の確認の小窓）は、2026-10-21 にパレットのボタンごと廃止した（入口の「脚質オススメ」の小窓。検査は blocks-43.mjs の C-184）。
+	await block('C132A5 パレットの行の並びは「削除」→ アイコン（◎○△◇★✕）の7つ（2026-10-21 に「サポカ外」と脚質のボタンを外した）。始まりは左端で、横に送れる／脚質が指定でも変わらない', async () => {
+		for (const roster of [FULL, Object.assign({}, FULL, { skillFilter: { distance: 'medium', surface: 'turf' } })]) {
+			const sp = await openSp({ ids: LONG.slice(0, 2), roster: roster });
+			const p = sp.page;
+			const r = await p.evaluate(() => {
+				const pal = document.querySelector('#deck-template-panel .usd-palette');
+				const kids = Array.from(pal.children).filter((c) => !c.classList.contains('usd-palette-sep')).map((c) => c.getAttribute('data-usd-el'));
+				return { kids, left: pal.scrollLeft, ox: getComputedStyle(pal).overflowX };
+			});
+			assert(r.kids[0] === 'palette-delete' && r.kids.slice(1).every((k) => /^palette-[a-f]$/.test(k)) && r.kids.length === 7, 'C132A5 並びは 削除・アイコン6つ（脚質のボタン・サポカ外は無い）', r.kids);
+			assert(r.left === 0 && r.ox === 'auto', 'C132A5 始まりは左端で、横に送れる', r);
+			await sp.ctx.close();
+		}
 	});
 
 	/* ====================================================================

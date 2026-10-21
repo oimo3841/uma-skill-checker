@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-21a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-21b';
 
 	/* ============================================================
 	 * 定数
@@ -95,10 +95,10 @@
 		// スキルの効果量の段階（C-129・2026-10-06）。説明文の効果の大きさを表す語から決めた段階。「低効果を除外」とオススメサポの「低効果」が使う。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadSkillEffectLevels）
 		'data/skill-effect-levels.json': '2026-10-17a',
-		// ②にまとめて追加するスキルのグループ（C-130・2026-10-06）。レースを選んだときの既定の追加と、②のパレットの行のボタンが使う。
+		// 脚質オススメの小窓が使うスキル（C-130・2026-10-06。2026-10-21 に項目＋脚質の形へ）。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadRecommendedSkills）
 		// C-131: 同じものとして扱うスキルの組（equivalentPairs）を足した
-		'data/recommended-skills.json': '2026-10-07a',
+		'data/recommended-skills.json': '2026-10-21a',
 		// 育成ウマ娘のイベントで得られるスキル（段1・2026-10-11）。受け入れだけで、画面と計算はまだ使わない。TRAINING_SOURCES の5本目
 		'data/training-event-skills.json': '2026-10-17f',
 		// スキルの進化の対応（段2・2026-10-12。C-145・C-146）。受け入れだけで、画面と計算はまだ使わない。ページの読み込みでは取りに行かない（loadSkillEvolutions）
@@ -4214,45 +4214,27 @@
 		return normalizeRaceRow(r && r.race);
 	}
 	/**
-	 * レースを選んだときに②へ自動で入れたスキルの id（C-130・B。roster.raceAutoSkillIds）。レースを変えたとき・「指定なし」に戻したときに、
-	 * このうち②にあるものを外してから新しいレースのぶんを入れる（手で追加したものは外さない）。触ったときだけ書く・空なら項目ごと消す・
-	 * schemaVersion は上げない・読み込み時に補わない（ルール28）。形が崩れた値は読まない（保存値は書き換えない）。
-	 */
-	function raceAutoIdsOf(r) {
-		const v = (r && Array.isArray(r.raceAutoSkillIds)) ? r.raceAutoSkillIds : [];
-		return v.filter((id, i) => typeof id === 'string' && id && v.indexOf(id) === i);
-	}
-	/**
-	 * レースを選んだときに②へ入れる候補（C-130・B。追加できるかどうか〔②にある・本育成で得る・レース条件に合わない〕は呼び出し側で見る）。
+	 * 脚質オススメの「緑スキル（レース条件）」の候補（追加できるかどうか〔②にある・本育成で得る・レース条件に合わない〕は呼び出し側で見る）。
 	 *   (1) 回り … レースの回り（direction）の値を、レース環境のタグに持つスキル
 	 *   (2) 季節 … レースの季節（season）の値を、レース環境のタグに持つスキル（季節の値が無いレースでは入れない）
 	 *   (2b) コースの形 … 小回り・直線コース（data/course-conditions.json）のタグを持つスキルのうち、レースのレース場・バ場・距離が表に当たるもの
-	 *        （3つそろっていないレースでは入れない。C-156）。回り・季節と同じく、顔ぶれの白スキルからタグで選ぶ
-	 *   (3) レースに「デバフなし」の特殊ルール（RACE_RULES の、効果タイプのデバフを外すもの）が無ければ、グループ RECOMMENDED_RACE_EXTRA_GROUP
-	 * (1)(2) は追加の一覧と同じ顔ぶれ（taggedSkillPool）の白スキル（Pt 未収録で区分が不明なものも含む。金スキルは入れない）から、タグで選ぶ
-	 * （**スキル名は見ない**）。(3) はグループの onlyWhenRaceDistanceClass も見る。並びは (1)(2) が顔ぶれの順、(3) がグループの順。
+	 *        （3つそろっていないレースでは入れない。C-156）
+	 *   (4) レース場 … レースのレース場の値を、レース場のタグ（trackVenue）に持つスキル
+	 * 追加の一覧と同じ顔ぶれ（taggedSkillPool）の白スキルから、タグで選ぶ（**スキル名は見ない**）。並びは顔ぶれの順。
 	 */
-	function raceAutoCandidateIds(race) {
+	function raceConditionSkillIds(race) {
 		const out = [];
 		if (!race) return out;
 		const pt = skillPtData.skillPt instanceof Map ? skillPtData.skillPt : null;
 		const isWhite = (id) => { const row = pt ? pt.get(id) : null; return !row || row.rarity === 'white'; };
-		const push = (id) => { if (out.indexOf(id) === -1) out.push(id); };
-		['direction', 'season'].forEach(f => {
-			const v = race[f];
-			if (!v) return;
-			taggedSkillPool().forEach(s => { if (isWhite(s.id) && ((s.tags && s.tags.environment) || []).indexOf(v) !== -1) push(s.id); });
+		const want = new Set();
+		['direction', 'season'].forEach(f => { if (race[f]) want.add(race[f]); });
+		if (courseConditions) courseConditions.forEach((tracks, key) => { if (raceCourseMatches(key, race) === true) want.add(key); });
+		taggedSkillPool().forEach(s => {
+			if (!isWhite(s.id) || out.indexOf(s.id) !== -1) return;
+			const tags = s.tags || {};
+			if ((tags.environment || []).some(x => want.has(x)) || (race.venue && (tags.trackVenue || []).indexOf(race.venue) !== -1)) out.push(s.id);
 		});
-		if (courseConditions) {
-			courseConditions.forEach((tracks, key) => {
-				if (raceCourseMatches(key, race) !== true) return;
-				taggedSkillPool().forEach(s => { if (isWhite(s.id) && ((s.tags && s.tags.environment) || []).indexOf(key) !== -1) push(s.id); });
-			});
-		}
-		const rule = race.rule ? RACE_RULES[race.rule] : null;
-		const noDebuff = !!rule && rule.axis === 'effect' && rule.value === 'debuff';
-		const g = noDebuff ? null : recommendedGroupOf(RECOMMENDED_RACE_EXTRA_GROUP);
-		if (g) g.skills.forEach(e => { if (recommendedRaceOk(e, race)) push(e.skillId); });
 		return out;
 	}
 	/**
@@ -5098,6 +5080,34 @@
 		// 変数（--usd-skill-unique-*）は①の行と同じもの（:root に置いた）。黒は --usd-rarity-ssr-text（淡い3色の上で 4.5 以上。ダークでは同じ名前を差し替える）
 		'.uma-btn.usd-outside-entry { background: linear-gradient(90deg, var(--usd-skill-unique-from), var(--usd-skill-unique-mid), var(--usd-skill-unique-to)); color: var(--usd-rarity-ssr-text); border-color: var(--usd-skill-unique-edge); box-shadow: var(--uma-shadow-1); }',
 		'.uma-btn.usd-outside-entry:hover:not(:disabled) { filter: brightness(0.97); }',
+		// 入口のボタン「脚質オススメ」（2026-10-21）。オススメサポ（濃い面）と同じ系統で、縁を虹色・内側を淡い虹色にする（オススメサポより内側を淡くして、強弱で見分ける）。
+		// 縁は 2px。入口の列の高さを変えないよう、縦の余白を 1px 減らす。文字色はオススメサポと同じ変数（ライトは黒・ダークは明るい色）
+		'.usd-entry-row > .uma-btn.usd-style-entry { padding-block: calc(var(--uma-sp-1-5) - 1px); border: 2px solid transparent; color: var(--usd-rarity-ssr-text);',
+		'  background: linear-gradient(90deg, var(--usd-style-from), var(--usd-style-mid), var(--usd-style-to)) padding-box,',
+		'    linear-gradient(90deg, var(--usd-rarity-ssr-1), var(--usd-rarity-ssr-2), var(--usd-rarity-sr-1), var(--usd-rarity-ssr-3), var(--usd-rarity-ssr-4), var(--usd-rarity-ssr-5)) border-box; }',
+		'.usd-entry-row > .uma-btn.usd-style-entry:hover:not(:disabled) { filter: brightness(0.97); }',
+		':root { --usd-style-from: #f4fbf5; --usd-style-mid: #f2f8fd; --usd-style-to: #fdf4fa; }',
+		':root[data-theme="dark"] { --usd-style-from: #0f1a14; --usd-style-mid: #0e1620; --usd-style-to: #1c121a; }',
+		// 脚質オススメの小窓。器はオススメサポと同じ（.usd-modal / .usd-modal-panel / .usd-out-head / .usd-out-body / .usd-modal-foot）。上に固定＝.usd-sty-top、リストだけ縦に送る、下に固定＝.usd-modal-foot
+		'.usd-sty-top { flex-shrink: 0; display: flex; flex-direction: column; gap: var(--uma-sp-1-5); padding: var(--uma-sp-2) var(--uma-sp-4); border-bottom: 1px solid var(--uma-border); }',
+		'.usd-sty-pick { display: flex; align-items: center; flex-wrap: wrap; gap: var(--uma-sp-2); min-width: 0; }',
+		'.usd-sty-racebtn { flex: 1 1 150px; min-width: 0; max-width: 280px; height: 32px; justify-content: space-between; }',
+		'.usd-sty-styles { flex: none; }',
+		'.usd-sty-stylebtn { height: 32px; padding: 0 var(--uma-sp-2-5); }',
+		'.usd-sty-sync { margin: 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		'.usd-sty-body { flex: 1 1 auto; padding-top: var(--uma-sp-2); }',
+		'.usd-sty-sec + .usd-sty-sec { margin-top: var(--uma-sp-3); }',
+		'.usd-sty-sech { margin: 0 0 var(--uma-sp-1); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 700; color: var(--uma-text-heading); }',
+		'.usd-sty-secnote { margin: 0; padding: var(--uma-sp-1) 0; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
+		// 390px 以上は2列（長い名前は折り返す）、360px 以下は1列
+		'.usd-sty-grid { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: var(--uma-sp-3); }',
+		'@media (min-width: 390px) { .usd-sty-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }',
+		'.usd-sty-row { display: flex; align-items: center; gap: var(--uma-sp-1); min-width: 0; min-height: 44px; border-bottom: 1px solid var(--uma-surface-muted); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); }',
+		'.usd-sty-check { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: calc(var(--uma-sp-3) * -1); cursor: pointer; }',
+		'.usd-sty-check input { width: 18px; height: 18px; margin: 0; }',
+		'.usd-sty-row .usd-sty-name { flex: 1 1 auto; min-width: 0; text-align: left; overflow-wrap: anywhere; font-weight: 400; font-size: inherit; line-height: inherit; }',
+		'.usd-sty-pt { flex: none; margin-left: auto; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-variant-numeric: tabular-nums; color: var(--uma-text-subtle); white-space: nowrap; }',
+		'.usd-sty-row--gray .usd-sty-name, .usd-sty-row--gray .usd-sty-pt { color: var(--uma-text-faint); }',
 		':root { --usd-rarity-ssr-text: #000000; --usd-rarity-ssr-1: #e5384f; --usd-rarity-ssr-2: #f08a1c; --usd-rarity-ssr-3: #7cb518; --usd-rarity-ssr-4: #1d8fe0; --usd-rarity-ssr-5: #8b5cf6; --usd-rarity-sr-1: #e3b23c; --usd-rarity-sr-2: #b8860b;',
 		// 固有スキルの行の色（段7e の (2)〜(6)）。①の表と、入口の「オススメサポ」のボタンが同じ変数を読むので :root に置く（段7・2026-10-04 に .usd-roster-grid から移した。値は変えていない）
 		'  --usd-skill-unique-from: #e3f6e6; --usd-skill-unique-mid: #dff1fb; --usd-skill-unique-to: #fbe3f1; --usd-skill-unique-edge: #f0a8d0; }',
@@ -6237,20 +6247,6 @@
 		'.usd-skillgroup--delete .usd-panel-namebtn { text-decoration-line: line-through; text-decoration-color: var(--usd-delete-line); }',
 		'.usd-palette-del { display: inline-flex; align-items: center; gap: 3px; }',
 		// C-132: 「逃げオススメ」「先差追オススメ」の確認の小窓（追加するスキルの名前と Pt・追加しないものの内訳・ボタン2つ）
-		'.usd-rec-head { font-weight: 700; color: var(--uma-text-heading); }',
-		'.usd-rec-list { list-style: none; margin: var(--uma-sp-1) 0 0; padding: 0; max-height: 40vh; max-height: 40dvh; overflow-y: auto; border-top: 1px solid var(--uma-border); }',
-		'.usd-rec-item { display: flex; justify-content: space-between; gap: var(--uma-sp-2); padding: var(--uma-sp-1) 0; border-bottom: 1px solid var(--uma-border); }',
-		'.usd-rec-name { min-width: 0; overflow-wrap: anywhere; font-weight: 600; color: var(--uma-text); }',
-		'.usd-rec-pt { flex: none; white-space: nowrap; color: var(--uma-text-subtle); font-variant-numeric: tabular-nums; }',
-		'.usd-rec-skip { margin-top: var(--uma-sp-2); color: var(--uma-text-muted); }',
-		// 作業3: 「サポカ外」の確認の小窓の、追加するかを選ぶチェックと、公式の説明文（小さな灰色の文字。折り返す）。チェックの押す場所は44px以上
-		'.usd-rec-item--sel { align-items: flex-start; gap: var(--uma-sp-1); }',
-		'.usd-rec-check { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; min-height: 44px; margin: calc(var(--uma-sp-1) * -1) 0 calc(var(--uma-sp-1) * -1) calc(var(--uma-sp-2) * -1); cursor: pointer; }',
-		'.usd-rec-check input { width: 18px; height: 18px; margin: 0; }',
-		'.usd-rec-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }',
-		'.usd-rec-desc { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-muted); overflow-wrap: anywhere; }',
-		'.usd-rec-item--off .usd-rec-name, .usd-rec-item--off .usd-rec-pt { color: var(--uma-text-faint); }',
-		'.usd-rec-ops { display: flex; justify-content: flex-end; gap: var(--uma-sp-2); margin-top: var(--uma-sp-3); }',
 		'.usd-palette-del[aria-pressed="true"] { color: var(--usd-delete-line, var(--uma-danger-text)); border-color: var(--usd-delete-line, var(--uma-danger-text)); }',
 		'.usd-reset-ops { display: flex; flex-direction: column; gap: 8px; }',
 		'.usd-reset-ops .uma-btn { width: 100%; justify-content: center; }',
@@ -8556,39 +8552,44 @@
 	}
 
 	/* ------------------------------------------------------------
-	 * ②にまとめて追加するスキルのグループ（C-130・2026-10-06。data/recommended-skills.json）
-	 * groups: [{ key, label, skills: [{ skillId, name, onlyWhenRaceDistanceClass? }] }]。**スキル名・ボタンの文字はコードに書かない**（データから読む）。
-	 *   RECOMMENDED_RACE_EXTRA_GROUP … レースを選んだとき、そのレースに「デバフなし」の特殊ルールが無ければ足すグループ
-	 *   RECOMMENDED_GROUP_FOR_STYLE  … ②のパレットの行のボタン。①の脚質（タグの値）→ グループ（指定なしはボタンを出さない）
-	 * onlyWhenRaceDistanceClass を持つスキルは、レースが選ばれていて、その距離の区分（race-distances.json の区分のキー）が一覧に含まれるときだけ足す。
-	 * ページの読み込みでは取りに行かず、最初に必要になったとき（セットのレースを選んだとき・②のパレットの行が見えたとき）に1回だけ読む
+	 * 脚質オススメが使うスキル（C-130・2026-10-06。2026-10-21 に項目＋脚質の形へ。data/recommended-skills.json）
+	 * sections: [{ key, label, source? }]（小窓の項目の並び。source を持つ項目は小窓がそのとき計算して出す）
+	 * skills: [{ skillId, section, styles?, onlyWhenRaceDistanceClass? }]。**スキル名・項目名・脚質ごとの対応はコードに書かない**（データから読む）。
+	 *   styles … ON にする脚質（タグの脚質の値）。無ければ脚質に関わらず ON
+	 *   RECOMMENDED_SOURCE_RACE … 選んだレースの条件で決まる緑スキル（raceConditionSkillIds）／ RECOMMENDED_SOURCE_NONSUPPORT … サポカ外（non-support-skills.json）
+	 * onlyWhenRaceDistanceClass を持つスキルは、そのレース（レースが無ければ①の距離）の距離の区分（race-distances.json の区分のキー）が一覧に含まれるときだけ ON。
+	 * ページの読み込みでは取りに行かず、最初に必要になったとき（脚質オススメ・追加の一覧・オススメサポを開いたとき）に1回だけ読む
 	 * （失敗したら次に必要になったときにもう一度試す）。
 	 * ------------------------------------------------------------ */
 	const RECOMMENDED_SKILLS_PATH = 'data/recommended-skills.json';
-	const RECOMMENDED_RACE_EXTRA_GROUP = 'noDebuffExtra';
-	const RECOMMENDED_GROUP_FOR_STYLE = { nige: 'runnerEscape', senko: 'runnerNotEscape', sashi: 'runnerNotEscape', oikomi: 'runnerNotEscape' };
+	const RECOMMENDED_SOURCE_RACE = 'raceCondition';
+	const RECOMMENDED_SOURCE_NONSUPPORT = 'nonSupport';
 	const RECOMMENDED_FAILED_MSG = 'オススメのスキルのデータを読み込めませんでした';
-	let recommendedState = { status: 'idle', groups: null, pairs: null, promise: null };   // idle／loading／ok／failed
+	let recommendedState = { status: 'idle', sections: null, skills: null, pairs: null, promise: null };   // idle／loading／ok／failed
 	const recommendedListeners = [];
 	function loadRecommendedSkills() {
 		if (recommendedState.status === 'ok' || recommendedState.status === 'loading') return recommendedState.promise;
-		const st = { status: 'loading', groups: null, pairs: null, promise: null };
+		const st = { status: 'loading', sections: null, skills: null, pairs: null, promise: null };
 		recommendedState = st;
 		st.promise = (async () => {
 			try {
 				const doc = await fetchMasterJson(withDataVersion(RECOMMENDED_SKILLS_PATH), false);
-				const map = new Map();
-				((doc && doc.groups) || []).forEach(g => {
-					if (!g || typeof g.key !== 'string' || !g.key || typeof g.label !== 'string' || !g.label || !Array.isArray(g.skills)) return;
-					const skills = [];
-					g.skills.forEach(s => {
-						if (!s || typeof s.skillId !== 'string' || !s.skillId || skills.some(x => x.skillId === s.skillId)) return;
-						const only = Array.isArray(s.onlyWhenRaceDistanceClass) ? s.onlyWhenRaceDistanceClass.filter(v => typeof v === 'string' && v) : null;
-						skills.push({ skillId: s.skillId, onlyWhenRaceDistanceClass: only });
-					});
-					map.set(g.key, { key: g.key, label: g.label, skills: skills });
+				const sections = [];
+				((doc && doc.sections) || []).forEach(s => {
+					if (!s || typeof s.key !== 'string' || !s.key || typeof s.label !== 'string' || !s.label || sections.some(x => x.key === s.key)) return;
+					const source = s.source === RECOMMENDED_SOURCE_RACE || s.source === RECOMMENDED_SOURCE_NONSUPPORT ? s.source : null;
+					sections.push({ key: s.key, label: s.label, source: source });
 				});
-				if (map.size === 0) throw new Error('empty');
+				if (sections.length === 0) throw new Error('empty');
+				const skills = [];
+				((doc && doc.skills) || []).forEach(s => {
+					if (!s || typeof s.skillId !== 'string' || !s.skillId || skills.some(x => x.skillId === s.skillId)) return;
+					if (typeof s.section !== 'string' || !sections.some(x => x.key === s.section && !x.source)) return;
+					const only = Array.isArray(s.onlyWhenRaceDistanceClass) ? s.onlyWhenRaceDistanceClass.filter(v => typeof v === 'string' && v) : null;
+					const styles = Array.isArray(s.styles) ? s.styles.filter(v => typeof v === 'string' && v) : null;
+					skills.push({ skillId: s.skillId, section: s.section, styles: styles && styles.length > 0 ? styles : null, onlyWhenRaceDistanceClass: only && only.length > 0 ? only : null });
+				});
+				if (skills.length === 0) throw new Error('empty');
 				// C-131: 同じものとして扱うスキルの組（equivalentPairs）。id → 組の相手の id の一覧。形が崩れた組は読まない
 				const pairs = new Map();
 				((doc && Array.isArray(doc.equivalentPairs)) ? doc.equivalentPairs : []).forEach(p => {
@@ -8597,7 +8598,8 @@
 					ids.forEach((id, i) => { const other = ids[1 - i]; if (!pairs.has(id)) pairs.set(id, []); if (pairs.get(id).indexOf(other) === -1) pairs.get(id).push(other); });
 				});
 				st.pairs = pairs;
-				st.groups = map;
+				st.sections = sections;
+				st.skills = skills;
 				st.status = 'ok';
 			} catch (e) { st.status = 'failed'; }
 			recommendedListeners.forEach(fn => { try { fn(st.status); } catch (e2) { /* 1つの画面の不具合でほかを止めない */ } });
@@ -8607,7 +8609,7 @@
 	}
 	/**
 	 * 同じものとして扱うスキルの組の相手（C-131。目覚めと、対応するスキル）。データが読めていなければ空（組を使わない＝今までの動き）。
-	 * 使うところ: ①の本育成で得るスキル（②の追加の一覧・レース選択の自動追加・脚質のボタン・オススメサポの母集団）と、オススメサポの追加済みの数え方
+	 * 使うところ: ①の本育成で得るスキル（②の追加の一覧・脚質オススメ・オススメサポの母集団）と、オススメサポの追加済みの数え方
 	 */
 	function equivalentPartnersOf(id) {
 		const st = recommendedState;
@@ -8622,9 +8624,10 @@
 		});
 		return out;
 	}
-	/** グループ（読めていなければ null） */
-	function recommendedGroupOf(key) {
-		return recommendedState.status === 'ok' ? (recommendedState.groups.get(key) || null) : null;
+	/** ①の脚質の選択肢（タグの脚質の値と表示名。並びはタグの選択肢の並び） */
+	function styleAxisOptions() {
+		const axis = TAG_AXES.find(a => a.key === 'style');
+		return axis ? pickableOptions(axis) : [];
 	}
 	/** レースの距離の区分のキー（distanceCategory。無ければ距離から決める。どちらも無ければ null） */
 	function raceDistanceClassOf(race) {
@@ -8632,12 +8635,6 @@
 		if (race.distanceCategory) return race.distanceCategory;
 		const c = race.distance ? categoryOfDistance(race.distance) : null;
 		return c ? c.key : null;
-	}
-	/** onlyWhenRaceDistanceClass に合うか（持たないスキルは常に合う。持つスキルは、レースがあって区分が一覧に含まれるときだけ） */
-	function recommendedRaceOk(entry, race) {
-		if (!entry.onlyWhenRaceDistanceClass) return true;
-		const cls = raceDistanceClassOf(race);
-		return !!cls && entry.onlyWhenRaceDistanceClass.indexOf(cls) !== -1;
 	}
 
 	/* ------------------------------------------------------------
@@ -11259,16 +11256,16 @@
 			return true;
 		};
 		/**
-		 * レースを選んだときに②へ自動で入れたスキルの記録（C-130・B。roster.raceAutoSkillIds）。空なら項目ごと消す。中身が変わらなければ書かない。
-		 * ①の表には効かないので、①は描き直さない。
+		 * 脚質（①の絞り込みの脚質。脚質オススメの小窓から書く）。value は脚質のタグの値か ''（指定なし＝項目を消す）。①の「脚質」のセレクトを変えたときと同じ保存・描き直し
+		 * （setFilter → render）。元に戻すには積まない（①の絞り込みと同じ）。知らない値は書かない・変わらない値は何もしない
 		 */
-		rosterOutsideSink.setRaceAuto = function (ids) {
-			const next = raceAutoIdsOf({ raceAutoSkillIds: Array.isArray(ids) ? ids : [] });
-			const had = roster.raceAutoSkillIds !== undefined;
-			if (had && JSON.stringify(roster.raceAutoSkillIds) === JSON.stringify(next) && next.length > 0) return true;
-			if (!had && next.length === 0) return true;
-			if (next.length === 0) delete roster.raceAutoSkillIds; else roster.raceAutoSkillIds = next;
-			persistNow();
+		rosterOutsideSink.setStyle = function (value) {
+			const v = typeof value === 'string' ? value : '';
+			if (v && !styleAxisOptions().some(o => o.v === v)) return false;
+			const now = roster.skillFilter && typeof roster.skillFilter === 'object' && typeof roster.skillFilter.style === 'string' ? roster.skillFilter.style : '';
+			if (now === v) return true;
+			setFilter('style', v);
+			render();
 			return true;
 		};
 		/**
@@ -11521,6 +11518,9 @@
 						// 「オススメサポ」（本育成サポカ外スキル。special の②だけ）。入口列の先頭・濃色の塗り（小窓の「追加」と同じ）で、ほかの入口と見分ける
 						(setBased ? '<button type="button" class="uma-btn usd-outside-entry" data-usd-act="outside-open" data-usd-el="outside-open" aria-haspopup="dialog">' +
 							'<i data-lucide="sparkles" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> オススメサポ</button>' : '') +
+							// 「脚質オススメ」（2026-10-21。special の②だけ）。オススメサポの直後。縁を虹色・内側を淡い虹色にして、オススメサポ（濃い面）より弱く、ほかの入口より目立たせる
+							(setBased ? '<button type="button" class="uma-btn usd-style-entry" data-usd-act="style-open" data-usd-el="style-open" aria-haspopup="dialog">' +
+								'<i data-lucide="flag" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 脚質オススメ</button>' : '') +
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
 							'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件で検索' +
 						'</button>' +
@@ -11628,9 +11628,8 @@
 		// 編成パネル（①）が描き直したとき、必要Ptも描き直す（本育成のぶんが変わるため）。段5
 		// 編成（①）が変わったら、必要Ptと「本育成編成」の重なり・追加の一覧のグレーアウトも描き直す（段7の E・旧5。モーダルが開いたままでも映す）
 		rosterPtListeners.push(function () { if (!container.isConnected) return; renderPtNeed(); renderRosterLink(); applyRosterHidden(); if (setBased) { renderSetBar(); renderSelectedList(); } });
-		// C-130・C: グループのデータを読めたら、パレットの行のボタンを出す
 		// C-131: 同じものとして扱うスキルの組も読めたので、選べなくするスキルを組み直す（開いている一覧はここで描き直る）
-		recommendedListeners.push(function (st) { if (st !== 'ok' || !container.isConnected || !setBased) return; applyRosterHidden(); renderPalette(); });
+		recommendedListeners.push(function (st) { if (st !== 'ok' || !container.isConnected || !setBased) return; applyRosterHidden(); });
 		onSkillPtLoaded(function () { if (!container.isConnected || !grouped) return; renderTabs(); renderSelectedList(); });
 
 		// C-132: 削除の状態では、タイルのどこを押しても（アイコン・名前を含む）そのスキルを②から外す（今までの ✕ と同じ処理。「元に戻す」に積む）。
@@ -11690,11 +11689,10 @@
 			else if (act === 'pt-total-help') openPtTotalPopover(btn);
 			// 段9: アイコンのパレットと、行の先頭のアイコン
 			else if (act === 'palette-pick') pickPalette(btn.dataset.icon);
-			else if (act === 'recommend-add') { if (!btn.disabled) confirmRecommendedGroup(btn.dataset.group, btn); }   // C-130・C（C-132 で確認の小窓を挟んだ）
-			else if (act === 'outside-skill-add') confirmOutsideSkills(btn);   // C-163
 			else if (act === 'skill-icon') toggleSkillIcon(btn.dataset.skillId);
 			else if (act === 'factor-reset') openFactorResetPopover(btn);
 			else if (act === 'outside-open') openOutsideAdvisor(btn);
+			else if (act === 'style-open') openStyleAdvisor(btn);
 			else if (act === 'roster-link') openRosterLinkPopover(btn);
 			// 段8: 共通の見出しの帯
 			else if (act === 'set-list') openPopover({ key: 'set-list:' + draftScopeKey, title: 'セット', build: fillSetList, btn: btn, opener: btn, refocus: '[data-usd-act="set-list"]' });
@@ -12083,7 +12081,7 @@
 		 * セットが持っているレースが一覧に無い（一覧から外れた・一覧が読めない）ときは、その行を「指定なし」の次に出し、「（一覧から外れました）」と添える。
 		 * 選ぶと①の roster に書く（rosterOutsideSink.setRace。①が空のセットなら編成が作られる）。
 		 */
-		function fillRaceList(body) {
+		function fillRaceList(body, onPicked) {
 			const cur = rosterOutsideSink ? raceOfRoster(rosterOutsideSink.getRoster()) : null;
 			const list = upcomingRaces || [];
 			const items = [{ row: null, key: '' }];
@@ -12107,7 +12105,8 @@
 				input.addEventListener('change', () => {
 					if (!input.checked || !rosterOutsideSink) return;
 					closeSkillInfo();
-					pickRaceForSet(o.row);   // C-130・B: ②への既定の追加も
+					rosterOutsideSink.setRace(o.row);   // 2026-10-21: ②へは自動で足さない（足したいときは入口の「脚質オススメ」）
+					if (typeof onPicked === 'function') onPicked();
 				});
 				lab.appendChild(input);
 				const txt = infoEl('span', 'usd-race-txt');
@@ -12124,67 +12123,9 @@
 			});
 			body.appendChild(group);
 		}
-		/**
-		 * セットのレースを選んだとき（C-130・B）。「指定なし」から選んだとき・別のレースに変えたとき・「指定なし」に戻したときだけ、②を書き換える
-		 * （ページの読み込み・保存済みのセットの読み込みでは何も書かない＝ここは選択欄の操作からだけ呼ぶ）。
-		 * 前に自動で入れたもの（roster.raceAutoSkillIds）のうち、いま②にあるものを外してから、新しいレースのぶん（raceAutoCandidateIds）のうち
-		 * 追加できるもの（②に無い・本育成で得ない・レース条件に合う）を入れる。手で追加したものは外さない。「元に戻す」に1回で積む。
-		 * レースを選んだときは、グループのデータを先に読む（読めなければ②は何も変えず、短い知らせを出す）。
-		 */
-		async function pickRaceForSet(row) {
-			if (!rosterOutsideSink) return;
-			const target = currentTarget();
-			const prevRace = raceOfRoster(rosterOutsideSink.getRoster());
-			if (!rosterOutsideSink.setRace(row)) return;
-			const nextRace = raceOfRoster(rosterOutsideSink.getRoster());
-			if (JSON.stringify(prevRace) === JSON.stringify(nextRace)) return;
-			if (nextRace) {
-				const st = await loadRecommendedSkills();
-				if (!sameTarget(target, currentTarget()) || JSON.stringify(raceOfRoster(rosterOutsideSink.getRoster())) !== JSON.stringify(nextRace)) return;
-				if (st !== 'ok') { toast(RECOMMENDED_FAILED_MSG, 'warn'); return; }
-			}
-			applyRaceAutoSkills(target, nextRace);
-		}
 		function sameTarget(a, b) {
 			if (!a || !b || a.kind !== b.kind) return false;
 			return a.kind === 'draft' || (a.obj && b.obj && a.obj.templateId === b.obj.templateId);
-		}
-		function applyRaceAutoSkills(target, race) {
-			const ids = skillIdsOf(target);
-			if (!ids || !rosterOutsideSink) return;
-			applyRosterHidden();   // 本育成で得るもの・レース条件（新しいレース）を、いまの①に合わせる
-			const record = raceAutoIdsOf(rosterOutsideSink.getRoster());
-			const inList = record.filter(id => ids.indexOf(id) !== -1);
-			const rest = ids.filter(id => inList.indexOf(id) === -1);
-			const want = raceAutoCandidateIds(race).filter(id => rest.indexOf(id) === -1 && !isPickerBlocked(id));
-			// 前のレースでも新しいレースでも入るものは、外さずにそのまま残す（記録にも残す）。知らせの数は、実際に外した・足したものだけ
-			const keep = inList.filter(id => want.indexOf(id) !== -1);
-			const drop = inList.filter(id => keep.indexOf(id) === -1);
-			const add = want.filter(id => keep.indexOf(id) === -1);
-			if (drop.length === 0 && add.length === 0) { rosterOutsideSink.setRaceAuto(keep); return; }
-			const prev = snapshot(ids);
-			const prevIcons = snapshot(iconsOf(target));
-			const prevTiers = snapshot(tiersOf(target));
-			pushUndo({
-				scope: 'list',
-				doneLabel: 'レースに合わせて' + (add.length > 0 ? add.length + '種を追加しました' + (drop.length > 0 ? '（' + drop.length + '種を外しました）' : '') : drop.length + '種を外しました'),
-				undoneLabel: 'レースに合わせた追加を取り消しました',
-				probe: () => probeOf(skillIdsOf(target)),
-				apply: () => {
-					if (!writeSkillIds(target, snapshot(prev), snapshot(prevTiers), snapshot(prevIcons))) return false;
-					if (rosterOutsideSink && sameTarget(target, currentTarget())) rosterOutsideSink.setRaceAuto(record);
-					picker.excludeIds = picker.excludeIds.filter(id => add.indexOf(id) === -1).concat(drop.filter(id => picker.excludeIds.indexOf(id) === -1));
-					afterEditingSkillsChanged(target);
-					return true;
-				}
-			});
-			const nextIcons = iconsOf(target);
-			drop.forEach(id => { delete nextIcons[id]; });
-			const next = ids.filter(id => drop.indexOf(id) === -1).concat(add);
-			if (!writeSkillIds(target, next, tiersWithout(prevTiers, drop), nextIcons)) return;
-			rosterOutsideSink.setRaceAuto(keep.concat(add));
-			picker.excludeIds = picker.excludeIds.filter(id => drop.indexOf(id) === -1).concat(add.filter(id => picker.excludeIds.indexOf(id) === -1));
-			afterAutoAdd(target);
 		}
 		/** セットの一覧の小窓（ラジオで切り替え・＋新規・選んだセットの削除） */
 		function fillSetList(body) {
@@ -13495,7 +13436,8 @@
 				+ ' aria-label="' + esc(name + 'のアイコン：' + (ic ? ic.mark : 'なし')) + '" title="アイコンを付ける・外す">' + skillIconHtml(iconId) + '</button>';
 		}
 		/**
-		 * パレット「削除 サポカ外 │ 逃げオススメ／先差追オススメ │ ◎ ○ △ ◇ ★ ✕」（段9。C-132 で並びを変え、「解除」を「削除」に置き換えた。C-163 で「サポカ外」を足した）。
+		 * パレット「削除 │ ◎ ○ △ ◇ ★ ✕」（段9。C-132 で並びを変え、「解除」を「削除」に置き換えた。C-163 の「サポカ外」、C-130 の「逃げオススメ／先差追オススメ」は、
+		 * 2026-10-21 に入口の「脚質オススメ」の小窓へ移した）。
 		 * 選んでいるものは外側に 2px の輪（aria-pressed）。選んでいるアイコンをもう一度押すと選択が外れる（何も付けない状態）。
 		 * 「削除」はアイコンと同じブラシの扱い（押すと削除の状態。タイルを押すとそのスキルを外す）。収まらないぶんは横に送る（始まりは左端）
 		 */
@@ -13503,15 +13445,8 @@
 			const el = q(container, 'tier-row');
 			if (!el) return;
 			const del = paletteSel === PALETTE_DELETE;
-			// C-130・C: ①の脚質に応じたボタン（C-129 の「低効果を除外」を置き換えた）。文字はグループの label（データから）。
-			// 脚質が指定なしなら出さない。グループのデータは、この行が見えたときに初めて読む（読むまでは出さない）
-			const rec = recommendButtonHtml();
 			el.innerHTML = '<button type="button" class="usd-palette-clear usd-palette-del" data-usd-act="palette-pick" data-usd-el="palette-delete" data-icon="' + PALETTE_DELETE + '" aria-pressed="' + (del ? 'true' : 'false') + '"'
 				+ ' title="押したスキルを②から外す"><i data-lucide="trash-2" class="w-3 h-3" aria-hidden="true"></i>削除</button>'
-				// C-163: 「削除」の次に「サポカ外」（サポカで得られないスキルを、①の条件に合うものだけ確認つきでまとめて追加）。データはボタンを押したときに読む＝いつも出す
-				+ '<button type="button" class="usd-palette-clear" data-usd-act="outside-skill-add" data-usd-el="outside-skill-btn"'
-				+ ' title="サポカで得られないスキルをまとめて追加">サポカ外</button>'
-				+ (rec ? '<span class="usd-palette-sep" aria-hidden="true"></span>' + rec : '')
 				+ '<span class="usd-palette-sep" aria-hidden="true"></span>'
 				+ SKILL_ICONS.map(i => '<button type="button" class="usd-palette-btn" data-usd-act="palette-pick" data-usd-el="palette-' + i.id + '" data-icon="' + i.id + '"'
 				+ ' aria-pressed="' + (paletteSel === i.id ? 'true' : 'false') + '" aria-label="アイコン ' + esc(i.mark) + '" title="' + esc(i.mark) + '">' + skillIconHtml(i.id) + '</button>').join('');
@@ -13520,62 +13455,6 @@
 			if (group) group.classList.toggle('usd-skillgroup--delete', del);
 			refreshIcons();
 			scanEntryRows();
-			watchRecommendVisible(el);
-		}
-		/* ---------- ②のパレットの行の「逃げオススメ」「先差追オススメ」（C-130・C） ---------- */
-		/** ①の脚質に応じたグループのキー（脚質が指定なし・対応が無ければ null） */
-		function recommendStyleGroupKey() {
-			const linked = linkedRosterOf(currentTarget());
-			const style = linked ? resolvedFilterOf(linked).style : undefined;
-			return (style && RECOMMENDED_GROUP_FOR_STYLE[style]) || null;
-		}
-		/**
-		 * グループのうち、追加するもの（add）と、追加しないもの（理由ごと）。理由が重なるときは、追加済み → 本育成編成 → レース条件 の順に1つだけ数える。
-		 * レース条件には onlyWhenRaceDistanceClass に合わないもの（レースが選ばれていないときを含む）も入れる
-		 */
-		function recommendPlanOf(group) {
-			const ids = skillIdsOf(currentTarget()) || [];
-			const linked = linkedRosterOf(currentTarget());
-			const race = setBased && linked ? raceOfRoster(linked) : null;
-			const plan = { add: [], already: [], roster: [], race: [] };
-			group.skills.forEach(e => {
-				const id = e.skillId;
-				if (ids.indexOf(id) !== -1) plan.already.push(id);
-				else if (isPickerExcluded(id)) plan.roster.push(id);
-				else if (isPickerRaceBlocked(id) || !recommendedRaceOk(e, race)) plan.race.push(id);
-				else plan.add.push(id);
-			});
-			return plan;
-		}
-		function recommendButtonHtml() {
-			const key = recommendStyleGroupKey();
-			const g = key ? recommendedGroupOf(key) : null;
-			if (!g) return '';
-			// C-131: 追加できるものが0種でも押せない状態にしない（押すと、何も足さずに理由の内訳を知らせる＝addRecommendedGroup）
-			return '<button type="button" class="usd-palette-clear" data-usd-act="recommend-add" data-usd-el="recommend-btn" data-group="' + esc(g.key) + '"'
-				+ ' title="' + esc(g.label + 'のスキルをまとめて追加') + '">' + esc(g.label) + '</button>';
-		}
-		/**
-		 * パレットの行が見えたら（②のタブを開いた・スクロールで現れた）、脚質に応じたボタンのためにグループのデータを読む。
-		 * ページの読み込みでは読まない（①のタブを開いている間・脚質が指定なしの間は読まない）。読めなければ短い知らせを出す（次に見えたときにもう一度試す）
-		 */
-		let recommendObserver = null;
-		function watchRecommendVisible(el) {
-			// ①のパネルができる前は見張らない（脚質は①のもの。special は起動の途中で②を一時的に開くので、そこで読まないため。
-			// ①ができたあとの描き直しで、ここへもう一度来る）
-			// 一度失敗したら、見張りでは読み直さない（読み直すたびに失敗の知らせと描き直しが続き、取りに行き続けるため。C-131 で直した）。
-			// 読み直すのは、レースを選んだとき・②の追加の一覧やオススメサポを開いたとき
-			if (!setBased || !rosterPtSource || recommendedState.status === 'ok' || recommendedState.status === 'failed' || !recommendStyleGroupKey()) return;
-			const tryLoad = () => {
-				if (recommendedState.status === 'ok' || recommendedState.status === 'loading' || !recommendStyleGroupKey()) return;
-				loadRecommendedSkills().then(st => { if (st !== 'ok') toast(RECOMMENDED_FAILED_MSG, 'warn'); });
-			};
-			if (typeof global.IntersectionObserver !== 'function') { tryLoad(); return; }
-			if (!recommendObserver) {
-				recommendObserver = new global.IntersectionObserver((entries) => { if (entries.some(x => x.isIntersecting)) tryLoad(); }, { rootMargin: '100000px 0px' });
-			}
-			recommendObserver.disconnect();
-			recommendObserver.observe(el);
 		}
 		/** 追加しないものの内訳（「追加済み N種」「本育成編成のため N種」「レース条件に合わないため N種」。0 の理由は出さない） */
 		function recommendSkipReasons(plan) {
@@ -13585,117 +13464,7 @@
 			if (plan.race.length > 0) why.push('レース条件に合わないため ' + plan.race.length + '種');
 			return why;
 		}
-		/**
-		 * 押したとき（C-132）: 追加できるものがあれば、追加する前に確認の小窓を出す（追加するスキルの名前と Pt・追加しないもの M種と内訳・「追加する」「やめる」）。
-		 * 追加できるものが0種なら、小窓は出さずに知らせだけ（C-131 のまま）
-		 */
-		function confirmRecommendedGroup(key, btn) {
-			applyRosterHidden();
-			const g = recommendedGroupOf(key);
-			if (!g || !skillIdsOf(currentTarget())) return;
-			confirmAddPlan({ label: g.label, plan: recommendPlanOf(g), btn: btn, refocus: '[data-usd-el="recommend-btn"]', onAdd: () => addRecommendedGroup(key) });
-		}
-		/**
-		 * 追加する前の確認の小窓（C-132。「オススメ」と C-163 の「サポカ外」で共通）。o = { label（小窓の見出し）, plan（recommendPlanOf の形）, btn, refocus, onAdd, showTotal? }。
-		 * showTotal のときは、追加するスキルの数のあとに合計 Pt を添える
-		 */
-		function confirmAddPlan(o) {
-			const plan = o.plan;
-			const why = recommendSkipReasons(plan);
-			// C-131: 追加できるものが0種なら、何も足さずに知らせる（内訳は「追加しなかったもの」と同じ書き方。内訳も0なら一文だけ）
-			if (plan.add.length === 0) { toast('追加できるスキルはありません' + (why.length > 0 ? '（' + why.join('・') + '）' : '')); return; }
-			// 作業3: selectable のとき（「サポカ外」）は、各スキルにチェックと説明文を付ける。低効果（isLowEffectSkill）は最初からチェックを外す（効果量が分からないものは入れる）。
-			// 数・合計 Pt はチェックしたものだけで、選ぶたびに数え直す。「追加する」はチェックしたものだけを足す
-			const sel = !!o.selectable;
-			const chosen = new Set(plan.add.filter(id => !sel || !isLowEffectSkill(id)));
-			const chosenIds = () => plan.add.filter(id => chosen.has(id));
-			openPopover({ key: 'recommend-confirm:' + draftScopeKey, title: o.label, btn: o.btn, opener: o.btn, refocus: o.refocus,
-				build: (body) => {
-					const headText = () => '追加するスキル ' + chosen.size + '種' + (o.showTotal ? addPlanPtText(chosenIds()) : '');
-					const head = infoEl('p', 'usd-rec-head', headText());
-					head.setAttribute('data-usd-el', 'recommend-confirm-head');
-					body.appendChild(head);
-					const ul = infoEl('ul', 'usd-rec-list');
-					ul.setAttribute('data-usd-el', 'recommend-confirm-list');
-					plan.add.forEach(id => {
-						const li = infoEl('li', 'usd-rec-item' + (sel ? ' usd-rec-item--sel' + (chosen.has(id) ? '' : ' usd-rec-item--off') : ''));
-						li.setAttribute('data-skill-id', id);
-						if (sel) {
-							const lab = infoEl('label', 'usd-rec-check');
-							const cb = infoEl('input');
-							cb.type = 'checkbox';
-							cb.checked = chosen.has(id);
-							cb.value = id;
-							cb.setAttribute('data-usd-el', 'recommend-confirm-check');
-							cb.setAttribute('aria-label', getSkillName(id) + 'を追加する');
-							cb.addEventListener('change', () => {
-								if (cb.checked) chosen.add(id); else chosen.delete(id);
-								li.classList.toggle('usd-rec-item--off', !cb.checked);
-								head.textContent = headText();
-							});
-							lab.appendChild(cb);
-							li.appendChild(lab);
-							const main = infoEl('span', 'usd-rec-main');
-							main.appendChild(infoEl('span', 'usd-rec-name', getSkillName(id)));
-							// 公式の説明文（読み込めたときだけ。折り返してよいので、改行は取って1つの文にする）
-							const dtext = skillDescState.status === 'ok' ? (skillDescState.map.get(id) || '') : '';
-							if (dtext) { const d = infoEl('span', 'usd-rec-desc', String(dtext).replace(/\n/g, '')); d.setAttribute('data-usd-el', 'recommend-confirm-desc'); main.appendChild(d); }
-							li.appendChild(main);
-						} else {
-							li.appendChild(infoEl('span', 'usd-rec-name', getSkillName(id)));
-						}
-						li.appendChild(infoEl('span', 'usd-rec-pt', outsideRowPtText(id)));
-						ul.appendChild(li);
-					});
-					body.appendChild(ul);
-					const skip = plan.already.length + plan.roster.length + plan.race.length;
-					if (skip > 0) {
-						const p = infoEl('p', 'usd-rec-skip', '追加しないもの ' + skip + '種（' + why.join('・') + '）');
-						p.setAttribute('data-usd-el', 'recommend-confirm-skip');
-						body.appendChild(p);
-					}
-					const row = infoEl('div', 'usd-rec-ops');
-					const go = infoEl('button', 'uma-btn uma-btn--primary', '追加する');
-					go.type = 'button';
-					go.setAttribute('data-usd-el', 'recommend-confirm-add');
-					go.addEventListener('click', () => {
-						// 1つもチェックされていないときも押せる見た目のまま、押すと理由を1行で知らせる（小窓は閉じない）
-						if (sel && chosen.size === 0) { toast('追加するスキルが選ばれていません'); return; }
-						closeSkillInfo();
-						o.onAdd(chosenIds());
-					});
-					const no = infoEl('button', 'uma-btn uma-btn--ghost', 'やめる');
-					no.type = 'button';
-					no.setAttribute('data-usd-el', 'recommend-confirm-cancel');
-					no.addEventListener('click', () => closeSkillInfo());
-					row.appendChild(no);
-					row.appendChild(go);
-					body.appendChild(row);
-				} });
-		}
-		/** 追加するスキルの合計 Pt の文言（C-163）。行の Pt（outsideRowPtText）と同じ数え方の合計。Pt 未収録のスキルは合計に入れず、数を添える。Pt の元データが読めていなければ空 */
-		function addPlanPtText(ids) {
-			const pt = skillPtData.skillPt instanceof Map ? skillPtData.skillPt : null;
-			if (!pt) return '';
-			let sum = 0, unpriced = 0;
-			for (const id of ids) {
-				const row = pt.get(id);
-				if (!row) { unpriced++; continue; }
-				if (row.pt === 0) continue;
-				const p = outsidePtOf([id]);
-				if (!p.ok) return '';
-				sum += p.own;
-			}
-			return '（合計 ' + formatPtNumber(sum) + ' Pt' + (unpriced > 0 ? '・Pt 未収録 ' + unpriced + '種を除く' : '') + '）';
-		}
-		/** 確認の小窓の「追加する」: まとめて②に追加し、「元に戻す」に1回で積む。追加しなかったものは、数と理由を知らせに添える */
-		function addRecommendedGroup(key) {
-			applyRosterHidden();
-			const g = recommendedGroupOf(key);
-			if (!g) return;
-			commitAddPlan(g.label, recommendPlanOf(g));
-		}
-		/** plan.add を②に追加する（「オススメ」と「サポカ外」で共通）。label は知らせと「元に戻す」の文言に使う */
+		/** plan.add を②に追加する（脚質オススメ）。label は知らせと「元に戻す」の文言に使う */
 		function commitAddPlan(label, plan) {
 			const target = currentTarget();
 			const ids = skillIdsOf(target);
@@ -13722,9 +13491,8 @@
 			picker.excludeIds = picker.excludeIds.concat(add.filter(id => picker.excludeIds.indexOf(id) === -1));
 			afterAutoAdd(target);
 		}
-		/* ---------- ②のパレットの行の「サポカ外」（C-163） ---------- */
 		/**
-		 * 「サポカ外」で追加するもの（add）と、追加しないもの（理由ごと。recommendPlanOf と同じ形・同じ順: 追加済み → 本育成編成 → レース条件）。
+		 * 「サポカ外」の項目に出すもの（add）と、出さないもの（理由ごと。追加済み → 本育成編成 → レース条件 の順に1つだけ数える）。
 		 * 候補は non-support-skills.json の全件。①の距離・脚質・バ場と、目標のレース条件（距離を含む）に合うものだけを足す（matchesFilters。タグが空の距離・脚質は万能）。
 		 * **パッシブ（緑スキル）も白スキルと同じに、①の距離・脚質・バ場で絞る**（2026-10-16・C-164。タグに距離・脚質・バ場を持たないパッシブは残る。レース条件の扱いは同じ）。
 		 * ①の条件に合わないものも、レース条件に合わないものと同じ「レース条件に合わないため」に数える。進化スキルは data に入っていない。
@@ -13751,30 +13519,313 @@
 			});
 			return plan;
 		}
-		/** 「サポカ外」を押したとき: データを読んでから、確認の小窓（追加できるものが0種なら理由の知らせだけ） */
-		async function confirmOutsideSkills(btn) {
-			const target = currentTarget();
-			const st = await loadNonSupportSkills();
-			if (st !== 'ok') { toast(NON_SUPPORT_FAILED_MSG, 'warn'); return; }
-			// 低効果の既定のチェックと説明文のために、小窓を開く時点で読む（ページの初期読み込みを増やさない。読めなければ、低効果は外さず・説明文は出さない）
-			try { await Promise.all([loadSkillEffectLevels(), loadSkillDescriptions()]); } catch (e) { /* 読めなくても小窓は出す */ }
-			if (!sameTarget(target, currentTarget())) return;
-			applyRosterHidden();
-			if (!skillIdsOf(currentTarget())) return;
-			confirmAddPlan({ label: 'サポカ外', plan: outsideSkillPlanOf(), btn: btn, refocus: '[data-usd-el="outside-skill-btn"]', showTotal: true, selectable: true, onAdd: addOutsideSkills });
-		}
-		function addOutsideSkills(chosenIds) {
-			applyRosterHidden();
-			const plan = outsideSkillPlanOf();
-			// 確認の小窓でチェックしたものだけを足す（小窓を開いたあとに②が変わって追加できなくなったものは、plan.add に無いので足さない）
-			if (Array.isArray(chosenIds)) plan.add = plan.add.filter(id => chosenIds.indexOf(id) !== -1);
-			commitAddPlan('サポカ外', plan);
-		}
 		/** 自動で足したあとの描画と通知（下書きに中身ができたら選択状態にする＝ほかの追加の経路と同じ） */
 		function afterAutoAdd(target) {
 			afterEditorPickerAdd(target);
 			renderPickerResults();
 			renderPasteReport();
+		}
+
+		/* ============================================================
+		 * 脚質オススメ（2026-10-21。入口の列の「オススメサポ」の次。special の②だけ＝setBased）
+		 *
+		 * ①のレースと脚質に合わせて、②へまとめて足すスキルを選ぶ小窓。オススメサポと同じ usd-modal の器（openPopover は使わない。
+		 * スキル名を押すと説明を上に重ねるため。説明の小窓は共有の1つなので、器が共有の小窓だと説明を開いた時点で消える）。
+		 * 項目は data/recommended-skills.json の sections の並び（緑スキル〔レース条件〕・シナリオスキル・ためらい・サポカ外・斜行）。
+		 * 上に固定＝レースの選択・脚質の4つ／リスト（縦に送る）／下に固定＝「追加するスキル N種（合計 … Pt）」［やめる］［追加する］。
+		 * レースと脚質は①の設定と共有する（選ぶと①にも書く。元に戻すには積まない＝①の絞り込み・レースと同じ）。チェックの状態は保存しない。
+		 * ============================================================ */
+		const STYLE_REASONS = { already: '②に追加済みのため', roster: '①で得るため', race: 'レース条件に合わないため' };
+		const STYLE_HELP_TEXT = 'レースと脚質に合うスキルを、②へまとめて追加します。グレーの行は、押すと追加できない理由が出ます。';
+		const styleUi = { el: null, open: false, opener: null, userSet: new Map(), model: null, ptRows: null };
+
+		/**
+		 * 小窓の中身を求める（いまの②・①・レース・脚質から。保存しない）。
+		 *   sections … [{ key, label, note?, rows: [{ id, name, gray, reason, defaultOn, entry }] }]（データの sections の並び）
+		 *   skip … グレーの行と、「サポカ外」の項目に出さなかったものの数（追加済み・本育成編成・レース条件）。追加できるものが無いときの知らせに使う
+		 * 脚質は ON／OFF の既定にだけ効く（脚質を持つ行は、選んだ脚質を styles に含むものだけ ON）。ユーザーが付け外ししたものは styleUi.userSet に残り、既定に勝つ。
+		 */
+		function styleAdvisorModel() {
+			const target = currentTarget();
+			const cur = skillIdsOf(target) || [];
+			const have = new Set(withEquivalents(cur));
+			const roster = rosterOutsideSink ? rosterOutsideSink.getRoster() : {};
+			const race = setBased ? raceOfRoster(roster) : null;
+			const sel = resolvedFilterOf(roster);
+			const style = sel.style || null;
+			const distCls = race ? raceDistanceClassOf(race) : (sel.distance || null);
+			const doc = recommendedState;
+			const skip = { already: [], roster: [], race: [] };
+			const used = new Set(doc.skills.map(e => e.skillId));
+			const classify = (id, entry) => {
+				if (have.has(id)) return 'already';
+				if (isPickerExcluded(id)) return 'roster';
+				if (isPickerRaceBlocked(id)) return 'race';
+				if (entry && entry.onlyWhenRaceDistanceClass && distCls && entry.onlyWhenRaceDistanceClass.indexOf(distCls) === -1) return 'race';
+				return null;
+			};
+			const defaultOn = (entry) => {
+				if (entry && entry.onlyWhenRaceDistanceClass && !distCls) return false;   // レースも①の距離も無いときは OFF
+				if (entry && entry.styles && style) return entry.styles.indexOf(style) !== -1;
+				return true;
+			};
+			const rowOf = (id, entry) => {
+				const reason = classify(id, entry);
+				if (reason) skip[reason].push(id);
+				return { id: id, name: getSkillName(id), gray: !!reason, reason: reason, defaultOn: reason ? false : defaultOn(entry), entry: entry || null };
+			};
+			const sections = doc.sections.map(sec => {
+				const out = { key: sec.key, label: sec.label, rows: [] };
+				if (sec.source === RECOMMENDED_SOURCE_RACE) {
+					if (!race) out.note = 'レースを選ぶと出ます';
+					else raceConditionSkillIds(race).forEach(id => { if (!used.has(id)) { used.add(id); out.rows.push(rowOf(id, null)); } });
+				} else if (sec.source === RECOMMENDED_SOURCE_NONSUPPORT) {
+					const plan = outsideSkillPlanOf();
+					['already', 'roster', 'race'].forEach(k => plan[k].forEach(id => { if (!used.has(id)) skip[k].push(id); }));
+					plan.add.forEach(id => {
+						if (used.has(id) || isLowEffectSkill(id)) return;   // 緑スキルの項目に出したものは重ねない・低効果は出さない
+						used.add(id);
+						out.rows.push({ id: id, name: getSkillName(id), gray: false, reason: null, defaultOn: true, entry: null });
+					});
+				} else {
+					doc.skills.filter(e => e.section === sec.key).forEach(e => out.rows.push(rowOf(e.skillId, e)));
+				}
+				return out;
+			});
+			return { target: target, race: race, style: style, distCls: distCls, sections: sections, skip: skip };
+		}
+		function styleRowChecked(row) {
+			if (row.gray) return false;
+			return styleUi.userSet.has(row.id) ? styleUi.userSet.get(row.id) : row.defaultOn;
+		}
+		function styleChosenIds() {
+			const m = styleUi.model;
+			if (!m) return [];
+			const out = [];
+			m.sections.forEach(sec => sec.rows.forEach(r => { if (styleRowChecked(r) && out.indexOf(r.id) === -1) out.push(r.id); }));
+			return out;
+		}
+		/** ②のタイルと同じ数え方の Pt（②の「共通スキルのヒントLv」と①の状態を使う）。ids を②に足したときの計算。出せなければ null */
+		function stylePtCalc(ids) {
+			const target = currentTarget();
+			const st = factorPtState(target);
+			if (!st || !st.r || !st.r.ok || !st.inp || !st.inp.settings) return null;
+			const all = st.ids.concat(ids.filter(id => st.ids.indexOf(id) === -1));
+			const r = computeFactorSetPt({
+				sources: st.inp.sources, rules: st.rules, skillPt: skillPtData.skillPt, stepUp: skillPtData.stepUp,
+				statusId: st.inp.settings.status, umaHintLevel: st.inp.settings.umaHintLevel, enabledSkillIds: st.inp.enabledIds, offSkillIds: st.inp.offIds || [],
+				factorSkillIds: all, tiers: tiersOf(target), parentHintLevel: st.F, inheritedUnique: inheritedUniqueOf(target) || {}
+			});
+			return r.ok ? { r: r, base: st.r } : null;
+		}
+		function stylePtText(x) {
+			return x ? (x.base === null ? 'Pt 未収録' : x.base === 0 ? 'Pt 不要' : x.pt + ' Pt') : '';
+		}
+		/** 行の Pt（そのスキルを②に足したときのタイルの Pt）。モデルを作ったときに、足せる行を全部足して1回で数える */
+		function styleRowPtText(row) {
+			if (row.gray || !styleUi.ptRows) return '';
+			return stylePtText(styleUi.ptRows.r.skillPts.get(row.id));
+		}
+		/** 「追加するスキル N種（合計 … Pt）」。合計は、チェックしたものを②に足したときの②の Pt の増え方（前段を含む）。Pt 未収録は合計に入れず、数を添える */
+		function styleHeadText(ids) {
+			let s = '追加するスキル ' + ids.length + '種';
+			const c = ids.length > 0 ? stylePtCalc(ids) : null;
+			if (ids.length > 0 && c) {
+				const last = c.r.cuts.length - 1;
+				const sum = c.r.cuts[last].total - c.base.cuts[last].total;
+				const unpriced = ids.filter(id => { const x = c.r.skillPts.get(id); return x && x.base === null; }).length;
+				s += '（合計 ' + formatPtNumber(sum) + ' Pt' + (unpriced > 0 ? '・Pt 未収録 ' + unpriced + '種を除く' : '') + '）';
+			} else if (ids.length === 0 && stylePtCalc([])) s += '（合計 0 Pt）';
+			return s;
+		}
+
+		function styleMarkup() {
+			return '<div class="usd-modal-panel usd-out-panel usd-sty-panel" role="dialog" aria-modal="true" aria-label="脚質オススメ">'
+				+ '<div class="usd-out-head">'
+				+ '<p class="usd-out-title"><span data-usd-el="style-title">脚質オススメ</span>'
+				+ '<button type="button" class="uma-help-btn" data-usd-act="style-help" data-usd-el="style-help" aria-haspopup="dialog" aria-expanded="false" aria-label="脚質オススメの説明" title="脚質オススメの説明">?</button></p>'
+				+ '<button type="button" class="usd-icon-btn uma-icon-btn" data-usd-act="style-close" data-usd-el="style-close" aria-label="閉じる"><i data-lucide="x" class="w-4 h-4"></i></button>'
+				+ '</div>'
+				+ '<div class="usd-sty-top" data-usd-el="style-top"></div>'
+				+ '<div class="usd-out-body usd-sty-body" data-usd-el="style-body"></div>'
+				+ '<div class="usd-modal-foot usd-out-foot" data-usd-el="style-foot">'
+				+ '<p class="usd-out-total"><span class="usd-out-total-kinds" data-usd-el="style-head"></span></p>'
+				+ '<div class="usd-out-selrow">'
+				+ '<button type="button" class="uma-btn uma-btn--ghost" data-usd-act="style-cancel" data-usd-el="style-cancel">やめる</button>'
+				+ '<button type="button" class="uma-btn uma-btn--primary usd-out-add" data-usd-act="style-add" data-usd-el="style-add">追加する</button></div>'
+				+ '</div></div>';
+		}
+		function ensureStyleUi() {
+			if (styleUi.el) return styleUi.el;
+			injectStyles();
+			const el = global.document.createElement('div');
+			el.className = 'usd-modal';
+			el.hidden = true;
+			el.setAttribute('data-usd-el', 'style-modal');
+			el.innerHTML = styleMarkup();
+			global.document.body.appendChild(el);
+			styleUi.el = el;
+			el.addEventListener('click', (e) => {
+				if (e.target === el) { closeStyleAdvisor(); return; }
+				const b = e.target.closest('[data-usd-act]');
+				if (!b || !el.contains(b)) {
+					// グレーの行のチェック: 押せる見た目のまま、押すと理由の1行を知らせる（チェックは変えない）
+					const cb = e.target.closest ? e.target.closest('[data-usd-el="style-check"]') : null;
+					if (cb) styleGrayClick(e, cb);
+					return;
+				}
+				const act = b.dataset.usdAct;
+				if (act === 'style-close' || act === 'style-cancel') closeStyleAdvisor();
+				else if (act === 'style-help') openPopover({ key: 'style-help', title: '脚質オススメ', build: (body) => { const p = infoEl('p', '', STYLE_HELP_TEXT); p.setAttribute('data-usd-el', 'style-help-text'); body.appendChild(p); },
+					btn: b, opener: b, refocus: '[data-usd-act="style-help"]' });
+				else if (act === 'style-race') openPopover({ key: 'style-race', title: 'レース', btn: b, opener: b, refocus: '[data-usd-el="style-race-btn"]',
+					build: (body) => fillRaceList(body, () => styleRefresh()) });
+				else if (act === 'style-pick') styleSetStyle(b.dataset.style);
+				else if (act === 'style-add') styleAdd();
+			});
+			// チェックの付け外し（グレーの行は click の側で止める）。ユーザーの選択は、レース・脚質を変えても、変えていないスキルについては保つ
+			el.addEventListener('change', (e) => {
+				const box = e.target;
+				if (!box || !box.getAttribute || box.getAttribute('data-usd-el') !== 'style-check') return;
+				styleUi.userSet.set(box.value, box.checked);
+				const row = box.closest('[data-usd-el="style-row"]');
+				if (row) row.setAttribute('data-checked', box.checked ? '1' : '0');
+				styleUpdateFoot();
+			});
+			global.addEventListener('resize', () => { if (styleUi.open && !el.hidden) styleSyncToastLift(); });
+			global.document.addEventListener('keydown', (e) => {
+				if (e.key !== 'Escape' || e.defaultPrevented || !styleUi.open || styleUi.el.hidden) return;
+				closeStyleAdvisor();
+				e.preventDefault();
+			});
+			refreshIcons();
+			return el;
+		}
+		function styleGrayClick(e, cb) {
+			const row = cb.closest('[data-usd-el="style-row"]');
+			if (!row || row.getAttribute('data-state') !== 'gray') return;
+			e.preventDefault();
+			toast(STYLE_REASONS[row.getAttribute('data-reason')] || STYLE_REASONS.race);
+		}
+		function styleSyncToastLift() {
+			const root = global.document.documentElement;
+			const el = styleUi.el;
+			const foot = el && styleUi.open && !el.hidden ? q(el, 'style-foot') : null;
+			if (!foot) { root.style.removeProperty('--usd-toast-bottom'); return; }
+			root.style.setProperty('--usd-toast-bottom', Math.max(0, Math.round(global.innerHeight - foot.getBoundingClientRect().top + 8)) + 'px');
+		}
+		/** 入口を押したとき: データを読み、追加できるもの（既定で ON のもの）があれば小窓を開く。0種なら小窓は開かず、理由の内訳を知らせる（ボタンは押せる見た目のまま） */
+		async function openStyleAdvisor(btn) {
+			const target = currentTarget();
+			const rec = await ensureEquivalentsLoaded();
+			if (rec !== 'ok') { toast(RECOMMENDED_FAILED_MSG, 'warn'); return; }
+			const ns = await loadNonSupportSkills();
+			if (ns !== 'ok') { toast(NON_SUPPORT_FAILED_MSG, 'warn'); return; }
+			// 低効果の判定のために、効果量の段階を先に読む（読めなければ、低効果は出さない判定をしない）
+			try { await loadSkillEffectLevels(); } catch (e) { /* 読めなくても小窓は出す */ }
+			if (!sameTarget(target, currentTarget())) return;
+			applyRosterHidden();
+			if (!skillIdsOf(currentTarget())) return;
+			styleUi.userSet = new Map();
+			const m = styleAdvisorModel();
+			styleUi.model = m;
+			if (!m.sections.some(sec => sec.rows.some(r => !r.gray && r.defaultOn))) {
+				const why = recommendSkipReasons(m.skip);
+				toast('追加できるスキルはありません' + (why.length > 0 ? '（' + why.join('・') + '）' : ''));
+				return;
+			}
+			const el = ensureStyleUi();
+			styleUi.open = true;
+			styleUi.opener = btn || null;
+			el.hidden = false;
+			toastLiftFn = styleSyncToastLift;
+			styleRender();
+			const closeBtn = q(el, 'style-close');
+			if (closeBtn) focusNoScroll(closeBtn);
+		}
+		function closeStyleAdvisor() {
+			if (!styleUi.el) return;
+			styleUi.open = false;
+			toastLiftFn = null;
+			global.document.documentElement.style.removeProperty('--usd-toast-bottom');
+			closeSkillInfo();
+			styleUi.el.hidden = true;
+			const o = styleUi.opener;
+			styleUi.opener = null;
+			if (o && o.isConnected && typeof o.focus === 'function') focusNoScroll(o);
+			else { const again = global.document.querySelector('[data-usd-act="style-open"]'); if (again) focusNoScroll(again); }
+		}
+		/** レースか脚質を変えたあと: 求め直して描き直す（ユーザーが付け外ししたチェックは保つ） */
+		function styleRefresh() {
+			if (!styleUi.open) return;
+			applyRosterHidden();
+			styleUi.model = styleAdvisorModel();
+			styleRender();
+		}
+		/** 脚質の4つの押しボタン（排他。もう一度押すと指定なし）。①の脚質にも書く（元に戻すには積まない） */
+		function styleSetStyle(v) {
+			if (!rosterOutsideSink || typeof rosterOutsideSink.setStyle !== 'function') return;
+			const cur = styleUi.model ? styleUi.model.style : null;
+			if (rosterOutsideSink.setStyle(cur === v ? '' : v)) styleRefresh();
+		}
+		function styleRender() {
+			const el = styleUi.el;
+			const m = styleUi.model;
+			if (!el || !m) return;
+			const top = q(el, 'style-top');
+			const raceText = m.race ? (raceShortText(m.race) || m.race.name) : '指定なし';
+			const raceLab = m.race ? 'レース：' + (raceDateText(m.race) ? raceDateText(m.race) + ' ' : '') + m.race.name : 'レース：指定なし';
+			top.innerHTML = '<div class="usd-sty-pick">'
+				+ '<button type="button" class="usd-out-segbtn usd-out-optbtn usd-sty-racebtn" data-usd-act="style-race" data-usd-el="style-race-btn" aria-haspopup="dialog" aria-expanded="false" aria-pressed="' + (m.race ? 'true' : 'false') + '"'
+				+ ' aria-label="' + esc(raceLab) + '" title="' + esc(raceLab) + '"><span class="usd-out-optlabel" data-usd-el="style-race-text">' + esc('レース：' + raceText) + '</span><span class="usd-out-optcaret" aria-hidden="true">▾</span></button>'
+				+ '<span class="usd-out-seg usd-sty-styles" role="group" aria-label="脚質">'
+				+ styleAxisOptions().map(o => '<button type="button" class="usd-out-segbtn usd-sty-stylebtn" data-usd-act="style-pick" data-usd-el="style-btn" data-style="' + esc(o.v) + '" aria-pressed="' + (m.style === o.v ? 'true' : 'false') + '">' + esc(o.t) + '</button>').join('')
+				+ '</span></div>'
+				+ '<p class="usd-sty-sync" data-usd-el="style-sync">ここで選んだレース・脚質は①にも反映されます</p>';
+			const body = q(el, 'style-body');
+			const keep = body.scrollTop;
+			styleUi.ptRows = stylePtCalc(m.sections.reduce((a, sec) => a.concat(sec.rows.filter(r => !r.gray).map(r => r.id)), []));
+			let h = '';
+			m.sections.forEach(sec => {
+				h += '<section class="usd-sty-sec" data-usd-el="style-sec" data-section="' + esc(sec.key) + '"><h3 class="usd-sty-sech" data-usd-el="style-sec-title">' + esc(sec.label) + '</h3>';
+				if (sec.note && sec.rows.length === 0) h += '<p class="usd-sty-secnote" data-usd-el="style-sec-note">' + esc(sec.note) + '</p>';
+				else if (sec.rows.length === 0) h += '<p class="usd-sty-secnote" data-usd-el="style-sec-note">該当するスキルはありません</p>';
+				else {
+					h += '<div class="usd-sty-grid">';
+					sec.rows.forEach(r => {
+						const on = styleRowChecked(r);
+						h += '<div class="usd-sty-row' + (r.gray ? ' usd-sty-row--gray' : '') + '" data-usd-el="style-row" data-skill-id="' + esc(r.id) + '" data-state="' + (r.gray ? 'gray' : (on ? 'on' : 'off')) + '"'
+							+ (r.gray ? ' data-reason="' + r.reason + '"' : '') + ' data-checked="' + (on ? '1' : '0') + '">'
+							+ '<label class="usd-sty-check"><input type="checkbox" data-usd-el="style-check" value="' + esc(r.id) + '"' + (on ? ' checked' : '') + (r.gray ? ' aria-disabled="true"' : '') + ' aria-label="' + esc(r.name + 'を追加する') + '"/></label>'
+							+ '<button type="button" class="usd-sty-name usd-roster-skillname--btn usd-out-namebtn" data-usd-info="' + esc(r.id) + '">' + esc(r.name) + '</button>'
+							+ '<span class="usd-sty-pt" data-usd-el="style-row-pt">' + esc(styleRowPtText(r)) + '</span></div>';
+					});
+					h += '</div>';
+				}
+				h += '</section>';
+			});
+			body.innerHTML = h;
+			body.scrollTop = keep;
+			attachSkillInfoIn(body, (id) => ({ skillId: id, trigger: 'self' }));
+			styleUpdateFoot();
+		}
+		function styleUpdateFoot() {
+			const el = styleUi.el;
+			if (!el) return;
+			const ids = styleChosenIds();
+			q(el, 'style-head').textContent = styleHeadText(ids);
+			if (styleUi.open) styleSyncToastLift();
+		}
+		/** 「追加する」: チェックしたものを②に足す（commitAddPlan。元に戻すに1回積む）。1つも無いときは押せる見た目のまま、押すと理由を1行で知らせる */
+		function styleAdd() {
+			const m = styleUi.model;
+			if (!m) return;
+			const ids = styleChosenIds();
+			if (ids.length === 0) { toast('追加するスキルが選ばれていません'); return; }
+			applyRosterHidden();
+			const plan = { add: ids, already: m.skip.already.slice(), roster: m.skip.roster.slice(), race: m.skip.race.slice() };
+			closeStyleAdvisor();
+			commitAddPlan('脚質オススメ', plan);
 		}
 		/** C-132: 同じものをもう一度押すと選択が外れる（アイコン・削除とも）。アイコンを選ぶと削除の状態は終わる */
 		function pickPalette(iconId) {
@@ -14343,7 +14394,6 @@
 		/** setBased: スキルの並びとアイコンを書き、tiers をアイコンから導いて書く（下書きは下書きへ、テンプレートは保存まで） */
 		function writeSkillState(target, ids, icons) {
 			const derived = tiersFromIcons(ids, icons);
-			pruneRaceAuto(target, ids);
 			if (target.kind === 'draft') {
 				draftScope = persistDraft(ids, draftScope.name, derived, undefined, undefined, undefined, undefined, icons);
 				return true;
@@ -14358,15 +14408,6 @@
 			t.updatedAt = nowIso();
 			saveUserData();
 			return true;
-		}
-		/**
-		 * レースに合わせて自動で入れた記録（C-130・B）から、②に無くなったもの（手で外した・元に戻した）を落とす。
-		 * あとで手で足し直したものを、次にレースを変えたときに外さないため。記録に変わりが無ければ書かない
-		 */
-		function pruneRaceAuto(target, ids) {
-			if (!rosterOutsideSink || !sameTarget(target, currentTarget())) return;
-			const rec = raceAutoIdsOf(rosterOutsideSink.getRoster());
-			if (rec.some(id => ids.indexOf(id) === -1)) rosterOutsideSink.setRaceAuto(rec.filter(id => ids.indexOf(id) !== -1));
 		}
 		/**
 		 * 対象の「今の」アイコン { スキルID: アイコンID }（段9。special の②だけ）。写しを返す。skillIcons を持たない対象

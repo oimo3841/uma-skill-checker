@@ -1,57 +1,34 @@
 {
 	"category": "recommendedSkills",
-	"dataVersion": "2026-10-07a",
-	"groups": [
-		{
-			"key": "noDebuffExtra",
-			"label": "ためらい",
-			"skills": [
-				{ "skillId": "78", "name": "逃げためらい" },
-				{ "skillId": "81", "name": "先行ためらい" },
-				{ "skillId": "84", "name": "差しためらい" },
-				{ "skillId": "87", "name": "追込ためらい" }
-			]
-		},
-		{
-			"key": "runnerEscape",
-			"label": "逃げオススメ",
-			"skills": [
-				{ "skillId": "39", "name": "ポジションセンス" },
-				{ "skillId": "119", "name": "危険回避" },
-				{ "skillId": "413", "name": "アオハル点火・速" },
-				{ "skillId": "417", "name": "アオハル点火・賢" },
-				{ "skillId": "420", "name": "前だけ見据えて" },
-				{ "skillId": "421", "name": "レースの真髄・速" },
-				{ "skillId": "422", "name": "レースの真髄・体" },
-				{ "skillId": "425", "name": "レースの真髄・賢" },
-				{ "skillId": "427", "name": "陽の加護" },
-				{ "skillId": "429", "name": "地の加護" },
-				{ "skillId": "431", "name": "バーニングソウル", "onlyWhenRaceDistanceClass": ["mile", "medium"] },
-				{ "skillId": "435", "name": "時代を変える者" },
-				{ "skillId": "437", "name": "本気で休んで、もう一度" },
-				{ "skillId": "438", "name": "アメリカンドリーム" },
-				{ "skillId": "439", "name": "恩返し、召し上がれ" }
-			]
-		},
-		{
-			"key": "runnerNotEscape",
-			"label": "先差追オススメ",
-			"skills": [
-				{ "skillId": "413", "name": "アオハル点火・速" },
-				{ "skillId": "420", "name": "前だけ見据えて" },
-				{ "skillId": "421", "name": "レースの真髄・速" },
-				{ "skillId": "422", "name": "レースの真髄・体" },
-				{ "skillId": "423", "name": "レースの真髄・力" },
-				{ "skillId": "425", "name": "レースの真髄・賢" },
-				{ "skillId": "427", "name": "陽の加護" },
-				{ "skillId": "429", "name": "地の加護" },
-				{ "skillId": "431", "name": "バーニングソウル", "onlyWhenRaceDistanceClass": ["mile", "medium"] },
-				{ "skillId": "435", "name": "時代を変える者" },
-				{ "skillId": "437", "name": "本気で休んで、もう一度" },
-				{ "skillId": "438", "name": "アメリカンドリーム" },
-				{ "skillId": "439", "name": "恩返し、召し上がれ" }
-			]
-		}
+	"dataVersion": "2026-10-21a",
+	"sections": [
+		{ "key": "green", "label": "緑スキル（レース条件）", "source": "raceCondition" },
+		{ "key": "scenario", "label": "シナリオスキル" },
+		{ "key": "tame", "label": "ためらい" },
+		{ "key": "outside", "label": "サポカ外", "source": "nonSupport" },
+		{ "key": "lane", "label": "斜行" }
+	],
+	"skills": [
+		{ "skillId": "39", "name": "ポジションセンス", "section": "lane", "styles": ["nige"] },
+		{ "skillId": "78", "name": "逃げためらい", "section": "tame" },
+		{ "skillId": "81", "name": "先行ためらい", "section": "tame" },
+		{ "skillId": "84", "name": "差しためらい", "section": "tame" },
+		{ "skillId": "87", "name": "追込ためらい", "section": "tame" },
+		{ "skillId": "119", "name": "危険回避", "section": "lane", "styles": ["nige"] },
+		{ "skillId": "413", "name": "アオハル点火・速", "section": "scenario", "styles": ["nige", "senko", "sashi", "oikomi"] },
+		{ "skillId": "417", "name": "アオハル点火・賢", "section": "scenario", "styles": ["nige"] },
+		{ "skillId": "420", "name": "前だけ見据えて", "section": "scenario", "styles": ["nige", "senko", "sashi", "oikomi"] },
+		{ "skillId": "421", "name": "レースの真髄・速", "section": "scenario", "styles": ["nige", "senko", "sashi", "oikomi"] },
+		{ "skillId": "422", "name": "レースの真髄・体", "section": "scenario", "styles": ["nige", "senko", "sashi", "oikomi"] },
+		{ "skillId": "423", "name": "レースの真髄・力", "section": "scenario", "styles": ["senko", "sashi", "oikomi"] },
+		{ "skillId": "425", "name": "レースの真髄・賢", "section": "scenario", "styles": ["nige", "senko", "sashi", "oikomi"] },
+		{ "skillId": "427", "name": "陽の加護", "section": "scenario", "styles": ["nige", "senko", "sashi", "oikomi"] },
+		{ "skillId": "429", "name": "地の加護", "section": "scenario", "styles": ["nige", "senko", "sashi", "oikomi"] },
+		{ "skillId": "431", "name": "バーニングソウル", "section": "scenario", "styles": ["nige", "senko", "sashi", "oikomi"], "onlyWhenRaceDistanceClass": ["mile", "medium"] },
+		{ "skillId": "435", "name": "時代を変える者", "section": "scenario", "styles": ["nige", "senko", "sashi", "oikomi"] },
+		{ "skillId": "437", "name": "本気で休んで、もう一度", "section": "scenario", "styles": ["nige", "senko", "sashi", "oikomi"] },
+		{ "skillId": "438", "name": "アメリカンドリーム", "section": "scenario", "styles": ["nige", "senko", "sashi", "oikomi"] },
+		{ "skillId": "439", "name": "恩返し、召し上がれ", "section": "scenario", "styles": ["nige", "senko", "sashi", "oikomi"] }
 	],
 	"equivalentPairs": [
 		{ "key": "rightTurn", "skillIds": ["441", "1"] },
@@ -61,5 +38,5 @@
 		{ "key": "autumn", "skillIds": ["444", "19"] },
 		{ "key": "winter", "skillIds": ["445", "20"] }
 	],
-	"note": "②にまとめて追加するスキルのグループ。noDebuffExtra はレースを選んだときに、そのレースに「デバフなし」の特殊ルールが無ければ足すもの。runnerEscape・runnerNotEscape は②のパレットの行のボタンで足すもの（①の脚質が逃げなら runnerEscape、先行・差し・追込なら runnerNotEscape）。label はボタンの文字。skills の並びは管理ID順（マスターの数字の id の昇順、続けて ex- の id の昇順）。onlyWhenRaceDistanceClass を持つスキルは、レースが選ばれていて、そのレースの距離の区分（race-distances.json の区分のキー）がこの一覧に含まれるときだけ足す。name は照合の控え（マスター・拡張スキルの名前と一致する）。equivalentPairs は同じものとして扱うスキルの組（目覚めと、対応するスキル。skillIds の先頭が目覚め）。組のどちらかを①の本育成で得るなら、もう一方も②に追加しない。組のどちらかが②にあれば、もう一方も追加済みとして数える。形は npm run check:catalog が確かめる。"
+	"note": "②の「脚質オススメ」の小窓が使うスキル。section は小窓の項目（sections の key。source を持たない項目）、styles は ON にする脚質（タグの脚質の値。nige＝逃げ、senko＝先行、sashi＝差し、oikomi＝追込。無いときは脚質に関わらず ON）。ためらい（tame）は、そのレースに「デバフなし」の特殊ルールがあるときはレース条件に合わない。onlyWhenRaceDistanceClass を持つスキルは、そのレース（レースが無いときは①の距離）の距離の区分（race-distances.json の区分のキー）がこの一覧に含まれるときだけ ON。name は照合の控え（マスター・拡張スキルの名前と一致する）。skills の並びは管理ID順（マスターの数字の id の昇順、続けて ex- の id の昇順）。equivalentPairs は同じものとして扱うスキルの組（目覚めと、対応するスキル。skillIds の先頭が目覚め）。組のどちらかを①の本育成で得るなら、もう一方も②に追加しない。組のどちらかが②にあれば、もう一方も追加済みとして数える。source を持つ項目はスキルを持たず、小窓がそのとき計算して出す（raceCondition＝選んだレースの条件で決まる緑スキル〔回り・季節・小回り／直線コース・レース場〕、nonSupport＝data/non-support-skills.json のうち②・①・レース条件に合うもの）。形は npm run check:catalog が確かめる。"
 }

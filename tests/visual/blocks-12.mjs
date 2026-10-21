@@ -508,10 +508,8 @@ export async function register12(env) {
 		const pk0 = await pickerIds('editor-pick'), gr0 = await pickerIds('editor-pick-passive');
 		// R0（中距離・芝）は FULL の絞り込みと同じ距離・バ場なので、①の固定で数字は変わらない
 		await chooseRace(sp.page, R0.id);
-		// C-130: レースを選ぶと②に既定のスキル（回り・季節など）が入るので、それを「元に戻す」で外してから比べる（母集団の規則が②の数字に効かないことを見る）
+		// 2026-10-21: レースを選んでも②には自動で足さない（C-130 の既定の追加は廃止）。②が空のままであることも見る
 		const auto = await sp.page.evaluate(() => ((JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || 'null') || {}).skillIds || []).length);
-		await sp.page.evaluate(() => UmaSkillDeckCore.performUndo());
-		await sp.page.waitForTimeout(300);
 		const after = await nums();
 		// （②のタブの脇の「N種」〔badge〕は比べない。②に足して「元に戻す」で空にすると、special が古い値のまま出し続ける〔C-130 より前からの挙動。手で足して戻しても同じ〕ため）
 		// 2026-10-17: ①の合計は、レースの距離（2200m）に当たらない限定を持つスキルが外れた分だけ変わる（レースで固定した距離を判定に渡すようにした）。②の合計は変わらない。
@@ -522,8 +520,8 @@ export async function register12(env) {
 			const dropped = va.filter((id) => vb.indexOf(id) === -1), added = vb.filter((id) => va.indexOf(id) === -1);
 			return { a: [fmt(a.total), String(a.kinds)], b: [fmt(b.total), String(b.kinds)], dropped, added, limited: dropped.every((id) => { const s = C.findSkill(id); return !!s && !!s.raceDistance && s.raceDistance.scope === 'all'; }) };
 		}, { FULL, R0 });
-		assert(auto > 0 && JSON.stringify(before.f) === JSON.stringify(after.f) && JSON.stringify(before.r) === JSON.stringify(exp.a.map(String)) && JSON.stringify(after.r) === JSON.stringify(exp.b) && exp.added.length === 0 && exp.limited,
-			'オススメサポ④段9 ①の絞り込みと同じ距離・バ場のレースを選んでも、②の合計は変わらない。①の合計は、レースの距離に当たらない限定を持つスキルが外れた分だけ減る（母集団の規則はオススメサポにだけ効く。C-130 の既定の追加 ' + auto + '種は「元に戻す」で外して比べる）', { before, after, auto, exp });
+		assert(auto === 0 && JSON.stringify(before.f) === JSON.stringify(after.f) && JSON.stringify(before.r) === JSON.stringify(exp.a.map(String)) && JSON.stringify(after.r) === JSON.stringify(exp.b) && exp.added.length === 0 && exp.limited,
+			'オススメサポ④段9 ①の絞り込みと同じ距離・バ場のレースを選んでも、②の合計は変わらない。①の合計は、レースの距離に当たらない限定を持つスキルが外れた分だけ減る（母集団の規則はオススメサポにだけ効く。レースを選んでも②には自動で足さない＝' + auto + '種）', { before, after, auto, exp });
 		const pk1 = await pickerIds('editor-pick'), gr1 = await pickerIds('editor-pick-passive');
 		// C-129 で置き換えた: 段9 の「条件で検索・緑スキルの一覧は、レースを選んでも同じ（レースに合わないスキルも出て、選べる）」は、
 		// レース条件を追加の経路にも効かせたので逆になった。いまは「選べる行は減るだけで増えない」を見る（グレーアウトの作りと理由は blocks-15 の C129B）

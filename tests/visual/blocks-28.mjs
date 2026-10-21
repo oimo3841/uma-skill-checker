@@ -1,10 +1,10 @@
-// 「サポカ外」ボタン（②の操作。C-163・2026-10-16）の検査。run-smoke.mjs の末尾から register28() で呼ばれる
+// 「サポカ外」（C-163・2026-10-16。2026-10-21 に②のパレットのボタンから、脚質オススメの小窓の項目へ移した）の検査。run-smoke.mjs の末尾から register28() で呼ばれる
 // （塊の見出しはすべて「サポカ外」で始まる。`npm run test:visual -- --only=サポカ外` で回せる）。
 //
 // 見るもの: (1) 公開用のサポカ外スキル（data/non-support-skills.json）が、サポートカード563枚のヒント・イベント・共通イベント
 //   （グループのカードはメンバー全員）のどれでも得られないこと ―― 独立した検算（2通り: 製品の computeRosterSkills と、データを直接たどる）
-// (2)〜(6) ②のパレットの行の「サポカ外」ボタン: 位置・押すまで取りに行かない／固定のシナリオ（候補の数・名前・合計 Pt）／確認の小窓と「元に戻す」／
-//   0件の理由の知らせ／Pt 未収録・データを読めないとき
+// (2)〜(8) 脚質オススメの小窓の「サポカ外」の項目: 押すまで取りに行かない／固定のシナリオ（候補）／Pt 未収録／パッシブも①の距離で絞る／②の「N種」。
+//   確認の小窓・追加・元に戻す・0件の知らせ・データを読めないときは blocks-43.mjs の C-184 と blocks-17.mjs の C131D
 
 export async function register28(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -72,16 +72,22 @@ export async function register28(env) {
 	});
 
 	/* ====================================================================
-	 * ②のパレットの行の「サポカ外」ボタン（C-163）。固定のシナリオ（実データ）で、候補の数・名前・合計 Pt を固定する。
+	 * 脚質オススメの小窓の「サポカ外」の項目（C-163。2026-10-21 に②のパレットの「サポカ外」ボタンから移した）。固定のシナリオ（実データ）で、候補を固定する。
 	 * 候補 = non-support-skills.json の全件のうち、②に無い・①の本育成編成で得ない・①の距離/脚質/バ場とレース条件に合うもの。
+	 * 新しい小窓では、低効果（ちょっと以下）は出さず、緑スキル（レース条件）の項目に出るものは重ねない。
 	 * ==================================================================== */
 	const MASTER = readJson('uma-skill-deck-skills.json').skills;
 	const EXT = readJson('data/extended-skills.json').entries;
 	const RACES = readJson('data/upcoming-races.json').races;
 	const NS_IDS = NS.entries.map((e) => String(e.skillId));
+	const EFF = readJson('data/skill-effect-levels.json');
+	const RANK = new Map(EFF.stages.map((s) => [s.key, s.rank]));
+	const LOWMAX = RANK.get(EFF.lowEffectMax.key !== undefined ? EFF.lowEffectMax.key : EFF.lowEffectMax);
+	const LOW = new Set(EFF.entries.filter((e) => RANK.get(e.maxStage) <= LOWMAX).map((e) => e.skillId));
 	const CARDS6 = ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'];
 	const T = '#deck-template-panel ';
-	const BTN = T + '[data-usd-el="outside-skill-btn"]';
+	const BTN = T + '[data-usd-el="style-open"]';
+	const SM = '[data-usd-el="style-modal"] ';
 	const skillOf = (id) => MASTER.find((s) => String(s.id) === id) || EXT.find((s) => s.id === id);
 	const nameOf = (id) => skillOf(id).name;
 
@@ -103,27 +109,17 @@ export async function register28(env) {
 		return sp;
 	};
 	const draftIds = (page) => page.evaluate(() => ((JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special') || 'null') || {}).skillIds) || []);
-	// 2026-10-18（作業3）: 確認の小窓は、低効果のスキルを最初からチェックを外した状態で出す。サポカ外(1)〜(8)の約束（候補の全部を足す・合計 Pt は全部の和）は、
-	// いったん全部チェックしてから見る形で残す（既定の外れ方は塊「サポカ外確認」で見る）
-	const tickAll = (page) => page.evaluate(() => { document.querySelectorAll('[data-usd-el="recommend-confirm-check"]').forEach((c) => { if (!c.checked) c.click(); }); });
-	const addAll = async (page) => { await tickAll(page); await page.click('[data-usd-el="recommend-confirm-add"]'); };
-	/** 「サポカ外」を押して、確認の小窓（または知らせ）の中身を読む（全部チェックした状態で） */
+	/** 「脚質オススメ」を開いて、「サポカ外」と「緑スキル（レース条件）」の行を読む（開かなければ open:false） */
 	const pressOutside = async (page) => {
 		await page.click(BTN);
 		await page.waitForTimeout(800);
-		await tickAll(page);
 		return page.evaluate(() => {
-			const list = document.querySelector('[data-usd-el="recommend-confirm-list"]');
-			const open = !!list && !document.querySelector('.usd-info-pop').hidden;
-			const items = open ? Array.from(list.querySelectorAll('li')) : [];
-			const q = (s) => { const e = document.querySelector(s); return e ? e.textContent : null; };
-			return { open, title: open ? document.querySelector('.usd-info-pop .uma-popover-title').textContent : null,
-				head: open ? q('[data-usd-el="recommend-confirm-head"]') : null, skip: open ? q('[data-usd-el="recommend-confirm-skip"]') : null,
-				ids: items.map((li) => li.getAttribute('data-skill-id')), names: items.map((li) => li.querySelector('.usd-rec-name').textContent), pts: items.map((li) => li.querySelector('.usd-rec-pt').textContent),
-				toast: document.getElementById('toast-message').textContent };
+			const m = document.querySelector('[data-usd-el="style-modal"]');
+			const open = !!m && !m.hidden;
+			const rows = (key) => open ? Array.from(m.querySelectorAll('[data-section="' + key + '"] [data-usd-el="style-row"]')).map((r) => ({ id: r.getAttribute('data-skill-id'), name: r.querySelector('.usd-sty-name').textContent, pt: r.querySelector('[data-usd-el="style-row-pt"]').textContent, state: r.getAttribute('data-state') })) : [];
+			return { open, outside: rows('outside'), green: rows('green'), head: open ? m.querySelector('[data-usd-el="style-head"]').textContent : null, toast: document.getElementById('toast-message').textContent };
 		});
 	};
-	const numOf = (s) => Number(String(s).replace(/[^0-9]/g, ''));
 	/** 検査の側で、データのタグから組み立てた期待値（①の距離・脚質・バ場だけ。レースなし）。パッシブも白スキルと同じに絞る（C-164。タグに距離・脚質・バ場を持たないものは残る） */
 	const expectedIds = (f, have = [], hidden = []) => NS_IDS.filter((id) => {
 		if (have.includes(id) || hidden.includes(id)) return false;
@@ -135,27 +131,15 @@ export async function register28(env) {
 	const MSF = { distance: 'medium', style: 'senko', surface: 'turf' };
 	const SHD = { distance: 'short', style: 'nige', surface: 'dirt' };
 
-	// 固定の期待値（実データ。2026-10-16c）
-	const S1 = ['7', '10', '11', '181', '291', '373', '375', '376', '381', '399', '406', 'ex-0531', 'ex-0990'];
-	const S2 = ['7', '10', '11', '181', '190', '193', '196', '276', '345', '349', '375', '376', '403', '406'];
-	const S4 = ['291', '373', '381', '399', '406', 'ex-0531', 'ex-0990'];
-
-	await block('サポカ外(2) 「削除」の次に「サポカ外」／押せる見た目のまま（無効にしない）／押すまで data は取りに行かない', async () => {
+	await block('サポカ外(2) 「サポカ外」は脚質オススメの小窓の項目（パレットの行にボタンは無い）／押すまで non-support-skills.json は取りに行かない／入口は押せる見た目', async () => {
 		const sp = await openSp({ roster: { skillFilter: MSF } });
 		const p = sp.page;
 		const r = await p.evaluate(() => {
-			const pal = document.querySelector('#deck-template-panel .usd-palette');
-			const kids = Array.from(pal.children).filter((c) => !c.classList.contains('usd-palette-sep'));
-			const b = pal.querySelector('[data-usd-el="outside-skill-btn"]');
-			const d = pal.querySelector('[data-usd-el="palette-delete"]');
-			const br = b.getBoundingClientRect(), dr = d.getBoundingClientRect();
-			return { order: kids.slice(0, 2).map((c) => c.getAttribute('data-usd-el')), text: b.textContent.trim(), dis: b.disabled, aria: b.getAttribute('aria-disabled'),
-				sameLine: Math.abs((br.top + br.height / 2) - (dr.top + dr.height / 2)) <= 1, h: Math.round(br.height), hd: Math.round(dr.height),
+			const b = document.querySelector('#deck-template-panel [data-usd-el="style-open"]');
+			return { palBtn: !!document.querySelector('#deck-template-panel .usd-palette [data-usd-el="outside-skill-btn"]'), dis: b.disabled, aria: b.getAttribute('aria-disabled'),
 				loaded: performance.getEntriesByType('resource').some((e) => /non-support-skills/.test(e.name)) };
 		});
-		assert(r.order[0] === 'palette-delete' && r.order[1] === 'outside-skill-btn' && r.text === 'サポカ外' && r.sameLine && r.h === r.hd,
-			'サポカ外(2) 「削除」の次・同じ行・同じ高さで、文言は「サポカ外」', r);
-		assert(r.dis === false && r.aria === null, 'サポカ外(2) ボタンは無効（灰色）にしない', r);
+		assert(!r.palBtn && r.dis === false && r.aria === null, 'サポカ外(2) パレットの行にボタンは無く、入口は無効にしない', r);
 		assert(r.loaded === false, 'サポカ外(2) 押すまでは non-support-skills.json を取りに行かない', r);
 		await p.click(BTN);
 		await p.waitForTimeout(800);
@@ -165,92 +149,41 @@ export async function register28(env) {
 		await sp.ctx.close();
 	});
 
-	await block('サポカ外(3) 固定のシナリオ: 候補の数・名前・合計 Pt（①の距離・脚質・バ場・レースを変えると候補が変わる）', async () => {
+	await block('サポカ外(3) 固定のシナリオ: 「サポカ外」の項目の候補（①の距離・脚質・バ場・レース・本育成編成を変えると候補が変わる）。低効果は出さない・緑スキルの項目と重ならない', async () => {
 		const WANT = [
-			// [見出し, openSp の引数, 候補の id, 見出しの文言, 追加しないものの文言]
-			['中距離・先行・芝', { roster: { skillFilter: MSF } }, S1, '追加するスキル 13種（合計 865 Pt）', '追加しないもの 16種（レース条件に合わないため 16種）'],
-			['短距離・逃げ・ダート', { roster: { skillFilter: SHD } }, S2, '追加するスキル 14種（合計 885 Pt）', '追加しないもの 15種（レース条件に合わないため 15種）'],
-			['①の条件なし', { roster: {} }, NS_IDS, '追加するスキル 29種（合計 2,270 Pt）', null],
-			['脚質 先行＋レース［' + RACES[0].name + '］', { roster: { skillFilter: { style: 'senko' } }, race: 0 }, S4, '追加するスキル 7種（合計 645 Pt）', '追加しないもの 22種（レース条件に合わないため 22種）'],
-			['本育成編成（uma-0030）で得る 291 は入らない', { roster: { umaId: 'uma-0030', cardIds: [] } }, NS_IDS.filter((id) => id !== '291'), '追加するスキル 28種（合計 2,180 Pt）', '追加しないもの 1種（本育成編成のため 1種）'],
+			// [見出し, openSp の引数, 期待（データのタグから組み立てる）]
+			['中距離・先行・芝', { roster: { skillFilter: MSF } }, expectedIds(MSF)],
+			['短距離・逃げ・ダート', { roster: { skillFilter: SHD } }, expectedIds(SHD)],
+			['①の条件なし', { roster: {} }, NS_IDS],
+			['脚質 先行＋レース［' + RACES[0].name + '］', { roster: { skillFilter: { style: 'senko' } }, race: 0 }, null],
+			['本育成編成（uma-0030）で得る 291 は入らない', { roster: { umaId: 'uma-0030', cardIds: [] } }, NS_IDS.filter((id) => id !== '291')],
 		];
 		const seen = [];
-		for (const [label, o, ids, head, skip] of WANT) {
+		for (const [label, o, want] of WANT) {
 			const sp = await openSp(o);
 			const r = await pressOutside(sp.page);
-			assert(r.open && r.ids.join() === ids.join() && r.names.join() === ids.map(nameOf).join(), 'サポカ外(3) ' + label + ': 候補は ' + ids.length + '種で、名前もデータどおり', { 画面: r.ids, 期待: ids });
-			assert(r.head === head && r.skip === skip, 'サポカ外(3) ' + label + ': 「' + head + '」「' + skip + '」', { head: r.head, skip: r.skip });
-			const sum = r.pts.reduce((n, t) => n + (/Pt$/.test(t) ? numOf(t) : 0), 0);
-			assert(sum === numOf(r.head.replace(/^.*合計/, '')) && r.pts.every((t) => /^[0-9,]+ Pt$/.test(t)), 'サポカ外(3) ' + label + ': 合計 Pt は各行の Pt の和（Pt 未収録は無い）', { sum, pts: r.pts });
-			assert(r.title === 'サポカ外', 'サポカ外(3) ' + label + ': 小窓の見出しは「サポカ外」', r.title);
-			seen.push(r.ids.join());
+			const ids = r.outside.map((x) => x.id);
+			const greenIds = r.green.map((x) => x.id);
+			assert(r.open, 'サポカ外(3) ' + label + ': 小窓が開く', r.toast);
+			if (want) {
+				// 期待の各 id は、「サポカ外」に出る／低効果で出さない／緑スキルの項目に出る（重ならない）のどれか1つ
+				const bad = want.filter((id) => !(ids.includes(id) ? !LOW.has(id) && !greenIds.includes(id) : (LOW.has(id) || greenIds.includes(id))));
+				assert(bad.length === 0 && ids.every((id) => want.includes(id)), 'サポカ外(3) ' + label + ': 候補は期待（' + want.length + '種）から低効果と緑スキルの項目に出るものを除いた ' + ids.length + '種', { 画面: ids, 期待: want, bad });
+			} else {
+				assert(ids.every((id) => NS_IDS.includes(id) && !LOW.has(id) && !greenIds.includes(id)), 'サポカ外(3) ' + label + ': 候補は non-support-skills.json の中だけ・低効果・緑スキルと重ならない', ids);
+			}
+			assert(r.outside.every((x) => /^[0-9,]+ Pt$|^Pt 不要$|^Pt 未収録$/.test(x.pt)) && r.outside.every((x) => x.name === nameOf(x.id)), 'サポカ外(3) ' + label + ': 名前はデータどおり・各行に Pt', r.outside.map((x) => x.pt));
+			seen.push(ids.join());
 			assert(jsErrors(sp.errors).length === 0, 'サポカ外(3) ' + label + ': コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		}
-		assert(new Set(seen).size === 5, 'サポカ外(3) ①の条件・レース・本育成編成を変えると、候補が変わる（5つのシナリオで5通り）', seen.map((s) => s.split(',').length));
-		// 検査の側で、データのタグから組み立てた期待値とも一致する（レースなしの3つ）
-		assert(S1.join() === expectedIds(MSF).join() && S2.join() === expectedIds(SHD).join() && NS_IDS.join() === expectedIds({}).join(),
-			'サポカ外(3) 固定の期待値は、データのタグから組み立てた期待値（距離・脚質・バ場。空は万能。パッシブも同じに絞る）と一致', { S1: expectedIds(MSF), S2: expectedIds(SHD) });
+		// 「①の条件なし」と「本育成編成で 291 を得る」は同じになる（291 は低効果で、どちらでも出さない）。残りの4通りは違う
+		assert(LOW.has('291') && new Set(seen).size === 4, 'サポカ外(3) ①の条件・レース・本育成編成を変えると、候補が変わる（5つのシナリオで4通り。291 は低効果で出さないので、条件なしと本育成編成のシナリオは同じ）', seen.map((s) => s.split(',').length));
 		assert(NS_IDS.every((id) => !skillOf(id).raceDistance), 'サポカ外(3) 29件にレースの距離の限定（raceDistance）は無い（上の期待値の組み立てに入れていない）', NS_IDS.filter((id) => skillOf(id).raceDistance));
 	});
 
-	await block('サポカ外(4) 確認の小窓: 「やめる」で何も変わらない／「追加する」で追加され、「元に戻す」で戻る', async () => {
-		const have = ['16', '23'];   // ②に入れておくスキル（候補には無い）
-		const sp = await openSp({ roster: { skillFilter: MSF }, ids: have });
-		const p = sp.page;
-		const r = await pressOutside(p);
-		assert(r.open && r.ids.join() === S1.join(), 'サポカ外(4) 小窓が出る', r.ids);
-		assert((await draftIds(p)).join() === have.join(), 'サポカ外(4) 小窓を出しただけでは追加しない', await draftIds(p));
-		assert(await p.$('[data-usd-el="recommend-confirm-add"]') && await p.$('[data-usd-el="recommend-confirm-cancel"]'), 'サポカ外(4) 「追加する」「やめる」がある', true);
-		await p.click('[data-usd-el="recommend-confirm-cancel"]');
-		assert((await draftIds(p)).join() === have.join(), 'サポカ外(4) 「やめる」で何も変わらない', await draftIds(p));
-		const u0 = await p.evaluate(() => UmaSkillDeckCore.undoCount());
-		await p.click(BTN);
-		await p.waitForSelector('[data-usd-el="recommend-confirm-add"]');
-		await addAll(p);
-		await p.waitForTimeout(300);
-		const after = await draftIds(p);
-		const u1 = await p.evaluate(() => UmaSkillDeckCore.undoCount());
-		assert(after.join() === have.concat(S1).join(), 'サポカ外(4) 「追加する」で、小窓の13種が②の末尾に加わる（ほかは変わらない）', after);
-		assert(u1 === u0 + 1, 'サポカ外(4) 「元に戻す」に1回で積む', { u0, u1 });
-		const tl = await p.evaluate(() => document.getElementById('toast-message').textContent);
-		assert(tl === 'サポカ外 13種を追加しました。追加しなかったもの 16種（レース条件に合わないため 16種）', 'サポカ外(4) 追加したあとの知らせ', tl);
-		// 追加済みのスキルは②のタイルに出る（パッシブ〔緑スキル〕もほかと同じタイル）
-		const tiles = await p.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]')).map((e) => e.getAttribute('data-skill-id')));
-		assert(S1.every((id) => tiles.includes(id)), 'サポカ外(4) ②のタイルに追加したスキルが並ぶ（緑スキルを含む）', tiles);
-		await p.click('#deck-undo-btn');
-		await p.waitForTimeout(300);
-		assert((await draftIds(p)).join() === have.join(), 'サポカ外(4) 「元に戻す」で追加前に戻る', await draftIds(p));
-		assert(jsErrors(sp.errors).length === 0, 'サポカ外(4) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
-		await sp.ctx.close();
-	});
-
-	await block('サポカ外(5) 0件のとき: 押せる見た目のまま、押すと理由を知らせる（小窓は出ない）', async () => {
-		// (a) 追加したあとにもう一度押す
-		const sp = await openSp({ roster: { skillFilter: MSF } });
-		const p = sp.page;
-		await pressOutside(p);
-		await addAll(p);
-		await p.waitForTimeout(300);
-		const z = await pressOutside(p);
-		assert(!z.open && z.toast === '追加できるスキルはありません（追加済み 13種・レース条件に合わないため 16種）', 'サポカ外(5) 追加後にもう一度押すと、小窓は出ずに理由の知らせ', z);
-		const look = await p.evaluate(() => { const b = document.querySelector('[data-usd-el="outside-skill-btn"]'); return { dis: b.disabled, aria: b.getAttribute('aria-disabled') }; });
-		assert(look.dis === false && look.aria === null, 'サポカ外(5) 0件でもボタンは無効にしない', look);
-		await sp.ctx.close();
-		// (b) 29件すべてを②に入れておく
-		const sp2 = await openSp({ roster: {}, ids: NS_IDS });
-		const z2 = await pressOutside(sp2.page);
-		assert(!z2.open && z2.toast === '追加できるスキルはありません（追加済み 29種）', 'サポカ外(5) 全件が②にあるときは「追加済み 29種」', z2);
-		await sp2.ctx.close();
-		// (c) 3つの理由がそろう: ②に1種・本育成編成で1種（uma-0030 の 291）・①の条件に合わない
-		const sp3 = await openSp({ roster: { umaId: 'uma-0030', cardIds: [], skillFilter: MSF }, ids: ['7'] });
-		const r3 = await pressOutside(sp3.page);
-		assert(r3.open && r3.skip === '追加しないもの 18種（追加済み 1種・本育成編成のため 1種・レース条件に合わないため 16種）', 'サポカ外(5) 理由は「追加済み・本育成編成のため・レース条件に合わないため」の順に数える', r3.skip);
-		await sp3.ctx.close();
-	});
-
-	await block('サポカ外(6) Pt 未収録のスキルは「Pt 未収録」のまま（合計から除き、数を添える）／データを読めないときは短い知らせだけ', async () => {
-		const noPt = '291';
+	await block('サポカ外(6) Pt 未収録のスキルは「Pt 未収録」のまま（合計から除き、数を添える）', async () => {
+		const noPt = expectedIds(MSF).find((id) => !LOW.has(id) && !skillOf(id).tags.passive.length);   // 低効果でない候補（出る行）
 		const sp = await openSp({ roster: { skillFilter: MSF }, route: async (page) => {
 			await page.route('**/data/skill-pt.json*', async (route) => {
 				const res = await route.fetch();
@@ -260,28 +193,24 @@ export async function register28(env) {
 			});
 		} });
 		const r = await pressOutside(sp.page);
-		const i = r.ids.indexOf(noPt);
-		assert(r.open && i !== -1 && r.pts[i] === 'Pt 未収録' && r.head === '追加するスキル 13種（合計 775 Pt・Pt 未収録 1種を除く）',
-			'サポカ外(6) Pt が無いスキルの行は「Pt 未収録」・合計は 865 − 90 = 775 Pt で数を添える', { pt: r.pts[i], head: r.head });
+		const row = r.outside.find((x) => x.id === noPt);
+		assert(r.open && !!row && row.pt === 'Pt 未収録' && /Pt 未収録 \d+種を除く）$/.test(r.head), 'サポカ外(6) Pt が無いスキルの行は「Pt 未収録」・合計は数を添えて除く', { pt: row && row.pt, head: r.head });
 		await sp.ctx.close();
-		const sp2 = await openSp({ roster: { skillFilter: MSF }, route: async (page) => { await page.route('**/data/non-support-skills.json*', (route) => route.fulfill({ status: 500, body: 'x' })); } });
-		const before = await draftIds(sp2.page);
-		const r2 = await pressOutside(sp2.page);
-		assert(!r2.open && r2.toast === 'サポカ外のスキルのデータを読み込めませんでした' && (await draftIds(sp2.page)).join() === before.join(), 'サポカ外(6) データを読めないときは、②に何も入れず短い知らせだけ', r2.toast);
-		await sp2.ctx.close();
 	});
-	await block('サポカ外(7) パッシブも①の距離で絞る: 遊び心（ex-0990）は短距離の①では候補に出ず、中距離・長距離では出る／①の条件なしでは29種のまま', async () => {
+
+	await block('サポカ外(7) パッシブも①の距離で絞る: 遊び心（ex-0990）は短距離の①では「サポカ外」に出ず、中距離・長距離では出る／①の条件なしでは29種から低効果・緑スキルに出るものを除いたもの', async () => {
 		const YU = 'ex-0990';
 		assert((skillOf(YU).tags.passive || []).length > 0 && skillOf(YU).tags.distance.join() === 'long,medium', 'サポカ外(7) 前提: 遊び心はパッシブで、距離のタグは長距離・中距離', skillOf(YU).tags);
+		assert(!LOW.has(YU), 'サポカ外(7) 前提: 遊び心は低効果ではない', true);
 		for (const [d, want] of [['short', false], ['medium', true], ['long', true]]) {
 			const sp = await openSp({ roster: { skillFilter: { distance: d } } });
 			const r = await pressOutside(sp.page);
-			assert(r.open && r.ids.includes(YU) === want, 'サポカ外(7) 距離 ' + d + ': 遊び心は候補に' + (want ? '出る' : '出ない'), r.ids);
+			assert(r.open && r.outside.some((x) => x.id === YU) === want, 'サポカ外(7) 距離 ' + d + ': 遊び心は候補に' + (want ? '出る' : '出ない'), r.outside.map((x) => x.id));
 			await sp.ctx.close();
 		}
 		const sp = await openSp({ roster: {} });
 		const r = await pressOutside(sp.page);
-		assert(r.open && r.ids.length === 29 && r.ids.includes(YU) && NS_IDS.filter((id) => (skillOf(id).tags.passive || []).length > 0).every((id) => r.ids.includes(id)), 'サポカ外(7) ①の条件なしでは、パッシブも含む29種のまま', r.ids.length);
+		assert(r.open && r.outside.some((x) => x.id === YU) && r.outside.length === NS_IDS.filter((id) => !LOW.has(id)).length, 'サポカ外(7) ①の条件なしでは、パッシブも含む29種から低効果を除いたもの', r.outside.length);
 		await sp.ctx.close();
 	});
 
@@ -320,10 +249,10 @@ export async function register28(env) {
 		const e2c = await badge(sp1.page);
 		assert((await draftIds(sp1.page)).length === 2 && !e2c.hidden && e2c.text === e1.text, 'サポカ外(8) もう一度「元に戻す」で2種に戻ると、最初と同じ「N種」が出る', { e1: e1.text, e2c: e2c.text });
 		await sp1.ctx.close();
-		// 空の②へ追加し、「元に戻す」で空に戻す
+		// 空の②へ「脚質オススメ」で追加し、「元に戻す」で空に戻す
 		const sp2 = await openSp({ roster: { skillFilter: MSF }, ids: [] });
 		await pressOutside(sp2.page);
-		await addAll(sp2.page);
+		await sp2.page.click(SM + '[data-usd-el="style-add"]');
 		await sp2.page.waitForTimeout(400);
 		const e3 = await badge(sp2.page);
 		assert(!e3.hidden && /^[0-9]+種$/.test(e3.text), 'サポカ外(8) 追加すると「N種」が出る', e3);

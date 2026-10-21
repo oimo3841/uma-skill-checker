@@ -136,7 +136,7 @@ export async function register26(env) {
 		synRace('syn-dist-only', { distance: NAKA.courses.find((c) => c.surface === 'turf').distances[0] }),
 		synRace('syn-hit-straight', { venue: NIIG.venue, surface: NIIG.courses[0].surface, distance: NIIG.courses[0].distances[0] })
 	];
-	await block('小回り直線 レース選択で②へ自動追加（C-156）: 当たるレースだけで入る／3つそろわないレース・当たらないレースでは入らない／消した後に同じレースを選び直しても戻らない／指定なしで外れる', async () => {
+	await block('小回り直線 脚質オススメの「緑スキル（レース条件）」（C-156。2026-10-21 に自動追加から置き換え）: 当たるレースだけで小回り／直線コースが出る／3つそろわないレース・当たらないレースでは出ない／レースを選んでも②は変わらない', async () => {
 		const sp = await openPage(browser, base, 'special.html', { width: 375, height: 812 }, EMPTY);
 		await sp.page.route('**/data/upcoming-races.json*', (r) => r.fulfill(json({ dataVersion: 'syn', category: 'upcomingRace', note: 'x', races: SYN_RACES })));
 		await sp.page.evaluate(({ roster }) => {
@@ -155,29 +155,26 @@ export async function register26(env) {
 			await sp.page.click('[data-usd-el="race-opt"][data-race-id="' + id + '"] input');
 			await sp.page.waitForTimeout(500);
 		};
-		const hidden = await sp.page.evaluate(() => UmaSkillDeckCore.getPickerHiddenIds());
+		/** 脚質オススメの小窓を開いて、緑スキル（レース条件）の行の id を読む（閉じて返す） */
+		const greenIds = async () => {
+			await sp.page.click('#deck-template-panel [data-usd-el="style-open"]');
+			await sp.page.waitForFunction(() => { const m = document.querySelector('[data-usd-el="style-modal"]'); return !!m && !m.hidden && m.querySelectorAll('[data-usd-el="style-row"]').length > 0; }, null, { timeout: 10000 });
+			await sp.page.waitForTimeout(200);
+			const ids = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="style-modal"] [data-section="green"] [data-usd-el="style-row"]')).map((r) => r.getAttribute('data-skill-id')));
+			await sp.page.click('[data-usd-el="style-modal"] [data-usd-el="style-cancel"]');
+			await sp.page.waitForTimeout(150);
+			return ids;
+		};
 		const searchable = await sp.page.evaluate(() => UmaSkillDeckCore.getSearchableExtendedSkillIds());
-		const ok = (id) => white(id) && !hidden.includes(id) && (!id.startsWith('ex-') || searchable.includes(id));
+		const ok = (id) => white(id) && (!id.startsWith('ex-') || searchable.includes(id));
 		const small = SMALL.filter(ok), straight = STRAIGHT.filter(ok);
-		assert(small.length > 0 && straight.length > 0, '小回り直線 前提: 自動で入れられる小回り・直線コースのスキルがある', { small, straight });
+		assert(small.length > 0 && straight.length > 0, '小回り直線 前提: 緑スキルに出せる小回り・直線コースのスキルがある', { small, straight });
 		const inc = (ids, want) => want.every((x) => ids.includes(x));
 		const none = (ids, want) => want.every((x) => !ids.includes(x));
 		await pick('syn-hit-small');
-		let ids = await draftIds();
-		assert(inc(ids, small) && none(ids, straight), '小回り直線 当たるレース（小回り）: 小回りが入り、直線コースは入らない', { ids, small, straight });
-		const rec = await sp.page.evaluate(() => (JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')) || {}).raceAutoSkillIds || []);
-		assert(inc(rec, small), '小回り直線 自動で入れたものは記録に残る（回り・季節と同じ）', rec);
-		// 消した後に同じレースを選び直しても戻らない（レースが変わらないので何もしない）
-		await removeFromSet(sp.page, small[0]);
-		await sp.page.waitForTimeout(200);
-		await pick('syn-hit-small');
-		await sp.page.keyboard.press('Escape');
-		await sp.page.waitForTimeout(200);
-		ids = await draftIds();
-		assert(!ids.includes(small[0]), '小回り直線 利用者が消したものは、同じレースを選び直しても再び入らない', ids);
-		await pick('');
-		ids = await draftIds();
-		assert(none(ids, small), '小回り直線 指定なしに戻すと、自動で入れたものが外れる', ids);
+		let g = await greenIds();
+		assert(inc(g, small) && none(g, straight), '小回り直線 当たるレース（小回り）: 小回りが出て、直線コースは出ない', { g, small, straight });
+		assert((await draftIds()).length === 0, '小回り直線 レースを選んでも②は変わらない（自動追加は無い）', await draftIds());
 		for (const [rid, label, expectSmall, expectStraight] of [
 			['syn-miss-small', '当たらないレース（京都 芝2200m）', false, false],
 			['syn-venue-only', 'レース場だけのレース', false, false],
@@ -185,10 +182,11 @@ export async function register26(env) {
 			['syn-hit-straight', '新潟 芝1000m', false, true]
 		]) {
 			await pick(rid);
-			ids = await draftIds();
-			assert((expectSmall ? inc(ids, small) : none(ids, small)) && (expectStraight ? inc(ids, straight) : none(ids, straight)), '小回り直線 ' + label + ': 小回り' + (expectSmall ? '○' : '入らない') + '／直線コース' + (expectStraight ? '○' : '入らない'), { ids, small, straight });
-			await pick('');
+			g = await greenIds();
+			assert((expectSmall ? inc(g, small) : none(g, small)) && (expectStraight ? inc(g, straight) : none(g, straight)), '小回り直線 ' + label + ': 小回り' + (expectSmall ? '○' : 'は出ない') + '／直線コース' + (expectStraight ? '○' : 'は出ない'), { g, small, straight });
 		}
+		await pick('');
+		assert((await draftIds()).length === 0, '小回り直線 指定なしに戻しても②は変わらない', await draftIds());
 		assert(jsErrors(sp.errors).length === 0, '小回り直線 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});

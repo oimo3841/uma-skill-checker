@@ -397,7 +397,7 @@ export async function register9(env) {
 			if (w === 375) assert(o.tagBand.tag.top >= o.tagBand.sum.bottom && o.tagBand.reset.top < o.tagBand.tag.top && o.tagBand.reset.right > o.tagBand.tags.right - 40, tag + '375px: タグは2段目に折り返し、「↺」は1段目の右端', o.tagBand);
 			else assert(o.tagBand.tag.top < o.tagBand.sum.bottom && o.tagBand.reset.top < o.tagBand.sum.bottom, tag + '1280px: タグは1段目に並ぶ（「↺」も1段目の右端）', o.tagBand);
 			assert(/^継承固有/.test(o.cfgText) && /共通スキルのヒントLv/.test(o.cfgText), tag + '設定の枠は「継承固有 [6種▾][Lv3▾]」「共通スキルのヒントLv [5▾]」', o.cfgText);
-			assert(o.entries.map((x) => x.replace(/\d+$/, '')).join() === '条件で検索,緑スキル,テキストで検索,スクショで追加' && o.entryRowOverflow === 'auto', tag + '入口のボタン4つ（横スクロール）', o.entries);
+			assert(o.entries.map((x) => x.replace(/\d+$/, '')).join() === '脚質オススメ,条件で検索,緑スキル,テキストで検索,スクショで追加' && o.entryRowOverflow === 'auto', tag + '入口のボタン4つ（横スクロール）', o.entries);
 			assert(o.gone.length === 0, tag + '超優先／優先／通常・再分類・削除（ランク）・ランク別の見出し・ランクのチップは無い', o.gone);
 			// C-132: アイコンを少し小さく（18px → 15px）。押す範囲は幅 26px・高さ 32px（24px 以上を保つ）
 			assert(o.iconBtn[0] >= 24 && o.iconBtn[1] >= 32 && o.icon.join() === '15,15', tag + 'アイコンは 15px。押す範囲は 24×32px 以上（' + o.iconBtn.join('×') + '）', o);

@@ -1,11 +1,11 @@
-import { pressRecommend, removeFromSet } from './lib/fixtures.mjs';
+import { removeFromSet } from './lib/fixtures.mjs';
 // C-131（2026-10-07）の検査。run-smoke.mjs の末尾から register17() で呼ばれる
 // （塊の見出しはすべて「C131」で始まる。`npm run test:visual -- --only=C131` で回せる。A・C だけなら「C131A」「C131C」）。
 //
 // A: オススメサポで、②に追加済みのスキルを数える（タイルの「＋N種」・小窓の「対象」・下段の新しい表示）
 // C: ①の「低効果を除外」ボタンと確認の小窓を削除した（オススメサポの除外の「低効果」は残る）
 // B: 目覚めを、対応するスキルと同じものとして扱う（組は recommended-skills.json の equivalentPairs）
-// D: 脚質のボタン（逃げオススメ・先差追オススメ）を、追加できるものが0種でも押せない状態にしない
+// D: 入口の「脚質オススメ」（2026-10-21。C-130 のパレットの脚質のボタンを置き換えた）を、追加できるものが0種でも押せない状態にしない
 // スキル名・レース名は検査の側に書かない（恒久ルール1。データか画面から読む）。
 
 export async function register17(env) {
@@ -79,6 +79,14 @@ export async function register17(env) {
 		await page.click('[data-usd-el="race-opt"][data-race-id="' + id + '"] input');
 		await page.waitForTimeout(600);
 	};
+	/** 入口の「脚質オススメ」で、いまの条件のまま ON のものを②へ足す（②に入れる材料を作る。レースを選んだときの自動追加は 2026-10-21 に廃止） */
+	const addViaStyle = async (page) => {
+		await page.click(T + '[data-usd-el="style-open"]');
+		await page.waitForFunction(() => { const m = document.querySelector('[data-usd-el="style-modal"]'); return !!m && !m.hidden && m.querySelectorAll('[data-usd-el="style-row"]').length > 0; }, null, { timeout: 10000 });
+		await page.waitForTimeout(200);
+		await page.click('[data-usd-el="style-modal"] [data-usd-el="style-add"]');
+		await page.waitForTimeout(500);
+	};
 	const openOutside = async (page) => {
 		await page.click(T + '[data-usd-el="outside-open"]');
 		await page.waitForFunction(() => { const m = document.querySelector('[data-usd-el="outside-modal"]'); return !!m && !m.hidden && !m.querySelector('[data-usd-el="outside-busy"]'); }, null, { timeout: 20000 });
@@ -94,9 +102,10 @@ export async function register17(env) {
 	/* ====================================================================
 	 * A: 追加済みのスキルを数える・下段の表示
 	 * ==================================================================== */
-	await block('C131A レースで②に入ったスキル（既定の除外に当たる緑スキル）も、そのカードの「＋N種」と小窓の「対象」に入る／一覧では「追加済み」で選べず、「追加」でも入らない', async () => {
+	await block('C131A 脚質オススメで②に入ったスキル（既定の除外に当たる緑スキル）も、そのカードの「＋N種」と小窓の「対象」に入る／一覧では「追加済み」で選べず、「追加」でも入らない', async () => {
 		const sp = await openSp();
 		await pickRace(sp.page, RACE.id);
+		await addViaStyle(sp.page);
 		const added = await draftIds(sp.page);
 		await openOutside(sp.page);
 		const r = await sp.page.evaluate(async (added) => {
@@ -140,6 +149,7 @@ export async function register17(env) {
 		for (const size of [{ w: 375, h: 812 }, { w: 320, h: 568 }]) {
 			const sp = await openSp({ w: size.w, h: size.h });
 			await pickRace(sp.page, RACE.id);
+			await addViaStyle(sp.page);
 			const added = await draftIds(sp.page);
 			await openOutside(sp.page);
 			const exp = await sp.page.evaluate(async (added) => {
@@ -213,7 +223,7 @@ export async function register17(env) {
 	/* ====================================================================
 	 * B: 目覚めを、対応するスキルと同じものとして扱う（組は recommended-skills.json の equivalentPairs）
 	 * ==================================================================== */
-	await block('C131B ①で対応するスキルを得るセットでは、目覚めも「本育成で得る」になる: 緑スキルの一覧でグレーアウト（条件で検索には緑スキルは出ない）・レース選択の自動追加で入らない', async () => {
+	await block('C131B ①で対応するスキルを得るセットでは、目覚めも「本育成で得る」になる: 緑スキルの一覧でグレーアウト（条件で検索には緑スキルは出ない）・脚質オススメで入らない', async () => {
 		assert(!!PAIR && !!UMA_WITH, 'C131B 材料: 組の対応するスキルを最初から持つ育成ウマ娘がいる', { pair: PAIR, uma: UMA_WITH && UMA_WITH.id });
 		if (!PAIR || !UMA_WITH) return;
 		const [awk, base1] = PAIR.skillIds;
@@ -236,12 +246,13 @@ export async function register17(env) {
 		const pb = await sp.page.evaluate(() => (document.querySelector('[data-usd-el="paste-blocked"]') || {}).textContent || null);
 		assert(pb === '本育成編成のため追加しなかったもの 1種', 'C131B (1) テキストで検索で、目覚めは「本育成編成のため追加しなかったもの 1種」', pb);
 		await sp.page.click('[data-usd-act="picker-close"]');
-		// (2) レース選択の自動追加: 組の回り・季節のレースを選んでも、目覚めも対応するスキルも入らない
+		// (2) 脚質オススメ: 組の回り・季節のレースを選んで足しても、目覚めも対応するスキルも入らない（グレーの行）
 		const env = (MASTER.find((s) => String(s.id) === awk).tags.environment || []);
 		const race = RACES.find((r) => env.includes(r.direction) || env.includes(r.season));
 		await pickRace(sp.page, race.id);
+		await addViaStyle(sp.page);
 		const ids = await draftIds(sp.page);
-		assert(ids.length > 0 && !ids.includes(awk) && !ids.includes(base1), 'C131B (2) レース（' + race.id + '）を選んでも、目覚め・対応するスキルは②に入らない（ほかは入る）', ids);
+		assert(ids.length > 0 && !ids.includes(awk) && !ids.includes(base1), 'C131B (2) レース（' + race.id + '）を選んで脚質オススメで足しても、目覚め・対応するスキルは②に入らない（ほかは入る）', ids);
 		assert(jsErrors(sp.errors).length === 0, 'C131B コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 		// 組のデータが読めないときは今までどおり（目覚めは選べる）。知らせも出さない
@@ -252,26 +263,23 @@ export async function register17(env) {
 		await sp2.ctx.close();
 	});
 
-	await block('C131B 逆も同じ（①で目覚めを得ると対応するスキルが外れる）／脚質のボタンでも入らない（グループに目覚めを入れた差し替えのデータ）', async () => {
+	await block('C131B 逆も同じ（①で目覚めを得ると対応するスキルが外れる）／脚質オススメでも入らない（スキルに目覚めを入れた差し替えのデータ）', async () => {
 		if (!PAIR || !UMA_WITH) { assert(false, 'C131B 材料が無い', null); return; }
 		const [awk, base1] = PAIR.skillIds;
 		// 逆: 育成ウマ娘の最初から持つスキルを、対応するスキルから目覚めに差し替えたデータ（検査の中だけ）
 		const umas = JSON.parse(JSON.stringify(UMAS_DOC));
 		const u = umas.entries.find((x) => x.id === UMA_WITH.id);
 		u.awakeningSkills.forEach((a) => { if (a.level === 0) a.skills = a.skills.map((s) => (s.skillId === base1 ? { skillId: awk, name: nameOf(awk) } : s)); });
-		// 脚質のボタンのグループに、目覚めと対応するスキルを足したデータ（検査の中だけ）
+		// 脚質オススメのスキルに、目覚めと対応するスキルを足したデータ（検査の中だけ）
 		const rec = JSON.parse(JSON.stringify(REC));
-		const g = rec.groups.find((x) => x.key === 'runnerNotEscape');
-		g.skills = g.skills.concat([{ skillId: base1, name: nameOf(base1) }, { skillId: awk, name: nameOf(awk) }]);
+		rec.skills = rec.skills.concat([{ skillId: base1, name: nameOf(base1), section: 'scenario', styles: ['senko'] }, { skillId: awk, name: nameOf(awk), section: 'scenario', styles: ['senko'] }]);
 		const sp = await openSp({ roster: { umaId: UMA_WITH.id, cardIds: CARDS6, skillFilter: { style: 'senko' } }, umas, rec });
 		const rows = await passiveRows(sp.page, [awk, base1]);
 		assert(rows.every((x) => x.shown && x.disabled && x.reason === '本育成で得るため選べません'), 'C131B 逆: ①で目覚めを得ると、対応するスキルもグレーアウト', rows);
-		await sp.page.waitForSelector(T + '[data-usd-el="recommend-btn"]');
-		await pressRecommend(sp.page);   // C-132: 確認の小窓を挟む
-		await sp.page.waitForTimeout(300);
+		await addViaStyle(sp.page);
 		const ids = await draftIds(sp.page);
 		const t = await toastText(sp.page);
-		assert(ids.length > 0 && !ids.includes(awk) && !ids.includes(base1) && /本育成編成のため \d+種/.test(t), 'C131B (3) 脚質のボタンでも、目覚め・対応するスキルは入らない（本育成編成のため）', { ids, t });
+		assert(ids.length > 0 && !ids.includes(awk) && !ids.includes(base1) && /本育成編成のため \d+種/.test(t), 'C131B (3) 脚質オススメでも、目覚め・対応するスキルは入らない（本育成編成のため）', { ids, t });
 		assert(jsErrors(sp.errors).length === 0, 'C131B 逆 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
@@ -284,6 +292,7 @@ export async function register17(env) {
 		const envB = (MASTER.find((s) => String(s.id) === awk).tags.environment || []);
 		const raceB = RACES.find((r) => envB.includes(r.direction) || envB.includes(r.season));
 		await pickRace(sp.page, raceB.id);
+		await addViaStyle(sp.page);   // 組の回り・季節が緑スキルとして入る（目覚めと対応するスキル）
 		if ((await draftIds(sp.page)).includes(base1)) { await removeFromSet(sp.page, base1); await sp.page.waitForTimeout(200); }   // C-132: タイルの × は無い
 		if (!(await draftIds(sp.page)).includes(awk)) await addByText(sp.page, [nameOf(awk)]);
 		const ids0 = await draftIds(sp.page);
@@ -315,30 +324,31 @@ export async function register17(env) {
 	});
 
 	/* ====================================================================
-	 * D: 脚質のボタンを押せない状態にしない
+	 * D: 入口の「脚質オススメ」を押せない状態にしない（2026-10-21。パレットの脚質のボタンを置き換えた）
 	 * ==================================================================== */
-	await block('C131D 脚質のボタンは追加できるものが0種でも押せる見た目のまま。押すと何も足さずに「追加できるスキルはありません（内訳）」／内訳も0なら一文だけ', async () => {
-		const sp = await openSp({ roster: Object.assign({}, FULL, { skillFilter: { style: 'senko' } }) });
-		await sp.page.waitForSelector(T + '[data-usd-el="recommend-btn"]');
-		await pressRecommend(sp.page);   // C-132: 確認の小窓を挟む
-		await sp.page.waitForTimeout(300);
+	await block('C131D 脚質オススメは追加できるものが0種でも押せる見た目のまま。押すと小窓は開かず何も足さずに「追加できるスキルはありません（内訳）」', async () => {
+		const sp = await openSp({ roster: Object.assign({}, FULL, { skillFilter: { style: 'senko', distance: 'medium', surface: 'turf' } }) });
+		await pickRace(sp.page, RACE.id);
+		await addViaStyle(sp.page);
 		const n1 = (await draftIds(sp.page)).length;
-		// C-132: 「解除」は無くなったので、同じ形のボタンの「削除」（選ばれていないとき）と同じ色かを見る
-		const look = await sp.page.evaluate(() => { const b = document.querySelector('[data-usd-el="recommend-btn"]'); return { dis: b.disabled, color: getComputedStyle(b).color, clear: getComputedStyle(document.querySelector('[data-usd-el="palette-delete"]')).color }; });
-		assert(n1 > 0 && !look.dis && look.color === look.clear, 'C131D 全部足したあとも、ボタンは押せる見た目（disabled なし・「削除」と同じ色）', look);
-		await pressRecommend(sp.page);   // C-132: 確認の小窓を挟む
-		await sp.page.waitForTimeout(300);
+		// 追加できるものが残っているあいだは、もう一度開いて足す（②に足したぶんはグレーになる）。ON のものが無くなったら小窓は開かない
+		for (let i = 0; i < 3; i++) {
+			await sp.page.click(T + '[data-usd-el="style-open"]');
+			await sp.page.waitForTimeout(500);
+			const open = await sp.page.evaluate(() => { const m = document.querySelector('[data-usd-el="style-modal"]'); return !!m && !m.hidden; });
+			if (!open) break;
+			await sp.page.click('[data-usd-el="style-modal"] [data-usd-el="style-add"]');
+			await sp.page.waitForTimeout(400);
+		}
+		const n2 = (await draftIds(sp.page)).length;
+		const look = await sp.page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="style-open"]'); return { dis: b.disabled, aria: b.getAttribute('aria-disabled') }; });
+		assert(n2 >= n1 && !look.dis && look.aria === null, 'C131D 全部足したあとも、入口は押せる見た目（disabled なし）', look);
+		await sp.page.click(T + '[data-usd-el="style-open"]');
+		await sp.page.waitForTimeout(500);
 		const t = await toastText(sp.page);
-		assert((await draftIds(sp.page)).length === n1 && /^追加できるスキルはありません（追加済み \d+種(・本育成編成のため \d+種)?(・レース条件に合わないため \d+種)?）$/.test(t), 'C131D 押すと何も足さずに、内訳つきで知らせる', t);
+		const open = await sp.page.evaluate(() => { const m = document.querySelector('[data-usd-el="style-modal"]'); return !!m && !m.hidden; });
+		assert(!open && (await draftIds(sp.page)).length === n2 && /^追加できるスキルはありません（追加済み \d+種(・本育成編成のため \d+種)?(・レース条件に合わないため \d+種)?）$/.test(t), 'C131D 押すと小窓は開かず、何も足さずに内訳つきで知らせる', t);
+		assert(jsErrors(sp.errors).length === 0, 'C131D コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
-		const rec = JSON.parse(JSON.stringify(REC));
-		rec.groups.find((x) => x.key === 'runnerNotEscape').skills = [];
-		const sp2 = await openSp({ roster: Object.assign({}, FULL, { skillFilter: { style: 'senko' } }), rec });
-		await sp2.page.waitForSelector(T + '[data-usd-el="recommend-btn"]');
-		await pressRecommend(sp2.page);   // C-132: 確認の小窓を挟む
-		await sp2.page.waitForTimeout(300);
-		assert((await toastText(sp2.page)) === '追加できるスキルはありません' && (await draftIds(sp2.page)).length === 0, 'C131D 内訳も0なら「追加できるスキルはありません」だけ', await toastText(sp2.page));
-		assert(jsErrors(sp2.errors).length === 0, 'C131D コンソールのエラー0', jsErrors(sp2.errors).slice(0, 3));
-		await sp2.ctx.close();
 	});
 }
