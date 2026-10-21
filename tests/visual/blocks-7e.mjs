@@ -9,6 +9,7 @@
 // 判定の期待値は、データ（マスター・拡張スキルの tags と skill-pt.json の rarity と skill-step-up.json）から検査の側で独立に求める。
 // 検査がデータを名前で引くのは構わない（恒久ルール1は製品のコードの話）。
 import { avgColor, deltaE, contrastRatio } from './lib/pixels.mjs';
+import { clickEvents, clickSort } from './lib/col-menu.mjs';
 
 export async function register7e(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA } = env;
@@ -154,7 +155,7 @@ export async function register7e(env) {
 			// 並べ替え（↕）でも隣り合わせ: B の列（キー '2'）を押す。W3（A の列）と前段 W7（B の列）の組は、W7 に○があるので組ごと上へ
 			const colMarks = (rs, k) => new Map(rs.map((r) => [r.id, r.marks[k]]));   // k: 0=育成ウマ娘の列, 1=カード1, 2=カード2 …
 			const mark = colMarks(rows, 2);
-			await sp.page.click(P + '[data-usd-el="sort-btn"][data-member-key="2"]');
+			await clickSort(sp.page, P, '2');
 			await sp.page.waitForTimeout(250);
 			const sorted = await readRows(sp.page);
 			// 期待: 元の単位（既定の並びの単位）を、「組のどれかに B の列の印がある」ものを先に（安定ソート）
@@ -167,7 +168,7 @@ export async function register7e(env) {
 			assert(sidx(W[3]) >= 0 && (sidx(W[7]) === sidx(W[3]) + 1 || sidx(W[7]) === sidx(W[6]) + 1) && sidx(W[8]) === sidx(W[1]) + 1, tag + '並べ替えのあとも金スキルと前段の白は隣り合わせ（W7 は A の列に印の無い金 W3 の組にいても、B の列に印があるので組ごと上）', { w3: sidx(W[3]), w7: sidx(W[7]), w6: sidx(W[6]), w1: sidx(W[1]), w8: sidx(W[8]) });
 			const aloneHit = units.find((u) => u.length === 2 && !mark.get(u[0]) && mark.get(u[1]));
 			if (aloneHit) assert(sidx(aloneHit[0]) < wantSorted.length && sidx(aloneHit[0]) <= sorted.findIndex((r) => !hit(units.find((u) => u.includes(r.id)))) , tag + '金の側に印が無く、前段の白の側にだけ印がある組（' + aloneHit.join('+') + '）も、組ごと上に寄る', { aloneHit });
-			await sp.page.click(P + '[data-usd-el="sort-btn"][data-member-key="2"]');   // もう一度で戻る
+			await clickSort(sp.page, P, '2');   // もう一度で戻る
 			await sp.page.waitForTimeout(250);
 			assert((await readRows(sp.page)).map((r) => r.id).join() === exp.order.join(), tag + 'もう一度押すと既定の並びに戻る');
 			// 金スキルの直下の前段の行も、取得のチェックが効く（合計・種数の計算は変えていない）

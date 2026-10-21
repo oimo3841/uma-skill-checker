@@ -6,6 +6,7 @@
 // スキル名・イベント名・衣装名は検査の側に書かない（恒久ルール1）。実データ（data/training-event-skills.json）から読む。
 
 import { decodePng, contrastRatio, hexOf } from './lib/pixels.mjs';
+import { clickEvents } from './lib/col-menu.mjs';
 
 export async function register23(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
@@ -405,10 +406,11 @@ export async function register23(env) {
 		await sp.page.reload({ waitUntil: 'networkidle' });
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
-		const btns = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="events-btn"]')).map((b) => ({ key: b.getAttribute('data-member-key'), text: b.textContent, aria: b.getAttribute('aria-label'), cls: b.className })));
-		assert(btns.length >= 1 && btns.every((b) => /^[1-6]$/.test(b.key) && /番のカードのイベントを選ぶ/.test(b.aria) && !/evbtn--uma/.test(b.cls) && (b.text === '!' || /^[1-6]$/.test(b.text))),
-			'育成イベント段3E サポカの列見出しのボタンは番号か「！」のまま（◇のボタンにならない）', btns);
-		await sp.page.click('[data-usd-el="events-btn"]');
+		// C-187: サポカの列見出しは種別アイコンのボタン（イベントのあるカードは data-has-events。押すとメニュー）。◇のボタンにはならない
+		const btns = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="col-menu-btn"][data-has-events]')).map((b) => ({ key: b.getAttribute('data-member-key'), aria: b.getAttribute('aria-label'), cls: b.className, diamond: !!b.querySelector('.usd-roster-evdiamond') })));
+		assert(btns.length >= 1 && btns.every((b) => /^[1-6]$/.test(b.key) && /のメニュー/.test(b.aria) && !/evbtn--uma/.test(b.cls) && !b.diamond),
+			'育成イベント段3E サポカの列見出しのイベントのあるカードは、種別アイコンのメニューのボタン（◇のボタンにならない。C-187）', btns);
+		await clickEvents(sp.page, '#deck-roster-panel ', btns[0].key);
 		await sp.page.waitForSelector('[data-usd-el="event"]');
 		const r = await sp.page.evaluate(() => ({ conds: document.querySelectorAll('.usd-roster-eventcond').length, titles: Array.from(document.querySelectorAll('.usd-roster-eventtitle')).map((t) => t.textContent.replace(/\s*自動$/, '')), diamond: !!document.querySelector('.uma-popover-title .usd-roster-evdiamond') }));
 		assert(r.conds === 0 && !r.diamond && r.titles.length > 0 && r.titles.every((t) => /^(\d+回目|\d+つ目|共通イベント.*)$/.test(t)), '育成イベント段3E サポカの小窓: 条件文の要素は無く、イベント名は「N回目」「共通イベント…」のまま', r);

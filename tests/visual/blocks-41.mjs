@@ -1,3 +1,4 @@
+import { clickEvents } from './lib/col-menu.mjs';
 // ①の「既定と違う選択」の点（2026-10-21・C-179）の検査。run-smoke.mjs の末尾から register41() で呼ばれる
 // （塊の見出しはすべて「C-179」で始まる。`npm run test:visual -- --only=C-179` で回せる）。
 //
@@ -39,8 +40,8 @@ export async function register41(env) {
 		await sp.page.waitForTimeout(700);
 		return sp;
 	};
-	const members = (page) => page.evaluate((P) => Array.from(document.querySelectorAll(P + '[data-usd-el="events-btn"]')).map((b) => ({ key: b.getAttribute('data-member-key'), dot: !!b.querySelector('[data-usd-el="result-dot"]'), text: b.textContent, un: b.getAttribute('data-unselected') })), P);
-	const openPop = async (page, key) => { await page.click(P + '[data-usd-el="events-btn"][data-member-key="' + key + '"]'); await page.waitForTimeout(400); };
+	const members = (page) => page.evaluate((P) => Array.from(document.querySelectorAll(P + '[data-usd-el="events-btn"], ' + P + '[data-usd-el="col-menu-btn"]')).map((b) => ({ key: b.getAttribute('data-member-key'), dot: !!b.querySelector('[data-usd-el="result-dot"]'), text: b.textContent, un: b.getAttribute('data-unselected') })), P);
+	const openPop = async (page, key) => { await clickEvents(page, P, key); await page.waitForTimeout(400); };
 	const closePop = async (page) => { await page.keyboard.press('Escape'); await page.waitForTimeout(250); };
 	const rowDots = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="event-nondefault-dot"]')).map((d) => { const box = d.parentElement.closest('[data-usd-el^="event"]'); return box ? box.getAttribute('data-event-key') : null; }));
 	/** 全ての列について、列見出しの点の有無と、小窓の点のある行の件数を取る */
@@ -124,7 +125,7 @@ export async function register41(env) {
 			const col = await sp.page.evaluate((P) => {
 				const walk = (el) => { let n = el.parentElement; while (n) { const c = getComputedStyle(n).backgroundColor; if (c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c; n = n.parentElement; } return null; };
 				const cs = (d) => { const c = getComputedStyle(d); return { fill: c.backgroundColor, ring: c.borderTopColor, w: d.getBoundingClientRect().width }; };
-				const bs = Array.from(document.querySelectorAll(P + '[data-usd-el="events-btn"]'));
+				const bs = Array.from(document.querySelectorAll(P + '[data-usd-el="events-btn"], ' + P + '[data-usd-el="col-menu-btn"]'));
 				return { dots: bs.filter((b) => b.querySelector('[data-usd-el="result-dot"]')).map((b) => Object.assign({ key: b.getAttribute('data-member-key') }, cs(b.querySelector('[data-usd-el="result-dot"]')))),
 					grounds: bs.map((b) => ({ key: b.getAttribute('data-member-key'), kind: b.className, face: getComputedStyle(b).backgroundColor, ground: walk(b) })) };
 			}, P);
@@ -138,7 +139,7 @@ export async function register41(env) {
 			all.forEach((d) => seen.add(d.fill + '|' + d.ring));
 			assert(all.length >= 3 && all.every((d) => d.w >= 7 && d.w <= 9), 'C-179(b) ' + scheme + ' 点は育成ウマ娘の列・カードの列・小窓の行にあり、大きさは約8px', all.map((d) => d.w));
 			const f = row.fill, r = row.ring;
-			const need = [['小窓の行', row.ground]].concat(...col.grounds.map((g) => [[g.key + '番の見出しの地', g.ground], [g.key + '番のバッジの面', g.face]]));
+			const need = [['小窓の行', row.ground]].concat(...col.grounds.map((g) => [[g.key + '番の見出しの地', g.ground], [g.key + '番のバッジの面', /rgba(0, 0, 0, 0)|transparent/.test(g.face || '') ? null : g.face]]));   // C-187: サポカの列の見出しは透明なボタン（面は見出しの地）
 			const bad = need.filter(([, g]) => g && Math.max(ratio(f, g), ratio(r, g)) < 3).map(([n, g]) => [n, g, ratio(f, g).toFixed(2), ratio(r, g).toFixed(2)]);
 			assert(bad.length === 0, 'C-179(b) ' + scheme + ' 点の塗りか縁が、すべての地（見出しの地・バッジの面・小窓の行 計' + need.length + '）に対して 3:1 以上', bad);
 			const uma = col.grounds.find((g) => g.key === '0'), card = col.grounds.find((g) => g.key === '1');
@@ -153,7 +154,7 @@ export async function register41(env) {
 
 	await block('C-179(d)(e) 点が付いても、「！」の数・字、列見出しの高さ・列の幅、小窓の見出しの高さは変わらない（PC・390・360）', async () => {
 		const measure = (page) => page.evaluate((P) => {
-			const bs = Array.from(document.querySelectorAll(P + '[data-usd-el="events-btn"]'));
+			const bs = Array.from(document.querySelectorAll(P + '[data-usd-el="events-btn"], ' + P + '[data-usd-el="col-menu-btn"]'));
 			const gh = document.querySelector(P + '.usd-roster-gh');
 			const gcs = Array.from(document.querySelectorAll(P + '.usd-roster-gh'));
 			const btn28 = document.querySelector(P + '.usd-roster-ghbtn');

@@ -1,3 +1,4 @@
+import { clickEvents, clickSort } from './lib/col-menu.mjs';
 // 段7c（2026-10-03・C-115）の検査。run-smoke.mjs の末尾から register7c() で呼ばれる（塊の見出しはすべて「段7c」を含むので、
 // `npm run test:visual -- --only=段7c` で全部、`--only=段7c(M)` のように括弧つきの見出しで1つずつ回せる）。
 //
@@ -409,7 +410,7 @@ export async function register7c(env) {
 				&& sc2.label === 'シナリオ『トレセン軒』のイベントを選ぶ' && sc2.hasSvg, tag + 'イベント2を選ぶと、そのスキルが●になり、見出しの「!」は消えてどんぶりのアイコンに変わる（未選択0件）', sc2);
 			await esc(sp.page);
 			// 並べ替え（漏斗）・オフ・絞り込みが、ほかの列と同じに効く
-			await sp.page.click(P + '[data-usd-el="sort-btn"][data-member-key="scenario"]');
+			await clickSort(sp.page, P, 'scenario');
 			v = await readPanel(sp.page);
 			const firstMarks = v.rows.slice(0, 5).map(scenMark);
 			assert(firstMarks.every((m) => m === '●' || m === '△'), tag + 'シナリオの列の漏斗で、その列のスキルが上に寄る', firstMarks);

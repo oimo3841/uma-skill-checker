@@ -184,9 +184,9 @@ export async function register11(env) {
 			const C = UmaSkillDeckCore;
 			const dom = {
 				selects: Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-act="filter"]')).map((s) => ({ axis: s.getAttribute('data-axis'), value: s.value })),
-				alerts: document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"][data-unselected]').length
+				alerts: document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"][data-unselected], #deck-roster-panel [data-usd-el="col-menu-btn"][data-unselected]').length
 			};
-			const unsel = Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"]')).reduce((s, b) => s + Number(b.getAttribute('data-unselected') || 0), 0);
+			const unsel = Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"], #deck-roster-panel [data-usd-el="col-menu-btn"]')).reduce((s, b) => s + Number(b.getAttribute('data-unselected') || 0), 0);
 			return { dom, unsel, keys: C.ROSTER_FILTER_AXIS_KEYS };
 		});
 		assert(r.keys.join() === 'distance,style,surface' && r.dom.selects.length === 3 && r.dom.selects.every((s) => s.value !== ''), 'オススメサポ(A) ①の絞り込みの3軸（距離・脚質・バ場）が設定済み（「指定なし」は選択値が空）', r);
@@ -234,7 +234,7 @@ export async function register11(env) {
 		assert(noPend.n > 0 && noPend.pending === false, 'オススメサポ 前提: ①の選ぶ必要のあるイベント（' + noPend.n + '件）をすべて選んだ①を作れる', { n: noPend.n, pending: noPend.pending });
 		// 育成ウマ娘の取得の切り替え（user のイベント）の未確認も「！」に数えるので、確認済みにしておく（この塊が見るのは選ぶ必要のあるイベントの「！」）
 		const sp2 = await openSp({ roster: Object.assign({}, FULL, { eventChoices: noPend.choices, acquireSeen: FULL.umaId }) });
-		const unsel2 = await sp2.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"]')).reduce((s, b) => s + Number(b.getAttribute('data-unselected') || 0), 0));
+		const unsel2 = await sp2.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"], #deck-roster-panel [data-usd-el="col-menu-btn"]')).reduce((s, b) => s + Number(b.getAttribute('data-unselected') || 0), 0));
 		await clearToast(sp2.page);
 		await open(sp2.page);
 		const s1 = await snap(sp2.page);
@@ -823,8 +823,8 @@ export async function register11(env) {
 		await rs.page.keyboard.press('Escape');
 		await rs.page.evaluate(() => selectStepTab(0, { noSave: true }));
 		await rs.page.waitForTimeout(250);
-		const tw = await rs.page.evaluate(() => { const b = document.querySelector('#deck-roster-panel [data-usd-el="events-btn"]'); if (!b) return null; b.click(); const pop = document.querySelector('.usd-info-pop'); return { has: ['events-panes', 'events-pane-events', 'events-pane-skills', 'ev-skills-title'].every((k) => !!pop.querySelector('[data-usd-el="' + k + '"]')), sw: !!pop.querySelector('[data-usd-el="events-tabs"]'), badge: !!pop.querySelector('.usd-roster-legend-no') }; });
-		assert(tw && tw.has && tw.sw && tw.badge, 'オススメサポ(H) 参考: ①の列見出しのバッジを押した小窓には、同じ部品（イベントの欄・取得できるスキルの欄・切り替え）があり、番号の札がある（オススメサポのほうは札なし）', tw);
+		const tw = await rs.page.evaluate(() => { const m = document.querySelector('#deck-roster-panel [data-usd-el="col-menu-btn"][data-has-events]'); if (!m) return null; m.click(); const it = document.querySelector('[data-usd-el="colmenu-events"]'); if (!it) return null; it.click(); const pop = document.querySelector('.usd-info-pop'); return { has: ['events-panes', 'events-pane-events', 'events-pane-skills', 'ev-skills-title'].every((k) => !!pop.querySelector('[data-usd-el="' + k + '"]')), sw: !!pop.querySelector('[data-usd-el="events-tabs"]'), badge: !!pop.querySelector('.usd-roster-legend-no') }; });
+		assert(tw && tw.has && tw.sw && tw.badge, 'オススメサポ(H) 参考: ①の列見出しのアイコン（メニューの「イベントを選ぶ」）を押した小窓には、同じ部品（イベントの欄・取得できるスキルの欄・切り替え）があり、番号の札がある（オススメサポのほうは札なし）', tw);
 		assert(jsErrors(rs.errors).length === 0, 'オススメサポ(H) 実データ: コンソールのエラー0', jsErrors(rs.errors).slice(0, 3));
 		await rs.ctx.close();
 	});

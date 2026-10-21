@@ -68,6 +68,7 @@ import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
+import { clickEvents, clickSort } from './lib/col-menu.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -8738,14 +8739,15 @@ await block('C-62（61セッション目）: 棚卸しで挙がった11件', asy
 		const grid = document.querySelector('#deck-roster-panel .usd-roster-grid');
 		if (!grid) return null;
 		const heads = Array.from(grid.querySelectorAll('.usd-roster-gh'));
-		const cards = heads.filter((h) => h.classList.contains('usd-roster-typed'));
+		// C-187: サポカの6列の見出しは種別アイコンのボタン（種別色の塗りは廃止）
+		const cards = heads.filter((h) => h.querySelector('[data-usd-el="col-menu-btn"][data-type-order]'));
 		const uma = heads.find((h) => h.classList.contains('usd-roster-gc--uma'));
 		// 本体（見出しでない）のセルを、1行目から拾う
 		const rows = Array.from(grid.querySelectorAll('.usd-roster-grow'));
 		const body = rows.length > 1 ? Array.from(rows[1].querySelectorAll('.usd-roster-gc')) : [];
-		const legend = Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-legend-no'));
+		const legend = Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="roster-tile"][data-type-order]'));
 		return {
-			typedHeads: cards.map((h) => ({ order: h.dataset.typeOrder, bg: getComputedStyle(h).backgroundColor })),
+			typedHeads: cards.map((h) => ({ order: h.dataset.typeOrder, bg: getComputedStyle(h).backgroundColor, icon: (h.querySelector('[data-usd-el="card-type-icon"]') || {}).src || null })),
 			umaHeadBg: uma ? getComputedStyle(uma).backgroundColor : null,
 			// 本体のセル: 育成ウマ娘の列と、1列おきの灰
 			bodyAlt: body.map((c) => ({
@@ -8753,14 +8755,14 @@ await block('C-62（61セッション目）: 棚卸しで挙がった11件', asy
 				alt: c.classList.contains('usd-roster-gc--alt'),
 				bg: getComputedStyle(c).backgroundColor,
 			})),
-			legend: legend.map((n) => ({ typed: n.classList.contains('usd-roster-typed'), order: n.dataset.typeOrder, bg: getComputedStyle(n).backgroundColor })),
+			legend: legend.map((n) => ({ typed: true, order: n.dataset.typeOrder, icon: (n.querySelector('[data-usd-el="card-type-icon"]') || {}).src || null })),
 			note: document.querySelector('#deck-roster-panel .usd-roster-sec:last-child').textContent,
 		};
 	});
 	assert(table !== null && table.typedHeads.length >= 2,
-		'C-62 (2): 表の見出しに、種類の色が付いたサポートカードの列がある', table && table.typedHeads);
-	assert(new Set(table.typedHeads.map((h) => h.bg)).size >= 2,
-		'C-62 (2): 種類が違えば見出しの色も違う', table.typedHeads);
+		'C-62 (2)→C-187: 表の見出しに、種別アイコンのボタンのサポートカードの列がある', table && table.typedHeads);
+	assert(new Set(table.typedHeads.map((h) => h.bg)).size === 1 && table.typedHeads.every((h) => !!h.icon),
+		'C-62 (2)→C-187: 見出しの面は種類によらず同じ（種類色の塗りは廃止）・種別アイコンがある', table.typedHeads);
 	// C-144: 育成ウマ娘の列の見出しは主要な操作の塗り（--uma-table-head-key-bg＝--uma-control。それまでは stone-700 の直書き）
 	assert(table.umaHeadBg === await tokRgb(page, 'var(--uma-control)'),
 		'C-62 (3): 育成ウマ娘の列は見出しの濃い地のまま（扱いを変えていない）', table.umaHeadBg);
@@ -8781,9 +8783,9 @@ await block('C-62（61セッション目）: 棚卸しで挙がった11件', asy
 		'C-62 (3): もう一方の列は白のまま（交互になっている）', plain.slice(0, 3));
 	const legendTyped = table.legend.filter((n) => n.typed);
 	assert(legendTyped.length >= 2,
-		'C-62 (2): 凡例の番号にも種類の色が付く', table.legend);
-	assert(legendTyped.every((n) => table.typedHeads.some((h) => h.order === n.order && h.bg === n.bg)),
-		'C-62 (2): 凡例の番号の色は、同じ番号の見出しと同じ', { heads: table.typedHeads, legend: legendTyped });
+		'C-62 (2)→C-187: ①のカードのタイルにも種別アイコンが付く', table.legend);
+	assert(legendTyped.every((n) => table.typedHeads.some((h) => h.order === n.order && h.icon === n.icon)),
+		'C-62 (2)→C-187: タイルの種別アイコンは、同じ種別の見出しのアイコンと同じ', { heads: table.typedHeads, legend: legendTyped });
 
 	/* --- (6) ①のパネル最下段の説明を削除 --- */
 	assert(!table.note.includes('ここに出ていないスキルが'),
@@ -14315,8 +14317,10 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 			marks: Array.from(r.querySelectorAll('[role="cell"]')).map((c) => c.querySelector('.usd-roster-got') ? '●' : c.querySelector('.usd-roster-maybe') ? '△' : ''),
 		}));
 		const btns = (act) => Array.from(h.querySelectorAll('button[data-usd-act="' + act + '"]')).map((b) => ({ v: b.getAttribute('data-value'), key: b.getAttribute('data-member-key'), disabled: b.disabled, pressed: b.getAttribute('aria-pressed'), label: b.textContent.trim(), title: b.title, unselected: b.getAttribute('data-unselected'), dot: b.textContent.trim() === '!' }));
+		// C-187: サポカの6列は、種別アイコンのボタン（data-usd-act="col-menu"）。「！」は gh-bang、並べ替え中は data-sorted、イベントがある列は data-has-events
+		const colBtns = (pick) => Array.from(h.querySelectorAll('button[data-usd-act="col-menu"]')).filter(pick).map((b) => ({ key: b.getAttribute('data-member-key'), pressed: b.getAttribute('data-sorted') === '1' ? 'true' : 'false', unselected: b.getAttribute('data-unselected'), dot: !!b.querySelector('[data-usd-el="gh-bang"]'), label: b.getAttribute('aria-label') }));
 		return { total: num(t('pt-total')), count: num(t('pt-count')), rows, ids: rows.map((r) => r.id), filtering: t('pt-filtering'),
-			status: btns('pt-status'), uma: btns('pt-uma'), sort: btns('sort'), events: btns('events'), badge: (document.getElementById('deck-roster-excluded') || {}).textContent,
+			status: btns('pt-status'), uma: btns('pt-uma'), sort: btns('sort').concat(colBtns(() => true)), events: btns('events').concat(colBtns((b) => b.hasAttribute('data-has-events'))), badge: (document.getElementById('deck-roster-excluded') || {}).textContent,
 			tabs: Array.from(h.querySelectorAll('[data-usd-el="roster-tabs"] .uma-subtab')).map((b) => ({ id: b.getAttribute('data-tab-id'), label: b.textContent.trim(), selected: b.getAttribute('aria-selected') === 'true', full: b.classList.contains('usd-roster-tab--full'), top: b.getBoundingClientRect().top })),
 			nameText: t('name-text'), nameInput: (h.querySelector('[data-usd-el="name"]') || {}).value, hasEdit: !!h.querySelector('[data-usd-el="name-edit"]'), hasCommit: !!h.querySelector('[data-usd-el="name-commit"]'),
 			commitDisabled: (h.querySelector('[data-usd-el="name-commit"]') || {}).disabled, hasCancel: !!h.querySelector('[data-usd-el="name-cancel"]'), hasReset: !!h.querySelector('[data-usd-el="name-reset"]'),
@@ -14382,7 +14386,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 			const panel = document.getElementById('deck-roster-panel');
 			const head = panel.querySelector('.usd-roster-sumtext'); const btns = panel.querySelector('.usd-roster-sumbtns');
 			const names = Array.from(panel.querySelectorAll('.usd-roster-namescroll'));
-			const slots = Array.from(panel.querySelectorAll('.usd-roster-slot')).map((s) => Math.round(s.getBoundingClientRect().top));
+			const slots = Array.from(panel.querySelectorAll('[data-usd-el="roster-tile"]')).map((s) => Math.round(s.getBoundingClientRect().top));
 			const grid = panel.querySelector('.usd-roster-grid'); const nameCol = panel.querySelector('.usd-roster-gc--name');
 			const fs = Math.min(...Array.from(panel.querySelectorAll('.usd-roster-togglebtn')).map((b) => parseFloat(getComputedStyle(b).fontSize)));
 			const ghbtns = Array.from(panel.querySelectorAll('.usd-roster-ghbtn:not(.usd-roster-ghbtn--blank)')).map((b) => b.getBoundingClientRect());
@@ -14395,7 +14399,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 		assert(g.page <= 0, '段7(1): ' + w + 'px で横にはみ出さない', { page: g.page });
 		assert(g.fontMin >= 11 && g.ghMin >= (w <= 640 ? 24 : 28) && g.iconMin >= 28, '段7(13)(16)(6)→段7b→段7c: ' + w + 'px で、合計の行のボタンの文字は 11px 以上・列見出しの漏斗は ' + (w <= 640 ? 24 : 28) + 'px 以上（スマホはアイコンなので 24px を許す。段7c）・タブの ✎ ✓ ↩ ×とカードの × は 28px 以上', g);
 		if (w === 375) {
-			assert(g.slotRows === 2 && g.slotsPerRow === 3, '段7(10): 375px でサポートカードの欄は3列×2行', { rows: g.slotRows, perRow: g.slotsPerRow });
+			assert(g.slotRows === 3 && g.slotsPerRow === 2, '段7(10)→C-187: 375px でサポートカードの欄は2列×3行（タイルの名前12px・二つ名10px が読める幅にするため。3列だと名前が3〜4文字で切れる）', { rows: g.slotRows, perRow: g.slotsPerRow });
 			assert(g.nameRatio > 0.3 && g.nameRatio < 0.37, '段7(15): 375px でスキル名の列は表の幅の約 1/3（メンバーの列の全体が約 2/3）', { ratio: g.nameRatio });
 			console.log('     [実測] 375px の合計の1行: ' + (g.oneLine ? '1行に収まった' : '収まらず2行（合計＋? が1行目、ボタン4つが2行目）') + '（行の幅 ' + Math.round(g.rowW) + 'px・合計と? ' + Math.round(g.headW) + 'px・ボタン4つ ' + Math.round(g.btnsW) + 'px）');
 			console.log('     [実測] 375px で名前と Pt が収まらない行: ' + g.overflowRows + ' / ' + g.rows + '（' + Math.round(100 * g.overflowRows / Math.max(1, g.rows)) + '%）。収まらない行はセルの中を横に送れる');
@@ -14411,7 +14415,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	v = await readPanel(sp.page);
 	const evA = v.events.find((b) => b.key === '1');
 	assert(v.events.length === 2 && evA && evA.unselected === '1' && evA.dot && v.events.find((b) => b.key === '2').dot, '段7(19)→段7b(⑨): 選ぶ必要のあるイベントがあるカードの列（2枚）にだけ、押せるバッジが出て、未選択が1件以上なので「!」になる', v.events);
-	await sp.page.click(P + '[data-usd-act="events"][data-member-key="1"]');
+	await clickEvents(sp.page, P, '1');
 	pv = await popover(sp.page);
 	assert(pv.open && pv.unselected === '未選択1件' && pv.events.length === 2 && pv.events[0].key === 'card:' + cA.id + '#0' && pv.events[0].choices.every((c) => !c.on) && pv.events[1].auto && pv.events[1].choices[0].on,
 		'段7(19): 小窓に、選択肢が2つ以上あるイベントが並び（確定のイベントは出ない）、自動で選ばれたものは「自動」で選択済み', pv);
@@ -14432,9 +14436,9 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	const d2 = await draft(sp.page);
 	assert(v.ids.includes(W[1]) && v.count === COUNT0 && !(d2.eventChoices && ('card:' + cA.id + '#0' in d2.eventChoices)), '段7(19): 選んだ選択肢をもう一度押すと未選択に戻る（保存からも消え、両方の△が戻る）', { count: v.count, saved: d2.eventChoices });
 	await esc(sp.page);
-	assert((await popover(sp.page)).open === false && (await sp.page.evaluate(() => document.activeElement.getAttribute('data-usd-act'))) === 'events', '段7(19): Escape で閉じ、▼にフォーカスが戻る');
+	assert((await popover(sp.page)).open === false && (await sp.page.evaluate(() => document.activeElement.getAttribute('data-usd-act'))) === 'col-menu', '段7(19): Escape で閉じ、▼にフォーカスが戻る');
 	// 自動で選ばれたものを押すと保存される／開き直しても残る
-	await sp.page.click(P + '[data-usd-act="events"][data-member-key="1"]');
+	await clickEvents(sp.page, P, '1');
 	await sp.page.click('[data-usd-el="event-choice"][data-event-key="card:' + cA.id + '#1"][data-choice="0"]');
 	await sp.page.waitForTimeout(150);
 	const d3 = await draft(sp.page);
@@ -14444,7 +14448,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 	await sp.page.evaluate(() => selectStepTab(0));
 	await sp.page.waitForSelector(P + '[data-usd-el="pt-sum"]');
-	await sp.page.click(P + '[data-usd-act="events"][data-member-key="1"]');
+	await clickEvents(sp.page, P, '1');
 	pv = await popover(sp.page);
 	assert(pv.events[1].choices[0].on && !pv.events[1].auto, '段7(19): 開き直しても選択が残り、「自動」ではなく選んだものとして出る', pv.events[1]);
 	await esc(sp.page);
@@ -14482,7 +14486,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	pv = await popover(sp.page);
 	assert(pv.filter === '絞り込み中：距離 短距離', '段7(17): （?）の中に絞り込みの条件が出る', pv.filter);
 	await esc(sp.page);
-	await sp.page.click(P + '[data-usd-act="events"][data-member-key="1"]');
+	await clickEvents(sp.page, P, '1');
 	pv = await popover(sp.page);
 	assert(pv.events[0].auto && pv.events[0].choices[0].on && pv.events[0].choices[1].dim === 1, '段7(19): 絞り込みで外れるスキルは、小窓の中で灰色のまま残る', pv.events[0]);
 	await esc(sp.page);
@@ -14505,7 +14509,7 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	assert(v.ids.includes(W[1]) && v.count === COUNT0 && v.filtering === null && !('skillFilter' in d6), '段7(17): 指定なしに戻すと元に戻り、skillFilter は消える', { count: v.count, saved: d6.skillFilter });
 	// 並べ替え（B の列）
 	const before = v.ids.slice();
-	await sp.page.click(P + '[data-usd-act="sort"][data-member-key="2"]');
+	await clickSort(sp.page, P, '2');
 	v = await readPanel(sp.page);
 	const bIds = v.rows.filter((r) => r.marks[2] !== '').map((r) => r.id);
 	const firstNonB = v.rows.findIndex((r) => r.marks[2] === '');
@@ -14513,10 +14517,10 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 		'段7(16): ↕を押すと、その列のメンバーが得るスキルが上に寄り、押した列が分かる（aria-pressed）', { order: v.ids, bCount: bIds.length });
 	const topOrder = v.ids.slice(0, bIds.length); const restOrder = v.ids.slice(bIds.length);
 	assert(topOrder.join() === before.filter((id) => bIds.includes(id)).join() && restOrder.join() === before.filter((id) => !bIds.includes(id)).join(), '段7(16): それ以外の並びは元の順を保つ（安定ソート）', { topOrder, restOrder });
-	await sp.page.click(P + '[data-usd-act="sort"][data-member-key="1"]');
+	await clickSort(sp.page, P, '1');
 	v = await readPanel(sp.page);
 	assert(v.sort.filter((b) => b.pressed === 'true').length === 1 && v.sort.find((b) => b.key === '1').pressed === 'true', '段7(16): 同時に有効な並べ替えは1つ', v.sort);
-	await sp.page.click(P + '[data-usd-act="sort"][data-member-key="1"]');
+	await clickSort(sp.page, P, '1');
 	v = await readPanel(sp.page);
 	assert(v.sort.every((b) => b.pressed === 'false') && v.ids.join() === before.join(), '段7(16): もう一度押すと元の並びに戻る', v.ids);
 	await sp.ctx.close();
@@ -14527,12 +14531,12 @@ await block('本育成パネルの見直しとイベントの選択（段7）', 
 	const boxes = await sp.page.evaluate(() => {
 		const h = document.getElementById('deck-roster-panel');
 		const umaBox = h.querySelector('.usd-roster-umabox');
-		const slots = Array.from(h.querySelectorAll('.usd-roster-slot'));
+		const slots = Array.from(h.querySelectorAll('[data-usd-el="roster-tile"]'));
 		const inside = (box, btn) => { const b = box.getBoundingClientRect(); const r = btn.getBoundingClientRect(); return r.right <= b.right + 1 && r.left >= b.left - 1 && r.right > b.right - 48; };
 		return { umaClear: !!umaBox.querySelector('[data-usd-act="clear-uma"]') && inside(umaBox, umaBox.querySelector('[data-usd-act="clear-uma"]')),
 			cardClears: slots.map((s) => { const b = s.querySelector('[data-usd-act="clear-card"]'); return b ? inside(s, b) : null; }),
-			labels: slots.map((s) => s.querySelector('.usd-roster-pickname').textContent.trim()), titles: slots.map((s) => s.querySelector('.usd-roster-pickbtn').title),
-			ellipsis: slots.map((s) => getComputedStyle(s.querySelector('.usd-roster-pickname')).textOverflow), heading: !!Array.from(h.querySelectorAll('.usd-roster-h')).find((e) => e.textContent.trim() === 'サポートカード'),
+			labels: slots.map((s) => s.querySelector('.usd-out-card-name').textContent.trim()), titles: slots.map((s) => s.querySelector('[data-usd-el="pick-card"]').title),
+			ellipsis: slots.map((s) => getComputedStyle(s.querySelector('.usd-out-card-name')).textOverflow), heading: !!Array.from(h.querySelectorAll('.usd-roster-h')).find((e) => e.textContent.trim() === 'サポートカード'),
 			umaNote: h.textContent.includes('覚醒レベル最大として扱います') };
 	});
 	assert(boxes.umaClear && boxes.cardClears[0] === true && boxes.cardClears[1] === true && boxes.cardClears[2] === null && boxes.labels[2] === 'サポカを選ぶ' && boxes.ellipsis.every((e) => e === 'ellipsis') && boxes.titles[0].length > 0 && !boxes.heading && !boxes.umaNote,
@@ -14738,8 +14742,10 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			marks: Array.from(r.querySelectorAll('[role="cell"]')).map((c) => c.querySelector('.usd-roster-got') ? '●' : c.querySelector('.usd-roster-maybe') ? '△' : ''),
 		}));
 		const btns = (act) => Array.from(h.querySelectorAll('button[data-usd-act="' + act + '"]')).map((b) => ({ v: b.getAttribute('data-value'), key: b.getAttribute('data-member-key'), disabled: b.disabled, pressed: b.getAttribute('aria-pressed'), label: b.textContent.trim(), title: b.title, unselected: b.getAttribute('data-unselected'), dot: b.textContent.trim() === '!' }));
+		// C-187: サポカの6列は、種別アイコンのボタン（data-usd-act="col-menu"）。「！」は gh-bang、並べ替え中は data-sorted、イベントがある列は data-has-events
+		const colBtns = (pick) => Array.from(h.querySelectorAll('button[data-usd-act="col-menu"]')).filter(pick).map((b) => ({ key: b.getAttribute('data-member-key'), pressed: b.getAttribute('data-sorted') === '1' ? 'true' : 'false', unselected: b.getAttribute('data-unselected'), dot: !!b.querySelector('[data-usd-el="gh-bang"]'), label: b.getAttribute('aria-label') }));
 		return { total: num(t('pt-total')), count: num(t('pt-count')), rows, ids: rows.map((r) => r.id), filtering: t('pt-filtering'),
-			status: btns('pt-status'), uma: btns('pt-uma'), sort: btns('sort'), events: btns('events'), badge: (document.getElementById('deck-roster-excluded') || {}).textContent,
+			status: btns('pt-status'), uma: btns('pt-uma'), sort: btns('sort').concat(colBtns(() => true)), events: btns('events').concat(colBtns((b) => b.hasAttribute('data-has-events'))), badge: (document.getElementById('deck-roster-excluded') || {}).textContent,
 			tabs: Array.from(h.querySelectorAll('[data-usd-el="roster-tabs"] .uma-subtab')).map((b) => ({ id: b.getAttribute('data-tab-id'), label: b.textContent.trim(), selected: b.getAttribute('aria-selected') === 'true', full: b.classList.contains('usd-roster-tab--full'), top: b.getBoundingClientRect().top })),
 			nameText: t('name-text'), nameInput: (h.querySelector('[data-usd-el="name"]') || {}).value, hasEdit: !!h.querySelector('[data-usd-el="name-edit"]'), hasCommit: !!h.querySelector('[data-usd-el="name-commit"]'),
 			commitDisabled: (h.querySelector('[data-usd-el="name-commit"]') || {}).disabled, hasCancel: !!h.querySelector('[data-usd-el="name-cancel"]'), hasReset: !!h.querySelector('[data-usd-el="name-reset"]'),
@@ -14817,14 +14823,14 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			const cs = getComputedStyle(uma);
 			const selects = Array.from(h.querySelectorAll('select[data-usd-act="filter"]'));
 			const legend = h.querySelector('.usd-roster-legend');
-			const slots = Array.from(h.querySelectorAll('[data-usd-el="card-slots"] .usd-roster-slot'));
+			const slots = Array.from(h.querySelectorAll('[data-usd-el="card-slots"] [data-usd-el="roster-tile"]'));
 			return {
 				subHeads: h.querySelectorAll('.usd-roster-h--sub').length, infoBtn: r(h.querySelector('[data-usd-el="uma-info-btn"]')), umaBox: r(uma), clearBtn: r(uma.querySelector('.usd-roster-clearbtn')),
 				umaBg: cs.backgroundColor, umaFg: getComputedStyle(pickbtn).color, umaBadge: !!uma.querySelector('.usd-roster-umamark'), umaTitle: pickbtn.title, umaAria: pickbtn.getAttribute('aria-label'), umaName: uma.querySelector('.usd-roster-pickname').textContent.trim(),
 				filterLabels: h.querySelectorAll('.usd-roster-filterlabel').length, selects: selects.map((s) => ({ axis: s.getAttribute('data-axis'), first: s.options[0].textContent, top: s.getBoundingClientRect().top, w: s.getBoundingClientRect().width })),
 				legendShown: legend ? getComputedStyle(legend).display !== 'none' : null, legendItems: legend ? legend.querySelectorAll('li').length : 0,
-				slots: slots.map((s) => { const b = s.querySelector('[data-usd-el="badge"]'); const nm = s.querySelector('.usd-roster-pickname'); const btn = s.querySelector('.usd-roster-pickbtn'); const cl = s.querySelector('.usd-roster-clearbtn');
-					return { badge: b ? b.textContent.trim() : null, name: nm.textContent.trim(), title: btn.title, aria: btn.getAttribute('aria-label'), ellipsis: getComputedStyle(nm).textOverflow, clear: cl ? r(cl) : null, box: r(s) }; }),
+				slots: slots.map((s) => { const b = s.querySelector('.usd-roster-legend-no'); const nm = s.querySelector('.usd-out-card-name'); const btn = s.querySelector('[data-usd-el="pick-card"]'); const cl = s.querySelector('.usd-out-card-x');
+					return { badge: b ? b.textContent.trim() : null, no: s.getAttribute('data-no'), name: nm.textContent.trim(), title: btn.title, aria: btn.getAttribute('aria-label'), ellipsis: getComputedStyle(nm).textOverflow, clear: cl ? r(cl) : null, box: r(s) }; }),
 				umaToggles: Array.from(h.querySelectorAll('button[data-usd-act="pt-uma"]')).map((b) => ({ text: b.textContent.trim(), pressed: b.getAttribute('aria-pressed'), disabled: b.disabled, title: b.title })),
 				statusToggles: Array.from(h.querySelectorAll('button[data-usd-act="pt-status"]')).map((b) => b.textContent.trim()), total: (h.querySelector('[data-usd-el="pt-sumrow"]') || { getBoundingClientRect: () => null }).getBoundingClientRect().height
 			};
@@ -14836,9 +14842,9 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		assert(cr(rgb(top.umaFg), rgb(top.umaBg)) >= 7 && lumOf(rgb(top.umaBg)) < 0.1 && lumOf(rgb(top.umaFg)) > 0.9, tag + '育成ウマ娘を選んだ欄は文字が白・背景が黒（選んでいるタブと同じ暗い色）', { fg: top.umaFg, bg: top.umaBg });
 		assert(top.clearBtn && top.clearBtn.r <= top.umaBox.r + 1 && top.clearBtn.r >= top.umaBox.r - 2 && top.clearBtn.l > top.umaBox.l + top.umaBox.w / 2, tag + '× は欄の中の右端のまま', { clear: top.clearBtn, box: top.umaBox });
 		assert(top.umaBadge && top.umaTitle.includes(top.umaName) && top.umaAria === '育成ウマ娘：' + top.umaTitle, tag + '育成ウマ娘の欄の名前の前に ◇ のバッジ。全文は title と aria-label', { title: top.umaTitle, aria: top.umaAria });
-		assert(top.slots.length === 6 && top.slots.slice(0, 3).every((s, i) => s.badge === String(i + 1) && s.title.length >= s.name.length && s.aria === (i + 1) + '枚目：' + s.title && s.ellipsis === 'ellipsis' && s.clear)
-			&& top.slots.slice(3).every((s, i) => s.badge === String(i + 4) && s.name === 'サポカを選ぶ'),
-			tag + 'カードの欄の名前の前に 1〜6 のバッジ（空きは「サポカを選ぶ」）。名前は省略記号で切り、全文は title と aria-label', top.slots.map((s) => [s.badge, s.name]));
+		assert(top.slots.length === 6 && top.slots.every((s) => s.badge === null) && top.slots.slice(0, 3).every((s, i) => s.no === String(i + 1) && s.title.length >= s.name.length && s.aria.indexOf((i + 1) + '枚目：' + s.title) === 0 && s.ellipsis === 'ellipsis' && s.clear)
+			&& top.slots.slice(3).every((s, i) => s.no === String(i + 4) && s.name === 'サポカを選ぶ'),
+			tag + 'カードの欄（C-187 でタイルに変更）: 番号の丸バッジは無い・読み上げは「N枚目：…」（空きは「サポカを選ぶ」）。名前は省略記号で切り、全文は title と aria-label', top.slots.map((s) => [s.badge, s.name]));
 		assert(top.umaToggles.length === 1 && top.umaToggles[0].text === '覚醒Lv5' && top.statusToggles.join('|') === '勉強家|切れ者' && !top.umaToggles[0].disabled && top.umaToggles[0].pressed === 'false',
 			tag + '「ヒントLv3」のボタンは無く、「覚醒ヒントLv5」だけ（覚醒レベル7のウマ娘なので押せる・既定は押していない＝Lv3）。「勉強家」「切れ者」はそのまま', top.umaToggles);
 		assert(top.legendShown === null, tag + '表の最下段の凡例（育成ウマ娘・カード名の一覧）は、どの幅でも出さない（段7c の L。段7b の「広い幅は残す」を置き換え）', { legendShown: top.legendShown });
@@ -14870,37 +14876,42 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		const hd = async () => sp.page.evaluate(() => {
 			const h = document.getElementById('deck-roster-panel');
 			return Array.from(h.querySelectorAll('.usd-roster-gh[role="columnheader"]')).slice(1).map((c) => {
+				// サポカの6列は種別アイコンのボタン（C-187）。育成ウマ娘の列は今までの2行（バッジ／！と漏斗）
+				const cm = c.querySelector('[data-usd-el="col-menu-btn"]');
 				const g = c.querySelector('.usd-roster-ghbtns');
 				const ev = c.querySelector('[data-usd-el="events-btn"]');
 				const sort = c.querySelector('[data-usd-el="sort-btn"]');
-				const first = g.firstElementChild;
-				const sr = sort.getBoundingClientRect(); const fr = first.getBoundingClientRect();
-				const path = sort.querySelector('svg path');
-				return { ev: ev ? { text: ev.textContent.trim(), aria: ev.getAttribute('aria-label'), un: ev.getAttribute('data-unselected'), tag: ev.tagName, w: ev.getBoundingClientRect().width, shadow: getComputedStyle(ev).boxShadow, expanded: ev.getAttribute('aria-expanded') } : null,
-					firstTag: first.tagName, firstText: first.textContent.trim(), twoRows: sr.top >= fr.bottom - 1, sortW: Math.round(sr.width), sortH: Math.round(sr.height), svg: !!path, fill: path ? getComputedStyle(path).fill : null, pressed: sort.getAttribute('aria-pressed'), sortText: sort.textContent.trim(),
+				const first = g ? g.firstElementChild : null;
+				const sr = sort ? sort.getBoundingClientRect() : null; const fr = first ? first.getBoundingClientRect() : null;
+				const path = sort ? sort.querySelector('svg path') : null;
+				return { card: !!cm, empty: !!c.querySelector('[data-usd-el="gh-empty"]'),
+					cm: cm ? { aria: cm.getAttribute('aria-label'), un: cm.getAttribute('data-unselected'), bang: !!cm.querySelector('[data-usd-el="gh-bang"]'), sorted: cm.getAttribute('data-sorted'), tag: cm.tagName, expanded: cm.getAttribute('aria-expanded'), hasEv: cm.hasAttribute('data-has-events'), funnel: !!c.querySelector('.usd-roster-funnel'), h: cm.getBoundingClientRect().height } : null,
+					ev: ev ? { text: ev.textContent.trim(), aria: ev.getAttribute('aria-label'), un: ev.getAttribute('data-unselected'), tag: ev.tagName, w: ev.getBoundingClientRect().width, shadow: getComputedStyle(ev).boxShadow, expanded: ev.getAttribute('aria-expanded') } : null,
+					firstTag: first ? first.tagName : null, firstText: first ? first.textContent.trim() : null, twoRows: sr && fr ? sr.top >= fr.bottom - 1 : null, sortW: sr ? Math.round(sr.width) : null, sortH: sr ? Math.round(sr.height) : null, svg: !!path, fill: path ? getComputedStyle(path).fill : null, pressed: sort ? sort.getAttribute('aria-pressed') : null, sortText: sort ? sort.textContent.trim() : null,
 					triangle: c.textContent.includes('▼') };
 			});
 		});
 		let cols = await hd();
 		// 並び: ◇（育成ウマ娘）／1（A: 未選択のイベントあり）／2（B: 未選択のイベントあり）／3（C: 選ぶ必要のあるイベント無し）／4〜6（空き）
 		const [colU, c1, c2, c3, c4] = cols;
-		assert(cols.every((c) => c.twoRows && !c.triangle && c.svg && c.sortW >= 24 && c.sortH >= 24 && (w > 640 ? c.sortH >= 28 : true) && c.sortText === ''), tag + '列見出しは2行（上＝バッジ／！、下＝漏斗）。「▼」は無く、漏斗は SVG で 28px 以上（スマホは高さ 24px 以上を許す。段7c）', cols.map((c) => [c.twoRows, c.sortW, c.sortH]));
-		assert(c1.ev && c1.ev.tag === 'BUTTON' && c1.ev.text === '!' && c1.ev.aria === '1番のカードのイベントを選ぶ（未選択1件）' && c2.ev && c2.ev.text === '!' && c2.ev.aria === '2番のカードのイベントを選ぶ（未選択1件）',
-			tag + '選ぶ必要のあるイベントがあり未選択が残るカードの列は、バッジの代わりに「!」のボタン（aria-label「N番のカードのイベントを選ぶ（未選択M件）」）', { c1: c1.ev, c2: c2.ev });
-		assert(!colU.ev && colU.firstTag === 'SPAN' && !c3.ev && c3.firstTag === 'SPAN' && c3.firstText === '3' && !c4.ev && c4.firstText === '4',
-			tag + '◇（育成ウマ娘）と、選ぶ必要のあるイベントが無いカードの番号と空きは、ボタンにしない（今までのバッジのまま）', { u: colU.firstTag, c3: [c3.firstTag, c3.firstText], c4: c4.firstText });
-		assert(c1.ev.w >= 18 && /rgba?\(\d+, \d+, \d+, 0?\.\d+\) 0px 1px 2px/.test(c1.ev.shadow), tag + '押せるバッジは「!」の角丸の四角で、枠と軽い影（ボタンだとひと目で分かる）', { w: c1.ev.w, shadow: c1.ev.shadow });
-		// 漏斗: 押していない＝輪郭、押している＝塗りつぶし
-		assert(c1.fill === 'none' && c1.pressed === 'false', tag + '漏斗は押していないときは輪郭だけ（fill なし）', { fill: c1.fill });
-		await sp.page.click(P + '[data-usd-el="sort-btn"][data-member-key="1"]');
+		assert(!colU.card && colU.twoRows && !colU.triangle && colU.svg && colU.sortW >= 24 && colU.sortH >= 24 && (w > 640 ? colU.sortH >= 28 : true) && colU.sortText === '' && cols.every((c) => !c.triangle),
+			tag + '育成ウマ娘の列の見出しは今までの2行（上＝◇／！、下＝漏斗）。「▼」は無く、漏斗は SVG で 28px 以上（スマホは高さ 24px 以上を許す。段7c）');
+		assert(c1.card && c1.cm.tag === 'BUTTON' && c1.cm.bang && c1.cm.un === '1' && c1.cm.aria.indexOf('のメニュー（未選択1件）') !== -1 && c2.card && c2.cm.bang && c2.cm.un === '1' && c2.cm.aria.indexOf('のメニュー（未選択1件）') !== -1,
+			tag + 'C-187: 選ぶ必要のあるイベントがあり未選択が残るカードの列は、種別アイコンのボタンに「!」が付く（aria-label「…のメニュー（未選択M件）」）', { c1: c1.cm, c2: c2.cm });
+		assert(!colU.ev && colU.firstTag === 'SPAN' && c3.empty && !c3.card && c4.empty && !c4.card,
+			tag + 'C-187: ◇（育成ウマ娘）は今までのバッジのまま。空きの枠は押せない（破線の枠だけ）。イベントの無いカードのメニューは blocks-46 の C-187(d3) が見る', { u: colU.firstTag, c3: c3.empty, c4: c4.empty });
+		assert(cols.filter((c) => c.card).every((c) => !c.cm.funnel && c.cm.h >= 44), tag + 'C-187: サポカの列にじょうごは無く、押せる範囲は高さ44px以上（並べ替えはメニューの中）');
+		// 並べ替え: 押している列は data-sorted（aria-pressed の代わり）。同時に1つだけ
+		assert(c1.cm.sorted === null && colU.pressed === 'false', tag + '並べ替えは、押していないときは印なし', { sorted: c1.cm.sorted });
+		await clickSort(sp.page, P, '1');
 		cols = await hd();
-		assert(cols[1].pressed === 'true' && cols[1].fill !== 'none' && cols[0].fill === 'none', tag + '押している漏斗は塗りつぶし（aria-pressed=true。同時に1つだけ）', { fill: cols[1].fill });
-		await sp.page.click(P + '[data-usd-el="sort-btn"][data-member-key="1"]');
-		// 「!」を押す → 小窓。すべて選ぶと番号のバッジに変わり、押すと小窓にもう一度入れる
-		await sp.page.click(P + '[data-usd-el="events-btn"][data-member-key="1"]');
+		assert(cols[1].cm.sorted === '1' && cols[0].pressed === 'false' && cols.filter((c) => c.card && c.cm.sorted === '1').length === 1, tag + '並べ替え中の列は印（data-sorted。同時に1つだけ）', { sorted: cols.map((c) => c.cm && c.cm.sorted) });
+		await clickSort(sp.page, P, '1');
+		// 「!」のあるカードのメニューから「イベントを選ぶ」→ 小窓。すべて選ぶと「!」が消え、もう一度メニューから小窓に入れる
+		await clickEvents(sp.page, P, '1');
 		await sp.page.waitForTimeout(300);
 		let pp = await popover(sp.page);
-		assert(pp.open && pp.unselected === '未選択1件' && pp.events.length === 2 && pp.events[0].choices.every((c) => !c.on), tag + '「!」を押すと、イベントの選択の小窓が開く（未選択1件）', { unselected: pp.unselected, events: pp.events.length });
+		assert(pp.open && pp.unselected === '未選択1件' && pp.events.length === 2 && pp.events[0].choices.every((c) => !c.on), tag + 'メニューの「イベントを選ぶ」で、イベントの選択の小窓が開く（未選択1件）', { unselected: pp.unselected, events: pp.events.length });
 		const titleBadge = await sp.page.evaluate(() => { const b = document.querySelector('[data-usd-el="info-pop"] .uma-popover-title .usd-roster-legend-no'); return b ? b.textContent.trim() : null; });
 		assert(titleBadge === '1', tag + '小窓の見出しに、カード名の前の番号のバッジ（1）', { titleBadge });
 		await sp.page.click('[data-usd-el="info-pop"] [data-usd-el="event-choice"][data-event-key$="#0"][data-choice="0"]');
@@ -14909,8 +14920,8 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		assert(pp.open && pp.unselected === '未選択0件', tag + '選択肢を選ぶと小窓は開いたまま、未選択0件になる', { unselected: pp.unselected });
 		await esc(sp.page);
 		cols = await hd();
-		assert(cols[1].ev && cols[1].ev.text === '1' && cols[1].ev.aria === '1番のカードのイベントを選ぶ' && cols[1].ev.tag === 'BUTTON', tag + 'すべて選ぶと、「!」が番号のバッジ（押せるボタンのまま）に変わる', cols[1].ev);
-		await sp.page.click(P + '[data-usd-el="events-btn"][data-member-key="1"]');
+		assert(cols[1].card && !cols[1].cm.bang && cols[1].cm.un === '0' && cols[1].cm.hasEv && cols[1].cm.aria.indexOf('未選択') === -1, tag + 'すべて選ぶと、「!」が消える（イベントの項目は残る）', cols[1].cm);
+		await clickEvents(sp.page, P, '1');
 		await sp.page.waitForTimeout(250);
 		pp = await popover(sp.page);
 		assert(pp.open && pp.unselected === '未選択0件', tag + '番号のバッジを押すと、イベントの選択の小窓にもう一度入れる', { open: pp.open });
@@ -14924,7 +14935,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 	{
 		const sp = await openTab({ w: 1280, h: 900, tab: 0 });
 		const tag = '段7b(⑩) 1280px: ';
-		await sp.page.click(P + '[data-usd-el="events-btn"][data-member-key="1"]');
+		await clickEvents(sp.page, P, '1');
 		await sp.page.waitForTimeout(400);
 		const g = await sp.page.evaluate(() => {
 			const pop = document.querySelector('[data-usd-el="info-pop"]');
@@ -14959,7 +14970,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		await esc(sp.page);
 		// 絞り込み（距離＝短距離）で外れるスキルは、灰色で残る
 		await sp.page.selectOption(P + 'select[data-axis="distance"]', 'short');
-		await sp.page.click(P + '[data-usd-el="events-btn"][data-member-key="1"]');
+		await clickEvents(sp.page, P, '1');
 		await sp.page.waitForTimeout(300);
 		const dims = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="info-pop"] [data-usd-el="ev-skill"]')).map((li) => ({ id: li.getAttribute('data-skill-id'), dim: li.hasAttribute('data-usd-dim'), color: getComputedStyle(li.querySelector('.usd-ev-skill-name')).color })));
 		assert(dims.some((x) => x.dim) && dims.some((x) => !x.dim) && dims.filter((x) => x.dim).every((x) => wantedShort(x.id) === false) && dims.filter((x) => !x.dim).every((x) => wantedShort(x.id) === true) && new Set(dims.filter((x) => x.dim).map((x) => x.color)).size === 1 && dims.find((x) => x.dim).color !== dims.find((x) => !x.dim).color,
@@ -14972,7 +14983,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 	{
 		const sp = await openTab({ w: 375, h: 800, tab: 0 });
 		const tag = '段7b(⑩) 375px: ';
-		await sp.page.click(P + '[data-usd-el="events-btn"][data-member-key="1"]');
+		await clickEvents(sp.page, P, '1');
 		await sp.page.waitForTimeout(400);
 		const view = () => sp.page.evaluate(() => {
 			const pop = document.querySelector('[data-usd-el="info-pop"]');
@@ -15007,7 +15018,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 	{
 		// 説明文が読めなければ、各スキルの3行目は「説明文は準備中です」（小窓を開いたときに1回だけ読む。読めなければ次に開いたときにもう一度試す）
 		const sp = await openTab({ w: 1280, h: 900, tab: 0, descFail: true });
-		await sp.page.click(P + '[data-usd-el="events-btn"][data-member-key="1"]');
+		await clickEvents(sp.page, P, '1');
 		await sp.page.waitForTimeout(600);
 		const d = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="info-pop"] [data-usd-el="ev-skill-desc"]')).map((e) => e.textContent.trim()));
 		assert(d.length > 0 && d.every((t) => t === '説明文は準備中です'), '段7b(⑩): 説明文を読めなければ、各スキルの3行目は「説明文は準備中です」', d.slice(0, 3));
@@ -15036,15 +15047,16 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		const click = (sel) => () => sp.page.click(sel);
 		const S = (a) => P + a;
 		// 表の列見出し・合計の行・絞り込み
-		await run('並べ替え（漏斗）', S('[data-usd-el="sort-btn"][data-member-key="2"]'), click(S('[data-usd-el="sort-btn"][data-member-key="2"]')));
-		await run('並べ替え（もう一度）', S('[data-usd-el="sort-btn"][data-member-key="2"]'), click(S('[data-usd-el="sort-btn"][data-member-key="2"]')));
+		// C-187: サポカの列は、種別アイコンのメニューの「並べ替え」。押すボタン（アイコン）の位置とページの位置が変わらないことを見る
+		await run('並べ替え（アイコンのメニュー）', S('[data-usd-el="col-menu-btn"][data-member-key="2"]'), () => clickSort(sp.page, P, '2'));
+		await run('並べ替え（もう一度）', S('[data-usd-el="col-menu-btn"][data-member-key="2"]'), () => clickSort(sp.page, P, '2'));
 		await run('勉強家', S('button[data-usd-act="pt-status"][data-value="benkyo"]'), click(S('button[data-usd-act="pt-status"][data-value="benkyo"]')));
 		await run('切れ者', S('button[data-usd-act="pt-status"][data-value="kire"]'), click(S('button[data-usd-act="pt-status"][data-value="kire"]')));
 		await run('覚醒ヒントLv5', S('button[data-usd-act="pt-uma"]'), click(S('button[data-usd-act="pt-uma"]')));
 		await run('距離の絞り込み', S('select[data-axis="distance"]'), () => sp.page.selectOption(S('select[data-axis="distance"]'), 'short'));
 		await run('距離の絞り込み（解除）', S('select[data-axis="distance"]'), () => sp.page.selectOption(S('select[data-axis="distance"]'), ''));
 		// 小窓を開く／閉じる（閉じて戻るときもページの位置を変えない）
-		await run('！／番号（イベントの小窓を開く）', S('[data-usd-el="events-btn"][data-member-key="1"]'), click(S('[data-usd-el="events-btn"][data-member-key="1"]')));
+		await run('！／アイコン（メニューからイベントの小窓を開く）', S('[data-usd-el="col-menu-btn"][data-member-key="1"]'), () => clickEvents(sp.page, P, '1'));
 		// 小窓の中の選択肢（小窓の中のスクロール位置が変わらない）
 		const yBefore = await sp.page.evaluate(() => { const l = document.querySelector('[data-usd-el="info-pop"] [data-usd-el="events-pane-events"]'); const w = l.parentElement.parentElement; return { y: window.scrollY, l: l.scrollTop, wrap: document.querySelector('[data-usd-el="info-pop"] .uma-popover-body').scrollTop }; });
 		await sp.page.click('[data-usd-el="info-pop"] [data-usd-el="event-choice"][data-event-key$="#0"][data-choice="1"]');
@@ -15053,7 +15065,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		rows.push({ label: '小窓の中の選択肢（ページ・小窓の中の位置）', dy: yAfter.y - yBefore.y, dtop: (yAfter.l - yBefore.l) + (yAfter.wrap - yBefore.wrap), ok: yAfter.y === yBefore.y && yAfter.l === yBefore.l && yAfter.wrap === yBefore.wrap });
 		await sp.page.keyboard.press('Escape');
 		await sp.page.waitForTimeout(200);
-		const afterClose = await meas(S('[data-usd-el="events-btn"][data-member-key="1"]'));
+		const afterClose = await meas(S('[data-usd-el="col-menu-btn"][data-member-key="1"]'));
 		rows.push({ label: '小窓を閉じて戻る', dy: afterClose.y - yBefore.y, dtop: 0, ok: afterClose.y === yBefore.y });
 		await run('合計の（?）を開く', S('[data-usd-el="pt-help-btn"]'), click(S('[data-usd-el="pt-help-btn"]')));
 		await sp.page.keyboard.press('Escape');

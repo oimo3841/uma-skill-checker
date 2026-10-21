@@ -1,3 +1,4 @@
+import { clickEvents } from './lib/col-menu.mjs';
 // ①の育成ウマ娘のイベントの取得の切り替え（2026-10-17。データの acquireMode が "user"＝ユーザー選択次第のイベント）の検査。
 // run-smoke.mjs の末尾から register34() で呼ばれる（塊の見出しはすべて「取得切替」で始まる。`npm run test:visual -- --only=取得切替` で回せる）。
 //
@@ -263,9 +264,9 @@ export async function register34(env) {
 	// 小窓が開いていると「元に戻す」のボタンが隠れるので、閉じてから押す
 	const undo = async (page) => { await page.keyboard.press('Escape'); await page.waitForTimeout(250); await page.click('#deck-undo-btn'); await page.waitForTimeout(350); };
 	const ptTotal = (page, roster) => page.evaluate(async (roster) => { const C = UmaSkillDeckCore; await C.loadTrainingSources(); await C.loadSkillPtData(); return C.getRosterPtDetail(roster).total; }, roster);
-	const badge = (page, key = 0) => page.evaluate((key) => { const b = document.querySelector('#deck-roster-panel [data-usd-el="events-btn"][data-member-key="' + key + '"]');
+	const badge = (page, key = 0) => page.evaluate((key) => { const b = document.querySelector('#deck-roster-panel [data-usd-el="events-btn"][data-member-key="' + key + '"], #deck-roster-panel [data-usd-el="col-menu-btn"][data-member-key="' + key + '"]');
 		return b && { text: b.textContent, un: Number(b.getAttribute('data-unselected')), dot: !!b.querySelector('[data-usd-el="result-dot"]'), acq: b.getAttribute('data-acquire-picked'), aria: b.getAttribute('aria-label') }; }, key);
-	const openPop = async (page, member = 0) => { await page.click(P + '[data-usd-el="events-btn"][data-member-key="' + member + '"]'); await page.waitForTimeout(400); };
+	const openPop = async (page, member = 0) => { await clickEvents(page, P, member); await page.waitForTimeout(400); };
 	const closePop = async (page) => { await page.keyboard.press('Escape'); await page.waitForTimeout(250); };
 	const evsOf = (umaId) => TR.find((e) => e.umaId === umaId).events.map((ev, i) => ({ ev, i, key: 'uma:' + umaId + '#' + i }));
 	const UMA_S = 'uma-0215';   // コパノリッキー: user 1件（段階なし・選択肢1つ）＋ fixed の読み取り専用 1件
@@ -683,7 +684,7 @@ export async function register34(env) {
 	 * ==================================================================== */
 	const lum = (rgb) => { const [r, g, b] = rgb.match(/[\d.]+/g).slice(0, 3).map(Number).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
 	const ratio = (a, b) => { const la = lum(a), lb = lum(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
-	const badgesOf = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"]')).map((b) => {
+	const badgesOf = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"], #deck-roster-panel [data-usd-el="col-menu-btn"]')).map((b) => {
 		const r = b.getBoundingClientRect(); const d = b.querySelector('[data-usd-el="result-dot"]');
 		const cs = getComputedStyle(b); const dcs = d ? getComputedStyle(d) : null; const dr = d ? d.getBoundingClientRect() : null;
 		return { key: b.getAttribute('data-member-key'), text: b.textContent, w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10, aria: b.getAttribute('aria-label'), acq: b.getAttribute('data-acquire-picked'),

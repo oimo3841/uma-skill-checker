@@ -1,3 +1,4 @@
+import { clickEvents } from './lib/col-menu.mjs';
 // ①のイベントの結果の切り替え（2026-10-16。設計は result-toggle-step0.md の案A）の検査。run-smoke.mjs の末尾から register30() で呼ばれる
 // （塊の見出しはすべて「結果切替」で始まる。`npm run test:visual -- --only=結果切替` で回せる）。
 //
@@ -148,7 +149,7 @@ export async function register30(env) {
 			evKeys: r.events.map((e) => e.eventKey), pending: r.events.filter((e) => e.pending).length };
 	}, roster);
 	const total = (page, roster) => page.evaluate(async (roster) => UmaSkillDeckCore.getRosterPtDetail(roster).total, roster);
-	const openPop = async (page, member) => { await page.click(P + '[data-usd-el="events-btn"][data-member-key="' + member + '"]'); await page.waitForTimeout(350); };
+	const openPop = async (page, member) => { await clickEvents(page, P, member); await page.waitForTimeout(350); };
 	const resultBtns = (page, key) => page.evaluate((key) => Array.from(document.querySelectorAll('[data-usd-el="result-choice"][data-event-key="' + key + '"]')).map((b) => ({
 		on: b.classList.contains('usd-roster-choice--on'), checked: b.getAttribute('aria-checked'), disabled: b.disabled, p: b.getAttribute('data-result'),
 		skills: Array.from(b.querySelectorAll('.usd-roster-choiceskill')).map((s) => s.textContent) })), key);
@@ -164,7 +165,7 @@ export async function register30(env) {
 		const three = ev.re.find((e) => e.count === 3 && e.kind === 'event');
 		assert(single && multi && three, '結果切替(2) 前提: VARY に 単一選択肢・複数選択肢（選べるイベントにある）・3段階の切り替えがある', { single: !!single, multi: !!multi, three: !!three });
 		const before = await bandTotal(sp.page);
-		const unselBefore = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"]')).map((b) => b.getAttribute('data-unselected')).join(','));
+		const unselBefore = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"], #deck-roster-panel [data-usd-el="col-menu-btn"]')).map((b) => b.getAttribute('data-unselected')).join(','));
 		// 単一選択肢: 結果ボタンだけの箱
 		await openPop(sp.page, single.member);
 		const boxes = await sp.page.evaluate((k) => ({ box: !!document.querySelector('[data-usd-el="event-result"][data-event-key="' + k + '"]'),
@@ -184,7 +185,7 @@ export async function register30(env) {
 		assert((await bandTotal(sp.page)) === expTotal && expTotal !== before, '結果切替(2) 帯の合計が切り替え後の値になる（' + before + '→' + expTotal + '）', await bandTotal(sp.page));
 		const b1 = await resultBtns(sp.page, single.key);
 		assert(b1.length === single.count && !b1[0].on && b1[1].on && b1[1].checked === 'true', '結果切替(2) 押したあと、小窓が描き直されて2つ目が選ばれている', b1);
-		const unselAfter = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"]')).map((b) => b.getAttribute('data-unselected')).join(','));
+		const unselAfter = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"], #deck-roster-panel [data-usd-el="col-menu-btn"]')).map((b) => b.getAttribute('data-unselected')).join(','));
 		assert(unselAfter === unselBefore, '結果切替(2) 「！」「未選択N件」は結果ボタンを数えない（切り替えても変わらない）', { unselBefore, unselAfter });
 		// 最初の結果に戻すと、鍵も項目も消える
 		await sp.page.click('[data-usd-el="result-choice"][data-event-key="' + single.key + '"][data-result="0"]');
@@ -315,7 +316,7 @@ export async function register30(env) {
 	 * ==================================================================== */
 	const lum = (rgb) => { const [r, g, b] = rgb.match(/[\d.]+/g).slice(0, 3).map(Number).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
 	const ratio = (a, b) => { const la = lum(a), lb = lum(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
-	const badges = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"]')).map((b) => {
+	const badges = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="events-btn"], #deck-roster-panel [data-usd-el="col-menu-btn"]')).map((b) => {
 		const r = b.getBoundingClientRect(); const d = b.querySelector('[data-usd-el="result-dot"]');
 		const cs = getComputedStyle(b); const dcs = d ? getComputedStyle(d) : null; const dr = d ? d.getBoundingClientRect() : null;
 		return { key: b.getAttribute('data-member-key'), text: b.textContent, w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10, aria: b.getAttribute('aria-label'), picked: b.getAttribute('data-result-picked'),
