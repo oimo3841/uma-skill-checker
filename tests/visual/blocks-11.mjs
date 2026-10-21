@@ -303,9 +303,9 @@ export async function register11(env) {
 			const sum = s.cards.reduce((t, c) => t + c.gain, 0);
 			assert(sum === f.kinds && s.cards.length === Number(n), 'オススメサポ(C) ' + n + '枚: ＋N種の合計（' + sum + '）が「得られるスキル XX種」（' + f.kinds + '）と一致する', { gains: s.cards.map((c) => c.gain), kinds: f.kinds });
 			assert(s.cards.every((c, i) => i === 0 || c.gain <= s.cards[i - 1].gain), 'オススメサポ(C) ' + n + '枚: カードは増分の大きい順', s.cards.map((c) => c.gain));
-			assert(geo.cols === 2 && geo.rowsN === Math.ceil(Number(n) / 2) && geo.hs.join() === '36' && geo.ell === 'ellipsis' && geo.ws === 'nowrap' && geo.within && geo.bodyOver <= 0,
-				'オススメサポ(C) ' + n + '枚: カードは2列・各36px・名前は長いとき省略（…）・はみ出さない（行数 ' + geo.rowsN + '）', geo);
-			assert(geo.texts.every((t) => /^\S.*＋\d+種外す$/.test(t)), 'オススメサポ(C) ' + n + '枚: 各カードは「[二つ名]キャラクター名 ＋N種 外す」', geo.texts);
+			assert(geo.cols === 2 && geo.rowsN === Math.ceil(Number(n) / 2) && geo.hs.join() === '44' && geo.ell === 'ellipsis' && geo.ws === 'nowrap' && geo.within && geo.bodyOver <= 0,
+				'オススメサポ(C) ' + n + '枚: カードは2列・各44px（C-186）・名前は長いとき省略（…）・はみ出さない（行数 ' + geo.rowsN + '）', geo);
+			assert(geo.texts.every((t) => /^\S.*＋\d+種×$/.test(t)), 'オススメサポ(C) ' + n + '枚: 各カードは「[二つ名]キャラクター名 ＋N種 ×」（C-186 で「外す」を×印に）', geo.texts);
 		}
 		const exp = await solveIn(sp.page, { count: 6, addedSkillIds: [] });
 		const s6 = await snap(sp.page);
@@ -333,7 +333,7 @@ export async function register11(env) {
 		await sp.page.click(M + '[data-usd-el="outside-excl-toggle"]');
 		const c = await snap(sp.page);
 		const geo = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-excl-card"]')).map((e) => ({ h: Math.round(e.getBoundingClientRect().height), btn: (e.querySelector('[data-usd-el="outside-restore"]') || {}).textContent })));
-		assert(c.exclCards.length === 1 && c.exclCards[0].id === victim && /戻す$/.test(c.exclCards[0].text) && geo[0].btn === '戻す' && geo[0].h === 36 && /除外中 カード1枚 ▴/.test(c.excl), 'オススメサポ(C) 押すと除外したカードの一覧が開き、各カードに「戻す」がある', { c: c.exclCards, geo });
+		assert(c.exclCards.length === 1 && c.exclCards[0].id === victim && /戻す$/.test(c.exclCards[0].text) && geo[0].btn === '戻す' && geo[0].h === 44 && /除外中 カード1枚 ▴/.test(c.excl), 'オススメサポ(C) 押すと除外したカードの一覧が開き、各カードに「戻す」がある', { c: c.exclCards, geo });
 		// ①の次の書き込み（スキルのオン/オフ）のあとも残る。受け口を通さず保存データへ直接書いていると、①の古い roster で上書きされて消える
 		await sp.page.click(M + '[data-usd-act="outside-close"]');
 		await sp.page.evaluate(() => document.querySelector('#deck-roster-panel input[data-usd-act="take-skill"]').click());
@@ -732,44 +732,31 @@ export async function register11(env) {
 		return SYN;
 	};
 
-	await block('オススメサポ(H) カードのタイル: 1行（高さ36px）・①と同じ種類色・SSR は虹色の枠3px／SR は金色の枠2px・二つ名（11px）を先に省略してから名前（14px）を省略する', async () => {
+	await block('オススメサポ(H) カードのタイル（C-186 で変更）: 高さ44px・面は無彩色（種類色の塗りなし）・左に種別アイコン・右にレアリティのバッジ（SSR・SR）・二つ名（10px）の下に名前（12px）／二つ名が長ければ二つ名だけが省略（…）される', async () => {
 		const syn = await needSyn();
 		assert(syn.S.length === 36, 'オススメサポ(H) 前提: 合成の材料にできる白のスキルが36個ある（母集団で、前段の無いもの）', syn.S.length);
 		const sp = await openSyn({ syn });
 		await open(sp.page);
 		const r = await sp.page.evaluate(() => {
-			const probe = (css) => { const e = document.createElement('i'); e.style.cssText = css; document.body.appendChild(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return c; };
 			const tiles = Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]'));
-			const slots = Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="card-slots"] .usd-roster-slot'));
 			const cs = (e) => getComputedStyle(e);
 			return {
 				n: tiles.length,
 				tiles: tiles.map((t) => {
-					const n = t.getAttribute('data-type-order'), nick = t.querySelector('.usd-out-card-nick'), name = t.querySelector('.usd-out-card-name'), main = t.querySelector('.usd-out-card-main');
-					const bg = cs(t).backgroundImage;
-					const ssr = ['1', '2', '3', '4', '5'].map((i) => probe('background-color: var(--usd-rarity-ssr-' + i + ')'));
-					const sr = ['1', '2'].map((i) => probe('background-color: var(--usd-rarity-sr-' + i + ')'));
-					return { id: t.getAttribute('data-card-id'), h: Math.round(t.getBoundingClientRect().height), mainH: Math.round(main.getBoundingClientRect().height), nameH: Math.round(name.getBoundingClientRect().height), n,
-						expectBg: probe('background-color: var(--uma-card-type-' + n + '-bg)'), bgImage: bg, text: cs(t).color, expectText: probe('background-color: var(--uma-card-type-' + n + '-text)'),
-						bw: cs(t).borderTopWidth, ssrColors: ssr, srColors: sr, cls: t.className,
-						nickFs: nick ? cs(nick).fontSize : null, nameFs: cs(name).fontSize,
-						nickCut: nick ? nick.scrollWidth > nick.clientWidth + 1 : null, nameCut: name.scrollWidth > name.clientWidth + 1, nickW: nick ? Math.round(nick.getBoundingClientRect().width) : null, ell: nick ? cs(nick).textOverflow : null };
-				}),
-				slot: slots.map((s) => ({ n: s.getAttribute('data-type-order'), bg: cs(s).backgroundColor })),
-				varDefined: ['--usd-rarity-ssr-1', '--usd-rarity-ssr-5', '--usd-rarity-sr-1', '--usd-rarity-sr-2'].map((v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim())
+					const nick = t.querySelector('.usd-out-card-nick'), name = t.querySelector('.usd-out-card-name'), main = t.querySelector('.usd-out-card-main');
+					const ti = t.querySelector('[data-usd-el="card-type-icon"]'), ri = t.querySelector('[data-usd-el="card-rarity-icon"]');
+					return { id: t.getAttribute('data-card-id'), h: Math.round(t.getBoundingClientRect().height), mainH: Math.round(main.getBoundingClientRect().height), n: t.getAttribute('data-type-order'), rarity: t.getAttribute('data-rarity'),
+						bg: cs(t).backgroundColor, bgImage: cs(t).backgroundImage, bw: cs(t).borderTopWidth, typeSrc: ti ? ti.getAttribute('src') : null, rarSrc: ri ? ri.getAttribute('src') : null,
+						nickFs: nick ? cs(nick).fontSize : null, nameFs: cs(name).fontSize, nickCut: nick ? nick.scrollWidth > nick.clientWidth + 1 : null, nameCut: name.scrollWidth > name.clientWidth + 1, ell: nick ? cs(nick).textOverflow : null };
+				})
 			};
 		});
-		assert(r.n === 5 && r.tiles.every((t) => t.h === 36 && t.mainH <= 36 && t.nameH <= 20), 'オススメサポ(H) タイルは1行で高さ36px（目標の36px以内）。名前が2行に折れない', r.tiles.map((t) => [t.h, t.mainH, t.nameH]));
-		assert(r.tiles.every((t) => t.bgImage.indexOf(t.expectBg) !== -1 && t.text === t.expectText), 'オススメサポ(H) 塗りと文字の色は、種類の番号で引く変数（--uma-card-type-N-bg／-text）。①のカードの表示と同じ', r.tiles.map((t) => [t.n, t.expectBg]));
-		const slotOk = r.slot.filter((s) => s.n).every((s) => { const t = r.tiles.find((x) => x.n === s.n); return !t || t.expectBg === s.bg; });
-		assert(r.slot.filter((s) => s.n).length === 6 && slotOk, 'オススメサポ(H) 同じ種類番号の①のカードの欄の地の色と、タイルの塗りが一致する', { slot: r.slot, tiles: r.tiles.map((t) => [t.n, t.expectBg]) });
-		const ssrT = r.tiles.filter((t) => / usd-out-card--ssr/.test(t.cls)), srT = r.tiles.filter((t) => / usd-out-card--sr/.test(t.cls));
-		assert(ssrT.length >= 1 && srT.length >= 1 && ssrT.every((t) => t.bw === '3px' && t.ssrColors.every((c) => t.bgImage.indexOf(c) !== -1)) && srT.every((t) => t.bw === '2px' && t.srColors.every((c) => t.bgImage.indexOf(c) !== -1)),
-			'オススメサポ(H) SSR は虹色（5色）の枠3px・SR は金色の枠2px', { ssr: ssrT.length, sr: srT.length, bw: r.tiles.map((t) => t.bw) });
-		assert(r.varDefined.every((v) => /^#[0-9a-f]{6}$/i.test(v)), 'オススメサポ(H) 虹色・金色は新しい変数（--usd-rarity-ssr-1〜5・--usd-rarity-sr-1〜2）として定義してある（タイルには色を直書きしていない）', r.varDefined);
+		assert(r.n === 5 && r.tiles.every((t) => t.h === 44 && t.mainH <= 44), 'オススメサポ(H) タイルの高さは44px（二つ名の下に名前の2段）', r.tiles.map((t) => [t.h, t.mainH]));
+		assert(new Set(r.tiles.map((t) => t.bg)).size === 1 && r.tiles.every((t) => t.bgImage === 'none' && t.bw === '1px'), 'オススメサポ(H) 面は種類によらず同じ無彩色で、外枠は細い線1本（色の塗り・虹の枠は使わない）', r.tiles.map((t) => [t.n, t.bg, t.bw]));
+		assert(r.tiles.every((t) => /osusume-type-/.test(t.typeSrc) && (t.rarity === 'SSR' ? /osusume-rarity-ssr-/.test(t.rarSrc) : /osusume-rarity-sr-/.test(t.rarSrc))), 'オススメサポ(H) 種別アイコンと、SSR・SR のバッジが出る（色が出るのはこの2つだけ。詳しくは blocks-45 の C-186）', r.tiles.map((t) => [t.rarity, t.rarSrc]));
 		const A = r.tiles.find((t) => t.id === 'syn-A'), C = r.tiles.find((t) => t.id === 'syn-C');
-		assert(A && C && A.nickFs === '11px' && A.nameFs === '14px' && A.nickCut && !A.nameCut && A.ell === 'ellipsis', 'オススメサポ(H) 二つ名が長く名前が短いカードでは、二つ名（11px）だけが省略（…）され、名前（14px）は全部見える', A);
-		assert(C.nameCut && C.nickW <= 12 && !A.nameCut, 'オススメサポ(H) 名前も長いカードでは、二つ名が先に縮み切ってから（' + C.nickW + 'px）名前が省略される', C);
+		assert(A && C && A.nickFs === '10px' && A.nameFs === '12px' && A.nickCut && !A.nameCut && A.ell === 'ellipsis', 'オススメサポ(H) 二つ名が長く名前が短いカードでは、二つ名（10px）だけが省略（…）され、名前（12px）は全部見える', A);
+		assert(C.nameCut && !C.nickCut && !A.nameCut, 'オススメサポ(H) 名前も長いカードでは、二つ名は残し（短いので全部見える）名前が省略される', C);
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ(H) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
@@ -782,7 +769,7 @@ export async function register11(env) {
 			const m = t.querySelector('.usd-out-card-main').getBoundingClientRect(), b = t.querySelector('[data-usd-el="outside-exclude"]').getBoundingClientRect(), g = t.querySelector('[data-usd-el="outside-card-gain"]').getBoundingClientRect();
 			return { mainR: Math.round(m.right), gainL: Math.round(g.left), gainR: Math.round(g.right), btnL: Math.round(b.left), btnW: Math.round(b.width), btnH: Math.round(b.height) };
 		}));
-		assert(geo.every((g) => g.mainR <= g.gainL + 1 && g.gainR <= g.btnL + 1 && g.btnH >= 28), 'オススメサポ(H) 名前の部分・「＋N種」・「外す」の押す範囲は左から順に並び、重ならない（「外す」は高さ28px以上）', geo);
+		assert(geo.every((g) => g.mainR <= g.btnL + 1 && g.btnW >= 44 && g.btnH >= 44), 'オススメサポ(H) 名前の部分は、×（外す）の押す範囲と重ならない（×の押す範囲は44px以上。C-186）', geo);
 		const before = await snap(sp.page);
 		await sp.page.click(M + '[data-usd-el="outside-card"][data-card-id="syn-A"] .usd-out-card-main');
 		const info = await sp.page.evaluate(() => {
@@ -842,35 +829,22 @@ export async function register11(env) {
 		await rs.ctx.close();
 	});
 
-	await block('オススメサポ(H) 二つ名: 「[」＋3文字＋「…」も入らない幅のときは二つ名を出さず名前だけ（375・320px）／SR の金色の枠は SSR の虹色の枠と区別できる', async () => {
+	await block('オススメサポ(H) 二つ名（C-186 で変更）: 二つ名は消さずに残す（名前の上の段・幅が足りなければ「…」）／SSR・SR は右のバッジで区別できる（375・320px）', async () => {
 		const syn = await needSyn();
 		for (const w of [375, 320]) {
 			const sp = await openSyn({ syn, w, h: 812 });
 			await open(sp.page);
-			const r = await sp.page.evaluate(() => {
-				const cv = document.createElement('canvas').getContext('2d');
-				return Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]')).map((t) => {
-					const n = t.querySelector('.usd-out-card-nick'), nm = t.querySelector('.usd-out-card-name');
-					const o = { id: t.getAttribute('data-card-id'), hasNick: !!n, hidden: n ? (n.hidden || getComputedStyle(n).display === 'none') : null, nameCut: nm.scrollWidth > nm.clientWidth + 1, nameW: Math.round(nm.getBoundingClientRect().width), sr: /usd-out-card--sr/.test(t.className), bw: getComputedStyle(t).borderTopWidth };
-					if (n && !o.hidden) {
-						cv.font = getComputedStyle(n).font;
-						o.nickW = Math.round(n.getBoundingClientRect().width);
-						o.cut = n.scrollWidth > n.clientWidth + 1;
-						o.need = Math.round(cv.measureText(n.textContent.slice(0, 4) + '…').width);
-						o.fits = !o.cut || o.nickW >= o.need - 1;
-					}
-					return o;
-				});
-			});
-			assert(r.length === 5 && r.every((o) => !o.hasNick || o.hidden || o.fits), 'オススメサポ(H) ' + w + 'px: 見えている二つ名は、全部入っているか「[」＋3文字＋「…」以上の幅がある（「[」だけが残る表示は無い）', r.map((o) => [o.id, o.hidden, o.nickW, o.need]));
-			const C = r.find((o) => o.id === 'syn-C'), A = r.find((o) => o.id === 'syn-A');
-			assert(C.hidden === true && (w === 375 ? C.nameCut : true) && (w === 375 ? A.hidden === false : true) && !A.nameCut, 'オススメサポ(H) ' + w + 'px: 名前が長いカード（C）は二つ名を出さず、名前だけ（入らなければ「…」）。名前が短いカード（A）は二つ名が「[とても…」と出る', { C, A });
-			if (w === 375) {
-				const sr = r.filter((o) => o.sr), ssr = r.filter((o) => !o.sr);
-				assert(sr.length >= 1 && ssr.length >= 1 && sr.every((o) => o.bw === '2px') && ssr.every((o) => o.bw === '3px'), 'オススメサポ(H) SR（金・2px）と SSR（虹・3px）の両方が並ぶ状態で、枠の太さが違う', { sr: sr.length, ssr: ssr.length });
-				fs.mkdirSync(path.join(REPO_ROOT, 'output/scratch/shots'), { recursive: true });
-				await sp.page.screenshot({ path: path.join(REPO_ROOT, 'output/scratch/shots/s6-sr.png') });
-			}
+			const r = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]')).map((t) => {
+				const n = t.querySelector('.usd-out-card-nick'), nm = t.querySelector('.usd-out-card-name'), ri = t.querySelector('[data-usd-el="card-rarity-icon"]');
+				const o = { id: t.getAttribute('data-card-id'), hasNick: !!n, hidden: n ? (n.hidden || getComputedStyle(n).display === 'none') : null, nameCut: nm.scrollWidth > nm.clientWidth + 1, nickCut: n ? n.scrollWidth > n.clientWidth + 1 : null,
+					rarity: t.getAttribute('data-rarity'), badge: ri ? ri.getAttribute('alt') : null };
+				return o;
+			}));
+			const A = r.find((o) => o.id === 'syn-A'), C = r.find((o) => o.id === 'syn-C');
+			assert(r.length === 5 && r.filter((o) => o.hasNick).every((o) => o.hidden === false), 'オススメサポ(H) ' + w + 'px: 二つ名を持つカードは、二つ名を出している（消す判断はしない。入らなければ「…」）', r.map((o) => [o.id, o.hidden]));
+			assert(A.nickCut === true && !A.nameCut && C.nameCut === true, 'オススメサポ(H) ' + w + 'px: 二つ名が長いカード（A）は二つ名が「…」で省略・名前は全部見える。名前が長いカード（C）は名前が「…」で省略', { A, C });
+			const sr = r.filter((o) => o.rarity === 'SR'), ssr = r.filter((o) => o.rarity === 'SSR');
+			assert(sr.length >= 1 && ssr.length >= 1 && sr.every((o) => o.badge === 'SR') && ssr.every((o) => o.badge === 'SSR'), 'オススメサポ(H) ' + w + 'px: SR・SSR は右のバッジ（alt が SR・SSR）で区別できる', { sr: sr.length, ssr: ssr.length });
 			await sp.ctx.close();
 		}
 	});

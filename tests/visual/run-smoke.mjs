@@ -62,6 +62,7 @@ import { register39 } from './blocks-39.mjs';
 import { register40 } from './blocks-40.mjs';
 import { register41 } from './blocks-41.mjs';
 import { register42 } from './blocks-42.mjs';
+import { register45 } from './blocks-45.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -8678,9 +8679,11 @@ await block('C-62（61セッション目）: 棚卸しで挙がった11件', asy
 	// C-144: 選んでいる塗りは、そのツールの操作色（--uma-control）に白
 	assert(pills[0].pressed === 'true' && pills[0].bg === await tokRgb(page, 'var(--uma-control)') && pills[0].fg === 'rgb(255, 255, 255)',
 		'C-62 (1): 「すべて」は選択中で黒地に白', pills[0]);
+	// C-186（2026-10-21）: 種類の色の塗りをやめて、無彩色の面＋左の種別アイコンにした。種類ごとに違うのはアイコン（詳しくは blocks-45）
 	const typedBg = pills.slice(1).map((p) => p.bg);
-	assert(new Set(typedBg).size === typedBg.length,
-		'C-62 (1): 種類ごとに違う色（緑一色ではない）', typedBg);
+	const pillIcons = await page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="roster-modal-host"] .usd-roster-pill--typed')).map((b) => (b.querySelector('img') || {}).src || null));
+	assert(new Set(typedBg).size === 1 && pillIcons.every(Boolean) && new Set(pillIcons).size === pillIcons.length,
+		'C-62→C-186 (1): 種類のピルは同じ無彩色の面で、種類ごとに違うのは左のアイコン', { typedBg, pillIcons: pillIcons.length });
 	assert(pills.slice(1).every((p) => p.order && Number(p.order) >= 1),
 		'C-62 (1): 色は typeOrder の番号で引いている（名前ではない）', pills.slice(1).map((p) => p.order));
 
@@ -8688,15 +8691,17 @@ await block('C-62（61セッション目）: 棚卸しで挙がった11件', asy
 	const cardHits = await page.evaluate(() => {
 		const rows = [...document.querySelectorAll('[data-usd-el="roster-modal-host"] .usd-name-hit')];
 		return rows.slice(0, 10).map((b) => ({
-			typed: b.classList.contains('usd-name-hit--typed'),
+			typed: b.classList.contains('usd-name-hit--card'),
 			order: b.dataset.typeOrder || null,
+			icon: (b.querySelector('[data-usd-el="card-type-icon"]') || {}).src || null,
 			bg: getComputedStyle(b).backgroundColor,
 		}));
 	});
-	assert(cardHits.length > 0 && cardHits.every((h) => h.typed && h.order),
-		'C-62 (1): サポートカードの候補の行は種類ごとの色（typeOrder の番号で引く）', cardHits.slice(0, 3));
-	assert(new Set(cardHits.map((h) => h.bg)).size >= 3,
-		'C-62 (1): 候補の行が緑一色ではない（種類ぶんの色が混ざる）', [...new Set(cardHits.map((h) => h.bg))]);
+	// C-186（2026-10-21）: 候補の行は無彩色の面＋左の種別アイコン＋右のレアリティバッジ（種類ごとの色の塗りは使わない）。詳しくは blocks-45
+	assert(cardHits.length > 0 && cardHits.every((h) => h.typed && h.order && h.icon),
+		'C-62→C-186 (1): サポートカードの候補の行は無彩色の面で、種別（typeOrder の番号）のアイコンが付く', cardHits.slice(0, 3));
+	assert(new Set(cardHits.map((h) => h.bg)).size <= 2 && new Set(cardHits.map((h) => h.icon)).size >= 2,
+		'C-62→C-186 (1): 候補の行は同じ無彩色の面（ホバー中の1行だけ別）で、種類ぶんのアイコンが混ざる', [...new Set(cardHits.map((h) => h.bg))]);
 	// 絞り込みを1つ押すと、その種類の色だけになる
 	await page.click('[data-usd-el="roster-modal-host"] .usd-roster-pill:nth-of-type(2)');
 	await page.waitForTimeout(400);
@@ -8708,7 +8713,7 @@ await block('C-62（61セッション目）: 棚卸しで挙がった11件', asy
 		return [...new Set(rows.map((b) => getComputedStyle(b).backgroundColor))];
 	});
 	assert(filtered.length === 1 && filtered[0] !== 'rgba(0, 0, 0, 0)',
-		'C-62 (1): 絞り込んだ後も色は残り、その種類の1色になる', filtered);
+		'C-62→C-186 (1): 絞り込んだ後も、候補はすべて同じ無彩色の面になる', filtered);
 	await page.click('[data-usd-el="roster-modal-host"] .usd-roster-pill:nth-of-type(1)');
 	await page.waitForTimeout(400);
 
@@ -15165,6 +15170,7 @@ await register39({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register40({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register41({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register42({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register45({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register44({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register43({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });

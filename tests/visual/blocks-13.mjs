@@ -456,8 +456,8 @@ export async function register13(env) {
 		const sp = await openSp({ roster: Object.assign({}, FULLSYN, { outsideOptions: { count: 4, exclude: {} } }), syn });
 		await open(sp.page);
 		const t0 = await modalTiles(sp.page);
-		assert(t0.filter((x) => x.el === 'outside-card').length === 4 && t0.slice(4).map((x) => x.el + ':' + x.slot + ':' + x.text).join() === 'outside-slot:5:5サポカを選ぶ,outside-slot:6:6サポカを選ぶ' && t0.every((x) => x.h === 36),
-			'オススメサポ段13C1 4枚のとき、残りの2枠は「5 サポカを選ぶ」「6 サポカを選ぶ」（高さはカードと同じ 36px）', t0);
+		assert(t0.filter((x) => x.el === 'outside-card').length === 4 && t0.slice(4).map((x) => x.el + ':' + x.slot + ':' + x.text).join() === 'outside-slot:5:5サポカを選ぶ,outside-slot:6:6サポカを選ぶ' && t0.every((x) => x.h === 44),
+			'オススメサポ段13C1 4枚のとき、残りの2枠は「5 サポカを選ぶ」「6 サポカを選ぶ」（高さはカードと同じ 44px。C-186）', t0);
 		await sp.page.click(M + '[data-usd-el="outside-slot"][data-slot="5"]');
 		await sp.page.waitForSelector('.usd-roster-modal[data-usd-over="1"] [data-usd-el="hits"]');
 		const pk = await sp.page.evaluate(() => { const m = document.querySelector('.usd-roster-modal'); const o = document.querySelector('[data-usd-el="outside-modal"]');
@@ -477,7 +477,7 @@ export async function register13(env) {
 		await pickBy(5, 'syn-P');
 		const t1 = await modalTiles(sp.page);
 		const d1 = await sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')).outsideOptions);
-		assert(t1.find((x) => x.el === 'outside-pinned' && x.id === 'syn-P' && x.slot === '5' && /^5/.test(x.text) && /解除$/.test(x.text)) && t1.filter((x) => x.el === 'outside-card').every((x) => x.id !== 'syn-P2') && JSON.stringify(d1.pinned) === '["syn-P"]',
+		assert(t1.find((x) => x.el === 'outside-pinned' && x.id === 'syn-P' && x.slot === '5' && /^5/.test(x.text) && /×$/.test(x.text)) && t1.filter((x) => x.el === 'outside-card').every((x) => x.id !== 'syn-P2') && JSON.stringify(d1.pinned) === '["syn-P"]',
 			'オススメサポ段13C1 選ぶと、5枠目に番号の札つきで入り（「解除」。段13 の仕上げ）、セットに保存（pinned）。同じキャラクターの P2 はオススメに出ない', { t1, d1 });
 		// 同じキャラクターのカードは選べない
 		await sp.page.click(M + '[data-usd-el="outside-slot"][data-slot="6"]');
@@ -806,9 +806,10 @@ export async function register13(env) {
 		}
 		const sp = await openSp({ roster: Object.assign({}, FULL, { outsideOptions: { count: 5, pinned: ['card-0300'] } }) });
 		await open(sp.page);
-		const t = await sp.page.evaluate(() => ({ pinned: Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-unpin"]')).map((b) => b.textContent),
-			rec: Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-exclude"]')).map((b) => b.textContent) }));
-		assert(t.pinned.join() === '解除' && t.rec.length === 5 && t.rec.every((x) => x === '外す'), 'オススメサポ段13仕上げ 指定したカードのタイルは「解除」、オススメで選ばれたカードのタイルは「外す」のまま', t);
+		const t = await sp.page.evaluate(() => ({ pinned: Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-unpin"]')).map((b) => b.getAttribute('aria-label')),
+			rec: Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-exclude"]')).map((b) => b.getAttribute('aria-label')),
+			text: Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-unpin"], [data-usd-el="outside-modal"] [data-usd-el="outside-exclude"]')).map((b) => b.textContent) }));
+		assert(t.pinned.length === 1 && t.pinned[0].endsWith('を解除') && t.rec.length === 5 && t.rec.every((x) => x.endsWith('を外す')) && t.text.every((x) => x === '×'), 'オススメサポ段13仕上げ 指定したカードのタイルは「解除」、オススメで選ばれたカードのタイルは「外す」のまま（C-186 で文字は×印にし、読み上げで区別する）', t);
 		await sp.ctx.close();
 	});
 }

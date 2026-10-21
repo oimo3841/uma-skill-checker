@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-21c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-21d';
 
 	/* ============================================================
 	 * 定数
@@ -2751,6 +2751,41 @@
 		out.set(OUTSIDE_FRIEND_TYPE, OUTSIDE_FRIEND_LABEL);
 		return out;
 	}
+	/* ------------------------------------------------------------
+	 * カードの種別・レアリティの小さなアイコン（C-186。2026-10-21）
+	 * オススメサポの小窓のカードと、①のカード選択の窓で共通。カードの面は無彩色（画面のほかの部分と同じ）・外枠は細い線1本で、
+	 * 色が出るのは、左の種別アイコン（約20px）と右のレアリティバッジ（SSR・SR。約24px）だけ。種別は形（靴＝スピード・ハート＝スタミナ・拳＝パワー・炎＝根性・
+	 * 卒業帽＝賢さ・3人＝友人）で区別する。R は候補に入らないので印を作らない（SSR・SR 以外はバッジを出さない）。種別が決まらないカードはアイコンを出さない。
+	 * グループのカードは元のカードの種別（typeOrder）に従う。画像は独自に生成したもの（ゲームの公式の画像ではない）で、透明背景・縮小済み（img/osusume-*）。
+	 * ライト・ダークで同じ画像を使う。読み上げ用に alt（種別・レアリティ）を付ける
+	 * ------------------------------------------------------------ */
+	const CARD_ICON_VERSION = '2026-10-21';
+	const CARD_TYPE_ICON_KEYS = { 1: 'speed', 2: 'stamina', 3: 'power', 4: 'guts', 5: 'wisdom', 6: 'friend' };
+	const CARD_RARITY_ICON_KEYS = { SSR: 'ssr', SR: 'sr' };
+	function cardIconUrl(kind, key) { return 'img/osusume-' + kind + '-' + key + '-' + CARD_ICON_VERSION + '.png'; }
+	let cardTypeLabelMemo = { n: -1, map: null };
+	/** 種別の番号（typeOrder）→ 表示名（データの種類名。友人は「友人」）。カードの一覧が変わらない限り使い回す */
+	function cardTypeLabelOf(typeOrder) {
+		const n = listCards().length;
+		if (!cardTypeLabelMemo.map || cardTypeLabelMemo.n !== n) cardTypeLabelMemo = { n: n, map: outsideTypeNames() };
+		return cardTypeLabelMemo.map.get(typeOrder) || '';
+	}
+	/** 種別のアイコン（種別が決まらなければ ''）。cls は用途ごとの追加のクラス */
+	function cardTypeIconHtml(typeOrder, cls) {
+		const key = CARD_TYPE_ICON_KEYS[typeOrder];
+		if (!key) return '';
+		return '<img class="usd-card-ico usd-card-ico--type' + (cls ? ' ' + cls : '') + '" data-usd-el="card-type-icon" src="' + cardIconUrl('type', key) + '" alt="' + esc(cardTypeLabelOf(typeOrder)) + '" width="20" height="20" decoding="async" draggable="false" />';
+	}
+	/** レアリティのバッジ（SSR・SR だけ。それ以外は ''） */
+	function cardRarityIconHtml(rarity) {
+		const key = CARD_RARITY_ICON_KEYS[rarity];
+		if (!key) return '';
+		return '<img class="usd-card-ico usd-card-ico--rarity" data-usd-el="card-rarity-icon" src="' + cardIconUrl('rarity', key) + '" alt="' + esc(rarity) + '" width="24" height="24" decoding="async" draggable="false" />';
+	}
+	/** 読み上げ用の「スピード・SSR」（種別が決まらなければ種別を、SSR・SR でなければレアリティを出さない） */
+	function cardKindText(typeOrder, rarity) {
+		return [CARD_TYPE_ICON_KEYS[typeOrder] ? cardTypeLabelOf(typeOrder) : '', CARD_RARITY_ICON_KEYS[rarity] ? rarity : ''].filter(Boolean).join('・');
+	}
 	const OUTSIDE_DEADLINE_MS = 1500;
 	// 検査用: 締め切りの既定を差し替える（null で元に戻す）。画面の探索が途中の結果になる場合を作るためだけに使う
 	let outsideDeadlineOverride = null;
@@ -5161,17 +5196,28 @@
 		'.usd-out-cards--bare { min-height: 0; }',
 		'.usd-out-cards--bare:empty { display: none; }',
 		'.usd-results.usd-out-list.usd-out-list--bare { height: auto; justify-content: flex-start; }',
-		// タイル（1行・高さ36px）。塗りは①のカードの表示と同じ種類色（--usd-card-bg / --usd-card-text。cardTypeColorVars が番号で流し込む）。
-		// 枠でレアリティを分ける: SSR は虹色 3px・SR は金色 2px（色は下の --usd-rarity-*。ダークでは同じ名前を差し替える）
-		'.usd-out-card { --usd-out-fill: var(--uma-surface); --usd-out-frame: linear-gradient(var(--uma-border), var(--uma-border));',
-		'  display: flex; align-items: center; gap: var(--uma-sp-1); min-width: 0; height: 36px; box-sizing: border-box; padding: 0 var(--uma-sp-1) 0 var(--uma-sp-1-5);',
-		'  border: 1px solid transparent; border-radius: var(--uma-r-lg); color: var(--uma-text-heading);',
-		'  background: linear-gradient(var(--usd-out-fill), var(--usd-out-fill)) padding-box, var(--usd-out-frame) border-box; }',
-		'.usd-out-card--typed { --usd-out-fill: var(--usd-card-bg); color: var(--usd-card-text); }',
-		'.usd-out-card--ssr { border-width: 3px; --usd-out-frame: linear-gradient(135deg, var(--usd-rarity-ssr-1), var(--usd-rarity-ssr-2), var(--usd-rarity-ssr-3), var(--usd-rarity-ssr-4), var(--usd-rarity-ssr-5)); }',
-		'.usd-out-card--sr { border-width: 2px; --usd-out-frame: linear-gradient(135deg, var(--usd-rarity-sr-1), var(--usd-rarity-sr-2), var(--usd-rarity-sr-1)); }',
+		// カードのタイル（C-186。2026-10-21）。面は無彩色（画面のほかの部分と同じ）・外枠は細い線1本。色が出るのは、左の種別アイコン（20px）と右のレアリティバッジ（24px）だけ。
+		// 編成に入れ済みのカード（番号の札つき）は、外枠を少し太い無彩色の線にして、オススメの候補（細い線）と区別する。×は見た目を小さく、押せる範囲は44px
+		'.usd-card-ico { display: block; flex: none; object-fit: contain; pointer-events: none; -webkit-user-drag: none; user-select: none; }',
+		'.usd-card-ico--type { width: 20px; height: 20px; }',
+		'.usd-card-ico--rarity { width: 24px; height: 24px; }',
+		'.usd-out-card .usd-card-ico--rarity { width: 22px; height: 22px; }',
+		'.usd-card-ico--pill { width: 16px; height: 16px; }',
+		'.usd-out-card { position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; column-gap: var(--uma-sp-1-5); min-width: 0; min-height: 44px; box-sizing: border-box;',
+		'  padding: 3px 6px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-lg); background: var(--uma-surface); color: var(--uma-text-heading); }',
+		'.usd-out-card--pinned { border-width: 2px; border-color: var(--uma-text-heading); padding: 2px 5px; }',
+		'.usd-out-card-lead { display: flex; align-items: center; justify-content: center; width: 20px; }',
+		'.usd-out-card-names { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }',
+		'.usd-out-card-side { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }',
+		'.usd-out-card-sub { display: flex; align-items: center; gap: 2px; }',
+		'.usd-out-card-sub--x { padding-right: 15px; }',
+		'.usd-out-card-sub--t { padding-right: 28px; }',
+		'.usd-out-card-x { position: absolute; right: 0; bottom: 0; width: 44px; height: 44px; padding: 0 5px 5px 0; display: flex; align-items: flex-end; justify-content: flex-end; min-height: 44px; text-decoration: none; }',
+		'.usd-out-card-xg { font-size: 15px; line-height: 1; color: var(--uma-text-subtle); }',
+		'.usd-out-card-xt { font-size: 11px; line-height: 1; color: var(--uma-text-subtle); text-decoration: underline; }',
+		'.usd-out-card-x:hover .usd-out-card-xg, .usd-out-card-x:hover .usd-out-card-xt { color: var(--uma-text-heading); }',
 		// 残りの枠（段13・C1）: 「N サポカを選ぶ」は①の空きのカード枠と同じ見た目（破線・薄い文字・番号の札）。指定したカードは番号の札を先頭に付ける
-		'.usd-out-slot { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; height: 36px; box-sizing: border-box; padding: 0 var(--uma-sp-1-5);',
+		'.usd-out-slot { display: flex; align-items: center; gap: var(--uma-sp-1-5); min-width: 0; min-height: 44px; box-sizing: border-box; padding: 0 var(--uma-sp-1-5);',
 		'  border: 1px dashed var(--uma-border-strong); border-radius: var(--uma-r-lg); background: var(--uma-surface); color: var(--uma-text-muted); font: inherit; font-size: var(--uma-fs-sm); line-height: 1.2; font-weight: 600; text-align: left; cursor: pointer; }',
 		'.usd-out-slot:hover { background: var(--uma-surface-muted); color: var(--uma-text-heading); }',
 		'.usd-out-slot:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
@@ -5231,11 +5277,11 @@
 		// ダーク（C-134 段4）: 固有スキルの行とオススメサポのボタンの地は、同じ3色の色相のまま暗い面へ。上に載る文字は明るく
 		':root[data-theme="dark"] { --usd-rarity-ssr-text: #f1f5f9; --usd-skill-unique-from: #163423; --usd-skill-unique-mid: #142f45; --usd-skill-unique-to: #3a1a32; --usd-skill-unique-edge: #a8457a; }',
 		// 名前の部分（押すとカードの情報）。二つ名は 11px で先に省略し、次に名前（14px）を省略する
-		'.usd-out-card-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 3px; height: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }',
+		'.usd-out-card-main { min-width: 0; display: flex; align-items: center; gap: 3px; height: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }',
 		'.usd-out-card-main:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 1px; }',
-		'.usd-out-card-nick { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 1.2; font-weight: 400; align-self: center; }',
-		'.usd-out-card-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; line-height: 1.2; font-weight: 600; align-self: center; }',
-		'.usd-out-card-gain { flex: none; white-space: nowrap; font-size: var(--uma-fs-xs); font-variant-numeric: tabular-nums; color: inherit; }',
+		'.usd-out-card-nick { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; line-height: 1.2; font-weight: 400; color: var(--uma-text-subtle); }',
+		'.usd-out-card-name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.25; font-weight: 600; }',
+		'.usd-out-card-gain { flex: none; white-space: nowrap; font-size: 11px; line-height: 1.2; font-variant-numeric: tabular-nums; color: var(--uma-text-subtle); }',
 		'.usd-out-card-btn { flex: none; font: inherit; font-size: var(--uma-fs-xs); line-height: 1; min-height: 28px; padding: 0 var(--uma-sp-1); border: 0; background: transparent; color: inherit; text-decoration: underline; cursor: pointer; white-space: nowrap; }',
 		'.usd-out-card-btn:hover { filter: brightness(.8); }',
 		'.usd-out-exhead { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); }',
@@ -5247,7 +5293,7 @@
 		'.usd-out-exbtn { font: inherit; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; min-height: 28px; padding: 0 var(--uma-sp-2); border: 0; background: transparent; color: var(--uma-text-subtle); cursor: pointer; }',
 		'.usd-out-excl { margin-bottom: var(--uma-sp-2); }',
 		'.usd-out-note { margin: 0; padding: var(--uma-sp-3); font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
-		'.usd-results.usd-out-list { height: 268px; }',
+		'.usd-results.usd-out-list { height: 244px; }',
 		'.usd-out-row { min-width: 0; }',
 		'.usd-out-name { flex: 1 1 auto; min-width: 0; }',
 		// スキル名（押すとスキルの詳細。①の表のスキル名と同じ下線）。行の高さは変えない
@@ -5334,10 +5380,13 @@
 		'  border: 1px solid var(--uma-accent-border); background: var(--uma-accent-soft);',
 		'  color: var(--uma-accent-soft-text); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); cursor: pointer; }',
 		'.usd-name-hit:hover { background: var(--uma-accent-border); }',
-		// サポートカードの候補だけ、種類ごとの色で塗る（C-62 の (1)）。スキルの候補（.usd-name-hit）は
-		// 種類を持たないので、この修飾クラスが付いたときだけ色が変わる。
-		'.usd-name-hit--typed { border-color: var(--usd-card-border); background: var(--usd-card-bg); color: var(--usd-card-text); }',
-		'.usd-name-hit--typed:hover { background: var(--usd-card-bg); filter: brightness(.96); }',
+		// サポートカードの候補（C-62 の (1) で種類ごとの色で塗っていたものを、C-186 で無彩色の面に置き換えた）。左に種別アイコン・右にレアリティバッジ（色が出るのはこの2つだけ）
+		'.usd-name-hit--card { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; column-gap: var(--uma-sp-2); border-color: var(--uma-border-strong); background: var(--uma-surface); color: var(--uma-text-heading); }',
+		'.usd-name-hit--card:hover { background: var(--uma-surface-muted); }',
+		'.usd-name-hit-lead { display: flex; align-items: center; justify-content: center; width: 20px; }',
+		'.usd-name-hit--card > .usd-name-hit-label:first-child { grid-column: 2; }',
+		'.usd-name-hit-label, .usd-name-hit-main { min-width: 0; overflow-wrap: anywhere; }',
+		'.usd-name-hit-main { display: flex; flex-direction: column; gap: 1px; }',
 		// 育成ウマ娘の候補（C-63 の (6)）。種類が無いので色では分けられない。★取り表の列と
 		// 同じ薄い灰（--uma-table-col-alt）と白を交互にして、行の切れ目だけが分かるようにする。
 		'.usd-name-hit--plain { border-color: var(--uma-border); background: var(--uma-surface); color: var(--uma-text); }',
@@ -5732,11 +5781,8 @@
 		'  border: 1px solid var(--uma-border); background: var(--uma-surface); }',
 		// 番号を持たない種類（色が引けない）だけ、選んでいることを枠の濃さで示す
 		'.usd-roster-pill[aria-pressed="true"] { border-color: var(--uma-text-heading); font-weight: 700; }',
-		// 種類ごとの色（C-62 の (1)）。色は番号（typeOrder）で --uma-card-type-<番号>-* から引き、
-		// render() が inline の変数（--usd-card-*）に入れる（＝ここは番号も種類の名前も知らない）。
-		// 選んでいることは「色が付くこと」ではなく**枠の二重線と太字**で示す（色は種類の見分けに使い切る）。
-		'.usd-roster-pill--typed { background: var(--usd-card-bg); border-color: var(--usd-card-border); color: var(--usd-card-text); }',
-		'.usd-roster-pill--typed[aria-pressed="true"] { border-color: var(--usd-card-text); box-shadow: inset 0 0 0 1px currentColor; font-weight: 700; }',
+		// 種類のピル（C-62 の (1) の色の塗りは、C-186 で無彩色に置き換えた）。左に小さな種別アイコン。選んでいることは枠の濃さと太字で示す
+		'.usd-roster-pill--typed { display: inline-flex; align-items: center; gap: var(--uma-sp-1); }',
 		// 「すべて」は種類ではないので黒と白（選択中＝黒地に白）
 		'.usd-roster-pill--all[aria-pressed="true"] { background: var(--uma-control); border-color: var(--uma-control-edge); box-shadow: var(--uma-control-rim);',
 		'  color: var(--uma-control-text); font-weight: 700; }',
@@ -10514,7 +10560,7 @@
 				.filter(e => !query || normalizeSkillText(formatEntryLabel(e)).indexOf(query) !== -1)
 				.map(e => ({ id: e.id, label: formatEntryLabel(e), used: used.indexOf(e.id) !== -1,
 					sameChara: !!ext && used.indexOf(e.id) === -1 && ext.charas.indexOf(e.charaName) !== -1,
-					typeOrder: kind === 'card' ? cardTypeOrderOf(e) : null }));
+					typeOrder: kind === 'card' ? cardTypeOrderOf(e) : null, rarity: kind === 'card' ? e.rarity : '' }));
 		}
 
 		/** 育成ウマ娘と同じキャラクターのカードを入れようとしたときの知らせ（C-168）。重ならなければ ''。判定は umaSharedCharasOf */
@@ -10569,8 +10615,8 @@
 							const n = orderByName.has(t) ? orderByName.get(t) : null;
 							return '<button type="button" class="usd-roster-pill' + (n === null ? '' : ' usd-roster-pill--typed') + '"'
 								+ ' data-usd-act="type" data-value="' + esc(t) + '"'
-								+ (n === null ? '' : ' data-type-order="' + n + '" style="' + cardTypeColorVars(n) + '"')
-								+ ' aria-pressed="' + (pickType === t ? 'true' : 'false') + '">' + esc(t) + '</button>';
+								+ (n === null ? '' : ' data-type-order="' + n + '"')
+								+ ' aria-pressed="' + (pickType === t ? 'true' : 'false') + '">' + (n === null ? '' : cardTypeIconHtml(n, 'usd-card-ico--pill')) + esc(t) + '</button>';
 						}).join('')
 						+ '</div>';
 				} else {
@@ -10589,15 +10635,18 @@
 			const hits = searchEntries(picking.kind, pickQuery, picking.kind === 'card' ? pickType : '');
 			if (hits.length === 0) { box.innerHTML = '<p class="usd-roster-note">見つかりません。</p>'; return; }
 			const shown = hits.slice(0, PICK_LIST_LIMIT);
-			const tint = (h) => (h.typeOrder === null || h.typeOrder === undefined) ? ''
-				: ' data-type-order="' + h.typeOrder + '" style="' + cardTypeColorVars(h.typeOrder) + '"';
 			const plain = picking.kind !== 'card';
+			// C-186: カードの候補は、面を無彩色にして、左に種別アイコン・右にレアリティバッジ（色が出るのはこの2つだけ）。色の塗りと虹の枠は使わない
+			const lead = (h) => h.typeOrder === null || h.typeOrder === undefined ? '' : '<span class="usd-name-hit-lead">' + cardTypeIconHtml(h.typeOrder) + '</span>';
+			const tail = (h) => cardRarityIconHtml(h.rarity);
+			const typeAttr = (h) => (h.typeOrder === null || h.typeOrder === undefined) ? '' : ' data-type-order="' + h.typeOrder + '"';
 			box.innerHTML = '<div class="usd-name-list">' + shown.map((h, i) => (h.used || h.sameChara)
-				? '<span class="usd-name-hit usd-name-hit--added">' + esc(h.label) + '<span class="usd-name-added">' + (h.used ? 'この編成に入っています' : '同じキャラクターが入っています') + '</span></span>'
+				? '<span class="usd-name-hit usd-name-hit--added' + (plain ? '' : ' usd-name-hit--card') + '"' + (plain ? '' : typeAttr(h)) + '>' + (plain ? '' : lead(h))
+					+ '<span class="usd-name-hit-main"><span class="usd-name-hit-label">' + esc(h.label) + '</span><span class="usd-name-added">' + (h.used ? 'この編成に入っています' : '同じキャラクターが入っています') + '</span></span>' + (plain ? '' : tail(h)) + '</span>'
 				: '<button type="button" class="usd-name-hit'
-					+ (plain ? ' usd-name-hit--plain' + (i % 2 === 1 ? ' usd-name-hit--row-alt' : '')
-						: (tint(h) ? ' usd-name-hit--typed' : '')) + '"'
-					+ ' data-usd-act="take" data-entry-id="' + esc(h.id) + '"' + (plain ? '' : tint(h)) + '>' + esc(h.label) + '</button>'
+					+ (plain ? ' usd-name-hit--plain' + (i % 2 === 1 ? ' usd-name-hit--row-alt' : '') : ' usd-name-hit--card') + '"'
+					+ ' data-usd-act="take" data-entry-id="' + esc(h.id) + '"' + (plain ? '' : typeAttr(h)) + '>' + (plain ? '' : lead(h))
+					+ '<span class="usd-name-hit-label">' + esc(h.label) + '</span>' + (plain ? '' : tail(h)) + '</button>'
 			).join('') + '</div>'
 				+ (hits.length > shown.length
 					? '<p class="usd-roster-note">全' + hits.length + '件のうち ' + shown.length + '件を出しています。名前を入れると絞り込めます。</p>'
@@ -13078,7 +13127,11 @@
 			renderOutside();
 		}
 
-		/** カードのタイル（1行）。[二つ名]（小さめ）・名前・（＋N種）・外す／戻す。名前の部分を押すとカードの情報（outside-card-info）。種類色は①のカードの表示と同じ変数 */
+		/**
+		 * カードのタイル（2段）。[種別アイコン]｜[二つ名（小さめ）／名前]｜[レアリティのバッジ／＋N種 ×]。名前の部分を押すとカードの情報（outside-card-info）。
+		 * C-186: 面は無彩色・外枠は細い線1本（編成に入れ済みの番号つきは少し太い無彩色の線）。色が出るのは種別アイコンとレアリティバッジだけ。
+		 * 「外す」「解除」は×印（見た目は小さく、押せる範囲は44px。読み上げは候補のカードは「外す」・編成のカードは「解除」）。「戻す」は文字のまま
+		 */
 		function outsideCardTileHtml(c, o) {
 			const cardId = c.cardId;
 			const card = findCard(cardId);
@@ -13086,15 +13139,19 @@
 			const name = card ? formatEntryShortLabel(card) : cardId;
 			const nick = card && card.title ? '[' + card.title + ']' : '';
 			const n = cardTypeOrderOf(card);
-			const rar = card && card.rarity === 'SSR' ? ' usd-out-card--ssr' : (card && card.rarity === 'SR' ? ' usd-out-card--sr' : '');
-			return '<div class="usd-out-card' + (n !== null ? ' usd-out-card--typed' : '') + rar + '" data-usd-el="' + o.el + '" data-card-id="' + esc(c.cardId) + '"' + (o.slot ? ' data-slot="' + o.slot + '"' : '')
-				+ (n !== null ? ' data-type-order="' + n + '" style="' + cardTypeColorVars(n) + '"' : '') + '>'
-				+ '<button type="button" class="usd-out-card-main" data-usd-act="outside-card-info" data-usd-el="outside-card-main" data-card-id="' + esc(cardId) + '" aria-haspopup="dialog" aria-label="' + esc(label + 'の情報') + '" title="' + esc(label) + '">'
+			const kind = cardKindText(n, card && card.rarity);
+			const glyph = o.btnText === '外す' || o.btnText === '解除';
+			return '<div class="usd-out-card' + (o.slot ? ' usd-out-card--pinned' : '') + '" data-usd-el="' + o.el + '" data-card-id="' + esc(c.cardId) + '"' + (o.slot ? ' data-slot="' + o.slot + '"' : '')
+				+ (n !== null ? ' data-type-order="' + n + '"' : '') + (card && card.rarity ? ' data-rarity="' + esc(card.rarity) + '"' : '') + '>'
+				+ '<span class="usd-out-card-lead">' + cardTypeIconHtml(n) + '</span>'
+				+ '<button type="button" class="usd-out-card-main" data-usd-act="outside-card-info" data-usd-el="outside-card-main" data-card-id="' + esc(cardId) + '" aria-haspopup="dialog" aria-label="' + esc(label + (kind ? '（' + kind + '）' : '') + 'の情報') + '" title="' + esc(label) + '">'
 				// 残りの枠に指定したカード（段13・C1）は、①のカード枠と同じ番号の札を先頭に付けて、オススメで選んだカードと見分ける
 				+ (o.slot ? '<span class="usd-roster-legend-no usd-out-card-slot" aria-hidden="true">' + o.slot + '</span>' : '')
-				+ (nick ? '<span class="usd-out-card-nick" data-usd-el="outside-card-nick">' + esc(nick) + '</span>' : '') + '<span class="usd-out-card-name" data-usd-el="outside-card-name">' + esc(name) + '</span></button>'
-				+ (o.gain !== undefined ? '<span class="usd-out-card-gain" data-usd-el="outside-card-gain">＋' + o.gain + '種</span>' : '')
-				+ '<button type="button" class="usd-out-card-btn" data-usd-act="' + o.act + '" data-usd-el="' + o.btnEl + '" data-card-id="' + esc(cardId) + '" aria-label="' + esc(name + 'を' + o.btnText) + '">' + o.btnText + '</button></div>';
+				+ '<span class="usd-out-card-names">' + (nick ? '<span class="usd-out-card-nick" data-usd-el="outside-card-nick">' + esc(nick) + '</span>' : '') + '<span class="usd-out-card-name" data-usd-el="outside-card-name">' + esc(name) + '</span></span></button>'
+				+ '<span class="usd-out-card-side">' + cardRarityIconHtml(card && card.rarity)
+				+ '<span class="usd-out-card-sub' + (glyph ? ' usd-out-card-sub--x' : ' usd-out-card-sub--t') + '">' + (o.gain !== undefined ? '<span class="usd-out-card-gain" data-usd-el="outside-card-gain">＋' + o.gain + '種</span>' : '')
+				+ '<button type="button" class="usd-out-card-btn usd-out-card-x" data-usd-act="' + o.act + '" data-usd-el="' + o.btnEl + '" data-card-id="' + esc(cardId) + '" aria-label="' + esc(name + 'を' + o.btnText) + '">'
+				+ (glyph ? '<span class="usd-out-card-xg" aria-hidden="true">×</span>' : '<span class="usd-out-card-xt">' + o.btnText + '</span>') + '</button></span></span></div>';
 		}
 		/** 二つ名が「[」＋3文字＋「…」も入らない幅のときは、二つ名を出さず名前だけにする（名前も入らなければ名前を省略）。描き直し・幅の変化のたびに呼ぶ */
 		function outsideFitNicks(root) {
