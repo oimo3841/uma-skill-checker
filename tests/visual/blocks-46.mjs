@@ -1,7 +1,7 @@
 // ②因子周回の入口の作り直し 段D（2026-10-21・C-187）の検査。run-smoke.mjs の末尾から register46() で呼ばれる
 // （塊の見出しはすべて「C-187」で始まる。`npm run test:visual -- --only=C-187` で回せる）。
 //
-// 対象: (a) 入口の2つのボタン（オススメサポ・脚質オススメ）が同じ見た目／(b) ①の6枚のカード（タイル）／(c) 同じ種別が2枚以上のときだけ出る小さな番号／
+// 対象: (a) 入口の2つのボタン（オススメサポ・脚質オススメ）が同じ見た目（段F0〔2026-10-22〕で書き直した。C-187 の「虹色の縁」は取り消し。オススメサポは 0530272 の見た目、脚質オススメは同じクラス）／(b) ①の6枚のカード（タイル）／(c) 同じ種別が2枚以上のときだけ出る小さな番号／
 // (d) 表の列見出し（サポカの6列。アイコンのメニュー）／(e) 育成ウマ娘の列の見出しは変わらない／(f) 横スクロールなし・ライト・ダーク／(g) ①のカード選択の窓の SSR・SR の印。
 // カード名・種別・レアリティは検査の側に書かない（恒久ルール1。データから読む）。
 
@@ -51,7 +51,7 @@ export async function register46(env) {
 	const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
 	const hexRgb = (h) => { const m = /#([0-9a-f]{6})/i.exec(h || ''); return m ? [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16), 1] : null; };
 
-	await block('C-187(a) 入口の2つのボタン（オススメサポ・脚質オススメ）は同じ見た目: 同じクラス・同じ枠線（虹色・2px）・同じ内側の塗り（淡い虹色）・同じ文字色。ほかの入口より目立つ。文字は塗りの上で 4.5:1 以上（ライト・ダーク × 390・360・1280）', async () => {
+	await block('C-187(a)→段F0 入口の2つのボタン（オススメサポ・脚質オススメ）は同じ見た目: 同じクラス（usd-outside-entry）・同じ枠線（1px・固有スキルの縁の色）・同じ内側の塗り（淡い3色のグラデーション）・同じ文字色。ほかの入口より目立つ。文字は塗りの上で 4.5:1 以上（ライト・ダーク × 390・360・1280）', async () => {
 		for (const [w, theme] of [[390, 'light'], [390, 'dark'], [360, 'light'], [360, 'dark'], [1280, 'light'], [1280, 'dark']]) {
 			const sp = await openSp({ w, theme, tab: '1', h: w === 1280 ? 900 : 844 });
 			const r = await sp.page.evaluate(() => {
@@ -62,19 +62,20 @@ export async function register46(env) {
 					return { cls: b.className, bgImg: cs.backgroundImage, bw: cs.borderTopWidth, bs: cs.borderTopStyle, bc: cs.borderTopColor, color: cs.color, bgClip: cs.backgroundClip, h: Math.round(rc.height), text: b.textContent.trim(), icon: !!b.querySelector('[data-lucide], svg') };
 				};
 				const root = getComputedStyle(document.documentElement);
-				return { a: pick('[data-usd-el="outside-open"]'), b: pick('[data-usd-el="style-open"]'), other: pick('.usd-entry-row [data-usd-act="editor-pick"]'), from: root.getPropertyValue('--usd-rainbow-from'), mid: root.getPropertyValue('--usd-rainbow-mid'), to: root.getPropertyValue('--usd-rainbow-to') };
+				return { a: pick('[data-usd-el="outside-open"]'), b: pick('[data-usd-el="style-open"]'), other: pick('.usd-entry-row [data-usd-act="editor-pick"]'), from: root.getPropertyValue('--usd-skill-unique-from'), mid: root.getPropertyValue('--usd-skill-unique-mid'), to: root.getPropertyValue('--usd-skill-unique-to'), edge: root.getPropertyValue('--usd-skill-unique-edge') };
 			});
 			const tag = 'C-187(a) ' + w + 'px・' + theme + ': ';
-			assert(r.a && r.b && r.a.cls === r.b.cls && /usd-rainbow-entry/.test(r.a.cls), tag + '2つは同じクラス（usd-rainbow-entry）で作られている', [r.a && r.a.cls, r.b && r.b.cls]);
-			assert(r.a.bgImg === r.b.bgImg && r.a.bw === r.b.bw && r.a.bs === r.b.bs && r.a.color === r.b.color && r.a.bgClip === r.b.bgClip && r.a.h === r.b.h, tag + '枠線・内側の塗り（淡い虹色）・文字色・高さが同じ', { a: [r.a.bgImg.slice(0, 60), r.a.bw, r.a.color, r.a.h], b: [r.b.bgImg.slice(0, 60), r.b.bw, r.b.color, r.b.h] });
-			assert(r.a.bw === '2px' && /linear-gradient.*linear-gradient/.test(r.a.bgImg), tag + '縁は2px の虹色・内側は淡い虹色（グラデーション2枚重ね）', r.a.bgImg.slice(0, 80));
+			assert(r.a && r.b && r.a.cls === r.b.cls && /usd-outside-entry/.test(r.a.cls), tag + '2つは同じクラス（usd-outside-entry）で作られている', [r.a && r.a.cls, r.b && r.b.cls]);
+			assert(r.a.bgImg === r.b.bgImg && r.a.bw === r.b.bw && r.a.bs === r.b.bs && r.a.bc === r.b.bc && r.a.color === r.b.color && r.a.bgClip === r.b.bgClip && r.a.h === r.b.h, tag + '枠線・内側の塗り（淡い3色）・文字色・高さが同じ', { a: [r.a.bgImg.slice(0, 60), r.a.bw, r.a.color, r.a.h], b: [r.b.bgImg.slice(0, 60), r.b.bw, r.b.color, r.b.h] });
+			assert(r.a.bw === '1px' && (r.a.bgImg.match(/linear-gradient/g) || []).length === 1, tag + '縁は1px・内側は淡い3色のグラデーション1枚（0530272 のオススメサポのまま）', r.a.bgImg.slice(0, 80));
 			assert(r.a.text.indexOf('オススメサポ') !== -1 && r.b.text.indexOf('脚質オススメ') !== -1 && r.a.icon && r.b.icon, tag + '違いはアイコンと文字だけ', [r.a.text, r.b.text]);
-			assert(r.other && r.other.bgImg === 'none' && r.other.bw !== '2px', tag + '入口の列のほかのボタン（条件で検索）は、虹色の縁・淡い塗りではない（2つのほうが目立つ）', [r.other && r.other.bgImg, r.other && r.other.bw]);
+			assert(r.other && r.other.bgImg === 'none' && r.other.bc !== r.a.bc, tag + '入口の列のほかのボタン（条件で検索）は、淡い3色の塗り・ピンクの縁ではない（2つのほうが目立つ）', [r.other && r.other.bgImg, r.other && r.other.bw]);
 			const fills = [r.from, r.mid, r.to].map(hexRgb);
 			const txt = rgbOf(r.a.color);
 			const worst = Math.min.apply(null, fills.map((f) => contrast(txt, f)));
-			assert(fills.every(Boolean) && worst >= 4.5, tag + '文字は淡い虹色の上で 4.5:1 以上（最小 ' + worst.toFixed(2) + '）', { fills: [r.from, r.mid, r.to], color: r.a.color });
-			assert(/rgba\(0, 0, 0, 0\)|transparent/.test(r.a.bc) && r.a.bc === r.b.bc, tag + '縁は透明な 2px の枠の下に虹色を敷いた作り（2つで同じ）', r.a.bc);
+			assert(fills.every(Boolean) && worst >= 4.5, tag + '文字は淡い3色の上で 4.5:1 以上（最小 ' + worst.toFixed(2) + '）', { fills: [r.from, r.mid, r.to], color: r.a.color });
+			const edge = hexRgb(r.edge), bcRgb = rgbOf(r.a.bc);
+			assert(edge && bcRgb && edge[0] === bcRgb[0] && edge[1] === bcRgb[1] && edge[2] === bcRgb[2] && r.a.bc === r.b.bc, tag + '縁の色は固有スキルの縁の色（--usd-skill-unique-edge）で、2つで同じ', [r.a.bc, r.edge]);
 			assert(await sp.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), tag + '横スクロールなし', true);
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();

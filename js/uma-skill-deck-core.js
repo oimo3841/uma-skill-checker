@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-21f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-22a';
 
 	/* ============================================================
 	 * 定数
@@ -5262,14 +5262,11 @@
 		'.usd-out-slot .usd-roster-legend-no, .usd-out-card-slot { font-size: var(--uma-fs-xs); line-height: 18px; background: var(--uma-surface); color: var(--uma-text-heading); }',
 		'.usd-out-slot-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
 		'.usd-out-card-slot { align-self: center; margin-right: 2px; }',
-		// 入口のボタン「オススメサポ」「脚質オススメ」（C-187。2026-10-21）。2つは同じ見た目（同じクラス・同じ変数）で、縁を虹色・内側を淡い虹色にする。違いはアイコンと文字だけ。
-		// 縁は 2px。入口の列の高さを変えないよう、縦の余白を 1px 減らす。文字色はオススメサポと同じ変数（ライトは黒・ダークは明るい色）
-		'.usd-entry-row > .uma-btn.usd-rainbow-entry { padding-block: calc(var(--uma-sp-1-5) - 1px); border: 2px solid transparent; color: var(--usd-rarity-ssr-text);',
-		'  background: linear-gradient(90deg, var(--usd-rainbow-from), var(--usd-rainbow-mid), var(--usd-rainbow-to)) padding-box,',
-		'    linear-gradient(90deg, var(--usd-rarity-ssr-1), var(--usd-rarity-ssr-2), var(--usd-rarity-sr-1), var(--usd-rarity-ssr-3), var(--usd-rarity-ssr-4), var(--usd-rarity-ssr-5)) border-box; }',
-		'.usd-entry-row > .uma-btn.usd-rainbow-entry:hover:not(:disabled) { filter: brightness(0.97); }',
-		':root { --usd-rainbow-from: #f4fbf5; --usd-rainbow-mid: #f2f8fd; --usd-rainbow-to: #fdf4fa; }',
-		':root[data-theme="dark"] { --usd-rainbow-from: #0f1a14; --usd-rainbow-mid: #0e1620; --usd-rainbow-to: #1c121a; }',
+		// 入口のボタン「オススメサポ」「脚質オススメ」（段7・2026-10-04。C-187 の取り消し＝2026-10-22・段F0）: ①の表の固有スキルの行（.usd-roster-grow--unique）と同じ淡いグラデーション・同じ縁の色に、黒い文字。
+		// この見た目は 0530272 のオススメサポのまま（変更禁止の基準）。脚質オススメも同じクラスを使い、違いはアイコンと文字だけ。変数（--usd-skill-unique-*）は①の行と同じもの（:root に置いた）。
+		// 黒は --usd-rarity-ssr-text（淡い3色の上で 4.5 以上。ダークでは同じ名前を差し替える）
+		'.uma-btn.usd-outside-entry { background: linear-gradient(90deg, var(--usd-skill-unique-from), var(--usd-skill-unique-mid), var(--usd-skill-unique-to)); color: var(--usd-rarity-ssr-text); border-color: var(--usd-skill-unique-edge); box-shadow: var(--uma-shadow-1); }',
+		'.uma-btn.usd-outside-entry:hover:not(:disabled) { filter: brightness(0.97); }',
 		// 脚質オススメの小窓。器はオススメサポと同じ（.usd-modal / .usd-modal-panel / .usd-out-head / .usd-out-body / .usd-modal-foot）。上に固定＝.usd-sty-top、リストだけ縦に送る、下に固定＝.usd-modal-foot
 		'.usd-sty-top { flex-shrink: 0; display: flex; flex-direction: column; gap: var(--uma-sp-1-5); padding: var(--uma-sp-2) var(--uma-sp-4); border-bottom: 1px solid var(--uma-border); }',
 		'.usd-sty-pick { display: flex; align-items: center; flex-wrap: wrap; gap: var(--uma-sp-2); min-width: 0; }',
@@ -11811,11 +11808,11 @@
 					 * 作り得る）。開閉の状態（`entryRowOpen`）も一緒に取り除いた ――
 					 * **保存先は持っていなかった**ので、残る値の後始末は要らない。 */
 					'<div class="usd-entry-row">' +
-						// 「オススメサポ」（本育成サポカ外スキル。special の②だけ）。入口列の先頭。「脚質オススメ」と同じ見た目（虹色の縁・淡い虹色の内側）で、ほかの入口より目立たせる
-						(setBased ? '<button type="button" class="uma-btn usd-rainbow-entry" data-usd-act="outside-open" data-usd-el="outside-open" aria-haspopup="dialog">' +
+						// 「オススメサポ」（本育成サポカ外スキル。special の②だけ）。入口列の先頭。0530272 のオススメサポの見た目（淡い3色のグラデーション・同じ色の縁）のまま。「脚質オススメ」は同じクラスで同じ見た目
+						(setBased ? '<button type="button" class="uma-btn usd-outside-entry" data-usd-act="outside-open" data-usd-el="outside-open" aria-haspopup="dialog">' +
 							'<i data-lucide="sparkles" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> オススメサポ</button>' : '') +
-							// 「脚質オススメ」（2026-10-21。special の②だけ）。オススメサポの直後。オススメサポと同じ見た目
-							(setBased ? '<button type="button" class="uma-btn usd-rainbow-entry" data-usd-act="style-open" data-usd-el="style-open" aria-haspopup="dialog">' +
+							// 「脚質オススメ」（2026-10-21。special の②だけ）。オススメサポの直後。オススメサポと同じクラス（usd-outside-entry）
+							(setBased ? '<button type="button" class="uma-btn usd-outside-entry" data-usd-act="style-open" data-usd-el="style-open" aria-haspopup="dialog">' +
 								'<i data-lucide="flag" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 脚質オススメ</button>' : '') +
 						'<button type="button" class="uma-btn uma-btn--secondary" data-usd-act="editor-pick">' +
 							'<i data-lucide="filter" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;"></i> 条件で検索' +

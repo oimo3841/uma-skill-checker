@@ -1,0 +1,269 @@
+{
+ "_note": "コミット 0530272 の special.html（入口のオススメサポのボタン）を Playwright で測った値。検査はこの値と同一であることを確かめる。実装の側の値から作り直さないこと（段F0・2026-10-22）。pixelSha256 は、ボタンの周り6pxを含む切り出しの画素（幅・高さ・RGBA）のSHA-256。",
+ "conditions": {
+  "1280-light": {
+   "cls": "uma-btn usd-outside-entry",
+   "text": "オススメサポ",
+   "border": [
+    "1px solid rgb(240, 168, 208)",
+    "1px solid rgb(240, 168, 208)",
+    "1px solid rgb(240, 168, 208)",
+    "1px solid rgb(240, 168, 208)"
+   ],
+   "radius": "12px",
+   "bgColor": "rgba(0, 0, 0, 0)",
+   "bgImage": "linear-gradient(90deg, rgb(227, 246, 230), rgb(223, 241, 251), rgb(251, 227, 241))",
+   "bgClip": "border-box",
+   "bgOrigin": "padding-box",
+   "color": "rgb(0, 0, 0)",
+   "boxShadow": "rgba(0, 0, 0, 0.05) 0px 1px 2px 0px",
+   "filter": "none",
+   "pad": "6px 10px 6px 10px",
+   "fontSize": "11px",
+   "fontWeight": "600",
+   "lineHeight": "16px",
+   "gap": "4px",
+   "icon": {
+    "w": 14,
+    "h": 14,
+    "color": "rgb(0, 0, 0)",
+    "stroke": "rgb(0, 0, 0)"
+   },
+   "w": 92.421875,
+   "h": 30,
+   "crop": {
+    "w": 105,
+    "h": 42,
+    "bpp": 3
+   },
+   "pixelSha256": "a20ed7c7e27a47e6a0003441e156e4361d81c57bf16fee69b6c88c410b9f671e",
+   "vars": {
+    "--usd-skill-unique-from": "#e3f6e6",
+    "--usd-skill-unique-mid": "#dff1fb",
+    "--usd-skill-unique-to": "#fbe3f1",
+    "--usd-skill-unique-edge": "#f0a8d0",
+    "--usd-rarity-ssr-text": "#000000"
+   }
+  },
+  "1280-dark": {
+   "cls": "uma-btn usd-outside-entry",
+   "text": "オススメサポ",
+   "border": [
+    "1px solid rgb(168, 69, 122)",
+    "1px solid rgb(168, 69, 122)",
+    "1px solid rgb(168, 69, 122)",
+    "1px solid rgb(168, 69, 122)"
+   ],
+   "radius": "12px",
+   "bgColor": "rgba(0, 0, 0, 0)",
+   "bgImage": "linear-gradient(90deg, rgb(22, 52, 35), rgb(20, 47, 69), rgb(58, 26, 50))",
+   "bgClip": "border-box",
+   "bgOrigin": "padding-box",
+   "color": "rgb(241, 245, 249)",
+   "boxShadow": "rgba(0, 0, 0, 0.05) 0px 1px 2px 0px",
+   "filter": "none",
+   "pad": "6px 10px 6px 10px",
+   "fontSize": "11px",
+   "fontWeight": "600",
+   "lineHeight": "16px",
+   "gap": "4px",
+   "icon": {
+    "w": 14,
+    "h": 14,
+    "color": "rgb(241, 245, 249)",
+    "stroke": "rgb(241, 245, 249)"
+   },
+   "w": 92.421875,
+   "h": 30,
+   "crop": {
+    "w": 105,
+    "h": 42,
+    "bpp": 3
+   },
+   "pixelSha256": "1eaff9acdcd1352b27ba3e009a8b326c9a5692160afbd512c0b30c4d022cb19c",
+   "vars": {
+    "--usd-skill-unique-from": "#163423",
+    "--usd-skill-unique-mid": "#142f45",
+    "--usd-skill-unique-to": "#3a1a32",
+    "--usd-skill-unique-edge": "#a8457a",
+    "--usd-rarity-ssr-text": "#f1f5f9"
+   }
+  },
+  "390-light": {
+   "cls": "uma-btn usd-outside-entry",
+   "text": "オススメサポ",
+   "border": [
+    "1px solid rgb(240, 168, 208)",
+    "1px solid rgb(240, 168, 208)",
+    "1px solid rgb(240, 168, 208)",
+    "1px solid rgb(240, 168, 208)"
+   ],
+   "radius": "12px",
+   "bgColor": "rgba(0, 0, 0, 0)",
+   "bgImage": "linear-gradient(90deg, rgb(227, 246, 230), rgb(223, 241, 251), rgb(251, 227, 241))",
+   "bgClip": "border-box",
+   "bgOrigin": "padding-box",
+   "color": "rgb(0, 0, 0)",
+   "boxShadow": "rgba(0, 0, 0, 0.05) 0px 1px 2px 0px",
+   "filter": "none",
+   "pad": "6px 10px 6px 10px",
+   "fontSize": "11px",
+   "fontWeight": "600",
+   "lineHeight": "16px",
+   "gap": "4px",
+   "icon": {
+    "w": 14,
+    "h": 14,
+    "color": "rgb(0, 0, 0)",
+    "stroke": "rgb(0, 0, 0)"
+   },
+   "w": 92.421875,
+   "h": 30,
+   "crop": {
+    "w": 105,
+    "h": 42,
+    "bpp": 3
+   },
+   "pixelSha256": "1a2ee4072b3b59ee0b43eace33e28e6fcc1427e9c6fb2baf8e2087b2dfbec27b",
+   "vars": {
+    "--usd-skill-unique-from": "#e3f6e6",
+    "--usd-skill-unique-mid": "#dff1fb",
+    "--usd-skill-unique-to": "#fbe3f1",
+    "--usd-skill-unique-edge": "#f0a8d0",
+    "--usd-rarity-ssr-text": "#000000"
+   }
+  },
+  "390-dark": {
+   "cls": "uma-btn usd-outside-entry",
+   "text": "オススメサポ",
+   "border": [
+    "1px solid rgb(168, 69, 122)",
+    "1px solid rgb(168, 69, 122)",
+    "1px solid rgb(168, 69, 122)",
+    "1px solid rgb(168, 69, 122)"
+   ],
+   "radius": "12px",
+   "bgColor": "rgba(0, 0, 0, 0)",
+   "bgImage": "linear-gradient(90deg, rgb(22, 52, 35), rgb(20, 47, 69), rgb(58, 26, 50))",
+   "bgClip": "border-box",
+   "bgOrigin": "padding-box",
+   "color": "rgb(241, 245, 249)",
+   "boxShadow": "rgba(0, 0, 0, 0.05) 0px 1px 2px 0px",
+   "filter": "none",
+   "pad": "6px 10px 6px 10px",
+   "fontSize": "11px",
+   "fontWeight": "600",
+   "lineHeight": "16px",
+   "gap": "4px",
+   "icon": {
+    "w": 14,
+    "h": 14,
+    "color": "rgb(241, 245, 249)",
+    "stroke": "rgb(241, 245, 249)"
+   },
+   "w": 92.421875,
+   "h": 30,
+   "crop": {
+    "w": 105,
+    "h": 42,
+    "bpp": 3
+   },
+   "pixelSha256": "8d461a9a157f4e9f10e6392e4d926207a375bbc8de66ac13aba417d65a938d32",
+   "vars": {
+    "--usd-skill-unique-from": "#163423",
+    "--usd-skill-unique-mid": "#142f45",
+    "--usd-skill-unique-to": "#3a1a32",
+    "--usd-skill-unique-edge": "#a8457a",
+    "--usd-rarity-ssr-text": "#f1f5f9"
+   }
+  },
+  "360-light": {
+   "cls": "uma-btn usd-outside-entry",
+   "text": "オススメサポ",
+   "border": [
+    "1px solid rgb(240, 168, 208)",
+    "1px solid rgb(240, 168, 208)",
+    "1px solid rgb(240, 168, 208)",
+    "1px solid rgb(240, 168, 208)"
+   ],
+   "radius": "12px",
+   "bgColor": "rgba(0, 0, 0, 0)",
+   "bgImage": "linear-gradient(90deg, rgb(227, 246, 230), rgb(223, 241, 251), rgb(251, 227, 241))",
+   "bgClip": "border-box",
+   "bgOrigin": "padding-box",
+   "color": "rgb(0, 0, 0)",
+   "boxShadow": "rgba(0, 0, 0, 0.05) 0px 1px 2px 0px",
+   "filter": "none",
+   "pad": "6px 10px 6px 10px",
+   "fontSize": "11px",
+   "fontWeight": "600",
+   "lineHeight": "16px",
+   "gap": "4px",
+   "icon": {
+    "w": 14,
+    "h": 14,
+    "color": "rgb(0, 0, 0)",
+    "stroke": "rgb(0, 0, 0)"
+   },
+   "w": 92.421875,
+   "h": 30,
+   "crop": {
+    "w": 105,
+    "h": 42,
+    "bpp": 3
+   },
+   "pixelSha256": "1a2ee4072b3b59ee0b43eace33e28e6fcc1427e9c6fb2baf8e2087b2dfbec27b",
+   "vars": {
+    "--usd-skill-unique-from": "#e3f6e6",
+    "--usd-skill-unique-mid": "#dff1fb",
+    "--usd-skill-unique-to": "#fbe3f1",
+    "--usd-skill-unique-edge": "#f0a8d0",
+    "--usd-rarity-ssr-text": "#000000"
+   }
+  },
+  "360-dark": {
+   "cls": "uma-btn usd-outside-entry",
+   "text": "オススメサポ",
+   "border": [
+    "1px solid rgb(168, 69, 122)",
+    "1px solid rgb(168, 69, 122)",
+    "1px solid rgb(168, 69, 122)",
+    "1px solid rgb(168, 69, 122)"
+   ],
+   "radius": "12px",
+   "bgColor": "rgba(0, 0, 0, 0)",
+   "bgImage": "linear-gradient(90deg, rgb(22, 52, 35), rgb(20, 47, 69), rgb(58, 26, 50))",
+   "bgClip": "border-box",
+   "bgOrigin": "padding-box",
+   "color": "rgb(241, 245, 249)",
+   "boxShadow": "rgba(0, 0, 0, 0.05) 0px 1px 2px 0px",
+   "filter": "none",
+   "pad": "6px 10px 6px 10px",
+   "fontSize": "11px",
+   "fontWeight": "600",
+   "lineHeight": "16px",
+   "gap": "4px",
+   "icon": {
+    "w": 14,
+    "h": 14,
+    "color": "rgb(241, 245, 249)",
+    "stroke": "rgb(241, 245, 249)"
+   },
+   "w": 92.421875,
+   "h": 30,
+   "crop": {
+    "w": 105,
+    "h": 42,
+    "bpp": 3
+   },
+   "pixelSha256": "8d461a9a157f4e9f10e6392e4d926207a375bbc8de66ac13aba417d65a938d32",
+   "vars": {
+    "--usd-skill-unique-from": "#163423",
+    "--usd-skill-unique-mid": "#142f45",
+    "--usd-skill-unique-to": "#3a1a32",
+    "--usd-skill-unique-edge": "#a8457a",
+    "--usd-rarity-ssr-text": "#f1f5f9"
+   }
+  }
+ }
+}
