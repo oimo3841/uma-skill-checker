@@ -19,8 +19,8 @@ export async function register13(env) {
 	const effectReal = readJson('data/skill-effect-levels.json');
 	const effRank = new Map(effectReal.stages.map((s) => [s.key, s.rank]));
 	const LOW_SET = new Set(effectReal.entries.filter((e) => e.maxStage !== null && effRank.get(e.maxStage) <= effectReal.lowEffectMax.rank).map((e) => e.skillId));
-	const NEW_DEFAULT = { effect: ['stamina', 'debuff', 'vision'], extra: ['passive', 'lowEffect'] };
-	const NEW_DEFAULT_TEXT = '除外：持久力回復・デバフ・視野・緑スキル・低効果▾';
+	const NEW_DEFAULT = { effect: ['debuff', 'stamina', 'vision'], extra: ['lowEffect'] };   // C-185: 緑スキルを外して4つに
+	const NEW_DEFAULT_TEXT = '除外：低効果・デバフ・視野・持久力回復▾';
 	const FILTER = { distance: 'medium', style: 'senko', surface: 'turf' };
 	const CARDS6 = ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'];
 	const FULL = { umaId: 'uma-0001', cardIds: CARDS6, skillFilter: FILTER };
@@ -93,7 +93,7 @@ export async function register13(env) {
 			tags.environment = ['season_spring', 'weather_rain'];
 			arr.push({ id: 'probe-env2', name: '仮のスキル', tags: tags });
 			const ex = (race) => C.outside.populationOf({ race: Object.assign({ id: 'race-t', name: 't' }, race) });
-			const base = C.outside.populationOf({}).ids.includes('probe-env2');
+			const base = C.outside.populationOf({ race: { id: 'race-blank', name: 'blank' } }).ids.includes('probe-env2');   // C-185: レースが無いと季節・回りの緑スキルは外れるので、何も外さない空のレースで確かめる
 			const out = {
 				base,
 				springRain: ex({ season: 'season_spring', weather: 'weather_rain' }).ids.includes('probe-env2'),
@@ -555,7 +555,7 @@ export async function register13(env) {
 		return have.every((v) => vals.includes(v));
 	});
 
-	await block('オススメサポ段13C2 除外の規則: ある軸で持つ値がすべて除外のときだけ外す（ほかの値も持てば残す・その軸に値が無ければ残す・どれか1つの軸で外れれば外す）／デバフにまとめた掛かり時間も外れる／保存値の無いセットは初期値（デバフ・持久力回復）／実データで物差しと一致', async () => {
+	await block('オススメサポ段13C2 除外の規則: ある軸で持つ値がすべて除外のときだけ外す（ほかの値も持てば残す・その軸に値が無ければ残す）／デバフにまとめた掛かり時間も外れる／保存値の無いセットは初期値（低効果・デバフ・視野・持久力回復。C-185）／4つ以外の保存値（フェーズなど）は読まない', async () => {
 		const sp = await openSp({ roster: FULL });
 		const r = await sp.page.evaluate(async () => {
 			const C = UmaSkillDeckCore;
@@ -569,28 +569,27 @@ export async function register13(env) {
 			probe('probe-ex3', { effect: [] });
 			probe('probe-ex4', { effect: ['stamina'] });
 			probe('probe-ex5', { effect: ['accel_up'], phase: ['late'] });
-			probe('probe-ex6', { effect: ['accel_up'], phase: ['late', 'mid'] });
 			const has = (p, id) => p.ids.includes(id);
 			const def = C.outside.populationOf({});
 			const noEx = C.outside.populationOf({ outsideOptions: { exclude: {} } });
+			// C-185: フェーズなど4つ以外の保存値は読まない（効かない）。母集団は除外なしと同じ
 			const late = C.outside.populationOf({ outsideOptions: { exclude: { phase: ['late'] } } });
 			const out = { def: ['probe-ex1', 'probe-ex2', 'probe-ex3', 'probe-ex4'].map((id) => has(def, id)), noEx: ['probe-ex1', 'probe-ex4'].map((id) => has(noEx, id)),
-				late: ['probe-ex5', 'probe-ex6', 'probe-ex4'].map((id) => has(late, id)), defaultOpt: C.outside.optionsOf({}).exclude, merged,
-				real: noEx.ids.filter((id) => !/^probe-/.test(id)).map((id) => [id, C.getSkillTags(id)]), defIds: def.ids.filter((id) => !/^probe-/.test(id)), lateIds: late.ids.filter((id) => !/^probe-/.test(id)) };
-			['probe-ex1', 'probe-ex2', 'probe-ex3', 'probe-ex4', 'probe-ex5', 'probe-ex6'].forEach((id) => arr.splice(arr.findIndex((s) => s.id === id), 1));
+				late: ['probe-ex5', 'probe-ex4'].map((id) => has(late, id)), lateN: late.ids.length, noExN: noEx.ids.length, defaultOpt: C.outside.optionsOf({}).exclude, merged,
+				real: noEx.ids.filter((id) => !/^probe-/.test(id)).map((id) => [id, C.getSkillTags(id)]), defIds: def.ids.filter((id) => !/^probe-/.test(id)) };
+			['probe-ex1', 'probe-ex2', 'probe-ex3', 'probe-ex4', 'probe-ex5'].forEach((id) => arr.splice(arr.findIndex((s) => s.id === id), 1));
 			return out;
 		});
-		assert(JSON.stringify(r.defaultOpt) === JSON.stringify(NEW_DEFAULT), 'オススメサポ段13C2→C-129 保存値の無いセットは、初期値（効果タイプの持久力回復・デバフ・視野＋緑スキル・低効果）で読む', r.defaultOpt);
+		assert(JSON.stringify(r.defaultOpt) === JSON.stringify(NEW_DEFAULT), 'オススメサポ段13C2→C-185 保存値の無いセットは、初期値（低効果・デバフ・視野・持久力回復）で読む', r.defaultOpt);
 		assert(r.noEx.join() === 'true,true', 'オススメサポ段13C2 前提: 何も除外しなければ、仮のスキル（掛かり時間だけ・持久力回復だけ）も母集団に入る', r.noEx);
 		assert(r.def.join() === 'false,true,true,false', 'オススメサポ段13C2 初期値: 掛かり時間だけのスキル（デバフにまとめた値）は外れる／速度上昇と持久力回復を持つスキルは残る／効果タイプが空のスキルは残る／持久力回復だけのスキルは外れる', r.def);
-		assert(r.late.join() === 'false,true,true', 'オススメサポ段13C2 フェーズ「終盤」を除外: 終盤だけのスキルは（効果タイプが除外でなくても）外れる＝どれか1つの軸で外れれば外す／終盤と中盤を持つスキルは残る', r.late);
+		assert(r.late.join() === 'true,true' && r.lateN === r.noExN, 'オススメサポ段13C2→C-185 フェーズ「終盤」の保存値は読まない（効かない）: 終盤だけのスキルも残り、母集団は除外なしと同じ', r.late);
 		// 実データ: 物差しと一致（除外しないときの母集団から、物差しで外れるものを引いたもの）
-		// C-129: 既定の物差しは、効果タイプ（持久力回復・デバフ・視野）＋緑スキル（パッシブのタグ）＋低効果（データの段階）
-		const expDef = r.real.filter(([id, t]) => !(exOracle(t, { effect: ['stamina', 'debuff', 'vision'] }, r.merged) || ((t && t.passive) || []).length > 0 || LOW_SET.has(id))).map(([id]) => id).sort();
-		const expLate = r.real.filter(([, t]) => !exOracle(t, { phase: ['late'] }, r.merged)).map(([id]) => id).sort();
+		// C-185: 既定の物差しは、効果タイプ（持久力回復・デバフ・視野）＋低効果（データの段階）。緑スキルは外さない
+		const expDef = r.real.filter(([id, t]) => !(exOracle(t, { effect: ['stamina', 'debuff', 'vision'] }, r.merged) || LOW_SET.has(id))).map(([id]) => id).sort();
 		const tempOnly = r.real.filter(([, t]) => (t.effect || []).length > 0 && (t.effect || []).every((v) => v === 'temptation_time')).length;
-		assert(JSON.stringify(r.defIds.slice().sort()) === JSON.stringify(expDef) && expDef.length < r.real.length && JSON.stringify(r.lateIds.slice().sort()) === JSON.stringify(expLate) && expLate.length < r.real.length,
-			'オススメサポ段13C2 実データ: 初期値（' + (r.real.length - expDef.length) + '種を外す）・終盤（' + (r.real.length - expLate.length) + '種を外す）とも物差しと一致。掛かり時間だけのスキルは実データに ' + tempOnly + '種', { def: r.defIds.length, exp: expDef.length });
+		assert(JSON.stringify(r.defIds.slice().sort()) === JSON.stringify(expDef) && expDef.length < r.real.length,
+			'オススメサポ段13C2 実データ: 初期値（' + (r.real.length - expDef.length) + '種を外す）が物差しと一致。掛かり時間だけのスキルは実データに ' + tempOnly + '種', { def: r.defIds.length, exp: expDef.length });
 		await sp.ctx.close();
 	});
 
@@ -607,49 +606,42 @@ export async function register13(env) {
 		const list = document.querySelector('[data-usd-el="outside-exclude-list"]');
 		if (!list) return null;
 		const pop = list.closest('.uma-popover');
-		return { axes: Array.from(list.querySelectorAll('[data-usd-el="outside-exclude-axis"]')).map((x) => x.getAttribute('data-axis')), on: Array.from(list.querySelectorAll('[data-usd-el="outside-exclude-chip"][aria-pressed="true"]')).map((x) => x.getAttribute('data-axis') + ':' + x.getAttribute('data-value')),
-			title: pop.querySelector('.uma-popover-title, h2, [data-usd-el="info-title"]') ? pop.querySelector('.uma-popover-title, h2, [data-usd-el="info-title"]').textContent : null, ids: pop.querySelectorAll('.uma-popover-body [id]').length,
-			help: Array.from(pop.querySelectorAll('[data-usd-el="outside-exclude-helptext"] p')).map((p) => p.textContent), helpHidden: pop.querySelector('[data-usd-el="outside-exclude-helptext"]').hidden, clearDis: pop.querySelector('[data-usd-el="outside-exclude-clear"]').disabled };
+		return { chips: Array.from(list.querySelectorAll('[data-usd-el="outside-exclude-chip"]')).map((x) => x.textContent), axes: pop.querySelectorAll('[data-usd-el="outside-exclude-axis"]').length,
+			on: Array.from(list.querySelectorAll('[data-usd-el="outside-exclude-chip"][aria-pressed="true"]')).map((x) => x.getAttribute('data-axis') + ':' + x.getAttribute('data-value')),
+			ids: pop.querySelectorAll('.uma-popover-body [id]').length, clear: !!pop.querySelector('[data-usd-el="outside-exclude-clear"]'), help: !!pop.querySelector('[data-usd-el="outside-exclude-help"]') };
 	});
 	const exChip = async (page, axis, v) => { await page.click('[data-usd-el="outside-exclude-chip"][data-axis="' + axis + '"][data-value="' + v + '"]'); await settle(page); };
 	const draft = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')));
 
-	await block('オススメサポ段13C2 画面: 「除外：持久力回復・デバフ ▾」が「種類」の左（見出し行は 320px でも1行・入りきらない分は「…」）／チップで除外する・やめる（その場で保存して計算し直す）／初期値と同じなら保存しない・何も除外しないなら {} ／「除外 ▾」／？の文面', async () => {
+	await block('オススメサポ段13C2 画面: 「除外：低効果・デバフ・視野・持久力回復 ▾」が「種類」の左（見出し行は 320px でも1行・入りきらない分は「…」）／押しボタン4つで除外する・やめる（その場で保存して計算し直す）／初期値と同じなら保存しない・全部外すと {} ／「除外 ▾」（C-185 で4つだけに）', async () => {
 		for (const w of [320, 375]) {
 			const sp = await openSp({ roster: FULL, w });
 			await open(sp.page);
 			const tag = 'オススメサポ段13C2 ' + w + 'px: ';
 			const u0 = await exUi(sp.page);
 			assert(u0.text === NEW_DEFAULT_TEXT && u0.on && u0.order === 'outside-exclude-btn,outside-types-btn,outside-count-btn' && u0.barH === 28 && u0.tops === 1 && u0.inside && u0.sw <= u0.iw,
-				tag + '保存値の無いセット: 「' + NEW_DEFAULT_TEXT + '」（濃色。C-129 で5つ）が「種類」の左。見出し行は1行・28px（' + (u0.cut ? '「…」で切れている' : '全部入っている') + '）', u0);
+				tag + '保存値の無いセット: 「' + NEW_DEFAULT_TEXT + '」（濃色。C-185 で4つ）が「種類」の左。見出し行は1行・28px（' + (u0.cut ? '「…」で切れている' : '全部入っている') + '）', u0);
 			if (w === 320) { await sp.ctx.close(); continue; }
 			await sp.page.click(M + '[data-usd-el="outside-exclude-btn"]');
 			await sp.page.waitForSelector('[data-usd-el="outside-exclude-list"]');
 			const p0 = await exPop(sp.page);
-			const axes = await sp.page.evaluate(() => UmaSkillDeckCore.outside.filterAxes());
-			// C-129: 先頭に軸ではない「全般」（extra）のグループ。初期値の5つに印
-			assert(p0.axes.join() === ['extra'].concat(axes).join() && p0.on.join() === 'extra:passive,extra:lowEffect,effect:stamina,effect:debuff,effect:vision' && p0.ids === 0 && p0.helpHidden && !p0.clearDis, tag + '選択欄: 先頭に「全般」、続けて段12 と同じ軸（距離・脚質・バ場を除く）・初期値の5つに印・id を持つ要素なし・「？」は閉じている', p0);
-			await sp.page.click('[data-usd-el="outside-exclude-help"]');
-			const p1 = await exPop(sp.page);
-			assert(!p1.helpHidden && p1.help.join('|') === '選んだ値しか持たないスキルを、オススメから外します。ほかの値も持つスキルは外しません。', tag + '「？」の文面', p1.help);
-			// 持久力回復の除外をやめる → 保存（{ effect: ['debuff'] }）・文字「除外：デバフ」・母集団に持久力回復だけのスキルが戻る
-			await exChip(sp.page, 'effect', 'stamina');
+			assert(p0.chips.join() === '低効果,デバフ,視野,持久力回復' && p0.on.join() === 'extra:lowEffect,effect:debuff,effect:vision,effect:stamina' && p0.axes === 0 && p0.ids === 0 && !p0.clear && !p0.help,
+				tag + '選択欄は押しボタン4つだけ（軸の選択肢・「すべて解除」・「？」は無い）・初期値の4つに印・id を持たない', p0);
+			// 視野の除外をやめる → 保存・文字から消える
+			await exChip(sp.page, 'effect', 'vision');
 			let d = await draft(sp.page);
 			const u1 = await exUi(sp.page);
-			assert(JSON.stringify(d.outsideOptions) === JSON.stringify({ exclude: { effect: ['debuff', 'vision'], extra: ['passive', 'lowEffect'] } }) && u1.text === '除外：デバフ・視野・緑スキル・低効果▾' && (await exPop(sp.page)).on.join() === 'extra:passive,extra:lowEffect,effect:debuff,effect:vision',
-				tag + '持久力回復を押すと除外をやめ、その場で保存（exclude）・文字から持久力回復が消える・選択欄は開いたまま', { d: d.outsideOptions, t: u1.text });
+			assert(JSON.stringify(d.outsideOptions) === JSON.stringify({ exclude: { effect: ['debuff', 'stamina'], extra: ['lowEffect'] } }) && u1.text === '除外：低効果・デバフ・持久力回復▾' && (await exPop(sp.page)).on.join() === 'extra:lowEffect,effect:debuff,effect:stamina',
+				tag + '視野を押すと除外をやめ、その場で保存（exclude）・文字から視野が消える・選択欄は開いたまま', { d: d.outsideOptions, t: u1.text });
 			// 戻す → 初期値と同じなので項目ごと消える
-			await exChip(sp.page, 'effect', 'stamina');
+			await exChip(sp.page, 'effect', 'vision');
 			d = await draft(sp.page);
 			assert(!('outsideOptions' in d) && (await exUi(sp.page)).text === NEW_DEFAULT_TEXT, tag + 'もう一度押して初期値と同じに戻すと、保存値は消える（初期値で読む）', Object.keys(d));
-			// すべて解除 → {} を保存・「除外 ▾」（濃色でない）
-			await sp.page.click('[data-usd-el="outside-exclude-clear"]'); await settle(sp.page);
+			// 4つとも外す → {} を保存・「除外 ▾」（濃色でない）
+			for (const [axis, v] of [['extra', 'lowEffect'], ['effect', 'debuff'], ['effect', 'vision'], ['effect', 'stamina']]) await exChip(sp.page, axis, v);
 			d = await draft(sp.page);
 			const u2 = await exUi(sp.page);
-			assert(JSON.stringify(d.outsideOptions) === JSON.stringify({ exclude: {} }) && u2.text === '除外▾' && !u2.on && (await exPop(sp.page)).clearDis, tag + '「すべて解除」で何も除外しない（{} を保存して初期値と区別）・文字は「除外 ▾」', { d: d.outsideOptions, u2 });
-			// 別の軸も除外できる
-			await exChip(sp.page, 'phase', 'late');
-			assert((await exUi(sp.page)).text === '除外：終盤▾' && JSON.stringify((await draft(sp.page)).outsideOptions) === JSON.stringify({ exclude: { phase: ['late'] } }), tag + 'フェーズ「終盤」も除外できる', (await exUi(sp.page)).text);
+			assert(JSON.stringify(d.outsideOptions) === JSON.stringify({ exclude: {} }) && u2.text === '除外▾' && !u2.on, tag + '4つとも外すと何も除外しない（{} を保存して初期値と区別）・文字は「除外 ▾」', { d: d.outsideOptions, u2 });
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		}
@@ -662,9 +654,9 @@ export async function register13(env) {
 		assert(r.a === r.b && JSON.stringify(r.ex) === JSON.stringify(NEW_DEFAULT), 'オススメサポ段13C2 段12 の filter（終盤）は読まない（母集団は保存値なしと同じ・除外は初期値）', r);
 		await open(sp.page);
 		await sp.page.click(M + '[data-usd-el="outside-exclude-btn"]');
-		await exChip(sp.page, 'phase', 'mid');
+		await exChip(sp.page, 'effect', 'vision');
 		const d = await draft(sp.page);
-		assert(JSON.stringify(d.outsideOptions.filter) === JSON.stringify({ phase: ['late'] }) && JSON.stringify(d.outsideOptions.exclude) === JSON.stringify({ effect: ['stamina', 'debuff', 'vision'], phase: ['mid'], extra: ['passive', 'lowEffect'] }), 'オススメサポ段13C2 除外を書いても、段12 の filter は消さない（ルール28）', d.outsideOptions);
+		assert(JSON.stringify(d.outsideOptions.filter) === JSON.stringify({ phase: ['late'] }) && JSON.stringify(d.outsideOptions.exclude) === JSON.stringify({ effect: ['debuff', 'stamina'], extra: ['lowEffect'] }), 'オススメサポ段13C2 除外を書いても、段12 の filter は消さない（ルール28）', d.outsideOptions);
 		await sp.page.keyboard.press('Escape');
 		await sp.page.click(M + '[data-usd-act="outside-close"]');
 		const pick = await sp.page.evaluate(async () => { document.querySelector('#deck-template-panel [data-usd-act="editor-pick"]').click(); await new Promise((res) => setTimeout(res, 200)); const v = Array.from(document.querySelectorAll('input[data-usd-el="filter-check"]:checked')).length; document.querySelector('[data-usd-act="picker-close"]').click(); return v; });

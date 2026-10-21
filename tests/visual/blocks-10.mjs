@@ -111,7 +111,9 @@ export async function register10(env) {
 	};
 	// 段13・C2: 除外の初期値（デバフ・持久力回復）は、ここでは外して段1 の規則だけを見る（roster に outsideOptions が無ければ exclude: {} を足す）
 	const NOEX = { exclude: {} };
-	const solve = (page, args) => page.evaluate(({ a, nx }) => { const r = Object.assign({}, a.roster || {}); if (!r.outsideOptions) r.outsideOptions = nx; return UmaSkillDeckCore.outside.solveSync(Object.assign({}, a, { roster: r })); }, { a: args, nx: NOEX });
+	// C-185: レースが無いと、レース条件で決まる緑スキルを母集団から外す。この塊は段1 の規則（外さない）を見るので、何も外さない空のレースを材料に足す
+	const BLANK = { id: 'race-blank', name: 'blank' };
+	const solve = (page, args) => page.evaluate(({ a, nx, blank }) => { const r = Object.assign({}, a.roster || {}); if (!r.outsideOptions) r.outsideOptions = nx; if (!r.race) r.race = blank; return UmaSkillDeckCore.outside.solveSync(Object.assign({}, a, { roster: r })); }, { a: args, nx: NOEX, blank: BLANK });
 	const brief = (r) => ({ ok: r.ok, score: r.score, cards: r.cards.map((c) => c.cardId + ':' + c.gain), counts: r.counts, partial: r.partial });
 
 	assert(!!gold1 && !!gold2 && W.length === 20 && !!wShort && !!wMed && !!noPtId && !masterIds.has(a2), '段10 前提: 実データから、金（前段1つ）・金（鎖が2段で途中の白は母集団の外）・平凡な白20・距離のタグを持つ白2・Pt 未収録のスキルを用意できる', { gold1, gold2, a2, b2, W: W.length });
@@ -262,7 +264,7 @@ export async function register10(env) {
 		const sp = await openSynth();
 		const r = await sp.page.evaluate(({ W, wShort, wMed, noPtId, gold1, gold2, p1, b2, nx }) => {
 			const C = UmaSkillDeckCore.outside;
-			const pop = (roster) => { const p = C.populationOf(Object.assign({ outsideOptions: nx }, roster)); return p.ok ? new Set(p.ids) : null; };
+			const pop = (roster) => { const p = C.populationOf(Object.assign({ outsideOptions: nx, race: { id: 'race-blank', name: 'blank' } }, roster)); return p.ok ? new Set(p.ids) : null; };
 			const base = pop({});
 			const poolIds = new Set(UmaSkillDeckCore.getMasterSkills().map((s) => s.id));
 			const short = pop({ skillFilter: { distance: 'short' } });
@@ -294,7 +296,7 @@ export async function register10(env) {
 			'段10(B) カードB（金と白）は、金＋前段の白＋白の 3点。表示は 2種（金スキル1種）で、白の行は2つ。Bのほうが高く評価される', brief(B));
 		assert(B.score > A.score && AB.score === 3 && AB.counts.kinds === 2 && AB.cards.length === 2, '段10(B) 2枚を合わせても、重なりは1回ずつ（前段の白と白は共通なので 3点）', brief(AB));
 		const b = await sp.page.evaluate(({ gold2, a2, b2, p1, gold1, nx }) => {
-			const prob = UmaSkillDeckCore.outside.build({ roster: { outsideOptions: nx } });
+			const prob = UmaSkillDeckCore.outside.build({ roster: { race: { id: 'race-blank', name: 'blank' }, outsideOptions: nx } });
 			const ex = Array.from(prob.expandIds([gold2]));
 			return { ex, chainBoth: ex.includes(a2) && ex.includes(b2), gold1Countable: prob.countableGolds.has(gold1), gold2Countable: prob.countableGolds.has(gold2), inUniverse: [prob.idx.has(a2), prob.idx.has(b2), prob.idx.has(p1)] };
 		}, { gold2, a2, b2, p1, gold1, nx: NOEX });
@@ -391,8 +393,8 @@ export async function register10(env) {
 				r: (q('#deck-roster-panel [data-usd-el="pt-total"]') || {}).textContent, rk: (q('#deck-roster-panel [data-usd-el="pt-count"]') || {}).textContent });
 		});
 		const before = await nums();
-		const cut = await sp.page.evaluate(async () => { const r = await UmaSkillDeckCore.outside.solve({ roster: { outsideOptions: { exclude: {} } }, count: 6, deadlineMs: 0 }); return { ok: r.ok, partial: r.partial, score: r.score, cards: r.cards.length }; });
-		const full = await sp.page.evaluate(async () => { const r = await UmaSkillDeckCore.outside.solve({ roster: { outsideOptions: { exclude: {} } }, count: 6, deadlineMs: 20000 }); return { ok: r.ok, partial: r.partial, score: r.score, cards: r.cards.length, counts: r.counts, stats: r.stats }; });
+		const cut = await sp.page.evaluate(async () => { const r = await UmaSkillDeckCore.outside.solve({ roster: { race: { id: 'race-blank', name: 'blank' }, outsideOptions: { exclude: {} } }, count: 6, deadlineMs: 0 }); return { ok: r.ok, partial: r.partial, score: r.score, cards: r.cards.length }; });
+		const full = await sp.page.evaluate(async () => { const r = await UmaSkillDeckCore.outside.solve({ roster: { race: { id: 'race-blank', name: 'blank' }, outsideOptions: { exclude: {} } }, count: 6, deadlineMs: 20000 }); return { ok: r.ok, partial: r.partial, score: r.score, cards: r.cards.length, counts: r.counts, stats: r.stats }; });
 		assert(cut.ok && cut.partial === true && cut.score > 0 && cut.cards === 6 && full.ok && full.partial === false && cut.score <= full.score, '段10(C) 実データ: 締め切り 0ms だと途中の結果（partial）で、それまでの最良（6枚）を返す。十分な時間なら印は付かない', { cut, full: { partial: full.partial, score: full.score } });
 		assert(full.stats.engineScore === full.score, '段10(C) 実データでも、探索の点数と組み立ての点数が一致する', [full.stats.engineScore, full.score]);
 		assert(full.counts.kinds + full.counts.gold === full.score && full.stats.population === 455 && full.stats.candidates === 410 && full.stats.groups === 146, '段10(C) 実データ: 点数 ＝ 種数（countSkillKinds）＋ 金スキル。母集団455・候補410枚・146キャラクター（2026-10-15: card-0323・0334・0147 のイベントが入り、候補407→410・キャラクター145→146。2026-10-16: 検索に出す拡張スキルが7→10件になり母集団452→455。点数114・候補・キャラクターは変わらない）', { counts: full.counts, stats: full.stats });

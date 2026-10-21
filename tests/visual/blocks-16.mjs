@@ -101,7 +101,8 @@ export async function register16(env) {
 			// 既定の除外で外れたスキルを、軸ごと（緑スキル・低効果・視野などの効果タイプ）に1つずつ選ぶ
 			const isPassive = (id) => { const s = UmaSkillDeckCore.findSkill(id); return !!s && ((s.tags && s.tags.passive) || []).length > 0; };
 			const pickBy = (fn) => p0.optionExcludedIds.find((id) => !paired.includes(id) && fn(id));
-			const picks = [pickBy(isPassive), pickBy((id) => UmaSkillDeckCore.isLowEffectSkill(id) && !isPassive(id)), pickBy((id) => !isPassive(id) && !UmaSkillDeckCore.isLowEffectSkill(id))].filter(Boolean);
+			// C-185: 既定の除外は 低効果・デバフ・視野・持久力回復（緑スキルは外さない）。低効果と効果タイプで外れるものを1つずつ選ぶ
+				const picks = [pickBy((id) => UmaSkillDeckCore.isLowEffectSkill(id)), pickBy((id) => !UmaSkillDeckCore.isLowEffectSkill(id))].filter(Boolean);
 			const p1 = C.populationOf(roster, { addedSkillIds: picks });
 			// 計算（outsideSolve の口）: 追加済みの印が付き、得られれば数える
 			const s0 = C.solveSync({ roster, addedSkillIds: [], deadlineMs: 20000 });
@@ -109,7 +110,7 @@ export async function register16(env) {
 			return { picks, inP0: picks.filter((id) => p0.ids.includes(id)), inP1: picks.filter((id) => p1.ids.includes(id)), n0: p0.ids.length, n1: p1.ids.length,
 				pop0: s0.stats.population, pop1: s1.stats.population, added1: s1.skills.filter((x) => x.added).map((x) => x.skillId) };
 		}, paired);
-		assert(r.picks.length >= 3, 'C130D 材料: 既定の除外で外れるスキル（緑スキル・低効果・効果タイプ）を1つずつ選べた（空振りでない）', r.picks);
+		assert(r.picks.length >= 2, 'C130D 材料: 既定の除外で外れるスキル（低効果・効果タイプ）を1つずつ選べた（空振りでない）', r.picks);
 		assert(r.inP0.length === 0 && r.inP1.length === r.picks.length && r.n1 === r.n0 + r.picks.length, 'C130D 追加済みにすると、除外に当てはまっても母集団に入る（ほかは変わらない）', r);
 		assert(r.pop1 === r.pop0 + r.picks.length && r.added1.every((id) => r.picks.includes(id)), 'C130D 計算（outsideSolve）の母集団にも入り、得られたものは「追加済み」の印で数えられる', { pop0: r.pop0, pop1: r.pop1, added: r.added1 });
 		// 画面の口: ②に足してから開くと、母集団の数が増えている（小窓の計算は②の一覧を追加済みとして渡す）

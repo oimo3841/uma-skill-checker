@@ -140,11 +140,11 @@ export async function register11(env) {
 	/* ====================================================================
 	 * (A) 入口: 開く前の条件（エラーの知らせ）
 	 * ==================================================================== */
-	await block('オススメサポ(A) 開く前の条件: 育成ウマ娘が未選択／サポカが5枚以下／距離・脚質・バ場のどれかが指定なし／①が空のセット → 小窓を開かず、知らせだけを出す', async () => {
+	await block('オススメサポ(A) 入口はいつも開く（C-185 で、育成ウマ娘が未選択／サポカが5枚以下／距離・脚質・バ場のどれかが指定なし／①が空のセットでも開くようにした。注記と計算は blocks-44.mjs の C-185 B1）', async () => {
 		const cases = [
 			['育成ウマ娘が未選択', Object.assign({}, FULL, { umaId: '' })],
-			['サポカが5枚（6枚めが空き）', Object.assign({}, FULL, { cardIds: CARDS6.slice(0, 5).concat([null]) })],
-			['サポカが1枚だけ', Object.assign({}, FULL, { cardIds: [CARDS6[0], null, null, null, null, null] })],
+			['サポカが5枚（6枚めが空き）', Object.assign({}, FULL, { cardIds: CARDS6.slice(0, 5) })],
+			['サポカが1枚だけ', Object.assign({}, FULL, { cardIds: CARDS6.slice(0, 1) })],
 			['距離が指定なし', Object.assign({}, FULL, { skillFilter: { style: 'senko', surface: 'turf' } })],
 			['脚質が指定なし', Object.assign({}, FULL, { skillFilter: { distance: 'medium', surface: 'turf' } })],
 			['バ場が指定なし', Object.assign({}, FULL, { skillFilter: { distance: 'medium', style: 'senko' } })],
@@ -156,25 +156,25 @@ export async function register11(env) {
 			const sp = await openSp({ roster });
 			await clearToast(sp.page);
 			const before = await sp.page.evaluate(() => ({ ud: localStorage.getItem('umaSkillDeck:userData'), dr: localStorage.getItem('umaSkillDeck:draftRoster:special') }));
-			await sp.page.click(T + OPEN);
-			await sp.page.waitForTimeout(400);
-			const after = await sp.page.evaluate(() => ({ ud: localStorage.getItem('umaSkillDeck:userData'), dr: localStorage.getItem('umaSkillDeck:draftRoster:special'), modal: !!document.querySelector('[data-usd-el="outside-modal"]') }));
-			assert(!(await modalOpen(sp.page)) && after.modal === false && await toastText(sp.page) === MSG_NEED && await toastShown(sp.page) && after.ud === before.ud && after.dr === before.dr,
-				'オススメサポ(A) ' + label + ': 小窓を開かず（小窓の部品も作らず）、「' + MSG_NEED + '」とだけ知らせる。保存データは変わらない', { open: await modalOpen(sp.page), toast: await toastText(sp.page), modal: after.modal });
+			await open(sp.page);
+			const after = await sp.page.evaluate(() => ({ ud: localStorage.getItem('umaSkillDeck:userData'), dr: localStorage.getItem('umaSkillDeck:draftRoster:special') }));
+			assert(await modalOpen(sp.page) && await toastText(sp.page) !== MSG_NEED && after.ud === before.ud && after.dr === before.dr,
+				'オススメサポ(A) ' + label + ': 小窓が開き、「' + MSG_NEED + '」は出ない。開いても保存データは変わらない', { open: await modalOpen(sp.page), toast: await toastText(sp.page) });
 			assert(jsErrors(sp.errors).length === 0, 'オススメサポ(A) ' + label + ': コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		}
-		// 保存済みで①が空のセット（baseRosterId が無い）
+		// 保存済みで①が空のセット（baseRosterId が無い）でも開く
 		const sp = await openSp({ userData: SAVED(), roster: null });
 		await pickSet(sp.page, 't2');
 		await clearToast(sp.page);
-		await sp.page.click(T + OPEN);
-		await sp.page.waitForTimeout(400);
-		assert(!(await modalOpen(sp.page)) && await toastText(sp.page) === MSG_NEED, 'オススメサポ(A) 保存済みで①が空のセット: 小窓を開かず、同じ知らせを出す', await toastText(sp.page));
-		// 条件がそろったセット（t1）では開く
+		await open(sp.page);
+		assert(await modalOpen(sp.page) && await toastText(sp.page) !== MSG_NEED, 'オススメサポ(A) 保存済みで①が空のセット: 小窓が開く', await toastText(sp.page));
+		await sp.page.keyboard.press('Escape');
+		await sp.page.waitForTimeout(200);
+		// 条件がそろったセット（t1）でも開く
 		await pickSet(sp.page, 't1');
 		await open(sp.page);
-		assert(await modalOpen(sp.page), 'オススメサポ(A) 条件がそろった保存済みのセットでは小窓が開く', true);
+		assert(await modalOpen(sp.page), 'オススメサポ(A) 条件がそろった保存済みのセットでも小窓が開く', true);
 		await sp.ctx.close();
 	});
 

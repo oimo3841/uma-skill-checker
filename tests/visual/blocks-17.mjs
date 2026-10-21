@@ -106,6 +106,19 @@ export async function register17(env) {
 		const sp = await openSp();
 		await pickRace(sp.page, RACE.id);
 		await addViaStyle(sp.page);
+		// C-185: 既定の除外は 低効果・デバフ・視野・持久力回復（緑スキルは外れない）。脚質オススメで入るものに、既定で外れるものを足して材料にする（②の中身を直接書いて読み直す）
+		const extra = await sp.page.evaluate(async () => {
+			await UmaSkillDeckCore.loadSkillEffectLevels();
+			return UmaSkillDeckCore.outside.populationOf(JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'))).optionExcludedIds.slice(0, 40);
+		});
+		await sp.page.evaluate((extra) => {
+			const d = JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special'));
+			d.skillIds = d.skillIds.concat(extra.filter((id) => d.skillIds.indexOf(id) === -1));
+			localStorage.setItem('umaSkillDeck:draftScope:special', JSON.stringify(d));
+		}, extra);
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.waitForTimeout(500);
 		const added = await draftIds(sp.page);
 		await openOutside(sp.page);
 		const r = await sp.page.evaluate(async (added) => {
@@ -113,7 +126,7 @@ export async function register17(env) {
 			const roster = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'));
 			const res = UmaSkillDeckCore.outside.solveSync({ roster, addedSkillIds: added, deadlineMs: 20000 });
 			const ex = UmaSkillDeckCore.outside.populationOf(roster).optionExcludedIds;
-			const card = res.cards.find((c) => c.skillIds.some((id) => added.includes(id)));
+			const card = res.cards.find((c) => c.skillIds.some((id) => added.includes(id) && ex.includes(id))) || res.cards.find((c) => c.skillIds.some((id) => added.includes(id)));
 			const tiles = Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-card"]')).map((t) => ({ id: t.getAttribute('data-card-id'), gain: (t.querySelector('[data-usd-el="outside-card-gain"]') || {}).textContent }));
 			return { card: card ? { id: card.cardId, kindGain: card.kindGain, hit: card.skillIds.filter((id) => added.includes(id)) } : null, tiles,
 				hitExcludedByDefault: card ? card.skillIds.filter((id) => added.includes(id) && ex.includes(id)) : [],
@@ -210,8 +223,8 @@ export async function register17(env) {
 			return { def: UmaSkillDeckCore.outside.EXCLUDE_DEFAULT, label: document.querySelector('[data-usd-el="outside-exclude-label"]').textContent,
 				lowOut: p.optionExcludedIds.filter((id) => UmaSkillDeckCore.isLowEffectSkill(id)).length, lowIn: p.ids.filter((id) => UmaSkillDeckCore.isLowEffectSkill(id)).length };
 		});
-		assert(JSON.stringify(r.def) === JSON.stringify({ effect: ['debuff', 'stamina', 'vision'], extra: ['passive', 'lowEffect'] }) && ['持久力回復', 'デバフ', '視野', '緑スキル', '低効果'].every((t) => r.label.includes(t)) && r.lowOut > 0 && r.lowIn === 0,
-			'C131C オススメサポの除外の既定は5つ（低効果を含む）で、低効果のスキルは母集団から外れる', r);
+		assert(JSON.stringify(r.def) === JSON.stringify({ effect: ['debuff', 'stamina', 'vision'], extra: ['lowEffect'] }) && ['低効果', 'デバフ', '視野', '持久力回復'].every((t) => r.label.includes(t)) && !r.label.includes('緑スキル') && r.lowOut > 0 && r.lowIn === 0,
+			'C131C オススメサポの除外の既定は4つ（低効果を含む。C-185 で緑スキルを外した）で、低効果のスキルは母集団から外れる', r);
 		await sp.page.click(M + '[data-usd-el="outside-exclude-btn"]');
 		await sp.page.waitForSelector('[data-usd-el="outside-exclude-chip"]');
 		const chip = await sp.page.evaluate(() => { const b = document.querySelector('[data-usd-el="outside-exclude-chip"][data-value="lowEffect"]'); return b ? { text: b.textContent, on: b.getAttribute('aria-pressed') } : null; });
@@ -308,7 +321,7 @@ export async function register17(env) {
 			return { in1: p1.ids.includes(base1), in0: p0.ids.includes(base1), entry: res.skills.find((s) => s.skillId === base1) || null, card: res.cards.find((c) => c.skillIds.includes(base1)) || null,
 				rowMark: row ? ((row.querySelector('[data-usd-el="outside-added-mark"]') || {}).textContent || null) : 'no-row', foot: document.querySelector('[data-usd-el="outside-total"]').textContent };
 		}, { awk, base1 });
-		assert(!r.in0 && r.in1, 'C131B ②に目覚めがあると、対応するスキルは既定の除外（緑スキル）に当たっても母集団に入る', r);
+		assert(r.in1, 'C131B ②に目覚めがあると、対応するスキルは母集団に入る（C-185 で緑スキルは既定の除外に当たらなくなった。追加済みとして数えることは下で見る）', r);
 		assert(!!r.entry && !!r.card && r.entry.added && r.rowMark === '追加済み' && /追加済み \d+種/.test(r.foot), 'C131B 結果のカード（' + (r.card && r.card.cardId) + '）が対応するスキルを持ち、その行は「追加済み」（一覧で選べない・下段の追加済みに数える）', r);
 		if (r.card) {
 			const tile = await sp.page.evaluate((cid) => (document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-card"][data-card-id="' + cid + '"] [data-usd-el="outside-card-gain"]') || {}).textContent, r.card.cardId);

@@ -243,16 +243,16 @@ export async function register15(env) {
 	});
 	const savedOpts = (page) => page.evaluate(() => (JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special')) || {}).outsideOptions || null);
 
-	await block('C129D 既定の除外は デバフ・持久力回復・視野・緑スキル・低効果 の5つ（保存値の無いセット）／ボタンの文字は列挙／小窓の先頭に新しい2つのチップ', async () => {
+	await block('C129D→C-185 既定の除外は 低効果・デバフ・視野・持久力回復 の4つ（保存値の無いセット。緑スキルは外さない）／ボタンの文字は列挙／小窓は押しボタン4つ', async () => {
 		const def = await (async () => { const sp = await openSp({ roster: Object.assign({}, FULL, { skillFilter: FILTER }) }); const v = await sp.page.evaluate(() => UmaSkillDeckCore.outside.EXCLUDE_DEFAULT); await sp.ctx.close(); return v; })();
-		assert(JSON.stringify(def) === JSON.stringify({ effect: ['debuff', 'stamina', 'vision'], extra: ['passive', 'lowEffect'] }), 'C129D 既定（EXCLUDE_DEFAULT）は デバフ・持久力回復・視野＋緑スキル・低効果', def);
+		assert(JSON.stringify(def) === JSON.stringify({ effect: ['debuff', 'stamina', 'vision'], extra: ['lowEffect'] }), 'C129D→C-185 既定（EXCLUDE_DEFAULT）は デバフ・持久力回復・視野＋低効果（緑スキルを含まない）', def);
 		const sp = await openSp({ roster: Object.assign({}, FULL, { skillFilter: FILTER }) });
 		await sp.page.click(T + '[data-usd-el="outside-open"]');
 		await settle(sp.page);
 		const label = await sp.page.evaluate(() => document.querySelector('[data-usd-el="outside-exclude-label"]').textContent);
-		const labels = ['デバフ', '持久力回復', '視野', '緑スキル', '低効果'];
-		assert(label.startsWith('除外：') && labels.every((l) => label.includes(l)), 'C129D ボタンの文字は「除外：」＋5つの列挙', label);
-		// 母集団: 既定で、低効果・緑スキルのスキルが外れている（データは開いたときに読まれている）
+		const labels = ['低効果', 'デバフ', '視野', '持久力回復'];
+		assert(label === '除外：' + labels.join('・'), 'C129D→C-185 ボタンの文字は「除外：」＋4つの列挙（低効果・デバフ・視野・持久力回復の並び）', label);
+		// 母集団: 既定で、低効果のスキルが外れている（データは開いたときに読まれている）。緑スキル（パッシブ）は外さない
 		const pop = await sp.page.evaluate((low) => {
 			const r = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'));
 			const p = UmaSkillDeckCore.outside.populationOf(r);
@@ -260,24 +260,21 @@ export async function register15(env) {
 			return { ok: p.ok, inLow: p.ids.filter((id) => low.indexOf(id) !== -1).length, inPassive: p.ids.filter(isPassive).length,
 				exLow: p.optionExcludedIds.filter((id) => low.indexOf(id) !== -1).length, exPassive: p.optionExcludedIds.filter(isPassive).length };
 		}, LOW_IDS);
-		assert(pop.ok && pop.inLow === 0 && pop.inPassive === 0 && pop.exLow > 0 && pop.exPassive > 0, 'C129D 既定で、低効果・緑スキルのスキルは母集団から外れる（どちらも空振りでない）', pop);
+		assert(pop.ok && pop.inLow === 0 && pop.exLow > 0 && pop.inPassive > 0 && pop.exPassive === 0, 'C129D→C-185 既定で、低効果のスキルは母集団から外れ、緑スキルは外れない（どちらも空振りでない）', pop);
 		await sp.page.click(OM + '[data-usd-el="outside-exclude-btn"]');
 		await sp.page.waitForSelector('[data-usd-el="outside-exclude-chip"]');
 		const ex = await readExclude(sp.page);
-		assert(ex.heads[0] === '全般' && JSON.stringify(ex.first) === JSON.stringify(['緑スキル:true', '低効果:true']), 'C129D 小窓の先頭は見出し「全般」で、緑スキル・低効果（既定で押されている）', ex);
-		assert(['effect:debuff', 'effect:stamina', 'effect:vision', 'extra:passive', 'extra:lowEffect'].every((k) => ex.pressed.includes(k)) && ex.pressed.length === 5, 'C129D 押されているのは既定の5つだけ', ex.pressed);
+		assert(ex.heads.length === 0 && ['extra:lowEffect', 'effect:debuff', 'effect:stamina', 'effect:vision'].every((k) => ex.pressed.includes(k)) && ex.pressed.length === 4, 'C129D→C-185 小窓の押しボタンは4つで、既定ですべて押されている（「全般」の見出し・緑スキルのチップは無い）', ex);
 		assert((await savedOpts(sp.page)) === null, 'C129D 開いただけでは保存しない', await savedOpts(sp.page));
 		// 切り替え・保存・復元
-		await sp.page.click('[data-usd-el="outside-exclude-chip"][data-axis="extra"][data-value="passive"]');
-		await sp.page.waitForTimeout(300);
-		const s1 = await savedOpts(sp.page);
-		assert(s1 && JSON.stringify(s1.exclude) === JSON.stringify({ effect: ['stamina', 'debuff', 'vision'], extra: ['lowEffect'] }), 'C129D 「緑スキル」を外すと、extra は低効果だけで保存される', s1);
 		await sp.page.click('[data-usd-el="outside-exclude-chip"][data-axis="extra"][data-value="lowEffect"]');
 		await sp.page.waitForTimeout(300);
-		const s2 = await savedOpts(sp.page);
-		assert(s2 && JSON.stringify(s2.exclude) === JSON.stringify({ effect: ['stamina', 'debuff', 'vision'] }), 'C129D 「低効果」も外すと、extra の項目ごと消える', s2);
-		await sp.page.click('[data-usd-el="outside-exclude-chip"][data-axis="extra"][data-value="passive"]');
+		const s1 = await savedOpts(sp.page);
+		assert(s1 && JSON.stringify(s1.exclude) === JSON.stringify({ effect: ['debuff', 'stamina', 'vision'] }), 'C129D 「低効果」を外すと、extra の項目ごと消えて保存される', s1);
+		await sp.page.click('[data-usd-el="outside-exclude-chip"][data-axis="effect"][data-value="debuff"]');
 		await sp.page.waitForTimeout(300);
+		const s2 = await savedOpts(sp.page);
+		assert(s2 && JSON.stringify(s2.exclude) === JSON.stringify({ effect: ['stamina', 'vision'] }), 'C129D 「デバフ」も外すと、残りの2つで保存される', s2);
 		await sp.page.reload({ waitUntil: 'networkidle' });
 		await sp.page.waitForTimeout(600);
 		const s3 = await savedOpts(sp.page);
@@ -286,20 +283,20 @@ export async function register15(env) {
 		await sp.page.click(OM + '[data-usd-el="outside-exclude-btn"]');
 		await sp.page.waitForSelector('[data-usd-el="outside-exclude-chip"]');
 		const ex3 = await readExclude(sp.page);
-		assert(s3 && JSON.stringify(s3.exclude) === JSON.stringify({ effect: ['stamina', 'debuff', 'vision'], extra: ['passive'] }) && JSON.stringify(ex3.first) === JSON.stringify(['緑スキル:true', '低効果:false']),
-			'C129D 再読み込みのあとも、保存した選び方（緑スキルだけ）が戻る', { s3, first: ex3.first });
+		assert(s3 && JSON.stringify(s3.exclude) === JSON.stringify({ effect: ['stamina', 'vision'] }) && ex3.pressed.sort().join() === 'effect:stamina,effect:vision',
+			'C129D 再読み込みのあとも、保存した選び方（持久力回復・視野だけ）が戻る', { s3, pressed: ex3.pressed });
 		assert(jsErrors(sp.errors).length === 0, 'C129D コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
 
-	await block('C129D すでに除外を保存してあるセットは今までの値のまま読む（緑スキル・低効果を足さない・保存値を書き換えない）／段階のデータが読めなくてもオススメは落ちない', async () => {
+	await block('C129D すでに除外を保存してあるセットは今までの値のまま読む（4つ以外を足さない・保存値を書き換えない）／段階のデータが読めなくてもオススメは落ちない', async () => {
 		const old = Object.assign({}, FULL, { skillFilter: FILTER, outsideOptions: { exclude: { effect: ['debuff', 'stamina'] } } });
 		const sp = await openSp({ roster: old });
 		const raw0 = await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:special'));
 		await sp.page.click(T + '[data-usd-el="outside-open"]');
 		await settle(sp.page);
 		const label = await sp.page.evaluate(() => document.querySelector('[data-usd-el="outside-exclude-label"]').textContent);
-		assert(label === '除外：持久力回復・デバフ', 'C129D 保存してある除外（デバフ・持久力回復）はそのまま読む', label);
+		assert(label === '除外：デバフ・持久力回復', 'C129D 保存してある除外（デバフ・持久力回復）はそのまま読む（低効果・視野は足さない）', label);
 		const raw1 = await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:special'));
 		assert(raw0 === raw1, 'C129D 開いても保存値は1バイトも変わらない', { raw0: raw0.length, raw1: raw1.length });
 		await sp.ctx.close();

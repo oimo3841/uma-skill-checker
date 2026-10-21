@@ -411,7 +411,8 @@ export async function register12(env) {
 		const sp = await openSp({ roster: FULL });
 		// 段13・C2: 除外の初期値（デバフ・持久力回復）を外して、レース条件の述語だけを見る（exclude: {}）
 		const NOEX = { exclude: {} };
-		const base0 = await sp.page.evaluate((nx) => { const ids = UmaSkillDeckCore.outside.populationOf({ outsideOptions: nx }).ids; return ids.map((id) => [id, UmaSkillDeckCore.getSkillTags(id)]); }, NOEX);
+		const BLANK = { id: 'race-blank', name: 'blank' };   // C-185: レースが無いと緑スキル（レース条件）を外すので、何も外さない空のレースで材料を作る
+		const base0 = await sp.page.evaluate(({ nx, blank }) => { const ids = UmaSkillDeckCore.outside.populationOf({ race: blank, outsideOptions: nx }).ids; return ids.map((id) => [id, UmaSkillDeckCore.getSkillTags(id)]); }, { nx: NOEX, blank: BLANK });
 		const cases = [
 			['レース場だけ（京都）', { venue: 'track_kyoto' }],
 			['右回りだけ', { direction: 'right_turn' }],
@@ -437,11 +438,11 @@ export async function register12(env) {
 			const r = await sp.page.evaluate(({ rc, nx }) => { const p = UmaSkillDeckCore.outside.populationOf({ race: rc, outsideOptions: nx }); return { ids: p.ids, ex: p.raceExcludedIds }; }, { rc: race, nx: NOEX });
 			// ①の固定（距離・バ場）で外れる分は、母集団の比較から除く（ここで見るのはレース条件の述語だけ）。
 			// 2026-10-17: レースの距離（m）が決まっているレースは、距離の数値の限定を実際の距離で判定する（raceLockedTargetOf）ので、その分も除く
-			const base = await sp.page.evaluate(({ rc, nx }) => {
+			const base = await sp.page.evaluate(({ rc, nx, blank }) => {
 				const C = UmaSkillDeckCore, lock = C.outside.lockedFilterOf({ race: rc }), tgt = C.raceLockedTargetOf(rc), f = {};
 				Object.keys(lock).forEach((k) => { f[k] = [lock[k]]; });
-				return C.outside.populationOf({ skillFilter: lock, outsideOptions: nx }).ids.filter((id) => !tgt || C.matchesFilters(C.findSkill(id), f, tgt));
-			}, { rc: race, nx: NOEX });
+				return C.outside.populationOf({ skillFilter: lock, race: blank, outsideOptions: nx }).ids.filter((id) => !tgt || C.matchesFilters(C.findSkill(id), f, tgt));
+			}, { rc: race, nx: NOEX, blank: BLANK });
 			const baseSet = new Set(base);
 			const expected = base0.filter(([id, tags]) => baseSet.has(id) && oracleRejects(tags, race)).map(([id]) => id).sort();
 			const got = r.ex.slice().sort();
@@ -534,7 +535,7 @@ export async function register12(env) {
 		const s = await sp.page.evaluate(() => ({ rows: Array.from(document.querySelectorAll('[data-usd-el="outside-modal"] [data-usd-el="outside-row"]')).map((r) => r.getAttribute('data-skill-id')), excl: !!document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-excl"]') }));
 		assert(s.rows.length > 0 && s.rows.every((id) => ex.indexOf(id) === -1) && !s.excl, 'オススメサポ④段9 チェックリストにレースで外したスキルは出ず、「除外中」の行も出ない', { rows: s.rows.length, excl: s.excl });
 		// C-129: 既定の除外（緑スキルなど）で外れるスキルは、レースがあるとレース条件で先に外れるので、レース無しの側は「除外で外れたもの」も含めて比べる
-		const noRace = await sp.page.evaluate((r) => { const p = UmaSkillDeckCore.outside.populationOf(r); return p.ids.concat(p.optionExcludedIds); }, FULL);
+		const noRace = await sp.page.evaluate((r) => { const p = UmaSkillDeckCore.outside.populationOf(r); return p.ids.concat(p.optionExcludedIds, p.noRaceExcludedIds); }, FULL);   // C-185: レースが無いと、レース条件の緑スキルは母集団から外れる（noRaceExcludedIds）
 		assert(ex.every((id) => noRace.indexOf(id) !== -1), 'オススメサポ④段9 外したスキルは、レースが無ければ母集団に入っている（レース条件だけで外れた）', ex.length);
 		assert(jsErrors(sp.errors).length === 0, 'オススメサポ④段9 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
@@ -562,22 +563,22 @@ export async function register12(env) {
 	};
 
 	await block('オススメサポ④段10 保存（roster.outsideOptions）: 触ったときだけ書く・既定（5枚・指定なし・除外は初期値）で項目ごと消す・schemaVersion 7・①の次の書き込み／①②のリセットで消えない・書き出し／取り込み／元に戻す／複製／再読み込み・古いデータは1バイトも変わらない', async () => {
-		const setOn = (page) => page.evaluate(() => UmaSkillDeckCore.outside.setOptions({ count: 6, typeMin: { 1: 2 }, exclude: { phase: ['late'] } }));
+		const setOn = (page) => page.evaluate(() => UmaSkillDeckCore.outside.setOptions({ count: 6, typeMin: { 1: 2 }, exclude: { effect: ['debuff'] } }));
 		const setOff = (page) => page.evaluate(() => UmaSkillDeckCore.outside.setOptions({ count: 5, typeMin: {}, exclude: UmaSkillDeckCore.outside.EXCLUDE_DEFAULT }));
-		await checkSaveRules('オススメサポ④段10 outsideOptions:', 'outsideOptions', setOn, setOff, { count: 6, typeMin: { 1: 2 }, exclude: { phase: ['late'] } }, [
+		await checkSaveRules('オススメサポ④段10 outsideOptions:', 'outsideOptions', setOn, setOff, { count: 6, typeMin: { 1: 2 }, exclude: { effect: ['debuff'] } }, [
 			['形の崩れた outsideOptions', { outsideOptions: { count: 9, typeMin: 'x', filter: { nope: ['y'] } } }]
 		]);
 	});
 
 	await block('オススメサポ④段10 見出し行: 「除外：… ▾」「種類 ▾」「5枚 ▾」が1行（28px）に収まる（320・375・414・1280px）／指定があるボタンは濃色（段13・C2 で除外に置き換え）', async () => {
 		for (const w of [320, 375, 414, 1280]) {
-			for (const [label, opts] of [['指定なし', null], ['指定あり', { count: 6, typeMin: { 1: 2, 2: 1, 6: 1 }, exclude: { phase: ['late', 'mid'], effect: ['accel_up'] } }]]) {
+			for (const [label, opts] of [['指定なし', null], ['指定あり', { count: 6, typeMin: { 1: 2, 2: 1, 6: 1 }, exclude: { effect: ['debuff', 'vision'] } }]]) {
 				const sp = await openSp({ roster: opts ? Object.assign({}, FULL, { outsideOptions: opts }) : FULL, w, h: w === 1280 ? 900 : 812 });
 				await open(sp.page);
 				const r = await headInfo(sp.page);
 				const tag = 'オススメサポ④段10 ' + w + 'px・' + label + ': ';
-				// C-129: 既定の除外は5つ（持久力回復・デバフ・視野＋緑スキル・低効果）。文字は全部を持ち、入りきらない分は画面で「…」に切れる
-				const exp = opts ? ['除外：加速度上昇・中盤・終盤▾', '種類4▾', '6枚▾'] : ['除外：持久力回復・デバフ・視野・緑スキル・低効果▾', '種類▾', '5枚▾'];
+				// C-185: 既定の除外は4つ（低効果・デバフ・視野・持久力回復）。文字は全部を持ち、入りきらない分は画面で「…」に切れる
+				const exp = opts ? ['除外：デバフ・視野▾', '種類4▾', '6枚▾'] : ['除外：低効果・デバフ・視野・持久力回復▾', '種類▾', '5枚▾'];
 				assert(JSON.stringify(r.texts) === JSON.stringify(exp) && r.pressed.join() === (opts ? 'true,true,false' : 'true,false,false'),
 					tag + 'ボタンの文字は「' + exp.join('」「') + '」。指定があるボタンは濃色', { texts: r.texts, pressed: r.pressed });
 				assert(r.barH === 28 && r.hs.every((h) => h === 28) && new Set(r.tops).size === 1 && r.inside && r.sw <= r.iw, tag + '見出し行は1行・28px のまま（3つとも同じ行・行の中に収まる）', r);
