@@ -10918,7 +10918,7 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		const segs = [...document.querySelectorAll('.eff-seg')].map((s) => { const n = s.querySelector('.eff-seg-n'), cs = getComputedStyle(n); return { text: n.textContent, hidden: n.hidden, w: s.getBoundingClientRect().width, nw: n.getBoundingClientRect().width, color: cs.color, weight: cs.fontWeight, size: cs.fontSize, shadow: cs.textShadow }; });
 		return { want, segs, aria: [...document.querySelectorAll('.eff-hit')].map((s) => s.getAttribute('aria-label')) };
 	});
-	// C-180: 区間の個数は、濃いグレー（#2b3140）・太さ500・14px・白の縁（影なし）。C-144（3-2）の暗い文字（#111827）＋明るい細い影から変えた
+	// C-183: 区間の個数は、濃いグレー（#2b3140）・太さ500・14px・白の縁（影なし）。C-144（3-2）の暗い文字（#111827）＋明るい細い影から変えた
 	assert(cnt.segs.every((s, k) => s.text === String(cnt.want[k]) && /^\d+$/.test(s.text) && s.color === 'rgb(43, 49, 64)' && s.weight === '500' && s.size === '14px' && s.shadow === 'none')
 		&& cnt.aria.every((l, k) => l.includes(cnt.want[k] + '種')) && cnt.want.reduce((a, x) => a + x, 0) === st.n,
 		'効率(A): 各区間のバーの中に、その区間のスキルの個数（数字のみ・濃いグレー・太さ500・14px・白の縁）。aria-label にも個数', cnt);
