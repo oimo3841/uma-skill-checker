@@ -16,6 +16,7 @@
     "test:sheets": "node tests/layout/run-sheet-tests.mjs",
     "check:privacy": "node tests/privacy/check-privacy.mjs",
     "check:catalog": "node tests/catalog/check-catalog.mjs",
+    "accept:data": "node scripts/accept-data.mjs",
     "check:rules": "node tests/rules/check-rules-sync.mjs",
     "skillset:cards": "node tests/skillset/run-extract-cards.mjs",
     "skillset:ocr": "node tests/skillset/run-ocr-crops.mjs",
