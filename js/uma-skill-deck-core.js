@@ -3221,6 +3221,7 @@
 	/**
 	 * 区分 key のオススメから、スキル id を外す（excluded=true）／戻す（false）。変えたら true。外す・戻すは「元に戻す」に1回ずつ積む。
 	 * 元に戻す: 変える前の recommendExcluded（userData の項目）を丸ごと書き戻す（項目が無かったなら項目ごと消す）。
+	 * opts.quiet … 元に戻すには積むが、トーストは出さない（オススメサポの一覧のチェックの付け外し）
 	 * opts.silent … 開いている小窓の計算し直しを起こさない（オススメサポの一覧のチェックの付け外し。「再計算」を押すまで反映しない）。元に戻す・戻すは今までどおり反映する
 	 * 触るのはその id だけ（知らない区分・引けない id は残す。戻すときは、その区分の同じ id をすべて消す）
 	 */
@@ -3240,6 +3241,7 @@
 			scope: 'list',
 			doneLabel: excluded ? name + 'を' + label + 'のオススメから外しました' : name + 'を' + label + 'のオススメに戻しました',
 			undoneLabel: excluded ? name + 'を' + label + 'のオススメに戻しました' : name + 'を' + label + 'のオススメから外しました',
+			quiet: !!(opts && opts.quiet),
 			probe: () => String(probeOf(recommendExcludedSnapshot())),
 			apply: () => { writeRecommendExcluded(prev === undefined ? undefined : JSON.parse(JSON.stringify(prev))); notifyRecommendExcluded(); return true; }
 		});
@@ -5098,8 +5100,9 @@
 			doneLabel: entry.doneLabel, undoneLabel: entry.undoneLabel, scope: entry.scope
 		});
 		if (stack.length > UNDO_STACK_LIMIT) stack.shift();
+		// entry.quiet … true ならトーストを出さない（元に戻すには積む）
 		// entry.notice … ②への追加の知らせ（消えない・×つき）で出す文。無ければ今までどおり doneLabel をトーストで出す
-		if (typeof entry.notice === 'string' && entry.notice) showAddNotice(entry.notice); else toast(entry.doneLabel);
+		if (typeof entry.notice === 'string' && entry.notice) showAddNotice(entry.notice); else if (!entry.quiet) toast(entry.doneLabel);
 		notifyUndoChanged();
 	}
 
@@ -13132,7 +13135,7 @@
 		 * （roster.outsideOptions。指定が無いセットは5枚から。変えたら自動で計算し直す）。チェックの状態は保存しない。
 		 * 追加は既存の一括追加と同じ受け皿（pickerSinkFor）。追加するスキルにアイコンは付けない（既存の追加の動きと同じ）。
 		 * ============================================================ */
-		const OUTSIDE_MSG_PENDING = '①でイベントの選択が済んでいないものがあります';
+		const OUTSIDE_MSG_PENDING = '①で未選択のスキル取得イベントがあります';
 		const OUTSIDE_HELP_TEXT = '本育成のサポカで得られない対象スキルを、できるだけ多く得られる組み合わせです。ランダムイベントのスキルも数えます。追加済みのスキルも数えます。金スキルの前段の白は、金スキルと合わせて1種ですが、金スキルによる因子化率を加味してオススメしています。';
 		// 種類の指定を満たせないとき（段13・A2）: 種類ごとには足りているのに、組み合わせとして満たせないときの1行
 		const OUTSIDE_MSG_COMBO = 'この組み合わせでは指定を満たせません';
@@ -13232,7 +13235,7 @@
 				if (!box || !box.getAttribute || box.getAttribute('data-usd-el') !== 'outside-check') return;
 				if (box.checked) outsideUi.checked.add(box.value); else outsideUi.checked.delete(box.value);
 				// 外した行は、いまの距離の区分の除外（userData の recommendExcluded）として保存する（付け直すと記録から消える）。元に戻すに積む。再計算はしない（「再計算」を押すまで反映しない）
-				setRecommendExcluded(recommendDistKeyOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {}), box.value, !box.checked, { silent: true });
+				setRecommendExcluded(recommendDistKeyOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {}), box.value, !box.checked, { silent: true, quiet: true });
 				updateOutsideFoot();
 			});
 			global.addEventListener('resize', () => { if (outsideUi.open && !el.hidden) outsideFitNicks(el); });

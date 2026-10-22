@@ -26,7 +26,7 @@ export async function register12(env) {
 	const BAR = '#deck-set-bar ';
 	const M = '[data-usd-el="outside-modal"] ';
 	const OPEN = '[data-usd-el="outside-open"]';
-	const MSG_PENDING = '①でイベントの選択が済んでいないものがあります';
+	const MSG_PENDING = '①で未選択のスキル取得イベントがあります';
 
 	/** special.html を開く（②の因子周回タブ）。roster＝下書きの①（null で無し）、userData＝保存データ、races＝レース一覧の応答（null で 404） */
 	const openSp = async (o = {}) => {

@@ -389,4 +389,63 @@ export async function register49(env) {
 		assert(dom.chips === 4 && !dom.ind && dom.tabs === 0 && !/個別に除外/.test(dom.text), '段F1(c) 除外の欄は押しボタン4つだけ（「個別に除外」も区分のピルも無い）', dom);
 		await sp.ctx.close();
 	});
+
+	/* ====================================================================
+	 * (d) 警告の文言・チェックの付け外しのトースト（C-190 の修正）
+	 * ==================================================================== */
+	const PENDING_NEW = '①で未選択のスキル取得イベントがあります';
+	const watchToasts = (page) => page.evaluate(() => {
+		window.__toasts = [];
+		new MutationObserver(() => { const t = document.getElementById('toast-message').textContent; if (t) window.__toasts.push(t); }).observe(document.getElementById('toast-message'), { childList: true, characterData: true, subtree: true });
+	});
+	const toastsOf = (page) => page.evaluate(() => window.__toasts.slice());
+	await block('段F1(d) 警告の文言: オススメサポの小窓を開くと、未選択のイベントがあるとき「' + PENDING_NEW + '」を出す／旧い文はコードにも画面にも残っていない', async () => {
+		const src = fs.readFileSync(path.join(REPO_ROOT, 'js/uma-skill-deck-core.js'), 'utf8') + fs.readFileSync(path.join(REPO_ROOT, 'special.html'), 'utf8');
+		const OLD = '①で' + 'イベントの選択が' + '済んでいない';
+		assert(src.indexOf(OLD) === -1 && src.indexOf(PENDING_NEW) !== -1, '段F1(d) コードに旧い文は無く、新しい文が1か所以上ある', src.indexOf(PENDING_NEW));
+		const sp = await openSp({ roster: FULL });
+		const p = sp.page;
+		await watchToasts(p);
+		await openOutside(p);
+		await sleep(p, 300);
+		const ts = await toastsOf(p);
+		assert(ts.filter((t) => t === PENDING_NEW).length === 1 && ts.every((t) => t.indexOf(OLD) === -1), '段F1(d) 新しい文が1回だけ出る・旧い文は出ない', ts);
+		const body = await p.evaluate(() => document.body.innerText);
+		assert(body.indexOf(OLD) === -1, '段F1(d) 画面に旧い文が残っていない', true);
+		await sp.ctx.close();
+	});
+
+	await block('段F1(d) チェックの付け外しでトーストを出さない: 外す・付け直すとき、トーストは出ず、元に戻すの件数だけが1つずつ増える／「戻す」「すべて戻す」の知らせは今のまま', async () => {
+		const sp = await openSp({ roster: FULL });
+		const p = sp.page;
+		await openOutside(p);
+		const [X, Y] = await firstIds(p, 2);
+		await sleep(p, 300);
+		await watchToasts(p);
+		const u0 = await undoCount(p);
+		await p.click(rowCheck(X));
+		await p.click(rowCheck(X));
+		await p.click(rowCheck(Y));
+		await sleep(p, 300);
+		assert((await toastsOf(p)).length === 0, '段F1(d) チェックを外す・付け直すとき、トーストは1つも出ない', await toastsOf(p));
+		assert(await undoCount(p) === u0 + 3, '段F1(d) 元に戻すの件数は、操作ごとに1つずつ増える（外す・付け直す・外す＝3）', { u0, now: await undoCount(p) });
+		// 「戻す」: 今までどおり「…のオススメに戻しました」を出す
+		await recalcNow(p);
+		await p.click(OM + '[data-usd-el="outside-excl-toggle"]');
+		const name = await p.evaluate((id) => UmaSkillDeckCore.getSkillName(id), Y);
+		const label = await labelOf(p, 'medium');
+		await p.evaluate(() => { window.__toasts = []; });
+		await p.click(OM + '[data-usd-el="outside-restore-skill"][data-skill-id="' + Y + '"]');
+		await waitOutside(p); await sleep(p, 300);
+		assert((await toastsOf(p)).indexOf(name + 'を' + label + 'のオススメに戻しました') !== -1, '段F1(d) 「戻す」の知らせは今のまま（「' + name + 'を' + label + 'のオススメに戻しました」）', await toastsOf(p));
+		// 「すべて戻す」: 今までどおり「…から外した N種を戻しました」
+		await p.click(rowCheck(X));
+		await recalcNow(p);
+		await p.evaluate(() => { window.__toasts = []; });
+		await p.click(OM + '[data-usd-el="outside-restore-all"]');
+		await waitOutside(p); await sleep(p, 300);
+		assert((await toastsOf(p)).indexOf(label + 'のオススメから外した1種を戻しました') !== -1, '段F1(d) 「すべて戻す」の知らせは今のまま（「' + label + 'のオススメから外した1種を戻しました」）', await toastsOf(p));
+		assert(jsErrors(sp.errors).length === 0, '段F1(d) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+	});
 }
