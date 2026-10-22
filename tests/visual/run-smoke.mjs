@@ -221,11 +221,12 @@ await block('special.html（UmaStar OCR）', async () => {
 	await page.waitForTimeout(200);
 	const pill = await page.evaluate(() => {
 		const el = document.getElementById('filter-not-found');
-		return { cls: el.className, bg: getComputedStyle(el).backgroundColor };
+		return { cls: el.className, bg: getComputedStyle(el).backgroundColor, bc: getComputedStyle(el).borderTopColor, ring: getComputedStyle(el).boxShadow };
 	});
-	// C-144: 選んでいる塗りは、そのツールの操作色（--uma-control。それまでは反転色 slate-900）
-	assert(pill.cls.includes('uma-pill') && pill.cls.includes('active') && pill.bg === await tokRgb(page, 'var(--uma-control)'),
-		'special: 絞り込みの選択状態が反転する', pill);
+	// 段G(6)（2026-10-22）: 選んでいるものは塗りつぶしではなく 2px の枠（--usd-ui-sel。1px の枠＋内側の 1px の輪）。地は通常の地。（C-144 の「操作色の塗り」は主な操作だけ）
+	assert(pill.cls.includes('uma-pill') && pill.cls.includes('active') && pill.bg === await tokRgb(page, 'var(--uma-surface)')
+		&& pill.bc === await tokRgb(page, 'var(--usd-ui-sel)') && pill.ring.indexOf(await tokRgb(page, 'var(--usd-ui-sel)')) !== -1,
+		'special: 絞り込みの選択状態は 2px の枠になる（塗りつぶしではない）', pill);
 	await page.click('#filter-all');
 	await page.waitForTimeout(200);
 
