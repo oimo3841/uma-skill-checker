@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-13a",
+	"dataVersion": "2026-10-21a",
 	"category": "skillEvolution",
 	"entries": [
 		{
@@ -24,7 +24,12 @@
 			"baseSkillId": "ex-0004",
 			"evolvedSkillIds": [
 				"ex-1042"
-			]
+			],
+			"conditions": {
+				"ex-1042": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -80,7 +85,16 @@
 			"baseSkillId": "ex-0014",
 			"evolvedSkillIds": [
 				"ex-1049"
-			]
+			],
+			"conditions": {
+				"ex-1049": {
+					"all": {
+						"environment": [
+							"left_turn"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -121,7 +135,12 @@
 			"baseSkillId": "ex-0021",
 			"evolvedSkillIds": [
 				"ex-1055"
-			]
+			],
+			"conditions": {
+				"ex-1055": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -353,7 +372,16 @@
 			"baseSkillId": "ex-0059",
 			"evolvedSkillIds": [
 				"ex-1091"
-			]
+			],
+			"conditions": {
+				"ex-1091": {
+					"all": {
+						"environment": [
+							"ground_bad"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -506,7 +534,12 @@
 			"baseSkillId": "ex-0085",
 			"evolvedSkillIds": [
 				"ex-1111"
-			]
+			],
+			"conditions": {
+				"ex-1111": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -564,7 +597,16 @@
 			"baseSkillId": "ex-0050",
 			"evolvedSkillIds": [
 				"ex-1121"
-			]
+			],
+			"conditions": {
+				"ex-1121": {
+					"all": {
+						"trackVenue": [
+							"track_kyoto"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -743,7 +785,16 @@
 			"baseSkillId": "ex-0114",
 			"evolvedSkillIds": [
 				"ex-1145"
-			]
+			],
+			"conditions": {
+				"ex-1145": {
+					"all": {
+						"environment": [
+							"season_autumn"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -1269,7 +1320,16 @@
 			"baseSkillId": "ex-0177",
 			"evolvedSkillIds": [
 				"ex-1227"
-			]
+			],
+			"conditions": {
+				"ex-1227": {
+					"all": {
+						"trackVenue": [
+							"track_kyoto"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -1471,7 +1531,12 @@
 			"baseSkillId": "ex-0056",
 			"evolvedSkillIds": [
 				"ex-1254"
-			]
+			],
+			"conditions": {
+				"ex-1254": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -1553,7 +1618,12 @@
 			"baseSkillId": "ex-0085",
 			"evolvedSkillIds": [
 				"ex-1267"
-			]
+			],
+			"conditions": {
+				"ex-1267": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -1561,7 +1631,16 @@
 			"baseSkillId": "ex-0213",
 			"evolvedSkillIds": [
 				"ex-1266"
-			]
+			],
+			"conditions": {
+				"ex-1266": {
+					"all": {
+						"trackVenue": [
+							"track_tokyo"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -1619,7 +1698,12 @@
 			"evolvedSkillIds": [
 				"ex-1275",
 				"ex-1276"
-			]
+			],
+			"conditions": {
+				"ex-1276": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -1773,7 +1857,19 @@
 			"evolvedSkillIds": [
 				"ex-1296",
 				"ex-1297"
-			]
+			],
+			"conditions": {
+				"ex-1296": {
+					"all": {
+						"environment": [
+							"ground_bad"
+						]
+					}
+				},
+				"ex-1297": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -1946,7 +2042,17 @@
 			"baseSkillId": "ex-0114",
 			"evolvedSkillIds": [
 				"ex-1324"
-			]
+			],
+			"conditions": {
+				"ex-1324": {
+					"all": {
+						"environment": [
+							"season_autumn",
+							"season_winter"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -1978,7 +2084,12 @@
 			"baseSkillId": "ex-0266",
 			"evolvedSkillIds": [
 				"ex-1327"
-			]
+			],
+			"conditions": {
+				"ex-1327": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -1987,7 +2098,15 @@
 			"evolvedSkillIds": [
 				"ex-1328",
 				"ex-1329"
-			]
+			],
+			"conditions": {
+				"ex-1328": {
+					"all": {}
+				},
+				"ex-1329": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -2092,7 +2211,12 @@
 			"evolvedSkillIds": [
 				"ex-1342",
 				"ex-1343"
-			]
+			],
+			"conditions": {
+				"ex-1343": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -2241,7 +2365,12 @@
 			"baseSkillId": "ex-0299",
 			"evolvedSkillIds": [
 				"ex-1366"
-			]
+			],
+			"conditions": {
+				"ex-1366": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -2348,7 +2477,16 @@
 			"baseSkillId": "ex-0177",
 			"evolvedSkillIds": [
 				"ex-1384"
-			]
+			],
+			"conditions": {
+				"ex-1384": {
+					"all": {
+						"trackVenue": [
+							"track_kyoto"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -2455,7 +2593,16 @@
 			"baseSkillId": "ex-0323",
 			"evolvedSkillIds": [
 				"ex-1398"
-			]
+			],
+			"conditions": {
+				"ex-1398": {
+					"all": {
+						"environment": [
+							"season_spring"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -2570,7 +2717,12 @@
 			"baseSkillId": "ex-0336",
 			"evolvedSkillIds": [
 				"ex-1415"
-			]
+			],
+			"conditions": {
+				"ex-1415": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -2635,7 +2787,16 @@
 			"baseSkillId": "ex-0344",
 			"evolvedSkillIds": [
 				"ex-1424"
-			]
+			],
+			"conditions": {
+				"ex-1424": {
+					"all": {
+						"environment": [
+							"right_turn"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -2659,7 +2820,12 @@
 			"baseSkillId": "ex-0261",
 			"evolvedSkillIds": [
 				"ex-1428"
-			]
+			],
+			"conditions": {
+				"ex-1428": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -2733,7 +2899,16 @@
 			"baseSkillId": "ex-0323",
 			"evolvedSkillIds": [
 				"ex-1438"
-			]
+			],
+			"conditions": {
+				"ex-1438": {
+					"all": {
+						"environment": [
+							"season_spring"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -2776,7 +2951,19 @@
 			"evolvedSkillIds": [
 				"ex-1445",
 				"ex-1446"
-			]
+			],
+			"conditions": {
+				"ex-1445": {
+					"all": {}
+				},
+				"ex-1446": {
+					"all": {
+						"trackVenue": [
+							"track_tokyo"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -2784,7 +2971,12 @@
 			"baseSkillId": "ex-0357",
 			"evolvedSkillIds": [
 				"ex-1447"
-			]
+			],
+			"conditions": {
+				"ex-1447": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -2962,7 +3154,12 @@
 			"baseSkillId": "ex-0375",
 			"evolvedSkillIds": [
 				"ex-1470"
-			]
+			],
+			"conditions": {
+				"ex-1470": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -3454,7 +3651,16 @@
 			"evolvedSkillIds": [
 				"ex-1536",
 				"ex-1537"
-			]
+			],
+			"conditions": {
+				"ex-1536": {
+					"all": {
+						"trackVenue": [
+							"track_tokyo"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -3838,7 +4044,12 @@
 			"evolvedSkillIds": [
 				"ex-1589",
 				"ex-1590"
-			]
+			],
+			"conditions": {
+				"ex-1590": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -4008,7 +4219,12 @@
 			"baseSkillId": "ex-0431",
 			"evolvedSkillIds": [
 				"ex-1615"
-			]
+			],
+			"conditions": {
+				"ex-1615": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -4016,7 +4232,12 @@
 			"baseSkillId": "ex-0438",
 			"evolvedSkillIds": [
 				"ex-1614"
-			]
+			],
+			"conditions": {
+				"ex-1614": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -4057,7 +4278,16 @@
 			"baseSkillId": "ex-0344",
 			"evolvedSkillIds": [
 				"ex-1621"
-			]
+			],
+			"conditions": {
+				"ex-1621": {
+					"all": {
+						"environment": [
+							"right_turn"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -4138,7 +4368,12 @@
 			"baseSkillId": "ex-0035",
 			"evolvedSkillIds": [
 				"ex-1632"
-			]
+			],
+			"conditions": {
+				"ex-1632": {
+					"all": {}
+				}
+			}
 		},
 		{
 			"kind": "uma",

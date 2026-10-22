@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-22c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-22d';
 
 	/* ============================================================
 	 * 定数
@@ -102,7 +102,7 @@
 		// 育成ウマ娘のイベントで得られるスキル（段1・2026-10-11）。受け入れだけで、画面と計算はまだ使わない。TRAINING_SOURCES の5本目
 		'data/training-event-skills.json': '2026-10-17f',
 		// スキルの進化の対応（段2・2026-10-12。C-145・C-146）。受け入れだけで、画面と計算はまだ使わない。ページの読み込みでは取りに行かない（loadSkillEvolutions）
-		'data/skill-evolutions.json': '2026-10-13a',
+		'data/skill-evolutions.json': '2026-10-21a',
 		// 「このスキルは、これらのスキルを取得しているときだけ有効」の対応（2026-10-17a。大逃げの要るスキル）。skill-evolutions.json と一緒に、最初に必要になったとき1回だけ読む（loadSkillEvolutions）
 		'data/skill-requires.json': '2026-10-17a',
 		// コースの形の条件（小回り・直線コース）に当たるレース場・バ場・距離（C-155・2026-10-14。おいもさんの指定の表）。

@@ -1801,7 +1801,7 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 	/* --- スキルの進化の対応（2026-10-12・C-145／C-146。進化スキルの受け入れ） ---
 	   形は許可リスト方式。kind は uma（パターンA＝衣装自身の進化）か scenario（パターンB＝シナリオの進化）。
 	   進化先は rarity が evolved（厳格）で pt が 0。進化元の rarity は gold に限らない（引けることだけ見る）。
-	   uma の進化元は、その衣装自身の初期・覚醒スキルにある。scenario の scenarioId は scenario-event-skills.json の scenario と同じ名前。
+	   uma の進化元は、その衣装自身の初期・覚醒スキルにある。scenario の scenarioId は scenario-event-skills.json の scenario と同じ名前。conditions（任意・2026-10-21a〜）は進化先ごとの「使える条件」（all のキーは trackVenue・environment だけ。ツール側はまだ判定に使わない）。
 	   スキル名・衣装名・シナリオ名はここに書かない（恒久ルール1）。 */
 	const EVO_FILE = 'skill-evolutions.json';
 	const evr = readOpt(EVO_FILE);
@@ -1830,18 +1830,23 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 			const scr2 = readOpt('scenario-event-skills.json');
 			if (scr2 && scr2.ok && isArr(scr2.data.entries)) scr2.data.entries.forEach((en) => { if (isStr(en.scenario)) scenarioNames.add(en.scenario); });
 			const seenKey = new Set(), evolvedAll = [];
+			// conditions（任意・2026-10-21a〜）: { 進化先の id: { all: { trackVenue: [...], environment: [...] } } }。値は TAG_AXES の同じ軸の選択肢に実在する
+			const condBad = [], CONDITION_AXES = ['trackVenue', 'environment'];
+			const condOpts = Object.fromEntries(CONDITION_AXES.map((k) => [k, new Set((readAxisOptions(coreSrc, k) || []).map((o) => o.v))]));
+			const condUsed = Object.fromEntries(CONDITION_AXES.map((k) => [k, new Set()]));
+			let nCondRows = 0, nCondAll = 0, nCondEmpty = 0;
 			const umaWith = new Set();
 			let nUma = 0, nScen = 0;
 			(isArr(d.entries) ? d.entries : []).forEach((en, i) => {
 				const w = 'entries[' + i + ']';
 				if (en && en.kind === 'uma') {
-					if (!checkKeys(en, { need: ['kind', 'umaId', 'baseSkillId', 'evolvedSkillIds'], opt: [] }, w, unknown, missing)) return;
+					if (!checkKeys(en, { need: ['kind', 'umaId', 'baseSkillId', 'evolvedSkillIds'], opt: ['conditions'] }, w, unknown, missing)) return;
 					nUma++;
 					if (!umaOwn.has(String(en.umaId))) bad.push(w + '.umaId: ' + en.umaId + ' が training-umamusume.json にない');
 					else if (!umaOwn.get(String(en.umaId)).has(String(en.baseSkillId))) notOwn.push(w + ': ' + en.umaId + ' の初期・覚醒スキルに ' + en.baseSkillId + ' がない');
 					umaWith.add(String(en.umaId));
 				} else if (en && en.kind === 'scenario') {
-					if (!checkKeys(en, { need: ['kind', 'scenarioId', 'baseSkillId', 'evolvedSkillIds'], opt: [] }, w, unknown, missing)) return;
+					if (!checkKeys(en, { need: ['kind', 'scenarioId', 'baseSkillId', 'evolvedSkillIds'], opt: ['conditions'] }, w, unknown, missing)) return;
 					nScen++;
 					if (!isStr(en.scenarioId)) bad.push(w + '.scenarioId: 空でない文字列');
 					else if (!scenarioNames.has(en.scenarioId)) badScenario.push(w + ': scenarioId ' + en.scenarioId + ' が scenario-event-skills.json の scenario にない');
@@ -1859,6 +1864,25 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 				}
 				if (!isArr(en.evolvedSkillIds) || en.evolvedSkillIds.length === 0 || !en.evolvedSkillIds.every(isStr)) { bad.push(w + '.evolvedSkillIds: 空でない文字列の配列'); return; }
 				if (new Set(en.evolvedSkillIds).size !== en.evolvedSkillIds.length) dup.push(w + '.evolvedSkillIds: 進化先の重複');
+				if (en.conditions !== undefined) {
+					nCondRows++;
+					if (!isObj(en.conditions)) condBad.push(w + '.conditions: オブジェクト');
+					else Object.keys(en.conditions).forEach((eid) => {
+						const cw = w + '.conditions.' + eid;
+						const cv = en.conditions[eid];
+						if (!en.evolvedSkillIds.includes(eid)) condBad.push(cw + ': この行の evolvedSkillIds にない進化先');
+						if (!isObj(cv) || Object.keys(cv).length !== 1 || !isObj(cv.all)) { condBad.push(cw + ': { all: {…} } だけを持つオブジェクト'); return; }
+						const ak = Object.keys(cv.all);
+						if (ak.length === 0) nCondEmpty++; else nCondAll++;
+						ak.forEach((k) => {
+							if (!CONDITION_AXES.includes(k)) { condBad.push(cw + '.all: キー ' + k + '（使えるのは ' + CONDITION_AXES.join('・') + ' だけ）'); return; }
+							const vs = cv.all[k];
+							if (!isArr(vs) || vs.length === 0 || !vs.every(isStr)) { condBad.push(cw + '.all.' + k + ': 空でない文字列の配列'); return; }
+							if (new Set(vs).size !== vs.length) condBad.push(cw + '.all.' + k + ': 値の重複');
+							vs.forEach((v) => { if (!condOpts[k].has(v)) condBad.push(cw + '.all.' + k + ': ' + v + ' が TAG_AXES の ' + k + ' の選択肢にない'); else condUsed[k].add(v); });
+						});
+					});
+				}
 				en.evolvedSkillIds.forEach((id) => {
 					if (!registered.has(id)) unregistered.push(w + '.evolvedSkillIds: ' + id);
 					const row = ptBy.get(id);
@@ -1883,6 +1907,15 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 			const nameCount = new Map();
 			evolvedSet.forEach((id) => { const n = (masterNameById.get(id) || extNameById.get(id)); if (n) nameCount.set(n, (nameCount.get(n) || 0) + 1); });
 			none([...nameCount.entries()].filter(([, c]) => c > 1).map(([n]) => n), EVO_FILE + ': 進化先の名前が重複しない');
+			none(condBad, EVO_FILE + ': conditions（任意）の形（進化先の id は行の evolvedSkillIds にあり、値は { all: {…} } だけ。all のキーは trackVenue・environment だけで、値は TAG_AXES の同じ軸の選択肢に実在する）');
+			{
+				// TAG_AXES にあるが、どのスキルの tags にも使われていない値（警告だけ。NG にしない）
+				const tagUsed = Object.fromEntries(CONDITION_AXES.map((k) => [k, new Set()]));
+				masterSkills.concat(docs.extendedSkill.entries).forEach((sk) => { if (isObj(sk.tags)) CONDITION_AXES.forEach((k) => (isArr(sk.tags[k]) ? sk.tags[k] : []).forEach((v) => tagUsed[k].add(v))); });
+				const unusedOpts = CONDITION_AXES.flatMap((k) => [...condOpts[k]].filter((v) => !tagUsed[k].has(v)).map((v) => k + ': ' + v));
+				if (unusedOpts.length) warn(EVO_FILE + ': TAG_AXES にあるが、どのスキルの tags にも使われていない値（conditions の値の候補として）', unusedOpts);
+			}
+			if (nCondRows) console.log('       ' + EVO_FILE + ': conditions ' + nCondRows + '行・進化先 ' + (nCondAll + nCondEmpty) + '件（all あり ' + nCondAll + '・all が空 ' + nCondEmpty + '）');
 			console.log('       ' + EVO_FILE + ': ' + nUma + '行（パターンA・' + umaWith.size + '衣装）・' + nScen + '行（パターンB）・進化先 ' + evolvedSet.size + '種');
 		}
 	}
