@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-22b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-22c';
 
 	/* ============================================================
 	 * 定数
@@ -6291,12 +6291,16 @@
 		// 行は display: contents なので、この行だけ箱にして列を引き継ぐ（subgrid）。縁は outline（高さを変えない）
 		'.usd-roster-grow--unique { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid;',
 		'  background: linear-gradient(90deg, var(--usd-skill-unique-from), var(--usd-skill-unique-mid), var(--usd-skill-unique-to));',
-		'  outline: 1px solid var(--usd-skill-unique-edge); outline-offset: -1px; }',
+		'  }',
 		'.usd-roster-grow--unique > .usd-roster-gc, .usd-roster-grow--unique > .usd-roster-gc--uma { background: transparent; }',
+		// 段G(5): 枠線（1px のピンクの縁）は無くし、金スキルの行と同じ作りの左の縦バー（名前のセルの左端 4px）に置き換えた。色は 0530272 での縁の色そのまま（ライトは --usd-skill-unique-edge、ダークはページが --usd-unique-row-bar で渡す）
+		'.usd-roster-grow--unique > .usd-roster-gc--name { box-shadow: inset 4px 0 0 var(--usd-unique-row-bar, var(--usd-skill-unique-edge)); }',
 		// 進化させた金スキルの行（段4）: 固有スキルの行と同じ作り（行を箱にして列を引き継ぐ）で、進化先の面（左→右のグラデーション）と枠。名前の文字は進化先の文字色
 		'.usd-roster-grow--evo { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid;',
 		'  background: linear-gradient(90deg, var(--evo-from), var(--evo-mid), var(--evo-to));',
-		'  outline: 2px solid var(--evo-edge-on); outline-offset: -2px; color: var(--evo-text); }',
+		'  color: var(--evo-text); }',
+		// 段G(5): 太い枠線（2px）は無くし、金スキルの行と同じ作りの左の縦バーに置き換えた。色は 0530272 での枠の色（--evo-edge-on）そのまま
+		'.usd-roster-grow--evo > .usd-roster-gc--name { box-shadow: inset 4px 0 0 var(--evo-edge-on); }',
 		'.usd-roster-grow--evo > .usd-roster-gc, .usd-roster-grow--evo > .usd-roster-gc--uma { background: transparent; color: var(--evo-text); }',
 		'.usd-roster-grow--evo .usd-roster-skillname, .usd-roster-grow--evo .usd-roster-pt:not(.usd-roster-pt--ref) { color: var(--evo-text); }',
 		'.usd-roster-grow--evo .usd-roster-got { border-color: var(--evo-text); }',
@@ -6363,7 +6367,8 @@
 		// 段13・C5: 金スキルの行の金色の帯（①の表の金の行と同じ --uma-stitch-soft）
 		'.usd-ev-skill--gold { background: var(--uma-stitch-soft); padding-inline: var(--uma-sp-1-5); border-radius: var(--uma-r-sm); }',
 		// 衣装の小窓の進化（C-153）。進化先の行は段4の進化先と同じ色（--evo- の変数）。金の行・白の行の名前の先頭に「└」（進化スキルの説明の小窓と同じ部品）、白は1段下げる
-		'.usd-ev-skill--evo { box-sizing: border-box; padding-inline: var(--uma-sp-1-5); border: 2px solid var(--evo-edge); border-radius: var(--uma-r-sm); background: linear-gradient(90deg, var(--evo-from), var(--evo-mid), var(--evo-to)); }',
+		// 段G(5): 2px の枠は無くし、左の縦バー（4px）に置き換えた（色は変更前の枠の色 --evo-edge のまま。枠の 2px ぶんは余白に移して行の大きさは同じ）
+		'.usd-ev-skill--evo { box-sizing: border-box; padding: calc(var(--uma-sp-1-5) + 2px) calc(var(--uma-sp-1-5) + 2px); border: 0; box-shadow: inset 4px 0 0 var(--evo-edge); border-radius: var(--uma-r-sm); background: linear-gradient(90deg, var(--evo-from), var(--evo-mid), var(--evo-to)); }',
 		'.usd-ev-skill--evo + .usd-ev-skill { border-top: 0; }',
 		'.usd-ev-skill--evo .usd-ev-skill-name, .usd-ev-skill--evo .usd-ev-skill-pt, .usd-ev-skill--evo .usd-ev-skill-desc { color: var(--evo-text); }',
 		'.usd-ev-evomark { margin-right: 2px; font-weight: 400; }',
@@ -6465,12 +6470,13 @@
 		'.usd-palette > * { flex: none; }',
 		'.usd-palette-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }',
 		'.usd-palette-btn .usd-icon { width: 24px; height: 24px; font-size: 14px; }',
-		'.usd-palette-btn[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--uma-group-bg), 0 0 0 4px var(--uma-text-heading); }',
+		'.usd-palette-btn[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--uma-group-bg), 0 0 0 4px var(--usd-ui-sel, var(--uma-text-heading)); }',
 		'.usd-palette-btn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 3px; }',
 		'.usd-palette-sep { width: 1px; height: 18px; background: var(--uma-border-strong); }',
 		'.usd-palette-clear { font: inherit; font-size: 12px; line-height: 1.4; font-weight: 600; padding: 2px 10px; border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full);',
 		'  background: var(--uma-surface); color: var(--uma-text-heading); cursor: pointer; white-space: nowrap; }',
-		'.usd-palette-clear[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--uma-group-bg), 0 0 0 4px var(--uma-text-heading); }',
+		// 段G(4)(6): 選択中（削除を含む）は 2px の枠（1px の枠＋内側の 1px の輪。ボタンの大きさは変わらない）。外側の輪・赤い色はやめた
+		'.usd-palette-clear[aria-pressed="true"] { border-color: var(--usd-ui-sel, var(--uma-control-mark)); box-shadow: inset 0 0 0 1px var(--usd-ui-sel, var(--uma-control-mark)); }',
 		'.usd-palette-clear:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 3px; }',
 		// ②のパレットの行のボタン（C-130 から「逃げオススメ」などの脚質のボタン。「解除」と同じ形）。押せないときは灰（共有の無効の色）。
 		// （C-129 の①の「低効果を除外」の小さなボタンと、その列見出しの組み〔usd-lowfx-btn・usd-roster-ghname〕は C-131 で削除した）
@@ -6498,12 +6504,17 @@
 		'.usd-skillgroup .usd-panel-namebtn::after { inset: 0 -3px; }',
 		'.usd-skillgroup .usd-panel-pt { flex: none; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); white-space: nowrap; }',
 		// C-132: 削除の状態（パレットの「削除」を選んでいる）。タイルは破線の枠と、名前の取り消しの線（色だけに頼らない）。ボタンは選択中の輪と色
-		'.usd-skillgroup { --usd-delete-line: var(--uma-danger-text); }',
-		'.usd-skillgroup--delete .usd-panel { border-style: dashed; border-color: var(--usd-delete-line); cursor: pointer; }',
-		'.usd-skillgroup--delete .usd-panel-namebtn { text-decoration-line: line-through; text-decoration-color: var(--usd-delete-line); }',
+		// 段G(4): 削除の状態でも、パネルの見た目（点線の枠・赤い取り消し線）は変えない。代わりにパネルの右に×印を出す（押せる範囲 44px。パネルを押しても削除できる）。
+		// ×は常に作ってあり、削除の状態（.usd-skillgroup--delete）のときだけ見える
+		'.usd-skillgroup--delete .usd-panel { cursor: pointer; }',
+		'.usd-panel-xbtn { display: none; flex: none; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -4px -6px -4px 0; padding: 0; border: 0; border-radius: var(--uma-r-sm); background: transparent; color: var(--uma-text-muted); cursor: pointer; }',
+		'.usd-skillgroup--delete .usd-panel-xbtn { display: inline-flex; }',
+		'.usd-panel-xbtn svg { width: 16px; height: 16px; }',
+		'.usd-panel-xbtn:hover { color: var(--uma-danger-text); }',
+		'.usd-panel-xbtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }',
 		'.usd-palette-del { display: inline-flex; align-items: center; gap: 3px; }',
 		// C-132: 「逃げオススメ」「先差追オススメ」の確認の小窓（追加するスキルの名前と Pt・追加しないものの内訳・ボタン2つ）
-		'.usd-palette-del[aria-pressed="true"] { color: var(--usd-delete-line, var(--uma-danger-text)); border-color: var(--usd-delete-line, var(--uma-danger-text)); }',
+		// 段G(4): 削除のボタンを選んでいるときは、色を変えず、(6)の選択中の見た目（2px の枠。上の .usd-palette-clear[aria-pressed="true"]）だけ
 		'.usd-reset-ops { display: flex; flex-direction: column; gap: 8px; }',
 		'.usd-reset-ops .uma-btn { width: 100%; justify-content: center; }',
 		// 段4: リセットのシートのボタン。「取得しないスキルを戻す」は薄いピンク、「中身をすべて消す」は赤い枠・赤みの面
@@ -10819,7 +10830,8 @@
 			// 名前の前に ◇ のバッジ（表の列見出し・凡例と同じ部品）。名前は省略記号で切り、全文は title と aria-label
 			const umaChip = '<span class="usd-roster-umamark" role="img" aria-label="育成ウマ娘"></span>';
 			h += '<div class="usd-roster-sub"><div class="usd-roster-umarow">';
-			h += '<div class="usd-roster-pickbox usd-roster-umabox' + (roster.umaId ? ' usd-roster-pickbox--filled' : '') + '">';
+			// 段G(6): 育成ウマ娘のタイルも通常は細い枠。太い枠は、育成ウマ娘の選択の窓を開いているときだけ（--sel）
+			h += '<div class="usd-roster-pickbox usd-roster-umabox' + (roster.umaId ? ' usd-roster-pickbox--filled' : '') + (picking && picking.kind === 'uma' ? ' usd-roster-pickbox--sel' : '') + '">';
 			h += '<button type="button" class="usd-roster-pickbtn" data-usd-act="pick-uma" data-usd-el="pick-uma" title="' + esc(labelOfUma()) + '" aria-label="' + esc('育成ウマ娘：' + labelOfUma()) + '">'
 				+ umaChip + '<span class="usd-roster-pickname">' + esc(labelOfUma()) + '</span></button>';
 			if (roster.umaId) h += '<button type="button" class="usd-roster-clearbtn" data-usd-act="clear-uma" aria-label="育成ウマ娘を外す" title="外す">×</button>';
@@ -10850,7 +10862,8 @@
 						+ '<span class="usd-out-card-side"></span></div>';
 					continue;
 				}
-				h += '<div class="usd-out-card usd-out-card--pinned usd-roster-tile" data-usd-el="roster-tile" data-index="' + i + '" data-no="' + (i + 1) + '"'
+				// 段G(6): ①のタイルは通常は細い枠。太い枠（--pinned）は、いま選んでいる（カードの選択の窓を開いている）タイルだけ
+				h += '<div class="usd-out-card usd-roster-tile' + (picking && picking.kind === 'card' && picking.index === i ? ' usd-out-card--pinned' : '') + '" data-usd-el="roster-tile" data-index="' + i + '" data-no="' + (i + 1) + '"'
 					+ (slotOrder !== null && slotOrder !== undefined ? ' data-type-order="' + slotOrder + '"' : '') + (slotCard && slotCard.rarity ? ' data-rarity="' + esc(slotCard.rarity) + '"' : '') + '>'
 					+ '<span class="usd-out-card-lead">' + (slotKnown ? cardIconBoxHtml(slotOrder) : '') + '</span>'
 					+ main('<span class="usd-out-card-names">' + (nick ? '<span class="usd-out-card-nick" data-usd-el="roster-tile-nick">' + esc(nick) + '</span>' : '') + '<span class="usd-out-card-name" data-usd-el="roster-tile-name">' + esc(labelOfCard(i)) + '</span></span>')
@@ -13032,6 +13045,8 @@
 						+ '<span class="usd-panel-namescroll usd-hscroll" data-usd-el="panel-namescroll" data-usd-no-trim="1">'
 						+ '<button type="button" class="usd-panel-namebtn" data-usd-info="' + esc(id) + '" title="' + esc(name) + '">' + esc(name) + '</button></span>'
 						+ '<span class="usd-panel-pt" data-usd-el="panel-pt" data-skill-id="' + esc(id) + '"></span>'
+						// 段G(4): 削除の状態のときだけ見える×（押せる範囲 44px）。押すとそのスキルを②から外す（パネルを押したときと同じ処理）
+						+ '<button type="button" class="usd-panel-xbtn" data-usd-act="template-skill-remove" data-usd-el="panel-x" data-skill-id="' + esc(id) + '" aria-label="' + esc(name + 'を削除') + '"><i data-lucide="x" aria-hidden="true"></i></button>'
 						+ '</div>';
 				}).join('');
 				attachSkillInfoIn(el, (id) => ({ skillId: id, trigger: 'self' }));

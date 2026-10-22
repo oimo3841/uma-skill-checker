@@ -79,8 +79,8 @@ export async function register24(env) {
 		});
 		assert(r.help === 0 && r.helpBtn && r.helpIsText, '進化段4A 帯に「?」のボタンは無く、合計の文字がボタン（同じ小窓を開く）', r);
 		assert(/^進化\s*3／4$/.test(r.text.replace(/\s/g, '')) && r.label.indexOf('3／4') !== -1, '進化段4A 進化ボタンは「進化」＋「N／最大」（オルフェーヴル 京都 芝2200m・追込: 衣装の2つ＋シナリオの1つ＝3／4）', { text: r.text, label: r.label });
-		assert(Math.abs(r.h - r.pickH) < 0.5 && Math.abs(r.h - r.sumH) < 0.5 && r.hitH >= 44 && r.borderW === 2 && r.radius >= 8,
-			'進化段4A 進化ボタンの見た目の高さは、育成ウマ娘の選択欄・合計の文字と同じ（段4の修正2）。押せる範囲は44px以上・枠2px・角丸', { h: r.h, pick: r.pickH, sum: r.sumH, hit: r.hitH, borderW: r.borderW, radius: r.radius });
+		assert(Math.abs(r.h - r.pickH) < 0.5 && Math.abs(r.h - r.sumH) < 0.5 && r.hitH >= 44 && r.borderW === 1 && r.radius >= 8,
+			'進化段4A 進化ボタンの見た目の高さは、育成ウマ娘の選択欄・合計の文字と同じ（段4の修正2）。押せる範囲は44px以上・枠1px（段G(6)で 2px から細くした。地色つきの設定済み）・角丸', { h: r.h, pick: r.pickH, sum: r.sumH, hit: r.hitH, borderW: r.borderW, radius: r.radius });
 		assert(r.bName === '14px/700' && r.cnt === '12px/400', '進化段4A 「進化」は14px太字・「N／最大」は12px通常の太さ', { b: r.bName, n: r.cnt });
 		assert(!r.hscrollInBand && !r.bang, '進化段4A 帯に横スクロール・フェードの部品は無い／「！」は確認が必要なときだけ（ここでは出ない）', { hscroll: r.hscrollInBand, bang: r.bang });
 		// 合計の文字を押すと、これまでの「?」と同じ小窓（理論値など）が開く。覚醒Lv5の説明の1行は無い
@@ -350,10 +350,10 @@ export async function register24(env) {
 		const withEvo = await sp.page.evaluate(({ k }) => {
 			const row = document.querySelector('.usd-roster-grow--evo[data-skill-id="' + k + '"]');
 			const cs = getComputedStyle(row);
-			return { evo: row.getAttribute('data-usd-evo'), name: row.querySelector('.usd-roster-skillname').textContent, info: row.querySelector('.usd-roster-skillname').getAttribute('data-usd-info'), pt: (row.querySelector('.usd-roster-pt') || {}).textContent, text: row.textContent, gold: row.classList.contains('usd-roster-grow--gold'), bg: cs.backgroundImage, outline: cs.outlineStyle + ' ' + cs.outlineWidth, sum: document.querySelector('[data-usd-el="roster-sum"]').textContent.replace(/\s/g, ''), take: row.querySelector('input[data-usd-act="take-skill"]').getAttribute('data-skill-id'), got: row.querySelectorAll('.usd-roster-got').length };
+			return { evo: row.getAttribute('data-usd-evo'), name: row.querySelector('.usd-roster-skillname').textContent, info: row.querySelector('.usd-roster-skillname').getAttribute('data-usd-info'), pt: (row.querySelector('.usd-roster-pt') || {}).textContent, text: row.textContent, gold: row.classList.contains('usd-roster-grow--gold'), bg: cs.backgroundImage, outline: cs.outlineStyle + ' ' + cs.outlineWidth, bar: getComputedStyle(row.querySelector('.usd-roster-gc--name')).boxShadow, sum: document.querySelector('[data-usd-el="roster-sum"]').textContent.replace(/\s/g, ''), take: row.querySelector('input[data-usd-act="take-skill"]').getAttribute('data-skill-id'), got: row.querySelectorAll('.usd-roster-got').length };
 		}, { k: KINRIN });
 		assert(withEvo.evo === KINRIN_TO && withEvo.name === SKILL_NAME.get(KINRIN_TO) && withEvo.info === KINRIN_TO && !withEvo.gold, '進化段4D 進化させた金スキルの行は、名前が進化先・説明も進化先・金色の行ではない', { evo: withEvo.evo, name: withEvo.name, gold: withEvo.gold });
-		assert(/linear-gradient/.test(withEvo.bg) && /solid 2px/.test(withEvo.outline) && withEvo.take === KINRIN && withEvo.got > 0, '進化段4D 進化先の色（グラデーションと2pxの枠）で、取得のチェックは元の金スキルのまま', { bg: withEvo.bg.slice(0, 60), outline: withEvo.outline, take: withEvo.take });
+		assert(/linear-gradient/.test(withEvo.bg) && /^none/.test(withEvo.outline) && /4px 0px 0px 0px inset/.test(withEvo.bar) && withEvo.take === KINRIN && withEvo.got > 0, '進化段4D 進化先の色（グラデーションと左の縦バー。段G(5)・2026-10-22 で 2px の枠をバーに置き換えた）で、取得のチェックは元の金スキルのまま', { bg: withEvo.bg.slice(0, 60), outline: withEvo.outline, bar: withEvo.bar, take: withEvo.take });
 		assert(!/進化|進|必ず|合う/.test(withEvo.text.replace(SKILL_NAME.get(KINRIN_TO), '')) && /Pt/.test(withEvo.pt || ''), '進化段4D 「進」の印・状態の表示・Ptの注記は付けず、Pt は元の金スキルの値で出る', { text: withEvo.text, pt: withEvo.pt });
 		// 進化の有無で、合計（Pt・種数）は変わらない（元の金スキルの Pt を数える）
 		const without = await openSp({ roster: orfeRoster({ evolutionChoices: { [KINRIN]: 'none', [HEIGEI]: 'none', 'ex-0616': 'none' } }), w: 390 });

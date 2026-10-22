@@ -62,7 +62,7 @@ export async function register47(env) {
 			const two = w <= 639;
 			assert(t.length === 6 && t.every((x) => x.noBadge), tag + '6枚・番号の丸なし', t.length);
 			assert(t.every((x) => x.nameSize === (two ? 11 : 12) && x.nickSize === (two ? 9 : 10)), tag + '名前 ' + (two ? '11' : '12') + 'px・二つ名 ' + (two ? '9' : '10') + 'px', t.map((x) => [x.nameSize, x.nickSize]));
-			assert(t.every((x) => x.bw === '2px' && x.ico === 20), tag + '縁は2px・種別アイコンは20px（変えない）', t.map((x) => [x.bw, x.ico]));
+			assert(t.every((x) => x.bw === '1px' && x.ico === 20), tag + '縁は1px（段G(6)で 2px から細くした。選んでいるタイルだけ 2px）・種別アイコンは20px（変えない）', t.map((x) => [x.bw, x.ico]));
 			if (two) assert(t.every((x) => x.h >= 28 && x.h <= 33 && x.pad[0] === '1px' && x.pad[1] === '5px'), tag + 'タイルの高さは約30px（実測 ' + t[0].h + 'px）・上下の余白1px・左右5px', t.map((x) => [x.h, x.pad]));
 			else assert(t.every((x) => x.h === 44), tag + '3列表示のタイルは今のまま（44px）', t.map((x) => x.h));
 			assert(t.every((x) => x.x[0] >= 44 && x.x[1] >= 44 && x.xGlyph <= 16 && (!two || x.xCenterY < 1.5)), tag + '×の押せる範囲は44px以上・見た目の×の字は16px以下' + (two ? '・タイルの高さの中央に重なる' : ''), t.map((x) => [x.x, x.xGlyph, x.xCenterY]));

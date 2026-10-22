@@ -69,7 +69,7 @@ export async function register7e(env) {
 			bgs: cells.map((c) => getComputedStyle(c).backgroundColor), padL: parseFloat(cs.paddingLeft), h: Math.round(first.getBoundingClientRect().height * 10) / 10, off: r.classList.contains('usd-roster-grow--off'),
 			marks: cells.slice(1).map((c) => (c.querySelector('.usd-roster-got') ? '●' : c.querySelector('.usd-roster-maybe') ? '△' : '')),
 			prevMark: (r.querySelector('[data-usd-el="prev-mark"]') || {}).textContent || null,   // 段8: 前段の白の行の名前の前の「└」
-			rowBgImage: rcs.backgroundImage, outline: rcs.outlineStyle + ' ' + rcs.outlineWidth + ' ' + rcs.outlineColor, outlineOffset: rcs.outlineOffset, rowDisplay: rcs.display,
+			rowBgImage: rcs.backgroundImage, outline: rcs.outlineStyle + ' ' + rcs.outlineWidth + ' ' + rcs.outlineColor, outlineOffset: rcs.outlineOffset, bar: cs.boxShadow, rowDisplay: rcs.display,
 			rect: (() => { const b = r.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; })() };
 	}));
 	const gridTop = (page) => page.evaluate(() => Math.round(document.querySelector('#deck-roster-panel .usd-roster-grid-wrap').getBoundingClientRect().top + scrollY));
@@ -237,8 +237,8 @@ export async function register7e(env) {
 				if (rgb(r.nameColor).join() !== wantText.join()) bad.push([r.id, 'text', r.nameColor]);
 				const cellBg = r.bgs.slice(1).filter((_, i) => true);
 				if (k.rarity === 'unique') {
-					// 固有: 行の地がグラデーション・セルは透明・縁は 1px のピンク
-					if (!(r.rowBgImage.includes('linear-gradient') && r.bgs.every((b) => b === 'rgba(0, 0, 0, 0)') && r.outline === 'solid 1px ' + COLORS.uniqEdge)) bad.push([r.id, 'unique', r.rowBgImage.slice(0, 40), r.outline]);
+					// 固有: 行の地がグラデーション・セルは透明・縁（枠線）は無く、名前のセルの左端に 4px の縦バー（色は変更前の縁の色 ＝ 段G(5)・2026-10-22）
+					if (!(r.rowBgImage.includes('linear-gradient') && r.bgs.every((b) => b === 'rgba(0, 0, 0, 0)') && /^none/.test(r.outline) && r.bar.indexOf(COLORS.uniqEdge) !== -1 && /4px 0px 0px 0px inset/.test(r.bar))) bad.push([r.id, 'unique', r.rowBgImage.slice(0, 40), r.outline, r.bar]);
 				} else if (k.rarity === 'gold') {
 					if (!r.bgs.every((b) => b === stitch)) bad.push([r.id, 'gold-bg', r.bgs[0]]);
 				// 段8（C-120）で回復の行の水色の地をやめた（名前の青だけ）。回復の行もほかの行と同じく、金の地・水色の地を持たない
@@ -296,7 +296,7 @@ export async function register7e(env) {
 			assert(isText(R(W[3]), COLORS.debuffText) && R(W[3]).bgs.every((b) => b !== stitch && rgb(b).join() !== COLORS.healBg.join() && b !== 'rgba(0, 0, 0, 0)'), tag + 'デバフでパッシブ: 名前は デバフ > パッシブ で赤（地は変えない）', [R(W[3]).nameColor, R(W[3]).bgs[0]]);
 			assert(isText(R(W[4]), COLORS.passiveText), tag + 'パッシブだけ: 名前は緑', R(W[4]).nameColor);
 			assert(R(W[5]).bgs.every((b) => b === stitch) && isText(R(W[5]), COLORS.passiveText), tag + '金でパッシブ: 地は金、名前は緑', [R(W[5]).bgs[0], R(W[5]).nameColor]);
-			assert(R(W[6]).rowBgImage.includes('linear-gradient') && rgb(R(W[6]).nameColor).join() === rgb(defaultName).join() && R(W[6]).outline === 'solid 1px ' + COLORS.uniqEdge, tag + '固有だけ: グラデーション＋1px のピンクの縁、名前は既定の濃さ', [R(W[6]).nameColor, R(W[6]).outline]);
+			assert(R(W[6]).rowBgImage.includes('linear-gradient') && rgb(R(W[6]).nameColor).join() === rgb(defaultName).join() && /^none/.test(R(W[6]).outline) && R(W[6]).bar.indexOf(COLORS.uniqEdge) !== -1, tag + '固有だけ: グラデーション＋左の縦バー（色は変更前の縁の色・段G(5)）、名前は既定の濃さ', [R(W[6]).nameColor, R(W[6]).outline, R(W[6]).bar]);
 			assert(R(W[7]).bgs.every((b) => b === stitch) && isText(R(W[7]), COLORS.debuffText), tag + '金でデバフ: 地は金、名前は赤', [R(W[7]).bgs[0], R(W[7]).nameColor]);
 			assert(R(W[8]).off && !R(W[8]).nameCls.includes('--heal') && R(W[8]).bgs.every((b) => b !== stitch && b !== 'rgb(255, 255, 255)') , tag + '取得しない行は今までの見た目（地は沈んだ灰、名前に色は付けない）', [R(W[8]).bgs[0], R(W[8]).nameCls]);
 			assert(rows.every((r) => r.h === rows[0].h), tag + '固有の行（箱）も含め、すべての行が同じ高さ（' + rows[0].h + 'px）', rows.map((r) => r.h));
@@ -313,13 +313,13 @@ export async function register7e(env) {
 			const sp = await openReal({ w, h: w === 375 ? 812 : 900 });
 			const rows = await readRows(sp.page);
 			const uniq = rows.find((r) => kindOf(r.id).rarity === 'unique');
-			assert(!!uniq && uniq.rowDisplay === 'grid' && uniq.outlineOffset === '-1px', tag + '固有の行（' + (uniq && nameOf(uniq.id)) + '）は箱（subgrid）になり、縁は outline（高さを変えない。offset -1px）', uniq && [uniq.rowDisplay, uniq.outlineOffset]);
+			assert(!!uniq && uniq.rowDisplay === 'grid' && /^none/.test(uniq.outline), tag + '固有の行（' + (uniq && nameOf(uniq.id)) + '）は箱（subgrid）になり、枠線は無い（段G(5) で縁を左の縦バーに置き換えた。高さは変わらない）', uniq && [uniq.rowDisplay, uniq.outline]);
 			// グラデーションの向き: 行の左端付近は淡い緑、右端付近は淡いピンク（描かれた画素で見る）
 			await sp.page.evaluate((id) => { document.querySelector('#deck-roster-panel .usd-roster-grow[data-skill-id="' + id + '"]').scrollIntoView({ block: 'center' }); }, uniq.id);
 			await sp.page.waitForTimeout(200);
 			const r = await sp.page.evaluate((id) => { const b = document.querySelector('#deck-roster-panel .usd-roster-grow[data-skill-id="' + id + '"]').getBoundingClientRect(); const wrap = document.querySelector('#deck-roster-panel .usd-roster-grid-wrap').getBoundingClientRect(); return { l: Math.max(b.left, wrap.left), r: Math.min(b.right, wrap.right), t: b.top, b: b.bottom }; }, uniq.id);
 			const shot = (x, y) => sp.page.screenshot({ clip: { x, y, width: 3, height: 3 } });
-			const leftC = avgColor(await shot(r.l + 3, r.t + 3)), rightC = avgColor(await shot(r.r - 8, r.t + 3));
+			const leftC = avgColor(await shot(r.l + 8, r.t + 3)), rightC = avgColor(await shot(r.r - 8, r.t + 3));
 			const dl = deltaE(leftC, COLORS.uniqFrom), dr = deltaE(rightC, COLORS.uniqTo);
 			assert(dl < 6 && dr < 8 && dl < deltaE(leftC, COLORS.uniqTo) && dr < deltaE(rightC, COLORS.uniqFrom), tag + '固有の行は、左端が淡い緑（#e3f6e6）、右端が淡いピンク（#fbe3f1）に描かれる（左から右へ。ΔE ' + dl.toFixed(1) + '／' + dr.toFixed(1) + '）', { leftC, rightC });
 			// コントラスト比（文字と地のすべての組み合わせ）: 名前・Pt の文字 × 行の地（固有はグラデーションの3つの色）

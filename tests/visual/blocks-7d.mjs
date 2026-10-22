@@ -155,7 +155,7 @@ export async function register7d(env) {
 			assert(jsErrors(sp.errors).length === 0, 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 2));
 			await sp.ctx.close();
 		}
-		// ④ 距離・脚質・バ場のセレクト: 「指定なし」以外は白文字・黒背景（選んでいるタブと同じトークン）
+		// ④ 距離・脚質・バ場のセレクト: 「指定なし」以外は設定済み（段G(6)・2026-10-22: 1px の枠＋うすい地色。それまでは白文字・黒背景の塗り）
 		{
 			const sp = await open({ w: 375, h: 812, roster: { umaId: umaLv7.id, cardIds: [cA.id, cB.id, null, null, null, null] } });
 			const sel = (ax) => sp.page.evaluate((ax) => { const e = document.querySelector('#deck-roster-panel select[data-axis="' + ax + '"]'); const cs = getComputedStyle(e); const tab = getComputedStyle(document.querySelector('.step-tab[aria-selected="true"] .step-tab-num') || document.body);
@@ -165,8 +165,9 @@ export async function register7d(env) {
 			await sp.page.waitForTimeout(150);
 			const on1 = await sel('distance'), off1 = await sel('style');
 			const inverse = await sp.page.evaluate(() => { const d = document.createElement('div'); d.style.cssText = 'color:var(--uma-control-text);background:var(--uma-control)';   /* C-144: 選んだセレクトは主要な操作の塗り（それまでは反転色 --uma-surface-inverse） */ document.body.appendChild(d); const c = getComputedStyle(d); const r = { color: c.color, bg: c.backgroundColor }; d.remove(); return r; });
-			assert(on1.on && on1.color === inverse.color && on1.bg === inverse.bg && !off0.on && !off1.on && off1.bg !== inverse.bg,
-				'段7d(A)④: 「指定なし」以外を選んだセレクトは、白文字・黒背景（--uma-text-inverse／--uma-surface-inverse）。指定なしのままのものは変わらない', { on1, off0, off1, inverse });
+			const setTok = await sp.page.evaluate(() => { const d = document.createElement('div'); d.style.cssText = 'color:var(--uma-text-heading);background:var(--usd-ui-set)'; document.body.appendChild(d); const c = getComputedStyle(d); const r = { color: c.color, bg: c.backgroundColor }; d.remove(); return r; });
+			assert(on1.on && on1.color === setTok.color && on1.bg === setTok.bg && on1.bg !== inverse.bg && !off0.on && !off1.on && off1.bg !== setTok.bg,
+				'段7d(A)④: 「指定なし」以外を選んだセレクトは、設定済み（見出しの色の文字・うすい地色 --usd-ui-set。塗りつぶしではない）。指定なしのままのものは変わらない', { on1, off0, off1, setTok });
 			await sp.page.selectOption(P + 'select[data-axis="distance"]', '');
 			await sp.page.waitForTimeout(150);
 			assert(!(await sel('distance')).on, '「指定なし」に戻すと元の見た目に戻る');

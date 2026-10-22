@@ -36,7 +36,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-22b"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-22c"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -288,7 +288,7 @@
 			--uma-text: #2a2216; --uma-text-heading: #2a2216; --uma-text-muted: #4a3e2c; --uma-text-subtle: #6a5b45; --uma-text-faint: #716250;
 			--uma-border: #cdbb9f; --uma-border-strong: #b49c72; --uma-dash: #ad9670;
 			--uma-control: #43321a; --uma-control-hover: #33260f; --uma-control-soft: #efe4cf; --uma-control-border: #b49c72;
-			--uma-aux-bg: #fffdf8; --uma-aux-border: #b49c72;
+			--uma-aux-bg: #fffdf8; --uma-aux-border: #b49c72; --usd-ui-line: #8f7a52;
 			--uma-control-rim: 0 0 0 1px var(--uma-control);   /* 選んでいる塗りの部品は、ライトでも縁を 2px にして太さでも示す */
 			--uma-surface-inverse: #43321a;
 			--uma-band: #efe4cf; --uma-group-bg: #fffdf8; --uma-group-line: #bfa982; --uma-config-bg: #fbf6ec;
@@ -320,7 +320,7 @@
 			--uma-border: #5c5a55; --uma-border-strong: #7d7a71; --uma-dash: #7d7a71;
 			--uma-control: #4d4a44; --uma-control-hover: #5a564f; --uma-control-text: #ffffff; --uma-control-edge: #e9e3d6;
 			--uma-control-rim: 0 0 0 1px #e9e3d6; --uma-control-mark: #e6e0d2; --uma-control-soft: #403e39; --uma-control-border: #7d7a71;
-			--uma-aux-bg: #363431; --uma-aux-border: #a9a59a;
+			--uma-aux-bg: #363431; --uma-aux-border: #a9a59a; --usd-ui-line: #a9a59a;
 			--uma-control-disabled: #7d7a71; --uma-control-disabled-bg: #2c2b29;
 			--uma-surface-inverse: #e6e0d2; --uma-text-inverse: #232220;
 			--uma-band: #3a3834; --uma-group-bg: #2c2b29; --uma-group-line: #6a675f; --uma-config-bg: #1d1c1a;
@@ -368,25 +368,55 @@
 		.header-edition-pill.ui-mode-badge, .step-tab-badge--ready { background: var(--star-badge-green-bg); color: var(--star-badge-green-text); border-color: var(--star-badge-green-line); }
 		.step-tab-badge--ready { box-shadow: inset 0 0 0 1px var(--star-badge-green-line); }
 		.step-tab-badge--alert { background: var(--star-badge-red-bg); color: var(--star-badge-red-text); border-color: var(--star-badge-red-line); }
-		/* レース条件のピルと3つの選択（距離・脚質・バ場）は、同じ地・文字・枠・寸法（ゲート G5）。選んでいないときは補助ボタン、選んだら主要な操作の塗り */
-		body .usd-setbar-race, body .usd-roster-filtersel {
-			height: 28px; border: 1px solid var(--uma-aux-border); border-radius: var(--uma-r-full);
-			background-color: var(--uma-aux-bg); color: var(--uma-text-heading); font-size: 11px; font-weight: 600; box-shadow: none;
+		/* ==== 段G(6) 操作できる部品の強調（UmaStar だけ。Exam・Deck は変えない）====
+		   4段階: 通常＝細い枠（1px）／設定済み＝細い枠＋うすい地色／選択中＝太い枠（2px。排他の選択＝どれか1つが選ばれている状態だけ）／
+		   主な操作＝塗りつぶし（1画面に1つ。.uma-btn--primary）。
+		   色は今のトークンだけ: 選択中の枠＝--uma-control-mark（ライトは濃い茶・ダークはクリーム色の輪）、設定済みの地＝--uma-control-soft。新しい色相は作らない。
+		   細い枠だけ、地との差が 3:1 に届くよう、同じ色相のまま少し濃い値 --usd-ui-line を置いた（ライト #8f7a52・ダークは今の --uma-aux-border のまま）。
+		   2px は「1px の枠＋内側の 1px の輪」にして、部品の大きさを変えない。 */
+		:root { --usd-ui-sel: var(--uma-control-mark); --usd-ui-set: var(--uma-control-soft); }
+		/* 通常 */
+		body .usd-setbar-race, body .usd-roster-filtersel, body .usd-roster-togglebtn, body .usd-out-segbtn, body .usd-roster-pill,
+		body .usd-roster-linkbtn, body .usd-circle-mark {
+			border: 1px solid var(--usd-ui-line); background-color: var(--uma-aux-bg); box-shadow: none;
 		}
+		body .usd-setbar-race, body .usd-roster-filtersel { height: 28px; border-radius: var(--uma-r-full); color: var(--uma-text-heading); font-size: 11px; font-weight: 600; }
 		body .usd-roster-filtersel { padding-top: 0; padding-bottom: 0; }
-		body .usd-setbar-race--on, body .usd-roster-filtersel.usd-roster-filtersel--on, body .usd-roster-filter--locked .usd-roster-filtersel:disabled {
-			background-color: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim);
+		body .uma-btn--secondary, body .uma-help-btn, body .usd-reset-btn, body .usd-roster-choice, body .usd-link-opt, body .usd-name-hit--card,
+		body .usd-palette-clear, body .usd-out-card, body .usd-roster-pickbox { border-color: var(--usd-ui-line); }
+		/* 設定済み（押している・値が入っている。排他ではないもの） */
+		body .usd-setbar-race--on, body .usd-roster-filtersel.usd-roster-filtersel--on, body .usd-roster-filter--locked .usd-roster-filtersel:disabled,
+		body .usd-roster-togglebtn[data-usd-act="pt-uma"][aria-pressed="true"], body .usd-out-optbtn[aria-pressed="true"], body .usd-out-filterchip[aria-pressed="true"],
+		body .usd-roster-linkbtn[aria-pressed="true"], body .usd-circle-btn[aria-pressed="true"] .usd-circle-mark {
+			background-color: var(--usd-ui-set); border-color: var(--usd-ui-line); color: var(--uma-text-heading); box-shadow: none;
 		}
-		body .usd-setbar-race--on .usd-setbar-caret, body .usd-roster-filterlock { color: var(--uma-control-text); fill: var(--uma-control-text); }
+		body .usd-setbar-race--on:hover, body .usd-roster-linkbtn[aria-pressed="true"]:hover { background-color: var(--usd-ui-set); color: var(--uma-text-heading); }
+		body .usd-setbar-race--on .usd-setbar-caret, body .usd-roster-filterlock { color: var(--uma-text-heading); fill: var(--uma-text-heading); }
+		/* 選択中（排他の選択だけ。勉強家／切れ者・進化の衣装／シナリオ・カードの種類・脚質・枚数・イベントの選択肢・レースやセットの選択・パレットの道具） */
+		body .usd-roster-togglebtn[data-usd-act="pt-status"][aria-pressed="true"], body .usd-evo-tab[aria-pressed="true"],
+		body .usd-roster-pill[aria-pressed="true"], body .usd-roster-pill--all[aria-pressed="true"], body .usd-sty-stylebtn[aria-pressed="true"],
+		body .usd-out-segbtn:not(.usd-out-optbtn):not(.usd-out-filterchip)[aria-pressed="true"], body .usd-roster-choice--on, body .usd-link-opt--on {
+			background-color: var(--uma-surface); border-color: var(--usd-ui-sel); color: var(--uma-text-heading); box-shadow: inset 0 0 0 1px var(--usd-ui-sel);
+		}
+		/* タイル: 通常は細い枠。太い枠は選んでいるものだけ（①＝いま選んでいる枠・オススメサポ＝自分で選んだ（固定した）カード） */
+		body .usd-out-card--pinned { border-color: var(--usd-ui-sel); }
+		body .usd-roster-umabox.usd-roster-pickbox--filled { background: var(--uma-surface); border-color: var(--usd-ui-line); color: var(--uma-text-heading); box-shadow: none; }
+		body .usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-pickbtn { color: var(--uma-text-heading); }
+		body .usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-clearbtn, :root[data-theme="dark"] body .usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-clearbtn { color: var(--uma-text-subtle); border-left-color: var(--uma-border); }
+		body .usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-clearbtn:hover, :root[data-theme="dark"] body .usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-clearbtn:hover { background: var(--uma-surface-muted); color: var(--uma-text-heading); }
+		body .usd-roster-pickbox.usd-roster-pickbox--sel { border-color: var(--usd-ui-sel); box-shadow: inset 0 0 0 1px var(--usd-ui-sel); }
+		/* 進化の選択画面の進化先・「進化しない」の行（排他）: 通常 1px・選んでいる行 2px（行の中身は動かさない）。「進化 N／最大」のボタンは 1px（地色が付いた設定済み） */
+		body .usd-evo-btn { border-width: 1px; }
+		body .usd-evo-target, body .usd-evo-none { border-width: 1px; padding: 4px calc(var(--uma-sp-2) + 1px); }
+		body .usd-evo-target--on, body .usd-evo-none--on { border-width: 2px; padding: 3px var(--uma-sp-2); }
 		/* 特別な固有スキルの行（ダーク）: くすまない4色のグラデーション＋ピンクの縁と光 */
 		:root[data-theme="dark"] .usd-roster-grow--unique {
 			background: linear-gradient(90deg, #1f7a64 0%, #2a62b5 35%, #7a40b8 70%, #b03a8a 100%);
-			outline: 1.5px solid #ffc2ec; outline-offset: -1.5px; box-shadow: 0 0 14px rgba(255, 150, 220, .35);
+			/* 段G(5): 縁（ピンクの 1.5px）と光は無くし、左の縦バーに置き換えた。バーの色は 0530272 での縁の色（#ffc2ec）のまま。地のグラデーションは今のまま */
+			--usd-unique-row-bar: #ffc2ec;
 		}
 		/* 画像の上の小さな丸ボタン（✕）。ライト・ダークとも暗い地に白 */
 		.bg-slate-900\/80 { background-color: var(--star-img-count); }
-		/* 「切れ者」などのトグル（押していない）は補助ボタン */
-		body .usd-roster-togglebtn { border-color: var(--uma-aux-border); background-color: var(--uma-aux-bg); }
 		/* ダーク: 金スキルの行の参考の Pt と、回復の名前の青（金の地の上で 4.5 以上）。特別な固有スキルの行の文字は白 */
 		/* 名前の色（回復・パッシブ・デバフ）は、ダークの本文の色（#f3f1ec）からライト以上に離す（色相はそのまま） */
 		:root[data-theme="dark"] body .usd-roster-grid { --usd-skill-heal-text: #5aa9ff; --usd-skill-passive-text: #5fd889; --usd-skill-debuff-text: #ff7f75; }

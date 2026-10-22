@@ -72,12 +72,13 @@ export async function register18(env) {
 		await sp.ctx.close();
 	});
 
-	await block('C132A2 タイルに ✕ は無い／「削除」を押すと削除の状態（ボタンは選択中・タイルは破線と取り消しの線）で、タイルを押すと②から外れ「元に戻す」で戻る／もう一度押すかアイコンを選ぶと終わる', async () => {
+	await block('C132A2 削除を選んでいないときは ✕ は見えない／「削除」を押すと削除の状態（ボタンは選択中・タイルの右に×。段G(4)で点線の枠と取り消しの線をやめた）で、タイルを押すと②から外れ「元に戻す」で戻る／もう一度押すかアイコンを選ぶと終わる', async () => {
 		const ids = LONG.slice(0, 6);
 		const sp = await openSp({ ids });
 		const p = sp.page;
-		const x = await p.evaluate(() => ({ del: document.querySelectorAll('#deck-template-panel .usd-skillgroup .usd-panel-del, #deck-template-panel .usd-skillgroup [data-usd-act="template-skill-remove"]').length }));
-		assert(x.del === 0, 'C132A2 タイルに ✕（外すボタン）は無い', x);
+		// 段G(4)（2026-10-22）: ×は各タイルに作ってあるが、削除の状態でなければ見えない（幅・高さが 0）
+		const x = await p.evaluate(() => ({ del: Array.from(document.querySelectorAll('#deck-template-panel .usd-skillgroup .usd-panel-del, #deck-template-panel .usd-skillgroup [data-usd-act="template-skill-remove"]')).filter((b) => { const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).length }));
+		assert(x.del === 0, 'C132A2 削除を選んでいないときは、タイルに ✕（外すボタン）は見えない', x);
 		const look0 = await p.evaluate((sel) => getComputedStyle(document.querySelector(sel)).borderTopStyle, tile(ids[0]));
 		await p.click(T + '[data-usd-el="palette-delete"]');
 		const st = await p.evaluate((sel) => {
@@ -87,7 +88,7 @@ export async function register18(env) {
 			return { pressed: b.getAttribute('aria-pressed'), ring: getComputedStyle(b).boxShadow, border: getComputedStyle(t).borderTopStyle, line: getComputedStyle(n).textDecorationLine };
 		}, tile(ids[0]));
 		assert(st.pressed === 'true' && st.ring !== 'none' && (await pressed(p)).join() === 'delete', 'C132A2 「削除」は選択中の見た目（輪）になり、アイコンの選択は外れる', { st, pressed: await pressed(p) });
-		assert(look0 !== 'dashed' && st.border === 'dashed' && /line-through/.test(st.line), 'C132A2 削除の状態では、タイルは破線の枠と名前の取り消しの線（色だけに頼らない）', { look0, st });
+		assert(look0 !== 'dashed' && st.border !== 'dashed' && !/line-through/.test(st.line), 'C132A2 削除の状態でも、タイルの見た目は変えない（段G(4): 点線の枠・赤い取り消し線はやめた。代わりに右に×。詳しくは段G の検査）', { look0, st });
 		const undo0 = await p.evaluate(() => UmaSkillDeckCore.undoCount ? UmaSkillDeckCore.undoCount() : null);
 		await p.click(tile(ids[1]) + ' .usd-panel-namebtn');
 		await p.waitForTimeout(150);

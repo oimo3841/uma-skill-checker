@@ -128,7 +128,8 @@ export async function register46(env) {
 			assert(bad.length === 0, tag + '種別アイコン（20px・alt）・二つ名・名前がデータどおり', bad);
 			assert(m.tiles.every((t) => (w <= 639 ? t.nameSize === 11 && t.nickSize === 9 : t.nameSize === 12 && t.nickSize === 10)), tag + '名前・二つ名の大きさ（2列表示は 11px・9px〔C-188〕／3列表示は 12px・10px）', m.tiles.map((t) => [t.nameSize, t.nickSize]));
 			assert(new Set(m.tiles.map((t) => t.bg)).size === 1 && m.tiles.every((t) => t.bgImg === 'none'), tag + '面は種別によらず同じ無彩色（色の塗り・グラデーションなし）', m.tiles.map((t) => t.bg));
-			assert(m.tiles.every((t) => t.bw === '2px' && t.bs === 'solid') && new Set(m.tiles.map((t) => t.bc)).size === 1, tag + '編成のカードは2pxの縁（同じ色）', m.tiles.map((t) => [t.bw, t.bc]));
+			// 段G(6)（2026-10-22）: 通常は細い枠（1px）にした。太い枠（2px）は、選んでいる（選択の窓を開いている）タイルだけ（段G の検査）
+			assert(m.tiles.every((t) => t.bw === '1px' && t.bs === 'solid') && new Set(m.tiles.map((t) => t.bc)).size === 1, tag + '編成のカードは通常は細い縁（1px・同じ色）', m.tiles.map((t) => [t.bw, t.bc]));
 			assert(m.tiles.every((t) => t.x && t.x.w >= 44 && t.x.h >= 44 && t.x.text === '×' && /枚目を外す$/.test(t.x.label)), tag + '×の押せる範囲は44px以上・読み上げは「N枚目を外す」', m.tiles.map((t) => t.x));
 			assert(m.tiles.every((t) => (w <= 639 ? t.h >= 28 && t.h <= 33 : t.h === 44) && !t.nameOver && t.mainLabel.indexOf((t.index + 1) + '枚目：') === 0), tag + 'タイルの高さは44px・名前がはみ出さない・読み上げは「N枚目：…」', m.tiles.map((t) => [t.h, t.mainLabel]));
 			assert(!(await sp.page.evaluate(() => !!document.querySelector('#deck-roster-panel .usd-roster-slot, #deck-roster-panel [data-usd-el="badge"], #deck-roster-panel .usd-roster-slots .usd-roster-legend-no'))), tag + '番号の丸バッジ（旧）は無い', true);

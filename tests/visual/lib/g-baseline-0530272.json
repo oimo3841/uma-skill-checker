@@ -1,0 +1,120 @@
+{
+ "measuredAt": "0530272（基準のワークツリーで計算された見た目を測った値。実装の側の値は読んでいない）",
+ "viewport": "390px",
+ "themes": {
+  "light": {
+   "gold": {
+    "id": "ex-0318",
+    "rowOutline": "3px none rgb(42, 34, 22)",
+    "rowBgImage": "none",
+    "rowBoxShadow": "none",
+    "nameBoxShadow": "rgba(0, 0, 0, 0) 4px 0px 0px 0px inset",
+    "nameBg": "rgb(254, 243, 198)",
+    "skillnameColor": "rgb(42, 34, 22)",
+    "ptColor": null
+   },
+   "evo": {
+    "id": "ex-0470",
+    "rowOutline": "2px solid rgb(232, 80, 156)",
+    "rowBgImage": "linear-gradient(90deg, rgb(255, 240, 245), rgb(255, 211, 233), rgb(255, 184, 224))",
+    "rowBoxShadow": "none",
+    "nameBoxShadow": "none",
+    "nameBg": "rgba(0, 0, 0, 0)",
+    "skillnameColor": "rgb(74, 29, 12)",
+    "ptColor": "rgb(74, 29, 12)"
+   },
+   "unique": {
+    "id": "ex-0483",
+    "rowOutline": "1px solid rgb(240, 168, 208)",
+    "rowBgImage": "linear-gradient(90deg, rgb(227, 246, 230), rgb(223, 241, 251), rgb(251, 227, 241))",
+    "rowBoxShadow": "none",
+    "nameBoxShadow": "none",
+    "nameBg": "rgba(0, 0, 0, 0)",
+    "skillnameColor": "rgb(42, 34, 22)",
+    "ptColor": "rgb(84, 101, 128)"
+   },
+   "vars": {
+    "--usd-skill-unique-from": "#e3f6e6",
+    "--usd-skill-unique-mid": "#dff1fb",
+    "--usd-skill-unique-to": "#fbe3f1",
+    "--usd-skill-unique-edge": "#f0a8d0",
+    "--evo-from": "#fff0f5",
+    "--evo-mid": "#ffd3e9",
+    "--evo-to": "#ffb8e0",
+    "--evo-edge-on": "#e8509c",
+    "--evo-edge": "#f06aae",
+    "--evo-text": "#4a1d0c",
+    "--uma-gold-row-bar": "",
+    "--uma-gold-row-bg": "",
+    "--uma-stitch-soft": "#fef3c6",
+    "--uma-control": "#43321a",
+    "--uma-control-edge": "#43321a",
+    "--uma-control-mark": "#43321a",
+    "--uma-control-soft": "#efe4cf",
+    "--uma-surface": "#fffdf8",
+    "--uma-text-heading": "#2a2216",
+    "--uma-aux-border": "#b49c72",
+    "--uma-control-border": "#b49c72",
+    "--uma-border-strong": "#b49c72",
+    "--uma-border": "#cdbb9f"
+   }
+  },
+  "dark": {
+   "gold": {
+    "id": "ex-0318",
+    "rowOutline": "3px none rgb(243, 241, 236)",
+    "rowBgImage": "none",
+    "rowBoxShadow": "none",
+    "nameBoxShadow": "rgb(255, 200, 61) 4px 0px 0px 0px inset",
+    "nameBg": "rgb(94, 69, 16)",
+    "skillnameColor": "rgb(243, 241, 236)",
+    "ptColor": null
+   },
+   "evo": {
+    "id": "ex-0470",
+    "rowOutline": "2px solid rgb(255, 138, 198)",
+    "rowBgImage": "linear-gradient(90deg, rgb(61, 24, 48), rgb(90, 33, 69), rgb(122, 43, 94))",
+    "rowBoxShadow": "none",
+    "nameBoxShadow": "none",
+    "nameBg": "rgba(0, 0, 0, 0)",
+    "skillnameColor": "rgb(255, 233, 242)",
+    "ptColor": "rgb(255, 233, 242)"
+   },
+   "unique": {
+    "id": "ex-0483",
+    "rowOutline": "1px solid rgb(255, 194, 236)",
+    "rowBgImage": "linear-gradient(90deg, rgb(31, 122, 100) 0%, rgb(42, 98, 181) 35%, rgb(122, 64, 184) 70%, rgb(176, 58, 138) 100%)",
+    "rowBoxShadow": "rgba(255, 150, 220, 0.35) 0px 0px 14px 0px",
+    "nameBoxShadow": "none",
+    "nameBg": "rgba(0, 0, 0, 0)",
+    "skillnameColor": "rgb(255, 255, 255)",
+    "ptColor": "rgb(255, 255, 255)"
+   },
+   "vars": {
+    "--usd-skill-unique-from": "#163423",
+    "--usd-skill-unique-mid": "#142f45",
+    "--usd-skill-unique-to": "#3a1a32",
+    "--usd-skill-unique-edge": "#a8457a",
+    "--evo-from": "#3d1830",
+    "--evo-mid": "#5a2145",
+    "--evo-to": "#7a2b5e",
+    "--evo-edge-on": "#ff8ac6",
+    "--evo-edge": "#b8618f",
+    "--evo-text": "#ffe9f2",
+    "--uma-gold-row-bar": "#ffc83d",
+    "--uma-gold-row-bg": "#5e4510",
+    "--uma-stitch-soft": "#33270f",
+    "--uma-control": "#4d4a44",
+    "--uma-control-edge": "#e9e3d6",
+    "--uma-control-mark": "#e6e0d2",
+    "--uma-control-soft": "#403e39",
+    "--uma-surface": "#363431",
+    "--uma-text-heading": "#f3f1ec",
+    "--uma-aux-border": "#a9a59a",
+    "--uma-control-border": "#7d7a71",
+    "--uma-border-strong": "#7d7a71",
+    "--uma-border": "#5c5a55"
+   }
+  }
+ }
+}

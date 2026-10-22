@@ -384,6 +384,7 @@ export async function register9(env) {
 					nameEll: { to: getComputedStyle(nameBtn).textOverflow, ws: getComputedStyle(nameBtn).whiteSpace, ov: getComputedStyle(nameBtn).overflowX },
 					taken: rows.filter((x) => x.classList.contains('usd-panel--taken')).map((x) => ({ pt: x.querySelector('[data-usd-el="panel-pt"]').textContent, iconOp: getComputedStyle(x.querySelector('.usd-icon')).opacity })),
 					x: rows.every((x) => !!x.querySelector('[data-usd-act="template-skill-remove"]')),
+					xVisible: rows.some((x) => { const b = x.querySelector('.usd-panel-xbtn'); const r = b ? b.getBoundingClientRect() : null; return !!r && r.width > 0 && r.height > 0; }),
 					firstId: first.getAttribute('data-skill-id')
 				};
 			});
@@ -402,9 +403,9 @@ export async function register9(env) {
 			// C-132: アイコンを少し小さく（18px → 15px）。押す範囲は幅 26px・高さ 32px（24px 以上を保つ）
 			assert(o.iconBtn[0] >= 24 && o.iconBtn[1] >= 32 && o.icon.join() === '15,15', tag + 'アイコンは 15px。押す範囲は 24×32px 以上（' + o.iconBtn.join('×') + '）', o);
 			assert(o.noneIcon && o.noneIcon.bs === 'dashed' && o.noneIcon.text === '', tag + 'アイコンの無いスキルは破線の丸（中は空）', o.noneIcon);
-			// C-132: × は無くした。名前は「…」で切らず、名前の部分（panel-namescroll）だけ横に送る
-			assert(o.firstPartsOrder.length === 3 && o.firstPartsOrder[0] === 'skill-icon' && o.firstPartsOrder[1] === 'usd-panel-namescroll|panel-namescroll' && o.firstPartsOrder[2].startsWith('usd-panel-pt'), tag + '行は「アイコン／名前／Pt」の順（× は無い）', o.firstPartsOrder);
-			assert(o.nameEll.to !== 'ellipsis' && o.nameEll.ws === 'nowrap' && !o.x, tag + '名前は「…」で切らない（横に送る）。行に「×」は無い', o);
+			// C-132: 名前は「…」で切らず、名前の部分（panel-namescroll）だけ横に送る。段G(4)（2026-10-22）: 行の末尾に×を作ってある（「削除」を選んでいる間だけ見える。段G の検査）
+			assert(o.firstPartsOrder.length === 4 && o.firstPartsOrder[0] === 'skill-icon' && o.firstPartsOrder[1] === 'usd-panel-namescroll|panel-namescroll' && o.firstPartsOrder[2].startsWith('usd-panel-pt') && o.firstPartsOrder[3] === 'template-skill-remove', tag + '行は「アイコン／名前／Pt／×（削除の状態のときだけ見える）」の順', o.firstPartsOrder);
+			assert(o.nameEll.to !== 'ellipsis' && o.nameEll.ws === 'nowrap' && o.x && !o.xVisible, tag + '名前は「…」で切らない（横に送る）。×は作ってあるが、削除の状態でなければ見えない', o);
 			assert(o.taken.length === 2 && o.taken.every((x) => x.pt === '①で取得' && Number(x.iconOp) < 1), tag + '①で取得するものは丸を薄くして「①で取得」と出す', o.taken);
 			if (w === 1280) {
 				assert(o.tops.entry.top < o.tops.pal.bottom && o.tops.pal.top < o.tops.entry.bottom && o.tops.pal.right >= o.tops.entry.right && o.tops.list.top >= o.tops.entry.bottom && o.cols === 4, tag + '1280px: 入口のボタンとパレットは同じ行（パレットは右寄せ）、一覧は4列（' + o.cols + '列）', o);

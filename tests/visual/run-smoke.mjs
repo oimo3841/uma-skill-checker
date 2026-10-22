@@ -67,6 +67,7 @@ import { register46 } from './blocks-46.mjs';
 import { register47 } from './blocks-47.mjs';
 import { register48 } from './blocks-48.mjs';
 import { register49 } from './blocks-49.mjs';
+import { register50 } from './blocks-50.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -8681,13 +8682,16 @@ await block('C-62（61セッション目）: 棚卸しで挙がった11件', asy
 			bg: getComputedStyle(b).backgroundColor,
 			fg: getComputedStyle(b).color,
 			pressed: b.getAttribute('aria-pressed'),
+			bc: getComputedStyle(b).borderTopColor,
+			ring: getComputedStyle(b).boxShadow,
 		}));
 	});
 	assert(pills.length >= 3 && pills[0].all && pills.slice(1).every((p) => p.typed),
 		'C-62 (1): 先頭が「すべて」で、あとは種類ごとの色が付いた候補', { n: pills.length });
-	// C-144: 選んでいる塗りは、そのツールの操作色（--uma-control）に白
-	assert(pills[0].pressed === 'true' && pills[0].bg === await tokRgb(page, 'var(--uma-control)') && pills[0].fg === 'rgb(255, 255, 255)',
-		'C-62 (1): 「すべて」は選択中で黒地に白', pills[0]);
+	// 段G(6)（2026-10-22）: 選んでいるもの（排他）は塗りつぶしではなく 2px の枠（--usd-ui-sel。1px の枠＋内側の 1px の輪）。地は通常の地・文字は見出しの色（C-144 の「操作色に白」の塗りは主な操作だけ）
+	assert(pills[0].pressed === 'true' && pills[0].bg === await tokRgb(page, 'var(--uma-surface)') && pills[0].fg === await tokRgb(page, 'var(--uma-text-heading)')
+		&& pills[0].bc === await tokRgb(page, 'var(--usd-ui-sel)') && pills[0].ring.indexOf(await tokRgb(page, 'var(--usd-ui-sel)')) !== -1,
+		'C-62 (1): 「すべて」は選択中で、2px の枠（塗りつぶしではない）', pills[0]);
 	// C-186（2026-10-21）: 種類の色の塗りをやめて、無彩色の面＋左の種別アイコンにした。種類ごとに違うのはアイコン（詳しくは blocks-45）
 	const typedBg = pills.slice(1).map((p) => p.bg);
 	const pillIcons = await page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="roster-modal-host"] .usd-roster-pill--typed')).map((b) => (b.querySelector('img') || {}).src || null));
@@ -14846,7 +14850,8 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			tag + '育成ウマ娘のパネル名の行（名前＋（i））は無く、（i）は選択欄の右隣', { info: top.infoBtn, box: top.umaBox, subHeads: top.subHeads });
 		assert(top.filterLabels === 0 && top.selects.map((s) => s.first).join('|') === '距離指定なし|脚質指定なし|バ場指定なし' && new Set(top.selects.map((s) => Math.round(s.top))).size === 1,
 			tag + '距離・脚質・バ場のラベルの行は無く、セレクトの「指定なし」は「距離指定なし」「脚質指定なし」「バ場指定なし」で、1行のまま', top.selects);
-		assert(cr(rgb(top.umaFg), rgb(top.umaBg)) >= 7 && lumOf(rgb(top.umaBg)) < 0.1 && lumOf(rgb(top.umaFg)) > 0.9, tag + '育成ウマ娘を選んだ欄は文字が白・背景が黒（選んでいるタブと同じ暗い色）', { fg: top.umaFg, bg: top.umaBg });
+		// 段G(6)（2026-10-22）: 育成ウマ娘のタイルは、濃い塗りをやめて細い枠（通常の地・見出しの色の文字）にした。太い枠は選択の窓を開いているときだけ（段G の検査）
+		assert(cr(rgb(top.umaFg), rgb(top.umaBg)) >= 7 && lumOf(rgb(top.umaBg)) > 0.9 && lumOf(rgb(top.umaFg)) < 0.1, tag + '育成ウマ娘を選んだ欄は、通常の地に見出しの色の文字（濃い塗りではない）', { fg: top.umaFg, bg: top.umaBg });
 		assert(top.clearBtn && top.clearBtn.r <= top.umaBox.r + 1 && top.clearBtn.r >= top.umaBox.r - 2 && top.clearBtn.l > top.umaBox.l + top.umaBox.w / 2, tag + '× は欄の中の右端のまま', { clear: top.clearBtn, box: top.umaBox });
 		assert(top.umaBadge && top.umaTitle.includes(top.umaName) && top.umaAria === '育成ウマ娘：' + top.umaTitle, tag + '育成ウマ娘の欄の名前の前に ◇ のバッジ。全文は title と aria-label', { title: top.umaTitle, aria: top.umaAria });
 		assert(top.slots.length === 6 && top.slots.every((s) => s.badge === null) && top.slots.slice(0, 3).every((s, i) => s.no === String(i + 1) && s.title.length >= s.name.length && s.aria.indexOf((i + 1) + '枚目：' + s.title) === 0 && s.ellipsis === 'ellipsis' && s.clear)
@@ -15195,6 +15200,7 @@ await register46({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register47({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register48({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register49({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register50({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register44({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register43({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
