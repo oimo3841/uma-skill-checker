@@ -66,6 +66,7 @@ import { register45 } from './blocks-45.mjs';
 import { register46 } from './blocks-46.mjs';
 import { register47 } from './blocks-47.mjs';
 import { register48 } from './blocks-48.mjs';
+import { register49 } from './blocks-49.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -5328,7 +5329,8 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 			boxes.forEach((b) => { b.checked = true; b.dispatchEvent(new Event('change', { bubbles: true })); });
 			const before = UmaSkillDeckCore.undoCount();
 			document.querySelector('[data-usd-act="picker-add"]').click();
-			return { before, after: UmaSkillDeckCore.undoCount(), toast: document.getElementById('toast-message').textContent };
+			const nt = document.querySelector('[data-usd-el="add-notice"]');
+			return { before, after: UmaSkillDeckCore.undoCount(), toast: document.getElementById('toast-message').textContent, notice: nt && !nt.hidden ? nt.textContent.replace(/×$/, '') : null };
 		}, n);
 		await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
 		await page.waitForTimeout(400);
@@ -5344,7 +5346,8 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 	const after3 = await draftCount();
 	assert(after3 === before3 + 3 && add3.after === add3.before + 1,
 		'undo: 3種まとめて追加すると「元に戻す」に1件積まれる', { before3, after3, ...add3 });
-	assert(add3.toast === '3種を追加しました', 'undo: 追加のトーストは doneLabel（N種を追加しました）', add3.toast);
+	// 段F1（C-190）: special の②への追加は、トーストではなく追加の知らせ（消えない・×つき）で出す。文面は「<追加元> N種を追加しました」
+	assert(add3.notice === '条件で検索 3種を追加しました', 'undo: 追加の知らせは「条件で検索 3種を追加しました」（段F1。special の②。Deck 単体ページは doneLabel のトースト）', add3.notice);
 	const undone = await page.evaluate(() => ({ ok: UmaSkillDeckCore.performUndo(), toast: document.getElementById('toast-message').textContent }));
 	await page.waitForTimeout(300);
 	assert(undone.ok && (await draftCount()) === before3,
@@ -5383,14 +5386,15 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 		const beforeIds = JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds.slice();
 		document.querySelector('[data-usd-act="picker-add"]').click();
 		const afterIds = JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds.slice();
-		return { before, after: UmaSkillDeckCore.undoCount(), beforeIds, afterIds, toast: document.getElementById('toast-message').textContent };
+		const nt = document.querySelector('[data-usd-el="add-notice"]');
+		return { before, after: UmaSkillDeckCore.undoCount(), beforeIds, afterIds, toast: document.getElementById('toast-message').textContent, notice: nt && !nt.hidden ? nt.textContent.replace(/×$/, '') : null };
 	});
 	await page.evaluate(() => UmaSkillDeckCore.closeSkillPicker());
 	await page.waitForTimeout(400);
 	assert(dupeRun.pasted === 3 && dupeRun.already === 1 && dupeAdd.afterIds.length === dupeAdd.beforeIds.length + 2,
 		'undo: 3件照合のうち1件は追加済みなので、足るのは2種', { ...dupeRun, added: dupeAdd.afterIds.length - dupeAdd.beforeIds.length });
-	assert(dupeAdd.toast === '2種を追加しました',
-		'undo: 文言が数えるのも「実際に足った数」（チェック数ではない）', dupeAdd.toast);
+	assert(dupeAdd.notice === 'テキストで検索 2種を追加しました',
+		'undo: 文言が数えるのも「実際に足った数」（チェック数ではない）。段F1: 追加の知らせ', dupeAdd.notice);
 	const dupeUndo = await page.evaluate(() => {
 		const ok = UmaSkillDeckCore.performUndo();
 		return { ok, ids: JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds };
@@ -5399,7 +5403,7 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 	assert(dupeUndo.ok && dupeUndo.ids.join() === dupeAdd.beforeIds.join(),
 		'undo: 取り消すのは実際に足った2種だけで、元から入っていた1種は巻き込まない', dupeUndo.ids.length);
 
-	// 4) 追加1回につきトーストは1回だけ（pushUndo が出す1回に一本化されている）
+	// 4) 追加1回につきお知らせは1回だけ（pushUndo が出す1回に一本化されている）。段F1（C-190）: special の②への追加は、トーストではなく追加の知らせ（トーストは0回）
 	const toastCount = await page.evaluate(async () => {
 		let n = 0;
 		const real = window.showToast;
@@ -5413,9 +5417,10 @@ await block('「元に戻す」の契約（special.html のドラフト／uma-sk
 		UmaSkillDeckCore.closeSkillPicker();
 		window.showToast = real;
 		UmaSkillDeckCore.configure({ toast: real });
-		return n;
+		const nt = document.querySelector('[data-usd-el="add-notice"]');
+		return { n, notices: document.querySelectorAll('[data-usd-el="add-notice"]').length, shown: !!nt && !nt.hidden };
 	});
-	assert(toastCount === 1, 'undo: 追加1回につきトーストは1回だけ', toastCount);
+	assert(toastCount.n === 0 && toastCount.notices === 1 && toastCount.shown, 'undo: 追加1回につき、追加の知らせは1つだけ出る（トーストは0回）', toastCount);
 
 	assert(errors.length === 0, 'undo: special でコンソールエラーが出ない', errors.slice(0, 3));
 	await ctx.close();
@@ -15189,6 +15194,7 @@ await register45({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register46({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register47({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register48({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register49({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register44({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register43({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });

@@ -8,6 +8,7 @@
 export async function register43(env) {
 	const { block, assert, browser, base, openPage, fs, path, REPO_ROOT } = env;
 	const { avgColor, deltaE } = await import('./lib/pixels.mjs');
+	const { noticeText } = await import('./lib/add-notice.mjs');
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	const REC = readJson('data/recommended-skills.json');
@@ -402,9 +403,9 @@ export async function register43(env) {
 		await sp.page.click(SM + '[data-usd-el="style-add"]');
 		await sleep(sp.page, 500);
 		const ids = await draftIds(sp.page);
-		const t = await toastText(sp.page);
+		const t = (await noticeText(sp.page)) || '';
 		assert(!(await modalOpen(sp.page)) && JSON.stringify(ids.slice().sort()) === JSON.stringify(want.slice().sort()) && !ids.includes(pickId), 'C-184 「追加する」でチェックしたものだけが②に入り、小窓は閉じる（外した1種は入らない）', { n: ids.length, want: want.length });
-		assert(new RegExp('^脚質オススメ ' + want.length + '種を追加しました').test(t), 'C-184 知らせ「脚質オススメ ' + want.length + '種を追加しました…」', t);
+		assert(t === '脚質オススメ ' + want.length + '種を追加しました', 'C-184 知らせ「脚質オススメ ' + want.length + '種を追加しました」の1行だけ（段F1: 追加しなかったものの内訳は出さない。消えない知らせ）', t);
 		assert(await sp.page.evaluate(() => UmaSkillDeckCore.undoCount()) === u0 + 1, 'C-184 元に戻すに1回だけ積まれる', u0);
 		await sp.page.evaluate(() => UmaSkillDeckCore.performUndo());
 		await sleep(sp.page, 300);

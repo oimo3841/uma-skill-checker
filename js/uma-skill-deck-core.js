@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-22a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-22b';
 
 	/* ============================================================
 	 * 定数
@@ -750,6 +750,40 @@
 	function toast(msg, kind) {
 		if (toastLiftFn) { try { toastLiftFn(); } catch (e) { /* 位置の測り直しの失敗で知らせを止めない */ } }
 		config.toast(msg, kind);
+	}
+
+	/**
+	 * ②への追加の知らせ（段F1・C-190）。「<追加元の名前> N種を追加しました」の1行だけ。ページの知らせ（toast）と違い、自動では消さない。
+	 * 消えるのは、×を押したとき・次に利用者が別の操作（知らせ以外を押す・キー入力）をしたとき・新しい知らせが出て置き換わったとき。role="status"。
+	 * 対象は ②へ足す「追加しました」系だけ（エラー・警告・そのほかの知らせは今までどおり toast）。pushUndo の entry.notice で出す。
+	 */
+	const addNotice = { el: null, textEl: null };
+	function hideAddNotice() { if (addNotice.el) addNotice.el.hidden = true; }
+	function ensureAddNotice() {
+		if (addNotice.el) return addNotice.el;
+		injectStyles();
+		const el = global.document.createElement('div');
+		el.className = 'usd-addnotice';
+		el.hidden = true;
+		el.setAttribute('role', 'status');
+		el.setAttribute('data-usd-el', 'add-notice');
+		el.innerHTML = '<span class="usd-addnotice-text" data-usd-el="add-notice-text"></span>'
+			+ '<button type="button" class="usd-addnotice-x" data-usd-el="add-notice-close" aria-label="閉じる"><span aria-hidden="true">×</span></button>';
+		global.document.body.appendChild(el);
+		addNotice.el = el;
+		addNotice.textEl = el.querySelector('[data-usd-el="add-notice-text"]');
+		el.querySelector('[data-usd-el="add-notice-close"]').addEventListener('click', () => { hideAddNotice(); });
+		// 次の操作で消す。捕捉の段階で見るので、追加を起こした操作そのもの（その時点ではまだ出ていない）では消えない。知らせの中の操作は対象外
+		const off = (e) => { if (!el.hidden && !(e.target && el.contains(e.target))) hideAddNotice(); };
+		global.document.addEventListener('pointerdown', off, true);
+		global.document.addEventListener('keydown', off, true);
+		return el;
+	}
+	function showAddNotice(text) {
+		const el = ensureAddNotice();
+		if (toastLiftFn) { try { toastLiftFn(); } catch (e) { /* 位置の測り直しの失敗で知らせを止めない */ } }
+		addNotice.textEl.textContent = text;
+		el.hidden = false;
 	}
 
 	function confirmDialog(msg) {
@@ -3187,9 +3221,10 @@
 	/**
 	 * 区分 key のオススメから、スキル id を外す（excluded=true）／戻す（false）。変えたら true。外す・戻すは「元に戻す」に1回ずつ積む。
 	 * 元に戻す: 変える前の recommendExcluded（userData の項目）を丸ごと書き戻す（項目が無かったなら項目ごと消す）。
+	 * opts.silent … 開いている小窓の計算し直しを起こさない（オススメサポの一覧のチェックの付け外し。「再計算」を押すまで反映しない）。元に戻す・戻すは今までどおり反映する
 	 * 触るのはその id だけ（知らない区分・引けない id は残す。戻すときは、その区分の同じ id をすべて消す）
 	 */
-	function setRecommendExcluded(key, id, excluded) {
+	function setRecommendExcluded(key, id, excluded, opts) {
 		if (recommendDistKeys().indexOf(key) === -1 || typeof id !== 'string' || !id || !findSkill(id)) return false;
 		const rawAll = recommendExcludedRaw() || {};
 		const cur = Array.isArray(rawAll[key]) ? rawAll[key].slice() : [];
@@ -3205,6 +3240,27 @@
 			scope: 'list',
 			doneLabel: excluded ? name + 'を' + label + 'のオススメから外しました' : name + 'を' + label + 'のオススメに戻しました',
 			undoneLabel: excluded ? name + 'を' + label + 'のオススメに戻しました' : name + 'を' + label + 'のオススメから外しました',
+			probe: () => String(probeOf(recommendExcludedSnapshot())),
+			apply: () => { writeRecommendExcluded(prev === undefined ? undefined : JSON.parse(JSON.stringify(prev))); notifyRecommendExcluded(); return true; }
+		});
+		writeRecommendExcluded(next);
+		if (!(opts && opts.silent)) notifyRecommendExcluded();
+		return true;
+	}
+	/** 区分 key で外している（読める）スキルをすべて戻す。「元に戻す」に1回だけ積む。変えたら true。知らない id は残す */
+	function clearRecommendExcluded(key) {
+		const ids = recommendExcludedIdsOf(key);
+		if (ids.length === 0) return false;
+		const rawAll = recommendExcludedRaw() || {};
+		const prev = recommendExcludedSnapshot();
+		const next = Object.assign({}, rawAll);
+		const keep = (Array.isArray(rawAll[key]) ? rawAll[key] : []).filter(x => ids.indexOf(x) === -1);
+		if (keep.length === 0) delete next[key]; else next[key] = keep;
+		const label = recommendDistLabel(key);
+		pushUndo({
+			scope: 'list',
+			doneLabel: label + 'のオススメから外した' + ids.length + '種を戻しました',
+			undoneLabel: label + 'のオススメから' + ids.length + '種を外しました',
 			probe: () => String(probeOf(recommendExcludedSnapshot())),
 			apply: () => { writeRecommendExcluded(prev === undefined ? undefined : JSON.parse(JSON.stringify(prev))); notifyRecommendExcluded(); return true; }
 		});
@@ -5042,7 +5098,8 @@
 			doneLabel: entry.doneLabel, undoneLabel: entry.undoneLabel, scope: entry.scope
 		});
 		if (stack.length > UNDO_STACK_LIMIT) stack.shift();
-		toast(entry.doneLabel);
+		// entry.notice … ②への追加の知らせ（消えない・×つき）で出す文。無ければ今までどおり doneLabel をトーストで出す
+		if (typeof entry.notice === 'string' && entry.notice) showAddNotice(entry.notice); else toast(entry.doneLabel);
 		notifyUndoChanged();
 	}
 
@@ -5130,6 +5187,15 @@
 		'.usd-row-reason { margin-left: auto; font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); color: var(--uma-text-subtle); }',
 		'.usd-excluded-count { margin-left: var(--uma-sp-2); font-weight: 600; color: var(--uma-text-subtle); white-space: nowrap; }',
 		'.usd-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+		// ②への追加の知らせ（段F1・C-190）。自動では消えない。×を押す／次に別の操作（知らせ以外を押す・キー入力）で消える。置き場所はページの知らせ（#toast）の上
+		'.usd-addnotice { position: fixed; z-index: 130; display: flex; align-items: center; gap: var(--uma-sp-1); max-width: min(32rem, calc(100vw - 2rem)); box-sizing: border-box; padding: 0 var(--uma-sp-1) 0 var(--uma-sp-4);',
+		'  bottom: calc(var(--usd-toast-bottom, calc(var(--uma-fab-edge, 16px) + var(--uma-fab-size, 48px) + var(--uma-sp-4) + env(safe-area-inset-bottom, 0px))) + 4.5rem); right: max(1.25rem, calc(50% - 512px));',
+		'  border: 1px solid var(--uma-toast-border); border-radius: var(--uma-r-xl); background: var(--uma-toast-bg); color: #ffffff; box-shadow: var(--uma-shadow-2); font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 500; }',
+		'.usd-addnotice[hidden] { display: none; }',
+		'.usd-addnotice-text { min-width: 0; padding: var(--uma-sp-2) 0; overflow-wrap: anywhere; }',
+		'.usd-addnotice-x { flex: none; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: var(--uma-r-lg); background: transparent; color: inherit; cursor: pointer; }',
+		'.usd-addnotice-x:hover { background: rgba(255, 255, 255, .14); }',
+		'.usd-addnotice-x:focus-visible { outline: 2px solid #ffffff; outline-offset: -2px; }',
 		// 既存の .glass-card 相当（テンプレート編集パネル・モーダルの下地）
 		'.usd-modal { position: fixed; inset: 0; background: rgba(15,23,42,.4); z-index: 80; display: flex; align-items: flex-end; justify-content: center; }',
 		'.usd-modal[hidden] { display: none !important; }',
@@ -5168,15 +5234,12 @@
 		'.usd-out-incomplete { font-size: var(--uma-fs-xs); line-height: var(--uma-lh-xs); font-weight: 600; color: var(--uma-warn-text); }',
 		'.usd-out-incomplete[hidden] { display: none; }',
 		'@media (max-width: 480px) { .usd-out-incomplete { flex-basis: 100%; } }',
-		// 除外の欄の「個別に除外 N種（区分）」と、その一覧（C-185）
-		'.usd-out-indrow { margin-top: var(--uma-sp-3); display: flex; }',
-		'.usd-out-indbtn { height: 32px; }',
-		'.usd-out-indlist { margin-top: var(--uma-sp-2); max-height: 40vh; max-height: 40dvh; overflow-y: auto; }',
-		'.usd-out-indlist .usd-out-exskill .usd-out-pt { margin-left: 0; }',
+		// 除外中の見出しの「？」と、このセットのみの札（段F1）
+		'.usd-out-exleft { display: inline-flex; align-items: center; gap: var(--uma-sp-1); min-width: 0; }',
+		'.usd-out-exscope { flex: none; font-size: 11px; line-height: 1.2; color: var(--uma-text-subtle); white-space: nowrap; }',
 		// 脚質オススメで除外中の行（C-185）: 名前の右に「除外中」。押せる見た目のまま
 		'.usd-sty-row .usd-sty-tag { font-weight: 600; color: var(--uma-text-faint); }',
 		// 説明の小窓の「（区分）のオススメから外す／に戻す」（C-185）
-		'.usd-info-action { margin-top: var(--uma-sp-3); width: 100%; justify-content: center; min-height: 44px; }',
 		'.usd-out-title { display: flex; align-items: center; gap: var(--uma-sp-2); margin: 0; font-size: var(--uma-fs-sm); line-height: var(--uma-lh-sm); font-weight: 600; color: var(--uma-text-heading); }',
 		'.usd-out-body { overflow: auto; min-height: 0; padding: var(--uma-sp-3) var(--uma-sp-4); }',
 		'.usd-out-cardsbar { display: flex; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); margin-bottom: var(--uma-sp-2); }',
@@ -6715,6 +6778,8 @@
 		return isPickerExcluded(skillId) || isPickerRaceBlocked(skillId);
 	}
 
+	// ②への追加の知らせ（段F1）に出す、追加元の名前。入口のボタンの文字と同じ（緑スキルは1件ずつ足して知らせを出さないので無い）
+	const PICKER_NOTICE_LABELS = { filter: '条件で検索', paste: 'テキストで検索', ocr: 'スクショで追加' };
 	const PICKER_MODES = {
 		// 71セッション目・段6: 「条件でスキルを検索」→「条件で検索」（利用者向けの文言だけ。
 		// 識別子 `filter` と、コード内の説明の「条件でスキルを検索」は変えない＝恒久ルール19）。
@@ -7755,6 +7820,7 @@
 				scope: sink.scope,
 				baseline: baseline,
 				doneLabel: added.length + '種を追加しました',
+				notice: (sink.addNotice && PICKER_NOTICE_LABELS[picker.mode]) ? PICKER_NOTICE_LABELS[picker.mode] + ' ' + added.length + '種を追加しました' : undefined,
 				undoneLabel: '追加した' + added.length + '種を取り消しました',
 				probe: () => sink.probe(),
 				apply: () => sink.remove(added.slice())
@@ -8962,7 +9028,7 @@
 	 * 説明の本文を作る。line は呼び出し元が渡す「いまの設定」の1行（無ければ null）。note は系列の注記（「◎と共有」など。無ければ null）。
 	 * combo は◎として数えている行（①の表）だけが渡す { baseText: '基礎 ○ Pt', text: 'リストのPtは○と◎の合算です' }（C-168）。無ければ null＝今までどおり
 	 */
-	function fillSkillInfo(skillId, line, note, combo, action) {
+	function fillSkillInfo(skillId, line, note, combo) {
 		const ui = skillInfoUi;
 		ui.title.textContent = getSkillName(skillId);
 		const body = ui.body;
@@ -9028,14 +9094,6 @@
 				nt.setAttribute('data-usd-el', 'info-share');
 				body.appendChild(nt);
 			}
-		}
-		// C-185: 「（区分）のオススメから外す／に戻す」の切り替え（オススメサポと脚質オススメの小窓から開いたときだけ）
-		if (action && typeof action.text === 'function' && typeof action.run === 'function') {
-			const ab = infoEl('button', 'uma-btn uma-btn--secondary usd-info-action', action.text());
-			ab.type = 'button';
-			ab.setAttribute('data-usd-el', 'info-recommend-toggle');
-			ab.addEventListener('click', () => { action.run(); ab.textContent = action.text(); });
-			body.appendChild(ab);
 		}
 	}
 
@@ -9134,10 +9192,10 @@
 		return token;
 	}
 
-	function openSkillInfo(skillId, line, btn, opener, note, combo, action) {
+	function openSkillInfo(skillId, line, btn, opener, note, combo) {
 		const ui = ensureSkillInfoUi();
 		const token = openPopover({ key: 'skill:' + skillId, skillId: skillId, btn: btn, opener: opener || btn,
-			build: () => fillSkillInfo(skillId, line, note, combo, action) });
+			build: () => fillSkillInfo(skillId, line, note, combo) });
 		// 説明文は、最初に開いたときに1回だけ読む。読み終わったとき、まだ同じ説明が開いていれば欄を整える
 		if (skillDescState.status !== 'ok') {
 			loadSkillDescriptions().then(() => {
@@ -9167,15 +9225,13 @@
 		const lineOf = () => { try { return typeof o.getLine === 'function' ? (o.getLine() || null) : null; } catch (e) { return null; } };
 		const noteOf = () => { try { return typeof o.getNote === 'function' ? (o.getNote() || null) : null; } catch (e) { return null; } };
 		const comboOf = () => { try { return typeof o.getCombo === 'function' ? (o.getCombo() || null) : null; } catch (e) { return null; } };
-		// C-185: 小窓の最後に出す切り替え（{ text(), run() }）。オススメサポ・脚質オススメの小窓から開いたときだけ渡す
-		const actionOf = () => { try { return typeof o.getAction === 'function' ? (o.getAction() || null) : null; } catch (e) { return null; } };
 		if (o.trigger === 'self') {
 			// 名前そのものがボタン（段7の (14)）。Enter／Space は button の既定の click で届く
 			el.setAttribute('data-usd-el', 'skill-info-btn');
 			el.setAttribute('data-skill-id', skillId);
 			el.setAttribute('aria-label', getSkillName(skillId) + 'の説明を開く');
 			el.setAttribute('aria-expanded', 'false');
-			const onClick = () => { if (skillInfoCur && skillInfoCur.btn === el) closeSkillInfo(); else openSkillInfo(skillId, lineOf(), el, el, noteOf(), comboOf(), actionOf()); };
+			const onClick = () => { if (skillInfoCur && skillInfoCur.btn === el) closeSkillInfo(); else openSkillInfo(skillId, lineOf(), el, el, noteOf(), comboOf()); };
 			el.addEventListener('click', onClick);
 			return { button: el, detach: function () { el.removeEventListener('click', onClick); } };
 		}
@@ -13080,10 +13136,16 @@
 		const OUTSIDE_HELP_TEXT = '本育成のサポカで得られない対象スキルを、できるだけ多く得られる組み合わせです。ランダムイベントのスキルも数えます。追加済みのスキルも数えます。金スキルの前段の白は、金スキルと合わせて1種ですが、金スキルによる因子化率を加味してオススメしています。';
 		// 種類の指定を満たせないとき（段13・A2）: 種類ごとには足りているのに、組み合わせとして満たせないときの1行
 		const OUTSIDE_MSG_COMBO = 'この組み合わせでは指定を満たせません';
-		const outsideUi = { el: null, open: false, count: OUTSIDE_COUNT_DEFAULT, token: 0, computing: false, result: null, checked: new Set(), excludedOpen: false, opener: null, applied: '', appliedIds: [] };
+		const outsideUi = { el: null, open: false, count: OUTSIDE_COUNT_DEFAULT, token: 0, computing: false, result: null, checked: new Set(), excludedOpen: false, opener: null, applied: '', appliedKey: RECOMMEND_NONE_KEY, appliedDist: [], appliedLegacy: [] };
 
-		/** 除外スキルの集合の印（計算に使ったときと、いまとで比べる）。引けるIDだけを並べて連ねたもの */
-		function outsideSkillKey() { return outsideSkillExcludedIdsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null).slice().sort().join(','); }
+		/** いまの除外スキル（段F1）: 距離の区分（key）の除外（recommendExcluded）と、このセットだけの除外（以前の保存値 roster.outsideSkillExcluded）。引けるIDだけ */
+		function outsideSkillState() {
+			const roster = rosterOutsideSink ? rosterOutsideSink.getRoster() : null;
+			const key = recommendDistKeyOf(roster || {});
+			return { key: key, dist: recommendExcludedIdsOf(key), legacy: outsideSkillExcludedIdsOf(roster) };
+		}
+		/** 除外スキルの集合の印（計算に使ったときと、いまとで比べる）。区分と、引けるIDを並べて連ねたもの */
+		function outsideSkillKey() { const s = outsideSkillState(); return s.key + '|' + s.dist.slice().sort().join(',') + '|' + s.legacy.slice().sort().join(','); }
 
 		/**
 		 * 本育成編成がそろっているか（C-185 からは、満たさなくても小窓は開く。満たさないときは見出しの右に注記を出し、欠けた編成のまま計算する）。育成ウマ娘が選ばれている・サポカが6枚そろっている・距離／脚質／バ場がすべて指定されている。
@@ -13098,6 +13160,11 @@
 		/** ①の表に「！」（選ぶ必要があるのにまだ選んでいないイベント）が1つでもあるか。events の pending で判定する（取得の切り替えの未確認は、オススメサポの探索を止める理由にしない） */
 		function outsideHasPendingEvents(roster) {
 			return rosterSkillResultOf(roster).events.some(e => e.pending);
+		}
+
+		/** 「除外中」の？の小窓の文（1文だけ。区分の名前は見出しと同じ） */
+		function outsideExclHelpText(key) {
+			return key === RECOMMEND_NONE_KEY ? 'ここで除外したスキルは、距離を指定していないときも除外されます。' : 'ここで除外したスキルは、他の' + recommendDistLabel(key) + 'のレース条件でも除外されます。';
 		}
 
 		function outsideMarkup() {
@@ -13145,8 +13212,11 @@
 				else if (act === 'outside-exclude') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, true)) outsideRun(); }
 				else if (act === 'outside-restore') { if (rosterOutsideSink && rosterOutsideSink.setExcluded(b.dataset.cardId, false)) outsideRun(); }
 				else if (act === 'outside-excl-toggle') { outsideUi.excludedOpen = !outsideUi.excludedOpen; renderOutside(); }
-				else if (act === 'outside-restore-skill') { if (rosterOutsideSink && rosterOutsideSink.setSkillExcluded(b.dataset.skillId, false)) outsideRun(); }
-				else if (act === 'outside-restore-all') { if (rosterOutsideSink && rosterOutsideSink.clearExcluded()) outsideRun(); }
+				// 区分の除外は、戻すと反映の通知（recommendExcludedListeners）で計算し直す。このセットだけの除外（以前の保存値）は保存値を消して計算し直す
+				else if (act === 'outside-restore-skill') { if (b.dataset.scope === 'set') { if (rosterOutsideSink && rosterOutsideSink.setSkillExcluded(b.dataset.skillId, false)) outsideRun(); } else setRecommendExcluded(outsideUi.appliedKey, b.dataset.skillId, false); }
+				else if (act === 'outside-restore-all') { if (rosterOutsideSink) rosterOutsideSink.clearExcluded(); if (!clearRecommendExcluded(outsideUi.appliedKey)) outsideRun(); }
+				else if (act === 'outside-excl-help') openPopover({ key: 'outside-excl-help', title: '除外中', build: (body) => { const p = infoEl('p', '', outsideExclHelpText(outsideUi.appliedKey)); p.setAttribute('data-usd-el', 'outside-excl-help-text'); body.appendChild(p); },
+					btn: b, opener: b, refocus: '[data-usd-act="outside-excl-help"]' });
 				else if (act === 'outside-recalc') outsideRun();
 				else if (act === 'outside-add') outsideAdd();
 				// 段13・C1: 残りの枠のカードを選ぶ（①のカード選択と同じ小窓）／指定を外す
@@ -13161,8 +13231,8 @@
 				const box = e.target;
 				if (!box || !box.getAttribute || box.getAttribute('data-usd-el') !== 'outside-check') return;
 				if (box.checked) outsideUi.checked.add(box.value); else outsideUi.checked.delete(box.value);
-				// 外した行は「除外スキル」として①の roster に記録する（付け直すと記録から消える）。再計算はしない（「再計算」を押すまで反映しない）
-				if (rosterOutsideSink) rosterOutsideSink.setSkillExcluded(box.value, !box.checked);
+				// 外した行は、いまの距離の区分の除外（userData の recommendExcluded）として保存する（付け直すと記録から消える）。元に戻すに積む。再計算はしない（「再計算」を押すまで反映しない）
+				setRecommendExcluded(recommendDistKeyOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {}), box.value, !box.checked, { silent: true });
 				updateOutsideFoot();
 			});
 			global.addEventListener('resize', () => { if (outsideUi.open && !el.hidden) outsideFitNicks(el); });
@@ -13223,8 +13293,9 @@
 		async function outsideRun() {
 			const tok = ++outsideUi.token;
 			// この計算に効かせる除外スキル（記録されているもの）。「除外中」の行はこれを出す（チェックを外しただけで、まだ反映していないものは、チェックリストの中の外れた行として見える）
-			outsideUi.appliedIds = outsideSkillExcludedIdsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : null);
-			outsideUi.applied = outsideUi.appliedIds.slice().sort().join(',');
+			const applied = outsideSkillState();
+			outsideUi.appliedKey = applied.key; outsideUi.appliedDist = applied.dist; outsideUi.appliedLegacy = applied.legacy;
+			outsideUi.applied = outsideSkillKey();
 			outsideUi.computing = true;
 			outsideUi.result = null;
 			renderOutside();
@@ -13425,10 +13496,9 @@
 				} });
 		}
 		/**
-		 * 「除外」の選択欄（段13・C2。2026-10-21・C-185 で、押しボタン4つ［低効果］［デバフ］［視野］［持久力回復］と「個別に除外 N種（区分）」だけにした）。
+		 * 「除外」の選択欄（段13・C2。2026-10-21・C-185 で押しボタン4つ［低効果］［デバフ］［視野］［持久力回復］と区分ごとの除外の一覧を出す欄を足し、段F1〔C-190〕でその欄を廃止して押しボタン4つだけにした）。
 		 * 押すと、その値を除外する／除外をやめる。外す規則は outsideExcludesSkill（ある軸で持つ値がすべて除外されているときだけ外す）。
 		 * 押すたびにセットの指定（roster.outsideOptions.exclude）に書いて、自動で計算し直す（選択欄は開いたまま）。オススメサポの母集団にだけ効く。
-		 * 「個別に除外」は距離の区分ごとの除外（userData の recommendExcluded）の一覧を開く（openOutsideIndividualPopover）
 		 */
 		function openOutsideExcludePopover(btn) {
 			openPopover({ key: 'outside-exclude', title: '除外', btn: btn, opener: btn, refocus: '[data-usd-el="outside-exclude-btn"]',
@@ -13459,92 +13529,20 @@
 						chips.push(b);
 					});
 					body.appendChild(list);
-					const ind = infoEl('button', 'usd-out-segbtn usd-out-indbtn', '');
-					ind.type = 'button';
-					ind.setAttribute('data-usd-el', 'outside-individual-btn');
-					ind.setAttribute('aria-haspopup', 'dialog');
-					ind.addEventListener('click', () => openOutsideIndividualPopover(ind));
-					const wrap = infoEl('div', 'usd-out-indrow');
-					wrap.appendChild(ind);
-					body.appendChild(wrap);
 					function update() {
 						const ex = outsideOptionsOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {}).exclude;
 						chips.forEach(b => { const on = (ex[b.getAttribute('data-axis')] || []).indexOf(b.getAttribute('data-value')) !== -1; b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
-						const key = recommendDistKeyOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {});
-						ind.textContent = '個別に除外 ' + recommendExcludedIdsOf(key).length + '種（' + recommendDistLabel(key) + '）';
 					}
 					update();
-				} });
-		}
-		/**
-		 * 「個別に除外 N種（区分）」の一覧（C-185）。区分の切り替え（件数つき）と、その区分で外しているスキルの［名前・Pt・戻す］。
-		 * 戻すと「元に戻す」に1回積み、オススメサポを計算し直す。最初に出す区分は、いまの編成の区分（レースで固定した距離を含む）
-		 */
-		function openOutsideIndividualPopover(btn) {
-			let cur = recommendDistKeyOf(rosterOutsideSink ? rosterOutsideSink.getRoster() : {});
-			openPopover({ key: 'outside-individual', title: '個別に除外', btn: btn, opener: btn, refocus: '[data-usd-el="outside-exclude-btn"]',
-				build: (body) => {
-					const tabs = infoEl('div', 'usd-out-chiprow');
-					tabs.setAttribute('role', 'group');
-					tabs.setAttribute('aria-label', '距離の区分');
-					tabs.setAttribute('data-usd-el', 'outside-individual-tabs');
-					const box = infoEl('div', 'usd-out-indlist');
-					box.setAttribute('data-usd-el', 'outside-individual-list');
-					body.appendChild(tabs);
-					body.appendChild(box);
-					function draw() {
-						tabs.textContent = '';
-						recommendDistKeys().forEach(k => {
-							const b = infoEl('button', 'usd-out-segbtn', recommendDistLabel(k) + ' ' + recommendExcludedIdsOf(k).length);
-							b.type = 'button';
-							b.setAttribute('data-usd-el', 'outside-individual-tab');
-							b.setAttribute('data-key', k);
-							b.setAttribute('aria-pressed', k === cur ? 'true' : 'false');
-							b.addEventListener('click', () => { cur = k; draw(); });
-							tabs.appendChild(b);
-						});
-						box.textContent = '';
-						const ids = recommendExcludedIdsOf(cur);
-						if (ids.length === 0) box.appendChild(infoEl('p', 'usd-out-note', '除外しているスキルはありません'));
-						ids.forEach(id => {
-							const row = infoEl('div', 'usd-out-exskill');
-							row.setAttribute('data-usd-el', 'outside-individual-row');
-							row.setAttribute('data-skill-id', id);
-							row.appendChild(infoEl('span', 'usd-out-exskill-name', getSkillName(id)));
-							const pt = infoEl('span', 'usd-out-pt', outsideRowPtText(id));
-							pt.setAttribute('data-usd-el', 'outside-individual-pt');
-							row.appendChild(pt);
-							const back = infoEl('button', 'usd-out-card-btn', '戻す');
-							back.type = 'button';
-							back.setAttribute('data-usd-el', 'outside-individual-restore');
-							back.setAttribute('aria-label', getSkillName(id) + 'を戻す');
-							back.addEventListener('click', () => { if (setRecommendExcluded(cur, id, false)) { draw(); outsideRun(); } });
-							row.appendChild(back);
-							box.appendChild(row);
-						});
-					}
-					draw();
 				} });
 		}
 		/** 除外している値の表示名（低効果・デバフ・視野・持久力回復の並び）。見出し行のボタンの文字に使う */
 		function outsideExcludeLabels(ex) {
 			return outsideExcludeChips().filter(c => (ex[c.key] || []).indexOf(c.v) !== -1).map(c => c.t);
 		}
-		/**
-		 * 説明の小窓の「（区分）のオススメから外す」「（区分）のオススメに戻す」の切り替え（C-185）。オススメサポと脚質オススメの小窓から開いたときだけ付ける
-		 * （①の表などから開いた説明には出さない）。区分はいまの編成の区分（レースで固定した距離を含む）。切り替えたら、開いている小窓を計算し直す
-		 */
-		function recommendExcludeAction(skillId) {
-			if (!rosterOutsideSink) return null;
-			const keyNow = () => recommendDistKeyOf(rosterOutsideSink.getRoster());
-			return {
-				text: () => { const k = keyNow(); return recommendDistLabel(k) + (recommendExcludedIdsOf(k).indexOf(skillId) !== -1 ? 'のオススメに戻す' : 'のオススメから外す'); },
-				run: () => { const k = keyNow(); setRecommendExcluded(k, skillId, recommendExcludedIdsOf(k).indexOf(skillId) === -1); }
-			};
-		}
-		/** オススメサポ・脚質オススメの小窓のスキル名に付ける説明の小窓の指定（名前を押すと説明が上に重なる＋区分の切り替え） */
+		/** オススメサポ・脚質オススメの小窓のスキル名に付ける説明の小窓の指定（名前を押すと説明が上に重なる。段F1 で区分の切り替えは廃止） */
 		function recommendInfoOpts(id) {
-			return { skillId: id, trigger: 'self', getAction: () => recommendExcludeAction(id) };
+			return { skillId: id, trigger: 'self' };
 		}
 		/** 行の Pt の文言（そのスキルだけ。前段は含めない）。合計（フッター）は前段も含むので、前段をチェックしていないときは行の合計より大きくなる */
 		function outsideRowPtText(skillId) {
@@ -13602,15 +13600,18 @@
 				}
 			}
 			h += '</div>';
-			// 除外中（カードかスキルが1件以上あるときだけ）。「除外中 カード1枚・スキル1種 ▾」と、右端の「すべて戻す」
-			const exSkills = outsideUi.appliedIds.filter(id => !!findSkill(id));
-			if (excl.length > 0 || exSkills.length > 0) {
+			// 除外中（カードかスキルが1件以上あるときだけ）。「除外中 スキルN種（長距離）」と、その右の「？」、右端の「すべて戻す」（段F1・C-190。N は距離の区分の除外と、このセットだけの除外〔以前の保存値〕の種数）
+			const exDist = outsideUi.appliedDist.filter(id => !!findSkill(id));
+			const exSet = outsideUi.appliedLegacy.filter(id => !!findSkill(id));
+			const exSkillN = new Set(exDist.concat(exSet)).size;
+			if (excl.length > 0 || exSkillN > 0) {
 				const parts = [];
 				if (excl.length > 0) parts.push('カード' + excl.length + '枚');
-				if (exSkills.length > 0) parts.push('スキル' + exSkills.length + '種');
-				h += '<div class="usd-out-excl" data-usd-el="outside-excl"><div class="usd-out-exhead">'
+				if (exSkillN > 0) parts.push('スキル' + exSkillN + '種（' + recommendDistLabel(outsideUi.appliedKey) + '）');
+				h += '<div class="usd-out-excl" data-usd-el="outside-excl"><div class="usd-out-exhead"><span class="usd-out-exleft">'
 					+ '<button type="button" class="usd-out-exbtn" data-usd-act="outside-excl-toggle" data-usd-el="outside-excl-toggle" aria-expanded="' + (outsideUi.excludedOpen ? 'true' : 'false') + '">除外中 ' + parts.join('・') + ' ' + (outsideUi.excludedOpen ? '▴' : '▾') + '</button>'
-					+ '<button type="button" class="usd-out-card-btn usd-out-restore-all" data-usd-act="outside-restore-all" data-usd-el="outside-restore-all">すべて戻す</button></div>';
+					+ (exSkillN > 0 ? '<button type="button" class="uma-help-btn" data-usd-act="outside-excl-help" data-usd-el="outside-excl-help" aria-haspopup="dialog" aria-expanded="false" aria-label="除外中の説明" title="除外中の説明">?</button>' : '')
+					+ '</span><button type="button" class="usd-out-card-btn usd-out-restore-all" data-usd-act="outside-restore-all" data-usd-el="outside-restore-all">すべて戻す</button></div>';
 				if (outsideUi.excludedOpen) {
 					h += '<div class="usd-out-exlist" data-usd-el="outside-excl-list">';
 					if (excl.length > 0) {
@@ -13618,10 +13619,12 @@
 						excl.forEach(id => { h += outsideCardTileHtml({ cardId: id }, { el: 'outside-excl-card', act: 'outside-restore', btnEl: 'outside-restore', btnText: '戻す' }); });
 						h += '</div>';
 					}
-					exSkills.forEach(id => {
-						h += '<div class="usd-out-exskill" data-usd-el="outside-excl-skill" data-skill-id="' + esc(id) + '"><span class="usd-out-exskill-name">' + esc(getSkillName(id)) + '</span>'
-							+ '<button type="button" class="usd-out-card-btn" data-usd-act="outside-restore-skill" data-usd-el="outside-restore-skill" data-skill-id="' + esc(id) + '" aria-label="' + esc(getSkillName(id) + 'を戻す') + '">戻す</button></div>';
-					});
+					// scope: dist＝距離の区分の除外（recommendExcluded）／set＝このセットだけの除外（以前の保存値 roster.outsideSkillExcluded。これまでどおり効かせ続け、「戻す」で外したときだけ保存値を消す）
+					const exRow = (id, scope) => '<div class="usd-out-exskill" data-usd-el="outside-excl-skill" data-scope="' + scope + '" data-skill-id="' + esc(id) + '"><span class="usd-out-exskill-name">' + esc(getSkillName(id)) + '</span>'
+						+ (scope === 'set' ? '<span class="usd-out-exscope" data-usd-el="outside-excl-scope">このセットのみ</span>' : '')
+						+ '<button type="button" class="usd-out-card-btn" data-usd-act="outside-restore-skill" data-usd-el="outside-restore-skill" data-scope="' + scope + '" data-skill-id="' + esc(id) + '" aria-label="' + esc(getSkillName(id) + 'を戻す') + '">戻す</button></div>';
+					exDist.forEach(id => { h += exRow(id, 'dist'); });
+					exSet.forEach(id => { h += exRow(id, 'set'); });
 					h += '</div>';
 				}
 				h += '</div>';
@@ -13730,7 +13733,8 @@
 				pushUndo({
 					scope: sink.scope,
 					baseline: baseline,
-					doneLabel: added.length + '種を追加しました',
+					doneLabel: 'オススメサポ ' + added.length + '種を追加しました',
+					notice: 'オススメサポ ' + added.length + '種を追加しました',
 					undoneLabel: '追加した' + added.length + '種を取り消しました',
 					probe: () => sink.probe(),
 					apply: () => sink.remove(added.slice())
@@ -13778,7 +13782,6 @@
 			const target = currentTarget();
 			const ids = skillIdsOf(target);
 			if (!ids) return;
-			const skip = plan.already.length + plan.roster.length + plan.race.length;
 			const why = recommendSkipReasons(plan);
 			if (plan.add.length === 0) { toast('追加できるスキルはありません' + (why.length > 0 ? '（' + why.join('・') + '）' : '')); return; }
 			const prev = snapshot(ids);
@@ -13786,7 +13789,8 @@
 			const add = plan.add.slice();
 			pushUndo({
 				scope: 'list',
-				doneLabel: label + ' ' + add.length + '種を追加しました' + (skip > 0 ? '。追加しなかったもの ' + skip + '種（' + why.join('・') + '）' : ''),
+				doneLabel: label + ' ' + add.length + '種を追加しました',
+				notice: label + ' ' + add.length + '種を追加しました',
 				undoneLabel: label + 'で追加した' + add.length + '種を取り消しました',
 				probe: () => probeOf(skillIdsOf(target)),
 				apply: () => {
@@ -14113,7 +14117,7 @@
 							+ (r.gray ? ' data-reason="' + r.reason + '"' : '') + ' data-checked="' + (on ? '1' : '0') + '">'
 							+ '<label class="usd-sty-check"><input type="checkbox" data-usd-el="style-check" value="' + esc(r.id) + '"' + (on ? ' checked' : '') + (r.gray ? ' aria-disabled="true"' : '') + ' aria-label="' + esc(r.name + 'を追加する') + '"/></label>'
 							+ '<button type="button" class="usd-sty-name usd-roster-skillname--btn usd-out-namebtn" data-usd-info="' + esc(r.id) + '">' + esc(r.name) + '</button>'
-							+ (r.reason === 'excluded' ? '<span class="usd-sty-pt usd-sty-tag" data-usd-el="style-row-pt">除外中</span>' : '<span class="usd-sty-pt" data-usd-el="style-row-pt">' + esc(styleRowPtText(r)) + '</span>') + '</div>';
+							+ (r.reason === 'excluded' ? '<span class="usd-sty-pt usd-sty-tag" data-usd-el="style-row-pt">除外中（' + esc(m.distLabel) + '）</span>' : '<span class="usd-sty-pt" data-usd-el="style-row-pt">' + esc(styleRowPtText(r)) + '</span>') + '</div>';
 					});
 					h += '</div>';
 				}
@@ -14432,6 +14436,8 @@
 		function pickerSinkFor(target, scope) {
 			return {
 				scope: scope,
+				// 段F1: special の②へ足すときだけ、追加の知らせ（消えない・×つき）で出す（Deck 単体ページは今までどおりトースト）
+				addNotice: setBased,
 				// 見るのは対象のセットの中身だけ。復元で変わるのはここだけなので、
 				// 他の状態を混ぜると正しく戻せても「戻っていない」と判定してしまう。
 				probe: () => probeOf(skillIdsOf(target)),
@@ -15440,7 +15446,7 @@
 			setOptions: function (patch) { return rosterOutsideSink ? rosterOutsideSink.setOptions(patch) : false; },
 			filterAxes: function () { return outsideFilterAxes().map(a => a.key); }, EXCLUDE_DEFAULT: JSON.parse(JSON.stringify(OUTSIDE_EXCLUDE_DEFAULT)), excludesSkill: outsideExcludesSkill,
 			// C-185: 距離ごとの個別除外（userData の recommendExcluded）。keys は区分のキー（距離の軸の値＋none）、keyOf は編成の区分、idsOf は読める id、set は外す／戻す（元に戻すに積む）
-			recommendExcluded: { keys: recommendDistKeys, keyOf: recommendDistKeyOf, label: recommendDistLabel, idsOf: recommendExcludedIdsOf, set: setRecommendExcluded },
+			recommendExcluded: { keys: recommendDistKeys, keyOf: recommendDistKeyOf, label: recommendDistLabel, idsOf: recommendExcludedIdsOf, set: setRecommendExcluded, clear: clearRecommendExcluded },
 			isRaceConditionSkill: isRaceConditionSkill, raceConditionSkillIds: raceConditionSkillIds,
 			// ④（段11）: 種類の番号と表示名・友人の種類の番号
 			typeNames: function () { return Array.from(outsideTypeNames().entries()); }, FRIEND_TYPE: OUTSIDE_FRIEND_TYPE

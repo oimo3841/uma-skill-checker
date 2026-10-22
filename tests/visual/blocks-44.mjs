@@ -4,7 +4,7 @@
 // B1 入口はいつも開く（欠けた編成のまま計算）・見出しの右に注記「本育成編成が完了していません」（狭い幅は題名の下）
 // B2 除外の欄は4つの押しボタン（低効果・デバフ・視野・持久力回復）だけ。既定は4つとも ON。触ったセットの4つ以外は読まない（消さない）
 // B3 レースを選んでいないときだけ、レース条件で決まる緑スキルをオススメサポの母集団から外す
-// B4 距離ごとの個別除外（userData の recommendExcluded）。説明の小窓の切り替え・「個別に除外 N種（区分）」の一覧・元に戻す・脚質オススメの「除外中」
+// B4 距離ごとの除外（userData の recommendExcluded）。区分の決め方・保存・効かせ方。説明の小窓の切り替えと「個別に除外」は段F1 で廃止（blocks-49 が新しい動きを見る）
 // スキル名・id・件数は検査の側に書かない（恒久ルール1。データから独立に数える。Step 0 の実測〔母集団の件数〕だけは照合として数字で持つ）。
 
 export async function register44(env) {
@@ -346,62 +346,49 @@ export async function register44(env) {
 		await sp.ctx.close();
 	});
 
-	await block('C-185 B4 画面: 説明の小窓の「（区分）のオススメから外す／に戻す」はオススメサポ・脚質オススメの小窓から開いたときだけ（①の表・②のタイルからは出ない）／押すと保存・元に戻すに積む・小窓が計算し直される', async () => {
+	await block('C-185 B4 画面→段F1: 説明の小窓の「（区分）のオススメから外す／に戻す」の切り替えと、除外の欄の「個別に除外 N種（区分）」は廃止した（オススメサポ・脚質オススメ・①の表のどこから開いても出ない）／スキル名を押すと説明は出る', async () => {
 		const sp = await openSp({ roster: FULL });
-		const label = LABELS.medium;
-		// ①の表の名前から開く説明には出ない
+		const look = (page) => page.evaluate(() => ({ toggle: !!document.querySelector('[data-usd-el="info-recommend-toggle"]'), action: !!document.querySelector('.usd-info-action'), pop: !!document.querySelector('.usd-info-pop'),
+			text: (document.querySelector('.usd-info-pop') || { textContent: '' }).textContent }));
+		// ①の表の名前から開く説明
 		await sp.page.click('#step-tab-0');
 		await sleep(sp.page, 500);
-		const firstName = '#deck-roster-panel .usd-roster-skillname--btn';
-		await sp.page.click(firstName);
+		await sp.page.click('#deck-roster-panel .usd-roster-skillname--btn');
 		await sleep(sp.page, 300);
-		assert(!(await sp.page.evaluate(() => !!document.querySelector('[data-usd-el="info-recommend-toggle"]'))), 'C-185 B4 ①の表の名前から開いた説明には、切り替えが出ない', true);
+		let g = await look(sp.page);
+		assert(g.pop && !g.toggle && !g.action, 'C-185 B4 ①の表の名前から開いた説明に、切り替えは出ない', g);
 		await sp.page.keyboard.press('Escape');
 		await sp.page.click('#step-tab-1');
 		await sleep(sp.page, 400);
-		// オススメサポ
+		// オススメサポの小窓から開く説明
 		await openOutside(sp.page);
 		const target = await sp.page.evaluate(() => document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-row"]:not([data-usd-excluded]) .usd-out-namebtn').getAttribute('data-usd-info'));
-		const rows0 = await sp.page.evaluate(() => document.querySelectorAll('[data-usd-el="outside-row"]').length);
-		const u0 = await sp.page.evaluate(() => UmaSkillDeckCore.undoCount());
 		await sp.page.click(OM + '[data-usd-el="outside-row"][data-skill-id="' + target + '"] .usd-out-namebtn');
 		await sleep(sp.page, 400);
-		let t = await sp.page.evaluate(() => { const b = document.querySelector('[data-usd-el="info-recommend-toggle"]'); return b ? b.textContent : null; });
-		assert(t === label + 'のオススメから外す', 'C-185 B4 オススメサポの小窓から開いた説明に「' + label + 'のオススメから外す」', t);
-		await sp.page.click('[data-usd-el="info-recommend-toggle"]');
-		await sleep(sp.page, 200);
-		t = await sp.page.evaluate(() => document.querySelector('[data-usd-el="info-recommend-toggle"]').textContent);
-		assert(t === label + 'のオススメに戻す' && JSON.stringify((await userData(sp.page)).recommendExcluded) === JSON.stringify({ medium: [target] }), 'C-185 B4 押すと「' + label + 'のオススメに戻す」に変わり、保存される', { t, ud: (await userData(sp.page)).recommendExcluded });
-		assert(await sp.page.evaluate(() => UmaSkillDeckCore.undoCount()) === u0 + 1, 'C-185 B4 元に戻すに1回積む', u0);
+		g = await look(sp.page);
+		assert(g.pop && !g.toggle && !g.action && !/オススメから外す|オススメに戻す/.test(g.text), 'C-185 B4 オススメサポの小窓から開いた説明にも、「（区分）のオススメから外す」は出ない（説明そのものは出る）', g);
 		await sp.page.keyboard.press('Escape');
 		await waitOutside(sp.page);
-		await sleep(sp.page, 300);
-		const rows1 = await sp.page.evaluate((id) => ({ n: document.querySelectorAll('[data-usd-el="outside-row"]').length, has: !!document.querySelector('[data-usd-el="outside-row"][data-skill-id="' + id + '"]') }), target);
-		assert(!rows1.has, 'C-185 B4 外したスキルは、オススメサポの一覧から出なくなる（計算し直し・' + rows0 + ' → ' + rows1.n + '行）', { rows0, rows1 });
-		// 除外の欄の「個別に除外 N種（区分）」
+		// 除外の欄: 押しボタン4つだけ。「個別に除外」は無い
 		await openExclude(sp.page);
-		const ind = await sp.page.evaluate(() => document.querySelector('[data-usd-el="outside-individual-btn"]').textContent);
-		assert(ind === '個別に除外 1種（' + label + '）', 'C-185 B4 除外の欄に「個別に除外 1種（' + label + '）」', ind);
-		await sp.page.click('[data-usd-el="outside-individual-btn"]');
+		const ex = await sp.page.evaluate(() => ({ ind: !!document.querySelector('[data-usd-el="outside-individual-btn"]'), tabs: document.querySelectorAll('[data-usd-el="outside-individual-tab"]').length, text: document.querySelector('.usd-info-pop').textContent }));
+		assert(!ex.ind && ex.tabs === 0 && !/個別に除外/.test(ex.text), 'C-185 B4 除外の欄に「個別に除外」とその区分の切り替え（ピル）は無い', ex);
+		await sp.page.keyboard.press('Escape');
+		await sp.page.click(OM + '[data-usd-act="outside-close"]');
 		await sleep(sp.page, 300);
-		const li = await sp.page.evaluate(() => ({ tabs: Array.from(document.querySelectorAll('[data-usd-el="outside-individual-tab"]')).map((b) => b.textContent + '|' + b.getAttribute('aria-pressed')),
-			rows: Array.from(document.querySelectorAll('[data-usd-el="outside-individual-row"]')).map((r) => ({ id: r.getAttribute('data-skill-id'), pt: r.querySelector('[data-usd-el="outside-individual-pt"]').textContent, btn: r.querySelector('[data-usd-el="outside-individual-restore"]').textContent })) }));
-		assert(li.tabs.join() === '短距離 0|false,マイル 0|false,中距離 1|true,長距離 0|false,距離指定なし 0|false', 'C-185 B4 一覧の区分の切り替えは件数つき（いまの区分に印）', li.tabs);
-		assert(li.rows.length === 1 && li.rows[0].id === target && /Pt/.test(li.rows[0].pt) && li.rows[0].btn === '戻す', 'C-185 B4 一覧は［名前・Pt・戻す］', li.rows);
-		await sp.page.click('[data-usd-el="outside-individual-tab"][data-key="long"]');
-		assert((await sp.page.evaluate(() => document.querySelectorAll('[data-usd-el="outside-individual-row"]').length)) === 0, 'C-185 B4 区分を切り替えると、その区分の一覧（空）', true);
-		await sp.page.click('[data-usd-el="outside-individual-tab"][data-key="medium"]');
-		const u1 = await sp.page.evaluate(() => UmaSkillDeckCore.undoCount());
-		await sp.page.click('[data-usd-el="outside-individual-restore"]');
-		await waitOutside(sp.page);
+		// 脚質オススメの小窓から開く説明
+		await sp.page.click(T + '[data-usd-el="style-open"]');
+		await sp.page.waitForSelector(SM + '[data-usd-el="style-row"]');
 		await sleep(sp.page, 300);
-		assert(!('recommendExcluded' in (await userData(sp.page))) && await sp.page.evaluate(() => UmaSkillDeckCore.undoCount()) === u1 + 1, 'C-185 B4 「戻す」で項目ごと消え、元に戻すに1回積まれる', Object.keys(await userData(sp.page)));
-		assert(!!(await sp.page.evaluate((id) => document.querySelector('[data-usd-el="outside-row"][data-skill-id="' + id + '"]') !== null, target)), 'C-185 B4 戻したスキルは、一覧に戻る', true);
+		await sp.page.click(SM + '[data-usd-el="style-row"] .usd-sty-name');
+		await sleep(sp.page, 300);
+		g = await look(sp.page);
+		assert(g.pop && !g.toggle && !g.action && !/オススメから外す|オススメに戻す/.test(g.text), 'C-185 B4 脚質オススメの小窓から開いた説明にも、切り替えは出ない（説明そのものは出る）', g);
 		assert(jsErrors(sp.errors).length === 0, 'C-185 B4 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
 
-	await block('C-185 B5 脚質オススメ: 除外中のスキルは隠さず、チェックを外して「除外中」と示す／押せる見た目のまま・押すと「（区分）で除外中のため選べません」／説明の小窓の切り替え（脚質オススメから開いたときも出る）／追加の対象にしない', async () => {
+	await block('C-185 B5 脚質オススメ: 除外中のスキルは隠さず、チェックを外して「除外中（区分）」と示す／押せる見た目のまま・押すと「（区分）で除外中のため選べません」／追加の対象にしない', async () => {
 		const sp = await openSp({ roster: Object.assign({}, ROSTER_A, { skillFilter: { surface: 'turf', style: 'nige', distance: 'long' } }) });
 		await sp.page.click(T + '[data-usd-el="style-open"]');
 		await sp.page.waitForSelector(SM + '[data-usd-el="style-row"]');
@@ -409,23 +396,11 @@ export async function register44(env) {
 		const pickOn = (sec) => sp.page.evaluate((sec) => { const r = Array.from(document.querySelectorAll('[data-usd-el="style-modal"] [data-section="' + sec + '"] [data-usd-el="style-row"]')).find((x) => x.getAttribute('data-state') === 'on'); return r ? r.getAttribute('data-skill-id') : null; }, sec);
 		const scen = await pickOn('scenario'), out = await pickOn('outside');
 		const head0 = await sp.page.evaluate(() => document.querySelector('[data-usd-el="style-modal"] [data-usd-el="style-head"]').textContent);
-		// 説明の小窓から外す（脚質オススメの小窓から開いたときも切り替えが出る）
-		await sp.page.click(SM + '[data-usd-el="style-row"][data-skill-id="' + scen + '"] .usd-sty-name');
-		await sleep(sp.page, 300);
-		const t = await sp.page.evaluate(() => (document.querySelector('[data-usd-el="info-recommend-toggle"]') || {}).textContent);
-		assert(t === LABELS.long + 'のオススメから外す', 'C-185 B5 脚質オススメの小窓から開いた説明にも「' + LABELS.long + 'のオススメから外す」', t);
-		await sp.page.click('[data-usd-el="info-recommend-toggle"]');
-		await sleep(sp.page, 200);
-		await sp.page.keyboard.press('Escape');
-		await sleep(sp.page, 300);
-		await sp.page.click(SM + '[data-usd-el="style-row"][data-skill-id="' + out + '"] .usd-sty-name');
-		await sleep(sp.page, 300);
-		await sp.page.click('[data-usd-el="info-recommend-toggle"]');
-		await sleep(sp.page, 200);
-		await sp.page.keyboard.press('Escape');
-		await sleep(sp.page, 300);
+		// 段F1: 説明の小窓の切り替えは廃止した。除外は、オススメサポの一覧でチェックを外す操作が書くものと同じ保存（recommendExcluded）を、API で入れる（開いている小窓は計算し直される）
+		await sp.page.evaluate(({ a, b }) => { const E = UmaSkillDeckCore.outside.recommendExcluded; E.set('long', a, true); E.set('long', b, true); }, { a: scen, b: out });
+		await sleep(sp.page, 400);
 		const rows = await sp.page.evaluate((ids) => ids.map((id) => { const r = document.querySelector('[data-usd-el="style-modal"] [data-usd-el="style-row"][data-skill-id="' + id + '"]'); return r ? { state: r.getAttribute('data-state'), reason: r.getAttribute('data-reason'), checked: r.querySelector('input').checked, tag: r.querySelector('[data-usd-el="style-row-pt"]').textContent } : null; }), [scen, out]);
-		assert(rows.every((x) => x && x.state === 'gray' && x.reason === 'excluded' && !x.checked && x.tag === '除外中'), 'C-185 B5 除外したスキルは隠れず、チェックが外れて「除外中」と出る（シナリオ・サポカ外とも）', rows);
+		assert(rows.every((x) => x && x.state === 'gray' && x.reason === 'excluded' && !x.checked && x.tag === '除外中（' + LABELS.long + '）'), 'C-185 B5 除外したスキルは隠れず、チェックが外れて「除外中（' + LABELS.long + '）」と出る（シナリオ・サポカ外とも。段F1 で区分の名前を添えた）', rows);
 		const head1 = await sp.page.evaluate(() => document.querySelector('[data-usd-el="style-modal"] [data-usd-el="style-head"]').textContent);
 		assert(head1 !== head0 && /^追加するスキル \d+種/.test(head1), 'C-185 B5 追加の種数・合計から外れる（' + head0 + ' → ' + head1 + '）', { head0, head1 });
 		await sp.page.click(SM + '[data-usd-el="style-row"][data-skill-id="' + scen + '"] .usd-sty-check', { force: true });

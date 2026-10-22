@@ -1,4 +1,5 @@
 import { removeFromSet } from './lib/fixtures.mjs';
+import { noticeText } from './lib/add-notice.mjs';
 // C-131（2026-10-07）の検査。run-smoke.mjs の末尾から register17() で呼ばれる
 // （塊の見出しはすべて「C131」で始まる。`npm run test:visual -- --only=C131` で回せる。A・C だけなら「C131A」「C131C」）。
 //
@@ -291,8 +292,9 @@ export async function register17(env) {
 		assert(rows.every((x) => x.shown && x.disabled && x.reason === '本育成で得るため選べません'), 'C131B 逆: ①で目覚めを得ると、対応するスキルもグレーアウト', rows);
 		await addViaStyle(sp.page);
 		const ids = await draftIds(sp.page);
-		const t = await toastText(sp.page);
-		assert(ids.length > 0 && !ids.includes(awk) && !ids.includes(base1) && /本育成編成のため \d+種/.test(t), 'C131B (3) 脚質オススメでも、目覚め・対応するスキルは入らない（本育成編成のため）', { ids, t });
+		// 段F1（C-190）: 追加の知らせは「脚質オススメ N種を追加しました」の1行だけ。追加しなかったものの内訳（本育成編成のため N種）は出さない
+		const t = (await noticeText(sp.page)) || '';
+		assert(ids.length > 0 && !ids.includes(awk) && !ids.includes(base1) && /^脚質オススメ \d+種を追加しました$/.test(t) && !/本育成編成のため/.test(t), 'C131B (3) 脚質オススメでも、目覚め・対応するスキルは入らない（本育成編成のため）。知らせに内訳は出さない', { ids, t });
 		assert(jsErrors(sp.errors).length === 0, 'C131B 逆 コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
