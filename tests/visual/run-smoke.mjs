@@ -11,6 +11,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { startServer, REPO_ROOT } from './lib/serve.mjs';
+// 件数は data/ の実ファイルから数える（行・種を足すたびに手で付け替えない。受け入れの標準手順）
+const MELOP_ROWS_N = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/melop-sheet-rows.json'), 'utf8')).rows.length;
+const EFF_N = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/skill-efficiency.json'), 'utf8')).entries.length;
 import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA, SET_REMOVE_IN_PAGE, removeFromSet } from './lib/fixtures.mjs';
 // スクリーンショットの画素から**実際に描かれている色**を読む（段11 ⑨。半透明の重なりの結果を見るため）
 import { avgColor, deltaE, contrastRatio, hexOf, tokRgb } from './lib/pixels.mjs';
@@ -10197,7 +10200,7 @@ await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101
 			plusPairs: plusRows.map((r) => ({ plus: r.row, base: (listRows.find((b) => b.name === r.name.replace(/\+$/, '')) || {}).row })),
 		};
 	});
-	assert(sheet.rows === 565 && sheet.version === sheet.table, 'めろっぷ(2): 565行を読める・版が exam の表と一致', sheet);
+	assert(sheet.rows === MELOP_ROWS_N && sheet.version === sheet.table, 'めろっぷ(2): ' + MELOP_ROWS_N + '行を読める・版が exam の表と一致', sheet);
 	assert(sheet.dict === sheet.listRows, 'めろっぷ(2): いちばん上の段以外の ' + sheet.listRows + '行の名前が、照合の辞書で1つも潰れない（「+」の有無も区別できる）',
 		{ 辞書: sheet.dict, 行: sheet.listRows });
 	assert(sheet.markSurvives && sheet.plusPairs.length > 0 && sheet.plusPairs.every((p) => p.base),
@@ -10258,8 +10261,8 @@ await block('exam.html — めろっぷ！【LTC】専用拡張モード（C-101
 			noName: a.concat(b).every((l) => /^[123?]?\t[123?]?\t[123?]?$/.test(l)),
 		};
 	});
-	assert(out.linesA === 565 && out.linesB === 565 && out.tabsOk && out.noName,
-		'めろっぷ(4): A・B それぞれ565行 × 3列（タブ区切り・スキル名は含まない・値は 1〜3 か「?」か空欄）', out);
+	assert(out.linesA === MELOP_ROWS_N && out.linesB === MELOP_ROWS_N && out.tabsOk && out.noName,
+		'めろっぷ(4): A・B それぞれ' + MELOP_ROWS_N + '行 × 3列（タブ区切り・スキル名は含まない・値は 1〜3 か「?」か空欄）', out);
 	assert(out.listOk, 'めろっぷ(4): 読めた行はその人の列に★の数、★が読めなかった行は「?」', out);
 	assert(out.blankOk, 'めろっぷ(4): 持っていない行は空欄', out);
 	assert(JSON.stringify(out.uniqueA) === JSON.stringify(['1,,', ',2,', ',,3']),
@@ -10520,8 +10523,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 	assert(JSON.stringify(st.dsteps) === JSON.stringify(steps) && st.dmin === min && st.dmax === max && st.targets === st.n
 		&& st.count === String(st.n) && st.reg === String(st.n) && st.regRows === st.n,
 		'効率(2): 段の値・最小・最大はデータから。初期は4区間とも入れ、種数・一覧の行数はデータの行数', { steps: steps.length, n: st.n, count: st.count });
-	assert(st.n === 463 && st.allHaveId && st.targets === 463 && st.count === '463',
-		'効率(A): 種数は463（継承固有の3行を外した。全行が独自IDを持つ。2026-10-13 に規格外を足して462から増えた）', { n: st.n, targets: st.targets, count: st.count });
+	assert(st.n === EFF_N && st.allHaveId && st.targets === EFF_N && st.count === String(EFF_N),
+		'効率(A): 種数は ' + EFF_N + '（data/skill-efficiency.json の行数。継承固有の3行を外した。全行が独自IDを持つ。2026-10-13 に規格外を足して462から増えた）', { n: st.n, targets: st.targets, count: st.count });
 	assert(JSON.stringify(st.bounds) === JSON.stringify(eq) && JSON.stringify(st.bounds) === JSON.stringify(st.defaultBounds.map((v) => Math.round(v * 1000)))
 		&& eqIdx[0] < eqIdx[1] && eqIdx[1] < eqIdx[2] && st.tiers.every(Boolean) && st.pressed.every((p) => p === 'true'),
 		'効率(A): 初期の境目はデータの defaultBounds（段の値）で、4区間とも入れる', { bounds: st.bounds, want: eq });

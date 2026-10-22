@@ -26,11 +26,11 @@ export async function register28(env) {
 	};
 
 	/* ---- (1) 独立した検算 ---- */
-	await block('サポカ外(1) 公開用29件は、サポートカード563枚のどれからも得られない（独立した検算）', async () => {
+	await block('サポカ外(1) 公開用の全件は、サポートカードのどれからも得られない（独立した検算）', async () => {
 		const ids = NS.entries.map((e) => String(e.skillId));
-		assert(NS.dataVersion === '2026-10-16c' && ids.length === 29 && new Set(ids).size === 29,
-			'サポカ外(1) 公開用は 29件（2026-10-16c・重複なし。データ側の報告と一致）', { 版: NS.dataVersion, 件数: ids.length });
-		assert(CARDS.length === 563, 'サポカ外(1) サポートカードは563枚', CARDS.length);
+		assert(/^\d{4}-\d{2}-\d{2}[a-z]$/.test(String(NS.dataVersion)) && ids.length > 0 && new Set(ids).size === ids.length,
+			'サポカ外(1) 公開用は ' + ids.length + '件（' + NS.dataVersion + '・重複なし。版は YYYY-MM-DD＋英小文字の形）', { 版: NS.dataVersion, 件数: ids.length });
+		assert(CARDS.length > 500, 'サポカ外(1) サポートカードが読めている（' + CARDS.length + '枚）', CARDS.length);
 
 		/* (a) データを直接たどる: ヒント・イベント（全選択肢・失敗側も）・キャラクター共通のイベント（グループのカードはメンバー全員） */
 		const raw = new Set();
@@ -46,7 +46,7 @@ export async function register28(env) {
 			});
 		});
 		const hitRaw = ids.filter((id) => raw.has(id));
-		assert(hitRaw.length === 0, 'サポカ外(1)(a) データをたどって得られるスキル（' + raw.size + '種）に、公開用の29件が1件も入らない', hitRaw);
+		assert(hitRaw.length === 0, 'サポカ外(1)(a) データをたどって得られるスキル（' + raw.size + '種）に、公開用の' + ids.length + '件が1件も入らない', hitRaw);
 		assert(raw.size > 500, 'サポカ外(1)(a) たどった集合が空でない（検算が空振りしていない）', raw.size);
 
 		/* (b) 製品の関数: 563枚それぞれを編成に入れて、得られるスキル（△も含む）を集める */
@@ -63,9 +63,9 @@ export async function register28(env) {
 			return { got: Array.from(got), unconfirmed, missing };
 		}, CARDS.map((c) => c.id));
 		const hitCore = ids.filter((id) => viaCore.got.includes(id));
-		assert(hitCore.length === 0, 'サポカ外(1)(b) 製品の計算で得られるスキル（' + viaCore.got.length + '種・△を含む）に、公開用の29件が1件も入らない', hitCore);
+		assert(hitCore.length === 0, 'サポカ外(1)(b) 製品の計算で得られるスキル（' + viaCore.got.length + '種・△を含む）に、公開用の' + ids.length + '件が1件も入らない', hitCore);
 		assert(viaCore.got.length > 500 && viaCore.missing === 0 && viaCore.unconfirmed === 0,
-			'サポカ外(1)(b) 563枚とも未収録・引けないスキルが0で、集合が空でない', { 種: viaCore.got.length, 未収録: viaCore.unconfirmed, 引けない: viaCore.missing });
+			'サポカ外(1)(b) ' + CARDS.length + '枚とも未収録・引けないスキルが0で、集合が空でない', { 種: viaCore.got.length, 未収録: viaCore.unconfirmed, 引けない: viaCore.missing });
 		assert(jsErrors(sp.errors).length === 0, 'サポカ外(1) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		assert(missingChara.length === 0, 'サポカ外(1) 全カードのキャラクター（グループはメンバー全員）が共通イベントのデータに載っている', missingChara.slice(0, 5));
 		await sp.ctx.close();
@@ -143,7 +143,7 @@ export async function register28(env) {
 		assert(r.loaded === false, 'サポカ外(2) 押すまでは non-support-skills.json を取りに行かない', r);
 		await p.click(BTN);
 		await p.waitForTimeout(800);
-		const after = await p.evaluate(() => performance.getEntriesByType('resource').filter((e) => /non-support-skills\.json\?v=2026-10-16c/.test(e.name)).length);
+		const after = await p.evaluate((ver) => performance.getEntriesByType('resource').filter((e) => e.name.includes('non-support-skills.json?v=' + ver)).length, NS.dataVersion);
 		assert(after === 1, 'サポカ外(2) 押すと版つき（?v=）で1回だけ取りに行く', after);
 		assert(jsErrors(sp.errors).length === 0, 'サポカ外(2) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
@@ -179,7 +179,7 @@ export async function register28(env) {
 		}
 		// 「①の条件なし」と「本育成編成で 291 を得る」は同じになる（291 は低効果で、どちらでも出さない）。残りの4通りは違う
 		assert(LOW.has('291') && new Set(seen).size === 4, 'サポカ外(3) ①の条件・レース・本育成編成を変えると、候補が変わる（5つのシナリオで4通り。291 は低効果で出さないので、条件なしと本育成編成のシナリオは同じ）', seen.map((s) => s.split(',').length));
-		assert(NS_IDS.every((id) => !skillOf(id).raceDistance), 'サポカ外(3) 29件にレースの距離の限定（raceDistance）は無い（上の期待値の組み立てに入れていない）', NS_IDS.filter((id) => skillOf(id).raceDistance));
+		assert(NS_IDS.every((id) => !skillOf(id).raceDistance), 'サポカ外(3) 全' + NS_IDS.length + '件にレースの距離の限定（raceDistance）は無い（上の期待値の組み立てに入れていない）', NS_IDS.filter((id) => skillOf(id).raceDistance));
 	});
 
 	await block('サポカ外(6) Pt 未収録のスキルは「Pt 未収録」のまま（合計から除き、数を添える）', async () => {
@@ -198,7 +198,7 @@ export async function register28(env) {
 		await sp.ctx.close();
 	});
 
-	await block('サポカ外(7) パッシブも①の距離で絞る: 遊び心（ex-0990）は短距離の①では「サポカ外」に出ず、中距離・長距離では出る／①の条件なしでは29種から低効果・緑スキルに出るものを除いたもの', async () => {
+	await block('サポカ外(7) パッシブも①の距離で絞る: 遊び心（ex-0990）は短距離の①では「サポカ外」に出ず、中距離・長距離では出る／①の条件なしでは全種から低効果・緑スキルに出るものを除いたもの', async () => {
 		const YU = 'ex-0990';
 		assert((skillOf(YU).tags.passive || []).length > 0 && skillOf(YU).tags.distance.join() === 'long,medium', 'サポカ外(7) 前提: 遊び心はパッシブで、距離のタグは長距離・中距離', skillOf(YU).tags);
 		assert(!LOW.has(YU), 'サポカ外(7) 前提: 遊び心は低効果ではない', true);
@@ -210,7 +210,7 @@ export async function register28(env) {
 		}
 		const sp = await openSp({ roster: {} });
 		const r = await pressOutside(sp.page);
-		assert(r.open && r.outside.some((x) => x.id === YU) && r.outside.length === NS_IDS.filter((id) => !LOW.has(id)).length, 'サポカ外(7) ①の条件なしでは、パッシブも含む29種から低効果を除いたもの', r.outside.length);
+		assert(r.open && r.outside.some((x) => x.id === YU) && r.outside.length === NS_IDS.filter((id) => !LOW.has(id)).length, 'サポカ外(7) ①の条件なしでは、パッシブも含む全' + NS_IDS.length + '種から低効果を除いたもの', r.outside.length);
 		await sp.ctx.close();
 	});
 

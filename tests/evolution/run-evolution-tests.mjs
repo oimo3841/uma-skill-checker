@@ -29,9 +29,12 @@ function assert(cond, label, extra) {
 	console.log((cond ? '[OK] ' : '[NG] ') + label + (extra !== undefined ? '  ' + JSON.stringify(extra) : ''));
 }
 const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
-const BASELINE_TEXT_INDEX = 1192;   // マスター445 ＋ 追加カタログ747
-const BASELINE_MASTER = 445;
-const BASELINE_EXTRA_WITHOUT_EVOLVED = 747;
+// 件数は「いまの data/ から数えた値」（受け入れのたびに手で付け替えない）。進化スキル（rarity が evolved）は辞書に入れない、が守るもの。
+const BASELINE_MASTER = readJson('uma-skill-deck-skills.json').skills.length;
+const EVOLVED_IN_PT = new Set(readJson('data/skill-pt.json').entries.filter((p) => p.rarity === 'evolved').map((p) => p.skillId));
+const BASELINE_EXTRA_WITHOUT_EVOLVED = readJson('data/scenario-inheritance-factors.json').entries.length + readJson('data/aptitude-genes.json').entries.length
+	+ readJson('data/extended-skills.json').entries.filter((e) => !EVOLVED_IN_PT.has(e.id)).length;
+const BASELINE_TEXT_INDEX = BASELINE_MASTER + BASELINE_EXTRA_WITHOUT_EVOLVED;   // マスター ＋ 追加カタログ（進化スキルを除く）
 
 const evolutions = readJson('data/skill-evolutions.json');
 const umas = readJson('data/training-umamusume.json').entries;
@@ -63,7 +66,7 @@ const before = await page.evaluate(() => {
 	return { master: C.getMasterSkills().length, extra: C.getExtraCatalog().length, indexBeforeLoad: C.getSkillTextIndexSize(), evolvedKnownBeforeLoad: C.isEvolvedSkillId('ex-1608') };
 });
 assert(before.master === BASELINE_MASTER, 'マスターの件数が受け入れ前と同じ', before.master);
-assert(before.extra === BASELINE_EXTRA_WITHOUT_EVOLVED + evolvedIds.length, '追加カタログ = 受け入れ前の747 + 進化スキル' + evolvedIds.length + '行', before.extra);
+assert(before.extra === BASELINE_EXTRA_WITHOUT_EVOLVED + evolvedIds.length, '追加カタログ = 進化スキルを除く ' + BASELINE_EXTRA_WITHOUT_EVOLVED + ' + 進化スキル' + evolvedIds.length + '行', before.extra);
 assert(before.evolvedKnownBeforeLoad === false, '進化の対応を読む前は、進化スキルを区別しない（ページの読み込みでは取りに行かない）');
 await page.evaluate(() => window.UmaSkillDeckCore.loadSkillEvolutions());
 const st = await page.evaluate((ids) => {

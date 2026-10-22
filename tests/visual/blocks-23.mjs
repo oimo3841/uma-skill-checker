@@ -64,7 +64,7 @@ export async function register23(env) {
 	/* ====================================================================
 	 * 段2: ①の計算
 	 * ==================================================================== */
-	await block('育成イベント段2A 全271衣装で、計算の出現（kind:umaEvent）がデータから独立に作った期待と一致する（●／△・eventKey・Lv・results は先頭だけ）', async () => {
+	await block('育成イベント段2A 全衣装で、計算の出現（kind:umaEvent）がデータから独立に作った期待と一致する（●／△・eventKey・Lv・results は先頭だけ）', async () => {
 		const sp = await openSp();
 		const got = await sp.page.evaluate((ids) => ids.map((id) => {
 			const r = UmaSkillDeckCore.computeRosterSkills({ umaId: id, cardIds: [] });
@@ -78,7 +78,7 @@ export async function register23(env) {
 			if (JSON.stringify(exp) !== JSON.stringify(act)) bad.push(e.umaId);
 			got[i].src.forEach((s) => { if (s.sure) sureN++; else maybeN++; });
 		});
-		assert(EVDOC.entries.length === 271 && bad.length === 0, '育成イベント段2A 271衣装ぶんの出現が期待と一致（user のイベントは既定で未達成＝数えない。不一致 ' + bad.length + '件）', bad.slice(0, 5));
+		assert(EVDOC.entries.length === readJson('data/training-umamusume.json').entries.length && bad.length === 0, '育成イベント段2A 全' + EVDOC.entries.length + '衣装ぶんの出現が期待と一致（user のイベントは既定で未達成＝数えない。不一致 ' + bad.length + '件）', bad.slice(0, 5));
 		// 取得の切り替え: user のイベントを（段階があれば最大の段階で）すべて選んだときは、従来どおり（user も数える）の期待と一致する
 		const gotAll = await sp.page.evaluate((list) => list.map(({ id, keys }) => { const p = {}; keys.forEach(([k, stage]) => { p[k] = stage; });
 			const r = UmaSkillDeckCore.computeRosterSkills({ umaId: id, cardIds: [] }, { acquirePicks: p });
