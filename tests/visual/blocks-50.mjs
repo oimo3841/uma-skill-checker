@@ -335,6 +335,32 @@ export async function register50(env) {
 		}
 	});
 
+	await block('段G(6) リセットのシート（①②）・照合結果の絞り込み: ボタンは通常 1px（2px をやめた）・絞り込みは選んでいるものだけ 2px（塗りつぶしをやめた）', async () => {
+		for (const [w, h, theme] of [[390, 844, 'light'], [390, 844, 'dark'], [1280, 900, 'light']]) {
+			const tag = '段G(6) リセット ' + w + 'px・' + theme + ': ';
+			const sp = await openSp({ w, h, tab: 0, theme, draft: { skillIds: SK, name: '', updatedAt: '2026-10-22T00:00:00.000Z' } });
+			const p = sp.page;
+			const tk = await tokens(p);
+			const probe = (name) => p.evaluate((n) => { const e = document.createElement('i'); e.style.cssText = 'background-color: var(' + n + ')'; document.body.appendChild(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return c; }, name);
+			await p.click('#deck-roster-panel [data-usd-el="roster-reset"]'); await sleep(p, 500);
+			const r1 = { soft: await look(p, '[data-usd-el="roster-reset-off"]'), danger: await look(p, '[data-usd-el="roster-reset-all"]'), ghost: await look(p, '[data-usd-el="roster-reset-cancel"]') };
+			assert(r1.soft.bw === '1px' && r1.danger.bw === '1px' && r1.ghost.bw === '1px' && [r1.soft, r1.danger, r1.ghost].every((x) => x.h >= 44), tag + '①のリセットのシートの3つのボタンは細い枠（1px）・高さ44px以上のまま', r1);
+			assert(JSON.stringify(rgb(r1.soft.bc)) === JSON.stringify(rgb(await probe('--evo-edge'))) && JSON.stringify(rgb(r1.danger.bc)) === JSON.stringify(rgb(await probe('--evo-danger-edge'))) && JSON.stringify(rgb(r1.ghost.bc)) === JSON.stringify(rgb(tk.line)), tag + '枠の色は今のまま（淡いピンク・赤み）・やめるは細い枠の色', r1);
+			await p.keyboard.press('Escape'); await sleep(p, 300);
+			await p.evaluate(() => localStorage.setItem('umaSkillDeck:stepTab', '1')); await p.reload({ waitUntil: 'networkidle' }); await sleep(p, 900);
+			if (await p.$('[data-usd-el="factor-reset"]')) {
+				await p.click('[data-usd-el="factor-reset"]'); await sleep(p, 500);
+				const r2 = await look(p, '[data-usd-el="factor-reset-cancel"]');
+				assert(r2.bw === '1px' && r2.h >= 44, tag + '②のリセットのシートの「やめる」も細い枠（1px）', r2);
+			}
+			const pills = await p.evaluate(() => ['filter-all', 'filter-found', 'filter-not-found'].map((id) => { const e = document.getElementById(id), cs = getComputedStyle(e); return { id, active: e.classList.contains('active'), bw: cs.borderTopWidth, bc: cs.borderTopColor, bg: cs.backgroundColor, ring: cs.boxShadow }; }));
+			assert(pills.filter((x) => x.active).length === 1 && pills.find((x) => x.active).id === 'filter-all' && JSON.stringify(rgb(pills[0].bc)) === JSON.stringify(rgb(tk.sel)) && pills[0].ring.indexOf(tk.sel) !== -1 && JSON.stringify(rgb(pills[0].bg)) === JSON.stringify(rgb(tk.surface))
+				&& pills.slice(1).every((x) => x.bw === '1px' && JSON.stringify(rgb(x.bc)) === JSON.stringify(rgb(tk.line)) && x.ring === 'none'), tag + '照合結果の絞り込み: 選んでいる「すべて」だけ 2px の枠（塗りつぶしではない）・ほかは 1px', pills);
+			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+			await sp.ctx.close();
+		}
+	});
+
 	await block('段G(6) 全体: 押している・選んでいる状態を示す塗りつぶしの部品が無い（小窓の中も）／Exam・Deck は変えていない', async () => {
 		for (const theme of ['light', 'dark']) {
 			const tag = '段G(6) 全体・' + theme + ': ';

@@ -409,6 +409,13 @@
 		body .usd-evo-btn { border-width: 1px; }
 		body .usd-evo-target, body .usd-evo-none { border-width: 1px; padding: 4px calc(var(--uma-sp-2) + 1px); }
 		body .usd-evo-target--on, body .usd-evo-none--on { border-width: 2px; padding: 3px var(--uma-sp-2); }
+		/* ①②のリセットのシートのボタン（3つとも 2px だった）: 通常は細い枠（1px）。色（淡いピンク・赤み・細い枠の色）は今のまま */
+		body .usd-reset-ops .usd-reset-soft, body .usd-reset-ops .usd-reset-danger, body .usd-reset-ops .uma-btn--ghost { border-width: 1px; }
+		body .usd-reset-ops .uma-btn--ghost { border-color: var(--usd-ui-line); }
+		/* 照合結果の絞り込み（すべて／誰かが検出／全員未検出。排他）: 通常は細い枠・選んでいるものは 2px（それまでは枠なし・選んでいるものは塗りつぶし） */
+		body .uma-pill { border: 1px solid var(--usd-ui-line); background-color: var(--uma-surface); }
+		body .uma-pill:hover:not(.active):not(:disabled) { background-color: var(--uma-surface-muted); }
+		body .uma-pill.active { background-color: var(--uma-surface); color: var(--uma-text-heading); border-color: var(--usd-ui-sel); box-shadow: inset 0 0 0 1px var(--usd-ui-sel); }
 		/* 特別な固有スキルの行（ダーク）: くすまない4色のグラデーション＋ピンクの縁と光 */
 		:root[data-theme="dark"] .usd-roster-grow--unique {
 			background: linear-gradient(90deg, #1f7a64 0%, #2a62b5 35%, #7a40b8 70%, #b03a8a 100%);
