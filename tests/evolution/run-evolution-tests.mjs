@@ -14,6 +14,8 @@
 //      元の金スキルの条件・追加の効果の条件は見ない。気炎万丈（長距離）・時中の妙（長距離）と、洗い出した行の代表・全行で狭くならないこと
 //   §8 衣装の小窓（C-153・2026-10-14）: 進化先がある金スキルの上に進化先、下に前段の白（進化 → └ 金 → └ 白）。進化先がない金スキル・覚醒Lv7・シナリオの進化は出さない
 //
+//   §10 conditions（2026-10-21a〜・段1）: 進化先の「使える条件」（レース場・回り・季節・バ場状態）を読む。合わない→選べない・判定できない→選べるが既定にならない・all が空の21件は現行と同じ
+//
 // 件数の基準（受け入れ前に測った値）: 辞書 = マスター445 ＋ 追加カタログ747 = 1192
 //   （追加カタログ747 = シナリオ因子24 ＋ 遺伝子10 ＋ 拡張スキル713。進化スキル639行は含めない）。
 //   2026-10-12: 辞書1189（追加カタログ744）／2026-10-13（新衣装ドゥラメンテ）: 進化でない新スキル3件（固有・金・白）が増えて1192（追加カタログ747）。
@@ -582,6 +584,102 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 	// 破壊確認: 要るスキルの表を空にして渡すと、取得なしでも選べてしまう（この表が落ちる）
 	const broken = await page.evaluate(() => { const C = window.UmaSkillDeckCore; const p = C.computeEvolutionPlan({ umaId: 'uma-0154', takenIds: ['ex-0336'], requireTakenIds: ['ex-0336'], filter: {}, race: null, choices: { 'ex-0336': 'ex-1415' }, requires: new Map() }); return p.choices['ex-0336']; });
 	assert(broken === 'ex-1415', '大逃げ 破壊確認: 要るスキルの表を空にすると、取得していなくても ex-1415 が選べる（§9 の期待が落ちる）', broken);
+}
+
+/* ───────── §10 進化先の conditions（2026-10-21a〜・段1。2026-10-24） ───────── */
+{
+	console.log('\n=== §10 conditions: 進化先の「使える条件」（レース場・回り・季節・バ場状態）を読む。合わない→選べない・判定できない→選べるが既定にならない・all が空は現行と同じ ===');
+	await page.evaluate(() => window.UmaSkillDeckCore.loadSkillEvolutions());
+	// 進化先ごとの行（先頭の1行）と conditions（スキル名は持たない。表の側は data/ から読む）
+	const tgt = new Map();
+	evolutions.entries.forEach((e) => e.evolvedSkillIds.forEach((id) => {
+		if (!tgt.has(id)) tgt.set(id, { id, row: e, cond: null });
+		if (e.conditions && e.conditions[id]) tgt.get(id).cond = e.conditions[id].all || {};
+	}));
+	const withCond = [...tgt.values()].filter((t) => t.cond !== null);
+	const nonEmpty = withCond.filter((t) => Object.keys(t.cond).length > 0);
+	const emptyAll = withCond.filter((t) => Object.keys(t.cond).length === 0);
+	assert(nonEmpty.length === 15 && emptyAll.length === 21, 'conditions を持つ進化先は36件（all あり15・all が空21。2026-10-21a）', { nonEmpty: nonEmpty.length, emptyAll: emptyAll.length });
+	const mk10 = (o) => Object.assign({ id: 'c', name: '試験用', venue: null, surface: 'turf', distance: 2000, distanceCategory: 'medium', direction: null, course: null, season: null, weather: null, ground: null, time: null, rule: null }, o);
+	// 試験用のレース: 全部決まっている／各項目が決まっていない／場だけ違う、など
+	const T10 = [
+		mk10({ id: 'full-kyoto-r-aut-good', venue: 'track_kyoto', direction: 'right_turn', season: 'season_autumn', ground: 'ground_good' }),
+		mk10({ id: 'full-tokyo-l-spr-bad', venue: 'track_tokyo', direction: 'left_turn', season: 'season_spring', ground: 'ground_bad' }),
+		mk10({ id: 'full-nakayama-r-win-good', venue: 'track_nakayama', direction: 'right_turn', season: 'season_winter', ground: 'ground_good' }),
+		mk10({ id: 'null-all' }),
+		mk10({ id: 'venue-only-kyoto', venue: 'track_kyoto' }),
+		mk10({ id: 'dir-only-left', direction: 'left_turn' }),
+		mk10({ id: 'season-only-winter', season: 'season_winter' }),
+		mk10({ id: 'ground-only-bad', ground: 'ground_bad' })
+	];
+	const allRaces = raceRows.concat(T10);
+	// 各進化先を「conditions あり」と「conditions なし」で、同じレースに対して判定する（元の金スキルを取得している前提・脚質の指定なし）
+	const res10 = await page.evaluate(({ items, races }) => {
+		const C = window.UmaSkillDeckCore;
+		const run = (it, race, withCond) => {
+			// 進化先ごとに独立に判定する（同じ行の別の進化先の conditions を混ぜない）
+			const e = Object.assign({}, it.row, { evolvedSkillIds: [it.id] });
+			delete e.conditions;
+			if (withCond) e.conditions = { [it.id]: { all: it.cond } };
+			const filter = {}; if (race.distanceCategory) filter.distance = race.distanceCategory; if (race.surface) filter.surface = race.surface;
+			const doc = { entries: [e] };
+			const p = C.computeEvolutionPlan({ umaId: it.row.umaId || 'u-x', takenIds: [it.row.baseSkillId], filter, race, evolutions: doc, scenarioKey: it.row.scenarioId || null });
+			const row = p.a.concat(p.b.entries).find((x) => x.baseId === it.row.baseSkillId);
+			const t = row && row.targets.find((x) => x.id === it.id);
+			return { fit: t ? t.fit : 'absent', def: row ? row.default : 'absent', vis: row ? row.visible : false };
+		};
+		return items.map((it) => ({ id: it.id, per: races.map((r) => ({ race: r.id, now: run(it, r, false), nw: run(it, r, true) })) }));
+	}, { items: nonEmpty.concat(emptyAll).map((t) => ({ id: t.id, row: t.row, cond: t.cond })), races: allRaces });
+	// 期待の組み立て（conditions の定義そのもの。ok／ng／unknown）
+	const GROUPS = { direction: ['left_turn', 'right_turn'], season: ['season_spring', 'season_summer', 'season_autumn', 'season_winter'], ground: ['ground_good', 'ground_bad'] };
+	const verdict = (cond, race) => {
+		let unknown = false;
+		if ((cond.trackVenue || []).length) { if (!race.venue) unknown = true; else if (cond.trackVenue.indexOf(race.venue) === -1) return 'ng'; }
+		const env = cond.environment || [];
+		for (const f of Object.keys(GROUPS)) { const sv = env.filter((x) => GROUPS[f].indexOf(x) !== -1); if (!sv.length) continue; if (!race[f]) unknown = true; else if (sv.indexOf(race[f]) === -1) return 'ng'; }
+		return unknown ? 'unknown' : 'ok';
+	};
+	const condById = new Map(withCond.map((t) => [t.id, t.cond]));
+	const bad10 = [], tally = { ok: 0, ng: 0, unknown: 0 };
+	let emptySame = 0;
+	res10.forEach((r) => {
+		const cond = condById.get(r.id);
+		const isEmpty = Object.keys(cond).length === 0;
+		r.per.forEach((c) => {
+			if (isEmpty) { if (JSON.stringify(c.now) === JSON.stringify(c.nw)) emptySame++; else bad10.push({ id: r.id, race: c.race, why: 'all が空なのに現行と違う', now: c.now, nw: c.nw }); return; }
+			const race = allRaces.find((x) => x.id === c.race);
+			const v = verdict(cond, race);
+			tally[v]++;
+			const exp = v === 'ng' ? 'no' : (v === 'unknown' && c.now.fit === 'must') ? 'may' : c.now.fit;
+			if (c.nw.fit !== exp) bad10.push({ id: r.id, race: c.race, v, now: c.now.fit, nw: c.nw.fit, exp });
+			// 既定は、fit が must のときだけ（unknown は既定にならない・ng は選べない）
+			if (v !== 'ok' && c.nw.def === r.id) bad10.push({ id: r.id, race: c.race, v, why: 'ok でないのに既定になった', def: c.nw.def });
+			if (v === 'ok' && c.nw.def !== c.now.def) bad10.push({ id: r.id, race: c.race, v, why: 'ok なのに既定が現行と違う', now: c.now.def, nw: c.nw.def });
+		});
+	});
+	assert(bad10.length === 0, 'all あり15件 × ' + allRaces.length + 'レース: ng→選べない・unknown→選べるが既定にならない・ok→現行どおり（期待は conditions から組み立て）', bad10.slice(0, 8));
+	assert(tally.ok > 0 && tally.ng > 0 && tally.unknown > 0, '表が空振りしていない（ok・ng・unknown のどれも当たる）', tally);
+	assert(emptySame === emptyAll.length * allRaces.length, 'all が空の21件は、どのレースでも現行と同じ（' + emptySame + '通り）', emptySame);
+	// 手書きの期待（id で書く）: 淀の祝福 ex-1227（京都）、右回りの輪舞曲 ex-1424（右回り）、荒磯好みの黄金船 ex-1091（道悪）
+	const fitOf = (id, raceId) => res10.find((r) => r.id === id).per.find((c) => c.race === raceId).nw.fit;
+	assert(fitOf('ex-1227', 'race-0001') === 'must' && fitOf('ex-1227', 'race-0003') === 'no' && fitOf('ex-1227', 'race-0004') === 'may', '淀の祝福（京都）: 京都のレース＝選べて既定／中山＝選べない／場が未公開＝選べるが既定にならない', [fitOf('ex-1227', 'race-0001'), fitOf('ex-1227', 'race-0003'), fitOf('ex-1227', 'race-0004')]);
+	assert(fitOf('ex-1424', 'race-0001') === 'must' && fitOf('ex-1424', 'dir-only-left') === 'no' && fitOf('ex-1424', 'null-all') === 'may', '右回りの輪舞曲（右回り）: 右回り＝選べる／左回り＝選べない／未公開＝選べるが既定にならない', [fitOf('ex-1424', 'race-0001'), fitOf('ex-1424', 'dir-only-left'), fitOf('ex-1424', 'null-all')]);
+	assert(fitOf('ex-1091', 'ground-only-bad') === 'must' && fitOf('ex-1091', 'race-0001') === 'no' && fitOf('ex-1091', 'race-0002') === 'may', '荒磯好みの黄金船（道悪）: 道悪＝選べる／良＝選べない／バ場状態が未公開＝選べるが既定にならない', [fitOf('ex-1091', 'ground-only-bad'), fitOf('ex-1091', 'race-0001'), fitOf('ex-1091', 'race-0002')]);
+	// ng と unknown が混ざるとき（京都 かつ 左回り の合成の条件。場が未公開で回りが右回り→ng を優先）
+	const mix = await page.evaluate((races) => {
+		const C = window.UmaSkillDeckCore;
+		const doc = { entries: [{ kind: 'uma', umaId: 'u-x', baseSkillId: 'ex-0470', evolvedSkillIds: ['ex-1146'], conditions: { 'ex-1146': { all: { trackVenue: ['track_kyoto'], environment: ['left_turn'] } } } }] };
+		const f = (race) => { const p = C.computeEvolutionPlan({ umaId: 'u-x', takenIds: ['ex-0470'], filter: { distance: 'long' }, race, evolutions: doc }); const t = p.a[0] && p.a[0].targets[0]; return t ? t.fit : 'absent'; };
+		return { ngUnknown: f(races[0]), unknownOnly: f(races[1]), ok: f(races[2]) };
+	}, [mk10({ id: 'm1', direction: 'right_turn', distanceCategory: 'long', distance: 3000 }), mk10({ id: 'm2', direction: 'left_turn', distanceCategory: 'long', distance: 3000 }), mk10({ id: 'm3', venue: 'track_kyoto', direction: 'left_turn', distanceCategory: 'long', distance: 3000 })]);
+	assert(mix.ngUnknown === 'no' && mix.unknownOnly === 'may' && mix.ok === 'must', 'ng と unknown が混ざるときは ng を優先（場が未公開・右回り→選べない／場が未公開・左回り→may／両方合う→must）', mix);
+	// ignored: conditions を持つ進化先は trackVenue・environment を ignored に入れない／all が空は今までどおり入れる
+	const ign = await page.evaluate(({ a, b }) => {
+		const C = window.UmaSkillDeckCore;
+		const f = (id) => (C.getEvolutionUsage(id).ignored || []).filter((k) => k === 'trackVenue' || k === 'environment');
+		return { withCond: a.map((id) => [id, f(id)]).filter(([, v]) => v.length > 0), empty: b.map((id) => [id, f(id)]).filter(([, v]) => v.length > 0).length };
+	}, { a: nonEmpty.map((t) => t.id), b: emptyAll.map((t) => t.id) });
+	assert(ign.withCond.length === 0 && ign.empty === emptyAll.length, 'ignored: conditions を持つ15件は trackVenue・environment を入れない／all が空の21件は今までどおり入れる', ign);
 }
 
 assert(errors.length === 0, 'コンソールエラーなし', errors);

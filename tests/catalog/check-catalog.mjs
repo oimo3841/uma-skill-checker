@@ -1915,6 +1915,26 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 				const unusedOpts = CONDITION_AXES.flatMap((k) => [...condOpts[k]].filter((v) => !tagUsed[k].has(v)).map((v) => k + ': ' + v));
 				if (unusedOpts.length) warn(EVO_FILE + ': TAG_AXES にあるが、どのスキルの tags にも使われていない値（conditions の値の候補として）', unusedOpts);
 			}
+			{
+				// conditions（all あり）の値が、進化先自身の tags の trackVenue・environment と矛盾しない（警告だけ。段1・2026-10-24）。
+				// 判定は conditions だけを読むので動作には影響しないが、tags と使える条件がずれていると、検索・絞り込みの側の読みと食い違う
+				const tagsById = new Map(masterSkills.concat(docs.extendedSkill.entries).map((sk) => [String(sk.id), isObj(sk.tags) ? sk.tags : {}]));
+				const sameSet = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+				const condTagDiff = [];
+				(isArr(d.entries) ? d.entries : []).forEach((en) => {
+					if (!isObj(en.conditions)) return;
+					Object.keys(en.conditions).forEach((eid) => {
+						const all = isObj(en.conditions[eid]) && isObj(en.conditions[eid].all) ? en.conditions[eid].all : null;
+						if (!all || Object.keys(all).length === 0) return;   // all が空は「tags のレース場・環境は追加の効果の条件」と明示済みなので見ない
+						const tg = tagsById.get(eid) || {};
+						CONDITION_AXES.forEach((k) => {
+							const cv = isArr(all[k]) ? all[k] : [], tv = isArr(tg[k]) ? tg[k] : [];
+							if (!sameSet(cv, tv)) condTagDiff.push(eid + ' の ' + k + ': conditions=' + JSON.stringify(cv) + ' / tags=' + JSON.stringify(tv));
+						});
+					});
+				});
+				if (condTagDiff.length) warn(EVO_FILE + ': conditions（all あり）の trackVenue・environment が、進化先自身の tags と違う（データ側の確認）', condTagDiff);
+			}
 			if (nCondRows) console.log('       ' + EVO_FILE + ': conditions ' + nCondRows + '行・進化先 ' + (nCondAll + nCondEmpty) + '件（all あり ' + nCondAll + '・all が空 ' + nCondEmpty + '）');
 			console.log('       ' + EVO_FILE + ': ' + nUma + '行（パターンA・' + umaWith.size + '衣装）・' + nScen + '行（パターンB）・進化先 ' + evolvedSet.size + '種');
 		}
