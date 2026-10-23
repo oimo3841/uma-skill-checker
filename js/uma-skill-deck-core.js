@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-22d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-24a';
 
 	/* ============================================================
 	 * 定数
@@ -8483,11 +8483,12 @@
 		});
 		return map;
 	}
-	let evolutionState = { status: 'idle', doc: null, byUma: null, byScenario: null, evolvedIds: null, promise: null };   // idle／loading／ok／failed
+	let evolutionState = { status: 'idle', doc: null, byUma: null, byScenario: null, evolvedIds: null, condOf: null, promise: null };   // idle／loading／ok／failed
 	function buildEvolutionIndex(doc) {
 		const byUma = new Map();         // umaId → [{ baseSkillId, evolvedSkillIds }]（データの並び）
 		const byScenario = new Map();    // scenarioId → [{ baseSkillId, evolvedSkillIds }]
 		const evolved = new Set();
+		const condOf = new Map();        // 進化先の id → { trackVenue: [...], environment: [...] }（conditions の all。空でないものだけ。2026-10-21a〜の任意項目）
 		((doc && Array.isArray(doc.entries)) ? doc.entries : []).forEach(e => {
 			if (!e || typeof e.baseSkillId !== 'string' || !e.baseSkillId || !Array.isArray(e.evolvedSkillIds)) return;
 			const ids = e.evolvedSkillIds.filter(x => typeof x === 'string' && x);
@@ -8501,8 +8502,18 @@
 				byScenario.get(e.scenarioId).push(row);
 			} else return;
 			ids.forEach(id => evolved.add(id));
+			// 進化先ごとの「使える条件」（C-193 で受け入れ済み）。all が無い・空の進化先は条件なし（追加の効果の条件のみ）。行の進化先に無い id は読まない
+			if (e.conditions && typeof e.conditions === 'object') {
+				ids.forEach(id => {
+					const all = e.conditions[id] && e.conditions[id].all;
+					if (!all || typeof all !== 'object' || condOf.has(id)) return;
+					const pick = (k) => (Array.isArray(all[k]) ? all[k].filter(x => typeof x === 'string' && x) : []);
+					const cond = { trackVenue: pick('trackVenue'), environment: pick('environment') };
+					if (cond.trackVenue.length > 0 || cond.environment.length > 0) condOf.set(id, cond);
+				});
+			}
 		});
-		return { byUma: byUma, byScenario: byScenario, evolvedIds: evolved };
+		return { byUma: byUma, byScenario: byScenario, evolvedIds: evolved, condOf: condOf };
 	}
 	function loadSkillEvolutions(forceRefresh) {
 		if (evolutionState.status === 'ok' || evolutionState.status === 'loading') return evolutionState.promise;
@@ -8514,7 +8525,7 @@
 				const doc = await fetchMasterJson(withDataVersion(SKILL_EVOLUTIONS_PATH), !!forceRefresh);
 				if (!doc || !Array.isArray(doc.entries)) throw new Error('entries');
 				const idx = buildEvolutionIndex(doc);
-				st.doc = doc; st.byUma = idx.byUma; st.byScenario = idx.byScenario; st.evolvedIds = idx.evolvedIds;
+				st.doc = doc; st.byUma = idx.byUma; st.byScenario = idx.byScenario; st.evolvedIds = idx.evolvedIds; st.condOf = idx.condOf;
 				st.status = 'ok';
 			} catch (e) { st.status = 'failed'; }
 			// 現在のシナリオの鍵（scenario-event-skills.json）も一緒に用意する（無くても進化の読み込みは成功にする）
@@ -8580,11 +8591,13 @@
 	 */
 	const EVOLUTION_BRACKET_PREFIX_WORDS = ['作戦'];
 	const evolutionUsageCache = new Map();
-	function evolutionUsageOf(skill, descOf) {
+	function evolutionUsageOf(skill, descOf, condOf) {
 		if (!skill) return null;
+		// 進化先の conditions（2026-10-21a〜）。渡されなければ、読み込み済みの進化の対応のもの。空でない条件を持つ進化先は、レース場・環境を ignored に入れない
+		const cond = condOf ? condOf.get(skill.id) : (evolutionState.status === 'ok' && evolutionState.condOf ? evolutionState.condOf.get(skill.id) : undefined);
 		const text = descOf ? descOf(skill.id) : (skillDescState.status === 'ok' ? (skillDescState.map.get(skill.id) || '') : null);
 		if (text === null || text === undefined) return null;
-		const cacheKey = skill.id + '\u0000' + text;
+		const cacheKey = skill.id + '\u0000' + text + '\u0000' + (cond ? 'c' : '');
 		if (!descOf && evolutionUsageCache.has(cacheKey)) return evolutionUsageCache.get(cacheKey);
 		const tags = skill.tags || {};
 		const m = String(text).match(/＜([^＞]*)＞/);
@@ -8620,7 +8633,8 @@
 		if (rd && !rdAll && rd.scope !== 'part') ignored.push('raceDistance');
 		// データが「距離のタグは追加の効果だけにかかる」（distanceTagScope が "part"）と示しているものは、分けられているので記録しない
 		if (rd && rd.distanceTagScope === 'part') { const i = ignored.indexOf('distance'); if (i !== -1) ignored.splice(i, 1); }
-		['trackVenue', 'environment'].forEach(k => { if (Array.isArray(tags[k]) && tags[k].length > 0) ignored.push(k); });
+		// conditions を持つ進化先は、レース場・環境を evolutionConditionVerdictOf が読む（all が空の進化先は今までどおり、追加の効果の条件として使わない）
+		if (!cond) ['trackVenue', 'environment'].forEach(k => { if (Array.isArray(tags[k]) && tags[k].length > 0) ignored.push(k); });
 		const out = {
 			id: skill.id,
 			tags: Object.assign({}, tags, { distance: got.distance, style: got.style, surface: got.surface, trackVenue: [], environment: [] }),
@@ -8630,6 +8644,29 @@
 		};
 		if (!descOf) evolutionUsageCache.set(cacheKey, out);
 		return out;
+	}
+	/**
+	 * 進化先の conditions（all の trackVenue・environment）がレースに合うか（段1・2026-10-24）。'ok'（合う）／'ng'（合わない）／'unknown'（判定できない）。
+	 * trackVenue は「いずれか」。environment は項目（回り・季節・天気・バ場状態・時間帯。RACE_ENV_FIELDS）ごとに「いずれか」、項目どうしは「かつ」。
+	 * レースの該当項目が公開されていない（null）・レースを選んでいないときは、その項目は unknown。ng が1つでもあれば ng（unknown と混ざるときは ng を優先する）。
+	 * 条件を持たない進化先（cond が無い）は常に 'ok'。
+	 */
+	function evolutionConditionVerdictOf(cond, race) {
+		if (!cond) return 'ok';
+		let unknown = false;
+		const venues = Array.isArray(cond.trackVenue) ? cond.trackVenue : [];
+		if (venues.length > 0) {
+			if (!race || !race.venue) unknown = true;
+			else if (venues.indexOf(race.venue) === -1) return 'ng';
+		}
+		const env = Array.isArray(cond.environment) ? cond.environment : [];
+		for (const f of Object.keys(RACE_ENV_FIELDS)) {
+			const sv = env.filter(x => RACE_ENV_FIELDS[f].indexOf(x) !== -1);
+			if (sv.length === 0) continue;
+			if (!race || !race[f]) unknown = true;
+			else if (sv.indexOf(race[f]) === -1) return 'ng';
+		}
+		return unknown ? 'unknown' : 'ok';
 	}
 	function evolutionFitOf(skill, filter, race) {
 		if (!skill) return 'no';
@@ -8733,7 +8770,13 @@
 		const scenarioKey = a.scenarioKey !== undefined ? a.scenarioKey : (a.evolutions ? null : evolutionScenarioKey());
 		// 進化先が使える条件（C-152。説明文の＜…＞と、スキル全体にかかる距離の限定）。説明文を読めていなければ元のスキルのまま（呼び出し側は読み込み中として扱う）
 		const descOf = typeof a.descOf === 'function' ? a.descOf : null;
-		const usageOf = (sk) => (sk && evolutionUsageOf(sk, descOf)) || sk;
+		const condOf = idx.condOf instanceof Map ? idx.condOf : new Map();   // 進化先の conditions（段1）。無い・空の進化先は条件なし
+		const usageOf = (sk) => (sk && evolutionUsageOf(sk, descOf, condOf)) || sk;
+		// conditions を足した fit: ng → 'no'、unknown → 'may' 以下（選べるが既定にならない）、ok → そのまま
+		const withCondFit = (fit, id) => {
+			const v = evolutionConditionVerdictOf(condOf.get(id), race);
+			return v === 'ng' ? 'no' : (v === 'unknown' && fit === 'must') ? 'may' : fit;
+		};
 		// 脚質が未指定のとき、脚質の限定がある（使える脚質が決まっている）進化先は自動では選ばない
 		const styleOk = (usage) => !!filter.style || !(((usage && usage.tags && usage.tags.style) || []).length);
 
@@ -8745,7 +8788,7 @@
 			const targets = row.evolvedSkillIds.map((id, i) => {
 				const u = usageOf(findSkill(id));
 				const missing = missingOf(id);
-				return { id: id, fit: hasFilter ? evolutionFitOf(u, filter, race) : 'must', _ok: styleOk(u), _key: u ? evolutionOrderKey(u, filter, effectRank(id), i) : [1, 0, 0, 0, i], missing: missing };
+				return { id: id, fit: withCondFit(hasFilter ? evolutionFitOf(u, filter, race) : 'must', id), _ok: styleOk(u), _key: u ? evolutionOrderKey(u, filter, effectRank(id), i) : [1, 0, 0, 0, i], missing: missing };
 			});
 			// 要るスキルを取得していない進化先は選べない（fit は条件の判定のまま。行は出す）
 			const cands = targets.filter(t => t.fit === 'must' && t._ok && t.missing.length === 0).sort((x, y) => compareOrderKeys(x._key, y._key));
