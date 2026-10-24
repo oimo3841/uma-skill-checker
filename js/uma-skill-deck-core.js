@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-24c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-24d';
 
 	/* ============================================================
 	 * 定数
@@ -28,6 +28,8 @@
 	const STORAGE_KEY_USER = 'umaSkillDeck:userData';
 	const STORAGE_KEY_MASTER = 'umaSkillDeck:masterCache';
 	const MASTER_JSON_PATH = 'uma-skill-deck-skills.json';
+	/** シナリオの進化スキル（パターンB）で選べる数の上限 */
+	const EVO_B_LIMIT = 2;
 
 	/**
 	 * **マスターの版。`uma-skill-deck-skills.json` の `masterVersion` と必ず同じ値にする。**
@@ -8975,7 +8977,7 @@
 		const bAll = rowsB.filter(r => taken.has(r.baseSkillId) && !aEvolved.has(r.baseSkillId)).map(judge);
 		const bPool = bAll.map(e => Object.assign({}, e, { candidate: specified && e._best !== null }));
 		const candidates = bPool.filter(e => e.candidate).map(e => e.baseId).sort(compareSkillIds);
-		const bDefaults = candidates.slice(0, 2);
+		const bDefaults = candidates.slice(0, EVO_B_LIMIT);
 		bPool.forEach(e => { e.default = !specified ? 'none' : (bDefaults.indexOf(e.baseId) !== -1 ? e._best : (e.default === 'invalid' ? 'invalid' : 'none')); e.visible = e.default !== 'invalid'; });
 
 		// 保存された選択（B）。有効な保存値は既定より優先し、合わせて2つを超えたら id の大きいほうから戻す（既定で決まったものを先に）
@@ -8984,7 +8986,7 @@
 		const trim = (pickStored) => {
 			for (;;) {
 				const live = bOrdered.filter(e => evolves(e.choice));
-				if (live.length <= 2) return;
+				if (live.length <= EVO_B_LIMIT) return;
 				const victims = live.filter(e => (e.stored !== null) === pickStored);
 				if (victims.length === 0) return;
 				victims[victims.length - 1].choice = 'none';
@@ -10105,7 +10107,7 @@
 		function evoMaxCount() {
 			// 説明文の読み込み中・失敗中（進化の決定がまだ無い）も、衣装の金スキルの数は進化の対応から数える（「0／2」のように小さく見せない。C-152）
 			const a = evolutionReady() ? evoPlan.slots.a : evolutionRowsOfUma(roster.umaId).length;
-			return a + (evolutionRowsOfScenario().length > 0 ? 2 : 0);
+			return a + (evolutionRowsOfScenario().length > 0 ? EVO_B_LIMIT : 0);
 		}
 		/** パターンAの行（その衣装の金スキルのうち、いま取っていて、進化先がいまの条件でありうるもの。データの並び） */
 		function evoAEntries() {
@@ -10325,15 +10327,8 @@
 		function fillEvoPatternB(root) {
 			const list = evoBEntries();
 			const picked = list.filter(e => e.choice !== 'none').length;
-			const lead = infoEl('p', 'usd-evo-cond', (evoPlan.b.scenario || '') + ' / 2つまで選べます。');
-			lead.setAttribute('data-usd-el', 'evo-lead');
-			root.appendChild(lead);
-			if (evoPlan.b.candidates.length >= 3) {
-				const more = infoEl('p', 'usd-evo-cond', '候補が3つ以上あるため、選ぶものを確認してください。');
-				more.setAttribute('data-usd-el', 'evo-many');
-				root.appendChild(more);
-			}
-			const h = infoEl('h3', 'usd-evo-subhead', '候補（選択 ' + picked + '／2）');
+			const full = picked >= EVO_B_LIMIT;
+			const h = infoEl('h3', 'usd-evo-subhead', '候補（選択 ' + picked + '／' + EVO_B_LIMIT + '）');
 			h.setAttribute('data-usd-el', 'evo-subhead');
 			root.appendChild(h);
 			const box = infoEl('div', 'usd-evo-group');
@@ -10341,15 +10336,18 @@
 			list.forEach(e => {
 				const on = e.choice !== 'none';
 				const t = e.targets.find(x => x.fit !== 'no') || e.targets[0];
-				const lab = infoEl('label', 'usd-evo-brow usd-evo-target' + (on ? ' usd-evo-target--on' : ''));
+				const blocked = !on && full;   // 上限まで選んでいる間、選んでいない候補は選べない（無効。選択を外すと戻る）
+				const lab = infoEl('label', 'usd-evo-brow usd-evo-target' + (on ? ' usd-evo-target--on' : '') + (blocked ? ' usd-evo-target--off' : ''));
 				lab.setAttribute('data-usd-el', 'evo-brow');
 				lab.setAttribute('data-base-id', e.baseId);
+				if (blocked) lab.setAttribute('aria-disabled', 'true');
 				const inp = infoEl('input');
 				inp.type = 'checkbox';
 				inp.checked = on;
+				inp.disabled = blocked;
 				inp.setAttribute('data-evo-key', 'b:' + e.baseId);
 				inp.addEventListener('click', (ev) => {
-					if (!on && picked >= 2) { ev.preventDefault(); return; }   // 2つ選んでいる間は増やさない（下の赤い注意文が理由）
+					if (blocked) { ev.preventDefault(); return; }
 					// 候補すべてのキーを書く（選んだものは進化先の id、選んでいないものは 'none'）。候補の組が変わったとき、利用者の選択と既定を区別できる
 					const tgt = {};
 					list.forEach(x => {
@@ -10360,15 +10358,12 @@
 				});
 				lab.appendChild(inp);
 				const c = evoConditionText(t.id);
-				lab.appendChild(evoRowTextEl(t.id, null, '元: ' + getSkillName(e.baseId) + (c ? ' / ' + c : '')));
+				const txt = evoRowTextEl(t.id, null, '元: ' + getSkillName(e.baseId) + (c ? ' / ' + c : ''));
+				if (blocked) txt.appendChild(infoEl('span', 'usd-evo-sr', EVO_B_LIMIT + 'つ選択済みのため選べません'));   // 支援技術用（画面には出さない）
+				lab.appendChild(txt);
 				box.appendChild(lab);
 			});
 			root.appendChild(box);
-			if (picked >= 2) {
-				const warn = infoEl('p', 'usd-evo-warn', '選べるのは2つまでです。3つ目を選ぶには、先にどれかの選択を外してください。');
-				warn.setAttribute('data-usd-el', 'evo-warn');
-				root.appendChild(warn);
-			}
 		}
 
 		/** 帯の「進化 N／最大」ボタンと、確認が必要なときの「！」（押すと進化の画面。「！」はパターンBから開く） */
