@@ -10,8 +10,8 @@ export async function register20e(env) {
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	// C-142（微調整4・E）: 告知は exam だけに出す（UmaStar の告知は完成後）。special には出ないことは 微調整4E1 が見る
 	const TOOLS_ALL = [
-		{ name: 'exam', file: 'exam.html', key: 'uma-exam-edition-notice', ok: '#ui-notice-ok', seen: { 'uma-exam-ui-notice': 'UI_NOTICE_ID', 'uma-exam-target-notice': 'TARGET_NOTICE_ID' }, back: '#ui-notice-backdrop' },
-		{ name: 'special', file: 'special.html', key: 'uma-special-edition-notice', ok: '#ui-notice-ok', seen: { 'uma-special-ui-notice': 'UI_NOTICE_ID', 'uma-special-alpha-notice': 'ALPHA_NOTICE_ID', 'uma-special-catalog-notice': 'CATALOG_NOTICE_ID' }, back: '#ui-notice-backdrop' },
+		{ name: 'exam', file: 'exam.html', key: 'uma-exam-edition-notice', ok: '#ui-notice-ok', seen: { 'uma-exam-ui-notice': 'UI_NOTICE_ID', 'uma-exam-target-notice': 'TARGET_NOTICE_ID', 'uma-exam-scenario-notice': 'UmaAnnounce.SCENARIO_PENDING.id' }, back: '#ui-notice-backdrop' },
+		{ name: 'special', file: 'special.html', key: 'uma-special-edition-notice', ok: '#ui-notice-ok', seen: { 'uma-special-ui-notice': 'UI_NOTICE_ID', 'uma-special-alpha-notice': 'ALPHA_NOTICE_ID', 'uma-special-catalog-notice': 'CATALOG_NOTICE_ID', 'uma-special-scenario-notice': 'UmaAnnounce.SCENARIO_PENDING.id' }, back: '#ui-notice-backdrop' },
 	];
 	const TOOLS = TOOLS_ALL.filter((t) => t.name === 'exam');
 	const ID = async (page, names) => page.evaluate((ns) => Object.fromEntries(ns.map((n) => [n, eval(n)])), names);
