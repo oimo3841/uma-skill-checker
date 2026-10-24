@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-17f",
+	"dataVersion": "2026-10-25a",
 	"category": "trainingEventSkill",
 	"entries": [
 		{
@@ -29406,6 +29406,11 @@
 					]
 				}
 			]
+		},
+		{
+			"umaId": "uma-0272",
+			"status": "done",
+			"events": []
 		}
 	]
 }
