@@ -599,7 +599,7 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 	const withCond = [...tgt.values()].filter((t) => t.cond !== null);
 	const nonEmpty = withCond.filter((t) => Object.keys(t.cond).length > 0);
 	const emptyAll = withCond.filter((t) => Object.keys(t.cond).length === 0);
-	assert(nonEmpty.length === 15 && emptyAll.length === 21, 'conditions を持つ進化先は36件（all あり15・all が空21。2026-10-21a）', { nonEmpty: nonEmpty.length, emptyAll: emptyAll.length });
+	assert(nonEmpty.length === 16 && emptyAll.length === 21, 'conditions を持つ進化先は37件（all あり16・all が空21。2026-10-24a）', { nonEmpty: nonEmpty.length, emptyAll: emptyAll.length });
 	const mk10 = (o) => Object.assign({ id: 'c', name: '試験用', venue: null, surface: 'turf', distance: 2000, distanceCategory: 'medium', direction: null, course: null, season: null, weather: null, ground: null, time: null, rule: null }, o);
 	// 試験用のレース: 全部決まっている／各項目が決まっていない／場だけ違う、など
 	const T10 = [
@@ -610,7 +610,12 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 		mk10({ id: 'venue-only-kyoto', venue: 'track_kyoto' }),
 		mk10({ id: 'dir-only-left', direction: 'left_turn' }),
 		mk10({ id: 'season-only-winter', season: 'season_winter' }),
-		mk10({ id: 'ground-only-bad', ground: 'ground_bad' })
+		mk10({ id: 'ground-only-bad', ground: 'ground_bad' }),
+		mk10({ id: 'dist-short', distance: 1200, distanceCategory: 'short' }),
+		mk10({ id: 'dist-mile', distance: 1600, distanceCategory: 'mile' }),
+		mk10({ id: 'dist-medium', distance: 2000, distanceCategory: 'medium' }),
+		mk10({ id: 'dist-long', distance: 3000, distanceCategory: 'long' }),
+		mk10({ id: 'dist-null', distance: null, distanceCategory: null })
 	];
 	const allRaces = raceRows.concat(T10);
 	// 各進化先を「conditions あり」と「conditions なし」で、同じレースに対して判定する（元の金スキルを取得している前提・脚質の指定なし）
@@ -635,6 +640,7 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 	const verdict = (cond, race) => {
 		let unknown = false;
 		if ((cond.trackVenue || []).length) { if (!race.venue) unknown = true; else if (cond.trackVenue.indexOf(race.venue) === -1) return 'ng'; }
+		if ((cond.distance || []).length) { if (!race.distanceCategory) unknown = true; else if (cond.distance.indexOf(race.distanceCategory) === -1) return 'ng'; }
 		const env = cond.environment || [];
 		for (const f of Object.keys(GROUPS)) { const sv = env.filter((x) => GROUPS[f].indexOf(x) !== -1); if (!sv.length) continue; if (!race[f]) unknown = true; else if (sv.indexOf(race[f]) === -1) return 'ng'; }
 		return unknown ? 'unknown' : 'ok';
@@ -657,7 +663,7 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 			if (v === 'ok' && c.nw.def !== c.now.def) bad10.push({ id: r.id, race: c.race, v, why: 'ok なのに既定が現行と違う', now: c.now.def, nw: c.nw.def });
 		});
 	});
-	assert(bad10.length === 0, 'all あり15件 × ' + allRaces.length + 'レース: ng→選べない・unknown→選べるが既定にならない・ok→現行どおり（期待は conditions から組み立て）', bad10.slice(0, 8));
+	assert(bad10.length === 0, 'all あり16件 × ' + allRaces.length + 'レース: ng→選べない・unknown→選べるが既定にならない・ok→現行どおり（期待は conditions から組み立て）', bad10.slice(0, 8));
 	assert(tally.ok > 0 && tally.ng > 0 && tally.unknown > 0, '表が空振りしていない（ok・ng・unknown のどれも当たる）', tally);
 	assert(emptySame === emptyAll.length * allRaces.length, 'all が空の21件は、どのレースでも現行と同じ（' + emptySame + '通り）', emptySame);
 	// 手書きの期待（id で書く）: 淀の祝福 ex-1227（京都）、右回りの輪舞曲 ex-1424（右回り）、荒磯好みの黄金船 ex-1091（道悪）
@@ -665,6 +671,9 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 	assert(fitOf('ex-1227', 'race-0001') === 'must' && fitOf('ex-1227', 'race-0003') === 'no' && fitOf('ex-1227', 'race-0004') === 'may', '淀の祝福（京都）: 京都のレース＝選べて既定／中山＝選べない／場が未公開＝選べるが既定にならない', [fitOf('ex-1227', 'race-0001'), fitOf('ex-1227', 'race-0003'), fitOf('ex-1227', 'race-0004')]);
 	assert(fitOf('ex-1424', 'race-0001') === 'must' && fitOf('ex-1424', 'dir-only-left') === 'no' && fitOf('ex-1424', 'null-all') === 'may', '右回りの輪舞曲（右回り）: 右回り＝選べる／左回り＝選べない／未公開＝選べるが既定にならない', [fitOf('ex-1424', 'race-0001'), fitOf('ex-1424', 'dir-only-left'), fitOf('ex-1424', 'null-all')]);
 	assert(fitOf('ex-1091', 'ground-only-bad') === 'must' && fitOf('ex-1091', 'race-0001') === 'no' && fitOf('ex-1091', 'race-0002') === 'may', '荒磯好みの黄金船（道悪）: 道悪＝選べる／良＝選べない／バ場状態が未公開＝選べるが既定にならない', [fitOf('ex-1091', 'ground-only-bad'), fitOf('ex-1091', 'race-0001'), fitOf('ex-1091', 'race-0002')]);
+	// 誠心たる光燿 ex-1607（距離＝マイル／中距離）: 短距離・長距離＝選べない／マイル・中距離＝現行のまま／距離が無い＝選べるが既定にならない
+	const nowOf = (id, raceId) => res10.find((r) => r.id === id).per.find((c) => c.race === raceId).now.fit;
+	assert(['dist-short', 'dist-long'].every((r) => fitOf('ex-1607', r) === 'no') && ['dist-mile', 'dist-medium'].every((r) => fitOf('ex-1607', r) === nowOf('ex-1607', r) && fitOf('ex-1607', r) !== 'no') && fitOf('ex-1607', 'dist-null') !== 'no' && fitOf('ex-1607', 'dist-null') !== 'must', '誠心たる光燿（距離＝マイル／中距離）: 短距離・長距離＝選べない／マイル・中距離＝現行のまま／距離が無い＝選べるが既定にならない', ['dist-short', 'dist-mile', 'dist-medium', 'dist-long', 'dist-null'].map((r) => [r, nowOf('ex-1607', r), fitOf('ex-1607', r)]));
 	// ng と unknown が混ざるとき（京都 かつ 左回り の合成の条件。場が未公開で回りが右回り→ng を優先）
 	const mix = await page.evaluate((races) => {
 		const C = window.UmaSkillDeckCore;
@@ -679,7 +688,7 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 		const f = (id) => (C.getEvolutionUsage(id).ignored || []).filter((k) => k === 'trackVenue' || k === 'environment');
 		return { withCond: a.map((id) => [id, f(id)]).filter(([, v]) => v.length > 0), empty: b.map((id) => [id, f(id)]).filter(([, v]) => v.length > 0).length };
 	}, { a: nonEmpty.map((t) => t.id), b: emptyAll.map((t) => t.id) });
-	assert(ign.withCond.length === 0 && ign.empty === emptyAll.length, 'ignored: conditions を持つ15件は trackVenue・environment を入れない／all が空の21件は今までどおり入れる', ign);
+	assert(ign.withCond.length === 0 && ign.empty === emptyAll.length, 'ignored: conditions を持つ16件は trackVenue・environment を入れない／all が空の21件は今までどおり入れる', ign);
 }
 
 assert(errors.length === 0, 'コンソールエラーなし', errors);
