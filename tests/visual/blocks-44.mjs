@@ -209,9 +209,9 @@ export async function register44(env) {
 			return { P1: p(P1), P2: p(P2), P3: p(P3), P3none: p(P3, { exclude: {} }), P1none: p(P1, { exclude: {} }) };
 		}, { A: ROSTER_A, FULL, races: RACES });
 		console.log('     [実測] 母集団: P1 ' + JSON.stringify(res.P1) + ' / P2 ' + JSON.stringify(res.P2) + ' / P3 ' + JSON.stringify(res.P3));
-		assert(res.P1.n === 99 && res.P2.n === 132, 'C-185 B2 P1・P2 の母集団は Step 0 の実測（99・132）と一致（レースを選んでいるので B3 は効かない）', { P1: res.P1, P2: res.P2 });
+		assert(res.P1.n === 104 && res.P2.n === 134, 'C-185 B2 P1・P2 の母集団は Step 0 の実測（99・132）に、先行データ（2026-10-25a）で増えた分（逃げ・長距離＋5／先行・中距離＋2）を足した値（104・134）と一致（レースを選んでいるので B3 は効かない）', { P1: res.P1, P2: res.P2 });
 		assert(res.P1.noRace === 0 && res.P2.noRace === 0, 'C-185 B3 レースを選んでいれば、レース条件の緑スキルは外さない', { P1: res.P1, P2: res.P2 });
-		assert(res.P3.n + res.P3.noRace === 146, 'C-185 B3 P3（レースなし）は、緑スキルを外した分（' + res.P3.noRace + '種）を戻すと Step 0 の実測（146）と一致', res.P3);
+		assert(res.P3.n + res.P3.noRace === 149, 'C-185 B3 P3（レースなし）は、緑スキルを外した分（' + res.P3.noRace + '種）を戻すと Step 0 の実測（146）に先行データ（2026-10-25a）で増えた3種を足した値（149）と一致', res.P3);
 		assert(res.P1none.n > res.P1.n && res.P3none.n > res.P3.n, 'C-185 B2 除外なしの母集団は、4つを除外したときより多い', { P1: [res.P1none.n, res.P1.n], P3: [res.P3none.n, res.P3.n] });
 		await sp.ctx.close();
 	});

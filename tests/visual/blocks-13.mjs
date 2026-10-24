@@ -230,7 +230,8 @@ export async function register13(env) {
 	 * B: ①（本育成編成）とセットの帯
 	 * ==================================================================== */
 	const R0 = racesReal.races[0];
-	const PART = racesReal.races.find((x) => !x.venue && !x.distance && x.surface && x.distanceCategory);
+	// 一部だけ公開のレース（会場・距離が無く、バ場と距離区分だけ）。2026-10-25a で race-0004 が全部公開になったため、同じ形（芝・中距離だけ）の最初の1件で見る（検査する形は変えていない）
+	const PART = racesReal.races.find((x) => !x.venue && !x.distance && x.surface === 'turf' && x.distanceCategory === 'medium');
 	const barInfo = (page) => page.evaluate(() => {
 		const bar = document.querySelector('#deck-set-bar [data-usd-el="setbar"]');
 		const b = bar.querySelector('[data-usd-el="set-race-btn"]');

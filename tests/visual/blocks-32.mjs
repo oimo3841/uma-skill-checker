@@ -58,7 +58,8 @@ export async function register32(env) {
 	const ACQ = Object.fromEntries(TRD.map((e) => [e.umaId, Object.fromEntries(e.events.map((ev, i) => [ev.acquireMode === 'user' ? 'uma:' + e.umaId + '#' + i : null, Array.isArray(ev.acquireOptions) ? ev.acquireOptions.length - 1 : 0]).filter((x) => x[0] !== null))]));
 	// solo271 は 2026-10-17f（段階 acquireOptions）で 148b3434c01f7408 から 4766549b438c42c2 に変わった。変わったのはビコーペガサス（uma-0132）の「ターフの上のヒーロー」だけ:
 	// 従来は「ゲーム内の選択肢4つ・未選択」で△だったものを、段階を選ぶと1つに決まり●になる（その衣装の acquireOptions を外したデータでは 148b… に戻ることを確かめた。blocks-34 の(1)(1d)も参照）
-	const HASH = { solo271: '4766549b438c42c2', real: 'c233a84f582ba98d', r2: '2e74a955752d79c6', vary: '49545117935c03cb' };
+	// 2026-10-25a で衣装が1つ増えた（uma-0272）。solo271 は 4766549b438c42c2 から 21f01b95512714c7 に変わった。変わったのは新しい衣装の1行だけ: uma-0272 を除いた271衣装では 4766549b438c42c2 のまま（一致を確かめた）。real・r2・vary は変わらない
+	const HASH = { solo271: '21f01b95512714c7', real: 'c233a84f582ba98d', r2: '2e74a955752d79c6', vary: '49545117935c03cb' };
 
 	await block('◎合算(1) 計算の層は変わらない: 271衣装の単独・REAL・絞り込み・VARY の出力ハッシュが変更前と同一', async () => {
 		const sp = await openSp({ roster: R1 });
@@ -77,7 +78,7 @@ export async function register32(env) {
 			const solo = umas.map((id) => one({ umaId: id, cardIds: [null, null, null, null, null, null] }));
 			return { solo271: await hex(solo.join('\n')), n: solo.length, real: await hex(one(REAL)), r2: await hex(one(R2)), vary: await hex(one(VARY)) };
 		}, { umas: UMAS, REAL: R1, R2, VARY, ACQ });
-		assert(got.n === 271 && got.solo271 === HASH.solo271, '◎合算(1) 271衣装の単独の出力ハッシュ（' + got.solo271 + '）が変更前と同一', got);
+		assert(got.n === 272 && got.solo271 === HASH.solo271, '◎合算(1) 271衣装の単独の出力ハッシュ（' + got.solo271 + '）が変更前と同一', got);
 		assert(got.real === HASH.real && got.r2 === HASH.r2 && got.vary === HASH.vary, '◎合算(1) REAL・絞り込み・VARY の出力ハッシュが変更前と同一', got);
 		assert(jsErrors(sp.errors).length === 0, '◎合算(1) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();

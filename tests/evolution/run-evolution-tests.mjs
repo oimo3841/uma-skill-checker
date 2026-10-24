@@ -600,7 +600,7 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 	const withCond = [...tgt.values()].filter((t) => t.cond !== null);
 	const nonEmpty = withCond.filter((t) => Object.keys(t.cond).length > 0);
 	const emptyAll = withCond.filter((t) => Object.keys(t.cond).length === 0);
-	assert(nonEmpty.length === 16 && emptyAll.length === 21, 'conditions を持つ進化先は37件（all あり16・all が空21。2026-10-24a）', { nonEmpty: nonEmpty.length, emptyAll: emptyAll.length });
+	assert(nonEmpty.length === 17 && emptyAll.length === 21, 'conditions を持つ進化先は38件（all あり17・all が空21。2026-10-25a）', { nonEmpty: nonEmpty.length, emptyAll: emptyAll.length });
 	const mk10 = (o) => Object.assign({ id: 'c', name: '試験用', venue: null, surface: 'turf', distance: 2000, distanceCategory: 'medium', direction: null, course: null, season: null, weather: null, ground: null, time: null, rule: null }, o);
 	// 試験用のレース: 全部決まっている／各項目が決まっていない／場だけ違う、など
 	const T10 = [
@@ -664,12 +664,12 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 			if (v === 'ok' && c.nw.def !== c.now.def) bad10.push({ id: r.id, race: c.race, v, why: 'ok なのに既定が現行と違う', now: c.now.def, nw: c.nw.def });
 		});
 	});
-	assert(bad10.length === 0, 'all あり16件 × ' + allRaces.length + 'レース: ng→選べない・unknown→選べるが既定にならない・ok→現行どおり（期待は conditions から組み立て）', bad10.slice(0, 8));
+	assert(bad10.length === 0, 'all あり17件 × ' + allRaces.length + 'レース: ng→選べない・unknown→選べるが既定にならない・ok→現行どおり（期待は conditions から組み立て）', bad10.slice(0, 8));
 	assert(tally.ok > 0 && tally.ng > 0 && tally.unknown > 0, '表が空振りしていない（ok・ng・unknown のどれも当たる）', tally);
 	assert(emptySame === emptyAll.length * allRaces.length, 'all が空の21件は、どのレースでも現行と同じ（' + emptySame + '通り）', emptySame);
 	// 手書きの期待（id で書く）: 淀の祝福 ex-1227（京都）、右回りの輪舞曲 ex-1424（右回り）、荒磯好みの黄金船 ex-1091（道悪）
 	const fitOf = (id, raceId) => res10.find((r) => r.id === id).per.find((c) => c.race === raceId).nw.fit;
-	assert(fitOf('ex-1227', 'race-0001') === 'must' && fitOf('ex-1227', 'race-0003') === 'no' && fitOf('ex-1227', 'race-0004') === 'may', '淀の祝福（京都）: 京都のレース＝選べて既定／中山＝選べない／場が未公開＝選べるが既定にならない', [fitOf('ex-1227', 'race-0001'), fitOf('ex-1227', 'race-0003'), fitOf('ex-1227', 'race-0004')]);
+	assert(fitOf('ex-1227', 'race-0001') === 'must' && fitOf('ex-1227', 'race-0003') === 'no' && fitOf('ex-1227', 'race-0004') === 'no' && fitOf('ex-1227', 'race-0007') === 'may', '淀の祝福（京都）: 京都のレース＝選べて既定／中山・東京（race-0004 は 2026-10-25a で東京と決まった）＝選べない／場が未公開（race-0007）＝選べるが既定にならない', [fitOf('ex-1227', 'race-0001'), fitOf('ex-1227', 'race-0003'), fitOf('ex-1227', 'race-0004'), fitOf('ex-1227', 'race-0007')]);
 	assert(fitOf('ex-1424', 'race-0001') === 'must' && fitOf('ex-1424', 'dir-only-left') === 'no' && fitOf('ex-1424', 'null-all') === 'may', '右回りの輪舞曲（右回り）: 右回り＝選べる／左回り＝選べない／未公開＝選べるが既定にならない', [fitOf('ex-1424', 'race-0001'), fitOf('ex-1424', 'dir-only-left'), fitOf('ex-1424', 'null-all')]);
 	assert(fitOf('ex-1091', 'ground-only-bad') === 'must' && fitOf('ex-1091', 'race-0001') === 'no' && fitOf('ex-1091', 'race-0002') === 'may', '荒磯好みの黄金船（道悪）: 道悪＝選べる／良＝選べない／バ場状態が未公開＝選べるが既定にならない', [fitOf('ex-1091', 'ground-only-bad'), fitOf('ex-1091', 'race-0001'), fitOf('ex-1091', 'race-0002')]);
 	// 誠心たる光燿 ex-1607（距離＝マイル／中距離）: 短距離・長距離＝選べない／マイル・中距離＝現行のまま／距離が無い＝選べるが既定にならない
@@ -689,7 +689,7 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 		const f = (id) => (C.getEvolutionUsage(id).ignored || []).filter((k) => k === 'trackVenue' || k === 'environment');
 		return { withCond: a.map((id) => [id, f(id)]).filter(([, v]) => v.length > 0), empty: b.map((id) => [id, f(id)]).filter(([, v]) => v.length > 0).length };
 	}, { a: nonEmpty.map((t) => t.id), b: emptyAll.map((t) => t.id) });
-	assert(ign.withCond.length === 0 && ign.empty === emptyAll.length, 'ignored: conditions を持つ16件は trackVenue・environment を入れない／all が空の21件は今までどおり入れる', ign);
+	assert(ign.withCond.length === 0 && ign.empty === emptyAll.length, 'ignored: conditions を持つ17件は trackVenue・environment を入れない／all が空の21件は今までどおり入れる', ign);
 }
 
 /* ───────── §11 選べない進化先の強調（2026-10-24・案G。core の getEvolutionNgMarks） ─────────
@@ -733,10 +733,10 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 		assert(JSON.stringify(b1.line) === JSON.stringify(['2000m以上']) && JSON.stringify(b1.desc) === JSON.stringify(['2000m以上']), '全体の距離 2000m以上: 1600m のレースでは「2000m以上」を強調（行と説明文）', b1);
 		assert(b2.line.length === 0 && b2.desc.length === 0, '全体の距離 2000m以上: 2400m のレースでは強調しない', b2);
 	}
-	// (3) conditions（16件の all あり）: 合わない軸の値すべてを、説明文の中から探して強調する。判定の期待は §10 と同じ
+	// (3) conditions（17件の all あり）: 合わない軸の値すべてを、説明文の中から探して強調する。判定の期待は §10 と同じ
 	const withAll = [];
 	evolutions.entries.forEach((e) => Object.keys(e.conditions || {}).forEach((id) => { const all = e.conditions[id].all || {}; if (Object.keys(all).length && !withAll.some((x) => x.id === id)) withAll.push({ id, all }); }));
-	assert(withAll.length === 16, 'conditions で all を持つ進化先は16件', withAll.length);
+	assert(withAll.length === 17, 'conditions で all を持つ進化先は17件', withAll.length);
 	const T11 = [
 		mk11({ id: 't-kyoto-r-aut-good', venue: 'track_kyoto', direction: 'right_turn', season: 'season_autumn', ground: 'ground_good', distance: 1600, distanceCategory: 'mile' }),
 		mk11({ id: 't-tokyo-l-spr-bad', venue: 'track_tokyo', direction: 'left_turn', season: 'season_spring', ground: 'ground_bad', distance: 1200, distanceCategory: 'short' }),
@@ -782,7 +782,7 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 		wordsIn(m.desc, m.descRanges).forEach((w) => rec.found.add(w)); m.appended.forEach((w) => rec.appended.add(w));
 		listing.set(t.id, rec);
 	}
-	assert(badMarks.length === 0, 'all あり16件 × ' + T11.length + 'レース: 合わない軸の語だけ強調（合う・判定できない→強調なし／強調した語は合わない軸の値の語に収まる）', badMarks.slice(0, 6));
+	assert(badMarks.length === 0, 'all あり17件 × ' + T11.length + 'レース: 合わない軸の語だけ強調（合う・判定できない→強調なし／強調した語は合わない軸の値の語に収まる）', badMarks.slice(0, 6));
 	assert(tallyM.ngCases > 0 && tallyM.okCases > 0, '表が空振りしていない（合わない・合うのどちらも当たる）', tallyM);
 	// 手書きの期待（id で書く）
 	const spec = async (id, race) => { const m = await marksOf(id, {}, race); return wordsIn(m.desc, m.descRanges).concat(m.appended.map((w) => '+' + w)); };
@@ -795,11 +795,11 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 	assert(JSON.stringify(await spec('ex-1049', T11[0])) === JSON.stringify(['左回り']) && JSON.stringify(await spec('ex-1424', T11[1])) === JSON.stringify(['右回り']), '回り（ex-1049 左回り・ex-1424 右回り）: 合わない回りの語を強調', [await spec('ex-1049', T11[0]), await spec('ex-1424', T11[1])]);
 	// 判定できない（レース未選択・項目が未公開）は強調しない
 	const un = await Promise.all(withAll.map((t) => marksOf(t.id, {}, null)));
-	assert(un.every((m) => !m.lineRanges.length && !m.descRanges.length && !m.appended.length), 'レース未選択: all あり16件のどれも強調しない', un.filter((m) => m.descRanges.length).length);
-	// 説明文に見つからない条件の語は、説明文の末尾に足す（実データの16件は、説明文を読んで一覧にして報告に出す）
-	console.log('       [一覧] all あり16件で、合わないレースのときに強調された語（説明文で見つかった語／見つからず末尾に足す語）');
+	assert(un.every((m) => !m.lineRanges.length && !m.descRanges.length && !m.appended.length), 'レース未選択: all あり17件のどれも強調しない', un.filter((m) => m.descRanges.length).length);
+	// 説明文に見つからない条件の語は、説明文の末尾に足す（実データの17件は、説明文を読んで一覧にして報告に出す）
+	console.log('       [一覧] all あり17件で、合わないレースのときに強調された語（説明文で見つかった語／見つからず末尾に足す語）');
 	withAll.forEach((t) => { const r = listing.get(t.id) || { found: new Set(), appended: new Set() }; console.log('       [一覧] ' + t.id + ' 条件=' + JSON.stringify(t.all) + ' 見つかった=' + JSON.stringify([...r.found]) + ' 末尾に足す=' + JSON.stringify([...r.appended])); });
-	assert(withAll.every((t) => (listing.get(t.id) || { appended: new Set() }).appended.size === 0), 'all あり16件の実データ: 探す語はすべて説明文で見つかる（末尾に足す語は無い）', withAll.filter((t) => (listing.get(t.id) || { appended: new Set() }).appended.size > 0).map((t) => t.id));
+	assert(withAll.every((t) => (listing.get(t.id) || { appended: new Set() }).appended.size === 0), 'all あり17件の実データ: 探す語はすべて説明文で見つかる（末尾に足す語は無い）', withAll.filter((t) => (listing.get(t.id) || { appended: new Set() }).appended.size > 0).map((t) => t.id));
 	// 見つからない場合は、合成のデータ（説明文に京都が無い進化先に、京都の条件を付ける）で、末尾に足す語を確かめる
 	{
 		const doc = JSON.parse(JSON.stringify(evolutions));

@@ -160,7 +160,7 @@ export async function register36(env) {
 			return { passiveN: passive.length, passiveHas: passive.includes(id), popN: pop.ids.length + pop.noRaceExcludedIds.length, popHas: pop.ids.includes(id), candHas: cand.includes('"' + id + '"'), tag: s && s.tags && s.tags.passive, idx: C.getSkillTextIndexSize({ searchableOnly: true }), idxAll: C.getSkillTextIndexSize({}) };
 		}, OONIGE);
 		assert(r.passiveN === 68 && !r.passiveHas, '大逃げ(4) ②の緑スキルの入口は68件で、大逃げを含まない', r);
-		assert(r.popN === 455 && !r.popHas && !r.candHas, '大逃げ(4) 条件で検索の母集団は455件（オススメサポの母集団は、レースが無いと外れるレース条件の緑スキルを戻して455件）・オススメサポの母集団・候補のカードに大逃げが入らない', r);
+		assert(r.popN === 461 && !r.popHas && !r.candHas, '大逃げ(4) 条件で検索の母集団は461件（2026-10-25a で6件増えた。オススメサポの母集団は、レースが無いと外れるレース条件の緑スキルを戻して461件）・オススメサポの母集団・候補のカードに大逃げが入らない', r);
 		assert(JSON.stringify(r.tag) === '["passive"]', '大逃げ(4) 前提: 大逃げには passive のタグが付いている', r.tag);
 		const nonSupport = readJson('data/non-support-skills.json').entries.map((e) => e.skillId);
 		const searchable = readJson('data/searchable-extended-ids.json').entries.map((e) => e.skillId);

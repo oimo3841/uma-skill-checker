@@ -25,7 +25,8 @@ export async function register39(env) {
 	const NEVER = 'ex-0238', NEVER_LOW = '230';   // 金（ネバーギブアップ）と、その下位の白（折れない心）
 	// 代表の編成 A（Step 0 と同じ）。2026-10-18 の開始時の値: 表の行43・上の1行の項目10・合計4,720・種数39・オススメサポの候補402枚
 	const A = { umaId: 'uma-0179', cardIds: ['card-0402', 'card-0499', 'card-0248', 'card-0249', 'card-0250', 'card-0251'], skillFilter: { distance: 'long', style: 'senko', surface: 'turf' }, pt: { status: 'kire', umaHintLevel: 3 } };
-	const START = { rows: 43, line: 10, total: 4720, kinds: 39, cands: 402 };
+	// cands は 2026-10-25a でカードが2枚増えて 402→404（ほかは開始時のまま）
+	const START = { rows: 43, line: 10, total: 4720, kinds: 39, cands: 404 };
 	/** 独立の式: 基礎値・ヒントLv・状態の割引（加算）→ 支払う Pt */
 	const ptOf = (base, level, statusId) => {
 		const hint = level > 0 ? RULES.hintDiscountPercent[Math.min(level, RULES.hintDiscountPercent.length) - 1] : 0;
@@ -221,7 +222,7 @@ export async function register39(env) {
 		const d = await detail(sp.page, A);
 		assert(!d.taken.includes(NEVER_LOW) && d.total === START.total && d.kinds === START.kinds, '本育成表(7) 折れない心は取得の集合（takenIds）に入らず、合計・種数は開始時と同じ', { in: d.taken.includes(NEVER_LOW), total: d.total, kinds: d.kinds });
 		const pop = await sp.page.evaluate((r) => { const C = UmaSkillDeckCore; return { cands: C.outside.candidatesOf(r).length, popHas: C.outside.populationOf(Object.assign({ outsideOptions: { exclude: {} } }, r)).ids.includes('230') }; }, A);
-		assert(pop.cands === START.cands && pop.popHas === true, '本育成表(7) オススメサポの候補は開始時と同じ402枚で、母集団に折れない心が入る', pop);
+		assert(pop.cands === START.cands && pop.popHas === true, '本育成表(7) オススメサポの候補は404枚（開始時の402枚＋先行データのカード2枚）で、母集団に折れない心が入る', pop);
 		// ②の「条件で検索」: 折れない心の行が選べる（「本育成編成のため選べない」の灰色の行にならない）
 		await sp.page.evaluate(() => UmaSkillDeckCore.openSkillPicker([], () => {}));
 		await sp.page.waitForTimeout(600);

@@ -342,7 +342,7 @@ export async function register12(env) {
 		assert(rows.slice(1).every((r, i) => r.id === racesReal.races[i].id && r.line1 === dateOf(racesReal.races[i]) + ' ' + racesReal.races[i].name),
 			'オススメサポ④段9 1行目は「日付（決まっていなければ「11月下旬」のような表示）＋レース名」で、並びはファイルの行の順', rows.slice(1).map((r) => r.line1));
 		const line2 = rows.slice(1).map((r) => r.line2);
-		assert(line2[0] === '京都 芝2200m 右・外・秋・曇・良・昼' && line2[1] === '京都 芝3000m 右・外・秋・昼' && line2[3] === '芝 中距離' && line2[4] === 'ダート 中距離' && line2[5] === '芝 マイル デバフなし'
+		assert(line2[0] === '京都 芝2200m 右・外・秋・曇・良・昼' && line2[1] === '京都 芝3000m 右・外・秋・昼' && line2[3] === '東京 芝2400m 左・冬・晴・良・昼' && line2[4] === 'ダート 中距離' && line2[5] === '芝 マイル デバフなし' && line2[6] === '芝 中距離'
 			&& line2.every((t) => t && !/不明|null|undefined/.test(t)),
 			'オススメサポ④段9 2行目は公開された条件だけ（天気・バ場状態が公開されていない行は、その語を出さない。「不明」とは書かない）。特殊ルールは「デバフなし」', line2);
 		await sp.page.click('[data-usd-el="race-opt"][data-race-id="' + R0.id + '"] input');
