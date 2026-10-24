@@ -14,6 +14,7 @@
 //      元の金スキルの条件・追加の効果の条件は見ない。気炎万丈（長距離）・時中の妙（長距離）と、洗い出した行の代表・全行で狭くならないこと
 //   §8 衣装の小窓（C-153・2026-10-14）: 進化先がある金スキルの上に進化先、下に前段の白（進化 → └ 金 → └ 白）。進化先がない金スキル・覚醒Lv7・シナリオの進化は出さない
 //
+//   §11 選べない進化先の強調（2026-10-24・案G）: 選べなくしている条件の語だけを強調する位置（＜…＞のAND・OR・全体の距離・conditions）。§12 小窓: 無効のラジオ・強調の見た目・閉じるの貼り付き・コントラスト
 //   §10 conditions（2026-10-21a〜・段1）: 進化先の「使える条件」（レース場・回り・季節・バ場状態）を読む。合わない→選べない・判定できない→選べるが既定にならない・all が空の21件は現行と同じ
 //
 // 件数の基準（受け入れ前に測った値）: 辞書 = マスター445 ＋ 追加カタログ747 = 1192
@@ -689,6 +690,270 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 		return { withCond: a.map((id) => [id, f(id)]).filter(([, v]) => v.length > 0), empty: b.map((id) => [id, f(id)]).filter(([, v]) => v.length > 0).length };
 	}, { a: nonEmpty.map((t) => t.id), b: emptyAll.map((t) => t.id) });
 	assert(ign.withCond.length === 0 && ign.empty === emptyAll.length, 'ignored: conditions を持つ16件は trackVenue・environment を入れない／all が空の21件は今までどおり入れる', ign);
+}
+
+/* ───────── §11 選べない進化先の強調（2026-10-24・案G。core の getEvolutionNgMarks） ─────────
+ * 選べない進化先（fit が no）は、選べなくしている条件の語だけを強調する（赤字＋点線の下線）。判定は変えない。
+ * ここは core の返す「強調する位置」を見る。画面（ラジオの無効・強調の見た目・閉じるの貼り付き）は §12。 */
+{
+	console.log('\n=== §11 強調する語: ＜…＞（AND・OR）・全体の距離・conditions（説明文にある語・無いときは末尾に足す）。合う・判定できないときは強調しない ===');
+	await page.evaluate(() => Promise.all([window.UmaSkillDeckCore.loadSkillEvolutions(), window.UmaSkillDeckCore.loadSkillDescriptions(), window.UmaSkillDeckCore.loadTrainingSources(false)]));
+	const descOfId = new Map(readJson('data/skill-descriptions.json').entries.map((e) => [e.skillId, e.text]));
+	const marksOf = (id, filter, race) => page.evaluate(({ id, filter, race }) => window.UmaSkillDeckCore.getEvolutionNgMarks(id, filter, race), { id, filter, race });
+	// 強調された文字（ranges の部分）を取り出す
+	const wordsIn = (text, ranges) => ranges.map(([s, e]) => text.slice(s, e));
+	const mk11 = (o) => Object.assign({ id: 'c', name: '試験用', venue: null, surface: 'turf', distance: 2000, distanceCategory: 'medium', direction: null, course: null, season: null, weather: null, ground: null, time: null, rule: null }, o);
+	const RACE_NONE = mk11({ id: 'none', surface: null, distance: null, distanceCategory: null });
+
+	// (1) ＜…＞の語: 「/」（OR）は、その軸が合わないときだけすべて強調。「・」でつながる別の軸（AND）は、合わない軸の語だけ
+	{
+		// OR: ＜先行/差し＞（ex-1040）
+		const or = async (style) => { const m = await marksOf('ex-1040', { style }, null); return { line: wordsIn(m.line, m.lineRanges), desc: wordsIn(m.desc, m.descRanges), app: m.appended }; };
+		const orIn = await or('senko'), orIn2 = await or('sashi'), orOut = await or('nige'), orOut2 = await or('oikomi');
+		assert(orIn.line.length === 0 && orIn.desc.length === 0 && orIn2.line.length === 0 && orIn2.desc.length === 0, 'OR ＜先行/差し＞: 脚質が先行・差しのときは強調しない', [orIn, orIn2]);
+		assert([orOut, orOut2].every((o) => JSON.stringify(o.line) === JSON.stringify(['先行', '差し']) && JSON.stringify(o.desc) === JSON.stringify(['先行', '差し']) && o.app.length === 0), 'OR ＜先行/差し＞: 脚質が逃げ・追込のときは、グループの語をすべて強調する（＜…＞の行と説明文の末尾の＜…＞）', [orOut, orOut2]);
+		// AND: ＜追込・芝＞（ex-1607。距離は conditions なので、ここでは距離を決めない）
+		const and = async (style, surface) => { const m = await marksOf('ex-1607', { style, surface }, null); return wordsIn(m.line, m.lineRanges); };
+		assert(JSON.stringify(await and('oikomi', 'turf')) === '[]' && JSON.stringify(await and('nige', 'turf')) === JSON.stringify(['追込']) && JSON.stringify(await and('oikomi', 'dirt')) === JSON.stringify(['芝']) && JSON.stringify(await and('nige', 'dirt')) === JSON.stringify(['追込', '芝']),
+			'AND ＜追込・芝＞: 合わない語だけ強調（追込も芝も合う→無し／脚質だけ違う→追込／バ場だけ違う→芝／両方違う→両方）', [await and('oikomi', 'turf'), await and('nige', 'turf'), await and('oikomi', 'dirt'), await and('nige', 'dirt')]);
+		// 距離（OR）と脚質（AND）の組み合わせ: ＜先行・長距離＞（ex-1121。conditions は京都レース場だけ）
+		const kyoto = mk11({ id: 'k', venue: 'track_kyoto', distance: 3000, distanceCategory: 'long' });
+		const m1 = await marksOf('ex-1121', { style: 'nige', distance: 'long' }, kyoto);
+		assert(JSON.stringify(wordsIn(m1.line, m1.lineRanges)) === JSON.stringify(['先行']) && m1.appended.length === 0 && JSON.stringify(wordsIn(m1.desc, m1.descRanges)) === JSON.stringify(['先行']), '＜先行・長距離＞ 京都・長距離・逃げ: 先行だけ強調（京都レース場は合う・長距離も合う）', m1);
+	}
+	// (2) スキル全体の距離の限定（ex-1051 は 2200m だけ・ex-1147 は 2000m 以上）
+	{
+		const r = async (id, race, filter) => { const m = await marksOf(id, filter, race); return { line: wordsIn(m.line, m.lineRanges), desc: wordsIn(m.desc, m.descRanges) }; };
+		const a1 = await r('ex-1051', mk11({ distance: 2000, distanceCategory: 'medium' }), { distance: 'medium', style: 'nige' });
+		const a2 = await r('ex-1051', mk11({ distance: 2200, distanceCategory: 'medium' }), { distance: 'medium', style: 'nige' });
+		assert(JSON.stringify(a1.line) === JSON.stringify(['2200m']) && JSON.stringify(a1.desc) === JSON.stringify(['2200m']), '全体の距離 2200m: 2000m のレースでは、行の「2200m」と説明文の「2200m」を強調', a1);
+		assert(a2.line.length === 0 && a2.desc.length === 0, '全体の距離 2200m: 2200m のレースでは強調しない', a2);
+		const b1 = await r('ex-1147', mk11({ distance: 1600, distanceCategory: 'mile' }), { distance: 'mile', style: 'senko' });
+		const b2 = await r('ex-1147', mk11({ distance: 2400, distanceCategory: 'medium' }), { distance: 'medium', style: 'senko' });
+		assert(JSON.stringify(b1.line) === JSON.stringify(['2000m以上']) && JSON.stringify(b1.desc) === JSON.stringify(['2000m以上']), '全体の距離 2000m以上: 1600m のレースでは「2000m以上」を強調（行と説明文）', b1);
+		assert(b2.line.length === 0 && b2.desc.length === 0, '全体の距離 2000m以上: 2400m のレースでは強調しない', b2);
+	}
+	// (3) conditions（16件の all あり）: 合わない軸の値すべてを、説明文の中から探して強調する。判定の期待は §10 と同じ
+	const withAll = [];
+	evolutions.entries.forEach((e) => Object.keys(e.conditions || {}).forEach((id) => { const all = e.conditions[id].all || {}; if (Object.keys(all).length && !withAll.some((x) => x.id === id)) withAll.push({ id, all }); }));
+	assert(withAll.length === 16, 'conditions で all を持つ進化先は16件', withAll.length);
+	const T11 = [
+		mk11({ id: 't-kyoto-r-aut-good', venue: 'track_kyoto', direction: 'right_turn', season: 'season_autumn', ground: 'ground_good', distance: 1600, distanceCategory: 'mile' }),
+		mk11({ id: 't-tokyo-l-spr-bad', venue: 'track_tokyo', direction: 'left_turn', season: 'season_spring', ground: 'ground_bad', distance: 1200, distanceCategory: 'short' }),
+		mk11({ id: 't-nakayama-win', venue: 'track_nakayama', direction: 'right_turn', season: 'season_winter', ground: 'ground_good', distance: 3000, distanceCategory: 'long' }),
+		RACE_NONE,
+		mk11({ id: 't-venue-only', venue: 'track_kyoto', distance: null, distanceCategory: null }),
+		mk11({ id: 't-kyoto-2400', venue: 'track_kyoto', distance: 2400, distanceCategory: 'medium' }),
+		mk11({ id: 't-tokyo-2400', venue: 'track_tokyo', distance: 2400, distanceCategory: 'medium' })
+	];
+	// スキル全体の距離の限定（raceDistance。scope all）を持つ進化先: conditions が合っていても、距離が合わなければその表記を強調する
+	const RD_ALL = new Map(readJson('data/extended-skills.json').entries.filter((e) => e.raceDistance && e.raceDistance.scope === 'all').map((e) => [e.id, e.raceDistance]));
+	const rdText11 = (rd) => (rd.min != null && rd.max != null ? (rd.min === rd.max ? rd.min + 'm' : rd.min + '〜' + rd.max + 'm') : rd.min != null ? rd.min + 'm以上' : rd.max + 'm以下');
+	const WORDS = { trackVenue: { track_kyoto: ['京都レース場', '京都'], track_tokyo: ['東京レース場', '東京'], track_nakayama: ['中山レース場', '中山'] }, distance: { short: ['短距離'], mile: ['マイル'], medium: ['中距離'], long: ['長距離'] },
+		env: { left_turn: ['左回り'], right_turn: ['右回り'], season_spring: ['春'], season_summer: ['夏'], season_autumn: ['秋'], season_winter: ['冬'], ground_good: ['良'], ground_bad: ['稍重', '重', '不良'] } };
+	const FIELDS = { direction: ['left_turn', 'right_turn'], season: ['season_spring', 'season_summer', 'season_autumn', 'season_winter'], ground: ['ground_good', 'ground_bad'] };
+	// 期待: 合わない軸の値の語（説明文にあるものだけ）。全体を通して、強調した語が許す語の集合に収まる・合う／判定できないときは無い
+	const badMarks = [], tallyM = { ngCases: 0, okCases: 0 };
+	const listing = new Map();   // id → { found: [語], appended: [語] }（報告用）
+	for (const t of withAll) for (const race of T11) {
+		const m = await marksOf(t.id, {}, race);
+		// この race で ng になる軸（§10 と同じ定義。ここでは conditions と race から自分で組む）
+		const ngWords = [];
+		let ngAny = false;
+		if ((t.all.trackVenue || []).length && race.venue && t.all.trackVenue.indexOf(race.venue) === -1) { ngAny = true; t.all.trackVenue.forEach((v) => ngWords.push(...(WORDS.trackVenue[v] || []))); }
+		if ((t.all.distance || []).length && race.distanceCategory && t.all.distance.indexOf(race.distanceCategory) === -1) { ngAny = true; t.all.distance.forEach((v) => ngWords.push(...WORDS.distance[v])); }
+		for (const f of Object.keys(FIELDS)) {
+			const sv = (t.all.environment || []).filter((x) => FIELDS[f].indexOf(x) !== -1);
+			if (sv.length && race[f] && sv.indexOf(race[f]) === -1) { ngAny = true; sv.forEach((v) => ngWords.push(...WORDS.env[v])); }
+		}
+		const rd = RD_ALL.get(t.id);
+		if (rd && race.distance != null && !((rd.min == null || race.distance >= rd.min) && (rd.max == null || race.distance <= rd.max))) { ngAny = true; ngWords.push(rdText11(rd)); }
+		const shown = wordsIn(m.desc, m.descRanges).concat(m.appended);
+		if (!ngAny) { tallyM.okCases++; if (m.lineRanges.length || m.descRanges.length || m.appended.length) badMarks.push({ id: t.id, race: race.id, why: '合う・判定できないのに強調がある', m }); continue; }
+		tallyM.ngCases++;
+		if (shown.length === 0) badMarks.push({ id: t.id, race: race.id, why: '合わないのに強調が無い' });
+		// 強調した語は、合わない軸の値の語（か、説明文に無いときに足した語）だけ
+		const allowed = new Set(ngWords.concat(['道悪', '京都レース場', '東京レース場', '中山レース場']));
+		shown.forEach((w) => { if (!allowed.has(w)) badMarks.push({ id: t.id, race: race.id, why: '許さない語を強調', w }); });
+		// ＜…＞（末尾）は conditions の語では強調しない（距離の条件で＜…＞の語が混ざらないこと）
+		const bm = m.desc.match(/＜[^＞]*＞/);
+		if (bm && m.descRanges.some(([s]) => s >= bm.index)) { if (!(t.all.distance || []).length) badMarks.push({ id: t.id, race: race.id, why: '＜…＞の中を強調した（脚質・バ場・距離を決めていないのに）' }); }
+		const rec = listing.get(t.id) || { found: new Set(), appended: new Set() };
+		wordsIn(m.desc, m.descRanges).forEach((w) => rec.found.add(w)); m.appended.forEach((w) => rec.appended.add(w));
+		listing.set(t.id, rec);
+	}
+	assert(badMarks.length === 0, 'all あり16件 × ' + T11.length + 'レース: 合わない軸の語だけ強調（合う・判定できない→強調なし／強調した語は合わない軸の値の語に収まる）', badMarks.slice(0, 6));
+	assert(tallyM.ngCases > 0 && tallyM.okCases > 0, '表が空振りしていない（合わない・合うのどちらも当たる）', tallyM);
+	// 手書きの期待（id で書く）
+	const spec = async (id, race) => { const m = await marksOf(id, {}, race); return wordsIn(m.desc, m.descRanges).concat(m.appended.map((w) => '+' + w)); };
+	assert(JSON.stringify(await spec('ex-1324', T11[1])) === JSON.stringify(['秋', '冬']), '秋か冬（ex-1324）: 春のレースでは「秋」「冬」をどちらも強調', await spec('ex-1324', T11[1]));
+	assert(JSON.stringify(await spec('ex-1324', T11[2])) === '[]' && JSON.stringify(await spec('ex-1324', T11[0])) === '[]', '秋か冬（ex-1324）: 冬・秋のレースでは強調しない（選べる）', [await spec('ex-1324', T11[2]), await spec('ex-1324', T11[0])]);
+	assert(JSON.stringify(await spec('ex-1091', T11[0])) === JSON.stringify(['稍重', '重', '不良']) && JSON.stringify(await spec('ex-1296', T11[0])) === JSON.stringify(['重', '不良']) && JSON.stringify(await spec('ex-1091', T11[1])) === '[]', '道悪（ex-1091「稍重」「重」「不良」・ex-1296「重」「不良」）: 良のレースでは説明文にある語だけ強調／道悪のレースでは強調しない', [await spec('ex-1091', T11[0]), await spec('ex-1296', T11[0]), await spec('ex-1091', T11[1])]);
+	assert(JSON.stringify(await spec('ex-1607', T11[1])) === JSON.stringify(['マイル', '中距離']) && JSON.stringify(await spec('ex-1607', T11[2])) === JSON.stringify(['マイル', '中距離']) && JSON.stringify(await spec('ex-1607', T11[0])) === '[]', '距離（ex-1607 マイル／中距離）: 短距離・長距離では「マイル」「中距離」を強調／マイルでは強調しない', [await spec('ex-1607', T11[1]), await spec('ex-1607', T11[2]), await spec('ex-1607', T11[0])]);
+	assert(JSON.stringify(await spec('ex-1446', T11[5])) === JSON.stringify(['東京']) && JSON.stringify(await spec('ex-1446', T11[6])) === '[]' && JSON.stringify(await spec('ex-1446', T11[1])) === JSON.stringify(['2400m']), '東京の2400m（ex-1446 「東京の2400mの…」。東京は conditions・2400m は全体の距離の限定）: 京都・2400m では「東京」／東京・2400m では強調しない／東京・1200m では「2400m」を強調', [await spec('ex-1446', T11[5]), await spec('ex-1446', T11[6]), await spec('ex-1446', T11[1])]);
+	assert(JSON.stringify(await spec('ex-1227', T11[1])) === JSON.stringify(['京都レース場']) && JSON.stringify(await spec('ex-1227', T11[4])) === '[]', '京都（ex-1227 「京都レース場なら」）: 東京では「京都レース場」を強調／京都では強調しない', [await spec('ex-1227', T11[1]), await spec('ex-1227', T11[4])]);
+	assert(JSON.stringify(await spec('ex-1049', T11[0])) === JSON.stringify(['左回り']) && JSON.stringify(await spec('ex-1424', T11[1])) === JSON.stringify(['右回り']), '回り（ex-1049 左回り・ex-1424 右回り）: 合わない回りの語を強調', [await spec('ex-1049', T11[0]), await spec('ex-1424', T11[1])]);
+	// 判定できない（レース未選択・項目が未公開）は強調しない
+	const un = await Promise.all(withAll.map((t) => marksOf(t.id, {}, null)));
+	assert(un.every((m) => !m.lineRanges.length && !m.descRanges.length && !m.appended.length), 'レース未選択: all あり16件のどれも強調しない', un.filter((m) => m.descRanges.length).length);
+	// 説明文に見つからない条件の語は、説明文の末尾に足す（実データの16件は、説明文を読んで一覧にして報告に出す）
+	console.log('       [一覧] all あり16件で、合わないレースのときに強調された語（説明文で見つかった語／見つからず末尾に足す語）');
+	withAll.forEach((t) => { const r = listing.get(t.id) || { found: new Set(), appended: new Set() }; console.log('       [一覧] ' + t.id + ' 条件=' + JSON.stringify(t.all) + ' 見つかった=' + JSON.stringify([...r.found]) + ' 末尾に足す=' + JSON.stringify([...r.appended])); });
+	assert(withAll.every((t) => (listing.get(t.id) || { appended: new Set() }).appended.size === 0), 'all あり16件の実データ: 探す語はすべて説明文で見つかる（末尾に足す語は無い）', withAll.filter((t) => (listing.get(t.id) || { appended: new Set() }).appended.size > 0).map((t) => t.id));
+	// 見つからない場合は、合成のデータ（説明文に京都が無い進化先に、京都の条件を付ける）で、末尾に足す語を確かめる
+	{
+		const doc = JSON.parse(JSON.stringify(evolutions));
+		const row = doc.entries.find((e) => e.evolvedSkillIds.includes('ex-1536'));
+		row.conditions = { 'ex-1536': { all: { trackVenue: ['track_kyoto'] } } };
+		const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+		const p2 = await ctx2.newPage();
+		await p2.route('**/data/skill-evolutions.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(doc) }));
+		await p2.goto(srv.base + '/uma-skill-deck.html', { waitUntil: 'networkidle', timeout: 60000 });
+		await p2.waitForFunction(() => !!window.UmaSkillDeckCore && window.UmaSkillDeckCore.getMasterSkills().length > 0);
+		await p2.evaluate(() => Promise.all([window.UmaSkillDeckCore.loadSkillEvolutions(), window.UmaSkillDeckCore.loadSkillDescriptions(), window.UmaSkillDeckCore.loadTrainingSources(false)]));
+		const syn = await p2.evaluate((race) => window.UmaSkillDeckCore.getEvolutionNgMarks('ex-1536', {}, race), T11[1]);
+		assert(syn.appended.length === 1 && syn.appended[0] === '京都レース場' && syn.descRanges.length === 0 && !/京都/.test(syn.desc), '説明文に無い条件の語は末尾に足す（合成: 説明文に京都が無い進化先に京都レース場の条件・東京のレース）', syn);
+		await ctx2.close();
+	}
+}
+
+/* ───────── §12 進化スキルの小窓（2026-10-24・案G）: 選べない進化先は無効・強調・閉じるの貼り付き・コントラスト ───────── */
+{
+	console.log('\n=== §12 小窓: 選べない進化先のラジオは無効（トーストなし）／選べるものは有効／「進化しない」は常に選べる／強調の見た目／閉じるが見える／コントラスト ===');
+	const { openPage } = await import('../visual/lib/fixtures.mjs');
+	const SCEN = readJson('data/scenario-event-skills.json');
+	// 実データから編成を探す: 選べる進化先と選べない進化先が同じ行にある（mixed）・金スキル3つで3行とも出る（three）
+	const found = await page.evaluate(async ({ races }) => {
+		const C = window.UmaSkillDeckCore;
+		await C.loadSkillEvolutions(); await C.loadTrainingSources(false); await C.loadSkillPtData(false); await C.loadSkillEffectLevels(); await C.loadSkillDescriptions();
+		const out = { mixed: null, three: null };
+		for (const u of ((C.getTrainingSources().trainingUmamusume || {}).entries || [])) {
+			const rows = C.getEvolutionRowsOfUma(u.id);
+			if (rows.length === 0) continue;
+			const res = C.computeRosterSkills({ umaId: u.id, cardIds: [] }, {});
+			for (const race of races) for (const style of ['nige', 'senko', 'sashi', 'oikomi']) {
+				const pl = C.computeEvolutionPlan({ umaId: u.id, takenIds: res.skillIds, filter: { distance: race.distanceCategory, surface: race.surface, style }, race });
+				const vis = pl.a.filter((e) => e.choice !== 'invalid');
+				if (!out.three && rows.length === 3 && vis.length === 3) out.three = { id: u.id, race: race.id, style };
+				if (!out.mixed && vis.some((e) => e.targets.some((t) => t.fit === 'no') && e.targets.some((t) => t.fit !== 'no'))) out.mixed = { id: u.id, race: race.id, style };
+			}
+			if (out.mixed && out.three) break;
+		}
+		return out;
+	}, { races });
+	assert(!!found.mixed && !!found.three, '編成が見つかる（選べる・選べない進化先が混ざる行／金スキル3つで3行とも出る行）', found);
+	const raceOf11 = (id) => races.find((r) => r.id === id);
+	const open12 = async (sc, scheme, size) => {
+		const sp = await openPage(browser, srv.base, 'special.html', size, { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] });
+		await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SCEN) }));
+		await sp.page.emulateMedia({ colorScheme: scheme });
+		await sp.page.evaluate(({ ro, scheme }) => { localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(ro)); localStorage.removeItem('umaSkillDeck:draftScope:special'); localStorage.setItem('umaSkillDeck:stepTab', '0'); localStorage.setItem('uma-tools-theme', scheme); }, { ro: { rosterId: 'r', name: '', umaId: sc.id, star: 3, awakeningLevel: 5, cardIds: [null, null, null, null, null, null], race: raceOf11(sc.race), skillFilter: { style: sc.style } }, scheme });
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.waitForSelector('[data-usd-el="evo-btn"]', { state: 'visible', timeout: 15000 });
+		await sp.page.waitForTimeout(500);
+		await sp.page.click('[data-usd-el="evo-btn"]');
+		await sp.page.waitForSelector('.usd-info-pop [data-usd-el="evo-sheet"]', { state: 'visible' });
+		await sp.page.waitForTimeout(400);
+		return sp;
+	};
+	const NG_SR = '（現在の条件に合いません）';
+	const lumOf = (rgb) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; return 0.2126 * f(rgb[0]) + 0.7152 * f(rgb[1]) + 0.0722 * f(rgb[2]); };
+	const ratio = (a, b) => { const x = lumOf(a), y = lumOf(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+	const rgbOf = (s) => (s.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+	for (const scheme of ['light', 'dark']) {
+		const sp = await open12(found.mixed, scheme, { width: 390, height: 844 });
+		const info = await sp.page.evaluate(() => {
+			const rows = [...document.querySelectorAll('.usd-info-pop [data-usd-el="evo-target"]')];
+			const cs = (el, k) => getComputedStyle(el)[k];
+			return {
+				rows: rows.map((r) => ({ v: r.getAttribute('data-evo-value'), ng: r.hasAttribute('data-evo-ng'), disabled: r.querySelector('input').disabled, pe: cs(r, 'pointerEvents'), cls: r.className, checked: r.querySelector('input').checked, radio: r.querySelector('input').getBoundingClientRect().width,
+					name: cs(r.querySelector('.usd-evo-name'), 'fontSize') + '/' + cs(r.querySelector('.usd-evo-name'), 'fontWeight'), sub: (r.querySelector('.usd-evo-sub') ? cs(r.querySelector('.usd-evo-sub'), 'fontSize') : null), desc: r.querySelector('.usd-evo-desc') ? cs(r.querySelector('.usd-evo-desc'), 'fontSize') + '/' + cs(r.querySelector('.usd-evo-desc'), 'lineHeight') : null,
+					descText: r.querySelector('.usd-evo-desc') ? r.querySelector('.usd-evo-desc').textContent : '', subText: r.querySelector('.usd-evo-sub') ? r.querySelector('.usd-evo-sub').textContent : '',
+					marks: [...r.querySelectorAll('[data-usd-el="evo-ng"]')].map((m) => ({ t: m.textContent, color: cs(m, 'color'), deco: cs(m, 'textDecorationLine') + '/' + cs(m, 'textDecorationStyle'), thick: cs(m, 'textDecorationThickness'), off: cs(m, 'textUnderlineOffset'), weight: cs(m, 'fontWeight'), next: m.nextElementSibling ? m.nextElementSibling.textContent : null })),
+					bg: cs(r, 'backgroundColor'), nameColor: cs(r.querySelector('.usd-evo-name'), 'color'), subColor: r.querySelector('.usd-evo-sub') ? cs(r.querySelector('.usd-evo-sub'), 'color') : null, descColor: r.querySelector('.usd-evo-desc') ? cs(r.querySelector('.usd-evo-desc'), 'color') : null })),
+				nones: [...document.querySelectorAll('.usd-info-pop [data-usd-el="evo-none"]')].map((r) => ({ disabled: r.querySelector('input').disabled, h: Math.round(r.getBoundingClientRect().height), radio: r.querySelector('input').getBoundingClientRect().width })),
+				arrow: !!document.querySelector('.usd-info-pop .usd-evo-arrow'), arrowText: document.querySelector('.usd-info-pop').textContent.includes('▼'),
+				head: Math.round(document.querySelector('.usd-info-pop .uma-popover-head').getBoundingClientRect().height), title: getComputedStyle(document.querySelector('.usd-info-pop .uma-popover-title')).fontSize + '/' + getComputedStyle(document.querySelector('.usd-info-pop .uma-popover-title')).fontWeight,
+				closeX: (() => { const r = document.querySelector('.usd-info-pop .uma-popover-close').getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; })(),
+				closeH: Math.round(document.querySelector('[data-usd-el="evo-close"]').getBoundingClientRect().height), closeHit: (() => { const b = document.querySelector('[data-usd-el="evo-close"]'); const r = b.getBoundingClientRect(); const a = getComputedStyle(b, '::after'); return { ph: parseFloat(a.height) || 0, top: parseFloat(a.top) }; })(),
+				overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1, base: (() => { const b = document.querySelector('.usd-info-pop .usd-evo-base'); const n = b.querySelector('.usd-evo-name'); return { h: Math.round(b.getBoundingClientRect().height), name: getComputedStyle(n).fontSize + '/' + getComputedStyle(n).fontWeight, barW: getComputedStyle(b).borderLeftWidth }; })()
+			};
+		});
+		const L = scheme === 'light' ? 'ライト' : 'ダーク';
+		const off = info.rows.filter((r) => r.ng), on = info.rows.filter((r) => !r.ng);
+		assert(off.length > 0 && on.length > 0, L + ': 選べる進化先と選べない進化先が混ざる行がある', { off: off.length, on: on.length });
+		assert(off.every((r) => r.disabled && r.pe === 'none' && /usd-evo-target--off/.test(r.cls) && !r.checked), L + ': 選べない進化先は、ラジオが無効（disabled）・行全体が押せない（pointer-events: none）・選ばれていない', off.map((r) => [r.v, r.disabled, r.pe]));
+		assert(on.every((r) => !r.disabled && r.pe !== 'none'), L + ': 選べる進化先は無効でない・押せる', on.map((r) => [r.v, r.disabled, r.pe]));
+		assert(info.nones.length > 0 && info.nones.every((n) => !n.disabled && n.h >= 28 && n.h <= 32 && n.radio === 16), L + ': 「進化しない」は常に選べる（無効でない）・1行（約30px）・ラジオ16px', info.nones);
+		assert(info.rows.every((r) => r.radio === 16 && r.name === '13px/500' && (r.sub === null || r.sub === '11px') && /^11\.5px\//.test(r.desc || '11.5px/') && Math.abs(parseFloat((r.desc || '11.5px/16.675px').split('/')[1]) / 11.5 - 1.45) < 0.02), L + ': 進化先の行: ラジオ16px・名前13px/500・＜…＞11px・説明文11.5px（行間1.45）', info.rows.map((r) => [r.radio, r.name, r.sub, r.desc]));
+		assert(info.rows.every((r) => r.descText.length > 0), L + ': すべての進化先で、説明文の全文を出す（選べる行・選べない行とも）', info.rows.map((r) => r.descText.length));
+		assert(!info.arrow && !info.arrowText, L + ': ▼▼▼は出さない', info.arrowText);
+		assert(info.head <= 36 && info.title === '14px/500' && info.closeX.w === 44 && info.closeX.h === 44, L + ': 見出しの高さ36px以下・タイトル14px/500・×の押せる範囲は44px', { head: info.head, title: info.title, closeX: info.closeX });
+		assert(info.closeH === 32 && info.closeHit.ph + 2 >= 44, L + ': 閉じるは見た目の高さ32px・押せる範囲は44px', { h: info.closeH, hit: info.closeHit });
+		assert(info.base.h >= 26 && info.base.h <= 30 && info.base.name === '13px/500' && info.base.barW === '4px', L + ': 金スキルの見出し: 名前13px/500・左4pxの縦バー', info.base);
+		// 強調: 選べない進化先のどれかに、強調された語がある。見た目は赤字＋点線の下線（1.5px・offset 3px・500まで）。直後に画面に出さない文字
+		const marks = off.flatMap((r) => r.marks);
+		assert(marks.length > 0 && marks.every((m) => /underline/.test(m.deco) && /dotted/.test(m.deco) && m.thick === '1.5px' && m.off === '3px' && Number(m.weight) <= 500 && m.next === NG_SR), L + ': 強調は赤字＋点線の下線（1.5px・offset 3px・weight 500まで）・直後に画面に出さない文字', marks.slice(0, 3));
+		assert(on.every((r) => r.marks.length === 0), L + ': 選べる進化先には強調が無い', on.map((r) => r.marks.length));
+		// コントラスト（実際に描かれた色）: 無効行の名前・＜…＞・説明文・赤字の語 が、行の地の上で 4.5 以上
+		const ratios = [];
+		off.forEach((r) => { const bg = rgbOf(r.bg); [r.nameColor, r.subColor, r.descColor].filter(Boolean).forEach((c) => ratios.push(ratio(rgbOf(c), bg))); r.marks.forEach((m) => ratios.push(ratio(rgbOf(m.color), bg))); });
+		assert(ratios.length > 0 && ratios.every((x) => x >= 4.5), L + ': 無効行の名前・＜…＞・説明文・赤字の語の文字と地のコントラストが 4.5 以上（最小 ' + Math.min(...ratios).toFixed(2) + '）', ratios.map((x) => Math.round(x * 100) / 100));
+		assert(!info.overflowX, L + ': 横スクロールなし');
+		// 押せない: 選べない行の位置をクリックしても、選ばれず・トーストも出ない。選べる行・進化しないは押せる
+		const before = await sp.page.evaluate(() => [...document.querySelectorAll('.usd-info-pop [data-usd-el="evo-target"] input, .usd-info-pop [data-usd-el="evo-none"] input')].map((i) => i.checked).join());
+		const box = await sp.page.locator('.usd-info-pop [data-evo-ng="1"]').first().boundingBox();
+		await sp.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+		await sp.page.waitForTimeout(500);
+		const after = await sp.page.evaluate(() => ({ checks: [...document.querySelectorAll('.usd-info-pop [data-usd-el="evo-target"] input, .usd-info-pop [data-usd-el="evo-none"] input')].map((i) => i.checked).join(), body: document.body.innerText.includes('では選べません'), open: !!document.querySelector('.usd-info-pop:not([hidden])') }));
+		assert(after.checks === before && !after.body && after.open, L + ': 選べない行を押しても選ばれず、理由のトースト（「…では選べません」）も出ない', { before, after });
+		// 進化しないは押せる（元のスキルが戻る）
+		await sp.page.click('.usd-info-pop [data-usd-el="evo-none"]');
+		await sp.page.waitForTimeout(300);
+		const noneOn = await sp.page.evaluate(() => [...document.querySelectorAll('.usd-info-pop [data-usd-el="evo-none"] input')].some((i) => i.checked));
+		assert(noneOn, L + ': 「進化しない」を押すと選べる');
+		const errs = sp.errors.filter((m) => !/Failed to load resource/.test(m));
+		assert(errs.length === 0, L + ': コンソールのエラー0', errs);
+		await sp.page.context().close();
+	}
+	// 390px・360px: 本文だけがスクロールし、閉じるが常に見える（金スキル3つの衣装・画面の高さを低くして縦に伸ばす）
+	for (const [w, h] of [[390, 560], [360, 520]]) for (const scheme of ['light', 'dark']) {
+		const sp = await open12(found.three, scheme, { width: w, height: h });
+		const m = await sp.page.evaluate(() => {
+			const pop = document.querySelector('.usd-info-pop'), body = pop.querySelector('.uma-popover-body'), close = document.querySelector('[data-usd-el="evo-close"]'), head = pop.querySelector('.uma-popover-head');
+			const rect = (el) => { const r = el.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), h: Math.round(r.height) }; };
+			const scrolls = body.scrollHeight > body.clientHeight + 1;
+			const topBefore = rect(close);
+			body.scrollTop = 0;
+			const atTop = { close: rect(close), head: rect(head), pop: rect(pop), scrolled: body.scrollTop };
+			body.scrollTop = body.scrollHeight;
+			const atBottom = { close: rect(close), head: rect(head), pop: rect(pop), scrolled: body.scrollTop };
+			return { scrolls, atTop, atBottom, vh: window.innerHeight, popScrolls: pop.scrollHeight > pop.clientHeight + 1, overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 };
+		});
+		const lab = w + 'px・' + (scheme === 'light' ? 'ライト' : 'ダーク');
+		const visibleAt = (s) => s.close.top >= s.pop.top && s.close.bottom <= s.pop.bottom + 1 && s.close.bottom <= m.vh + 1 && s.close.top >= 0;
+		assert(m.scrolls && m.atBottom.scrolled > 0, lab + ': 進化先が多いと、本文がスクロールする', { scrolls: m.scrolls, scrolled: m.atBottom.scrolled });
+		assert(visibleAt(m.atTop) && visibleAt(m.atBottom), lab + ': 本文の先頭でも最後でも、閉じるが常に見える（小窓の中・画面の中）', { top: m.atTop.close, bottom: m.atBottom.close, pop: m.atTop.pop, vh: m.vh });
+		assert(m.atTop.head.top === m.atBottom.head.top && !m.popScrolls && !m.overflowX, lab + ': 見出しは動かず、小窓全体はスクロールしない・横スクロールなし', { head: [m.atTop.head.top, m.atBottom.head.top], popScrolls: m.popScrolls });
+		assert(sp.errors.filter((e) => !/Failed to load resource/.test(e)).length === 0, lab + ': コンソールのエラー0');
+		await sp.page.context().close();
+	}
+	// シナリオのタブ（パターンB）: 行は選べる行の作り（名前＋「元: …」＋説明文）。強調は出ない
+	{
+		const sp = await openPage(browser, srv.base, 'special.html', { width: 390, height: 844 }, { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] });
+		await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SCEN) }));
+		await sp.page.evaluate((ro) => { localStorage.setItem('umaSkillDeck:draftRoster:special', JSON.stringify(ro)); localStorage.removeItem('umaSkillDeck:draftScope:special'); localStorage.setItem('umaSkillDeck:stepTab', '0'); },
+			{ rosterId: 'r', name: '', umaId: 'uma-0009', star: 3, awakeningLevel: 5, cardIds: ['card-0546', 'card-0543', 'card-0295', 'card-0499', 'card-0427', 'card-0518'], race: raceOf11('race-0001'), skillFilter: { style: 'sashi' } });
+		await sp.page.reload({ waitUntil: 'networkidle' });
+		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+		await sp.page.waitForSelector('[data-usd-el="evo-bang"]', { state: 'visible', timeout: 15000 });
+		await sp.page.click('[data-usd-el="evo-bang"]');
+		await sp.page.waitForSelector('.usd-info-pop [data-usd-el="evo-brow"]', { state: 'visible' });
+		const b = await sp.page.evaluate(() => ({ rows: [...document.querySelectorAll('.usd-info-pop [data-usd-el="evo-brow"]')].map((r) => ({ sub: r.querySelector('.usd-evo-sub').textContent, desc: r.querySelector('.usd-evo-desc') ? r.querySelector('.usd-evo-desc').textContent.length : 0, marks: r.querySelectorAll('[data-usd-el="evo-ng"]').length, name: getComputedStyle(r.querySelector('.usd-evo-name')).fontSize })), footer: !!document.querySelector('[data-usd-el="evo-footer"] [data-usd-el="evo-close"]') }));
+		assert(b.rows.length >= 3 && b.rows.every((r) => /^元: /.test(r.sub) && r.desc > 0 && r.marks === 0 && r.name === '13px') && b.footer, 'シナリオのタブ: 行は名前（13px）・「元: …」・説明文の全文・強調なし／閉じるは下に貼り付く', b);
+		await sp.page.context().close();
+	}
 }
 
 assert(errors.length === 0, 'コンソールエラーなし', errors);

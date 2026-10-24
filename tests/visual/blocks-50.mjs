@@ -173,7 +173,7 @@ export async function register50(env) {
 		}
 	});
 
-	await block('段G(5) 衣装の小窓の進化先の行・進化の選択画面: 太い枠線は無く、進化は左の縦バー（4px。色は変更前の枠の色）。選択画面の行は選んでいる行だけ 2px', async () => {
+	await block('段G(5) 衣装の小窓の進化先の行・進化の選択画面: 太い枠線は無く、進化は左の縦バー（4px。色は変更前の枠の色）。選択画面の行は選んでいる行だけ内側 2px の枠（案Gで、行の左は 4px の縦バーに）', async () => {
 		for (const [w, h, theme] of [[390, 844, 'light'], [390, 844, 'dark']]) {
 			const tag = '段G(5) ' + w + 'px・' + theme + ': ';
 			const sp = await openSp({ w, h, tab: 0, theme });
@@ -194,11 +194,13 @@ export async function register50(env) {
 			await p.click('[data-usd-el="evo-btn"]'); await sleep(p, 600);
 			const sheet = await p.evaluate(() => {
 				const rows = Array.from(document.querySelectorAll('.usd-info-pop [data-usd-el="evo-target"], .usd-info-pop [data-usd-el="evo-none"]'));
-				return rows.map((r) => { const cs = getComputedStyle(r), rc = r.getBoundingClientRect(); return { on: /--on/.test(r.className), bw: cs.borderTopWidth, bc: cs.borderTopColor, h: Math.round(rc.height * 10) / 10 }; });
+				return rows.map((r) => { const cs = getComputedStyle(r), rc = r.getBoundingClientRect(); return { on: /--on/.test(r.className), none: r.getAttribute('data-usd-el') === 'evo-none', shadow: cs.boxShadow, bwL: cs.borderLeftWidth, h: Math.round(rc.height * 10) / 10 }; });
 			});
+			const selColor = (await tokens(p)).sel;
 			const ons = sheet.filter((r) => r.on), offs = sheet.filter((r) => !r.on);
-			assert(sheet.length >= 2 && ons.length >= 1 && offs.length >= 1 && ons.every((r) => r.bw === '2px') && offs.every((r) => r.bw === '1px'), tag + '進化の選択画面: 選んでいる行（進化先・進化しない）だけ 2px・選んでいない行は 1px', sheet);
-			assert(sheet.every((r) => r.h >= 44), tag + '行の高さは 44px 以上のまま（押せる範囲）', sheet.map((r) => r.h));
+			const ringOf = (s) => { const x = /(rgba?\([^)]*\))\s+0px\s+0px\s+0px\s+2px\s+inset/.exec(s || ''); return x ? x[1] : null; };
+			assert(sheet.length >= 2 && ons.length >= 1 && offs.length >= 1 && ons.every((r) => !!ringOf(r.shadow) && JSON.stringify(rgb(ringOf(r.shadow))) === JSON.stringify(rgb(selColor))) && offs.every((r) => r.shadow === 'none') && sheet.every((r) => r.none || r.bwL === '4px'), tag + '進化の選択画面: 選んでいる行（進化先・進化しない）だけ内側 2px の枠（色は選択中の枠 ' + selColor + '）・選んでいない行は枠なし・進化先の行の左は 4px の縦バー', sheet);
+			assert(sheet.filter((r) => !r.none).every((r) => r.h >= 44) && sheet.filter((r) => r.none).every((r) => r.h >= 28 && r.h <= 32), tag + '行の高さ: 進化先は説明文を含めて 44px 以上・「進化しない」は1行の約 30px', sheet.map((r) => r.h));
 			const btn = await look(p, '[data-usd-el="evo-btn"]');
 			assert(btn.bw === '1px' && btn.bg !== 'rgba(0, 0, 0, 0)', tag + '「進化 N／最大」のボタンは 1px の枠＋地色（設定済み）', btn);
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));

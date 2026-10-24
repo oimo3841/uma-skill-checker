@@ -129,7 +129,7 @@ export async function register24(env) {
 	/* ====================================================================
 	 * 進化の選択画面（衣装）
 	 * ==================================================================== */
-	await block('進化段4B 衣装の画面: 見出し・条件の行・金スキルごとのグループ（元→▼▼▼→進化先→進化しない）・閉じるボタン。選ぶと表の行が変わり、保存される', async () => {
+	await block('進化段4B 衣装の画面: 見出し・条件の行・金スキルごとのグループ（元→進化先→進化しない。▼▼▼は出さない）・閉じるボタン。選ぶと表の行が変わり、保存される', async () => {
 		const sp = await openSp({ roster: orfeRoster(), w: 390 });
 		await sp.page.click('[data-usd-el="evo-btn"]');
 		await sp.page.waitForTimeout(300);
@@ -138,7 +138,7 @@ export async function register24(env) {
 			const pop = document.querySelector('.usd-info-pop');
 			return {
 				title: pop.querySelector('.uma-popover-title').textContent, cond: (document.querySelector('[data-usd-el="evo-cond"]') || {}).textContent,
-				groups: q('[data-usd-el="evo-group"]').map((g) => ({ base: g.getAttribute('data-base-id'), baseName: g.querySelector('.usd-evo-base .usd-evo-name').textContent, arrow: g.querySelector('.usd-evo-arrow').textContent,
+				groups: q('[data-usd-el="evo-group"]').map((g) => ({ base: g.getAttribute('data-base-id'), baseName: g.querySelector('.usd-evo-base .usd-evo-name').textContent, arrow: !!g.querySelector('.usd-evo-arrow') || g.textContent.includes('▼'),
 					targets: [...g.querySelectorAll('[data-usd-el="evo-target"]')].map((t) => ({ v: t.getAttribute('data-evo-value'), name: t.querySelector('.usd-evo-name').textContent, sub: (t.querySelector('.usd-evo-sub') || {}).textContent || null, on: t.querySelector('input').checked, icon: !!t.querySelector('.usd-evo-icon') })),
 					none: { on: g.querySelector('[data-usd-el="evo-none"] input').checked, text: g.querySelector('[data-usd-el="evo-none"] .usd-evo-name').textContent } })),
 				closeBtn: !!document.querySelector('[data-usd-el="evo-close"]'), closeText: (document.querySelector('[data-usd-el="evo-close"]') || {}).textContent,
@@ -149,22 +149,22 @@ export async function register24(env) {
 				anyIcon: !!pop.querySelector('.usd-evo-icon'),
 				rowH: (() => {
 					const hs = (s) => q(s).map((x) => Math.round(x.getBoundingClientRect().height * 10) / 10);
-					const radioOff = q('[data-usd-el="evo-target"], [data-usd-el="evo-none"]').map((x) => { const a = x.getBoundingClientRect(), b = x.querySelector('input').getBoundingClientRect(); return Math.abs((a.top + a.height / 2) - (b.top + b.height / 2)); });
-					return { base: hs('[data-usd-el="evo-base"]'), target: hs('[data-usd-el="evo-target"]'), none: hs('[data-usd-el="evo-none"]'), radioOff };
+					const off = (sel, top) => q(sel).map((x) => { const a = x.getBoundingClientRect(), b = x.querySelector('input').getBoundingClientRect(); return top ? b.top - a.top : Math.abs((a.top + a.height / 2) - (b.top + b.height / 2)); });
+					return { base: hs('[data-usd-el="evo-base"]'), target: hs('[data-usd-el="evo-target"]'), none: hs('[data-usd-el="evo-none"]'), noneRadioOff: off('[data-usd-el="evo-none"]', false), targetRadioTop: off('[data-usd-el="evo-target"]', true) };
 				})()
 			};
 		});
 		assert(r.title === '進化スキル(衣装)' && r.cond === 'レース: 2200m 芝 / 脚質: 追込', '進化段4B 見出し「進化スキル(衣装)」と、その下の条件「レース: 2200m 芝 / 脚質: 追込」', { title: r.title, cond: r.cond });
 		assert(r.groups.length === 2 && r.groups[0].base === KINRIN && r.groups[1].base === HEIGEI, '進化段4B 金スキルごとに1つのグループ（衣装の金スキル2つ・データの並び）', r.groups.map((g) => g.base));
 		const g0 = r.groups[0], g1 = r.groups[1];
-		assert(g0.baseName === SKILL_NAME.get(KINRIN) && g0.arrow === '▼▼▼' && g0.targets.length === 1 && g0.targets[0].name === SKILL_NAME.get(KINRIN_TO) && g0.targets[0].on && g0.none.text === '進化しない' && !g0.none.on, '進化段4B グループの中身は 元の金スキル → ▼▼▼ → 進化先（選択中）→「進化しない」', g0);
+		assert(g0.baseName === SKILL_NAME.get(KINRIN) && g0.arrow === false && g0.targets.length === 1 && g0.targets[0].name === SKILL_NAME.get(KINRIN_TO) && g0.targets[0].on && g0.none.text === '進化しない' && !g0.none.on, '進化段4B グループの中身は 元の金スキル → 進化先（選択中）→「進化しない」（▼▼▼は無い）', g0);
 		assert(g1.targets.length === 2 && g1.targets[0].v === HEIGEI_TO && g1.targets[0].on && !g1.targets[1].on, '進化段4B 進化先が2つの金スキルは、進化先を2行並べる（既定が選ばれている）', g1.targets.map((t) => t.v + ':' + t.on));
 		assert(g0.targets[0].sub === '＜追込・芝＞ 2000m以上' && g1.targets[0].sub === '＜中距離＞' && r.groups.every((g) => g.targets.every((t) => !t.icon)) && !r.anyIcon, '進化段4B 条件は説明文の＜…＞（＜中距離＞・＜追込・芝＞ 2000m以上）。アイコンの代わりの四角は、どの行にも無い（段4の修正1）', { a: g0.targets[0].sub, b: g1.targets[0].sub, anyIcon: r.anyIcon });
-		// 段4の修正1: 行の縦幅。押せる行（進化先・進化しない）は 44px 以上、元の金スキルの行（押せない）は 44px 未満に詰めた。ラジオは行の縦の中央
-		assert(r.rowH.base.every((h) => h < 44) && r.rowH.target.every((h) => h >= 44) && r.rowH.none.every((h) => h >= 44) && r.rowH.radioOff.every((d) => d <= 1.5),
-			'進化段4B 行の縦幅: 元の金スキルの行は 44px 未満・進化先と「進化しない」は 44px 以上（タップの領域）・ラジオは行の縦の中央', r.rowH);
+		// 案G（2026-10-24）: 行の縦幅。元の金スキルの行は 28px 前後・進化先の行は説明文を含めて 44px 以上・「進化しない」は1行の約30px。「進化しない」のラジオは縦の中央、進化先のラジオは1行目の高さ
+		assert(r.rowH.base.every((h) => h >= 26 && h <= 30) && r.rowH.target.every((h) => h >= 44) && r.rowH.none.every((h) => h >= 28 && h <= 32) && r.rowH.noneRadioOff.every((d) => d <= 1.5) && r.rowH.targetRadioTop.every((d) => d <= 14),
+			'進化段4B 行の縦幅: 元の金スキルの行は28px前後・進化先は説明文を含めて44px以上・「進化しない」は約30px（ラジオは縦の中央）・進化先のラジオは1行目の高さ', r.rowH);
 		assert(!/必ず合う|合うことがある|合わない/.test(JSON.stringify(r)), '進化段4B 画面に「必ず合う／合うことがある／合わない」の語は出さない');
-		assert(r.nameSize === '15px/700' && r.subSize === '12px' && r.closeBtn && r.closeText === '閉じる' && r.xSize[0] >= 44 && r.xSize[1] >= 44 && r.tabs, '進化段4B 進化先の名前は15px太字・条件は12px・×は44px以上・下に「閉じる」・シナリオの候補もあるので「衣装／シナリオ」の切り替えが出る', { name: r.nameSize, sub: r.subSize, x: r.xSize, tabs: r.tabs });
+		assert(r.nameSize === '13px/500' && r.subSize === '11px' && r.closeBtn && r.closeText === '閉じる' && r.xSize[0] >= 44 && r.xSize[1] >= 44 && r.tabs, '進化段4B 進化先の名前は13px・500・条件は11px・×の押せる範囲は44px以上・下に「閉じる」・シナリオの候補もあるので「衣装／シナリオ」の切り替えが出る', { name: r.nameSize, sub: r.subSize, x: r.xSize, tabs: r.tabs });
 		// 「進化しない」を選ぶと、その場で保存され、表の行が金スキルの行に戻る
 		await sp.page.click('[data-usd-el="evo-group"][data-base-id="' + KINRIN + '"] [data-usd-el="evo-none"]');
 		await sp.page.waitForTimeout(300);
@@ -185,18 +185,19 @@ export async function register24(env) {
 		await sp.ctx.close();
 	});
 
-	await block('進化段4B 条件が合わない進化先は、押しても選ばず理由を知らせる（押せない見た目・無効にはしない）。レース未選択の既定は「進化しない」', async () => {
+	await block('進化段4B 条件が合わない進化先は、ラジオが無効で押せない（理由の文・トーストは出さない）。レース未選択の既定は「進化しない」', async () => {
 		// 長距離のレース（3000m）では、睥睨の2つの進化先のうち、中距離だけの1つ目は選べない（中距離/長距離の2つ目は選べる）
 		const sp = await openSp({ roster: orfeRoster({ race: raceOf('race-0002') }), w: 390 });
 		await sp.page.click('[data-usd-el="evo-btn"]');
 		await sp.page.waitForTimeout(300);
-		const before = await sp.page.evaluate((h) => { const g = document.querySelector('[data-usd-el="evo-group"][data-base-id="' + h + '"]'); return { values: [...g.querySelectorAll('[data-usd-el="evo-target"]')].map((x) => x.getAttribute('data-evo-value') + ':' + x.querySelector('input').checked), anyDisabled: [...document.querySelectorAll('.usd-evo input')].some((i) => i.disabled) }; }, HEIGEI);
-		assert(before.values.length === 2 && before.values[0] === HEIGEI_TO + ':false' && !before.anyDisabled, '進化段4B 前提: 睥睨の1つ目の進化先（中距離だけ）は、長距離のレースでは既定にならない。入力は無効（disabled）にしない', before);
-		await sp.page.click('[data-usd-el="evo-group"][data-base-id="' + HEIGEI + '"] [data-usd-el="evo-target"]:nth-of-type(1)');
+		const before = await sp.page.evaluate((h) => { const g = document.querySelector('[data-usd-el="evo-group"][data-base-id="' + h + '"]'); return { values: [...g.querySelectorAll('[data-usd-el="evo-target"]')].map((x) => x.getAttribute('data-evo-value') + ':' + x.querySelector('input').checked), disabled: [...g.querySelectorAll('[data-usd-el="evo-target"] input')].map((i) => i.disabled), noneDisabled: [...g.querySelectorAll('[data-usd-el="evo-none"] input')].some((i) => i.disabled) }; }, HEIGEI);
+		assert(before.values.length === 2 && before.values[0] === HEIGEI_TO + ':false' && before.disabled.join() === 'true,false' && !before.noneDisabled, '進化段4B 前提: 睥睨の1つ目の進化先（中距離だけ）は、長距離のレースでは選べない（ラジオは無効）。2つ目と「進化しない」は無効にしない', before);
+		const ngBox = await sp.page.locator('[data-usd-el="evo-group"][data-base-id="' + HEIGEI + '"] [data-usd-el="evo-target"]:nth-of-type(1)').boundingBox();
+		await sp.page.mouse.click(ngBox.x + ngBox.width / 2, ngBox.y + ngBox.height / 2);
 		await sp.page.waitForTimeout(300);
 		const after = await sp.page.evaluate((h) => ({ on: [...document.querySelectorAll('[data-usd-el="evo-group"][data-base-id="' + h + '"] [data-usd-el="evo-target"] input')].map((i) => i.checked).join(), open: !!document.querySelector('.usd-info-pop:not([hidden])') }), HEIGEI);
 		const saved = await savedRoster(sp.page);
-		assert((await toastText(sp.page)).indexOf('いまの条件（レース・脚質）では選べません') !== -1, '進化段4B 選べない進化先を押すと、理由（いまの条件では選べません）を知らせる', await toastText(sp.page));
+		assert((await toastText(sp.page)).indexOf('では選べません') === -1, '進化段4B 選べない進化先を押しても、理由のトースト（いまの条件では選べません）は出ない', await toastText(sp.page));
 		assert(after.on === 'false,true' && after.open, '進化段4B 選べない進化先は選ばれず、画面は開いたまま', after);
 		assert(!saved.evolutionChoices || saved.evolutionChoices[HEIGEI] === undefined, '進化段4B 選べない進化先は、保存値にも入らない', saved.evolutionChoices);
 		await sp.ctx.close();
@@ -251,8 +252,8 @@ export async function register24(env) {
 		}
 		assert(out.every((m) => m.groups === 3), '進化段4B 金スキル3つの衣装は3グループ', out.map((m) => m.groups));
 		assert(out.every((m) => m.top >= 0 && m.bottom <= m.vh + 0.5 && m.headTop >= 0), '進化段4B シートは画面からはみ出さない（見出しと×が見える）', out.map((m) => ({ l: m.label, s: m.scheme, top: Math.round(m.top), bottom: Math.round(m.bottom), vh: m.vh })));
-		// 段4の修正1で行が低くなり、縮んだ高さ（844px）では3グループが収まるようになった。開いた高さ（734px）ではシートの中だけがスクロールする
-		assert(out.every((m) => m.closeVisible) && out.filter((m) => m.label === '開いた').every((m) => m.scrolls), '進化段4B 3グループでも「閉じる」まで届く（収まらない高さ〔バーが開いた 734px〕ではシートの中だけがスクロールする）', out.map((m) => ({ l: m.label, scrolls: m.scrolls, close: m.closeVisible })));
+		// 案G（2026-10-24）で行が低くなり、3グループは縮んだ高さ（844px）でも開いた高さ（734px）でも収まる（スクロールするのは収まらないときだけ）。どちらでも「閉じる」が見える。低い画面でのスクロールと貼り付きは test:evolution の §12
+		assert(out.every((m) => m.closeVisible), '進化段4B 3グループでも「閉じる」が見える（縮んだ高さ 844px・開いた高さ 734px とも。収まらないときは小窓の中だけがスクロールする）', out.map((m) => ({ l: m.label, scrolls: m.scrolls, close: m.closeVisible })));
 	});
 
 	/* ====================================================================
