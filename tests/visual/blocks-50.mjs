@@ -156,7 +156,9 @@ export async function register50(env) {
 			const outlineOf = (s) => { const x = /^(\d+)px solid (rgb\([^)]*\))$/.exec(s || ''); return x ? x[2] : null; };
 			const baseBar = (kind) => barOf(B[kind].nameBoxShadow);
 			// 金: 今のまま（0530272 と同一。ライトは透明のバー＝見えない・ダークは 4px の金のバー）
-			assert(m.gold.nameShadow === B.gold.nameBoxShadow && m.gold.nameBg === B.gold.nameBg && m.gold.rowShadow === 'none' && m.gold.skillnameColor === B.gold.skillnameColor, tag + '金スキルの行は今のまま（名前のセルの左のバー・地・文字色が 0530272 と同一）', { now: m.gold, base: B.gold });
+			// C-197（79b40ff）でライトの金スキルの左バーを #ffc83d（rgb(255, 200, 61)）に変えた。ダークと同じ色。意図した変更なので、ライトのバーの期待値だけをこの色に合わせる（地・文字色・ダークは 0530272 のまま）
+			const goldBarWant = theme === 'light' ? 'rgb(255, 200, 61) 4px 0px 0px 0px inset' : B.gold.nameBoxShadow;
+			assert(m.gold.nameShadow === goldBarWant && m.gold.nameBg === B.gold.nameBg && m.gold.rowShadow === 'none' && m.gold.skillnameColor === B.gold.skillnameColor, tag + '金スキルの行は今のまま（名前のセルの左のバー・地・文字色が 0530272 と同一）', { now: m.gold, base: B.gold });
 			for (const kind of ['unique', 'evo']) {
 				const bar = barOf(m[kind].nameShadow), want = outlineOf(B[kind].rowOutline);
 				assert(m[kind].outlineStyle === 'none' && m[kind].rowShadow === 'none', tag + kind + ': 枠線（outline）と光（box-shadow）は無い', { outline: m[kind].outlineStyle, shadow: m[kind].rowShadow });
