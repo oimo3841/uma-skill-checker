@@ -259,7 +259,7 @@ export async function register24(env) {
 	/* ====================================================================
 	 * 進化の選択画面（シナリオ）
 	 * ==================================================================== */
-	await block('進化段4C シナリオの画面: 候補が3つ以上のとき「！」。開くと確認済みになって消え、2つまで選べる。3つ目は増えず、赤い注意文が理由になる', async () => {
+	await block('進化段4C シナリオの画面: 候補が3つ以上のとき「！」。開くと確認済みになって消え、2つまで選べる。2つ選ぶと未選択の候補は無効になり、1つ外すと戻る', async () => {
 		const sp = await openSp({ roster: bRoster(), w: 390 });
 		const r0 = await sp.page.evaluate(() => ({ bang: !!document.querySelector('[data-usd-el="evo-bang"]'), btn: document.querySelector('[data-usd-el="evo-btn"]').textContent.replace(/\s/g, ''), bangColor: (() => { const b = document.querySelector('[data-usd-el="evo-bang"]'); return b ? getComputedStyle(b).backgroundColor : null; })(), evBtnAlert: (() => { const x = document.querySelector('.usd-roster-evbtn--alert:not(.usd-evo-bang)'); return x ? getComputedStyle(x).backgroundColor : null; })() }));
 		assert(r0.bang && r0.btn === '進化2／4', '進化段4C 候補が3つあり、まだ確認していないので、進化ボタンの右に「！」（進化 2／4）', r0);
@@ -268,29 +268,31 @@ export async function register24(env) {
 		await sp.page.waitForTimeout(350);
 		const r = await sp.page.evaluate(() => ({
 			tab: document.querySelector('[data-usd-el="evo-sheet"]').getAttribute('data-evo-tab'), title: document.querySelector('.usd-info-pop .uma-popover-title').textContent,
-			lead: (document.querySelector('[data-usd-el="evo-lead"]') || {}).textContent, many: (document.querySelector('[data-usd-el="evo-many"]') || {}).textContent,
+			lead: !!document.querySelector('[data-usd-el="evo-lead"]'), many: !!document.querySelector('[data-usd-el="evo-many"]'), bodyText: document.querySelector('.usd-info-pop .uma-popover-body').textContent,
 			sub: (document.querySelector('[data-usd-el="evo-subhead"]') || {}).textContent,
 			rows: [...document.querySelectorAll('[data-usd-el="evo-brow"]')].map((x) => ({ id: x.getAttribute('data-base-id'), on: x.querySelector('input').checked, name: x.querySelector('.usd-evo-name').textContent, sub: x.querySelector('.usd-evo-sub').textContent, icon: !!x.querySelector('.usd-evo-icon') })),
-			warn: (document.querySelector('[data-usd-el="evo-warn"]') || {}).textContent, bangNow: !!document.querySelector('[data-usd-el="evo-bang"]'),
+			warn: !!document.querySelector('[data-usd-el="evo-warn"]'), bangNow: !!document.querySelector('[data-usd-el="evo-bang"]'),
 			confirmBtn: [...document.querySelectorAll('.usd-info-pop button')].some((b) => /確認した/.test(b.textContent)), closeText: (document.querySelector('[data-usd-el="evo-close"]') || {}).textContent
 		}));
-		assert(r.tab === 'b' && r.title === 'シナリオの進化スキル' && r.lead === 'トレセン軒 / 2つまで選べます。' && r.many === '候補が3つ以上あるため、選ぶものを確認してください。', '進化段4C 「！」から開くとシナリオの画面（見出し・「トレセン軒 / 2つまで選べます。」・候補が3つ以上の1文）', r);
+		assert(r.tab === 'b' && r.title === 'シナリオの進化スキル' && !r.lead && !r.many && !/2つまで選べます|3つ以上あるため|3つ目を選ぶには/.test(r.bodyText), '進化段4C 「！」から開くとシナリオの画面（見出し。シナリオ名と上限を言う行・「候補が3つ以上」の1文は出ない）', r);
 		assert(r.rows.map((x) => x.id).join() === B_IDS.join() && r.sub === '候補（選択 2／2）' && r.rows.map((x) => x.on).join() === 'true,true,false', '進化段4C 候補は元スキルの id 昇順・「候補（選択 2／2）」・既定は先頭2つ', r.rows.map((x) => x.id + ':' + x.on));
 		assert(r.rows.every((x) => /^元: /.test(x.sub) && !x.icon) && r.rows[1].sub.indexOf('元: ' + SKILL_NAME.get('ex-0616')) === 0, '進化段4C 各行は チェック・進化先の名前・「元: 元の金スキル名 / 条件」（アイコンの代わりの四角は無い。段4の修正1）', r.rows.map((x) => x.sub));
-		assert(r.warn === '選べるのは2つまでです。3つ目を選ぶには、先にどれかの選択を外してください。' && !r.bangNow && !r.confirmBtn && r.closeText === '閉じる', '進化段4C 2つ選んでいる間は赤い注意文／「！」は開くと消える／「確認した」のボタンは無く「閉じる」だけ', { warn: r.warn, bang: r.bangNow, confirm: r.confirmBtn });
+		assert(!r.warn && !r.bangNow && !r.confirmBtn && r.closeText === '閉じる', '進化段4C 赤い注意文は出ない／「！」は開くと消える／「確認した」のボタンは無く「閉じる」だけ', { warn: r.warn, bang: r.bangNow, confirm: r.confirmBtn });
 		const seen = (await savedRoster(sp.page)).evolutionBSeen;
 		assert(JSON.stringify(seen) === JSON.stringify(B_IDS), '進化段4C 開いた時点で、確認した候補の組（id 昇順）を roster.evolutionBSeen に保存する', seen);
-		// 3つ目を押しても増えない（行は押せる見た目のまま）
-		const dis = await sp.page.evaluate(() => [...document.querySelectorAll('[data-usd-el="evo-brow"] input')].some((i) => i.disabled));
-		await sp.page.click('[data-usd-el="evo-brow"][data-base-id="' + B_IDS[2] + '"]');
+		// 2つ選んでいる間、未選択の候補は無効（disabled・中立の行・支援技術用の説明つき）。押しても選ばれない
+		const st = () => sp.page.evaluate(() => ({ on: [...document.querySelectorAll('[data-usd-el="evo-brow"] input')].map((i) => i.checked).join(), dis: [...document.querySelectorAll('[data-usd-el="evo-brow"] input')].map((i) => i.disabled).join(), off: [...document.querySelectorAll('[data-usd-el="evo-brow"]')].map((l) => l.classList.contains('usd-evo-target--off')).join(), sr: [...document.querySelectorAll('[data-usd-el="evo-brow"]')].map((l) => (l.querySelector('.usd-evo-sr') || {}).textContent || '').join('|'), sub: document.querySelector('[data-usd-el="evo-subhead"]').textContent, warn: !!document.querySelector('[data-usd-el="evo-warn"]'), band: document.querySelector('[data-usd-el="evo-btn"]').textContent.replace(/s/g, '') }));
+		const full = await st();
+		assert(full.on === 'true,true,false' && full.dis === 'false,false,true' && full.off === 'false,false,true' && full.sr === '||2つ選択済みのため選べません' && full.sub === '候補（選択 2／2）' && !full.warn, '進化段4C 2つ選んでいる間は、選んでいない候補だけ無効（disabled・無効の行・説明つき）。選んだ2つは有効のまま', full);
+		await sp.page.click('[data-usd-el="evo-brow"][data-base-id="' + B_IDS[2] + '"]', { force: true, noWaitAfter: true }).catch(() => {});
 		await sp.page.waitForTimeout(300);
-		const after3 = await sp.page.evaluate(() => ({ on: [...document.querySelectorAll('[data-usd-el="evo-brow"] input')].map((i) => i.checked).join(), sub: document.querySelector('[data-usd-el="evo-subhead"]').textContent, warn: !!document.querySelector('[data-usd-el="evo-warn"]') }));
-		assert(!dis && after3.on === 'true,true,false' && after3.sub === '候補（選択 2／2）' && after3.warn, '進化段4C 3つ目を押しても選択は増えず（入力は無効にしない）、注意文が出たまま', after3);
-		// 1つ外すと注意文が消え、3つ目を選べる
+		const after3 = await st();
+		assert(after3.on === 'true,true,false' && after3.sub === '候補（選択 2／2）', '進化段4C 無効の候補を押しても選択は増えない', after3);
+		// 1つ外すと、残りが再び有効になり、3つ目を選べる
 		await sp.page.click('[data-usd-el="evo-brow"][data-base-id="' + B_IDS[0] + '"]');
 		await sp.page.waitForTimeout(300);
-		const off1 = await sp.page.evaluate(() => ({ on: [...document.querySelectorAll('[data-usd-el="evo-brow"] input')].map((i) => i.checked).join(), sub: document.querySelector('[data-usd-el="evo-subhead"]').textContent, warn: !!document.querySelector('[data-usd-el="evo-warn"]'), band: document.querySelector('[data-usd-el="evo-btn"]').textContent.replace(/\s/g, '') }));
-		assert(off1.on === 'false,true,false' && off1.sub === '候補（選択 1／2）' && !off1.warn && off1.band === '進化1／4', '進化段4C 1つ外すと「選択 1／2」・注意文が消え・帯は 1／4', off1);
+		const off1 = await st();
+		assert(off1.on === 'false,true,false' && off1.dis === 'false,false,false' && off1.off === 'false,false,false' && off1.sr === '||' && off1.sub === '候補（選択 1／2）' && off1.band === '進化1／4', '進化段4C 1つ外すと「選択 1／2」・すべて有効に戻り・帯は 1／4', off1);
 		await sp.page.click('[data-usd-el="evo-brow"][data-base-id="' + B_IDS[2] + '"]');
 		await sp.page.waitForTimeout(300);
 		const saved = (await savedRoster(sp.page)).evolutionChoices;
@@ -301,6 +303,31 @@ export async function register24(env) {
 		assert(!(await sp.page.evaluate(() => !!document.querySelector('[data-usd-el="evo-bang"]'))), '進化段4C 閉じたあとも「！」は出ない（確認済みの組と同じ）');
 		assert(jsErrors(sp.errors).length === 0, '進化段4C コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
+	});
+
+	await block('進化段4C 金スキルの左バー: ライトでも、①の表の金スキルの行と小窓の金スキルの見出しに、ダークと同じ色の左 4px のバーが付く（ダークは変わらない）', async () => {
+		const GOLD_BAR = 'rgb(255, 200, 61)';   // 変更前のダークの値（#ffc83d）。実装の側の値を読まずに固定で持つ
+		const got = {};
+		for (const scheme of ['light', 'dark']) {
+			const sp = await openSp({ roster: orfeRoster(), w: 390, scheme });
+			await sp.page.click('[data-usd-el="evo-btn"]');
+			await sp.page.waitForTimeout(300);
+			// 1つ目の金スキルを「進化しない」にして、表に金スキルの行を出す
+			await sp.page.click('[data-usd-el="evo-group"] [data-usd-el="evo-none"]');
+			await sp.page.waitForTimeout(300);
+			got[scheme] = await sp.page.evaluate(() => {
+				const row = document.querySelector('.usd-roster-grow--gold > .usd-roster-gc--name');
+				const base = document.querySelector('.usd-evo-base');
+				const cs = getComputedStyle(document.documentElement);
+				return { token: cs.getPropertyValue('--uma-gold-row-bar').trim().toLowerCase(), rowShadow: row ? getComputedStyle(row).boxShadow : null,
+					baseBar: base ? getComputedStyle(base).borderLeftColor + ' ' + getComputedStyle(base).borderLeftWidth : null };
+			});
+			await sp.ctx.close();
+		}
+		['light', 'dark'].forEach((scheme) => {
+			const g = got[scheme];
+			assert(g.token === '#ffc83d' && g.rowShadow && g.rowShadow.indexOf(GOLD_BAR) !== -1 && /inset/.test(g.rowShadow) && g.rowShadow.indexOf('4px') !== -1 && g.baseBar === GOLD_BAR + ' 4px', '進化段4C 金スキルの左バー（' + scheme + '）: 表の金スキルの行も小窓の見出しも、ダークと同じ金色の 4px', g);
+		});
 	});
 
 	await block('進化段4C 「！」の出る・出ない: 候補の組が確認済みと同じなら出ない／違えば再び出る／候補が2つなら出ない／レース未選択なら出ない', async () => {
@@ -445,8 +472,7 @@ export async function register24(env) {
 				const css = (el, p) => getComputedStyle(el)[p];
 				const pop = document.querySelector('.usd-info-pop');
 				const t = document.querySelector('[data-usd-el="evo-brow"]');
-				return { sheetBg: css(pop, 'backgroundColor'), sheetText: css(document.querySelector('[data-usd-el="evo-lead"]'), 'color'), group: css(document.querySelector('.usd-evo-group'), 'backgroundColor'),
-					warn: document.querySelector('[data-usd-el="evo-warn"]') ? css(document.querySelector('[data-usd-el="evo-warn"]'), 'color') : null,
+				return { sheetBg: css(pop, 'backgroundColor'), sheetText: css(document.querySelector('[data-usd-el="evo-subhead"]'), 'color'), group: css(document.querySelector('.usd-evo-group'), 'backgroundColor'),
 					targetText: css(t.querySelector('.usd-evo-name'), 'color'), targetSub: css(t.querySelector('.usd-evo-sub'), 'color'), grad: css(t, 'backgroundImage') };
 			});
 			rows.push({ scheme, m, hexOf });
