@@ -26,7 +26,9 @@ export async function waitNoticeSettled(page, timeout = 10000) {
 			const page = location.pathname.indexOf('special') !== -1 ? 'special' : 'exam';
 			const editionOn = !!(ua && ua.isFor(page));
 			if (editionOn) unseen = unseen || !seen(EDITION_NOTICE_STORAGE_KEY, ua.ANNOUNCE.id);
-			if (editionOn && ua.isForced()) unseen = true;
+			// 新シナリオへの未対応の知らせ（段1a）。ページごとに別のキー
+			if (ua && ua.isScenarioFor(page)) unseen = unseen || !seen(SCENARIO_NOTICE_STORAGE_KEY, ua.SCENARIO_PENDING.id);
+			if ((editionOn || (ua && ua.isScenarioFor(page))) && ua.isForced()) unseen = true;
 			return !unseen;
 		}, null, { timeout });
 		return true;
