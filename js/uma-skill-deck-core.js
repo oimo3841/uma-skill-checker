@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-24a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-24b';
 
 	/* ============================================================
 	 * 定数
@@ -65,7 +65,7 @@
 	const DATA_JSON_VERSIONS = {
 		'data/scenario-inheritance-factors.json': '2026-09-15a',
 		'data/aptitude-genes.json': '2026-09-19a',
-		'data/extended-skills.json': '2026-10-17b',
+		'data/extended-skills.json': '2026-10-24a',
 		// 「条件で検索」の母集団に入れる拡張スキルの id の一覧（2026-10-16a・C-163）。データ側が規則で作る。拡張スキルと同じ経路（loadExtraCatalog）で読む
 		'data/searchable-extended-ids.json': '2026-10-16a',
 		// サポカで得られないスキル（公開用・独自カテゴリ3のみ。2026-10-16c・C-163）。②の「サポカ外」ボタンの候補。データ側が規則で作る。loadNonSupportSkills() が読む
@@ -102,7 +102,7 @@
 		// 育成ウマ娘のイベントで得られるスキル（段1・2026-10-11）。受け入れだけで、画面と計算はまだ使わない。TRAINING_SOURCES の5本目
 		'data/training-event-skills.json': '2026-10-17f',
 		// スキルの進化の対応（段2・2026-10-12。C-145・C-146）。受け入れだけで、画面と計算はまだ使わない。ページの読み込みでは取りに行かない（loadSkillEvolutions）
-		'data/skill-evolutions.json': '2026-10-21a',
+		'data/skill-evolutions.json': '2026-10-24a',
 		// 「このスキルは、これらのスキルを取得しているときだけ有効」の対応（2026-10-17a。大逃げの要るスキル）。skill-evolutions.json と一緒に、最初に必要になったとき1回だけ読む（loadSkillEvolutions）
 		'data/skill-requires.json': '2026-10-17a',
 		// コースの形の条件（小回り・直線コース）に当たるレース場・バ場・距離（C-155・2026-10-14。おいもさんの指定の表）。
@@ -8488,7 +8488,7 @@
 		const byUma = new Map();         // umaId → [{ baseSkillId, evolvedSkillIds }]（データの並び）
 		const byScenario = new Map();    // scenarioId → [{ baseSkillId, evolvedSkillIds }]
 		const evolved = new Set();
-		const condOf = new Map();        // 進化先の id → { trackVenue: [...], environment: [...] }（conditions の all。空でないものだけ。2026-10-21a〜の任意項目）
+		const condOf = new Map();        // 進化先の id → { trackVenue: [...], environment: [...], distance: [...] }（conditions の all。空でないものだけ。2026-10-21a〜の任意項目）
 		((doc && Array.isArray(doc.entries)) ? doc.entries : []).forEach(e => {
 			if (!e || typeof e.baseSkillId !== 'string' || !e.baseSkillId || !Array.isArray(e.evolvedSkillIds)) return;
 			const ids = e.evolvedSkillIds.filter(x => typeof x === 'string' && x);
@@ -8508,8 +8508,8 @@
 					const all = e.conditions[id] && e.conditions[id].all;
 					if (!all || typeof all !== 'object' || condOf.has(id)) return;
 					const pick = (k) => (Array.isArray(all[k]) ? all[k].filter(x => typeof x === 'string' && x) : []);
-					const cond = { trackVenue: pick('trackVenue'), environment: pick('environment') };
-					if (cond.trackVenue.length > 0 || cond.environment.length > 0) condOf.set(id, cond);
+					const cond = { trackVenue: pick('trackVenue'), environment: pick('environment'), distance: pick('distance') };
+					if (cond.trackVenue.length > 0 || cond.environment.length > 0 || cond.distance.length > 0) condOf.set(id, cond);
 				});
 			}
 		});
@@ -8633,7 +8633,7 @@
 		if (rd && !rdAll && rd.scope !== 'part') ignored.push('raceDistance');
 		// データが「距離のタグは追加の効果だけにかかる」（distanceTagScope が "part"）と示しているものは、分けられているので記録しない
 		if (rd && rd.distanceTagScope === 'part') { const i = ignored.indexOf('distance'); if (i !== -1) ignored.splice(i, 1); }
-		// conditions を持つ進化先は、レース場・環境を evolutionConditionVerdictOf が読む（all が空の進化先は今までどおり、追加の効果の条件として使わない）
+		// conditions を持つ進化先は、レース場・環境・距離を evolutionConditionVerdictOf が読む（all が空の進化先は今までどおり、追加の効果の条件として使わない）
 		if (!cond) ['trackVenue', 'environment'].forEach(k => { if (Array.isArray(tags[k]) && tags[k].length > 0) ignored.push(k); });
 		const out = {
 			id: skill.id,
@@ -8646,7 +8646,7 @@
 		return out;
 	}
 	/**
-	 * 進化先の conditions（all の trackVenue・environment）がレースに合うか（段1・2026-10-24）。'ok'（合う）／'ng'（合わない）／'unknown'（判定できない）。
+	 * 進化先の conditions（all の trackVenue・environment・distance）がレースに合うか（段1・2026-10-24。distance は 2026-10-24b）。'ok'（合う）／'ng'（合わない）／'unknown'（判定できない）。
 	 * trackVenue は「いずれか」。environment は項目（回り・季節・天気・バ場状態・時間帯。RACE_ENV_FIELDS）ごとに「いずれか」、項目どうしは「かつ」。
 	 * レースの該当項目が公開されていない（null）・レースを選んでいないときは、その項目は unknown。ng が1つでもあれば ng（unknown と混ざるときは ng を優先する）。
 	 * 条件を持たない進化先（cond が無い）は常に 'ok'。
@@ -8658,6 +8658,13 @@
 		if (venues.length > 0) {
 			if (!race || !race.venue) unknown = true;
 			else if (venues.indexOf(race.venue) === -1) return 'ng';
+		}
+		// distance は距離の区分（short・mile・medium・long）の「いずれか」。レースの区分は raceDistanceClassOf（距離から既存の区分の関数で決める）
+		const dists = Array.isArray(cond.distance) ? cond.distance : [];
+		if (dists.length > 0) {
+			const cls = raceDistanceClassOf(race);
+			if (!cls) unknown = true;
+			else if (dists.indexOf(cls) === -1) return 'ng';
 		}
 		const env = Array.isArray(cond.environment) ? cond.environment : [];
 		for (const f of Object.keys(RACE_ENV_FIELDS)) {

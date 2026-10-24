@@ -1801,7 +1801,7 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 	/* --- スキルの進化の対応（2026-10-12・C-145／C-146。進化スキルの受け入れ） ---
 	   形は許可リスト方式。kind は uma（パターンA＝衣装自身の進化）か scenario（パターンB＝シナリオの進化）。
 	   進化先は rarity が evolved（厳格）で pt が 0。進化元の rarity は gold に限らない（引けることだけ見る）。
-	   uma の進化元は、その衣装自身の初期・覚醒スキルにある。scenario の scenarioId は scenario-event-skills.json の scenario と同じ名前。conditions（任意・2026-10-21a〜）は進化先ごとの「使える条件」（all のキーは trackVenue・environment だけ。ツール側はまだ判定に使わない）。
+	   uma の進化元は、その衣装自身の初期・覚醒スキルにある。scenario の scenarioId は scenario-event-skills.json の scenario と同じ名前。conditions（任意・2026-10-21a〜）は進化先ごとの「使える条件」（all のキーは trackVenue・environment・distance だけ。distance は 2026-10-24a〜）。
 	   スキル名・衣装名・シナリオ名はここに書かない（恒久ルール1）。 */
 	const EVO_FILE = 'skill-evolutions.json';
 	const evr = readOpt(EVO_FILE);
@@ -1830,8 +1830,8 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 			const scr2 = readOpt('scenario-event-skills.json');
 			if (scr2 && scr2.ok && isArr(scr2.data.entries)) scr2.data.entries.forEach((en) => { if (isStr(en.scenario)) scenarioNames.add(en.scenario); });
 			const seenKey = new Set(), evolvedAll = [];
-			// conditions（任意・2026-10-21a〜）: { 進化先の id: { all: { trackVenue: [...], environment: [...] } } }。値は TAG_AXES の同じ軸の選択肢に実在する
-			const condBad = [], CONDITION_AXES = ['trackVenue', 'environment'];
+			// conditions（任意・2026-10-21a〜）: { 進化先の id: { all: { trackVenue: [...], environment: [...], distance: [...] } } }。値は TAG_AXES の同じ軸の選択肢に実在する
+			const condBad = [], CONDITION_AXES = ['trackVenue', 'environment', 'distance'];
 			const condOpts = Object.fromEntries(CONDITION_AXES.map((k) => [k, new Set((readAxisOptions(coreSrc, k) || []).map((o) => o.v))]));
 			const condUsed = Object.fromEntries(CONDITION_AXES.map((k) => [k, new Set()]));
 			let nCondRows = 0, nCondAll = 0, nCondEmpty = 0;
@@ -1907,7 +1907,7 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 			const nameCount = new Map();
 			evolvedSet.forEach((id) => { const n = (masterNameById.get(id) || extNameById.get(id)); if (n) nameCount.set(n, (nameCount.get(n) || 0) + 1); });
 			none([...nameCount.entries()].filter(([, c]) => c > 1).map(([n]) => n), EVO_FILE + ': 進化先の名前が重複しない');
-			none(condBad, EVO_FILE + ': conditions（任意）の形（進化先の id は行の evolvedSkillIds にあり、値は { all: {…} } だけ。all のキーは trackVenue・environment だけで、値は TAG_AXES の同じ軸の選択肢に実在する）');
+			none(condBad, EVO_FILE + ': conditions（任意）の形（進化先の id は行の evolvedSkillIds にあり、値は { all: {…} } だけ。all のキーは trackVenue・environment・distance だけで、値は TAG_AXES の同じ軸の選択肢に実在する）');
 			{
 				// TAG_AXES にあるが、どのスキルの tags にも使われていない値（警告だけ。NG にしない）
 				const tagUsed = Object.fromEntries(CONDITION_AXES.map((k) => [k, new Set()]));
@@ -1916,7 +1916,7 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 				if (unusedOpts.length) warn(EVO_FILE + ': TAG_AXES にあるが、どのスキルの tags にも使われていない値（conditions の値の候補として）', unusedOpts);
 			}
 			{
-				// conditions（all あり）の値が、進化先自身の tags の trackVenue・environment と矛盾しない（警告だけ。段1・2026-10-24）。
+				// conditions（all あり）の値が、進化先自身の tags の trackVenue・environment・distance と矛盾しない（警告だけ。段1・2026-10-24）。
 				// 判定は conditions だけを読むので動作には影響しないが、tags と使える条件がずれていると、検索・絞り込みの側の読みと食い違う
 				const tagsById = new Map(masterSkills.concat(docs.extendedSkill.entries).map((sk) => [String(sk.id), isObj(sk.tags) ? sk.tags : {}]));
 				const sameSet = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
@@ -1929,11 +1929,12 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 						const tg = tagsById.get(eid) || {};
 						CONDITION_AXES.forEach((k) => {
 							const cv = isArr(all[k]) ? all[k] : [], tv = isArr(tg[k]) ? tg[k] : [];
+							if (k === 'distance' && cv.length === 0) return;   // 距離のタグは説明文の＜…＞から付く（§18 が見る）。conditions に距離が無い進化先は比べない
 							if (!sameSet(cv, tv)) condTagDiff.push(eid + ' の ' + k + ': conditions=' + JSON.stringify(cv) + ' / tags=' + JSON.stringify(tv));
 						});
 					});
 				});
-				if (condTagDiff.length) warn(EVO_FILE + ': conditions（all あり）の trackVenue・environment が、進化先自身の tags と違う（データ側の確認）', condTagDiff);
+				if (condTagDiff.length) warn(EVO_FILE + ': conditions（all あり）の trackVenue・environment・distance が、進化先自身の tags と違う（データ側の確認）', condTagDiff);
 			}
 			if (nCondRows) console.log('       ' + EVO_FILE + ': conditions ' + nCondRows + '行・進化先 ' + (nCondAll + nCondEmpty) + '件（all あり ' + nCondAll + '・all が空 ' + nCondEmpty + '）');
 			console.log('       ' + EVO_FILE + ': ' + nUma + '行（パターンA・' + umaWith.size + '衣装）・' + nScen + '行（パターンB）・進化先 ' + evolvedSet.size + '種');

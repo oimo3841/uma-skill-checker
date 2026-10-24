@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-21a",
+	"dataVersion": "2026-10-24a",
 	"category": "skillEvolution",
 	"entries": [
 		{
@@ -4169,7 +4169,17 @@
 			"baseSkillId": "ex-0470",
 			"evolvedSkillIds": [
 				"ex-1607"
-			]
+			],
+			"conditions": {
+				"ex-1607": {
+					"all": {
+						"distance": [
+							"medium",
+							"mile"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
