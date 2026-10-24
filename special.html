@@ -36,7 +36,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-24b"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-24c"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -405,10 +405,8 @@
 		body .usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-clearbtn, :root[data-theme="dark"] body .usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-clearbtn { color: var(--uma-text-subtle); border-left-color: var(--uma-border); }
 		body .usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-clearbtn:hover, :root[data-theme="dark"] body .usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-clearbtn:hover { background: var(--uma-surface-muted); color: var(--uma-text-heading); }
 		body .usd-roster-pickbox.usd-roster-pickbox--sel { border-color: var(--usd-ui-sel); box-shadow: inset 0 0 0 1px var(--usd-ui-sel); }
-		/* 進化の選択画面の進化先・「進化しない」の行（排他）: 通常 1px・選んでいる行 2px（行の中身は動かさない）。「進化 N／最大」のボタンは 1px（地色が付いた設定済み） */
+		/* 進化の選択画面の進化先・「進化しない」の行（排他）は、2026-10-24 の見直しで core の CSS に移した（左 4px の縦バー＋選んでいる行は内側 2px の枠）。「進化 N／最大」のボタンは 1px（地色が付いた設定済み） */
 		body .usd-evo-btn { border-width: 1px; }
-		body .usd-evo-target, body .usd-evo-none { border-width: 1px; padding: 4px calc(var(--uma-sp-2) + 1px); }
-		body .usd-evo-target--on, body .usd-evo-none--on { border-width: 2px; padding: 3px var(--uma-sp-2); }
 		/* ①②のリセットのシートのボタン（3つとも 2px だった）: 通常は細い枠（1px）。色（淡いピンク・赤み・細い枠の色）は今のまま */
 		body .usd-reset-ops .usd-reset-soft, body .usd-reset-ops .usd-reset-danger, body .usd-reset-ops .uma-btn--ghost { border-width: 1px; }
 		body .usd-reset-ops .uma-btn--ghost { border-color: var(--usd-ui-line); }

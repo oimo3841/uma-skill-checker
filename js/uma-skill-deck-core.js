@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-24b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-24c';
 
 	/* ============================================================
 	 * 定数
@@ -5365,11 +5365,13 @@
 		'  --evo-base-from: #fffbe0; --evo-base-mid: #ffe58f; --evo-base-to: #ffd04d; --evo-base-edge: #c99a1c; --evo-base-text: #4a2a12;',
 		'  --evo-none-bg: #ffffff; --evo-none-edge: #cfcfcf; --evo-none-text: #4a2a12; --evo-arrow: #5f9a10; --evo-warn: #b3261e;',
 		'  --evo-sheet-bg: #ffffff; --evo-sheet-text: #2a2a2a; --evo-sheet-edge: #cfcfcf; --evo-group-bg: #f6f6f4;',
+		'  --evo-off-bg: #ececea; --evo-off-bar: #8a8a88; --evo-off-text: #2a2a2a;',
 		'  --evo-danger-edge: #b3261e; --evo-danger-bg: #fff3f1; --evo-danger-text: #7a1812; }',
 		':root[data-theme="dark"] { --evo-from: #3d1830; --evo-mid: #5a2145; --evo-to: #7a2b5e; --evo-edge-on: #ff8ac6; --evo-edge: #b8618f; --evo-text: #ffe9f2; --evo-btn-bg: #4a1f3a;',
 		'  --evo-base-from: #3a3212; --evo-base-mid: #554716; --evo-base-to: #6e5a14; --evo-base-edge: #ffd35b; --evo-base-text: #f3e8d0;',
 		'  --evo-none-bg: #2f2e34; --evo-none-edge: #4a4950; --evo-none-text: #e8e0d6; --evo-arrow: #a2df32; --evo-warn: #ff9a8f;',
 		'  --evo-sheet-bg: #26252a; --evo-sheet-text: #f0eae0; --evo-sheet-edge: #4a4950; --evo-group-bg: #1b1a1f;',
+		'  --evo-off-bg: #34333a; --evo-off-bar: #8d8c94; --evo-off-text: #f0eae0;',
 		'  --evo-danger-edge: #ff9a8f; --evo-danger-bg: #4a2220; --evo-danger-text: #ffd9d4; }',
 		// ダーク（C-134 段4）: 固有スキルの行とオススメサポのボタンの地は、同じ3色の色相のまま暗い面へ。上に載る文字は明るく
 		':root[data-theme="dark"] { --usd-rarity-ssr-text: #f1f5f9; --usd-skill-unique-from: #163423; --usd-skill-unique-mid: #142f45; --usd-skill-unique-to: #3a1a32; --usd-skill-unique-edge: #a8457a; }',
@@ -6163,33 +6165,49 @@
 		'.usd-roster-sumrow--two .usd-roster-sumbreak { display: block; order: 4; flex: 0 0 100%; height: 0; }',
 		'.usd-roster-sumrow--two .usd-evo-wrap { order: 5; }',
 		// 進化の選択画面（段4）。色は --evo- の変数。スマホは下から出るシート（共有の .uma-popover の作り。高さは dvh）
-		'.usd-evo-pop { background: var(--evo-sheet-bg); color: var(--evo-sheet-text); border-color: var(--evo-sheet-edge); max-height: 88vh; max-height: min(88dvh, 760px); }',
+		// 2026-10-24（案G）: ①の表の側の作りに合わせて見直した。細い枠・14px の見出し・11.5px の操作部品・金スキルと進化の行は表の行と同じ作り（地＋左 4px の縦バー）。
+		// 閉じるは本文の下に貼り付く（.usd-evo-footer）。選べない進化先の行は無効（.usd-evo-target--off。中立のグレー）
+		'.usd-evo-pop { background: var(--evo-sheet-bg); color: var(--evo-sheet-text); border: 1px solid var(--usd-ui-line, var(--evo-sheet-edge)); max-height: 88vh; max-height: min(88dvh, 760px); }',
 		'@media (min-width: 641px) { .usd-evo-pop { width: min(92vw, 560px); } }',
-		'.usd-evo-pop .uma-popover-head { border-bottom-color: var(--evo-sheet-edge); }',
-		'.usd-evo-pop .uma-popover-title { color: var(--evo-sheet-text); }',
-		'.usd-evo-pop .uma-popover-close { width: 44px; height: 44px; color: var(--evo-sheet-text); }',
-		'.usd-evo { display: flex; flex-direction: column; gap: var(--uma-sp-2); color: var(--evo-sheet-text); }',
+		'.usd-evo-pop .uma-popover-head { border-bottom-color: var(--evo-sheet-edge); padding-top: 7px; padding-bottom: 7px; }',
+		'.usd-evo-pop .uma-popover-title { color: var(--evo-sheet-text); font-size: 14px; line-height: 20px; font-weight: 500; }',
+		// ×は見た目を小さく（18px の字）、押せる範囲は 44px のまま（上下は見出しの外へはみ出させ、見出しの高さを増やさない）
+		'.usd-evo-pop .uma-popover-close { width: 44px; height: 44px; margin: -12px -4px -12px 0; font-size: 18px; line-height: 1; color: var(--evo-sheet-text); }',
+		'.usd-evo-pop .uma-popover-body { padding: var(--uma-sp-2) var(--uma-sp-2) 0; }',
+		'.usd-evo { display: flex; flex-direction: column; gap: var(--uma-sp-1-5); color: var(--evo-sheet-text); }',
 		'.usd-evo-tabs { display: flex; gap: var(--uma-sp-1-5); }',
-		'.usd-evo-tab { min-height: 44px; padding: 0 var(--uma-sp-3); font-size: 14px; }',
-		'.usd-evo-cond { margin: 0; font-size: 12px; line-height: 1.4; color: var(--evo-sheet-text); }',
-		'.usd-evo-subhead { margin: var(--uma-sp-1) 0 0; font-size: 14px; line-height: 1.3; font-weight: 700; }',
-		'.usd-evo-group { display: flex; flex-direction: column; gap: 6px; padding: var(--uma-sp-2); border-radius: 10px; background: var(--evo-group-bg); }',
+		'.usd-evo-tab { min-height: 28px; padding: 0 var(--uma-sp-3); font-size: 11.5px; }',
+		'.usd-evo-cond { margin: 0; font-size: 11.5px; line-height: 1.4; color: var(--evo-sheet-text); }',
+		'.usd-evo-subhead { margin: var(--uma-sp-1) 0 0; font-size: 12px; line-height: 1.3; font-weight: 500; }',
+		'.usd-evo-group { display: flex; flex-direction: column; gap: 0; padding: 0; border: 1px solid var(--evo-sheet-edge); border-radius: var(--uma-r-md); overflow: hidden; background: var(--evo-group-bg); }',
 		// 段4の修正1: アイコンの代わりの四角を外し、行の縦幅を詰めた。元の金スキルの行は押せないので 44px にしない。
 		// 押せる行（進化先・進化しない）は 44px 以上のまま（ラジオ・チェックは行の左で縦の中央）
-		'.usd-evo-base { display: flex; align-items: center; gap: var(--uma-sp-2); padding: 4px var(--uma-sp-2); border: 2px solid var(--evo-base-edge); border-radius: 8px;',
-		'  background: linear-gradient(90deg, var(--evo-base-from), var(--evo-base-mid), var(--evo-base-to)); color: var(--evo-base-text); }',
-		'.usd-evo-arrow { text-align: center; font-size: 12px; line-height: 1; letter-spacing: 3px; color: var(--evo-arrow); }',
-		'.usd-evo-target, .usd-evo-none { display: flex; align-items: center; gap: var(--uma-sp-2); box-sizing: border-box; min-height: 44px; padding: 3px var(--uma-sp-2); border-radius: 8px; cursor: pointer; }',
-		'.usd-evo-target { border: 2px solid var(--evo-edge); background: linear-gradient(90deg, var(--evo-from), var(--evo-mid), var(--evo-to)); color: var(--evo-text); }',
-		'.usd-evo-target--on { border-color: var(--evo-edge-on); }',
-		'.usd-evo-none { border: 2px solid var(--evo-none-edge); background: var(--evo-none-bg); color: var(--evo-none-text); }',
-		'.usd-evo-none--on { border-color: var(--evo-none-text); }',
-		'.usd-evo-target input, .usd-evo-none input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--evo-edge-on); }',
-		'.usd-evo-text { display: flex; flex-direction: column; min-width: 0; gap: 1px; }',
-		'.usd-evo-name { font-size: 15px; line-height: 1.3; font-weight: 700; overflow-wrap: anywhere; }',
-		'.usd-evo-sub { font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; }',
-		'.usd-evo-warn { margin: 0; font-size: 13px; line-height: 1.4; font-weight: 700; color: var(--evo-warn); }',
-		'.usd-evo-close { width: 100%; min-height: 44px; justify-content: center; }',
+		// 金スキルの見出し: ①の表の金スキルの行と同じ作り（地＝--uma-gold-row-bg〔無ければ --uma-stitch-soft〕・左 4px の縦バー＝--uma-gold-row-bar〔ページが持つときだけ〕）
+		'.usd-evo-base { display: flex; align-items: center; box-sizing: border-box; min-height: 28px; padding: 5px var(--uma-sp-2); border-left: 4px solid var(--uma-gold-row-bar, transparent);',
+		'  background: var(--uma-gold-row-bg, var(--uma-stitch-soft)); color: var(--uma-gold-row-text, inherit); }',
+		// 進化先の行: ①の表の進化の行と同じ作り（進化色のグラデーション・左 4px の縦バー＝--evo-edge-on）。選んでいる行は内側 2px の枠（ほかの操作部品の「選択中」と同じ）
+		'.usd-evo-target, .usd-evo-none { display: flex; align-items: flex-start; gap: var(--uma-sp-2); box-sizing: border-box; padding: 6px var(--uma-sp-2); border-top: 1px solid var(--evo-sheet-edge); cursor: pointer; }',
+		'.usd-evo-target { border-left: 4px solid var(--evo-edge-on); background: linear-gradient(90deg, var(--evo-from), var(--evo-mid), var(--evo-to)); color: var(--evo-text); }',
+		'.usd-evo-target--on, .usd-evo-none--on { box-shadow: inset 0 0 0 2px var(--usd-ui-sel, var(--evo-edge-on)); }',
+		// 選べない進化先: 中立のグレーの地・グレーの左バー。ラジオは無効で、行全体を押せない
+		'.usd-evo-target--off { border-left-color: var(--evo-off-bar); background: var(--evo-off-bg); color: var(--evo-off-text); cursor: default; pointer-events: none; }',
+		// 「進化しない」: 1行の細い行・中立の地。いつでも選べる
+		'.usd-evo-none { align-items: center; min-height: 30px; padding-top: 4px; padding-bottom: 4px; border-left: 4px solid var(--evo-none-edge); background: var(--evo-none-bg); color: var(--evo-none-text); }',
+		'.usd-evo-target input, .usd-evo-none input { flex: none; width: 16px; height: 16px; margin: 1px 0 0; accent-color: var(--evo-edge-on); }',
+		'.usd-evo-none input { margin-top: 0; }',
+		'.usd-evo-text { display: flex; flex-direction: column; min-width: 0; gap: 2px; }',
+		'.usd-evo-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--uma-sp-1-5); min-width: 0; }',
+		'.usd-evo-name { font-size: 13px; line-height: 1.3; font-weight: 500; overflow-wrap: anywhere; }',
+		'.usd-evo-sub { font-size: 11px; line-height: 1.3; overflow-wrap: anywhere; }',
+		'.usd-evo-desc { font-size: 11.5px; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; }',
+		// 選べなくしている条件の語の強調: 赤字＋点線の下線（色だけに頼らない）。直後に画面に出さない文字（.usd-evo-sr）
+		'.usd-evo-ng { color: var(--uma-danger-text); font-weight: 500; text-decoration: underline dotted; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }',
+		'.usd-evo-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }',
+		'.usd-evo-warn { margin: 0; font-size: 12px; line-height: 1.4; font-weight: 500; color: var(--evo-warn); }',
+		// 閉じる: 見た目は高さ 32px。押せる範囲は 44px（上下に 6px ずつ広げる）。本文だけがスクロールし、閉じるは下に貼り付く
+		'.usd-evo-footer { position: sticky; bottom: 0; z-index: 1; margin: 0 calc(-1 * var(--uma-sp-2)); padding: var(--uma-sp-1-5) var(--uma-sp-2); background: var(--evo-sheet-bg); border-top: 1px solid var(--evo-sheet-edge); }',
+		'.usd-evo-close { position: relative; width: 100%; min-height: 32px; height: 32px; padding: 0; font-size: 12px; justify-content: center; }',
+		'.usd-evo-close::after { content: ""; position: absolute; left: 0; right: 0; top: calc(-1 * var(--uma-sp-1-5)); bottom: calc(-1 * var(--uma-sp-1-5)); }',
 		'.usd-roster-togglebtn { font: inherit; font-size: 11px; line-height: 1.2; font-weight: 600; padding: var(--uma-sp-1) var(--uma-sp-1-5); min-height: 28px;',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); background: var(--uma-surface); color: var(--uma-text); cursor: pointer; white-space: nowrap; }',
 		'.usd-roster-togglebtn[aria-pressed="true"] { background: var(--uma-control); border-color: var(--uma-control-edge); color: var(--uma-control-text); box-shadow: var(--uma-control-rim); }',
@@ -8590,6 +8608,34 @@
 	 * 返り値: { tags（距離・脚質・バ場は＜…＞から。そのほかの軸は元のまま。レース場・環境は空）, raceDistance（"all" のときだけ）, bracket（＜…＞の文。無ければ ''）, ignored: [理由の語…] }
 	 */
 	const EVOLUTION_BRACKET_PREFIX_WORDS = ['作戦'];
+	/**
+	 * 説明文の＜…＞の中身（括弧は含まない）を読む。evolutionUsageOf と、選べない理由の語を探す evolutionNgDetailOf が同じ読み方をするための部品。
+	 * 「・」で区切った1つの中に知らない語があれば、その区切りは丸ごと読まない（限定なし＝「いつでも選べる」側）。
+	 * 例: ＜大逃げ・長距離＞ は距離（長距離）だけを読み、脚質の限定は付けない。
+	 * 返り値: { got: { distance, style, surface: [タグの値…] }, words: { distance, style, surface: [＜…＞にある語…] }（読んだ区切りの語だけ）, unknown: [読めなかった語…] }
+	 */
+	function parseEvolutionBracket(inner) {
+		const usageAxes = ['distance', 'style', 'surface'];
+		const got = { distance: [], style: [], surface: [] };
+		const wordsOf = { distance: [], style: [], surface: [] };
+		const unknown = [];
+		String(inner).split('・').forEach(part => {
+			const words = part.split('/').map(w => w.trim()).filter(w => w && EVOLUTION_BRACKET_PREFIX_WORDS.indexOf(w) === -1);
+			const hits = words.map(w => {
+				for (const k of usageAxes) {
+					const opt = (TAG_AXES.find(a => a.key === k) || { options: [] }).options.find(o => o.t === w);
+					if (opt) return { axis: k, v: opt.v, w: w };
+				}
+				return null;
+			});
+			if (hits.some(h => !h)) { words.forEach((w, i) => { if (!hits[i]) unknown.push(w); }); return; }
+			hits.forEach(h => {
+				if (got[h.axis].indexOf(h.v) === -1) got[h.axis].push(h.v);
+				if (wordsOf[h.axis].indexOf(h.w) === -1) wordsOf[h.axis].push(h.w);
+			});
+		});
+		return { got: got, words: wordsOf, unknown: unknown };
+	}
 	const evolutionUsageCache = new Map();
 	function evolutionUsageOf(skill, descOf, condOf) {
 		if (!skill) return null;
@@ -8603,26 +8649,10 @@
 		const m = String(text).match(/＜([^＞]*)＞/);
 		const bracket = m ? m[0] : '';
 		const usageAxes = ['distance', 'style', 'surface'];
-		const got = { distance: [], style: [], surface: [] };
+		const parsed = m ? parseEvolutionBracket(m[1]) : null;
+		const got = parsed ? parsed.got : { distance: [], style: [], surface: [] };
 		const ignored = [];
-		if (m) {
-			// 「・」で区切った1つの中に知らない語があれば、その区切りは丸ごと読まない（限定なし＝「いつでも選べる」側）。
-			// 例: ＜大逃げ・長距離＞ は距離（長距離）だけを読み、脚質の限定は付けない
-			const unknown = [];
-			m[1].split('・').forEach(part => {
-				const words = part.split('/').map(w => w.trim()).filter(w => w && EVOLUTION_BRACKET_PREFIX_WORDS.indexOf(w) === -1);
-				const hits = words.map(w => {
-					for (const k of usageAxes) {
-						const opt = (TAG_AXES.find(a => a.key === k) || { options: [] }).options.find(o => o.t === w);
-						if (opt) return { axis: k, v: opt.v };
-					}
-					return null;
-				});
-				if (hits.some(h => !h)) { words.forEach((w, i) => { if (!hits[i]) unknown.push(w); }); return; }
-				hits.forEach(h => { if (got[h.axis].indexOf(h.v) === -1) got[h.axis].push(h.v); });
-			});
-			if (unknown.length > 0) ignored.push('bracket:' + unknown.join('/'));
-		}
+		if (parsed && parsed.unknown.length > 0) ignored.push('bracket:' + parsed.unknown.join('/'));
 		// ＜…＞と違う距離・脚質・バ場のタグは使わない（追加の効果の条件の可能性がある）
 		usageAxes.forEach(k => {
 			const tv = Array.isArray(tags[k]) ? tags[k] : [];
@@ -8651,29 +8681,35 @@
 	 * レースの該当項目が公開されていない（null）・レースを選んでいないときは、その項目は unknown。ng が1つでもあれば ng（unknown と混ざるときは ng を優先する）。
 	 * 条件を持たない進化先（cond が無い）は常に 'ok'。
 	 */
-	function evolutionConditionVerdictOf(cond, race) {
-		if (!cond) return 'ok';
+	function evolutionConditionVerdictOf(cond, race) { return evolutionConditionDetailOf(cond, race).verdict; }
+	/**
+	 * evolutionConditionVerdictOf の中身。{ verdict: 'ok'|'ng'|'unknown', ng: [{ axis: 'trackVenue'|'distance'|RACE_ENV_FIELDS の項目名, values: [その軸の conditions の値…] }] }。
+	 * ng は合わない軸すべて（verdict が 'ng' の理由。画面が、合わない条件の語だけを強調するために使う）。判定そのものは verdict と同じ
+	 */
+	function evolutionConditionDetailOf(cond, race) {
+		if (!cond) return { verdict: 'ok', ng: [] };
 		let unknown = false;
+		const ngAxes = [];
 		const venues = Array.isArray(cond.trackVenue) ? cond.trackVenue : [];
 		if (venues.length > 0) {
 			if (!race || !race.venue) unknown = true;
-			else if (venues.indexOf(race.venue) === -1) return 'ng';
+			else if (venues.indexOf(race.venue) === -1) ngAxes.push({ axis: 'trackVenue', values: venues.slice() });
 		}
 		// distance は距離の区分（short・mile・medium・long）の「いずれか」。レースの区分は raceDistanceClassOf（距離から既存の区分の関数で決める）
 		const dists = Array.isArray(cond.distance) ? cond.distance : [];
 		if (dists.length > 0) {
 			const cls = raceDistanceClassOf(race);
 			if (!cls) unknown = true;
-			else if (dists.indexOf(cls) === -1) return 'ng';
+			else if (dists.indexOf(cls) === -1) ngAxes.push({ axis: 'distance', values: dists.slice() });
 		}
 		const env = Array.isArray(cond.environment) ? cond.environment : [];
 		for (const f of Object.keys(RACE_ENV_FIELDS)) {
 			const sv = env.filter(x => RACE_ENV_FIELDS[f].indexOf(x) !== -1);
 			if (sv.length === 0) continue;
 			if (!race || !race[f]) unknown = true;
-			else if (sv.indexOf(race[f]) === -1) return 'ng';
+			else if (sv.indexOf(race[f]) === -1) ngAxes.push({ axis: f, values: sv });
 		}
-		return unknown ? 'unknown' : 'ok';
+		return { verdict: ngAxes.length > 0 ? 'ng' : (unknown ? 'unknown' : 'ok'), ng: ngAxes };
 	}
 	function evolutionFitOf(skill, filter, race) {
 		if (!skill) return 'no';
@@ -8697,6 +8733,119 @@
 		if (ds.length === 0) return matchesFilters(skill, { distance: [cat] }, null) ? 'must' : 'no';
 		const hits = ds.filter(withD).length;
 		return hits === ds.length ? 'must' : hits > 0 ? 'may' : 'no';
+	}
+
+	/** 進化先のスキル全体にかかる距離の限定（raceDistance）の表記。無ければ空（例: 2200m・2000m以上・1600〜2000m・根幹距離） */
+	function evolutionRdTextOf(rd) {
+		if (!rd || typeof rd !== 'object') return '';
+		const hasMin = typeof rd.min === 'number', hasMax = typeof rd.max === 'number';
+		if (hasMin && hasMax) return rd.min === rd.max ? rd.min + 'm' : rd.min + '〜' + rd.max + 'm';
+		if (hasMin) return rd.min + 'm以上';
+		if (hasMax) return rd.max + 'm以下';
+		if (rd.standardDistance === true) return '根幹距離';
+		return '';
+	}
+	/**
+	 * 進化先の条件の表記（C-152）。**スキルの説明文にある＜…＞の文をそのまま**出す（＜中距離/長距離＞・＜作戦・先行＞ など）。
+	 * 追加の効果の条件（「中距離なら効果が上がる」など）は出さない。距離の限定がスキル全体にかかる（scope "all"）ものだけ、
+	 * その距離を後ろに足す（例 ＜作戦・逃げ＞ 2200m）。条件が無ければ空
+	 */
+	function evolutionConditionTextOf(skillId) {
+		const u = evolutionUsageOf(findSkill(skillId));
+		if (!u) return '';
+		const parts = [];
+		if (u.bracket) parts.push(u.bracket);
+		const rdText = evolutionRdTextOf(u.raceDistance);
+		if (rdText) parts.push(rdText);
+		return parts.join(' ');
+	}
+	/** conditions の値（軸と値）に対応する、説明文の中で探す語。quoted は「…」に囲まれた語だけを探す（「重」のような短い語が別の語に当たらないように）。label は説明文に見つからないとき末尾に足す語 */
+	function evolutionConditionWordsOf(axis, v) {
+		const lab = (ax, x) => tagOptionLabel(ax, x);
+		if (axis === 'trackVenue') { const l = lab('trackVenue', v); return l ? { words: [l + 'レース場', l], quoted: false, label: l + 'レース場' } : null; }
+		if (axis === 'distance') { const l = lab('distance', v); return l ? { words: [l], quoted: false, label: l } : null; }
+		if (v === 'right_turn') return { words: ['右回り'], quoted: false, label: '右回り' };
+		if (v === 'left_turn') return { words: ['左回り'], quoted: false, label: '左回り' };
+		if (v === 'ground_good') return { words: ['良'], quoted: true, label: '良' };
+		if (v === 'ground_bad') return { words: ['稍重', '重', '不良'], quoted: true, label: '道悪' };
+		const l = lab('environment', v);
+		return l ? { words: [l], quoted: false, label: l } : null;
+	}
+	/**
+	 * 選べない進化先（fit が 'no'）の、選べなくしている条件の語の位置（画面が強調する。判定は変えない・読むだけ）。画面が出す2つの文字列について返す:
+	 *   line … 条件の表記（evolutionConditionTextOf）／desc … 説明文の全文。lineRanges・descRanges は強調する [開始, 終了) の組（開始の昇順・重ならない）。
+	 *   appended … 説明文に見つからなかった条件の語（画面は説明文の末尾に、その語だけを同じ強調で足す）
+	 * 強調する語: ＜…＞の語のうち、いまの脚質・バ場・距離の区分に合わない軸の語すべて（「・」でつながる別の軸は、合わない軸の語だけ。同じ軸の「/」は、その軸が合わないときだけすべて）／
+	 * スキル全体の距離の限定（raceDistance）が合わないとき、その表記／conditions（レース場・回り・季節・バ場状態・距離）が合わないとき、説明文の中の該当する語（合わない軸の値すべて）。
+	 * レースが未選択・項目が未公開（判定できない）ものは強調しない。filter・race は computeEvolutionPlan に渡したものと同じ
+	 */
+	function evolutionNgMarksOf(skillId, filter, race) {
+		const out = { line: evolutionConditionTextOf(skillId), lineRanges: [], desc: '', descRanges: [], appended: [] };
+		const skill = findSkill(skillId);
+		out.desc = skillDescState.status === 'ok' ? (skillDescState.map.get(skillId) || '') : '';
+		if (!skill) return out;
+		const f = (filter && typeof filter === 'object') ? filter : {};
+		const text = out.desc;
+		const findAll = (hay, word, from, to) => {
+			const r = [];
+			let i = hay.indexOf(word, from);
+			while (i !== -1 && i + word.length <= to) { r.push([i, i + word.length]); i = hay.indexOf(word, i + word.length); }
+			return r;
+		};
+		const bm = text.match(/＜([^＞]*)＞/);
+		const bStart = bm ? bm.index : -1, bEnd = bm ? bm.index + bm[0].length : -1;
+		const outside = bm ? bStart : text.length;   // 条件の語は、末尾の＜…＞の外で探す
+		// ＜…＞の語
+		const ngWords = [];
+		if (bm) {
+			const pb = parseEvolutionBracket(bm[1]);
+			['style', 'surface', 'distance'].forEach(k => {
+				const want = typeof f[k] === 'string' && f[k] ? f[k] : null;
+				if (want && pb.got[k].length > 0 && pb.got[k].indexOf(want) === -1) pb.words[k].forEach(w => { if (ngWords.indexOf(w) === -1) ngWords.push(w); });
+			});
+		}
+		if (ngWords.length > 0) {
+			const lm = out.line.match(/＜([^＞]*)＞/);
+			ngWords.forEach(w => {
+				if (lm) findAll(out.line, w, lm.index, lm.index + lm[0].length).forEach(r => out.lineRanges.push(r));
+				if (bm) findAll(text, w, bStart, bEnd).forEach(r => out.descRanges.push(r));
+			});
+		}
+		// スキル全体の距離の限定
+		const u = evolutionUsageOf(skill);
+		const rd = u && u.raceDistance && typeof u.raceDistance === 'object' ? u.raceDistance : null;
+		if (rd) {
+			let rdNg = false;
+			if (race && typeof race.distance === 'number') rdNg = !raceDistanceMatches(rd, race.distance);
+			else if (typeof f.distance === 'string' && f.distance && raceDistances) { const ds = distancesInCategories([f.distance]); rdNg = ds.length > 0 && ds.every(d => !raceDistanceMatches(rd, d)); }
+			const rdText = evolutionRdTextOf(rd);
+			if (rdNg && rdText) {
+				const li = out.line.lastIndexOf(rdText);
+				if (li !== -1) out.lineRanges.push([li, li + rdText.length]);
+				const cands = [rdText];
+				if (typeof rd.min === 'number') cands.push(rd.min + 'm以上');
+				if (typeof rd.max === 'number') cands.push(rd.max + 'm以下');
+				for (const w of cands) { const hits = findAll(text, w, 0, outside); if (hits.length > 0) { hits.forEach(r => out.descRanges.push(r)); break; } }
+			}
+		}
+		// conditions（レース場・回り・季節・バ場状態・距離）
+		const cond = evolutionState.status === 'ok' && evolutionState.condOf ? evolutionState.condOf.get(skillId) : null;
+		evolutionConditionDetailOf(cond, race || null).ng.forEach(ng => ng.values.forEach(v => {
+			const c = evolutionConditionWordsOf(ng.axis, v);
+			if (!c) return;
+			const hits = [];
+			c.words.forEach(w => {
+				if (c.quoted) findAll(text, '「' + w + '」', 0, outside).forEach(r => hits.push([r[0] + 1, r[1] - 1]));
+				else findAll(text, w, 0, outside).forEach(r => hits.push(r));
+			});
+			if (hits.length > 0) hits.forEach(r => out.descRanges.push(r));
+			else if (out.appended.indexOf(c.label) === -1) out.appended.push(c.label);
+		}));
+		// 重なる・隣り合う範囲をまとめる（「稍重」と「重」など）
+		const merge = (rs) => { const a = rs.slice().sort((x, y) => x[0] - y[0] || x[1] - y[1]); const m = []; a.forEach(r => { const l = m[m.length - 1]; if (l && r[0] <= l[1]) l[1] = Math.max(l[1], r[1]); else m.push([r[0], r[1]]); }); return m; };
+		out.lineRanges = merge(out.lineRanges);
+		out.descRanges = merge(out.descRanges);
+		return out;
 	}
 
 	/** 進化先を選ぶ順の鍵（小さいほど先）。[指定していない軸の限定あり(0/1), -指定した軸の限定の数, 許す値の数の合計, -効果の段階, データの並び] */
@@ -9950,7 +10099,8 @@
 		 * **パターンBの画面を開いたら、確認したものとして候補の組を roster.evolutionBSeen に書く**（帯の「！」が消える。「確認した」のボタンは無い）。
 		 * 押せないように見えるボタンは作らない。選べない進化先を押したときは、選ばずに理由を知らせる。
 		 * ------------------------------------------------------------ */
-		const EVO_REASON_NOT_SELECTABLE = 'いまの条件（レース・脚質）では選べません';
+		// 選べない進化先（いまの条件に合わないもの）は、ラジオを無効にして押せなくする（理由の文・トーストは出さない。2026-10-24 の決定。説明文と＜…＞の全文を出し、合わない条件の語だけを強調する）
+		const EVO_NG_SR = '（現在の条件に合いません）';
 		/** 進化の最大数（衣装の金スキルの数 ＋ そのシナリオに進化のデータがあるときだけ 2） */
 		function evoMaxCount() {
 			// 説明文の読み込み中・失敗中（進化の決定がまだ無い）も、衣装の金スキルの数は進化の対応から数える（「0／2」のように小さく見せない。C-152）
@@ -9970,20 +10120,55 @@
 		 * 追加の効果の条件（「中距離なら効果が上がる」など）は出さない。距離の限定がスキル全体にかかる（scope "all"）ものだけ、
 		 * その距離を後ろに足す（例 ＜作戦・逃げ＞ 2200m）。条件が無ければ空
 		 */
-		function evoConditionText(skillId) {
-			const u = evolutionUsageOf(findSkill(skillId));
-			if (!u) return '';
-			const parts = [];
-			if (u.bracket) parts.push(u.bracket);
-			const rd = u.raceDistance;
-			if (rd && typeof rd === 'object') {
-				const hasMin = typeof rd.min === 'number', hasMax = typeof rd.max === 'number';
-				if (hasMin && hasMax) parts.push(rd.min === rd.max ? rd.min + 'm' : rd.min + '〜' + rd.max + 'm');
-				else if (hasMin) parts.push(rd.min + 'm以上');
-				else if (hasMax) parts.push(rd.max + 'm以下');
-				else if (rd.standardDistance === true) parts.push('根幹距離');
+		function evoConditionText(skillId) { return evolutionConditionTextOf(skillId); }
+		/** 公式の説明文の全文（読めていなければ空） */
+		function evoDescText(skillId) { return skillDescState.status === 'ok' ? (skillDescState.map.get(skillId) || '') : ''; }
+		/**
+		 * el に text を入れる。ranges（[開始, 終了) の組）は、選べなくしている条件の語の強調（赤字＋点線の下線。色だけに頼らない）にし、直後に画面に出さない文字を足す。
+		 * appended は、説明文に見つからなかった条件の語を、末尾に同じ強調で足す
+		 */
+		function evoFillMarked(el, text, ranges, appended) {
+			const doc = global.document;
+			const addMark = (word) => {
+				const m = infoEl('span', 'usd-evo-ng', word);
+				m.setAttribute('data-usd-el', 'evo-ng');
+				el.appendChild(m);
+				el.appendChild(infoEl('span', 'usd-evo-sr', EVO_NG_SR));
+			};
+			let pos = 0;
+			(ranges || []).forEach(r => {
+				if (r[0] > pos) el.appendChild(doc.createTextNode(text.slice(pos, r[0])));
+				addMark(text.slice(r[0], r[1]));
+				pos = r[1];
+			});
+			if (pos < text.length) el.appendChild(doc.createTextNode(text.slice(pos)));
+			(appended || []).forEach(w => { el.appendChild(doc.createTextNode(' ')); addMark(w); });
+		}
+		/**
+		 * 進化先の行の文字の部分（名前＋＜…＞の1行、その下に説明文の全文）。marks は選べない進化先のときだけ（evolutionNgMarksOf の結果。強調する語）。
+		 * subText を渡すと、＜…＞の代わりにその文字（パターンBの「元: …」）を出す
+		 */
+		function evoRowTextEl(skillId, marks, subText) {
+			const txt = infoEl('span', 'usd-evo-text');
+			const head = infoEl('span', 'usd-evo-head');
+			head.appendChild(infoEl('span', 'usd-evo-name', getSkillName(skillId)));
+			const c = marks ? marks.line : evoConditionText(skillId);
+			const subStr = subText !== undefined ? subText : c;
+			if (subStr) {
+				const sub = infoEl('span', 'usd-evo-sub');
+				sub.setAttribute('data-usd-el', 'evo-sub');
+				if (marks && subText === undefined) evoFillMarked(sub, subStr, marks.lineRanges, null); else sub.textContent = subStr;
+				head.appendChild(sub);
 			}
-			return parts.join(' ');
+			txt.appendChild(head);
+			const d = marks ? marks.desc : evoDescText(skillId);
+			if (d) {
+				const desc = infoEl('span', 'usd-evo-desc');
+				desc.setAttribute('data-usd-el', 'evo-desc');
+				if (marks) evoFillMarked(desc, d, marks.descRanges, marks.appended); else desc.textContent = d;
+				txt.appendChild(desc);
+			}
+			return txt;
 		}
 		/** 見出しの下の「レース: 2000m 芝 / 脚質: 追込」 */
 		function evoConditionLine() {
@@ -10079,11 +10264,15 @@
 				root.appendChild(tabs);
 			}
 			if (evoSheet.tab === 'b') fillEvoPatternB(root); else fillEvoPatternA(root);
+			// 閉じるは、本文がスクロールしても常に見える（下に貼り付く）
+			const foot = infoEl('div', 'usd-evo-footer');
+			foot.setAttribute('data-usd-el', 'evo-footer');
 			const close = infoEl('button', 'uma-btn uma-btn--secondary usd-evo-close', '閉じる');
 			close.type = 'button';
 			close.setAttribute('data-usd-el', 'evo-close');
 			close.addEventListener('click', () => closeSkillInfo());
-			root.appendChild(close);
+			foot.appendChild(close);
+			root.appendChild(foot);
 			body.appendChild(root);
 		}
 		function fillEvoPatternA(root) {
@@ -10098,9 +10287,6 @@
 				base.setAttribute('data-usd-el', 'evo-base');
 				base.appendChild(infoEl('span', 'usd-evo-name', getSkillName(e.baseId)));
 				g.appendChild(base);
-				const arrow = infoEl('div', 'usd-evo-arrow', '▼▼▼');
-				arrow.setAttribute('aria-hidden', 'true');
-				g.appendChild(arrow);
 				const radioName = 'evo-' + uidBase + '-' + e.baseId;
 				const addRadio = (value, labelEl, on, fit, missing) => {
 					labelEl.setAttribute('data-usd-el', value === 'none' ? 'evo-none' : 'evo-target');
@@ -10111,8 +10297,8 @@
 					inp.value = value;
 					inp.checked = on;
 					inp.setAttribute('data-evo-key', e.baseId + ':' + value);
+					if (fit === 'no') inp.disabled = true;   // 選べない進化先は押せない（理由の文は出さない）
 					inp.addEventListener('click', (ev) => {
-						if (fit === 'no') { ev.preventDefault(); toast(EVO_REASON_NOT_SELECTABLE); return; }
 						if (missing && missing.length > 0) { ev.preventDefault(); toast(missing.map(getSkillName).join('・') + 'を取得していないため選べません'); return; }
 						if (on) return;
 						evoSetChoices({ [e.baseId]: value });
@@ -10121,12 +10307,10 @@
 				};
 				e.targets.forEach(t => {
 					const on = e.choice === t.id;
-					const lab = infoEl('label', 'usd-evo-target' + (on ? ' usd-evo-target--on' : ''));
-					const txt = infoEl('span', 'usd-evo-text');
-					txt.appendChild(infoEl('span', 'usd-evo-name', getSkillName(t.id)));
-					const c = evoConditionText(t.id);
-					if (c) { const sub = infoEl('span', 'usd-evo-sub', c); sub.setAttribute('data-usd-el', 'evo-sub'); txt.appendChild(sub); }
-					lab.appendChild(txt);
+					const off = t.fit === 'no';
+					const lab = infoEl('label', 'usd-evo-target' + (on ? ' usd-evo-target--on' : '') + (off ? ' usd-evo-target--off' : ''));
+					if (off) { lab.setAttribute('data-evo-ng', '1'); lab.setAttribute('aria-disabled', 'true'); }
+					lab.appendChild(evoRowTextEl(t.id, off ? evolutionNgMarksOf(t.id, resolvedFilter(), raceOfRoster(roster)) : null));
 					addRadio(t.id, lab, on, t.fit, t.missing);
 					g.appendChild(lab);
 				});
@@ -10175,13 +10359,8 @@
 					evoSetChoices(tgt);
 				});
 				lab.appendChild(inp);
-				const txt = infoEl('span', 'usd-evo-text');
-				txt.appendChild(infoEl('span', 'usd-evo-name', getSkillName(t.id)));
 				const c = evoConditionText(t.id);
-				const sub = infoEl('span', 'usd-evo-sub', '元: ' + getSkillName(e.baseId) + (c ? ' / ' + c : ''));
-				sub.setAttribute('data-usd-el', 'evo-sub');
-				txt.appendChild(sub);
-				lab.appendChild(txt);
+				lab.appendChild(evoRowTextEl(t.id, null, '元: ' + getSkillName(e.baseId) + (c ? ' / ' + c : '')));
 				box.appendChild(lab);
 			});
 			root.appendChild(box);
@@ -15367,6 +15546,8 @@
 		computeEvolutionPlan: computeEvolutionPlan,
 		// 進化先が使える条件（C-152。説明文の＜…＞と、全体にかかる距離の限定）。説明文を読めていなければ null。検査と調査のため
 		getEvolutionUsage: function (skillId) { return evolutionUsageOf(findSkill(skillId)); },
+		/** 選べない進化先の、選べなくしている条件の語の位置（画面が強調する。evolutionNgMarksOf） */
+		getEvolutionNgMarks: function (skillId, filter, race) { return evolutionNgMarksOf(skillId, filter, race); },
 		// 編成の①の表に出る部分（絞り込み・取得しない・進化させる金スキルを効かせたもの）。検査のため。編成の保存値は書き換えない
 		getRosterVisiblePart: function (r) {
 			const vp = visiblePartOf(r || {}, rosterSkillResultOf(r || {}));
