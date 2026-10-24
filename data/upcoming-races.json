@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-04b",
+	"dataVersion": "2026-10-25a",
 	"category": "upcomingRace",
 	"note": "これから開催されるレースの一覧（公式のお知らせで公開された条件だけ。公開されていない項目は null）。オススメサポのレース条件に使う。並びは画面に出す順。過ぎたレースは、データ更新の作業で手で入れ替える。値の語はスキルのタグと同じ（venue は trackVenue、direction・season・weather・ground・time は environment、surface はバ場、distanceCategory は距離）。course（inner／outer）は表示だけに使う。time は、昼のレースでナイターのスキルを外すときだけ使う。rule は特殊ルール（no_debuff＝デバフなし）。",
 	"races": [
@@ -23,8 +23,8 @@
 		{
 			"id": "race-0002",
 			"name": "リーグ オブ ヒーローズ",
-			"date": null,
-			"dateLabel": "11月下旬",
+			"date": "2026-11-22",
+			"dateLabel": null,
 			"venue": "track_kyoto",
 			"surface": "turf",
 			"distance": 3000,
@@ -59,16 +59,16 @@
 			"name": "チャンピオンズミーティング CLASSIC",
 			"date": null,
 			"dateLabel": "1月下旬",
-			"venue": null,
+			"venue": "track_tokyo",
 			"surface": "turf",
-			"distance": null,
+			"distance": 2400,
 			"distanceCategory": "medium",
-			"direction": null,
+			"direction": "left_turn",
 			"course": null,
-			"season": null,
-			"weather": null,
-			"ground": null,
-			"time": null,
+			"season": "season_winter",
+			"weather": "weather_sunny",
+			"ground": "ground_good",
+			"time": "time_day",
 			"rule": null
 		},
 		{
@@ -104,6 +104,23 @@
 			"ground": null,
 			"time": null,
 			"rule": "no_debuff"
+		},
+		{
+			"id": "race-0007",
+			"name": "チャンピオンズミーティング CLASSIC",
+			"date": null,
+			"dateLabel": "4月下旬",
+			"venue": null,
+			"surface": "turf",
+			"distance": null,
+			"distanceCategory": "medium",
+			"direction": null,
+			"course": null,
+			"season": null,
+			"weather": null,
+			"ground": null,
+			"time": null,
+			"rule": null
 		}
 	]
 }

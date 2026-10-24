@@ -1,7 +1,7 @@
 {
-	"dataVersion": "2026-10-13a",
+	"dataVersion": "2026-10-25a",
 	"category": "trainingUmamusume",
-	"nextSerial": "uma-0272",
+	"nextSerial": "uma-0273",
 	"note": "育成ウマ娘（勝負服ごと）。initialSkills は★ごとの初期スキルで、minStar が現在の★以下の行のうち minStar が最大のものを使う（各行はその★での全部であって、前の行との差分ではない）。awakeningSkills は覚醒レベルごと。スキルの参照は skillId が本体で、name は照合のための控え（表示には使わない）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。dataStatus は done（確かめて載せた）／none（無いと確かめた）／pending（未確認）。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。形は npm run check:catalog が確かめる。",
 	"entries": [
 		{
@@ -20897,6 +20897,82 @@
 						{
 							"skillId": "ex-1672",
 							"name": "抜山蓋世"
+						}
+					]
+				}
+			],
+			"dataStatus": {
+				"initial": "done",
+				"awakening": "done"
+			}
+		},
+		{
+			"id": "uma-0272",
+			"title": "陣風の花紺青",
+			"charaName": "ダイワスカーレット",
+			"initialStar": 3,
+			"initialSkills": [
+				{
+					"minStar": 3,
+					"skills": [
+						{
+							"skillId": "ex-1686",
+							"name": "究竟の弓勢"
+						}
+					]
+				}
+			],
+			"awakeningSkills": [
+				{
+					"level": 0,
+					"skills": [
+						{
+							"skillId": "ex-1688",
+							"name": "直情"
+						},
+						{
+							"skillId": "276",
+							"name": "目にも留まらず"
+						},
+						{
+							"skillId": "292",
+							"name": "逃げ切り体勢"
+						}
+					]
+				},
+				{
+					"level": 2,
+					"skills": [
+						{
+							"skillId": "403",
+							"name": "奥の手"
+						}
+					]
+				},
+				{
+					"level": 3,
+					"skills": [
+						{
+							"skillId": "ex-0151",
+							"name": "早業"
+						}
+					]
+				},
+				{
+					"level": 4,
+					"skills": [
+						{
+							"skillId": "277",
+							"name": "気の向くままに"
+						}
+					]
+				},
+				{
+					"level": 5,
+					"skills": [
+						{
+							"skillId": "ex-0460",
+							"name": "勝負はここから！"
 						}
 					]
 				}

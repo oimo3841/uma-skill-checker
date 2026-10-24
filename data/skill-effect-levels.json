@@ -1,6 +1,6 @@
 {
 	"category": "skillEffectLevel",
-	"dataVersion": "2026-10-17a",
+	"dataVersion": "2026-10-25a",
 	"stages": [
 		{
 			"key": "ほんのちょっと",
@@ -8932,6 +8932,71 @@
 		{
 			"skillId": "ex-1676",
 			"name": "喰らえども、喰らえども",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1677",
+			"name": "淀にて大河となりて",
+			"maxStage": "ものすごく"
+		},
+		{
+			"skillId": "ex-1678",
+			"name": "弧を描いて",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-1679",
+			"name": "主導権",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-1680",
+			"name": "如才なし",
+			"maxStage": "ちょっと"
+		},
+		{
+			"skillId": "ex-1681",
+			"name": "死力を尽くして",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-1682",
+			"name": "直感力",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-1683",
+			"name": "機転",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-1684",
+			"name": "希代の才覚",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1685",
+			"name": "アドバンテージ",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1686",
+			"name": "究竟の弓勢",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1688",
+			"name": "直情",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-1689",
+			"name": "神代も聞かず、この御業",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1690",
+			"name": "御覧じろ、緋色の疾風",
 			"maxStage": "副詞なし"
 		}
 	],

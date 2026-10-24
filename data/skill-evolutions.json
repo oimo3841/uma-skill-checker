@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-24a",
+	"dataVersion": "2026-10-25a",
 	"category": "skillEvolution",
 	"entries": [
 		{
@@ -1966,8 +1966,18 @@
 			"umaId": "uma-0112",
 			"baseSkillId": "ex-0172",
 			"evolvedSkillIds": [
-				"ex-1310"
-			]
+				"ex-1310",
+				"ex-1677"
+			],
+			"conditions": {
+				"ex-1677": {
+					"all": {
+						"trackVenue": [
+							"track_kyoto"
+						]
+					}
+				}
+			}
 		},
 		{
 			"kind": "uma",
@@ -4714,6 +4724,22 @@
 			"baseSkillId": "ex-1672",
 			"evolvedSkillIds": [
 				"ex-1676"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0272",
+			"baseSkillId": "ex-0151",
+			"evolvedSkillIds": [
+				"ex-1689"
+			]
+		},
+		{
+			"kind": "uma",
+			"umaId": "uma-0272",
+			"baseSkillId": "ex-0460",
+			"evolvedSkillIds": [
+				"ex-1690"
 			]
 		},
 		{

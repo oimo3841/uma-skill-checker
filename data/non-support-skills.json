@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-16c",
+	"dataVersion": "2026-10-25a",
 	"category": "nonSupportSkill",
 	"entries": [
 		{
@@ -87,10 +87,6 @@
 			"name": "個性的"
 		},
 		{
-			"skillId": "399",
-			"name": "存在感"
-		},
-		{
 			"skillId": "402",
 			"name": "先導者"
 		},
@@ -117,6 +113,10 @@
 		{
 			"skillId": "ex-1673",
 			"name": "規格外"
+		},
+		{
+			"skillId": "ex-1688",
+			"name": "直情"
 		}
 	]
 }

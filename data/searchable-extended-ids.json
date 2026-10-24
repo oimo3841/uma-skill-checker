@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-16a",
+	"dataVersion": "2026-10-25a",
 	"category": "searchableExtendedId",
 	"entries": [
 		{
@@ -41,6 +41,30 @@
 		{
 			"skillId": "ex-1673",
 			"name": "規格外"
+		},
+		{
+			"skillId": "ex-1678",
+			"name": "弧を描いて"
+		},
+		{
+			"skillId": "ex-1679",
+			"name": "主導権"
+		},
+		{
+			"skillId": "ex-1680",
+			"name": "如才なし"
+		},
+		{
+			"skillId": "ex-1681",
+			"name": "死力を尽くして"
+		},
+		{
+			"skillId": "ex-1682",
+			"name": "直感力"
+		},
+		{
+			"skillId": "ex-1688",
+			"name": "直情"
 		}
 	]
 }

@@ -1,7 +1,7 @@
 {
-	"dataVersion": "2026-10-24a",
+	"dataVersion": "2026-10-25a",
 	"category": "extendedSkill",
-	"nextSerial": "ex-1677",
+	"nextSerial": "ex-1691",
 	"note": "マスター（uma-skill-deck-skills.json）の445種に無いスキル。name はゲーム画面の表示そのまま（全角・半角・中黒「・」を含めて変えない）。id は保存済みの比較シートが指し続ける不変の鍵なので、表記を直しても id は変えない。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。tagsPending が付いている間は8軸のタグが未設定で、条件での絞り込みの母集団には入れない（8軸すべてが空のタグは「条件を持たない＝万能スキル」という別の意味になるため、未設定はこの印で示す）。tagsPending と tags はどちらか一方だけを持つ。形は npm run check:catalog が確かめる。",
 	"entries": [
 		{
@@ -34105,6 +34105,341 @@
 				"scenario": [],
 				"passive": [],
 				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1677",
+			"name": "淀にて大河となりて",
+			"tags": {
+				"distance": [
+					"long"
+				],
+				"style": [
+					"senko"
+				],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [
+					"straight"
+				],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [
+					"track_kyoto"
+				],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1678",
+			"name": "弧を描いて",
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [
+					"corner"
+				],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1679",
+			"name": "主導権",
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1680",
+			"name": "如才なし",
+			"tags": {
+				"distance": [
+					"medium"
+				],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"second_half"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1681",
+			"name": "死力を尽くして",
+			"tags": {
+				"distance": [
+					"long"
+				],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"extend"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1682",
+			"name": "直感力",
+			"tags": {
+				"distance": [
+					"long"
+				],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"early",
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"move_forward"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1683",
+			"name": "機転",
+			"tags": {
+				"distance": [
+					"medium"
+				],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"second_half"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1684",
+			"name": "希代の才覚",
+			"tags": {
+				"distance": [
+					"long"
+				],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"early",
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"move_forward"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1685",
+			"name": "アドバンテージ",
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1686",
+			"name": "究竟の弓勢",
+			"tags": {
+				"distance": [],
+				"style": [
+					"nige"
+				],
+				"surface": [
+					"turf"
+				],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"extend",
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1688",
+			"name": "直情",
+			"tags": {
+				"distance": [],
+				"style": [
+					"nige"
+				],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1689",
+			"name": "神代も聞かず、この御業",
+			"tags": {
+				"distance": [
+					"long",
+					"medium"
+				],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [
+					"final_straight"
+				],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1690",
+			"name": "御覧じろ、緋色の疾風",
+			"tags": {
+				"distance": [],
+				"style": [
+					"nige"
+				],
+				"surface": [
+					"turf"
+				],
+				"phase": [
+					"lastspurt"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"accel_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			},
+			"raceDistance": {
+				"min": 2000,
+				"scope": "all"
 			}
 		}
 	]

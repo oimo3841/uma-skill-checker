@@ -1,7 +1,7 @@
 {
-	"dataVersion": "2026-09-30b",
+	"dataVersion": "2026-10-25a",
 	"category": "supportCard",
-	"nextSerial": "card-0564",
+	"nextSerial": "card-0566",
 	"note": "サポートカード。charaName はグループのカードでは代表者1人。hintSkills は練習のヒントで得られるスキルで、イベントで得られるスキルはこのファイルには書かない（support-card-event-skills.json に書く）。スキルの参照は skillId が本体で、name は照合のための控え（表示には使わない）。skillId はマスター（uma-skill-deck-skills.json）か拡張スキル（extended-skills.json）のどちらかの id。dataStatus.hint は done（確かめて載せた）／none（ヒントを持たないと確かめた）／pending（未確認）。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。形は npm run check:catalog が確かめる。rarity はカードのレアリティで、\"R\"・\"SR\"・\"SSR\" のどれか。isGroup はグループのカード（複数のキャラクターが割り当てられたカード）なら true、それ以外は false。groupMembers はグループのカードの行にだけあり、割り当てられているキャラクターの名前の配列（先頭は charaName と同じ代表者）。",
 	"entries": [
 		{
@@ -23941,6 +23941,89 @@
 				{
 					"skillId": "370",
 					"name": "巨歩"
+				}
+			],
+			"dataStatus": {
+				"hint": "done"
+			}
+		},
+		{
+			"id": "card-0564",
+			"title": "いとどめでたき、まつりかな",
+			"charaName": "吾妻",
+			"type": "友人・その他",
+			"typeOrder": 6,
+			"rarity": "SSR",
+			"isGroup": false,
+			"hintSkills": [],
+			"dataStatus": {
+				"hint": "none"
+			}
+		},
+		{
+			"id": "card-0565",
+			"title": "Time of Departure",
+			"charaName": "マヤノトップガン",
+			"type": "パワー",
+			"typeOrder": 3,
+			"rarity": "SSR",
+			"isGroup": false,
+			"hintSkills": [
+				{
+					"skillId": "6",
+					"name": "京都レース場○"
+				},
+				{
+					"skillId": "34",
+					"name": "直線巧者"
+				},
+				{
+					"skillId": "153",
+					"name": "地固め"
+				},
+				{
+					"skillId": "280",
+					"name": "端緒"
+				},
+				{
+					"skillId": "304",
+					"name": "比類なき"
+				},
+				{
+					"skillId": "319",
+					"name": "活路を拓く！"
+				},
+				{
+					"skillId": "337",
+					"name": "心惹かれて"
+				},
+				{
+					"skillId": "359",
+					"name": "気持ちを乗せて"
+				},
+				{
+					"skillId": "370",
+					"name": "巨歩"
+				},
+				{
+					"skillId": "399",
+					"name": "存在感"
+				},
+				{
+					"skillId": "ex-1679",
+					"name": "主導権"
+				},
+				{
+					"skillId": "ex-1680",
+					"name": "如才なし"
+				},
+				{
+					"skillId": "ex-1681",
+					"name": "死力を尽くして"
+				},
+				{
+					"skillId": "ex-1682",
+					"name": "直感力"
 				}
 			],
 			"dataStatus": {
