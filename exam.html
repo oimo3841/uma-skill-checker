@@ -34,7 +34,7 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
-	<script src="js/announce.js?v=2026-10-11b"></script>
+	<script src="js/announce.js?v=2026-10-24a"></script>
 	<style>
 		/* このツールの色（青）。**見出し・バッジ・淡い地・枠などの装飾にだけ使う。**
 		   押せる部品（ボタン・チェック・選択中のタブ）は色を持たず、3ツール共通の黒
@@ -959,6 +959,10 @@
 
 				<!-- 2nd Edition の告知（C-140・微調整2・E）。文面・画像は js/announce.js の ANNOUNCE が持つ。openUiNotice('edition') が中身を作る -->
 				<div id="ui-notice-body-edition" hidden></div>
+
+				<!-- 新シナリオへの未対応の知らせ（段1a・2026-10-24）。文面は js/announce.js の SCENARIO_PENDING が持つ。
+				     ほかの告知を出す読み込みでは、その下に並べる（小窓は1回に1枚。special の収録の告知と同じ作法）。openUiNotice('scenario') が中身を作る -->
+				<div id="ui-notice-body-scenario" hidden></div>
 			</div>
 			<div class="notice-foot">
 				<button type="button" id="ui-notice-ok" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--uma-control)] text-white text-xs font-semibold hover:bg-[var(--uma-control-hover)] transition-all shadow-xs cursor-pointer w-full" onclick="closeUiNotice()">OK</button>
@@ -1290,6 +1294,8 @@
 					<div>
 						<span class="text-xs font-semibold text-slate-800">めろっぷ！【LTC】専用拡張モード（βテスト）</span>
 						<p class="text-[11px] text-slate-500 mt-0.5">入れてから判定すると、判定の結果に、めろっぷ！【LTC】さんの因子管理シートへそのまま貼れる★の数のコピーボタンが出ます（親Aセット・親Bセットごと）。</p>
+						<!-- 新シナリオへの未対応の断り（段1a）。小窓を閉じた人にも見える常時の1行。文面と行番号は js/announce.js とデータから出す（renderMelopAlwaysNote） -->
+						<p id="melop-scenario-note" class="text-[11px] text-slate-500 mt-0.5" hidden></p>
 					</div>
 				</label>
 			</div>
@@ -7776,6 +7782,8 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		const TARGET_NOTICE_ID = '2026-09-14-target-scope';
 		// 2nd Edition の告知（C-140・微調整2・E）。文面・画像・番号は js/announce.js（UmaAnnounce.ANNOUNCE）。これも別のキー
 		const EDITION_NOTICE_STORAGE_KEY = 'uma-exam-edition-notice';
+		// 新シナリオへの未対応の知らせ（段1a）。文面・番号は js/announce.js（UmaAnnounce.SCENARIO_PENDING）。これも別のキー
+		const SCENARIO_NOTICE_STORAGE_KEY = 'uma-exam-scenario-notice';
 		let newUi = true;
 
 		function readStored(key) {
@@ -7806,8 +7814,46 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			if (hasSeenEditionNotice()) return;
 			writeStored(EDITION_NOTICE_STORAGE_KEY, UmaAnnounce.ANNOUNCE.id);
 		}
+		function hasSeenScenarioNotice() {
+			return readStored(SCENARIO_NOTICE_STORAGE_KEY) === UmaAnnounce.SCENARIO_PENDING.id;
+		}
+		function markScenarioNoticeSeen() {
+			if (hasSeenScenarioNotice()) return;
+			writeStored(SCENARIO_NOTICE_STORAGE_KEY, UmaAnnounce.SCENARIO_PENDING.id);
+		}
 		function saveUiModeChoice() {
 			writeStored(UI_MODE_STORAGE_KEY, newUi ? 'new' : 'old');
+		}
+
+		/* めろっぷの行の並び（data/melop-sheet-rows.json）の最初と最後の行番号。新シナリオの断りの文面に使う（段1a）。
+		   行の並びを重く整える loadMelopSheet() は通さず、行番号だけを軽く読む。読めなければ null（行番号を含む文は出さない）。 */
+		let melopRowRange = null;
+		let melopRowRangePromise = null;
+		function loadMelopRowRange() {
+			if (!melopRowRangePromise) {
+				const v = EXAM_DATA_JSON_VERSIONS['data/melop-sheet-rows.json'];
+				melopRowRangePromise = fetch('data/melop-sheet-rows.json' + (v ? '?v=' + encodeURIComponent(v) : ''))
+					.then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+					.then(json => { melopRowRange = UmaAnnounce.melopRowRange(json); return melopRowRange; })
+					.catch(err => { console.warn('めろっぷの行番号を読み込めませんでした', err); return null; });
+			}
+			return melopRowRangePromise;
+		}
+		// 小窓の新シナリオの節と、めろっぷの説明の下の常時の1行を、いまの行番号で作り直す
+		function renderScenarioNoticeBody() {
+			const body = document.getElementById('ui-notice-body-scenario');
+			if (body && !body.hidden) UmaAnnounce.fillScenario(body, 'exam', melopRowRange);
+		}
+		function renderMelopAlwaysNote() {
+			const el = document.getElementById('melop-scenario-note');
+			if (!el) return;
+			const text = UmaAnnounce.isScenarioFor('exam') ? UmaAnnounce.melopAlwaysText(melopRowRange) : null;
+			el.textContent = text || '';
+			el.hidden = !text;
+		}
+		function initScenarioNotice() {
+			if (!UmaAnnounce.isScenarioFor('exam')) return;
+			loadMelopRowRange().then(() => { renderMelopAlwaysNote(); renderScenarioNoticeBody(); });
 		}
 
 		/* 起動時にどちらのUIで開くかを決め、必要なら告知モーダルを出す。
@@ -7825,16 +7871,22 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			// ?notice=force: 文面の確認用。既読でも2nd Edition の告知だけを出し、何も書かない（C-140・微調整2・E）
 			// C-142（微調整4・E）: 告知は定義（UmaAnnounce.ANNOUNCE.pages）に exam があるときだけ出す（いまは exam だけ）
 			const editionOn = UmaAnnounce.isFor('exam');
-			if (editionOn && UmaAnnounce.isForced()) {
-				openUiNotice('edition');
+			// 新シナリオへの未対応の知らせ（段1a）は、初めての人にも出す。小窓は1回に1枚なので、ほかの告知を出す読み込みでは、その下に並べる
+			const scenarioOn = UmaAnnounce.isScenarioFor('exam');
+			const withScenario = scenarioOn && (UmaAnnounce.isForced() || !hasSeenScenarioNotice());
+			initScenarioNotice();
+			if (UmaAnnounce.isForced() && (editionOn || scenarioOn)) {
+				openUiNotice(editionOn ? 'edition' : 'scenario', withScenario);
 			} else if (!seen) {
 				markTargetNoticeSeen();
 				if (editionOn) markEditionNoticeSeen();   // 初めての人には「変わりました」と言っても比べる相手が無い
-				openUiNotice('layout');
+				openUiNotice('layout', withScenario);
 			} else if (!hasSeenTargetNotice()) {
-				openUiNotice('target');
+				openUiNotice('target', withScenario);
 			} else if (editionOn && !hasSeenEditionNotice()) {
-				openUiNotice('edition');
+				openUiNotice('edition', withScenario);
+			} else if (withScenario) {
+				openUiNotice('scenario');
 			}
 		}
 
@@ -7916,22 +7968,30 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 		   kind: 'layout' … 画面の作りの案内 ／ 'target' … 対象スキルの選び方の案内 ／ 'edition' … 2nd Edition の告知（中身は js/announce.js が作る） */
 		let uiNoticeOpen = false;
 		let uiNoticeKind = 'layout';
+		let uiNoticeWithScenario = false;   // 新シナリオへの未対応の知らせ（段1a）を下に並べているか
 		let uiNoticeReturnFocus = null;
 
-		function openUiNotice(kind) {
+		// kind: 'layout' | 'target' | 'edition' | 'scenario'（新シナリオへの未対応の知らせ。中身は js/announce.js が作る）。
+		// withScenario を渡すと、scenario 以外の下に新シナリオの知らせを並べる（小窓は1回に1枚）。
+		function openUiNotice(kind, withScenario) {
 			if (uiNoticeOpen) return;
 			// 引き出しが開いている上には重ねない
 			if (openDrawerKey) return;
-			uiNoticeKind = (kind === 'target' || kind === 'edition') ? kind : 'layout';
-			const isTarget = (uiNoticeKind === 'target'), isEdition = (uiNoticeKind === 'edition');
-			document.getElementById('ui-notice-body-layout').hidden = isTarget || isEdition;
+			uiNoticeKind = (kind === 'target' || kind === 'edition' || kind === 'scenario') ? kind : 'layout';
+			const isTarget = (uiNoticeKind === 'target'), isEdition = (uiNoticeKind === 'edition'), isScenario = (uiNoticeKind === 'scenario');
+			uiNoticeWithScenario = !isScenario && !!withScenario;
+			document.getElementById('ui-notice-body-layout').hidden = isTarget || isEdition || isScenario;
 			document.getElementById('ui-notice-body-target').hidden = !isTarget;
 			const edBody = document.getElementById('ui-notice-body-edition');
 			edBody.hidden = !isEdition;
 			if (isEdition) UmaAnnounce.fill(edBody);
-			// 読み上げの見出しも、出している方の見出しに向ける
+			const scBody = document.getElementById('ui-notice-body-scenario');
+			scBody.hidden = !(isScenario || uiNoticeWithScenario);
+			scBody.classList.toggle('announce-scenario--with', uiNoticeWithScenario);
+			if (!scBody.hidden) UmaAnnounce.fillScenario(scBody, 'exam', melopRowRange);
+			// 読み上げの見出しも、出している方（並べているときは上の方）の見出しに向ける
 			document.getElementById('ui-notice').setAttribute('aria-labelledby',
-				isEdition ? UmaAnnounce.TITLE_ID : isTarget ? 'ui-notice-title-target' : 'ui-notice-title');
+				isScenario ? UmaAnnounce.SCENARIO_TITLE_ID : isEdition ? UmaAnnounce.TITLE_ID : isTarget ? 'ui-notice-title-target' : 'ui-notice-title');
 			uiNoticeOpen = true;
 			uiNoticeReturnFocus = document.activeElement;
 			document.getElementById('ui-notice-backdrop').hidden = false;
@@ -7959,8 +8019,11 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			if (!UmaAnnounce.isForced()) {
 				if (uiNoticeKind === 'target') markTargetNoticeSeen();
 				else if (uiNoticeKind === 'edition') markEditionNoticeSeen();
-				else markUiNoticeSeen();
+				else if (uiNoticeKind === 'layout') markUiNoticeSeen();
+				// 新シナリオの知らせは、1枚で出したときも下に並べたときも、閉じたら既読
+				if (uiNoticeKind === 'scenario' || uiNoticeWithScenario) markScenarioNoticeSeen();
 			}
+			uiNoticeWithScenario = false;
 			if (uiNoticeReturnFocus && typeof uiNoticeReturnFocus.focus === 'function') uiNoticeReturnFocus.focus();
 			uiNoticeReturnFocus = null;
 		}
