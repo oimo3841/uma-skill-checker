@@ -348,7 +348,7 @@ export async function register18(env) {
 		await p.waitForTimeout(300);
 		await p.click('#fab-item-race');
 		await p.waitForSelector('[data-usd-el="race-list"]');
-		const race = RACES[0];
+		const race = RACES.find((r) => r.selectable !== false);   // 選べる最初のレース（race-0001 は 2026-10-25b で選べなくなった）
 		await p.click('[data-usd-el="race-opt"][data-race-id="' + race.id + '"] input');
 		await p.waitForTimeout(500);
 		await p.keyboard.press('Escape');

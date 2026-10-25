@@ -14,7 +14,7 @@ export async function register17(env) {
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	const RACES = readJson('data/upcoming-races.json').races;
-	const RACE = RACES.find((r) => r.direction && r.season);
+	const RACE = RACES.find((r) => r.selectable !== false && r.direction && r.season);   // 選べるレース（race-0001 は 2026-10-25b で選べなくなった）
 	const CARDS6 = ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'];
 	const FILTER = { distance: 'medium', style: 'senko', surface: 'turf' };
 	const FULL = { umaId: 'uma-0001', cardIds: CARDS6, skillFilter: FILTER };
@@ -262,7 +262,7 @@ export async function register17(env) {
 		await sp.page.click('[data-usd-act="picker-close"]');
 		// (2) 脚質オススメ: 組の回り・季節のレースを選んで足しても、目覚めも対応するスキルも入らない（グレーの行）
 		const env = (MASTER.find((s) => String(s.id) === awk).tags.environment || []);
-		const race = RACES.find((r) => env.includes(r.direction) || env.includes(r.season));
+		const race = RACES.find((r) => r.selectable !== false && (env.includes(r.direction) || env.includes(r.season)));
 		await pickRace(sp.page, race.id);
 		await addViaStyle(sp.page);
 		const ids = await draftIds(sp.page);
@@ -305,8 +305,11 @@ export async function register17(env) {
 		const sp = await openSp();
 		// 組の回り・季節のレースを選ぶ（目覚めと対応するスキルが②に入る）→ 対応するスキルだけを手で外す（②には目覚めだけが残る）
 		const envB = (MASTER.find((s) => String(s.id) === awk).tags.environment || []);
+		// 組の回り・季節のレース。この検査は、カードが対応するスキルを持つかを見るもので、レースは②に環境の緑スキルを入れる手段。race-0001（中距離）は 2026-10-25b で選べなくなったが、
+		// 保存済みのセットが持つレースとしては今まで通り使える（選択欄の小窓を通さず、レースを直接書く。長距離の選べるレースでは結果のカードの顔ぶれが変わる）
 		const raceB = RACES.find((r) => envB.includes(r.direction) || envB.includes(r.season));
-		await pickRace(sp.page, raceB.id);
+		await sp.page.evaluate((r) => UmaSkillDeckCore.outside.setRace(r), raceB);
+		await sp.page.waitForTimeout(400);
 		await addViaStyle(sp.page);   // 組の回り・季節が緑スキルとして入る（目覚めと対応するスキル）
 		if ((await draftIds(sp.page)).includes(base1)) { await removeFromSet(sp.page, base1); await sp.page.waitForTimeout(200); }   // C-132: タイルの × は無い
 		if (!(await draftIds(sp.page)).includes(awk)) await addByText(sp.page, [nameOf(awk)]);

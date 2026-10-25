@@ -109,7 +109,9 @@ export async function register12(env) {
 	 * 段8: 保存（roster.race）と、①の距離・バ場の固定
 	 * ==================================================================== */
 	const SNAP = (row) => { const o = { id: row.id }; ['name', 'date', 'dateLabel', 'venue', 'surface', 'distance', 'distanceCategory', 'direction', 'course', 'season', 'weather', 'ground', 'time', 'rule'].forEach((k) => { o[k] = row[k] === undefined ? null : row[k]; }); return o; };
-	const R0 = racesReal.races[0];
+	// 一覧の選べるレース（race-0001 は 2026-10-25b で selectable: false になり、選択欄に出ない）。R0 は、選べるレースのうち、中距離・芝でほぼ全部公開のもの（race-0004。以前の race-0001 と同じ形）
+	const SEL = racesReal.races.filter((r) => r.selectable !== false);
+	const R0 = racesReal.races.find((r) => r.id === 'race-0004');
 	const SAVED = (extra, filter) => ({ schemaVersion: 7, records: [], customSkills: [], templates: [
 		{ templateId: 't1', name: 'S1', skillIds: ['1', '2', '3'], baseRosterId: 'r1', createdAt: 'x', updatedAt: 'x' },
 		{ templateId: 't2', name: 'S2', skillIds: [], createdAt: 'x', updatedAt: 'x' }],
@@ -235,7 +237,7 @@ export async function register12(env) {
 	};
 
 	await block('オススメサポ④段8 保存（roster.race）: 触ったときだけ書く・指定なしで項目ごと消す・schemaVersion 7・①の次の書き込み／①②のリセットで消えない・書き出し／取り込み／元に戻す／複製／再読み込み・古いデータは1バイトも変わらない', async () => {
-		const setOn = (page) => page.evaluate(() => UmaSkillDeckCore.outside.setRace(UmaSkillDeckCore.getUpcomingRaces()[0]));
+		const setOn = (page) => page.evaluate(() => UmaSkillDeckCore.outside.setRace(UmaSkillDeckCore.getUpcomingRaces().find((x) => x.id === 'race-0004')));   // R0（選べるレース。race-0001 は 2026-10-25b で選べなくなった）
 		const setOff = (page) => page.evaluate(() => UmaSkillDeckCore.outside.setRace(null));
 		await checkSaveRules('オススメサポ④段8 race:', 'race', setOn, setOff, SNAP(R0), [
 			['一覧から消えたレース', { race: Object.assign(SNAP(R0), { id: 'race-9999', name: '消えたレース' }) }],
@@ -337,12 +339,12 @@ export async function register12(env) {
 		await openRaceList(sp.page);
 		const rows = await raceRows(sp.page);
 		const dateOf = (r) => (r.date ? Number(r.date.slice(5, 7)) + '/' + Number(r.date.slice(8, 10)) : r.dateLabel);
-		assert(rows.length === racesReal.races.length + 1 && rows[0].id === '' && rows[0].line1 === '指定なし' && rows[0].checked && rows[0].line2 === null,
-			'オススメサポ④段9 先頭は「指定なし」（選ばれている）。続けて一覧の' + racesReal.races.length + '行', rows.map((r) => r.line1));
-		assert(rows.slice(1).every((r, i) => r.id === racesReal.races[i].id && r.line1 === dateOf(racesReal.races[i]) + ' ' + racesReal.races[i].name),
+		assert(rows.length === SEL.length + 1 && rows[0].id === '' && rows[0].line1 === '指定なし' && rows[0].checked && rows[0].line2 === null,
+			'オススメサポ④段9 先頭は「指定なし」（選ばれている）。続けて一覧の' + SEL.length + '行（選べるレースだけ。race-0001 は出ない）', rows.map((r) => r.line1));
+		assert(rows.slice(1).every((r, i) => r.id === SEL[i].id && r.line1 === dateOf(SEL[i]) + ' ' + SEL[i].name) && !rows.some((r) => r.id === 'race-0001'),
 			'オススメサポ④段9 1行目は「日付（決まっていなければ「11月下旬」のような表示）＋レース名」で、並びはファイルの行の順', rows.slice(1).map((r) => r.line1));
 		const line2 = rows.slice(1).map((r) => r.line2);
-		assert(line2[0] === '京都 芝2200m 右・外・秋・曇・良・昼' && line2[1] === '京都 芝3000m 右・外・秋・昼' && line2[3] === '東京 芝2400m 左・冬・晴・良・昼' && line2[4] === 'ダート 中距離' && line2[5] === '芝 マイル デバフなし' && line2[6] === '芝 中距離'
+		assert(line2[0] === '京都 芝3000m 右・外・秋・昼' && line2[2] === '東京 芝2400m 左・冬・晴・良・昼' && line2[3] === 'ダート 中距離' && line2[4] === '芝 マイル デバフなし' && line2[5] === '芝 中距離'
 			&& line2.every((t) => t && !/不明|null|undefined/.test(t)),
 			'オススメサポ④段9 2行目は公開された条件だけ（天気・バ場状態が公開されていない行は、その語を出さない。「不明」とは書かない）。特殊ルールは「デバフなし」', line2);
 		await sp.page.click('[data-usd-el="race-opt"][data-race-id="' + R0.id + '"] input');
@@ -371,7 +373,7 @@ export async function register12(env) {
 		await pickSet(sp2.page, 't1');
 		await openRaceList(sp2.page);
 		const rows3 = await raceRows(sp2.page);
-		assert(rows3[1].id === 'race-9999' && rows3[1].checked && /（一覧から外れました）$/.test(rows3[1].line1) && rows3[1].line2 === line2[0] && rows3.length === racesReal.races.length + 2 && (await barInfo(sp2.page)).on,
+		assert(rows3[1].id === 'race-9999' && rows3[1].checked && /（一覧から外れました）$/.test(rows3[1].line1) && rows3[1].line2 === line2[SEL.findIndex((r) => r.id === R0.id)] && rows3.length === SEL.length + 2 && (await barInfo(sp2.page)).on,
 			'オススメサポ④段9 セットが持っているレースが一覧に無いときは、「指定なし」の次にその行を出し（選ばれている）、「（一覧から外れました）」と添える', rows3.slice(0, 3));
 		await sp2.ctx.close();
 		// ①が空の保存済みのセット（roster が無い）: 選ぶと編成が作られ、そこに入る

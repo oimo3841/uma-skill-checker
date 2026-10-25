@@ -184,7 +184,8 @@ export async function register43(env) {
 		const overlap = NONSUP.filter((id) => expG.includes(id));
 		assert(overlap.length === 0 || overlap.every((id) => ids('green').includes(id) && !out.includes(id)), 'C-184 サポカ外と重なるレース場○は、緑スキルの項目に出て、サポカ外の項目からは除く', overlap);
 		// ほかのレース（レースが決まっているが脚質は逃げ）: 独立に数えた緑スキルと一致
-		for (const rid of ['race-0001', 'race-0002']) {
+		// race-0001 は 2026-10-25b で選べなくなった（selectable: false）。選べるレース（日付が入った race-0002 と、全部公開された race-0004）で同じことを見る
+		for (const rid of ['race-0002', 'race-0004']) {
 			await pickRaceInModal(sp.page, rid);
 			const mm = await readModal(sp.page);
 			const race = RACES.find((r) => r.id === rid);
@@ -234,9 +235,11 @@ export async function register43(env) {
 		// レースがあるときはレースの距離の区分が優先（①の距離が中距離でも、長距離のレースなら OFF にならずグレー）
 		const sp3 = await openSp({ roster: Object.assign({}, ROSTER_A, { skillFilter: { surface: 'turf', distance: 'medium' } }) });
 		await openStyle(sp3.page);
-		await pickRaceInModal(sp3.page, 'race-0001');   // 中距離のレース
+		// 中距離の、選べるレース（race-0001 は選べなくなったので、データから、選べる中距離のレースを引く）
+		const MEDIUM_RACE = RACES.find((r) => r.selectable !== false && classOf(r) === 'medium');
+		await pickRaceInModal(sp3.page, MEDIUM_RACE.id);
 		const b1 = rowsOf(await readModal(sp3.page), 'scenario').find((r) => r.id === only.skillId);
-		assert(classOf(RACES.find((r) => r.id === 'race-0001')) === 'medium' && b1.state === 'on', 'C-184 中距離のレースを選ぶと、バーニングソウルは ON', b1);
+		assert(classOf(MEDIUM_RACE) === 'medium' && b1.state === 'on', 'C-184 中距離のレースを選ぶと、バーニングソウルは ON', b1);
 		await sp3.ctx.close();
 	});
 
@@ -355,7 +358,7 @@ export async function register43(env) {
 		const OLD = ['1', '17'];
 		const sp = await openSp({ roster: Object.assign({}, ROSTER_A, { raceAutoSkillIds: OLD }) });
 		const before = await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:draftRoster:special'));
-		for (const race of RACES) {
+		for (const race of RACES.filter((r) => r.selectable !== false)) {   // 選べるレースだけ（race-0001 は 2026-10-25b で選べなくなった）
 			await sp.page.click(BAR + '[data-usd-act="set-race"]');
 			await sp.page.waitForSelector('[data-usd-el="race-list"]');
 			await sp.page.click('[data-usd-el="race-opt"][data-race-id="' + race.id + '"] input');
@@ -383,7 +386,7 @@ export async function register43(env) {
 		const sp = await openSp();
 		await openStyle(sp.page);
 		await setStyleBtn(sp.page, 'senko');
-		await pickRaceInModal(sp.page, 'race-0001');
+		await pickRaceInModal(sp.page, 'race-0004');   // 選べるレース（race-0001 は選べなくなった。2026-10-25b）
 		let m = await readModal(sp.page);
 		const onIds = m.secs.reduce((a, s) => a.concat(s.rows.filter((r) => r.state === 'on').map((r) => r.id)), []);
 		assert(new RegExp('^追加するスキル ' + onIds.length + '種（合計 [\\d,]+ Pt').test(m.head), 'C-184 見出し「追加するスキル ' + onIds.length + '種（合計 … Pt）」', m.head);

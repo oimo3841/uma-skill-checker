@@ -146,7 +146,7 @@ const RACE_CATEGORY_NAME = 'raceDistance';
    どの行もすべての項目を書く（公開されていない項目は null）。 */
 const UPCOMING_FILE = 'upcoming-races.json';
 const UPCOMING_TOP_KEYS = { need: ['dataVersion', 'category', 'races'], opt: ['note'] };
-const UPCOMING_ROW_KEYS = { need: ['id', 'name', 'date', 'dateLabel', 'venue', 'surface', 'distance', 'distanceCategory', 'direction', 'course', 'season', 'weather', 'ground', 'time', 'rule'], opt: [] };
+const UPCOMING_ROW_KEYS = { need: ['id', 'name', 'date', 'dateLabel', 'venue', 'surface', 'distance', 'distanceCategory', 'direction', 'course', 'season', 'weather', 'ground', 'time', 'rule'], opt: ['selectable'] };   // selectable は任意（false だけを許す。終わったレースを選択欄から外す。2026-10-25b・段0b）
 const UPCOMING_CATEGORY_NAME = 'upcomingRace';
 /* ②の「脚質オススメ」の小窓が使うスキル（data/recommended-skills.json。C-130・2026-10-06。2026-10-21 に項目＋脚質の形へ）。`entries` を持たないので
    FILES には入れず、§13 で見る。onlyWhenRaceDistanceClass は race-distances.json の区分のキーの配列。 */
@@ -1084,6 +1084,7 @@ console.log('\n=== 12. これから開催されるレースの一覧（' + UPCOM
 			else if (seen.has(row.id)) bad.push(w + ': id ' + row.id + ' が重複');
 			seen.add(row.id);
 			if (!isStr(row.name)) bad.push(w + ': name は空でない文字列');
+			if ('selectable' in row && row.selectable !== false) bad.push(w + ': selectable は false だけを許す（無い行は選べる）');
 			['date', 'dateLabel', 'venue', 'surface', 'distanceCategory', 'course', 'rule'].concat(Object.keys(envFields)).forEach((k) => { if (!nullOrStr(k)) bad.push(w + ': ' + k + ' は空でない文字列か null'); });
 			if (row.date !== null && !(/^\d{4}-\d{2}-\d{2}$/.test(String(row.date)) && !isNaN(Date.parse(row.date)))) bad.push(w + ': date は YYYY-MM-DD か null');
 			if (row.date === null && row.dateLabel === null) bad.push(w + ': date と dateLabel のどちらかは要る（画面に日付を出すため）');
