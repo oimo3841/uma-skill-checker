@@ -88,21 +88,23 @@ export async function register36(env) {
 		await sp2.ctx.close();
 	});
 
-	await block('大逃げ(2) 選べない進化先を押すと、押せる見た目のまま、要るスキルの名前を入れた理由を1行で知らせる（選ばない）／取得すれば選べる', async () => {
+	await block('大逃げ(2) 要るスキルを取っていない進化先は、ラジオが無効（理由の文・トーストは出さない・強調もしない）／取得すれば選べる（2026-10-25・段0a で、押してトーストを出す動きから変えた）', async () => {
 		const key = acqKey(UMA);
 		const sp = await openSp({ roster: roster({ evolutionChoices: {}, acquirePicks: {} }) });
 		await sp.page.evaluate(() => { const b = document.querySelector('#deck-roster-panel [data-usd-act="evo-open"]'); if (b) b.click(); });
 		await sp.page.waitForTimeout(400);
+		const name = EXT.entries.find((e) => e.id === OONIGE).name;
 		const radio = await sp.page.evaluate((evo) => {
 			const el = document.querySelector('[data-evo-key="' + 'ex-0336:' + evo + '"]');
-			return el ? { disabled: el.disabled, checked: el.checked } : null;
+			const lab = el && el.closest('label');
+			return el ? { disabled: el.disabled, checked: el.checked, off: lab.classList.contains('usd-evo-target--off'), aria: lab.getAttribute('aria-disabled'), ng: lab.hasAttribute('data-evo-ng'), marks: lab.querySelectorAll('.usd-evo-ng').length, sr: lab.querySelectorAll('.usd-evo-sr').length, text: lab.textContent } : null;
 		}, EVO);
-		assert(radio && radio.disabled === false && radio.checked === false, '大逃げ(2) 選べない進化先のラジオは無効（disabled）にしない（押せる見た目のまま）', radio);
-		await sp.page.click('[data-evo-key="ex-0336:' + EVO + '"]', { force: true });
+		assert(radio && radio.disabled === true && radio.checked === false && radio.off === true && radio.aria === 'true', '大逃げ(2) 要るスキルを取っていない進化先は、ラジオが無効（disabled）・行は無効の見た目（usd-evo-target--off・aria-disabled）', radio);
+		assert(radio && radio.ng === false && radio.marks === 0 && radio.sr === 0 && radio.text.indexOf('取得していないため') === -1 && radio.text.indexOf(name + 'を') === -1, '大逃げ(2) 理由の文は足さない・条件の語の強調（usd-evo-ng）もしない（要るスキルだけが足りない行は、条件が合わない行ではない）', radio);
+		await sp.page.click('[data-evo-key="ex-0336:' + EVO + '"]', { force: true, timeout: 1000 }).catch(() => {});
 		await sp.page.waitForTimeout(300);
-		const after = await sp.page.evaluate((evo) => ({ checked: document.querySelector('[data-evo-key="ex-0336:' + evo + '"]').checked, toast: (document.getElementById('toast-message') || {}).textContent || '' }), EVO);
-		const name = EXT.entries.find((e) => e.id === OONIGE).name;
-		assert(after.checked === false && after.toast.includes(name + 'を取得していないため選べません'), '大逃げ(2) 押しても選ばれず、「（要るスキルの名前）を取得していないため選べません」を知らせる', after);
+		const after = await sp.page.evaluate((evo) => ({ checked: document.querySelector('[data-evo-key="ex-0336:' + evo + '"]').checked, toast: (document.getElementById('toast-message') || {}).textContent || '', toastShown: !!document.querySelector('#toast:not(.hidden), .uma-toast--show') }), EVO);
+		assert(after.checked === false && after.toast.indexOf('取得していないため選べません') === -1, '大逃げ(2) 押しても選ばれず、トースト（「…を取得していないため選べません」）は出ない', after);
 		await sp.ctx.close();
 		// 取得すれば選べる
 		const sp2 = await openSp({ roster: roster({ evolutionChoices: {}, acquirePicks: { [key]: true } }) });
