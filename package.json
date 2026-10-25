@@ -7,6 +7,7 @@
     "test:stitch": "node tests/stitch/run-stitch-tests.mjs",
     "test:stitch:gen-samples": "node tests/stitch/generate-sample-images.mjs",
     "test:visual": "node tests/visual/run-smoke.mjs",
+    "test:visual:parallel": "node tests/visual/run-parallel.mjs",
     "test:visual:capture": "node tests/visual/run-capture.mjs",
     "test:verify": "node tests/visual/run-verify.mjs",
     "test:master": "node tests/visual/run-master-tests.mjs",

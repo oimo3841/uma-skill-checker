@@ -4,6 +4,9 @@
 //   npm run test:visual -- --list             … 番号と見出しの一覧だけを出す
 //   npm run test:visual -- --only=段11        … 見出しに「段11」を含む塊だけ
 //   npm run test:visual -- --only=6,段11      … 番号と見出しを混ぜてよい（カンマ区切り。--only を並べてもよい）
+//   npm run test:visual -- --shard=1/3        … 通し番号 (番号−1) mod 3 = 0 の塊だけ（並列の1本分。単独では全体と名乗らない）
+//   npm run test:visual:parallel              … --shard=k/3 を3本同時に回し、結果を1本にまとめる（全体の検査はこれが速い）
+// 同時に走らせてよい test:visual は1本だけ（排他ロック: lib/lock.mjs）。塊ごとの時間は output/scratch/block-times-*.jsonl に残る。
 //
 // 特に「JSがクラスを付け外しする箇所」「hidden の付け外し」を通す。
 // 見た目の統一作業で最も壊れやすいのがここで、目視では気付きにくい。
@@ -14,7 +17,7 @@ import { startServer, REPO_ROOT } from './lib/serve.mjs';
 // 件数は data/ の実ファイルから数える（行・種を足すたびに手で付け替えない。受け入れの標準手順）
 const MELOP_ROWS_N = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/melop-sheet-rows.json'), 'utf8')).rows.length;
 const EFF_N = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/skill-efficiency.json'), 'utf8')).entries.length;
-import { openPage, setScenarioPendingOff, routeScenarioPendingOff, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA, SET_REMOVE_IN_PAGE, removeFromSet } from './lib/fixtures.mjs';
+import { openPage as openPageRaw, setScenarioPendingOff, routeScenarioPendingOff, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA, SET_REMOVE_IN_PAGE, removeFromSet } from './lib/fixtures.mjs';
 // スクリーンショットの画素から**実際に描かれている色**を読む（段11 ⑨。半透明の重なりの結果を見るため）
 import { avgColor, deltaE, contrastRatio, hexOf, tokRgb } from './lib/pixels.mjs';
 import { buildEventFixture, buildCharacterFixture } from './lib/event-fixture.mjs';
@@ -78,10 +81,15 @@ import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
 import { registerDark } from './blocks-dark.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
+// 排他ロック（同時に走らせてよい test:visual は1本だけ）と、塊ごとの時間の記録（計器）
+import { acquireOrExit, isAlive } from './lib/lock.mjs';
+import { timeStamp, timesFilePath, readRecords, formatSummary } from './lib/block-times.mjs';
 
 let fails = 0;
+let okCount = 0;   // 計器: OK の件数（塊ごとの差分を記録する）
+let ngCount = 0;   // 計器: assert の NG の件数
 function assert(cond, label, extra) {
-	if (!cond) fails++;
+	if (!cond) { fails++; ngCount++; } else okCount++;
 	console.log((cond ? '[OK] ' : '[NG] ') + label + (extra !== undefined ? '  ' + JSON.stringify(extra) : ''));
 }
 
@@ -110,29 +118,109 @@ const ONLY = ARGV.filter((a) => a.startsWith('--only='))
 	.map((s) => s.trim())
 	.filter(Boolean);
 
+/* ■ --shard=k/N（並列の1本分。2026-10-25）
+ *   塊を通し番号 no（1始まり）で割り振る: (no − 1) mod N === k − 1 の塊だけを、このプロセスが回す。
+ *   N本（k = 1..N）をそろえて回すと、全塊がちょうど1回ずつ回る。--only と併せたときは両方に当たる塊だけ。
+ *   **--shard 単独の実行は「N塊中M塊のみ・シャード k/N」と名乗り、全体とは名乗らない。**
+ *   全体と名乗れるのは、N本が全部完走したときの並列の起動側（run-parallel.mjs。npm run test:visual:parallel）だけ。
+ *   塊は互いに独立（上の注記）なので、割り振りは番号だけで決まる。ディスクを共有する3か所（output/scratch/smoke-*）は、
+ *   シャード番号を付けたパスにして衝突させない（SHARD_SUFFIX）。 */
+const SHARD_ARG = ARGV.find((a) => a.startsWith('--shard='));
+let SHARD = null;
+if (SHARD_ARG) {
+	const m = /^--shard=(\d+)\/(\d+)$/.exec(SHARD_ARG);
+	if (!m || Number(m[1]) < 1 || Number(m[2]) < 1 || Number(m[1]) > Number(m[2])) {
+		console.error('--shard は k/N の形（1 <= k <= N）で指定してください。例: --shard=1/3');
+		process.exit(2);
+	}
+	SHARD = { k: Number(m[1]), n: Number(m[2]) };
+}
+const SHARD_SUFFIX = SHARD ? '-s' + SHARD.k + 'of' + SHARD.n : '';
+const STAMP_ARG = ARGV.find((a) => a.startsWith('--times-stamp='));
+const TIMES_STAMP = STAMP_ARG ? STAMP_ARG.slice('--times-stamp='.length) : timeStamp();
+const RUN_STARTED = performance.now();
+
+// 排他ロック。同時に走らせてよい test:visual は1本だけ。取れなければ何もせず非ゼロで終わる（--list は検査を走らせないので取らない）。
+// 並列の起動側が子として起動したとき（UMA_TEST_LOCK_PARENT）は、親が持っているので取らない。
+if (!LIST_ONLY) {
+	acquireOrExit('npm run test:visual ' + ARGV.join(' ') + '（cwd: ' + process.cwd() + '）');
+	// 親（並列の起動側）が強制終了されたら、孤児として回り続けないように自分も終わる
+	const parentPid = Number(process.env.UMA_TEST_LOCK_PARENT || 0);
+	if (parentPid > 0) {
+		const watch = setInterval(() => { if (!isAlive(parentPid)) { console.error('並列の起動側が終了したため、このシャードも終了します'); process.exit(3); } }, 5000);
+		watch.unref();
+	}
+}
+
 let blockCount = 0;
 let ranCount = 0;
 const listed = [];
+
+/* ■ 計器（段1。2026-10-25）: 塊ごとの時間・OK件数・待ちと読み込みの回数を output/scratch/block-times-<日時>[-sKofN].jsonl に1行ずつ書く。
+ *   待ち（page.waitForTimeout）・読み込み（page.goto／page.reload／openPage）は包んで数えるだけで、挙動（待ち時間）は変えない。 */
+const TIMES_FILE = timesFilePath(REPO_ROOT, TIMES_STAMP, SHARD);
+let curStats = null;   // いま回している塊の集計（塊の外の呼び出しは数えない）
+function newStats() { return { waitN: 0, waitMs: 0, openN: 0, openMs: 0, reloadN: 0, gotoN: 0 }; }
+const doneRecords = [];
+function instrumentPage(page) {
+	const wait = page.waitForTimeout.bind(page);
+	page.waitForTimeout = (ms, ...rest) => { if (curStats) { curStats.waitN++; curStats.waitMs += Number(ms) || 0; } return wait(ms, ...rest); };
+	const goto = page.goto.bind(page);
+	page.goto = (...a) => { if (curStats) curStats.gotoN++; return goto(...a); };
+	const reload = page.reload.bind(page);
+	page.reload = (...a) => { if (curStats) curStats.reloadN++; return reload(...a); };
+	return page;
+}
+/** lib/fixtures.mjs の openPage に回数と時間の計測だけを足したもの（引数・戻り値はそのまま）。 */
+async function openPage(...args) {
+	const t0 = performance.now();
+	try {
+		return await openPageRaw(...args);
+	} finally {
+		if (curStats) { curStats.openN++; curStats.openMs += performance.now() - t0; }
+	}
+}
 
 /** 見出しごとのまとまりを1つ回す。番号でも見出しの部分一致でも選べる。 */
 async function block(title, fn) {
 	blockCount++;
 	const no = blockCount;
 	if (LIST_ONLY) { listed.push(no + '\t' + title); return; }
+	if (SHARD && (no - 1) % SHARD.n !== SHARD.k - 1) return;
 	if (ONLY.length > 0 && !ONLY.some((t) => t === String(no) || title.includes(t))) return;
 	ranCount++;
+	const t0 = performance.now();
+	const ok0 = okCount, ng0 = ngCount;
+	curStats = newStats();
+	let threw = false;
 	try {
 		await fn();
 	} catch (e) {
 		fails++;
+		threw = true;
 		// 段8: 止まった場所（検査のファイルと行）も出す。「どの操作で止まったか」が分からないと、直す場所を探すのに時間がかかる
 		const at = ((e && e.stack) || '').match(/(run-smoke|blocks-[\w-]+)\.mjs:\d+/);
 		const sel = /waiting for (locator\([^)]*\)|[^\n]+)/.exec(String((e && e.message) || ''));
 		console.log('[NG] ' + title + ': 例外で止まった  ' + String((e && e.message) || e).split('\n')[0] + (at ? '  @' + at[0] : '') + (sel ? '  ' + sel[1].slice(0, 120) : ''));
+	} finally {
+		const s = curStats;
+		curStats = null;
+		const rec = { no: no, title: title, sec: Math.round((performance.now() - t0)) / 1000, ok: okCount - ok0, ng: ngCount - ng0,
+			waitN: s.waitN, waitMs: s.waitMs, openN: s.openN, openMs: Math.round(s.openMs), reloadN: s.reloadN, gotoN: s.gotoN };
+		if (threw) rec.exception = true;
+		if (SHARD) rec.shard = SHARD.k + '/' + SHARD.n;
+		doneRecords.push(rec);
+		try {
+			fs.mkdirSync(path.dirname(TIMES_FILE), { recursive: true });
+			fs.appendFileSync(TIMES_FILE, JSON.stringify(rec) + '\n');
+		} catch (e2) { /* 記録に失敗しても検査は続ける */ }
+		// 並列の起動側が進み具合を数える・手で見て進み具合が分かる目印
+		console.log('[T] #' + no + ' ' + rec.sec.toFixed(1) + '秒 ' + title);
 	}
 }
 
 if (ONLY.length > 0) console.log('--only=' + ONLY.join(',') + ' に当たる塊だけを回す\n');
+if (SHARD) console.log('--shard=' + SHARD.k + '/' + SHARD.n + ': 通し番号 (番号−1) mod ' + SHARD.n + ' = ' + (SHARD.k - 1) + ' の塊だけを回す\n');
 
 const { base, close } = await startServer();
 const browser = await chromium.launch();
@@ -152,6 +240,9 @@ const browser = await chromium.launch();
 				}
 			} catch (e) {}
 		});
+		// 計器（段1）: この context で開くページの waitForTimeout／goto／reload を数える（計測だけ。挙動は変えない）
+		const newPage = ctx.newPage.bind(ctx);
+		ctx.newPage = async (...a) => instrumentPage(await newPage(...a));
 		return ctx;
 	};
 }
@@ -11861,7 +11952,7 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 			'入力(8): 出力 A はファイル全体（category・dataVersion・note を引き継ぐ）', { category: out.category, dataVersion: out.dataVersion });
 		// 出力をそのまま貼ったと見なして check:catalog に通す
 		{
-			const tmp = path.join(REPO_ROOT, 'output', 'scratch', 'smoke-cei-catalog');
+			const tmp = path.join(REPO_ROOT, 'output', 'scratch', 'smoke-cei-catalog' + SHARD_SUFFIX);
 			fs.rmSync(tmp, { recursive: true, force: true });
 			fs.cpSync(path.join(REPO_ROOT, 'data'), tmp, { recursive: true });
 			fs.writeFileSync(path.join(tmp, 'support-card-event-skills.json'), await page.inputValue('#cei-out'));
@@ -11974,7 +12065,7 @@ await block('card-event-input.html ―― 回の箱を最初から並べる入�
 			{ choices: [{ skills: [ref(m2, 1)] }, { skills: [] }] }] }),
 			'共通入力(4): 出力 B は { charaName, status, events: [{ choices }] }（回の番号を持たない）', mineB);
 		{
-			const tmp = path.join(REPO_ROOT, 'output', 'scratch', 'smoke-cei-catalog-b');
+			const tmp = path.join(REPO_ROOT, 'output', 'scratch', 'smoke-cei-catalog-b' + SHARD_SUFFIX);
 			fs.rmSync(tmp, { recursive: true, force: true });
 			fs.cpSync(path.join(REPO_ROOT, 'data'), tmp, { recursive: true });
 			fs.writeFileSync(path.join(tmp, 'character-event-skills.json'), await page.inputValue('#cei-out-b'));
@@ -12917,7 +13008,7 @@ await block('スキルPt ―― check:catalog の §11（届いたときの検�
 	const goodPt = ptDoc([{ skillId: m1, pt: 90, rarity: 'white' }, { skillId: e1, pt: 110, rarity: 'white' }, { skillId: m2, pt: 0, rarity: 'unique' }]);
 	const goodStep = stepDoc([{ skillId: e1, prevSkillIds: [m1], hintRootSkillId: m1 }, { skillId: m3, prevSkillIds: [e1] }]);
 	const run = (files) => {
-		const tmp = path.join(REPO_ROOT, 'output', 'scratch', 'smoke-pt-catalog');
+		const tmp = path.join(REPO_ROOT, 'output', 'scratch', 'smoke-pt-catalog' + SHARD_SUFFIX);
 		fs.rmSync(tmp, { recursive: true, force: true });
 		fs.cpSync(path.join(REPO_ROOT, 'data'), tmp, { recursive: true });
 		// 効果量の段階（C-129）は skillId が skill-pt.json に全部あることを見るので、仮の skill-pt.json とは合わない。この塊は §11 の Pt の検査だけを見るので外す
@@ -15246,12 +15337,24 @@ if (LIST_ONLY) {
 	process.exit(0);
 }
 // 綴りを間違えて0塊になったときに「全項目OK」と出すと、通ったことになってしまう。
-if (ONLY.length > 0 && ranCount === 0) {
+// （--shard のときは、このシャードに当たる塊が0個でもよい。0個かどうかは、並列の起動側が全シャードの合計で見る）
+if (ONLY.length > 0 && ranCount === 0 && !SHARD) {
 	console.log('\n=== スモークテスト: --only=' + ONLY.join(',') + ' に当たる塊が1つも無い（--list で見出しを確認する） ===');
 	process.exit(1);
 }
+// 計器（段1）: 全体の合計・塊の時間の上位20・上位20の占有率・待ちの合計・読み込みの合計
+{
+	const wallSec = (performance.now() - RUN_STARTED) / 1000;
+	console.log('');
+	formatSummary(doneRecords, { wallSec: wallSec, label: SHARD ? 'シャード ' + SHARD.k + '/' + SHARD.n : '' }).forEach((l) => console.log(l));
+	console.log('記録: ' + path.relative(REPO_ROOT, TIMES_FILE).split(path.sep).join('/'));
+	// 並列の起動側が読む1行（塊の数・回した数・OK／NG・実時間）
+	console.log('SHARD_SUMMARY ' + JSON.stringify({ shard: SHARD ? SHARD.k : null, n: SHARD ? SHARD.n : null, blockCount: blockCount, ran: ranCount, ok: okCount, ng: ngCount, fails: fails, wallSec: Math.round(wallSec * 10) / 10 }));
+}
 // **部分実行のときは必ず範囲を出す。**「全項目OK」だけを見て全部通ったと誤解しないため。
-const scope = ranCount === blockCount ? '' : '（' + blockCount + '塊中' + ranCount + '塊のみ）';
+// --shard 単独の実行は、全塊を回していても「全体」とは名乗らない（全体と名乗れるのは、全シャードが完走した並列の起動側だけ）。
+const scope = SHARD ? '（' + blockCount + '塊中' + ranCount + '塊のみ・シャード' + SHARD.k + '/' + SHARD.n + '）'
+	: ranCount === blockCount ? '' : '（' + blockCount + '塊中' + ranCount + '塊のみ）';
 console.log('\n' + (fails === 0
 	? '=== スモークテスト' + scope + ': 全項目OK ==='
 	: '=== スモークテスト' + scope + ': ' + fails + '件 NG ==='));
