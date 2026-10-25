@@ -40,7 +40,7 @@
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
-	<script src="js/announce.js?v=2026-10-24a"></script>
+	<script src="js/announce.js?v=2026-10-25a"></script>
 	<style>
 		/* Deck連携モードの①のタブ（本育成編成）の見出し行（C-51 の11節①②）。
 		   ①〜③はステップのタブ（css/shell.css の .step-tab）に載せたので、ここには Step の枠は無い。
@@ -59,11 +59,8 @@
 		.theme-cycle-btn[data-theme-state="auto"] svg[data-theme-icon="auto"],
 		.theme-cycle-btn[data-theme-state="light"] svg[data-theme-icon="light"],
 		.theme-cycle-btn[data-theme-state="dark"] svg[data-theme-icon="dark"] { display: block; }
-		@media (max-width: 640px) {
-			/* 375px でタイトル・ツール切替・画面の色の切り替え を1行に収めるため、ツール切替は文字と矢印を外してアイコンだけ（aria-label 付き） */
-			.tool-switch-label, .tool-switch-chev { display: none; }
-			#tool-dropdown-btn { padding-inline: var(--uma-sp-2); }
-		}
+		/* ツール切替は、どの幅でもアイコンだけのボタン（UmaExam と同じ。2026-10-25）。余白も UmaExam と同じ */
+		#tool-dropdown-btn { padding-inline: var(--uma-sp-2); }
 		/* ===== 段7c（2026-10-03・C-115）: 画面の最終調整 =====
 		   (6) スマホ（640px 以下）: ①本育成編成を1画面（スクロールなし）に収める。ヘッダーは画面の両端まで伸びる帯にし、余白を詰める。
 		   (7) デスクトップ（641px 以上）: ①のタブで下端までスクロールしたとき、表が画面いっぱいになる。
@@ -492,10 +489,8 @@
 
 					<!-- ツール切り替えドロップダウン -->
 					<div class="relative flex items-center gap-2" id="tool-dropdown-wrap">
-						<button id="tool-dropdown-btn" type="button" onclick="toggleToolDropdown()" class="uma-btn uma-btn--secondary" aria-label="ツール切替" title="ツール切替">
+						<button id="tool-dropdown-btn" type="button" onclick="toggleToolDropdown()" class="uma-btn uma-btn--secondary" aria-label="ツール切り替え" title="ツール切替">
 							<i data-lucide="layout-grid" class="w-4 h-4 text-[var(--uma-control-mark)]"></i>
-							<span class="tool-switch-label">ツール切替</span>
-							<i data-lucide="chevron-down" class="tool-switch-chev w-3.5 h-3.5 text-slate-400"></i>
 						</button>
 
 						<!-- ドロップダウン本体 -->
@@ -514,7 +509,7 @@
 										<p class="text-xs font-bold text-green-900">UmaStar OCR</p>
 										<span class="text-[10px] font-semibold text-green-700 bg-green-200/60 px-1.5 py-0.5 rounded">選択中</span>
 									</div>
-									<p class="text-[11px] text-green-700/80 mt-0.5 truncate">親A・祖A1・祖A2の★の数を個別判定</p>
+									<p class="text-[11px] text-green-700/80 mt-0.5 truncate">チャンミ/LoH用OCR（β版）</p>
 								</div>
 							</div>
 
@@ -526,9 +521,8 @@
 								<div class="flex-1 min-w-0">
 									<div class="flex items-center gap-1.5">
 										<p class="text-xs font-bold text-slate-800 group-hover:text-indigo-700 transition-colors">UmaExam OCR</p>
-										<span class="text-[9px] font-bold text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded">技能試験</span>
 									</div>
-									<p class="text-[11px] text-slate-500 mt-0.5 truncate">技能試験133スキルに特化した判定</p>
+									<p class="text-[11px] text-slate-500 mt-0.5 truncate">技能試験用OCR</p>
 								</div>
 							</a>
 
@@ -680,8 +674,8 @@
 				<!-- 2nd Edition の告知（C-140・微調整2・E）。文面・画像は js/announce.js の ANNOUNCE が持つ（exam と共有）。openUiNotice('edition') が中身を作る -->
 				<div id="ui-notice-body-edition" hidden></div>
 
-				<!-- 新シナリオへの未対応の知らせ（段1a・2026-10-24）。文面は js/announce.js の SCENARIO_PENDING が持つ（exam と共有）。
-				     ほかの告知を出す読み込みでは、その下に並べる（小窓は1回に1枚。収録の告知と同じ作法）。openUiNotice('scenario') が中身を作る -->
+				<!-- 新シナリオへの対応の知らせ（段1a・2026-10-24。文面は 2026-10-25 に差し替え）。文面は js/announce.js の SCENARIO_PENDING が持つ（exam と共有）。openUiNotice('scenario') が中身を作る。
+				     小窓は1件ずつ出し、‹ n / N › で履歴の3件を行き来する（js/announce.js の history／decorate） -->
 				<div id="ui-notice-body-scenario" hidden></div>
 			</div>
 			<div class="notice-foot">
@@ -3306,76 +3300,68 @@
 				// 「何も言われずに知らない画面になっている」のがいちばん困るため。
 				console.error('[UmaStar OCR] UIの初期化に失敗しました', e);
 			}
-			/* モーダルは一度に1枚だけ（exam の initUiMode と同じ扱い）。
-			   画面の切り替えの告知が未読の人（＝このツールを初めて開く人）にはそちらだけを見せ、
-			   改修中の断りは「見たこと」にする ―― 初めての人には「改修前」が無いので、
-			   「改修中です」と言っても比べる相手が無いため。 */
-			/* 収録の告知（C-100）は、**初めての人にも**出す（改修中の断りと違い、初めての人にも意味がある）。
-			   2枚目のモーダルは重ねない ―― layout か alpha を出す読み込みでは、同じモーダルの下に並べる。 */
-			const withCatalog = !hasSeenCatalogNotice();
-			// ?notice=force: 文面の確認用。既読でも2nd Edition の告知だけを出し、何も書かない（C-140・微調整2・E）
-			// C-142（微調整4・E）: 2nd Edition の告知は、定義（UmaAnnounce.ANNOUNCE.pages）に special があるときだけ出す。いまは exam だけ（UmaStar の告知は完成後）
-			const editionOn = UmaAnnounce.isFor('special');
-			// 新シナリオへの未対応の知らせ（段1a）も、初めての人に出す。ほかの告知を出す読み込みでは、その下に並べる（収録の告知と同じ）
-			const scenarioOn = UmaAnnounce.isScenarioFor('special');
-			const withScenario = scenarioOn && (UmaAnnounce.isForced() || !hasSeenScenarioNotice());
-			if (UmaAnnounce.isForced() && (editionOn || scenarioOn)) {
-				openUiNotice(editionOn ? 'edition' : 'scenario', false, withScenario);
-			} else if (!seen) {
-				markAlphaNoticeSeen();
-				if (editionOn) markEditionNoticeSeen();   // 初めての人には「変わりました」と言っても比べる相手が無い
-				openUiNotice('layout', withCatalog, withScenario);
-			} else if (!hasSeenAlphaNotice()) {
-				openUiNotice('alpha', withCatalog, withScenario);
-			} else if (withCatalog) {
-				openUiNotice('catalog', false, withScenario);
-			} else if (editionOn && !hasSeenEditionNotice()) {
-				openUiNotice('edition', false, withScenario);
-			} else if (withScenario) {
-				openUiNotice('scenario');
-			}
+			/* 告知は「お知らせの履歴」（js/announce.js の history。このツールの新しい3件）を1件ずつ出す（exam の initUiMode と同じ扱い）。
+			   履歴の3件に未読があれば、最新の1件で開く。閉じると、このツールの告知はすべて既読になる（古い告知の既読の印も含む）。
+			   ?notice=force: 文面の確認用。既読でも最新の1件から開き、何も書かない。 */
+			const hist = UmaAnnounce.history('special');
+			if (!hist.length) return;
+			if (UmaAnnounce.isForced() || hist.some(h => !noticeSeen(h.kind))) openUiNotice(hist[0].kind);
 		}
-		// メニューの「お知らせ」も、告知が special を含むときだけ置く（C-142・微調整4・E）
-		document.addEventListener('DOMContentLoaded', () => {
-			const b = document.getElementById('announce-menu-btn');
-			if (b && !(window.UmaAnnounce && UmaAnnounce.isFor('special'))) b.remove();
-		});
-
-		/* ---------- 告知モーダル（使い方ガイドと同じ作法） ---------- */
+		/* ---------- 告知モーダル（使い方ガイドと同じ作法） ----------
+		   枠（背景・✕・OK・Esc）は1つで、中身だけ差し替える。**1件ずつ**出す。小窓の上にツール名と日付、本文と OK の間に ‹ n / N ›（js/announce.js の decorate）。
+		   kind: 'layout'（バッジからの読み直し）| 'alpha' | 'catalog' | 'edition' | 'scenario'（後の2つは中身を js/announce.js が作る） */
 		let uiNoticeOpen = false;
 		let uiNoticeKind = 'layout';
-		let uiNoticeWithCatalog = false;   // 収録の告知（C-100）を下に並べているか
-		let uiNoticeWithScenario = false;  // 新シナリオへの未対応の知らせ（段1a）を下に並べているか
 		let uiNoticeReturnFocus = null;
 
-		// kind: 'layout' | 'alpha' | 'catalog' | 'edition'（2nd Edition の告知。中身は js/announce.js が作る）| 'scenario'（新シナリオへの未対応の知らせ。同）。
-		// withCatalog を渡すと、layout／alpha の下に収録の告知を並べる。withScenario を渡すと、scenario 以外の下に新シナリオの知らせを並べる（いちばん下）。
-		function openUiNotice(kind, withCatalog, withScenario) {
+		// 種類ごとの、本文の要素・読み上げの見出し・既読の読み書き
+		const NOTICE_KINDS = {
+			layout: { body: 'ui-notice-body-layout', title: () => 'ui-notice-title', seen: hasSeenUiNotice, mark: markUiNoticeSeen },
+			alpha: { body: 'ui-notice-body-alpha', title: () => 'ui-notice-title-alpha', seen: hasSeenAlphaNotice, mark: markAlphaNoticeSeen },
+			catalog: { body: 'ui-notice-body-catalog', title: () => 'ui-notice-title-catalog', seen: hasSeenCatalogNotice, mark: markCatalogNoticeSeen },
+			edition: { body: 'ui-notice-body-edition', title: () => UmaAnnounce.TITLE_ID, seen: hasSeenEditionNotice, mark: markEditionNoticeSeen },
+			scenario: { body: 'ui-notice-body-scenario', title: () => UmaAnnounce.SCENARIO_TITLE_ID, seen: hasSeenScenarioNotice, mark: markScenarioNoticeSeen },
+		};
+		function noticeSeen(kind) { return NOTICE_KINDS[kind].seen(); }
+
+		// いま出す告知に合わせて、本文・見出し・日付・‹ n / N › を切り替える（既読は書かない）
+		function showUiNoticeKind(kind) {
+			uiNoticeKind = NOTICE_KINDS[kind] ? kind : 'layout';
+			Object.keys(NOTICE_KINDS).forEach(k => { document.getElementById(NOTICE_KINDS[k].body).hidden = k !== uiNoticeKind; });
+			if (uiNoticeKind === 'edition') UmaAnnounce.fill(document.getElementById('ui-notice-body-edition'));
+			if (uiNoticeKind === 'scenario') UmaAnnounce.fillScenario(document.getElementById('ui-notice-body-scenario'), 'special');
+			const dlg = document.getElementById('ui-notice');
+			dlg.setAttribute('aria-labelledby', NOTICE_KINDS[uiNoticeKind].title());
+			UmaAnnounce.decorate(dlg, 'special', uiNoticeKind, UmaAnnounce.history('special'));
+			const body = dlg.querySelector('.notice-body');
+			if (body) body.scrollTop = 0;
+		}
+
+		// ‹（新しい側へ）・›（古い側へ）
+		function navUiNotice(dir) {
+			if (!uiNoticeOpen) return;
+			const hist = UmaAnnounce.history('special');
+			const i = hist.map(h => h.kind).indexOf(uiNoticeKind);
+			const j = i + (dir === 'older' ? 1 : -1);
+			if (i === -1 || j < 0 || j >= hist.length) return;
+			showUiNoticeKind(hist[j].kind);
+			if (window.lucide) lucide.createIcons();
+		}
+		document.addEventListener('DOMContentLoaded', () => {
+			const dlg = document.getElementById('ui-notice');
+			if (!dlg) return;
+			UmaAnnounce.mountChrome(dlg);
+			dlg.addEventListener('click', (e) => {
+				const b = e.target.closest && e.target.closest('[data-notice-nav]');
+				if (b) navUiNotice(b.getAttribute('data-notice-nav'));
+			});
+		});
+
+		function openUiNotice(kind) {
 			if (uiNoticeOpen) return;
 			// 引き出しが開いている上には重ねない
 			if (openDrawerKey) return;
-			// layout と alpha は出すのはどちらか一方だけ（C-62 の (11)）
-			uiNoticeKind = (kind === 'alpha' || kind === 'catalog' || kind === 'edition' || kind === 'scenario') ? kind : 'layout';
-			uiNoticeWithCatalog = uiNoticeKind !== 'catalog' && uiNoticeKind !== 'edition' && uiNoticeKind !== 'scenario' && !!withCatalog;
-			uiNoticeWithScenario = uiNoticeKind !== 'scenario' && !!withScenario;
-			document.getElementById('ui-notice-body-layout').hidden = uiNoticeKind !== 'layout';
-			document.getElementById('ui-notice-body-alpha').hidden = uiNoticeKind !== 'alpha';
-			const edBody = document.getElementById('ui-notice-body-edition');
-			edBody.hidden = uiNoticeKind !== 'edition';
-			if (uiNoticeKind === 'edition') UmaAnnounce.fill(edBody);
-			const catalogBody = document.getElementById('ui-notice-body-catalog');
-			catalogBody.hidden = !(uiNoticeKind === 'catalog' || uiNoticeWithCatalog);
-			catalogBody.classList.toggle('notice-catalog--with', uiNoticeWithCatalog);
-			const scBody = document.getElementById('ui-notice-body-scenario');
-			scBody.hidden = !(uiNoticeKind === 'scenario' || uiNoticeWithScenario);
-			scBody.classList.toggle('announce-scenario--with', uiNoticeWithScenario);
-			if (!scBody.hidden) UmaAnnounce.fillScenario(scBody, 'special');
-			// 読み上げの見出しも、出している方（並べているときは上の方）の見出しに向ける
-			document.getElementById('ui-notice').setAttribute('aria-labelledby',
-				uiNoticeKind === 'scenario' ? UmaAnnounce.SCENARIO_TITLE_ID
-					: uiNoticeKind === 'alpha' ? 'ui-notice-title-alpha'
-					: uiNoticeKind === 'catalog' ? 'ui-notice-title-catalog'
-					: uiNoticeKind === 'edition' ? UmaAnnounce.TITLE_ID : 'ui-notice-title');
+			showUiNoticeKind(kind);
 			uiNoticeOpen = true;
 			uiNoticeReturnFocus = document.activeElement;
 			document.getElementById('ui-notice-backdrop').hidden = false;
@@ -3385,8 +3371,7 @@
 			document.getElementById('ui-notice-ok').focus();
 		}
 
-		// ✕・OK・背景・Esc のどれで閉じても既読にする（**出していた方だけ**）
-		// （「次回から表示しない」の選択制にしない。一度きりの告知には重いため）。
+		// ✕・OK・背景・Esc のどれで閉じても、このツールの告知をすべて既読にする（履歴の3件と、古い告知の既読の印）
 		function closeUiNotice() {
 			if (!uiNoticeOpen) return;
 			uiNoticeOpen = false;
@@ -3394,17 +3379,7 @@
 			document.getElementById('ui-notice').hidden = true;
 			document.body.style.overflow = '';
 			// ?notice=force のときは、何も書かない（既読の状態を変えない）
-			if (!UmaAnnounce.isForced()) {
-				if (uiNoticeKind === 'alpha') markAlphaNoticeSeen();
-				else if (uiNoticeKind === 'layout') markUiNoticeSeen();
-				else if (uiNoticeKind === 'edition') markEditionNoticeSeen();
-				// 収録の告知（C-100）は、1枚で出したときも下に並べたときも、閉じたら既読
-				if (uiNoticeKind === 'catalog' || uiNoticeWithCatalog) markCatalogNoticeSeen();
-				// 新シナリオの知らせも、1枚で出したときも下に並べたときも、閉じたら既読
-				if (uiNoticeKind === 'scenario' || uiNoticeWithScenario) markScenarioNoticeSeen();
-			}
-			uiNoticeWithCatalog = false;
-			uiNoticeWithScenario = false;
+			if (!UmaAnnounce.isForced()) UmaAnnounce.allKinds('special').forEach(k => { if (NOTICE_KINDS[k]) NOTICE_KINDS[k].mark(); });
 			// 読み直した場合は開いた元（右上のバッジ）へ、初回表示なら元の位置へ返す
 			if (uiNoticeReturnFocus && typeof uiNoticeReturnFocus.focus === 'function') uiNoticeReturnFocus.focus();
 			uiNoticeReturnFocus = null;
@@ -3415,11 +3390,12 @@
 			openUiNotice('layout');
 		}
 
-		// ツール切替のメニューの「お知らせ」: メニューを閉じて、2nd Edition の告知を出す（読み直し。閉じても既読の状態は変わらない）
+		// ツール切替のメニューの「お知らせ」: メニューを閉じて、最新の1件から開く（読み直し。閉じても既読の状態は変わらない＝すでに既読）
 		function openAnnounceFromMenu() {
 			const menu = document.getElementById('tool-dropdown-menu');
 			if (menu) menu.classList.add('hidden');
-			openUiNotice('edition');
+			const hist = UmaAnnounce.history('special');
+			if (hist.length) openUiNotice(hist[0].kind);
 		}
 
 		function toggleDeckMode() {
