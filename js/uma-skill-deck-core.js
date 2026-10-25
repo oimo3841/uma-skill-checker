@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-25a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-25b';
 
 	/* ============================================================
 	 * 定数
@@ -10299,9 +10299,9 @@
 					inp.value = value;
 					inp.checked = on;
 					inp.setAttribute('data-evo-key', e.baseId + ':' + value);
-					if (fit === 'no') inp.disabled = true;   // 選べない進化先は押せない（理由の文は出さない）
+					// 選べない進化先は押せない（理由の文は出さない）。条件が合わない（fit が no）ものに加えて、要るスキル（skill-requires）を取っていないものも同じ（2026-10-25・段0a。トーストは出さない）
+					if (fit === 'no' || (missing && missing.length > 0)) inp.disabled = true;
 					inp.addEventListener('click', (ev) => {
-						if (missing && missing.length > 0) { ev.preventDefault(); toast(missing.map(getSkillName).join('・') + 'を取得していないため選べません'); return; }
 						if (on) return;
 						evoSetChoices({ [e.baseId]: value });
 					});
@@ -10309,10 +10309,12 @@
 				};
 				e.targets.forEach(t => {
 					const on = e.choice === t.id;
-					const off = t.fit === 'no';
+					const ng = t.fit === 'no';                                  // 条件が合わない（赤字の語の強調はこのときだけ）
+					const off = ng || (t.missing && t.missing.length > 0);      // 選べない（要るスキルを取っていないものも含む。見た目・aria-disabled・ラジオの無効は同じ）
 					const lab = infoEl('label', 'usd-evo-target' + (on ? ' usd-evo-target--on' : '') + (off ? ' usd-evo-target--off' : ''));
-					if (off) { lab.setAttribute('data-evo-ng', '1'); lab.setAttribute('aria-disabled', 'true'); }
-					lab.appendChild(evoRowTextEl(t.id, off ? evolutionNgMarksOf(t.id, resolvedFilter(), raceOfRoster(roster)) : null));
+					if (ng) lab.setAttribute('data-evo-ng', '1');
+					if (off) lab.setAttribute('aria-disabled', 'true');
+					lab.appendChild(evoRowTextEl(t.id, ng ? evolutionNgMarksOf(t.id, resolvedFilter(), raceOfRoster(roster)) : null));
 					addRadio(t.id, lab, on, t.fit, t.missing);
 					g.appendChild(lab);
 				});
