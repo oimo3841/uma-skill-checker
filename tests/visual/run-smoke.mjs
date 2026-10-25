@@ -14,7 +14,7 @@ import { startServer, REPO_ROOT } from './lib/serve.mjs';
 // 件数は data/ の実ファイルから数える（行・種を足すたびに手で付け替えない。受け入れの標準手順）
 const MELOP_ROWS_N = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/melop-sheet-rows.json'), 'utf8')).rows.length;
 const EFF_N = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data/skill-efficiency.json'), 'utf8')).entries.length;
-import { openPage, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA, SET_REMOVE_IN_PAGE, removeFromSet } from './lib/fixtures.mjs';
+import { openPage, setScenarioPendingOff, routeScenarioPendingOff, seedSpecialResults, COMMON_CSS_VERSION, RECORD_ID, TEMPLATE_ID, PICK, EDITED_CELLS, USER_DATA, SET_REMOVE_IN_PAGE, removeFromSet } from './lib/fixtures.mjs';
 // スクリーンショットの画素から**実際に描かれている色**を読む（段11 ⑨。半透明の重なりの結果を見るため）
 import { avgColor, deltaE, contrastRatio, hexOf, tokRgb } from './lib/pixels.mjs';
 import { buildEventFixture, buildCharacterFixture } from './lib/event-fixture.mjs';
@@ -4471,6 +4471,9 @@ await block('exam.html — 既定は新UI／切り替えの告知モーダル／
 		await page.evaluate(() => localStorage.removeItem('uma-exam-target-notice'));
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await page.waitForTimeout(1500);
+		// お知らせの履歴（2026-10-25）: 履歴の3件のどれかが未読なら、最新の1件（新シナリオ）で開く。対象スキルの告知は › › の先（exam の履歴は 新シナリオ・2nd Edition・対象スキル）
+		await page.click('[data-notice-nav="older"]');
+		await page.click('[data-notice-nav="older"]');
 		const tgt = await page.evaluate(() => ({
 			notice: !document.getElementById('ui-notice').hidden,
 			layoutHidden: document.getElementById('ui-notice-body-layout').hidden,
@@ -8923,6 +8926,8 @@ await block('C-62 の (11): 改修中の告知', async () => {
 {
 	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 	// layout の告知だけ既読にして開く＝改修中の告知が出るはずの状態
+	// お知らせの履歴（2026-10-25）: 新シナリオの知らせが外れた（on が false の）状態で見る。special の履歴は 収録・改修中・画面（最新が先頭・› で古い側へ）
+	await routeScenarioPendingOff(ctx);
 	await ctx.addInitScript(() => {
 		localStorage.setItem('uma-special-ui-notice', '2026-09-new-ui-default');
 	});
@@ -8933,6 +8938,8 @@ await block('C-62 の (11): 改修中の告知', async () => {
 	await page.goto(base + '/special.html', { waitUntil: 'networkidle', timeout: 60000 });
 	await page.waitForTimeout(2000);
 
+	// 最新の1件（収録の告知）で開く。改修中の告知は › の先（2件目）
+	await page.click('[data-notice-nav="older"]');
 	const shown = await page.evaluate(() => ({
 		open: !document.getElementById('ui-notice').hidden,
 		layoutHidden: document.getElementById('ui-notice-body-layout').hidden,
@@ -8941,7 +8948,7 @@ await block('C-62 の (11): 改修中の告知', async () => {
 		labelled: document.getElementById('ui-notice').getAttribute('aria-labelledby'),
 	}));
 	assert(shown.open && shown.layoutHidden && !shown.alphaHidden,
-		'C-62 (11): 既読の人には改修中の告知だけが出る（出すのは一方だけ）', shown);
+		'C-62 (11): 既読の人には、履歴の中の改修中の告知を › で出せる（出すのは一方だけ）', shown);
 	assert(shown.title === '機能を大幅に改修中です' && shown.labelled === 'ui-notice-title-alpha',
 		'C-62 (11): 見出しと読み上げの向き先も改修中のほう', shown);
 	assert((await page.textContent('#ui-notice-body-alpha')).includes('αテスト中'),
@@ -8978,17 +8985,23 @@ await block('C-62 の (11): 改修中の告知', async () => {
  * ============================================================ */
 await block('C-62 の (11・裏）: 初めて開く人には layout だけ', async () => {
 {
+	// お知らせの履歴（2026-10-25）: 新シナリオの知らせが外れた状態で、初めて開く人には履歴の最新の1件（収録の告知）が出る。閉じると改修中の告知・画面の告知も既読になる
+	setScenarioPendingOff(true);
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
+	setScenarioPendingOff(false);
 	await page.waitForTimeout(500);
 	const first = await page.evaluate(() => ({
 		open: !document.getElementById('ui-notice').hidden,
+		catalogShown: !document.getElementById('ui-notice-body-catalog').hidden,
 		layoutHidden: document.getElementById('ui-notice-body-layout').hidden,
 		alphaSeen: localStorage.getItem('uma-special-alpha-notice'),
 	}));
-	assert(first.open && !first.layoutHidden && first.alphaSeen === '2026-09-18-alpha-rework',
-		'C-62 (11): 初めて開く人には layout だけを出し、改修中のほうは「見たこと」にする', first);
+	assert(first.open && first.catalogShown && first.layoutHidden && first.alphaSeen === null,
+		'C-62 (11): 初めて開く人には履歴の最新の1件だけを出す（開いただけでは、改修中のほうはまだ既読にしない）', first);
 	await page.click('[data-act="notice-ok"]');
 	await page.waitForTimeout(300);
+	assert(await page.evaluate(() => localStorage.getItem('uma-special-alpha-notice') === '2026-09-18-alpha-rework' && localStorage.getItem('uma-special-ui-notice') === '2026-09-new-ui-default'),
+		'C-62 (11): 閉じると、改修中のほうも画面の告知も「見たこと」になる');
 	assert(await page.evaluate(() => document.getElementById('ui-notice').hidden),
 		'C-62 (11): 初回の告知を閉じると、続けてもう1枚は出ない');
 	assert(errors.length === 0, 'C-62 (11・裏): コンソールエラーが出ない', errors.slice(0, 3));
@@ -10060,6 +10073,8 @@ await block('カスタムスキルの廃止 ―― 保存済みのものは入�
  * ============================================================ */
 await block('収録の告知 ―― special のお知らせのモーダルにだけ1度出る（C-100）', async () => {
 {
+	// お知らせの履歴（2026-10-25）: 新シナリオの知らせが外れた状態で見る。special の履歴は 収録・改修中・画面（1件ずつ・最新が先頭）
+	setScenarioPendingOff(true);
 	const TEXT = '最新のスキルまで収録しました（2026年9月27日時点）。';
 	const KEYS = { layout: ['uma-special-ui-notice', '2026-09-new-ui-default'], alpha: ['uma-special-alpha-notice', '2026-09-18-alpha-rework'],
 		catalog: ['uma-special-catalog-notice', '2026-09-27-skills-up-to-date'] };
@@ -10083,10 +10098,10 @@ await block('収録の告知 ―― special のお知らせのモーダルにだ
 
 	const { ctx, page, errors } = await openPage(browser, base, 'special.html');
 	await page.waitForTimeout(600);
-	// (1) 初めて開いた（告知の既読が1つも無い）→ layout の下に並んで出る
+	// (1) 初めて開いた（告知の既読が1つも無い）→ 履歴の最新の1件（収録の告知）が1件だけで出る
 	const s1 = await state(page);
-	assert(s1.出ている && s1.layout && !s1.alpha && s1.catalog && s1.文 && s1.並べ && !s1.印 && s1.見出し === 'ui-notice-title' && s1.既読 === null,
-		'収録の告知(1): 初めて開くと、layout の下に並んで「' + TEXT + '」が出る（1枚だけ・印は出さない）', s1);
+	assert(s1.出ている && !s1.layout && !s1.alpha && s1.catalog && s1.文 && !s1.並べ && s1.印 && s1.見出し === 'ui-notice-title-catalog' && s1.既読 === null,
+		'収録の告知(1): 初めて開くと、履歴の最新の1件として「' + TEXT + '」が1件だけで出る', s1);
 	await page.click('[data-act="notice-ok"]');
 	await page.waitForTimeout(300);
 	const afterClose = await page.evaluate((k) => ({ 収録: localStorage.getItem(k.catalog[0]), 画面: localStorage.getItem(k.layout[0]),
@@ -10111,12 +10126,16 @@ await block('収録の告知 ―― special のお知らせのモーダルにだ
 	const s3b = await state(page);
 	assert(!s3b.出ている && s3b.既読 === KEYS.catalog[1], '収録の告知(3): 閉じたあとは出ない', s3b);
 
-	// (3b) alpha だけ未読 → alpha の下に並ぶ（2枚目は出さない）
+	// (3b) alpha だけ未読 → 履歴の最新の1件（収録の告知）で開き、› で改修中の告知に移れる（並べて出さない）
 	await page.evaluate((k) => { localStorage.removeItem(k.alpha[0]); localStorage.removeItem(k.catalog[0]); }, KEYS);
 	await reopen(page);
+	const s4a = await state(page);
+	assert(s4a.出ている && !s4a.layout && !s4a.alpha && s4a.catalog && !s4a.並べ && s4a.見出し === 'ui-notice-title-catalog',
+		'収録の告知(3b): 改修中の告知が未読でも、最新の1件（収録の告知）が1件だけで出る', s4a);
+	await page.click('[data-notice-nav="older"]');
 	const s4 = await state(page);
-	assert(s4.出ている && !s4.layout && s4.alpha && s4.catalog && s4.並べ && s4.見出し === 'ui-notice-title-alpha',
-		'収録の告知(3b): 改修中の告知が未読なら、その下に並んで出る', s4);
+	assert(s4.出ている && !s4.layout && s4.alpha && !s4.catalog && s4.見出し === 'ui-notice-title-alpha',
+		'収録の告知(3b): › で改修中の告知に移れる', s4);
 	await page.click('[data-act="notice-ok"]');
 	await page.waitForTimeout(300);
 	const s4after = await page.evaluate((k) => ({ alpha: localStorage.getItem(k.alpha[0]), 収録: localStorage.getItem(k.catalog[0]),
@@ -10133,6 +10152,7 @@ await block('収録の告知 ―― special のお知らせのモーダルにだ
 	await page.waitForTimeout(200);
 	assert(errors.length === 0, '収録の告知: コンソールエラーなし', errors.slice(0, 3));
 	await ctx.close();
+	setScenarioPendingOff(false);
 
 	// (4) exam を開いても出ない（初めて開いた状態で）
 	{
@@ -14821,7 +14841,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		assert(hd.helpText === '' && hd.helpAria === '画面の色：自動' && hd.helpTitle === hd.helpAria && hd.helpr.w >= 44 && hd.helpBtns === 0, tag + '右端は画面の色の切り替え（文字なし・44px以上・aria-label と title が「画面の色：自動」）。使い方・注意の「？」は無い', { w: hd.helpr.w, aria: hd.helpAria, helpBtns: hd.helpBtns });
 		const oneRow = Math.abs(hd.h1r.t + hd.h1r.h / 2 - (hd.toolr.t + hd.toolr.h / 2)) < 12 && Math.abs(hd.toolr.t + hd.toolr.h / 2 - (hd.helpr.t + hd.helpr.h / 2)) < 12 && hd.h1r.h < 50;
 		assert(oneRow, tag + 'タイトル・ツール切替・画面の色が1行に並ぶ（タイトルは1行）', { h1: hd.h1r, tool: hd.toolr, help: hd.helpr });
-		assert(hd.toolAria === 'ツール切替' && (w === 375 ? hd.labelShown === false : hd.labelShown === true), tag + (w === 375 ? '375px ではツール切替をアイコンだけ（aria-label 付き）にして収める' : '1280px ではツール切替の文字が出ている'), { shown: hd.labelShown, aria: hd.toolAria });
+		assert(hd.toolAria === 'ツール切り替え' && hd.labelShown === null, tag + 'ツール切替はどの幅でもアイコンだけ（文字と ▾ は無い・aria-label「ツール切り替え」。2026-10-25 に UmaExam に合わせた）', { shown: hd.labelShown, aria: hd.toolAria });
 		const sz = await SP(sp.page);
 		assert(sz.sw <= sz.iw && jsErrors(sp.errors).length === 0, tag + '横はみ出し0・コンソールのエラー0', { sz, errors: jsErrors(sp.errors) });
 		await sp.ctx.close();
@@ -15178,9 +15198,13 @@ await register20({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register20b({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register20c({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register20d({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+setScenarioPendingOff(true);
 await register20e({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+setScenarioPendingOff(false);
 await register21({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+setScenarioPendingOff(true);
 await register22({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+setScenarioPendingOff(false);
 await register23({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register24({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register25({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });

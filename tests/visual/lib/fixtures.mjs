@@ -83,6 +83,20 @@ export const USER_DATA = {
 	customSkills: [],
 };
 
+/* お知らせの履歴（2026-10-25）: 新シナリオの知らせ（SCENARIO_PENDING.on）が履歴の先頭にある間は、起動すると新シナリオの知らせが最初に出る。
+ * 「新シナリオの知らせが外れた（on が false の）あとの状態」で古いお知らせの検査を保つため、openPage に announce.js の on を false に差し替える口を持たせた。
+ * setScenarioPendingOff(true) の間に開くページだけが対象（塊の前後で true／false に戻す）。 */
+let scenarioPendingOff = false;
+export function setScenarioPendingOff(v) { scenarioPendingOff = !!v; }
+/** page か context に、announce.js の SCENARIO_PENDING.on を false にして返す route を足す（読み込みの前に呼ぶ） */
+export async function routeScenarioPendingOff(target) {
+	await target.route('**/js/announce.js*', async (route) => {
+		const res = await route.fetch();
+		const body = (await res.text()).replace('on: true,', 'on: false,');
+		await route.fulfill({ response: res, body });
+	});
+}
+
 /** 保存データを仕込んだページを開く。userData を渡すと USER_DATA の代わりにそれを仕込む（2026-09-27・C-100）。 */
 export async function openPage(browser, base, file, viewport = { width: 1280, height: 900 }, userData = USER_DATA) {
 	const ctx = await browser.newContext({ viewport });
@@ -113,6 +127,7 @@ export async function openPage(browser, base, file, viewport = { width: 1280, he
 	// 段7c の検査は、自分で page.route を足して実データ（またはテスト用の中身）に差し替える（後から足した route が先に効く）。
 	await page.route('**/data/scenario-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8',
 		body: JSON.stringify({ dataVersion: '2026-10-03a', category: 'scenarioEventSkills', note: 'テスト用の空のファイル', entries: [] }) }));
+	if (scenarioPendingOff) await routeScenarioPendingOff(page);
 	await page.goto(base + '/' + file, { waitUntil: 'networkidle', timeout: 60000 });
 	/* **時間ではなく「整ったこと」で待つ。**（73セッション目）
 	 *

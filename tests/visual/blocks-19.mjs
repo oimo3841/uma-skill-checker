@@ -603,7 +603,7 @@ export async function register19(env) {
 		await sp.page.waitForTimeout(300);
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		const spec = await sp.page.evaluate(() => { const b = document.getElementById('tool-dropdown-btn'); const c = getComputedStyle(b); const r = b.getBoundingClientRect();
-			return { w: r.width, h: r.height, pad: c.padding, border: c.border, radius: c.borderRadius, bg: c.backgroundColor, label: getComputedStyle(b.querySelector('.tool-switch-label')).display, chev: getComputedStyle(b.querySelector('.tool-switch-chev')).display }; });
+			return { w: r.width, h: r.height, pad: c.padding, border: c.border, radius: c.borderRadius, bg: c.backgroundColor, label: b.querySelector('.tool-switch-label') ? getComputedStyle(b.querySelector('.tool-switch-label')).display : 'removed', chev: b.querySelector('.tool-switch-chev') ? getComputedStyle(b.querySelector('.tool-switch-chev')).display : 'removed' }; });
 		await sp.ctx.close();
 		for (const w of [375, 1280]) {
 			const { ctx, page, errors } = await openExam({ w });

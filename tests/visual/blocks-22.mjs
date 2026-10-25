@@ -178,14 +178,14 @@ export async function register22(env) {
 				const lab = dlg.getAttribute('aria-labelledby'), labEl = lab ? document.getElementById(lab) : null;
 				const first = [...body.querySelectorAll('*')].find((e) => e.children.length === 0 && e.textContent.trim() && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().height > 2 && e.getBoundingClientRect().width > 2);
 				const h = body.querySelector('.announce-h');
-				return { open: !dlg.hidden, kind: uiNoticeKind, text: body.innerText, heads: [...body.querySelectorAll('.announce-h')].map((e) => e.textContent), lead: [...body.querySelectorAll('.announce-lead')].map((e) => e.textContent),
+				return { open: !dlg.hidden, kind: uiNoticeKind, headTool: dlg.querySelector('.notice-head-tool') ? dlg.querySelector('.notice-head-tool').textContent : null, text: body.innerText, heads: [...body.querySelectorAll('.announce-h')].map((e) => e.textContent), lead: [...body.querySelectorAll('.announce-lead')].map((e) => e.textContent),
 					lines: [...body.querySelectorAll('.announce-lines li')].map((e) => e.textContent), label: dlg.getAttribute('aria-label') || (labEl ? labEl.textContent.trim() : ''), first: first ? first.textContent.trim() : '',
 					hFs: h ? parseFloat(getComputedStyle(h).fontSize) : 0, hFw: h ? getComputedStyle(h).fontWeight : '', pages: UmaAnnounce.ANNOUNCE.pages };
 			});
 			assert(b.open && b.kind === 'edition' && JSON.stringify(b.heads) === JSON.stringify(['UmaExam OCR']) && JSON.stringify(b.lead) === JSON.stringify([WANT_LEAD]) && JSON.stringify(b.lines) === JSON.stringify(WANT_LINES),
 				'微調整4E1(exam): 小窓は「UmaExam OCR」・本文・箇条書き3つ（おいもさんの文面どおり）', b);
-			assert(!/2nd Edition になりました|UmaStar|β版|★の数で重みづけをした合計評価点も示します/.test(b.text) && b.first === 'UmaExam OCR' && b.label === 'お知らせ' && b.hFs <= 14 && Number(b.hFw) >= 700,
-				'微調整4E1(exam): 見出し「2nd Edition になりました」・UmaStar の節・4つ目の箇条書きは無い／最初の行は「UmaExam OCR」（小さめの太字）／読み上げの名前は「お知らせ」', { first: b.first, label: b.label, hFs: b.hFs });
+			assert(!/2nd Edition になりました|UmaStar|β版|★の数で重みづけをした合計評価点も示します/.test(b.text) && b.first === WANT_LEAD && b.headTool === 'UmaExam OCR' && b.label === 'お知らせ' && b.hFs <= 14 && Number(b.hFw) >= 700,
+				'微調整4E1(exam): 見出し「2nd Edition になりました」・UmaStar の節・4つ目の箇条書きは無い／最初の行は本文（ツール名「UmaExam OCR」は小窓の上〔お知らせの履歴・2026-10-25〕）／読み上げの名前は「お知らせ」', { first: b.first, headTool: b.headTool, label: b.label, hFs: b.hFs });
 			assert(JSON.stringify(b.pages) === JSON.stringify(['exam']), '微調整4E1: 告知の定義に「どのページに出すか」があり、exam だけ', b.pages);
 			await r.ctx.close();
 		}
@@ -198,7 +198,8 @@ export async function register22(env) {
 			}
 			await r.page.waitForTimeout(1500);
 			const s = await r.page.evaluate(() => ({ open: !document.getElementById('ui-notice').hidden, kind: uiNoticeKind, menuBtn: !!document.getElementById('announce-menu-btn'), ed: localStorage.getItem('uma-special-edition-notice') }));
-			assert(!(s.open && s.kind === 'edition') && !s.menuBtn && s.ed === null, '微調整4E1(special・' + label + '): 告知は出ない・メニューに「お知らせ」が無い・既読の値も書かない', s);
+			// お知らせの履歴（2026-10-25）: special にも履歴（収録・改修中・画面の3件）があり、メニューに「お知らせ」の行がある。2nd Edition の告知は出ない・既読の値も書かない
+			assert(!(s.open && s.kind === 'edition') && s.menuBtn && s.ed === null, '微調整4E1(special・' + label + '): 2nd Edition の告知は出ない・メニューに「お知らせ」の行がある（履歴）・2nd Edition の既読の値は書かない', s);
 			assert(jsErrors(r.errors).length === 0, '微調整4E1(special・' + label + '): コンソールエラーなし', r.errors.slice(0, 3));
 			await r.ctx.close();
 		}

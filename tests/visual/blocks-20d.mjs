@@ -28,7 +28,8 @@ export async function register20d(env) {
 			tagSameRowAsPill: Math.abs(tg.top - pr.top) < 12, tagRight: tg.right, tagLeft: tg.left, tagBottom: tg.bottom, hdrBottom: r.bottom, beta: beta ? beta.textContent.trim() : null,
 			helpBtns: hd.querySelectorAll('.uma-help-btn, [aria-haspopup="dialog"]').length, qMarks: [...hd.querySelectorAll('button')].filter((b) => /^[?？]$/.test(b.textContent.trim())).length,
 			themeBtn: !!hd.querySelector('#theme-cycle-btn'), toolBtn: !!hd.querySelector('#tool-dropdown-btn'), sw: document.documentElement.scrollWidth, vw: document.documentElement.clientWidth,
-			headerText: hd.textContent.replace(/\s+/g, ' ') };
+			// ツール切り替えのメニュー（開くまで隠れている。UmaStar の説明に「β版」を含む〔2026-10-25〕）は、見出しの文字には数えない
+			headerText: (() => { const c = hd.cloneNode(true); const m = c.querySelector('#tool-dropdown-menu'); if (m) m.remove(); return c.textContent.replace(/\s+/g, ' '); })() };
 	});
 
 	await block('微調整2D1 タイトル（UmaStar OCR・UmaExam OCR）の文字サイズは両ツールで同じ／special のセット名より大きい（セット名の1.1倍以上）／360px以下は20px・361〜640pxは22px・641〜767pxは24px・768px以上は30px（広い画面は従来のまま）', async () => {

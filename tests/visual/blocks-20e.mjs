@@ -79,9 +79,11 @@ export async function register20e(env) {
 				const { ctx, page } = await open(t, {});
 				const id = await page.evaluate(() => UmaAnnounce.ANNOUNCE.id);
 				const kind = await noticeKind(page);
-				assert(await noticeOpen(page) && kind === 'layout', '微調整2E2(' + t.name + '・初めて): 出るのは画面の告知（layout）だけ', kind);
-				assert((await page.evaluate((k) => localStorage.getItem(k), t.key)) === id, '微調整2E2(' + t.name + '・初めて): 2nd Edition の告知は見たことにする（初めての人には「変わりました」と言っても比べる相手が無い）', null);
+				// お知らせの履歴（2026-10-25）: 初めての人にも履歴の最新の1件（edition）で開く。閉じると、このツールの告知がすべて既読になる
+				assert(await noticeOpen(page) && kind === 'edition', '微調整2E2(' + t.name + '・初めて): 履歴の最新の1件（2nd Edition の告知）で開く', kind);
+				assert((await page.evaluate((k) => localStorage.getItem(k), t.key)) === null, '微調整2E2(' + t.name + '・初めて): 開いただけでは既読にしない（閉じたときに履歴の3件とも既読にする）', null);
 				await page.click(t.ok);
+				assert((await page.evaluate((k) => localStorage.getItem(k), t.key)) === id, '微調整2E2(' + t.name + '・初めて): 閉じると2nd Edition の告知も既読になる', null);
 				await page.reload({ waitUntil: 'networkidle' });
 				await page.waitForTimeout(1500);
 				assert(!(await noticeOpen(page)), '微調整2E2(' + t.name + '・初めて): 次に開いても2nd Edition の告知は出ない', null);
@@ -93,18 +95,17 @@ export async function register20e(env) {
 				const store = await seenStore(t, [firstKey]);
 				const { ctx, page } = await open(t, { store });
 				const k1 = await noticeKind(page);
-				assert(await noticeOpen(page) && k1 !== 'edition', '微調整2E2(' + t.name + '・先の告知が未読): 先の告知（' + k1 + '）が出て、2nd Edition は重ねない', k1);
+				// お知らせの履歴（2026-10-25）: 履歴の3件のどれかが未読なら、最新の1件（edition）で開く。先の告知は ‹ › の先にある。閉じると3件とも既読
+				assert(await noticeOpen(page) && k1 === 'edition', '微調整2E2(' + t.name + '・先の告知が未読): 最新の1件（2nd Edition の告知）で開く（先の告知は › の先）', k1);
+				await page.click('[data-notice-nav="older"]');
+				const k1b = await noticeKind(page);
+				assert(k1b === (t.name === 'exam' ? 'target' : 'alpha'), '微調整2E2(' + t.name + '・先の告知が未読): › で先の告知（' + k1b + '）に移れる', k1b);
 				await page.click(t.ok);
-				const mid = await page.evaluate((k) => localStorage.getItem(k), t.key);
+				const firstSeen = await page.evaluate((k) => localStorage.getItem(k), firstKey);
 				await page.reload({ waitUntil: 'networkidle' });
 				await page.waitForTimeout(1500);
-				// special は収録の告知（catalog）も同じ仕組みなので、edition になるまで読み込みを繰り返す（最大3回）
-				let kind2 = (await noticeOpen(page)) ? await noticeKind(page) : null;
-				for (let i = 0; i < 3 && kind2 && kind2 !== 'edition'; i++) {
-					await page.click(t.ok); await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1500);
-					kind2 = (await noticeOpen(page)) ? await noticeKind(page) : null;
-				}
-				assert(mid === null && kind2 === 'edition', '微調整2E2(' + t.name + '・先の告知が未読): 先の告知を閉じたあとの読み込みで2nd Edition の告知が出る', { mid, kind2 });
+				const open2 = await noticeOpen(page);
+				assert(firstSeen !== null && !open2, '微調整2E2(' + t.name + '・先の告知が未読): 閉じると先の告知も既読になり、次の読み込みでは出ない', { firstSeen, open2 });
 				await ctx.close();
 			}
 		}

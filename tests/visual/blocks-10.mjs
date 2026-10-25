@@ -278,7 +278,7 @@ export async function register10(env) {
 				addedStill: added.pop.set.has(W[0])
 			};
 		}, { W, wShort, wMed, noPtId, gold1, gold2, p1, b2, nx: NOEX });
-		assert(r.size === 455 && !r.hasGold && r.hasP1 && r.hasNoPt, '段10(B) 母集団: 条件で検索と緑スキルの合計の455種（白447＋Pt 未収録8。2026-10-16: 検索に出す拡張スキルが7→10件になり +3）。金は入らず、Pt 未収録も残る', r);
+		assert(r.size === 461 && !r.hasGold && r.hasP1 && r.hasNoPt, '段10(B) 母集団: 条件で検索と緑スキルの合計の461種（2026-10-25a: 検索に出す拡張スキルが10→16件になり +6。2026-10-16: 7→10件で +3）。金は入らず、Pt 未収録も残る', r);
 		assert(r.shortHas.join() === 'true,false,true' && r.medHas.join() === 'false,true,true', '段10(B) 母集団: ①の絞り込み（距離）に合うものだけが残り、距離のタグを持たないスキルは絞り込みでも残る', r);
 		assert(r.rosterHas.join() === 'false,false,true,true', '段10(B) 母集団: ①の●（c15 のヒント）と、①でOFFにしたスキルは入らない。①で得ないスキルは残る', r);
 		assert(r.addedStill, '段10(B) 母集団: すでに②にあるスキルは入れたまま', r);
