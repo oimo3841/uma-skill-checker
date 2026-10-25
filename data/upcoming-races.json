@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-25a",
+	"dataVersion": "2026-10-25b",
 	"category": "upcomingRace",
 	"note": "これから開催されるレースの一覧（公式のお知らせで公開された条件だけ。公開されていない項目は null）。オススメサポのレース条件に使う。並びは画面に出す順。過ぎたレースは、データ更新の作業で手で入れ替える。値の語はスキルのタグと同じ（venue は trackVenue、direction・season・weather・ground・time は environment、surface はバ場、distanceCategory は距離）。course（inner／outer）は表示だけに使う。time は、昼のレースでナイターのスキルを外すときだけ使う。rule は特殊ルール（no_debuff＝デバフなし）。",
 	"races": [
@@ -18,7 +18,8 @@
 			"weather": "weather_cloudy",
 			"ground": "ground_good",
 			"time": "time_day",
-			"rule": null
+			"rule": null,
+			"selectable": false
 		},
 		{
 			"id": "race-0002",

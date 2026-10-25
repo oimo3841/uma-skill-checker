@@ -93,7 +93,7 @@
 		'data/scenario-event-skills.json': '2026-10-03c',
 		// これから開催されるレースの一覧（オススメサポ ④・段7・2026-10-04）。公式のお知らせの公開情報。loadUpcomingRaces() が読む。
 		// exam は読まないので EXAM_DATA_JSON_VERSIONS には載せない（同じファイルを両方の表に載せると test:verify §1 が落とす）
-		'data/upcoming-races.json': '2026-10-25a',
+		'data/upcoming-races.json': '2026-10-25b',
 		// スキルの効果量の段階（C-129・2026-10-06）。説明文の効果の大きさを表す語から決めた段階。「低効果を除外」とオススメサポの「低効果」が使う。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadSkillEffectLevels）
 		'data/skill-effect-levels.json': '2026-10-25a',
@@ -1625,7 +1625,9 @@
 	async function loadUpcomingRaces(forceRefresh) {
 		try {
 			const data = await fetchMasterJson(withDataVersion(UPCOMING_RACES_PATH), !!forceRefresh);
-			const rows = (data && Array.isArray(data.races)) ? data.races.map(normalizeRaceRow).filter(Boolean) : null;
+			// selectable: false の行（終わったレース）は、行は残す（保存済みのセットのレース ID が引けなくならないように）。選択欄の fillRaceList が出さないだけ。
+			// セットに保存するレースの写し（RACE_SNAPSHOT_KEYS）には入れない（normalizeRaceRow は変えない）
+			const rows = (data && Array.isArray(data.races)) ? data.races.map(r => { const n = normalizeRaceRow(r); if (n && r.selectable === false) n.selectable = false; return n; }).filter(Boolean) : null;
 			if (!rows) throw new Error('empty');
 			upcomingRaces = rows;
 		} catch (e) {
@@ -12674,7 +12676,9 @@
 		 */
 		function fillRaceList(body, onPicked) {
 			const cur = rosterOutsideSink ? raceOfRoster(rosterOutsideSink.getRoster()) : null;
-			const list = upcomingRaces || [];
+			// selectable: false の行（終わったレース）は選択肢に出さない。表示だけ隠す（upcomingRaces・getUpcomingRaces からは除かない）。
+			// セットが持っているレースが選べない行のとき（保存済みの race-0001 など）は、下の「一覧に無いレース」と同じ扱い
+			const list = (upcomingRaces || []).filter(x => x.selectable !== false);
 			const items = [{ row: null, key: '' }];
 			if (cur && !list.some(x => x.id === cur.id)) items.push({ row: cur, key: cur.id, gone: true });
 			list.forEach(x => items.push({ row: x, key: x.id }));
