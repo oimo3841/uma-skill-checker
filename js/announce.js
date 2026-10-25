@@ -18,7 +18,7 @@
  * このファイルは DOM を作るだけで、保存や開閉の処理は持たない（各ページの openUiNotice / closeUiNotice が持つ）。
  * 公開するグローバルは UmaAnnounce の1つだけ。
  * ============================================================ */
-const ANNOUNCE_JS_VERSION = '2026-10-25a';
+const ANNOUNCE_JS_VERSION = '2026-10-25b';
 
 (function () {
 	'use strict';
@@ -58,9 +58,9 @@ const ANNOUNCE_JS_VERSION = '2026-10-25a';
 		pages: ['exam', 'special'],
 		heading: '新シナリオへの対応',
 		lines: {
+			// UmaStar は箇条1つだけ（「OCR対象になります」の箇条は、UmaStar の辞書に新しいスキルがすでに入っているため外した。2026-10-25）
 			special: [
 				SCENARIO_LIST + 'のスキルは、ぱかライブTV’で先行公開された内容まで実装済みです。足りない内容は、10月26日 12:00 後に追加します。',
-				SCENARIO_LIST + 'のスキルは、10月26日 12:00 後にOCR対象になります。',
 			],
 			exam: [
 				SCENARIO_LIST + 'のスキルは、ぱかライブTV’で先行公開された内容まで実装済みです。足りない内容は、10月26日 12:00 後に追加します。',
