@@ -15,7 +15,8 @@ export async function register51(env) {
 	const L1 = LIST + 'のスキルは、ぱかライブTV’で先行公開された内容まで実装済みです。足りない内容は、10月26日 12:00 後に追加します。';
 	const L2 = LIST + 'のスキルは、10月26日 12:00 後にOCR対象になります。';
 	const L3 = 'めろっぷ！【LTC】専用拡張モードの行の並びは、新シナリオに未対応です。10月26日 12:00 後に更新します。';
-	const LINES = { special: [L1, L2], exam: [L1, L2, L3] };
+	// UmaStar は箇条1つ（2つ目は外した）・UmaExam は3つ（2026-10-25）
+	const LINES = { special: [L1], exam: [L1, L2, L3] };
 	const DESC = { 'UmaStar OCR': 'チャンミ/LoH用OCR（β版）', 'UmaExam OCR': '技能試験用OCR' };
 	// 履歴（新しい順）: 種類と日付。日付は、そのお知らせを入れた commit の日付（日本時間）
 	const HIST = {
