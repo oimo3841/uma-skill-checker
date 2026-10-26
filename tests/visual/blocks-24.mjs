@@ -564,7 +564,7 @@ export async function register24(env) {
 				const sp = await openSp({ roster: mkRoster({ umaId: 'uma-0269', race: raceOf('race-0002') }), w, h, scheme });
 				// バーが開いた状態の模擬（734px。vh だけ 844px 基準）
 				if (h === 734) await sp.page.addStyleTag({ content: '.usd-info-pop { max-height: min(88vh, 760px) !important; max-height: min(88dvh, 760px) !important; }' });
-				await sp.page.click('#deck-roster-panel [data-usd-el="events-btn"][data-member-key="0"]');
+				await sp.page.click('#deck-roster-panel [data-usd-el="col-menu-btn"][data-member-key="0"]'); await sp.page.click('[data-usd-el="colmenu-events"]');   // 2026-10-26: 育成ウマ娘の列もメニューから
 				await sp.page.waitForTimeout(400);
 				const narrow = await sp.page.evaluate(() => { const s = document.querySelector('[data-usd-el="events-tabs"]'); return !!s && getComputedStyle(s).display !== 'none'; });
 				if (narrow) { await sp.page.click('[data-usd-el="events-tab"][data-pane="1"]'); await sp.page.waitForTimeout(700); }

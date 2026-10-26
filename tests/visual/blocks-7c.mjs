@@ -353,7 +353,7 @@ export async function register7c(env) {
 		assert(allCharas.every((n) => names.has(n)), '段7c(N) データの charaName（' + allCharas.length + '人）は、すべて育成ウマ娘かサポートカードの charaName に完全一致で在る', allCharas.filter((n) => !names.has(n)));
 		const open2 = (o) => open(Object.assign({ routes: R }, o));
 		const scenMark = (r) => r.marks[r.marks.length - 1];
-		const evBtn = P + 'button[data-usd-act="events"][data-member-key="scenario"]';
+		const evBtn = P + 'button[data-usd-act="col-menu"][data-member-key="scenario"]';   // 2026-10-26: シナリオの列もメニューのボタン（押したら「イベント/スキル」）
 		const choiceTexts = async (page) => (await popover(page)).events[0].choices.map((c) => ({ label: c.label, state: c.state, text: c.text }));
 
 		for (const w of [1280, 390]) {
@@ -361,8 +361,8 @@ export async function register7c(env) {
 			const sp = await open2({ w, h: w === 1280 ? 900 : 844, roster: { umaId: umaLv7.id, cardIds: [cDotou.id, null, null, null, null, null] } });
 			let v = await readPanel(sp.page);
 			const sc = v.events.find((b) => b.key === 'scenario');
-			assert(v.heads === 9 && sc && sc.dot && sc.unselected === '2' && sc.label === 'シナリオ『トレセン軒』のイベントを選ぶ（未選択2件）',
-				tag + '表の列見出しは スキル名＋育成ウマ娘＋カード6枚＋シナリオ（7列目）。シナリオの見出しは押せる「!」（選択式のイベントが2つとも未選択）で、aria-label は「シナリオ『トレセン軒』のイベントを選ぶ」', { heads: v.heads, sc });
+			assert(v.heads === 9 && sc && sc.dot && sc.unselected === '2' && sc.label === 'シナリオ『トレセン軒』のメニュー（未選択2件）',
+				tag + '表の列見出しは スキル名＋育成ウマ娘＋カード6枚＋シナリオ（7列目）。シナリオの見出しはメニューのボタンで「!」（選択式のイベントが2つとも未選択）。aria-label は「シナリオ『トレセン軒』のメニュー」', { heads: v.heads, sc });
 			const fixedIds = ev3.skills.map((r) => r.skillId);
 			const fixedRows = fixedIds.map((id) => v.rows.find((r) => r.id === id));
 			assert(fixedRows.every((r) => r && scenMark(r) === '●'), tag + 'イベント3（確定）のスキルはすべて●でシナリオの列に出る', fixedRows.map((r) => r && scenMark(r)));
@@ -373,7 +373,7 @@ export async function register7c(env) {
 			assert(shownEv1.slice().sort().join() === wantEv1.slice().sort().join() && !v.ids.includes(ev1.choices[0].linked[0].skillId),
 				tag + '未選択のイベント1: 編成にいるキャラクター（メイショウドトウ）の選択肢は金スキル、いない5人は白スキルが△で出る（金スキルは編成にいる人のぶんだけ）', { shownEv1 });
 			// 小窓
-			await sp.page.click(evBtn);
+			await sp.page.click(evBtn); await sp.page.click('[data-usd-el="colmenu-events"]');
 			let pv = await popover(sp.page);
 			assert(pv.open && pv.title.includes('シナリオ『トレセン軒』') && pv.events.length === 2 && pv.fixed.length === 1,
 				tag + '小窓の見出しは「シナリオ『トレセン軒』」。左にイベント1・2（選択式）と、イベント3（確定。選択肢なし）が並ぶ', { title: pv.title, ev: pv.events.length, fixed: pv.fixed.length });
@@ -408,7 +408,7 @@ export async function register7c(env) {
 			const ev2Skill = ev2.choices[ev2pick].skills[0];
 			const sc2 = v.events.find((b) => b.key === 'scenario');
 			assert(scenMark(v.rows.find((r) => r.id === ev2Skill.skillId)) === '●' && !v.ids.includes(ev2.choices[0].skills[0].skillId) && !sc2.dot && sc2.unselected === '0'
-				&& sc2.label === 'シナリオ『トレセン軒』のイベントを選ぶ' && sc2.hasSvg, tag + 'イベント2を選ぶと、そのスキルが●になり、見出しの「!」は消えてシナリオの印（画像。2026-10-26 にどんぶりから置き換え）に変わる（未選択0件）', sc2);
+				&& sc2.label === 'シナリオ『トレセン軒』のメニュー' && sc2.hasSvg, tag + 'イベント2を選ぶと、そのスキルが●になり、見出しの「!」は消え、シナリオの印（画像）だけになる（未選択0件）', sc2);
 			await esc(sp.page);
 			// 並べ替え（漏斗）・オフ・絞り込みが、ほかの列と同じに効く
 			await clickSort(sp.page, P, 'scenario');
@@ -443,7 +443,7 @@ export async function register7c(env) {
 			];
 			for (const cs of cases) {
 				const sp = await open2({ roster: { umaId: umaLv7.id, cardIds: cs.cards.concat(new Array(6 - cs.cards.length).fill(null)) } });
-				await sp.page.click(evBtn);
+				await sp.page.click(evBtn); await sp.page.click('[data-usd-el="colmenu-events"]');
 				const ct = await choiceTexts(sp.page);
 				const lastC = ct[ct.length - 1];
 				const want = (cs.linked ? last.linked : last.unlinked)[0];
@@ -454,7 +454,7 @@ export async function register7c(env) {
 			// 育成ウマ娘の charaName でも編成にいる扱い
 			const dotouUma = umas.find((u) => u.charaName === 'メイショウドトウ');
 			const sp = await open2({ roster: { umaId: dotouUma.id, cardIds: new Array(6).fill(null) } });
-			await sp.page.click(evBtn);
+			await sp.page.click(evBtn); await sp.page.click('[data-usd-el="colmenu-events"]');
 			const ct = await choiceTexts(sp.page);
 			assert(ct.filter((c) => c.state === '編成時').length === 1 && ct.find((c) => c.state === '編成時').label === 'メイショウドトウ', tag + '育成ウマ娘がメイショウドトウのときも、その選択肢は編成時になる', ct);
 			await sp.ctx.close();
@@ -687,7 +687,7 @@ export async function register7c(env) {
 				const ROW = (id) => P + '.usd-roster-grow[data-skill-id="' + id + '"] input[data-usd-act="take-skill"]';
 				await run('チェック（取得しない）', ROW(W[6]), () => sp.page.click(ROW(W[6])));
 				await run('チェック（取得する）', ROW(W[6]), () => sp.page.click(ROW(W[6])));
-				await run('シナリオの列の「!」（小窓を開く）', P + 'button[data-usd-act="events"][data-member-key="scenario"]', () => sp.page.click(P + 'button[data-usd-act="events"][data-member-key="scenario"]'));
+				await run('シナリオの列の「!」（小窓を開く）', P + 'button[data-usd-act="col-menu"][data-member-key="scenario"]', async () => { await sp.page.click(P + 'button[data-usd-act="col-menu"][data-member-key="scenario"]'); await sp.page.click('[data-usd-el="colmenu-events"]'); });   // 2026-10-26: シナリオの列もメニューから
 				// 小窓の中の選択肢（ページの位置と小窓の中の位置が変わらない）
 				const before = await sp.page.evaluate(() => ({ y: window.scrollY, l: (document.querySelector('[data-usd-el="info-pop"] [data-usd-el="events-pane-events"]') || {}).scrollTop || 0 }));
 				await sp.page.click('[data-usd-el="event-choice"][data-event-key="scenario:トレセン軒#0"][data-choice="1"]');

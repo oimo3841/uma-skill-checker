@@ -385,7 +385,7 @@ export async function register50(env) {
 			const views = [
 				['①', async () => {}],
 				['レース', async () => { await p.click('[data-usd-el="set-race-btn"]'); await sleep(p, 500); }],
-				['イベント', async () => { await p.keyboard.press('Escape'); await sleep(p, 200); await p.click('#deck-roster-panel [data-usd-el="events-btn"] >> nth=0'); await sleep(p, 500); }],
+				['イベント', async () => { await p.keyboard.press('Escape'); await sleep(p, 200); await p.click('#deck-roster-panel [data-usd-el="col-menu-btn"][data-has-events] >> nth=0'); await p.click('[data-usd-el="colmenu-events"]'); await sleep(p, 500); }],
 				['カードの選択', async () => { await p.keyboard.press('Escape'); await sleep(p, 200); await p.click('#deck-roster-panel [data-usd-el="pick-card"][data-index="0"]'); await sleep(p, 500); }]
 			];
 			for (const [name, act] of views) {

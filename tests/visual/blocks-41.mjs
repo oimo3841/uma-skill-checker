@@ -37,7 +37,7 @@ export async function register41(env) {
 		}, { roster, DRAFT });
 		await sp.page.reload({ waitUntil: 'networkidle' });
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
-		await sp.page.waitForSelector(P + '[data-usd-el="events-btn"]', { timeout: 15000 });
+		await sp.page.waitForSelector(P + '[data-usd-el="col-menu-btn"][data-member-key="0"]', { timeout: 15000 });   // 2026-10-26: 育成ウマ娘の列もメニューのボタン
 		await sp.page.waitForTimeout(700);
 		return sp;
 	};

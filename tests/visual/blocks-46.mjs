@@ -178,7 +178,7 @@ export async function register46(env) {
 				const tag = 'C-188 ' + label + ' ' + w + 'px・' + theme + ': ';
 				assert(m.tiles.every((t) => t.no === null) && m.heads.every((h) => h.no === null), tag + 'タイルにも列見出しにも番号の丸が無い', true);
 				assert(m.tiles.every((t, i) => t.mainLabel.indexOf((i + 1) + '枚目：') === 0), tag + 'タイルの読み上げに「N枚目」がある', m.tiles.map((t) => t.mainLabel));
-				assert(m.heads.filter((h) => h.btn).every((h, i) => h.btn.label.indexOf((i + 1) + '枚目：') === 0), tag + '列見出しの読み上げにも「N枚目」がある', m.heads.filter((h) => h.btn).map((h) => h.btn.label));
+				assert(m.heads.filter((h) => h.btn && h.btn.no).every((h, i) => h.btn.label.indexOf((i + 1) + '枚目：') === 0), tag + '列見出し（サポカの列）の読み上げにも「N枚目」がある', m.heads.filter((h) => h.btn && h.btn.no).map((h) => h.btn.label));
 				assert(new Set(m.heads.map((h) => h.h)).size === 1 && m.heads[0].h <= BEFORE_HEAD[w], tag + '見出しの高さは全列で同じ（' + m.heads[0].h + 'px）で変更前（' + BEFORE_HEAD[w] + 'px）以下', m.heads.map((h) => h.h));
 				assert(m.sw <= m.vw, tag + '横スクロールなし', [m.sw, m.vw]);
 				await sp.ctx.close();
@@ -191,7 +191,7 @@ export async function register46(env) {
 			const sp = await openSp({ w, theme, h: w === 1280 ? 900 : 844 });
 			const m = await measure(sp.page);
 			const tag = 'C-187(d1) ' + w + 'px・' + theme + ': ';
-			const cards = m.heads.filter((h) => h.btn);
+			const cards = m.heads.filter((h) => h.btn && h.btn.no);   // サポカの列（data-no がある。2026-10-26 から育成ウマ娘・シナリオの列も同じボタンだが data-no は無い）
 			const nameCol = m.heads.find((h) => h.isName);
 			assert(cards.length === 6, tag + 'サポカの6列', cards.length);
 			assert(cards.every((h) => h.bg === nameCol.bg && h.bgImg === 'none' && !/usd-roster-typed/.test(h.cls)), tag + '見出しの面は「スキル名」の列と同じ（種別色の塗りなし）', cards.map((h) => [h.bg, h.cls]));
@@ -224,7 +224,7 @@ export async function register46(env) {
 	await block('C-187(d2) アイコンを押すとメニューが開き、じょうごの動作（この列で並べ替え）が残っている: 結果は独立に数えた期待値と一致・もう一度で元の並び・押している列は印と aria-pressed で分かる・別の列に切り替えるともとの列は戻る', async () => {
 		const sp = await openSp({ w: 390 });
 		const base0 = await rowsOf(sp.page);
-		const keys = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="col-menu-btn"]')).map((b) => b.getAttribute('data-member-key')));
+		const keys = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="col-menu-btn"][data-no]')).map((b) => b.getAttribute('data-member-key')));
 		assert(keys.length === 6 && base0.length > 20, 'C-187(d2) 6列・行は20以上', [keys.length, base0.length]);
 		// 列番号: 先頭のセルは行見出し、次が育成ウマ娘の列、その次からカードの6列（cells[0]＝育成ウマ娘）
 		const colOfKey = (k) => 1 + Number(k);   // members: 育成ウマ娘(0)・カード1〜6(1〜6)
@@ -232,7 +232,7 @@ export async function register46(env) {
 		await sp.page.click(RP + '[data-usd-el="col-menu-btn"][data-member-key="' + firstKey + '"]');
 		await sp.page.waitForSelector('[data-usd-el="colmenu-ops"]', { timeout: 5000 });
 		const menu = await sp.page.evaluate(() => ({ items: Array.from(document.querySelectorAll('[data-usd-el="colmenu-ops"] button')).map((b) => ({ el: b.getAttribute('data-usd-el'), text: b.textContent, pressed: b.getAttribute('aria-pressed'), h: Math.round(b.getBoundingClientRect().height) })), expanded: document.querySelector('[data-usd-el="col-menu-btn"][aria-expanded="true"]') ? true : false, title: (document.querySelector('.usd-info-title, [data-usd-el="skill-info-title"]') || {}).textContent }));
-		assert(menu.items.some((i) => i.el === 'colmenu-sort' && /並べ替え/.test(i.text) && i.pressed === 'false' && i.h >= 44), 'C-187(d2) メニューに「並べ替え」（押していない・押せる範囲44px以上）がある', menu);
+		assert(menu.items.some((i) => i.el === 'colmenu-sort' && i.text === 'ソート' && i.pressed === 'false' && i.h >= 44), 'C-187(d2) メニューに「ソート」（押していない・押せる範囲44px以上）がある（2026-10-26 に「並べ替え：この列が得るスキルを上に寄せる」から）', menu);
 		assert(menu.expanded === true, 'C-187(d2) アイコンのボタンは aria-expanded=true になる', menu.expanded);
 		await sp.page.click('[data-usd-el="colmenu-sort"]');
 		await sleep(sp.page, 300);
@@ -264,7 +264,7 @@ export async function register46(env) {
 		await sp.ctx.close();
 	});
 
-	await block('C-187(d3) メニューの「イベントを選ぶ」: 番号の丸が持っていた動作（選ぶ必要のあるイベントの小窓を開く・未選択の「！」と件数）が残っている。イベントの無いカードのメニューは並べ替えだけ', async () => {
+	await block('C-187(d3) メニューの「イベント/スキル」: 番号の丸が持っていた動作（選ぶ必要のあるイベントの小窓を開く・未選択の「！」と件数）が残っている。イベントの無いカードのメニューは並べ替えだけ', async () => {
 		// 選ぶ必要のあるイベントも結果の切り替えも持たないカードを、画面の計算（computeRosterSkills）で探す（見つからなければ、前提として失敗にする）
 		const probe = await openSp({ w: 390 });
 		const noEv = await probe.page.evaluate(async (cands) => {
@@ -295,16 +295,16 @@ export async function register46(env) {
 			await sleep(sp.page, 150);
 		}
 		const hasAttr = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="col-menu-btn"]')).map((b) => [b.getAttribute('data-member-key'), b.hasAttribute('data-has-events')]));
-		assert(withEv.some((x) => x.has) && withEv.some((x) => !x.has) && withEv.every((x) => hasAttr.find((a) => a[0] === x.key)[1] === x.has), 'C-187(d3) イベントのあるカードにだけ「イベントを選ぶ」がある（あり ' + withEv.filter((x) => x.has).length + '・なし ' + withEv.filter((x) => !x.has).length + '。data-has-events と一致）', { withEv, hasAttr });
+		assert(withEv.some((x) => x.has) && withEv.some((x) => !x.has) && withEv.every((x) => hasAttr.find((a) => a[0] === x.key)[1] === x.has), 'C-187(d3) イベントのあるカードにだけ「イベント/スキル」がある（あり ' + withEv.filter((x) => x.has).length + '・なし ' + withEv.filter((x) => !x.has).length + '。data-has-events と一致）', { withEv, hasAttr });
 		assert(info.every((i) => i.bang === (i.unsel > 0)), 'C-187(d3) 未選択があるカードのアイコンには「！」が出る（件数は data-unselected・aria-label にも）', info);
-		assert(info.filter((i) => i.unsel > 0).every((i) => i.label.indexOf('（未選択' + i.unsel + '件）') !== -1) && withEv.filter((x) => x.has).every((x, n) => { const i = info.find((y) => y.key === x.key); return i.unsel === 0 ? x.txt === 'イベントを選ぶ' || x.txt.indexOf('結果を切り替え中') !== -1 : x.txt.indexOf('未選択' + i.unsel + '件') !== -1; }), 'C-187(d3) メニューの文言にも未選択の件数が出る', withEv);
+		assert(info.filter((i) => i.unsel > 0).every((i) => i.label.indexOf('（未選択' + i.unsel + '件）') !== -1) && withEv.filter((x) => x.has).every((x, n) => { const i = info.find((y) => y.key === x.key); return i.unsel === 0 ? x.txt === 'イベント/スキル' || x.txt.indexOf('結果を切り替え中') !== -1 : x.txt.indexOf('未選択' + i.unsel + '件') !== -1; }), 'C-187(d3) メニューの文言にも未選択の件数が出る', withEv);
 		const key = withEv.find((x) => x.has).key;
 		await sp.page.click(RP + '[data-usd-el="col-menu-btn"][data-member-key="' + key + '"]');
 		await sp.page.waitForSelector('[data-usd-el="colmenu-events"]', { timeout: 5000 });
 		await sp.page.click('[data-usd-el="colmenu-events"]');
 		await sp.page.waitForSelector('[data-usd-el="events-panes"], [data-usd-el="events-pane-events"]', { timeout: 5000 });
 		const ev = await sp.page.evaluate(() => ({ choices: document.querySelectorAll('[data-usd-el="events-pane-events"]').length, expanded: !!document.querySelector('[data-usd-el="col-menu-btn"][aria-expanded="true"]') }));
-		assert(ev.choices > 0 && ev.expanded, 'C-187(d3) 「イベントを選ぶ」でイベントの小窓が開く（選択肢が出る・アイコンが開いた状態）', ev);
+		assert(ev.choices > 0 && ev.expanded, 'C-187(d3) 「イベント/スキル」でイベントの小窓が開く（選択肢が出る・アイコンが開いた状態）', ev);
 		await sp.page.keyboard.press('Escape');
 		await sleep(sp.page, 200);
 		const focus = await sp.page.evaluate(() => { const a = document.activeElement; return a ? a.getAttribute('data-usd-el') + ':' + a.getAttribute('data-member-key') : null; });
@@ -312,13 +312,16 @@ export async function register46(env) {
 		await sp.ctx.close();
 	});
 
-	await block('C-187(e) 育成ウマ娘の列の見出しは変わらない（◇・じょうご・濃い面の見出し）／サポカの6列と同じ高さ／横スクロールなし（390・360・1280・ライト・ダーク）', async () => {
+	await block('C-187(e) 育成ウマ娘の列の見出しは、サポカと同じメニューのボタン（キャラアイコン 24px・じょうご無し。2026-10-26）で、濃い面の見出しのまま／サポカの6列と同じ高さ／横スクロールなし（390・360・1280・ライト・ダーク）', async () => {
 		for (const [w, theme] of [[390, 'light'], [360, 'dark'], [1280, 'light'], [1280, 'dark']]) {
 			const sp = await openSp({ w, theme, h: w === 1280 ? 900 : 844 });
 			const m = await measure(sp.page);
 			const tag = 'C-187(e) ' + w + 'px・' + theme + ': ';
 			const uma = m.heads.find((h) => h.isUma);
-			assert(uma && uma.funnel && uma.sortBtn && !uma.btn, tag + '育成ウマ娘の列には、じょうご（並べ替え）が残っている', uma);
+			const card1 = m.heads.find((h) => h.btn && h.btn.no === 1);
+			const umaIco = await sp.page.evaluate(() => { const i = document.querySelector('#deck-roster-panel .usd-roster-gc--uma [data-usd-el="col-menu-btn"] [data-usd-el="uma-icon"]'); return i ? Math.round(i.getBoundingClientRect().width) : null; });
+			assert(uma && !uma.funnel && !uma.sortBtn && !uma.evBtn && uma.btn && card1 && uma.btn.w === card1.btn.w && uma.btn.h === card1.btn.h && uma.btn.bw === card1.btn.bw && umaIco === 24,
+				tag + '育成ウマ娘の列は、じょうごが無く、サポカと同じ大きさ・同じ枠のメニューのボタン（キャラアイコン 24px）', { uma: uma && uma.btn, card: card1 && card1.btn, umaIco });
 			const root = await sp.page.evaluate(() => { const c = document.querySelector('#deck-roster-panel .usd-roster-gh.usd-roster-gc--uma'); return { bg: getComputedStyle(c).backgroundColor, diamond: !!c.querySelector('[data-usd-el="uma-icon"]'), key: getComputedStyle(document.documentElement).getPropertyValue('--uma-table-head-key-bg').trim() }; });
 			assert(root.diamond && root.bg !== m.heads.find((h) => h.isName).bg, tag + '育成ウマ娘の印（画像）があり、濃い面のまま（ほかの列と見分けがつく）', root);
 			assert(new Set(m.heads.map((h) => h.h)).size === 1, tag + '全列の見出しの高さが同じ', m.heads.map((h) => h.h));

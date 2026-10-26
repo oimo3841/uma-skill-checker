@@ -92,11 +92,9 @@ export async function register51(env) {
 			assert(d.head === HEAD, `履歴(1) ${t.name}: 見出しが一致`, d.head);
 			assert(JSON.stringify(d.lines) === JSON.stringify(LINES[t.name]), `履歴(1) ${t.name}: 箇条が一致（${LINES[t.name].length}行）`, JSON.stringify(d.lines));
 			assert(d.leads === 0, `履歴(1) ${t.name}: 導入の文は無い`, d.leads);
-			// 2026-10-26: exam だけ、①の「既定として登録済みの133種…」の文の上に常時の1行を出す（文面は byte 一致）。special には無い
+			// 2026-10-26（公開前の追加）: exam の①の常時の1行（#melop-scenario-note）は消した。どちらのツールにも無い
 			const note = await r.page.evaluate(() => { const e = document.getElementById('melop-scenario-note'); if (!e) return null; const nx = e.nextElementSibling; return { text: e.textContent, inStep1: !!e.closest('#step-panel-1'), next: nx ? nx.textContent : null }; });
-			if (t.name === 'exam') assert(note && note.text === '新シナリオへの対応が未完了です。' && note.inStep1 && /^既定として登録済みの133種を対象にします。/.test(note.next || ''),
-				`履歴(1) exam: ①の「既定として登録済みの133種…」の文の上に「新シナリオへの対応が未完了です。」の1行（#melop-scenario-note）がある`, note);
-			else assert(note === null, `履歴(1) ${t.name}: 常時の1行（#melop-scenario-note）は無い`, note);
+			assert(note === null, `履歴(1) ${t.name}: 常時の1行（#melop-scenario-note）は無い`, note);
 			assert(!/ヒント|必ず合う|合うことがある|合わない/.test([d.head, ...d.lines].join('')), `履歴(1) ${t.name}: 禁じた表現を使っていない`, '');
 			await r.page.keyboard.press('Escape');
 			await menuOpen(r.page);

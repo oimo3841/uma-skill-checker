@@ -15006,7 +15006,7 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		const hd = async () => sp.page.evaluate(() => {
 			const h = document.getElementById('deck-roster-panel');
 			return Array.from(h.querySelectorAll('.usd-roster-gh[role="columnheader"]')).slice(1).map((c) => {
-				// サポカの6列は種別アイコンのボタン（C-187）。育成ウマ娘の列は今までの2行（バッジ／！と漏斗）
+				// サポカの6列は種別アイコンのボタン（C-187）。育成ウマ娘の列も 2026-10-26 から同じメニューのボタン（キャラアイコン）
 				const cm = c.querySelector('[data-usd-el="col-menu-btn"]');
 				const g = c.querySelector('.usd-roster-ghbtns');
 				const ev = c.querySelector('[data-usd-el="events-btn"]');
@@ -15024,24 +15024,24 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 		let cols = await hd();
 		// 並び: ◇（育成ウマ娘）／1（A: 未選択のイベントあり）／2（B: 未選択のイベントあり）／3（C: 選ぶ必要のあるイベント無し）／4〜6（空き）
 		const [colU, c1, c2, c3, c4] = cols;
-		assert(!colU.card && colU.twoRows && !colU.triangle && colU.svg && colU.sortW >= 24 && colU.sortH >= 24 && (w > 640 ? colU.sortH >= 28 : true) && colU.sortText === '' && cols.every((c) => !c.triangle),
-			tag + '育成ウマ娘の列の見出しは今までの2行（上＝◇／！、下＝漏斗）。「▼」は無く、漏斗は SVG で 28px 以上（スマホは高さ 24px 以上を許す。段7c）');
+		assert(colU.card && !colU.cm.funnel && colU.cm.h === c1.cm.h && !colU.triangle && cols.every((c) => !c.triangle),
+			tag + '育成ウマ娘の列の見出しは、サポカと同じメニューのボタン（キャラアイコン。2026-10-26 に2行〔◇／！と漏斗〕から変えた）。漏斗も「▼」も無い', { u: colU.cm, c1: c1.cm });
 		assert(c1.card && c1.cm.tag === 'BUTTON' && c1.cm.bang && c1.cm.un === '1' && c1.cm.aria.indexOf('のメニュー（未選択1件）') !== -1 && c2.card && c2.cm.bang && c2.cm.un === '1' && c2.cm.aria.indexOf('のメニュー（未選択1件）') !== -1,
 			tag + 'C-187: 選ぶ必要のあるイベントがあり未選択が残るカードの列は、種別アイコンのボタンに「!」が付く（aria-label「…のメニュー（未選択M件）」）', { c1: c1.cm, c2: c2.cm });
-		assert(!colU.ev && colU.firstTag === 'IMG' && c3.empty && !c3.card && c4.empty && !c4.card,
-			tag + 'C-187: 育成ウマ娘の印は画像（2026-10-26 に ◇ のバッジから置き換え。押せない印のまま）。空きの枠は押せない（破線の枠だけ）。イベントの無いカードのメニューは blocks-46 の C-187(d3) が見る', { u: colU.firstTag, c3: c3.empty, c4: c4.empty });
+		assert(!colU.ev && c3.empty && !c3.card && c4.empty && !c4.card,
+			tag + 'C-187: 育成ウマ娘の列に「イベントを選ぶ」の直接のボタンは無い（メニューの中）。空きの枠は押せない（破線の枠だけ）。イベントの無いカードのメニューは blocks-46 の C-187(d3) が見る', { c3: c3.empty, c4: c4.empty });
 		assert(cols.filter((c) => c.card).every((c) => !c.cm.funnel && c.cm.h >= 44), tag + 'C-187: サポカの列にじょうごは無く、押せる範囲は高さ44px以上（並べ替えはメニューの中）');
 		// 並べ替え: 押している列は data-sorted（aria-pressed の代わり）。同時に1つだけ
-		assert(c1.cm.sorted === null && colU.pressed === 'false', tag + '並べ替えは、押していないときは印なし', { sorted: c1.cm.sorted });
+		assert(c1.cm.sorted === null && colU.cm.sorted === null, tag + '並べ替えは、押していないときは印なし', { sorted: c1.cm.sorted });
 		await clickSort(sp.page, P, '1');
 		cols = await hd();
-		assert(cols[1].cm.sorted === '1' && cols[0].pressed === 'false' && cols.filter((c) => c.card && c.cm.sorted === '1').length === 1, tag + '並べ替え中の列は印（data-sorted。同時に1つだけ）', { sorted: cols.map((c) => c.cm && c.cm.sorted) });
+		assert(cols[1].cm.sorted === '1' && cols[0].cm.sorted === null && cols.filter((c) => c.card && c.cm.sorted === '1').length === 1, tag + '並べ替え中の列は印（data-sorted。同時に1つだけ）', { sorted: cols.map((c) => c.cm && c.cm.sorted) });
 		await clickSort(sp.page, P, '1');
 		// 「!」のあるカードのメニューから「イベントを選ぶ」→ 小窓。すべて選ぶと「!」が消え、もう一度メニューから小窓に入れる
 		await clickEvents(sp.page, P, '1');
 		await sp.page.waitForTimeout(300);
 		let pp = await popover(sp.page);
-		assert(pp.open && pp.unselected === '未選択1件' && pp.events.length === 2 && pp.events[0].choices.every((c) => !c.on), tag + 'メニューの「イベントを選ぶ」で、イベントの選択の小窓が開く（未選択1件）', { unselected: pp.unselected, events: pp.events.length });
+		assert(pp.open && pp.unselected === '未選択1件' && pp.events.length === 2 && pp.events[0].choices.every((c) => !c.on), tag + 'メニューの「イベント/スキル」で、イベントの選択の小窓が開く（未選択1件）', { unselected: pp.unselected, events: pp.events.length });
 		const titleBadge = await sp.page.evaluate(() => { const b = document.querySelector('[data-usd-el="info-pop"] .uma-popover-title .usd-roster-legend-no'); return b ? b.textContent.trim() : null; });
 		assert(titleBadge === '1', tag + '小窓の見出しに、カード名の前の番号のバッジ（1）', { titleBadge });
 		await sp.page.click('[data-usd-el="info-pop"] [data-usd-el="event-choice"][data-event-key$="#0"][data-choice="0"]');

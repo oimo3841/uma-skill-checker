@@ -128,7 +128,7 @@ export async function register7d(env) {
 			const names = ev3.skills.map((s) => nameOf(s.skillId));
 			assert(!names.includes('時中の砂'), '「時中の砂」（誤記）はイベント3のどこにも使わない（時中の妙・極上の感謝を！は段7f で入れた。その検査は blocks-7f.mjs）', names);
 			const sp = await open({ w: 375, h: 812, routes: { scenDoc: scenReal } });
-			await sp.page.click(P + 'button[data-usd-act="events"][data-member-key="scenario"]');
+			await sp.page.click(P + 'button[data-usd-act="col-menu"][data-member-key="scenario"]'); await sp.page.click('[data-usd-el="colmenu-events"]');   // 2026-10-26: シナリオの列もメニューから
 			await sp.page.waitForTimeout(300);
 			const texts = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="info-pop"] [data-usd-el="event"][data-event-key$="#1"] [data-usd-el="event-choice"]')).map((c) => c.textContent.replace(/\s+/g, ' ').trim()));
 			assert(texts.length === 3 && texts[1].includes('いいとこ入った！') && texts[1].includes('Lv2') && !texts[1].includes('スキルなし'), 'イベント2の選択肢2を小窓で選べる（「いいとこ入った！ Lv2」。「スキルなし」ではない）', texts);

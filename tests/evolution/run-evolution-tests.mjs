@@ -502,9 +502,9 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 			{ rosterId: 'r', name: '', umaId, star: 3, awakeningLevel: 5, cardIds: [null, null, null, null, null, null], race: longRace });
 		await sp.page.reload({ waitUntil: 'networkidle' });
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
-		await sp.page.waitForFunction(() => window.UmaSkillDeckCore.getEvolutionRowsOfUma !== undefined && !!document.querySelector('#deck-roster-panel [data-usd-el="events-btn"][data-member-key="0"]'), null, { timeout: 15000 });
+		await sp.page.waitForFunction(() => window.UmaSkillDeckCore.getEvolutionRowsOfUma !== undefined && !!document.querySelector('#deck-roster-panel [data-usd-el="col-menu-btn"][data-member-key="0"][data-has-events]'), null, { timeout: 15000 });
 		await sp.page.waitForTimeout(800);
-		await sp.page.click('#deck-roster-panel [data-usd-el="events-btn"][data-member-key="0"]');
+		await sp.page.click('#deck-roster-panel [data-usd-el="col-menu-btn"][data-member-key="0"]'); await sp.page.click('[data-usd-el="colmenu-events"]');   // 2026-10-26: 育成ウマ娘の列もメニューから
 		await sp.page.waitForTimeout(400);
 		const rows = await sp.page.evaluate(() => [...document.querySelectorAll('[data-usd-el="info-pop"] [data-usd-el="ev-skills"] > li')].map((li) => ({ id: li.getAttribute('data-skill-id'), el: li.getAttribute('data-usd-el'), depth: li.getAttribute('data-usd-evo-depth'), gold: li.getAttribute('data-usd-gold') === '1', pt: (li.querySelector('[data-usd-el="ev-skill-pt"]') || {}).textContent || null })));
 		const errs = sp.errors.filter((m) => !/Failed to load resource/.test(m));

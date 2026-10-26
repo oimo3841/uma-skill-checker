@@ -829,8 +829,8 @@ export async function register11(env) {
 		await rs.page.keyboard.press('Escape');
 		await rs.page.evaluate(() => selectStepTab(0, { noSave: true }));
 		await rs.page.waitForTimeout(250);
-		const tw = await rs.page.evaluate(() => { const m = document.querySelector('#deck-roster-panel [data-usd-el="col-menu-btn"][data-has-events]'); if (!m) return null; m.click(); const it = document.querySelector('[data-usd-el="colmenu-events"]'); if (!it) return null; it.click(); const pop = document.querySelector('.usd-info-pop'); return { has: ['events-panes', 'events-pane-events', 'events-pane-skills', 'ev-skills-title'].every((k) => !!pop.querySelector('[data-usd-el="' + k + '"]')), sw: !!pop.querySelector('[data-usd-el="events-tabs"]'), badge: !!pop.querySelector('.usd-roster-legend-no') }; });
-		assert(tw && tw.has && tw.sw && tw.badge, 'オススメサポ(H) 参考: ①の列見出しのアイコン（メニューの「イベントを選ぶ」）を押した小窓には、同じ部品（イベントの欄・取得できるスキルの欄・切り替え）があり、番号の札がある（オススメサポのほうは札なし）', tw);
+		const tw = await rs.page.evaluate(() => { const m = document.querySelector('#deck-roster-panel [data-usd-el="col-menu-btn"][data-no][data-has-events]'); if (!m) return null; m.click(); const it = document.querySelector('[data-usd-el="colmenu-events"]'); if (!it) return null; it.click(); const pop = document.querySelector('.usd-info-pop'); return { has: ['events-panes', 'events-pane-events', 'events-pane-skills', 'ev-skills-title'].every((k) => !!pop.querySelector('[data-usd-el="' + k + '"]')), sw: !!pop.querySelector('[data-usd-el="events-tabs"]'), badge: !!pop.querySelector('.usd-roster-legend-no') }; });
+		assert(tw && tw.has && tw.sw && tw.badge, 'オススメサポ(H) 参考: ①のサポカの列見出しのアイコン（メニューの「イベント/スキル」）を押した小窓には、同じ部品（イベントの欄・取得できるスキルの欄・切り替え）があり、番号の札がある（オススメサポのほうは札なし）', tw);
 		assert(jsErrors(rs.errors).length === 0, 'オススメサポ(H) 実データ: コンソールのエラー0', jsErrors(rs.errors).slice(0, 3));
 		await rs.ctx.close();
 	});

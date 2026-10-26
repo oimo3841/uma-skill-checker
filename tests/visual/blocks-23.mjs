@@ -267,15 +267,16 @@ export async function register23(env) {
 		await sp.page.waitForTimeout(500);
 		return sp;
 	};
-	const EVBTN = '[data-usd-el="events-btn"][data-member-key="0"]';
-	const openPop = async (page) => { await page.click(EVBTN); await page.waitForSelector('[data-usd-el="event"]'); await page.waitForTimeout(300); };
+	// 2026-10-26: 育成ウマ娘の列見出しは、サポカと同じメニューのボタン（キャラアイコン）。小窓はメニューの「イベント/スキル」から開く
+	const EVBTN = '[data-usd-el="col-menu-btn"][data-member-key="0"]';
+	const openPop = async (page) => { await page.click(EVBTN); await page.click('[data-usd-el="colmenu-events"]'); await page.waitForSelector('[data-usd-el="event"]'); await page.waitForTimeout(300); };
 
-	await block('育成イベント段3A 育成ウマ娘の列見出しは、小窓に出す行があるときだけボタン。未選択があれば「！」・無ければ ◇。出す行が無い衣装は今までの札', async () => {
+	await block('育成イベント段3A 育成ウマ娘の列見出しは、キャラアイコンのメニューのボタン（2026-10-26）。小窓に出す行があるときだけメニューに「イベント/スキル」。未選択があれば「！」', async () => {
 		const sp = await openRoster(UMA_LONG.umaId);
 		const need = pendingEvents(UMA_LONG).length;
-		const b = await sp.page.evaluate((sel) => { const e = document.querySelector(sel); return e ? { text: e.textContent, unsel: e.getAttribute('data-unselected'), aria: e.getAttribute('aria-label'), diamond: !!e.querySelector('[data-usd-el="uma-icon"]'), tag: e.tagName } : null; }, EVBTN);
-		assert(!!b && b.tag === 'BUTTON' && b.text === '!' && b.unsel === String(need) && b.aria.includes('育成ウマ娘のイベントを選ぶ') && b.aria.includes('未選択' + need + '件'),
-			'育成イベント段3A 未選択があるあいだは「！」のボタン（未選択' + need + '件。aria-label に件数）', b);
+		const b = await sp.page.evaluate((sel) => { const e = document.querySelector(sel); return e ? { text: e.textContent, unsel: e.getAttribute('data-unselected'), aria: e.getAttribute('aria-label'), diamond: !!e.querySelector('[data-usd-el="uma-icon"]'), bang: !!e.querySelector('[data-usd-el="gh-bang"]'), has: e.hasAttribute('data-has-events'), tag: e.tagName } : null; }, EVBTN);
+		assert(!!b && b.tag === 'BUTTON' && b.text === '!' && b.bang && b.diamond && b.has && b.unsel === String(need) && b.aria.includes('のメニュー') && b.aria.includes('未選択' + need + '件'),
+			'育成イベント段3A 未選択があるあいだはキャラアイコンの角に「！」（未選択' + need + '件。aria-label に件数）', b);
 		const chip = await sp.page.evaluate(() => !!document.querySelector('.usd-roster-gh .usd-roster-umamark'));
 		assert(chip === false, '育成イベント段3A ボタンのときは列見出しに名前の札（umaChip）を出さない（小窓の見出しへ移した）', chip);
 		await sp.ctx.close();
@@ -283,14 +284,14 @@ export async function register23(env) {
 		const ch = {};
 		pendingEvents(UMA_LONG).forEach((x) => { ch['uma:' + UMA_LONG.umaId + '#' + x.i] = 0; });
 		const sp2 = await openRoster(UMA_LONG.umaId, { choices: ch });
-		const b2 = await sp2.page.evaluate((sel) => { const e = document.querySelector(sel); return e ? { text: e.textContent, unsel: e.getAttribute('data-unselected'), diamond: !!e.querySelector('[data-usd-el="uma-icon"]'), alert: e.classList.contains('usd-roster-evbtn--alert') } : null; }, EVBTN);
+		const b2 = await sp2.page.evaluate((sel) => { const e = document.querySelector(sel); return e ? { text: e.textContent, unsel: e.getAttribute('data-unselected'), diamond: !!e.querySelector('[data-usd-el="uma-icon"]'), alert: !!e.querySelector('[data-usd-el="gh-bang"]') } : null; }, EVBTN);
 		assert(!!b2 && b2.unsel === '0' && b2.diamond && b2.text === '' && !b2.alert, '育成イベント段3A すべて選ぶと「！」が消え、育成ウマ娘の印（画像）のボタンのまま（押すと小窓にもう一度入れる）', b2);
 		await sp2.ctx.close();
 		// 選ぶイベントが無い衣装（段3の追補で変えた: 実データのこの衣装には読み取り専用の行があるので、◇のボタンになる。「！」は出ない）
 		const sp3 = await openRoster(UMA_NONE.umaId);
-		const n = await sp3.page.evaluate((sel) => { const e = document.querySelector(sel); return { btn: !!e, unsel: e && e.getAttribute('data-unselected'), diamond: !!(e && e.querySelector('[data-usd-el="uma-icon"]')), alert: !!(e && e.classList.contains('usd-roster-evbtn--alert')), chip: !!document.querySelector('.usd-roster-gh .usd-roster-umamark') }; }, EVBTN);
+		const n = await sp3.page.evaluate((sel) => { const e = document.querySelector(sel); return { btn: !!(e && e.hasAttribute('data-has-events')), unsel: e && e.getAttribute('data-unselected'), diamond: !!(e && e.querySelector('[data-usd-el="uma-icon"]')), alert: !!(e && e.querySelector('[data-usd-el="gh-bang"]')), chip: !!document.querySelector('.usd-roster-gh .usd-roster-umamark') }; }, EVBTN);
 		assert(UMA_NONE.events.some(isInfo) && n.btn === true && n.unsel === '0' && n.diamond && !n.alert && n.chip === false,
-			'育成イベント段3A 選ぶイベントが無く、読み取り専用の行だけがある衣装（' + UMA_NONE.umaId + '）は ◇ のボタン（「！」にならない）', n);
+			'育成イベント段3A 選ぶイベントが無く、読み取り専用の行だけがある衣装（' + UMA_NONE.umaId + '）も、メニューに「イベント/スキル」がある（「！」にならない）', n);
 		assert(jsErrors(sp3.errors).length === 0, '育成イベント段3A コンソールのエラー0', jsErrors(sp3.errors).slice(0, 3));
 		await sp3.ctx.close();
 		// 小窓に出す行が無い衣装（実データには無いので、選べる行も読み取り専用の行も結果の切り替えも無い形にした写しを返す）。これまでどおり札でボタンにならない
@@ -299,8 +300,8 @@ export async function register23(env) {
 		const isResultSwitch = (x) => !x.condition && (x.choices || []).some((c) => Array.isArray(c.results) && c.results.length >= 2 && c.results.some((r) => resKey(r) !== resKey(c.results[0])));
 		const bare = Object.assign({}, EVDOC, { entries: EVDOC.entries.map((e) => e.umaId !== UMA_NONE.umaId ? e : Object.assign({}, e, { events: e.events.filter((x) => !isListed(x) && !isInfo(x) && !isAcqOnly(x) && !isResultSwitch(x)) })) });
 		const sp4 = await openRoster(UMA_NONE.umaId, { evDoc: bare });
-		const n4 = await sp4.page.evaluate((sel) => ({ btn: !!document.querySelector(sel), chip: !!document.querySelector('.usd-roster-gh .usd-roster-umamark') }), EVBTN);
-		assert(n4.btn === false && n4.chip === true, '育成イベント段3A 小窓に出す行が無い衣装は、これまでどおり札（◇）でボタンにならない', n4);
+		const n4 = await sp4.page.evaluate((sel) => { const e = document.querySelector(sel); return { btn: !!e, has: !!(e && e.hasAttribute('data-has-events')), icon: !!(e && e.querySelector('[data-usd-el="uma-icon"]')), chip: !!document.querySelector('.usd-roster-gh .usd-roster-umamark') }; }, EVBTN);
+		assert(n4.btn === true && n4.has === false && n4.icon && n4.chip === false, '育成イベント段3A 小窓に出す行が無い衣装も、キャラアイコンのメニューのボタン（メニューは「ソート」だけ。サポカのイベントの無いカードと同じ）', n4);
 		assert(jsErrors(sp4.errors).length === 0, '育成イベント段3A(出す行なし) コンソールのエラー0', jsErrors(sp4.errors).slice(0, 3));
 		await sp4.ctx.close();
 	});
@@ -422,7 +423,7 @@ export async function register23(env) {
 	 * 段3の追補: 選択肢が1つで条件のあるイベントを、小窓に読み取り専用の行として出す（2026-10-12・案A）
 	 * ==================================================================== */
 	const shownOf = (entry) => entry.events.map((ev, i) => ({ ev, i, info: isInfo(ev), acq: isAcqOnly(ev) })).filter((x) => x.info || x.acq || isListed(x.ev));
-	const openPopAny = async (page) => { await page.click(EVBTN); await page.waitForSelector('[data-usd-el="event"], [data-usd-el="event-info"], [data-usd-el="event-acquire"]'); await page.waitForTimeout(300); };
+	const openPopAny = async (page) => { await page.click(EVBTN); await page.click('[data-usd-el="colmenu-events"]'); await page.waitForSelector('[data-usd-el="event"], [data-usd-el="event-info"], [data-usd-el="event-acquire"]'); await page.waitForTimeout(300); };
 	/** 小窓の左の行を、並びのまま読む */
 	const readRows = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="events-pane-events"] [data-usd-el="event"], [data-usd-el="events-pane-events"] [data-usd-el="event-info"], [data-usd-el="events-pane-events"] [data-usd-el="event-acquire"]')).map((b) => {
 		const c = b.querySelector('.usd-roster-eventcond');
@@ -610,6 +611,7 @@ export async function register23(env) {
 			const sure = got.sure.filter((s) => s.key === key && s.sure).map((s) => s.skillId);
 			assert(want.every((id) => sure.includes(id)) && !got.events.some((e) => e.key === key), '育成イベント取り込みB ' + label + ' + 古い保存(番号2): 先頭の結果のスキルが●で、選ぶ行には出ない', { sure, want, events: got.events.map((e) => e.key) });
 			await sp.page.click(EVBTN).catch(() => {});
+			await sp.page.click('[data-usd-el="colmenu-events"]').catch(() => {});
 			await sp.page.waitForTimeout(300);
 			assert(jsErrors(sp.errors).length === 0, '育成イベント取り込みB ' + label + ' + 古い保存: 小窓を開いてもコンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();

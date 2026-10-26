@@ -88,7 +88,7 @@ export async function register7f(env) {
 			assert(v.count === kinds, tag + '種数は「金スキルとその前段の白スキルを1種」と数えた値に合う（前段が表にある2組は各1種）', { shown: v.count, want: kinds });
 			assert(v.sw <= v.iw, tag + '横にはみ出さない', { sw: v.sw, iw: v.iw });
 			// 小窓: 「確定で得られるスキル」に6件（Lv つき）
-			await sp.page.click('#deck-roster-panel button[data-usd-act="events"][data-member-key="scenario"]');
+			await sp.page.click('#deck-roster-panel button[data-usd-act="col-menu"][data-member-key="scenario"]'); await sp.page.click('[data-usd-el="colmenu-events"]');   // 2026-10-26: シナリオの列もメニューから
 			await sp.page.waitForTimeout(300);
 			const fx = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="info-pop"] [data-usd-el="event-fixed"] [data-usd-el="event-fixed-skill"]')).map((s) => s.textContent.replace(/\s+/g, ' ').trim()));
 			assert(fx.length === 6 && fx.some((t) => t.includes('時中の妙') && t.includes('Lv1')) && fx.some((t) => t.includes('極上の感謝を！') && t.includes('Lv2')),

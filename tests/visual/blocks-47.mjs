@@ -109,8 +109,8 @@ export async function register47(env) {
 			const r = await sp.page.evaluate(() => ({
 				badges: document.querySelectorAll('#deck-roster-panel .usd-card-no, #deck-roster-panel [data-usd-el="card-no"], #deck-roster-panel [data-usd-el="gh-fallback"]').length,
 				tileAria: Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="pick-card"]')).map((b) => b.getAttribute('aria-label')),
-				headAria: Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="col-menu-btn"]')).map((b) => b.getAttribute('aria-label')),
-				types: Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="col-menu-btn"]')).map((b) => b.getAttribute('data-type-order')),
+				headAria: Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="col-menu-btn"][data-no]')).map((b) => b.getAttribute('aria-label')),
+				types: Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="col-menu-btn"][data-no]')).map((b) => b.getAttribute('data-type-order')),
 				heads: Array.from(new Set(Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-gh')).map((e) => Math.round(e.getBoundingClientRect().height * 10) / 10))),
 				sw: document.documentElement.scrollWidth - window.innerWidth }));
 			assert(r.types[0] === '1' && r.types[1] === '1', tag + '前提: 1〜2枚目が同じ種別（速）', r.types);
@@ -146,7 +146,7 @@ export async function register47(env) {
 		const target = SAME_IDS[1];
 		const sp = await openSp({ w: 390, roster: { umaId: 'uma-0179', cardIds: [SAME_IDS[0], target, 'card-9999', null, null, null], skillFilter: FILTER }, patchCards: (doc) => { const e = doc.entries.find((x) => x.id === target); e.typeOrder = 9; } });
 		const r = await sp.page.evaluate(() => {
-			const heads = Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="col-menu-btn"]')).map((b) => ({ aria: b.getAttribute('aria-label'), fb: (b.querySelector('[data-usd-el="gh-fallback"]') || {}).textContent || null, ico: !!b.querySelector('img'), num: !!b.querySelector('.usd-card-no'), h: Math.round(b.getBoundingClientRect().height), w: Math.round(b.getBoundingClientRect().width) }));
+			const heads = Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="col-menu-btn"][data-no]')).map((b) => ({ aria: b.getAttribute('aria-label'), fb: (b.querySelector('[data-usd-el="gh-fallback"]') || {}).textContent || null, ico: !!b.querySelector('img'), num: !!b.querySelector('.usd-card-no'), h: Math.round(b.getBoundingClientRect().height), w: Math.round(b.getBoundingClientRect().width) }));
 			const tl = Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="roster-tile"]')).slice(0, 3).map((t) => ({ aria: (t.querySelector('[data-usd-el="pick-card"]') || {}).getAttribute('aria-label'), ico: !!t.querySelector('[data-usd-el="card-type-icon"]'), num: !!t.querySelector('.usd-card-no') }));
 			return { heads, tl, hs: Array.from(new Set(Array.from(document.querySelectorAll('#deck-roster-panel .usd-roster-gh')).map((e) => Math.round(e.getBoundingClientRect().height * 10) / 10))), sw: document.documentElement.scrollWidth - window.innerWidth };
 		});
