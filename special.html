@@ -36,7 +36,7 @@
 	<script src="js/skillset-ocr.js?v=2026-09-14b"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-27a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-27b"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -396,7 +396,9 @@
 		body .usd-out-segbtn:not(.usd-out-optbtn):not(.usd-out-filterchip)[aria-pressed="true"], body .usd-roster-choice--on, body .usd-link-opt--on {
 			background-color: var(--uma-surface); border-color: var(--usd-ui-sel); color: var(--uma-text-heading); box-shadow: inset 0 0 0 1px var(--usd-ui-sel);
 		}
-		/* タイル: 通常は細い枠。太い枠は選んでいるものだけ（①＝いま選んでいる枠・オススメサポ＝自分で選んだ（固定した）カード） */
+		/* 2026-10-27（夜間のまとめ・作業4(1)）: イベントの小窓の選んだ選択肢のボタンは、太い枠（上のまま）に加えて、地を設定済みの色（--usd-ui-set）に */
+		body .usd-roster-choice--on { background-color: var(--usd-ui-set); }
+		/* タイル:通常は細い枠。太い枠は選んでいるものだけ（①＝いま選んでいる枠・オススメサポ＝自分で選んだ（固定した）カード） */
 		body .usd-out-card--pinned { border-color: var(--usd-ui-sel); }
 		body .usd-roster-umabox.usd-roster-pickbox--filled { background: var(--uma-surface); border-color: var(--usd-ui-line); color: var(--uma-text-heading); box-shadow: none; }
 		body .usd-roster-umabox.usd-roster-pickbox--filled .usd-roster-pickbtn { color: var(--uma-text-heading); }
@@ -422,10 +424,14 @@
 		.bg-slate-900\/80 { background-color: var(--star-img-count); }
 		/* ダーク: 金スキルの行の参考の Pt と、回復の名前の青（金の地の上で 4.5 以上）。特別な固有スキルの行の文字は白 */
 		/* 名前の色（回復・パッシブ・デバフ）は、ダークの本文の色（#f3f1ec）からライト以上に離す（色相はそのまま） */
-		:root[data-theme="dark"] body .usd-roster-grid { --usd-skill-heal-text: #5aa9ff; --usd-skill-passive-text: #5fd889; --usd-skill-debuff-text: #ff7f75; }
-		:root[data-theme="dark"] body .usd-roster-grow--gold .usd-roster-skillname--heal { color: #86c2ff; }
-		:root[data-theme="dark"] body .usd-roster-grow--gold .usd-roster-skillname--debuff { color: #ffaaa2; }
+		:root[data-theme="dark"] body .usd-roster-grid, :root[data-theme="dark"] body .usd-ev-panes { --usd-skill-heal-text: #5aa9ff; --usd-skill-passive-text: #5fd889; --usd-skill-debuff-text: #ff7f75; }
+		:root[data-theme="dark"] body .usd-roster-grow--gold .usd-roster-skillname--heal, :root[data-theme="dark"] body .usd-ev-skill--gold .usd-ev-tone--heal, :root[data-theme="dark"] body .usd-roster-choice--on .usd-ev-tone--heal { color: #86c2ff; }
+		:root[data-theme="dark"] body .usd-roster-grow--gold .usd-roster-skillname--debuff, :root[data-theme="dark"] body .usd-ev-skill--gold .usd-ev-tone--debuff, :root[data-theme="dark"] body .usd-roster-choice--on .usd-ev-tone--debuff { color: #ffaaa2; }
 		:root[data-theme="dark"] .usd-roster-grow--gold .usd-roster-pt--ref { color: #cfc4a4; }
+		/* 2026-10-27（夜間のまとめ・作業4）: イベントの小窓のダーク。金の地の上の「未選択」の行の灰色は①の金の行の参考の Pt と同じ色に、
+		   選んだ選択肢の地（--usd-ui-set）の上の条件外・スキルなしの灰色は一段明るい灰色に（どちらも 4.5:1 に届かせるため。色相は灰のまま） */
+		:root[data-theme="dark"] body .usd-ev-skill--gold.usd-ev-skill--maybe :is(.usd-ev-skill-name, .usd-ev-skill-pt, .usd-ev-skill-desc) { color: #cfc4a4; }
+		:root[data-theme="dark"] body .usd-roster-choice--on :is(.usd-roster-choiceskill--dim, .usd-roster-choiceskill--none) { color: var(--uma-text-subtle); text-decoration-color: var(--uma-text-subtle); }
 		:root[data-theme="dark"] body .usd-roster-grow--unique :is(.usd-roster-skillname, .usd-roster-pt) { color: #ffffff; }
 		/* 見出しの脇の一言（3-3）: 2行に折り返すときは、行の長さをそろえる */
 		.header-tagline[data-lines="2"] { text-wrap: balance; }

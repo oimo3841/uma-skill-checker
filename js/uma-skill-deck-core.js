@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-27a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-27b';
 
 	/* ============================================================
 	 * 定数
@@ -6301,11 +6301,12 @@
 		// 地の優先は 固有 > 金 > 回復（CSS の並び順で決める＝回復 → 金 → 固有）、文字の優先は 回復 > デバフ > パッシブ（JS が1つだけクラスを付ける）。
 		// 文字と地の組み合わせは、すべてコントラスト比 4.5 以上（検査が実際の色で見る）
 		// 固有スキルの行の色（--usd-skill-unique-*）は、入口の「オススメサポ」のボタンも読むので :root に置いてある（段7・2026-10-04）
-		'.usd-roster-grid { --usd-skill-heal-bg: #e6f3fd; --usd-skill-heal-text: #0b5fa5; --usd-skill-passive-text: #1b7a3a; --usd-skill-debuff-text: #b3261e; --usd-skill-pt-text: #546580; }',
+		// 2026-10-27（夜間のまとめ・作業4）: イベントの小窓の一覧（.usd-ev-panes）も同じ変数で、回復・デバフ・緑の文字の色を①と同じにする
+		'.usd-roster-grid, .usd-ev-panes { --usd-skill-heal-bg: #e6f3fd; --usd-skill-heal-text: #0b5fa5; --usd-skill-passive-text: #1b7a3a; --usd-skill-debuff-text: #b3261e; --usd-skill-pt-text: #546580; }',
 		// スキル名の列見出しの種類のアイコンと漏斗（段13・B3）。アイコンの色は変数（ダークモードで差し替える）
 		'.usd-roster-grid { --usd-tone-icon-heal: #2a7fd4; --usd-tone-icon-debuff: #d4363f; --usd-tone-icon-fg: #ffffff; --usd-tone-icon-passive: var(--uma-green-skill); --usd-tone-icon-circle: var(--uma-text-heading); }',
 		// ダーク（C-134 段4）: 種類の色は色相を保って明るい側へ（回復＝青・パッシブ＝緑・デバフ＝赤。Pt は淡い灰）。アイコンの地は中間の濃さで、記号は暗い色
-		':root[data-theme="dark"] .usd-roster-grid { --usd-skill-heal-bg: #172a40; --usd-skill-heal-text: #7cbcff; --usd-skill-passive-text: #6fdc95; --usd-skill-debuff-text: #ff8f87; --usd-skill-pt-text: #b6c2d4;',
+		':root[data-theme="dark"] .usd-roster-grid, :root[data-theme="dark"] .usd-ev-panes { --usd-skill-heal-bg: #172a40; --usd-skill-heal-text: #7cbcff; --usd-skill-passive-text: #6fdc95; --usd-skill-debuff-text: #ff8f87; --usd-skill-pt-text: #b6c2d4;',
 		'  --usd-tone-icon-heal: #4a9ef5; --usd-tone-icon-debuff: #f0605f; --usd-tone-icon-fg: #0f1318; }',
 		'.usd-roster-gh.usd-roster-gh--skill { gap: 2px; padding-right: 2px; }',
 		'.usd-roster-ghtitle { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
@@ -6411,8 +6412,18 @@
 		'.usd-ev-skilllist { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }',
 		'.usd-ev-skill { display: flex; flex-direction: column; gap: 1px; min-width: 0; padding: var(--uma-sp-1-5) 0; border-top: 1px solid var(--uma-border); }',
 		'.usd-ev-skill:first-child { border-top: 0; }',
-		// 段13・C5: 金スキルの行の金色の帯（①の表の金の行と同じ --uma-stitch-soft）
-		'.usd-ev-skill--gold { background: var(--uma-stitch-soft); padding-inline: var(--uma-sp-1-5); border-radius: var(--uma-r-sm); }',
+		// 段13・C5: 金スキルの行の金色の帯。2026-10-27（夜間のまとめ・作業4(2)）: ①の表の金の行と同じ地（--uma-gold-row-bg。無ければ --uma-stitch-soft）＋左の縦バー 4px（--uma-gold-row-bar）。
+		// 名前の文字色は変えない。条件を満たしていない金スキル（--dim）には付けない（JS がクラスを付けない）
+		'.usd-ev-skill--gold { background: var(--uma-gold-row-bg, var(--uma-stitch-soft)); box-shadow: inset 4px 0 0 var(--uma-gold-row-bar, transparent);',
+		'  padding-inline: calc(var(--uma-sp-1-5) + 4px) var(--uma-sp-1-5); border-radius: var(--uma-r-sm); }',
+		// 作業4(3): 金の直下に並べた下位の白（「└」。字下げなし）は、金の行とひと続きに見せるため上の区切り線を引かない
+		'.usd-ev-skill--gold + .usd-ev-skill--goldwhite, .usd-ev-skill--goldwhite + .usd-ev-skill--goldwhite { border-top: 0; }',
+		// 作業4(4): 回復（青）・デバフ（赤）・緑の文字の色を①と同じに（右の一覧と左の選択肢のスキル名。色だけで、太さは変えない）
+		'.usd-ev-panes .usd-ev-tone--heal { color: var(--usd-skill-heal-text); }',
+		'.usd-ev-panes .usd-ev-tone--debuff { color: var(--usd-skill-debuff-text); }',
+		'.usd-ev-panes .usd-ev-tone--passive { color: var(--usd-skill-passive-text); }',
+		// 作業4(5): 条件を満たしていないスキルは、灰色の文字（faint）＋スキル名に灰色の取り消し線（地の色と縦バーは付けない）
+		'.usd-ev-skill--dim .usd-ev-skill-name, .usd-roster-choiceskill--dim { text-decoration: line-through; text-decoration-color: var(--uma-text-faint); }',
 		// 衣装の小窓の進化（C-153）。進化先の行は段4の進化先と同じ色（--evo- の変数）。金の行・白の行の名前の先頭に「└」（進化スキルの説明の小窓と同じ部品）、白は1段下げる
 		// 段G(5): 2px の枠は無くし、左の縦バー（4px）に置き換えた（色は変更前の枠の色 --evo-edge のまま。枠の 2px ぶんは余白に移して行の大きさは同じ）
 		'.usd-ev-skill--evo { box-sizing: border-box; padding: calc(var(--uma-sp-1-5) + 2px) calc(var(--uma-sp-1-5) + 2px); border: 0; box-shadow: inset 4px 0 0 var(--evo-edge); border-radius: var(--uma-r-sm); background: linear-gradient(90deg, var(--evo-from), var(--evo-mid), var(--evo-to)); }',
@@ -9569,18 +9580,26 @@
 		if (inGroup && isNonNegInt(e.step)) return e.step + '番目';
 		return isNonNegInt(e.step) ? e.step + '回目' : (e.index + 1) + 'つ目';
 	}
+	/**
+	 * スキル名の文字の色のクラス（2026-10-27・夜間のまとめ・作業4(4)）。①の表と同じ見分け（rowToneOf）で、回復・デバフ・緑。どれでもなければ空。
+	 * 小窓の右の一覧と左の選択肢のスキル名に付ける（条件を満たしていない・未選択のものには付けない＝灰色のまま）
+	 */
+	function evToneClassOf(skillId) {
+		const t = rowToneOf(skillId);
+		return t.heal ? ' usd-ev-tone--heal' : t.debuff ? ' usd-ev-tone--debuff' : t.passive ? ' usd-ev-tone--passive' : '';
+	}
 	/** 取得できるスキルの1件（3行：スキル名／基礎Pt／公式の説明文）。絞り込みで外れるものは灰色、未選択のイベントしだいのものは薄く「未選択」の印 */
 	function eventSkillRowEl(it, maybe, dim, tag) {
-		// 段13・C5: 金スキルの行は金色の帯（①の表の金の行と同じ地）
+		// 段13・C5: 金スキルの行は金色の帯（①の表の金の行と同じ地）。2026-10-27（作業4(5)）: 条件を満たしていない金スキルには地と縦バーを付けない
 		const ptRow = skillPtData.skillPt instanceof Map ? skillPtData.skillPt.get(it.skillId) : null;
-		const gold = !!ptRow && ptRow.rarity === 'gold';
+		const gold = !!ptRow && ptRow.rarity === 'gold' && !dim;
 		const li = infoEl('li', 'usd-ev-skill' + (maybe ? ' usd-ev-skill--maybe' : '') + (dim ? ' usd-ev-skill--dim' : '') + (gold ? ' usd-ev-skill--gold' : ''));
 		li.setAttribute('data-usd-el', 'ev-skill');
 		if (gold) li.setAttribute('data-usd-gold', '1');
 		li.setAttribute('data-skill-id', it.skillId);
 		if (maybe) li.setAttribute('data-usd-maybe', '1');
 		if (dim) li.setAttribute('data-usd-dim', '1');
-		const name = infoEl('p', 'usd-ev-skill-name', getSkillName(it.skillId));
+		const name = infoEl('p', 'usd-ev-skill-name' + (maybe || dim ? '' : evToneClassOf(it.skillId)), getSkillName(it.skillId));
 		if (maybe) {
 			const tag = infoEl('span', 'usd-ev-tag', '未選択');
 			tag.setAttribute('data-usd-el', 'ev-skill-tag');
@@ -9638,6 +9657,17 @@
 		if (name) name.insertBefore(m, name.firstChild);
 		li.setAttribute('data-usd-evo-depth', String(depth));
 		if (depth >= 2) li.classList.add('usd-ev-skill--evochild');
+		return li;
+	}
+	/** 金スキルの直下に並べる下位の白の行（2026-10-27・作業4(3)）。名前の先頭に「└」（markEvoRow と同じ部品）。字下げはしない */
+	function markGoldWhiteRow(li, goldId) {
+		const name = li.querySelector('.usd-ev-skill-name');
+		const m = infoEl('span', 'usd-info-evorel-mark usd-ev-evomark', '└');
+		m.setAttribute('aria-hidden', 'true');
+		m.setAttribute('data-usd-el', 'ev-gold-white-mark');
+		if (name) name.insertBefore(m, name.firstChild);
+		li.classList.add('usd-ev-skill--goldwhite');
+		li.setAttribute('data-usd-gold-white-of', goldId);
 		return li;
 	}
 	/**
@@ -9712,7 +9742,7 @@
 				if (merged.size === 0) ul.appendChild(infoEl('span', 'usd-roster-choiceskill usd-roster-choiceskill--none', 'スキルなし'));
 				merged.forEach(ref => {
 					const dim = wanted && !wanted(ref.skillId);
-					const sp = infoEl('span', 'usd-roster-choiceskill' + (dim ? ' usd-roster-choiceskill--dim' : ''), getSkillName(ref.skillId) + (isNonNegInt(ref.hintLevel) ? ' Lv' + ref.hintLevel : ''));
+					const sp = infoEl('span', 'usd-roster-choiceskill' + (dim ? ' usd-roster-choiceskill--dim' : evToneClassOf(ref.skillId)), getSkillName(ref.skillId) + (isNonNegInt(ref.hintLevel) ? ' Lv' + ref.hintLevel : ''));
 					if (dim) sp.setAttribute('data-usd-dim', '1');
 					ul.appendChild(sp);
 				});
@@ -9747,7 +9777,7 @@
 				if (opt.skills.length === 0) ul.appendChild(infoEl('span', 'usd-roster-choiceskill usd-roster-choiceskill--none', 'スキルなし'));
 				opt.skills.forEach(sk => {
 					const dim = wanted && !wanted(sk.skillId);
-					const sp = infoEl('span', 'usd-roster-choiceskill' + (dim ? ' usd-roster-choiceskill--dim' : ''), getSkillName(sk.skillId) + (isNonNegInt(sk.hintLevel) ? ' Lv' + sk.hintLevel : ''));
+					const sp = infoEl('span', 'usd-roster-choiceskill' + (dim ? ' usd-roster-choiceskill--dim' : evToneClassOf(sk.skillId)), getSkillName(sk.skillId) + (isNonNegInt(sk.hintLevel) ? ' Lv' + sk.hintLevel : ''));
 					if (dim) sp.setAttribute('data-usd-dim', '1');
 					ul.appendChild(sp);
 				});
@@ -9812,7 +9842,7 @@
 				if (c.skills.length === 0) ul.appendChild(infoEl('span', 'usd-roster-choiceskill usd-roster-choiceskill--none', 'スキルなし'));
 				c.skills.forEach(s => {
 					const dim = wanted && !wanted(s.skillId);
-					const sp = infoEl('span', 'usd-roster-choiceskill' + (dim ? ' usd-roster-choiceskill--dim' : ''),
+					const sp = infoEl('span', 'usd-roster-choiceskill' + (dim ? ' usd-roster-choiceskill--dim' : evToneClassOf(s.skillId)),
 						getSkillName(s.skillId) + (isNonNegInt(s.hintLevel) ? ' Lv' + s.hintLevel : ''));
 					if (dim) sp.setAttribute('data-usd-dim', '1');
 					ul.appendChild(sp);
@@ -9877,7 +9907,7 @@
 			box.appendChild(t);
 			const ul = infoEl('div', 'usd-roster-choiceskills');
 			fe.skills.filter(x => findSkill(x.skillId)).forEach(x => {
-				const sp = infoEl('span', 'usd-roster-choiceskill', getSkillName(x.skillId) + (isNonNegInt(x.hintLevel) ? ' Lv' + x.hintLevel : ''));
+				const sp = infoEl('span', 'usd-roster-choiceskill' + evToneClassOf(x.skillId), getSkillName(x.skillId) + (isNonNegInt(x.hintLevel) ? ' Lv' + x.hintLevel : ''));
 				sp.setAttribute('data-usd-el', 'event-fixed-skill');
 				ul.appendChild(sp);
 			});
@@ -9940,11 +9970,33 @@
 			};
 			const moved = new Set();
 			ordered.forEach(x => { if (evoOf.has(x.it.skillId)) whitesOf(x.it.skillId).forEach(w => { if (!moved.has(w) && ordered.some(y => y.it.skillId === w)) moved.add(w); }); });
+			// 2026-10-27（夜間のまとめ・作業4(3)）: ほかの金スキル（上の進化の並びに入らないもの）は、一覧にある下位の白だけを、金の直下に「└」で並べる（字下げなし。
+			// 一覧に無い白は足さない）。下位の白は前段データ（skill-step-up.json）を根までさかのぼる。組にするのは「確定」どうし・「未選択」どうしだけ
+			const rarityOf = (id) => { const r = skillPtData.skillPt instanceof Map ? skillPtData.skillPt.get(id) : null; return r ? r.rarity : null; };
+			const chainWhitesOf = (g) => {
+				const su = skillPtData.stepUp, out = [], seen = new Set();
+				if (!su || typeof su.prevOf !== 'function') return out;
+				const walk = (id) => su.prevOf(id).forEach(p => { if (seen.has(p)) return; seen.add(p); if (rarityOf(p) === 'white') out.push(p); walk(p); });
+				walk(g);
+				return out;
+			};
+			const goldWhites = new Map();
+			ordered.forEach(x => {
+				if (evoOf.has(x.it.skillId) || rarityOf(x.it.skillId) !== 'gold') return;
+				const ws = chainWhitesOf(x.it.skillId).map(w => ordered.find(y => y.it.skillId === w && y.maybe === x.maybe)).filter(y => y && !moved.has(y.it.skillId));
+				if (ws.length === 0) return;
+				ws.forEach(y => moved.add(y.it.skillId));
+				goldWhites.set(x.it.skillId, ws);
+			});
 			const placed = new Set();
 			ordered.forEach(x => {
 				if (moved.has(x.it.skillId) || placed.has(x.it.skillId)) return;
 				const targets = evoOf.get(x.it.skillId);
-				if (!targets) { ul.appendChild(rowOf(x)); return; }
+				if (!targets) {
+					ul.appendChild(rowOf(x));
+					(goldWhites.get(x.it.skillId) || []).forEach(y => { placed.add(y.it.skillId); ul.appendChild(markGoldWhiteRow(rowOf(y), x.it.skillId)); });
+					return;
+				}
 				targets.forEach(t => ul.appendChild(evolvedSkillRowEl(t)));
 				ul.appendChild(markEvoRow(rowOf(x), 1));
 				whitesOf(x.it.skillId).forEach(w => {
