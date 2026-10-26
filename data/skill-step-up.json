@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-02b",
+	"dataVersion": "2026-10-27a",
 	"category": "skillStepUp",
 	"note": "ゲーム内で確認できるスキルのステップアップの関係（直前のスキルと、ヒントレベルの根）。ゲーム画面で確認した関係と突き合わせ済み。",
 	"entries": [
@@ -2436,6 +2436,42 @@
 			"skillId": "ex-0986",
 			"prevSkillIds": [
 				"ex-0987"
+			]
+		},
+		{
+			"skillId": "ex-1672",
+			"prevSkillIds": [
+				"ex-1673"
+			]
+		},
+		{
+			"skillId": "ex-1683",
+			"prevSkillIds": [
+				"ex-1680"
+			]
+		},
+		{
+			"skillId": "ex-1684",
+			"prevSkillIds": [
+				"ex-1682"
+			]
+		},
+		{
+			"skillId": "ex-1685",
+			"prevSkillIds": [
+				"ex-1679"
+			]
+		},
+		{
+			"skillId": "ex-1691",
+			"prevSkillIds": [
+				"ex-1678"
+			]
+		},
+		{
+			"skillId": "ex-1692",
+			"prevSkillIds": [
+				"ex-1693"
 			]
 		}
 	]
