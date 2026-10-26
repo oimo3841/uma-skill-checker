@@ -507,7 +507,7 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 		await sp.page.waitForTimeout(800);
 		await sp.page.click('#deck-roster-panel [data-usd-el="col-menu-btn"][data-member-key="0"]'); await sp.page.click('[data-usd-el="colmenu-events"]');   // 2026-10-26: 育成ウマ娘の列もメニューから
 		await sp.page.waitForTimeout(400);
-		const rows = await sp.page.evaluate(() => [...document.querySelectorAll('[data-usd-el="info-pop"] [data-usd-el="ev-skills"] > li')].map((li) => ({ id: li.getAttribute('data-skill-id'), el: li.getAttribute('data-usd-el'), depth: li.getAttribute('data-usd-evo-depth'), gold: li.getAttribute('data-usd-gold') === '1', pt: (li.querySelector('[data-usd-el="ev-skill-pt"]') || {}).textContent || null })));
+		const rows = await sp.page.evaluate(() => [...document.querySelectorAll('[data-usd-el="info-pop"] [data-usd-el="ev-skills"] > li')].map((li) => ({ id: li.getAttribute('data-skill-id'), el: li.getAttribute('data-usd-el'), depth: li.getAttribute('data-usd-evo-depth'), gold: li.getAttribute('data-usd-gold') === '1', dim: li.getAttribute('data-usd-dim') === '1', whiteOf: li.getAttribute('data-usd-gold-white-of'), pt: (li.querySelector('[data-usd-el="ev-skill-pt"]') || {}).textContent || null })));
 		const errs = sp.errors.filter((m) => !/Failed to load resource/.test(m));
 		await sp.ctx.close();
 		return { rows, errs };
@@ -530,14 +530,16 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 	assert(groupOk(r1.rows, 'uma-0269') && ids1.indexOf('ex-1146') === ids1.indexOf('ex-0354') - 1 && ids1.indexOf('ex-1147') === ids1.indexOf('ex-0633') - 1,
 		'衣装の小窓（シンボリルドルフ・長距離のレース）: 大望は煌めきとなりて → └ 気炎万丈 → └ その前段の白、熾烈の極みの進化先も同じ形（レースの条件で絞らない・Pt 不要）', r1.rows.map((r) => r.id + (r.depth ? '/' + r.depth : '') + (r.el === 'ev-skill-evo' ? '(進化)' : '')));
 	assert(r1.rows.filter((r) => r.el === 'ev-skill-evo').length === evoRowsOf('uma-0269').reduce((a, e) => a + e.evolvedSkillIds.length, 0), '衣装の小窓（シンボリルドルフ）: 進化先の行の数＝その衣装の進化先の数（' + evoRowsOf('uma-0269').reduce((a, e) => a + e.evolvedSkillIds.length, 0) + '）');
-	// 進化先がない金スキル（進化の対応から気炎万丈の行を外したもの）では、進化先も「└」も出さず、前段の白も動かさない
+	// 進化先がない金スキル（進化の対応から気炎万丈の行を外したもの）では、進化先も進化の「└」（data-usd-evo-depth）も出さない
 	const cut = { entries: evolutions.entries.filter((e) => !(e.kind === 'uma' && e.umaId === 'uma-0269' && e.baseSkillId === 'ex-0354')) };
 	const r2 = await popRows('uma-0269', cut);
 	const ids2 = r2.rows.map((r) => r.id);
 	const k = r2.rows.find((r) => r.id === 'ex-0354');
-	// 気炎万丈の前段の白（172）は、これまでの並び（金スキルの直下ではない位置）のまま。熾烈の極みは進化先があるので、これまでどおり組になる
-	assert(!!k && !k.depth && k.gold && ids2.indexOf('ex-1146') === -1 && ids2.indexOf('172') !== ids2.indexOf('ex-0354') + 1 && !r2.rows.find((r) => r.id === '172').depth && groupOk(r2.rows, 'uma-0269', cut),
-		'進化先がない金スキル: 進化先も「└」も出さず、前段の白も金スキルの直下へ動かさない（これまでの並び。金の強調はそのまま）', { gold: k, ids: ids2 });
+	const w172 = r2.rows.find((r) => r.id === '172');
+	// 2026-10-27（C-211 の (3)(5) に合わせた。C-212）: 気炎万丈の前段の白（172）は、金の直下に「└」で並ぶ（進化の depth ではなく data-usd-gold-white-of）。
+	// 金の地（data-usd-gold）は、条件を満たしていない（灰色の）ときは付けない。熾烈の極みは進化先があるので、これまでどおり組になる
+	assert(!!k && !k.depth && k.gold === !k.dim && ids2.indexOf('ex-1146') === -1 && ids2.indexOf('172') === ids2.indexOf('ex-0354') + 1 && !!w172 && !w172.depth && w172.whiteOf === 'ex-0354' && groupOk(r2.rows, 'uma-0269', cut),
+		'進化先がない金スキル: 進化先も進化の「└」も出さず、前段の白は金スキルの直下に「└」で並ぶ（C-211。金の地は条件を満たすときだけ）', { gold: k, white: w172, ids: ids2 });
 	// 覚醒Lv7（金スキル3つ）の衣装: 進化先がある金スキルのすべてに出す
 	const lv7 = umas.filter((u) => evoRowsOf(u.id).length === 3);
 	const r3 = await popRows(lv7[0].id);
