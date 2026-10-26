@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-26d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-26e';
 
 	/* ============================================================
 	 * 定数
@@ -4540,6 +4540,19 @@
 	}
 
 	/**
+	 * 金スキルの前段で、編成の●の行にあるもの（visiblePartOf の絞り込みの例外。2026-10-26）。takenGoldIds のうち skill-pt.json の rarity が金のものの前段を、
+	 * 前段データ（stepUp.prevOf）で根までさかのぼり、sureIds にあるものを集める（間の段が●でなくても、その先はたどる）。前段データが無ければ空
+	 */
+	function goldPrereqIdsOf(takenGoldIds, sureIds) {
+		const out = new Set();
+		const su = skillPtData.stepUp, pt = skillPtData.skillPt;
+		if (!su || typeof su.prevOf !== 'function' || !(pt instanceof Map)) return out;
+		const seen = new Set();
+		const walk = (id) => su.prevOf(id).forEach(p => { if (seen.has(p)) return; seen.add(p); if (sureIds.has(p)) out.add(p); walk(p); });
+		(takenGoldIds || []).forEach(id => { const row = pt.get(id); if (row && row.rarity === 'gold') walk(id); });
+		return out;
+	}
+	/**
 	 * 編成の「表に出す部分」（段7d の ⑥）。絞り込みに当たる行とその由来・取得しないスキル・実際に取る●。
 	 * **①のパネルの computed() と、②の「本育成編成」（rosterPtInputsOf）が同じ関数を通る**ので、
 	 * ①の「X Pt/N種」と②が本育成編成として数える Pt は、絞り込み・取得しないスキル・イベントの選択・状態・ヒントLv・前段の扱いまで同じになる。
@@ -4557,7 +4570,13 @@
 			res.items.filter(it => it.sure && !off.has(it.skillId) && (!wanted || wanted(it.skillId))).map(it => it.skillId));
 		const evolving = new Set();
 		if (evoPlan) Object.keys(evoPlan.choices).forEach(k => { if (evoPlan.choices[k] !== 'none') evolving.add(k); });
-		const shown = wanted ? (id) => wanted(id) || evolving.has(id) : null;
+		const shownBase = wanted ? (id) => wanted(id) || evolving.has(id) : null;
+		// 取得する金スキルの前段の白（2026-10-26・おいもさんの決定）。①で取得する金スキル（●で、取得しないでなく、表に出るもの。進化させる金を含む）の前段を
+		// 前段データでさかのぼり、編成の●の行にあるもの（由来を問わない）は、絞り込みに合わなくても本物の行として表・取得・計算に残す。
+		// 由来も全部残るので、ヒントLvは今の決まり（由来ごとの加算・上限）のまま数える。取得しないにした金の前段は残さない（今までどおり）
+		const prereq = shownBase ? goldPrereqIdsOf(res.items.filter(it => it.sure && !off.has(it.skillId) && shownBase(it.skillId)).map(it => it.skillId),
+			new Set(res.items.filter(it => it.sure).map(it => it.skillId))) : null;
+		const shown = shownBase ? (id) => shownBase(id) || prereq.has(id) : null;
 		const visibleItems = shown ? res.items.filter(it => shown(it.skillId)) : res.items.slice();
 		const vis = new Set(visibleItems.map(it => it.skillId));
 		const visibleSources = shown ? res.sources.filter(s => vis.has(s.skillId)) : res.sources;

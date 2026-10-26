@@ -15,6 +15,7 @@
 //   §8 衣装の小窓（C-153・2026-10-14）: 進化先がある金スキルの上に進化先、下に前段の白（進化 → └ 金 → └ 白）。進化先がない金スキル・覚醒Lv7・シナリオの進化は出さない
 //
 //   §11 選べない進化先の強調（2026-10-24・案G）: 選べなくしている条件の語だけを強調する位置（＜…＞のAND・OR・全体の距離・conditions）。§12 小窓: 無効のラジオ・強調の見た目・閉じるの貼り付き・コントラスト
+//   §14 取得する金スキルの前段の白（2026-10-26）: 全衣装 × 絞り込み12 × 脚質5 × 進化の選択で、衣装の初期・覚醒スキルが「前段として必要」に入らない（新しい衣装の受け入れでも回る）。uma-0272 の手書きの期待値
 //   §10 conditions（2026-10-21a〜・段1）: 進化先の「使える条件」（レース場・回り・季節・バ場状態）を読む。合わない→選べない・判定できない→選べるが既定にならない・all が空の21件は現行と同じ
 //
 // 件数の基準（受け入れ前に測った値）: 辞書 = マスター445 ＋ 追加カタログ747 = 1192
@@ -993,6 +994,67 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 	assert(r13.old === 0, '前のシナリオ（トレセン軒）の金スキルを持っていても、その進化の行は使わない', r13.old);
 	assert(err3.length === 0, '§13 コンソールのエラー0', err3);
 	await ctx3.close();
+}
+
+/* ───────── §14 取得する金スキルの前段の白は、①の絞り込みで外さない（2026-10-26） ───────── */
+{
+	console.log('\n=== §14 取得する金スキルの前段の白: 全衣装 × 絞り込み × 脚質 × 進化の選択で、自分の初期・覚醒スキルが「前段として必要」に入らない ===');
+	const ctx4 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+	const p4 = await ctx4.newPage();
+	const err4 = [];
+	p4.on('pageerror', (e) => err4.push(String(e)));
+	await p4.goto(srv.base + '/uma-skill-deck.html', { waitUntil: 'networkidle', timeout: 60000 });
+	await p4.waitForFunction(() => !!window.UmaSkillDeckCore && window.UmaSkillDeckCore.getMasterSkills().length > 0);
+	// 絞り込み 12 通り（指定なし・距離4・レースの全行）× 脚質 5 通り × 進化の選択（既定／衣装の進化を全部手で先頭の進化先に）
+	const filters = [{}].concat(['short', 'mile', 'medium', 'long'].map((d) => ({ skillFilter: { distance: d } }))).concat(races.map((x) => ({ race: x })));
+	const r14 = await p4.evaluate(async ({ umas, filters, evo }) => {
+		const C = window.UmaSkillDeckCore;
+		for (const n of ['loadTrainingSources', 'loadSkillPtData', 'loadSkillDescriptions', 'loadSkillEffectLevels', 'loadSkillEvolutions', 'loadUpcomingRaces', 'loadScenarioEvents']) await C[n]();
+		const out = { configs: 0, hits: [], noPt: 0 };
+		umas.forEach((u) => {
+			const own = new Set();
+			(u.initialSkills || []).concat(u.awakeningSkills || []).forEach((g) => (g.skills || []).forEach((s) => own.add(s.skillId)));
+			const c = {};
+			evo.filter((e) => e.kind === 'uma' && e.umaId === u.id).forEach((e) => { c[e.baseSkillId] = e.evolvedSkillIds[0]; });
+			const choiceSets = Object.keys(c).length ? [null, c] : [null];
+			filters.forEach((f) => [null, 'nige', 'senko', 'sashi', 'oikomi'].forEach((st) => choiceSets.forEach((cs) => {
+				const r = Object.assign({ umaId: u.id }, JSON.parse(JSON.stringify(f)));
+				if (st) r.skillFilter = Object.assign({}, r.skillFilter || {}, { style: st });
+				if (cs) r.evolutionChoices = cs;
+				out.configs++;
+				const pt = C.getRosterPtDetail(r);
+				if (!pt) { out.noPt++; return; }
+				// 取得している○が◎に上がって前段に数えられるもの（C-165）は除く（取得に入らず前段に入るものだけを数える）
+				const taken = new Set(C.getRosterVisiblePart(r).takenIds);
+				pt.prevItems.forEach((x) => { if (own.has(x.skillId) && !taken.has(x.skillId)) out.hits.push(u.id + ' ' + x.skillId + ' ' + (r.race ? r.race.id : JSON.stringify(r.skillFilter || {})) + (cs ? ' 手で進化' : '')); });
+			})));
+		});
+		return out;
+	}, { umas, filters, evo: evolutions.entries });
+	assert(r14.configs === umas.length * filters.length * 5 + umas.filter((u) => evolutions.entries.some((e) => e.kind === 'uma' && e.umaId === u.id)).length * filters.length * 5 && r14.noPt === 0,
+		'組み合わせの数（衣装 ' + umas.length + ' × 絞り込み ' + filters.length + ' × 脚質 5 × 進化の選択）を全部計算できた', { configs: r14.configs, noPt: r14.noPt });
+	assert(r14.hits.length === 0, '衣装の初期・覚醒スキルが、取得に入らず「前段として必要」（ヒントLv0 の行・金の下の「└」の合成の行）に入る組み合わせは 0', r14.hits.slice(0, 10));
+	// 手書きの期待値（uma-0272。id で書く）: 中距離の白 292 を前段に持つ金 ex-0460 を進化させる長距離のレース（race-0002）・脚質 逃げ
+	const raceLong = races.find((x) => x.id === 'race-0002');
+	const h = await p4.evaluate(({ race }) => {
+		const C = window.UmaSkillDeckCore;
+		const pick = (r, id) => { const vp = C.getRosterVisiblePart(r), pt = C.getRosterPtDetail(r); const it = pt.items.find((x) => x.skillId === id);
+			return { vis: vp.visibleIds.includes(id), taken: vp.takenIds.includes(id), lv: it ? it.hintLevel : null, prev: pt.prevItems.some((x) => x.skillId === id), evo: vp.evoChoices }; };
+		const base = { umaId: 'uma-0272', race: race, skillFilter: { style: 'nige' } };
+		return {
+			nige292: pick(base, '292'),
+			senko276: pick({ umaId: 'uma-0272', race: race, skillFilter: { style: 'senko' }, evolutionChoices: { 'ex-0151': 'ex-1689' } }, '276'),
+			card292: pick(Object.assign({}, base, { cardIds: ['card-0494'] }), '292'),
+			off292: pick(Object.assign({}, base, { offSkillIds: ['ex-0460'] }), '292')
+		};
+	}, { race: raceLong });
+	assert(h.nige292.evo && h.nige292.evo['ex-0460'] === 'ex-1690' && h.nige292.vis && h.nige292.taken && h.nige292.lv === 3 && !h.nige292.prev,
+		'uma-0272・race-0002・逃げ: ex-0460 を ex-1690 に進化させ、前段の 292（中距離）は表と取得に入り、ヒントLv3 で数え、前段（prevItems）に無い', h.nige292);
+	assert(h.senko276.vis && h.senko276.taken && h.senko276.lv === 3 && !h.senko276.prev, 'uma-0272・race-0002・先行（ex-0151 を進化）: 前段の 276（逃げ）も同じ', h.senko276);
+	assert(h.card292.vis && h.card292.taken && h.card292.lv === 5 && !h.card292.prev, 'サポカ card-0494 のヒントでも 292 を得るときは、覚醒Lv0 のヒントLv と合算してヒントLv5', h.card292);
+	assert(!h.off292.vis && !h.off292.taken && !h.off292.prev, '金 ex-0460 を「取得しない」にしたときは、前段の 292 を残さない（今までどおり絞り込みで外れる）', h.off292);
+	assert(err4.length === 0, '§14 コンソールのエラー0', err4);
+	await ctx4.close();
 }
 
 assert(errors.length === 0, 'コンソールエラーなし', errors);
