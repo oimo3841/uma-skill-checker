@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-27c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-27d';
 
 	/* ============================================================
 	 * 定数
@@ -90,7 +90,7 @@
 		// スキルの公式の説明文（2026-10-02）。ページの読み込みでは取りに行かない（ⓘ・長押しを最初に開いたときだけ。段6）
 		'data/skill-descriptions.json': '2026-10-26a',
 		// シナリオの固定イベントで得られるスキルとヒントレベル（段7c・2026-10-03）。編成パネルを作るときにだけ読む（ほかのページの読み込みでは取りに行かない）
-		'data/scenario-event-skills.json': '2026-10-26b',
+		'data/scenario-event-skills.json': '2026-10-27a',
 		// これから開催されるレースの一覧（オススメサポ ④・段7・2026-10-04）。公式のお知らせの公開情報。loadUpcomingRaces() が読む。
 		// exam は読まないので EXAM_DATA_JSON_VERSIONS には載せない（同じファイルを両方の表に載せると test:verify §1 が落とす）
 		'data/upcoming-races.json': '2026-10-25b',
