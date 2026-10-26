@@ -287,6 +287,9 @@ for (const p of ['index.html', 'js/common.js']) {
 const INTENTIONALLY_REMOVED = {
 	// 2026-10-25（CODE-NEXT-4）: exam のめろっぷの説明の下の常時の1行（#melop-scenario-note）を外して免除していた。
 	// 2026-10-26（駿大祭の受け入れ）: 同じ id で①の「新シナリオへの対応が未完了です。」の1行を出したので、免除は空に戻した。
+	// 2026-10-26（公開前の追加）: めろっぷの行を新シナリオに合わせたので、①のその1行（#melop-scenario-note）を消した（依頼の指示）。
+	// この commit が HEAD になったら免除は空に戻す。
+	'exam.html': ['melop-scenario-note'],
 	// 2026-09-15（43セッション目）: 閉じた丸ボタンの未読を「周りに並べて1周回る丸」から
 	// 「右上に赤い丸1つ」へ変えたので #fab-orbit / data-orbit を消した（代わりに #fab-unseen-dot）。
 	// commit が進んだので免除は空に戻した（下の 2026-09-11 の申し送りと同じ扱い）。

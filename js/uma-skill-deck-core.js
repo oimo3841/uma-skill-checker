@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-26a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-26b';
 
 	/* ============================================================
 	 * 定数
@@ -5919,7 +5919,8 @@
 		'.usd-roster-gh-name { display: none; }',
 		'@media (min-width: 768px) {',
 		'  .usd-roster-grid { grid-template-columns: minmax(140px, 260px) repeat(var(--usd-roster-cols, 7), minmax(64px, 1fr)); }',
-		'  .usd-roster-gh { flex-direction: column; gap: 2px; padding: var(--uma-sp-1); }',
+		// 見出しの行の高さは 73px を保つ（2026-10-26: 育成ウマ娘の列もサポカと同じボタンにしたら、それまで行の高さを決めていた2行〔印／漏斗〕の列が無くなり 69px に下がったため）
+		'  .usd-roster-gh { flex-direction: column; gap: 2px; padding: var(--uma-sp-1); min-height: 73px; }',
 		'  .usd-roster-gh.usd-roster-gc--name { flex-direction: row; }',
 		'  .usd-roster-gh-name { display: block; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 600;',
 		'    text-align: center; white-space: normal; overflow-wrap: anywhere; max-width: 100%; }',
@@ -5973,10 +5974,10 @@
 		'  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 13 12%27%3E%3Cpath d=%27M6.5 1.2 12 10.9H1z%27 fill=%27none%27 stroke=%27%23000%27 stroke-width=%271.5%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center / contain no-repeat;',
 		'  mask: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 13 12%27%3E%3Cpath d=%27M6.5 1.2 12 10.9H1z%27 fill=%27none%27 stroke=%27%23000%27 stroke-width=%271.5%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center / contain no-repeat; }',
 		// 育成ウマ娘とシナリオの印（2026-10-26）。それまでの ♦（C-57 の作業A）とどんぶりの SVG を、画像（rosterIconHtml）に置き換えた。
-		// 大きさ: タイルはサポカの種別アイコンと同じ 20px。表の列見出しは、それまでの印と同じ高さの 16px（2行の見出し〔印／漏斗〕の高さを変えないため。
-		// 24px にすると見出しが 8px 高くなる）。画像に自前の地と角の丸みがあるので、チップの地は付けない
+		// 大きさ: タイル・小窓の見出しはサポカの種別アイコンと同じ 20px。表の列見出しは、サポカの列見出しと同じボタン（.usd-gh-menu）の中の 24px
+		// （2026-10-26 に、育成ウマ娘・シナリオの列見出しもサポカと同じメニューのボタンにした）。画像に自前の地と角の丸みがあるので、チップの地は付けない
 		'.usd-roster-ico { display: block; flex: none; width: 20px; height: 20px; object-fit: contain; pointer-events: none; -webkit-user-drag: none; user-select: none; }',
-		'.usd-roster-gh .usd-roster-ico { width: 16px; height: 16px; }',
+		'.usd-card-icobox--head .usd-roster-ico { width: 24px; height: 24px; }',
 		'.usd-ev-title-ico { display: inline-block; vertical-align: middle; }',
 		// 番号のバッジ（表の列見出し・カードの選択欄・イベントの小窓の見出しが使う部品。凡例は段7c の L で削除した）
 		'.usd-roster-legend-no { flex: none; min-width: 20px; text-align: center; font-weight: 700;',
@@ -6278,9 +6279,8 @@
 		'  background: var(--usd-dot-fill); border: 1.5px solid var(--usd-dot-ring); pointer-events: none; }',
 		'.usd-roster-evbtn:active { transform: translateY(1px); box-shadow: none; }',
 		'.usd-roster-evbtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
-		// 育成ウマ娘のイベントのボタン。「!」でないときは印の画像そのものがボタン（--ico。枠・地・影は画像が持つので付けない。2026-10-26）
+		// 育成ウマ娘のイベントのボタン（2026-10-26 から列見出しはサポカと同じ .usd-gh-menu。この規則を使う部品は今は無い）
 		'.usd-roster-evbtn--uma { display: inline-flex; align-items: center; justify-content: center; }',
-		'.usd-roster-evbtn--ico { min-width: 0; border-color: transparent; background: transparent; box-shadow: none; line-height: 0; border-radius: var(--uma-r-md); }',
 		'.usd-roster-evbtn--alert { background: var(--uma-danger-text); border-color: var(--uma-danger-text); color: var(--uma-text-inverse); }',
 		// 金スキルの行（(18)）: 淡い金の地（結合画像の琥珀と同じトークン）。名前は読める濃さのまま
 		// 行の色分け（段7e の (2)〜(6)）。色は core の中のこの変数にまとめる（共有の tokens／common／shell は触らない）。
@@ -11115,67 +11115,33 @@
 			const colName = (m) => m.kind === 'scenario' ? esc(m.label) : (m.kind === 'uma' ? '育成ウマ娘' : String(m.no)) + (m.label ? '：' + esc(m.label) : '（空き）');
 			// 並べ替えのボタンの絵（段7b の ⑧）: 漏斗。押していない＝輪郭、押している＝塗りつぶし（インラインの SVG。色は currentColor）
 			const funnelSvg = '<svg class="usd-roster-funnel" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2 2.5h12L9.8 8v4.7L6.2 14.5V8z"/></svg>';
-			// 列見出し（段7b の ⑧⑨）: 2行。上＝バッジ／！、下＝漏斗（並べ替え）。「▼」は廃止。
-			// 選ぶ必要のあるイベント（選択肢が2つ以上あり、どれかの成功側にスキルがあるもの）があるカードは、番号のバッジ自体が押せるボタン
-			// （未選択が1件でもあるあいだは「！」。すべて選ぶ（自動を含む）と番号のバッジに変わり、押すと小窓にもう一度入れる）。
-			// ◇（育成ウマ娘）と、選ぶ必要のあるイベントが無いカードの番号は、ボタンにしない
-			// サポカの6列の見出し（C-187）: 種別アイコン（24px）だけ。同じ種別が2枚以上のときだけ右下に小さな番号。アイコンを押すとメニュー（イベントを選ぶ・並べ替え）。
-			// 空きの枠は押せない（破線の枠だけ）。種別が決まらないカードは、番号の丸を出す
-			const cardColHead = (m) => {
+			// 列見出し（C-187・2026-10-26 に3種の列で共通にした）: 印のアイコン（24px）だけのボタン。押すとメニュー（イベント/スキル・ソート）。
+			// サポカは種別アイコン、育成ウマ娘はキャラアイコン、シナリオはシナリオアイコン。未選択のイベントがあるあいだは左上に「!」、
+			// 結果・取得の段階を切り替えているイベントがあるときは右上に小さな点。サポカの空きの枠は押せない（破線の枠だけ）。種別が決まらないカードは名前の先頭1文字
+			const colHead = (m) => {
 				const cap = m.shortLabel ? '<span class="usd-roster-gh-name">' + esc(m.shortLabel) + '</span>' : '';
-				if (!m.label) return '<span class="usd-gh-empty" data-usd-el="gh-empty" aria-hidden="true"></span>' + cap;
-				const info = cardColInfoOf(res, m);
+				if (m.kind === 'card' && !m.label) return '<span class="usd-gh-empty" data-usd-el="gh-empty" aria-hidden="true"></span>' + cap;
+				const info = memberColInfoOf(res, m);
 				const n = m.typeOrder;
-				const typed = cardTypeKnown(n);
+				const typed = m.kind === 'card' && cardTypeKnown(n);
 				const sorted = sortKey === m.key;
-				// 読み上げだけに並びを残す: 「N枚目：<名前>（<種別>）のメニュー」。種別が決まらないときは「（種別不明）」。画面に番号は出さない（C-188）
-				const kindName = typed ? cardTypeLabelOf(n) : '種別不明';
-				const label = m.no + '枚目：' + (m.shortLabel || m.label) + '（' + kindName + '）のメニュー' + (info.unsel > 0 ? '（未選択' + info.unsel + '件）' : '') + (info.picked > 0 ? '（結果を切り替え中' + info.picked + '件）' : '') + (sorted ? '（並べ替え中）' : '');
-				return '<button type="button" class="usd-gh-menu" data-usd-act="col-menu" data-usd-el="col-menu-btn" data-member-key="' + m.key + '" data-no="' + m.no + '"'
-					+ (typed ? ' data-type-order="' + n + '"' : '') + (info.hasEvents ? ' data-has-events="1"' : '') + ' data-unselected="' + info.unsel + '"' + (info.picked > 0 ? ' data-result-picked="' + info.picked + '"' : '') + (sorted ? ' data-sorted="1"' : '')
+				// 読み上げ: サポカは「N枚目：<名前>（<種別>）のメニュー」（並びは読み上げだけに残す。C-188）。育成ウマ娘は「育成ウマ娘：<名前>のメニュー」、シナリオは「シナリオ『…』のメニュー」
+				const head = m.kind === 'card' ? m.no + '枚目：' + (m.shortLabel || m.label) + '（' + (typed ? cardTypeLabelOf(n) : '種別不明') + '）'
+					: m.kind === 'uma' ? '育成ウマ娘' + (m.label ? '：' + (m.shortLabel || m.label) : '') : (m.label || '');
+				const label = head + 'のメニュー' + (info.unsel > 0 ? '（未選択' + info.unsel + '件）' : '') + (info.picked > 0 ? '（結果を切り替え中' + info.picked + '件）' : '')
+					+ (info.acquired > 0 ? '（取得を選択中' + info.acquired + '件）' : '') + (sorted ? '（並べ替え中）' : '');
+				const icon = m.kind === 'card'
+					? (typed ? cardIconBoxHtml(n, 'head') : '<span class="usd-gh-fallback" data-usd-el="gh-fallback" aria-hidden="true">' + esc(Array.from(String(m.shortLabel || m.label).replace(/^[（(\[［「]+/, ''))[0] || '') + '</span>')
+					: '<span class="usd-card-icobox usd-card-icobox--head">' + rosterIconHtml(m.kind) + '</span>';
+				return '<button type="button" class="usd-gh-menu" data-usd-act="col-menu" data-usd-el="col-menu-btn" data-member-key="' + m.key + '"' + (m.kind === 'card' ? ' data-no="' + m.no + '"' : ' data-member-kind="' + m.kind + '"')
+					+ (typed ? ' data-type-order="' + n + '"' : '') + (info.hasEvents ? ' data-has-events="1"' : '') + ' data-unselected="' + info.unsel + '"' + (info.picked > 0 ? ' data-result-picked="' + info.picked + '"' : '')
+					+ (info.acquired > 0 ? ' data-acquire-picked="' + info.acquired + '"' : '') + (sorted ? ' data-sorted="1"' : '')
 					+ ' aria-haspopup="dialog" aria-expanded="' + (skillInfoCur && skillInfoCur.btn && skillInfoCur.btn.getAttribute('data-member-key') === String(m.key) ? 'true' : 'false') + '"'
 					+ ' aria-label="' + esc(label) + '" title="' + esc(label) + '">'
-					+ (typed ? cardIconBoxHtml(n, 'head') : '<span class="usd-gh-fallback" data-usd-el="gh-fallback" aria-hidden="true">' + esc(Array.from(String(m.shortLabel || m.label).replace(/^[（(\[［「]+/, ''))[0] || '') + '</span>')
+					+ icon
 					+ (info.unsel > 0 ? '<span class="usd-gh-bang" data-usd-el="gh-bang" aria-hidden="true">!</span>' : '')
-					+ (info.picked > 0 ? '<span class="usd-roster-resdot usd-gh-resdot" data-usd-el="result-dot" aria-hidden="true"></span>' : '')
+					+ (info.picked > 0 || info.acquired > 0 ? '<span class="usd-roster-resdot usd-gh-resdot" data-usd-el="result-dot" aria-hidden="true"></span>' : '')
 					+ '</button>' + cap;
-			};
-			const colHead = (m) => {
-				if (m.kind === 'card') return cardColHead(m);
-				let s = '<div class="usd-roster-ghbtns">';
-				const evs = ((m.kind === 'card' && m.label) || m.kind === 'scenario' || (m.kind === 'uma' && m.label)) ? res.events.filter(e => e.memberKey === m.key) : [];
-				const typedAttrs = (m.typeOrder !== null && m.typeOrder !== undefined) ? ' usd-roster-typed" data-type-order="' + m.typeOrder + '" style="' + cardTypeColorVars(m.typeOrder) : '';
-				// 育成ウマ娘は、読み取り専用の行（段3の追補）だけでも小窓に出す行があればボタンにする
-				const hasInfo = m.kind === 'uma' && !!m.label && (res.infoEvents || []).some(e => e.memberKey === m.key);
-				// 結果の切り替えだけを持つメンバー（選択肢が1つのイベントの結果が分かれるカードなど）も、小窓を開くボタンにする
-				const hasResult = (m.kind === 'card' || m.kind === 'uma') && !!m.label && (res.resultEvents || []).some(e => e.memberKey === m.key);
-				// 取得の切り替え（育成ウマ娘の user のイベント）を持つ衣装もボタンにする。未確認のあいだは「！」と「未選択N件」に数える
-				const acqs = (m.kind === 'uma' && m.label) ? (res.acquireEvents || []).filter(e => e.memberKey === m.key) : [];
-				if (evs.length > 0 || hasInfo || hasResult || acqs.length > 0) {
-					const unsel = evs.filter(e => e.pending).length + acqs.filter(e => e.unseen).length;
-					// 取得の段階を選んだイベントがこの列に1つでもあるときも、結果の切り替えと同じ点を出す
-					const acquired = acqs.filter(e => e.acquired).length;
-					// 結果を最初のもの以外に切り替えたイベントが、この列に1つでもあるとき、バッジの角に小さな点（形は変えない）
-					const picked = (res.resultEvents || []).filter(e => e.memberKey === m.key && e.pos > 0).length;
-					const label = (m.kind === 'scenario' ? m.label : m.kind === 'uma' ? '育成ウマ娘' : m.no + '番のカード') + 'のイベントを選ぶ' + (unsel > 0 ? '（未選択' + unsel + '件）' : '') + (picked > 0 ? '（結果を切り替え中' + picked + '件）' : '') + (acquired > 0 ? '（取得を選択中' + acquired + '件）' : '');
-					// 育成ウマ娘・シナリオは、「!」でないときは印の画像そのものがボタン（--ico。サポカの列見出しと同じく、画像を押す）
-					const icoBtn = unsel === 0 && (m.kind === 'scenario' || m.kind === 'uma');
-					s += '<button type="button" class="usd-roster-legend-no usd-roster-evbtn' + (m.kind === 'scenario' ? ' usd-roster-evbtn--scen' : m.kind === 'uma' ? ' usd-roster-evbtn--uma' : '') + (icoBtn ? ' usd-roster-evbtn--ico' : '') + (unsel > 0 ? ' usd-roster-evbtn--alert' : typedAttrs) + '"'
-						+ ' data-usd-act="events" data-member-key="' + m.key + '" data-usd-el="events-btn" data-unselected="' + unsel + '"' + (picked > 0 ? ' data-result-picked="' + picked + '"' : '') + (acquired > 0 ? ' data-acquire-picked="' + acquired + '"' : '')
-						+ ' aria-label="' + esc(label) + '" title="' + esc(label) + '" aria-expanded="' + (eventsFor === m.key ? 'true' : 'false') + '">'
-						+ (unsel > 0 ? '!' : (m.kind === 'scenario' ? rosterIconHtml('scenario') : m.kind === 'uma' ? rosterIconHtml('uma') : String(m.no)))
-						+ (picked > 0 || acquired > 0 ? '<span class="usd-roster-resdot" data-usd-el="result-dot" aria-hidden="true"></span>' : '') + '</button>';
-				} else if (m.kind === 'uma') {
-					s += umaChip;
-				} else if (m.kind === 'scenario') {
-					s += rosterIconHtml('scenario', m.label, 'usd-roster-scenmark');
-				}
-				s += '<button type="button" class="usd-roster-ghbtn" data-usd-act="sort" data-member-key="' + m.key + '" data-usd-el="sort-btn"'
-					+ ' aria-pressed="' + (sortKey === m.key ? 'true' : 'false') + '"'
-					+ ' aria-label="' + esc((m.kind === 'uma' ? '育成ウマ娘' : m.kind === 'scenario' ? m.label : m.no + '枚目') + 'が得るスキルを上に寄せる') + '" title="並べ替え">' + funnelSvg + '</button>';
-				s += '</div>';
-				s += (m.shortLabel ? '<span class="usd-roster-gh-name">' + esc(m.shortLabel) + '</span>' : '');
-				return s;
 			};
 			h += '<div class="usd-roster-sec">';
 			if (res.items.length === 0) {
@@ -11385,18 +11351,29 @@
 			return '<span class="usd-roster-legend-no' + (typed ? ' usd-roster-typed' : '') + '"' + (typed ? ' data-type-order="' + m.typeOrder + '" style="' + cardTypeColorVars(m.typeOrder) + '"' : '') + '>' + m.no + '</span>'
 				+ ' <span class="usd-ev-title-text">' + esc(m.label || '') + '</span>';
 		}
-		/** サポカの列の、イベントの選択に関わるものの数（見出しの「！」・点・メニューの文言に使う） */
-		function cardColInfoOf(r, m) {
-			const evs = (m.kind === 'card' && m.label) ? r.events.filter(e => e.memberKey === m.key) : [];
-			const hasResult = (m.kind === 'card') && !!m.label && (r.resultEvents || []).some(e => e.memberKey === m.key);
+		/**
+		 * 列（サポカ・育成ウマ娘・シナリオ）の、イベントの選択に関わるものの数（見出しの「！」・点・メニューの文言に使う）。2026-10-26 に3種の列で共通にした。
+		 * hasEvents＝メニューに「イベント/スキル」を出すか。サポカは選ぶイベントか結果の切り替えがあるとき。育成ウマ娘はそれに加えて読み取り専用の行・取得の切り替えがあるとき
+		 * （それまでの「イベントを選ぶ」ボタンを出していた条件と同じ）。シナリオは常に出す（イベントのスキルが無い間は、小窓の既存の空の表示「選ぶイベントはありません」）。
+		 * unsel は未選択（育成ウマ娘は取得の切り替えの未確認も数える）、picked は結果を切り替えた数、acquired は取得の段階を選んだ数（育成ウマ娘だけ）
+		 */
+		function memberColInfoOf(r, m) {
+			const evs = ((m.kind === 'card' || m.kind === 'uma') && !m.label) ? [] : r.events.filter(e => e.memberKey === m.key);
+			const picked = (r.resultEvents || []).filter(e => e.memberKey === m.key && e.pos > 0).length;
+			if (m.kind === 'scenario') return { hasEvents: true, unsel: evs.filter(e => e.pending).length, picked: picked, acquired: 0 };
+			const hasResult = !!m.label && (r.resultEvents || []).some(e => e.memberKey === m.key);
+			if (m.kind === 'card') return { hasEvents: evs.length > 0 || hasResult, unsel: evs.filter(e => e.pending).length, picked: picked, acquired: 0 };
+			const hasInfo = !!m.label && (r.infoEvents || []).some(e => e.memberKey === m.key);
+			const acqs = m.label ? (r.acquireEvents || []).filter(e => e.memberKey === m.key) : [];
 			return {
-				hasEvents: evs.length > 0 || hasResult,
-				unsel: evs.filter(e => e.pending).length,
-				picked: (r.resultEvents || []).filter(e => e.memberKey === m.key && e.pos > 0).length
+				hasEvents: evs.length > 0 || hasInfo || hasResult || acqs.length > 0,
+				unsel: evs.filter(e => e.pending).length + acqs.filter(e => e.unseen).length,
+				picked: picked,
+				acquired: acqs.filter(e => e.acquired).length
 			};
 		}
 		/**
-		 * サポカの列の見出しのアイコンを押したメニュー（C-187）。これまで列見出しの「番号の丸」と「じょうご」が持っていた動作を、すべてここに移した:
+		 * 列の見出しのアイコンを押したメニュー（C-187。2026-10-26 に育成ウマ娘・シナリオの列も同じメニューにし、文言を「イベント/スキル」「ソート」にした）。これまで列見出しの「番号の丸」と「じょうご」が持っていた動作を、すべてここに移した:
 		 *   ・イベントを選ぶ（番号の丸＝選ぶ必要のあるイベントがあるカードだけ。未選択の件数・結果を切り替え中の件数つき）
 		 *   ・並べ替え（じょうご＝この列が得るスキルを上に寄せる。もう一度で元の並び。押している状態は aria-pressed）
 		 */
@@ -11407,7 +11384,7 @@
 			openPopover({
 				key: 'col-menu:' + uidBase + ':' + key, title: m.label || '', btn: btn, opener: btn, refocus: '[data-usd-act="col-menu"][data-member-key="' + key + '"]',
 				build: (body) => {
-					const info = cardColInfoOf(r, m);
+					const info = memberColInfoOf(r, m);
 					const col = infoEl('div', 'usd-reset-ops usd-colmenu-ops');
 					col.setAttribute('data-usd-el', 'colmenu-ops');
 					const add = (el, text, fn, pressed) => {
@@ -11418,8 +11395,8 @@
 						b.addEventListener('click', fn);
 						col.appendChild(b);
 					};
-					if (info.hasEvents) add('colmenu-events', 'イベントを選ぶ' + (info.unsel > 0 ? '（未選択' + info.unsel + '件）' : '') + (info.picked > 0 ? '（結果を切り替え中' + info.picked + '件）' : ''), () => { openEventsPopover(key); });
-					add('colmenu-sort', '並べ替え：この列が得るスキルを上に寄せる', () => {
+					if (info.hasEvents) add('colmenu-events', 'イベント/スキル' + (info.unsel > 0 ? '（未選択' + info.unsel + '件）' : '') + (info.picked > 0 ? '（結果を切り替え中' + info.picked + '件）' : '') + (info.acquired > 0 ? '（取得を選択中' + info.acquired + '件）' : ''), () => { openEventsPopover(key); });
+					add('colmenu-sort', 'ソート', () => {
 						closeSkillInfo();
 						sortKey = sortKey === key ? null : key;
 						gridScrollReset = true;

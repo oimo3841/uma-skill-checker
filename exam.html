@@ -406,8 +406,6 @@
 		   判定の結果の表では付けない（そちらは従来どおり無印）。 */
 		.registry-added { color: var(--uma-danger-text); text-decoration: underline; text-underline-offset: 2px; }
 		.registry-removed { color: var(--uma-danger-text); text-decoration: line-through; }
-		/* ①の「新シナリオへの対応が未完了です。」（2026-10-26）。注意の赤の文字（ライト・ダークとも地に対して 4.5:1 以上） */
-		.melop-scenario-note { color: var(--uma-danger-text); }
 		/* 一覧の行は、どの幅でも1行（C-142・微調整4・D）。印＋「名前の枠（残りの幅いっぱい）＋全角スペース＋効率（右端・全桁）」。
 		   名前が枠に入らないときだけ、名前の右端 1.5em をフェードアウトさせる（mask。背景色に依存しないのでライト・ダークとも同じ。「…」は付けない）。
 		   入るかどうかは updateRegistryFades() が scrollWidth > clientWidth で判定し、幅が変わるたび・一覧を開いたときに更新する */
@@ -1001,8 +999,6 @@
 			<div id="step-panel-1" class="step-panel" role="tabpanel" aria-labelledby="step-tab-1">
 			<!-- 件数は「既定の133種」で固定。今の対象の種数は下の範囲の選択肢と①のタブのバッジが出す
 			     （ここまで可変にすると、既定が何種なのかが画面のどこにも残らないため）。 -->
-			<!-- 新シナリオ（駿大祭）への対応が済むまでの常時の1行（2026-10-26）。色は注意の赤（--uma-danger-text）。対応が済んだら消す -->
-			<p id="melop-scenario-note" class="melop-scenario-note text-xs mb-1">新シナリオへの対応が未完了です。</p>
 			<p class="text-xs text-slate-500 mb-3">既定として登録済みの133種を対象にします。「対象スキルの範囲」で調整可能です。</p>
 
 			<!-- 今の設定のバッジ。sp70緑・緑59種は常時、あとの4つは
@@ -4600,9 +4596,9 @@
 		 * ============================================================ */
 		// data/ のうち exam.html だけが読むものの版（dataVersion と揃える。test:verify §1 が見る）
 		const EXAM_DATA_JSON_VERSIONS = {
-			'data/melop-sheet-rows.json': '2026-10-13a',
+			'data/melop-sheet-rows.json': '2026-10-26a',
 			// 「効率で選ぶ（βテスト）」と結合画像の効率の合計が読む（C-136）
-			'data/skill-efficiency.json': '2026-10-13a'
+			'data/skill-efficiency.json': '2026-10-26a'
 		};
 		// 効率の区間の蹄鉄（左から銅・銀・金・虹＝効率の低い区間から高い区間）。画像はファイル名の日付が版
 		// （差し替えるときは新しい名前にする。test:verify §1 が img/ の実ファイルとの一致を見る）

@@ -162,7 +162,7 @@ const RECOMMENDED_SKILL_KEYS = { need: ['skillId', 'name', 'section'], opt: ['st
 const RECOMMENDED_STYLE_VALUES = ['nige', 'senko', 'sashi', 'oikomi'];
 const RECOMMENDED_CATEGORY_NAME = 'recommendedSkills';
 /* めろっぷ用の行の並び（data/melop-sheet-rows.json。C-101）。めろっぷ！【LTC】さんの因子管理シートの
-   ★を貼る欄（H38:J602。2026-10-08 に H38:J599 から2行増え、2026-10-13 に H38:J601 から1行増えた）の行の並び。`entries` を持たないので FILES には入れず、§9 で見る。
+   ★を貼る欄（H38:J610。2026-10-08 に H38:J599 から2行増え、2026-10-13 に H38:J601 から1行増え、2026-10-26 に H38:J602 から8行増えた）の行の並び。`entries` を持たないので FILES には入れず、§9 で見る。
    行番号の範囲は貼り先の形そのものなので、ここに数字で持つ（シートの欄が変わったら、こことデータを一緒に直す）。 */
 const MELOP_FILE = 'melop-sheet-rows.json';
 const MELOP_TOP_KEYS = { need: ['dataVersion', 'category', 'rows'], opt: ['note'] };
@@ -170,7 +170,7 @@ const MELOP_ROW_KEYS = { need: ['row', 'group', 'name'], opt: ['id', 'slot', 'co
 const MELOP_CATEGORY_NAME = 'melopSheetRows';
 const MELOP_SLOTS = ['blue', 'red', 'unique'];
 const MELOP_FIRST_ROW = 38;
-const MELOP_LAST_ROW = 602;
+const MELOP_LAST_ROW = 610;   // 2026-10-26: シートに8行（新スキル7・駿大祭シナリオ）が増えて 602→610
 
 const SKILL_REF_KEYS = { need: ['skillId', 'name'], opt: [] };
 /* **サポートカードのイベント（C-102）。** 1回ぶんは { step, choices }。
@@ -971,7 +971,7 @@ console.log('\n=== 8. レースの距離の一覧（' + RACE_FILE + '） ===');
 
 console.log('\n=== 9. めろっぷ用の行の並び（' + MELOP_FILE + '） ===');
 /* exam.html の「めろっぷ！【LTC】専用拡張モード」（C-101）が、★の数をこの順で出す。
-   シート側（★を貼る欄 H38:J602）が更新されたときにずれに気づけるよう、**行数と行番号の並び**を見る
+   シート側（★を貼る欄 H38:J610）が更新されたときにずれに気づけるよう、**行数と行番号の並び**を見る
    （シートの欄の範囲は、貼り先の形そのものなので、ここに数字で持つ。スキル名は書かない）。
    あわせて、独自IDの参照先が実在し、その名前が行の名前と同じもの（〇と○の違い・全角半角だけを揃えて）かを見る。 */
 {
@@ -1237,7 +1237,11 @@ const EFF_ROW_KEYS = { need: ['skillId', 'score', 'sp', 'efficiency'], opt: [] }
 /* 効率の再計算の検査の免除（理由を必ず添える。黙って増やさない。免除は実行のたびに表示する）。
    値は有志の表に載っている値を指定どおり入れたもので、評価点÷消費スキルPt を丸めた値と 0.001 だけ違う。
    免除するのは「差が0.001以内」のときだけ（それ以上ずれたら免除でも落とす）。 */
-const EFF_ROUNDING_EXEMPT = { 'ex-1673': '指定の効率 3.362（評価点639÷消費スキルPt190 を丸めると 3.363）。2026-10-13・おいもさんの指定' };
+// 2026-10-26: めろっぷのシート（20261026）で足した行のうち3行は、シートの効率が評価点の端数を含めて計算されていて、丸めた評価点からの計算と 0.002 違う。
+// 依頼の指示（新しい行はシートの値を使う）に従い、シートの値のまま持つ
+const EFF_ROUNDING_EXEMPT = { 'ex-1673': '指定の効率 3.362（評価点639÷消費スキルPt190 を丸めると 3.363）。2026-10-13・おいもさんの指定',
+	'ex-1680': 'シートの効率 3.548（639÷180 を丸めると 3.55）。2026-10-26・シートの値を使う指示', 'ex-1682': 'シートの効率 3.187（574÷180 を丸めると 3.189）。2026-10-26・シートの値を使う指示',
+	'ex-1681': 'シートの効率 3.187（574÷180 を丸めると 3.189）。2026-10-26・シートの値を使う指示' };
 const EFF_CATEGORY_NAME = 'skillEfficiency';
 console.log('\n=== 14. スキルの効率（' + EFF_FILE + '） ===');
 {
@@ -1265,7 +1269,7 @@ console.log('\n=== 14. スキルの効率（' + EFF_FILE + '） ===');
 			// 千分率の整数で丸める（data を作ったときと同じ式）
 			const calc = Math.round(e.score * 1000 / e.sp) / 1000;
 			if (calc !== e.efficiency) {
-				if (EFF_ROUNDING_EXEMPT[e.skillId] && Math.abs(calc - e.efficiency) <= 0.0010001) effExempted.push(e.skillId + '（計算 ' + calc + ' / データ ' + e.efficiency + '）: ' + EFF_ROUNDING_EXEMPT[e.skillId]);
+				if (EFF_ROUNDING_EXEMPT[e.skillId] && Math.abs(calc - e.efficiency) <= 0.0020001) effExempted.push(e.skillId + '（計算 ' + calc + ' / データ ' + e.efficiency + '）: ' + EFF_ROUNDING_EXEMPT[e.skillId]);
 				else recalc.push(w + ': ' + e.score + '÷' + e.sp + ' → ' + e.efficiency);
 			}
 		});
