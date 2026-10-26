@@ -24,7 +24,7 @@ export async function register53(env) {
 	const SIX = ['card-0564', 'card-0565', 'card-0402', 'card-0248', 'card-0535', 'card-0478'];   // 駿大祭の進化の元の金スキル6つを、イベントで取得するカード
 	const ROSTER = { umaId: 'uma-0179', cardIds: SIX, skillFilter: {} };
 	const RP = '#deck-roster-panel ';
-	const UMA_SRC = 'img/icon-uma-2026-10-26.png', SCEN_SRC = 'img/icon-scenario-2026-10-26.png';
+	const UMA_SRC = 'img/icon-uma-2026-10-26b.png', SCEN_SRC = 'img/icon-scenario-2026-10-26.png';
 	const VIEWS = [[390, 'light'], [390, 'dark'], [1280, 'light'], [1280, 'dark']];
 
 	const openSp = async (o = {}) => {

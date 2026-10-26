@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-26b';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-26c';
 
 	/* ============================================================
 	 * 定数
@@ -2807,7 +2807,7 @@
 	 * （ゲームの公式の画像ではない）で、透明背景・縮小済み（img/icon-*）。シナリオの印は、ツールが使うシナリオ（最新のもの）の印で、シナリオが変わったら画像を差し替える。
 	 * ライト・ダークで同じ画像を使う。alt を渡さないときは飾り（aria-hidden）。名前は、ボタンや見出しの側が持つ
 	 */
-	const ROSTER_ICON_SRC = { uma: 'img/icon-uma-2026-10-26.png', scenario: 'img/icon-scenario-2026-10-26.png' };
+	const ROSTER_ICON_SRC = { uma: 'img/icon-uma-2026-10-26b.png', scenario: 'img/icon-scenario-2026-10-26.png' };
 	function rosterIconHtml(kind, alt, cls) {
 		return '<img class="usd-roster-ico' + (cls ? ' ' + cls : '') + '" data-usd-el="' + kind + '-icon" src="' + ROSTER_ICON_SRC[kind] + '" alt="' + esc(alt || '') + '"'
 			+ (alt ? '' : ' aria-hidden="true"') + ' width="20" height="20" decoding="async" draggable="false" />';
