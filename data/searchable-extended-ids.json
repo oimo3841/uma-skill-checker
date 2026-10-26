@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-25a",
+	"dataVersion": "2026-10-26a",
 	"category": "searchableExtendedId",
 	"entries": [
 		{
@@ -65,6 +65,10 @@
 		{
 			"skillId": "ex-1688",
 			"name": "直情"
+		},
+		{
+			"skillId": "ex-1693",
+			"name": "彼方の呼び声"
 		}
 	]
 }

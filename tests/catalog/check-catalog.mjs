@@ -1752,7 +1752,8 @@ console.log('\n=== 11. スキルPt（' + PT_RULES_FILE + '／届いたら ' + PT
 				if (!checkKeys(en, { need: ['scenario', 'events'], opt: [] }, w, unknown, missing)) return;
 				if (!isStr(en.scenario)) bad.push(w + '.scenario: 空でない文字列');
 				else { if (scenarios.has(en.scenario)) dup.push(w + ': シナリオ名の重複'); scenarios.add(en.scenario); }
-				if (!isArr(en.events) || en.events.length === 0) { bad.push(w + '.events: 空でない配列'); return; }
+				// events は空でもよい（2026-10-26。最新のシナリオのイベントのスキルがまだ無いとき。ツールはその列にスキルを出さない）
+				if (!isArr(en.events)) { bad.push(w + '.events: 配列'); return; }
 				const eventNames = new Set();
 				en.events.forEach((ev, j) => {
 					const we = w + '.events[' + j + ']';

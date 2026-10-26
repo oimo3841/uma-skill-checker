@@ -1,7 +1,7 @@
 {
-	"dataVersion": "2026-10-25a",
+	"dataVersion": "2026-10-26b",
 	"category": "extendedSkill",
-	"nextSerial": "ex-1691",
+	"nextSerial": "ex-1700",
 	"note": "マスター（uma-skill-deck-skills.json）の445種に無いスキル。name はゲーム画面の表示そのまま（全角・半角・中黒「・」を含めて変えない）。id は保存済みの比較シートが指し続ける不変の鍵なので、表記を直しても id は変えない。更新は「既存の行は id を引き継いで中身を直す」「新しいものは末尾に足して nextSerial を1つ進める」の2つだけで、既存の行は消さない。tagsPending が付いている間は8軸のタグが未設定で、条件での絞り込みの母集団には入れない（8軸すべてが空のタグは「条件を持たない＝万能スキル」という別の意味になるため、未設定はこの印で示す）。tagsPending と tags はどちらか一方だけを持つ。形は npm run check:catalog が確かめる。",
 	"entries": [
 		{
@@ -34395,7 +34395,9 @@
 				],
 				"style": [],
 				"surface": [],
-				"phase": [],
+				"phase": [
+					"mid"
+				],
 				"coursePos": [
 					"final_straight"
 				],
@@ -34440,6 +34442,229 @@
 			"raceDistance": {
 				"min": 2000,
 				"scope": "all"
+			}
+		},
+		{
+			"id": "ex-1691",
+			"name": "螺旋のエキスパート",
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [],
+				"coursePos": [
+					"corner"
+				],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1692",
+			"name": "名にし負う夢",
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"final_stage",
+					"lastspurt"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [
+					"scenario"
+				],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1693",
+			"name": "彼方の呼び声",
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"final_stage",
+					"lastspurt"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [
+					"scenario"
+				],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1694",
+			"name": "急之舞",
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"second_half"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"move_forward",
+					"stamina"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1695",
+			"name": "吉兆の駆け手",
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"move_forward"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1696",
+			"name": "満願成就",
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [
+					"corner"
+				],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"move_forward",
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1697",
+			"name": "捧ぐる願い",
+			"tags": {
+				"distance": [],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"final_stage",
+					"lastspurt"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1698",
+			"name": "祈りの篝火",
+			"tags": {
+				"distance": [
+					"medium",
+					"mile"
+				],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"late"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"move_forward"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
+			}
+		},
+		{
+			"id": "ex-1699",
+			"name": "常磐なる誓い",
+			"tags": {
+				"distance": [
+					"short"
+				],
+				"style": [],
+				"surface": [],
+				"phase": [
+					"mid"
+				],
+				"coursePos": [],
+				"rarity": [],
+				"inherited": [],
+				"environment": [],
+				"trackVenue": [],
+				"effect": [
+					"target_speed_up"
+				],
+				"scenario": [],
+				"passive": [],
+				"distanceMark": []
 			}
 		}
 	]

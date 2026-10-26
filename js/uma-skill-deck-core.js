@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-25e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-26a';
 
 	/* ============================================================
 	 * 定数
@@ -65,16 +65,16 @@
 	 * 検査が「`data/` に在る JSON の顔ぶれ」と突き合わせられるようにした。
 	 */
 	const DATA_JSON_VERSIONS = {
-		'data/scenario-inheritance-factors.json': '2026-09-15a',
+		'data/scenario-inheritance-factors.json': '2026-10-26b',
 		'data/aptitude-genes.json': '2026-09-19a',
-		'data/extended-skills.json': '2026-10-25a',
+		'data/extended-skills.json': '2026-10-26b',
 		// 「条件で検索」の母集団に入れる拡張スキルの id の一覧（2026-10-16a・C-163）。データ側が規則で作る。拡張スキルと同じ経路（loadExtraCatalog）で読む
-		'data/searchable-extended-ids.json': '2026-10-25a',
+		'data/searchable-extended-ids.json': '2026-10-26a',
 		// サポカで得られないスキル（公開用・独自カテゴリ3のみ。2026-10-16c・C-163）。②の「サポカ外」ボタンの候補。データ側が規則で作る。loadNonSupportSkills() が読む
 		'data/non-support-skills.json': '2026-10-25a',
-		'data/training-umamusume.json': '2026-10-25a',
-		'data/support-cards.json': '2026-10-25a',
-		'data/support-card-event-skills.json': '2026-10-25c',
+		'data/training-umamusume.json': '2026-10-26a',
+		'data/support-cards.json': '2026-10-26b',
+		'data/support-card-event-skills.json': '2026-10-26b',
 		// キャラクター共通のイベント（C-102 の区切り3・2026-09-27）。9本目
 		'data/character-event-skills.json': '2026-10-25a',
 		// レースの距離の一覧（C-97・2026-09-26）。7本目。スキルではないので EXTRA_CATALOG_SOURCES にも
@@ -84,19 +84,19 @@
 		// 実ファイル（skill-pt.json・skill-step-up.json）は、届いてから載せた（載せると取りに行くため）。
 		'data/skill-pt-rules.json': '2026-09-30a',
 		// スキルの基礎Pt とレアリティ（2026-09-30 に実ファイルが届いたので載せた。載せると loadSkillPtData が読む）
-		'data/skill-pt.json': '2026-10-25a',
+		'data/skill-pt.json': '2026-10-26a',
 		// スキルのステップアップの前段（2026-10-01c。2026-10-02 に実ファイルが届いたので載せた。loadSkillPtData が skill-pt.json と一緒に読む）
 		'data/skill-step-up.json': '2026-10-02b',
 		// スキルの公式の説明文（2026-10-02）。ページの読み込みでは取りに行かない（ⓘ・長押しを最初に開いたときだけ。段6）
-		'data/skill-descriptions.json': '2026-10-25a',
+		'data/skill-descriptions.json': '2026-10-26a',
 		// シナリオの固定イベントで得られるスキルとヒントレベル（段7c・2026-10-03）。編成パネルを作るときにだけ読む（ほかのページの読み込みでは取りに行かない）
-		'data/scenario-event-skills.json': '2026-10-03c',
+		'data/scenario-event-skills.json': '2026-10-26a',
 		// これから開催されるレースの一覧（オススメサポ ④・段7・2026-10-04）。公式のお知らせの公開情報。loadUpcomingRaces() が読む。
 		// exam は読まないので EXAM_DATA_JSON_VERSIONS には載せない（同じファイルを両方の表に載せると test:verify §1 が落とす）
 		'data/upcoming-races.json': '2026-10-25b',
 		// スキルの効果量の段階（C-129・2026-10-06）。説明文の効果の大きさを表す語から決めた段階。「低効果を除外」とオススメサポの「低効果」が使う。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadSkillEffectLevels）
-		'data/skill-effect-levels.json': '2026-10-25a',
+		'data/skill-effect-levels.json': '2026-10-26a',
 		// 脚質オススメの小窓が使うスキル（C-130・2026-10-06。2026-10-21 に項目＋脚質の形へ）。
 		// ページの読み込みでは取りに行かない（最初に必要になったときに1回だけ。loadRecommendedSkills）
 		// C-131: 同じものとして扱うスキルの組（equivalentPairs）を足した
@@ -104,7 +104,7 @@
 		// 育成ウマ娘のイベントで得られるスキル（段1・2026-10-11）。受け入れだけで、画面と計算はまだ使わない。TRAINING_SOURCES の5本目
 		'data/training-event-skills.json': '2026-10-25a',
 		// スキルの進化の対応（段2・2026-10-12。C-145・C-146）。受け入れだけで、画面と計算はまだ使わない。ページの読み込みでは取りに行かない（loadSkillEvolutions）
-		'data/skill-evolutions.json': '2026-10-25a',
+		'data/skill-evolutions.json': '2026-10-26a',
 		// 「このスキルは、これらのスキルを取得しているときだけ有効」の対応（2026-10-17a。大逃げの要るスキル）。skill-evolutions.json と一緒に、最初に必要になったとき1回だけ読む（loadSkillEvolutions）
 		'data/skill-requires.json': '2026-10-17a',
 		// コースの形の条件（小回り・直線コース）に当たるレース場・バ場・距離（C-155・2026-10-14。おいもさんの指定の表）。
@@ -656,7 +656,8 @@
 			{ id: 'sf-island', name: '無人島シナリオ' },
 			{ id: 'sf-onsen', name: '温泉郷シナリオ' },
 			{ id: 'sf-dreams', name: 'Dreamsシナリオ' },
-			{ id: 'sf-tresen', name: 'トレセン軒シナリオ' }
+			{ id: 'sf-tresen', name: 'トレセン軒シナリオ' },
+			{ id: 'sf-shuntaisai', name: '駿大祭シナリオ' }
 		],
 		geneFactor: [
 			{ id: 'ap-turf', name: '芝の遺伝子' },
@@ -2801,6 +2802,16 @@
 	const CARD_TYPE_ICON_KEYS = { 1: 'speed', 2: 'stamina', 3: 'power', 4: 'guts', 5: 'wisdom', 6: 'friend' };
 	const CARD_RARITY_ICON_KEYS = { SSR: 'ssr', SR: 'sr' };
 	function cardIconUrl(kind, key) { return 'img/osusume-' + kind + '-' + key + '-' + CARD_ICON_VERSION + '.png'; }
+	/**
+	 * ①の育成ウマ娘とシナリオの印（2026-10-26。それまでの ◆ とどんぶりの SVG を置き換えた）。サポカの種別アイコンと同じく、独自に作った画像
+	 * （ゲームの公式の画像ではない）で、透明背景・縮小済み（img/icon-*）。シナリオの印は、ツールが使うシナリオ（最新のもの）の印で、シナリオが変わったら画像を差し替える。
+	 * ライト・ダークで同じ画像を使う。alt を渡さないときは飾り（aria-hidden）。名前は、ボタンや見出しの側が持つ
+	 */
+	const ROSTER_ICON_SRC = { uma: 'img/icon-uma-2026-10-26.png', scenario: 'img/icon-scenario-2026-10-26.png' };
+	function rosterIconHtml(kind, alt, cls) {
+		return '<img class="usd-roster-ico' + (cls ? ' ' + cls : '') + '" data-usd-el="' + kind + '-icon" src="' + ROSTER_ICON_SRC[kind] + '" alt="' + esc(alt || '') + '"'
+			+ (alt ? '' : ' aria-hidden="true"') + ' width="20" height="20" decoding="async" draggable="false" />';
+	}
 	let cardTypeLabelMemo = { n: -1, map: null };
 	/** 種別の番号（typeOrder）→ 表示名（データの種類名。友人は「友人」）。カードの一覧が変わらない限り使い回す */
 	function cardTypeLabelOf(typeOrder) {
@@ -5961,12 +5972,12 @@
 		'.usd-roster-maybe { display: inline-block; width: 13px; height: 12px; background: var(--uma-text-heading); vertical-align: middle;',
 		'  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 13 12%27%3E%3Cpath d=%27M6.5 1.2 12 10.9H1z%27 fill=%27none%27 stroke=%27%23000%27 stroke-width=%271.5%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center / contain no-repeat;',
 		'  mask: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 13 12%27%3E%3Cpath d=%27M6.5 1.2 12 10.9H1z%27 fill=%27none%27 stroke=%27%23000%27 stroke-width=%271.5%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center / contain no-repeat; }',
-		// 育成ウマ娘の見出しと凡例の印は**白い ♦（正方形を 45 度回したもの）**（C-57 の作業A。◎ → ● → ♦）。
-		// 見出しと同じ濃い地のチップに白い ♦ を CSS で描く（見出しの中では地が同じなので ♦ だけが見える）。
-		'.usd-roster-umamark { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 16px;',
-		'  background: var(--uma-table-head-key-bg); border-radius: var(--uma-r-sm); box-shadow: inset 0 0 0 1px var(--uma-table-head-key-edge, transparent); }',
-		'.usd-roster-umamark::before { content: ""; display: block; width: 7px; height: 7px; background: var(--uma-table-head-key-text);',
-		'  transform: rotate(45deg); }',
+		// 育成ウマ娘とシナリオの印（2026-10-26）。それまでの ♦（C-57 の作業A）とどんぶりの SVG を、画像（rosterIconHtml）に置き換えた。
+		// 大きさ: タイルはサポカの種別アイコンと同じ 20px。表の列見出しは、それまでの印と同じ高さの 16px（2行の見出し〔印／漏斗〕の高さを変えないため。
+		// 24px にすると見出しが 8px 高くなる）。画像に自前の地と角の丸みがあるので、チップの地は付けない
+		'.usd-roster-ico { display: block; flex: none; width: 20px; height: 20px; object-fit: contain; pointer-events: none; -webkit-user-drag: none; user-select: none; }',
+		'.usd-roster-gh .usd-roster-ico { width: 16px; height: 16px; }',
+		'.usd-ev-title-ico { display: inline-block; vertical-align: middle; }',
 		// 番号のバッジ（表の列見出し・カードの選択欄・イベントの小窓の見出しが使う部品。凡例は段7c の L で削除した）
 		'.usd-roster-legend-no { flex: none; min-width: 20px; text-align: center; font-weight: 700;',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-sm); }',
@@ -6267,9 +6278,9 @@
 		'  background: var(--usd-dot-fill); border: 1.5px solid var(--usd-dot-ring); pointer-events: none; }',
 		'.usd-roster-evbtn:active { transform: translateY(1px); box-shadow: none; }',
 		'.usd-roster-evbtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
-		// 育成ウマ娘のイベントのボタン（番号の代わりに ◇）。カードの番号のバッジと同じ大きさ・同じ見た目
+		// 育成ウマ娘のイベントのボタン。「!」でないときは印の画像そのものがボタン（--ico。枠・地・影は画像が持つので付けない。2026-10-26）
 		'.usd-roster-evbtn--uma { display: inline-flex; align-items: center; justify-content: center; }',
-		'.usd-roster-evdiamond { display: block; width: 7px; height: 7px; background: currentColor; transform: rotate(45deg); }',
+		'.usd-roster-evbtn--ico { min-width: 0; border-color: transparent; background: transparent; box-shadow: none; line-height: 0; border-radius: var(--uma-r-md); }',
 		'.usd-roster-evbtn--alert { background: var(--uma-danger-text); border-color: var(--uma-danger-text); color: var(--uma-text-inverse); }',
 		// 金スキルの行（(18)）: 淡い金の地（結合画像の琥珀と同じトークン）。名前は読める濃さのまま
 		// 行の色分け（段7e の (2)〜(6)）。色は core の中のこの変数にまとめる（共有の tokens／common／shell は触らない）。
@@ -6620,9 +6631,7 @@
 		'.usd-info-offrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--uma-sp-2); }',
 		'.usd-ptneed-boxline { display: block; margin-top: var(--uma-sp-1); }',
 		// ───── 段7c（2026-10-03）: シナリオの固定イベントの列（N） ─────
-		'.usd-roster-bowl { display: block; width: 14px; height: 14px; }',
-		'.usd-roster-bowl path { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }',
-		'.usd-roster-scenmark { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; color: var(--uma-text-heading); }',
+		// 列見出しの印は画像（.usd-roster-ico。2026-10-26 にどんぶりの SVG から置き換え）
 		'.usd-roster-evbtn--scen { display: inline-flex; align-items: center; justify-content: center; }',
 		'.usd-roster-choicestate { flex: none; font-size: var(--uma-fs-2xs); line-height: var(--uma-lh-2xs); font-weight: 600; padding: 0 var(--uma-sp-1-5);',
 		'  border: 1px solid var(--uma-border-strong); border-radius: var(--uma-r-full); color: var(--uma-text-subtle); }',
@@ -11055,8 +11064,8 @@
 			/* ── 下位層: 育成ウマ娘 と サポートカード ── */
 			h += '<div class="usd-roster-lower">';
 			// 育成ウマ娘（段7b の ③⑦⑧）: パネル名の行（名前＋（i））は無し。（i）は選択欄の右隣。選んだ状態は白文字・黒背景。
-			// 名前の前に ◇ のバッジ（表の列見出し・凡例と同じ部品）。名前は省略記号で切り、全文は title と aria-label
-			const umaChip = '<span class="usd-roster-umamark" role="img" aria-label="育成ウマ娘"></span>';
+			// 名前の前に育成ウマ娘の印（表の列見出しと同じ部品。2026-10-26 に ◆ から画像へ）。名前は省略記号で切り、全文は title と aria-label
+			const umaChip = rosterIconHtml('uma', '育成ウマ娘', 'usd-roster-umamark');
 			h += '<div class="usd-roster-sub"><div class="usd-roster-umarow">';
 			// 段G(6): 育成ウマ娘のタイルも通常は細い枠。太い枠は、育成ウマ娘の選択の窓を開いているときだけ（--sel）
 			h += '<div class="usd-roster-pickbox usd-roster-umabox' + (roster.umaId ? ' usd-roster-pickbox--filled' : '') + (picking && picking.kind === 'uma' ? ' usd-roster-pickbox--sel' : '') + '">';
@@ -11149,15 +11158,17 @@
 					// 結果を最初のもの以外に切り替えたイベントが、この列に1つでもあるとき、バッジの角に小さな点（形は変えない）
 					const picked = (res.resultEvents || []).filter(e => e.memberKey === m.key && e.pos > 0).length;
 					const label = (m.kind === 'scenario' ? m.label : m.kind === 'uma' ? '育成ウマ娘' : m.no + '番のカード') + 'のイベントを選ぶ' + (unsel > 0 ? '（未選択' + unsel + '件）' : '') + (picked > 0 ? '（結果を切り替え中' + picked + '件）' : '') + (acquired > 0 ? '（取得を選択中' + acquired + '件）' : '');
-					s += '<button type="button" class="usd-roster-legend-no usd-roster-evbtn' + (m.kind === 'scenario' ? ' usd-roster-evbtn--scen' : m.kind === 'uma' ? ' usd-roster-evbtn--uma' : '') + (unsel > 0 ? ' usd-roster-evbtn--alert' : typedAttrs) + '"'
+					// 育成ウマ娘・シナリオは、「!」でないときは印の画像そのものがボタン（--ico。サポカの列見出しと同じく、画像を押す）
+					const icoBtn = unsel === 0 && (m.kind === 'scenario' || m.kind === 'uma');
+					s += '<button type="button" class="usd-roster-legend-no usd-roster-evbtn' + (m.kind === 'scenario' ? ' usd-roster-evbtn--scen' : m.kind === 'uma' ? ' usd-roster-evbtn--uma' : '') + (icoBtn ? ' usd-roster-evbtn--ico' : '') + (unsel > 0 ? ' usd-roster-evbtn--alert' : typedAttrs) + '"'
 						+ ' data-usd-act="events" data-member-key="' + m.key + '" data-usd-el="events-btn" data-unselected="' + unsel + '"' + (picked > 0 ? ' data-result-picked="' + picked + '"' : '') + (acquired > 0 ? ' data-acquire-picked="' + acquired + '"' : '')
 						+ ' aria-label="' + esc(label) + '" title="' + esc(label) + '" aria-expanded="' + (eventsFor === m.key ? 'true' : 'false') + '">'
-						+ (unsel > 0 ? '!' : (m.kind === 'scenario' ? bowlSvg : m.kind === 'uma' ? '<span class="usd-roster-evdiamond" aria-hidden="true"></span>' : String(m.no)))
+						+ (unsel > 0 ? '!' : (m.kind === 'scenario' ? rosterIconHtml('scenario') : m.kind === 'uma' ? rosterIconHtml('uma') : String(m.no)))
 						+ (picked > 0 || acquired > 0 ? '<span class="usd-roster-resdot" data-usd-el="result-dot" aria-hidden="true"></span>' : '') + '</button>';
 				} else if (m.kind === 'uma') {
 					s += umaChip;
 				} else if (m.kind === 'scenario') {
-					s += '<span class="usd-roster-legend-no usd-roster-scenmark" role="img" aria-label="' + esc(m.label) + '">' + bowlSvg + '</span>';
+					s += rosterIconHtml('scenario', m.label, 'usd-roster-scenmark');
 				}
 				s += '<button type="button" class="usd-roster-ghbtn" data-usd-act="sort" data-member-key="' + m.key + '" data-usd-el="sort-btn"'
 					+ ' aria-pressed="' + (sortKey === m.key ? 'true' : 'false') + '"'
@@ -11333,9 +11344,6 @@
 		 * ------------------------------------------------------------ */
 		/** 列見出しの data-member-key の値をメンバーのキーに戻す（育成ウマ娘・カードは数、シナリオは 'scenario'）。 */
 		function memberKeyOf(attr) { return attr === SCENARIO_KEY ? SCENARIO_KEY : Number(attr); }
-		/** ラーメンのどんぶり（シナリオ『トレセン軒』の列のアイコン。インラインの SVG・色は currentColor） */
-		const bowlSvg = '<svg class="usd-roster-bowl" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">'
-			+ '<path d="M1.8 7.2h12.4a6.2 6.2 0 0 1-12.4 0z"/><path d="M5.5 14.6h5"/><path d="M5.2 4.6c0-1 1-1.3 1-2.3M8.2 4.6c0-1 1-1.3 1-2.3M11 5c.3-.7 1-1 1-1.8"/></svg>';
 		let eventsPane = 0;          // 狭い幅の小窓で見せているペイン（0＝イベント、1＝取得できるスキル。段7b の ⑩。保存しない）
 		/** ①の小窓の中身。作りは共有の buildEventsInfo（オススメサポのカード名の小窓と同じ）。選択肢を押すと①の編成に保存する */
 		function fillEventsInfo(body, res, memberKey) {
@@ -11372,8 +11380,7 @@
 			render();
 		}
 		function eventsTitleHtml(m) {
-			if (m.kind === 'scenario') return '<span class="usd-roster-legend-no usd-roster-scenmark" aria-hidden="true">' + bowlSvg + '</span> <span class="usd-ev-title-text">' + esc(m.label || '') + '</span>';
-			if (m.kind === 'uma') return '<span class="usd-roster-legend-no usd-roster-evbtn--uma" aria-hidden="true"><span class="usd-roster-evdiamond"></span></span> <span class="usd-ev-title-text">' + esc(m.label || '') + '</span>';
+			if (m.kind === 'scenario' || m.kind === 'uma') return rosterIconHtml(m.kind, '', 'usd-ev-title-ico') + ' <span class="usd-ev-title-text">' + esc(m.label || '') + '</span>';
 			const typed = m.typeOrder !== null && m.typeOrder !== undefined;
 			return '<span class="usd-roster-legend-no' + (typed ? ' usd-roster-typed' : '') + '"' + (typed ? ' data-type-order="' + m.typeOrder + '" style="' + cardTypeColorVars(m.typeOrder) + '"' : '') + '>' + m.no + '</span>'
 				+ ' <span class="usd-ev-title-text">' + esc(m.label || '') + '</span>';

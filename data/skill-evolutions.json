@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-25a",
+	"dataVersion": "2026-10-26a",
 	"category": "skillEvolution",
 	"entries": [
 		{
@@ -4788,6 +4788,54 @@
 			"baseSkillId": "ex-0668",
 			"evolvedSkillIds": [
 				"ex-1035"
+			]
+		},
+		{
+			"kind": "scenario",
+			"scenarioId": "駿大祭",
+			"baseSkillId": "ex-0042",
+			"evolvedSkillIds": [
+				"ex-1694"
+			]
+		},
+		{
+			"kind": "scenario",
+			"scenarioId": "駿大祭",
+			"baseSkillId": "ex-0640",
+			"evolvedSkillIds": [
+				"ex-1695"
+			]
+		},
+		{
+			"kind": "scenario",
+			"scenarioId": "駿大祭",
+			"baseSkillId": "ex-0238",
+			"evolvedSkillIds": [
+				"ex-1696"
+			]
+		},
+		{
+			"kind": "scenario",
+			"scenarioId": "駿大祭",
+			"baseSkillId": "ex-0003",
+			"evolvedSkillIds": [
+				"ex-1697"
+			]
+		},
+		{
+			"kind": "scenario",
+			"scenarioId": "駿大祭",
+			"baseSkillId": "ex-0427",
+			"evolvedSkillIds": [
+				"ex-1698"
+			]
+		},
+		{
+			"kind": "scenario",
+			"scenarioId": "駿大祭",
+			"baseSkillId": "ex-0325",
+			"evolvedSkillIds": [
+				"ex-1699"
 			]
 		}
 	]

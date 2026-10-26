@@ -1,8 +1,12 @@
 {
-	"dataVersion": "2026-10-03c",
+	"dataVersion": "2026-10-26a",
 	"category": "scenarioEventSkills",
-	"note": "ゲーム内で確認できるシナリオの固定イベントで得られるスキルとヒントレベル。シナリオごとに events を持ち、type は choice（選択式。choices から1つ選ぶ）か fixed（選択なし。skills をすべて得る）。choice の選択肢が charaNames を持つときは、そのキャラクターが編成（育成ウマ娘かサポートカードの charaName）にいれば linked、いなければ unlinked のスキルが得られる（charaNames の どれか1人でもいれば編成にいるものとして扱う）。charaNames を持たない選択肢は skills を得る。hintLevel は得られるヒントレベル（1以上の整数）。skillId は登録済みのスキルの id。このファイルには独自の id を振らない。",
+	"note": "ゲーム内で確認できるシナリオの固定イベントで得られるスキルとヒントレベル。ツールが使うのは先頭（entries[0]）のシナリオだけ（最新のシナリオ）。2件目以降は、そのシナリオの進化（skill-evolutions.json の scenarioId）の名前の受け皿として残す。events が空のシナリオは、イベントのスキルがまだ無い（未収録）。シナリオごとに events を持ち、type は choice（選択式。choices から1つ選ぶ）か fixed（選択なし。skills をすべて得る）。choice の選択肢が charaNames を持つときは、そのキャラクターが編成（育成ウマ娘かサポートカードの charaName）にいれば linked、いなければ unlinked のスキルが得られる（charaNames の どれか1人でもいれば編成にいるものとして扱う）。charaNames を持たない選択肢は skills を得る。hintLevel は得られるヒントレベル（1以上の整数）。skillId は登録済みのスキルの id。このファイルには独自の id を振らない。",
 	"entries": [
+		{
+			"scenario": "駿大祭",
+			"events": []
+		},
 		{
 			"scenario": "トレセン軒",
 			"events": [

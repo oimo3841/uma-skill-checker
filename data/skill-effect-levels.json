@@ -1,6 +1,6 @@
 {
 	"category": "skillEffectLevel",
-	"dataVersion": "2026-10-25a",
+	"dataVersion": "2026-10-26a",
 	"stages": [
 		{
 			"key": "ほんのちょっと",
@@ -8998,6 +8998,51 @@
 			"skillId": "ex-1690",
 			"name": "御覧じろ、緋色の疾風",
 			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1691",
+			"name": "螺旋のエキスパート",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1692",
+			"name": "名にし負う夢",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1693",
+			"name": "彼方の呼び声",
+			"maxStage": "わずかに"
+		},
+		{
+			"skillId": "ex-1694",
+			"name": "急之舞",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-1695",
+			"name": "吉兆の駆け手",
+			"maxStage": "副詞なし"
+		},
+		{
+			"skillId": "ex-1696",
+			"name": "満願成就",
+			"maxStage": "少し"
+		},
+		{
+			"skillId": "ex-1697",
+			"name": "捧ぐる願い",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-1698",
+			"name": "祈りの篝火",
+			"maxStage": "すごく"
+		},
+		{
+			"skillId": "ex-1699",
+			"name": "常磐なる誓い",
+			"maxStage": "すごく"
 		}
 	],
 	"note": "スキルの効果量の段階。ゲーム内で表示される説明文の効果の大きさを表す語から決めた、そのスキルに含まれる最も大きい効果の段階（maxStage）。stages は小さい順で、rank が大きいほど効果が大きい。「副詞なし」は効果の大きさを表す語が付かないもの。時間の表現（少しの間など）は数えない。maxStage が null のものは段階を決めていない（効果の表現が無い、または stages に無い大きさの表現を含む）。rank が lowEffectMax.rank 以下のものを低効果とする。ここに無い skillId は未収録。"
