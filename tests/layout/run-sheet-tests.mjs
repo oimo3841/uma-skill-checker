@@ -13,6 +13,7 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 import { startServer, REPO_ROOT } from '../visual/lib/serve.mjs';
 import { waitNoticeSettled } from '../visual/lib/notice.mjs';
+import { withEventScenarioFirst } from '../visual/lib/scenario-doc.mjs';
 
 const OUT = process.argv[2] || 'output/scratch/sheet-tests';
 const LARGE = 844, VISIBLE = 734;
@@ -25,7 +26,8 @@ const unitFix = (body) => body.replace(/(\d+(?:\.\d+)?)vh/g, (m, n) => 'calc(' +
 const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
 const RACES = readJson('data/upcoming-races.json').races;
 const raceOf = (id) => { const r = RACES.find((x) => x.id === id); const { id: rid, ...rest } = r; return Object.assign({ id: rid }, rest); };
-const SCENARIO_DOC = readJson('data/scenario-event-skills.json');
+// 2026-10-26: シナリオの進化（パターンB）の「！」を開くため、イベントを持つシナリオ（前のシナリオ）を先頭にした写しを返す（ツールが使う最新のシナリオは events が空）
+const SCENARIO_DOC = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 const mkRoster = (o) => Object.assign({ rosterId: 'r_sheet', name: '', umaId: '', star: 3, awakeningLevel: 5, cardIds: [null, null, null, null, null, null] }, o);
 
 async function open(file, scheme, simulate, seedRoster) {
@@ -86,7 +88,8 @@ const CASES = [
 	);
 }
 // バーが縮んだ状態（従来の見た目）の位置・高さの基準（修正前に測った値）
-const BASE = { 'exam-factor-list': { top: 87, height: 757 }, 'exam-gene-list': { top: 479, height: 365 }, 'deck-picker': { top: 127, height: 717 } };
+// 2026-10-26: シナリオ因子が24→25種（駿大祭シナリオ）になり、因子の一覧のシートが1行ぶん伸びて上限に近づいた（top 87→84・高さ 757→760。意図した変化）
+const BASE = { 'exam-factor-list': { top: 84, height: 760 }, 'exam-gene-list': { top: 479, height: 365 }, 'deck-picker': { top: 127, height: 717 } };
 let fails = 0;
 for (const c of CASES) for (const scheme of ['light', 'dark']) for (const simulate of [false, true]) {
 	const { ctx, page } = await open(c.file, scheme, simulate, c.seed);

@@ -1,3 +1,4 @@
+import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // 段9（2026-10-03・C-121）の検査。run-smoke.mjs の末尾から register9() で呼ばれる（塊の見出しは「段9」を含む。
 // `npm run test:visual -- --only=段9` で回せる）。
 //
@@ -17,7 +18,7 @@ export async function register9(env) {
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
 	const json = (body) => ({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(body) });
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
-	const scenReal = readJson('data/scenario-event-skills.json');
+	const scenReal = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 	const master = readJson('uma-skill-deck-skills.json').skills;
 	const ptReal = readJson('data/skill-pt.json');
 	const stepReal = readJson('data/skill-step-up.json');

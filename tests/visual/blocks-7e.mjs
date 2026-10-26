@@ -1,3 +1,4 @@
+import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // 段7e（2026-10-03・C-118）の検査。run-smoke.mjs の末尾から register7e() で呼ばれる（塊の見出しはすべて「段7e」を含む。
 // `npm run test:visual -- --only=段7e` で全部、`--only=段7e(1)` のように括弧つきの見出しで1つずつ回せる）。
 //
@@ -21,7 +22,7 @@ export async function register7e(env) {
 	const ext = readJson('data/extended-skills.json').entries;
 	const ptReal = readJson('data/skill-pt.json');
 	const stepReal = readJson('data/skill-step-up.json');
-	const scenReal = readJson('data/scenario-event-skills.json');
+	const scenReal = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 	const byId = new Map(master.map((s) => [s.id, s]));
 	const nameOf = (id) => (master.find((s) => s.id === id) || ext.find((s) => s.id === id) || {}).name;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));

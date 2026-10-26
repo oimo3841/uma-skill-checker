@@ -319,8 +319,8 @@ export async function register46(env) {
 			const tag = 'C-187(e) ' + w + 'px・' + theme + ': ';
 			const uma = m.heads.find((h) => h.isUma);
 			assert(uma && uma.funnel && uma.sortBtn && !uma.btn, tag + '育成ウマ娘の列には、じょうご（並べ替え）が残っている', uma);
-			const root = await sp.page.evaluate(() => { const c = document.querySelector('#deck-roster-panel .usd-roster-gh.usd-roster-gc--uma'); return { bg: getComputedStyle(c).backgroundColor, diamond: !!c.querySelector('.usd-roster-evdiamond, .usd-roster-umamark'), key: getComputedStyle(document.documentElement).getPropertyValue('--uma-table-head-key-bg').trim() }; });
-			assert(root.diamond && root.bg !== m.heads.find((h) => h.isName).bg, tag + '◇があり、濃い面のまま（ほかの列と見分けがつく）', root);
+			const root = await sp.page.evaluate(() => { const c = document.querySelector('#deck-roster-panel .usd-roster-gh.usd-roster-gc--uma'); return { bg: getComputedStyle(c).backgroundColor, diamond: !!c.querySelector('[data-usd-el="uma-icon"]'), key: getComputedStyle(document.documentElement).getPropertyValue('--uma-table-head-key-bg').trim() }; });
+			assert(root.diamond && root.bg !== m.heads.find((h) => h.isName).bg, tag + '育成ウマ娘の印（画像）があり、濃い面のまま（ほかの列と見分けがつく）', root);
 			assert(new Set(m.heads.map((h) => h.h)).size === 1, tag + '全列の見出しの高さが同じ', m.heads.map((h) => h.h));
 			assert(m.sw <= m.vw, tag + '横スクロールなし', [m.sw, m.vw]);
 			await sp.ctx.close();

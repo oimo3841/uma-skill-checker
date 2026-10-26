@@ -1,3 +1,4 @@
+import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
 // 段7c（2026-10-03・C-115）の検査。run-smoke.mjs の末尾から register7c() で呼ばれる（塊の見出しはすべて「段7c」を含むので、
 // `npm run test:visual -- --only=段7c` で全部、`--only=段7c(M)` のように括弧つきの見出しで1つずつ回せる）。
@@ -20,7 +21,7 @@ export async function register7c(env) {
 	const umas = readJson('data/training-umamusume.json').entries;
 	const rules = readJson('data/skill-pt-rules.json');
 	const ptReal = readJson('data/skill-pt.json');
-	const scenReal = readJson('data/scenario-event-skills.json');
+	const scenReal = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 	const byId = new Map(master.map((s) => [s.id, s]));
 	const nameOf = (id) => (master.find((s) => s.id === id) || ext.find((s) => s.id === id) || {}).name;
 	const umaLv7 = umas.find((u) => (u.awakeningSkills || []).some((r) => r.level >= 7));
@@ -114,7 +115,7 @@ export async function register7c(env) {
 		return { total: shownTotal - prevSum, count: num(t('pt-count')), rows, ids: rows.map((r) => r.id), badge: (document.getElementById('deck-roster-excluded') || {}).textContent,
 			// 前段は1行（段7d の ②）。prevCount＝行の件数、prevTotal＝行の Pt の和、withPrev＝表示の合計（前段を含む額）。上の total は「前段を含めない合計」（表示の合計 − prevTotal）に直す
 			prevCount: prevLine ? prevEntries.length : null, prevTotal: prevLine ? prevSum : null, prevList: prevLine, withPrev: prevLine ? shownTotal : null,
-			events: Array.from(h.querySelectorAll('button[data-usd-act="events"], button[data-usd-act="col-menu"][data-has-events]')).map((b) => ({ key: b.getAttribute('data-member-key'), label: b.getAttribute('aria-label'), dot: b.textContent.trim() === '!' || !!b.querySelector('[data-usd-el="gh-bang"]'), unselected: b.getAttribute('data-unselected'), hasSvg: !!b.querySelector('svg') })),
+			events: Array.from(h.querySelectorAll('button[data-usd-act="events"], button[data-usd-act="col-menu"][data-has-events]')).map((b) => ({ key: b.getAttribute('data-member-key'), label: b.getAttribute('aria-label'), dot: b.textContent.trim() === '!' || !!b.querySelector('[data-usd-el="gh-bang"]'), unselected: b.getAttribute('data-unselected'), hasSvg: !!b.querySelector('[data-usd-el="scenario-icon"]') })),
 			heads: Array.from(h.querySelectorAll('.usd-roster-gh')).length, hscroll: document.documentElement.scrollWidth - window.innerWidth, filtering: t('pt-filtering'), alpha: !!document.getElementById('deck-roster-alpha'),
 			legend: !!h.querySelector('.usd-roster-legend') };
 	});
@@ -407,7 +408,7 @@ export async function register7c(env) {
 			const ev2Skill = ev2.choices[ev2pick].skills[0];
 			const sc2 = v.events.find((b) => b.key === 'scenario');
 			assert(scenMark(v.rows.find((r) => r.id === ev2Skill.skillId)) === '●' && !v.ids.includes(ev2.choices[0].skills[0].skillId) && !sc2.dot && sc2.unselected === '0'
-				&& sc2.label === 'シナリオ『トレセン軒』のイベントを選ぶ' && sc2.hasSvg, tag + 'イベント2を選ぶと、そのスキルが●になり、見出しの「!」は消えてどんぶりのアイコンに変わる（未選択0件）', sc2);
+				&& sc2.label === 'シナリオ『トレセン軒』のイベントを選ぶ' && sc2.hasSvg, tag + 'イベント2を選ぶと、そのスキルが●になり、見出しの「!」は消えてシナリオの印（画像。2026-10-26 にどんぶりから置き換え）に変わる（未選択0件）', sc2);
 			await esc(sp.page);
 			// 並べ替え（漏斗）・オフ・絞り込みが、ほかの列と同じに効く
 			await clickSort(sp.page, P, 'scenario');

@@ -273,7 +273,7 @@ export async function register23(env) {
 	await block('育成イベント段3A 育成ウマ娘の列見出しは、小窓に出す行があるときだけボタン。未選択があれば「！」・無ければ ◇。出す行が無い衣装は今までの札', async () => {
 		const sp = await openRoster(UMA_LONG.umaId);
 		const need = pendingEvents(UMA_LONG).length;
-		const b = await sp.page.evaluate((sel) => { const e = document.querySelector(sel); return e ? { text: e.textContent, unsel: e.getAttribute('data-unselected'), aria: e.getAttribute('aria-label'), diamond: !!e.querySelector('.usd-roster-evdiamond'), tag: e.tagName } : null; }, EVBTN);
+		const b = await sp.page.evaluate((sel) => { const e = document.querySelector(sel); return e ? { text: e.textContent, unsel: e.getAttribute('data-unselected'), aria: e.getAttribute('aria-label'), diamond: !!e.querySelector('[data-usd-el="uma-icon"]'), tag: e.tagName } : null; }, EVBTN);
 		assert(!!b && b.tag === 'BUTTON' && b.text === '!' && b.unsel === String(need) && b.aria.includes('育成ウマ娘のイベントを選ぶ') && b.aria.includes('未選択' + need + '件'),
 			'育成イベント段3A 未選択があるあいだは「！」のボタン（未選択' + need + '件。aria-label に件数）', b);
 		const chip = await sp.page.evaluate(() => !!document.querySelector('.usd-roster-gh .usd-roster-umamark'));
@@ -283,12 +283,12 @@ export async function register23(env) {
 		const ch = {};
 		pendingEvents(UMA_LONG).forEach((x) => { ch['uma:' + UMA_LONG.umaId + '#' + x.i] = 0; });
 		const sp2 = await openRoster(UMA_LONG.umaId, { choices: ch });
-		const b2 = await sp2.page.evaluate((sel) => { const e = document.querySelector(sel); return e ? { text: e.textContent, unsel: e.getAttribute('data-unselected'), diamond: !!e.querySelector('.usd-roster-evdiamond'), alert: e.classList.contains('usd-roster-evbtn--alert') } : null; }, EVBTN);
-		assert(!!b2 && b2.unsel === '0' && b2.diamond && b2.text === '' && !b2.alert, '育成イベント段3A すべて選ぶと「！」が消え、◇のボタンのまま（押すと小窓にもう一度入れる）', b2);
+		const b2 = await sp2.page.evaluate((sel) => { const e = document.querySelector(sel); return e ? { text: e.textContent, unsel: e.getAttribute('data-unselected'), diamond: !!e.querySelector('[data-usd-el="uma-icon"]'), alert: e.classList.contains('usd-roster-evbtn--alert') } : null; }, EVBTN);
+		assert(!!b2 && b2.unsel === '0' && b2.diamond && b2.text === '' && !b2.alert, '育成イベント段3A すべて選ぶと「！」が消え、育成ウマ娘の印（画像）のボタンのまま（押すと小窓にもう一度入れる）', b2);
 		await sp2.ctx.close();
 		// 選ぶイベントが無い衣装（段3の追補で変えた: 実データのこの衣装には読み取り専用の行があるので、◇のボタンになる。「！」は出ない）
 		const sp3 = await openRoster(UMA_NONE.umaId);
-		const n = await sp3.page.evaluate((sel) => { const e = document.querySelector(sel); return { btn: !!e, unsel: e && e.getAttribute('data-unselected'), diamond: !!(e && e.querySelector('.usd-roster-evdiamond')), alert: !!(e && e.classList.contains('usd-roster-evbtn--alert')), chip: !!document.querySelector('.usd-roster-gh .usd-roster-umamark') }; }, EVBTN);
+		const n = await sp3.page.evaluate((sel) => { const e = document.querySelector(sel); return { btn: !!e, unsel: e && e.getAttribute('data-unselected'), diamond: !!(e && e.querySelector('[data-usd-el="uma-icon"]')), alert: !!(e && e.classList.contains('usd-roster-evbtn--alert')), chip: !!document.querySelector('.usd-roster-gh .usd-roster-umamark') }; }, EVBTN);
 		assert(UMA_NONE.events.some(isInfo) && n.btn === true && n.unsel === '0' && n.diamond && !n.alert && n.chip === false,
 			'育成イベント段3A 選ぶイベントが無く、読み取り専用の行だけがある衣装（' + UMA_NONE.umaId + '）は ◇ のボタン（「！」にならない）', n);
 		assert(jsErrors(sp3.errors).length === 0, '育成イベント段3A コンソールのエラー0', jsErrors(sp3.errors).slice(0, 3));
@@ -317,7 +317,7 @@ export async function register23(env) {
 					const c = b.querySelector('.usd-roster-eventcond');
 					const labs = Array.from(b.querySelectorAll('.usd-roster-choicelabel')).map((x) => x.textContent);
 					return { key: b.getAttribute('data-event-key'), title: t.textContent.replace(/\s*自動$/, ''), cond: c ? c.textContent : null, next: t.nextElementSibling === c && !!c, nConds: b.querySelectorAll('.usd-roster-eventcond').length, labs };
-				}), head: !!document.querySelector('.uma-popover-title .usd-roster-evdiamond'), headText: (document.querySelector('.usd-ev-title-text') || {}).textContent };
+				}), head: !!document.querySelector('.uma-popover-title [data-usd-el="uma-icon"]'), headText: (document.querySelector('.usd-ev-title-text') || {}).textContent };
 			});
 			const tag = U.umaId;
 			assert(r.events.length === want.length && r.events.every((e, k) => e.key === 'uma:' + U.umaId + '#' + want[k].i && e.title === want[k].ev.eventName),
@@ -407,12 +407,12 @@ export async function register23(env) {
 		for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
 		await sp.page.waitForTimeout(500);
 		// C-187: サポカの列見出しは種別アイコンのボタン（イベントのあるカードは data-has-events。押すとメニュー）。◇のボタンにはならない
-		const btns = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="col-menu-btn"][data-has-events]')).map((b) => ({ key: b.getAttribute('data-member-key'), aria: b.getAttribute('aria-label'), cls: b.className, diamond: !!b.querySelector('.usd-roster-evdiamond') })));
+		const btns = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-roster-panel [data-usd-el="col-menu-btn"][data-has-events]')).map((b) => ({ key: b.getAttribute('data-member-key'), aria: b.getAttribute('aria-label'), cls: b.className, diamond: !!b.querySelector('[data-usd-el="uma-icon"]') })));
 		assert(btns.length >= 1 && btns.every((b) => /^[1-6]$/.test(b.key) && /のメニュー/.test(b.aria) && !/evbtn--uma/.test(b.cls) && !b.diamond),
 			'育成イベント段3E サポカの列見出しのイベントのあるカードは、種別アイコンのメニューのボタン（◇のボタンにならない。C-187）', btns);
 		await clickEvents(sp.page, '#deck-roster-panel ', btns[0].key);
 		await sp.page.waitForSelector('[data-usd-el="event"]');
-		const r = await sp.page.evaluate(() => ({ conds: document.querySelectorAll('.usd-roster-eventcond').length, titles: Array.from(document.querySelectorAll('.usd-roster-eventtitle')).map((t) => t.textContent.replace(/\s*自動$/, '')), diamond: !!document.querySelector('.uma-popover-title .usd-roster-evdiamond') }));
+		const r = await sp.page.evaluate(() => ({ conds: document.querySelectorAll('.usd-roster-eventcond').length, titles: Array.from(document.querySelectorAll('.usd-roster-eventtitle')).map((t) => t.textContent.replace(/\s*自動$/, '')), diamond: !!document.querySelector('.uma-popover-title [data-usd-el="uma-icon"]') }));
 		assert(r.conds === 0 && !r.diamond && r.titles.length > 0 && r.titles.every((t) => /^(\d+回目|\d+つ目|共通イベント.*)$/.test(t)), '育成イベント段3E サポカの小窓: 条件文の要素は無く、イベント名は「N回目」「共通イベント…」のまま', r);
 		assert(jsErrors(sp.errors).length === 0, '育成イベント段3E コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();

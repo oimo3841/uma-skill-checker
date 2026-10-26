@@ -1,3 +1,4 @@
+import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // 進化スキル 段4（①の画面。2026-10-13・14）の検査。run-smoke.mjs の末尾から register24() で呼ばれる
 // （塊の見出しはすべて「進化段4」で始まる。`npm run test:visual -- --only=進化段4` で回せる）。
 //
@@ -15,7 +16,7 @@ export async function register24(env) {
 	const EMPTY = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
 	const RACES = readJson('data/upcoming-races.json').races;
 	const raceOf = (id) => { const r = RACES.find((x) => x.id === id); const { id: rid, ...rest } = r; return Object.assign({ id: rid }, rest); };
-	const SCENARIO_DOC = readJson('data/scenario-event-skills.json');
+	const SCENARIO_DOC = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 	const SKILL_NAME = new Map();
 	[readJson('uma-skill-deck-skills.json').skills, readJson('data/extended-skills.json').entries].forEach((l) => l.forEach((s) => SKILL_NAME.set(s.id, s.name)));
 	const EVOS = readJson('data/skill-evolutions.json').entries;

@@ -1,3 +1,4 @@
+import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
 // 段7d（2026-10-03・C-116）の検査。run-smoke.mjs の末尾から register7d() で呼ばれる（塊の見出しはすべて「段7d」を含むので、
 // `npm run test:visual -- --only=段7d` で全部、`--only=段7d(B)` のように括弧つきの見出しで1つずつ回せる）。
@@ -18,7 +19,7 @@ export async function register7d(env) {
 	const ext = readJson('data/extended-skills.json').entries;
 	const umas = readJson('data/training-umamusume.json').entries;
 	const rules = readJson('data/skill-pt-rules.json');
-	const scenReal = readJson('data/scenario-event-skills.json');
+	const scenReal = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 	const byId = new Map(master.map((s) => [s.id, s]));
 	const nameOf = (id) => (master.find((s) => s.id === id) || ext.find((s) => s.id === id) || {}).name;
 	const umaLv7 = umas.find((u) => (u.awakeningSkills || []).some((r) => r.level >= 7));

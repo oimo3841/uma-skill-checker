@@ -1,3 +1,4 @@
+import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents } from './lib/col-menu.mjs';
 // ①の「既定と違う選択」の点（2026-10-21・C-179）の検査。run-smoke.mjs の末尾から register41() で呼ばれる
 // （塊の見出しはすべて「C-179」で始まる。`npm run test:visual -- --only=C-179` で回せる）。
@@ -26,7 +27,7 @@ export async function register41(env) {
 	const openSp = async (o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 390, height: o.h || 900 }, EMPTY);
 		if (o.scheme) await sp.page.emulateMedia({ colorScheme: o.scheme });
-		const scen = readJson('data/scenario-event-skills.json');
+		const scen = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 		await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(scen) }));
 		const roster = Object.assign({ umaId: U, cardIds: CARDS.slice(), acquireSeen: U }, o.roster || {});
 		await sp.page.evaluate(({ roster, DRAFT }) => {

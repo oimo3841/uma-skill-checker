@@ -1,3 +1,4 @@
+import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents } from './lib/col-menu.mjs';
 // ①の育成ウマ娘のイベントの取得の切り替え（2026-10-17。データの acquireMode が "user"＝ユーザー選択次第のイベント）の検査。
 // run-smoke.mjs の末尾から register34() で呼ばれる（塊の見出しはすべて「取得切替」で始まる。`npm run test:visual -- --only=取得切替` で回せる）。
@@ -30,7 +31,7 @@ export async function register34(env) {
 	/** special.html を開く。transform を渡すと、育成ウマ娘のイベントのデータをその関数で書き換えて読む（コピーに対して。ファイルは変えない） */
 	const openCore = async (transform) => {
 		const sp = await openPage(browser, base, 'special.html', { width: 390, height: 900 }, EMPTY);
-		const scen = readJson('data/scenario-event-skills.json');
+		const scen = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 		await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(scen) }));
 		if (transform) {
 			const doc = JSON.parse(JSON.stringify({ dataVersion: 'test', category: 'trainingEventSkill', entries: TR }));
@@ -244,7 +245,7 @@ export async function register34(env) {
 	const openSp = async (o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 390, height: o.h || 900 }, o.userData || EMPTY);
 		if (o.scheme) await sp.page.emulateMedia({ colorScheme: o.scheme });
-		const scen = readJson('data/scenario-event-skills.json');
+		const scen = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 		await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(scen) }));
 		const roster = Object.assign({ umaId: 'uma-0064', cardIds: CARDS6 }, o.roster || {});
 		await sp.page.evaluate(({ roster }) => {
@@ -501,7 +502,7 @@ export async function register34(env) {
 		const rawUd = (page) => page.evaluate(() => localStorage.getItem('umaSkillDeck:userData'));
 		const open2 = async (userData) => {
 			const sp = await openPage(browser, base, 'special.html', { width: 390, height: 900 }, userData);
-			await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(readJson('data/scenario-event-skills.json')) }));
+			await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(withEventScenarioFirst(readJson('data/scenario-event-skills.json'))) }));
 			await sp.page.evaluate(() => { localStorage.removeItem('umaSkillDeck:draftRoster:special'); localStorage.removeItem('umaSkillDeck:draftScope:special'); localStorage.setItem('umaSkillDeck:stepTab', '0'); });
 			await sp.page.reload({ waitUntil: 'networkidle' });
 			for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');

@@ -76,6 +76,7 @@ import { register49 } from './blocks-49.mjs';
 import { register50 } from './blocks-50.mjs';
 import { register51 } from './blocks-51.mjs';
 import { register52 } from './blocks-52.mjs';
+import { register53 } from './blocks-53.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -2024,8 +2025,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	// 64セッション目（段D）に、24種の個別選択から**総括チェック1つ**へ変えた。
 	// ON にすると24種すべてが対象に入る（内部の Set は「24種全部」か「空」の2択）。
 	await page.evaluate(() => setScenarioFactorsAll(true));
-	assert(await page.evaluate(() => document.getElementById('badge-scenario-factors-text').textContent) === 'シナリオ因子：24種',
-		'exam: シナリオ因子を ON にすると「シナリオ因子：24種」のバッジが出る');
+	assert(await page.evaluate(() => document.getElementById('badge-scenario-factors-text').textContent) === 'シナリオ因子：25種',
+		'exam: シナリオ因子を ON にすると「シナリオ因子：25種」のバッジが出る（2026-10-26: 駿大祭シナリオで24→25種）');
 	// 件数は正本から取る（テストに数字を書かない）
 	const SCENARIO_FACTOR_COUNT = await page.evaluate(() => SCENARIO_INHERITANCE_FACTORS.length);
 	/* C-2c: exam のシナリオ因子も special の②と同じ1行の形（☑ シナリオ因子 24種 ?）。
@@ -2157,11 +2158,11 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		setScenarioFactorsAll(true); setAptitudeGenesAll(true);
 		return { both, factorOnly, geneOnly, none };
 	});
-	assert(geneSplit.both.note === '＋シナリオ因子24種＋遺伝子10種'
-		&& geneSplit.both.skill === 121 && geneSplit.both.factor === 24 && geneSplit.both.gene === 10
-		&& geneSplit.both.all === 155,
-		'段F(exam): 両方 ON なら「＋シナリオ因子24種＋遺伝子10種」と並記する（合算しない）', geneSplit.both);
-	assert(geneSplit.factorOnly.note === '＋シナリオ因子24種' && geneSplit.geneOnly.note === '＋遺伝子10種'
+	assert(geneSplit.both.note === '＋シナリオ因子25種＋遺伝子10種'
+		&& geneSplit.both.skill === 121 && geneSplit.both.factor === 25 && geneSplit.both.gene === 10
+		&& geneSplit.both.all === 156,
+		'段F(exam): 両方 ON なら「＋シナリオ因子25種＋遺伝子10種」と並記する（合算しない。2026-10-26: 因子24→25種）', geneSplit.both);
+	assert(geneSplit.factorOnly.note === '＋シナリオ因子25種' && geneSplit.geneOnly.note === '＋遺伝子10種'
 		&& geneSplit.none.note === '',
 		'段F(exam): 片方だけ ON ならその片方だけ／どちらも OFF なら何も足さない', geneSplit);
 	await page.evaluate(() => setAptitudeGenesAll(false));
@@ -2181,18 +2182,18 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 			copyLines: document.getElementById('skill-copy-textarea').value.split('\n').length
 		};
 	});
-	assert(splitCounts.skillOnly === 121 && splitCounts.factorOnly === 24 && splitCounts.all === 145,
-		'exam: シナリオ因子を ON にすると、数える配列はスキル121・因子24に分かれる（並びの skillList は145のまま）', splitCounts);
+	assert(splitCounts.skillOnly === 121 && splitCounts.factorOnly === 25 && splitCounts.all === 146,
+		'exam: シナリオ因子を ON にすると、数える配列はスキル121・因子25に分かれる（並びの skillList は146のまま。2026-10-26: 因子24→25種）', splitCounts);
 	assert(splitCounts.badge === '121種（調整あり）' && splitCounts.registry === '121',
 		'exam: ①のバッジ・一覧の見出しは、因子を足してもスキルだけの数（121）', splitCounts);
-	// 一覧は「外した12種」も取り消し線で残すので 133＋因子24＝157行。数だけがスキルの121になる。
-	assert(splitCounts.rows === 157,
-		'exam: 一覧の行そのものにはシナリオ因子も並ぶ（133＋因子24＝157行）', splitCounts);
+	// 一覧は「外した12種」も取り消し線で残すので 133＋因子25＝158行。数だけがスキルの121になる。
+	assert(splitCounts.rows === 158,
+		'exam: 一覧の行そのものにはシナリオ因子も並ぶ（133＋因子25＝158行）', splitCounts);
 	// 表記: 因子も並ぶ／書き出される場所には「＋シナリオ因子N種」を添える
-	assert(splitCounts.registryHead === '対象スキル121種＋シナリオ因子24種の一覧を確認する',
-		'exam: 一覧の見出しは「対象スキル121種＋シナリオ因子24種の一覧を確認する」', splitCounts.registryHead);
-		assert(splitCounts.copyHint === 'スキル121種＋シナリオ因子24種・ 145行' && splitCounts.copyLines === 145,
-		'exam: スキル名のコピーの見出しは「スキル121種＋シナリオ因子24種・ 145行」（種数を分けて書き、行数は実際の145行。微調整2のCで短くした）', splitCounts);
+	assert(splitCounts.registryHead === '対象スキル121種＋シナリオ因子25種の一覧を確認する',
+		'exam: 一覧の見出しは「対象スキル121種＋シナリオ因子25種の一覧を確認する」', splitCounts.registryHead);
+		assert(splitCounts.copyHint === 'スキル121種＋シナリオ因子25種・ 146行' && splitCounts.copyLines === 146,
+		'exam: スキル名のコピーの見出しは「スキル121種＋シナリオ因子25種・ 146行」（種数を分けて書き、行数は実際の146行。微調整2のCで短くした）', splitCounts);
 	await page.evaluate(() => { setScenarioFactorsAll(false); setAptitudeGenesAll(false); setTargetScopeMode('default'); });
 	assert(await page.textContent('#step1-skill-badge') === '133種', 'exam: 調整を戻すとバッジも「133種」に戻る');
 	assert(await page.evaluate(() => ['badge-scope-added', 'badge-scope-removed', 'badge-scenario-factors', 'badge-genes']
@@ -2456,14 +2457,14 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	await page.waitForTimeout(400);
 	p = await readExam();
 	// Deck へ渡す skillNames は**因子を含めたまま**（Deck 側はカタログの◆として取り込む）。
-	// 138種＋シナリオ因子24種＝162件。この162は「渡した行数」であって「スキル数」ではない。
-	assert(p && !p.imported && p.scope.name === '技能試験（調整あり）' && p.skillNames.length === 162,
-		'exam: 判定し直すと新しい payload（調整あり・162件＝スキル138＋シナリオ因子24）になり未取り込みに戻る', p && { imported: p.imported, scope: p.scope, n: p.skillNames.length });
+	// 138種＋シナリオ因子25種＝163件。この163は「渡した行数」であって「スキル数」ではない。
+	assert(p && !p.imported && p.scope.name === '技能試験（調整あり）' && p.skillNames.length === 163,
+		'exam: 判定し直すと新しい payload（調整あり・163件＝スキル138＋シナリオ因子25）になり未取り込みに戻る', p && { imported: p.imported, scope: p.scope, n: p.skillNames.length });
 	assert(await page.evaluate(() => {
 		const f = new Set(SCENARIO_INHERITANCE_FACTORS);
 		const pay = JSON.parse(localStorage.getItem('umaSkillDeck:ocrHandoff:exam'));
-		return pay.skillNames.filter((x) => !f.has(x)).length === 138 && pay.skillNames.filter((x) => f.has(x)).length === 24;
-	}), 'exam: 渡した162件の内訳はスキル138件・シナリオ因子24件');
+		return pay.skillNames.filter((x) => !f.has(x)).length === 138 && pay.skillNames.filter((x) => f.has(x)).length === 25;
+	}), 'exam: 渡した163件の内訳はスキル138件・シナリオ因子25件');
 	// 「スキル」と付く数からは因子を外す。検出数もスキルだけを数える（因子は全員が検出済みの種でも増えない）。
 	const factorSplit = await page.evaluate(() => ({
 		skillOnly: skillOnlyList.length, factorOnly: factorOnlyList.length, all: skillList.length,
@@ -2477,18 +2478,18 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		detected0: countDetected(0),
 		detectedWithFactors: skillList.filter((s) => personResults[0].detectedSkills.has(s)).length
 	}));
-	assert(factorSplit.skillOnly === 138 && factorSplit.factorOnly === 24 && factorSplit.all === 162
+	assert(factorSplit.skillOnly === 138 && factorSplit.factorOnly === 25 && factorSplit.all === 163
 		&& factorSplit.badge === '138種（調整あり）' && factorSplit.registry === '138' && factorSplit.statTotal === '138',
 		'exam: ①のバッジ・一覧の見出し・「対象スキル数」カードは、因子を除いた138', factorSplit);
-	assert(factorSplit.detected0 === 138 && factorSplit.detectedWithFactors === 162 && factorSplit.statFound1 === '138',
-		'exam: 検出数はスキルだけを数える（因子込みなら162になるところを138）', factorSplit);
-	assert(!factorSplit.statFactorHidden && factorSplit.statFactor === '＋シナリオ因子24種',
-		'exam: 「対象スキル数」カードの下に「＋シナリオ因子24種」が出る', factorSplit);
+	assert(factorSplit.detected0 === 138 && factorSplit.detectedWithFactors === 163 && factorSplit.statFound1 === '138',
+		'exam: 検出数はスキルだけを数える（因子込みなら163になるところを138）', factorSplit);
+	assert(!factorSplit.statFactorHidden && factorSplit.statFactor === '＋シナリオ因子25種',
+		'exam: 「対象スキル数」カードの下に「＋シナリオ因子25種」が出る', factorSplit);
 	n = await noteState();
 	assert(n.title.includes('取り込めます') && n.detail.includes('（対象：技能試験（調整あり））') && n.dot,
 		'exam: 案内も「取り込めます」に戻り、対象名に（調整あり）が付く', n);
-	assert(n.detail.startsWith('親A・親B の2人分・スキル138件・シナリオ因子24件を渡しました'),
-		'exam: 取り込み案内は「スキル138件・シナリオ因子24件」と分けて書く', n.detail);
+	assert(n.detail.startsWith('親A・親B の2人分・スキル138件・シナリオ因子25件を渡しました'),
+		'exam: 取り込み案内は「スキル138件・シナリオ因子25件」と分けて書く', n.detail);
 	assert(await page.evaluate(() => fabUnseen.deck), 'exam: 判定し直すと Deck のバッジがまた点く');
 	await deckFrame.locator('#ocr-handoff-banner').waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
 	const factorResolve = await frame.evaluate(() => {
@@ -2497,9 +2498,9 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 		return { resolved: r.resolved.length, unresolved: r.unresolved, uraId: hit ? hit.id : null,
 			kind: hit ? UmaSkillDeckCore.skillCatalogKind(hit.id) : null };
 	});
-	assert(factorResolve.resolved === 162 && factorResolve.unresolved.length === 0
+	assert(factorResolve.resolved === 163 && factorResolve.unresolved.length === 0
 		&& factorResolve.uraId === 'sf-ura' && factorResolve.kind === 'scenarioFactor',
-		'exam: シナリオ因子も含めて162件すべてが解決し、URAシナリオはカタログの sf-ura に着く', factorResolve);
+		'exam: シナリオ因子も含めて163件すべてが解決し、URAシナリオはカタログの sf-ura に着く', factorResolve);
 	await deckFrame.locator('[data-ocr-act="import"]').click();
 	await page.waitForTimeout(600);
 	const warn = await frame.evaluate(() => {
@@ -2509,8 +2510,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	assert(warn === null, 'exam: シナリオ因子を混ぜても「見つからなかった」警告は出ない', warn);
 	const factorDlg = await frame.evaluate(() =>
 		document.querySelector('.usd-modal-panel .text-xs.text-slate-500').textContent);
-	assert(factorDlg.includes('スキル138件・シナリオ因子24件を取り込みます'),
-		'deck: 取り込みダイアログも「スキル138件・シナリオ因子24件」と分けて書く', factorDlg);
+	assert(factorDlg.includes('スキル138件・シナリオ因子25件を取り込みます'),
+		'deck: 取り込みダイアログも「スキル138件・シナリオ因子25件」と分けて書く', factorDlg);
 	// 取り込んだシートで、カタログ由来の行に◆が付き、名前が「（不明なスキル）」にならないこと。
 	// 行の格子はシートを開いている間だけ描かれるので、取り込んだシートを開いてから見る。
 	await deckFrame.locator('[data-ocr-act="apply"]').click();
@@ -6256,7 +6257,7 @@ await block('exam.html — 「結合画像の表示」（集計バナー／印�
 		return { total: all.length, none: none, two: two, four: four, full: full,
 			firstFour: all.slice(0, 4) };
 	});
-	assert(factorOnly.total === 24, '段E: 総括チェック ON で24種が対象', factorOnly.total);
+	assert(factorOnly.total === 25, '段E: 総括チェック ON で25種が対象（2026-10-26: 駿大祭シナリオで24→25種）', factorOnly.total);
 	assert(factorOnly.none.band === null && factorOnly.none.note.length === 0,
 		'段E: 1種も検出していなければ、帯も脚注も出さない（24種を対象にしていても）', factorOnly.none);
 	assert(factorOnly.two.band.n === 2 && factorOnly.two.band.more === false
@@ -6271,8 +6272,8 @@ await block('exam.html — 「結合画像の表示」（集計バナー／印�
 		'段E: 脚注は検出分だけを数えて並べる（2種）', factorOnly.two.note);
 	assert(factorOnly.four.note[0] === '検出したシナリオ因子（4種）：' + factorOnly.firstFour.join('・'),
 		'段E: 脚注は検出した因子の名前を全部並べる（帯の上位3種とは別）', factorOnly.four.note);
-	assert(/^検出したシナリオ因子（24種）：/.test(factorOnly.full.note[0]),
-		'段E: 24種すべて検出すれば脚注には24種が並ぶ', factorOnly.full.note[0].slice(0, 30));
+	assert(/^検出したシナリオ因子（25種）：/.test(factorOnly.full.note[0]),
+		'段E: 25種すべて検出すれば脚注には25種が並ぶ', factorOnly.full.note[0].slice(0, 30));
 
 	// 押した時点の設定の固定（run）。処理中に「結合画像の表示」を変えても、その回の出力は押した時点の設定になる。
 	// OCR は回さず、stitchOnePerson と processImages を差し替えて経路だけ通す。
@@ -15027,8 +15028,8 @@ await block('本育成パネルの追加修正（段7b。ヘッダー・タブ�
 			tag + '育成ウマ娘の列の見出しは今までの2行（上＝◇／！、下＝漏斗）。「▼」は無く、漏斗は SVG で 28px 以上（スマホは高さ 24px 以上を許す。段7c）');
 		assert(c1.card && c1.cm.tag === 'BUTTON' && c1.cm.bang && c1.cm.un === '1' && c1.cm.aria.indexOf('のメニュー（未選択1件）') !== -1 && c2.card && c2.cm.bang && c2.cm.un === '1' && c2.cm.aria.indexOf('のメニュー（未選択1件）') !== -1,
 			tag + 'C-187: 選ぶ必要のあるイベントがあり未選択が残るカードの列は、種別アイコンのボタンに「!」が付く（aria-label「…のメニュー（未選択M件）」）', { c1: c1.cm, c2: c2.cm });
-		assert(!colU.ev && colU.firstTag === 'SPAN' && c3.empty && !c3.card && c4.empty && !c4.card,
-			tag + 'C-187: ◇（育成ウマ娘）は今までのバッジのまま。空きの枠は押せない（破線の枠だけ）。イベントの無いカードのメニューは blocks-46 の C-187(d3) が見る', { u: colU.firstTag, c3: c3.empty, c4: c4.empty });
+		assert(!colU.ev && colU.firstTag === 'IMG' && c3.empty && !c3.card && c4.empty && !c4.card,
+			tag + 'C-187: 育成ウマ娘の印は画像（2026-10-26 に ◇ のバッジから置き換え。押せない印のまま）。空きの枠は押せない（破線の枠だけ）。イベントの無いカードのメニューは blocks-46 の C-187(d3) が見る', { u: colU.firstTag, c3: c3.empty, c4: c4.empty });
 		assert(cols.filter((c) => c.card).every((c) => !c.cm.funnel && c.cm.h >= 44), tag + 'C-187: サポカの列にじょうごは無く、押せる範囲は高さ44px以上（並べ替えはメニューの中）');
 		// 並べ替え: 押している列は data-sorted（aria-pressed の代わり）。同時に1つだけ
 		assert(c1.cm.sorted === null && colU.pressed === 'false', tag + '並べ替えは、押していないときは印なし', { sorted: c1.cm.sorted });
@@ -15324,6 +15325,7 @@ await register49({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register50({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register51({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register52({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register53({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register44({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register43({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });

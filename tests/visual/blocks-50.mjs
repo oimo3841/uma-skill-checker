@@ -1,3 +1,4 @@
+import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // 段G（2026-10-22・C-191）の検査。run-smoke.mjs の末尾から register50() で呼ばれる（塊の見出しはすべて「段G」で始まる。`npm run test:visual -- --only=段G` で回せる）。
 //
 // (4) 削除: 「削除」を選んでいる間、②の各スキルのパネルの右に×（押せる範囲44px・aria-label「<スキル名>を削除」）。パネルの点線の枠・赤い取り消し線は無い。パネルを押しても削除できる。削除のボタンは(6)の「選択中」の見た目。
@@ -16,7 +17,7 @@ export async function register50(env) {
 	const EMPTY = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
 	const RACES = readJson('data/upcoming-races.json').races;
 	const raceOf = (id) => { const r = RACES.find((x) => x.id === id); const { id: rid, ...rest } = r; return Object.assign({ id: rid }, rest); };
-	const SCENARIO_DOC = readJson('data/scenario-event-skills.json');
+	const SCENARIO_DOC = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 	const MASTER = readJson('uma-skill-deck-skills.json').skills;
 	const CARDS6 = ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'];
 	// 金・進化・固有の行が1つずつ以上出る編成（オルフェーヴル総攬の衣装・追込・芝2200m）と、固有が出る編成（脚質・距離・バ場を指定）

@@ -293,7 +293,7 @@ export async function register19(env) {
 				else { nEff++; if (r.n !== 1 || r.text !== name + '　' + (milli / 1000).toFixed(3)) bad.push('「' + name + '」の効率が違う: ' + r.text + ' ≠ ' + (milli / 1000).toFixed(3)); }
 			});
 			withEff[mode] = { rows: got.length, nEff, nNone, nFactorGene };
-			assert(bad.length === 0 && nEff > 0 && nFactorGene === 34, '微調整1A5(' + mode + '): 各行は「名前＋全角スペース＋効率（小数3桁）」。効率の無い行・因子・遺伝子（34行）には出さない', { bad: bad.slice(0, 5), withEff: withEff[mode] });
+			assert(bad.length === 0 && nEff > 0 && nFactorGene === 35, '微調整1A5(' + mode + '): 各行は「名前＋全角スペース＋効率（小数3桁）」。効率の無い行・因子・遺伝子（35行。2026-10-26: 因子24→25種）には出さない', { bad: bad.slice(0, 5), withEff: withEff[mode] });
 		}
 		// 効率を指定の行の効率は、データの値と一致する（名前ではなく行の独自ID＝データの値）
 		const effRows = await page.evaluate(() => { const snap = effSnapshot(); return effTargets().slice(0, 400).every((t) => true) && effTargets().map((t) => t.name + '　' + effFormat(t.milli)); });
@@ -368,7 +368,7 @@ export async function register19(env) {
 		});
 		{
 			const k = noEff.onRows.findIndex((r) => !r.has);
-			const nSkill = noEff.onRows.length - 34;
+			const nSkill = noEff.onRows.length - (noEff.F + noEff.G);   // 末尾の因子・遺伝子の行（2026-10-26: 34→35行。数は exam の写しから取る）
 			const lastWith = noEff.onRows.map((r) => r.has).lastIndexOf(true);
 			const tail = noEff.onRows.slice(lastWith + 1, nSkill);
 			const wantTail = noEff.offRows.filter((n) => noEff.names.includes(n));
@@ -568,7 +568,7 @@ export async function register19(env) {
 			const r = await page.evaluate(() => {
 				const h = document.querySelector('header');
 				const ps = [...h.querySelectorAll('.header-tagline')].map((p) => p.textContent.replace(/\s+/g, ''));   // 見出しの一言（C-140・微調整2・D で、見出しの下の <p> から「2nd Edition」の脇へ移した）
-				const p1 = document.querySelector('#step-panel-1 > p');
+				const p1 = document.querySelector('#step-panel-1 > p:not(#melop-scenario-note)');   // 2026-10-26: 上に「新シナリオへの対応が未完了です。」の1行が入った（blocks-53 が見る）
 				const p2 = [...document.querySelectorAll('#step-panel-2 > p')].find((p) => p.textContent.includes('親Bセットを追加すると'));
 				const foot = [...document.querySelectorAll('#step-panel-2 p')].find((p) => p.textContent.includes('SNS投稿用'));
 				return { title: document.title, h1: document.querySelector('header h1').textContent.replace(/\s+/g, ' ').trim(), ps, badge: !!document.getElementById('ui-mode-badge'),

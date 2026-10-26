@@ -1,3 +1,4 @@
+import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents, clickSort } from './lib/col-menu.mjs';
 // オススメサポ 段13（段7〜12 の確認で出た修正と、追加の改善。2026-10-04・C-127）の検査。run-smoke.mjs の末尾から register13() で呼ばれる
 // （塊の見出しはすべて「オススメサポ段13」で始まる。`npm run test:visual -- --only=オススメサポ段13` で回せる。区切りごとに「段13A」のように回せる）。
@@ -14,7 +15,7 @@ export async function register13(env) {
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
 	const json = (body) => ({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(body) });
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
-	const scenReal = readJson('data/scenario-event-skills.json');
+	const scenReal = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 	const racesReal = readJson('data/upcoming-races.json');
 	// C-129: 既定の除外（デバフ・持久力回復・視野・緑スキル・低効果）の物差しに使う、低効果のスキル（データから）
 	const effectReal = readJson('data/skill-effect-levels.json');

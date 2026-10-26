@@ -25,6 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { startServer, REPO_ROOT } from '../visual/lib/serve.mjs';
+import { withEventScenarioFirst } from '../visual/lib/scenario-doc.mjs';
 
 let fails = 0;
 function assert(cond, label, extra) {
@@ -44,7 +45,13 @@ const umas = readJson('data/training-umamusume.json').entries;
 const pt = new Map(readJson('data/skill-pt.json').entries.map((e) => [e.skillId, e]));
 const races = readJson('data/upcoming-races.json').races;
 const evolvedIds = [...pt.values()].filter((e) => e.rarity === 'evolved').map((e) => e.skillId);
-const scenarioBases = evolutions.entries.filter((e) => e.kind === 'scenario').map((e) => e.baseSkillId);
+// 2026-10-26: ツールが使うシナリオ（data/scenario-event-skills.json の先頭）を、イベントのスキルがまだ無い最新のシナリオにした。
+// §2〜§12 の決まりは、それまでどおりイベントを持つシナリオ（前のシナリオ）を先頭にした写しで見る（ページにはその写しを返す）。
+// ツールが使うシナリオそのもの（実データの先頭）と、その進化の行は §13 が見る
+const SCEN_REAL = readJson('data/scenario-event-skills.json');
+const SCEN_TEST = withEventScenarioFirst(SCEN_REAL);
+const TEST_SCENARIO = SCEN_TEST.entries[0].scenario;
+const scenarioBases = evolutions.entries.filter((e) => e.kind === 'scenario' && e.scenarioId === TEST_SCENARIO).map((e) => e.baseSkillId);
 const ownGold = (u) => {
 	const s = new Set();
 	['initialSkills', 'awakeningSkills'].forEach((k) => (u[k] || []).forEach((row) => (row.skills || []).forEach((x) => { if (pt.get(x.skillId) && pt.get(x.skillId).rarity === 'gold') s.add(x.skillId); })));
@@ -59,6 +66,7 @@ const page = await ctx.newPage();
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+await page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SCEN_TEST) }));
 await page.goto(srv.base + '/uma-skill-deck.html', { waitUntil: 'networkidle', timeout: 60000 });
 await page.waitForFunction(() => !!window.UmaSkillDeckCore && window.UmaSkillDeckCore.getMasterSkills().length > 0);
 
@@ -96,7 +104,8 @@ assert(st.fragmentHits === 0, '「名前を入れて探す」にも出ない（�
 assert(st.raceDistanceKeyKept && st.raceDistanceKeyKept.standardDistanceScope === 'part', 'ex-1606 の raceDistance が standardDistanceScope ごと core に届く', st.raceDistanceKeyKept);
 // special の因子の辞書: 因子カテゴリだけ（進化スキルは extendedSkill）
 const cat = await page.evaluate(() => { const C = window.UmaSkillDeckCore; return { sf: C.getCatalogEntries('scenarioFactor').length, ge: C.getCatalogEntries('geneFactor').length }; });
-assert(cat.sf === 24 && cat.ge === 10, '因子の辞書の元（シナリオ因子24・遺伝子10）は変わらない', cat);
+const SF_N = readJson('data/scenario-inheritance-factors.json').entries.length, GE_N = readJson('data/aptitude-genes.json').entries.length;
+assert(cat.sf === SF_N && cat.ge === GE_N, '因子の辞書の元（シナリオ因子' + SF_N + '・遺伝子' + GE_N + '。data/ の件数）は変わらない', cat);
 
 /* ───────── §2 表で回す ───────── */
 console.log('\n=== §2 既定の決定関数を表で回す（全' + umas.length + '衣装 × 主なレース条件） ===');
@@ -228,7 +237,7 @@ assert(!!orfe && ownGold(orfe).length === 2, 'オルフェーヴル総攬（' + 
 {
 	// トレセン軒の6組。衣装なし（パターンAなし）。試験用のレースで見る
 	const pairs = { 'ex-0029': 'ex-1038', 'ex-0183': 'ex-1034', 'ex-0616': 'ex-1037', 'ex-0645': 'ex-1036', 'ex-0657': 'ex-1039', 'ex-0668': 'ex-1035' };
-	assert(JSON.stringify(Object.fromEntries(evolutions.entries.filter((e) => e.kind === 'scenario').map((e) => [e.baseSkillId, e.evolvedSkillIds[0]]))) === JSON.stringify(pairs), 'データのトレセン軒の6組が手書きの対応と一致（ギアチェンジ→秘伝の味変アレンジ！ほか）');
+	assert(JSON.stringify(Object.fromEntries(evolutions.entries.filter((e) => e.kind === 'scenario' && e.scenarioId === 'トレセン軒').map((e) => [e.baseSkillId, e.evolvedSkillIds[0]]))) === JSON.stringify(pairs), 'データのトレセン軒の6組が手書きの対応と一致（ギアチェンジ→秘伝の味変アレンジ！ほか）');
 	const all = Object.keys(pairs);
 	const key = await page.evaluate(() => window.UmaSkillDeckCore.getEvolutionScenarioKey());
 	assert(key === 'トレセン軒', 'ツールが使うシナリオの鍵が取れる', key);
@@ -480,7 +489,7 @@ console.log('\n=== §7 進化先を選べる条件: 進化先自身が使える�
 console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓）: 進化先がある金スキルの上に進化先（パターンAだけ・レースで絞らない）、下に前段の白 ===');
 {
 	const { openPage } = await import('../visual/lib/fixtures.mjs');
-	const SCEN = readJson('data/scenario-event-skills.json');
+	const SCEN = SCEN_TEST;
 	const step = new Map(readJson('data/skill-step-up.json').entries.map((e) => [e.skillId, e.prevSkillIds || []]));
 	const whitesOf = (g) => (step.get(g) || []).filter((id) => pt.get(id) && pt.get(id).rarity === 'white');
 	const longRace = races.find((r) => r.distanceCategory === 'long');
@@ -821,7 +830,7 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 {
 	console.log('\n=== §12 小窓: 選べない進化先のラジオは無効（トーストなし）／選べるものは有効／「進化しない」は常に選べる／強調の見た目／閉じるが見える／コントラスト ===');
 	const { openPage } = await import('../visual/lib/fixtures.mjs');
-	const SCEN = readJson('data/scenario-event-skills.json');
+	const SCEN = SCEN_TEST;
 	// 実データから編成を探す: 選べる進化先と選べない進化先が同じ行にある（mixed）・金スキル3つで3行とも出る（three）
 	const found = await page.evaluate(async ({ races }) => {
 		const C = window.UmaSkillDeckCore;
@@ -954,6 +963,35 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 		assert(b.rows.length >= 3 && b.rows.every((r) => /^元: /.test(r.sub) && r.desc > 0 && r.marks === 0 && r.name === '13px') && b.footer, 'シナリオのタブ: 行は名前（13px）・「元: …」・説明文の全文・強調なし／閉じるは下に貼り付く', b);
 		await sp.page.context().close();
 	}
+}
+
+/* ───────── §13 ツールが使うシナリオ（実データの先頭。2026-10-26・駿大祭の受け入れ） ───────── */
+{
+	console.log('\n=== §13 ツールが使うシナリオ（実データのまま）: 先頭は最新のシナリオ・進化は6組・前のシナリオの行は使わない ===');
+	const pairs = { 'ex-0042': 'ex-1694', 'ex-0640': 'ex-1695', 'ex-0238': 'ex-1696', 'ex-0003': 'ex-1697', 'ex-0427': 'ex-1698', 'ex-0325': 'ex-1699' };
+	const head = SCEN_REAL.entries[0];
+	assert(head.scenario === '駿大祭' && head.events.length === 0 && SCEN_REAL.entries.slice(1).some((e) => e.scenario === 'トレセン軒'),
+		'data/scenario-event-skills.json の先頭は駿大祭（イベントのスキルはまだ無い＝events が空）。前のシナリオ（トレセン軒）は2件目以降に残す', SCEN_REAL.entries.map((e) => e.scenario + ':' + e.events.length));
+	assert(JSON.stringify(Object.fromEntries(evolutions.entries.filter((e) => e.kind === 'scenario' && e.scenarioId === '駿大祭').map((e) => [e.baseSkillId, e.evolvedSkillIds.join('+')]))) === JSON.stringify(pairs),
+		'データの駿大祭の6組が手書きの対応と一致（神速→急之舞・英俊豪傑→吉兆の駆け手・ネバーギブアップ→満願成就・全身全霊→捧ぐる願い・燃ゆる魂→祈りの篝火・気骨稜稜→常磐なる誓い）');
+	const ctx3 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+	const p3 = await ctx3.newPage();
+	const err3 = [];
+	p3.on('pageerror', (e) => err3.push(String(e)));
+	await p3.goto(srv.base + '/uma-skill-deck.html', { waitUntil: 'networkidle', timeout: 60000 });
+	await p3.waitForFunction(() => !!window.UmaSkillDeckCore && window.UmaSkillDeckCore.getMasterSkills().length > 0);
+	const r13 = await p3.evaluate(async ({ bases, tresen }) => {
+		const C = window.UmaSkillDeckCore;
+		await C.loadSkillEvolutions();
+		const b = C.computeEvolutionPlan({ umaId: '', takenIds: bases, filter: {}, race: null }).b;
+		const old = C.computeEvolutionPlan({ umaId: '', takenIds: tresen, filter: {}, race: null }).b;
+		return { key: C.getEvolutionScenarioKey(), rows: b.entries.map((e) => e.baseId + '>' + e.targets.map((t) => t.id).join('+')), old: old.entries.length };
+	}, { bases: Object.keys(pairs), tresen: evolutions.entries.filter((e) => e.kind === 'scenario' && e.scenarioId === 'トレセン軒').map((e) => e.baseSkillId) });
+	assert(r13.key === '駿大祭', 'ツールが使うシナリオの鍵は駿大祭', r13.key);
+	assert(JSON.stringify(r13.rows) === JSON.stringify(Object.entries(pairs).map(([k, v]) => k + '>' + v)), 'シナリオの進化（パターンB）の行は駿大祭の6組（データの並び）', r13.rows);
+	assert(r13.old === 0, '前のシナリオ（トレセン軒）の金スキルを持っていても、その進化の行は使わない', r13.old);
+	assert(err3.length === 0, '§13 コンソールのエラー0', err3);
+	await ctx3.close();
 }
 
 assert(errors.length === 0, 'コンソールエラーなし', errors);

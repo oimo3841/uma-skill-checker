@@ -1,3 +1,4 @@
+import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // オススメサポ ④（レース条件と、小窓の絞り込み。段7〜段12。2026-10-04・C-126）の検査。run-smoke.mjs の末尾から register12() で呼ばれる
 // （塊の見出しはすべて「オススメサポ④」で始まる。`npm run test:visual -- --only=オススメサポ④` で回せる。段ごとに「④段7」のように回せる）。
 //
@@ -14,7 +15,7 @@ export async function register12(env) {
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
 	const json = (body) => ({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(body) });
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
-	const scenReal = readJson('data/scenario-event-skills.json');
+	const scenReal = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 	const racesReal = readJson('data/upcoming-races.json');
 	const courseReal = readJson('data/course-conditions.json');
 	const FILTER = { distance: 'medium', style: 'senko', surface: 'turf' };

@@ -1,3 +1,4 @@
+import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 import { clickEvents } from './lib/col-menu.mjs';
 // ①のイベントの結果の切り替え（2026-10-16。設計は result-toggle-step0.md の案A）の検査。run-smoke.mjs の末尾から register30() で呼ばれる
 // （塊の見出しはすべて「結果切替」で始まる。`npm run test:visual -- --only=結果切替` で回せる）。
@@ -23,7 +24,7 @@ export async function register30(env) {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 390, height: o.h || 900 }, o.userData || EMPTY);
 		if (o.scheme) await sp.page.emulateMedia({ colorScheme: o.scheme });
 		// シナリオの固定イベントは実データで（Step 0 の数は、シナリオの列を含む実際の画面の数）
-		const scen = readJson('data/scenario-event-skills.json');
+		const scen = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 		await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(scen) }));
 		const roster = Object.assign({ umaId: 'uma-0001', cardIds: REAL.cardIds }, o.roster || {});
 		await sp.page.evaluate(({ roster }) => {
@@ -225,7 +226,7 @@ export async function register30(env) {
 			rosters: [Object.assign({ rosterId: 'r1', name: 'S1', umaId: VARY.umaId, star: 3, awakeningLevel: 5, cardIds: VARY.cardIds.slice(), createdAt: 'x', updatedAt: 'x' }, extra || {})] });
 		const open2 = async (userData) => {
 			const sp = await openPage(browser, base, 'special.html', { width: 390, height: 900 }, userData);
-			await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(readJson('data/scenario-event-skills.json')) }));
+			await sp.page.route('**/data/scenario-event-skills.json*', (r) => r.fulfill({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(withEventScenarioFirst(readJson('data/scenario-event-skills.json'))) }));
 			await sp.page.evaluate(() => { localStorage.removeItem('umaSkillDeck:draftRoster:special'); localStorage.removeItem('umaSkillDeck:draftScope:special'); localStorage.setItem('umaSkillDeck:stepTab', '0'); });
 			await sp.page.reload({ waitUntil: 'networkidle' });
 			for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');

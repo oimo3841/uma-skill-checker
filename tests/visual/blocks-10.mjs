@@ -1,3 +1,4 @@
+import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // 本育成サポカ外スキル（段1・段2。2026-10-04・C-122）の検査。run-smoke.mjs の末尾から register10() で呼ばれる
 // （塊の見出しは「段10」を含む。`npm run test:visual -- --only=段10` で回せる）。
 //
@@ -12,7 +13,7 @@ export async function register10(env) {
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
 	const json = (body) => ({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(body) });
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
-	const scenReal = readJson('data/scenario-event-skills.json');
+	const scenReal = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 	const master = readJson('uma-skill-deck-skills.json').skills;
 	const ptReal = readJson('data/skill-pt.json');
 	const stepReal = readJson('data/skill-step-up.json');
@@ -278,7 +279,7 @@ export async function register10(env) {
 				addedStill: added.pop.set.has(W[0])
 			};
 		}, { W, wShort, wMed, noPtId, gold1, gold2, p1, b2, nx: NOEX });
-		assert(r.size === 461 && !r.hasGold && r.hasP1 && r.hasNoPt, '段10(B) 母集団: 条件で検索と緑スキルの合計の461種（2026-10-25a: 検索に出す拡張スキルが10→16件になり +6。2026-10-16: 7→10件で +3）。金は入らず、Pt 未収録も残る', r);
+		assert(r.size === 462 && !r.hasGold && r.hasP1 && r.hasNoPt, '段10(B) 母集団: 条件で検索と緑スキルの合計の462種（2026-10-26: 検索に出す拡張スキルに ex-1693 が増え +1。2026-10-25a: 検索に出す拡張スキルが10→16件になり +6。2026-10-16: 7→10件で +3）。金は入らず、Pt 未収録も残る', r);
 		assert(r.shortHas.join() === 'true,false,true' && r.medHas.join() === 'false,true,true', '段10(B) 母集団: ①の絞り込み（距離）に合うものだけが残り、距離のタグを持たないスキルは絞り込みでも残る', r);
 		assert(r.rosterHas.join() === 'false,false,true,true', '段10(B) 母集団: ①の●（c15 のヒント）と、①でOFFにしたスキルは入らない。①で得ないスキルは残る', r);
 		assert(r.addedStill, '段10(B) 母集団: すでに②にあるスキルは入れたまま', r);
@@ -397,7 +398,7 @@ export async function register10(env) {
 		const full = await sp.page.evaluate(async () => { const r = await UmaSkillDeckCore.outside.solve({ roster: { race: { id: 'race-blank', name: 'blank' }, outsideOptions: { exclude: {} } }, count: 6, deadlineMs: 20000 }); return { ok: r.ok, partial: r.partial, score: r.score, cards: r.cards.length, counts: r.counts, stats: r.stats }; });
 		assert(cut.ok && cut.partial === true && cut.score > 0 && cut.cards === 6 && full.ok && full.partial === false && cut.score <= full.score, '段10(C) 実データ: 締め切り 0ms だと途中の結果（partial）で、それまでの最良（6枚）を返す。十分な時間なら印は付かない', { cut, full: { partial: full.partial, score: full.score } });
 		assert(full.stats.engineScore === full.score, '段10(C) 実データでも、探索の点数と組み立ての点数が一致する', [full.stats.engineScore, full.score]);
-		assert(full.counts.kinds + full.counts.gold === full.score && full.stats.population === 461 && full.stats.candidates === 412 && full.stats.groups === 147, '段10(C) 実データ: 点数 ＝ 種数（countSkillKinds）＋ 金スキル。母集団461・候補412枚・147キャラクター（2026-10-25a: 先行データでカード2枚・吾妻が増え、候補410→412・キャラクター146→147。検索の母集団に6件が増え455→461。点数114は変わらない。2026-10-15: card-0323・0334・0147 のイベントが入り、候補407→410・キャラクター145→146。2026-10-16: 検索に出す拡張スキルが7→10件になり母集団452→455。点数114・候補・キャラクターは変わらない）', { counts: full.counts, stats: full.stats });
+		assert(full.counts.kinds + full.counts.gold === full.score && full.stats.population === 462 && full.stats.candidates === 412 && full.stats.groups === 147, '段10(C) 実データ: 点数 ＝ 種数（countSkillKinds）＋ 金スキル。母集団462・候補412枚・147キャラクター（2026-10-26: 検索の母集団に ex-1693 が増え461→462。R の card-0566 は候補に入らず、候補・キャラクター・点数114は変わらない。2026-10-25a: 先行データでカード2枚・吾妻が増え、候補410→412・キャラクター146→147。検索の母集団に6件が増え455→461。点数114は変わらない。2026-10-15: card-0323・0334・0147 のイベントが入り、候補407→410・キャラクター145→146。2026-10-16: 検索に出す拡張スキルが7→10件になり母集団452→455。点数114・候補・キャラクターは変わらない）', { counts: full.counts, stats: full.stats });
 		const ticks = await sp.page.evaluate(async () => {
 			let n = 0; const iv = setInterval(() => { n++; }, 0);
 			const roster = { cardIds: ['card-0248', 'card-0249', 'card-0250', 'card-0251', 'card-0252', 'card-0253'], skillFilter: { distance: 'medium', style: 'senko', surface: 'turf' } };

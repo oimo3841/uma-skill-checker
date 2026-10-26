@@ -187,7 +187,8 @@ export async function register45(env) {
 				return srcKey(r.type) !== 'type:' + KEYS[c.typeOrder] || srcKey(r.rar) !== wantRar;
 			});
 			assert(bad.length === 0, tag + '行の種別アイコン・レアリティバッジはデータどおり', bad.slice(0, 3));
-			assert(rows.every((r) => r.left && r.right && r.bgImg === 'none') && new Set(rows.map((r) => r.bg)).size <= 2, tag + '種別アイコンは左・バッジは右・面は無彩色（種別で色を変えない。ホバー中の1行だけ別）', new Set(rows.map((r) => r.bg)).size);
+			assert(rows.every((r) => r.left && (r.right || r.rar === null) && r.bgImg === 'none')   // R のカード（2026-10-26 の ［巫女］吾妻 など）はバッジを出さないので右の位置は見ない
+				 && new Set(rows.map((r) => r.bg)).size <= 2, tag + '種別アイコンは左・バッジは右・面は無彩色（種別で色を変えない。ホバー中の1行だけ別）', new Set(rows.map((r) => r.bg)).size);
 			assert(!rows.some((r) => r.over), tag + '行の中身がはみ出さない', rows.filter((r) => r.over).length);
 			const pills = await sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="types"] .usd-roster-pill')).map((b) => ({ text: b.textContent, icon: b.querySelector('img') ? b.querySelector('img').getAttribute('src') : null, alt: b.querySelector('img') ? b.querySelector('img').getAttribute('alt') : null, bg: getComputedStyle(b).backgroundColor, typed: b.classList.contains('usd-roster-pill--typed') })));
 			assert(pills.length === 7 && pills.filter((p) => p.typed).length === 6 && pills.filter((p) => p.typed).every((p) => p.icon && srcKey(p.icon).startsWith('type:')) && new Set(pills.filter((p) => p.typed).map((p) => p.bg)).size === 1,

@@ -1,3 +1,4 @@
+import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // 段7f（2026-10-03・C-119）の検査。run-smoke.mjs の末尾から register7f() で呼ばれる（塊の見出しは「段7f」を含む。
 // `npm run test:visual -- --only=段7f` で回せる）。
 //
@@ -13,7 +14,7 @@ export async function register7f(env) {
 	const rules = readJson('data/skill-pt-rules.json');
 	const ptReal = readJson('data/skill-pt.json');
 	const stepReal = readJson('data/skill-step-up.json');
-	const scenReal = readJson('data/scenario-event-skills.json');
+	const scenReal = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 	const nameOf = (id) => (master.find((s) => s.id === id) || ext.find((s) => s.id === id) || {}).name;
 	const DISC = rules.hintDiscountPercent;
 	const pay = (base0, L) => Math.floor(base0 * (100 - (L > 0 ? DISC[Math.min(L, DISC.length) - 1] : 0)) / 100);

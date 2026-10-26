@@ -11,12 +11,10 @@ export async function register51(env) {
 	const { block, assert, browser, base, openPage } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	const HEAD = '新シナリオへの対応';
-	const LIST = '［陣風の花紺青］ダイワスカーレット・［いとどめでたき、まつりかな］吾妻・［Time of Departure］マヤノトップガン';
-	const L1 = LIST + 'のスキルは、ぱかライブTV’で先行公開された内容まで実装済みです。足りない内容は、10月26日 12:00 後に追加します。';
-	const L2 = LIST + 'のスキルは、10月26日 12:00 後にOCR対象になります。';
-	const L3 = 'めろっぷ！【LTC】専用拡張モードの行の並びは、新シナリオに未対応です。10月26日 12:00 後に更新します。';
-	// UmaStar は箇条1つ（2つ目は外した）・UmaExam は3つ（2026-10-25）
-	const LINES = { special: [L1], exam: [L1, L2, L3] };
+	// 2026-10-26（駿大祭の受け入れ）で箇条を入れ替えた: UmaStar・UmaExam は L1、UmaStar だけ L2
+	const L1 = '［いとどめでたき、まつりかな］吾妻・［Time of Departure］マヤノトップガン・［陣風の花紺青］ダイワスカーレットのイベントのスキルは、一部が未対応です。';
+	const L2 = '駿大祭シナリオのイベントのスキルは、未対応です。';
+	const LINES = { special: [L1, L2], exam: [L1] };
 	const DESC = { 'UmaStar OCR': 'チャンミ/LoH用OCR（β版）', 'UmaExam OCR': '技能試験用OCR' };
 	// 履歴（新しい順）: 種類と日付。日付は、そのお知らせを入れた commit の日付（日本時間）
 	const HIST = {
@@ -94,7 +92,11 @@ export async function register51(env) {
 			assert(d.head === HEAD, `履歴(1) ${t.name}: 見出しが一致`, d.head);
 			assert(JSON.stringify(d.lines) === JSON.stringify(LINES[t.name]), `履歴(1) ${t.name}: 箇条が一致（${LINES[t.name].length}行）`, JSON.stringify(d.lines));
 			assert(d.leads === 0, `履歴(1) ${t.name}: 導入の文は無い`, d.leads);
-			assert((await r.page.locator('#melop-scenario-note').count()) === 0, `履歴(1) ${t.name}: 常時の1行（#melop-scenario-note）は無い`, '');
+			// 2026-10-26: exam だけ、①の「既定として登録済みの133種…」の文の上に常時の1行を出す（文面は byte 一致）。special には無い
+			const note = await r.page.evaluate(() => { const e = document.getElementById('melop-scenario-note'); if (!e) return null; const nx = e.nextElementSibling; return { text: e.textContent, inStep1: !!e.closest('#step-panel-1'), next: nx ? nx.textContent : null }; });
+			if (t.name === 'exam') assert(note && note.text === '新シナリオへの対応が未完了です。' && note.inStep1 && /^既定として登録済みの133種を対象にします。/.test(note.next || ''),
+				`履歴(1) exam: ①の「既定として登録済みの133種…」の文の上に「新シナリオへの対応が未完了です。」の1行（#melop-scenario-note）がある`, note);
+			else assert(note === null, `履歴(1) ${t.name}: 常時の1行（#melop-scenario-note）は無い`, note);
 			assert(!/ヒント|必ず合う|合うことがある|合わない/.test([d.head, ...d.lines].join('')), `履歴(1) ${t.name}: 禁じた表現を使っていない`, '');
 			await r.page.keyboard.press('Escape');
 			await menuOpen(r.page);

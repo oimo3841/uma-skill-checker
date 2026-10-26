@@ -1,3 +1,4 @@
+import { withEventScenarioFirst } from './lib/scenario-doc.mjs';
 // 本育成サポカ外スキル「オススメサポ」（段3 入口と小窓・段4 追加の動き。2026-10-04・C-123）の検査。run-smoke.mjs の末尾から register11() で呼ばれる
 // （塊の見出しはすべて「オススメサポ」で始まる。`npm run test:visual -- --only=オススメサポ` で回せる。
 // 「段11」は72セッション目の入口の検査がすでに使っている見出しなので使わない）。
@@ -14,7 +15,7 @@ export async function register11(env) {
 	const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
 	const json = (body) => ({ status: 200, contentType: 'application/json; charset=utf-8', body: JSON.stringify(body) });
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
-	const scenReal = readJson('data/scenario-event-skills.json');
+	const scenReal = withEventScenarioFirst(readJson('data/scenario-event-skills.json'));
 	const ptReal = readJson('data/skill-pt.json');
 	const master = readJson('uma-skill-deck-skills.json').skills;
 	const FILTER = { distance: 'medium', style: 'senko', surface: 'turf' };
