@@ -528,6 +528,12 @@
 			#new-step-slot #step-panel-1 fieldset > .grid.gap-2 > label.p-2\.5.gap-2 { column-gap: 4px; padding-left: 4px; padding-right: 4px; }
 			#new-step-slot #step-panel-1 fieldset > .grid.gap-2 > label span.block.text-xs { font-size: 11px; }
 		}
+		/* 4列（640〜1023px）は1枚がいちばん狭いので、さらに題を 10.5px にし、枠の左右の内側とラジオとの間を 2px・「?」の左の余白を 0 にする */
+		@media (min-width: 640px) and (max-width: 1023.98px) {
+			#new-step-slot #step-panel-1 fieldset > .grid.gap-2 > label span.block.text-xs { font-size: 10.5px; }
+			#new-step-slot #step-panel-1 fieldset > .grid.gap-2 > label.p-2\.5.gap-2 { column-gap: 2px; padding-left: 2px; padding-right: 2px; }
+			#new-step-slot #step-panel-1 fieldset > .grid.gap-2 > label .scope-help { margin-left: 0; }
+		}
 		#step-panel-1 .uma-checkrow-label > span { min-width: 6em; }
 		/* (6) ①と②のタブの幅をそろえる（中身の幅ではなく等分）。等分にすると 360px で「調整あり」のバッジと並べたときに
 		   ①の名前が数px 欠けるので、480px 以下ではタブの中の間を 4px に詰める */
