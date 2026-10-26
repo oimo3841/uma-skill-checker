@@ -14,6 +14,8 @@ export async function register54(env) {
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	const EMPTY = { schemaVersion: 7, records: [], customSkills: [], templates: [], rosters: [] };
 	const VIEWS = [[360, 'light'], [360, 'dark'], [390, 'light'], [390, 'dark'], [1280, 'light'], [1280, 'dark']];
+	// 「効率を指定（N種）?」は 360px 以上で1行。ただし 641〜694px は2行を許す（641px 以上の箱の余白は変えない決まり〔C-140・微調整2A2〕を優先。2026-10-27 おいもさんの決定）
+	const EFF_TWO_LINES_OK = (w) => w >= 641 && w <= 694;
 
 	const openExam = async (w, theme) => {
 		const r = await openPage(browser, base, 'exam.html', { width: w, height: w === 1280 ? 900 : 844 });
@@ -79,7 +81,7 @@ export async function register54(env) {
 			const { ctx, page, errors } = await openExam(w, theme);
 			const a = await measureExam(page);
 			assert(Math.abs(a.tab1 - a.tab2) <= 1 && !a.label1Cut, tag + '既定: ①②のタブの幅の差 1px 以内・①の名前は欠けない', [a.tab1, a.tab2, a.label1Cut]);
-			assert(a.effLines === 1, tag + '「' + a.effText + '」は1行', a.effLines);
+			assert(a.effLines === (EFF_TWO_LINES_OK(w) ? a.effLines : 1) && a.effLines <= 2, tag + '「' + a.effText + '」は1行（641〜694px だけ2行まで許す）', a.effLines);
 			assert(a.chipRows === 1 && !a.grid, tag + '既定（小札2つ）: 1行に並び、表の形にしない', a);
 			assert(Math.abs(a.sfL - a.geneL) <= 1, tag + 'チェック欄の小札（シナリオ因子・遺伝子）の先頭のずれ 1px 以内', [a.sfL, a.geneL]);
 			// 因子・遺伝子を入れる（小札4つ）→「対象を絞る」（小札5つ・タブのバッジは「調整あり」）
@@ -98,6 +100,16 @@ export async function register54(env) {
 			const ct = await page.evaluate(scanTextContrastInPage, '#step-panel-1');
 			assert(ct.checked > 0 && ct.bad.length === 0, tag + '①の文字のコントラスト 4.5:1 以上（' + ct.checked + '要素）', formatContrast(ct.bad).slice(0, 5));
 			assert(jsErrors(errors).length === 0, tag + 'コンソールのエラーなし', errors.slice(0, 3));
+			await ctx.close();
+		}
+	});
+
+	await block('夜間3(2b) UmaExam「効率を指定（N種）?」の境目: 640・695・767・1023px は1行／641・694px は2行まで（641〜694px だけ2行を許す。C-140・微調整2A2 を優先）', async () => {
+		for (const w of [640, 641, 694, 695, 767, 1023]) {
+			const { ctx, page, errors } = await openExam(w, 'light');
+			const a = await measureExam(page);
+			assert(EFF_TWO_LINES_OK(w) ? a.effLines <= 2 : a.effLines === 1, '夜間3(2b) ' + w + 'px: 「' + a.effText + '」は' + (EFF_TWO_LINES_OK(w) ? '2行まで' : '1行'), a.effLines);
+			assert(a.sw <= a.vw && jsErrors(errors).length === 0, '夜間3(2b) ' + w + 'px: 横スクロールなし・エラーなし', [a.sw, a.vw, errors.slice(0, 2)]);
 			await ctx.close();
 		}
 	});

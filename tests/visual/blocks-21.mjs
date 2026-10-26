@@ -255,8 +255,9 @@ export async function register21(env) {
 					overflowX: el.scrollWidth > el.clientWidth + 0.5, boxInView: B.left >= -0.5 && B.right <= innerWidth + 0.5, sw: document.documentElement.scrollWidth, vw: document.documentElement.clientWidth };
 			});
 			const tag = w + 'px・' + theme;
-			assert(!r.hidden && r.text === WANT.join('\n') && /効率を指定（βテスト）/.test(r.title),
-				'微調整3C1(' + tag + '): 見出しは「効率を指定（βテスト）」のまま、本文は指定の3行', { text: r.text, title: r.title });
+			// 2026-10-27（作業3・4 の push のとき・おいもさんの決定）: 見出しの「（βテスト）」を消した
+			assert(!r.hidden && r.text === WANT.join('\n') && r.title.trim() === '効率を指定' && !/βテスト/.test(r.title),
+				'微調整3C1(' + tag + '): 見出しは「効率を指定」（「（βテスト）」は無い）、本文は指定の3行', { text: r.text, title: r.title });
 			assert(r.inside && !r.overflowX && r.boxInView && r.sw <= r.vw, '微調整3C1(' + tag + '): 本文は折り返しても小窓の内側（はみ出さない・横にはみ出さない）', r);
 			await page.keyboard.press('Escape');
 			await page.waitForTimeout(100);
