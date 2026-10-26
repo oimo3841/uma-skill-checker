@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-26c';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-26d';
 
 	/* ============================================================
 	 * 定数
@@ -74,9 +74,9 @@
 		'data/non-support-skills.json': '2026-10-25a',
 		'data/training-umamusume.json': '2026-10-26a',
 		'data/support-cards.json': '2026-10-26b',
-		'data/support-card-event-skills.json': '2026-10-26b',
+		'data/support-card-event-skills.json': '2026-10-26c',
 		// キャラクター共通のイベント（C-102 の区切り3・2026-09-27）。9本目
-		'data/character-event-skills.json': '2026-10-25a',
+		'data/character-event-skills.json': '2026-10-26d',
 		// レースの距離の一覧（C-97・2026-09-26）。7本目。スキルではないので EXTRA_CATALOG_SOURCES にも
 		// TRAINING_SOURCES にも入れず、loadRaceDistances() が読む。
 		'data/race-distances.json': '2026-09-26a',
@@ -90,7 +90,7 @@
 		// スキルの公式の説明文（2026-10-02）。ページの読み込みでは取りに行かない（ⓘ・長押しを最初に開いたときだけ。段6）
 		'data/skill-descriptions.json': '2026-10-26a',
 		// シナリオの固定イベントで得られるスキルとヒントレベル（段7c・2026-10-03）。編成パネルを作るときにだけ読む（ほかのページの読み込みでは取りに行かない）
-		'data/scenario-event-skills.json': '2026-10-26a',
+		'data/scenario-event-skills.json': '2026-10-26b',
 		// これから開催されるレースの一覧（オススメサポ ④・段7・2026-10-04）。公式のお知らせの公開情報。loadUpcomingRaces() が読む。
 		// exam は読まないので EXAM_DATA_JSON_VERSIONS には載せない（同じファイルを両方の表に載せると test:verify §1 が落とす）
 		'data/upcoming-races.json': '2026-10-25b',
@@ -102,7 +102,7 @@
 		// C-131: 同じものとして扱うスキルの組（equivalentPairs）を足した
 		'data/recommended-skills.json': '2026-10-21a',
 		// 育成ウマ娘のイベントで得られるスキル（段1・2026-10-11）。受け入れだけで、画面と計算はまだ使わない。TRAINING_SOURCES の5本目
-		'data/training-event-skills.json': '2026-10-25a',
+		'data/training-event-skills.json': '2026-10-26c',
 		// スキルの進化の対応（段2・2026-10-12。C-145・C-146）。受け入れだけで、画面と計算はまだ使わない。ページの読み込みでは取りに行かない（loadSkillEvolutions）
 		'data/skill-evolutions.json': '2026-10-26a',
 		// 「このスキルは、これらのスキルを取得しているときだけ有効」の対応（2026-10-17a。大逃げの要るスキル）。skill-evolutions.json と一緒に、最初に必要になったとき1回だけ読む（loadSkillEvolutions）

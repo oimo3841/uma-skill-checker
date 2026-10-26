@@ -970,8 +970,9 @@ console.log('\n=== §8 衣装の小窓（育成ウマ娘のイベントの小窓
 	console.log('\n=== §13 ツールが使うシナリオ（実データのまま）: 先頭は最新のシナリオ・進化は6組・前のシナリオの行は使わない ===');
 	const pairs = { 'ex-0042': 'ex-1694', 'ex-0640': 'ex-1695', 'ex-0238': 'ex-1696', 'ex-0003': 'ex-1697', 'ex-0427': 'ex-1698', 'ex-0325': 'ex-1699' };
 	const head = SCEN_REAL.entries[0];
-	assert(head.scenario === '駿大祭' && head.events.length === 0 && SCEN_REAL.entries.slice(1).some((e) => e.scenario === 'トレセン軒'),
-		'data/scenario-event-skills.json の先頭は駿大祭（イベントのスキルはまだ無い＝events が空）。前のシナリオ（トレセン軒）は2件目以降に残す', SCEN_REAL.entries.map((e) => e.scenario + ':' + e.events.length));
+	// 2026-10-26（新シナリオの仕上げ）: 駿大祭のイベント4つ（固定・6択・固定・固定）を入れた
+	assert(head.scenario === '駿大祭' && head.events.map((e) => e.type).join(',') === 'fixed,choice,fixed,fixed' && SCEN_REAL.entries.slice(1).some((e) => e.scenario === 'トレセン軒'),
+		'data/scenario-event-skills.json の先頭は駿大祭（イベント4つ: 固定・6択・固定・固定）。前のシナリオ（トレセン軒）は2件目以降に残す', SCEN_REAL.entries.map((e) => e.scenario + ':' + e.events.length));
 	assert(JSON.stringify(Object.fromEntries(evolutions.entries.filter((e) => e.kind === 'scenario' && e.scenarioId === '駿大祭').map((e) => [e.baseSkillId, e.evolvedSkillIds.join('+')]))) === JSON.stringify(pairs),
 		'データの駿大祭の6組が手書きの対応と一致（神速→急之舞・英俊豪傑→吉兆の駆け手・ネバーギブアップ→満願成就・全身全霊→捧ぐる願い・燃ゆる魂→祈りの篝火・気骨稜稜→常磐なる誓い）');
 	const ctx3 = await browser.newContext({ viewport: { width: 1280, height: 900 } });

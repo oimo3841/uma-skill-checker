@@ -1,7 +1,7 @@
 // 新シナリオ（駿大祭）の受け入れと入れ替え（2026-10-26）の検査。
 // run-smoke.mjs の末尾から register53() で呼ばれる（塊の見出しはすべて「駿大祭」で始まる。`npm run test:visual -- --only=駿大祭` で回せる）。
 //
-// (1) ①の表: シナリオの列は実データの先頭（駿大祭）・見出しの印は新しいシナリオアイコン・列にスキルは出ない／育成ウマ娘の印は新しいキャラアイコン（タイル・列見出し）
+// (1) ①の表: シナリオの列は実データの先頭（駿大祭）・見出しの印は新しいシナリオアイコン・列に駿大祭のイベントのスキル（2026-10-26 の仕上げで入れた）／育成ウマ娘の印は新しいキャラアイコン（タイル・列見出し）
 // (2) 進化の小窓のシナリオ: 駿大祭の6件が選べる／(3) ③のシナリオ因子の一覧に「駿大祭シナリオ」（25種）
 /// (4) ①のサポカの選択で ［巫女］吾妻（card-0566）が選べる／(5) UmaExam ①の「新シナリオへの対応が未完了です。」の1行は無い（公開前の追加で消した）
 // (6) 列見出し: 育成ウマ娘・シナリオの列もサポカと同じメニューのボタン・メニューの文言「イベント/スキル」「ソート」／(7) めろっぷの行の8行と効率
@@ -26,6 +26,9 @@ export async function register53(env) {
 	const RP = '#deck-roster-panel ';
 	const UMA_SRC = 'img/icon-uma-2026-10-26b.png', SCEN_SRC = 'img/icon-scenario-2026-10-26.png';
 	const VIEWS = [[390, 'light'], [390, 'dark'], [1280, 'light'], [1280, 'dark']];
+	// 2026-10-26（新シナリオの仕上げ）: 駿大祭のイベント（おいもさんの指定の表）。シニア級10月前半の6択の選択肢と、4つのイベントで得られるスキルの数（重なりなし）
+	const SIX_CHOICE_LABELS = ['ダイワスカーレット', 'マヤノトップガン', 'ユキノビジン', 'ノーリーズン', 'ブラストワンピース', '吾妻'];
+	const SCEN_SKILL_N = 11;   // 全身全霊／6択の6つ／ハヤテ一文字・機先の勝負・彼方の呼び声／名にし負う夢
 
 	const openSp = async (o = {}) => {
 		const sp = await openPage(browser, base, 'special.html', { width: o.w || 390, height: o.w === 1280 ? 900 : 844 }, EMPTY);
@@ -45,8 +48,8 @@ export async function register53(env) {
 	const sleep = (page, ms) => page.waitForTimeout(ms);
 	const noHScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 
-	await block('駿大祭(1) ①の表: シナリオの列は実データの先頭（駿大祭）・見出しの印は新しいシナリオアイコン・列にスキルは出ない／育成ウマ娘の印は新しいキャラアイコン（タイル・列見出し）。◆とどんぶりは無い（390・1280 × ライト・ダーク）', async () => {
-		assert(SCEN_NAME === '駿大祭' && SCEN_REAL.entries[0].events.length === 0, '駿大祭(1) データ: 先頭のシナリオは駿大祭で、イベントのスキルはまだ無い（events が空）', SCEN_REAL.entries.map((e) => e.scenario));
+	await block('駿大祭(1) ①の表: シナリオの列は実データの先頭（駿大祭）・見出しの印は新しいシナリオアイコン・列に駿大祭のイベントのスキル（11種）が出る／育成ウマ娘の印は新しいキャラアイコン（タイル・列見出し）。◆とどんぶりは無い（390・1280 × ライト・ダーク）', async () => {
+		assert(SCEN_NAME === '駿大祭' && SCEN_REAL.entries[0].events.map((e) => e.type).join(',') === 'fixed,choice,fixed,fixed', '駿大祭(1) データ: 先頭のシナリオは駿大祭で、イベントは4つ（固定・6択・固定・固定）', SCEN_REAL.entries.map((e) => e.scenario + ':' + e.events.length));
 		for (const [w, theme] of VIEWS) {
 			const tag = '駿大祭(1) ' + w + '・' + theme + ': ';
 			const sp = await openSp({ w, theme });
@@ -66,10 +69,11 @@ export async function register53(env) {
 				};
 			}, { UMA_SRC, SCEN_SRC });
 			// 2026-10-26（公開前の追加）: 列見出しはサポカと同じメニューのボタン（印は 24px。名前はボタンの aria-label）
-			assert(r.name === '駿大祭' && r.scen && r.scen.ok && r.scen.w === 24 && r.scenBtn === 'シナリオ『駿大祭』のメニュー', tag + 'シナリオの列の見出しは「駿大祭」・印は新しいシナリオアイコン（24px のメニューのボタン。aria-label「シナリオ『駿大祭』のメニュー」）', r);
+			// 2026-10-26（新シナリオの仕上げ）: 6択が未選択なので、見出しに未選択の印「!」・aria-label に「（未選択1件）」が付く
+			assert(r.name === '!駿大祭' && r.scen && r.scen.ok && r.scen.w === 24 && r.scenBtn === 'シナリオ『駿大祭』のメニュー（未選択1件）', tag + 'シナリオの列の見出しは「駿大祭」（未選択の印「!」）・印は新しいシナリオアイコン（24px のメニューのボタン。aria-label「シナリオ『駿大祭』のメニュー（未選択1件）」）', r);
 			assert(r.umaHead && r.umaHead.ok && r.umaHead.w === 24 && r.umaTile && r.umaTile.ok && r.umaTile.w === 20 && r.umaTile.alt === '育成ウマ娘', tag + '育成ウマ娘の印は新しいキャラアイコン（列見出し 24px・タイル 20px）', { head: r.umaHead, tile: r.umaTile });
 			assert(r.old === 0, tag + '◆（CSS で描いた印）とどんぶりの SVG は、どこにも無い', r.old);
-			assert(r.rows > 0 && r.marked === 0, tag + 'シナリオの列にはスキルが出ない（' + r.rows + '行とも空）', r);
+			assert(r.rows > 0 && r.marked === SCEN_SKILL_N, tag + 'シナリオの列に駿大祭のイベントのスキルが出る（' + r.rows + '行のうち ' + SCEN_SKILL_N + '行）', r);
 			assert(await noHScroll(sp.page), tag + '横スクロールなし', '');
 			const c = await sp.page.evaluate(scanTextContrastInPage, '#deck-roster-panel .usd-roster-grid');
 			assert(c.checked > 0 && c.bad.length === 0, tag + '表の文字のコントラスト 4.5:1 以上（' + c.checked + '要素）', formatContrast(c.bad).slice(0, 5));
@@ -150,7 +154,7 @@ export async function register53(env) {
 		}
 	});
 
-	await block('駿大祭(6) ①の列見出し: 育成ウマ娘・シナリオの列も、サポカの列と同じメニューのボタン（同じ大きさ・枠・印 24px・じょうご無し・見出しの高さは3種で同じ）。メニューは「イベント/スキル」「ソート」（3種で共通の文言）。シナリオの「イベント/スキル」は既存の空の表示（390・1280 × ライト・ダーク）', async () => {
+	await block('駿大祭(6) ①の列見出し: 育成ウマ娘・シナリオの列も、サポカの列と同じメニューのボタン（同じ大きさ・枠・印 24px・じょうご無し・見出しの高さは3種で同じ）。メニューは「イベント/スキル」「ソート」（3種で共通の文言）。シナリオの「イベント/スキル」は駿大祭の6択（390・1280 × ライト・ダーク）', async () => {
 		// 変更前（2026-10-26 の 78ca541）に測った見出しの行の高さ: 390px は 49px・1280px は 73px（C-187(d1)・C-188 の基準と同じ）
 		const BEFORE_HEAD = { 390: 49, 1280: 73 };
 		const SAME = ['card-0402', 'card-0499', 'card-0248', 'card-0249', 'card-0250', 'card-0566'];
@@ -180,12 +184,14 @@ export async function register53(env) {
 				await sp.page.keyboard.press('Escape');
 				await sleep(sp.page, 200);
 			}
-			// シナリオの「イベント/スキル」: 小窓を開く。イベントのスキルが無い間は既存の空の表示
+			// シナリオの「イベント/スキル」: 小窓を開く。2026-10-26（新シナリオの仕上げ）で駿大祭のイベントを入れたので、選べるイベント（シニア級10月前半の6択）が出る
 			await menuOf('scenario');
 			await sp.page.click('[data-usd-el="colmenu-events"]');
-			await sp.page.waitForSelector('[data-usd-el="events-none"]', { timeout: 5000 });
-			const pop = await sp.page.evaluate(() => ({ none: (document.querySelector('[data-usd-el="events-none"]') || {}).textContent, title: (document.querySelector('.uma-popover-title .usd-ev-title-text') || {}).textContent, icon: !!document.querySelector('.uma-popover-title [data-usd-el="scenario-icon"]') }));
-			assert(pop.none === '選ぶイベントはありません' && pop.title === 'シナリオ『駿大祭』' && pop.icon, tag + 'シナリオの「イベント/スキル」で小窓が開き、既存の空の表示「選ぶイベントはありません」が出る', pop);
+			await sp.page.waitForSelector('[data-usd-el="event-choice"]', { timeout: 5000 });
+			const pop = await sp.page.evaluate(() => ({ none: !!document.querySelector('[data-usd-el="events-none"]'), title: (document.querySelector('.uma-popover-title .usd-ev-title-text') || {}).textContent, icon: !!document.querySelector('.uma-popover-title [data-usd-el="scenario-icon"]'),
+				events: document.querySelectorAll('.uma-popover [data-usd-el="event"]').length, labels: [...document.querySelectorAll('.uma-popover [data-usd-el="event-choice"] .usd-roster-choicelabel')].map((x) => x.textContent) }));
+			assert(!pop.none && pop.title === 'シナリオ『駿大祭』' && pop.icon && pop.events === 1 && JSON.stringify(pop.labels) === JSON.stringify(SIX_CHOICE_LABELS),
+				tag + 'シナリオの「イベント/スキル」で小窓が開き、選べるイベント1つ（6択: ' + SIX_CHOICE_LABELS.join('・') + '）が出る', pop);
 			await sp.page.keyboard.press('Escape');
 			await sleep(sp.page, 200);
 			// 育成ウマ娘の「ソート」: その列が得るスキルを上に寄せる（押している列の印 data-sorted）。もう一度で元の並び
@@ -216,7 +222,8 @@ export async function register53(env) {
 			'駿大祭(7) 8行の位置: 如才なし・直感力・主導権・死力を尽くして（怯むことなく と 遊び心 の間）／弧を描いて・直情（規格外 の後・アオハル点火・速 の直前）／彼方の呼び声（恩返し、召し上がれ の次）／駿大祭シナリオ（トレセン軒シナリオ の次）', '');
 		const g = (n) => mel[idx(n)].group;
 		assert(g('駿大祭シナリオ') === g('トレセン軒シナリオ') && mel[idx('駿大祭シナリオ')].id === 'sf-shuntaisai', '駿大祭(7) 駿大祭シナリオの分類はトレセン軒シナリオと同じ（' + g('トレセン軒シナリオ') + '）', g('駿大祭シナリオ'));
-		const want = { 'ex-1680': [639, 180, 3.548], 'ex-1682': [574, 180, 3.187], 'ex-1679': [617, 180, 3.428], 'ex-1681': [574, 180, 3.187], 'ex-1678': [617, 160, 3.856], 'ex-1688': [552, 190, 2.905], 'ex-1693': [663, 200, 3.315] };
+		// 2026-10-26（新シナリオの仕上げ）: 適性をすべてAにして書き出したシートに差し替えたので、直感力（ex-1682）・死力を尽くして（ex-1681）・直情（ex-1688）の値が上がった
+		const want = { 'ex-1680': [639, 180, 3.548], 'ex-1682': [639, 180, 3.548], 'ex-1679': [617, 180, 3.428], 'ex-1681': [639, 180, 3.548], 'ex-1678': [617, 160, 3.856], 'ex-1688': [639, 190, 3.362], 'ex-1693': [663, 200, 3.315] };
 		const got = Object.fromEntries(Object.keys(want).map((id) => { const e = eff.find((x) => x.skillId === id); return [id, e ? [e.score, e.sp, e.efficiency] : null]; }));
 		assert(eff.length === 470 && JSON.stringify(got) === JSON.stringify(want) && !eff.some((e) => e.skillId === 'sf-shuntaisai'), '駿大祭(7) 効率は新しい7行（シートの評価点・消費sp・効率）だけ増えて470件。駿大祭シナリオ（0）は持たない', got);
 		const order = mel.filter((r) => r.id && eff.some((e) => e.skillId === r.id)).map((r) => r.id);

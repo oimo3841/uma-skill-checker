@@ -18,7 +18,7 @@
  * このファイルは DOM を作るだけで、保存や開閉の処理は持たない（各ページの openUiNotice / closeUiNotice が持つ）。
  * 公開するグローバルは UmaAnnounce の1つだけ。
  * ============================================================ */
-const ANNOUNCE_JS_VERSION = '2026-10-26a';
+const ANNOUNCE_JS_VERSION = '2026-10-26b';
 
 (function () {
 	'use strict';
@@ -50,9 +50,10 @@ const ANNOUNCE_JS_VERSION = '2026-10-26a';
 	 * 新シナリオ（10月26日 12:00 開始）を含むゲームの更新に、ツールが対応するまでの断り。
 	 * 既読の印は edition とは別のキー（uma-exam-scenario-notice / uma-special-scenario-notice）に ID を書く（ID は文面を差し替えても変えない）。
 	 * 対応が済んだら on を false にする（入れ替えの commit で。履歴からも外れる）。
-	 * 2026-10-26（駿大祭の受け入れ）: 箇条を入れ替えた。UmaStar・UmaExam ＝イベントのスキルが一部未対応のカード・衣装／UmaStar だけ ＝シナリオのイベントのスキル（①のシナリオの列）。 */
+	 * 2026-10-26（駿大祭の受け入れ）: 箇条を入れ替えた。UmaStar・UmaExam ＝イベントのスキルが一部未対応のカード・衣装／UmaStar だけ ＝シナリオのイベントのスキル（①のシナリオの列）。
+	 * 2026-10-26（新シナリオの仕上げ）: イベントのスキルと駿大祭のイベントを入れたので on を false にした（履歴からも外れる）。 */
 	const SCENARIO_PENDING = {
-		on: true,
+		on: false,
 		id: 'scenario-pending-20261024',
 		pages: ['exam', 'special'],
 		heading: '新シナリオへの対応',

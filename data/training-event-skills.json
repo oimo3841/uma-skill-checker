@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-25a",
+	"dataVersion": "2026-10-26c",
 	"category": "trainingEventSkill",
 	"entries": [
 		{
@@ -29410,7 +29410,141 @@
 		{
 			"umaId": "uma-0272",
 			"status": "done",
-			"events": []
+			"events": [
+				{
+					"eventName": "楽しめ！一番！",
+					"condition": "",
+					"choices": [
+						{
+							"skills": []
+						},
+						{
+							"skills": [
+								{
+									"skillId": "100",
+									"name": "負けん気",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"eventName": "ママからのメッセージ",
+					"condition": "",
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "300",
+									"name": "抜きん出る一歩",
+									"hintLevel": 1
+								}
+							]
+						},
+						{
+							"skills": [
+								{
+									"skillId": "300",
+									"name": "抜きん出る一歩",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"eventName": "認め合うふたり",
+					"condition": "",
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "395",
+										"name": "奮い立つ心",
+										"hintLevel": 2
+									}
+								],
+								[
+									{
+										"skillId": "395",
+										"name": "奮い立つ心",
+										"hintLevel": 2
+									}
+								]
+							]
+						},
+						{
+							"skills": []
+						},
+						{
+							"skills": []
+						}
+					]
+				},
+				{
+					"eventName": "1番と、カッコいい",
+					"condition": "阪神JF・桜花賞・日本ダービー・宝塚記念・秋華賞・エリザベス女王杯・ジャパンC・大阪杯・天皇賞(秋)で1着",
+					"acquireMode": "user",
+					"acquireNote": "目標外：阪神JF・日本ダービー・宝塚記念・ジャパンC",
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "100",
+									"name": "負けん気",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "164",
+									"name": "真っ向勝負",
+									"hintLevel": 2
+								},
+								{
+									"skillId": "43",
+									"name": "垂れウマ回避",
+									"hintLevel": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"eventName": "走れ、走れ、フットサル",
+					"condition": "",
+					"choices": [
+						{
+							"results": [
+								[
+									{
+										"skillId": "98",
+										"name": "ギアシフト",
+										"hintLevel": 1
+									}
+								],
+								[]
+							]
+						}
+					]
+				},
+				{
+					"eventName": "天皇賞(秋)の後に",
+					"condition": "天皇賞(秋)で1着",
+					"acquireMode": "fixed",
+					"choices": [
+						{
+							"skills": [
+								{
+									"skillId": "66",
+									"name": "食い下がり",
+									"hintLevel": 1
+								}
+							]
+						}
+					]
+				}
+			]
 		}
 	]
 }

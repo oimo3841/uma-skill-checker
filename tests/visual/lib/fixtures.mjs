@@ -96,6 +96,18 @@ export async function routeScenarioPendingOff(target) {
 		await route.fulfill({ response: res, body });
 	});
 }
+/* 2026-10-26（新シナリオの仕上げ）: 実データの on を false にした（知らせを外した）。知らせの仕組みそのもの（文面・履歴・開き方・見た目）を見る
+ * 塊（blocks-51「履歴」）は、逆向きに on を true にした合成の状態で見る。setScenarioPendingOn(true) の間に開くページだけが対象。 */
+let scenarioPendingOn = false;
+export function setScenarioPendingOn(v) { scenarioPendingOn = !!v; }
+/** page か context に、announce.js の SCENARIO_PENDING.on を true にして返す route を足す（読み込みの前に呼ぶ） */
+export async function routeScenarioPendingOn(target) {
+	await target.route('**/js/announce.js*', async (route) => {
+		const res = await route.fetch();
+		const body = (await res.text()).replace('on: false,', 'on: true,');
+		await route.fulfill({ response: res, body });
+	});
+}
 
 /** 保存データを仕込んだページを開く。userData を渡すと USER_DATA の代わりにそれを仕込む（2026-09-27・C-100）。 */
 export async function openPage(browser, base, file, viewport = { width: 1280, height: 900 }, userData = USER_DATA) {
@@ -128,6 +140,7 @@ export async function openPage(browser, base, file, viewport = { width: 1280, he
 	await page.route('**/data/scenario-event-skills.json*', (route) => route.fulfill({ status: 200, contentType: 'application/json; charset=utf-8',
 		body: JSON.stringify({ dataVersion: '2026-10-03a', category: 'scenarioEventSkills', note: 'テスト用の空のファイル', entries: [] }) }));
 	if (scenarioPendingOff) await routeScenarioPendingOff(page);
+	if (scenarioPendingOn) await routeScenarioPendingOn(page);
 	await page.goto(base + '/' + file, { waitUntil: 'networkidle', timeout: 60000 });
 	/* **時間ではなく「整ったこと」で待つ。**（73セッション目）
 	 *

@@ -6,8 +6,15 @@
 // (6) UmaStar のツール切り替えのボタンに文字が無い・UmaExam の基準の部品が変更前と同じ／(7) SCENARIO_PENDING.on を false にした合成の状態で、新シナリオの知らせが履歴から外れる
 // (8) 見た目: special・exam × 360・390・1280 × ライト・ダーク で、横スクロールなし・エラー0・文字のコントラスト 4.5:1 以上・メニューの説明が折り返さない。
 // 文面は、依頼文の「そのまま使う」文面を検査の側に直書きして比べる（実装から読んで作らない）。
+// 2026-10-26（新シナリオの仕上げ）: 実データの on を false にした（知らせを外した）。(1)〜(6)・(8) は、on を true にした合成の状態
+// （fixtures の setScenarioPendingOn）で知らせの仕組みを見る。(7) は実データのまま（on が false）で、新シナリオの知らせが履歴に無いことを見る。
+import { setScenarioPendingOn } from './lib/fixtures.mjs';
 
 export async function register51(env) {
+	setScenarioPendingOn(true);
+	try { await register51Body(env); } finally { setScenarioPendingOn(false); }
+}
+async function register51Body(env) {
 	const { block, assert, browser, base, openPage } = env;
 	const jsErrors = (errors) => errors.filter((m) => !/Failed to load resource|status of 404|status of 500/.test(m));
 	const HEAD = '新シナリオへの対応';
@@ -224,9 +231,18 @@ export async function register51(env) {
 		}
 	});
 
-	await block('履歴(7) SCENARIO_PENDING.on を false にした合成の状態で、新シナリオの知らせが履歴から外れる（exam: edition・target・layout／special: catalog・alpha・layout）／on のときは scenario が先頭', async () => {
+	await block('履歴(7) 実データ（SCENARIO_PENDING.on が false）では新シナリオの知らせが履歴に無い（exam: edition・target・layout／special: catalog・alpha・layout）／合成で on にすると scenario が先頭', async () => {
 		for (const t of TOOLS) {
-			const r = await open(t, { store: await seenStore(t) });
+			const store = await seenStore(t);
+			// 実データのまま（合成の on を外して開く）
+			setScenarioPendingOn(false);
+			let real;
+			try { real = await open(t, { store }); } finally { setScenarioPendingOn(true); }
+			const realRes = await real.page.evaluate((p) => ({ on: UmaAnnounce.SCENARIO_PENDING.on, kinds: UmaAnnounce.history(p).map((h) => h.kind) }), t.name);
+			const wantReal = t.name === 'exam' ? ['edition', 'target', 'layout'] : ['catalog', 'alpha', 'layout'];
+			assert(realRes.on === false && JSON.stringify(realRes.kinds) === JSON.stringify(wantReal), `履歴(7) ${t.name}: 実データでは on が false で、履歴は新シナリオを含まない3件`, JSON.stringify(realRes));
+			await real.ctx.close();
+			const r = await open(t, { store });
 			const res = await r.page.evaluate((p) => {
 				const on = UmaAnnounce.history(p).map((h) => h.kind);
 				UmaAnnounce.SCENARIO_PENDING.on = false;

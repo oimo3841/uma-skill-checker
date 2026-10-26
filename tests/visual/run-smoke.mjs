@@ -4564,8 +4564,8 @@ await block('exam.html — 既定は新UI／切り替えの告知モーダル／
 		await page.evaluate(() => localStorage.removeItem('uma-exam-target-notice'));
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await page.waitForTimeout(1500);
-		// お知らせの履歴（2026-10-25）: 履歴の3件のどれかが未読なら、最新の1件（新シナリオ）で開く。対象スキルの告知は › › の先（exam の履歴は 新シナリオ・2nd Edition・対象スキル）
-		await page.click('[data-notice-nav="older"]');
+		// お知らせの履歴（2026-10-25）: 履歴の3件のどれかが未読なら、最新の1件で開く。
+		// 2026-10-26（新シナリオの仕上げ）: 新シナリオの知らせを外したので、exam の履歴は 2nd Edition・対象スキル・画面。対象スキルの告知は › 1回の先
 		await page.click('[data-notice-nav="older"]');
 		const tgt = await page.evaluate(() => ({
 			notice: !document.getElementById('ui-notice').hidden,

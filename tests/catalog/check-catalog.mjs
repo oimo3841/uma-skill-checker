@@ -1229,19 +1229,18 @@ console.log('\n=== 13. ②にまとめて追加するスキルのグループ（
    **継承固有・レース因子(スキル)は持たない**（2026-10-09 に継承固有の3行〔名前だけの行〕を外した）。
    トップに defaultBounds（効率を指定の初期の境目。段の値3つ）を持つ。
    **持たないもの**（取得元の管理用の番号・区分の名前・「高効率」の印）は、キーの許可リストで弾く
-   （外部データの取得と利用 の項目7・12）。効率は E列ではなく score÷sp を小数第3位に四捨五入した値。 */
+   （外部データの取得と利用 の項目7・12）。効率は有志の表（めろっぷのシート）の値そのまま（2026-10-26 から。下の「効率の値の検査」）。 */
 const EFF_FILE = 'skill-efficiency.json';
 const EFF_TOP_KEYS = { need: ['dataVersion', 'category', 'entries', 'defaultBounds'], opt: ['note'] };
 // 独自IDのキーは skillId（skill-pt.json と同じ）。id にすると §3 が「別のカタログの行」とみなして衝突を数える
 const EFF_ROW_KEYS = { need: ['skillId', 'score', 'sp', 'efficiency'], opt: [] };
-/* 効率の再計算の検査の免除（理由を必ず添える。黙って増やさない。免除は実行のたびに表示する）。
-   値は有志の表に載っている値を指定どおり入れたもので、評価点÷消費スキルPt を丸めた値と 0.001 だけ違う。
-   免除するのは「差が0.001以内」のときだけ（それ以上ずれたら免除でも落とす）。 */
-// 2026-10-26: めろっぷのシート（20261026）で足した行のうち3行は、シートの効率が評価点の端数を含めて計算されていて、丸めた評価点からの計算と 0.002 違う。
-// 依頼の指示（新しい行はシートの値を使う）に従い、シートの値のまま持つ
-const EFF_ROUNDING_EXEMPT = { 'ex-1673': '指定の効率 3.362（評価点639÷消費スキルPt190 を丸めると 3.363）。2026-10-13・おいもさんの指定',
-	'ex-1680': 'シートの効率 3.548（639÷180 を丸めると 3.55）。2026-10-26・シートの値を使う指示', 'ex-1682': 'シートの効率 3.187（574÷180 を丸めると 3.189）。2026-10-26・シートの値を使う指示',
-	'ex-1681': 'シートの効率 3.187（574÷180 を丸めると 3.189）。2026-10-26・シートの値を使う指示' };
+/* 効率の値の検査（2026-10-26 に直した）。
+   効率はシートの値を正とする（おいもさんの決定）。シートの効率は丸める前の評価点で計算されていて（例: 639 の行は 638.7÷180＝3.548）、
+   丸めた評価点÷消費スキルPt と一致しない行が多い（2026-10-26 のシート〔適性をすべてAにして書き出したもの〕で 470行中 298行。最大で相対 5% 違う）。
+   それまでの「四捨五入と一致。合わない行は理由つきの免除」をやめ、行ごとの免除を持たずに次の2つだけを見る:
+   (1) 小数第3位までの値（シートの表示の桁）／(2) 評価点÷消費スキルPt との相対のずれが EFF_RATIO_TOLERANCE 以内
+   （列の取り違え・桁の誤りを拾うための緩い枠。シートの値の揺れはこの中に収まる）。 */
+const EFF_RATIO_TOLERANCE = 0.1;
 const EFF_CATEGORY_NAME = 'skillEfficiency';
 console.log('\n=== 14. スキルの効率（' + EFF_FILE + '） ===');
 {
@@ -1259,26 +1258,27 @@ console.log('\n=== 14. スキルの効率（' + EFF_FILE + '） ===');
 		if (!DATA_VERSION_RE.test(String(doc.dataVersion))) bad.push('dataVersion が「YYYY-MM-DD＋英小文字1字」の形でない: ' + String(doc.dataVersion));
 		const rows = isArr(doc.entries) ? doc.entries : [];
 		if (!isArr(doc.entries) || rows.length === 0) bad.push('entries が空でない配列でない');
-		const recalc = [], notPositive = [], effExempted = [];
+		const recalc = [], notPositive = [], notMilli = [];
+		let offRound = 0, worstRatio = 0;
 		rows.forEach((e, i) => {
 			const w = 'entries[' + i + ']';
 			if (!checkKeys(e, EFF_ROW_KEYS, w, unknown, missing)) return;
 			if (!isStr(e.skillId)) bad.push(w + ': skillId は空でない文字列');
 			if (!isInt(e.score) || !isInt(e.sp)) { bad.push(w + ': score / sp は整数'); return; }
 			if (!(e.score > 0) || !(e.sp > 0) || !(typeof e.efficiency === 'number' && e.efficiency > 0)) { notPositive.push(w); return; }
-			// 千分率の整数で丸める（data を作ったときと同じ式）
-			const calc = Math.round(e.score * 1000 / e.sp) / 1000;
-			if (calc !== e.efficiency) {
-				if (EFF_ROUNDING_EXEMPT[e.skillId] && Math.abs(calc - e.efficiency) <= 0.0020001) effExempted.push(e.skillId + '（計算 ' + calc + ' / データ ' + e.efficiency + '）: ' + EFF_ROUNDING_EXEMPT[e.skillId]);
-				else recalc.push(w + ': ' + e.score + '÷' + e.sp + ' → ' + e.efficiency);
-			}
+			if (Math.round(e.efficiency * 1000) / 1000 !== e.efficiency) notMilli.push(w + ': ' + e.efficiency);
+			const ratio = Math.abs(e.efficiency - e.score / e.sp) / (e.score / e.sp);
+			if (ratio > worstRatio) worstRatio = ratio;
+			if (ratio > EFF_RATIO_TOLERANCE) recalc.push(w + ': ' + e.score + '÷' + e.sp + ' → ' + e.efficiency);
+			if (Math.round(e.score * 1000 / e.sp) / 1000 !== e.efficiency) offRound++;
 		});
 		none(unknown, EFF_FILE + ' に知らないキーが無い（管理用の番号・区分の名前・「高効率」の印を持たない）');
 		none(missing, EFF_FILE + ' の必須のキーが揃っている');
 		none(bad, EFF_FILE + ' の値が決めた形（skillId は文字列・score と sp は整数）');
 		none(notPositive, EFF_FILE + ': 評価点・消費スキルPt・効率がどれも0より大きい（効率0の行を持たない）');
-		none(recalc, EFF_FILE + ': 効率が 評価点÷消費スキルPt を小数第3位に四捨五入した値と一致');
-		effExempted.forEach((x) => console.log('[免除] 効率の再計算: ' + x));
+		none(notMilli, EFF_FILE + ': 効率が小数第3位までの値（シートの値そのまま）');
+		none(recalc, EFF_FILE + ': 効率と 評価点÷消費スキルPt の相対のずれが ' + (EFF_RATIO_TOLERANCE * 100) + '% 以内');
+		console.log('       効率がシートの値で、評価点÷消費スキルPt の四捨五入と違う行: ' + offRound + '行（相対のずれの最大 ' + (worstRatio * 100).toFixed(1) + '%）');
 
 		// 重なり
 		const dup = [];

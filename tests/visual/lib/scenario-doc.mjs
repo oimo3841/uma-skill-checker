@@ -4,11 +4,15 @@
 // シナリオの固定イベントの計算・画面（列・小窓・選択・Pt・進化のパターンB）を確かめる検査は、それまでどおり
 // **イベントを持つシナリオ**を先頭に置いた写しで見る（中身はファイルのまま。並びだけ変える。名前はここに書かない）。
 // ツールが使うシナリオそのもの（実データの先頭）は、それを見る塊が実データのまま読む。
+// 2026-10-26（新シナリオの仕上げ）: 先頭のシナリオにもイベントが入った。手書きの期待値は前のシナリオのものなので、
+// **先頭より後ろ**でイベントを持つ最初のシナリオを先頭に置く（後ろに無いときだけ、先頭を含めて探す）。
 
-/** イベントを持つ最初のシナリオを先頭に並べ替えた写し（イベントを持つシナリオが無ければ、そのままの写し） */
+/** 先頭より後ろでイベントを持つ最初のシナリオ（前のシナリオ）を先頭に並べ替えた写し（イベントを持つシナリオが無ければ、そのままの写し） */
 export function withEventScenarioFirst(doc) {
 	const entries = Array.isArray(doc && doc.entries) ? doc.entries : [];
-	const i = entries.findIndex((e) => e && Array.isArray(e.events) && e.events.length > 0);
+	const hasEvents = (e) => e && Array.isArray(e.events) && e.events.length > 0;
+	const later = entries.findIndex((e, k) => k > 0 && hasEvents(e));
+	const i = later > 0 ? later : entries.findIndex(hasEvents);
 	if (i <= 0) return Object.assign({}, doc, { entries: entries.slice() });
 	return Object.assign({}, doc, { entries: [entries[i]].concat(entries.slice(0, i), entries.slice(i + 1)) });
 }
