@@ -77,6 +77,7 @@ import { register50 } from './blocks-50.mjs';
 import { register51 } from './blocks-51.mjs';
 import { register52 } from './blocks-52.mjs';
 import { register53 } from './blocks-53.mjs';
+import { register54 } from './blocks-54.mjs';
 import { register44 } from './blocks-44.mjs';
 import { register43 } from './blocks-43.mjs';
 // ダークモード（C-134・2026-10-07）の検査（塊の見出しはすべて「ダーク」で始まる）
@@ -1884,8 +1885,8 @@ await block('exam.html（UmaExam OCR）— 最小ブロック', async () => {
 	}));
 	assert(registry.rows === 133 && registry.total === '133' && registry.badge === '133種',
 		'exam: 組み込みの133種が登録されている（①のタブのバッジは「133種」）', registry);
-	assert(registry.header.trim() === '技能試験特化ツール' && !/\d+種/.test(registry.header),
-		'exam: ヘッダーの見出しに種数を書かない（C-139・微調整1・C(9)で冒頭は「技能試験特化ツール」の1行になった）', registry.header.slice(0, 40));
+	assert(registry.header.trim() === '技能試験用ツール' && !/\d+種/.test(registry.header),
+		'exam: ヘッダーの見出しに種数を書かない（C-139・微調整1・C(9)で冒頭は「技能試験特化ツール」の1行になった。2026-10-27 に「技能試験用ツール」）', registry.header.slice(0, 40));
 	assert(registry.sp70 === 'sp70緑：17種' && registry.green === '緑59種（実質53種）',
 		'exam: sp70緑17・緑59（実質53）のバッジが出る', registry);
 	// 59セッション目（段1）から common.css も読む（ボタンを共通部品にするため）。
@@ -8875,18 +8876,15 @@ await block('C-62（61セッション目）: 棚卸しで挙がった11件', asy
 		'C-62 (2)→C-187: 表の見出しに、種別アイコンのボタンのサポートカードの列がある', table && table.typedHeads);
 	assert(new Set(table.typedHeads.map((h) => h.bg)).size === 1 && table.typedHeads.every((h) => !!h.icon),
 		'C-62 (2)→C-187: 見出しの面は種類によらず同じ（種類色の塗りは廃止）・種別アイコンがある', table.typedHeads);
-	// C-144: 育成ウマ娘の列の見出しは主要な操作の塗り（--uma-table-head-key-bg＝--uma-control。それまでは stone-700 の直書き）
-	assert(table.umaHeadBg === await tokRgb(page, 'var(--uma-control)'),
-		'C-62 (3): 育成ウマ娘の列は見出しの濃い地のまま（扱いを変えていない）', table.umaHeadBg);
-	// (4) 育成ウマ娘の列は、本体のセルにも地を敷く（C-63 の (4)）。1列おきの灰（slate-50）とは
-	// 別の値（slate-100）にして、縞の一部に見えないようにしてある。
+	// C-144 の濃い地（--uma-table-head-key-bg）と C-63 の (4) の本体の地（--uma-table-col-key）は、2026-10-27（夜間のまとめ・作業3(10)）に外した。
+	// 育成ウマ娘の列は、見出し・セルとも、ほかの列と同じ色（見出しはサポカの列の見出しと同じ面・セルは白）
+	assert(table.umaHeadBg === table.typedHeads[0].bg && table.umaHeadBg !== await tokRgb(page, 'var(--uma-control)'),
+		'C-62 (3)→2026-10-27: 育成ウマ娘の列の見出しは、サポカの列の見出しと同じ面（濃い地ではない）', { uma: table.umaHeadBg, card: table.typedHeads[0].bg });
 	const umaBody = table.bodyAlt.filter((c) => c.uma);
-	// C-144: 表の地はトークンの値と比べる（UmaStar は暖色の段：列の地 #f1e6d2・1列おき #f8f1e3・セル #fffdf8）
-	const KEY_BG = await tokRgb(page, 'var(--uma-table-col-key)'), ALT_BG = await tokRgb(page, 'var(--uma-table-col-alt)'), CELL_BG = await tokRgb(page, 'var(--uma-table-cell-bg, var(--uma-surface))');
-	assert(umaBody.length === 1 && umaBody[0].bg === KEY_BG,
-		'C-63 (4): 育成ウマ娘の列の本体のセルは薄い灰（--uma-table-col-key）', umaBody);
-	assert(umaBody[0].bg !== ALT_BG,
-		'C-63 (4): 1列おきの灰（--uma-table-col-alt）とは別の値', umaBody);
+	// C-144: 表の地はトークンの値と比べる（UmaStar は暖色の段：1列おき #f8f1e3・セル #fffdf8）
+	const ALT_BG = await tokRgb(page, 'var(--uma-table-col-alt)'), CELL_BG = await tokRgb(page, 'var(--uma-table-cell-bg, var(--uma-surface))');
+	assert(umaBody.length === 1 && umaBody[0].bg === CELL_BG,
+		'C-63 (4)→2026-10-27: 育成ウマ娘の列の本体のセルは、ほかの列と同じ白（--uma-table-cell-bg）', umaBody);
 	const alt = table.bodyAlt.filter((c) => c.alt);
 	assert(alt.length >= 2 && alt.every((c) => c.bg === ALT_BG),
 		'C-62 (3): 1列おきの列は薄い灰（--uma-table-col-alt）', alt.slice(0, 3));
@@ -10568,8 +10566,8 @@ await block('exam.html — 効率で選ぶ（βテスト・C-136）', async () =
 		detailHidden: document.getElementById('scope-detail').hidden,
 	}));
 	assert(JSON.stringify(opt.values) === JSON.stringify(['default', 'expanded', 'curated', 'efficiency'])
-		&& /^効率を指定（.+種）\?βテスト$/.test(opt.text) && !opt.checked && opt.panelHidden && !opt.detailHidden,
-		'効率(1): 「対象スキルの範囲」の4つ目の題は「効率を指定（N種）」、その下の1行は「βテスト」。既定では選ばれず、バーは出ない', opt);
+		&& /^効率を指定（.+種）\?$/.test(opt.text) && !opt.checked && opt.panelHidden && !opt.detailHidden,
+		'効率(1): 「対象スキルの範囲」の4つ目の題は「効率を指定（N種）」（その下の「βテスト」の1行は 2026-10-27 に削除）。既定では選ばれず、バーは出ない', opt);
 
 	// (C2) 題の隣の「？」: 既存の「？」と同じ部品。押しても選択肢（ラジオ）は切り替わらない（マウスもキーボードも）。説明が出る
 	const help = await page.evaluate(() => {
@@ -15326,6 +15324,7 @@ await register50({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, 
 await register51({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register52({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register53({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
+await register54({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register44({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await register43({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });
 await registerDark({ block, assert, browser, base, openPage, fs, path, REPO_ROOT, USER_DATA });

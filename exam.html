@@ -516,6 +516,23 @@
 		/* 選択肢「効率を指定」の題の末尾の「？」。「（N種）」と一続き（nowrap）にして、狭い幅でも「（N種）」の行に収める。
 		   「？」（22px）が題の行を高くしないよう、上下の余白を負にして文字の行の高さに収める */
 		.scope-help { margin: -3px 0 -5px 2px; vertical-align: top; }
+		/* 2026-10-27（夜間のまとめ・作業3）
+		   (7) 数の小札（sp70緑・緑59種・追加／除外・シナリオ因子・遺伝子）は、2行以上に折り返すときだけ2列の表のように並べ、
+		       2つ目の小札の左端をそろえる（is-grid は layoutCountChips() が付け外す）。1行に並ぶときは今のまま（flex）
+		   (8) 「効率を指定（N種）?」を 360px 以上で1行に収めるため、選択肢の枠が狭い幅（480px 以下の2列・640〜1023px の4列）では
+		       選択肢の題の文字を 11px にし、選択肢の枠の内側とラジオとの間・選択肢どうしの間を詰める（文言は変えない）
+		   (9) チェック欄（シナリオ因子・遺伝子）の名前の欄の幅を「シナリオ因子」の6文字にそろえ、右の小札の先頭をそろえる */
+		.count-chips.is-grid { display: grid; grid-template-columns: max-content max-content; justify-content: start; }
+		@media (max-width: 480px), (min-width: 640px) and (max-width: 1023.98px) {
+			#new-step-slot #step-panel-1 fieldset > .grid.gap-2 { column-gap: 4px; }
+			#new-step-slot #step-panel-1 fieldset > .grid.gap-2 > label.p-2\.5.gap-2 { column-gap: 4px; padding-left: 4px; padding-right: 4px; }
+			#new-step-slot #step-panel-1 fieldset > .grid.gap-2 > label span.block.text-xs { font-size: 11px; }
+		}
+		#step-panel-1 .uma-checkrow-label > span { min-width: 6em; }
+		/* (6) ①と②のタブの幅をそろえる（中身の幅ではなく等分）。等分にすると 360px で「調整あり」のバッジと並べたときに
+		   ①の名前が数px 欠けるので、480px 以下ではタブの中の間を 4px に詰める */
+		#new-step-card .step-tab { flex: 1 1 0; }
+		@media (max-width: 480px) { #new-step-card .step-tab { column-gap: 4px; } }
 
 		/* ヘッダーのツール切替（アイコンだけのボタン。special.html と同じ寸法・左右の余白だけ詰める）と、画面の色の切り替えボタン（44px。C-139・微調整1・C）。
 		   いまの状態は data-theme-state で、3つのアイコンのうち1つだけを出す */
@@ -783,7 +800,7 @@
 					<div class="hdr-row flex items-center flex-nowrap gap-x-2">
 						<h1 class="exam-title text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-[var(--uma-deco-grad-from)] via-[var(--uma-deco-grad-via)] to-[var(--uma-deco-grad-to)] bg-clip-text text-transparent">Uma<span class="text-amber-400">Exam</span> OCR</h1>
 						<span class="header-edition-pill ui-mode-badge shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-1 rounded-full">2nd<span class="header-edition-sub"> Edition</span></span>
-						<span class="header-tagline text-slate-500">技能試験特化ツール</span>
+						<span class="header-tagline text-slate-500">技能試験用ツール</span>
 					</div>
 				</div>
 
@@ -979,8 +996,8 @@
 				<button type="button" role="tab" class="step-tab" id="step-tab-1"
 					aria-controls="step-panel-1" aria-selected="true" tabindex="0" onclick="selectStepTab(1)">
 					<span class="step-tab-num" aria-hidden="true">1</span>
-					<!-- 375px ではバッジと並べると入りきらないので、狭い画面では「（登録済み）」を畳む -->
-					<span id="step1-title" class="step-tab-label">対象スキル<span class="hidden sm:inline">（登録済み）</span></span>
+					<!-- 2026-10-27（夜間のまとめ・作業3）: 見出しの「（登録済み）」は削除した -->
+					<span id="step1-title" class="step-tab-label">対象スキル</span>
 					<!-- 133種 ／ 除外・追加があれば「（調整あり）」。updateSkillCountDisplays() が書く -->
 					<span id="step1-skill-badge" class="step-tab-badge step-tab-badge--accent">133種</span>
 				</button>
@@ -997,14 +1014,14 @@
 			<div id="new-step-slot">
 			<!-- ① 技能試験 対象スキル（登録済み・入力不要） -->
 			<div id="step-panel-1" class="step-panel" role="tabpanel" aria-labelledby="step-tab-1">
-			<!-- 件数は「既定の133種」で固定。今の対象の種数は下の範囲の選択肢と①のタブのバッジが出す
-			     （ここまで可変にすると、既定が何種なのかが画面のどこにも残らないため）。 -->
-			<p class="text-xs text-slate-500 mb-3">既定として登録済みの133種を対象にします。「対象スキルの範囲」で調整可能です。</p>
+			<!-- 2026-10-27（夜間のまとめ・作業3）: 冒頭の説明文「既定として登録済みの133種を対象にします。…」は削除した。
+			     既定の種数は「対象スキルの範囲」の「既定（133種）」が出す -->
 
 			<!-- 今の設定のバッジ。sp70緑・緑59種は常時、あとの4つは
 			     その設定を選んでいるときだけ出す（updateCategoryBadges が出し入れする）。
-			     追加と除外は排他（軸1の3択）なので、同時に出るのは最大5つ。 -->
-			<div class="flex flex-wrap gap-2 mb-4">
+			     追加と除外は排他（軸1の3択）なので、同時に出るのは最大5つ。
+			     2026-10-27（作業3）: 2行以上に折り返すときだけ、2列の表のように並べる（is-grid。layoutCountChips() が付け外す） -->
+			<div id="count-chips" class="count-chips flex flex-wrap gap-2 mb-4">
 				<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
 					<i data-lucide="star" class="w-3 h-3"></i>
 					<span id="badge-sp70-count">sp70緑：17種</span>
@@ -1055,7 +1072,6 @@
 							<input type="radio" id="scope-mode-default" name="target-scope-mode" value="default" class="mt-0.5 accent-[var(--uma-control)] cursor-pointer" onchange="setTargetScopeMode('default')" onfocus="previewScopeDetail('default')" onblur="previewScopeDetail(null)" checked />
 							<span>
 								<span class="block text-xs font-semibold text-slate-800">既定<span class="whitespace-nowrap">（<span id="scope-count-default">133</span>種）</span></span>
-								<span class="scope-sub block text-[11px] text-slate-500 mt-0.5">これまでどおりの対象です</span>
 							</span>
 						</label>
 						<label for="scope-mode-expanded" class="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2.5 cursor-pointer hover:border-[var(--uma-control-border)] transition-all"
@@ -1081,7 +1097,6 @@
 							<input type="radio" id="scope-mode-efficiency" name="target-scope-mode" value="efficiency" class="mt-0.5 accent-[var(--uma-control)] cursor-pointer" onchange="setTargetScopeMode('efficiency')" onfocus="previewScopeDetail('efficiency')" onblur="previewScopeDetail(null)" />
 							<span>
 								<span class="block text-xs font-semibold text-slate-800">効率を指定<span class="whitespace-nowrap">（<span id="scope-count-efficiency">…</span>種）<button type="button" class="uma-help-btn scope-help" id="eff-help-btn" aria-expanded="false" aria-haspopup="dialog" onclick="openEffHelp(event)" aria-label="効率を指定の説明を見る" title="効率を指定の説明を見る">?</button></span></span>
-								<span class="block text-[11px] text-slate-500 mt-0.5">βテスト</span>
 							</span>
 						</label>
 					</div>
@@ -2937,7 +2952,27 @@
 			// 遺伝子も同じ形で出す（段I）。因子と**合算しない**（並記。C-70 の13節）
 			const geneCount = activeAptitudeGenes().length;
 			show('badge-genes', 'badge-genes-text', geneCount > 0, '遺伝子：' + geneCount + '種');
+			layoutCountChips();
 		}
+
+		/* 数の小札の並べ方（2026-10-27・作業3(7)）。1行に並ぶときは今のまま（flex）、2行以上に折り返すときだけ
+		   2列の表のように並べ（is-grid）、2つ目の小札の左端をそろえる。折り返すかどうかは、表の形を外した状態で測る。
+		   パネルが隠れている間（幅0）は測らない（出たときに ResizeObserver が測り直す） */
+		function layoutCountChips() {
+			const box = document.getElementById('count-chips');
+			if (!box) return;
+			box.classList.remove('is-grid');
+			if (!box.clientWidth) return;
+			const chips = [...box.children].filter(c => !c.classList.contains('hidden'));
+			const tops = new Set(chips.map(c => Math.round(c.getBoundingClientRect().top)));
+			box.classList.toggle('is-grid', tops.size > 1);
+		}
+		document.addEventListener('DOMContentLoaded', () => {
+			const box = document.getElementById('count-chips');
+			let lastW = -1;
+			if (box && window.ResizeObserver) new ResizeObserver(() => { if (box.clientWidth !== lastW) { lastW = box.clientWidth; layoutCountChips(); } }).observe(box);
+			if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutCountChips);
+		});
 
 		/* ============================================================
 		 * 対象スキルの範囲（軸1）と シナリオ因子（軸2）の操作

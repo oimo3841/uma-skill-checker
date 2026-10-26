@@ -144,7 +144,8 @@ export async function register41(env) {
 			const bad = need.filter(([, g]) => g && Math.max(ratio(f, g), ratio(r, g)) < 3).map(([n, g]) => [n, g, ratio(f, g).toFixed(2), ratio(r, g).toFixed(2)]);
 			assert(bad.length === 0, 'C-179(b) ' + scheme + ' 点の塗りか縁が、すべての地（見出しの地・バッジの面・小窓の行 計' + need.length + '）に対して 3:1 以上', bad);
 			const uma = col.grounds.find((g) => g.key === '0'), card = col.grounds.find((g) => g.key === '1');
-			assert(uma && card && uma.ground !== card.ground, 'C-179(b) ' + scheme + ' 前提: 育成ウマ娘の列とカードの列は別の地', [uma.ground, card.ground]);
+			// 2026-10-27（夜間のまとめ・作業3(10)）: 育成ウマ娘の列の見出しの濃い地を外し、ほかの列と同じ地にした（前提は「別の地」から「同じ地」へ）
+			assert(uma && card && uma.ground === card.ground, 'C-179(b) ' + scheme + ' 前提: 育成ウマ娘の列とカードの列は同じ地（2026-10-27 から）', [uma.ground, card.ground]);
 			const [fr, fg, fb] = f.match(/[\d.]+/g).map(Number);
 			assert(fr > fg + 30 && fr >= fb + 60, 'C-179(b) ' + scheme + ' 塗りは赤系でない（赤が緑より十分に強い色＝赤・ピンクでない。琥珀）', f);
 			assert(jsErrors(sp.errors).length === 0, 'C-179(b) ' + scheme + ' コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));

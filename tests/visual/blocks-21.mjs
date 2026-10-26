@@ -100,11 +100,11 @@ export async function register21(env) {
 			pillL: P.left, pillR: P.right, pillT: P.top, pillB: P.bottom, pillText: pill.innerText.trim(), pillFs: parseFloat(getComputedStyle(pill).fontSize),
 			tagL: G.left, tagR: G.right, tagT: G.top, tagB: G.bottom, tagFs: parseFloat(getComputedStyle(tag).fontSize), tagLines: Math.round(G.height / lh), tagText: tag.textContent.trim(),
 			actsL: A.left, beta: hd.querySelector('.header-edition') ? hd.querySelector('.header-edition').textContent : null,
-			belowP: [...hd.querySelectorAll('p')].filter((p) => /技能試験特化ツール|チャンミ\/LoH用ツール/.test(p.textContent)).length,
+			belowP: [...hd.querySelectorAll('p')].filter((p) => /技能試験用ツール|チャンミ\/LoH用ツール/.test(p.textContent)).length,
 			sw: document.documentElement.scrollWidth, vw: document.documentElement.clientWidth };
 	});
 
-	await block('微調整3A2 見出しの一言（チャンミ/LoH用ツール・技能試験特化ツール）は、どの幅でも「2nd Edition」のバッジの右隣（タイトルと同じ行）・2行まで・8〜11px／見出しの高さは微調整2の先端以下／バッジ・ボタンと重ならず、見出しからはみ出さない／タイトルの文字は両ツールで同じ／exam にバッジがあり、見出しの下の一言の行は無い（320〜1280px・ライト・ダーク）', async () => {
+	await block('微調整3A2 見出しの一言（チャンミ/LoH用ツール・技能試験用ツール）は、どの幅でも「2nd Edition」のバッジの右隣（タイトルと同じ行）・2行まで・8〜11px／見出しの高さは微調整2の先端以下／バッジ・ボタンと重ならず、見出しからはみ出さない／タイトルの文字は両ツールで同じ／exam にバッジがあり、見出しの下の一言の行は無い（320〜1280px・ライト・ダーク）', async () => {
 		let n = 0;
 		for (const w of [320, 360, 375, 393, 430, 640, 1280]) {
 			for (const theme of ['light', 'dark']) {
@@ -114,7 +114,7 @@ export async function register21(env) {
 					const p = await headerProbe(page);
 					const tag = which + '・' + w + 'px・' + theme;
 					fsBy[which] = p.h1fs;
-					assert(p.tagText === (which === 'special' ? 'チャンミ/LoH用ツール' : '技能試験特化ツール') && /^2nd( Edition)?$/.test(p.pillText) && p.pillFs >= 10,
+					assert(p.tagText === (which === 'special' ? 'チャンミ/LoH用ツール' : '技能試験用ツール') && /^2nd( Edition)?$/.test(p.pillText) && p.pillFs >= 10,
 						'微調整3A2(' + tag + '): 「2nd Edition」のバッジ（文字10px以上）と一言がある', { tag: p.tagText, pill: p.pillText, pillFs: p.pillFs });
 					assert(p.tagL >= p.pillR - 0.5 && p.pillL >= p.h1R - 0.5 && p.tagT >= p.h1T - 0.5 && p.tagB <= p.h1B + 0.5,
 						'微調整3A2(' + tag + '): 一言はバッジの右隣（左端 ' + p.tagL.toFixed(1) + ' ≥ バッジの右端 ' + p.pillR.toFixed(1) + '）で、縦はタイトルの行の内側（' + p.tagT.toFixed(1) + '〜' + p.tagB.toFixed(1) + ' ⊂ ' + p.h1T.toFixed(1) + '〜' + p.h1B.toFixed(1) + '）', p);

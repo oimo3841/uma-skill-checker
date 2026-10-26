@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-26e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-27a';
 
 	/* ============================================================
 	 * 定数
@@ -5965,11 +5965,8 @@
 		// （行と列の両方を交互にすると市松になる。C-51 の11節⑥〜⑧）。育成ウマ娘の列は
 		// 見出しの色味だけで区別する扱いのまま＝本体のセルは白。
 		'.usd-roster-gc--alt { background: var(--uma-table-col-alt); }',
-		// 育成ウマ娘の列は本体のセルも地を敷く（C-63 の (4)）。見出しの色味だけで区別していたが、
-		// **列としても追える**ようにする。1列おきの灰（--uma-table-col-alt）とは別の値
-		// （--uma-table-col-key。一段濃い）にして、縞の一部に見えないようにする。
-		// 見出しのセルは後ろの .usd-roster-gh が上書きするので、濃い地のまま。
-		'.usd-roster-gc--uma { background: var(--uma-table-col-key); }',
+		// 育成ウマ娘の列の本体のセルの地（C-63 の (4)・--uma-table-col-key）は、2026-10-27（夜間のまとめ・作業3(10)）に外した。
+		// 見出し・セルとも、ほかの列と同じ色（見出しは .usd-roster-gh の面・セルは白）。列は印（キャラアイコン）で見分ける
 		// 余り列のセルは余白を持たない（0px の列に余白ぶんだけはみ出して横スクロールの種になるため）
 		'.usd-roster-gc--fill { padding: 0; }',
 		'.usd-roster-gc--name { justify-content: flex-start; text-align: left; padding-left: var(--uma-sp-2);',
@@ -5977,9 +5974,7 @@
 		// 見出し行（番号）は縦スクロール中も上に固定する。見出しのセルだけ地を塗る
 		'.usd-roster-gh { position: sticky; top: 0; z-index: 1; background: var(--uma-table-head-bg);',
 		'  font-weight: 700; color: var(--uma-text-heading); border-bottom: 1px solid var(--uma-table-rule-strong); }',
-		// 育成ウマ娘の列は見出しのセルだけ濃い地（--uma-table-head-key-bg）に白い文字と ♦
-		'.usd-roster-gh.usd-roster-gc--uma { background: var(--uma-table-head-key-bg); color: var(--uma-table-head-key-text); box-shadow: inset 0 0 0 2px var(--uma-table-head-key-edge, transparent); }',
-		'.usd-roster-gh.usd-roster-gc--uma.usd-roster-gh--empty { color: var(--uma-table-head-key-text); opacity: 1; }',
+		// 育成ウマ娘の列の見出しの濃い地（--uma-table-head-key-bg）は、2026-10-27（作業3(10)）に外した（ほかの列の見出しと同じ面）
 		'.usd-roster-gh--empty { color: var(--uma-text-faint); font-weight: 400; }',
 		// 見出しのセルのサポートカードの種類ごとの色（C-62 の (2)）は廃止した（C-187）。サポカの6列の見出しは、ほかの列と同じ面で、種別アイコンだけ
 		// 表の中の「得られる」印は**黒い輪郭の丸（塗りつぶしなし）**（C-57 の作業A。それまでは橙の★）。

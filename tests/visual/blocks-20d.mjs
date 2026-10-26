@@ -49,13 +49,13 @@ export async function register20d(env) {
 		}
 	});
 
-	await block('微調整2D2 見出しの「2nd Edition」バッジと一言（special＝チャンミ/LoH用ツール・exam＝技能試験特化ツール）: 折り返しで崩れない／exam に「β版」「新UI」・見出しの下の説明は無い／special の「β版」は残る', async () => {
+	await block('微調整2D2 見出しの「2nd Edition」バッジと一言（special＝チャンミ/LoH用ツール・exam＝技能試験用ツール）: 折り返しで崩れない／exam に「β版」「新UI」・見出しの下の説明は無い／special の「β版」は残る', async () => {
 		for (const [w, theme] of [[1280, 'light'], [768, 'light'], [600, 'light'], [393, 'light'], [375, 'light'], [361, 'light'], [360, 'light'], [323, 'light'], [320, 'light'], [375, 'dark'], [320, 'dark']]) {
 			for (const which of ['special', 'exam']) {
 				const { ctx, page, errors } = await openTool(which, w, theme);
 				const p = await probe(page);
 				const tag = which + '・' + w + 'px・' + theme;
-				const wantTag = which === 'special' ? 'チャンミ/LoH用ツール' : '技能試験特化ツール';
+				const wantTag = which === 'special' ? 'チャンミ/LoH用ツール' : '技能試験用ツール';
 				// C-141（微調整3・A-2）: 一言を入れる幅が足りないときは「2nd」だけ（data-hdr-short）。373px 以上は必ず「2nd Edition」
 				assert(p.tagText === wantTag && p.pillText === ((w <= 322 || p.short) ? '2nd' : '2nd Edition') && (w < 373 || !p.short),
 					'微調整2D2(' + tag + '): 「' + ((w <= 322 || p.short) ? '2nd' : '2nd Edition') + '」のバッジと、その脇の一言「' + wantTag + '」', { tag: p.tagText, pill: p.pillText, short: p.short });
@@ -68,7 +68,7 @@ export async function register20d(env) {
 				if (which === 'special') assert(p.beta === 'β版', '微調整2D2(' + tag + '): special の「β版」は残っている', p.beta);
 				else assert(p.beta === null && !/β|新UI/.test(p.headerText), '微調整2D2(' + tag + '): exam の見出しに「β版」「新UI」は付けない', p.headerText);
 				if (which === 'exam') {
-					const below = await page.evaluate(() => { const hd = document.querySelector('header'); return [...hd.querySelectorAll('p')].filter((e) => e.textContent.includes('技能試験特化ツール')).length; });
+					const below = await page.evaluate(() => { const hd = document.querySelector('header'); return [...hd.querySelectorAll('p')].filter((e) => e.textContent.includes('技能試験用ツール')).length; });
 					assert(below === 0, '微調整2D2(' + tag + '): 見出しの下にあった説明の1行（<p>）は、バッジの脇へ移したので無い', below);
 				}
 				assert(jsErrors(errors).length === 0, '微調整2D2(' + tag + '): コンソールエラーなし', errors.slice(0, 3));

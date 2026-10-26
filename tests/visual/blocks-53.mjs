@@ -135,7 +135,7 @@ export async function register53(env) {
 	});
 
 	// 2026-10-26（公開前の追加）: めろっぷの行を新シナリオに合わせたので、①の「新シナリオへの対応が未完了です。」の1行は消した
-	await block('駿大祭(5) UmaExam ①: 「新シナリオへの対応が未完了です。」の1行は無く、先頭の文は「既定として登録済みの133種…」（390・1280 × ライト・ダーク）', async () => {
+	await block('駿大祭(5) UmaExam ①: 「新シナリオへの対応が未完了です。」の1行は無く、先頭に説明文は無い（390・1280 × ライト・ダーク）', async () => {
 		for (const [w, theme] of VIEWS) {
 			const tag = '駿大祭(5) ' + w + '・' + theme + ': ';
 			const r0 = await openPage(browser, base, 'exam.html', { width: w, height: w === 1280 ? 900 : 844 });
@@ -145,7 +145,8 @@ export async function register53(env) {
 			for (let i = 0; i < 3; i++) if (await r0.page.isVisible('#ui-notice')) { await r0.page.click('#ui-notice-ok'); await r0.page.waitForTimeout(300); }
 			const r = await r0.page.evaluate(() => ({ note: !!document.getElementById('melop-scenario-note'), text: document.getElementById('step-panel-1').innerText.includes('新シナリオへの対応が未完了'),
 				first: (document.querySelector('#step-panel-1 > p') || {}).textContent || null }));
-			assert(!r.note && !r.text && r.first === '既定として登録済みの133種を対象にします。「対象スキルの範囲」で調整可能です。', tag + '赤字の1行は無く、①の先頭は「既定として登録済みの133種…」の文', r);
+			// 2026-10-27（夜間のまとめ・作業3(3)）: ①の冒頭の説明文「既定として登録済みの133種…」も削除した（①の先頭は数の小札）
+			assert(!r.note && !r.text && r.first === null, tag + '赤字の1行は無く、①の先頭に説明文の <p> は無い', r);
 			const c = await r0.page.evaluate(scanTextContrastInPage, '#step-panel-1');
 			assert(c.checked > 0 && c.bad.length === 0, tag + '①の文字のコントラスト 4.5:1 以上（' + c.checked + '要素）', formatContrast(c.bad).slice(0, 5));
 			assert(await noHScroll(r0.page), tag + '横スクロールなし', '');

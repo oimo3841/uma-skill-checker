@@ -562,7 +562,7 @@ export async function register19(env) {
 	 * ==================================================================== */
 	const rect = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, r: r.right, b: r.bottom }; };
 
-	await block('微調整1C1 exam の文言: 冒頭は「技能試験特化ツール」だけ・見出しに「β版」「新UI」なし・①と②の文面（7）（8）（10）', async () => {
+	await block('微調整1C1 exam の文言: 冒頭は「技能試験用ツール」だけ・見出しに「β版」「新UI」なし・①と②の文面（7）（8）（10）', async () => {
 		for (const w of [1280, 375]) {
 			const { ctx, page, errors } = await openExam({ w });
 			const r = await page.evaluate(() => {
@@ -577,12 +577,14 @@ export async function register19(env) {
 			});
 			assert(r.title === 'UmaExam OCR' && r.h1 === 'UmaExam OCR' && !r.badge && !/β版|新UI/.test(r.headerText),
 				'微調整1C1(' + w + 'px): <title>・見出しに「β版」「新UI」が無い（見出しは「UmaExam OCR」）', { title: r.title, h1: r.h1, badge: r.badge });
-			assert(r.ps.length === 1 && r.ps[0] === '技能試験特化ツール',
-				'微調整1C1(' + w + 'px): 冒頭の説明は「技能試験特化ツール」の1行だけ（4つの文・注意書きの「※」2つは削除）', r.ps);
+			// 2026-10-27（夜間のまとめ・作業3(1)）: 一言は「技能試験特化ツール」→「技能試験用ツール」
+			assert(r.ps.length === 1 && r.ps[0] === '技能試験用ツール',
+				'微調整1C1(' + w + 'px): 冒頭の説明は「技能試験用ツール」の1行だけ（4つの文・注意書きの「※」2つは削除）', r.ps);
 			assert(['技能試験で有利な登録済み対象スキルに絞って', '親Aセット（+祖A1+祖A2）に加えて', 'OCR・★判定の精度は完全ではありません', 'パソコン版はゲームのウィンドウが小さいと'].every((s) => !r.body.includes(s)),
 				'微調整1C1(' + w + 'px): 修正前の冒頭の4つの文は画面のどこにも残っていない', null);
-			assert(r.p1 === '既定として登録済みの133種を対象にします。「対象スキルの範囲」で調整可能です。' && !r.body.includes('あらかじめ既定として'),
-				'微調整1C1(' + w + 'px): ①の説明は「既定として登録済みの133種を対象にします。「対象スキルの範囲」で調整可能です。」', r.p1);
+			// 2026-10-27（夜間のまとめ・作業3(3)）: ①の冒頭の説明文は削除した
+			assert(r.p1 === null && !r.body.includes('既定として登録済みの133種を対象にします') && !r.body.includes('あらかじめ既定として'),
+				'微調整1C1(' + w + 'px): ①の冒頭の説明文（「既定として登録済みの133種を対象にします。…」）は無い', r.p1);
 			await page.evaluate(() => selectStepTab(2));
 			const r2 = await page.evaluate(() => {
 				const p2 = [...document.querySelectorAll('#step-panel-2 p')].find((p) => p.textContent.includes('親Bセットを追加すると'));

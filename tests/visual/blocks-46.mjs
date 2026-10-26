@@ -312,7 +312,7 @@ export async function register46(env) {
 		await sp.ctx.close();
 	});
 
-	await block('C-187(e) 育成ウマ娘の列の見出しは、サポカと同じメニューのボタン（キャラアイコン 24px・じょうご無し。2026-10-26）で、濃い面の見出しのまま／サポカの6列と同じ高さ／横スクロールなし（390・360・1280・ライト・ダーク）', async () => {
+	await block('C-187(e) 育成ウマ娘の列の見出しは、サポカと同じメニューのボタン（キャラアイコン 24px・じょうご無し。2026-10-26）で、見出しの面はほかの列と同じ（2026-10-27）／サポカの6列と同じ高さ／横スクロールなし（390・360・1280・ライト・ダーク）', async () => {
 		for (const [w, theme] of [[390, 'light'], [360, 'dark'], [1280, 'light'], [1280, 'dark']]) {
 			const sp = await openSp({ w, theme, h: w === 1280 ? 900 : 844 });
 			const m = await measure(sp.page);
@@ -323,7 +323,8 @@ export async function register46(env) {
 			assert(uma && !uma.funnel && !uma.sortBtn && !uma.evBtn && uma.btn && card1 && uma.btn.w === card1.btn.w && uma.btn.h === card1.btn.h && uma.btn.bw === card1.btn.bw && umaIco === 24,
 				tag + '育成ウマ娘の列は、じょうごが無く、サポカと同じ大きさ・同じ枠のメニューのボタン（キャラアイコン 24px）', { uma: uma && uma.btn, card: card1 && card1.btn, umaIco });
 			const root = await sp.page.evaluate(() => { const c = document.querySelector('#deck-roster-panel .usd-roster-gh.usd-roster-gc--uma'); return { bg: getComputedStyle(c).backgroundColor, diamond: !!c.querySelector('[data-usd-el="uma-icon"]'), key: getComputedStyle(document.documentElement).getPropertyValue('--uma-table-head-key-bg').trim() }; });
-			assert(root.diamond && root.bg !== m.heads.find((h) => h.isName).bg, tag + '育成ウマ娘の印（画像）があり、濃い面のまま（ほかの列と見分けがつく）', root);
+			// 2026-10-27（夜間のまとめ・作業3(10)）: 濃い面は外した。見出しはほかの列と同じ面で、列は印（キャラアイコン）で見分ける
+			assert(root.diamond && root.bg === card1.bg, tag + '育成ウマ娘の印（画像）があり、見出しの面はサポカの列と同じ（濃い面ではない）', { root, card: card1.bg });
 			assert(new Set(m.heads.map((h) => h.h)).size === 1, tag + '全列の見出しの高さが同じ', m.heads.map((h) => h.h));
 			assert(m.sw <= m.vw, tag + '横スクロールなし', [m.sw, m.vw]);
 			await sp.ctx.close();
