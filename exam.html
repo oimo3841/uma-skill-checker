@@ -19,6 +19,9 @@
 		})();
 	</script>
 	<style>html[data-boot] .step-tabs, html[data-boot] .step-panel { visibility: hidden; }</style>
+	<!-- 表示開始時の直し (d2)（2026-10-27）: lucide が SVG に替えるまでの空の <i data-lucide> に場所を取らせる（替わった瞬間に文字がずれないように）。
+	     @layer base に置くので、Tailwind の w-4・h-4 など（utilities）が来ればそちらが勝つ。SVG に替わったあとは当たらない -->
+	<style>@layer base { i[data-lucide] { display: inline-block; width: 1em; height: 1em; } }</style>
 	<title>UmaExam OCR</title>
 	<!-- 共通スタイルの3つ（変数 tokens.css ／ 共通部品 common.css ／ 画面の骨格 shell.css）を読む。
 	     Tailwind より先に読み込む（レイヤー無しの方が強い）。
