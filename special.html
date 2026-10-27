@@ -8,6 +8,19 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 	<!-- 画面の色（ライト／ダーク）。CSS より先に、同期で読む（<html> の data-theme を本文の描画より前に付けるため。中身は js/theme.js の冒頭） -->
 	<script src="js/theme.js?v=2026-10-08b"></script>
+	<!-- 表示開始時の直し (e)（2026-10-27）: 新UIで開く人は、DOMContentLoaded で新UIの骨格に組み替わり前回のタブが開くまで、
+	     タブの並びと①②③の中身を見せない（旧UIの骨格〔スキルリストを貼る欄〕と、②が先に出てから前回のタブへ飛ぶのが見えないように）。
+	     印 data-boot が付くのは保存の UI が旧UI（'old'）でないときだけ。外すのは enterDeckMode（前回のタブを開いた直後）・exitDeckMode・initUiMode の最後。
+	     load でも必ず外す（組み替えが失敗しても中身が隠れたままにならないように）。保存データは読むだけ -->
+	<script>
+		(function () {
+			try { if (localStorage.getItem('uma-special-ui-mode') === 'old') return; } catch (e) { /* 読めなければ新UI（initUiMode と同じ） */ }
+			var root = document.documentElement;
+			root.setAttribute('data-boot', '');
+			window.addEventListener('load', function () { root.removeAttribute('data-boot'); });
+		})();
+	</script>
+	<style>html[data-boot] .step-tabs, html[data-boot] .step-panel { visibility: hidden; }</style>
 	<title>UmaStar OCR（β版 2nd Edition）</title>
 	<!-- 共通スタイル（3ファイル・版は1つ）。Tailwindより先に読み込む。
 	       tokens.css … デザイントークン（変数だけ）
@@ -3294,11 +3307,14 @@
 			const startNew = seen ? readStored(UI_MODE_STORAGE_KEY) !== 'old' : true;
 			try {
 				if (startNew) {
-					await enterDeckMode();
-					// 前回開いていたタブへ（段7d の ③）。無い・壊れている・見えないタブのときは①（本育成編成）
+					// 前回開いていたタブ（段7d の ③）。無い・壊れているときは①（本育成編成）。
+					// 表示開始時の直し (e)（2026-10-27）: 読み込みを待ってから飛ぶのをやめ、enterDeckMode の最初からこのタブを開く
 					const savedTab = readStored(STEP_TAB_STORAGE_KEY);
 					const want = STEP_TAB_IDS.find(k => String(k) === savedTab);
-					selectStepTab(want !== undefined && visibleStepTabs().indexOf(want) !== -1 ? want : 0, { noSave: true });
+					const bootTab = want !== undefined ? want : 0;
+					await enterDeckMode(bootTab);
+					// 見えないタブのときは①（読み込みのあとで確かめる。前回のタブが見えていれば、すでに開いているので見た目は変わらない）
+					selectStepTab(visibleStepTabs().indexOf(bootTab) !== -1 ? bootTab : 0, { noSave: true });
 				}
 				else exitDeckMode();
 			} catch (e) {
@@ -3306,6 +3322,7 @@
 				// 「何も言われずに知らない画面になっている」のがいちばん困るため。
 				console.error('[UmaStar OCR] UIの初期化に失敗しました', e);
 			}
+			document.documentElement.removeAttribute('data-boot');
 			/* 告知は「お知らせの履歴」（js/announce.js の history。このツールの新しい3件）を1件ずつ出す（exam の initUiMode と同じ扱い）。
 			   履歴の3件に未読があれば、最新の1件で開く。閉じると、このツールの告知はすべて既読になる（古い告知の既読の印も含む）。
 			   ?notice=force: 文面の確認用。既読でも最新の1件から開き、何も書かない。 */
@@ -3415,7 +3432,8 @@
 			if (box && slot && box.parentNode !== slot) slot.appendChild(box);
 		}
 
-		async function enterDeckMode() {
+		// bootTab … 起動のとき（initUiMode）だけ渡す、最初から開くタブ（表示開始時の直し (e)）。渡さなければ今までどおり②
+		async function enterDeckMode(bootTab) {
 			deckMode = true;
 			manualSkillState = {
 				skillList: skillList.slice(),
@@ -3447,7 +3465,9 @@
 			updateDeckEntryVisibility();
 			saveUiModeChoice();
 			// ①の中身が入れ替わるので、隠れたまま気付かれないことがないよう①を開いておく
-			selectStepTab(1, { noSave: true });
+			// （起動のときは前回のタブを最初から開き、骨格が組み替わったので head の印 data-boot を外す。表示開始時の直し (e)）
+			selectStepTab(bootTab !== undefined && visibleStepTabs().indexOf(bootTab) !== -1 ? bootTab : 1, { noSave: true });
+			document.documentElement.removeAttribute('data-boot');
 
 			// 選択が済むまでは照合対象が無い状態にする
 			deckScope = null;
@@ -3564,6 +3584,7 @@
 			updateDeckEntryVisibility();
 			saveUiModeChoice();
 			selectStepTab(1, { noSave: true });
+			document.documentElement.removeAttribute('data-boot');
 
 			clearActiveSkillDictionary();
 			deckTierByName = {};   // 手貼りのリストには分類が無い（印を出さない）
