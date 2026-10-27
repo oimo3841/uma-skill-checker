@@ -7,18 +7,6 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 	<!-- 画面の色（ライト／ダーク）。CSS より先に、同期で読む（<html> の data-theme を本文の描画より前に付けるため。中身は js/theme.js の冒頭） -->
 	<script src="js/theme.js?v=2026-10-08b"></script>
-	<!-- 表示開始時の直し (e)（2026-10-27）: 新UIで開く人は、DOMContentLoaded で節が新UIの置き場に移り前回のタブ（①／②）が開くまで、
-	     タブの並びと①②の中身を見せない（組み替わる前の①が先に出てから、前回の②へ替わるのが見えないように）。
-	     印 data-boot が付くのは保存の UI が旧UI（'old'）でないときだけ。外すのは initUiMode（組み替えの直後）。load でも必ず外す。保存データは読むだけ -->
-	<script>
-		(function () {
-			try { if (localStorage.getItem('uma-exam-ui-mode') === 'old') return; } catch (e) { /* 読めなければ新UI（initUiMode と同じ） */ }
-			var root = document.documentElement;
-			root.setAttribute('data-boot', '');
-			window.addEventListener('load', function () { root.removeAttribute('data-boot'); });
-		})();
-	</script>
-	<style>html[data-boot] .step-tabs, html[data-boot] .step-panel { visibility: hidden; }</style>
 	<!-- 表示開始時の直し (d2)（2026-10-27）: lucide が SVG に替えるまでの空の <i data-lucide> に場所を取らせる（替わった瞬間に文字がずれないように）。
 	     @layer base に置くので、Tailwind の w-4・h-4 など（utilities）が来ればそちらが勝つ。SVG に替わったあとは当たらない -->
 	<style>@layer base { i[data-lucide] { display: inline-block; width: 1em; height: 1em; } }</style>
@@ -7934,7 +7922,6 @@ const anyTotal = effBannerSpecs.some(sp => sp.opts.totalLines);
 			} catch (e) {
 				console.error('[UmaExam OCR] UIの初期化に失敗しました', e);
 			}
-			document.documentElement.removeAttribute('data-boot');   // 表示開始時の直し (e)（head の印）
 			// ?notice=force: 文面の確認用。既読でも最新の1件から開き、何も書かない（C-140・微調整2・E）
 			const hist = UmaAnnounce.history('exam');
 			if (!hist.length) return;
