@@ -6661,6 +6661,16 @@
 		'.usd-panel-xbtn:hover { color: var(--uma-danger-text); }',
 		'.usd-panel-xbtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: -2px; }',
 		'.usd-palette-del { display: inline-flex; align-items: center; gap: 3px; }',
+		// ②因子周回 段2: 「削除」の右の◎のボタン（①の◎の漏斗のボタンの◎の絵だけを押せるようにした形。押せる範囲 28px＝①の列見出しのボタンと同じ）。
+		// 入っているときは「削除」を選んでいるときと同じ選択の印（2px の枠）
+		'.usd-factor-circlebtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--uma-r-sm);',
+		'  background: transparent; color: var(--uma-text-heading); cursor: pointer; }',
+		'.usd-factor-circlebtn:hover { background: rgba(0,0,0,.08); }',
+		'.usd-factor-circlebtn[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--usd-ui-sel, var(--uma-control-mark)); }',
+		'.usd-factor-circlebtn:focus-visible { outline: 2px solid var(--uma-focus-ring); outline-offset: 2px; }',
+		'.usd-factor-circlebtn .usd-roster-toneicon--circle { color: inherit; }',
+		// ◎を○に変えるモード: すべての行の Pt を隠す（切り替えは◎の候補の行だけ、Pt の位置に出る）
+		'.usd-skillgroup--circle .usd-panel-pt { display: none; }',
 		// C-132: 「逃げオススメ」「先差追オススメ」の確認の小窓（追加するスキルの名前と Pt・追加しないものの内訳・ボタン2つ）
 		// 段G(4): 削除のボタンを選んでいるときは、色を変えず、(6)の選択中の見た目（2px の枠。上の .usd-palette-clear[aria-pressed="true"]）だけ
 		'.usd-reset-ops { display: flex; flex-direction: column; gap: 8px; }',
@@ -12190,6 +12200,8 @@
 		// アイコンのパレットの選択（段9。'a'〜'f'／PALETTE_DELETE＝削除〔C-132〕／null＝何も選んでいない）。初期は ◎。ほかのボタンを押すまで保つ（続けて付けられる）。保存しない
 		const PALETTE_DELETE = 'delete';
 		let paletteSel = SKILL_ICON_DEFAULT;
+		// ②因子周回 段2: 「◎を○に変えるモード」（入口の◎のボタン）。画面の中だけの状態で保存しない（①の並べ替えと同じ）
+		let factorCircleMode = false;
 		// 名前つきのタブ（段7b の ⑫。special の②だけ）。tabNoun は確認・ボタンの呼び名（special は「因子周回」。無ければ setLabel）
 		const tabNoun = opts.tabNoun || setLabel;
 		let nameEdit = null;       // 選んでいるタブの名前を編集中なら { value }（確定するまで保存しない）
@@ -12437,6 +12449,12 @@
 			else if (act === 'palette-pick') pickPalette(btn.dataset.icon);
 			else if (act === 'skill-icon') toggleSkillIcon(btn.dataset.skillId);
 			else if (act === 'factor-reset') openFactorResetPopover(btn);
+			else if (act === 'factor-circle-mode') {
+				// ②因子周回 段2: 「◎を○に変えるモード」の入り・切り（保存しない）
+				factorCircleMode = !factorCircleMode;
+				render();
+				focusNoScroll(container.querySelector('button[data-usd-act="factor-circle-mode"]'));
+			}
 			else if (act === 'factor-circle-toggle') {
 				// ②の◎／○の切り替え（②因子周回 段2）。押したボタンにフォーカスを戻す（位置は上の captureAnchor で保つ）
 				const id = btn.getAttribute('data-skill-id');
@@ -13480,7 +13498,7 @@
 		}
 
 		/**
-		 * ②の◎／○の切り替え（②因子周回 段2）。①の circle-toggle と同じ見た目（.usd-circle-btn・.usd-circle-mark）。押せる範囲は幅44px・行の高さいっぱい
+		 * ②の◎／○の切り替え（②因子周回 段2）。「◎を○に変えるモード」のときだけ、候補の行の Pt の位置に出す。①の circle-toggle と同じ見た目（.usd-circle-btn・.usd-circle-mark）。押せる範囲は幅44px・行の高さいっぱい
 		 */
 		function factorCircleToggleHtml(id, upId, on) {
 			const label = on ? getSkillName(upId) + '：◎で数えています。○に戻す' : getSkillName(id) + '：○で数えています。◎に上げる';
@@ -13508,7 +13526,7 @@
 			// 並べ替えるのは表示だけで、保存の順（足した順）は変えない（③の表・コピー・Deck の記録・結合画像はその順のまま）
 			if (setBased) {
 				const icons = iconsOf(target);
-				// ②因子周回 段2: ◎の候補の○の行は、◎として数えるときは名前（と説明の小窓）を◎にし、Pt の左に◎／○の切り替えを常に出す。
+				// ②因子周回 段2: ◎の候補の○の行は、◎として数えるときは名前（と説明の小窓）を◎にする。◎／○の切り替えは「◎を○に変えるモード」のときだけ Pt の位置に出す。
 				// 行の識別（data-skill-id）・アイコン・並び・削除は○の id のまま
 				const cst = factorPtState(target);
 				const cands = cst && cst.circleCandidates ? cst.circleCandidates : new Map();
@@ -13521,8 +13539,9 @@
 						+ iconButtonHtml(id, name, icons[id])
 						+ '<span class="usd-panel-namescroll usd-hscroll" data-usd-el="panel-namescroll" data-usd-no-trim="1">'
 						+ '<button type="button" class="usd-panel-namebtn" data-usd-info="' + esc(shownId) + '" title="' + esc(shownName) + '">' + esc(shownName) + '</button></span>'
-						+ (up ? factorCircleToggleHtml(id, up, on) : '')
 						+ '<span class="usd-panel-pt" data-usd-el="panel-pt" data-skill-id="' + esc(id) + '"></span>'
+						// ◎を○に変えるモードのときだけ、Pt の位置（Pt は CSS で隠す）に◎／○の切り替え（◎の候補の行だけ）
+						+ (up && factorCircleMode ? factorCircleToggleHtml(id, up, on) : '')
 						// 段G(4): 削除の状態のときだけ見える×（押せる範囲 44px）。押すとそのスキルを②から外す（パネルを押したときと同じ処理）
 						+ '<button type="button" class="usd-panel-xbtn" data-usd-act="template-skill-remove" data-usd-el="panel-x" data-skill-id="' + esc(id) + '" aria-label="' + esc(name + 'を削除') + '"><i data-lucide="x" aria-hidden="true"></i></button>'
 						+ '</div>';
@@ -14259,14 +14278,24 @@
 			const el = q(container, 'tier-row');
 			if (!el) return;
 			const del = paletteSel === PALETTE_DELETE;
+			// ②因子周回 段2: 「削除」の右に◎のボタン（①の◎の漏斗のボタンから漏斗を無くし、◎そのものを押せるようにした形）。◎の候補が無いときは出さず、モードも切る
+			const cst = factorPtState(currentTarget());
+			const hasCircle = !!(cst && cst.circleCandidates && cst.circleCandidates.size > 0);
+			if (!hasCircle) factorCircleMode = false;
+			const circleLabel = factorCircleMode ? '◎を○に変えるモードを終える' : '◎を○に変えるモード';
 			el.innerHTML = '<button type="button" class="usd-palette-clear usd-palette-del" data-usd-act="palette-pick" data-usd-el="palette-delete" data-icon="' + PALETTE_DELETE + '" aria-pressed="' + (del ? 'true' : 'false') + '"'
 				+ ' title="押したスキルを②から外す"><i data-lucide="trash-2" class="w-3 h-3" aria-hidden="true"></i>削除</button>'
+				+ (hasCircle ? '<button type="button" class="usd-factor-circlebtn" data-usd-act="factor-circle-mode" data-usd-el="factor-circle-mode" aria-pressed="' + (factorCircleMode ? 'true' : 'false') + '"'
+					+ ' aria-label="' + circleLabel + '" title="' + circleLabel + '"><span class="usd-roster-toneicon usd-roster-toneicon--circle" aria-hidden="true">'
+					+ '<svg class="usd-roster-tonesvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.8"/></svg></span></button>' : '')
 				+ '<span class="usd-palette-sep" aria-hidden="true"></span>'
 				+ SKILL_ICONS.map(i => '<button type="button" class="usd-palette-btn" data-usd-act="palette-pick" data-usd-el="palette-' + i.id + '" data-icon="' + i.id + '"'
 				+ ' aria-pressed="' + (paletteSel === i.id ? 'true' : 'false') + '" aria-label="アイコン ' + esc(i.mark) + '" title="' + esc(i.mark) + '">' + skillIconHtml(i.id) + '</button>').join('');
 			// 削除の状態は、スキルのまとまりの印でタイルの見た目にも出す（控えめな破線の枠と、名前の取り消しの線）
 			const group = q(container, 'skill-group');
 			if (group) group.classList.toggle('usd-skillgroup--delete', del);
+			// ◎を○に変えるモード: すべての行の Pt を隠し、◎の候補の行だけ Pt の位置に◎／○（CSS）
+			if (group) group.classList.toggle('usd-skillgroup--circle', factorCircleMode);
 			refreshIcons();
 			scanEntryRows();
 		}

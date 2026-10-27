@@ -163,7 +163,10 @@ export async function register18(env) {
 				const kids = Array.from(pal.children).filter((c) => !c.classList.contains('usd-palette-sep')).map((c) => c.getAttribute('data-usd-el'));
 				return { kids, left: pal.scrollLeft, ox: getComputedStyle(pal).overflowX };
 			});
-			assert(r.kids[0] === 'palette-delete' && r.kids.slice(1).every((k) => /^palette-[a-f]$/.test(k)) && r.kids.length === 7, 'C132A5 並びは 削除・アイコン6つ（脚質のボタン・サポカ外は無い）', r.kids);
+			// ②因子周回 段2（2026-10-28）: ◎の候補があるときは「削除」のすぐ右に◎のボタン（factor-circle-mode）が入る。それを除いた並びを見る
+			const ck = r.kids.indexOf('factor-circle-mode');
+			const kids = r.kids.filter((k) => k !== 'factor-circle-mode');
+			assert((ck === -1 || ck === 1) && kids[0] === 'palette-delete' && kids.slice(1).every((k) => /^palette-[a-f]$/.test(k)) && kids.length === 7, 'C132A5 並びは 削除・（◎の候補があるときだけ◎のボタン）・アイコン6つ（脚質のボタン・サポカ外は無い）', r.kids);
 			assert(r.left === 0 && r.ox === 'auto', 'C132A5 始まりは左端で、横に送れる', r);
 			await sp.ctx.close();
 		}

@@ -5,7 +5,8 @@
 //  ・②の○のうち、上の段がちょうど1つの◎（circleUpOf）が引けるものは、Pt を数えるときだけ◎に差し替える。○のヒントLvはそのまま（①の C-165・C-168 と同じ）。
 //  ・種数は○のまま（②の「N種」・見出しの種・C-178 の重なり）。②の検索の範囲（C-91）・③の表とコピー・Deck の記録・結合画像は○のまま。
 //  ・◎の候補から外す: 上の段の◎が (a) ②にもある／(b) ①の計算の由来にある・①で取得する／(c) ①の前段にある。
-//  ・②の行: ◎として数える行は名前を◎に（ⓘも◎）・行の Pt は◎＋前段の○の合算・その行にだけ◎／○の切り替えを常に出す。
+//  ・②の行: ◎として数える行は名前を◎に（ⓘも◎）・行の Pt は◎＋前段の○の合算。切り替えは、入口の「削除」の右の◎のボタンで入る「◎を○に変えるモード」のときだけ
+//    （すべての行の Pt を隠し、候補の行の Pt の位置に◎／○。もう一度押すと戻る。保存しない。候補0ではボタンなし）。
 //  ・「○のまま数える」はセット（template）の keepCircleIds。触ったときだけ書く・空なら項目ごと消す・schemaVersion 7 のまま・読み込み時に補わない。
 //    下書き・保存・セットへの写し・複製に乗る。切り替えは「元に戻す」に積む。「すべて消す」で消える（元に戻せる）。「アイコンだけ外す」は触らない。
 //  ・脚質オススメの行の Pt（stylePtCalc）も◎で数える。オススメサポの Pt（outsidePtOf）は変えない。
@@ -77,15 +78,24 @@ export async function register57(env) {
 			const nb = p.querySelector('.usd-panel-namebtn');
 			const pt = p.querySelector('[data-usd-el="panel-pt"]');
 			return { id: p.dataset.skillId, circle: p.dataset.usdCircle || null, info: nb ? nb.getAttribute('data-usd-info') : null, name: nb ? nb.textContent : null,
-				pt: pt ? pt.textContent : '', toggle: t ? t.getAttribute('aria-pressed') : null, h: p.getBoundingClientRect().height };
+				pt: pt ? pt.textContent : '', ptShown: !!pt && getComputedStyle(pt).display !== 'none' && pt.textContent !== '', toggle: t ? t.getAttribute('aria-pressed') : null, h: p.getBoundingClientRect().height,
+				toggleBox: t ? (() => { const r = t.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; })() : null };
 		});
 		const n = (sel) => { const e = document.querySelector(sel); return e ? Number(e.textContent.replace(/[^0-9]/g, '')) : null; };
 		return { factorPt: s.factorPt, factorKinds: s.factorKinds, commonPt: s.commonPt, rosterPt: s.rosterPt, rosterKinds: s.rosterKinds, total: s.total, totalKinds: s.totalKinds, crossPaired: s.crossPaired,
 			bandPt: n('#deck-template-panel [data-usd-el="factor-pt"]'), bandKinds: n('#deck-template-panel [data-usd-el="factor-count"]'),
 			headTotal: (() => { const e = document.querySelector('#deck-set-bar [data-usd-el="set-total"]'); return e ? Number(e.dataset.total) : null; })(),
+			modeBtn: (() => { const b = document.querySelector('#deck-template-panel [data-usd-el="factor-circle-mode"]'); return b ? b.getAttribute('aria-pressed') : null; })(),
 			circles: c, rows: rows, sel: (deckTemplateManager.getSelection() || {}).skillIds || null,
 			overflowX: document.documentElement.scrollWidth > window.innerWidth + 1 };
 	});
+	/** ◎を○に変えるモード（入口の◎のボタン）に入る・出る */
+	const setMode = async (page, on) => {
+		const cur = await page.evaluate(() => { const b = document.querySelector('#deck-template-panel [data-usd-el="factor-circle-mode"]'); return b ? b.getAttribute('aria-pressed') : null; });
+		if (cur === null) return false;
+		if ((cur === 'true') !== on) { await page.click(T + '[data-usd-el="factor-circle-mode"]'); await page.waitForTimeout(250); }
+		return true;
+	};
 	const rowPtNum = (t) => Number(String(t).replace(/[^0-9]/g, '')) || 0;
 	const draft = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')));
 	const ud = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:userData')));
@@ -120,6 +130,9 @@ export async function register57(env) {
 	await block('②◎(2) 計算: ①なしの S4 で、◎の行の Pt ＝ ◎（Lv5）＋ ○（Lv5）（独立に出した式）／名前とⓘは◎・切り替えは押した状態／行の高さは変わらない', async () => {
 		const sp = await openSp({ w: 1280, ids: WHITES30 });
 		const a = await read(sp.page);
+		await setMode(sp.page, true);
+		const am = await read(sp.page);
+		const modeOf = new Map(am.rows.map((r) => [r.id, r]));
 		const byId = new Map(a.rows.map((r) => [r.id, r]));
 		let bad = [];
 		WHITES30.forEach((o) => {
@@ -127,9 +140,9 @@ export async function register57(env) {
 			if (!up || !r) { bad.push(['nocand', o]); return; }
 			const want = ptOf(PT.get(up).pt, 5, 'none') + ptOf(PT.get(o).pt, 5, 'none');
 			if (rowPtNum(r.pt) !== want) bad.push(['pt', o, r.pt, want]);
-			if (r.circle !== up || r.info !== up || r.toggle !== 'true') bad.push(['row', o, r.circle, r.info, r.toggle]);
+			if (r.circle !== up || r.info !== up || r.toggle !== null || modeOf.get(o).toggle !== 'true') bad.push(['row', o, r.circle, r.info, r.toggle, modeOf.get(o).toggle]);
 		});
-		assert(bad.length === 0, '②◎(2) 30行すべて: Pt ＝ ◎＋○（どちらも Lv5・状態なし）・data-usd-circle とⓘは◎・切り替えは aria-pressed=true', bad.slice(0, 5));
+		assert(bad.length === 0, '②◎(2) 30行すべて: Pt ＝ ◎＋○（どちらも Lv5・状態なし）・data-usd-circle とⓘは◎・通常の表示では切り替えなし・モードでは aria-pressed=true', bad.slice(0, 5));
 		const names = await sp.page.evaluate((ids) => ids.map((id) => UmaSkillDeckCore.getSkillName ? UmaSkillDeckCore.getSkillName(id) : null), WHITES30.map(upOf));
 		assert(names.every((n, i) => n === null || byId.get(WHITES30[i]).name === n), '②◎(2) 行の名前は◎の名前', { got: a.rows.slice(0, 3).map((r) => r.name), want: names.slice(0, 3) });
 		assert(a.rows.every((r) => r.h === a.rows[0].h), '②◎(2) 切り替えを出しても、行の高さはそろったまま', Array.from(new Set(a.rows.map((r) => r.h))));
@@ -146,7 +159,7 @@ export async function register57(env) {
 		sp = await openSp({ w: 1280, ids: [o1, u1], keep: [o1] });
 		let b = await read(sp.page);
 		await sp.ctx.close();
-		assert(a.circles.candidates.length === 0 && a.rows.every((r) => r.toggle === null) && a.factorPt === b.factorPt, '②◎(3)(a) ◎も②にあるときは候補にしない（切り替えなし・数は○のままと同じ）', { cand: a.circles.candidates, pt: [a.factorPt, b.factorPt] });
+		assert(a.circles.candidates.length === 0 && a.modeBtn === null && a.rows.every((r) => r.toggle === null) && a.factorPt === b.factorPt, '②◎(3)(a) ◎も②にあるときは候補にしない（切り替えなし・数は○のままと同じ）', { cand: a.circles.candidates, pt: [a.factorPt, b.factorPt] });
 		// (b) 実データでは、①の由来に◎そのものが入るのは①の◎（C-165。①の○を◎に差し替えた由来）だけで、その○は①で取得するので②では数えない。
 		//     そこで、サポカのイベントを差し替えて「◎を●で得る」編成を作る（card-0248 に、選択肢1つの段で◎を足す）
 		const evReal = readJson('data/support-card-event-skills.json');
@@ -172,7 +185,7 @@ export async function register57(env) {
 			b = await read(sp.page);
 			await sp.ctx.close();
 			assert(tk.indexOf(up) !== -1, '②◎(3)(b) 前提: 差し替えた編成は◎を①で取得する', { up, has: tk.indexOf(up) !== -1 });
-			assert(a.circles.candidates.length === 0 && a.rows.every((r) => r.toggle === null) && a.factorPt === b.factorPt && a.rosterPt === b.rosterPt,
+			assert(a.circles.candidates.length === 0 && a.modeBtn === null && a.rows.every((r) => r.toggle === null) && a.factorPt === b.factorPt && a.rosterPt === b.rosterPt,
 				'②◎(3)(b) ◎を①で取得する（①の由来にある）ときは候補にしない（切り替えなし・数は○のままと同じ）', { o, up, cand: a.circles.candidates, pt: [a.factorPt, b.factorPt] });
 		}
 		// (c) ①が「金←◎←○」の金を取る編成（C-178(3) と同じ探し方）。②に○を入れる
@@ -199,13 +212,14 @@ export async function register57(env) {
 			sp = await openSp({ w: 1280, roster: pickC.r, ids: [pickC.circ], keep: [pickC.circ] });
 			b = await read(sp.page);
 			await sp.ctx.close();
-			assert(a.circles.candidates.length === 0 && a.rows.every((r) => r.toggle === null) && a.factorPt === b.factorPt && a.rosterPt === b.rosterPt,
+			assert(a.circles.candidates.length === 0 && a.modeBtn === null && a.rows.every((r) => r.toggle === null) && a.factorPt === b.factorPt && a.rosterPt === b.rosterPt,
 				'②◎(3)(c) ◎が①の前段にあるときは候補にしない（切り替えなし・数は○のままと同じ）', { pickC, cand: a.circles.candidates, pt: [a.factorPt, b.factorPt] });
 		}
 	});
 
 	await block('②◎(4) 切り替え: 押すと○のまま数える（名前○・Pt は○だけ・keepCircleIds に書く）→ 元に戻す／もう一度押すと◎（空なら項目ごと消す）／知らない id は無視', async () => {
 		const sp = await openSp({ w: 390, roster: R2, ids: ONE12 });
+		await setMode(sp.page, true);
 		const a0 = await read(sp.page);
 		const on = a0.rows.find((r) => r.toggle === 'true');
 		const id = on.id, up = on.circle;
@@ -259,7 +273,8 @@ export async function register57(env) {
 		const raw1 = await sp.page.evaluate(() => localStorage.getItem('umaSkillDeck:userData'));
 		const t0 = JSON.parse(raw1).templates[0];
 		assert(a0.factorPt === FIX.S1.after && !('keepCircleIds' in t0), '②◎(5) 項目の無いセットは全部◎で数え、開いても keepCircleIds を書かない', { pt: a0.factorPt, t0: Object.keys(t0) });
-		const id = a0.rows.find((r) => r.toggle === 'true').id;
+		await setMode(sp.page, true);
+		const id = (await read(sp.page)).rows.find((r) => r.toggle === 'true').id;
 		await sp.page.click(T + '[data-usd-el="factor-circle-toggle"][data-skill-id="' + id + '"]');
 		await sp.page.waitForTimeout(300);
 		let d = await ud(sp.page);
@@ -274,8 +289,10 @@ export async function register57(env) {
 		const already2 = await sp.page.evaluate(() => { const i = document.querySelector('[data-usd-el="set-list"] input[value="t1"]'); return !!i && i.checked; });
 		if (already2) await sp.page.keyboard.press('Escape'); else await sp.page.click('[data-usd-el="set-list"] input[value="t1"]');
 		await sp.page.waitForTimeout(400);
+		const a2n = await read(sp.page);
+		await setMode(sp.page, true);
 		const a2 = await read(sp.page);
-		assert(a2.factorPt === a1.factorPt && a1.factorPt < FIX.S1.after && a2.rows.find((r) => r.id === id).toggle === 'false', '②◎(5) 保存したデータを開き直しても、○のまま数える', { a1: a1.factorPt, a2: a2.factorPt });
+		assert(a2n.modeBtn === 'false' && a2.factorPt === a1.factorPt && a1.factorPt < FIX.S1.after && a2.rows.find((r) => r.id === id).toggle === 'false', '②◎(5) 保存したデータを開き直しても、○のまま数える', { a1: a1.factorPt, a2: a2.factorPt });
 		await sp.ctx.close();
 		// 複製（Deck 単体ページ。special の②には複製のボタンが無い）
 		const dk = await openPage(browser, base, 'uma-skill-deck.html', { width: 1280, height: 900 }, d);
@@ -323,5 +340,48 @@ export async function register57(env) {
 			'②◎(6) 元に戻すと、スキルと keepCircleIds が戻り、②の Pt も同じ', { un, keep: d.keepCircleIds, pt: [a0.factorPt, a1.factorPt] });
 		assert(jsErrors(sp.errors).length === 0, '②◎(6) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
+	});
+
+	await block('②◎(7) 見た目: 通常は行に切り替えなし・Pt あり／「削除」の右の◎のボタンでモードに入ると、すべての行の Pt を隠し、候補の行だけ Pt の位置に◎／○（押せる範囲 44px・行の高さ 36px）／もう一度押すと戻る／モードは保存しない／候補0ではボタンなし', async () => {
+		for (const w of [390, 1280]) {
+			const tag = '②◎(7) ' + w + 'px: ';
+			const sp = await openSp({ w, roster: R2, ids: ONE12, keep: ['6'] });
+			const n0 = await read(sp.page);
+			const pos = await sp.page.evaluate(() => {
+				const del = document.querySelector('#deck-template-panel [data-usd-el="palette-delete"]'), b = document.querySelector('#deck-template-panel [data-usd-el="factor-circle-mode"]');
+				if (!del || !b) return null;
+				const d = del.getBoundingClientRect(), r = b.getBoundingClientRect();
+				return { next: del.nextElementSibling === b, right: r.left >= d.right, sameRow: Math.abs((r.top + r.bottom) / 2 - (d.top + d.bottom) / 2) < 4, w: Math.round(r.width), h: Math.round(r.height) };
+			});
+			assert(n0.modeBtn === 'false' && !!pos && pos.next && pos.right && pos.sameRow && pos.w >= 24 && pos.h >= 24, tag + '◎のボタンは「削除」のすぐ右・同じ行（押せる範囲 24px 以上）・入っていない', pos);
+			assert(n0.rows.every((r) => r.toggle === null) && n0.rows.filter((r) => r.pt !== '').every((r) => r.ptShown), tag + '通常の表示: 行に切り替えは無く、Pt が見える', n0.rows.slice(0, 3));
+			await setMode(sp.page, true);
+			const m = await read(sp.page);
+			const cand = new Map(m.circles.candidates);
+			const bad = m.rows.filter((r) => r.ptShown || (cand.has(r.id) ? !(r.toggle === (r.id === '6' ? 'false' : 'true') && r.toggleBox.w >= 44) : r.toggle !== null));
+			assert(m.modeBtn === 'true' && bad.length === 0 && cand.size === FIX.S1.cand, tag + 'モード: すべての行の Pt を隠し、候補の行だけ◎（○に戻した「6」は○）・押せる幅 44px、候補でない行は何も出さない', bad.slice(0, 3));
+			assert(m.rows.every((r) => r.h === 36) && n0.rows.every((r) => r.h === 36) && !m.overflowX, tag + '行の高さは 36px のまま（通常・モード）・横スクロールなし', Array.from(new Set(m.rows.map((r) => r.h))));
+			assert(m.factorPt === n0.factorPt && m.bandPt === n0.bandPt, tag + 'モードに入っても数は変わらない', { n: n0.factorPt, m: m.factorPt });
+			const ls = await sp.page.evaluate(() => JSON.stringify(Object.assign({}, localStorage)));
+			assert(!/circleMode|factorCircleMode/.test(ls), tag + 'モードの状態は保存しない（localStorage に書かない）', null);
+			await setMode(sp.page, false);
+			const n1 = await read(sp.page);
+			assert(n1.modeBtn === 'false' && n1.rows.every((r) => r.toggle === null) && n1.rows.filter((r) => r.pt !== '').every((r) => r.ptShown), tag + 'もう一度押すと通常の表示に戻る', n1.rows.slice(0, 2));
+			// 入ったまま開き直すと通常の表示（保存しない）
+			await setMode(sp.page, true);
+			await sp.page.reload({ waitUntil: 'networkidle' });
+			for (let i = 0; i < 2; i++) if (await sp.page.isVisible('#ui-notice')) await sp.page.click('[data-act="notice-ok"]');
+			await sp.page.evaluate(async () => { await UmaSkillDeckCore.loadTrainingSources(); await UmaSkillDeckCore.loadSkillPtData(); });
+			await sp.page.waitForTimeout(800);
+			const n2 = await read(sp.page);
+			assert(n2.modeBtn === 'false' && n2.rows.every((r) => r.toggle === null), tag + 'モードのまま読み込み直すと、通常の表示で開く', n2.modeBtn);
+			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+			await sp.ctx.close();
+		}
+		// 候補0（S3）ではボタンを出さない
+		const sp3 = await openSp({ w: 390, roster: A40, ids: ['230', '200041'] });
+		const z = await read(sp3.page);
+		assert(z.modeBtn === null && z.circles.candidates.length === 0, '②◎(7) ◎の候補が1つも無いときは、◎のボタンを出さない', z.modeBtn);
+		await sp3.ctx.close();
 	});
 }
