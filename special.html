@@ -49,7 +49,7 @@
 	<script src="js/skillset-ocr.js?v=2026-10-27a"></script>
 	<!-- UmaSkill Deck連携モード用の共有モジュール（データ層・テンプレート管理UI・レコード書き込み）。
 	     uma-skill-deck.html と同じものを読み込むため、テンプレートは双方向に共有される。 -->
-	<script src="js/uma-skill-deck-core.js?v=2026-10-28a"></script>
+	<script src="js/uma-skill-deck-core.js?v=2026-10-28b"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
 	<script src="js/stitch.js?v=2026-09-26a"></script>
 	<!-- お知らせ（告知）の文面・画像・番号（exam.html / special.html で共有。C-140・微調整2・E） -->
@@ -3484,6 +3484,15 @@
 				// 既定の動作では読み込まないため、通常利用の初期表示は今までどおり。
 				// **戻り値を捨てない**（71セッション目・段7）。古い写しや組み込みサンプルに
 				// 落ちたことは core がトーストで知らせるので、ここは開発ログに残すだけ。
+				// 表示開始時の直し (b1)（2026-10-27）: ①の編成パネルが読むもの（収録データ・スキルPt・進化〔シナリオのイベント・要るスキルを含む〕・説明文）を、
+				// マスターと同時に読み始める（どれもマスターを使わずに読める）。①はそれが全部そろってから1回で描く（読み終わるたびの描き直しをしない）。
+				// 失敗はそれぞれの読み込みの中で扱う（読めなければ今までどおり、その部分が無い形で描く）
+				const trainingLoadP = UmaSkillDeckCore.loadTrainingSources(false);
+				const rosterExtrasP = Promise.all([
+					UmaSkillDeckCore.loadSkillPtData(false),
+					UmaSkillDeckCore.loadSkillEvolutions(false),
+					UmaSkillDeckCore.loadSkillDescriptions()
+				].map((p) => Promise.resolve(p).catch(() => {})));
 				const masterLoad = await UmaSkillDeckCore.loadMasterSkills(false);
 				if (!masterLoad.ok) console.warn('[UmaStar] Deck連携の収録スキルデータは ' + masterLoad.source + ' から読んだ', masterLoad);
 				deckMasterLoaded = true;
@@ -3536,9 +3545,10 @@
 				// この画面を開いたときだけ読む（起動時には読まない）。
 				// **戻り値を捨てない**（71セッション目・段7の続き）。読めなかったカテゴリは
 				// core がトーストで知らせるので、ここは開発ログに残すだけ。
-				const trainingLoad = await UmaSkillDeckCore.loadTrainingSources(false);
+				const trainingLoad = await trainingLoadP;
 				const trainingNg = (trainingLoad.sources || []).filter((s) => !s.ok).map((s) => s.key);
 				if (trainingNg.length) console.warn('[UmaStar] 収録データを読めなかった: ' + trainingNg.join(' / '), trainingLoad);
+				await rosterExtrasP;
 				deckRosterPanel = UmaSkillDeckCore.createRosterPanel(
 					document.getElementById('deck-roster-panel'),
 					{

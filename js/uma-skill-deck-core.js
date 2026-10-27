@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-28a';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-28b';
 
 	/* ============================================================
 	 * 定数
@@ -8692,6 +8692,8 @@
 			if (DATA_JSON_VERSIONS[SKILL_REQUIRES_PATH]) {
 				try { skillRequiresMap = buildRequiresIndex(await fetchMasterJson(withDataVersion(SKILL_REQUIRES_PATH), !!forceRefresh)); } catch (e3) { skillRequiresMap = new Map(); }
 			}
+			// シナリオのイベント・要るスキルまで読み終えた印（status の 'ok' はその前に付くので、編成パネルが「もう描き直さなくてよいか」はこちらで見る）
+			st.settled = true;
 			return st.status;
 		})();
 		return st.promise;
@@ -12102,9 +12104,10 @@
 		// スキルPt の元データがまだ読まれていなければ、読み終わったあとで描き直す（読めなくても描き直す＝知らせを出す）
 		if (!skillPtData.meta.loaded) loadSkillPtData(false).then(function () { render(); });
 		// 進化の対応（段4。skill-evolutions.json）。編成パネルを作るときにだけ読み、読み終わったら描き直す（読めなければ進化の行が無いのと同じ）。効果の段階は必要になったときだけ（evoPlanOf）
-		loadSkillEvolutions(false).then(function () { render(); });
+		// 表示開始時の直し (b1)（2026-10-27）: 呼ぶ側が先に読み終えていれば（special の起動）、描き直さない（いまの render がもう読んだ結果で描いている）
+		if (!(evolutionState.status === 'ok' && evolutionState.settled)) loadSkillEvolutions(false).then(function () { render(); });
 		// 進化先が使える条件は説明文の＜…＞から読む（C-152）ので、説明文も一緒に読む（進化の決定は両方が揃ってから。失敗したら次に開いたときにもう一度試す）
-		loadSkillDescriptions().then(function () { render(); });
+		if (skillDescState.status !== 'ok') loadSkillDescriptions().then(function () { render(); });
 		// シナリオの固定イベント（段7c の N）。編成パネルを作るときにだけ読む。読み終わったら描き直す（読めなければ列を出さない）
 		if (scenarioEventState.status === 'idle' || scenarioEventState.status === 'failed') loadScenarioEvents(false).then(function () { render(); });
 		return {
