@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-27g';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-27h';
 
 	/* ============================================================
 	 * 定数
@@ -5910,6 +5910,7 @@
 		// スキルセットと親A／親Bセットにも広げたので、ここには編成だけの規則は無い。
 		// スキルセット（テンプレート管理。C-53）の1画面の骨格
 		'.usd-tm { display: flex; flex-direction: column; gap: var(--uma-sp-3); }',
+		'.usd-tm > .uma-subtabs-row[hidden] { display: none; }',
 		// 節（A／B／C）の骨格は css/common.css の .uma-section（C-2a で共通部品にした）。
 		// **段K で縦並び（A の下に B・C）から横並び（同じ行に3つ）へ変えた**ので、
 		// 並びの行そのもの（.uma-section-row）と出っ張りの見た目も css/common.css が持つ。
@@ -6567,13 +6568,16 @@
 		'.usd-band-kunit { margin-left: 1px; font-size: 11px; font-weight: 400; color: var(--uma-text-muted); }',
 		'.usd-band-main { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }',
 		'.usd-band-main .uma-help-btn { flex: none; }',
-		'.usd-band-tags { order: 5; flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }',
-		'.usd-band-main .usd-reset-btn { order: 2; margin-left: auto; }',
-		'@media (min-width: 641px) { .usd-band-tags { order: 3; flex: 1 1 auto; } .usd-band-main .usd-reset-btn { order: 4; margin-left: 0; } }',
-		'.usd-band-tag { white-space: nowrap; font-size: 12px; line-height: 1.4; padding: 2px 8px; border: 1px solid var(--uma-border-strong); border-radius: 7px;',
-		'  background: var(--uma-surface); color: var(--uma-text); }',
-		'.usd-band-tag strong { color: var(--uma-text-heading); font-variant-numeric: tabular-nums; }',
-		'.usd-band-tagname { color: var(--uma-text-muted); }',
+		// ②因子周回 段1（2026-10-27）: タグ2つをやめ、継承固有・共通スキルの「Pt／種」を1行目の中・↺ の左に右寄せの小さい文字の2行で出す
+		// （10px×1.2×2行＝24px。行の高さは ↺ の 28px のまま）。2行と ↺ は1つの右寄せの塊（.usd-band-end）で、
+		// 収まらない幅（320px など）では塊ごと2行目に落ちる（↺ だけが落ちて離れないように。①の fitBand と同じく2行目を許す）
+		'.usd-band-end { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; min-width: 0; }',
+		'.usd-band-stats { display: flex; flex-direction: column; align-items: flex-end; min-width: 0; font-size: 10px; line-height: 1.2; color: var(--uma-text); }',
+		'.usd-band-stat { white-space: nowrap; }',
+		'.usd-band-stat strong { color: var(--uma-text-heading); font-weight: 700; font-variant-numeric: tabular-nums; }',
+		'.usd-band-statname { color: var(--uma-text-muted); }',
+		// ①の帯（.usd-roster-ptsum.usd-bandbox）と同じく、640px 以下は padding 4px（行の高さ 28＋4×2＝36px）
+		'@media (max-width: 640px) { .usd-setband.usd-bandbox { padding: 4px; } }',
 		'.usd-help-dot { position: relative; }',
 		'.usd-help-dot::after { content: ""; position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--uma-danger-text); border: 1px solid var(--uma-surface); }',
 		// リセットの「↺」（①②の帯の右端。28px の丸）。消すものが無いときは薄くして押せない
@@ -12662,7 +12666,8 @@
 			const list = ensureUserData().templates;
 			const onDraft = !currentTemplateId();
 			// 段8（setBased）: ②のタブの帯は無い（セットの名前・切り替え・合計は、ステップのタブの上の共通の帯＝renderSetBar）
-			if (setBased) { q(container, 'head').innerHTML = ''; renderSetBar(); return; }
+			// ②因子周回 段1（2026-10-27）: 空の行を残すと .usd-tm の gap（12px）だけ帯が下がるので隠す
+			if (setBased) { q(container, 'head').innerHTML = ''; q(container, 'head').hidden = true; renderSetBar(); return; }
 			const items = [{
 				id: DRAFT_SELECTION_ID, label: '＋ ' + DRAFT_LABEL, isNew: true, selected: onDraft,
 				count: draftScope.skillIds.length > 0 ? countSkillKinds(draftScope.skillIds) + '種' : null,
@@ -13263,7 +13268,8 @@
 
 		/**
 		 * ②の帯（段9・C-121。段8・D の1行目を置き換えた）。薄い帯の中に、1段目「X Pt／N種 ?」と右端の「↺」（リセット。E）、
-		 * 2段目にタグ2つ［継承固有 720 Pt／6種］［共通スキル 7,693 Pt／98種］（押せない表示）。広い幅（641px 以上）ではタグも1段目に並べる。
+		 * その間（↺ の左）に右寄せの小さい文字の2行「継承固有 720 Pt／6種」「共通スキル 7,693 Pt／98種」（押せない表示。②因子周回 段1・2026-10-27 に
+		 * 2段目のタグ2つから置き換えた）。収まらない幅では、2行の塊と ↺ が2段目に落ちる。
 		 * 「?」の小窓には、理論値の説明・式・数えていないスキルの注記を入れる（①と重なるものがあるときだけ赤い点）。
 		 */
 		function renderSetHead(el, st) {
@@ -13273,8 +13279,8 @@
 			if (!sum) { el.hidden = true; el.innerHTML = ''; return; }
 			const taken = sum.takenIds.length;
 			const fmt = formatPtNumber;
-			const tag = (el2, name, pt, kinds, extra) => '<span class="usd-band-tag" data-usd-el="' + el2 + '" data-pt="' + pt + '" data-kinds="' + kinds + '">'
-				+ '<span class="usd-band-tagname">' + esc(name) + '</span> <strong>' + fmt(pt) + '</strong> Pt／' + kinds + '種</span>';
+			const tag = (el2, name, pt, kinds, extra) => '<span class="usd-band-stat" data-usd-el="' + el2 + '" data-pt="' + pt + '" data-kinds="' + kinds + '">'
+				+ '<span class="usd-band-statname">' + esc(name) + '</span> <strong>' + fmt(pt) + '</strong> Pt／' + kinds + '種</span>';
 			// data-cuts は検査用（画面には出さない）。分類（アイコンから導いた tiers）ごとの「そのランクのぶん」と「そのランクまでの累計」。
 			// 計算（computeFactorSetPt）の検証に使う。合計・種の表示には使わない（共通スキルはアイコンに関係なく全部数える）
 			const cuts = JSON.stringify(r.cuts.map(c => ({ tier: c.tier, own: c.own, total: c.total })));
@@ -13283,12 +13289,13 @@
 				+ '<span class="usd-band-sum" data-usd-el="factor-sum">' + bandSumHtml(sum.factorPt, sum.factorKinds, 'factor-pt', 'factor-count') + '</span>'
 				+ '<button type="button" class="uma-help-btn usd-band-help' + (taken > 0 ? ' usd-help-dot' : '') + '" data-usd-act="pt-need-help" data-usd-el="pt-need-help-btn" data-taken="' + taken + '"'
 				+ ' aria-haspopup="dialog" aria-expanded="false" aria-label="②の Pt の説明' + (taken > 0 ? '（①で取得するスキルあり）' : '') + '" title="②の Pt の説明">?</button>'
-				+ '<span class="usd-band-tags" data-usd-no-trim="1" data-usd-el="pt-chips">'
+				+ '<span class="usd-band-end">'
+				+ '<span class="usd-band-stats" data-usd-no-trim="1" data-usd-el="pt-chips">'
 				+ tag('pt-need-uniq', '継承固有', sum.uniqPt, sum.uniqKinds)
 				+ tag('pt-need-common', '共通スキル', sum.commonPt, sum.commonKinds)
 				+ '</span>'
 				+ resetBtnHtml('factor-reset', 'factor-reset', '②因子周回をリセット', !canResetFactor(currentTarget()))
-				+ '</div></div>';
+				+ '</span></div></div>';
 			el.hidden = false;
 			renderPanelPts();
 			scanEntryRows();
@@ -13406,9 +13413,11 @@
 			}
 			// 段9（setBased）: 分類ごとの見出しは無く、すべて並べる。行は「アイコン／名前／Pt」。
 			// C-132: ✕ は無くした（外すのはパレットの「削除」）。名前は「…」で切らず、名前の部分だけ横に送る（末尾で区別するスキルを見分けるため）
+			// ②因子周回 段1（2026-10-27）: パネルの並びは因子画面の順（compareGameOrder。一覧に無いものは末尾に ID の順）。
+			// 並べ替えるのは表示だけで、保存の順（足した順）は変えない（③の表・コピー・Deck の記録・結合画像はその順のまま）
 			if (setBased) {
 				const icons = iconsOf(target);
-				el.innerHTML = ids.map(id => {
+				el.innerHTML = ids.slice().sort(compareGameOrder).map(id => {
 					const name = getSkillName(id);
 					return '<div class="usd-panel" data-skill-id="' + esc(id) + '">'
 						+ iconButtonHtml(id, name, icons[id])

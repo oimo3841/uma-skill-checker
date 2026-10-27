@@ -369,7 +369,8 @@ export async function register9(env) {
 					order: [r('[data-usd-el="set-head"]'), r('[data-usd-el="roster-link"]'), r('[data-usd-el="skill-group"]')].map((x) => x && x.top),
 					inGroup: ['.usd-entry-row', '[data-usd-el="tier-row"]', '[data-usd-el="selected-list"]'].map((s) => !!q('[data-usd-el="skill-group"] ' + s)),
 					tops: { entry: r('.usd-entry-row'), pal: r('.usd-palette'), list: r('[data-usd-el="selected-list"]') },
-					tagBand: { sum: r('[data-usd-el="factor-sum"]'), tags: r('[data-usd-el="pt-chips"]'), tag: r('[data-usd-el="pt-need-uniq"]'), reset: r('[data-usd-el="factor-reset"]'), tagRadius: cs('[data-usd-el="pt-need-uniq"]', 'borderTopLeftRadius'), tagBg: cs('[data-usd-el="pt-need-uniq"]', 'backgroundColor'), tagBorder: cs('[data-usd-el="pt-need-uniq"]', 'borderTopWidth') },
+					tagBand: { band: r('[data-usd-el="set-head"]'), sum: r('[data-usd-el="factor-sum"]'), help: r('[data-usd-el="pt-need-help-btn"]'), tags: r('[data-usd-el="pt-chips"]'), tag: r('[data-usd-el="pt-need-uniq"]'), tag2: r('[data-usd-el="pt-need-common"]'), reset: r('[data-usd-el="factor-reset"]'),
+						tagFs: [cs('[data-usd-el="pt-need-uniq"]', 'fontSize'), cs('[data-usd-el="pt-chips"]', 'lineHeight')], tagBg: cs('[data-usd-el="pt-need-uniq"]', 'backgroundColor'), tagBorder: cs('[data-usd-el="pt-need-uniq"]', 'borderTopWidth') },
 					tagTexts: ['pt-need-uniq', 'pt-need-common'].map((k) => (q('[data-usd-el="' + k + '"]') || {}).textContent.replace(/\s+/g, ' ').trim()),
 					sumText: (q('[data-usd-el="factor-sum"]') || {}).textContent,
 					sumFs: [cs('[data-usd-el="factor-pt"]', 'fontSize'), cs('[data-usd-el="factor-pt"]', 'fontWeight')],
@@ -389,15 +390,18 @@ export async function register9(env) {
 					firstId: first.getAttribute('data-skill-id')
 				};
 			});
-			assert(o.band.bg === await tokRgb(sp.page, 'var(--uma-band)') &&   /* C-144 */ o.band.radius === '10px' && o.band.pad === '8px 10px', tag + '②の帯: 薄い地（--uma-band）・角丸10px・横10px縦8px', o.band);
+			assert(o.band.bg === await tokRgb(sp.page, 'var(--uma-band)') &&   /* C-144 */ o.band.radius === '10px' && o.band.pad === (w <= 640 ? '4px 4px' : '8px 10px'), tag + '②の帯: 薄い地（--uma-band）・角丸10px・PC は横10px縦8px／スマホは①と同じ縦横4px（②因子周回 段1）', o.band);
 			assert(o.cfg.style === 'dashed' && o.cfg.width === '1px' && o.cfg.radius === '10px' && o.cfg.bg !== 'rgba(0, 0, 0, 0)', tag + '②の設定の枠: 破線・薄い地・角丸10px', o.cfg);
 			assert(o.grp.style === 'solid' && o.grp.width === '1px' && o.grp.radius === '10px' && o.grp.bg === await tokRgb(sp.page, 'var(--uma-group-bg)') &&   /* C-144: まとまりの面はトークンの値（UmaStar は #fffdf8） */ o.grp.padL === '8px', tag + '②のスキルのまとまり: 白い枠・線あり・角丸10px・横8px', o.grp);
 			assert(o.order.every((v, i) => v !== null && (i === 0 || v > o.order[i - 1])) && o.inGroup.every(Boolean), tag + '上から 帯 → 設定の枠 → スキルのまとまり（入口・パレット・一覧はまとまりの中）', o);
 			assert(o.tagTexts[0].startsWith('継承固有') && /Pt／6種$/.test(o.tagTexts[0]) && o.tagTexts[1].startsWith('共通スキル') && /Pt／\d+種$/.test(o.tagTexts[1]) && /Pt／\d+種$/.test(o.sumText) && o.sumFs.join() === '22px,800',
-				tag + '帯の1段目「X Pt／N種」、タグは［継承固有 … Pt／6種］［共通スキル … Pt／N種］', o);
-			assert(o.tagBand.tagRadius === '7px' && o.tagBand.tagBorder === '1px' && o.tagBand.tagBg === await tokRgb(sp.page, 'var(--uma-surface)'),   /* C-144 */ tag + 'タグは白地・線あり・角丸7px', o.tagBand);
-			if (w === 375) assert(o.tagBand.tag.top >= o.tagBand.sum.bottom && o.tagBand.reset.top < o.tagBand.tag.top && o.tagBand.reset.right > o.tagBand.tags.right - 40, tag + '375px: タグは2段目に折り返し、「↺」は1段目の右端', o.tagBand);
-			else assert(o.tagBand.tag.top < o.tagBand.sum.bottom && o.tagBand.reset.top < o.tagBand.sum.bottom, tag + '1280px: タグは1段目に並ぶ（「↺」も1段目の右端）', o.tagBand);
+				tag + '帯の1段目「X Pt／N種」、右寄せの2行は「継承固有 … Pt／6種」「共通スキル … Pt／N種」', o);
+			// ②因子周回 段1（2026-10-27）: タグ2つをやめ、10px の小さい文字の2行（枠・地なし）にした
+			assert(o.tagBand.tagFs.join() === '10px,12px' && o.tagBand.tagBorder === '0px' && o.tagBand.tagBg === 'rgba(0, 0, 0, 0)', tag + '2行は 10px（行の高さ 12px）・枠も地も無い', o.tagBand);
+			// どの幅でも1行目: 合計 → ? → 2行（右寄せ）→ ↺。2行は縦に重なり、↺ の左に接する。帯の高さは 375px で①と同じ 36px（1280px は 44px）
+			const tb = o.tagBand;
+			assert(tb.tag.top < tb.sum.bottom && tb.tag2.top >= tb.tag.bottom - 1 && tb.tag2.bottom <= tb.reset.bottom + 1 && tb.reset.top < tb.sum.bottom && tb.tags.left > tb.help.right && tb.tags.right <= tb.reset.left && tb.band.h === (w === 375 ? 36 : 44),
+				tag + w + 'px: 2行は1行目の中で ↺ の左に右寄せ・帯の高さ ' + tb.band.h + 'px', tb);
 			assert(/^継承固有/.test(o.cfgText) && /共通スキルのヒントLv/.test(o.cfgText), tag + '設定の枠は「継承固有 [6種▾][Lv3▾]」「共通スキルのヒントLv [5▾]」', o.cfgText);
 			assert(o.entries.map((x) => x.replace(/\d+$/, '')).join() === '脚質オススメ,条件で検索,緑スキル,テキストで検索,スクショで追加' && o.entryRowOverflow === 'auto', tag + '入口のボタン4つ（横スクロール）', o.entries);
 			assert(o.gone.length === 0, tag + '超優先／優先／通常・再分類・削除（ランク）・ランク別の見出し・ランクのチップは無い', o.gone);
@@ -538,8 +542,10 @@ export async function register9(env) {
 					text: [
 						['帯の数字', c(T + '[data-usd-el="factor-pt"]', 'color'), c(T + '[data-usd-el="set-head"]', 'backgroundColor')],
 						['帯の「種」', c(T + '.usd-band-kunit', 'color'), c(T + '[data-usd-el="set-head"]', 'backgroundColor')],
-						['タグの名前', c(T + '.usd-band-tagname', 'color'), c(T + '.usd-band-tag', 'backgroundColor')],
-						['タグの数字', c(T + '.usd-band-tag strong', 'color'), c(T + '.usd-band-tag', 'backgroundColor')],
+						// ②因子周回 段1: タグをやめて帯の地の上の2行にした（地は帯）
+						['2行の名前', c(T + '.usd-band-statname', 'color'), c(T + '[data-usd-el="set-head"]', 'backgroundColor')],
+						['2行の数字', c(T + '.usd-band-stat strong', 'color'), c(T + '[data-usd-el="set-head"]', 'backgroundColor')],
+						['2行の Pt／種', c(T + '.usd-band-stat', 'color'), c(T + '[data-usd-el="set-head"]', 'backgroundColor')],
 						['設定の枠の文字', c(T + '.usd-uniq-label', 'color'), c(T + '[data-usd-el="roster-link"]', 'backgroundColor')],
 						['入口のボタン', c(T + '.usd-entry-row .uma-btn--secondary', 'color'), c(T + '.usd-entry-row .uma-btn--secondary', 'backgroundColor')],
 						['削除のボタン', c(T + '[data-usd-el="palette-delete"]', 'color'), c(T + '[data-usd-el="palette-delete"]', 'backgroundColor')],   // C-132: 「解除」→「削除」
@@ -658,5 +664,50 @@ export async function register9(env) {
 		console.log('     [実測] 375px: 帯 ' + m.bar + 'px／①の表の上端 ' + m.grid + 'px（段8 336px）／②の一覧の上端 ' + m.list + 'px（段8 284px）／行 ' + m.row + 'px（31px）');
 		assert(m.bar <= 40 && m.grid <= 415 && m.list <= 400 && m.row === 31,   // grid: 段4（C-150）で帯に44pxの進化ボタン。帯が2行になる編成では 400px（361 → 410）。C-187 で①のカードを44pxのタイル（375pxは2列×3行）にしたぶん 415px（実測 407px。C-188 で2列表示のタイルを低くした）
 		 '段9 375px: 帯 ' + m.bar + 'px・①の表の上端 ' + m.grid + 'px・②の一覧の上端 ' + m.list + 'px・行 ' + m.row + 'px', m);
+	});
+
+	/* ====================================================================
+	 * ②因子周回 段1（2026-10-27）: パネルの並び（因子画面の順）と、帯の2行
+	 * ==================================================================== */
+	await block('段9 ②因子周回 段1: ②のパネルは因子画面の順（一覧に無いものは末尾に ID の順・保存の順は足した順のまま）、帯の2行は1行目に収まる（375・360px／320px は塊ごと2行目）', async () => {
+		const posOf = new Map();
+		readJson('data/skill-display-order.json').entries.forEach((e) => { if (!posOf.has(e.id)) posOf.set(e.id, posOf.size); });
+		// 足した順に見立てた並び（並びのファイルの順にも ID の順にもならないように、前後を入れ替える）。カスタムスキル2つを途中に挟む
+		const known = freeAll.slice(0, 12).concat(pick).reverse();
+		const input = known.slice(0, 5).concat(['custom_zz9'], known.slice(5), ['custom_aa1']);
+		const custom = (id, name) => ({ customId: id, name, tags: { effect: ['speed_up'] }, createdAt: '2026-10-27T00:00:00.000Z' });
+		const userData = Object.assign({}, USER_DATA, { customSkills: [custom('custom_zz9', '段1の自作スキルZ'), custom('custom_aa1', '段1の自作スキルA')] });
+		const want = known.slice().sort((a, b) => posOf.get(a) - posOf.get(b)).concat(['custom_aa1', 'custom_zz9']);
+		const sp = await openSet({ w: 1280, tab: 1, userData, scope: { skillIds: input, name: '', updatedAt: '', skillIcons: {} } });
+		const got = await sp.page.evaluate(() => Array.from(document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]')).map((p) => p.getAttribute('data-skill-id')));
+		assert(known.every((id) => posOf.has(id)) && JSON.stringify(input) !== JSON.stringify(want), '段1 前提: 一覧にあるスキル ' + known.length + ' 種と、一覧に無いカスタムスキル2つ（足した順は既定の並びと違う）', { input, want });
+		assert(JSON.stringify(got) === JSON.stringify(want), '段1: ②のパネルは因子画面の順（compareGameOrder）。一覧に無いカスタムスキルは末尾に ID の順', { got, want });
+		const saved = (await draft(sp.page)) || {};
+		assert(JSON.stringify(saved.skillIds) === JSON.stringify(input), '段1: 並べ替えは表示だけ。保存の順（足した順）は変わらない', saved.skillIds);
+		assert(jsErrors(sp.errors).length === 0, '段1: コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
+		await sp.ctx.close();
+
+		// 帯（桁の多い例: 共通スキル 1万 Pt 台・100種前後）。Pt の高い白・金（前段の無いもの・パッシブでないもの）を112種
+		const big = master.filter((s) => ['white', 'gold'].includes(rarityOf.get(s.id)) && !(prevOf.get(s.id) || []).length && !(s.tags.passive || []).length)
+			.map((s) => s.id).filter((id) => ptReal.entries.some((e) => e.skillId === id && e.pt > 0))
+			.sort((a, b) => ptReal.entries.find((e) => e.skillId === b).pt - ptReal.entries.find((e) => e.skillId === a).pt).slice(0, 112);
+		for (const w of [375, 360, 320]) {
+			const s2 = await openSet({ w, tab: 1, scope: { skillIds: big, name: '', updatedAt: '', skillIcons: {}, inheritedUnique: { count: 3 } } });
+			const g = await s2.page.evaluate(() => {
+				const r = (s) => { const e = document.querySelector('#deck-template-panel ' + s); if (!e || !e.getClientRects().length) return null; const b = e.getBoundingClientRect(); return { top: Math.round(b.top), bottom: Math.round(b.bottom), left: Math.round(b.left), right: Math.round(b.right), h: Math.round(b.height) }; };
+				const head = document.querySelector('#deck-template-panel [data-usd-el="head"]');
+				return { band: r('[data-usd-el="set-head"]'), sum: r('[data-usd-el="factor-sum"]'), help: r('[data-usd-el="pt-need-help-btn"]'), tags: r('[data-usd-el="pt-chips"]'), reset: r('[data-usd-el="factor-reset"]'),
+					common: (document.querySelector('#deck-template-panel [data-usd-el="pt-need-common"]') || {}).textContent, headShown: !!(head && head.getClientRects().length),
+					tabsToBand: Math.round(document.querySelector('#deck-template-panel [data-usd-el="set-head"]').getBoundingClientRect().top - document.querySelector('.main-card .step-tabs').getBoundingClientRect().bottom),
+					page: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+			});
+			const t = '段1 ' + w + 'px（' + g.common + '）: ';
+			assert(/共通スキル \d{2},\d{3} Pt／\d{2,3}種/.test(g.common || ''), t + '桁の多い例（共通スキル 1万 Pt 台）', g.common);
+			assert(g.page <= 0 && !g.headShown && g.tabsToBand === 4, t + '横にはみ出さない・②の空の見出しの行は隠れ、タブの下から帯まで 4px（タブの下の余白だけ）', g);
+			if (w === 320) assert(g.tags.top >= g.sum.bottom && g.reset.top >= g.sum.bottom && g.tags.right <= g.reset.left && g.reset.right >= g.band.right - 5, t + '収まらない幅では、2行と ↺ が塊ごと2行目に落ちる（右寄せ）', g);
+			else assert(g.tags.top < g.sum.bottom && g.reset.top < g.sum.bottom && g.tags.left > g.help.right && g.tags.right <= g.reset.left && g.band.h === 36, t + '2行は1行目に収まる（? の右・↺ の左）。帯の高さは①と同じ 36px（' + g.band.h + 'px）', g);
+			assert(jsErrors(s2.errors).length === 0, t + 'コンソールのエラー0', jsErrors(s2.errors).slice(0, 3));
+			await s2.ctx.close();
+		}
 	});
 }

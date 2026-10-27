@@ -13715,11 +13715,12 @@ await block('周回因子セットの必要スキルPt（段5）', async () => {
 		await sp.page.evaluate(() => selectStepTab(1));
 		const g = await sp.page.evaluate(() => {
 			const el = document.querySelector('[data-usd-el="pt-need"]');
-			const chips = Array.from(el.querySelectorAll('.usd-band-tag'));   // 段9: ランクのチップはタグ2つ［継承固有］［共通スキル］に置き換わった
+			// 段9: ランクのチップはタグ2つ［継承固有］［共通スキル］に置き換わった。②因子周回 段1（2026-10-27）: タグは右寄せの小さい文字の2行（縦に重ねる）になった
+			const chips = Array.from(el.querySelectorAll('.usd-band-stat'));
 			return { hidden: el.hidden, page: document.documentElement.scrollWidth - window.innerWidth, box: el.scrollWidth - el.clientWidth,
 				tops: new Set(chips.map((c) => Math.round(c.getBoundingClientRect().top))).size, chips: chips.length };
 		});
-		assert(!g.hidden && g.page <= 0 && g.box <= 0 && g.tops === 1 && g.chips === 2, '段5(11)→段7d の追加(A): ' + w + 'px の②タブで、必要スキルPt（継承固有と3つのチップは1行〔収まらないときはその行だけ横に送る〕・親由来のレベル）が、ページも箱も横にはみ出さない', g);
+		assert(!g.hidden && g.page <= 0 && g.box <= 0 && g.tops === 2 && g.chips === 2, '段5(11)→段7d の追加(A): ' + w + 'px の②タブで、必要スキルPt（継承固有と3つのチップは1行〔収まらないときはその行だけ横に送る〕・親由来のレベル）が、ページも箱も横にはみ出さない', g);
 		const other = sp.errors.filter((m) => !/Failed to load resource|status of 404/.test(m));
 		assert(other.length === 0, '段5(11): ' + w + 'px でコンソールエラーなし', other.slice(0, 3));
 		await sp.ctx.close();
