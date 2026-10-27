@@ -61,7 +61,7 @@ export async function register48(env) {
 		const rc = await el.boundingBox();
 		const clip = { x: Math.max(0, Math.floor(rc.x) - 6), y: Math.max(0, Math.floor(rc.y) - 6), width: Math.ceil(rc.width) + 12, height: Math.ceil(rc.height) + 12 };
 		const p = decodePng(await page.screenshot({ clip }));
-		return { crop: { w: p.w, h: p.h, bpp: p.bpp }, sha: crypto.createHash('sha256').update(String(p.w) + 'x' + String(p.h) + 'x' + String(p.bpp) + ':').update(p.px).digest('hex') };
+		return { y: rc.y, crop: { w: p.w, h: p.h, bpp: p.bpp }, sha: crypto.createHash('sha256').update(String(p.w) + 'x' + String(p.h) + 'x' + String(p.bpp) + ':').update(p.px).digest('hex') };
 	};
 
 	await block('段F0(a) 入口のオススメサポは 0530272 の見た目と同一: 計算された見た目（枠・背景・文字色・高さ・角丸・アイコン）が固定値と一致し、切り出しの画素のハッシュも一致する（1280・390・360px × ライト・ダーク）', async () => {
@@ -73,7 +73,10 @@ export async function register48(env) {
 			const bad = FIELDS.filter((f) => JSON.stringify(m[f]) !== JSON.stringify(want[f]));
 			assert(bad.length === 0 && m.w === want.w && m.h === want.h, tag + '計算された見た目が 0530272 と同一（枠 ' + (m && m.border[0]) + '・高さ ' + (m && m.h) + '・角丸 ' + (m && m.radius) + '）', bad.map((f) => [f, m[f], want[f]]));
 			const ph = await cropHash(sp.page, SEL.outside);
-			assert(ph.sha === want.pixelSha256 && ph.crop.w === want.crop.w && ph.crop.h === want.crop.h, tag + '切り出し（ボタンの周り6px込み）の全画素が 0530272 と同一（ハッシュ一致）', [ph.crop, ph.sha.slice(0, 12), want.pixelSha256.slice(0, 12)]);
+			// ②因子周回 段1（2026-10-27）: ボタンの上端が整数の位置にあるときは、0530272 で上端を整数の位置にそろえて測った値（pixelSha256IntY）と比べる
+			// （0530272 の 390・360px は上端が小数の位置で、にじみの分だけ画素が違う。値の出どころは f0-baseline-0530272.json の _noteIntY）
+			const wantSha = Number.isInteger(ph.y) && want.pixelSha256IntY ? want.pixelSha256IntY : want.pixelSha256;
+			assert(ph.sha === wantSha && ph.crop.w === want.crop.w && ph.crop.h === want.crop.h, tag + '切り出し（ボタンの周り6px込み）の全画素が 0530272 と同一（ハッシュ一致）', [ph.crop, ph.sha.slice(0, 12), wantSha.slice(0, 12), ph.y]);
 			assert(await sp.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), tag + '横スクロールなし', true);
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();

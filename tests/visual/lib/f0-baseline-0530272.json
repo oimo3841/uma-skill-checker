@@ -1,5 +1,6 @@
 {
  "_note": "コミット 0530272 の special.html（入口のオススメサポのボタン）を Playwright で測った値。検査はこの値と同一であることを確かめる。実装の側の値から作り直さないこと（段F0・2026-10-22）。pixelSha256 は、ボタンの周り6pxを含む切り出しの画素（幅・高さ・RGBA）のSHA-256。",
+ "_noteIntY": "pixelSha256IntY は、同じ 0530272 の画面で、ボタンの上端を整数の位置にそろえて（②のスキルのまとまりに 0.203125px の margin-top を足して 290.796875 → 291px）測った値（2026-10-27・②因子周回 段1）。0530272 の 390・360px ではボタンの上端が小数の位置（②の帯の高さ 70.8px のため）にあり、帯を 36px にしてからは整数の位置に来るので、切り出しの画素がにじみの分だけ変わる。ボタンの上端が整数の位置のときは、こちらと同一であることを確かめる。",
  "conditions": {
   "1280-light": {
    "cls": "uma-btn usd-outside-entry",
@@ -125,6 +126,7 @@
     "bpp": 3
    },
    "pixelSha256": "1a2ee4072b3b59ee0b43eace33e28e6fcc1427e9c6fb2baf8e2087b2dfbec27b",
+   "pixelSha256IntY": "048f9b588242cc4cc46094834882eee36a0360ed65b571d2fd3ed98ead15ecb4",
    "vars": {
     "--usd-skill-unique-from": "#e3f6e6",
     "--usd-skill-unique-mid": "#dff1fb",
@@ -169,6 +171,7 @@
     "bpp": 3
    },
    "pixelSha256": "8d461a9a157f4e9f10e6392e4d926207a375bbc8de66ac13aba417d65a938d32",
+   "pixelSha256IntY": "cd63080afc97fe19e60d567dc62ef8fbd861ebea0d9bdf8cc0c56c6e31eaaf1b",
    "vars": {
     "--usd-skill-unique-from": "#163423",
     "--usd-skill-unique-mid": "#142f45",
@@ -213,6 +216,7 @@
     "bpp": 3
    },
    "pixelSha256": "1a2ee4072b3b59ee0b43eace33e28e6fcc1427e9c6fb2baf8e2087b2dfbec27b",
+   "pixelSha256IntY": "048f9b588242cc4cc46094834882eee36a0360ed65b571d2fd3ed98ead15ecb4",
    "vars": {
     "--usd-skill-unique-from": "#e3f6e6",
     "--usd-skill-unique-mid": "#dff1fb",
@@ -257,6 +261,7 @@
     "bpp": 3
    },
    "pixelSha256": "8d461a9a157f4e9f10e6392e4d926207a375bbc8de66ac13aba417d65a938d32",
+   "pixelSha256IntY": "cd63080afc97fe19e60d567dc62ef8fbd861ebea0d9bdf8cc0c56c6e31eaaf1b",
    "vars": {
     "--usd-skill-unique-from": "#163423",
     "--usd-skill-unique-mid": "#142f45",
