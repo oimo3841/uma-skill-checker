@@ -41,7 +41,8 @@
 	<!-- Tailwind の dark: を、OS の設定ではなく <html data-theme> に従わせる。いまは dark: を1件も使っていない（色はパレット変数の上書きで替える）。
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
 	<style type="text/tailwindcss">@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));</style>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
+	<!-- 表示開始時の直し (f)（2026-10-27）: tesseract.js は OCR を始めるとき（Tesseract.createWorker）だけ使うので defer（解析を止めない。DOMContentLoaded の前には読み終わる） -->
+	<script defer src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
 	<!-- Lucide Icons（表示開始時の直し (d1)・2026-10-27: 版を固定する。1.62.0 は固定した日の @latest と同じ中身。上げるときは special.html・uma-skill-deck.html も一緒に） -->
 	<script src="https://unpkg.com/lucide@1.62.0/dist/umd/lucide.min.js"></script>
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html / exam.html で共有） -->
