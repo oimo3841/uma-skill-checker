@@ -15,6 +15,7 @@
     "test:norm": "node tests/ocr/check-normalization.mjs",
     "test:evolution": "node tests/evolution/run-evolution-tests.mjs",
     "test:sheets": "node tests/layout/run-sheet-tests.mjs",
+    "test:melop-import": "node tests/melop/run-melop-import-tests.mjs",
     "check:privacy": "node tests/privacy/check-privacy.mjs",
     "check:catalog": "node tests/catalog/check-catalog.mjs",
     "accept:data": "node scripts/accept-data.mjs",
