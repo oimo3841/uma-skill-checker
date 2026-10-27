@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-27h';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-28a';
 
 	/* ============================================================
 	 * 定数
@@ -1004,6 +1004,8 @@
 			// アイコン（段9・C-121。skillIcons。ランクの ON/OFF の ptRanks は廃止したので読まない）。持っているときだけ写す
 			// （中身が空でも「持っている」＝利用者がすべて外した姿。持たないものは使うところで tiers から導く）
 			if (parsed.skillIcons && typeof parsed.skillIcons === 'object') out.skillIcons = cleanSkillIcons(parsed.skillIcons);
+			// ②の「○のまま数える」○の id（②因子周回 段2）。持っているときだけ写す（無い古い形に補わない。知らない id は使うところで無視する）
+			if (Array.isArray(parsed.keepCircleIds)) out.keepCircleIds = parsed.keepCircleIds.slice();
 			return out;
 		} catch (e) {
 			return { skillIds: [], name: '', updatedAt: '' };
@@ -1011,7 +1013,7 @@
 	}
 
 	// label … 失敗を知らせるときの呼び名（呼び出し元の setLabel）。渡さなければ既定の呼び名
-	function saveDraftScope(scopeKey, skillIds, name, tiers, label, scopes, parentHintLevel, baseRosterId, inheritedUnique, skillIcons) {
+	function saveDraftScope(scopeKey, skillIds, name, tiers, label, scopes, parentHintLevel, baseRosterId, inheritedUnique, skillIcons, keepCircleIds) {
 		const payload = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
 		// 空の tiers は書かない（分類を変えていないドラフトの姿を変えない）
 		if (tiers && typeof tiers === 'object' && Object.keys(tiers).length > 0) payload.tiers = Object.assign({}, tiers);
@@ -1025,6 +1027,8 @@
 		if (inheritedUnique && typeof inheritedUnique === 'object' && Object.keys(inheritedUnique).length > 0) payload.inheritedUnique = Object.assign({}, inheritedUnique);
 		// アイコン（段9）。持っているときは中身が空でも書く（「すべて外した」と「まだ触っていない」を分けるため）
 		if (skillIcons && typeof skillIcons === 'object') payload.skillIcons = Object.assign({}, skillIcons);
+		// ②の「○のまま数える」（段2）―― 空なら書かない
+		if (Array.isArray(keepCircleIds) && keepCircleIds.length > 0) payload.keepCircleIds = keepCircleIds.slice();
 		try {
 			global.localStorage.setItem(draftStorageKey(scopeKey), JSON.stringify(payload));
 		} catch (e) {
@@ -4190,10 +4194,12 @@
 		// 親から得ると L が上がって安くなるので、画面が補足文を出すかの判定に使う（合計の値は変えない）
 		const inFactor = new Set(factorIds);
 		const overlapRaisable = base.items.filter(it => inFactor.has(it.skillId) && it.hintLevel < rules.hintLevelMax).length;
+		let lastPrev = [];
 		const cuts = TIERS.map((t, i) => {
 			const parents = {};
 			factorIds.forEach(id => { if (tierOf(a.tiers, id) <= t.id) parents[id] = F; });
 			const r = run(parents);
+			lastPrev = r.prevItems;
 			return { tier: t.id, label: t.label + (i === 0 ? 'だけ' : 'まで'), total: r.totalWithPrev + uniqPt, count: r.items.length, unpricedCount: r.allUnpricedCount, prevCount: r.prevItems.length, prevTotal: r.prevTotal, items: r.items };
 		});
 		// ランクごとの Pt（段7d の追加・A）。そのランクを足したことで増える分（前段を含む）。「通常まで」の合計 ＝ 本育成編成 ＋ 継承固有 ＋ 超優先 ＋ 優先 ＋ 通常
@@ -4203,7 +4209,10 @@
 		// （親由来のレベルと本育成編成の割引を反映。因子セットのスキルはすべて親由来 F を足す）
 		const skillPts = new Map();
 		cuts[cuts.length - 1].items.forEach(it => { skillPts.set(it.skillId, { pt: it.pt, base: it.base, hintLevel: it.hintLevel }); });
-		return { ok: true, parentHintLevel: F, inheritedUniquePt: uniqPt, skillPts: skillPts,
+		// 前段の項目（②因子周回 段2・2026-10-28 に足した。既存の値は変えない）。いちばん広い計算の prevItems。②の◎として数える行の Pt（◎＋前段の○）を組み立てるのに使う
+		const prevPts = new Map();
+		lastPrev.forEach(it => { prevPts.set(it.skillId, { pt: it.pt, base: it.base, hintLevel: it.hintLevel }); });
+		return { ok: true, parentHintLevel: F, inheritedUniquePt: uniqPt, skillPts: skillPts, prevPts: prevPts,
 			// total は前段を含む値（本育成パネルの「前段を含む合計」と同じ）。本育成のスキルだけの値は own
 			roster: { total: base.totalWithPrev, own: base.total, count: base.items.length, unpricedCount: base.allUnpricedCount, prevCount: base.prevItems.length, prevTotal: base.prevTotal },
 			cuts: cuts, unpricedCount: cuts[cuts.length - 1].unpricedCount, overlapRaisable: overlapRaisable };
@@ -12428,6 +12437,12 @@
 			else if (act === 'palette-pick') pickPalette(btn.dataset.icon);
 			else if (act === 'skill-icon') toggleSkillIcon(btn.dataset.skillId);
 			else if (act === 'factor-reset') openFactorResetPopover(btn);
+			else if (act === 'factor-circle-toggle') {
+				// ②の◎／○の切り替え（②因子周回 段2）。押したボタンにフォーカスを戻す（位置は上の captureAnchor で保つ）
+				const id = btn.getAttribute('data-skill-id');
+				if (setFactorCircleKept(id, btn.getAttribute('aria-pressed') === 'true')) render();
+				focusNoScroll(container.querySelector('button[data-usd-act="factor-circle-toggle"][data-skill-id="' + id + '"]'));
+			}
 			else if (act === 'outside-open') openOutsideAdvisor(btn);
 			else if (act === 'style-open') openStyleAdvisor(btn);
 			else if (act === 'roster-link') openRosterLinkPopover(btn);
@@ -12808,7 +12823,7 @@
 			const out = [];
 			pr.prevItems.forEach(it => {
 				if (!inFactor.has(it.skillId) || it.pt === null || it.pt === undefined) return;
-				const x = st.r.skillPts.get(it.skillId);
+				const x = (st.rowPts || st.r.skillPts).get(it.skillId);   // ②の行の Pt（◎として数える行は合算。段2）
 				if (!x || x.base === null || x.base === undefined) return;
 				out.push({ skillId: it.skillId, prevPt: it.pt, factorPt: x.pt });
 			});
@@ -13143,12 +13158,79 @@
 			const ids = allIds.filter(id => !taken.has(id));
 			const rules = skillPtData.rules;
 			const F = resolveParentHintLevel(parentHintLevelOf(target), rules);
+			const plan = factorCirclePlan(target, inp, allIds, ids);
 			const r = computeFactorSetPt({
 				sources: inp.sources, rules: rules, skillPt: skillPtData.skillPt, stepUp: skillPtData.stepUp,
 				statusId: inp.settings.status, umaHintLevel: inp.settings.umaHintLevel, enabledSkillIds: inp.enabledIds, offSkillIds: inp.offIds || [],
-				factorSkillIds: ids, tiers: tiersOf(target), parentHintLevel: F, inheritedUnique: inheritedUniqueOf(target) || {}
+				factorSkillIds: plan.pricedIds(ids), tiers: plan.pricedTiers(tiersOf(target)), parentHintLevel: F, inheritedUnique: inheritedUniqueOf(target) || {}
 			});
-			return { inp: inp, ids: ids, takenIds: allIds.filter(id => taken.has(id)), rules: rules, F: F, r: r };
+			return { inp: inp, ids: ids, takenIds: allIds.filter(id => taken.has(id)), rules: rules, F: F, r: r,
+				circleCandidates: plan.candidates, circleOf: plan.circleOf, rowPts: factorRowPts(r, plan.circleOf), plan: plan };
+		}
+		/**
+		 * ②の◎（②因子周回 段2・2026-10-28・おいもさんの決定）。②の○のうち、上の段の◎（circleUpOf）が引けるものは、Pt を数えるときだけ◎に差し替える
+		 * （①の C-165・C-168 と同じ数え方。○のヒントLv はそのまま＝◎の根の○に親の Lv が乗り、○は「前段として必要」に数える）。
+		 * 種数・ids・takenIds・C-178 の重なり・②の検索の範囲・③の表とコピー・Deck の記録・結合画像は○のまま（ここで差し替えるのは計算に渡す id だけ）。
+		 * 候補から外すもの: 上の段の◎が (a) ②にもある／(b) ①の計算の由来にある・①で取得する／(c) ①の前段にある（①が「金←◎←○」の金を取るとき）。
+		 * 2つの○が同じ◎を指すときは、先に出た○だけを候補にする（二重に差し替えない）。
+		 * 利用者が○に戻したもの（セットの keepCircleIds）は◎として数えない。setBased（special の②）だけ。
+		 */
+		function factorCirclePlan(target, inp, allIds, ids) {
+			const candidates = new Map(), circleOf = new Map();
+			const out = {
+				candidates: candidates, circleOf: circleOf,
+				pricedIds: (list) => circleOf.size === 0 ? list : list.map(id => circleOf.get(id) || id),
+				pricedTiers: (tiers) => {
+					if (circleOf.size === 0) return tiers;
+					const t = Object.assign({}, tiers);
+					circleOf.forEach((up, o) => { t[up] = tierOf(tiers, o); });
+					return t;
+				}
+			};
+			if (!setBased || ids.length === 0) return out;
+			const ups = [];
+			ids.forEach(id => { const up = circleUpOf(id); if (up) ups.push([id, up]); });
+			if (ups.length === 0) return out;
+			const inSet = new Set(allIds);
+			const rosterIds = new Set((inp.sources || []).map(s => s && s.skillId).concat(inp.sureIds || []));
+			// ①の前段（①の計算の「前段として必要」）。①に中身があるときだけ数える
+			let rosterPrev = null;
+			const rosterPrevIds = () => {
+				if (rosterPrev) return rosterPrev;
+				rosterPrev = new Set();
+				if ((inp.sources || []).length === 0) return rosterPrev;
+				const pr = computeRosterPt({ sources: inp.sources, rules: skillPtData.rules, skillPt: skillPtData.skillPt, stepUp: skillPtData.stepUp,
+					statusId: inp.settings.status, umaHintLevel: inp.settings.umaHintLevel, offSkillIds: inp.offIds || [] });
+				if (pr.ok && Array.isArray(pr.prevItems)) pr.prevItems.forEach(it => rosterPrev.add(it.skillId));
+				return rosterPrev;
+			};
+			const keep = new Set(keepCircleIdsOf({ keepCircleIds: factorKeepCircleIdsOf(target) }));
+			const usedUp = new Set();
+			ups.forEach(([id, up]) => {
+				if (inSet.has(up) || rosterIds.has(up) || usedUp.has(up) || rosterPrevIds().has(up)) return;
+				usedUp.add(up);
+				candidates.set(id, up);
+				if (!keep.has(id)) circleOf.set(id, up);
+			});
+			return out;
+		}
+		/**
+		 * ②の行の Pt（○の id → { pt, base, hintLevel }）。◎として数える行は「◎の Pt ＋ 前段の○の Pt」（①の circleComboOf と同じ合算。帯の数＝行の Pt の和を保つ）。
+		 * どちらかが見つからない・未収録のときは◎の値だけ。ほかの行は計算の値（skillPts）のまま
+		 */
+		function factorRowPts(r, circleOf) {
+			const out = new Map();
+			if (!r || !r.ok) return out;
+			r.skillPts.forEach((x, id) => out.set(id, x));
+			circleOf.forEach((up, o) => {
+				const u = r.skillPts.get(up), p = r.prevPts ? r.prevPts.get(o) : null;
+				// 差し替えた◎の行は○の id で引く（◎の id を②に入れていないことは候補の決まりで保証される）
+				out.delete(up);
+				if (!u) return;
+				if (p && u.pt !== null && p.pt !== null && u.base !== null && p.base !== null) out.set(o, { pt: u.pt + p.pt, base: u.base + p.base, hintLevel: u.hintLevel });
+				else out.set(o, u);
+			});
+			return out;
 		}
 		/**
 		 * セットの数字（段9・C-121。段8・B／D を置き換えた）。**ここ1か所**で数える（①の帯・②の帯・見出しの帯・「?」がすべてこの値を読む）。
@@ -13193,7 +13275,8 @@
 				const panel = sp.closest ? sp.closest('.usd-panel') : null;
 				if (panel) panel.classList.toggle('usd-panel--taken', taken.has(id));
 				if (taken.has(id)) { sp.textContent = '①で取得'; return; }
-				const x = st && st.r && st.r.ok ? st.r.skillPts.get(id) : null;
+				// ②因子周回 段2: ◎として数える行は◎＋前段の○の合算（rowPts）
+				const x = st && st.r && st.r.ok ? st.rowPts.get(id) : null;
 				sp.textContent = x ? (x.base === null ? 'Pt 未収録' : x.base === 0 ? 'Pt 不要' : x.pt + ' Pt') : '';
 			});
 			scanEntryRows();
@@ -13396,6 +13479,14 @@
 			}
 		}
 
+		/**
+		 * ②の◎／○の切り替え（②因子周回 段2）。①の circle-toggle と同じ見た目（.usd-circle-btn・.usd-circle-mark）。押せる範囲は幅44px・行の高さいっぱい
+		 */
+		function factorCircleToggleHtml(id, upId, on) {
+			const label = on ? getSkillName(upId) + '：◎で数えています。○に戻す' : getSkillName(id) + '：○で数えています。◎に上げる';
+			return '<button type="button" class="usd-circle-btn usd-panel-circle" data-usd-act="factor-circle-toggle" data-usd-el="factor-circle-toggle" data-skill-id="' + esc(id) + '"'
+				+ ' aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '" title="' + esc(label) + '"><span class="usd-circle-mark" aria-hidden="true">' + (on ? '◎' : '○') + '</span></button>';
+		}
 		function renderSelectedList() {
 			const ids = editingSkillIds();
 			const target = currentTarget();
@@ -13417,12 +13508,20 @@
 			// 並べ替えるのは表示だけで、保存の順（足した順）は変えない（③の表・コピー・Deck の記録・結合画像はその順のまま）
 			if (setBased) {
 				const icons = iconsOf(target);
+				// ②因子周回 段2: ◎の候補の○の行は、◎として数えるときは名前（と説明の小窓）を◎にし、Pt の左に◎／○の切り替えを常に出す。
+				// 行の識別（data-skill-id）・アイコン・並び・削除は○の id のまま
+				const cst = factorPtState(target);
+				const cands = cst && cst.circleCandidates ? cst.circleCandidates : new Map();
+				const circ = cst && cst.circleOf ? cst.circleOf : new Map();
 				el.innerHTML = ids.slice().sort(compareGameOrder).map(id => {
 					const name = getSkillName(id);
-					return '<div class="usd-panel" data-skill-id="' + esc(id) + '">'
+					const up = cands.get(id) || null, on = circ.has(id);
+					const shownId = on ? up : id, shownName = on ? getSkillName(up) : name;
+					return '<div class="usd-panel" data-skill-id="' + esc(id) + '"' + (on ? ' data-usd-circle="' + esc(up) + '"' : '') + '>'
 						+ iconButtonHtml(id, name, icons[id])
 						+ '<span class="usd-panel-namescroll usd-hscroll" data-usd-el="panel-namescroll" data-usd-no-trim="1">'
-						+ '<button type="button" class="usd-panel-namebtn" data-usd-info="' + esc(id) + '" title="' + esc(name) + '">' + esc(name) + '</button></span>'
+						+ '<button type="button" class="usd-panel-namebtn" data-usd-info="' + esc(shownId) + '" title="' + esc(shownName) + '">' + esc(shownName) + '</button></span>'
+						+ (up ? factorCircleToggleHtml(id, up, on) : '')
 						+ '<span class="usd-panel-pt" data-usd-el="panel-pt" data-skill-id="' + esc(id) + '"></span>'
 						// 段G(4): 削除の状態のときだけ見える×（押せる範囲 44px）。押すとそのスキルを②から外す（パネルを押したときと同じ処理）
 						+ '<button type="button" class="usd-panel-xbtn" data-usd-act="template-skill-remove" data-usd-el="panel-x" data-skill-id="' + esc(id) + '" aria-label="' + esc(name + 'を削除') + '"><i data-lucide="x" aria-hidden="true"></i></button>'
@@ -13500,13 +13599,17 @@
 			const isAll = kind === 'all';
 			if (isAll ? prevIds.length === 0 : Object.keys(prevIcons).length === 0) return;
 			const n = countSkillKinds(prevIds);
+			// ②因子周回 段2: 「すべて消す」は②の「○のまま数える」（keepCircleIds）も消す。「アイコンだけ外す」は触らない
+			const prevKeep = isAll ? snapshot(factorKeepProbeOf(target)) : undefined;
 			pushUndo({
 				scope: 'list',
 				doneLabel: isAll ? 'スキル' + n + '種を消しました' : 'アイコンをすべて外しました',
 				undoneLabel: isAll ? '消した' + n + '種を戻しました' : '外したアイコンを戻しました',
-				probe: () => probeOf({ ids: skillIdsOf(target) || [], icons: iconsOf(target) }),
+				probe: () => probeOf(isAll ? { ids: skillIdsOf(target) || [], icons: iconsOf(target), keep: factorKeepProbeOf(target) }
+					: { ids: skillIdsOf(target) || [], icons: iconsOf(target) }),
 				apply: () => {
 					if (!writeSkillState(target, snapshot(prevIds), snapshot(prevIcons))) return false;
+					if (isAll && prevKeep !== null && !writeFactorKeepCircleIds(target, snapshot(prevKeep))) return false;
 					if (isAll) picker.excludeIds = picker.excludeIds.concat(prevIds.filter(id => picker.excludeIds.indexOf(id) === -1));
 					afterEditingSkillsChanged(target);
 					return true;
@@ -13514,6 +13617,7 @@
 			});
 			if (isAll) {
 				if (!writeSkillState(target, [], {})) return;
+				if (prevKeep !== null && !writeFactorKeepCircleIds(target, null)) return;
 				picker.excludeIds = picker.excludeIds.filter(id => prevIds.indexOf(id) === -1);
 			} else if (!writeSkillState(target, prevIds, {})) return;
 			afterEditingSkillsChanged(target);
@@ -14325,12 +14429,15 @@
 			const st = factorPtState(target);
 			if (!st || !st.r || !st.r.ok || !st.inp || !st.inp.settings) return null;
 			const all = st.ids.concat(ids.filter(id => st.ids.indexOf(id) === -1));
+			// ②因子周回 段2: ②に足したときの行と同じく、◎の候補の○は◎で数える（候補の決まりは足したあとの②で見る）
+			const setIds = (skillIdsOf(target) || []).concat(ids);
+			const plan = factorCirclePlan(target, st.inp, setIds, all);
 			const r = computeFactorSetPt({
 				sources: st.inp.sources, rules: st.rules, skillPt: skillPtData.skillPt, stepUp: skillPtData.stepUp,
 				statusId: st.inp.settings.status, umaHintLevel: st.inp.settings.umaHintLevel, enabledSkillIds: st.inp.enabledIds, offSkillIds: st.inp.offIds || [],
-				factorSkillIds: all, tiers: tiersOf(target), parentHintLevel: st.F, inheritedUnique: inheritedUniqueOf(target) || {}
+				factorSkillIds: plan.pricedIds(all), tiers: plan.pricedTiers(tiersOf(target)), parentHintLevel: st.F, inheritedUnique: inheritedUniqueOf(target) || {}
 			});
-			return r.ok ? { r: r, base: st.r } : null;
+			return r.ok ? { r: r, base: st.r, rowPts: factorRowPts(r, plan.circleOf), circleOf: plan.circleOf } : null;
 		}
 		function stylePtText(x) {
 			return x ? (x.base === null ? 'Pt 未収録' : x.base === 0 ? 'Pt 不要' : x.pt + ' Pt') : '';
@@ -14338,7 +14445,7 @@
 		/** 行の Pt（そのスキルを②に足したときのタイルの Pt）。モデルを作ったときに、足せる行を全部足して1回で数える */
 		function styleRowPtText(row) {
 			if (row.gray || !styleUi.ptRows) return '';
-			return stylePtText(styleUi.ptRows.r.skillPts.get(row.id));
+			return stylePtText(styleUi.ptRows.rowPts.get(row.id));
 		}
 		/** 「追加するスキル N種（合計 … Pt）」。合計は、チェックしたものを②に足したときの②の Pt の増え方（前段を含む）。Pt 未収録は合計に入れず、数を添える */
 		function styleHeadText(ids) {
@@ -14347,7 +14454,7 @@
 			if (ids.length > 0 && c) {
 				const last = c.r.cuts.length - 1;
 				const sum = c.r.cuts[last].total - c.base.cuts[last].total;
-				const unpriced = ids.filter(id => { const x = c.r.skillPts.get(id); return x && x.base === null; }).length;
+				const unpriced = ids.filter(id => { const x = c.rowPts.get(id); return x && x.base === null; }).length;
 				s += '（合計 ' + formatPtNumber(sum) + ' Pt' + (unpriced > 0 ? '・Pt 未収録 ' + unpriced + '種を除く' : '') + '）';
 			} else if (ids.length === 0 && stylePtCalc([])) s += '（合計 0 Pt）';
 			return s;
@@ -14664,14 +14771,15 @@
 
 		// tiers（分類。C-57）と scopes（節の ON/OFF。C-2a）は持っているときだけ残す（空なら書かない）。
 		// **渡されなければ今のものを引き継ぐ**（片方を書き換えるときにもう片方を消さないため）
-		function persistDraft(skillIds, name, tiers, scopes, parentHintLevel, baseRosterId, inheritedUnique, skillIcons) {
+		function persistDraft(skillIds, name, tiers, scopes, parentHintLevel, baseRosterId, inheritedUnique, skillIcons, keepCircleIds) {
 			const nextIcons = skillIcons !== undefined ? skillIcons : draftScope.skillIcons;   // アイコン（段9）。null で消す（持たない＝まだ触っていない）
+			const nextKeep = keepCircleIds !== undefined ? keepCircleIds : draftScope.keepCircleIds;   // ②の「○のまま数える」（段2）。null で消す
 			const nextTiers = tiers !== undefined ? tiers : draftScope.tiers;
 			const nextScopes = scopes !== undefined ? scopes : draftScope.scopes;
 			const nextParent = parentHintLevel !== undefined ? parentHintLevel : draftScope.parentHintLevel;   // null で消す（段5）
 			const nextBase = baseRosterId !== undefined ? baseRosterId : draftScope.baseRosterId;   // null で消す（段7b の ⑬）
 			const nextUniq = inheritedUnique !== undefined ? inheritedUnique : draftScope.inheritedUnique;   // null で消す（段7d の ⑪）
-			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, nextTiers, setLabel, nextScopes, nextParent, nextBase, nextUniq, nextIcons);
+			if (draftScopeKey) return saveDraftScope(draftScopeKey, skillIds, name, nextTiers, setLabel, nextScopes, nextParent, nextBase, nextUniq, nextIcons, nextKeep);
 			const out = { skillIds: (skillIds || []).slice(), name: typeof name === 'string' ? name : '', updatedAt: nowIso() };
 			if (nextTiers && typeof nextTiers === 'object' && Object.keys(nextTiers).length > 0) out.tiers = Object.assign({}, nextTiers);
 			if (nextScopes && typeof nextScopes === 'object' && Object.keys(nextScopes).length > 0) out.scopes = Object.assign({}, nextScopes);
@@ -14679,6 +14787,7 @@
 			if (typeof nextBase === 'string' && nextBase) out.baseRosterId = nextBase;
 			if (nextUniq && typeof nextUniq === 'object' && Object.keys(nextUniq).length > 0) out.inheritedUnique = Object.assign({}, nextUniq);
 			if (nextIcons && typeof nextIcons === 'object') out.skillIcons = Object.assign({}, nextIcons);
+			if (Array.isArray(nextKeep) && nextKeep.length > 0) out.keepCircleIds = nextKeep.slice();
 			return out;
 		}
 
@@ -14737,7 +14846,7 @@
 		}
 		function resetDraft() {
 			const prev = draftScope.skillIds.slice();
-			draftScope = persistDraft([], '', {}, {}, null, null, null, null);
+			draftScope = persistDraft([], '', {}, {}, null, null, null, null, null);
 			// 段8（setBased）: 「＋新規」は①の下書きと対なので、①も空に戻す（①を開き直させる）
 			if (setBased && draftScopeKey) { clearDraftRoster(draftScopeKey); setHubPublish('', true); }
 			picker.excludeIds = picker.excludeIds.filter(id => prev.indexOf(id) === -1);
@@ -14777,6 +14886,7 @@
 			setTemplateScopes(t, draftScope.scopes || {});
 			if (typeof draftScope.parentHintLevel === 'number') t.parentHintLevel = draftScope.parentHintLevel;   // 親由来のレベル F（段5）
 			if (draftScope.inheritedUnique && typeof draftScope.inheritedUnique === 'object') t.inheritedUnique = Object.assign({}, draftScope.inheritedUnique);   // 継承固有（段7d の ⑪）
+			if (Array.isArray(draftScope.keepCircleIds) && draftScope.keepCircleIds.length > 0) t.keepCircleIds = draftScope.keepCircleIds.slice();   // ②の「○のまま数える」（段2）
 			// アイコン（段9）。下書きが持たない（まだ触っていない）ときは tiers から導いた姿を写す
 			if (setBased) { t.skillIcons = cleanSkillIcons(iconsOf({ kind: 'draft' }), t.skillIds); if (!(data.schemaVersion >= 7)) data.schemaVersion = 7; }
 			if (setBased) {
@@ -14802,7 +14912,7 @@
 			} else {
 				// 中身はテンプレートへ移ったので、ドラフトは空にする（二重管理を避ける）。
 				// **{} を渡して明示的に消す** ―― persistDraft は undefined を「今のものを引き継ぐ」と読む
-				draftScope = persistDraft([], '', {}, {}, null, null, null, null);
+				draftScope = persistDraft([], '', {}, {}, null, null, null, null, null);
 			}
 			nameEdit = null;
 			selectedId = t.templateId;
@@ -15031,6 +15141,60 @@
 			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
 			return t ? t.inheritedUnique : undefined;
 		}
+		/**
+		 * ②の「○のまま数える」○の id（②因子周回 段2。セット／下書きの keepCircleIds）。持っていなければ undefined。形が崩れた値・知らない id は
+		 * 使うところ（factorCirclePlan）で読まない。保存値は書き換えない。tiers・scopes と同じ流儀（無い古いデータに補わない）
+		 */
+		function factorKeepCircleIdsOf(target) {
+			if (!target) return undefined;
+			if (target.kind === 'draft') return draftScope.keepCircleIds;
+			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
+			return t ? t.keepCircleIds : undefined;
+		}
+		/** 「元に戻す」の比べと写し用。空・無いは null にそろえる（書き込みは空なら項目ごと消すので） */
+		function factorKeepProbeOf(target) {
+			const v = factorKeepCircleIdsOf(target);
+			return Array.isArray(v) && v.length > 0 ? v : null;
+		}
+		// value は配列か null（項目ごと消す）。空の配列も項目ごと消す（ルール28）
+		function writeFactorKeepCircleIds(target, value) {
+			const v = Array.isArray(value) && value.length > 0 ? value.slice() : null;
+			if (target.kind === 'draft') {
+				draftScope = persistDraft(draftScope.skillIds, draftScope.name, draftScope.tiers, draftScope.scopes, undefined, undefined, undefined, undefined, v);
+				return true;
+			}
+			const t = ensureUserData().templates.find(x => x.templateId === target.obj.templateId);
+			if (!t) return false;
+			if (v) t.keepCircleIds = v; else delete t.keepCircleIds;
+			t.updatedAt = nowIso();
+			saveUserData();
+			return true;
+		}
+		/**
+		 * ②の◎／○の切り替え（段2）。①の setCircleKept と同じ決まり: 切り替えるのはその1つの id だけ・知らない id は書き換えない・1回の操作で1回「元に戻す」に積む
+		 */
+		function setFactorCircleKept(skillId, keep) {
+			const target = currentTarget();
+			const had = factorKeepCircleIdsOf(target);
+			const cur = Array.isArray(had) ? had : null;
+			const prev = cur ? snapshot(cur) : null;
+			const isKept = !!cur && cur.indexOf(skillId) !== -1;
+			if (isKept === keep) return false;
+			pushUndo({
+				scope: 'list',
+				doneLabel: keep ? '○のまま数えます：' + getSkillName(skillId) : '◎に上げて数えます：' + getSkillName(skillId),
+				undoneLabel: '◎／○の切り替えを戻しました',
+				probe: () => probeOf(factorKeepProbeOf(target)),
+				apply: () => {
+					if (!writeFactorKeepCircleIds(target, prev)) return false;
+					afterEditingSkillsChanged(target);
+					return true;
+				}
+			});
+			const next = (cur || []).filter(id => id !== skillId);
+			if (keep) next.push(skillId);
+			return writeFactorKeepCircleIds(target, next);
+		}
 		// value は保存する形（既定と同じキーを含まない）か null（項目ごと消す）
 		function writeInheritedUnique(target, value) {
 			if (target.kind === 'draft') {
@@ -15208,6 +15372,7 @@
 			if (t.skillIcons && typeof t.skillIcons === 'object') copy.skillIcons = Object.assign({}, t.skillIcons);   // アイコン（段9）も写す
 			if (typeof t.parentHintLevel === 'number') copy.parentHintLevel = t.parentHintLevel;   // 親由来のレベル F（段5）も写す
 			if (t.inheritedUnique && typeof t.inheritedUnique === 'object') copy.inheritedUnique = Object.assign({}, t.inheritedUnique);   // 継承固有（段7d の ⑪）も写す
+			if (Array.isArray(t.keepCircleIds) && t.keepCircleIds.length > 0) copy.keepCircleIds = t.keepCircleIds.slice();   // ②の「○のまま数える」（段2）も写す
 			if (typeof t.baseRosterId === 'string' && t.baseRosterId) copy.baseRosterId = t.baseRosterId;   // 「本育成編成」の対象（段7b の ⑬）も写す
 			data.templates.push(copy);
 			saveUserData();
@@ -15346,6 +15511,14 @@
 			getSelection: getSelection,
 			// 段8: 選んでいるセットの数字（①・②・合計・②の N）。出せないときは null
 			getSetSummary: function () { return setBased ? setSummaryOf(currentTarget()) : null; },
+			// ②因子周回 段2: ②の◎の候補（○ → ◎）・◎として数えるもの・行の Pt・保存の keepCircleIds（検査のため。保存値は書き換えない）
+			getFactorCircles: function () {
+				const st = setBased ? factorPtState(currentTarget()) : null;
+				if (!st || !st.r || !st.r.ok) return null;
+				const keep = factorKeepCircleIdsOf(currentTarget());
+				return { candidates: Array.from(st.circleCandidates.entries()), circleOf: Array.from(st.circleOf.entries()),
+					rowPts: Array.from(st.rowPts.entries()), keepCircleIds: keep === undefined ? null : snapshot(keep) };
+			},
 			setSelectedId: setSelectedId,
 			// スキルセットOCR（コミット4）: 照合済みの行を、いま扱っている対象スキルセットへ足すモーダル
 			openSkillRowsPickerForSelection: openSkillRowsPickerForSelection,

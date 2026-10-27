@@ -91,7 +91,8 @@ export async function register26(env) {
 			for (const scheme of ['light', 'dark']) {
 				const sp = await openSp({ w, scheme, ids, race: null });
 				for (const id of ids) {
-					const btn = await sp.page.$(T + '[data-usd-info="' + id + '"]');
+					// ②因子周回 段2（2026-10-28）: ◎として数える行は名前とⓘが◎になるので、②のパネルの id（○のまま）から名前のボタンを引く
+					const btn = await sp.page.$(T + '.usd-panel[data-skill-id="' + id + '"] .usd-panel-namebtn');
 					if (!btn) { bad.push({ w, scheme, id, why: '名前のボタンが無い' }); continue; }
 					await btn.scrollIntoViewIfNeeded();
 					await btn.click();

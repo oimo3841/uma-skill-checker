@@ -94,7 +94,8 @@ export async function register50(env) {
 				document.querySelectorAll('#deck-template-panel .usd-panel[data-skill-id]').forEach((pn) => {
 					const x = pn.querySelector('.usd-panel-xbtn'), nm = pn.querySelector('.usd-panel-namebtn'), r = x.getBoundingClientRect(), pr = pn.getBoundingClientRect();
 					const pcs = getComputedStyle(pn);
-					out.push({ id: pn.getAttribute('data-skill-id'), name: nm.textContent, aria: x.getAttribute('aria-label'), w: Math.round(r.width), h: Math.round(r.height), inside: r.right <= pr.right + 1 && r.left >= pr.left,
+					// ②因子周回 段2（2026-10-28）: ◎として数える行は見える名前が◎になる。×が外すのは②に入っている○なので、aria-label は○の名前（id の名前）と比べる
+					out.push({ id: pn.getAttribute('data-skill-id'), name: UmaSkillDeckCore.getSkillName(pn.getAttribute('data-skill-id')), shown: nm.textContent, aria: x.getAttribute('aria-label'), w: Math.round(r.width), h: Math.round(r.height), inside: r.right <= pr.right + 1 && r.left >= pr.left,
 						panelBorder: pcs.borderTopStyle, line: getComputedStyle(nm).textDecorationLine, act: x.getAttribute('data-usd-act'), glyph: !!x.querySelector('svg') });
 				});
 				return out;
