@@ -1,5 +1,5 @@
 {
-	"dataVersion": "2026-10-26a",
+	"dataVersion": "2026-10-28a",
 	"category": "melopSheetRows",
 	"note": "めろっぷ！【LTC】さんのブック「因子入力等（因子管理シート）」の、★の数を貼る欄（38〜610行目）の並び。row はシートの行番号、group と name はシートの B 列・C 列の表記そのまま。id は独自ID（マスター・拡張スキル・シナリオ因子・遺伝子）で、無い行（青因子・赤因子・継承固有・レース因子など）はここにだけ名前がある。slot は画面のいちばん上の段から読む行（blue＝青因子／red＝赤因子／unique＝継承固有。unique の column は 0＝親・1＝祖1・2＝祖2 で、その列にだけ★を入れる）。exam.html の「めろっぷ！【LTC】専用拡張モード」だけが読む。シートの並びが変わったらこのファイルを直し、dataVersion と exam.html の EXAM_DATA_JSON_VERSIONS を上げる。",
 	"rows": [
@@ -474,7 +474,7 @@
 		{"row":506,"group":"sp160<条件>","name":"怯むことなく","id":"ex-0987"},
 		{"row":507,"group":"sp180<条件>","name":"如才なし","id":"ex-1680"},
 		{"row":508,"group":"sp180<条件>","name":"直感力","id":"ex-1682"},
-		{"row":509,"group":"sp180<条件>","name":"主導権","id":"ex-1679"},
+		{"row":509,"group":"sp180","name":"主導権","id":"ex-1679"},
 		{"row":510,"group":"sp180<条件>","name":"死力を尽くして","id":"ex-1681"},
 		{"row":511,"group":"sp180<条件>","name":"遊び心","id":"ex-0990"},
 		{"row":512,"group":"sp190<条件>","name":"規格外","id":"ex-1673"},
