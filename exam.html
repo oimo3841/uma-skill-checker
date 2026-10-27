@@ -39,8 +39,8 @@
 	     将来だれかが dark: を書いたときに、利用者の選択を無視して OS に従ってしまわないための1行 -->
 	<style type="text/tailwindcss">@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));</style>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.0.2/tesseract.min.js"></script>
-	<!-- Lucide Icons -->
-	<script src="https://unpkg.com/lucide@latest"></script>
+	<!-- Lucide Icons（表示開始時の直し (d1)・2026-10-27: 版を固定する。1.62.0 は固定した日の @latest と同じ中身。上げるときは special.html・uma-skill-deck.html も一緒に） -->
+	<script src="https://unpkg.com/lucide@1.62.0/dist/umd/lucide.min.js"></script>
 	<!-- 共通ロジック（OCR前処理・文字正規化・判定ロジックなど、index.html / special.html / exam.html で共有） -->
 	<script src="js/common.js?v=2026-09-26a"></script>
 	<!-- 画像結合ロジック（スクロールキャプチャの縦結合、exam.html / special.html で共有） -->
