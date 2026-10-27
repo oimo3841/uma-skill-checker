@@ -331,7 +331,7 @@ export async function register46(env) {
 		}
 	});
 
-	await block('C-187(g) ①のカード選択の窓: SSR の印は出ない／SR のカードには SR の印が出る（②のオススメサポから開いた窓とは別）／390・360・1280・ライト・ダーク', async () => {
+	await block('C-187(g) ①のカード選択の窓: SSR の印は出ない／SR のカードは出ない（2026-10-27 から SSR だけ。②のオススメサポから開いた窓とは別）／390・360・1280・ライト・ダーク', async () => {
 		for (const [w, theme] of [[390, 'light'], [390, 'dark'], [360, 'light'], [1280, 'light']]) {
 			const sp = await openSp({ w, theme, h: w === 1280 ? 900 : 844, roster: { umaId: 'uma-0179', cardIds: [], skillFilter: FILTER } });
 			await sp.page.click(RP + '[data-usd-el="roster-tile"][data-index="0"] [data-usd-act="pick-card"]');
@@ -341,13 +341,13 @@ export async function register46(env) {
 			const read = () => sp.page.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="hits"] button.usd-name-hit')).map((b) => ({ label: b.querySelector('.usd-name-hit-label').textContent, rar: (b.querySelector('[data-usd-el="card-rarity-icon"]') || {}).alt || null, type: !!b.querySelector('[data-usd-el="card-type-icon"]') })));
 			const rows = await read();
 			assert(rows.length > 10 && rows.every((r) => r.rar !== 'SSR'), tag + '候補の行に SSR の印は出ない（' + rows.length + '件）', rows.filter((r) => r.rar === 'SSR').slice(0, 3));
-			// SR を名前で絞ると SR の印が出る
+			// 2026-10-27（セッションJ・作業3）: ①の小窓は SSR だけになったので、SR を名前で絞っても出ない（SR の印は②のオススメサポから開いた窓で見る＝blocks-45 の C-186）
 			const labelOf = (c) => (c.title ? '[' + c.title + ']' : '') + (c.isGroup && c.groupName ? c.groupName : c.charaName);
 			await sp.page.fill('[data-usd-el="find"]', labelOf(SR_CARD));
 			await sleep(sp.page, 400);
 			const srRows = await read();
 			const hit = srRows.find((r) => r.label === labelOf(SR_CARD));
-			assert(hit && hit.rar === 'SR' && hit.type, tag + 'SR のカード（' + labelOf(SR_CARD) + '）には SR の印と種別アイコンが出る', srRows.slice(0, 3));
+			assert(!hit && srRows.every((r) => r.rar === null), tag + 'SR のカード（' + labelOf(SR_CARD) + '）は①の候補に出ない（SSR だけ）', srRows.slice(0, 3));
 			assert(await sp.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), tag + '横スクロールなし', true);
 			assert(jsErrors(sp.errors).length === 0, tag + 'コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();

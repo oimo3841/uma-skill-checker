@@ -117,21 +117,24 @@ export async function register53(env) {
 		await sp.ctx.close();
 	});
 
-	await block('駿大祭(4) ①のサポカの選択で ［巫女］吾妻（card-0566・R・友人）が選べる', async () => {
+	// 2026-10-27（セッションJ・作業3）: ①の「サポートカードを選ぶ」の小窓は SSR だけになったので、R の ［巫女］吾妻 は①では選べない。
+	// 保存済みの①の編成に入っている card-0566 は、そのまま表示する（タイル・種別アイコン）
+	await block('駿大祭(4) ①のサポカの選択に ［巫女］吾妻（card-0566・R・友人）は出ない（SSR だけ）・保存済みの編成の card-0566 はそのまま出る', async () => {
 		const sp = await openSp({ w: 390, roster: { umaId: 'uma-0179', cardIds: [null, null, null, null, null, null], skillFilter: {} } });
 		await sp.page.click(RP + '[data-usd-el="roster-tile"][data-index="0"] [data-usd-act="pick-card"]');
 		await sp.page.waitForSelector('[data-usd-el="modal"] [data-usd-el="find"]', { timeout: 10000 });
 		await sp.page.fill('[data-usd-el="modal"] [data-usd-el="find"]', '巫女');
 		await sp.page.waitForTimeout(500);
 		const hits = await sp.page.evaluate(() => [...document.querySelectorAll('[data-usd-el="modal"] .usd-name-hit')].map((h) => h.textContent.trim()));
-		assert(hits.length === 1 && hits[0] === '[巫女]吾妻', '駿大祭(4) 「巫女」で探すと ［巫女］吾妻 の1件が出る', hits);
-		await sp.page.click('[data-usd-el="modal"] .usd-name-hit');
-		await sp.page.waitForTimeout(500);
-		const saved = await sp.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special') || '{}').cardIds);
-		const tile = await sp.page.evaluate(() => { const t = document.querySelector('#deck-roster-panel [data-usd-el="roster-tile"][data-index="0"]'); return { text: t.textContent, type: (t.querySelector('[data-usd-el="card-type-icon"]') || {}).alt || null }; });
-		assert(saved && saved[0] === 'card-0566' && /巫女/.test(tile.text) && /吾妻/.test(tile.text) && tile.type === '友人', '駿大祭(4) 選ぶと①の1枚目が card-0566 になり、タイルに［巫女］吾妻と友人の種別アイコンが出る', { saved, tile });
-		assert(jsErrors(sp.errors).length === 0, '駿大祭(4) コンソールのエラー0', sp.errors.slice(0, 3));
+		assert(hits.length === 0, '駿大祭(4) 「巫女」で探しても ［巫女］吾妻（R）は出ない', hits);
 		await sp.ctx.close();
+		const sp2 = await openSp({ w: 390, roster: { umaId: 'uma-0179', cardIds: ['card-0566', null, null, null, null, null], skillFilter: {} } });
+		await sp2.page.waitForTimeout(500);
+		const saved = await sp2.page.evaluate(() => JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special') || '{}').cardIds);
+		const tile = await sp2.page.evaluate(() => { const t = document.querySelector('#deck-roster-panel [data-usd-el="roster-tile"][data-index="0"]'); return { text: t.textContent, type: (t.querySelector('[data-usd-el="card-type-icon"]') || {}).alt || null }; });
+		assert(saved && saved[0] === 'card-0566' && /巫女/.test(tile.text) && /吾妻/.test(tile.text) && tile.type === '友人', '駿大祭(4) 保存済みの①の1枚目の card-0566 はそのまま残り、タイルに［巫女］吾妻と友人の種別アイコンが出る', { saved, tile });
+		assert(jsErrors(sp.errors).length === 0 && jsErrors(sp2.errors).length === 0, '駿大祭(4) コンソールのエラー0', sp.errors.concat(sp2.errors).slice(0, 3));
+		await sp2.ctx.close();
 	});
 
 	// 2026-10-26（公開前の追加）: めろっぷの行を新シナリオに合わせたので、①の「新シナリオへの対応が未完了です。」の1行は消した

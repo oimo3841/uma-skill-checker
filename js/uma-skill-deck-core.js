@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-27d';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-27e';
 
 	/* ============================================================
 	 * 定数
@@ -302,6 +302,9 @@
 	// 編成のミニウィンドウに一度に出す候補の上限（C-51 の修正）。
 	// 559枚を一度に描くと重く、目でも追えないので切る。絞り込めば必ず届く。
 	const PICK_LIST_LIMIT = 60;
+	// ①の「サポートカードを選ぶ」の小窓に出すカードのレアリティ（support-cards.json の rarity の値。2026-10-27・セッションJ・作業3）。
+	// オススメサポの残りの枠から開いたときは絞らない
+	const ROSTER_PICK_CARD_RARITY = 'SSR';
 
 	// ドラフト（保存しない一時的な対象スキルセット）の保存先の接頭辞。
 	// scope名を後ろに付けるので、将来 exam 側が合流しても衝突しない。
@@ -10970,7 +10973,10 @@
 			// オススメサポの残りの枠から開いたとき（段13・C1）は、①の編成ではなく、指定済みのカードと同じキャラクターを選べないものにする
 			const ext = picking && picking.external ? picking.external : null;
 			const used = kind === 'card' ? (ext ? ext.used : roster.cardIds.filter(Boolean)) : [];
+			// 2026-10-27（セッションJ・作業3）: ①の「サポートカードを選ぶ」の小窓は SSR だけを出す（一覧・検索・種類の絞り込み・件数の文）。
+			// オススメサポの残りの枠から開いたとき（ext）は今までどおり。保存済みの編成に入っている R・SR はそのまま残す（ここは選ぶ候補だけ）
 			return pool
+				.filter(e => kind !== 'card' || !!ext || e.rarity === ROSTER_PICK_CARD_RARITY)
 				.filter(e => !type || cardTypeOf(e) === type)
 				.filter(e => !query || normalizeSkillText(formatEntryLabel(e)).indexOf(query) !== -1)
 				.map(e => ({ id: e.id, label: formatEntryLabel(e), used: used.indexOf(e.id) !== -1,

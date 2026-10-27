@@ -62,7 +62,8 @@ export async function register27(env) {
 	/* ---- (2) 同じキャラクターの規則 ---- */
 	await block('グループのカード(2) 同じキャラクターのカードは入れられない（押すと理由を知らせ、追加せず、窓は開いたまま）', async () => {
 		// 通常のカードで、グループのカード（card-0310 のメンバー）と同じキャラクターのもの
-		const normal = CARDS.find((c) => c.isGroup === false && c.rarity !== 'R' && c.charaName === 'トウカイテイオー');
+		// 2026-10-27（セッションJ・作業3）: ①の「サポートカードを選ぶ」の小窓は SSR だけなので、SSR から選ぶ（それまでは R 以外＝SR の card-0193）
+		const normal = CARDS.find((c) => c.isGroup === false && c.rarity === 'SSR' && c.charaName === 'トウカイテイオー');
 		const free = CARDS.find((c) => c.isGroup === false && c.rarity === 'SSR' && !['シンボリルドルフ', 'トウカイテイオー', 'ツルマルツヨシ'].includes(c.charaName));
 		const pickTake = async (page, slot, id) => {
 			await page.click('[data-usd-act="pick-card"][data-index="' + slot + '"]');
@@ -81,7 +82,7 @@ export async function register27(env) {
 			notice: (document.querySelector('[data-usd-el="pick-notice"]') || {}).textContent || null,
 		}), KEY);
 		const cases = [
-			['通常どうし（同じ charaName）', ['card-0248'], (CARDS.find((c) => c.id !== 'card-0248' && c.isGroup === false && c.rarity !== 'R' && c.charaName === CARDS.find((x) => x.id === 'card-0248').charaName) || {}).id],
+			['通常どうし（同じ charaName）', ['card-0248'], (CARDS.find((c) => c.id !== 'card-0248' && c.isGroup === false && c.rarity === 'SSR' && c.charaName === CARDS.find((x) => x.id === 'card-0248').charaName) || {}).id],
 			['グループどうし（テイオーが重なる）', ['card-0310'], 'card-0422'],
 			['グループと通常（メンバーが通常のカードにいる）', ['card-0310'], normal.id],
 			['通常とグループ（入れる側がグループ）', [normal.id], 'card-0310'],

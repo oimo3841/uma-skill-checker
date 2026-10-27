@@ -210,7 +210,7 @@ export async function register45(env) {
 		}
 	});
 
-	await block('C-186 触らないもの: ①のカード選択の窓の選び方（選ぶと①に入る・同じキャラクターは選べない・R も選べる）／①の編成の枠・保存データは変わらない', async () => {
+	await block('C-186 触らないもの: ①のカード選択の窓の選び方（選ぶと①に入る・同じキャラクターは選べない。2026-10-27 から①の候補は SSR だけ＝J作業3）／①の編成の枠・保存データは変わらない', async () => {
 		const roster = { umaId: 'uma-0179', cardIds: [] };
 		const sp = await openSp({ roster, theme: 'light' });
 		await sp.page.click('#step-tab-0');
