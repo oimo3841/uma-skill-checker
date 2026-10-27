@@ -280,7 +280,7 @@ export async function register49(env) {
 		// 以前の保存値を持つ編成（下書きの roster）。除外するスキルは、小窓を開いたときのスキルの一覧から選ぶ
 		const probe = await openSp({ roster: FULL });
 		await openOutside(probe.page);
-		const [A, B, C] = await firstIds(probe.page, 3);
+		const [A, B] = await firstIds(probe.page, 2);
 		await probe.ctx.close();
 		const legacy = Object.assign({}, FULL, { outsideSkillExcluded: [A, B, 'no-such-skill'] });
 		const sp = await openSp({ roster: legacy });
@@ -289,7 +289,10 @@ export async function register49(env) {
 		await openOutside(p);
 		assert((await rawDraft(p)) === rawD && (await p.evaluate(() => localStorage.getItem('umaSkillDeck:userData'))) === rawU, '段F1(b) 開いただけでは、保存データ（roster・userData）は1バイトも変わらない', true);
 		const rows = (await rowsOf(p)).map((r) => r.id);
-		assert(!rows.includes(A) && !rows.includes(B) && rows.includes(C), '段F1(b) 以前の保存値のスキルは、これまでどおり母集団から除かれる（一覧に出ない）', rows.length);
+		// 2026-10-27（セッションJ）: C（新しく外すスキル）は、A・B を除いたあとの一覧から選ぶ。以前は最初の一覧の3つ目に決め打ちしていたが、
+		// 一覧は計算の結果の組なので、A・B を除くと顔ぶれが変わりうる（skill-step-up 2026-10-27a で金と下位の白の組が増え、3つ目が一覧から外れた）
+		const C = rows.find((id) => id !== A && id !== B);
+		assert(!rows.includes(A) && !rows.includes(B) && !!C && !(await inPopulation(p, A)) && !(await inPopulation(p, B)), '段F1(b) 以前の保存値のスキルは、これまでどおり母集団から除かれる（一覧に出ない）', rows.length);
 		assert(await exHead(p) === '除外中 スキル2種（中距離） ▾', '段F1(b) 見出しの種数に数える（引けない古いIDは数えない）', await exHead(p));
 		await p.click(OM + '[data-usd-el="outside-excl-toggle"]');
 		const list = await p.evaluate(() => Array.from(document.querySelectorAll('[data-usd-el="outside-excl-skill"]')).map((r) => ({ id: r.getAttribute('data-skill-id'), scope: r.getAttribute('data-scope'), tag: (r.querySelector('[data-usd-el="outside-excl-scope"]') || {}).textContent || null })));

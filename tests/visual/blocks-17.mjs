@@ -316,18 +316,27 @@ export async function register17(env) {
 		const ids0 = await draftIds(sp.page);
 		assert(ids0.includes(awk) && !ids0.includes(base1), 'C131B 材料: ②に目覚めがあり、対応するスキルは無い', ids0);
 		await openOutside(sp.page);
-		const r = await sp.page.evaluate(({ awk, base1 }) => {
+		// 2026-10-27（セッションJ）: 結果の組に対応するスキルを持つカードが入るかは計算しだい（skill-step-up 2026-10-27a で金と下位の白の組が増え、
+		// 入らなくなった）。そのため、対応するスキルをヒントに持つカード（編成と同じキャラクターでないもの）を指定（pinnedCardIds）した計算でも見る
+		const HOLDERS = readJson('data/support-cards.json').entries.filter((c) => !c.isGroup && (c.hintSkills || []).some((h) => String(h.skillId) === base1)).map((c) => ({ id: c.id, chara: c.charaName }));
+		const r = await sp.page.evaluate(({ awk, base1, holders }) => {
 			const roster = JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special'));
 			const C = UmaSkillDeckCore.outside;
 			const p1 = C.populationOf(roster, { addedSkillIds: [awk] });
 			const p0 = C.populationOf(roster, { addedSkillIds: [] });
-			const res = C.solveSync({ roster, addedSkillIds: JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds, deadlineMs: 20000 });
+			const added = JSON.parse(localStorage.getItem('umaSkillDeck:draftScope:special')).skillIds;
+			const res = C.solveSync({ roster, addedSkillIds: added, deadlineMs: 20000 });
+			const used = new Set([roster.umaId].concat(roster.cardIds || []).filter(Boolean));
+			const holder = holders.find((h) => !used.has(h.id)) || null;
+			const resP = holder ? C.solveSync({ roster, addedSkillIds: added, pinnedCardIds: [holder.id], deadlineMs: 20000 }) : null;
 			const row = document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-row"][data-skill-id="' + base1 + '"]');
 			return { in1: p1.ids.includes(base1), in0: p0.ids.includes(base1), entry: res.skills.find((s) => s.skillId === base1) || null, card: res.cards.find((c) => c.skillIds.includes(base1)) || null,
+				holder: holder && holder.id, entryP: resP ? (resP.skills.find((s) => s.skillId === base1) || null) : null, cardP: resP ? (resP.cards.find((c) => c.skillIds.includes(base1)) || null) : null,
 				rowMark: row ? ((row.querySelector('[data-usd-el="outside-added-mark"]') || {}).textContent || null) : 'no-row', foot: document.querySelector('[data-usd-el="outside-total"]').textContent };
-		}, { awk, base1 });
+		}, { awk, base1, holders: HOLDERS });
 		assert(r.in1, 'C131B ②に目覚めがあると、対応するスキルは母集団に入る（C-185 で緑スキルは既定の除外に当たらなくなった。追加済みとして数えることは下で見る）', r);
-		assert(!!r.entry && !!r.card && r.entry.added && r.rowMark === '追加済み' && /追加済み \d+種/.test(r.foot), 'C131B 結果のカード（' + (r.card && r.card.cardId) + '）が対応するスキルを持ち、その行は「追加済み」（一覧で選べない・下段の追加済みに数える）', r);
+		assert(!!r.entryP && !!r.cardP && r.entryP.added, 'C131B 対応するスキルを持つカード（' + r.holder + '）を指定した計算では、そのスキルは「追加済み」として数える', { holder: r.holder, entry: r.entryP, card: r.cardP && r.cardP.cardId });
+		assert((r.entry ? (!!r.card && r.entry.added && r.rowMark === '追加済み') : r.rowMark === 'no-row') && /追加済み \d+種/.test(r.foot), 'C131B 小窓の結果に対応するスキルが入るなら、その行は「追加済み」（一覧で選べない）・下段は追加済みを数える', r);
 		if (r.card) {
 			const tile = await sp.page.evaluate((cid) => (document.querySelector('[data-usd-el="outside-modal"] [data-usd-el="outside-card"][data-card-id="' + cid + '"] [data-usd-el="outside-card-gain"]') || {}).textContent, r.card.cardId);
 			assert(tile === '＋' + r.card.kindGain + '種', 'C131B そのカードの「＋N種」は対応するスキルを含めた種数', { tile, gain: r.card.kindGain });

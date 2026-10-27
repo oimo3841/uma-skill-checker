@@ -63,7 +63,10 @@ export async function register32(env) {
 	// 合計 Pt 889 は同じ）: uma-0272 を除いた271衣装では 4766549b438c42c2 のまま、training-umamusume.json だけ HEAD の版に戻すと 21f01b95512714c7（一致を確かめた）。real・r2・vary は変わらない
 	// 2026-10-26（新シナリオの仕上げ）: solo271 は 0586f17959b9586e から 0f5ec6f98a9edf30 に変わった。変わったのは uma-0272 の1行だけ（育成イベント6つを受け入れた。training-event-skills 2026-10-26c）:
 	// uma-0272 を除いた271衣装では 4766549b438c42c2 のまま（一致を確かめた）。real・r2・vary は変わらない
-	const HASH = { solo271: '0f5ec6f98a9edf30', real: 'c233a84f582ba98d', r2: '2e74a955752d79c6', vary: '49545117935c03cb' };
+	// 2026-10-27（セッションJ・skill-step-up 2026-10-27a の受け入れ）: solo271 は 0f5ec6f98a9edf30 から a3dd7632add101c0 に変わった。変わったのは uma-0271（ドゥラメンテ）の1行だけ:
+	// 足した組（抜山蓋世 ex-1672 ← 規格外 ex-1673）で、金と下位の白が1種として数えられ、種数（kinds）が 14 → 13。合計 Pt 1,942 は同じ。
+	// skill-step-up だけを 2026-10-02b に戻すと 0f5ec6f98a9edf30 に戻る（一致を確かめた）。real・r2・vary は変わらない
+	const HASH = { solo271: 'a3dd7632add101c0', real: 'c233a84f582ba98d', r2: '2e74a955752d79c6', vary: '49545117935c03cb' };
 
 	await block('◎合算(1) 計算の層は変わらない: 271衣装の単独・REAL・絞り込み・VARY の出力ハッシュが変更前と同一', async () => {
 		const sp = await openSp({ roster: R1 });
