@@ -186,7 +186,8 @@ const SKILL_REF_KEYS = { need: ['skillId', 'name'], opt: [] };
    同じ枠（1つの skills・1つの結果）の中で同じスキルが2回出たら落とす。 */
 const EVENT_KEYS = { need: ['step', 'choices'], opt: [] };
 // キャラクター共通のイベントの1つ（回の番号を持たない）
-const CHARA_EVENT_KEYS = { need: ['choices'], opt: [] };
+// 2026-10-27（セッションJ・作業4。おいもさんが新しいキーを承認）: fixed（true＝どのシナリオでも決まった時期に起きる固定のイベント）・when（その時期。ゲーム画面の表記）を任意で持てる
+const CHARA_EVENT_KEYS = { need: ['choices'], opt: ['fixed', 'when'] };
 // サポートカードのレアリティ（C-102 の区切り3）。**ゲームにある3つの区分そのもの**なので、値の集合をここに持つ
 // （スキル名・カード名ではない。増えたらここを足す）
 const RARITY_VALUES = ['R', 'SR', 'SSR'];
@@ -367,7 +368,12 @@ function readEventChain(chain, where, withStep = true) {
 	chain.forEach((ev, i) => {
 		const w = where + '[' + i + ']';
 		if (!checkKeys(ev, withStep ? EVENT_KEYS : CHARA_EVENT_KEYS, w, unknownKeys, missingKeys)) return;
-		if (!withStep) { /* 回の番号は持たない */ }
+		if (!withStep) {
+			// 回の番号は持たない。固定の印（任意）: fixed は true だけを書く・when は空でない文字列で、fixed のイベントにだけ書く
+			if (ev.fixed !== undefined && ev.fixed !== true) badTypes.push(w + '.fixed: true だけを書く（' + JSON.stringify(ev.fixed) + '）');
+			if (ev.when !== undefined && !isStr(ev.when)) badTypes.push(w + '.when: 空でない文字列');
+			if (ev.when !== undefined && ev.fixed !== true) badTypes.push(w + '.when: fixed のイベントにだけ書く');
+		}
 		else if (!isInt(ev.step) || ev.step < 1) badTypes.push(w + '.step: 1以上の整数');
 		else {
 			if (ev.step <= prevStep) badTypes.push(w + '.step: 昇順・重複なし（前の回は ' + prevStep + '）');

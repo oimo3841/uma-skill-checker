@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-27e';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-27f';
 
 	/* ============================================================
 	 * 定数
@@ -76,7 +76,7 @@
 		'data/support-cards.json': '2026-10-26b',
 		'data/support-card-event-skills.json': '2026-10-26c',
 		// キャラクター共通のイベント（C-102 の区切り3・2026-09-27）。9本目
-		'data/character-event-skills.json': '2026-10-26d',
+		'data/character-event-skills.json': '2026-10-27a',
 		// レースの距離の一覧（C-97・2026-09-26）。7本目。スキルではないので EXTRA_CATALOG_SOURCES にも
 		// TRAINING_SOURCES にも入れず、loadRaceDistances() が読む。
 		'data/race-distances.json': '2026-09-26a',
@@ -2135,6 +2135,8 @@
 				// 何も選んでいない（起きないものとして数えない）取得の切り替えのイベントは、選ぶ必要が無いので pending にしない（未確認の数は acquireEvents 側が持つ）
 				wantedChoices: wantedChoices, pending: !pick && wantedChoices >= 2 && acquiredOf(ev, eventKey, evOpts),
 				name: (ev && typeof ev.name === 'string') ? ev.name : null, when: (ev && typeof ev.when === 'string') ? ev.when : null,
+				// キャラクター共通のイベントの固定の印（2026-10-27・セッションJ・作業4。見出しを「固定イベント（when）」にする）
+				fixed: !!(ev && ev.fixed === true),
 				eventName: (ev && typeof ev.eventName === 'string') ? ev.eventName : null, condition: (ev && typeof ev.condition === 'string') ? ev.condition : '',
 				chosen: pick ? pick.index : null, auto: !!(pick && pick.auto), byDefault: !!(pick && pick.byDefault), defaultIndex: eventDefaultIndex(ev, sides.length) });
 		});
@@ -2181,7 +2183,7 @@
 			const byChoice = (ev.choices || []).map(c => (c && Array.isArray(c.results))
 				? c.results.map(r => (r || []).filter(ref => ref && ref.skillId && findSkill(ref.skillId)).map(refOf)) : null);
 			out.push({ eventKey: eventKey, index: idx, step: Number.isInteger(ev.step) ? ev.step : null,
-				name: typeof ev.name === 'string' ? ev.name : null, when: typeof ev.when === 'string' ? ev.when : null,
+				name: typeof ev.name === 'string' ? ev.name : null, when: typeof ev.when === 'string' ? ev.when : null, fixed: ev.fixed === true,
 				eventName: typeof ev.eventName === 'string' ? ev.eventName : null, condition: typeof ev.condition === 'string' ? ev.condition : '', count: eventMaxResults(ev),
 				pos: resultPosOf(ev, eventKey, evOpts), multi: (ev.choices || []).length >= 2, byChoice: byChoice });
 		});
@@ -2530,6 +2532,7 @@
 		const infoEvents = [];       // 小窓に読み取り専用で出すだけのイベント（段3の追補。選択肢が1つで条件のある育成ウマ娘のイベント）
 		const resultEvents = [];     // 結果の切り替えを持つイベント（結果の切り替え。選択肢が1つのものも含む。条件のあるイベントは含まない）
 		const acquireEvents = [];    // 取得の切り替えを持つイベント（acquireMode が "user"。育成ウマ娘のイベントだけ。選択肢が1つのものも含む）
+		const fixedEvents = [];      // キャラクター共通の固定のイベント（fixed・選択肢が1つ・条件文なし）。小窓に「確定」の箱で出すだけ（2026-10-27・セッションJ・作業4）
 		const items = new Map();   // skillId → { skillId, name, origins: [], members: [], sureMembers: [], sure }
 		const sources = [];        // 由来を機械が読める形で（段2）
 		const unconfirmed = [];
@@ -2646,6 +2649,16 @@
 				pushOccurrences(getCharacterEventOccurrencesOf(name, evOpts), 'commonEvent', key);
 				eventRowChoiceEvents(findCharacterEventRow(name), 'events', 'chara:' + name, evOpts).forEach(e => events.push(Object.assign({ memberKey: key, kind: 'commonEvent', cardId: cardId, charaName: name }, e)));
 				eventRowResultEvents(findCharacterEventRow(name), 'events', 'chara:' + name, evOpts).forEach(e => resultEvents.push(Object.assign({ memberKey: key, kind: 'commonEvent', cardId: cardId, charaName: name }, e)));
+				// 固定のイベント（fixed が true・選択肢が1つ・条件文なし。2026-10-27・セッションJ・作業4）。小窓の左の欄に、シナリオの固定のイベントと同じ箱で出す（表示だけ。数え方は上のまま）
+				const crow = findCharacterEventRow(name);
+				if (crow && crow.status === 'done') (crow.events || []).forEach((ev, idx) => {
+					if (!ev || ev.fixed !== true || !Array.isArray(ev.choices) || ev.choices.length !== 1) return;
+					if ((typeof ev.condition === 'string' && ev.condition !== '') || Array.isArray(ev.acquireOptions) || eventHasResultSwitch(ev)) return;
+					const skills = eventChoiceSkillsAt(ev.choices[0], 0).filter(ref => ref && ref.skillId && findSkill(ref.skillId))
+						.map(ref => ({ skillId: ref.skillId, name: ref.name, hintLevel: (Number.isInteger(ref.hintLevel) && ref.hintLevel >= 0) ? ref.hintLevel : null }));
+					fixedEvents.push({ memberKey: key, kind: 'commonEvent', cardId: cardId, charaName: name, index: idx, eventKey: 'chara:' + name + '#' + idx,
+						name: '固定イベント', when: typeof ev.when === 'string' && ev.when ? ev.when : null, skills: skills });
+				});
 			});
 		});
 
@@ -2666,7 +2679,7 @@
 		}
 
 		const list = Array.from(items.values()).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing, sources: sources, events: events, infoEvents: infoEvents, resultEvents: resultEvents, acquireEvents: acquireEvents, scenario: scenario };
+		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing, sources: sources, events: events, infoEvents: infoEvents, resultEvents: resultEvents, acquireEvents: acquireEvents, fixedEvents: fixedEvents, scenario: scenario };
 	}
 
 	/* ============================================================
@@ -9577,6 +9590,8 @@
 		// （メンバーごとに同じ見出しが並ぶため名前を添える。N はそのキャラクターの共通イベントの中での通し番号＝index+1。キャラクターが変わると1から。C-163で番号を戻した）
 		const inGroup = !!(e.cardId && (findCard(e.cardId) || {}).isGroup === true);
 		if (e.kind === 'commonEvent') {
+			// 固定のイベント（データの fixed が true。2026-10-27・セッションJ・作業4）は「固定イベント（時期）」。時期（when）が無ければ「固定イベント」
+			if (e.fixed) return '固定イベント' + (typeof e.when === 'string' && e.when ? '（' + e.when + '）' : '');
 			if (inGroup && e.charaName) return '共通イベント ' + (e.index + 1) + '（' + e.charaName + '）';
 			return '共通イベント' + (isNonNegInt(e.step) ? ' ' + e.step + '回目' : ' ' + (e.index + 1));
 		}
@@ -9711,7 +9726,9 @@
 			head.setAttribute('data-usd-el', 'events-unselected');
 			left.appendChild(head);
 		}
-		if (list.length === 0 && info.length === 0 && resultOnly.length === 0 && acquireOnly.length === 0) {
+		// キャラクター共通の固定のイベント（2026-10-27・セッションJ・作業4）。シナリオの固定のイベントと同じ箱（addFixedEvent）で、ほかのイベントの後ろに出す
+		const fixedList = memberKey === SCENARIO_KEY ? [] : (res.fixedEvents || []).filter(e => e.memberKey === memberKey);
+		if (list.length === 0 && info.length === 0 && resultOnly.length === 0 && acquireOnly.length === 0 && fixedList.length === 0) {
 			const p = infoEl('p', 'usd-info-desc--pending', '選ぶイベントはありません');
 			p.setAttribute('data-usd-el', 'events-none');
 			left.appendChild(p);
@@ -9948,6 +9965,7 @@
 		} else {
 			list.forEach(addChoiceEvent);
 		}
+		fixedList.forEach(addFixedEvent);
 		// ── 右：取得できるスキル。いまの選択（自動を含む）で得るもの（●）を先に、未選択のイベントしだいのもの（△）を薄く「未選択」の印つきで後ろに。
 		//    絞り込みで外れるスキルは灰色で残す。選択を変えるたびに描き直す ──
 		const h3 = infoEl('p', 'usd-ev-skills-title', '取得できるスキル');
@@ -11434,7 +11452,9 @@
 			const picked = (r.resultEvents || []).filter(e => e.memberKey === m.key && e.pos > 0).length;
 			if (m.kind === 'scenario') return { hasEvents: true, unsel: evs.filter(e => e.pending).length, picked: picked, acquired: 0 };
 			const hasResult = !!m.label && (r.resultEvents || []).some(e => e.memberKey === m.key);
-			if (m.kind === 'card') return { hasEvents: evs.length > 0 || hasResult, unsel: evs.filter(e => e.pending).length, picked: picked, acquired: 0 };
+			// 2026-10-27（セッションJ・作業4）: 固定の共通イベントの箱だけを持つカード（例：［巫女］吾妻）にも「イベント/スキル」を出す
+			const hasFixed = !!m.label && (r.fixedEvents || []).some(e => e.memberKey === m.key);
+			if (m.kind === 'card') return { hasEvents: evs.length > 0 || hasResult || hasFixed, unsel: evs.filter(e => e.pending).length, picked: picked, acquired: 0 };
 			const hasInfo = !!m.label && (r.infoEvents || []).some(e => e.memberKey === m.key);
 			const acqs = m.label ? (r.acquireEvents || []).filter(e => e.memberKey === m.key) : [];
 			return {
