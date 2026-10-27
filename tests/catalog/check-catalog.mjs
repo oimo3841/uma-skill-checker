@@ -172,6 +172,11 @@ const MELOP_SLOTS = ['blue', 'red', 'unique'];
 const MELOP_FIRST_ROW = 38;
 const MELOP_LAST_ROW = 610;   // 2026-10-26: シートに8行（新スキル7・駿大祭シナリオ）が増えて 602→610
 
+/* スキルの既定の並び（data/skill-display-order.json。2026-10-27）。形は { dataVersion, category, note, entries: [{ id }] }。§19 */
+const DISPLAY_ORDER_FILE = 'skill-display-order.json';
+const DISPLAY_ORDER_TOP_KEYS = { need: ['dataVersion', 'category', 'entries'], opt: ['note'] };
+const DISPLAY_ORDER_ENTRY_KEYS = { need: ['id'], opt: [] };
+const DISPLAY_ORDER_CATEGORY_NAME = 'skillDisplayOrder';
 const SKILL_REF_KEYS = { need: ['skillId', 'name'], opt: [] };
 /* **サポートカードのイベント（C-102）。** 1回ぶんは { step, choices }。
    - step … 何回目か。1以上の整数・昇順・重複なし・上限なし。**スキルが得られる回だけ**を書くので、
@@ -606,7 +611,8 @@ const otherCatalogNames = new Map();
 	// マスター（裸の数字）と、同じフォルダにある他のカタログの id を、衝突の相手として集める
 	const takenIds = new Set(masterNameById.keys());
 	const otherCatalogFiles = fs.existsSync(path.join(REPO_ROOT, DIR))
-		? fs.readdirSync(path.join(REPO_ROOT, DIR)).filter((n) => n.endsWith('.json') && !FILES.some((f) => f.file === n))
+		// 既定の並び（§19）は、ほかのカタログの id を並べるだけのファイルなので、衝突の相手に数えない
+		? fs.readdirSync(path.join(REPO_ROOT, DIR)).filter((n) => n.endsWith('.json') && !FILES.some((f) => f.file === n) && n !== DISPLAY_ORDER_FILE)
 		: [];
 	for (const n of otherCatalogFiles) {
 		const r = readJsonFile(path.join(REPO_ROOT, DIR, n));
@@ -2454,6 +2460,45 @@ console.log('\n=== 18. タグと説明文の突き合わせ（距離・脚質・
 		none(noDescBad, '説明文が無いスキルは、タグの距離・脚質・バ場が空');
 		if (exceptions.length > 0) warn('タグと＜…＞が食い違う既知の例外（理由はこの検査のファイルに書いてある）', exceptions);
 		console.log('     検査した行: 説明文あり ' + checkedWithDesc + '（うち＜…＞あり ' + withBracket + '）・説明文なし ' + checkedNoDesc + '・tagsPending で除外 ' + skippedPending);
+	}
+}
+
+/* スキルの既定の並び（data/skill-display-order.json。2026-10-27・おいもさんの決定）。entries の順がそのまま既定の並び（core の compareGameOrder）。
+   データ側が規則で作る。id を持つ行だが**カタログではない**（ほかのカタログの id を並べるだけ）ので、§3 の id の衝突の相手には数えない。
+   - 公開中のスキル（マスター・拡張スキル）・シナリオ因子・遺伝子は、一覧に**ちょうど1回ずつ**（重複・公開データに無い id は落とす）。
+   - 一覧に無い公開中の id は**落とさず、警告で一覧にして知らせる**（受け入れ前の新スキルなど。ツールは末尾にまとめて ID の順で並べる）。 */
+console.log('\n=== 19. スキルの既定の並び（' + DISPLAY_ORDER_FILE + '） ===');
+{
+	const abs = path.join(REPO_ROOT, DIR, DISPLAY_ORDER_FILE);
+	const r = fs.existsSync(abs) ? readJsonFile(abs) : { ok: false, error: 'ファイルが無い' };
+	check(r.ok, DISPLAY_ORDER_FILE + ' が読める', r.ok ? undefined : r.error);
+	if (r.ok) {
+		const doc = r.data;
+		const unknown = [], missing = [], bad = [], dup = [], stray = [];
+		checkKeys(doc, DISPLAY_ORDER_TOP_KEYS, DISPLAY_ORDER_FILE, unknown, missing);
+		if (doc.category !== DISPLAY_ORDER_CATEGORY_NAME) bad.push('category が ' + JSON.stringify(doc.category));
+		if (!DATA_VERSION_RE.test(String(doc.dataVersion))) bad.push('dataVersion が「YYYY-MM-DD＋英小文字1字」の形でない: ' + String(doc.dataVersion));
+		const entries = isArr(doc.entries) ? doc.entries : [];
+		if (!isArr(doc.entries)) bad.push('entries が配列でない');
+		const published = new Set(masterNameById.keys());
+		['extendedSkill', 'scenarioFactor', 'geneFactor'].forEach((c) => ((docs[c] && docs[c].entries) || []).forEach((e) => { if (e && e.id) published.add(String(e.id)); }));
+		const seen = new Set();
+		entries.forEach((e, i) => {
+			const w = 'entries[' + i + ']';
+			if (!checkKeys(e, DISPLAY_ORDER_ENTRY_KEYS, w, unknown, missing)) return;
+			if (!isStr(e.id)) { bad.push(w + ': id が文字列でない'); return; }
+			const id = String(e.id);
+			if (seen.has(id)) dup.push(w + ': ' + id);
+			seen.add(id);
+			if (!published.has(id)) stray.push(w + ': ' + id);
+		});
+		const absent = Array.from(published).filter((id) => !seen.has(id));
+		none(unknown.concat(missing), DISPLAY_ORDER_FILE + ': キーが決めた形（知らないキーが無く、必須が揃っている）');
+		none(bad, DISPLAY_ORDER_FILE + ': category・版・entries の形');
+		none(dup, DISPLAY_ORDER_FILE + ': 同じ id が2回以上出てこない（ちょうど1回ずつ）');
+		none(stray, DISPLAY_ORDER_FILE + ': 公開中のスキル・シナリオ因子・遺伝子に無い id が無い');
+		if (absent.length > 0) warn(DISPLAY_ORDER_FILE + ': 公開中だが並びの一覧に無い id（' + absent.length + '件。画面では末尾にまとめ、ツールの ID の順で並べる）', absent);
+		console.log('     並びの一覧 ' + entries.length + '件・公開中のスキル・シナリオ因子・遺伝子 ' + published.size + '件・一覧に無いもの ' + absent.length + '件');
 	}
 }
 

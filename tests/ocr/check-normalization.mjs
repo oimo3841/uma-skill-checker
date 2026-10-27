@@ -354,6 +354,13 @@ if (embeddedBlock) {
  */
 const CATEGORIES_WITHOUT_EMBEDDED_COPY = ['extendedSkill'];
 
+// exam の①の一覧の表示の並び（2026-10-27）。exam は core を読まないので、並びを EXAM_REGISTRY_DISPLAY_ORDER に埋め込んでいる。
+// 顔ぶれ（133種・広げる5種・シナリオ因子・遺伝子）と、data/skill-display-order.json の順と食い違わないことを見る
+const displayOrderExam = await page.evaluate(() => ({
+	order: typeof EXAM_REGISTRY_DISPLAY_ORDER === 'undefined' ? null : EXAM_REGISTRY_DISPLAY_ORDER.slice(),
+	skills: EXAM_SKILL_LIST.concat(EXPANDED_EXTRA_SKILL_LIST).map((s) => ({ id: s.id, name: s.name })),
+	factors: SCENARIO_INHERITANCE_FACTORS.slice(), genes: APTITUDE_GENES.slice(),
+}));
 await browser.close();
 await server.close();
 
@@ -490,6 +497,27 @@ for (const src of catalogSources) {
 }
 check(embeddedDiff.length === 0,
 	'core.js の組み込みの写し（EMBEDDED_EXTRA_CATALOG）が正本と一致', embeddedDiff);
+console.log('');
+
+console.log('■ exam の①の一覧の表示の並び（EXAM_REGISTRY_DISPLAY_ORDER）と data/skill-display-order.json');
+{
+	const orderDoc = JSON.parse(await fs.readFile(path.join(ROOT, 'data', 'skill-display-order.json'), 'utf-8'));
+	const pos = new Map((orderDoc.entries || []).map((e, i) => [String(e.id), i]));
+	const idByName = new Map();
+	displayOrderExam.skills.forEach((s) => idByName.set(s.name, String(s.id)));
+	scenarioMasterEntries.forEach((f) => { if (displayOrderExam.factors.includes(f.name)) idByName.set(f.name, String(f.id)); });
+	(geneMaster.entries || []).forEach((g) => { if (displayOrderExam.genes.includes(g.name)) idByName.set(g.name, String(g.id)); });
+	const want = displayOrderExam.skills.map((s) => s.name).concat(displayOrderExam.factors, displayOrderExam.genes);
+	const got = displayOrderExam.order || [];
+	const noId = want.filter((n) => !idByName.has(n) || !pos.has(idByName.get(n)));
+	check(displayOrderExam.order !== null, 'exam.html に EXAM_REGISTRY_DISPLAY_ORDER がある');
+	check(noId.length === 0, '一覧に出る名前がすべて独自ID を持ち、並びのファイルにある', noId);
+	const expected = want.slice().sort((a, b) => pos.get(idByName.get(a)) - pos.get(idByName.get(b)));
+	const diff = [];
+	for (let i = 0; i < Math.max(expected.length, got.length); i++) if (expected[i] !== got[i]) diff.push({ index: i, 埋め込み: got[i], 並びのファイル: expected[i] });
+	check(diff.length === 0, `EXAM_REGISTRY_DISPLAY_ORDER（${got.length}件）が、一覧に出る名前（${want.length}件）を並びのファイルの順に並べたものと一致`, diff.slice(0, 10));
+	console.log('    並びのファイル: ' + orderDoc.dataVersion);
+}
 console.log('');
 
 if (failed > 0) {

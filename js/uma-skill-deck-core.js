@@ -20,7 +20,7 @@
 
 	// このファイルの版。HTML側の ?v= クエリとの3点一致を納品前にgrepで確認する（B節ルール4）。
 	// common.js・uma-skill-deck.js とは独立した番台。
-	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-27f';
+	const UMA_SKILL_DECK_CORE_JS_VERSION = '2026-10-27g';
 
 	/* ============================================================
 	 * 定数
@@ -109,7 +109,10 @@
 		'data/skill-requires.json': '2026-10-17a',
 		// コースの形の条件（小回り・直線コース）に当たるレース場・バ場・距離（C-155・2026-10-14。おいもさんの指定の表）。
 		// loadUpcomingRaces() がレースの一覧と一緒に読む。exam は読まない
-		'data/course-conditions.json': '2026-10-14a'
+		'data/course-conditions.json': '2026-10-14a',
+		// スキルの既定の並び（ゲーム内の並び。2026-10-27・おいもさんの決定）。entries の順がそのまま既定の並び。
+		// loadMasterSkills が収録スキルデータと一緒に読み、compareGameOrder が使う。exam は読まない（埋め込みの順で持つ）
+		'data/skill-display-order.json': '2026-10-27b'
 	};
 
 	/** URL にクエリを1つ足す（既にクエリが付いていれば `&` でつなぐ）。 */
@@ -1415,6 +1418,49 @@
 	 * 「（不明なスキル：…）」に化けるため、入口を1つに寄せてある。
 	 */
 	async function loadMasterSkills(forceRefresh, masterJsonPath) {
+		// 既定の並び（skill-display-order.json）は、ほかの収録データと並行して取りに行き、この関数を抜ける前に待つ（描き直しを増やさない）
+		const orderLoaded = loadSkillDisplayOrder(forceRefresh);
+		try { return await loadMasterSkillsBody(forceRefresh, masterJsonPath); } finally { await orderLoaded; }
+	}
+
+	/* ============================================================
+	 * スキルの既定の並び（`data/skill-display-order.json`。2026-10-27・おいもさんの決定）
+	 *
+	 * 利用者が並べ替えを選ぶ前の並びを、ゲーム内の並びにそろえる。**各画面は compareGameOrder だけを呼ぶ**
+	 * （名前の順・ID の順・データの順を画面ごとに持たない）。一覧に無いもの（受け入れ前の新スキル・カスタムスキル）は
+	 * 末尾にまとめ、その中はツールの ID の順（compareSkillIds）。読めなかったときは全部が「一覧に無い」扱い（ID の順）。
+	 * ============================================================ */
+	const SKILL_DISPLAY_ORDER_PATH = 'data/skill-display-order.json';
+	let skillDisplayPos = null;   // Map(独自ID → 位置)。読めていない間は null
+	let skillDisplayOrderMeta = { loaded: false, ok: false, version: '', count: 0 };
+
+	async function loadSkillDisplayOrder(forceRefresh) {
+		try {
+			const data = await fetchMasterJson(withDataVersion(SKILL_DISPLAY_ORDER_PATH), !!forceRefresh);
+			const pos = new Map();
+			((data && data.entries) || []).forEach(e => { if (e && typeof e.id === 'string' && !pos.has(e.id)) pos.set(e.id, pos.size); });
+			if (pos.size === 0) throw new Error('empty');
+			skillDisplayPos = pos;
+			skillDisplayOrderMeta = { loaded: true, ok: true, version: data.dataVersion || '', count: pos.size };
+		} catch (e) {
+			skillDisplayPos = null;
+			skillDisplayOrderMeta = { loaded: true, ok: false, version: '', count: 0 };
+			try { global.console.warn('[UmaSkillDeck] スキルの既定の並びを読み込めませんでした（ツールの ID の順で並べます）。'); } catch (e2) {}
+		}
+		return skillDisplayOrderMeta;
+	}
+
+	/** 既定の並びの比べ方（Array.prototype.sort に渡す）。a・b は独自ID。一覧に無いものは後ろ・その中は ID の順 */
+	function compareGameOrder(a, b) {
+		const pa = skillDisplayPos ? skillDisplayPos.get(String(a)) : undefined;
+		const pb = skillDisplayPos ? skillDisplayPos.get(String(b)) : undefined;
+		if (pa !== undefined && pb !== undefined) return pa - pb;
+		if (pa !== undefined) return -1;
+		if (pb !== undefined) return 1;
+		return compareSkillIds(String(a), String(b));
+	}
+
+	async function loadMasterSkillsBody(forceRefresh, masterJsonPath) {
 		await loadExtraCatalog(forceRefresh);
 		await loadRaceDistances(forceRefresh);
 		await loadUpcomingRaces(forceRefresh);
@@ -2678,7 +2724,8 @@
 			}
 		}
 
-		const list = Array.from(items.values()).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+		// 並びは既定の並び（ゲーム内の並び。2026-10-27。それまでは名前の順）。①の表・①の小窓・オススメサポのカード名の小窓がこの順を使う
+		const list = Array.from(items.values()).sort((a, b) => compareGameOrder(a.skillId, b.skillId));
 		return { skillIds: list.filter(x => x.sure).map(x => x.skillId), items: list, members: members, unconfirmed: unconfirmed, missing: missing, sources: sources, events: events, infoEvents: infoEvents, resultEvents: resultEvents, acquireEvents: acquireEvents, fixedEvents: fixedEvents, scenario: scenario };
 	}
 
@@ -3358,7 +3405,7 @@
 		const countableGolds = [];
 		// ④・段9: 金スキル自身の条件タグがレースと食い違うときは、その金を点数に数えない（前段の白は白として数える＝expandIds はそのまま）
 		obtainable.forEach(id => { if (outsideIsGold(id) && ancestors(id).some(p => pop.set.has(p)) && !(pop.race && raceRejectsSkill(findSkill(id), pop.race))) countableGolds.push(id); });
-		countableGolds.sort();
+		countableGolds.sort(compareGameOrder);   // 既定の並び（2026-10-27。それまでは文字列の順）
 		const universe = pop.ids.concat(countableGolds);
 		const idx = new Map(universe.map((id, i) => [id, i]));
 		const W = Math.max(1, Math.ceil(universe.length / 32));
@@ -4163,8 +4210,8 @@
 	}
 
 	/**
-	 * 表の並び（段7e の (1)）。**金スキルの直下に、その前段の白スキルを置く。** 前段は前段データ（skill-step-up.json の「金 → 直前のスキル」）の直前だけを見る
-	 * （金かどうかは skill-pt.json の rarity）。前段の白が同じ表に出ているときだけ動かし、出ていなければ何もしない。
+	 * 表の並び（段7e の (1)）。**金スキルの直下に、その前段の白スキルを置く。** 前段は前段データ（skill-step-up.json の「金 → 直前のスキル」）を
+	 * いちばん下までさかのぼる（2026-10-27。それまでは直前だけ。①の小窓と同じさかのぼり方）（金かどうかは skill-pt.json の rarity）。前段の白が同じ表に出ているときだけ動かし、出ていなければ何もしない。
 	 * 1つの白スキルが複数の金スキルの前段になっているときは、先に出る金スキルの直下に置く。
 	 * 返り値は「単位」の配列。単位は [先頭の行, ...その直下に置く前段の白の行]。順序は元の並び（金スキルの位置）のまま。
 	 * データが読めていない画面（Deck 単体ページなど）では、1行ずつの単位（並びは変わらない）。
@@ -4177,17 +4224,30 @@
 		const byId = new Map(list.map(it => [it.skillId, it]));
 		const moved = new Set();
 		const under = new Map();
+		// 前段をいちばん下までさかのぼる（2026-10-27。①の小窓の「取得できるスキル」と同じさかのぼり方。それまでは直前の1段だけ）。
+		// 並びはさかのぼった順（金 → ◎ → ○）
+		const chainOf = (g) => {
+			const out = [], seen = new Set();
+			const walk = (id) => su.prevOf(id).forEach(p => { if (seen.has(p)) return; seen.add(p); out.push(p); walk(p); });
+			walk(g);
+			return out;
+		};
 		list.forEach(it => {
 			if (!isGold(it.skillId)) return;
+			const chain = chainOf(it.skillId);
+			const derived = (derivedByGold && derivedByGold.get(it.skillId)) || [];
 			const ws = [];
-			su.prevOf(it.skillId).forEach(p => {
+			chain.forEach(p => {
 				const w = byId.get(p);
-				if (w && !isGold(p) && !moved.has(p)) { moved.add(p); ws.push(w); }
+				if (w && !isGold(p) && !moved.has(p)) { moved.add(p); ws.push(w); return; }
+				// derivedByGold … 表に行が無い下位の白（derivedPrevRowsOf の合成の行）。さかのぼった順の位置に置く
+				const d = derived.find(x => x.skillId === p);
+				if (d && ws.indexOf(d) === -1) ws.push(d);
 			});
+			derived.forEach(d => { if (ws.indexOf(d) === -1) ws.push(d); });
 			if (ws.length > 0) under.set(it.skillId, ws);
 		});
-		// derivedByGold … 表に行が無い下位の白（derivedPrevRowsOf の合成の行）。金の直下に、表にある前段の白のあとへ足す
-		return list.filter(it => !moved.has(it.skillId)).map(it => [it].concat(under.get(it.skillId) || [], (derivedByGold && derivedByGold.get(it.skillId)) || []));
+		return list.filter(it => !moved.has(it.skillId)).map(it => [it].concat(under.get(it.skillId) || []));
 	}
 	/**
 	 * 表の行の色分け（段7e の (2)〜(5)）。判定はマスターの tags だけ（スキル名は決め打ちしない）。
@@ -4978,7 +5038,8 @@
 			if (at === 0) starts.push(p);
 			else if (at > 0) contains.push(p);
 		});
-		const byCloseness = (a, b) => (a.norm.length - b.norm.length) || a.name.localeCompare(b.name, 'ja');
+		// 入力に近い順（前方一致 → 部分一致、短い名前が先）。同じ近さの中は既定の並び（2026-10-27。それまでは名前の順）
+		const byCloseness = (a, b) => (a.norm.length - b.norm.length) || compareGameOrder(a.id, b.id);
 		starts.sort(byCloseness);
 		contains.sort(byCloseness);
 		const all = starts.concat(contains);
@@ -7567,7 +7628,9 @@
 		return masterSkills
 			// C-91: 拡張スキルは検索に出してよいもの（`searchableExtendedIds`）だけ。
 			// 母集団と「緑スキルを追加」の一覧の両方がここから作られるので、ここで外せば両方から外れる。
-			.concat(extraCatalog.filter(x => x.tags && isSearchableCatalogEntry(x)).map(x => ({ id: x.id, name: x.name, tags: x.tags, raceDistance: x.raceDistance })));
+			.concat(extraCatalog.filter(x => x.tags && isSearchableCatalogEntry(x)).map(x => ({ id: x.id, name: x.name, tags: x.tags, raceDistance: x.raceDistance })))
+			// 並びは既定の並び（2026-10-27。それまではマスター → 拡張の順）。条件で検索・緑スキルを追加・オススメサポの白がこの順
+			.sort((a, b) => compareGameOrder(a.id, b.id));
 	}
 
 	/** いまの「目標のレースの距離」の評価（入力の文字と、距離の軸で選んでいる区分から）。 */
@@ -8954,7 +9017,7 @@
 	 *   specified … レースを選んでいる（false なら全部「進化しない」で、「！」も出さない）。raceSelected も同じ値
 	 *   slots     … { a: パターンAの進化元の数（衣装自身の金スキルの数）, b: 2, max: a + 2 }
 	 *   a         … [{ baseId, baseFit, targets: [{ id, fit }], default: 進化先の id | 'none' | 'invalid', visible }]
-	 *   b         … { scenario, candidates: [baseId…（id の昇順）], entries: [同上＋ candidate], defaults: [baseId…（先頭2つ）], bang }
+	 *   b         … { scenario, candidates: [baseId…（既定の並び）], entries: [同上＋ candidate], defaults: [baseId…（id の小さい2つ）], bang }
 	 *   defaultChoices … { baseId: 進化先の id | 'none' }（無効のものは含めない）。A と B をまとめたもの
 	 *   count     … { a, b, max }（いま進化する数。choices が無ければ既定の数）
 	 *   choices   … { baseId: 進化先の id | 'none' }（いまの選択＝有効な保存値か既定。無効のものは含めない）。各行（a・b.entries）には choice（同じ値か 'invalid'）と stored（有効な保存値か null）も付く
@@ -9028,8 +9091,9 @@
 		const rowsB = scenarioKey ? (idx.byScenario.get(scenarioKey) || []) : [];
 		const bAll = rowsB.filter(r => taken.has(r.baseSkillId) && !aEvolved.has(r.baseSkillId)).map(judge);
 		const bPool = bAll.map(e => Object.assign({}, e, { candidate: specified && e._best !== null }));
-		const candidates = bPool.filter(e => e.candidate).map(e => e.baseId).sort(compareSkillIds);
-		const bDefaults = candidates.slice(0, EVO_B_LIMIT);
+		// 候補の並びは既定の並び（2026-10-27。それまでは ID の順）。既定で選ぶ2つは、これまでどおり ID の小さいほうから（並びだけを変える）
+		const candidates = bPool.filter(e => e.candidate).map(e => e.baseId).sort(compareGameOrder);
+		const bDefaults = candidates.slice().sort(compareSkillIds).slice(0, EVO_B_LIMIT);
 		bPool.forEach(e => { e.default = !specified ? 'none' : (bDefaults.indexOf(e.baseId) !== -1 ? e._best : (e.default === 'invalid' ? 'invalid' : 'none')); e.visible = e.default !== 'invalid'; });
 
 		// 保存された選択（B）。有効な保存値は既定より優先し、合わせて2つを超えたら id の大きいほうから戻す（既定で決まったものを先に）
@@ -9263,7 +9327,7 @@
 					if (r.evolvedSkillIds.indexOf(skillId) !== -1 && bases.indexOf(r.baseSkillId) === -1) bases.push(r.baseSkillId);
 				})));
 			}
-			bases.sort(compareSkillIds);
+			bases.sort(compareGameOrder);   // 既定の並び（2026-10-27。それまでは id の昇順）
 			const row = (cls, depth, text, strong) => {
 				const p = infoEl('p', 'usd-info-evorel-row ' + cls);
 				p.style.paddingLeft = depth ? (depth - 1) + 'em' : '';
@@ -10211,9 +10275,9 @@
 		function evoAEntries() {
 			return evoPlan.a.filter(e => e.choice !== 'invalid');
 		}
-		/** パターンBの候補の行（元スキルの id の昇順。いまの条件で選べる進化先を持つもの） */
+		/** パターンBの候補の行（元スキルの既定の並び〔2026-10-27。それまでは id の昇順〕。いまの条件で選べる進化先を持つもの） */
 		function evoBEntries() {
-			return evoPlan.b.entries.filter(e => e.choice !== 'invalid' && e.targets.some(t => t.fit !== 'no')).slice().sort((x, y) => compareSkillIds(x.baseId, y.baseId));
+			return evoPlan.b.entries.filter(e => e.choice !== 'invalid' && e.targets.some(t => t.fit !== 'no')).slice().sort((x, y) => compareGameOrder(x.baseId, y.baseId));
 		}
 		/**
 		 * 進化先の条件の表記（C-152）。**スキルの説明文にある＜…＞の文をそのまま**出す（＜中距離/長距離＞・＜作戦・先行＞ など）。
@@ -15646,6 +15710,9 @@
 		swipeDirectionOf: swipeDirectionOf,   // 左右スワイプでタブを切り替えるかの判定（special.html の①②③のタブと小窓のタブが共有）
 		circleComboOf: circleComboOf,   // ◎として数えている行の Pt（○の分と◎の分の合算。C-168）。検査のため
 		compareSkillIds: compareSkillIds,
+		// スキルの既定の並び（2026-10-27）。各画面と skillset-ocr.js はこれだけを呼ぶ
+		compareGameOrder: compareGameOrder,
+		getSkillDisplayOrderMeta: function () { return Object.assign({}, skillDisplayOrderMeta); },
 		getSkillTextIndexSize: function (opts) { return buildSkillTextIndex(opts).length; },
 		isLowEffectSkill: isLowEffectSkill,
 		SKILL_RARITY_LABELS: SKILL_RARITY_LABELS,

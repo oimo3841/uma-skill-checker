@@ -2063,6 +2063,41 @@
 		 * マスターの表記（右回り○）でも同じ ID に着く。将来 Deck から来た名前で
 		 * skillList が差し替わっても、sp70緑・緑59種の集計が数え落とさないための備え。
 		 * ------------------------------------------------------------ */
+		// ①の「一覧を確認する」の表示の並び（スキルの既定の並び＝ゲーム内の並び。2026-10-27・おいもさんの決定）。
+		// 正本は data/skill-display-order.json。exam は core を読まず file:// でも動く決まりなので、一覧に出る名前（133種・広げる5種・
+		// シナリオ因子・遺伝子）をこの順で埋め込む。食い違いは test:norm が見張る。**変えるのは一覧の表示の順だけ**
+		// （コピー・②の表・結合画像・sp70緑・緑59種は、これまでどおり EXAM_SKILL_LIST などの並び）。
+		const EXAM_REGISTRY_DISPLAY_ORDER = [
+			'右回り〇', '左回り〇', '東京レース場〇', '中山レース場〇', '阪神レース場〇', '京都レース場〇',
+			'中京レース場〇', '札幌レース場〇', '函館レース場〇', '福島レース場〇', '新潟レース場〇', '小倉レース場〇',
+			'根幹距離〇', '非根幹距離〇', '良バ場〇', '道悪〇', '春ウマ娘〇', '夏ウマ娘〇',
+			'秋ウマ娘〇', '冬ウマ娘〇', '晴れの日〇', '曇りの日〇', '雨の日〇', '雪の日〇',
+			'内枠得意〇', '外枠得意〇', 'おひとり様〇', '対抗意識〇', '徹底マーク〇', '伏兵〇',
+			'集中力', 'ポジションセンス', '臨機応変', '先駆け', 'トリック(前)', 'トリック(後)',
+			'逃げ駆け引き', '先行駆け引き', '差し駆け引き', '追込駆け引き', '逃げけん制', '逃げ焦り',
+			'逃げためらい', '先行けん制', '先行焦り', '先行ためらい', '差しけん制', '差し焦り',
+			'差しためらい', '追込けん制', '追込焦り', '追込ためらい', '大井レース場〇', '短距離直線〇',
+			'短距離コーナー〇', '仕掛け準備', 'マイル直線〇', 'マイルコーナー〇', '負けん気', '中距離直線〇',
+			'中距離コーナー〇', 'ホークアイ', 'イナズマステップ', '長距離直線〇', '長距離コーナー〇', '目くらまし',
+			'逃げ直線〇', '逃げコーナー〇', '危険回避', 'リスタート', '先行直線〇', '先行コーナー〇',
+			'巧みなステップ', '直滑降', 'まき直し', 'かく乱', '差し直線〇', '差しコーナー〇',
+			'がんばり屋', '十万バリキ', '読解力', '追込直線〇', '追込コーナー〇', 'お見通し',
+			'策士', '逃げのコツ〇', '先行のコツ〇', '差しのコツ〇', '追込のコツ〇', 'ラッキーセブン',
+			'地固め', '尻尾上がり', 'ふり絞り', 'シンパシー', '一匹狼', '前列狙い',
+			'あやしげな作戦', '川崎レース場〇', '船橋レース場〇', '盛岡レース場〇', 'ナイター〇', '小回り〇',
+			'交流重賞〇', '踏み込み上手', '泥遊び〇', '土煙', '一番乗り', '探求心',
+			'ロンシャンレース場〇', '急発進', '直線コース〇', '瞬発力', '風切り', '無二',
+			'無三', 'ダート直線〇', 'ダートコーナー〇', '熱狂的', '光差す方へ', '駆け降り',
+			'登竜門', '影を追って', '精神力', '弾ける足取り', '急降下', '華麗な足取り',
+			'余勢を駆って', 'サンタアニタパークレース場〇', 'デルマーレース場〇', '実直な走り', 'ポイントマン', '勝負勘',
+			'URAシナリオ', 'アオハル杯シナリオ', 'クライマックスシナリオ', 'グランドライブシナリオ', 'グランドマスターズシナリオ', "L'Arcシナリオ",
+			'U.A.F.シナリオ・スフィア', 'U.A.F.シナリオ・ファイト', 'U.A.F.シナリオ・フリー', '豊食祭シナリオ・にんじん', '豊食祭シナリオ・にんにく', '豊食祭シナリオ・じゃがいも',
+			'豊食祭シナリオ・唐辛子', '豊食祭シナリオ・いちご', 'メカウマ娘シナリオ・SPD', 'メカウマ娘シナリオ・STM', 'メカウマ娘シナリオ・POW', 'メカウマ娘シナリオ・GUTS',
+			'メカウマ娘シナリオ・WIT', 'Legendsシナリオ', '無人島シナリオ', '温泉郷シナリオ', 'Dreamsシナリオ', 'トレセン軒シナリオ',
+			'駿大祭シナリオ', '芝の遺伝子', 'ダートの遺伝子', '短距離の遺伝子', 'マイルの遺伝子', '中距離の遺伝子',
+			'長距離の遺伝子', '逃げの遺伝子', '先行の遺伝子', '差しの遺伝子', '追込の遺伝子', '右回りの目覚め',
+			'左回りの目覚め', '春の目覚め', '夏の目覚め', '秋の目覚め', '冬の目覚め'
+		];
 		const EXAM_SKILL_NAMES = EXAM_SKILL_LIST.map(s => s.name);
 		const EXPANDED_EXTRA_SKILL_NAMES = EXPANDED_EXTRA_SKILL_LIST.map(s => s.name);
 		const EXAM_NAME_BY_ID = {};
@@ -2744,7 +2779,7 @@
 		 *
 		 * 戻り値: [{ name, state }] … state は 'normal' | 'scopeAdded' | 'scopeRemoved'
 		 */
-		function buildSkillRegistryRows() {
+		function buildSkillRegistryRows(forDisplay) {
 			const rows = [];
 			// 効率で選ぶ（C-136）：効率の対象（入れている区間の行。並びのデータの順）を、区間の蹄鉄つきで並べる
 			if (targetScopeMode === 'efficiency') {
@@ -2767,7 +2802,14 @@
 			}
 			activeScenarioFactors().forEach(name => rows.push({ name: name, state: 'normal', group: 'factor' }));
 			activeAptitudeGenes().forEach(name => rows.push({ name: name, state: 'normal', group: 'gene' }));
-			return registrySortRows(rows);
+			return registrySortRows(forDisplay ? registryDisplayOrder(rows) : rows);
+		}
+
+		// 一覧の表示の並び（2026-10-27）。EXAM_REGISTRY_DISPLAY_ORDER の順。無い名前は後ろ（元の並びのまま）。効率を指定のときは使わない（シートの順のまま）
+		const EXAM_REGISTRY_DISPLAY_POS = new Map(EXAM_REGISTRY_DISPLAY_ORDER.map((n, i) => [n, i]));
+		function registryDisplayOrder(rows) {
+			const posOf = r => (EXAM_REGISTRY_DISPLAY_POS.has(r.name) ? EXAM_REGISTRY_DISPLAY_POS.get(r.name) : Infinity);
+			return rows.map((r, i) => ({ r: r, i: i, p: posOf(r) })).sort((a, b) => (a.p === b.p ? a.i - b.i : (a.p < b.p ? -1 : 1))).map(x => x.r);
 		}
 
 		/* 「効率の高い順」（微調整1・A(6)）。初期は OFF・状態は保存しない（開き直すと OFF）。
@@ -2825,7 +2867,7 @@
 		}
 
 		function renderSkillRegistryList() {
-			const rows = buildSkillRegistryRows();
+			const rows = buildSkillRegistryRows(true);
 			const legend = document.getElementById('registry-legend');
 			if (legend) legend.innerHTML = buildSkillRegistryLegend(rows);
 			const box = document.getElementById('skill-registry-list');

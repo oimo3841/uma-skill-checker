@@ -26,7 +26,7 @@
  * （{ raw, norm, kind:'exact'|'review'|'none', matchedId, matchedName, candidates:[{id,name,distance}] }）。
  * 曖昧な行はこの形のまま Deck の貼り付けピッカーへ渡す（決定 A-8。core 側の口はコミット3）。
  */
-const SKILLSET_OCR_JS_VERSION = '2026-09-14b';
+const SKILLSET_OCR_JS_VERSION = '2026-10-27a';
 
 (function (global) {
 	'use strict';
@@ -638,7 +638,16 @@ const SKILLSET_OCR_JS_VERSION = '2026-09-14b';
 			var allDecided = r.candidates.length > 0 && r.candidates.every(function (c) { return c.id && byId.has(c.id); });
 			if (!allDecided) rows.push(r);
 		});
-		rows.sort(function (a, b) { return rank(a) - rank(b) || (a.matchedName || a.raw).localeCompare(b.matchedName || b.raw, 'ja'); });
+		// 並び：確定 → 確認 → 読めない（状態の順）。同じ状態の中は、スキルが決まった行どうしなら既定の並び（core の compareGameOrder。2026-10-27）、
+		// それ以外は名前の順（core を読まない場面〔node の検査〕では、これまでどおり名前の順）
+		var core = global.UmaSkillDeckCore;
+		var gameOrder = (core && typeof core.compareGameOrder === 'function') ? core.compareGameOrder : null;
+		rows.sort(function (a, b) {
+			return rank(a) - rank(b)
+				|| (gameOrder && a.matchedId && b.matchedId ? gameOrder(a.matchedId, b.matchedId) : 0)
+				|| (gameOrder && (!!a.matchedId !== !!b.matchedId) ? (a.matchedId ? -1 : 1) : 0)
+				|| (a.matchedName || a.raw).localeCompare(b.matchedName || b.raw, 'ja');
+		});
 
 		var accepted = rows.filter(function (r) { return r.kind === 'exact' || (r.kind === 'review' && r.autoAccepted); });
 		var review = rows.filter(function (r) { return !(r.kind === 'exact' || (r.kind === 'review' && r.autoAccepted)); });

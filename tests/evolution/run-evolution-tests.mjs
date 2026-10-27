@@ -162,9 +162,10 @@ const table = await page.evaluate(({ umaInputs, scenarioBases, raceRows, synthRa
 					if (p.b.bang || p.b.candidates.length > 0 || p.b.defaults.length > 0) v('レース未選択なのに B の候補・「！」が出た', where);
 					if (p.a.concat(p.b.entries).some((e) => e.default === 'invalid')) v('レース未選択なのに無効の行がある', where);
 				}
-				const asc = p.b.candidates.slice().sort(C.compareSkillIds);
-				if (JSON.stringify(asc) !== JSON.stringify(p.b.candidates)) v('B の候補が id の昇順でない', where);
-				if (JSON.stringify(p.b.defaults) !== JSON.stringify(p.b.candidates.slice(0, 2))) v('B の既定が id 昇順の先頭2つでない', where);
+				// 2026-10-27: 候補の並びは既定の並び（compareGameOrder。それまでは id の昇順）。既定で選ぶ2つは、これまでどおり id の小さい2つ
+				const inOrder = p.b.candidates.slice().sort(C.compareGameOrder);
+				if (JSON.stringify(inOrder) !== JSON.stringify(p.b.candidates)) v('B の候補が既定の並びでない', where);
+				if (JSON.stringify(p.b.defaults) !== JSON.stringify(p.b.candidates.slice().sort(C.compareSkillIds).slice(0, 2))) v('B の既定が id 昇順の先頭2つでない', where);
 				if (p.b.bang !== (!!cd.race && p.b.candidates.length >= 3)) v('「！」の条件が違う', where);
 				if (p.b.bang) bangs++;
 				p.a.concat(p.b.entries).forEach((e) => {
