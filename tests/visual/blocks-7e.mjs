@@ -289,7 +289,9 @@ export async function register7e(env) {
 			const stitch = await sp.page.evaluate(() => { const d = document.createElement('i'); d.style.background = 'var(--uma-stitch-soft)'; document.body.appendChild(d); const c = getComputedStyle(d).backgroundColor; d.remove(); return c; });
 			const R = (id) => rows.find((r) => r.id === id);
 			const isText = (r, c) => rgb(r.nameColor).join() === c.join();
-			const defaultName = rows.find((r) => !SPEC[r.id] && !r.off).nameColor;
+			// 基準の「既定の濃さ」は、仕込みに無く色の付かない行から取る（2026-10-27: 並びが既定の並びになり、仕込みに無い最初の行が色の付く行になったため）
+			const toned = (r) => [COLORS.healText, COLORS.debuffText, COLORS.passiveText].some((c) => rgb(r.nameColor).join() === c.join());
+			const defaultName = rows.find((r) => !SPEC[r.id] && !r.off && !toned(r)).nameColor;
 			assert(R(W[0]).rowBgImage.includes('linear-gradient') && R(W[0]).bgs.every((b) => b === 'rgba(0, 0, 0, 0)') && isText(R(W[0]), COLORS.healText), tag + '固有で回復: 地は固有のグラデーション（回復の水色ではない）、名前は青', R(W[0]) && [R(W[0]).nameColor, R(W[0]).rowBgImage.slice(0, 30)]);
 			assert(R(W[1]).bgs.every((b) => b === stitch) && isText(R(W[1]), COLORS.healText), tag + '金で回復: 地は金のまま、名前だけ青', [R(W[1]).bgs[0], R(W[1]).nameColor]);
 			// 段8（C-120）で回復の行の水色の地をやめたので、地は白（名前の青だけで示す）

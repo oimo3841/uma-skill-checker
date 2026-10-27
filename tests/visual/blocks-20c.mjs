@@ -43,12 +43,15 @@ export async function register20c(env) {
 					const r = await page.evaluate(() => {
 						const rows = [...document.querySelectorAll('#skill-registry-list > div')].map((d) => ({ name: d.children[1].firstElementChild.textContent, removed: !!d.querySelector('.registry-removed'), eff: d.querySelector('.registry-eff') ? d.querySelector('.registry-eff').textContent : '' }));
 						const lines = document.getElementById('skill-copy-textarea').value.split('\n').map((l) => l.split('\t'));
-						return { rows, lines, F: SCENARIO_INHERITANCE_FACTORS.length, G: APTITUDE_GENES.length };
+						// 2026-10-27: 一覧の表示は既定の並び、コピーは従来の並び（buildSkillRegistryRows()）。顔ぶれは同じ
+						const copyOrder = buildSkillRegistryRows().filter((x) => x.state !== 'scopeRemoved').map((x) => x.name);
+						return { rows, lines, copyOrder, F: SCENARIO_INHERITANCE_FACTORS.length, G: APTITUDE_GENES.length };
 					});
-					const want = r.rows.filter((x) => !x.removed);
+					const shown = new Map(r.rows.filter((x) => !x.removed).map((x) => [x.name, x]));
+					const want = r.copyOrder.length === shown.size ? r.copyOrder.map((n) => shown.get(n) || { name: '（一覧に無い）' + n, eff: '' }) : [];
 					const tag = '(' + mode + '・因子' + (fact ? 'あり' : 'なし') + '・遺伝子' + (gene ? 'あり' : 'なし') + '・並べ替え' + (sort ? 'ON' : 'OFF') + ')';
 					assert(r.lines.length === want.length && r.lines.every((c, i) => c.length === 2 && c[0] === want[i].name && c[1] === want[i].eff) && want.length > 100,
-						'微調整2C1' + tag + ': コピーの行は一覧の行と同じ（名前・並び・効率。2列のタブ区切り。効率の無い行は2列目が空。外した行は入らない）', { lines: r.lines.length, rows: want.length, head: r.lines.slice(0, 2) });
+						'微調整2C1' + tag + ': コピーの行は一覧の行と同じ（名前・効率。並びは従来の並び〔2026-10-27〕。2列のタブ区切り。効率の無い行は2列目が空。外した行は入らない）', { lines: r.lines.length, rows: want.length, head: r.lines.slice(0, 2) });
 					if (sort) {
 						const effs = r.lines.filter((c) => c[1] !== '').map((c) => Number(c[1]));
 						// シナリオ因子・遺伝子（効率なし）は末尾に回り、効率のあるスキルは降順

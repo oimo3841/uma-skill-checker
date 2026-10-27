@@ -337,8 +337,11 @@ export async function register19(env) {
 			// 微調整2のC: コピーは一覧に出している行と同じ（並びも一覧のとおり）。「対象を絞る」で外した行（取り消し線）だけは対象ではないので入らない
 			const removed = await page.evaluate(() => [...document.querySelectorAll('#skill-registry-list .registry-removed')].map((e) => e.textContent));
 			const onMilli = new Map(on.rows.map((r) => [r.name, r.milli]));
-			const wantCopy = on.rows.map((r) => r.name).filter((n) => !removed.includes(n));
-			const base = off.map((r) => r.name).filter((n) => !removed.includes(n));
+			// 2026-10-27: 一覧の表示は既定の並び、コピーは従来の並び（buildSkillRegistryRows()）。顔ぶれは一覧と同じ
+			const copyOrderOf = () => page.evaluate(() => buildSkillRegistryRows().filter((x) => x.state !== 'scopeRemoved').map((x) => x.name));
+			const wantCopy = await copyOrderOf();
+			const sameSet = (a, b) => JSON.stringify(a.slice().sort()) === JSON.stringify(b.slice().sort());
+			if (!sameSet(wantCopy, on.rows.map((r) => r.name).filter((n) => !removed.includes(n)))) wantCopy.push('（一覧と顔ぶれが違う）');
 			const eff0 = (n) => (onMilli.get(n) === undefined ? null : onMilli.get(n));
 			assert(copyOn.every((c) => c.length === 2) && JSON.stringify(nm) === JSON.stringify(wantCopy) && wantCopy.length > 100
 				&& copyOn.every((c) => c[1] === (eff0(c[0]) === null ? '' : (eff0(c[0]) / 1000).toFixed(3))),
@@ -347,6 +350,8 @@ export async function register19(env) {
 			await page.click('#registry-sort-btn');
 			const back = await page.evaluate(() => [...document.querySelectorAll('#skill-registry-list > div')].map((d) => d.querySelector('span:not(.w-3\\.5) span').textContent));
 			const copyOff = await page.evaluate(() => document.getElementById('skill-copy-textarea').value.split('\n').map((l) => l.split('\t')[0]));
+			const base = await copyOrderOf();
+			if (!sameSet(base, off.map((r) => r.name).filter((n) => !removed.includes(n)))) base.push('（一覧と顔ぶれが違う）');
 			assert(JSON.stringify(back) === JSON.stringify(off.map((r) => r.name)) && JSON.stringify(copyOff) === JSON.stringify(base),
 				'微調整1A6(' + mode + '): OFF に戻すと一覧もコピーも元の並び（コピーの2列目は OFF でも出す）', { n: back.length });
 		}
@@ -363,8 +368,9 @@ export async function register19(env) {
 			toggleRegistrySort();
 			const onRows = [...document.querySelectorAll('#skill-registry-list > div')].map((d) => ({ name: d.children[1].firstElementChild.textContent, has: d.querySelectorAll('.registry-eff').length === 1 }));
 			const copy = document.getElementById('skill-copy-textarea').value.split('\n').map((l) => l.split('\t'));
+			const copyOrder = buildSkillRegistryRows().map((x) => x.name);   // 2026-10-27: コピーは従来の並び（一覧の表示は既定の並び）
 			toggleRegistrySort();
-			return { names, offRows, onRows, copy, F: SCENARIO_INHERITANCE_FACTORS.length, G: APTITUDE_GENES.length };
+			return { names, offRows, onRows, copy, copyOrder, F: SCENARIO_INHERITANCE_FACTORS.length, G: APTITUDE_GENES.length };
 		});
 		{
 			const k = noEff.onRows.findIndex((r) => !r.has);
@@ -376,7 +382,7 @@ export async function register19(env) {
 				'微調整1A6(効率の無いスキル): 効率のあるスキルの後ろ・シナリオ因子の前に、元の並びのまま並ぶ', { names: noEff.names, k, lastWith, tail: tail.map((r) => r.name) });
 			const cNames = noEff.copy.map((c) => c[0]);
 			const cTail = noEff.copy.slice(lastWith + 1, nSkill);
-			assert(JSON.stringify(cNames) === JSON.stringify(noEff.onRows.map((r) => r.name)) && cTail.every((c) => c.length === 2 && c[1] === '') && noEff.copy.slice(0, lastWith + 1).every((c) => /^\d+\.\d{3}$/.test(c[1])),
+			assert(JSON.stringify(cNames) === JSON.stringify(noEff.copyOrder) && JSON.stringify(cNames.slice().sort()) === JSON.stringify(noEff.onRows.map((r) => r.name).sort()) && cTail.every((c) => c.length === 2 && c[1] === '') && noEff.copy.slice(0, lastWith + 1).every((c) => /^\d+\.\d{3}$/.test(c[1])),
 				'微調整1A6(効率の無いスキル): コピーも同じ並びで、効率の無い行は2列目が空', { tail: cTail });
 		}
 		await page.evaluate(() => { window.__effSaved.forEach(([id, v]) => effValueById.set(String(id), v)); renderSkillRegistryList(); renderSkillCopyTextarea(); });

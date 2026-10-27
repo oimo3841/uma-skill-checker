@@ -90,7 +90,7 @@ export async function register22(env) {
 				mask: ms, effFull: eff ? eff.scrollWidth <= eff.clientWidth + 0.5 && E.right <= R.right + 0.5 : true, sep: E ? N.right <= E.left + 0.5 : true,
 				lines: Math.round(N.height / parseFloat(getComputedStyle(name).lineHeight)), nameNat: name.scrollWidth };
 		});
-		const wantNames = buildSkillRegistryRows().map((r) => r.name);
+		const wantNames = buildSkillRegistryRows(true).map((r) => r.name);   // 一覧の表示の並び（2026-10-27。既定の並び）
 		return { rows, wantNames, listH: list.scrollHeight };
 	});
 

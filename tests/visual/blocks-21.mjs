@@ -47,15 +47,17 @@ export async function register21(env) {
 						const hint = document.getElementById('skill-copy-hint').textContent;
 						const rows = [...document.querySelectorAll('#skill-registry-list > div')].filter((d) => !d.querySelector('.registry-removed')).map((d) => d.children[1].firstElementChild.textContent);
 						const lines = document.getElementById('skill-copy-textarea').value.split('\n');
-						return { head, hint, rows, names: lines.map((l) => l.split('\t')[0]), cols: lines.map((l) => l.split('\t').length), F: activeScenarioFactors().length, G: activeAptitudeGenes().length };
+						// 2026-10-27: 一覧の表示は既定の並び、コピーは従来の並び（buildSkillRegistryRows()）。顔ぶれは同じ
+						const copyOrder = buildSkillRegistryRows().filter((x) => x.state !== 'scopeRemoved').map((x) => x.name);
+						return { head, hint, rows, copyOrder, names: lines.map((l) => l.split('\t')[0]), cols: lines.map((l) => l.split('\t').length), F: activeScenarioFactors().length, G: activeAptitudeGenes().length };
 					});
 					const tag = '(' + range + '・因子' + (fact ? 'あり' : 'なし') + '・遺伝子' + (gene ? 'あり' : 'なし') + '・並べ替え' + (sort ? 'ON' : 'OFF') + ')';
 					const hm = r.head.match(/^対象スキル(\d+)種(.*)の一覧を確認する$/), cm = r.hint.match(/^スキル(\d+)種(.*)・ (\d+)行$/);
 					assert(hm && cm && hm[1] === cm[1] && hm[2] === cm[2] && Number(hm[1]) > 100,
 						'微調整3A1' + tag + ': 一覧の見出し「' + r.head + '」とコピー欄「' + r.hint + '」の種数（スキル・シナリオ因子・遺伝子）が一致', { head: r.head, hint: r.hint });
 					const skills = cm ? Number(cm[1]) : -1;
-					assert(cm && Number(cm[3]) === r.names.length && r.names.length === skills + r.F + r.G && r.cols.every((c) => c === 2) && JSON.stringify(r.names) === JSON.stringify(r.rows),
-						'微調整3A1' + tag + ': 行数 ' + r.names.length + ' ＝ 種数の合計（' + skills + '＋' + r.F + '＋' + r.G + '）・並びは一覧と同じ・2列', { lines: r.names.length, skills, F: r.F, G: r.G });
+					assert(cm && Number(cm[3]) === r.names.length && r.names.length === skills + r.F + r.G && r.cols.every((c) => c === 2) && JSON.stringify(r.names) === JSON.stringify(r.copyOrder) && JSON.stringify(r.names.slice().sort()) === JSON.stringify(r.rows.slice().sort()),
+						'微調整3A1' + tag + ': 行数 ' + r.names.length + ' ＝ 種数の合計（' + skills + '＋' + r.F + '＋' + r.G + '）・顔ぶれは一覧と同じ・並びは従来の並び（2026-10-27）・2列', { lines: r.names.length, skills, F: r.F, G: r.G });
 					checked++;
 				}
 			}

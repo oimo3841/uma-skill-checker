@@ -84,7 +84,8 @@ export async function register56(env) {
 
 	// 変更前（966ea94）で実測した固定値: R 2枚（card-0002・card-0566）・SR 2枚（card-0147・card-0149）・SSR 2枚の編成。390・1280 とも同じ
 	const SAVED = { umaId: 'uma-0179', cardIds: ['card-0002', 'card-0566', 'card-0147', 'card-0149', 'card-0402', 'card-0248'], skillFilter: {} };
-	const BEFORE = { total: '6,447', rows: 52, rowsHash: 'a4ff69b4fad1a04a',
+	// 2026-10-27（スキルの既定の並び）: rowsHash は並びが変わったので変更後の値（a4ff69b4fad1a04a→fd7ef33c3080726e）。rowsCanon は並べ替えた形で、変更前 d2e8499 で測った値
+	const BEFORE = { total: '6,447', rows: 52, rowsHash: 'fd7ef33c3080726e', rowsCanon: '4e60dd9d3e2cb5f7',
 		tiles: ['[トレセン学園]サイレンススズカ×', '[巫女]吾妻×', '[やれやれ、お帰り]フジキセキ×', '[テッペンに立て！]ヒシアマゾン×', "[L'aubeは迫りて]佐岳メイ×", '[日本一のステージを]スペシャルウィーク×'] };
 	await block('J作業3(2) 保存済みの①の編成の R・SR はそのまま表示し、計算も変わらない（変更前の実測と同じ。390・1280）', async () => {
 		for (const w of [390, 1280]) {
@@ -98,8 +99,10 @@ export async function register56(env) {
 				saved: JSON.parse(localStorage.getItem('umaSkillDeck:draftRoster:special') || '{}').cardIds,
 				hscroll: document.documentElement.scrollWidth > window.innerWidth + 1 }));
 			const hash = crypto.createHash('md5').update(r.rows.join(',')).digest('hex').slice(0, 16);
+			// 2026-10-27: 並べ替えた形（顔ぶれだけ）のハッシュ。並びは既定の並びに変わったので、顔ぶれが変更前と同じことはこちらで見る
+			const canon = crypto.createHash('md5').update(r.rows.slice().sort().join(',')).digest('hex').slice(0, 16);
 			assert(JSON.stringify(r.tiles) === JSON.stringify(BEFORE.tiles) && JSON.stringify(r.saved) === JSON.stringify(SAVED.cardIds), tag + 'タイルに R・SR のカードがそのまま出て、保存データも変わらない', { tiles: r.tiles, saved: r.saved });
-			assert(r.total === BEFORE.total && r.rows.length === BEFORE.rows && hash === BEFORE.rowsHash, tag + '合計Pt ' + BEFORE.total + '・表の行 ' + BEFORE.rows + '（並びも同じ）は変更前と同じ', { total: r.total, rows: r.rows.length, hash });
+			assert(r.total === BEFORE.total && r.rows.length === BEFORE.rows && hash === BEFORE.rowsHash && canon === BEFORE.rowsCanon, tag + '合計Pt ' + BEFORE.total + '・表の行 ' + BEFORE.rows + '（顔ぶれは変更前と同じ。並びは既定の並び〔2026-10-27〕）', { total: r.total, rows: r.rows.length, hash, canon });
 			assert(!r.hscroll && jsErrors(sp.errors).length === 0, tag + '横スクロールなし・コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 			await sp.ctx.close();
 		}
@@ -160,11 +163,16 @@ export async function register56(env) {
 	 * 固定値は、変更前の commit 9926259 で同じ読み方をして測ったもの（1280px）。R1＝吾妻 SSR（card-0564）・R2＝吾妻 R（card-0566。変更前は列のメニューに「イベント/スキル」が無かった） ---- */
 	const SCEN_DOC = readJson('data/scenario-event-skills.json');
 	const md5 = (s) => crypto.createHash('md5').update(s).digest('hex').slice(0, 16);
+	// 2026-10-27（スキルの既定の並び）: 小窓の右の一覧の行（li）を並べ替えた形。顔ぶれが変更前と同じことを、並びに左右されずに見る
+	const canonHtml = (h) => (h ? h.replace(/<li\b[\s\S]*?<\/li>/g, '') + (h.match(/<li\b[\s\S]*?<\/li>/g) || []).sort().join('') : h);
+	const canonCol = (x) => Object.assign({}, x, { right: canonHtml(x.right), rightText: undefined });
 	const R1 = ['card-0564', 'card-0565', 'card-0402', 'card-0248', 'card-0535', 'card-0478'];
 	const R2 = ['card-0566', 'card-0002', 'card-0147', 'card-0149', 'card-0402', 'card-0248'];
+	// 2026-10-27（スキルの既定の並び）: rowsHash・othersHash・rightHash は並びが変わったので変更後の値（R1 a50791516eb2f219→7d0680abed707734・c8fba2eca29f0fb3→660b4c21a38f7b0e・3527d527ab1ddb48→7f6f2e2784733e3d／
+	// R2 0dfc95b7c8ce1790→79a1441f58d1a638・a8e4ccb9e6a2180d→8d44a49c6384c5e9）。*Canon は並べ替えた形で、変更前 d2e8499 で測った値（変更後も同じ＝変わったのは並びだけ）
 	const BEFORE4 = {
-		R1: { total: '8,959', rows: 83, rowsHash: 'a50791516eb2f219', othersHash: 'c8fba2eca29f0fb3', leftHash: '3bd3bc372ae83bc7', rightHash: '3527d527ab1ddb48' },
-		R2: { total: '7,162', rows: 61, rowsHash: '0dfc95b7c8ce1790', othersHash: 'a8e4ccb9e6a2180d' }
+		R1: { total: '8,959', rows: 83, rowsHash: '7d0680abed707734', othersHash: '660b4c21a38f7b0e', leftHash: '3bd3bc372ae83bc7', rightHash: '7f6f2e2784733e3d', rowsCanon: '3fb5aa9f2c2a65d2', othersCanon: 'be6076a4d4de2659', rightCanon: '2482a4e3438cc9ad' },
+		R2: { total: '7,162', rows: 61, rowsHash: '79a1441f58d1a638', othersHash: '8d44a49c6384c5e9', rowsCanon: '14e40cb2351ce84e', othersCanon: '5476187973a5f043' }
 	};
 	const dumpCols = async (cards) => {
 		const sp = await openPage(browser, base, 'special.html', { width: 1280, height: 900 }, EMPTY);
@@ -212,13 +220,14 @@ export async function register56(env) {
 			const scenBox = (o.cols.scenario && o.cols.scenario.fixed) || [];
 			assert(c && c.menu && box.length === 1 && box[0].title === '固定イベント（' + WHEN + '） 確定' && JSON.stringify(box[0].skills) === JSON.stringify(['末脚 Lv3']) && scenBox.length > 0 && box[0].cls === scenBox[0].cls,
 				tag + '吾妻の列の小窓の左に「固定イベント（' + WHEN + '）」「確定」・末脚 Lv3 の箱（シナリオの固定のイベントの箱と同じ class）', { box, scen: scenBox[0] && scenBox[0].cls });
-			assert(o.table.total === want.total && o.table.rows.length === want.rows && md5(o.table.rows.join('\n')) === want.rowsHash, tag + '表の行（' + want.rows + '）と合計Pt（' + want.total + '）は変更前と同じ', { total: o.table.total, rows: o.table.rows.length });
+			assert(o.table.total === want.total && o.table.rows.length === want.rows && md5(o.table.rows.join('\n')) === want.rowsHash && md5(o.table.rows.slice().sort().join('\n')) === want.rowsCanon, tag + '表の行（' + want.rows + '）と合計Pt（' + want.total + '）は変更前と同じ', { total: o.table.total, rows: o.table.rows.length });
 			const others = Object.keys(o.cols).filter((k) => k !== '1').sort().map((k) => k + ':' + JSON.stringify(o.cols[k])).join('\n');
-			assert(md5(others) === want.othersHash, tag + 'ほかの列（サポカ5枚・育成ウマ娘・シナリオ）の小窓の中身は変更前と同じ', md5(others));
+			const othersCanon = Object.keys(o.cols).filter((k) => k !== '1').sort().map((k) => k + ':' + JSON.stringify(canonCol(o.cols[k]))).join('\n');
+			assert(md5(others) === want.othersHash && md5(othersCanon) === want.othersCanon, tag + 'ほかの列（サポカ5枚・育成ウマ娘・シナリオ）の小窓の中身は変更前と同じ（右の一覧の並びは既定の並び〔2026-10-27〕）', { raw: md5(others), canon: md5(othersCanon), rows: md5(o.table.rows.join('\n')), rowsCanon: md5(o.table.rows.slice().sort().join('\n')), left: c && c.left ? md5(c.left) : null, right: c && c.right ? md5(c.right) : null, rightCanon: c && c.right ? md5(canonHtml(c.right)) : null });
 			if (want.leftHash) {
 				const b = c.left.indexOf('<div class="usd-roster-event" data-usd-el="event-fixed">');
 				const stripped = b >= 0 ? c.left.slice(0, b) + c.left.slice(c.left.lastIndexOf('</div></section>') + 6) : c.left;
-				assert(md5(stripped) === want.leftHash && md5(c.right) === want.rightHash, tag + '吾妻の列の小窓は、変更前の中身の後ろに固定の箱が足されただけ（右の一覧は同じ）', true);
+				assert(md5(stripped) === want.leftHash && md5(c.right) === want.rightHash && md5(canonHtml(c.right)) === want.rightCanon, tag + '吾妻の列の小窓は、変更前の中身の後ろに固定の箱が足されただけ（右の一覧の顔ぶれは同じ。並びは既定の並び〔2026-10-27〕）', { stripped: md5(stripped), right: md5(c.right), rightCanon: md5(canonHtml(c.right)) });
 			}
 			assert(Object.values(o.cols).every((x) => !x.hscroll) && o.errors.length === 0, tag + '横スクロールなし・コンソールのエラー0', o.errors.slice(0, 3));
 		}

@@ -66,27 +66,35 @@ export async function register32(env) {
 	// 2026-10-27（セッションJ・skill-step-up 2026-10-27a の受け入れ）: solo271 は 0f5ec6f98a9edf30 から a3dd7632add101c0 に変わった。変わったのは uma-0271（ドゥラメンテ）の1行だけ:
 	// 足した組（抜山蓋世 ex-1672 ← 規格外 ex-1673）で、金と下位の白が1種として数えられ、種数（kinds）が 14 → 13。合計 Pt 1,942 は同じ。
 	// skill-step-up だけを 2026-10-02b に戻すと 0f5ec6f98a9edf30 に戻る（一致を確かめた）。real・r2・vary は変わらない
-	const HASH = { solo271: 'a3dd7632add101c0', real: 'c233a84f582ba98d', r2: '2e74a955752d79c6', vary: '49545117935c03cb' };
+	// 2026-10-27（スキルの既定の並び）: 4つとも変わった（solo271 a3dd7632add101c0→710f4b24fcf599ba・real c233a84f582ba98d→6f5751aefc620b91・r2 2e74a955752d79c6→8a6d02ef2b0937f9・vary 49545117935c03cb→1605348246ab5ca2）。
+	// 変わったのは並び（skillIds と表の行の順）だけ: 配列を並べ替えた形のハッシュ（CANON）は変更前と4つとも同じ（変更前 d2e8499 で測って一致を確かめた）
+	const HASH = { solo271: '710f4b24fcf599ba', real: '6f5751aefc620b91', r2: '8a6d02ef2b0937f9', vary: '1605348246ab5ca2' };
+	const CANON = { solo271: 'e79c7a8e1fd9a6ec', real: '0a1a56e7d28cb8f8', r2: '3a5cdf27564fec57', vary: '8d022e98a6cc681b' };   // 並べ替えた形。変更前（d2e8499）で測った値
 
 	await block('◎合算(1) 計算の層は変わらない: 271衣装の単独・REAL・絞り込み・VARY の出力ハッシュが変更前と同一', async () => {
 		const sp = await openSp({ roster: R1 });
 		const got = await sp.page.evaluate(async ({ umas, REAL, R2, VARY, ACQ }) => {
 			const C = UmaSkillDeckCore;
 			await C.loadTrainingSources(); await C.loadSkillPtData(); await C.loadScenarioEvents(false); await C.loadSkillEvolutions(false); await C.loadSkillDescriptions();
+			// 2026-10-27（スキルの既定の並び）: 配列を並べ替えた形。並びに左右されずに、計算の中身が変わらないことを見る
+			const canon = (v) => Array.isArray(v) ? v.map(canon).map((x) => JSON.stringify(x)).sort().map((t) => JSON.parse(t)) : (v && typeof v === 'object') ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v;
 			const one = (r0) => {
 				const r = r0.umaId && ACQ[r0.umaId] && Object.keys(ACQ[r0.umaId]).length ? Object.assign({}, r0, { acquirePicks: ACQ[r0.umaId] }) : r0;
 				const res = C.computeRosterSkills(r, { autoChoose: true, acquirePicks: r.acquirePicks });
-				return JSON.stringify({ pt: C.getRosterPtDetail(r), vp: C.getRosterVisiblePart(r), ids: res.skillIds, n: res.items.length });
+				const o = { pt: C.getRosterPtDetail(r), vp: C.getRosterVisiblePart(r), ids: res.skillIds, n: res.items.length };
+				return { raw: JSON.stringify(o), canon: JSON.stringify(canon(o)) };
 			};
 			const hex = async (s) => {
 				const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
 				return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
 			};
 			const solo = umas.map((id) => one({ umaId: id, cardIds: [null, null, null, null, null, null] }));
-			return { solo271: await hex(solo.join('\n')), n: solo.length, real: await hex(one(REAL)), r2: await hex(one(R2)), vary: await hex(one(VARY)) };
+			const x = { real: one(REAL), r2: one(R2), vary: one(VARY) };
+			return { solo271: await hex(solo.map((t) => t.raw).join('\n')), n: solo.length, real: await hex(x.real.raw), r2: await hex(x.r2.raw), vary: await hex(x.vary.raw),
+				canon: { solo271: await hex(solo.map((t) => t.canon).join('\n')), real: await hex(x.real.canon), r2: await hex(x.r2.canon), vary: await hex(x.vary.canon) } };
 		}, { umas: UMAS, REAL: R1, R2, VARY, ACQ });
-		assert(got.n === 272 && got.solo271 === HASH.solo271, '◎合算(1) 271衣装の単独の出力ハッシュ（' + got.solo271 + '）が変更前と同一', got);
-		assert(got.real === HASH.real && got.r2 === HASH.r2 && got.vary === HASH.vary, '◎合算(1) REAL・絞り込み・VARY の出力ハッシュが変更前と同一', got);
+		assert(got.n === 272 && got.solo271 === HASH.solo271 && got.canon.solo271 === CANON.solo271, '◎合算(1) 271衣装の単独の出力ハッシュ（' + got.solo271 + '）が変更前と同一', got);
+		assert(got.real === HASH.real && got.r2 === HASH.r2 && got.vary === HASH.vary && ['real', 'r2', 'vary'].every((k) => got.canon[k] === CANON[k]), '◎合算(1) REAL・絞り込み・VARY の出力ハッシュが変更前と同一', got);
 		assert(jsErrors(sp.errors).length === 0, '◎合算(1) コンソールのエラー0', jsErrors(sp.errors).slice(0, 3));
 		await sp.ctx.close();
 	});
